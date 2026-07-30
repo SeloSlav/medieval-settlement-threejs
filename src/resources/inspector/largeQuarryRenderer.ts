@@ -21,7 +21,9 @@ export function renderLargeQuarryInspector(
   const definition = getBuildingDefinition(building.kind);
   const caps = buildingStorageCaps(building.kind);
   const richDeposit = [...context.gameState.quarries.values()].find((quarry) =>
-    quarry.isRich && Math.hypot(quarry.x - building.x, quarry.z - building.z) <= 2.5
+    quarry.resource === 'stone'
+    && quarry.isRich
+    && Math.hypot(quarry.x - building.x, quarry.z - building.z) <= 2.5
   );
   const storageFull = building.stone >= caps.stone - 1e-6;
   const onsiteLabor = onsiteBuildingLabor(

@@ -6,6 +6,7 @@ import { renderLumberMillInspector } from './lumberMillRenderer.ts';
 import { renderReforesterInspector } from './reforesterRenderer.ts';
 import { renderStoneQuarryInspector } from './stoneQuarryRenderer.ts';
 import { renderLargeQuarryInspector } from './largeQuarryRenderer.ts';
+import { renderMineralMineInspector } from './mineralMineRenderer.ts';
 import { renderWoodcuttersLodgeInspector } from './woodcuttersLodgeRenderer.ts';
 import { renderWellInspector } from './wellRenderer.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
@@ -58,6 +59,8 @@ export function renderBuildingInspector(
       return withStaffingPriority(renderStoneQuarryInspector(target, context), building);
     case 'large_quarry':
       return withStaffingPriority(renderLargeQuarryInspector(target, context), building);
+    case 'mine':
+      return withStaffingPriority(renderMineralMineInspector(target, context), building);
     case 'reforester':
       return withStaffingPriority(renderReforesterInspector(target, context), building);
     case 'well':
@@ -74,7 +77,6 @@ export function renderBuildingInspector(
     case 'apiary':
     case 'watermill':
     case 'clay_pit':
-    case 'mine':
     case 'charcoal_burner':
     case 'smithy':
     case 'potter_kiln':

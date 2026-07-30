@@ -19,9 +19,24 @@ import {
   SALT_ICON_HTML,
 } from '../src/map/resourceMapIconArt.ts';
 import { buildLayoutWorldMapMarkers } from '../src/map/worldMapMarkers.ts';
+import { renderMineralMineInspector } from '../src/resources/inspector/mineralMineRenderer.ts';
+import { renderLargeQuarryInspector } from '../src/resources/inspector/largeQuarryRenderer.ts';
+import type { InspectorRenderContext } from '../src/resources/inspector/renderInspectableTarget.ts';
+import {
+  computePopulationStats,
+  computeResourceTotals,
+} from '../src/resources/resourceTotals.ts';
+import { findNearestResourceNodeWithRemaining } from '../src/resources/depletableNodes.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
 import { getBuildingDefinition } from '../src/resources/buildings.ts';
+import {
+  createEmptyStockpile,
+  type BuildingState,
+  type GameState,
+  type ResourceNodeState,
+} from '../src/resources/types.ts';
+import type { WorldQueries } from '../src/resources/WorldQueries.ts';
 import { createRegionalResourcePlan } from '../src/world/regionalResourceDistribution.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -210,6 +225,100 @@ assert.match(
   'mines must physically dispatch their extracted commodity to matching processors',
 );
 
+const ordinaryIronDeposit = mineralNode(
+  'deposit-iron-ordinary-inspector',
+  'iron',
+  0,
+  0,
+  75,
+  300,
+  false,
+);
+const inspectorMine = mineBuilding({ assignedLabor: 2, iron: 12 });
+let inspectorState = inspectorGameState(inspectorMine, [ordinaryIronDeposit]);
+let mineInspector = renderMineralMineInspector(
+  buildingTarget(inspectorMine),
+  inspectorContext(inspectorState),
+);
+assert.equal(mineInspector.eyebrow, 'Ordinary iron mine');
+assert.match(mineInspector.statusText, /Extracting finite iron seam - 75 reserve remains/);
+assert.match(mineInspector.detailsHtml, /Ordinary iron-bearing ore seam - finite/);
+assert.match(mineInspector.detailsHtml, /75 \/ 300 iron-bearing ore/);
+assert.match(mineInspector.detailsHtml, /Mine carts serve road-linked smithies/);
+
+const richSaltDeposit = mineralNode(
+  'deposit-salt-rich-inspector',
+  'salt',
+  0,
+  0,
+  0,
+  1_080,
+  true,
+);
+inspectorState = inspectorGameState(inspectorMine, [richSaltDeposit]);
+mineInspector = renderMineralMineInspector(
+  buildingTarget(inspectorMine),
+  inspectorContext(inspectorState),
+);
+assert.equal(mineInspector.eyebrow, 'Rich salt mine');
+assert.match(mineInspector.statusText, /Extracting rich deep salt - source does not deplete/);
+assert.match(mineInspector.detailsHtml, /50% faster deep working/);
+
+const exhaustedIron = { ...ordinaryIronDeposit, remaining: 0 };
+inspectorState = inspectorGameState(inspectorMine, [exhaustedIron]);
+mineInspector = renderMineralMineInspector(
+  buildingTarget(inspectorMine),
+  inspectorContext(inspectorState),
+);
+assert.equal(mineInspector.statusState, 'warning');
+assert.match(mineInspector.statusText, /Exhausted - finite iron seam is spent/);
+assert.match(mineInspector.detailsHtml, /Production interval<\/span><span>paused/);
+
+const richSaltNearQuarry = {
+  ...richSaltDeposit,
+  x: 100,
+  nodeId: 'deposit-salt-rich-near-large-quarry',
+};
+const largeQuarryBuilding = mineBuilding({
+  id: 'large-quarry-inspector',
+  kind: 'large_quarry',
+  x: 100,
+  assignedLabor: 2,
+});
+const largeQuarryState = inspectorGameState(
+  largeQuarryBuilding,
+  [richSaltNearQuarry],
+);
+const largeQuarryInspector = renderLargeQuarryInspector(
+  buildingTarget(largeQuarryBuilding),
+  inspectorContext(largeQuarryState),
+);
+assert.match(
+  largeQuarryInspector.statusText,
+  /no rich underground source beneath the shaft/,
+  'a rich mineral deposit must not masquerade as a rich stone source in the inspector',
+);
+
+const nearbySalt = mineralNode('deposit-salt-nearby', 'salt', 0, 0, 90, 90, false);
+const fartherStone: ResourceNodeState = {
+  ...nearbySalt,
+  nodeId: 'quarry-stone-farther',
+  resource: 'stone',
+  x: 12,
+};
+assert.equal(
+  findNearestResourceNodeWithRemaining(
+    [nearbySalt, fartherStone],
+    0,
+    0,
+    20,
+    'quarry',
+    'stone',
+  )?.nodeId,
+  fartherStone.nodeId,
+  'stone queries must ignore a closer mineral landmark',
+);
+
 const sync = readFileSync(
   'src/data/spacetimeTableSync/syncQuarries.ts',
   'utf8',
@@ -223,7 +332,17 @@ const uiSurfaces = [
   'src/ui/SettlementHud.ts',
   'src/ui/buildMenuCards.ts',
   'src/resources/inspector/quarryRenderer.ts',
+  'src/resources/inspector/mineralMineRenderer.ts',
 ].map((path) => readFileSync(path, 'utf8')).join('\n');
+const buildingInspectorSource = readFileSync(
+  'src/resources/inspector/buildingRenderer.ts',
+  'utf8',
+);
+assert.match(
+  buildingInspectorSource,
+  /case 'mine':[\s\S]*renderMineralMineInspector/,
+  'mine selection must route through the deposit-aware inspector',
+);
 assert.doesNotMatch(
   uiSurfaces,
   /Gorski[\s-]?Kotar/i,
@@ -263,5 +382,128 @@ function worldSettings(
   return {
     ...DEFAULT_WORLD_GENERATION_SETTINGS,
     ...overrides,
+  };
+}
+
+function mineBuilding(
+  overrides: Partial<BuildingState> = {},
+): BuildingState {
+  return {
+    id: 'mine-inspector',
+    kind: 'mine',
+    x: 0,
+    z: 0,
+    workRadius: 0,
+    actionCooldown: 0,
+    timber: 0,
+    firewood: 0,
+    stone: 0,
+    water: 0,
+    food: 0,
+    grain: 0,
+    flour: 0,
+    ale: 0,
+    preservedFood: 0,
+    honey: 0,
+    wine: 0,
+    wool: 0,
+    flax: 0,
+    cloth: 0,
+    ironwork: 0,
+    polearms: 0,
+    iron: 0,
+    clay: 0,
+    salt: 0,
+    charcoal: 0,
+    pottery: 0,
+    gold: 0,
+    waterCapacity: 0,
+    assignedLabor: 0,
+    constructionComplete: true,
+    constructionProgress: 1,
+    constructionRequiredTimber: 0,
+    constructionRequiredStone: 0,
+    constructionDeliveredTimber: 0,
+    constructionDeliveredStone: 0,
+    constructionReservedTimber: 0,
+    constructionReservedStone: 0,
+    constructionTreasuryTimber: 0,
+    constructionTreasuryStone: 0,
+    storehouseAcceptsTimber: false,
+    storehouseAcceptsStone: false,
+    storehouseAcceptsFirewood: false,
+    constructionPriority: 2,
+    ...overrides,
+  };
+}
+
+function mineralNode(
+  nodeId: string,
+  resource: 'iron' | 'salt',
+  x: number,
+  z: number,
+  remaining: number,
+  maxYield: number,
+  isRich: boolean,
+): ResourceNodeState {
+  return {
+    nodeId,
+    kind: 'quarry',
+    resource,
+    x,
+    z,
+    remaining,
+    maxYield,
+    isRich,
+  };
+}
+
+function inspectorGameState(
+  building: BuildingState,
+  deposits: ResourceNodeState[],
+): GameState {
+  return {
+    seed: 1,
+    tick: 0,
+    stockpile: createEmptyStockpile(),
+    quarries: new Map(deposits.map((deposit) => [deposit.nodeId, deposit])),
+    foragingNodes: new Map(),
+    trees: new Map(),
+    buildings: new Map([[building.id, building]]),
+    farmFields: new Map(),
+    pastures: new Map(),
+    livestockHerds: new Map(),
+    burgageZones: new Map(),
+    residences: new Map(),
+    backyardGardens: new Map(),
+    deliveryTrips: new Map(),
+    fireIncidents: new Map(),
+    nextBuildingId: 1,
+  };
+}
+
+function buildingTarget(building: BuildingState) {
+  return {
+    kind: 'building' as const,
+    building,
+    matureTrees: 0,
+    stumpTrees: 0,
+    growingTrees: 0,
+  };
+}
+
+function inspectorContext(state: GameState): InspectorRenderContext {
+  const worldQueries = {
+    getActiveDeliveryTrip: () => null,
+    getBuildingLabel: (kind: BuildingState['kind']) =>
+      getBuildingDefinition(kind).label,
+    getRoadAccessLabel: () => 'Road connected',
+  } as unknown as WorldQueries;
+  return {
+    gameState: state,
+    worldQueries,
+    populationStats: computePopulationStats(state),
+    resourceTotals: computeResourceTotals(state),
+    worldHydrology: 0.5,
   };
 }

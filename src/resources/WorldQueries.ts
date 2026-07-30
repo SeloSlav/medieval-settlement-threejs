@@ -1540,7 +1540,14 @@ export class WorldQueries {
   }
 
   findNearestQuarryWithRemaining(x: number, z: number, radius: number): ResourceNodeState | null {
-    return findNearestResourceNodeWithRemaining(this.getGameState().quarries.values(), x, z, radius, 'quarry');
+    return findNearestResourceNodeWithRemaining(
+      this.getGameState().quarries.values(),
+      x,
+      z,
+      radius,
+      'quarry',
+      'stone',
+    );
   }
 
   findForagingTarget(nodeId: string): Extract<InspectableTarget, { kind: 'foraging' }> | null {
