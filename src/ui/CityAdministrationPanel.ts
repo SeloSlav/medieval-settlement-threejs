@@ -172,8 +172,10 @@ export class CityAdministrationPanel {
           ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and
           ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine. Five annual observances each wait
           for a complete ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_ALE} ale +
-          ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine batch;
-          full stores add ${MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY.toFixed(1)} pilgrimage gold/day
+          ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine batch. Covered households
+          walk there by road and consume that batch at the monastery; the meal relieves immediate
+          food and ale deficits but does not teleport provisions into home pantries.
+          Full stores add ${MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY.toFixed(1)} pilgrimage gold/day
           to the ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} baseline. Disable this to preserve all specialty goods for trade.
         </p>
         <label class="city-admin-panel__slider-label" for="city-admin-monastery-tithe-slider">

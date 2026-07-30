@@ -178,6 +178,11 @@ const chapel = {
   ...building('routine-chapel', 28, 0),
   kind: 'chapel' as const,
 };
+const monastery = {
+  ...building('routine-monastery', 34, 0),
+  kind: 'monastery' as const,
+  assignedLabor: 0,
+};
 const refuge = {
   ...building('routine-refuge', 40, 0),
   kind: 'palisaded_refuge' as const,
@@ -212,7 +217,7 @@ const syncRoutineVillage = (
 ): void => {
   villagers.sync({
     residences: [home],
-    buildings: [workplace, chapel, refuge],
+    buildings: [workplace, chapel, monastery, refuge],
     quarries: [],
     foragingNodes: [],
     trees: new Map(),
@@ -232,6 +237,7 @@ const villagerInternals = (
       personIdentity: string;
       routinePhase: string;
       pathPurpose: string | null;
+      pathDistance: number;
       simPathCursor: number;
       ambientBehavior: string | null;
       mode: string;
@@ -382,6 +388,56 @@ for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05)
 assert.equal(worker.routinePhase, 'work');
 assert.notEqual(worker.pathPurpose, 'return_from_mass');
 
+villagers.setSchedule({
+  ...fullClock(12),
+  month: 6,
+  monthDay: 29,
+}, false, DEFAULT_NIGHT_POLICY, true);
+assert.equal(worker.routinePhase, 'going_to_feast');
+assert.equal(worker.pathPurpose, 'monastery_feast');
+assert.equal(villagerInternals.workerToolFor(worker), null);
+for (let step = 0; step < realtimeTickBudget(4000); step++) villagers.tick(0.05);
+assert.equal(
+  worker.routinePhase,
+  'at_feast',
+  `feast journey should finish (${worker.simPathCursor.toFixed(1)} / ${worker.pathDistance.toFixed(1)} m)`,
+);
+assert.match(
+  villagers.inspectVillager(worker.personIdentity)?.activity ?? '',
+  /Sharing the feast at the monastery/,
+);
+assert.ok(
+  Math.hypot(worker.x - monastery.x, worker.z - monastery.z) >= 9.7,
+  'feast guests must remain visibly outside the monastery footprint',
+);
+
+villagers.setSchedule({
+  ...fullClock(16),
+  month: 6,
+  monthDay: 29,
+}, false, DEFAULT_NIGHT_POLICY, true);
+assert.equal(worker.routinePhase, 'returning_from_feast');
+assert.equal(worker.pathPurpose, 'return_from_feast');
+for (let step = 0; step < realtimeTickBudget(4000); step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'work');
+
+villagers.setSchedule({
+  ...fullClock(12),
+  month: 8,
+  monthDay: 15,
+}, false, DEFAULT_NIGHT_POLICY, false);
+assert.notEqual(
+  worker.routinePhase,
+  'going_to_feast',
+  'disabling the policy must keep workers at their ordinary routines on feast dates',
+);
+
+villagers.setSchedule({
+  ...fullClock(12),
+  month: 9,
+  monthDay: 14,
+}, false, DEFAULT_NIGHT_POLICY, true);
+assert.equal(worker.routinePhase, 'going_to_feast');
 villagers.setRefugeAlert(true, new Map([[home.id, refuge.id]]));
 assert.equal(worker.routinePhase, 'going_to_refuge');
 assert.equal(worker.pathPurpose, 'refuge_rally');
@@ -397,6 +453,11 @@ assert.ok(
   'assigned household members must visibly finish inside their physical refuge',
 );
 
+villagers.setSchedule({
+  ...fullClock(16),
+  month: 9,
+  monthDay: 14,
+}, false, DEFAULT_NIGHT_POLICY, true);
 villagers.setRefugeAlert(false);
 assert.equal(worker.routinePhase, 'returning_from_refuge');
 assert.equal(worker.pathPurpose, 'return_from_refuge');

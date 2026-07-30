@@ -449,6 +449,28 @@ pub fn apply_need_delivery(
     persist_needs(ctx, residence_id, &needs);
 }
 
+/// Records a need satisfied by goods consumed at a physical communal venue.
+/// Unlike a delivery, this never adds stock to the household pantry.
+pub fn apply_need_consumed_at_source(
+    ctx: &ReducerContext,
+    residence_id: u64,
+    kind: ResidenceNeedKind,
+) {
+    let mut needs = load_needs(ctx, residence_id);
+    let Some(need) = find_need_mut(&mut needs, kind) else {
+        return;
+    };
+    *need = need_relief_without_delivery(need);
+    persist_needs(ctx, residence_id, &needs);
+}
+
+fn need_relief_without_delivery(need: &NeedState) -> NeedState {
+    NeedState {
+        deficit_ticks: 0,
+        ..*need
+    }
+}
+
 pub fn ensure_residence_needs(ctx: &ReducerContext, residence_id: u64) {
     init_needs(ctx, residence_id);
 }
@@ -594,5 +616,22 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => provisions::apply_delivery(need, delivered),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{need_relief_without_delivery, NeedState, ResidenceNeedKind};
+
+    #[test]
+    fn communal_meal_clears_deficit_without_teleporting_pantry_stock() {
+        let before = NeedState {
+            kind: ResidenceNeedKind::Food,
+            stock: 1.75,
+            deficit_ticks: 42,
+        };
+        let after = need_relief_without_delivery(&before);
+        assert_eq!(after.stock, before.stock);
+        assert_eq!(after.deficit_ticks, 0);
     }
 }

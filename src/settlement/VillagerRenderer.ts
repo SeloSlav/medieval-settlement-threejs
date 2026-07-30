@@ -99,6 +99,14 @@ import {
   operationalMassChapels,
   type MassChapelClaim,
 } from './chapelMass.ts';
+import {
+  claimFeastMonasteriesForResidences,
+  isMonasteryFeastGatheringTime,
+  monasteryFeastAttendancePath,
+  monasteryFeastGatheringPoint,
+  operationalFeastMonasteries,
+  type FeastMonasteryClaim,
+} from './monasteryFeast.ts';
 import type {
   AmbientBehaviorAssignment,
   AmbientBehaviorKind,
@@ -136,6 +144,9 @@ type VillagerRoutinePhase =
   | 'going_to_mass'
   | 'at_mass'
   | 'returning_from_mass'
+  | 'going_to_feast'
+  | 'at_feast'
+  | 'returning_from_feast'
   | 'going_to_refuge'
   | 'at_refuge'
   | 'returning_from_refuge'
@@ -154,6 +165,8 @@ type VillagerPathPurpose =
   | 'return_home'
   | 'chapel_mass'
   | 'return_from_mass'
+  | 'monastery_feast'
+  | 'return_from_feast'
   | 'refuge_rally'
   | 'return_from_refuge'
   | 'guard_muster'
@@ -287,6 +300,9 @@ export class VillagerRenderer {
   private chapelAmbientSignature = '';
   private massChapels: BuildingState[] = [];
   private massChapelClaims = new Map<string, MassChapelClaim>();
+  private feastMonasteries: BuildingState[] = [];
+  private feastMonasteryClaims = new Map<string, FeastMonasteryClaim>();
+  private monasteryFeastsEnabled = true;
   private frontierAlertActive = false;
   private refugeAssignments: ReadonlyMap<string, string> = new Map();
   private guardMusterAssignments:
@@ -314,10 +330,12 @@ export class VillagerRenderer {
     clock: GameClock,
     laborPaused: boolean,
     nightPolicy: NightPolicyState = DEFAULT_NIGHT_POLICY,
+    monasteryFeastsEnabled = true,
   ): void {
     this.clock = clock;
     this.laborPaused = laborPaused;
     this.nightPolicy = nightPolicy;
+    this.monasteryFeastsEnabled = monasteryFeastsEnabled;
     let changed = false;
     for (const agent of this.agents.values()) {
       changed = this.reconcileRoutine(agent) || changed;
@@ -490,6 +508,18 @@ export class VillagerRenderer {
         (residence) => !this.fireDisabledResidenceIds.has(residence.id),
       ),
       this.massChapels,
+      this.roadNetwork,
+    );
+    this.feastMonasteries = operationalFeastMonasteries(
+      physicalBuildings,
+      disabledBuildingIds,
+    );
+    this.feastMonasteryClaims = claimFeastMonasteriesForResidences(
+      residences.filter(
+        (residence) => !this.fireDisabledResidenceIds.has(residence.id),
+      ),
+      this.massChapels,
+      this.feastMonasteries,
       this.roadNetwork,
     );
 
@@ -957,6 +987,8 @@ export class VillagerRenderer {
         || agent.pathPurpose === 'commute_to_work'
         || agent.pathPurpose === 'chapel_mass'
         || agent.pathPurpose === 'return_from_mass'
+        || agent.pathPurpose === 'monastery_feast'
+        || agent.pathPurpose === 'return_from_feast'
         || agent.pathPurpose === 'refuge_rally'
         || agent.pathPurpose === 'return_from_refuge'
         || agent.pathPurpose === 'guard_muster'
@@ -1589,6 +1621,12 @@ export class VillagerRenderer {
         case 'return_from_mass':
           this.completeMassReturn(agent);
           break;
+        case 'monastery_feast':
+          this.completeFeastArrival(agent);
+          break;
+        case 'return_from_feast':
+          this.completeFeastReturn(agent);
+          break;
         case 'refuge_rally':
           this.completeRefugeArrival(agent);
           break;
@@ -1648,6 +1686,7 @@ export class VillagerRenderer {
       if (
         agent.routinePhase === 'work'
         || agent.routinePhase === 'at_mass'
+        || agent.routinePhase === 'at_feast'
         || agent.routinePhase === 'at_refuge'
         || agent.routinePhase === 'at_muster'
       ) {
@@ -2031,6 +2070,29 @@ export class VillagerRenderer {
     }
     if (agent.routinePhase === 'returning_from_mass') return false;
 
+    const feastMonastery = this.findFeastMonastery(agent);
+    const shouldAttendFeast = isMonasteryFeastGatheringTime(
+      this.clock,
+      this.monasteryFeastsEnabled && !this.frontierAlertActive,
+      feastMonastery != null,
+    );
+    if (shouldAttendFeast && feastMonastery) {
+      if (
+        agent.routinePhase === 'going_to_feast'
+        || agent.routinePhase === 'at_feast'
+      ) {
+        return false;
+      }
+      return this.beginFeastJourney(agent, feastMonastery);
+    }
+    if (
+      agent.routinePhase === 'going_to_feast'
+      || agent.routinePhase === 'at_feast'
+    ) {
+      return this.beginFeastReturn(agent);
+    }
+    if (agent.routinePhase === 'returning_from_feast') return false;
+
     if (agent.role === 'founder') {
       return this.transitionToHomeState(agent, 'home_outdoors');
     }
@@ -2191,6 +2253,104 @@ export class VillagerRenderer {
     this.reconcileRoutine(agent);
     this.syncCampAmbientAssignments();
     this.syncChapelAmbientAssignments();
+  }
+
+  private findFeastMonastery(agent: VillagerAgent): BuildingState | null {
+    if (
+      !agent.residenceId
+      || this.fireDisabledResidenceIds.has(agent.residenceId)
+    ) {
+      return null;
+    }
+    return this.feastMonasteryClaims.get(agent.residenceId)?.monastery ?? null;
+  }
+
+  private beginFeastJourney(
+    agent: VillagerAgent,
+    monastery: BuildingState,
+  ): boolean {
+    const destination = monasteryFeastGatheringPoint(
+      monastery,
+      agent.personIdentity,
+    );
+    const distance = Math.hypot(destination.x - agent.x, destination.z - agent.z);
+    agent.massChapelId = monastery.id;
+    if (distance < 0.25) {
+      this.completeFeastArrival(agent);
+      return true;
+    }
+    const path = monasteryFeastAttendancePath(
+      { x: agent.x, z: agent.z },
+      monastery,
+      agent.personIdentity,
+      this.roadNetwork,
+    );
+    if (!path || !this.beginJourney(agent, path, 'monastery_feast')) {
+      agent.massChapelId = null;
+      return false;
+    }
+    agent.routinePhase = 'going_to_feast';
+    return true;
+  }
+
+  private completeFeastArrival(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    const monastery = agent.massChapelId
+      ? this.buildings.get(agent.massChapelId) ?? null
+      : null;
+    if (monastery?.kind !== 'monastery') {
+      agent.massChapelId = null;
+      return;
+    }
+    const gathering = monasteryFeastGatheringPoint(
+      monastery,
+      agent.personIdentity,
+    );
+    agent.x = gathering.x;
+    agent.z = gathering.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = Math.atan2(monastery.x - agent.x, monastery.z - agent.z);
+    agent.routinePhase = 'at_feast';
+    agent.idleRemaining = 60;
+  }
+
+  private beginFeastReturn(agent: VillagerAgent): boolean {
+    agent.ambientBehavior = null;
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    const destination = residence ? residenceDoorPosition(residence) : null;
+    if (!destination) {
+      this.completeFeastReturn(agent);
+      return true;
+    }
+    const path = pickWorkerCommutePath(
+      { x: agent.x, z: agent.z },
+      destination,
+      this.roadNetwork,
+    );
+    if (!path || !this.beginJourney(agent, path, 'return_from_feast')) {
+      this.completeFeastReturn(agent);
+      return true;
+    }
+    agent.routinePhase = 'returning_from_feast';
+    return true;
+  }
+
+  private completeFeastReturn(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    agent.massChapelId = null;
+    const homeState = this.clock
+      ? householdMemberHomeState(
+          agent.personIdentity,
+          this.clock,
+          this.nightPolicy,
+        )
+      : 'home_outdoors';
+    agent.routinePhase = 'returning_from_feast';
+    this.transitionToHomeState(agent, homeState);
+    this.reconcileRoutine(agent);
+    this.syncCampAmbientAssignments();
   }
 
   private beginGuardMuster(
@@ -2714,6 +2874,17 @@ export class VillagerRenderer {
     }
     if (purpose === 'return_from_mass') {
       this.completeMassReturn(agent);
+      return;
+    }
+    if (purpose === 'monastery_feast') {
+      agent.massChapelId = null;
+      agent.ambientBehavior = null;
+      agent.routinePhase = 'home_outdoors';
+      agent.idleRemaining = 1;
+      return;
+    }
+    if (purpose === 'return_from_feast') {
+      this.completeFeastReturn(agent);
       return;
     }
     if (purpose === 'fire_assembly') {
@@ -3240,6 +3411,12 @@ export class VillagerRenderer {
       agent.routinePhase === 'going_to_refuge'
       || agent.routinePhase === 'at_refuge'
       || agent.routinePhase === 'returning_from_refuge'
+      || agent.routinePhase === 'going_to_mass'
+      || agent.routinePhase === 'at_mass'
+      || agent.routinePhase === 'returning_from_mass'
+      || agent.routinePhase === 'going_to_feast'
+      || agent.routinePhase === 'at_feast'
+      || agent.routinePhase === 'returning_from_feast'
       || agent.routinePhase === 'going_to_fire_assembly'
       || agent.routinePhase === 'at_fire_assembly'
       || agent.routinePhase === 'returning_from_fire_assembly'
@@ -3378,6 +3555,12 @@ function describeVillagerActivity(
       return 'Attending Sunday mass';
     case 'returning_from_mass':
       return 'Walking home from Sunday mass';
+    case 'going_to_feast':
+      return 'Walking by road to the monastery feast';
+    case 'at_feast':
+      return 'Sharing the feast at the monastery';
+    case 'returning_from_feast':
+      return 'Walking home from the monastery feast';
     case 'going_to_muster':
       return 'Marching by road to the linked frontier watch';
     case 'at_muster':

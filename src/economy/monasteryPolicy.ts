@@ -28,7 +28,7 @@ export function formatMonasteryTitheSharePercent(titheShare: number): string {
 }
 
 export function formatMonasteryFoodCharityTotal(total: number): string {
-  return `${total.toFixed(0)} food units delivered`;
+  return `${total.toFixed(0)} food units served`;
 }
 
 export function formatMonasteryPilgrimageTotal(total: number): string {

@@ -23,6 +23,10 @@ import {
   monasteryHospitalityStatusLabel,
   nextMonasteryFeast,
 } from '../src/economy/monasteryHospitality.ts';
+import {
+  isMonasteryFeastGatheringTime,
+  monasteryFeastGatheringPoint,
+} from '../src/settlement/monasteryFeast.ts';
 
 const full = monasteryHospitalityPlan({ honey: 80, wine: 50 }, true);
 assert.equal(full.supplyRatio, 1);
@@ -136,6 +140,50 @@ const afterSaintsPeterAndPaul = nextMonasteryFeast({
 assert.equal(afterSaintsPeterAndPaul.name, 'Assumption');
 assert.equal(afterSaintsPeterAndPaul.daysUntil, 46);
 assert.equal(
+  isMonasteryFeastGatheringTime(
+    {
+      month: 6,
+      monthDay: 29,
+      hour: 12,
+      minute: 0,
+    },
+    true,
+    true,
+  ),
+  true,
+  'an enabled policy and a reachable monastery should open the visible feast gathering',
+);
+assert.equal(
+  isMonasteryFeastGatheringTime(
+    {
+      month: 6,
+      monthDay: 29,
+      hour: 12,
+      minute: 0,
+    },
+    false,
+    true,
+  ),
+  false,
+  'disabling monastery feasts must also cancel the civilian gathering',
+);
+const feastGatheringA = monasteryFeastGatheringPoint(
+  { x: 40, z: -12 },
+  'feast-guest:a',
+);
+const feastGatheringB = monasteryFeastGatheringPoint(
+  { x: 40, z: -12 },
+  'feast-guest:b',
+);
+assert.notDeepEqual(feastGatheringA, feastGatheringB);
+for (const point of [feastGatheringA, feastGatheringB]) {
+  const distance = Math.hypot(point.x - 40, point.z + 12);
+  assert.ok(
+    distance >= 10.7 && distance <= 13.3,
+    'feast guests must gather outside the monastery footprint rather than inside its mesh',
+  );
+}
+assert.equal(
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY,
   3.5,
   'full hospitality must preserve the previous pilgrimage yield',
@@ -150,6 +198,10 @@ assert.ok(
 );
 
 const server = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+const residenceNeedsServer = fs.readFileSync(
+  'server/src/simulation/residence_needs/mod.rs',
+  'utf8',
+);
 const tickContext = fs.readFileSync(
   'server/src/simulation/tick_context.rs',
   'utf8',
@@ -225,10 +277,25 @@ assert.match(
   /fn monastery_has_parish_link[\s\S]*?building_disabled_by_fire\(ctx, building\.id\)[\s\S]*?monastery_linked_to_chapel/,
   'a fire-disabled chapel must not keep monastery production or hospitality linked',
 );
+assert.doesNotMatch(
+  feastSource,
+  /apply_need_delivery/,
+  'a communal meal at the monastery must never teleport pantry stock into homes',
+);
 assert.match(
-  server,
-  /let prosperous_homes[\s\S]*?MONASTERY_FEAST_ALE \/ prosperous_homes as f64[\s\S]*?home\.tier >= 3[\s\S]*?ResidenceNeedKind::Ale/,
-  'feast ale must be divided only among the homes that can receive it',
+  feastSource,
+  /apply_need_consumed_at_source[\s\S]*?ResidenceNeedKind::Food[\s\S]*?home\.tier >= 3[\s\S]*?ResidenceNeedKind::Ale/,
+  'covered homes must receive immediate meal relief while prosperous households share feast ale onsite',
+);
+assert.match(
+  feastSource,
+  /owner_has_active_raider_threat[\s\S]*?monastery_feast_batch[\s\S]*?withdraw_building_commodity/,
+  'a live hostile incursion must preserve the feast pantry instead of consuming it during combat',
+);
+assert.match(
+  residenceNeedsServer,
+  /apply_need_consumed_at_source[\s\S]*?need_relief_without_delivery[\s\S]*?deficit_ticks:\s*0[\s\S]*?\.\.\*need/,
+  'onsite consumption must clear the deficit while preserving existing household stock exactly',
 );
 assert.match(
   tickContext,

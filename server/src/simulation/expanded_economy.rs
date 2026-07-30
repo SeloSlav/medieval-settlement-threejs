@@ -75,7 +75,7 @@ use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::landmark_access::monastery_linked_to_chapel;
 use crate::simulation::residence_needs::{
-    apply_need_delivery, load_needs, need_stock, ResidenceNeedKind,
+    apply_need_consumed_at_source, load_needs, need_stock, ResidenceNeedKind,
 };
 use crate::simulation::road_logistics::select_residence_for_need_delivery;
 use crate::simulation::tick_context::SimTickContext;
@@ -3399,6 +3399,7 @@ fn run_monastery_feast(
     let first_tick_of_minute = clock.sim_tick % (60.0 / TICK_DT).round() as u64 == 0;
     let enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
     if !enabled
+        || tick.owner_has_active_raider_threat(ctx, monastery.owner)
         || !is_monastery_feast_day(clock.month, clock.month_day)
         || clock.hour != 12
         || clock.minute != 0
@@ -3430,23 +3431,17 @@ fn run_monastery_feast(
         return;
     }
 
-    // Every withdrawal is now backed by a complete batch and at least one
-    // eligible recipient. No partial feast stock can vanish.
+    // The complete batch remains at this physical venue until noon, when the
+    // covered parish gathers here to consume it. Household pantry stock must
+    // not increase: this is a communal meal, not an invisible delivery.
     withdraw_building_commodity(monastery, CommodityKind::Food, MONASTERY_FEAST_FOOD);
     withdraw_building_commodity(monastery, CommodityKind::Ale, MONASTERY_FEAST_ALE);
     withdraw_building_commodity(monastery, CommodityKind::Honey, MONASTERY_FEAST_HONEY);
     withdraw_building_commodity(monastery, CommodityKind::Wine, MONASTERY_FEAST_WINE);
-    let food_share = MONASTERY_FEAST_FOOD / residences.len() as f64;
-    let prosperous_homes = residences.iter().filter(|home| home.tier >= 3).count();
-    let ale_share = if prosperous_homes > 0 {
-        MONASTERY_FEAST_ALE / prosperous_homes as f64
-    } else {
-        0.0
-    };
     for home in &residences {
-        apply_need_delivery(ctx, home.id, ResidenceNeedKind::Food, food_share);
+        apply_need_consumed_at_source(ctx, home.id, ResidenceNeedKind::Food);
         if home.tier >= 3 {
-            apply_need_delivery(ctx, home.id, ResidenceNeedKind::Ale, ale_share);
+            apply_need_consumed_at_source(ctx, home.id, ResidenceNeedKind::Ale);
         }
     }
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&monastery.owner) {
