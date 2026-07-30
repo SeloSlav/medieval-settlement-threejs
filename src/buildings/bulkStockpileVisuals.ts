@@ -77,6 +77,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.salt ?? 0,
         BUILDING_STORAGE_CAPS.mine.salt,
         MINE_SALT_VISUAL_SEGMENTS,
+      )}:tools:${stockpileVisualLevel(
+        building.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS.mine.ironwork ?? 0,
+        CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'clay_pit':
       return `:bulk-store:${stockpileVisualLevel(
@@ -206,6 +210,7 @@ export function syncBulkStockpileVisuals(
         building.salt ?? 0,
         BUILDING_STORAGE_CAPS.mine.salt,
       );
+      syncCivilianToolStockpile(marker, building);
       break;
     case 'clay_pit':
       syncNamedStockpile(

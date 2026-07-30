@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   computeSettlementGeologyPlan,
   geologicalFiniteRunwayDays,
+  mineralMineOutputPerDay,
 } from '../src/economy/settlementGeology.ts';
 import {
   createEmptyStockpile,
@@ -161,6 +162,29 @@ const state: GameState = {
 };
 
 const plan = computeSettlementGeologyPlan(state, false);
+const baselineMineOutput = mineralMineOutputPerDay(
+  { assignedLabor: 1, ironwork: 0 },
+  deposits[4],
+  false,
+);
+const maintainedMineOutput = mineralMineOutputPerDay(
+  { assignedLabor: 1, ironwork: 0.25 },
+  deposits[4],
+  false,
+);
+assert.ok(
+  Math.abs(maintainedMineOutput / baselineMineOutput - 1.2) < 1e-9,
+  'maintained mine tools must multiply ordinary extraction without becoming a hard requirement',
+);
+const maintainedRichMineOutput = mineralMineOutputPerDay(
+  { assignedLabor: 1, ironwork: 0.25 },
+  deposits[5],
+  false,
+);
+assert.ok(
+  Math.abs(maintainedRichMineOutput / baselineMineOutput - 1.8) < 1e-9,
+  'rich geology and maintained tool bonuses must multiply instead of replacing one another',
+);
 assert.deepEqual(
   [plan.stone.deposits, plan.clay.deposits, plan.iron.deposits, plan.salt.deposits],
   [2, 2, 2, 2],

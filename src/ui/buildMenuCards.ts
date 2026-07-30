@@ -64,7 +64,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
   large_quarry: ['Large Quarry', 'G', 'Builds directly over a rich deposit and raises underground stone indefinitely.'],
-  mine: ['Mineral mine', 'N', 'Build directly over an iron or salt deposit. Rich workings are faster and do not exhaust; ordinary surface seams are finite.'],
+  mine: ['Mineral mine', 'N', 'Build directly over an iron or salt deposit. Rich workings are faster and do not exhaust; ordinary seams are finite. Smith-forged picks and hammer heads raise output but wear each cycle.'],
   clay_pit: ['Riverbank clay pit', 'C', 'Cuts a finite ordinary alluvial bank beside shallow water. Rich seed rolls expose faster deep clay that does not exhaust.'],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],
   smithy: ['Village smithy', 'M', 'Forges locally mined or imported iron blooms with charcoal and carted well water into ironwork for tools, construction fittings, and frontier weapons. Elevated fire risk.'],

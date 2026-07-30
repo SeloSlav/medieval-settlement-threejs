@@ -73,6 +73,10 @@ const woodcutterInspector = readFileSync(
   new URL('../src/resources/inspector/woodcuttersLodgeRenderer.ts', import.meta.url),
   'utf8',
 );
+const mineralMineInspector = readFileSync(
+  new URL('../src/resources/inspector/mineralMineRenderer.ts', import.meta.url),
+  'utf8',
+);
 const buildMenuCards = readFileSync(
   new URL('../src/ui/buildMenuCards.ts', import.meta.url),
   'utf8',
@@ -118,8 +122,15 @@ assert.match(
   /step_watermill[\s\S]*watermill_throughput_multiplier\(\)[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*mill\.flour > flour_before[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
   'watermill output must combine river power with maintained dressing and wear ironwork only after a completed batch',
 );
+assert.match(
+  expandedEconomySimulation,
+  /step_mine[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*geology_throughput \* tool_throughput[\s\S]*produced > 1e-6[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  'authoritative iron and salt extraction must multiply geology by maintained tools and wear ironwork only after real output',
+);
 assert.match(woodcutterInspector, /civilianToolRows\(building\)/);
+assert.match(mineralMineInspector, /civilianToolRows\(building\)/);
 assert.match(buildMenuCards, /replacement axes raise output but wear each cycle/);
+assert.match(buildMenuCards, /picks and hammer heads raise output but wear each cycle/);
 assert.match(buildMenuCards, /ploughshares, hoes, sickles, and scythes/);
 assert.match(buildMenuCards, /Smith-dressed millstones and maintained iron fittings raise output/);
 assert.match(farmsteadInspector, /Seasonal tool reserve/);
@@ -195,6 +206,12 @@ const watermill = building('watermill', {
   constructionPriority: 2,
   ironwork: 0,
 });
+const mineralMine = building('mine', {
+  id: 'mine',
+  assignedLabor: 4,
+  constructionPriority: 2,
+  ironwork: 0,
+});
 
 const watermillTarget = selectDirectProcessorInputTarget(
   [watermill],
@@ -205,6 +222,16 @@ const watermillTarget = selectDirectProcessorInputTarget(
 assert.equal(watermillTarget?.target.id, 'watermill');
 assert.equal(watermillTarget?.duty, 'working-buffer');
 assert.equal(watermillTarget?.desiredStock, 0.75);
+
+const mineralMineTarget = selectDirectProcessorInputTarget(
+  [mineralMine],
+  'smithy',
+  'ironwork',
+  () => 36,
+);
+assert.equal(mineralMineTarget?.target.id, 'mine');
+assert.equal(mineralMineTarget?.duty, 'working-buffer');
+assert.equal(mineralMineTarget?.desiredStock, 0.75);
 
 const priorityTarget = selectDirectProcessorInputTarget(
   [lowPriorityQuarry, highPriorityClay, carpenter],
@@ -246,6 +273,11 @@ const maintainedSignature = bulkStockpileVisualSignature(
   building('large_quarry', { ironwork: 0.75 }),
 );
 assert.notEqual(emptySignature, maintainedSignature);
+assert.notEqual(
+  bulkStockpileVisualSignature(building('mine', { ironwork: 0 })),
+  bulkStockpileVisualSignature(building('mine', { ironwork: 0.75 })),
+  'the mine marker signature must refresh as its physical tool rack wears',
+);
 
 const perfSites = Array.from({ length: 100_000 }, (_, index) =>
   building(CIVILIAN_TOOL_SITE_KINDS[index % CIVILIAN_TOOL_SITE_KINDS.length], {

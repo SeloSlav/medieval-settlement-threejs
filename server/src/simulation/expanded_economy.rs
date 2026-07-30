@@ -1107,6 +1107,7 @@ fn local_material_source_plan(
                 "woodcutters_lodge",
                 "stone_quarry",
                 "large_quarry",
+                "mine",
                 "clay_pit",
                 "threshing_barn",
                 "watermill",
@@ -1140,19 +1141,21 @@ pub fn step_mine(
     } else {
         base_batch.min(deposit.remaining)
     };
+    let tools_maintained = civilian_tools_maintained(building.ironwork);
+    let tool_throughput = civilian_tool_throughput_multiplier(building.ironwork);
     let before = building_commodity_stock(&building, commodity);
-    let throughput = if deposit.is_rich {
+    let geology_throughput = if deposit.is_rich {
         RICH_MINE_THROUGHPUT_MULTIPLIER
     } else {
         1.0
     };
-    let mine = step_simple_producer_at_rate(
+    let mut mine = step_simple_producer_at_rate(
         ctx,
         tick,
         clock,
         building,
         &[(commodity, batch)],
-        throughput,
+        geology_throughput * tool_throughput,
     );
     let produced = (building_commodity_stock(&mine, commodity) - before).max(0.0);
     if produced > 1e-6 && !deposit.is_rich {
@@ -1160,6 +1163,13 @@ pub fn step_mine(
             remaining: (deposit.remaining - produced).max(0.0),
             ..deposit
         });
+    }
+    if tools_maintained && produced > 1e-6 {
+        withdraw_building_commodity(
+            &mut mine,
+            CommodityKind::Ironwork,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+        );
     }
     ctx.db.building().id().update(mine);
 }

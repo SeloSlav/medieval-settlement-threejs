@@ -539,6 +539,26 @@ assert.equal(localMineAssignments.get('iron-mine')?.commodity, 'iron');
 assert.equal(localMineAssignments.get('iron-mine')?.target.id, 'local-iron-smithy');
 assert.equal(localMineAssignments.get('salt-mine')?.commodity, 'salt');
 assert.equal(localMineAssignments.get('salt-mine')?.target.id, 'local-salt-smokehouse');
+const mineToolAssignment = assignLocalMaterialInputTargets(
+  [
+    building('smithy', {
+      id: 'mine-tool-smithy',
+      ironwork: 3,
+      assignedLabor: 2,
+    }),
+  ],
+  [
+    building('mine', {
+      id: 'tool-starved-mine',
+      assignedLabor: 4,
+      ironwork: 0,
+    }),
+  ],
+  () => 25,
+);
+assert.equal(mineToolAssignment.get('mine-tool-smithy')?.commodity, 'ironwork');
+assert.equal(mineToolAssignment.get('mine-tool-smithy')?.target.id, 'tool-starved-mine');
+assert.equal(mineToolAssignment.get('mine-tool-smithy')?.desiredStock, 0.75);
 
 for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
   assert.ok(
@@ -897,6 +917,11 @@ assert.match(
 assert.match(
   localMaterialDispatchStep,
   /"mine"[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*"clay_pit"[\s\S]*CommodityKind::Clay[\s\S]*"charcoal_burner"[\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"[\s\S]*CommodityKind::Ironwork[\s\S]*"potter_kiln"[\s\S]*CommodityKind::Pottery/,
+);
+assert.match(
+  localMaterialDispatchStep,
+  /CommodityKind::Ironwork[\s\S]*"stone_quarry"[\s\S]*"large_quarry"[\s\S]*"mine"[\s\S]*"clay_pit"/,
+  'smithy carts must include mineral mines in the same physical replacement-tool route as other extraction sites',
 );
 assert.match(
   potterKilnStep,

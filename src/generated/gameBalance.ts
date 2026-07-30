@@ -1389,7 +1389,7 @@ export const BUILDING_STORAGE_CAPS = {
   woodcutters_lodge: { timber: 60, firewood: 120, stone: 0, ironwork: 3 },
   stone_quarry: { timber: 0, firewood: 0, stone: 180, ironwork: 3 },
   large_quarry: { timber: 0, firewood: 0, stone: 360, ironwork: 3 },
-  mine: { timber: 0, firewood: 0, stone: 0, iron: 240, salt: 240 },
+  mine: { timber: 0, firewood: 0, stone: 0, ironwork: 3, iron: 240, salt: 240 },
   clay_pit: { timber: 0, firewood: 0, stone: 0, ironwork: 3, clay: 180 },
   charcoal_burner: { timber: 0, firewood: 54, stone: 0, charcoal: 72 },
   smithy: { timber: 0, firewood: 0, stone: 0, water: 9, ironwork: 72, iron: 48, charcoal: 36 },

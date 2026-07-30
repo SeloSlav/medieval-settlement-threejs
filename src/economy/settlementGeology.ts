@@ -289,7 +289,7 @@ export function mineralDepositBeneath(
 }
 
 export function mineralMineOutputPerDay(
-  building: Pick<BuildingState, 'assignedLabor'>,
+  building: Pick<BuildingState, 'assignedLabor' | 'ironwork'>,
   deposit: Pick<ResourceNodeState, 'resource' | 'remaining' | 'isRich'>,
   sabbathObserved: boolean,
 ): number {
@@ -306,7 +306,8 @@ export function mineralMineOutputPerDay(
     'mine',
     building.assignedLabor,
     sabbathObserved,
-    deposit.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1,
+    (deposit.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1)
+      * civilianToolThroughputMultiplier(building.ironwork ?? 0),
   ) * batch;
 }
 

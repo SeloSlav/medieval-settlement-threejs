@@ -105,6 +105,7 @@ const TARGET_KINDS: Record<
     'woodcutters_lodge',
     'stone_quarry',
     'large_quarry',
+    'mine',
     'clay_pit',
     'threshing_barn',
     'watermill',

@@ -5,11 +5,12 @@ use crate::balance_generated::{
     FARM_WORK_METERS_PER_WORKER_PER_SEC,
 };
 
-pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 7] = [
+pub const CIVILIAN_TOOL_SITE_KINDS: [&str; 8] = [
     "lumber_mill",
     "woodcutters_lodge",
     "stone_quarry",
     "large_quarry",
+    "mine",
     "clay_pit",
     "threshing_barn",
     "watermill",
@@ -92,6 +93,7 @@ mod tests {
             assert!(is_civilian_tool_site(kind));
         }
         assert!(is_civilian_tool_site("woodcutters_lodge"));
+        assert!(is_civilian_tool_site("mine"));
         assert!(is_civilian_tool_site("threshing_barn"));
         assert!(is_civilian_tool_site("watermill"));
         assert!(!is_civilian_tool_site("carpenter"));

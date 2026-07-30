@@ -3,6 +3,7 @@ import {
   MINE_SALT_PER_CYCLE,
   RICH_MINE_THROUGHPUT_MULTIPLIER,
 } from '../../generated/gameBalance.ts';
+import { civilianToolThroughputMultiplier } from '../../economy/civilianToolPolicy.ts';
 import { mineralDepositBeneath } from '../../economy/settlementGeology.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
@@ -17,6 +18,7 @@ import {
   buildingLaborView,
   buildingRoadAccessRow,
   buildingStorageRows,
+  civilianToolRows,
 } from './buildingCommon.ts';
 import type {
   InspectorRenderContext,
@@ -43,7 +45,8 @@ export function renderMineralMineInspector(
   const sourceUsable = deposit != null
     && (deposit.isRich === true || deposit.remaining > 1e-6);
   const active = onsiteLabor > 0 && sourceUsable && !storageFull;
-  const throughput = deposit?.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1;
+  const throughput = (deposit?.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1)
+    * civilianToolThroughputMultiplier(building.ironwork ?? 0);
   const cycleSeconds = laborScaledInterval(
     definition.harvestInterval,
     onsiteLabor,
@@ -105,6 +108,7 @@ export function renderMineralMineInspector(
           ? 'Mine carts serve road-linked smithies; market iron covers a local shortfall'
           : 'Mine carts serve road-linked smokehouses and pastoral holdings; market salt covers a local shortfall'
       }</span></li>
+      ${civilianToolRows(building)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind)}
     `,

@@ -178,6 +178,7 @@ assert.equal(mine.requiresRoad, true);
 assert.equal(mine.maxLabor, 4);
 assert.equal(BUILDING_STORAGE_CAPS.mine.iron, 240);
 assert.equal(BUILDING_STORAGE_CAPS.mine.salt, 240);
+assert.equal(BUILDING_STORAGE_CAPS.mine.ironwork, 3);
 assert.ok(MINE_IRON_PER_CYCLE > 0);
 assert.ok(MINE_SALT_PER_CYCLE > MINE_IRON_PER_CYCLE);
 assert.ok(RICH_MINE_THROUGHPUT_MULTIPLIER > 1);
@@ -187,8 +188,10 @@ assert.equal(mineMesh.name, 'Mineral Mine');
 assert.ok(mineMesh.getObjectByName('Mineral mine sorting floor'));
 const ironStockpile = mineMesh.getObjectByName('IronMineStockpile');
 const saltStockpile = mineMesh.getObjectByName('SaltMineStockpile');
+const toolStockpile = mineMesh.getObjectByName('CivilianToolStockpile');
 assert.ok(ironStockpile, 'the mine needs a physical iron stockpile');
 assert.ok(saltStockpile, 'the mine needs a physical salt stockpile');
+assert.ok(toolStockpile, 'the mine needs a physical replacement-tool rack');
 assert.equal(
   ironStockpile.children.filter((child) => child.name === 'IronMineOreSegment').length,
   6,
@@ -214,6 +217,12 @@ const mineStep = authority.slice(mineStart, mineEnd);
 assert.match(mineStep, /deposit-iron-/);
 assert.match(mineStep, /deposit-salt-/);
 assert.match(mineStep, /RICH_MINE_THROUGHPUT_MULTIPLIER/);
+assert.match(mineStep, /civilian_tool_throughput_multiplier\(building\.ironwork\)/);
+assert.match(
+  mineStep,
+  /tools_maintained && produced > 1e-6[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  'mine tools must wear only after a completed physical extraction batch',
+);
 assert.match(
   mineStep,
   /if produced > 1e-6 && !deposit\.is_rich[\s\S]*remaining:/,
@@ -245,6 +254,8 @@ assert.match(mineInspector.statusText, /Extracting finite iron seam - 75 reserve
 assert.match(mineInspector.detailsHtml, /Ordinary iron-bearing ore seam - finite/);
 assert.match(mineInspector.detailsHtml, /75 \/ 300 iron-bearing ore/);
 assert.match(mineInspector.detailsHtml, /Mine carts serve road-linked smithies/);
+assert.match(mineInspector.detailsHtml, /Baseline hand tools/);
+assert.match(mineInspector.detailsHtml, /smithy handcart restores a 3-cycle buffer/);
 
 const richSaltDeposit = mineralNode(
   'deposit-salt-rich-inspector',
