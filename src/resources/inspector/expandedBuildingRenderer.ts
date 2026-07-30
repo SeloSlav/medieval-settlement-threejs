@@ -937,6 +937,17 @@ export function renderExpandedBuildingInspector(
     ? `<li><span>Clay seam</span><span>${clayBankYieldGrade(clayBankYield)} · ${Math.round(clayBankYield * 100)}% geological yield at regional abundance ${Math.round(context.worldResourceAbundance ?? 50)}/100</span></li>
       <li><span>Current digging pace</span><span>${Math.round(clayBankYield * 100)}% bank × ${Math.round(environment.clayPitThroughputMultiplier * 100)}% ${clayBankWeatherLabel} = ${Math.round(clayBankCombinedYield * 100)}% before tool condition</span></li>`
     : '';
+  const charcoalClampWeatherLabel = environment.weather === 'frost'
+    ? 'snowbound tending and frozen billets'
+    : environment.weather === 'drought'
+      ? 'dry billets'
+      : environment.weather === 'rain'
+        ? 'damp billets'
+        : 'seasoned billets';
+  const charcoalClampRows = building.kind === 'charcoal_burner'
+    ? `<li><span>Clamp conditions</span><span>${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}% burn pace · ${charcoalClampWeatherLabel}</span></li>
+      <li><span>Seasonal tradeoff</span><span>Drought carbonizes faster but carries the yard's highest fire danger · spring rain and winter frost favor advance charcoal reserves</span></li>`
+    : '';
   const seasonalProcessorStatus = building.kind === 'watermill'
     && processorStatus?.statusState === 'active'
     && Math.abs(environment.watermillThroughputMultiplier - 1) > 1e-6
@@ -956,7 +967,18 @@ export function renderExpandedBuildingInspector(
             ? 'warning' as const
             : 'active' as const,
         }
-    : null;
+      : building.kind === 'charcoal_burner'
+        && processorStatus?.statusState === 'active'
+        && Math.abs(environment.charcoalBurnerThroughputMultiplier - 1) > 1e-6
+        ? {
+            statusText: environment.charcoalBurnerThroughputMultiplier > 1
+              ? `Dry charcoal charge · ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}% burn pace · elevated drought fire danger`
+              : `${environment.weather === 'frost' ? 'Snowbound clamp' : 'Damp charcoal charge'} · ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}% burn pace · draw down stored charcoal`,
+            statusState: environment.charcoalBurnerThroughputMultiplier > 1
+              ? 'active' as const
+              : 'warning' as const,
+          }
+        : null;
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const hospitality = building.kind === 'monastery'
     ? monasteryHospitalityPlan(building, monasteryPolicy.feastsEnabled)
@@ -1180,7 +1202,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${clayBankRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

@@ -44,6 +44,7 @@ function environment(
     roadTravelSpeedMultiplier: 1,
     watermillThroughputMultiplier: 1,
     clayPitThroughputMultiplier: 1,
+    charcoalBurnerThroughputMultiplier: 1,
   };
 }
 

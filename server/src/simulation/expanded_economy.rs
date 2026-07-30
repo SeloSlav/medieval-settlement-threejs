@@ -1686,15 +1686,17 @@ pub fn step_charcoal_burner(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
+    environment: EnvironmentState,
     building: Building,
 ) {
-    let burner = step_processor(
+    let burner = step_processor_at_rate(
         ctx,
         tick,
         clock,
         building,
         &[(CommodityKind::Firewood, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE)],
         &[(CommodityKind::Charcoal, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE)],
+        environment.charcoal_burner_throughput_multiplier(),
     );
     ctx.db.building().id().update(burner);
 }

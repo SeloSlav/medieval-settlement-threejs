@@ -1,7 +1,8 @@
 use crate::balance_generated::{
     AUTUMN_FIREWOOD_DEMAND_MULTIPLIER, AUTUMN_PASTURE_CAPACITY_MULTIPLIER,
     AUTUMN_ROAD_SPEED_MULTIPLIER, CALENDAR_DAYS_PER_MONTH, CALENDAR_SECONDS_PER_DAY,
-    DROUGHT_CROP_GROWTH_MULTIPLIER, DROUGHT_FISH_LOSS_FRACTION_PER_DAY,
+    DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER, DROUGHT_CROP_GROWTH_MULTIPLIER,
+    DROUGHT_FISH_LOSS_FRACTION_PER_DAY,
     DROUGHT_FORAGE_REGROWTH_MULTIPLIER, DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
     DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER, DROUGHT_WELL_REFILL_MULTIPLIER,
     FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY, FRESH_FOOD_SPOILAGE_DROUGHT_PER_DAY,
@@ -13,11 +14,13 @@ use crate::balance_generated::{
     RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER, RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
     RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER, SPRING_BREEDING_MULTIPLIER,
     SPRING_FIREWOOD_DEMAND_MULTIPLIER, SPRING_PASTURE_CAPACITY_MULTIPLIER, SPRING_RAIN_CHANCE,
+    SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
     SPRING_RAIN_CROP_GROWTH_MULTIPLIER, SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
     SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER, SPRING_RAIN_WELL_REFILL_MULTIPLIER,
     SUMMER_DROUGHT_CHANCE, SUMMER_DROUGHT_DURATION_DAYS, SUMMER_FIREWOOD_DEMAND_MULTIPLIER,
     SUMMER_PASTURE_CAPACITY_MULTIPLIER, WINTER_BREEDING_MULTIPLIER,
-    WINTER_FIREWOOD_DEMAND_MULTIPLIER, WINTER_PASTURE_CAPACITY_MULTIPLIER,
+    WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+    WINTER_PASTURE_CAPACITY_MULTIPLIER,
     WINTER_ROAD_SPEED_MULTIPLIER, WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 };
 use crate::simulation::GameClock;
@@ -186,6 +189,19 @@ impl EnvironmentState {
             WeatherKind::Rain => CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
             WeatherKind::Drought => CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
             WeatherKind::Frost => CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Fair => 1.0,
+        }
+    }
+
+    /// Damp billets spend more of a burn driving off water, while a dry
+    /// summer charge carbonizes faster. The covered mound never hard-stops:
+    /// winter and rain remain viable at lower pace, and drought speed comes
+    /// with the existing severe fire-risk multiplier for charcoal yards.
+    pub fn charcoal_burner_throughput_multiplier(self) -> f64 {
+        match self.weather {
+            WeatherKind::Rain => SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Drought => DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+            WeatherKind::Frost => WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
             WeatherKind::Fair => 1.0,
         }
     }
@@ -377,6 +393,31 @@ mod tests {
         assert_eq!(frost.clay_pit_throughput_multiplier(), 0.35);
         assert_eq!(fair.clay_pit_throughput_multiplier(), 1.0);
         assert!(frost.clay_pit_throughput_multiplier() > 0.0);
+    }
+
+    #[test]
+    fn charcoal_clamps_reward_dry_burns_without_a_wet_or_winter_shutdown() {
+        let rain = EnvironmentState {
+            season: Season::Spring,
+            weather: WeatherKind::Rain,
+        };
+        let fair = EnvironmentState {
+            season: Season::Autumn,
+            weather: WeatherKind::Fair,
+        };
+        let drought = EnvironmentState {
+            season: Season::Summer,
+            weather: WeatherKind::Drought,
+        };
+        let frost = EnvironmentState {
+            season: Season::Winter,
+            weather: WeatherKind::Frost,
+        };
+        assert!(rain.charcoal_burner_throughput_multiplier() < fair.charcoal_burner_throughput_multiplier());
+        assert!(frost.charcoal_burner_throughput_multiplier() < fair.charcoal_burner_throughput_multiplier());
+        assert!(drought.charcoal_burner_throughput_multiplier() > fair.charcoal_burner_throughput_multiplier());
+        assert!(rain.charcoal_burner_throughput_multiplier() > 0.0);
+        assert!(frost.charcoal_burner_throughput_multiplier() > 0.0);
     }
 
     #[test]

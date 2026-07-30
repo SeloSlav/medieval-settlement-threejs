@@ -5,6 +5,7 @@ import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
   DROUGHT_CROP_GROWTH_MULTIPLIER,
+  DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   DROUGHT_PASTURE_CAPACITY_MULTIPLIER,
   DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
   FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY,
@@ -25,6 +26,7 @@ import {
   SPRING_FIREWOOD_DEMAND_MULTIPLIER,
   SPRING_PASTURE_CAPACITY_MULTIPLIER,
   SPRING_RAIN_CHANCE,
+  SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   SPRING_RAIN_CROP_GROWTH_MULTIPLIER,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
   SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
@@ -34,6 +36,7 @@ import {
   SUMMER_PASTURE_CAPACITY_MULTIPLIER,
   SIM_TICK_SECONDS,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+  WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   WINTER_PASTURE_CAPACITY_MULTIPLIER,
   WINTER_ROAD_SPEED_MULTIPLIER,
   WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
@@ -70,6 +73,8 @@ export type EnvironmentState = {
   watermillThroughputMultiplier: number;
   /** Riverbank digging pace after saturated, hardened, or frozen ground. */
   clayPitThroughputMultiplier: number;
+  /** Covered earth-clamp pace after ambient wood-drying conditions. */
+  charcoalBurnerThroughputMultiplier: number;
 };
 
 export type NextDayEnvironmentOutlook = {
@@ -99,6 +104,19 @@ export function clayPitThroughputForWeather(weather: WeatherKind): number {
   if (weather === 'rain') return CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER;
   if (weather === 'drought') return CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER;
   if (weather === 'frost') return CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER;
+  return 1;
+}
+
+export function charcoalBurnerThroughputForWeather(weather: WeatherKind): number {
+  if (weather === 'rain') {
+    return SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER;
+  }
+  if (weather === 'drought') {
+    return DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER;
+  }
+  if (weather === 'frost') {
+    return WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER;
+  }
   return 1;
 }
 
@@ -213,6 +231,8 @@ export function environmentFor(
           : 1,
     watermillThroughputMultiplier: watermillThroughputForWeather(weather),
     clayPitThroughputMultiplier: clayPitThroughputForWeather(weather),
+    charcoalBurnerThroughputMultiplier:
+      charcoalBurnerThroughputForWeather(weather),
   };
 }
 
@@ -258,6 +278,11 @@ export function describeNextDayEnvironmentOutlook(
   if (Math.abs(next.clayPitThroughputMultiplier - 1) > 1e-6) {
     pressures.push(`clay digging ${Math.round(next.clayPitThroughputMultiplier * 100)}%`);
   }
+  if (Math.abs(next.charcoalBurnerThroughputMultiplier - 1) > 1e-6) {
+    pressures.push(
+      `charcoal burning ${Math.round(next.charcoalBurnerThroughputMultiplier * 100)}%`,
+    );
+  }
   if (Math.abs(next.firewoodDemandMultiplier - 1) > 1e-6) {
     pressures.push(`firewood demand ${Math.round(next.firewoodDemandMultiplier * 100)}%`);
   }
@@ -282,14 +307,14 @@ export function describeEnvironment(environment: EnvironmentState): {
   if (environment.weather === 'drought') {
     return {
       title: 'Summer drought',
-      detail: `Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster, and warm stores age cured provisions fastest. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput, while hardened riverbank clay limits pits to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%.`,
+      detail: `Crops and forage grow slowly; ponds lose fish; wells refill slowly; fresh food spoils faster, and warm stores age cured provisions fastest. Low streams hold watermills to ${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput, while hardened riverbank clay limits pits to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%. Dry billets raise covered charcoal-clamp pace to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%, but drought also makes these hot yards most dangerous to surrounding buildings.`,
       symbol: '☀',
     };
   }
   if (environment.weather === 'rain') {
     return {
       title: 'Spring rain',
-      detail: `Crops grow faster, wells refill faster, berries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power. Saturated banks hold clay digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%.${roadDetail}`,
+      detail: `Crops grow faster, wells refill faster, berries and mushrooms replenish, and mill streams reach ${Math.round(environment.watermillThroughputMultiplier * 100)}% power. Saturated banks hold clay digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, while damp billets slow covered charcoal clamps to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%.${roadDetail}`,
       symbol: '☂',
     };
   }
@@ -297,7 +322,7 @@ export function describeEnvironment(environment: EnvironmentState): {
     const snowCover = Math.round(environment.snowCoverage * 100);
     return {
       title: 'Winter frost',
-      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, and sheep shearing stop; release those crews to logging, construction, hunting, or processing the autumn crop. Higher-tier homes burn twice their normal firewood, while cold stores halve cured-food aging. Pasture is scarce, iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%, and frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%. Stockpiled autumn clay can still keep sheltered kilns working.${roadDetail}`,
+      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, and sheep shearing stop; release those crews to logging, construction, hunting, or processing the autumn crop. Higher-tier homes burn twice their normal firewood, while cold stores halve cured-food aging. Pasture is scarce, iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%, frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, and snowbound charcoal tending falls to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%. Stockpiled autumn clay and charcoal can keep sheltered kilns and forges working.${roadDetail}`,
       symbol: '❄',
     };
   }

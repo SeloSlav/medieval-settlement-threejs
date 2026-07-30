@@ -24,6 +24,7 @@ const FIRED_CLAY = sharedBuildingDetailMaterial('paintRed');
 const CHARCOAL = sharedBuildingMaterial('interiorDark');
 const IRON_BLOOM = metalMaterial('iron');
 const ASH = stoneMaterial('mortar');
+export const CHARCOAL_CLAMP_SMOKE_NAME = 'CharcoalClampSmoke';
 
 function addYardBase(group: THREE.Group, width: number, depth: number): void {
   const base = addMesh(
@@ -285,6 +286,27 @@ export function createCharcoalBurnerMesh(): THREE.Group {
     ASH,
     new THREE.Vector3(-1.15, 2.55, -0.2),
   );
+  const smoke = new THREE.Group();
+  smoke.name = CHARCOAL_CLAMP_SMOKE_NAME;
+  smoke.position.set(-1.15, 2.95, -0.2);
+  smoke.visible = false;
+  smoke.userData.fpNoCollision = true;
+  for (const [index, [x, y, z, scale]] of ([
+    [0, 0.32, 0, 0.9],
+    [0.12, 0.88, -0.05, 1.1],
+    [-0.1, 1.52, 0.08, 1.3],
+  ] as const).entries()) {
+    const wisp = addMesh(
+      smoke,
+      new THREE.SphereGeometry(0.34, 7, 5),
+      sharedBuildingDetailMaterial('smoke'),
+      new THREE.Vector3(x, y, z),
+    );
+    wisp.name = `Charcoal clamp smoke wisp ${index + 1}`;
+    wisp.scale.set(scale, scale * 1.45, scale);
+    wisp.userData.fpNoCollision = true;
+  }
+  group.add(smoke);
   for (let vent = 0; vent < 8; vent++) {
     const angle = (vent / 8) * Math.PI * 2;
     addMesh(
@@ -327,6 +349,20 @@ export function createCharcoalBurnerMesh(): THREE.Group {
     ] as const).slice(0, CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS),
   );
   return group;
+}
+
+export function setCharcoalClampSmokeThroughput(
+  marker: THREE.Object3D,
+  throughputMultiplier: number,
+): void {
+  const smoke = marker.getObjectByName(CHARCOAL_CLAMP_SMOKE_NAME);
+  if (!(smoke instanceof THREE.Group)) return;
+  const throughput = THREE.MathUtils.clamp(throughputMultiplier, 0, 1.25);
+  smoke.scale.set(
+    0.82 + throughput * 0.18,
+    0.62 + throughput * 0.38,
+    0.82 + throughput * 0.18,
+  );
 }
 
 export function createSmithyMesh(): THREE.Group {

@@ -80,6 +80,7 @@ const STOCKED_PREVIEW_PREFIXES = [
   'CharcoalBurnerFirewoodSegment',
   'CharcoalBurnerStockpile',
   'CharcoalBurnerCharcoalSegment',
+  'CharcoalClampSmoke',
   'SmithyIronStockpile',
   'SmithyIronSegment',
   'SmithyCharcoalStockpile',

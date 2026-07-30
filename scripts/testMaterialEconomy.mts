@@ -5,6 +5,10 @@ import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
+  CHARCOAL_CLAMP_SMOKE_NAME,
+  setCharcoalClampSmokeThroughput,
+} from '../src/buildings/meshes/materialChainBuildingMeshes.ts';
+import {
   bulkStockpileVisualSignature,
   CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS,
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
@@ -585,6 +589,27 @@ for (const spec of buildingVisuals) {
   assert.ok(segments.every((segment) => !segment.visible));
 }
 
+const charcoalClampMesh = createBuildingMesh('charcoal_burner');
+const charcoalClampSmoke = charcoalClampMesh.getObjectByName(
+  CHARCOAL_CLAMP_SMOKE_NAME,
+);
+assert.ok(
+  charcoalClampSmoke instanceof THREE.Group,
+  'the physical clamp must expose a bounded climate-readable smoke group',
+);
+assert.equal(
+  charcoalClampSmoke.visible,
+  false,
+  'an unstaffed or starved clamp must not imply active production',
+);
+setCharcoalClampSmokeThroughput(charcoalClampMesh, 0.8);
+const wetClampSmokeHeight = charcoalClampSmoke.scale.y;
+setCharcoalClampSmokeThroughput(charcoalClampMesh, 1.1);
+assert.ok(
+  charcoalClampSmoke.scale.y > wetClampSmokeHeight,
+  'dry-weather clamp smoke must read more strongly than a damp charge',
+);
+
 const leanClayPitMesh = createBuildingMesh('clay_pit');
 const leanClayStrata = leanClayPitMesh.getObjectByName('ClayBankStrata');
 assert.ok(leanClayStrata instanceof THREE.Group);
@@ -817,6 +842,21 @@ assert.match(
   simulationReducerSource,
   /step_clay_pit\(\s*ctx,\s*&tick,\s*&clock,\s*environment,\s*world_resource_abundance,\s*building/,
   'weather and world resource abundance must reach every clay-pit production step',
+);
+assert.match(
+  charcoalBurnerStep,
+  /environment:\s*EnvironmentState/,
+  'the authoritative charcoal step must consume the shared environment policy',
+);
+assert.match(
+  charcoalBurnerStep,
+  /step_processor_at_rate[\s\S]*environment\.charcoal_burner_throughput_multiplier\(\)/,
+  'charcoal output and billet consumption must share the weather-adjusted cycle rate',
+);
+assert.match(
+  simulationReducerSource,
+  /step_charcoal_burner\(\s*ctx,\s*&tick,\s*&clock,\s*environment,\s*building/,
+  'the reducer must pass current weather into every charcoal-clamp production step',
 );
 const clayBankPolicySource = readFileSync('src/economy/clayBankPolicy.ts', 'utf8');
 const hydrologySamplerSource = readFileSync(

@@ -1451,6 +1451,7 @@ export class ResourceInspector {
           productionEnvironment?.preservedFoodDemandMultiplier ?? 1,
           gameClock(gameState.tick).month,
           this.options.getWorldResourceAbundance?.() ?? 50,
+          productionEnvironment?.charcoalBurnerThroughputMultiplier ?? 1,
         )
       : undefined;
     const view = renderInspectableTarget(target, {

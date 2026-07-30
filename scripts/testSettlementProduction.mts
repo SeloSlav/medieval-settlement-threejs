@@ -172,6 +172,7 @@ materialState.farmFields.set(
   farmField('material-field', 'material-farm', 'fallow'),
 );
 materialState.residences.set('material-home', residence('material-home', 10));
+materialBuildings[3].firewood = 36;
 
 const leanClayState = emptyGameState();
 const leanClayPit = building('lean-clay-bank', 'clay_pit', 1);
@@ -247,11 +248,12 @@ assert.ok(
   'regional abundance must compose with, not replace, local bank quality',
 );
 
-const joinedMaterials = computeSettlementProductionCapacity(
+const joinedProduction = computeSettlementProductionCapacity(
   materialState,
   false,
   () => 'joined',
-).industrialMaterials;
+);
+const joinedMaterials = joinedProduction.industrialMaterials;
 assert.equal(joinedMaterials.activeRoadBranches, 1);
 assert.equal(joinedMaterials.potteryMatchedBranches, 1);
 assert.equal(joinedMaterials.potteryBlockedBranches, 0);
@@ -322,6 +324,52 @@ assert.ok(
   frostLimitedMaterials.industrialMaterials.maintainedToolIronworkPerDay
     < joinedMaterials.maintainedToolIronworkPerDay,
   'weather-limited clay extraction must also reduce forecast tool wear',
+);
+
+const wetClampProduction = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+  1,
+  1,
+  1,
+  undefined,
+  50,
+  0.8,
+);
+assert.equal(wetClampProduction.charcoalBurnerThroughputMultiplier, 0.8);
+approx(
+  wetClampProduction.industrialMaterials.charcoalOutputPerDay,
+  joinedMaterials.charcoalOutputPerDay * 0.8,
+  'damp charcoal charges must reduce the connected forge-fuel forecast',
+);
+approx(
+  wetClampProduction.industrialMaterials.charcoalFirewoodPerDay,
+  joinedMaterials.charcoalFirewoodPerDay * 0.8,
+  'slower clamps must consume firewood at the same authoritative cycle rate',
+);
+assert.ok(
+  (wetClampProduction.charcoalInputBuffer?.days ?? 0)
+    > (joinedProduction.charcoalInputBuffer?.days ?? 0),
+  'the same staged billets must last longer when wet weather slows the clamp',
+);
+
+const droughtClampProduction = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+  1,
+  1,
+  1,
+  undefined,
+  50,
+  1.1,
+);
+assert.equal(droughtClampProduction.charcoalBurnerThroughputMultiplier, 1.1);
+approx(
+  droughtClampProduction.industrialMaterials.charcoalOutputPerDay,
+  joinedMaterials.charcoalOutputPerDay * 1.1,
+  'dry billets must raise charcoal output while drought fire danger remains a separate cost',
 );
 
 const splitMaterials = computeSettlementProductionCapacity(

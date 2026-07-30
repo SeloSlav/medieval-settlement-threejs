@@ -1,4 +1,5 @@
 import {
+  charcoalBurnerThroughputForWeather,
   clayPitThroughputForWeather,
   preservedFoodDemandMultiplierForSeason,
   preservedFoodSpoilageFractionPerDayFor,
@@ -142,6 +143,8 @@ export function precipitationPreviewEnvironment(
         preservedFoodSpoilageFractionPerDayFor('spring', 'rain'),
       watermillThroughputMultiplier: watermillThroughputForWeather('rain'),
       clayPitThroughputMultiplier: clayPitThroughputForWeather('rain'),
+      charcoalBurnerThroughputMultiplier:
+        charcoalBurnerThroughputForWeather('rain'),
     };
   }
   if (requested === 'snow') {
@@ -157,6 +160,8 @@ export function precipitationPreviewEnvironment(
         preservedFoodSpoilageFractionPerDayFor('winter', 'frost'),
       watermillThroughputMultiplier: watermillThroughputForWeather('frost'),
       clayPitThroughputMultiplier: clayPitThroughputForWeather('frost'),
+      charcoalBurnerThroughputMultiplier:
+        charcoalBurnerThroughputForWeather('frost'),
     };
   }
   if (requested === 'autumn') {
@@ -172,6 +177,7 @@ export function precipitationPreviewEnvironment(
         preservedFoodSpoilageFractionPerDayFor('autumn', 'fair'),
       watermillThroughputMultiplier: 1,
       clayPitThroughputMultiplier: 1,
+      charcoalBurnerThroughputMultiplier: 1,
     };
   }
   if (requested === 'clear') {
@@ -183,6 +189,7 @@ export function precipitationPreviewEnvironment(
         preservedFoodSpoilageFractionPerDayFor(environment.season, 'fair'),
       watermillThroughputMultiplier: 1,
       clayPitThroughputMultiplier: 1,
+      charcoalBurnerThroughputMultiplier: 1,
     };
   }
   return environment;
@@ -209,5 +216,6 @@ export function standalonePrecipitationPreview(
     roadTravelSpeedMultiplier: 1,
     watermillThroughputMultiplier: 1,
     clayPitThroughputMultiplier: 1,
+    charcoalBurnerThroughputMultiplier: 1,
   }, search);
 }

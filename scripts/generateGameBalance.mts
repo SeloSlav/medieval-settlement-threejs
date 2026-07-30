@@ -174,6 +174,7 @@ export type GameBalance = {
     springRainWellRefillMultiplier: number;
     springRainRoadSpeedMultiplier: number;
     springRainWatermillThroughputMultiplier: number;
+    springRainCharcoalBurnerThroughputMultiplier: number;
     summerDroughtChance: number;
     summerDroughtDurationDays: number;
     droughtCropGrowthMultiplier: number;
@@ -181,6 +182,7 @@ export type GameBalance = {
     droughtWellRefillMultiplier: number;
     droughtFishLossFractionPerDay: number;
     droughtWatermillThroughputMultiplier: number;
+    droughtCharcoalBurnerThroughputMultiplier: number;
     springFirewoodDemandMultiplier: number;
     summerFirewoodDemandMultiplier: number;
     autumnFirewoodDemandMultiplier: number;
@@ -195,6 +197,7 @@ export type GameBalance = {
     autumnRoadSpeedMultiplier: number;
     winterRoadSpeedMultiplier: number;
     winterWatermillThroughputMultiplier: number;
+    winterCharcoalBurnerThroughputMultiplier: number;
     freshFoodSpoilageSpringPerDay: number;
     freshFoodSpoilageSummerPerDay: number;
     freshFoodSpoilageAutumnPerDay: number;
@@ -669,6 +672,7 @@ function generateRust(): string {
     `pub const SPRING_RAIN_WELL_REFILL_MULTIPLIER: f64 = ${rustF64(b.seasons.springRainWellRefillMultiplier)};`,
     `pub const SPRING_RAIN_ROAD_SPEED_MULTIPLIER: f64 = ${rustF64(b.seasons.springRainRoadSpeedMultiplier)};`,
     `pub const SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.springRainWatermillThroughputMultiplier)};`,
+    `pub const SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.springRainCharcoalBurnerThroughputMultiplier)};`,
     `pub const SUMMER_DROUGHT_CHANCE: f64 = ${rustF64(b.seasons.summerDroughtChance)};`,
     `pub const SUMMER_DROUGHT_DURATION_DAYS: u32 = ${b.seasons.summerDroughtDurationDays};`,
     `pub const DROUGHT_CROP_GROWTH_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtCropGrowthMultiplier)};`,
@@ -676,6 +680,7 @@ function generateRust(): string {
     `pub const DROUGHT_WELL_REFILL_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtWellRefillMultiplier)};`,
     `pub const DROUGHT_FISH_LOSS_FRACTION_PER_DAY: f64 = ${rustF64(b.seasons.droughtFishLossFractionPerDay)};`,
     `pub const DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtWatermillThroughputMultiplier)};`,
+    `pub const DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.droughtCharcoalBurnerThroughputMultiplier)};`,
     `pub const SPRING_FIREWOOD_DEMAND_MULTIPLIER: f64 = ${rustF64(b.seasons.springFirewoodDemandMultiplier)};`,
     `pub const SUMMER_FIREWOOD_DEMAND_MULTIPLIER: f64 = ${rustF64(b.seasons.summerFirewoodDemandMultiplier)};`,
     `pub const AUTUMN_FIREWOOD_DEMAND_MULTIPLIER: f64 = ${rustF64(b.seasons.autumnFirewoodDemandMultiplier)};`,
@@ -690,6 +695,7 @@ function generateRust(): string {
     `pub const AUTUMN_ROAD_SPEED_MULTIPLIER: f64 = ${rustF64(b.seasons.autumnRoadSpeedMultiplier)};`,
     `pub const WINTER_ROAD_SPEED_MULTIPLIER: f64 = ${rustF64(b.seasons.winterRoadSpeedMultiplier)};`,
     `pub const WINTER_WATERMILL_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.winterWatermillThroughputMultiplier)};`,
+    `pub const WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.seasons.winterCharcoalBurnerThroughputMultiplier)};`,
     `pub const FRESH_FOOD_SPOILAGE_SPRING_PER_DAY: f64 = ${rustF64(b.seasons.freshFoodSpoilageSpringPerDay)};`,
     `pub const FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY: f64 = ${rustF64(b.seasons.freshFoodSpoilageSummerPerDay)};`,
     `pub const FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY: f64 = ${rustF64(b.seasons.freshFoodSpoilageAutumnPerDay)};`,
@@ -1458,6 +1464,7 @@ function generateTypeScript(): string {
     `export const SPRING_RAIN_WELL_REFILL_MULTIPLIER = ${b.seasons.springRainWellRefillMultiplier};`,
     `export const SPRING_RAIN_ROAD_SPEED_MULTIPLIER = ${b.seasons.springRainRoadSpeedMultiplier};`,
     `export const SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER = ${b.seasons.springRainWatermillThroughputMultiplier};`,
+    `export const SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER = ${b.seasons.springRainCharcoalBurnerThroughputMultiplier};`,
     `export const SUMMER_DROUGHT_CHANCE = ${b.seasons.summerDroughtChance};`,
     `export const SUMMER_DROUGHT_DURATION_DAYS = ${b.seasons.summerDroughtDurationDays};`,
     `export const DROUGHT_CROP_GROWTH_MULTIPLIER = ${b.seasons.droughtCropGrowthMultiplier};`,
@@ -1465,6 +1472,7 @@ function generateTypeScript(): string {
     `export const DROUGHT_WELL_REFILL_MULTIPLIER = ${b.seasons.droughtWellRefillMultiplier};`,
     `export const DROUGHT_FISH_LOSS_FRACTION_PER_DAY = ${b.seasons.droughtFishLossFractionPerDay};`,
     `export const DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER = ${b.seasons.droughtWatermillThroughputMultiplier};`,
+    `export const DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER = ${b.seasons.droughtCharcoalBurnerThroughputMultiplier};`,
     `export const SPRING_FIREWOOD_DEMAND_MULTIPLIER = ${b.seasons.springFirewoodDemandMultiplier};`,
     `export const SUMMER_FIREWOOD_DEMAND_MULTIPLIER = ${b.seasons.summerFirewoodDemandMultiplier};`,
     `export const AUTUMN_FIREWOOD_DEMAND_MULTIPLIER = ${b.seasons.autumnFirewoodDemandMultiplier};`,
@@ -1479,6 +1487,7 @@ function generateTypeScript(): string {
     `export const AUTUMN_ROAD_SPEED_MULTIPLIER = ${b.seasons.autumnRoadSpeedMultiplier};`,
     `export const WINTER_ROAD_SPEED_MULTIPLIER = ${b.seasons.winterRoadSpeedMultiplier};`,
     `export const WINTER_WATERMILL_THROUGHPUT_MULTIPLIER = ${b.seasons.winterWatermillThroughputMultiplier};`,
+    `export const WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER = ${b.seasons.winterCharcoalBurnerThroughputMultiplier};`,
     `export const FRESH_FOOD_SPOILAGE_SPRING_PER_DAY = ${b.seasons.freshFoodSpoilageSpringPerDay};`,
     `export const FRESH_FOOD_SPOILAGE_SUMMER_PER_DAY = ${b.seasons.freshFoodSpoilageSummerPerDay};`,
     `export const FRESH_FOOD_SPOILAGE_AUTUMN_PER_DAY = ${b.seasons.freshFoodSpoilageAutumnPerDay};`,

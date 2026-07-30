@@ -83,6 +83,11 @@ import { syncArmoryStockpileVisuals } from './armoryStockpileVisuals.ts';
 import { syncSeasonalStockpileVisuals } from './seasonalStockpileVisuals.ts';
 import { syncMarketplaceSpecialtyStockpileVisuals } from './marketplaceSpecialtyStockpileVisuals.ts';
 import { syncMonasteryStockpileVisuals } from './monasteryStockpileVisuals.ts';
+import {
+  CHARCOAL_CLAMP_SMOKE_NAME,
+  setCharcoalClampSmokeThroughput,
+} from './meshes/materialChainBuildingMeshes.ts';
+import { processorOutputTargetForBuilding } from '../economy/processorOutputPolicy.ts';
 
 type BuildingMarkersOptions = {
   terrain: Terrain;
@@ -102,6 +107,7 @@ export class BuildingMarkers {
   private foundersCampfireNightLighting = 0;
   private foundersCampWinterAccumulation = false;
   private watermillThroughputMultiplier = 1;
+  private charcoalBurnerThroughputMultiplier = 1;
   private extentOverlayMesh: THREE.Mesh | null = null;
   private extentOverlayKind: BuildingKind | null = null;
   private fireRiskOverlayMesh: THREE.Mesh | null = null;
@@ -204,13 +210,25 @@ export class BuildingMarkers {
   setEnvironment(
     environment: Pick<
       EnvironmentState,
-      'season' | 'watermillThroughputMultiplier'
+      | 'season'
+      | 'watermillThroughputMultiplier'
+      | 'charcoalBurnerThroughputMultiplier'
     > | null,
   ): void {
     this.watermillThroughputMultiplier = Math.max(
       0,
       environment?.watermillThroughputMultiplier ?? 1,
     );
+    this.charcoalBurnerThroughputMultiplier = Math.max(
+      0,
+      environment?.charcoalBurnerThroughputMultiplier ?? 1,
+    );
+    for (const marker of this.buildingMeshes.values()) {
+      setCharcoalClampSmokeThroughput(
+        marker,
+        this.charcoalBurnerThroughputMultiplier,
+      );
+    }
     const winterAccumulation = environment?.season === 'winter';
     if (winterAccumulation === this.foundersCampWinterAccumulation) return;
     this.foundersCampWinterAccumulation = winterAccumulation;
@@ -512,6 +530,10 @@ export class BuildingMarkers {
       this.buildingMeshes.set(building.id, marker);
       this.group.add(marker);
       this.registerWatermillWheel(marker);
+      setCharcoalClampSmokeThroughput(
+        marker,
+        this.charcoalBurnerThroughputMultiplier,
+      );
       if (building.kind === 'founders_camp') {
         setFoundersCampWinterAccumulation(
           marker,
@@ -801,6 +823,16 @@ function syncBuildingVisualState(
     marker.userData.storehouseTimberSegments = STOREHOUSE_TIMBER_VISUAL_SEGMENTS;
     marker.userData.storehouseStoneSegments = STOREHOUSE_STONE_VISUAL_SEGMENTS;
     marker.userData.storehouseFirewoodSegments = STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS;
+  }
+  if (building.kind === 'charcoal_burner') {
+    const smoke = marker.getObjectByName(CHARCOAL_CLAMP_SMOKE_NAME);
+    if (smoke) {
+      const outputTarget = processorOutputTargetForBuilding(building)
+        ?? (BUILDING_STORAGE_CAPS.charcoal_burner.charcoal ?? 0);
+      smoke.visible = building.assignedLabor > 0
+        && building.firewood > 1e-6
+        && (building.charcoal ?? 0) + 1e-6 < outputTarget;
+    }
   }
   if (building.kind === 'lumber_mill') {
     const stockpile = marker.getObjectByName('TimberStockpile');

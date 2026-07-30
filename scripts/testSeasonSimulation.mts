@@ -5,6 +5,7 @@ import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_MONTHS_PER_YEAR,
   CALENDAR_SECONDS_PER_DAY,
+  DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   DROUGHT_WATERMILL_THROUGHPUT_MULTIPLIER,
   PRESERVED_FOOD_SPOILAGE_PER_DAY,
   RESIDENCE_PRESERVED_FOOD_AUTUMN_MULTIPLIER,
@@ -12,7 +13,9 @@ import {
   RESIDENCE_PRESERVED_FOOD_SUMMER_MULTIPLIER,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   SIM_REALTIME_RATE,
+  SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
+  WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
   WINTER_FIREWOOD_DEMAND_MULTIPLIER,
   WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
@@ -31,6 +34,7 @@ import {
   CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
   CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
   CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
+  charcoalBurnerThroughputForWeather,
   clayPitThroughputForWeather,
   describeEnvironment,
   describeNextDayEnvironmentOutlook,
@@ -62,6 +66,19 @@ assert.equal(CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER, 0.8);
 assert.equal(CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER, 0.7);
 assert.equal(CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER, 0.35);
 assert.equal(clayPitThroughputForWeather('fair'), 1);
+assert.equal(charcoalBurnerThroughputForWeather('fair'), 1);
+assert.equal(
+  charcoalBurnerThroughputForWeather('rain'),
+  SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+);
+assert.equal(
+  charcoalBurnerThroughputForWeather('drought'),
+  DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+);
+assert.equal(
+  charcoalBurnerThroughputForWeather('frost'),
+  WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+);
 assert.equal(
   preservedFoodDemandMultiplierForSeason('spring'),
   RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER,
@@ -174,6 +191,12 @@ for (let year = 1; year <= 20 && !droughtFound; year += 1) {
       CLAY_PIT_DROUGHT_THROUGHPUT_MULTIPLIER,
     );
     assert.equal(
+      environment.charcoalBurnerThroughputMultiplier,
+      DROUGHT_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+    );
+    assert.match(describeEnvironment(environment).detail, /charcoal-clamp pace to 110%/i);
+    assert.match(describeEnvironment(environment).detail, /most dangerous/i);
+    assert.equal(
       environment.preservedFoodSpoilageFractionPerDay,
       preservedFoodSpoilageFractionPerDayFor('summer', 'drought'),
     );
@@ -197,8 +220,13 @@ for (let springDay = 0; springDay < CALENDAR_DAYS_PER_MONTH * 3; springDay += 1)
     environment.clayPitThroughputMultiplier,
     CLAY_PIT_RAIN_THROUGHPUT_MULTIPLIER,
   );
+  assert.equal(
+    environment.charcoalBurnerThroughputMultiplier,
+    SPRING_RAIN_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+  );
   assert.match(describeEnvironment(environment).detail, /carts travel 18% slower/i);
   assert.match(describeEnvironment(environment).detail, /mill streams reach 115% power/i);
+  assert.match(describeEnvironment(environment).detail, /charcoal clamps to 80%/i);
   break;
 }
 assert.equal(rainFound, true, 'a wet Gorski Kotar spring should expose muddy-road logistics');
@@ -280,9 +308,14 @@ assert.equal(
   winterEnvironment.clayPitThroughputMultiplier,
   CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
 );
+assert.equal(
+  winterEnvironment.charcoalBurnerThroughputMultiplier,
+  WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
+);
 assert.match(describeEnvironment(winterEnvironment).detail, /carts travel 28% slower/i);
 assert.match(describeEnvironment(winterEnvironment).detail, /flour throughput to 45%/i);
 assert.match(describeEnvironment(winterEnvironment).detail, /halve cured-food aging/i);
+assert.match(describeEnvironment(winterEnvironment).detail, /charcoal tending falls to 80%/i);
 
 const lastAutumnDay = gameClock((CALENDAR_DAYS_PER_MONTH * 9 - 1) * dayTicks);
 const winterOutlookDescription = describeNextDayEnvironmentOutlook(
@@ -291,6 +324,7 @@ const winterOutlookDescription = describeNextDayEnvironmentOutlook(
 );
 assert.match(winterOutlookDescription, /watermill power 45%/i);
 assert.match(winterOutlookDescription, /clay digging 35%/i);
+assert.match(winterOutlookDescription, /charcoal burning 80%/i);
 
 let outlookChecksum = 0;
 const outlookStarted = performance.now();

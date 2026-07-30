@@ -436,7 +436,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
                 building,
             ),
             crate::building_defs::BuildingSimKind::CharcoalBurner => {
-                step_charcoal_burner(ctx, &tick, &clock, building)
+                step_charcoal_burner(ctx, &tick, &clock, environment, building)
             }
             crate::building_defs::BuildingSimKind::Smithy => {
                 step_smithy(ctx, &tick, &clock, building)

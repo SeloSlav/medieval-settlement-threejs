@@ -84,6 +84,7 @@ export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
   watermillThroughputMultiplier: number;
   clayPitThroughputMultiplier: number;
+  charcoalBurnerThroughputMultiplier: number;
   fireDisabledProcessorSites: number;
   fireDisabledProcessorWorkers: number;
   firstFireDisabledProcessorId: string | null;
@@ -615,6 +616,7 @@ function completedProcessorOverview(
   componentFor: ProductionRoadComponentResolver | undefined,
   watermillThroughputMultiplier: number,
   clayPitThroughputMultiplier: number,
+  charcoalBurnerThroughputMultiplier: number,
   resourceAbundance: number,
   calendarMonth?: number,
 ): ProcessorOverview {
@@ -628,6 +630,7 @@ function completedProcessorOverview(
     'charcoal_burner',
     1,
     sabbathObserved,
+    charcoalBurnerThroughputMultiplier,
   );
   const smithyCyclesPerWorker = cyclesPerCalendarDay('smithy', 1, sabbathObserved);
   const potterCyclesPerWorker = cyclesPerCalendarDay(
@@ -1676,6 +1679,7 @@ export function computeSettlementProductionCapacity(
   currentPreservedFoodDemandMultiplier = 1,
   calendarMonth?: number,
   resourceAbundance = 50,
+  charcoalBurnerThroughputMultiplier = 1,
 ): SettlementProductionCapacity {
   const normalizedWatermillThroughput = Number.isFinite(
     watermillThroughputMultiplier,
@@ -1686,6 +1690,11 @@ export function computeSettlementProductionCapacity(
     clayPitThroughputMultiplier,
   )
     ? Math.max(0, clayPitThroughputMultiplier)
+    : 1;
+  const normalizedCharcoalBurnerThroughput = Number.isFinite(
+    charcoalBurnerThroughputMultiplier,
+  )
+    ? Math.max(0, charcoalBurnerThroughputMultiplier)
     : 1;
   const normalizedPreservedFoodDemandMultiplier = Number.isFinite(
     currentPreservedFoodDemandMultiplier,
@@ -1741,6 +1750,7 @@ export function computeSettlementProductionCapacity(
     roadComponentFor,
     normalizedWatermillThroughput,
     normalizedClayPitThroughput,
+    normalizedCharcoalBurnerThroughput,
     normalizedResourceAbundance,
     calendarMonth,
   );
@@ -1858,6 +1868,7 @@ export function computeSettlementProductionCapacity(
     capacityDaysPerWeek: sabbathObserved ? 6 : 7,
     watermillThroughputMultiplier: normalizedWatermillThroughput,
     clayPitThroughputMultiplier: normalizedClayPitThroughput,
+    charcoalBurnerThroughputMultiplier: normalizedCharcoalBurnerThroughput,
     fireDisabledProcessorSites,
     fireDisabledProcessorWorkers,
     firstFireDisabledProcessorId,
