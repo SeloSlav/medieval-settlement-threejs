@@ -3,6 +3,10 @@ import {
   CARPENTER_TIMBER_PER_POLEARM,
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
+import {
+  CARPENTER_CART_SERVICE_IRONWORK_TARGET,
+  CARPENTER_CART_SERVICE_TIMBER_TARGET,
+} from './carpenterSupport.ts';
 
 export const CARPENTER_POLEARM_RESERVE_DEFAULT = 6;
 export const CARPENTER_POLEARM_RESERVE_LEGACY = 24;
@@ -55,13 +59,21 @@ export function carpenterArmoryPlan(
     reserve,
     stock,
     shortfall,
-    timberToTarget: Math.max(
-      0,
-      shortfall * CARPENTER_TIMBER_PER_POLEARM - Math.max(0, building.timber),
-    ),
-    ironworkToTarget: Math.max(
-      0,
-      shortfall * CARPENTER_IRONWORK_PER_POLEARM - Math.max(0, building.ironwork ?? 0),
-    ),
+    timberToTarget: shortfall <= 0
+      ? 0
+      : Math.max(
+          0,
+          CARPENTER_CART_SERVICE_TIMBER_TARGET
+            + shortfall * CARPENTER_TIMBER_PER_POLEARM
+            - Math.max(0, building.timber),
+        ),
+    ironworkToTarget: shortfall <= 0
+      ? 0
+      : Math.max(
+          0,
+          CARPENTER_CART_SERVICE_IRONWORK_TARGET
+            + shortfall * CARPENTER_IRONWORK_PER_POLEARM
+            - Math.max(0, building.ironwork ?? 0),
+        ),
   };
 }

@@ -8,6 +8,10 @@ import {
   carpenterArmoryPlan,
 } from './carpenterArmoryPolicy.ts';
 import {
+  CARPENTER_CART_SERVICE_IRONWORK_TARGET,
+  CARPENTER_CART_SERVICE_TIMBER_TARGET,
+} from './carpenterSupport.ts';
+import {
   GUARDHOUSE_PAY_PRIORITY_HIGH,
   GUARDHOUSE_PAY_PRIORITY_LOW,
   normalizeGuardhousePayPriority,
@@ -583,8 +587,14 @@ export function computeSettlementArmamentPlan(input: {
     });
     const readyOutput = Math.min(
       plan.shortfall,
-      Math.floor(timber / CARPENTER_TIMBER_PER_POLEARM),
-      Math.floor(ironwork / CARPENTER_IRONWORK_PER_POLEARM),
+      Math.floor(
+        Math.max(0, timber - CARPENTER_CART_SERVICE_TIMBER_TARGET)
+          / CARPENTER_TIMBER_PER_POLEARM,
+      ),
+      Math.floor(
+        Math.max(0, ironwork - CARPENTER_CART_SERVICE_IRONWORK_TARGET)
+          / CARPENTER_IRONWORK_PER_POLEARM,
+      ),
     );
     selectedArmoryOutput += plan.shortfall;
     readyArmoryOutput += readyOutput;
@@ -594,7 +604,10 @@ export function computeSettlementArmamentPlan(input: {
     carpenter.branch.readyArmoryOutput += readyOutput;
     carpenter.branch.timberNeededForTargets += plan.timberToTarget;
     carpenter.branch.ironworkNeededForTargets += plan.ironworkToTarget;
-    carpenter.branch.serviceableIronwork += ironwork;
+    carpenter.branch.serviceableIronwork += Math.max(
+      0,
+      ironwork - CARPENTER_CART_SERVICE_IRONWORK_TARGET,
+    );
   }
 
   let aggregateArmableFromFinishedStock = 0;

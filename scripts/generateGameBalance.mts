@@ -539,6 +539,9 @@ export type GameBalance = {
     ferryGoldPerDay: number;
     carpenterDeliverySpeedMultiplier: number;
     carpenterTimberCostMultiplier: number;
+    carpenterCartServiceTimberPerTrip: number;
+    carpenterCartServiceIronworkPerTrip: number;
+    carpenterCartServiceTargetTrips: number;
     storehouseOverflowThreshold: number;
     storehouseHaulPerWorker: number;
     storehouseFirewoodPerDelivery: number;
@@ -1035,6 +1038,9 @@ function generateRust(): string {
     `pub const FERRY_GOLD_PER_DAY: f64 = ${rustF64(b.production.ferryGoldPerDay)};`,
     `pub const CARPENTER_DELIVERY_SPEED_MULTIPLIER: f64 = ${rustF64(b.production.carpenterDeliverySpeedMultiplier)};`,
     `pub const CARPENTER_TIMBER_COST_MULTIPLIER: f64 = ${rustF64(b.production.carpenterTimberCostMultiplier)};`,
+    `pub const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP: f64 = ${rustF64(b.production.carpenterCartServiceTimberPerTrip)};`,
+    `pub const CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP: f64 = ${rustF64(b.production.carpenterCartServiceIronworkPerTrip)};`,
+    `pub const CARPENTER_CART_SERVICE_TARGET_TRIPS: f64 = ${rustF64(b.production.carpenterCartServiceTargetTrips)};`,
     `pub const STOREHOUSE_OVERFLOW_THRESHOLD: f64 = ${rustF64(b.production.storehouseOverflowThreshold)};`,
     `pub const STOREHOUSE_HAUL_PER_WORKER: f64 = ${rustF64(b.production.storehouseHaulPerWorker)};`,
     `pub const STOREHOUSE_FIREWOOD_PER_DELIVERY: f64 = ${rustF64(b.production.storehouseFirewoodPerDelivery)};`,
@@ -1837,6 +1843,9 @@ function generateTypeScript(): string {
     `export const FERRY_GOLD_PER_DAY = ${b.production.ferryGoldPerDay};`,
     `export const CARPENTER_DELIVERY_SPEED_MULTIPLIER = ${b.production.carpenterDeliverySpeedMultiplier};`,
     `export const CARPENTER_TIMBER_COST_MULTIPLIER = ${b.production.carpenterTimberCostMultiplier};`,
+    `export const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP = ${b.production.carpenterCartServiceTimberPerTrip};`,
+    `export const CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP = ${b.production.carpenterCartServiceIronworkPerTrip};`,
+    `export const CARPENTER_CART_SERVICE_TARGET_TRIPS = ${b.production.carpenterCartServiceTargetTrips};`,
     `export const STOREHOUSE_OVERFLOW_THRESHOLD = ${b.production.storehouseOverflowThreshold};`,
     `export const STOREHOUSE_HAUL_PER_WORKER = ${b.production.storehouseHaulPerWorker};`,
     `export const STOREHOUSE_FIREWOOD_PER_DELIVERY = ${b.production.storehouseFirewoodPerDelivery};`,

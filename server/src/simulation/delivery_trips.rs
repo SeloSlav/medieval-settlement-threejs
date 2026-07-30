@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
+    CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP, CARPENTER_CART_SERVICE_TIMBER_PER_TRIP,
     CARPENTER_DELIVERY_SPEED_MULTIPLIER, CONSTRUCTION_DELIVERY_SPEED_MPS,
     CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_HAUL_PER_WORKER, FIRE_BUCKET_SPEED_MPS,
     FIRE_BUCKET_UNLOAD_SECONDS, HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY,
@@ -31,6 +32,9 @@ use crate::raid_agent_policy::{
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
+use crate::supply_policy::{
+    carpenter_cart_service_ready, construction_source_available_stock,
+};
 use crate::simulation::delivery_cargo::{
     building_delivery_stock, pick_delivery_target, residence_delivery_room,
     withdraw_delivery_cargo, DeliveryCargoTotals,
@@ -1292,7 +1296,17 @@ pub fn try_start_construction_supply_trip(
     } else {
         CONSTRUCTION_HAUL_PER_WORKER
     };
-    let load = building_commodity_stock(origin, commodity)
+    let commodity_name = match commodity {
+        CommodityKind::Timber => "timber",
+        CommodityKind::Stone => "stone",
+        CommodityKind::Ironwork => "ironwork",
+        _ => "",
+    };
+    let load = construction_source_available_stock(
+        &origin.kind,
+        commodity_name,
+        building_commodity_stock(origin, commodity),
+    )
         .min(reserved_physical)
         .min(haul_per_worker * workers as f64);
     if load <= 1e-6 {
@@ -1878,20 +1892,40 @@ fn carpenter_delivery_multiplier_for_origin(
     origin: &Building,
     owner: spacetimedb::Identity,
 ) -> f64 {
-    let supported = tick
+    let serviced = tick
         .building_ids_for_kinds(ctx, owner, &["carpenter"])
         .into_iter()
         .filter_map(|building_id| ctx.db.building().id().find(&building_id))
-        .any(|shop| {
-            shop.kind == "carpenter"
-                && shop.construction_complete
-                && shop.assigned_labor > 0
-                && building_fire_state(ctx, shop.id).is_none()
-                && network
-                    .road_path_distance(origin.x, origin.z, shop.x, shop.z)
-                    .is_some()
+        .filter_map(|shop| {
+            if shop.kind != "carpenter"
+                || !shop.construction_complete
+                || shop.assigned_labor == 0
+                || building_fire_state(ctx, shop.id).is_some()
+                || !carpenter_cart_service_ready(shop.timber, shop.ironwork)
+            {
+                return None;
+            }
+            network
+                .road_path_distance(origin.x, origin.z, shop.x, shop.z)
+                .map(|distance| (shop, distance))
+        })
+        .min_by(|(a, a_distance), (b, b_distance)| {
+            a_distance
+                .total_cmp(b_distance)
+                .then_with(|| a.id.cmp(&b.id))
         });
-    if supported {
+    if let Some((mut shop, _distance)) = serviced {
+        withdraw_building_commodity(
+            &mut shop,
+            CommodityKind::Timber,
+            CARPENTER_CART_SERVICE_TIMBER_PER_TRIP,
+        );
+        withdraw_building_commodity(
+            &mut shop,
+            CommodityKind::Ironwork,
+            CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP,
+        );
+        ctx.db.building().id().update(shop);
         CARPENTER_DELIVERY_SPEED_MULTIPLIER
     } else {
         1.0

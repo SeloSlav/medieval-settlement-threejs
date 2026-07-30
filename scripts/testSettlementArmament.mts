@@ -212,15 +212,15 @@ assert.equal(split.armableAfterReadyCrafts, 7);
 assert.equal(split.unarmedAfterFinishedStock, 1);
 assert.equal(split.unarmedAfterReadyCrafts, 1);
 assert.equal(split.selectedArmoryOutput, 7);
-assert.equal(split.readyArmoryOutput, 5);
-assert.equal(split.timberNeededForTargets, 2);
-assert.equal(split.ironworkNeededForTargets, 2);
+assert.equal(split.readyArmoryOutput, 2);
+assert.equal(split.timberNeededForTargets, 8);
+assert.ok(Math.abs(split.ironworkNeededForTargets - 3.2) < 1e-9);
 assert.equal(split.roadSourceTimber, 8);
 assert.equal(split.roadSourceIronwork, 3);
 assert.equal(split.ironworkStock, 17);
 assert.equal(split.ironworkInTransit, 2);
-assert.equal(split.serviceableIronwork, 8);
-assert.equal(split.unavailableIronwork, 9);
+assert.ok(Math.abs(split.serviceableIronwork - 6.8) < 1e-9);
+assert.ok(Math.abs(split.unavailableIronwork - 10.2) < 1e-9);
 assert.equal(split.firstExposedGuardhouseId, eastGuard.id);
 assert.equal(split.roadPlan?.activeBranches, 3);
 assert.equal(split.roadPlan?.guardBranches, 2);
@@ -239,7 +239,8 @@ assert.match(splitRows, /7 \/ 8 armable after approaching carts/);
 assert.match(splitRows, /1 still exposed/);
 assert.match(splitRows, /1 \/ 2 guard branches have a staffed carpenter route/);
 assert.match(splitRows, /1\.0 guards blocked by branch fragmentation/);
-assert.match(splitRows, /5\.0 \/ 7\.0 selected polearms have timber and ironwork/);
+assert.match(splitRows, /2\.0 \/ 7\.0 selected polearms have timber and ironwork/);
+assert.match(splitRows, /remaining targets claim 8\.0 timber \+ 3\.2 ironwork/);
 assert.match(splitRows, /9\.0 in treasury, excess company stock, idle shops, or disconnected stores/);
 assert.match(splitRows, /data-inspect-building="east-guard"/);
 
@@ -258,7 +259,7 @@ assert.equal(
   0,
   'fire-disabled marketplace ironwork must not appear serviceable to the armory branch',
 );
-assert.equal(fireBlockedMarket.serviceableIronwork, 5);
+assert.ok(Math.abs(fireBlockedMarket.serviceableIronwork - 3.8) < 1e-9);
 state.fireIncidents.delete('west-market-fire');
 
 const westWatch = building('west-watch', 'watchtower', 0, {
@@ -309,8 +310,8 @@ assert.equal(joined.unavailableFinishedPolearms, 5);
 assert.equal(joined.armableFromFinishedStock, 8);
 assert.equal(joined.armableAfterReadyCrafts, 8);
 assert.equal(joined.unarmedAfterReadyCrafts, 0);
-assert.equal(joined.serviceableIronwork, 13);
-assert.equal(joined.unavailableIronwork, 4);
+assert.ok(Math.abs(joined.serviceableIronwork - 11.8) < 1e-9);
+assert.ok(Math.abs(joined.unavailableIronwork - 5.2) < 1e-9);
 assert.equal(joined.firstExposedGuardhouseId, null);
 assert.equal(joined.roadPlan?.activeBranches, 1);
 assert.equal(joined.roadPlan?.guardBranches, 1);

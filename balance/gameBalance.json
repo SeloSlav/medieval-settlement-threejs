@@ -524,6 +524,9 @@
     "ferryGoldPerDay": 2.25,
     "carpenterDeliverySpeedMultiplier": 1.18,
     "carpenterTimberCostMultiplier": 0.9,
+    "carpenterCartServiceTimberPerTrip": 0.2,
+    "carpenterCartServiceIronworkPerTrip": 0.04,
+    "carpenterCartServiceTargetTrips": 15,
     "storehouseOverflowThreshold": 0.65,
     "storehouseHaulPerWorker": 24,
     "storehouseFirewoodPerDelivery": 8

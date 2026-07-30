@@ -17,6 +17,7 @@ export type ToolbarStats = {
   farmCrop?: FarmCrop;
   buildingCost?: BuildingResourceCost;
   carpenterSupported?: boolean;
+  carpenterCartServiceReady?: boolean;
 };
 
 export function describeBuildingPlacementBlocker(
@@ -162,7 +163,9 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
     const label = getBuildingDefinition(stats.mode).label;
     const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
     const support = stats.carpenterSupported
-      ? ' — carpenter-supported: 10% less timber and 18% faster road carts'
+      ? stats.carpenterCartServiceReady
+        ? ' — carpenter-supported: 10% less timber; stocked wheelwright gives road carts +18% speed'
+        : ' — carpenter-supported: 10% less timber; cart speed awaits repair timber and ironwork'
       : '';
     return `Click terrain to place a ${label.toLowerCase()} (${formatBuildingCost(cost)})${support}${hint}`;
   }

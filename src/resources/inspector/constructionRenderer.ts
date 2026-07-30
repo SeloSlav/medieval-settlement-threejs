@@ -1,6 +1,9 @@
 import { CONSTRUCTION_DELIVERY_UNLOAD_SEC } from '../../generated/gameBalance.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
-import { selectConstructionRouteSource } from '../../logistics/constructionLogistics.ts';
+import {
+  constructionSourceAvailableStock,
+  selectConstructionRouteSource,
+} from '../../logistics/constructionLogistics.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { buildingLaborView, buildingRoadAccessRow } from './buildingCommon.ts';
@@ -198,7 +201,7 @@ function resolveConstructionSupply(
   const sources = [...context.gameState.buildings.values()].filter((source) =>
     source.id !== site.id
     && source.constructionComplete !== false
-    && (source[material] ?? 0) > 1e-6);
+    && constructionSourceAvailableStock(source, material) > 1e-6);
   const fireDisabled = fireDisabledBuildingIds(
     context.gameState.fireIncidents.values(),
   );

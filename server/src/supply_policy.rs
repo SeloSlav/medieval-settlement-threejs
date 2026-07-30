@@ -3,17 +3,18 @@ use std::cmp::Ordering;
 use crate::balance_generated::{
     BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_FIREWOOD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY,
-    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
-    GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
-    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES,
-    LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
-    MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
-    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, RESIDENCE_FIREWOOD_CAPACITY,
-    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
-    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
-    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
-    WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
-    WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+    CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP, CARPENTER_CART_SERVICE_TARGET_TRIPS,
+    CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE,
+    HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
+    LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES, LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
+    LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE, MINE_TIMBER_SUPPORT_BUFFER_CYCLES,
+    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE,
+    POTTER_FIREWOOD_PER_CYCLE, RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+    RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
+    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
+    SMOKEHOUSE_SALT_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
+    WEAVER_WOOL_PER_CYCLE, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 };
 use crate::civilian_tool_policy::is_civilian_tool_site;
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -77,6 +78,36 @@ pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
+
+pub fn carpenter_cart_service_timber_target() -> f64 {
+    CARPENTER_CART_SERVICE_TIMBER_PER_TRIP * CARPENTER_CART_SERVICE_TARGET_TRIPS
+}
+
+pub fn carpenter_cart_service_ironwork_target() -> f64 {
+    CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP * CARPENTER_CART_SERVICE_TARGET_TRIPS
+}
+
+pub fn carpenter_cart_service_trips_available(timber: f64, ironwork: f64) -> u32 {
+    let timber_trips = ((timber.max(0.0) + 1e-9) / CARPENTER_CART_SERVICE_TIMBER_PER_TRIP).floor();
+    let ironwork_trips =
+        ((ironwork.max(0.0) + 1e-9) / CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP).floor();
+    timber_trips.min(ironwork_trips).clamp(0.0, u32::MAX as f64) as u32
+}
+
+pub fn carpenter_cart_service_ready(timber: f64, ironwork: f64) -> bool {
+    carpenter_cart_service_trips_available(timber, ironwork) > 0
+}
+
+/// A carpenter's small wheel, axle, pin, and fitting buffer is service stock,
+/// not spare construction inventory. Building carts may draw only the excess.
+pub fn construction_source_available_stock(kind: &str, commodity: &str, stock: f64) -> f64 {
+    let reserve = match (kind, commodity) {
+        ("carpenter", "timber") => carpenter_cart_service_timber_target(),
+        ("carpenter", "ironwork") => carpenter_cart_service_ironwork_target(),
+        _ => 0.0,
+    };
+    (stock.max(0.0) - reserve).max(0.0)
+}
 
 /// Deep stone chambers use bedrock pillars for most permanent support, but
 /// still consume prepared timber columns and working cribs while a new face is
@@ -731,24 +762,26 @@ pub fn select_need_delivery_candidate(
 #[cfg(test)]
 mod tests {
     use super::{
+        carpenter_cart_service_ironwork_target, carpenter_cart_service_ready,
+        carpenter_cart_service_timber_target, carpenter_cart_service_trips_available,
         compare_grain_dispatch_candidates, compare_institutional_food_dispatch_candidates,
         compare_need_delivery_candidate_records, compare_need_delivery_candidates,
         compare_processor_input_dispatch_candidates, compare_seed_grain_delivery_candidates,
-        compare_supply_route_candidates, construction_source_priority,
-        directly_dispatched_processor_input_per_cycle, grain_dispatch_duty,
-        grain_input_runway_cycles, grain_input_target, grain_work_priority, granary_dispatch_order,
-        household_firewood_needs_priority, household_firewood_priority_target,
-        household_food_reserve, institutional_food_surplus, is_firewood_supplier_operational,
-        is_food_supplier_operational, is_specialty_supplier_operational,
-        is_well_supplier_operational, large_quarry_support_runway_cycles,
-        large_quarry_support_target, large_quarry_supports_ready, local_material_dispatch_target,
-        processor_input_dispatch_duty, processor_input_runway_cycles, processor_input_target,
-        rich_mine_support_runway_cycles, rich_mine_support_target, rich_mine_supports_ready,
-        select_grain_dispatch_candidate, select_need_delivery_candidate,
-        select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
-        select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
-        InstitutionalFoodDispatchDuty, NeedDeliveryCandidate, ProcessorInputDispatchDuty,
-        ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
+        compare_supply_route_candidates, construction_source_available_stock,
+        construction_source_priority, directly_dispatched_processor_input_per_cycle,
+        grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, grain_work_priority,
+        granary_dispatch_order, household_firewood_needs_priority,
+        household_firewood_priority_target, household_food_reserve, institutional_food_surplus,
+        is_firewood_supplier_operational, is_food_supplier_operational,
+        is_specialty_supplier_operational, is_well_supplier_operational,
+        large_quarry_support_runway_cycles, large_quarry_support_target,
+        large_quarry_supports_ready, local_material_dispatch_target, processor_input_dispatch_duty,
+        processor_input_runway_cycles, processor_input_target, rich_mine_support_runway_cycles,
+        rich_mine_support_target, rich_mine_supports_ready, select_grain_dispatch_candidate,
+        select_need_delivery_candidate, select_processor_input_dispatch_candidate,
+        select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
+        GranaryDispatchDuty, InstitutionalFoodDispatchDuty, NeedDeliveryCandidate,
+        ProcessorInputDispatchDuty, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
         GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
         GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
         LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_SUPPLIER_KINDS,
@@ -982,6 +1015,34 @@ mod tests {
         assert_eq!(construction_source_priority("carpenter", 0), 5);
         assert_eq!(construction_source_priority("large_quarry", 0), 6);
         assert_eq!(construction_source_priority("granary", 0), 7);
+    }
+
+    #[test]
+    fn carpenter_service_stock_backs_real_accelerated_departures() {
+        assert!((carpenter_cart_service_timber_target() - 3.0).abs() < 1e-9);
+        assert!((carpenter_cart_service_ironwork_target() - 0.6).abs() < 1e-9);
+        assert_eq!(carpenter_cart_service_trips_available(3.0, 0.6), 15);
+        assert_eq!(carpenter_cart_service_trips_available(3.0, 0.039), 0);
+        assert!(!carpenter_cart_service_ready(0.19, 4.0));
+        assert!(carpenter_cart_service_ready(0.2, 0.04));
+    }
+
+    #[test]
+    fn construction_carts_leave_the_carpenter_service_buffer_at_the_shop() {
+        assert!(
+            (construction_source_available_stock("carpenter", "timber", 8.0) - 5.0).abs() < 1e-9
+        );
+        assert!(
+            (construction_source_available_stock("carpenter", "ironwork", 2.0) - 1.4).abs() < 1e-9
+        );
+        assert_eq!(
+            construction_source_available_stock("carpenter", "timber", 2.0),
+            0.0
+        );
+        assert_eq!(
+            construction_source_available_stock("lumber_mill", "timber", 2.0),
+            2.0
+        );
     }
 
     #[test]

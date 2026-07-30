@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import {
+  CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP,
+  CARPENTER_CART_SERVICE_TARGET_TRIPS,
+  CARPENTER_CART_SERVICE_TIMBER_PER_TRIP,
   CONSTRUCTION_DELIVERY_SPEED_MPS,
   CONSTRUCTION_HAUL_PER_WORKER,
   CONSTRUCTION_MAX_BUILDERS,
@@ -26,6 +29,7 @@ import {
   type DeliveryTripState,
 } from '../src/logistics/deliveryTrips.ts';
 import {
+  constructionSourceAvailableStock,
   constructionSourcePriority,
   selectConstructionRouteSource,
 } from '../src/logistics/constructionLogistics.ts';
@@ -391,6 +395,24 @@ const buildingState = (
   constructionPriority: CONSTRUCTION_PRIORITY_NORMAL,
   ...overrides,
 });
+const carpenterServiceStock = buildingState({
+  id: 'service-carpenter',
+  kind: 'carpenter',
+  timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP
+    * (CARPENTER_CART_SERVICE_TARGET_TRIPS + 5),
+  ironwork: CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP
+    * (CARPENTER_CART_SERVICE_TARGET_TRIPS + 2),
+});
+assert.equal(
+  constructionSourceAvailableStock(carpenterServiceStock, 'timber'),
+  CARPENTER_CART_SERVICE_TIMBER_PER_TRIP * 5,
+);
+assert.ok(
+  Math.abs(
+    constructionSourceAvailableStock(carpenterServiceStock, 'ironwork')
+      - CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP * 2,
+  ) < 1e-9,
+);
 const fireIncident = (
   targetId: string,
   id = `fire-${targetId}`,

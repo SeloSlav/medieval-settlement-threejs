@@ -20,7 +20,10 @@ use crate::simulation::delivery_trips::{
     try_start_construction_supply_trip, DELIVERY_DESTINATION_BUILDING,
 };
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
-use crate::supply_policy::{construction_source_priority, select_supply_route_candidate};
+use crate::supply_policy::{
+    construction_source_available_stock, construction_source_priority,
+    select_supply_route_candidate,
+};
 use crate::tables::Building;
 
 pub fn step_construction_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
@@ -146,7 +149,7 @@ fn dispatch_reserved_stock(
             || building_has_active_trip(ctx, source.id)
             || (source.kind == "village_storehouse"
                 && building_has_inbound_supply_trip(ctx, source.id))
-            || building_commodity_stock(&source, commodity) <= 1e-6
+            || construction_source_stock(&source, commodity) <= 1e-6
             || (source.assigned_labor == 0 && free_haulers == 0)
         {
             continue;
@@ -192,6 +195,20 @@ fn dispatch_reserved_stock(
             return;
         }
     }
+}
+
+fn construction_source_stock(source: &Building, commodity: CommodityKind) -> f64 {
+    let commodity_name = match commodity {
+        CommodityKind::Timber => "timber",
+        CommodityKind::Stone => "stone",
+        CommodityKind::Ironwork => "ironwork",
+        _ => "",
+    };
+    construction_source_available_stock(
+        &source.kind,
+        commodity_name,
+        building_commodity_stock(source, commodity),
+    )
 }
 
 fn construction_route_distance(

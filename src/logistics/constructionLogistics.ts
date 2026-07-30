@@ -1,10 +1,18 @@
 import type { BuildingState } from '../resources/types.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
+import {
+  CARPENTER_CART_SERVICE_IRONWORK_TARGET,
+  CARPENTER_CART_SERVICE_TIMBER_TARGET,
+} from '../economy/carpenterSupport.ts';
 
 export type ConstructionSourceLike = Pick<
   BuildingState,
   'id' | 'kind' | 'assignedLabor'
 >;
+
+export type ConstructionMaterial = 'timber' | 'stone' | 'ironwork';
+export type ConstructionStockSourceLike = ConstructionSourceLike
+  & Pick<BuildingState, 'timber' | 'stone' | 'ironwork'>;
 
 export type RoutedConstructionSource<T extends ConstructionSourceLike> = {
   source: T;
@@ -30,6 +38,21 @@ export function constructionSourcePriority(source: ConstructionSourceLike): numb
         ? 2
         : 3;
   return source.assignedLabor > 0 ? kindPriority : kindPriority + 4;
+}
+
+export function constructionSourceAvailableStock(
+  source: ConstructionStockSourceLike,
+  material: ConstructionMaterial,
+): number {
+  const stock = Math.max(0, source[material] ?? 0);
+  const serviceReserve = source.kind === 'carpenter'
+    ? material === 'timber'
+      ? CARPENTER_CART_SERVICE_TIMBER_TARGET
+      : material === 'ironwork'
+        ? CARPENTER_CART_SERVICE_IRONWORK_TARGET
+        : 0
+    : 0;
+  return Math.max(0, stock - serviceReserve);
 }
 
 /**

@@ -5,6 +5,8 @@ import {
   BUILDING_COSTS,
   BUILDING_KINDS,
   BUILDING_STORAGE_CAPS,
+  CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP,
+  CARPENTER_CART_SERVICE_TIMBER_PER_TRIP,
   CARPENTER_DELIVERY_SPEED_MULTIPLIER,
   CARPENTER_TIMBER_COST_MULTIPLIER,
   MONASTERY_COVERAGE_RADIUS,
@@ -27,6 +29,8 @@ import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
   buildingCostWithCarpenterSupport,
+  carpenterCartServiceReady,
+  carpenterCartServiceTripsAvailable,
   carpenterDeliverySpeedMultiplier,
   hasRoadLinkedCarpenter,
   isOperationalCarpenter,
@@ -148,9 +152,21 @@ carpenterRoad.addRoadPath([
   new THREE.Vector3(140, 0, 0),
 ]);
 const activeCarpenter = buildingState('carpenter', 'carpenter', 0, 18, 1);
+activeCarpenter.timber = 3;
+activeCarpenter.ironwork = 0.6;
 const idleCarpenter = buildingState('carpenter', 'idle-carpenter', 0, 18, 0);
 assert.equal(isOperationalCarpenter(activeCarpenter), true);
 assert.equal(isOperationalCarpenter(idleCarpenter), false);
+assert.equal(carpenterCartServiceReady(activeCarpenter), true);
+assert.equal(carpenterCartServiceTripsAvailable(activeCarpenter), 15);
+assert.equal(
+  carpenterCartServiceTripsAvailable({
+    timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP * 5,
+    ironwork: CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP * 2,
+  }),
+  2,
+  'the scarcer physical repair input must cap accelerated departures',
+);
 assert.equal(
   hasRoadLinkedCarpenter([activeCarpenter], carpenterRoad, { x: 100, z: 18 }),
   true,
@@ -213,6 +229,15 @@ const supportedSpeed = carpenterDeliverySpeedMultiplier(
   { x: 30, z: 18 },
 );
 assert.equal(supportedSpeed, CARPENTER_DELIVERY_SPEED_MULTIPLIER);
+assert.equal(
+  carpenterDeliverySpeedMultiplier(
+    [{ ...activeCarpenter, ironwork: 0 }],
+    carpenterRoad,
+    { x: 30, z: 18 },
+  ),
+  1,
+  'staffing alone must not create a free cart-speed aura',
+);
 const supportedTripSeconds = roadDeliveryTripSeconds(
   carpenterRoad,
   { x: 30, z: 18 },
@@ -232,8 +257,9 @@ const placementStatus = describeToolbarStatus({
   mode: 'smokehouse',
   buildingCost: supportedSmokehouseCost,
   carpenterSupported: true,
+  carpenterCartServiceReady: true,
 });
-assert.match(placementStatus, /carpenter-supported: 10% less timber and 18% faster road carts/);
+assert.match(placementStatus, /carpenter-supported: 10% less timber; stocked wheelwright gives road carts \+18% speed/);
 assert.match(placementStatus, new RegExp(`${supportedSmokehouseCost.timber} timber`));
 
 const performanceCarpenters: CarpenterSupportBuilding[] = Array.from(
@@ -257,6 +283,20 @@ const supportScanElapsed = performance.now() - supportScanStarted;
 assert.ok(
   supportScanElapsed < 500,
   `100k-building carpenter support scan regressed (${supportScanElapsed.toFixed(1)} ms)`,
+);
+const serviceScanStarted = performance.now();
+assert.equal(
+  carpenterDeliverySpeedMultiplier(
+    performanceCarpenters,
+    carpenterRoad,
+    { x: 100, z: 18 },
+  ),
+  CARPENTER_DELIVERY_SPEED_MULTIPLIER,
+);
+const serviceScanElapsed = performance.now() - serviceScanStarted;
+assert.ok(
+  serviceScanElapsed < 500,
+  `100k-building supplied cart-service scan regressed (${serviceScanElapsed.toFixed(1)} ms)`,
 );
 
 const closeShorePlacement = validateBuildingPlacement('watermill', 0, 0, {
@@ -358,8 +398,15 @@ assert.match(
 const deliverySimulation = fs.readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 assert.match(
   deliverySimulation,
-  /CARPENTER_DELIVERY_SPEED_MULTIPLIER/,
-  'client trip projections must retain an authoritative server counterpart',
+  /carpenter_cart_service_ready[\s\S]*withdraw_building_commodity\([\s\S]*CARPENTER_CART_SERVICE_TIMBER_PER_TRIP[\s\S]*CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP[\s\S]*CARPENTER_DELIVERY_SPEED_MULTIPLIER/,
+  'the authoritative speed bonus must consume one physical wheelwright repair kit',
 );
+assert.match(
+  expandedSimulation,
+  /step_carpenter[\s\S]*carpenter_cart_service_timber_target[\s\S]*carpenter_cart_service_ironwork_target[\s\S]*request_connected_commodity/,
+  'staffed wheelwrights must physically request both repair inputs',
+);
+assert.match(watermillInspector, /Repair kit/);
+assert.match(watermillInspector, /protected timber/);
 
 console.log('expanded settlement tests passed');

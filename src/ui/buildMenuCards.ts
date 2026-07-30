@@ -80,7 +80,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   brewery: ['Brewhouse', 'B', 'Boils grain and water over firewood into ale for prosperous households and export.'],
   smokehouse: ['Smokehouse', 'Q', 'Uses fresh food, firewood, local or imported salt, and pottery to create larger preserved-food batches. Severe fire risk makes isolation and well coverage important.'],
   apiary: ['Forest apiary', 'A', 'Produces seasonal honey and food. Hospitality-enabled monasteries take honey before market export.'],
-  carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10% and move connected carts 18% faster.'],
+  carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10%. Prepared timber and smith-forged ironwork service connected carts for 18% faster departures; each accelerated trip consumes a small repair kit.'],
   weaver: ["Weaver's workshop", 'I', 'Turns sheep wool and field-grown flax fibre into household textiles, then exports the surplus.'],
   vineyard: ['Vineyard terrace', 'V', 'An autumn hillside harvest yields food and wine for monastery hospitality or high-value export.'],
   pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for fresh dairy, manure carts, and nearby ox power, or sheep for upland dairy and an annual wool clip. Local or imported salt turns dairy and part of autumn slaughter into durable provisions; draw fenced pasture and keep a road to its suppliers.'],

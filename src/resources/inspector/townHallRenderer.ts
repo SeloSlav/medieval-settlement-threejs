@@ -1,4 +1,5 @@
 import {
+  CARPENTER_CART_SERVICE_TARGET_TRIPS,
   ECONOMIC_ACTIVITY_TAX_RATE_MAX,
   ECONOMIC_ACTIVITY_TAX_RATE_MIN,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
@@ -1386,7 +1387,7 @@ export function renderSettlementArmamentRows(
     : `<li><span>Armory roads</span><span>${roads.staffedArmoryGuardBranches} / ${roads.guardBranches} guard branches have a staffed carpenter route &middot; ${roads.finishedStockCoveredBranches} covered by finished arms &middot; ${roads.readyCraftCoveredBranches} covered after ready crafts &middot; ${roads.exposedGuardBranches} still short &middot; ${roads.unservedGuardBranches} without staffed armory${roads.fragmentationGuards > 0.05 ? ` &middot; ${roads.fragmentationGuards.toFixed(1)} guards blocked by branch fragmentation` : ' &middot; no ready arms stranded by topology'}</span></li>`;
   const workOrders = plan.staffedCarpenters === 0
     ? 'No staffed carpenter can execute a polearm order'
-    : `${plan.readyArmoryOutput.toFixed(1)} / ${plan.selectedArmoryOutput.toFixed(1)} selected polearms have timber and ironwork onsite or approaching &middot; remaining targets claim ${plan.timberNeededForTargets.toFixed(1)} timber + ${plan.ironworkNeededForTargets.toFixed(1)} ironwork &middot; connected source branches currently hold ${plan.roadSourceTimber.toFixed(1)} timber + ${plan.roadSourceIronwork.toFixed(1)} ironwork (${plan.roadSourceSmithyIronwork.toFixed(1)} locally forged + ${plan.roadSourceMarketIronwork.toFixed(1)} market-held) before cart contention${plan.firstSupplyingSmithyId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSupplyingSmithyId}" aria-label="Inspect first local armory ironwork source">Inspect smithy</button>`}`;
+    : `${plan.readyArmoryOutput.toFixed(1)} / ${plan.selectedArmoryOutput.toFixed(1)} selected polearms have timber and ironwork onsite or approaching after each shop&rsquo;s ${CARPENTER_CART_SERVICE_TARGET_TRIPS}-departure repair buffer &middot; remaining targets claim ${plan.timberNeededForTargets.toFixed(1)} timber + ${plan.ironworkNeededForTargets.toFixed(1)} ironwork &middot; connected source branches currently hold ${plan.roadSourceTimber.toFixed(1)} timber + ${plan.roadSourceIronwork.toFixed(1)} ironwork (${plan.roadSourceSmithyIronwork.toFixed(1)} locally forged + ${plan.roadSourceMarketIronwork.toFixed(1)} market-held) before cart contention${plan.firstSupplyingSmithyId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSupplyingSmithyId}" aria-label="Inspect first local armory ironwork source">Inspect smithy</button>`}`;
   const fireOutages = (
     plan.fireDisabledWatchtowers
     + plan.fireDisabledGuardhouses

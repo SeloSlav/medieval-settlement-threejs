@@ -13,6 +13,7 @@ import type { BuildingMarkers } from './BuildingMarkers.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
   buildingCostWithCarpenterSupport,
+  carpenterCartServiceReady,
   hasRoadLinkedCarpenter,
 } from '../economy/carpenterSupport.ts';
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
@@ -130,6 +131,7 @@ export class BuildingTool {
   getPlacementEconomy(): {
     cost: BuildingResourceCost;
     carpenterSupported: boolean;
+    carpenterCartServiceReady: boolean;
   } | null {
     if (this.mode === 'off') return null;
     const hasPreview = Number.isFinite(this.lastPreviewX)
@@ -142,9 +144,17 @@ export class BuildingTool {
       { x: this.lastPreviewX, z: this.lastPreviewZ },
       disabledBuildingIds,
     );
+    const cartServiceReady = hasPreview && hasRoadLinkedCarpenter(
+      state.buildings.values(),
+      this.options.getRoadNetwork?.(),
+      { x: this.lastPreviewX, z: this.lastPreviewZ },
+      disabledBuildingIds,
+      carpenterCartServiceReady,
+    );
     return {
       cost: buildingCostWithCarpenterSupport(this.mode, carpenterSupported),
       carpenterSupported,
+      carpenterCartServiceReady: cartServiceReady,
     };
   }
 
