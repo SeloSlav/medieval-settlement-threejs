@@ -7,6 +7,25 @@ import {
 } from '../src/app/connectionRecoveryHints.ts';
 import { SessionLifecycleController } from '../src/app/SessionLifecycleController.ts';
 import { SessionConnectionGate } from '../src/network/SessionConnectionGate.ts';
+import { isUnauthorizedConnectError } from '../src/network/connectionErrorPolicy.ts';
+
+for (const staleCredentialError of [
+  new Error('401 Unauthorized'),
+  new Error('Failed to verify token: signature mismatch'),
+  new Error('Invalid token'),
+  new Error('Token expired'),
+]) {
+  assert.equal(
+    isUnauthorizedConnectError(staleCredentialError),
+    true,
+    `${staleCredentialError.message} must trigger one anonymous reconnect`,
+  );
+}
+assert.equal(
+  isUnauthorizedConnectError(new Error('Connection refused')),
+  false,
+  'ordinary server outages must retain their actionable connection error',
+);
 
 const generationLock = formatBootstrapFailure(
   new Error('Cannot change world generation after the simulation has started.'),

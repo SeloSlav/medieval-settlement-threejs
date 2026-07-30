@@ -564,7 +564,12 @@ assert.match(
 );
 assert.match(
   authority,
-  /"mine" if source\.iron[\s\S]*CommodityKind::Iron[\s\S]*"mine" if source\.salt[\s\S]*CommodityKind::Salt/,
+  /pub fn step_local_material_dispatch[\s\S]*try_start_building_supply_trip[\s\S]*commodity/,
+  'local extracted materials must move through physical building supply trips',
+);
+assert.match(
+  authority,
+  /\("mine", CommodityKind::Iron\)[\s\S]*smithy[\s\S]*marketplace[\s\S]*\("mine", CommodityKind::Salt\)[\s\S]*smokehouse[\s\S]*pastoral_farmstead[\s\S]*marketplace/,
   'mines must physically dispatch their extracted commodity to matching processors',
 );
 

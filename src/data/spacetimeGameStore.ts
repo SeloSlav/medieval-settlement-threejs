@@ -15,8 +15,8 @@ import {
   getConnection,
   getSpacetimeConfig,
   isConnected,
-  isUnauthorizedConnectError,
 } from '../network/spacetimedbClient.ts';
+import { isUnauthorizedConnectError } from '../network/connectionErrorPolicy.ts';
 import type { RoadNetworkSnapshot } from '../roads/RoadNetwork.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
 import type { FireTargetKind } from '../fires/fireIncident.ts';

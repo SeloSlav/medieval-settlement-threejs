@@ -1234,7 +1234,7 @@ export class App {
 
   private exposeE2eHandles(session: BootstrappedSession): void {
     if (import.meta.env.VITE_E2E_TEST !== '1') return;
-    if (!this.gameState || !this.spacetimeStore || !this.buildingTool || !this.sceneManager) return;
+    if (!this.spacetimeStore || !this.buildingTool || !this.sceneManager) return;
 
     const worldSettings = session.sceneManager.worldLayout.settings;
     const playableHalf = resolveWorldDimensions(worldSettings.mapSize).playableHalf;

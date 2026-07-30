@@ -52,6 +52,49 @@ import { renderConstructionQueueRows } from '../src/resources/inspector/townHall
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), 'utf8');
 
+const buildingSchemaBlock = read('server/src/tables.rs')
+  .split('pub struct Building {')[1]
+  ?.split('\n}\n\n/// A player-drawn arable parcel')[0] ?? '';
+const buildingSchemaFields = [...buildingSchemaBlock.matchAll(/pub\s+([a-z0-9_]+):/g)]
+  .map((match) => match[1]);
+const legacyBuildingSchemaPrefix = [
+  'id owner kind x z work_radius action_cooldown timber firewood stone water food',
+  'grain flour ale preserved_food honey wine polearms water_capacity assigned_labor',
+  'storehouse_accepts_timber storehouse_accepts_stone storehouse_accepts_firewood gold',
+  'construction_complete construction_progress construction_required_timber',
+  'construction_required_stone construction_delivered_timber construction_delivered_stone',
+  'construction_reserved_timber construction_reserved_stone construction_treasury_timber',
+  'construction_treasury_stone granary_accepts_fresh_food ironwork',
+  'granary_households_first construction_priority woodcutter_timber_reserve',
+  'granary_grain_reserve harvest_reserve_percent wool cloth carpenter_polearm_reserve',
+  'guardhouse_pay_priority marketplace_ironwork_target marketplace_specialty_export_policy',
+  'granary_fresh_food_target_percent storehouse_timber_target_percent',
+  'storehouse_stone_target_percent storehouse_firewood_target_percent',
+  'processor_output_target_percent guardhouse_food_reserve marketplace_seed_grain_target',
+  'founding_shelter_active marketplace_pending_trade_code chapel_monastery_tithe_due',
+  'civic_receipts_gold marketplace_gold_reserve_target barley malt flax',
+  'guardhouse_muster_watchtower_id weaver_input_policy iron clay salt charcoal pottery',
+  'marketplace_iron_target marketplace_salt_target manure remedies',
+].join(' ').split(' ');
+assert.deepEqual(
+  buildingSchemaFields.slice(0, legacyBuildingSchemaPrefix.length),
+  legacyBuildingSchemaPrefix,
+  'the complete deployed Building prefix must remain byte-order stable for additive upgrades',
+);
+assert.deepEqual(
+  buildingSchemaFields.slice(
+    legacyBuildingSchemaPrefix.length,
+    legacyBuildingSchemaPrefix.length + 4,
+  ),
+  [
+    'construction_required_ironwork',
+    'construction_delivered_ironwork',
+    'construction_reserved_ironwork',
+    'construction_treasury_ironwork',
+  ],
+  'construction ironwork accounting must append after the deployed schema prefix',
+);
+
 assert.equal(CONSTRUCTION_MAX_BUILDERS, 4);
 assert.ok(CONSTRUCTION_HAUL_PER_WORKER > 0);
 assert.ok(CONSTRUCTION_DELIVERY_SPEED_MPS > 0);

@@ -337,27 +337,19 @@ pub struct Building {
     #[default(0.0)]
     pub construction_required_stone: f64,
     #[default(0.0)]
-    pub construction_required_ironwork: f64,
-    #[default(0.0)]
     pub construction_delivered_timber: f64,
     #[default(0.0)]
     pub construction_delivered_stone: f64,
-    #[default(0.0)]
-    pub construction_delivered_ironwork: f64,
     /// Reserved stock that still needs to be loaded or transferred to this site.
     #[default(0.0)]
     pub construction_reserved_timber: f64,
     #[default(0.0)]
     pub construction_reserved_stone: f64,
-    #[default(0.0)]
-    pub construction_reserved_ironwork: f64,
     /// Reserved portions backed by the legacy pre-founding-site ledger.
     #[default(0.0)]
     pub construction_treasury_timber: f64,
     #[default(0.0)]
     pub construction_treasury_stone: f64,
-    #[default(0.0)]
-    pub construction_treasury_ironwork: f64,
     /// Granary intake policy; ignored by other building kinds. Keeping this
     /// enabled trades an extra road haul for substantially slower fresh-food
     /// spoilage in centralized storage.
@@ -536,6 +528,19 @@ pub struct Building {
     /// Appended for additive save compatibility.
     #[default(0.0)]
     pub remedies: f64,
+    /// Iron fittings required, delivered, reserved, and backed by the legacy
+    /// pre-founding-site ledger for a construction site. These fields remain
+    /// after the complete pre-ironwork `Building` schema prefix so publishing
+    /// upgrades an established settlement by appending columns rather than
+    /// reordering its stored rows.
+    #[default(0.0)]
+    pub construction_required_ironwork: f64,
+    #[default(0.0)]
+    pub construction_delivered_ironwork: f64,
+    #[default(0.0)]
+    pub construction_reserved_ironwork: f64,
+    #[default(0.0)]
+    pub construction_treasury_ironwork: f64,
     /// Potter cart duty: 0 replaces household wares before workshop supply,
     /// 1 stages smokehouse vessels first. Either order exports only after its
     /// two local duties. Appended so established kilns retain household-first.

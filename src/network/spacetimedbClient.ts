@@ -25,11 +25,6 @@ type ConnectHandlers = {
   onToken?: (token: string) => void;
 };
 
-export function isUnauthorizedConnectError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.includes('Unauthorized') || message.includes('401');
-}
-
 export function connect(token: string | undefined, handlers?: ConnectHandlers): DbConnection {
   const { onIdentity, onConnectError, onDisconnect, onToken } = handlers ?? {};
 

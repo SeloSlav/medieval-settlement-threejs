@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "build:e2e": "tsc && vite build",
     "preview": "vite preview",
-    "preview:e2e": "vite preview --host 127.0.0.1 --port 4173",
+    "preview:e2e": "vite preview --host 127.0.0.1 --port 4174",
     "test:rust": "cargo test --manifest-path server/logic/Cargo.toml",
     "test:e2e": "playwright test",
     "smoketest": "playwright test e2e/smoke.spec.ts",

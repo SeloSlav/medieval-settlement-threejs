@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const previewPort = Number(process.env.E2E_PREVIEW_PORT ?? 4173);
+const previewPort = Number(process.env.E2E_PREVIEW_PORT ?? 4174);
 const previewHost = process.env.E2E_PREVIEW_HOST ?? '127.0.0.1';
+const reuseExistingServer = process.env.E2E_REUSE_SERVER === '1';
 
 export default defineConfig({
   testDir: 'e2e',
@@ -35,7 +36,7 @@ export default defineConfig({
     command:
       `npm run build:e2e && npx vite preview --host ${previewHost} --port ${previewPort}`,
     url: `http://${previewHost}:${previewPort}`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer,
     timeout: 180_000,
     env: {
       ...process.env,
