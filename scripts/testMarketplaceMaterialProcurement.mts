@@ -260,8 +260,8 @@ assert.match(
 );
 assert.match(
   tradeSource,
-  /building_has_external_market_import_trip[\s\S]*regional caravan on the road/,
-  'one marketplace must not overlap multiple regional import caravans',
+  /building_has_regional_market_trip[\s\S]*regional caravan on the road/,
+  'one marketplace must not overlap regional import and export caravans',
 );
 assert.match(
   deliveryTripSource,
@@ -270,7 +270,7 @@ assert.match(
 );
 assert.match(
   deliveryTripSource,
-  /pub fn building_has_active_trip[\s\S]*!is_external_market_import_trip/,
+  /pub fn building_has_active_trip[\s\S]*!is_regional_market_trip/,
   'an external merchant must not occupy the marketplace settlement cart',
 );
 assert.match(

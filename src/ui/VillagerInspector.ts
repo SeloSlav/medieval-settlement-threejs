@@ -263,6 +263,7 @@ export class VillagerInspector {
     );
     const returning = trip.phase === 'inbound';
     const returningLoaded = returning && trip.amount > 0.05;
+    const regionalExport = trip.destinationKind === 'trade';
 
     this.workplaceLabel.textContent = 'Origin';
     this.householdLabel.textContent = 'Route target';
@@ -271,18 +272,33 @@ export class VillagerInspector {
     this.distanceRow.hidden = false;
     this.name.textContent = name;
     this.eyebrow.textContent = `Delivery agent · ${phase}`;
-    this.activity.textContent = returning
-      ? returningLoaded
-        ? `Returning ${cargoAmount} undelivered ${cargo.toLocaleLowerCase()} to ${originLabel}`
-        : `Returning to ${originLabel} after the ${cargo.toLocaleLowerCase()} delivery`
-      : trip.phase === 'unloading'
-        ? `Unloading ${cargo.toLocaleLowerCase()} at ${destination}`
-        : `Delivering ${cargoAmount} ${cargo.toLocaleLowerCase()} to ${destination}`;
-    this.current.textContent = returning
-      ? `Returning to ${originLabel}`
-      : trip.phase === 'unloading'
-        ? `Unloading at ${destination}`
-        : `Traveling to ${destination}`;
+    if (regionalExport) this.eyebrow.textContent = `Regional merchant - ${phase}`;
+    this.activity.textContent = regionalExport
+      ? trip.phase === 'inbound'
+        ? returningLoaded
+          ? `Returning ${cargoAmount} ${cargo.toLocaleLowerCase()} from the regional exchange to ${originLabel}`
+          : `Returning empty from the regional exchange to ${originLabel}`
+        : trip.phase === 'unloading'
+          ? `Exchanging ${cargoAmount} ${cargo.toLocaleLowerCase()} at the regional route`
+          : `Carrying ${cargoAmount} ${cargo.toLocaleLowerCase()} from ${originLabel} to the regional exchange`
+      : returning
+        ? returningLoaded
+          ? `Returning ${cargoAmount} undelivered ${cargo.toLocaleLowerCase()} to ${originLabel}`
+          : `Returning to ${originLabel} after the ${cargo.toLocaleLowerCase()} delivery`
+        : trip.phase === 'unloading'
+          ? `Unloading ${cargo.toLocaleLowerCase()} at ${destination}`
+          : `Delivering ${cargoAmount} ${cargo.toLocaleLowerCase()} to ${destination}`;
+    this.current.textContent = regionalExport
+      ? returning
+        ? `Returning receipts to ${originLabel}`
+        : trip.phase === 'unloading'
+          ? 'Settling at regional exchange'
+          : 'Outbound on regional route'
+      : returning
+        ? `Returning to ${originLabel}`
+        : trip.phase === 'unloading'
+          ? `Unloading at ${destination}`
+          : `Traveling to ${destination}`;
     this.activity.dataset.state = 'active';
     this.initials.textContent = name
       .split(/\s+/)
@@ -290,7 +306,7 @@ export class VillagerInspector {
       .map((part) => part[0] ?? '')
       .join('')
       .toLocaleUpperCase();
-    this.occupation.textContent = 'Cart hauler';
+    this.occupation.textContent = regionalExport ? 'Regional merchant' : 'Cart hauler';
     this.workplace.textContent = originLabel;
     this.household.textContent = returning ? originLabel : destination;
     this.crew.textContent = returning
@@ -333,6 +349,7 @@ function deliveryDestinationLabel(
     if (residence) return `Parcel #${residence.parcelIndex + 1}`;
   }
   if (trip.destinationKind === 'fire') return 'Structure fire';
+  if (trip.destinationKind === 'trade') return 'Regional exchange route';
   return 'Unknown destination';
 }
 

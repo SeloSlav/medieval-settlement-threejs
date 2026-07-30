@@ -42,9 +42,12 @@ pub use marketplace_orders::{
 pub use marketplace_trade::execute_marketplace_trade;
 pub(crate) use marketplace_trade::{
     credit_marketplace_receipt_gold, pending_marketplace_trade_commodity,
-    try_advance_pending_marketplace_trade, try_execute_standing_marketplace_import,
+    settle_regional_market_export, try_advance_pending_marketplace_trade,
+    try_execute_standing_marketplace_import,
 };
-pub(crate) use marketplace_trade_policy::marketplace_proceeds_cart_load;
+pub(crate) use marketplace_trade_policy::{
+    marketplace_proceeds_cart_load, regional_export_cart_load,
+};
 pub use parish_accounting::{
     clamp_chapel_coffer_reserve_gold, record_parish_ledger, ParishLedgerKind,
 };

@@ -117,7 +117,7 @@ export function renderMarketplaceTradePanel(
         : !hasRoom
           ? 'Marketplace storage lacks room for the full shipment'
           : staging.inbound && staging.resource
-            ? `${staging.resource} staging cart inbound · order settles automatically`
+            ? `${staging.resource} staging cart inbound · merchant departs after the full lot arrives`
             : staging.requiresStaging && staging.resource
               ? `${staging.localStock.toFixed(0)} / ${staging.required.toFixed(0)} at market · one order dispatches follow-up source carts`
               : marketHint);
@@ -209,8 +209,8 @@ export function renderMarketplaceTradePanel(
     <div class="marketplace-trade-panel">
       <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
       <p class="marketplace-trade-intro">${physicalEconomy
-        ? 'Bulk exports settle only from goods physically staged at this market. One order dispatches visible source carts until its full lot arrives, then brokers settle it automatically at the prevailing regional rate. Imports spend only coin physically held in this market coffer; free haulers replenish its chosen reserve from the civic treasury, while brokers return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
-        : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here and wait for broker capacity. In the physical economy, every paid import is carried from the map edge: manual lots unload here for local distribution, while named household and parish orders pass through this market's road branch before reaching their exact home.</p>
+        ? 'Bulk exports use only goods physically staged at this market by visible source carts. Once a full lot arrives, one live merchant carries it to the regional map edge, exchanges only what survives the road, and returns with raid-vulnerable coin or barter cargo before the receipt enters market storage. Imports spend only coin physically held in this market coffer; free haulers replenish its chosen reserve from the civic treasury, while brokers return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
+        : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here; in the physical economy those specialties also leave on discrete live merchant loads rather than disappearing at the stall. Every paid import is carried from the map edge: manual lots unload here for local distribution, while named household and parish orders pass through this market's road branch before reaching their exact home.</p>
       <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
       ${pendingOffer
         ? renderPendingMarketplaceOrder(
@@ -322,8 +322,8 @@ function renderPendingMarketplaceOrder(
   let status: string;
   if (staging.missing <= 1e-6) {
     status = building.actionCooldown > 1e-6
-      ? `Full lot staged · brokers settle automatically in about ${building.actionCooldown.toFixed(1)}s`
-      : 'Full lot staged · automatic settlement queued at the current regional rate';
+      ? `Full lot staged · merchant dispatch opens in about ${building.actionCooldown.toFixed(1)}s`
+      : 'Full lot staged · regional merchant departure queued';
   } else if (staging.inbound && staging.resource) {
     status = `${staging.resource} cart inbound · ${staging.localStock.toFixed(0)} of ${staging.required.toFixed(0)} physically staged`;
   } else if (manualTrade.label !== 'Bulk order staging') {
@@ -337,7 +337,7 @@ function renderPendingMarketplaceOrder(
       <h3 class="marketplace-trade-section__title">Active bulk order</h3>
       <p class="marketplace-trade-stock"><strong>${describeMarketplaceTradeOfferForMarket(offer, marketState)}</strong></p>
       <p class="marketplace-trade-depth">${status}</p>
-      <p class="marketplace-trade-depth" role="progressbar" aria-label="Physical staging progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}">${Math.round(progress)}% staged · final gold value follows the rate when brokers settle</p>
+      <p class="marketplace-trade-depth" role="progressbar" aria-label="Physical staging progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}">${Math.round(progress)}% staged · final receipt follows the rate and surviving load at the regional exchange</p>
       <button
         type="button"
         class="marketplace-trade-option"

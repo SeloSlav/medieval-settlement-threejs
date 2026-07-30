@@ -10,7 +10,10 @@ import {
 import {
   deliveryLegRemainingMeters,
   deliveryWorkerPersonIdentity,
+  destinationKindFromId,
+  isRegionalExportTrip,
   isRegionalImportTrip,
+  isRegionalMarketTrip,
   onsiteBuildingLabor,
   raidWithdrawingCartCount,
   rosteredCartWorkers,
@@ -94,6 +97,22 @@ const regionalHouseholdTrip: DeliveryTripState = {
   residenceId: 'named-home',
 };
 assert.equal(isRegionalImportTrip(regionalHouseholdTrip), true);
+const regionalExportTrip: DeliveryTripState = {
+  ...regionalMarketTrip,
+  id: 'regional-export-cart',
+  destinationKind: 'trade',
+  cargoKind: 'pottery',
+  amount: 12,
+};
+assert.equal(destinationKindFromId(5), 'trade');
+assert.equal(isRegionalImportTrip(regionalExportTrip), false);
+assert.equal(isRegionalExportTrip(regionalExportTrip), true);
+assert.equal(isRegionalMarketTrip(regionalExportTrip), true);
+assert.equal(
+  deliveryWorkerPersonIdentity(regionalExportTrip),
+  'regional-merchant:regional-export-cart:crew:0',
+  'an export merchant must remain visually distinct from resident haulers',
+);
 assert.equal(rosteredCartWorkers({ assignedLabor: 3 }, loadedTrip), 2);
 assert.equal(onsiteBuildingLabor({ assignedLabor: 3 }, loadedTrip), 1);
 assert.equal(
@@ -175,6 +194,7 @@ assert.equal(
       { ...loadedTrip, id: 'fire-cart', destinationKind: 'fire', phase: 'inbound' },
       { ...loadedTrip, id: 'outbound-cart', phase: 'outbound' },
       { ...regionalHouseholdTrip, phase: 'inbound' },
+      { ...regionalExportTrip, phase: 'inbound', cargoKind: 'gold' },
     ],
     true,
   ),
@@ -262,6 +282,21 @@ assert.match(
   deliveryServer,
   /pub fn onsite_building_labor[\s\S]*?delivery_trip\(\)[\s\S]*?building_id\(\)[\s\S]*?free_hauler_workers/,
   'on-site labor must use the indexed origin trip and exclude free haulers',
+);
+assert.match(
+  deliveryServer,
+  /DELIVERY_DESTINATION_REGIONAL_TRADE:\s*u8\s*=\s*5/,
+  'the existing delivery row must expose one explicit two-way trade destination code',
+);
+assert.match(
+  deliveryServer,
+  /settle_regional_market_export[\s\S]*trip\.cargo_kind = received_commodity\.as_u8\(\)/,
+  'the outbound goods cart must become the physical return receipt at the map edge',
+);
+assert.match(
+  deliveryServer,
+  /!regional_market_trip[\s\S]*owner_has_active_raider_threat/,
+  'regional merchants must remain exposed instead of obeying the settlement cart recall alarm',
 );
 for (const productionFile of [
   'lumber_mill.rs',

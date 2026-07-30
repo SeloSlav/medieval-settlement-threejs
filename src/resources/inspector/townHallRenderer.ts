@@ -1145,6 +1145,7 @@ function specialtyExportCargoMix(
 
 export function renderSettlementSpecialtyExportRows(
   plan: SettlementSpecialtyExportPlan,
+  physicalEconomy = false,
 ): string {
   if (
     plan.producers === 0
@@ -1210,18 +1211,24 @@ export function renderSettlementSpecialtyExportRows(
   const inspect = attentionId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${attentionId}" aria-label="Inspect ${attentionLabel}">Inspect</button>`;
-  const slowest = plan.slowestActiveMarketClearSeconds === null
+  const slowest = physicalEconomy || plan.slowestActiveMarketClearSeconds === null
     ? ''
     : ` &middot; slowest active desk clears its current and approaching queue in ${formatSpecialtyExportDuration(plan.slowestActiveMarketClearSeconds)}`;
   const activeQueue = plan.activeMarketQueueUnits > 0.05
     ? `${plan.activeMarketQueueUnits.toFixed(1)} units at active desks`
     : 'no stock at active desks';
+  const brokerThroughput = physicalEconomy
+    ? `${plan.exportWorkers} free ${plan.exportWorkers === 1 ? 'broker prepares' : 'brokers prepare'} discrete loads; each market runs one live regional merchant and road length controls throughput`
+    : `${plan.exportWorkers} free ${plan.exportWorkers === 1 ? 'broker' : 'brokers'} clear ${plan.exportRatePerSecond.toFixed(2)} units/s`;
+  const brokerState = physicalEconomy
+    ? `${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets ready at the current ${Math.round(plan.marketRate * 100)}% regional rate`
+    : `${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets actively selling at the current ${Math.round(plan.marketRate * 100)}% regional rate`;
 
   return `
     <li><span>Specialty pipeline</span><span>${plan.producerStock.toFixed(1)} at completed producers &middot; ${plan.dispatchReadyProducerStock.toFixed(1)} at sources with labor, a free cart, receiving room, and a market route; household and monastery dispatch still goes first &middot; ${plan.inTransitToMarkets.toFixed(1)} approaching markets &middot; ${plan.marketQueueUnits.toFixed(1)} already at market &middot; ${specialtyExportCargoMix(plan)}</span></li>
     ${roadRow}
     <li><span>Producer export blocks</span><span>${sourceBlocks.length > 0 ? sourceBlocks.join(' &middot; ') : 'No physical source-route, storage, labor, fire, or cart block'}</span></li>
-    <li><span>Specialty broker desks</span><span>${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets actively selling at the current ${Math.round(plan.marketRate * 100)}% regional rate &middot; ${plan.exportWorkers} free ${plan.exportWorkers === 1 ? 'broker' : 'brokers'} clear ${plan.exportRatePerSecond.toFixed(2)} units/s &middot; ${activeQueue}${slowest} &middot; ${plan.blockedMarketQueueUnits.toFixed(1)} blocked or held${blockedQueues.length > 0 ? ` (${blockedQueues.join(' &middot; ')})` : ''}${inspect}</span></li>
+    <li><span>Specialty broker desks</span><span>${brokerState} &middot; ${brokerThroughput} &middot; ${activeQueue}${slowest} &middot; ${plan.blockedMarketQueueUnits.toFixed(1)} blocked or held${blockedQueues.length > 0 ? ` (${blockedQueues.join(' &middot; ')})` : ''}${inspect}</span></li>
   `;
 }
 
@@ -2339,7 +2346,10 @@ export function renderTownHallInspector(
       <li><span>Prosperity roads</span><span>${formatProsperityRoads(prosperity.roadPlan)}</span></li>
       <li><span>Prosperous housing pipeline</span><span>${formatProsperityHousingPipeline(prosperity)} · assumes staffed workshops remain fully supplied</span></li>
       ${renderSettlementTextileRows(textilePlan)}
-      ${renderSettlementSpecialtyExportRows(specialtyExportPlan)}
+      ${renderSettlementSpecialtyExportRows(
+        specialtyExportPlan,
+        context.gameState.physicalFoundingSiteEnabled === true,
+      )}
       ${renderSettlementGrainRows(grainPlan)}
       ${renderSettlementSeedProcurementRows(seedProcurement, farmPlan.firstSeedShortBuildingId)}
       ${monasteryHospitalityRow}

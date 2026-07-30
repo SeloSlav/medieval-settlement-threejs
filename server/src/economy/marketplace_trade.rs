@@ -2,12 +2,12 @@ use spacetimedb::ReducerContext;
 
 use super::marketplace_orders::{order_food_commodity, order_water_commodity, MarketGoldPayer};
 use super::marketplace_trade_policy::{
-    manual_trade_cooldown_seconds, manual_trade_ready, trade_receive, trade_spend, TradeReceive,
-    TradeSpend,
+    manual_trade_cooldown_seconds, manual_trade_ready, proportional_regional_trade_receipt,
+    trade_receive, trade_spend, TradeReceive, TradeSpend,
 };
 use super::regional_market::{
-    ensure_market_state, price_multiplier_for, record_market_trade, scaled_gold_cost,
-    scaled_gold_yield,
+    ensure_market_state, price_multiplier_for, record_market_trade, record_specialty_market_export,
+    scaled_gold_cost, scaled_gold_yield,
 };
 use super::regional_market_policy::MarketTradeDirection;
 use super::storage::{
@@ -17,8 +17,9 @@ use super::storage::{
 use crate::balance_generated::TradeResource;
 use crate::balance_generated::{
     market_commodity_offer, market_water_commodity_offer, marketplace_trade_offer,
-    MarketplaceTradeKind, MarketplaceTradeOffer, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC,
+    MarketplaceTradeKind, MarketplaceTradeOffer, SPECIALTY_EXPORT_GOLD_PER_ALE,
+    SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
+    SPECIALTY_EXPORT_GOLD_PER_WINE, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::constants::BUILDING_ROAD_ACCESS_DISTANCE;
 use crate::db::*;
@@ -34,10 +35,11 @@ use crate::marketplace_procurement_policy::{
 use crate::roads::RoadNetwork;
 use crate::season_policy::environment_for;
 use crate::simulation::{
-    building_has_active_trip, building_has_external_market_import_trip,
-    building_has_inbound_commodity_trip, game_clock, labor_and_logistics_paused,
-    regional_market_import_route, start_external_market_import_trip,
-    try_start_building_supply_trip, GameClock, MarketCaravanDispatch, SimTickContext,
+    building_has_active_trip, building_has_inbound_commodity_trip,
+    building_has_regional_market_trip, game_clock, labor_and_logistics_paused,
+    regional_market_export_route, regional_market_import_route, start_external_market_import_trip,
+    start_regional_market_export_trip, try_start_building_supply_trip, GameClock,
+    MarketCaravanDispatch, SimTickContext,
 };
 use crate::tables::Building;
 
@@ -123,7 +125,7 @@ pub fn try_execute_standing_marketplace_import(
         || marketplace.assigned_labor == 0
         || marketplace.action_cooldown > 1e-6
         || marketplace.marketplace_pending_trade_code != 0
-        || building_has_external_market_import_trip(ctx, marketplace.id)
+        || building_has_regional_market_trip(ctx, marketplace.id)
         || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
     {
         return false;
@@ -316,7 +318,7 @@ fn validate_marketplace(
         );
     }
     if physical_trade_staging_enabled(ctx, owner)
-        && building_has_external_market_import_trip(ctx, building.id)
+        && building_has_regional_market_trip(ctx, building.id)
     {
         return Err(
             "This marketplace already has a regional caravan on the road. Wait for it to unload and leave the map."
@@ -388,6 +390,7 @@ fn current_game_clock(ctx: &ReducerContext) -> GameClock {
 enum MarketplaceTradeOutcome {
     Settled,
     Staged,
+    InTransit,
 }
 
 // These codes are explicit rather than derived from balance-file ordering.
@@ -440,31 +443,35 @@ fn apply_marketplace_trade(
         .find(&owner)
         .ok_or_else(|| "Market state unavailable.".to_string())?;
 
-    if let TradeReceive::Resource(leg) = trade_receive(offer) {
+    let physical_economy = physical_trade_staging_enabled(ctx, owner);
+    let spend = trade_spend(offer);
+    let receive = trade_receive(offer);
+    if let TradeReceive::Resource(leg) = receive {
         ensure_marketplace_room(marketplace, leg.resource, leg.amount)?;
     }
-    let external_import_route = if physical_trade_staging_enabled(ctx, owner)
-        && matches!(trade_receive(offer), TradeReceive::Resource(_))
+    let external_import_route = if physical_economy
+        && matches!(spend, TradeSpend::Gold(_))
+        && matches!(receive, TradeReceive::Resource(_))
     {
         Some(regional_market_import_route(ctx, network, marketplace)?)
     } else {
         None
     };
 
-    match trade_spend(offer) {
+    match spend {
         TradeSpend::Gold(amount) => {
             let resource = trade_resource_for_buy(offer);
             let multiplier = price_multiplier_for(&market, resource);
             let gold_cost = scaled_gold_cost(amount, multiplier);
-            if physical_trade_staging_enabled(ctx, owner) {
+            if physical_economy {
                 spend_marketplace_coffer_gold(ctx, building_id, gold_cost)?;
             } else {
                 spend_treasury_gold(ctx, owner, gold_cost)?;
             }
         }
         TradeSpend::Resource(leg) => {
-            if physical_trade_staging_enabled(ctx, owner) {
-                if stage_or_spend_physical_market_resource(
+            if physical_economy {
+                if stage_physical_market_resource(
                     ctx,
                     tick,
                     clock,
@@ -476,10 +483,19 @@ fn apply_marketplace_trade(
                 )? == PhysicalMarketSpend::Staged
                 {
                     // The first click orders a visible inbound cart. Regional
-                    // prices and payment change only after the persistent order
-                    // has its full lot physically present at this market.
+                    // prices and payment change only after the full lot is
+                    // physically present and can leave on the regional route.
                     return Ok(MarketplaceTradeOutcome::Staged);
                 }
+                return dispatch_physical_market_export(
+                    ctx,
+                    tick,
+                    marketplace,
+                    network,
+                    offer,
+                    leg.resource,
+                    leg.amount,
+                );
             } else {
                 spend_market_accessible_resource(
                     ctx,
@@ -494,7 +510,7 @@ fn apply_marketplace_trade(
         }
     }
 
-    match trade_receive(offer) {
+    match receive {
         TradeReceive::Gold(amount) => {
             let resource = trade_resource_for_sell(offer);
             let multiplier = price_multiplier_for(&market, resource);
@@ -534,6 +550,55 @@ fn apply_marketplace_trade(
 
     record_trade_effects(ctx, owner, offer);
     Ok(MarketplaceTradeOutcome::Settled)
+}
+
+fn dispatch_physical_market_export(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    marketplace: &Building,
+    network: &RoadNetwork,
+    offer: &MarketplaceTradeOffer,
+    resource: TradeResource,
+    amount: f64,
+) -> Result<MarketplaceTradeOutcome, String> {
+    let contract_code = pending_trade_code(offer.id)
+        .ok_or_else(|| "This regional export has no stable contract code.".to_string())?;
+    let route = regional_market_export_route(ctx, network, marketplace)?;
+    let commodity = trade_commodity(resource);
+    let mut current = ctx
+        .db
+        .building()
+        .id()
+        .find(&marketplace.id)
+        .ok_or_else(|| "Marketplace not found.".to_string())?;
+    let available = market_exportable_building_stock(&current, resource);
+    if available + 1e-6 < amount {
+        return Err(format!(
+            "Marketplace needs {} more staged {} before the merchant can depart.",
+            (amount - available).ceil() as i64,
+            trade_resource_name(resource)
+        ));
+    }
+    let withdrawn = crate::economy::withdraw_building_commodity(&mut current, commodity, amount);
+    if withdrawn + 1e-6 < amount {
+        return Err("The staged export lot changed before departure.".to_string());
+    }
+    if !start_regional_market_export_trip(
+        ctx,
+        tick,
+        network,
+        &current,
+        contract_code as u64,
+        commodity,
+        withdrawn,
+        TIMBER_DELIVERY_SPEED_MPS,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+        route,
+    ) {
+        return Err("The regional export merchant could not depart.".to_string());
+    }
+    ctx.db.building().id().update(current);
+    Ok(MarketplaceTradeOutcome::InTransit)
 }
 
 /// Advances one save-persistent physical export order. It is called on the
@@ -591,7 +656,7 @@ pub(crate) fn try_advance_pending_marketplace_trade(
         network,
         offer,
     ) {
-        Ok(MarketplaceTradeOutcome::Settled) => {
+        Ok(MarketplaceTradeOutcome::Settled | MarketplaceTradeOutcome::InTransit) => {
             clear_pending_marketplace_trade(ctx, building_id);
             start_manual_trade_cooldown(
                 ctx,
@@ -631,7 +696,7 @@ fn clear_pending_marketplace_trade(ctx: &ReducerContext, building_id: u64) {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum PhysicalMarketSpend {
-    Spent,
+    Ready,
     Staged,
 }
 
@@ -687,7 +752,109 @@ pub(crate) fn credit_marketplace_receipt_gold(
     }
 }
 
-fn stage_or_spend_physical_market_resource(
+/// Exchanges the load carried by a live regional export cart at the map edge.
+/// The return value becomes that same cart's inbound cargo, so neither sale
+/// proceeds nor barter receipts exist inside the settlement until the merchant
+/// physically returns. Partial loads caused by spoilage or raiding receive
+/// only their proportional settlement.
+pub(crate) fn settle_regional_market_export(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    marketplace_id: u64,
+    contract_code: u64,
+    sold_commodity: CommodityKind,
+    sold_amount: f64,
+) -> Result<(CommodityKind, f64), String> {
+    let marketplace = ctx
+        .db
+        .building()
+        .id()
+        .find(&marketplace_id)
+        .filter(|building| {
+            building.owner == owner
+                && building.kind == "marketplace"
+                && building.construction_complete
+        })
+        .ok_or_else(|| "The contracting marketplace no longer exists.".to_string())?;
+    if !sold_amount.is_finite() || sold_amount < 0.0 {
+        return Err("The regional export load is invalid.".to_string());
+    }
+    ensure_market_state(ctx, owner);
+    let market = ctx
+        .db
+        .market_state()
+        .owner()
+        .find(&marketplace.owner)
+        .ok_or_else(|| "Market state unavailable.".to_string())?;
+
+    if contract_code == 0 {
+        let gold_per_unit = match sold_commodity {
+            CommodityKind::Ale => SPECIALTY_EXPORT_GOLD_PER_ALE,
+            CommodityKind::Honey => SPECIALTY_EXPORT_GOLD_PER_HONEY,
+            CommodityKind::Wine => SPECIALTY_EXPORT_GOLD_PER_WINE,
+            CommodityKind::Cloth => SPECIALTY_EXPORT_GOLD_PER_CLOTH,
+            _ => return Err("The specialty export contract does not match its cargo.".to_string()),
+        };
+        record_specialty_market_export(ctx, owner, sold_amount);
+        return Ok((
+            CommodityKind::Gold,
+            sold_amount * gold_per_unit * market.specialty_price_mult.max(0.0),
+        ));
+    }
+
+    let code = u8::try_from(contract_code)
+        .map_err(|_| "The regional export contract code is invalid.".to_string())?;
+    let offer = pending_trade_offer(code)
+        .ok_or_else(|| "The regional export contract is no longer recognized.".to_string())?;
+    let TradeSpend::Resource(spend) = trade_spend(offer) else {
+        return Err("The regional export contract does not spend cargo.".to_string());
+    };
+    if trade_commodity(spend.resource) != sold_commodity
+        || spend.amount <= 1e-6
+        || sold_amount > spend.amount + 1e-6
+    {
+        return Err("The regional export cargo does not match its contract.".to_string());
+    }
+    match trade_receive(offer) {
+        TradeReceive::Gold(base_yield) => {
+            let multiplier = price_multiplier_for(&market, spend.resource);
+            let receipt = proportional_regional_trade_receipt(
+                spend.amount,
+                sold_amount,
+                scaled_gold_yield(base_yield, multiplier),
+            );
+            record_market_trade(
+                ctx,
+                owner,
+                spend.resource,
+                MarketTradeDirection::Export,
+                sold_amount,
+            );
+            Ok((CommodityKind::Gold, receipt))
+        }
+        TradeReceive::Resource(receive) => {
+            let received_amount =
+                proportional_regional_trade_receipt(spend.amount, sold_amount, receive.amount);
+            record_market_trade(
+                ctx,
+                owner,
+                spend.resource,
+                MarketTradeDirection::Export,
+                sold_amount,
+            );
+            record_market_trade(
+                ctx,
+                owner,
+                receive.resource,
+                MarketTradeDirection::Import,
+                received_amount,
+            );
+            Ok((trade_commodity(receive.resource), received_amount))
+        }
+    }
+}
+
+fn stage_physical_market_resource(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
@@ -698,10 +865,10 @@ fn stage_or_spend_physical_market_resource(
     amount: f64,
 ) -> Result<PhysicalMarketSpend, String> {
     if amount <= 1e-6 {
-        return Ok(PhysicalMarketSpend::Spent);
+        return Ok(PhysicalMarketSpend::Ready);
     }
     let commodity = trade_commodity(resource);
-    let mut market = ctx
+    let market = ctx
         .db
         .building()
         .id()
@@ -709,16 +876,7 @@ fn stage_or_spend_physical_market_resource(
         .ok_or_else(|| "Marketplace not found.".to_string())?;
     let local_stock = market_exportable_building_stock(&market, resource);
     if local_stock + 1e-6 >= amount {
-        let withdrawn = crate::economy::withdraw_building_commodity(&mut market, commodity, amount);
-        if withdrawn + 1e-6 < amount {
-            return Err(format!(
-                "Marketplace needs {} more staged {}.",
-                (amount - withdrawn).ceil() as i64,
-                trade_resource_name(resource)
-            ));
-        }
-        ctx.db.building().id().update(market);
-        return Ok(PhysicalMarketSpend::Spent);
+        return Ok(PhysicalMarketSpend::Ready);
     }
 
     if building_has_inbound_commodity_trip(ctx, marketplace.id, commodity) {

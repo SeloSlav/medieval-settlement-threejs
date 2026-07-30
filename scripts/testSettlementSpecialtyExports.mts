@@ -218,6 +218,13 @@ assert.match(splitRows, /8\.0 stranded by topology/);
 assert.match(splitRows, /9\.0 behind full destination stores/);
 assert.match(splitRows, /3 \/ 3 completed markets actively selling/);
 assert.match(splitRows, /data-inspect-building="remote-vineyard"/);
+const physicalSplitRows = renderSettlementSpecialtyExportRows(split, true);
+assert.match(physicalSplitRows, /3 \/ 3 completed markets ready/);
+assert.match(physicalSplitRows, /brokers prepare discrete loads/);
+assert.match(physicalSplitRows, /each market runs one live regional merchant/);
+assert.match(physicalSplitRows, /road length controls throughput/);
+assert.doesNotMatch(physicalSplitRows, /units\/s/);
+assert.doesNotMatch(physicalSplitRows, /clears its current and approaching queue/);
 
 const reconnected = computeSettlementSpecialtyExportPlan({
   state: { buildings, deliveryTrips: trips },

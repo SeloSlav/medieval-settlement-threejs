@@ -537,7 +537,10 @@ assert.match(pendingTradePanel, /stone cart inbound · 4 of 10 physically staged
 assert.match(pendingTradePanel, /aria-valuenow="40"/);
 assert.match(pendingTradePanel, /Cancel bulk order/);
 assert.match(pendingTradePanel, /Already-dispatched carts still unload here/);
-assert.match(pendingTradePanel, /final gold value follows the rate when brokers settle/);
+assert.match(
+  pendingTradePanel,
+  /final receipt follows the rate and surviving load at the regional exchange/,
+);
 assert.match(
   pendingTradePanel,
   /disabled aria-disabled="true"[\s\S]*This market is already staging a bulk order/,
@@ -563,8 +566,8 @@ const regionalCaravanTrade = marketplaceManualTradeStatus(
   true,
 );
 assert.equal(regionalCaravanTrade.ready, false);
-assert.equal(regionalCaravanTrade.label, 'Regional caravan on the road');
-assert.match(regionalCaravanTrade.reason ?? '', /unload and leave the map/);
+assert.equal(regionalCaravanTrade.label, 'Regional merchant on the road');
+assert.match(regionalCaravanTrade.reason ?? '', /import or export merchant/);
 const fireDisabledTrade = marketplaceManualTradeStatus(
   marketplace,
   true,
@@ -750,7 +753,7 @@ assert.match(marketplaceTradeSource, /road_connected/);
 assert.match(marketplaceTradeSource, /deposit_marketplace_resource/);
 assert.match(marketplaceTradeSource, /market-accessible/);
 assert.match(marketplaceTradeSource, /physical_founding_site_enabled/);
-assert.match(marketplaceTradeSource, /stage_or_spend_physical_market_resource/);
+assert.match(marketplaceTradeSource, /stage_physical_market_resource/);
 assert.match(marketplaceTradeSource, /try_start_building_supply_trip/);
 assert.match(marketplaceTradeSource, /building_has_inbound_commodity_trip/);
 assert.match(
@@ -778,6 +781,21 @@ assert.match(
   /PhysicalMarketSpend::Staged[\s\S]*return Ok\(MarketplaceTradeOutcome::Staged\)/,
   'staging must not record a sale or regional price movement before the cart unloads',
 );
+assert.match(
+  marketplaceTradeSource,
+  /dispatch_physical_market_export[\s\S]*regional_market_export_route[\s\S]*start_regional_market_export_trip/,
+  'a staged physical export must depart on one live regional merchant cart',
+);
+assert.match(
+  marketplaceTradeSource,
+  /settle_regional_market_export[\s\S]*proportional_regional_trade_receipt/,
+  'regional receipts must scale to cargo that physically survives the outbound road',
+);
+assert.match(
+  marketplaceTradeSource,
+  /TradeReceive::Resource\(receive\)[\s\S]*received_amount[\s\S]*Ok\(\(trade_commodity\(receive\.resource\), received_amount\)\)/,
+  'barter receipts must return as physical cargo on the same merchant row',
+);
 assert.match(marketplaceTradeSource, /try_advance_pending_marketplace_trade/);
 assert.match(marketplaceTradeSource, /credit_marketplace_receipt_gold/);
 assert.match(marketplaceTradeSource, /pending_trade_code[\s\S]*"sell_timber" => Some\(1\)/);
@@ -799,6 +817,16 @@ assert.match(marketplaceCaravanSource, /marketplace_gold_sweep_surplus/);
 assert.match(marketplaceCaravanSource, /available_free_haulers/);
 assert.match(marketplaceCaravanSource, /CommodityKind::Gold/);
 assert.match(marketplaceCaravanSource, /onsite_building_labor/);
+assert.match(
+  marketplaceCaravanSource,
+  /physical_founding_site_enabled[\s\S]*start_regional_market_export_trip/,
+  'physical specialty stock must leave on discrete live regional merchant loads',
+);
+assert.match(
+  marketplaceCaravanSource,
+  /regional_export_cart_load/,
+  'specialty exporters must use one bounded handcart load per trip',
+);
 assert.doesNotMatch(
   marketplaceCaravanSource,
   /credit_treasury_gold/,
@@ -838,6 +866,11 @@ assert.match(marketplaceOrderSource, /marketplace\.gold = \(marketplace\.gold - 
 assert.match(marketplaceTradeSource, /spend_marketplace_coffer_gold/);
 assert.match(marketplaceOrderSource, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.match(marketplaceInspectorSource, /Regional route/);
+assert.match(marketplaceInspectorSource, /physically outbound to the regional exchange/);
+assert.match(
+  marketplaceTradeRendererSource,
+  /returns with raid-vulnerable coin or barter cargo/,
+);
 assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
 assert.match(marketplaceInspectorSource, /marketFireDisabled/);
 assert.match(marketplaceInspectorSource, /Market coffer/);
@@ -845,13 +878,14 @@ assert.match(marketplaceInspectorSource, /working gold/);
 assert.match(marketplaceInspectorSource, /inboundCashTrip/);
 assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
 assert.match(marketplaceTradeRendererSource, /visible source carts/);
-assert.match(marketplaceTradeRendererSource, /settle it automatically/);
+assert.match(marketplaceTradeRendererSource, /regional merchant departure queued/);
+assert.match(marketplaceTradeRendererSource, /final receipt follows the rate and surviving load/);
 assert.match(marketplaceTradeRendererSource, /Market cash reserve/);
 assert.match(marketplaceTradeRendererSource, /data-marketplace-gold-reserve-target/);
 assert.match(marketplaceTradeRendererSource, /physically held in this market coffer/);
 assert.match(
   marketplaceTradeRendererSource,
-  /every paid import is carried from the map edge/,
+  /Every paid import is carried from the map edge/,
   'the trade panel must explain the same physical rule for bulk, provender, and water orders',
 );
 assert.match(marketplaceTradeRendererSource, /cancel-marketplace-trade-order/);

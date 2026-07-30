@@ -32,7 +32,8 @@ import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import {
   cargoKindLabel,
   formatTripPhaseLabel,
-  isRegionalImportTrip,
+  isRegionalExportTrip,
+  isRegionalMarketTrip,
   tripRemainingSeconds,
   type DeliveryTripState,
 } from '../../logistics/deliveryTrips.ts';
@@ -109,8 +110,11 @@ export function renderMarketplaceInspector(
     && pendingOffer.resource === 'pottery';
   const activeMarketTrips = Array.from(context.gameState.deliveryTrips.values())
     .filter((trip) => trip.buildingId === building.id);
-  const regionalImportTrip = activeMarketTrips.find(isRegionalImportTrip) ?? null;
-  const activeMarketTrip = activeMarketTrips.find((trip) => trip !== regionalImportTrip) ?? null;
+  const regionalTradeTrip = activeMarketTrips.find(isRegionalMarketTrip) ?? null;
+  const regionalExportTrip = regionalTradeTrip && isRegionalExportTrip(regionalTradeTrip)
+    ? regionalTradeTrip
+    : null;
+  const activeMarketTrip = activeMarketTrips.find((trip) => trip !== regionalTradeTrip) ?? null;
   const activeMaterialTarget = activeMarketTrip?.destinationKind === 'building'
     && activeMarketTrip.targetBuildingId
     && (
@@ -200,17 +204,17 @@ export function renderMarketplaceInspector(
     hasRoadAccess,
     roadSpeedMultiplier,
     marketFireDisabled,
-    regionalImportTrip != null,
+    regionalTradeTrip != null,
   );
   const brokerCount = Math.max(0, Math.floor(building.assignedLabor));
   const routeCondition = roadSpeedMultiplier < 0.999
     ? `${Math.round(roadSpeedMultiplier * 100)}% caravan pace`
     : 'Firm roads';
-  const regionalRoute = regionalImportTrip
+  const regionalRoute = regionalTradeTrip
     ? formatRegionalImportTrip(
-        regionalImportTrip,
-        regionalImportTrip.residenceId
-          ? context.gameState.residences.get(regionalImportTrip.residenceId)?.parcelIndex
+        regionalTradeTrip,
+        regionalTradeTrip.residenceId
+          ? context.gameState.residences.get(regionalTradeTrip.residenceId)?.parcelIndex
           : undefined,
       )
     : marketFireDisabled
@@ -228,7 +232,8 @@ export function renderMarketplaceInspector(
     && specialtyPlan.saleAllowed
     && hasRoadAccess
     && !marketFireDisabled
-    && specialtyQueue.exportWorkers > 0;
+    && specialtyQueue.exportWorkers > 0
+    && regionalTradeTrip == null;
   const specialtyExportHeld = specialtyQueue.units > 1e-6
     && !specialtyPlan.saleAllowed
     && !marketFireDisabled;
@@ -239,6 +244,8 @@ export function renderMarketplaceInspector(
     building.actionCooldown,
     specialtyQueue,
     specialtyPlan,
+    regionalExportTrip,
+    physicalEconomy,
   );
   const seedCoverage = marketplaceSeedCoveragePlan(
     building,
@@ -277,12 +284,14 @@ export function renderMarketplaceInspector(
     title: label,
     statusText: marketFireDisabled
       ? manualTrade.label
-      : regionalImportTrip
-        ? `${cargoKindLabel(regionalImportTrip.cargoKind)} caravan · ${formatTripPhaseLabel(regionalImportTrip.phase)}`
+      : regionalTradeTrip
+        ? `${cargoKindLabel(regionalTradeTrip.cargoKind)} regional merchant · ${formatTripPhaseLabel(regionalTradeTrip.phase)}`
       : pendingOffer
         ? `Staging bulk order · ${pendingStaging?.localStock.toFixed(0)} / ${pendingStaging?.required.toFixed(0)} at market`
       : specialtyExportActive
-        ? `Brokering specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
+        ? physicalEconomy
+          ? `Preparing next specialty merchant load at ${Math.round(specialtyPlan.marketRate * 100)}%`
+          : `Brokering specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
         : specialtyExportHeld
           ? `Holding specialty exports - regional rate ${Math.round(specialtyPlan.marketRate * 100)}%`
           : manualTrade.ready
@@ -290,7 +299,7 @@ export function renderMarketplaceInspector(
             : manualTrade.label,
     statusState: !marketFireDisabled
       && (
-        regionalImportTrip != null
+        regionalTradeTrip != null
         || specialtyExportActive
         || (manualTrade.ready && connectedHomes > 0)
       )
@@ -357,6 +366,17 @@ function formatRegionalImportTrip(
   const clearsIn = Number.isFinite(remainingSeconds)
     ? ` · route clears in about ${Math.max(1, Math.ceil(remainingSeconds))}s`
     : '';
+  if (isRegionalExportTrip(trip)) {
+    if (trip.phase === 'inbound') {
+      return trip.amount > 1e-6
+        ? `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} returning from the regional exchange${clearsIn}`
+        : `Empty merchant cart returning after a lost export load${clearsIn}`;
+    }
+    if (trip.phase === 'unloading') {
+      return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} exchanging at the regional route${clearsIn}`;
+    }
+    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically outbound to the regional exchange${clearsIn}`;
+  }
   if (trip.phase === 'inbound') {
     return `Merchant cart returning to the Adriatic-facing map edge${clearsIn}`;
   }
@@ -462,8 +482,13 @@ function formatSpecialtyExportDesk(
   actionCooldown: number,
   queue: ReturnType<typeof marketplaceSpecialtyQueue>,
   plan: ReturnType<typeof marketplaceSpecialtyExportPlan>,
+  regionalExportTrip: DeliveryTripState | null,
+  physicalEconomy: boolean,
 ): string {
   if (fireDisabled) return 'Paused - repair fire damage before brokers resume';
+  if (regionalExportTrip) {
+    return `Regional merchant ${formatTripPhaseLabel(regionalExportTrip.phase).toLowerCase()} - next specialty load waits for the route`;
+  }
   if (queue.units <= 1e-6) return 'Ready - awaiting ale, honey, wine, or cloth hauls';
   if (!plan.saleAllowed) {
     return `Holding - ${Math.round(plan.marketRate * 100)}% regional rate below ${Math.round(plan.policy.minRate * 100)}% floor`;
@@ -474,6 +499,9 @@ function formatSpecialtyExportDesk(
     return actionCooldown > 1e-6
       ? 'Paused - sole broker is settling a manual trade'
       : 'Stalled - no broker capacity';
+  }
+  if (physicalEconomy) {
+    return `${queue.exportWorkers} broker${queue.exportWorkers === 1 ? '' : 's'} ready - one live merchant load at a time; route length controls throughput`;
   }
   const clearTime = queue.clearSeconds == null
     ? ''

@@ -44,6 +44,7 @@ export const DELIVERY_DESTINATION_KINDS = [
   'fire',
   'wealth',
   'care',
+  'trade',
 ] as const;
 export type DeliveryDestinationKind = (typeof DELIVERY_DESTINATION_KINDS)[number];
 
@@ -141,7 +142,7 @@ export function raidWithdrawingCartCount(
     if (
       trip.destinationKind !== 'fire'
       && trip.phase === 'inbound'
-      && !isRegionalImportTrip(trip)
+      && !isRegionalMarketTrip(trip)
     ) {
       count += 1;
     }
@@ -159,12 +160,23 @@ export function isRegionalImportTrip(trip: DeliveryTripState): boolean {
   );
 }
 
+export function isRegionalExportTrip(trip: DeliveryTripState): boolean {
+  return (
+    trip.destinationKind === 'trade'
+    && trip.targetBuildingId === trip.buildingId
+  );
+}
+
+export function isRegionalMarketTrip(trip: DeliveryTripState): boolean {
+  return isRegionalImportTrip(trip) || isRegionalExportTrip(trip);
+}
+
 /** Stable identity for the regular hauler attached to a producer between trips. */
 export function deliveryWorkerPersonIdentity(
   trip: DeliveryTripState,
   crewIndex = 0,
 ): string {
-  if (isRegionalImportTrip(trip)) {
+  if (isRegionalMarketTrip(trip)) {
     return `regional-merchant:${trip.id}:crew:${Math.max(0, Math.floor(crewIndex))}`;
   }
   return `delivery:${trip.buildingId}:hauler:${Math.max(0, Math.floor(crewIndex))}`;
@@ -241,6 +253,8 @@ export function destinationKindFromId(value: number): DeliveryDestinationKind | 
       return 'wealth';
     case 4:
       return 'care';
+    case 5:
+      return 'trade';
     default:
       return null;
   }
@@ -343,6 +357,8 @@ export function resolveTripEndpoints(
     }
     return null;
   }
+
+  if (trip.destinationKind === 'trade') return null;
 
   if (!trip.residenceId) return null;
   const residence = state.residences.get(trip.residenceId);

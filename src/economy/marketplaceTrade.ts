@@ -239,8 +239,8 @@ export function marketplaceManualTradeStatus(
     return {
       ...timing,
       ready: false,
-      label: 'Regional caravan on the road',
-      reason: 'Wait for the current regional caravan to unload and leave the map.',
+      label: 'Regional merchant on the road',
+      reason: 'Wait for the current import or export merchant to complete the round trip.',
     };
   }
   if (building.actionCooldown > 1e-6) {
@@ -256,7 +256,7 @@ export function marketplaceManualTradeStatus(
       ...timing,
       ready: false,
       label: 'Bulk order staging',
-      reason: 'This market is already staging a bulk order. Let it settle or cancel it first.',
+      reason: 'This market is already staging a bulk order. Let it depart or cancel it first.',
     };
   }
   return {

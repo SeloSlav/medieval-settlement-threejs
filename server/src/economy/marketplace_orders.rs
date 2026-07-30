@@ -19,7 +19,7 @@ use crate::economy::{
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::residence_needs::{load_needs, need_stock};
 use crate::simulation::{
-    building_has_external_market_import_trip, delivery_stock_room, regional_market_import_route,
+    building_has_regional_market_trip, delivery_stock_room, regional_market_import_route,
     regional_market_import_route_to_residence, start_external_market_import_trip,
     start_external_market_import_trip_to_residence, try_dispatch_marketplace_caravan, GameClock,
     MarketCaravanDispatch, SimTickContext,
@@ -216,7 +216,7 @@ fn order_physical_market_import(
     if amount <= 1e-6 || !amount.is_finite() {
         return Ok(false);
     }
-    if building_has_external_market_import_trip(ctx, marketplace.id) {
+    if building_has_regional_market_trip(ctx, marketplace.id) {
         return Err(
             "This marketplace already has a regional caravan on the road. Wait for it to unload and leave the map."
                 .to_string(),

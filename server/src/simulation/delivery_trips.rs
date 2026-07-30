@@ -19,8 +19,8 @@ use crate::economy::{
     adriatic_trade_entry_point, available_building_labor, building_commodity_room,
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
     credit_residence_wealth, credit_treasury_commodity, deposit_building_commodity,
-    record_parish_ledger, restore_local_civic_receipts, withdraw_building_commodity,
-    withdraw_coffer_in_place, CommodityKind, ParishLedgerKind,
+    record_parish_ledger, restore_local_civic_receipts, settle_regional_market_export,
+    withdraw_building_commodity, withdraw_coffer_in_place, CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::raid_agent_policy::{
@@ -84,6 +84,7 @@ pub const DELIVERY_DESTINATION_BUILDING: u8 = 1;
 pub const DELIVERY_DESTINATION_FIRE: u8 = 2;
 pub const DELIVERY_DESTINATION_RESIDENCE_WEALTH: u8 = 3;
 pub const DELIVERY_DESTINATION_RESIDENCE_REMEDY: u8 = 4;
+pub const DELIVERY_DESTINATION_REGIONAL_TRADE: u8 = 5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TripCargoKind {
@@ -124,6 +125,12 @@ enum TripDestination {
         x: f64,
         z: f64,
     },
+    RegionalTrade {
+        market_id: u64,
+        contract_code: u64,
+        x: f64,
+        z: f64,
+    },
     FireBuilding {
         id: u64,
         x: f64,
@@ -146,6 +153,15 @@ impl TripDestination {
             Self::ResidenceWealth { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_WEALTH, id, 0),
             Self::ResidenceRemedy { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_REMEDY, id, 0),
             Self::Building { id, .. } => (DELIVERY_DESTINATION_BUILDING, 0, id),
+            Self::RegionalTrade {
+                market_id,
+                contract_code,
+                ..
+            } => (
+                DELIVERY_DESTINATION_REGIONAL_TRADE,
+                contract_code,
+                market_id,
+            ),
             Self::FireBuilding { id, .. } => (DELIVERY_DESTINATION_FIRE, 0, id),
             Self::FireResidence { id, .. } => (DELIVERY_DESTINATION_FIRE, id, 0),
         }
@@ -158,6 +174,7 @@ impl TripDestination {
             | Self::ResidenceWealth { x, z, .. }
             | Self::ResidenceRemedy { x, z, .. }
             | Self::Building { x, z, .. }
+            | Self::RegionalTrade { x, z, .. }
             | Self::FireBuilding { x, z, .. }
             | Self::FireResidence { x, z, .. } => (x, z),
         }
@@ -194,7 +211,7 @@ pub fn building_has_active_trip(ctx: &ReducerContext, building_id: u64) -> bool 
         .delivery_trip()
         .building_id()
         .filter(&building_id)
-        .any(|trip| !is_external_market_import_trip(&trip))
+        .any(|trip| !is_regional_market_trip(&trip))
 }
 
 pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) -> bool {
@@ -350,12 +367,22 @@ fn is_external_market_import_trip(trip: &DeliveryTrip) -> bool {
         )
 }
 
-pub fn building_has_external_market_import_trip(ctx: &ReducerContext, marketplace_id: u64) -> bool {
+fn is_regional_market_export_trip(trip: &DeliveryTrip) -> bool {
+    trip.destination_kind == DELIVERY_DESTINATION_REGIONAL_TRADE
+        && trip.building_id != 0
+        && trip.building_id == trip.target_building_id
+}
+
+fn is_regional_market_trip(trip: &DeliveryTrip) -> bool {
+    is_external_market_import_trip(trip) || is_regional_market_export_trip(trip)
+}
+
+pub fn building_has_regional_market_trip(ctx: &ReducerContext, marketplace_id: u64) -> bool {
     ctx.db
         .delivery_trip()
         .building_id()
         .filter(&marketplace_id)
-        .any(|trip| is_external_market_import_trip(&trip))
+        .any(|trip| is_regional_market_trip(&trip))
 }
 
 /// Builds the physical regional leg from a stable Adriatic-facing edge to the
@@ -384,6 +411,22 @@ pub fn regional_market_import_route(
         .ok_or_else(|| {
             "Extend a road-connected branch toward the regional route before importing.".to_string()
         })
+}
+
+/// Reverses the same stable route used by imports. Export goods therefore
+/// leave through the contracting market's real road branch, and the exchanged
+/// coin or barter cargo must traverse that exact route back into storage.
+pub fn regional_market_export_route(
+    ctx: &ReducerContext,
+    network: &RoadNetwork,
+    marketplace: &Building,
+) -> Result<RoadPathRoute, String> {
+    let mut route = regional_market_import_route(ctx, network, marketplace)?;
+    route.polyline.reverse();
+    if !valid_external_route(&route) {
+        return Err("The regional export route is invalid.".to_string());
+    }
+    Ok(route)
 }
 
 /// Extends the regional route through its contracting marketplace and onward
@@ -471,6 +514,58 @@ pub fn start_external_market_import_trip(
     true
 }
 
+/// Starts a two-way regional exchange with goods already staged at the
+/// marketplace. The merchant carries settlement cargo to the map edge, trades
+/// only the quantity that survives the road, then returns with physical coin
+/// or barter cargo on this same row.
+#[allow(clippy::too_many_arguments)]
+pub fn start_regional_market_export_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    network: &RoadNetwork,
+    marketplace: &Building,
+    contract_code: u64,
+    commodity: CommodityKind,
+    amount: f64,
+    speed_mps: f64,
+    unload_seconds: f64,
+    route: RoadPathRoute,
+) -> bool {
+    if !speed_mps.is_finite()
+        || speed_mps <= 1e-6
+        || !unload_seconds.is_finite()
+        || unload_seconds < 0.0
+        || !external_market_import_ready(ctx, marketplace, amount, &route)
+    {
+        return false;
+    }
+    let Some([edge_x, edge_z]) = route.polyline.last().copied() else {
+        return false;
+    };
+    insert_trip(
+        ctx,
+        tick,
+        network,
+        StartTripSpec {
+            origin: marketplace.clone(),
+            destination: TripDestination::RegionalTrade {
+                market_id: marketplace.id,
+                contract_code,
+                x: edge_x,
+                z: edge_z,
+            },
+            cargo_kind: commodity.as_u8(),
+            delivery_workers: 1,
+            speed_mps,
+            unload_seconds,
+            load_amount: amount,
+        },
+        route,
+        Some(1),
+    );
+    true
+}
+
 /// Sends one paid household or parish order through its marketplace and on to
 /// the exact residence. The marketplace id is retained in target_building_id
 /// as a save-compatible marker for the external merchant leg.
@@ -530,7 +625,7 @@ fn external_market_import_ready(
         && amount > 1e-6
         && amount.is_finite()
         && valid_external_route(route)
-        && !building_has_external_market_import_trip(ctx, marketplace.id)
+        && !building_has_regional_market_trip(ctx, marketplace.id)
 }
 
 /// Holding a construction site recalls any cart already bound for it. The
@@ -570,7 +665,7 @@ pub fn drain_trips_for_building(ctx: &ReducerContext, building_id: u64) -> Deliv
     let mut totals = DeliveryCargoTotals::default();
     for trip in trips {
         release_trip_fire_claim(ctx, &trip);
-        if is_external_market_import_trip(&trip) && trip.amount > 1e-6 {
+        if is_regional_market_trip(&trip) && trip.amount > 1e-6 {
             if let Some(kind) = CommodityKind::from_u8(trip.cargo_kind) {
                 if recover_stock_at(
                     ctx,
@@ -624,6 +719,7 @@ pub fn cancel_trips_for_residence(ctx: &ReducerContext, residence_id: u64) {
         .delivery_trip()
         .residence_id()
         .filter(&residence_id)
+        .filter(|trip| trip.destination_kind != DELIVERY_DESTINATION_REGIONAL_TRADE)
         .collect();
     for trip in trips {
         if is_external_market_import_trip(&trip) {
@@ -1319,13 +1415,15 @@ fn insert_trip(
 ) {
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
     let (start_x, start_z) = RoadNetwork::sample_polyline_xz(&route.polyline, 0.0);
-    let external_market_import = spec.origin.id != 0
+    let regional_market_trip = spec.origin.id != 0
         && spec.origin.id == target_building_id
         && matches!(
             destination_kind,
-            DELIVERY_DESTINATION_BUILDING | DELIVERY_DESTINATION_RESIDENCE
+            DELIVERY_DESTINATION_BUILDING
+                | DELIVERY_DESTINATION_RESIDENCE
+                | DELIVERY_DESTINATION_REGIONAL_TRADE
         );
-    let cartwright_multiplier = if external_market_import {
+    let cartwright_multiplier = if regional_market_trip {
         1.0
     } else {
         carpenter_delivery_multiplier_for_origin(
@@ -1390,9 +1488,10 @@ fn step_one_trip(
     };
     let fire_response = trip.destination_kind == DELIVERY_DESTINATION_FIRE;
     let external_market_import = is_external_market_import_trip(&trip);
+    let regional_market_trip = is_regional_market_trip(&trip);
     let raid_posture = raid_cart_posture(
         !fire_response
-            && !external_market_import
+            && !regional_market_trip
             && tick.owner_has_active_raider_threat(ctx, trip.owner),
         fire_response,
         initial_phase,
@@ -1470,9 +1569,9 @@ fn step_one_trip(
                     complete_unload(ctx, &mut trip, clock.sim_tick);
                     if external_market_import && trip.amount > 1e-6 {
                         // The player has already paid for this physical load.
-                        // If other deliveries filled the market while it was
-                        // travelling, keep the remainder visibly waiting at
-                        // the stall instead of deleting it beyond the map edge.
+                        // If another delivery filled the destination while it
+                        // was travelling, keep the remainder visibly waiting
+                        // instead of deleting it beyond the map edge.
                         trip.unload_remaining = trip.unload_seconds / workers;
                         remaining_seconds = 0.0;
                     } else {
@@ -1615,6 +1714,7 @@ fn trip_route(
             let target = ctx.db.building().id().find(&trip.target_building_id)?;
             network.road_path_route(building.x, building.z, target.x, target.z)
         }
+        DELIVERY_DESTINATION_REGIONAL_TRADE => None,
         _ => {
             let residence = ctx.db.residence().id().find(&trip.residence_id)?;
             network.road_path_route(building.x, building.z, residence.x, residence.z)
@@ -1634,6 +1734,25 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
             trip.amount = 0.0;
         } else {
             release_fire_response(ctx, target_kind, target_id, trip.building_id);
+        }
+    } else if trip.destination_kind == DELIVERY_DESTINATION_REGIONAL_TRADE {
+        match settle_regional_market_export(
+            ctx,
+            trip.owner,
+            trip.target_building_id,
+            trip.residence_id,
+            commodity,
+            trip.amount,
+        ) {
+            Ok((received_commodity, received_amount)) => {
+                trip.cargo_kind = received_commodity.as_u8();
+                trip.amount = received_amount.max(0.0);
+            }
+            Err(error) => {
+                // A corrupt or obsolete contract returns its original load to
+                // the marketplace rather than deleting physical stock.
+                log::warn!("Regional export exchange failed; returning its cargo: {error}");
+            }
         }
     } else if trip.destination_kind == DELIVERY_DESTINATION_BUILDING {
         unload_commodity_to_building(ctx, trip, commodity);

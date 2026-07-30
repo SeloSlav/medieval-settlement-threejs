@@ -92,6 +92,32 @@ pub fn marketplace_proceeds_cart_load(held_gold: f64) -> f64 {
     held_gold.clamp(0.0, STOREHOUSE_HAUL_PER_WORKER)
 }
 
+/// Regional merchants use the same bounded handcart envelope as local market
+/// proceeds. Discrete loads make route length and a second market matter.
+pub fn regional_export_cart_load(available: f64) -> f64 {
+    if !available.is_finite() {
+        return 0.0;
+    }
+    available.clamp(0.0, STOREHOUSE_HAUL_PER_WORKER)
+}
+
+/// Only cargo that reaches the regional exchange earns a receipt. This also
+/// handles food spoiled on the road and partial live-agent raid losses.
+pub fn proportional_regional_trade_receipt(
+    contracted_load: f64,
+    surviving_load: f64,
+    full_receipt: f64,
+) -> f64 {
+    if !contracted_load.is_finite()
+        || contracted_load <= 1e-9
+        || !surviving_load.is_finite()
+        || !full_receipt.is_finite()
+    {
+        return 0.0;
+    }
+    full_receipt.max(0.0) * (surviving_load.max(0.0) / contracted_load).clamp(0.0, 1.0)
+}
+
 /// Regional imports approach from the Adriatic-facing south or west edge.
 ///
 /// The seed and marketplace id choose one stable corridor, while map size
@@ -255,6 +281,23 @@ mod tests {
             marketplace_proceeds_cart_load(200.0),
             STOREHOUSE_HAUL_PER_WORKER
         );
+    }
+
+    #[test]
+    fn regional_exports_use_bounded_discrete_cart_loads() {
+        assert_eq!(regional_export_cart_load(-2.0), 0.0);
+        assert_eq!(regional_export_cart_load(f64::NAN), 0.0);
+        assert_eq!(regional_export_cart_load(7.5), 7.5);
+        assert_eq!(regional_export_cart_load(200.0), STOREHOUSE_HAUL_PER_WORKER);
+    }
+
+    #[test]
+    fn regional_receipts_scale_with_the_load_that_physically_survives() {
+        assert_eq!(proportional_regional_trade_receipt(20.0, 20.0, 14.0), 14.0);
+        assert_eq!(proportional_regional_trade_receipt(20.0, 5.0, 14.0), 3.5);
+        assert_eq!(proportional_regional_trade_receipt(20.0, 0.0, 14.0), 0.0);
+        assert_eq!(proportional_regional_trade_receipt(20.0, 40.0, 14.0), 14.0);
+        assert_eq!(proportional_regional_trade_receipt(0.0, 1.0, 14.0), 0.0);
     }
 
     #[test]

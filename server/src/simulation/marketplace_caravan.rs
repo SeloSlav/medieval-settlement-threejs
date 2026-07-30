@@ -15,8 +15,8 @@ use crate::db::*;
 use crate::economy::{
     building_commodity_stock, credit_marketplace_receipt_gold, marketplace_proceeds_cart_load,
     pending_marketplace_trade_commodity, physical_treasury_seat, record_specialty_market_export,
-    treasury_gold, try_advance_pending_marketplace_trade, try_execute_standing_marketplace_import,
-    withdraw_building_commodity, CommodityKind,
+    regional_export_cart_load, treasury_gold, try_advance_pending_marketplace_trade,
+    try_execute_standing_marketplace_import, withdraw_building_commodity, CommodityKind,
 };
 use crate::marketplace_procurement_policy::{
     marketplace_gold_reserve_shortfall, marketplace_gold_sweep_surplus,
@@ -26,7 +26,8 @@ use crate::simulation::delivery_cargo::{delivery_stock_room, has_delivery_stock_
 use crate::simulation::delivery_supplier::{dispatch_delivery_if_ready, DeliveryDispatchConfig};
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_commodity_trip,
-    onsite_building_labor, try_start_building_supply_trip,
+    building_has_regional_market_trip, onsite_building_labor, regional_market_export_route,
+    start_regional_market_export_trip, try_start_building_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -395,6 +396,62 @@ fn sell_marketplace_specialties(
         return false;
     };
     if network.nearest_distance(building.x, building.z) > BUILDING_ROAD_ACCESS_DISTANCE {
+        return false;
+    }
+
+    let physical_economy = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&building.owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+    if physical_economy {
+        if building.marketplace_pending_trade_code != 0
+            || building_has_regional_market_trip(ctx, building.id)
+        {
+            return false;
+        }
+        let export_workers = specialty_export_workers(onsite_labor, building.action_cooldown);
+        if export_workers == 0 {
+            return false;
+        }
+        let Ok(route) = regional_market_export_route(ctx, network, building) else {
+            return false;
+        };
+        let specialties = [
+            CommodityKind::Ale,
+            CommodityKind::Honey,
+            CommodityKind::Wine,
+            CommodityKind::Cloth,
+        ];
+        for index in specialty_export_order(clock.sim_tick) {
+            let commodity = specialties[index];
+            let available = building_commodity_stock(building, commodity);
+            let load = regional_export_cart_load(available);
+            if load <= 1e-6 {
+                continue;
+            }
+            let withdrawn = withdraw_building_commodity(building, commodity, load);
+            if withdrawn <= 1e-6 {
+                continue;
+            }
+            if start_regional_market_export_trip(
+                ctx,
+                tick,
+                network,
+                building,
+                0,
+                commodity,
+                withdrawn,
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                route,
+            ) {
+                return true;
+            }
+            crate::economy::deposit_building_commodity(building, commodity, withdrawn);
+            return false;
+        }
         return false;
     }
 
