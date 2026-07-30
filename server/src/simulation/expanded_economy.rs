@@ -876,6 +876,7 @@ pub fn step_local_material_dispatch(
                 || !target.construction_complete
                 || tick.building_disabled_by_fire(ctx, target.id)
                 || !processor_accepts_input(&target, commodity)
+                || !extraction_accepts_maintenance_input(ctx, &target, commodity)
                 || building_commodity_room(&target, commodity) <= 1e-6
                 || building_has_inbound_supply_trip(ctx, target.id)
             {
@@ -1037,6 +1038,7 @@ fn dispatch_local_material_candidates(
             || building_has_active_trip(ctx, source.id)
             || building_has_inbound_supply_trip(ctx, target.id)
             || !processor_accepts_input(&target, commodity)
+            || !extraction_accepts_maintenance_input(ctx, &target, commodity)
         {
             continue;
         }
@@ -2401,6 +2403,38 @@ fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> boo
                 | ("mine", CommodityKind::Iron)
                 | ("mine", CommodityKind::Salt)
         )
+}
+
+fn extraction_accepts_maintenance_input(
+    ctx: &ReducerContext,
+    building: &Building,
+    input: CommodityKind,
+) -> bool {
+    if input != CommodityKind::Ironwork {
+        return true;
+    }
+    let output = match building.kind.as_str() {
+        "stone_quarry" | "large_quarry" => Some(CommodityKind::Stone),
+        "clay_pit" => Some(CommodityKind::Clay),
+        "mine" => mineral_deposit_beneath(ctx, building.x, building.z).and_then(|deposit| {
+            if deposit.quarry_id.starts_with("deposit-iron-") {
+                Some(CommodityKind::Iron)
+            } else if deposit.quarry_id.starts_with("deposit-salt-") {
+                Some(CommodityKind::Salt)
+            } else {
+                None
+            }
+        }),
+        _ => return true,
+    };
+    let Some(output) = output else {
+        return false;
+    };
+    processor_output_headroom(
+        building_commodity_stock(building, output),
+        building_commodity_cap(&building.kind, output),
+        building.processor_output_target_percent,
+    ) > 1e-6
 }
 
 fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {

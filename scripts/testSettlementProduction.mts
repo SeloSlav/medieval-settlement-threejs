@@ -212,6 +212,62 @@ const richClayProduction = computeSettlementProductionCapacity(
   undefined,
   50,
 );
+
+const targetHeldClayState = emptyGameState();
+const targetHeldClayPit = building('target-held-clay', 'clay_pit', 1);
+targetHeldClayPit.processorOutputTargetPercent = 25;
+targetHeldClayPit.clay = 45;
+targetHeldClayPit.ironwork = 0.25;
+targetHeldClayState.buildings.set(targetHeldClayPit.id, targetHeldClayPit);
+const heldClayProduction = computeSettlementProductionCapacity(
+  targetHeldClayState,
+  false,
+).industrialMaterials;
+assert.equal(heldClayProduction.clayOutputPerDay, 0);
+assert.equal(heldClayProduction.toolEligibleSites, 0);
+assert.equal(heldClayProduction.maintainedToolIronworkPerDay, 0);
+targetHeldClayPit.clay = 44;
+const reopenedClayProduction = computeSettlementProductionCapacity(
+  targetHeldClayState,
+  false,
+).industrialMaterials;
+assert.ok(reopenedClayProduction.clayOutputPerDay > 0);
+assert.equal(reopenedClayProduction.toolEligibleSites, 1);
+assert.ok(reopenedClayProduction.maintainedToolIronworkPerDay > 0);
+
+const targetHeldMineState = emptyGameState();
+targetHeldMineState.quarries.set(
+  'deposit-iron-ordinary-target',
+  mineralDeposit(
+    'deposit-iron-ordinary-target',
+    'iron',
+    0,
+    300,
+    300,
+    false,
+  ),
+);
+const targetHeldMine = building('target-held-mine', 'mine', 1);
+targetHeldMine.processorOutputTargetPercent = 25;
+targetHeldMine.iron = 60;
+targetHeldMine.ironwork = 0.25;
+targetHeldMineState.buildings.set(targetHeldMine.id, targetHeldMine);
+const heldMineProduction = computeSettlementProductionCapacity(
+  targetHeldMineState,
+  false,
+).industrialMaterials;
+assert.equal(heldMineProduction.localIronOutputPerDay, 0);
+assert.equal(heldMineProduction.toolEligibleSites, 0);
+assert.equal(heldMineProduction.maintainedToolIronworkPerDay, 0);
+targetHeldMine.iron = 59;
+const reopenedMineProduction = computeSettlementProductionCapacity(
+  targetHeldMineState,
+  false,
+).industrialMaterials;
+assert.ok(reopenedMineProduction.localIronOutputPerDay > 0);
+assert.equal(reopenedMineProduction.toolEligibleSites, 1);
+assert.ok(reopenedMineProduction.maintainedToolIronworkPerDay > 0);
+
 assert.ok(
   richClayProduction.industrialMaterials.clayOutputPerDay
     > leanClayProduction.industrialMaterials.clayOutputPerDay,
@@ -2018,6 +2074,9 @@ assert.match(townHallRenderer, /road-local clay-backed kiln output/);
 assert.match(townHallRenderer, /Civilian tool upkeep/);
 assert.match(townHallRenderer, /deep workings need/);
 assert.match(townHallRenderer, /Inspect support/);
+assert.match(townHallRenderer, /chosen yard target/);
+assert.match(townHallRenderer, /remains physically above newly lowered targets/);
+assert.match(townHallRenderer, /operating \/ \$\{/);
 
 console.log(
   `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${mineLedgerElapsedMs.toFixed(1)} ms for 100,000 physical mines; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${farmToolLedgerElapsedMs.toFixed(1)} ms farm-tool scan; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,

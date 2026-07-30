@@ -4,6 +4,8 @@ import { performance } from 'node:perf_hooks';
 import {
   EXTRACTION_OUTPUT_TARGET_KINDS,
   EXTRACTION_OUTPUT_TARGET_PRESETS,
+  extractionAcceptsMaintenance,
+  extractionOutputCommodity,
   extractionOutputHeadroom,
   extractionOutputTarget,
   isExtractionOutputTargetKind,
@@ -110,8 +112,37 @@ const leanQuarry = processor('quarry', 'stone_quarry', 25);
 leanQuarry.stone = 44;
 assert.equal(extractionOutputTarget('stone_quarry', 'stone', 25), 45);
 assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 1);
+assert.equal(extractionOutputCommodity('stone_quarry'), 'stone');
+assert.equal(extractionOutputCommodity('large_quarry'), 'stone');
+assert.equal(extractionOutputCommodity('clay_pit'), 'clay');
+assert.equal(extractionOutputCommodity('mine', 'iron'), 'iron');
+assert.equal(extractionOutputCommodity('mine', 'salt'), 'salt');
+assert.equal(extractionOutputCommodity('mine'), null);
+assert.equal(extractionAcceptsMaintenance(leanQuarry), true);
 leanQuarry.stone = 45;
 assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 0);
+assert.equal(
+  extractionAcceptsMaintenance(leanQuarry),
+  false,
+  'a target-held quarry must not claim additional replacement tools',
+);
+leanQuarry.stone = 44;
+assert.equal(
+  extractionAcceptsMaintenance(leanQuarry),
+  true,
+  'drawing one unit from the yard must immediately reopen tool maintenance',
+);
+leanQuarry.stone = 45;
+const leanIronMine = processor('iron-mine', 'mine', 25);
+leanIronMine.iron = 60;
+assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), false);
+leanIronMine.iron = 59;
+assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), true);
+assert.equal(
+  extractionAcceptsMaintenance(leanIronMine, null),
+  false,
+  'a mine without a physical iron or salt seam must not absorb smithy output',
+);
 const quarryPanel = renderExtractionStockTargetPanel(leanQuarry, 'stone') ?? '';
 assert.match(quarryPanel, /stone 45 \/ 45/);
 assert.match(quarryPanel, /Extraction paused at target/);
@@ -213,6 +244,26 @@ assert.equal(
   'barley arbitration should skip a processor whose ale target is met',
 );
 
+const openToolQuarry = processor('open-tool-quarry', 'stone_quarry', 25);
+openToolQuarry.stone = 44;
+openToolQuarry.ironwork = 0;
+const heldToolQuarry = processor('held-tool-quarry', 'stone_quarry', 25);
+heldToolQuarry.stone = 45;
+heldToolQuarry.ironwork = 0;
+const extractionToolTarget = selectDirectProcessorInputTarget(
+  [heldToolQuarry, openToolQuarry],
+  'smithy',
+  'ironwork',
+  () => 10,
+  () => false,
+  (target) => extractionAcceptsMaintenance(target),
+);
+assert.equal(
+  extractionToolTarget?.target.id,
+  openToolQuarry.id,
+  'smithy arbitration must skip an extraction work deliberately held at its yard target',
+);
+
 const candidates = Array.from({ length: 100_000 }, (_, index) => {
   const building = processor(String(index), 'brewery', 50);
   building.ale = index === 99_999
@@ -269,6 +320,7 @@ const extractionInspector = readFileSync(
   'src/resources/inspector/extractionStockTargetRenderer.ts',
   'utf8',
 );
+const worldQueries = readFileSync('src/resources/WorldQueries.ts', 'utf8');
 
 assert.match(
   table,
@@ -304,7 +356,22 @@ assert.match(extractionInspector, /data-processor-output-target/);
 assert.match(extractionInspector, /on-site output ceiling, not a protected reserve/);
 assert.match(extractionInspector, /preserve finite deposits/);
 assert.match(extractionInspector, /avoid timber-support and tool wear/);
+assert.match(
+  worldQueries,
+  /acceptsMaterialInput[\s\S]*extractionAcceptsMaintenance/,
+  'client-side cart previews must mirror authoritative maintenance gating',
+);
 assert.match(economy, /fn production_output_target_applies/);
+assert.match(economy, /fn extraction_accepts_maintenance_input/);
+assert.equal(
+  (
+    economy.match(
+      /!extraction_accepts_maintenance_input\(ctx, &target, commodity\)/g,
+    ) ?? []
+  ).length,
+  2,
+  'authoritative candidate selection and launch revalidation must both reject tool carts to target-held extraction yards',
+);
 assert.match(economy, /uses_extraction_target/);
 assert.match(economy, /process_batch\([\s\S]*Some\(target_percent\)/);
 

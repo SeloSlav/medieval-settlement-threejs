@@ -488,7 +488,7 @@ assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 1 production worker/
 assert.match(inspector.supplementalPanelHtml ?? '', /equal-priority sites share workers round-robin/);
 assert.match(
   inspector.supplementalPanelHtml ?? '',
-  /quarries with usable stone and yard room, open clay yards/,
+  /extraction works on usable deposits with room below their chosen yard target/,
 );
 assert.match(inspector.supplementalPanelHtml ?? '', /every recipe input is present or already inbound/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-policy-production-labor-steward/);

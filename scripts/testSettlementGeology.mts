@@ -235,13 +235,104 @@ assert.ok(plan.iron.finiteExtractionPerDay > 0);
 assert.ok(plan.iron.deepExtractionPerDay > 0);
 assert.ok(plan.salt.finiteExtractionPerDay > 0);
 assert.equal(plan.salt.deepExtractionPerDay, 0);
+assert.deepEqual(
+  [
+    plan.stone.operatingExtractionSites,
+    plan.clay.operatingExtractionSites,
+    plan.iron.operatingExtractionSites,
+    plan.salt.operatingExtractionSites,
+  ],
+  [2, 2, 2, 1],
+  'the ledger must distinguish genuinely operating works from merely built or staffed sites',
+);
+assert.deepEqual(
+  [plan.stone.yardStock, plan.clay.yardStock, plan.iron.yardStock, plan.salt.yardStock],
+  [0, 0, 0, 0],
+);
+assert.deepEqual(
+  [plan.stone.yardTarget, plan.clay.yardTarget, plan.iron.yardTarget, plan.salt.yardTarget],
+  [540, 360, 480, 240],
+  'legacy 100% policy must expose the full combined physical yard capacities',
+);
 assert.equal(
   geologicalFiniteRunwayDays(plan.iron),
   plan.iron.finiteReserve / plan.iron.finiteExtractionPerDay,
 );
 
+const stoneCamp = state.buildings.get('stone-camp');
 const deepStoneQuarry = state.buildings.get('deep-quarry');
+const finiteClayPit = state.buildings.get('clay-pit-finite');
+const deepClayPit = state.buildings.get('clay-pit-deep');
+const finiteIronMine = state.buildings.get('iron-mine-finite');
+const deepIronMine = state.buildings.get('iron-mine-deep');
+const finiteSaltMine = state.buildings.get('salt-mine-finite');
+assert.ok(stoneCamp);
 assert.ok(deepStoneQuarry);
+assert.ok(finiteClayPit);
+assert.ok(deepClayPit);
+assert.ok(finiteIronMine);
+assert.ok(deepIronMine);
+assert.ok(finiteSaltMine);
+Object.assign(stoneCamp, { processorOutputTargetPercent: 25, stone: 45 });
+Object.assign(deepStoneQuarry, { processorOutputTargetPercent: 25, stone: 110 });
+Object.assign(finiteClayPit, { processorOutputTargetPercent: 25, clay: 45 });
+Object.assign(deepClayPit, { processorOutputTargetPercent: 25, clay: 45 });
+Object.assign(finiteIronMine, { processorOutputTargetPercent: 25, iron: 60 });
+Object.assign(deepIronMine, { processorOutputTargetPercent: 25, iron: 60 });
+Object.assign(finiteSaltMine, { processorOutputTargetPercent: 25, salt: 60 });
+const targetHeldPlan = computeSettlementGeologyPlan(state, false);
+assert.deepEqual(
+  [
+    targetHeldPlan.stone.operatingExtractionSites,
+    targetHeldPlan.clay.operatingExtractionSites,
+    targetHeldPlan.iron.operatingExtractionSites,
+    targetHeldPlan.salt.operatingExtractionSites,
+  ],
+  [0, 0, 0, 0],
+  'yard ceilings must remove deliberately held works from current extraction forecasts',
+);
+assert.deepEqual(
+  [
+    targetHeldPlan.stone.staffedTargetPausedSites,
+    targetHeldPlan.clay.staffedTargetPausedSites,
+    targetHeldPlan.iron.staffedTargetPausedSites,
+    targetHeldPlan.salt.staffedTargetPausedSites,
+  ],
+  [2, 2, 2, 1],
+);
+assert.equal(targetHeldPlan.stone.yardTarget, 135);
+assert.equal(targetHeldPlan.stone.yardStock, 155);
+assert.equal(targetHeldPlan.stone.yardHeadroom, 0);
+assert.equal(
+  targetHeldPlan.stone.yardSurplusAboveTarget,
+  20,
+  'lowering a target must report, not erase, output already held above it',
+);
+assert.equal(targetHeldPlan.stone.finiteExtractionPerDay, 0);
+assert.equal(targetHeldPlan.stone.deepExtractionPerDay, 0);
+assert.equal(targetHeldPlan.stone.deepSupportTimberPerDay, 0);
+assert.equal(targetHeldPlan.iron.deepSupportTimberPerDay, 0);
+assert.equal(targetHeldPlan.stone.firstTargetPausedBuildingId, 'stone-camp');
+stoneCamp.stone = 44;
+const reopenedYardPlan = computeSettlementGeologyPlan(state, false);
+assert.equal(reopenedYardPlan.stone.yardHeadroom, 1);
+assert.equal(reopenedYardPlan.stone.staffedTargetPausedSites, 1);
+assert.equal(reopenedYardPlan.stone.operatingExtractionSites, 1);
+assert.ok(reopenedYardPlan.stone.finiteExtractionPerDay > 0);
+
+for (const [building, commodity] of [
+  [stoneCamp, 'stone'],
+  [deepStoneQuarry, 'stone'],
+  [finiteClayPit, 'clay'],
+  [deepClayPit, 'clay'],
+  [finiteIronMine, 'iron'],
+  [deepIronMine, 'iron'],
+  [finiteSaltMine, 'salt'],
+] as const) {
+  building.processorOutputTargetPercent = 100;
+  building[commodity] = 0;
+}
+
 deepStoneQuarry.timber = 0;
 const stoneSupportStarvedPlan = computeSettlementGeologyPlan(state, false);
 assert.equal(stoneSupportStarvedPlan.stone.activeDeepSources, 0);
@@ -277,8 +368,6 @@ assert.equal(inboundStoneSupportPlan.stone.activeDeepSources, 1);
 assert.equal(inboundStoneSupportPlan.stone.deepSourcesAwaitingSupports, 0);
 assert.equal(inboundStoneSupportPlan.stone.deepSupportRunwayCycles, 2);
 
-const deepIronMine = state.buildings.get('iron-mine-deep');
-assert.ok(deepIronMine);
 deepIronMine.timber = 0;
 const supportStarvedPlan = computeSettlementGeologyPlan(state, false);
 assert.equal(supportStarvedPlan.iron.activeDeepSources, 0);

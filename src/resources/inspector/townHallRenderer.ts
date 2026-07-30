@@ -423,11 +423,27 @@ function formatGeologicalResourcePlan(
           : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSupportBuildingId}" aria-label="Inspect first deep extraction site awaiting timber supports">Inspect support</button>`
       }`
     : '';
+  const yardInspect = plan.firstTargetPausedBuildingId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstTargetPausedBuildingId}" aria-label="Inspect extraction work paused at its yard target">Inspect held yard</button>`;
+  const yardStatus = plan.extractionSites === 0
+    ? 'no extraction yard built'
+    : `${plan.yardStock.toFixed(1)} held against ${plan.yardTarget.toFixed(1)} chosen yard target &middot; ${plan.yardHeadroom.toFixed(1)} aggregate headroom${
+        plan.yardSurplusAboveTarget > 0.05
+          ? ` &middot; ${plan.yardSurplusAboveTarget.toFixed(1)} remains physically above newly lowered targets`
+          : ''
+      }${
+        plan.staffedTargetPausedSites > 0
+          ? ` &middot; ${plan.staffedTargetPausedSites} staffed ${
+              plan.staffedTargetPausedSites === 1 ? 'work is' : 'works are'
+            } deliberately held`
+          : ''
+      }${yardInspect}`;
   const extraction = `${plan.finiteExtractionPerDay.toFixed(1)} finite + ${
     plan.deepExtractionPerDay.toFixed(1)
-  } deep output / day from ${plan.staffedExtractionSites} / ${
-    plan.extractionSites
-  } staffed works`;
+  } deep output / day from ${plan.operatingExtractionSites} operating / ${
+    plan.staffedExtractionSites
+  } staffed / ${plan.extractionSites} built works`;
   const demand = dailyDemand <= 0.05
     ? ''
     : ` &middot; ${demandLabel} need ${dailyDemand.toFixed(1)} / day &middot; ${
@@ -449,7 +465,7 @@ function formatGeologicalResourcePlan(
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionBuildingId}" aria-label="Inspect shortest geological reserve runway">Inspect shortest</button>`;
   return `${plan.ordinaryDeposits} ordinary + ${plan.richDeposits} rich physical ${
     plan.deposits === 1 ? 'deposit' : 'deposits'
-  } &middot; ${reserveStatus} &middot; ${deepStatus}${deepSupport} &middot; ${extraction}${demand}${exhausted}${inspect}`;
+  } &middot; ${reserveStatus} &middot; ${deepStatus}${deepSupport} &middot; ${yardStatus} &middot; ${extraction}${demand}${exhausted}${inspect}`;
 }
 
 function formatRoadProvisioning(plan: SettlementRoadProvisioning | null): string {
@@ -2466,7 +2482,7 @@ export function renderTownHallInspector(
             ${staffedTownHallAvailable ? '' : 'disabled'} />
           <span>Daily production labor steward</span>
         </label>
-        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases surplus crews only from genuinely stalled workshops, exhausted or yard-blocked mines and quarries, full clay pits, and reserve-held hunting halls, retaining a dispatcher for stored output or an active cart. It then fills supplied, below-target production sites by staffing priority and fair within-tier rotation. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
+        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases surplus crews only from genuinely stalled workshops, exhausted or target-held extraction yards, and reserve-held hunting halls, retaining a dispatcher for stored output or an active cart. It then fills supplied, below-target production sites by staffing priority and fair within-tier rotation. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
@@ -2513,7 +2529,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && seasonalCallup.callupWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide call-up.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Recall only labor that cannot currently produce: workshops with an empty input or reached output target, exhausted or yard-blocked mines and quarries, full clay pits, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. One dispatcher remains for stored output or an active cart.${productionLaborStewardEnabled ? ' The steward will redeploy released labor to ready production sites.' : ' Restaffing remains an explicit decision.'}</p>
+        <p class="inspector-action-panel__hint">Recall only labor that cannot currently produce: workshops with an empty input or reached output target, exhausted or target-held extraction yards, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. One dispatcher remains for stored output or an active cart.${productionLaborStewardEnabled ? ' The steward will redeploy released labor to ready production sites.' : ' Restaffing remains an explicit decision.'}</p>
         <button type="button" class="resource-action-button" data-recall-target-idle-processor-labor ${staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${worksiteStalls.reclaimableWorkers > 0
             ? `Recall ${worksiteStalls.reclaimableWorkers} stalled production ${worksiteStalls.reclaimableWorkers === 1 ? 'worker' : 'workers'}`
@@ -2522,7 +2538,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide stalled-production recall.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, mines on usable iron or salt seams, quarries with usable stone and yard room, open clay yards, and hunting halls with harvestable game above their reserve. High staffing priority fills before normal, then low; equal-priority sites share workers round-robin. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
+        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, extraction works on usable deposits with room below their chosen yard target, and hunting halls with harvestable game above their reserve. High staffing priority fills before normal, then low; equal-priority sites share workers round-robin. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
         <button type="button" class="resource-action-button" data-call-up-target-ready-processor-labor ${staffedTownHallAvailable && productionLaborCallup.callupWorkers > 0 ? '' : 'disabled'}>
           ${productionLaborCallup.callupWorkers > 0
             ? `Deploy ${productionLaborCallup.callupWorkers} production ${productionLaborCallup.callupWorkers === 1 ? 'worker' : 'workers'}`

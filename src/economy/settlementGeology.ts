@@ -28,6 +28,11 @@ import {
   richMineSupportRunwayCycles,
   richMineSupportsReady,
 } from './mineSupportPolicy.ts';
+import {
+  extractionOutputHeadroom,
+  extractionOutputTarget,
+  type ExtractionOutputCommodity,
+} from './processorOutputPolicy.ts';
 
 export type GeologicalResource = 'stone' | 'clay' | 'iron' | 'salt';
 
@@ -41,6 +46,12 @@ export type GeologicalResourcePlan = {
   finiteCapacity: number;
   extractionSites: number;
   staffedExtractionSites: number;
+  operatingExtractionSites: number;
+  staffedTargetPausedSites: number;
+  yardStock: number;
+  yardTarget: number;
+  yardHeadroom: number;
+  yardSurplusAboveTarget: number;
   finiteExtractionPerDay: number;
   deepExtractionPerDay: number;
   activeDeepSources: number;
@@ -48,6 +59,7 @@ export type GeologicalResourcePlan = {
   deepSupportRunwayCycles: number;
   deepSourcesAwaitingSupports: number;
   firstSupportBuildingId: string | null;
+  firstTargetPausedBuildingId: string | null;
   firstAttentionBuildingId: string | null;
 };
 
@@ -173,10 +185,19 @@ export function computeSettlementGeologyPlan(
       if (anyDeposit === null) continue;
       const plan = plans.stone;
       plan.extractionSites += 1;
+      const targetPaused = recordExtractionYard(
+        plan,
+        building,
+        'stone',
+      );
       if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
         continue;
       }
       plan.staffedExtractionSites += 1;
+      if (targetPaused) {
+        recordTargetPause(plan, building);
+        continue;
+      }
       const deposit = nearestSurfaceStone(
         building,
         deposits.stone,
@@ -193,6 +214,7 @@ export function computeSettlementGeologyPlan(
         sabbathObserved,
         civilianToolThroughputMultiplier(building.ironwork ?? 0),
       ) * STONE_PER_HARVEST;
+      plan.operatingExtractionSites += 1;
       plan.finiteExtractionPerDay += rate;
       addFiniteRate(plan, deposit, building, rate);
       continue;
@@ -207,10 +229,19 @@ export function computeSettlementGeologyPlan(
       if (deposit === null) continue;
       const plan = plans.stone;
       plan.extractionSites += 1;
+      const targetPaused = recordExtractionYard(
+        plan,
+        building,
+        'stone',
+      );
       if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
         continue;
       }
       plan.staffedExtractionSites += 1;
+      if (targetPaused) {
+        recordTargetPause(plan, building);
+        continue;
+      }
       const inboundTimber = inboundTimberByBuildingId.get(building.id) ?? 0;
       const cycles = cyclesPerCalendarDay(
         'large_quarry',
@@ -229,6 +260,7 @@ export function computeSettlementGeologyPlan(
         plan.firstSupportBuildingId ??= building.id;
         continue;
       }
+      plan.operatingExtractionSites += 1;
       plan.activeDeepSources += 1;
       plan.deepExtractionPerDay += cycles * STONE_PER_HARVEST;
       continue;
@@ -239,10 +271,19 @@ export function computeSettlementGeologyPlan(
       if (deposit === null) continue;
       const plan = plans.clay;
       plan.extractionSites += 1;
+      const targetPaused = recordExtractionYard(
+        plan,
+        building,
+        'clay',
+      );
       if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
         continue;
       }
       plan.staffedExtractionSites += 1;
+      if (targetPaused) {
+        recordTargetPause(plan, building);
+        continue;
+      }
       if (!deposit.isRich && deposit.remaining <= EPSILON) {
         plan.blockedFiniteBuildingId ??= building.id;
         continue;
@@ -259,6 +300,7 @@ export function computeSettlementGeologyPlan(
             options.resourceAbundance ?? 50,
           ),
       ) * CLAY_PIT_CLAY_PER_CYCLE;
+      plan.operatingExtractionSites += 1;
       if (deposit.isRich) {
         plan.activeDeepSources += 1;
         plan.deepExtractionPerDay += rate;
@@ -275,10 +317,19 @@ export function computeSettlementGeologyPlan(
     }
     const plan = plans[deposit.resource];
     plan.extractionSites += 1;
+    const targetPaused = recordExtractionYard(
+      plan,
+      building,
+      deposit.resource,
+    );
     if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
       continue;
     }
     plan.staffedExtractionSites += 1;
+    if (targetPaused) {
+      recordTargetPause(plan, building);
+      continue;
+    }
     if (!deposit.isRich && deposit.remaining <= EPSILON) {
       plan.blockedFiniteBuildingId ??= building.id;
       continue;
@@ -308,6 +359,9 @@ export function computeSettlementGeologyPlan(
       sabbathObserved,
       inboundTimber,
     );
+    if (rate > EPSILON) {
+      plan.operatingExtractionSites += 1;
+    }
     if (deposit.isRich) {
       plan.activeDeepSources += 1;
       plan.deepExtractionPerDay += rate;
@@ -407,6 +461,12 @@ function emptyResourcePlan(
     finiteCapacity: 0,
     extractionSites: 0,
     staffedExtractionSites: 0,
+    operatingExtractionSites: 0,
+    staffedTargetPausedSites: 0,
+    yardStock: 0,
+    yardTarget: 0,
+    yardHeadroom: 0,
+    yardSurplusAboveTarget: 0,
     finiteExtractionPerDay: 0,
     deepExtractionPerDay: 0,
     activeDeepSources: 0,
@@ -414,6 +474,7 @@ function emptyResourcePlan(
     deepSupportRunwayCycles: 0,
     deepSourcesAwaitingSupports: 0,
     firstSupportBuildingId: null,
+    firstTargetPausedBuildingId: null,
     firstAttentionBuildingId: null,
     finiteRatesByDeposit: new Map(),
     finiteBuildingsByDeposit: new Map(),
@@ -431,6 +492,33 @@ function stripInternalFields(
     ...publicPlan
   } = plan;
   return publicPlan;
+}
+
+function recordExtractionYard(
+  plan: MutableGeologicalResourcePlan,
+  building: BuildingState,
+  commodity: ExtractionOutputCommodity,
+): boolean {
+  const stock = Math.max(0, building[commodity] ?? 0);
+  const target = extractionOutputTarget(
+    building.kind as 'stone_quarry' | 'large_quarry' | 'mine' | 'clay_pit',
+    commodity,
+    building.processorOutputTargetPercent,
+  );
+  const headroom = extractionOutputHeadroom(building, commodity) ?? 0;
+  plan.yardStock += stock;
+  plan.yardTarget += target;
+  plan.yardHeadroom += headroom;
+  plan.yardSurplusAboveTarget += Math.max(0, stock - target);
+  return headroom <= EPSILON;
+}
+
+function recordTargetPause(
+  plan: MutableGeologicalResourcePlan,
+  building: Pick<BuildingState, 'id'>,
+): void {
+  plan.staffedTargetPausedSites += 1;
+  plan.firstTargetPausedBuildingId ??= building.id;
 }
 
 function cyclesPerCalendarDay(

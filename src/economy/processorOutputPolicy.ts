@@ -249,6 +249,45 @@ export function extractionOutputHeadroom(
   return Math.max(0, target - Math.max(0, building[commodity] ?? 0));
 }
 
+export function extractionOutputCommodity(
+  kind: BuildingKind,
+  mineralResource: 'iron' | 'salt' | null = null,
+): ExtractionOutputCommodity | null {
+  switch (kind) {
+    case 'stone_quarry':
+    case 'large_quarry':
+      return 'stone';
+    case 'clay_pit':
+      return 'clay';
+    case 'mine':
+      return mineralResource;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Replacement tools are a production input, not generic storage. A staffed
+ * extraction site whose physical output yard has reached its chosen ceiling
+ * keeps its existing tool rack but does not claim more scarce smithy output.
+ * Once a cart draws the yard below target, maintenance deliveries become
+ * eligible again.
+ */
+export function extractionAcceptsMaintenance(
+  building: Pick<
+    BuildingState,
+    | 'kind'
+    | 'processorOutputTargetPercent'
+    | ExtractionOutputCommodity
+  >,
+  mineralResource: 'iron' | 'salt' | null = null,
+): boolean {
+  if (!isExtractionOutputTargetKind(building.kind)) return true;
+  const output = extractionOutputCommodity(building.kind, mineralResource);
+  if (output === null) return false;
+  return (extractionOutputHeadroom(building, output) ?? 0) > 1e-6;
+}
+
 export function processorNeedsInputs(
   building: Pick<
     BuildingState,

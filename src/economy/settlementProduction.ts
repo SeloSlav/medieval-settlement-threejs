@@ -66,6 +66,8 @@ import type {
   ResidenceState,
 } from '../resources/types.ts';
 import {
+  extractionOutputCommodity,
+  extractionOutputHeadroom,
   normalizeProcessorOutputTargetPercent,
   processorOutputTargetForBuilding,
 } from './processorOutputPolicy.ts';
@@ -737,12 +739,27 @@ function completedProcessorOverview(
     const clayBankYield = building.kind === 'clay_pit'
       ? clayBankYieldAt(building.x, building.z, resourceAbundance)
       : 1;
+    const mineDeposit = building.kind === 'mine'
+      ? mineralDepositBeneath(building, state.quarries.values())
+      : null;
+    const mineResource = mineDeposit?.resource === 'iron'
+      || mineDeposit?.resource === 'salt'
+      ? mineDeposit.resource
+      : null;
+    const extractionCommodity = extractionOutputCommodity(
+      building.kind,
+      mineResource,
+    );
+    const extractionYardAtTarget = extractionCommodity !== null
+      && (extractionOutputHeadroom(building, extractionCommodity) ?? 0) <= 1e-6;
     if (
       isCivilianToolSite(building.kind)
       && (
         building.kind !== 'threshing_barn'
         || activeFarmToolHoldings.has(building.id)
       )
+      && !extractionYardAtTarget
+      && (building.kind !== 'mine' || mineResource !== null)
     ) {
       toolEligibleSites += 1;
       const maintained = building.kind === 'threshing_barn'
@@ -1113,6 +1130,7 @@ function completedProcessorOverview(
         break;
       }
       case 'clay_pit': {
+        if (extractionYardAtTarget) break;
         clayWorkers += building.assignedLabor;
         clayBankWeightedLabor += building.assignedLabor * clayBankYield;
         if (clayBankYield < CLAY_BANK_LEAN_YIELD_THRESHOLD) {
@@ -1246,14 +1264,10 @@ function completedProcessorOverview(
         break;
       }
       case 'mine': {
-        const deposit = mineralDepositBeneath(
-          building,
-          state.quarries.values(),
-        );
-        if (deposit?.resource !== 'iron') break;
+        if (extractionYardAtTarget || mineDeposit?.resource !== 'iron') break;
         const outputPerDay = mineralMineOutputPerDay(
           building,
-          deposit,
+          mineDeposit,
           sabbathObserved,
         );
         if (outputPerDay <= 1e-9) break;

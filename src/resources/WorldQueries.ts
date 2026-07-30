@@ -70,7 +70,11 @@ import {
   wellDeliveryTripSeconds,
   wellLaborSplit,
 } from '../logistics/waterLogistics.ts';
-import { processorAcceptsInput } from '../economy/processorOutputPolicy.ts';
+import {
+  extractionAcceptsMaintenance,
+  processorAcceptsInput,
+} from '../economy/processorOutputPolicy.ts';
+import { mineralDepositBeneath } from '../economy/settlementGeology.ts';
 import {
   monasteryFeastRefillShortfall,
   monasteryFeastReserve,
@@ -1196,6 +1200,24 @@ export class WorldQueries {
         inboundTargets.add(trip.targetBuildingId);
       }
     }
+    const acceptsMaterialInput = (
+      target: BuildingState,
+      material: DirectProcessorInputCommodity,
+    ): boolean => {
+      if (material === 'preservedFood') {
+        return target.granaryAcceptsFreshFood !== false;
+      }
+      if (!processorAcceptsInput(target, material)) return false;
+      if (material !== 'ironwork') return true;
+      const deposit = target.kind === 'mine'
+        ? mineralDepositBeneath(target, state.quarries.values())
+        : null;
+      const mineralResource = deposit?.resource === 'iron'
+        || deposit?.resource === 'salt'
+        ? deposit.resource
+        : null;
+      return extractionAcceptsMaintenance(target, mineralResource);
+    };
     if (localMaterialInputCommodity(source.kind, source) === commodity) {
       const localSources = [...this.fireEnabledBuildings(state, fireDisabled)]
         .filter((candidate) =>
@@ -1215,7 +1237,7 @@ export class WorldQueries {
         ),
         (producer) => !activeSources.has(producer.id),
         (target) => inboundTargets.has(target.id),
-        (target, material) => processorAcceptsInput(target, material),
+        acceptsMaterialInput,
       );
       return assignments.get(source.id) ?? null;
     }
@@ -1231,9 +1253,7 @@ export class WorldQueries {
         target.z,
       ),
       (target) => inboundTargets.has(target.id),
-      (target) => commodity === 'preservedFood'
-        ? target.granaryAcceptsFreshFood !== false
-        : processorAcceptsInput(target, commodity),
+      (target) => acceptsMaterialInput(target, commodity),
     );
   }
 
