@@ -325,6 +325,105 @@ assert.match(
   /no ready arms stranded by topology/,
 );
 
+const localIndustryState = {
+  stockpile: createEmptyStockpile(),
+  buildings: new Map<string, BuildingState>(),
+  deliveryTrips: new Map<string, DeliveryTripState>(),
+  fireIncidents: new Map<string, FireIncidentState>(),
+  physicalFoundingSiteEnabled: true,
+};
+const localIndustryGuard = building('local-industry-guard', 'guardhouse', 0, {
+  assignedLabor: 2,
+});
+const localIndustryCarpenter = building(
+  'local-industry-carpenter',
+  'carpenter',
+  0,
+  {
+    assignedLabor: 1,
+    timber: 4,
+    carpenterPolearmReserve: 2,
+  },
+);
+const localIndustrySmithy = building('local-industry-smithy', 'smithy', 0, {
+  assignedLabor: 1,
+  ironwork: 2,
+});
+const localIndustryMarket = building(
+  'local-industry-market',
+  'marketplace',
+  0,
+  {
+    assignedLabor: 1,
+    ironwork: 3,
+  },
+);
+const disconnectedSmithy = building(
+  'disconnected-smithy',
+  'smithy',
+  100,
+  {
+    assignedLabor: 1,
+    ironwork: 7,
+  },
+);
+const idleLocalSmithy = building('idle-local-smithy', 'smithy', 0, {
+  assignedLabor: 0,
+  ironwork: 11,
+});
+for (const site of [
+  localIndustryGuard,
+  localIndustryCarpenter,
+  localIndustrySmithy,
+  localIndustryMarket,
+  disconnectedSmithy,
+  idleLocalSmithy,
+]) {
+  localIndustryState.buildings.set(site.id, site);
+}
+const localIndustry = computeSettlementArmamentPlan({
+  state: localIndustryState,
+  roadComponentFor: (candidate) => candidate.x < 50 ? 'core' : 'remote',
+});
+assert.equal(localIndustry.roadSourceIronwork, 5);
+assert.equal(localIndustry.roadSourceSmithyIronwork, 2);
+assert.equal(localIndustry.roadSourceMarketIronwork, 3);
+assert.equal(localIndustry.supplyingSmithies, 1);
+assert.equal(localIndustry.serviceableIronwork, 5);
+assert.equal(
+  localIndustry.firstSupplyingSmithyId,
+  localIndustrySmithy.id,
+);
+assert.equal(
+  localIndustry.readyArmoryOutput,
+  0,
+  'stock still at a smithy or market must remain a cart-planning resource, not instantly craftable at the carpenter',
+);
+const localIndustryRows = renderSettlementArmamentRows(localIndustry);
+assert.match(
+  localIndustryRows,
+  /5\.0 ironwork \(2\.0 locally forged \+ 3\.0 market-held\) before cart contention/,
+);
+assert.match(
+  localIndustryRows,
+  /data-inspect-building="local-industry-smithy"/,
+);
+assert.match(localIndustryRows, /staffed smithies and markets/);
+
+localIndustryState.fireIncidents.set(
+  'local-industry-smithy-fire',
+  fireIncident('local-industry-smithy-fire', localIndustrySmithy.id),
+);
+const fireBlockedLocalIndustry = computeSettlementArmamentPlan({
+  state: localIndustryState,
+  roadComponentFor: (candidate) => candidate.x < 50 ? 'core' : 'remote',
+});
+assert.equal(fireBlockedLocalIndustry.roadSourceSmithyIronwork, 0);
+assert.equal(fireBlockedLocalIndustry.roadSourceMarketIronwork, 3);
+assert.equal(fireBlockedLocalIndustry.roadSourceIronwork, 3);
+assert.equal(fireBlockedLocalIndustry.supplyingSmithies, 0);
+assert.equal(fireBlockedLocalIndustry.firstSupplyingSmithyId, null);
+
 const aggregate = computeSettlementArmamentPlan({ state });
 assert.equal(aggregate.roadPlan, null);
 assert.equal(aggregate.armableFromFinishedStock, 8);
@@ -384,6 +483,15 @@ assert.equal(
 const townHallSource = readFileSync(
   new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
   'utf8',
+);
+const expandedEconomySource = readFileSync(
+  new URL('../server/src/simulation/expanded_economy.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  expandedEconomySource,
+  /"smithy" => Some\(\([\s\S]*CommodityKind::Ironwork,[\s\S]*"carpenter"/,
+  'the local-industry armament forecast must remain tied to the authoritative smithy-to-carpenter cart route',
 );
 assert.match(
   townHallSource,

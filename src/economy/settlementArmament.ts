@@ -33,6 +33,9 @@ export type SettlementArmamentRoadBranch = {
   ironworkNeededForTargets: number;
   roadSourceTimber: number;
   roadSourceIronwork: number;
+  roadSourceSmithyIronwork: number;
+  roadSourceMarketIronwork: number;
+  supplyingSmithies: number;
   armableFromFinishedStock: number;
   armableAfterReadyCrafts: number;
   unarmedAfterFinishedStock: number;
@@ -41,6 +44,7 @@ export type SettlementArmamentRoadBranch = {
   serviceableIronwork: number;
   firstUnderarmedGuardhouseId: string | null;
   firstCarpenterId: string | null;
+  firstSupplyingSmithyId: string | null;
 };
 
 export type SettlementArmamentRoadPlan = {
@@ -95,8 +99,12 @@ export type SettlementArmamentPlan = {
   ironworkNeededForTargets: number;
   roadSourceTimber: number;
   roadSourceIronwork: number;
+  roadSourceSmithyIronwork: number;
+  roadSourceMarketIronwork: number;
+  supplyingSmithies: number;
   firstExposedGuardhouseId: string | null;
   firstFireDisabledDefenseBuildingId: string | null;
+  firstSupplyingSmithyId: string | null;
   roadPlan: SettlementArmamentRoadPlan | null;
 };
 
@@ -172,6 +180,9 @@ function emptyArmamentBranch(): MutableArmamentBranch {
     ironworkNeededForTargets: 0,
     roadSourceTimber: 0,
     roadSourceIronwork: 0,
+    roadSourceSmithyIronwork: 0,
+    roadSourceMarketIronwork: 0,
+    supplyingSmithies: 0,
     armableFromFinishedStock: 0,
     armableAfterReadyCrafts: 0,
     unarmedAfterFinishedStock: 0,
@@ -180,6 +191,7 @@ function emptyArmamentBranch(): MutableArmamentBranch {
     serviceableIronwork: 0,
     firstUnderarmedGuardhouseId: null,
     firstCarpenterId: null,
+    firstSupplyingSmithyId: null,
   };
 }
 
@@ -480,7 +492,25 @@ export function computeSettlementArmamentPlan(input: {
       && building.assignedLabor > 0
       && !disabledByFire
     ) {
-      branch.roadSourceIronwork += positive(building.ironwork);
+      const marketIronwork = positive(building.ironwork);
+      branch.roadSourceIronwork += marketIronwork;
+      branch.roadSourceMarketIronwork += marketIronwork;
+    }
+    if (
+      building.kind === 'smithy'
+      && building.assignedLabor > 0
+      && !disabledByFire
+    ) {
+      const smithyIronwork = positive(building.ironwork);
+      branch.roadSourceIronwork += smithyIronwork;
+      branch.roadSourceSmithyIronwork += smithyIronwork;
+      if (smithyIronwork > 1e-9) {
+        branch.supplyingSmithies += 1;
+        branch.firstSupplyingSmithyId = earlierStableId(
+          branch.firstSupplyingSmithyId,
+          building.id,
+        );
+      }
     }
     if (
       (
@@ -573,6 +603,10 @@ export function computeSettlementArmamentPlan(input: {
   let serviceableIronwork = 0;
   let roadSourceTimber = 0;
   let roadSourceIronwork = 0;
+  let roadSourceSmithyIronwork = 0;
+  let roadSourceMarketIronwork = 0;
+  let supplyingSmithies = 0;
+  let firstSupplyingSmithyId: string | null = null;
   for (const branch of branches.values()) {
     const afterOnsiteAndCarts = Math.max(
       0,
@@ -609,6 +643,15 @@ export function computeSettlementArmamentPlan(input: {
       branch.serviceableIronwork += branch.roadSourceIronwork;
       roadSourceTimber += branch.roadSourceTimber;
       roadSourceIronwork += branch.roadSourceIronwork;
+      roadSourceSmithyIronwork += branch.roadSourceSmithyIronwork;
+      roadSourceMarketIronwork += branch.roadSourceMarketIronwork;
+      supplyingSmithies += branch.supplyingSmithies;
+      if (branch.firstSupplyingSmithyId !== null) {
+        firstSupplyingSmithyId = earlierStableId(
+          firstSupplyingSmithyId,
+          branch.firstSupplyingSmithyId,
+        );
+      }
     }
     aggregateArmableFromFinishedStock += branch.armableFromFinishedStock;
     aggregateArmableAfterReadyCrafts += branch.armableAfterReadyCrafts;
@@ -671,8 +714,12 @@ export function computeSettlementArmamentPlan(input: {
     ironworkNeededForTargets,
     roadSourceTimber,
     roadSourceIronwork,
+    roadSourceSmithyIronwork,
+    roadSourceMarketIronwork,
+    supplyingSmithies,
     firstExposedGuardhouseId,
     firstFireDisabledDefenseBuildingId,
+    firstSupplyingSmithyId,
     roadPlan,
   };
 }
