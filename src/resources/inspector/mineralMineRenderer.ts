@@ -3,13 +3,13 @@ import {
   MINE_SALT_PER_CYCLE,
   RICH_MINE_THROUGHPUT_MULTIPLIER,
 } from '../../generated/gameBalance.ts';
+import { mineralDepositBeneath } from '../../economy/settlementGeology.ts';
 import { onsiteBuildingLabor } from '../../logistics/deliveryTrips.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps, laborScaledInterval } from '../resourceTotals.ts';
 import type {
   InspectableTarget,
-  ResourceNodeState,
 } from '../types.ts';
 import {
   buildingCostRows,
@@ -23,8 +23,6 @@ import type {
   InspectorView,
 } from './renderInspectableTarget.ts';
 
-const MINERAL_CENTER_TOLERANCE = 2.5;
-
 export function renderMineralMineInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
   context: InspectorRenderContext,
@@ -32,9 +30,8 @@ export function renderMineralMineInspector(
   const { building } = target;
   const definition = getBuildingDefinition('mine');
   const deposit = mineralDepositBeneath(
+    building,
     context.gameState.quarries.values(),
-    building.x,
-    building.z,
   );
   const resource = deposit?.resource === 'salt' ? 'salt' : 'iron';
   const resourceLabel = resource === 'iron' ? 'iron-bearing ore' : 'rock salt';
@@ -121,19 +118,4 @@ export function renderMineralMineInspector(
       context.worldQueries,
     ),
   };
-}
-
-function mineralDepositBeneath(
-  deposits: Iterable<ResourceNodeState>,
-  x: number,
-  z: number,
-): ResourceNodeState | null {
-  const toleranceSq = MINERAL_CENTER_TOLERANCE * MINERAL_CENTER_TOLERANCE;
-  for (const deposit of deposits) {
-    if (deposit.resource !== 'iron' && deposit.resource !== 'salt') continue;
-    const dx = deposit.x - x;
-    const dz = deposit.z - z;
-    if (dx * dx + dz * dz <= toleranceSq) return deposit;
-  }
-  return null;
 }

@@ -25,6 +25,10 @@ import {
   productionRoadBranchKey,
   type ProductionRoadComponentResolver,
 } from './settlementProduction.ts';
+import {
+  mineralDepositBeneath,
+  mineralMineOutputPerDay,
+} from './settlementGeology.ts';
 import { MARKETPLACE_SALT_IMPORT_LOT } from './marketplaceMaterialProcurementPolicy.ts';
 import {
   buildingPreservedFoodStorageFactor,
@@ -61,17 +65,21 @@ export type PreservationReserveBranch = {
   potteryRequired: number;
   saltStock: number;
   saltInTransit: number;
+  localSaltOutputPerDay: number;
+  localSaltProduction: number;
   potteryStock: number;
   potteryInTransit: number;
   saltImportLots: number;
   saltImportShortfall: number;
   potteryShortfall: number;
   staffedSmokehouses: number;
+  staffedSaltMines: number;
   staffedMarkets: number;
   standingSaltMarkets: number;
   selectedSaltTarget: number;
   firstResidenceId: string | null;
   firstSmokehouseId: string | null;
+  firstSaltMineId: string | null;
   firstMarketId: string | null;
 };
 
@@ -99,17 +107,21 @@ export type SettlementPreservationReservePlan = {
   potteryRequired: number;
   saltStock: number;
   saltInTransit: number;
+  localSaltOutputPerDay: number;
+  localSaltProduction: number;
   potteryStock: number;
   potteryInTransit: number;
   saltImportLots: number;
   saltImportShortfall: number;
   potteryShortfall: number;
   staffedSmokehouses: number;
+  staffedSaltMines: number;
   staffedMarkets: number;
   standingSaltMarkets: number;
   selectedSaltTarget: number;
   firstExposedResidenceId: string | null;
   firstAttentionBuildingId: string | null;
+  firstSaltMineId: string | null;
   firstSaltMarketId: string | null;
   branches: ReadonlyMap<string, PreservationReserveBranch>;
 };
@@ -134,6 +146,7 @@ type MutableBranch = Omit<
   | 'potteryRequired'
   | 'saltImportLots'
   | 'saltImportShortfall'
+  | 'localSaltProduction'
   | 'potteryShortfall'
 > & {
   targetStock: number;
@@ -147,7 +160,15 @@ type MutableBranch = Omit<
   potteryRequired: number;
   saltImportLots: number;
   saltImportShortfall: number;
+  localSaltProduction: number;
   potteryShortfall: number;
+  saltMineSourcesByDeposit: Map<string, SaltMineSourceForecast>;
+};
+
+type SaltMineSourceForecast = {
+  ratePerDay: number;
+  remaining: number;
+  isRich: boolean;
 };
 
 export function computeSettlementPreservationReservePlan(
@@ -217,6 +238,30 @@ export function computeSettlementPreservationReservePlan(
       branch.selectedSaltTarget += selectedTarget;
       if (selectedTarget > 1e-9) branch.standingSaltMarkets += 1;
       branch.firstMarketId = earlierStableId(branch.firstMarketId, building.id);
+    } else if (building.kind === 'mine') {
+      const deposit = mineralDepositBeneath(
+        building,
+        state.quarries.values(),
+      );
+      if (deposit?.resource !== 'salt') continue;
+      const ratePerDay = mineralMineOutputPerDay(
+        building,
+        deposit,
+        options.sabbathObserved,
+      );
+      if (ratePerDay <= 1e-9) continue;
+      branch.localSaltOutputPerDay += ratePerDay;
+      branch.staffedSaltMines += 1;
+      branch.firstSaltMineId = earlierStableId(
+        branch.firstSaltMineId,
+        building.id,
+      );
+      const source = branch.saltMineSourcesByDeposit.get(deposit.nodeId);
+      branch.saltMineSourcesByDeposit.set(deposit.nodeId, {
+        ratePerDay: (source?.ratePerDay ?? 0) + ratePerDay,
+        remaining: finiteStock(deposit.remaining),
+        isRich: deposit.isRich === true,
+      });
     }
   }
 
@@ -305,17 +350,21 @@ export function computeSettlementPreservationReservePlan(
   let potteryRequired = 0;
   let saltStock = 0;
   let saltInTransit = 0;
+  let localSaltOutputPerDay = 0;
+  let localSaltProduction = 0;
   let potteryStock = 0;
   let potteryInTransit = 0;
   let saltImportLots = 0;
   let saltImportShortfall = 0;
   let potteryShortfall = 0;
   let staffedSmokehouses = 0;
+  let staffedSaltMines = 0;
   let staffedMarkets = 0;
   let standingSaltMarkets = 0;
   let selectedSaltTarget = 0;
   let firstExposedResidenceId: string | null = null;
   let firstAttentionBuildingId: string | null = null;
+  let firstSaltMineId: string | null = null;
   let firstSaltMarketId: string | null = null;
   let weakestCoverage = Number.POSITIVE_INFINITY;
 
@@ -364,7 +413,21 @@ export function computeSettlementPreservationReservePlan(
     branch.potteryRequired = cyclesRequired * SMOKEHOUSE_POTTERY_PER_CYCLE;
     const availableSalt = branch.saltStock + branch.saltInTransit;
     const availablePottery = branch.potteryStock + branch.potteryInTransit;
-    branch.saltImportShortfall = Math.max(0, branch.saltRequired - availableSalt);
+    const saltNeedAfterStock = Math.max(
+      0,
+      branch.saltRequired - availableSalt,
+    );
+    branch.localSaltProduction = Math.min(
+      saltNeedAfterStock,
+      projectedLocalSaltProduction(
+        branch.saltMineSourcesByDeposit.values(),
+        branch.productionDaysToTarget,
+      ),
+    );
+    branch.saltImportShortfall = Math.max(
+      0,
+      saltNeedAfterStock - branch.localSaltProduction,
+    );
     branch.potteryShortfall = Math.max(0, branch.potteryRequired - availablePottery);
     branch.saltImportLots = branch.saltImportShortfall > 1e-9
       ? Math.ceil(branch.saltImportShortfall / MARKETPLACE_SALT_IMPORT_LOT)
@@ -381,20 +444,23 @@ export function computeSettlementPreservationReservePlan(
     firewoodRequired += branch.firewoodRequired;
     saltRequired += branch.saltRequired;
     potteryRequired += branch.potteryRequired;
-    saltStock += branch.saltStock;
-    saltInTransit += branch.saltInTransit;
-    potteryStock += branch.potteryStock;
-    potteryInTransit += branch.potteryInTransit;
     saltImportLots += branch.saltImportLots;
     saltImportShortfall += branch.saltImportShortfall;
     potteryShortfall += branch.potteryShortfall;
     staffedSmokehouses += branch.staffedSmokehouses;
-    staffedMarkets += branch.staffedMarkets;
-    standingSaltMarkets += branch.standingSaltMarkets;
-    selectedSaltTarget += branch.selectedSaltTarget;
 
     if (branch.targetStock > 1e-9) {
       targetBranches += 1;
+      saltStock += branch.saltStock;
+      saltInTransit += branch.saltInTransit;
+      localSaltOutputPerDay += branch.localSaltOutputPerDay;
+      localSaltProduction += branch.localSaltProduction;
+      potteryStock += branch.potteryStock;
+      potteryInTransit += branch.potteryInTransit;
+      staffedSaltMines += branch.staffedSaltMines;
+      staffedMarkets += branch.staffedMarkets;
+      standingSaltMarkets += branch.standingSaltMarkets;
+      selectedSaltTarget += branch.selectedSaltTarget;
       if (branch.shortfall <= 1e-9) {
         preparedBranches += 1;
       } else {
@@ -425,7 +491,9 @@ export function computeSettlementPreservationReservePlan(
           weakestCoverage = branch.coverageDays;
           firstExposedResidenceId = branch.firstResidenceId;
           firstAttentionBuildingId = branch.firstSmokehouseId
+            ?? branch.firstSaltMineId
             ?? branch.firstMarketId;
+          firstSaltMineId = branch.firstSaltMineId;
           firstSaltMarketId = branch.firstMarketId;
         }
       }
@@ -435,7 +503,11 @@ export function computeSettlementPreservationReservePlan(
       );
     }
 
-    finalizedBranches.set(key, { ...branch });
+    const {
+      saltMineSourcesByDeposit: _saltMineSourcesByDeposit,
+      ...finalizedBranch
+    } = branch;
+    finalizedBranches.set(key, finalizedBranch);
   }
 
   const roadMatchedShortfall = Math.max(0, targetStock - roadMatchedStock);
@@ -466,17 +538,21 @@ export function computeSettlementPreservationReservePlan(
     potteryRequired,
     saltStock,
     saltInTransit,
+    localSaltOutputPerDay,
+    localSaltProduction,
     potteryStock,
     potteryInTransit,
     saltImportLots,
     saltImportShortfall,
     potteryShortfall,
     staffedSmokehouses,
+    staffedSaltMines,
     staffedMarkets,
     standingSaltMarkets,
     selectedSaltTarget,
     firstExposedResidenceId,
     firstAttentionBuildingId,
+    firstSaltMineId,
     firstSaltMarketId,
     branches: finalizedBranches,
   };
@@ -502,19 +578,39 @@ function emptyBranch(key: string): MutableBranch {
     potteryRequired: 0,
     saltStock: 0,
     saltInTransit: 0,
+    localSaltOutputPerDay: 0,
+    localSaltProduction: 0,
     potteryStock: 0,
     potteryInTransit: 0,
     saltImportLots: 0,
     saltImportShortfall: 0,
     potteryShortfall: 0,
     staffedSmokehouses: 0,
+    staffedSaltMines: 0,
     staffedMarkets: 0,
     standingSaltMarkets: 0,
     selectedSaltTarget: 0,
     firstResidenceId: null,
     firstSmokehouseId: null,
+    firstSaltMineId: null,
     firstMarketId: null,
+    saltMineSourcesByDeposit: new Map(),
   };
+}
+
+function projectedLocalSaltProduction(
+  sources: Iterable<SaltMineSourceForecast>,
+  productionDays: number,
+): number {
+  if (!Number.isFinite(productionDays) || productionDays <= 1e-9) return 0;
+  let production = 0;
+  for (const source of sources) {
+    const potential = Math.max(0, source.ratePerDay) * productionDays;
+    production += source.isRich
+      ? potential
+      : Math.min(Math.max(0, source.remaining), potential);
+  }
+  return production;
 }
 
 function cyclesPerCalendarDay(

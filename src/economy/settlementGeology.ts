@@ -179,10 +179,7 @@ export function computeSettlementGeologyPlan(
       continue;
     }
 
-    const deposit = centeredDeposit(
-      building,
-      mineralDeposits,
-    );
+    const deposit = mineralDepositBeneath(building, mineralDeposits);
     if (deposit === null || (deposit.resource !== 'iron' && deposit.resource !== 'salt')) {
       continue;
     }
@@ -196,15 +193,11 @@ export function computeSettlementGeologyPlan(
       plan.blockedFiniteBuildingId ??= building.id;
       continue;
     }
-    const baseBatch = deposit.resource === 'iron'
-      ? MINE_IRON_PER_CYCLE
-      : MINE_SALT_PER_CYCLE;
-    const rate = cyclesPerCalendarDay(
-      'mine',
-      building.assignedLabor,
+    const rate = mineralMineOutputPerDay(
+      building,
+      deposit,
       sabbathObserved,
-      deposit.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1,
-    ) * baseBatch;
+    );
     if (deposit.isRich) {
       plan.activeDeepSources += 1;
       plan.deepExtractionPerDay += rate;
@@ -233,6 +226,41 @@ export function geologicalFiniteRunwayDays(
 ): number | null {
   if (plan.finiteExtractionPerDay <= EPSILON) return null;
   return plan.finiteReserve / plan.finiteExtractionPerDay;
+}
+
+export function mineralDepositBeneath(
+  building: Pick<BuildingState, 'x' | 'z'>,
+  deposits: Iterable<ResourceNodeState>,
+): ResourceNodeState | null {
+  for (const deposit of deposits) {
+    if (deposit.resource !== 'iron' && deposit.resource !== 'salt') continue;
+    if (distanceSq(building, deposit) <= MINERAL_CENTER_TOLERANCE_SQ) {
+      return deposit;
+    }
+  }
+  return null;
+}
+
+export function mineralMineOutputPerDay(
+  building: Pick<BuildingState, 'assignedLabor'>,
+  deposit: Pick<ResourceNodeState, 'resource' | 'remaining' | 'isRich'>,
+  sabbathObserved: boolean,
+): number {
+  if (
+    (deposit.resource !== 'iron' && deposit.resource !== 'salt')
+    || (deposit.isRich !== true && deposit.remaining <= EPSILON)
+  ) {
+    return 0;
+  }
+  const batch = deposit.resource === 'iron'
+    ? MINE_IRON_PER_CYCLE
+    : MINE_SALT_PER_CYCLE;
+  return cyclesPerCalendarDay(
+    'mine',
+    building.assignedLabor,
+    sabbathObserved,
+    deposit.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1,
+  ) * batch;
 }
 
 function emptyResourcePlan(

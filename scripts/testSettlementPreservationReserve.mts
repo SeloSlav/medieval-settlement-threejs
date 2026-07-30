@@ -30,6 +30,7 @@ import {
   type BuildingKind,
   type BuildingState,
   type GameState,
+  type ResourceNodeState,
   type ResidenceState,
 } from '../src/resources/types.ts';
 
@@ -257,6 +258,95 @@ assert.equal(recipePlan.branchesWithoutStandingSalt, 0);
 assert.ok(Number.isFinite(recipePlan.productionDaysToTarget));
 assert.ok(recipePlan.productionDaysToTarget > 0);
 
+const localSaltState = emptyGameState();
+localSaltState.physicalFoundingSiteEnabled = true;
+localSaltState.residences.set(
+  'local-salt-home',
+  residence('local-salt-home', 1, 0),
+);
+localSaltState.buildings.set(
+  'local-salt-smokehouse',
+  building('local-salt-smokehouse', 'smokehouse', 1),
+);
+const localSaltMine = building('local-salt-mine', 'mine', 4);
+localSaltState.buildings.set(localSaltMine.id, localSaltMine);
+localSaltState.quarries.set(
+  'local-rich-salt',
+  mineralDeposit('local-rich-salt', 'salt', 0, 0, 0, 1_080, true),
+);
+const localSaltPlan = computeSettlementPreservationReservePlan(
+  localSaltState,
+  {
+    sabbathObserved: false,
+    roadComponentFor: () => 'core',
+  },
+);
+assert.equal(localSaltPlan.staffedSaltMines, 1);
+assert.ok(localSaltPlan.localSaltOutputPerDay > 0);
+approx(localSaltPlan.localSaltProduction, localSaltPlan.saltRequired);
+approx(localSaltPlan.saltImportShortfall, 0);
+assert.equal(localSaltPlan.saltImportLots, 0);
+assert.equal(localSaltPlan.firstSaltMineId, localSaltMine.id);
+
+const finiteSaltState = emptyGameState();
+finiteSaltState.physicalFoundingSiteEnabled = true;
+finiteSaltState.residences.set(
+  'finite-salt-home',
+  residence('finite-salt-home', 1, 0),
+);
+finiteSaltState.buildings.set(
+  'finite-salt-smokehouse',
+  building('finite-salt-smokehouse', 'smokehouse', 1),
+);
+const finiteSaltMine = building('finite-salt-mine', 'mine', 4);
+finiteSaltState.buildings.set(finiteSaltMine.id, finiteSaltMine);
+finiteSaltState.quarries.set(
+  'finite-salt-seam',
+  mineralDeposit('finite-salt-seam', 'salt', 0, 0, 0.25, 300, false),
+);
+const finiteSaltPlan = computeSettlementPreservationReservePlan(
+  finiteSaltState,
+  {
+    sabbathObserved: false,
+    roadComponentFor: () => 'core',
+  },
+);
+approx(finiteSaltPlan.localSaltProduction, 0.25);
+approx(
+  finiteSaltPlan.saltImportShortfall,
+  Math.max(0, finiteSaltPlan.saltRequired - 0.25),
+);
+
+const remoteSaltState = emptyGameState();
+remoteSaltState.physicalFoundingSiteEnabled = true;
+remoteSaltState.residences.set(
+  'remote-salt-home',
+  residence('remote-salt-home', 1, 0),
+);
+remoteSaltState.buildings.set(
+  'remote-salt-smokehouse',
+  building('remote-salt-smokehouse', 'smokehouse', 1),
+);
+const remoteSaltMine = building('remote-salt-mine', 'mine', 4);
+remoteSaltMine.x = 100;
+remoteSaltMine.salt = 12;
+remoteSaltState.buildings.set(remoteSaltMine.id, remoteSaltMine);
+remoteSaltState.quarries.set(
+  'remote-rich-salt',
+  mineralDeposit('remote-rich-salt', 'salt', 100, 0, 0, 1_080, true),
+);
+const remoteSaltPlan = computeSettlementPreservationReservePlan(
+  remoteSaltState,
+  {
+    sabbathObserved: false,
+    roadComponentFor: (candidate) => candidate.x < 50 ? 'core' : 'remote',
+  },
+);
+assert.equal(remoteSaltPlan.staffedSaltMines, 0);
+approx(remoteSaltPlan.saltStock, 0);
+approx(remoteSaltPlan.localSaltProduction, 0);
+approx(remoteSaltPlan.saltImportShortfall, remoteSaltPlan.saltRequired);
+
 const noOrderState = emptyGameState();
 noOrderState.physicalFoundingSiteEnabled = true;
 noOrderState.residences.set('no-order-home', residence('no-order-home', 1, 0));
@@ -274,7 +364,8 @@ assert.equal(noOrderPlan.firstSaltMarketId, noOrderMarket.id);
 const rendered = renderPreservationReserveRows(recipePlan, 14);
 assert.match(rendered, /30-day winter fallback/);
 assert.match(rendered, /Reserve completion/);
-assert.match(rendered, /Adriatic salt burden/);
+assert.match(rendered, /Salt supply/);
+assert.match(rendered, /no staffed same-branch salt mine/);
 assert.match(rendered, /Preserving vessels/);
 assert.match(rendered, /data-inspect-residence="recipe-home"/);
 assert.match(rendered, /data-inspect-building="recipe-smokehouse"/);
@@ -286,6 +377,14 @@ assert.match(
 assert.match(rendered, /repeated imports can tighten the regional rate/);
 assert.match(rendered, /kiln cart priorities decide/);
 assert.match(rendered, /including cured-stock aging while the reserve builds/);
+assert.doesNotMatch(rendered, /Adriatic salt burden/);
+
+const localSaltRows = renderPreservationReserveRows(localSaltPlan, 14);
+assert.match(localSaltRows, /forecast from 1 staffed same-branch mine/);
+assert.match(localSaltRows, /no Adriatic import required/);
+assert.match(localSaltRows, /market import reserve not needed/);
+assert.match(localSaltRows, /data-inspect-building="local-salt-mine"/);
+assert.doesNotMatch(localSaltRows, /repeated imports can tighten/);
 
 const noResidentsRows = renderPreservationReserveRows(
   computeSettlementPreservationReservePlan(emptyGameState(), {
@@ -456,6 +555,27 @@ function residence(
     },
     abandoned: false,
     householdWealth: 0,
+  };
+}
+
+function mineralDeposit(
+  nodeId: string,
+  resource: 'iron' | 'salt',
+  x: number,
+  z: number,
+  remaining: number,
+  maxYield: number,
+  isRich: boolean,
+): ResourceNodeState {
+  return {
+    nodeId,
+    kind: 'quarry',
+    resource,
+    x,
+    z,
+    remaining,
+    maxYield,
+    isRich,
   };
 }
 

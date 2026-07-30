@@ -1535,6 +1535,9 @@ export function renderPreservationReserveRows(
   const marketInspect = plan.firstSaltMarketId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSaltMarketId}" aria-label="Inspect preservation salt market">Inspect market</button>`;
+  const saltMineInspect = plan.firstSaltMineId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSaltMineId}" aria-label="Inspect preservation salt mine">Inspect mine</button>`;
   const completion = plan.roadMatchedShortfall <= 0.05
     ? 'Target ready'
     : Number.isFinite(plan.productionDaysToTarget)
@@ -1554,12 +1557,17 @@ export function renderPreservationReserveRows(
   const saltGold = Math.max(0, plan.saltImportLots)
     * Math.max(0, saltGoldPerLot);
   const saltImports = plan.saltImportLots <= 0
-    ? 'current branch stocks cover the reserve build'
+    ? 'no Adriatic import required at the current plan'
     : `${plan.saltImportLots} twelve-unit Adriatic ${plan.saltImportLots === 1 ? 'lot' : 'lots'} &asymp; ${saltGold.toFixed(0)} gold at today&rsquo;s first-lot rate`;
+  const localSalt = plan.staffedSaltMines <= 0
+    ? 'no staffed same-branch salt mine'
+    : `${plan.localSaltProduction.toFixed(1)} forecast from ${plan.staffedSaltMines} staffed same-branch ${plan.staffedSaltMines === 1 ? 'mine' : 'mines'} at ${plan.localSaltOutputPerDay.toFixed(1)} per working day${saltMineInspect}`;
   const saltWarnings = [
     plan.selectedSaltTarget > 0
       ? `${plan.selectedSaltTarget.toFixed(0)} selected staffed-market reserve settlement-wide`
-      : 'no selected staffed-market salt reserve',
+      : plan.saltImportLots > 0
+        ? 'no selected staffed-market salt reserve'
+        : 'market import reserve not needed for this build',
     plan.branchesWithoutStandingSalt > 0
       ? `${plan.branchesWithoutStandingSalt} short ${plan.branchesWithoutStandingSalt === 1 ? 'branch lacks' : 'branches lack'} a standing salt order`
       : null,
@@ -1571,7 +1579,7 @@ export function renderPreservationReserveRows(
   return `
     <li><span>${plan.targetDays}-day winter fallback</span><span>${plan.roadMatchedStock.toFixed(1)} / ${plan.targetStock.toFixed(1)} preserved food road-matched for ${plan.tierThreeResidents} prosperous residents &middot; ${plan.preparedBranches} / ${plan.targetBranches} branches ready${plan.roadMatchedShortfall > 0.05 ? ` &middot; short ${plan.roadMatchedShortfall.toFixed(1)}` : ''}${storedDetail ? ` &middot; ${storedDetail}` : ''}${residenceInspect}</span></li>
     <li><span>Reserve completion</span><span>${completion} &middot; the shortfall requires ${plan.freshFoodRequired.toFixed(1)} fresh food + ${plan.firewoodRequired.toFixed(1)} firewood + ${plan.saltRequired.toFixed(1)} salt + ${plan.potteryRequired.toFixed(1)} pottery${buildingInspect}</span></li>
-    <li><span>Adriatic salt burden</span><span>${Math.max(0, plan.saltRequired - plan.saltImportShortfall).toFixed(1)} road-matched toward reserve inputs &middot; ${saltImports} &middot; ${saltWarnings} &middot; repeated imports can tighten the regional rate${marketInspect}</span></li>
+    <li><span>Salt supply</span><span>${(plan.saltStock + plan.saltInTransit).toFixed(1)} stored or inbound &middot; ${localSalt} &middot; ${saltImports} &middot; ${saltWarnings}${plan.saltImportLots > 0 ? ` &middot; repeated imports can tighten the regional rate${marketInspect}` : ''}</span></li>
     <li><span>Preserving vessels</span><span>${Math.max(0, plan.potteryRequired - plan.potteryShortfall).toFixed(1)} road-matched toward reserve inputs &middot; ${potteryStatus} &middot; kiln cart priorities decide whether smokehouses or household breakage receive the next load</span></li>
   `;
 }
