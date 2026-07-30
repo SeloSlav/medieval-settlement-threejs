@@ -1377,7 +1377,7 @@ function formatWorksiteStalls(
   if (plan.stalledSites === 0) {
     return plan.supplyEnRouteSites > 0
       ? `${plan.supplyEnRouteSites} ${plan.supplyEnRouteSites === 1 ? 'site is' : 'sites are'} waiting on inbound carts · no unattended stall`
-      : `No stalls across ${plan.auditedSites} staffed workshops, quarries, hunting halls, or active fishing camps`;
+      : `No stalls across ${plan.auditedSites} staffed workshops, mines, quarries, clay pits, hunting halls, or active fishing camps`;
   }
   const reasons = [
     plan.fireDisabledSites > 0 ? `${plan.fireDisabledSites} fire-disabled` : '',
@@ -2425,7 +2425,7 @@ export function renderTownHallInspector(
             ${staffedTownHallAvailable ? '' : 'disabled'} />
           <span>Daily production labor steward</span>
         </label>
-        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases surplus crews only from genuinely stalled workshops, blocked quarries, and reserve-held hunting halls, retaining a dispatcher for stored output or an active cart. It then fills supplied, below-target production sites by staffing priority and fair within-tier rotation. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
+        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases surplus crews only from genuinely stalled workshops, exhausted or yard-blocked mines and quarries, full clay pits, and reserve-held hunting halls, retaining a dispatcher for stored output or an active cart. It then fills supplied, below-target production sites by staffing priority and fair within-tier rotation. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
@@ -2472,7 +2472,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && seasonalCallup.callupWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide call-up.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Recall only labor that cannot currently produce: workshops with an empty input or reached output target, blocked quarries, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. One dispatcher remains for stored output or an active cart.${productionLaborStewardEnabled ? ' The steward will redeploy released labor to ready production sites.' : ' Restaffing remains an explicit decision.'}</p>
+        <p class="inspector-action-panel__hint">Recall only labor that cannot currently produce: workshops with an empty input or reached output target, exhausted or yard-blocked mines and quarries, full clay pits, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. One dispatcher remains for stored output or an active cart.${productionLaborStewardEnabled ? ' The steward will redeploy released labor to ready production sites.' : ' Restaffing remains an explicit decision.'}</p>
         <button type="button" class="resource-action-button" data-recall-target-idle-processor-labor ${staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${worksiteStalls.reclaimableWorkers > 0
             ? `Recall ${worksiteStalls.reclaimableWorkers} stalled production ${worksiteStalls.reclaimableWorkers === 1 ? 'worker' : 'workers'}`
@@ -2481,7 +2481,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide stalled-production recall.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, quarries with usable stone and yard room, open clay yards, and hunting halls with harvestable game above their reserve. High staffing priority fills before normal, then low; equal-priority sites share workers round-robin. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
+        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, mines on usable iron or salt seams, quarries with usable stone and yard room, open clay yards, and hunting halls with harvestable game above their reserve. High staffing priority fills before normal, then low; equal-priority sites share workers round-robin. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
         <button type="button" class="resource-action-button" data-call-up-target-ready-processor-labor ${staffedTownHallAvailable && productionLaborCallup.callupWorkers > 0 ? '' : 'disabled'}>
           ${productionLaborCallup.callupWorkers > 0
             ? `Deploy ${productionLaborCallup.callupWorkers} production ${productionLaborCallup.callupWorkers === 1 ? 'worker' : 'workers'}`

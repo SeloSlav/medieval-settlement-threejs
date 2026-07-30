@@ -184,6 +184,40 @@ assert.deepEqual(
   'source-ready extraction sites should share scarce labor while depleted and reserve-held sites stay empty',
 );
 
+const mineralCallupState = emptyGameState();
+const readyFiniteMine = building('mineral-10-ready', 'mine', 0);
+const exhaustedMine = building('mineral-20-exhausted', 'mine', 0);
+exhaustedMine.x = 100;
+const readyRichMine = building('mineral-30-rich', 'mine', 0);
+readyRichMine.x = 200;
+for (const site of [readyFiniteMine, exhaustedMine, readyRichMine]) {
+  mineralCallupState.buildings.set(site.id, site);
+}
+mineralCallupState.quarries.set(
+  'deposit-iron-ready',
+  mineralDeposit('deposit-iron-ready', 'iron', 0, 40, false),
+);
+mineralCallupState.quarries.set(
+  'deposit-salt-exhausted',
+  mineralDeposit('deposit-salt-exhausted', 'salt', 100, 0, false),
+);
+mineralCallupState.quarries.set(
+  'deposit-salt-rich',
+  mineralDeposit('deposit-salt-rich', 'salt', 200, 0, true),
+);
+const mineralCallup = computeSettlementProcessorLaborCallupPlan(
+  mineralCallupState,
+  2,
+);
+assert.equal(mineralCallup.auditedSites, 3);
+assert.equal(mineralCallup.readySites, 2);
+assert.equal(mineralCallup.blockedSites, 1);
+assert.deepEqual(
+  mineralCallup.assignments.map((assignment) => assignment.buildingId),
+  [readyFiniteMine.id, readyRichMine.id],
+  'ordinary usable and rich deep mines should share labor while an exhausted finite seam stays empty',
+);
+
 const materialCallupState = emptyGameState();
 const readyClayPit = building('material-10-clay', 'clay_pit', 0);
 const fullClayPit = building('material-20-full-clay', 'clay_pit', 0);
@@ -485,13 +519,27 @@ assert.ok(
 const spatialCallupState = emptyGameState();
 for (let index = 0; index < 20_000; index += 1) {
   const x = index * 200;
-  const hunter = building(`hunter-${index}`, 'hunters_hall', 0);
-  hunter.x = x;
-  hunter.workRadius = 68;
-  hunter.harvestReservePercent = 50;
-  spatialCallupState.buildings.set(hunter.id, hunter);
-  const node = wildStock(`game-${index}`, x, 0, 80, 100);
-  spatialCallupState.foragingNodes.set(node.nodeId, node);
+  if (index % 2 === 0) {
+    const hunter = building(`hunter-${index}`, 'hunters_hall', 0);
+    hunter.x = x;
+    hunter.workRadius = 68;
+    hunter.harvestReservePercent = 50;
+    spatialCallupState.buildings.set(hunter.id, hunter);
+    const node = wildStock(`game-${index}`, x, 0, 80, 100);
+    spatialCallupState.foragingNodes.set(node.nodeId, node);
+  } else {
+    const mine = building(`mine-${index}`, 'mine', 0);
+    mine.x = x;
+    spatialCallupState.buildings.set(mine.id, mine);
+    const node = mineralDeposit(
+      `deposit-iron-${index}`,
+      'iron',
+      x,
+      80,
+      false,
+    );
+    spatialCallupState.quarries.set(node.nodeId, node);
+  }
 }
 const spatialCallupStarted = performance.now();
 const spatialCallupPlan = computeSettlementProcessorLaborCallupPlan(
@@ -503,7 +551,7 @@ assert.equal(spatialCallupPlan.readySites, 20_000);
 assert.equal(spatialCallupPlan.callupWorkers, 20_000);
 assert.ok(
   spatialCallupElapsedMs < 750,
-  `20,000 source-aware production call-ups took ${spatialCallupElapsedMs.toFixed(1)} ms`,
+  `20,000 source-aware mine/hunter call-ups took ${spatialCallupElapsedMs.toFixed(1)} ms`,
 );
 
 const stewardPerfState = emptyGameState();
@@ -738,6 +786,25 @@ function quarry(
     z,
     remaining,
     maxYield: 50,
+  };
+}
+
+function mineralDeposit(
+  nodeId: string,
+  resource: 'iron' | 'salt',
+  x: number,
+  remaining: number,
+  isRich: boolean,
+): ResourceNodeState {
+  return {
+    nodeId,
+    kind: 'quarry',
+    resource,
+    x,
+    z: 0,
+    remaining,
+    maxYield: 100,
+    isRich,
   };
 }
 

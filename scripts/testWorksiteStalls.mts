@@ -249,6 +249,77 @@ assert.equal(
   'every missing preservation input approaching by cart must protect the crew',
 );
 
+const mineralState = emptyGameState();
+const exhaustedIronMine = building('mine-10-exhausted', 'mine', 3, 0, 0);
+const fullSaltMine = building('mine-20-full', 'mine', 4, 100, 0);
+fullSaltMine.salt = 999;
+const richIronMine = building('mine-30-rich', 'mine', 2, 200, 0);
+const mineralOnlyStoneCamp = building(
+  'quarry-40-mineral-only',
+  'stone_quarry',
+  2,
+  300,
+  0,
+);
+mineralOnlyStoneCamp.workRadius = 30;
+for (const site of [
+  exhaustedIronMine,
+  fullSaltMine,
+  richIronMine,
+  mineralOnlyStoneCamp,
+]) {
+  mineralState.buildings.set(site.id, site);
+}
+mineralState.quarries.set(
+  'deposit-iron-ordinary',
+  mineralDeposit('deposit-iron-ordinary', 'iron', 0, 0, false),
+);
+mineralState.quarries.set(
+  'deposit-salt-ordinary',
+  mineralDeposit('deposit-salt-ordinary', 'salt', 100, 80, false),
+);
+mineralState.quarries.set(
+  'deposit-iron-rich',
+  mineralDeposit('deposit-iron-rich', 'iron', 200, 0, true),
+);
+mineralState.quarries.set(
+  'deposit-salt-rich-near-stone-camp',
+  mineralDeposit('deposit-salt-rich-near-stone-camp', 'salt', 300, 0, true),
+);
+mineralState.deliveryTrips.set(
+  'salt-outbound',
+  trip('salt-outbound', fullSaltMine.id, 'material-smokehouse', 'salt'),
+);
+const mineralPlan = computeSettlementWorksiteStallPlan(mineralState, 7);
+assert.equal(mineralPlan.auditedSites, 4);
+assert.equal(mineralPlan.stalledSites, 3);
+assert.equal(mineralPlan.sourceStalledSites, 2);
+assert.equal(mineralPlan.outputStalledSites, 1);
+assert.equal(mineralPlan.reclaimableWorkers, 8);
+assert.equal(
+  mineralPlan.sites.find((site) => site.buildingId === exhaustedIronMine.id)
+    ?.detail,
+  'finite iron seam beneath the mine is exhausted',
+);
+assert.equal(
+  mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)
+    ?.targetLabor,
+  1,
+  'a full mine must retain one dispatcher while its salt cart is active',
+);
+assert.equal(
+  mineralPlan.sites.some((site) => site.buildingId === richIronMine.id),
+  false,
+  'a rich mineral source remains usable after its displayed surface stock reaches zero',
+);
+assert.equal(
+  mineralPlan.sites.find(
+    (site) => site.buildingId === mineralOnlyStoneCamp.id,
+  )?.detail,
+  'no surface stone lies within the work area',
+  'mineral deposits must not masquerade as usable stone outcrops',
+);
+
 const townHallState = emptyGameState();
 const townHall = building('hall', 'town_hall', 1, 0, 0);
 const townHallWeaver = building('20', 'weaver', 2, 20, 0);
@@ -358,6 +429,8 @@ assert.match(foodSupplierSimulation, /find_nearest_harvestable_foraging_node/);
 assert.match(serverReducer, /stalled_labor_target/);
 assert.match(serverReducer, /processor_input_kinds/);
 assert.match(serverReducer, /"clay_pit" => \(/);
+assert.match(serverReducer, /"mine" => \{/);
+assert.match(serverReducer, /fn mineral_source/);
 assert.match(serverReducer, /SpatialBuckets::<Quarry>::new/);
 assert.match(serverReducer, /harvestable_wild_stock/);
 assert.match(deliveryTrips, /building_has_inbound_commodity_trip/);
@@ -452,6 +525,25 @@ function quarry(
     z,
     remaining,
     maxYield: 50,
+  };
+}
+
+function mineralDeposit(
+  nodeId: string,
+  resource: 'iron' | 'salt',
+  x: number,
+  remaining: number,
+  isRich: boolean,
+): ResourceNodeState {
+  return {
+    nodeId,
+    kind: 'quarry',
+    resource,
+    x,
+    z: 0,
+    remaining,
+    maxYield: 100,
+    isRich,
   };
 }
 

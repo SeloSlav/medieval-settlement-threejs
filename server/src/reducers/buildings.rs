@@ -954,7 +954,7 @@ fn stone_source_usable(building: &Building, buckets: &SpatialBuckets<Quarry>) ->
             building.x,
             building.z,
             building.work_radius,
-            |_| true,
+            |quarry| quarry.quarry_id.starts_with("quarry-"),
             |quarry| quarry.remaining > 1e-6,
         )
         .usable
@@ -966,10 +966,32 @@ fn rich_stone_source_usable(building: &Building, buckets: &SpatialBuckets<Quarry
             building.x,
             building.z,
             RICH_DEPOSIT_CENTER_TOLERANCE,
-            |quarry| quarry.is_rich,
+            |quarry| quarry.quarry_id.starts_with("quarry-") && quarry.is_rich,
             |_| true,
         )
         .usable
+}
+
+fn mineral_source(
+    building: &Building,
+    buckets: &SpatialBuckets<Quarry>,
+) -> Option<(CommodityKind, bool)> {
+    for (prefix, commodity) in [
+        ("deposit-iron-", CommodityKind::Iron),
+        ("deposit-salt-", CommodityKind::Salt),
+    ] {
+        let source = buckets.source_state_within_radius(
+            building.x,
+            building.z,
+            RICH_DEPOSIT_CENTER_TOLERANCE,
+            |deposit| deposit.quarry_id.starts_with(prefix),
+            |deposit| deposit.is_rich || deposit.remaining > 1e-6,
+        );
+        if source.relevant {
+            return Some((commodity, source.usable));
+        }
+    }
+    None
 }
 
 fn wild_stock_source_usable(
@@ -1010,6 +1032,9 @@ fn production_site_ready(
             processor_output_room(building).is_some_and(|headroom| headroom > 1e-6)
         }
         "clay_pit" => !commodity_output_blocked(building, CommodityKind::Clay),
+        "mine" => mineral_source(building, quarry_buckets).is_some_and(|(commodity, usable)| {
+            usable && !commodity_output_blocked(building, commodity)
+        }),
         "stone_quarry" => {
             !commodity_output_blocked(building, CommodityKind::Stone)
                 && stone_source_usable(building, quarry_buckets)
@@ -1026,11 +1051,11 @@ fn production_site_ready(
     }
 }
 
-/// Returns surplus crews from authoritatively stalled processors, quarries,
-/// hunting halls, and seasonally active fishing camps. The legacy reducer name
-/// is retained for generated-binding and save compatibility. Matching inbound
-/// inputs protect recovering workshops; stored output or an active cart keeps
-/// one dispatcher.
+/// Returns surplus crews from authoritatively stalled processors, mines,
+/// quarries, hunting halls, and seasonally active fishing camps. The legacy
+/// reducer name is retained for generated-binding and save compatibility.
+/// Matching inbound inputs protect recovering workshops; stored output or an
+/// active cart keeps one dispatcher.
 pub fn recall_target_idle_processor_labor_for_owner(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -1079,6 +1104,17 @@ pub fn recall_target_idle_processor_labor_for_owner(
                 false,
                 building.clay > 1e-6 || has_active_trip,
             ),
+            "mine" => {
+                let source = mineral_source(&building, &quarry_buckets);
+                let stalled = source.is_none_or(|(commodity, usable)| {
+                    !usable || commodity_output_blocked(&building, commodity)
+                });
+                (
+                    stalled,
+                    false,
+                    building.iron > 1e-6 || building.salt > 1e-6 || has_active_trip,
+                )
+            }
             "stone_quarry" => (
                 commodity_output_blocked(&building, CommodityKind::Stone)
                     || !stone_source_usable(&building, &quarry_buckets),
@@ -1146,9 +1182,9 @@ pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), St
 }
 
 /// Deploys available settlement labor to capacity-open processors and
-/// source-ready quarries or hunting halls. Staffing priority tiers fill from
-/// high to low, with round-robin sharing inside each tier. The legacy reducer
-/// name is retained for generated-binding compatibility.
+/// source-ready mines, quarries, clay pits, or hunting halls. Staffing priority
+/// tiers fill from high to low, with round-robin sharing inside each tier. The
+/// legacy reducer name is retained for generated-binding compatibility.
 fn call_up_target_ready_processor_labor_for_owner_with_policy(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,

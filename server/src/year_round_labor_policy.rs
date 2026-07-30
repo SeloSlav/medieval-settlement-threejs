@@ -158,6 +158,7 @@ mod tests {
             "weaver",
             "stone_quarry",
             "large_quarry",
+            "mine",
             "hunters_hall",
         ] {
             assert!(!is_year_round_labor_kind(kind), "{kind}");

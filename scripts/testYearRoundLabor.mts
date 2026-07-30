@@ -33,6 +33,7 @@ for (const kind of [
   'weaver',
   'stone_quarry',
   'large_quarry',
+  'mine',
   'hunters_hall',
 ] as const) {
   assert.equal(isYearRoundLaborKind(kind), false, `${kind} keeps its own staffing control`);
@@ -52,6 +53,7 @@ const targetBrewery = building('60', 'brewery', 0, true, 3);
 const incompleteHunter = building('70', 'hunters_hall', 0, false, 3);
 const sourceBoundHunter = building('71', 'hunters_hall', 0, true, 3);
 const sourceBoundQuarry = building('72', 'stone_quarry', 0, true, 3);
+const sourceBoundMine = building('73', 'mine', 0, true, 3);
 for (const site of [
   townHall,
   urgentMill,
@@ -63,6 +65,7 @@ for (const site of [
   incompleteHunter,
   sourceBoundHunter,
   sourceBoundQuarry,
+  sourceBoundMine,
 ]) {
   freeLaborState.buildings.set(site.id, site);
 }
@@ -105,6 +108,7 @@ assert.equal(freeLaborApplied.get(seasonalApiary.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(targetBrewery.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(sourceBoundHunter.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(sourceBoundQuarry.id)?.assignedLabor, 0);
+assert.equal(freeLaborApplied.get(sourceBoundMine.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(townHall.id)?.assignedLabor, 1);
 assert.equal(freeLaborState.buildings.get(urgentMill.id)?.assignedLabor, 0);
 

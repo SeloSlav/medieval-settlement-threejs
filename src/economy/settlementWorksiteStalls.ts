@@ -33,6 +33,7 @@ import {
 export type WorksiteStallKind =
   | ProcessorOutputTargetKind
   | 'clay_pit'
+  | 'mine'
   | 'stone_quarry'
   | 'large_quarry'
   | 'hunters_hall'
@@ -194,6 +195,7 @@ function worksiteKind(
 ): WorksiteStallKind | null {
   if (isProcessorOutputTargetKind(building.kind)) return building.kind;
   if (building.kind === 'clay_pit') return building.kind;
+  if (building.kind === 'mine') return building.kind;
   if (building.kind === 'stone_quarry' || building.kind === 'large_quarry') {
     return building.kind;
   }
@@ -212,6 +214,7 @@ export function isProductionLaborKind(
 ): kind is ProductionLaborKind {
   return isProcessorOutputTargetKind(kind)
     || kind === 'clay_pit'
+    || kind === 'mine'
     || kind === 'stone_quarry'
     || kind === 'large_quarry'
     || kind === 'hunters_hall';
@@ -343,6 +346,73 @@ function clayPitStall(
   };
 }
 
+function mineralDepositState(
+  building: BuildingState,
+  quarryBuckets: ReadonlyMap<string, readonly ResourceNodeState[]>,
+): { resource: 'iron' | 'salt'; usable: boolean } | null {
+  for (const resource of ['iron', 'salt'] as const) {
+    const source = sourceStateWithinRadius(
+      quarryBuckets,
+      building.x,
+      building.z,
+      RICH_DEPOSIT_CENTER_TOLERANCE,
+      (deposit) => deposit.resource === resource,
+      (deposit) => deposit.isRich === true || deposit.remaining > 1e-6,
+    );
+    if (source.relevant) {
+      return { resource, usable: source.usable };
+    }
+  }
+  return null;
+}
+
+function mineStall(
+  building: BuildingState,
+  quarryBuckets: ReadonlyMap<string, readonly ResourceNodeState[]>,
+  hasActiveOriginTrip: boolean,
+): WorksiteStallSite | null {
+  const source = mineralDepositState(building, quarryBuckets);
+  const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
+  const outputStock = source === null
+    ? Math.max(0, building.iron ?? 0) + Math.max(0, building.salt ?? 0)
+    : Math.max(0, building[source.resource] ?? 0);
+  const hasDispatchDuty = hasActiveOriginTrip || outputStock > 1e-6;
+  const targetLabor = hasDispatchDuty ? Math.min(1, assignedLabor) : 0;
+  const base = {
+    buildingId: building.id,
+    kind: 'mine' as const,
+    assignedLabor,
+    assignedWorkers: assignedLabor,
+    targetLabor,
+    reclaimableWorkers: Math.max(0, assignedLabor - targetLabor),
+    priority: normalizeStaffingPriority(building.constructionPriority),
+    hasDispatchDuty,
+  };
+  if (source === null) {
+    return {
+      ...base,
+      reason: 'source_unavailable',
+      detail: 'no iron or salt deposit lies beneath the mine',
+    };
+  }
+  const capacity = BUILDING_STORAGE_CAPS.mine[source.resource] ?? 0;
+  if (capacity > 0 && outputStock >= capacity - 1e-6) {
+    return {
+      ...base,
+      reason: 'output_blocked',
+      detail: `local ${source.resource} yard is full`,
+    };
+  }
+  if (!source.usable) {
+    return {
+      ...base,
+      reason: 'source_unavailable',
+      detail: `finite ${source.resource} seam beneath the mine is exhausted`,
+    };
+  }
+  return null;
+}
+
 function quarryStall(
   building: BuildingState,
   quarryBuckets: ReadonlyMap<string, readonly ResourceNodeState[]>,
@@ -376,7 +446,7 @@ function quarryStall(
       building.x,
       building.z,
       RICH_DEPOSIT_CENTER_TOLERANCE,
-      (quarry) => quarry.isRich === true,
+      (quarry) => quarry.resource === 'stone' && quarry.isRich === true,
       () => true,
     );
     return source.usable
@@ -393,7 +463,7 @@ function quarryStall(
     building.x,
     building.z,
     building.workRadius,
-    () => true,
+    (quarry) => quarry.resource === 'stone',
     (quarry) => quarry.remaining > 1e-6,
   );
   return source.usable
@@ -509,6 +579,8 @@ export function computeSettlementProductionReadiness(
       ready = (processorOutputHeadroom(building) ?? 0) > 1e-6;
     } else if (building.kind === 'clay_pit') {
       ready = clayPitStall(building, false) === null;
+    } else if (building.kind === 'mine') {
+      ready = mineStall(building, quarryBuckets, false) === null;
     } else if (
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'
@@ -570,6 +642,8 @@ export function computeSettlementOperationalProductionReadiness(
       ready = stall === null || stall === 'supply_en_route';
     } else if (building.kind === 'clay_pit') {
       ready = clayPitStall(building, false) === null;
+    } else if (building.kind === 'mine') {
+      ready = mineStall(building, quarryBuckets, false) === null;
     } else if (
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'
@@ -660,6 +734,8 @@ export function computeSettlementWorksiteStallPlan(
       );
     } else if (building.kind === 'clay_pit') {
       stall = clayPitStall(building, activeOriginTrip);
+    } else if (building.kind === 'mine') {
+      stall = mineStall(building, quarryBuckets, activeOriginTrip);
     } else if (
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'

@@ -19,6 +19,7 @@ pub fn is_production_labor_kind(kind: &str) -> bool {
             | "stone_quarry"
             | "large_quarry"
             | "clay_pit"
+            | "mine"
             | "charcoal_burner"
             | "smithy"
             | "potter_kiln"
@@ -156,6 +157,7 @@ mod tests {
             "stone_quarry",
             "large_quarry",
             "clay_pit",
+            "mine",
             "charcoal_burner",
             "smithy",
             "potter_kiln",
