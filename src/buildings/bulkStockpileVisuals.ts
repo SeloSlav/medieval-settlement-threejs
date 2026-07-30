@@ -26,6 +26,7 @@ export const SMITHY_WATER_VISUAL_SEGMENTS = 3;
 export const POTTER_CLAY_VISUAL_SEGMENTS = 5;
 export const POTTER_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const POTTER_POTTERY_VISUAL_SEGMENTS = 5;
+export const POTTER_WATER_VISUAL_SEGMENTS = 3;
 export const CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS = 4;
 
 export function bulkStockpileVisualSignature(building: BuildingState): string {
@@ -139,9 +140,13 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         BUILDING_STORAGE_CAPS.potter_kiln.firewood,
         POTTER_FIREWOOD_VISUAL_SEGMENTS,
       )}:${stockpileVisualLevel(
-        building.pottery ?? 0,
-        BUILDING_STORAGE_CAPS.potter_kiln.pottery,
-        POTTER_POTTERY_VISUAL_SEGMENTS,
+       building.pottery ?? 0,
+       BUILDING_STORAGE_CAPS.potter_kiln.pottery,
+       POTTER_POTTERY_VISUAL_SEGMENTS,
+      )}:${stockpileVisualLevel(
+        building.water,
+        BUILDING_STORAGE_CAPS.potter_kiln.water,
+        POTTER_WATER_VISUAL_SEGMENTS,
       )}`;
     default:
       return '';
@@ -292,6 +297,13 @@ export function syncBulkStockpileVisuals(
         'PotterPotterySegment',
         building.pottery ?? 0,
         BUILDING_STORAGE_CAPS.potter_kiln.pottery,
+      );
+      syncNamedStockpile(
+        marker,
+        'PotterPuddlingWaterStockpile',
+        'PotterPuddlingWaterSegment',
+        building.water,
+        BUILDING_STORAGE_CAPS.potter_kiln.water,
       );
       break;
   }

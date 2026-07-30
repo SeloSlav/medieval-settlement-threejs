@@ -3,6 +3,7 @@ import {
   BREWERY_MALTING_WATER_PER_CYCLE,
   GRANARY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
+  POTTER_WATER_PER_CYCLE,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   SMITHY_WATER_PER_CYCLE,
@@ -50,6 +51,8 @@ export function industrialWaterRequirement(kind: BuildingKind): number {
       return WEAVER_FLAX_WATER_PER_CYCLE;
     case 'smithy':
       return SMITHY_WATER_PER_CYCLE;
+    case 'potter_kiln':
+      return POTTER_WATER_PER_CYCLE;
     case 'lumber_mill':
       return MILL_WATER_PER_HARVEST;
     default:
@@ -66,6 +69,7 @@ export function industrialWaterTarget(
     || kind === 'brewery'
     || kind === 'weaver'
     || kind === 'smithy'
+    || kind === 'potter_kiln'
     ? perCycle * processorInputStagingCycles(processorOutputTargetPercent)
     : perCycle;
 }

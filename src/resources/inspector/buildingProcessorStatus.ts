@@ -29,6 +29,7 @@ import {
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
+  POTTER_WATER_PER_CYCLE,
   WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
@@ -199,7 +200,7 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
   },
   potter_kiln: {
     requiresLabor: true,
-    waterPerCycle: 0,
+    waterPerCycle: POTTER_WATER_PER_CYCLE,
     inputs: [
       {
         key: 'clay',

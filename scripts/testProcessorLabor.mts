@@ -234,6 +234,7 @@ incompleteSmithy.iron = 8;
 const suppliedPotter = building('material-50-potter', 'potter_kiln', 0);
 suppliedPotter.clay = 12;
 suppliedPotter.firewood = 6;
+suppliedPotter.water = 3;
 const suppliedCharcoalYard = building(
   'material-60-charcoal',
   'charcoal_burner',

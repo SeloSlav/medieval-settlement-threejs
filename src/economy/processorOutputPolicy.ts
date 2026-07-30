@@ -91,7 +91,7 @@ const INPUTS_BY_KIND: Record<
   weaver: ['wool', 'flax', 'water'],
   charcoal_burner: ['firewood'],
   smithy: ['iron', 'charcoal', 'water'],
-  potter_kiln: ['clay', 'firewood'],
+  potter_kiln: ['clay', 'firewood', 'water'],
 };
 
 export function isProcessorOutputTargetKind(

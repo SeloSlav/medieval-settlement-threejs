@@ -175,6 +175,7 @@ suppliedCharcoalYard.firewood = 12;
 const suppliedPotter = building('material-potter', 'potter_kiln', 2, 80, 0);
 suppliedPotter.clay = 12;
 suppliedPotter.firewood = 6;
+suppliedPotter.water = 3;
 for (const site of [
   fullClayPit,
   saltAndPotteryStarvedSmokehouse,

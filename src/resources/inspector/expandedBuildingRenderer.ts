@@ -126,7 +126,7 @@ const PROCESS: Record<string, string> = {
   clay_pit: 'Finite ordinary bank or rich deep alluvium + labor -> wet clay for local potters',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
   smithy: 'Local ore or imported iron blooms + charcoal + carted quench water -> tools, fittings, and weapon heads',
-  potter_kiln: 'Riverbank clay + firewood -> household wares, preservation vessels, and export',
+  potter_kiln: 'Riverbank clay + firewood + carted puddling water -> household wares, preservation vessels, and export',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
   granary: 'Buffers grain, bakes staple food, and redistributes road-hauled fresh and cured provisions',

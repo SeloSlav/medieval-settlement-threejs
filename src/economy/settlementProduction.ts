@@ -24,6 +24,7 @@ import {
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
+  POTTER_WATER_PER_CYCLE,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
@@ -217,6 +218,7 @@ export type IndustrialMaterialPlan = {
   potteryStrandedPerDay: number;
   potterClayPerDay: number;
   potterFirewoodPerDay: number;
+  potterWaterPerDay: number;
   charcoalOutputPerDay: number;
   charcoalFirewoodPerDay: number;
   smithyInstalledIronworkPerDay: number;
@@ -1303,6 +1305,16 @@ function completedProcessorOverview(
           runway = firewoodRunway;
           limitingInput = 'firewood';
         }
+        const waterRunway = buildingInputRunway(
+          deliveries,
+          building,
+          'water',
+          cycles * POTTER_WATER_PER_CYCLE,
+        );
+        if (waterRunway.days < runway.days) {
+          runway = waterRunway;
+          limitingInput = 'water';
+        }
         potterInputBuffer = updateFirstToStop(
           potterInputBuffer,
           runway,
@@ -1427,6 +1439,7 @@ function industrialMaterialRoadPlan(
   let potteryStrandedPerDay = 0;
   let potterClayPerDay = 0;
   let potterFirewoodPerDay = 0;
+  let potterWaterPerDay = 0;
   let charcoalOutputPerDay = 0;
   let charcoalFirewoodPerDay = 0;
   let smithyInstalledIronworkPerDay = 0;
@@ -1473,6 +1486,7 @@ function industrialMaterialRoadPlan(
     const branchPotteryOutput = Math.min(
       branch.potterOutputPerDay,
       claySupportedPottery,
+      branch.hasStaffedWell ? Number.POSITIVE_INFINITY : 0,
     );
     const prosperityBranch = prosperityRoadBranches?.get(branchKey);
     if (prosperityBranch) {
@@ -1493,6 +1507,9 @@ function industrialMaterialRoadPlan(
       / POTTER_POTTERY_PER_CYCLE;
     potterFirewoodPerDay += branchPotteryOutput
       * POTTER_FIREWOOD_PER_CYCLE
+      / POTTER_POTTERY_PER_CYCLE;
+    potterWaterPerDay += branchPotteryOutput
+      * POTTER_WATER_PER_CYCLE
       / POTTER_POTTERY_PER_CYCLE;
     if (branch.hasStaffedMarket) {
       potteryExportSurplusPerDay += branchPotterySurplus;
@@ -1639,6 +1656,7 @@ function industrialMaterialRoadPlan(
     potteryStrandedPerDay,
     potterClayPerDay,
     potterFirewoodPerDay,
+    potterWaterPerDay,
     charcoalOutputPerDay,
     charcoalFirewoodPerDay,
     smithyInstalledIronworkPerDay,

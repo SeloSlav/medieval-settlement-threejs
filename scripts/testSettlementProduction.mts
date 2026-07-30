@@ -16,6 +16,8 @@ import {
   CALENDAR_DAYS_PER_MONTH,
   CALENDAR_SECONDS_PER_DAY,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
+  POTTER_POTTERY_PER_CYCLE,
+  POTTER_WATER_PER_CYCLE,
   SMITHY_IRONWORK_PER_CYCLE,
   SMITHY_WATER_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
@@ -177,6 +179,7 @@ materialState.farmFields.set(
 );
 materialState.residences.set('material-home', residence('material-home', 10));
 materialBuildings[3].firewood = 36;
+materialBuildings[1].water = 9;
 materialBuildings[4].water = 9;
 
 const leanClayState = emptyGameState();
@@ -276,6 +279,13 @@ approx(
 );
 assert.ok(joinedMaterials.potteryExportSurplusPerDay > 0);
 assert.equal(joinedMaterials.potteryStrandedPerDay, 0);
+approx(
+  joinedMaterials.potterWaterPerDay,
+  joinedMaterials.potteryOutputPerDay
+    * POTTER_WATER_PER_CYCLE
+    / POTTER_POTTERY_PER_CYCLE,
+  'sustainable pottery output must expose its physical clay-puddling water draw',
+);
 assert.equal(joinedMaterials.toolEligibleSites, 4);
 assert.equal(joinedMaterials.toolMaintainedSites, 1);
 assert.ok(
@@ -302,6 +312,25 @@ approx(
   'same-branch smithing should cover the currently maintained tool racks',
 );
 assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
+
+materialState.buildings.delete(materialBuildings[5].id);
+const waterlessMaterialChain = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+).industrialMaterials;
+assert.equal(
+  waterlessMaterialChain.potteryOutputPerDay,
+  0,
+  'clay and firewood must not create sustained pottery without a staffed same-branch well',
+);
+assert.equal(
+  waterlessMaterialChain.ironworkOutputPerDay,
+  0,
+  'one disconnected industrial branch must expose both of its physical water dependencies',
+);
+assert.ok(waterlessMaterialChain.potteryBlockedBranches >= 1);
+materialState.buildings.set(materialBuildings[5].id, materialBuildings[5]);
 
 const localForgeState = emptyGameState();
 const localIronMine = building('local-iron-mine', 'mine', 1);

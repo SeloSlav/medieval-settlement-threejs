@@ -342,6 +342,7 @@ export const CIVILIAN_TOOL_IRONWORK_PER_CYCLE = 0.25;
 export const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER = 1.2;
 export const POTTER_CLAY_PER_CYCLE = 3;
 export const POTTER_FIREWOOD_PER_CYCLE = 1;
+export const POTTER_WATER_PER_CYCLE = 1;
 export const POTTER_POTTERY_PER_CYCLE = 3;
 export const APIARY_HONEY_PER_CYCLE = 2;
 export const APIARY_FOOD_PER_CYCLE = 1;
@@ -1392,7 +1393,7 @@ export const BUILDING_STORAGE_CAPS = {
   clay_pit: { timber: 0, firewood: 0, stone: 0, ironwork: 3, clay: 180 },
   charcoal_burner: { timber: 0, firewood: 54, stone: 0, charcoal: 72 },
   smithy: { timber: 0, firewood: 0, stone: 0, water: 9, ironwork: 72, iron: 48, charcoal: 36 },
-  potter_kiln: { timber: 0, firewood: 36, stone: 0, clay: 72, pottery: 120 },
+  potter_kiln: { timber: 0, firewood: 36, stone: 0, water: 9, clay: 72, pottery: 120 },
   well: { timber: 0, firewood: 0, stone: 0, water: 100 },
   hunters_hall: { timber: 0, firewood: 0, stone: 0, food: 100 },
   foragers_shed: { timber: 0, firewood: 0, stone: 0, food: 80, remedies: 36 },

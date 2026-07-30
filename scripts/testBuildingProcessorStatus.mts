@@ -174,6 +174,33 @@ assert.match(
   /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · regional iron limits/,
 );
 
+const potter = makeBuilding({
+  id: 'potter-1',
+  kind: 'potter_kiln',
+  x: 0,
+  z: 0,
+  assignedLabor: 1,
+  clay: 3,
+  firewood: 1,
+});
+assert.equal(
+  getBuildingProcessorStatus(potter, noWellQueries)?.statusText,
+  'Idle — needs a staffed, road-connected well to operate',
+);
+assert.equal(
+  getBuildingProcessorStatus(potter, readyQueries)?.statusText,
+  'Waiting for well cart — 0.0 / 1 stored',
+);
+potter.water = 1;
+assert.equal(
+  getBuildingProcessorStatus(potter, readyQueries)?.statusText,
+  'Firing household and preserving vessels',
+);
+assert.match(
+  getBuildingProcessorStatus(potter, readyQueries)?.waterDetailHtml ?? '',
+  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · clay limits/,
+);
+
 const brewery = makeBuilding({
   id: 'brewery-1',
   kind: 'brewery',

@@ -16,6 +16,7 @@ import { createCivilianToolStockpile } from './civilianToolStockpileMesh.ts';
 import {
   CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
+  POTTER_WATER_VISUAL_SEGMENTS,
   SMITHY_CHARCOAL_VISUAL_SEGMENTS,
   SMITHY_WATER_VISUAL_SEGMENTS,
 } from '../bulkStockpileVisuals.ts';
@@ -537,6 +538,45 @@ export function createPotterKilnMesh(): THREE.Group {
     FIRED_CLAY,
     new THREE.Vector3(2.25, 1.88, -1.35),
   ).name = 'Kiln vent';
+
+  const puddlingPit = new THREE.Group();
+  puddlingPit.name = 'Clay puddling pit';
+  puddlingPit.position.set(-3.35, 0.04, -1.65);
+  group.add(puddlingPit);
+  addMesh(
+    puddlingPit,
+    new THREE.CylinderGeometry(0.94, 1.04, 0.34, 10, 1, true),
+    stoneMaterial('mid'),
+    new THREE.Vector3(0, 0.2, 0),
+  ).name = 'Stone-lined puddling pit';
+  addMesh(
+    puddlingPit,
+    new THREE.CylinderGeometry(0.84, 0.88, 0.08, 10),
+    CLAY,
+    new THREE.Vector3(0, 0.08, 0),
+  ).name = 'Puddling pit clay bed';
+  const puddlingWater = new THREE.Group();
+  puddlingWater.name = 'PotterPuddlingWaterStockpile';
+  puddlingWater.visible = false;
+  puddlingPit.add(puddlingWater);
+  for (let level = 0; level < POTTER_WATER_VISUAL_SEGMENTS; level++) {
+    const water = addMesh(
+      puddlingWater,
+      new THREE.CylinderGeometry(0.82, 0.82, 0.02, 10),
+      WATER,
+      new THREE.Vector3(0, 0.12 + level * 0.09, 0),
+    );
+    water.name = 'PotterPuddlingWaterSegment';
+    water.visible = false;
+  }
+  const puddlingPaddle = addMesh(
+    puddlingPit,
+    new THREE.BoxGeometry(0.12, 0.12, 1.55),
+    timberMaterial('dark'),
+    new THREE.Vector3(0.2, 0.48, 0),
+    new THREE.Euler(0.08, 0, -0.24),
+  );
+  puddlingPaddle.name = 'Clay puddling paddle';
 
   const clayStock = new THREE.Group();
   clayStock.name = 'PotterClayStockpile';

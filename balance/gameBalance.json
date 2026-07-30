@@ -488,6 +488,7 @@
     "civilianToolThroughputMultiplier": 1.2,
     "potterClayPerCycle": 3,
     "potterFirewoodPerCycle": 1,
+    "potterWaterPerCycle": 1,
     "potterPotteryPerCycle": 3,
     "apiaryHoneyPerCycle": 2,
     "apiaryFoodPerCycle": 1,
@@ -973,7 +974,7 @@
     "potter_kiln": {
       "label": "Potter's kiln",
       "cost": { "timber": 36, "stone": 24 },
-      "storage": { "timber": 0, "firewood": 36, "stone": 0, "clay": 72, "pottery": 120 },
+      "storage": { "timber": 0, "firewood": 36, "stone": 0, "water": 9, "clay": 72, "pottery": 120 },
       "workRadius": 0,
       "pickRadius": 9,
       "harvestInterval": 9,

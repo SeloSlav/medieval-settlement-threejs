@@ -503,6 +503,7 @@ export type GameBalance = {
     civilianToolThroughputMultiplier: number;
     potterClayPerCycle: number;
     potterFirewoodPerCycle: number;
+    potterWaterPerCycle: number;
     potterPotteryPerCycle: number;
     apiaryHoneyPerCycle: number;
     apiaryFoodPerCycle: number;
@@ -994,6 +995,7 @@ function generateRust(): string {
     `pub const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.production.civilianToolThroughputMultiplier)};`,
     `pub const POTTER_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.potterClayPerCycle)};`,
     `pub const POTTER_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.potterFirewoodPerCycle)};`,
+    `pub const POTTER_WATER_PER_CYCLE: f64 = ${rustF64(b.production.potterWaterPerCycle)};`,
     `pub const POTTER_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.potterPotteryPerCycle)};`,
     `pub const APIARY_HONEY_PER_CYCLE: f64 = ${rustF64(b.production.apiaryHoneyPerCycle)};`,
     `pub const APIARY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.apiaryFoodPerCycle)};`,
@@ -1791,6 +1793,7 @@ function generateTypeScript(): string {
     `export const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER = ${b.production.civilianToolThroughputMultiplier};`,
     `export const POTTER_CLAY_PER_CYCLE = ${b.production.potterClayPerCycle};`,
     `export const POTTER_FIREWOOD_PER_CYCLE = ${b.production.potterFirewoodPerCycle};`,
+    `export const POTTER_WATER_PER_CYCLE = ${b.production.potterWaterPerCycle};`,
     `export const POTTER_POTTERY_PER_CYCLE = ${b.production.potterPotteryPerCycle};`,
     `export const APIARY_HONEY_PER_CYCLE = ${b.production.apiaryHoneyPerCycle};`,
     `export const APIARY_FOOD_PER_CYCLE = ${b.production.apiaryFoodPerCycle};`,

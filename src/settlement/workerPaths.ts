@@ -109,6 +109,7 @@ export type WorkerProductionBlocker =
   | 'iron'
   | 'charcoal'
   | 'clay'
+  | 'water'
   | 'food'
   | 'salt'
   | 'pottery';
@@ -205,10 +206,12 @@ export function workerProductionBlocker(
       return building.firewood > 1e-6 ? null : 'firewood';
     case 'smithy':
       if ((building.iron ?? 0) <= 1e-6) return 'iron';
-      return (building.charcoal ?? 0) > 1e-6 ? null : 'charcoal';
+      if ((building.charcoal ?? 0) <= 1e-6) return 'charcoal';
+      return building.water > 1e-6 ? null : 'water';
     case 'potter_kiln':
       if ((building.clay ?? 0) <= 1e-6) return 'clay';
-      return building.firewood > 1e-6 ? null : 'firewood';
+      if (building.firewood <= 1e-6) return 'firewood';
+      return building.water > 1e-6 ? null : 'water';
     case 'smokehouse':
       if (building.food <= 1e-6) return 'food';
       if (building.firewood <= 1e-6) return 'firewood';
@@ -230,6 +233,7 @@ export function workerProductionBlockerDescription(
     case 'iron': return 'there is no raw iron on site';
     case 'charcoal': return 'there is no charcoal on site';
     case 'clay': return 'there is no clay on site';
+    case 'water': return 'there is no workshop water on site';
     case 'food': return 'there is no fresh food on site';
     case 'salt': return 'there is no salt on site';
     case 'pottery': return 'there are no pottery vessels on site';

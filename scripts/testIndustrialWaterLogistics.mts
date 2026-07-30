@@ -62,6 +62,7 @@ assert.ok(industrialWaterRequirement('granary') > 0);
 assert.ok(industrialWaterRequirement('brewery') > 0);
 assert.equal(industrialWaterRequirement('weaver'), 1);
 assert.equal(industrialWaterRequirement('smithy'), 1);
+assert.equal(industrialWaterRequirement('potter_kiln'), 1);
 assert.equal(industrialWaterRequirement('lumber_mill'), 0);
 assert.equal(industrialWaterRequirement('watermill'), 0);
 assert.equal(industrialWaterTarget('granary', 25), 2);
@@ -74,6 +75,9 @@ assert.equal(industrialWaterTarget('weaver', 100), 3);
 assert.equal(industrialWaterTarget('smithy', 25), 1);
 assert.equal(industrialWaterTarget('smithy', 50), 2);
 assert.equal(industrialWaterTarget('smithy', 100), 3);
+assert.equal(industrialWaterTarget('potter_kiln', 25), 1);
+assert.equal(industrialWaterTarget('potter_kiln', 50), 2);
+assert.equal(industrialWaterTarget('potter_kiln', 100), 3);
 assert.equal(
   industrialWaterInputPreferenceRank('weaver', WEAVER_INPUT_POLICY_FLAX_FIRST),
   0,
@@ -289,6 +293,20 @@ assert.doesNotMatch(
   smithyStep,
   /request_connected_commodity/,
   'smithies must wait for the well-side cart arbitration rather than pulling water instantly',
+);
+const potterStep = expandedEconomy.slice(
+  expandedEconomy.indexOf('pub fn step_potter_kiln'),
+  expandedEconomy.indexOf('pub fn step_apiary'),
+);
+assert.match(
+  potterStep,
+  /CommodityKind::Water,\s*POTTER_WATER_PER_CYCLE/,
+  'the authoritative pottery recipe must consume physically delivered clay-puddling water',
+);
+assert.doesNotMatch(
+  potterStep,
+  /request_connected_commodity/,
+  'potters must wait for well-side cart arbitration rather than pulling water instantly',
 );
 assert.match(processorWaterStatus, /Water cart inbound/);
 assert.match(processorWaterStatus, /Waiting for well cart/);

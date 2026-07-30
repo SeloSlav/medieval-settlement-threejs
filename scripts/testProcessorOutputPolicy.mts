@@ -88,6 +88,11 @@ assert.deepEqual(
   ['iron', 'charcoal', 'water'],
   'the forge stock policy must stage the complete authoritative recipe',
 );
+assert.deepEqual(
+  processorInputCommodities('potter_kiln'),
+  ['clay', 'firewood', 'water'],
+  'the pottery stock policy must stage clay, fuel, and puddling water together',
+);
 
 const mill = processor('mill', 'watermill', 25);
 assert.equal(processorOutputTargetForBuilding(mill), 65);

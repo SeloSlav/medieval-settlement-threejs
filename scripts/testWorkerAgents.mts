@@ -471,14 +471,14 @@ const materialWorkCases = [
   },
   {
     kind: 'smithy',
-    ready: { iron: 1, charcoal: 1, ironwork: 0 },
-    blocked: { iron: 1, charcoal: 0, ironwork: 0 },
+    ready: { iron: 1, charcoal: 1, water: 1, ironwork: 0 },
+    blocked: { iron: 1, charcoal: 0, water: 1, ironwork: 0 },
     blocker: 'charcoal',
   },
   {
     kind: 'potter_kiln',
-    ready: { clay: 1, firewood: 1, pottery: 0 },
-    blocked: { clay: 0, firewood: 1, pottery: 0 },
+    ready: { clay: 1, firewood: 1, water: 1, pottery: 0 },
+    blocked: { clay: 0, firewood: 1, water: 1, pottery: 0 },
     blocker: 'clay',
   },
   {
@@ -514,6 +514,27 @@ for (const testCase of materialWorkCases) {
     );
   }
 }
+
+assert.equal(
+  workerProductionBlocker(
+    Object.assign(
+      building('dry-smithy', 'smithy', 0, 0, 2, 0),
+      { iron: 1, charcoal: 1, water: 0 },
+    ),
+  ),
+  'water',
+  'visible smiths must stop forging when the quench tub is dry',
+);
+assert.equal(
+  workerProductionBlocker(
+    Object.assign(
+      building('dry-potter', 'potter_kiln', 0, 0, 2, 0),
+      { clay: 1, firewood: 1, water: 0 },
+    ),
+  ),
+  'water',
+  'visible potters must stop shaping clay when the puddling pit is dry',
+);
 
 assert.equal(
   workerProductionBlocker({
@@ -706,9 +727,9 @@ function readyYardBuilding(workplace: BuildingState): BuildingState {
     case 'charcoal_burner':
       return { ...workplace, firewood: 1 };
     case 'smithy':
-      return { ...workplace, iron: 1, charcoal: 1 };
+      return { ...workplace, iron: 1, charcoal: 1, water: 1 };
     case 'potter_kiln':
-      return { ...workplace, clay: 1, firewood: 1 };
+      return { ...workplace, clay: 1, firewood: 1, water: 1 };
     case 'smokehouse':
       return {
         ...workplace,

@@ -18,6 +18,7 @@ import {
   POTTER_CLAY_VISUAL_SEGMENTS,
   POTTER_FIREWOOD_VISUAL_SEGMENTS,
   POTTER_POTTERY_VISUAL_SEGMENTS,
+  POTTER_WATER_VISUAL_SEGMENTS,
   SMITHY_CHARCOAL_VISUAL_SEGMENTS,
   SMITHY_IRON_VISUAL_SEGMENTS,
   SMITHY_IRONWORK_VISUAL_SEGMENTS,
@@ -33,6 +34,7 @@ import {
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
+  POTTER_WATER_PER_CYCLE,
   SMITHY_CHARCOAL_PER_CYCLE,
   SMITHY_IRON_PER_CYCLE,
   SMITHY_IRONWORK_PER_CYCLE,
@@ -124,8 +126,13 @@ assert.deepEqual(
   [2, 1, 1, 2],
 );
 assert.deepEqual(
-  [POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_POTTERY_PER_CYCLE],
-  [3, 1, 3],
+  [
+    POTTER_CLAY_PER_CYCLE,
+    POTTER_FIREWOOD_PER_CYCLE,
+    POTTER_WATER_PER_CYCLE,
+    POTTER_POTTERY_PER_CYCLE,
+  ],
+  [3, 1, 1, 3],
 );
 assert.ok(SMOKEHOUSE_SALT_PER_CYCLE > 0);
 assert.ok(SMOKEHOUSE_POTTERY_PER_CYCLE > 0);
@@ -625,6 +632,13 @@ const buildingVisuals = [
     resource: 'pottery',
     segments: POTTER_POTTERY_VISUAL_SEGMENTS,
   },
+  {
+    kind: 'potter_kiln',
+    container: 'PotterPuddlingWaterStockpile',
+    segment: 'PotterPuddlingWaterSegment',
+    resource: 'water',
+    segments: POTTER_WATER_VISUAL_SEGMENTS,
+  },
 ] as const;
 
 for (const spec of buildingVisuals) {
@@ -728,6 +742,11 @@ assert.match(
   /smithy[\s\S]*carted well water/i,
   'the build card must reveal the forge-water dependency before placement',
 );
+assert.match(
+  renderedCards,
+  /potter[\s\S]*carted well water/i,
+  'the build card must reveal the clay-puddling water dependency before placement',
+);
 for (const slug of ['clay-pit', 'charcoal-burner', 'smithy', 'potter-kiln']) {
   assert.match(renderedCards, new RegExp(`/assets/ui/build-menu/cards/${slug}\\.webp`));
   assert.ok(
@@ -756,6 +775,11 @@ assert.notEqual(
   bulkStockpileVisualSignature(building('potter_kiln', { firewood: 1 })),
   bulkStockpileVisualSignature(building('potter_kiln')),
   'the first kiln fuel bundle must invalidate its visual signature',
+);
+assert.notEqual(
+  bulkStockpileVisualSignature(building('potter_kiln', { water: 1 })),
+  bulkStockpileVisualSignature(building('potter_kiln')),
+  'the first carted puddling-water unit must raise the visible pit surface',
 );
 const emptySmithy = building('smithy');
 const stockedSmithy = building('smithy', { charcoal: 1 });
@@ -842,6 +866,11 @@ assert.match(
   smithyStep,
   /CommodityKind::Water,\s*SMITHY_WATER_PER_CYCLE/,
   'forging must consume water from the physical on-site quench tub',
+);
+assert.match(
+  potterKilnStep,
+  /CommodityKind::Water,\s*POTTER_WATER_PER_CYCLE/,
+  'pottery must consume water from the physical on-site puddling pit',
 );
 assert.doesNotMatch(
   potterKilnStep,
