@@ -527,6 +527,49 @@ pub fn processor_input_dispatch_duty(
     }
 }
 
+/// Resolve the physical destination stock target for a local material cart.
+///
+/// Raw iron and salt are deliberately bounded: active processors receive only
+/// their selected working buffer, then a staffed marketplace may centralize
+/// the remainder up to its player-selected reserve. Clay, charcoal, ironwork,
+/// and pottery retain their ordinary workshop-overflow behavior.
+pub fn local_material_dispatch_target(
+    target_kind: &str,
+    commodity: &str,
+    assigned_labor: u32,
+    stock: f64,
+    capacity: f64,
+    processor_output_target_percent: u8,
+    marketplace_reserve_target: f64,
+) -> Option<(ProcessorInputDispatchDuty, f64)> {
+    let stock = stock.max(0.0);
+    let capacity = capacity.max(0.0);
+    let is_raw_market_material = matches!(commodity, "iron" | "salt");
+
+    if is_raw_market_material && target_kind == "marketplace" {
+        let desired_stock = marketplace_reserve_target.max(0.0).min(capacity);
+        return (assigned_labor > 0 && stock + 1e-6 < desired_stock)
+            .then_some((ProcessorInputDispatchDuty::WorkshopOverflow, desired_stock));
+    }
+
+    let per_cycle = directly_dispatched_processor_input_per_cycle(target_kind, commodity);
+    let duty = processor_input_dispatch_duty(
+        assigned_labor,
+        stock,
+        per_cycle,
+        processor_output_target_percent,
+    );
+    if is_raw_market_material && duty != ProcessorInputDispatchDuty::WorkingBuffer {
+        return None;
+    }
+    let desired_stock = if duty == ProcessorInputDispatchDuty::WorkingBuffer {
+        processor_input_target(per_cycle, processor_output_target_percent)
+    } else {
+        capacity
+    };
+    (desired_stock > 1e-6 && stock + 1e-6 < desired_stock).then_some((duty, desired_stock))
+}
+
 /// Direct producer carts first restore operating processors to a small working
 /// buffer. Within that duty, completed-building work priority wins before
 /// input preference, cycle runway, road distance, and stable building id.
@@ -698,13 +741,14 @@ mod tests {
         household_food_reserve, institutional_food_surplus, is_firewood_supplier_operational,
         is_food_supplier_operational, is_specialty_supplier_operational,
         is_well_supplier_operational, large_quarry_support_runway_cycles,
-        large_quarry_support_target, large_quarry_supports_ready, processor_input_dispatch_duty,
-        processor_input_runway_cycles, processor_input_target, rich_mine_support_runway_cycles,
-        rich_mine_support_target, rich_mine_supports_ready, select_grain_dispatch_candidate,
-        select_need_delivery_candidate, select_processor_input_dispatch_candidate,
-        select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
-        GranaryDispatchDuty, InstitutionalFoodDispatchDuty, NeedDeliveryCandidate,
-        ProcessorInputDispatchDuty, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
+        large_quarry_support_target, large_quarry_supports_ready, local_material_dispatch_target,
+        processor_input_dispatch_duty, processor_input_runway_cycles, processor_input_target,
+        rich_mine_support_runway_cycles, rich_mine_support_target, rich_mine_supports_ready,
+        select_grain_dispatch_candidate, select_need_delivery_candidate,
+        select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
+        select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
+        InstitutionalFoodDispatchDuty, NeedDeliveryCandidate, ProcessorInputDispatchDuty,
+        ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, FOOD_SUPPLIER_KINDS,
         GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
         GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
         LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_SUPPLIER_KINDS,
@@ -1068,6 +1112,41 @@ mod tests {
         assert_eq!(
             processor_input_dispatch_duty(0, 0.0, 2.0, 100),
             ProcessorInputDispatchDuty::WorkshopOverflow
+        );
+        assert_eq!(
+            local_material_dispatch_target("smithy", "iron", 2, 0.0, 48.0, 100, 0.0),
+            Some((ProcessorInputDispatchDuty::WorkingBuffer, 6.0)),
+            "local ore must first restore the staffed forge's selected working buffer"
+        );
+        assert_eq!(
+            local_material_dispatch_target("smithy", "iron", 2, 6.0, 48.0, 100, 0.0),
+            None,
+            "raw ore must not fill the forge yard beyond its working buffer"
+        );
+        assert_eq!(
+            local_material_dispatch_target("smokehouse", "salt", 0, 0.0, 72.0, 100, 0.0),
+            None,
+            "an unstaffed processor must not warehouse raw salt"
+        );
+        assert_eq!(
+            local_material_dispatch_target("marketplace", "salt", 2, 12.0, 72.0, 100, 48.0),
+            Some((ProcessorInputDispatchDuty::WorkshopOverflow, 48.0)),
+            "a staffed market must accept local mine carts up to its selected reserve"
+        );
+        assert_eq!(
+            local_material_dispatch_target("marketplace", "salt", 2, 48.0, 72.0, 100, 48.0),
+            None,
+            "the local cart must stop exactly at the selected market reserve"
+        );
+        assert_eq!(
+            local_material_dispatch_target("marketplace", "iron", 0, 0.0, 48.0, 100, 24.0),
+            None,
+            "an unstaffed market cannot centralize local ore"
+        );
+        assert_eq!(
+            local_material_dispatch_target("potter_kiln", "clay", 2, 9.0, 72.0, 100, 0.0),
+            Some((ProcessorInputDispatchDuty::WorkshopOverflow, 72.0)),
+            "ordinary material chains retain workshop overflow after their buffer"
         );
         assert_eq!(
             compare_processor_input_dispatch_candidates(

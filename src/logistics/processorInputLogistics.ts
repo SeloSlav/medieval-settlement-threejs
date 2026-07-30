@@ -24,6 +24,10 @@ import {
   normalizeStaffingPriority,
   type StaffingPriority,
 } from '../economy/staffingPriority.ts';
+import {
+  normalizeMarketplaceIronTarget,
+  normalizeMarketplaceSaltTarget,
+} from '../economy/marketplaceMaterialProcurementPolicy.ts';
 import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
 import { weaverFibreDeliveryPreferenceRank } from '../economy/weaverInputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
@@ -56,6 +60,8 @@ type ProcessorInputDestinationLike = Pick<
   | 'constructionComplete'
   | 'constructionPriority'
   | 'processorOutputTargetPercent'
+  | 'marketplaceIronTarget'
+  | 'marketplaceSaltTarget'
   | 'granaryAcceptsFreshFood'
   | 'weaverInputPolicy'
   | 'flour'
@@ -111,9 +117,9 @@ const TARGET_KINDS: Record<
     'watermill',
     'carpenter',
   ],
-  iron: ['smithy'],
+  iron: ['smithy', 'marketplace'],
   clay: ['potter_kiln'],
-  salt: ['smokehouse', 'pastoral_farmstead'],
+  salt: ['smokehouse', 'pastoral_farmstead', 'marketplace'],
   charcoal: ['smithy'],
   pottery: ['smokehouse', 'marketplace'],
 };
@@ -157,13 +163,15 @@ export function directlyDispatchedProcessorInputPerCycle(
         ? CIVILIAN_TOOL_IRONWORK_PER_CYCLE
         : 0;
     case 'iron':
-      return SMITHY_IRON_PER_CYCLE;
+      return targetKind === 'smithy' ? SMITHY_IRON_PER_CYCLE : 0;
     case 'clay':
       return POTTER_CLAY_PER_CYCLE;
     case 'salt':
       return targetKind === 'pastoral_farmstead'
         ? LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE
-        : SMOKEHOUSE_SALT_PER_CYCLE;
+        : targetKind === 'smokehouse'
+          ? SMOKEHOUSE_SALT_PER_CYCLE
+          : 0;
     case 'charcoal':
       return SMITHY_CHARCOAL_PER_CYCLE;
     case 'pottery':
@@ -190,9 +198,10 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * their selected stock-policy working buffers by work priority. Equal-tier
  * looms then route matching fibres to their selected specialization before
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
- * for replacement iron tools. Raw iron and salt stop at their working buffers
- * whether they came from a local mine or a marketplace, then move to smithies,
- * smokehouses, and pastoral holdings according to work priority and runway;
+ * for replacement iron tools. Imported raw iron and salt stop at processor
+ * working buffers. Local mine carts do the same first, then may centralize
+ * surplus up to a staffed marketplace's selected reserve, where imports cover
+ * only any remaining gap;
  * after the kiln's household-ware duty, pottery reaches staffed smokehouses
  * before becoming market export stock. Preserved food is a
  * storage-only overflow route to the nearest granary that accepts perishable
@@ -235,6 +244,13 @@ export function selectDirectProcessorInputTarget<
     const routeDistance = routeDistanceFor(target);
     if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
 
+    const marketplaceReserveTarget = target.kind === 'marketplace'
+      ? commodity === 'iron'
+        ? normalizeMarketplaceIronTarget(target.marketplaceIronTarget)
+        : commodity === 'salt'
+          ? normalizeMarketplaceSaltTarget(target.marketplaceSaltTarget)
+          : null
+      : null;
     const perCycle = directlyDispatchedProcessorInputPerCycle(target.kind, commodity);
     const workingTarget = processorInputTarget(
       perCycle,
@@ -244,11 +260,29 @@ export function selectDirectProcessorInputTarget<
       && stock + 1e-6 < workingTarget
       ? 'working-buffer'
       : 'workshop-overflow';
-    if (marketplaceMaterial && duty !== 'working-buffer') continue;
+    if (
+      marketplaceMaterial
+      && (
+        duty !== 'working-buffer'
+        && (
+          marketplaceReserveTarget == null
+          || marketplaceReserveTarget <= 0
+          || stock + 1e-6 >= marketplaceReserveTarget
+        )
+      )
+    ) {
+      continue;
+    }
+    const desiredStock = marketplaceReserveTarget != null
+      ? Math.min(capacity, marketplaceReserveTarget)
+      : duty === 'working-buffer'
+        ? workingTarget
+        : capacity;
+    if (stock + 1e-6 >= desiredStock) continue;
     const candidate: RoutedProcessorInputDestination<T> = {
       target,
       duty,
-      desiredStock: duty === 'working-buffer' ? workingTarget : capacity,
+      desiredStock,
       runwayCycles: processorInputRunwayCycles(stock, perCycle),
       routeDistance,
       workPriority: normalizeStaffingPriority(target.constructionPriority),

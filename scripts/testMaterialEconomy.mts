@@ -539,6 +539,98 @@ assert.equal(localMineAssignments.get('iron-mine')?.commodity, 'iron');
 assert.equal(localMineAssignments.get('iron-mine')?.target.id, 'local-iron-smithy');
 assert.equal(localMineAssignments.get('salt-mine')?.commodity, 'salt');
 assert.equal(localMineAssignments.get('salt-mine')?.target.id, 'local-salt-smokehouse');
+const reserveIronMine = building('mine', {
+  id: 'reserve-iron-mine',
+  x: 0,
+  iron: 24,
+});
+const hungryReserveSmithy = building('smithy', {
+  id: 'hungry-reserve-smithy',
+  x: 100,
+  assignedLabor: 2,
+  iron: 0,
+});
+const localIronReserveMarket = building('marketplace', {
+  id: 'local-iron-reserve-market',
+  x: 5,
+  assignedLabor: 2,
+  iron: 0,
+  marketplaceIronTarget: 24,
+});
+let localIronReserveAssignments = assignLocalMaterialInputTargets(
+  [reserveIronMine],
+  [localIronReserveMarket, hungryReserveSmithy],
+  (source, target) => Math.abs(source.x - target.x),
+);
+assert.equal(
+  localIronReserveAssignments.get(reserveIronMine.id)?.target.id,
+  hungryReserveSmithy.id,
+  'a staffed forge working buffer must beat a much nearer central ore reserve',
+);
+assert.equal(
+  localIronReserveAssignments.get(reserveIronMine.id)?.desiredStock,
+  SMITHY_IRON_PER_CYCLE * 3,
+);
+hungryReserveSmithy.iron = SMITHY_IRON_PER_CYCLE * 3;
+localIronReserveAssignments = assignLocalMaterialInputTargets(
+  [reserveIronMine],
+  [localIronReserveMarket, hungryReserveSmithy],
+  (source, target) => Math.abs(source.x - target.x),
+);
+assert.equal(
+  localIronReserveAssignments.get(reserveIronMine.id)?.target.id,
+  localIronReserveMarket.id,
+  'mine carts should centralize surplus ore after every reachable forge buffer is covered',
+);
+assert.equal(
+  localIronReserveAssignments.get(reserveIronMine.id)?.desiredStock,
+  24,
+  'local carts must stop at the selected iron reserve instead of filling market capacity',
+);
+assert.equal(
+  localIronReserveAssignments.get(reserveIronMine.id)?.duty,
+  'workshop-overflow',
+);
+localIronReserveMarket.iron = 24;
+assert.equal(
+  assignLocalMaterialInputTargets(
+    [reserveIronMine],
+    [localIronReserveMarket, hungryReserveSmithy],
+    (source, target) => Math.abs(source.x - target.x),
+  ).get(reserveIronMine.id),
+  undefined,
+  'covered forge buffers and a full selected reserve must leave ore physically at the mine',
+);
+localIronReserveMarket.iron = 0;
+localIronReserveMarket.marketplaceIronTarget = 0;
+assert.equal(
+  assignLocalMaterialInputTargets(
+    [reserveIronMine],
+    [localIronReserveMarket, hungryReserveSmithy],
+    (source, target) => Math.abs(source.x - target.x),
+  ).get(reserveIronMine.id),
+  undefined,
+  'no-reserve markets must not become disembodied default warehouses',
+);
+const localSaltReserveAssignment = assignLocalMaterialInputTargets(
+  [building('mine', { id: 'reserve-salt-mine', salt: 24 })],
+  [
+    building('smokehouse', {
+      id: 'covered-reserve-smokehouse',
+      assignedLabor: 2,
+      salt: SMOKEHOUSE_SALT_PER_CYCLE * 3,
+    }),
+    building('marketplace', {
+      id: 'local-salt-reserve-market',
+      assignedLabor: 2,
+      salt: 12,
+      marketplaceSaltTarget: 48,
+    }),
+  ],
+  () => 20,
+).get('reserve-salt-mine');
+assert.equal(localSaltReserveAssignment?.target.id, 'local-salt-reserve-market');
+assert.equal(localSaltReserveAssignment?.desiredStock, 48);
 const mineToolAssignment = assignLocalMaterialInputTargets(
   [
     building('smithy', {
@@ -917,6 +1009,16 @@ assert.match(
 assert.match(
   localMaterialDispatchStep,
   /"mine"[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*"clay_pit"[\s\S]*CommodityKind::Clay[\s\S]*"charcoal_burner"[\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"[\s\S]*CommodityKind::Ironwork[\s\S]*"potter_kiln"[\s\S]*CommodityKind::Pottery/,
+);
+assert.match(
+  localMaterialDispatchStep,
+  /CommodityKind::Iron,\s*&\["smithy", "marketplace"\][\s\S]*CommodityKind::Salt[\s\S]*"pastoral_farmstead", "marketplace"/,
+  'local mine carts must include selected physical market reserves after workshop buffers',
+);
+assert.match(
+  localMaterialDispatchStep,
+  /local_material_target_plan[\s\S]*normalize_marketplace_iron_target[\s\S]*normalize_marketplace_salt_target[\s\S]*local_material_dispatch_target/,
+  'authoritative local routes must share the bounded workshop/reserve target policy',
 );
 assert.match(
   localMaterialDispatchStep,

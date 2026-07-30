@@ -183,16 +183,16 @@ const panel = renderMarketplaceTradePanel(
   false,
 );
 assert.match(panel, /Workshop input reserves/);
-assert.match(panel, /Raw iron for smithing/);
-assert.match(panel, /Imported salt reserve/);
+assert.match(panel, /Iron reserve for smithing/);
+assert.match(panel, /Salt reserve/);
 assert.match(panel, /data-marketplace-iron-target="24" disabled/);
 assert.match(panel, /data-marketplace-salt-target="24" disabled/);
 assert.match(panel, /Queued behind the more depleted salt reserve; 2 iron lots remain/);
 assert.match(panel, /Next twelve-unit lot ready for 14 gold; 2 lots remain/);
 assert.match(
   panel,
-  /Free market carts are matched settlement-wide to stage iron, salt, and uncommitted pottery working buffers/,
-  'the inspector must keep physical last-mile logistics explicit',
+  /Mine carts restore staffed workshop buffers first[\s\S]*carry surplus iron or salt to a staffed road-linked market/,
+  'the inspector must explain local-first physical reserve logistics',
 );
 assert.match(panel, /Pottery promised to an active export order stays at the market/);
 
@@ -264,6 +264,11 @@ assert.match(
   'one marketplace must not overlap regional import and export caravans',
 );
 assert.match(
+  tradeSource,
+  /matching_local_material[\s\S]*building_has_inbound_commodity_trip[\s\S]*remaining whole-lot shortfall/,
+  'standing iron and salt imports must wait for an approaching matching mine cart',
+);
+assert.match(
   deliveryTripSource,
   /fn is_external_market_import_trip[\s\S]*trip\.building_id == trip\.target_building_id/,
   'regional imports must remain identifiable without a new save field',
@@ -319,12 +324,12 @@ assert.match(
 );
 assert.match(
   panel,
-  /live merchant cart[\s\S]*usable market stock only after unloading/,
-  'the material policy must explain the physical regional leg before last-mile workshop carts',
+  /Adriatic merchant carts buy only the remaining whole-lot shortfall[\s\S]*cargo becomes usable on arrival/,
+  'the material policy must explain that physical regional trade supplements local deposits',
 );
 assert.match(
   panel,
-  /Imported salt reserve/,
+  /Salt reserve/,
   'the import control must not imply that Adriatic trade replaces local salt deposits',
 );
 

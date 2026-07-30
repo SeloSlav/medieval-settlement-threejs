@@ -472,14 +472,14 @@ function renderMaterialProcurementPolicy(
     targets: readonly number[],
     selected: number,
   ) => targets
-    .map((target) => `<button type="button" class="resource-action-button" data-marketplace-${resource}-target="${target}" ${target === selected ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
+    .map((target) => `<button type="button" class="resource-action-button" data-marketplace-${resource}-target="${target}" ${target === selected ? 'disabled' : ''}>${target === 0 ? 'No reserve' : `Keep ${target}`}</button>`)
     .join('');
 
   return `
     <section class="marketplace-trade-section" aria-label="Workshop input procurement">
       <h3 class="marketplace-trade-section__title">Workshop input reserves</h3>
-      <p class="resource-inspector-note">Set physical market stock for regionally sourced inputs. Each twelve-unit lot consumes broker time, coffer gold, and the current regional rate, then enters from the Adriatic-facing map edge on a live merchant cart; iron or salt becomes usable market stock only after unloading. Free market carts are matched settlement-wide to stage iron, salt, and uncommitted pottery working buffers at staffed road-linked smithies, smokehouses, and pastoral holdings; paid household orders and seed recovery retain first claim, then work priority, cycle runway, road length, and stable order decide the next production site and supplying market. Pastoral salt preserves farmhouse cheese and part of autumn slaughter; fresh dairy and herd care continue when it runs out. Pottery promised to an active export order stays at the market. All standing imports share one queue and the most depleted selected reserve goes first.</p>
-      <h4 class="marketplace-trade-section__title">Raw iron for smithing</h4>
+      <p class="resource-inspector-note">Set a physical reserve for local mine output and regional fallback. Mine carts restore staffed workshop buffers first, then carry surplus iron or salt to a staffed road-linked market up to the selected level. Adriatic merchant carts buy only the remaining whole-lot shortfall, consuming broker time, coffer gold, and the current regional rate before their cargo becomes usable on arrival. Free market carts then stage iron, salt, and uncommitted pottery at staffed smithies, smokehouses, and pastoral holdings; paid household orders and seed recovery retain first claim, then work priority, cycle runway, road length, and stable order decide the next production site and supplying market. Pastoral salt preserves farmhouse cheese and part of autumn slaughter; fresh dairy and herd care continue when it runs out. Pottery promised to an active export order stays at the market. All standing imports share one queue and the most depleted selected reserve goes first.</p>
+      <h4 class="marketplace-trade-section__title">Iron reserve for smithing</h4>
       <div class="resource-action-row">${renderTargetButtons(
         'iron',
         MARKETPLACE_IRON_TARGETS,
@@ -493,7 +493,7 @@ function renderMaterialProcurementPolicy(
         manualTrade,
         nextStandingOrder,
       )}</p>
-      <h4 class="marketplace-trade-section__title">Imported salt reserve</h4>
+      <h4 class="marketplace-trade-section__title">Salt reserve</h4>
       <div class="resource-action-row">${renderTargetButtons(
         'salt',
         MARKETPLACE_SALT_TARGETS,
@@ -521,10 +521,10 @@ function formatMaterialProcurementStatus(
   nextStandingOrder: MarketplaceStandingOrder,
 ): string {
   if (plan.target <= 0) {
-    return `Manual-only — brokers place no automatic ${resource} orders.`;
+    return `No central reserve — mine carts serve workshops directly and brokers place no automatic ${resource} orders.`;
   }
   if (!plan.nextOrderDue) {
-    return `Holding ${plan.stock.toFixed(1)} / ${plan.target} ${resource}; the next twelve-unit lot waits until it fits without overshooting.`;
+    return `Holding ${plan.stock.toFixed(1)} / ${plan.target} ${resource}; local mine carts may fill the remainder, while the next twelve-unit import waits until it fits without overshooting.`;
   }
   if (nextStandingOrder && nextStandingOrder !== resource) {
     return `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} ${resource} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;

@@ -56,6 +56,9 @@ use crate::frontier_economy_policy::{
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
 use crate::hydrology::{clay_bank_yield_multiplier_with_richness, sample_hydrology_score};
+use crate::marketplace_procurement_policy::{
+    normalize_marketplace_iron_target, normalize_marketplace_salt_target,
+};
 use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
     monastery_feast_surplus, monastery_hospitality_use, monastery_pilgrimage_gold,
@@ -88,13 +91,14 @@ use crate::supply_policy::{
     compare_institutional_food_dispatch_candidates, compare_processor_input_dispatch_candidates,
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
     grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
-    institutional_food_surplus, processor_input_dispatch_duty, processor_input_runway_cycles,
-    processor_input_target, rich_mine_support_target, rich_mine_supports_ready,
-    select_grain_dispatch_candidate, select_processor_input_dispatch_candidate,
-    select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
-    GranaryDispatchDuty, InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty,
-    GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS,
-    INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
+    institutional_food_surplus, local_material_dispatch_target, processor_input_dispatch_duty,
+    processor_input_runway_cycles, processor_input_target, rich_mine_support_target,
+    rich_mine_supports_ready, select_grain_dispatch_candidate,
+    select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
+    select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
+    InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
+    GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
+    INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
@@ -882,28 +886,11 @@ pub fn step_local_material_dispatch(
             {
                 continue;
             }
-            let stock = building_commodity_stock(&target, commodity);
-            let per_cycle = directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
-            let duty = processor_input_dispatch_duty(
-                target.assigned_labor,
-                stock,
-                per_cycle,
-                target.processor_output_target_percent,
-            );
-            let desired_stock = if duty == ProcessorInputDispatchDuty::WorkingBuffer {
-                processor_input_target(per_cycle, target.processor_output_target_percent)
-            } else {
-                building_commodity_cap(&target.kind, commodity)
-            };
-            if desired_stock <= 1e-6 || stock + 1e-6 >= desired_stock {
+            let Some((duty, _desired_stock, runway_cycles)) =
+                local_material_target_plan(&target, commodity)
+            else {
                 continue;
-            }
-            let runway_cycles =
-                if commodity == CommodityKind::Ironwork && is_civilian_tool_site(&target.kind) {
-                    civilian_tool_runway_cycles(stock)
-                } else {
-                    processor_input_runway_cycles(stock, per_cycle)
-                };
+            };
             let Some(distance) = network.road_path_distance(source.x, source.z, target.x, target.z)
             else {
                 continue;
@@ -1042,19 +1029,12 @@ fn dispatch_local_material_candidates(
         {
             continue;
         }
-        let stock = building_commodity_stock(&target, commodity);
-        let per_cycle = directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
-        let duty = processor_input_dispatch_duty(
-            target.assigned_labor,
-            stock,
-            per_cycle,
-            target.processor_output_target_percent,
-        );
-        let desired_stock = if duty == ProcessorInputDispatchDuty::WorkingBuffer {
-            processor_input_target(per_cycle, target.processor_output_target_percent)
-        } else {
-            building_commodity_cap(&target.kind, commodity)
+        let Some((_duty, desired_stock, _runway_cycles)) =
+            local_material_target_plan(&target, commodity)
+        else {
+            continue;
         };
+        let stock = building_commodity_stock(&target, commodity);
         let unreserved_stock = if commodity == CommodityKind::Ironwork {
             available_unreserved_building_ironwork(ctx, source.owner)
         } else {
@@ -1096,10 +1076,11 @@ fn local_material_source_plan(
     source: &Building,
 ) -> Option<(CommodityKind, &'static [&'static str])> {
     match source.kind.as_str() {
-        "mine" if source.iron > 1e-6 => Some((CommodityKind::Iron, &["smithy"])),
-        "mine" if source.salt > 1e-6 => {
-            Some((CommodityKind::Salt, &["smokehouse", "pastoral_farmstead"]))
-        }
+        "mine" if source.iron > 1e-6 => Some((CommodityKind::Iron, &["smithy", "marketplace"])),
+        "mine" if source.salt > 1e-6 => Some((
+            CommodityKind::Salt,
+            &["smokehouse", "pastoral_farmstead", "marketplace"],
+        )),
         "clay_pit" => Some((CommodityKind::Clay, &["potter_kiln"])),
         "charcoal_burner" => Some((CommodityKind::Charcoal, &["smithy"])),
         "smithy" => Some((
@@ -1119,6 +1100,53 @@ fn local_material_source_plan(
         "potter_kiln" => Some((CommodityKind::Pottery, &["smokehouse", "marketplace"])),
         _ => None,
     }
+}
+
+fn local_material_target_plan(
+    target: &Building,
+    commodity: CommodityKind,
+) -> Option<(ProcessorInputDispatchDuty, f64, f64)> {
+    let commodity_name = match commodity {
+        CommodityKind::Iron => "iron",
+        CommodityKind::Salt => "salt",
+        CommodityKind::Clay => "clay",
+        CommodityKind::Charcoal => "charcoal",
+        CommodityKind::Ironwork => "ironwork",
+        CommodityKind::Pottery => "pottery",
+        _ => return None,
+    };
+    let stock = building_commodity_stock(target, commodity);
+    let capacity = building_commodity_cap(&target.kind, commodity);
+    let marketplace_reserve_target = if target.kind == "marketplace" {
+        match commodity {
+            CommodityKind::Iron => {
+                normalize_marketplace_iron_target(target.marketplace_iron_target) as f64
+            }
+            CommodityKind::Salt => {
+                normalize_marketplace_salt_target(target.marketplace_salt_target) as f64
+            }
+            _ => 0.0,
+        }
+    } else {
+        0.0
+    };
+    let (duty, desired_stock) = local_material_dispatch_target(
+        &target.kind,
+        commodity_name,
+        target.assigned_labor,
+        stock,
+        capacity,
+        target.processor_output_target_percent,
+        marketplace_reserve_target,
+    )?;
+    let per_cycle = directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
+    let runway_cycles =
+        if commodity == CommodityKind::Ironwork && is_civilian_tool_site(&target.kind) {
+            civilian_tool_runway_cycles(stock)
+        } else {
+            processor_input_runway_cycles(stock, per_cycle)
+        };
+    Some((duty, desired_stock, runway_cycles))
 }
 
 pub fn step_mine(

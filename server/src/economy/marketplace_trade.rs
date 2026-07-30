@@ -150,6 +150,19 @@ pub fn try_execute_standing_marketplace_import(
     ) else {
         return false;
     };
+    let matching_local_material = match next_import {
+        StandingMarketplaceImport::Iron => Some(CommodityKind::Iron),
+        StandingMarketplaceImport::Salt => Some(CommodityKind::Salt),
+        _ => None,
+    };
+    if matching_local_material.is_some_and(|commodity| {
+        building_has_inbound_commodity_trip(ctx, marketplace.id, commodity)
+    }) {
+        // A selected reserve accepts local mine output before buying the same
+        // material. Re-evaluate after that physical cart unloads so standing
+        // trade purchases only the remaining whole-lot shortfall.
+        return false;
+    }
 
     let Some(network) = tick.road_network(marketplace.owner) else {
         return false;
