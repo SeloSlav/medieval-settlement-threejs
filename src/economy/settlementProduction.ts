@@ -84,6 +84,7 @@ import {
   mineralDepositBeneath,
   mineralMineOutputPerDay,
 } from './settlementGeology.ts';
+import { normalizeMarketplaceIronTarget } from './marketplaceMaterialProcurementPolicy.ts';
 import { weaverUsesFlax } from './weaverInputPolicy.ts';
 
 export type SettlementProductionCapacity = {
@@ -226,6 +227,12 @@ export type IndustrialMaterialPlan = {
   localIronOutputPerDay: number;
   localIronConsumedPerDay: number;
   ironImportDemandPerDay: number;
+  ironImportUncoveredPerDay: number;
+  ironImportEnabledBranches: number;
+  ironImportBlockedBranches: number;
+  standingIronImportMarkets: number;
+  selectedIronReserve: number;
+  ironImportCofferGold: number;
   localIronStrandedPerDay: number;
   smithyIronPerDay: number;
   smithyCharcoalPerDay: number;
@@ -238,6 +245,8 @@ export type IndustrialMaterialPlan = {
   firstPotteryBottleneckId: string | null;
   firstPotteryBottleneckResidenceId: string | null;
   firstSmithyBottleneckId: string | null;
+  firstIronImportMarketId: string | null;
+  firstIronImportAttentionId: string | null;
   firstUnmaintainedToolSiteId: string | null;
 };
 
@@ -345,6 +354,9 @@ type IndustrialMaterialBranch = {
   maintainedToolIronworkPerDay: number;
   fullToolIronworkPerDay: number;
   hasStaffedMarket: boolean;
+  standingIronImportMarkets: number;
+  selectedIronReserve: number;
+  ironImportCofferGold: number;
   firstClayId: string | null;
   firstPotterId: string | null;
   firstSmokehouseId: string | null;
@@ -352,6 +364,8 @@ type IndustrialMaterialBranch = {
   firstCharcoalId: string | null;
   firstIronMineId: string | null;
   firstSmithyId: string | null;
+  firstMarketId: string | null;
+  firstIronImportMarketId: string | null;
   firstToolSiteId: string | null;
 };
 
@@ -408,6 +422,9 @@ function industrialMaterialBranchByKey(
     maintainedToolIronworkPerDay: 0,
     fullToolIronworkPerDay: 0,
     hasStaffedMarket: false,
+    standingIronImportMarkets: 0,
+    selectedIronReserve: 0,
+    ironImportCofferGold: 0,
     firstClayId: null,
     firstPotterId: null,
     firstSmokehouseId: null,
@@ -415,6 +432,8 @@ function industrialMaterialBranchByKey(
     firstCharcoalId: null,
     firstIronMineId: null,
     firstSmithyId: null,
+    firstMarketId: null,
+    firstIronImportMarketId: null,
     firstToolSiteId: null,
   };
   branches.set(key, branch);
@@ -1345,6 +1364,25 @@ function completedProcessorOverview(
           componentFor,
         );
         branch.hasStaffedMarket = true;
+        branch.firstMarketId = earlierStableId(
+          branch.firstMarketId,
+          building.id,
+        );
+        // A staffed market can export pottery regardless of policy, but it
+        // sustains forge ore only when the player has selected the same
+        // physical reserve that authorizes standing regional imports.
+        const ironTarget = normalizeMarketplaceIronTarget(
+          building.marketplaceIronTarget,
+        );
+        if (ironTarget > 0) {
+          branch.standingIronImportMarkets += 1;
+          branch.selectedIronReserve += ironTarget;
+          branch.ironImportCofferGold += Math.max(0, building.gold ?? 0);
+          branch.firstIronImportMarketId = earlierStableId(
+            branch.firstIronImportMarketId,
+            building.id,
+          );
+        }
         break;
       }
       default:
@@ -1451,6 +1489,12 @@ function industrialMaterialRoadPlan(
   let localIronOutputPerDay = 0;
   let localIronConsumedPerDay = 0;
   let ironImportDemandPerDay = 0;
+  let ironImportUncoveredPerDay = 0;
+  let ironImportEnabledBranches = 0;
+  let ironImportBlockedBranches = 0;
+  let standingIronImportMarkets = 0;
+  let selectedIronReserve = 0;
+  let ironImportCofferGold = 0;
   let localIronStrandedPerDay = 0;
   let smithyIronPerDay = 0;
   let smithyCharcoalPerDay = 0;
@@ -1461,6 +1505,8 @@ function industrialMaterialRoadPlan(
   let firstPotteryBottleneckId: string | null = null;
   let firstPotteryBottleneckResidenceId: string | null = null;
   let firstSmithyBottleneckId: string | null = null;
+  let firstIronImportMarketId: string | null = null;
+  let firstIronImportAttentionId: string | null = null;
 
   for (const [branchKey, branch] of branches) {
     const branchPotteryDemand = branch.smokehousePotteryDemandPerDay
@@ -1483,6 +1529,15 @@ function industrialMaterialRoadPlan(
     charcoalFirewoodPerDay += branch.charcoalFirewoodPerDay;
     localIronOutputPerDay += branch.localIronOutputPerDay;
     smithyInstalledIronworkPerDay += branch.smithyIronworkPerDay;
+    standingIronImportMarkets += branch.standingIronImportMarkets;
+    selectedIronReserve += branch.selectedIronReserve;
+    ironImportCofferGold += branch.ironImportCofferGold;
+    if (branch.firstIronImportMarketId !== null) {
+      firstIronImportMarketId = earlierStableId(
+        firstIronImportMarketId,
+        branch.firstIronImportMarketId,
+      );
+    }
 
     const claySupportedPottery = branch.clayOutputPerDay
       * POTTER_POTTERY_PER_CYCLE
@@ -1563,11 +1618,37 @@ function industrialMaterialRoadPlan(
     const localIronSupportedIronwork = branch.localIronOutputPerDay
       * SMITHY_IRONWORK_PER_CYCLE
       / SMITHY_IRON_PER_CYCLE;
-    const branchIronworkOutput = Math.min(
+    const nonIronSupportedIronwork = Math.min(
       branch.smithyIronworkPerDay,
       charcoalSupportedIronwork,
       branch.hasStaffedWell ? Number.POSITIVE_INFINITY : 0,
-      branch.hasStaffedMarket
+    );
+    const nonIronSupportedRawIron = nonIronSupportedIronwork
+      * SMITHY_IRON_PER_CYCLE
+      / SMITHY_IRONWORK_PER_CYCLE;
+    const branchIronImportShortfall = Math.max(
+      0,
+      nonIronSupportedRawIron - branch.localIronOutputPerDay,
+    );
+    const standingIronImportEnabled = branch.standingIronImportMarkets > 0;
+    if (branchIronImportShortfall > 1e-9) {
+      if (standingIronImportEnabled) {
+        ironImportEnabledBranches += 1;
+      } else {
+        ironImportBlockedBranches += 1;
+        ironImportUncoveredPerDay += branchIronImportShortfall;
+        const attention = branch.firstMarketId ?? branch.firstSmithyId;
+        if (attention !== null) {
+          firstIronImportAttentionId = earlierStableId(
+            firstIronImportAttentionId,
+            attention,
+          );
+        }
+      }
+    }
+    const branchIronworkOutput = Math.min(
+      nonIronSupportedIronwork,
+      standingIronImportEnabled
         ? Number.POSITIVE_INFINITY
         : localIronSupportedIronwork,
     );
@@ -1668,6 +1749,12 @@ function industrialMaterialRoadPlan(
     localIronOutputPerDay,
     localIronConsumedPerDay,
     ironImportDemandPerDay,
+    ironImportUncoveredPerDay,
+    ironImportEnabledBranches,
+    ironImportBlockedBranches,
+    standingIronImportMarkets,
+    selectedIronReserve,
+    ironImportCofferGold,
     localIronStrandedPerDay,
     smithyIronPerDay,
     smithyCharcoalPerDay,
@@ -1680,6 +1767,8 @@ function industrialMaterialRoadPlan(
     firstPotteryBottleneckId,
     firstPotteryBottleneckResidenceId,
     firstSmithyBottleneckId,
+    firstIronImportMarketId,
+    firstIronImportAttentionId,
     firstUnmaintainedToolSiteId: overview.firstUnmaintainedToolSiteId,
   };
 }

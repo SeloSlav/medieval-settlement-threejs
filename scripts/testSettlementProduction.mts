@@ -181,6 +181,8 @@ materialState.residences.set('material-home', residence('material-home', 10));
 materialBuildings[3].firewood = 36;
 materialBuildings[1].water = 9;
 materialBuildings[4].water = 9;
+materialBuildings[6].marketplaceIronTarget = 24;
+materialBuildings[6].gold = 28;
 
 const leanClayState = emptyGameState();
 const leanClayPit = building('lean-clay-bank', 'clay_pit', 1);
@@ -376,12 +378,44 @@ approx(
   joinedMaterials.smithyIronPerDay,
   'a market-backed forge without a local mine must expose its full raw-iron import need',
 );
+assert.equal(joinedMaterials.ironImportEnabledBranches, 1);
+assert.equal(joinedMaterials.ironImportBlockedBranches, 0);
+assert.equal(joinedMaterials.ironImportUncoveredPerDay, 0);
+assert.equal(joinedMaterials.standingIronImportMarkets, 1);
+assert.equal(joinedMaterials.selectedIronReserve, 24);
+assert.equal(joinedMaterials.ironImportCofferGold, 28);
+assert.equal(joinedMaterials.firstIronImportMarketId, 'material-market');
+assert.equal(joinedMaterials.firstIronImportAttentionId, null);
 approx(
   joinedMaterials.roadCoveredToolIronworkPerDay,
   joinedMaterials.maintainedToolIronworkPerDay,
   'same-branch smithing should cover the currently maintained tool racks',
 );
 assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
+
+materialBuildings[6].marketplaceIronTarget = 0;
+const unorderedIronImports = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+).industrialMaterials;
+assert.equal(
+  unorderedIronImports.ironworkOutputPerDay,
+  0,
+  'a staffed market with no selected iron reserve must not grant unlimited forge ore',
+);
+assert.equal(unorderedIronImports.ironImportDemandPerDay, 0);
+assert.ok(unorderedIronImports.ironImportUncoveredPerDay > 0);
+assert.equal(unorderedIronImports.ironImportEnabledBranches, 0);
+assert.equal(unorderedIronImports.ironImportBlockedBranches, 1);
+assert.equal(unorderedIronImports.standingIronImportMarkets, 0);
+assert.equal(unorderedIronImports.selectedIronReserve, 0);
+assert.equal(
+  unorderedIronImports.firstIronImportAttentionId,
+  'material-market',
+  'the ledger should open the staffed market where the missing standing order can be set',
+);
+materialBuildings[6].marketplaceIronTarget = 24;
 
 materialState.buildings.delete(materialBuildings[5].id);
 const waterlessMaterialChain = computeSettlementProductionCapacity(
@@ -437,6 +471,8 @@ assert.ok(
 );
 assert.equal(localForge.smithyMatchedBranches, 1);
 assert.equal(localForge.ironImportDemandPerDay, 0);
+assert.equal(localForge.ironImportUncoveredPerDay, 0);
+assert.equal(localForge.ironImportBlockedBranches, 0);
 assert.ok(localForge.localIronConsumedPerDay > 0);
 
 localForgeState.buildings.delete(localWell.id);
@@ -465,6 +501,8 @@ assert.equal(
 );
 assert.ok(disconnectedLocalForge.localIronStrandedPerDay > 0);
 assert.ok(disconnectedLocalForge.smithyBlockedBranches >= 1);
+assert.equal(disconnectedLocalForge.ironImportBlockedBranches, 1);
+assert.ok(disconnectedLocalForge.ironImportUncoveredPerDay > 0);
 
 const materialField = materialState.farmFields.get('material-field');
 assert.ok(materialField);
@@ -2083,7 +2121,11 @@ const townHallRenderer = readFileSync(
 assert.match(townHallRenderer, /Material-chain roads/);
 assert.match(townHallRenderer, /Pottery chain/);
 assert.match(townHallRenderer, /Ironwork chain/);
-assert.match(townHallRenderer, /same-branch mines sustainably provide/);
+assert.match(townHallRenderer, /Raw iron supply/);
+assert.match(townHallRenderer, /same-branch mines supply/);
+assert.match(townHallRenderer, /twelve-unit Adriatic lots\/day/);
+assert.match(townHallRenderer, /first-lot rate/);
+assert.match(townHallRenderer, /forge branches lack/);
 assert.match(townHallRenderer, /road-local clay-backed kiln output/);
 assert.match(townHallRenderer, /Civilian tool upkeep/);
 assert.match(townHallRenderer, /current physical flow/);

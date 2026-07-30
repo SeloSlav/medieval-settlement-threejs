@@ -80,6 +80,8 @@ import {
   MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
 } from '../../economy/marketplaceSeedPolicy.ts';
 import {
+  MARKETPLACE_IRON_IMPORT_LOT,
+  MARKETPLACE_IRON_IMPORT_OFFER,
   MARKETPLACE_SALT_IMPORT_OFFER,
 } from '../../economy/marketplaceMaterialProcurementPolicy.ts';
 import { marketplaceTradeOfferCost } from '../../economy/marketplaceTrade.ts';
@@ -387,6 +389,49 @@ function formatIndustrialRoads(plan: IndustrialMaterialPlan): string {
   } forge-connected${
     blocked ? ` &middot; ${blocked}` : ' &middot; no upstream route break'
   }${potteryInspect}${smithyInspect}`;
+}
+
+function formatIronImportPlan(
+  plan: IndustrialMaterialPlan,
+  nextLotGoldCost: number,
+): string {
+  const selectedMarketInspect = plan.firstIronImportMarketId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstIronImportMarketId}" aria-label="Inspect first standing iron-reserve market">Inspect reserve</button>`;
+  const attentionInspect = plan.firstIronImportAttentionId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstIronImportAttentionId}" aria-label="Inspect first forge branch without standing iron supply">Inspect gap</button>`;
+  const local = `same-branch mines supply ${plan.localIronConsumedPerDay.toFixed(1)} / ${plan.localIronOutputPerDay.toFixed(1)} raw iron per day once downstream carts reopen held yards${
+    plan.localIronStrandedPerDay > 0.05
+      ? `, leaving ${plan.localIronStrandedPerDay.toFixed(1)} stranded`
+      : ''
+  }`;
+  const selected = plan.standingIronImportMarkets <= 0
+    ? 'no staffed market has a selected iron reserve'
+    : `${plan.standingIronImportMarkets} staffed ${
+        plan.standingIronImportMarkets === 1 ? 'market holds' : 'markets hold'
+      } ${plan.selectedIronReserve.toFixed(0)} selected reserve capacity and ${plan.ironImportCofferGold.toFixed(0)} coffer gold settlement-wide${selectedMarketInspect}`;
+  const importLotsPerDay = plan.ironImportDemandPerDay
+    / MARKETPLACE_IRON_IMPORT_LOT;
+  const importGoldPerDay = importLotsPerDay * Math.max(0, nextLotGoldCost);
+  const cofferRunway = importGoldPerDay <= 1e-9
+    ? null
+    : plan.ironImportCofferGold / importGoldPerDay;
+  const imports = plan.ironImportDemandPerDay <= 0.05
+    ? 'no standing iron draw at current local supply and viable forge capacity'
+    : `${plan.ironImportDemandPerDay.toFixed(1)} raw iron/day requires about ${importLotsPerDay.toFixed(2)} twelve-unit Adriatic lots/day and ${importGoldPerDay.toFixed(1)} gold/day at today&rsquo;s first-lot rate${
+        cofferRunway === null
+          ? ''
+          : ` &middot; current selected-market coffers cover about ${cofferRunway.toFixed(1)} days before fresh receipts`
+      }`;
+  const blocked = plan.ironImportBlockedBranches <= 0
+    ? `${plan.ironImportEnabledBranches} import-dependent ${
+        plan.ironImportEnabledBranches === 1 ? 'branch has' : 'branches have'
+      } a standing fallback`
+    : `${plan.ironImportBlockedBranches} otherwise viable ${
+        plan.ironImportBlockedBranches === 1 ? 'forge branch lacks' : 'forge branches lack'
+      } a selected reserve, leaving ${plan.ironImportUncoveredPerDay.toFixed(1)} raw iron/day uncovered${attentionInspect}`;
+  return `${local} &middot; ${selected} &middot; ${imports} &middot; ${blocked} &middot; regional rates rise with repeated buying`;
 }
 
 function formatGeologicalResourcePlan(
@@ -2371,7 +2416,14 @@ export function renderTownHallInspector(
       <li><span>Charcoal-clamp conditions</span><span>${Math.round(production.charcoalBurnerThroughputMultiplier * 100)}% current ${environment.weather} burn pace &middot; damp or frozen billets slow the shared forge-fuel bottleneck; drought dries the charge but also maximizes clamp fire danger</span></li>
       <li><span>Material-chain roads</span><span>${formatIndustrialRoads(industrialMaterials)}</span></li>
       <li><span>Pottery chain</span><span>${industrialMaterials.potteryOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.potterInstalledOutputPerDay.toFixed(1)} installed pottery per day &middot; ${industrialMaterials.potteryCoveredDemandPerDay.toFixed(1)} / ${industrialMaterials.potteryDemandPerDay.toFixed(1)} household + smokehouse demand covered &middot; ${industrialMaterials.potteryExportSurplusPerDay.toFixed(1)} exportable and ${industrialMaterials.potteryStrandedPerDay.toFixed(1)} stranded surplus &middot; consumes ${industrialMaterials.potterClayPerDay.toFixed(1)} / ${industrialMaterials.clayOutputPerDay.toFixed(1)} sustainable clay capacity once downstream carts reopen held yards + ${industrialMaterials.potterFirewoodPerDay.toFixed(1)} firewood + ${industrialMaterials.potterWaterPerDay.toFixed(1)} puddling water/day from staffed same-branch wells</span></li>
-      <li><span>Ironwork chain</span><span>${industrialMaterials.ironworkOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.smithyInstalledIronworkPerDay.toFixed(1)} installed ironwork per day &middot; needs ${industrialMaterials.smithyIronPerDay.toFixed(1)} raw iron + ${industrialMaterials.smithyCharcoalPerDay.toFixed(1)} / ${industrialMaterials.charcoalOutputPerDay.toFixed(1)} charcoal capacity + ${industrialMaterials.smithyWaterPerDay.toFixed(1)} quench water from staffed same-branch wells &middot; same-branch mines sustainably provide ${industrialMaterials.localIronConsumedPerDay.toFixed(1)} / ${industrialMaterials.localIronOutputPerDay.toFixed(1)} raw iron per day once downstream carts reopen held yards, leaving ${industrialMaterials.ironImportDemandPerDay.toFixed(1)} for market imports and ${industrialMaterials.localIronStrandedPerDay.toFixed(1)} locally stranded &middot; charcoal yards consume ${industrialMaterials.charcoalFirewoodPerDay.toFixed(1)} firewood/day</span></li>
+      <li><span>Ironwork chain</span><span>${industrialMaterials.ironworkOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.smithyInstalledIronworkPerDay.toFixed(1)} installed ironwork per day &middot; needs ${industrialMaterials.smithyIronPerDay.toFixed(1)} raw iron + ${industrialMaterials.smithyCharcoalPerDay.toFixed(1)} / ${industrialMaterials.charcoalOutputPerDay.toFixed(1)} charcoal capacity + ${industrialMaterials.smithyWaterPerDay.toFixed(1)} quench water from staffed same-branch wells &middot; charcoal yards consume ${industrialMaterials.charcoalFirewoodPerDay.toFixed(1)} firewood/day</span></li>
+      <li><span>Raw iron supply</span><span>${formatIronImportPlan(
+        industrialMaterials,
+        marketplaceTradeOfferCost(
+          MARKETPLACE_IRON_IMPORT_OFFER,
+          marketState,
+        ).amount,
+      )}</span></li>
       <li><span>Civilian tool upkeep</span><span>${industrialMaterials.toolMaintainedSites} / ${industrialMaterials.toolEligibleSites} staffed heavy-tool sites equipped &middot; ${industrialMaterials.roadCoveredToolIronworkPerDay.toFixed(2)} / ${industrialMaterials.maintainedToolIronworkPerDay.toFixed(2)} maintained-rack design wear covered on the same road branches &middot; ${industrialMaterials.roadCoveredFullToolIronworkPerDay.toFixed(2)} / ${industrialMaterials.fullToolIronworkPerDay.toFixed(2)} full-rack design wear &middot; target-held extraction consumes neither tools nor supports until yard space opens &middot; same-branch smithy surplus before carpentry ${industrialMaterials.ironworkSurplusAfterToolUpkeep.toFixed(2)}${unmaintainedToolInspect}</span></li>
       <li><span>Mill / bakery balance</span><span>${production.flourOutputPerDay.toFixed(1)} flour made / ${production.bakeryFlourCapacityPerDay.toFixed(1)} bakery intake · ${flourBalance}</span></li>
       <li><span>Grain-chain roads</span><span>${formatGrainChainRoads(production.grainChainRoads)}</span></li>
