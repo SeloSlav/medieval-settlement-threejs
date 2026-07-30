@@ -12,6 +12,10 @@ import {
   placeProjectedMapButton,
 } from './mapIconProjection.ts';
 import {
+  describeGeologicalMapMarker,
+  geologicalNodeForMapMarker,
+} from './geologicalMapMarkerState.ts';
+import {
   BERRY_ICON_HTML,
   CLAY_ICON_HTML,
   FISH_ICON_HTML,
@@ -84,21 +88,26 @@ export class ForagingMapIcons {
       }
 
       const node = marker.kind === 'clay'
-        ? geologicalNodes.get(marker.id)
+        ? geologicalNodeForMapMarker(marker, geologicalNodes)
         : nodes.get(marker.id);
-      const clayDepleted = marker.kind === 'clay'
-        && node?.isRich !== true
-        && (node?.remaining ?? 0) <= 0;
+      const geologicalPresentation = marker.kind === 'clay'
+        ? describeGeologicalMapMarker(marker, node)
+        : null;
       button.classList.toggle(
         'foraging-map-icon--depleted',
-        clayDepleted || (marker.kind !== 'clay' && (node?.remaining ?? 0) <= 0),
+        geologicalPresentation?.level === 'depleted'
+          || (marker.kind !== 'clay' && (node?.remaining ?? 0) <= 0),
       );
-      if (marker.kind === 'clay' && node) {
-        const reserve = node.isRich
-          ? 'deep source'
-          : `${Math.max(0, Math.round(node.remaining))} clay remaining`;
-        button.dataset.tooltip = `${marker.label} · ${reserve}`;
-        button.setAttribute('aria-label', `${marker.label}, ${reserve}`);
+      for (const level of ['low', 'deep'] as const) {
+        button.classList.toggle(
+          `foraging-map-icon--${level}`,
+          geologicalPresentation?.level === level,
+        );
+      }
+      if (geologicalPresentation) {
+        button.dataset.tooltip = geologicalPresentation.label;
+        button.dataset.reserveLevel = geologicalPresentation.level;
+        button.setAttribute('aria-label', geologicalPresentation.label);
       }
       placeProjectedMapButton(
         button,

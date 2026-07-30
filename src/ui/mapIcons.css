@@ -48,6 +48,66 @@
   border-color: rgba(224, 222, 201, 0.9);
 }
 
+.quarry-map-icon.quarry-map-icon--low,
+.foraging-map-icon.foraging-map-icon--low {
+  border-color: rgba(232, 157, 66, 0.96);
+  box-shadow:
+    0 8px 22px var(--shadow),
+    0 0 0 2px rgba(214, 118, 43, 0.26);
+}
+
+.quarry-map-icon.quarry-map-icon--depleted {
+  opacity: 0.52;
+  filter: saturate(0.28);
+}
+
+.quarry-map-icon.quarry-map-icon--deep,
+.foraging-map-icon.foraging-map-icon--deep {
+  border-color: rgba(117, 172, 142, 0.94);
+  box-shadow:
+    0 8px 22px var(--shadow),
+    0 0 0 2px rgba(91, 145, 116, 0.22);
+}
+
+.quarry-map-icon--low::after,
+.quarry-map-icon--deep::after,
+.quarry-map-icon--depleted::after,
+.foraging-map-icon--low::after,
+.foraging-map-icon--deep::after,
+.foraging-map-icon--depleted::after {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(31, 24, 14, 0.78);
+  border-radius: 999px;
+  color: #fff4d4;
+  font: 800 9px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.38);
+  pointer-events: none;
+}
+
+.quarry-map-icon--low::after,
+.foraging-map-icon--low::after {
+  content: '!';
+  background: #a85d2e;
+}
+
+.quarry-map-icon--deep::after,
+.foraging-map-icon--deep::after {
+  content: '\221E';
+  background: #496c58;
+}
+
+.quarry-map-icon--depleted::after,
+.foraging-map-icon--depleted::after {
+  content: '\00D7';
+  background: #66584b;
+}
+
 .quarry-map-icons.is-interaction-blocked .quarry-map-icon,
 .foraging-map-icons.is-interaction-blocked .foraging-map-icon {
   pointer-events: none;

@@ -70,6 +70,7 @@ export function createWorldMapUi(options: {
     domElement,
     terrain,
     markers: quarryMarkers,
+    getGeologicalNodes: () => getGameState().quarries,
     getCamera,
     getZoomPercent,
     onQuarrySelect,

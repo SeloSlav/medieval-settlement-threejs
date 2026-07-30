@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import {
@@ -35,6 +36,11 @@ import {
   IRON_ICON_HTML,
   SALT_ICON_HTML,
 } from '../src/map/resourceMapIconArt.ts';
+import {
+  describeGeologicalMapMarker,
+  geologicalNodeForMapMarker,
+  LOW_GEOLOGICAL_RESERVE_SHARE,
+} from '../src/map/geologicalMapMarkerState.ts';
 import { buildLayoutWorldMapMarkers } from '../src/map/worldMapMarkers.ts';
 import { renderMineralMineInspector } from '../src/resources/inspector/mineralMineRenderer.ts';
 import { renderLargeQuarryInspector } from '../src/resources/inspector/largeQuarryRenderer.ts';
@@ -303,6 +309,118 @@ assert.equal(
 );
 assert.ok(IRON_ICON_HTML.includes('map-resource-icon-glyph--iron'));
 assert.ok(SALT_ICON_HTML.includes('map-resource-icon-glyph--salt'));
+
+const ordinaryIronMarker = markers.find(
+  (marker) => marker.resource === 'iron' && marker.label === 'Iron deposit',
+);
+assert.ok(ordinaryIronMarker, 'the default seed must expose an ordinary iron marker');
+const ordinaryIronNode = mineralNode(
+  ordinaryIronMarker.id,
+  'iron',
+  ordinaryIronMarker.x,
+  ordinaryIronMarker.z,
+  60,
+  300,
+  false,
+);
+const geologicalNodes = new Map([[ordinaryIronNode.nodeId, ordinaryIronNode]]);
+assert.equal(
+  geologicalNodeForMapMarker(ordinaryIronMarker, geologicalNodes),
+  ordinaryIronNode,
+  'projected and minimap quarry markers must resolve from the geological node table',
+);
+assert.equal(
+  geologicalNodeForMapMarker(
+    { id: ordinaryIronMarker.id, kind: 'game' },
+    geologicalNodes,
+  ),
+  undefined,
+  'wild-resource markers must not masquerade as geological nodes',
+);
+assert.equal(LOW_GEOLOGICAL_RESERVE_SHARE, 0.2);
+assert.deepEqual(
+  describeGeologicalMapMarker(ordinaryIronMarker, ordinaryIronNode),
+  {
+    label: 'Iron deposit · 60 / 300 finite iron remaining',
+    level: 'low',
+  },
+);
+assert.equal(
+  describeGeologicalMapMarker(
+    ordinaryIronMarker,
+    { ...ordinaryIronNode, remaining: 61 },
+  ).level,
+  'stable',
+  'the low-reserve badge must begin only at the final fifth of a finite seam',
+);
+assert.equal(
+  describeGeologicalMapMarker(
+    ordinaryIronMarker,
+    { ...ordinaryIronNode, remaining: 0 },
+  ).level,
+  'depleted',
+);
+assert.deepEqual(
+  describeGeologicalMapMarker(
+    { label: 'Rich salt deposit' },
+    mineralNode('rich-salt', 'salt', 0, 0, 1_080, 1_080, true),
+  ),
+  {
+    label: 'Rich salt deposit · rich deep salt source · does not deplete',
+    level: 'deep',
+  },
+);
+assert.deepEqual(
+  describeGeologicalMapMarker(
+    { label: 'Rich stone deposit' },
+    {
+      ...ordinaryIronNode,
+      nodeId: 'rich-stone',
+      resource: 'stone',
+      remaining: 120,
+      maxYield: 600,
+      isRich: true,
+    },
+  ),
+  {
+    label: 'Rich stone deposit · 120 / 600 surface stone remaining · supports a non-depleting Large Quarry',
+    level: 'deep',
+  },
+  'rich stone must distinguish its finite visible outcrop from its deep quarry source',
+);
+assert.deepEqual(
+  describeGeologicalMapMarker(
+    { label: 'Rich clay deposit' },
+    {
+      ...ordinaryIronNode,
+      nodeId: 'rich-clay',
+      resource: 'clay',
+      remaining: 720,
+      maxYield: 720,
+      isRich: true,
+    },
+  ),
+  {
+    label: 'Rich clay deposit · rich deep clay source · does not deplete',
+    level: 'deep',
+  },
+);
+const geologicalMarkerProfileStarted = performance.now();
+for (let index = 0; index < 100_000; index++) {
+  describeGeologicalMapMarker(
+    ordinaryIronMarker,
+    {
+      ...ordinaryIronNode,
+      remaining: index % 301,
+    },
+  );
+}
+const geologicalMarkerProfileMs =
+  performance.now() - geologicalMarkerProfileStarted;
+assert.ok(
+  geologicalMarkerProfileMs < 250,
+  `100k live geological marker projections took ${geologicalMarkerProfileMs.toFixed(1)} ms`,
+);
 
 const generated = JSON.parse(
   readFileSync('server/generated/world_quarries.json', 'utf8'),
@@ -755,6 +873,33 @@ const buildingInspectorSource = readFileSync(
   'src/resources/inspector/buildingRenderer.ts',
   'utf8',
 );
+const quarryMapIconSource = readFileSync(
+  'src/map/QuarryMapIcons.ts',
+  'utf8',
+);
+const minimapSource = readFileSync(
+  'src/map/TerrainMinimapOverlay.ts',
+  'utf8',
+);
+const worldMapUiSource = readFileSync(
+  'src/app/worldMapIcons.ts',
+  'utf8',
+);
+assert.match(
+  quarryMapIconSource,
+  /getGeologicalNodes[\s\S]*describeGeologicalMapMarker[\s\S]*reserveLevel/,
+  'stone, iron, and salt projected icons must refresh from live geological rows',
+);
+assert.match(
+  minimapSource,
+  /geologicalNodeForMapMarker\([\s\S]*state\.quarries[\s\S]*describeGeologicalMapMarker/,
+  'the minimap must resolve quarry and clay markers from geological rows rather than the foraging table',
+);
+assert.match(
+  worldMapUiSource,
+  /getGeologicalNodes:\s*\(\)\s*=>\s*getGameState\(\)\.quarries/,
+  'the projected quarry layer must receive the authoritative live deposit map',
+);
 assert.match(
   buildingInspectorSource,
   /case 'mine':[\s\S]*renderMineralMineInspector/,
@@ -811,7 +956,9 @@ assert.match(
   'the mine card must use its distinct generated artwork',
 );
 
-console.log('iron and salt deposit system tests passed');
+console.log(
+  `iron and salt deposit system tests passed (${geologicalMarkerProfileMs.toFixed(1)} ms / 100k marker reads)`,
+);
 
 function worldSettings(
   overrides: Partial<WorldGenerationSettings>,

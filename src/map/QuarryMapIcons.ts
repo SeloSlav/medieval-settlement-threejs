@@ -1,11 +1,16 @@
 import * as THREE from 'three';
 import type { WorldMapMarker } from './worldMapMarkers.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
+import type { ResourceNodeState } from '../resources/types.ts';
 import {
   beginMapIconFrame,
   createMapIconRoot,
   placeProjectedMapButton,
 } from './mapIconProjection.ts';
+import {
+  describeGeologicalMapMarker,
+  geologicalNodeForMapMarker,
+} from './geologicalMapMarkerState.ts';
 import {
   IRON_ICON_HTML,
   QUARRY_ICON_HTML,
@@ -17,6 +22,7 @@ type QuarryMapIconsOptions = {
   domElement: HTMLElement;
   terrain: Terrain;
   markers: readonly WorldMapMarker[];
+  getGeologicalNodes: () => Map<string, ResourceNodeState>;
   getCamera: () => THREE.PerspectiveCamera | null;
   getZoomPercent: () => number;
   onQuarrySelect: (quarryId: string) => void;
@@ -63,9 +69,27 @@ export class QuarryMapIcons {
     );
     if (!frame) return;
 
+    const nodes = this.options.getGeologicalNodes();
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
-      placeProjectedMapButton(button, marker.x, marker.z, worldPoint, frame);
+      const node = geologicalNodeForMapMarker(marker, nodes);
+      const presentation = describeGeologicalMapMarker(marker, node);
+      button.dataset.tooltip = presentation.label;
+      button.dataset.reserveLevel = presentation.level;
+      button.setAttribute('aria-label', presentation.label);
+      for (const level of ['low', 'depleted', 'deep'] as const) {
+        button.classList.toggle(
+          `quarry-map-icon--${level}`,
+          presentation.level === level,
+        );
+      }
+      placeProjectedMapButton(
+        button,
+        node?.x ?? marker.x,
+        node?.z ?? marker.z,
+        worldPoint,
+        frame,
+      );
     }
   }
 

@@ -6,6 +6,10 @@ import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { createTerrainMinimapImage } from './createTerrainMinimapImage.ts';
 import { RESOURCE_MAP_ICON_HTML } from './resourceMapIconArt.ts';
 import {
+  describeGeologicalMapMarker,
+  geologicalNodeForMapMarker,
+} from './geologicalMapMarkerState.ts';
+import {
   riverFieldBounds,
   worldDirectionToMapRotation,
   worldToMapPercent,
@@ -159,13 +163,34 @@ export class TerrainMinimapOverlay {
     const foragingNodes = state.foragingNodes;
     for (const entry of this.layoutMarkerEntries) {
       entry.hidden = !isWorldMapForagingMarkerVisible(entry.marker, foragingNodes);
-      const node = entry.marker.kind === 'clay'
-        ? state.quarries.get(entry.marker.id)
-        : foragingNodes.get(entry.marker.id);
+      const geologicalNode = geologicalNodeForMapMarker(
+        entry.marker,
+        state.quarries,
+      );
+      const node = geologicalNode ?? foragingNodes.get(entry.marker.id);
+      const geologicalPresentation = geologicalNode
+        ? describeGeologicalMapMarker(entry.marker, geologicalNode)
+        : null;
       entry.element.classList.toggle(
         'terrain-minimap__marker--depleted',
-        Boolean(node && node.isRich !== true && node.remaining <= 0),
+        geologicalPresentation?.level === 'depleted'
+          || Boolean(
+            node
+            && geologicalNode === undefined
+            && node.isRich !== true
+            && node.remaining <= 0,
+          ),
       );
+      for (const level of ['low', 'deep'] as const) {
+        entry.element.classList.toggle(
+          `terrain-minimap__marker--${level}`,
+          geologicalPresentation?.level === level,
+        );
+      }
+      entry.element.dataset.reserveLevel =
+        geologicalPresentation?.level ?? 'unknown';
+      entry.element.title =
+        geologicalPresentation?.label ?? entry.marker.label;
     }
     this.refreshLayoutMarkerPositions();
   }
@@ -196,9 +221,8 @@ export class TerrainMinimapOverlay {
     entry.element.hidden = entry.hidden;
     if (entry.hidden) return;
     const state = this.options.getGameState();
-    const node = entry.marker.kind === 'clay'
-      ? state.quarries.get(entry.marker.id)
-      : state.foragingNodes.get(entry.marker.id);
+    const node = geologicalNodeForMapMarker(entry.marker, state.quarries)
+      ?? state.foragingNodes.get(entry.marker.id);
     const point = worldToMapPercent(
       node?.x ?? entry.marker.x,
       node?.z ?? entry.marker.z,
