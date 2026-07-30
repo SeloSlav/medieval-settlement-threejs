@@ -1,0 +1,120 @@
+{
+  "round": 18,
+  "evidenceType": "causally paired preceding-frame CPU trace plus lighter shingle-underside residence capture",
+  "sceneStatus": "rejected",
+  "qualityGatesProven": 1,
+  "protocolValidity": {
+    "run": "valid",
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "warmup": {
+      "discardedRoutes": 1,
+      "strategicPendingAtReset": 0,
+      "collectorReset": true,
+      "measuredRouteCompleted": true,
+      "measuredPhasesTraversed": 3
+    },
+    "windowSeconds": 30
+  },
+  "run": {
+    "medianFps": 82.64462809918349,
+    "meanFps": 94.22799374702099,
+    "onePercentLowFps": 54.22587883319953,
+    "p99FrameMs": 18.441379310347937,
+    "maxFrameMs": 24.19999999999709,
+    "framesOver25Ms": 0,
+    "framesOver50Ms": 0,
+    "sampleCount": 2827,
+    "medianDrawCalls": 157,
+    "medianFrameCalls": 15,
+    "medianTriangles": 3375185,
+    "forestTotalTrees": 1651,
+    "forestVisibleTrees": 986,
+    "forestDraws": 20,
+    "forestPendingBucketsAtFreeze": 0,
+    "forestConvergedAtFreeze": true,
+    "measuredForestWork": 0,
+    "groundcoverMode": "frozen",
+    "groundcoverPendingSlots": 0,
+    "groundcoverConverged": true
+  },
+  "worstOnePercent": {
+    "contract": "ceil(sampleCount * 0.01), capped at 64, sorted worst-first",
+    "expectedRecords": 29,
+    "actualRecords": 29,
+    "meanFrameMs": 18.441379310347937,
+    "recordsWithForestWork": 0,
+    "recordsWithGroundcoverDelta": 0,
+    "precedingFrameCpuDurationMs": {
+      "minimum": 4.299999997019768,
+      "maximum": 24.5,
+      "mean": 6.262068964540958,
+      "serializedSemantics": {
+        "alignment": "preceding-frame-callback-at-interval-start",
+        "start": "animation-frame-callback-entry",
+        "end": "animation-frame-callback-completion"
+      }
+    },
+    "isolatedMaximum": {
+      "frameIntervalMs": 24.19999999999709,
+      "precedingFrameCpuDurationMs": 24.5,
+      "phase": "settlement",
+      "drawCalls": 148,
+      "triangles": 4454761
+    },
+    "withoutIsolatedMaximum": {
+      "records": 28,
+      "meanFrameMs": 18.235714285717613,
+      "reciprocalFps": 54.837446141783964,
+      "precedingCpuRangeMs": [4.299999997019768, 8.5]
+    }
+  },
+  "performanceCritic": {
+    "status": "fail",
+    "passes": [
+      "Warmed capture protocol is valid",
+      "Worst-one-percent record count, order, mean, p99, and reciprocal 1% low agree",
+      "Each interval is identity-matched to the callback beginning at its interval start",
+      "Forest stays rendered and both reusable update paths remain frozen and converged",
+      "Every retained record has zero forest and groundcover deltas",
+      "Median remains in the 60 to 90 FPS band",
+      "Frames over 25 ms and over 50 ms are both zero"
+    ],
+    "largestGap": "The run still records a 54.23 FPS 1% low. Removing the isolated 24.2 ms maximum leaves 28 records averaging 18.24 ms, so the persistent cadence band remains the chief failure.",
+    "inference": "The isolated maximum is CPU-associated, but it is not the cause of the 1% failure. Most retained 18.2 to 18.3 ms intervals follow only 4.3 to 8.5 ms of synchronous CPU work.",
+    "requiredNext": "Add exactly two timestamps around render submission and serialize update/pre-render, synchronous render-submission, and post-render telemetry/evidence/DOM subspans for the preceding callback."
+  },
+  "residenceCritic": {
+    "status": "pass",
+    "scope": "right-gable underside wood identity",
+    "capture": "residence-round11.png",
+    "blindResult": "B wins over Round 10",
+    "passes": [
+      "Stable underside samples around median sRGB 66/59/40, near the requested 63/60/45 neighborhood",
+      "At gameplay distance the underside reads as matte shadowed aged timber tied to the rake and fascia",
+      "The unchanged top does not acquire a slate or tile hybrid identity",
+      "The value family is consistent with supplied references 3, 7, and 9"
+    ],
+    "largestGap": "The underside has overly even repeated banding compared with reference 7's coarse hand-worked breakup, but that is outside this value-only decision.",
+    "requiredNext": "No further value change required.",
+    "caveat": "Static captures cannot judge in-motion foliage or material shimmer."
+  },
+  "files": [
+    {
+      "file": "groundcover-forest-frozen-preceding-cpu-warm.json",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round18-preceding-cpu-warm.json",
+      "bytes": 36215,
+      "sha256": "BB27D6D94946D41019390EE9BC33158CD2EFD2C5BE4157B569AF5F7AA75EC2C5"
+    },
+    {
+      "file": "residence-round11.png",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\residence-visual-round11-underside-value.png",
+      "bytes": 198156,
+      "sha256": "2BCF43E47EEC2F65AE73F8D99E6620249393963B2C3724640217D6595895902F"
+    }
+  ]
+}

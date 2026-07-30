@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { resolveGrassStreamViewTransition } from '../src/grass/grassStreamLifecycle.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const grassSource = readFileSync(
@@ -90,6 +91,85 @@ assert.match(
   fieldSource,
   /MIN_WILDFLOWER_SPACING_SQ = 0\.9 \* 0\.9/,
   'wildflower colonies should be able to gather into natural patches',
+);
+assert.match(
+  fieldSource,
+  /GRASS_STREAM_UPDATE_BUDGET_MS = 2[\s\S]*runStreamSlotUpdateChunk/,
+  'groundcover generation and commits must use the reusable two-millisecond deadline scheduler',
+);
+assert.match(
+  fieldSource,
+  /generationIterator[\s\S]*budget\.deadlineMs/,
+  'slot generation must resume across deadline-bounded substeps before an atomic commit',
+);
+assert.match(
+  fieldSource,
+  /activeSlotJob\.phase === 'generate'[\s\S]*activeSlotJob\.phase = 'commit'[\s\S]*commitSlot\(activeSlotJob\)/,
+  'live instance buffers must remain untouched until staged generation completes',
+);
+assert.match(
+  fieldSource,
+  /planSlotAttributeUpdateRanges[\s\S]*clearUpdateRanges\(\)[\s\S]*addUpdateRange/,
+  'GPU uploads must cover only the actual changed fixed-capacity slots',
+);
+assert.match(
+  fieldSource,
+  /primeAndFreezeStream/,
+  'the frozen-stream A/B must prefill real grass before stopping route-time writes',
+);
+assert.match(fieldSource, /mode = 'priming-frozen'/);
+assert.match(fieldSource, /mode = 'frozen'/);
+assert.doesNotMatch(
+  `${lodSource}\n${fieldSource}`,
+  /GRASS_STREAM_(?:SLOTS_PER_FRAME|BURST_CAP)|streamBurstPending/,
+  'fixed 36/14/6 slot bursts must not return',
+);
+assert.doesNotMatch(
+  fieldSource,
+  /computeBoundingSphere/,
+  'unculled groundcover meshes must not rescan instance bounds while streaming',
+);
+
+assert.deepEqual(
+  resolveGrassStreamViewTransition({
+    mode: 'frozen',
+    firstPersonActive: false,
+    wasFirstPersonActive: true,
+    grassVisible: false,
+    hasFrozenPrime: false,
+  }),
+  {
+    preserveFrozenState: true,
+    invalidateForFirstPersonEntry: false,
+    clearInactiveStream: false,
+  },
+  'a post-prime strategic update must preserve pending=0/converged frozen buffers',
+);
+assert.deepEqual(
+  resolveGrassStreamViewTransition({
+    mode: 'frozen',
+    firstPersonActive: true,
+    wasFirstPersonActive: false,
+    grassVisible: true,
+    hasFrozenPrime: false,
+  }),
+  {
+    preserveFrozenState: true,
+    invalidateForFirstPersonEntry: false,
+    clearInactiveStream: false,
+  },
+  'entering the road-eye phase must reveal frozen grass without invalidating it',
+);
+assert.equal(
+  resolveGrassStreamViewTransition({
+    mode: 'active',
+    firstPersonActive: false,
+    wasFirstPersonActive: false,
+    grassVisible: false,
+    hasFrozenPrime: false,
+  }).clearInactiveStream,
+  true,
+  'ordinary hidden streaming should still release stale pending work',
 );
 
 const stalkBlock = wildflowerSource.slice(

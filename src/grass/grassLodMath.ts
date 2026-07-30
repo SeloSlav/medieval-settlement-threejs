@@ -53,15 +53,6 @@ export const GRASS_BLADE_NEAR_RADIUS = 62;
 /** Tighter stream disc while walking in first person — enough cover, fewer chunks. */
 export const GRASS_BLADE_NEAR_RADIUS_FIRST_PERSON = 46;
 
-/** Slot columns/rows refreshed per frame when the stream recentres (orbit zoom). */
-export const GRASS_STREAM_SLOTS_PER_FRAME = 14;
-
-/** Lower per-frame budget while the first-person focus moves continuously. */
-export const GRASS_STREAM_SLOTS_PER_FRAME_FIRST_PERSON = 6;
-
-/** Max slots processed in one frame even during an initial fill burst. */
-export const GRASS_STREAM_BURST_CAP = 36;
-
 /** Spatial chunk size for streamed grass batches (larger = fewer pan hitches). */
 export const GRASS_BLADE_CHUNK_SIZE = 8;
 

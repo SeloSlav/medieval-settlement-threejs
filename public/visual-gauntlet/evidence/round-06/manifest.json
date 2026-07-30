@@ -1,0 +1,49 @@
+{
+  "round": 6,
+  "sceneStatus": "rejected",
+  "qualityGatesProven": 0,
+  "protocolValidity": {
+    "status": "valid",
+    "backend": "webgpu",
+    "cssViewport": "1280x720",
+    "drawingBuffer": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback"
+  },
+  "instrumentationAudit": {
+    "critic": 9,
+    "status": "pass",
+    "scope": "Standards-first GPUAdapterInfo fallback proof correction and serialized trace integrity",
+    "sceneAcceptanceImplication": "none"
+  },
+  "staticBatching": {
+    "settlement": {
+      "beforeMeshes": 1940,
+      "afterBatches": 36
+    },
+    "road": {
+      "beforeMeshes": 14,
+      "afterBatches": 2
+    },
+    "preserved": [
+      "geometry",
+      "materials",
+      "17 wood roofs"
+    ]
+  },
+  "files": [
+    {
+      "file": "performance-trace.json",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round6-perf-report.json",
+      "bytes": 1328,
+      "sha256": "228CC33B8FA6560298D95D6C665E9225DF7F0EBF6DD0C49D550B2FC6C487719B"
+    },
+    {
+      "file": "route-frame.png",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round6-route-frame.png",
+      "bytes": 135315,
+      "sha256": "0D6445F2B93C5F12FDAA81BC71B27AB2112A900E3059C940D329DD07A5A86865"
+    }
+  ]
+}

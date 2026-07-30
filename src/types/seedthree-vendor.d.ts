@@ -90,6 +90,8 @@ declare module '@seedthree/core/forest-lod.js' {
     lodHysteresis?: number;
     minimumCameraMove?: number;
     minimumDirectionAngle?: number;
+    minimumProjectionChange?: number;
+    minimumCasterBoundsChange?: number;
     casterBounds?: {
       minX: number;
       maxX: number;
@@ -103,7 +105,23 @@ declare module '@seedthree/core/forest-lod.js' {
   export type ForestLodSelector = {
     readonly items: readonly ForestLodItem[];
     readonly revision: number;
+    readonly telemetry: {
+      calls: number;
+      evaluations: number;
+      skips: number;
+      lastTriggerReasons: ForestLodTriggerReason[];
+      triggerReasons: Record<ForestLodTriggerReason, number>;
+    };
   };
+
+  export type ForestLodTriggerReason =
+    | 'initial'
+    | 'force'
+    | 'camera-moved'
+    | 'camera-turned'
+    | 'projection-envelope'
+    | 'caster-bounds-envelope'
+    | 'selection-policy';
 
   export type ForestLodSelection = {
     nearIndices: number[];
@@ -114,6 +132,7 @@ declare module '@seedthree/core/forest-lod.js' {
     culledCount: number;
     changed: boolean;
     skipped: boolean;
+    triggerReasons: ForestLodTriggerReason[];
     revision: number;
   };
 
@@ -149,6 +168,195 @@ declare module '@seedthree/core/forest-lod.js' {
     items: readonly ForestLodItem[],
     options?: ForestCanopyCompanionOptions,
   ): ForestCanopyCompanion[][];
+}
+
+declare module '@seedthree/core/forest-update-budget.js' {
+  export type SeedThreeBucketSelection = {
+    near: readonly number[];
+    overview: readonly number[];
+  };
+
+  export function planForestBucketUpdates(
+    current: readonly SeedThreeBucketSelection[],
+    desired: readonly SeedThreeBucketSelection[],
+    previousPendingBucketIndices: readonly number[],
+    maxBucketUploads: number,
+  ): {
+    uploadBucketIndices: number[];
+    pendingBucketIndices: number[];
+  };
+
+  export function coalesceForestBucketUpdates(
+    current: readonly SeedThreeBucketSelection[],
+    desired: readonly SeedThreeBucketSelection[],
+    previousPendingBucketIndices: readonly number[],
+  ): {
+    pendingBucketIndices: number[];
+    cancelledBucketIndices: number[];
+  };
+
+  export function runForestBucketUpdateChunk(
+    current: readonly SeedThreeBucketSelection[],
+    desired: readonly SeedThreeBucketSelection[],
+    previousPendingBucketIndices: readonly number[],
+    options: {
+      maxDurationMs: number;
+      minimumChunkHeadroomMs?: number;
+      maxChunks: number;
+      maxBucketCompletions: number;
+      now?: () => number;
+      applyBucketChunk(
+        bucketIndex: number,
+        context: {
+          deadlineMs: number;
+          elapsedMs: number;
+          remainingMs: number;
+        },
+      ): boolean | { completed: boolean };
+    },
+  ): {
+    completedBucketIndices: number[];
+    pendingBucketIndices: number[];
+    cancelledBucketIndices: number[];
+    chunks: number;
+    durationMs: number;
+    stopReason: 'converged' | 'chunk-limit' | 'time-limit' | 'headroom-limit';
+  };
+}
+
+declare module '@seedthree/core/instance-matrix-chunks.js' {
+  import type * as THREE from 'three';
+
+  export const DEFAULT_INSTANCE_MATRIX_WRITES_PER_CHUNK: number;
+  export const DEFAULT_INSTANCE_MATRIX_DEADLINE_CHECK_INTERVAL: number;
+
+  export type InstanceMatrixLodSet = {
+    branches: THREE.InstancedMesh | null;
+    cards: Array<THREE.InstancedMesh & { userData: Record<string, unknown> }>;
+  };
+
+  export type InstanceMatrixWriteJob = {
+    completed: boolean;
+  };
+
+  export type InstanceMatrixWriteChunkResult = {
+    completed: boolean;
+    matrixWrites: number;
+    durationMs: number;
+  };
+
+  export type InstanceMatrixWriteSlicesResult = {
+    completed: boolean;
+    chunks: number;
+    matrixWrites: number;
+    maxMatrixWritesInChunk: number;
+    durationMs: number;
+    stopReason:
+      | 'converged'
+      | 'chunk-limit'
+      | 'time-limit'
+      | 'headroom-limit'
+      | 'no-progress';
+  };
+
+  export function createInstanceMatrixWriteJob<
+    TSlot extends {
+      matrix: THREE.Matrix4;
+      pos: { x: number; y: number; z: number };
+    },
+  >(
+    nearSet: InstanceMatrixLodSet,
+    overviewSet: InstanceMatrixLodSet,
+    slots: TSlot[],
+    nearSlotIndices: readonly number[],
+    overviewSlotIndices: readonly number[],
+    options?: {
+      isSlotVisible?: (slot: TSlot) => boolean;
+      resolveTreeOriginY?: (slot: TSlot) => number;
+    },
+  ): InstanceMatrixWriteJob;
+
+  export function runInstanceMatrixWriteChunk(
+    job: InstanceMatrixWriteJob,
+    options: {
+      deadlineMs: number;
+      maxMatrixWrites?: number;
+      deadlineCheckInterval?: number;
+      now?: () => number;
+    },
+  ): InstanceMatrixWriteChunkResult;
+
+  export function runInstanceMatrixWriteSlices(
+    job: InstanceMatrixWriteJob,
+    options: {
+      deadlineMs: number;
+      minimumChunkHeadroomMs?: number;
+      maxChunks?: number;
+      maxMatrixWritesPerChunk?: number;
+      deadlineCheckInterval?: number;
+      now?: () => number;
+    },
+  ): InstanceMatrixWriteSlicesResult;
+}
+
+declare module '@seedthree/core/stream-slot-budget.js' {
+  export type StreamSlotRequest = {
+    slotIndex: number;
+    sortKey?: number;
+  };
+
+  export function coalesceStreamSlotRequests<T extends StreamSlotRequest>(
+    previousPending: readonly T[],
+    newestRequests: readonly T[],
+  ): {
+    pending: T[];
+    cancelledSlotIndices: number[];
+  };
+
+  export function runStreamSlotUpdateChunk<T extends StreamSlotRequest>(
+    pendingRequests: readonly T[],
+    options: {
+      maxDurationMs: number;
+      minimumHeadroomMs?: number;
+      maxSubsteps: number;
+      now?: () => number;
+      applySubstep(
+        request: T,
+        context: {
+          deadlineMs: number;
+          elapsedMs: number;
+          remainingMs: number;
+        },
+      ): {
+        completed: boolean;
+        generated?: number;
+        cleared?: number;
+        written?: number;
+        bytesWritten?: number;
+      };
+    },
+  ): {
+    pending: T[];
+    completedSlotIndices: number[];
+    substeps: number;
+    generated: number;
+    cleared: number;
+    written: number;
+    bytesWritten: number;
+    durationMs: number;
+    stopReason: 'converged' | 'substep-limit' | 'time-limit' | 'headroom-limit';
+  };
+
+  export function planSlotAttributeUpdateRanges(
+    changedSlotIndices: readonly number[],
+    slotCapacity: number,
+    itemSize: number,
+    bytesPerElement?: number,
+  ): {
+    ranges: Array<{ start: number; count: number }>;
+    componentCount: number;
+    byteCount: number;
+  };
 }
 
 declare module '@seedthree/core/forest-ecology.js' {

@@ -25,11 +25,18 @@ import { loadSeedThreeSpeciesAssets, type SeedThreeSpeciesAssets } from './seedT
 import { ensureSeedThreeBranchCards } from './seedThreeBranchCards.ts';
 import type { SeedThreeForestController } from './seedThreeForestTypes.ts';
 import {
+  createSeedThreeBucketMatrixWriteJob,
+  runSeedThreeBucketMatrixWriteSlices,
   writeSeedThreeLodMatrices,
+  type SeedThreeBucketMatrixWriteJob,
   type SeedThreeInstancedLodSet as InstancedLodSet,
   type SeedThreeTreeSlot as TreeSlot,
 } from './seedThreeForestCompaction.ts';
 import { stabilizeSeedThreeForestCardMaterial } from './seedThreeForestMaterial.ts';
+import {
+  runForestBucketUpdateChunk,
+  type SeedThreeBucketSelection,
+} from '@seedthree/core/forest-update-budget.js';
 import { yieldToMain } from '../../utils/yieldToMain.ts';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 
@@ -52,6 +59,44 @@ export type SeedThreeForestInstances = {
   seasonalCardMaterials: THREE.Material[];
   deciduousFoliage: DeciduousFoliagePresentation;
   renderStats: SeedThreeForestRenderStats;
+  pendingLodWork: {
+    desired: SeedThreeBucketSelection[];
+    pendingBucketIndices: number[];
+    activeBucketJob: {
+      bucketIndex: number;
+      desired: SeedThreeBucketSelection;
+      job: SeedThreeBucketMatrixWriteJob;
+    } | null;
+  } | null;
+  updateTelemetry: SeedThreeForestUpdateTelemetry;
+};
+
+export type SeedThreeForestUpdateTelemetry = {
+  selectorCalls: number;
+  selectorEvaluations: number;
+  selectorSkips: number;
+  triggerReasons: Record<string, number>;
+  selectionChanges: number;
+  bucketCompactions: number;
+  maxBucketCompactionsPerUpdate: number;
+  workChunks: number;
+  matrixWrites: number;
+  timeBudgetStops: number;
+  pendingBuckets: number;
+  lastDurationMs: number;
+  maxDurationMs: number;
+};
+
+export type SeedThreeForestBudgetedUpdateResult = {
+  selectionChanged: boolean;
+  selectorSkipped: boolean;
+  triggerReasons: readonly string[];
+  bucketCompactions: number;
+  workChunks: number;
+  matrixWrites: number;
+  stopReason: string;
+  pendingBuckets: number;
+  durationMs: number;
 };
 
 export type SeedThreeForestRenderStats = {
@@ -77,6 +122,7 @@ const FOREST_LOD_OPTS = {
 const FOREST_NEAR_DISTANCE = 108;
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
 const FOREST_VISIBILITY_PADDING = 26;
+const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
 
 const OVERVIEW_CANOPY_TONE: Record<
   SeedThreePresetKey,
@@ -421,6 +467,8 @@ export async function createSeedThreeForest(
       culledTrees: 0,
       revision: 0,
     },
+    pendingLodWork: null,
+    updateTelemetry: createSeedThreeUpdateTelemetry(),
   };
 }
 
@@ -439,12 +487,19 @@ export function setSeedThreeTreeVisible(
 }
 
 export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances): void {
+  for (const bucket of forest.buckets) {
+    writeSeedThreeLodMatrices(bucket.nearSet, bucket.slots, bucket.nearSlotIndices);
+    writeSeedThreeLodMatrices(bucket.overviewSet, bucket.slots, bucket.overviewSlotIndices);
+  }
+  forest.pendingLodWork = null;
+  refreshSeedThreeRenderStats(forest);
+}
+
+function refreshSeedThreeRenderStats(forest: SeedThreeForestInstances): void {
   let totalTrees = 0;
   let nearTrees = 0;
   let overviewTrees = 0;
   for (const bucket of forest.buckets) {
-    writeSeedThreeLodMatrices(bucket.nearSet, bucket.slots, bucket.nearSlotIndices);
-    writeSeedThreeLodMatrices(bucket.overviewSet, bucket.slots, bucket.overviewSlotIndices);
     totalTrees += bucket.slots.reduce(
       (count, slot) => count + (slot.enabled ? 1 : 0),
       0,
@@ -475,6 +530,32 @@ export function updateSeedThreeForestCamera(
   firstPersonActive: boolean,
   casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
 ): boolean {
+  const result = updateSeedThreeForestCameraBudgeted(
+    forest,
+    camera,
+    firstPersonActive,
+    casterBounds,
+    { maxBucketCompactions: Number.POSITIVE_INFINITY },
+  );
+  return result.selectionChanged || result.bucketCompactions > 0;
+}
+
+export function updateSeedThreeForestCameraBudgeted(
+  forest: SeedThreeForestInstances,
+  camera: THREE.Camera,
+  firstPersonActive: boolean,
+  casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
+  options: {
+    maxBucketCompactions: number;
+    maxUpdateDurationMs?: number;
+    maxMatrixWritesPerChunk?: number;
+    minimumCameraMove?: number;
+    minimumDirectionAngle?: number;
+    minimumProjectionChange?: number;
+    minimumCasterBoundsChange?: number;
+  },
+): SeedThreeForestBudgetedUpdateResult {
+  const startedAt = performance.now();
   const selection = selectForestLods(forest.visibilitySelector, camera, {
     nearDistance: firstPersonActive
       ? FOREST_FIRST_PERSON_NEAR_DISTANCE
@@ -485,24 +566,217 @@ export function updateSeedThreeForestCamera(
     casterBounds,
     // Matches the directional-shadow fitter's broad-canopy horizontal margin.
     casterPadding: 14,
+    ...(options.minimumCameraMove === undefined
+      ? {}
+      : { minimumCameraMove: options.minimumCameraMove }),
+    ...(options.minimumDirectionAngle === undefined
+      ? {}
+      : { minimumDirectionAngle: options.minimumDirectionAngle }),
+    ...(options.minimumProjectionChange === undefined
+      ? {}
+      : { minimumProjectionChange: options.minimumProjectionChange }),
+    ...(options.minimumCasterBoundsChange === undefined
+      ? {}
+      : { minimumCasterBoundsChange: options.minimumCasterBoundsChange }),
   });
-  if (!selection.changed) return false;
+  forest.updateTelemetry.selectorCalls += 1;
+  forest.updateTelemetry.selectorEvaluations += selection.skipped ? 0 : 1;
+  forest.updateTelemetry.selectorSkips += selection.skipped ? 1 : 0;
+  for (const reason of selection.triggerReasons) {
+    forest.updateTelemetry.triggerReasons[reason] =
+      (forest.updateTelemetry.triggerReasons[reason] ?? 0) + 1;
+  }
+  if (selection.changed) {
+    forest.updateTelemetry.selectionChanges += 1;
+    forest.pendingLodWork = {
+      desired: selectionsByBucket(forest, selection),
+      pendingBucketIndices: forest.pendingLodWork?.pendingBucketIndices ?? [],
+      activeBucketJob: forest.pendingLodWork?.activeBucketJob ?? null,
+    };
+  }
 
-  for (const bucket of forest.buckets) {
-    bucket.nearSlotIndices = [];
-    bucket.overviewSlotIndices = [];
+  const work = forest.pendingLodWork;
+  let bucketCompactions = 0;
+  let matrixWrites = 0;
+  let workChunks = 0;
+  let matrixSliceBudgetStop: 'time-limit' | 'headroom-limit' | null = null;
+  let stopReason = work ? 'chunk-limit' : 'converged';
+  if (work) {
+    const maxUpdateDurationMs = Number.isFinite(options.maxUpdateDurationMs)
+      ? Math.max(0, options.maxUpdateDurationMs!)
+      : Number.POSITIVE_INFINITY;
+    const selectorAndBookkeepingMs = performance.now() - startedAt
+      + (Number.isFinite(maxUpdateDurationMs)
+        ? FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS
+        : 0);
+    const availableWorkMs = Number.isFinite(maxUpdateDurationMs)
+      ? Math.max(0, maxUpdateDurationMs - selectorAndBookkeepingMs)
+      : Number.POSITIVE_INFINITY;
+    const currentSelections = forest.buckets.map((bucket) => ({
+      near: bucket.nearSlotIndices,
+      overview: bucket.overviewSlotIndices,
+    }));
+    const chunk = runForestBucketUpdateChunk(
+      currentSelections,
+      work.desired,
+      work.pendingBucketIndices,
+      {
+        maxDurationMs: availableWorkMs,
+        minimumChunkHeadroomMs: Number.isFinite(availableWorkMs) ? 0.12 : 0,
+        maxChunks: Number.isFinite(maxUpdateDurationMs)
+          ? 1
+          : Number.POSITIVE_INFINITY,
+        maxBucketCompletions: options.maxBucketCompactions,
+        now: () => performance.now(),
+        applyBucketChunk: (bucketIndex, context) => {
+          const bucket = forest.buckets[bucketIndex];
+          const desired = work.desired[bucketIndex];
+          if (!bucket || !desired) return true;
+          if (
+            !work.activeBucketJob
+            || work.activeBucketJob.bucketIndex !== bucketIndex
+            || !sameBucketSelection(work.activeBucketJob.desired, desired)
+          ) {
+            work.activeBucketJob = {
+              bucketIndex,
+              desired: {
+                near: [...desired.near],
+                overview: [...desired.overview],
+              },
+              job: createSeedThreeBucketMatrixWriteJob(
+                bucket.nearSet,
+                bucket.overviewSet,
+                bucket.slots,
+                desired.near,
+                desired.overview,
+              ),
+            };
+          }
+          const result = runSeedThreeBucketMatrixWriteSlices(
+            work.activeBucketJob.job,
+            {
+              deadlineMs: context.deadlineMs,
+              minimumChunkHeadroomMs: Number.isFinite(context.remainingMs)
+                ? 0.12
+                : 0,
+              maxMatrixWritesPerChunk: options.maxMatrixWritesPerChunk
+                ?? Number.POSITIVE_INFINITY,
+            },
+          );
+          workChunks += result.chunks;
+          matrixWrites += result.matrixWrites;
+          matrixSliceBudgetStop = result.stopReason === 'time-limit'
+            || result.stopReason === 'headroom-limit'
+            ? result.stopReason
+            : null;
+          if (!result.completed) return false;
+          bucket.nearSlotIndices = [...desired.near];
+          bucket.overviewSlotIndices = [...desired.overview];
+          work.activeBucketJob = null;
+          return true;
+        },
+      },
+    );
+    bucketCompactions = chunk.completedBucketIndices.length;
+    stopReason = chunk.stopReason;
+    if (chunk.stopReason === 'chunk-limit' && matrixSliceBudgetStop) {
+      stopReason = matrixSliceBudgetStop;
+    }
+    work.pendingBucketIndices = chunk.pendingBucketIndices;
+    if (
+      work.activeBucketJob
+      && chunk.cancelledBucketIndices.includes(work.activeBucketJob.bucketIndex)
+    ) {
+      work.activeBucketJob = null;
+    }
+    if (work.pendingBucketIndices.length === 0) forest.pendingLodWork = null;
   }
-  for (const layoutIndex of selection.nearIndices as number[]) {
-    const mapping = forest.slotByLayoutIndex[layoutIndex];
-    if (mapping) forest.buckets[mapping.bucketIndex]?.nearSlotIndices.push(mapping.slotIndex);
+
+  if (bucketCompactions > 0) refreshSeedThreeRenderStats(forest);
+  if (selection.changed) forest.renderStats.revision = selection.revision;
+  const durationMs = performance.now() - startedAt;
+  forest.updateTelemetry.bucketCompactions += bucketCompactions;
+  forest.updateTelemetry.maxBucketCompactionsPerUpdate = Math.max(
+    forest.updateTelemetry.maxBucketCompactionsPerUpdate,
+    bucketCompactions,
+  );
+  forest.updateTelemetry.workChunks += workChunks;
+  forest.updateTelemetry.matrixWrites += matrixWrites;
+  forest.updateTelemetry.timeBudgetStops += stopReason === 'time-limit'
+    || stopReason === 'headroom-limit'
+    ? 1
+    : 0;
+  forest.updateTelemetry.pendingBuckets =
+    forest.pendingLodWork?.pendingBucketIndices.length ?? 0;
+  forest.updateTelemetry.lastDurationMs = durationMs;
+  forest.updateTelemetry.maxDurationMs = Math.max(
+    forest.updateTelemetry.maxDurationMs,
+    durationMs,
+  );
+  return {
+    selectionChanged: selection.changed,
+    selectorSkipped: selection.skipped,
+    triggerReasons: [...selection.triggerReasons],
+    bucketCompactions,
+    workChunks,
+    matrixWrites,
+    stopReason,
+    pendingBuckets: forest.updateTelemetry.pendingBuckets,
+    durationMs,
+  };
+}
+
+function sameBucketSelection(
+  left: SeedThreeBucketSelection,
+  right: SeedThreeBucketSelection,
+): boolean {
+  return sameIndices(left.near, right.near)
+    && sameIndices(left.overview, right.overview);
+}
+
+function sameIndices(left: readonly number[], right: readonly number[]): boolean {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
   }
-  for (const layoutIndex of selection.overviewIndices as number[]) {
-    const mapping = forest.slotByLayoutIndex[layoutIndex];
-    if (mapping) forest.buckets[mapping.bucketIndex]?.overviewSlotIndices.push(mapping.slotIndex);
-  }
-  commitSeedThreeForestMatrices(forest);
-  forest.renderStats.revision = selection.revision;
   return true;
+}
+
+function selectionsByBucket(
+  forest: SeedThreeForestInstances,
+  selection: { nearIndices: readonly number[]; overviewIndices: readonly number[] },
+): SeedThreeBucketSelection[] {
+  const desired = forest.buckets.map(() => ({
+    near: [] as number[],
+    overview: [] as number[],
+  }));
+  for (const layoutIndex of selection.nearIndices) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (mapping) desired[mapping.bucketIndex]?.near.push(mapping.slotIndex);
+  }
+  for (const layoutIndex of selection.overviewIndices) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (mapping) desired[mapping.bucketIndex]?.overview.push(mapping.slotIndex);
+  }
+  return desired;
+}
+
+function createSeedThreeUpdateTelemetry(): SeedThreeForestUpdateTelemetry {
+  return {
+    selectorCalls: 0,
+    selectorEvaluations: 0,
+    selectorSkips: 0,
+    triggerReasons: {},
+    selectionChanges: 0,
+    bucketCompactions: 0,
+    maxBucketCompactionsPerUpdate: 0,
+    workChunks: 0,
+    matrixWrites: 0,
+    timeBudgetStops: 0,
+    pendingBuckets: 0,
+    lastDurationMs: 0,
+    maxDurationMs: 0,
+  };
 }
 
 export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstances): {

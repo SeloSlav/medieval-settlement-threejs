@@ -1,0 +1,113 @@
+{
+  "round": 34,
+  "evidenceType": "same-document paired no-render and complete ordered bare-rAF cohort",
+  "sceneStatus": "diagnostic-only",
+  "qualityGatesProven": 1,
+  "protocolValidity": {
+    "pairing": "valid",
+    "degradedAggregateWitness": "valid",
+    "bareAggregateWitness": "valid",
+    "sequence": "degraded-no-render-then-bare-raf",
+    "runUuid": "252c11ff-6d5d-4d2e-9d46-887dba0ec9b2",
+    "performanceTimeOriginMs": 1785433859318.9,
+    "transitionGapMs": 8.600000002981687,
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "drawingBuffer": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "ablation": "groundcover-stream-forest-update-frozen",
+    "control": "visualDisable=forest,post,shadows&visualNoRender=1&visualBareRafPair=1",
+    "windowSecondsPerArm": 30
+  },
+  "degradedNoRender": {
+    "medianFps": 163.9344262295473,
+    "meanFps": 153.09081455112693,
+    "onePercentLowFps": 66.65700623098115,
+    "p99FrameMs": 15.002173913043446,
+    "maxFrameMs": 24.299999999995634,
+    "framesOver25Ms": 0,
+    "framesOver50Ms": 0,
+    "sampleCount": 4593,
+    "expectedWorstOnePercentRecords": 46,
+    "actualWorstOnePercentRecords": 46,
+    "worstOnePercentRecordSumMs": 690.0999999999985,
+    "worstOnePercentRecordMeanMs": 15.002173913043446,
+    "exactAggregateWitness": true,
+    "medianDrawCalls": 0,
+    "medianFrameCalls": 0,
+    "medianTriangles": 0,
+    "gpuAttemptedFrames": 0,
+    "gpuSubmittedFrames": 0,
+    "gpuResolvedFrames": 0,
+    "measuredForestWork": 0,
+    "measuredGroundcoverWork": 0
+  },
+  "bareRaf": {
+    "startedAtRafTimestampMs": 64364.9,
+    "completedAtRafTimestampMs": 94366.7,
+    "elapsedMs": 30001.799999999996,
+    "medianFps": 163.93442622974285,
+    "meanFps": 143.39139651620906,
+    "onePercentLowFps": 63.22747521195164,
+    "p99FrameMs": 15.815909090910116,
+    "maxFrameMs": 36.400000000001455,
+    "framesOver25Ms": 2,
+    "framesOver50Ms": 0,
+    "sampleCount": 4302,
+    "orderedFrameTimesCount": 4302,
+    "orderedFrameTimesSumMs": 30001.799999999996,
+    "expectedWorstOnePercentIntervals": 44,
+    "worstOnePercentIntervalSumMs": 695.9000000000451,
+    "exactAggregateWitness": true,
+    "routeSceneUpdates": 0,
+    "rendererCalls": 0,
+    "perFrameDomTelemetryWrites": 0
+  },
+  "startupLocalization": {
+    "hardIntervals": [
+      {
+        "index": 5,
+        "durationMs": 30.299999999995634
+      },
+      {
+        "index": 7,
+        "durationMs": 36.400000000001455
+      }
+    ],
+    "lastHardIntervalEndAfterBareStartMs": 115.19999999999709,
+    "remainingSampleCount": 4294,
+    "remainingElapsedMs": 29886.6,
+    "remainingOnePercentLowFps": 67.6419694824544,
+    "remainingMaxFrameMs": 24.20000000001164,
+    "remainingFramesOver25Ms": 0,
+    "finding": "The two hard failures are localized to bare-arm startup and suggest transition contamination rather than sustained host cadence."
+  },
+  "critic": {
+    "pairingIntegrity": "pass",
+    "degradedWitnessIntegrity": "pass",
+    "bareWitnessIntegrity": "pass",
+    "targetPerformance": "fail",
+    "largestGap": "Start-of-arm allocation or GC effects remain unseparated from genuine bare-rAF cadence.",
+    "requiredNext": "Repeat the identical pair with a predeclared 250 ms callback-only bare-rAF lead-in serialized separately, then judge a fresh complete 30-second bare cohort.",
+    "causalCaveat": "Startup localization is strongly suggested but not causally proved because arm order is fixed.",
+    "forbiddenWorkCaveat": "The zero forbidden-work values are literals backed by the early-return source contract and tests, not runtime-measured counters.",
+    "visualCaveat": "The JPEG is a retained pre-skip frame and cannot prove measured visual quality, hitch perception, or LOD continuity."
+  },
+  "files": [
+    {
+      "file": "same-document-exact-degraded-no-render-then-bare-raf.json",
+      "source": "in-app browser terminal paired evidence envelope",
+      "bytes": 207760,
+      "sha256": "577C9E46DFF9D2DB26566F94A3C91C08F00E91608291E529372B3D47A1C00B9F"
+    },
+    {
+      "file": "same-document-exact-paired-control-final-frame.jpg",
+      "source": "in-app browser 1280x720 JPEG screenshot after both paired arms reached terminal ready",
+      "bytes": 143649,
+      "sha256": "150EE629316B6F9114C8CF7BDF370C49AAE0FC7A80A7D65394E321D03556D530"
+    }
+  ]
+}

@@ -1,11 +1,10 @@
 import {
   type ResidenceFacadeColor,
-  type ResidenceRoofColor,
 } from '../buildings/buildingMaterials.ts';
 import { mulberry32, pick } from '../utils/random.ts';
 
 export type FacadeColor = ResidenceFacadeColor;
-export type RoofColor = ResidenceRoofColor;
+export type RoofColor = 'brown';
 export type ResidenceArchetype = 'stone_portal' | 'timber_balcony' | 'working_lean_to';
 export type ResidenceTrimColor = 'wood' | 'red' | 'blue' | 'green';
 
@@ -24,14 +23,6 @@ const FACADE_COLORS: readonly FacadeColor[] = [
   'lightOrange',
   'orange',
 ] as const;
-
-const ROOFS_BY_FACADE: Record<FacadeColor, readonly RoofColor[]> = {
-  grey: ['red', 'red', 'brown'],
-  lightOrange: ['red', 'red', 'grey', 'slate'],
-  orange: ['red', 'red', 'grey', 'slate'],
-  white: ['red', 'red', 'red', 'brown', 'grey', 'slate'],
-  yellow: ['red', 'red', 'brown', 'grey', 'slate'],
-};
 
 const ARCHETYPES: readonly ResidenceArchetype[] = [
   'stone_portal',
@@ -54,7 +45,10 @@ const ENTRY_SIDES = [-1, 1] as const;
 export function pickResidenceAppearance(seed: number): ResidenceAppearance {
   const rng = mulberry32(seed);
   const facade = pick(FACADE_COLORS, rng);
-  const roof = pick(ROOFS_BY_FACADE[facade], rng);
+  // Keep the established seeded construction sequence stable while roofing
+  // remains physical-state-only and no per-residence retrofit state exists.
+  rng();
+  const roof: RoofColor = 'brown';
   const archetype = pick(ARCHETYPES, rng);
   const entrySide = pick(ENTRY_SIDES, rng);
   const trim = pick(TRIM_COLORS, rng);

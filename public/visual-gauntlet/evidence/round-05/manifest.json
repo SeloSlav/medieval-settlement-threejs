@@ -1,0 +1,34 @@
+{
+  "round": 5,
+  "status": "rejected",
+  "qualityGatesProven": 0,
+  "instrumentationAudit": {
+    "status": "pass",
+    "scope": "Collector reset gates, adapter provenance states, 30-second serialization, and absence of self-certified acceptance",
+    "sceneAcceptanceImplication": "none"
+  },
+  "protocolValidity": {
+    "status": "invalid",
+    "reason": "Renderer DPR was 1.5; acceptance protocol requires DPR 1"
+  },
+  "files": [
+    {
+      "file": "strategic-ready.png",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round3-strategic-ready.png",
+      "bytes": 160747,
+      "sha256": "88B98E9021C50EEECBC31B208CC1F9A99C0924E11183900B1D925C2FB60246D2"
+    },
+    {
+      "file": "road-eye-ready.png",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round3-road-eye-ready.png",
+      "bytes": 132513,
+      "sha256": "F0980713E83CB05949E123E1F2040F553D24FB2157F45A9CF35690A2CFE6C8A2"
+    },
+    {
+      "file": "performance-trace.json",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round3-perf-report.json",
+      "bytes": 1405,
+      "sha256": "18900E85663247490F1F9A3675B472CD3A8EA627C9C1E8C5EBA23F7C3245367D"
+    }
+  ]
+}

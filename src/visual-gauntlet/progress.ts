@@ -4,7 +4,7 @@ import {
   HAMLET_MOTION_ROUTE,
 } from '../e2e/hamletFixtureConfig.ts';
 
-type GateState = 'blocked' | 'unproven' | 'unreviewed';
+type GateState = 'blocked' | 'failed' | 'unproven' | 'unreviewed' | 'verified';
 
 interface ReferenceEvidence {
   ordinal: string;
@@ -158,45 +158,45 @@ const storedCaptures: StoredCapture[] = [
 const gates: EvidenceGate[] = [
   {
     title: 'Matched conditions',
-    target: 'Fixed route, camera, 1280×720, DPR 1, weather, and time',
-    status: 'blocked',
-    evidence: 'Route config exists; weather/time are unbound and no successful matched run exists.',
+    target: 'Fixed route, camera, 1280×720, renderer PR 1, weather, and time',
+    status: 'unproven',
+    evidence: 'Round 24 validates the fixed route, 1280x720 viewport and drawing buffer, renderer PR 1, visible WebGPU tab, non-fallback NVIDIA/Lovelace adapter, one discarded route, pending-zero drain, collector reset, and every measured phase. Weather, time, source hash, reload event, and other-tab count remain unserialized.',
   },
   {
     title: 'Median FPS',
     target: 'Hard pass: 60–90 FPS during the settled 30-second full-subsystem run',
     status: 'unproven',
-    evidence: 'No trace from a named native target adapter exists.',
+    evidence: 'Round 24 returns to the marker-on default and records an exact 82.64 FPS median. This frozen-streamer diagnostic is internally valid but does not certify the normal full-system target.',
   },
   {
     title: '1% low',
     target: 'Hard pass: at least 60 FPS in the same target run',
-    status: 'unproven',
-    evidence: 'No valid 1% low measurement exists.',
+    status: 'failed',
+    evidence: 'Round 24 records 51.30 FPS from an immutable cohort; its 25 retained records reproduce p99 and reciprocal 1% low exactly. Both marker-on arms cluster near 51 FPS, below the 60 FPS floor.',
   },
   {
     title: '>25 ms hitch count',
     target: 'Hard pass: exactly 0 frames during the 30-second trace',
-    status: 'unproven',
-    evidence: 'No >25 ms frame count has been recorded.',
+    status: 'failed',
+    evidence: 'Round 24 records 1 frame over 25 ms and a 42.3 ms maximum in the same immutable cohort.',
   },
   {
     title: '>50 ms hitch count',
     target: 'Hard pass: exactly 0 frames during the 30-second trace',
-    status: 'unproven',
-    evidence: 'No >50 ms frame count has been recorded.',
+    status: 'verified',
+    evidence: 'Every protocol-valid Round 14–24 trace records exactly 0 frames over 50 ms.',
   },
   {
     title: 'LOD motion review',
     target: 'Fresh critic finds no discrete pop or blank band at normal playback or frame-step',
-    status: 'unreviewed',
-    evidence: 'Route ID/config exist; runtime execution, motion capture, frame strip, and fresh review do not.',
+    status: 'failed',
+    evidence: 'Round 14 restores forest compaction and publication liveness with settled keyframes at pending zero, but no linked playback or frame-step review proves visually atomic presentation or absence of popping.',
   },
   {
     title: 'Residence roof progression',
-    target: 'Wooden roofs until clay roofing-tile production actually exists',
+    target: 'Wood unless that residence receives physical tiles and completes a consuming retrofit',
     status: 'unproven',
-    evidence: 'No matched progression capture verifies this rule.',
+    evidence: 'The lifetime-global production unlock was rejected. Current residences remain wooden; the physical commodity, delivery, labor, consumption, and per-residence retrofit state are intentionally deferred.',
   },
 ];
 
@@ -298,10 +298,14 @@ function statusLabel(status: GateState): string {
   switch (status) {
     case 'blocked':
       return 'Blocked';
+    case 'failed':
+      return 'Failed';
     case 'unproven':
       return 'Unproven';
     case 'unreviewed':
       return 'Unreviewed';
+    case 'verified':
+      return 'Verified';
   }
 }
 

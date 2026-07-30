@@ -92,25 +92,39 @@ type MaterialDefinition = {
   textureFamily?: TextureFamily;
   normalScale?: number;
   weathering?: BuildingWeatheringProfile;
+  useDiffuseMap?: boolean;
+  uniformIndirectLight?: boolean;
 };
 
-type BuildingWeatheringProfile = 'plaster' | 'masonry' | 'timber' | 'roof';
+type BuildingWeatheringProfile =
+  | 'plaster'
+  | 'masonry'
+  | 'timber'
+  | 'roof'
+  | 'shingle';
 
 const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
-  plasterWhite: { color: 0xffffff, roughness: 0.92, metalness: 0, textureFamily: 'plaster', normalScale: 0.42, weathering: 'plaster' },
+  // White limewash keeps the plaster relief maps, but not the source set's
+  // charcoal-grey diffuse. This is the principal bright wall value.
+  plasterWhite: { color: 0xfff4de, roughness: 0.96, metalness: 0, textureFamily: 'plaster', normalScale: 0.3, weathering: 'plaster', useDiffuseMap: false, uniformIndirectLight: true },
   plasterYellow: { color: 0xeadc9f, roughness: 0.93, metalness: 0, textureFamily: 'plaster', normalScale: 0.42, weathering: 'plaster' },
   plasterGrey: { color: 0xb8b4af, roughness: 0.94, metalness: 0, textureFamily: 'plaster', normalScale: 0.46, weathering: 'plaster' },
   plasterOrange: { color: 0xe6b17e, roughness: 0.93, metalness: 0, textureFamily: 'plaster', normalScale: 0.44, weathering: 'plaster' },
-  masonryLight: { color: 0xf0e9dc, roughness: 0.96, metalness: 0, textureFamily: 'masonry', normalScale: 0.72, weathering: 'masonry' },
-  masonryMid: { color: 0xc5beb2, roughness: 0.97, metalness: 0, textureFamily: 'masonry', normalScale: 0.78, weathering: 'masonry' },
+  masonryLight: { color: 0xf3eadb, roughness: 0.96, metalness: 0, textureFamily: 'masonry', normalScale: 0.76, weathering: 'masonry', uniformIndirectLight: true },
+  masonryMid: { color: 0xd8d0c2, roughness: 0.97, metalness: 0, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry', uniformIndirectLight: true },
   masonryDark: { color: 0x858688, roughness: 0.98, metalness: 0, textureFamily: 'masonry', normalScale: 0.82, weathering: 'masonry' },
-  timberDark: { color: 0x86664f, roughness: 0.91, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.62, weathering: 'timber' },
+  timberDark: { color: 0xa07a5d, roughness: 0.94, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.76, weathering: 'timber', uniformIndirectLight: true },
   timberMid: { color: 0xaa866b, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.58, weathering: 'timber' },
   timberLight: { color: 0xc2a184, roughness: 0.9, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.55, weathering: 'timber' },
-  timberWeathered: { color: 0xae9a87, roughness: 0.94, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.68, weathering: 'timber' },
+  timberWeathered: { color: 0xd4c0a9, roughness: 0.96, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.86, weathering: 'timber', uniformIndirectLight: true },
   clayRed: { color: 0xffffff, roughness: 0.84, metalness: 0.01, textureFamily: 'clayTiles', normalScale: 0.74, weathering: 'roof' },
   clayDark: { color: 0xc58f84, roughness: 0.88, metalness: 0.01, textureFamily: 'clayTiles', normalScale: 0.78, weathering: 'roof' },
-  shingle: { color: 0x806856, roughness: 0.95, metalness: 0, textureFamily: 'woodPlanks', normalScale: 0.72, weathering: 'roof' },
+  // Split shingles keep the shared wood relief/roughness maps, while their
+  // silver-brown age variation comes from the batched vertex-color channel
+  // and one deterministic short-shingle map shared by every roof role.
+  // Omitting the broad-plank diffuse prevents the roof from collapsing into
+  // a handful of long boards; the darker base keeps it distinct from plaster.
+  shingle: { color: 0x928e85, roughness: 0.99, metalness: 0, textureFamily: 'woodPlanks', normalScale: 1.05, weathering: 'shingle', useDiffuseMap: false, uniformIndirectLight: true },
   slate: { color: 0x737980, roughness: 0.91, metalness: 0.02, textureFamily: 'masonry', normalScale: 0.48, weathering: 'roof' },
   metalIron: { color: 0x4a4846, roughness: 0.55, metalness: 0.72 },
   glass: { color: 0x3d4747, roughness: 0.4, metalness: 0.03 },
@@ -191,6 +205,7 @@ const DETAIL_MATERIAL_DEFINITIONS: Record<BuildingDetailMaterialKey, DetailMater
 const detailMaterialCache = new Map<BuildingDetailMaterialKey, THREE.MeshStandardMaterial>();
 let textureSets: Record<TextureFamily, BuildingTextureSet> | null = null;
 let textureLoadPromise: Promise<void> | null = null;
+let splitWoodShingleMap: THREE.DataTexture | null = null;
 
 export function sharedBuildingMaterial(key: BuildingMaterialKey): THREE.MeshStandardMaterial {
   const cached = materialCache.get(key);
@@ -206,10 +221,17 @@ export function sharedBuildingMaterial(key: BuildingMaterialKey): THREE.MeshStan
   material.name = `Shared building material: ${key}`;
   material.userData.sharedBuildingMaterial = true;
   material.userData.buildingWeatheringProfile = definition.weathering;
+  material.userData.buildingTextureFamily = definition.textureFamily;
+  material.userData.buildingUsesDiffuseMap = definition.useDiffuseMap !== false;
+  material.userData.buildingNormalScale = definition.normalScale ?? 1;
+  material.userData.buildingUniformIndirectLight =
+    definition.uniformIndirectLight === true;
   material.vertexColors = definition.weathering !== undefined;
+  material.normalScale.setScalar(definition.normalScale ?? 1);
   if (definition.textureFamily) {
     material.userData.metricUvMeters = TEXTURE_METERS[definition.textureFamily];
   }
+  if (key === 'shingle') configureSplitWoodShingleSurface(material);
   materialCache.set(key, material);
   applyTextureSet(material, definition);
   return material;
@@ -293,10 +315,16 @@ export function disposeBuildingMaterialLibrary(): void {
 }
 
 export function getBuildingMaterialLibraryStats(): { constructionMaterials: number; detailMaterials: number; textures: number; loaded: boolean } {
+  const loadedTextureCount = textureSets
+    ? new Set(
+      Object.values(textureSets)
+        .flatMap((set) => [set.map, set.normalMap, set.roughnessMap]),
+    ).size
+    : 0;
   return {
     constructionMaterials: materialCache.size,
     detailMaterials: detailMaterialCache.size,
-    textures: textureSets ? new Set(Object.values(textureSets).flatMap((set) => [set.map, set.normalMap, set.roughnessMap])).size : 0,
+    textures: loadedTextureCount + (splitWoodShingleMap ? 1 : 0),
     loaded: textureSets !== null,
   };
 }
@@ -304,15 +332,168 @@ export function getBuildingMaterialLibraryStats(): { constructionMaterials: numb
 function applyTextureSet(material: THREE.MeshStandardMaterial, definition: MaterialDefinition): void {
   if (!definition.textureFamily || !textureSets) return;
   const set = textureSets[definition.textureFamily];
-  material.map = set.map;
-  material.emissiveMap = set.map;
+  material.map = definition.weathering === 'shingle'
+    ? getSplitWoodShingleMap()
+    : definition.useDiffuseMap === false
+      ? null
+      : set.map;
+  material.emissiveMap = definition.uniformIndirectLight === true ? null : set.map;
   material.normalMap = set.normalMap;
   material.roughnessMap = set.roughnessMap;
   material.normalScale.setScalar(definition.normalScale ?? 1);
   material.needsUpdate = true;
 }
 
-function configureBuildingIndirectLight(material: THREE.MeshStandardMaterial): void {
+const SPLIT_SHINGLE_TEXTURE_SIZE = 256;
+const SPLIT_SHINGLE_TILE_METERS = 2;
+const SPLIT_SHINGLE_COURSES_PER_TILE = 6;
+const SPLIT_SHINGLE_WIDTH_METERS = 0.4;
+const SPLIT_SHINGLE_BUTT_LENGTH_VARIATION = 0.1;
+
+function configureSplitWoodShingleSurface(
+  material: THREE.MeshStandardMaterial,
+): void {
+  material.map = getSplitWoodShingleMap();
+  material.userData.buildingUsesProceduralShingleMap = true;
+  material.userData.splitShinglePattern = {
+    tileMeters: SPLIT_SHINGLE_TILE_METERS,
+    courseExposureMeters:
+      SPLIT_SHINGLE_TILE_METERS / SPLIT_SHINGLE_COURSES_PER_TILE,
+    shingleWidthMeters: SPLIT_SHINGLE_WIDTH_METERS,
+    buttLengthVariation: SPLIT_SHINGLE_BUTT_LENGTH_VARIATION,
+    stagger: 'alternating-half-width',
+    details: [
+      'butt-joints',
+      'irregular-lower-edges',
+      'longitudinal-split-grain',
+    ],
+  };
+}
+
+/**
+ * A small, deterministic albedo tile makes short split shingles legible on
+ * both WebGL and WebGPU without adding a material permutation or draw call.
+ * Metric UVs keep the 0.33 m courses and 0.4 m butts consistent on roof
+ * planes, merged course boards, ridge caps, and porch roofs.
+ */
+function getSplitWoodShingleMap(): THREE.DataTexture {
+  if (splitWoodShingleMap) return splitWoodShingleMap;
+
+  const size = SPLIT_SHINGLE_TEXTURE_SIZE;
+  const data = new Uint8Array(size * size * 4);
+  const courseMeters =
+    SPLIT_SHINGLE_TILE_METERS / SPLIT_SHINGLE_COURSES_PER_TILE;
+  const shinglesPerTile =
+    SPLIT_SHINGLE_TILE_METERS / SPLIT_SHINGLE_WIDTH_METERS;
+
+  for (let pixelV = 0; pixelV < size; pixelV += 1) {
+    const ridgeMeters =
+      (pixelV + 0.5) / size * SPLIT_SHINGLE_TILE_METERS;
+    for (let pixelU = 0; pixelU < size; pixelU += 1) {
+      const slopeMeters =
+        (pixelU + 0.5) / size * SPLIT_SHINGLE_TILE_METERS;
+      const courseCoordinate = slopeMeters / courseMeters;
+      const course = Math.floor(courseCoordinate);
+      const courseT = courseCoordinate - course;
+      const courseIndex =
+        ((course % SPLIT_SHINGLE_COURSES_PER_TILE)
+          + SPLIT_SHINGLE_COURSES_PER_TILE)
+        % SPLIT_SHINGLE_COURSES_PER_TILE;
+      const courseOffset =
+        (courseIndex % 2) * 0.5
+        + (stableShingleHash(courseIndex, 17) - 0.5) * 0.14;
+      const splitWobble =
+        Math.sin(
+          courseT * Math.PI * 2
+            + stableShingleHash(courseIndex, 29) * Math.PI * 2,
+        ) * 0.018;
+      const shingleCoordinate =
+        ridgeMeters / SPLIT_SHINGLE_WIDTH_METERS
+        + courseOffset
+        + splitWobble;
+      const shingle = Math.floor(shingleCoordinate);
+      const shingleT = shingleCoordinate - shingle;
+      const shingleIndex =
+        ((shingle % shinglesPerTile) + shinglesPerTile) % shinglesPerTile;
+      const boardTone = stableShingleHash(courseIndex, shingleIndex);
+      const edgeJitter =
+        (stableShingleHash(shingleIndex, courseIndex + 41) - 0.5)
+        * 2
+        * SPLIT_SHINGLE_BUTT_LENGTH_VARIATION;
+      const lowerEdgeAt = 0.045 + edgeJitter;
+      const edgeDelta = Math.abs(courseT - lowerEdgeAt);
+      const wrappedEdgeDistance = Math.min(edgeDelta, 1 - edgeDelta);
+      const lowerEdge =
+        1 - smoothStep01((wrappedEdgeDistance - 0.008) / 0.055);
+      const jointDistanceMeters =
+        Math.min(shingleT, 1 - shingleT) * SPLIT_SHINGLE_WIDTH_METERS;
+      const buttJoint =
+        1 - smoothStep01((jointDistanceMeters - 0.006) / 0.022);
+      const grainFrequency = 3 + Math.floor(boardTone * 4);
+      const grain =
+        Math.sin(
+          shingleT * Math.PI * 2 * grainFrequency
+            + courseT * 0.85
+            + boardTone * Math.PI * 2,
+        ) * 0.025;
+      const splitCenter =
+        0.24 + stableShingleHash(courseIndex + 73, shingleIndex) * 0.52;
+      const splitDistance = Math.abs(shingleT - splitCenter);
+      const splitEnd =
+        (1 - smoothStep01((splitDistance - 0.004) / 0.018))
+        * (1 - smoothStep01((wrappedEdgeDistance - 0.01) / 0.13));
+      const age = (boardTone - 0.5) * 0.085;
+      const darkness =
+        1
+        - lowerEdge * 0.34
+        - buttJoint * 0.43
+        - splitEnd * 0.23
+        + grain;
+      const warmth = stableShingleHash(shingleIndex + 11, courseIndex + 97);
+      const baseRed = 226 + age * 100 + warmth * 5;
+      const baseGreen = 224 + age * 92 + warmth * 2;
+      const baseBlue = 218 + age * 84 - warmth * 5;
+      const dataIndex = (pixelV * size + pixelU) * 4;
+      data[dataIndex] = Math.round(
+        THREE.MathUtils.clamp(baseRed * darkness, 50, 242),
+      );
+      data[dataIndex + 1] = Math.round(
+        THREE.MathUtils.clamp(baseGreen * darkness, 48, 239),
+      );
+      data[dataIndex + 2] = Math.round(
+        THREE.MathUtils.clamp(baseBlue * darkness, 44, 232),
+      );
+      data[dataIndex + 3] = 255;
+    }
+  }
+
+  splitWoodShingleMap = new THREE.DataTexture(
+    data,
+    size,
+    size,
+    THREE.RGBAFormat,
+  );
+  splitWoodShingleMap.name = 'Procedural split-wood shingles';
+  splitWoodShingleMap.colorSpace = THREE.SRGBColorSpace;
+  splitWoodShingleMap.wrapS = THREE.RepeatWrapping;
+  splitWoodShingleMap.wrapT = THREE.RepeatWrapping;
+  splitWoodShingleMap.magFilter = THREE.LinearFilter;
+  splitWoodShingleMap.minFilter = THREE.LinearMipmapLinearFilter;
+  splitWoodShingleMap.generateMipmaps = true;
+  splitWoodShingleMap.anisotropy = 8;
+  splitWoodShingleMap.needsUpdate = true;
+  return splitWoodShingleMap;
+}
+
+function stableShingleHash(first: number, second: number): number {
+  const value =
+    Math.sin(first * 12.9898 + second * 78.233 + 0.137) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function configureBuildingIndirectLight(
+  material: THREE.MeshStandardMaterial,
+): void {
   material.emissive.copy(material.color);
   material.emissiveIntensity = buildingIndirectIntensity;
   material.userData.buildingIndirectLight = true;
@@ -461,6 +642,27 @@ function applyBuildingWeatheringVertexColors(
       red *= 1 - silvering * 0.55;
       green *= 1 - silvering * 0.28;
       blue *= 1 + silvering * 0.12;
+    } else if (profile === 'shingle') {
+      const componentVertexCount =
+        target.userData.buildingWeatheringComponentVertexCount;
+      const componentIndex =
+        typeof componentVertexCount === 'number' && componentVertexCount > 0
+          ? Math.floor(i / componentVertexCount)
+          : 0;
+      const splitTone =
+        0.5
+        + 0.5
+          * Math.sin(
+            componentIndex * 12.9898
+              + Math.floor(x * 1.3) * 3.17
+              + Math.floor(z * 1.7) * 5.71,
+          );
+      const silvering = 0.04 + splitTone * 0.1 + up * 0.035;
+      const warmAge = (1 - splitTone) * 0.08;
+      const lichen = up * fineNoise * broadNoise * 0.055;
+      red *= 0.96 + warmAge - silvering * 0.32 - lichen * 0.42;
+      green *= 0.95 + warmAge * 0.38 + silvering * 0.06 + lichen * 0.08;
+      blue *= 0.92 - warmAge * 0.22 + silvering * 0.2 - lichen * 0.28;
     } else {
       const roofExposure = up * (0.55 + broadNoise * 0.45);
       const lichen = roofExposure * fineNoise * 0.1;

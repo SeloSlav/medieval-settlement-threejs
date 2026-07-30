@@ -1,0 +1,137 @@
+{
+  "round": 14,
+  "evidenceType": "matched warmed groundcover ablation pair plus split-shingle residence capture",
+  "sceneStatus": "rejected",
+  "qualityGatesProven": 1,
+  "protocolValidity": {
+    "pairedRuns": "valid",
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "warmup": {
+      "discardedRoutes": 1,
+      "strategicPendingAtReset": 0,
+      "collectorReset": true,
+      "measuredRouteCompleted": true,
+      "measuredPhasesTraversed": 3
+    },
+    "windowSeconds": 30,
+    "unserializedEnvironmentClaims": [
+      "source or build hash",
+      "reload event",
+      "selected tab identity",
+      "count of other 3D tabs"
+    ]
+  },
+  "seedThreeIntegration": {
+    "upstreamCommit": "ca734ca988c1ddc5abcb73847efd1a3aa2970299",
+    "upstreamStatus": "committed and pushed to SeloSlav/SeedThree before game integration",
+    "maxMatrixWritesPerChunk": 128,
+    "maxUpdateDurationBudgetMs": 2,
+    "publicationResult": "baseline completed and published 246 of 246 compactions; frozen-groundcover completed and published 192 of 192 compactions",
+    "settledKeyframesConverged": true
+  },
+  "runs": {
+    "activeGroundcover": {
+      "medianFps": 161.29032258072087,
+      "meanFps": 107.05988620720687,
+      "onePercentLowFps": 37.99217131015401,
+      "p99FrameMs": 26.321212121212298,
+      "maxFrameMs": 36.5,
+      "framesOver25Ms": 8,
+      "framesOver50Ms": 0,
+      "forestMaxUpdateMs": 1.8000000044703484,
+      "forestBucketCompactions": 246,
+      "forestBucketUploads": 246,
+      "forestPendingBuckets": 5,
+      "groundcoverMaxUpdateMs": 2.4,
+      "groundcoverBytesUploaded": 18056880,
+      "groundcoverPendingSlots": 128,
+      "groundcoverConverged": false
+    },
+    "frozenGroundcover": {
+      "medianFps": 82.64462809918349,
+      "meanFps": 98.00752468516623,
+      "onePercentLowFps": 35.323207347227616,
+      "p99FrameMs": 28.31,
+      "maxFrameMs": 42.5,
+      "framesOver25Ms": 16,
+      "framesOver50Ms": 0,
+      "forestMaxUpdateMs": 2,
+      "forestBucketCompactions": 192,
+      "forestBucketUploads": 192,
+      "forestPendingBuckets": 5,
+      "groundcoverMaxUpdateMs": 5.3,
+      "groundcoverBytesUploaded": 3013200,
+      "groundcoverPendingSlots": 0,
+      "groundcoverConverged": true
+    }
+  },
+  "slowFrameAttribution": {
+    "activeGroundcover": {
+      "retainedRecords": 8,
+      "recordsWithForestWork": 7,
+      "recordsWithGroundcoverWork": 2,
+      "recordsWithNeitherReusableWorkload": 1
+    },
+    "frozenGroundcover": {
+      "retainedRecords": 16,
+      "recordsWithForestWork": 14,
+      "recordsWithGroundcoverWork": 0,
+      "recordsWithNeitherReusableWorkload": 2
+    },
+    "finding": "Freezing groundcover did not remove the 30 to 42.5 ms stalls, so this pair does not support groundcover streaming as their cause. Forest correlation is suggestive but not causal because the evidence lacks a fast-frame denominator and some slow frames contain neither reusable workload."
+  },
+  "performanceCritic": {
+    "status": "fail",
+    "passes": [
+      "Both runs satisfy the warmed 30-second capture protocol",
+      "Mean throughput exceeds 90 FPS",
+      "Both runs recorded zero frames over 50 ms",
+      "Forest compaction and publication liveness is restored",
+      "Frozen groundcover reaches pending zero and convergence"
+    ],
+    "largestGap": "Unexplained 30 to 42.5 ms missed-frame or presentation stalls leave 1% lows near 35 to 38 FPS.",
+    "requiredNext": "Capture one matched run with groundcover frozen and forest updating frozen after settled warmup while preserving forest rendering. If the stalls remain, stop optimizing these streamers and instrument main-thread versus GPU or presentation time."
+  },
+  "residenceCritic": {
+    "status": "fail",
+    "capture": "residence-round6.png",
+    "blindWinner": "Round 6 split-shingle material",
+    "passes": [
+      "Roof now reads as short coursed split shingles",
+      "Staggered seams, lap shadows, and darker separation are visible",
+      "Wood-only policy and existing mesh, triangle, and material budgets are preserved"
+    ],
+    "largestGap": "Regular shingle widths and butt lengths still create a stamped, machine-made pattern and slate-grid impression at the rake.",
+    "requiredNext": "Add deterministic per-shingle butt-length variation of about plus or minus ten percent while preserving course overlap and all existing budgets."
+  },
+  "roofingConstraint": {
+    "status": "global lifetime unlock rejected",
+    "rule": "Residences remain split-wood unless a future explicit per-residence physical delivery and retrofit state supplies, consumes, and installs roofing tile.",
+    "deferred": "The clay commodity, transport, retrofit labor, consumption, and per-building state belong to a coordinated simulation follow-up."
+  },
+  "files": [
+    {
+      "file": "baseline-warm.json",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round14-baseline-warm.json",
+      "bytes": 12396,
+      "sha256": "A2856584D1A81E8307183FC0F7F4783B88EC873090E57C8F471ED1364C9D8681"
+    },
+    {
+      "file": "groundcover-frozen-warm.json",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round14-groundcover-frozen-warm.json",
+      "bytes": 18598,
+      "sha256": "F10D535DCF9FEF32F327398168E07983DF8A95A01AA64F957C63FF446E6C74EA"
+    },
+    {
+      "file": "residence-round6.png",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\residence-visual-round6-split-shingles.png",
+      "bytes": 230403,
+      "sha256": "55B8B5906B579F2F233CC77DC68E185426B3C35EF051C14BE031ED86219228B2"
+    }
+  ]
+}

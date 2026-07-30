@@ -42,6 +42,7 @@ const tests = [
   'test:chapel-community',
   'test:household-economy',
   'test:residence-upgrade',
+  'test:residence-visual-fidelity',
   'test:residence-settlement',
   'test:resident-welfare',
   'test:remedy-logistics',

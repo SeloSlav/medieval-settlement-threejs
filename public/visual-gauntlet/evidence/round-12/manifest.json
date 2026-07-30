@@ -1,0 +1,97 @@
+{
+  "round": 12,
+  "evidenceType": "slow-frame attribution with cold versus full-route-warmed comparison plus residence capture",
+  "sceneStatus": "rejected",
+  "qualityGatesProven": 0,
+  "protocolValidity": {
+    "coldBaseline": "valid",
+    "warmedRoute": "valid",
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "warmup": {
+      "discardedRoutes": 1,
+      "strategicPendingAtReset": 0,
+      "collectorReset": true,
+      "measuredRouteCompleted": true,
+      "measuredPhasesTraversed": 3
+    },
+    "windowSeconds": 30
+  },
+  "runs": {
+    "coldBaseline": {
+      "medianFps": 82.64462809918349,
+      "meanFps": 84.3945118578787,
+      "onePercentLowFps": 28.187337380744616,
+      "p99FrameMs": 35.47692307692467,
+      "maxFrameMs": 194,
+      "framesOver25Ms": 11,
+      "framesOver50Ms": 2
+    },
+    "warmedRoute": {
+      "medianFps": 54.94505494506373,
+      "meanFps": 39.43083604705036,
+      "onePercentLowFps": 5.858230814294079,
+      "p99FrameMs": 170.70000000000013,
+      "maxFrameMs": 224.1999999999971,
+      "framesOver25Ms": 273,
+      "framesOver50Ms": 102,
+      "forestMaxUpdateMs": 34.399999998509884,
+      "groundcoverMaxUpdateMs": 31.799999997019768,
+      "forestMatrixWrites": 4163869,
+      "forestBucketUploads": 30
+    }
+  },
+  "slowFrameAttribution": {
+    "retainedRecords": 64,
+    "recordsWithForestMatrixWrites": 62,
+    "recordsWithForestBucketUpload": 0,
+    "recordsWithGroundcoverUpload": 1,
+    "recordsWithNoRecordedWork": 2,
+    "largestFrames": [
+      224.2,
+      163.6,
+      139.5,
+      139.3,
+      133.3,
+      121.2,
+      109.1,
+      103.0
+    ],
+    "largestFrameCommonWork": "one SeedThree forest matrix-write chunk, normally 4096 writes with 4-5 buckets pending"
+  },
+  "performanceCritic": {
+    "status": "fail",
+    "largestGap": "SeedThree checks the nominal 2 ms deadline only between 4096-write matrix chunks, so one chunk can occupy 34.4 ms before yielding.",
+    "requiredNext": "Implement a much finer tested matrix-write yield interval and hard per-frame write slice in SeloSlav/SeedThree first, preserve atomic commit and exact output, push upstream, then update the game gitlink and rerun the identical warm protocol."
+  },
+  "residenceCritic": {
+    "status": "fail",
+    "capture": "residence-round4.png",
+    "passes": [
+      "Full close silhouette at about 51 percent viewport width",
+      "No neighboring building",
+      "Readable timber and plaster hierarchy",
+      "Clearly wooden rather than clay roofing"
+    ],
+    "largestGap": "The dominant roof reads as 7-8 broad uniform chocolate boards instead of short overlapping weathered split-wood shingles.",
+    "requiredNext": "Keep camera, geometry, lighting, and budgets unchanged; retune only the existing shared brown course and ridge treatment to resolve as aged staggered split shingles."
+  },
+  "files": [
+    {
+      "file": "cold-warmed-trace.json",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\hamlet-round12-cold-warmup.json",
+      "bytes": 70831,
+      "sha256": "049D36E9295322D47D8BCF24B384607C341769C274FEB287B56F8E5A0B2F61E2"
+    },
+    {
+      "file": "residence-round4.png",
+      "source": "C:\\Users\\Asus\\AppData\\Local\\Temp\\residence-visual-round4-close-values.png",
+      "bytes": 224363,
+      "sha256": "5EC11934528269AC603D6A6AE01566CD4A2F9C8F5A3B9021F03F083BAFBA8BAD"
+    }
+  ]
+}

@@ -29,21 +29,32 @@ import {
 import {
   GRASS_BLADE_CHUNK_SIZE,
   GRASS_BLADE_NEAR_RADIUS,
-  GRASS_STREAM_BURST_CAP,
   GRASS_STREAM_CHUNK_RADIUS,
-  GRASS_STREAM_SLOTS_PER_FRAME,
-  GRASS_STREAM_SLOTS_PER_FRAME_FIRST_PERSON,
   GRASS_TUFT_SCATTER_ATTEMPTS,
   GRASS_TUFTS_PER_CHUNK,
   grassBladeLodOpacity,
   grassStreamNearRadius,
   resolveCloseGroundLod,
 } from './grassLodMath.ts';
+import {
+  coalesceStreamSlotRequests,
+  planSlotAttributeUpdateRanges,
+  runStreamSlotUpdateChunk,
+} from '@seedthree/core/stream-slot-budget.js';
+import { resolveGrassStreamViewTransition } from './grassStreamLifecycle.ts';
 
 export const GRASS_BLADES_ENABLED = true;
 
 export type GrassBladeField = {
   group: THREE.Group;
+  getStreamTelemetry: () => GrassStreamTelemetry;
+  isStreamSettled: () => boolean;
+  primeAndFreezeStream: (
+    cameraPosition: THREE.Vector3,
+    cameraTarget: THREE.Vector3,
+    cameraDistance: number,
+    firstPersonActive?: boolean,
+  ) => void;
   syncRoadClearance: (network: RoadNetwork) => void;
   syncPlacementClearance: (polygons: Iterable<Point2[]>) => void;
   setBuildInteractionActive: (active: boolean) => void;
@@ -55,6 +66,29 @@ export type GrassBladeField = {
     firstPersonActive?: boolean,
   ) => void;
   dispose: () => void;
+};
+
+export type GrassStreamTelemetry = {
+  mode: 'active' | 'priming-frozen' | 'frozen';
+  maxUpdateDurationBudgetMs: number;
+  updates: number;
+  generationSubsteps: number;
+  generationDurationMs: number;
+  clearWriteSubsteps: number;
+  clearWriteDurationMs: number;
+  refreshCount: number;
+  refreshDurationMs: number;
+  gpuFlagUpdates: number;
+  gpuUpdateRanges: number;
+  bytesUploaded: number;
+  boundsScans: number;
+  completedSlots: number;
+  cancelledSlots: number;
+  pendingSlots: number;
+  maxPendingSlots: number;
+  lastUpdateDurationMs: number;
+  maxUpdateDurationMs: number;
+  converged: boolean;
 };
 
 const ROAD_CLEAR_MARGIN = 1.05;
@@ -86,7 +120,7 @@ type GrassFieldContext = {
 };
 
 type PendingSlot = {
-  gridIndex: number;
+  slotIndex: number;
   worldChunkX: number;
   worldChunkZ: number;
   sortKey: number;
@@ -96,6 +130,28 @@ type SlotRecord = {
   worldChunkX: number;
   worldChunkZ: number;
   meshCounts: number[];
+};
+
+type GeneratedGrassInstance = {
+  matrix: THREE.Matrix4;
+  tint: readonly [number, number, number];
+  anchor: readonly [number, number, number];
+};
+
+type GeneratedWildflowerInstance = {
+  matrix: THREE.Matrix4;
+  anchor: readonly [number, number, number, number];
+};
+
+type GrassSlotGenerationJob = {
+  request: PendingSlot;
+  phase: 'generate' | 'commit';
+  generationIterator: Generator<
+    number,
+    Array<GeneratedGrassInstance[] | GeneratedWildflowerInstance[]>,
+    void
+  >;
+  generatedByMesh: Array<GeneratedGrassInstance[] | GeneratedWildflowerInstance[]>;
 };
 
 type GrassStreamMesh = {
@@ -112,6 +168,10 @@ export type GrassBladeFieldOptions = {
   maxAnisotropy?: number;
   rendererBackend?: RendererBackendKind;
 };
+
+const GRASS_STREAM_UPDATE_BUDGET_MS = 2;
+const GRASS_STREAM_MINIMUM_HEADROOM_MS = 0.2;
+const GRASS_STREAM_MAX_SUBSTEPS = 8;
 
 export async function createGrassBladeField(
   terrain: Terrain,
@@ -222,8 +282,36 @@ export async function createGrassBladeField(
   let grassZoomVisible = false;
   let wasFirstPerson = false;
   let wasGrassVisible = false;
-  let streamBurstPending = false;
   let streamNearRadius = GRASS_BLADE_NEAR_RADIUS;
+  let activeSlotJob: GrassSlotGenerationJob | null = null;
+  let frozenPrime: {
+    cameraPosition: THREE.Vector3;
+    cameraTarget: THREE.Vector3;
+    cameraDistance: number;
+    firstPersonActive: boolean;
+  } | null = null;
+  const streamTelemetry: GrassStreamTelemetry = {
+    mode: 'active',
+    maxUpdateDurationBudgetMs: GRASS_STREAM_UPDATE_BUDGET_MS,
+    updates: 0,
+    generationSubsteps: 0,
+    generationDurationMs: 0,
+    clearWriteSubsteps: 0,
+    clearWriteDurationMs: 0,
+    refreshCount: 0,
+    refreshDurationMs: 0,
+    gpuFlagUpdates: 0,
+    gpuUpdateRanges: 0,
+    bytesUploaded: 0,
+    boundsScans: 0,
+    completedSlots: 0,
+    cancelledSlots: 0,
+    pendingSlots: 0,
+    maxPendingSlots: 0,
+    lastUpdateDurationMs: 0,
+    maxUpdateDurationMs: 0,
+    converged: false,
+  };
 
   const chunkInStreamRange = (
     chunkX: number,
@@ -267,54 +355,38 @@ export async function createGrassBladeField(
     }
   };
 
-  const regenerateSlot = (
-    gridIdx: number,
-    worldChunkX: number,
-    worldChunkZ: number,
-    focusX: number,
-    focusZ: number,
-  ): void => {
-    const existing = slotRecords[gridIdx]!;
-    if (existing.worldChunkX === worldChunkX && existing.worldChunkZ === worldChunkZ) {
-      return;
-    }
-
-    for (const entry of streamMeshes) {
-      clearSlotRange(entry.mesh, gridIdx * entry.slotCapacity, entry.slotCapacity);
-    }
-    if (!chunkInStreamRange(worldChunkX, worldChunkZ, focusX, focusZ)) {
-      slotRecords[gridIdx] = {
-        worldChunkX,
-        worldChunkZ,
-        meshCounts: Array.from({ length: streamMeshes.length }, () => 0),
-      };
-      return;
-    }
-
-    const grassEntries = streamMeshes.filter((entry) => entry.variant);
-    const grassSlotStart = gridIdx * GRASS_SLOT_CAPACITY;
-    const grassCounts = writeSeedThreeChunkInstances(
-      grassEntries,
-      grassSlotStart,
-      worldChunkX,
-      worldChunkZ,
-      context,
-      GRASS_SLOT_CAPACITY,
-    );
-    let grassCountIndex = 0;
-    const meshCounts = streamMeshes.map((entry) => {
-      if (entry.variant) return grassCounts[grassCountIndex++] ?? 0;
-      if (!entry.wildflowers) return 0;
-      return writeSeedThreeWildflowerChunkInstances(
-        entry,
-        gridIdx * entry.slotCapacity,
-        worldChunkX,
-        worldChunkZ,
-        context,
-        entry.slotCapacity,
-      );
+  const commitSlot = (job: GrassSlotGenerationJob): {
+    cleared: number;
+    written: number;
+  } => {
+    const { slotIndex, worldChunkX, worldChunkZ } = job.request;
+    let cleared = 0;
+    let written = 0;
+    const meshCounts = streamMeshes.map((entry, meshIndex) => {
+      const startIndex = slotIndex * entry.slotCapacity;
+      clearSlotRange(entry.mesh, startIndex, entry.slotCapacity);
+      cleared += entry.slotCapacity;
+      const generated = job.generatedByMesh[meshIndex] ?? [];
+      for (let index = 0; index < generated.length; index++) {
+        const instance = generated[index]!;
+        const instanceIndex = startIndex + index;
+        entry.mesh.setMatrixAt(instanceIndex, instance.matrix);
+        if (entry.variant) {
+          const grass = instance as GeneratedGrassInstance;
+          entry.tintAttr?.setXYZ(instanceIndex, ...grass.tint);
+          writeColor.setRGB(...grass.tint);
+          entry.mesh.setColorAt(instanceIndex, writeColor);
+          entry.anchorAttr?.setXYZ(instanceIndex, ...grass.anchor);
+        } else if (entry.wildflowers) {
+          const wildflower = instance as GeneratedWildflowerInstance;
+          entry.anchorAttr?.setXYZW(instanceIndex, ...wildflower.anchor);
+        }
+        written += 1;
+      }
+      return generated.length;
     });
-    slotRecords[gridIdx] = { worldChunkX, worldChunkZ, meshCounts };
+    slotRecords[slotIndex] = { worldChunkX, worldChunkZ, meshCounts };
+    return { cleared, written };
   };
 
   const queueFullStream = (
@@ -324,7 +396,7 @@ export async function createGrassBladeField(
     focusZ: number,
     nearRadius: number,
   ): void => {
-    pendingSlots = [];
+    const newestRequests: PendingSlot[] = [];
     for (let localZ = 0; localZ < GRID_SIDE; localZ++) {
       for (let localX = 0; localX < GRID_SIDE; localX++) {
         const { chunkX, chunkZ } = worldChunkAt(centerChunkX, centerChunkZ, localX, localZ);
@@ -332,15 +404,31 @@ export async function createGrassBladeField(
         const gridIdx = gridIndex(localX, localZ);
         const existing = slotRecords[gridIdx]!;
         if (existing.worldChunkX === chunkX && existing.worldChunkZ === chunkZ) continue;
-        pendingSlots.push({
-          gridIndex: gridIdx,
+        newestRequests.push({
+          slotIndex: gridIdx,
           worldChunkX: chunkX,
           worldChunkZ: chunkZ,
           sortKey: slotDistanceSq(chunkX, chunkZ, focusX, focusZ),
         });
       }
     }
-    pendingSlots.sort((a, b) => a.sortKey - b.sortKey);
+    const coalesced = coalesceStreamSlotRequests(pendingSlots, newestRequests);
+    pendingSlots = coalesced.pending;
+    streamTelemetry.cancelledSlots += coalesced.cancelledSlotIndices.length;
+    if (
+      activeSlotJob
+      && (
+        coalesced.cancelledSlotIndices.includes(activeSlotJob.request.slotIndex)
+        || !samePendingSlot(
+          activeSlotJob.request,
+          pendingSlots.find(
+            (request) => request.slotIndex === activeSlotJob!.request.slotIndex,
+          ),
+        )
+      )
+    ) {
+      activeSlotJob = null;
+    }
     anchorChunkX = centerChunkX;
     anchorChunkZ = centerChunkZ;
     needsFullStream = false;
@@ -349,41 +437,95 @@ export async function createGrassBladeField(
 
   let buildInteractionActive = false;
   let roadDraftActive = false;
-  let boundingSphereFrame = 0;
-
-  const stepPendingSlots = (focusX: number, focusZ: number, firstPersonActive: boolean): void => {
-    if (pendingSlots.length === 0) return;
-
-    const steadyBudget = firstPersonActive
-      ? GRASS_STREAM_SLOTS_PER_FRAME_FIRST_PERSON
-      : GRASS_STREAM_SLOTS_PER_FRAME;
-    const slotBudget = buildInteractionActive
-      ? Math.max(2, Math.floor(steadyBudget * 0.4))
-      : streamBurstPending
-        ? Math.min(pendingSlots.length, GRASS_STREAM_BURST_CAP)
-        : steadyBudget;
-    const end = Math.min(slotBudget, pendingSlots.length);
-    if (end <= 0) return;
-
-    for (let index = 0; index < end; index++) {
-      const slot = pendingSlots[index]!;
-      regenerateSlot(slot.gridIndex, slot.worldChunkX, slot.worldChunkZ, focusX, focusZ);
+  const stepPendingSlots = (): void => {
+    const updateStartedAt = performance.now();
+    const changedSlotIndices: number[] = [];
+    const result = runStreamSlotUpdateChunk(pendingSlots, {
+      maxDurationMs: GRASS_STREAM_UPDATE_BUDGET_MS,
+      minimumHeadroomMs: GRASS_STREAM_MINIMUM_HEADROOM_MS,
+      maxSubsteps: buildInteractionActive ? 2 : GRASS_STREAM_MAX_SUBSTEPS,
+      now: () => performance.now(),
+      applySubstep: (request, budget) => {
+        if (!activeSlotJob || !samePendingSlot(activeSlotJob.request, request)) {
+          activeSlotJob = {
+            request: { ...request },
+            phase: 'generate',
+            generationIterator: generateSeedThreeSlotInstances(
+              streamMeshes,
+              request,
+              context,
+            ),
+            generatedByMesh: [],
+          };
+        }
+        if (activeSlotJob.phase === 'generate') {
+          const startedAt = performance.now();
+          let generated = 0;
+          while (
+            performance.now()
+            < budget.deadlineMs - GRASS_STREAM_MINIMUM_HEADROOM_MS
+          ) {
+            const step = activeSlotJob.generationIterator.next();
+            if (step.done) {
+              activeSlotJob.generatedByMesh = step.value;
+              activeSlotJob.phase = 'commit';
+              break;
+            }
+            generated += step.value;
+          }
+          const durationMs = performance.now() - startedAt;
+          streamTelemetry.generationSubsteps += 1;
+          streamTelemetry.generationDurationMs += durationMs;
+          return { completed: false, generated };
+        }
+        const startedAt = performance.now();
+        const committed = commitSlot(activeSlotJob);
+        const durationMs = performance.now() - startedAt;
+        streamTelemetry.clearWriteSubsteps += 1;
+        streamTelemetry.clearWriteDurationMs += durationMs;
+        changedSlotIndices.push(request.slotIndex);
+        activeSlotJob = null;
+        return {
+          completed: true,
+          cleared: committed.cleared,
+          written: committed.written,
+        };
+      },
+    });
+    pendingSlots = result.pending;
+    if (changedSlotIndices.length > 0) {
+      const refreshStartedAt = performance.now();
+      refreshMeshCount();
+      streamTelemetry.refreshCount += 1;
+      streamTelemetry.refreshDurationMs += performance.now() - refreshStartedAt;
+      applyStreamMeshUpdateRanges(
+        streamMeshes,
+        changedSlotIndices,
+        streamTelemetry,
+      );
     }
-    pendingSlots.splice(0, end);
-    if (streamBurstPending && pendingSlots.length === 0) {
-      streamBurstPending = false;
-    }
-    refreshMeshCount();
-    for (const entry of streamMeshes) {
-      entry.mesh.instanceMatrix.needsUpdate = true;
-      if (entry.mesh.instanceColor) entry.mesh.instanceColor.needsUpdate = true;
-      if (entry.tintAttr) entry.tintAttr.needsUpdate = true;
-      if (entry.anchorAttr) entry.anchorAttr.needsUpdate = true;
-    }
-    boundingSphereFrame++;
-    const sphereInterval = buildInteractionActive ? 6 : firstPersonActive ? 5 : 3;
-    if (boundingSphereFrame % sphereInterval === 0) {
-      for (const entry of streamMeshes) entry.mesh.computeBoundingSphere();
+    const durationMs = performance.now() - updateStartedAt;
+    streamTelemetry.updates += 1;
+    streamTelemetry.completedSlots += result.completedSlotIndices.length;
+    // An in-progress job remains at the head of `pendingSlots` until commit.
+    streamTelemetry.pendingSlots = pendingSlots.length;
+    streamTelemetry.maxPendingSlots = Math.max(
+      streamTelemetry.maxPendingSlots,
+      streamTelemetry.pendingSlots,
+    );
+    streamTelemetry.lastUpdateDurationMs = durationMs;
+    streamTelemetry.maxUpdateDurationMs = Math.max(
+      streamTelemetry.maxUpdateDurationMs,
+      durationMs,
+    );
+    streamTelemetry.converged =
+      streamTelemetry.pendingSlots === 0 && !needsFullStream;
+    if (
+      streamTelemetry.mode === 'priming-frozen'
+      && streamTelemetry.converged
+    ) {
+      streamTelemetry.mode = 'frozen';
+      frozenPrime = null;
     }
   };
 
@@ -394,8 +536,9 @@ export async function createGrassBladeField(
 
   const markClearanceDirty = (): void => {
     pendingSlots = [];
+    activeSlotJob = null;
     roadClearanceDirty = true;
-    streamBurstPending = true;
+    streamTelemetry.converged = false;
     for (const record of slotRecords) {
       record.worldChunkX = Number.NaN;
       record.worldChunkZ = Number.NaN;
@@ -404,6 +547,30 @@ export async function createGrassBladeField(
 
   return {
     group,
+    getStreamTelemetry() {
+      return { ...streamTelemetry };
+    },
+    isStreamSettled() {
+      return streamTelemetry.converged && streamTelemetry.mode !== 'priming-frozen';
+    },
+    primeAndFreezeStream(
+      cameraPosition: THREE.Vector3,
+      cameraTarget: THREE.Vector3,
+      cameraDistance: number,
+      firstPersonActive = false,
+    ) {
+      frozenPrime = {
+        cameraPosition: cameraPosition.clone(),
+        cameraTarget: cameraTarget.clone(),
+        cameraDistance,
+        firstPersonActive,
+      };
+      streamTelemetry.mode = 'priming-frozen';
+      streamTelemetry.converged = false;
+      pendingSlots = [];
+      activeSlotJob = null;
+      needsFullStream = true;
+    },
     syncRoadClearance(network: RoadNetwork) {
       context.roadSpatialIndex = RoadSpatialIndex.fromNetwork(network);
       markClearanceDirty();
@@ -417,7 +584,12 @@ export async function createGrassBladeField(
     },
     setRoadDraftActive(active: boolean) {
       roadDraftActive = active;
-      if (active) pendingSlots = [];
+      if (active && streamTelemetry.mode !== 'frozen') {
+        pendingSlots = [];
+        activeSlotJob = null;
+        streamTelemetry.pendingSlots = 0;
+        streamTelemetry.converged = false;
+      }
     },
     updateCameraState(
       cameraPosition: THREE.Vector3,
@@ -425,12 +597,12 @@ export async function createGrassBladeField(
       cameraDistance: number,
       firstPersonActive = false,
     ) {
-      if (firstPersonActive && !wasFirstPerson) {
-        needsFullStream = true;
-        streamBurstPending = true;
-      }
-      wasFirstPerson = firstPersonActive;
-      streamNearRadius = grassStreamNearRadius(firstPersonActive);
+      const streamCameraPosition = frozenPrime?.cameraPosition ?? cameraPosition;
+      const streamCameraTarget = frozenPrime?.cameraTarget ?? cameraTarget;
+      const streamFirstPerson = frozenPrime?.firstPersonActive ?? firstPersonActive;
+      const previousFirstPerson = wasFirstPerson;
+      wasFirstPerson = streamFirstPerson;
+      streamNearRadius = grassStreamNearRadius(streamFirstPerson);
 
       const { grassOpacity } = resolveCloseGroundLod(cameraDistance, firstPersonActive);
       const displayOpacity = firstPersonActive ? 1 : grassBladeLodOpacity(grassOpacity);
@@ -453,22 +625,39 @@ export async function createGrassBladeField(
       }
 
       for (const entry of streamMeshes) entry.mesh.visible = grassZoomVisible;
-      if (!grassZoomVisible) {
-        pendingSlots = [];
-        wasGrassVisible = false;
-        streamBurstPending = false;
+      const settledViewTransition = resolveGrassStreamViewTransition({
+        mode: streamTelemetry.mode,
+        firstPersonActive: streamFirstPerson,
+        wasFirstPersonActive: previousFirstPerson,
+        grassVisible: grassZoomVisible,
+        hasFrozenPrime: frozenPrime !== null,
+      });
+      if (settledViewTransition.invalidateForFirstPersonEntry) {
+        needsFullStream = true;
+        streamTelemetry.converged = false;
+      }
+      if (settledViewTransition.preserveFrozenState) {
+        wasGrassVisible = grassZoomVisible;
         return;
       }
-      if (!wasGrassVisible) {
-        needsFullStream = true;
-        streamBurstPending = true;
+      if (settledViewTransition.clearInactiveStream) {
+        pendingSlots = [];
+        activeSlotJob = null;
+        streamTelemetry.pendingSlots = 0;
+        streamTelemetry.converged = false;
+        wasGrassVisible = false;
+        return;
       }
-      wasGrassVisible = true;
+      if (grassZoomVisible && !wasGrassVisible && streamTelemetry.mode === 'active') {
+        needsFullStream = true;
+        streamTelemetry.converged = false;
+      }
+      wasGrassVisible = grassZoomVisible;
 
       if (roadDraftActive) return;
 
-      const focusX = firstPersonActive ? cameraPosition.x : cameraTarget.x;
-      const focusZ = firstPersonActive ? cameraPosition.z : cameraTarget.z;
+      const focusX = streamFirstPerson ? streamCameraPosition.x : streamCameraTarget.x;
+      const focusZ = streamFirstPerson ? streamCameraPosition.z : streamCameraTarget.z;
       const centerChunkX = Math.floor(focusX / GRASS_BLADE_CHUNK_SIZE);
       const centerChunkZ = Math.floor(focusZ / GRASS_BLADE_CHUNK_SIZE);
 
@@ -476,7 +665,7 @@ export async function createGrassBladeField(
         queueFullStream(centerChunkX, centerChunkZ, focusX, focusZ, streamNearRadius);
       }
 
-      stepPendingSlots(focusX, focusZ, firstPersonActive);
+      stepPendingSlots();
     },
     dispose() {
       disposeResources();
@@ -490,6 +679,34 @@ function createDisabledGrassBladeField(): GrassBladeField {
   group.visible = false;
   return {
     group,
+    getStreamTelemetry() {
+      return {
+        mode: 'frozen',
+        maxUpdateDurationBudgetMs: GRASS_STREAM_UPDATE_BUDGET_MS,
+        updates: 0,
+        generationSubsteps: 0,
+        generationDurationMs: 0,
+        clearWriteSubsteps: 0,
+        clearWriteDurationMs: 0,
+        refreshCount: 0,
+        refreshDurationMs: 0,
+        gpuFlagUpdates: 0,
+        gpuUpdateRanges: 0,
+        bytesUploaded: 0,
+        boundsScans: 0,
+        completedSlots: 0,
+        cancelledSlots: 0,
+        pendingSlots: 0,
+        maxPendingSlots: 0,
+        lastUpdateDurationMs: 0,
+        maxUpdateDurationMs: 0,
+        converged: true,
+      };
+    },
+    isStreamSettled() {
+      return true;
+    },
+    primeAndFreezeStream() {},
     syncRoadClearance() {},
     syncPlacementClearance() {},
     setBuildInteractionActive() {},
@@ -497,6 +714,49 @@ function createDisabledGrassBladeField(): GrassBladeField {
     updateCameraState() {},
     dispose() {},
   };
+}
+
+function samePendingSlot(
+  left: PendingSlot | null | undefined,
+  right: PendingSlot | null | undefined,
+): boolean {
+  return !!left
+    && !!right
+    && left.slotIndex === right.slotIndex
+    && left.worldChunkX === right.worldChunkX
+    && left.worldChunkZ === right.worldChunkZ;
+}
+
+function applyStreamMeshUpdateRanges(
+  streamMeshes: GrassStreamMesh[],
+  changedSlotIndices: readonly number[],
+  telemetry: GrassStreamTelemetry,
+): void {
+  for (const entry of streamMeshes) {
+    const attributes = [
+      entry.mesh.instanceMatrix,
+      entry.mesh.instanceColor,
+      entry.tintAttr,
+      entry.anchorAttr,
+    ].filter((attribute): attribute is THREE.InstancedBufferAttribute => !!attribute);
+    for (const attribute of attributes) {
+      const bytesPerElement = attribute.array.BYTES_PER_ELEMENT;
+      const plan = planSlotAttributeUpdateRanges(
+        changedSlotIndices,
+        entry.slotCapacity,
+        attribute.itemSize,
+        bytesPerElement,
+      );
+      attribute.clearUpdateRanges();
+      for (const range of plan.ranges) {
+        attribute.addUpdateRange(range.start, range.count);
+      }
+      attribute.needsUpdate = true;
+      telemetry.gpuFlagUpdates += 1;
+      telemetry.gpuUpdateRanges += plan.ranges.length;
+      telemetry.bytesUploaded += plan.byteCount;
+    }
+  }
 }
 
 function clearSlotRange(mesh: THREE.InstancedMesh, startIndex: number, capacity: number): void {
@@ -517,21 +777,59 @@ const writeEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const writeColor = new THREE.Color();
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
-function writeSeedThreeChunkInstances(
+function* generateSeedThreeSlotInstances(
   streamMeshes: GrassStreamMesh[],
-  startIndex: number,
+  request: PendingSlot,
+  context: GrassFieldContext,
+): Generator<
+  number,
+  Array<GeneratedGrassInstance[] | GeneratedWildflowerInstance[]>,
+  void
+> {
+  const grassEntries = streamMeshes.filter((entry) => entry.variant);
+  const grassInstances = yield* generateSeedThreeChunkInstances(
+    grassEntries,
+    request.worldChunkX,
+    request.worldChunkZ,
+    context,
+    GRASS_SLOT_CAPACITY,
+  );
+  let grassCountIndex = 0;
+  const generatedByMesh: Array<
+    GeneratedGrassInstance[] | GeneratedWildflowerInstance[]
+  > = [];
+  for (const entry of streamMeshes) {
+    if (entry.variant) {
+      generatedByMesh.push(grassInstances[grassCountIndex++] ?? []);
+    } else if (entry.wildflowers) {
+      generatedByMesh.push(yield* generateSeedThreeWildflowerChunkInstances(
+        entry,
+        request.worldChunkX,
+        request.worldChunkZ,
+        context,
+        entry.slotCapacity,
+      ));
+    } else {
+      generatedByMesh.push([]);
+    }
+  }
+  return generatedByMesh;
+}
+
+function* generateSeedThreeChunkInstances(
+  streamMeshes: GrassStreamMesh[],
   chunkX: number,
   chunkZ: number,
   context: GrassFieldContext,
   maxInstancesPerMesh = Number.POSITIVE_INFINITY,
-): number[] {
+): Generator<number, GeneratedGrassInstance[][], void> {
   const { terrain, extent, terrainExtent, forestCores, roadSpatialIndex } = context;
   const rng = mulberry32(chunkSeed(chunkX, chunkZ));
   const chunkMinX = chunkX * GRASS_BLADE_CHUNK_SIZE;
   const chunkMinZ = chunkZ * GRASS_BLADE_CHUNK_SIZE;
   const chunkSpan = GRASS_BLADE_CHUNK_SIZE;
   const margin = chunkSpan * 0.02;
-  const meshWriteIndices = streamMeshes.map(() => startIndex);
+  const instancesByMesh = streamMeshes.map(() => [] as GeneratedGrassInstance[]);
   const heightCache = new Map<number, number>();
 
   const heightAt = (x: number, z: number): number => {
@@ -547,7 +845,7 @@ function writeSeedThreeChunkInstances(
   const tuftTarget = GRASS_TUFTS_PER_CHUNK + Math.floor(rng() * 14);
 
   const tryPlaceTuft = (micro: boolean): boolean => {
-    if (streamMeshes.every((_, meshIndex) => meshWriteIndices[meshIndex]! - startIndex >= maxInstancesPerMesh)) {
+    if (instancesByMesh.every((instances) => instances.length >= maxInstancesPerMesh)) {
       return false;
     }
     if (!micro && localPlacements.filter((p) => !p.micro).length >= tuftTarget) return false;
@@ -578,7 +876,7 @@ function writeSeedThreeChunkInstances(
 
     const variantIndex = rng() < (streamMeshes[0]?.variant?.share ?? 0.62) ? 0 : 1;
     const entry = streamMeshes[variantIndex];
-    if (!entry?.variant || meshWriteIndices[variantIndex]! - startIndex >= maxInstancesPerMesh) return false;
+    if (!entry?.variant || instancesByMesh[variantIndex]!.length >= maxInstancesPerMesh) return false;
 
     const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
     if (!micro) {
@@ -606,52 +904,38 @@ function writeSeedThreeChunkInstances(
 
     const rootY = heightAt(x, z) + 0.04;
     composeSeedThreeTuftMatrix(x, z, rootY, height, widthScale, rng, writeMatrix, writeQuaternion, writePosition, writeScale);
-    const instanceIndex = meshWriteIndices[variantIndex]!;
-    entry.mesh.setMatrixAt(instanceIndex, writeMatrix);
     const tint = sampleSeedThreeGrassTint(rng, dry);
-    entry.tintAttr?.setXYZ(instanceIndex, tint.x, tint.y, tint.z);
-    writeColor.setRGB(tint.x, tint.y, tint.z);
-    entry.mesh.setColorAt(instanceIndex, writeColor);
-    entry.anchorAttr?.setXYZ(instanceIndex, x, rootY, z);
-    meshWriteIndices[variantIndex] = instanceIndex + 1;
+    instancesByMesh[variantIndex]!.push({
+      matrix: writeMatrix.clone(),
+      tint: [tint.x, tint.y, tint.z],
+      anchor: [x, rootY, z],
+    });
     return true;
   };
 
   for (let attempt = 0; attempt < GRASS_TUFT_SCATTER_ATTEMPTS; attempt++) {
     if (localPlacements.filter((p) => !p.micro).length >= tuftTarget) break;
-    tryPlaceTuft(false);
+    yield tryPlaceTuft(false) ? 1 : 0;
   }
 
   const microTarget = Math.floor(tuftTarget * 0.42);
   for (let attempt = 0; attempt < GRASS_TUFT_SCATTER_ATTEMPTS && localPlacements.filter((p) => p.micro).length < microTarget; attempt++) {
     if (localPlacements.length < 3) break;
-    tryPlaceTuft(true);
+    yield tryPlaceTuft(true) ? 1 : 0;
   }
 
-  for (let meshIndex = 0; meshIndex < streamMeshes.length; meshIndex++) {
-    const entry = streamMeshes[meshIndex]!;
-    for (
-      let pad = meshWriteIndices[meshIndex]!;
-      pad < startIndex + maxInstancesPerMesh && Number.isFinite(maxInstancesPerMesh);
-      pad++
-    ) {
-      entry.mesh.setMatrixAt(pad, hiddenMatrix);
-    }
-  }
-
-  return meshWriteIndices.map((index) => index - startIndex);
+  return instancesByMesh;
 }
 
-function writeSeedThreeWildflowerChunkInstances(
+function* generateSeedThreeWildflowerChunkInstances(
   entry: GrassStreamMesh,
-  startIndex: number,
   chunkX: number,
   chunkZ: number,
   context: GrassFieldContext,
   maxInstances: number,
-): number {
+): Generator<number, GeneratedWildflowerInstance[], void> {
   const { terrain, extent, terrainExtent, forestCores, roadSpatialIndex } = context;
-  if (!entry.wildflowers || !entry.anchorAttr) return 0;
+  if (!entry.wildflowers || !entry.anchorAttr) return [];
 
   const seed = (chunkSeed(chunkX, chunkZ) ^ 0x7f4a7c15) >>> 0;
   const rng = mulberry32(seed);
@@ -661,9 +945,10 @@ function writeSeedThreeWildflowerChunkInstances(
   const target = rng() < 0.06 ? 0 : 3 + Math.floor(rng() * 2);
   const localPlacements: Array<{ x: number; z: number }> = [];
   const paletteOffset = seed % SEEDTHREE_WILDFLOWER_VARIANTS.length;
-  let instanceIndex = startIndex;
+  const instances: GeneratedWildflowerInstance[] = [];
 
   for (let attempt = 0; attempt < target * 18 && localPlacements.length < target; attempt++) {
+    yield 0;
     let x: number;
     let z: number;
     if (localPlacements.length > 0 && rng() < 0.62) {
@@ -722,23 +1007,16 @@ function writeSeedThreeWildflowerChunkInstances(
     writeScale.set(widthScale, heightScale, widthScale);
     writeMatrix.compose(writePosition, writeQuaternion, writeScale);
 
-    if (instanceIndex < startIndex + maxInstances) {
-      entry.mesh.setMatrixAt(instanceIndex, writeMatrix);
-      entry.anchorAttr.setXYZW(
-        instanceIndex,
-        x,
-        rootY,
-        z,
-        variant.atlasOffset[0],
-      );
-      instanceIndex++;
+    if (instances.length < maxInstances) {
+      instances.push({
+        matrix: writeMatrix.clone(),
+        anchor: [x, rootY, z, variant.atlasOffset[0]],
+      });
+      yield 1;
     }
   }
 
-  for (let pad = instanceIndex; pad < startIndex + maxInstances; pad++) {
-    entry.mesh.setMatrixAt(pad, hiddenMatrix);
-  }
-  return instanceIndex - startIndex;
+  return instances;
 }
 
 function composeSeedThreeTuftMatrix(

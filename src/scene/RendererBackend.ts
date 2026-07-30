@@ -13,6 +13,9 @@ type WebGPUAdapterInfoLike = {
 
 type WebGPUAdapterLike = {
   readonly info?: WebGPUAdapterInfoLike;
+  // Legacy browser compatibility only. The current standard field is
+  // GPUAdapter.info.isFallbackAdapter.
+  readonly isFallbackAdapter?: unknown;
   readonly features?: {
     forEach(callback: (feature: string) => void): void;
   };
@@ -191,7 +194,10 @@ export async function acquireWebGPUAdapterDevice(
 
   let adapterEvidence: RendererAdapterEvidence;
   try {
-    adapterEvidence = sanitizeWebGPUAdapterEvidence(adapter.info);
+    adapterEvidence = sanitizeWebGPUAdapterEvidence(
+      adapter.info,
+      adapter.isFallbackAdapter,
+    );
   } catch {
     adapterEvidence = unavailableAdapterEvidence(
       'Reading the selected GPUAdapter.info failed.',
@@ -281,25 +287,39 @@ export function readWebGLAdapterEvidence(
 
 function sanitizeWebGPUAdapterEvidence(
   adapterInfo: WebGPUAdapterInfoLike | undefined,
+  fallbackValue: unknown,
 ): RendererAdapterEvidence {
-  if (!adapterInfo) {
+  const legacyFallbackValue = typeof fallbackValue === 'boolean'
+    ? fallbackValue
+    : null;
+  if (!adapterInfo && legacyFallbackValue === null) {
     return unavailableAdapterEvidence('The selected GPUAdapter did not expose info.');
   }
 
-  const vendor = adapterText(adapterInfo.vendor);
-  const architecture = adapterText(adapterInfo.architecture);
-  const device = adapterText(adapterInfo.device);
-  const description = adapterText(adapterInfo.description);
-  const isFallbackAdapter = typeof adapterInfo.isFallbackAdapter === 'boolean'
+  const vendor = adapterText(adapterInfo?.vendor);
+  const architecture = adapterText(adapterInfo?.architecture);
+  const device = adapterText(adapterInfo?.device);
+  const description = adapterText(adapterInfo?.description);
+  const standardFallbackValue = typeof adapterInfo?.isFallbackAdapter === 'boolean'
     ? adapterInfo.isFallbackAdapter
     : null;
+  const isFallbackAdapter = standardFallbackValue ?? legacyFallbackValue;
   const identityStatus =
     vendor !== null || architecture !== null || device !== null || description !== null
       ? 'available'
       : 'unavailable';
   const limitations: string[] = [];
   if (identityStatus === 'unavailable') {
-    limitations.push('The browser redacted all WebGPU adapter identity fields.');
+    limitations.push(
+      adapterInfo
+        ? 'The browser redacted all WebGPU adapter identity fields.'
+        : 'The selected GPUAdapter did not expose info, so its identity is unavailable or redacted.',
+    );
+  }
+  if (standardFallbackValue === null && legacyFallbackValue !== null) {
+    limitations.push(
+      'Fallback status came from the legacy GPUAdapter.isFallbackAdapter field.',
+    );
   }
   if (isFallbackAdapter === null) {
     limitations.push('GPUAdapter.info did not expose isFallbackAdapter.');

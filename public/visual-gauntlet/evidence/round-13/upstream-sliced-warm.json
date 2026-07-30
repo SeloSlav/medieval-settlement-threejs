@@ -1,0 +1,373 @@
+{
+  "capturedAt": "2026-07-30T11:41:47.232Z",
+  "warmedRoute": {
+    "ablation": {
+      "disabledSubsystems": [],
+      "forestSelection": "budgeted",
+      "groundcoverStreaming": "active",
+      "id": "route-warmup",
+      "routeWarmup": "full-route"
+    },
+    "content": {
+      "residenceRoof": "wood-shingle",
+      "residences": 17,
+      "trees": 1651
+    },
+    "fixtureId": "gorski-kotar-parish-lane-1550",
+    "forestWork": {
+      "configuredMaxBucketCompactionsPerFrame": 1,
+      "converged": false,
+      "maxBucketCompactionsPerFrame": 0,
+      "maxUpdateDurationBudgetMs": 2,
+      "maxUpdateDurationMs": 1.6000000014901161,
+      "minimumCameraMoveMeters": 8,
+      "minimumCasterBoundsChangeMeters": 0.75,
+      "minimumDirectionAngleDegrees": 2.5,
+      "minimumProjectionChange": 0.005,
+      "mode": "budgeted-time-chunk",
+      "pendingBuckets": 5,
+      "phases": {
+        "road-eye": {
+          "bucketCompactions": 0,
+          "bucketUploads": 0,
+          "frames": 127,
+          "matrixWrites": 16256,
+          "maxBucketCompactionsPerFrame": 0,
+          "maxUpdateDurationMs": 0.20000000298023224,
+          "selectionChanges": 0,
+          "triggerReasons": {},
+          "workChunks": 127
+        },
+        "settlement": {
+          "bucketCompactions": 0,
+          "bucketUploads": 0,
+          "frames": 972,
+          "matrixWrites": 124416,
+          "maxBucketCompactionsPerFrame": 0,
+          "maxUpdateDurationMs": 0.7999999970197678,
+          "selectionChanges": 242,
+          "triggerReasons": {
+            "camera-turned": 15,
+            "projection-envelope": 283,
+            "selection-policy": 3
+          },
+          "workChunks": 972
+        },
+        "strategic": {
+          "bucketCompactions": 0,
+          "bucketUploads": 0,
+          "frames": 1488,
+          "matrixWrites": 168704,
+          "maxBucketCompactionsPerFrame": 0,
+          "maxUpdateDurationMs": 1.6000000014901161,
+          "selectionChanges": 85,
+          "triggerReasons": {
+            "projection-envelope": 85
+          },
+          "workChunks": 1318
+        }
+      },
+      "selectionChanges": 327,
+      "selectorEvaluations": 382,
+      "selectorSkips": 2205,
+      "settledKeyframes": {
+        "road-eye-settled": {
+          "converged": false,
+          "maxPendingBuckets": 5,
+          "observations": 1,
+          "pendingBuckets": 5,
+          "sampleTiming": "pre-departure-dwell",
+          "sampledAtMs": 12497.300000000003
+        },
+        "strategic-settled": {
+          "converged": false,
+          "maxPendingBuckets": 4,
+          "observations": 2,
+          "pendingBuckets": 4,
+          "sampleTiming": "pre-departure-dwell",
+          "sampledAtMs": 994.3999999999942
+        }
+      },
+      "settledKeyframesConverged": false,
+      "totalBucketCompactions": 0,
+      "totalBucketUploads": 0,
+      "totalMatrixWrites": 309376,
+      "totalWorkChunks": 2417,
+      "triggerReasons": {
+        "camera-turned": 15,
+        "projection-envelope": 368,
+        "selection-policy": 3
+      }
+    },
+    "groundcoverWork": {
+      "boundsScans": 0,
+      "bytesUploaded": 11271600,
+      "cancelledSlots": 375,
+      "clearWriteDurationMs": 22.400000050663948,
+      "clearWriteSubsteps": 505,
+      "completedSlots": 505,
+      "converged": false,
+      "generationDurationMs": 844.6000003516674,
+      "generationSubsteps": 955,
+      "gpuFlagUpdates": 4190,
+      "gpuUpdateRanges": 4980,
+      "lastUpdateDurationMs": 1.8999999985098839,
+      "maxPendingSlots": 235,
+      "maxUpdateDurationBudgetMs": 2,
+      "maxUpdateDurationMs": 2.100000001490116,
+      "mode": "active",
+      "pendingSlots": 128,
+      "refreshCount": 419,
+      "refreshDurationMs": 1.5000000149011612,
+      "updates": 866
+    },
+    "performanceReport": {
+      "context": {
+        "adapter": {
+          "architecture": "lovelace",
+          "description": null,
+          "device": null,
+          "fallbackStatus": "non-fallback",
+          "identityStatus": "available",
+          "isFallbackAdapter": false,
+          "limitations": [],
+          "source": "webgpu-adapter-info",
+          "vendor": "nvidia"
+        },
+        "backend": "webgpu",
+        "devicePixelRatio": 1.5,
+        "rendererPixelRatio": 1,
+        "subsystems": {
+          "forest": true,
+          "groundcover": true,
+          "post": true,
+          "precipitation": false,
+          "preview": false,
+          "river": false,
+          "riverRender": false,
+          "riverSimulation": false,
+          "selection": false,
+          "shadows": true,
+          "sky": true,
+          "terrain": true,
+          "ui": true
+        },
+        "viewport": {
+          "height": 720,
+          "width": 1280
+        },
+        "visibility": "visible"
+      },
+      "elapsedSeconds": 30,
+      "metrics": {
+        "framesOver25Ms": 6,
+        "framesOver50Ms": 2,
+        "maxFrameMs": 103,
+        "meanFps": 84.97762255939271,
+        "medianFps": 82.6446280991338,
+        "onePercentLowFps": 32.64691109994941,
+        "p99FrameMs": 30.630769230769566
+      },
+      "renderer": {
+        "medianDrawCalls": 158,
+        "medianFrameCalls": 15,
+        "medianTriangles": 3372361
+      },
+      "sampleCount": 2550,
+      "schemaVersion": 1,
+      "slowFrames": [
+        {
+          "dtMs": 30.39999999999418,
+          "forest": {
+            "bucketUploads": 0,
+            "matrixWrites": 128,
+            "pendingBuckets": 5,
+            "selectionChanged": true,
+            "selectorSkipped": false,
+            "workChunks": 1
+          },
+          "groundcoverDelta": {
+            "bytesUploaded": 22320,
+            "cancelledSlots": 0,
+            "clearWriteSubsteps": 1,
+            "completedSlots": 1,
+            "generationSubsteps": 2,
+            "gpuFlagUpdates": 10,
+            "gpuUpdateRanges": 10,
+            "pendingSlots": 191,
+            "refreshes": 1
+          },
+          "phase": "settlement",
+          "routeCycle": 0,
+          "routeElapsedMs": 8648.199999999997,
+          "traceMs": 8667.199999999997
+        },
+        {
+          "dtMs": 103,
+          "forest": {
+            "bucketUploads": 0,
+            "matrixWrites": 128,
+            "pendingBuckets": 5,
+            "selectionChanged": true,
+            "selectorSkipped": false,
+            "workChunks": 1
+          },
+          "groundcoverDelta": {
+            "bytesUploaded": 44640,
+            "cancelledSlots": 0,
+            "clearWriteSubsteps": 2,
+            "completedSlots": 2,
+            "generationSubsteps": 3,
+            "gpuFlagUpdates": 10,
+            "gpuUpdateRanges": 20,
+            "pendingSlots": 134,
+            "refreshes": 1
+          },
+          "phase": "settlement",
+          "routeCycle": 0,
+          "routeElapsedMs": 9405.800000000003,
+          "traceMs": 9424.800000000003
+        },
+        {
+          "dtMs": 30.30000000000291,
+          "forest": {
+            "bucketUploads": 0,
+            "matrixWrites": 128,
+            "pendingBuckets": 5,
+            "selectionChanged": false,
+            "selectorSkipped": true,
+            "workChunks": 1
+          },
+          "groundcoverDelta": {
+            "bytesUploaded": 0,
+            "cancelledSlots": 0,
+            "clearWriteSubsteps": 0,
+            "completedSlots": 0,
+            "generationSubsteps": 0,
+            "gpuFlagUpdates": 0,
+            "gpuUpdateRanges": 0,
+            "pendingSlots": 0,
+            "refreshes": 0
+          },
+          "phase": "road-eye",
+          "routeCycle": 0,
+          "routeElapsedMs": 11939.300000000003,
+          "traceMs": 11958.300000000003
+        },
+        {
+          "dtMs": 36.39999999999418,
+          "forest": {
+            "bucketUploads": 0,
+            "matrixWrites": 128,
+            "pendingBuckets": 5,
+            "selectionChanged": true,
+            "selectorSkipped": false,
+            "workChunks": 1
+          },
+          "groundcoverDelta": {
+            "bytesUploaded": 22320,
+            "cancelledSlots": 15,
+            "clearWriteSubsteps": 1,
+            "completedSlots": 1,
+            "generationSubsteps": 2,
+            "gpuFlagUpdates": 10,
+            "gpuUpdateRanges": 10,
+            "pendingSlots": 234,
+            "refreshes": 1
+          },
+          "phase": "settlement",
+          "routeCycle": 0,
+          "routeElapsedMs": 13769.699999999997,
+          "traceMs": 13788.699999999997
+        },
+        {
+          "dtMs": 78.69999999999709,
+          "forest": {
+            "bucketUploads": 0,
+            "matrixWrites": 128,
+            "pendingBuckets": 5,
+            "selectionChanged": true,
+            "selectorSkipped": false,
+            "workChunks": 1
+          },
+          "groundcoverDelta": {
+            "bytesUploaded": 44640,
+            "cancelledSlots": 0,
+            "clearWriteSubsteps": 2,
+            "completedSlots": 2,
+            "generationSubsteps": 3,
+            "gpuFlagUpdates": 10,
+            "gpuUpdateRanges": 20,
+            "pendingSlots": 231,
+            "refreshes": 1
+          },
+          "phase": "settlement",
+          "routeCycle": 0,
+          "routeElapsedMs": 13872.699999999997,
+          "traceMs": 13891.699999999997
+        },
+        {
+          "dtMs": 30.30000000000291,
+          "forest": {
+            "bucketUploads": 0,
+            "matrixWrites": 128,
+            "pendingBuckets": 5,
+            "selectionChanged": true,
+            "selectorSkipped": false,
+            "workChunks": 1
+          },
+          "groundcoverDelta": {
+            "bytesUploaded": 22320,
+            "cancelledSlots": 0,
+            "clearWriteSubsteps": 1,
+            "completedSlots": 1,
+            "generationSubsteps": 2,
+            "gpuFlagUpdates": 10,
+            "gpuUpdateRanges": 10,
+            "pendingSlots": 196,
+            "refreshes": 1
+          },
+          "phase": "settlement",
+          "routeCycle": 1,
+          "routeElapsedMs": 8637.300000000003,
+          "traceMs": 29656.300000000003
+        }
+      ],
+      "status": "ready",
+      "windowSeconds": 30
+    },
+    "protocol": {
+      "cssViewport": {
+        "height": 720,
+        "width": 1280
+      },
+      "drawingBuffer": {
+        "height": 720,
+        "width": 1280
+      },
+      "expected": "1280x720@renderer-pr1",
+      "rendererPixelRatio": 1,
+      "requested": true,
+      "valid": true
+    },
+    "route": {
+      "completedRoutes": 1,
+      "phasesTraversed": {
+        "road-eye": true,
+        "settlement": true,
+        "strategic": true
+      },
+      "warmup": {
+        "collectorReset": true,
+        "completed": true,
+        "completedRoutes": 1,
+        "required": true,
+        "stage": "complete",
+        "strategicPendingAtReset": 0
+      }
+    },
+    "routeDurationMs": 21000,
+    "routeId": "gorski-kotar-lod-traverse-v1",
+    "schemaVersion": 1
+  }
+}

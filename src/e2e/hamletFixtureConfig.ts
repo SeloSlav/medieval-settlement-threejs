@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export const HAMLET_FIXTURE_ID = 'gorski-kotar-parish-lane-1550';
 export const HAMLET_FIXTURE_SEED = 0x1550_09a3;
 export const HAMLET_RESIDENCE_ROOF = 'brown' as const;
@@ -23,17 +25,37 @@ export type HamletViewSpec = {
   firstPerson: boolean;
 };
 
+export const HAMLET_RESIDENCE_VIEW_SUBJECT = Object.freeze({
+  id: 'west-lane-south-residence-1',
+  residenceIndex: 11,
+  position: [-22.296739234902255, 0.720684, 35.90355719828845] as const,
+  yaw: -2.3996453855838755,
+});
+
+export const HAMLET_RESIDENCE_VIEW_NEAREST_NEIGHBOR = Object.freeze({
+  id: 'west-lane-south-residence-0',
+  residenceIndex: 10,
+  position: [-10.296739234902253, 0.608888, 24.90355719828845] as const,
+  yaw: -2.3996453855838755,
+});
+
+export const HAMLET_RESIDENCE_VIEW_SUBJECT_ID =
+  HAMLET_RESIDENCE_VIEW_SUBJECT.id;
+
 export const HAMLET_VIEW_SPECS: readonly HamletViewSpec[] = [
   { id: 'strategic', label: 'Strategic', position: [108, 126, -116], target: [0, 3, 4], fov: 39, firstPerson: false },
   { id: 'settlement', label: 'Settlement', position: [67, 67, -73], target: [-1, 3.3, 1], fov: 41, firstPerson: false },
   { id: 'postcard', label: 'Postcard', position: [47, 27, -54], target: [-5, 4.8, 7], fov: 39, firstPerson: false },
   { id: 'road-eye', label: 'Road eye', position: [1.4, 2.45, -59], target: [0, 2.3, -7], fov: 54, firstPerson: true },
   { id: 'chapel', label: 'Chapel', position: [12, 8, 4], target: [-10.5, 5.4, 23], fov: 43, firstPerson: true },
-  { id: 'residence', label: 'Residence', position: [7, 4.7, -35], target: [-8.8, 2.8, -34], fov: 46, firstPerson: true },
+  // Clean, slightly elevated three-quarter judge: close enough to read the
+  // shingle planes and work yard, with the neighboring plot fully off-frame.
+  { id: 'residence', label: 'Residence', position: [-25.2, 3, 23], target: [-22.3, 3.5, 35.9], fov: 43, firstPerson: true },
   { id: 'forest', label: 'Forest edge', position: [48, 12.5, 34], target: [65, 8.3, 58], fov: 50, firstPerson: true },
 ] as const;
 
 export const HAMLET_MOTION_ROUTE_ID = 'gorski-kotar-lod-traverse-v1';
+export const HAMLET_LOD_DISTANCE_TOLERANCE_METERS = 0.01;
 
 export type HamletMotionKeyframe = {
   id:
@@ -56,7 +78,7 @@ export const HAMLET_MOTION_ROUTE = {
   id: HAMLET_MOTION_ROUTE_ID,
   label: 'Strategic to road-eye LOD traverse',
   durationMs: 21_000,
-  interpolation: 'world-space-position-target-quaternion' as const,
+  interpolation: 'world-space-position-target-look-at' as const,
   easing: 'smootherstep' as const,
   settledStartPredicate: {
     id: 'fixture-ready-two-stable-frames' as const,
@@ -148,6 +170,106 @@ export const HAMLET_MOTION_ROUTE = {
   ] satisfies readonly HamletMotionKeyframe[],
 } as const;
 
+export type HamletMotionSample = {
+  elapsedMs: number;
+  segmentIndex: number;
+  from: HamletMotionKeyframe;
+  to: HamletMotionKeyframe;
+  position: THREE.Vector3;
+  target: THREE.Vector3;
+  orientation: THREE.Quaternion;
+  distanceMeters: number;
+  fov: number;
+};
+
+export type HamletBuildingLodBand = 'strategic' | 'settlement' | 'road-eye';
+
+export function resolveHamletBuildingLodBand(
+  distanceMeters: number,
+): HamletBuildingLodBand {
+  const { building } = HAMLET_MOTION_ROUTE.lodBands;
+  if (
+    distanceMeters
+    <= building.roadEyeMeters + HAMLET_LOD_DISTANCE_TOLERANCE_METERS
+  ) {
+    return 'road-eye';
+  }
+  if (
+    distanceMeters
+    <= building.settlementMeters + HAMLET_LOD_DISTANCE_TOLERANCE_METERS
+  ) {
+    return 'settlement';
+  }
+  return 'strategic';
+}
+
+export type HamletVisualReadiness = {
+  fixtureReady: boolean;
+  detailedTexturesReady: boolean;
+  skyRuntimeReady: boolean;
+  forestRuntimeReady: boolean;
+  groundcoverRuntimeReady: boolean;
+};
+
+export function resolveHamletFullVisualSystemsReady(
+  readiness: HamletVisualReadiness,
+): boolean {
+  return readiness.fixtureReady
+    && readiness.detailedTexturesReady
+    && readiness.skyRuntimeReady
+    && readiness.forestRuntimeReady
+    && readiness.groundcoverRuntimeReady;
+}
+
+/**
+ * Interpolates the authored world-space position and target, then derives the
+ * camera quaternion and distance telemetry from that same geometry. This
+ * keeps the visible aim, published target, and LOD distance mutually truthful.
+ */
+export function sampleHamletMotionRoute(elapsedMs: number): HamletMotionSample {
+  const clamped = THREE.MathUtils.clamp(elapsedMs, 0, HAMLET_MOTION_ROUTE.durationMs);
+  const keyframes = HAMLET_MOTION_ROUTE.keyframes;
+  let segmentIndex = Math.max(0, keyframes.length - 2);
+  for (let index = 0; index < keyframes.length - 1; index += 1) {
+    if (clamped <= keyframes[index + 1]!.timeMs) {
+      segmentIndex = index;
+      break;
+    }
+  }
+  const from = keyframes[segmentIndex]!;
+  const to = keyframes[segmentIndex + 1]!;
+  const segmentDuration = Math.max(1, to.timeMs - from.timeMs);
+  const rawT = THREE.MathUtils.clamp((clamped - from.timeMs) / segmentDuration, 0, 1);
+  const t = smootherstep(rawT);
+  const position = new THREE.Vector3(...from.position).lerp(
+    new THREE.Vector3(...to.position),
+    t,
+  );
+  const target = new THREE.Vector3(...from.target).lerp(
+    new THREE.Vector3(...to.target),
+    t,
+  );
+  const orientation = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().lookAt(position, target, new THREE.Vector3(0, 1, 0)),
+  );
+  return {
+    elapsedMs: clamped,
+    segmentIndex,
+    from,
+    to,
+    position,
+    target,
+    orientation,
+    distanceMeters: position.distanceTo(target),
+    fov: THREE.MathUtils.lerp(from.fov, to.fov, t),
+  };
+}
+
+function smootherstep(value: number): number {
+  const t = THREE.MathUtils.clamp(value, 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
 export type HamletRoadArm = {
   id: 'stem' | 'west-arm' | 'east-arm';
   points: readonly (readonly [number, number])[];
@@ -170,10 +292,12 @@ export type HamletZoneSpec = {
 };
 
 export const HAMLET_ZONE_SPECS: readonly HamletZoneSpec[] = [
-  { id: 'stem-west', axisStart: [0, -52], axisEnd: [0, -17], side: 1, frontageOffset: 4.2, depth: 19, plotCount: 3 },
-  { id: 'stem-east', axisStart: [0, -18], axisEnd: [0, -48], side: 1, frontageOffset: 4.2, depth: 19, plotCount: 2 },
-  { id: 'west-lane', axisStart: [-10, 9], axisEnd: [-38, 35], side: 1, frontageOffset: 4.2, depth: 18, plotCount: 2 },
-  { id: 'east-lane', axisStart: [10, 9], axisEnd: [38, 35], side: -1, frontageOffset: 4.2, depth: 18, plotCount: 2 },
+  { id: 'stem-west', axisStart: [0, -55], axisEnd: [0, -15], side: 1, frontageOffset: 4.2, depth: 18, plotCount: 4 },
+  { id: 'stem-east', axisStart: [0, -17], axisEnd: [0, -52], side: 1, frontageOffset: 4.2, depth: 18, plotCount: 3 },
+  { id: 'west-lane-north', axisStart: [-9, 8], axisEnd: [-39, 36], side: 1, frontageOffset: 4.2, depth: 17, plotCount: 3 },
+  { id: 'west-lane-south', axisStart: [-12, 11], axisEnd: [-36, 33], side: -1, frontageOffset: 4.2, depth: 15, plotCount: 2 },
+  { id: 'east-lane-south', axisStart: [9, 8], axisEnd: [39, 36], side: -1, frontageOffset: 4.2, depth: 17, plotCount: 3 },
+  { id: 'east-lane-north', axisStart: [12, 11], axisEnd: [36, 33], side: 1, frontageOffset: 4.2, depth: 15, plotCount: 2 },
 ] as const;
 
 export type HamletFieldSpec = {

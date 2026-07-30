@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "gorski-kotar-parish-lane-1550",
+  "routeId": "gorski-kotar-lod-traverse-v1",
+  "routeDurationMs": 21000,
+  "ablation": {
+    "id": "groundcover-stream-forest-update-frozen",
+    "disabledSubsystems": [],
+    "forestSelection": "budgeted",
+    "forestUpdates": "frozen-after-settled-warmup",
+    "groundcoverStreaming": "frozen",
+    "routeWarmup": "full-route"
+  },
+  "protocol": {
+    "requested": true,
+    "valid": true,
+    "cssViewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "drawingBuffer": {
+      "width": 1280,
+      "height": 720
+    },
+    "rendererPixelRatio": 1,
+    "expected": "1280x720@renderer-pr1"
+  },
+  "performanceReport": {
+    "status": "ready",
+    "elapsedSeconds": 30,
+    "sampleCount": 3217,
+    "metrics": {
+      "medianFps": 83.33333333333333,
+      "onePercentLowFps": 52.273087280213986,
+      "meanFps": 107.2051026563005,
+      "p99FrameMs": 19.13030303030356,
+      "maxFrameMs": 24.30000000000291,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0
+    },
+    "renderer": {
+      "medianDrawCalls": 157,
+      "medianFrameCalls": 15,
+      "medianTriangles": 3345221
+    },
+    "slowFrames": [],
+    "context": {
+      "backend": "webgpu",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "devicePixelRatio": 1.5,
+      "rendererPixelRatio": 1,
+      "visibility": "visible",
+      "adapter": {
+        "source": "webgpu-adapter-info",
+        "identityStatus": "available",
+        "fallbackStatus": "non-fallback",
+        "vendor": "nvidia",
+        "architecture": "lovelace",
+        "device": null,
+        "description": null,
+        "isFallbackAdapter": false,
+        "limitations": []
+      },
+      "subsystems": {
+        "post": true,
+        "sky": true,
+        "shadows": true,
+        "river": false,
+        "riverSimulation": false,
+        "riverRender": false,
+        "precipitation": false,
+        "selection": false,
+        "preview": false,
+        "terrain": true,
+        "groundcover": true,
+        "forest": true,
+        "ui": true
+      }
+    },
+    "schemaVersion": 1,
+    "windowSeconds": 30
+  },
+  "forestWork": {
+    "mode": "frozen-after-settled-warmup",
+    "updateAblation": {
+      "requestedMode": "frozen-after-settled-warmup",
+      "state": "frozen",
+      "pendingBucketsAtFreeze": 0,
+      "convergedAtFreeze": true
+    },
+    "configuredMaxBucketCompactionsPerFrame": 1,
+    "maxBucketCompactionsPerFrame": 0,
+    "maxUpdateDurationBudgetMs": 2,
+    "minimumCameraMoveMeters": 8,
+    "minimumDirectionAngleDegrees": 2.5,
+    "minimumProjectionChange": 0.005,
+    "minimumCasterBoundsChangeMeters": 0.75,
+    "totalBucketCompactions": 0,
+    "totalBucketUploads": 0,
+    "totalWorkChunks": 0,
+    "totalMatrixWrites": 0,
+    "selectorEvaluations": 0,
+    "selectorSkips": 3255,
+    "triggerReasons": {},
+    "selectionChanges": 0,
+    "pendingBuckets": 0,
+    "maxUpdateDurationMs": 0,
+    "phases": {
+      "strategic": {
+        "frames": 1794,
+        "selectionChanges": 0,
+        "bucketCompactions": 0,
+        "bucketUploads": 0,
+        "workChunks": 0,
+        "matrixWrites": 0,
+        "maxBucketCompactionsPerFrame": 0,
+        "maxUpdateDurationMs": 0,
+        "triggerReasons": {}
+      },
+      "settlement": {
+        "frames": 1276,
+        "selectionChanges": 0,
+        "bucketCompactions": 0,
+        "bucketUploads": 0,
+        "workChunks": 0,
+        "matrixWrites": 0,
+        "maxBucketCompactionsPerFrame": 0,
+        "maxUpdateDurationMs": 0,
+        "triggerReasons": {}
+      },
+      "road-eye": {
+        "frames": 185,
+        "selectionChanges": 0,
+        "bucketCompactions": 0,
+        "bucketUploads": 0,
+        "workChunks": 0,
+        "matrixWrites": 0,
+        "maxBucketCompactionsPerFrame": 0,
+        "maxUpdateDurationMs": 0,
+        "triggerReasons": {}
+      }
+    },
+    "settledKeyframes": {
+      "strategic-settled": {
+        "observations": 2,
+        "pendingBuckets": 0,
+        "maxPendingBuckets": 0,
+        "converged": true,
+        "sampledAtMs": 989.5000000014916,
+        "sampleTiming": "pre-departure-dwell"
+      },
+      "road-eye-settled": {
+        "observations": 1,
+        "pendingBuckets": 0,
+        "maxPendingBuckets": 0,
+        "converged": true,
+        "sampledAtMs": 12498.000000001492,
+        "sampleTiming": "pre-departure-dwell"
+      }
+    },
+    "converged": true,
+    "settledKeyframesConverged": true
+  },
+  "groundcoverWork": {
+    "mode": "frozen",
+    "maxUpdateDurationBudgetMs": 2,
+    "updates": 117,
+    "generationSubsteps": 249,
+    "generationDurationMs": 212.00000014156103,
+    "clearWriteSubsteps": 135,
+    "clearWriteDurationMs": 4.500000007450581,
+    "refreshCount": 109,
+    "refreshDurationMs": 0.30000000447034836,
+    "gpuFlagUpdates": 1090,
+    "gpuUpdateRanges": 1350,
+    "bytesUploaded": 3013200,
+    "boundsScans": 0,
+    "completedSlots": 135,
+    "cancelledSlots": 0,
+    "pendingSlots": 0,
+    "maxPendingSlots": 135,
+    "lastUpdateDurationMs": 1.8999999985098839,
+    "maxUpdateDurationMs": 2.7000000029802322,
+    "converged": true
+  },
+  "route": {
+    "completedRoutes": 1,
+    "phasesTraversed": {
+      "strategic": true,
+      "settlement": true,
+      "road-eye": true
+    },
+    "warmup": {
+      "required": true,
+      "stage": "complete",
+      "completedRoutes": 1,
+      "completed": true,
+      "strategicPendingAtReset": 0,
+      "collectorReset": true
+    }
+  },
+  "content": {
+    "residences": 17,
+    "residenceRoof": "wood-shingle",
+    "trees": 1651,
+    "visibleTrees": 975,
+    "forestDraws": 20
+  }
+}

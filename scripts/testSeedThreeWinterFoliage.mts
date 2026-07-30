@@ -13,6 +13,7 @@ import {
   gorskiKotarSpeciesIsDeciduous,
   seedThreePresetIsDeciduous,
 } from '../src/vegetation/seedthree/gorskiKotarSpecies.ts';
+import { writeSeedThreeLodMatrices } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
 import { deciduousFoliageForClock } from '../src/world/deciduousFoliagePolicy.ts';
 
 const deciduous = GORSKI_KOTAR_PRESETS.filter(seedThreePresetIsDeciduous);
@@ -140,6 +141,10 @@ const compactionSource = readFileSync(
   join(root, 'src/vegetation/seedthree/seedThreeForestCompaction.ts'),
   'utf8',
 );
+const matrixChunkSource = readFileSync(
+  join(root, 'vendor/seedthree/src/core/instance-matrix-chunks.js'),
+  'utf8',
+);
 const forestPropsSource = readFileSync(join(root, 'src/props/ForestProps.ts'), 'utf8');
 const forestManagerSource = readFileSync(join(root, 'src/props/ForestManager.ts'), 'utf8');
 const sceneSource = readFileSync(join(root, 'src/scene/SceneManager.ts'), 'utf8');
@@ -161,8 +166,13 @@ assert.match(
 );
 assert.match(
   compactionSource,
-  /DECIDUOUS_TREE_ORIGIN_Y_OFFSET = 2048[\s\S]*treeOrigin\.setXYZ\([\s\S]*slot\.seasonalDeciduous[\s\S]*DECIDUOUS_TREE_ORIGIN_Y_OFFSET/,
-  'tree compaction must pack deciduous identity into the existing origin buffer',
+  /resolveTreeOriginY:[\s\S]*slot\.seasonalDeciduous[\s\S]*DECIDUOUS_TREE_ORIGIN_Y_OFFSET/,
+  'the game adapter must pass packed deciduous identity to reusable SeedThree compaction',
+);
+assert.match(
+  matrixChunkSource,
+  /task\.treeOrigin\.setXYZ\([\s\S]*job\.resolveTreeOriginY\(slot\)/,
+  'the reusable SeedThree primitive must write the consumer-resolved origin into the real card buffer',
 );
 assert.doesNotMatch(
   builderSource,
@@ -229,5 +239,59 @@ assert.doesNotMatch(
   /new (Mesh|InstancedMesh|BufferGeometry)/,
   'season changes must not allocate geometry or add draws',
 );
+
+const cardGeometry = new THREE.BufferGeometry();
+cardGeometry.setAttribute(
+  'position',
+  new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3),
+);
+const treeOrigin = new THREE.InstancedBufferAttribute(new Float32Array(6), 3);
+cardGeometry.setAttribute('aTreeOrigin', treeOrigin);
+cardGeometry.setAttribute(
+  'aWindVec',
+  new THREE.InstancedBufferAttribute(new Float32Array(6), 3),
+);
+cardGeometry.setAttribute(
+  'aAnchorPos',
+  new THREE.InstancedBufferAttribute(new Float32Array(6), 3),
+);
+const cardMaterial = new THREE.MeshBasicMaterial();
+const cardMesh = new THREE.InstancedMesh(cardGeometry, cardMaterial, 2);
+cardMesh.userData.k = 1;
+cardMesh.userData.srcMatrices = new THREE.Matrix4().identity().toArray();
+cardMesh.userData.weights = [0.5];
+writeSeedThreeLodMatrices(
+  { branches: null, cards: [cardMesh] },
+  [
+    {
+      layoutIndex: 0,
+      matrix: new THREE.Matrix4().makeTranslation(4, 5, 6),
+      pos: new THREE.Vector3(4, 5, 6),
+      visibilityCenter: new THREE.Vector3(4, 5, 6),
+      visibilityRadius: 1,
+      enabled: true,
+      seasonalDeciduous: true,
+    },
+    {
+      layoutIndex: 1,
+      matrix: new THREE.Matrix4().makeTranslation(8, 9, 10),
+      pos: new THREE.Vector3(8, 9, 10),
+      visibilityCenter: new THREE.Vector3(8, 9, 10),
+      visibilityRadius: 1,
+      enabled: true,
+      seasonalDeciduous: false,
+    },
+  ],
+  [0, 1],
+);
+assert.equal(cardMesh.count, 2);
+assert.deepEqual(
+  Array.from(treeOrigin.array),
+  [4, 2053, 6, 8, 9, 10],
+  'real card attributes must preserve evergreen height and pack the deciduous flag at +2048',
+);
+assert.ok(treeOrigin.version > 0, 'committed packed origins must be flagged for GPU upload');
+cardGeometry.dispose();
+cardMaterial.dispose();
 
 console.log('test:seedthree-winter-foliage passed');

@@ -1,0 +1,126 @@
+{
+  "round": 23,
+  "evidenceType": "marker-off control with immutable exact schema-5 rAF and CPU witness",
+  "sceneStatus": "performance-rejected",
+  "qualityGatesProven": 1,
+  "protocolValidity": {
+    "run": "valid",
+    "aggregateWitness": "valid",
+    "isolation": "valid-with-minor-visible-tree-variance",
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "drawingBuffer": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "ablation": "groundcover-stream-forest-update-frozen",
+    "control": "visualGpuTimestampMarkers=0",
+    "warmup": {
+      "discardedRoutes": 1,
+      "strategicPendingAtReset": 0,
+      "collectorReset": true,
+      "measuredRouteCompleted": true,
+      "measuredPhasesTraversed": 3
+    },
+    "windowSeconds": 30
+  },
+  "run": {
+    "medianFps": 82.64462809918349,
+    "meanFps": 88.37441705529648,
+    "onePercentLowFps": 46.77754677754289,
+    "p99FrameMs": 21.377777777779556,
+    "maxFrameMs": 42.400000000001455,
+    "framesOver25Ms": 4,
+    "framesOver50Ms": 0,
+    "sampleCount": 2653,
+    "medianDrawCalls": 157,
+    "medianFrameCalls": 15,
+    "medianTriangles": 3342337,
+    "residences": 17,
+    "residenceRoof": "wood-shingle",
+    "forestTotalTrees": 1651,
+    "forestVisibleTrees": 982,
+    "forestDraws": 20,
+    "forestPendingBucketsAtFreeze": 0,
+    "forestConvergedAtFreeze": true,
+    "measuredForestWork": 0,
+    "groundcoverMode": "frozen",
+    "groundcoverPendingSlots": 0,
+    "groundcoverConverged": true
+  },
+  "gpuTiming": {
+    "requested": true,
+    "status": "unavailable",
+    "source": "unavailable",
+    "feature": "timestamp-query",
+    "api": "unavailable",
+    "span": "unavailable",
+    "slotCount": 0,
+    "attemptedFrames": 0,
+    "submittedFrames": 0,
+    "resolvedFrames": 0,
+    "pendingFrames": 0,
+    "droppedFrames": 0,
+    "failedFrames": 0,
+    "limitation": "The two WebGPU timestamp marker submissions were disabled by the profile-only visualGpuTimestampMarkers=0 experimental control; no GPU duration was measured."
+  },
+  "worstOnePercent": {
+    "expectedRecords": 27,
+    "actualRecords": 27,
+    "recordsSortedDescending": true,
+    "recordSumFrameMs": 577.200000000048,
+    "recordMeanFrameMs": 21.377777777779556,
+    "recordReciprocalFps": 46.77754677754289,
+    "reportedMeanFrameMs": 21.377777777779556,
+    "reportedReciprocalFps": 46.77754677754289,
+    "exactAggregateWitness": true,
+    "recordsWithForestWork": 0,
+    "recordsWithGroundcoverDelta": 0,
+    "recordsWithUnavailableGpuTiming": 27,
+    "traceMsMinimum": 448.5,
+    "traceMsMaximum": 30020,
+    "routeElapsedMsMinimum": 425.09999999999854,
+    "routeElapsedMsMaximum": 18086.699999999997,
+    "precedingFrameEntryLatenessMs": {
+      "minimum": 0.4000000000014552,
+      "maximum": 6.19999999999709,
+      "mean": 3.785185189932505
+    },
+    "precedingFrameCpuDurationMs": {
+      "minimum": 4.299999997019768,
+      "maximum": 20.700000002980232,
+      "mean": 6.000000002207579
+    }
+  },
+  "comparisonToRound22": {
+    "baselineHash": "6E865ACF70C07070B4CBDB4587BAA2335AA27A97EFAC1D0266353B75D98986F4",
+    "medianFpsDelta": 0,
+    "onePercentLowFpsDelta": -4.326296231450927,
+    "meanFpsDelta": 5.77937275795431,
+    "p99FrameMsDelta": 1.8097777777793806,
+    "maxFrameMsDelta": 12.099999999998545,
+    "framesOver25MsDelta": 3,
+    "sampleCountDelta": 175,
+    "visibleTreesDelta": -3,
+    "medianTrianglesDelta": -8604
+  },
+  "critic": {
+    "evidenceIntegrity": "pass",
+    "isolation": "pass-with-caveat",
+    "performance": "fail",
+    "markerOverheadHypothesis": "not-supported-as-tail-cause",
+    "largestGap": "The marker-off treatment preserves the 82.64 FPS median but worsens exact one-percent-low to 46.78 FPS, with four frames over 25 ms and a 42.4 ms maximum.",
+    "requiredNext": "Run one immediate, otherwise identical marker-on reversion under the same process and protocol to test reversibility and order drift.",
+    "comparisonCaveat": "One ordered run per arm cannot attribute the higher mean throughput or worse tail causally; visible-tree count differs by three.",
+    "visualCaveat": "JSON cannot prove visual smoothness, absence of popping, or rendered visual correctness."
+  },
+  "files": [
+    {
+      "file": "groundcover-forest-frozen-marker-off-exact-witness-warm.json",
+      "source": "in-app browser DOM evidence envelope",
+      "bytes": 41510,
+      "sha256": "2B8EF03B6EB60ECB4921ADBBB1B951D07110CB202905C6052E7472A26C1D9772"
+    }
+  ]
+}
