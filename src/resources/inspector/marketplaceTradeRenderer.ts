@@ -399,7 +399,7 @@ function renderIronworkProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Frontier ironwork procurement">
       <h3 class="marketplace-trade-section__title">Frontier ironwork procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the shared standing-order queue, physically held market-coffer gold, and current regional rates; carpenters must still collect the fittings by road. The most depleted selected reserve goes first.</p>
+      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the shared standing-order queue, physically held market-coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes market stock only after unloading; a full market leaves the cart waiting visibly at the stall, and carpenters must still collect the fittings by road. The most depleted selected reserve goes first.</p>
       <div class="resource-action-row">${MARKETPLACE_IRONWORK_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-ironwork-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>
@@ -442,7 +442,7 @@ function renderSeedGrainProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Seed-grain procurement">
       <h3 class="marketplace-trade-section__title">Seed-grain procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use broker time, physically held market-coffer gold, and current regional rates.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free market or granary serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
+      <p class="resource-inspector-note">Standing stock target — this market buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use broker time, physically held market-coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes market stock only after unloading.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free market or granary serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
       <div class="resource-action-row">${MARKETPLACE_SEED_GRAIN_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-seed-grain-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>
@@ -470,7 +470,7 @@ function renderMaterialProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Workshop input procurement">
       <h3 class="marketplace-trade-section__title">Workshop input reserves</h3>
-      <p class="resource-inspector-note">Set physical market stock for regionally sourced inputs. Each twelve-unit lot consumes broker time, coffer gold, and the current regional rate. Free market carts are matched settlement-wide to stage iron, salt, and uncommitted pottery working buffers at staffed road-linked smithies, smokehouses, and pastoral holdings; paid household orders and seed recovery retain first claim, then work priority, cycle runway, road length, and stable order decide the next production site and supplying market. Pastoral salt preserves farmhouse cheese and part of autumn slaughter; fresh dairy and herd care continue when it runs out. Pottery promised to an active export order stays at the market. All standing imports share one queue and the most depleted selected reserve goes first.</p>
+      <p class="resource-inspector-note">Set physical market stock for regionally sourced inputs. Each twelve-unit lot consumes broker time, coffer gold, and the current regional rate, then enters from the Adriatic-facing map edge on a live merchant cart; iron or salt becomes usable market stock only after unloading. Free market carts are matched settlement-wide to stage iron, salt, and uncommitted pottery working buffers at staffed road-linked smithies, smokehouses, and pastoral holdings; paid household orders and seed recovery retain first claim, then work priority, cycle runway, road length, and stable order decide the next production site and supplying market. Pastoral salt preserves farmhouse cheese and part of autumn slaughter; fresh dairy and herd care continue when it runs out. Pottery promised to an active export order stays at the market. All standing imports share one queue and the most depleted selected reserve goes first.</p>
       <h4 class="marketplace-trade-section__title">Raw iron for smithing</h4>
       <div class="resource-action-row">${renderTargetButtons(
         'iron',
@@ -485,7 +485,7 @@ function renderMaterialProcurementPolicy(
         manualTrade,
         nextStandingOrder,
       )}</p>
-      <h4 class="marketplace-trade-section__title">Adriatic salt for preservation</h4>
+      <h4 class="marketplace-trade-section__title">Imported salt reserve</h4>
       <div class="resource-action-row">${renderTargetButtons(
         'salt',
         MARKETPLACE_SALT_TARGETS,

@@ -32,6 +32,7 @@ import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import {
   cargoKindLabel,
   formatTripPhaseLabel,
+  tripRemainingSeconds,
   type DeliveryTripState,
 } from '../../logistics/deliveryTrips.ts';
 import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
@@ -105,8 +106,13 @@ export function renderMarketplaceInspector(
   const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
   const potteryReservedForTrade = pendingOffer?.kind === 'goldSell'
     && pendingOffer.resource === 'pottery';
-  const activeMarketTrip = Array.from(context.gameState.deliveryTrips.values())
-    .find((trip) => trip.buildingId === building.id) ?? null;
+  const activeMarketTrips = Array.from(context.gameState.deliveryTrips.values())
+    .filter((trip) => trip.buildingId === building.id);
+  const regionalImportTrip = activeMarketTrips.find((trip) =>
+    trip.destinationKind === 'building'
+    && trip.targetBuildingId === building.id
+  ) ?? null;
+  const activeMarketTrip = activeMarketTrips.find((trip) => trip !== regionalImportTrip) ?? null;
   const activeMaterialTarget = activeMarketTrip?.destinationKind === 'building'
     && activeMarketTrip.targetBuildingId
     && (
@@ -196,12 +202,15 @@ export function renderMarketplaceInspector(
     hasRoadAccess,
     roadSpeedMultiplier,
     marketFireDisabled,
+    regionalImportTrip != null,
   );
   const brokerCount = Math.max(0, Math.floor(building.assignedLabor));
   const routeCondition = roadSpeedMultiplier < 0.999
     ? `${Math.round(roadSpeedMultiplier * 100)}% caravan pace`
     : 'Firm roads';
-  const regionalRoute = marketFireDisabled
+  const regionalRoute = regionalImportTrip
+    ? formatRegionalImportTrip(regionalImportTrip)
+    : marketFireDisabled
     ? 'Paused · repair fire damage before regional trade resumes'
     : brokerCount <= 0
       ? `${routeCondition} · assign a broker to open regional trade`
@@ -265,6 +274,8 @@ export function renderMarketplaceInspector(
     title: label,
     statusText: marketFireDisabled
       ? manualTrade.label
+      : regionalImportTrip
+        ? `${cargoKindLabel(regionalImportTrip.cargoKind)} caravan · ${formatTripPhaseLabel(regionalImportTrip.phase)}`
       : pendingOffer
         ? `Staging bulk order · ${pendingStaging?.localStock.toFixed(0)} / ${pendingStaging?.required.toFixed(0)} at market`
       : specialtyExportActive
@@ -275,7 +286,11 @@ export function renderMarketplaceInspector(
             ? formatLinkedHomeStatus(connectedHomes)
             : manualTrade.label,
     statusState: !marketFireDisabled
-      && (specialtyExportActive || (manualTrade.ready && connectedHomes > 0))
+      && (
+        regionalImportTrip != null
+        || specialtyExportActive
+        || (manualTrade.ready && connectedHomes > 0)
+      )
       ? 'ok'
       : 'idle',
     detailsHtml: `
@@ -329,6 +344,20 @@ export function renderMarketplaceInspector(
       ),
     },
   };
+}
+
+function formatRegionalImportTrip(trip: DeliveryTripState): string {
+  const remainingSeconds = tripRemainingSeconds(trip, trip.pathDistance);
+  const clearsIn = Number.isFinite(remainingSeconds)
+    ? ` · route clears in about ${Math.max(1, Math.ceil(remainingSeconds))}s`
+    : '';
+  if (trip.phase === 'inbound') {
+    return `Merchant cart returning to the Adriatic-facing map edge${clearsIn}`;
+  }
+  if (trip.phase === 'unloading') {
+    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading into physical market storage${clearsIn}`;
+  }
+  return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound from the Adriatic-facing map edge${clearsIn}`;
 }
 
 function marketplaceTreasurySeatPriority(building: BuildingState): number {

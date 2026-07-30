@@ -193,6 +193,7 @@ export function marketplaceManualTradeStatus(
   hasRoadAccess: boolean,
   roadSpeedMultiplier = 1,
   fireDisabled = false,
+  regionalCaravanActive = false,
 ): MarketplaceManualTradeStatus {
   const normalizedRoadSpeed = normalizeRoadSpeedMultiplier(roadSpeedMultiplier);
   const timing = {
@@ -232,6 +233,14 @@ export function marketplaceManualTradeStatus(
       ready: false,
       label: 'Trade desk has no road access',
       reason: 'Connect the marketplace to a road before trading.',
+    };
+  }
+  if (regionalCaravanActive) {
+    return {
+      ...timing,
+      ready: false,
+      label: 'Regional caravan on the road',
+      reason: 'Wait for the current regional caravan to unload and leave the map.',
     };
   }
   if (building.actionCooldown > 1e-6) {

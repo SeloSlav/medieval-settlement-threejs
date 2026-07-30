@@ -184,7 +184,7 @@ const panel = renderMarketplaceTradePanel(
 );
 assert.match(panel, /Workshop input reserves/);
 assert.match(panel, /Raw iron for smithing/);
-assert.match(panel, /Adriatic salt for preservation/);
+assert.match(panel, /Imported salt reserve/);
 assert.match(panel, /data-marketplace-iron-target="24" disabled/);
 assert.match(panel, /data-marketplace-salt-target="24" disabled/);
 assert.match(panel, /Queued behind the more depleted salt reserve; 2 iron lots remain/);
@@ -200,6 +200,14 @@ const tablesSource = fs.readFileSync('server/src/tables.rs', 'utf8');
 const reducerSource = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const tradeSource = fs.readFileSync('server/src/economy/marketplace_trade.rs', 'utf8');
 const caravanSource = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
+const deliveryTripSource = fs.readFileSync(
+  'server/src/simulation/delivery_trips.rs',
+  'utf8',
+);
+const tradePolicySource = fs.readFileSync(
+  'server/src/economy/marketplace_trade_policy.rs',
+  'utf8',
+);
 const generatedTable = fs.readFileSync('src/generated/building_table.ts', 'utf8');
 const generatedIronReducer = fs.readFileSync(
   'src/generated/set_marketplace_iron_target_reducer.ts',
@@ -246,6 +254,46 @@ for (const contract of [
   assert.ok(tradeSource.includes(contract), `standing material imports must retain ${contract}`);
 }
 assert.match(
+  tradeSource,
+  /TradeReceive::Resource\(leg\)[\s\S]*external_import_route[\s\S]*start_external_market_import_trip/,
+  'physical bulk imports must dispatch an authoritative map-edge cart instead of crediting market stock',
+);
+assert.match(
+  tradeSource,
+  /building_has_external_market_import_trip[\s\S]*regional caravan on the road/,
+  'one marketplace must not overlap multiple regional import caravans',
+);
+assert.match(
+  deliveryTripSource,
+  /fn is_external_market_import_trip[\s\S]*trip\.building_id == trip\.target_building_id/,
+  'regional imports must remain identifiable without a new save field',
+);
+assert.match(
+  deliveryTripSource,
+  /pub fn building_has_active_trip[\s\S]*!is_external_market_import_trip/,
+  'an external merchant must not occupy the marketplace settlement cart',
+);
+assert.match(
+  deliveryTripSource,
+  /pub fn start_external_market_import_trip[\s\S]*Some\(1\)/,
+  'the live merchant cart must use an external crew rather than consuming settlement labor',
+);
+assert.match(
+  deliveryTripSource,
+  /!external_market_import[\s\S]*owner_has_active_raider_threat/,
+  'regional cargo must stay physically exposed instead of teleporting home on a raid warning',
+);
+assert.match(
+  deliveryTripSource,
+  /external_market_import && trip\.amount > 1e-6[\s\S]*trip\.unload_remaining = trip\.unload_seconds/,
+  'paid regional cargo must wait physically at a full market instead of disappearing on return',
+);
+assert.match(
+  tradePolicySource,
+  /pub fn adriatic_trade_entry_point[\s\S]*RAID_APPROACH_WEST[\s\S]*RAID_APPROACH_SOUTH/,
+  'regional imports must enter from a stable Adriatic-facing map edge',
+);
+assert.match(
   caravanSource,
   /marketplace_iron_target > 0[\s\S]*marketplace_salt_target > 0[\s\S]*clock\.sim_tick % 5 == building_id % 5/,
   'material targets must reuse the staggered marketplace heartbeat',
@@ -268,6 +316,16 @@ assert.match(
   settlementForecastSource,
   /ironQueuedMarkets[\s\S]*saltQueuedMarkets[\s\S]*nextStandingOrder !== 'seedGrain'/,
   'the Town Hall seed-recovery forecast must reveal competition from material orders',
+);
+assert.match(
+  panel,
+  /live merchant cart[\s\S]*usable market stock only after unloading/,
+  'the material policy must explain the physical regional leg before last-mile workshop carts',
+);
+assert.match(
+  panel,
+  /Imported salt reserve/,
+  'the import control must not imply that Adriatic trade replaces local salt deposits',
 );
 
 const performanceBuilding = {

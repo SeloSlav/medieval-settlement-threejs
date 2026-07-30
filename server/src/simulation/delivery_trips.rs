@@ -10,6 +10,7 @@ use crate::balance_generated::{
     FIRE_BUCKET_UNLOAD_SECONDS, HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY,
     HOUSEHOLD_MAX_WEALTH, REMEDIES_PER_DELIVERY, REMEDY_DELIVERY_SPEED_MPS,
     REMEDY_DELIVERY_TARGET_DAYS, REMEDY_DELIVERY_UNLOAD_SEC, STOREHOUSE_HAUL_PER_WORKER,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 pub use crate::delivery_trip_policy::DeliveryTripPhase;
@@ -159,8 +160,7 @@ pub fn building_has_active_trip(ctx: &ReducerContext, building_id: u64) -> bool 
         .delivery_trip()
         .building_id()
         .filter(&building_id)
-        .next()
-        .is_some()
+        .any(|trip| !is_external_market_import_trip(&trip))
 }
 
 pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) -> bool {
@@ -302,6 +302,71 @@ pub fn building_has_inbound_commodity_trip(
         })
 }
 
+/// A regional merchant uses the marketplace as both the settlement-side
+/// contract anchor and destination. Ordinary local trips never route a
+/// building to itself because their zero-length route is rejected. External
+/// merchants do not occupy the marketplace's own settlement cart, so one
+/// local delivery may run alongside one regional import.
+fn is_external_market_import_trip(trip: &DeliveryTrip) -> bool {
+    trip.destination_kind == DELIVERY_DESTINATION_BUILDING
+        && trip.building_id != 0
+        && trip.building_id == trip.target_building_id
+}
+
+pub fn building_has_external_market_import_trip(ctx: &ReducerContext, marketplace_id: u64) -> bool {
+    ctx.db
+        .delivery_trip()
+        .building_id()
+        .filter(&marketplace_id)
+        .any(|trip| is_external_market_import_trip(&trip))
+}
+
+/// Inserts already-contracted foreign cargo at its physical map-edge entry.
+/// It follows the target market's connected road branch, unloads into that
+/// building, and returns to the same edge. The merchant crew is external and
+/// therefore never consumes the settlement's resident labor roster.
+pub fn start_external_market_import_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    network: &RoadNetwork,
+    marketplace: &Building,
+    commodity: CommodityKind,
+    amount: f64,
+    route: RoadPathRoute,
+) -> bool {
+    if marketplace.kind != "marketplace"
+        || !marketplace.construction_complete
+        || amount <= 1e-6
+        || !amount.is_finite()
+        || route.distance <= 1e-6
+        || route.polyline.len() < 2
+        || building_has_external_market_import_trip(ctx, marketplace.id)
+    {
+        return false;
+    }
+    insert_trip(
+        ctx,
+        tick,
+        network,
+        StartTripSpec {
+            origin: marketplace.clone(),
+            destination: TripDestination::Building {
+                id: marketplace.id,
+                x: marketplace.x,
+                z: marketplace.z,
+            },
+            cargo_kind: commodity.as_u8(),
+            delivery_workers: 1,
+            speed_mps: TIMBER_DELIVERY_SPEED_MPS,
+            unload_seconds: TIMBER_DELIVERY_UNLOAD_SEC,
+            load_amount: amount,
+        },
+        route,
+        Some(1),
+    );
+    true
+}
+
 /// Holding a construction site recalls any cart already bound for it. The
 /// site's reservation is restored immediately, while the loaded cart and its
 /// crew remain on the map until they physically return to the source.
@@ -339,6 +404,22 @@ pub fn drain_trips_for_building(ctx: &ReducerContext, building_id: u64) -> Deliv
     let mut totals = DeliveryCargoTotals::default();
     for trip in trips {
         release_trip_fire_claim(ctx, &trip);
+        if is_external_market_import_trip(&trip) && trip.amount > 1e-6 {
+            if let Some(kind) = CommodityKind::from_u8(trip.cargo_kind) {
+                if recover_stock_at(
+                    ctx,
+                    trip.owner,
+                    trip.x,
+                    trip.z,
+                    ReclamationStock::from_commodity(kind, trip.amount),
+                )
+                .unwrap_or(false)
+                {
+                    ctx.db.delivery_trip().id().delete(trip.id);
+                    continue;
+                }
+            }
+        }
         if let Some(kind) = CommodityKind::from_u8(trip.cargo_kind) {
             totals.add_commodity(kind, trip.amount);
             if trip.building_id == building_id
@@ -802,6 +883,7 @@ pub fn try_start_residence_upgrade_supply_trip(
             load_amount: withdrawn,
         },
         route,
+        None,
     );
     true
 }
@@ -881,6 +963,7 @@ pub fn try_start_fire_response_trip(
             load_amount: load,
         },
         route,
+        None,
     );
     true
 }
@@ -1004,6 +1087,7 @@ pub fn try_start_construction_supply_trip(
             load_amount: withdrawn,
         },
         route,
+        None,
     );
     true
 }
@@ -1046,6 +1130,7 @@ fn try_start_road_trip(
             ..spec
         },
         route,
+        None,
     );
     true
 }
@@ -1056,6 +1141,7 @@ fn insert_trip(
     network: &RoadNetwork,
     spec: StartTripSpec,
     route: RoadPathRoute,
+    free_hauler_workers_override: Option<u32>,
 ) {
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
     let (start_x, start_z) = RoadNetwork::sample_polyline_xz(&route.polyline, 0.0);
@@ -1077,8 +1163,11 @@ fn insert_trip(
         })
         .unwrap_or(1.0);
     let travel_speed_multiplier = cartwright_multiplier * road_condition_multiplier;
-    let free_hauler_workers =
-        free_hauler_workers_for_trip(&spec.origin, spec.cargo_kind, spec.delivery_workers);
+    let free_hauler_workers = free_hauler_workers_override
+        .unwrap_or_else(|| {
+            free_hauler_workers_for_trip(&spec.origin, spec.cargo_kind, spec.delivery_workers)
+        })
+        .min(spec.delivery_workers);
 
     ctx.db.delivery_trip().insert(DeliveryTrip {
         id: 0,
@@ -1116,8 +1205,11 @@ fn step_one_trip(
         return;
     };
     let fire_response = trip.destination_kind == DELIVERY_DESTINATION_FIRE;
+    let external_market_import = is_external_market_import_trip(&trip);
     let raid_posture = raid_cart_posture(
-        !fire_response && tick.owner_has_active_raider_threat(ctx, trip.owner),
+        !fire_response
+            && !external_market_import
+            && tick.owner_has_active_raider_threat(ctx, trip.owner),
         fire_response,
         initial_phase,
     );
@@ -1192,8 +1284,17 @@ fn step_one_trip(
                     remaining_seconds = (remaining_seconds - trip.unload_remaining).max(0.0);
                     trip.unload_remaining = 0.0;
                     complete_unload(ctx, &mut trip, clock.sim_tick);
-                    trip.phase = DeliveryTripPhase::Inbound.as_u8();
-                    trip.progress = 0.0;
+                    if external_market_import && trip.amount > 1e-6 {
+                        // The player has already paid for this physical load.
+                        // If other deliveries filled the market while it was
+                        // travelling, keep the remainder visibly waiting at
+                        // the stall instead of deleting it beyond the map edge.
+                        trip.unload_remaining = trip.unload_seconds / workers;
+                        remaining_seconds = 0.0;
+                    } else {
+                        trip.phase = DeliveryTripPhase::Inbound.as_u8();
+                        trip.progress = 0.0;
+                    }
                 }
             }
             DeliveryTripPhase::Inbound => {
@@ -1777,6 +1878,12 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
 
 fn return_trip_cargo_to_origin(ctx: &ReducerContext, trip: &DeliveryTrip) {
     if trip.amount <= 1e-6 {
+        return;
+    }
+    // This load came from outside the map, not from marketplace storage. If
+    // the caravan turns back, the merchant retains it; never teleport it into
+    // the market merely because that market is the contract anchor.
+    if is_external_market_import_trip(trip) {
         return;
     }
     let Some(TripCargoKind::Commodity(commodity)) = TripCargoKind::from_trip(trip) else {

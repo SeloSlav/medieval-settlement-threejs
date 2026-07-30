@@ -2,6 +2,9 @@ use crate::balance_generated::{
     MarketplaceTradeKind, MarketplaceTradeOffer, TradeResource,
     MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS, STOREHOUSE_HAUL_PER_WORKER,
 };
+use crate::raid_agent_policy::{
+    raid_entry_point_for_approach, RAID_APPROACH_SOUTH, RAID_APPROACH_WEST,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TradeLeg {
@@ -87,6 +90,40 @@ pub fn marketplace_proceeds_cart_load(held_gold: f64) -> f64 {
         return 0.0;
     }
     held_gold.clamp(0.0, STOREHOUSE_HAUL_PER_WORKER)
+}
+
+/// Regional imports approach from the Adriatic-facing south or west edge.
+///
+/// The seed and marketplace id choose one stable corridor, while map size
+/// controls the actual edge. Keeping the entry aligned with the destination
+/// avoids an arbitrary cross-map diagonal before the caravan joins the
+/// settlement's connected road branch.
+pub fn adriatic_trade_entry_point(
+    entropy: u64,
+    market_x: f64,
+    market_z: f64,
+    playable_half: f64,
+) -> Option<(f64, f64)> {
+    if !market_x.is_finite()
+        || !market_z.is_finite()
+        || !playable_half.is_finite()
+        || playable_half <= 0.0
+    {
+        return None;
+    }
+    let mixed =
+        entropy.wrapping_mul(0x9e37_79b9_7f4a_7c15).rotate_left(23) ^ entropy.rotate_right(11);
+    let approach = if mixed & 1 == 0 {
+        RAID_APPROACH_WEST
+    } else {
+        RAID_APPROACH_SOUTH
+    };
+    let offset = if approach == RAID_APPROACH_WEST {
+        market_z
+    } else {
+        market_x
+    };
+    raid_entry_point_for_approach(approach, offset, playable_half)
 }
 
 #[cfg(test)]
@@ -218,5 +255,21 @@ mod tests {
             marketplace_proceeds_cart_load(200.0),
             STOREHOUSE_HAUL_PER_WORKER
         );
+    }
+
+    #[test]
+    fn adriatic_imports_enter_from_a_stable_south_or_west_map_edge() {
+        for map_half in [310.0, 410.0, 510.0] {
+            let first = adriatic_trade_entry_point(17, 42.0, -31.0, map_half).expect("trade entry");
+            let repeated =
+                adriatic_trade_entry_point(17, 42.0, -31.0, map_half).expect("trade entry");
+            assert_eq!(first, repeated);
+            let edge = map_half - crate::raid_agent_policy::MAP_EDGE_INSET_METERS;
+            assert!(
+                (first.0 + edge).abs() < 1e-9 || (first.1 - edge).abs() < 1e-9,
+                "Adriatic access must use the west or south edge"
+            );
+        }
+        assert!(adriatic_trade_entry_point(1, f64::NAN, 0.0, 410.0).is_none());
     }
 }

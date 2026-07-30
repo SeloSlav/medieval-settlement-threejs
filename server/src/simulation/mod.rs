@@ -52,10 +52,11 @@ pub use civic_receipts::try_dispatch_local_civic_receipts;
 pub use construction::step_construction_sites;
 pub use construction_labor_steward::step_construction_labor_stewards;
 pub use delivery_trips::{
-    building_has_active_trip, building_has_inbound_commodity_trip,
-    building_has_inbound_supply_trip, cancel_inbound_construction_trips_for_site,
-    cancel_trips_for_residence, drain_trips_for_building, preserve_in_transit_cart_labor,
-    staffed_cart_workers_by_building, step_delivery_trips, try_start_building_supply_trip,
+    building_has_active_trip, building_has_external_market_import_trip,
+    building_has_inbound_commodity_trip, building_has_inbound_supply_trip,
+    cancel_inbound_construction_trips_for_site, cancel_trips_for_residence,
+    drain_trips_for_building, preserve_in_transit_cart_labor, staffed_cart_workers_by_building,
+    start_external_market_import_trip, step_delivery_trips, try_start_building_supply_trip,
     try_start_fire_response_trip,
 };
 pub(crate) use expanded_economy::has_industrial_firewood_target;

@@ -555,6 +555,16 @@ assert.match(
   /2\.5s/,
 );
 assert.equal(marketplaceManualTradeStatus(marketplace, true).ready, true);
+const regionalCaravanTrade = marketplaceManualTradeStatus(
+  marketplace,
+  true,
+  1,
+  false,
+  true,
+);
+assert.equal(regionalCaravanTrade.ready, false);
+assert.equal(regionalCaravanTrade.label, 'Regional caravan on the road');
+assert.match(regionalCaravanTrade.reason ?? '', /unload and leave the map/);
 const fireDisabledTrade = marketplaceManualTradeStatus(
   marketplace,
   true,
