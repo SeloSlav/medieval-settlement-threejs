@@ -34,6 +34,9 @@ import {
   SALVAGE_TIMBER_VISUAL_CAPACITY,
   SALVAGE_TIMBER_VISUAL_SEGMENTS,
   STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  STOREHOUSE_IRON_VISUAL_SEGMENTS,
+  STOREHOUSE_CLAY_VISUAL_SEGMENTS,
+  STOREHOUSE_SALT_VISUAL_SEGMENTS,
   STOREHOUSE_STONE_VISUAL_SEGMENTS,
   STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
 } from './buildingStockpileVisuals.ts';
@@ -174,6 +177,24 @@ export function buildingMarkerSignatures(
             building.firewood,
             BUILDING_STORAGE_CAPS.village_storehouse.firewood,
             STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            building.iron ?? 0,
+            BUILDING_STORAGE_CAPS.village_storehouse.iron ?? 0,
+            STOREHOUSE_IRON_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            building.clay ?? 0,
+            BUILDING_STORAGE_CAPS.village_storehouse.clay ?? 0,
+            STOREHOUSE_CLAY_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            building.salt ?? 0,
+            BUILDING_STORAGE_CAPS.village_storehouse.salt ?? 0,
+            STOREHOUSE_SALT_VISUAL_SEGMENTS,
           )
         }`
         : '';

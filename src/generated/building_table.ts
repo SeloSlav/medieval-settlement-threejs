@@ -91,4 +91,10 @@ export default __t.row({
   remedies: __t.f64(),
   potteryDispatchPolicy: __t.u8().name("pottery_dispatch_policy"),
   carpenterCartServiceTargetTrips: __t.u8().name("carpenter_cart_service_target_trips"),
+  storehouseAcceptsIron: __t.bool().name("storehouse_accepts_iron"),
+  storehouseAcceptsClay: __t.bool().name("storehouse_accepts_clay"),
+  storehouseAcceptsSalt: __t.bool().name("storehouse_accepts_salt"),
+  storehouseIronTargetPercent: __t.u8().name("storehouse_iron_target_percent"),
+  storehouseClayTargetPercent: __t.u8().name("storehouse_clay_target_percent"),
+  storehouseSaltTargetPercent: __t.u8().name("storehouse_salt_target_percent"),
 });

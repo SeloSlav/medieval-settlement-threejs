@@ -1,8 +1,49 @@
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 
-export const STOREHOUSE_COMMODITIES = ['timber', 'stone', 'firewood'] as const;
+export const STOREHOUSE_COMMODITIES = [
+  'timber',
+  'stone',
+  'firewood',
+  'iron',
+  'clay',
+  'salt',
+] as const;
 export type StorehouseCommodity = (typeof STOREHOUSE_COMMODITIES)[number];
+
+type StorehouseAcceptsField =
+  | 'storehouseAcceptsTimber'
+  | 'storehouseAcceptsStone'
+  | 'storehouseAcceptsFirewood'
+  | 'storehouseAcceptsIron'
+  | 'storehouseAcceptsClay'
+  | 'storehouseAcceptsSalt';
+
+type StorehouseTargetField =
+  | 'storehouseTimberTargetPercent'
+  | 'storehouseStoneTargetPercent'
+  | 'storehouseFirewoodTargetPercent'
+  | 'storehouseIronTargetPercent'
+  | 'storehouseClayTargetPercent'
+  | 'storehouseSaltTargetPercent';
+
+const STOREHOUSE_ACCEPTS_FIELDS: Record<StorehouseCommodity, StorehouseAcceptsField> = {
+  timber: 'storehouseAcceptsTimber',
+  stone: 'storehouseAcceptsStone',
+  firewood: 'storehouseAcceptsFirewood',
+  iron: 'storehouseAcceptsIron',
+  clay: 'storehouseAcceptsClay',
+  salt: 'storehouseAcceptsSalt',
+};
+
+const STOREHOUSE_TARGET_FIELDS: Record<StorehouseCommodity, StorehouseTargetField> = {
+  timber: 'storehouseTimberTargetPercent',
+  stone: 'storehouseStoneTargetPercent',
+  firewood: 'storehouseFirewoodTargetPercent',
+  iron: 'storehouseIronTargetPercent',
+  clay: 'storehouseClayTargetPercent',
+  salt: 'storehouseSaltTargetPercent',
+};
 
 export const STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT = 100;
 export const STOREHOUSE_STOCK_TARGET_PRESETS = [
@@ -59,29 +100,16 @@ export function storehouseCollectionHeadroom(
 }
 
 export function storehouseCommodityTargetPercent(
-  building: Pick<
-    BuildingState,
-    | 'storehouseTimberTargetPercent'
-    | 'storehouseStoneTargetPercent'
-    | 'storehouseFirewoodTargetPercent'
-  >,
+  building: Pick<BuildingState, StorehouseTargetField>,
   commodity: StorehouseCommodity,
 ): number {
-  const percent = commodity === 'timber'
-    ? building.storehouseTimberTargetPercent
-    : commodity === 'stone'
-      ? building.storehouseStoneTargetPercent
-      : building.storehouseFirewoodTargetPercent;
-  return normalizeStorehouseStockTargetPercent(percent);
+  return normalizeStorehouseStockTargetPercent(
+    building[STOREHOUSE_TARGET_FIELDS[commodity]],
+  );
 }
 
 export function storehouseCommodityTarget(
-  building: Pick<
-    BuildingState,
-    | 'storehouseTimberTargetPercent'
-    | 'storehouseStoneTargetPercent'
-    | 'storehouseFirewoodTargetPercent'
-  >,
+  building: Pick<BuildingState, StorehouseTargetField>,
   commodity: StorehouseCommodity,
 ): number {
   const capacity = BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0;
@@ -92,40 +120,24 @@ export function storehouseCommodityTarget(
 }
 
 export function storehouseAcceptsCommodity(
-  building: Pick<
-    BuildingState,
-    | 'storehouseAcceptsTimber'
-    | 'storehouseAcceptsStone'
-    | 'storehouseAcceptsFirewood'
-  >,
+  building: Pick<BuildingState, StorehouseAcceptsField>,
   commodity: StorehouseCommodity,
 ): boolean {
-  return commodity === 'timber'
-    ? building.storehouseAcceptsTimber
-    : commodity === 'stone'
-      ? building.storehouseAcceptsStone
-      : building.storehouseAcceptsFirewood;
+  return building[STOREHOUSE_ACCEPTS_FIELDS[commodity]] !== false;
 }
 
 /** Shared intake-gated headroom used by producer overflow and founding-yard relocation. */
 export function storehouseFilteredCollectionHeadroom(
   building: Pick<
     BuildingState,
-    | 'timber'
-    | 'stone'
-    | 'firewood'
-    | 'storehouseAcceptsTimber'
-    | 'storehouseAcceptsStone'
-    | 'storehouseAcceptsFirewood'
-    | 'storehouseTimberTargetPercent'
-    | 'storehouseStoneTargetPercent'
-    | 'storehouseFirewoodTargetPercent'
+    StorehouseCommodity | StorehouseAcceptsField | StorehouseTargetField
   >,
   commodity: StorehouseCommodity,
 ): number {
   if (!storehouseAcceptsCommodity(building, commodity)) return 0;
-  const stock = Number.isFinite(building[commodity])
-    ? Math.max(0, building[commodity])
+  const rawStock = building[commodity] ?? 0;
+  const stock = Number.isFinite(rawStock)
+    ? Math.max(0, rawStock)
     : 0;
   return Math.max(0, storehouseCommodityTarget(building, commodity) - stock);
 }

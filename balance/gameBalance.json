@@ -1122,7 +1122,16 @@
     "village_storehouse": {
       "label": "Village storehouse",
       "cost": { "timber": 54, "stone": 28 },
-      "storage": { "timber": 360, "firewood": 280, "stone": 360, "water": 0, "food": 0 },
+      "storage": {
+        "timber": 360,
+        "firewood": 280,
+        "stone": 360,
+        "water": 0,
+        "food": 0,
+        "iron": 180,
+        "clay": 180,
+        "salt": 144
+      },
       "workRadius": 0,
       "pickRadius": 10,
       "harvestInterval": 4,

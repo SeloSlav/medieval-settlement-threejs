@@ -40,7 +40,7 @@ import {
 import {
   assignLocalMaterialInputTargets,
   assignMarketplaceMaterialInputTargets,
-  localMaterialInputCommodity,
+  localMaterialInputCommodities,
   selectDirectProcessorInputTarget,
   type DirectProcessorInputCommodity,
   type RoutedMarketplaceMaterialDestination,
@@ -1218,10 +1218,11 @@ export class WorldQueries {
         : null;
       return extractionAcceptsMaintenance(target, mineralResource);
     };
-    if (localMaterialInputCommodity(source.kind, source) === commodity) {
+    if (localMaterialInputCommodities(source.kind, source)
+      .some((candidate) => candidate === commodity)) {
       const localSources = [...this.fireEnabledBuildings(state, fireDisabled)]
         .filter((candidate) =>
-          localMaterialInputCommodity(candidate.kind, candidate) != null
+          localMaterialInputCommodities(candidate.kind, candidate).length > 0
           && candidate.constructionComplete !== false
           && candidate.assignedLabor > 0
           && !activeSources.has(candidate.id));
@@ -1239,7 +1240,8 @@ export class WorldQueries {
         (target) => inboundTargets.has(target.id),
         acceptsMaterialInput,
       );
-      return assignments.get(source.id) ?? null;
+      const assignment = assignments.get(source.id) ?? null;
+      return assignment?.commodity === commodity ? assignment : null;
     }
     return selectDirectProcessorInputTarget(
       this.fireEnabledBuildings(state, fireDisabled),

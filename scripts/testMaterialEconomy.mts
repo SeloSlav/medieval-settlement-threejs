@@ -49,6 +49,7 @@ import {
   assignMarketplaceMaterialInputTargets,
   directlyDispatchedProcessorInputPerCycle,
   LOCAL_MATERIAL_SOURCE_KINDS,
+  localMaterialInputCommodities,
   localMaterialInputCommodity,
   selectDirectProcessorInputTarget,
   selectMarketplaceMaterialInputTarget,
@@ -469,21 +470,44 @@ assert.equal(
 
 assert.deepEqual(
   LOCAL_MATERIAL_SOURCE_KINDS,
-  ['mine', 'clay_pit', 'charcoal_burner', 'smithy', 'potter_kiln'],
+  [
+    'mine',
+    'clay_pit',
+    'charcoal_burner',
+    'smithy',
+    'potter_kiln',
+    'village_storehouse',
+  ],
 );
 assert.deepEqual(
   LOCAL_MATERIAL_SOURCE_KINDS.map((kind) =>
     localMaterialInputCommodity(
       kind,
-      kind === 'mine' ? { iron: 12, salt: 0 } : undefined,
+      kind === 'mine'
+        ? { iron: 12, salt: 0 }
+        : kind === 'village_storehouse'
+          ? { iron: 12, clay: 0, salt: 0 }
+          : undefined,
     )
   ),
-  ['iron', 'clay', 'charcoal', 'ironwork', 'pottery'],
+  ['iron', 'clay', 'charcoal', 'ironwork', 'pottery', 'iron'],
 );
 assert.equal(
   localMaterialInputCommodity('mine', { iron: 0, salt: 12 }),
   'salt',
   'a legacy salt-deposit row must remain routable without inheriting the iron route',
+);
+assert.deepEqual(
+  localMaterialInputCommodities('village_storehouse', {
+    iron: 12,
+    clay: 12,
+    salt: 12,
+    storehouseAcceptsIron: true,
+    storehouseAcceptsClay: false,
+    storehouseAcceptsSalt: true,
+  }),
+  ['iron', 'salt'],
+  'each depot intake gate must also govern which physically stored material it dispatches',
 );
 const olderRemoteClayPit = building('clay_pit', {
   id: 'older-remote-clay-pit',
@@ -539,6 +563,46 @@ assert.equal(localMineAssignments.get('iron-mine')?.commodity, 'iron');
 assert.equal(localMineAssignments.get('iron-mine')?.target.id, 'local-iron-smithy');
 assert.equal(localMineAssignments.get('salt-mine')?.commodity, 'salt');
 assert.equal(localMineAssignments.get('salt-mine')?.target.id, 'local-salt-smokehouse');
+const mixedMaterialDepot = building('village_storehouse', {
+  id: 'mixed-material-depot',
+  iron: 12,
+  clay: 12,
+  salt: 12,
+  storehouseAcceptsIron: true,
+  storehouseAcceptsClay: true,
+  storehouseAcceptsSalt: true,
+});
+const depotAssignments = assignLocalMaterialInputTargets(
+  [mixedMaterialDepot],
+  [
+    building('smithy', {
+      id: 'depot-smithy',
+      assignedLabor: 2,
+      constructionPriority: 2,
+      iron: 0,
+    }),
+    building('potter_kiln', {
+      id: 'urgent-depot-potter',
+      assignedLabor: 2,
+      constructionPriority: 3,
+      clay: 0,
+    }),
+    building('smokehouse', {
+      id: 'depot-smokehouse',
+      assignedLabor: 2,
+      constructionPriority: 2,
+      salt: 0,
+    }),
+  ],
+  () => 20,
+);
+assert.equal(depotAssignments.size, 1, 'one staffed depot has one physical cart per pass');
+assert.equal(depotAssignments.get(mixedMaterialDepot.id)?.commodity, 'clay');
+assert.equal(
+  depotAssignments.get(mixedMaterialDepot.id)?.target.id,
+  'urgent-depot-potter',
+  'a mixed depot must send its single cart to the highest-priority starved workshop',
+);
 const reserveIronMine = building('mine', {
   id: 'reserve-iron-mine',
   x: 0,
@@ -1064,12 +1128,17 @@ assert.match(
 );
 assert.match(
   localMaterialDispatchStep,
-  /"mine"[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*"clay_pit"[\s\S]*CommodityKind::Clay[\s\S]*"charcoal_burner"[\s\S]*CommodityKind::Charcoal[\s\S]*"smithy"[\s\S]*CommodityKind::Ironwork[\s\S]*"potter_kiln"[\s\S]*CommodityKind::Pottery/,
+  /LOCAL_MATERIAL_COMMODITIES[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Clay[\s\S]*CommodityKind::Charcoal[\s\S]*CommodityKind::Ironwork[\s\S]*CommodityKind::Pottery/,
 );
 assert.match(
   localMaterialDispatchStep,
-  /CommodityKind::Iron,\s*&\["smithy", "marketplace"\][\s\S]*CommodityKind::Salt[\s\S]*"pastoral_farmstead", "marketplace"/,
+  /\("mine", CommodityKind::Iron\)[\s\S]*\["smithy", "marketplace"\][\s\S]*\("mine", CommodityKind::Salt\)[\s\S]*"pastoral_farmstead", "marketplace"/,
   'local mine carts must include selected physical market reserves after workshop buffers',
+);
+assert.match(
+  localMaterialDispatchStep,
+  /"village_storehouse", CommodityKind::Iron[\s\S]*storehouse_accepts_iron[\s\S]*"village_storehouse", CommodityKind::Clay[\s\S]*storehouse_accepts_clay[\s\S]*"village_storehouse", CommodityKind::Salt[\s\S]*storehouse_accepts_salt/,
+  'staffed depots must re-dispatch only the raw materials allowed by their physical intake policy',
 );
 assert.match(
   localMaterialDispatchStep,

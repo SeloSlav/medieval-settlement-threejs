@@ -31,7 +31,10 @@ const STOREHOUSE_OVERFLOW_SOURCE_KINDS: &[&str] = &[
     "stone_quarry",
     "large_quarry",
     "woodcutters_lodge",
+    "mine",
+    "clay_pit",
 ];
+const MINE_OVERFLOW_COMMODITIES: &[CommodityKind] = &[CommodityKind::Iron, CommodityKind::Salt];
 
 struct OverflowSource {
     building: Building,
@@ -130,40 +133,35 @@ fn dispatch_overflow_collection_for_owner(
     let Some(network) = tick.road_network(owner) else {
         return;
     };
-    let mut sources: Vec<OverflowSource> = tick
-        .building_ids_for_kinds(ctx, owner, STOREHOUSE_OVERFLOW_SOURCE_KINDS)
-        .into_iter()
-        .filter_map(|building_id| ctx.db.building().id().find(&building_id))
-        .filter_map(|source| {
-            if !source.construction_complete
-                || tick.building_disabled_by_fire(ctx, source.id)
-                || building_has_active_trip(ctx, source.id)
-            {
-                return None;
-            }
-            let commodity = match source.kind.as_str() {
-                "lumber_mill" => CommodityKind::Timber,
-                "stone_quarry" | "large_quarry" => CommodityKind::Stone,
-                "woodcutters_lodge" => CommodityKind::Firewood,
-                _ => return None,
-            };
+    let mut sources: Vec<OverflowSource> = Vec::new();
+    for building_id in tick.building_ids_for_kinds(ctx, owner, STOREHOUSE_OVERFLOW_SOURCE_KINDS) {
+        let Some(source) = ctx.db.building().id().find(&building_id) else {
+            continue;
+        };
+        if !source.construction_complete
+            || tick.building_disabled_by_fire(ctx, source.id)
+            || building_has_active_trip(ctx, source.id)
+        {
+            continue;
+        }
+        for &commodity in overflow_source_commodities(&source) {
             let capacity = building_commodity_cap(&source.kind, commodity);
             if capacity <= 1e-6 {
-                return None;
+                continue;
             }
             let stock = building_commodity_stock(&source, commodity);
             let excess = stock - capacity * STOREHOUSE_OVERFLOW_THRESHOLD;
             if excess <= 1e-6 {
-                return None;
+                continue;
             }
-            Some(OverflowSource {
-                building: source,
+            sources.push(OverflowSource {
+                building: source.clone(),
                 commodity,
                 excess,
                 fill_ratio: stock / capacity,
-            })
-        })
-        .collect();
+            });
+        }
+    }
     sources.sort_by(|a, b| {
         compare_storehouse_source_priority(a.fill_ratio, a.building.id, b.fill_ratio, b.building.id)
     });
@@ -228,6 +226,9 @@ fn storehouse_accepts_commodity(storehouse: &Building, commodity: CommodityKind)
         CommodityKind::Timber => storehouse.storehouse_accepts_timber,
         CommodityKind::Stone => storehouse.storehouse_accepts_stone,
         CommodityKind::Firewood => storehouse.storehouse_accepts_firewood,
+        CommodityKind::Iron => storehouse.storehouse_accepts_iron,
+        CommodityKind::Clay => storehouse.storehouse_accepts_clay,
+        CommodityKind::Salt => storehouse.storehouse_accepts_salt,
         _ => false,
     }
 }
@@ -237,6 +238,9 @@ fn storehouse_collection_room(storehouse: &Building, commodity: CommodityKind) -
         CommodityKind::Timber => storehouse.storehouse_timber_target_percent,
         CommodityKind::Stone => storehouse.storehouse_stone_target_percent,
         CommodityKind::Firewood => storehouse.storehouse_firewood_target_percent,
+        CommodityKind::Iron => storehouse.storehouse_iron_target_percent,
+        CommodityKind::Clay => storehouse.storehouse_clay_target_percent,
+        CommodityKind::Salt => storehouse.storehouse_salt_target_percent,
         _ => return 0.0,
     };
     storehouse_filtered_collection_headroom(
@@ -245,6 +249,17 @@ fn storehouse_collection_room(storehouse: &Building, commodity: CommodityKind) -
         building_commodity_cap(&storehouse.kind, commodity),
         percent,
     )
+}
+
+fn overflow_source_commodities(source: &Building) -> &'static [CommodityKind] {
+    match source.kind.as_str() {
+        "lumber_mill" => &[CommodityKind::Timber],
+        "stone_quarry" | "large_quarry" => &[CommodityKind::Stone],
+        "woodcutters_lodge" => &[CommodityKind::Firewood],
+        "mine" => MINE_OVERFLOW_COMMODITIES,
+        "clay_pit" => &[CommodityKind::Clay],
+        _ => &[],
+    }
 }
 
 fn collect_firewood_delivery_targets(

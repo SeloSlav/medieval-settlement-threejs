@@ -133,10 +133,14 @@ function foundingDestinationPriority(
   commodity: FoundingRelocationCommodity,
   building: BuildingState,
 ): number | null {
-  if (isStorehouseCommodity(commodity)) {
-    return building.kind === 'village_storehouse' ? 0 : null;
+  if (building.kind === 'village_storehouse' && isStorehouseCommodity(commodity)) {
+    return 0;
   }
   switch (commodity) {
+    case 'timber':
+    case 'stone':
+    case 'firewood':
+      return null;
     case 'food':
     case 'grain':
     case 'barley':
@@ -212,10 +216,15 @@ function foundingDestinationRoom(
   building: BuildingState,
   commodity: FoundingRelocationCommodity,
 ): number {
-  if (isStorehouseCommodity(commodity)) {
-    return building.kind === 'village_storehouse'
-      ? storehouseFilteredCollectionHeadroom(building, commodity)
-      : 0;
+  if (building.kind === 'village_storehouse' && isStorehouseCommodity(commodity)) {
+    return storehouseFilteredCollectionHeadroom(building, commodity);
+  }
+  if (
+    commodity === 'timber'
+    || commodity === 'stone'
+    || commodity === 'firewood'
+  ) {
+    return 0;
   }
   return Math.max(0, commodityCapacity(building, commodity) - materialStock(
     building,

@@ -34,6 +34,9 @@ import {
 } from '../../generated/gameBalance.ts';
 import {
   STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  STOREHOUSE_IRON_VISUAL_SEGMENTS,
+  STOREHOUSE_CLAY_VISUAL_SEGMENTS,
+  STOREHOUSE_SALT_VISUAL_SEGMENTS,
   STOREHOUSE_STONE_VISUAL_SEGMENTS,
   STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
@@ -284,6 +287,69 @@ export function createVillageStorehouseMesh(): THREE.Group {
     firewoodStock.add(segment);
   }
   group.add(firewoodStock);
+
+  const ironStock = new THREE.Group();
+  ironStock.name = 'StorehouseIronStockpile';
+  ironStock.visible = false;
+  for (let i = 0; i < STOREHOUSE_IRON_VISUAL_SEGMENTS; i++) {
+    const segment = new THREE.Group();
+    segment.name = 'StorehouseIronSegment';
+    segment.visible = false;
+    addMesh(
+      segment,
+      new THREE.DodecahedronGeometry(0.25 + (i % 2) * 0.04, 0),
+      metalMaterial('iron'),
+      new THREE.Vector3(-4.0 + (i % 2) * 0.46, 1.08 + Math.floor(i / 2) * 0.18, 4.12 + Math.floor(i / 2) * 0.4),
+      new THREE.Euler(i * 0.27, i * 0.41, i * 0.13),
+    );
+    ironStock.add(segment);
+  }
+  group.add(ironStock);
+
+  const clayStock = new THREE.Group();
+  clayStock.name = 'StorehouseClayStockpile';
+  clayStock.visible = false;
+  for (let i = 0; i < STOREHOUSE_CLAY_VISUAL_SEGMENTS; i++) {
+    const segment = new THREE.Group();
+    segment.name = 'StorehouseClaySegment';
+    segment.visible = false;
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.42, 0.28, 0.36),
+      residenceFacadeMaterial(i % 2 === 0 ? 'orange' : 'lightOrange'),
+      new THREE.Vector3(-2.65 + (i % 2) * 0.48, 1.02 + Math.floor(i / 2) * 0.27, 4.18 + Math.floor(i / 2) * 0.38),
+      new THREE.Euler(0, (i % 2 === 0 ? -0.09 : 0.12), 0),
+    );
+    clayStock.add(segment);
+  }
+  group.add(clayStock);
+
+  const saltStock = new THREE.Group();
+  saltStock.name = 'StorehouseSaltStockpile';
+  saltStock.visible = false;
+  for (let i = 0; i < STOREHOUSE_SALT_VISUAL_SEGMENTS; i++) {
+    const segment = new THREE.Group();
+    segment.name = 'StorehouseSaltSegment';
+    segment.visible = false;
+    const x = 0.75 + (i % 2) * 0.52;
+    const y = 1.2 + Math.floor(i / 2) * 0.42;
+    const z = 4.18 + Math.floor(i / 2) * 0.32;
+    const sack = addMesh(
+      segment,
+      new THREE.SphereGeometry(0.3, 8, 6),
+      residenceFacadeMaterial('white'),
+      new THREE.Vector3(x, y, z),
+    );
+    sack.scale.set(0.84, 1.18, 0.8);
+    addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.06, 0.1, 0.14, 7),
+      timberMaterial('light'),
+      new THREE.Vector3(x, y + 0.36, z),
+    );
+    saltStock.add(segment);
+  }
+  group.add(saltStock);
   addMesh(group, new THREE.BoxGeometry(0.7, 0.06, 1.8), earth, new THREE.Vector3(-0.4, 0.06, 6.35));
   return group;
 }

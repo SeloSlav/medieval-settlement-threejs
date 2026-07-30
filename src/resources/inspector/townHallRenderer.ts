@@ -910,13 +910,16 @@ export function renderStorehouseNetworkRows(network: StorehouseNetworkPlan): str
   if (network.completedDepots === 0) {
     return '<li><span>Material depots</span><span>No completed village storehouse</span></li>';
   }
-  const rows = (['timber', 'stone', 'firewood'] as const).map((commodity) => {
+  const rows = ([
+    'timber',
+    'stone',
+    'firewood',
+    'iron',
+    'clay',
+    'salt',
+  ] as const).map((commodity) => {
     const plan = network.commodities[commodity];
-    const label = commodity === 'timber'
-      ? 'Timber depots'
-      : commodity === 'stone'
-        ? 'Stone depots'
-        : 'Firewood depots';
+    const label = `${commodity[0].toUpperCase()}${commodity.slice(1)} depots`;
     if (plan.acceptingDepots === 0) {
       return `<li><span>${label}</span><span>Collection disabled across ${network.completedDepots} depots</span></li>`;
     }

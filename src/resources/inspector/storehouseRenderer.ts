@@ -49,6 +49,19 @@ export function renderStorehouseInspector(
     && building.firewood > 1e-6
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'firewood')
     : null;
+  const materialDispatch = (['iron', 'clay', 'salt'] as const)
+    .filter((commodity) =>
+      storehouseAcceptsCommodity(building, commodity)
+      && Math.max(0, building[commodity] ?? 0) > 1e-6
+    )
+    .map((commodity) => ({
+      commodity,
+      dispatch: context.worldQueries.getNextDirectProcessorInputDispatch(
+        building,
+        commodity,
+      ),
+    }))
+    .find(({ dispatch }) => dispatch != null) ?? null;
   const fuelWorkers = Math.min(2, building.assignedLabor);
   const fuelPerTrip = STOREHOUSE_FIREWOOD_PER_DELIVERY * fuelWorkers;
   const fuelDistance = nextFuelTarget
@@ -81,11 +94,9 @@ export function renderStorehouseInspector(
       : building.firewood <= 1e-6
         ? 'No surplus firewood stored'
         : 'No staffed workshop currently requests surplus fuel';
-  const accepted = [
-    building.storehouseAcceptsTimber ? 'timber' : '',
-    building.storehouseAcceptsStone ? 'stone' : '',
-    building.storehouseAcceptsFirewood ? 'firewood' : '',
-  ].filter(Boolean);
+  const accepted = STOREHOUSE_COMMODITIES
+    .filter((commodity) => storehouseAcceptsCommodity(building, commodity))
+    .map(storehouseCommodityLabel);
   const collectionTargets = STOREHOUSE_COMMODITIES
     .map((commodity) =>
       `${storehouseCommodityLabel(commodity)} ${storehouseCommodityTargetPercent(building, commodity)}%`,
@@ -95,7 +106,7 @@ export function renderStorehouseInspector(
     (sum, commodity) =>
       storehouseAcceptsCommodity(building, commodity)
         ? sum + storehouseCollectionHeadroom(
-          Math.max(0, building[commodity]),
+          Math.max(0, building[commodity] ?? 0),
           BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0,
           storehouseCommodityTargetPercent(building, commodity),
         )
@@ -111,7 +122,7 @@ export function renderStorehouseInspector(
         : deliveringIndustrialFuel
           ? [`Industrial fuel cart to ${activeIndustrialTarget ? context.worldQueries.getBuildingLabel(activeIndustrialTarget.kind) : 'workshop'}`, 'active'] as const
         : activeTrip
-          ? ['Construction supply cart in progress', 'active'] as const
+          ? [`${activeTrip.cargoKind[0]?.toUpperCase() ?? ''}${activeTrip.cargoKind.slice(1)} cart in progress`, 'active'] as const
           : inboundTrip
             ? ['Collecting producer overflow', 'active'] as const
             : accepted.length === 0
@@ -120,9 +131,11 @@ export function renderStorehouseInspector(
                 ? [`Ready to deliver fuel to ${nextFuelLabel}`, 'ok'] as const
                 : industrialDispatch
                   ? [`Protected household reserves covered · ${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} is next for surplus fuel`, 'ok'] as const
-                : collectionHeadroom <= 0.05
-                  ? ['Selected collection targets met', 'ok'] as const
-                  : ['Ready to collect producer overflow', 'ok'] as const;
+                  : materialDispatch
+                    ? [`Ready to supply ${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)}`, 'ok'] as const
+                    : collectionHeadroom <= 0.05
+                      ? ['Selected collection targets met', 'ok'] as const
+                      : ['Ready to collect producer overflow', 'ok'] as const;
 
   return {
     eyebrow: 'Settlement logistics',
@@ -132,13 +145,14 @@ export function renderStorehouseInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Role</span><span>Communal reserve, household fuel distribution, and construction logistics</span></li>
-      <li><span>Duty priority</span><span>Claimed homes below their winter-night fuel floor first; surplus then follows staffed workshop priority and runway</span></li>
+      <li><span>Role</span><span>Communal reserve, household fuel distribution, construction logistics, and raw-material buffering</span></li>
+      <li><span>Duty priority</span><span>Claimed homes below their winter-night fuel floor first; urgent workshop buffers next; incoming producer overflow last</span></li>
       <li><span>Fuel territory</span><span>${claimedResidences.length === 0 ? 'None on branch' : `${claimedResidences.length} households claimed`}</span></li>
       <li><span>Next fuel delivery</span><span>${nextFuelLabel}</span></li>
       <li><span>Fuel road distance</span><span>${formatDeliveryRoadDistance(fuelDistance)}</span></li>
       <li><span>Fuel cart</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} firewood · ${formatDeliveryTripDuration(fuelTripSeconds)}` : 'Paused · no haulers'}</span></li>
       <li><span>Surplus fuel duty</span><span>${nextFuelTarget ? `Protected household stock first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
+      <li><span>Raw-material duty</span><span>${materialDispatch ? `${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)} · ${staffingPriorityLabel(materialDispatch.dispatch!.workPriority)} priority · ${materialDispatch.dispatch!.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(materialDispatch.dispatch!.routeDistance)}` : 'No staffed workshop currently requests stored iron, clay, or salt'}</span></li>
       <li><span>Collection trigger</span><span>Producer stock above ${Math.round(STOREHOUSE_OVERFLOW_THRESHOLD * 100)}%</span></li>
       <li><span>Cart assignment</span><span>Fullest producer first · nearest compatible idle depot</span></li>
       <li><span>Construction bonus</span><span>${STOREHOUSE_HAUL_PER_WORKER} materials per staffed hauler; up to 2 haulers per cart</span></li>
@@ -153,10 +167,13 @@ export function renderStorehouseInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers first protect a half winter day of firewood in each claimed home, enough to cover the overnight no-work window with margin. Once those floors are covered, surplus fuel goes to staffed granaries, brewhouses, smokehouses, charcoal yards, and kilns by work priority, lowest cycle runway, road length, and stable building order.</p>
+        <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers first protect a half winter day of firewood in each claimed home. They then restore the most urgent staffed workshop buffer from stored iron, clay, salt, or surplus fuel before collecting fresh producer overflow. This lets a depot shorten mine-to-workshop routes without creating goods off-map.</p>
         ${acceptanceToggle('timber', 'Timber', building.storehouseAcceptsTimber)}
         ${acceptanceToggle('stone', 'Stone', building.storehouseAcceptsStone)}
         ${acceptanceToggle('firewood', 'Firewood', building.storehouseAcceptsFirewood)}
+        ${acceptanceToggle('iron', 'Iron', building.storehouseAcceptsIron !== false)}
+        ${acceptanceToggle('clay', 'Clay', building.storehouseAcceptsClay !== false)}
+        ${acceptanceToggle('salt', 'Salt', building.storehouseAcceptsSalt !== false)}
         <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. After household fuel duties, the fullest blocked producer claims the nearest compatible idle depot. Targets cap incoming overflow carts only: construction and household fuel can still draw below them, material already above a lowered target remains available, and one cart already on the road may still arrive.</p>
         ${renderStorehouseStockTargetControls(building)}
       </div>
@@ -168,7 +185,7 @@ export function renderStorehouseStockTargetControls(building: BuildingState): st
   return STOREHOUSE_COMMODITIES.map((commodity) => {
     const percent = storehouseCommodityTargetPercent(building, commodity);
     const target = storehouseCommodityTarget(building, commodity);
-    const stock = Math.max(0, building[commodity]);
+    const stock = Math.max(0, building[commodity] ?? 0);
     const headroom = storehouseCollectionHeadroom(
       stock,
       BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0,
@@ -188,14 +205,17 @@ export function renderStorehouseStockTargetControls(building: BuildingState): st
   }).join('');
 }
 
-function acceptanceToggle(key: 'timber' | 'stone' | 'firewood', label: string, checked: boolean): string {
+function acceptanceToggle(key: StorehouseCommodity, label: string, checked: boolean): string {
   return `<label class="city-admin-panel__toggle"><input type="checkbox" data-storehouse-accepts-${key} ${checked ? 'checked' : ''} /><span>Accept ${label}</span></label>`;
 }
 
 function storehouseCommodityLabel(commodity: StorehouseCommodity): string {
-  return commodity === 'timber'
-    ? 'Timber'
-    : commodity === 'stone'
-      ? 'Stone'
-      : 'Firewood';
+  switch (commodity) {
+    case 'timber': return 'Timber';
+    case 'stone': return 'Stone';
+    case 'firewood': return 'Firewood';
+    case 'iron': return 'Iron';
+    case 'clay': return 'Clay';
+    case 'salt': return 'Salt';
+  }
 }

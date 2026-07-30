@@ -1408,7 +1408,7 @@ export const BUILDING_STORAGE_CAPS = {
   chapel: { timber: 0, firewood: 0, stone: 0 },
   marketplace: { timber: 60, firewood: 80, stone: 60, water: 48, food: 96, grain: 48, barley: 72, ale: 140, honey: 100, wine: 120, cloth: 120, ironwork: 48, iron: 48, salt: 72, pottery: 96 },
   town_hall: { timber: 0, firewood: 0, stone: 0 },
-  village_storehouse: { timber: 360, firewood: 280, stone: 360 },
+  village_storehouse: { timber: 360, firewood: 280, stone: 360, iron: 180, clay: 180, salt: 144 },
   watchtower: { timber: 0, firewood: 0, stone: 0 },
   guardhouse: { timber: 0, firewood: 0, stone: 0, food: 72, polearms: 12 },
   palisaded_refuge: { timber: 0, firewood: 0, stone: 0 },

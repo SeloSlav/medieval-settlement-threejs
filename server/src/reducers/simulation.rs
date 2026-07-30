@@ -371,12 +371,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
         .collect();
     step_industrial_firewood_dispatch(ctx, &tick, &clock, industrial_firewood_sources);
-    let village_storehouses = village_storehouse_ids
-        .iter()
-        .filter_map(|building_id| ctx.db.building().id().find(building_id))
-        .collect();
-    step_village_storehouse_overflow_collection(ctx, &tick, &clock, village_storehouses);
-
     for building_id in well_ids {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
@@ -458,6 +452,16 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .filter_map(|building_id| ctx.db.building().id().find(&building_id))
         .collect();
     step_local_material_dispatch(ctx, &tick, &clock, local_material_sources);
+
+    // Depot carts that remain after household fuel, workshop-buffer, and
+    // construction duties may now collect the fullest producer overflow.
+    // Outbound work leads inbound consolidation so a depot cannot starve the
+    // very workshop it was positioned to serve.
+    let village_storehouses = village_storehouse_ids
+        .iter()
+        .filter_map(|building_id| ctx.db.building().id().find(building_id))
+        .collect();
+    step_village_storehouse_overflow_collection(ctx, &tick, &clock, village_storehouses);
 
     // Producers have now attempted their own household and specialty duties.
     // Their remaining free carts arbitrate all institutional fresh-food demand

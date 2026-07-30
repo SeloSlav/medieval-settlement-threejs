@@ -322,6 +322,7 @@ export const LOCAL_MATERIAL_SOURCE_KINDS = [
   'charcoal_burner',
   'smithy',
   'potter_kiln',
+  'village_storehouse',
 ] as const satisfies readonly BuildingKind[];
 
 export type LocalMaterialInputCommodity =
@@ -341,21 +342,47 @@ export type RoutedDirectProcessorInputAssignment<
   commodity: C;
 };
 
-export function localMaterialInputCommodity(
+type LocalMaterialSourceLike = Pick<
+  BuildingState,
+  | 'iron'
+  | 'salt'
+  | 'clay'
+  | 'charcoal'
+  | 'ironwork'
+  | 'pottery'
+  | 'storehouseAcceptsIron'
+  | 'storehouseAcceptsClay'
+  | 'storehouseAcceptsSalt'
+>;
+
+export function localMaterialInputCommodities(
   kind: BuildingKind,
-  source?: Pick<BuildingState, 'iron' | 'salt'>,
-): LocalMaterialInputCommodity | null {
+  source?: Partial<LocalMaterialSourceLike>,
+): readonly LocalMaterialInputCommodity[] {
   switch (kind) {
     case 'mine':
-      if ((source?.iron ?? 0) > 1e-6) return 'iron';
-      if ((source?.salt ?? 0) > 1e-6) return 'salt';
-      return null;
-    case 'clay_pit': return 'clay';
-    case 'charcoal_burner': return 'charcoal';
-    case 'smithy': return 'ironwork';
-    case 'potter_kiln': return 'pottery';
-    default: return null;
+      return (['iron', 'salt'] as const)
+        .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
+    case 'clay_pit': return ['clay'];
+    case 'charcoal_burner': return ['charcoal'];
+    case 'smithy': return ['ironwork'];
+    case 'potter_kiln': return ['pottery'];
+    case 'village_storehouse':
+      return (['iron', 'clay', 'salt'] as const)
+        .filter((commodity) =>
+          (source?.[commodity] ?? 0) > 1e-6
+          && source?.[storehouseAcceptsField(commodity)] !== false
+        );
+    default: return [];
   }
+}
+
+/** Legacy single-offer accessor retained for inspector and test compatibility. */
+export function localMaterialInputCommodity(
+  kind: BuildingKind,
+  source?: Partial<LocalMaterialSourceLike>,
+): LocalMaterialInputCommodity | null {
+  return localMaterialInputCommodities(kind, source)[0] ?? null;
 }
 
 /**
@@ -486,14 +513,10 @@ export function assignLocalMaterialInputTargets<
   const offers: ProcessorInputOffer<S, LocalMaterialInputCommodity>[] = [];
   for (const source of sources) {
     if (!sourceIsAvailable(source)) continue;
-    const commodity = localMaterialInputCommodity(source.kind, source);
-    if (
-      commodity == null
-      || Math.max(0, Number(source[commodity] ?? 0)) <= 1e-6
-    ) {
-      continue;
+    for (const commodity of localMaterialInputCommodities(source.kind, source)) {
+      if (Math.max(0, Number(source[commodity] ?? 0)) <= 1e-6) continue;
+      offers.push({ source, commodity });
     }
-    offers.push({ source, commodity });
   }
   return assignProcessorInputOffers(
     offers,
@@ -503,6 +526,16 @@ export function assignLocalMaterialInputTargets<
     acceptsInput,
     false,
   );
+}
+
+function storehouseAcceptsField(
+  commodity: 'iron' | 'clay' | 'salt',
+): 'storehouseAcceptsIron' | 'storehouseAcceptsClay' | 'storehouseAcceptsSalt' {
+  switch (commodity) {
+    case 'iron': return 'storehouseAcceptsIron';
+    case 'clay': return 'storehouseAcceptsClay';
+    case 'salt': return 'storehouseAcceptsSalt';
+  }
 }
 
 type ProcessorInputOffer<

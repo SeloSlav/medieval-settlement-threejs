@@ -445,6 +445,9 @@ pub fn insert_reclamation_pile(
         storehouse_accepts_timber: true,
         storehouse_accepts_stone: true,
         storehouse_accepts_firewood: true,
+        storehouse_accepts_iron: true,
+        storehouse_accepts_clay: true,
+        storehouse_accepts_salt: true,
         gold: stock.gold.max(0.0),
         construction_complete: true,
         construction_progress: 1.0,
@@ -479,6 +482,12 @@ pub fn insert_reclamation_pile(
         storehouse_stone_target_percent:
             crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
         storehouse_firewood_target_percent:
+            crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        storehouse_iron_target_percent:
+            crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        storehouse_clay_target_percent:
+            crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        storehouse_salt_target_percent:
             crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
         processor_output_target_percent:
             crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,

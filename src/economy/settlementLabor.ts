@@ -157,6 +157,9 @@ function emptyStorehouseNetwork(): StorehouseNetworkPlan {
       timber: emptyCommodity(),
       stone: emptyCommodity(),
       firewood: emptyCommodity(),
+      iron: emptyCommodity(),
+      clay: emptyCommodity(),
+      salt: emptyCommodity(),
     },
   };
 }
@@ -210,7 +213,7 @@ export function computeSettlementLaborPlan(input: {
         if (!storehouseAcceptsCommodity(building, commodity)) continue;
         const network = storehouseNetwork.commodities[commodity];
         const target = storehouseCommodityTarget(building, commodity);
-        const stock = Math.max(0, building[commodity]);
+        const stock = Math.max(0, building[commodity] ?? 0);
         const capacity = BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0;
         const percent = storehouseCommodityTargetPercent(building, commodity);
         network.acceptingDepots += 1;

@@ -547,12 +547,18 @@ export class SpacetimeGameStore {
     acceptsTimber: boolean,
     acceptsStone: boolean,
     acceptsFirewood: boolean,
+    acceptsIron: boolean,
+    acceptsClay: boolean,
+    acceptsSalt: boolean,
   ): Promise<void> {
     return spacetimeReducers.setStorehousePolicy(
       buildingId,
       acceptsTimber,
       acceptsStone,
       acceptsFirewood,
+      acceptsIron,
+      acceptsClay,
+      acceptsSalt,
     );
   }
 

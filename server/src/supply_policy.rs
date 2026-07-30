@@ -62,6 +62,7 @@ pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "charcoal_burner",
     "smithy",
     "potter_kiln",
+    "village_storehouse",
 ];
 pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "monastery"];
 pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "granary", "monastery"];
@@ -1112,7 +1113,8 @@ mod tests {
                 "clay_pit",
                 "charcoal_burner",
                 "smithy",
-                "potter_kiln"
+                "potter_kiln",
+                "village_storehouse",
             ],
         );
         assert_eq!(

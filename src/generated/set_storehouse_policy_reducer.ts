@@ -15,4 +15,7 @@ export default {
   acceptsTimber: __t.bool(),
   acceptsStone: __t.bool(),
   acceptsFirewood: __t.bool(),
+  acceptsIron: __t.bool(),
+  acceptsClay: __t.bool(),
+  acceptsSalt: __t.bool(),
 };

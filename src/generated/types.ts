@@ -114,6 +114,12 @@ export const Building = __t.object("Building", {
   remedies: __t.f64(),
   potteryDispatchPolicy: __t.u8(),
   carpenterCartServiceTargetTrips: __t.u8(),
+  storehouseAcceptsIron: __t.bool(),
+  storehouseAcceptsClay: __t.bool(),
+  storehouseAcceptsSalt: __t.bool(),
+  storehouseIronTargetPercent: __t.u8(),
+  storehouseClayTargetPercent: __t.u8(),
+  storehouseSaltTargetPercent: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 

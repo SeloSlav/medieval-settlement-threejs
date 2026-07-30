@@ -857,66 +857,71 @@ pub fn step_local_material_dispatch(
     let mut deferred_pottery_exports = Vec::new();
 
     for source in &sources {
-        let Some((commodity, target_kinds)) = local_material_source_plan(source) else {
-            continue;
-        };
         if !LOCAL_MATERIAL_SOURCE_KINDS.contains(&source.kind.as_str())
             || !source.construction_complete
             || source.assigned_labor == 0
             || tick.building_disabled_by_fire(ctx, source.id)
             || labor_and_logistics_paused(ctx, tick, source.owner, clock)
             || building_has_active_trip(ctx, source.id)
-            || building_commodity_stock(&source, commodity) <= 1e-6
         {
             continue;
         }
         let Some(network) = tick.road_network(source.owner) else {
             continue;
         };
-        for target_id in tick.building_ids_for_kinds(ctx, source.owner, target_kinds) {
-            let Some(target) = ctx.db.building().id().find(&target_id) else {
+        for &commodity in LOCAL_MATERIAL_COMMODITIES {
+            let Some(target_kinds) = local_material_target_kinds(source, commodity) else {
                 continue;
             };
-            if target.id == source.id
-                || !target.construction_complete
-                || tick.building_disabled_by_fire(ctx, target.id)
-                || !processor_accepts_input(&target, commodity)
-                || !extraction_accepts_maintenance_input(ctx, &target, commodity)
-                || building_commodity_room(&target, commodity) <= 1e-6
-                || building_has_inbound_supply_trip(ctx, target.id)
-            {
+            if building_commodity_stock(source, commodity) <= 1e-6 {
                 continue;
             }
-            let Some((duty, _desired_stock, runway_cycles)) =
-                local_material_target_plan(&target, commodity)
-            else {
-                continue;
-            };
-            let Some(distance) = network.road_path_distance(source.x, source.z, target.x, target.z)
-            else {
-                continue;
-            };
-            if !distance.is_finite() {
-                continue;
-            }
-            let candidate = LocalMaterialDispatchCandidate {
-                source_id: source.id,
-                building: target,
-                commodity,
-                distance,
-                duty,
-                runway_cycles,
-            };
-            if source.kind == "potter_kiln"
-                && !pottery_households_first(source.pottery_dispatch_policy)
-                && candidate.building.kind == "marketplace"
-            {
-                // Preservation-first is smokehouse -> home -> export. Keep
-                // market overflow out of the first material pass so a nearby
-                // broker cannot consume the kiln cart before local cupboards.
-                deferred_pottery_exports.push(candidate);
-            } else {
-                candidates.push(candidate);
+            for target_id in tick.building_ids_for_kinds(ctx, source.owner, target_kinds) {
+                let Some(target) = ctx.db.building().id().find(&target_id) else {
+                    continue;
+                };
+                if target.id == source.id
+                    || !target.construction_complete
+                    || tick.building_disabled_by_fire(ctx, target.id)
+                    || !processor_accepts_input(&target, commodity)
+                    || !extraction_accepts_maintenance_input(ctx, &target, commodity)
+                    || building_commodity_room(&target, commodity) <= 1e-6
+                    || building_has_inbound_supply_trip(ctx, target.id)
+                {
+                    continue;
+                }
+                let Some((duty, _desired_stock, runway_cycles)) =
+                    local_material_target_plan(&target, commodity)
+                else {
+                    continue;
+                };
+                let Some(distance) =
+                    network.road_path_distance(source.x, source.z, target.x, target.z)
+                else {
+                    continue;
+                };
+                if !distance.is_finite() {
+                    continue;
+                }
+                let candidate = LocalMaterialDispatchCandidate {
+                    source_id: source.id,
+                    building: target,
+                    commodity,
+                    distance,
+                    duty,
+                    runway_cycles,
+                };
+                if source.kind == "potter_kiln"
+                    && !pottery_households_first(source.pottery_dispatch_policy)
+                    && candidate.building.kind == "marketplace"
+                {
+                    // Preservation-first is smokehouse -> home -> export. Keep
+                    // market overflow out of the first material pass so a nearby
+                    // broker cannot consume the kiln cart before local cupboards.
+                    deferred_pottery_exports.push(candidate);
+                } else {
+                    candidates.push(candidate);
+                }
             }
         }
     }
@@ -1011,11 +1016,11 @@ fn dispatch_local_material_candidates(
         let Some(target) = ctx.db.building().id().find(&candidate.building.id) else {
             continue;
         };
-        let Some((commodity, target_kinds)) = local_material_source_plan(&source) else {
+        let commodity = candidate.commodity;
+        let Some(target_kinds) = local_material_target_kinds(&source, commodity) else {
             continue;
         };
-        if commodity != candidate.commodity
-            || !source.construction_complete
+        if !source.construction_complete
             || source.assigned_labor == 0
             || !target.construction_complete
             || target.owner != source.owner
@@ -1073,32 +1078,45 @@ fn dispatch_local_material_candidates(
     }
 }
 
-fn local_material_source_plan(
+const LOCAL_MATERIAL_COMMODITIES: &[CommodityKind] = &[
+    CommodityKind::Iron,
+    CommodityKind::Salt,
+    CommodityKind::Clay,
+    CommodityKind::Charcoal,
+    CommodityKind::Ironwork,
+    CommodityKind::Pottery,
+];
+
+fn local_material_target_kinds(
     source: &Building,
-) -> Option<(CommodityKind, &'static [&'static str])> {
-    match source.kind.as_str() {
-        "mine" if source.iron > 1e-6 => Some((CommodityKind::Iron, &["smithy", "marketplace"])),
-        "mine" if source.salt > 1e-6 => Some((
-            CommodityKind::Salt,
-            &["smokehouse", "pastoral_farmstead", "marketplace"],
-        )),
-        "clay_pit" => Some((CommodityKind::Clay, &["potter_kiln"])),
-        "charcoal_burner" => Some((CommodityKind::Charcoal, &["smithy"])),
-        "smithy" => Some((
-            CommodityKind::Ironwork,
-            &[
-                "lumber_mill",
-                "woodcutters_lodge",
-                "stone_quarry",
-                "large_quarry",
-                "mine",
-                "clay_pit",
-                "threshing_barn",
-                "watermill",
-                "carpenter",
-            ],
-        )),
-        "potter_kiln" => Some((CommodityKind::Pottery, &["smokehouse", "marketplace"])),
+    commodity: CommodityKind,
+) -> Option<&'static [&'static str]> {
+    match (source.kind.as_str(), commodity) {
+        ("mine", CommodityKind::Iron) => Some(&["smithy", "marketplace"]),
+        ("mine", CommodityKind::Salt) => Some(&["smokehouse", "pastoral_farmstead", "marketplace"]),
+        ("clay_pit", CommodityKind::Clay) => Some(&["potter_kiln"]),
+        ("charcoal_burner", CommodityKind::Charcoal) => Some(&["smithy"]),
+        ("smithy", CommodityKind::Ironwork) => Some(&[
+            "lumber_mill",
+            "woodcutters_lodge",
+            "stone_quarry",
+            "large_quarry",
+            "mine",
+            "clay_pit",
+            "threshing_barn",
+            "watermill",
+            "carpenter",
+        ]),
+        ("potter_kiln", CommodityKind::Pottery) => Some(&["smokehouse", "marketplace"]),
+        ("village_storehouse", CommodityKind::Iron) if source.storehouse_accepts_iron => {
+            Some(&["smithy", "marketplace"])
+        }
+        ("village_storehouse", CommodityKind::Clay) if source.storehouse_accepts_clay => {
+            Some(&["potter_kiln"])
+        }
+        ("village_storehouse", CommodityKind::Salt) if source.storehouse_accepts_salt => {
+            Some(&["smokehouse", "pastoral_farmstead", "marketplace"])
+        }
         _ => None,
     }
 }

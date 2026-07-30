@@ -68,6 +68,9 @@ import {
   SALVAGE_TIMBER_VISUAL_CAPACITY,
   syncStockpileSegments,
   STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  STOREHOUSE_IRON_VISUAL_SEGMENTS,
+  STOREHOUSE_CLAY_VISUAL_SEGMENTS,
+  STOREHOUSE_SALT_VISUAL_SEGMENTS,
   STOREHOUSE_STONE_VISUAL_SEGMENTS,
   STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
 } from './buildingStockpileVisuals.ts';
@@ -820,9 +823,39 @@ function syncBuildingVisualState(
         BUILDING_STORAGE_CAPS.village_storehouse.firewood,
       );
     }
+    const iron = marker.getObjectByName('StorehouseIronStockpile');
+    if (iron instanceof THREE.Group) {
+      syncStockpileSegments(
+        iron,
+        'StorehouseIronSegment',
+        building.iron ?? 0,
+        BUILDING_STORAGE_CAPS.village_storehouse.iron ?? 0,
+      );
+    }
+    const clay = marker.getObjectByName('StorehouseClayStockpile');
+    if (clay instanceof THREE.Group) {
+      syncStockpileSegments(
+        clay,
+        'StorehouseClaySegment',
+        building.clay ?? 0,
+        BUILDING_STORAGE_CAPS.village_storehouse.clay ?? 0,
+      );
+    }
+    const salt = marker.getObjectByName('StorehouseSaltStockpile');
+    if (salt instanceof THREE.Group) {
+      syncStockpileSegments(
+        salt,
+        'StorehouseSaltSegment',
+        building.salt ?? 0,
+        BUILDING_STORAGE_CAPS.village_storehouse.salt ?? 0,
+      );
+    }
     marker.userData.storehouseTimberSegments = STOREHOUSE_TIMBER_VISUAL_SEGMENTS;
     marker.userData.storehouseStoneSegments = STOREHOUSE_STONE_VISUAL_SEGMENTS;
     marker.userData.storehouseFirewoodSegments = STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS;
+    marker.userData.storehouseIronSegments = STOREHOUSE_IRON_VISUAL_SEGMENTS;
+    marker.userData.storehouseClaySegments = STOREHOUSE_CLAY_VISUAL_SEGMENTS;
+    marker.userData.storehouseSaltSegments = STOREHOUSE_SALT_VISUAL_SEGMENTS;
   }
   if (building.kind === 'charcoal_burner') {
     const smoke = marker.getObjectByName(CHARCOAL_CLAMP_SMOKE_NAME);

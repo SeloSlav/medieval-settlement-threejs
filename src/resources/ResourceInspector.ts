@@ -112,7 +112,15 @@ type ResourceInspectorOptions = {
     lighting: NightPolicyCode,
     curfew: NightPolicyCode,
   ) => void | Promise<void>;
-  onSetStorehousePolicy?: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => void | Promise<void>;
+  onSetStorehousePolicy?: (
+    buildingId: string,
+    acceptsTimber: boolean,
+    acceptsStone: boolean,
+    acceptsFirewood: boolean,
+    acceptsIron: boolean,
+    acceptsClay: boolean,
+    acceptsSalt: boolean,
+  ) => void | Promise<void>;
   onSetStorehouseStockTarget?: (
     buildingId: string,
     commodity: StorehouseCommodity,
@@ -1085,11 +1093,29 @@ export class ResourceInspector {
       void this.options.onSetMonasteryPolicy?.(tithe, feasts);
       return;
     }
-    if (building.kind === 'village_storehouse' && input.matches('[data-storehouse-accepts-timber], [data-storehouse-accepts-stone], [data-storehouse-accepts-firewood]')) {
+    if (
+      building.kind === 'village_storehouse'
+      && input.matches(
+        '[data-storehouse-accepts-timber], [data-storehouse-accepts-stone], '
+        + '[data-storehouse-accepts-firewood], [data-storehouse-accepts-iron], '
+        + '[data-storehouse-accepts-clay], [data-storehouse-accepts-salt]',
+      )
+    ) {
       const timber = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-timber]')?.checked ?? false;
       const stone = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-stone]')?.checked ?? false;
       const firewood = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-firewood]')?.checked ?? false;
-      void this.options.onSetStorehousePolicy?.(building.id, timber, stone, firewood);
+      const iron = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-iron]')?.checked ?? true;
+      const clay = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-clay]')?.checked ?? true;
+      const salt = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-salt]')?.checked ?? true;
+      void this.options.onSetStorehousePolicy?.(
+        building.id,
+        timber,
+        stone,
+        firewood,
+        iron,
+        clay,
+        salt,
+      );
       return;
     }
     if (building.kind === 'granary' && input.matches('[data-granary-accepts-fresh-food], [data-granary-households-first]')) {

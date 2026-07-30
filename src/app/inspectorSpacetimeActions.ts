@@ -58,7 +58,15 @@ export type InspectorSpacetimeActions = {
     lighting: NightPolicyCode,
     curfew: NightPolicyCode,
   ) => Promise<void>;
-  onSetStorehousePolicy: (buildingId: string, acceptsTimber: boolean, acceptsStone: boolean, acceptsFirewood: boolean) => Promise<void>;
+  onSetStorehousePolicy: (
+    buildingId: string,
+    acceptsTimber: boolean,
+    acceptsStone: boolean,
+    acceptsFirewood: boolean,
+    acceptsIron: boolean,
+    acceptsClay: boolean,
+    acceptsSalt: boolean,
+  ) => Promise<void>;
   onSetStorehouseStockTarget: (
     buildingId: string,
     commodity: StorehouseCommodity,
@@ -528,11 +536,27 @@ export function createInspectorSpacetimeActions(
         toastManager.show('Night orders posted. They take effect this evening.');
       }
     },
-    onSetStorehousePolicy: async (buildingId, acceptsTimber, acceptsStone, acceptsFirewood) => {
+    onSetStorehousePolicy: async (
+      buildingId,
+      acceptsTimber,
+      acceptsStone,
+      acceptsFirewood,
+      acceptsIron,
+      acceptsClay,
+      acceptsSalt,
+    ) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setStorehousePolicy(buildingId, acceptsTimber, acceptsStone, acceptsFirewood),
+        () => store.setStorehousePolicy(
+          buildingId,
+          acceptsTimber,
+          acceptsStone,
+          acceptsFirewood,
+          acceptsIron,
+          acceptsClay,
+          acceptsSalt,
+        ),
         'Could not update storehouse intake filters.',
       );
     },

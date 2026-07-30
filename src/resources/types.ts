@@ -121,9 +121,16 @@ export type BuildingState = {
   storehouseAcceptsTimber: boolean;
   storehouseAcceptsStone: boolean;
   storehouseAcceptsFirewood: boolean;
+  /** Additive raw-material intake gates; missing legacy values mean enabled. */
+  storehouseAcceptsIron?: boolean;
+  storehouseAcceptsClay?: boolean;
+  storehouseAcceptsSalt?: boolean;
   storehouseTimberTargetPercent?: number;
   storehouseStoneTargetPercent?: number;
   storehouseFirewoodTargetPercent?: number;
+  storehouseIronTargetPercent?: number;
+  storehouseClayTargetPercent?: number;
+  storehouseSaltTargetPercent?: number;
   processorOutputTargetPercent?: number;
   /** 0 auto, 1 wool first, 2 flax first; meaningful only for weavers. */
   weaverInputPolicy?: number;

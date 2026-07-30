@@ -547,6 +547,23 @@ pub struct Building {
     /// preserves the original fifteen-departure service behavior.
     #[default(15u8)]
     pub carpenter_cart_service_target_trips: u8,
+    /// Raw-material intake gates. Appended so existing storehouses can join
+    /// the mineral logistics network without invalidating their rows.
+    #[default(true)]
+    pub storehouse_accepts_iron: bool,
+    #[default(true)]
+    pub storehouse_accepts_clay: bool,
+    #[default(true)]
+    pub storehouse_accepts_salt: bool,
+    /// Per-material collection ceilings for the added mineral bays. As with
+    /// the older bulk bays, these are intake targets rather than protected
+    /// output floors, and the defaults preserve fill-to-capacity behavior.
+    #[default(100u8)]
+    pub storehouse_iron_target_percent: u8,
+    #[default(100u8)]
+    pub storehouse_clay_target_percent: u8,
+    #[default(100u8)]
+    pub storehouse_salt_target_percent: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

@@ -5,6 +5,9 @@ import * as THREE from 'three';
 import { buildingMarkerCollectionSignature } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
+  STOREHOUSE_IRON_VISUAL_SEGMENTS,
+  STOREHOUSE_CLAY_VISUAL_SEGMENTS,
+  STOREHOUSE_SALT_VISUAL_SEGMENTS,
   STOREHOUSE_STONE_VISUAL_SEGMENTS,
   STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
   syncStockpileSegments,
@@ -50,6 +53,9 @@ assert.equal(storehouseCommodityTargetPercent(legacyStorehouse, 'timber'), 100);
 assert.equal(storehouseCommodityTarget(legacyStorehouse, 'timber'), 360);
 assert.equal(storehouseCommodityTarget(legacyStorehouse, 'stone'), 360);
 assert.equal(storehouseCommodityTarget(legacyStorehouse, 'firewood'), 280);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'iron'), 180);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'clay'), 180);
+assert.equal(storehouseCommodityTarget(legacyStorehouse, 'salt'), 144);
 assert.equal(storehouseFilteredCollectionHeadroom(legacyStorehouse, 'timber'), 260);
 assert.equal(
   storehouseFilteredCollectionHeadroom(
@@ -67,14 +73,23 @@ assert.match(
   'missing saves must render the original fill-to-capacity policy as selected',
 );
 assert.match(legacyControls, /260 collection headroom/);
+assert.match(legacyControls, /Iron target/);
+assert.match(legacyControls, /Clay target/);
+assert.match(legacyControls, /Salt target/);
 
 const distributedStorehouse = makeStorehouse({
   storehouseTimberTargetPercent: 25,
   storehouseStoneTargetPercent: 50,
   storehouseFirewoodTargetPercent: 75,
+  storehouseIronTargetPercent: 25,
+  storehouseClayTargetPercent: 50,
+  storehouseSaltTargetPercent: 75,
   timber: 120,
   stone: 90,
   firewood: 210,
+  iron: 50,
+  clay: 45,
+  salt: 108,
 });
 const distributedControls = renderStorehouseStockTargetControls(distributedStorehouse);
 assert.match(distributedControls, /120 stored \/ 90 selected/);
@@ -87,14 +102,24 @@ assert.match(distributedControls, /90 stored \/ 180 selected/);
 assert.match(distributedControls, /90 collection headroom/);
 assert.match(distributedControls, /210 stored \/ 210 selected/);
 assert.match(distributedControls, /At collection target/);
+assert.match(distributedControls, /50 stored \/ 45 selected/);
+assert.match(distributedControls, /5 above target/);
+assert.match(distributedControls, /45 stored \/ 90 selected/);
+assert.match(distributedControls, /108 stored \/ 108 selected/);
 
 const storehouseMesh = createBuildingMesh('village_storehouse');
 const timberBay = storehouseMesh.getObjectByName('StorehouseTimberStockpile');
 const stoneBay = storehouseMesh.getObjectByName('StorehouseStoneStockpile');
 const firewoodBay = storehouseMesh.getObjectByName('StorehouseFirewoodStockpile');
+const ironBay = storehouseMesh.getObjectByName('StorehouseIronStockpile');
+const clayBay = storehouseMesh.getObjectByName('StorehouseClayStockpile');
+const saltBay = storehouseMesh.getObjectByName('StorehouseSaltStockpile');
 assert.ok(timberBay instanceof THREE.Group);
 assert.ok(stoneBay instanceof THREE.Group);
 assert.ok(firewoodBay instanceof THREE.Group);
+assert.ok(ironBay instanceof THREE.Group);
+assert.ok(clayBay instanceof THREE.Group);
+assert.ok(saltBay instanceof THREE.Group);
 assert.equal(
   timberBay.children.filter((child) => child.name === 'StorehouseTimberSegment').length,
   STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
@@ -107,9 +132,24 @@ assert.equal(
   firewoodBay.children.filter((child) => child.name === 'StorehouseFirewoodSegment').length,
   STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
 );
+assert.equal(
+  ironBay.children.filter((child) => child.name === 'StorehouseIronSegment').length,
+  STOREHOUSE_IRON_VISUAL_SEGMENTS,
+);
+assert.equal(
+  clayBay.children.filter((child) => child.name === 'StorehouseClaySegment').length,
+  STOREHOUSE_CLAY_VISUAL_SEGMENTS,
+);
+assert.equal(
+  saltBay.children.filter((child) => child.name === 'StorehouseSaltSegment').length,
+  STOREHOUSE_SALT_VISUAL_SEGMENTS,
+);
 assert.equal(timberBay.visible, false, 'an empty storehouse must not render a full timber bay');
 assert.equal(stoneBay.visible, false, 'an empty storehouse must not render a full stone bay');
 assert.equal(firewoodBay.visible, false, 'an empty storehouse must not render a full fuel bay');
+assert.equal(ironBay.visible, false, 'an empty storehouse must not render a full ore bay');
+assert.equal(clayBay.visible, false, 'an empty storehouse must not render a full clay bay');
+assert.equal(saltBay.visible, false, 'an empty storehouse must not render full salt sacks');
 assert.equal(
   syncStockpileSegments(
     timberBay,
@@ -139,6 +179,21 @@ assert.equal(
   ),
   2,
   'fuel stacks must expose a readable quarter-capacity state',
+);
+assert.equal(
+  syncStockpileSegments(ironBay, 'StorehouseIronSegment', 91, 180),
+  3,
+  'stored ore must expose a readable half-capacity state',
+);
+assert.equal(
+  syncStockpileSegments(clayBay, 'StorehouseClaySegment', 45, 180),
+  1,
+  'stored clay must expose a readable quarter-capacity state',
+);
+assert.equal(
+  syncStockpileSegments(saltBay, 'StorehouseSaltSegment', 108, 144),
+  3,
+  'stored salt must expose a readable three-quarter-capacity state',
 );
 assert.equal(
   syncStockpileSegments(
@@ -187,6 +242,12 @@ assert.equal(networkPlan.commodities.stone.targetStock, 180);
 assert.equal(networkPlan.commodities.stone.collectionHeadroom, 90);
 assert.equal(networkPlan.commodities.firewood.targetStock, 210);
 assert.equal(networkPlan.commodities.firewood.collectionHeadroom, 0);
+assert.equal(networkPlan.commodities.iron.targetStock, 45);
+assert.equal(networkPlan.commodities.iron.stockAboveTarget, 5);
+assert.equal(networkPlan.commodities.clay.targetStock, 90);
+assert.equal(networkPlan.commodities.clay.collectionHeadroom, 45);
+assert.equal(networkPlan.commodities.salt.targetStock, 108);
+assert.equal(networkPlan.commodities.salt.collectionHeadroom, 0);
 const networkRows = renderStorehouseNetworkRows(networkPlan);
 assert.match(networkRows, /Material depots/);
 assert.match(networkRows, /1 completed/);
@@ -195,6 +256,9 @@ assert.match(networkRows, /90 \/ 90 toward selected targets/);
 assert.match(networkRows, /30 above targets remains available/);
 assert.match(networkRows, /Stone depots/);
 assert.match(networkRows, /90 collection headroom/);
+assert.match(networkRows, /Iron depots/);
+assert.match(networkRows, /Clay depots/);
+assert.match(networkRows, /Salt depots/);
 
 const tableSource = readFileSync('server/src/tables.rs', 'utf8');
 const serverPolicySource = readFileSync('server/src/storehouse_policy.rs', 'utf8');
@@ -204,6 +268,10 @@ const reducerSource = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const generatedBuilding = readFileSync('src/generated/building_table.ts', 'utf8');
 const generatedReducer = readFileSync(
   'src/generated/set_storehouse_stock_target_reducer.ts',
+  'utf8',
+);
+const generatedPolicyReducer = readFileSync(
+  'src/generated/set_storehouse_policy_reducer.ts',
   'utf8',
 );
 const clientReducers = readFileSync('src/data/spacetimeReducers.ts', 'utf8');
@@ -219,6 +287,9 @@ for (const field of [
   'storehouse_timber_target_percent',
   'storehouse_stone_target_percent',
   'storehouse_firewood_target_percent',
+  'storehouse_iron_target_percent',
+  'storehouse_clay_target_percent',
+  'storehouse_salt_target_percent',
 ]) {
   assert.match(
     tableSource,
@@ -236,11 +307,21 @@ assert.match(serverPolicySource, /pub fn compare_storehouse_source_priority/);
 assert.match(serverPolicySource, /pub fn compare_storehouse_destination/);
 assert.match(
   reducerSource,
-  /set_storehouse_stock_target[\s\S]*is_valid_storehouse_stock_target_percent[\s\S]*"timber"[\s\S]*storehouse_timber_target_percent = target_percent[\s\S]*"stone"[\s\S]*storehouse_stone_target_percent = target_percent[\s\S]*"firewood"[\s\S]*storehouse_firewood_target_percent = target_percent/,
+  /set_storehouse_stock_target[\s\S]*is_valid_storehouse_stock_target_percent[\s\S]*"timber"[\s\S]*storehouse_timber_target_percent = target_percent[\s\S]*"stone"[\s\S]*storehouse_stone_target_percent = target_percent[\s\S]*"firewood"[\s\S]*storehouse_firewood_target_percent = target_percent[\s\S]*"iron"[\s\S]*storehouse_iron_target_percent = target_percent[\s\S]*"clay"[\s\S]*storehouse_clay_target_percent = target_percent[\s\S]*"salt"[\s\S]*storehouse_salt_target_percent = target_percent/,
 );
 assert.match(storehouseStep, /fn storehouse_collection_room/);
 assert.match(storehouseStep, /storehouse_filtered_collection_headroom\(/);
 assert.match(storehouseStep, /idle_by_owner: HashMap<Identity, Vec<Building>>/);
+assert.match(
+  storehouseStep,
+  /STOREHOUSE_OVERFLOW_SOURCE_KINDS[\s\S]*"mine"[\s\S]*"clay_pit"/,
+  'mine and clay-pit overflow must enter the same physical depot arbitration',
+);
+assert.match(
+  storehouseStep,
+  /CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Clay/,
+  'industrial material overflow must retain its physical commodity identity',
+);
 assert.match(
   storehouseStep,
   /sources\.sort_by\([\s\S]*compare_storehouse_source_priority/,
@@ -256,10 +337,20 @@ assert.match(
   /idle_storehouses\.swap_remove\(storehouse_index\)/,
   'one depot crew must accept at most one overflow collection trip per substep',
 );
-assert.match(
-  simulationLoop,
-  /village_storehouse_ids[\s\S]*step_village_storehouse_household_firewood[\s\S]*step_industrial_firewood_dispatch[\s\S]*step_village_storehouse_overflow_collection/,
-  'all depot rows must serve households, then industry, before owner-wide overflow collection',
+const householdDutyIndex = simulationLoop.indexOf(
+  'step_village_storehouse_household_firewood(ctx',
+);
+const localMaterialDutyIndex = simulationLoop.indexOf(
+  'step_local_material_dispatch(ctx',
+);
+const overflowCollectionIndex = simulationLoop.indexOf(
+  'step_village_storehouse_overflow_collection(ctx',
+);
+assert.ok(
+  householdDutyIndex >= 0
+  && householdDutyIndex < localMaterialDutyIndex
+  && localMaterialDutyIndex < overflowCollectionIndex,
+  'depot carts must protect households, then supply workshop buffers, before collecting overflow',
 );
 assert.match(
   storehouseStep,
@@ -279,10 +370,20 @@ assert.doesNotMatch(
 assert.match(generatedBuilding, /storehouseTimberTargetPercent/);
 assert.match(generatedBuilding, /storehouseStoneTargetPercent/);
 assert.match(generatedBuilding, /storehouseFirewoodTargetPercent/);
+assert.match(generatedBuilding, /storehouseAcceptsIron/);
+assert.match(generatedBuilding, /storehouseAcceptsClay/);
+assert.match(generatedBuilding, /storehouseAcceptsSalt/);
+assert.match(generatedBuilding, /storehouseIronTargetPercent/);
+assert.match(generatedBuilding, /storehouseClayTargetPercent/);
+assert.match(generatedBuilding, /storehouseSaltTargetPercent/);
 assert.match(generatedReducer, /commodity: __t\.string/);
 assert.match(generatedReducer, /targetPercent: __t\.u8/);
+assert.match(generatedPolicyReducer, /acceptsIron: __t\.bool/);
+assert.match(generatedPolicyReducer, /acceptsClay: __t\.bool/);
+assert.match(generatedPolicyReducer, /acceptsSalt: __t\.bool/);
 assert.match(clientReducers, /setStorehouseStockTarget/);
 assert.match(buildingSync, /storehouseTimberTargetPercent: row\.storehouseTimberTargetPercent/);
+assert.match(buildingSync, /storehouseIronTargetPercent: row\.storehouseIronTargetPercent/);
 assert.match(inspectorActions, /onSetStorehouseStockTarget/);
 assert.match(
   storehouseInspectorSource,
@@ -290,7 +391,7 @@ assert.match(
 );
 assert.match(
   inspectorSource,
-  /building\.kind === 'village_storehouse'[\s\S]{0,500}data-storehouse-stock-target[\s\S]{0,500}onSetStorehouseStockTarget/,
+  /building\.kind === 'village_storehouse'[\s\S]{0,900}data-storehouse-stock-target[\s\S]{0,500}onSetStorehouseStockTarget/,
   'target buttons must dispatch only from the village-storehouse click branch',
 );
 
@@ -358,6 +459,9 @@ function makeStorehouse(partial: Partial<BuildingState> = {}): BuildingState {
     wine: 0,
     wool: 0,
     cloth: 0,
+    iron: 0,
+    clay: 0,
+    salt: 0,
     ironwork: 0,
     polearms: 0,
     gold: 0,
@@ -376,6 +480,9 @@ function makeStorehouse(partial: Partial<BuildingState> = {}): BuildingState {
     storehouseAcceptsTimber: true,
     storehouseAcceptsStone: true,
     storehouseAcceptsFirewood: true,
+    storehouseAcceptsIron: true,
+    storehouseAcceptsClay: true,
+    storehouseAcceptsSalt: true,
     ...partial,
   };
 }

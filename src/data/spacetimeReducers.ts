@@ -403,6 +403,9 @@ export async function setStorehousePolicy(
   acceptsTimber: boolean,
   acceptsStone: boolean,
   acceptsFirewood: boolean,
+  acceptsIron: boolean,
+  acceptsClay: boolean,
+  acceptsSalt: boolean,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
   if (serverId === null) throw new Error('Invalid village storehouse id.');
@@ -411,6 +414,9 @@ export async function setStorehousePolicy(
     acceptsTimber,
     acceptsStone,
     acceptsFirewood,
+    acceptsIron,
+    acceptsClay,
+    acceptsSalt,
   });
 }
 
