@@ -10,7 +10,10 @@ import {
   resolveWorldDimensions,
   type WorldGenerationSettings,
 } from './worldGenerationSettings.ts';
-import { clayDepositNodeId } from '../clay/ClayDepositLayout.ts';
+import {
+  clayDepositMaxYield,
+  clayDepositNodeId,
+} from '../clay/ClayDepositLayout.ts';
 
 export type WorldBootstrapQuarry = {
   quarryId: string;
@@ -115,8 +118,7 @@ export function computeWorldBootstrapDataFromLayout(worldLayout: WorldLayout): W
       nodeKind: 'clay',
       x: site.x,
       z: site.z,
-      // The row is a permanent geological anchor, not a harvestable stock.
-      maxYield: 1,
+      maxYield: clayDepositMaxYield(site),
       anchorX: site.x,
       anchorZ: site.z,
     });

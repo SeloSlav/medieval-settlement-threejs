@@ -104,7 +104,7 @@ export class WorldSetupPanel {
               <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
             </label>
             <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
-            <p class="world-setup-slider-hint">Stone, clay, iron, and salt all enter through physical deposits. The seed, map size, abundance, and terrain decide how many are rich; ordinary sources remain workable on every map.</p>
+            <p class="world-setup-slider-hint">Stone, clay, iron, and salt all enter through physical deposits. The seed, map size, abundance, and terrain decide how many are rich; every map begins with finite ordinary sources for all four.</p>
 
             <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
               <span>Local variety</span>

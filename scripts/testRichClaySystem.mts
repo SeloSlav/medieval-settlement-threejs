@@ -6,6 +6,8 @@ import {
 } from '../src/buildings/BuildingPlacementValidation.ts';
 import {
   clayDepositAtCenter,
+  clayDepositMaxYield,
+  type ClayDepositSite,
 } from '../src/clay/ClayDepositLayout.ts';
 import {
   CLAY_BANK_ORDINARY_YIELD_MAX,
@@ -21,6 +23,7 @@ import {
 import { CLAY_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
+import type { ResourceNodeState } from '../src/resources/types.ts';
 import {
   createPhysicalDepositFootprints,
   isPhysicalDepositAt,
@@ -31,6 +34,8 @@ import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
   type WorldGenerationSettings,
 } from '../src/world/worldGenerationSettings.ts';
+import { syncQuarries } from '../src/data/spacetimeTableSync/syncQuarries.ts';
+import type { ForagingNode } from '../src/generated/types.ts';
 
 const richSettings = findSettings((settings) =>
   createRegionalResourcePlan(settings).richClayDepositCount > 0
@@ -83,12 +88,46 @@ assert.equal(
   clayDepositAtCenter(layout.clayDepositLayout.sites, ordinaryClay.x, ordinaryClay.z),
   ordinaryClay,
 );
+const clayNodes = layout.clayDepositLayout.sites.map(
+  (site, index): ResourceNodeState => ({
+    nodeId: `clay-${site.kind}-${index}`,
+    kind: 'quarry',
+    resource: 'clay',
+    remaining: clayDepositMaxYield(site),
+    maxYield: clayDepositMaxYield(site),
+    x: site.x,
+    z: site.z,
+    isRich: site.kind === 'rich',
+  }),
+);
+const syncedClay = syncQuarries(
+  [],
+  layout.clayDepositLayout.sites.map(
+    (site, index): ForagingNode => ({
+      nodeId: `clay-${site.kind}-${index}`,
+      nodeKind: 'clay',
+      remaining: clayDepositMaxYield(site),
+      maxYield: clayDepositMaxYield(site),
+      x: site.x,
+      z: site.z,
+      respawnCooldown: 0,
+      anchorX: site.x,
+      anchorZ: site.z,
+    }),
+  ),
+);
+assert.equal(syncedClay.size, clayNodes.length);
+assert.equal(
+  syncedClay.get(clayNodes.find((node) => node.isRich)?.nodeId ?? '')?.isRich,
+  true,
+  'replicated clay rows must enter the shared geological state with their rich grade',
+);
 assert.deepEqual(
   resolveBuildingPlacementPoint(
     'clay_pit',
     richClay.x + 24,
     richClay.z - 12,
-    [],
+    clayNodes,
     layout.clayDepositLayout.sites,
   ),
   { x: richClay.x, z: richClay.z },
@@ -99,7 +138,7 @@ const placementContext = {
   buildings: [],
   residences: [],
   burgageZones: [],
-  quarries: [],
+  quarries: clayNodes,
   foragingNodes: [],
   clayDepositSites: layout.clayDepositLayout.sites,
   stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
@@ -127,6 +166,21 @@ assert.equal(
   ).ok,
   true,
   'a rich generated clay bank must be a valid authoritative extraction site',
+);
+const exhaustedOrdinaryNodes = clayNodes.map((node) =>
+  node.x === ordinaryClay.x && node.z === ordinaryClay.z
+    ? { ...node, remaining: 0 }
+    : node
+);
+assert.deepEqual(
+  validateBuildingPlacement(
+    'clay_pit',
+    ordinaryClay.x,
+    ordinaryClay.z,
+    { ...placementContext, quarries: exhaustedOrdinaryNodes },
+  ),
+  { ok: false, reason: 'requires_clay_deposit' },
+  'an exhausted ordinary clay bank must not accept a replacement pit',
 );
 assert.deepEqual(
   validateBuildingPlacement('smithy', richClay.x, richClay.z, {
@@ -173,6 +227,7 @@ const generatedForaging = JSON.parse(
     nodeKind: string;
     x: number;
     z: number;
+    maxYield: number;
   }>;
 };
 const generatedClay = generatedForaging.foragingNodes.filter(
@@ -186,6 +241,11 @@ for (let index = 0; index < defaultLayout.clayDepositLayout.sites.length; index+
   const row = generatedClay.find((node) => node.nodeId === expectedId);
   assert.ok(row, `missing generated clay row ${expectedId}`);
   assert.ok(Math.hypot(row.x - site.x, row.z - site.z) < 1e-6);
+  assert.equal(
+    row.maxYield,
+    clayDepositMaxYield(site as ClayDepositSite),
+    'bootstrap clay rows must carry their physical reserve rather than a placement placeholder',
+  );
 }
 
 const authority = readFileSync('server/src/hydrology/mod.rs', 'utf8');
@@ -200,8 +260,14 @@ assert.match(clayPitSimulation, /clay_bank_yield_multiplier_at_deposit/);
 assert.match(authority, /clay_bank_yield_multiplier_with_richness/);
 assert.match(
   buildingReducer,
-  /has_clay_deposit_at_center[\s\S]*on_generated_clay_bank[\s\S]*is_on_resource_deposit[\s\S]*kind == "clay_pit" && !on_generated_clay_bank/,
-  'authority must require the Clay Pit to sit on an ordinary or rich generated deposit',
+  /let on_generated_clay_bank = kind == "clay_pit" && is_clay_deposit_at_center/,
+  'authority must recognize the generated landmark before applying water and deposit overlap checks',
+);
+assert.match(buildingReducer, /!on_generated_clay_bank\s*&& is_on_resource_deposit/);
+assert.match(
+  buildingReducer,
+  /let on_usable_clay_bank = kind == "clay_pit" && has_clay_deposit_at_center[\s\S]*kind == "clay_pit" && !on_usable_clay_bank/,
+  'authority must require remaining ordinary clay or a rich deep source before placement',
 );
 assert.match(
   buildingReducer,
@@ -215,8 +281,18 @@ assert.match(
 );
 assert.match(
   clayPitSimulation,
-  /let Some\(deposit\) = clay_deposit_beneath[\s\S]*else \{\s*return;/,
+  /let Some\(mut deposit\) = clay_deposit_beneath[\s\S]*else \{\s*return;/,
   'legacy off-bank Clay Pits must stall rather than creating clay from a background shoreline score',
+);
+assert.match(
+  clayPitSimulation,
+  /if !is_rich && clay_produced > 1e-6[\s\S]*deposit\.remaining = \(deposit\.remaining - clay_produced\)\.max\(0\.0\)/,
+  'ordinary banks must lose exactly the clay physically produced by their pit',
+);
+assert.match(
+  clayPitSimulation,
+  /let clay_batch = if is_rich[\s\S]*CLAY_PIT_CLAY_PER_CYCLE\.min\(deposit\.remaining\.max\(0\.0\)\)/,
+  'the last ordinary digging cycle must not create more clay than remains in the bank',
 );
 
 const tableSync = readFileSync(
@@ -227,6 +303,18 @@ assert.match(
   tableSync,
   /row\.nodeKind === 'clay'\) continue/,
   'the geological authority row must not masquerade as a harvestable forage node',
+);
+const clayVisuals = readFileSync('src/clay/ClayDepositSystem.ts', 'utf8');
+assert.match(
+  clayVisuals,
+  /syncNodes:[\s\S]*node\.remaining > 1e-6[\s\S]*stratum\.visible = hasExposedClay/,
+  'the exposed ordinary clay stratum must visually clear when its physical reserve is exhausted',
+);
+const bootstrapReducer = readFileSync('server/src/reducers/bootstrap.rs', 'utf8');
+assert.match(
+  bootstrapReducer,
+  /node\.node_kind == "clay"[\s\S]*existing\.max_yield <= 1\.0 \+ f64::EPSILON[\s\S]*node\.max_yield/,
+  'development worlds with placeholder clay anchors must receive the new physical reserve',
 );
 
 console.log('rich clay system tests passed');

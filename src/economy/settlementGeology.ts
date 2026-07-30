@@ -3,6 +3,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
+  CLAY_PIT_CLAY_PER_CYCLE,
   MINE_IRON_PER_CYCLE,
   MINE_SALT_PER_CYCLE,
   RICH_MINE_THROUGHPUT_MULTIPLIER,
@@ -16,8 +17,9 @@ import type {
   ResourceNodeState,
 } from '../resources/types.ts';
 import { civilianToolThroughputMultiplier } from './civilianToolPolicy.ts';
+import { clayBankYieldAt } from './clayBankPolicy.ts';
 
-export type GeologicalResource = 'stone' | 'iron' | 'salt';
+export type GeologicalResource = 'stone' | 'clay' | 'iron' | 'salt';
 
 export type GeologicalResourcePlan = {
   resource: GeologicalResource;
@@ -53,9 +55,10 @@ const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   / CALENDAR_HOURS_PER_DAY;
 
 /**
- * Settlement-wide reserve and extraction forecast for the three exhaustible
- * geological materials. Clay is intentionally absent: physical alluvial banks
- * constrain placement and yield, but the simulation does not deplete them.
+ * Settlement-wide reserve and extraction forecast for physical geological
+ * materials. Ordinary clay, iron, salt, and stone deposits are finite. Rich
+ * clay and mineral deposits provide deep sources; rich stone retains a finite
+ * surface outcrop plus the Large Quarry's deep source.
  *
  * This mirrors server producer rates and deposit selection. It uses assigned
  * labor as installed capacity, just like the Town Hall's other long-run plans;
@@ -64,14 +67,20 @@ const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
 export function computeSettlementGeologyPlan(
   state: GameState,
   sabbathObserved: boolean,
+  options: {
+    clayPitThroughputMultiplier?: number;
+    resourceAbundance?: number;
+  } = {},
 ): SettlementGeologyPlan {
   const plans = {
     stone: emptyResourcePlan('stone'),
+    clay: emptyResourcePlan('clay'),
     iron: emptyResourcePlan('iron'),
     salt: emptyResourcePlan('salt'),
   };
   const deposits = {
     stone: [] as ResourceNodeState[],
+    clay: [] as ResourceNodeState[],
     iron: [] as ResourceNodeState[],
     salt: [] as ResourceNodeState[],
   };
@@ -80,6 +89,7 @@ export function computeSettlementGeologyPlan(
     if (
       deposit.kind !== 'quarry'
       || (deposit.resource !== 'stone'
+        && deposit.resource !== 'clay'
         && deposit.resource !== 'iron'
         && deposit.resource !== 'salt')
     ) {
@@ -116,6 +126,7 @@ export function computeSettlementGeologyPlan(
       building.constructionComplete === false
       || (building.kind !== 'stone_quarry'
         && building.kind !== 'large_quarry'
+        && building.kind !== 'clay_pit'
         && building.kind !== 'mine')
     ) {
       continue;
@@ -179,6 +190,41 @@ export function computeSettlementGeologyPlan(
       continue;
     }
 
+    if (building.kind === 'clay_pit') {
+      const deposit = centeredDeposit(building, deposits.clay);
+      if (deposit === null) continue;
+      const plan = plans.clay;
+      plan.extractionSites += 1;
+      if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
+        continue;
+      }
+      plan.staffedExtractionSites += 1;
+      if (!deposit.isRich && deposit.remaining <= EPSILON) {
+        plan.blockedFiniteBuildingId ??= building.id;
+        continue;
+      }
+      const rate = cyclesPerCalendarDay(
+        'clay_pit',
+        building.assignedLabor,
+        sabbathObserved,
+        civilianToolThroughputMultiplier(building.ironwork ?? 0)
+          * Math.max(0, options.clayPitThroughputMultiplier ?? 1)
+          * clayBankYieldAt(
+            building.x,
+            building.z,
+            options.resourceAbundance ?? 50,
+          ),
+      ) * CLAY_PIT_CLAY_PER_CYCLE;
+      if (deposit.isRich) {
+        plan.activeDeepSources += 1;
+        plan.deepExtractionPerDay += rate;
+      } else {
+        plan.finiteExtractionPerDay += rate;
+        addFiniteRate(plan, deposit, building, rate);
+      }
+      continue;
+    }
+
     const deposit = mineralDepositBeneath(building, mineralDeposits);
     if (deposit === null || (deposit.resource !== 'iron' && deposit.resource !== 'salt')) {
       continue;
@@ -207,7 +253,7 @@ export function computeSettlementGeologyPlan(
     }
   }
 
-  for (const resource of ['stone', 'iron', 'salt'] as const) {
+  for (const resource of ['stone', 'clay', 'iron', 'salt'] as const) {
     plans[resource].firstAttentionBuildingId = firstFiniteAttentionBuilding(
       plans[resource],
       deposits[resource],
@@ -216,6 +262,7 @@ export function computeSettlementGeologyPlan(
 
   return {
     stone: stripInternalFields(plans.stone),
+    clay: stripInternalFields(plans.clay),
     iron: stripInternalFields(plans.iron),
     salt: stripInternalFields(plans.salt),
   };
@@ -299,7 +346,7 @@ function stripInternalFields(
 }
 
 function cyclesPerCalendarDay(
-  kind: 'stone_quarry' | 'large_quarry' | 'mine',
+  kind: 'stone_quarry' | 'large_quarry' | 'clay_pit' | 'mine',
   assignedLabor: number,
   sabbathObserved: boolean,
   throughputMultiplier: number,

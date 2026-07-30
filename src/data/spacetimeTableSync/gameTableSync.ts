@@ -55,7 +55,10 @@ export class GameTableSync {
       db.settlement_security ? db.settlement_security.iter() : [],
       this.state,
     );
-    this.state.quarries = syncQuarries(db.quarry ? db.quarry.iter() : []);
+    this.state.quarries = syncQuarries(
+      db.quarry ? db.quarry.iter() : [],
+      db.foraging_node ? db.foraging_node.iter() : [],
+    );
     this.state.foragingNodes = syncForagingNodes(db.foraging_node ? db.foraging_node.iter() : []);
     this.state.trees = syncTrees(db.tree_entity ? db.tree_entity.iter() : []);
     this.state.buildings = syncBuildings(db.building ? db.building.iter() : [], this.state.identityHex);
@@ -222,11 +225,18 @@ export class GameTableSync {
     }, false);
 
     bindTable(db.quarry, () => {
-      this.state.quarries = syncQuarries(db.quarry ? db.quarry.iter() : []);
+      this.state.quarries = syncQuarries(
+        db.quarry ? db.quarry.iter() : [],
+        db.foraging_node ? db.foraging_node.iter() : [],
+      );
     });
 
     bindTable(db.foraging_node, () => {
       this.state.foragingNodes = syncForagingNodes(db.foraging_node ? db.foraging_node.iter() : []);
+      this.state.quarries = syncQuarries(
+        db.quarry ? db.quarry.iter() : [],
+        db.foraging_node ? db.foraging_node.iter() : [],
+      );
     });
 
     if (db.tree_entity) {

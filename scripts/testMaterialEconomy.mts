@@ -882,7 +882,7 @@ assert.match(
 );
 assert.match(
   clayPitStep,
-  /let Some\(deposit\) = clay_deposit_beneath[\s\S]*environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_deposit\(\s*building\.x,\s*building\.z,\s*resource_abundance,\s*&deposit/,
+  /let Some\(mut deposit\) = clay_deposit_beneath[\s\S]*environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_deposit\(\s*building\.x,\s*building\.z,\s*resource_abundance,\s*&deposit/,
   'authoritative clay digging must multiply weather by the local geological bank yield',
 );
 assert.match(

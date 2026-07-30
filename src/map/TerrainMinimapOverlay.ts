@@ -155,13 +155,16 @@ export class TerrainMinimapOverlay {
   }
 
   private refreshLayoutMarkerVisibility(): void {
-    const foragingNodes = this.options.getGameState().foragingNodes;
+    const state = this.options.getGameState();
+    const foragingNodes = state.foragingNodes;
     for (const entry of this.layoutMarkerEntries) {
       entry.hidden = !isWorldMapForagingMarkerVisible(entry.marker, foragingNodes);
-      const node = foragingNodes.get(entry.marker.id);
+      const node = entry.marker.kind === 'clay'
+        ? state.quarries.get(entry.marker.id)
+        : foragingNodes.get(entry.marker.id);
       entry.element.classList.toggle(
         'terrain-minimap__marker--depleted',
-        Boolean(node && node.remaining <= 0),
+        Boolean(node && node.isRich !== true && node.remaining <= 0),
       );
     }
     this.refreshLayoutMarkerPositions();
@@ -192,7 +195,10 @@ export class TerrainMinimapOverlay {
   private placeMarkerEntry(entry: MinimapMarkerEntry): void {
     entry.element.hidden = entry.hidden;
     if (entry.hidden) return;
-    const node = this.options.getGameState().foragingNodes.get(entry.marker.id);
+    const state = this.options.getGameState();
+    const node = entry.marker.kind === 'clay'
+      ? state.quarries.get(entry.marker.id)
+      : state.foragingNodes.get(entry.marker.id);
     const point = worldToMapPercent(
       node?.x ?? entry.marker.x,
       node?.z ?? entry.marker.z,

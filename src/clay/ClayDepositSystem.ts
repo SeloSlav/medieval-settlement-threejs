@@ -1,15 +1,27 @@
 import * as THREE from 'three';
+import type { ResourceNodeState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
-import type { ClayDepositLayout, ClayDepositSite } from './ClayDepositLayout.ts';
+import {
+  clayDepositNodeId,
+  type ClayDepositLayout,
+  type ClayDepositSite,
+} from './ClayDepositLayout.ts';
 
 export type ClayDepositSystem = {
   group: THREE.Group;
+  syncNodes: (nodes: Iterable<ResourceNodeState>) => boolean;
   isBlockedAt: (x: number, z: number) => boolean;
   isGrassBlockedAt: (x: number, z: number) => boolean;
   dispose: () => void;
 };
 
 const CLAY_COLORS = [0x8f5338, 0xa96643, 0xc18155] as const;
+
+type ClayDepositVisual = {
+  nodeId: string;
+  isRich: boolean;
+  exposedStrata: THREE.Mesh[];
+};
 
 export function createClayDepositSystem(
   terrain: Terrain,
@@ -28,12 +40,34 @@ export function createClayDepositSystem(
     })
   );
 
-  for (const site of layout.sites) {
-    group.add(createClayBankPatch(terrain, site, materials));
-  }
+  const visuals: ClayDepositVisual[] = layout.sites.map((site, index) => {
+    const visual = createClayBankPatch(terrain, site, materials);
+    group.add(visual.group);
+    return {
+      nodeId: clayDepositNodeId(site, index),
+      isRich: site.kind === 'rich',
+      exposedStrata: visual.exposedStrata,
+    };
+  });
 
   return {
     group,
+    syncNodes: (nodes) => {
+      const byId = new Map([...nodes].map((node) => [node.nodeId, node]));
+      let changed = false;
+      for (const visual of visuals) {
+        const node = byId.get(visual.nodeId);
+        const hasExposedClay = visual.isRich
+          || !node
+          || node.remaining > 1e-6;
+        for (const stratum of visual.exposedStrata) {
+          if (stratum.visible === hasExposedClay) continue;
+          stratum.visible = hasExposedClay;
+          changed = true;
+        }
+      }
+      return changed;
+    },
     isBlockedAt: (x, z) => layout.isBlockedForProps(x, z),
     isGrassBlockedAt: (x, z) => layout.isBlockedForGrass(x, z),
     dispose: () => {
@@ -49,8 +83,9 @@ function createClayBankPatch(
   terrain: Terrain,
   site: ClayDepositSite,
   materials: readonly THREE.MeshStandardMaterial[],
-): THREE.Group {
+): { group: THREE.Group; exposedStrata: THREE.Mesh[] } {
   const group = new THREE.Group();
+  const exposedStrata: THREE.Mesh[] = [];
   const gradeLabel = site.kind === 'rich' ? 'rich' : 'ordinary';
   group.name = `Exposed ${gradeLabel} alluvial clay`;
 
@@ -80,10 +115,11 @@ function createClayBankPatch(
     );
     seam.name = `${site.kind === 'rich' ? 'Rich' : 'Ordinary'} clay exposed stratum ${index + 1}`;
     seam.receiveShadow = true;
+    exposedStrata.push(seam);
     group.add(seam);
   }
 
-  return group;
+  return { group, exposedStrata };
 }
 
 function createTerrainConformingPatch(

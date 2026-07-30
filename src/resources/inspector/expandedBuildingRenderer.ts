@@ -123,7 +123,7 @@ import {
 
 const PROCESS: Record<string, string> = {
   mine: 'A local iron or salt deposit + labor → raw material for linked local processing',
-  clay_pit: 'Marked ordinary or rich clay deposit + labor -> wet clay for local potters',
+  clay_pit: 'Finite ordinary bank or rich deep alluvium + labor -> wet clay for local potters',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
   smithy: 'Local ore or imported iron blooms + charcoal -> tools, fittings, and weapon heads',
   potter_kiln: 'Riverbank clay + firewood -> household wares, preservation vessels, and export',
@@ -928,6 +928,20 @@ export function renderExpandedBuildingInspector(
     : 1;
   const clayBankCombinedYield = clayBankYield
     * environment.clayPitThroughputMultiplier;
+  const clayDepositResource = building.kind === 'clay_pit'
+    ? [...context.gameState.quarries.values()].find((node) =>
+        node.resource === 'clay'
+        && Math.hypot(node.x - building.x, node.z - building.z) <= 2.5
+      ) ?? null
+    : null;
+  const clayDepositExhausted = clayDepositResource !== null
+    && clayDepositResource.isRich !== true
+    && clayDepositResource.remaining <= 1e-6;
+  const clayReserveLabel = clayDepositResource === null
+    ? 'No physical clay deposit beneath this pit'
+    : clayDepositResource.isRich
+      ? 'Rich deep alluvial source · nondepleting'
+      : `${Math.max(0, clayDepositResource.remaining).toFixed(0)} / ${Math.max(0, clayDepositResource.maxYield).toFixed(0)} finite clay remaining`;
   const clayBankWeatherLabel = environment.weather === 'frost'
     ? 'frozen ground'
     : environment.weather === 'drought'
@@ -937,6 +951,7 @@ export function renderExpandedBuildingInspector(
         : 'fair ground';
   const clayBankRows = building.kind === 'clay_pit'
     ? `<li><span>Clay seam</span><span>${clayBankYieldGrade(clayBankYield)} · ${Math.round(clayBankYield * 100)}% geological yield at regional abundance ${Math.round(context.worldResourceAbundance ?? 50)}/100</span></li>
+      <li><span>Physical reserve</span><span>${clayReserveLabel}</span></li>
       <li><span>Current digging pace</span><span>${Math.round(clayBankYield * 100)}% bank × ${Math.round(environment.clayPitThroughputMultiplier * 100)}% ${clayBankWeatherLabel} = ${Math.round(clayBankCombinedYield * 100)}% before tool condition</span></li>`
     : '';
   const charcoalClampWeatherLabel = environment.weather === 'frost'
@@ -962,6 +977,12 @@ export function renderExpandedBuildingInspector(
           : 'warning' as const,
       }
     : building.kind === 'clay_pit'
+      && clayDepositExhausted
+      ? {
+          statusText: 'Ordinary clay bank exhausted · relocate the pit or develop a rich deep bank',
+          statusState: 'warning' as const,
+        }
+      : building.kind === 'clay_pit'
       && processorStatus?.statusState === 'active'
       ? {
           statusText: `${clayBankYieldGrade(clayBankYield)} · ${Math.round(clayBankCombinedYield * 100)}% clay pace before tool condition${environment.clayPitThroughputMultiplier < 1 ? ' · stockpile for winter kilns' : ''}`,

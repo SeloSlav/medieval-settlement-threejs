@@ -1722,9 +1722,13 @@ pub fn step_clay_pit(
     resource_abundance: u8,
     building: Building,
 ) {
-    let Some(deposit) = clay_deposit_beneath(ctx, building.x, building.z) else {
+    let Some(mut deposit) = clay_deposit_beneath(ctx, building.x, building.z) else {
         return;
     };
+    let is_rich = deposit.node_id.starts_with("clay-rich-");
+    if !is_rich && deposit.remaining <= 1e-6 {
+        return;
+    }
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork)
         * environment.clay_pit_throughput_multiplier()
@@ -1735,15 +1739,25 @@ pub fn step_clay_pit(
             &deposit,
         );
     let clay_before = building.clay;
+    let clay_batch = if is_rich {
+        CLAY_PIT_CLAY_PER_CYCLE
+    } else {
+        CLAY_PIT_CLAY_PER_CYCLE.min(deposit.remaining.max(0.0))
+    };
     let mut clay_pit = step_simple_producer_at_rate(
         ctx,
         tick,
         clock,
         building,
-        &[(CommodityKind::Clay, CLAY_PIT_CLAY_PER_CYCLE)],
+        &[(CommodityKind::Clay, clay_batch)],
         throughput_multiplier,
     );
-    if tools_maintained && clay_pit.clay > clay_before + 1e-6 {
+    let clay_produced = (clay_pit.clay - clay_before).max(0.0);
+    if !is_rich && clay_produced > 1e-6 {
+        deposit.remaining = (deposit.remaining - clay_produced).max(0.0);
+        ctx.db.foraging_node().node_id().update(deposit);
+    }
+    if tools_maintained && clay_produced > 1e-6 {
         withdraw_building_commodity(
             &mut clay_pit,
             CommodityKind::Ironwork,

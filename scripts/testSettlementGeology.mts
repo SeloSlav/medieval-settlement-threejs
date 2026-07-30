@@ -49,7 +49,7 @@ function makeBuilding(
 
 function deposit(
   nodeId: string,
-  resource: 'stone' | 'iron' | 'salt',
+  resource: 'stone' | 'clay' | 'iron' | 'salt',
   x: number,
   remaining: number,
   maxYield: number,
@@ -70,6 +70,8 @@ function deposit(
 const deposits = [
   deposit('quarry-stone-ordinary', 'stone', 0, 120, 200),
   deposit('quarry-stone-rich', 'stone', 100, 60, 100, true),
+  deposit('clay-ordinary-0', 'clay', 600, 240, 480),
+  deposit('clay-rich-0', 'clay', 700, 1_440, 1_440, true),
   deposit('deposit-iron-ordinary', 'iron', 200, 90, 120),
   deposit('deposit-iron-rich', 'iron', 300, 160, 160, true),
   deposit('deposit-salt-ordinary', 'salt', 400, 50, 80),
@@ -92,6 +94,21 @@ const buildings = [
     z: 0,
     assignedLabor: 1,
     ironwork: 1,
+  }),
+  makeBuilding({
+    id: 'clay-pit-finite',
+    kind: 'clay_pit',
+    x: 600,
+    z: 0,
+    assignedLabor: 2,
+    ironwork: 1,
+  }),
+  makeBuilding({
+    id: 'clay-pit-deep',
+    kind: 'clay_pit',
+    x: 700,
+    z: 0,
+    assignedLabor: 1,
   }),
   makeBuilding({
     id: 'iron-mine-finite',
@@ -145,13 +162,13 @@ const state: GameState = {
 
 const plan = computeSettlementGeologyPlan(state, false);
 assert.deepEqual(
-  [plan.stone.deposits, plan.iron.deposits, plan.salt.deposits],
-  [2, 2, 2],
+  [plan.stone.deposits, plan.clay.deposits, plan.iron.deposits, plan.salt.deposits],
+  [2, 2, 2, 2],
   'the ledger must count every physical deposit',
 );
 assert.deepEqual(
-  [plan.stone.richDeposits, plan.iron.richDeposits, plan.salt.richDeposits],
-  [1, 1, 1],
+  [plan.stone.richDeposits, plan.clay.richDeposits, plan.iron.richDeposits, plan.salt.richDeposits],
+  [1, 1, 1, 1],
 );
 assert.equal(
   plan.stone.finiteReserve,
@@ -159,8 +176,10 @@ assert.equal(
   'rich stone still has a finite surface outcrop beside its deep source',
 );
 assert.equal(plan.iron.finiteReserve, 90, 'rich mineral seams must not masquerade as finite stock');
+assert.equal(plan.clay.finiteReserve, 240, 'rich alluvium must not masquerade as finite stock');
 assert.equal(plan.salt.finiteReserve, 50);
 assert.equal(plan.stone.activeDeepSources, 1);
+assert.equal(plan.clay.activeDeepSources, 1);
 assert.equal(plan.iron.activeDeepSources, 1);
 assert.equal(
   plan.salt.activeDeepSources,
@@ -169,6 +188,8 @@ assert.equal(
 );
 assert.ok(plan.stone.finiteExtractionPerDay > 0);
 assert.ok(plan.stone.deepExtractionPerDay > 0);
+assert.ok(plan.clay.finiteExtractionPerDay > 0);
+assert.ok(plan.clay.deepExtractionPerDay > 0);
 assert.ok(plan.iron.finiteExtractionPerDay > 0);
 assert.ok(plan.iron.deepExtractionPerDay > 0);
 assert.ok(plan.salt.finiteExtractionPerDay > 0);
@@ -191,6 +212,9 @@ assert.ok(
 const exhaustedIron = state.quarries.get('deposit-iron-ordinary');
 assert.ok(exhaustedIron);
 exhaustedIron.remaining = 0;
+const exhaustedClay = state.quarries.get('clay-ordinary-0');
+assert.ok(exhaustedClay);
+exhaustedClay.remaining = 0;
 const exhaustedPlan = computeSettlementGeologyPlan(state, false);
 assert.equal(exhaustedPlan.iron.exhaustedFiniteDeposits, 1);
 assert.equal(exhaustedPlan.iron.finiteExtractionPerDay, 0);
@@ -198,6 +222,13 @@ assert.equal(
   exhaustedPlan.iron.firstAttentionBuildingId,
   'iron-mine-finite',
   'a staffed mine on an exhausted seam must be the first geological warning',
+);
+assert.equal(exhaustedPlan.clay.exhaustedFiniteDeposits, 1);
+assert.equal(exhaustedPlan.clay.finiteExtractionPerDay, 0);
+assert.equal(
+  exhaustedPlan.clay.firstAttentionBuildingId,
+  'clay-pit-finite',
+  'a staffed pit on an exhausted bank must be the first clay warning',
 );
 
 state.fireIncidents.set('fire-1', {

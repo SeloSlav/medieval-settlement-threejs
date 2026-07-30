@@ -8,9 +8,9 @@ export type RegionalResourcePlan = {
   ordinaryQuarryCount: number;
   /** Optional deep stone source, rolled from the seed and regional settings. */
   richStoneDepositCount: number;
-  /** Explicit ordinary alluvial banks. At least one is present in every region. */
+  /** Finite ordinary alluvial banks. At least one is present in every region. */
   ordinaryClayDepositCount: number;
-  /** Optional high-output alluvial bank, rolled independently from stone. */
+  /** Optional high-output deep alluvial source, rolled independently from stone. */
   richClayDepositCount: number;
   /** Rich iron-or-salt sites rolled from the mineral budget. */
   richMineralDepositCount: number;

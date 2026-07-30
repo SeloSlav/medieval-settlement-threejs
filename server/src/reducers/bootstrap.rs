@@ -62,6 +62,18 @@ pub fn bootstrap_foraging(
         if let Some(existing) = ctx.db.foraging_node().node_id().find(&node.node_id) {
             let preserve_runtime_location =
                 preserves_runtime_location_during_bootstrap(&node.node_kind);
+            let rebalanced_remaining = if node.node_kind == "clay" {
+                if existing.max_yield <= 1.0 + f64::EPSILON && node.max_yield > 1.0 {
+                    // Earlier development worlds stored clay as a permanent
+                    // placement anchor with a placeholder reserve of one.
+                    // Upgrade untouched anchors to the new physical reserve.
+                    node.max_yield
+                } else {
+                    preserve_extracted_stone(existing.max_yield, existing.remaining, node.max_yield)
+                }
+            } else {
+                existing.remaining.min(node.max_yield)
+            };
             ctx.db.foraging_node().node_id().update(ForagingNode {
                 // Disturbed game habitats may have migrated, but plants and
                 // fish are static world-layout sites and must stay aligned
@@ -77,7 +89,7 @@ pub fn bootstrap_foraging(
                     node.z
                 },
                 max_yield: node.max_yield,
-                remaining: existing.remaining.min(node.max_yield),
+                remaining: rebalanced_remaining,
                 node_kind: node.node_kind,
                 anchor_x: if preserve_runtime_location {
                     existing.anchor_x

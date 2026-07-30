@@ -334,7 +334,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="iron">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="iron" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="clay" data-tooltip="Wet clay stored at riverbank pits and pottery yards. Clay pits must sit directly on a marked physical clay deposit; rich seed rolls yield more. Loaded handcarts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="clay" data-tooltip="Wet clay stored at riverbank pits and pottery yards. Ordinary physical banks are finite; rich seed rolls expose faster deep alluvium that does not exhaust. Loaded handcarts are shown separately.">
         <span class="settlement-hud__label">Clay</span>
         <strong class="settlement-hud__value" data-stockpile="clay">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="clay" hidden></span>

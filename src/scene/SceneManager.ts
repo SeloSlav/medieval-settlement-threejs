@@ -975,8 +975,9 @@ export class SceneManager {
   syncQuarryNodes(nodes: Iterable<ResourceNodeState>): boolean {
     const snapshot = [...nodes];
     const quarryChanged = this.quarrySystem.syncNodes(snapshot);
+    const clayChanged = this.clayDepositSystem.syncNodes(snapshot);
     const mineralChanged = this.mineralDepositSystem.syncNodes(snapshot);
-    const changed = quarryChanged || mineralChanged;
+    const changed = quarryChanged || clayChanged || mineralChanged;
     if (!changed) return false;
     this.rebuildRockSpatialIndex();
     this.refreshShadowMap();

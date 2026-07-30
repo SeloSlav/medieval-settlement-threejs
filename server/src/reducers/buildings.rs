@@ -258,6 +258,16 @@ fn has_clay_deposit_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
     ctx.db.foraging_node().iter().any(|deposit| {
         deposit.node_kind == "clay"
             && deposit.node_id.starts_with("clay-")
+            && (deposit.node_id.starts_with("clay-rich-") || deposit.remaining > 0.0)
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
+    })
+}
+
+fn is_clay_deposit_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
+    let tolerance_sq = RICH_DEPOSIT_CENTER_TOLERANCE * RICH_DEPOSIT_CENTER_TOLERANCE;
+    ctx.db.foraging_node().iter().any(|deposit| {
+        deposit.node_kind == "clay"
+            && deposit.node_id.starts_with("clay-")
             && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
     })
 }
@@ -322,7 +332,8 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     }
 
     let on_mineral_deposit = kind == "mine" && has_mineral_deposit_at_center(ctx, x, z);
-    let on_generated_clay_bank = kind == "clay_pit" && has_clay_deposit_at_center(ctx, x, z);
+    let on_generated_clay_bank = kind == "clay_pit" && is_clay_deposit_at_center(ctx, x, z);
+    let on_usable_clay_bank = kind == "clay_pit" && has_clay_deposit_at_center(ctx, x, z);
 
     if kind != "large_quarry"
         && !on_mineral_deposit
@@ -532,9 +543,9 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         );
     }
 
-    if kind == "clay_pit" && !on_generated_clay_bank {
+    if kind == "clay_pit" && !on_usable_clay_bank {
         return Err(
-            "Clay Pits must be placed directly over a generated ordinary or rich clay deposit."
+            "Clay Pits need a generated bank with ordinary clay remaining or a rich deep source."
                 .to_string(),
         );
     }
@@ -1018,7 +1029,7 @@ fn clay_source_usable(building: &Building, buckets: &SpatialBuckets<ForagingNode
             building.z,
             RICH_DEPOSIT_CENTER_TOLERANCE,
             |deposit| deposit.node_kind == "clay" && deposit.node_id.starts_with("clay-"),
-            |_| true,
+            |deposit| deposit.node_id.starts_with("clay-rich-") || deposit.remaining > 0.0,
         )
         .usable
 }

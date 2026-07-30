@@ -21,7 +21,7 @@ export const TOAST_MESSAGES = {
   'building.placement.no_quarry_in_range': 'No quarry stone within work range',
   'building.placement.requires_rich_deposit': 'Large Quarries must be placed directly over a rich stone deposit',
   'building.placement.requires_mineral_deposit': 'Mineral mines must be placed directly over an iron or salt deposit',
-  'building.placement.requires_clay_deposit': 'Clay Pits must be placed directly over a marked ordinary or rich clay deposit',
+  'building.placement.requires_clay_deposit': 'Clay Pits need a marked bank with ordinary clay remaining or a rich deep source',
   'building.placement.no_game_in_range': 'No game within work range',
   'building.placement.no_berries_in_range': 'Place within 48 m of a berry patch or mushroom bed (dormant and depleted patches still count)',
   'building.placement.no_fish_in_range': 'No fish shoal within work range',

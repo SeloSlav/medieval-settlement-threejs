@@ -1973,6 +1973,10 @@ export function renderTownHallInspector(
   const geology = computeSettlementGeologyPlan(
     context.gameState,
     provisioning.sabbathObserved,
+    {
+      clayPitThroughputMultiplier: environment.clayPitThroughputMultiplier,
+      resourceAbundance: context.worldResourceAbundance ?? 50,
+    },
   );
   const unmaintainedToolInspect = industrialMaterials.firstUnmaintainedToolSiteId === null
     ? ''
@@ -2325,7 +2329,8 @@ export function renderTownHallInspector(
       <li><span>Potter buffers</span><span>Input ${formatProcessorInputBuffer(production.potterInputBuffer)} &middot; pottery room ${formatProcessorOutputRoom(production.potterOutputRoom)} ${processorInspectButton('potter', production.potterInputBuffer, production.potterOutputRoom)}</span></li>
       <li><span>Processing labor</span><span>${production.millWorkers} mill · ${production.bakeryWorkers} granary · ${production.breweryWorkers} brewing · ${production.smokehouseWorkers} preserving · ${production.weaverWorkers} weaving</span></li>
       <li><span>Material-chain labor</span><span>${industrialMaterials.clayWorkers} clay &middot; ${industrialMaterials.potterWorkers} pottery &middot; ${industrialMaterials.charcoalWorkers} charcoal &middot; ${industrialMaterials.smithyWorkers} smithing</span></li>
-      <li><span>Clay-bank conditions</span><span>${Math.round(industrialMaterials.clayBankYieldMultiplier * 100)}% average geological yield across active pits at regional abundance ${Math.round(context.worldResourceAbundance ?? 50)}/100 &times; ${Math.round(production.clayPitThroughputMultiplier * 100)}% current ${environment.weather} ground before tool condition${leanClayPitInspect} &middot; pits never hard-stop, but autumn clay reserves keep winter kilns productive</span></li>
+      <li><span>Clay-bank conditions</span><span>${Math.round(industrialMaterials.clayBankYieldMultiplier * 100)}% average geological yield across active pits at regional abundance ${Math.round(context.worldResourceAbundance ?? 50)}/100 &times; ${Math.round(production.clayPitThroughputMultiplier * 100)}% current ${environment.weather} ground before tool condition${leanClayPitInspect} &middot; ordinary banks exhaust, while rich deep alluvium remains workable</span></li>
+      <li><span>Clay geology</span><span>${formatGeologicalResourcePlan(geology.clay, industrialMaterials.potterClayPerDay, 'potters')}</span></li>
       <li><span>Stone geology</span><span>${formatGeologicalResourcePlan(geology.stone)}</span></li>
       <li><span>Iron geology</span><span>${formatGeologicalResourcePlan(geology.iron, industrialMaterials.smithyIronPerDay, 'smithies')}</span></li>
       <li><span>Salt geology</span><span>${formatGeologicalResourcePlan(geology.salt, production.preservationSaltPerDay + livestockFodder.dairySaltPerDay, 'preservation')}</span></li>

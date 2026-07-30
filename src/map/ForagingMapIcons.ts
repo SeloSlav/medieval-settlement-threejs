@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import type { ForagingNodeState } from '../resources/types.ts';
+import type {
+  ForagingNodeState,
+  ResourceNodeState,
+} from '../resources/types.ts';
 import type { WorldMapMarker } from './worldMapMarkers.ts';
 import { isWorldMapForagingMarkerVisible } from './worldMapMarkers.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
@@ -22,6 +25,7 @@ type ForagingMapIconsOptions = {
   terrain: Terrain;
   markers: readonly WorldMapMarker[];
   getForagingNodes: () => Map<string, ForagingNodeState>;
+  getGeologicalNodes: () => Map<string, ResourceNodeState>;
   getCamera: () => THREE.PerspectiveCamera | null;
   getZoomPercent: () => number;
   onForagingSelect: (nodeId: string) => void;
@@ -70,6 +74,7 @@ export class ForagingMapIcons {
     if (!frame) return;
 
     const nodes = this.options.getForagingNodes();
+    const geologicalNodes = this.options.getGeologicalNodes();
 
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
@@ -78,11 +83,23 @@ export class ForagingMapIcons {
         continue;
       }
 
-      const node = nodes.get(marker.id);
+      const node = marker.kind === 'clay'
+        ? geologicalNodes.get(marker.id)
+        : nodes.get(marker.id);
+      const clayDepleted = marker.kind === 'clay'
+        && node?.isRich !== true
+        && (node?.remaining ?? 0) <= 0;
       button.classList.toggle(
         'foraging-map-icon--depleted',
-        marker.kind !== 'clay' && (node?.remaining ?? 0) <= 0,
+        clayDepleted || (marker.kind !== 'clay' && (node?.remaining ?? 0) <= 0),
       );
+      if (marker.kind === 'clay' && node) {
+        const reserve = node.isRich
+          ? 'deep source'
+          : `${Math.max(0, Math.round(node.remaining))} clay remaining`;
+        button.dataset.tooltip = `${marker.label} · ${reserve}`;
+        button.setAttribute('aria-label', `${marker.label}, ${reserve}`);
+      }
       placeProjectedMapButton(
         button,
         node?.x ?? marker.x,

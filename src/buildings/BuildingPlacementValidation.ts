@@ -88,13 +88,16 @@ export function validateBuildingPlacement(
   // Materialize one-shot Map iterators once so prerequisite and separation
   // checks cannot accidentally see an exhausted collection.
   const buildings = [...context.buildings];
-  const onClayDeposit = kind === 'clay_pit'
+  const quarries = [...context.quarries];
+  const onClaySite = kind === 'clay_pit'
     && clayDepositAtCenter(context.clayDepositSites ?? [], x, z) !== null;
+  const onClayDeposit = onClaySite
+    && hasUsableClayDepositAtCenter(x, z, quarries);
   const fishingFootprintTouchesWater = kind === 'fishing_camp'
     && sampleBuildingFootprintPoints(kind, x, z).some((point) => context.isWaterAt(point.x, point.z));
   if (
     kind !== 'large_quarry'
-    && !onClayDeposit
+    && !onClaySite
     && (context.isWaterAt(x, z) || fishingFootprintTouchesWater)
   ) {
     return { ok: false, reason: 'water' };
@@ -102,7 +105,7 @@ export function validateBuildingPlacement(
 
   if (
     getBuildingDefinition(kind).requiresWaterShore
-    && !onClayDeposit
+    && !onClaySite
     && !isNearOpenWater(x, z, context.isWaterAt)
   ) {
     return { ok: false, reason: 'requires_shore' };
@@ -220,15 +223,15 @@ export function validateBuildingPlacement(
     }
   }
 
-  if (kind === 'stone_quarry' && !hasQuarryStoneInRadius(x, z, getBuildingDefinition(kind).workRadius, context.quarries)) {
+  if (kind === 'stone_quarry' && !hasQuarryStoneInRadius(x, z, getBuildingDefinition(kind).workRadius, quarries)) {
     return { ok: false, reason: 'no_quarry_in_range' };
   }
 
-  if (kind === 'large_quarry' && !hasRichQuarryAtCenter(x, z, context.quarries)) {
+  if (kind === 'large_quarry' && !hasRichQuarryAtCenter(x, z, quarries)) {
     return { ok: false, reason: 'requires_rich_deposit' };
   }
 
-  if (kind === 'mine' && !hasMineralDepositAtCenter(x, z, context.quarries)) {
+  if (kind === 'mine' && !hasMineralDepositAtCenter(x, z, quarries)) {
     return { ok: false, reason: 'requires_mineral_deposit' };
   }
 
@@ -320,7 +323,17 @@ export function resolveBuildingPlacementPoint(
   clayDepositSites: readonly ClayDepositSite[] = [],
 ): { x: number; z: number } {
   if (kind === 'clay_pit') {
-    const deposit = nearestClayDeposit(clayDepositSites, x, z);
+    const clayNodes = [...quarries].filter((node) =>
+      node.resource === 'clay'
+      && (node.isRich === true || node.remaining > 0)
+    );
+    const deposit = nearestClayDeposit(
+      clayDepositSites.filter((site) =>
+        hasUsableClayDepositAtCenter(site.x, site.z, clayNodes)
+      ),
+      x,
+      z,
+    );
     return deposit ? { x: deposit.x, z: deposit.z } : { x, z };
   }
   if (kind !== 'large_quarry' && kind !== 'mine') return { x, z };
@@ -338,6 +351,21 @@ export function resolveBuildingPlacementPoint(
     nearestDistance = distance;
   }
   return nearest ? { x: nearest.x, z: nearest.z } : { x, z };
+}
+
+function hasUsableClayDepositAtCenter(
+  x: number,
+  z: number,
+  deposits: Iterable<ResourceNodeState>,
+): boolean {
+  for (const deposit of deposits) {
+    if (deposit.resource !== 'clay') continue;
+    if (deposit.isRich !== true && deposit.remaining <= 0) continue;
+    if (Math.hypot(deposit.x - x, deposit.z - z) <= RICH_QUARRY_CENTER_TOLERANCE) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

@@ -33,6 +33,8 @@ const MIN_CLAY_BANK_SPACING = 54;
 export const RICH_CLAY_DEPOSIT_RADIUS = 24;
 export const CLAY_DEPOSIT_CENTER_TOLERANCE = 2.5;
 export const CLAY_DEPOSIT_SNAP_RADIUS = 58;
+export const ORDINARY_CLAY_DEPOSIT_MAX_YIELD = 1_200;
+export const RICH_CLAY_DEPOSIT_MAX_YIELD = 3_600;
 
 export function clayDepositNodeId(site: ClayDepositSite, index: number): string {
   return `clay-${site.kind}-${index}`;
@@ -40,6 +42,12 @@ export function clayDepositNodeId(site: ClayDepositSite, index: number): string 
 
 export function clayDepositLabel(site: ClayDepositSite): string {
   return site.kind === 'rich' ? 'Rich clay deposit' : 'Clay deposit';
+}
+
+export function clayDepositMaxYield(site: ClayDepositSite): number {
+  return site.kind === 'rich'
+    ? RICH_CLAY_DEPOSIT_MAX_YIELD
+    : ORDINARY_CLAY_DEPOSIT_MAX_YIELD;
 }
 
 export function clayDepositAtCenter(

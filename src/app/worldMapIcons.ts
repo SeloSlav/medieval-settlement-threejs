@@ -85,6 +85,7 @@ export function createWorldMapUi(options: {
     getCamera,
     getZoomPercent,
     getForagingNodes: () => getGameState().foragingNodes,
+    getGeologicalNodes: () => getGameState().quarries,
     onForagingSelect,
     onClaySelect,
     isBlocked: () => isWorldInspectionBlocked(placementGate),

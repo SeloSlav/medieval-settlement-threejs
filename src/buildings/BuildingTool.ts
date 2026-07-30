@@ -549,12 +549,20 @@ export class BuildingTool {
             z,
           );
           if (!deposit) return null;
+          const resource = [...state.quarries.values()].find((node) =>
+            node.resource === 'clay'
+            && Math.hypot(node.x - x, node.z - z) <= 2.5
+          );
+          if (!resource) return null;
           const yieldMultiplier = clayBankYieldAt(
             x,
             z,
             getActiveWorldGeneration().resourceAbundance,
           );
-          return `Ready: ${deposit.kind} clay deposit · ${Math.round(yieldMultiplier * 100)}% geological clay yield before weather and iron tools`;
+          const reserve = resource.isRich
+            ? 'deep alluvial source does not exhaust'
+            : `${Math.round(resource.remaining)} clay reserve remaining`;
+          return `Ready: ${deposit.kind} clay deposit · ${reserve} · ${Math.round(yieldMultiplier * 100)}% geological clay yield before weather and iron tools`;
         })()
       : null;
     const mineralMineDetail = kind === 'mine'
