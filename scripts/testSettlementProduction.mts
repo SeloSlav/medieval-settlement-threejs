@@ -223,17 +223,24 @@ const heldClayProduction = computeSettlementProductionCapacity(
   targetHeldClayState,
   false,
 ).industrialMaterials;
-assert.equal(heldClayProduction.clayOutputPerDay, 0);
-assert.equal(heldClayProduction.toolEligibleSites, 0);
-assert.equal(heldClayProduction.maintainedToolIronworkPerDay, 0);
+assert.ok(heldClayProduction.clayOutputPerDay > 0);
+assert.equal(heldClayProduction.toolEligibleSites, 1);
+assert.ok(heldClayProduction.maintainedToolIronworkPerDay > 0);
 targetHeldClayPit.clay = 44;
 const reopenedClayProduction = computeSettlementProductionCapacity(
   targetHeldClayState,
   false,
 ).industrialMaterials;
-assert.ok(reopenedClayProduction.clayOutputPerDay > 0);
-assert.equal(reopenedClayProduction.toolEligibleSites, 1);
-assert.ok(reopenedClayProduction.maintainedToolIronworkPerDay > 0);
+approx(
+  heldClayProduction.clayOutputPerDay,
+  reopenedClayProduction.clayOutputPerDay,
+  'yard targets pause current extraction but must not erase sustainable clay capacity',
+);
+approx(
+  heldClayProduction.maintainedToolIronworkPerDay,
+  reopenedClayProduction.maintainedToolIronworkPerDay,
+  'design tool wear must remain visible while a clay yard waits for downstream demand',
+);
 
 const targetHeldMineState = emptyGameState();
 targetHeldMineState.quarries.set(
@@ -256,17 +263,24 @@ const heldMineProduction = computeSettlementProductionCapacity(
   targetHeldMineState,
   false,
 ).industrialMaterials;
-assert.equal(heldMineProduction.localIronOutputPerDay, 0);
-assert.equal(heldMineProduction.toolEligibleSites, 0);
-assert.equal(heldMineProduction.maintainedToolIronworkPerDay, 0);
+assert.ok(heldMineProduction.localIronOutputPerDay > 0);
+assert.equal(heldMineProduction.toolEligibleSites, 1);
+assert.ok(heldMineProduction.maintainedToolIronworkPerDay > 0);
 targetHeldMine.iron = 59;
 const reopenedMineProduction = computeSettlementProductionCapacity(
   targetHeldMineState,
   false,
 ).industrialMaterials;
-assert.ok(reopenedMineProduction.localIronOutputPerDay > 0);
-assert.equal(reopenedMineProduction.toolEligibleSites, 1);
-assert.ok(reopenedMineProduction.maintainedToolIronworkPerDay > 0);
+approx(
+  heldMineProduction.localIronOutputPerDay,
+  reopenedMineProduction.localIronOutputPerDay,
+  'yard targets pause current extraction but must not create false iron import demand',
+);
+approx(
+  heldMineProduction.maintainedToolIronworkPerDay,
+  reopenedMineProduction.maintainedToolIronworkPerDay,
+  'design tool wear must remain visible while an iron yard waits for downstream demand',
+);
 
 assert.ok(
   richClayProduction.industrialMaterials.clayOutputPerDay
@@ -2069,9 +2083,12 @@ const townHallRenderer = readFileSync(
 assert.match(townHallRenderer, /Material-chain roads/);
 assert.match(townHallRenderer, /Pottery chain/);
 assert.match(townHallRenderer, /Ironwork chain/);
-assert.match(townHallRenderer, /same-branch mines sustain/);
+assert.match(townHallRenderer, /same-branch mines sustainably provide/);
 assert.match(townHallRenderer, /road-local clay-backed kiln output/);
 assert.match(townHallRenderer, /Civilian tool upkeep/);
+assert.match(townHallRenderer, /current physical flow/);
+assert.match(townHallRenderer, /maintained-rack design wear/);
+assert.match(townHallRenderer, /target-held extraction consumes neither tools nor supports/);
 assert.match(townHallRenderer, /deep workings need/);
 assert.match(townHallRenderer, /Inspect support/);
 assert.match(townHallRenderer, /chosen yard target/);
