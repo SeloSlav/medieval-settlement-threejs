@@ -26,6 +26,7 @@ import {
   computeSettlementHouseholdMarketPlan,
   formatHouseholdMarketBranch,
 } from '../../economy/settlementHouseholdMarket.ts';
+import { marketplaceServiceResidenceIds } from '../serviceCoverage.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import {
@@ -246,6 +247,7 @@ export function renderMarketplaceInspector(
         clock: gameClock(context.gameState.tick),
         sabbathObserved: parishPolicy.sabbathObservanceEnabled
           && settlementHasStaffedChapel(context.gameState),
+        includeBranchResidenceIds: true,
       })
     : null;
   const householdBranch = householdMarketPlan?.branches.get(building.id) ?? null;
@@ -319,6 +321,13 @@ export function renderMarketplaceInspector(
       physicalEconomy,
       inboundBulkResources,
     ),
+    serviceCoverage: {
+      kind: 'marketplace',
+      residenceIds: marketplaceServiceResidenceIds(
+        householdMarketPlan,
+        building.id,
+      ),
+    },
   };
 }
 

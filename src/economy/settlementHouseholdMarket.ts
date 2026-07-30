@@ -73,6 +73,7 @@ export type HouseholdMarketResidencePlan = {
 export type HouseholdMarketBranchPlan = {
   marketplaceId: string;
   fireDisabled: boolean;
+  assignedResidenceIds?: string[];
   assignedHomes: number;
   criticalHomes: number;
   affordableCriticalHomes: number;
@@ -117,6 +118,8 @@ export type SettlementHouseholdMarketInput = {
   sabbathObserved: boolean;
   /** Optional narrow projection for inspectors that need only one household. */
   residenceIds?: ReadonlySet<string>;
+  /** Retain branch membership only when a marketplace coverage view needs it. */
+  includeBranchResidenceIds?: boolean;
 };
 
 type AttemptResult = {
@@ -251,6 +254,9 @@ export function computeSettlementHouseholdMarketPlan(
       {
         marketplaceId: marketplace.id,
         fireDisabled: fireDisabledMarketIds.has(marketplace.id),
+        ...(input.includeBranchResidenceIds
+          ? { assignedResidenceIds: [] }
+          : {}),
         assignedHomes: 0,
         criticalHomes: 0,
         affordableCriticalHomes: 0,
@@ -381,6 +387,7 @@ export function computeSettlementHouseholdMarketPlan(
 
     if (marketplace) {
       const branch = branches.get(marketplace.id)!;
+      branch.assignedResidenceIds?.push(residence.id);
       branch.assignedHomes += 1;
       if (critical) {
         branch.criticalHomes += 1;

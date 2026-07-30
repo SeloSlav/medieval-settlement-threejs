@@ -5,6 +5,7 @@ const tests = [
   'test:lodge-logistics',
   'test:industrial-firewood',
   'test:service-territories',
+  'test:service-coverage-overlay',
   'test:food-territories',
   'test:institutional-food-reserves',
   'test:granary-fresh-food-target',

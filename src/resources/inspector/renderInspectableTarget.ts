@@ -9,6 +9,7 @@ import type { CombatAgentState } from '../../security/combatAgents.ts';
 import type { NightPolicyState } from '../../economy/nightPolicy.ts';
 import type { SettlementProductionCapacity } from '../../economy/settlementProduction.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
+import type { ServiceCoverageView } from '../serviceCoverage.ts';
 import { renderBackyardInspector } from './backyardRenderer.ts';
 import { renderForagingInspector } from './foragingRenderer.ts';
 import { renderBuildingInspector } from './buildingRenderer.ts';
@@ -45,6 +46,7 @@ export type InspectorView = {
   demolish: InspectorDemolishView;
   labor: InspectorLaborView;
   supplementalPanelHtml?: string;
+  serviceCoverage?: ServiceCoverageView;
 };
 
 export type InspectorRenderContext = {

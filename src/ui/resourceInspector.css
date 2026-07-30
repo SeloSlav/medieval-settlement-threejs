@@ -74,6 +74,55 @@
   flex-shrink: 0;
 }
 
+.resource-inspector-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.resource-inspector-coverage {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(113, 220, 137, 0.34);
+  border-radius: 50%;
+  color: #a9dcb3;
+  background: rgba(34, 86, 49, 0.2);
+  cursor: pointer;
+}
+
+.resource-inspector-coverage[hidden] {
+  display: none;
+}
+
+.resource-inspector-coverage svg {
+  width: 17px;
+  height: 17px;
+  overflow: visible;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.35;
+}
+
+.resource-inspector-coverage[aria-pressed='true'] {
+  border-color: rgba(111, 239, 139, 0.78);
+  color: #d8ffe0;
+  background: rgba(48, 154, 76, 0.5);
+  box-shadow: 0 0 0 2px rgba(73, 215, 105, 0.14), 0 0 18px rgba(70, 230, 108, 0.22);
+}
+
+.resource-inspector-coverage:hover,
+.resource-inspector-coverage:focus-visible {
+  border-color: rgba(126, 239, 151, 0.75);
+  color: #effff2;
+  background: rgba(48, 140, 70, 0.42);
+  outline: none;
+}
+
 .resource-inspector-scroll {
   flex: 1 1 auto;
   min-height: 0;

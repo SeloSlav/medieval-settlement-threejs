@@ -29,6 +29,7 @@ import { hashStringSeed } from '../utils/random.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { residenceWindowActivity } from './householdRoutine.ts';
 import type { NightPolicyState } from '../economy/nightPolicy.ts';
+import type { ServiceCoverageView } from '../resources/serviceCoverage.ts';
 
 const WINDOW_GLOW_EMISSIVE = 0xffc060;
 const WINDOW_GLOW_COLOR = 0x4a3820;
@@ -791,7 +792,18 @@ export function createResidencePreviewMesh(seed = 0): THREE.Group {
 
 export class ResidenceMarkers {
   private readonly root: THREE.Group;
+  private readonly serviceCoverageRoot: THREE.Group;
+  private readonly serviceCoverageGeometry: THREE.RingGeometry;
+  private readonly serviceCoverageMaterial: THREE.MeshBasicMaterial;
+  private serviceCoverageMesh: THREE.InstancedMesh<
+    THREE.RingGeometry,
+    THREE.MeshBasicMaterial
+  >;
+  private serviceCoverageCapacity = 1;
   private readonly meshes = new Map<string, THREE.Group>();
+  private serviceCoverageIds = new Set<string>();
+  private serviceCoverageKind: ServiceCoverageView['kind'] | null = null;
+  private serviceCoverageDirty = false;
   private readonly smokeEmitters = new Map<string, ChimneySmokeEmitter>();
   private readonly smokeEligible = new Map<string, boolean>();
   private readonly residenceOccupied = new Map<string, boolean>();
@@ -805,7 +817,48 @@ export class ResidenceMarkers {
   constructor(parent: THREE.Group) {
     this.root = new THREE.Group();
     this.root.name = 'Residences';
+    this.serviceCoverageRoot = new THREE.Group();
+    this.serviceCoverageRoot.name = 'Residence service coverage';
+    this.serviceCoverageGeometry = new THREE.RingGeometry(0.78, 1, 40);
+    this.serviceCoverageGeometry.name = 'Served residence halo geometry';
+    this.serviceCoverageMaterial = new THREE.MeshBasicMaterial({
+      color: 0xe7c45c,
+      opacity: 0.74,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+    this.serviceCoverageMaterial.name = 'Served residence halo material';
+    this.serviceCoverageMesh = this.createServiceCoverageMesh(
+      this.serviceCoverageCapacity,
+    );
+    this.serviceCoverageRoot.add(this.serviceCoverageMesh);
     parent.add(this.root);
+    parent.add(this.serviceCoverageRoot);
+  }
+
+  setServiceCoverageHighlights(
+    residenceIds: ReadonlySet<string>,
+    kind: ServiceCoverageView['kind'] | null,
+  ): void {
+    if (
+      setsEqual(this.serviceCoverageIds, residenceIds)
+      && this.serviceCoverageKind === kind
+    ) {
+      return;
+    }
+    this.serviceCoverageIds = new Set(residenceIds);
+    this.serviceCoverageKind = kind;
+    this.serviceCoverageMaterial.color.setHex(
+      kind === 'well' ? 0x57c9ff : 0xe7c45c,
+    );
+    this.serviceCoverageDirty = true;
+    this.syncServiceCoverageHighlights();
   }
 
   setChimneySmokeAllowed(allowed: boolean): void {
@@ -885,6 +938,9 @@ export class ResidenceMarkers {
       nextIds.add(residence.id);
       let marker = this.meshes.get(residence.id);
       if (marker && marker.userData.residenceTier !== residence.tier) {
+        if (this.serviceCoverageIds.has(residence.id)) {
+          this.serviceCoverageDirty = true;
+        }
         this.root.remove(marker);
         disposeGroup(marker);
         this.meshes.delete(residence.id);
@@ -893,6 +949,9 @@ export class ResidenceMarkers {
         marker = undefined;
       }
       if (!marker) {
+        if (this.serviceCoverageIds.has(residence.id)) {
+          this.serviceCoverageDirty = true;
+        }
         const appearanceSeed = hashStringSeed(residence.id);
         const completedTier = residence.tier === 0 ? null : residence.tier;
         marker = completedTier == null
@@ -913,6 +972,16 @@ export class ResidenceMarkers {
         }
       }
       const y = getHeightAt(residence.x, residence.z);
+      if (
+        this.serviceCoverageIds.has(residence.id)
+        && (
+          Math.abs(marker.position.x - residence.x) > 1e-6
+          || Math.abs(marker.position.y - y) > 1e-6
+          || Math.abs(marker.position.z - residence.z) > 1e-6
+        )
+      ) {
+        this.serviceCoverageDirty = true;
+      }
       marker.position.set(residence.x, y, residence.z);
       const condition = residence.condition ?? 0;
       marker.rotation.set(0, residence.yaw, condition * 0.012);
@@ -950,6 +1019,9 @@ export class ResidenceMarkers {
 
     for (const [id, marker] of this.meshes) {
       if (nextIds.has(id)) continue;
+      if (this.serviceCoverageIds.has(id)) {
+        this.serviceCoverageDirty = true;
+      }
       this.root.remove(marker);
       disposeGroup(marker);
       this.meshes.delete(id);
@@ -959,6 +1031,64 @@ export class ResidenceMarkers {
       this.residenceOccupied.delete(id);
       this.residencePopulation.delete(id);
     }
+    if (this.serviceCoverageDirty) this.syncServiceCoverageHighlights();
+  }
+
+  private syncServiceCoverageHighlights(): void {
+    this.ensureServiceCoverageCapacity(this.serviceCoverageIds.size);
+    const position = new THREE.Vector3();
+    const scale = new THREE.Vector3();
+    const groundRotation = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(-Math.PI / 2, 0, 0),
+    );
+    const matrix = new THREE.Matrix4();
+    let index = 0;
+    for (const id of this.serviceCoverageIds) {
+      const source = this.meshes.get(id);
+      if (!source || !source.visible) continue;
+      const radius = serviceCoverageRadius(
+        Number(source.userData.residenceTier ?? 1),
+      );
+      position.copy(source.position);
+      position.y += 0.11;
+      scale.set(radius, radius, radius);
+      matrix.compose(position, groundRotation, scale);
+      this.serviceCoverageMesh.setMatrixAt(index, matrix);
+      index += 1;
+    }
+    this.serviceCoverageMesh.count = index;
+    this.serviceCoverageMesh.instanceMatrix.needsUpdate = true;
+    this.serviceCoverageMesh.computeBoundingSphere();
+    this.serviceCoverageMesh.userData.serviceCoverageKind =
+      this.serviceCoverageKind;
+    this.serviceCoverageDirty = false;
+  }
+
+  private ensureServiceCoverageCapacity(required: number): void {
+    if (required <= this.serviceCoverageCapacity) return;
+    let capacity = this.serviceCoverageCapacity;
+    while (capacity < required) capacity *= 2;
+    this.serviceCoverageRoot.remove(this.serviceCoverageMesh);
+    this.serviceCoverageCapacity = capacity;
+    this.serviceCoverageMesh = this.createServiceCoverageMesh(capacity);
+    this.serviceCoverageRoot.add(this.serviceCoverageMesh);
+  }
+
+  private createServiceCoverageMesh(
+    capacity: number,
+  ): THREE.InstancedMesh<THREE.RingGeometry, THREE.MeshBasicMaterial> {
+    const mesh = new THREE.InstancedMesh(
+      this.serviceCoverageGeometry,
+      this.serviceCoverageMaterial,
+      capacity,
+    );
+    mesh.name = 'Served residence ground halos';
+    mesh.count = 0;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.renderOrder = 18;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    return mesh;
   }
 
   private applyWindowGlowForResidence(marker: THREE.Group, residenceId: string): void {
@@ -992,12 +1122,24 @@ export class ResidenceMarkers {
     this.residenceOccupied.clear();
     this.residencePopulation.clear();
     this.fireDisabledResidenceIds.clear();
+    this.serviceCoverageIds.clear();
+    this.serviceCoverageKind = null;
     for (const marker of this.meshes.values()) {
       disposeGroup(marker);
     }
     this.meshes.clear();
+    this.serviceCoverageGeometry.dispose();
+    this.serviceCoverageMaterial.dispose();
+    this.serviceCoverageRoot.removeFromParent();
     this.root.removeFromParent();
   }
+}
+
+function serviceCoverageRadius(tier: number): number {
+  if (tier >= 3) return 5.25;
+  if (tier === 2) return 4.55;
+  if (tier === 1) return 3.85;
+  return 3.35;
 }
 
 function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {

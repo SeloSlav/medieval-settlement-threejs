@@ -23,6 +23,7 @@
     "test:lodge-logistics": "npx tsx scripts/testLodgeLogistics.mts",
     "test:industrial-firewood": "npx tsx scripts/testIndustrialFirewoodLogistics.mts",
     "test:service-territories": "node --experimental-strip-types scripts/testServiceTerritories.mts",
+    "test:service-coverage-overlay": "npx tsx scripts/testServiceCoverageOverlay.mts",
     "test:food-territories": "node --experimental-strip-types scripts/testFoodTerritories.mts",
     "test:institutional-food-reserves": "node --experimental-strip-types scripts/testInstitutionalFoodReserves.mts",
     "test:granary-fresh-food-target": "node --experimental-strip-types scripts/testGranaryFreshFoodTarget.mts",

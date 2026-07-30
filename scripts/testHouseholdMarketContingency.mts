@@ -295,12 +295,19 @@ const tied = computeSettlementHouseholdMarketPlan({
   roadNetwork: euclideanNetwork,
   clock: workClock(),
   sabbathObserved: false,
+  includeBranchResidenceIds: true,
 });
 assert.equal(
   tied.residences.get('middle')?.marketplaceId,
   '10',
   'equal road distance must resolve to the lower stable marketplace id',
 );
+assert.deepEqual(
+  tied.branches.get('10')?.assignedResidenceIds,
+  ['middle'],
+  'market inspectors should be able to retain the exact authoritative branch membership',
+);
+assert.deepEqual(tied.branches.get('20')?.assignedResidenceIds, []);
 
 const unaffordable = computeSettlementHouseholdMarketPlan({
   state: state({
@@ -535,6 +542,11 @@ const perfPlan = computeSettlementHouseholdMarketPlan({
 const perfMs = performance.now() - perfStart;
 assert.equal(perfPlan.occupiedHomes, 100_000);
 assert.equal(perfPlan.readyHomes, 100_000);
+assert.equal(
+  perfPlan.branches.get('1')?.assignedResidenceIds,
+  undefined,
+  'non-coverage forecasts should not retain a second 100,000-home membership ledger',
+);
 assert.ok(
   perfMs < 2_500,
   `100,000 homes across 8 market routes took ${perfMs.toFixed(1)} ms`,

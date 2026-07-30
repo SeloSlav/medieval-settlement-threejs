@@ -3,7 +3,11 @@ import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
 import { initializeBuildingMaterialLibrary } from '../buildings/buildingMaterials.ts';
 import { BUILDING_KINDS } from '../generated/gameBalance.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
-import { createResidenceMesh } from '../residences/ResidenceMarkers.ts';
+import {
+  createResidenceMesh,
+  ResidenceMarkers,
+} from '../residences/ResidenceMarkers.ts';
+import { createDefaultNeeds } from '../residences/residenceNeedState.ts';
 import { createConstructionSiteMesh } from '../buildings/ConstructionSiteMesh.ts';
 import { createPreferredRenderer } from '../scene/RendererBackend.ts';
 import {
@@ -33,7 +37,9 @@ const requestedKind = lineupParams.get('kind');
 const showStockedState = lineupParams.get('stocked') === '1';
 const showCampSeating = lineupParams.get('seating') === '1';
 const compareResidences = lineupParams.get('compare') === 'residences';
-const selectedKinds = compareResidences
+const compareServiceCoverage = lineupParams.get('compare') === 'service-coverage';
+const comparisonMode = compareResidences || compareServiceCoverage;
+const selectedKinds = comparisonMode
   ? []
   : requestedKind && BUILDING_KINDS.includes(requestedKind as (typeof BUILDING_KINDS)[number])
     ? [requestedKind as (typeof BUILDING_KINDS)[number]]
@@ -117,11 +123,25 @@ const STOCKED_PREVIEW_PREFIXES = [
   'MonasteryWineStockpile',
   'MonasteryWineSegment',
 ] as const;
-const COLS = compareResidences ? 4 : selectedKinds.length === 1 ? 1 : 7;
-const ROWS = compareResidences || selectedKinds.length === 1 ? 1 : 4;
+const COLS = compareServiceCoverage
+  ? 2
+  : compareResidences
+    ? 4
+    : selectedKinds.length === 1
+      ? 1
+      : 7;
+const ROWS = comparisonMode || selectedKinds.length === 1 ? 1 : 4;
 const root = document.querySelector<HTMLElement>('#lineup-root');
 const labels = document.querySelector<HTMLElement>('#labels');
 if (!root || !labels) throw new Error('Building lineup host is missing.');
+if (compareServiceCoverage) {
+  const heading = document.querySelector('h1');
+  const subtitle = document.querySelector('header p');
+  if (heading) heading.textContent = 'Service Territory Readability';
+  if (subtitle) {
+    subtitle.textContent = 'Actual assignments · one instanced draw per overlay';
+  }
+}
 labels.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
 labels.style.gridTemplateRows = `repeat(${ROWS}, minmax(0, 1fr))`;
 
@@ -133,7 +153,18 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.08;
 root.prepend(renderer.domElement);
 
-const viewSpecs = compareResidences
+const viewSpecs = compareServiceCoverage
+  ? [
+      {
+        mesh: createServiceCoveragePreview('well'),
+        label: 'Well water · 4 claimed homes · 1 outside the territory',
+      },
+      {
+        mesh: createServiceCoveragePreview('marketplace'),
+        label: 'Marketplace · 4 assigned homes · 1 outside the territory',
+      },
+    ]
+  : compareResidences
   ? [
       { mesh: createBuildingMesh('chapel'), label: 'Church' },
       { mesh: createResidenceMesh(1, 1), label: 'Residence · tier 1' },
@@ -161,20 +192,24 @@ const viewSpecs = compareResidences
       },
     ].slice(0, selectedKinds.length === 1 ? 1 : undefined);
 
-const comparisonLargest = compareResidences
+const comparisonLargest = comparisonMode
   ? Math.max(...viewSpecs.map(({ mesh }) => {
       const size = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
       return Math.max(size.x, size.y * 1.2, size.z);
     }))
   : null;
-const comparisonLookY = compareResidences
+const comparisonLookY = comparisonMode
   ? new THREE.Box3().setFromObject(viewSpecs[0]!.mesh).getSize(new THREE.Vector3()).y * 0.4
   : null;
 
 const views = viewSpecs.map((spec) => {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xa6b29a);
-  scene.fog = new THREE.Fog(0xa6b29a, 32, 74);
+  scene.fog = new THREE.Fog(
+    0xa6b29a,
+    compareServiceCoverage ? 64 : 32,
+    compareServiceCoverage ? 132 : 74,
+  );
 
   const building = spec.mesh;
   building.rotation.y = -0.1;
@@ -223,11 +258,20 @@ const views = viewSpecs.map((spec) => {
 
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 160);
   const largest = comparisonLargest ?? Math.max(size.x, size.y * 1.2, size.z);
-  const distance = Math.max(13, largest / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5))) * 1.24);
-  const direction = new THREE.Vector3(
-    0.72,
-    0.56,
-    spec.mesh.name === "Founders' camp and open stockyard" ? -1 : 1,
+  const distance = Math.max(
+    13,
+    largest
+      / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)))
+      * (compareServiceCoverage ? 1.08 : 1.24),
+  );
+  const direction = (
+    compareServiceCoverage
+      ? new THREE.Vector3(0.62, 0.82, 1)
+      : new THREE.Vector3(
+          0.72,
+          0.56,
+          spec.mesh.name === "Founders' camp and open stockyard" ? -1 : 1,
+        )
   ).normalize();
   const lookY = comparisonLookY ?? Math.max(1.2, size.y * 0.43);
   camera.position.copy(direction.multiplyScalar(distance)).add(new THREE.Vector3(0, lookY, 0));
@@ -306,6 +350,46 @@ window.__BUILDING_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';
 document.body.dataset.rendererBackend = rendererBackend.kind;
 window.addEventListener('resize', render);
+
+function createServiceCoveragePreview(
+  kind: 'well' | 'marketplace',
+): THREE.Group {
+  const group = new THREE.Group();
+  const markers = new ResidenceMarkers(group);
+  const prefix = kind === 'well' ? 'water' : 'market';
+  const homes = [
+    { x: -8.5, z: -6.5, tier: 1 as const },
+    { x: 8.5, z: -6.5, tier: 2 as const },
+    { x: -8.5, z: 6.5, tier: 2 as const },
+    { x: 8.5, z: 6.5, tier: 3 as const },
+    { x: 0, z: 17.5, tier: 1 as const },
+  ].map((home, index) => ({
+    id: `${prefix}-home-${index}`,
+    zoneId: `${prefix}-zone`,
+    parcelIndex: index,
+    x: home.x,
+    z: home.z,
+    yaw: index % 2 === 0 ? 0.06 : -0.08,
+    population: 4,
+    populationCapacity: 6,
+    tier: home.tier,
+    settlementTicks: 0,
+    needs: createDefaultNeeds(),
+    abandoned: false,
+    householdWealth: 8,
+  }));
+  markers.syncResidences(homes, () => 0);
+  markers.setServiceCoverageHighlights(
+    new Set(homes.slice(0, 4).map((home) => home.id)),
+    kind,
+  );
+  group.userData.residenceMarkers = markers;
+
+  const serviceBuilding = createBuildingMesh(kind);
+  serviceBuilding.position.set(0, 0, 4.5);
+  group.add(serviceBuilding);
+  return group;
+}
 
 let previousFrameMs = performance.now();
 function animate(nowMs: number): void {

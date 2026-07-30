@@ -852,6 +852,9 @@ export async function bootstrapAppSession(
         cameraController.focusWorldPosition(x, z);
       }
     },
+    onServiceCoverageChange: (residenceIds, kind) => {
+      residenceMarkers.setServiceCoverageHighlights(residenceIds, kind);
+    },
     onSelectionChange: (target) => {
       if (target) villagerInspector.clearSelection();
       toolbar.setCityAdministrationOpen(target?.kind === 'building' && target.building.kind === 'town_hall');

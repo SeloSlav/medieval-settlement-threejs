@@ -45,6 +45,10 @@ import { computeSettlementProductionCapacity } from '../economy/settlementProduc
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { gameClock } from '../world/gameCalendar.ts';
 import { environmentFor } from '../world/seasonPolicy.ts';
+import {
+  serviceCoverageLabel,
+  type ServiceCoverageView,
+} from './serviceCoverage.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -205,6 +209,10 @@ type ResourceInspectorOptions = {
   onBeginGraveyardPlacement?: (chapelId: string) => void;
   onInspectDeliveryTrip?: (tripId: string) => void;
   onFocusWorldPosition?: (x: number, z: number) => void;
+  onServiceCoverageChange?: (
+    residenceIds: ReadonlySet<string>,
+    kind: ServiceCoverageView['kind'] | null,
+  ) => void;
   onSelectionChange?: (target: InspectableTarget | null) => void;
   isBlocked: () => boolean;
 };
@@ -223,6 +231,7 @@ export class ResourceInspector {
   private readonly status: HTMLElement;
   private readonly heroArt: HTMLElement;
   private readonly heroSymbol: HTMLElement;
+  private readonly serviceCoverageButton: HTMLButtonElement;
   private readonly closeButton: HTMLButtonElement;
   private readonly detailList: HTMLElement;
   private readonly secondaryDetailList: HTMLElement;
@@ -251,6 +260,9 @@ export class ResourceInspector {
   private readonly supplementalPanelSection: HTMLElement;
   private readonly marker: THREE.Mesh;
   private selectedTarget: InspectableTarget | null = null;
+  private serviceCoverageBuildingId: string | null = null;
+  private serviceCoverageResidenceIds = new Set<string>();
+  private serviceCoverageProjection: ServiceCoverageView | null = null;
   private renderedIdentity = '';
   private selectedX = 0;
   private selectedZ = 0;
@@ -287,7 +299,15 @@ export class ResourceInspector {
             <h2 class="road-controls-title" data-inspector-title>Select a site</h2>
             <p class="road-controls-status resource-inspector-status" data-inspector-status>Click terrain to inspect quarries, buildings, residences, or river access.</p>
           </div>
-          <button class="resource-inspector-close" type="button" data-inspector-close aria-label="Close inspector">×</button>
+          <div class="resource-inspector-header-actions">
+            <button class="resource-inspector-coverage" type="button" data-service-coverage-toggle aria-label="Show served homes" aria-pressed="false" data-tooltip="Show served homes" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="2.2"></circle>
+                <path d="M7.9 16.1a5.8 5.8 0 0 1 0-8.2M16.1 7.9a5.8 5.8 0 0 1 0 8.2M4.7 19.3a10.3 10.3 0 0 1 0-14.6M19.3 4.7a10.3 10.3 0 0 1 0 14.6"></path>
+              </svg>
+            </button>
+            <button class="resource-inspector-close" type="button" data-inspector-close aria-label="Close inspector">×</button>
+          </div>
         </header>
         <div class="resource-inspector-scroll">
           <section class="resource-inspector-details" aria-label="At a glance">
@@ -335,6 +355,10 @@ export class ResourceInspector {
     this.status = this.mustElement(options.uiRoot, '[data-inspector-status]');
     this.heroArt = this.mustElement(options.uiRoot, '[data-inspector-hero]');
     this.heroSymbol = this.mustElement(options.uiRoot, '[data-inspector-symbol]');
+    this.serviceCoverageButton = this.mustButton(
+      options.uiRoot,
+      '[data-service-coverage-toggle]',
+    );
     this.closeButton = this.mustButton(options.uiRoot, '[data-inspector-close]');
     this.detailList = this.mustElement(options.uiRoot, '[data-inspector-details]');
     this.secondaryDetailList = this.mustElement(options.uiRoot, '[data-inspector-secondary-details]');
@@ -418,6 +442,10 @@ export class ResourceInspector {
     this.demolishSecondaryButton.addEventListener('click', this.onDemolishSecondaryClick);
     this.laborDecrease.addEventListener('click', this.onLaborDecrease);
     this.laborIncrease.addEventListener('click', this.onLaborIncrease);
+    this.serviceCoverageButton.addEventListener(
+      'click',
+      this.onServiceCoverageToggle,
+    );
     this.closeButton.addEventListener('click', this.onCloseClick);
     this.resourceTotalsModeButton.addEventListener(
       'click',
@@ -428,6 +456,28 @@ export class ResourceInspector {
 
   private readonly onCloseClick = (): void => {
     this.clearSelection(true);
+  };
+
+  private readonly onServiceCoverageToggle = (event: MouseEvent): void => {
+    event.stopPropagation();
+    const target = this.selectedTarget;
+    if (
+      target?.kind !== 'building'
+      || target.building.constructionComplete === false
+      || this.serviceCoverageProjection == null
+    ) {
+      return;
+    }
+
+    if (this.serviceCoverageBuildingId === target.building.id) {
+      this.clearServiceCoverage();
+      this.syncServiceCoverageButton(target);
+      return;
+    }
+
+    this.serviceCoverageBuildingId = target.building.id;
+    this.refreshServiceCoverage(this.serviceCoverageProjection);
+    this.syncServiceCoverageButton(target);
   };
 
   private readonly onResourceTotalsModeToggle = (): void => {
@@ -1255,6 +1305,7 @@ export class ResourceInspector {
   }
 
   dispose(): void {
+    this.clearServiceCoverage();
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
     this.demolishButton.removeEventListener('click', this.onDemolishPrimaryClick);
     this.demolishSecondaryButton.removeEventListener('click', this.onDemolishSecondaryClick);
@@ -1263,6 +1314,10 @@ export class ResourceInspector {
     this.supplementalPanelSection.removeEventListener('change', this.onSupplementalChange);
     this.laborDecrease.removeEventListener('click', this.onLaborDecrease);
     this.laborIncrease.removeEventListener('click', this.onLaborIncrease);
+    this.serviceCoverageButton.removeEventListener(
+      'click',
+      this.onServiceCoverageToggle,
+    );
     this.closeButton.removeEventListener('click', this.onCloseClick);
     this.resourceTotalsModeButton.removeEventListener(
       'click',
@@ -1294,6 +1349,15 @@ export class ResourceInspector {
 
   private selectTarget(target: InspectableTarget): void {
     const previousIdentity = inspectableIdentity(this.selectedTarget);
+    if (
+      this.serviceCoverageBuildingId
+      && (
+        target.kind !== 'building'
+        || target.building.id !== this.serviceCoverageBuildingId
+      )
+    ) {
+      this.clearServiceCoverage();
+    }
     this.selectedTarget = target;
     if (previousIdentity !== inspectableIdentity(target)) {
       this.detailDisclosure.open = false;
@@ -1333,11 +1397,14 @@ export class ResourceInspector {
   }
 
   clearSelection(hidePanel = true): void {
+    this.clearServiceCoverage();
+    this.serviceCoverageProjection = null;
     this.selectedTarget = null;
     this.marker.visible = false;
     this.demolishSection.hidden = true;
     this.laborSection.hidden = true;
     this.supplementalPanelSection.hidden = true;
+    this.serviceCoverageButton.hidden = true;
     if (hidePanel) this.panel.hidden = true;
     this.options.onSelectionChange?.(null);
   }
@@ -1520,6 +1587,7 @@ export class ResourceInspector {
     this.status.textContent = view.statusText;
     this.status.dataset.state = view.statusState;
     this.applyPresentation(target);
+    this.syncServiceCoverageButton(target, view.serviceCoverage);
     this.renderDetails(view.detailsHtml);
 
     this.demolishSection.hidden = !view.demolish.visible;
@@ -1554,6 +1622,61 @@ export class ResourceInspector {
       this.supplementalPanelSection.innerHTML = '';
     }
     this.renderedIdentity = identity;
+  }
+
+  private syncServiceCoverageButton(
+    target: InspectableTarget,
+    projection: ServiceCoverageView | undefined = this.serviceCoverageProjection ?? undefined,
+  ): void {
+    const supported = target.kind === 'building'
+      && target.building.constructionComplete !== false
+      && projection != null
+      && target.building.kind === projection.kind;
+    this.serviceCoverageProjection = supported ? projection : null;
+    this.serviceCoverageButton.hidden = !supported;
+    if (
+      target.kind !== 'building'
+      || target.building.constructionComplete === false
+      || !supported
+      || !projection
+    ) {
+      this.serviceCoverageButton.setAttribute('aria-pressed', 'false');
+      return;
+    }
+
+    const active = this.serviceCoverageBuildingId === target.building.id;
+    if (active) this.refreshServiceCoverage(projection);
+    const count = active ? this.serviceCoverageResidenceIds.size : 0;
+    const service = serviceCoverageLabel(projection.kind);
+    const countLabel = `${count} served home${count === 1 ? '' : 's'}`;
+    const label = active
+      ? `Hide ${service} coverage (${countLabel})`
+      : `Show ${service} coverage`;
+    this.serviceCoverageButton.setAttribute('aria-pressed', String(active));
+    this.serviceCoverageButton.setAttribute('aria-label', label);
+    this.serviceCoverageButton.dataset.tooltip = label;
+  }
+
+  private refreshServiceCoverage(
+    projection: ServiceCoverageView,
+  ): void {
+    if (this.serviceCoverageBuildingId == null) return;
+    const residenceIds = new Set(projection.residenceIds);
+    if (setsHaveSameValues(this.serviceCoverageResidenceIds, residenceIds)) return;
+    this.serviceCoverageResidenceIds = residenceIds;
+    this.options.onServiceCoverageChange?.(residenceIds, projection.kind);
+  }
+
+  private clearServiceCoverage(): void {
+    if (
+      this.serviceCoverageBuildingId == null
+      && this.serviceCoverageResidenceIds.size === 0
+    ) {
+      return;
+    }
+    this.serviceCoverageBuildingId = null;
+    this.serviceCoverageResidenceIds = new Set();
+    this.options.onServiceCoverageChange?.(this.serviceCoverageResidenceIds, null);
   }
 
   private applyPresentation(target: InspectableTarget): void {
@@ -1655,6 +1778,17 @@ export class ResourceInspector {
     if (!element) throw new Error(`Missing resource inspector button ${selector}`);
     return element;
   }
+}
+
+function setsHaveSameValues<T>(
+  left: ReadonlySet<T>,
+  right: ReadonlySet<T>,
+): boolean {
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
 }
 
 function formatTransitAmount(amount: number): string {

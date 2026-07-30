@@ -164,5 +164,9 @@ export function renderWellInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
+    serviceCoverage: {
+      kind: 'well',
+      residenceIds: claimedResidences.map((residence) => residence.id),
+    },
   };
 }
