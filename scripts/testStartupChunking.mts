@@ -5,12 +5,14 @@ import { build as buildVite } from 'vite';
 
 const bootstrapPath = 'src/app/appBootstrap.ts';
 const appPath = 'src/app/App.ts';
+const mainPath = 'src/main.ts';
 const boundaryPath = 'src/app/deferredSettlementPresentation.ts';
 const skyPath = 'src/sky/SkyCloudMesh.ts';
 const starLoaderPath = 'src/sky/CelestialStarMapLoader.ts';
 
 const bootstrap = fs.readFileSync(bootstrapPath, 'utf8');
 const app = fs.readFileSync(appPath, 'utf8');
+const main = fs.readFileSync(mainPath, 'utf8');
 const boundary = fs.readFileSync(boundaryPath, 'utf8');
 const sky = fs.readFileSync(skyPath, 'utf8');
 const starLoader = fs.readFileSync(starLoaderPath, 'utf8');
@@ -101,6 +103,22 @@ assert.ok(
   'historical sky loading must begin only after the first playable frame',
 );
 
+assert.equal(
+  main.includes(
+    "import { installVisualPerformanceHooksIfRequested } from './e2e/visualPerformanceHooks.ts';",
+  ),
+  false,
+  'ordinary startup must not statically import the development-only visual profiler',
+);
+assert.ok(
+  main.includes("get('visualProfile') === '1'"),
+  'the visual profiler must remain available behind its explicit URL opt-in',
+);
+assert.ok(
+  main.includes("import('./e2e/visualPerformanceHooks.ts')"),
+  'profiling runs must retain a dedicated deferred module request',
+);
+
 const memoryBuild = await buildVite({
   logLevel: 'silent',
   build: {
@@ -130,6 +148,26 @@ assert.equal(
   inspectorChunk.isEntry,
   false,
   'the resource inspector must remain outside the initial application entry',
+);
+
+const visualProfilerModuleSuffix = '/src/e2e/visualPerformanceHooks.ts';
+const visualProfilerChunk = chunks.find((chunk) => (
+  moduleNames(chunk).some((moduleName) =>
+    moduleName.endsWith(visualProfilerModuleSuffix)
+  )
+));
+assert.ok(
+  visualProfilerChunk,
+  'production builds must retain the opt-in visual profiling harness',
+);
+assert.equal(
+  entryChunk.imports.includes(visualProfilerChunk.fileName),
+  false,
+  'ordinary startup must not fetch the visual profiling chunk',
+);
+assert.ok(
+  entryChunk.dynamicImports.includes(visualProfilerChunk.fileName),
+  'the application entry must expose the visual profiler only as a dynamic import',
 );
 
 const celestialCatalogModuleSuffix = '/src/sky/celestialCatalog.generated.ts';

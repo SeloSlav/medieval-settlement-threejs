@@ -1,7 +1,6 @@
 ﻿import './style.css';
 import './ui/iconography.css';
 import { App } from './app/App.ts';
-import { installVisualPerformanceHooksIfRequested } from './e2e/visualPerformanceHooks.ts';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 
@@ -9,9 +8,17 @@ if (!root) {
   throw new Error('Missing #app root.');
 }
 
+const visualPerformanceHooksPromise =
+  new URLSearchParams(window.location.search).get('visualProfile') === '1'
+    ? import('./e2e/visualPerformanceHooks.ts')
+    : null;
 const app = new App(root);
-app.start().then(() => {
-  installVisualPerformanceHooksIfRequested(app);
+app.start().then(async () => {
+  if (visualPerformanceHooksPromise) {
+    const { installVisualPerformanceHooksIfRequested } =
+      await visualPerformanceHooksPromise;
+    installVisualPerformanceHooksIfRequested(app);
+  }
 }).catch((error) => {
   console.error(error);
   const loading = document.getElementById('app-loading');
