@@ -32,6 +32,10 @@ import { computeSettlementProvisioning } from '../economy/settlementProvisioning
 import { computeSettlementApproval } from '../economy/settlementApproval.ts';
 import { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
+import {
+  createPhysicalDepositFootprints,
+  isPhysicalDepositAt,
+} from '../resources/physicalDepositProtection.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { RoadSelection } from '../roads/RoadSelection.ts';
 import { RoadTool } from '../roads/RoadTool.ts';
@@ -1217,6 +1221,9 @@ export class App {
 
     const worldSettings = session.sceneManager.worldLayout.settings;
     const playableHalf = resolveWorldDimensions(worldSettings.mapSize).playableHalf;
+    const physicalDeposits = createPhysicalDepositFootprints(
+      session.sceneManager.worldLayout,
+    );
 
     installSmokeTestHooks(createSmokeTestHooks({
       getState: () => this.gameState!,
@@ -1227,9 +1234,8 @@ export class App {
         await this.spacetimeStore!.placeBuilding(kind, x, z);
       },
       isWaterAt: (x, z) => this.sceneManager!.riverField.isRenderedWetAt(x, z),
-      isQuarryPitAt: (x, z) =>
-        this.sceneManager!.worldLayout.quarryLayout.isBlockedForProps(x, z)
-        || this.sceneManager!.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
+      isResourceDepositAt: (x, z) =>
+        isPhysicalDepositAt(physicalDeposits, x, z),
       getNaturalHeightAt: sampleNaturalTerrainHeight,
       getRoadNetwork: () => this.roadNetwork,
       playableHalf,

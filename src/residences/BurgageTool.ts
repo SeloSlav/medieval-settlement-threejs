@@ -27,6 +27,7 @@ import {
   type BurgagePlacementFailureReason,
   type BurgagePlacementResult,
 } from './burgagePlacementValidation.ts';
+import type { PhysicalDepositFootprint } from '../resources/physicalDepositProtection.ts';
 
 const MIN_POINT_DISTANCE = 1.2;
 const SNAP_DISTANCE = 6;
@@ -75,7 +76,8 @@ type BurgageToolOptions = {
   getHeightAt: (x: number, z: number) => number;
   getNaturalHeightAt: (x: number, z: number) => number;
   isWaterAt: (x: number, z: number) => boolean;
-  isQuarryPitAt?: (x: number, z: number) => boolean;
+  isResourceDepositAt?: (x: number, z: number) => boolean;
+  physicalDeposits?: readonly PhysicalDepositFootprint[];
   onCommit: (commit: BurgageZoneCommit) => void | Promise<void>;
   onBurgageZonePlaced?: (zoneId: string) => void;
   onDemolishBurgageZone: (zoneId: string) => void | Promise<void>;
@@ -643,7 +645,8 @@ export class BurgageTool {
       existingBuildings: state.buildings.values(),
       roadNetwork: this.options.roadNetwork,
       isWaterAt: this.options.isWaterAt,
-      isQuarryPitAt: this.options.isQuarryPitAt,
+      isResourceDepositAt: this.options.isResourceDepositAt,
+      physicalDeposits: this.options.physicalDeposits,
       getNaturalHeightAt: this.options.getNaturalHeightAt,
       precomputedLayout,
       gameState: state,

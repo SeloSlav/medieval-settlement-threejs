@@ -7,8 +7,12 @@ use crate::db::*;
 use crate::hydrology::sample_hydrology_score;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 
-const LARGE_QUARRY_PIT_RADIUS: f64 = 58.0;
-const SMALL_QUARRY_PIT_RADIUS: f64 = 30.0;
+const ORDINARY_STONE_DEPOSIT_PROTECTION_RADIUS: f64 = 34.0;
+const RICH_STONE_DEPOSIT_PROTECTION_RADIUS: f64 = 67.0;
+const ORDINARY_MINERAL_DEPOSIT_PROTECTION_RADIUS: f64 = 23.0;
+const RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS: f64 = 32.0;
+const ORDINARY_CLAY_DEPOSIT_PROTECTION_RADIUS: f64 = 16.0;
+const RICH_CLAY_DEPOSIT_PROTECTION_RADIUS: f64 = 21.0;
 const FOOTPRINT_SAMPLE_FRACTIONS: [f64; 3] = [0.0, 0.55, 0.82];
 const OPEN_WATER_THRESHOLD: f64 = 0.999;
 const SHORE_WATER_THRESHOLD: f64 = 0.95;
@@ -173,20 +177,114 @@ pub fn burgage_zone_overlaps_buildings(
     false
 }
 
-pub fn is_on_quarry_pit(ctx: &ReducerContext, x: f64, z: f64) -> bool {
-    for quarry in ctx.db.quarry().iter() {
-        let radius = if quarry.is_rich {
-            LARGE_QUARRY_PIT_RADIUS
+pub fn is_on_resource_deposit(ctx: &ReducerContext, x: f64, z: f64) -> bool {
+    ctx.db.quarry().iter().any(|deposit| {
+        point_overlaps_circle(
+            x,
+            z,
+            deposit.x,
+            deposit.z,
+            quarry_deposit_protection_radius(&deposit.quarry_id, deposit.is_rich),
+        )
+    }) || ctx.db.foraging_node().iter().any(|deposit| {
+        clay_deposit_protection_radius(&deposit.node_id, &deposit.node_kind)
+            .is_some_and(|radius| point_overlaps_circle(x, z, deposit.x, deposit.z, radius))
+    })
+}
+
+pub fn zone_overlaps_resource_deposit(ctx: &ReducerContext, corners: &ZoneCorners) -> bool {
+    let polygon = zone_corners_polygon(corners);
+    ctx.db.quarry().iter().any(|deposit| {
+        polygon_overlaps_circle(
+            &polygon,
+            deposit.x,
+            deposit.z,
+            quarry_deposit_protection_radius(&deposit.quarry_id, deposit.is_rich),
+        )
+    }) || ctx.db.foraging_node().iter().any(|deposit| {
+        clay_deposit_protection_radius(&deposit.node_id, &deposit.node_kind)
+            .is_some_and(|radius| polygon_overlaps_circle(&polygon, deposit.x, deposit.z, radius))
+    })
+}
+
+fn quarry_deposit_protection_radius(quarry_id: &str, is_rich: bool) -> f64 {
+    if quarry_id.starts_with("deposit-iron-") || quarry_id.starts_with("deposit-salt-") {
+        if is_rich {
+            RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS
         } else {
-            SMALL_QUARRY_PIT_RADIUS
-        };
-        let dx = quarry.x - x;
-        let dz = quarry.z - z;
-        if dx * dx + dz * dz <= radius * radius {
-            return true;
+            ORDINARY_MINERAL_DEPOSIT_PROTECTION_RADIUS
         }
+    } else if is_rich {
+        RICH_STONE_DEPOSIT_PROTECTION_RADIUS
+    } else {
+        ORDINARY_STONE_DEPOSIT_PROTECTION_RADIUS
     }
-    false
+}
+
+fn clay_deposit_protection_radius(node_id: &str, node_kind: &str) -> Option<f64> {
+    if node_kind != "clay" || !node_id.starts_with("clay-") {
+        return None;
+    }
+    Some(if node_id.starts_with("clay-rich-") {
+        RICH_CLAY_DEPOSIT_PROTECTION_RADIUS
+    } else {
+        ORDINARY_CLAY_DEPOSIT_PROTECTION_RADIUS
+    })
+}
+
+fn point_overlaps_circle(x: f64, z: f64, center_x: f64, center_z: f64, radius: f64) -> bool {
+    (x - center_x).powi(2) + (z - center_z).powi(2) <= radius * radius
+}
+
+fn polygon_overlaps_circle(
+    polygon: &[Point2; 4],
+    center_x: f64,
+    center_z: f64,
+    radius: f64,
+) -> bool {
+    if point_inside_convex_polygon(center_x, center_z, polygon) {
+        return true;
+    }
+    let radius_sq = radius * radius;
+    (0..polygon.len()).any(|index| {
+        distance_to_segment_squared(
+            center_x,
+            center_z,
+            polygon[index],
+            polygon[(index + 1) % polygon.len()],
+        ) <= radius_sq
+    })
+}
+
+fn point_inside_convex_polygon(x: f64, z: f64, polygon: &[Point2; 4]) -> bool {
+    let mut sign = 0_i8;
+    for index in 0..polygon.len() {
+        let start = polygon[index];
+        let end = polygon[(index + 1) % polygon.len()];
+        let cross = (end.x - start.x) * (z - start.z) - (end.z - start.z) * (x - start.x);
+        if cross.abs() <= 1e-9 {
+            continue;
+        }
+        let next_sign = if cross > 0.0 { 1 } else { -1 };
+        if sign != 0 && sign != next_sign {
+            return false;
+        }
+        sign = next_sign;
+    }
+    true
+}
+
+fn distance_to_segment_squared(x: f64, z: f64, start: Point2, end: Point2) -> f64 {
+    let dx = end.x - start.x;
+    let dz = end.z - start.z;
+    let length_sq = dx * dx + dz * dz;
+    if length_sq <= 1e-12 {
+        return (x - start.x).powi(2) + (z - start.z).powi(2);
+    }
+    let t = (((x - start.x) * dx + (z - start.z) * dz) / length_sq).clamp(0.0, 1.0);
+    let nearest_x = start.x + dx * t;
+    let nearest_z = start.z + dz * t;
+    (x - nearest_x).powi(2) + (z - nearest_z).powi(2)
 }
 
 pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> bool {
@@ -427,7 +525,11 @@ fn building_placement_yaw(x: f64, z: f64) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{any_open_water_near, building_site_contains_point};
+    use super::{
+        any_open_water_near, building_site_contains_point, clay_deposit_protection_radius,
+        polygon_overlaps_circle, quarry_deposit_protection_radius,
+    };
+    use crate::burgage::Point2;
 
     #[test]
     fn close_shore_water_is_not_skipped_between_sparse_rings() {
@@ -457,5 +559,41 @@ mod tests {
             40.0,
             -6.0
         ));
+    }
+
+    #[test]
+    fn deposit_radii_follow_the_rendered_resource_family() {
+        assert_eq!(
+            quarry_deposit_protection_radius("quarry-large-0", true),
+            67.0
+        );
+        assert_eq!(
+            quarry_deposit_protection_radius("deposit-salt-rich-0", true),
+            32.0
+        );
+        assert_eq!(
+            quarry_deposit_protection_radius("deposit-iron-ordinary-0", false),
+            23.0
+        );
+        assert_eq!(
+            clay_deposit_protection_radius("clay-rich-0", "clay"),
+            Some(21.0)
+        );
+        assert_eq!(
+            clay_deposit_protection_radius("foraging-game-0", "game"),
+            None
+        );
+    }
+
+    #[test]
+    fn parcel_overlap_finds_a_deposit_between_all_four_corners() {
+        let parcel = [
+            Point2 { x: -40.0, z: -40.0 },
+            Point2 { x: 40.0, z: -40.0 },
+            Point2 { x: 40.0, z: 40.0 },
+            Point2 { x: -40.0, z: 40.0 },
+        ];
+        assert!(polygon_overlaps_circle(&parcel, 0.0, 0.0, 16.0));
+        assert!(!polygon_overlaps_circle(&parcel, 80.0, 0.0, 16.0));
     }
 }

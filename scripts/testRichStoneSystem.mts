@@ -69,7 +69,7 @@ const placementContext = {
   foragingNodes: [],
   stockpile: { timber: 999, stone: 999 },
   isWaterAt: () => false,
-  isQuarryPitAt: (x: number, z: number) => quarryStates.some((quarry) =>
+  isResourceDepositAt: (x: number, z: number) => quarryStates.some((quarry) =>
     Math.hypot(quarry.x - x, quarry.z - z) <= (quarry.isRich ? 58 : 30)
   ),
   getNaturalHeightAt: () => 0,
@@ -86,7 +86,7 @@ assert.deepEqual(
 const nearbyCampPoint = Array.from({ length: 23 }, (_, index) => 58 + index)
   .map((distance) => ({ x: rich.x + distance, z: rich.z }))
   .find((point) =>
-    !placementContext.isQuarryPitAt(point.x, point.z)
+    !placementContext.isResourceDepositAt(point.x, point.z)
     && Math.hypot(point.x - rich.x, point.z - rich.z) <= BUILDING_DEFINITIONS.stone_quarry.workRadius
   );
 assert.ok(nearbyCampPoint, 'rich deposit should have nearby ground in Stonecutter range');
@@ -96,7 +96,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   validateBuildingPlacement('stone_quarry', rich.x, rich.z, placementContext),
-  { ok: false, reason: 'on_quarry_pit' },
+  { ok: false, reason: 'on_resource_deposit' },
 );
 
 assert.equal(surfaceRockCountForRemaining(40, 4000, 4000), 40);

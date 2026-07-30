@@ -15,7 +15,9 @@ use crate::farming::{
     polygon_area,
 };
 use crate::hydrology::sample_hydrology_score;
-use crate::placement_validation::{building_pick_radius, is_on_quarry_pit, is_open_water};
+use crate::placement_validation::{
+    building_pick_radius, is_open_water, zone_overlaps_resource_deposit,
+};
 use crate::tables::{farm_field, livestock_herd, pasture, LivestockHerd, Pasture};
 
 pub const SPECIES_CATTLE: u8 = 0;
@@ -105,6 +107,9 @@ pub fn place_pasture(
     }
 
     let polygon = [corners.a, corners.b, corners.c, corners.d];
+    if zone_overlaps_resource_deposit(ctx, &corners) {
+        return Err("Pastures cannot cover a physical resource deposit.".to_string());
+    }
     const PARCEL_SAMPLE_DIVISIONS: usize = 4;
     for v_index in 0..=PARCEL_SAMPLE_DIVISIONS {
         for u_index in 0..=PARCEL_SAMPLE_DIVISIONS {
@@ -115,9 +120,6 @@ pub fn place_pasture(
             );
             if is_open_water(point.x, point.z) {
                 return Err("Pastures cannot cover open water.".to_string());
-            }
-            if is_on_quarry_pit(ctx, point.x, point.z) {
-                return Err("Pastures cannot cover a quarry pit.".to_string());
             }
         }
     }

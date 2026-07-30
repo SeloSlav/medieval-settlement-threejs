@@ -43,7 +43,7 @@ use crate::marketplace_procurement_policy::{
 };
 use crate::placement_validation::{
     building_overlaps_open_water, building_overlaps_residence_zone, building_overlaps_road_surface,
-    building_site_contains_point, is_near_open_water, is_on_quarry_pit, is_open_water,
+    building_site_contains_point, is_near_open_water, is_on_resource_deposit, is_open_water,
 };
 use crate::pottery_dispatch_policy::is_valid_pottery_dispatch_policy;
 use crate::processor_labor_policy::{
@@ -322,15 +322,19 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     }
 
     let on_mineral_deposit = kind == "mine" && has_mineral_deposit_at_center(ctx, x, z);
+    let on_generated_clay_bank = kind == "clay_pit" && has_clay_deposit_at_center(ctx, x, z);
 
-    if kind != "large_quarry" && !on_mineral_deposit && is_on_quarry_pit(ctx, x, z) {
-        return Err("Cannot build on a quarry pit.".to_string());
+    if kind != "large_quarry"
+        && !on_mineral_deposit
+        && !on_generated_clay_bank
+        && is_on_resource_deposit(ctx, x, z)
+    {
+        return Err("Cannot build over a physical resource deposit.".to_string());
     }
 
     // Generated mineral landmarks are authoritative terrain anchors. Do not let
     // the coarse static hydrology grid reject a visually dry clay site in
     // worlds whose river seed differs from the embedded default grid.
-    let on_generated_clay_bank = kind == "clay_pit" && has_clay_deposit_at_center(ctx, x, z);
     if kind != "large_quarry"
         && !on_mineral_deposit
         && !on_generated_clay_bank

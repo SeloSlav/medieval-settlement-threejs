@@ -17,7 +17,7 @@ export const TOAST_MESSAGES = {
   'building.placement.within_residence_zone': 'Cannot build inside a residence plot',
   'building.placement.within_farm_field': 'Cannot build inside cultivated farmland',
   'building.placement.within_pasture': 'Cannot build inside a fenced pasture',
-  'building.placement.on_quarry_pit': 'Cannot build on a quarry pit',
+  'building.placement.on_resource_deposit': 'Cannot build over a physical resource deposit',
   'building.placement.no_quarry_in_range': 'No quarry stone within work range',
   'building.placement.requires_rich_deposit': 'Large Quarries must be placed directly over a rich stone deposit',
   'building.placement.requires_mineral_deposit': 'Mineral mines must be placed directly over an iron or salt deposit',
@@ -46,7 +46,7 @@ export const TOAST_MESSAGES = {
   'burgage.placement.overlaps_existing': 'Overlaps an existing residence plot',
   'burgage.placement.overlaps_building': 'Overlaps an existing building',
   'burgage.placement.overlaps_farm_field': 'Overlaps cultivated farmland',
-  'burgage.placement.on_quarry_pit': 'Cannot place residences on a quarry pit',
+  'burgage.placement.on_resource_deposit': 'Cannot place residences over a physical resource deposit',
   'burgage.placement.insufficient_resources': 'Not enough timber or stone',
   'burgage.placement.no_fit': 'Too many plots for this frontage — press − to reduce plot count',
 } as const;
@@ -96,8 +96,8 @@ export function burgagePlacementReasonToToastId(reason: BurgagePlacementFailureR
       return 'burgage.placement.overlaps_building';
     case 'overlaps_farm_field':
       return 'burgage.placement.overlaps_farm_field';
-    case 'on_quarry_pit':
-      return 'burgage.placement.on_quarry_pit';
+    case 'on_resource_deposit':
+      return 'burgage.placement.on_resource_deposit';
     case 'insufficient_resources':
       return 'burgage.placement.insufficient_resources';
     case 'no_fit':
@@ -129,8 +129,8 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.within_farm_field';
     case 'within_pasture':
       return 'building.placement.within_pasture';
-    case 'on_quarry_pit':
-      return 'building.placement.on_quarry_pit';
+    case 'on_resource_deposit':
+      return 'building.placement.on_resource_deposit';
     case 'no_quarry_in_range':
       return 'building.placement.no_quarry_in_range';
     case 'requires_rich_deposit':

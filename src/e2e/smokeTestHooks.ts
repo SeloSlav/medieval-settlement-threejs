@@ -21,7 +21,7 @@ type SmokeTestHookDeps = {
   getRendererStats: () => { backend: string; frames: number; calls: number; triangles: number };
   placeBuilding: (kind: BuildingKind, x: number, z: number) => Promise<void>;
   isWaterAt: (x: number, z: number) => boolean;
-  isQuarryPitAt: (x: number, z: number) => boolean;
+  isResourceDepositAt: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
   getRoadNetwork: () => RoadNetwork | null;
   playableHalf: number;
@@ -71,7 +71,7 @@ async function placeBuildingAtFirstAuthoritativeSpot(
         foragingNodes: state.foragingNodes.values(),
         stockpile: totals,
         isWaterAt: deps.isWaterAt,
-        isQuarryPitAt: deps.isQuarryPitAt,
+        isResourceDepositAt: deps.isResourceDepositAt,
         getNaturalHeightAt: deps.getNaturalHeightAt,
         roadNetwork,
       });

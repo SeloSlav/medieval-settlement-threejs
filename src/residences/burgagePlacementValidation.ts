@@ -23,6 +23,10 @@ import { convexPolygonsOverlap2, isConvexQuad2, polygonArea2 } from '../utils/po
 import { burgageZoneOverlapsBuildings, overlapsExistingZoneIndexed } from '../placement/placementConflicts.ts';
 import { getPlacementSpatialIndex } from '../placement/placementSpatialIndex.ts';
 import type { GameState } from '../resources/types.ts';
+import {
+  polygonOverlapsPhysicalDeposit,
+  type PhysicalDepositFootprint,
+} from '../resources/physicalDepositProtection.ts';
 
 export type BurgagePlacementFailureReason =
   | 'water'
@@ -34,7 +38,7 @@ export type BurgagePlacementFailureReason =
   | 'overlaps_existing'
   | 'overlaps_building'
   | 'overlaps_farm_field'
-  | 'on_quarry_pit'
+  | 'on_resource_deposit'
   | 'insufficient_resources'
   | 'no_fit';
 
@@ -60,7 +64,8 @@ type BurgagePlacementContext = {
   existingBuildings: Iterable<BuildingState>;
   roadNetwork: RoadNetwork;
   isWaterAt: (x: number, z: number) => boolean;
-  isQuarryPitAt?: (x: number, z: number) => boolean;
+  isResourceDepositAt?: (x: number, z: number) => boolean;
+  physicalDeposits?: readonly PhysicalDepositFootprint[];
   getNaturalHeightAt: (x: number, z: number) => number;
   /** When preview already solved layout, skip a second resolve pass. */
   precomputedLayout?: BurgageLayoutResult | null;
@@ -94,12 +99,6 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
     return { ok: false, reason: 'invalid_shape' };
   }
 
-  for (const corner of context.corners) {
-    if (context.isQuarryPitAt?.(corner.x, corner.z)) {
-      return { ok: false, reason: 'on_quarry_pit' };
-    }
-  }
-
   const heights = context.corners.map((corner) => context.getNaturalHeightAt(corner.x, corner.z));
   const minHeight = Math.min(...heights);
   const maxHeight = Math.max(...heights);
@@ -122,6 +121,16 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
 
   if (!isConvexQuad2(zoneCorners.a, zoneCorners.b, zoneCorners.c, zoneCorners.d)) {
     return { ok: false, reason: 'invalid_shape' };
+  }
+
+  if (
+    context.physicalDeposits
+      ? polygonOverlapsPhysicalDeposit(cornerPoints, context.physicalDeposits)
+      : context.corners.some((corner) =>
+          context.isResourceDepositAt?.(corner.x, corner.z) === true
+        )
+  ) {
+    return { ok: false, reason: 'on_resource_deposit' };
   }
 
   if (burgageZoneTouchesWater(zoneCorners, context.isWaterAt)) {

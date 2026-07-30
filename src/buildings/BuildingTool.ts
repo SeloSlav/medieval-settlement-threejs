@@ -72,7 +72,7 @@ type BuildingToolOptions = {
   onPlaceBuilding: (kind: BuildingKind, x: number, z: number) => void | Promise<void>;
   onDemolishBuilding: (buildingId: string) => void | Promise<void>;
   isWaterAt: (x: number, z: number) => boolean;
-  isQuarryPitAt?: (x: number, z: number) => boolean;
+  isResourceDepositAt?: (x: number, z: number) => boolean;
   clayDepositSites: readonly ClayDepositSite[];
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
@@ -609,7 +609,7 @@ export class BuildingTool {
       clayDepositSites: this.options.clayDepositSites,
       stockpile: totals,
       isWaterAt: this.options.isWaterAt,
-      isQuarryPitAt: this.options.isQuarryPitAt,
+      isResourceDepositAt: this.options.isResourceDepositAt,
       getNaturalHeightAt: this.options.getNaturalHeightAt,
       countMatureTreesInRadius: this.options.countMatureTreesInRadius,
       roadNetwork: this.options.getRoadNetwork?.(),

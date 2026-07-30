@@ -301,7 +301,7 @@ function testCivicAndFrontierPlacementPrerequisites(): void {
     foragingNodes: [],
     stockpile: { timber: 10_000, stone: 10_000 },
     isWaterAt: () => false,
-    isQuarryPitAt: () => false,
+    isResourceDepositAt: () => false,
     getNaturalHeightAt: () => 0,
     roadNetwork,
     fireDisabledBuildingIds: new Set<string>(),
@@ -486,7 +486,7 @@ function testMineralMineCanOccupyItsDeposit(): void {
     foragingNodes: [],
     stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
     isWaterAt: () => false,
-    isQuarryPitAt: () => true,
+    isResourceDepositAt: () => true,
     getNaturalHeightAt: () => 0,
     fireDisabledBuildingIds: new Set<string>(),
   };
@@ -566,6 +566,7 @@ const placementValidation = readFileSync('server/src/placement_validation.rs', '
 const residenceReducer = readFileSync('server/src/reducers/residences.rs', 'utf8');
 const farmFieldReducer = readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
 const livestockReducer = readFileSync('server/src/reducers/livestock.rs', 'utf8');
+const graveyardReducer = readFileSync('server/src/reducers/graveyards.rs', 'utf8');
 const buildingTool = readFileSync('src/buildings/BuildingTool.ts', 'utf8');
 const app = readFileSync('src/app/App.ts', 'utf8');
 const buildToolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
@@ -579,8 +580,25 @@ assert.match(
 );
 assert.match(
   buildingReducer,
-  /let on_mineral_deposit[\s\S]{0,220}kind != "large_quarry"[\s\S]{0,120}!on_mineral_deposit[\s\S]{0,120}is_on_quarry_pit/,
+  /let on_mineral_deposit[\s\S]{0,260}kind != "large_quarry"[\s\S]{0,180}!on_mineral_deposit[\s\S]{0,180}is_on_resource_deposit/,
   'the authority must allow a mine to occupy the mineral pit it is required to cover',
+);
+for (const [source, label] of [
+  [residenceReducer, 'residences'],
+  [farmFieldReducer, 'fields'],
+  [livestockReducer, 'pastures'],
+  [graveyardReducer, 'graveyards'],
+] as const) {
+  assert.match(
+    source,
+    /zone_overlaps_resource_deposit/,
+    `authoritative ${label} placement must reject a deposit enclosed between parcel samples`,
+  );
+}
+assert.match(
+  placementValidation,
+  /node_kind != "clay"[\s\S]*RICH_CLAY_DEPOSIT_PROTECTION_RADIUS[\s\S]*polygon_overlaps_circle/,
+  'physical-deposit protection must include generated clay rows and exact parcel overlap',
 );
 assert.doesNotMatch(
   buildingReducer,

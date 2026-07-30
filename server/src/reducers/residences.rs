@@ -23,7 +23,7 @@ use crate::economy::{
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
-    burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, is_on_quarry_pit,
+    burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, zone_overlaps_resource_deposit,
 };
 use crate::residence_upgrade_policy::{
     residence_project_active, residence_upgrade_household_contribution,
@@ -90,10 +90,8 @@ pub fn place_burgage_zone(
     };
 
     let candidate_polygon = zone_corners_polygon(&corners);
-    for corner in candidate_polygon {
-        if is_on_quarry_pit(ctx, corner.x, corner.z) {
-            return Err("Cannot place residences on a quarry pit.".to_string());
-        }
+    if zone_overlaps_resource_deposit(ctx, &corners) {
+        return Err("Cannot place residences over a physical resource deposit.".to_string());
     }
 
     // Open-water overlap is validated by the placement client against the active

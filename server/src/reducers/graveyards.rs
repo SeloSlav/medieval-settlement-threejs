@@ -10,7 +10,9 @@ use crate::farming::{
     bilinear_point, corners_from_values, edge_lengths, is_valid_convex_quadrilateral,
     point_in_field, polygon_area,
 };
-use crate::placement_validation::{building_pick_radius, is_on_quarry_pit, is_open_water};
+use crate::placement_validation::{
+    building_pick_radius, is_open_water, zone_overlaps_resource_deposit,
+};
 use crate::tables::{corpse, farm_field, graveyard, Graveyard, Pasture};
 
 #[reducer]
@@ -82,6 +84,9 @@ pub fn place_graveyard(
         return Err("The burial ground must directly adjoin the chapel precinct.".to_string());
     }
 
+    if zone_overlaps_resource_deposit(ctx, &corners) {
+        return Err("Graveyards cannot cover a physical resource deposit.".to_string());
+    }
     const SAMPLE_DIVISIONS: usize = 4;
     for v_index in 0..=SAMPLE_DIVISIONS {
         for u_index in 0..=SAMPLE_DIVISIONS {
@@ -92,9 +97,6 @@ pub fn place_graveyard(
             );
             if is_open_water(point.x, point.z) {
                 return Err("Graveyards cannot cover open water.".to_string());
-            }
-            if is_on_quarry_pit(ctx, point.x, point.z) {
-                return Err("Graveyards cannot cover a quarry pit.".to_string());
             }
         }
     }

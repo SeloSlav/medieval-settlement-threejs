@@ -17,6 +17,10 @@ import {
 import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import { buildingFootprintPolygonFromState, burgageZonePolygon } from '../placement/placementConflicts.ts';
 import { FARM_CROPS, type BuildingState, type FarmCrop, type GameState } from '../resources/types.ts';
+import {
+  polygonOverlapsPhysicalDeposit,
+  type PhysicalDepositFootprint,
+} from '../resources/physicalDepositProtection.ts';
 import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
 import { FarmFieldPreview } from './FarmFieldMarkers.ts';
@@ -48,7 +52,7 @@ export type FarmFieldPlacementFailureReason =
   | 'too_steep'
   | 'no_farmstead'
   | 'water'
-  | 'quarry'
+  | 'resource_deposit'
   | 'building'
   | 'residence'
   | 'field'
@@ -66,7 +70,8 @@ type FarmFieldToolOptions = {
   getState: () => GameState;
   getHeightAt: (x: number, z: number) => number;
   isWaterAt: (x: number, z: number) => boolean;
-  isQuarryPitAt: (x: number, z: number) => boolean;
+  isResourceDepositAt: (x: number, z: number) => boolean;
+  physicalDeposits?: readonly PhysicalDepositFootprint[];
   onCommit: (input: {
     farmsteadId: string;
     corners: FarmFieldCorners;
@@ -567,8 +572,12 @@ export class FarmFieldTool {
     if (samples.some((point) => this.options.isWaterAt(point.x, point.z))) {
       return { ok: false, reason: 'water', corners, slope, moisture };
     }
-    if (samples.some((point) => this.options.isQuarryPitAt(point.x, point.z))) {
-      return { ok: false, reason: 'quarry', corners, slope, moisture };
+    if (
+      this.options.physicalDeposits
+        ? polygonOverlapsPhysicalDeposit(corners, this.options.physicalDeposits)
+        : samples.some((point) => this.options.isResourceDepositAt(point.x, point.z))
+    ) {
+      return { ok: false, reason: 'resource_deposit', corners, slope, moisture };
     }
     for (const building of state.buildings.values()) {
       if (convexPolygonsOverlap2(corners, buildingFootprintPolygonFromState(building))) {
@@ -619,7 +628,7 @@ export class FarmFieldTool {
             ? 'Keep the entire burial ground beside and within range of this chapel'
             : 'Keep the entire field inside this farmstead’s work extent';
       case 'water': return `${parcel} cannot cover open water`;
-      case 'quarry': return `${parcel} cannot cover a quarry pit`;
+      case 'resource_deposit': return `${parcel} cannot cover a physical resource deposit`;
       case 'building': return `${parcel} overlaps a building`;
       case 'residence': return `${parcel} overlaps a residence plot`;
       case 'field': return `${parcel} overlaps existing farmland`;

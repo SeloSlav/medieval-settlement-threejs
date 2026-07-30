@@ -21,6 +21,11 @@ import {
 import { CLAY_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
+import {
+  createPhysicalDepositFootprints,
+  isPhysicalDepositAt,
+  polygonOverlapsPhysicalDeposit,
+} from '../src/resources/physicalDepositProtection.ts';
 import { createRegionalResourcePlan } from '../src/world/regionalResourceDistribution.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -35,6 +40,28 @@ const richClay = layout.clayDepositLayout.sites.find((site) => site.kind === 'ri
 assert.ok(richClay, 'at least one deterministic seed must roll a rich clay deposit');
 const ordinaryClay = layout.clayDepositLayout.sites.find((site) => site.kind === 'ordinary');
 assert.ok(ordinaryClay, 'every region must retain an ordinary physical clay deposit');
+const physicalDeposits = createPhysicalDepositFootprints(layout);
+const resources = new Set(physicalDeposits.map((deposit) => deposit.resource));
+assert.deepEqual(
+  resources,
+  new Set(['stone', 'clay', 'iron', 'salt']),
+  'one placement model must protect every generated physical deposit family',
+);
+assert.equal(
+  isPhysicalDepositAt(physicalDeposits, ordinaryClay.x, ordinaryClay.z),
+  true,
+  'ordinary clay must participate in physical-deposit placement protection',
+);
+assert.equal(
+  polygonOverlapsPhysicalDeposit([
+    { x: ordinaryClay.x - 40, z: ordinaryClay.z - 40 },
+    { x: ordinaryClay.x + 40, z: ordinaryClay.z - 40 },
+    { x: ordinaryClay.x + 40, z: ordinaryClay.z + 40 },
+    { x: ordinaryClay.x - 40, z: ordinaryClay.z + 40 },
+  ], physicalDeposits),
+  true,
+  'a parcel must detect a clay bank enclosed between all four corners',
+);
 assert.equal(
   layout.clayDepositLayout.sites.filter((site) => site.kind === 'ordinary').length,
   layout.resourcePlan.ordinaryClayDepositCount,
@@ -77,6 +104,8 @@ const placementContext = {
   clayDepositSites: layout.clayDepositLayout.sites,
   stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
   isWaterAt: () => true,
+  isResourceDepositAt: (x: number, z: number) =>
+    isPhysicalDepositAt(physicalDeposits, x, z),
   getNaturalHeightAt: () => 0,
 };
 assert.equal(
@@ -98,6 +127,14 @@ assert.equal(
   ).ok,
   true,
   'a rich generated clay bank must be a valid authoritative extraction site',
+);
+assert.deepEqual(
+  validateBuildingPlacement('smithy', richClay.x, richClay.z, {
+    ...placementContext,
+    isWaterAt: () => false,
+  }),
+  { ok: false, reason: 'on_resource_deposit' },
+  'an unrelated building must not erase a generated clay landmark',
 );
 assert.deepEqual(
   validateBuildingPlacement('clay_pit', 0, 0, {
@@ -163,7 +200,7 @@ assert.match(clayPitSimulation, /clay_bank_yield_multiplier_at_deposit/);
 assert.match(authority, /clay_bank_yield_multiplier_with_richness/);
 assert.match(
   buildingReducer,
-  /has_clay_deposit_at_center[\s\S]*on_generated_clay_bank[\s\S]*kind == "clay_pit" && !on_generated_clay_bank/,
+  /has_clay_deposit_at_center[\s\S]*on_generated_clay_bank[\s\S]*is_on_resource_deposit[\s\S]*kind == "clay_pit" && !on_generated_clay_bank/,
   'authority must require the Clay Pit to sit on an ordinary or rich generated deposit',
 );
 assert.match(

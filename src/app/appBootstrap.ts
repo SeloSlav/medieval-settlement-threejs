@@ -48,6 +48,10 @@ import {
   type HudResourceKind,
 } from '../resources/resourceTotals.ts';
 import { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
+import {
+  createPhysicalDepositFootprints,
+  isPhysicalDepositAt,
+} from '../resources/physicalDepositProtection.ts';
 import type { TreeRegistry } from '../resources/TreeRegistry.ts';
 import { WorldQueries } from '../resources/WorldQueries.ts';
 import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
@@ -433,6 +437,10 @@ export async function bootstrapAppSession(
     },
   });
 
+  const physicalDeposits = createPhysicalDepositFootprints(sceneManager.worldLayout);
+  const isResourceDepositAt = (x: number, z: number): boolean =>
+    isPhysicalDepositAt(physicalDeposits, x, z);
+
   buildingTool = new BuildingTool({
     domElement: sceneManager.renderer.domElement,
     terrainProjector: sceneManager.terrainProjector,
@@ -448,9 +456,7 @@ export async function bootstrapAppSession(
       await spacetimeStore.demolishBuilding(buildingId);
     },
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
-    isQuarryPitAt: (x, z) =>
-      sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z)
-      || sceneManager.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
+    isResourceDepositAt,
     clayDepositSites: sceneManager.worldLayout.clayDepositLayout.sites,
     getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
     countMatureTreesInRadius: (x, z, radius) => {
@@ -496,9 +502,8 @@ export async function bootstrapAppSession(
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
-    isQuarryPitAt: (x, z) =>
-      sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z)
-      || sceneManager.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
+    isResourceDepositAt,
+    physicalDeposits,
     onCommit: async (commit) => {
       requireSessionReady();
       await spacetimeStore.placeBurgageZone({
@@ -560,7 +565,7 @@ export async function bootstrapAppSession(
       case 'too_steep': return `This ground is too steep for the ${parcel}.`;
       case 'no_farmstead': return `Keep the entire ${parcel} inside the selected holding’s work extent.`;
       case 'water': return `${parcel} cannot cover open water.`;
-      case 'quarry': return `${parcel} cannot cover a quarry pit.`;
+      case 'resource_deposit': return `${parcel} cannot cover a physical resource deposit.`;
       case 'building': return `${parcel} overlaps a building.`;
       case 'residence': return `${parcel} overlaps a residence plot.`;
       case 'field': return `${parcel} overlaps existing farmland.`;
@@ -576,9 +581,8 @@ export async function bootstrapAppSession(
     getState: () => liveContext.gameState,
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
-    isQuarryPitAt: (x, z) =>
-      sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z)
-      || sceneManager.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
+    isResourceDepositAt,
+    physicalDeposits,
     onCommit: async (input) => {
       requireSessionReady();
       await spacetimeStore.placeFarmField(input);

@@ -30,7 +30,7 @@ export type BuildingPlacementFailureReason =
   | 'within_residence_zone'
   | 'within_farm_field'
   | 'within_pasture'
-  | 'on_quarry_pit'
+  | 'on_resource_deposit'
   | 'no_quarry_in_range'
   | 'requires_rich_deposit'
   | 'requires_mineral_deposit'
@@ -71,7 +71,7 @@ type BuildingPlacementContext = {
   clayDepositSites?: readonly ClayDepositSite[];
   stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork'>;
   isWaterAt: (x: number, z: number) => boolean;
-  isQuarryPitAt?: (x: number, z: number) => boolean;
+  isResourceDepositAt?: (x: number, z: number) => boolean;
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   roadNetwork?: RoadNetwork;
@@ -131,9 +131,10 @@ export function validateBuildingPlacement(
   if (
     kind !== 'large_quarry'
     && kind !== 'mine'
-    && context.isQuarryPitAt?.(x, z)
+    && kind !== 'clay_pit'
+    && context.isResourceDepositAt?.(x, z)
   ) {
-    return { ok: false, reason: 'on_quarry_pit' };
+    return { ok: false, reason: 'on_resource_deposit' };
   }
 
   if (buildingOverlapsResidenceZone(kind, x, z, context.burgageZones)) {
