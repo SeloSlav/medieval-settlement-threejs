@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import {
+  GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
+  GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+} from '../src/grass/grassLodMath.ts';
 import { resolveGrassStreamViewTransition } from '../src/grass/grassStreamLifecycle.ts';
+import { resolveStreamVisibilityHysteresis } from '../vendor/seedthree/src/core/stream-slot-budget.js';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const grassSource = readFileSync(
@@ -74,8 +79,13 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /grassZoomVisible = displayOpacity > 0/,
-  'the shared grass and wildflower stream should activate as soon as the fade begins',
+  /grassZoomVisible = resolveStreamVisibilityHysteresis\([\s\S]*?grassZoomVisible,[\s\S]*?displayOpacity,[\s\S]*?GRASS_BLADE_VISIBILITY_ENTER_OPACITY,[\s\S]*?GRASS_BLADE_VISIBILITY_EXIT_OPACITY,/,
+  'the shared grass and wildflower stream should use the bounded visibility hysteresis',
+);
+assert.match(
+  fieldSource,
+  /lodFadeMode === 'continuous-alpha-hash'[\s\S]*?material\.alphaTest = 0;[\s\S]*?material\.alphaHash = true;[\s\S]*?material\.transparent = false;[\s\S]*?material\.depthWrite = true;/,
+  'the default close-ground fade must retain one stable coverage pipeline',
 );
 assert.match(
   lodSource,
@@ -128,6 +138,67 @@ assert.doesNotMatch(
   fieldSource,
   /computeBoundingSphere/,
   'unculled groundcover meshes must not rescan instance bounds while streaming',
+);
+assert.match(
+  fieldSource,
+  /MAX_GRASS_STREAM_INSTANCES = GRID_SIDE \* GRID_SIDE \* GRASS_SLOT_CAPACITY[\s\S]*?streamMeshes = variants\.map\([\s\S]*?new THREE\.InstancedMesh\(geometry, grassMaterial, MAX_GRASS_STREAM_INSTANCES\)[\s\S]*?new THREE\.InstancedMesh\([\s\S]*?MAX_WILDFLOWER_STREAM_INSTANCES[\s\S]*?group\.add\(entry\.mesh\)/,
+  'groundcover should retain the three whole-field InstancedMesh submissions',
+);
+assert.match(
+  fieldSource,
+  /mesh\.frustumCulled = false;[\s\S]*?wildflowerMesh\.frustumCulled = false;/,
+  'the restored whole-field submissions must not use the rejected spatial culling path',
+);
+assert.doesNotMatch(
+  fieldSource,
+  /spatial-batch-grid|createGroundcoverBatches|GROUNDCOVER_BATCH|localSlotsByBatch/,
+  'the rejected 4x4 spatial split must not remain in the game integration',
+);
+assert.match(
+  fieldSource,
+  /planSlotAttributeUpdateRanges\(\s*changedSlotIndices,\s*entry\.slotCapacity,/,
+  'whole-field slot uploads must retain the accepted changed-slot range planning',
+);
+
+assert.equal(
+  resolveStreamVisibilityHysteresis(
+    false,
+    GRASS_BLADE_VISIBILITY_ENTER_OPACITY - 0.0001,
+    GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
+    GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+  ),
+  false,
+  'hidden grass should not chatter on just below its enter boundary',
+);
+assert.equal(
+  resolveStreamVisibilityHysteresis(
+    false,
+    GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
+    GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
+    GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+  ),
+  true,
+  'groundcover should enter at the explicit hysteresis boundary',
+);
+assert.equal(
+  resolveStreamVisibilityHysteresis(
+    true,
+    GRASS_BLADE_VISIBILITY_EXIT_OPACITY + 0.0001,
+    GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
+    GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+  ),
+  true,
+  'visible grass should survive a small outward boundary oscillation',
+);
+assert.equal(
+  resolveStreamVisibilityHysteresis(
+    true,
+    GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+    GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
+    GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+  ),
+  false,
+  'groundcover should leave only at its lower hysteresis boundary',
 );
 
 assert.deepEqual(

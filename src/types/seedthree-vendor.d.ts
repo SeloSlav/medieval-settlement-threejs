@@ -357,6 +357,13 @@ declare module '@seedthree/core/stream-slot-budget.js' {
     componentCount: number;
     byteCount: number;
   };
+
+  export function resolveStreamVisibilityHysteresis(
+    wasVisible: boolean,
+    value: number,
+    enterThreshold: number,
+    exitThreshold: number,
+  ): boolean;
 }
 
 declare module '@seedthree/core/forest-ecology.js' {

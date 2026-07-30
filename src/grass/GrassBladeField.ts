@@ -29,6 +29,8 @@ import {
 import {
   GRASS_BLADE_CHUNK_SIZE,
   GRASS_BLADE_NEAR_RADIUS,
+  GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
+  GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
   GRASS_STREAM_CHUNK_RADIUS,
   GRASS_TUFT_SCATTER_ATTEMPTS,
   GRASS_TUFTS_PER_CHUNK,
@@ -39,6 +41,7 @@ import {
 import {
   coalesceStreamSlotRequests,
   planSlotAttributeUpdateRanges,
+  resolveStreamVisibilityHysteresis,
   runStreamSlotUpdateChunk,
 } from '@seedthree/core/stream-slot-budget.js';
 import { resolveGrassStreamViewTransition } from './grassStreamLifecycle.ts';
@@ -167,7 +170,12 @@ export type GrassBladeFieldOptions = {
   isBlockedAt?: (x: number, z: number) => boolean;
   maxAnisotropy?: number;
   rendererBackend?: RendererBackendKind;
+  lodFadeMode?: GrassBladeLodFadeMode;
 };
+
+export type GrassBladeLodFadeMode =
+  | 'continuous-alpha-hash'
+  | 'legacy-pipeline-cutover';
 
 const GRASS_STREAM_UPDATE_BUDGET_MS = 2;
 const GRASS_STREAM_MINIMUM_HEADROOM_MS = 0.2;
@@ -266,6 +274,26 @@ export async function createGrassBladeField(
   const group = new THREE.Group();
   group.name = 'SeedThree grass field';
   for (const entry of streamMeshes) group.add(entry.mesh);
+  group.userData.groundcoverSubmission = 'three-whole-field-instanced-meshes';
+  const lodFadeMode =
+    options?.lodFadeMode ?? 'continuous-alpha-hash';
+  group.userData.lodFadeMode = lodFadeMode;
+  if (lodFadeMode === 'continuous-alpha-hash') {
+    // A stable alpha-hash pipeline turns opacity into spatially stable
+    // coverage. The previous transparent -> opaque switch at 0.995 opacity
+    // changed the entire meadow in one frame even though the numeric LOD gate
+    // itself was continuous.
+    for (const material of displayMaterials) {
+      // Alpha hash replaces the binary card cutout as well as blending. Leaving
+      // alphaTest enabled would suppress the first 28% of the opacity ramp
+      // before the hashed coverage had a chance to resolve it.
+      material.alphaTest = 0;
+      material.alphaHash = true;
+      material.transparent = false;
+      material.depthWrite = true;
+      material.needsUpdate = true;
+    }
+  }
 
   const slotRecords: SlotRecord[] = Array.from({ length: GRID_SIDE * GRID_SIDE }, () => ({
     worldChunkX: Number.NaN,
@@ -606,20 +634,29 @@ export async function createGrassBladeField(
 
       const { grassOpacity } = resolveCloseGroundLod(cameraDistance, firstPersonActive);
       const displayOpacity = firstPersonActive ? 1 : grassBladeLodOpacity(grassOpacity);
-      grassZoomVisible = displayOpacity > 0;
+      grassZoomVisible = resolveStreamVisibilityHysteresis(
+        grassZoomVisible,
+        displayOpacity,
+        GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
+        GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+      );
+      group.userData.lodFadeOpacity = displayOpacity;
+      group.userData.lodFadeVisible = grassZoomVisible;
 
       if (
         !Number.isFinite(lastMaterialOpacity)
         || Math.abs(displayOpacity - lastMaterialOpacity) > 0.008
       ) {
         lastMaterialOpacity = displayOpacity;
-        const useTransparency = displayOpacity < 0.995;
         for (const material of displayMaterials) {
           material.opacity = displayOpacity;
-          if (material.transparent !== useTransparency) {
-            material.transparent = useTransparency;
-            material.depthWrite = !useTransparency;
-            material.needsUpdate = true;
+          if (lodFadeMode === 'legacy-pipeline-cutover') {
+            const useTransparency = displayOpacity < 0.995;
+            if (material.transparent !== useTransparency) {
+              material.transparent = useTransparency;
+              material.depthWrite = !useTransparency;
+              material.needsUpdate = true;
+            }
           }
         }
       }

@@ -98,6 +98,14 @@ export const REED_LOD_OPACITY_POWER = 2;
 export const GRASS_BLADE_LOD_VISIBILITY_THRESHOLD = 0;
 export const GRASS_BLADE_LOD_OPACITY_POWER = 1.35;
 
+/**
+ * Keep the streamed meshes alive across a very small opacity dead-band.
+ * Entering and leaving the 200% boundary therefore cannot alternate the
+ * entire groundcover submission when the camera hovers on the threshold.
+ */
+export const GRASS_BLADE_VISIBILITY_ENTER_OPACITY = 0.003;
+export const GRASS_BLADE_VISIBILITY_EXIT_OPACITY = 0.0005;
+
 export function grassBladeRevealOpacity(cameraDistance: number): number {
   return dirtZoomGate(cameraDistance);
 }
