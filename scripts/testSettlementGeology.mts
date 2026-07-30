@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   computeSettlementGeologyPlan,
+  GEOLOGY_RUNWAY_CRITICAL_DAYS,
+  GEOLOGY_RUNWAY_WATCH_DAYS,
   geologicalFiniteRunwayDays,
   mineralMineOutputPerDay,
+  selectSettlementGeologyAlert,
 } from '../src/economy/settlementGeology.ts';
 import {
   createEmptyStockpile,
@@ -258,6 +262,58 @@ assert.equal(
   geologicalFiniteRunwayDays(plan.iron),
   plan.iron.finiteReserve / plan.iron.finiteExtractionPerDay,
 );
+assert.equal(
+  plan.salt.shortestFiniteRunwayDays,
+  plan.salt.finiteReserve / plan.salt.finiteExtractionPerDay,
+  'a single worked finite seam must expose its own actionable depletion runway',
+);
+assert.ok(GEOLOGY_RUNWAY_CRITICAL_DAYS < GEOLOGY_RUNWAY_WATCH_DAYS);
+const baselineAlert = selectSettlementGeologyAlert(plan);
+assert.equal(baselineAlert?.resource, 'salt');
+assert.equal(baselineAlert?.level, 'critical');
+assert.equal(baselineAlert?.firstAttentionBuildingId, 'salt-mine-finite');
+
+const onlySaltWarning = {
+  ...plan,
+  stone: {
+    ...plan.stone,
+    shortestFiniteRunwayDays: null,
+    firstAttentionBuildingId: null,
+  },
+  clay: {
+    ...plan.clay,
+    shortestFiniteRunwayDays: null,
+    firstAttentionBuildingId: null,
+  },
+  iron: {
+    ...plan.iron,
+    shortestFiniteRunwayDays: null,
+    firstAttentionBuildingId: null,
+  },
+};
+assert.equal(
+  selectSettlementGeologyAlert({
+    ...onlySaltWarning,
+    salt: {
+      ...onlySaltWarning.salt,
+      activeDeepSources: 1,
+      deepExtractionPerDay: onlySaltWarning.salt.finiteExtractionPerDay,
+    },
+  })?.level,
+  'watch',
+  'a supported producing deep source must downgrade imminent surface exhaustion from crisis to labor watch',
+);
+assert.equal(
+  selectSettlementGeologyAlert({
+    ...onlySaltWarning,
+    salt: {
+      ...onlySaltWarning.salt,
+      shortestFiniteRunwayDays: GEOLOGY_RUNWAY_WATCH_DAYS + 0.01,
+    },
+  }),
+  null,
+  'comfortable finite runways must not add HUD noise',
+);
 
 const stoneCamp = state.buildings.get('stone-camp');
 const deepStoneQuarry = state.buildings.get('deep-quarry');
@@ -451,6 +507,44 @@ assert.equal(
   firePlan.iron.deepExtractionPerDay,
   0,
   'fire-disabled mines must not contribute installed extraction output',
+);
+
+const settlementHudSource = readFileSync(
+  new URL('../src/ui/SettlementHud.ts', import.meta.url),
+  'utf8',
+);
+const appSource = readFileSync(
+  new URL('../src/app/App.ts', import.meta.url),
+  'utf8',
+);
+const bootstrapSource = readFileSync(
+  new URL('../src/app/appBootstrap.ts', import.meta.url),
+  'utf8',
+);
+const townHallSource = readFileSync(
+  new URL('../src/resources/inspector/townHallRenderer.ts', import.meta.url),
+  'utf8',
+);
+assert.match(settlementHudSource, /data-geology-alert/);
+assert.match(
+  settlementHudSource,
+  /selectSettlementGeologyAlert[\s\S]*setGeologyState[\s\S]*firstAttentionBuildingId/,
+  'the compact HUD must derive one deterministic warning and retain its direct-inspection target',
+);
+assert.match(
+  appSource,
+  /setGeologyState\([\s\S]*computeSettlementGeologyPlan[\s\S]*clayPitThroughputMultiplier/,
+  'the live HUD must use the same weather-aware geological plan as settlement administration',
+);
+assert.match(
+  bootstrapSource,
+  /setGeologyAttentionHandler[\s\S]*selectBuilding\(buildingId\)[\s\S]*focusWorldPosition/,
+  'activating the warning must select and focus the actual shortest-runway extraction site',
+);
+assert.match(
+  townHallSource,
+  /shortest staffed seam[\s\S]*formatGeologyRunway/,
+  'the detailed ledger must expose the same shortest worked-seam runway',
 );
 
 const performanceBuildings = new Map<string, BuildingState>();

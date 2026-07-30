@@ -589,6 +589,32 @@ select:focus-visible {
   line-height: 1;
 }
 
+.settlement-hud__geology-alert {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  justify-self: stretch;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  font-size: 7px;
+  line-height: 1.05;
+  letter-spacing: 0;
+  text-align: center;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.settlement-hud__geology-alert::before {
+  display: none;
+}
+
+.settlement-hud__stores.has-geology-alert > .settlement-hud__stores-summary::before {
+  color: #e5b75f;
+}
+
 .settlement-hud__stores[open] > .settlement-hud__stores-summary::before {
   color: var(--ui-brass-bright);
   transform: none;

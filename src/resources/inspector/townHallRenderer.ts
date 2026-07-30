@@ -445,6 +445,11 @@ function formatGeologicalResourcePlan(
     : finiteRunway === null
       ? `${plan.finiteReserve.toFixed(0)} finite reserve idle`
       : `${plan.finiteReserve.toFixed(0)} finite reserve &middot; ${Math.floor(finiteRunway + 1e-9)} days at current finite-seam crews`;
+  const shortestWorkedSeam = plan.shortestFiniteRunwayDays === null
+    ? ''
+    : plan.shortestFiniteRunwayDays <= 0.05
+      ? ' &middot; shortest staffed seam exhausted'
+      : ` &middot; shortest staffed seam ${formatGeologyRunway(plan.shortestFiniteRunwayDays)}`;
   const deepStatus = plan.richDeposits === 0
     ? 'no rich deep-source roll'
     : `${plan.activeDeepSources} / ${plan.richDeposits} rich deep ${
@@ -510,7 +515,13 @@ function formatGeologicalResourcePlan(
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionBuildingId}" aria-label="Inspect shortest geological reserve runway">Inspect shortest</button>`;
   return `${plan.ordinaryDeposits} ordinary + ${plan.richDeposits} rich physical ${
     plan.deposits === 1 ? 'deposit' : 'deposits'
-  } &middot; ${reserveStatus} &middot; ${deepStatus}${deepSupport} &middot; ${yardStatus} &middot; ${extraction}${demand}${exhausted}${inspect}`;
+  } &middot; ${reserveStatus}${shortestWorkedSeam} &middot; ${deepStatus}${deepSupport} &middot; ${yardStatus} &middot; ${extraction}${demand}${exhausted}${inspect}`;
+}
+
+function formatGeologyRunway(days: number): string {
+  if (days < 1) return '&lt;1 day';
+  if (days < 10) return `${days.toFixed(1)} days`;
+  return `${Math.floor(days)} days`;
 }
 
 function formatRoadProvisioning(plan: SettlementRoadProvisioning | null): string {

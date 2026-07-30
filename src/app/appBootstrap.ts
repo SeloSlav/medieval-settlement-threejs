@@ -977,6 +977,28 @@ export async function bootstrapAppSession(
       { variant: 'info', durationMs: 4000 },
     );
   });
+  toolbar.settlementHud.setGeologyAttentionHandler((buildingId) => {
+    if (isWorldInspectionBlocked(placementGate)) {
+      toastManager.show(
+        sessionGate.isReady()
+          ? 'Finish or cancel the active tool before inspecting the geological warning.'
+          : 'Connect to the settlement before inspecting the geological warning.',
+        { variant: 'info', durationMs: 3200 },
+      );
+      return;
+    }
+    const building = liveContext.gameState.buildings.get(buildingId);
+    if (!building) {
+      toastManager.show(
+        'The warned extraction site is no longer present.',
+        { variant: 'info', durationMs: 3200 },
+      );
+      return;
+    }
+    villagerInspector.clearSelection();
+    resourceInspector.selectBuilding(buildingId);
+    cameraController.focusWorldPosition(building.x, building.z);
+  });
 
   firstPersonController = new FirstPersonController({
     camera: sceneManager.camera,

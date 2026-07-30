@@ -58,6 +58,8 @@ export type GeologicalResourcePlan = {
   deepSupportTimberPerDay: number;
   deepSupportRunwayCycles: number;
   deepSourcesAwaitingSupports: number;
+  /** Shortest currently worked finite seam runway; null when no finite seam is being depleted. */
+  shortestFiniteRunwayDays: number | null;
   firstSupportBuildingId: string | null;
   firstTargetPausedBuildingId: string | null;
   firstAttentionBuildingId: string | null;
@@ -76,9 +78,21 @@ type MutableGeologicalResourcePlan = GeologicalResourcePlan & {
 
 const MINERAL_CENTER_TOLERANCE_SQ = 2.5 * 2.5;
 const EPSILON = 1e-9;
+export const GEOLOGY_RUNWAY_WATCH_DAYS = 20;
+export const GEOLOGY_RUNWAY_CRITICAL_DAYS = 7;
 const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
   / CALENDAR_HOURS_PER_DAY;
+
+export type SettlementGeologyAlert = {
+  resource: GeologicalResource;
+  level: 'watch' | 'critical';
+  runwayDays: number;
+  firstAttentionBuildingId: string;
+  finiteReserve: number;
+  activeDeepSources: number;
+  deepExtractionPerDay: number;
+};
 
 /**
  * Settlement-wide reserve and extraction forecast for physical geological
@@ -372,10 +386,12 @@ export function computeSettlementGeologyPlan(
   }
 
   for (const resource of ['stone', 'clay', 'iron', 'salt'] as const) {
-    plans[resource].firstAttentionBuildingId = firstFiniteAttentionBuilding(
+    const attention = firstFiniteAttention(
       plans[resource],
       deposits[resource],
     );
+    plans[resource].firstAttentionBuildingId = attention?.buildingId ?? null;
+    plans[resource].shortestFiniteRunwayDays = attention?.runwayDays ?? null;
   }
 
   return {
@@ -391,6 +407,64 @@ export function geologicalFiniteRunwayDays(
 ): number | null {
   if (plan.finiteExtractionPerDay <= EPSILON) return null;
   return plan.finiteReserve / plan.finiteExtractionPerDay;
+}
+
+/**
+ * Selects one actionable headline warning from the existing geological plan.
+ *
+ * A ready deep source downgrades an imminent surface exhaustion to a watch:
+ * labor still needs moving, but the settlement does not lose the commodity.
+ * Stable resource order keeps equal-runway warnings deterministic.
+ */
+export function selectSettlementGeologyAlert(
+  plan: SettlementGeologyPlan,
+): SettlementGeologyAlert | null {
+  const resourceOrder: readonly GeologicalResource[] = [
+    'stone',
+    'clay',
+    'iron',
+    'salt',
+  ];
+  let selected: SettlementGeologyAlert | null = null;
+  for (const resource of resourceOrder) {
+    const candidate = plan[resource];
+    const runwayDays = candidate.shortestFiniteRunwayDays;
+    const firstAttentionBuildingId = candidate.firstAttentionBuildingId;
+    if (
+      runwayDays === null
+      || firstAttentionBuildingId === null
+      || runwayDays > GEOLOGY_RUNWAY_WATCH_DAYS
+    ) {
+      continue;
+    }
+    const deepReplacementReady =
+      candidate.activeDeepSources > 0
+      && candidate.deepExtractionPerDay > EPSILON;
+    const level = runwayDays <= GEOLOGY_RUNWAY_CRITICAL_DAYS
+      && !deepReplacementReady
+      ? 'critical'
+      : 'watch';
+    const alert: SettlementGeologyAlert = {
+      resource,
+      level,
+      runwayDays: Math.max(0, runwayDays),
+      firstAttentionBuildingId,
+      finiteReserve: candidate.finiteReserve,
+      activeDeepSources: candidate.activeDeepSources,
+      deepExtractionPerDay: candidate.deepExtractionPerDay,
+    };
+    if (
+      selected === null
+      || (alert.level === 'critical' && selected.level !== 'critical')
+      || (
+        alert.level === selected.level
+        && alert.runwayDays < selected.runwayDays - EPSILON
+      )
+    ) {
+      selected = alert;
+    }
+  }
+  return selected;
 }
 
 export function mineralDepositBeneath(
@@ -473,6 +547,7 @@ function emptyResourcePlan(
     deepSupportTimberPerDay: 0,
     deepSupportRunwayCycles: 0,
     deepSourcesAwaitingSupports: 0,
+    shortestFiniteRunwayDays: null,
     firstSupportBuildingId: null,
     firstTargetPausedBuildingId: null,
     firstAttentionBuildingId: null,
@@ -595,12 +670,15 @@ function addFiniteRate(
   }
 }
 
-function firstFiniteAttentionBuilding(
+function firstFiniteAttention(
   plan: MutableGeologicalResourcePlan,
   deposits: readonly ResourceNodeState[],
-): string | null {
+): { buildingId: string; runwayDays: number } | null {
   if (plan.blockedFiniteBuildingId !== null) {
-    return plan.blockedFiniteBuildingId;
+    return {
+      buildingId: plan.blockedFiniteBuildingId,
+      runwayDays: 0,
+    };
   }
   let firstId: string | null = null;
   let shortestRunway = Number.POSITIVE_INFINITY;
@@ -613,5 +691,10 @@ function firstFiniteAttentionBuilding(
       firstId = plan.finiteBuildingsByDeposit.get(deposit.nodeId) ?? null;
     }
   }
-  return firstId;
+  return firstId === null
+    ? null
+    : {
+        buildingId: firstId,
+        runwayDays: shortestRunway,
+      };
 }
