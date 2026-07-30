@@ -1,6 +1,5 @@
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
-  deriveSubSeed,
   formatSeedHex,
   MAP_SIZE_PRESETS,
   normalizeWorldGenerationSettings,
@@ -9,11 +8,12 @@ import {
   type WorldGenerationSettings,
   type WorldMapSize,
 } from '../world/worldGenerationSettings.ts';
-import { createMineralDepositRoster } from '../minerals/MineralDepositLayout.ts';
 import {
+  createRegionalDepositSurvey,
   createRegionalResourcePlan,
   describeResourceAbundance,
   describeResourceVariety,
+  type RegionalDepositResource,
 } from '../world/regionalResourceDistribution.ts';
 
 export class WorldSetupPanel {
@@ -112,7 +112,7 @@ export class WorldSetupPanel {
             </label>
             <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
             <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich mineral rolls into fewer resource families. Staffed marketplaces can import iron and Adriatic salt after local seams run short; trade supplements physical geology rather than replacing it.</p>
-            <p class="world-setup-resource-summary" data-resource-summary>${this.resourceSummary()}</p>
+            <div class="world-setup-resource-summary" data-resource-summary aria-live="polite">${this.resourceSummaryMarkup()}</div>
           </section>
 
           <section class="world-setup-section" aria-label="World seed">
@@ -261,11 +261,12 @@ export class WorldSetupPanel {
 
   private renderResourceSummary(): void {
     const summary = this.backdrop.querySelector<HTMLElement>('[data-resource-summary]');
-    if (summary) summary.textContent = this.resourceSummary();
+    if (summary) summary.innerHTML = this.resourceSummaryMarkup();
   }
 
-  private resourceSummary(): string {
+  private resourceSummaryMarkup(): string {
     const plan = createRegionalResourcePlan(this.draft);
+    const depositSurvey = createRegionalDepositSurvey(this.draft, plan);
     const kindLabels: Record<(typeof plan.presentForagingKinds)[number], string> = {
       game: 'game',
       berries: 'berries',
@@ -275,24 +276,79 @@ export class WorldSetupPanel {
     const wildResources = plan.presentForagingKinds
       .map((kind) => `${kindLabels[kind]} ×${plan.foragingNodeCounts[kind]}`)
       .join(', ');
-    const totalStone = plan.ordinaryQuarryCount + plan.richStoneDepositCount;
-    const totalClay = plan.ordinaryClayDepositCount + plan.richClayDepositCount;
-    const mineralRoster = createMineralDepositRoster({
-      seed: deriveSubSeed(this.draft.seed, 'iron-salt-deposits'),
-      mapSize: this.draft.mapSize,
-      richSiteCount: plan.richMineralDepositCount,
-      ordinarySiteCount: plan.ordinaryMineralDepositCount,
-      resourceVariety: this.draft.resourceVariety,
-    });
-    const mineralSummary = (resource: 'iron' | 'salt'): string => {
-      const sites = mineralRoster.filter((site) => site.resource === resource);
-      const rich = sites.filter((site) => site.grade === 'rich').length;
-      const ordinary = sites.length - rich;
-      if (sites.length === 0) return 'imports';
-      return `${rich > 0 ? `${rich} rich` : ''}${rich > 0 && ordinary > 0 ? ' + ' : ''}${ordinary > 0 ? `${ordinary} ordinary` : ''}`;
+
+    return `
+      <div class="world-setup-resource-summary__heading">
+        <strong>This seed's physical deposits</strong>
+        <span>All four have finite local sources</span>
+      </div>
+      <div class="world-setup-deposit-grid">
+        ${depositSurvey.map((entry) => this.depositCardMarkup(
+          entry.resource,
+          entry.ordinary,
+          entry.rich,
+        )).join('')}
+      </div>
+      <p class="world-setup-wild-summary"><strong>Wild resources</strong> · ${wildResources}</p>
+    `;
+  }
+
+  private depositCardMarkup(
+    resource: RegionalDepositResource,
+    ordinary: number,
+    rich: number,
+  ): string {
+    const labels: Record<RegionalDepositResource, {
+      name: string;
+      extractor: string;
+      ordinaryDetail: string;
+      richDetail: string;
+    }> = {
+      stone: {
+        name: 'Stone',
+        extractor: 'Stonecutter / Large Quarry',
+        ordinaryDetail: 'finite surface outcrop',
+        richDetail: 'deep quarry source',
+      },
+      clay: {
+        name: 'Clay',
+        extractor: 'Clay Pit',
+        ordinaryDetail: 'finite riverbank clay',
+        richDetail: 'deep alluvial source',
+      },
+      iron: {
+        name: 'Iron',
+        extractor: 'Mine',
+        ordinaryDetail: 'finite local seam',
+        richDetail: 'deep supported workings',
+      },
+      salt: {
+        name: 'Salt',
+        extractor: 'Mine',
+        ordinaryDetail: 'finite local deposit',
+        richDetail: 'deep supported workings',
+      },
     };
-    const depositSummary = (total: number, rich: number): string =>
-      `${total} ${rich > 0 ? `(${rich} rich)` : '(ordinary)'}`;
-    return `This seed: stone ${depositSummary(totalStone, plan.richStoneDepositCount)} · clay ${depositSummary(totalClay, plan.richClayDepositCount)} · iron: ${mineralSummary('iron')} · salt: ${mineralSummary('salt')} · ${wildResources}.`;
+    const label = labels[resource];
+    const richMarkup = rich > 0
+      ? `<span class="world-setup-deposit-grade world-setup-deposit-grade--rich">Rich ×${rich}</span>`
+      : '<span class="world-setup-deposit-grade world-setup-deposit-grade--none">No rich roll</span>';
+    const detail = rich > 0
+      ? `${label.ordinaryDetail}; ${label.richDetail}`
+      : label.ordinaryDetail;
+
+    return `
+      <article class="world-setup-deposit-card" data-resource="${resource}">
+        <div class="world-setup-deposit-card__title">
+          <strong>${label.name}</strong>
+          <span>${label.extractor}</span>
+        </div>
+        <div class="world-setup-deposit-card__grades">
+          <span class="world-setup-deposit-grade">Ordinary ×${ordinary}</span>
+          ${richMarkup}
+        </div>
+        <p>${detail}</p>
+      </article>
+    `;
   }
 }

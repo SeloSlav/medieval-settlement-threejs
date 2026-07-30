@@ -6,7 +6,10 @@ import {
   clayBankYieldAt,
   setActiveClayDepositLayout,
 } from '../src/economy/clayBankPolicy.ts';
-import { createRegionalResourcePlan } from '../src/world/regionalResourceDistribution.ts';
+import {
+  createRegionalDepositSurvey,
+  createRegionalResourcePlan,
+} from '../src/world/regionalResourceDistribution.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
   type WorldGenerationSettings,
@@ -61,6 +64,34 @@ assert.ok(
   balancedPlans.every((plan) => plan.foragingNodeCounts.game >= 1),
   'every regional profile should retain a winter-available game habitat',
 );
+
+for (const mapSize of mapSizes) {
+  for (const resourceAbundance of [0, 50, 100]) {
+    for (const resourceVariety of [0, 50, 100]) {
+      for (const seed of [1, 7, 31]) {
+        const worldSettings = settings({
+          seed,
+          mapSize,
+          resourceAbundance,
+          resourceVariety,
+        });
+        const survey = createRegionalDepositSurvey(worldSettings);
+        assert.deepEqual(
+          survey.map((entry) => entry.resource),
+          ['stone', 'clay', 'iron', 'salt'],
+          'the planning survey must always expose the four physical deposit families',
+        );
+        assert.ok(
+          survey.every((entry) =>
+            entry.ordinary >= 1
+            && entry.total === entry.ordinary + entry.rich
+          ),
+          `${mapSize}/${resourceAbundance}/${resourceVariety}/seed-${seed} must show at least one finite ordinary source for every material`,
+        );
+      }
+    }
+  }
+}
 
 for (const mapSize of mapSizes) {
   const lean = createRegionalResourcePlan(settings({

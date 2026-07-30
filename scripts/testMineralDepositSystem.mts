@@ -927,6 +927,23 @@ assert.match(
 );
 assert.match(
   uiSurfaces,
+  /This seed's physical deposits/,
+  'world setup must present the seed result as physical geology rather than a trade forecast',
+);
+assert.match(
+  uiSurfaces,
+  /No rich roll/,
+  'world setup must distinguish an absent rich grade from an absent local deposit',
+);
+for (const resource of ['stone', 'clay', 'iron', 'salt']) {
+  assert.match(
+    uiSurfaces,
+    new RegExp(`data-resource=["']${resource}["']`),
+    `world setup must give ${resource} its own readable survey card`,
+  );
+}
+assert.match(
+  uiSurfaces,
   /trade supplements physical geology rather than replacing it/,
   'Adriatic salt guidance must not imply that trade replaces local deposits',
 );

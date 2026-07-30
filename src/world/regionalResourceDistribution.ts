@@ -1,4 +1,8 @@
 import type { ForagingNodeKind } from '../foraging/ForagingLayout.ts';
+import {
+  createMineralDepositRoster,
+  type MineralDepositResource,
+} from '../minerals/MineralDepositLayout.ts';
 import { deriveSubSeed, type WorldGenerationSettings, type WorldMapSize } from './worldGenerationSettings.ts';
 
 export type ForagingNodeCounts = Record<ForagingNodeKind, number>;
@@ -19,6 +23,15 @@ export type RegionalResourcePlan = {
   foragingNodeCounts: ForagingNodeCounts;
   presentForagingKinds: ForagingNodeKind[];
   totalForagingNodes: number;
+};
+
+export type RegionalDepositResource = 'stone' | 'clay' | MineralDepositResource;
+
+export type RegionalDepositSurveyEntry = {
+  resource: RegionalDepositResource;
+  ordinary: number;
+  rich: number;
+  total: number;
 };
 
 type SizeResourceBudget = {
@@ -177,6 +190,49 @@ export function createRegionalResourcePlan(
     presentForagingKinds,
     totalForagingNodes: allocated,
   };
+}
+
+/**
+ * Resolves the seed's actual four-family geological roster for setup and
+ * planning UI. Ordinary counts are guaranteed physical sites; rich counts are
+ * the optional deep-source rolls that survived the regional budget.
+ */
+export function createRegionalDepositSurvey(
+  settings: WorldGenerationSettings,
+  plan: RegionalResourcePlan = createRegionalResourcePlan(settings),
+): RegionalDepositSurveyEntry[] {
+  const mineralRoster = createMineralDepositRoster({
+    seed: deriveSubSeed(settings.seed, 'iron-salt-deposits'),
+    mapSize: settings.mapSize,
+    richSiteCount: plan.richMineralDepositCount,
+    ordinarySiteCount: plan.ordinaryMineralDepositCount,
+    resourceVariety: settings.resourceVariety,
+  });
+  const mineralEntry = (
+    resource: MineralDepositResource,
+  ): RegionalDepositSurveyEntry => {
+    const sites = mineralRoster.filter((site) => site.resource === resource);
+    const rich = sites.filter((site) => site.grade === 'rich').length;
+    const ordinary = sites.length - rich;
+    return { resource, ordinary, rich, total: sites.length };
+  };
+
+  return [
+    {
+      resource: 'stone',
+      ordinary: plan.ordinaryQuarryCount,
+      rich: plan.richStoneDepositCount,
+      total: plan.ordinaryQuarryCount + plan.richStoneDepositCount,
+    },
+    {
+      resource: 'clay',
+      ordinary: plan.ordinaryClayDepositCount,
+      rich: plan.richClayDepositCount,
+      total: plan.ordinaryClayDepositCount + plan.richClayDepositCount,
+    },
+    mineralEntry('iron'),
+    mineralEntry('salt'),
+  ];
 }
 
 function richnessChance(
