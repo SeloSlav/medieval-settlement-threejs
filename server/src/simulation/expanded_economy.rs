@@ -54,9 +54,7 @@ use crate::frontier_economy_policy::{
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
-use crate::hydrology::{
-    clay_bank_yield_multiplier_with_richness, sample_hydrology_score, RICH_CLAY_DEPOSIT_RADIUS,
-};
+use crate::hydrology::{clay_bank_yield_multiplier_with_richness, sample_hydrology_score};
 use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
     monastery_feast_surplus, monastery_hospitality_use, monastery_pilgrimage_gold,
@@ -98,7 +96,7 @@ use crate::supply_policy::{
     INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
-use crate::tables::{farm_field, Building, FarmField, Quarry, Residence};
+use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
 use crate::weaver_input_policy::{weaver_fibre_delivery_preference_rank, weaver_uses_flax};
 
 struct RoutedBuilding {
@@ -1724,14 +1722,17 @@ pub fn step_clay_pit(
     resource_abundance: u8,
     building: Building,
 ) {
+    let Some(deposit) = clay_deposit_beneath(ctx, building.x, building.z) else {
+        return;
+    };
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork)
         * environment.clay_pit_throughput_multiplier()
-        * clay_bank_yield_multiplier_at_with_deposits(
-            ctx,
+        * clay_bank_yield_multiplier_at_deposit(
             building.x,
             building.z,
             resource_abundance,
+            &deposit,
         );
     let clay_before = building.clay;
     let mut clay_pit = step_simple_producer_at_rate(
@@ -1752,26 +1753,27 @@ pub fn step_clay_pit(
     ctx.db.building().id().update(clay_pit);
 }
 
-fn clay_bank_yield_multiplier_at_with_deposits(
-    ctx: &ReducerContext,
+fn clay_deposit_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<ForagingNode> {
+    const CENTER_TOLERANCE: f64 = 2.5;
+    let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
+    ctx.db.foraging_node().iter().find(|deposit| {
+        deposit.node_kind == "clay"
+            && deposit.node_id.starts_with("clay-")
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
+    })
+}
+
+fn clay_bank_yield_multiplier_at_deposit(
     x: f64,
     z: f64,
     resource_abundance: u8,
+    deposit: &ForagingNode,
 ) -> f64 {
-    let richness = ctx
-        .db
-        .foraging_node()
-        .iter()
-        .filter(|node| node.node_kind == "clay" && node.node_id.starts_with("clay-rich-"))
-        .map(|node| {
-            let distance = (node.x - x).hypot(node.z - z);
-            if distance >= RICH_CLAY_DEPOSIT_RADIUS {
-                return 0.0;
-            }
-            let t = 1.0 - distance / RICH_CLAY_DEPOSIT_RADIUS;
-            t * t * (3.0 - 2.0 * t)
-        })
-        .fold(0.0, f64::max);
+    let richness = if deposit.node_id.starts_with("clay-rich-") {
+        1.0
+    } else {
+        0.0
+    };
     clay_bank_yield_multiplier_with_richness(
         sample_hydrology_score(x, z),
         resource_abundance,

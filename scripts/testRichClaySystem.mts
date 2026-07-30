@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  resolveBuildingPlacementPoint,
+  validateBuildingPlacement,
+} from '../src/buildings/BuildingPlacementValidation.ts';
+import {
+  clayDepositAtCenter,
+} from '../src/clay/ClayDepositLayout.ts';
+import {
   CLAY_BANK_ORDINARY_YIELD_MAX,
   CLAY_BANK_RICH_YIELD_THRESHOLD,
   clayBankYieldAt,
@@ -26,6 +33,8 @@ const richSettings = findSettings((settings) =>
 const layout = createWorldLayout(richSettings);
 const richClay = layout.clayDepositLayout.sites.find((site) => site.kind === 'rich');
 assert.ok(richClay, 'at least one deterministic seed must roll a rich clay deposit');
+const ordinaryClay = layout.clayDepositLayout.sites.find((site) => site.kind === 'ordinary');
+assert.ok(ordinaryClay, 'every region must retain an ordinary physical clay deposit');
 assert.equal(
   layout.clayDepositLayout.sites.filter((site) => site.kind === 'ordinary').length,
   layout.resourcePlan.ordinaryClayDepositCount,
@@ -41,6 +50,63 @@ setActiveClayDepositLayout(null);
 assert.ok(
   clayBankYieldMultiplier(1, 100) <= CLAY_BANK_ORDINARY_YIELD_MAX,
   'ordinary shoreline must remain below the explicit rich-deposit tier',
+);
+
+assert.equal(
+  clayDepositAtCenter(layout.clayDepositLayout.sites, ordinaryClay.x, ordinaryClay.z),
+  ordinaryClay,
+);
+assert.deepEqual(
+  resolveBuildingPlacementPoint(
+    'clay_pit',
+    richClay.x + 24,
+    richClay.z - 12,
+    [],
+    layout.clayDepositLayout.sites,
+  ),
+  { x: richClay.x, z: richClay.z },
+  'clicking near a marked bank must snap the Clay Pit to its authoritative center',
+);
+
+const placementContext = {
+  buildings: [],
+  residences: [],
+  burgageZones: [],
+  quarries: [],
+  foragingNodes: [],
+  clayDepositSites: layout.clayDepositLayout.sites,
+  stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
+  isWaterAt: () => true,
+  getNaturalHeightAt: () => 0,
+};
+assert.equal(
+  validateBuildingPlacement(
+    'clay_pit',
+    ordinaryClay.x,
+    ordinaryClay.z,
+    placementContext,
+  ).ok,
+  true,
+  'an ordinary generated clay bank must be a valid authoritative extraction site',
+);
+assert.equal(
+  validateBuildingPlacement(
+    'clay_pit',
+    richClay.x,
+    richClay.z,
+    placementContext,
+  ).ok,
+  true,
+  'a rich generated clay bank must be a valid authoritative extraction site',
+);
+assert.deepEqual(
+  validateBuildingPlacement('clay_pit', 0, 0, {
+    ...placementContext,
+    clayDepositSites: [],
+    isWaterAt: (x, z) => Math.hypot(x, z - 8) < 1.5,
+  }),
+  { ok: false, reason: 'requires_clay_deposit' },
+  'an arbitrary usable shoreline must not create clay without a generated deposit',
 );
 
 const registry = WorldLayoutRegistry.fromWorldLayout(layout);
@@ -91,19 +157,29 @@ const clayPitSimulation = readFileSync(
   'utf8',
 );
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
-assert.match(clayPitSimulation, /node\.node_kind == "clay"/);
-assert.match(clayPitSimulation, /RICH_CLAY_DEPOSIT_RADIUS/);
-assert.match(clayPitSimulation, /clay_bank_yield_multiplier_at_with_deposits/);
+assert.match(clayPitSimulation, /deposit\.node_kind == "clay"/);
+assert.match(clayPitSimulation, /clay_deposit_beneath/);
+assert.match(clayPitSimulation, /clay_bank_yield_multiplier_at_deposit/);
 assert.match(authority, /clay_bank_yield_multiplier_with_richness/);
 assert.match(
   buildingReducer,
-  /on_generated_clay_bank[\s\S]*RICH_CLAY_DEPOSIT_RADIUS[\s\S]*"clay"/,
-  'the generated bank must remain buildable when a non-default river seed diverges from the static authority grid',
+  /has_clay_deposit_at_center[\s\S]*on_generated_clay_bank[\s\S]*kind == "clay_pit" && !on_generated_clay_bank/,
+  'authority must require the Clay Pit to sit on an ordinary or rich generated deposit',
+);
+assert.match(
+  buildingReducer,
+  /fn clay_source_usable[\s\S]*"clay_pit" =>[\s\S]*clay_source_usable/,
+  'the production steward must treat an off-deposit legacy Clay Pit as source-stalled',
 );
 assert.match(
   clayPitSimulation,
-  /node\.node_id\.starts_with\("clay-rich-"\)/,
+  /deposit\.node_id\.starts_with\("clay-rich-"\)/,
   'ordinary physical clay banks must not receive the rich-deposit multiplier',
+);
+assert.match(
+  clayPitSimulation,
+  /let Some\(deposit\) = clay_deposit_beneath[\s\S]*else \{\s*return;/,
+  'legacy off-bank Clay Pits must stall rather than creating clay from a background shoreline score',
 );
 
 const tableSync = readFileSync(

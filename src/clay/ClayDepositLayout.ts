@@ -31,6 +31,8 @@ const ORDINARY_BANK_RADIUS_X = 14;
 const ORDINARY_BANK_RADIUS_Z = 9;
 const MIN_CLAY_BANK_SPACING = 54;
 export const RICH_CLAY_DEPOSIT_RADIUS = 24;
+export const CLAY_DEPOSIT_CENTER_TOLERANCE = 2.5;
+export const CLAY_DEPOSIT_SNAP_RADIUS = 58;
 
 export function clayDepositNodeId(site: ClayDepositSite, index: number): string {
   return `clay-${site.kind}-${index}`;
@@ -38,6 +40,44 @@ export function clayDepositNodeId(site: ClayDepositSite, index: number): string 
 
 export function clayDepositLabel(site: ClayDepositSite): string {
   return site.kind === 'rich' ? 'Rich clay deposit' : 'Clay deposit';
+}
+
+export function clayDepositAtCenter(
+  sites: readonly ClayDepositSite[],
+  x: number,
+  z: number,
+): ClayDepositSite | null {
+  let nearest: ClayDepositSite | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (const site of sites) {
+    const distance = Math.hypot(site.x - x, site.z - z);
+    if (
+      distance > CLAY_DEPOSIT_CENTER_TOLERANCE
+      || distance >= nearestDistance
+    ) {
+      continue;
+    }
+    nearest = site;
+    nearestDistance = distance;
+  }
+  return nearest;
+}
+
+export function nearestClayDeposit(
+  sites: readonly ClayDepositSite[],
+  x: number,
+  z: number,
+  maxDistance = CLAY_DEPOSIT_SNAP_RADIUS,
+): ClayDepositSite | null {
+  let nearest: ClayDepositSite | null = null;
+  let nearestDistance = Math.max(0, maxDistance);
+  for (const site of sites) {
+    const distance = Math.hypot(site.x - x, site.z - z);
+    if (distance > nearestDistance) continue;
+    nearest = site;
+    nearestDistance = distance;
+  }
+  return nearest;
 }
 
 /**

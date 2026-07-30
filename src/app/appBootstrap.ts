@@ -451,6 +451,7 @@ export async function bootstrapAppSession(
     isQuarryPitAt: (x, z) =>
       sceneManager.worldLayout.quarryLayout.isBlockedForProps(x, z)
       || sceneManager.worldLayout.mineralDepositLayout.isBlockedForProps(x, z),
+    clayDepositSites: sceneManager.worldLayout.clayDepositLayout.sites,
     getNaturalHeightAt: (x, z) => sampleNaturalTerrainHeight(x, z),
     countMatureTreesInRadius: (x, z, radius) => {
       const registry = liveContext.treeRegistry;

@@ -123,7 +123,7 @@ import {
 
 const PROCESS: Record<string, string> = {
   mine: 'A local iron or salt deposit + labor → raw material for linked local processing',
-  clay_pit: 'Usable riverbank shore + labor -> wet clay for local potters',
+  clay_pit: 'Marked ordinary or rich clay deposit + labor -> wet clay for local potters',
   charcoal_burner: 'Firewood + labor -> charcoal, competing directly with winter heating reserves',
   smithy: 'Local ore or imported iron blooms + charcoal -> tools, fittings, and weapon heads',
   potter_kiln: 'Riverbank clay + firewood -> household wares, preservation vessels, and export',

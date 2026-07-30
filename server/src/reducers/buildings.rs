@@ -33,9 +33,7 @@ use crate::granary_policy::{
     GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
 };
 use crate::harvest_reserve_policy::{harvestable_wild_stock, normalize_harvest_reserve_percent};
-use crate::hydrology::{
-    sample_hydrology_score, well_capacity_from_hydrology, RICH_CLAY_DEPOSIT_RADIUS,
-};
+use crate::hydrology::{sample_hydrology_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
 use crate::marketplace_procurement_policy::{
@@ -255,6 +253,15 @@ fn has_mineral_deposit_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
     })
 }
 
+fn has_clay_deposit_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
+    let tolerance_sq = RICH_DEPOSIT_CENTER_TOLERANCE * RICH_DEPOSIT_CENTER_TOLERANCE;
+    ctx.db.foraging_node().iter().any(|deposit| {
+        deposit.node_kind == "clay"
+            && deposit.node_id.starts_with("clay-")
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
+    })
+}
+
 fn has_foraging_in_radius(
     ctx: &ReducerContext,
     x: f64,
@@ -323,8 +330,7 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     // Generated mineral landmarks are authoritative terrain anchors. Do not let
     // the coarse static hydrology grid reject a visually dry clay site in
     // worlds whose river seed differs from the embedded default grid.
-    let on_generated_clay_bank = kind == "clay_pit"
-        && has_foraging_in_radius(ctx, x, z, RICH_CLAY_DEPOSIT_RADIUS, "clay", true);
+    let on_generated_clay_bank = kind == "clay_pit" && has_clay_deposit_at_center(ctx, x, z);
     if kind != "large_quarry"
         && !on_mineral_deposit
         && !on_generated_clay_bank
@@ -519,6 +525,13 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     if kind == "mine" && !on_mineral_deposit {
         return Err(
             "Mineral mines must be placed directly over an iron or salt deposit.".to_string(),
+        );
+    }
+
+    if kind == "clay_pit" && !on_generated_clay_bank {
+        return Err(
+            "Clay Pits must be placed directly over a generated ordinary or rich clay deposit."
+                .to_string(),
         );
     }
 
@@ -994,6 +1007,18 @@ fn mineral_source(
     None
 }
 
+fn clay_source_usable(building: &Building, buckets: &SpatialBuckets<ForagingNode>) -> bool {
+    buckets
+        .source_state_within_radius(
+            building.x,
+            building.z,
+            RICH_DEPOSIT_CENTER_TOLERANCE,
+            |deposit| deposit.node_kind == "clay" && deposit.node_id.starts_with("clay-"),
+            |_| true,
+        )
+        .usable
+}
+
 fn wild_stock_source_usable(
     building: &Building,
     node_kind: &str,
@@ -1031,7 +1056,10 @@ fn production_site_ready(
         kind if is_processor_output_target_kind(kind) => {
             processor_output_room(building).is_some_and(|headroom| headroom > 1e-6)
         }
-        "clay_pit" => !commodity_output_blocked(building, CommodityKind::Clay),
+        "clay_pit" => {
+            !commodity_output_blocked(building, CommodityKind::Clay)
+                && clay_source_usable(building, foraging_buckets)
+        }
         "mine" => mineral_source(building, quarry_buckets).is_some_and(|(commodity, usable)| {
             usable && !commodity_output_blocked(building, commodity)
         }),
@@ -1100,7 +1128,8 @@ pub fn recall_target_idle_processor_labor_for_owner(
                 )
             }
             "clay_pit" => (
-                commodity_output_blocked(&building, CommodityKind::Clay),
+                commodity_output_blocked(&building, CommodityKind::Clay)
+                    || !clay_source_usable(&building, &foraging_buckets),
                 false,
                 building.clay > 1e-6 || has_active_trip,
             ),

@@ -25,8 +25,7 @@ import {
 } from '../fires/fireRiskPolicy.ts';
 import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import {
-  clayBankYieldGrade,
-  clayBankYieldMultiplier,
+  clayBankYieldAt,
 } from '../economy/clayBankPolicy.ts';
 import {
   assessFoundingSite,
@@ -34,6 +33,10 @@ import {
 } from '../settlement/foundingSiteSuitability.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import {
+  clayDepositAtCenter,
+  type ClayDepositSite,
+} from '../clay/ClayDepositLayout.ts';
 
 export type BuildingToolMode = BuildingKind | 'off';
 
@@ -70,6 +73,7 @@ type BuildingToolOptions = {
   onDemolishBuilding: (buildingId: string) => void | Promise<void>;
   isWaterAt: (x: number, z: number) => boolean;
   isQuarryPitAt?: (x: number, z: number) => boolean;
+  clayDepositSites: readonly ClayDepositSite[];
   getNaturalHeightAt: (x: number, z: number) => number;
   countMatureTreesInRadius?: (x: number, z: number, radius: number) => number | null;
   getRoadNetwork?: () => RoadNetwork;
@@ -539,11 +543,18 @@ export class BuildingTool {
     const extent = getBuildingExtent(kind, definition.workRadius);
     const clayBankDetail = kind === 'clay_pit'
       ? (() => {
-          const yieldMultiplier = clayBankYieldMultiplier(
-            sampleAuthoritativeHydrologyScore(x, z),
+          const deposit = clayDepositAtCenter(
+            this.options.clayDepositSites,
+            x,
+            z,
+          );
+          if (!deposit) return null;
+          const yieldMultiplier = clayBankYieldAt(
+            x,
+            z,
             getActiveWorldGeneration().resourceAbundance,
           );
-          return `Ready: ${clayBankYieldGrade(yieldMultiplier).toLowerCase()} · ${Math.round(yieldMultiplier * 100)}% geological clay yield before weather and iron tools`;
+          return `Ready: ${deposit.kind} clay deposit · ${Math.round(yieldMultiplier * 100)}% geological clay yield before weather and iron tools`;
         })()
       : null;
     const mineralMineDetail = kind === 'mine'
@@ -595,6 +606,7 @@ export class BuildingTool {
       pastures: state.pastures.values(),
       quarries: state.quarries.values(),
       foragingNodes: state.foragingNodes.values(),
+      clayDepositSites: this.options.clayDepositSites,
       stockpile: totals,
       isWaterAt: this.options.isWaterAt,
       isQuarryPitAt: this.options.isQuarryPitAt,
@@ -617,6 +629,7 @@ export class BuildingTool {
       x,
       z,
       state.quarries.values(),
+      this.options.clayDepositSites,
     );
     if (kind !== 'foragers_shed') return resolved;
 

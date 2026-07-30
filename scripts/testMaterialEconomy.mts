@@ -882,7 +882,7 @@ assert.match(
 );
 assert.match(
   clayPitStep,
-  /environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_with_deposits\(\s*ctx,\s*building\.x,\s*building\.z,\s*resource_abundance/,
+  /let Some\(deposit\) = clay_deposit_beneath[\s\S]*environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_deposit\(\s*building\.x,\s*building\.z,\s*resource_abundance,\s*&deposit/,
   'authoritative clay digging must multiply weather by the local geological bank yield',
 );
 assert.match(
@@ -923,7 +923,7 @@ assert.match(
   /hydrology_grid\.json' with \{ type: 'json' \}/,
   'direct Node test runners and Vite must share an explicit JSON module boundary',
 );
-assert.match(clayPitStep, /fn clay_bank_yield_multiplier_at_with_deposits/);
+assert.match(clayPitStep, /fn clay_bank_yield_multiplier_at_deposit/);
 assert.match(buildingToolSource, /geological clay yield before weather and iron tools/);
 assert.match(expandedInspectorSource, /Clay seam[\s\S]*Current digging pace/);
 assert.match(townHallSource, /average geological yield across active pits/);

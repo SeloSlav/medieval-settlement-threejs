@@ -14,6 +14,11 @@ import { convexPolygonsOverlap2 } from '../utils/polygonGeometry.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
+import {
+  clayDepositAtCenter,
+  nearestClayDeposit,
+  type ClayDepositSite,
+} from '../clay/ClayDepositLayout.ts';
 
 export type BuildingPlacementFailureReason =
   | 'water'
@@ -29,6 +34,7 @@ export type BuildingPlacementFailureReason =
   | 'no_quarry_in_range'
   | 'requires_rich_deposit'
   | 'requires_mineral_deposit'
+  | 'requires_clay_deposit'
   | 'no_game_in_range'
   | 'no_berries_in_range'
   | 'no_fish_in_range'
@@ -62,6 +68,7 @@ type BuildingPlacementContext = {
   pastures?: Iterable<PastureState>;
   quarries: Iterable<ResourceNodeState>;
   foragingNodes: Iterable<ForagingNodeState>;
+  clayDepositSites?: readonly ClayDepositSite[];
   stockpile: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork'>;
   isWaterAt: (x: number, z: number) => boolean;
   isQuarryPitAt?: (x: number, z: number) => boolean;
@@ -81,13 +88,23 @@ export function validateBuildingPlacement(
   // Materialize one-shot Map iterators once so prerequisite and separation
   // checks cannot accidentally see an exhausted collection.
   const buildings = [...context.buildings];
+  const onClayDeposit = kind === 'clay_pit'
+    && clayDepositAtCenter(context.clayDepositSites ?? [], x, z) !== null;
   const fishingFootprintTouchesWater = kind === 'fishing_camp'
     && sampleBuildingFootprintPoints(kind, x, z).some((point) => context.isWaterAt(point.x, point.z));
-  if (kind !== 'large_quarry' && (context.isWaterAt(x, z) || fishingFootprintTouchesWater)) {
+  if (
+    kind !== 'large_quarry'
+    && !onClayDeposit
+    && (context.isWaterAt(x, z) || fishingFootprintTouchesWater)
+  ) {
     return { ok: false, reason: 'water' };
   }
 
-  if (getBuildingDefinition(kind).requiresWaterShore && !isNearOpenWater(x, z, context.isWaterAt)) {
+  if (
+    getBuildingDefinition(kind).requiresWaterShore
+    && !onClayDeposit
+    && !isNearOpenWater(x, z, context.isWaterAt)
+  ) {
     return { ok: false, reason: 'requires_shore' };
   }
 
@@ -214,6 +231,10 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'requires_mineral_deposit' };
   }
 
+  if (kind === 'clay_pit' && !onClayDeposit) {
+    return { ok: false, reason: 'requires_clay_deposit' };
+  }
+
   if (kind === 'hunters_hall' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'game', context.foragingNodes)) {
     return { ok: false, reason: 'no_game_in_range' };
   }
@@ -295,7 +316,12 @@ export function resolveBuildingPlacementPoint(
   x: number,
   z: number,
   quarries: Iterable<ResourceNodeState>,
+  clayDepositSites: readonly ClayDepositSite[] = [],
 ): { x: number; z: number } {
+  if (kind === 'clay_pit') {
+    const deposit = nearestClayDeposit(clayDepositSites, x, z);
+    return deposit ? { x: deposit.x, z: deposit.z } : { x, z };
+  }
   if (kind !== 'large_quarry' && kind !== 'mine') return { x, z };
   let nearest: ResourceNodeState | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;

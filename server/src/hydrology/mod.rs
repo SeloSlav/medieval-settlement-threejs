@@ -13,8 +13,6 @@ pub const CLAY_BANK_TOTAL_YIELD_MIN: f64 = 0.78;
 pub const CLAY_BANK_ORDINARY_YIELD_MAX: f64 = 1.14;
 pub const CLAY_BANK_RICH_YIELD_MIN: f64 = 1.28;
 pub const CLAY_BANK_TOTAL_YIELD_MAX: f64 = 1.42;
-pub const RICH_CLAY_DEPOSIT_RADIUS: f64 = 24.0;
-
 pub fn sample_hydrology_score(x: f64, z: f64) -> f64 {
     if x < HYDROLOGY_GRID_MIN_X
         || x > HYDROLOGY_GRID_MAX_X
