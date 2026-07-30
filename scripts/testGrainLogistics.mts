@@ -613,7 +613,10 @@ const functionSection = (name: string, nextName: string): string => {
   return expandedSimulation.slice(start, end);
 };
 
-const watermillStep = functionSection('step_watermill', 'step_granary');
+const watermillStep = functionSection(
+  'step_watermill',
+  'step_industrial_firewood_dispatch',
+);
 assert.doesNotMatch(watermillStep, /request_connected_commodity/);
 assert.match(watermillStep, /step_processor/);
 assert.match(watermillStep, /CommodityKind::Flour/);

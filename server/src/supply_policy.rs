@@ -6,12 +6,13 @@ use crate::balance_generated::{
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
     HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
-    MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
-    RESIDENCE_FIREWOOD_CAPACITY, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-    RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
-    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
-    WEAVER_WOOL_PER_CYCLE, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+    MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
+    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, RESIDENCE_FIREWOOD_CAPACITY,
+    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
+    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
+    WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 };
 use crate::civilian_tool_policy::is_civilian_tool_site;
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -75,6 +76,24 @@ pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
+
+/// Rich mineral seams represent deep, non-depleting workings. They require one
+/// complete timber-crib batch before labor can safely advance extraction.
+/// Ordinary finite seams remain support-free surface workings.
+pub fn rich_mine_support_target() -> f64 {
+    MINE_TIMBER_SUPPORT_PER_CYCLE * MINE_TIMBER_SUPPORT_BUFFER_CYCLES
+}
+
+pub fn rich_mine_support_runway_cycles(timber: f64) -> f64 {
+    if MINE_TIMBER_SUPPORT_PER_CYCLE <= 1e-9 {
+        return 0.0;
+    }
+    timber.max(0.0) / MINE_TIMBER_SUPPORT_PER_CYCLE
+}
+
+pub fn rich_mine_supports_ready(timber: f64) -> bool {
+    rich_mine_support_runway_cycles(timber) + 1e-9 >= 1.0
+}
 
 /// Small working stock requested by grain processors. Watermills and breweries
 /// follow their production stock policy; the autonomous monastery retains the
@@ -660,7 +679,8 @@ mod tests {
         household_food_reserve, institutional_food_surplus, is_firewood_supplier_operational,
         is_food_supplier_operational, is_specialty_supplier_operational,
         is_well_supplier_operational, processor_input_dispatch_duty, processor_input_runway_cycles,
-        processor_input_target, select_grain_dispatch_candidate, select_need_delivery_candidate,
+        processor_input_target, rich_mine_support_runway_cycles, rich_mine_support_target,
+        rich_mine_supports_ready, select_grain_dispatch_candidate, select_need_delivery_candidate,
         select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
         select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
         InstitutionalFoodDispatchDuty, NeedDeliveryCandidate, ProcessorInputDispatchDuty,
@@ -672,6 +692,15 @@ mod tests {
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
+
+    #[test]
+    fn rich_mines_stage_three_complete_timber_support_cycles() {
+        assert_eq!(rich_mine_support_target(), 1.5);
+        assert_eq!(rich_mine_support_runway_cycles(0.0), 0.0);
+        assert_eq!(rich_mine_support_runway_cycles(1.5), 3.0);
+        assert!(!rich_mine_supports_ready(0.49));
+        assert!(rich_mine_supports_ready(0.5));
+    }
 
     #[test]
     fn shorter_road_routes_are_preferred_over_older_buildings() {

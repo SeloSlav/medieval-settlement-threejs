@@ -3,6 +3,11 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import {
+  bulkStockpileVisualSignature,
+  syncBulkStockpileVisuals,
+} from '../src/buildings/bulkStockpileVisuals.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
+import {
   createMineralDepositRoster,
   mineralDepositLabel,
   mineralDepositMaxYield,
@@ -12,8 +17,15 @@ import {
   BUILDING_STORAGE_CAPS,
   MINE_IRON_PER_CYCLE,
   MINE_SALT_PER_CYCLE,
+  MINE_TIMBER_SUPPORT_BUFFER_CYCLES,
+  MINE_TIMBER_SUPPORT_PER_CYCLE,
   RICH_MINE_THROUGHPUT_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
+import {
+  RICH_MINE_SUPPORT_TARGET,
+  richMineSupportRunwayCycles,
+  richMineSupportsReady,
+} from '../src/economy/mineSupportPolicy.ts';
 import {
   IRON_ICON_HTML,
   SALT_ICON_HTML,
@@ -179,8 +191,15 @@ assert.equal(mine.maxLabor, 4);
 assert.equal(BUILDING_STORAGE_CAPS.mine.iron, 240);
 assert.equal(BUILDING_STORAGE_CAPS.mine.salt, 240);
 assert.equal(BUILDING_STORAGE_CAPS.mine.ironwork, 3);
+assert.equal(BUILDING_STORAGE_CAPS.mine.timber, 12);
 assert.ok(MINE_IRON_PER_CYCLE > 0);
 assert.ok(MINE_SALT_PER_CYCLE > MINE_IRON_PER_CYCLE);
+assert.equal(MINE_TIMBER_SUPPORT_PER_CYCLE, 0.5);
+assert.equal(MINE_TIMBER_SUPPORT_BUFFER_CYCLES, 3);
+assert.equal(RICH_MINE_SUPPORT_TARGET, 1.5);
+assert.equal(richMineSupportRunwayCycles(1.5), 3);
+assert.equal(richMineSupportsReady(0.49), false);
+assert.equal(richMineSupportsReady(0.5), true);
 assert.ok(RICH_MINE_THROUGHPUT_MULTIPLIER > 1);
 
 const mineMesh = createBuildingMesh('mine');
@@ -189,9 +208,11 @@ assert.ok(mineMesh.getObjectByName('Mineral mine sorting floor'));
 const ironStockpile = mineMesh.getObjectByName('IronMineStockpile');
 const saltStockpile = mineMesh.getObjectByName('SaltMineStockpile');
 const toolStockpile = mineMesh.getObjectByName('CivilianToolStockpile');
+const supportStockpile = mineMesh.getObjectByName('MineSupportStockpile');
 assert.ok(ironStockpile, 'the mine needs a physical iron stockpile');
 assert.ok(saltStockpile, 'the mine needs a physical salt stockpile');
 assert.ok(toolStockpile, 'the mine needs a physical replacement-tool rack');
+assert.ok(supportStockpile, 'the mine needs a physical prepared shaft-timber pile');
 assert.equal(
   ironStockpile.children.filter((child) => child.name === 'IronMineOreSegment').length,
   6,
@@ -201,6 +222,42 @@ assert.equal(
   saltStockpile.children.filter((child) => child.name === 'SaltMineSaltSegment').length,
   6,
   'salt inventory must visibly rise and fall in discrete rock-salt piles',
+);
+assert.equal(
+  supportStockpile.children.filter(
+    (child) => child.name === 'MineSupportTimberSegment',
+  ).length,
+  4,
+  'deep-mine support runway must visibly rise and fall in four beam bundles',
+);
+const emptySupportSignature = bulkStockpileVisualSignature(
+  mineBuilding({ timber: 0 }),
+);
+const oneCycleSupportSignature = bulkStockpileVisualSignature(
+  mineBuilding({ timber: MINE_TIMBER_SUPPORT_PER_CYCLE }),
+);
+assert.notEqual(
+  emptySupportSignature,
+  oneCycleSupportSignature,
+  'mine presentation must refresh as support timber is delivered or consumed',
+);
+syncBulkStockpileVisuals(
+  mineMesh,
+  mineBuilding({ timber: MINE_TIMBER_SUPPORT_PER_CYCLE }),
+);
+assert.equal(
+  supportStockpile.children.filter((child) => child.visible).length,
+  1,
+  'one support batch should make one prepared-beam bundle visible',
+);
+syncBulkStockpileVisuals(
+  mineMesh,
+  mineBuilding({ timber: RICH_MINE_SUPPORT_TARGET }),
+);
+assert.equal(
+  supportStockpile.children.filter((child) => child.visible).length,
+  3,
+  'the requested three-cycle support buffer must show three discrete beam bundles',
 );
 mineMesh.traverse((object) => {
   if (object instanceof THREE.Mesh) object.geometry.dispose();
@@ -217,6 +274,21 @@ const mineStep = authority.slice(mineStart, mineEnd);
 assert.match(mineStep, /deposit-iron-/);
 assert.match(mineStep, /deposit-salt-/);
 assert.match(mineStep, /RICH_MINE_THROUGHPUT_MULTIPLIER/);
+assert.match(
+  mineStep,
+  /deposit\.is_rich[\s\S]*request_connected_commodity[\s\S]*CommodityKind::Timber[\s\S]*lumber_mill[\s\S]*village_storehouse[\s\S]*rich_mine_support_target/,
+  'rich mines must physically request support timber from connected timber stores',
+);
+assert.match(
+  mineStep,
+  /deposit\.is_rich && !rich_mine_supports_ready\(building\.timber\)[\s\S]*return;/,
+  'rich extraction must stop safely before advancing without a complete timber crib batch',
+);
+assert.match(
+  mineStep,
+  /produced > 1e-6 && deposit\.is_rich[\s\S]*CommodityKind::Timber[\s\S]*MINE_TIMBER_SUPPORT_PER_CYCLE/,
+  'support timber must wear only after a completed deep extraction batch',
+);
 assert.match(mineStep, /civilian_tool_throughput_multiplier\(building\.ironwork\)/);
 assert.match(
   mineStep,
@@ -272,8 +344,48 @@ mineInspector = renderMineralMineInspector(
   inspectorContext(inspectorState),
 );
 assert.equal(mineInspector.eyebrow, 'Rich salt mine');
+assert.match(mineInspector.statusText, /awaits timber supports/);
+assert.match(mineInspector.detailsHtml, /0.0 onsite \/ 1.5 timber target/);
+const inboundSupportTrip: DeliveryTripState = {
+  id: 'support-inbound',
+  buildingId: 'lumber-mill',
+  residenceId: null,
+  destinationKind: 'building',
+  targetBuildingId: inspectorMine.id,
+  cargoKind: 'timber',
+  amount: MINE_TIMBER_SUPPORT_PER_CYCLE,
+  phase: 'outbound',
+  x: 0,
+  z: 0,
+  progress: 0,
+  speedMps: 1,
+  unloadSeconds: 1,
+  unloadRemaining: 1,
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 0,
+  pathDistance: 1,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '[]',
+};
+mineInspector = renderMineralMineInspector(
+  buildingTarget(inspectorMine),
+  inspectorContext(inspectorState, inboundSupportTrip),
+);
+assert.match(mineInspector.statusText, /timber supports are approaching/);
+assert.equal(mineInspector.statusState, 'idle');
+const supportedInspectorMine = {
+  ...inspectorMine,
+  timber: RICH_MINE_SUPPORT_TARGET,
+};
+inspectorState = inspectorGameState(supportedInspectorMine, [richSaltDeposit]);
+mineInspector = renderMineralMineInspector(
+  buildingTarget(supportedInspectorMine),
+  inspectorContext(inspectorState),
+);
 assert.match(mineInspector.statusText, /Extracting rich deep salt - source does not deplete/);
 assert.match(mineInspector.detailsHtml, /50% faster deep working/);
+assert.match(mineInspector.detailsHtml, /3.0 cycles/);
+assert.match(mineInspector.detailsHtml, /0.5 timber per completed deep batch/);
 
 const exhaustedIron = { ...ordinaryIronDeposit, remaining: 0 };
 inspectorState = inspectorGameState(inspectorMine, [exhaustedIron]);
@@ -373,6 +485,11 @@ assert.match(
   uiSurfaces,
   /Every region has finite physical salt deposits/,
   'the HUD must teach the guaranteed physical salt source',
+);
+assert.match(
+  uiSurfaces,
+  /Rich deep workings are faster and inexhaustible, but consume road-hauled shaft supports/,
+  'the mine card must expose the recurring forestry and road-logistics cost of rich deposits',
 );
 assert.doesNotMatch(
   uiSurfaces,
@@ -503,9 +620,13 @@ function buildingTarget(building: BuildingState) {
   };
 }
 
-function inspectorContext(state: GameState): InspectorRenderContext {
+function inspectorContext(
+  state: GameState,
+  inboundSupply: DeliveryTripState | null = null,
+): InspectorRenderContext {
   const worldQueries = {
     getActiveDeliveryTrip: () => null,
+    getInboundSupplyTrip: () => inboundSupply,
     getBuildingLabel: (kind: BuildingState['kind']) =>
       getBuildingDefinition(kind).label,
     getRoadAccessLabel: () => 'Road connected',

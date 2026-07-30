@@ -13,18 +13,18 @@ use crate::balance_generated::{
     FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
     GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE,
     GRANARY_WATER_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
-    MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_ALE,
-    MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE, MONASTERY_FOOD_PER_CYCLE,
-    MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
-    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_POTTERY_PER_CYCLE,
-    POTTER_WATER_PER_CYCLE, RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE,
-    SMITHY_IRONWORK_PER_CYCLE, SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
-    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
-    SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP,
-    TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE,
-    VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE,
-    WEAVER_WOOL_PER_CYCLE,
+    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
+    MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
+    MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
+    MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    POTTER_POTTERY_PER_CYCLE, POTTER_WATER_PER_CYCLE, RICH_MINE_THROUGHPUT_MULTIPLIER,
+    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
+    SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
+    TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE, WATERMILL_FLOUR_PER_CYCLE,
+    WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
+    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
 use crate::burgage::{Point2, ZoneCorners};
@@ -89,12 +89,12 @@ use crate::supply_policy::{
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
     grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, processor_input_dispatch_duty, processor_input_runway_cycles,
-    processor_input_target, select_grain_dispatch_candidate,
-    select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
-    select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
-    InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
-    GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
-    INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
+    processor_input_target, rich_mine_support_target, rich_mine_supports_ready,
+    select_grain_dispatch_candidate, select_processor_input_dispatch_candidate,
+    select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
+    GranaryDispatchDuty, InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty,
+    GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS,
+    INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
@@ -1141,6 +1141,21 @@ pub fn step_mine(
     } else {
         base_batch.min(deposit.remaining)
     };
+    if deposit.is_rich && building_commodity_room(&building, commodity) + 1e-6 >= batch {
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            &building,
+            CommodityKind::Timber,
+            &["lumber_mill", "village_storehouse"],
+            rich_mine_support_target(),
+        );
+    }
+    if deposit.is_rich && !rich_mine_supports_ready(building.timber) {
+        ctx.db.building().id().update(building);
+        return;
+    }
     let tools_maintained = civilian_tools_maintained(building.ironwork);
     let tool_throughput = civilian_tool_throughput_multiplier(building.ironwork);
     let before = building_commodity_stock(&building, commodity);
@@ -1163,6 +1178,13 @@ pub fn step_mine(
             remaining: (deposit.remaining - produced).max(0.0),
             ..deposit
         });
+    }
+    if produced > 1e-6 && deposit.is_rich {
+        withdraw_building_commodity(
+            &mut mine,
+            CommodityKind::Timber,
+            MINE_TIMBER_SUPPORT_PER_CYCLE,
+        );
     }
     if tools_maintained && produced > 1e-6 {
         withdraw_building_commodity(

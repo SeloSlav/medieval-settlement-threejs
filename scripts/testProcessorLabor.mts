@@ -190,6 +190,7 @@ const exhaustedMine = building('mineral-20-exhausted', 'mine', 0);
 exhaustedMine.x = 100;
 const readyRichMine = building('mineral-30-rich', 'mine', 0);
 readyRichMine.x = 200;
+readyRichMine.timber = 0.5;
 for (const site of [readyFiniteMine, exhaustedMine, readyRichMine]) {
   mineralCallupState.buildings.set(site.id, site);
 }
@@ -215,7 +216,7 @@ assert.equal(mineralCallup.blockedSites, 1);
 assert.deepEqual(
   mineralCallup.assignments.map((assignment) => assignment.buildingId),
   [readyFiniteMine.id, readyRichMine.id],
-  'ordinary usable and rich deep mines should share labor while an exhausted finite seam stays empty',
+  'ordinary usable and timber-supported rich mines should share labor while an exhausted finite seam stays empty',
 );
 
 const materialCallupState = emptyGameState();

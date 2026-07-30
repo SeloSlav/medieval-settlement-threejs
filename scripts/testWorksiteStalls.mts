@@ -256,6 +256,7 @@ const exhaustedIronMine = building('mine-10-exhausted', 'mine', 3, 0, 0);
 const fullSaltMine = building('mine-20-full', 'mine', 4, 100, 0);
 fullSaltMine.salt = 999;
 const richIronMine = building('mine-30-rich', 'mine', 2, 200, 0);
+richIronMine.timber = 0.5;
 const mineralOnlyStoneCamp = building(
   'quarry-40-mineral-only',
   'stone_quarry',
@@ -321,6 +322,37 @@ assert.equal(
   'no surface stone lies within the work area',
   'mineral deposits must not masquerade as usable stone outcrops',
 );
+
+const unsupportedMineState = emptyGameState();
+const unsupportedRichMine = building('mine-rich-unsupported', 'mine', 3, 0, 0);
+unsupportedMineState.buildings.set(unsupportedRichMine.id, unsupportedRichMine);
+unsupportedMineState.quarries.set(
+  'deposit-salt-rich',
+  mineralDeposit('deposit-salt-rich', 'salt', 0, 0, true),
+);
+const unsupportedMinePlan = computeSettlementWorksiteStallPlan(
+  unsupportedMineState,
+  7,
+);
+assert.equal(unsupportedMinePlan.stalledSites, 1);
+assert.equal(unsupportedMinePlan.inputStalledSites, 1);
+assert.equal(unsupportedMinePlan.reclaimableWorkers, 3);
+assert.equal(
+  unsupportedMinePlan.firstAttention?.detail,
+  'no deep-shaft support timber on site',
+  'a rich deep mine without its next support batch must expose a real input stall',
+);
+unsupportedMineState.deliveryTrips.set(
+  'support-timber-inbound',
+  trip('support-timber-inbound', 'lumber-mill', unsupportedRichMine.id, 'timber'),
+);
+const recoveringMinePlan = computeSettlementWorksiteStallPlan(
+  unsupportedMineState,
+  7,
+);
+assert.equal(recoveringMinePlan.stalledSites, 0);
+assert.equal(recoveringMinePlan.supplyEnRouteSites, 1);
+assert.equal(recoveringMinePlan.supplyEnRouteWorkers, 3);
 
 const townHallState = emptyGameState();
 const townHall = building('hall', 'town_hall', 1, 0, 0);
@@ -433,6 +465,8 @@ assert.match(serverReducer, /processor_input_kinds/);
 assert.match(serverReducer, /"clay_pit" => \(/);
 assert.match(serverReducer, /"mine" => \{/);
 assert.match(serverReducer, /fn mineral_source/);
+assert.match(serverReducer, /rich_mine_supports_ready/);
+assert.match(serverReducer, /CommodityKind::Timber/);
 assert.match(serverReducer, /SpatialBuckets::<Quarry>::new/);
 assert.match(serverReducer, /harvestable_wild_stock/);
 assert.match(deliveryTrips, /building_has_inbound_commodity_trip/);

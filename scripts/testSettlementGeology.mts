@@ -124,6 +124,7 @@ const buildings = [
     x: 300,
     z: 0,
     assignedLabor: 1,
+    timber: 1.5,
   }),
   makeBuilding({
     id: 'salt-mine-finite',
@@ -163,12 +164,12 @@ const state: GameState = {
 
 const plan = computeSettlementGeologyPlan(state, false);
 const baselineMineOutput = mineralMineOutputPerDay(
-  { assignedLabor: 1, ironwork: 0 },
+  { assignedLabor: 1, ironwork: 0, timber: 0 },
   deposits[4],
   false,
 );
 const maintainedMineOutput = mineralMineOutputPerDay(
-  { assignedLabor: 1, ironwork: 0.25 },
+  { assignedLabor: 1, ironwork: 0.25, timber: 0 },
   deposits[4],
   false,
 );
@@ -177,13 +178,22 @@ assert.ok(
   'maintained mine tools must multiply ordinary extraction without becoming a hard requirement',
 );
 const maintainedRichMineOutput = mineralMineOutputPerDay(
-  { assignedLabor: 1, ironwork: 0.25 },
+  { assignedLabor: 1, ironwork: 0.25, timber: 0.5 },
   deposits[5],
   false,
 );
 assert.ok(
   Math.abs(maintainedRichMineOutput / baselineMineOutput - 1.8) < 1e-9,
   'rich geology and maintained tool bonuses must multiply instead of replacing one another',
+);
+assert.equal(
+  mineralMineOutputPerDay(
+    { assignedLabor: 1, ironwork: 0.25, timber: 0 },
+    deposits[5],
+    false,
+  ),
+  0,
+  'a rich deep working must stop without one complete timber-support batch',
 );
 assert.deepEqual(
   [plan.stone.deposits, plan.clay.deposits, plan.iron.deposits, plan.salt.deposits],
@@ -205,6 +215,9 @@ assert.equal(plan.salt.finiteReserve, 50);
 assert.equal(plan.stone.activeDeepSources, 1);
 assert.equal(plan.clay.activeDeepSources, 1);
 assert.equal(plan.iron.activeDeepSources, 1);
+assert.equal(plan.iron.deepSourcesAwaitingSupports, 0);
+assert.equal(plan.iron.deepSupportRunwayCycles, 3);
+assert.ok(plan.iron.deepSupportTimberPerDay > 0);
 assert.equal(
   plan.salt.activeDeepSources,
   0,
@@ -222,6 +235,43 @@ assert.equal(
   geologicalFiniteRunwayDays(plan.iron),
   plan.iron.finiteReserve / plan.iron.finiteExtractionPerDay,
 );
+
+const deepIronMine = state.buildings.get('iron-mine-deep');
+assert.ok(deepIronMine);
+deepIronMine.timber = 0;
+const supportStarvedPlan = computeSettlementGeologyPlan(state, false);
+assert.equal(supportStarvedPlan.iron.activeDeepSources, 0);
+assert.equal(supportStarvedPlan.iron.deepExtractionPerDay, 0);
+assert.equal(supportStarvedPlan.iron.deepSourcesAwaitingSupports, 1);
+assert.equal(
+  supportStarvedPlan.iron.firstSupportBuildingId,
+  'iron-mine-deep',
+);
+state.deliveryTrips.set('mine-support-cart', {
+  id: 'mine-support-cart',
+  buildingId: 'lumber-mill-source',
+  residenceId: null,
+  destinationKind: 'building',
+  targetBuildingId: 'iron-mine-deep',
+  cargoKind: 'timber',
+  amount: 0.5,
+  phase: 'outbound',
+  x: 0,
+  z: 0,
+  progress: 0,
+  speedMps: 1,
+  unloadSeconds: 1,
+  unloadRemaining: 1,
+  deliveryWorkers: 1,
+  freeHaulerWorkers: 0,
+  pathDistance: 1,
+  travelSpeedMultiplier: 1,
+  routePolylineJson: '[]',
+});
+const inboundSupportedPlan = computeSettlementGeologyPlan(state, false);
+assert.equal(inboundSupportedPlan.iron.activeDeepSources, 1);
+assert.equal(inboundSupportedPlan.iron.deepSourcesAwaitingSupports, 0);
+assert.equal(inboundSupportedPlan.iron.deepSupportRunwayCycles, 1);
 
 const sabbathPlan = computeSettlementGeologyPlan(state, true);
 assert.ok(

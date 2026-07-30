@@ -25,6 +25,7 @@ import {
   type ProcessorInputCommodity,
   type ProcessorOutputTargetKind,
 } from './processorOutputPolicy.ts';
+import { richMineSupportsReady } from './mineSupportPolicy.ts';
 import {
   normalizeStaffingPriority,
   type StaffingPriority,
@@ -349,18 +350,33 @@ function clayPitStall(
 function mineralDepositState(
   building: BuildingState,
   quarryBuckets: ReadonlyMap<string, readonly ResourceNodeState[]>,
-): { resource: 'iron' | 'salt'; usable: boolean } | null {
+): { resource: 'iron' | 'salt'; usable: boolean; isRich: boolean } | null {
   for (const resource of ['iron', 'salt'] as const) {
-    const source = sourceStateWithinRadius(
+    const richSource = sourceStateWithinRadius(
       quarryBuckets,
       building.x,
       building.z,
       RICH_DEPOSIT_CENTER_TOLERANCE,
-      (deposit) => deposit.resource === resource,
-      (deposit) => deposit.isRich === true || deposit.remaining > 1e-6,
+      (deposit) => deposit.resource === resource && deposit.isRich === true,
+      () => true,
     );
-    if (source.relevant) {
-      return { resource, usable: source.usable };
+    if (richSource.relevant) {
+      return { resource, usable: true, isRich: true };
+    }
+    const ordinarySource = sourceStateWithinRadius(
+      quarryBuckets,
+      building.x,
+      building.z,
+      RICH_DEPOSIT_CENTER_TOLERANCE,
+      (deposit) => deposit.resource === resource && deposit.isRich !== true,
+      (deposit) => deposit.remaining > 1e-6,
+    );
+    if (ordinarySource.relevant) {
+      return {
+        resource,
+        usable: ordinarySource.usable,
+        isRich: false,
+      };
     }
   }
   return null;
@@ -370,7 +386,8 @@ function mineStall(
   building: BuildingState,
   quarryBuckets: ReadonlyMap<string, readonly ResourceNodeState[]>,
   hasActiveOriginTrip: boolean,
-): WorksiteStallSite | null {
+  inboundCargo?: ReadonlySet<DeliveryCargoKind>,
+): WorksiteStallSite | 'supply_en_route' | null {
   const source = mineralDepositState(building, quarryBuckets);
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
   const outputStock = source === null
@@ -408,6 +425,14 @@ function mineStall(
       ...base,
       reason: 'source_unavailable',
       detail: `finite ${source.resource} seam beneath the mine is exhausted`,
+    };
+  }
+  if (source.isRich && !richMineSupportsReady(building.timber)) {
+    if (inboundCargo?.has('timber') === true) return 'supply_en_route';
+    return {
+      ...base,
+      reason: 'input_empty',
+      detail: 'no deep-shaft support timber on site',
     };
   }
   return null;
@@ -643,7 +668,13 @@ export function computeSettlementOperationalProductionReadiness(
     } else if (building.kind === 'clay_pit') {
       ready = clayPitStall(building, false) === null;
     } else if (building.kind === 'mine') {
-      ready = mineStall(building, quarryBuckets, false) === null;
+      const stall = mineStall(
+        building,
+        quarryBuckets,
+        false,
+        inboundCargoByBuilding.get(building.id),
+      );
+      ready = stall === null || stall === 'supply_en_route';
     } else if (
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'
@@ -735,7 +766,12 @@ export function computeSettlementWorksiteStallPlan(
     } else if (building.kind === 'clay_pit') {
       stall = clayPitStall(building, activeOriginTrip);
     } else if (building.kind === 'mine') {
-      stall = mineStall(building, quarryBuckets, activeOriginTrip);
+      stall = mineStall(
+        building,
+        quarryBuckets,
+        activeOriginTrip,
+        inboundCargoByBuilding.get(building.id),
+      );
     } else if (
       building.kind === 'stone_quarry'
       || building.kind === 'large_quarry'

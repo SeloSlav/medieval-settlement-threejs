@@ -1,5 +1,8 @@
 import * as THREE from 'three';
-import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
+import {
+  BUILDING_STORAGE_CAPS,
+  MINE_TIMBER_SUPPORT_PER_CYCLE,
+} from '../generated/gameBalance.ts';
 import {
   CLAY_BANK_STRATA_VISUAL_SEGMENTS,
   clayBankSiteYieldAt,
@@ -16,6 +19,9 @@ export const STONE_QUARRY_STONE_VISUAL_SEGMENTS = 3;
 export const LARGE_QUARRY_STONE_VISUAL_SEGMENTS = 4;
 export const MINE_IRON_VISUAL_SEGMENTS = 6;
 export const MINE_SALT_VISUAL_SEGMENTS = 6;
+export const MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS = 4;
+export const MINE_SUPPORT_TIMBER_VISUAL_CAPACITY =
+  MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS * MINE_TIMBER_SUPPORT_PER_CYCLE;
 export const CLAY_PIT_CLAY_VISUAL_SEGMENTS = 5;
 export const CHARCOAL_BURNER_FIREWOOD_VISUAL_SEGMENTS = 3;
 export const CHARCOAL_BURNER_CHARCOAL_VISUAL_SEGMENTS = 5;
@@ -81,6 +87,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         building.ironwork ?? 0,
         BUILDING_STORAGE_CAPS.mine.ironwork ?? 0,
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
+      )}:supports:${stockpileVisualLevel(
+        building.timber,
+        MINE_SUPPORT_TIMBER_VISUAL_CAPACITY,
+        MINE_SUPPORT_TIMBER_VISUAL_SEGMENTS,
       )}`;
     case 'clay_pit':
       return `:bulk-store:${stockpileVisualLevel(
@@ -209,6 +219,13 @@ export function syncBulkStockpileVisuals(
         'SaltMineSaltSegment',
         building.salt ?? 0,
         BUILDING_STORAGE_CAPS.mine.salt,
+      );
+      syncNamedStockpile(
+        marker,
+        'MineSupportStockpile',
+        'MineSupportTimberSegment',
+        building.timber,
+        MINE_SUPPORT_TIMBER_VISUAL_CAPACITY,
       );
       syncCivilianToolStockpile(marker, building);
       break;

@@ -67,6 +67,7 @@ use crate::specialty_trade_policy::is_valid_specialty_export_policy;
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
 };
+use crate::supply_policy::rich_mine_supports_ready;
 use crate::tables::graveyard;
 use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
@@ -1003,20 +1004,30 @@ fn rich_stone_source_usable(building: &Building, buckets: &SpatialBuckets<Quarry
 fn mineral_source(
     building: &Building,
     buckets: &SpatialBuckets<Quarry>,
-) -> Option<(CommodityKind, bool)> {
+) -> Option<(CommodityKind, bool, bool)> {
     for (prefix, commodity) in [
         ("deposit-iron-", CommodityKind::Iron),
         ("deposit-salt-", CommodityKind::Salt),
     ] {
-        let source = buckets.source_state_within_radius(
+        let rich_source = buckets.source_state_within_radius(
             building.x,
             building.z,
             RICH_DEPOSIT_CENTER_TOLERANCE,
-            |deposit| deposit.quarry_id.starts_with(prefix),
-            |deposit| deposit.is_rich || deposit.remaining > 1e-6,
+            |deposit| deposit.quarry_id.starts_with(prefix) && deposit.is_rich,
+            |_| true,
         );
-        if source.relevant {
-            return Some((commodity, source.usable));
+        if rich_source.relevant {
+            return Some((commodity, true, true));
+        }
+        let ordinary_source = buckets.source_state_within_radius(
+            building.x,
+            building.z,
+            RICH_DEPOSIT_CENTER_TOLERANCE,
+            |deposit| deposit.quarry_id.starts_with(prefix) && !deposit.is_rich,
+            |deposit| deposit.remaining > 1e-6,
+        );
+        if ordinary_source.relevant {
+            return Some((commodity, ordinary_source.usable, false));
         }
     }
     None
@@ -1075,9 +1086,13 @@ fn production_site_ready(
             !commodity_output_blocked(building, CommodityKind::Clay)
                 && clay_source_usable(building, foraging_buckets)
         }
-        "mine" => mineral_source(building, quarry_buckets).is_some_and(|(commodity, usable)| {
-            usable && !commodity_output_blocked(building, commodity)
-        }),
+        "mine" => {
+            mineral_source(building, quarry_buckets).is_some_and(|(commodity, usable, is_rich)| {
+                usable
+                    && !commodity_output_blocked(building, commodity)
+                    && (!is_rich || rich_mine_supports_ready(building.timber))
+            })
+        }
         "stone_quarry" => {
             !commodity_output_blocked(building, CommodityKind::Stone)
                 && stone_source_usable(building, quarry_buckets)
@@ -1150,12 +1165,25 @@ pub fn recall_target_idle_processor_labor_for_owner(
             ),
             "mine" => {
                 let source = mineral_source(&building, &quarry_buckets);
-                let stalled = source.is_none_or(|(commodity, usable)| {
-                    !usable || commodity_output_blocked(&building, commodity)
-                });
+                let (stalled, supply_en_route) =
+                    source.map_or((true, false), |(commodity, usable, is_rich)| {
+                        let output_blocked = commodity_output_blocked(&building, commodity);
+                        let support_missing = is_rich && !rich_mine_supports_ready(building.timber);
+                        (
+                            !usable || output_blocked || support_missing,
+                            usable
+                                && !output_blocked
+                                && support_missing
+                                && building_has_inbound_commodity_trip(
+                                    ctx,
+                                    building.id,
+                                    CommodityKind::Timber,
+                                ),
+                        )
+                    });
                 (
                     stalled,
-                    false,
+                    supply_en_route,
                     building.iron > 1e-6 || building.salt > 1e-6 || has_active_trip,
                 )
             }

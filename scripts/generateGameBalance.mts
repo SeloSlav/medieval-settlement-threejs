@@ -492,6 +492,8 @@ export type GameBalance = {
     clayPitClayPerCycle: number;
     mineIronPerCycle: number;
     mineSaltPerCycle: number;
+    mineTimberSupportPerCycle: number;
+    mineTimberSupportBufferCycles: number;
     richMineThroughputMultiplier: number;
     charcoalBurnerFirewoodPerCycle: number;
     charcoalBurnerCharcoalPerCycle: number;
@@ -984,6 +986,8 @@ function generateRust(): string {
     `pub const CLAY_PIT_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.clayPitClayPerCycle)};`,
     `pub const MINE_IRON_PER_CYCLE: f64 = ${rustF64(b.production.mineIronPerCycle)};`,
     `pub const MINE_SALT_PER_CYCLE: f64 = ${rustF64(b.production.mineSaltPerCycle)};`,
+    `pub const MINE_TIMBER_SUPPORT_PER_CYCLE: f64 = ${rustF64(b.production.mineTimberSupportPerCycle)};`,
+    `pub const MINE_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = ${rustF64(b.production.mineTimberSupportBufferCycles)};`,
     `pub const RICH_MINE_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.production.richMineThroughputMultiplier)};`,
     `pub const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.charcoalBurnerFirewoodPerCycle)};`,
     `pub const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE: f64 = ${rustF64(b.production.charcoalBurnerCharcoalPerCycle)};`,
@@ -1782,6 +1786,8 @@ function generateTypeScript(): string {
     `export const CLAY_PIT_CLAY_PER_CYCLE = ${b.production.clayPitClayPerCycle};`,
     `export const MINE_IRON_PER_CYCLE = ${b.production.mineIronPerCycle};`,
     `export const MINE_SALT_PER_CYCLE = ${b.production.mineSaltPerCycle};`,
+    `export const MINE_TIMBER_SUPPORT_PER_CYCLE = ${b.production.mineTimberSupportPerCycle};`,
+    `export const MINE_TIMBER_SUPPORT_BUFFER_CYCLES = ${b.production.mineTimberSupportBufferCycles};`,
     `export const RICH_MINE_THROUGHPUT_MULTIPLIER = ${b.production.richMineThroughputMultiplier};`,
     `export const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE = ${b.production.charcoalBurnerFirewoodPerCycle};`,
     `export const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE = ${b.production.charcoalBurnerCharcoalPerCycle};`,

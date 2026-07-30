@@ -28,6 +28,7 @@ export function createMineralMineMesh(): THREE.Group {
   addOreSortingFloor(group);
   addMineralStockpile(group, 'iron');
   addMineralStockpile(group, 'salt');
+  addMineSupportStockpile(group);
   return group;
 }
 
@@ -116,5 +117,40 @@ function addMineralStockpile(
     }
     stockpile.add(segment);
   });
+  group.add(stockpile);
+}
+
+function addMineSupportStockpile(group: THREE.Group): void {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'MineSupportStockpile';
+  stockpile.visible = false;
+  stockpile.position.set(-7.4, 0, -5.1);
+  stockpile.rotation.y = -0.18;
+
+  for (let segmentIndex = 0; segmentIndex < 4; segmentIndex += 1) {
+    const segment = new THREE.Group();
+    segment.name = 'MineSupportTimberSegment';
+    segment.visible = false;
+    segment.position.set(
+      (segmentIndex % 2) * 3.15,
+      0,
+      Math.floor(segmentIndex / 2) * 1.15,
+    );
+    for (let beamIndex = 0; beamIndex < 3; beamIndex += 1) {
+      const beam = addMesh(
+        segment,
+        new THREE.BoxGeometry(2.75, 0.24, 0.3),
+        timberMaterial(beamIndex === 1 ? 'dark' : 'weathered'),
+        new THREE.Vector3(
+          0,
+          0.25 + beamIndex * 0.24,
+          (beamIndex - 1) * 0.12,
+        ),
+        new THREE.Euler(0, (beamIndex - 1) * 0.025, 0),
+      );
+      beam.name = 'Prepared shaft-support beam';
+    }
+    stockpile.add(segment);
+  }
   group.add(stockpile);
 }

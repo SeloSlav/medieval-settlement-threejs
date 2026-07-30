@@ -1742,6 +1742,7 @@ minePerfState.quarries.set(
 );
 for (let index = 0; index < 100_000; index += 1) {
   const mine = building(`mine-${index}`, 'mine', 1);
+  mine.timber = 0.5;
   minePerfState.buildings.set(mine.id, mine);
 }
 const mineLedgerStarted = performance.now();
@@ -2015,6 +2016,8 @@ assert.match(townHallRenderer, /Ironwork chain/);
 assert.match(townHallRenderer, /same-branch mines sustain/);
 assert.match(townHallRenderer, /road-local clay-backed kiln output/);
 assert.match(townHallRenderer, /Civilian tool upkeep/);
+assert.match(townHallRenderer, /deep workings need/);
+assert.match(townHallRenderer, /Inspect support/);
 
 console.log(
   `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${mineLedgerElapsedMs.toFixed(1)} ms for 100,000 physical mines; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${farmToolLedgerElapsedMs.toFixed(1)} ms farm-tool scan; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,

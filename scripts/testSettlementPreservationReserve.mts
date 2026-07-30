@@ -269,6 +269,7 @@ localSaltState.buildings.set(
   building('local-salt-smokehouse', 'smokehouse', 1),
 );
 const localSaltMine = building('local-salt-mine', 'mine', 4);
+localSaltMine.timber = 0.5;
 localSaltState.buildings.set(localSaltMine.id, localSaltMine);
 localSaltState.quarries.set(
   'local-rich-salt',
@@ -330,6 +331,7 @@ remoteSaltState.buildings.set(
 const remoteSaltMine = building('remote-salt-mine', 'mine', 4);
 remoteSaltMine.x = 100;
 remoteSaltMine.salt = 12;
+remoteSaltMine.timber = 0.5;
 remoteSaltState.buildings.set(remoteSaltMine.id, remoteSaltMine);
 remoteSaltState.quarries.set(
   'remote-rich-salt',

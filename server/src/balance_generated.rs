@@ -329,6 +329,8 @@ pub const SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE: f64 = 4.0;
 pub const CLAY_PIT_CLAY_PER_CYCLE: f64 = 4.0;
 pub const MINE_IRON_PER_CYCLE: f64 = 2.0;
 pub const MINE_SALT_PER_CYCLE: f64 = 2.5;
+pub const MINE_TIMBER_SUPPORT_PER_CYCLE: f64 = 0.5;
+pub const MINE_TIMBER_SUPPORT_BUFFER_CYCLES: f64 = 3.0;
 pub const RICH_MINE_THROUGHPUT_MULTIPLIER: f64 = 1.5;
 pub const CHARCOAL_BURNER_FIREWOOD_PER_CYCLE: f64 = 3.0;
 pub const CHARCOAL_BURNER_CHARCOAL_PER_CYCLE: f64 = 2.0;
@@ -1071,7 +1073,7 @@ const MINE: BuildingDef = BuildingDef {
     cost_timber: 60.0,
     cost_stone: 45.0,
     cost_ironwork: 4.0,
-    storage_timber: 0.0,
+    storage_timber: 12.0,
     storage_firewood: 0.0,
     storage_stone: 0.0,
     storage_water: 0.0,

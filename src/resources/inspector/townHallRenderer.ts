@@ -405,6 +405,22 @@ function formatGeologicalResourcePlan(
     : `${plan.activeDeepSources} / ${plan.richDeposits} rich deep ${
         plan.richDeposits === 1 ? 'source' : 'sources'
       } active`;
+  const deepSupport = (
+    (plan.resource === 'iron' || plan.resource === 'salt')
+    && plan.richDeposits > 0
+  )
+    ? ` &middot; deep workings need ${plan.deepSupportTimberPerDay.toFixed(1)} timber / day &middot; ${plan.deepSupportRunwayCycles.toFixed(1)} aggregate onsite + inbound support cycles${
+        plan.deepSourcesAwaitingSupports > 0
+          ? ` &middot; ${plan.deepSourcesAwaitingSupports} staffed ${
+              plan.deepSourcesAwaitingSupports === 1 ? 'shaft awaits' : 'shafts await'
+            } timber`
+          : ''
+      }${
+        plan.firstSupportBuildingId === null
+          ? ''
+          : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstSupportBuildingId}" aria-label="Inspect first rich mine awaiting timber supports">Inspect support</button>`
+      }`
+    : '';
   const extraction = `${plan.finiteExtractionPerDay.toFixed(1)} finite + ${
     plan.deepExtractionPerDay.toFixed(1)
   } deep output / day from ${plan.staffedExtractionSites} / ${
@@ -431,7 +447,7 @@ function formatGeologicalResourcePlan(
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${plan.firstAttentionBuildingId}" aria-label="Inspect shortest geological reserve runway">Inspect shortest</button>`;
   return `${plan.ordinaryDeposits} ordinary + ${plan.richDeposits} rich physical ${
     plan.deposits === 1 ? 'deposit' : 'deposits'
-  } &middot; ${reserveStatus} &middot; ${deepStatus} &middot; ${extraction}${demand}${exhausted}${inspect}`;
+  } &middot; ${reserveStatus} &middot; ${deepStatus}${deepSupport} &middot; ${extraction}${demand}${exhausted}${inspect}`;
 }
 
 function formatRoadProvisioning(plan: SettlementRoadProvisioning | null): string {

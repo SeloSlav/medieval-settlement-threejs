@@ -6,6 +6,7 @@ import {
   CLAY_PIT_CLAY_PER_CYCLE,
   MINE_IRON_PER_CYCLE,
   MINE_SALT_PER_CYCLE,
+  MINE_TIMBER_SUPPORT_PER_CYCLE,
   RICH_MINE_THROUGHPUT_MULTIPLIER,
   STONE_PER_HARVEST,
 } from '../generated/gameBalance.ts';
@@ -18,6 +19,10 @@ import type {
 } from '../resources/types.ts';
 import { civilianToolThroughputMultiplier } from './civilianToolPolicy.ts';
 import { clayBankYieldAt } from './clayBankPolicy.ts';
+import {
+  richMineSupportRunwayCycles,
+  richMineSupportsReady,
+} from './mineSupportPolicy.ts';
 
 export type GeologicalResource = 'stone' | 'clay' | 'iron' | 'salt';
 
@@ -34,6 +39,10 @@ export type GeologicalResourcePlan = {
   finiteExtractionPerDay: number;
   deepExtractionPerDay: number;
   activeDeepSources: number;
+  deepSupportTimberPerDay: number;
+  deepSupportRunwayCycles: number;
+  deepSourcesAwaitingSupports: number;
+  firstSupportBuildingId: string | null;
   firstAttentionBuildingId: string | null;
 };
 
@@ -121,6 +130,23 @@ export function computeSettlementGeologyPlan(
   const disabledBuildings = fireDisabledBuildingIds(
     state.fireIncidents?.values?.() ?? [],
   );
+  const inboundTimberByBuildingId = new Map<string, number>();
+  for (const trip of state.deliveryTrips.values()) {
+    if (
+      trip.destinationKind !== 'building'
+      || trip.targetBuildingId === null
+      || trip.cargoKind !== 'timber'
+      || trip.phase === 'inbound'
+      || trip.amount <= EPSILON
+    ) {
+      continue;
+    }
+    inboundTimberByBuildingId.set(
+      trip.targetBuildingId,
+      (inboundTimberByBuildingId.get(trip.targetBuildingId) ?? 0)
+        + trip.amount,
+    );
+  }
   for (const building of state.buildings.values()) {
     if (
       building.constructionComplete === false
@@ -239,10 +265,30 @@ export function computeSettlementGeologyPlan(
       plan.blockedFiniteBuildingId ??= building.id;
       continue;
     }
+    const inboundTimber = inboundTimberByBuildingId.get(building.id) ?? 0;
+    if (deposit.isRich) {
+      const installedCycles = mineralMineCyclesPerDay(
+        building,
+        sabbathObserved,
+        true,
+      );
+      plan.deepSupportTimberPerDay +=
+        installedCycles * MINE_TIMBER_SUPPORT_PER_CYCLE;
+      plan.deepSupportRunwayCycles += richMineSupportRunwayCycles(
+        building.timber,
+        inboundTimber,
+      );
+      if (!richMineSupportsReady(building.timber, inboundTimber)) {
+        plan.deepSourcesAwaitingSupports += 1;
+        plan.firstSupportBuildingId ??= building.id;
+        continue;
+      }
+    }
     const rate = mineralMineOutputPerDay(
       building,
       deposit,
       sabbathObserved,
+      inboundTimber,
     );
     if (deposit.isRich) {
       plan.activeDeepSources += 1;
@@ -289,9 +335,10 @@ export function mineralDepositBeneath(
 }
 
 export function mineralMineOutputPerDay(
-  building: Pick<BuildingState, 'assignedLabor' | 'ironwork'>,
+  building: Pick<BuildingState, 'assignedLabor' | 'ironwork' | 'timber'>,
   deposit: Pick<ResourceNodeState, 'resource' | 'remaining' | 'isRich'>,
   sabbathObserved: boolean,
+  inboundTimber = 0,
 ): number {
   if (
     (deposit.resource !== 'iron' && deposit.resource !== 'salt')
@@ -299,16 +346,34 @@ export function mineralMineOutputPerDay(
   ) {
     return 0;
   }
+  if (
+    deposit.isRich
+    && !richMineSupportsReady(building.timber, inboundTimber)
+  ) {
+    return 0;
+  }
   const batch = deposit.resource === 'iron'
     ? MINE_IRON_PER_CYCLE
     : MINE_SALT_PER_CYCLE;
+  return mineralMineCyclesPerDay(
+    building,
+    sabbathObserved,
+    deposit.isRich === true,
+  ) * batch;
+}
+
+function mineralMineCyclesPerDay(
+  building: Pick<BuildingState, 'assignedLabor' | 'ironwork'>,
+  sabbathObserved: boolean,
+  isRich: boolean,
+): number {
   return cyclesPerCalendarDay(
     'mine',
     building.assignedLabor,
     sabbathObserved,
-    (deposit.isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1)
+    (isRich ? RICH_MINE_THROUGHPUT_MULTIPLIER : 1)
       * civilianToolThroughputMultiplier(building.ironwork ?? 0),
-  ) * batch;
+  );
 }
 
 function emptyResourcePlan(
@@ -327,6 +392,10 @@ function emptyResourcePlan(
     finiteExtractionPerDay: 0,
     deepExtractionPerDay: 0,
     activeDeepSources: 0,
+    deepSupportTimberPerDay: 0,
+    deepSupportRunwayCycles: 0,
+    deepSourcesAwaitingSupports: 0,
+    firstSupportBuildingId: null,
     firstAttentionBuildingId: null,
     finiteRatesByDeposit: new Map(),
     finiteBuildingsByDeposit: new Map(),
