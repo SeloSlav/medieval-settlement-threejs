@@ -78,6 +78,10 @@ import {
   CLAY_BANK_LEAN_YIELD_THRESHOLD,
   clayBankYieldAt,
 } from './clayBankPolicy.ts';
+import {
+  mineralDepositBeneath,
+  mineralMineOutputPerDay,
+} from './settlementGeology.ts';
 import { weaverUsesFlax } from './weaverInputPolicy.ts';
 
 export type SettlementProductionCapacity = {
@@ -216,6 +220,10 @@ export type IndustrialMaterialPlan = {
   charcoalFirewoodPerDay: number;
   smithyInstalledIronworkPerDay: number;
   ironworkOutputPerDay: number;
+  localIronOutputPerDay: number;
+  localIronConsumedPerDay: number;
+  ironImportDemandPerDay: number;
+  localIronStrandedPerDay: number;
   smithyIronPerDay: number;
   smithyCharcoalPerDay: number;
   maintainedToolIronworkPerDay: number;
@@ -325,6 +333,7 @@ type IndustrialMaterialBranch = {
   householdPotteryDemandPerDay: number;
   charcoalOutputPerDay: number;
   charcoalFirewoodPerDay: number;
+  localIronOutputPerDay: number;
   smithyIronworkPerDay: number;
   smithyIronPerDay: number;
   smithyCharcoalPerDay: number;
@@ -336,6 +345,7 @@ type IndustrialMaterialBranch = {
   firstSmokehouseId: string | null;
   firstResidenceId: string | null;
   firstCharcoalId: string | null;
+  firstIronMineId: string | null;
   firstSmithyId: string | null;
   firstToolSiteId: string | null;
 };
@@ -385,6 +395,7 @@ function industrialMaterialBranchByKey(
     householdPotteryDemandPerDay: 0,
     charcoalOutputPerDay: 0,
     charcoalFirewoodPerDay: 0,
+    localIronOutputPerDay: 0,
     smithyIronworkPerDay: 0,
     smithyIronPerDay: 0,
     smithyCharcoalPerDay: 0,
@@ -396,6 +407,7 @@ function industrialMaterialBranchByKey(
     firstSmokehouseId: null,
     firstResidenceId: null,
     firstCharcoalId: null,
+    firstIronMineId: null,
     firstSmithyId: null,
     firstToolSiteId: null,
   };
@@ -1208,6 +1220,30 @@ function completedProcessorOverview(
         );
         break;
       }
+      case 'mine': {
+        const deposit = mineralDepositBeneath(
+          building,
+          state.quarries.values(),
+        );
+        if (deposit?.resource !== 'iron') break;
+        const outputPerDay = mineralMineOutputPerDay(
+          building,
+          deposit,
+          sabbathObserved,
+        );
+        if (outputPerDay <= 1e-9) break;
+        const branch = industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        );
+        branch.localIronOutputPerDay += outputPerDay;
+        branch.firstIronMineId = earlierStableId(
+          branch.firstIronMineId,
+          building.id,
+        );
+        break;
+      }
       case 'potter_kiln': {
         potterWorkers += building.assignedLabor;
         const cycles = potterCyclesPerWorker * building.assignedLabor;
@@ -1372,6 +1408,10 @@ function industrialMaterialRoadPlan(
   let charcoalFirewoodPerDay = 0;
   let smithyInstalledIronworkPerDay = 0;
   let ironworkOutputPerDay = 0;
+  let localIronOutputPerDay = 0;
+  let localIronConsumedPerDay = 0;
+  let ironImportDemandPerDay = 0;
+  let localIronStrandedPerDay = 0;
   let smithyIronPerDay = 0;
   let smithyCharcoalPerDay = 0;
   let roadCoveredToolIronworkPerDay = 0;
@@ -1388,6 +1428,7 @@ function industrialMaterialRoadPlan(
       || branch.potterOutputPerDay > 1e-9
       || branchPotteryDemand > 1e-9;
     const hasSmithyActivity = branch.charcoalOutputPerDay > 1e-9
+      || branch.localIronOutputPerDay > 1e-9
       || branch.smithyIronworkPerDay > 1e-9
       || branch.fullToolIronworkPerDay > 1e-9;
     if (hasPotteryActivity || hasSmithyActivity) {
@@ -1399,6 +1440,7 @@ function industrialMaterialRoadPlan(
     potteryDemandPerDay += branchPotteryDemand;
     charcoalOutputPerDay += branch.charcoalOutputPerDay;
     charcoalFirewoodPerDay += branch.charcoalFirewoodPerDay;
+    localIronOutputPerDay += branch.localIronOutputPerDay;
     smithyInstalledIronworkPerDay += branch.smithyIronworkPerDay;
 
     const claySupportedPottery = branch.clayOutputPerDay
@@ -1473,13 +1515,34 @@ function industrialMaterialRoadPlan(
     const charcoalSupportedIronwork = branch.charcoalOutputPerDay
       * SMITHY_IRONWORK_PER_CYCLE
       / SMITHY_CHARCOAL_PER_CYCLE;
-    const branchIronworkOutput = branch.hasStaffedMarket
-      ? Math.min(branch.smithyIronworkPerDay, charcoalSupportedIronwork)
-      : 0;
-    ironworkOutputPerDay += branchIronworkOutput;
-    smithyIronPerDay += branchIronworkOutput
+    const localIronSupportedIronwork = branch.localIronOutputPerDay
+      * SMITHY_IRONWORK_PER_CYCLE
+      / SMITHY_IRON_PER_CYCLE;
+    const branchIronworkOutput = Math.min(
+      branch.smithyIronworkPerDay,
+      charcoalSupportedIronwork,
+      branch.hasStaffedMarket
+        ? Number.POSITIVE_INFINITY
+        : localIronSupportedIronwork,
+    );
+    const branchIronUse = branchIronworkOutput
       * SMITHY_IRON_PER_CYCLE
       / SMITHY_IRONWORK_PER_CYCLE;
+    const branchLocalIronConsumed = Math.min(
+      branch.localIronOutputPerDay,
+      branchIronUse,
+    );
+    ironworkOutputPerDay += branchIronworkOutput;
+    smithyIronPerDay += branchIronUse;
+    localIronConsumedPerDay += branchLocalIronConsumed;
+    ironImportDemandPerDay += Math.max(
+      0,
+      branchIronUse - branchLocalIronConsumed,
+    );
+    localIronStrandedPerDay += Math.max(
+      0,
+      branch.localIronOutputPerDay - branchLocalIronConsumed,
+    );
     smithyCharcoalPerDay += branchIronworkOutput
       * SMITHY_CHARCOAL_PER_CYCLE
       / SMITHY_IRONWORK_PER_CYCLE;
@@ -1501,13 +1564,15 @@ function industrialMaterialRoadPlan(
     const smithyBlocked = (
       branch.smithyIronworkPerDay > branchIronworkOutput + 1e-9
       || (branch.charcoalOutputPerDay > 1e-9 && branch.smithyIronworkPerDay <= 1e-9)
+      || (branch.localIronOutputPerDay > 1e-9 && branch.smithyIronworkPerDay <= 1e-9)
       || branch.fullToolIronworkPerDay > branchIronworkOutput + 1e-9
     );
     if (smithyBlocked) {
       smithyBlockedBranches += 1;
       const candidate = branch.firstSmithyId
         ?? branch.firstToolSiteId
-        ?? branch.firstCharcoalId;
+        ?? branch.firstCharcoalId
+        ?? branch.firstIronMineId;
       if (candidate !== null) {
         firstSmithyBottleneckId = earlierStableId(
           firstSmithyBottleneckId,
@@ -1550,6 +1615,10 @@ function industrialMaterialRoadPlan(
     charcoalFirewoodPerDay,
     smithyInstalledIronworkPerDay,
     ironworkOutputPerDay,
+    localIronOutputPerDay,
+    localIronConsumedPerDay,
+    ironImportDemandPerDay,
+    localIronStrandedPerDay,
     smithyIronPerDay,
     smithyCharcoalPerDay,
     maintainedToolIronworkPerDay: overview.maintainedToolIronworkPerDay,

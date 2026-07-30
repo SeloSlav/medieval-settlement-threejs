@@ -23,6 +23,7 @@ import {
   type BuildingState,
   type FarmFieldState,
   type GameState,
+  type ResourceNodeState,
   type ResidenceState,
 } from '../src/resources/types.ts';
 import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
@@ -278,12 +279,66 @@ assert.ok(
     > joinedMaterials.maintainedToolIronworkPerDay,
 );
 assert.ok(joinedMaterials.ironworkOutputPerDay > 0);
+assert.equal(joinedMaterials.localIronOutputPerDay, 0);
+approx(
+  joinedMaterials.ironImportDemandPerDay,
+  joinedMaterials.smithyIronPerDay,
+  'a market-backed forge without a local mine must expose its full raw-iron import need',
+);
 approx(
   joinedMaterials.roadCoveredToolIronworkPerDay,
   joinedMaterials.maintainedToolIronworkPerDay,
   'same-branch smithing should cover the currently maintained tool racks',
 );
 assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
+
+const localForgeState = emptyGameState();
+const localIronMine = building('local-iron-mine', 'mine', 1);
+const localCharcoal = building('local-charcoal', 'charcoal_burner', 1);
+const localSmithy = building('local-smithy', 'smithy', 1);
+localCharcoal.firewood = 36;
+for (const candidate of [localIronMine, localCharcoal, localSmithy]) {
+  localForgeState.buildings.set(candidate.id, candidate);
+}
+localForgeState.quarries.set(
+  'deposit-iron-ordinary-local',
+  mineralDeposit(
+    'deposit-iron-ordinary-local',
+    'iron',
+    0,
+    300,
+    300,
+  ),
+);
+const localForge = computeSettlementProductionCapacity(
+  localForgeState,
+  false,
+  () => 'local-forge',
+).industrialMaterials;
+assert.ok(
+  localForge.localIronOutputPerDay > 0,
+  'a staffed mine on a physical iron deposit must enter the material forecast',
+);
+assert.ok(
+  localForge.ironworkOutputPerDay > 0,
+  'same-branch ore, charcoal, and smithing must sustain ironwork without an import market',
+);
+assert.equal(localForge.smithyMatchedBranches, 1);
+assert.equal(localForge.ironImportDemandPerDay, 0);
+assert.ok(localForge.localIronConsumedPerDay > 0);
+
+const disconnectedLocalForge = computeSettlementProductionCapacity(
+  localForgeState,
+  false,
+  (candidate) => candidate.id === localIronMine.id ? 'mine-road' : 'forge-road',
+).industrialMaterials;
+assert.equal(
+  disconnectedLocalForge.ironworkOutputPerDay,
+  0,
+  'a mine on another road branch must not supply the forge in the forecast',
+);
+assert.ok(disconnectedLocalForge.localIronStrandedPerDay > 0);
+assert.ok(disconnectedLocalForge.smithyBlockedBranches >= 1);
 
 const materialField = materialState.farmFields.get('material-field');
 assert.ok(materialField);
@@ -1602,6 +1657,34 @@ assert.ok(
   `100,000-building road-branch ledger took ${branchedElapsedMs.toFixed(1)} ms`,
 );
 
+const minePerfState = emptyGameState();
+minePerfState.quarries.set(
+  'deposit-iron-rich-performance',
+  mineralDeposit(
+    'deposit-iron-rich-performance',
+    'iron',
+    0,
+    0,
+    900,
+    true,
+  ),
+);
+for (let index = 0; index < 100_000; index += 1) {
+  const mine = building(`mine-${index}`, 'mine', 1);
+  minePerfState.buildings.set(mine.id, mine);
+}
+const mineLedgerStarted = performance.now();
+const mineLedger = computeSettlementProductionCapacity(
+  minePerfState,
+  false,
+).industrialMaterials;
+const mineLedgerElapsedMs = performance.now() - mineLedgerStarted;
+assert.ok(mineLedger.localIronOutputPerDay > 0);
+assert.ok(
+  mineLedgerElapsedMs < 200,
+  `100,000-mine material ledger took ${mineLedgerElapsedMs.toFixed(1)} ms`,
+);
+
 for (let index = 0; index < 100_000; index += 1) {
   perfState.deliveryTrips.set(
     `grain-trip-${index}`,
@@ -1858,10 +1941,12 @@ const townHallRenderer = readFileSync(
 assert.match(townHallRenderer, /Material-chain roads/);
 assert.match(townHallRenderer, /Pottery chain/);
 assert.match(townHallRenderer, /Ironwork chain/);
+assert.match(townHallRenderer, /same-branch mines sustain/);
+assert.match(townHallRenderer, /road-local clay-backed kiln output/);
 assert.match(townHallRenderer, /Civilian tool upkeep/);
 
 console.log(
-  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${farmToolLedgerElapsedMs.toFixed(1)} ms farm-tool scan; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,
+  `settlement production tests passed (${elapsedMs.toFixed(1)} ms for 100,000 buildings; ${branchedElapsedMs.toFixed(1)} ms with 200 road branches; ${mineLedgerElapsedMs.toFixed(1)} ms for 100,000 physical mines; ${timedProductionElapsedMs.toFixed(1)} ms for 100,000 buildings + timed carts; ${grainPerfElapsedMs.toFixed(1)} ms for 100,000 buildings + grain carts; ${aggregationElapsedMs.toFixed(1)} ms for 100,000 fields; ${farmToolLedgerElapsedMs.toFixed(1)} ms farm-tool scan; ${procurementPerfElapsedMs.toFixed(1)} ms for 100,000 markets; ${seedTopologyElapsedMs.toFixed(1)} ms for road-matched seed recovery)`,
 );
 
 function approx(actual: number, expected: number, message?: string): void {
@@ -1937,6 +2022,26 @@ function residence(id: string, population: number): ResidenceState {
     },
     abandoned: false,
     householdWealth: 0,
+  };
+}
+
+function mineralDeposit(
+  nodeId: string,
+  resource: 'iron' | 'salt',
+  x: number,
+  remaining: number,
+  maxYield: number,
+  isRich = false,
+): ResourceNodeState {
+  return {
+    nodeId,
+    kind: 'quarry',
+    resource,
+    remaining,
+    maxYield,
+    x,
+    z: 0,
+    isRich,
   };
 }
 
