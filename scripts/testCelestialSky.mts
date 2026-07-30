@@ -97,6 +97,10 @@ map.dispose();
 const placeholder = createCelestialStarMapPlaceholder();
 const placeholderUuid = placeholder.uuid;
 const placeholderVersion = placeholder.version;
+let placeholderDisposals = 0;
+placeholder.addEventListener('dispose', () => {
+  placeholderDisposals += 1;
+});
 const loadedPixels = new Uint8Array([
   10, 20, 30, 40,
   50, 60, 70, 80,
@@ -116,6 +120,11 @@ loadedMap.flipY = false;
 loadedMap.colorSpace = THREE.NoColorSpace;
 loadedMap.userData.catalogEpoch = CELESTIAL_SKY_EPOCH;
 hydrateCelestialStarMapTexture(placeholder, loadedMap);
+assert.equal(
+  placeholderDisposals,
+  1,
+  'hydration must release the placeholder GPU allocation before changing texture dimensions',
+);
 assert.equal(
   placeholder.uuid,
   placeholderUuid,

@@ -34,6 +34,12 @@ export function hydrateCelestialStarMapTexture(
   target: THREE.DataTexture,
   source: THREE.DataTexture,
 ): void {
+  // WebGPU allocates the placeholder's first 1x1 upload as a physical GPU
+  // texture. Release that allocation before changing dimensions; otherwise a
+  // later needsUpdate attempts to write the 2048x1024 catalogue into the old
+  // 1x1 resource. dispose() keeps the Texture object (and shader binding)
+  // intact while making both renderer backends recreate its backing resource.
+  target.dispose();
   target.name = source.name;
   target.image = source.image;
   target.mapping = source.mapping;
