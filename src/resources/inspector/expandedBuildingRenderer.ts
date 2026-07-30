@@ -978,6 +978,12 @@ export function renderExpandedBuildingInspector(
           : 'warning' as const,
       }
     : building.kind === 'clay_pit'
+      && clayDepositResource === null
+      ? {
+          statusText: 'Stopped - no physical clay deposit beneath this pit',
+          statusState: 'warning' as const,
+        }
+    : building.kind === 'clay_pit'
       && clayDepositExhausted
       ? {
           statusText: 'Ordinary clay bank exhausted · relocate the pit or develop a rich deep bank',

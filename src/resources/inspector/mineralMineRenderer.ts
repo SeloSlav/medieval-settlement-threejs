@@ -107,22 +107,24 @@ export function renderMineralMineInspector(
         ? `Exhausted - finite ${resource} seam is spent`
         : targetReached
           ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
-          : onsiteLabor === 0
-            ? building.assignedLabor > 0
-              ? 'Extraction paused - the full roster is away with its cart'
-              : 'Idle - assign miners'
-            : !onsiteSupportReady
-              ? supportRecovering
-                ? `Waiting - timber supports are approaching the rich deep ${resource} shaft`
-                : `Stopped - rich deep ${resource} shaft awaits timber supports`
-            : deposit.isRich
-              ? `Extracting rich deep ${resource} - source does not deplete`
-              : `Extracting finite ${resource} seam - ${Math.round(deposit.remaining)} reserve remains`,
+          : !onsiteSupportReady
+            ? supportRecovering
+              ? `Waiting - timber supports are approaching the rich deep ${resource} shaft`
+              : `Stopped - rich deep ${resource} shaft awaits timber supports`
+            : onsiteLabor === 0
+              ? building.assignedLabor > 0
+                ? 'Extraction paused - the full roster is away with its cart'
+                : 'Idle - assign miners'
+              : deposit.isRich
+                ? `Extracting rich deep ${resource} - source does not deplete`
+                : `Extracting finite ${resource} seam - ${Math.round(deposit.remaining)} reserve remains`,
     statusState: active
       ? 'active'
-      : sourceUsable && (onsiteSupportReady || supportRecovering)
+      : targetReached
         ? 'idle'
-        : 'warning',
+        : sourceUsable && (onsiteSupportReady || supportRecovering)
+          ? 'idle'
+          : 'warning',
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       <li><span>Physical source</span><span>${

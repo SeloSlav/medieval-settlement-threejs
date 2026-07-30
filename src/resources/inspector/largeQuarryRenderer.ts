@@ -68,24 +68,26 @@ export function renderLargeQuarryInspector(
   return {
     eyebrow: 'Deep stone quarry',
     title: context.worldQueries.getBuildingLabel(building.kind),
-    statusText: onsiteLabor === 0
-      ? building.assignedLabor > 0
-        ? 'Extraction paused - the full roster is away with its cart'
-        : 'Idle - assign workers to the underground quarry'
-      : targetReached
-        ? `Paused - stone yard target reached (${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)})`
-        : !richDeposit
-          ? 'Stopped — no rich underground source beneath the shaft'
-          : !onsiteSupportsReady
-            ? supportsRecovering
-              ? 'Waiting — prepared chamber supports are approaching'
-              : 'Stopped — deep chambers await prepared timber supports'
+    statusText: targetReached
+      ? `Paused - stone yard target reached (${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)})`
+      : !richDeposit
+        ? 'Stopped — no rich underground source beneath the shaft'
+        : !onsiteSupportsReady
+          ? supportsRecovering
+            ? 'Waiting — prepared chamber supports are approaching'
+            : 'Stopped — deep chambers await prepared timber supports'
+          : onsiteLabor === 0
+            ? building.assignedLabor > 0
+              ? 'Extraction paused - the full roster is away with its cart'
+              : 'Idle - assign workers to the underground quarry'
             : 'Extracting from the non-depleting underground source',
     statusState: active
       ? 'active'
-      : richDeposit != null && (onsiteSupportsReady || supportsRecovering)
+      : targetReached
         ? 'idle'
-        : 'warning',
+        : richDeposit == null || (!onsiteSupportsReady && !supportsRecovering)
+          ? 'warning'
+          : 'idle',
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${civilianToolRows(building)}
@@ -98,7 +100,7 @@ export function renderLargeQuarryInspector(
       } / ${LARGE_QUARRY_SUPPORT_TARGET.toFixed(2)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
       <li><span>Support wear</span><span>${LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE.toFixed(2)} timber per completed stone batch · nearest road-linked lumber mill or village storehouse supplies it</span></li>
       <li><span>Yard ceiling</span><span>${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)} stone · ${outputHeadroom.toFixed(0)} headroom</span></li>
-      <li><span>Production interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
+      <li><span>Production interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind)}
     `,

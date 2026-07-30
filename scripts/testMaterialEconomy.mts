@@ -1009,6 +1009,11 @@ assert.match(
 assert.match(clayPitStep, /fn clay_bank_yield_multiplier_at_deposit/);
 assert.match(buildingToolSource, /geological clay yield before weather and iron tools/);
 assert.match(expandedInspectorSource, /Clay seam[\s\S]*Current digging pace/);
+assert.match(
+  expandedInspectorSource,
+  /Stopped - no physical clay deposit beneath this pit/,
+  'a missing clay source must remain visible even after its crew is released',
+);
 assert.match(townHallSource, /average geological yield across active pits/);
 const caravanIndex = simulationReducerSource.indexOf('step_marketplace_caravans(');
 const seedDistributionIndex = simulationReducerSource.indexOf(

@@ -246,6 +246,65 @@ assert.match(
   /Ale output room<\/span><span>0\.0 cycles · ale before 50 target/,
 );
 
+const recalledCappedBrewery = {
+  ...cappedBrewery,
+  id: 'brewery-capped-recalled',
+  assignedLabor: 0,
+};
+assert.equal(
+  getBuildingProcessorStatus(recalledCappedBrewery, noWellQueries)?.statusText,
+  'Ale target reached — malting and brewing paused',
+  'a released crew must not hide the output ceiling that prevents useful work',
+);
+
+const recalledCappedClayPit = makeBuilding({
+  id: 'clay-pit-capped-recalled',
+  kind: 'clay_pit',
+  x: 0,
+  z: 0,
+  assignedLabor: 0,
+  processorOutputTargetPercent: 25,
+  clay: 45,
+});
+assert.equal(
+  getBuildingProcessorStatus(recalledCappedClayPit, noWellQueries)?.statusText,
+  'Output target reached — production paused',
+  'a target-held clay yard should ask for cart headroom rather than more diggers',
+);
+
+const recalledCappedWeaver = makeBuilding({
+  id: 'weaver-capped-recalled',
+  kind: 'weaver',
+  x: 0,
+  z: 0,
+  assignedLabor: 0,
+  processorOutputTargetPercent: 25,
+  cloth: 22.5,
+});
+assert.equal(
+  getBuildingProcessorStatus(recalledCappedWeaver, noWellQueries)?.statusText,
+  'Cloth target reached - weaving paused',
+  'processor target feedback should survive labor-steward recall',
+);
+
+const recalledFullLumberMill = makeBuilding({
+  id: 'lumber-full-recalled',
+  kind: 'lumber_mill',
+  x: 0,
+  z: 0,
+  assignedLabor: 0,
+  timber: 240,
+});
+assert.match(
+  getBuildingProcessorStatus(
+    recalledFullLumberMill,
+    noWellQueries,
+    { matureTrees: 12 },
+  )?.statusText ?? '',
+  /Storage full/,
+  'a full timber yard should ask for hauling space rather than a new crew',
+);
+
 const partialBrewery = makeBuilding({
   id: 'brewery-partial',
   kind: 'brewery',
@@ -333,6 +392,25 @@ assert.equal(
 assert.equal(
   getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusState,
   'warning',
+);
+
+assert.match(
+  getBuildingProcessorStatus(
+    { ...apiary, id: 'apiary-winter-recalled', assignedLabor: 0 },
+    noWellQueries,
+    { month: 1 },
+  )?.statusText ?? '',
+  /resumes in April/,
+  'an out-of-season holding should explain the calendar before suggesting labor',
+);
+assert.equal(
+  getBuildingProcessorStatus(
+    { ...fullApiary, id: 'apiary-full-recalled', assignedLabor: 0 },
+    noWellQueries,
+    { month: 4 },
+  )?.statusText,
+  'Seasonal work waiting - honey store needs 1.0 more room',
+  'a released seasonal crew must not hide a full physical output store',
 );
 
 const vineyard = makeBuilding({

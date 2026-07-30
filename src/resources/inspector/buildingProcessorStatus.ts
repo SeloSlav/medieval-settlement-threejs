@@ -348,8 +348,15 @@ function buildProcessorStatus(
 
   const processorDetailHtml = waterDetailHtml
     + formatProcessorInputBufferRow(building, profile);
+  const outputAtLimit = profile.output
+    ? isOutputAtLimit(building, building.kind, profile.output)
+    : false;
 
-  if (profile.requiresLabor && onsiteLabor === 0) {
+  if (
+    profile.requiresLabor
+    && onsiteLabor === 0
+    && !outputAtLimit
+  ) {
     return {
       statusText: building.assignedLabor > 0
         ? 'Work paused - the full roster is away with its cart'
@@ -359,7 +366,7 @@ function buildProcessorStatus(
     };
   }
 
-  if (profile.output && isOutputAtLimit(building, building.kind, profile.output)) {
+  if (outputAtLimit) {
     return {
       statusText: 'Output target reached — production paused',
       statusState: 'idle',
@@ -470,8 +477,9 @@ function getBreweryStatus(
     <li><span>Process design</span><span>One malting cycle + one brewing cycle per ale batch</span></li>
   `;
   const detailHtml = waterDetailHtml + processRows;
+  const outputAtLimit = isOutputAtLimit(building, 'brewery', 'ale');
 
-  if (onsiteLabor === 0) {
+  if (onsiteLabor === 0 && !outputAtLimit) {
     return {
       statusText: building.assignedLabor > 0
         ? 'Work paused - the full roster is away with its cart'
@@ -480,7 +488,7 @@ function getBreweryStatus(
       waterDetailHtml: detailHtml,
     };
   }
-  if (isOutputAtLimit(building, 'brewery', 'ale')) {
+  if (outputAtLimit) {
     return {
       statusText: 'Ale target reached — malting and brewing paused',
       statusState: 'idle',
@@ -553,7 +561,8 @@ function getWeaverStatus(
     <li><span>Alternative input</span><span>${usesFlax ? `${Math.max(0, building.wool ?? 0).toFixed(1)} wool` : `${Math.max(0, building.flax ?? 0).toFixed(1)} flax + ${Math.max(0, building.water).toFixed(1)} water`} onsite</span></li>
     <li><span>Cloth yield</span><span>${WEAVER_CLOTH_PER_CYCLE.toFixed(1)} per completed cycle</span></li>
   `;
-  if (onsiteLabor === 0) {
+  const outputAtLimit = isOutputAtLimit(building, 'weaver', 'cloth');
+  if (onsiteLabor === 0 && !outputAtLimit) {
     return {
       statusText: building.assignedLabor > 0
         ? 'Work paused - the full roster is away with its cart'
@@ -562,7 +571,7 @@ function getWeaverStatus(
       waterDetailHtml: detailHtml,
     };
   }
-  if (isOutputAtLimit(building, 'weaver', 'cloth')) {
+  if (outputAtLimit) {
     return {
       statusText: 'Cloth target reached - weaving paused',
       statusState: 'idle',
@@ -607,7 +616,7 @@ function getLumberMillStatus(
     'None — timber is air-seasoned',
   );
 
-  if (onsiteLabor === 0) {
+  if (onsiteLabor === 0 && !storageFull && matureTrees > 0) {
     return {
       statusText: building.assignedLabor > 0
         ? 'Harvest paused - the full roster is away with its cart'
@@ -806,7 +815,13 @@ function getSeasonalProducerStatus(
   month: number | undefined,
   onsiteLabor: number,
 ): BuildingProcessorStatus {
-  if (onsiteLabor === 0) {
+  const season = month == null ? null : specialtySeasonStatus(building.kind, month);
+  const outputBlocker = seasonalProducerOutputBlocker(building);
+  if (
+    onsiteLabor === 0
+    && !(season && !season.active)
+    && outputBlocker === null
+  ) {
     return {
       statusText: building.assignedLabor > 0
         ? 'Seasonal work paused - the full roster is away with its cart'
@@ -817,7 +832,6 @@ function getSeasonalProducerStatus(
       waterDetailHtml: '',
     };
   }
-  const season = month == null ? null : specialtySeasonStatus(building.kind, month);
   if (season && !season.active) {
     return {
       statusText: season.label,
@@ -825,7 +839,6 @@ function getSeasonalProducerStatus(
       waterDetailHtml: '',
     };
   }
-  const outputBlocker = seasonalProducerOutputBlocker(building);
   if (outputBlocker) {
     return {
       statusText: `Seasonal work waiting - ${outputBlocker.label.toLowerCase()} store needs ${outputBlocker.missingRoom.toFixed(1)} more room`,

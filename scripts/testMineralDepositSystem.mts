@@ -38,6 +38,7 @@ import {
 import { buildLayoutWorldMapMarkers } from '../src/map/worldMapMarkers.ts';
 import { renderMineralMineInspector } from '../src/resources/inspector/mineralMineRenderer.ts';
 import { renderLargeQuarryInspector } from '../src/resources/inspector/largeQuarryRenderer.ts';
+import { renderStoneQuarryInspector } from '../src/resources/inspector/stoneQuarryRenderer.ts';
 import type { InspectorRenderContext } from '../src/resources/inspector/renderInspectableTarget.ts';
 import {
   computePopulationStats,
@@ -489,6 +490,33 @@ mineInspector = renderMineralMineInspector(
 assert.equal(mineInspector.eyebrow, 'Rich salt mine');
 assert.match(mineInspector.statusText, /awaits timber supports/);
 assert.match(mineInspector.detailsHtml, /0.0 onsite \/ 1.5 timber target/);
+const recalledUnsupportedMine = {
+  ...inspectorMine,
+  id: 'mine-recalled-without-supports',
+  assignedLabor: 0,
+};
+mineInspector = renderMineralMineInspector(
+  buildingTarget(recalledUnsupportedMine),
+  inspectorContext(inspectorGameState(recalledUnsupportedMine, [richSaltDeposit])),
+);
+assert.match(
+  mineInspector.statusText,
+  /awaits timber supports/,
+  'missing deep-shaft supports must remain visible after the labor steward releases miners',
+);
+const recalledHeldMine = {
+  ...recalledUnsupportedMine,
+  id: 'mine-recalled-at-target',
+  processorOutputTargetPercent: 25,
+  salt: 60,
+};
+mineInspector = renderMineralMineInspector(
+  buildingTarget(recalledHeldMine),
+  inspectorContext(inspectorGameState(recalledHeldMine, [richSaltDeposit])),
+);
+assert.match(mineInspector.statusText, /salt yard target reached/);
+assert.equal(mineInspector.statusState, 'idle');
+assert.match(mineInspector.detailsHtml, /Production interval<\/span><span>paused/);
 const inboundSupportTrip: DeliveryTripState = {
   id: 'support-inbound',
   buildingId: 'lumber-mill',
@@ -617,6 +645,76 @@ assert.match(
   supportedLargeQuarryInspector.detailsHtml,
   /0.25 timber per completed stone batch/,
 );
+const recalledUnsupportedLargeQuarry = {
+  ...largeQuarryBuilding,
+  id: 'large-quarry-recalled-without-supports',
+  assignedLabor: 0,
+};
+supportedLargeQuarryInspector = renderLargeQuarryInspector(
+  buildingTarget(recalledUnsupportedLargeQuarry),
+  inspectorContext(
+    inspectorGameState(recalledUnsupportedLargeQuarry, [richStoneAtQuarry]),
+  ),
+);
+assert.match(
+  supportedLargeQuarryInspector.statusText,
+  /await prepared timber supports/,
+);
+const recalledHeldLargeQuarry = {
+  ...recalledUnsupportedLargeQuarry,
+  id: 'large-quarry-recalled-at-target',
+  processorOutputTargetPercent: 25,
+  stone: 90,
+};
+supportedLargeQuarryInspector = renderLargeQuarryInspector(
+  buildingTarget(recalledHeldLargeQuarry),
+  inspectorContext(
+    inspectorGameState(recalledHeldLargeQuarry, [richStoneAtQuarry]),
+  ),
+);
+assert.match(supportedLargeQuarryInspector.statusText, /stone yard target reached/);
+assert.equal(supportedLargeQuarryInspector.statusState, 'idle');
+assert.match(
+  supportedLargeQuarryInspector.detailsHtml,
+  /Production interval<\/span><span>paused/,
+);
+
+const surfaceStone: ResourceNodeState = {
+  ...richStoneAtQuarry,
+  nodeId: 'quarry-ordinary-stone-inspector',
+  x: 0,
+  z: 0,
+  remaining: 100,
+  maxYield: 100,
+  isRich: false,
+};
+const recalledHeldStoneCamp = mineBuilding({
+  id: 'stone-camp-recalled-at-target',
+  kind: 'stone_quarry',
+  assignedLabor: 0,
+  workRadius: 40,
+  processorOutputTargetPercent: 25,
+  stone: 45,
+});
+let stoneCampInspector = renderStoneQuarryInspector(
+  buildingTarget(recalledHeldStoneCamp),
+  inspectorContext(inspectorGameState(recalledHeldStoneCamp, [surfaceStone])),
+);
+assert.match(stoneCampInspector.statusText, /stone yard target reached/);
+assert.equal(stoneCampInspector.statusState, 'idle');
+assert.match(stoneCampInspector.detailsHtml, /Harvest interval<\/span><span>paused/);
+const recalledSourceLessStoneCamp = {
+  ...recalledHeldStoneCamp,
+  id: 'stone-camp-recalled-without-source',
+  processorOutputTargetPercent: 100,
+  stone: 0,
+};
+stoneCampInspector = renderStoneQuarryInspector(
+  buildingTarget(recalledSourceLessStoneCamp),
+  inspectorContext(inspectorGameState(recalledSourceLessStoneCamp, [])),
+);
+assert.match(stoneCampInspector.statusText, /no unexhausted surface stone in range/);
+assert.equal(stoneCampInspector.statusState, 'warning');
 
 const nearbySalt = mineralNode('deposit-salt-nearby', 'salt', 0, 0, 90, 90, false);
 const fartherStone: ResourceNodeState = {
@@ -841,6 +939,22 @@ function inspectorContext(
     getBuildingLabel: (kind: BuildingState['kind']) =>
       getBuildingDefinition(kind).label,
     getRoadAccessLabel: () => 'Road connected',
+    findNearestQuarryWithRemaining: (
+      x: number,
+      z: number,
+      radius: number,
+    ) => [...state.quarries.values()]
+      .filter(
+        (deposit) =>
+          deposit.resource === 'stone'
+          && deposit.remaining > 1e-6
+          && Math.hypot(deposit.x - x, deposit.z - z) <= radius,
+      )
+      .sort(
+        (a, b) =>
+          Math.hypot(a.x - x, a.z - z)
+          - Math.hypot(b.x - x, b.z - z),
+      )[0] ?? null,
   } as unknown as WorldQueries;
   return {
     gameState: state,

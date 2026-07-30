@@ -50,21 +50,25 @@ export function renderStoneQuarryInspector(
   return {
     eyebrow: 'Building',
     title: label,
-    statusText: onsiteLabor === 0
-      ? building.assignedLabor > 0
-        ? 'Extraction paused - the full roster is away with its cart'
-        : 'Idle - assign labor to extract stone'
-      : targetReached
-        ? `Paused - stone yard target reached (${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)})`
-        : nearestQuarry
-          ? `Extracting — ${Math.round(nearestQuarry.remaining)} stone left at site`
-          : 'Idle — no quarry stone in range',
-    statusState: active ? 'active' : 'idle',
+    statusText: targetReached
+      ? `Paused - stone yard target reached (${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)})`
+      : nearestQuarry == null
+        ? 'Stopped - no unexhausted surface stone in range'
+        : onsiteLabor === 0
+          ? building.assignedLabor > 0
+            ? 'Extraction paused - the full roster is away with its cart'
+            : 'Idle - assign labor to extract stone'
+          : `Extracting — ${Math.round(nearestQuarry.remaining)} stone left at site`,
+    statusState: active
+      ? 'active'
+      : !targetReached && nearestQuarry == null
+        ? 'warning'
+        : 'idle',
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${civilianToolRows(building)}
       ${buildingExtentRow(building.kind)}
-      <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
+      <li><span>Harvest interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       <li><span>Yard ceiling</span><span>${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)} stone · ${outputHeadroom.toFixed(0)} headroom</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
