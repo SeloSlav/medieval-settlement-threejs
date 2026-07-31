@@ -5,8 +5,6 @@ import * as THREE from 'three';
 import {
   BRANCH_CARD_BAKE_REVISION,
   BRANCH_CARD_COVERAGE_CONTENT_REVISION,
-  BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS,
-  BRANCH_CARD_LIVE_COVERAGE_DEFAULTS,
   branchCardCoverageRngSeed,
   forestCardMaterial,
   planBranchCardCoverage,
@@ -55,17 +53,8 @@ assert.equal(
   'coverage RNG identity must remain pinned to content revision 4',
 );
 
-const broadleafUnderlayLateralScale = new Map<string, number>([
-  ['americanBeech', 1.15],
-  ['whiteOak', 1.15],
-  ['redMaple', 1.17],
-  ['sweetgum', 1.2],
-]);
-
 for (const preset of deciduous) {
   const species = GORSKI_KOTAR_SPECIES[preset];
-  const expectedUnderlayLateralScale = broadleafUnderlayLateralScale.get(preset);
-  assert.notEqual(expectedUnderlayLateralScale, undefined);
   assert.equal(
     species.foliage?.cardCoverage,
     1.5,
@@ -73,38 +62,30 @@ for (const preset of deciduous) {
   );
   assert.equal(
     species.foliage?.cardRadialPlanes,
-    2,
-    `${preset} must keep its branch cards readable from both canopy axes`,
+    undefined,
+    `${preset} must retain its original single-plane branch foliage`,
   );
   assert.equal(
     species.foliage?.mobileNearTwigCollapse,
-    true,
-    `${preset} must replace pale terminal twig tubes with its full-content near cards`,
+    undefined,
+    `${preset} must retain its original near-tree twig geometry`,
   );
   assert.equal(
     species.foliage?.cardCrownUnderlay,
-    true,
-    `${preset} must opt into SeedThree's whole-crown continuity underlay`,
+    undefined,
+    `${preset} must not add a whole-crown billboard underlay`,
   );
   assert.equal(
     species.foliage?.cardCrownUnderlayLateralScale,
-    expectedUnderlayLateralScale,
-    `${preset} must retain its authored crown morphology`,
+    undefined,
+    `${preset} must not scale a whole-crown billboard underlay`,
   );
   const authoredRootCards = 1 + Number(species.params?.baseSplits ?? 0);
   const crownUnderlay = planBranchCardCrownUnderlay(species.foliage, authoredRootCards);
-  assert.equal(crownUnderlay.enabled, true);
-  assert.equal(crownUnderlay.rootCardInstances, authoredRootCards);
-  assert.equal(crownUnderlay.lateralScale, expectedUnderlayLateralScale);
-  assert.ok(
-    crownUnderlay.rootCardInstances >= 1 && crownUnderlay.rootCardInstances <= 2,
-    `${preset} crown continuity must stay within one or two live cards`,
-  );
-  assert.ok(
-    crownUnderlay.runtimeTrianglesAdded >= 4 && crownUnderlay.runtimeTrianglesAdded <= 8,
-    `${preset} crown continuity must stay within four to eight live triangles`,
-  );
-  assert.equal(crownUnderlay.runtimeDrawsAdded, 1);
+  assert.equal(crownUnderlay.enabled, false);
+  assert.equal(crownUnderlay.rootCardInstances, 0);
+  assert.equal(crownUnderlay.runtimeTrianglesAdded, 0);
+  assert.equal(crownUnderlay.runtimeDrawsAdded, 0);
   const coverage = planBranchCardCoverage(species.foliage, 12);
   assert.equal(coverage.coverageRequested, 1.5);
   assert.ok(coverage.bakeLeafInstances > coverage.sourceLeafInstances);
@@ -115,44 +96,11 @@ for (const preset of deciduous) {
   );
   assert.ok(
     seedThreeBranchCardCacheKey(species, true).endsWith(
-      `|512|3|m|u1x${expectedUnderlayLateralScale}|b${BRANCH_CARD_BAKE_REVISION}`,
+      `|512|3|m|b${BRANCH_CARD_BAKE_REVISION}`,
     ),
-    `${preset} memory cache identity must include underlay morphology and the upstream bake revision`,
+    `${preset} memory cache identity must retain the upstream bake revision without an underlay variant`,
   );
 }
-const beechWithoutCrownUnderlay = {
-  ...GORSKI_KOTAR_SPECIES.americanBeech,
-  foliage: {
-    ...GORSKI_KOTAR_SPECIES.americanBeech.foliage,
-    cardCrownUnderlay: false,
-  },
-};
-const beechUnderlayKey = seedThreeBranchCardCacheKey(
-  GORSKI_KOTAR_SPECIES.americanBeech,
-  true,
-);
-const beechWithoutUnderlayKey = seedThreeBranchCardCacheKey(beechWithoutCrownUnderlay, true);
-assert.notEqual(
-  beechUnderlayKey,
-  beechWithoutUnderlayKey,
-  'opted-in underlay atlases must never alias an opted-out cache entry',
-);
-assert.match(beechWithoutUnderlayKey, /\|u0x1\|b5$/);
-assert.deepEqual(
-  planBranchCardCrownUnderlay(beechWithoutCrownUnderlay.foliage, 2),
-  {
-    bakeRevision: BRANCH_CARD_BAKE_REVISION,
-    enabled: false,
-    availableRoots: 2,
-    rootCardInstances: 0,
-    radialPlanes: 2,
-    lateralScale: 1,
-    runtimeTrianglesPerCard: 4,
-    runtimeTrianglesAdded: 0,
-    runtimeDrawsAdded: 0,
-  },
-  'an opted-out species must schedule no crown cards or draw',
-);
 for (const preset of ['douglasFir', 'loblolly', 'pine'] as const) {
   const species = GORSKI_KOTAR_SPECIES[preset];
   assert.equal(
@@ -172,35 +120,22 @@ for (const preset of ['douglasFir', 'loblolly', 'pine'] as const) {
   );
   assert.equal(
     species.foliage?.cardCrownUnderlay,
-    true,
-    `${preset} must opt into the bounded evergreen crown underlay`,
+    undefined,
+    `${preset} must not add an evergreen crown billboard underlay`,
   );
-  assert.equal(species.foliage?.cardCrownUnderlayLateralScale, 1.2);
+  assert.equal(species.foliage?.cardCrownUnderlayLateralScale, undefined);
   const crownUnderlay = planBranchCardCrownUnderlay(species.foliage, 1);
-  assert.equal(crownUnderlay.enabled, true);
-  assert.equal(crownUnderlay.lateralScale, 1.2);
-  assert.equal(crownUnderlay.rootCardInstances, 1);
-  assert.equal(crownUnderlay.runtimeTrianglesAdded, 4);
-  assert.equal(crownUnderlay.runtimeDrawsAdded, 1);
+  assert.equal(crownUnderlay.enabled, false);
+  assert.equal(crownUnderlay.rootCardInstances, 0);
+  assert.equal(crownUnderlay.runtimeTrianglesAdded, 0);
+  assert.equal(crownUnderlay.runtimeDrawsAdded, 0);
   assert.ok(
     seedThreeBranchCardCacheKey(species, true).endsWith(
-      `|512|3|m|u1x1.2|b${BRANCH_CARD_BAKE_REVISION}`,
+      `|512|3|m|b${BRANCH_CARD_BAKE_REVISION}`,
     ),
-    `${preset} underlay morphology must invalidate the branch-card prototype/cache identity`,
+    `${preset} cache identity must retain the upstream bake revision without an underlay variant`,
   );
 }
-assert.equal(BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.maxRootCards, 4);
-assert.equal(BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.radialPlanes, 2);
-assert.equal(BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.trianglesPerPlane, 2);
-assert.equal(BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.lateralScale, 1);
-assert.equal(BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.maxLateralScale, 1.35);
-assert.equal(BRANCH_CARD_LIVE_COVERAGE_DEFAULTS.maxRadialPlanes, 2);
-assert.equal(
-  BRANCH_CARD_LIVE_COVERAGE_DEFAULTS.maxRadialPlanes
-    * BRANCH_CARD_LIVE_COVERAGE_DEFAULTS.trianglesPerPlane,
-  4,
-  'the azimuth fix must stay capped at four live triangles per branch card',
-);
 assert.equal(SEEDTHREE_BRANCH_CARD_BAKE_REVISION, BRANCH_CARD_BAKE_REVISION);
 assert.equal(
   SEEDTHREE_BRANCH_CARD_CACHE_VERSION,
@@ -404,35 +339,25 @@ assert.match(
   /const radialPlanes = geometryRadialPlanes\(variant\.geometry\);[\s\S]*const copies = opts\.crossed && radialPlanes < 2 \? 2 : 1;[\s\S]*new InstancedMesh\(variant\.geometry, variant\.material, list\.length \* copies\)/,
   'two-plane cards must remain one instanced mesh entry instead of multiplying runtime instances or draws',
 );
-assert.match(
+assert.doesNotMatch(
   cardAdapterSource,
-  /if \(species\.foliage\.cardCrownUnderlay === true\) \{[\s\S]*key: '0:underlay'[\s\S]*level: 0,[\s\S]*foliageOnly: true,[\s\S]*preserveFoliageLayout: true,[\s\S]*maxRoots: BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS\.maxRootCards,[\s\S]*radialPlanes: BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS\.radialPlanes,[\s\S]*variants: 1,[\s\S]*size: Math\.max\(256, Math\.floor\(CARD_RES \/ 2\)\)[\s\S]*noFlutter: true/,
-  'every opted-in broadleaf or conifer must schedule the bounded 0:underlay atlas job',
+  /cardCrownUnderlay|0:underlay|preserveFoliageLayout/,
+  'the game adapter must not bake or attach whole-crown billboard underlays',
 );
-assert.match(
+assert.doesNotMatch(
   cardAdapterSource,
-  /const crownUnderlay = planBranchCardCrownUnderlay\(foliage, 1\);[\s\S]*`u\$\{crownUnderlay\.enabled \? 1 : 0\}x\$\{crownUnderlay\.lateralScale\}`/,
-  'the adapter cache must discriminate the clamped runtime underlay morphology',
-);
-assert.match(
-  cardAdapterSource,
-  /const jobKey = job\.key \?\?[^;]+;[\s\S]*byLevel\.set\(jobKey, set\)[\s\S]*writeSeedThreeBranchCards\(key, cards, noFlutterByLevel\)/,
-  'the adapter must create and persist the named underlay set with the normal card transaction',
+  /planBranchCardCrownUnderlay|BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS|`u\$\{/,
+  'the game adapter cache must not retain billboard-underlay variants',
 );
 assert.match(
   cardCacheSource,
   /for \(const cachedSet of record\.sets\)[\s\S]*byLevel\.set\(cachedSet\.key,[\s\S]*for \(const \[key, set\] of cards\.byLevel\)[\s\S]*sets\.push\(\{\s*key,/,
-  'persistent card storage must round-trip the 0:underlay set name unchanged',
+  'persistent card storage must round-trip ordinary branch-card set names unchanged',
 );
 assert.match(
   cardAdapterSource,
   /yield: options\.yieldBetweenCaptures,\s*onRendererBusyChange: options\.onRendererBusyChange,/,
-  'every underlay capture must preserve the streaming yield and renderer-busy callbacks',
-);
-assert.match(
-  treeSource,
-  /crownUnderlayPlan\.enabled[\s\S]*byLevel\?\.get\('0:underlay'\)[\s\S]*buildCardFoliage\([\s\S]*rootStems\.slice\(0, crownUnderlayPlan\.rootCardInstances\)[\s\S]*lateralScale: crownUnderlayPlan\.lateralScale/,
-  'the live tree must consume broadleaf and conifer underlays with the bounded root-card morphology plan',
+  'every ordinary branch-card capture must preserve the streaming yield and renderer-busy callbacks',
 );
 assert.match(
   treeSource,

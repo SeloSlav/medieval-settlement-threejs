@@ -44,7 +44,8 @@
   display: block;
   width: min(430px, 86%);
   height: auto;
-  margin-left: -5px;
+  margin: 0;
+  justify-self: center;
   filter:
     drop-shadow(0 2px 1px rgba(0, 0, 0, 0.82))
     drop-shadow(0 14px 30px rgba(0, 0, 0, 0.5));
@@ -52,11 +53,12 @@
 
 .world-setup-dialog {
   position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   width: 100%;
   min-height: 0;
   max-height: none;
-  overflow: auto;
-  padding: 28px 30px 30px;
+  overflow: hidden;
   color: var(--ink);
   border: 1px solid rgba(231, 214, 174, 0.18);
   border-radius: 3px;
@@ -66,6 +68,13 @@
     inset 3px 0 0 rgba(204, 160, 69, 0.72),
     inset 0 1px 0 rgba(255, 244, 218, 0.08);
   backdrop-filter: blur(22px) saturate(0.78);
+}
+
+.world-setup-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px 30px 10px;
   scrollbar-color: rgba(215, 180, 99, 0.46) rgba(255, 255, 255, 0.04);
 }
 
@@ -326,7 +335,22 @@
   gap: 8px;
 }
 
+.world-setup-footer-seed {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.world-setup-footer-seed__label {
+  color: rgba(238, 232, 220, 0.78);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .world-setup-seed-input {
+  min-width: 0;
   width: 100%;
   padding: 10px 12px;
   color: var(--ink);
@@ -358,9 +382,16 @@
 }
 
 .world-setup-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 22px;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 14px 30px 20px;
+  border-top: 1px solid rgba(231, 214, 174, 0.14);
+  background: linear-gradient(180deg, rgba(21, 25, 20, 0.98), rgba(13, 17, 13, 0.99));
+  box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.18);
 }
 
 .world-setup-start {
@@ -400,8 +431,13 @@
     margin: 0 auto;
   }
 
-  .world-setup-dialog {
-    padding: 22px 20px 24px;
+  .world-setup-scroll {
+    padding: 22px 20px 10px;
+  }
+
+  .world-setup-actions {
+    gap: 10px;
+    padding: 14px 20px 18px;
   }
 
   .world-setup-mode-grid {
@@ -411,6 +447,26 @@
   .world-setup-resource-summary__heading {
     display: grid;
     gap: 2px;
+  }
+}
+
+@media (max-width: 420px) {
+  .world-setup-actions {
+    padding-inline: 12px;
+  }
+
+  .world-setup-seed-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .world-setup-randomize {
+    padding-block: 7px;
+  }
+
+  .world-setup-start {
+    min-width: 128px;
+    padding-inline: 12px;
   }
 }
 
@@ -427,7 +483,11 @@
     width: min(300px, 62vw);
   }
 
-  .world-setup-dialog {
-    padding-block: 20px 22px;
+  .world-setup-scroll {
+    padding-block: 20px 10px;
+  }
+
+  .world-setup-actions {
+    padding-block: 12px;
   }
 }

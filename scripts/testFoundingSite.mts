@@ -150,19 +150,10 @@ assert.ok(
   winterTriangles < 1_000,
   `strengthened camp winter coherence must remain under 1k triangles, got ${winterTriangles}`,
 );
-const heraldicRed = mesh.getObjectByName('Weathered red wool pennant') as THREE.Mesh;
-assert.ok(heraldicRed instanceof THREE.Mesh);
-const heraldicMaterial = heraldicRed.material as THREE.MeshStandardMaterial;
-const heraldicColor = heraldicMaterial.color.getHex();
 setFoundersCampWinterAccumulation(mesh, true);
 assert.ok(
   winterAccumulation.every((object) => object.visible === true),
   'winter must reveal both the tent/prop layer and stock-aware timber accumulation',
-);
-assert.equal(
-  heraldicMaterial.color.getHex(),
-  heraldicColor,
-  'winter accumulation must preserve the warm red heraldic accent',
 );
 setFoundersCampWinterAccumulation(mesh, false);
 assert.ok(
@@ -172,10 +163,67 @@ assert.ok(
 assert.equal(mesh.userData.fpCollisionChildrenOnly, true);
 const tents = shelters.children.filter((child) => child.name === 'Founding canvas tent');
 assert.equal(tents.length, 3, 'the occupied camp should have three modeled canvas tents');
+assert.equal(
+  mesh.getObjectByName('Founding wool field standard'),
+  undefined,
+  'the cleaned-up founding camp should not retain the old flag or standard',
+);
 assert.ok(
   tents.every((tent) => tent.userData.fpCollisionAggregate === true),
   'first-person collision should be attached to each tent rather than the whole campsite',
 );
+mesh.updateMatrixWorld(true);
+const tentBounds = tents.map((tent) => new THREE.Box3().setFromObject(tent));
+for (let left = 0; left < tentBounds.length; left += 1) {
+  for (let right = left + 1; right < tentBounds.length; right += 1) {
+    assert.equal(
+      tentBounds[left]!.clone().expandByScalar(0.14).intersectsBox(
+        tentBounds[right]!.clone().expandByScalar(0.14),
+      ),
+      false,
+      'tent canvas, poles, stakes, and guy ropes should retain visible clearance',
+    );
+  }
+}
+const tentAdjacentProps = [
+  'Coopered provision barrels',
+  'Woven provision basket',
+  'Founders drying wool and blankets',
+  'Founding timber workyard',
+  'Founders lived-in utility stores',
+  'FoundingTimberStockpile',
+  'FoundingStoneStockpile',
+  'FoundingTreasuryChest',
+  FOUNDERS_CAMPFIRE_NAME,
+  'Camp bench seat',
+  'Camp fireside stump seat',
+] as const;
+for (const propName of tentAdjacentProps) {
+  const prop = mesh.getObjectByName(propName);
+  assert.ok(prop, `missing founding-camp layout fixture: ${propName}`);
+  const propBounds = new THREE.Box3().setFromObject(prop!).expandByScalar(0.07);
+  assert.ok(
+    tentBounds.every((bounds) => !bounds.clone().expandByScalar(0.07).intersectsBox(propBounds)),
+    `${propName} should not touch or overlap a tent`,
+  );
+}
+const assertSeparated = (leftName: string, rightName: string): void => {
+  const left = mesh.getObjectByName(leftName);
+  const right = mesh.getObjectByName(rightName);
+  assert.ok(left && right, `missing camp clearance pair: ${leftName} / ${rightName}`);
+  assert.equal(
+    new THREE.Box3().setFromObject(left!).expandByScalar(0.04).intersectsBox(
+      new THREE.Box3().setFromObject(right!).expandByScalar(0.04),
+    ),
+    false,
+    `${leftName} should retain clearance from ${rightName}`,
+  );
+};
+assertSeparated('Coopered provision barrels', 'Founders lived-in utility stores');
+assertSeparated('Woven provision basket', 'Founders lived-in utility stores');
+assertSeparated('Founders drying wool and blankets', 'Founders lived-in utility stores');
+assertSeparated('FoundingTimberStockpile', 'Founding timber workyard');
+assertSeparated('FoundingStoneStockpile', 'Founders lived-in utility stores');
 const shadowCasters: THREE.Object3D[] = [];
 mesh.traverse((object) => {
   if (isBuildingDetailShadowCaster(object)) shadowCasters.push(object);
@@ -235,6 +283,38 @@ assert.ok(
 assert.equal(
   timber.children.filter((child) => child.name === 'FoundingTimberSegment').length,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
+);
+const timberSegments = timber.children.filter(
+  (child) => child.name === 'FoundingTimberSegment',
+);
+const timberRowCounts = [...timberSegments.reduce((rows, segment) => {
+  const key = segment.position.y.toFixed(2);
+  rows.set(key, (rows.get(key) ?? 0) + 1);
+  return rows;
+}, new Map<string, number>()).values()];
+assert.deepEqual(
+  timberRowCounts,
+  [4, 3, 1],
+  'founding timber should form a broad triangular stack instead of overlapping columns',
+);
+const timberSize = new THREE.Box3().setFromObject(timber).getSize(new THREE.Vector3());
+assert.ok(timberSize.x > 3.3 && timberSize.z > 1.3);
+const firewood = mesh.getObjectByName('Stacked cut camp firewood');
+assert.ok(firewood instanceof THREE.InstancedMesh);
+assert.equal(firewood.count, 21, 'the cut-log pile should use a complete six-row triangle');
+const firewoodRows = new Map<string, number>();
+const firewoodMatrix = new THREE.Matrix4();
+const firewoodPosition = new THREE.Vector3();
+for (let index = 0; index < firewood.count; index += 1) {
+  firewood.getMatrixAt(index, firewoodMatrix);
+  firewoodPosition.setFromMatrixPosition(firewoodMatrix);
+  const key = firewoodPosition.y.toFixed(2);
+  firewoodRows.set(key, (firewoodRows.get(key) ?? 0) + 1);
+}
+assert.deepEqual(
+  [...firewoodRows.values()],
+  [6, 5, 4, 3, 2, 1],
+  'cut firewood should rise in a stable triangular profile',
 );
 assert.equal(
   stone.children.filter((child) => child.name === 'FoundingStoneSegment').length,

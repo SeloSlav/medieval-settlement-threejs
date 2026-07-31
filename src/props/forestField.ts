@@ -29,13 +29,14 @@ export type ForestSpawnConfig = {
 
 const LEGACY_PLAYABLE_SIZE = 496;
 const LEGACY_TERRAIN_SIZE = 1080;
-// Keep the authored density control, but give its midpoint enough stems for
-// crowns to merge into readable woodland masses instead of isolated tree dots.
-const BASE_TREE_COUNT = 460;
-const BASE_HILL_EDGE_TREE_COUNT = 900;
+// Density comes from real neighbouring trees. At the default world settings
+// this yields roughly twice the former stem count, so crowns merge naturally
+// without adding oversized canopy cards to individual trees.
+const BASE_TREE_COUNT = 1_000;
+const BASE_HILL_EDGE_TREE_COUNT = 1_650;
 const BASE_ROCK_COUNT = 86;
 const BASE_UNDERGROWTH_COUNT = 880;
-const BASE_SAPLING_COUNT = 190;
+const BASE_SAPLING_COUNT = 420;
 
 export function createForestSpawnConfig(
   playableSize: number,

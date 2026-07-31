@@ -28,6 +28,7 @@ import {
   gameSpeedLabel,
   hotkeyForGameSpeed,
   normalizeGameSpeed,
+  resolveGameSpeedHotkey,
   worldAnimationDelta,
 } from '../src/world/gameSpeed.ts';
 import {
@@ -135,6 +136,11 @@ assert.equal(gameSpeedForHotkey('3'), 8);
 assert.equal(gameSpeedForHotkey('4'), null);
 assert.equal(gameSpeedForHotkey('0'), null);
 assert.equal(gameSpeedForHotkey('5'), null);
+assert.equal(resolveGameSpeedHotkey(' ', 4, 4, false), 0);
+assert.equal(resolveGameSpeedHotkey(' ', 0, 4, false), 4);
+assert.equal(resolveGameSpeedHotkey(' ', 4, 4, true), null);
+assert.equal(resolveGameSpeedHotkey(' ', 0, 4, true), null);
+assert.equal(resolveGameSpeedHotkey('2', 0, 4, true), 4);
 assert.equal(hotkeyForGameSpeed(0), 'Space');
 assert.equal(hotkeyForGameSpeed(1), '1');
 assert.equal(hotkeyForGameSpeed(4), '2');

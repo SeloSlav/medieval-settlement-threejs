@@ -36,7 +36,7 @@ import type {
   EnvironmentState,
   NextDayEnvironmentOutlook,
 } from '../world/seasonPolicy.ts';
-import { gameSpeedForHotkey, type GameSpeed } from '../world/gameSpeed.ts';
+import { resolveGameSpeedHotkey, type GameSpeed } from '../world/gameSpeed.ts';
 import { cropLabel } from '../farming/farmFieldMath.ts';
 
 export type { ToolbarStats };
@@ -147,6 +147,8 @@ export class BuildToolbar {
   private gameplayEnabled = true;
   private conflictEnabled = false;
   private cropSuitabilityActive = false;
+  private currentGameSpeed: GameSpeed = 1;
+  private lastRunningGameSpeed: GameSpeed = 1;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.isGameMenuOpen()) return;
@@ -155,7 +157,12 @@ export class BuildToolbar {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
 
     const key = event.key.toLowerCase();
-    const speed = gameSpeedForHotkey(key);
+    const speed = resolveGameSpeedHotkey(
+      key,
+      this.currentGameSpeed,
+      this.lastRunningGameSpeed,
+      this.firstPersonActive,
+    );
     if (speed !== null) {
       event.preventDefault();
       event.stopPropagation();
@@ -919,6 +926,8 @@ export class BuildToolbar {
     environment: EnvironmentState,
     outlook?: NextDayEnvironmentOutlook,
   ): void {
+    this.currentGameSpeed = speed;
+    if (speed !== 0) this.lastRunningGameSpeed = speed;
     this.settlementHud.setSimulationState(speed, environment, outlook);
   }
 

@@ -159,13 +159,13 @@ for (const resource of ['iron', 'salt'] as const) {
         && Math.abs(material.normalScale.y - (resource === 'iron' ? 0.55 : 0.42)) < 1e-9
         && material.userData.weatheredMineralSurface?.static === true
         && material.userData.weatheredMineralSurface?.mipReadable === true
-        && material.userData.weatheredMineralSurface?.surfaceGrammar === 'continuous-parent-with-basal-breakoffs'
+        && material.userData.weatheredMineralSurface?.surfaceGrammar === 'scattered-weathered-outcrops'
         && material.userData.weatheredMineralSurface?.planeWeathering === (
           resource === 'iron'
             ? 'patchy-host-rock-oxidation'
             : 'fissured-stratified-salt'
         )
-        && material.userData.weatheredMineralSurface?.revision === 'mineral-weathering-v12';
+        && material.userData.weatheredMineralSurface?.revision === 'mineral-weathering-v13';
     }),
     `${resource} outcrops must use the quarry's matte material response with restrained normals`,
   );
@@ -283,8 +283,9 @@ for (const resource of ['iron', 'salt'] as const) {
   assert.ok(
     resource === 'iron'
       ? Math.max(...paletteLuminance) <= 0.3
-      : Math.max(...paletteLuminance) <= 0.7,
-    `${resource} palette must remain natural host rock or matte off-white mineral`,
+      : Math.min(...paletteLuminance) >= 0.5
+        && Math.max(...paletteLuminance) >= 0.78,
+    `${resource} palette must remain natural host rock or visibly pale salt`,
   );
   assert.ok(
     outcrops.every((outcrop) => {
@@ -303,9 +304,6 @@ for (const resource of ['iron', 'salt'] as const) {
       (box.max.z - box.min.z) * outcrop.scale.z,
     );
   });
-  const breakoffCount = outcrops.filter(
-    (outcrop) => outcrop.userData.mineralSurface?.hierarchyRole === 'breakoff',
-  ).length;
   assert.ok(
     outcrops.every(
       (outcrop) => outcrop.userData.mineralSurface?.formation === (
@@ -315,153 +313,51 @@ for (const resource of ['iron', 'salt'] as const) {
     `${resource} outcrops must retain their resource-specific static formation profile`,
   );
   assert.ok(
-    breakoffCount === outcrops.length - new Set(outcrops.map((outcrop) => outcrop.parent)).size,
-    `${resource} formations must reserve exactly one continuous parent mesh per site`,
+    outcrops.every(
+      (outcrop) => outcrop.userData.mineralSurface?.hierarchyRole === 'scattered-outcrop'
+        && outcrop.userData.mineralSurface?.continuousParentGeometry === true
+        && outcrop.userData.mineralSurface?.attachedToAnchor === false,
+    ),
+    `${resource} deposits must be made from independent scattered outcrops`,
   );
   assert.ok(
-    Math.max(...worldWidths) / Math.min(...worldWidths) >= 8,
-    `${resource} formations need strong parent-to-breakoff scale hierarchy`,
+    Math.max(...worldWidths) / Math.min(...worldWidths) <= 5,
+    `${resource} deposits must not collapse into one giant anchor surrounded by invisible chips`,
   );
   for (const parent of new Set(outcrops.map((outcrop) => outcrop.parent))) {
     const clusterOutcrops = outcrops.filter((outcrop) => outcrop.parent === parent);
-    const anchors = clusterOutcrops.filter(
-      (outcrop) => outcrop.userData.mineralSurface?.hierarchyRole === 'anchor',
+    const alongShares = clusterOutcrops.map(
+      (outcrop) => outcrop.userData.mineralSurface?.formationAlongShare as number,
     );
-    const breakoffs = clusterOutcrops.filter(
-      (outcrop) => outcrop.userData.mineralSurface?.hierarchyRole === 'breakoff',
+    const crossShares = clusterOutcrops.map(
+      (outcrop) => outcrop.userData.mineralSurface?.formationCrossShare as number,
     );
-    assert.equal(anchors.length, 1, `${resource} formations need exactly one dominant anchor`);
-    assert.equal(
-      breakoffs.length,
-      clusterOutcrops.length - 1,
-      `${resource} formations must turn every other fixed mesh into a tiny basal breakoff`,
-    );
-    const anchor = anchors[0];
-    const anchorWidth = worldWidth(anchor);
-    const anchorDimensions = worldDimensions(anchor);
-    const breakoffWidths = breakoffs.map(worldWidth);
+    const radialShares = alongShares.map((along, index) => Math.hypot(along, crossShares[index]));
+    const occupiedQuadrants = new Set(clusterOutcrops.map((outcrop) => {
+      const along = outcrop.userData.mineralSurface?.formationAlongShare as number;
+      const cross = outcrop.userData.mineralSurface?.formationCrossShare as number;
+      return `${along >= 0 ? '+' : '-'}${cross >= 0 ? '+' : '-'}`;
+    }));
     assert.ok(
-      anchorDimensions.height / Math.max(anchorDimensions.width, anchorDimensions.depth) >= 0.27
-        && anchorDimensions.height / Math.max(anchorDimensions.width, anchorDimensions.depth) <= 0.58
-        && anchorWidth / Math.max(...breakoffWidths) >= 9,
-      `${resource} anchor must carry the whole quarry silhouette above tiny basal breakoffs`,
-    );
-    assert.equal(
-      anchor.userData.mineralSurface?.continuousParentGeometry,
-      true,
-      `${resource} anchor must be explicitly identified as the continuous parent surface`,
-    );
-    assert.equal(
-      connectedTriangleComponentCount(anchor.geometry),
-      1,
-      `${resource} anchor must be one connected procedural shell, not merged faceted modules`,
-    );
-    assert.deepEqual(
-      {
-        topology: anchor.geometry.userData.mineralGeometry?.topology,
-        silhouette: anchor.geometry.userData.mineralGeometry?.silhouette,
-        groundProfile: anchor.geometry.userData.mineralGeometry?.groundProfile,
-      },
-      {
-        topology: 'single-connected-shell',
-        silhouette: 'low-frequency-lobes-and-erosion',
-        groundProfile: 'flattened-eroded-foot',
-      },
-      `${resource} anchor geometry must declare its continuous quarry grammar`,
-    );
-    const uniqueAnchorVertices = uniqueGeometryVertices(anchor.geometry);
-    const minimumGeometryY = Math.min(...uniqueAnchorVertices.map((vertex) => vertex.y));
-    const footVertices = uniqueAnchorVertices.filter(
-      (vertex) => vertex.y <= minimumGeometryY + 0.055,
+      Math.max(...alongShares) - Math.min(...alongShares) >= 0.75
+        && Math.max(...crossShares) - Math.min(...crossShares) >= 0.6
+        && Math.max(...radialShares) >= 0.55
+        && occupiedQuadrants.size >= 3,
+      `${resource} outcrops must visibly scatter across the deposit footprint`,
     );
     assert.ok(
-      footVertices.length >= 5
-        && Math.max(...footVertices.map((vertex) => vertex.y))
-          - Math.min(...footVertices.map((vertex) => vertex.y)) <= 0.055,
-      `${resource} continuous parent must have a broad, softly flattened ground foot`,
-    );
-    const zoneCount = clusterOutcrops.length === 18 ? 3 : 2;
-    const breakoffZones = new Map<number, THREE.Mesh[]>();
-    for (const breakoff of breakoffs) {
-      const zone = breakoff.userData.mineralSurface?.breakoffZone;
-      assert.equal(breakoff.userData.mineralSurface?.attachedToAnchor, true);
-      assert.equal(breakoff.userData.mineralSurface?.breakoffZoneCount, zoneCount);
-      assert.equal(typeof zone, 'number');
-      const zoneMembers = breakoffZones.get(zone) ?? [];
-      zoneMembers.push(breakoff);
-      breakoffZones.set(zone, zoneMembers);
-      const distance = Math.hypot(
-        breakoff.position.x - anchor.position.x,
-        breakoff.position.z - anchor.position.z,
-      );
-      const attachmentRatio = distance / ((anchorWidth + worldWidth(breakoff)) * 0.5);
-      assert.ok(
-        attachmentRatio >= 0.58 && attachmentRatio <= 0.98,
-        `${resource} breakoffs must remain in contact with the parent footprint, got ${attachmentRatio.toFixed(3)}`,
-      );
-    }
-    assert.deepEqual(
-      [...breakoffZones.keys()].sort((a, b) => a - b),
-      Array.from({ length: zoneCount }, (_, index) => index),
-      `${resource} breakoffs must occupy only ${zoneCount} explicit basal zones`,
-    );
-    assert.ok(
-      [...breakoffZones.values()].every((members) => members.length >= 4),
-      `${resource} basal zones must read as grouped breakage rather than singleton confetti`,
-    );
-    const zoneCentroids = [...breakoffZones.values()].map((members) => new THREE.Vector2(
-      members.reduce((sum, member) => sum + member.position.x, 0) / members.length,
-      members.reduce((sum, member) => sum + member.position.z, 0) / members.length,
-    ));
-    for (const members of breakoffZones.values()) {
-      const centroid = new THREE.Vector2(
-        members.reduce((sum, member) => sum + member.position.x, 0) / members.length,
-        members.reduce((sum, member) => sum + member.position.z, 0) / members.length,
-      );
-      assert.ok(
-        members.every(
-          (member) => centroid.distanceTo(new THREE.Vector2(member.position.x, member.position.z))
-            <= anchorWidth * 0.095,
-        ),
-        `${resource} breakoffs within a zone must remain tightly clustered`,
-      );
-    }
-    const zoneAngles = zoneCentroids
-      .map((centroid) => Math.atan2(
-        centroid.y - anchor.position.z,
-        centroid.x - anchor.position.x,
-      ))
-      .map((angle) => angle < 0 ? angle + Math.PI * 2 : angle)
-      .sort((a, b) => a - b);
-    const angularGaps = zoneAngles.map((angle, index) => {
-      const next = zoneAngles[(index + 1) % zoneAngles.length];
-      return (next - angle + Math.PI * 2) % (Math.PI * 2);
-    });
-    assert.ok(
-      Math.min(...angularGaps) <= 0.8
-        && Math.max(...angularGaps) - Math.min(...angularGaps) >= 1,
-      `${resource} breakoff zones must be asymmetrically grouped rather than evenly scattered`,
-    );
-    const anchorBottom = anchor.geometry.boundingBox!.min.y * anchor.scale.y + anchor.position.y;
-    const anchorBurialShare = -anchorBottom / anchorDimensions.height;
-    assert.ok(
-      anchorBottom <= -0.3
-        && anchorBurialShare >= 0.12
-        && anchorBurialShare <= 0.28,
-      `${resource} anchor must be partially buried without losing its dominant above-ground volume`,
-    );
-    assert.ok(
-      breakoffs.every((outcrop) => {
+      clusterOutcrops.every((outcrop) => {
         const dimensions = worldDimensions(outcrop);
         const bottom = outcrop.geometry.boundingBox!.min.y * outcrop.scale.y + outcrop.position.y;
         const top = outcrop.geometry.boundingBox!.max.y * outcrop.scale.y + outcrop.position.y;
         const burialShare = -bottom / dimensions.height;
-        return bottom <= -0.01
-          && top > 0.012
-          && burialShare >= 0.18
-          && burialShare <= 0.72;
+        return connectedTriangleComponentCount(outcrop.geometry) === 1
+          && bottom <= -0.01
+          && top > 0.1
+          && burialShare >= 0.12
+          && burialShare <= 0.42;
       }),
-      `${resource} tiny breakoffs must be visibly but substantially buried at the parent base`,
+      `${resource} scattered outcrops must remain continuous, visible, and grounded`,
     );
   }
 }
@@ -596,8 +492,8 @@ for (const geometry of mineralGeometries) {
     resource === 'iron'
       ? luminanceRange >= 0.15 && luminanceRange <= 0.23
         && chromaRange >= 0.4 && chromaRange <= 0.55
-      : luminanceRange >= 0.35 && luminanceRange <= 0.5
-        && chromaRange >= 0.04 && chromaRange <= 0.12,
+      : luminanceRange >= 0.22 && luminanceRange <= 0.35
+        && chromaRange >= 0.01 && chromaRange <= 0.06,
     `${resource} plane colors need bounded camera-scale host-rock breakup, got ${luminanceRange.toFixed(3)}/${chromaRange.toFixed(3)}`,
   );
   assert.equal(
@@ -871,15 +767,6 @@ function measureBoxFilteredTexture(
   };
 }
 
-function worldWidth(outcrop: THREE.Mesh): number {
-  outcrop.geometry.computeBoundingBox();
-  const box = outcrop.geometry.boundingBox!;
-  return Math.max(
-    (box.max.x - box.min.x) * outcrop.scale.x,
-    (box.max.z - box.min.z) * outcrop.scale.z,
-  );
-}
-
 function worldDimensions(outcrop: THREE.Mesh): {
   width: number;
   height: number;
@@ -892,17 +779,6 @@ function worldDimensions(outcrop: THREE.Mesh): {
     height: (box.max.y - box.min.y) * outcrop.scale.y,
     depth: (box.max.z - box.min.z) * outcrop.scale.z,
   };
-}
-
-function uniqueGeometryVertices(geometry: THREE.BufferGeometry): THREE.Vector3[] {
-  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
-  const vertices = new Map<string, THREE.Vector3>();
-  for (let index = 0; index < position.count; index++) {
-    const vertex = new THREE.Vector3().fromBufferAttribute(position, index);
-    const key = `${Math.round(vertex.x * 100_000)}/${Math.round(vertex.y * 100_000)}/${Math.round(vertex.z * 100_000)}`;
-    if (!vertices.has(key)) vertices.set(key, vertex);
-  }
-  return [...vertices.values()];
 }
 
 function connectedTriangleComponentCount(geometry: THREE.BufferGeometry): number {

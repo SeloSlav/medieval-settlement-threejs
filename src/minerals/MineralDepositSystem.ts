@@ -38,7 +38,7 @@ export type MineralDepositSystem = {
 
 const MATERIAL_COLORS: Record<MineralDepositResource, readonly [number, number]> = {
   iron: [0x79695f, 0x8d7465],
-  salt: [0xa49b87, 0xb3a78f],
+  salt: [0xcfcbbd, 0xeeeadd],
 };
 
 const TAU = Math.PI * 2;
@@ -130,8 +130,8 @@ function createSurfaceStyle(): MineralSurfaceStyle {
       material.normalScale.set(normalStrength, normalStrength);
       material.userData.weatheredMineralSurface = {
         resource,
-        revision: 'mineral-weathering-v12',
-        surfaceGrammar: 'continuous-parent-with-basal-breakoffs',
+        revision: 'mineral-weathering-v13',
+        surfaceGrammar: 'scattered-weathered-outcrops',
         planeWeathering: resource === 'iron'
           ? 'patchy-host-rock-oxidation'
           : 'fissured-stratified-salt',
@@ -165,46 +165,13 @@ function createSiteVisual(
   const stones: THREE.Mesh[] = [];
   const count = site.grade === 'rich' ? 18 : 10;
   const seed = ((siteIndex + 1) * 0x9e3779b1) ^ Math.round(site.x * 97) ^ Math.round(site.z * 193);
-  const breakoffZoneEnds = site.grade === 'rich' ? [8, 13, 17] : [5, 9];
-  const breakoffZoneAngles = [
-    formationAngle(seed, 0),
-    formationAngle(seed, 0) + 0.48 + pseudoRandom(seed ^ 0x7331, 1) * 0.22,
-    formationAngle(seed, 0) + 2.04 + pseudoRandom(seed ^ 0x7331, 2) * 0.34,
-  ];
-  const anchorLocalX = (pseudoRandom(seed ^ 0x18d7, 0) - 0.5) * 0.42;
-  const anchorLocalZ = (pseudoRandom(seed ^ 0x51ab, 0) - 0.5) * 0.34;
 
   for (let index = 0; index < count; index++) {
-    const hierarchyRole = index === 0 ? 'anchor' : 'breakoff';
-    const ordinal = index - 1;
-    const zoneIndex = hierarchyRole === 'anchor'
-      ? -1
-      : breakoffZoneEnds.findIndex((zoneEnd) => ordinal < zoneEnd);
-    const zoneStart = zoneIndex <= 0 ? 0 : breakoffZoneEnds[zoneIndex - 1];
-    const zoneOrdinal = ordinal - zoneStart;
-    const zoneSize = hierarchyRole === 'anchor'
-      ? 0
-      : breakoffZoneEnds[zoneIndex] - zoneStart;
-    const zoneAngle = hierarchyRole === 'anchor'
-      ? 0
-      : breakoffZoneAngles[zoneIndex];
-    const angle = zoneAngle
-      + (pseudoRandom(seed ^ 0x3ef5, index) - 0.5) * 0.17
-      + (zoneOrdinal - (zoneSize - 1) * 0.5) * 0.018;
+    const angle = pseudoRandom(seed, index * 3) * TAU;
+    const radius = Math.sqrt(pseudoRandom(seed, index * 3 + 1)) * 0.8;
     const gradeScale = site.grade === 'rich' ? 1.12 : 0.98;
-    const zoneDistance = hierarchyRole === 'anchor'
-      ? 0
-      : gradeScale * (
-          (zoneIndex === 0 ? 1.72 : zoneIndex === 1 ? 1.56 : 1.88)
-          + (pseudoRandom(seed ^ 0x7fa3, index) - 0.5) * 0.18
-          + (zoneOrdinal % 2) * 0.045
-        );
-    const localX = hierarchyRole === 'anchor'
-      ? anchorLocalX
-      : anchorLocalX + Math.cos(angle) * zoneDistance;
-    const localZ = hierarchyRole === 'anchor'
-      ? anchorLocalZ
-      : anchorLocalZ + Math.sin(angle) * zoneDistance;
+    const localX = Math.cos(angle) * site.radiusX * radius;
+    const localZ = Math.sin(angle) * site.radiusZ * radius;
     const alongShare = localX / site.radiusX;
     const crossShare = localZ / site.radiusZ;
     const cos = Math.cos(site.rotation);
@@ -212,9 +179,7 @@ function createSiteVisual(
     const x = site.x + localX * cos - localZ * sin;
     const z = site.z + localX * sin + localZ * cos;
     const scaleRoll = pseudoRandom(seed, index * 3 + 2);
-    const scale = gradeScale * (hierarchyRole === 'anchor'
-      ? 2.08
-      : 0.078 + scaleRoll * 0.062);
+    const scale = gradeScale * (0.62 + scaleRoll * 0.76);
     const resourceGeometries = geometries[site.resource];
     const geometryIndex = (
       index + Math.floor(pseudoRandom(seed ^ 0x4f1b, index) * 3)
@@ -223,33 +188,17 @@ function createSiteVisual(
       resourceGeometries[geometryIndex],
       materials[site.resource][index % materials[site.resource].length],
     );
-    const surfaceTurn = hierarchyRole === 'anchor'
-      ? (pseudoRandom(seed ^ 0xa2e5, index) - 0.5) * 0.24
-      : (pseudoRandom(seed ^ 0xa2e5, index) - 0.5) * Math.PI;
-    const scaleX = scale * (
-      hierarchyRole === 'anchor'
-        ? 1.02 + pseudoRandom(seed ^ 0x3d67, index) * 0.14
-        : 0.76 + pseudoRandom(seed ^ 0x3d67, index) * 0.5
-    );
-    const scaleY = scale * (
-      hierarchyRole === 'anchor'
-        ? 0.88 + pseudoRandom(seed ^ 0x8b31, index) * 0.1
-        : 0.36 + pseudoRandom(seed ^ 0x8b31, index) * 0.2
-    );
-    const scaleZ = scale * (
-      hierarchyRole === 'anchor'
-        ? 0.92 + pseudoRandom(seed ^ 0x1ca7, index) * 0.12
-        : 0.72 + pseudoRandom(seed ^ 0x1ca7, index) * 0.48
-    );
+    const surfaceTurn = (pseudoRandom(seed ^ 0xa2e5, index) - 0.5) * Math.PI;
+    const scaleX = scale * (0.82 + pseudoRandom(seed ^ 0x3d67, index) * 0.42);
+    const scaleY = scale * (0.62 + pseudoRandom(seed ^ 0x8b31, index) * 0.24);
+    const scaleZ = scale * (0.78 + pseudoRandom(seed ^ 0x1ca7, index) * 0.4);
     stone.name = `${site.resource} outcrop ${index + 1}`;
     stone.scale.set(scaleX, scaleY, scaleZ);
     stone.geometry.computeBoundingBox();
     const bottom = stone.geometry.boundingBox?.min.y ?? -0.28;
     const top = stone.geometry.boundingBox?.max.y ?? 0.72;
-    const burialDepth = hierarchyRole === 'anchor'
-      ? 0.31 + pseudoRandom(seed ^ 0xb3e9, index) * 0.07
-      : (top - bottom) * scaleY
-        * (0.28 + pseudoRandom(seed ^ 0xb3e9, index) * 0.16);
+    const burialDepth = (top - bottom) * scaleY
+      * (0.2 + pseudoRandom(seed ^ 0xb3e9, index) * 0.12);
     stone.position.set(
       x,
       terrain.getHeightAt(x, z)
@@ -258,11 +207,9 @@ function createSiteVisual(
       z,
     );
     stone.rotation.set(
-      (pseudoRandom(seed ^ 0x5a17, index) - 0.5)
-        * (hierarchyRole === 'anchor' ? 0.08 : 0.24),
+      (pseudoRandom(seed ^ 0x5a17, index) - 0.5) * 0.24,
       site.rotation + surfaceTurn,
-      (pseudoRandom(seed ^ 0x29c3, index) - 0.5)
-        * (hierarchyRole === 'anchor' ? 0.08 : 0.24),
+      (pseudoRandom(seed ^ 0x29c3, index) - 0.5) * 0.24,
     );
     stone.castShadow = true;
     stone.receiveShadow = true;
@@ -270,11 +217,9 @@ function createSiteVisual(
       resource: site.resource,
       weathered: true,
       grounded: true,
-      hierarchyRole,
-      continuousParentGeometry: hierarchyRole === 'anchor',
-      attachedToAnchor: hierarchyRole === 'breakoff',
-      breakoffZone: hierarchyRole === 'breakoff' ? zoneIndex : null,
-      breakoffZoneCount: breakoffZoneEnds.length,
+      hierarchyRole: 'scattered-outcrop',
+      continuousParentGeometry: true,
+      attachedToAnchor: false,
       formationAlongShare: alongShare,
       formationCrossShare: crossShare,
       geometryVariant: geometryIndex,
@@ -287,10 +232,6 @@ function createSiteVisual(
     group.add(stone);
   }
   return { group, stones };
-}
-
-function formationAngle(seed: number, index: number): number {
-  return pseudoRandom(seed ^ 0x9c41, index) * TAU;
 }
 
 function createWeatheredTextureSet(resource: MineralDepositResource): WeatheredTextureSet {
@@ -423,11 +364,11 @@ function createWeatheredTextureSet(resource: MineralDepositResource): WeatheredT
             0.88,
           )
         : THREE.MathUtils.clamp(
-            0.82 + (broad - 0.5) * 0.14 + (medium - 0.5) * 0.055
-              + h * 0.1 - pits * 0.075 - fractures * 0.14
-              - cavity * 0.12 - earth * 0.065,
-            0.51,
-            0.87,
+            0.93 + (broad - 0.5) * 0.1 + (medium - 0.5) * 0.04
+              + h * 0.08 - pits * 0.045 - fractures * 0.085
+              - cavity * 0.075 - earth * 0.04,
+            0.68,
+            0.98,
           );
       const tint = resource === 'iron'
         ? [
@@ -443,20 +384,20 @@ function createWeatheredTextureSet(resource: MineralDepositResource): WeatheredT
           ]
         : [
             value * (
-              0.98 - mineralCloud * 0.035 - inclusion * 0.085
-                - earth * 0.045 - fractures * 0.055
+              1 - mineralCloud * 0.018 - inclusion * 0.045
+                - earth * 0.025 - fractures * 0.028
             ),
             value * (
-              0.96 - mineralCloud * 0.035 - inclusion * 0.075
-                - earth * 0.045 - fractures * 0.065
+              0.995 - mineralCloud * 0.015 - inclusion * 0.04
+                - earth * 0.025 - fractures * 0.03
             ),
             value * (
-              0.89 - mineralCloud * 0.02 - inclusion * 0.04
-                - earth * 0.055 - fractures * 0.06
+              0.97 - mineralCloud * 0.01 - inclusion * 0.025
+                - earth * 0.03 - fractures * 0.028
             ),
           ];
 
-      const albedoFloor = resource === 'salt' ? 0.46 : 0;
+      const albedoFloor = resource === 'salt' ? 0.64 : 0;
       albedo[offset] = toByte(Math.max(albedoFloor, tint[0]));
       albedo[offset + 1] = toByte(Math.max(albedoFloor, tint[1]));
       albedo[offset + 2] = toByte(Math.max(albedoFloor, tint[2]));
@@ -683,20 +624,20 @@ function createPlaneWeatheringColorAttribute(
         0.67,
         0.84,
       );
-      const host = 0.82
-        + (broad - 0.5) * 0.16
-        + (medium - 0.5) * 0.07
-        + (fine - 0.5) * 0.035
+      const host = 0.94
+        + (broad - 0.5) * 0.1
+        + (medium - 0.5) * 0.045
+        + (fine - 0.5) * 0.025
         + faceTurn * 0.018;
       const mineralShift = surfaceValueNoise(centroid, seed + 109.3, 3.3) - 0.5;
       red = host * (
-        1 - fissure * 0.34 - inclusion * 0.13 + mineralShift * 0.025
+        1 - fissure * 0.19 - inclusion * 0.075 + mineralShift * 0.012
       );
       green = host * (
-        0.97 - fissure * 0.35 - inclusion * 0.14 - mineralShift * 0.015
+        0.99 - fissure * 0.195 - inclusion * 0.078 - mineralShift * 0.008
       );
       blue = host * (
-        0.88 - fissure * 0.33 - inclusion * 0.19 + mineralShift * 0.01
+        0.96 - fissure * 0.185 - inclusion * 0.09 + mineralShift * 0.006
       );
     }
 
@@ -760,13 +701,6 @@ function volumeNoise(x: number, y: number, z: number, seed: number): number {
   value = Math.imul(value ^ (value >>> 15), value | 1);
   value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
   return ((value ^ (value >>> 14)) >>> 0) / 0x1_0000_0000;
-}
-
-function stableSurfaceNoise(point: THREE.Vector3, seed: number): number {
-  const value = Math.sin(
-    point.x * 127.1 + point.y * 311.7 + point.z * 74.7 + seed * 19.19,
-  ) * 43758.5453123;
-  return value - Math.floor(value);
 }
 
 function periodicValueNoise(

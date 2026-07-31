@@ -85,6 +85,7 @@ import { precipitationProfile } from '../weather/precipitationPolicy.ts';
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import { markStartupCheckpoint } from '../app/startupDiagnostics.ts';
 import { setWorldAnimationTime } from './worldAnimationTime.ts';
+import { shouldRefreshDirectionalShadow } from './directionalShadowRefreshPolicy.ts';
 
 export type SceneLoadProgress = {
   label: string;
@@ -95,7 +96,6 @@ export type SceneLoadProgress = {
 
 const MOON_KEY_DIRECTION = new THREE.Vector3(-0.38, 0.82, 0.42).normalize();
 const MOON_FILL_DIRECTION = new THREE.Vector3(0.52, 0.48, -0.71).normalize();
-const SHADOW_KEY_REFRESH_DOT = Math.cos(THREE.MathUtils.degToRad(0.5));
 
 export class SceneManager {
   private readonly container: HTMLElement;
@@ -168,6 +168,7 @@ export class SceneManager {
   private lastShadowTargetX = Number.NaN;
   private lastShadowTargetZ = Number.NaN;
   private lastShadowDistance = Number.NaN;
+  private lastDirectionalShadowRefreshMs = Number.NEGATIVE_INFINITY;
   private unsubscribeShadowPreferences: (() => void) | null = null;
   private unsubscribeHydrologyOverlayPreference: (() => void) | null = null;
   private unsubscribeConstellationPreference: (() => void) | null = null;
@@ -666,7 +667,8 @@ export class SceneManager {
     this.fishWildlifeVisuals?.update(dt, cameraDistance, firstPersonActive);
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
-    if (this.shouldRefreshShadowMap(cameraDistance)) {
+    const shadowRefreshNowMs = performance.now();
+    if (this.shouldRefreshShadowMap(cameraDistance, shadowRefreshNowMs)) {
       fitDirectionalLightShadow(this.sunLight, {
         bounds: shadowBounds,
         sunOffsetDir: this.shadowKeyDirection,
@@ -674,6 +676,8 @@ export class SceneManager {
       this.lastShadowTargetX = this.cameraTarget.x;
       this.lastShadowTargetZ = this.cameraTarget.z;
       this.lastShadowDistance = cameraDistance;
+      this.lastShadowKeyDirection.copy(this.shadowKeyDirection);
+      this.lastDirectionalShadowRefreshMs = shadowRefreshNowMs;
       this.refreshShadowMap();
     }
     if (import.meta.env.VITE_E2E_TEST === '1') {
@@ -694,8 +698,12 @@ export class SceneManager {
     this.completedRenderFrames++;
   }
 
-  private shouldRefreshShadowMap(cameraDistance: number): boolean {
+  private shouldRefreshShadowMap(cameraDistance: number, nowMs: number): boolean {
     if (!Number.isFinite(this.lastShadowTargetX)) return true;
+    if (shouldRefreshDirectionalShadow(
+      this.lastShadowKeyDirection.dot(this.shadowKeyDirection),
+      nowMs - this.lastDirectionalShadowRefreshMs,
+    )) return true;
     // The fitted bounds carry 24% overscan, so the shadow camera can trail a
     // moving view briefly without exposing an unshadowed edge. Redrawing the
     // 2048px forest/building atlas every other frame caused avoidable frame
@@ -748,16 +756,6 @@ export class SceneManager {
       .addScaledVector(this.shadowKeyDirection, 180);
     this.sunLight.updateMatrixWorld();
     this.sunLight.target.updateMatrixWorld();
-    const previousDirectionIsFinite = Number.isFinite(this.lastShadowKeyDirection.x);
-    if (
-      !previousDirectionIsFinite
-      || this.lastShadowKeyDirection.dot(this.shadowKeyDirection) < SHADOW_KEY_REFRESH_DOT
-    ) {
-      this.lastShadowKeyDirection.copy(this.shadowKeyDirection);
-      // applyDayNight runs every frame. Invalidate the fit only after the key
-      // moves far enough to matter; the next render refreshes the atlas once.
-      this.lastShadowTargetX = Number.NaN;
-    }
     this.hemiLight.color.setHex(blendColorHex(state.hemiSkyColor, weather.fogTint, atmosphericBlend * 0.48));
     this.hemiLight.groundColor.setHex(blendColorHex(state.hemiGroundColor, weather.fogTint, atmosphericBlend * 0.2));
     // Night hierarchy comes from a cool directional key and practical lights,

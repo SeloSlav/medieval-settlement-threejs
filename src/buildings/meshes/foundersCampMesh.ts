@@ -38,6 +38,11 @@ const TENT_HALF_WIDTH = 1.62;
 const TENT_HALF_DEPTH = 1.92;
 const TENT_EAVE_Y = 0.2;
 const TENT_RIDGE_Y = 2.32;
+const FOUNDERS_CAMP_TENT_PLACEMENTS = [
+  { x: -5.15, z: 4.35, yaw: 0.12 },
+  { x: 0, z: 4.7, yaw: 0 },
+  { x: 5.15, z: 4.35, yaw: -0.12 },
+] as const;
 const LIT_SMOKE_UPLOAD_INTERVAL_SECONDS = 1 / 12;
 const litSmokeMatrix = new THREE.Matrix4();
 const litSmokeQuaternion = new THREE.Quaternion();
@@ -88,12 +93,7 @@ function addCampInstances(
 
 function addFoundersCampWinterAccumulation(parent: THREE.Group): void {
   const parts: THREE.BufferGeometry[] = [];
-  const tentPlacements = [
-    { x: -3.7, z: 2.7, yaw: 0.3 },
-    { x: -0.1, z: 4.15, yaw: 0 },
-    { x: 3.7, z: 2.7, yaw: -0.3 },
-  ] as const;
-  tentPlacements.forEach(({ x, z, yaw }, index) => {
+  FOUNDERS_CAMP_TENT_PLACEMENTS.forEach(({ x, z, yaw }, index) => {
     const geometry = createTentRoofFrostGeometry(index);
     geometry.rotateY(yaw);
     geometry.translate(x, 0, z);
@@ -107,11 +107,10 @@ function addFoundersCampWinterAccumulation(parent: THREE.Group): void {
   addHorizontalWinterPatch(parts, 0.82, 0.62, 5.56, 0.87, -1.42, 0.18);
   addHorizontalWinterPatch(parts, 0.64, 0.52, 4.65, 0.73, -1.66, -0.12);
   addHorizontalWinterPatch(parts, 0.55, 0.46, 5.2, 1.32, -1.34, 0.08);
-  addHorizontalWinterPatch(parts, 0.6, 0.16, 2.31, 0.76, -2.12, 0.04);
-  addHorizontalWinterPatch(parts, 0.56, 0.15, 2.69, 0.76, -2.06, -0.05);
+  addHorizontalWinterPatch(parts, 0.16, 1.25, 2.38, 1.43, -1.8, 0.02);
   addHorizontalWinterDisc(parts, 0.5, -4.48, 0.75, -1.2, 9, 0.18);
-  addHorizontalWinterDisc(parts, 0.45, 4.2, 1.2, 1.22, 10, -0.12);
-  addHorizontalWinterDisc(parts, 0.43, 5.28, 1.14, 1.02, 10, 0.16);
+  addHorizontalWinterDisc(parts, 0.45, 6.15, 1.2, 0.3, 10, -0.12);
+  addHorizontalWinterDisc(parts, 0.43, 7.35, 1.2, 0.43, 10, 0.16);
 
   const geometry = mergeGeometries(parts, false);
   for (const part of parts) part.dispose();
@@ -261,9 +260,7 @@ function addHorizontalWinterDisc(
 }
 
 function createTimberWinterAccumulationGeometry(): THREE.BufferGeometry {
-  const geometry = new THREE.BoxGeometry(2.22, 0.065, 0.18);
-  geometry.translate(0.04, 0.865, -0.025);
-  return geometry;
+  return new THREE.BoxGeometry(3.05, 0.055, 0.14);
 }
 
 function createStoneWinterAccumulationGeometry(): THREE.BufferGeometry {
@@ -524,58 +521,13 @@ function addFoundingFootTraffic(parent: THREE.Group): void {
   traffic.userData.fpNoCollision = true;
 }
 
-function addFoundingStandard(parent: THREE.Group): void {
-  const standard = new THREE.Group();
-  standard.name = 'Founding wool field standard';
-  standard.position.set(-6.12, 0, 1.15);
-
-  const pole = addMesh(
-    standard,
-    new THREE.CylinderGeometry(0.075, 0.1, 4.35, 7),
-    timberMaterial('dark'),
-    new THREE.Vector3(0, 2.18, 0),
-    new THREE.Euler(0, 0, -0.035),
-  );
-  pole.name = 'Founding standard pole';
-
-  const pennantGeometry = new THREE.BufferGeometry();
-  pennantGeometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([
-      0.03, 4.07, 0.015,
-      1.78, 3.68, 0.015,
-      0.03, 3.26, 0.015,
-    ], 3),
-  );
-  pennantGeometry.setAttribute(
-    'uv',
-    new THREE.Float32BufferAttribute([
-      0, 1,
-      1, 0.5,
-      0, 0,
-    ], 2),
-  );
-  pennantGeometry.setIndex([0, 2, 1]);
-  pennantGeometry.computeVertexNormals();
-  const pennant = addMesh(
-    standard,
-    pennantGeometry,
-    sharedBuildingDetailMaterial('paintRed'),
-    new THREE.Vector3(),
-  );
-  pennant.name = 'Weathered red wool pennant';
-  pennant.userData.fpNoCollision = true;
-
-  parent.add(standard);
-}
-
 function addFoundingProvisions(parent: THREE.Group): void {
   const provisions = new THREE.Group();
   provisions.name = 'Founding provisions';
 
   const barrelPositions = [
-    new THREE.Vector3(4.2, 0.6, 1.22),
-    new THREE.Vector3(5.28, 0.54, 1.02),
+    new THREE.Vector3(6.15, 0.6, 0.3),
+    new THREE.Vector3(7.35, 0.6, 0.43),
   ];
   addCampInstances(
     provisions,
@@ -592,8 +544,12 @@ function addFoundingProvisions(parent: THREE.Group): void {
     'Iron barrel hoops',
     new THREE.TorusGeometry(0.49, 0.035, 5, 10),
     metalMaterial('iron'),
-    barrelPositions.flatMap((position) => [0.27, 0.86].map((y) => ({
-      position: new THREE.Vector3(position.x, y, position.z),
+    barrelPositions.flatMap((position) => [-0.33, 0.27].map((offsetY) => ({
+      position: new THREE.Vector3(
+        position.x,
+        position.y + offsetY,
+        position.z,
+      ),
       rotation: new THREE.Euler(Math.PI * 0.5, 0, 0),
     }))),
   );
@@ -602,7 +558,7 @@ function addFoundingProvisions(parent: THREE.Group): void {
     provisions,
     new THREE.CylinderGeometry(0.43, 0.32, 0.58, 10, 1, true),
     timberMaterial('light'),
-    new THREE.Vector3(5.98, 0.3, 1.58),
+    new THREE.Vector3(7.55, 0.3, -0.95),
   );
   basket.name = 'Woven provision basket';
   basket.userData.fpNoCollision = true;
@@ -610,7 +566,7 @@ function addFoundingProvisions(parent: THREE.Group): void {
     provisions,
     new THREE.TorusGeometry(0.43, 0.045, 5, 10),
     timberMaterial('dark'),
-    new THREE.Vector3(5.98, 0.59, 1.58),
+    new THREE.Vector3(7.55, 0.59, -0.95),
     new THREE.Euler(Math.PI * 0.5, 0, 0),
   );
   basketRim.name = 'Woven basket rim';
@@ -619,7 +575,7 @@ function addFoundingProvisions(parent: THREE.Group): void {
     provisions,
     new THREE.CircleGeometry(0.37, 10),
     sharedBuildingDetailMaterial('crop'),
-    new THREE.Vector3(5.98, 0.575, 1.58),
+    new THREE.Vector3(7.55, 0.575, -0.95),
     new THREE.Euler(-Math.PI * 0.5, 0, 0),
   );
   basketContents.name = 'Dry provisions in basket';
@@ -808,22 +764,23 @@ function addFoundingUtilityStores(parent: THREE.Group): void {
   spokes.userData.fpNoCollision = true;
 
   const firewoodPlacements: CampInstance[] = [];
-  for (let row = 0; row < 3; row += 1) {
-    for (let column = 0; column < 4 - row; column += 1) {
+  for (let row = 0; row < 6; row += 1) {
+    const rowCount = 6 - row;
+    for (let column = 0; column < rowCount; column += 1) {
       firewoodPlacements.push({
         position: new THREE.Vector3(
-          1.95 + column * 0.38 + row * 0.18,
-          0.18 + row * 0.23,
-          -2.12 + (column % 2) * 0.06,
+          2.38 + (column - (rowCount - 1) / 2) * 0.31,
+          0.17 + row * 0.22,
+          -1.8 + (column % 2) * 0.025,
         ),
-        rotation: new THREE.Euler(Math.PI * 0.5, 0, Math.PI * 0.5),
+        rotation: new THREE.Euler(Math.PI * 0.5, 0, 0),
       });
     }
   }
   const firewood = addCampInstances(
     stores,
     'Stacked cut camp firewood',
-    new THREE.CylinderGeometry(0.105, 0.13, 1.55, 6),
+    new THREE.CylinderGeometry(0.105, 0.13, 1.72, 6),
     timberMaterial('light'),
     firewoodPlacements,
   );
@@ -875,10 +832,22 @@ function addLivedInTextiles(parent: THREE.Group): void {
   const textiles = new THREE.Group();
   textiles.name = 'Founders drying wool and blankets';
 
+  const lineStart = new THREE.Vector3(-1.55, 1.72, -3.38);
+  const lineEnd = new THREE.Vector3(2.65, 1.61, -3.18);
+  addCampInstances(
+    textiles,
+    'Freestanding founders clothesline poles',
+    new THREE.CylinderGeometry(0.055, 0.075, 1.74, 7),
+    timberMaterial('dark'),
+    [lineStart, lineEnd].map((point, index) => ({
+      position: new THREE.Vector3(point.x, 0.87, point.z),
+      rotation: new THREE.Euler(0, 0, index === 0 ? -0.025 : 0.035),
+    })),
+  );
   addRopeBetween(
     textiles,
-    new THREE.Vector3(-2.92, 1.66, 1.72),
-    new THREE.Vector3(2.72, 1.55, 1.92),
+    lineStart,
+    lineEnd,
   );
   const redCloths = addCampInstances(
     textiles,
@@ -887,12 +856,12 @@ function addLivedInTextiles(parent: THREE.Group): void {
     sharedBuildingDetailMaterial('paintRed'),
     [
       {
-        position: new THREE.Vector3(-1.34, 1.26, 1.79),
+        position: new THREE.Vector3(-0.62, 1.3, -3.33),
         rotation: new THREE.Euler(0.03, -0.04, 0.045),
         scale: new THREE.Vector3(0.68, 0.72, 1),
       },
       {
-        position: new THREE.Vector3(1.48, 1.25, 1.88),
+        position: new THREE.Vector3(1.83, 1.25, -3.22),
         rotation: new THREE.Euler(-0.025, 0.06, -0.035),
         scale: new THREE.Vector3(0.58, 0.62, 1),
       },
@@ -903,7 +872,7 @@ function addLivedInTextiles(parent: THREE.Group): void {
     textiles,
     new THREE.BoxGeometry(0.82, 0.84, 0.035),
     sharedBuildingDetailMaterial('paintOchre'),
-    new THREE.Vector3(0.12, 1.2, 1.84),
+    new THREE.Vector3(0.56, 1.23, -3.28),
     new THREE.Euler(0.02, 0.03, 0.028),
   );
   ochreCloth.name = 'Drying ochre wool blanket';
@@ -981,7 +950,7 @@ function addAFrameShelter(
   );
 
   for (const zEnd of [-TENT_HALF_DEPTH, TENT_HALF_DEPTH]) {
-    const outwardZ = zEnd + Math.sign(zEnd) * 1.32;
+    const outwardZ = zEnd + Math.sign(zEnd) * 1.08;
     addRopeBetween(
       shelter,
       new THREE.Vector3(0, TENT_RIDGE_Y + 0.04, zEnd),
@@ -991,8 +960,8 @@ function addAFrameShelter(
   }
   for (const side of [-1, 1]) {
     for (const zEnd of [-TENT_HALF_DEPTH * 0.86, TENT_HALF_DEPTH * 0.86]) {
-      const stakeX = side * (TENT_HALF_WIDTH + 0.68);
-      const stakeZ = zEnd + Math.sign(zEnd) * 0.44;
+      const stakeX = side * (TENT_HALF_WIDTH + 0.55);
+      const stakeZ = zEnd + Math.sign(zEnd) * 0.34;
       addRopeBetween(
         shelter,
         new THREE.Vector3(side * TENT_HALF_WIDTH, TENT_EAVE_Y + 0.06, zEnd),
@@ -1328,25 +1297,38 @@ function addTimberStock(parent: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'FoundingTimberStockpile';
   const winterAccumulationPlacements: CampInstance[] = [];
+  const stackSlots = [
+    { z: -0.54, y: 0.17 },
+    { z: -0.18, y: 0.17 },
+    { z: 0.18, y: 0.17 },
+    { z: 0.54, y: 0.17 },
+    { z: -0.36, y: 0.45 },
+    { z: 0, y: 0.45 },
+    { z: 0.36, y: 0.45 },
+    { z: 0, y: 0.73 },
+  ] as const;
   for (let segmentIndex = 0; segmentIndex < FOUNDING_TIMBER_VISUAL_SEGMENTS; segmentIndex += 1) {
+    const slot = stackSlots[segmentIndex]!;
     const segment = new THREE.Group();
     segment.name = 'FoundingTimberSegment';
-    const row = Math.floor(segmentIndex / 4);
-    const column = segmentIndex % 4;
-    segment.position.set(-5.7 + column * 0.62, 0, -2.55 + row * 0.48);
+    segment.position.set(-5.2, slot.y, -3.25 + slot.z);
+    const yaw = (segmentIndex % 3 - 1) * 0.025;
     winterAccumulationPlacements.push({
-      position: segment.position.clone(),
-      rotation: new THREE.Euler(0, (segmentIndex % 3 - 1) * 0.025, 0),
+      position: new THREE.Vector3(
+        segment.position.x,
+        segment.position.y + 0.165,
+        segment.position.z,
+      ),
+      rotation: new THREE.Euler(0, yaw, 0),
     });
-    for (let log = 0; log < 3; log += 1) {
-      addMesh(
-        segment,
-        new THREE.CylinderGeometry(0.13, 0.16, 2.55, 7),
-        timberMaterial(log === 1 ? 'light' : 'mid'),
-        new THREE.Vector3(0, 0.18 + log * 0.26, 0),
-        new THREE.Euler(0, 0, Math.PI * 0.5),
-      );
-    }
+    const log = addMesh(
+      segment,
+      new THREE.CylinderGeometry(0.13, 0.16, 3.4, 7),
+      timberMaterial(segmentIndex % 3 === 1 ? 'light' : 'mid'),
+      new THREE.Vector3(),
+      new THREE.Euler(0, yaw, Math.PI * 0.5),
+    );
+    log.name = 'Triangular founding timber log';
     stockpile.add(segment);
   }
   const winterAccumulation = addCampInstances(
@@ -1369,9 +1351,9 @@ function addStoneStock(parent: THREE.Group): void {
   for (let index = 0; index < FOUNDING_STONE_VISUAL_SEGMENTS; index += 1) {
     const radius = 0.42 + (index % 3) * 0.08;
     const position = new THREE.Vector3(
-      3.8 + (index % 4) * 0.62,
+      4.2 + (index % 4) * 0.62,
       0.34 + Math.floor(index / 4) * 0.42,
-      -2.8,
+      -3.65,
     );
     const stone = addMesh(
       stockpile,
@@ -1411,24 +1393,25 @@ function addStoneStock(parent: THREE.Group): void {
 function addTreasuryChest(parent: THREE.Group): void {
   const chest = new THREE.Group();
   chest.name = 'FoundingTreasuryChest';
+  chest.position.set(-7, 0, -0.9);
   addMesh(
     chest,
     new THREE.BoxGeometry(1.25, 0.68, 0.75),
     timberMaterial('dark'),
-    new THREE.Vector3(5.1, 0.4, 2.8),
+    new THREE.Vector3(0, 0.4, 0),
   );
   addMesh(
     chest,
     new THREE.CylinderGeometry(0.38, 0.38, 1.25, 8, 1, false, 0, Math.PI),
     timberMaterial('weathered'),
-    new THREE.Vector3(5.1, 0.78, 2.8),
+    new THREE.Vector3(0, 0.78, 0),
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
   addMesh(
     chest,
     new THREE.BoxGeometry(0.12, 0.72, 0.8),
     metalMaterial('iron'),
-    new THREE.Vector3(5.1, 0.53, 2.8),
+    new THREE.Vector3(0, 0.53, 0),
   );
   parent.add(chest);
 }
@@ -1635,9 +1618,9 @@ export function createFoundersCampMesh(): THREE.Group {
 
   const shelters = new THREE.Group();
   shelters.name = 'FoundingShelters';
-  addAFrameShelter(shelters, -3.7, 2.7, 0.3, 0);
-  addAFrameShelter(shelters, -0.1, 4.15, 0, 1);
-  addAFrameShelter(shelters, 3.7, 2.7, -0.3, 2);
+  FOUNDERS_CAMP_TENT_PLACEMENTS.forEach(({ x, z, yaw }, index) => {
+    addAFrameShelter(shelters, x, z, yaw, index);
+  });
   group.add(shelters);
 
   addCampfire(shelters);
@@ -1698,7 +1681,6 @@ export function createFoundersCampMesh(): THREE.Group {
   );
   stumpSeatTop.name = 'Camp fireside stump seat top';
 
-  addFoundingStandard(shelters);
   addFoundingProvisions(shelters);
   addFoundingWorkyard(shelters);
   addFoundingUtilityStores(shelters);

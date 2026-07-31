@@ -8,6 +8,25 @@ import {
   NIGHT_FOG_COLOR,
 } from '../src/world/dayNightPresentation.ts';
 import { gameClockAtElapsedSeconds, type GameClock } from '../src/world/gameCalendar.ts';
+import {
+  DIRECTIONAL_SHADOW_MAX_STEP_DEGREES,
+  DIRECTIONAL_SHADOW_MIN_REFRESH_INTERVAL_MS,
+  DIRECTIONAL_SHADOW_TARGET_STEP_DEGREES,
+  shouldRefreshDirectionalShadow,
+} from '../src/scene/directionalShadowRefreshPolicy.ts';
+
+const directionDotAtDegrees = (degrees: number): number => Math.cos(
+  THREE.MathUtils.degToRad(degrees),
+);
+
+assert.equal(DIRECTIONAL_SHADOW_TARGET_STEP_DEGREES, 0.12);
+assert.equal(DIRECTIONAL_SHADOW_MAX_STEP_DEGREES, 0.5);
+assert.equal(DIRECTIONAL_SHADOW_MIN_REFRESH_INTERVAL_MS, 100);
+assert.equal(shouldRefreshDirectionalShadow(Number.NaN, 0), true);
+assert.equal(shouldRefreshDirectionalShadow(directionDotAtDegrees(0.08), 1_000), false);
+assert.equal(shouldRefreshDirectionalShadow(directionDotAtDegrees(0.13), 99), false);
+assert.equal(shouldRefreshDirectionalShadow(directionDotAtDegrees(0.13), 100), true);
+assert.equal(shouldRefreshDirectionalShadow(directionDotAtDegrees(0.51), 0), true);
 
 const springDawn = computeDayNightState(clockAt(6.65, 3), false);
 const springNoon = computeDayNightState(clockAt(12.75, 3), false);

@@ -46,8 +46,8 @@ export const FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT: FoundersCampSeatLandmark = {
   support: 'stump',
   // This support is behind the character root when they face the fire, so
   // the authored sitting motion settles the hips onto the stump.
-  supportPosition: { x: 2.68, z: 0.69 },
-  destination: { x: 2.45, z: 0.55 },
+  supportPosition: { x: 2.68, z: 0.2 },
+  destination: { x: 2.45, z: 0.05 },
   lookAt: FOUNDERS_CAMPFIRE_POSITION,
   surfaceHeight: FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
 };

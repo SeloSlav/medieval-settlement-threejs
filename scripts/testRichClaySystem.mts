@@ -61,13 +61,53 @@ assert.ok(
   ordinaryClayMeshes.some((mesh) => mesh.name.startsWith('Ordinary clay clod')),
   'ordinary clay must include raised 3D clods rather than only a terrain-colored decal',
 );
-const ordinarySurface = ordinaryClayVisual.getObjectByName('Ordinary clay bank surface');
+assert.equal(
+  ordinaryClayVisual.getObjectByName('Ordinary clay bank surface'),
+  undefined,
+  'clay deposits must not retain a broad wet-ground patch beneath the raised material',
+);
+const ordinarySurface = ordinaryClayVisual.getObjectByName('Ordinary clay exposed stratum 1');
 assert.ok(ordinarySurface instanceof THREE.Mesh);
 ordinarySurface.geometry.computeBoundingBox();
 assert.ok(
   (ordinarySurface.geometry.boundingBox?.max.y ?? 0)
     - (ordinarySurface.geometry.boundingBox?.min.y ?? 0) >= 0.2,
   'the clay bank surface must have modeled vertical relief at close zoom',
+);
+const ordinarySurfaceMaterial = ordinarySurface.material as THREE.MeshStandardMaterial;
+assert.ok(
+  ordinarySurfaceMaterial.map instanceof THREE.DataTexture
+    && ordinarySurfaceMaterial.normalMap instanceof THREE.DataTexture
+    && ordinarySurfaceMaterial.roughnessMap instanceof THREE.DataTexture
+    && ordinarySurfaceMaterial.map.image.width === 64
+    && ordinarySurfaceMaterial.map.image.height === 64
+    && ordinarySurfaceMaterial.normalScale.x >= 0.4
+    && ordinarySurfaceMaterial.userData.claySurface?.revision === 'alluvial-clay-v2',
+  'clay banks must carry shared granular albedo, normal, and roughness detail',
+);
+assert.ok(
+  ordinarySurface.geometry.getAttribute('uv') !== undefined,
+  'the terrain-conforming bank needs UVs so surface texture remains visible across the patch',
+);
+const ordinarySurfaceNormals = ordinarySurface.geometry.getAttribute('normal') as THREE.BufferAttribute;
+let upwardNormalCount = 0;
+for (let index = 0; index < ordinarySurfaceNormals.count; index++) {
+  if (ordinarySurfaceNormals.getY(index) > 0) upwardNormalCount++;
+}
+assert.ok(
+  upwardNormalCount / ordinarySurfaceNormals.count >= 0.9,
+  'the clay bank faces must wind upward so the raised surface is visible rather than backface-culled',
+);
+const clayAlbedoData = ordinarySurfaceMaterial.map.image.data as Uint8Array;
+let clayAlbedoMinimum = 255;
+let clayAlbedoMaximum = 0;
+for (let offset = 0; offset < clayAlbedoData.length; offset += 4) {
+  clayAlbedoMinimum = Math.min(clayAlbedoMinimum, clayAlbedoData[offset]);
+  clayAlbedoMaximum = Math.max(clayAlbedoMaximum, clayAlbedoData[offset]);
+}
+assert.ok(
+  clayAlbedoMaximum - clayAlbedoMinimum >= 40,
+  'the clay albedo must retain camera-readable grain and fine drying cracks',
 );
 assert.ok(
   ordinaryClayMeshes.some((mesh) => mesh.castShadow),

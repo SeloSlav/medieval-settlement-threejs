@@ -37,12 +37,13 @@ export class WorldSetupPanel {
           decoding="sync"
         />
         <form class="world-setup-dialog" aria-label="World setup">
-          <section class="world-setup-section" aria-label="Map size">
+          <div class="world-setup-scroll" aria-label="World settings">
+            <section class="world-setup-section" aria-label="Map size">
             <h2 class="world-setup-section__title">Map size</h2>
             <div class="world-setup-size-grid" data-size-grid></div>
-          </section>
+            </section>
 
-          <section class="world-setup-section" aria-label="Settlement mode">
+            <section class="world-setup-section" aria-label="Settlement mode">
             <h2 class="world-setup-section__title">Settlement mode</h2>
             <div class="world-setup-mode-grid" data-mode-grid>
               <button type="button" class="world-setup-mode-option is-selected" data-conflict-mode="peaceful">
@@ -62,36 +63,36 @@ export class WorldSetupPanel {
               <input id="world-setup-pressure" class="world-setup-slider" type="range" min="10" max="100" step="5" value="50" />
               <p class="world-setup-slider-hint">Higher pressure brings scouts sooner and increases portable-goods losses at exposed holdings.</p>
             </div>
-          </section>
+            </section>
 
-          <section class="world-setup-section" aria-label="Topography">
+            <section class="world-setup-section" aria-label="Topography">
             <label class="world-setup-slider-label" for="world-setup-topography">
               <span>Topography</span>
               <strong data-topography-value>${this.draft.topography}</strong>
             </label>
             <input id="world-setup-topography" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.topography}" />
             <p class="world-setup-slider-hint">Low = gentle rolling hills. High = rugged ridges and steep valleys.</p>
-          </section>
+            </section>
 
-          <section class="world-setup-section" aria-label="Hydrology">
+            <section class="world-setup-section" aria-label="Hydrology">
             <label class="world-setup-slider-label" for="world-setup-hydrology">
               <span>Hydrology</span>
               <strong data-hydrology-value>${this.draft.hydrology}</strong>
             </label>
             <input id="world-setup-hydrology" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.hydrology}" />
             <p class="world-setup-slider-hint">Low = drier land with fewer rivers. High = wetter valleys and more waterways.</p>
-          </section>
+            </section>
 
-          <section class="world-setup-section" aria-label="Forest density">
+            <section class="world-setup-section" aria-label="Forest density">
             <label class="world-setup-slider-label" for="world-setup-forest">
               <span>Forest density</span>
               <strong data-forest-value>${this.draft.forestDensity}</strong>
             </label>
             <input id="world-setup-forest" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.forestDensity}" />
             <p class="world-setup-slider-hint">Low = open meadows and scattered woodland. High = dense conifer cover.</p>
-          </section>
+            </section>
 
-          <section class="world-setup-section world-setup-resources" aria-label="Regional resources">
+            <section class="world-setup-section world-setup-resources" aria-label="Regional resources">
             <h2 class="world-setup-section__title">Regional resources</h2>
             <label class="world-setup-slider-label" for="world-setup-resource-abundance">
               <span>Local abundance</span>
@@ -107,17 +108,18 @@ export class WorldSetupPanel {
             <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
             <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich mineral rolls into fewer resource families. Staffed marketplaces can import iron and Adriatic salt after local seams run short; trade supplements physical geology rather than replacing it.</p>
             <div class="world-setup-resource-summary" data-resource-summary aria-live="polite">${this.resourceSummaryMarkup()}</div>
-          </section>
+            </section>
 
-          <section class="world-setup-section" aria-label="World seed">
-            <h2 class="world-setup-section__title">World seed</h2>
-            <div class="world-setup-seed-row">
-              <input class="world-setup-seed-input" type="text" inputmode="text" spellcheck="false" autocomplete="off" aria-label="World seed" data-seed-input value="${formatSeedHex(this.draft.seed)}" />
-              <button type="button" class="world-setup-randomize" data-randomize-seed>Randomize</button>
-            </div>
-          </section>
+          </div>
 
           <div class="world-setup-actions">
+            <div class="world-setup-footer-seed">
+              <label class="world-setup-footer-seed__label" for="world-setup-seed">World seed</label>
+              <div class="world-setup-seed-row">
+                <input id="world-setup-seed" class="world-setup-seed-input" type="text" inputmode="text" spellcheck="false" autocomplete="off" aria-label="World seed" data-seed-input value="${formatSeedHex(this.draft.seed)}" />
+                <button type="button" class="world-setup-randomize" data-randomize-seed>Randomize</button>
+              </div>
+            </div>
             <button type="submit" class="world-setup-start">Start world</button>
           </div>
         </form>

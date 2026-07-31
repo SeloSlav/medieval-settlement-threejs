@@ -198,9 +198,9 @@ function createSaplingPlacements(
     const density = forestDensityAt(x, z, forestCores, spawnConfig.extent, spawnConfig.terrainExtent);
     if (density < 0.42 || rng() > density * 1.06) continue;
 
-    const minDistance = lerp(2.8, 1.9, density);
+    const minDistance = lerp(2.25, 1.3, density);
     if (placementIndex.hasPointWithin(x, z, minDistance)) continue;
-    if (existingIndex.hasPointWithin(x, z, 2.4)) continue;
+    if (existingIndex.hasPointWithin(x, z, 1.55)) continue;
     const habitat = sampleLocalForestHabitat(x, z, density, spawnConfig, forestCores);
     const species = pickTreeSpecies(rng, habitat, 'sapling');
     const form = pickTreeForm(rng, species, habitat, 'sapling', valueNoise2(x * 0.032, z * 0.032));
@@ -446,10 +446,10 @@ function getTreePlacementSpacing(
 ): number {
   const profile = getTreeSpeciesProfile(species);
   const canopyRadius = getEstimatedCanopyRadius(species, form, scale);
-  const densitySpacing = lerp(1.0, 0.54, habitat.density);
-  const formMul = form === 'young' ? 0.8 : form === 'midstory' ? 0.7 : profile.canopy === 'broadleaf' ? 1.06 : 0.9;
-  const habitatMul = lerp(1.0, 0.82, habitat.hillFactor);
-  return Math.max(form === 'young' || form === 'midstory' ? 1.8 : 2.8, canopyRadius * densitySpacing * formMul * habitatMul);
+  const densitySpacing = lerp(0.86, 0.38, habitat.density);
+  const formMul = form === 'young' ? 0.7 : form === 'midstory' ? 0.62 : profile.canopy === 'broadleaf' ? 0.98 : 0.82;
+  const habitatMul = lerp(0.94, 0.76, habitat.hillFactor);
+  return Math.max(form === 'young' || form === 'midstory' ? 1.35 : 2, canopyRadius * densitySpacing * formMul * habitatMul);
 }
 
 export function getEstimatedCanopyRadius(species: TreeSpecies, form: TreeForm, scale: number): number {

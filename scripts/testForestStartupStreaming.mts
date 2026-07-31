@@ -64,7 +64,7 @@ assert.ok(
 );
 
 const trees = computeWorldBootstrapDataHeadless().trees;
-assert.ok(trees.length >= 2_200, 'the default world should contain a materially denser forest');
+assert.ok(trees.length >= 4_500, 'the default world should contain the requested high-density forest');
 
 const nearestDistances = trees.map((tree, index) => {
   let nearest = Number.POSITIVE_INFINITY;
@@ -77,7 +77,7 @@ const nearestDistances = trees.map((tree, index) => {
 }).sort((a, b) => a - b);
 const medianNearest = nearestDistances[Math.floor(nearestDistances.length * 0.5)];
 assert.ok(
-  medianNearest <= 7.5,
+  medianNearest <= 5.5,
   `the median tree should sit inside touching-crown spacing (received ${medianNearest.toFixed(2)}m)`,
 );
 
@@ -92,8 +92,8 @@ const clusteredTrees = trees.filter((tree, index) => {
 }).length;
 const clusteredShare = clusteredTrees / trees.length;
 assert.ok(
-  clusteredShare >= 0.22,
-  `at least 22% of trees should form dense local stands (received ${(clusteredShare * 100).toFixed(1)}%)`,
+  clusteredShare >= 0.5,
+  `at least half of all trees should form dense local stands (received ${(clusteredShare * 100).toFixed(1)}%)`,
 );
 
 console.log(JSON.stringify({

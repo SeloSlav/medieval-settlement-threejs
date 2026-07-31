@@ -1,6 +1,5 @@
 import type * as THREE from 'three';
 import type { WebGPURenderer } from 'three/webgpu';
-import * as branchCardApi from '@seedthree/core/branch-cards.js';
 import {
   bakeBranchCards,
   disposeBranchCards,
@@ -26,19 +25,6 @@ export type SeedThreeBranchCardBuildOptions = {
 
 const CARD_RES = 512;
 const CARD_VARIANTS = 3;
-const {
-  BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS,
-  planBranchCardCrownUnderlay,
-} = branchCardApi as typeof branchCardApi & {
-  readonly BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS: {
-    readonly maxRootCards: number;
-    readonly radialPlanes: number;
-  };
-  readonly planBranchCardCrownUnderlay: (
-    foliage: Record<string, unknown>,
-    rootStemCount: number,
-  ) => { enabled: boolean; lateralScale: number };
-};
 const cardCache = new Map<string, SeedThreeBranchCards>();
 
 export function seedThreeBranchCardCacheKey(
@@ -46,7 +32,6 @@ export function seedThreeBranchCardCacheKey(
   mobileTarget: boolean,
 ): string {
   const foliage = species.foliage ?? {};
-  const crownUnderlay = planBranchCardCrownUnderlay(foliage, 1);
   return [
     species.name,
     foliage.size ?? '',
@@ -56,7 +41,6 @@ export function seedThreeBranchCardCacheKey(
     CARD_RES,
     CARD_VARIANTS,
     mobileTarget ? 'm' : 'd',
-    `u${crownUnderlay.enabled ? 1 : 0}x${crownUnderlay.lateralScale}`,
     `b${SEEDTHREE_BRANCH_CARD_BAKE_REVISION}`,
   ].join('|');
 }
@@ -91,58 +75,30 @@ export async function ensureSeedThreeBranchCards(
   }
 
   const maxLevel = skeletonLevels(species) - 1;
-  const jobs: Array<{
-    key?: string;
-    level: number;
-    foliageOnly: boolean;
-    preserveFoliageLayout?: boolean;
-    maxRoots?: number;
-    radialPlanes?: number;
-    variants?: number;
-    size?: number;
-    noFlutter?: boolean;
-  }> = [{ level: maxLevel, foliageOnly: true }];
+  const jobs: Array<{ level: number; foliageOnly: boolean }> = [
+    { level: maxLevel, foliageOnly: true },
+  ];
   if (mobileTarget) {
     jobs.push({ level: maxLevel, foliageOnly: false });
     jobs.push({ level: Math.max(1, maxLevel - 1), foliageOnly: false });
   }
-  if (species.foliage.cardCrownUnderlay === true) {
-    jobs.push({
-      key: '0:underlay',
-      level: 0,
-      foliageOnly: true,
-      preserveFoliageLayout: true,
-      maxRoots: BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.maxRootCards,
-      radialPlanes: BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS.radialPlanes,
-      variants: 1,
-      size: Math.max(256, Math.floor(CARD_RES / 2)),
-      noFlutter: true,
-    });
-  }
-
   const byLevel = new Map<string, BranchCardsSet>();
   const noFlutterByLevel = new Map<string, boolean>();
   try {
     for (const job of jobs) {
-      const jobKey = job.key ?? `${job.level}:${job.foliageOnly ? 'fol' : 'full'}`;
+      const jobKey = `${job.level}:${job.foliageOnly ? 'fol' : 'full'}`;
       if (byLevel.has(jobKey)) continue;
-      const noFlutter = job.noFlutter ?? job.level < maxLevel;
+      const noFlutter = job.level < maxLevel;
       noFlutterByLevel.set(jobKey, noFlutter);
       const set = await bakeBranchCards(renderer, species, assets, {
-        size: job.size ?? CARD_RES,
-        variants: job.variants ?? CARD_VARIANTS,
+        size: CARD_RES,
+        variants: CARD_VARIANTS,
         cardLevel: job.level,
         foliageOnly: job.foliageOnly,
-        preserveFoliageLayout: job.preserveFoliageLayout,
-        maxRoots: job.maxRoots,
-        radialPlanes: job.radialPlanes,
         noFlutter,
         yield: options.yieldBetweenCaptures,
         onRendererBusyChange: options.onRendererBusyChange,
       });
-      if (!set && job.key === '0:underlay') {
-        throw new Error('required whole-crown underlay bake returned no card set');
-      }
       if (set) byLevel.set(jobKey, set);
     }
   } catch (error) {

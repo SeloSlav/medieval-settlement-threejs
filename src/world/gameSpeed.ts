@@ -12,6 +12,18 @@ export function gameSpeedForHotkey(key: string): GameSpeed | null {
   return index >= 0 ? PLAYER_GAME_SPEEDS[index] : null;
 }
 
+export function resolveGameSpeedHotkey(
+  key: string,
+  currentSpeed: GameSpeed,
+  lastRunningSpeed: GameSpeed,
+  firstPersonActive: boolean,
+): GameSpeed | null {
+  const requestedSpeed = gameSpeedForHotkey(key);
+  if (requestedSpeed !== 0) return requestedSpeed;
+  if (firstPersonActive) return null;
+  return currentSpeed === 0 ? lastRunningSpeed : 0;
+}
+
 export function hotkeyForGameSpeed(speed: GameSpeed): string | null {
   if (speed === 0) return 'Space';
   const index = PLAYER_GAME_SPEEDS.indexOf(
