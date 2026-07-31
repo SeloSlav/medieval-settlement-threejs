@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "round": 55,
+  "reviewMode": "fresh-context exhaustive blind A/B",
+  "reviewedReferences": 10,
+  "reviewedFramesPerArm": 9,
+  "winner": "tie",
+  "confidencePercent": 82,
+  "gates": {
+    "blind-A": {
+      "visual": "fail",
+      "performance": "pass"
+    },
+    "blind-B": {
+      "visual": "fail",
+      "performance": "pass"
+    }
+  },
+  "performance": {
+    "blind-A": {
+      "onePercentLowFps": 81.78935069270791,
+      "maxFrameMs": 12.799999999995634,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "medianDrawCalls": 82,
+      "medianTriangles": 1811301
+    },
+    "blind-B": {
+      "onePercentLowFps": 75.87488386496649,
+      "maxFrameMs": 24.19999999999709,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "medianDrawCalls": 82,
+      "medianTriangles": 1793077
+    }
+  },
+  "perFrame": {
+    "000": "Blind-B has a slightly fuller low-crown crescent and fewer leaks near the left edge, but both remain pale, sparse, fog-washed forests with isolated trunks.",
+    "180": "Blind-B fills the upper fringe more than blind-A, but with conspicuously bright green repeated blobs. Blind-A leaks more flat olive ground; neither has a dark understory.",
+    "276": "Effectively tied. Forest occupies only a thin top strip; the road remains readable while noisy ground cover encroaches on its margins.",
+    "277": "No discrete shrub, crown, or grass LOD swap. Midstory contribution remains visually negligible in both.",
+    "278": "Stable continuation with no visible pop. Flat speckled cover substitutes for shrub and sapling depth.",
+    "279": "Still stable with no LOD event across 276-279. Both preserve the road center but lack natural roadside-to-forest layering.",
+    "330": "Blind-B's horizon shrub ribbon is marginally thicker, but both show a repetitive picket line of thin trunks beneath a pale sky rather than a dark forest wall. The road remains clear.",
+    "375": "The held view remains stable relative to frame 330; temporal stability is good, visual mass is not.",
+    "480": "Strongest evidence for blind-B: its upper-left edge is fuller and less leak-prone. Brighter saturated crowns offset the density gain; roads and parcels remain clear in both."
+  },
+  "biggestRemainingGap": "Manor Lords combines a shadowed forest floor with overlapping low shrubs, saplings, and varied crowns into one irregular dark volume. Both arms still read as bright flat terrain populated by separated tree clumps and repeated spindly trunks.",
+  "smallestNextImprovement": "Apply a modest dark under-canopy ground treatment only inside the existing forest-edge footprint while preserving current road and parcel clearances.",
+  "scopeNotes": {
+    "people": "excluded",
+    "woodShingleRoofs": "intentional and not penalized"
+  }
+}

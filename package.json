@@ -117,6 +117,7 @@
     "test:visual-gauntlet-round-48-contract": "npx tsx scripts/testVisualGauntletRound48Contract.mts",
     "test:visual-gauntlet-round-52-contract": "npx tsx scripts/testVisualGauntletRound52Contract.mts",
     "test:visual-gauntlet-round-54-contract": "npx tsx scripts/testVisualGauntletRound54Contract.mts",
+    "test:visual-gauntlet-round-55-contract": "npx tsx scripts/testVisualGauntletRound55Contract.mts",
     "test:camera-controller": "npx tsx scripts/testCameraController.mts",
     "test:world-map": "node --experimental-strip-types scripts/testWorldMapCoordinates.mts",
     "test:first-person-collision": "node --experimental-strip-types scripts/testFirstPersonCollision.mts",

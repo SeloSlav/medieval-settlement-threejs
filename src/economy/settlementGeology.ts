@@ -84,15 +84,26 @@ const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
   / CALENDAR_HOURS_PER_DAY;
 
-export type SettlementGeologyAlert = {
+type SettlementGeologyAlertBase = {
   resource: GeologicalResource;
   level: 'watch' | 'critical';
-  runwayDays: number;
   firstAttentionBuildingId: string;
   finiteReserve: number;
   activeDeepSources: number;
   deepExtractionPerDay: number;
+  deepSupportTimberPerDay: number;
+  deepSourcesAwaitingSupports: number;
 };
+
+export type SettlementGeologyAlert =
+  | SettlementGeologyAlertBase & {
+    reason: 'finite-runway';
+    runwayDays: number;
+  }
+  | SettlementGeologyAlertBase & {
+    reason: 'deep-supports';
+    runwayDays: number | null;
+  };
 
 /**
  * Settlement-wide reserve and extraction forecast for physical geological
@@ -414,7 +425,9 @@ export function geologicalFiniteRunwayDays(
  *
  * A ready deep source downgrades an imminent surface exhaustion to a watch:
  * labor still needs moving, but the settlement does not lose the commodity.
- * Stable resource order keeps equal-runway warnings deterministic.
+ * Staffed deep workings that have stopped for want of physical timber supports
+ * also surface here, with the warning aimed at the blocked worksite. Stable
+ * resource order keeps equally urgent warnings deterministic.
  */
 export function selectSettlementGeologyAlert(
   plan: SettlementGeologyPlan,
@@ -429,36 +442,62 @@ export function selectSettlementGeologyAlert(
   for (const resource of resourceOrder) {
     const candidate = plan[resource];
     const runwayDays = candidate.shortestFiniteRunwayDays;
-    const firstAttentionBuildingId = candidate.firstAttentionBuildingId;
+    let alert: SettlementGeologyAlert | null = null;
     if (
-      runwayDays === null
-      || firstAttentionBuildingId === null
-      || runwayDays > GEOLOGY_RUNWAY_WATCH_DAYS
+      candidate.deepSourcesAwaitingSupports > 0
+      && candidate.firstSupportBuildingId !== null
     ) {
-      continue;
+      const localExtractionStopped =
+        candidate.finiteExtractionPerDay <= EPSILON
+        && candidate.deepExtractionPerDay <= EPSILON;
+      alert = {
+        reason: 'deep-supports',
+        resource,
+        level: localExtractionStopped
+          || (runwayDays !== null && runwayDays <= GEOLOGY_RUNWAY_CRITICAL_DAYS)
+          ? 'critical'
+          : 'watch',
+        runwayDays: runwayDays === null ? null : Math.max(0, runwayDays),
+        firstAttentionBuildingId: candidate.firstSupportBuildingId,
+        finiteReserve: candidate.finiteReserve,
+        activeDeepSources: candidate.activeDeepSources,
+        deepExtractionPerDay: candidate.deepExtractionPerDay,
+        deepSupportTimberPerDay: candidate.deepSupportTimberPerDay,
+        deepSourcesAwaitingSupports: candidate.deepSourcesAwaitingSupports,
+      };
+    } else if (
+      runwayDays !== null
+      && candidate.firstAttentionBuildingId !== null
+      && runwayDays <= GEOLOGY_RUNWAY_WATCH_DAYS
+    ) {
+      const deepReplacementReady =
+        candidate.activeDeepSources > 0
+        && candidate.deepExtractionPerDay > EPSILON;
+      alert = {
+        reason: 'finite-runway',
+        resource,
+        level: runwayDays <= GEOLOGY_RUNWAY_CRITICAL_DAYS
+          && !deepReplacementReady
+          ? 'critical'
+          : 'watch',
+        runwayDays: Math.max(0, runwayDays),
+        firstAttentionBuildingId: candidate.firstAttentionBuildingId,
+        finiteReserve: candidate.finiteReserve,
+        activeDeepSources: candidate.activeDeepSources,
+        deepExtractionPerDay: candidate.deepExtractionPerDay,
+        deepSupportTimberPerDay: candidate.deepSupportTimberPerDay,
+        deepSourcesAwaitingSupports: candidate.deepSourcesAwaitingSupports,
+      };
     }
-    const deepReplacementReady =
-      candidate.activeDeepSources > 0
-      && candidate.deepExtractionPerDay > EPSILON;
-    const level = runwayDays <= GEOLOGY_RUNWAY_CRITICAL_DAYS
-      && !deepReplacementReady
-      ? 'critical'
-      : 'watch';
-    const alert: SettlementGeologyAlert = {
-      resource,
-      level,
-      runwayDays: Math.max(0, runwayDays),
-      firstAttentionBuildingId,
-      finiteReserve: candidate.finiteReserve,
-      activeDeepSources: candidate.activeDeepSources,
-      deepExtractionPerDay: candidate.deepExtractionPerDay,
-    };
+    if (alert === null) continue;
+    const alertUrgencyDays = alert.runwayDays ?? 0;
+    const selectedUrgencyDays = selected?.runwayDays ?? 0;
     if (
       selected === null
       || (alert.level === 'critical' && selected.level !== 'critical')
       || (
         alert.level === selected.level
-        && alert.runwayDays < selected.runwayDays - EPSILON
+        && alertUrgencyDays < selectedUrgencyDays - EPSILON
       )
     ) {
       selected = alert;

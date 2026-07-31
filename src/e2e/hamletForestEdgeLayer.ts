@@ -20,6 +20,8 @@ export const HAMLET_FOREST_EDGE_LAYOUT_CLUSTERED =
   'clustered-sapling-shrub-256' as const;
 export const HAMLET_FOREST_EDGE_LAYOUT_TAPERED =
   'tapered-shrub-sapling-belt-256' as const;
+export const HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING =
+  'interlocking-midstory-thicket-256' as const;
 export const HAMLET_FOREST_EDGE_REALLOCATION_COUNT = 256;
 export const HAMLET_FOREST_EDGE_CLUSTER_SIZE = 8;
 export const HAMLET_FOREST_EDGE_MIN_DISTANCE_METERS = 12;
@@ -32,13 +34,21 @@ export const HAMLET_FOREST_BELT_MIN_DISTANCE_METERS = 2.75;
 export const HAMLET_FOREST_BELT_MAX_DISTANCE_METERS = 20;
 export const HAMLET_FOREST_BELT_ROAD_CLEARANCE_METERS = 10;
 export const HAMLET_FOREST_BELT_SETTLEMENT_CLEARANCE_METERS = 8;
+export const HAMLET_FOREST_THICKET_FRONT_SHRUB_COUNT = 96;
+export const HAMLET_FOREST_THICKET_MIDDLE_SAPLING_COUNT = 96;
+export const HAMLET_FOREST_THICKET_INTERIOR_CROWN_COUNT = 64;
+export const HAMLET_FOREST_THICKET_CLUSTER_COUNT = 32;
+export const HAMLET_FOREST_THICKET_MAXIMUM_CLUSTER_SIZE = 8;
+export const HAMLET_FOREST_THICKET_MIN_DISTANCE_METERS = 3;
+export const HAMLET_FOREST_THICKET_MAX_DISTANCE_METERS = 18.5;
 export const HAMLET_FOREST_EDGE_SEEDTHREE_COMMIT =
   '4182accfc1fb7a66815e963b5355ca4996418cf3' as const;
 
 export type HamletForestEdgeLayout =
   | typeof HAMLET_FOREST_EDGE_LAYOUT_LEGACY
   | typeof HAMLET_FOREST_EDGE_LAYOUT_CLUSTERED
-  | typeof HAMLET_FOREST_EDGE_LAYOUT_TAPERED;
+  | typeof HAMLET_FOREST_EDGE_LAYOUT_TAPERED
+  | typeof HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING;
 
 export type HamletForestEdgeLayerEvidence = {
   layout: HamletForestEdgeLayout;
@@ -158,6 +168,60 @@ readonly TaperedForestBeltLayerSpec[] = [
   },
 ] as const;
 
+type InterlockingForestThicketLayerSpec = Pick<
+  TaperedForestBeltLayerSpec,
+  | 'layer'
+  | 'variant'
+  | 'scaleMinimum'
+  | 'scaleMaximum'
+  | 'scaleSalt'
+  | 'form'
+> & {
+  depthOffset: number;
+};
+
+const INTERLOCKING_FOREST_THICKET_LAYERS:
+readonly InterlockingForestThicketLayerSpec[] = [
+  {
+    layer: 'front-shrub',
+    variant: 'broadleaf-shrub-card',
+    scaleMinimum: 0.32,
+    scaleMaximum: 0.46,
+    scaleSalt: 107,
+    form: 'midstory',
+    depthOffset: -2.5,
+  },
+  {
+    layer: 'middle-sapling',
+    variant: 'broadleaf-sapling',
+    scaleMinimum: 0.5,
+    scaleMaximum: 0.72,
+    scaleSalt: 109,
+    form: 'young',
+    depthOffset: 0,
+  },
+  {
+    layer: 'interior-crown',
+    variant: 'broadleaf-mixed-crown',
+    scaleMinimum: 0.76,
+    scaleMaximum: 1.02,
+    scaleSalt: 113,
+    form: 'broad',
+    depthOffset: 2.5,
+  },
+] as const;
+
+const INTERLOCKING_FOREST_THICKET_MEMBER_LAYERS = [
+  0,
+  1,
+  2,
+  0,
+  1,
+  2,
+  0,
+  1,
+] as const;
+
 type HamletPoint2 = {
   x: number;
   z: number;
@@ -176,6 +240,9 @@ const HAMLET_SETTLEMENT_POLYGONS: readonly (
 export function resolveHamletForestEdgeLayout(
   value: string | null,
 ): HamletForestEdgeLayout {
+  if (value === HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING) {
+    return HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING;
+  }
   if (value === null || value === HAMLET_FOREST_EDGE_LAYOUT_TAPERED) {
     return HAMLET_FOREST_EDGE_LAYOUT_TAPERED;
   }
@@ -186,9 +253,10 @@ export function resolveHamletForestEdgeLayout(
     return HAMLET_FOREST_EDGE_LAYOUT_LEGACY;
   }
   throw new Error(
-    `forestEdgeLayout must be ${HAMLET_FOREST_EDGE_LAYOUT_LEGACY} `
-    + `${HAMLET_FOREST_EDGE_LAYOUT_CLUSTERED}, or `
-    + `${HAMLET_FOREST_EDGE_LAYOUT_TAPERED}.`,
+    `forestEdgeLayout must be ${HAMLET_FOREST_EDGE_LAYOUT_LEGACY}, `
+    + `${HAMLET_FOREST_EDGE_LAYOUT_CLUSTERED}, `
+    + `${HAMLET_FOREST_EDGE_LAYOUT_TAPERED}, or `
+    + `${HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING}.`,
   );
 }
 
@@ -243,6 +311,9 @@ export function createHamletForestPlacements(
   }
 
   const edgeSamples = createSettlementEdgeSamples();
+  if (layout === HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING) {
+    return createInterlockingHamletForestThickets(baseline, edgeSamples);
+  }
   if (layout === HAMLET_FOREST_EDGE_LAYOUT_TAPERED) {
     return createTaperedHamletForestBelt(baseline, edgeSamples);
   }
@@ -459,6 +530,169 @@ function createTaperedHamletForestBelt(
       },
     }),
   };
+}
+
+function createInterlockingHamletForestThickets(
+  baseline: ForestTreePlacement[],
+  edgeSamples: readonly ForestEdgeBandSample[],
+): {
+  placements: ForestTreePlacement[];
+  edgeLayer: HamletForestEdgeLayerEvidence;
+} {
+  const eligibleSourceIndices = selectBoundaryBroadleafDonors(
+    baseline,
+    edgeSamples,
+  );
+  if (eligibleSourceIndices.length < HAMLET_FOREST_EDGE_REALLOCATION_COUNT) {
+    throw new Error(
+      'Hamlet interlocking forest thickets no longer have 256 local broadleaf donors.',
+    );
+  }
+
+  const selectedSourceIndices = eligibleSourceIndices.slice(
+    0,
+    HAMLET_FOREST_EDGE_REALLOCATION_COUNT,
+  );
+  // One shared eight-slot cluster pass makes every thicket mix low shrubs,
+  // saplings, and crowns around the same anchor instead of drawing three
+  // translucent, evenly spaced layers across the whole settlement edge.
+  const reallocation = createForestEdgeBandReallocation(
+    baseline,
+    edgeSamples,
+    {
+      targetCount: HAMLET_FOREST_EDGE_REALLOCATION_COUNT,
+      sourceIndices: selectedSourceIndices,
+      minBandDistance: 5.5,
+      maxBandDistance: 16,
+      maxClusterSize: HAMLET_FOREST_THICKET_MAXIMUM_CLUSTER_SIZE,
+      clusterTangentSpread: 4.2,
+      clusterDepthSpread: 1.9,
+      variantCount: 1,
+      maxPlacementAttempts: 28,
+      isAllowedAt: isHamletForestBeltAllowedAt,
+      seed:
+        `${HAMLET_FIXTURE_SEED}:round-55:interlocking-midstory-thickets`,
+    },
+  );
+  const assignments = reallocation.assignments.map((assignment) => {
+    const layerSpec = INTERLOCKING_FOREST_THICKET_LAYERS[
+      INTERLOCKING_FOREST_THICKET_MEMBER_LAYERS[assignment.memberIndex]!
+    ]!;
+    return {
+      assignment: offsetInterlockingThicketDepth(
+        assignment,
+        layerSpec.depthOffset,
+        edgeSamples,
+      ),
+      layerSpec,
+    };
+  });
+  if (
+    reallocation.stats.clusterCount !== HAMLET_FOREST_THICKET_CLUSTER_COUNT
+    || assignments.length !== HAMLET_FOREST_EDGE_REALLOCATION_COUNT
+  ) {
+    throw new Error(
+      'Hamlet interlocking forest thicket cluster alignment drifted.',
+    );
+  }
+
+  const assignmentBySourceIndex = new Map(
+    assignments.map((entry) => [entry.assignment.sourceIndex, entry]),
+  );
+  const placements = reallocation.items.map((placement, sourceIndex) => {
+    const entry = assignmentBySourceIndex.get(sourceIndex);
+    if (!entry) return placement;
+    const { assignment, layerSpec } = entry;
+    return {
+      ...placement,
+      x: assignment.x,
+      z: assignment.z,
+      form: layerSpec.form,
+      scale: layerSpec.scaleMinimum
+        + deterministicVariation(sourceIndex, layerSpec.scaleSalt)
+          * (layerSpec.scaleMaximum - layerSpec.scaleMinimum),
+      edgeBand: {
+        variant: layerSpec.variant,
+        layer: layerSpec.layer,
+        sourceIndex,
+        clusterIndex: assignment.clusterIndex,
+        bandDistance: assignment.bandDistance,
+        maximumDetail: 'overview-card',
+      },
+    } satisfies ForestTreePlacement;
+  });
+  const observedBandDistances = assignments.map(
+    ({ assignment }) => assignment.bandDistance,
+  );
+  const observedClearances = assignments.map(({ assignment }) => (
+    measureHamletForestBeltClearance(assignment.x, assignment.z)
+  ));
+  return {
+    placements,
+    edgeLayer: createEdgeEvidence({
+      layout: HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING,
+      eligibleBroadleafDonors: eligibleSourceIndices.length,
+      reallocatedSlots: assignments.length,
+      clusterCount: HAMLET_FOREST_THICKET_CLUSTER_COUNT,
+      maximumClusterSize: HAMLET_FOREST_THICKET_MAXIMUM_CLUSTER_SIZE,
+      minimumBandDistance: HAMLET_FOREST_THICKET_MIN_DISTANCE_METERS,
+      maximumBandDistance: HAMLET_FOREST_THICKET_MAX_DISTANCE_METERS,
+      observedMinimum: Math.min(...observedBandDistances),
+      observedMaximum: Math.max(...observedBandDistances),
+      broadleafShrubCards: HAMLET_FOREST_THICKET_FRONT_SHRUB_COUNT,
+      broadleafSaplings: HAMLET_FOREST_THICKET_MIDDLE_SAPLING_COUNT,
+      broadleafMixedCrowns: HAMLET_FOREST_THICKET_INTERIOR_CROWN_COUNT,
+      clearance: {
+        roadMeters: HAMLET_FOREST_BELT_ROAD_CLEARANCE_METERS,
+        settlementMeters:
+          HAMLET_FOREST_BELT_SETTLEMENT_CLEARANCE_METERS,
+        observedRoadMinimum: Math.min(
+          ...observedClearances.map(({ roadMeters }) => roadMeters),
+        ),
+        observedSettlementMinimum: Math.min(
+          ...observedClearances.map(
+            ({ settlementMeters }) => settlementMeters,
+          ),
+        ),
+      },
+    }),
+  };
+}
+
+function offsetInterlockingThicketDepth(
+  assignment: ForestEdgeBandAssignment,
+  requestedOffset: number,
+  edgeSamples: readonly ForestEdgeBandSample[],
+): ForestEdgeBandAssignment {
+  // This stays consumer-side: every fallback is evaluated against Hamlet's
+  // road, parcel, field, and landmark clearance geometry.
+  const sample = edgeSamples[assignment.edgeSampleIndex]!;
+  const normalLength = Math.hypot(sample.outwardX, sample.outwardZ);
+  const outwardX = sample.outwardX / normalLength;
+  const outwardZ = sample.outwardZ / normalLength;
+  const tangentX = -outwardZ;
+  const tangentZ = outwardX;
+  for (const fraction of [1, 0.75, 0.5, 0.25, 0] as const) {
+    const bandDistance = Math.max(
+      HAMLET_FOREST_THICKET_MIN_DISTANCE_METERS,
+      Math.min(
+        HAMLET_FOREST_THICKET_MAX_DISTANCE_METERS,
+        assignment.bandDistance + requestedOffset * fraction,
+      ),
+    );
+    const x = sample.x
+      + outwardX * bandDistance
+      + tangentX * assignment.tangentOffset;
+    const z = sample.z
+      + outwardZ * bandDistance
+      + tangentZ * assignment.tangentOffset;
+    if (!isHamletForestBeltAllowedAt(x, z)) continue;
+    return { ...assignment, x, z, bandDistance };
+  }
+  throw new Error(
+    `Hamlet interlocking forest thicket slot ${assignment.sourceIndex} `
+    + 'lost its clearance-safe base placement.',
+  );
 }
 
 function createLegacyHamletForestPlacements(): ForestTreePlacement[] {

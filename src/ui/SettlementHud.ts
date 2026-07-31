@@ -563,16 +563,27 @@ export class SettlementHud {
     }
 
     const resourceLabel = geologyResourceLabel(alert.resource);
-    const runway = formatGeologyAlertRunway(alert.runwayDays);
     const affectedRow = this.geologyResourceRows[alert.resource];
     this.specialtyStores.dataset.geologyLevel = alert.level;
     affectedRow.dataset.geologyLevel = alert.level;
     this.geologyAlert.dataset.level = alert.level;
-    this.geologyAlert.textContent = `${resourceLabel} ${runway}`;
-    this.geologyAlert.setAttribute(
-      'aria-label',
-      `Inspect ${resourceLabel.toLowerCase()} extraction warning: shortest staffed finite seam ${runway}`,
-    );
+    if (alert.reason === 'deep-supports') {
+      const worksiteCount = alert.deepSourcesAwaitingSupports;
+      this.geologyAlert.textContent = `${resourceLabel} supports`;
+      this.geologyAlert.setAttribute(
+        'aria-label',
+        `Inspect ${resourceLabel.toLowerCase()} extraction warning: ${worksiteCount} staffed deep ${
+          worksiteCount === 1 ? 'worksite awaits' : 'worksites await'
+        } timber supports`,
+      );
+    } else {
+      const runway = formatGeologyAlertRunway(alert.runwayDays);
+      this.geologyAlert.textContent = `${resourceLabel} ${runway}`;
+      this.geologyAlert.setAttribute(
+        'aria-label',
+        `Inspect ${resourceLabel.toLowerCase()} extraction warning: shortest staffed finite seam ${runway}`,
+      );
+    }
     this.geologyAlert.dataset.tooltip = geologyAlertTooltip(alert);
   }
 
@@ -1164,9 +1175,32 @@ function formatGeologyAlertRunway(days: number): string {
 
 function geologyAlertTooltip(alert: SettlementGeologyAlert): string {
   const resource = geologyResourceLabel(alert.resource);
+  if (alert.reason === 'deep-supports') {
+    const worksiteCount = alert.deepSourcesAwaitingSupports;
+    const worksite = `${worksiteCount} staffed deep ${
+      worksiteCount === 1 ? 'worksite is' : 'worksites are'
+    } stopped awaiting timber shoring.`;
+    const supportDemand = alert.deepSupportTimberPerDay > 0.05
+      ? `Once supplied, the installed crews need about ${alert.deepSupportTimberPerDay.toFixed(1)} timber per day for supports.`
+      : 'The installed crews need a complete timber-support batch before work can resume.';
+    const finiteBuffer = alert.runwayDays === null
+      ? alert.finiteReserve > 0.05
+        ? `${alert.finiteReserve.toFixed(0)} finite reserve remains, but no finite seam is currently being worked.`
+        : `No finite ${alert.resource} reserve is available as a fallback.`
+      : alert.runwayDays <= 0.05
+        ? 'The shortest staffed finite seam is already exhausted.'
+        : `The shortest staffed finite seam has about ${formatGeologyAlertRunway(alert.runwayDays)} left.`;
+    const supportedOutput = alert.activeDeepSources > 0
+      ? `${alert.activeDeepSources} other supported deep ${
+          alert.activeDeepSources === 1 ? 'source is' : 'sources are'
+        } still producing ${alert.deepExtractionPerDay.toFixed(1)} ${alert.resource} per day.`
+      : `No supported deep ${alert.resource} source is currently producing.`;
+    return `${resource} support warning. ${worksite} ${supportDemand} ${finiteBuffer} ${supportedOutput} Activate to inspect the blocked worksite and restore its physical timber delivery before keeping labor assigned there.`;
+  }
+  const runwayDays = alert.runwayDays;
   const runway = alert.runwayDays <= 0.05
     ? 'The shortest staffed finite seam is exhausted.'
-    : `The shortest staffed finite seam has about ${formatGeologyAlertRunway(alert.runwayDays)} at its current crew and tool condition.`;
+    : `The shortest staffed finite seam has about ${formatGeologyAlertRunway(runwayDays)} at its current crew and tool condition.`;
   const deepReplacement = alert.activeDeepSources > 0
     ? `${alert.activeDeepSources} supported deep ${
         alert.activeDeepSources === 1 ? 'source is' : 'sources are'

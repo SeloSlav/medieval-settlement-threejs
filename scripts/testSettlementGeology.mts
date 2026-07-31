@@ -271,6 +271,7 @@ assert.ok(GEOLOGY_RUNWAY_CRITICAL_DAYS < GEOLOGY_RUNWAY_WATCH_DAYS);
 const baselineAlert = selectSettlementGeologyAlert(plan);
 assert.equal(baselineAlert?.resource, 'salt');
 assert.equal(baselineAlert?.level, 'critical');
+assert.equal(baselineAlert?.reason, 'finite-runway');
 assert.equal(baselineAlert?.firstAttentionBuildingId, 'salt-mine-finite');
 
 const onlySaltWarning = {
@@ -313,6 +314,63 @@ assert.equal(
   }),
   null,
   'comfortable finite runways must not add HUD noise',
+);
+
+const withoutFiniteWarnings = {
+  stone: {
+    ...plan.stone,
+    shortestFiniteRunwayDays: null,
+    firstAttentionBuildingId: null,
+  },
+  clay: {
+    ...plan.clay,
+    shortestFiniteRunwayDays: null,
+    firstAttentionBuildingId: null,
+  },
+  iron: {
+    ...plan.iron,
+    shortestFiniteRunwayDays: null,
+    firstAttentionBuildingId: null,
+  },
+  salt: {
+    ...plan.salt,
+    shortestFiniteRunwayDays: null,
+    firstAttentionBuildingId: null,
+  },
+};
+const supportWarning = selectSettlementGeologyAlert({
+  ...withoutFiniteWarnings,
+  iron: {
+    ...withoutFiniteWarnings.iron,
+    deepExtractionPerDay: 0,
+    activeDeepSources: 0,
+    deepSupportTimberPerDay: 1.5,
+    deepSourcesAwaitingSupports: 1,
+    firstSupportBuildingId: 'iron-mine-deep',
+  },
+});
+assert.equal(supportWarning?.reason, 'deep-supports');
+assert.equal(supportWarning?.resource, 'iron');
+assert.equal(supportWarning?.level, 'watch');
+assert.equal(supportWarning?.runwayDays, null);
+assert.equal(supportWarning?.firstAttentionBuildingId, 'iron-mine-deep');
+assert.equal(supportWarning?.deepSupportTimberPerDay, 1.5);
+assert.equal(supportWarning?.deepSourcesAwaitingSupports, 1);
+assert.equal(
+  selectSettlementGeologyAlert({
+    ...withoutFiniteWarnings,
+    iron: {
+      ...withoutFiniteWarnings.iron,
+      finiteExtractionPerDay: 0,
+      deepExtractionPerDay: 0,
+      activeDeepSources: 0,
+      deepSupportTimberPerDay: 1.5,
+      deepSourcesAwaitingSupports: 1,
+      firstSupportBuildingId: 'iron-mine-deep',
+    },
+  })?.level,
+  'critical',
+  'a support-starved deep source must become critical when it stops all local extraction',
 );
 
 const stoneCamp = state.buildings.get('stone-camp');
@@ -369,6 +427,11 @@ assert.equal(targetHeldPlan.stone.deepExtractionPerDay, 0);
 assert.equal(targetHeldPlan.stone.deepSupportTimberPerDay, 0);
 assert.equal(targetHeldPlan.iron.deepSupportTimberPerDay, 0);
 assert.equal(targetHeldPlan.stone.firstTargetPausedBuildingId, 'stone-camp');
+assert.equal(
+  selectSettlementGeologyAlert(targetHeldPlan),
+  null,
+  'intentional yard-target pauses must not masquerade as geology failures',
+);
 stoneCamp.stone = 44;
 const reopenedYardPlan = computeSettlementGeologyPlan(state, false);
 assert.equal(reopenedYardPlan.stone.yardHeadroom, 1);
@@ -526,6 +589,11 @@ const townHallSource = readFileSync(
   'utf8',
 );
 assert.match(settlementHudSource, /data-geology-alert/);
+assert.match(
+  settlementHudSource,
+  /alert\.reason === 'deep-supports'[\s\S]*awaiting timber shoring/,
+  'the compact HUD must explain that assigned deep-work labor is blocked by physical timber supports',
+);
 assert.match(
   settlementHudSource,
   /selectSettlementGeologyAlert[\s\S]*setGeologyState[\s\S]*firstAttentionBuildingId/,

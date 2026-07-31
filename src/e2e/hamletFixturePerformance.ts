@@ -10,10 +10,18 @@ import {
   HAMLET_FOREST_BELT_SETTLEMENT_CLEARANCE_METERS,
   HAMLET_FOREST_EDGE_CLUSTER_SIZE,
   HAMLET_FOREST_EDGE_LAYOUT_CLUSTERED,
+  HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING,
   HAMLET_FOREST_EDGE_LAYOUT_LEGACY,
   HAMLET_FOREST_EDGE_LAYOUT_TAPERED,
   HAMLET_FOREST_EDGE_MAX_DISTANCE_METERS,
   HAMLET_FOREST_EDGE_MIN_DISTANCE_METERS,
+  HAMLET_FOREST_THICKET_CLUSTER_COUNT,
+  HAMLET_FOREST_THICKET_FRONT_SHRUB_COUNT,
+  HAMLET_FOREST_THICKET_INTERIOR_CROWN_COUNT,
+  HAMLET_FOREST_THICKET_MAXIMUM_CLUSTER_SIZE,
+  HAMLET_FOREST_THICKET_MAX_DISTANCE_METERS,
+  HAMLET_FOREST_THICKET_MIDDLE_SAPLING_COUNT,
+  HAMLET_FOREST_THICKET_MIN_DISTANCE_METERS,
   type HamletForestEdgeLayerEvidence,
   type HamletForestEdgeLayout,
 } from './hamletForestEdgeLayer.ts';
@@ -3271,6 +3279,37 @@ function doesHamletForestEdgeLayerSatisfyBudget(
       && evidence.variants.broadleafShrubCards === 128
       && evidence.variants.broadleafMixedCrowns === 0
       && evidence.clearance === undefined;
+  }
+  if (layout === HAMLET_FOREST_EDGE_LAYOUT_INTERLOCKING) {
+    return evidence.reallocatedSlots === 256
+      && evidence.retainedSlots === 1395
+      && evidence.clusterCount === HAMLET_FOREST_THICKET_CLUSTER_COUNT
+      && evidence.maximumClusterSize
+        === HAMLET_FOREST_THICKET_MAXIMUM_CLUSTER_SIZE
+      && evidence.bandMeters.minimum
+        === HAMLET_FOREST_THICKET_MIN_DISTANCE_METERS
+      && evidence.bandMeters.maximum
+        === HAMLET_FOREST_THICKET_MAX_DISTANCE_METERS
+      && evidence.bandMeters.observedMinimum !== null
+      && evidence.bandMeters.observedMinimum
+        >= HAMLET_FOREST_THICKET_MIN_DISTANCE_METERS
+      && evidence.bandMeters.observedMaximum !== null
+      && evidence.bandMeters.observedMaximum
+        <= HAMLET_FOREST_THICKET_MAX_DISTANCE_METERS
+      && evidence.variants.broadleafSaplings
+        === HAMLET_FOREST_THICKET_MIDDLE_SAPLING_COUNT
+      && evidence.variants.broadleafShrubCards
+        === HAMLET_FOREST_THICKET_FRONT_SHRUB_COUNT
+      && evidence.variants.broadleafMixedCrowns
+        === HAMLET_FOREST_THICKET_INTERIOR_CROWN_COUNT
+      && evidence.clearance?.roadMeters
+        === HAMLET_FOREST_BELT_ROAD_CLEARANCE_METERS
+      && evidence.clearance.settlementMeters
+        === HAMLET_FOREST_BELT_SETTLEMENT_CLEARANCE_METERS
+      && evidence.clearance.observedRoadMinimum
+        >= HAMLET_FOREST_BELT_ROAD_CLEARANCE_METERS
+      && evidence.clearance.observedSettlementMinimum
+        >= HAMLET_FOREST_BELT_SETTLEMENT_CLEARANCE_METERS;
   }
   if (layout !== HAMLET_FOREST_EDGE_LAYOUT_TAPERED) return false;
   return evidence.reallocatedSlots === 256
