@@ -408,59 +408,47 @@ export class App {
       });
     }
     session.sceneManager.render(0, session.cameraController.getOrbitDistance());
-    void new Promise<void>((resolve) => requestAnimationFrame(() => resolve())).then(() => {
+    if (import.meta.env.VITE_E2E_TEST !== '1') {
       session.loadingScreen?.setProgress({
-        label: 'Entering world…',
-        detail: 'Terrain ready; vegetation will continue filling in',
+        label: 'Growing forest…',
+        detail: 'Preparing the complete woodland canopy',
         phase: 'vegetation',
-        fraction: 1,
+        fraction: 0.72,
       });
-      markFirstPlayable();
-      this.sessionLifecycle?.onPresentationReady();
-      void session.sceneManager.loadCelestialSky().catch((error) => {
-        console.warn('Historical star catalogue is still unavailable:', error);
-      });
-      if (import.meta.env.VITE_E2E_TEST !== '1') {
-        void initializeBuildingMaterialLibrary(session.sceneManager.textureAnisotropy).catch((error) => {
-          console.warn('Detailed building textures are still unavailable:', error);
-        });
-        void initializeVineyardVineResources(
-          session.sceneManager.textureAnisotropy,
-          session.sceneManager.rendererBackend,
-        ).catch((error) => {
-          console.warn('Detailed vineyard foliage is still unavailable:', error);
-        });
-      }
-    });
-
-    const buildVegetation = () => {
-      void (async () => {
-        try {
-          await session.sceneManager.finishVegetation();
-          if (this.disposed) return;
-          if (this.roadNetwork) session.sceneManager.syncRoadNetwork(this.roadNetwork);
-          this.onForestReady();
-          markVegetationReady();
-          session.sceneManager.render(0, session.cameraController.getOrbitDistance());
-        } catch (error) {
-          console.error('Vegetation build failed:', error);
-          this.toastManager?.show('Forest vegetation failed to load. Try refreshing the page.', { variant: 'error' });
-        }
-      })();
-    };
-    // Leave a short, predictable interaction window before expensive detail
-    // generation starts, even when requestIdleCallback fires immediately.
-    if (import.meta.env.VITE_E2E_TEST !== '1') {
-      window.setTimeout(() => {
+      try {
+        await session.sceneManager.finishVegetation();
         if (this.disposed) return;
-        if (typeof requestIdleCallback === 'function') {
-          requestIdleCallback(buildVegetation, { timeout: 1_200 });
-        } else {
-          buildVegetation();
-        }
-      }, 2_500);
+        if (this.roadNetwork) session.sceneManager.syncRoadNetwork(this.roadNetwork);
+        this.onForestReady();
+        markVegetationReady();
+      } catch (error) {
+        console.error('Vegetation build failed:', error);
+        this.toastManager?.show('Forest vegetation failed to load. Try refreshing the page.', { variant: 'error' });
+      }
     }
+    session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    session.loadingScreen?.setProgress({
+      label: 'Entering world…',
+      detail: 'Terrain and woodland ready',
+      phase: 'vegetation',
+      fraction: 1,
+    });
+    markFirstPlayable();
+    this.sessionLifecycle?.onPresentationReady();
+    void session.sceneManager.loadCelestialSky().catch((error) => {
+      console.warn('Historical star catalogue is still unavailable:', error);
+    });
     if (import.meta.env.VITE_E2E_TEST !== '1') {
+      void initializeBuildingMaterialLibrary(session.sceneManager.textureAnisotropy).catch((error) => {
+        console.warn('Detailed building textures are still unavailable:', error);
+      });
+      void initializeVineyardVineResources(
+        session.sceneManager.textureAnisotropy,
+        session.sceneManager.rendererBackend,
+      ).catch((error) => {
+        console.warn('Detailed vineyard foliage is still unavailable:', error);
+      });
       this.animationId = requestAnimationFrame(this.tick);
     }
   }
@@ -592,10 +580,11 @@ export class App {
     this.treeRegistry = TreeRegistry.fromForestManager(forestManager);
     this.liveContext.treeRegistry = this.treeRegistry;
     this.forestVisualSync = new ForestVisualSync(forestManager);
-    // Offline visual-QA has no replicated tree table. Preserve the freshly
-    // generated forest instead of interpreting that empty map as a harvested
-    // authoritative world; any later non-empty snapshot still syncs normally.
-    if (!this.visualQaConditions || this.gameState.trees.size > 0) {
+    // A newly created server world can finish the visual forest before its tree
+    // table bootstrap reaches the client. An empty table is not a valid
+    // "everything was harvested" state (harvested trees persist as stumps), so
+    // preserve generated trees until the first authoritative rows arrive.
+    if (this.gameState.trees.size > 0) {
       this.forestVisualSync.syncAll(this.gameState.trees);
     }
     if (this.snapshotApplierDeps) {

@@ -127,9 +127,15 @@ for (const resource of ['iron', 'salt'] as const) {
   );
   assert.ok(
     outcrops.every(
-      (outcrop) => outcrop.position.y > 0 && outcrop.castShadow && outcrop.receiveShadow,
+      (outcrop) => {
+        outcrop.geometry.computeBoundingBox();
+        const top = outcrop.geometry.boundingBox?.max.y ?? 0;
+        return outcrop.position.y + top * outcrop.scale.y > 0
+          && outcrop.castShadow
+          && outcrop.receiveShadow;
+      },
     ),
-    `${resource} outcrops must rise above the terrain and receive and cast scene shadows`,
+    `${resource} outcrops must break the terrain plane and receive and cast scene shadows`,
   );
   assert.ok(
     outcrops.every((outcrop) => {
@@ -146,16 +152,139 @@ for (const resource of ['iron', 'salt'] as const) {
         && material.roughnessMap.magFilter === THREE.LinearFilter
         && material.roughnessMap.minFilter === THREE.LinearMipmapLinearFilter
         && material.roughnessMap.generateMipmaps
-        && material.roughness >= 0.9
-        && material.metalness <= 0.07
-        && material.userData.weatheredMineralSurface?.static === true;
+        && material.roughness >= 0.94
+        && material.metalness === 0
+        && material.vertexColors
+        && Math.abs(material.normalScale.x - (resource === 'iron' ? 0.55 : 0.42)) < 1e-9
+        && Math.abs(material.normalScale.y - (resource === 'iron' ? 0.55 : 0.42)) < 1e-9
+        && material.userData.weatheredMineralSurface?.static === true
+        && material.userData.weatheredMineralSurface?.mipReadable === true
+        && material.userData.weatheredMineralSurface?.surfaceGrammar === 'continuous-parent-with-basal-breakoffs'
+        && material.userData.weatheredMineralSurface?.planeWeathering === (
+          resource === 'iron'
+            ? 'patchy-host-rock-oxidation'
+            : 'fissured-stratified-salt'
+        )
+        && material.userData.weatheredMineralSurface?.revision === 'mineral-weathering-v12';
     }),
-    `${resource} outcrops must use static weathered albedo, normal, and roughness breakup`,
+    `${resource} outcrops must use the quarry's matte material response with restrained normals`,
   );
   assert.equal(
     new Set(outcrops.map((outcrop) => (outcrop.material as THREE.MeshStandardMaterial).map)).size,
     1,
     `${resource} outcrops must share one bounded weathering texture rather than allocate per stone`,
+  );
+  const materialSet = new Set(
+    outcrops.map((outcrop) => outcrop.material as THREE.MeshStandardMaterial),
+  );
+  const representativeMaterial = [...materialSet][0];
+  const texture = representativeMaterial?.map as THREE.DataTexture;
+  assert.equal(
+    texture.image.width * texture.image.height,
+    64 * 64,
+    `${resource} weathering texture memory must stay at the bounded 64px profile`,
+  );
+  const textureProfile = measureWeatheringTexture(texture);
+  const normalData = (
+    (representativeMaterial.normalMap as THREE.DataTexture).image.data as Uint8Array
+  );
+  let maximumNormalSlope = 0;
+  for (let offset = 0; offset < normalData.length; offset += 4) {
+    const normalX = normalData[offset] / 255 * 2 - 1;
+    const normalY = normalData[offset + 1] / 255 * 2 - 1;
+    maximumNormalSlope = Math.max(maximumNormalSlope, Math.hypot(normalX, normalY));
+  }
+  assert.ok(
+    maximumNormalSlope <= 0.24,
+    `${resource} normal map must remain subordinate to the boulder silhouette, got ${maximumNormalSlope.toFixed(3)}`,
+  );
+  const roughnessData = (
+    (representativeMaterial.roughnessMap as THREE.DataTexture).image.data as Uint8Array
+  );
+  let minimumRoughness = 255;
+  for (let offset = 0; offset < roughnessData.length; offset += 4) {
+    minimumRoughness = Math.min(minimumRoughness, roughnessData[offset]);
+  }
+  assert.ok(
+    minimumRoughness / 255 >= 0.88,
+    `${resource} roughness map must stay matte throughout, got ${(minimumRoughness / 255).toFixed(3)}`,
+  );
+  const minimumLuminanceRange = resource === 'iron' ? 0.16 : 0.1;
+  assert.ok(
+    textureProfile.luminanceRange >= minimumLuminanceRange
+      && textureProfile.luminanceRange <= (resource === 'iron' ? 0.36 : 0.28),
+    `${resource} albedo needs camera-readable but rock-like mottling, got ${textureProfile.luminanceRange.toFixed(3)}`,
+  );
+  const minimumChannelRange = resource === 'iron' ? 0.15 : 0.1;
+  assert.ok(
+    textureProfile.channelRanges.every(
+      (range) => range >= minimumChannelRange && range <= (resource === 'iron' ? 0.48 : 0.3),
+    ),
+    `${resource} weathering must remain readable without harsh cavity contrast, got ${textureProfile.channelRanges.map((range) => range.toFixed(3)).join('/')}`,
+  );
+  const minimumChromaRange = resource === 'iron' ? 0.1 : 0.012;
+  const maximumChromaRange = resource === 'iron' ? 0.4 : 0.09;
+  assert.ok(
+    textureProfile.chromaRange >= minimumChromaRange
+      && textureProfile.chromaRange <= maximumChromaRange,
+    `${resource} needs restrained resource-specific staining, got chroma range ${textureProfile.chromaRange.toFixed(3)}`,
+  );
+  const minimumFineContrast = resource === 'iron' ? 0.004 : 0.003;
+  const maximumFineContrast = resource === 'iron' ? 0.026 : 0.022;
+  const minimumBroadContrast = resource === 'iron' ? 0.025 : 0.018;
+  const maximumBroadContrast = resource === 'iron' ? 0.09 : 0.07;
+  const minimumScaleSeparation = 1.5;
+  assert.ok(
+    textureProfile.fineContrast >= minimumFineContrast
+      && textureProfile.fineContrast <= maximumFineContrast
+      && textureProfile.broadContrast >= minimumBroadContrast
+      && textureProfile.broadContrast <= maximumBroadContrast
+      && textureProfile.broadContrast / textureProfile.fineContrast >= minimumScaleSeparation,
+    `${resource} weathering must retain fine inclusions beneath broader clouds, got ${textureProfile.fineContrast.toFixed(3)}/${textureProfile.broadContrast.toFixed(3)}`,
+  );
+  assert.ok(
+    Math.abs(textureProfile.contactDarkening) <= 0.035,
+    `${resource} texture must not encode a horizontal contact band, got ${textureProfile.contactDarkening.toFixed(3)}`,
+  );
+  assert.ok(
+    textureProfile.gradientAxisRatio >= 0.5 && textureProfile.gradientAxisRatio <= 1.7,
+    `${resource} weathering must not collapse into directional contour bands, got axis ratio ${textureProfile.gradientAxisRatio.toFixed(3)}`,
+  );
+  assert.ok(
+    textureProfile.strongestShiftCorrelation <= 0.88,
+    `${resource} weathering must avoid repeated horizontal, vertical, or diagonal motifs, got correlation ${textureProfile.strongestShiftCorrelation.toFixed(3)}`,
+  );
+  assert.ok(
+    textureProfile.dominantGradientDirectionShare <= 0.28,
+    `${resource} weathering must distribute scar and pit edges across nonparallel directions, got dominant share ${textureProfile.dominantGradientDirectionShare.toFixed(3)}`,
+  );
+  assert.ok(
+    textureProfile.localContrastVariation >= 0.12
+      && textureProfile.localContrastVariation <= 0.9,
+    `${resource} weathering must concentrate subtle inclusions in bounded local regions, got tile variation ${textureProfile.localContrastVariation.toFixed(3)}`,
+  );
+  const mipProfile = measureBoxFilteredTexture(texture, 4);
+  assert.ok(
+    mipProfile.luminanceRange >= (resource === 'iron' ? 0.13 : 0.08)
+      && mipProfile.luminanceRange <= (resource === 'iron' ? 0.32 : 0.24)
+      && mipProfile.adjacentContrast >= (resource === 'iron' ? 0.015 : 0.01)
+      && mipProfile.adjacentContrast <= (resource === 'iron' ? 0.05 : 0.04),
+    `${resource} mottling must remain camera-readable after a 4x mip reduction without becoming harsh, got ${mipProfile.luminanceRange.toFixed(3)}/${mipProfile.adjacentContrast.toFixed(3)}`,
+  );
+  assert.ok(
+    mipProfile.chromaRange >= (resource === 'iron' ? 0.08 : 0.01)
+      && mipProfile.chromaRange <= (resource === 'iron' ? 0.29 : 0.08),
+    `${resource} mineral coloration must survive a 4x mip reduction, got ${mipProfile.chromaRange.toFixed(3)}`,
+  );
+  const paletteLuminance = [...materialSet].map((material) => {
+    const color = material.color;
+    return color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
+  });
+  assert.ok(
+    resource === 'iron'
+      ? Math.max(...paletteLuminance) <= 0.3
+      : Math.max(...paletteLuminance) <= 0.7,
+    `${resource} palette must remain natural host rock or matte off-white mineral`,
   );
   assert.ok(
     outcrops.every((outcrop) => {
@@ -166,24 +295,648 @@ for (const resource of ['iron', 'salt'] as const) {
     }),
     `${resource} outcrops must bury their broadened base into the terrain instead of floating`,
   );
+  const worldWidths = outcrops.map((outcrop) => {
+    outcrop.geometry.computeBoundingBox();
+    const box = outcrop.geometry.boundingBox!;
+    return Math.max(
+      (box.max.x - box.min.x) * outcrop.scale.x,
+      (box.max.z - box.min.z) * outcrop.scale.z,
+    );
+  });
+  const breakoffCount = outcrops.filter(
+    (outcrop) => outcrop.userData.mineralSurface?.hierarchyRole === 'breakoff',
+  ).length;
+  assert.ok(
+    outcrops.every(
+      (outcrop) => outcrop.userData.mineralSurface?.formation === (
+        resource === 'iron' ? 'oxide-mottled-host-rock' : 'matte-salt-host-rock'
+      ),
+    ),
+    `${resource} outcrops must retain their resource-specific static formation profile`,
+  );
+  assert.ok(
+    breakoffCount === outcrops.length - new Set(outcrops.map((outcrop) => outcrop.parent)).size,
+    `${resource} formations must reserve exactly one continuous parent mesh per site`,
+  );
+  assert.ok(
+    Math.max(...worldWidths) / Math.min(...worldWidths) >= 8,
+    `${resource} formations need strong parent-to-breakoff scale hierarchy`,
+  );
+  for (const parent of new Set(outcrops.map((outcrop) => outcrop.parent))) {
+    const clusterOutcrops = outcrops.filter((outcrop) => outcrop.parent === parent);
+    const anchors = clusterOutcrops.filter(
+      (outcrop) => outcrop.userData.mineralSurface?.hierarchyRole === 'anchor',
+    );
+    const breakoffs = clusterOutcrops.filter(
+      (outcrop) => outcrop.userData.mineralSurface?.hierarchyRole === 'breakoff',
+    );
+    assert.equal(anchors.length, 1, `${resource} formations need exactly one dominant anchor`);
+    assert.equal(
+      breakoffs.length,
+      clusterOutcrops.length - 1,
+      `${resource} formations must turn every other fixed mesh into a tiny basal breakoff`,
+    );
+    const anchor = anchors[0];
+    const anchorWidth = worldWidth(anchor);
+    const anchorDimensions = worldDimensions(anchor);
+    const breakoffWidths = breakoffs.map(worldWidth);
+    assert.ok(
+      anchorDimensions.height / Math.max(anchorDimensions.width, anchorDimensions.depth) >= 0.27
+        && anchorDimensions.height / Math.max(anchorDimensions.width, anchorDimensions.depth) <= 0.58
+        && anchorWidth / Math.max(...breakoffWidths) >= 9,
+      `${resource} anchor must carry the whole quarry silhouette above tiny basal breakoffs`,
+    );
+    assert.equal(
+      anchor.userData.mineralSurface?.continuousParentGeometry,
+      true,
+      `${resource} anchor must be explicitly identified as the continuous parent surface`,
+    );
+    assert.equal(
+      connectedTriangleComponentCount(anchor.geometry),
+      1,
+      `${resource} anchor must be one connected procedural shell, not merged faceted modules`,
+    );
+    assert.deepEqual(
+      {
+        topology: anchor.geometry.userData.mineralGeometry?.topology,
+        silhouette: anchor.geometry.userData.mineralGeometry?.silhouette,
+        groundProfile: anchor.geometry.userData.mineralGeometry?.groundProfile,
+      },
+      {
+        topology: 'single-connected-shell',
+        silhouette: 'low-frequency-lobes-and-erosion',
+        groundProfile: 'flattened-eroded-foot',
+      },
+      `${resource} anchor geometry must declare its continuous quarry grammar`,
+    );
+    const uniqueAnchorVertices = uniqueGeometryVertices(anchor.geometry);
+    const minimumGeometryY = Math.min(...uniqueAnchorVertices.map((vertex) => vertex.y));
+    const footVertices = uniqueAnchorVertices.filter(
+      (vertex) => vertex.y <= minimumGeometryY + 0.055,
+    );
+    assert.ok(
+      footVertices.length >= 5
+        && Math.max(...footVertices.map((vertex) => vertex.y))
+          - Math.min(...footVertices.map((vertex) => vertex.y)) <= 0.055,
+      `${resource} continuous parent must have a broad, softly flattened ground foot`,
+    );
+    const zoneCount = clusterOutcrops.length === 18 ? 3 : 2;
+    const breakoffZones = new Map<number, THREE.Mesh[]>();
+    for (const breakoff of breakoffs) {
+      const zone = breakoff.userData.mineralSurface?.breakoffZone;
+      assert.equal(breakoff.userData.mineralSurface?.attachedToAnchor, true);
+      assert.equal(breakoff.userData.mineralSurface?.breakoffZoneCount, zoneCount);
+      assert.equal(typeof zone, 'number');
+      const zoneMembers = breakoffZones.get(zone) ?? [];
+      zoneMembers.push(breakoff);
+      breakoffZones.set(zone, zoneMembers);
+      const distance = Math.hypot(
+        breakoff.position.x - anchor.position.x,
+        breakoff.position.z - anchor.position.z,
+      );
+      const attachmentRatio = distance / ((anchorWidth + worldWidth(breakoff)) * 0.5);
+      assert.ok(
+        attachmentRatio >= 0.58 && attachmentRatio <= 0.98,
+        `${resource} breakoffs must remain in contact with the parent footprint, got ${attachmentRatio.toFixed(3)}`,
+      );
+    }
+    assert.deepEqual(
+      [...breakoffZones.keys()].sort((a, b) => a - b),
+      Array.from({ length: zoneCount }, (_, index) => index),
+      `${resource} breakoffs must occupy only ${zoneCount} explicit basal zones`,
+    );
+    assert.ok(
+      [...breakoffZones.values()].every((members) => members.length >= 4),
+      `${resource} basal zones must read as grouped breakage rather than singleton confetti`,
+    );
+    const zoneCentroids = [...breakoffZones.values()].map((members) => new THREE.Vector2(
+      members.reduce((sum, member) => sum + member.position.x, 0) / members.length,
+      members.reduce((sum, member) => sum + member.position.z, 0) / members.length,
+    ));
+    for (const members of breakoffZones.values()) {
+      const centroid = new THREE.Vector2(
+        members.reduce((sum, member) => sum + member.position.x, 0) / members.length,
+        members.reduce((sum, member) => sum + member.position.z, 0) / members.length,
+      );
+      assert.ok(
+        members.every(
+          (member) => centroid.distanceTo(new THREE.Vector2(member.position.x, member.position.z))
+            <= anchorWidth * 0.095,
+        ),
+        `${resource} breakoffs within a zone must remain tightly clustered`,
+      );
+    }
+    const zoneAngles = zoneCentroids
+      .map((centroid) => Math.atan2(
+        centroid.y - anchor.position.z,
+        centroid.x - anchor.position.x,
+      ))
+      .map((angle) => angle < 0 ? angle + Math.PI * 2 : angle)
+      .sort((a, b) => a - b);
+    const angularGaps = zoneAngles.map((angle, index) => {
+      const next = zoneAngles[(index + 1) % zoneAngles.length];
+      return (next - angle + Math.PI * 2) % (Math.PI * 2);
+    });
+    assert.ok(
+      Math.min(...angularGaps) <= 0.8
+        && Math.max(...angularGaps) - Math.min(...angularGaps) >= 1,
+      `${resource} breakoff zones must be asymmetrically grouped rather than evenly scattered`,
+    );
+    const anchorBottom = anchor.geometry.boundingBox!.min.y * anchor.scale.y + anchor.position.y;
+    const anchorBurialShare = -anchorBottom / anchorDimensions.height;
+    assert.ok(
+      anchorBottom <= -0.3
+        && anchorBurialShare >= 0.12
+        && anchorBurialShare <= 0.28,
+      `${resource} anchor must be partially buried without losing its dominant above-ground volume`,
+    );
+    assert.ok(
+      breakoffs.every((outcrop) => {
+        const dimensions = worldDimensions(outcrop);
+        const bottom = outcrop.geometry.boundingBox!.min.y * outcrop.scale.y + outcrop.position.y;
+        const top = outcrop.geometry.boundingBox!.max.y * outcrop.scale.y + outcrop.position.y;
+        const burialShare = -bottom / dimensions.height;
+        return bottom <= -0.01
+          && top > 0.012
+          && burialShare >= 0.18
+          && burialShare <= 0.72;
+      }),
+      `${resource} tiny breakoffs must be visibly but substantially buried at the parent base`,
+    );
+  }
 }
 const mineralOutcrops: THREE.Mesh[] = [];
 mineralVisualSystem.group.traverse((object) => {
   if (object instanceof THREE.Mesh && object.name.includes('outcrop')) mineralOutcrops.push(object);
 });
 assert.equal(
+  mineralOutcrops.length,
+  mineralVisualLayout.mineralDepositLayout.sites.reduce(
+    (count, site) => count + (site.grade === 'rich' ? 18 : 10),
+    0,
+  ),
+  'weathering and contact debris must not add meshes or draw calls',
+);
+assert.equal(
   new Set(mineralOutcrops.map((outcrop) => outcrop.geometry)).size,
-  3,
-  'all mineral sites must reuse exactly three bounded irregular geometry variants',
+  6,
+  'resource-specific face colors must use exactly three continuous shared-structure variants each',
+);
+const mineralGeometries = [...new Set(mineralOutcrops.map((outcrop) => outcrop.geometry))];
+const weatheredMineralGeometries = mineralGeometries.filter(
+  (geometry) => geometry.userData.mineralGeometry?.profile === 'continuous-quarry-outcrop',
+);
+assert.equal(weatheredMineralGeometries.length, 6);
+assert.ok(
+  weatheredMineralGeometries.every(
+    (geometry) => geometry.getIndex() === null
+      && geometry.getAttribute('position')?.count === 540,
+  ),
+  'the six resource-colored continuous quarry outcrops must stay at exactly 180 triangles each',
+);
+assert.ok(
+  mineralGeometries.every(
+    (geometry) => geometry.userData.mineralGeometry?.deformation === 'continuous-quarry-v3',
+  ),
+  'all mineral silhouettes must use the same continuous quarry deformation contract',
+);
+assert.ok(
+  weatheredMineralGeometries.every((geometry) => {
+    const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+    const uniqueHeights = new Set<number>();
+    for (let index = 0; index < position.count; index++) {
+      uniqueHeights.add(Math.round(position.getY(index) * 10_000));
+    }
+    return uniqueHeights.size >= 35;
+  }),
+  'continuous quarry deformation must retain varied vertex heights instead of quantized shelves',
 );
 assert.ok(
   mineralOutcrops.every(
     (outcrop) => (outcrop.geometry.getAttribute('position')?.count ?? 0) > 100
-      && outcrop.geometry.getAttribute('uv') !== undefined,
+      && outcrop.geometry.getAttribute('uv') !== undefined
+      && outcrop.geometry.getAttribute('color') !== undefined,
   ),
-  'weathered outcrops need enough static silhouette breakup and UVs for their surface maps',
+  'weathered outcrops need static silhouette, UV, and plane-color breakup',
+);
+const quarryGeometriesByResource = Object.fromEntries(
+  (['iron', 'salt'] as const).map((resource) => [
+    resource,
+    weatheredMineralGeometries
+      .filter((geometry) => geometry.userData.mineralGeometry?.resource === resource)
+      .sort(
+        (a, b) => a.userData.mineralGeometry.structureSeed
+          - b.userData.mineralGeometry.structureSeed,
+      ),
+  ]),
+) as Record<'iron' | 'salt', THREE.BufferGeometry[]>;
+assert.equal(quarryGeometriesByResource.iron.length, 3);
+assert.equal(quarryGeometriesByResource.salt.length, 3);
+for (let variant = 0; variant < 3; variant++) {
+  const ironGeometry = quarryGeometriesByResource.iron[variant];
+  const saltGeometry = quarryGeometriesByResource.salt[variant];
+  assert.equal(
+    ironGeometry.getAttribute('position'),
+    saltGeometry.getAttribute('position'),
+    'resource-colored variants must share the exact structural position buffer',
+  );
+  assert.equal(ironGeometry.getAttribute('normal'), saltGeometry.getAttribute('normal'));
+  assert.equal(ironGeometry.getAttribute('uv'), saltGeometry.getAttribute('uv'));
+  assert.notEqual(
+    ironGeometry.getAttribute('color'),
+    saltGeometry.getAttribute('color'),
+    'iron oxidation and salt fissuring need distinct static color fields',
+  );
+}
+for (const geometry of mineralGeometries) {
+  const color = geometry.getAttribute('color') as THREE.BufferAttribute;
+  const resource = geometry.userData.mineralGeometry?.resource as 'iron' | 'salt';
+  assert.ok(
+    color.array instanceof Uint8Array
+      && color.normalized
+      && color.itemSize === 3
+      && color.count === geometry.getAttribute('position').count,
+    `${resource} plane weathering must use one bounded normalized RGB8 color per vertex`,
+  );
+  const faceColors = new Set<string>();
+  let minimumLuminance = Number.POSITIVE_INFINITY;
+  let maximumLuminance = Number.NEGATIVE_INFINITY;
+  let minimumChroma = Number.POSITIVE_INFINITY;
+  let maximumChroma = Number.NEGATIVE_INFINITY;
+  for (let face = 0; face < color.count; face += 3) {
+    assert.deepEqual(
+      [color.getX(face), color.getY(face), color.getZ(face)],
+      [color.getX(face + 1), color.getY(face + 1), color.getZ(face + 1)],
+      'weathering colors must remain constant across each geological plane',
+    );
+    assert.deepEqual(
+      [color.getX(face), color.getY(face), color.getZ(face)],
+      [color.getX(face + 2), color.getY(face + 2), color.getZ(face + 2)],
+      'weathering colors must remain constant across each geological plane',
+    );
+    const red = color.getX(face);
+    const green = color.getY(face);
+    const blue = color.getZ(face);
+    const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722;
+    const chroma = red - blue;
+    minimumLuminance = Math.min(minimumLuminance, luminance);
+    maximumLuminance = Math.max(maximumLuminance, luminance);
+    minimumChroma = Math.min(minimumChroma, chroma);
+    maximumChroma = Math.max(maximumChroma, chroma);
+    faceColors.add(`${color.getX(face)}/${color.getY(face)}/${color.getZ(face)}`);
+  }
+  const faceCount = color.count / 3;
+  assert.ok(
+    faceColors.size / faceCount >= (faceCount > 100 ? 0.75 : 0.9),
+    `${resource} plane field must remain nonrepeating across the silhouette`,
+  );
+  const luminanceRange = maximumLuminance - minimumLuminance;
+  const chromaRange = maximumChroma - minimumChroma;
+  assert.ok(
+    resource === 'iron'
+      ? luminanceRange >= 0.15 && luminanceRange <= 0.23
+        && chromaRange >= 0.3 && chromaRange <= 0.4
+      : luminanceRange >= 0.25 && luminanceRange <= 0.4
+        && chromaRange >= 0.1 && chromaRange <= 0.18,
+    `${resource} plane colors need bounded camera-scale host-rock breakup, got ${luminanceRange.toFixed(3)}/${chromaRange.toFixed(3)}`,
+  );
+  assert.equal(
+    geometry.userData.mineralGeometry?.surfaceColorProfile,
+    resource === 'iron'
+      ? 'patchy-host-rock-oxidation'
+      : 'fissured-stratified-salt',
+  );
+}
+assert.ok(
+  mineralOutcrops.every(
+    (outcrop) => outcrop.userData.mineralSurface?.geometryProfile === 'continuous-quarry-outcrop',
+  ),
+  'iron and salt must use only continuous quarry outcrops without a cleaved-salt special form',
+);
+const renderedMineralTriangles = mineralOutcrops.reduce(
+  (triangles, outcrop) => triangles + outcrop.geometry.getAttribute('position').count / 3,
+  0,
+);
+assert.ok(
+  renderedMineralTriangles === mineralOutcrops.length * 180,
+  'the natural formation must retain the existing 180-triangle quarry silhouette budget per draw',
+);
+const structuralAttributeArrays = new Set<ArrayLike<number>>();
+for (const geometry of mineralGeometries) {
+  for (const name of ['position', 'normal', 'uv']) {
+    structuralAttributeArrays.add(geometry.getAttribute(name).array);
+  }
+}
+const residentGeometryAttributeBytes = [...structuralAttributeArrays].reduce(
+  (bytes, array) => bytes + (array as ArrayBufferView).byteLength,
+  0,
+);
+assert.equal(
+  residentGeometryAttributeBytes,
+  51_840,
+  'resource variants must share exactly three continuous structural buffers',
+);
+const residentPlaneColorBytes = mineralGeometries.reduce(
+  (bytes, geometry) => bytes + geometry.getAttribute('color').array.byteLength,
+  0,
+);
+assert.equal(
+  residentPlaneColorBytes,
+  9_720,
+  'camera-readable plane weathering must cost exactly 9.49 KiB of normalized RGB8 color data',
+);
+assert.equal(
+  residentGeometryAttributeBytes + residentPlaneColorBytes,
+  61_560,
+  'v12 placement must retain the exact v11 geometry budget without new meshes or draws',
+);
+const mineralMaterials = new Set(
+  mineralOutcrops.map((outcrop) => outcrop.material as THREE.MeshStandardMaterial),
+);
+assert.equal(mineralMaterials.size, 4, 'mineral outcrops must retain two shared materials per resource');
+const mineralTextures = new Set(
+  [...mineralMaterials].flatMap((material) => [
+    material.map,
+    material.normalMap,
+    material.roughnessMap,
+  ]),
+);
+assert.equal(
+  mineralTextures.size,
+  6,
+  'iron and salt must retain one shared three-channel weathering texture set each',
+);
+assert.equal(
+  [...mineralTextures].reduce(
+    (bytes, texture) => bytes + ((texture as THREE.DataTexture).image.data as Uint8Array).byteLength,
+    0,
+  ),
+  98_304,
+  'all six static RGBA weathering maps must remain within the exact 96 KiB CPU texture budget',
 );
 mineralVisualSystem.dispose();
+
+function measureWeatheringTexture(texture: THREE.DataTexture): {
+  luminanceRange: number;
+  channelRanges: [number, number, number];
+  chromaRange: number;
+  fineContrast: number;
+  broadContrast: number;
+  contactDarkening: number;
+  gradientAxisRatio: number;
+  strongestShiftCorrelation: number;
+  dominantGradientDirectionShare: number;
+  localContrastVariation: number;
+} {
+  const data = texture.image.data as Uint8Array;
+  const width = texture.image.width as number;
+  const height = texture.image.height as number;
+  const luminance = new Float64Array(width * height);
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  const channelMin: [number, number, number] = [255, 255, 255];
+  const channelMax: [number, number, number] = [0, 0, 0];
+  let minimumChroma = Number.POSITIVE_INFINITY;
+  let maximumChroma = Number.NEGATIVE_INFINITY;
+  for (let index = 0; index < luminance.length; index++) {
+    const offset = index * 4;
+    const value = (
+      data[offset] * 0.2126
+      + data[offset + 1] * 0.7152
+      + data[offset + 2] * 0.0722
+    ) / 255;
+    luminance[index] = value;
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+    for (let channel = 0; channel < 3; channel++) {
+      channelMin[channel] = Math.min(channelMin[channel], data[offset + channel]);
+      channelMax[channel] = Math.max(channelMax[channel], data[offset + channel]);
+    }
+    const chroma = (data[offset] - data[offset + 2]) / 255;
+    minimumChroma = Math.min(minimumChroma, chroma);
+    maximumChroma = Math.max(maximumChroma, chroma);
+  }
+
+  let horizontalGradient = 0;
+  let verticalGradient = 0;
+  const gradientDirectionEnergy = new Float64Array(8);
+  const tileContrast = new Float64Array(8 * 8);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const value = luminance[y * width + x];
+      const dx = luminance[y * width + ((x + 1) % width)] - value;
+      const dy = luminance[((y + 1) % height) * width + x] - value;
+      horizontalGradient += Math.abs(dx);
+      verticalGradient += Math.abs(dy);
+      const gradientEnergy = Math.hypot(dx, dy);
+      const direction = (Math.atan2(dy, dx) + Math.PI) % Math.PI;
+      const directionBin = Math.min(
+        gradientDirectionEnergy.length - 1,
+        Math.floor(direction / Math.PI * gradientDirectionEnergy.length),
+      );
+      gradientDirectionEnergy[directionBin] += gradientEnergy;
+      const tileX = Math.floor(x / (width / 8));
+      const tileY = Math.floor(y / (height / 8));
+      tileContrast[tileY * 8 + tileX] += gradientEnergy;
+    }
+  }
+
+  const globalMean = luminance.reduce((sum, value) => sum + value, 0) / luminance.length;
+  let variance = 0;
+  for (const value of luminance) {
+    variance += (value - globalMean) ** 2;
+  }
+  let strongestShiftCorrelation = Number.NEGATIVE_INFINITY;
+  for (const shift of [4, 8, 12, 16, 20, 24]) {
+    for (const [shiftX, shiftY] of [[shift, 0], [0, shift], [shift, shift], [shift, -shift]]) {
+      let covariance = 0;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const shiftedX = (x + shiftX) % width;
+          const shiftedY = (y + shiftY + height) % height;
+          covariance += (luminance[y * width + x] - globalMean)
+            * (luminance[shiftedY * width + shiftedX] - globalMean);
+        }
+      }
+      strongestShiftCorrelation = Math.max(strongestShiftCorrelation, covariance / variance);
+    }
+  }
+  const directionEnergyTotal = gradientDirectionEnergy.reduce((sum, value) => sum + value, 0);
+  const tileContrastMean = tileContrast.reduce((sum, value) => sum + value, 0)
+    / tileContrast.length;
+  const tileContrastVariance = tileContrast.reduce(
+    (sum, value) => sum + (value - tileContrastMean) ** 2,
+    0,
+  ) / tileContrast.length;
+
+  return {
+    luminanceRange: max - min,
+    channelRanges: channelMin.map(
+      (channelMinimum, channel) => (channelMax[channel] - channelMinimum) / 255,
+    ) as [number, number, number],
+    chromaRange: maximumChroma - minimumChroma,
+    fineContrast: meanWrappedShiftDifference(luminance, width, height, 1),
+    broadContrast: meanWrappedShiftDifference(luminance, width, height, width / 8),
+    contactDarkening: meanTextureBand(luminance, width, 36, 46)
+      - meanTextureBand(luminance, width, 20, 30),
+    gradientAxisRatio: horizontalGradient / verticalGradient,
+    strongestShiftCorrelation,
+    dominantGradientDirectionShare: Math.max(...gradientDirectionEnergy) / directionEnergyTotal,
+    localContrastVariation: Math.sqrt(tileContrastVariance) / tileContrastMean,
+  };
+}
+
+function meanWrappedShiftDifference(
+  values: Float64Array,
+  width: number,
+  height: number,
+  shift: number,
+): number {
+  let difference = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const value = values[y * width + x];
+      difference += Math.abs(value - values[y * width + ((x + shift) % width)]);
+      difference += Math.abs(value - values[((y + shift) % height) * width + x]);
+    }
+  }
+  return difference / (width * height * 2);
+}
+
+function meanTextureBand(
+  values: Float64Array,
+  width: number,
+  startRow: number,
+  endRow: number,
+): number {
+  let total = 0;
+  for (let y = startRow; y < endRow; y++) {
+    for (let x = 0; x < width; x++) total += values[y * width + x];
+  }
+  return total / ((endRow - startRow) * width);
+}
+
+function measureBoxFilteredTexture(
+  texture: THREE.DataTexture,
+  blockSize: number,
+): { luminanceRange: number; chromaRange: number; adjacentContrast: number } {
+  const data = texture.image.data as Uint8Array;
+  const width = texture.image.width as number;
+  const height = texture.image.height as number;
+  assert.equal(width % blockSize, 0);
+  assert.equal(height % blockSize, 0);
+  const filteredWidth = width / blockSize;
+  const filteredHeight = height / blockSize;
+  const luminance = new Float64Array(filteredWidth * filteredHeight);
+  const chroma = new Float64Array(filteredWidth * filteredHeight);
+  for (let filteredY = 0; filteredY < filteredHeight; filteredY++) {
+    for (let filteredX = 0; filteredX < filteredWidth; filteredX++) {
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      for (let localY = 0; localY < blockSize; localY++) {
+        for (let localX = 0; localX < blockSize; localX++) {
+          const x = filteredX * blockSize + localX;
+          const y = filteredY * blockSize + localY;
+          const offset = (y * width + x) * 4;
+          red += data[offset];
+          green += data[offset + 1];
+          blue += data[offset + 2];
+        }
+      }
+      const sampleCount = blockSize * blockSize * 255;
+      const index = filteredY * filteredWidth + filteredX;
+      luminance[index] = (
+        red * 0.2126 + green * 0.7152 + blue * 0.0722
+      ) / sampleCount;
+      chroma[index] = (red - blue) / sampleCount;
+    }
+  }
+  let adjacentContrast = 0;
+  for (let y = 0; y < filteredHeight; y++) {
+    for (let x = 0; x < filteredWidth; x++) {
+      const value = luminance[y * filteredWidth + x];
+      adjacentContrast += Math.abs(
+        value - luminance[y * filteredWidth + ((x + 1) % filteredWidth)],
+      );
+      adjacentContrast += Math.abs(
+        value - luminance[((y + 1) % filteredHeight) * filteredWidth + x],
+      );
+    }
+  }
+  return {
+    luminanceRange: Math.max(...luminance) - Math.min(...luminance),
+    chromaRange: Math.max(...chroma) - Math.min(...chroma),
+    adjacentContrast: adjacentContrast / (filteredWidth * filteredHeight * 2),
+  };
+}
+
+function worldWidth(outcrop: THREE.Mesh): number {
+  outcrop.geometry.computeBoundingBox();
+  const box = outcrop.geometry.boundingBox!;
+  return Math.max(
+    (box.max.x - box.min.x) * outcrop.scale.x,
+    (box.max.z - box.min.z) * outcrop.scale.z,
+  );
+}
+
+function worldDimensions(outcrop: THREE.Mesh): {
+  width: number;
+  height: number;
+  depth: number;
+} {
+  outcrop.geometry.computeBoundingBox();
+  const box = outcrop.geometry.boundingBox!;
+  return {
+    width: (box.max.x - box.min.x) * outcrop.scale.x,
+    height: (box.max.y - box.min.y) * outcrop.scale.y,
+    depth: (box.max.z - box.min.z) * outcrop.scale.z,
+  };
+}
+
+function uniqueGeometryVertices(geometry: THREE.BufferGeometry): THREE.Vector3[] {
+  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const vertices = new Map<string, THREE.Vector3>();
+  for (let index = 0; index < position.count; index++) {
+    const vertex = new THREE.Vector3().fromBufferAttribute(position, index);
+    const key = `${Math.round(vertex.x * 100_000)}/${Math.round(vertex.y * 100_000)}/${Math.round(vertex.z * 100_000)}`;
+    if (!vertices.has(key)) vertices.set(key, vertex);
+  }
+  return [...vertices.values()];
+}
+
+function connectedTriangleComponentCount(geometry: THREE.BufferGeometry): number {
+  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+  assert.equal(position.count % 3, 0);
+  const faceCount = position.count / 3;
+  const parents = Array.from({ length: faceCount }, (_, index) => index);
+  const find = (face: number): number => {
+    let root = face;
+    while (parents[root] !== root) root = parents[root];
+    while (parents[face] !== face) {
+      const next = parents[face];
+      parents[face] = root;
+      face = next;
+    }
+    return root;
+  };
+  const union = (left: number, right: number): void => {
+    const leftRoot = find(left);
+    const rightRoot = find(right);
+    if (leftRoot !== rightRoot) parents[rightRoot] = leftRoot;
+  };
+  const firstFaceByVertex = new Map<string, number>();
+  for (let face = 0; face < faceCount; face++) {
+    for (let corner = 0; corner < 3; corner++) {
+      const vertex = face * 3 + corner;
+      const key = `${Math.round(position.getX(vertex) * 100_000)}/${Math.round(position.getY(vertex) * 100_000)}/${Math.round(position.getZ(vertex) * 100_000)}`;
+      const firstFace = firstFaceByVertex.get(key);
+      if (firstFace === undefined) firstFaceByVertex.set(key, face);
+      else union(face, firstFace);
+    }
+  }
+  return new Set(parents.map((_, face) => find(face))).size;
+}
 
 // The setup panel promises physical ordinary deposits, not merely a regional
 // budget. Exercise the dry/wet and lean/plentiful extremes because competing

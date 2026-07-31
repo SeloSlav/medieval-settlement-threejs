@@ -1021,10 +1021,10 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
   profileDataset.visualProfileStatus = 'waiting-vegetation';
   for (const subsystem of requestedDisabled) applyEnabled(subsystem, false, false);
 
-  // App.start intentionally resolves before the deferred vegetation build.
-  // Wait for the same full scene in every profile, then reapply all URL
-  // overrides after vegetation's final shadow-preference sync. The five-second
-  // settling window keeps compilation and stream-fill work out of the trace.
+  // Wait for the same full scene in every profile (including harnesses that
+  // construct vegetation explicitly), then reapply all URL overrides after
+  // vegetation's final shadow-preference sync. The five-second settling window
+  // keeps shader compilation out of the trace.
   const waitForDeferredScene = (): void => {
     if (manager.forestManager === null || manager.grassField === null) {
       window.setTimeout(waitForDeferredScene, 100);

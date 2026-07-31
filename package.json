@@ -152,6 +152,7 @@
     "test:river-water-material": "npx tsx scripts/testRiverWaterMaterial.mts",
     "test:seedthree-forest-ecology": "npx tsx scripts/testSeedThreeForestEcology.mts",
     "test:seedthree-forest-compaction": "npx tsx scripts/testSeedThreeForestCompaction.mts",
+    "test:forest-startup-streaming": "npx tsx scripts/testForestStartupStreaming.mts",
     "test:seedthree-winter-foliage": "npx tsx scripts/testSeedThreeWinterFoliage.mts",
     "test:seedthree-cattail-heights": "npx tsx scripts/testCattailHeights.mts",
     "test:close-ground-vegetation": "node --experimental-strip-types scripts/testCloseGroundVegetation.mts",

@@ -20,7 +20,7 @@ export function mountTooltips(root: HTMLElement): () => void {
     activeAnchor = null;
     tooltip.classList.remove('is-visible');
     tooltip.hidden = true;
-    tooltip.textContent = '';
+    tooltip.replaceChildren();
   };
 
   const show = (anchor: HTMLElement): void => {
@@ -34,7 +34,7 @@ export function mountTooltips(root: HTMLElement): () => void {
     activeAnchor = anchor;
     const token = showToken + 1;
     showToken = token;
-    tooltip.textContent = text;
+    renderTooltipContent(anchor, tooltip, text);
     tooltip.hidden = false;
     tooltip.classList.remove('is-visible');
     anchor.setAttribute('aria-describedby', tooltip.id);
@@ -95,6 +95,79 @@ export function mountTooltips(root: HTMLElement): () => void {
     window.removeEventListener('resize', onReposition);
     window.removeEventListener('scroll', onReposition, true);
   };
+}
+
+function renderTooltipContent(
+  anchor: HTMLElement,
+  tooltip: HTMLElement,
+  sourceText: string,
+): void {
+  let title = anchor.dataset.tooltipTitle?.trim() ?? '';
+  let body = sourceText;
+
+  // Keep older "Title — description" tooltips readable while callers migrate
+  // to the explicit data-tooltip-title attribute.
+  if (!title) {
+    const separatorIndex = sourceText.indexOf(' — ');
+    if (separatorIndex > 0 && separatorIndex <= 48) {
+      title = sourceText.slice(0, separatorIndex).trim();
+      body = sourceText.slice(separatorIndex + 3).trim();
+    }
+  }
+
+  const fragment = document.createDocumentFragment();
+  if (title) {
+    const titleElement = document.createElement('strong');
+    titleElement.className = 'ui-tooltip__title';
+    titleElement.textContent = title;
+    fragment.appendChild(titleElement);
+  }
+
+  const bodyElement = document.createElement('div');
+  bodyElement.className = 'ui-tooltip__body';
+  const sections = body
+    .split(/\n\s*\n/)
+    .map((section) => section.trim())
+    .filter(Boolean);
+
+  for (const section of sections) {
+    const items = section
+      .split(/\s+·\s+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (items.length > 1) {
+      const list = document.createElement('ul');
+      list.className = 'ui-tooltip__list';
+      for (const item of items) {
+        const listItem = document.createElement('li');
+        appendTooltipText(listItem, item);
+        list.appendChild(listItem);
+      }
+      bodyElement.appendChild(list);
+      continue;
+    }
+
+    const paragraph = document.createElement('p');
+    paragraph.className = 'ui-tooltip__paragraph';
+    appendTooltipText(paragraph, section);
+    bodyElement.appendChild(paragraph);
+  }
+
+  fragment.appendChild(bodyElement);
+  tooltip.replaceChildren(fragment);
+}
+
+function appendTooltipText(parent: HTMLElement, text: string): void {
+  const labelledText = text.match(/^([^:\n]{2,48}:)\s+(.+)$/s);
+  if (!labelledText) {
+    parent.textContent = text;
+    return;
+  }
+
+  const label = document.createElement('strong');
+  label.className = 'ui-tooltip__label';
+  label.textContent = labelledText[1];
+  parent.append(label, document.createTextNode(` ${labelledText[2]}`));
 }
 
 function findTooltipAnchor(target: EventTarget | null): HTMLElement | null {

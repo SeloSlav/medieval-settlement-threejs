@@ -37,7 +37,6 @@ import {
   runForestBucketUpdateChunk,
   type SeedThreeBucketSelection,
 } from '@seedthree/core/forest-update-budget.js';
-import { yieldToMain } from '../../utils/yieldToMain.ts';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 
 type SpeciesBucket = {
@@ -68,6 +67,7 @@ export type SeedThreeForestInstances = {
       job: SeedThreeBucketMatrixWriteJob;
     } | null;
   } | null;
+  visibilityDirty: boolean;
   updateTelemetry: SeedThreeForestUpdateTelemetry;
 };
 
@@ -314,8 +314,8 @@ function createSpeciesBucket(
       toneVariation: overviewTone.variation,
     },
   );
-  const nearSlotIndices = slots.map((_, index) => index);
-  const overviewSlotIndices: number[] = [];
+  const nearSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [] : [index]);
+  const overviewSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [index] : []);
   writeSeedThreeLodMatrices(nearSet, slots, nearSlotIndices);
   writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
   return {
@@ -362,7 +362,6 @@ export async function createSeedThreeForest(
       branchCards: branchCards ?? undefined,
     });
     prototypeByPreset.set(presetKey, prototype as THREE.LOD);
-    await yieldToMain();
   }
 
   const placementsByPreset = new Map<SeedThreePresetKey, TreeSlot[]>();
@@ -381,7 +380,8 @@ export async function createSeedThreeForest(
     () => null,
   );
 
-  placements.forEach((placement, layoutIndex) => {
+  for (let layoutIndex = 0; layoutIndex < placements.length; layoutIndex++) {
+    const placement = placements[layoutIndex];
     const preset = resolveSeedThreePreset(placement.species);
     const scale = seedThreeScaleForPreset(preset, placement.scale);
     const rootY = terrain.getHeightAt(placement.x, placement.z);
@@ -401,6 +401,8 @@ export async function createSeedThreeForest(
       visibilityCenter,
       visibilityRadius,
       enabled: true,
+      forceOverview: placement.edgeBand?.maximumDetail === 'overview-card'
+        || Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.playableSize * 0.44,
       seasonalDeciduous: gorskiKotarSpeciesIsDeciduous(placement.species),
     };
     visibilityItems[layoutIndex] = {
@@ -408,12 +410,12 @@ export async function createSeedThreeForest(
       y: visibilityCenter.y,
       z: visibilityCenter.z,
       radius: visibilityRadius,
-      forceOverview: placement.edgeBand?.maximumDetail === 'overview-card',
+      forceOverview: slot.forceOverview,
     };
     const bucket = placementsByPreset.get(preset) ?? [];
     bucket.push(slot);
     placementsByPreset.set(preset, bucket);
-  });
+  }
 
   const buckets: SpeciesBucket[] = [];
   const seasonalCardMaterials = new Set<THREE.Material>();
@@ -429,16 +431,14 @@ export async function createSeedThreeForest(
       slotByLayoutIndex[slot.layoutIndex] = { bucketIndex, slotIndex };
     });
 
-    buckets.push(createSpeciesBucket(
+    const bucket = createSpeciesBucket(
       presetKey,
       slots,
       prototype,
       new Rng(`bucket:${presetKey}:${treeSeed}`),
       seasonalCardMaterials,
-    ));
-  }
-
-  for (const bucket of buckets) {
+    );
+    buckets.push(bucket);
     if (bucket.nearSet.branches) group.add(bucket.nearSet.branches);
     for (const cardMesh of bucket.nearSet.cards) group.add(cardMesh);
     if (bucket.overviewSet.branches) group.add(bucket.overviewSet.branches);
@@ -453,6 +453,11 @@ export async function createSeedThreeForest(
     minimumCameraMove: 2.25,
     minimumDirectionAngle: THREE.MathUtils.degToRad(1),
   });
+  const nearTrees = buckets.reduce((count, bucket) => count + bucket.nearSlotIndices.length, 0);
+  const overviewTrees = buckets.reduce(
+    (count, bucket) => count + bucket.overviewSlotIndices.length,
+    0,
+  );
   return {
     group,
     placements,
@@ -469,12 +474,13 @@ export async function createSeedThreeForest(
     renderStats: {
       totalTrees: placements.length,
       visibleTrees: placements.length,
-      nearTrees: placements.length,
-      overviewTrees: 0,
+      nearTrees,
+      overviewTrees,
       culledTrees: 0,
       revision: 0,
     },
     pendingLodWork: null,
+    visibilityDirty: false,
     updateTelemetry: createSeedThreeUpdateTelemetry(),
   };
 }
@@ -490,15 +496,19 @@ export function setSeedThreeTreeVisible(
   if (!bucket) return;
   const slot = bucket.slots[mapping.slotIndex];
   if (!slot) return;
+  if (slot.enabled === visible) return;
   slot.enabled = visible;
+  forest.visibilityDirty = true;
 }
 
 export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances): void {
+  if (forest.visibilityDirty === false) return;
   for (const bucket of forest.buckets) {
     writeSeedThreeLodMatrices(bucket.nearSet, bucket.slots, bucket.nearSlotIndices);
     writeSeedThreeLodMatrices(bucket.overviewSet, bucket.slots, bucket.overviewSlotIndices);
   }
   forest.pendingLodWork = null;
+  forest.visibilityDirty = false;
   refreshSeedThreeRenderStats(forest);
 }
 
@@ -891,8 +901,10 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
     showTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, true),
     commit: () => commitSeedThreeForestMatrices(forest),
-    updateCamera: (camera, firstPersonActive, casterBounds) =>
-      updateSeedThreeForestCamera(forest, camera, firstPersonActive, casterBounds),
+    // Runtime trees are fully resident. Camera-driven compaction caused visible
+    // pop-in and repeated buffer work while panning, so LOD assignment is now a
+    // one-time near/terrain-edge split performed during startup.
+    updateCamera: () => false,
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
     setDeciduousFoliage: (presentation) =>
       setSeedThreeForestDeciduousFoliage(forest, presentation),

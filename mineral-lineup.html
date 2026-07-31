@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mineral Deposit Weathering Lineup</title>
+    <style>
+      :root { color-scheme: dark; font-family: Georgia, serif; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #69734f; }
+      main, canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      .labels {
+        position: fixed; z-index: 1; left: 0; right: 0; bottom: 18px;
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+        color: #f5ecd6; font-size: 21px; text-align: center;
+        text-shadow: 0 2px 4px #000; pointer-events: none;
+      }
+      .labels span {
+        margin: 0 32px; padding: 8px;
+        border: 1px solid rgb(199 182 129 / 42%);
+        background: rgb(36 37 29 / 74%);
+      }
+      .bar { color: #d8c68f; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+    <main id="lineup-root" data-testid="mineral-weathering-lineup"></main>
+    <div class="labels" aria-hidden="true">
+      <span>Iron</span>
+      <span>Stone<br /><small class="bar">texture bar</small></span>
+      <span>Salt</span>
+    </div>
+    <script type="module" src="/src/e2e/mineralLineup.ts"></script>
+  </body>
+</html>

@@ -395,7 +395,7 @@ export class SceneManager {
       await this.buildVegetation();
     } finally {
       // SeedThree temporarily retargets the renderer while baking foliage
-      // atlases. Interleaving the normal screen pipeline corrupts both targets.
+      // atlases. Never interleave the normal screen pipeline with that work.
       this.vegetationBuildActive = false;
     }
   }

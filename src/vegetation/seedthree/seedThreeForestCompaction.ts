@@ -17,6 +17,8 @@ export type SeedThreeTreeSlot = {
   visibilityCenter: THREE.Vector3;
   visibilityRadius: number;
   enabled: boolean;
+  /** Static low-detail assignment for remote terrain-edge trees. */
+  forceOverview?: boolean;
   /** Broadleaf or larch instance eligible for seasonal color and leaf drop. */
   seasonalDeciduous?: boolean;
   /** Render-only crowns inherit the visibility/harvest state of a gameplay tree. */

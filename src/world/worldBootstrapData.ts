@@ -127,6 +127,10 @@ export function computeWorldBootstrapDataFromLayout(worldLayout: WorldLayout): W
   const treePlacements = computeForestTreePlacements(dims.playableSize, dims.terrainSize, isBlockedAt, {
     treeSeed: worldLayout.treeSeed,
     densityScale: forestDensityScale(worldLayout.settings.forestDensity),
+    // Use the same authored woodland cores as the visual forest. Recreating a
+    // second core set from the tree seed makes authoritative tree positions and
+    // rendered trunks disagree even when their layout indices happen to match.
+    forestCores: worldLayout.forestCores,
   });
   const trees: WorldBootstrapTree[] = treePlacements.map((placement, layoutIndex) => ({
     treeId: `tree-${layoutIndex}`,

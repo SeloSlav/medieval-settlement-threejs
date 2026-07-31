@@ -54,11 +54,11 @@ export class SessionLifecycleController {
 
   onReady(): void {
     this.deps.sessionGate.markReady();
-    // App clears the overlay after the first playable terrain frame. Vegetation
-    // continues progressively in the background.
+    // App clears the overlay only after the fully populated forest frame is
+    // ready, so connection completion cannot expose a half-built world.
     this.deps.loadingScreen?.setProgress({
       label: 'Entering world…',
-      detail: 'Preparing the first playable frame',
+      detail: 'Preparing terrain and woodland',
       phase: 'vegetation',
       fraction: 0.82,
     });

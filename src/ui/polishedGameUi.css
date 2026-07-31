@@ -1793,14 +1793,15 @@ select:focus-visible {
 }
 
 .ui-tooltip {
-  max-width: min(290px, calc(100vw - 24px));
-  padding: 9px 11px;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 10px 12px;
   border-color: rgba(226, 199, 139, 0.25);
   border-radius: 2px;
   color: #ded5c3;
   background: rgba(14, 17, 14, 0.96);
   box-shadow: inset 2px 0 var(--ui-brass), 0 14px 34px rgba(0, 0, 0, 0.42);
-  font-size: 10px;
+  font-size: 10.5px;
+  line-height: 1.5;
 }
 
 /* Trade, household extensions, and map surfaces ------------------------- */

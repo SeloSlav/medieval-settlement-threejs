@@ -97,7 +97,7 @@ function createTreePlacements(
 
   while (placements.length < spawnConfig.treeTargetCount && attempts < spawnConfig.treeTargetCount * 48) {
     attempts++;
-    const core = rng() < 0.82 ? pick(forestCores, rng) : undefined;
+    const core = rng() < 0.93 ? pick(forestCores, rng) : undefined;
     const sampled = core
       ? samplePointInForestCore(core, rng)
       : samplePointInPlayableExtent(rng, spawnConfig.extent);
@@ -107,7 +107,7 @@ function createTreePlacements(
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + rng() * 18) continue;
 
     const density = forestDensityAt(x, z, forestCores, spawnConfig.extent, spawnConfig.terrainExtent);
-    if (density < 0.12 || rng() > density * 1.14) continue;
+    if (density < 0.18 || rng() > density * 1.18) continue;
 
     const habitat = sampleLocalForestHabitat(x, z, density, spawnConfig, forestCores);
     const formNoise = valueNoise2(x * 0.025 + 37.2, z * 0.025 - 11.8);
@@ -446,10 +446,10 @@ function getTreePlacementSpacing(
 ): number {
   const profile = getTreeSpeciesProfile(species);
   const canopyRadius = getEstimatedCanopyRadius(species, form, scale);
-  const densitySpacing = lerp(1.08, 0.72, habitat.density);
-  const formMul = form === 'young' ? 0.86 : form === 'midstory' ? 0.78 : profile.canopy === 'broadleaf' ? 1.12 : 0.96;
-  const habitatMul = lerp(1.04, 0.86, habitat.hillFactor);
-  return Math.max(form === 'young' || form === 'midstory' ? 2.2 : 3.4, canopyRadius * densitySpacing * formMul * habitatMul);
+  const densitySpacing = lerp(1.0, 0.54, habitat.density);
+  const formMul = form === 'young' ? 0.8 : form === 'midstory' ? 0.7 : profile.canopy === 'broadleaf' ? 1.06 : 0.9;
+  const habitatMul = lerp(1.0, 0.82, habitat.hillFactor);
+  return Math.max(form === 'young' || form === 'midstory' ? 1.8 : 2.8, canopyRadius * densitySpacing * formMul * habitatMul);
 }
 
 export function getEstimatedCanopyRadius(species: TreeSpecies, form: TreeForm, scale: number): number {

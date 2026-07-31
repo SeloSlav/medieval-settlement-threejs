@@ -29,11 +29,13 @@ export type ForestSpawnConfig = {
 
 const LEGACY_PLAYABLE_SIZE = 496;
 const LEGACY_TERRAIN_SIZE = 1080;
-const BASE_TREE_COUNT = 360;
-const BASE_HILL_EDGE_TREE_COUNT = 820;
+// Keep the authored density control, but give its midpoint enough stems for
+// crowns to merge into readable woodland masses instead of isolated tree dots.
+const BASE_TREE_COUNT = 460;
+const BASE_HILL_EDGE_TREE_COUNT = 900;
 const BASE_ROCK_COUNT = 86;
 const BASE_UNDERGROWTH_COUNT = 880;
-const BASE_SAPLING_COUNT = 148;
+const BASE_SAPLING_COUNT = 190;
 
 export function createForestSpawnConfig(
   playableSize: number,
@@ -55,7 +57,9 @@ export function createForestSpawnConfig(
     treeTargetCount: Math.round(BASE_TREE_COUNT * areaScale * density),
     hillEdgeTreeTargetCount: Math.round(BASE_HILL_EDGE_TREE_COUNT * hillRingAreaScale * density),
     rockTargetCount: Math.round(BASE_ROCK_COUNT * areaScale * Math.sqrt(density)),
-    forestCoreCount: Math.round((20 + areaScale * 5) * Math.sqrt(density)),
+    // Fewer, broader cores produce distinct continuous woods with real meadow
+    // gaps between them; dozens of small cores read as evenly scattered trees.
+    forestCoreCount: Math.round((12 + areaScale * 4) * Math.sqrt(density)),
     rockOutcropCount: Math.round((9 + areaScale * 5) * Math.sqrt(density)),
     undergrowthTargetCount: Math.round(BASE_UNDERGROWTH_COUNT * areaScale * density),
     saplingTargetCount: Math.round(BASE_SAPLING_COUNT * areaScale * density),
@@ -95,8 +99,8 @@ export function createForestCores(rng: () => number, spawnConfig: ForestSpawnCon
     cores.push({
       x: x + (rng() - 0.5) * 14,
       z: z + (rng() - 0.5) * 14,
-      radiusX: THREE.MathUtils.lerp(52, 112, woodlandNoise) * (0.92 + rng() * 0.2),
-      radiusZ: THREE.MathUtils.lerp(44, 98, shapeNoise) * (0.9 + rng() * 0.22),
+      radiusX: THREE.MathUtils.lerp(60, 128, woodlandNoise) * (0.92 + rng() * 0.2),
+      radiusZ: THREE.MathUtils.lerp(52, 112, shapeNoise) * (0.9 + rng() * 0.22),
       rotation: rng() * TAU,
       strength: THREE.MathUtils.lerp(0.78, 1.22, woodlandNoise) * (0.96 + rng() * 0.1),
       coniferBias: THREE.MathUtils.clamp(THREE.MathUtils.lerp(0.36, 0.78, shapeNoise) + (rng() - 0.5) * 0.1, 0.32, 0.84),
@@ -156,7 +160,10 @@ export function forestCoreInfluence(x: number, z: number, core: ForestCore): num
 
 export function samplePointInForestCore(core: ForestCore, rng: () => number): { x: number; z: number } {
   const angle = rng() * TAU;
-  const radius = Math.pow(rng(), 0.54);
+  // Bias stems toward the interior of each broad core. The tapered outer
+  // samples still form a natural edge, while the interior becomes a continuous
+  // crown mass instead of a uniformly scattered ellipse.
+  const radius = Math.pow(rng(), 0.72);
   const localX = Math.cos(angle) * core.radiusX * radius;
   const localZ = Math.sin(angle) * core.radiusZ * radius;
   const cos = Math.cos(core.rotation);

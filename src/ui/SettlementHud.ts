@@ -78,7 +78,7 @@ const SETTLEMENT_HUD_HTML = `
       <span class="settlement-hud__clock-date" data-clock-date>Year 1</span>
       <span class="settlement-hud__clock-time" data-clock-time>08:00</span>
       <span class="settlement-hud__clock-detail" data-clock-detail></span>
-      <span class="settlement-hud__season" data-season-status></span>
+      <span class="settlement-hud__season" data-season-status tabindex="0"></span>
       <div class="settlement-hud__fire-alert" data-fire-alert hidden>
         <strong data-fire-count>Fire</strong>
         <span data-fire-response>Awaiting a staffed well</span>
@@ -109,7 +109,8 @@ const SETTLEMENT_HUD_HTML = `
             type="button"
             class="settlement-hud__speed-button${speed === 0 ? ' settlement-hud__speed-button--pause' : ''}"
             data-game-speed="${speed}"
-            data-tooltip="${gameSpeedLabel(speed)} · ${gameSpeedTimingLabel(speed)} · Key ${hotkeyForGameSpeed(speed)}"
+            data-tooltip-title="${gameSpeedLabel(speed)}"
+            data-tooltip="${gameSpeedTimingLabel(speed)} · Key: ${hotkeyForGameSpeed(speed)}"
             aria-label="${speed === 0 ? 'Pause simulation' : `Set simulation speed to ${speed} times`}"
             aria-keyshortcuts="${hotkeyForGameSpeed(speed)}"
             aria-pressed="${speed === 1}"
@@ -205,6 +206,7 @@ const SETTLEMENT_HUD_HTML = `
         class="settlement-hud__stat settlement-hud__stat--perf"
         tabindex="0"
         data-stat-row="fps"
+        data-tooltip-title="Frame rate"
         data-tooltip="Frames per second. Turns red below 60 and green at 85 or higher."
       >
         <span class="settlement-hud__label">FPS</span>
@@ -214,6 +216,7 @@ const SETTLEMENT_HUD_HTML = `
         class="settlement-hud__stat settlement-hud__stat--perf"
         tabindex="0"
         data-stat-row="zoom"
+        data-tooltip-title="Camera zoom"
         data-tooltip="Camera zoom level. Scroll the mouse wheel to zoom in and out on the map."
       >
         <span class="settlement-hud__label">Zoom</span>
@@ -225,6 +228,7 @@ const SETTLEMENT_HUD_HTML = `
       class="settlement-hud__totals-mode"
       data-resource-totals-mode
       data-mode="surplus"
+      data-tooltip-title="Resource totals"
       data-tooltip="Showing surplus goods: stored stock minus goods committed to active construction and home projects. Activate to show all stored goods."
       aria-label="Showing surplus goods. Show total goods stored."
       aria-pressed="false"
@@ -534,7 +538,8 @@ export class SettlementHud {
         ?.textContent
         ?.trim() || resource;
       const detail = row.dataset.tooltip?.trim();
-      row.dataset.tooltip = detail ? `${label} — ${detail}` : label;
+      row.dataset.tooltipTitle = label;
+      row.dataset.tooltip = detail || label;
       row.classList.add('is-resource-locator');
       row.setAttribute('role', 'button');
       row.setAttribute('aria-label', `${label}: locate physical holdings`);
@@ -588,6 +593,7 @@ export class SettlementHud {
     if (alert === null) {
       this.geologyAlert.textContent = '';
       delete this.geologyAlert.dataset.level;
+      delete this.geologyAlert.dataset.tooltipTitle;
       delete this.geologyAlert.dataset.tooltip;
       return;
     }
@@ -614,6 +620,7 @@ export class SettlementHud {
         `Inspect ${resourceLabel.toLowerCase()} extraction warning: shortest staffed finite seam ${runway}`,
       );
     }
+    this.geologyAlert.dataset.tooltipTitle = `${resourceLabel} reserves`;
     this.geologyAlert.dataset.tooltip = geologyAlertTooltip(alert);
   }
 
@@ -628,8 +635,9 @@ export class SettlementHud {
   ): void {
     const description = describeEnvironment(environment);
     this.seasonStatus.textContent = `${description.symbol} ${description.title}`;
+    this.seasonStatus.dataset.tooltipTitle = description.title;
     this.seasonStatus.dataset.tooltip = outlook
-      ? `${description.detail} ${describeNextDayEnvironmentOutlook(environment, outlook)}.`
+      ? `${description.detail}\n\n${describeNextDayEnvironmentOutlook(environment, outlook)}.`
       : description.detail;
     this.panel.classList.toggle('is-paused', speed === 0);
     for (const button of this.speedButtons) {
@@ -667,6 +675,9 @@ export class SettlementHud {
     this.fireResponse.textContent = responders > 0
       ? `${responders} bucket ${responders === 1 ? 'carrier' : 'carriers'} responding`
       : 'No bucket carrier in transit';
+    this.fireAlert.dataset.tooltipTitle = burning.length === 1
+      ? 'Structure fire'
+      : `${burning.length} structure fires`;
     this.fireAlert.dataset.tooltip = [
       `Worst fire: ${Math.round(worst.intensity * 100)}% intensity`,
       `${Math.round(worst.damage * 100)}% damage`,
@@ -706,6 +717,9 @@ export class SettlementHud {
         ? 'Raiders inside the frontier'
         : frontierThreatLabel(security, world, clock.month)
     }`;
+    this.securityAlert.dataset.tooltipTitle = raidThreatActive
+      ? 'Raiders inside the frontier'
+      : frontierThreatLabel(security, world, clock.month);
     const coverage = Math.round(security.coverage * 100);
     const readyGuards = security.readyGuards.toFixed(security.readyGuards < 10 ? 1 : 0);
     const requiredGuards = security.guardsRequired.toFixed(security.guardsRequired < 10 ? 1 : 0);
@@ -802,6 +816,7 @@ export class SettlementHud {
             : winterRelevant
               ? '❄ Winter stores'
               : '⚖ Provision watch';
+    this.provisionAlert.dataset.tooltipTitle = this.provisionLabel.textContent;
     this.provisionDetail.textContent = [
       `food ${formatProvisionDays(provisioning.foodRunwayDays)}`,
       provisioning.heatedResidents > 0
@@ -941,6 +956,7 @@ export class SettlementHud {
     );
     this.approvalButton.dataset.tooltip =
       `${approval.summary} Approval is ${trendCopy.label}. Activate for factors and current settlement effects.`;
+    this.approvalButton.dataset.tooltipTitle = `Approval · ${approval.score}% ${approval.label}`;
 
     renderTextList(this.approvalEffects, approval.effects);
     const concerns = approval.factors
@@ -981,6 +997,7 @@ export class SettlementHud {
     this.approvalMeter.setAttribute('aria-valuenow', '0');
     this.approvalMeterFill.style.width = '0%';
     this.approvalButton.setAttribute('aria-label', 'Approval awaiting settlement data');
+    delete this.approvalButton.dataset.tooltipTitle;
     delete this.approvalButton.dataset.tooltip;
     this.approvalEffects.replaceChildren();
     this.approvalConcerns.replaceChildren();
@@ -1009,6 +1026,7 @@ export class SettlementHud {
               : welfare.dilapidatedHomes + welfare.ruinedHomes > 0
                 ? 'Vacant homes decaying'
                 : 'Welfare watch';
+    this.welfareAlert.dataset.tooltipTitle = this.welfareLabel.textContent;
     this.welfareDetail.textContent = [
       welfare.starvingResidents > 0
         ? `${welfare.starvingResidents} starving`

@@ -505,6 +505,11 @@
   cursor: help;
 }
 
+.settlement-hud__season:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(215, 180, 99, 0.7);
+}
+
 .settlement-hud__fire-alert {
   grid-column: 1 / -1;
   display: grid;
@@ -1119,6 +1124,51 @@
   opacity: 0;
   transform: translateY(-4px);
   transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.ui-tooltip__title {
+  display: block;
+  margin-bottom: 5px;
+  color: #f0e4cd;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.08em;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.ui-tooltip__body {
+  display: grid;
+  gap: 7px;
+}
+
+.ui-tooltip__paragraph,
+.ui-tooltip__list {
+  margin: 0;
+}
+
+.ui-tooltip__list {
+  display: grid;
+  gap: 3px;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-tooltip__list li {
+  position: relative;
+  padding-left: 10px;
+}
+
+.ui-tooltip__list li::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: #c9a85f;
+  content: '\2022';
+}
+
+.ui-tooltip__label {
+  color: #eee3cf;
+  font-weight: 750;
 }
 
 .ui-tooltip.is-visible {
