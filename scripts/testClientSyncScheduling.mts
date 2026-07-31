@@ -389,6 +389,8 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
   });
   let syncAllCalls = 0;
   let syncLayoutCalls = 0;
+  let removeLayoutCalls = 0;
+  let removedLayouts: number[] = [];
   let syncTreeCalls = 0;
   let buildingSyncCalls = 0;
   let fenceSyncCalls = 0;
@@ -413,6 +415,10 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
       },
       syncAuthoritativeTreeLayouts: () => {
         syncLayoutCalls += 1;
+      },
+      removeTreeLayouts: (layoutIndices: Iterable<number>) => {
+        removeLayoutCalls += 1;
+        removedLayouts = [...layoutIndices];
       },
       syncTrees: () => {
         syncTreeCalls += 1;
@@ -604,7 +610,9 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
   const treeCleared = { ...timberStocked, tick: 8, trees: clearedTrees };
   applier.apply(deps as never, treeCleared, timberStocked);
   assert.equal(syncAllCalls, 1, 'tree deletion should not reapply every remaining tree');
-  assert.equal(syncLayoutCalls, 1, 'tree deletion should only resync authoritative layouts');
+  assert.equal(syncLayoutCalls, 0, 'tree deletion should not rescan the complete forest layout');
+  assert.equal(removeLayoutCalls, 1, 'tree deletion should issue one incremental visual batch');
+  assert.deepEqual(removedLayouts, [1]);
   assert.equal(syncTreeCalls, 1);
 }
 
@@ -754,6 +762,15 @@ function testForestPhaseUpdatesCommitOncePerBatch(): void {
 
   visualSync.syncTrees(trees, [...trees.keys()]);
   assert.equal(commits, 1, 'unchanged tree phases should not recommit instance buffers');
+
+  visualSync.removeTreeLayouts([1, 2]);
+  assert.equal(commits, 2, 'an authoritative deletion batch should commit once');
+  assert.equal(forestManager.isTreeLayoutActiveForCollision(1), false);
+  assert.equal(forestManager.isTreeLayoutActiveForCollision(2), false);
+
+  visualSync.syncTrees(trees, ['tree-1']);
+  assert.equal(commits, 3, 'restoring an authoritative tree should commit once');
+  assert.equal(forestManager.isTreeLayoutActiveForCollision(1), true);
 }
 
 function testWorldGenerationReferenceStaysStableAcrossTicks(): void {

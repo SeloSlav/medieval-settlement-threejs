@@ -126,6 +126,10 @@ export class BuildingMarkers {
   private previewKind: BuildingKind | null = null;
   private lastPreviewSignature = '';
   private pendingPlacement: THREE.Group | null = null;
+  private pendingPlacementKind: BuildingKind | null = null;
+  private pendingPlacementX = 0;
+  private pendingPlacementZ = 0;
+  private prewarmedFoundersCamp: THREE.Group | null = null;
 
   constructor(options: BuildingMarkersOptions) {
     this.terrain = options.terrain;
@@ -270,21 +274,40 @@ export class BuildingMarkers {
     this.lastPreviewSignature = '';
   }
 
+  prewarmFoundersCampPlacement(): void {
+    if (this.prewarmedFoundersCamp || this.pendingPlacementKind === 'founders_camp') return;
+    this.prewarmedFoundersCamp = createBuildingMesh('founders_camp');
+    setBuildingDetailShadowsEnabled(
+      this.prewarmedFoundersCamp,
+      areBuildingShadowsEnabled(),
+    );
+  }
+
   showPendingPlacement(kind: BuildingKind, x: number, z: number): void {
     this.clearPendingPlacement();
-    const marker = createConstructionSiteMesh(kind, 0, 0, 0);
+    const marker = kind === 'founders_camp'
+      ? this.takeFoundersCampMesh()
+      : createConstructionSiteMesh(kind, 0, 0, 0);
     marker.name = 'Pending building placement';
     marker.rotation.y = buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
     marker.position.set(x, this.terrain.getHeightAt(x, z), z);
     this.pendingPlacement = marker;
+    this.pendingPlacementKind = kind;
+    this.pendingPlacementX = x;
+    this.pendingPlacementZ = z;
     this.group.add(marker);
   }
 
   clearPendingPlacement(): void {
     if (!this.pendingPlacement) return;
     this.pendingPlacement.removeFromParent();
-    disposeObject3D(this.pendingPlacement);
+    if (this.pendingPlacementKind === 'founders_camp' && !this.prewarmedFoundersCamp) {
+      this.prewarmedFoundersCamp = this.pendingPlacement;
+    } else {
+      disposeObject3D(this.pendingPlacement);
+    }
     this.pendingPlacement = null;
+    this.pendingPlacementKind = null;
   }
 
   setPlacementPreview(
@@ -328,6 +351,10 @@ export class BuildingMarkers {
 
   dispose(): void {
     this.clearPendingPlacement();
+    if (this.prewarmedFoundersCamp) {
+      disposeObject3D(this.prewarmedFoundersCamp);
+      this.prewarmedFoundersCamp = null;
+    }
     if (this.previewBuilding) {
       disposeBuildingPreviewMesh(this.previewBuilding);
       this.previewBuilding = null;
@@ -516,9 +543,25 @@ export class BuildingMarkers {
       this.buildingMeshes.delete(building.id);
       marker = undefined;
     }
+    if (
+      !marker
+      && operational
+      && building.kind === 'founders_camp'
+      && this.pendingPlacementKind === 'founders_camp'
+      && Math.hypot(
+        building.x - this.pendingPlacementX,
+        building.z - this.pendingPlacementZ,
+      ) <= 0.5
+    ) {
+      marker = this.pendingPlacement ?? undefined;
+      this.pendingPlacement = null;
+      this.pendingPlacementKind = null;
+    }
     if (!marker) {
       marker = operational
-        ? createBuildingMesh(building.kind)
+        ? building.kind === 'founders_camp'
+          ? this.takeFoundersCampMesh()
+          : createBuildingMesh(building.kind)
         : createConstructionSiteMesh(
             building.kind,
             building.constructionProgress,
@@ -527,6 +570,9 @@ export class BuildingMarkers {
             ironworkRatio,
           );
       marker.userData.visualSignature = visualSignature;
+      if (building.kind === 'founders_camp') {
+        marker.name = "Founders' camp and open stockyard";
+      }
       if (marker.userData.fpCollisionChildrenOnly !== true) {
         marker.userData.fpCollisionAggregate = true;
       }
@@ -581,6 +627,12 @@ export class BuildingMarkers {
     if (operational) {
       syncBuildingVisualState(marker, building, herd, issuedGuardPolearms);
     }
+  }
+
+  private takeFoundersCampMesh(): THREE.Group {
+    const marker = this.prewarmedFoundersCamp ?? createBuildingMesh('founders_camp');
+    this.prewarmedFoundersCamp = null;
+    return marker;
   }
 
   private removeBuilding(id: string): void {

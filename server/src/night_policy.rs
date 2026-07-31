@@ -73,11 +73,13 @@ pub fn warning_policy_multiplier(policy: u8) -> f64 {
 
 pub fn gathering_share(gathering: u8, curfew: u8) -> f64 {
     let base = match gathering {
+        GATHERING_QUIET => 0.12,
         GATHERING_COURTYARDS => 0.45,
         GATHERING_OPEN_LATE => 0.72,
         _ => 0.12,
     };
     let curfew_multiplier = match curfew {
+        CURFEW_NONE => 1.0,
         CURFEW_GENERAL => 0.2,
         CURFEW_CHILDREN => 0.82,
         _ => 1.0,
@@ -87,6 +89,7 @@ pub fn gathering_share(gathering: u8, curfew: u8) -> f64 {
 
 pub fn lighting_firewood_per_household(policy: u8) -> f64 {
     match policy {
+        LIGHTING_CONSERVE => 0.006,
         LIGHTING_MAIN_ROADS => 0.025,
         LIGHTING_FULL => 0.06,
         _ => 0.006,
@@ -95,6 +98,7 @@ pub fn lighting_firewood_per_household(policy: u8) -> f64 {
 
 pub fn lighting_security_multiplier(policy: u8) -> f64 {
     match policy {
+        LIGHTING_CONSERVE => 0.78,
         LIGHTING_MAIN_ROADS => 1.15,
         LIGHTING_FULL => 1.35,
         _ => 0.78,
@@ -105,6 +109,7 @@ pub fn lighting_security_multiplier(policy: u8) -> f64 {
 /// shorten the delay. Raid arson is handled as immediately visible combat.
 pub fn fire_discovery_delay_seconds(watch_policy: u8, lighting_policy: u8) -> f64 {
     let unobserved_seconds = match lighting_policy {
+        LIGHTING_CONSERVE => 7.0,
         LIGHTING_MAIN_ROADS => 3.0,
         LIGHTING_FULL => 1.2,
         _ => 7.0,
@@ -114,6 +119,7 @@ pub fn fire_discovery_delay_seconds(watch_policy: u8, lighting_policy: u8) -> f6
 
 pub fn curfew_security_multiplier(policy: u8) -> f64 {
     match policy {
+        CURFEW_NONE => 0.92,
         CURFEW_CHILDREN => 1.08,
         CURFEW_GENERAL => 1.25,
         _ => 0.92,

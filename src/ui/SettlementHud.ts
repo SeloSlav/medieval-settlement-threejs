@@ -533,6 +533,8 @@ export class SettlementHud {
       const label = row.querySelector<HTMLElement>('.settlement-hud__label')
         ?.textContent
         ?.trim() || resource;
+      const detail = row.dataset.tooltip?.trim();
+      row.dataset.tooltip = detail ? `${label} — ${detail}` : label;
       row.classList.add('is-resource-locator');
       row.setAttribute('role', 'button');
       row.setAttribute('aria-label', `${label}: locate physical holdings`);

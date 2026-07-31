@@ -27,6 +27,25 @@
   opacity: 1;
 }
 
+[data-ui-root] .tutorial-overlay[data-blocking='false'] {
+  place-items: end end;
+  overflow: hidden;
+  background: none;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.tutorial-overlay[data-blocking='false'] .tutorial-dialog {
+  width: min(600px, calc(100vw - 36px));
+  max-height: min(calc(100dvh - 44px), 700px);
+  padding: clamp(22px, 3vw, 32px) clamp(20px, 3.6vw, 36px) 22px;
+  pointer-events: auto;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.72),
+    0 18px 54px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 242, 204, 0.045);
+}
+
 .tutorial-dialog {
   position: relative;
   isolation: isolate;
@@ -297,6 +316,10 @@
 @media (max-width: 620px) {
   .tutorial-overlay {
     place-items: start center;
+  }
+
+  [data-ui-root] .tutorial-overlay[data-blocking='false'] {
+    place-items: end center;
   }
 
   .tutorial-dialog {

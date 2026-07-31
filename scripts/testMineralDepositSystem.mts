@@ -15,6 +15,7 @@ import {
   mineralDepositMaxYield,
   mineralDepositNodeId,
 } from '../src/minerals/MineralDepositLayout.ts';
+import { createMineralDepositSystem } from '../src/minerals/MineralDepositSystem.ts';
 import {
   BUILDING_STORAGE_CAPS,
   LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
@@ -107,6 +108,29 @@ for (const mapSize of mapSizes) {
     }
   }
 }
+
+const mineralVisualLayout = createWorldLayout(DEFAULT_WORLD_GENERATION_SETTINGS);
+const mineralVisualSystem = createMineralDepositSystem(
+  { getHeightAt: () => 0 } as Parameters<typeof createMineralDepositSystem>[0],
+  mineralVisualLayout.mineralDepositLayout,
+);
+for (const resource of ['iron', 'salt'] as const) {
+  const outcrops: THREE.Mesh[] = [];
+  mineralVisualSystem.group.traverse((object) => {
+    if (object instanceof THREE.Mesh && object.name.startsWith(`${resource} outcrop`)) {
+      outcrops.push(object);
+    }
+  });
+  assert.ok(
+    outcrops.length >= 10,
+    `${resource} deposits must include a readable cluster of close-range 3D outcrops`,
+  );
+  assert.ok(
+    outcrops.every((outcrop) => outcrop.position.y > 0 && outcrop.castShadow),
+    `${resource} outcrops must rise above the terrain and cast scene shadows`,
+  );
+}
+mineralVisualSystem.dispose();
 
 // The setup panel promises physical ordinary deposits, not merely a regional
 // budget. Exercise the dry/wet and lean/plentiful extremes because competing

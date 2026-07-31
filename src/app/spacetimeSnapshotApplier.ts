@@ -105,6 +105,7 @@ export class SpacetimeSnapshotApplier {
     const treesChanged = !previous || !mapEntriesShareValues(state.trees, previous.trees);
     if (treesChanged) {
       const changedTreeIds: string[] = [];
+      const removedTreeLayoutIndices: number[] = [];
       for (const [treeId, entity] of state.trees) {
         const previousPhase = this.previousTreePhases.get(treeId);
         const previousGrowth = this.previousTreeGrowth.get(treeId);
@@ -117,19 +118,20 @@ export class SpacetimeSnapshotApplier {
         this.previousTreeGrowth.set(treeId, entity.growthProgress);
       }
 
-      if (previous && state.trees.size < previous.trees.size) {
-        for (const treeId of previous.trees.keys()) {
+      if (previous) {
+        for (const [treeId, entity] of previous.trees) {
           if (state.trees.has(treeId)) continue;
           this.previousTreePhases.delete(treeId);
           this.previousTreeGrowth.delete(treeId);
+          removedTreeLayoutIndices.push(entity.layoutIndex);
         }
       }
 
       if (!previous) {
         deps.forestVisualSync?.syncAll(state.trees);
       } else {
-        if (deps.forestVisualSync && state.trees.size !== previous.trees.size) {
-          deps.forestVisualSync.syncAuthoritativeTreeLayouts(state.trees);
+        if (removedTreeLayoutIndices.length > 0) {
+          deps.forestVisualSync?.removeTreeLayouts(removedTreeLayoutIndices);
         }
         if (changedTreeIds.length > 0) {
           deps.forestVisualSync?.syncTrees(state.trees, changedTreeIds);

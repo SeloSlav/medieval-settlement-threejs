@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as THREE from 'three';
+import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
 import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import {
   isWorldInspectionBlocked,
   isWorldResourceIconVisibilityBlocked,
   type PlacementInteractionGate,
 } from '../src/input/PlacementInteractionGate.ts';
-import type { ForagingNodeState, ResourceNodeState } from '../src/resources/types.ts';
+import type {
+  BuildingState,
+  ForagingNodeState,
+  ResourceNodeState,
+} from '../src/resources/types.ts';
 import {
   assessFoundingSite,
   describeFoundingSiteAssessment,
@@ -147,6 +153,76 @@ assert.ok(
   `10,000 bounded founding-site assessments took ${profileElapsed.toFixed(1)} ms`,
 );
 
+const markerParent = new THREE.Group();
+const campMarkers = new BuildingMarkers({
+  terrain: { getHeightAt: () => 0 } as never,
+  parent: markerParent,
+});
+campMarkers.prewarmFoundersCampPlacement();
+const campRevealStarted = performance.now();
+campMarkers.showPendingPlacement('founders_camp', 12, -8);
+const campRevealElapsed = performance.now() - campRevealStarted;
+const markerGroup = markerParent.getObjectByName('Building markers');
+const optimisticCamp = markerGroup?.getObjectByName('Pending building placement');
+assert.ok(optimisticCamp, 'the detailed camp should appear optimistically');
+const confirmedCampState = {
+  id: 'starter-camp-performance-fixture',
+  kind: 'founders_camp',
+  x: 12,
+  z: -8,
+  workRadius: 0,
+  actionCooldown: 0,
+  timber: 160,
+  firewood: 24,
+  stone: 140,
+  water: 0,
+  food: 0,
+  grain: 0,
+  flour: 0,
+  ale: 0,
+  preservedFood: 0,
+  honey: 0,
+  wine: 0,
+  wool: 0,
+  cloth: 0,
+  ironwork: 0,
+  polearms: 0,
+  gold: 8,
+  waterCapacity: 0,
+  assignedLabor: 0,
+  constructionComplete: true,
+  constructionProgress: 1,
+  constructionRequiredTimber: 0,
+  constructionRequiredStone: 0,
+  constructionDeliveredTimber: 0,
+  constructionDeliveredStone: 0,
+  constructionReservedTimber: 0,
+  constructionReservedStone: 0,
+  constructionTreasuryTimber: 0,
+  constructionTreasuryStone: 0,
+  storehouseAcceptsTimber: true,
+  storehouseAcceptsStone: true,
+  storehouseAcceptsFirewood: true,
+  foundingShelterActive: true,
+} satisfies BuildingState;
+const campConfirmationStarted = performance.now();
+campMarkers.syncBuildings([confirmedCampState]);
+const campConfirmationElapsed = performance.now() - campConfirmationStarted;
+assert.strictEqual(
+  markerGroup?.getObjectByName("Founders' camp and open stockyard"),
+  optimisticCamp,
+  'authoritative confirmation should adopt the visible camp object',
+);
+assert.ok(
+  campRevealElapsed < 10,
+  `prewarmed camp reveal took ${campRevealElapsed.toFixed(2)} ms`,
+);
+assert.ok(
+  campConfirmationElapsed < 10,
+  `camp confirmation took ${campConfirmationElapsed.toFixed(2)} ms`,
+);
+campMarkers.dispose();
+
 const starterCampGate = {
   isSessionReady: () => true,
   isSettlementFounded: () => false,
@@ -233,6 +309,40 @@ assert.match(
   /onPlacementPreviewChanged\?\.\(\)/,
   'a changed advisory should refresh the visible builder status',
 );
+assert.match(
+  buildingTool,
+  /showPendingPlacement\(kind, x, z\);[\s\S]*?requestAnimationFrame[\s\S]*?onPlaceBuilding\(kind, x, z\)/,
+  'the optimistic camp marker must paint before authoritative placement work starts',
+);
+
+const buildingMarkers = read('src/buildings/BuildingMarkers.ts');
+assert.match(
+  buildingMarkers,
+  /prewarmFoundersCampPlacement\(\)[\s\S]*?createBuildingMesh\('founders_camp'\)/,
+  'the detailed founders camp should be constructed before the placement click',
+);
+assert.match(
+  buildingMarkers,
+  /building\.kind === 'founders_camp'[\s\S]*?this\.pendingPlacementKind === 'founders_camp'[\s\S]*?marker = this\.pendingPlacement/,
+  'the authoritative camp must adopt the optimistic mesh instead of rebuilding it',
+);
+
+const tutorialOverlay = read('src/ui/TutorialOverlay.ts');
+assert.match(
+  tutorialOverlay,
+  /founding:\s*\{[\s\S]*?blocksGameplay: false/,
+  'the first founding guidance must never lock camera or gameplay input',
+);
+assert.match(
+  tutorialOverlay,
+  /this\.root\.classList\.add\('is-visible'\);[\s\S]*?this\.options\.onOpenChange\?\.\(true\)/,
+  'tutorial visibility must be committed before any open-state callback can gate input',
+);
+assert.match(
+  read('src/app/appBootstrap.ts'),
+  /isTutorialOpen: \(\) => tutorialOverlay\?\.isGameplayBlocking\(\)[\s\S]*?onOpenChange:[\s\S]*?isGameplayBlocking\(\)/,
+  'camera and interaction gates should only honor modal tutorials',
+);
 
 const toolbarStatus = read('src/ui/buildToolbarStatus.ts');
 assert.match(
@@ -249,5 +359,6 @@ assert.match(
 );
 
 console.log(
-  `Starter-camp placement flow checks passed (${profileElapsed.toFixed(1)} ms for 10,000 advisory assessments).`,
+  `Starter-camp placement flow checks passed (${profileElapsed.toFixed(1)} ms for 10,000 advisory assessments; `
+  + `${campRevealElapsed.toFixed(2)} ms reveal; ${campConfirmationElapsed.toFixed(2)} ms confirmation).`,
 );

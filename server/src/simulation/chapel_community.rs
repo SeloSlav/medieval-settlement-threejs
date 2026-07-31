@@ -1,15 +1,12 @@
 use crate::balance_generated::{
-    ABANDON_AFTER_DEFICIT_TICKS, CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER,
     CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
     CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_RECOVERY_NEEDS_REQUIRED,
     CHAPEL_RECOVERY_STOCK_MULTIPLIER, CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
     CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS, CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
-    CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY, MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER,
-    MONASTERY_ATTENDANCE_BONUS, MONASTERY_RECOVERY_STOCK_MULTIPLIER,
-    MONASTERY_SETTLEMENT_TICKS_MULTIPLIER, RESIDENCE_RECOVERY_FIREWOOD_MIN,
-    RESIDENCE_RECOVERY_FOOD_MIN, RESIDENCE_RECOVERY_WATER_MIN, RESIDENCE_SETTLE_TICKS,
-    RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER, RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER,
-    RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER,
+    CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY, MONASTERY_ATTENDANCE_BONUS,
+    MONASTERY_RECOVERY_STOCK_MULTIPLIER, MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
+    RESIDENCE_RECOVERY_FIREWOOD_MIN, RESIDENCE_RECOVERY_FOOD_MIN, RESIDENCE_RECOVERY_WATER_MIN,
+    RESIDENCE_SETTLE_TICKS,
 };
 use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
 use crate::simulation::residence_needs::ResidenceNeedKind;
@@ -34,30 +31,6 @@ pub fn effective_settle_ticks(
     }
 
     ticks.max(1)
-}
-
-pub fn effective_abandon_after_deficit_ticks(
-    residence_tier: u8,
-    has_chapel_access: bool,
-    has_monastery_coverage: bool,
-) -> u32 {
-    let tier_grace = match residence_tier {
-        1 => RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER,
-        2 => RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER,
-        _ => RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER,
-    };
-    let base_ticks = ABANDON_AFTER_DEFICIT_TICKS as f64 * tier_grace;
-    let mut ticks = if !has_chapel_access {
-        base_ticks
-    } else {
-        base_ticks / CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER
-    };
-
-    if has_chapel_access && has_monastery_coverage {
-        ticks /= MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER;
-    }
-
-    ticks.ceil() as u32
 }
 
 pub fn recovery_stock_min(
@@ -128,15 +101,14 @@ pub fn chapel_tithe_gold_per_tick(population: u32) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_attendance_chance, chapel_tithe_gold_per_tick,
-        effective_abandon_after_deficit_ticks, effective_settle_ticks, recovery_needs_required,
+        chapel_attendance_chance, chapel_tithe_gold_per_tick, effective_settle_ticks,
+        recovery_needs_required,
     };
     use crate::balance_generated::{
-        ABANDON_AFTER_DEFICIT_TICKS, CHAPEL_BASE_ATTENDANCE_CHANCE,
-        CHAPEL_COMMUNITY_ATTENDANCE_BONUS, CHAPEL_PRIEST_ATTENDANCE_BONUS,
-        CHAPEL_RECOVERY_NEEDS_REQUIRED, CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
-        CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY, MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
-        RESIDENCE_SETTLE_TICKS, RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER,
+        CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
+        CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_RECOVERY_NEEDS_REQUIRED,
+        CHAPEL_SETTLEMENT_TICKS_MULTIPLIER, CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
+        MONASTERY_SETTLEMENT_TICKS_MULTIPLIER, RESIDENCE_SETTLE_TICKS,
     };
     use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
     use crate::simulation::residence_needs::ResidenceNeedKind;
@@ -158,18 +130,6 @@ mod tests {
                 * MONASTERY_SETTLEMENT_TICKS_MULTIPLIER)
                 .ceil()) as u32,
         );
-    }
-
-    #[test]
-    fn effective_abandon_ticks_matches_balance() {
-        assert_eq!(
-            effective_abandon_after_deficit_ticks(1, false, false),
-            (ABANDON_AFTER_DEFICIT_TICKS as f64 * RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER)
-                as u32,
-        );
-        assert_eq!(effective_abandon_after_deficit_ticks(2, false, false), 5400);
-        assert_eq!(effective_abandon_after_deficit_ticks(3, false, false), 3600);
-        assert_eq!(effective_abandon_after_deficit_ticks(3, true, false), 5143);
     }
 
     #[test]

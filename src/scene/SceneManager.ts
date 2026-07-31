@@ -512,6 +512,7 @@ export class SceneManager {
       propGroups: [
         this.riverSystem.group,
         this.quarrySystem.group,
+        this.clayDepositSystem.group,
         this.mineralDepositSystem.group,
       ],
       buildingRoot: this.selectionGroup,

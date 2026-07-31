@@ -19,6 +19,10 @@ export class ForestVisualSync {
     );
   }
 
+  removeTreeLayouts(layoutIndices: Iterable<number>): void {
+    this.forestManager.removeAuthoritativeTreeLayouts(layoutIndices);
+  }
+
   syncTrees(trees: Map<string, TreeEntityState>, treeIds: string[]): void {
     const changedTrees: TreeEntityState[] = [];
     for (const treeId of treeIds) {

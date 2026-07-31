@@ -34,6 +34,7 @@ type TutorialDefinition = {
   eyebrow: string;
   title: string;
   rows: TutorialRow[];
+  blocksGameplay?: boolean;
 };
 
 type TutorialOverlayOptions = {
@@ -76,6 +77,7 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
     id: 'founding',
     eyebrow: "Founders' Camp established",
     title: 'A Settlement Takes Root',
+    blocksGameplay: false,
     rows: [
       {
         icon: 'camp',
@@ -341,6 +343,10 @@ export class TutorialOverlay {
     return this.current !== null;
   }
 
+  isGameplayBlocking(): boolean {
+    return this.current !== null && TUTORIALS[this.current].blocksGameplay !== false;
+  }
+
   notifyBuildingPlaced(kind: BuildingKind, buildingKinds: Iterable<BuildingKind>): void {
     const kinds = [...buildingKinds];
     if (kind === 'founders_camp') {
@@ -390,9 +396,10 @@ export class TutorialOverlay {
   private show(id: TutorialId): boolean {
     if (this.isOpen() || this.shown.has(id) || this.areTutorialsSkipped()) return false;
     const tutorial = TUTORIALS[id];
+    const blocksGameplay = tutorial.blocksGameplay !== false;
     this.shown.add(id);
     this.current = id;
-    this.previousFocus = document.activeElement instanceof HTMLElement
+    this.previousFocus = blocksGameplay && document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
     this.eyebrow.textContent = tutorial.eyebrow;
@@ -401,10 +408,18 @@ export class TutorialOverlay {
     this.skipCheckbox.checked = false;
     this.root.hidden = false;
     this.root.dataset.tutorial = id;
-    requestAnimationFrame(() => {
-      this.root.classList.add('is-visible');
-      this.confirmButton.focus({ preventScroll: true });
-    });
+    this.root.dataset.blocking = String(blocksGameplay);
+    this.dialog.setAttribute('aria-modal', String(blocksGameplay));
+    // Visibility must not depend on a later animation frame. If the main
+    // thread is busy applying the founding snapshot, a deferred class would
+    // leave an invisible overlay logically open over the game.
+    this.root.classList.add('is-visible');
+    if (blocksGameplay) {
+      requestAnimationFrame(() => {
+        if (!this.isGameplayBlocking()) return;
+        this.confirmButton.focus({ preventScroll: true });
+      });
+    }
     this.options.onOpenChange?.(true);
     return true;
   }
@@ -440,6 +455,7 @@ export class TutorialOverlay {
     this.root.classList.remove('is-visible');
     this.root.hidden = true;
     delete this.root.dataset.tutorial;
+    delete this.root.dataset.blocking;
     this.current = null;
     this.options.onOpenChange?.(false);
     this.previousFocus?.focus({ preventScroll: true });
@@ -465,7 +481,7 @@ export class TutorialOverlay {
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (!this.isOpen()) return;
+    if (!this.isGameplayBlocking()) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopImmediatePropagation();

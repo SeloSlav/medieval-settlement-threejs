@@ -296,6 +296,9 @@ export async function bootstrapAppSession(
     getRoadConditionSpeedMultiplier: () => worldQueries.getRoadConditionSpeedMultiplier(),
     onShadowCastersChanged: () => sceneManager.invalidateStaticShadows(),
   });
+  // Build the one-time founding landmark while the loading presentation is
+  // already covering startup, never in response to the player's click.
+  buildingMarkers.prewarmFoundersCampPlacement();
   const {
     DeliveryAgentRenderer,
     FireEffectsRenderer,
@@ -340,7 +343,7 @@ export async function bootstrapAppSession(
     isFarmFieldToolEnabled: () => false,
     isFirstPersonActive: () => false,
     isMenuOpen: () => false,
-    isTutorialOpen: () => tutorialOverlay?.isOpen() ?? false,
+    isTutorialOpen: () => tutorialOverlay?.isGameplayBlocking() ?? false,
   };
 
   cameraController = new CameraController({
@@ -368,9 +371,9 @@ export async function bootstrapAppSession(
   });
 
   tutorialOverlay = new TutorialOverlay(uiRoot, {
-    onOpenChange: (open) => {
+    onOpenChange: () => {
       cameraController.setInputEnabled(
-        !open
+        !(tutorialOverlay?.isGameplayBlocking() ?? false)
         && !(firstPersonController?.isActive() ?? false)
         && !(toolbar?.isGameMenuOpen() ?? false),
       );
@@ -791,7 +794,7 @@ export async function bootstrapAppSession(
       cameraController.setInputEnabled(
         !open
         && !firstPersonController.isActive()
-        && !tutorialOverlay.isOpen(),
+        && !tutorialOverlay.isGameplayBlocking(),
       );
     },
     onAudioEnabledChange: (enabled) => {
@@ -815,7 +818,7 @@ export async function bootstrapAppSession(
       && !buildingTool.isEnabled()
       && !burgageTool.isEnabled()
       && !farmFieldTool.isEnabled()
-      && !tutorialOverlay.isOpen(),
+      && !tutorialOverlay.isGameplayBlocking(),
     onNewWorld: () => {
       void beginNewWorld(() => sessionGate.isReady());
     },
@@ -1108,7 +1111,7 @@ export async function bootstrapAppSession(
       cameraController.setInputEnabled(
         !active
         && !toolbar.isGameMenuOpen()
-        && !tutorialOverlay.isOpen(),
+        && !tutorialOverlay.isGameplayBlocking(),
       );
       toolbar.setFirstPersonMode(active);
       if (active) {

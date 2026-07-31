@@ -95,10 +95,6 @@ pub fn clay_bank_yield_multiplier_with_richness(
     ordinary_yield + (rich_yield - ordinary_yield) * richness
 }
 
-pub fn clay_bank_yield_multiplier_at(x: f64, z: f64, resource_abundance: u8) -> f64 {
-    clay_bank_yield_multiplier(sample_hydrology_score(x, z), resource_abundance)
-}
-
 fn grid_at(ix: usize, iz: usize) -> f64 {
     let index = iz * HYDROLOGY_GRID_RESOLUTION + ix;
     HYDROLOGY_GRID_SCORES[index] as f64
@@ -108,10 +104,9 @@ fn grid_at(ix: usize, iz: usize) -> f64 {
 mod tests {
     use super::{
         clay_bank_regional_yield_multiplier, clay_bank_site_yield_multiplier,
-        clay_bank_yield_multiplier, clay_bank_yield_multiplier_at,
-        clay_bank_yield_multiplier_with_richness, sample_hydrology_score,
-        CLAY_BANK_ORDINARY_YIELD_MAX, CLAY_BANK_RICH_YIELD_MIN, CLAY_BANK_SITE_YIELD_MAX,
-        CLAY_BANK_SITE_YIELD_MIN,
+        clay_bank_yield_multiplier, clay_bank_yield_multiplier_with_richness,
+        sample_hydrology_score, CLAY_BANK_ORDINARY_YIELD_MAX, CLAY_BANK_RICH_YIELD_MIN,
+        CLAY_BANK_SITE_YIELD_MAX, CLAY_BANK_SITE_YIELD_MIN,
     };
 
     #[test]
@@ -158,8 +153,8 @@ mod tests {
 
     #[test]
     fn coordinate_sampler_drives_authoritative_clay_bank_quality() {
-        let leaner = clay_bank_yield_multiplier_at(-12.7559, -140.315, 50);
-        let richer = clay_bank_yield_multiplier_at(4.252, -131.811, 50);
+        let leaner = clay_bank_yield_multiplier(sample_hydrology_score(-12.7559, -140.315), 50);
+        let richer = clay_bank_yield_multiplier(sample_hydrology_score(4.252, -131.811), 50);
         assert!(richer > leaner);
     }
 }

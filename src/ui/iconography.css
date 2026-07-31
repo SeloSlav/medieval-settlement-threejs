@@ -162,8 +162,8 @@
  * icon position, so no resource markup or live-value logic has to change.
  */
 .settlement-hud__stat[data-resource]::before {
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   justify-self: center;
   content: '';
   background-color: transparent;

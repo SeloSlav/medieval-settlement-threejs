@@ -313,6 +313,9 @@ export class BuildingTool {
     const beforeIds = new Set(this.options.getState().buildings.keys());
     this.options.markers.showPendingPlacement(kind, x, z);
     try {
+      // Let the optimistic marker reach the screen before network and
+      // authoritative world-sync work can occupy the main thread.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       await this.options.onPlaceBuilding(kind, x, z);
       this.placementPending = false;
       const buildingId = await waitForPlacedBuilding(this.options.getState, beforeIds, kind, x, z);

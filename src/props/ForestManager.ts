@@ -258,6 +258,24 @@ export class ForestManager {
     this.commitTreeInstanceUpdates();
   }
 
+  removeAuthoritativeTreeLayouts(layoutIndices: Iterable<number>): void {
+    let needsCommit = false;
+    for (const layoutIndex of layoutIndices) {
+      if (
+        layoutIndex < 0
+        || layoutIndex >= this.placements.length
+        || this.missingTreeEntities.has(layoutIndex)
+      ) {
+        continue;
+      }
+      this.missingTreeEntities.add(layoutIndex);
+      this.hideTree(layoutIndex);
+      this.hideHarvestStump(layoutIndex);
+      needsCommit = true;
+    }
+    if (needsCommit) this.commitTreeInstanceUpdates();
+  }
+
   private restoreTreePhaseVisual(
     layoutIndex: number,
     phase: TreePhase = this.treePhases.get(layoutIndex) ?? 'mature',

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as THREE from 'three';
 import {
   resolveBuildingPlacementPoint,
   validateBuildingPlacement,
@@ -9,6 +10,7 @@ import {
   clayDepositMaxYield,
   type ClayDepositSite,
 } from '../src/clay/ClayDepositLayout.ts';
+import { createClayDepositSystem } from '../src/clay/ClayDepositSystem.ts';
 import {
   CLAY_BANK_ORDINARY_YIELD_MAX,
   CLAY_BANK_RICH_YIELD_THRESHOLD,
@@ -45,6 +47,33 @@ const richClay = layout.clayDepositLayout.sites.find((site) => site.kind === 'ri
 assert.ok(richClay, 'at least one deterministic seed must roll a rich clay deposit');
 const ordinaryClay = layout.clayDepositLayout.sites.find((site) => site.kind === 'ordinary');
 assert.ok(ordinaryClay, 'every region must retain an ordinary physical clay deposit');
+const clayVisualSystem = createClayDepositSystem(
+  { getHeightAt: () => 0 } as Parameters<typeof createClayDepositSystem>[0],
+  layout.clayDepositLayout,
+);
+const ordinaryClayVisual = clayVisualSystem.group.getObjectByName('Exposed ordinary alluvial clay');
+assert.ok(ordinaryClayVisual, 'ordinary clay must have a close-range scene representation');
+const ordinaryClayMeshes: THREE.Mesh[] = [];
+ordinaryClayVisual.traverse((object) => {
+  if (object instanceof THREE.Mesh) ordinaryClayMeshes.push(object);
+});
+assert.ok(
+  ordinaryClayMeshes.some((mesh) => mesh.name.startsWith('Ordinary clay clod')),
+  'ordinary clay must include raised 3D clods rather than only a terrain-colored decal',
+);
+const ordinarySurface = ordinaryClayVisual.getObjectByName('Ordinary clay bank surface');
+assert.ok(ordinarySurface instanceof THREE.Mesh);
+ordinarySurface.geometry.computeBoundingBox();
+assert.ok(
+  (ordinarySurface.geometry.boundingBox?.max.y ?? 0)
+    - (ordinarySurface.geometry.boundingBox?.min.y ?? 0) >= 0.2,
+  'the clay bank surface must have modeled vertical relief at close zoom',
+);
+assert.ok(
+  ordinaryClayMeshes.some((mesh) => mesh.castShadow),
+  'raised clay deposit details must participate in scene shadows',
+);
+clayVisualSystem.dispose();
 const physicalDeposits = createPhysicalDepositFootprints(layout);
 const resources = new Set(physicalDeposits.map((deposit) => deposit.resource));
 assert.deepEqual(
