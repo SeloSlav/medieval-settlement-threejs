@@ -61,7 +61,7 @@ assert.match(ecologySource, /const meadowGrain = smoothstep/);
 assert.match(ecologySource, /const denseGrain = smoothstep/);
 assert.match(ecologySource, /const dryGrain = smoothstep/);
 assert.match(ecologySource, /const overviewTexturedColor = mix/);
-assert.match(ecologySource, /float\(0\.82\)/);
+assert.match(ecologySource, /float\(0\.88\)/);
 assert.match(ecologySource, /const biomeBaseColor =/);
 assert.match(ecologySource, /const stableColorNode = biomeBaseColor/);
 assert.match(ecologySource, /const colorNode = resolvedAlbedo/);
@@ -76,9 +76,9 @@ assert.match(
   ecologySource,
   /const resolvedAlbedo = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
 );
-assert.match(ecologySource, /vec3\(0\.16, 0\.21, 0\.055\)/);
-assert.match(ecologySource, /vec3\(0\.028, 0\.047, 0\.012\)/);
-assert.match(ecologySource, /vec3\(0\.3, 0\.24, 0\.082\)/);
+assert.match(ecologySource, /vec3\(0\.15, 0\.22, 0\.05\)/);
+assert.match(ecologySource, /vec3\(0\.018, 0\.035, 0\.009\)/);
+assert.match(ecologySource, /vec3\(0\.34, 0\.275, 0\.09\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
 assert.match(ecologySource, /const rainNormalVisibility = mix/);
 assert.match(source, /const weatherResolvedRoadWear = roadWear\.mul\(shoreRainVisibility\)/);

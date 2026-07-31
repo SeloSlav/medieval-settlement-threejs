@@ -163,20 +163,20 @@ function buildGrassBlendNodes(
   // meadow and dry-shoulder hierarchy legible from overview distance.
   const macroWarp = sin(
     world.x
-      .mul(float(0.0031) as TslNode)
-      .add(world.z.mul(float(-0.0043) as TslNode))
+      .mul(float(0.0062) as TslNode)
+      .add(world.z.mul(float(-0.0086) as TslNode))
       .add(float(1.73) as TslNode) as TslNode,
   ) as TslNode;
   const macroA = (sin(
     world.x
-      .mul(float(0.0076) as TslNode)
-      .add(world.z.mul(float(0.0049) as TslNode))
+      .mul(float(0.0152) as TslNode)
+      .add(world.z.mul(float(0.0098) as TslNode))
       .add(macroWarp.mul(float(1.12) as TslNode)) as TslNode,
   ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
   const macroB = (sin(
     world.x
-      .mul(float(-0.018) as TslNode)
-      .add(world.z.mul(float(0.013) as TslNode))
+      .mul(float(-0.036) as TslNode)
+      .add(world.z.mul(float(0.026) as TslNode))
       .add(macroWarp.mul(float(-1.67) as TslNode))
       .add(float(2.41) as TslNode) as TslNode,
   ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
@@ -208,17 +208,17 @@ function buildGrassBlendNodes(
       .add(macroA.mul(float(0.24) as TslNode)) as TslNode,
   ) as TslNode;
   const overviewLightWeight = w.x
-    .mul(float(0.32) as TslNode)
-    .add(lightOverlap.mul(float(0.68) as TslNode))
-    .add(float(0.06) as TslNode) as TslNode;
+    .mul(float(0.14) as TslNode)
+    .add(lightOverlap.mul(float(0.86) as TslNode))
+    .add(float(0.04) as TslNode) as TslNode;
   const overviewDarkWeight = w.y
-    .mul(float(0.42) as TslNode)
-    .add(darkOverlap.mul(float(0.76) as TslNode))
-    .add(float(0.05) as TslNode) as TslNode;
+    .mul(float(0.22) as TslNode)
+    .add(darkOverlap.mul(float(0.88) as TslNode))
+    .add(float(0.035) as TslNode) as TslNode;
   const overviewDryWeight = w.z
-    .mul(float(0.4) as TslNode)
-    .add(dryOverlap.mul(float(0.72) as TslNode))
-    .add(float(0.05) as TslNode) as TslNode;
+    .mul(float(0.2) as TslNode)
+    .add(dryOverlap.mul(float(0.84) as TslNode))
+    .add(float(0.035) as TslNode) as TslNode;
   const overviewWeightSum = max(
     overviewLightWeight.add(overviewDarkWeight).add(overviewDryWeight),
     float(0.0001) as TslNode,
@@ -230,9 +230,9 @@ function buildGrassBlendNodes(
   // Linear-space target families: fresh light meadow, shaded dark grass, and
   // a warm straw/beige dry layer. The authored albedos still supply the grain,
   // with a stable base preventing their distant mip averages from flattening.
-  const overviewLightColor = vec3(0.16, 0.21, 0.055) as TslNode;
-  const overviewDarkColor = vec3(0.028, 0.047, 0.012) as TslNode;
-  const overviewDryColor = vec3(0.3, 0.24, 0.082) as TslNode;
+  const overviewLightColor = vec3(0.15, 0.22, 0.05) as TslNode;
+  const overviewDarkColor = vec3(0.018, 0.035, 0.009) as TslNode;
+  const overviewDryColor = vec3(0.34, 0.275, 0.09) as TslNode;
   const overviewBaseColor = overviewLightColor
     .mul(overviewLight)
     .add(overviewDarkColor.mul(overviewDark))
@@ -262,25 +262,25 @@ function buildGrassBlendNodes(
       .add(dryColor.b.mul(float(0.114) as TslNode)) as TslNode,
   ) as TslNode;
   const overviewSampleColor = (mix(
-    overviewLightColor.mul(float(0.7) as TslNode),
-    overviewLightColor.mul(float(1.3) as TslNode),
+    overviewLightColor.mul(float(0.62) as TslNode),
+    overviewLightColor.mul(float(1.38) as TslNode),
     meadowGrain,
   ) as TslNode)
     .mul(overviewLight)
     .add((mix(
-      overviewDarkColor.mul(float(0.68) as TslNode),
-      overviewDarkColor.mul(float(1.32) as TslNode),
+      overviewDarkColor.mul(float(0.6) as TslNode),
+      overviewDarkColor.mul(float(1.4) as TslNode),
       denseGrain,
     ) as TslNode).mul(overviewDark))
     .add((mix(
-      overviewDryColor.mul(float(0.7) as TslNode),
-      overviewDryColor.mul(float(1.3) as TslNode),
+      overviewDryColor.mul(float(0.62) as TslNode),
+      overviewDryColor.mul(float(1.38) as TslNode),
       dryGrain,
     ) as TslNode).mul(overviewDry));
   const overviewTexturedColor = mix(
     overviewBaseColor,
     overviewSampleColor,
-    float(0.82) as TslNode,
+    float(0.88) as TslNode,
   ) as TslNode;
   const resolvedAlbedo = mix(
     overviewTexturedColor,
