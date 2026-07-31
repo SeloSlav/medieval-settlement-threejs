@@ -923,7 +923,7 @@ export class App {
       }
       if (!prior && incident.status === 'destroyed') {
         this.toastManager?.show(
-          'A structure fire went undiscovered until the building was lost.',
+          'A structure fire went undiscovered until the building was lost. Recoverable remnants, if any, were left beside the ruin.',
           { variant: 'error', durationMs: 7000 },
         );
         continue;
@@ -936,7 +936,7 @@ export class App {
         );
       } else if (incident.status === 'destroyed') {
         this.toastManager?.show(
-          'A structure has been destroyed by fire. Its labor and stored goods were lost.',
+          'A structure has been destroyed by fire. Most stores were lost; free haulers can recover any durable remnants from a nearby salvage pile.',
           { variant: 'error', durationMs: 7000 },
         );
       }

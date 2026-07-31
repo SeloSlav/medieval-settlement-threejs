@@ -161,6 +161,8 @@ export type BuildingState = {
   marketplaceSeedGrainTarget?: number;
   marketplacePendingTradeCode?: number;
   foundingShelterActive?: boolean;
+  /** Parent worksite for a separately constructed overnight camp. */
+  linkedWorksiteId?: string;
   chapelMonasteryTitheDue?: number;
   /** Source-held fares or gifts pledged to the civic treasury. */
   civicReceiptsGold?: number;

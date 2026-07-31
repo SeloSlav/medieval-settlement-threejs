@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { getBuildingSiteClearanceSearchRadius } from '../src/buildings/BuildingTerrainLayout.ts';
 import {
+  buildingPlacementYaw,
+  resolveRoadsideBuildingPlacement,
+} from '../src/buildings/buildingPlacement.ts';
+import {
   createBuildingPreviewMesh,
   disposeBuildingPreviewMesh,
   updateBuildingPreviewAppearance,
@@ -130,6 +134,49 @@ function testBurgageWaterValidationSamplesTheWholeZone(): void {
     burgageZoneTouchesWater(zone, (x, z) => x >= 25.5 && z >= 4 && z <= 16),
     false,
     'nearby water outside the parcel must not block dry shoreline placement',
+  );
+}
+
+function testRoadFacingBuildingsSnapToRoadSides(): void {
+  const roads = new RoadNetwork();
+  roads.addRoadPath([
+    new THREE.Vector3(-40, 0, 0),
+    new THREE.Vector3(40, 0, 0),
+  ]);
+
+  const north = resolveRoadsideBuildingPlacement('smithy', 7, 6, roads);
+  const south = resolveRoadsideBuildingPlacement('smithy', -9, -5, roads);
+  assert(Math.abs(north.x - 7) < 0.01, 'roadside snapping should retain distance along the road');
+  assert(Math.abs(south.x + 9) < 0.01, 'roadside snapping should retain distance along the road');
+  assert(north.z > 7, 'a north-side cursor should snap outside the north road verge');
+  assert(south.z < -7, 'a south-side cursor should snap outside the south road verge');
+  assert(
+    Math.abs(Math.abs(north.z) - Math.abs(south.z)) < 0.01,
+    'both road sides should use the same building-aware setback',
+  );
+  assert(
+    Math.abs(Math.abs(buildingPlacementYaw('smithy', north.x, north.z, roads)) - Math.PI) < 0.01,
+    'the snapped building entrance should face back toward the road',
+  );
+  assert(
+    resolveRoadsideBuildingPlacement('well', 4, 5, roads).z > 5,
+    'road-dependent utility buildings should also settle onto the road verge',
+  );
+
+  assert.deepEqual(
+    resolveRoadsideBuildingPlacement('hunters_hall', 4, 6, roads),
+    { x: 4, z: 6 },
+    'remote buildings without a road dependency should retain free placement',
+  );
+  assert.deepEqual(
+    resolveRoadsideBuildingPlacement('watermill', 4, 6, roads),
+    { x: 4, z: 6 },
+    'shore-anchored buildings should retain precise shoreline placement',
+  );
+  assert.deepEqual(
+    resolveRoadsideBuildingPlacement('smithy', 4, 40, roads),
+    { x: 4, z: 40 },
+    'the roadside magnet should release distant cursor positions',
   );
 }
 
@@ -504,6 +551,7 @@ function testMineralMineCanOccupyItsDeposit(): void {
 }
 
 testClearanceSpatialIndexKeepsNearbyCandidates();
+testRoadFacingBuildingsSnapToRoadSides();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
 testPlacementOverlaysFollowTerrainHeight();
@@ -609,6 +657,16 @@ assert.match(
   buildingTool,
   /if \(!validation\.ok\)[\s\S]*describePlacementFailure\?\.\([\s\S]*validation\.reason/,
   'invalid building previews should publish the canonical rejection reason',
+);
+assert.match(
+  buildingTool,
+  /private roadSnapEnabled = true[\s\S]*setRoadSnapEnabled\(enabled: boolean\)[\s\S]*this\.roadSnapEnabled \? this\.options\.getRoadNetwork\?\.\(\) : null/,
+  'building placement should default roadside snapping on and bypass it when the shared toggle is off',
+);
+assert.match(
+  buildToolbar,
+  /data-road-snap-control hidden[\s\S]*data-road-snap-toggle checked[\s\S]*Snap to Roads[\s\S]*roadSnapControl\.hidden = !browsing/,
+  'one default-on roadside toggle should appear whenever any shared build palette is open',
 );
 assert.match(
   app,

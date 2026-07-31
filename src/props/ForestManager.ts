@@ -329,7 +329,12 @@ export class ForestManager {
     firstPersonActive: boolean,
     casterBounds: TerrainBounds,
   ): void {
-    this.seedThreeForest?.updateCamera(camera, firstPersonActive, casterBounds);
+    this.seedThreeForest?.updateCamera(
+      camera,
+      cameraDistance,
+      firstPersonActive,
+      casterBounds,
+    );
     if (!this.undergrowth) return;
     const threshold = this.undergrowthVisible
       ? UNDERGROWTH_HIDE_DISTANCE

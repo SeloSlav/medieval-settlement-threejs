@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import * as THREE from 'three';
 import {
   WORKER_ACTIVITY_CLIPS,
 } from '../src/audio/audioCatalog.ts';
@@ -45,6 +46,42 @@ import {
   villagerOccupation,
 } from '../src/settlement/villagerIdentity.ts';
 import { buildCrowdViewState } from '../src/settlement/crowdView.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
+import {
+  hasBuiltInWorkLodging,
+  REMOTE_WORK_CAMPFIRE_NAME,
+  REMOTE_WORK_CAMP_NAME,
+  resolveWorksiteLodging,
+  supportsRemoteWorkCamp,
+  workLodgingDoorPosition,
+  workLodgingFiresidePosition,
+} from '../src/buildings/remoteWorkCamp.ts';
+import { createRemoteWorkCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
+import { BUILDING_COSTS } from '../src/generated/gameBalance.ts';
+import { BUILDING_KIND_TO_MENU_ACTION } from '../src/ui/buildMenuMapping.ts';
+import {
+  createSelectedAgentRoute,
+  SELECTED_AGENT_ROUTE_COLOR,
+  updateSelectedAgentRoute,
+} from '../src/scene/SelectedAgentRoute.ts';
+
+const selectedWorkerRoute = createSelectedAgentRoute('Selected worker route test');
+assert.equal(selectedWorkerRoute.material.color.getHex(), SELECTED_AGENT_ROUTE_COLOR);
+assert.equal(selectedWorkerRoute.material.dashSize, 1.1);
+assert.equal(selectedWorkerRoute.material.gapSize, 0.72);
+updateSelectedAgentRoute(selectedWorkerRoute, [
+  { x: 0, y: 0.24, z: 0 },
+  { x: 8, y: 0.24, z: 4 },
+]);
+assert.equal(selectedWorkerRoute.visible, true);
+assert.ok(
+  selectedWorkerRoute.geometry.getAttribute('lineDistance').count >= 2,
+  'the shared pink agent route must compute dashed-line distances',
+);
+updateSelectedAgentRoute(selectedWorkerRoute, []);
+assert.equal(selectedWorkerRoute.visible, false);
+selectedWorkerRoute.geometry.dispose();
+selectedWorkerRoute.material.dispose();
 
 const residenceA = residence('residence-a', 0, 0, 3);
 const residenceB = residence('residence-b', 100, 0, 2);
@@ -144,6 +181,90 @@ assert.deepEqual(
     'illness-household:person:7',
   ],
   'the first household identities remain reserved for visible homebound sick residents',
+);
+
+const commuteRoads = new RoadNetwork();
+commuteRoads.addRoadPath([
+  new THREE.Vector3(0, 0, 0),
+  new THREE.Vector3(100, 0, 0),
+]);
+const routedRoster = allocateProductionWorkers(
+  [
+    residence('road-connected-home', 0, 0, 1),
+    residence('near-but-disconnected-home', 100, 90, 1),
+  ],
+  [building('remote-routed-workplace', 'lumber_mill', 100, 0, 1, 60)],
+  new Map(),
+  commuteRoads,
+);
+assert.equal(
+  routedRoster.assignments[0]?.homeResidenceId,
+  'road-connected-home',
+  'road travel time should beat a slightly shorter direct walk when the road pace makes it faster',
+);
+assert.equal(supportsRemoteWorkCamp('lumber_mill'), true);
+assert.equal(supportsRemoteWorkCamp('smithy'), false);
+assert.equal(hasBuiltInWorkLodging('hunters_hall'), true);
+assert.equal(hasBuiltInWorkLodging('reforester'), true);
+assert.equal(hasBuiltInWorkLodging('threshing_barn'), false);
+assert.deepEqual(BUILDING_COSTS.remote_work_camp, { timber: 14, stone: 3 });
+assert.equal(
+  BUILDING_KIND_TO_MENU_ACTION.remote_work_camp,
+  undefined,
+  'the linked camp must be initiated from a worksite card rather than the global build menu',
+);
+const hunterLodging = building('lodged-hunters', 'hunters_hall', 12, 8, 2, 55);
+assert.equal(
+  resolveWorksiteLodging(hunterLodging, [hunterLodging])?.mode,
+  'built_in',
+  'a hunter hall should canonically lodge its own crew without a second building',
+);
+const campWorkplace = building('camp-layout-workplace', 'lumber_mill', 40, 20, 1, 60);
+const campBuilding = {
+  ...building('camp-layout', 'remote_work_camp', 56, 23, 0, 0),
+  linkedWorksiteId: campWorkplace.id,
+  constructionComplete: true,
+};
+assert.equal(
+  resolveWorksiteLodging(campWorkplace, [campWorkplace, campBuilding])?.lodging.id,
+  campBuilding.id,
+  'only a completed linked camp should replace the extraction crew commute',
+);
+assert.equal(
+  resolveWorksiteLodging(campWorkplace, [
+    campWorkplace,
+    { ...campBuilding, constructionComplete: false },
+  ]),
+  null,
+  'a construction site must not provide lodging before builders finish it',
+);
+assert.equal(
+  resolveWorksiteLodging(campWorkplace, [campWorkplace, campBuilding], new Set([campBuilding.id])),
+  null,
+  'a fire-disabled camp must immediately restore the household commute',
+);
+const tentDoor = workLodgingDoorPosition(campBuilding, 0, commuteRoads);
+const fireside = workLodgingFiresidePosition(campBuilding, 0, commuteRoads);
+assert.ok(
+  Number.isFinite(tentDoor.x)
+    && Number.isFinite(tentDoor.z)
+    && Math.hypot(tentDoor.x - campBuilding.x, tentDoor.z - campBuilding.z) > 0.5,
+  'remote lodging must expose a stable tent entrance on its own building footprint',
+);
+assert.ok(
+  Math.hypot(fireside.x - tentDoor.x, fireside.z - tentDoor.z) > 0.5,
+  'remote workers need a distinct fireside gathering place before bed',
+);
+const campMesh = createRemoteWorkCampMesh();
+assert.equal(campMesh.name, REMOTE_WORK_CAMP_NAME);
+assert.equal(
+  campMesh.children.filter((child) => child.name === 'Founding canvas tent').length,
+  2,
+  'an enabled rural camp should render two reusable canvas shelters',
+);
+assert.ok(
+  campMesh.getObjectByName(REMOTE_WORK_CAMPFIRE_NAME) instanceof THREE.Group,
+  'an enabled rural camp should render the animated founders-camp fire treatment',
 );
 
 const treeEntries: TreeLayoutEntry[] = [
@@ -423,6 +544,11 @@ assert.ok(
   `20,000 material workplaces took ${materialScaleElapsedMs.toFixed(1)} ms to roster`,
 );
 const villagerRendererSource = fs.readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
+const buildingReducerSource = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
+assert.match(buildingReducerSource, /pub fn place_remote_work_camp/);
+assert.match(buildingReducerSource, /place_building_internal\(ctx, "remote_work_camp"\.to_string\(\), x, z, worksite_id\)/);
+assert.match(buildingReducerSource, /Demolish this worksite's overnight camp first/);
+assert.doesNotMatch(buildingReducerSource, /pub fn set_remote_work_camp/);
 assert.match(villagerRendererSource, /scanFromWatchtower/);
 assert.match(villagerRendererSource, /resolveAgentY/);
 assert.match(villagerRendererSource, /Keeping watch from the frontier gallery/);

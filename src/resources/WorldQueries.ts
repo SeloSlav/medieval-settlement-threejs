@@ -101,6 +101,7 @@ import {
 import {
   fireDisabledBuildingIds,
   fireDisabledResidenceIds,
+  fireForTarget,
 } from '../fires/fireIncident.ts';
 import {
   selectCriticalGuardhouseFoodTarget,
@@ -276,7 +277,7 @@ export class WorldQueries {
 
     if (building && residenceTarget) {
       const treeRegistry = this.getTreeRegistry();
-      const counts = treeRegistry
+      const counts = treeRegistry && buildingNeedsInspectableTreeCounts(state, building)
         ? countTreesNearBuilding(state, treeRegistry, building.x, building.z, building.workRadius)
         : { matureTrees: 0, stumpTrees: 0, growingTrees: 0 };
       return pickCloserTarget(
@@ -300,7 +301,7 @@ export class WorldQueries {
 
     if (building) {
       const treeRegistry = this.getTreeRegistry();
-      const counts = treeRegistry
+      const counts = treeRegistry && buildingNeedsInspectableTreeCounts(state, building)
         ? countTreesNearBuilding(state, treeRegistry, building.x, building.z, building.workRadius)
         : { matureTrees: 0, stumpTrees: 0, growingTrees: 0 };
       return {
@@ -343,7 +344,7 @@ export class WorldQueries {
     const building = state.buildings.get(buildingId);
     if (!building) return null;
     const treeRegistry = this.getTreeRegistry();
-    const counts = treeRegistry
+    const counts = treeRegistry && buildingNeedsInspectableTreeCounts(state, building)
       ? countTreesNearBuilding(state, treeRegistry, building.x, building.z, building.workRadius)
       : { matureTrees: 0, stumpTrees: 0, growingTrees: 0 };
     return {
@@ -1657,4 +1658,22 @@ export class WorldQueries {
     }
     return nearest;
   }
+}
+
+function buildingNeedsInspectableTreeCounts(
+  state: GameState,
+  building: BuildingState,
+): boolean {
+  if (
+    building.kind !== 'lumber_mill'
+    && building.kind !== 'reforester'
+    && building.kind !== 'swineherd'
+  ) {
+    return false;
+  }
+  return fireForTarget(
+    state.fireIncidents.values(),
+    'building',
+    building.id,
+  )?.status !== 'destroyed';
 }

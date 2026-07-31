@@ -566,6 +566,10 @@ export class SpacetimeGameStore {
     );
   }
 
+  placeRemoteWorkCamp(worksiteId: string, x: number, z: number): Promise<void> {
+    return spacetimeReducers.placeRemoteWorkCamp(worksiteId, x, z);
+  }
+
   setStorehouseStockTarget(
     buildingId: string,
     commodity: StorehouseCommodity,

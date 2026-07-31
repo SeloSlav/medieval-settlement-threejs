@@ -30,6 +30,25 @@ declare module '@seedthree/core/leaf-cards.js' {
 declare module '@seedthree/core/branch-cards.js' {
   import type * as THREE from 'three';
 
+  export const BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS: {
+    maxRootCards: number;
+    radialPlanes: number;
+    trianglesPerPlane: number;
+    lateralScale: number;
+    maxLateralScale: number;
+  };
+
+  export function planBranchCardCrownUnderlay(
+    foliage?: Record<string, unknown>,
+    rootStemCount?: number,
+  ): {
+    enabled: boolean;
+    lateralScale: number;
+    rootCardInstances: number;
+    runtimeTrianglesAdded: number;
+    runtimeDrawsAdded: number;
+  };
+
   export type BranchCardsSet = {
     variants: Array<{
       geometry: THREE.BufferGeometry;

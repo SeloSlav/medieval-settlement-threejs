@@ -341,6 +341,12 @@ pub fn building_overlaps_open_water(kind: &str, x: f64, z: f64) -> bool {
 
 fn building_pad_params(kind: &str) -> BuildingPadParams {
     match kind {
+        "remote_work_camp" => BuildingPadParams {
+            radius_x: 4.4,
+            radius_z: 4.0,
+            inner_fade: 0.86,
+            outer_fade: 1.24,
+        },
         "lumber_mill" => BuildingPadParams {
             radius_x: 10.2,
             radius_z: 4.8,

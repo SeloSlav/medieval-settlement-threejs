@@ -10,6 +10,10 @@ import {
 import type { SceneManager } from '../scene/SceneManager.ts';
 import type { TerrainMinimapOverlay } from '../map/TerrainMinimapOverlay.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
+import {
+  destroyedBuildingIds,
+  destroyedResidenceIds,
+} from '../fires/fireIncident.ts';
 import { collectOccupiedParcelPolygons } from '../residences/burgageZoneLayout.ts';
 import { syncSettlementWorld, type SettlementWorldSyncTargets } from './settlementWorldSync.ts';
 import {
@@ -57,6 +61,23 @@ export class SpacetimeSnapshotApplier {
     const livestockHerdsChanged = !previous
       || state.livestockHerds !== previous.livestockHerds;
     const residencesChanged = !previous || state.residences !== previous.residences;
+    const destroyedBuildings = destroyedBuildingIds(state.fireIncidents.values());
+    const destroyedResidences = destroyedResidenceIds(state.fireIncidents.values());
+    const destroyedStructureVisibilityChanged = !previous
+      || !setsMatch(
+        destroyedBuildings,
+        destroyedBuildingIds(previous.fireIncidents.values()),
+      )
+      || !setsMatch(
+        destroyedResidences,
+        destroyedResidenceIds(previous.fireIncidents.values()),
+      );
+    if (destroyedStructureVisibilityChanged) {
+      deps.buildingMarkers?.setDestroyedBuildingIds?.(destroyedBuildings);
+      deps.settlementWorld.residenceMarkers?.setDestroyedResidenceIds?.(
+        destroyedResidences,
+      );
+    }
     const burgageZonesChanged = !previous || state.burgageZones !== previous.burgageZones;
     const farmFieldsChanged = !previous || state.farmFields !== previous.farmFields;
     const quarriesChanged = !previous || state.quarries !== previous.quarries;
@@ -204,6 +225,7 @@ export class SpacetimeSnapshotApplier {
       || pastureFenceCollidersChanged
       || backyardCollidersChanged
       || quarryCollidersChanged
+      || destroyedStructureVisibilityChanged
     ) {
       deps.onFirstPersonCollisionChanged?.();
     }
@@ -251,6 +273,14 @@ function mapEntriesMatch<K, V>(
   for (const [key, value] of current) {
     const prior = previous.get(key);
     if (prior === undefined || !matches(value, prior)) return false;
+  }
+  return true;
+}
+
+function setsMatch<T>(current: ReadonlySet<T>, previous: ReadonlySet<T>): boolean {
+  if (current.size !== previous.size) return false;
+  for (const value of current) {
+    if (!previous.has(value)) return false;
   }
   return true;
 }

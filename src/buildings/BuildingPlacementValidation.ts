@@ -49,7 +49,10 @@ export type BuildingPlacementFailureReason =
   | 'requires_town_hall_population'
   | 'requires_completed_chapel'
   | 'requires_completed_marketplace'
-  | 'requires_civic_road_link';
+  | 'requires_civic_road_link'
+  | 'requires_remote_worksite'
+  | 'outside_remote_worksite_range'
+  | 'remote_camp_exists';
 
 export type BuildingPlacementResult =
   | { ok: true }
@@ -94,7 +97,8 @@ export function validateBuildingPlacement(
   const onClayDeposit = onClaySite
     && hasUsableClayDepositAtCenter(x, z, quarries);
   const fishingFootprintTouchesWater = kind === 'fishing_camp'
-    && sampleBuildingFootprintPoints(kind, x, z).some((point) => context.isWaterAt(point.x, point.z));
+    && sampleBuildingFootprintPoints(kind, x, z, context.roadNetwork)
+      .some((point) => context.isWaterAt(point.x, point.z));
   if (
     kind !== 'large_quarry'
     && !onClaySite
@@ -112,7 +116,13 @@ export function validateBuildingPlacement(
   }
 
   if (getBuildingDefinition(kind).requiresHillside) {
-    const slope = footprintHeightDelta(kind, x, z, context.getNaturalHeightAt);
+    const slope = footprintHeightDelta(
+      kind,
+      x,
+      z,
+      context.getNaturalHeightAt,
+      context.roadNetwork,
+    );
     if (slope < MONASTERY_MIN_FOOTPRINT_SLOPE) {
       return { ok: false, reason: 'requires_hillside' };
     }
@@ -122,7 +132,7 @@ export function validateBuildingPlacement(
   } else if (
     kind !== 'large_quarry'
     && kind !== 'mine'
-    && isFootprintTooUneven(kind, x, z, context.getNaturalHeightAt)
+    && isFootprintTooUneven(kind, x, z, context.getNaturalHeightAt, context.roadNetwork)
   ) {
     return { ok: false, reason: 'too_steep' };
   }
@@ -479,8 +489,10 @@ function isFootprintTooUneven(
   x: number,
   z: number,
   getNaturalHeightAt: (x: number, z: number) => number,
+  roadNetwork?: RoadNetwork,
 ): boolean {
-  return footprintHeightDelta(kind, x, z, getNaturalHeightAt) > MAX_FOOTPRINT_HEIGHT_DELTA;
+  return footprintHeightDelta(kind, x, z, getNaturalHeightAt, roadNetwork)
+    > MAX_FOOTPRINT_HEIGHT_DELTA;
 }
 
 function footprintHeightDelta(
@@ -488,8 +500,9 @@ function footprintHeightDelta(
   x: number,
   z: number,
   getNaturalHeightAt: (x: number, z: number) => number,
+  roadNetwork?: RoadNetwork,
 ): number {
-  const heights = sampleBuildingFootprintHeights(kind, x, z, getNaturalHeightAt);
+  const heights = sampleBuildingFootprintHeights(kind, x, z, getNaturalHeightAt, roadNetwork);
   let minHeight = Number.POSITIVE_INFINITY;
   let maxHeight = Number.NEGATIVE_INFINITY;
   for (const height of heights) {
@@ -575,7 +588,7 @@ function buildingFootprintOverlapsRoadSurface(
   z: number,
   roadNetwork: RoadNetwork,
 ): boolean {
-  for (const point of sampleBuildingFootprintPoints(kind, x, z)) {
+  for (const point of sampleBuildingFootprintPoints(kind, x, z, roadNetwork)) {
     if (isOnRoadSurface(point.x, point.z, roadNetwork)) return true;
   }
   return false;

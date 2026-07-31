@@ -1,7 +1,7 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import type { PlacementBuildMenuAction } from './buildMenuCards.ts';
 
-export const BUILDING_KIND_TO_MENU_ACTION: Record<BuildingKind, PlacementBuildMenuAction> = {
+export const BUILDING_KIND_TO_MENU_ACTION: Partial<Record<BuildingKind, PlacementBuildMenuAction>> = {
   founders_camp: 'village-storehouse',
   salvage_pile: 'village-storehouse',
   lumber_mill: 'lumber-mill',
@@ -85,5 +85,5 @@ export function toolbarModeToMenuAction(
   if (mode === 'idle' || mode === 'road') return null;
   if (mode === 'residences') return 'residences';
   if (mode === 'farm-fields' || mode === 'pastures' || mode === 'burial-grounds') return null;
-  return BUILDING_KIND_TO_MENU_ACTION[mode];
+  return BUILDING_KIND_TO_MENU_ACTION[mode] ?? null;
 }

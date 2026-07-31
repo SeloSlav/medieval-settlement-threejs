@@ -14,6 +14,11 @@ import {
   describeDeliveryTrip,
 } from '../logistics/deliveryTrips.ts';
 import { villagerDisplayName } from '../settlement/villagerIdentity.ts';
+import {
+  createSelectedAgentRoute,
+  type SelectedAgentRoute,
+  updateSelectedAgentRoute,
+} from '../scene/SelectedAgentRoute.ts';
 
 type VillagerInspectorOptions = {
   domElement: HTMLElement;
@@ -48,6 +53,7 @@ export class VillagerInspector {
   private readonly distance: HTMLElement;
   private readonly closeButton: HTMLButtonElement;
   private readonly marker: THREE.Mesh;
+  private readonly selectedRoute: SelectedAgentRoute;
   private selectedPersonIdentity: string | null = null;
   private selectedDeliveryTripId: string | null = null;
 
@@ -119,6 +125,8 @@ export class VillagerInspector {
     this.distance = mustElement(this.panel, '[data-delivery-distance]');
     this.closeButton = mustButton(this.panel, '[data-villager-close]');
 
+    this.selectedRoute = createSelectedAgentRoute('Selected villager destination route');
+    options.selectionParent.add(this.selectedRoute);
     this.marker = createVillagerMarker();
     this.marker.visible = false;
     options.selectionParent.add(this.marker);
@@ -155,6 +163,7 @@ export class VillagerInspector {
     this.selectedPersonIdentity = null;
     this.selectedDeliveryTripId = tripId;
     this.options.deliveryAgents.selectDeliveryAgent(tripId);
+    updateSelectedAgentRoute(this.selectedRoute, []);
     this.panel.hidden = false;
     this.renderDelivery(delivery);
     this.options.onSelectionChange?.(true);
@@ -169,6 +178,7 @@ export class VillagerInspector {
     this.options.deliveryAgents.selectDeliveryAgent(null);
     this.panel.hidden = true;
     this.marker.visible = false;
+    updateSelectedAgentRoute(this.selectedRoute, []);
     if (notify && hadSelection) this.options.onSelectionChange?.(false);
   }
 
@@ -178,6 +188,9 @@ export class VillagerInspector {
     this.closeButton.removeEventListener('click', this.onClose);
     this.marker.removeFromParent();
     disposeObject3D(this.marker);
+    this.selectedRoute.removeFromParent();
+    this.selectedRoute.geometry.dispose();
+    this.selectedRoute.material.dispose();
     this.panel.remove();
   }
 
@@ -230,6 +243,7 @@ export class VillagerInspector {
     this.activity.textContent = inspection.activity;
     this.current.textContent = inspection.activity;
     this.activity.dataset.state = inspection.activityState;
+    this.initials.dataset.portraitVariant = inspection.modelVariant;
     this.initials.textContent = inspection.initials;
     this.occupation.textContent = inspection.occupation;
     this.workplace.textContent = inspection.workplace;
@@ -243,9 +257,14 @@ export class VillagerInspector {
     );
     this.marker.rotation.y += 0.035;
     this.marker.visible = inspection.visible;
+    updateSelectedAgentRoute(
+      this.selectedRoute,
+      inspection.visible ? inspection.route : [],
+    );
   }
 
   private renderDelivery(inspection: DeliveryAgentInspection): void {
+    updateSelectedAgentRoute(this.selectedRoute, []);
     const trip = inspection.trip;
     const state = this.options.getState();
     const origin = state.buildings.get(trip.buildingId);
@@ -273,6 +292,7 @@ export class VillagerInspector {
     this.activity.textContent = presentation.activity;
     this.current.textContent = presentation.current;
     this.activity.dataset.state = 'active';
+    this.initials.dataset.portraitVariant = inspection.modelVariant;
     this.initials.textContent = name
       .split(/\s+/)
       .slice(0, 2)

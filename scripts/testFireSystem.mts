@@ -27,6 +27,8 @@ import {
 } from '../src/generated/gameBalance.ts';
 import {
   activeFireCount,
+  destroyedBuildingIds,
+  destroyedResidenceIds,
   fireDisabledBuildingIds,
   fireDisabledResidenceIds,
   fireForTarget,
@@ -42,6 +44,15 @@ import {
   residenceStructuralCost,
 } from '../src/fires/fireRecovery.ts';
 import { destinationKindFromId } from '../src/logistics/deliveryTrips.ts';
+import { renderBuildingInspector } from '../src/resources/inspector/buildingRenderer.ts';
+import type {
+  BuildingState,
+  GameState,
+  InspectableTarget,
+} from '../src/resources/types.ts';
+import type {
+  InspectorRenderContext,
+} from '../src/resources/inspector/renderInspectableTarget.ts';
 
 assert.equal(destinationKindFromId(2), 'fire');
 assert.equal(FIRE_BUCKET_WATER, 3);
@@ -90,6 +101,42 @@ assert.deepEqual(
   [...fireDisabledResidenceIds([incident, residenceIncident])],
   ['residence-9'],
 );
+const destroyedIncident: FireIncidentState = {
+  ...incident,
+  status: 'destroyed',
+  damage: 1,
+};
+assert.deepEqual([...destroyedBuildingIds([incident, destroyedIncident])], ['building-4']);
+assert.deepEqual(
+  [...destroyedResidenceIds([{ ...residenceIncident, status: 'destroyed' }])],
+  ['residence-9'],
+);
+const ruinTarget = {
+  kind: 'building',
+  building: { id: 'building-4', kind: 'lumber_mill' } as BuildingState,
+  matureTrees: 999_999,
+  stumpTrees: 999_999,
+  growingTrees: 999_999,
+} satisfies Extract<InspectableTarget, { kind: 'building' }>;
+const ruinWorldQueries = new Proxy(
+  { getBuildingLabel: () => 'Lumber mill' },
+  {
+    get(target, property) {
+      if (property in target) return target[property as keyof typeof target];
+      throw new Error(`Ruined inspector touched live world query ${String(property)}`);
+    },
+  },
+);
+const ruinView = renderBuildingInspector(ruinTarget, {
+  gameState: {
+    fireIncidents: new Map([[destroyedIncident.id, destroyedIncident]]),
+  } as GameState,
+  worldQueries: ruinWorldQueries,
+} as unknown as InspectorRenderContext);
+assert.equal(ruinView.eyebrow, 'Ruin');
+assert.equal(ruinView.title, 'Lumber mill ruins');
+assert.equal(ruinView.labor.visible, false);
+assert.match(ruinView.detailsHtml, /nearby pile for free haulers/);
 
 assert.equal(fireRecoveryFraction(0.01, false), FIRE_MINIMUM_REPAIR_COST_FRACTION);
 assert.equal(
@@ -173,6 +220,14 @@ const householdOrderSource = readFileSync(
 );
 const recoverySource = readFileSync(`${projectRoot}server/src/reducers/fire_recovery.rs`, 'utf8');
 const rendererSource = readFileSync(`${projectRoot}src/fires/FireEffectsRenderer.ts`, 'utf8');
+const buildingRendererSource = readFileSync(
+  `${projectRoot}src/resources/inspector/buildingRenderer.ts`,
+  'utf8',
+);
+const buildingMarkersSource = readFileSync(
+  `${projectRoot}src/buildings/BuildingMarkers.ts`,
+  'utf8',
+);
 const effectSource = readFileSync(`${projectRoot}src/fires/FireEffect.ts`, 'utf8');
 const inspectorSource = readFileSync(`${projectRoot}src/resources/ResourceInspector.ts`, 'utf8');
 const generatedReducerSource = readFileSync(
@@ -241,6 +296,9 @@ assert.match(
 );
 assert.match(rendererSource, /createFireEffect/);
 assert.match(rendererSource, /Reusable structural fire/);
+assert.match(rendererSource, /Collapsed structural ruin/);
+assert.match(rendererSource, /Collapsed charred beam/);
+assert.match(rendererSource, /getBuildingDefinition\(building\.kind\)\.pickRadius/);
 assert.match(effectSource, /Animated fire flame/);
 assert.match(effectSource, /Animated fire smoke/);
 assert.match(effectSource, /Procedural reusable fire shader/);
@@ -250,6 +308,23 @@ assert.doesNotMatch(effectSource, /ConeGeometry/);
 assert.match(rendererSource, /visual\.incident\.status !== 'burning'/);
 assert.match(rendererSource, /disposeFireEffect/);
 assert.match(rendererSource, /setFireEffectActive/);
+assert.match(
+  buildingMarkersSource,
+  /setDestroyedBuildingIds[\s\S]*marker\.visible = !destroyed[\s\S]*shadowProxyBatch\.remove/,
+  'destroyed buildings must stop rendering and casting intact-building shadows',
+);
+assert.match(
+  buildingRendererSource,
+  /fire\?\.status === 'destroyed'[\s\S]*eyebrow: 'Ruin'[\s\S]*labor: hiddenLabor\(\)/,
+  'ruin inspection must bypass live production, commute, and staffing renderers',
+);
+assert.match(
+  fireSource,
+  /let salvage = fire_recoverable_stock\(&building\)[\s\S]*recover_stock_beside_building\(ctx, &building, salvage\)/,
+  'destroyed buildings must materialize recoverable stock beside the ruin',
+);
+assert.match(fireSource, /FIRE_CHARRED_WOOD_RECOVERY_FRACTION/);
+assert.match(fireSource, /FIRE_DURABLE_STOCK_RECOVERY_FRACTION/);
 assert.doesNotMatch(
   fireSource,
   /cleanup_resolved_fires/,
@@ -390,6 +465,11 @@ assert.match(
 );
 assert.match(worldQueriesSource, /private \*fireEnabledBuildings/);
 assert.match(worldQueriesSource, /fireDisabledResidenceIds/);
+assert.match(
+  worldQueriesSource,
+  /buildingNeedsInspectableTreeCounts[\s\S]*status !== 'destroyed'/,
+  'destroyed forestry sites must not run live tree-count inspection work',
+);
 assert.match(
   worldQueriesSource,
   /findNearestRoadLinkedBuilding[\s\S]*fireDisabled\.has\(origin\.id\)[\s\S]*fireDisabled\.has\(candidate\.id\)/,

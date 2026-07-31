@@ -5,6 +5,7 @@ import {
   forestCardMaterial,
   setForestCardSeason,
 } from '@seedthree/core/branch-cards.js';
+import { windSpeed } from '@seedthree/core/wind.js';
 import {
   createForestLodSelector,
   selectForestLods,
@@ -34,6 +35,10 @@ import {
 } from './seedThreeForestCompaction.ts';
 import { stabilizeSeedThreeForestCardMaterial } from './seedThreeForestMaterial.ts';
 import {
+  SEEDTHREE_FOREST_WIND_SPEED,
+  shouldShowSeedThreeCrownUnderlay,
+} from './seedThreeCanopyPresentation.ts';
+import {
   runForestBucketUpdateChunk,
   type SeedThreeBucketSelection,
 } from '@seedthree/core/forest-update-budget.js';
@@ -56,6 +61,8 @@ export type SeedThreeForestInstances = {
   hiddenMatrix: THREE.Matrix4;
   visibilitySelector: ReturnType<typeof createForestLodSelector>;
   seasonalCardMaterials: THREE.Material[];
+  crownUnderlayMeshes: THREE.InstancedMesh[];
+  crownUnderlayVisible: boolean;
   deciduousFoliage: DeciduousFoliagePresentation;
   renderStats: SeedThreeForestRenderStats;
   pendingLodWork: {
@@ -174,6 +181,7 @@ function createInstancedLodSet(
     canopyTint?: readonly [number, number, number];
     autumnColor?: readonly [number, number, number];
     toneVariation?: number;
+    crownUnderlayMeshes?: THREE.InstancedMesh[];
   } = {},
 ): InstancedLodSet {
   const groupCount = slots.length;
@@ -256,6 +264,8 @@ function createInstancedLodSet(
         im.userData.neverCastShadow = !castShadow;
         im.userData.src = instanced;
         im.userData.k = cardsPerTree;
+        im.userData.crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
+        if (im.userData.crownUnderlay) options.crownUnderlayMeshes?.push(im);
 
         const snap = new Float32Array(cardsPerTree * 16);
         const cardMatrix = new THREE.Matrix4();
@@ -279,6 +289,7 @@ function createSpeciesBucket(
   prototype: THREE.LOD,
   rng: Rng,
   seasonalCardMaterials: Set<THREE.Material>,
+  crownUnderlayMeshes: THREE.InstancedMesh[],
 ): SpeciesBucket {
   const nearLevel = findLodLevel(prototype, 'LOD2');
   // LOD4's crossed whole-limb cards read as flat green triangles from the
@@ -299,6 +310,7 @@ function createSpeciesBucket(
       seasonalDeciduous,
       seasonalCardMaterials,
       autumnColor,
+      crownUnderlayMeshes,
     },
   );
   const overviewSet = createInstancedLodSet(
@@ -312,6 +324,7 @@ function createSpeciesBucket(
       canopyTint: overviewTone.tint,
       autumnColor,
       toneVariation: overviewTone.variation,
+      crownUnderlayMeshes,
     },
   );
   const nearSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [] : [index]);
@@ -335,6 +348,9 @@ export async function createSeedThreeForest(
   treeSeed: number,
   renderer: WebGPURenderer,
 ): Promise<SeedThreeForestInstances> {
+  // SeedThree uses one wind uniform for every connected vegetation material;
+  // slowing it here keeps bark, cards, undergrowth, and grass phase-locked.
+  windSpeed.value = SEEDTHREE_FOREST_WIND_SPEED;
   const rng = new Rng(`gorski-kotar:${treeSeed}`);
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
   const group = new THREE.Group();
@@ -419,6 +435,7 @@ export async function createSeedThreeForest(
 
   const buckets: SpeciesBucket[] = [];
   const seasonalCardMaterials = new Set<THREE.Material>();
+  const crownUnderlayMeshes: THREE.InstancedMesh[] = [];
 
   for (const presetKey of GORSKI_KOTAR_PRESETS) {
     const slots = placementsByPreset.get(presetKey);
@@ -437,6 +454,7 @@ export async function createSeedThreeForest(
       prototype,
       new Rng(`bucket:${presetKey}:${treeSeed}`),
       seasonalCardMaterials,
+      crownUnderlayMeshes,
     );
     buckets.push(bucket);
     if (bucket.nearSet.branches) group.add(bucket.nearSet.branches);
@@ -466,6 +484,8 @@ export async function createSeedThreeForest(
     hiddenMatrix,
     visibilitySelector,
     seasonalCardMaterials: [...seasonalCardMaterials],
+    crownUnderlayMeshes,
+    crownUnderlayVisible: true,
     deciduousFoliage: {
       springFlush: 0,
       autumnColor: 0,
@@ -855,6 +875,22 @@ export function setSeedThreeForestShadows(forest: SeedThreeForestInstances, enab
   });
 }
 
+export function updateSeedThreeCrownUnderlayVisibility(
+  forest: SeedThreeForestInstances,
+  cameraDistance: number,
+  firstPersonActive: boolean,
+): boolean {
+  const visible = shouldShowSeedThreeCrownUnderlay(
+    forest.crownUnderlayVisible,
+    cameraDistance,
+    firstPersonActive,
+  );
+  if (visible === forest.crownUnderlayVisible) return false;
+  forest.crownUnderlayVisible = visible;
+  for (const mesh of forest.crownUnderlayMeshes) mesh.visible = visible;
+  return true;
+}
+
 export function setSeedThreeForestDeciduousFoliage(
   forest: SeedThreeForestInstances,
   presentation: DeciduousFoliagePresentation,
@@ -901,10 +937,15 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
     showTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, true),
     commit: () => commitSeedThreeForestMatrices(forest),
-    // Runtime trees are fully resident. Camera-driven compaction caused visible
-    // pop-in and repeated buffer work while panning, so LOD assignment is now a
-    // one-time near/terrain-edge split performed during startup.
-    updateCamera: () => false,
+    // Runtime LODs remain fully resident: camera-driven compaction caused pop-in
+    // and repeated buffer work while panning. Only the strategic crown underlay
+    // toggles as a draw-level visibility change; tree matrices remain untouched.
+    updateCamera: (_camera, cameraDistance, firstPersonActive) =>
+      updateSeedThreeCrownUnderlayVisibility(
+        forest,
+        cameraDistance,
+        firstPersonActive,
+      ),
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
     setDeciduousFoliage: (presentation) =>
       setSeedThreeForestDeciduousFoliage(forest, presentation),

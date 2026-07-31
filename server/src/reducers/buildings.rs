@@ -317,8 +317,68 @@ pub(crate) fn next_available_building_id(
     Ok(candidate)
 }
 
+const REMOTE_WORK_CAMP_MAX_DISTANCE: f64 = 34.0;
+
+fn supports_buildable_remote_work_camp(kind: &str) -> bool {
+    matches!(
+        kind,
+        "lumber_mill" | "stone_quarry" | "large_quarry" | "mine" | "clay_pit" | "charcoal_burner"
+    )
+}
+
 #[reducer]
 pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Result<(), String> {
+    if kind == "remote_work_camp" {
+        return Err("Plan an overnight camp from its rural worksite card.".to_string());
+    }
+    place_building_internal(ctx, kind, x, z, 0)
+}
+
+#[reducer]
+pub fn place_remote_work_camp(
+    ctx: &ReducerContext,
+    worksite_id: u64,
+    x: f64,
+    z: f64,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let worksite = ctx
+        .db
+        .building()
+        .id()
+        .find(&worksite_id)
+        .ok_or_else(|| "Rural worksite not found.".to_string())?;
+    if worksite.owner != owner
+        || !worksite.construction_complete
+        || !supports_buildable_remote_work_camp(&worksite.kind)
+    {
+        return Err(
+            "This completed worksite cannot support a separate overnight camp.".to_string(),
+        );
+    }
+    if ctx.db.building().owner().filter(&owner).any(|building| {
+        building.kind == "remote_work_camp" && building.linked_worksite_id == worksite_id
+    }) {
+        return Err(
+            "This worksite already has an overnight camp or camp construction site.".to_string(),
+        );
+    }
+    if (x - worksite.x).hypot(z - worksite.z) > REMOTE_WORK_CAMP_MAX_DISTANCE {
+        return Err(format!(
+            "Place the overnight camp within {} metres of its worksite.",
+            REMOTE_WORK_CAMP_MAX_DISTANCE as u32
+        ));
+    }
+    place_building_internal(ctx, "remote_work_camp".to_string(), x, z, worksite_id)
+}
+
+fn place_building_internal(
+    ctx: &ReducerContext,
+    kind: String,
+    x: f64,
+    z: f64,
+    linked_worksite_id: u64,
+) -> Result<(), String> {
     let def = building_def_or_err(&kind)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
@@ -759,6 +819,8 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
         pottery_dispatch_policy: 0,
         potter_firing_policy: 0,
         carpenter_cart_service_target_trips,
+        remote_work_camp_enabled: false,
+        linked_worksite_id,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -2190,6 +2252,13 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
                 .to_string(),
         );
     }
+    if building.kind != "remote_work_camp"
+        && ctx.db.building().owner().filter(&owner).any(|candidate| {
+            candidate.kind == "remote_work_camp" && candidate.linked_worksite_id == building_id
+        })
+    {
+        return Err("Demolish this worksite's overnight camp first.".to_string());
+    }
     if building.kind == "guardhouse" {
         let committed = guardhouse_roster_count(ctx, owner, building.id);
         if committed > 0 {
@@ -2341,6 +2410,8 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             marketplace_gold_reserve_target: MARKETPLACE_GOLD_RESERVE_DEFAULT,
             chapel_monastery_tithe_due: 0.0,
             civic_receipts_gold: 0.0,
+            remote_work_camp_enabled: false,
+            linked_worksite_id: 0,
             ..building
         });
         return Ok(());

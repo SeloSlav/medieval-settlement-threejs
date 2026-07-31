@@ -13,6 +13,12 @@ import {
   setForestCardSeason,
 } from '../vendor/seedthree/src/core/branch-cards.js';
 import { GORSKI_KOTAR_SPECIES } from '../src/vegetation/seedthree/gorskiKotarPresets.ts';
+import {
+  SEEDTHREE_CROWN_UNDERLAY_HIDE_DISTANCE,
+  SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE,
+  SEEDTHREE_FOREST_WIND_SPEED,
+  shouldShowSeedThreeCrownUnderlay,
+} from '../src/vegetation/seedthree/seedThreeCanopyPresentation.ts';
 import { seedThreeBranchCardCacheKey } from '../src/vegetation/seedthree/seedThreeBranchCards.ts';
 import {
   SEEDTHREE_BRANCH_CARD_BAKE_REVISION,
@@ -29,6 +35,12 @@ import { writeSeedThreeLodMatrices } from '../src/vegetation/seedthree/seedThree
 import { deciduousFoliageForClock } from '../src/world/deciduousFoliagePolicy.ts';
 
 const deciduous = GORSKI_KOTAR_PRESETS.filter(seedThreePresetIsDeciduous);
+const deciduousUnderlayScale = {
+  americanBeech: 1.35,
+  whiteOak: 1.35,
+  redMaple: 1.3,
+  sweetgum: 1.28,
+} as const;
 assert.deepEqual(
   deciduous,
   ['americanBeech', 'whiteOak', 'redMaple', 'sweetgum'],
@@ -52,6 +64,34 @@ assert.equal(
   'White Oak:cards:2:coverage-v4',
   'coverage RNG identity must remain pinned to content revision 4',
 );
+assert.equal(SEEDTHREE_CROWN_UNDERLAY_HIDE_DISTANCE, 112);
+assert.equal(SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE, 128);
+assert.equal(SEEDTHREE_FOREST_WIND_SPEED, 0.84);
+assert.equal(
+  shouldShowSeedThreeCrownUnderlay(true, 111.99, false),
+  false,
+  'zooming in must remove strategic crown fill below the inner threshold',
+);
+assert.equal(
+  shouldShowSeedThreeCrownUnderlay(true, 112, false),
+  true,
+  'visible crown fill must remain stable at the inner hysteresis boundary',
+);
+assert.equal(
+  shouldShowSeedThreeCrownUnderlay(false, 127.99, false),
+  false,
+  'zooming out must not reveal crown fill before the outer threshold',
+);
+assert.equal(
+  shouldShowSeedThreeCrownUnderlay(false, 128, false),
+  true,
+  'strategic crown fill must return at the outer threshold',
+);
+assert.equal(
+  shouldShowSeedThreeCrownUnderlay(true, 999, true),
+  false,
+  'first-person presentation must never show the crown underlay',
+);
 
 for (const preset of deciduous) {
   const species = GORSKI_KOTAR_SPECIES[preset];
@@ -62,30 +102,30 @@ for (const preset of deciduous) {
   );
   assert.equal(
     species.foliage?.cardRadialPlanes,
-    undefined,
-    `${preset} must retain its original single-plane branch foliage`,
+    2,
+    `${preset} must keep branch foliage readable from overhead and every azimuth`,
   );
   assert.equal(
     species.foliage?.mobileNearTwigCollapse,
-    undefined,
-    `${preset} must retain its original near-tree twig geometry`,
+    true,
+    `${preset} must replace pale terminal twigs with their full-content foliage cards`,
   );
   assert.equal(
     species.foliage?.cardCrownUnderlay,
-    undefined,
-    `${preset} must not add a whole-crown billboard underlay`,
+    true,
+    `${preset} must add a foliage-only crown layer behind detailed branch cards`,
   );
   assert.equal(
     species.foliage?.cardCrownUnderlayLateralScale,
-    undefined,
-    `${preset} must not scale a whole-crown billboard underlay`,
+    deciduousUnderlayScale[preset],
+    `${preset} must widen its crown underlay without increasing tree density`,
   );
   const authoredRootCards = 1 + Number(species.params?.baseSplits ?? 0);
   const crownUnderlay = planBranchCardCrownUnderlay(species.foliage, authoredRootCards);
-  assert.equal(crownUnderlay.enabled, false);
-  assert.equal(crownUnderlay.rootCardInstances, 0);
-  assert.equal(crownUnderlay.runtimeTrianglesAdded, 0);
-  assert.equal(crownUnderlay.runtimeDrawsAdded, 0);
+  assert.equal(crownUnderlay.enabled, true);
+  assert.equal(crownUnderlay.rootCardInstances, authoredRootCards);
+  assert.equal(crownUnderlay.runtimeTrianglesAdded, authoredRootCards * 4);
+  assert.equal(crownUnderlay.runtimeDrawsAdded, 1);
   const coverage = planBranchCardCoverage(species.foliage, 12);
   assert.equal(coverage.coverageRequested, 1.5);
   assert.ok(coverage.bakeLeafInstances > coverage.sourceLeafInstances);
@@ -94,11 +134,11 @@ for (const preset of deciduous) {
     0,
     `${preset} coverage must not add runtime card instances`,
   );
+  const cacheKey = seedThreeBranchCardCacheKey(species, true);
   assert.ok(
-    seedThreeBranchCardCacheKey(species, true).endsWith(
-      `|512|3|m|b${BRANCH_CARD_BAKE_REVISION}`,
-    ),
-    `${preset} memory cache identity must retain the upstream bake revision without an underlay variant`,
+    cacheKey.includes(`|r2|u1x${deciduousUnderlayScale[preset]}|`)
+      && cacheKey.endsWith(`|512|3|m|b${BRANCH_CARD_BAKE_REVISION}`),
+    `${preset} cache identity must retain radial coverage, crown underlay, and bake revision`,
   );
 }
 for (const preset of ['douglasFir', 'loblolly', 'pine'] as const) {
@@ -120,20 +160,18 @@ for (const preset of ['douglasFir', 'loblolly', 'pine'] as const) {
   );
   assert.equal(
     species.foliage?.cardCrownUnderlay,
-    undefined,
-    `${preset} must not add an evergreen crown billboard underlay`,
+    true,
+    `${preset} must add an evergreen crown layer behind exposed branches`,
   );
-  assert.equal(species.foliage?.cardCrownUnderlayLateralScale, undefined);
+  assert.equal(species.foliage?.cardCrownUnderlayLateralScale, 1.35);
   const crownUnderlay = planBranchCardCrownUnderlay(species.foliage, 1);
-  assert.equal(crownUnderlay.enabled, false);
-  assert.equal(crownUnderlay.rootCardInstances, 0);
-  assert.equal(crownUnderlay.runtimeTrianglesAdded, 0);
-  assert.equal(crownUnderlay.runtimeDrawsAdded, 0);
+  assert.equal(crownUnderlay.enabled, true);
+  assert.equal(crownUnderlay.rootCardInstances, 1);
+  assert.equal(crownUnderlay.runtimeTrianglesAdded, 4);
+  assert.equal(crownUnderlay.runtimeDrawsAdded, 1);
   assert.ok(
-    seedThreeBranchCardCacheKey(species, true).endsWith(
-      `|512|3|m|b${BRANCH_CARD_BAKE_REVISION}`,
-    ),
-    `${preset} cache identity must retain the upstream bake revision without an underlay variant`,
+    seedThreeBranchCardCacheKey(species, true).includes('|r1|u1x1.35|'),
+    `${preset} cache identity must retain its crossed evergreen crown underlay`,
   );
 }
 assert.equal(SEEDTHREE_BRANCH_CARD_BAKE_REVISION, BRANCH_CARD_BAKE_REVISION);
@@ -339,20 +377,40 @@ assert.match(
   /const radialPlanes = geometryRadialPlanes\(variant\.geometry\);[\s\S]*const copies = opts\.crossed && radialPlanes < 2 \? 2 : 1;[\s\S]*new InstancedMesh\(variant\.geometry, variant\.material, list\.length \* copies\)/,
   'two-plane cards must remain one instanced mesh entry instead of multiplying runtime instances or draws',
 );
-assert.doesNotMatch(
+assert.match(
   cardAdapterSource,
-  /cardCrownUnderlay|0:underlay|preserveFoliageLayout/,
-  'the game adapter must not bake or attach whole-crown billboard underlays',
+  /planBranchCardCrownUnderlay\(species\.foliage, 1\)[\s\S]*key: '0:underlay'[\s\S]*preserveFoliageLayout: true/,
+  'the game adapter must bake a foliage-only whole-crown underlay when a species opts in',
 );
-assert.doesNotMatch(
+assert.match(
   cardAdapterSource,
-  /planBranchCardCrownUnderlay|BRANCH_CARD_CROWN_UNDERLAY_DEFAULTS|`u\$\{/,
-  'the game adapter cache must not retain billboard-underlay variants',
+  /`r\$\{foliage\.cardRadialPlanes \?\? 1\}`[\s\S]*`u\$\{crownUnderlay\.enabled \? 1 : 0\}x\$\{crownUnderlay\.lateralScale\}`/,
+  'the game adapter cache must distinguish sparse cards from radial and crown-underlay variants',
 );
 assert.match(
   cardCacheSource,
   /for \(const cachedSet of record\.sets\)[\s\S]*byLevel\.set\(cachedSet\.key,[\s\S]*for \(const \[key, set\] of cards\.byLevel\)[\s\S]*sets\.push\(\{\s*key,/,
   'persistent card storage must round-trip ordinary branch-card set names unchanged',
+);
+assert.match(
+  cardCacheSource,
+  /geometry\.userData\.crownUnderlay = cachedSet\.key === '0:underlay'/,
+  'restored crown geometry must retain its strategic-only presentation identity',
+);
+assert.match(
+  cardAdapterSource,
+  /jobKey === '0:underlay'[\s\S]*variant\.geometry\.userData\.crownUnderlay = true/,
+  'freshly baked crown geometry must carry the same strategic-only identity',
+);
+assert.match(
+  builderSource,
+  /shouldShowSeedThreeCrownUnderlay\([\s\S]*forest\.crownUnderlayVisible[\s\S]*for \(const mesh of forest\.crownUnderlayMeshes\) mesh\.visible = visible/,
+  'camera updates must gate only tagged crown-underlay draws without rewriting forest matrices',
+);
+assert.match(
+  builderSource,
+  /windSpeed\.value = SEEDTHREE_FOREST_WIND_SPEED/,
+  'the forest must apply the slower shared wind tempo before materials compile',
 );
 assert.match(
   cardAdapterSource,

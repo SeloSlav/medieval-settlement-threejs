@@ -1,4 +1,5 @@
 import type { BuildingKind } from '../resources/types.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
 
@@ -33,6 +34,7 @@ type TerrainPadSite = BuildingPadParams & {
 const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   founders_camp: { radiusX: 8.6, radiusZ: 7.2, innerFade: 0.88, outerFade: 1.28 },
   salvage_pile: { radiusX: 6.0, radiusZ: 5.2, innerFade: 0.88, outerFade: 1.28 },
+  remote_work_camp: { radiusX: 4.4, radiusZ: 4.0, innerFade: 0.86, outerFade: 1.24 },
   lumber_mill: { radiusX: 10.2, radiusZ: 4.8, innerFade: 0.86, outerFade: 1.38 },
   reforester: { radiusX: 4.4, radiusZ: 4.1, innerFade: 0.88, outerFade: 1.32 },
   woodcutters_lodge: { radiusX: 4.6, radiusZ: 4.3, innerFade: 0.88, outerFade: 1.34 },
@@ -180,17 +182,20 @@ export function sampleBuildingFootprintHeights(
   x: number,
   z: number,
   sampleNaturalHeight: (x: number, z: number) => number,
+  roadNetwork?: RoadNetwork | null,
 ): number[] {
-  return sampleBuildingFootprintPoints(kind, x, z).map((point) => sampleNaturalHeight(point.x, point.z));
+  return sampleBuildingFootprintPoints(kind, x, z, roadNetwork)
+    .map((point) => sampleNaturalHeight(point.x, point.z));
 }
 
 export function sampleBuildingFootprintPoints(
   kind: BuildingKind,
   x: number,
   z: number,
+  roadNetwork?: RoadNetwork | null,
 ): Array<{ x: number; z: number }> {
   const params = PAD_PARAMS[kind];
-  const rotation = buildingPlacementYaw(kind, x, z);
+  const rotation = buildingPlacementYaw(kind, x, z, roadNetwork);
   const cos = Math.cos(rotation);
   const sin = Math.sin(rotation);
   const points: Array<{ x: number; z: number }> = [];

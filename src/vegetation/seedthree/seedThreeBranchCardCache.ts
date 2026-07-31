@@ -77,6 +77,7 @@ export async function readSeedThreeBranchCards(cacheKey: string): Promise<SeedTh
         }
         geometry.setIndex(cached.indices);
         geometry.userData.shared = true;
+        geometry.userData.crownUnderlay = cachedSet.key === '0:underlay';
         variants.push({
           geometry,
           material: createCardMaterial(textures, centerUniform, cachedSet.noFlutter),

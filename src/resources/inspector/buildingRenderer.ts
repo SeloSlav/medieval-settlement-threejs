@@ -9,7 +9,11 @@ import { renderLargeQuarryInspector } from './largeQuarryRenderer.ts';
 import { renderMineralMineInspector } from './mineralMineRenderer.ts';
 import { renderWoodcuttersLodgeInspector } from './woodcuttersLodgeRenderer.ts';
 import { renderWellInspector } from './wellRenderer.ts';
-import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import {
+  hiddenLabor,
+  type InspectorRenderContext,
+  type InspectorView,
+} from './renderInspectableTarget.ts';
 import { renderExpandedBuildingInspector } from './expandedBuildingRenderer.ts';
 import { renderLivestockBuildingInspector } from './livestockBuildingRenderer.ts';
 import { renderTownHallInspector } from './townHallRenderer.ts';
@@ -22,12 +26,41 @@ import { withStaffingPriority } from './staffingPriorityRenderer.ts';
 import { renderFoundersCampInspector } from './foundersCampRenderer.ts';
 import { renderSalvagePileInspector } from './salvagePileRenderer.ts';
 import { withBuildingFireSafety } from './fireSafetyRenderer.ts';
+import {
+  renderRemoteWorkCampInspector,
+  withWorksiteLodging,
+} from './remoteWorkCampRenderer.ts';
+import { fireForTarget } from '../../fires/fireIncident.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
+  const fire = fireForTarget(
+    context.gameState.fireIncidents.values(),
+    'building',
+    building.id,
+  );
+  if (fire?.status === 'destroyed') {
+    return {
+      eyebrow: 'Ruin',
+      title: `${context.worldQueries.getBuildingLabel(building.kind)} ruins`,
+      statusText: 'Destroyed by fire — rebuild the surviving foundations or clear the ruin.',
+      statusState: 'warning',
+      detailsHtml: `
+        <li><span>Site</span><span>Collapsed shell with reusable foundations</span></li>
+        <li><span>Operations</span><span>Stopped until reconstruction is complete</span></li>
+        <li><span>Salvage</span><span>Any recoverable materials are left in a nearby pile for free haulers</span></li>
+      `,
+      demolish: {
+        visible: true,
+        label: 'Clear ruin',
+        hint: 'Remove the ruined footprint instead of rebuilding it.',
+      },
+      labor: hiddenLabor(),
+    };
+  }
   if (building.constructionComplete === false) {
     return renderConstructionInspector(target, context);
   }
@@ -37,6 +70,8 @@ export function renderBuildingInspector(
       return renderFoundersCampInspector(target, context);
     case 'salvage_pile':
       return renderSalvagePileInspector(target, context);
+    case 'remote_work_camp':
+      return renderRemoteWorkCampInspector(target, context);
     case 'chapel':
       return withStaffingPriority(renderChapelInspector(target, context), building);
     case 'marketplace':
@@ -94,5 +129,9 @@ export function renderBuildingInspector(
     }
     }
   })();
-  return withBuildingFireSafety(view, building, context);
+  return withBuildingFireSafety(
+    withWorksiteLodging(view, building, context),
+    building,
+    context,
+  );
 }

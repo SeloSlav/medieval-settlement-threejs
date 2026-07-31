@@ -41,10 +41,14 @@ import {
 import type { VillagerModelVariant } from '../settlement/SettlementCrowdRenderer.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
 import { SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+import {
+  createSelectedAgentRoute,
+  SELECTED_AGENT_ROUTE_Y_OFFSET,
+  type SelectedAgentRoute,
+  updateSelectedAgentRoute,
+} from '../scene/SelectedAgentRoute.ts';
 
 const DISPLAY_BLEND_RATE = 14;
-const DELIVERY_ROUTE_COLOR = 0xff5ea8;
-const DELIVERY_ROUTE_Y_OFFSET = 0.24;
 
 type TripVisual = {
   mesh: THREE.Group;
@@ -85,10 +89,7 @@ export class DeliveryAgentRenderer {
   private readonly isOnRoadSurface: ((x: number, z: number) => boolean) | null;
   private readonly group = new THREE.Group();
   private readonly visuals = new Map<string, TripVisual>();
-  private readonly selectedRoute: THREE.Line<
-    THREE.BufferGeometry,
-    THREE.LineDashedMaterial
-  >;
+  private readonly selectedRoute: SelectedAgentRoute;
   private latestTrips = new Map<string, DeliveryTripState>();
   private selectedTripId: string | null = null;
   private cartSource: DeliveryCartModelSource | null = null;
@@ -101,7 +102,7 @@ export class DeliveryAgentRenderer {
     this.getRoadDeckY = options.getRoadDeckY ?? null;
     this.isOnRoadSurface = options.isOnRoadSurface ?? null;
     this.group.name = 'Delivery agents';
-    this.selectedRoute = createSelectedDeliveryRoute();
+    this.selectedRoute = createSelectedAgentRoute('Selected delivery destination route');
     this.group.add(this.selectedRoute);
     options.parent.add(this.group);
     void this.loadCartSource();
@@ -452,14 +453,14 @@ export class DeliveryAgentRenderer {
       this.selectedRoute.visible = false;
       return;
     }
-    const points = route.map((point) => new THREE.Vector3(
-      point.x,
-      this.resolveGroundY(point.x, point.z) + DELIVERY_ROUTE_Y_OFFSET,
-      point.z,
-    ));
-    this.selectedRoute.geometry.setFromPoints(points);
-    this.selectedRoute.computeLineDistances();
-    this.selectedRoute.visible = true;
+    updateSelectedAgentRoute(
+      this.selectedRoute,
+      route.map((point) => ({
+        x: point.x,
+        y: this.resolveGroundY(point.x, point.z) + SELECTED_AGENT_ROUTE_Y_OFFSET,
+        z: point.z,
+      })),
+    );
   }
 
   private resolveGroundY(x: number, z: number): number {
@@ -502,27 +503,6 @@ export class DeliveryAgentRenderer {
       console.warn('[Delivery carts] Rigged cart workers failed to load.', error);
     }
   }
-}
-
-function createSelectedDeliveryRoute(): THREE.Line<
-  THREE.BufferGeometry,
-  THREE.LineDashedMaterial
-> {
-  const material = new THREE.LineDashedMaterial({
-    color: DELIVERY_ROUTE_COLOR,
-    dashSize: 1.1,
-    gapSize: 0.72,
-    transparent: true,
-    opacity: 0.92,
-    depthWrite: false,
-    depthTest: false,
-  });
-  const line = new THREE.Line(new THREE.BufferGeometry(), material);
-  line.name = 'Selected delivery destination route';
-  line.renderOrder = 14;
-  line.visible = false;
-  line.frustumCulled = false;
-  return line;
 }
 
 function polylineFromDistance(

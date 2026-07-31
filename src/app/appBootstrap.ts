@@ -455,6 +455,11 @@ export async function bootstrapAppSession(
       await spacetimeStore.placeBuilding(kind, x, z);
       ambientAudio.playUiSound('building_place');
     },
+    onPlaceRemoteWorkCamp: async (worksiteId, x, z) => {
+      requireSessionReady();
+      await spacetimeStore.placeRemoteWorkCamp(worksiteId, x, z);
+      ambientAudio.playUiSound('building_place');
+    },
     onDemolishBuilding: async (buildingId) => {
       requireSessionReady();
       await spacetimeStore.demolishBuilding(buildingId);
@@ -682,6 +687,7 @@ export async function bootstrapAppSession(
 
   toolbar = new BuildToolbar(uiRoot, {
     onOpenRoads: toggleRoadTool,
+    onSetRoadSnap: (enabled) => buildingTool.setRoadSnapEnabled(enabled),
     onBuildRoad: () => {
       if (farmFieldTool.isEnabled()) {
         farmFieldTool.commitDraft();
@@ -822,6 +828,7 @@ export async function bootstrapAppSession(
     onNewWorld: () => {
       void beginNewWorld(() => sessionGate.isReady());
     },
+    onReplayTutorials: () => tutorialOverlay.replayAll(),
     onGrantCheatResources: async (amount) => {
       requireSessionReady();
       await spacetimeStore.grantCheatResources(amount);
@@ -890,10 +897,30 @@ export async function bootstrapAppSession(
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
     getWorldResourceAbundance: () =>
       spacetimeStore.snapshot.worldGeneration?.resourceAbundance ?? 50,
+    getWorksiteCommuteSummary: (buildingId) =>
+      villagers.getWorksiteCommuteSummary(buildingId),
     ...inspectorActions,
     onBeginFarmFieldPlacement: (farmsteadId) => beginLinkedLandParcelPlacement('field', farmsteadId),
     onBeginPasturePlacement: (farmsteadId) => beginLinkedLandParcelPlacement('pasture', farmsteadId),
     onBeginGraveyardPlacement: (chapelId) => beginLinkedLandParcelPlacement('graveyard', chapelId),
+    onBeginRemoteWorkCampPlacement: (worksiteId) => {
+      if (!sessionGate.isReady()) {
+        toastManager.show('SpacetimeDB is not connected.', { variant: 'error' });
+        return;
+      }
+      buildingTool.beginLinkedRemoteWorkCampPlacement(worksiteId);
+      if (buildingTool.getMode() !== 'remote_work_camp') return;
+      roadTool.setEnabled(false);
+      burgageTool.setEnabled(false);
+      farmFieldTool.setEnabled(false);
+      resourceInspector.clearSelection();
+      villagerInspector.clearSelection();
+      toastManager.show(
+        'Choose clear ground within 34 m of the worksite. Haulers and builders will complete the camp normally.',
+        { variant: 'info', durationMs: 6000 },
+      );
+      bridge.syncToolbar();
+    },
     onInspectDeliveryTrip: (tripId) => {
       const trip = liveContext.gameState.deliveryTrips.get(tripId);
       if (!trip || !villagerInspector.selectDeliveryTrip(tripId)) return;

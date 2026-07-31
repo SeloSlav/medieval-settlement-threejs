@@ -580,6 +580,15 @@ pub struct Building {
     /// Kiln firing choice: 0 household/preserving vessels, 1 roof tiles.
     #[default(0u8)]
     pub potter_firing_policy: u8,
+    /// Deprecated presentation toggle retained in place for additive schema
+    /// compatibility. New clients ignore it and require a linked building.
+    #[default(false)]
+    pub remote_work_camp_enabled: bool,
+    /// Parent rural worksite for a separately placed overnight camp. Zero for
+    /// every ordinary building. The linked camp retains a normal construction,
+    /// fire, repair, and demolition lifecycle.
+    #[default(0u64)]
+    pub linked_worksite_id: u64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

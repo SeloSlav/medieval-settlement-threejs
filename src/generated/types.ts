@@ -122,6 +122,8 @@ export const Building = __t.object("Building", {
   storehouseSaltTargetPercent: __t.u8(),
   roofTiles: __t.f64(),
   potterFiringPolicy: __t.u8(),
+  remoteWorkCampEnabled: __t.bool(),
+  linkedWorksiteId: __t.u64(),
 });
 export type Building = __Infer<typeof Building>;
 

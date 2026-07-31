@@ -339,6 +339,21 @@ assert.match(
   'tutorial visibility must be committed before any open-state callback can gate input',
 );
 assert.match(
+  tutorialOverlay,
+  /replayAll\(\)[\s\S]*?setTutorialsSkipped\(false\)[\s\S]*?this\.shown\.clear\(\)[\s\S]*?TUTORIAL_ORDER/,
+  'players must be able to clear the skip preference and replay the full tutorial sequence',
+);
+assert.match(
+  tutorialOverlay,
+  /if \(this\.isOpen\(\)\)[\s\S]*?this\.replayQueue\.push\(id\)[\s\S]*?return true/,
+  'tutorial triggers that fire while guidance is open must queue instead of disappearing',
+);
+assert.match(
+  read('src/ui/GameMenu.ts'),
+  /data-replay-tutorials[\s\S]*?options\.onReplayTutorials\?\.\(\)/,
+  'the settings menu must expose tutorial replay',
+);
+assert.match(
   read('src/app/appBootstrap.ts'),
   /isTutorialOpen: \(\) => tutorialOverlay\?\.isGameplayBlocking\(\)[\s\S]*?onOpenChange:[\s\S]*?isGameplayBlocking\(\)/,
   'camera and interaction gates should only honor modal tutorials',

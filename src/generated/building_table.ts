@@ -99,4 +99,6 @@ export default __t.row({
   storehouseSaltTargetPercent: __t.u8().name("storehouse_salt_target_percent"),
   roofTiles: __t.f64().name("roof_tiles"),
   potterFiringPolicy: __t.u8().name("potter_firing_policy"),
+  remoteWorkCampEnabled: __t.bool().name("remote_work_camp_enabled"),
+  linkedWorksiteId: __t.u64().name("linked_worksite_id"),
 });

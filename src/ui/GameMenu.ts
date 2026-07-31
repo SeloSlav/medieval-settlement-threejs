@@ -28,6 +28,7 @@ type GameMenuOptions = {
   onShadowPreferenceChange: () => void;
   onOpenChange?: (open: boolean) => void;
   onNewWorld?: () => void;
+  onReplayTutorials?: () => void;
   onGrantCheatResources?: (amount: number) => Promise<void>;
   onAudioEnabledChange?: (enabled: boolean) => void;
   onAmbienceVolumeChange?: (volume: number) => void;
@@ -158,6 +159,7 @@ export class GameMenu {
           <p class="game-menu-cheat__status" data-cheat-status aria-live="polite"></p>
         </section>
         <button type="button" class="game-menu-action" data-game-controls>Game controls…</button>
+        <button type="button" class="game-menu-action" data-replay-tutorials>Replay tutorials…</button>
         <button type="button" class="game-menu-action" data-new-world>New world…</button>
         <button type="button" class="game-menu-return" data-return-button>Return to game</button>
       </div>
@@ -179,6 +181,7 @@ export class GameMenu {
     this.cheatStatus = this.backdrop.querySelector<HTMLElement>('[data-cheat-status]')!;
     const returnButton = this.backdrop.querySelector<HTMLButtonElement>('[data-return-button]')!;
     const controlsButton = this.backdrop.querySelector<HTMLButtonElement>('[data-game-controls]')!;
+    const tutorialsButton = this.backdrop.querySelector<HTMLButtonElement>('[data-replay-tutorials]')!;
     const newWorldButton = this.backdrop.querySelector<HTMLButtonElement>('[data-new-world]')!;
 
     this.controlsModal = new GameControlsModal(parent, {
@@ -202,6 +205,10 @@ export class GameMenu {
     controlsButton.addEventListener('click', () => {
       this.closeSettingsPanel();
       this.controlsModal.openModal();
+    });
+    tutorialsButton.addEventListener('click', () => {
+      this.close();
+      options.onReplayTutorials?.();
     });
     newWorldButton.addEventListener('click', () => {
       this.close();

@@ -280,6 +280,15 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
   },
 };
 
+const TUTORIAL_ORDER: readonly TutorialId[] = [
+  'founding',
+  'roads',
+  'construction-supply',
+  'workforce',
+  'residence-placement',
+  'first-homes',
+];
+
 export class TutorialOverlay {
   private readonly root: HTMLElement;
   private readonly dialog: HTMLElement;
@@ -290,6 +299,7 @@ export class TutorialOverlay {
   private readonly confirmButton: HTMLButtonElement;
   private readonly options: TutorialOverlayOptions;
   private readonly shown = new Set<TutorialId>();
+  private replayQueue: TutorialId[] = [];
   private current: TutorialId | null = null;
   private previousFocus: HTMLElement | null = null;
 
@@ -347,6 +357,13 @@ export class TutorialOverlay {
     return this.current !== null && TUTORIALS[this.current].blocksGameplay !== false;
   }
 
+  replayAll(): void {
+    this.setTutorialsSkipped(false);
+    this.shown.clear();
+    this.replayQueue = [...TUTORIAL_ORDER];
+    if (!this.isOpen()) this.showNextReplayTutorial();
+  }
+
   notifyBuildingPlaced(kind: BuildingKind, buildingKinds: Iterable<BuildingKind>): void {
     const kinds = [...buildingKinds];
     if (kind === 'founders_camp') {
@@ -394,7 +411,11 @@ export class TutorialOverlay {
   }
 
   private show(id: TutorialId): boolean {
-    if (this.isOpen() || this.shown.has(id) || this.areTutorialsSkipped()) return false;
+    if (this.shown.has(id) || this.areTutorialsSkipped()) return false;
+    if (this.isOpen()) {
+      if (!this.replayQueue.includes(id)) this.replayQueue.push(id);
+      return true;
+    }
     const tutorial = TUTORIALS[id];
     const blocksGameplay = tutorial.blocksGameplay !== false;
     this.shown.add(id);
@@ -451,7 +472,11 @@ export class TutorialOverlay {
 
   private readonly dismiss = (): void => {
     if (!this.isOpen()) return;
-    if (this.skipCheckbox.checked) this.setTutorialsSkipped(true);
+    const skipTutorials = this.skipCheckbox.checked;
+    if (skipTutorials) {
+      this.setTutorialsSkipped(true);
+      this.replayQueue = [];
+    }
     this.root.classList.remove('is-visible');
     this.root.hidden = true;
     delete this.root.dataset.tutorial;
@@ -460,7 +485,13 @@ export class TutorialOverlay {
     this.options.onOpenChange?.(false);
     this.previousFocus?.focus({ preventScroll: true });
     this.previousFocus = null;
+    if (!skipTutorials) this.showNextReplayTutorial();
   };
+
+  private showNextReplayTutorial(): void {
+    const next = this.replayQueue.shift();
+    if (next) this.show(next);
+  }
 
   private readonly onSkipChange = (): void => {
     this.setTutorialsSkipped(this.skipCheckbox.checked);

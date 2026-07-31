@@ -527,6 +527,8 @@ pub fn insert_reclamation_pile(
         pottery_dispatch_policy: 0,
         potter_firing_policy: 0,
         carpenter_cart_service_target_trips: 0,
+        remote_work_camp_enabled: false,
+        linked_worksite_id: 0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

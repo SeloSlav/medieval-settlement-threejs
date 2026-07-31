@@ -42,6 +42,7 @@ function buildingStateFromRow(
   const materialRow = row as Building & Partial<{
     roofTiles: number;
     potterFiringPolicy: number;
+    linkedWorksiteId: bigint;
   }>;
   return {
     id,
@@ -132,6 +133,10 @@ function buildingStateFromRow(
     marketplaceSeedGrainTarget: row.marketplaceSeedGrainTarget,
     marketplacePendingTradeCode: row.marketplacePendingTradeCode,
     foundingShelterActive: row.foundingShelterActive,
+    linkedWorksiteId: materialRow.linkedWorksiteId == null
+      || materialRow.linkedWorksiteId === 0n
+      ? undefined
+      : buildingClientId(materialRow.linkedWorksiteId),
     chapelMonasteryTitheDue: row.chapelMonasteryTitheDue,
     civicReceiptsGold: row.civicReceiptsGold,
   };

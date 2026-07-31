@@ -10,6 +10,7 @@ import type { NightPolicyState } from '../../economy/nightPolicy.ts';
 import type { SettlementProductionCapacity } from '../../economy/settlementProduction.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import type { ServiceCoverageView } from '../serviceCoverage.ts';
+import type { WorksiteCommuteSummary } from '../../settlement/workerCommute.ts';
 import { renderBackyardInspector } from './backyardRenderer.ts';
 import { renderForagingInspector } from './foragingRenderer.ts';
 import { renderBuildingInspector } from './buildingRenderer.ts';
@@ -73,6 +74,7 @@ export type InspectorRenderContext = {
   getMarketState?: () => RegionalMarketState;
   getSettlementSecurity?: () => SettlementSecurityState;
   combatAgents?: Iterable<CombatAgentState>;
+  getWorksiteCommuteSummary?: (buildingId: string) => WorksiteCommuteSummary | null;
 };
 
 export function hiddenLabor(): InspectorLaborView {

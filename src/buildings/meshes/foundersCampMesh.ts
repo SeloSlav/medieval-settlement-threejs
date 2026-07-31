@@ -24,6 +24,11 @@ import {
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
   FOUNDERS_CAMPFIRE_POSITION,
 } from '../foundersCampLandmarks.ts';
+import {
+  REMOTE_WORK_CAMP_NAME,
+  REMOTE_WORK_CAMPFIRE_NAME,
+  remoteWorkCampLayout,
+} from '../remoteWorkCamp.ts';
 
 export const FOUNDERS_CAMPFIRE_NAME = 'FoundingCampfire';
 export const FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME =
@@ -1702,4 +1707,26 @@ export function createFoundersCampMesh(): THREE.Group {
     }
   });
   return group;
+}
+
+/** Reuses the founding tents and fire treatment for opt-in rural lodging. */
+export function createRemoteWorkCampMesh(): THREE.Group {
+  const layout = remoteWorkCampLayout();
+  const camp = new THREE.Group();
+  camp.name = REMOTE_WORK_CAMP_NAME;
+  camp.userData.fpCollisionChildrenOnly = true;
+
+  layout.tents.forEach((tent, index) => {
+    addAFrameShelter(camp, tent.x, tent.z, tent.yaw, index + 1);
+  });
+  const campfire = addCampfire(camp);
+  campfire.name = REMOTE_WORK_CAMPFIRE_NAME;
+  campfire.position.set(layout.campfire.x, 0, layout.campfire.z);
+  camp.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && !mesh.name.startsWith('Animated fire')) {
+      markBuildingDetailShadowCaster(mesh);
+    }
+  });
+  return camp;
 }

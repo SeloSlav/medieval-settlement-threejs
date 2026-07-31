@@ -68,6 +68,8 @@ export class BuildToolbar {
   private readonly agricultureBuildMenu: HTMLElement;
   private readonly ruralIndustryBuildMenu: HTMLElement;
   private readonly militaryBuildMenu: HTMLElement;
+  private readonly roadSnapControl: HTMLElement;
+  private readonly roadSnapToggle: HTMLInputElement;
   private readonly builderControlsPanel: HTMLElement;
   private readonly burgageLayoutHud: HTMLElement;
   private readonly burgagePlotDecreaseButton: HTMLButtonElement;
@@ -123,6 +125,7 @@ export class BuildToolbar {
       || this.agricultureBuildMenu.contains(target)
       || this.ruralIndustryBuildMenu.contains(target)
       || this.militaryBuildMenu.contains(target)
+      || this.roadSnapControl.contains(target)
     ) return;
 
     this.closeAllBuildMenus();
@@ -249,6 +252,7 @@ export class BuildToolbar {
       onSelectResidences: () => void;
       onToggleCityAdministration: () => void;
       onSetWaterOverlay?: (active: boolean) => void;
+      onSetRoadSnap?: (enabled: boolean) => void;
       onBurgagePlotDecrease?: () => void;
       onBurgagePlotIncrease?: () => void;
       onBurgageRotateFrontage?: () => void;
@@ -256,6 +260,7 @@ export class BuildToolbar {
       onShadowPreferenceChange?: () => void;
       canOpenMenuFromKeyboard?: () => boolean;
       onNewWorld?: () => void;
+      onReplayTutorials?: () => void;
       onGrantCheatResources?: (amount: number) => Promise<void>;
       onSetGameSpeed?: (speed: GameSpeed) => void;
       onAudioEnabledChange?: (enabled: boolean) => void;
@@ -309,6 +314,11 @@ export class BuildToolbar {
       </div>
 
       <div class="hud-bottom-center" data-hud-bottom-center>
+        <label class="construction-road-snap" data-road-snap-control hidden>
+          <input type="checkbox" data-road-snap-toggle checked>
+          <span>Snap to Roads</span>
+        </label>
+
         <section class="construction-menu" id="basic-build-menu" data-build-menu="basic" hidden aria-label="Build menu">
           <div class="construction-menu__cards">
             ${renderBuildMenuCards(BASIC_BUILD_MENU_ENTRIES)}
@@ -433,6 +443,7 @@ export class BuildToolbar {
       onOpenChange: handlers.onMenuOpenChange,
       canOpenFromKeyboard: handlers.canOpenMenuFromKeyboard,
       onNewWorld: handlers.onNewWorld,
+      onReplayTutorials: handlers.onReplayTutorials,
       onGrantCheatResources: handlers.onGrantCheatResources,
       onAudioEnabledChange: handlers.onAudioEnabledChange,
       onAmbienceVolumeChange: handlers.onAmbienceVolumeChange,
@@ -455,6 +466,8 @@ export class BuildToolbar {
     this.agricultureBuildMenu = this.mustElement(root, '[data-build-menu="agriculture"]');
     this.ruralIndustryBuildMenu = this.mustElement(root, '[data-build-menu="industry"]');
     this.militaryBuildMenu = this.mustElement(root, '[data-build-menu="military"]');
+    this.roadSnapControl = this.mustElement(root, '[data-road-snap-control]');
+    this.roadSnapToggle = this.mustInput(root, '[data-road-snap-toggle]');
     this.builderControlsPanel = this.mustElement(root, '[data-road-controls-panel]');
     this.builderPanelTitle = this.mustElement(this.builderControlsPanel, '.road-controls-title');
     this.builderHelpList = this.mustElement(this.builderControlsPanel, '.road-controls-list');
@@ -543,6 +556,11 @@ export class BuildToolbar {
     this.bindBuildMenuClicks(this.agricultureBuildMenu, () => this.setAgricultureBuildMenuOpen(false));
     this.bindBuildMenuClicks(this.ruralIndustryBuildMenu, () => this.setRuralIndustryBuildMenuOpen(false));
     this.bindBuildMenuClicks(this.militaryBuildMenu, () => this.setMilitaryBuildMenuOpen(false));
+    this.roadSnapToggle.addEventListener('change', () => {
+      handlers.onSetRoadSnap?.(this.roadSnapToggle.checked);
+    });
+    this.roadSnapControl.addEventListener('mousedown', (event) => event.stopPropagation());
+    this.roadSnapControl.addEventListener('click', (event) => event.stopPropagation());
     this.buildButton.addEventListener('click', handlers.onBuildRoad);
     this.burgagePlotDecreaseButton.addEventListener('click', () => handlers.onBurgagePlotDecrease?.());
     this.burgagePlotIncreaseButton.addEventListener('click', () => handlers.onBurgagePlotIncrease?.());
@@ -883,6 +901,7 @@ export class BuildToolbar {
     const ruralIndustryConstruction = activeAction != null && RURAL_INDUSTRY_BUILD_MENU_ACTIONS.has(activeAction);
     const militaryConstruction = activeAction != null && MILITARY_BUILD_MENU_ACTIONS.has(activeAction);
     const browsing = this.isAnyBuildMenuOpen();
+    this.roadSnapControl.hidden = !browsing;
 
     this.syncBuildMenuButton(
       this.basicBuildMenuButton,
@@ -980,6 +999,12 @@ export class BuildToolbar {
   private mustElement(root: HTMLElement, selector: string): HTMLElement {
     const element = root.querySelector<HTMLElement>(selector);
     if (!element) throw new Error(`Missing toolbar element ${selector}`);
+    return element;
+  }
+
+  private mustInput(root: HTMLElement, selector: string): HTMLInputElement {
+    const element = root.querySelector<HTMLInputElement>(selector);
+    if (!element) throw new Error(`Missing toolbar input ${selector}`);
     return element;
   }
 }

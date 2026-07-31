@@ -34,6 +34,7 @@ export type SeedThreeForestController = {
   commit(): void;
   updateCamera(
     camera: Camera,
+    cameraDistance: number,
     firstPersonActive: boolean,
     casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
   ): boolean;

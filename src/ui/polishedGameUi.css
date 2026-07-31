@@ -1337,6 +1337,30 @@ select:focus-visible {
   line-height: 1;
 }
 
+.villager-inspector-portrait[data-portrait-variant] {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: transparent;
+  text-shadow: none;
+}
+
+.villager-inspector-portrait[data-portrait-variant='man'] {
+  background-image:
+    linear-gradient(180deg, transparent 72%, rgba(13, 15, 12, 0.28)),
+    url('/assets/ui/portraits/worker-man-gorski-kotar-1550.jpg');
+}
+
+.villager-inspector-portrait[data-portrait-variant='woman'] {
+  background-image:
+    linear-gradient(180deg, transparent 72%, rgba(13, 15, 12, 0.28)),
+    url('/assets/ui/portraits/worker-woman-gorski-kotar-1550.jpg');
+}
+
+.villager-inspector-portrait[data-portrait-variant]::before {
+  content: none;
+}
+
 .villager-inspector-portrait {
   color: var(--ui-brass-bright);
   text-shadow: 0 1px 5px #000;

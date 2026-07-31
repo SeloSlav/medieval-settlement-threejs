@@ -430,6 +430,20 @@ export async function setStorehousePolicy(
   });
 }
 
+export async function placeRemoteWorkCamp(
+  worksiteId: string,
+  x: number,
+  z: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(worksiteId);
+  if (serverId === null) throw new Error('Invalid rural worksite id.');
+  await callReducer('placeRemoteWorkCamp', 'place_remote_work_camp', {
+    worksiteId: serverId,
+    x,
+    z,
+  });
+}
+
 export async function setStorehouseStockTarget(
   buildingId: string,
   commodity: StorehouseCommodity,

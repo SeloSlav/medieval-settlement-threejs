@@ -24,6 +24,7 @@ use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
     building_has_active_trip, cancel_trips_for_residence, clear_backyard_garden_for_residence,
     clear_residence_needs, clear_residence_project, drain_trips_for_building,
+    recover_stock_beside_building, ReclamationStock,
 };
 use crate::tables::{Building, FireIncident};
 
@@ -41,6 +42,8 @@ pub const FIRE_SOURCE_RAID: u8 = 3;
 /// than scanning every structure five times. Active fire progression and
 /// spread remain on the normal 0.2-second simulation step.
 const FIRE_IGNITION_CHECK_INTERVAL_TICKS: u64 = 5;
+const FIRE_CHARRED_WOOD_RECOVERY_FRACTION: f64 = 0.2;
+const FIRE_DURABLE_STOCK_RECOVERY_FRACTION: f64 = 0.5;
 
 #[derive(Clone)]
 struct FireCandidate {
@@ -660,7 +663,14 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             let Some(mut building) = ctx.db.building().id().find(&incident.target_id) else {
                 return;
             };
+            let salvage = fire_recoverable_stock(&building);
             let _lost_cargo = drain_trips_for_building(ctx, building.id);
+            if let Err(error) = recover_stock_beside_building(ctx, &building, salvage) {
+                log::warn!(
+                    "Could not leave recoverable fire salvage beside building {}: {error}",
+                    building.id
+                );
+            }
             building.assigned_labor = 0;
             building.action_cooldown = 0.0;
             building.timber = 0.0;
@@ -680,6 +690,15 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.wool = 0.0;
             building.cloth = 0.0;
             building.roof_tiles = 0.0;
+            building.ironwork = 0.0;
+            building.polearms = 0.0;
+            building.iron = 0.0;
+            building.clay = 0.0;
+            building.salt = 0.0;
+            building.charcoal = 0.0;
+            building.pottery = 0.0;
+            building.manure = 0.0;
+            building.remedies = 0.0;
             building.gold = 0.0;
             building.civic_receipts_gold = 0.0;
             ctx.db.building().id().update(building);
@@ -701,6 +720,24 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             reconcile_building_labor(ctx, owner);
         }
         _ => {}
+    }
+}
+
+fn fire_recoverable_stock(building: &Building) -> ReclamationStock {
+    ReclamationStock {
+        // A little of the collapsed timber remains useful as rough fuel, while
+        // exposed stone, metal, clay, and fired goods survive only in part.
+        firewood: (building.timber + building.firewood).max(0.0)
+            * FIRE_CHARRED_WOOD_RECOVERY_FRACTION,
+        stone: building.stone.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        ironwork: building.ironwork.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        polearms: building.polearms.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        iron: building.iron.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        clay: building.clay.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        salt: building.salt.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        pottery: building.pottery.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        roof_tiles: building.roof_tiles.max(0.0) * FIRE_DURABLE_STOCK_RECOVERY_FRACTION,
+        ..ReclamationStock::default()
     }
 }
 

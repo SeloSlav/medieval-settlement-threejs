@@ -18,6 +18,23 @@ The calendar is deliberately fictional and fixed:
 - Work hours and Sabbath observance block new ordinary-cart departures. A cart
   that already departed remains a committed crew and completes its delivery,
   unloading, and return home across the boundary instead of camping on the road.
+- Visible workers use the same commitment principle. They choose households by
+  routed road travel, may depart before 06:00 to reach a distant site, and leave a
+  long shift early enough to travel home. Dawn and dusk never reverse an active
+  journey. Reaching home establishes at least six displayed hours of rest, even
+  when an unusually long return finishes after the next workday begins.
+- Exposed extraction worksites may instead construct persistent remote lodging.
+  Lumber mills, stonecutters' camps, large quarries, mines, clay pits, and charcoal
+  yards expose a worksite-card order that starts targeted placement within 34 m.
+  The resulting two-tent camp is a normal building project: it reserves 14 timber
+  and 3 stone, awaits physical material carts and builder labor, can burn, and can
+  be demolished into ordinary reclamation. The crew keeps commuting until it is
+  complete, then gathers at its fire, disappears into a tent while indoors or
+  asleep, and starts locally the next day. Reforester huts, woodcutters' lodges,
+  hunters' halls, foragers' sheds, fishing camps, pastoral farmsteads, and
+  swineherds have built-in crew lodging; barns, apiaries, vineyards, processors,
+  civic sites, and urban jobs retain the daily household commute. Inspectors report
+  the measured journey, effective workday cost, lodging rule, and linked project.
 
 | Speed | Day | Month | Season | Year |
 | --- | ---: | ---: | ---: | ---: |

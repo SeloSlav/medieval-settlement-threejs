@@ -95,13 +95,23 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /const target = rng\(\) < 0\.06 \? 0 : 3 \+ Math\.floor\(rng\(\) \* 2\)/,
-  'wildflowers should occur in most chunks at three or four colonies',
+  /WILDFLOWER_SLOT_CAPACITY = 8/,
+  'the streamed wildflower slot should hold the complete dense meadow patch',
 );
 assert.match(
   fieldSource,
-  /MIN_WILDFLOWER_SPACING_SQ = 0\.9 \* 0\.9/,
-  'wildflower colonies should be able to gather into natural patches',
+  /const target = rng\(\) < 0\.04 \? 0 : 6 \+ Math\.floor\(rng\(\) \* 3\)/,
+  'wildflowers should occur in most chunks at six to eight colonies',
+);
+assert.match(
+  fieldSource,
+  /MIN_WILDFLOWER_SPACING_SQ = 0\.62 \* 0\.62/,
+  'wildflower colonies should gather closely enough to form dense natural patches',
+);
+assert.match(
+  fieldSource,
+  /localPlacements\.length > 0 && rng\(\) < 0\.78[\s\S]*?THREE\.MathUtils\.lerp\(0\.68, 1\.9, Math\.pow\(rng\(\), 0\.7\)\)/,
+  'most wildflower colonies should extend a nearby patch instead of scattering uniformly',
 );
 assert.match(
   fieldSource,

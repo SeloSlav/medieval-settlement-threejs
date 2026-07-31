@@ -49,6 +49,7 @@ import {
   serviceCoverageLabel,
   type ServiceCoverageView,
 } from './serviceCoverage.ts';
+import type { WorksiteCommuteSummary } from '../settlement/workerCommute.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -72,6 +73,7 @@ type ResourceInspectorOptions = {
   getEnemyPressure?: () => number;
   getWorldHydrology?: () => number;
   getWorldResourceAbundance?: () => number;
+  getWorksiteCommuteSummary?: (buildingId: string) => WorksiteCommuteSummary | null;
   onDemolishBuilding?: (buildingId: string) => void | Promise<void>;
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
@@ -224,6 +226,7 @@ type ResourceInspectorOptions = {
   onBeginFarmFieldPlacement?: (farmsteadId: string) => void;
   onBeginPasturePlacement?: (farmsteadId: string) => void;
   onBeginGraveyardPlacement?: (chapelId: string) => void;
+  onBeginRemoteWorkCampPlacement?: (worksiteId: string) => void;
   onInspectDeliveryTrip?: (tripId: string) => void;
   onFocusWorldPosition?: (x: number, z: number) => void;
   onServiceCoverageChange?: (
@@ -709,6 +712,10 @@ export class ResourceInspector {
     }
     if (this.selectedTarget?.kind === 'building') {
       const building = this.selectedTarget.building;
+      if ((event.target as HTMLElement).closest('[data-begin-remote-work-camp]')) {
+        this.options.onBeginRemoteWorkCampPlacement?.(building.id);
+        return;
+      }
       const constructionPriority = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-construction-priority]')
         ?.dataset.constructionPriority;
@@ -1522,6 +1529,9 @@ export class ResourceInspector {
       worldResourceAbundance: this.options.getWorldResourceAbundance?.() ?? 50,
       conflictEnabled: this.options.getConflictEnabled?.() ?? false,
       enemyPressure: this.options.getEnemyPressure?.() ?? 0,
+      ...(this.options.getWorksiteCommuteSummary
+        ? { getWorksiteCommuteSummary: this.options.getWorksiteCommuteSummary }
+        : {}),
       ...(settlementProduction ? { settlementProduction } : {}),
       ...(this.options.getEconomicActivityTaxRate
         ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }

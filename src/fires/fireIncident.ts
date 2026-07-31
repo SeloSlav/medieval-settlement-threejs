@@ -67,6 +67,30 @@ export function fireDisabledResidenceIds(
   return ids;
 }
 
+export function destroyedBuildingIds(
+  incidents: Iterable<FireIncidentState>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const incident of incidents) {
+    if (incident.targetKind === 'building' && incident.status === 'destroyed') {
+      ids.add(incident.targetId);
+    }
+  }
+  return ids;
+}
+
+export function destroyedResidenceIds(
+  incidents: Iterable<FireIncidentState>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const incident of incidents) {
+    if (incident.targetKind === 'residence' && incident.status === 'destroyed') {
+      ids.add(incident.targetId);
+    }
+  }
+  return ids;
+}
+
 export function fireForTarget(
   incidents: Iterable<FireIncidentState>,
   targetKind: FireTargetKind,

@@ -1817,6 +1817,7 @@ export class ResidenceMarkers {
   private readonly residenceOccupied = new Map<string, boolean>();
   private readonly residencePopulation = new Map<string, number>();
   private fireDisabledResidenceIds = new Set<string>();
+  private destroyedResidenceIds = new Set<string>();
   private chimneySmokeAllowed = true;
   private eveningWindowGlow = 0;
   private nightPolicy: Pick<NightPolicyState, 'gathering' | 'curfew'> | undefined;
@@ -1900,6 +1901,26 @@ export class ResidenceMarkers {
       );
     }
     this.applyWindowGlow();
+  }
+
+  setDestroyedResidenceIds(ids: ReadonlySet<string>): void {
+    if (setsEqual(this.destroyedResidenceIds, ids)) return;
+    this.destroyedResidenceIds = new Set(ids);
+    for (const [id, marker] of this.meshes) {
+      const destroyed = ids.has(id);
+      marker.visible = !destroyed;
+      const tier = Number(marker.userData.residenceTier ?? 0);
+      if (destroyed || tier <= 0) {
+        this.shadowProxyBatch.remove(id);
+      } else {
+        this.shadowProxyBatch.upsertResidence(id, tier as 1 | 2 | 3, marker);
+      }
+      if (this.serviceCoverageIds.has(id)) this.serviceCoverageDirty = true;
+    }
+    if (this.shadowProxyBatch.flush()) {
+      this.onShadowCastersChanged?.();
+    }
+    if (this.serviceCoverageDirty) this.syncServiceCoverageHighlights();
   }
 
   setHouseholdClock(clock: GameClock): void {
@@ -2005,6 +2026,8 @@ export class ResidenceMarkers {
         this.serviceCoverageDirty = true;
       }
       marker.position.set(residence.x, y, residence.z);
+      const destroyed = this.destroyedResidenceIds.has(residence.id);
+      marker.visible = !destroyed;
       const condition = residence.condition ?? 0;
       marker.rotation.set(0, residence.yaw, condition * 0.012);
       marker.scale.set(
@@ -2013,7 +2036,7 @@ export class ResidenceMarkers {
         1 - condition * 0.012,
       );
       const completedTier = residence.tier === 0 ? null : residence.tier;
-      if (completedTier == null) {
+      if (completedTier == null || destroyed) {
         this.shadowProxyBatch.remove(residence.id);
       } else {
         this.shadowProxyBatch.upsertResidence(

@@ -54,6 +54,9 @@ import {
   setFoundersCampfireNightLighting,
   setFoundersCampWinterAccumulation,
 } from './meshes/foundersCampMesh.ts';
+import {
+  REMOTE_WORK_CAMPFIRE_NAME,
+} from './remoteWorkCamp.ts';
 import { disposeFireEffect } from '../fires/FireEffect.ts';
 import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import {
@@ -107,6 +110,7 @@ export class BuildingMarkers {
   private readonly onShadowCastersChanged?: () => void;
   private readonly group = new THREE.Group();
   private readonly buildingMeshes = new Map<string, THREE.Group>();
+  private readonly buildingStates = new Map<string, BuildingState>();
   private readonly shadowProxyBatch: BatchedBuildingShadowProxies;
   private readonly foundersCampfires = new Set<THREE.Group>();
   private readonly watermillWheels = new Set<THREE.Group>();
@@ -130,6 +134,7 @@ export class BuildingMarkers {
   private pendingPlacementX = 0;
   private pendingPlacementZ = 0;
   private prewarmedFoundersCamp: THREE.Group | null = null;
+  private destroyedBuildingIds = new Set<string>();
 
   constructor(options: BuildingMarkersOptions) {
     this.terrain = options.terrain;
@@ -203,6 +208,7 @@ export class BuildingMarkers {
     const nextIds = new Set<string>();
     for (const building of buildings) {
       nextIds.add(building.id);
+      this.buildingStates.set(building.id, building);
       this.upsertBuilding(
         building,
         livestockHerds?.get(building.id),
@@ -213,6 +219,29 @@ export class BuildingMarkers {
     for (const id of this.buildingMeshes.keys()) {
       if (nextIds.has(id)) continue;
       this.removeBuilding(id);
+    }
+    if (this.shadowProxyBatch.flush()) {
+      this.onShadowCastersChanged?.();
+    }
+  }
+
+  setDestroyedBuildingIds(ids: ReadonlySet<string>): void {
+    if (setsEqual(this.destroyedBuildingIds, ids)) return;
+    this.destroyedBuildingIds = new Set(ids);
+    for (const [id, marker] of this.buildingMeshes) {
+      const building = this.buildingStates.get(id);
+      const destroyed = ids.has(id);
+      marker.visible = !destroyed;
+      if (
+        destroyed
+        || !building
+        || building.constructionComplete === false
+        || building.kind === 'founders_camp'
+      ) {
+        this.shadowProxyBatch.remove(id);
+      } else {
+        this.shadowProxyBatch.upsertBuilding(id, building.kind, marker);
+      }
     }
     if (this.shadowProxyBatch.flush()) {
       this.onShadowCastersChanged?.();
@@ -611,11 +640,21 @@ export class BuildingMarkers {
           this.foundersCampfires.add(campfire);
         }
       }
+      const remoteCampfire = marker.getObjectByName(REMOTE_WORK_CAMPFIRE_NAME);
+      if (remoteCampfire instanceof THREE.Group) {
+        setFoundersCampfireNightLighting(
+          remoteCampfire,
+          this.foundersCampfireNightLighting,
+        );
+        this.foundersCampfires.add(remoteCampfire);
+      }
     }
 
     const y = this.terrain.getHeightAt(building.x, building.z);
     marker.position.set(building.x, y, building.z);
-    if (operational && building.kind !== 'founders_camp') {
+    const destroyed = this.destroyedBuildingIds.has(building.id);
+    marker.visible = !destroyed;
+    if (operational && !destroyed && building.kind !== 'founders_camp') {
       this.shadowProxyBatch.upsertBuilding(
         building.id,
         building.kind,
@@ -646,13 +685,16 @@ export class BuildingMarkers {
     // individual buildings own only their geometry.
     disposeObject3D(marker);
     this.buildingMeshes.delete(id);
+    this.buildingStates.delete(id);
   }
 
   private unregisterFoundersCampfire(marker: THREE.Group): void {
-    const campfire = marker.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
-    if (!(campfire instanceof THREE.Group)) return;
-    this.foundersCampfires.delete(campfire);
-    disposeFireEffect(campfire);
+    for (const name of [FOUNDERS_CAMPFIRE_NAME, REMOTE_WORK_CAMPFIRE_NAME]) {
+      const campfire = marker.getObjectByName(name);
+      if (!(campfire instanceof THREE.Group)) continue;
+      this.foundersCampfires.delete(campfire);
+      disposeFireEffect(campfire);
+    }
   }
 
   private registerWatermillWheel(marker: THREE.Group): void {
@@ -668,6 +710,14 @@ export class BuildingMarkers {
 
 function ratio(value: number, required: number): number {
   return required <= 1e-6 ? 1 : THREE.MathUtils.clamp(value / required, 0, 1);
+}
+
+function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
 }
 
 function syncBuildingVisualState(

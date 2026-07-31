@@ -60,6 +60,7 @@ import PlaceBurgageZoneReducer from "./place_burgage_zone_reducer";
 import PlaceFarmFieldReducer from "./place_farm_field_reducer";
 import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
+import PlaceRemoteWorkCampReducer from "./place_remote_work_camp_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
@@ -546,6 +547,7 @@ const reducersSchema = __reducers(
   __reducerSchema("place_farm_field", PlaceFarmFieldReducer),
   __reducerSchema("place_graveyard", PlaceGraveyardReducer),
   __reducerSchema("place_pasture", PlacePastureReducer),
+  __reducerSchema("place_remote_work_camp", PlaceRemoteWorkCampReducer),
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),

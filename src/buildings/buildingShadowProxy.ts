@@ -10,6 +10,7 @@ export const BUILDING_DETAIL_SHADOW_CASTER_FLAG = 'buildingDetailShadowCaster';
 const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   founders_camp: 3.4,
   salvage_pile: 2.2,
+  remote_work_camp: 3.4,
   lumber_mill: 6.3,
   reforester: 5.5,
   woodcutters_lodge: 5.6,
@@ -321,6 +322,7 @@ function buildingShadowProxySpec(kind: BuildingKind): ShadowProxySpec {
       };
     case 'founders_camp':
     case 'salvage_pile':
+    case 'remote_work_camp':
     case 'lumber_mill':
     case 'reforester':
     case 'woodcutters_lodge':

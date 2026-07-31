@@ -220,6 +220,9 @@ export class SettlementPresentationController {
       schedule.laborPaused,
       nightPolicy,
       monasteryFeastsEnabled,
+      schedule.clock.isSunday
+        && schedule.sabbathObservance
+        && schedule.staffedChapel,
     );
     targets.ambientAudio?.syncSettlementSchedule(schedule);
   }

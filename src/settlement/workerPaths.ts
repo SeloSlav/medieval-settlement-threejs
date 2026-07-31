@@ -10,8 +10,12 @@ import type {
   TreeLayoutEntry,
 } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
-import { roadPathRoute } from '../logistics/roadLogistics.ts';
+import {
+  roadPathDistancesFrom,
+  roadPathRoute,
+} from '../logistics/roadLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { PEDESTRIAN_ROAD_SPEED_MULTIPLIER } from '../roads/roadTravel.ts';
 import { polylineLengthXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import { isForagingHarvestAvailable } from '../foraging/foragingSeason.ts';
@@ -241,14 +245,16 @@ export function workerProductionBlockerDescription(
 }
 
 /**
- * Claims real household members for visible production jobs. Nearest occupied
- * homes are used first; the settlement's unhoused starting population is the
- * fallback when there are more jobs than housed residents.
+ * Claims real household members for visible production jobs. Building/home
+ * pairs are considered settlement-wide by routed travel distance, so stable
+ * building-table order cannot strand a nearby household at a remote worksite.
+ * The settlement's unhoused starting population remains the final fallback.
  */
 export function allocateProductionWorkers(
   residences: readonly ResidenceState[],
   buildings: readonly BuildingState[],
   rosteredCartWorkersByBuilding: ReadonlyMap<string, number> = NO_ROSTERED_CART_WORKERS,
+  roadNetwork: RoadNetwork | null = null,
 ): WorkerRoster {
   const activeResidences = residences
     .filter((residence) => !residence.abandoned && residence.population > 0)
@@ -268,7 +274,6 @@ export function allocateProductionWorkers(
     ]),
   );
   const assignments: WorkerAssignment[] = [];
-  let fallbackPersonIndex = 0;
   const housedPopulation = activeResidences.reduce(
     (sum, residence) => sum + Math.max(0, Math.floor(residence.population)),
     0,
@@ -282,53 +287,106 @@ export function allocateProductionWorkers(
     )
     .sort((a, b) => a.id.localeCompare(b.id));
 
+  const openSlots = new Map<string, number[]>();
+  const onSiteWorkers = new Map<string, number>();
+  let visibleSlotBudget = MAX_VISIBLE_WORKERS;
   for (const building of workplaces) {
-    if (assignments.length >= MAX_VISIBLE_WORKERS) break;
+    if (visibleSlotBudget <= 0) break;
     const workerCount = Math.max(0, Math.floor(building.assignedLabor));
+    const visibleWorkerCount = Math.min(workerCount, visibleSlotBudget);
     const awayWorkerCount = Math.min(
       workerCount,
       Math.max(0, Math.floor(rosteredCartWorkersByBuilding.get(building.id) ?? 0)),
     );
-    const onSiteWorkerCount = workerCount - awayWorkerCount;
-    for (let slotIndex = 0; slotIndex < workerCount; slotIndex++) {
-      if (assignments.length >= MAX_VISIBLE_WORKERS) break;
+    onSiteWorkers.set(building.id, workerCount - awayWorkerCount);
+    openSlots.set(
+      building.id,
+      Array.from({ length: visibleWorkerCount }, (_, slotIndex) => slotIndex),
+    );
+    visibleSlotBudget -= visibleWorkerCount;
+  }
 
-      let home: ResidenceState | null = null;
-      let bestDistanceSq = Infinity;
-      for (const residence of activeResidences) {
-        if ((remainingPopulationByResidence.get(residence.id) ?? 0) <= 0) continue;
-        const distanceSq = (residence.x - building.x) ** 2 + (residence.z - building.z) ** 2;
-        if (
-          distanceSq < bestDistanceSq
-          || (distanceSq === bestDistanceSq && home && residence.id < home.id)
-        ) {
-          home = residence;
-          bestDistanceSq = distanceSq;
-        }
-      }
+  const commutePairs: Array<{
+    building: BuildingState;
+    residence: ResidenceState;
+    travelCost: number;
+  }> = [];
+  const residenceTargets = activeResidences.map((residence) => ({
+    x: residence.x,
+    z: residence.z,
+  }));
+  for (const building of workplaces) {
+    if (!openSlots.has(building.id)) continue;
+    const roadDistances = roadNetwork
+      ? roadPathDistancesFrom(
+          roadNetwork,
+          building.x,
+          building.z,
+          residenceTargets,
+        )
+      : null;
+    for (let index = 0; index < activeResidences.length; index += 1) {
+      const residence = activeResidences[index];
+      const roadDistance = roadDistances?.[index] ?? null;
+      commutePairs.push({
+        building,
+        residence,
+        travelCost: roadDistance != null
+          ? roadDistance / PEDESTRIAN_ROAD_SPEED_MULTIPLIER
+          : Math.hypot(
+              residence.x - building.x,
+              residence.z - building.z,
+            ),
+      });
+    }
+  }
 
-      let personIdentity: string;
-      if (home) {
-        const remaining = remainingPopulationByResidence.get(home.id) ?? 0;
-        const claimedIndex = Math.max(0, home.population - remaining);
-        remainingPopulationByResidence.set(home.id, remaining - 1);
-        personIdentity = `${home.id}:person:${claimedIndex}`;
-      } else {
-        if (fallbackPersonIndex >= unhousedPopulation) break;
-        personIdentity = `starting-population:${fallbackPersonIndex}`;
-        fallbackPersonIndex += 1;
-      }
+  commutePairs.sort((a, b) =>
+    a.travelCost - b.travelCost
+      || a.building.id.localeCompare(b.building.id)
+      || a.residence.id.localeCompare(b.residence.id),
+  );
 
+  for (const pair of commutePairs) {
+    const slots = openSlots.get(pair.building.id);
+    if (!slots || slots.length === 0) continue;
+    let remaining = remainingPopulationByResidence.get(pair.residence.id) ?? 0;
+    while (slots.length > 0 && remaining > 0) {
+      const slotIndex = slots.shift()!;
+      const claimedIndex = Math.max(0, pair.residence.population - remaining);
+      remaining -= 1;
+      assignments.push({
+        id: `worker:${pair.building.id}:${slotIndex}`,
+        buildingId: pair.building.id,
+        slotIndex,
+        homeResidenceId: pair.residence.id,
+        personIdentity: `${pair.residence.id}:person:${claimedIndex}`,
+        onSite: slotIndex < (onSiteWorkers.get(pair.building.id) ?? 0),
+      });
+    }
+    remainingPopulationByResidence.set(pair.residence.id, remaining);
+  }
+
+  let fallbackPersonIndex = 0;
+  for (const building of workplaces) {
+    const slots = openSlots.get(building.id) ?? [];
+    while (slots.length > 0 && fallbackPersonIndex < unhousedPopulation) {
+      const slotIndex = slots.shift()!;
       assignments.push({
         id: `worker:${building.id}:${slotIndex}`,
         buildingId: building.id,
         slotIndex,
-        homeResidenceId: home?.id ?? null,
-        personIdentity,
-        onSite: slotIndex < onSiteWorkerCount,
+        homeResidenceId: null,
+        personIdentity: `starting-population:${fallbackPersonIndex}`,
+        onSite: slotIndex < (onSiteWorkers.get(building.id) ?? 0),
       });
+      fallbackPersonIndex += 1;
     }
   }
+
+  assignments.sort((a, b) =>
+    a.buildingId.localeCompare(b.buildingId) || a.slotIndex - b.slotIndex,
+  );
 
   return { assignments, remainingPopulationByResidence };
 }

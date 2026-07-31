@@ -134,6 +134,29 @@ import {
 } from '../fires/fireIncident.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
 import { COMBAT_WADING_SPEED_MULTIPLIER } from '../security/combatRiverNavigation.ts';
+import {
+  SELECTED_AGENT_ROUTE_Y_OFFSET,
+  type SelectedAgentRoutePoint,
+} from '../scene/SelectedAgentRoute.ts';
+import {
+  resolveWorksiteLodging,
+  workLodgingDoorPosition,
+  workLodgingFiresidePosition,
+  type WorksiteLodging,
+} from '../buildings/remoteWorkCamp.ts';
+import {
+  clockElapsedSeconds,
+  clockSecondsIntoDay,
+  commuteBandForRatio,
+  commuteEffectiveShiftRatio,
+  estimatePedestrianTravelSeconds,
+  WORK_END_SECONDS,
+  WORK_START_SECONDS,
+  WORKDAY_SECONDS,
+  WORKER_MINIMUM_REST_SECONDS,
+  WORKER_MINIMUM_SHIFT_SECONDS,
+  type WorksiteCommuteSummary,
+} from './workerCommute.ts';
 
 type VillagerMode = VillagerRenderMode;
 type VillagerRole = 'founder' | 'resident' | 'worker';
@@ -141,6 +164,9 @@ type VillagerRoutinePhase =
   | 'work'
   | 'commuting_to_work'
   | 'returning_home'
+  | 'remote_camp_outdoors'
+  | 'remote_camp_indoors'
+  | 'remote_camp_asleep'
   | 'going_to_mass'
   | 'at_mass'
   | 'returning_from_mass'
@@ -175,6 +201,23 @@ type VillagerPathPurpose =
   | 'return_from_fire_assembly'
   | 'ambient'
   | null;
+
+type RemoteCampPhase =
+  | 'remote_camp_outdoors'
+  | 'remote_camp_indoors'
+  | 'remote_camp_asleep';
+
+function isRemoteCampPhase(phase: VillagerRoutinePhase): phase is RemoteCampPhase {
+  return phase === 'remote_camp_outdoors'
+    || phase === 'remote_camp_indoors'
+    || phase === 'remote_camp_asleep';
+}
+
+function remoteCampPhaseForHomeState(homeState: HouseholdHomeState): RemoteCampPhase {
+  if (homeState === 'asleep') return 'remote_camp_asleep';
+  if (homeState === 'indoors') return 'remote_camp_indoors';
+  return 'remote_camp_outdoors';
+}
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
 const CAMP_SEAT_RELEASE_DISTANCE = 0.8;
@@ -241,10 +284,15 @@ type VillagerAgent = {
   yaw: number;
   simAccumulator: number;
   frozen: boolean;
+  restUntilElapsedSeconds: number;
+  workArrivalElapsedSeconds: number | null;
+  returnRequiresRest: boolean;
+  returnLodgingId: string | null;
 };
 
 export type VillagerInspection = {
   personIdentity: string;
+  modelVariant: VillagerModelVariant;
   name: string;
   initials: string;
   eyebrow: string;
@@ -260,6 +308,7 @@ export type VillagerInspection = {
   paceLabel: string;
   pace: string;
   position: { x: number; y: number; z: number };
+  route: SelectedAgentRoutePoint[];
   visible: boolean;
 };
 
@@ -314,6 +363,14 @@ export class VillagerRenderer {
   private roadNetwork: RoadNetwork | null = null;
   private clock: GameClock | null = null;
   private laborPaused = false;
+  private sabbathPausedToday = false;
+  private lastScheduleElapsedSeconds: number | null = null;
+  private commuteEstimateNetwork: RoadNetwork | null = null;
+  private commuteEstimateTopologyRevision = -1;
+  private readonly workerCommuteEstimateCache = new Map<
+    string,
+    { key: string; seconds: number }
+  >();
   private nightPolicy: NightPolicyState = { ...DEFAULT_NIGHT_POLICY };
   private lastView: CrowdViewState | undefined;
 
@@ -331,11 +388,29 @@ export class VillagerRenderer {
     laborPaused: boolean,
     nightPolicy: NightPolicyState = DEFAULT_NIGHT_POLICY,
     monasteryFeastsEnabled = true,
+    sabbathPausedToday = false,
   ): void {
+    const scheduleElapsed = clockElapsedSeconds(clock);
+    if (
+      this.lastScheduleElapsedSeconds != null
+      && scheduleElapsed + 1 < this.lastScheduleElapsedSeconds
+    ) {
+      // Deterministic QA fixtures and world reconnects may replace the clock
+      // with an earlier snapshot; stale rest deadlines must not survive it.
+      for (const agent of this.agents.values()) {
+        agent.restUntilElapsedSeconds = Math.min(
+          agent.restUntilElapsedSeconds,
+          scheduleElapsed,
+        );
+        agent.workArrivalElapsedSeconds = null;
+      }
+    }
+    this.lastScheduleElapsedSeconds = scheduleElapsed;
     this.clock = clock;
     this.laborPaused = laborPaused;
     this.nightPolicy = nightPolicy;
     this.monasteryFeastsEnabled = monasteryFeastsEnabled;
+    this.sabbathPausedToday = sabbathPausedToday;
     let changed = false;
     for (const agent of this.agents.values()) {
       changed = this.reconcileRoutine(agent) || changed;
@@ -498,6 +573,15 @@ export class VillagerRenderer {
         && building.constructionComplete !== false
         && building.foundingShelterActive !== false,
     ) ?? null;
+    const topologyRevision = options.roadNetwork?.getTopologyRevision() ?? -1;
+    if (
+      this.commuteEstimateNetwork !== options.roadNetwork
+      || this.commuteEstimateTopologyRevision !== topologyRevision
+    ) {
+      this.workerCommuteEstimateCache.clear();
+      this.commuteEstimateNetwork = options.roadNetwork;
+      this.commuteEstimateTopologyRevision = topologyRevision;
+    }
     this.roadNetwork = options.roadNetwork;
     this.massChapels = operationalMassChapels(
       physicalBuildings,
@@ -527,7 +611,12 @@ export class VillagerRenderer {
       this.buildings,
       options.deliveryTrips ?? [],
     );
-    const roster = allocateProductionWorkers(residences, buildings, travelingWorkers);
+    const roster = allocateProductionWorkers(
+      residences,
+      buildings,
+      travelingWorkers,
+      this.roadNetwork,
+    );
     const onSiteAssignments = roster.assignments.filter((assignment) => assignment.onSite);
     const visibleSickResidents: Array<{
       residence: ResidenceState;
@@ -611,6 +700,10 @@ export class VillagerRenderer {
           yaw: residence.yaw,
           simAccumulator: 0,
           frozen: false,
+          restUntilElapsedSeconds: 0,
+          workArrivalElapsedSeconds: null,
+          returnRequiresRest: false,
+          returnLodgingId: null,
         };
         this.agents.set(id, agent);
       } else {
@@ -704,6 +797,10 @@ export class VillagerRenderer {
             yaw: residence.yaw,
             simAccumulator: 0,
             frozen: false,
+            restUntilElapsedSeconds: 0,
+            workArrivalElapsedSeconds: null,
+            returnRequiresRest: false,
+            returnLodgingId: null,
           };
           this.agents.set(id, agent);
         } else {
@@ -802,6 +899,10 @@ export class VillagerRenderer {
           yaw: yard.yaw,
           simAccumulator: 0,
           frozen: false,
+          restUntilElapsedSeconds: 0,
+          workArrivalElapsedSeconds: null,
+          returnRequiresRest: false,
+          returnLodgingId: null,
         };
         this.agents.set(assignment.id, agent);
       } else {
@@ -901,6 +1002,10 @@ export class VillagerRenderer {
           yaw: 0,
           simAccumulator: 0,
           frozen: false,
+          restUntilElapsedSeconds: 0,
+          workArrivalElapsedSeconds: null,
+          returnRequiresRest: false,
+          returnLodgingId: null,
         };
         this.agents.set(id, agent);
       } else {
@@ -925,6 +1030,7 @@ export class VillagerRenderer {
     for (const id of [...this.agents.keys()]) {
       if (nextIds.has(id)) continue;
       this.agents.delete(id);
+      this.workerCommuteEstimateCache.delete(id);
     }
     this.syncRefugeRallySlots();
     this.syncGuardMusterSlots();
@@ -1072,8 +1178,67 @@ export class VillagerRenderer {
     return null;
   }
 
+  getWorksiteCommuteSummary(buildingId: string): WorksiteCommuteSummary | null {
+    const workplace = this.buildings.get(buildingId);
+    if (!workplace) return null;
+    const lodging = resolveWorksiteLodging(
+      workplace,
+      this.buildings.values(),
+      this.fireDisabledBuildingIds,
+    );
+    let measuredWorkers = 0;
+    let totalDistance = 0;
+    let longestDistance = 0;
+    let totalSeconds = 0;
+    let longestSeconds = 0;
+
+    for (const agent of this.agents.values()) {
+      if (agent.role !== 'worker' || agent.workplaceId !== buildingId) continue;
+      const residence = agent.residenceId
+        ? this.residences.get(agent.residenceId) ?? null
+        : null;
+      const origin = residence
+        ? residenceDoorPosition(residence)
+        : this.foundingCamp
+          ? this.foundingCampRestPosition(agent, this.foundingCamp)
+          : null;
+      if (!origin) continue;
+      const destination = workplaceYardPosition(workplace, agent.workplaceSlot);
+      const path = pickWorkerCommutePath(origin, destination, this.roadNetwork);
+      if (!path) continue;
+      const distance = polylineLengthXZ(path);
+      const seconds = estimatePedestrianTravelSeconds(
+        path,
+        agent.walkSpeed,
+        this.roadNetwork,
+      );
+      measuredWorkers += 1;
+      totalDistance += distance;
+      longestDistance = Math.max(longestDistance, distance);
+      totalSeconds += seconds;
+      longestSeconds = Math.max(longestSeconds, seconds);
+    }
+
+    const averageSeconds = measuredWorkers > 0 ? totalSeconds / measuredWorkers : 0;
+    const effectiveShiftRatio = lodging
+      ? 1
+      : commuteEffectiveShiftRatio(averageSeconds);
+    return {
+      workerCount: workplace.assignedLabor,
+      measuredWorkers,
+      averageOneWayDistance: measuredWorkers > 0 ? totalDistance / measuredWorkers : 0,
+      longestOneWayDistance: longestDistance,
+      averageOneWaySeconds: averageSeconds,
+      longestOneWaySeconds: longestSeconds,
+      effectiveShiftRatio,
+      band: commuteBandForRatio(lodging ? 0 : averageSeconds * 2 / WORKDAY_SECONDS),
+      lodgingMode: lodging?.mode ?? 'none',
+    };
+  }
+
   dispose(): void {
     this.agents.clear();
+    this.workerCommuteEstimateCache.clear();
     this.activityAudio.dispose();
     this.farmWorkerSongAudio.dispose();
     this.combatAudio.dispose();
@@ -1112,6 +1277,7 @@ export class VillagerRenderer {
 
     return {
       personIdentity: agent.personIdentity,
+      modelVariant: agent.modelVariant,
       name,
       initials: name
         .split(/\s+/)
@@ -1179,8 +1345,47 @@ export class VillagerRenderer {
         (agent.walkSpeed * PEDESTRIAN_ROAD_SPEED_MULTIPLIER).toFixed(1)
       } m/s on roads`,
       position: { x: agent.x, y: agent.y, z: agent.z },
+      route: this.inspectionRoute(agent, workplace),
       visible: this.isVisibleAgent(agent),
     };
+  }
+
+  private inspectionRoute(
+    agent: VillagerAgent,
+    workplace: BuildingState | null,
+  ): SelectedAgentRoutePoint[] {
+    let route: PointXZ[] = [];
+    if (agent.pathPurpose && agent.path.length >= 2) {
+      route = remainingPolyline(
+        agent.path,
+        Math.min(agent.pathDistance, agent.displayPathCursor),
+      );
+      if (route.length > 0) route[0] = { x: agent.x, z: agent.z };
+    } else if (
+      agent.role === 'worker'
+      && workplace
+      && !this.fireDisabledBuildingIds.has(workplace.id)
+    ) {
+      const destination = agent.routinePhase === 'work'
+        ? this.workerRestDestination(agent, workplace)
+        : workplaceYardPosition(workplace, agent.workplaceSlot);
+      const commute = destination
+        ? pickWorkerCommutePath(
+            { x: agent.x, z: agent.z },
+            destination,
+            this.roadNetwork,
+          )
+        : null;
+      route = commute ? this.routePath(commute) ?? [] : [];
+    }
+
+    return route.length >= 2
+      ? route.map((point) => ({
+          x: point.x,
+          y: this.resolveGroundY(point.x, point.z) + SELECTED_AGENT_ROUTE_Y_OFFSET,
+          z: point.z,
+        }))
+      : [];
   }
 
   private describeCombatAgent(visual: CombatAgentVisual): VillagerInspection {
@@ -1216,6 +1421,7 @@ export class VillagerRenderer {
     const y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
     return {
       personIdentity,
+      modelVariant: ordinaryGuard?.modelVariant ?? 'man',
       name,
       initials: ordinaryGuard
         ? name
@@ -1246,6 +1452,7 @@ export class VillagerRenderer {
       paceLabel: combat.faction === 'guard' ? 'Equipment' : 'Arms and spoils',
       pace: equipment,
       position: { x: visual.displayX, y, z: visual.displayZ },
+      route: [],
       visible: true,
     };
   }
@@ -1279,7 +1486,12 @@ export class VillagerRenderer {
   }
 
   private isVisibleAgent(agent: VillagerAgent): boolean {
-    if (agent.routinePhase === 'indoors' || agent.routinePhase === 'asleep') {
+    if (
+      agent.routinePhase === 'indoors'
+      || agent.routinePhase === 'asleep'
+      || agent.routinePhase === 'remote_camp_indoors'
+      || agent.routinePhase === 'remote_camp_asleep'
+    ) {
       return false;
     }
     if (agent.role === 'worker') {
@@ -1326,7 +1538,12 @@ export class VillagerRenderer {
         const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
         if (!residence || residence.abandoned || residence.population <= 0) continue;
       }
-      if (agent.routinePhase === 'indoors' || agent.routinePhase === 'asleep') {
+      if (
+        agent.routinePhase === 'indoors'
+        || agent.routinePhase === 'asleep'
+        || agent.routinePhase === 'remote_camp_indoors'
+        || agent.routinePhase === 'remote_camp_asleep'
+      ) {
         continue;
       }
       renderAgents.push({
@@ -2006,7 +2223,7 @@ export class VillagerRenderer {
       ? this.buildings.get(agent.workplaceId) ?? null
       : null;
     const shouldWork = agent.role === 'worker'
-      && this.shouldWorkerBeAtWork(agent, workplace);
+      && this.shouldWorkerReportToWork(agent, workplace);
     const residence = agent.residenceId
       ? this.residences.get(agent.residenceId) ?? null
       : null;
@@ -2014,7 +2231,16 @@ export class VillagerRenderer {
       ? this.fireDisabledResidenceIds.has(residence.id)
       : false;
 
-    if (residenceFireDisabled && residence && !shouldWork) {
+    if (
+      residenceFireDisabled
+      && residence
+      && !shouldWork
+      && !(workplace && resolveWorksiteLodging(
+        workplace,
+        this.buildings.values(),
+        this.fireDisabledBuildingIds,
+      ))
+    ) {
       if (
         agent.routinePhase === 'going_to_fire_assembly'
         || agent.routinePhase === 'at_fire_assembly'
@@ -2093,6 +2319,33 @@ export class VillagerRenderer {
     }
     if (agent.routinePhase === 'returning_from_feast') return false;
 
+    // Worksite lodging covers the working week, not the observed Sabbath.
+    // Replan even an already-started trip so nobody reaches the tents only
+    // to turn around for their household or the founders camp.
+    if (
+      this.sabbathPausedToday
+      && agent.role === 'worker'
+      && (
+        isRemoteCampPhase(agent.routinePhase)
+        || agent.pathPurpose === 'commute_to_work'
+        || (
+          agent.pathPurpose === 'return_home'
+          && agent.returnLodgingId != null
+        )
+      )
+    ) {
+      return this.beginWorkerReturnHome(agent);
+    }
+
+    // Ordinary schedule changes never reverse a journey already under way.
+    // Emergencies and explicit religious gatherings may still preempt it.
+    if (
+      agent.pathPurpose === 'return_home'
+      || agent.pathPurpose === 'commute_to_work'
+    ) {
+      return false;
+    }
+
     if (agent.role === 'founder') {
       return this.transitionToHomeState(agent, 'home_outdoors');
     }
@@ -2109,12 +2362,20 @@ export class VillagerRenderer {
       if (agent.routinePhase === 'work' || agent.routinePhase === 'commuting_to_work') {
         return this.beginWorkerReturnHome(agent);
       }
+      if (workplace && this.workerWorksiteLodging(workplace)) {
+        if (isRemoteCampPhase(agent.routinePhase)) {
+          return this.transitionToRemoteCampState(agent, homeState, workplace);
+        }
+      }
+      if (isRemoteCampPhase(agent.routinePhase)) {
+        return this.beginWorkerReturnHome(agent);
+      }
     }
 
     return this.transitionToHomeState(agent, homeState);
   }
 
-  private shouldWorkerBeAtWork(
+  private shouldWorkerReportToWork(
     agent: VillagerAgent,
     workplace: BuildingState | null,
   ): boolean {
@@ -2125,14 +2386,48 @@ export class VillagerRenderer {
     ) {
       return false;
     }
-    return (this.clock.isWorkHours && !this.laborPaused)
-      || this.isNightWatchDuty(agent, workplace)
+    if (
+      this.isNightWatchDuty(agent, workplace)
       || (
         !this.clock.isWorkHours
         && workplace.constructionComplete !== false
         && isNightWorkBuilding(workplace.kind, this.nightPolicy.work)
         && !this.frontierAlertActive
-      );
+      )
+    ) {
+      return true;
+    }
+
+    const elapsed = clockElapsedSeconds(this.clock);
+    if (elapsed + 1e-6 < agent.restUntilElapsedSeconds) return false;
+
+    const secondsIntoDay = clockSecondsIntoDay(this.clock);
+    const atWork = agent.routinePhase === 'work';
+    const travelSeconds = this.estimateWorkerCommuteSeconds(agent, workplace);
+    const weeklyReturnToLodging = this.workerWorksiteLodging(workplace) != null
+      && !atWork
+      && !isRemoteCampPhase(agent.routinePhase);
+    const minimumUsefulShift = weeklyReturnToLodging
+      ? 0
+      : WORKER_MINIMUM_SHIFT_SECONDS;
+
+    if (secondsIntoDay < WORK_START_SECONDS) {
+      if (this.sabbathPausedToday) return false;
+      const untilWork = WORK_START_SECONDS - secondsIntoDay;
+      return travelSeconds + minimumUsefulShift <= WORKDAY_SECONDS
+        && untilWork <= travelSeconds + 0.25;
+    }
+
+    if (secondsIntoDay >= WORK_END_SECONDS || this.laborPaused) return false;
+
+    const remainingWorkday = WORK_END_SECONDS - secondsIntoDay;
+    if (atWork) {
+      const minimumShiftComplete = agent.workArrivalElapsedSeconds == null
+        || elapsed - agent.workArrivalElapsedSeconds >= WORKER_MINIMUM_SHIFT_SECONDS;
+      return !(minimumShiftComplete && remainingWorkday <= travelSeconds + 0.25);
+    }
+
+    return remainingWorkday >= travelSeconds + minimumUsefulShift;
   }
 
   private isNightWatchDuty(
@@ -2686,12 +2981,16 @@ export class VillagerRenderer {
   }
 
   private beginWorkerReturnHome(agent: VillagerAgent): boolean {
-    const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
-    const destination = residence
-      ? residenceDoorPosition(residence)
-      : this.foundingCamp
-        ? this.foundingCampRestPosition(agent, this.foundingCamp)
-        : null;
+    const workplace = agent.workplaceId
+      ? this.buildings.get(agent.workplaceId) ?? null
+      : null;
+    const destination = this.workerRestDestination(agent, workplace);
+    agent.returnLodgingId = workplace
+      ? this.workerWorksiteLodging(workplace)?.lodging.id ?? null
+      : null;
+    agent.returnRequiresRest = !(
+      workplace && this.fireDisabledBuildingIds.has(workplace.id)
+    );
     if (!destination) {
       this.clearPath(agent);
       agent.routinePhase = 'indoors';
@@ -2714,13 +3013,60 @@ export class VillagerRenderer {
 
   private completeWorkerReturnHome(agent: VillagerAgent): void {
     this.clearPath(agent);
+    const workplace = agent.workplaceId
+      ? this.buildings.get(agent.workplaceId) ?? null
+      : null;
+    const lodging = workplace
+      ? resolveWorksiteLodging(
+          workplace,
+          this.buildings.values(),
+          this.fireDisabledBuildingIds,
+        )
+      : null;
+    if (agent.returnLodgingId && lodging?.lodging.id !== agent.returnLodgingId) {
+      agent.returnLodgingId = null;
+      const residence = agent.residenceId
+        ? this.residences.get(agent.residenceId) ?? null
+        : null;
+      const home = residence
+        ? residenceDoorPosition(residence)
+        : this.foundingCamp
+          ? this.foundingCampRestPosition(agent, this.foundingCamp)
+          : null;
+      const path = home
+        ? pickWorkerCommutePath({ x: agent.x, z: agent.z }, home, this.roadNetwork)
+        : null;
+      if (path && this.beginJourney(agent, path, 'return_home')) {
+        agent.routinePhase = 'returning_home';
+        return;
+      }
+    }
+    if (this.clock && agent.returnRequiresRest) {
+      agent.restUntilElapsedSeconds = Math.max(
+        agent.restUntilElapsedSeconds,
+        clockElapsedSeconds(this.clock) + WORKER_MINIMUM_REST_SECONDS,
+      );
+    }
+    agent.returnRequiresRest = false;
+    agent.workArrivalElapsedSeconds = null;
+    const completedAtLodging = agent.returnLodgingId != null
+      && lodging?.lodging.id === agent.returnLodgingId;
+    agent.returnLodgingId = null;
+    const homeState = this.clock
+      ? householdMemberHomeState(agent.personIdentity, this.clock, this.nightPolicy)
+      : 'home_outdoors';
+    if (workplace && completedAtLodging) {
+      this.transitionToRemoteCampState(agent, homeState, workplace);
+      agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
+      this.reconcileRoutine(agent);
+      return;
+    }
     const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
     if (residence) this.placeIdle(agent, residence);
     else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
-    agent.routinePhase = this.clock
-      ? householdMemberHomeState(agent.personIdentity, this.clock)
-      : 'home_outdoors';
+    agent.routinePhase = homeState;
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
+    this.reconcileRoutine(agent);
   }
 
   private beginWorkerCommuteToWork(agent: VillagerAgent): boolean {
@@ -2751,8 +3097,133 @@ export class VillagerRenderer {
       return;
     }
     agent.routinePhase = 'work';
+    agent.workArrivalElapsedSeconds = this.clock
+      ? clockElapsedSeconds(this.clock)
+      : null;
     this.placeWorkerIdle(agent, building);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.45;
+  }
+
+  private workerRestDestination(
+    agent: VillagerAgent,
+    workplace: BuildingState | null,
+  ): (PointXZ & { yaw?: number }) | null {
+    const lodging = workplace
+      ? this.workerWorksiteLodging(workplace)
+      : null;
+    if (lodging) {
+      return workLodgingDoorPosition(
+        lodging.lodging,
+        agent.workplaceSlot,
+        this.roadNetwork,
+      );
+    }
+    return this.workerPermanentHomeDestination(agent);
+  }
+
+  private workerPermanentHomeDestination(
+    agent: VillagerAgent,
+  ): (PointXZ & { yaw?: number }) | null {
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    if (residence) return residenceDoorPosition(residence);
+    return this.foundingCamp
+      ? this.foundingCampRestPosition(agent, this.foundingCamp)
+      : null;
+  }
+
+  private workerWorksiteLodging(
+    workplace: BuildingState,
+  ): WorksiteLodging | null {
+    // Sunday homecoming deliberately applies to built-in bunks as well as
+    // separately constructed camps.
+    if (this.sabbathPausedToday) return null;
+    return resolveWorksiteLodging(
+      workplace,
+      this.buildings.values(),
+      this.fireDisabledBuildingIds,
+    );
+  }
+
+  private estimateWorkerCommuteSeconds(
+    agent: VillagerAgent,
+    workplace: BuildingState,
+  ): number {
+    const origin = agent.routinePhase === 'work'
+      || isRemoteCampPhase(agent.routinePhase)
+      || (
+        agent.routinePhase === 'returning_home'
+        && agent.returnLodgingId != null
+      )
+      ? this.workerRestDestination(agent, workplace)
+      : this.workerPermanentHomeDestination(agent);
+    if (!origin) return 0;
+    const destination = workplaceYardPosition(workplace, agent.workplaceSlot);
+    const key = [
+      workplace.id,
+      workplace.x,
+      workplace.z,
+      resolveWorksiteLodging(
+        workplace,
+        this.buildings.values(),
+        this.fireDisabledBuildingIds,
+      )?.lodging.id ?? 'home',
+      agent.residenceId ?? 'founders',
+      origin.x,
+      origin.z,
+      destination.x,
+      destination.z,
+      agent.walkSpeed,
+      this.roadNetwork?.getTopologyRevision() ?? -1,
+    ].join(':');
+    const cached = this.workerCommuteEstimateCache.get(agent.id);
+    if (cached?.key === key) return cached.seconds;
+    const path = pickWorkerCommutePath(
+      origin,
+      destination,
+      this.roadNetwork,
+    );
+    const seconds = path
+      ? estimatePedestrianTravelSeconds(path, agent.walkSpeed, this.roadNetwork)
+      : 0;
+    this.workerCommuteEstimateCache.set(agent.id, { key, seconds });
+    return seconds;
+  }
+
+  private transitionToRemoteCampState(
+    agent: VillagerAgent,
+    homeState: HouseholdHomeState,
+    workplace: BuildingState,
+  ): boolean {
+    const lodging = resolveWorksiteLodging(
+      workplace,
+      this.buildings.values(),
+      this.fireDisabledBuildingIds,
+    );
+    if (!lodging) return false;
+    const nextPhase = remoteCampPhaseForHomeState(homeState);
+    if (agent.routinePhase === nextPhase) return false;
+    this.clearPath(agent);
+    agent.routinePhase = nextPhase;
+    const destination = homeState === 'home_outdoors'
+      ? workLodgingFiresidePosition(
+          lodging.lodging,
+          agent.workplaceSlot,
+          this.roadNetwork,
+        )
+      : workLodgingDoorPosition(
+          lodging.lodging,
+          agent.workplaceSlot,
+          this.roadNetwork,
+        );
+    agent.x = destination.x;
+    agent.z = destination.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = destination.yaw;
+    agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
+    agent.idleDirty = false;
+    return true;
   }
 
   private transitionToHomeState(
@@ -3420,6 +3891,7 @@ export class VillagerRenderer {
       || agent.routinePhase === 'going_to_fire_assembly'
       || agent.routinePhase === 'at_fire_assembly'
       || agent.routinePhase === 'returning_from_fire_assembly'
+      || isRemoteCampPhase(agent.routinePhase)
     ) return null;
     const workplace = this.buildings.get(agent.workplaceId);
     if (workplace && this.fireDisabledBuildingIds.has(workplace.id)) return null;
@@ -3643,6 +4115,12 @@ function describeVillagerActivity(
         : `Working at ${workplaceLabel}`;
     case 'sick_rest':
       return 'Resting at home while ill';
+    case 'remote_camp_outdoors':
+      return `Resting outside the crew lodging at ${workplaceLabel}`;
+    case 'remote_camp_indoors':
+      return `Inside the crew lodging at ${workplaceLabel}`;
+    case 'remote_camp_asleep':
+      return `Sleeping in the crew lodging at ${workplaceLabel}`;
     case 'home_outdoors':
       if (residenceFireDisabled) {
         return 'Leaving a fire-disabled home';

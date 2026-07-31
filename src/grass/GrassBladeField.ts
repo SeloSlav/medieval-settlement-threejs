@@ -99,12 +99,12 @@ const ROAD_CLEAR_MARGIN = 1.05;
 const TAU = Math.PI * 2;
 const GRID_SIDE = GRASS_STREAM_CHUNK_RADIUS * 2 + 1;
 const GRASS_SLOT_CAPACITY = GRASS_TUFTS_PER_CHUNK + 14;
-const WILDFLOWER_SLOT_CAPACITY = 4;
+const WILDFLOWER_SLOT_CAPACITY = 8;
 const MAX_GRASS_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * GRASS_SLOT_CAPACITY;
 const MAX_WILDFLOWER_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * WILDFLOWER_SLOT_CAPACITY;
 const MIN_TUFT_SPACING_SQ = 0.26 * 0.26;
 const MIN_MICRO_TUFT_SPACING_SQ = 0.16 * 0.16;
-const MIN_WILDFLOWER_SPACING_SQ = 0.9 * 0.9;
+const MIN_WILDFLOWER_SPACING_SQ = 0.62 * 0.62;
 /** Park culled tufts far below the world — zero-scale at origin alpha-tests into a visible orb. */
 const HIDDEN_INSTANCE_Y = -4096;
 const hiddenMatrix = new THREE.Matrix4().compose(
@@ -980,7 +980,10 @@ function* generateSeedThreeWildflowerChunkInstances(
   const chunkMinX = chunkX * GRASS_BLADE_CHUNK_SIZE;
   const chunkMinZ = chunkZ * GRASS_BLADE_CHUNK_SIZE;
   const margin = GRASS_BLADE_CHUNK_SIZE * 0.08;
-  const target = rng() < 0.06 ? 0 : 3 + Math.floor(rng() * 2);
+  // Close meadow references read as overlapping runs of blooms rather than
+  // isolated showcase plants. Six to eight five-stem colonies yields 30-40
+  // flower heads in a viable 8 m chunk while retaining occasional quiet gaps.
+  const target = rng() < 0.04 ? 0 : 6 + Math.floor(rng() * 3);
   const localPlacements: Array<{ x: number; z: number }> = [];
   const paletteOffset = seed % SEEDTHREE_WILDFLOWER_VARIANTS.length;
   const instances: GeneratedWildflowerInstance[] = [];
@@ -989,10 +992,10 @@ function* generateSeedThreeWildflowerChunkInstances(
     yield 0;
     let x: number;
     let z: number;
-    if (localPlacements.length > 0 && rng() < 0.62) {
+    if (localPlacements.length > 0 && rng() < 0.78) {
       const anchor = localPlacements[Math.floor(rng() * localPlacements.length)]!;
       const angle = rng() * TAU;
-      const radius = THREE.MathUtils.lerp(0.95, 2.4, Math.pow(rng(), 0.7));
+      const radius = THREE.MathUtils.lerp(0.68, 1.9, Math.pow(rng(), 0.7));
       x = anchor.x + Math.cos(angle) * radius;
       z = anchor.z + Math.sin(angle) * radius;
     } else {

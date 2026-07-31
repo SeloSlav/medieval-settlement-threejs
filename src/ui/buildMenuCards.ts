@@ -17,7 +17,7 @@ export type PlacementBuildMenuAction =
   | 'residences';
 
 export type BuildMenuAction = PlacementBuildMenuAction;
-type PlayerPlaceableBuildingKind = Exclude<BuildingKind, 'founders_camp' | 'salvage_pile'>;
+type PlayerPlaceableBuildingKind = Exclude<BuildingKind, 'founders_camp' | 'salvage_pile' | 'remote_work_camp'>;
 type PlacementArtKey = PlayerPlaceableBuildingKind | 'residences';
 export type BuildMenuEntry = { kind: 'placement'; action: PlacementBuildMenuAction; artKey: PlacementArtKey };
 
