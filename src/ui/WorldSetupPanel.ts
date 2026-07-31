@@ -29,20 +29,14 @@ export class WorldSetupPanel {
       <div class="world-setup-shell">
         <img
           class="world-setup-logo"
-          src="/assets/ui/selo-empire-logo.png"
+          src="/assets/ui/selo-empire-logo-serious.png"
           alt="Selo Empire"
-          width="1200"
-          height="650"
+          width="1643"
+          height="957"
           fetchpriority="high"
           decoding="sync"
         />
-        <form class="world-setup-dialog" aria-labelledby="world-setup-title">
-          <p class="world-setup-dialog__eyebrow">New settlement</p>
-          <h1 id="world-setup-title" class="world-setup-dialog__title">A frontier valley, 1550</h1>
-          <p class="world-setup-dialog__intro">
-            Shape a frontier valley where roads, rivers, and forest will decide how your settlement survives.
-          </p>
-
+        <form class="world-setup-dialog" aria-label="World setup">
           <section class="world-setup-section" aria-label="Map size">
             <h2 class="world-setup-section__title">Map size</h2>
             <div class="world-setup-size-grid" data-size-grid></div>

@@ -6,10 +6,10 @@
   place-items: stretch start;
   padding: clamp(22px, 4vw, 58px);
   background:
-    linear-gradient(90deg, rgba(13, 18, 12, 0.62) 0%, rgba(13, 18, 12, 0.28) 46%, rgba(13, 18, 12, 0.02) 76%),
-    linear-gradient(0deg, rgba(32, 40, 22, 0.34) 0%, rgba(32, 40, 22, 0.02) 52%),
-    url('/assets/ui/selo-empire-splash-naive.webp') center / cover no-repeat,
-    #667a45;
+    linear-gradient(90deg, rgba(12, 11, 9, 0.42) 0%, rgba(12, 11, 9, 0.16) 48%, rgba(12, 11, 9, 0) 74%),
+    linear-gradient(0deg, rgba(12, 11, 9, 0.25) 0%, rgba(12, 11, 9, 0) 52%),
+    url('/assets/ui/selo-empire-monastery-1550-4k.webp') center / cover no-repeat,
+    #171512;
   pointer-events: auto;
 }
 
@@ -18,7 +18,7 @@
   inset: 0;
   content: '';
   pointer-events: none;
-  opacity: 0.26;
+  opacity: 0.12;
   background-image:
     radial-gradient(circle at 23% 17%, rgba(255, 244, 210, 0.18) 0 0.6px, transparent 0.9px),
     radial-gradient(circle at 72% 64%, rgba(255, 255, 255, 0.12) 0 0.5px, transparent 0.8px);
@@ -46,8 +46,8 @@
   height: auto;
   margin-left: -5px;
   filter:
-    drop-shadow(0 2px 1px rgba(31, 22, 11, 0.72))
-    drop-shadow(0 12px 24px rgba(24, 31, 16, 0.38));
+    drop-shadow(0 2px 1px rgba(0, 0, 0, 0.82))
+    drop-shadow(0 14px 30px rgba(0, 0, 0, 0.5));
 }
 
 .world-setup-dialog {
@@ -67,31 +67,6 @@
     inset 0 1px 0 rgba(255, 244, 218, 0.08);
   backdrop-filter: blur(22px) saturate(0.78);
   scrollbar-color: rgba(215, 180, 99, 0.46) rgba(255, 255, 255, 0.04);
-}
-
-.world-setup-dialog__eyebrow {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(219, 183, 99, 0.94);
-}
-
-.world-setup-dialog__title {
-  margin: 7px 0 9px;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(28px, 4vw, 38px);
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.32);
-}
-
-.world-setup-dialog__intro {
-  max-width: 48ch;
-  margin: 0 0 22px;
-  color: var(--muted);
-  line-height: 1.5;
 }
 
 .world-setup-section {

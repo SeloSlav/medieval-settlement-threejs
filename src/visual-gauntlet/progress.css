@@ -44,7 +44,7 @@ a {
   background:
     linear-gradient(180deg, rgba(11, 17, 13, 0.55), #101712 55%),
     linear-gradient(90deg, rgba(10, 17, 12, 0.97), rgba(10, 17, 12, 0.75) 55%, rgba(10, 17, 12, 0.92)),
-    url("/assets/ui/world-setup-gorski-kotar-1550.webp") center 24% / cover no-repeat;
+    url("/assets/ui/selo-empire-monastery-1550-4k.webp") center / cover no-repeat;
 }
 
 .page-backdrop::after {

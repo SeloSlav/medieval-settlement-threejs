@@ -161,6 +161,25 @@
 /* Settlement HUD atlases. The existing ::before slot remains the semantic
  * icon position, so no resource markup or live-value logic has to change.
  */
+.settlement-hud__stores-summary::before {
+  width: 24px;
+  height: 24px;
+  justify-self: center;
+  content: '';
+  background: url('/assets/ui/icons/hud-stores.png') center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.8));
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.settlement-hud__stores-summary:hover::before,
+.settlement-hud__stores-summary:focus-visible::before,
+.settlement-hud__stores[open] > .settlement-hud__stores-summary::before {
+  filter:
+    drop-shadow(0 1px 1px rgba(7, 6, 4, 0.82))
+    brightness(1.12);
+  transform: scale(1.06);
+}
+
 .settlement-hud__stat[data-resource]::before {
   width: 20px;
   height: 20px;

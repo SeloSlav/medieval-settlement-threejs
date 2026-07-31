@@ -608,3 +608,4 @@ export const WorldConfig = __t.object("WorldConfig", {
   resourceVariety: __t.u8(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
+
