@@ -366,6 +366,39 @@ declare module '@seedthree/core/stream-slot-budget.js' {
   ): boolean;
 }
 
+declare module '@seedthree/core/ground-cover-shadows.js' {
+  import type * as THREE from 'three';
+
+  export type GroundCoverShadowMode =
+    | 'terrain-projected'
+    | 'mesh-received'
+    | 'unshadowed';
+
+  export type GroundCoverShadowOptions = {
+    castShadow?: boolean;
+    receiveShadow?: boolean | 'auto';
+    terrainReceivesShadow?: boolean;
+  };
+
+  export type GroundCoverShadowPolicy = {
+    castShadow: boolean;
+    receiveShadow: boolean;
+    mode: GroundCoverShadowMode;
+  };
+
+  export function resolveGroundCoverShadowPolicy(
+    options?: GroundCoverShadowOptions,
+  ): GroundCoverShadowPolicy;
+
+  export function applyGroundCoverShadowPolicy(
+    mesh: Pick<THREE.Object3D, 'userData'> & {
+      castShadow: boolean;
+      receiveShadow: boolean;
+    },
+    options?: GroundCoverShadowOptions,
+  ): GroundCoverShadowPolicy;
+}
+
 declare module '@seedthree/core/forest-ecology.js' {
   import type * as THREE from 'three';
 

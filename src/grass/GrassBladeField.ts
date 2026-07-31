@@ -44,6 +44,7 @@ import {
   resolveStreamVisibilityHysteresis,
   runStreamSlotUpdateChunk,
 } from '@seedthree/core/stream-slot-budget.js';
+import { applyGroundCoverShadowPolicy } from '@seedthree/core/ground-cover-shadows.js';
 import { resolveGrassStreamViewTransition } from './grassStreamLifecycle.ts';
 
 export const GRASS_BLADES_ENABLED = true;
@@ -223,8 +224,7 @@ export async function createGrassBladeField(
     const mesh = new THREE.InstancedMesh(geometry, grassMaterial, MAX_GRASS_STREAM_INSTANCES);
     mesh.name = index === 0 ? 'SeedThree grass meadow' : 'SeedThree grass clump';
     mesh.count = 0;
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
+    applyGroundCoverShadowPolicy(mesh, { terrainReceivesShadow: true });
     mesh.frustumCulled = false;
     mesh.renderOrder = 2;
     mesh.visible = false;
@@ -250,8 +250,9 @@ export async function createGrassBladeField(
   );
   wildflowerMesh.name = 'SeedThree streamed Gorski Kotar wildflowers';
   wildflowerMesh.count = 0;
-  wildflowerMesh.castShadow = false;
-  wildflowerMesh.receiveShadow = true;
+  applyGroundCoverShadowPolicy(wildflowerMesh, {
+    terrainReceivesShadow: true,
+  });
   wildflowerMesh.frustumCulled = false;
   wildflowerMesh.renderOrder = 3;
   wildflowerMesh.visible = false;

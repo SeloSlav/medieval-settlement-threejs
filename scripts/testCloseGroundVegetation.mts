@@ -6,6 +6,7 @@ import {
   GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
 } from '../src/grass/grassLodMath.ts';
 import { resolveGrassStreamViewTransition } from '../src/grass/grassStreamLifecycle.ts';
+import { resolveGroundCoverShadowPolicy } from '../vendor/seedthree/src/core/ground-cover-shadows.js';
 import { resolveStreamVisibilityHysteresis } from '../vendor/seedthree/src/core/stream-slot-budget.js';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -153,6 +154,39 @@ assert.doesNotMatch(
   fieldSource,
   /spatial-batch-grid|createGroundcoverBatches|GROUNDCOVER_BATCH|localSlotsByBatch/,
   'the rejected 4x4 spatial split must not remain in the game integration',
+);
+assert.deepEqual(
+  resolveGroundCoverShadowPolicy({ terrainReceivesShadow: true }),
+  {
+    castShadow: false,
+    receiveShadow: false,
+    mode: 'terrain-projected',
+  },
+  'dense groundcover should not resample shadows already projected onto its terrain',
+);
+assert.deepEqual(
+  resolveGroundCoverShadowPolicy({ terrainReceivesShadow: false }),
+  {
+    castShadow: false,
+    receiveShadow: true,
+    mode: 'mesh-received',
+  },
+  'groundcover must retain mesh shadow reception when no terrain receiver exists',
+);
+assert.match(
+  fieldSource,
+  /applyGroundCoverShadowPolicy\(mesh, \{ terrainReceivesShadow: true \}\)/,
+  'each streamed grass submission must use the shared SeedThree terrain-shadow policy',
+);
+assert.match(
+  fieldSource,
+  /applyGroundCoverShadowPolicy\(wildflowerMesh, \{[\s\S]*?terrainReceivesShadow: true,[\s\S]*?\}\)/,
+  'streamed wildflowers must use the same terrain-shadow policy as grass',
+);
+assert.doesNotMatch(
+  fieldSource,
+  /(?:mesh|wildflowerMesh)\.receiveShadow = true/,
+  'close groundcover must not restore redundant per-fragment shadow sampling',
 );
 assert.match(
   fieldSource,
