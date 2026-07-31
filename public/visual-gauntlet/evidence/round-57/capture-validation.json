@@ -1,0 +1,551 @@
+{
+  "schemaVersion": 1,
+  "round": 57,
+  "status": "passed-before-blind-verdict",
+  "commitmentSha256": "8C13E88129B5BA039437748D530D0C68A2573A22573B421ECA7F54D1A164BB69",
+  "validatedAtUtc": "2026-07-31T05:39:04.909Z",
+  "framePairs": [
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 0,
+      "primeAttempt": 22,
+      "repeatAttempt": 23,
+      "primeSha256": "41AEC18670C727AEBCCE26374E50A859279896F1CFF6C5FFC10F09E8241CD332",
+      "repeatSha256": "41AEC18670C727AEBCCE26374E50A859279896F1CFF6C5FFC10F09E8241CD332",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|0|0.000|128.158569|148.921039|-138.211756|0.000000|3.200000|3.000000|-0.115443|0.883665|0.298977|0.341206|overview|hidden|strategic"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 180,
+      "primeAttempt": 24,
+      "repeatAttempt": 25,
+      "primeSha256": "7224A5CB2EE6838CC7A3B3C743FB39F413942C2B86C053F77C22253F508EF2DA",
+      "repeatSha256": "7224A5CB2EE6838CC7A3B3C743FB39F413942C2B86C053F77C22253F508EF2DA",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|180|6000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 276,
+      "primeAttempt": 26,
+      "repeatAttempt": 27,
+      "primeSha256": "DB922D2332AF20A6AE2C4C422EB06C897738A77A9F14E595B36F3B65B8042DC0",
+      "repeatSha256": "DB922D2332AF20A6AE2C4C422EB06C897738A77A9F14E595B36F3B65B8042DC0",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|276|9200.000|12.960743|14.434070|-40.377634|-0.250897|2.450897|-23.720389|-0.083513|0.913396|0.239685|0.318253|near|transition|settlement"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 277,
+      "primeAttempt": 28,
+      "repeatAttempt": 29,
+      "primeSha256": "1B7EC48DEE9AD39D9BB71F3953FF3F9818C48DBD0F02247068BDF5957C17072B",
+      "repeatSha256": "1B7EC48DEE9AD39D9BB71F3953FF3F9818C48DBD0F02247068BDF5957C17072B",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|277|9233.333|12.450380|13.929023|-40.190306|-0.240368|2.440368|-24.067869|-0.082625|0.914318|0.238552|0.316683|near|transition|settlement"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 278,
+      "primeAttempt": 30,
+      "repeatAttempt": 31,
+      "primeSha256": "25AA3DF29FF0AEE24A13EE9DD89FAB86E09A84F8131B2E951D490EDF413AA0E7",
+      "repeatSha256": "25AA3DF29FF0AEE24A13EE9DD89FAB86E09A84F8131B2E951D490EDF413AA0E7",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|278|9266.667|11.948679|13.432547|-40.006158|-0.230017|2.430017|-24.409451|-0.081689|0.915290|0.237345|0.315021|near|transition|settlement"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 279,
+      "primeAttempt": 32,
+      "repeatAttempt": 33,
+      "primeSha256": "3A5410E6D5499C2A40D810D04B7FB202CE2356ACBF4673C3C87567782EA37C3A",
+      "repeatSha256": "3A5410E6D5499C2A40D810D04B7FB202CE2356ACBF4673C3C87567782EA37C3A",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|279|9300.000|11.455954|12.944955|-39.825305|-0.219851|2.419851|-24.744922|-0.080702|0.916313|0.236058|0.313263|near|full|settlement"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 330,
+      "primeAttempt": 34,
+      "repeatAttempt": 35,
+      "primeSha256": "88A09F8D77008605D3D8AC0CC652E9D60FDCB8828429823714F1D0B88D509933",
+      "repeatSha256": "88A09F8D77008605D3D8AC0CC652E9D60FDCB8828429823714F1D0B88D509933",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|330|11000.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 375,
+      "primeAttempt": 36,
+      "repeatAttempt": 37,
+      "primeSha256": "761A5C4A89E9C009A755FEAB616E4471AF81481BC017E0E038DA172D07E7D409",
+      "repeatSha256": "761A5C4A89E9C009A755FEAB616E4471AF81481BC017E0E038DA172D07E7D409",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|375|12500.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye"
+    },
+    {
+      "blindLabel": "blind-A",
+      "frameIndex": 480,
+      "primeAttempt": 38,
+      "repeatAttempt": 39,
+      "primeSha256": "9C0A90770B72AC6DA765CF68EA58673510B658C9DB32ADBF406840A82336FCB2",
+      "repeatSha256": "9C0A90770B72AC6DA765CF68EA58673510B658C9DB32ADBF406840A82336FCB2",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|480|16000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 0,
+      "primeAttempt": 3,
+      "repeatAttempt": 4,
+      "primeSha256": "8866FF1FD4544170BF351343D7667F4DD2B248F900D2EC510FB24A6B19B67E1B",
+      "repeatSha256": "8866FF1FD4544170BF351343D7667F4DD2B248F900D2EC510FB24A6B19B67E1B",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|0|0.000|128.158569|148.921039|-138.211756|0.000000|3.200000|3.000000|-0.115443|0.883665|0.298977|0.341206|overview|hidden|strategic"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 180,
+      "primeAttempt": 5,
+      "repeatAttempt": 6,
+      "primeSha256": "C676533FA5C16AB0771E289750FEA8D34DDFA6C6445D2A2B55A95A0912DA6567",
+      "repeatSha256": "C676533FA5C16AB0771E289750FEA8D34DDFA6C6445D2A2B55A95A0912DA6567",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|180|6000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 276,
+      "primeAttempt": 7,
+      "repeatAttempt": 8,
+      "primeSha256": "6E3E0E2D45C7EFD4ABE778B140EA194B496D21AF44875D68A3374B35209C8E99",
+      "repeatSha256": "6E3E0E2D45C7EFD4ABE778B140EA194B496D21AF44875D68A3374B35209C8E99",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|276|9200.000|12.960743|14.434070|-40.377634|-0.250897|2.450897|-23.720389|-0.083513|0.913396|0.239685|0.318253|near|transition|settlement"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 277,
+      "primeAttempt": 9,
+      "repeatAttempt": 10,
+      "primeSha256": "45F7C89BB090B242C67BFD286442A0F7A7097615292022EDA14A25C99BCE2D4F",
+      "repeatSha256": "45F7C89BB090B242C67BFD286442A0F7A7097615292022EDA14A25C99BCE2D4F",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|277|9233.333|12.450380|13.929023|-40.190306|-0.240368|2.440368|-24.067869|-0.082625|0.914318|0.238552|0.316683|near|transition|settlement"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 278,
+      "primeAttempt": 11,
+      "repeatAttempt": 12,
+      "primeSha256": "9047E00E5A4D513020EEE9707ED83330972619C500E786DD99B34E169D137A5E",
+      "repeatSha256": "9047E00E5A4D513020EEE9707ED83330972619C500E786DD99B34E169D137A5E",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|278|9266.667|11.948679|13.432547|-40.006158|-0.230017|2.430017|-24.409451|-0.081689|0.915290|0.237345|0.315021|near|transition|settlement"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 279,
+      "primeAttempt": 13,
+      "repeatAttempt": 14,
+      "primeSha256": "36A94B067A8E165F257F138256412252A4541F69E9F136FD31E9AE0DEF19F95A",
+      "repeatSha256": "36A94B067A8E165F257F138256412252A4541F69E9F136FD31E9AE0DEF19F95A",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|279|9300.000|11.455954|12.944955|-39.825305|-0.219851|2.419851|-24.744922|-0.080702|0.916313|0.236058|0.313263|near|full|settlement"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 330,
+      "primeAttempt": 15,
+      "repeatAttempt": 16,
+      "primeSha256": "424172016E6D11A1DCA404E9AC2FEDD740843F858BC70A360F77C48E03CC9E7A",
+      "repeatSha256": "424172016E6D11A1DCA404E9AC2FEDD740843F858BC70A360F77C48E03CC9E7A",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|330|11000.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 375,
+      "primeAttempt": 17,
+      "repeatAttempt": 18,
+      "primeSha256": "AE499A48AC3F6E8FB7262297416B976A6B7C88A0996D10285260BEC5DD73EC1B",
+      "repeatSha256": "AE499A48AC3F6E8FB7262297416B976A6B7C88A0996D10285260BEC5DD73EC1B",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|375|12500.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye"
+    },
+    {
+      "blindLabel": "blind-B",
+      "frameIndex": 480,
+      "primeAttempt": 19,
+      "repeatAttempt": 20,
+      "primeSha256": "7224457D123AEF102EE994C87658C9179D249973DC8D55E2C60ECD8B45FE6F85",
+      "repeatSha256": "7224457D123AEF102EE994C87658C9179D249973DC8D55E2C60ECD8B45FE6F85",
+      "bytesExact": true,
+      "sha256Exact": true,
+      "cameraPoseSignatureExact": true,
+      "cameraPoseSignature": "gorski-kotar-lod-traverse-v1|480|16000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement"
+    }
+  ],
+  "allPrimeRepeatPngsExact": true,
+  "crossArmCameraPoses": [
+    {
+      "frameIndex": 0,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|0|0.000|128.158569|148.921039|-138.211756|0.000000|3.200000|3.000000|-0.115443|0.883665|0.298977|0.341206|overview|hidden|strategic",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|0|0.000|128.158569|148.921039|-138.211756|0.000000|3.200000|3.000000|-0.115443|0.883665|0.298977|0.341206|overview|hidden|strategic",
+      "exact": true
+    },
+    {
+      "frameIndex": 180,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|180|6000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|180|6000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement",
+      "exact": true
+    },
+    {
+      "frameIndex": 276,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|276|9200.000|12.960743|14.434070|-40.377634|-0.250897|2.450897|-23.720389|-0.083513|0.913396|0.239685|0.318253|near|transition|settlement",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|276|9200.000|12.960743|14.434070|-40.377634|-0.250897|2.450897|-23.720389|-0.083513|0.913396|0.239685|0.318253|near|transition|settlement",
+      "exact": true
+    },
+    {
+      "frameIndex": 277,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|277|9233.333|12.450380|13.929023|-40.190306|-0.240368|2.440368|-24.067869|-0.082625|0.914318|0.238552|0.316683|near|transition|settlement",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|277|9233.333|12.450380|13.929023|-40.190306|-0.240368|2.440368|-24.067869|-0.082625|0.914318|0.238552|0.316683|near|transition|settlement",
+      "exact": true
+    },
+    {
+      "frameIndex": 278,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|278|9266.667|11.948679|13.432547|-40.006158|-0.230017|2.430017|-24.409451|-0.081689|0.915290|0.237345|0.315021|near|transition|settlement",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|278|9266.667|11.948679|13.432547|-40.006158|-0.230017|2.430017|-24.409451|-0.081689|0.915290|0.237345|0.315021|near|transition|settlement",
+      "exact": true
+    },
+    {
+      "frameIndex": 279,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|279|9300.000|11.455954|12.944955|-39.825305|-0.219851|2.419851|-24.744922|-0.080702|0.916313|0.236058|0.313263|near|full|settlement",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|279|9300.000|11.455954|12.944955|-39.825305|-0.219851|2.419851|-24.744922|-0.080702|0.916313|0.236058|0.313263|near|full|settlement",
+      "exact": true
+    },
+    {
+      "frameIndex": 330,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|330|11000.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|330|11000.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye",
+      "exact": true
+    },
+    {
+      "frameIndex": 375,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|375|12500.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|375|12500.000|0.800015|2.400004|-35.914074|0.000000|2.200000|-32.000000|-0.002517|0.994612|0.024881|0.100607|near|full|road-eye",
+      "exact": true
+    },
+    {
+      "frameIndex": 480,
+      "blindACameraPoseSignature": "gorski-kotar-lod-traverse-v1|480|16000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement",
+      "blindBCameraPoseSignature": "gorski-kotar-lod-traverse-v1|480|16000.000|49.268962|50.364114|-53.704459|-1.000000|3.200000|1.000000|-0.101326|0.894737|0.260019|0.348668|near|hidden|settlement",
+      "exact": true
+    }
+  ],
+  "allCrossArmCameraPosesExact": true,
+  "performance": {
+    "blind-A": {
+      "metrics": {
+        "medianFps": 163.9344262295473,
+        "onePercentLowFps": 78.27788649704857,
+        "meanFps": 146.590715921325,
+        "p99FrameMs": 12.775000000002613,
+        "maxFrameMs": 24.19999999999709,
+        "framesOver25Ms": 0,
+        "framesOver50Ms": 0
+      },
+      "renderer": {
+        "medianDrawCalls": 82,
+        "medianFrameCalls": 2,
+        "medianTriangles": 1802515
+      },
+      "hardBarPassed": true
+    },
+    "blind-B": {
+      "metrics": {
+        "medianFps": 163.9344262295473,
+        "onePercentLowFps": 77.63975155277475,
+        "meanFps": 148.05728970498535,
+        "p99FrameMs": 12.880000000003363,
+        "maxFrameMs": 24.200000000004366,
+        "framesOver25Ms": 0,
+        "framesOver50Ms": 0
+      },
+      "renderer": {
+        "medianDrawCalls": 82,
+        "medianFrameCalls": 2,
+        "medianTriangles": 1798621
+      },
+      "hardBarPassed": true
+    }
+  },
+  "bothArmsPassedHardPerformanceBar": true,
+  "structural": {
+    "blind-A": {
+      "forestGround": {
+        "schemaVersion": 2,
+        "query": {
+          "parameter": "forestGround",
+          "value": "mottled-dense-crown-floor",
+          "defaultWhenAbsent": "existing-terrain"
+        },
+        "mode": "startup-only-existing-biome-weight-mottle",
+        "source": {
+          "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+          "vegetationSlots": 1651,
+          "edgeSlots": 256,
+          "denseCrownSlots": 112,
+          "footprintBasis": "accepted-interior-crown-overlap-density-clearance-and-mottle"
+        },
+        "footprint": {
+          "terrainVertices": 50369,
+          "candidateVertices": 1639,
+          "densityQualifiedVertices": 856,
+          "modifiedVertices": 682,
+          "modifiedPercent": 1.3540074252020091,
+          "weightedCoverageSquareMeters": 2176.9650015205907,
+          "bounds": {
+            "minX": -100,
+            "maxX": 100,
+            "minZ": -67.5,
+            "maxZ": 82.5
+          },
+          "maximumRadiusMeters": 12.319048575703054,
+          "innerRadiusRatio": 0.2,
+          "densityStart": 1.05,
+          "densityFull": 2.65,
+          "peakCrownDensity": 10.553798163837307,
+          "requiredMinimumAdjoiningCrowns": 2,
+          "observedMinimumAdjoiningCrowns": 3,
+          "coverageMethod": "integrated-linear-mottled-overlap-mask-over-xz-triangles",
+          "interpolationHaloMeters": 3.5355339059327378,
+          "clearance": {
+            "requiredRoadVertexMeters": 13.535533905932738,
+            "requiredSettlementVertexMeters": 11.535533905932738,
+            "featherMeters": 7,
+            "observedRoadVertexMinimumMeters": 14.74986207268688,
+            "observedSettlementVertexMinimumMeters": 12.743346075365466,
+            "guaranteedRoadFragmentMinimumMeters": 11.214328166754143,
+            "guaranteedSettlementFragmentMinimumMeters": 9.207812169432728,
+            "rejectedRoadVertices": 40,
+            "rejectedSettlementVertices": 48,
+            "roadContaminationVertices": 0,
+            "parcelContaminationVertices": 0,
+            "roadContaminationTriangles": 0,
+            "parcelContaminationTriangles": 0
+          }
+        },
+        "tone": {
+          "maximumBlend": 0.9,
+          "targetLuminanceRatio": 0.7,
+          "darkTargetWeights": {
+            "meadow": 0,
+            "dense": 1,
+            "dry": 0
+          },
+          "litterTargetWeights": {
+            "meadow": 0.01,
+            "dense": 0.75,
+            "dry": 0.24
+          },
+          "meanStableLuminanceBefore": 0.08663285429426405,
+          "meanStableLuminanceAfter": 0.0745344094363132,
+          "meanStableLuminanceReductionPercent": 13.965192485585554,
+          "minimumStableLuminanceReductionPercent": 0.7661964197713256,
+          "maximumStableLuminanceReductionPercent": 30.068781687160374,
+          "stableLuminanceReductionStandardDeviationPercent": 7.45920874785387,
+          "mottling": {
+            "basis": "domain-warped-lattice-value-noise-with-irregular-light-channels",
+            "meanAppliedBlend": 0.4596524343386593,
+            "appliedBlendStandardDeviation": 0.24163350146512746,
+            "minimumAppliedBlend": 0.025539975512196278,
+            "maximumAppliedBlend": 0.8999961124198941,
+            "darkBasinVertices": 177,
+            "leafLitterVertices": 177,
+            "lighterChannelVertices": 161
+          }
+        },
+        "budget": {
+          "forestSlotDelta": 0,
+          "forestDrawDelta": 0,
+          "terrainDrawDelta": 0,
+          "textureAssetDelta": 0,
+          "meshDelta": 0,
+          "materialDelta": 0,
+          "geometryVertexDelta": 0,
+          "geometryIndexDelta": 0,
+          "vertexAttributeDelta": 0,
+          "colorBufferByteDelta": 0,
+          "shaderDelta": 0,
+          "perFrameWorkDelta": 0,
+          "startupColorWrites": 682,
+          "geometry": {
+            "vertices": 50369,
+            "indices": 299520,
+            "attributes": 9,
+            "colorBufferBytes": 604428
+          }
+        },
+        "seedThreeAudit": {
+          "classification": "hamlet-specific-terrain-weighting",
+          "reusableSeedThreeBehaviorAdded": false,
+          "gitlinkChangeRequired": false,
+          "reason": "footprint-and-clearance-depend-on-hamlet-road-parcel-and-edge-composition"
+        }
+      },
+      "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+      "trees": 1651,
+      "residenceRoof": "wood-shingle",
+      "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3"
+    },
+    "blind-B": {
+      "forestGround": {
+        "schemaVersion": 2,
+        "query": {
+          "parameter": "forestGround",
+          "value": "existing-terrain",
+          "defaultWhenAbsent": "existing-terrain"
+        },
+        "mode": "round-55-accepted-terrain-unchanged",
+        "source": {
+          "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+          "vegetationSlots": 1651,
+          "edgeSlots": 256,
+          "denseCrownSlots": 112,
+          "footprintBasis": "accepted-interior-crown-overlap-density-clearance-and-mottle"
+        },
+        "footprint": {
+          "terrainVertices": 50369,
+          "candidateVertices": 0,
+          "densityQualifiedVertices": 0,
+          "modifiedVertices": 0,
+          "modifiedPercent": 0,
+          "weightedCoverageSquareMeters": 0,
+          "bounds": null,
+          "maximumRadiusMeters": 12.319048575703054,
+          "innerRadiusRatio": 0.2,
+          "densityStart": 1.05,
+          "densityFull": 2.65,
+          "peakCrownDensity": 0,
+          "requiredMinimumAdjoiningCrowns": 2,
+          "observedMinimumAdjoiningCrowns": null,
+          "coverageMethod": "not-applied",
+          "interpolationHaloMeters": 0,
+          "clearance": {
+            "requiredRoadVertexMeters": 10,
+            "requiredSettlementVertexMeters": 8,
+            "featherMeters": 7,
+            "observedRoadVertexMinimumMeters": null,
+            "observedSettlementVertexMinimumMeters": null,
+            "guaranteedRoadFragmentMinimumMeters": null,
+            "guaranteedSettlementFragmentMinimumMeters": null,
+            "rejectedRoadVertices": 0,
+            "rejectedSettlementVertices": 0,
+            "roadContaminationVertices": 0,
+            "parcelContaminationVertices": 0,
+            "roadContaminationTriangles": 0,
+            "parcelContaminationTriangles": 0
+          }
+        },
+        "tone": {
+          "maximumBlend": 0.9,
+          "targetLuminanceRatio": 0.7,
+          "darkTargetWeights": {
+            "meadow": 0,
+            "dense": 1,
+            "dry": 0
+          },
+          "litterTargetWeights": {
+            "meadow": 0.01,
+            "dense": 0.75,
+            "dry": 0.24
+          },
+          "meanStableLuminanceBefore": null,
+          "meanStableLuminanceAfter": null,
+          "meanStableLuminanceReductionPercent": 0,
+          "minimumStableLuminanceReductionPercent": 0,
+          "maximumStableLuminanceReductionPercent": 0,
+          "stableLuminanceReductionStandardDeviationPercent": 0,
+          "mottling": {
+            "basis": "not-applied",
+            "meanAppliedBlend": 0,
+            "appliedBlendStandardDeviation": 0,
+            "minimumAppliedBlend": 0,
+            "maximumAppliedBlend": 0,
+            "darkBasinVertices": 0,
+            "leafLitterVertices": 0,
+            "lighterChannelVertices": 0
+          }
+        },
+        "budget": {
+          "forestSlotDelta": 0,
+          "forestDrawDelta": 0,
+          "terrainDrawDelta": 0,
+          "textureAssetDelta": 0,
+          "meshDelta": 0,
+          "materialDelta": 0,
+          "geometryVertexDelta": 0,
+          "geometryIndexDelta": 0,
+          "vertexAttributeDelta": 0,
+          "colorBufferByteDelta": 0,
+          "shaderDelta": 0,
+          "perFrameWorkDelta": 0,
+          "startupColorWrites": 0,
+          "geometry": {
+            "vertices": 50369,
+            "indices": 299520,
+            "attributes": 9,
+            "colorBufferBytes": 604428
+          }
+        },
+        "seedThreeAudit": {
+          "classification": "hamlet-specific-terrain-weighting",
+          "reusableSeedThreeBehaviorAdded": false,
+          "gitlinkChangeRequired": false,
+          "reason": "footprint-and-clearance-depend-on-hamlet-road-parcel-and-edge-composition"
+        }
+      },
+      "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+      "trees": 1651,
+      "residenceRoof": "wood-shingle",
+      "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3"
+    }
+  }
+}

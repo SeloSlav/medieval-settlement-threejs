@@ -102,6 +102,7 @@ const tests = [
   'test:visual-gauntlet-round-54-contract',
   'test:visual-gauntlet-round-55-contract',
   'test:visual-gauntlet-round-56-contract',
+  'test:visual-gauntlet-round-57-contract',
   'test:camera-controller',
   'test:world-map',
   'test:first-person-collision',

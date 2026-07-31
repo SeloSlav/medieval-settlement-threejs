@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "round": 57,
+  "status": "sealed-before-capture",
+  "algorithm": "SHA-256",
+  "sha256": "8C13E88129B5BA039437748D530D0C68A2573A22573B421ECA7F54D1A164BB69",
+  "bytes": 4691,
+  "committedAtUtc": "2026-07-31T05:27:42.2062324Z",
+  "preimageLocation": "artifacts/visual-gauntlet/round-57/pre-blind-reveal.json",
+  "publicRevealPolicy": "The byte-identical preimage remains private until the fresh blind critic locks a verdict.",
+  "comparison": {
+    "soleQueryParameter": "forestGround",
+    "acceptedControl": "existing-terrain",
+    "candidateTreatment": "mottled-dense-crown-floor",
+    "forestEdgeLayout": "tapered-shrub-sapling-belt-256"
+  },
+  "capture": {
+    "origin": "http://127.0.0.1:4188",
+    "archivePath": "artifacts/visual-gauntlet/round-57/captured-build",
+    "frameIndices": [
+      0,
+      180,
+      276,
+      277,
+      278,
+      279,
+      330,
+      375,
+      480
+    ],
+    "mappingAndCaptureOrderCommitted": true,
+    "primeAndImmediateRepeatRequired": true,
+    "crossArmCameraPoseIdentityRequired": true
+  }
+}

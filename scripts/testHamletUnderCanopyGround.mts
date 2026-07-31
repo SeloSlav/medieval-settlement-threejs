@@ -12,9 +12,15 @@ import {
 import {
   applyHamletUnderCanopyGroundTreatment,
   assertHamletUnderCanopyGroundDependencies,
+  HAMLET_UNDER_CANOPY_CLEARANCE_FEATHER_METERS,
+  HAMLET_UNDER_CANOPY_DENSITY_FULL,
+  HAMLET_UNDER_CANOPY_DENSITY_START,
   HAMLET_UNDER_CANOPY_GROUND_CONTROL,
   HAMLET_UNDER_CANOPY_GROUND_QUERY_PARAMETER,
+  HAMLET_UNDER_CANOPY_GROUND_ROUND_56_TREATMENT,
   HAMLET_UNDER_CANOPY_GROUND_TREATMENT,
+  HAMLET_UNDER_CANOPY_MAXIMUM_BLEND,
+  HAMLET_UNDER_CANOPY_TARGET_LUMINANCE_RATIO,
   resolveHamletUnderCanopyGroundTreatment,
 } from '../src/e2e/hamletUnderCanopyGround.ts';
 
@@ -30,14 +36,24 @@ assert.equal(
 );
 assert.equal(
   resolveHamletUnderCanopyGroundTreatment(
+    HAMLET_UNDER_CANOPY_GROUND_ROUND_56_TREATMENT,
+  ),
+  HAMLET_UNDER_CANOPY_GROUND_ROUND_56_TREATMENT,
+);
+assert.equal(
+  resolveHamletUnderCanopyGroundTreatment(
     HAMLET_UNDER_CANOPY_GROUND_TREATMENT,
   ),
   HAMLET_UNDER_CANOPY_GROUND_TREATMENT,
 );
 assert.throws(
   () => resolveHamletUnderCanopyGroundTreatment('dark-everywhere'),
-  /forestGround must be existing-terrain or shadowed-under-canopy/,
+  /forestGround must be existing-terrain or shadowed-under-canopy or mottled-dense-crown-floor/,
 );
+assert.doesNotThrow(() => assertHamletUnderCanopyGroundDependencies(
+  HAMLET_UNDER_CANOPY_GROUND_ROUND_56_TREATMENT,
+  HAMLET_FOREST_EDGE_LAYOUT_TAPERED,
+));
 assert.doesNotThrow(() => assertHamletUnderCanopyGroundDependencies(
   HAMLET_UNDER_CANOPY_GROUND_TREATMENT,
   HAMLET_FOREST_EDGE_LAYOUT_TAPERED,
@@ -83,9 +99,64 @@ assert.equal(
 assert.equal(control.source.forestEdgeLayout, HAMLET_FOREST_EDGE_LAYOUT_TAPERED);
 assert.equal(control.source.vegetationSlots, 1651);
 assert.equal(control.source.edgeSlots, 256);
+assert.equal(control.source.denseCrownSlots, 112);
 assert.equal(control.footprint.modifiedVertices, 0);
 assert.equal(control.footprint.bounds, null);
 assert.equal(control.budget.startupColorWrites, 0);
+
+const historicalGeometry = createHamletTerrainGeometry();
+const historical = applyHamletUnderCanopyGroundTreatment({
+  treatment: HAMLET_UNDER_CANOPY_GROUND_ROUND_56_TREATMENT,
+  forestEdgeLayout: HAMLET_FOREST_EDGE_LAYOUT_TAPERED,
+  geometry: historicalGeometry,
+  placements: tapered.placements,
+});
+assert.equal(historical.query.value, 'shadowed-under-canopy');
+assert.equal(
+  historical.mode,
+  'startup-only-existing-biome-weight-rebalance',
+);
+assert.equal(historical.schemaVersion, 1);
+assert.deepEqual(Object.keys(historical.source), [
+  'forestEdgeLayout',
+  'vegetationSlots',
+  'edgeSlots',
+  'footprintBasis',
+]);
+assert.equal(
+  historical.source.footprintBasis,
+  'accepted-edge-slot-layer-scale-radial-union',
+);
+assert.equal(historical.footprint.candidateVertices, 1_377);
+assert.equal(historical.footprint.modifiedVertices, 1_250);
+assertNear(
+  historical.footprint.weightedCoverageSquareMeters,
+  5_981.060473869973,
+);
+assertNear(
+  historical.footprint.maximumRadiusMeters,
+  7.755374778319149,
+);
+assertNear(
+  historical.tone.meanStableLuminanceReductionPercent,
+  5.9080105973370545,
+);
+assert.equal(
+  historical.tone.maximumDenseBlend,
+  0.3,
+);
+assert.deepEqual(historical.tone.targetWeights, {
+  meadow: 0.08,
+  dense: 0.84,
+  dry: 0.08,
+});
+assert.deepEqual(Object.keys(historical.tone), [
+  'maximumDenseBlend',
+  'targetWeights',
+  'meanStableLuminanceBefore',
+  'meanStableLuminanceAfter',
+  'meanStableLuminanceReductionPercent',
+]);
 
 const treatmentGeometry = createHamletTerrainGeometry();
 const treatmentColorsBefore = copyAttributeArray(treatmentGeometry, 'color');
@@ -100,45 +171,58 @@ const treatment = applyHamletUnderCanopyGroundTreatment({
 const treatmentColorsAfter = copyAttributeArray(treatmentGeometry, 'color');
 
 assert.equal(treatment.query.parameter, 'forestGround');
-assert.equal(treatment.query.value, 'shadowed-under-canopy');
+assert.equal(treatment.query.value, 'mottled-dense-crown-floor');
 assert.equal(
   treatment.query.defaultWhenAbsent,
   HAMLET_UNDER_CANOPY_GROUND_CONTROL,
 );
 assert.equal(
   treatment.mode,
-  'startup-only-existing-biome-weight-rebalance',
+  'startup-only-existing-biome-weight-mottle',
 );
 assert.equal(treatment.source.vegetationSlots, 1651);
 assert.equal(treatment.source.edgeSlots, 256);
+assert.equal(treatment.source.denseCrownSlots, 112);
 assert.equal(
   treatment.source.footprintBasis,
-  'accepted-edge-slot-layer-scale-radial-union',
+  'accepted-interior-crown-overlap-density-clearance-and-mottle',
 );
 assert.equal(treatment.footprint.terrainVertices, 50_369);
-assert.equal(treatment.footprint.candidateVertices, 1_377);
-assert.equal(treatment.footprint.modifiedVertices, 1_250);
+assert.equal(treatment.footprint.candidateVertices, 1_639);
+assert.equal(treatment.footprint.densityQualifiedVertices, 856);
+assert.equal(treatment.footprint.modifiedVertices, 682);
 assert.deepEqual(treatment.footprint.bounds, {
-  minX: -102.5,
-  maxX: 102.5,
-  minZ: -77.5,
+  minX: -100,
+  maxX: 100,
+  minZ: -67.5,
   maxZ: 82.5,
 });
 assertNear(
   treatment.footprint.modifiedPercent,
-  2.4816851634934185,
+  1.3540074252020091,
 );
 assertNear(
   treatment.footprint.weightedCoverageSquareMeters,
-  5_981.060473869973,
+  2_176.9650015205907,
 );
 assertNear(
   treatment.footprint.maximumRadiusMeters,
-  7.755374778319149,
+  12.319048575703054,
 );
 assert.equal(
+  treatment.footprint.densityStart,
+  HAMLET_UNDER_CANOPY_DENSITY_START,
+);
+assert.equal(
+  treatment.footprint.densityFull,
+  HAMLET_UNDER_CANOPY_DENSITY_FULL,
+);
+assertNear(treatment.footprint.peakCrownDensity, 10.553798163837307);
+assert.equal(treatment.footprint.requiredMinimumAdjoiningCrowns, 2);
+assert.equal(treatment.footprint.observedMinimumAdjoiningCrowns, 3);
+assert.equal(
   treatment.footprint.coverageMethod,
-  'integrated-linear-vertex-mask-over-xz-triangles',
+  'integrated-linear-mottled-overlap-mask-over-xz-triangles',
 );
 assert.equal(
   treatment.footprint.interpolationHaloMeters,
@@ -162,43 +246,79 @@ assert.ok(
 );
 assertNear(
   treatment.footprint.clearance.observedRoadVertexMinimumMeters!,
-  13.601470508735444,
+  14.74986207268688,
 );
 assertNear(
   treatment.footprint.clearance.observedSettlementVertexMinimumMeters!,
-  11.729902335502189,
+  12.743346075365466,
 );
 assertNear(
   treatment.footprint.clearance.guaranteedRoadFragmentMinimumMeters!,
-  10.065936602802706,
+  11.214328166754143,
 );
 assertNear(
   treatment.footprint.clearance.guaranteedSettlementFragmentMinimumMeters!,
-  8.194368429569451,
+  9.207812169432728,
 );
-assert.ok(treatment.footprint.clearance.rejectedRoadVertices > 0);
-assert.ok(treatment.footprint.clearance.rejectedSettlementVertices > 0);
-assert.equal(treatment.footprint.clearance.rejectedRoadVertices, 75);
-assert.equal(treatment.footprint.clearance.rejectedSettlementVertices, 60);
+assert.equal(
+  treatment.footprint.clearance.featherMeters,
+  HAMLET_UNDER_CANOPY_CLEARANCE_FEATHER_METERS,
+);
+assert.equal(treatment.footprint.clearance.rejectedRoadVertices, 40);
+assert.equal(treatment.footprint.clearance.rejectedSettlementVertices, 48);
 assert.equal(treatment.footprint.clearance.roadContaminationVertices, 0);
 assert.equal(treatment.footprint.clearance.parcelContaminationVertices, 0);
+assert.equal(treatment.footprint.clearance.roadContaminationTriangles, 0);
+assert.equal(treatment.footprint.clearance.parcelContaminationTriangles, 0);
 assert.ok(treatment.tone.meanStableLuminanceBefore! > 0);
 assert.ok(
   treatment.tone.meanStableLuminanceAfter!
     < treatment.tone.meanStableLuminanceBefore!,
 );
-assert.ok(treatment.tone.meanStableLuminanceReductionPercent >= 3);
-assert.ok(treatment.tone.meanStableLuminanceReductionPercent <= 20);
 assertNear(
   treatment.tone.meanStableLuminanceReductionPercent,
-  5.9080105973370545,
+  13.965192485585554,
 );
+assert.ok(
+  treatment.tone.meanStableLuminanceReductionPercent
+    > historical.tone.meanStableLuminanceReductionPercent * 2.3,
+  'Round 57 must materially exceed the imperceptible Round 56 value change',
+);
+assert.equal(treatment.tone.maximumBlend, HAMLET_UNDER_CANOPY_MAXIMUM_BLEND);
+assert.equal(
+  treatment.tone.targetLuminanceRatio,
+  HAMLET_UNDER_CANOPY_TARGET_LUMINANCE_RATIO,
+);
+assertNear(
+  treatment.tone.minimumStableLuminanceReductionPercent,
+  0.7661964197713256,
+);
+assertNear(
+  treatment.tone.maximumStableLuminanceReductionPercent,
+  30.068781687160374,
+);
+assertNear(
+  treatment.tone.stableLuminanceReductionStandardDeviationPercent,
+  7.45920874785387,
+);
+assert.deepEqual(treatment.tone.mottling, {
+  basis:
+    'domain-warped-lattice-value-noise-with-irregular-light-channels',
+  meanAppliedBlend: 0.4596524343386593,
+  appliedBlendStandardDeviation: 0.24163350146512735,
+  minimumAppliedBlend: 0.025539975512196278,
+  maximumAppliedBlend: 0.8999961124198941,
+  darkBasinVertices: 177,
+  leafLitterVertices: 177,
+  lighterChannelVertices: 161,
+});
 assert.deepEqual(
   geometryStructureSignature(treatmentGeometry),
   treatmentStructureBefore,
 );
 
 let changedVertices = 0;
+let visiblyDryFloorVertices = 0;
 const position = treatmentGeometry.getAttribute(
   'position',
 ) as THREE.BufferAttribute;
@@ -212,10 +332,18 @@ for (let index = 0; index < position.count; index += 1) {
       !== treatmentColorsBefore[offset + 2];
   if (!changed) continue;
   changedVertices += 1;
+  if (treatmentColorsAfter[offset + 2]! >= 0.18) {
+    visiblyDryFloorVertices += 1;
+  }
   const weightSum = treatmentColorsAfter[offset]!
     + treatmentColorsAfter[offset + 1]!
     + treatmentColorsAfter[offset + 2]!;
   assert.ok(Math.abs(weightSum - 1) < 1e-6);
+  assert.ok(
+    stableBiomeLuminanceAt(treatmentColorsAfter, offset)
+      < stableBiomeLuminanceAt(treatmentColorsBefore, offset),
+    'every changed terrain vertex must lose value',
+  );
   const clearance = measureHamletForestBeltClearance(
     position.getX(index),
     position.getZ(index),
@@ -232,6 +360,7 @@ for (let index = 0; index < position.count; index += 1) {
   );
 }
 assert.equal(changedVertices, treatment.footprint.modifiedVertices);
+assert.equal(visiblyDryFloorVertices, 191);
 assert.equal(treatment.budget.startupColorWrites, changedVertices);
 assert.deepEqual(
   {
@@ -245,6 +374,7 @@ assert.deepEqual(
     geometryIndexDelta: treatment.budget.geometryIndexDelta,
     vertexAttributeDelta: treatment.budget.vertexAttributeDelta,
     colorBufferByteDelta: treatment.budget.colorBufferByteDelta,
+    shaderDelta: treatment.budget.shaderDelta,
     perFrameWorkDelta: treatment.budget.perFrameWorkDelta,
   },
   {
@@ -258,6 +388,7 @@ assert.deepEqual(
     geometryIndexDelta: 0,
     vertexAttributeDelta: 0,
     colorBufferByteDelta: 0,
+    shaderDelta: 0,
     perFrameWorkDelta: 0,
   },
 );
@@ -329,6 +460,25 @@ assert.match(
   fixtureSource,
   /underCanopyGround,\s*\n\s*drawCalls:/,
   'terminal metrics must publish the exact ground-treatment evidence',
+);
+assert.ok(
+  fixtureSource.indexOf('applyHamletUnderCanopyGroundTreatment({')
+    < fixtureSource.indexOf('createSeedThreeForest('),
+  'the terrain color mutation must finish during startup before forest build',
+);
+const treatmentSource = readFileSync(
+  new URL('../src/e2e/hamletUnderCanopyGround.ts', import.meta.url),
+  'utf8',
+);
+assert.doesNotMatch(
+  treatmentSource,
+  /new THREE\.(?:Texture|Mesh|Material|BufferGeometry|BufferAttribute)/,
+  'the startup treatment may not allocate a render resource',
+);
+assert.doesNotMatch(
+  treatmentSource,
+  /\.setAttribute\(/,
+  'the startup treatment must reuse the existing terrain attributes',
 );
 
 console.log(JSON.stringify({
@@ -426,6 +576,20 @@ function geometryStructureSignature(geometry: THREE.BufferGeometry) {
       ]),
     ),
   };
+}
+
+function stableBiomeLuminanceAt(
+  colors: readonly number[],
+  offset: number,
+): number {
+  const luminance = [
+    0.1 * 0.2126 + 0.108 * 0.7152 + 0.04 * 0.0722,
+    0.05 * 0.2126 + 0.055 * 0.7152 + 0.029 * 0.0722,
+    0.18 * 0.2126 + 0.17 * 0.7152 + 0.078 * 0.0722,
+  ] as const;
+  return colors[offset]! * luminance[0]
+    + colors[offset + 1]! * luminance[1]
+    + colors[offset + 2]! * luminance[2];
 }
 
 function assertNear(
