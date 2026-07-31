@@ -683,15 +683,20 @@ function createPlaneWeatheringColorAttribute(
         0.67,
         0.84,
       );
-      const host = 0.84 + (broad - 0.5) * 0.14;
+      const host = 0.82
+        + (broad - 0.5) * 0.16
+        + (medium - 0.5) * 0.07
+        + (fine - 0.5) * 0.035
+        + faceTurn * 0.018;
+      const mineralShift = surfaceValueNoise(centroid, seed + 109.3, 3.3) - 0.5;
       red = host * (
-        1 - fissure * 0.34 - inclusion * 0.13
+        1 - fissure * 0.34 - inclusion * 0.13 + mineralShift * 0.025
       );
       green = host * (
-        0.97 - fissure * 0.35 - inclusion * 0.14
+        0.97 - fissure * 0.35 - inclusion * 0.14 - mineralShift * 0.015
       );
       blue = host * (
-        0.88 - fissure * 0.33 - inclusion * 0.19
+        0.88 - fissure * 0.33 - inclusion * 0.19 + mineralShift * 0.01
       );
     }
 

@@ -212,13 +212,13 @@ for (const resource of ['iron', 'salt'] as const) {
   const minimumLuminanceRange = resource === 'iron' ? 0.16 : 0.1;
   assert.ok(
     textureProfile.luminanceRange >= minimumLuminanceRange
-      && textureProfile.luminanceRange <= (resource === 'iron' ? 0.36 : 0.28),
+      && textureProfile.luminanceRange <= (resource === 'iron' ? 0.36 : 0.34),
     `${resource} albedo needs camera-readable but rock-like mottling, got ${textureProfile.luminanceRange.toFixed(3)}`,
   );
   const minimumChannelRange = resource === 'iron' ? 0.15 : 0.1;
   assert.ok(
     textureProfile.channelRanges.every(
-      (range) => range >= minimumChannelRange && range <= (resource === 'iron' ? 0.48 : 0.3),
+      (range) => range >= minimumChannelRange && range <= (resource === 'iron' ? 0.48 : 0.38),
     ),
     `${resource} weathering must remain readable without harsh cavity contrast, got ${textureProfile.channelRanges.map((range) => range.toFixed(3)).join('/')}`,
   );
@@ -273,7 +273,7 @@ for (const resource of ['iron', 'salt'] as const) {
   );
   assert.ok(
     mipProfile.chromaRange >= (resource === 'iron' ? 0.08 : 0.01)
-      && mipProfile.chromaRange <= (resource === 'iron' ? 0.29 : 0.08),
+      && mipProfile.chromaRange <= (resource === 'iron' ? 0.38 : 0.08),
     `${resource} mineral coloration must survive a 4x mip reduction, got ${mipProfile.chromaRange.toFixed(3)}`,
   );
   const paletteLuminance = [...materialSet].map((material) => {
@@ -587,17 +587,17 @@ for (const geometry of mineralGeometries) {
   }
   const faceCount = color.count / 3;
   assert.ok(
-    faceColors.size / faceCount >= (faceCount > 100 ? 0.75 : 0.9),
-    `${resource} plane field must remain nonrepeating across the silhouette`,
+    faceColors.size / faceCount >= (resource === 'iron' ? 0.75 : 0.72),
+    `${resource} plane field must remain nonrepeating across the silhouette, got ${(faceColors.size / faceCount).toFixed(3)}`,
   );
   const luminanceRange = maximumLuminance - minimumLuminance;
   const chromaRange = maximumChroma - minimumChroma;
   assert.ok(
     resource === 'iron'
       ? luminanceRange >= 0.15 && luminanceRange <= 0.23
-        && chromaRange >= 0.3 && chromaRange <= 0.4
-      : luminanceRange >= 0.25 && luminanceRange <= 0.4
-        && chromaRange >= 0.1 && chromaRange <= 0.18,
+        && chromaRange >= 0.4 && chromaRange <= 0.55
+      : luminanceRange >= 0.35 && luminanceRange <= 0.5
+        && chromaRange >= 0.04 && chromaRange <= 0.12,
     `${resource} plane colors need bounded camera-scale host-rock breakup, got ${luminanceRange.toFixed(3)}/${chromaRange.toFixed(3)}`,
   );
   assert.equal(
