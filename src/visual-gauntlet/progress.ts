@@ -160,25 +160,25 @@ const gates: EvidenceGate[] = [
     title: 'Matched conditions',
     target: 'Fixed route, camera, 1280×720, renderer PR 1, weather, and time',
     status: 'unproven',
-    evidence: 'Round 55 binds one dependency-closed archive, the fixed route, 1280x720 drawing buffer, renderer PR 1, exact cross-arm camera-pose signatures, and byte-identical prime/repeat frame captures. Weather and time are still not serialized, so the global matched-condition gate remains unproven.',
+    evidence: 'Round 56 binds one dependency-closed archive, the fixed route, 1280x720 drawing buffer, renderer PR 1, exact cross-arm camera-pose signatures, and byte-identical prime/repeat frame captures. Weather and time are still not serialized, so the global matched-condition gate remains unproven.',
   },
   {
     title: 'Median FPS',
     target: 'Hard pass: 60–90 FPS during the settled 30-second full-subsystem run',
     status: 'unproven',
-    evidence: 'Round 55 records roughly 161 FPS mean throughput in both blind arms with direct rendering, post-processing disabled, and vegetation updates frozen after warmup. That diagnostic validates the edge treatment comparison, not a normal full-system settlement run.',
+    evidence: 'Round 56 records roughly 153 FPS mean throughput in both blind arms with direct rendering, post-processing disabled, and vegetation updates frozen after warmup. That diagnostic validates the forest-floor treatment comparison, not a normal full-system settlement run.',
   },
   {
     title: '1% low',
     target: 'Hard pass: at least 60 FPS in the same target run',
     status: 'unproven',
-    evidence: 'Round 55 passes the sealed diagnostic bar at 75.87 FPS for the interlocking treatment and 81.79 FPS for the tapered control. Normal live vegetation updates and post-processing are outside that comparison, so the global target remains unproven rather than failed.',
+    evidence: 'Round 56 passes the sealed diagnostic bar at 81.10 FPS for the shadowed-ground treatment and 81.87 FPS for the existing-terrain control. Normal live vegetation updates and post-processing are outside that comparison, so the global target remains unproven rather than failed.',
   },
   {
     title: '>25 ms hitch count',
     target: 'Hard pass: exactly 0 frames during the 30-second trace',
     status: 'unproven',
-    evidence: 'Both Round 55 arms record zero frames over 25 ms and maxima at or below 24.2 ms, but only under the sealed edge-treatment diagnostic. A normal full-system run is still required.',
+    evidence: 'Both Round 56 arms record zero frames over 25 ms and maxima at or below 18.0 ms, but only under the sealed forest-floor diagnostic. A normal full-system run is still required.',
   },
   {
     title: '>50 ms hitch count',
@@ -190,7 +190,7 @@ const gates: EvidenceGate[] = [
     title: 'LOD motion review',
     target: 'Fresh critic finds no discrete pop or blank band at normal playback or frame-step',
     status: 'unproven',
-    evidence: 'Round 55 provides nine GPU-synchronized, pose-matched frame-step pairs with byte-identical prime/repeat captures, including 0276–0279. The fresh exhaustive critic found no discrete vegetation pop, but normal-playback review with all live systems remains outstanding.',
+    evidence: 'Round 56 provides nine GPU-synchronized, pose-matched frame-step pairs with byte-identical prime/repeat captures, including 0276–0279. The fresh exhaustive critic found no vegetation, shadow, terrain-mask, or road-mask pop, but normal-playback review with all live systems remains outstanding.',
   },
   {
     title: 'Residence roof progression',

@@ -11,6 +11,7 @@ import {
   handleDockHotkey,
   type DockToggle,
 } from '../src/ui/constructionDockToggle.ts';
+import { selectProjectedRaidAttentionTarget } from '../src/ui/SettlementHud.ts';
 import {
   armedGuardCount,
   computeGuardhouseMusterPlan,
@@ -553,6 +554,38 @@ assert.deepEqual(
     ['building', '20', false],
   ],
   'exposed targets should be preferred by value before richer watched stores',
+);
+assert.equal(
+  selectProjectedRaidAttentionTarget([], 0),
+  null,
+  'an empty report must not manufacture a positionless attention target',
+);
+const firstAttentionTarget = selectProjectedRaidAttentionTarget(
+  projectedTargets,
+  0,
+);
+assert.deepEqual(
+  firstAttentionTarget && {
+    kind: firstAttentionTarget.target.kind,
+    id: firstAttentionTarget.target.id,
+    index: firstAttentionTarget.index,
+    nextIndex: firstAttentionTarget.nextIndex,
+  },
+  { kind: 'residence', id: '15', index: 0, nextIndex: 1 },
+  'the first HUD activation should inspect the forecast leader and retain a deterministic next cursor',
+);
+const wrappedAttentionTarget = selectProjectedRaidAttentionTarget(
+  projectedTargets,
+  projectedTargets.length + 1,
+);
+assert.deepEqual(
+  wrappedAttentionTarget && {
+    id: wrappedAttentionTarget.target.id,
+    index: wrappedAttentionTarget.index,
+    nextIndex: wrappedAttentionTarget.nextIndex,
+  },
+  { id: '20', index: 1, nextIndex: 0 },
+  'repeated HUD activation should wrap through the bounded physical-target report',
 );
 assert.deepEqual(
   projectRaidTargets(projectionState, 3).map((target) => target.id),
@@ -1562,6 +1595,7 @@ const villagerRenderer = readFileSync('src/settlement/VillagerRenderer.ts', 'utf
 const villagerInspector = readFileSync('src/ui/VillagerInspector.ts', 'utf8');
 const resourceInspector = readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 const app = readFileSync('src/app/App.ts', 'utf8');
+const appBootstrap = readFileSync('src/app/appBootstrap.ts', 'utf8');
 const clientSecurity = readFileSync('src/security/frontierSecurity.ts', 'utf8');
 const serverSimulation = readFileSync('server/src/simulation/settlement_security.rs', 'utf8');
 assert.match(
@@ -1661,6 +1695,21 @@ assert.match(
 assert.match(
   settlementHud,
   /Live incursion: labor halted, new cart departures stopped/,
+);
+assert.match(
+  settlementHud,
+  /<button[\s\S]*data-security-alert[\s\S]*setSecurityAttentionHandler[\s\S]*selectProjectedRaidAttentionTarget[\s\S]*securityAttentionIndex = selection\.nextIndex/,
+  'the compact frontier alert must be an accessible control that cycles the bounded target report',
+);
+assert.match(
+  app,
+  /setSecurityState\([\s\S]*frontierDetail \|\| undefined,\s*this\.projectedRaidTargets,/,
+  'the HUD attention control must receive the same cached targets as the world warning markers',
+);
+assert.match(
+  appBootstrap,
+  /setSecurityAttentionHandler\([\s\S]*target\.kind === 'cart'[\s\S]*target\.kind === 'building'[\s\S]*target\.kind === 'residence'[\s\S]*focusWorldPosition\(focusX, focusZ\)/,
+  'activating a report must select and focus the real cart, worksite, home, refuge, or compatibility anchor',
 );
 assert.match(serverTables, /table\(accessor = active_raid, public\)/);
 assert.match(

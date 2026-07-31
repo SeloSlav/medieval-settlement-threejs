@@ -896,6 +896,7 @@ export class App {
       snapshot.worldGeneration,
       snapshot.simTick,
       frontierDetail || undefined,
+      this.projectedRaidTargets,
       snapshot.activeRaid,
       raidThreatActive,
       withdrawingCarts,

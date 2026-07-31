@@ -41,6 +41,12 @@ import {
   type HamletForestEdgeLayerEvidence,
 } from './hamletForestEdgeLayer.ts';
 import {
+  applyHamletUnderCanopyGroundTreatment,
+  assertHamletUnderCanopyGroundDependencies,
+  resolveHamletUnderCanopyGroundTreatment,
+  type HamletUnderCanopyGroundEvidence,
+} from './hamletUnderCanopyGround.ts';
+import {
   createSeedThreeForest,
   getSeedThreeForestStructuralStats,
   setSeedThreeForestShadows,
@@ -194,6 +200,7 @@ type HamletFixtureMetrics = {
   visibleTrees: number;
   forestDraws: number;
   forestEdgeLayer: HamletForestEdgeLayerEvidence;
+  underCanopyGround: HamletUnderCanopyGroundEvidence;
   drawCalls: number;
   triangles: number;
   staticBatching: {
@@ -412,8 +419,16 @@ const requestedVisualProfile = params.get('visualProfile') === '1';
 const requestedForestEdgeLayout = resolveHamletForestEdgeLayout(
   params.get('forestEdgeLayout'),
 );
+const requestedUnderCanopyGround =
+  resolveHamletUnderCanopyGroundTreatment(params.get('forestGround'));
+assertHamletUnderCanopyGroundDependencies(
+  requestedUnderCanopyGround,
+  requestedForestEdgeLayout,
+);
 document.documentElement.dataset.visualRouteForestEdgeLayout =
   requestedForestEdgeLayout;
+document.documentElement.dataset.visualRouteForestGround =
+  requestedUnderCanopyGround;
 const profileLegacyGroundcoverShadowReception =
   requestedVisualProfile
   && params.get('visualGroundcoverShadowReceive') === 'legacy';
@@ -919,6 +934,14 @@ const {
   placements: forestPlacements,
   edgeLayer: forestEdgeLayer,
 } = createHamletForestPlacements(requestedForestEdgeLayout);
+const underCanopyGround = applyHamletUnderCanopyGroundTreatment({
+  treatment: requestedUnderCanopyGround,
+  forestEdgeLayout: requestedForestEdgeLayout,
+  geometry: terrainGeometry,
+  placements: forestPlacements,
+});
+document.documentElement.dataset.hamletUnderCanopyGroundEvidence =
+  JSON.stringify(underCanopyGround);
 setBootStage('groundcover', 'running');
 const grassFieldPromise = createGrassBladeField(terrainAdapter, {
   maxAnisotropy: rendererBackend.maxAnisotropy,
@@ -2200,6 +2223,7 @@ function publishFixtureEvidence(): HamletFixtureEvidenceEnvelope | null {
       visibleTrees: window.__HAMLET_FIXTURE_METRICS__.visibleTrees,
       forestDraws: window.__HAMLET_FIXTURE_METRICS__.forestDraws,
       forestEdgeLayer,
+      underCanopyGround,
     },
   });
 }
@@ -3568,6 +3592,7 @@ function render(
     visibleTrees: forestStats.trees.visibleTrees,
     forestDraws: forestStats.draws,
     forestEdgeLayer,
+    underCanopyGround,
     drawCalls: structural.draws,
     triangles: structural.triangles,
     staticBatching: {

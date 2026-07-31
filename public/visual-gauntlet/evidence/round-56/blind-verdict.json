@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "round": 56,
+  "reviewMode": "fresh-context exhaustive blind A/B",
+  "reviewedReferences": 10,
+  "reviewedFramesPerArm": 9,
+  "winner": "tie",
+  "confidencePercent": 97,
+  "gates": {
+    "blind-A": {
+      "visual": "fail",
+      "performance": "pass"
+    },
+    "blind-B": {
+      "visual": "fail",
+      "performance": "pass"
+    }
+  },
+  "performance": {
+    "blind-A": {
+      "onePercentLowFps": 81.86510055167288,
+      "maxFrameMs": 12.30000000000291,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "medianDrawCalls": 82,
+      "medianTriangles": 1797323
+    },
+    "blind-B": {
+      "onePercentLowFps": 81.10014104369588,
+      "maxFrameMs": 18,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "medianDrawCalls": 82,
+      "medianTriangles": 1812495
+    }
+  },
+  "perFrame": {
+    "000": "Visually indistinguishable. Bright olive turf leaks throughout the forest, while sparse repeated clumps and thin trunks prevent a continuous woodland volume. Roads, fields, and parcels remain intact in both.",
+    "180": "Identical closer aerial views. The upper forest remains separated clusters over exposed turf rather than a dark layered edge. Road and parcel geometry is clear.",
+    "276": "Identical. Canopy evidence is limited to the upper margin; hard ink-like cast shadows sit on otherwise flat turf. The road remains readable despite noisy vegetation.",
+    "277": "No arm difference and no discontinuous vegetation or shadow change from frame 276.",
+    "278": "No arm difference; camera motion remains coherent, with no overlay blink, road-mask shift, or shadow pop.",
+    "279": "No arm difference; the four-frame sequence ends smoothly with all settlement geometry stable.",
+    "330": "Identical ground-level views. The forest backdrop reads as a picket line of spindly trunks and similarly sized crowns, not a deep woodland body.",
+    "375": "The same failure persists without arm-specific halos, stains, or readability loss.",
+    "480": "Identical to the frame 180 composition. Bright turf gaps remain dominant beneath and between clumps; roads and parcels remain clear."
+  },
+  "underCanopyVerdict": "The added darkness is not materially perceptible and therefore is not a meaningful natural improvement. Visible darkness still comes from hard individual cast shadows and small clump-shaped blotches rather than broad, soft, irregularly modulated floor occlusion.",
+  "roadParcelCheck": "pass for both",
+  "lodPopCheck": "pass for both across frames 276-279",
+  "biggestRemainingGap": "The forest still reads as isolated repetitive trees planted over uniform bright turf; the references unify interlocking crowns, understory, leaf-litter floor, and soft irregular darkness into one woodland volume.",
+  "smallestNextImprovement": "Apply one restrained mottled value reduction only beneath the densest adjoining crowns, feathering irregularly to zero before roads and parcel boundaries. Accept it only if frame 000 loses obvious olive holes while roads remain unchanged and frames 276-279 stay pop-free.",
+  "scopeNotes": {
+    "people": "excluded",
+    "woodShingleRoofs": "intentional and not penalized",
+    "qualityControl": "A helper's erroneous missing-scene report was rejected after the lead critic directly re-inspected both complete arms."
+  }
+}

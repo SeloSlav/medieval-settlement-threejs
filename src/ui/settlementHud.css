@@ -535,6 +535,7 @@
 }
 
 .settlement-hud__security-alert {
+  appearance: none;
   grid-column: 1 / -1;
   display: grid;
   gap: 1px;
@@ -544,11 +545,31 @@
   border-radius: 6px;
   color: #ead7a9;
   background: rgba(65, 48, 24, 0.34);
+  font: inherit;
+  text-align: left;
   cursor: help;
 }
 
 .settlement-hud__security-alert[hidden] {
   display: none;
+}
+
+.settlement-hud__security-alert[aria-disabled='true'] {
+  opacity: 1;
+}
+
+.settlement-hud__security-alert[data-inspectable='true'] {
+  cursor: pointer;
+}
+
+.settlement-hud__security-alert[data-inspectable='true']:hover {
+  border-color: rgba(232, 190, 99, 0.84);
+  background: rgba(86, 61, 27, 0.52);
+}
+
+.settlement-hud__security-alert:focus-visible {
+  outline: 2px solid rgba(244, 205, 119, 0.92);
+  outline-offset: 2px;
 }
 
 .settlement-hud__security-alert strong {

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "round": 56,
+  "status": "sealed-before-capture",
+  "commitment": {
+    "sha256": "8553DB93B87BD4F46D66A90F11ED25D4696FBEEB1D6FABD7BE319959D3CB97BD",
+    "sealedBeforeCapture": true
+  },
+  "captureOrigin": "http://127.0.0.1:4187",
+  "archive": {
+    "archiveId": "201B9BE2364C63E86A9A90CBF51F1537D355646EE0B05F6E128DE5B92F0DE0EB",
+    "treeSha256": "66FCDAD1727AEF879594EB04C0BEE776803C6256CD887B21DDF59181F6533EF4",
+    "fileCount": 435,
+    "bytes": 375681719,
+    "sourceCommit": "7d1f2e5e40ce7ebe875a463088b070651b28d7e9",
+    "sourceStatusSha256": "EE9EFD444E7B440224CB040EF44E7CB650AA275BEB5AD0B47ADD49D5C1852BA6"
+  },
+  "capture": {
+    "source": "renderer-drawing-buffer-after-gpu-queue-completion",
+    "dimensions": "1280x720@renderer-pr1",
+    "frameIndices": [
+      0,
+      180,
+      276,
+      277,
+      278,
+      279,
+      330,
+      375,
+      480
+    ],
+    "clearRequestBeforeEverySeek": true,
+    "primeCaptureDiscarded": true,
+    "immediateRepeatRequired": true,
+    "primeAndRepeatPngSha256MustMatch": true,
+    "crossArmCameraPoseSignatureMustMatch": true
+  },
+  "performanceBar": {
+    "onePercentLowFpsMinimum": 60,
+    "maxFrameMsMaximum": 25,
+    "framesOver25MsMaximum": 0,
+    "framesOver50MsMaximum": 0
+  },
+  "structuralBudget": {
+    "forestEdgeLayout": "tapered-shrub-sapling-belt-256",
+    "trees": 1651,
+    "edgeSlots": 256,
+    "terrainVertices": 50369,
+    "modifiedTerrainVertices": 1250,
+    "terrainDrawDelta": 0,
+    "forestDrawDelta": 0,
+    "newTextures": 0,
+    "newMeshes": 0,
+    "newMaterials": 0,
+    "geometryVertexDelta": 0,
+    "vertexAttributeDelta": 0,
+    "perFrameWorkDelta": 0,
+    "residenceRoof": "wood-shingle",
+    "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+    "seedThreeChangeRequired": false
+  }
+}

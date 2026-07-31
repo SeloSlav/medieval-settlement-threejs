@@ -25,6 +25,9 @@ import {
   type HamletForestEdgeLayerEvidence,
   type HamletForestEdgeLayout,
 } from './hamletForestEdgeLayer.ts';
+import type {
+  HamletUnderCanopyGroundEvidence,
+} from './hamletUnderCanopyGround.ts';
 import {
   calculateVisualPerformanceMetrics,
   type ProfileSubsystem,
@@ -2877,6 +2880,7 @@ export type HamletFixtureEvidenceEnvelope = {
     visibleTrees: number;
     forestDraws: number;
     forestEdgeLayer?: HamletForestEdgeLayerEvidence;
+    underCanopyGround?: HamletUnderCanopyGroundEvidence;
   };
   presentationTreatment?: {
     id: string;

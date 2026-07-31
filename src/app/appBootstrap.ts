@@ -1003,6 +1003,93 @@ export async function bootstrapAppSession(
     resourceInspector.selectBuilding(buildingId);
     cameraController.focusWorldPosition(building.x, building.z);
   });
+  toolbar.settlementHud.setSecurityAttentionHandler((target, index, count) => {
+    if (isWorldInspectionBlocked(placementGate)) {
+      toastManager.show(
+        sessionGate.isReady()
+          ? 'Finish or cancel the active tool before inspecting a threatened holding.'
+          : 'Connect to the settlement before inspecting a threatened holding.',
+        { variant: 'info', durationMs: 3200 },
+      );
+      return;
+    }
+
+    const state = liveContext.gameState;
+    let focusX = target.x;
+    let focusZ = target.z;
+    let targetPresent = false;
+    if (target.kind === 'cart') {
+      const trip = state.deliveryTrips.get(target.id);
+      if (trip) {
+        resourceInspector.clearSelection();
+        villagerInspector.clearSelection();
+        villagerInspector.selectDeliveryTrip(target.id);
+        focusX = trip.x;
+        focusZ = trip.z;
+        targetPresent = true;
+      }
+    } else if (target.kind === 'building') {
+      const building = state.buildings.get(target.id);
+      if (building) {
+        villagerInspector.clearSelection();
+        resourceInspector.selectBuilding(target.id);
+        focusX = building.x;
+        focusZ = building.z;
+        targetPresent = true;
+      }
+    } else if (target.kind === 'residence') {
+      const residence = state.residences.get(target.id);
+      if (residence) {
+        villagerInspector.clearSelection();
+        resourceInspector.selectResidence(target.id);
+        // A rallied household is attacked at its refuge, not its empty home.
+        // Retain the projection coordinates in that case.
+        if (!target.sheltered) {
+          focusX = residence.x;
+          focusZ = residence.z;
+        }
+        targetPresent = true;
+      }
+    } else {
+      // Compatibility worlds anchor their positionless legacy treasury to a
+      // real holding. Physical-economy worlds never generate this target.
+      const building = state.buildings.get(target.id);
+      const residence = state.residences.get(target.id);
+      if (building) {
+        villagerInspector.clearSelection();
+        resourceInspector.selectBuilding(target.id);
+        focusX = building.x;
+        focusZ = building.z;
+        targetPresent = true;
+      } else if (residence) {
+        villagerInspector.clearSelection();
+        resourceInspector.selectResidence(target.id);
+        focusX = residence.x;
+        focusZ = residence.z;
+        targetPresent = true;
+      }
+    }
+
+    if (!targetPresent) {
+      toastManager.show(
+        'That projected raid target has moved or is no longer present. The next watch report will refresh the forecast.',
+        { variant: 'info', durationMs: 3600 },
+      );
+      return;
+    }
+
+    cameraController.focusWorldPosition(focusX, focusZ);
+    const loss = target.estimatedLossFraction === null
+      ? ''
+      : ` · up to ${Math.round(target.estimatedLossFraction * 100)}% projected loss`;
+    toastManager.show(
+      `Threatened holding ${index + 1}/${count}: ${target.label}`
+        + ` · ${target.protected ? 'watched' : 'exposed'}`
+        + `${target.sheltered ? ' · rallied behind palisade' : ''}`
+        + `${loss} · ${target.portableSummary}`,
+      { variant: 'info', durationMs: 4600 },
+    );
+  });
 
   firstPersonController = new FirstPersonController({
     camera: sceneManager.camera,

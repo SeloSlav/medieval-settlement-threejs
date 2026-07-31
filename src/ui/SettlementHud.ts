@@ -27,6 +27,7 @@ import {
   formatFrontierRaidTiming,
   formatRaidReport,
   frontierThreatLabel,
+  type ProjectedRaidTarget,
   type SettlementSecurityState,
 } from '../security/frontierSecurity.ts';
 import {
@@ -82,10 +83,18 @@ const SETTLEMENT_HUD_HTML = `
         <strong data-fire-count>Fire</strong>
         <span data-fire-response>Awaiting a staffed well</span>
       </div>
-      <div class="settlement-hud__security-alert" data-security-alert hidden>
+      <button
+        type="button"
+        class="settlement-hud__security-alert"
+        data-security-alert
+        aria-label="Frontier watch awaiting reports"
+        aria-disabled="true"
+        tabindex="-1"
+        hidden
+      >
         <strong data-security-label>Frontier watch</strong>
         <span data-security-detail>Awaiting reports</span>
-      </div>
+      </button>
       <div class="settlement-hud__provision-alert" data-provision-alert hidden>
         <strong data-provision-label>Winter stores</strong>
         <span data-provision-detail>Awaiting household ledgers</span>
@@ -396,7 +405,7 @@ export class SettlementHud {
   private readonly fireAlert: HTMLElement;
   private readonly fireCount: HTMLElement;
   private readonly fireResponse: HTMLElement;
-  private readonly securityAlert: HTMLElement;
+  private readonly securityAlert: HTMLButtonElement;
   private readonly securityLabel: HTMLElement;
   private readonly securityDetail: HTMLElement;
   private readonly provisionAlert: HTMLElement;
@@ -438,6 +447,13 @@ export class SettlementHud {
   private readonly zoomValue: HTMLElement;
   private onLocateResource: ((resource: HudResourceKind) => void) | null = null;
   private onInspectGeologyAttention: ((buildingId: string) => void) | null = null;
+  private onInspectSecurityAttention: ((
+    target: ProjectedRaidTarget,
+    index: number,
+    count: number,
+  ) => void) | null = null;
+  private securityAttentionTargets: readonly ProjectedRaidTarget[] = [];
+  private securityAttentionIndex = 0;
   private geologyAttentionBuildingId: string | null = null;
   private lastApprovalScore: number | null = null;
   private lastApprovalTrend: 'rising' | 'falling' | 'steady' = 'steady';
@@ -461,7 +477,7 @@ export class SettlementHud {
     this.fireAlert = this.mustElement('[data-fire-alert]');
     this.fireCount = this.mustElement('[data-fire-count]');
     this.fireResponse = this.mustElement('[data-fire-response]');
-    this.securityAlert = this.mustElement('[data-security-alert]');
+    this.securityAlert = this.mustButton('[data-security-alert]');
     this.securityLabel = this.mustElement('[data-security-label]');
     this.securityDetail = this.mustElement('[data-security-detail]');
     this.provisionAlert = this.mustElement('[data-provision-alert]');
@@ -523,6 +539,7 @@ export class SettlementHud {
     }
     this.panel.addEventListener('click', this.onResourceRowClick);
     this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
+    this.securityAlert.addEventListener('click', this.onSecurityAlertClick);
     this.geologyAlert.addEventListener('click', this.onGeologyAlertClick);
     this.approvalButton.addEventListener('click', this.onApprovalToggle);
     this.approvalClose.addEventListener('click', this.onApprovalClose);
@@ -538,6 +555,17 @@ export class SettlementHud {
     handler: ((buildingId: string) => void) | null,
   ): void {
     this.onInspectGeologyAttention = handler;
+  }
+
+  setSecurityAttentionHandler(
+    handler: ((
+      target: ProjectedRaidTarget,
+      index: number,
+      count: number,
+    ) => void) | null,
+  ): void {
+    this.onInspectSecurityAttention = handler;
+    this.refreshSecurityAttentionControl();
   }
 
   setGeologyState(plan: SettlementGeologyPlan | null): void {
@@ -653,12 +681,16 @@ export class SettlementHud {
     world: AuthoritativeWorldGeneration | null,
     simTick: number,
     projectedTargets?: string,
+    securityAttentionTargets: readonly ProjectedRaidTarget[] = [],
     activeRaid?: ActiveRaidState | null,
     raidThreatActive = false,
     withdrawingCarts = 0,
   ): void {
     const enabled = world?.configured === true && world.conflictMode === 'frontier';
     const warningActive = security.warningStartedTick > 0;
+    this.setSecurityAttentionTargets(
+      enabled ? securityAttentionTargets : [],
+    );
     this.securityAlert.hidden = !enabled;
     this.panel.classList.toggle(
       'has-frontier-threat',
@@ -1081,6 +1113,23 @@ export class SettlementHud {
     }
   };
 
+  private readonly onSecurityAlertClick = (event: MouseEvent): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    const selection = selectProjectedRaidAttentionTarget(
+      this.securityAttentionTargets,
+      this.securityAttentionIndex,
+    );
+    if (selection === null || this.onInspectSecurityAttention === null) return;
+    this.onInspectSecurityAttention(
+      selection.target,
+      selection.index,
+      this.securityAttentionTargets.length,
+    );
+    this.securityAttentionIndex = selection.nextIndex;
+    this.refreshSecurityAttentionControl();
+  };
+
   private readonly onApprovalToggle = (): void => {
     this.setApprovalOpen(this.approvalPanel.hasAttribute('hidden'));
   };
@@ -1108,6 +1157,51 @@ export class SettlementHud {
     this.approvalPanel.hidden = !nextOpen;
     this.approvalButton.setAttribute('aria-expanded', String(nextOpen));
     this.panel.classList.toggle('has-approval-open', nextOpen);
+  }
+
+  private setSecurityAttentionTargets(
+    targets: readonly ProjectedRaidTarget[],
+  ): void {
+    const pendingTarget = selectProjectedRaidAttentionTarget(
+      this.securityAttentionTargets,
+      this.securityAttentionIndex,
+    )?.target ?? null;
+    this.securityAttentionTargets = targets;
+    this.securityAttentionIndex = pendingTarget === null
+      ? 0
+      : Math.max(
+          0,
+          targets.findIndex((target) =>
+            target.kind === pendingTarget.kind && target.id === pendingTarget.id),
+        );
+    this.refreshSecurityAttentionControl();
+  }
+
+  private refreshSecurityAttentionControl(): void {
+    const selection = selectProjectedRaidAttentionTarget(
+      this.securityAttentionTargets,
+      this.securityAttentionIndex,
+    );
+    const inspectable = selection !== null
+      && this.onInspectSecurityAttention !== null;
+    this.securityAlert.setAttribute('aria-disabled', String(!inspectable));
+    this.securityAlert.tabIndex = inspectable ? 0 : -1;
+    this.securityAlert.dataset.inspectable = inspectable ? 'true' : 'false';
+    if (selection === null) {
+      this.securityAlert.setAttribute(
+        'aria-label',
+        'Frontier watch: no specific physical holding is currently marked',
+      );
+      return;
+    }
+    const targetNumber = selection.index + 1;
+    const targetCount = this.securityAttentionTargets.length;
+    this.securityAlert.setAttribute(
+      'aria-label',
+      inspectable
+        ? `Inspect threatened holding ${targetNumber} of ${targetCount}: ${selection.target.label}. Activate repeatedly to cycle marked holdings.`
+        : `Threatened holding ${targetNumber} of ${targetCount}: ${selection.target.label}`,
+    );
   }
 
   private activateResourceRow(target: EventTarget | null): void {
@@ -1147,10 +1241,33 @@ export class SettlementHud {
   }
 
   dispose(): void {
+    this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
     this.geologyAlert.removeEventListener('click', this.onGeologyAlertClick);
     window.removeEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);
     window.removeEventListener('keydown', this.onApprovalEscape, true);
   }
+}
+
+export type ProjectedRaidAttentionSelection = {
+  target: ProjectedRaidTarget;
+  index: number;
+  nextIndex: number;
+};
+
+export function selectProjectedRaidAttentionTarget(
+  targets: readonly ProjectedRaidTarget[],
+  requestedIndex: number,
+): ProjectedRaidAttentionSelection | null {
+  if (targets.length === 0) return null;
+  const integerIndex = Number.isFinite(requestedIndex)
+    ? Math.trunc(requestedIndex)
+    : 0;
+  const index = ((integerIndex % targets.length) + targets.length) % targets.length;
+  return {
+    target: targets[index],
+    index,
+    nextIndex: (index + 1) % targets.length,
+  };
 }
 
 function formatWelfareRunway(days: number): string {
