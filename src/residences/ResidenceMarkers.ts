@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addTriangularGableWall } from '../buildings/meshPrimitives.ts';
 import { addLogPile } from '../buildings/logPile.ts';
-import { createResidenceShadowProxy } from '../buildings/buildingShadowProxy.ts';
+import { BatchedBuildingShadowProxies } from '../buildings/buildingShadowProxy.ts';
 import {
   addMesh,
   residenceFacadeMaterial,
@@ -1798,6 +1798,8 @@ export function createResidencePreviewMesh(seed = 0): THREE.Group {
 
 export class ResidenceMarkers {
   private readonly root: THREE.Group;
+  private readonly shadowProxyBatch: BatchedBuildingShadowProxies;
+  private readonly onShadowCastersChanged?: () => void;
   private readonly serviceCoverageRoot: THREE.Group;
   private readonly serviceCoverageGeometry: THREE.RingGeometry;
   private readonly serviceCoverageMaterial: THREE.MeshBasicMaterial;
@@ -1820,9 +1822,18 @@ export class ResidenceMarkers {
   private nightPolicy: Pick<NightPolicyState, 'gathering' | 'curfew'> | undefined;
   private householdClock: GameClock | null = null;
 
-  constructor(parent: THREE.Group) {
+  constructor(
+    parent: THREE.Group,
+    onShadowCastersChanged?: () => void,
+  ) {
+    this.onShadowCastersChanged = onShadowCastersChanged;
     this.root = new THREE.Group();
     this.root.name = 'Residences';
+    this.shadowProxyBatch = new BatchedBuildingShadowProxies(
+      this.root,
+      'Batched residence shadow proxies',
+      areBuildingShadowsEnabled(),
+    );
     this.serviceCoverageRoot = new THREE.Group();
     this.serviceCoverageRoot.name = 'Residence service coverage';
     this.serviceCoverageGeometry = new THREE.RingGeometry(0.78, 1, 40);
@@ -1974,11 +1985,6 @@ export class ResidenceMarkers {
               residence.tiledRoof === true,
             );
         marker.userData.fpCollisionAggregate = true;
-        if (completedTier != null) {
-          const shadowProxy = createResidenceShadowProxy(completedTier);
-          shadowProxy.castShadow = areBuildingShadowsEnabled();
-          marker.add(shadowProxy);
-        }
         this.root.add(marker);
         this.meshes.set(residence.id, marker);
 
@@ -2006,6 +2012,16 @@ export class ResidenceMarkers {
         1 - condition * 0.065,
         1 - condition * 0.012,
       );
+      const completedTier = residence.tier === 0 ? null : residence.tier;
+      if (completedTier == null) {
+        this.shadowProxyBatch.remove(residence.id);
+      } else {
+        this.shadowProxyBatch.upsertResidence(
+          residence.id,
+          completedTier,
+          marker,
+        );
+      }
       marker.userData.residenceCondition = condition;
       const smokeEligible = !residence.abandoned
         && residence.population > 0
@@ -2025,12 +2041,6 @@ export class ResidenceMarkers {
       syncFirewoodPile(marker, getNeedStock(residence.needs, 'firewood'));
       syncInitialResidenceConstruction(marker, residence);
       syncResidenceUpgradeWorks(marker, residence);
-      const completedTier = residence.tier === 0 ? null : residence.tier;
-      if (completedTier != null && !marker.getObjectByName('Building shadow proxy')) {
-        const shadowProxy = createResidenceShadowProxy(completedTier);
-        shadowProxy.castShadow = areBuildingShadowsEnabled();
-        marker.add(shadowProxy);
-      }
     }
 
     for (const [id, marker] of this.meshes) {
@@ -2039,6 +2049,7 @@ export class ResidenceMarkers {
         this.serviceCoverageDirty = true;
       }
       this.root.remove(marker);
+      this.shadowProxyBatch.remove(id);
       disposeGroup(marker);
       this.meshes.delete(id);
       this.smokeEmitters.get(id)?.dispose();
@@ -2046,6 +2057,9 @@ export class ResidenceMarkers {
       this.smokeEligible.delete(id);
       this.residenceOccupied.delete(id);
       this.residencePopulation.delete(id);
+    }
+    if (this.shadowProxyBatch.flush()) {
+      this.onShadowCastersChanged?.();
     }
     if (this.serviceCoverageDirty) this.syncServiceCoverageHighlights();
   }
@@ -2144,6 +2158,7 @@ export class ResidenceMarkers {
       disposeGroup(marker);
     }
     this.meshes.clear();
+    this.shadowProxyBatch.dispose();
     this.serviceCoverageGeometry.dispose();
     this.serviceCoverageMaterial.dispose();
     this.serviceCoverageRoot.removeFromParent();

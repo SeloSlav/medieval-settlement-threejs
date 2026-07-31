@@ -32,7 +32,7 @@ import { updateTerrainCircleRibbonGeometry } from '../placement/TerrainOverlayGe
 import { buildingPlacementYaw } from './buildingPlacement.ts';
 import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
 import {
-  createBuildingShadowProxy,
+  BatchedBuildingShadowProxies,
   setBuildingDetailShadowsEnabled,
 } from './buildingShadowProxy.ts';
 import { createBuildingMesh } from './BuildingMeshes.ts';
@@ -97,14 +97,17 @@ type BuildingMarkersOptions = {
   parent: THREE.Group;
   getRoadNetwork?: () => RoadNetwork | null;
   getRoadConditionSpeedMultiplier?: () => number;
+  onShadowCastersChanged?: () => void;
 };
 
 export class BuildingMarkers {
   private readonly terrain: Terrain;
   private readonly getRoadNetwork?: () => RoadNetwork | null;
   private readonly getRoadConditionSpeedMultiplier?: () => number;
+  private readonly onShadowCastersChanged?: () => void;
   private readonly group = new THREE.Group();
   private readonly buildingMeshes = new Map<string, THREE.Group>();
+  private readonly shadowProxyBatch: BatchedBuildingShadowProxies;
   private readonly foundersCampfires = new Set<THREE.Group>();
   private readonly watermillWheels = new Set<THREE.Group>();
   private foundersCampfireNightLighting = 0;
@@ -128,7 +131,13 @@ export class BuildingMarkers {
     this.terrain = options.terrain;
     this.getRoadNetwork = options.getRoadNetwork;
     this.getRoadConditionSpeedMultiplier = options.getRoadConditionSpeedMultiplier;
+    this.onShadowCastersChanged = options.onShadowCastersChanged;
     this.group.name = 'Building markers';
+    this.shadowProxyBatch = new BatchedBuildingShadowProxies(
+      this.group,
+      'Batched completed-building shadow proxies',
+      areBuildingShadowsEnabled(),
+    );
     this.guardhouseMusterRoute = createGuardhouseMusterRoute();
     this.group.add(this.guardhouseMusterRoute);
     options.parent.add(this.group);
@@ -200,6 +209,9 @@ export class BuildingMarkers {
     for (const id of this.buildingMeshes.keys()) {
       if (nextIds.has(id)) continue;
       this.removeBuilding(id);
+    }
+    if (this.shadowProxyBatch.flush()) {
+      this.onShadowCastersChanged?.();
     }
   }
 
@@ -334,6 +346,7 @@ export class BuildingMarkers {
     for (const id of [...this.buildingMeshes.keys()]) {
       this.removeBuilding(id);
     }
+    this.shadowProxyBatch.dispose();
     this.group.removeFromParent();
   }
 
@@ -517,11 +530,7 @@ export class BuildingMarkers {
       if (marker.userData.fpCollisionChildrenOnly !== true) {
         marker.userData.fpCollisionAggregate = true;
       }
-      if (operational && building.kind !== 'founders_camp') {
-        const shadowProxy = createBuildingShadowProxy(building.kind);
-        shadowProxy.castShadow = areBuildingShadowsEnabled();
-        marker.add(shadowProxy);
-      } else if (operational) {
+      if (operational && building.kind === 'founders_camp') {
         setBuildingDetailShadowsEnabled(marker, areBuildingShadowsEnabled());
       }
       marker.rotation.y = buildingPlacementYaw(
@@ -560,17 +569,17 @@ export class BuildingMarkers {
 
     const y = this.terrain.getHeightAt(building.x, building.z);
     marker.position.set(building.x, y, building.z);
+    if (operational && building.kind !== 'founders_camp') {
+      this.shadowProxyBatch.upsertBuilding(
+        building.id,
+        building.kind,
+        marker,
+      );
+    } else {
+      this.shadowProxyBatch.remove(building.id);
+    }
     if (operational) {
       syncBuildingVisualState(marker, building, herd, issuedGuardPolearms);
-    }
-    if (
-      operational
-      && building.kind !== 'founders_camp'
-      && !marker.getObjectByName('Building shadow proxy')
-    ) {
-      const shadowProxy = createBuildingShadowProxy(building.kind);
-      shadowProxy.castShadow = areBuildingShadowsEnabled();
-      marker.add(shadowProxy);
     }
   }
 
@@ -579,6 +588,7 @@ export class BuildingMarkers {
     if (!marker) return;
     this.unregisterFoundersCampfire(marker);
     this.unregisterWatermillWheel(marker);
+    this.shadowProxyBatch.remove(id);
     this.group.remove(marker);
     // Construction materials and textures belong to BuildingMaterialLibrary;
     // individual buildings own only their geometry.

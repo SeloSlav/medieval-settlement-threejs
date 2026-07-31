@@ -519,6 +519,10 @@ export class SceneManager {
     this.refreshShadowMap();
   }
 
+  invalidateStaticShadows(): void {
+    this.refreshShadowMap();
+  }
+
   applyHydrologyOverlayPreference(): void {
     this.setHydrologyOverlayVisible(isHydrologyOverlayEnabled());
   }

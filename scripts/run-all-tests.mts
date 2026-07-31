@@ -91,6 +91,7 @@ const tests = [
   'test:residence-terrain',
   'test:building-art',
   'test:static-fixture-batch',
+  'test:building-shadow-batch',
   'test:hamlet-fixture',
   'test:camera-controller',
   'test:world-map',

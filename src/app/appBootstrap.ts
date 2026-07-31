@@ -294,6 +294,7 @@ export async function bootstrapAppSession(
     parent: sceneManager.selectionGroup,
     getRoadNetwork: () => roadNetwork,
     getRoadConditionSpeedMultiplier: () => worldQueries.getRoadConditionSpeedMultiplier(),
+    onShadowCastersChanged: () => sceneManager.invalidateStaticShadows(),
   });
   const {
     DeliveryAgentRenderer,
@@ -615,7 +616,10 @@ export async function bootstrapAppSession(
   });
   farmFieldTool.attachTo(sceneManager.previewGroup);
 
-  const residenceMarkers = new ResidenceMarkers(sceneManager.selectionGroup);
+  const residenceMarkers = new ResidenceMarkers(
+    sceneManager.selectionGroup,
+    () => sceneManager.invalidateStaticShadows(),
+  );
   const backyardGardenMarkers = new BackyardGardenMarkers(sceneManager.selectionGroup, {
     maxAnisotropy: sceneManager.textureAnisotropy,
     useSeedThree: sceneManager.rendererBackend === 'webgpu',

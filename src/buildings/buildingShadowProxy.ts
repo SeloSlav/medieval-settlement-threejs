@@ -47,6 +47,28 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
 };
 
 const RESIDENCE_SHADOW_HEIGHT = 7.7;
+const INITIAL_BATCH_CAPACITY = 16;
+
+type ShadowProxyShape = 'box' | 'cylinder';
+
+type ShadowProxySpec = {
+  shape: ShadowProxyShape;
+  width: number;
+  height: number;
+  depth: number;
+};
+
+type ShadowProxyRecord = {
+  shape: ShadowProxyShape;
+  matrix: THREE.Matrix4;
+};
+
+export type BatchedShadowProxyStats = {
+  proxies: number;
+  boxInstances: number;
+  cylinderInstances: number;
+  shadowDraws: number;
+};
 
 const shadowCastMaterial = new THREE.MeshStandardMaterial({
   transparent: true,
@@ -60,18 +82,191 @@ const shadowDepthMaterial = new THREE.MeshDepthMaterial({
 });
 
 export function createBuildingShadowProxy(kind: BuildingKind): THREE.Mesh {
-  const params = getBuildingPadParams(kind);
-  const scale = params.innerFade * 0.92;
-  const height = BUILDING_SHADOW_HEIGHT[kind];
-  const geometry = createBuildingShadowGeometry(kind, params, scale, height);
-  return createShadowProxyMesh(geometry, height);
+  const spec = buildingShadowProxySpec(kind);
+  return createShadowProxyMesh(createShadowProxyGeometry(spec), spec.height);
 }
 
 export function createResidenceShadowProxy(tier: 1 | 2 | 3 = 1): THREE.Mesh {
-  const scale = tier === 1 ? 0.82 : tier === 3 ? 1.22 : 1;
-  const height = tier === 1 ? 5.1 : tier === 3 ? 8.3 : RESIDENCE_SHADOW_HEIGHT;
-  const geometry = new THREE.BoxGeometry(MAIN_HOUSE_WIDTH * 0.92 * scale, height, MAIN_HOUSE_DEPTH * 0.92 * (tier === 3 ? 1.14 : scale));
-  return createShadowProxyMesh(geometry, height);
+  const spec = residenceShadowProxySpec(tier);
+  return createShadowProxyMesh(createShadowProxyGeometry(spec), spec.height);
+}
+
+/**
+ * Keeps every completed structure in two shadow submissions: one box batch and
+ * one cylindrical quarry/mine batch. Source markers retain their authored
+ * render hierarchy, while only these coarse silhouettes enter the shadow map.
+ *
+ * Records are updated in place and GPU matrices are rebuilt only when a
+ * structure is added, removed, moved, rotated, rescaled, or changes tier.
+ */
+export class BatchedBuildingShadowProxies {
+  readonly group = new THREE.Group();
+
+  private readonly records = new Map<string, ShadowProxyRecord>();
+  private readonly localMatrix = new THREE.Matrix4();
+  private readonly combinedMatrix = new THREE.Matrix4();
+  private readonly localPosition = new THREE.Vector3();
+  private readonly localScale = new THREE.Vector3();
+  private readonly localRotation = new THREE.Quaternion();
+  private boxMesh: THREE.InstancedMesh;
+  private cylinderMesh: THREE.InstancedMesh;
+  private boxCapacity = INITIAL_BATCH_CAPACITY;
+  private cylinderCapacity = INITIAL_BATCH_CAPACITY;
+  private dirty = false;
+
+  constructor(
+    parent: THREE.Object3D,
+    name: string,
+    enabled = true,
+  ) {
+    this.group.name = name;
+    this.group.userData.batchedBuildingShadowProxies = true;
+    this.boxMesh = createBatchedShadowProxyMesh(
+      'box',
+      this.boxCapacity,
+      enabled,
+      `${name} boxes`,
+    );
+    this.cylinderMesh = createBatchedShadowProxyMesh(
+      'cylinder',
+      this.cylinderCapacity,
+      enabled,
+      `${name} cylinders`,
+    );
+    this.group.add(this.boxMesh, this.cylinderMesh);
+    parent.add(this.group);
+  }
+
+  upsertBuilding(
+    id: string,
+    kind: BuildingKind,
+    marker: THREE.Object3D,
+  ): boolean {
+    return this.upsert(id, buildingShadowProxySpec(kind), marker);
+  }
+
+  upsertResidence(
+    id: string,
+    tier: 1 | 2 | 3,
+    marker: THREE.Object3D,
+  ): boolean {
+    return this.upsert(id, residenceShadowProxySpec(tier), marker);
+  }
+
+  remove(id: string): boolean {
+    if (!this.records.delete(id)) return false;
+    this.dirty = true;
+    return true;
+  }
+
+  flush(): boolean {
+    if (!this.dirty) return false;
+
+    let boxCount = 0;
+    let cylinderCount = 0;
+    for (const record of this.records.values()) {
+      if (record.shape === 'box') boxCount += 1;
+      else cylinderCount += 1;
+    }
+
+    this.ensureCapacity('box', boxCount);
+    this.ensureCapacity('cylinder', cylinderCount);
+    let boxIndex = 0;
+    let cylinderIndex = 0;
+    for (const record of this.records.values()) {
+      if (record.shape === 'box') {
+        this.boxMesh.setMatrixAt(boxIndex, record.matrix);
+        boxIndex += 1;
+      } else {
+        this.cylinderMesh.setMatrixAt(cylinderIndex, record.matrix);
+        cylinderIndex += 1;
+      }
+    }
+    syncBatchedShadowProxyMesh(this.boxMesh, boxCount);
+    syncBatchedShadowProxyMesh(this.cylinderMesh, cylinderCount);
+    this.group.userData.shadowProxyCount = this.records.size;
+    this.group.userData.shadowDrawCount =
+      (boxCount > 0 ? 1 : 0) + (cylinderCount > 0 ? 1 : 0);
+    this.dirty = false;
+    return true;
+  }
+
+  getStats(): BatchedShadowProxyStats {
+    const boxInstances = this.boxMesh.count;
+    const cylinderInstances = this.cylinderMesh.count;
+    return {
+      proxies: boxInstances + cylinderInstances,
+      boxInstances,
+      cylinderInstances,
+      shadowDraws:
+        (boxInstances > 0 ? 1 : 0) + (cylinderInstances > 0 ? 1 : 0),
+    };
+  }
+
+  dispose(): void {
+    this.records.clear();
+    this.boxMesh.geometry.dispose();
+    this.cylinderMesh.geometry.dispose();
+    this.group.removeFromParent();
+  }
+
+  private upsert(
+    id: string,
+    spec: ShadowProxySpec,
+    marker: THREE.Object3D,
+  ): boolean {
+    marker.updateMatrix();
+    this.localPosition.set(0, spec.height * 0.5, 0);
+    this.localScale.set(spec.width, spec.height, spec.depth);
+    this.localMatrix.compose(
+      this.localPosition,
+      this.localRotation.identity(),
+      this.localScale,
+    );
+    this.combinedMatrix.multiplyMatrices(marker.matrix, this.localMatrix);
+
+    const existing = this.records.get(id);
+    if (
+      existing
+      && existing.shape === spec.shape
+      && matricesEqual(existing.matrix, this.combinedMatrix)
+    ) {
+      return false;
+    }
+    this.records.set(id, {
+      shape: spec.shape,
+      matrix: this.combinedMatrix.clone(),
+    });
+    this.dirty = true;
+    return true;
+  }
+
+  private ensureCapacity(shape: ShadowProxyShape, required: number): void {
+    const currentCapacity = shape === 'box'
+      ? this.boxCapacity
+      : this.cylinderCapacity;
+    if (required <= currentCapacity) return;
+    let capacity = currentCapacity;
+    while (capacity < required) capacity *= 2;
+
+    const current = shape === 'box' ? this.boxMesh : this.cylinderMesh;
+    const replacement = createBatchedShadowProxyMesh(
+      shape,
+      capacity,
+      current.castShadow,
+      current.name,
+    );
+    current.removeFromParent();
+    current.geometry.dispose();
+    this.group.add(replacement);
+    if (shape === 'box') {
+      this.boxMesh = replacement;
+      this.boxCapacity = capacity;
+    } else {
+      this.cylinderMesh = replacement;
+      this.cylinderCapacity = capacity;
+    }
+  }
 }
 
 export function isBuildingShadowProxy(object: THREE.Object3D): boolean {
@@ -110,17 +305,20 @@ function createShadowProxyMesh(geometry: THREE.BufferGeometry, height: number): 
   return mesh;
 }
 
-function createBuildingShadowGeometry(
-  kind: BuildingKind,
-  params: ReturnType<typeof getBuildingPadParams>,
-  scale: number,
-  height: number,
-): THREE.BufferGeometry {
+function buildingShadowProxySpec(kind: BuildingKind): ShadowProxySpec {
+  const params = getBuildingPadParams(kind);
+  const scale = params.innerFade * 0.92;
+  const height = BUILDING_SHADOW_HEIGHT[kind];
   switch (kind) {
     case 'stone_quarry':
     case 'large_quarry':
     case 'mine':
-      return new THREE.CylinderGeometry(params.radiusX * scale, params.radiusX * scale, height, 16);
+      return {
+        shape: 'cylinder',
+        width: params.radiusX * scale,
+        height,
+        depth: params.radiusX * scale,
+      };
     case 'founders_camp':
     case 'salvage_pile':
     case 'lumber_mill':
@@ -154,10 +352,88 @@ function createBuildingShadowGeometry(
     case 'vineyard':
     case 'pastoral_farmstead':
     case 'swineherd':
-      return new THREE.BoxGeometry(params.radiusX * 2 * scale, height, params.radiusZ * 2 * scale);
+      return {
+        shape: 'box',
+        width: params.radiusX * 2 * scale,
+        height,
+        depth: params.radiusZ * 2 * scale,
+      };
     default: {
       const unreachable: never = kind;
       return unreachable;
     }
   }
+}
+
+function residenceShadowProxySpec(tier: 1 | 2 | 3): ShadowProxySpec {
+  const scale = tier === 1 ? 0.82 : tier === 3 ? 1.22 : 1;
+  const height = tier === 1 ? 5.1 : tier === 3 ? 8.3 : RESIDENCE_SHADOW_HEIGHT;
+  return {
+    shape: 'box',
+    width: MAIN_HOUSE_WIDTH * 0.92 * scale,
+    height,
+    depth: MAIN_HOUSE_DEPTH * 0.92 * (tier === 3 ? 1.14 : scale),
+  };
+}
+
+function createShadowProxyGeometry(spec: ShadowProxySpec): THREE.BufferGeometry {
+  return spec.shape === 'box'
+    ? new THREE.BoxGeometry(spec.width, spec.height, spec.depth)
+    : new THREE.CylinderGeometry(spec.width, spec.depth, spec.height, 16);
+}
+
+function createBatchedShadowProxyMesh(
+  shape: ShadowProxyShape,
+  capacity: number,
+  enabled: boolean,
+  name: string,
+): THREE.InstancedMesh {
+  const geometry = shape === 'box'
+    ? new THREE.BoxGeometry(1, 1, 1)
+    : new THREE.CylinderGeometry(1, 1, 1, 16);
+  const mesh = new THREE.InstancedMesh(
+    geometry,
+    shadowCastMaterial,
+    Math.max(1, capacity),
+  );
+  mesh.name = name;
+  mesh.count = 0;
+  mesh.layers.set(TREE_SHADOW_CAST_LAYER);
+  mesh.castShadow = enabled;
+  mesh.receiveShadow = false;
+  mesh.customDepthMaterial = shadowDepthMaterial;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.userData[BUILDING_SHADOW_PROXY_FLAG] = true;
+  mesh.userData.batchedShadowProxyShape = shape;
+  return mesh;
+}
+
+function syncBatchedShadowProxyMesh(
+  mesh: THREE.InstancedMesh,
+  count: number,
+): void {
+  mesh.count = count;
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.userData.shadowProxyCount = count;
+  if (count > 0) {
+    mesh.computeBoundingBox();
+    mesh.computeBoundingSphere();
+  } else {
+    mesh.boundingBox = null;
+    mesh.boundingSphere = null;
+  }
+}
+
+function matricesEqual(
+  left: THREE.Matrix4,
+  right: THREE.Matrix4,
+): boolean {
+  const leftElements = left.elements;
+  const rightElements = right.elements;
+  for (let index = 0; index < 16; index += 1) {
+    if (Math.abs(leftElements[index]! - rightElements[index]!) > 1e-6) {
+      return false;
+    }
+  }
+  return true;
 }

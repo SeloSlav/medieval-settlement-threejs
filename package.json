@@ -109,6 +109,7 @@
     "test:residence-terrain": "node --experimental-strip-types scripts/testResidenceTerrainAdaptation.mts",
     "test:building-art": "npx tsx scripts/testBuildingArtDirection.mts",
     "test:static-fixture-batch": "npx tsx scripts/testStaticFixtureBatch.mts",
+    "test:building-shadow-batch": "npx tsx scripts/testBuildingShadowBatch.mts",
     "test:hamlet-fixture": "npx tsx scripts/testHamletFixture.mts",
     "test:camera-controller": "npx tsx scripts/testCameraController.mts",
     "test:world-map": "node --experimental-strip-types scripts/testWorldMapCoordinates.mts",
