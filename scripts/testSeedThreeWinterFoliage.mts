@@ -3,10 +3,19 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
 import {
+  BRANCH_CARD_BAKE_REVISION,
   forestCardMaterial,
+  planBranchCardCoverage,
   setForestCardDormancy,
   setForestCardSeason,
 } from '../vendor/seedthree/src/core/branch-cards.js';
+import { GORSKI_KOTAR_SPECIES } from '../src/vegetation/seedthree/gorskiKotarPresets.ts';
+import { seedThreeBranchCardCacheKey } from '../src/vegetation/seedthree/seedThreeBranchCards.ts';
+import {
+  SEEDTHREE_BRANCH_CARD_BAKE_REVISION,
+  SEEDTHREE_BRANCH_CARD_CACHE_VERSION,
+  seedThreePersistentBranchCardCacheKey,
+} from '../src/vegetation/seedthree/seedThreeBranchCardPolicy.ts';
 import {
   autumnFoliageColorForPreset,
   GORSKI_KOTAR_PRESETS,
@@ -29,6 +38,51 @@ assert.equal(gorskiKotarSpeciesIsDeciduous('larch'), true, 'European larch must 
 assert.equal(gorskiKotarSpeciesIsDeciduous('silverFir'), false, 'silver fir sharing the proxy must stay evergreen');
 assert.equal(gorskiKotarSpeciesIsDeciduous('norwaySpruce'), false, 'spruce must stay evergreen');
 assert.deepEqual(autumnFoliageColorForPreset('redMaple'), [0.95, 0.18, 0.04]);
+
+for (const preset of deciduous) {
+  const species = GORSKI_KOTAR_SPECIES[preset];
+  assert.equal(
+    species.foliage?.cardCoverage,
+    1.5,
+    `${preset} must opt into SeedThree's dense bake-only broadleaf coverage`,
+  );
+  const coverage = planBranchCardCoverage(species.foliage, 12);
+  assert.equal(coverage.coverageRequested, 1.5);
+  assert.ok(coverage.bakeLeafInstances > coverage.sourceLeafInstances);
+  assert.equal(
+    coverage.runtimeCardInstancesAdded,
+    0,
+    `${preset} coverage must not add runtime card instances`,
+  );
+  assert.match(
+    seedThreeBranchCardCacheKey(species, true),
+    new RegExp(`\\|1\\.5\\|[^|]+\\|512\\|3\\|m\\|b${BRANCH_CARD_BAKE_REVISION}$`),
+    `${preset} memory cache identity must include coverage and the upstream bake revision`,
+  );
+}
+for (const preset of ['douglasFir', 'loblolly', 'pine'] as const) {
+  assert.equal(
+    GORSKI_KOTAR_SPECIES[preset].foliage?.cardCoverage,
+    undefined,
+    `${preset} must preserve its existing conifer coverage`,
+  );
+}
+assert.equal(SEEDTHREE_BRANCH_CARD_BAKE_REVISION, BRANCH_CARD_BAKE_REVISION);
+assert.equal(
+  SEEDTHREE_BRANCH_CARD_CACHE_VERSION,
+  `seedthree-cards-v2-b${BRANCH_CARD_BAKE_REVISION}`,
+  'persistent branch-card cache identity must inherit the upstream bake revision',
+);
+assert.equal(
+  seedThreePersistentBranchCardCacheKey(
+    seedThreeBranchCardCacheKey(GORSKI_KOTAR_SPECIES.americanBeech, true),
+  ),
+  `${SEEDTHREE_BRANCH_CARD_CACHE_VERSION}:${seedThreeBranchCardCacheKey(
+    GORSKI_KOTAR_SPECIES.americanBeech,
+    true,
+  )}`,
+  'persisted atlas keys must retain coverage plus the upstream bake revision',
+);
 
 const uniform = { value: 0 };
 const material = { userData: { forestSeasonalDormancy: uniform } };

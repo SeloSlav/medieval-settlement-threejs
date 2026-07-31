@@ -12,11 +12,11 @@ import {
 import { foliageWindPosition } from '@seedthree/core/wind.js';
 import type { BranchCardsSet } from '@seedthree/core/branch-cards.js';
 import type { SeedThreeBranchCards } from './seedThreeBranchCards.ts';
+import { seedThreePersistentBranchCardCacheKey } from './seedThreeBranchCardPolicy.ts';
 
 const DATABASE_NAME = 'medieval-road-system-generated-vegetation';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'branch-cards';
-const CACHE_VERSION = 'seedthree-cards-v2';
 const TRANSMIT = [0.42, 0.62, 0.24] as const;
 
 type CachedTextureChannels = {
@@ -52,7 +52,7 @@ type CacheRecord = {
 
 export async function readSeedThreeBranchCards(cacheKey: string): Promise<SeedThreeBranchCards | null> {
   if (typeof indexedDB === 'undefined') return null;
-  const key = `${CACHE_VERSION}:${cacheKey}`;
+  const key = seedThreePersistentBranchCardCacheKey(cacheKey);
   try {
     const database = await openDatabase();
     const record = await requestResult<CacheRecord | undefined>(
@@ -142,7 +142,7 @@ export async function writeSeedThreeBranchCards(
     const database = await openDatabase();
     const transaction = database.transaction(STORE_NAME, 'readwrite');
     transaction.objectStore(STORE_NAME).put({
-      key: `${CACHE_VERSION}:${cacheKey}`,
+      key: seedThreePersistentBranchCardCacheKey(cacheKey),
       sets,
     } satisfies CacheRecord);
     await transactionDone(transaction);

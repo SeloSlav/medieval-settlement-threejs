@@ -126,10 +126,63 @@ for (const resource of ['iron', 'salt'] as const) {
     `${resource} deposits must include a readable cluster of close-range 3D outcrops`,
   );
   assert.ok(
-    outcrops.every((outcrop) => outcrop.position.y > 0 && outcrop.castShadow),
-    `${resource} outcrops must rise above the terrain and cast scene shadows`,
+    outcrops.every(
+      (outcrop) => outcrop.position.y > 0 && outcrop.castShadow && outcrop.receiveShadow,
+    ),
+    `${resource} outcrops must rise above the terrain and receive and cast scene shadows`,
+  );
+  assert.ok(
+    outcrops.every((outcrop) => {
+      const material = outcrop.material as THREE.MeshStandardMaterial;
+      return material.map instanceof THREE.DataTexture
+        && material.normalMap instanceof THREE.DataTexture
+        && material.roughnessMap instanceof THREE.DataTexture
+        && material.map.magFilter === THREE.LinearFilter
+        && material.map.minFilter === THREE.LinearMipmapLinearFilter
+        && material.map.generateMipmaps
+        && material.normalMap.magFilter === THREE.LinearFilter
+        && material.normalMap.minFilter === THREE.LinearMipmapLinearFilter
+        && material.normalMap.generateMipmaps
+        && material.roughnessMap.magFilter === THREE.LinearFilter
+        && material.roughnessMap.minFilter === THREE.LinearMipmapLinearFilter
+        && material.roughnessMap.generateMipmaps
+        && material.roughness >= 0.9
+        && material.metalness <= 0.07
+        && material.userData.weatheredMineralSurface?.static === true;
+    }),
+    `${resource} outcrops must use static weathered albedo, normal, and roughness breakup`,
+  );
+  assert.equal(
+    new Set(outcrops.map((outcrop) => (outcrop.material as THREE.MeshStandardMaterial).map)).size,
+    1,
+    `${resource} outcrops must share one bounded weathering texture rather than allocate per stone`,
+  );
+  assert.ok(
+    outcrops.every((outcrop) => {
+      outcrop.geometry.computeBoundingBox();
+      const bottom = outcrop.geometry.boundingBox?.min.y ?? 0;
+      return outcrop.position.y + bottom * outcrop.scale.y <= 0.08
+        && outcrop.userData.mineralSurface?.grounded === true;
+    }),
+    `${resource} outcrops must bury their broadened base into the terrain instead of floating`,
   );
 }
+const mineralOutcrops: THREE.Mesh[] = [];
+mineralVisualSystem.group.traverse((object) => {
+  if (object instanceof THREE.Mesh && object.name.includes('outcrop')) mineralOutcrops.push(object);
+});
+assert.equal(
+  new Set(mineralOutcrops.map((outcrop) => outcrop.geometry)).size,
+  3,
+  'all mineral sites must reuse exactly three bounded irregular geometry variants',
+);
+assert.ok(
+  mineralOutcrops.every(
+    (outcrop) => (outcrop.geometry.getAttribute('position')?.count ?? 0) > 100
+      && outcrop.geometry.getAttribute('uv') !== undefined,
+  ),
+  'weathered outcrops need enough static silhouette breakup and UVs for their surface maps',
+);
 mineralVisualSystem.dispose();
 
 // The setup panel promises physical ordinary deposits, not merely a regional

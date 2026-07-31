@@ -172,7 +172,7 @@
 
 .resource-inspector-details .road-controls-list li > span:last-child {
   flex: 1 1 auto;
-  text-align: right;
+  text-align: left;
   line-height: 1.35;
 }
 

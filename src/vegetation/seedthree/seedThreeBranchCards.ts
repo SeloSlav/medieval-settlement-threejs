@@ -10,6 +10,7 @@ import {
   readSeedThreeBranchCards,
   writeSeedThreeBranchCards,
 } from './seedThreeBranchCardCache.ts';
+import { SEEDTHREE_BRANCH_CARD_BAKE_REVISION } from './seedThreeBranchCardPolicy.ts';
 
 export type SeedThreeBranchCards = {
   byLevel: Map<string, BranchCardsSet>;
@@ -21,16 +22,21 @@ const CARD_RES = 512;
 const CARD_VARIANTS = 3;
 const cardCache = new Map<string, SeedThreeBranchCards>();
 
-function cacheKey(species: SeedThreeSpeciesPreset, mobileTarget: boolean): string {
+export function seedThreeBranchCardCacheKey(
+  species: SeedThreeSpeciesPreset,
+  mobileTarget: boolean,
+): string {
   const foliage = species.foliage ?? {};
   return [
     species.name,
     foliage.size ?? '',
     foliage.leavesPerBranch ?? '',
+    foliage.cardCoverage ?? '',
     species.params?.levels ?? '',
     CARD_RES,
     CARD_VARIANTS,
     mobileTarget ? 'm' : 'd',
+    `b${SEEDTHREE_BRANCH_CARD_BAKE_REVISION}`,
   ].join('|');
 }
 
@@ -53,7 +59,7 @@ export async function ensureSeedThreeBranchCards(
   if (species.foliageType === 'rosette') return null;
   if (!species.foliage || leavesPerBranch(species) <= 0) return null;
 
-  const key = cacheKey(species, mobileTarget);
+  const key = seedThreeBranchCardCacheKey(species, mobileTarget);
   const cached = cardCache.get(key);
   if (cached) return cached;
   const persisted = await readSeedThreeBranchCards(key);
