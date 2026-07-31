@@ -48,6 +48,20 @@ assert.match(ecologySource, /const texelFootprint = max/);
 assert.match(ecologySource, /fwidth\(grassUv\.x\)/);
 assert.match(ecologySource, /fwidth\(grassUv\.y\)/);
 assert.match(ecologySource, /const closeMaterialDetail = zoomDetailGate\.mul\(footprintDetailGate\)/);
+assert.match(ecologySource, /const denseUv = vec2/);
+assert.match(ecologySource, /const dryUv = vec2/);
+assert.match(ecologySource, /packedDrySnowUv\(dryUv, false\)/);
+assert.match(ecologySource, /const lightOverlap = smoothstep/);
+assert.match(ecologySource, /const darkOverlap = smoothstep/);
+assert.match(ecologySource, /const dryOverlap = smoothstep/);
+assert.match(ecologySource, /const overviewLightWeight =/);
+assert.match(ecologySource, /const overviewDarkWeight =/);
+assert.match(ecologySource, /const overviewDryWeight =/);
+assert.match(ecologySource, /const meadowGrain = smoothstep/);
+assert.match(ecologySource, /const denseGrain = smoothstep/);
+assert.match(ecologySource, /const dryGrain = smoothstep/);
+assert.match(ecologySource, /const overviewTexturedColor = mix/);
+assert.match(ecologySource, /float\(0\.82\)/);
 assert.match(ecologySource, /const biomeBaseColor =/);
 assert.match(ecologySource, /const stableColorNode = biomeBaseColor/);
 assert.match(ecologySource, /const colorNode = resolvedAlbedo/);
@@ -58,8 +72,13 @@ assert.doesNotMatch(
 );
 assert.match(ecologySource, /const rainMoisture = smoothstep/);
 assert.match(ecologySource, /const rainStableColorNode = rainMacroColor/);
-assert.match(ecologySource, /const albedoDetailStrength = mix/);
-assert.match(ecologySource, /float\(0\.24\)/);
+assert.match(
+  ecologySource,
+  /const resolvedAlbedo = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
+);
+assert.match(ecologySource, /vec3\(0\.16, 0\.21, 0\.055\)/);
+assert.match(ecologySource, /vec3\(0\.028, 0\.047, 0\.012\)/);
+assert.match(ecologySource, /vec3\(0\.3, 0\.24, 0\.082\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
 assert.match(ecologySource, /const rainNormalVisibility = mix/);
 assert.match(source, /const weatherResolvedRoadWear = roadWear\.mul\(shoreRainVisibility\)/);

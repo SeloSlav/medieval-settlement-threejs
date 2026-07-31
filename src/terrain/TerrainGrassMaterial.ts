@@ -108,11 +108,35 @@ function buildGrassBlendNodes(
   const weightSum = max(weightsRaw.x.add(weightsRaw.y).add(weightsRaw.z), float(0.0001) as TslNode) as TslNode;
   const w = weightsRaw.div(weightSum);
 
-  const meadowColor = texture(textures.meadow.albedo, grassUv) as TslNode;
-  const denseColor = texture(textures.dense.albedo, grassUv) as TslNode;
+  // Give every authored grass family its own orientation and scale. Sharing a
+  // UV made their mip tails line up at strategic zoom, so three samples read as
+  // a single repeated grass map instead of interwoven ground cover.
+  const meadowUv = grassUv;
+  const denseUv = vec2(
+    grassUv.x
+      .mul(float(0.78) as TslNode)
+      .sub(grassUv.y.mul(float(0.56) as TslNode))
+      .add(float(0.37) as TslNode),
+    grassUv.x
+      .mul(float(0.56) as TslNode)
+      .add(grassUv.y.mul(float(0.78) as TslNode))
+      .add(float(0.19) as TslNode),
+  ) as TslNode;
+  const dryUv = vec2(
+    grassUv.x
+      .mul(float(0.65) as TslNode)
+      .add(grassUv.y.mul(float(0.69) as TslNode))
+      .add(float(0.61) as TslNode),
+    grassUv.x
+      .mul(float(-0.69) as TslNode)
+      .add(grassUv.y.mul(float(0.65) as TslNode))
+      .add(float(0.43) as TslNode),
+  ) as TslNode;
+  const meadowColor = texture(textures.meadow.albedo, meadowUv) as TslNode;
+  const denseColor = texture(textures.dense.albedo, denseUv) as TslNode;
   const dryColor = texture(
     textures.dry.albedo,
-    packedDrySnowUv(grassUv, false),
+    packedDrySnowUv(dryUv, false),
   ) as TslNode;
   const blendedColor = meadowColor.rgb
     .mul(w.x)
@@ -132,23 +156,6 @@ function buildGrassBlendNodes(
     ) as TslNode,
   ) as TslNode;
   const closeMaterialDetail = zoomDetailGate.mul(footprintDetailGate) as TslNode;
-  // These are the measured linear-space averages of the three existing grass
-  // albedos. At overview distance they behave like stable mip-tail colors,
-  // while the original samples fade back to full strength for close/FP views.
-  const biomeBaseColor = (vec3(0.1, 0.108, 0.04) as TslNode)
-    .mul(w.x)
-    .add((vec3(0.05, 0.055, 0.029) as TslNode).mul(w.y))
-    .add((vec3(0.18, 0.17, 0.078) as TslNode).mul(w.z));
-  const albedoDetailStrength = mix(
-    float(0.24) as TslNode,
-    float(1) as TslNode,
-    closeMaterialDetail,
-  ) as TslNode;
-  const resolvedAlbedo = mix(
-    biomeBaseColor,
-    blendedColor,
-    albedoDetailStrength,
-  ) as TslNode;
   const world = positionWorld as TslNode;
   // Domain-warped oblique waves form broad ecological masses without another
   // texture read or the obvious dots/checker cells produced by hash noise.
@@ -174,6 +181,120 @@ function buildGrassBlendNodes(
       .add(float(2.41) as TslNode) as TslNode,
   ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
   const macro = macroA.mul(float(0.68) as TslNode).add(macroB.mul(float(0.32) as TslNode));
+
+  // Strategic zoom uses three broad, overlapping coverages instead of the
+  // near-camera vertex mix alone. A small baseline keeps each texture present;
+  // the two warped fields then gather light meadow, pale dry grass and dense
+  // green into soft-edged runs with substantial overlap between them.
+  const lightOverlap = smoothstep(
+    float(0.18) as TslNode,
+    float(0.86) as TslNode,
+    macroA
+      .mul(float(0.72) as TslNode)
+      .add(macroB.mul(float(0.28) as TslNode)) as TslNode,
+  ) as TslNode;
+  const darkOverlap = smoothstep(
+    float(0.28) as TslNode,
+    float(0.78) as TslNode,
+    (sub(float(1) as TslNode, macroA) as TslNode)
+      .mul(float(0.8) as TslNode)
+      .add((sub(float(1) as TslNode, macroB) as TslNode).mul(float(0.2) as TslNode)) as TslNode,
+  ) as TslNode;
+  const dryOverlap = smoothstep(
+    float(0.32) as TslNode,
+    float(0.82) as TslNode,
+    macroB
+      .mul(float(0.76) as TslNode)
+      .add(macroA.mul(float(0.24) as TslNode)) as TslNode,
+  ) as TslNode;
+  const overviewLightWeight = w.x
+    .mul(float(0.32) as TslNode)
+    .add(lightOverlap.mul(float(0.68) as TslNode))
+    .add(float(0.06) as TslNode) as TslNode;
+  const overviewDarkWeight = w.y
+    .mul(float(0.42) as TslNode)
+    .add(darkOverlap.mul(float(0.76) as TslNode))
+    .add(float(0.05) as TslNode) as TslNode;
+  const overviewDryWeight = w.z
+    .mul(float(0.4) as TslNode)
+    .add(dryOverlap.mul(float(0.72) as TslNode))
+    .add(float(0.05) as TslNode) as TslNode;
+  const overviewWeightSum = max(
+    overviewLightWeight.add(overviewDarkWeight).add(overviewDryWeight),
+    float(0.0001) as TslNode,
+  ) as TslNode;
+  const overviewLight = overviewLightWeight.div(overviewWeightSum) as TslNode;
+  const overviewDark = overviewDarkWeight.div(overviewWeightSum) as TslNode;
+  const overviewDry = overviewDryWeight.div(overviewWeightSum) as TslNode;
+
+  // Linear-space target families: fresh light meadow, shaded dark grass, and
+  // a warm straw/beige dry layer. The authored albedos still supply the grain,
+  // with a stable base preventing their distant mip averages from flattening.
+  const overviewLightColor = vec3(0.16, 0.21, 0.055) as TslNode;
+  const overviewDarkColor = vec3(0.028, 0.047, 0.012) as TslNode;
+  const overviewDryColor = vec3(0.3, 0.24, 0.082) as TslNode;
+  const overviewBaseColor = overviewLightColor
+    .mul(overviewLight)
+    .add(overviewDarkColor.mul(overviewDark))
+    .add(overviewDryColor.mul(overviewDry));
+  const meadowGrain = smoothstep(
+    float(0.025) as TslNode,
+    float(0.22) as TslNode,
+    meadowColor.r
+      .mul(float(0.299) as TslNode)
+      .add(meadowColor.g.mul(float(0.587) as TslNode))
+      .add(meadowColor.b.mul(float(0.114) as TslNode)) as TslNode,
+  ) as TslNode;
+  const denseGrain = smoothstep(
+    float(0.018) as TslNode,
+    float(0.16) as TslNode,
+    denseColor.r
+      .mul(float(0.299) as TslNode)
+      .add(denseColor.g.mul(float(0.587) as TslNode))
+      .add(denseColor.b.mul(float(0.114) as TslNode)) as TslNode,
+  ) as TslNode;
+  const dryGrain = smoothstep(
+    float(0.04) as TslNode,
+    float(0.32) as TslNode,
+    dryColor.r
+      .mul(float(0.299) as TslNode)
+      .add(dryColor.g.mul(float(0.587) as TslNode))
+      .add(dryColor.b.mul(float(0.114) as TslNode)) as TslNode,
+  ) as TslNode;
+  const overviewSampleColor = (mix(
+    overviewLightColor.mul(float(0.7) as TslNode),
+    overviewLightColor.mul(float(1.3) as TslNode),
+    meadowGrain,
+  ) as TslNode)
+    .mul(overviewLight)
+    .add((mix(
+      overviewDarkColor.mul(float(0.68) as TslNode),
+      overviewDarkColor.mul(float(1.32) as TslNode),
+      denseGrain,
+    ) as TslNode).mul(overviewDark))
+    .add((mix(
+      overviewDryColor.mul(float(0.7) as TslNode),
+      overviewDryColor.mul(float(1.3) as TslNode),
+      dryGrain,
+    ) as TslNode).mul(overviewDry));
+  const overviewTexturedColor = mix(
+    overviewBaseColor,
+    overviewSampleColor,
+    float(0.82) as TslNode,
+  ) as TslNode;
+  const resolvedAlbedo = mix(
+    overviewTexturedColor,
+    blendedColor,
+    closeMaterialDetail,
+  ) as TslNode;
+  const biomeBaseColor = mix(
+    overviewBaseColor,
+    (vec3(0.1, 0.108, 0.04) as TslNode)
+      .mul(w.x)
+      .add((vec3(0.05, 0.055, 0.029) as TslNode).mul(w.y))
+      .add((vec3(0.18, 0.17, 0.078) as TslNode).mul(w.z)),
+    closeMaterialDetail,
+  ) as TslNode;
 
   const geometricNormal = attribute('normal', 'vec3') as TslNode;
   const slope = smoothstep(
@@ -275,9 +396,9 @@ function buildGrassBlendNodes(
   const stableColorNode = biomeBaseColor;
   const colorNode = resolvedAlbedo;
 
-  const meadowNormal = texture(textures.meadow.normal, grassUv) as TslNode;
-  const denseNormal = texture(textures.dense.normal, grassUv) as TslNode;
-  const dryNormal = texture(textures.dry.normal, grassUv) as TslNode;
+  const meadowNormal = texture(textures.meadow.normal, meadowUv) as TslNode;
+  const denseNormal = texture(textures.dense.normal, denseUv) as TslNode;
+  const dryNormal = texture(textures.dry.normal, dryUv) as TslNode;
   const blendedNormalSample = meadowNormal.mul(w.x).add(denseNormal.mul(w.y)).add(dryNormal.mul(w.z));
   const normalDetailStrength = mix(
     float(0.1) as TslNode,
@@ -296,9 +417,9 @@ function buildGrassBlendNodes(
   ) as TslNode;
   const normalNode = normalMap(resolvedNormalSample);
 
-  const meadowRoughness = (texture(textures.meadow.roughness, grassUv) as TslNode).r;
-  const denseRoughness = (texture(textures.dense.roughness, grassUv) as TslNode).r;
-  const dryRoughness = (texture(textures.dry.roughness, grassUv) as TslNode).r;
+  const meadowRoughness = (texture(textures.meadow.roughness, meadowUv) as TslNode).r;
+  const denseRoughness = (texture(textures.dense.roughness, denseUv) as TslNode).r;
+  const dryRoughness = (texture(textures.dry.roughness, dryUv) as TslNode).r;
   const blendedRoughness = meadowRoughness.mul(w.x).add(denseRoughness.mul(w.y)).add(dryRoughness.mul(w.z));
   const roughnessDetailStrength = mix(
     float(0.26) as TslNode,
@@ -311,9 +432,9 @@ function buildGrassBlendNodes(
     roughnessDetailStrength,
   ) as TslNode;
 
-  const meadowAo = (texture(textures.meadow.ao!, grassUv) as TslNode).r;
-  const denseAo = (texture(textures.dense.ao!, grassUv) as TslNode).r;
-  const dryAo = (texture(textures.dry.ao!, grassUv) as TslNode).r;
+  const meadowAo = (texture(textures.meadow.ao!, meadowUv) as TslNode).r;
+  const denseAo = (texture(textures.dense.ao!, denseUv) as TslNode).r;
+  const dryAo = (texture(textures.dry.ao!, dryUv) as TslNode).r;
   const blendedAo = meadowAo.mul(w.x).add(denseAo.mul(w.y)).add(dryAo.mul(w.z));
   const aoDetailStrength = mix(
     float(0.3) as TslNode,
