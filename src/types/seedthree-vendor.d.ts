@@ -81,6 +81,8 @@ declare module '@seedthree/core/forest-lod.js' {
     y: number;
     z: number;
     radius: number;
+    /** Permanently cap this slot to the existing overview/card detail rung. */
+    forceOverview?: boolean;
   };
 
   export type ForestLodOptions = {
@@ -168,6 +170,73 @@ declare module '@seedthree/core/forest-lod.js' {
     items: readonly ForestLodItem[],
     options?: ForestCanopyCompanionOptions,
   ): ForestCanopyCompanion[][];
+}
+
+declare module '@seedthree/core/forest-edge-band.js' {
+  export type ForestEdgeBandSourceItem = {
+    x: number;
+    z: number;
+    [key: string]: unknown;
+  };
+
+  export type ForestEdgeBandSample = {
+    x: number;
+    z: number;
+    outwardX: number;
+    outwardZ: number;
+  };
+
+  export type ForestEdgeBandAssignment = {
+    sourceIndex: number;
+    x: number;
+    z: number;
+    clusterIndex: number;
+    memberIndex: number;
+    edgeSampleIndex: number;
+    bandDistance: number;
+    tangentOffset: number;
+    variantIndex: number;
+  };
+
+  export type ForestEdgeBandStats = {
+    sourceCount: number;
+    eligibleSourceCount: number;
+    reallocatedCount: number;
+    retainedCount: number;
+    clusterCount: number;
+    minBandDistance: number;
+    maxBandDistance: number;
+    observedMinBandDistance: number | null;
+    observedMaxBandDistance: number | null;
+  };
+
+  export function createForestEdgeBandReallocation<
+    Item extends ForestEdgeBandSourceItem,
+  >(
+    sourceItems: readonly Item[],
+    edgeSamples: readonly ForestEdgeBandSample[],
+    options?: {
+      targetCount?: number;
+      sourceIndices?: readonly number[];
+      minBandDistance?: number;
+      maxBandDistance?: number;
+      maxClusterSize?: number;
+      clusterTangentSpread?: number;
+      clusterDepthSpread?: number;
+      variantCount?: number;
+      seed?: number | string;
+      maxPlacementAttempts?: number;
+      isAllowedAt?: (
+        x: number,
+        z: number,
+        sourceIndex: number,
+      ) => boolean;
+    },
+  ): {
+    items: Item[];
+    assignments: ForestEdgeBandAssignment[];
+    stats: ForestEdgeBandStats;
+  };
 }
 
 declare module '@seedthree/core/forest-update-budget.js' {

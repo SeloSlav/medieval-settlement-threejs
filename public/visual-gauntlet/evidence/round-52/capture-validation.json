@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "round": 52,
+  "captureMethod": "native GPU-synchronized PNG readback",
+  "viewport": "1280x720",
+  "frameIndices": [
+    0,
+    180,
+    276,
+    277,
+    278,
+    279,
+    330,
+    375,
+    480
+  ],
+  "correspondingCameraPoseSignaturesMatch": true,
+  "fullVisualSystemsReady": {
+    "blind-A": true,
+    "blind-B": true
+  },
+  "performance": {
+    "bar": {
+      "onePercentLowFpsAtLeast": 60,
+      "maxFrameMsAtMost": 25,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0
+    },
+    "blind-A": {
+      "meanFps": 156.3895740283981,
+      "medianFps": 163.9344262295473,
+      "onePercentLowFps": 81.85301288749397,
+      "p99FrameMs": 12.217021276595993,
+      "maxFrameMs": 12.30000000000291,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "medianDrawCalls": 83,
+      "medianTriangles": 1965633,
+      "sampleCount": 4692,
+      "elapsedSeconds": 30,
+      "hardBarPass": true
+    },
+    "blind-B": {
+      "meanFps": 156.29217639354974,
+      "medianFps": 163.9344262295473,
+      "onePercentLowFps": 81.76757132914616,
+      "p99FrameMs": 12.229787234044318,
+      "maxFrameMs": 12.80000000000291,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "medianDrawCalls": 83,
+      "medianTriangles": 1796029,
+      "sampleCount": 4690,
+      "elapsedSeconds": 30,
+      "hardBarPass": true
+    }
+  }
+}

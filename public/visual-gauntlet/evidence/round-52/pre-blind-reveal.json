@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "round": 52,
+  "purpose": "pre-blind immutable same-archive forest-edge-layout capture commitment using GPU-synchronized native renderer PNG output",
+  "createdAtUtc": "2026-07-31T02:00:19.569Z",
+  "hashAlgorithm": "SHA-256",
+  "hashPreimage": "the exact UTF-8 bytes of this file, including its final LF",
+  "nonce": "8e130d423dc9d7bdd5262d5652d57012",
+  "seedThreeCommit": "4182accfc1fb7a66815e963b5355ca4996418cf3",
+  "captureOrigin": "http://127.0.0.1:4183",
+  "archivePath": "artifacts/visual-gauntlet/round-52/captured-build",
+  "entryHtml": "hamlet-fixture.html",
+  "predecessors": [
+    {
+      "round": 50,
+      "status": "invalid-before-blind-verdict",
+      "reason": "native PNG readback occurred before submitted WebGPU work completed"
+    },
+    {
+      "round": 51,
+      "status": "aborted-before-capture",
+      "reason": "archive namespace collision"
+    }
+  ],
+  "arms": {
+    "control": {
+      "layout": "legacy-perimeter",
+      "pathAndQuery": "/hamlet-fixture.html?clean=1&view=strategic&route=gorski-kotar-lod-traverse-v1&visualProfile=1&ablation=groundcover-stream-forest-update-frozen&visualDisable=post&visualRouteLodSkyDirectRender=1&visualGpuTimestampMarkers=1&forestEdgeLayout=legacy-perimeter"
+    },
+    "treatment": {
+      "layout": "clustered-sapling-shrub-256",
+      "pathAndQuery": "/hamlet-fixture.html?clean=1&view=strategic&route=gorski-kotar-lod-traverse-v1&visualProfile=1&ablation=groundcover-stream-forest-update-frozen&visualDisable=post&visualRouteLodSkyDirectRender=1&visualGpuTimestampMarkers=1&forestEdgeLayout=clustered-sapling-shrub-256"
+    }
+  },
+  "soleArmQueryDifference": {
+    "parameter": "forestEdgeLayout",
+    "controlValue": "legacy-perimeter",
+    "treatmentValue": "clustered-sapling-shrub-256"
+  },
+  "randomization": {
+    "mappingDrawHex": "5463005b7f9429afe84880733396f039",
+    "mappingRule": "least-significant hex bit 0 => blind-A control; 1 => blind-A treatment",
+    "captureOrderDrawHex": "a291f0c2c6f02a62a1ef788575c7d6f6",
+    "captureOrderRule": "least-significant hex bit 0 => blind-B first; 1 => blind-A first",
+    "blindAssignment": {
+      "blind-A": "treatment",
+      "blind-B": "control"
+    },
+    "captureOrder": [
+      "blind-B",
+      "blind-A"
+    ]
+  },
+  "readinessSelectors": {
+    "common": "html[data-visual-route-lod-sky-direct-render-status=\"ready\"][data-visual-route-frame-sequence-status=\"ready\"][data-visual-route-forest-updates=\"frozen-after-settled-warmup\"][data-visual-route-post-processing=\"disabled\"][data-visual-route-shadow-subsystem=\"existing-shadow-subsystem-enabled\"][data-visual-route-forest-renderer=\"existing-forest-renderer-enabled\"][data-visual-profile-status=\"ready\"][data-hamlet-fixture-evidence]",
+    "controlSuffix": "[data-visual-route-forest-edge-layout=\"legacy-perimeter\"]",
+    "treatmentSuffix": "[data-visual-route-forest-edge-layout=\"clustered-sapling-shrub-256\"]"
+  },
+  "captureSurfaceSelector": "[data-testid=\"hamlet-route-frame-sequence-native-png-output\"]",
+  "captureSurface": "gpu-synchronized-native-renderer-drawing-buffer-png-data-url",
+  "cameraPoseIdentity": "must match across blind arms at every corresponding frame",
+  "terminalEvidenceBeforeFrameSeeks": true,
+  "frameIndices": [
+    0,
+    180,
+    276,
+    277,
+    278,
+    279,
+    330,
+    375,
+    480
+  ],
+  "orderedCaptureArtifacts": [
+    "blind-B/terminal-evidence.json",
+    "blind-B/route-0000.png",
+    "blind-B/route-0180.png",
+    "blind-B/route-0276.png",
+    "blind-B/route-0277.png",
+    "blind-B/route-0278.png",
+    "blind-B/route-0279.png",
+    "blind-B/route-0330.png",
+    "blind-B/route-0375.png",
+    "blind-B/route-0480.png",
+    "blind-A/terminal-evidence.json",
+    "blind-A/route-0000.png",
+    "blind-A/route-0180.png",
+    "blind-A/route-0276.png",
+    "blind-A/route-0277.png",
+    "blind-A/route-0278.png",
+    "blind-A/route-0279.png",
+    "blind-A/route-0330.png",
+    "blind-A/route-0375.png",
+    "blind-A/route-0480.png"
+  ],
+  "discardPolicy": {
+    "ledgerPath": "public/visual-gauntlet/evidence/round-52/capture-ledger.json",
+    "neverOverwriteAnyAttempt": true,
+    "discardDirectory": "artifacts/visual-gauntlet/round-52/discarded-attempts",
+    "requiredForEveryAttempt": [
+      "monotonic attempt number",
+      "UTC timestamp",
+      "blind arm",
+      "artifact role",
+      "requested frame index or terminal-evidence marker",
+      "retained or discarded disposition",
+      "reason",
+      "byte length",
+      "SHA-256",
+      "immutable attempt path"
+    ],
+    "zeroDiscardCase": "publish an empty discardedAttempts array rather than omitting the ledger"
+  }
+}

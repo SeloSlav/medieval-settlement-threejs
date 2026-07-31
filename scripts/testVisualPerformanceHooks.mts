@@ -714,7 +714,28 @@ const unavailableAcquisition = await acquireWebGPUAdapterDevice({
 });
 assert.equal(unavailableAcquisition, null);
 
-const integratedDevice = { label: 'integrated selected device' };
+let selectedDeviceSubmittedWorkWaits = 0;
+const integratedDevice = {
+  label: 'integrated selected device',
+  queue: {
+    onSubmittedWorkDone: async () => {
+      selectedDeviceSubmittedWorkWaits += 1;
+    },
+  },
+};
+let activeRendererSubmittedWorkWaits = 0;
+const activeRendererDevice = {
+  label: 'active renderer device',
+  queue: {
+    onSubmittedWorkDone: async () => {
+      activeRendererSubmittedWorkWaits += 1;
+    },
+  },
+};
+let activeRendererBackend: {
+  isWebGPUBackend: true;
+  device: unknown;
+} | null = null;
 let integratedAdapterRequests = 0;
 let constructedRendererOptions: {
   device?: unknown;
@@ -745,10 +766,12 @@ const integratedBackend = await createPreferredRenderer({
   gpu: integrationGpu,
   createRenderer: (options) => {
     constructedRendererOptions = options;
+    activeRendererBackend = {
+      isWebGPUBackend: true,
+      device: activeRendererDevice,
+    };
     const renderer = {
-      backend: {
-        isWebGPUBackend: true,
-      },
+      backend: activeRendererBackend,
       dispose: () => {},
       getMaxAnisotropy: () => 16,
       init: async () => {
@@ -788,6 +811,24 @@ assert.strictEqual(integratedBackend.renderer, constructedRenderer);
 assert.equal(integratedBackend.kind, 'webgpu');
 assert.equal(integratedBackend.adapterEvidence.source, 'webgpu-adapter-info');
 assert.equal(integratedBackend.adapterEvidence.fallbackStatus, 'non-fallback');
+await integratedBackend.waitForSubmittedWork();
+assert.equal(
+  activeRendererSubmittedWorkWaits,
+  1,
+  'native capture synchronization must wait on the active renderer device queue',
+);
+assert.equal(
+  selectedDeviceSubmittedWorkWaits,
+  0,
+  'native capture synchronization must inspect the active backend instead of retaining a stale device reference',
+);
+assert.ok(activeRendererBackend);
+activeRendererBackend.device = {};
+await assert.rejects(
+  integratedBackend.waitForSubmittedWork(),
+  /Native WebGPU capture synchronization is unavailable on the active renderer device queue/,
+  'native WebGPU capture must fail explicitly when queue synchronization is unavailable',
+);
 
 const subsystemNames = [
   'post',

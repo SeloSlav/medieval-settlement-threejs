@@ -366,7 +366,13 @@ export async function createSeedThreeForest(
   }
 
   const placementsByPreset = new Map<SeedThreePresetKey, TreeSlot[]>();
-  const visibilityItems: Array<{ x: number; y: number; z: number; radius: number }> = Array.from(
+  const visibilityItems: Array<{
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+    forceOverview?: boolean;
+  }> = Array.from(
     { length: placements.length },
     () => ({ x: 0, y: 0, z: 0, radius: 1 }),
   );
@@ -402,6 +408,7 @@ export async function createSeedThreeForest(
       y: visibilityCenter.y,
       z: visibilityCenter.z,
       radius: visibilityRadius,
+      forceOverview: placement.edgeBand?.maximumDetail === 'overview-card',
     };
     const bucket = placementsByPreset.get(preset) ?? [];
     bucket.push(slot);

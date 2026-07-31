@@ -123,12 +123,14 @@ export function batchStaticFixtureMeshes(
  */
 export function countFixtureStructuralSubmissions(
   root: THREE.Object3D,
+  camera?: THREE.Camera,
 ): FixtureStructuralSubmissionStats {
   let draws = 0;
   let triangles = 0;
   root.traverseVisible((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
+    if (camera && !mesh.layers.test(camera.layers)) return;
     const instanceCount = (mesh as THREE.InstancedMesh).isInstancedMesh
       ? (mesh as THREE.InstancedMesh).count
       : 1;

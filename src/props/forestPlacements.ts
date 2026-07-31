@@ -27,6 +27,18 @@ type TreePlacement = {
   species: TreeSpecies;
   form: TreeForm;
   scale: number;
+  /** Optional render-only provenance for a slot-neutral settlement-edge layer. */
+  edgeBand?: {
+    variant:
+      | 'broadleaf-shrub-card'
+      | 'broadleaf-sapling'
+      | 'broadleaf-mixed-crown';
+    layer: 'front-shrub' | 'middle-sapling' | 'interior-crown';
+    sourceIndex: number;
+    clusterIndex: number;
+    bandDistance: number;
+    maximumDetail: 'overview-card';
+  };
 };
 
 type TreeForm = 'narrow' | 'broad' | 'young' | 'midstory';

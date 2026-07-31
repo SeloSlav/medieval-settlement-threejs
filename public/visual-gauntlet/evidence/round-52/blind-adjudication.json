@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "round": 52,
+  "status": "split-independent-blind-verdicts",
+  "acceptedVisualWinner": null,
+  "reason": "A four-frame primary review moderately preferred blind-A, while a fresh exhaustive nine-frame review found a 95%-confidence tie. The treatment is therefore not an uncontested visual win.",
+  "verdicts": [
+    {
+      "path": "public/visual-gauntlet/evidence/round-52/blind-verdict.json",
+      "reviewedFrameCount": 4,
+      "result": "blind-A preferred",
+      "confidence": "moderate"
+    },
+    {
+      "path": "public/visual-gauntlet/evidence/round-52/blind-verdict-exhaustive.json",
+      "reviewedFrameCount": 9,
+      "result": "tie",
+      "confidence": 0.95
+    }
+  ],
+  "performanceResult": "Both arms pass.",
+  "nextPiece": "A visibly stronger but still narrow irregular shrub-and-sapling boundary belt with tapered density and strict road/settlement clearance."
+}

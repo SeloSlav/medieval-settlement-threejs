@@ -11,6 +11,12 @@ type WebGPUAdapterInfoLike = {
   isFallbackAdapter?: unknown;
 };
 
+type WebGPUDeviceLike = {
+  readonly queue?: {
+    onSubmittedWorkDone?: () => Promise<void>;
+  };
+};
+
 type WebGPUAdapterLike = {
   readonly info?: WebGPUAdapterInfoLike;
   // Legacy browser compatibility only. The current standard field is
@@ -41,6 +47,7 @@ type RendererWithBackend = WebGPURenderer & {
   backend: {
     isWebGPUBackend?: boolean;
     isWebGLBackend?: boolean;
+    device?: WebGPUDeviceLike | null;
   };
 };
 
@@ -72,6 +79,11 @@ export type RendererBackend = {
   kind: RendererBackendKind;
   maxAnisotropy: number;
   renderer: SupportedRenderer;
+  /**
+   * Resolves once every command submitted before this call has completed.
+   * Exact drawing-buffer captures use this to avoid reading a stale frame.
+   */
+  waitForSubmittedWork: () => Promise<void>;
 };
 
 export type RendererConstructionOptions = {
@@ -121,6 +133,8 @@ export async function createPreferredRenderer(
           kind: 'webgpu',
           maxAnisotropy: renderer.getMaxAnisotropy(),
           renderer,
+          waitForSubmittedWork: () =>
+            waitForNativeWebGPUSubmittedWork(renderer),
         };
       }
 
@@ -131,6 +145,7 @@ export async function createPreferredRenderer(
           kind: 'webgl2-node',
           maxAnisotropy: renderer.getMaxAnisotropy(),
           renderer,
+          waitForSubmittedWork: async () => {},
         };
       }
     } catch (error) {
@@ -157,6 +172,7 @@ export async function createPreferredRenderer(
       kind: 'webgl2-node',
       maxAnisotropy: renderer.getMaxAnisotropy(),
       renderer,
+      waitForSubmittedWork: async () => {},
     };
   } catch (error) {
     renderer.dispose();
@@ -177,6 +193,21 @@ function defaultRendererBackendDependencies(): RendererBackendDependencies {
     waitForStartup: (promise, label) =>
       withTimeout(promise, WEBGPU_STARTUP_TIMEOUT_MS, label),
   };
+}
+
+async function waitForNativeWebGPUSubmittedWork(
+  renderer: WebGPURenderer,
+): Promise<void> {
+  const backend = (renderer as RendererWithBackend).backend;
+  const queue = backend?.isWebGPUBackend === true
+    ? backend.device?.queue
+    : undefined;
+  if (typeof queue?.onSubmittedWorkDone !== 'function') {
+    throw new Error(
+      'Native WebGPU capture synchronization is unavailable on the active renderer device queue.',
+    );
+  }
+  await queue.onSubmittedWorkDone();
 }
 
 export async function acquireWebGPUAdapterDevice(

@@ -51,8 +51,34 @@ assert.deepEqual(
   'only effectively visible authored geometry may become a submitted batch',
 );
 
+const shadowOnly = new THREE.InstancedMesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  visibleMaterial,
+  3,
+);
+shadowOnly.layers.set(4);
+root.add(shadowOnly);
+const colorCamera = new THREE.PerspectiveCamera();
+assert.deepEqual(
+  countFixtureStructuralSubmissions(root, colorCamera),
+  {
+    draws: 1,
+    triangles: 12,
+  },
+  'color-pass telemetry must exclude shadow-layer-only proxy submissions',
+);
+assert.deepEqual(
+  countFixtureStructuralSubmissions(root),
+  {
+    draws: 2,
+    triangles: 48,
+  },
+  'camera-free structural inspection must continue to include every visible layer',
+);
+
 visibleMaterial.dispose();
 dormantMaterial.dispose();
+shadowOnly.geometry.dispose();
 result.group.traverse((object) => {
   if ((object as THREE.Mesh).isMesh) {
     (object as THREE.Mesh).geometry.dispose();

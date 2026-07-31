@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "round": 51,
+  "status": "aborted-before-capture",
+  "invalidation": {
+    "reasonCode": "archive-namespace-collision",
+    "reason": "A pre-existing Round 51 archive carried a different commitment hash, so this commitment was not captured or used.",
+    "supersededByRound": 52
+  },
+  "commitmentSha256": "D53504379AF0EC38BE4DBEC5DF61042480F91082AB5F5C36814758CBF968E6A2",
+  "policy": {
+    "neverOverwriteAnyAttempt": true,
+    "discardDirectory": "artifacts/visual-gauntlet/round-51/discarded-attempts",
+    "hashAlgorithm": "SHA-256"
+  },
+  "attempts": [],
+  "discardedAttempts": [],
+  "retainedAttempts": []
+}

@@ -1,0 +1,94 @@
+{
+  "round": 43,
+  "evidenceType": "blind matched-frame groundcover transition A/B plus separate 30-second moving-route traces",
+  "sceneStatus": "diagnostic-rendered",
+  "qualityGatesProven": 1,
+  "blindVisual": {
+    "winner": "B",
+    "revealedTreatment": "continuous-alpha-hash",
+    "continuityVerdict": "pass-for-tested-9200-to-9300ms-boundary",
+    "criticFinding": "Blind A has a scene-wide groundcover pop from frame 0277 to 0278. Blind B preserves stable coverage through all four matched frames.",
+    "remainingVisualCaveat": "Fine alpha-hash speckle or shimmer is not ruled out, and groundcover remains a uniform noisy layer without Manor Lords-grade road wear and verge ecology."
+  },
+  "evidenceIntegrity": {
+    "verdict": "fail",
+    "valid": [
+      "All eight blind frames are genuine 1280x720 browser captures.",
+      "The frame-index formula matches the declared 30fps elapsed times.",
+      "Blind B frame 0278 is byte-identical across a repeated capture.",
+      "Capture URLs differ only by the groundcoverFade query value."
+    ],
+    "invalidatingGap": "The groundcoverTransitionEvidence request does not enforce forest, post, and shadows off even though the descriptor hardcodes that context, so the source contract does not prove single-variable isolation.",
+    "formatCaveat": "The source bridge exposes native PNG capture while the stored browser screenshots are JPEG."
+  },
+  "performance": {
+    "verdict": "fail",
+    "continuousAlphaHash": {
+      "runUuid": "a10b330e-d44a-4243-bd2b-7293018788e3",
+      "sampleCount": 4418,
+      "elapsedMs": 30008,
+      "medianFps": 163.9344262295473,
+      "meanFps": 147.22740602506,
+      "onePercentLowFps": 53.469581749049055,
+      "p99FrameMs": 18.702222222222353,
+      "maxFrameMs": 30.299999999995634,
+      "framesOver25Ms": 1,
+      "framesOver50Ms": 0,
+      "rendererMedian": {
+        "drawCalls": 66,
+        "frameCalls": 2,
+        "triangles": 403297
+      },
+      "collectorAgreement": "schema-5 exact metrics and sample count; renderer submissions and GPU timestamps present",
+      "hardFrame": {
+        "routeElapsedMs": 11065.4,
+        "phase": "road-eye",
+        "frameMs": 30.3,
+        "cpuMs": 1.4,
+        "gpuMs": 12.976128
+      },
+      "tailFinding": "41 of 45 retained slow records are settlement frames with 13.369ms median retained GPU time."
+    },
+    "legacyDiagnostic": {
+      "sampleCount": 3850,
+      "medianFps": 163.9344262295473,
+      "meanFps": 128.29869268630804,
+      "onePercentLowFps": 54.31754874651645,
+      "p99FrameMs": 18.41025641025697,
+      "maxFrameMs": 24.299999999995634,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "interpretation": "Separate-session diagnostic only; both pipelines miss the 1% low bar, so the continuous fade alone is not established as the tail cause."
+    }
+  },
+  "critic": {
+    "largestGapAfterPerformanceEvidence": "Off-view alpha-hashed grass and wildflower cards remain submitted by the whole-field meshes during settlement and road-eye views.",
+    "requiredNext": "Coarse spatial batching of groundcover using analytic conservative bounds and frustum culling, preserving the current fade and hysteresis."
+  },
+  "files": [
+    {
+      "file": "frame-index.json"
+    },
+    {
+      "file": "continuous-alpha-hash-route-evidence.json",
+      "bytes": 183724,
+      "sha256": "F73B42472D5B1B03A41C0D9EC5EDEA9E5E49499100C5151E0FD87582203857DE"
+    },
+    {
+      "file": "continuous-alpha-hash-route-performance.json",
+      "bytes": 92644,
+      "sha256": "97788FA3AE6D54FC366DA2C65858C5218DC4F6406654EABCB82E3E5DB8D43737"
+    },
+    {
+      "file": "continuous-alpha-hash-route-terminal-1280x720.jpg",
+      "dimensions": "1280x720",
+      "bytes": 219193,
+      "sha256": "5D48729437E436BBA77A28966BC14001B223DA52044593125B2C92E23BD3DCF9"
+    },
+    {
+      "file": "legacy-pipeline-cutover-route-evidence.json",
+      "bytes": 165677,
+      "sha256": "34D6651AFD91511F59D347E3E2696EA0AECA92BD722230622C8C040AF6788EA3"
+    }
+  ]
+}

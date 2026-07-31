@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "round": 53,
+  "status": "sealed-before-capture",
+  "commitment": {
+    "sha256": "C92DB2DD2A6BF13636455BBAF8C02365D65AC3D02C4475DFBE200A65B7F24A2D",
+    "sealedBeforeCapture": true
+  },
+  "captureOrigin": "http://127.0.0.1:4184",
+  "archive": {
+    "archiveId": "94451B142D0DB80679EE233EFB68372DCF64E9BC96FE7BA8F04DCBCA8E070EFF",
+    "treeSha256": "28948A2CB8596C516872F8731751ED286E16F97888989FF02C872A8A225B5FC0",
+    "fileCount": 435,
+    "bytes": 375663885
+  },
+  "capture": {
+    "source": "renderer-drawing-buffer-after-gpu-queue-completion",
+    "dimensions": "1280x720@renderer-pr1",
+    "frameIndices": [
+      0,
+      180,
+      276,
+      277,
+      278,
+      279,
+      330,
+      375,
+      480
+    ],
+    "crossArmCameraPoseSignatureMustMatch": true
+  },
+  "performanceBar": {
+    "onePercentLowFpsMinimum": 60,
+    "maxFrameMsMaximum": 25,
+    "framesOver25MsMaximum": 0,
+    "framesOver50MsMaximum": 0
+  },
+  "structuralBudget": {
+    "trees": 1651,
+    "reallocatedSlots": 256,
+    "forestDrawsMaximum": 20,
+    "newTextures": 0,
+    "newMeshes": 0,
+    "newPresets": 0,
+    "residenceRoof": "wood-shingle"
+  }
+}

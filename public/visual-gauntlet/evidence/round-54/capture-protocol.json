@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "round": 54,
+  "status": "sealed-before-capture",
+  "commitment": {
+    "sha256": "14DEA39B94E40D87B499D089DC75ED2E2290E6CB91A71C99EBE9848402B796C8",
+    "sealedBeforeCapture": true
+  },
+  "captureOrigin": "http://127.0.0.1:4185",
+  "archive": {
+    "archiveId": "A7B649D3BB409EC94EEDBDF3ED738680BCD94D8B5D902B69B703BB361E221E6E",
+    "treeSha256": "03F79E9A7BD415E993C3E3E732D1CE60B5B331D71BC23C7151012E367BF2E9B5",
+    "fileCount": 435,
+    "bytes": 375663885
+  },
+  "capture": {
+    "source": "renderer-drawing-buffer-after-gpu-queue-completion",
+    "dimensions": "1280x720@renderer-pr1",
+    "frameIndices": [
+      0,
+      180,
+      276,
+      277,
+      278,
+      279,
+      330,
+      375,
+      480
+    ],
+    "clearRequestBeforeEverySeek": true,
+    "primeCaptureDiscarded": true,
+    "immediateRepeatRequired": true,
+    "primeAndRepeatPngSha256MustMatch": true,
+    "crossArmCameraPoseSignatureMustMatch": true
+  },
+  "performanceBar": {
+    "onePercentLowFpsMinimum": 60,
+    "maxFrameMsMaximum": 25,
+    "framesOver25MsMaximum": 0,
+    "framesOver50MsMaximum": 0
+  },
+  "structuralBudget": {
+    "trees": 1651,
+    "reallocatedSlots": 256,
+    "forestDrawsMaximum": 20,
+    "newTextures": 0,
+    "newMeshes": 0,
+    "newPresets": 0,
+    "residenceRoof": "wood-shingle"
+  }
+}

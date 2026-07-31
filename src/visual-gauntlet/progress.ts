@@ -160,25 +160,25 @@ const gates: EvidenceGate[] = [
     title: 'Matched conditions',
     target: 'Fixed route, camera, 1280×720, renderer PR 1, weather, and time',
     status: 'unproven',
-    evidence: 'Round 24 validates the fixed route, 1280x720 viewport and drawing buffer, renderer PR 1, visible WebGPU tab, non-fallback NVIDIA/Lovelace adapter, one discarded route, pending-zero drain, collector reset, and every measured phase. Weather, time, source hash, reload event, and other-tab count remain unserialized.',
+    evidence: 'Round 54 binds one dependency-closed archive, the fixed route, 1280x720 drawing buffer, renderer PR 1, exact cross-arm camera-pose signatures, and byte-identical prime/repeat frame captures. Weather and time are still not serialized, so the global matched-condition gate remains unproven.',
   },
   {
     title: 'Median FPS',
     target: 'Hard pass: 60–90 FPS during the settled 30-second full-subsystem run',
     status: 'unproven',
-    evidence: 'Round 24 returns to the marker-on default and records an exact 82.64 FPS median. This frozen-streamer diagnostic is internally valid but does not certify the normal full-system target.',
+    evidence: 'Round 54 records roughly 150 FPS mean throughput in both blind arms with direct rendering, post-processing disabled, and vegetation updates frozen after warmup. That diagnostic validates the edge treatment comparison, not a normal full-system settlement run.',
   },
   {
     title: '1% low',
     target: 'Hard pass: at least 60 FPS in the same target run',
-    status: 'failed',
-    evidence: 'Round 24 records 51.30 FPS from an immutable cohort; its 25 retained records reproduce p99 and reciprocal 1% low exactly. Both marker-on arms cluster near 51 FPS, below the 60 FPS floor.',
+    status: 'unproven',
+    evidence: 'Round 54 passes the sealed diagnostic bar at 81.65 FPS for the tapered treatment and 81.58 FPS for control. Normal live vegetation updates and post-processing are outside that comparison, so the global target remains unproven rather than failed.',
   },
   {
     title: '>25 ms hitch count',
     target: 'Hard pass: exactly 0 frames during the 30-second trace',
-    status: 'failed',
-    evidence: 'Round 24 records 1 frame over 25 ms and a 42.3 ms maximum in the same immutable cohort.',
+    status: 'unproven',
+    evidence: 'Both Round 54 arms record zero frames over 25 ms and maxima at or below 12.8 ms, but only under the sealed edge-treatment diagnostic. A normal full-system run is still required.',
   },
   {
     title: '>50 ms hitch count',
@@ -189,8 +189,8 @@ const gates: EvidenceGate[] = [
   {
     title: 'LOD motion review',
     target: 'Fresh critic finds no discrete pop or blank band at normal playback or frame-step',
-    status: 'failed',
-    evidence: 'Round 14 restores forest compaction and publication liveness with settled keyframes at pending zero, but no linked playback or frame-step review proves visually atomic presentation or absence of popping.',
+    status: 'unproven',
+    evidence: 'Round 54 provides nine GPU-synchronized, pose-matched frame-step pairs with byte-identical prime/repeat captures, including 0276–0279. The fresh exhaustive critic found no discrete vegetation, building, or fence pop, but normal-playback review with all live systems remains outstanding.',
   },
   {
     title: 'Residence roof progression',

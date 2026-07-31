@@ -1,0 +1,146 @@
+{
+  "round": 39,
+  "evidenceType": "pre-registered opposite-order same-document DOM publication pair",
+  "sceneStatus": "diagnostic-only",
+  "qualityGatesProven": 1,
+  "selection": {
+    "ruleDeclaredBeforeKeptRun": true,
+    "rule": "After route warmup completes, inspect only whether visualNoUpdateShellStatus is present during the 250ms lead-in. Reject deferred-first assignments and keep the first periodic-first assignment regardless of its performance.",
+    "eligibleAssignmentsObserved": 2,
+    "rejectedDeferredFirstAssignments": 1,
+    "keptAssignmentOrdinal": 2,
+    "outcomeBlind": true,
+    "performanceRetriesAfterKeptAssignment": 0
+  },
+  "protocolValidity": {
+    "run": "valid",
+    "aggregateWitness": "valid",
+    "collectorAgreement": "valid",
+    "experiment": "same-document-randomized-dom-publication-paired-reversion",
+    "runUuid": "e198ab00-2c41-4975-b170-ad635a1c374e",
+    "performanceTimeOriginMs": 1785446865154.4,
+    "backend": "webgpu",
+    "viewport": "1280x720",
+    "drawingBuffer": "1280x720",
+    "rendererPixelRatio": 1,
+    "adapter": "nvidia/lovelace",
+    "fallbackStatus": "non-fallback",
+    "route": "gorski-kotar-lod-traverse-v1",
+    "ablation": "groundcover-stream-forest-update-frozen",
+    "control": "visualDisable=forest,post,shadows&visualNoRender=1&visualNoUpdateShell=1&visualDomPair=1"
+  },
+  "randomization": {
+    "source": "crypto.getRandomValues-uint32-low-bit",
+    "drawUint32": 2110368,
+    "orderBit": 0,
+    "randomizedOrder": [
+      "profiled-no-update-no-render-shell",
+      "profiled-no-update-no-render-shell-deferred-dom"
+    ],
+    "firstCohortEndToSecondLeadInStartMs": 5309.399999999994,
+    "firstTerminalFreezeToSecondLeadInStartMs": 5112.399999999994
+  },
+  "arms": [
+    {
+      "blindLabel": "A",
+      "sequenceIndex": 1,
+      "revealedTreatment": "profiled-no-update-no-render-shell",
+      "leadInElapsedMs": 254.59999999999854,
+      "leadInSampleCount": 42,
+      "leadInMaxFrameMs": 6.100000000005821,
+      "cohortElapsedMs": 30001.800000000003,
+      "sampleCount": 4950,
+      "orderedFrameTimesCount": 4950,
+      "orderedFrameTimesSumMs": 30001.800000000003,
+      "medianFps": 163.9344262295473,
+      "meanFps": 164.99010059396434,
+      "onePercentLowFps": 152.0681265206732,
+      "p99FrameMs": 6.57600000000035,
+      "maxFrameMs": 7.200000000004366,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "rendererSubmissions": 0,
+      "domPublication": {
+        "mode": "periodic",
+        "inMemoryReportConstructions": 61,
+        "jsonSerializations": 61,
+        "cohortDomPublications": 60,
+        "terminalDomPublications": 1
+      },
+      "collectorAgreement": {
+        "schemaVersion": 5,
+        "exactSampleCount": true,
+        "exactMetrics": true,
+        "zeroRendererSubmissions": true
+      }
+    },
+    {
+      "blindLabel": "B",
+      "sequenceIndex": 2,
+      "revealedTreatment": "profiled-no-update-no-render-shell-deferred-dom",
+      "leadInElapsedMs": 254.60000000000582,
+      "leadInSampleCount": 42,
+      "leadInMaxFrameMs": 6.19999999999709,
+      "cohortElapsedMs": 30001.699999999997,
+      "sampleCount": 4950,
+      "orderedFrameTimesCount": 4950,
+      "orderedFrameTimesSumMs": 30001.699999999997,
+      "medianFps": 163.93442622974285,
+      "meanFps": 164.99065052980333,
+      "onePercentLowFps": 154.79876160989318,
+      "p99FrameMs": 6.460000000000582,
+      "maxFrameMs": 7.399999999994179,
+      "framesOver25Ms": 0,
+      "framesOver50Ms": 0,
+      "rendererSubmissions": 0,
+      "domPublication": {
+        "mode": "terminal-only-after-freeze",
+        "inMemoryReportConstructions": 61,
+        "jsonSerializations": 61,
+        "cohortDomPublications": 0,
+        "terminalDomPublications": 1
+      },
+      "collectorAgreement": {
+        "schemaVersion": 5,
+        "exactSampleCount": true,
+        "exactMetrics": true,
+        "zeroRendererSubmissions": true
+      }
+    }
+  ],
+  "comparison": {
+    "deferredMinusPeriodicOnePercentLowFps": 2.730635089219988,
+    "deferredMinusPeriodicMeanFps": 0.0005499358389891018,
+    "deferredMinusPeriodicP99FrameMs": -0.11599999999976717,
+    "deferredMinusPeriodicMaxFrameMs": 0.19999999998981366,
+    "round38Order": "deferred-first-periodic-second",
+    "round39Order": "periodic-first-deferred-second",
+    "round38LowestOnePercentLowFps": 81.13590263691903,
+    "round39LowestOnePercentLowFps": 152.0681265206732,
+    "finding": "Both orders and all four arms pass with zero hard intervals. The large between-run shift dominates the tiny within-pair treatment differences, rejecting periodic DOM publication as the prior hitch cause."
+  },
+  "critic": {
+    "evidenceIntegrity": "pass",
+    "diagnosticPerformance": "pass",
+    "domPublicationCausality": "not-supported",
+    "targetPerformance": "fail-unproved",
+    "largestGap": "The no-update/no-render shell still has zero renderer submissions and no active route, LOD, sky, forest, post-processing, or shadow workload.",
+    "requiredNext": "Add one frozen-update render-on treatment that retains the route, LOD, and sky skips plus disabled forest, post-processing, and shadows while submitting the direct-color scene render for an exact 30-second schema-5 cohort.",
+    "contextCaveat": "Six subsystem-state flags differ by arm position in both rounds. The treatments cross arm position in Round 39, but the arms are not context-bit-identical.",
+    "visualCaveat": "The byte-identical static 1280x720 frame cannot establish rendered-game smoothness, LOD continuity, or Manor Lords fidelity."
+  },
+  "files": [
+    {
+      "file": "same-document-periodic-first-dom-publication-paired-reversion.json",
+      "source": "in-app browser terminal paired evidence envelope",
+      "bytes": 368485,
+      "sha256": "2939BC6A138F5FBDC73F43C4625D9D13A40F48898F52BFF8D989BF5784900AC3"
+    },
+    {
+      "file": "periodic-first-dom-paired-final-frame.jpg",
+      "source": "in-app browser 1280x720 static strategic JPEG after terminal publication",
+      "bytes": 42368,
+      "sha256": "0E5E8703EF4219D7F7954261B3026626E9BE46FB0CE48D7D4E5672B1D394A5C5"
+    }
+  ]
+}

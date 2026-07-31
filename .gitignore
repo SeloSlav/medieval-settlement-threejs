@@ -27,6 +27,9 @@ blob-report/
 artifacts/kenney-survival-kit-extracted/
 artifacts/kenney_survival-kit.zip
 
+# Reproducible visual-gauntlet build snapshots (public evidence stays tracked)
+artifacts/visual-gauntlet/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

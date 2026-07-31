@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import type { WebGPURenderer } from 'three/webgpu';
+import {
+  BatchedBuildingShadowProxies,
+  type BatchedShadowProxyStats,
+} from '../buildings/buildingShadowProxy.ts';
 import { createBuildingMesh } from '../buildings/BuildingMeshes.ts';
 import {
   initializeBuildingMaterialLibrary,
@@ -10,6 +14,7 @@ import { resolveCloseGroundLod } from '../grass/grassLodMath.ts';
 import {
   createGrassBladeField,
   type GrassBladeField,
+  type GrassBladeLodFadeMode,
   type GrassStreamTelemetry,
 } from '../grass/GrassBladeField.ts';
 import type {
@@ -26,11 +31,15 @@ import { RoadMeshBuilder } from '../roads/RoadMeshBuilder.ts';
 import { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { createPreferredRenderer } from '../scene/RendererBackend.ts';
 import { createPostProcessor } from '../scene/PostProcessing.ts';
+import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { SkyCloudMesh, loadSkyPerlinTexture } from '../sky/SkyCloudMesh.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { updateTerrainRoadWear } from '../terrain/TerrainRoadWear.ts';
-import { mulberry32 } from '../utils/random.ts';
-import type { ForestTreePlacement } from '../props/forestPlacements.ts';
+import {
+  createHamletForestPlacements,
+  resolveHamletForestEdgeLayout,
+  type HamletForestEdgeLayerEvidence,
+} from './hamletForestEdgeLayer.ts';
 import {
   createSeedThreeForest,
   getSeedThreeForestStructuralStats,
@@ -59,21 +68,46 @@ import {
 import {
   advanceHamletFixtureRouteWarmupDrain,
   canFinalizeHamletFixtureEvidence,
+  canFinalizeHamletFrozenUpdateDirectRenderEvidence,
   canFinalizeHamletNoUpdateShellEvidence,
+  canFinalizeHamletRouteLodSkyDirectRenderEvidence,
+  canFinalizeHamletRouteUpdatePairArmEvidence,
+  auditHamletRouteLodSkyDirectRenderCollector,
   createHamletBareRafCapture,
+  createHamletDomPublicationPairCoordinator,
   createHamletFixtureEvidenceEnvelope,
+  createHamletFrozenUpdateDirectRenderCapture,
+  createHamletFrozenUpdateDirectRenderEvidence,
   createHamletNoUpdateShellCapture,
+  createHamletRouteFrameSequenceDescriptor,
+  createHamletRouteLodSkyDirectRenderCapture,
+  createHamletRouteLodSkyDirectRenderEvidence,
+  createHamletRouteUpdatePairCoordinator,
+  HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT,
   HAMLET_FOREST_ROUTE_WORK_BUDGET,
+  HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT,
+  HAMLET_ROUTE_FOREST_RENDERER_DISABLED,
+  HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+  HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+  HAMLET_ROUTE_SHADOW_SUBSYSTEM_DISABLED,
+  HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
   resolveHamletBareRafPairRequest,
   resolveHamletDeferredDomRequest,
+  resolveHamletDomPublicationPairRequest,
   resolveHamletForestUpdateAblationTelemetry,
   resolveHamletFixtureAblation,
+  resolveHamletFrozenUpdateDirectRenderRequest,
   resolveHamletNoUpdateShellRequest,
   resolveHamletPerformanceProtocol,
+  resolveHamletRouteFrameSequenceDomRequest,
+  resolveHamletRouteFrameSequenceElapsedMs,
+  resolveHamletRouteLodSkyDirectRenderRequest,
+  resolveHamletRouteUpdatePairRequest,
   type HamletBareRafCaptureEvidence,
   type HamletDegradedNoRenderArmEvidence,
   type HamletFixtureAblation,
   type HamletFixtureEvidenceEnvelope,
+  type HamletFrozenUpdateDirectRenderCaptureEvidence,
   type HamletNoUpdateShellCaptureEvidence,
   type HamletNoUpdateShellEvidence,
   type HamletPairedRafControlEvidence,
@@ -81,6 +115,8 @@ import {
   type HamletFixtureRouteWarmupEvidence,
   type HamletForestRouteWorkTelemetry,
   type HamletFixturePerformanceProtocol,
+  type HamletRouteFrameSequenceDescriptor,
+  type HamletRouteLodSkyDirectRenderCaptureEvidence,
 } from './hamletFixturePerformance.ts';
 import {
   HAMLET_FIELD_SPECS,
@@ -124,6 +160,27 @@ type HamletFixtureMotionState = {
   lod: HamletFixtureLodState;
 };
 
+type HamletRouteFrameSequenceCapture = {
+  signature: HamletRouteFrameSequenceDescriptor['signature'];
+  frameIndex: number;
+  elapsedMs: number;
+  cameraPoseSignature: string;
+  motion: HamletFixtureMotionState;
+};
+
+type HamletRouteFrameNativePngCapture = {
+  frame: HamletRouteFrameSequenceCapture;
+  captureSurface: {
+    source: 'renderer-drawing-buffer';
+    protocol: '1280x720@renderer-pr1';
+    width: 1280;
+    height: 720;
+    rendererPixelRatio: 1;
+    mimeType: 'image/png';
+  };
+  dataUrl: string;
+};
+
 type HamletFixtureMetrics = {
   fixtureId: string;
   seed: number;
@@ -136,12 +193,14 @@ type HamletFixtureMetrics = {
   trees: number;
   visibleTrees: number;
   forestDraws: number;
+  forestEdgeLayer: HamletForestEdgeLayerEvidence;
   drawCalls: number;
   triangles: number;
   staticBatching: {
     roads: StaticFixtureBatchStats;
     settlement: StaticFixtureBatchStats;
     fields: StaticFixtureBatchStats;
+    structureShadows: BatchedShadowProxyStats;
   };
   motion: HamletFixtureMotionState;
 };
@@ -184,6 +243,14 @@ declare global {
     __HAMLET_FIXTURE_CAPTURE_VIEW__?: (view: HamletViewId) => HamletFixtureMetrics;
     __HAMLET_FIXTURE_CAPTURE_MOTION__?: (elapsedMs: number) => HamletFixtureMotionState;
     __HAMLET_FIXTURE_CAPTURE_READY__?: (captureId?: HamletViewId | typeof HAMLET_MOTION_ROUTE_ID) => boolean;
+    __HAMLET_FIXTURE_ROUTE_FRAME_SEQUENCE__?: HamletRouteFrameSequenceDescriptor;
+    __HAMLET_FIXTURE_ROUTE_FRAME_SEQUENCE_READY__?: () => boolean;
+    __HAMLET_FIXTURE_CAPTURE_ROUTE_FRAME__?: (
+      frameIndex: number,
+    ) => HamletRouteFrameSequenceCapture;
+    __HAMLET_FIXTURE_CAPTURE_ROUTE_FRAME_PNG__?: (
+      frameIndex: number,
+    ) => Promise<HamletRouteFrameNativePngCapture>;
     __HAMLET_FIXTURE_SYSTEMS__?: HamletFixtureSystems;
     __HAMLET_FIXTURE_BOOT_STATE__?: HamletFixtureBootState;
     __HAMLET_FIXTURE_FAILED__?: boolean;
@@ -342,10 +409,24 @@ window.addEventListener('unhandledrejection', (event) => {
 const params = new URLSearchParams(window.location.search);
 const requestedMotionRouteId = params.get('route');
 const requestedVisualProfile = params.get('visualProfile') === '1';
+const requestedForestEdgeLayout = resolveHamletForestEdgeLayout(
+  params.get('forestEdgeLayout'),
+);
+document.documentElement.dataset.visualRouteForestEdgeLayout =
+  requestedForestEdgeLayout;
+const profileLegacyGroundcoverShadowReception =
+  requestedVisualProfile
+  && params.get('visualGroundcoverShadowReceive') === 'legacy';
 const requestedVisualNoRender =
   requestedVisualProfile && params.get('visualNoRender') === '1';
 const visualGpuTimestampMarkersEnabled =
   params.get('visualGpuTimestampMarkers') !== '0';
+const groundcoverLodFadeMode: GrassBladeLodFadeMode =
+  params.get('groundcoverFade') === 'legacy-pipeline-cutover'
+    ? 'legacy-pipeline-cutover'
+    : 'continuous-alpha-hash';
+const requestedGroundcoverTransitionEvidence =
+  params.get('groundcoverTransitionEvidence') === '1';
 const fixtureAblation = resolveHamletFixtureAblation(params.get('ablation'));
 const requestedVisualDisabledSubsystems =
   (params.get('visualDisable') ?? '')
@@ -373,8 +454,82 @@ const requestedVisualDeferredDom = resolveHamletDeferredDomRequest({
   requested: params.get('visualDeferDom') === '1',
   visualNoUpdateShell: requestedVisualNoUpdateShell,
 });
+const requestedVisualDomPublicationPair =
+  resolveHamletDomPublicationPairRequest({
+    requested: params.get('visualDomPair') === '1',
+    visualNoUpdateShell: requestedVisualNoUpdateShell,
+    visualDeferDom: requestedVisualDeferredDom,
+  });
+const requestedVisualFrozenUpdateDirectRender =
+  resolveHamletFrozenUpdateDirectRenderRequest({
+    requested: params.get('visualFrozenDirectRender') === '1',
+    visualProfile: requestedVisualProfile,
+    visualNoRender: requestedVisualNoRender,
+    visualBareRafPair: requestedVisualBareRafPair,
+    visualNoUpdateShell: requestedVisualNoUpdateShell,
+    gpuTimestampMarkersEnabled: visualGpuTimestampMarkersEnabled,
+    routeId: requestedMotionRouteId,
+    ablationId: fixtureAblation.id,
+    disabledSubsystems: requestedVisualDisabledSubsystems,
+  });
+const requestedVisualRouteLodSkyDirectRender =
+  resolveHamletRouteLodSkyDirectRenderRequest({
+    requested: params.get('visualRouteLodSkyDirectRender') === '1',
+    visualProfile: requestedVisualProfile,
+    visualNoRender: requestedVisualNoRender,
+    visualBareRafPair: requestedVisualBareRafPair,
+    visualNoUpdateShell: requestedVisualNoUpdateShell,
+    visualFrozenDirectRender: requestedVisualFrozenUpdateDirectRender,
+    gpuTimestampMarkersEnabled: visualGpuTimestampMarkersEnabled,
+    routeId: requestedMotionRouteId,
+    ablationId: fixtureAblation.id,
+    disabledSubsystems: requestedVisualDisabledSubsystems,
+  });
+const requestedVisualRouteShadowSubsystem =
+  requestedVisualRouteLodSkyDirectRender
+  && !requestedVisualDisabledSubsystems.includes('shadows')
+    ? HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED
+    : HAMLET_ROUTE_SHADOW_SUBSYSTEM_DISABLED;
+const requestedVisualRouteForestRenderer =
+  requestedVisualRouteLodSkyDirectRender
+  && !requestedVisualDisabledSubsystems.includes('forest')
+    ? HAMLET_ROUTE_FOREST_RENDERER_ENABLED
+    : HAMLET_ROUTE_FOREST_RENDERER_DISABLED;
+const requestedVisualRouteUpdatePair =
+  resolveHamletRouteUpdatePairRequest({
+    requested: params.get('visualRouteUpdatePair') === '1',
+    visualProfile: requestedVisualProfile,
+    visualNoRender: requestedVisualNoRender,
+    visualBareRafPair: requestedVisualBareRafPair,
+    visualNoUpdateShell: requestedVisualNoUpdateShell,
+    visualFrozenDirectRender: requestedVisualFrozenUpdateDirectRender,
+    visualRouteLodSkyDirectRender:
+      requestedVisualRouteLodSkyDirectRender,
+    gpuTimestampMarkersEnabled: visualGpuTimestampMarkersEnabled,
+    routeId: requestedMotionRouteId,
+    ablationId: fixtureAblation.id,
+    disabledSubsystems: requestedVisualDisabledSubsystems,
+  });
 if (fixtureAblation.id !== 'baseline' && !requestedVisualProfile) {
   throw new Error('Hamlet fixture ablations require visualProfile=1.');
+}
+if (
+  requestedGroundcoverTransitionEvidence
+  && (
+    !requestedVisualProfile
+    || requestedMotionRouteId !== HAMLET_MOTION_ROUTE_ID
+    || fixtureAblation.id !== 'groundcover-stream-forest-update-frozen'
+    || requestedVisualDisabledSubsystems.includes('groundcover')
+    || !requestedVisualRouteLodSkyDirectRender
+  )
+) {
+  throw new Error(
+    'groundcoverTransitionEvidence=1 requires the canonical Hamlet route, '
+    + 'visualProfile=1, the frozen groundcover/forest-update ablation, and '
+    + 'the exact direct-color route treatment with '
+    + 'post disabled, forest and shadows in an accepted restoration state, and '
+    + 'groundcover presentation enabled.',
+  );
 }
 if (
   requestedVisualNoRender
@@ -433,9 +588,14 @@ renderer.setPixelRatio(requestedVisualProfile ? 1 : Math.min(window.devicePixelR
 renderer.toneMappingExposure = 0.9;
 renderer.setClearColor(0x78929d, 1);
 renderer.shadowMap.autoUpdate = false;
+renderer.domElement.setAttribute(
+  'data-testid',
+  'hamlet-native-render-capture-surface',
+);
 root.prepend(renderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 420);
+camera.layers.disable(TREE_SHADOW_CAST_LAYER);
 const motionCameraTarget = new THREE.Vector3();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x78929d);
@@ -455,6 +615,8 @@ sun.shadow.camera.near = 10;
 sun.shadow.camera.far = 260;
 sun.shadow.bias = -0.00035;
 sun.shadow.normalBias = 0.026;
+sun.shadow.autoUpdate = false;
+sun.shadow.camera.layers.enable(TREE_SHADOW_CAST_LAYER);
 scene.add(sun);
 const sunDirection = sun.position.clone().normalize();
 setBootStage('sky-perlin', 'running');
@@ -482,6 +644,64 @@ const performancePairIdentity: HamletPerformancePairIdentity | null =
 const bareRafCapture = performancePairIdentity
   ? createHamletBareRafCapture(performancePairIdentity)
   : null;
+const frozenUpdateDirectRenderIdentity: HamletPerformancePairIdentity | null =
+  requestedVisualFrozenUpdateDirectRender
+    ? {
+        runUuid: crypto.randomUUID(),
+        performanceTimeOriginMs: performance.timeOrigin,
+      }
+    : null;
+const frozenUpdateDirectRenderCapture =
+  frozenUpdateDirectRenderIdentity
+    ? createHamletFrozenUpdateDirectRenderCapture(
+        frozenUpdateDirectRenderIdentity,
+      )
+    : null;
+const routeFrameSequenceDescriptor =
+  requestedVisualRouteLodSkyDirectRender
+    || requestedVisualRouteUpdatePair
+    || requestedGroundcoverTransitionEvidence
+      ? createHamletRouteFrameSequenceDescriptor(
+        requestedVisualRouteShadowSubsystem,
+        requestedVisualRouteForestRenderer,
+        requestedForestEdgeLayout,
+      )
+    : null;
+const routeLodSkyDirectRenderIdentity: HamletPerformancePairIdentity | null =
+  requestedVisualRouteLodSkyDirectRender
+    ? {
+        runUuid: crypto.randomUUID(),
+        performanceTimeOriginMs: performance.timeOrigin,
+      }
+    : null;
+const routeLodSkyDirectRenderCapture =
+  routeLodSkyDirectRenderIdentity
+    ? createHamletRouteLodSkyDirectRenderCapture(
+        routeLodSkyDirectRenderIdentity,
+        {
+          shadowSubsystem: requestedVisualRouteShadowSubsystem,
+          forestRenderer: requestedVisualRouteForestRenderer,
+          forestEdgeLayout: requestedForestEdgeLayout,
+        },
+      )
+    : null;
+const routeUpdatePairIdentity: HamletPerformancePairIdentity | null =
+  requestedVisualRouteUpdatePair
+    ? {
+        runUuid: crypto.randomUUID(),
+        performanceTimeOriginMs: performance.timeOrigin,
+      }
+    : null;
+const routeUpdatePairRandomDraw = requestedVisualRouteUpdatePair
+  ? crypto.getRandomValues(new Uint32Array(1))[0]!
+  : null;
+const routeUpdatePairCoordinator =
+  routeUpdatePairIdentity && routeUpdatePairRandomDraw !== null
+    ? createHamletRouteUpdatePairCoordinator(
+        routeUpdatePairIdentity,
+        routeUpdatePairRandomDraw,
+      )
+    : null;
 const noUpdateShellIdentity: HamletPerformancePairIdentity | null =
   requestedVisualNoUpdateShell
     ? {
@@ -489,13 +709,32 @@ const noUpdateShellIdentity: HamletPerformancePairIdentity | null =
         performanceTimeOriginMs: performance.timeOrigin,
       }
     : null;
+const domPublicationPairRandomDraw = requestedVisualDomPublicationPair
+  ? crypto.getRandomValues(new Uint32Array(1))[0]!
+  : null;
+const domPublicationPairCoordinator =
+  noUpdateShellIdentity && domPublicationPairRandomDraw !== null
+    ? createHamletDomPublicationPairCoordinator(
+        noUpdateShellIdentity,
+        domPublicationPairRandomDraw,
+      )
+    : null;
 const noUpdateShellCapture = noUpdateShellIdentity
-  ? createHamletNoUpdateShellCapture(noUpdateShellIdentity, {
+  && !domPublicationPairCoordinator
+    ? createHamletNoUpdateShellCapture(noUpdateShellIdentity, {
       deferCohortDomPublication: requestedVisualDeferredDom,
     })
   : null;
 let noUpdateShellCaptureReport: HamletNoUpdateShellCaptureEvidence | null = null;
+let frozenUpdateDirectRenderCaptureReport:
+  HamletFrozenUpdateDirectRenderCaptureEvidence | null = null;
+let routeLodSkyDirectRenderCaptureReport:
+  HamletRouteLodSkyDirectRenderCaptureEvidence | null = null;
+let routeFrameSequenceDomControl: HTMLInputElement | null = null;
+let routeUpdatePairArmCaptureComplete = false;
+let routeUpdatePairAwaitingFreshCollector = false;
 let deferredDomCohortActive = false;
+let domPublicationPairAwaitingFreshCollector = false;
 let bareRafControlCollecting = false;
 let degradedNoRenderEnvelope: HamletFixtureEvidenceEnvelope | null = null;
 let degradedNoRenderArm: HamletDegradedNoRenderArmEvidence | null = null;
@@ -633,8 +872,16 @@ scene.add(roadRoot);
 const settlementRoot = new THREE.Group();
 settlementRoot.name = 'Compact parish hamlet';
 scene.add(settlementRoot);
+const structureShadowBatch = new BatchedBuildingShadowProxies(
+  settlementRoot,
+  'Production-representative hamlet shadow proxies',
+  true,
+);
 
-const { zones, residences } = createHamletResidences(settlementRoot);
+const { zones, residences } = createHamletResidences(
+  settlementRoot,
+  structureShadowBatch,
+);
 const burgageFencing = new BurgageFencing(settlementRoot);
 burgageFencing.syncZones(zones, residences, hamletHeightAt);
 
@@ -650,7 +897,9 @@ for (const landmark of HAMLET_LANDMARKS) {
   building.rotation.y = landmark.yaw;
   configureWorldMesh(building);
   settlementRoot.add(building);
+  structureShadowBatch.upsertBuilding(landmark.id, landmark.kind, building);
 }
+structureShadowBatch.flush();
 const settlementBatch = batchStaticFixtureMeshes(
   settlementRoot,
   'Static-batched hamlet fabric',
@@ -666,11 +915,15 @@ const fieldBatch = batchStaticFixtureMeshes(
   'Static-batched cultivated parcels',
 );
 
-const forestPlacements = createHamletForestPlacements();
+const {
+  placements: forestPlacements,
+  edgeLayer: forestEdgeLayer,
+} = createHamletForestPlacements(requestedForestEdgeLayout);
 setBootStage('groundcover', 'running');
 const grassFieldPromise = createGrassBladeField(terrainAdapter, {
   maxAnisotropy: rendererBackend.maxAnisotropy,
   rendererBackend: rendererBackend.kind,
+  lodFadeMode: groundcoverLodFadeMode,
 });
 setBootStage('forest', 'running');
 const forestPromise = createSeedThreeForest(
@@ -694,6 +947,12 @@ scene.add(forest.group);
 const grassField: GrassBladeField = grassFieldResult.ok
   ? grassFieldResult.value
   : createEmptyGrassField();
+if (profileLegacyGroundcoverShadowReception) {
+  grassField.group.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh) mesh.receiveShadow = true;
+  });
+}
 groundcoverRuntimeReady = grassFieldResult.ok;
 textureReadiness.groundcover = grassFieldResult.ok;
 refreshFullVisualReadiness();
@@ -789,6 +1048,11 @@ document.body.dataset.forestMaxUpdateDurationMs = String(
 );
 document.body.dataset.groundcoverStreamMode =
   grassField.getStreamTelemetry().mode;
+document.body.dataset.groundcoverLodFadeMode = groundcoverLodFadeMode;
+document.body.dataset.groundcoverShadowReception =
+  profileLegacyGroundcoverShadowReception
+    ? 'mesh-received-legacy-profile'
+    : 'terrain-projected';
 document.body.dataset.motionReady = String(window.__HAMLET_FIXTURE_MOTION_READY__);
 document.body.dataset.omittedSystems = 'river,precipitation,weather,wildlife,people';
 const degradedSystems = [
@@ -815,7 +1079,7 @@ window.__HAMLET_FIXTURE_SYSTEMS__ = {
   omitted: ['river', 'precipitation', 'weather', 'wildlife', 'people'],
   degraded: degradedSystems,
 };
-installVisualPerformanceHooksIfRequested({
+const hamletVisualPerformanceApp = {
   sceneManager: {
     scene,
     camera,
@@ -890,7 +1154,7 @@ installVisualPerformanceHooksIfRequested({
       };
     },
     getPerformanceStats: () => {
-      const structural = countFixtureStructuralSubmissions(scene);
+      const structural = countFixtureStructuralSubmissions(scene, camera);
       return {
         backend: rendererBackend.kind,
         frames: renderedFrameCount,
@@ -900,7 +1164,45 @@ installVisualPerformanceHooksIfRequested({
       };
     },
   },
-});
+};
+installVisualPerformanceHooksIfRequested(hamletVisualPerformanceApp);
+if (domPublicationPairCoordinator) {
+  document.documentElement.dataset.visualDomPairStatus =
+    'first-arm-lead-in';
+}
+if (frozenUpdateDirectRenderCapture) {
+  document.documentElement.dataset.visualFrozenDirectRenderStatus =
+    'lead-in';
+}
+if (routeLodSkyDirectRenderCapture) {
+  document.documentElement.dataset.visualRouteLodSkyDirectRenderStatus =
+    'lead-in';
+  document.documentElement.dataset.visualRouteShadowSubsystem =
+    requestedVisualRouteShadowSubsystem;
+  document.documentElement.dataset.visualRouteForestRenderer =
+    requestedVisualRouteForestRenderer;
+  document.documentElement.dataset.visualRouteForestUpdates =
+    'frozen-after-settled-warmup';
+  document.documentElement.dataset.visualRoutePostProcessing =
+    'disabled';
+  document.documentElement.dataset.visualRouteFrameSequenceStatus =
+    'waiting-for-terminal-evidence';
+}
+if (routeUpdatePairCoordinator) {
+  document.documentElement.dataset.visualRouteUpdatePairStatus =
+    'first-arm-lead-in';
+  document.documentElement.dataset.visualRouteUpdatePairTreatment =
+    routeUpdatePairCoordinator.getCurrentTreatment();
+  document.documentElement.dataset.visualRouteFrameSequenceStatus =
+    'waiting-for-terminal-evidence';
+}
+if (requestedGroundcoverTransitionEvidence) {
+  document.documentElement.dataset.visualGroundcoverEvidenceTreatment =
+    `three-whole-field-instanced-meshes:${groundcoverLodFadeMode}:`
+    + HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT;
+  document.documentElement.dataset.visualRouteFrameSequenceStatus =
+    'waiting-for-settled-groundcover';
+}
 window.__visualPerf?.setEnabled('river', false);
 window.__visualPerf?.setEnabled('riverSimulation', false);
 window.__visualPerf?.setEnabled('riverRender', false);
@@ -1304,7 +1606,10 @@ function createZone(spec: HamletZoneSpec): BurgageZoneState {
   };
 }
 
-function createHamletResidences(parent: THREE.Group): {
+function createHamletResidences(
+  parent: THREE.Group,
+  structureShadows: BatchedBuildingShadowProxies,
+): {
   zones: BurgageZoneState[];
   residences: Array<{
     id: string;
@@ -1356,6 +1661,7 @@ function createHamletResidences(parent: THREE.Group): {
       residence.rotation.y = placement.yaw;
       configureWorldMesh(residence);
       parent.add(residence);
+      structureShadows.upsertResidence(id, 1, residence);
       residences.push({ id, zoneId: zone.id, ...placement });
       residenceIndex += 1;
     }
@@ -1384,7 +1690,9 @@ function configureWorldMesh(rootObject: THREE.Object3D): void {
   rootObject.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
-    mesh.castShadow = true;
+    // Match production: detailed structure meshes receive shadows while the
+    // coarse instanced proxy batch alone enters the static shadow atlas.
+    mesh.castShadow = false;
     mesh.receiveShadow = true;
   });
 }
@@ -1417,48 +1725,6 @@ function polygonArea(corners: readonly (readonly [number, number])[]): number {
     doubledArea += current[0] * next[1] - next[0] * current[1];
   }
   return Math.abs(doubledArea) * 0.5;
-}
-
-function createHamletForestPlacements(): ForestTreePlacement[] {
-  const rng = mulberry32(HAMLET_FIXTURE_SEED);
-  const species: ForestTreePlacement['species'][] = [
-    'beech',
-    'beech',
-    'beech',
-    'hornbeam',
-    'sycamoreMaple',
-    'sessileOak',
-    'silverFir',
-    'norwaySpruce',
-  ];
-  const placements: ForestTreePlacement[] = [];
-
-  for (let z = -190; z <= 230; z += 10.2) {
-    for (let x = -250; x <= 250; x += 10.2) {
-      const northForest = z > 46 + Math.sin(x * 0.055) * 11;
-      const sideForest = Math.abs(x) > 68 + Math.sin(z * 0.047) * 10 && z > -78;
-      const distantSouthForest = z < -105 + Math.sin(x * 0.038) * 9 && Math.abs(x) > 48;
-      const backgroundCanopy = z > 145 || Math.abs(x) > 185;
-      const woodland = northForest || sideForest || distantSouthForest || backgroundCanopy;
-      if (!woodland) continue;
-
-      const innerEdge = z < 92 && Math.abs(x) < 112;
-      const thinning = innerEdge ? 0.14 : 0.05;
-      if (rng() < thinning) continue;
-
-      const placedX = x + (rng() - 0.5) * 6.4;
-      const placedZ = z + (rng() - 0.5) * 6.4;
-      const selectedSpecies = species[Math.floor(rng() * species.length)]!;
-      placements.push({
-        x: placedX,
-        z: placedZ,
-        species: selectedSpecies,
-        form: rng() < 0.2 ? 'midstory' : 'broad',
-        scale: 0.62 + rng() * 0.36,
-      });
-    }
-  }
-  return placements;
 }
 
 function applyView(viewId: HamletViewId, updateLocation: boolean): void {
@@ -1903,12 +2169,37 @@ function publishFixtureEvidence(): HamletFixtureEvidenceEnvelope | null {
     groundcoverWork: grassField.getStreamTelemetry(),
     completedRoutes: completedMotionRoutes,
     routeWarmup: routeWarmupWork,
+    presentationTreatment:
+      requestedVisualRouteLodSkyDirectRender
+        ? {
+            id:
+              `groundcover-${groundcoverLodFadeMode}-whole-field-route`,
+            rendererTreatment:
+              HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+            disabledSubsystems: [
+              ...requestedVisualDisabledSubsystems,
+            ].sort(),
+            groundcoverFadeMode: groundcoverLodFadeMode,
+            groundcoverSubmission:
+              'three-whole-field-instanced-meshes',
+            forestRenderer:
+              requestedVisualRouteForestRenderer,
+            forestEdgeLayout: requestedForestEdgeLayout,
+            forestUpdates:
+              'frozen-after-settled-warmup',
+            postProcessing:
+              'disabled',
+            shadowSubsystem:
+              requestedVisualRouteShadowSubsystem,
+          }
+        : undefined,
     content: {
       residences: window.__HAMLET_FIXTURE_METRICS__.residences,
       residenceRoof: window.__HAMLET_FIXTURE_METRICS__.residenceRoof,
       trees: window.__HAMLET_FIXTURE_METRICS__.trees,
       visibleTrees: window.__HAMLET_FIXTURE_METRICS__.visibleTrees,
       forestDraws: window.__HAMLET_FIXTURE_METRICS__.forestDraws,
+      forestEdgeLayer,
     },
   });
 }
@@ -1922,6 +2213,128 @@ function maybeFinalizeFixtureEvidence(): void {
     return;
   }
   const envelope = publishFixtureEvidence();
+  if (requestedVisualRouteUpdatePair) {
+    if (
+      !routeUpdatePairCoordinator
+      || !routeUpdatePairArmCaptureComplete
+      || !canFinalizeHamletRouteUpdatePairArmEvidence(
+        envelope,
+        bootState.status,
+      )
+      || !envelope
+    ) {
+      return;
+    }
+    const completion = routeUpdatePairCoordinator.completeCurrentArm({
+      performanceReport,
+      completedAtPerformanceTimestampMs: performance.now(),
+    });
+    if (completion.advanceToNextArm) {
+      window.__visualPerf?.stopFrameCollection();
+      routeUpdatePairArmCaptureComplete = false;
+      routeUpdatePairAwaitingFreshCollector = true;
+      document.documentElement.dataset.visualRouteUpdatePairStatus =
+        'collector-handoff';
+      installVisualPerformanceHooksIfRequested(
+        hamletVisualPerformanceApp,
+      );
+      return;
+    }
+    if (!completion.report) {
+      throw new Error(
+        'Route-update pair ended without paired evidence.',
+      );
+    }
+    finalizedFixtureEvidence = {
+      ...envelope,
+      pairedRouteUpdateControl: completion.report,
+    };
+    window.__HAMLET_FIXTURE_EVIDENCE__ = finalizedFixtureEvidence;
+    document.documentElement.dataset.visualRouteUpdatePairStatus =
+      'ready';
+    document.documentElement.dataset.hamletFixtureEvidence =
+      JSON.stringify(finalizedFixtureEvidence);
+    installRouteFrameSequenceDomBridge();
+    document.documentElement.dataset.visualRouteFrameSequenceStatus =
+      'ready';
+    return;
+  }
+  if (requestedVisualRouteLodSkyDirectRender) {
+    if (routeLodSkyDirectRenderCaptureReport) {
+      const collectorAudit =
+        auditHamletRouteLodSkyDirectRenderCollector(
+          routeLodSkyDirectRenderCaptureReport,
+          performanceReport,
+        );
+      const serializedCollectorAudit = JSON.stringify(collectorAudit);
+      if (
+        document.documentElement.dataset
+          .visualRouteLodSkyDirectRenderCollectorAudit
+          !== serializedCollectorAudit
+      ) {
+        document.documentElement.dataset
+          .visualRouteLodSkyDirectRenderCollectorAudit =
+            serializedCollectorAudit;
+      }
+    }
+    if (
+      !canFinalizeHamletRouteLodSkyDirectRenderEvidence(
+        envelope,
+        routeLodSkyDirectRenderCaptureReport,
+        bootState.status,
+      )
+      || !envelope
+      || !routeLodSkyDirectRenderCaptureReport
+    ) {
+      return;
+    }
+    const routeLodSkyDirectRender =
+      createHamletRouteLodSkyDirectRenderEvidence(
+        routeLodSkyDirectRenderCaptureReport,
+        performanceReport,
+      );
+    finalizedFixtureEvidence = {
+      ...envelope,
+      routeLodSkyDirectRender,
+    };
+    window.__HAMLET_FIXTURE_EVIDENCE__ = finalizedFixtureEvidence;
+    document.documentElement.dataset.visualRouteLodSkyDirectRenderStatus =
+      'ready';
+    document.documentElement.dataset.hamletFixtureEvidence =
+      JSON.stringify(finalizedFixtureEvidence);
+    installRouteFrameSequenceDomBridge();
+    document.documentElement.dataset.visualRouteFrameSequenceStatus =
+      'ready';
+    return;
+  }
+  if (requestedVisualFrozenUpdateDirectRender) {
+    if (
+      !canFinalizeHamletFrozenUpdateDirectRenderEvidence(
+        envelope,
+        frozenUpdateDirectRenderCaptureReport,
+        bootState.status,
+      )
+      || !envelope
+      || !frozenUpdateDirectRenderCaptureReport
+    ) {
+      return;
+    }
+    const frozenUpdateDirectRender =
+      createHamletFrozenUpdateDirectRenderEvidence(
+        frozenUpdateDirectRenderCaptureReport,
+        performanceReport,
+      );
+    finalizedFixtureEvidence = {
+      ...envelope,
+      frozenUpdateDirectRender,
+    };
+    window.__HAMLET_FIXTURE_EVIDENCE__ = finalizedFixtureEvidence;
+    document.documentElement.dataset.visualFrozenDirectRenderStatus =
+      'ready';
+    document.documentElement.dataset.hamletFixtureEvidence =
+      JSON.stringify(finalizedFixtureEvidence);
+    return;
+  }
   if (requestedVisualNoUpdateShell) {
     if (
       !canFinalizeHamletNoUpdateShellEvidence(
@@ -1932,6 +2345,40 @@ function maybeFinalizeFixtureEvidence(): void {
       || !envelope
       || !noUpdateShellCaptureReport
     ) {
+      return;
+    }
+    if (domPublicationPairCoordinator) {
+      const completion = domPublicationPairCoordinator.completeCurrentArm({
+        performanceReport,
+        domPublication:
+          window.__visualPerf!.getDomPublicationEvidence(),
+        completedAtPerformanceTimestampMs: performance.now(),
+      });
+      if (completion.advanceToNextArm) {
+        window.__visualPerf?.stopFrameCollection();
+        noUpdateShellCaptureReport = null;
+        deferredDomCohortActive = false;
+        domPublicationPairAwaitingFreshCollector = true;
+        document.documentElement.dataset.visualDomPairStatus =
+          'collector-handoff';
+        installVisualPerformanceHooksIfRequested(
+          hamletVisualPerformanceApp,
+        );
+        return;
+      }
+      if (!completion.report) {
+        throw new Error(
+          'DOM publication pair ended without paired evidence.',
+        );
+      }
+      finalizedFixtureEvidence = {
+        ...envelope,
+        pairedDomPublicationControl: completion.report,
+      };
+      window.__HAMLET_FIXTURE_EVIDENCE__ = finalizedFixtureEvidence;
+      document.documentElement.dataset.visualDomPairStatus = 'ready';
+      document.documentElement.dataset.hamletFixtureEvidence =
+        JSON.stringify(finalizedFixtureEvidence);
       return;
     }
     const noUpdateShell: HamletNoUpdateShellEvidence = {
@@ -2038,7 +2485,13 @@ function finalizeBareRafControl(
 }
 
 function publishNoUpdateShellStatus(status: string): void {
-  if (requestedVisualDeferredDom) return;
+  if (
+    requestedVisualDeferredDom
+    || domPublicationPairCoordinator?.getCurrentTreatment()
+      === HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT
+  ) {
+    return;
+  }
   document.documentElement.dataset.visualNoUpdateShellStatus = status;
 }
 
@@ -2074,6 +2527,284 @@ function installMotionContract(): void {
     }
     return activeViewId === captureId && motionState.status !== 'running';
   };
+  if (routeFrameSequenceDescriptor) {
+    window.__HAMLET_FIXTURE_ROUTE_FRAME_SEQUENCE__ = {
+      ...routeFrameSequenceDescriptor,
+    };
+    window.__HAMLET_FIXTURE_ROUTE_FRAME_SEQUENCE_READY__ =
+      isRouteFrameSequenceReady;
+    window.__HAMLET_FIXTURE_CAPTURE_ROUTE_FRAME__ =
+      captureRouteFrameSequenceFrame;
+    window.__HAMLET_FIXTURE_CAPTURE_ROUTE_FRAME_PNG__ =
+      captureRouteFrameSequencePng;
+  }
+}
+
+function hasTerminalRouteFrameSequenceEvidence(): boolean {
+  return requestedGroundcoverTransitionEvidence
+    || finalizedFixtureEvidence?.routeLodSkyDirectRender !== undefined
+    || finalizedFixtureEvidence?.pairedRouteUpdateControl !== undefined;
+}
+
+function maybeInstallGroundcoverTransitionEvidenceBridge(): void {
+  if (
+    !requestedGroundcoverTransitionEvidence
+    || !isFullVisualSystemsReady()
+    || !grassField.isStreamSettled()
+    || document.documentElement.dataset.visualRouteFrameSequenceStatus
+      === 'ready'
+  ) {
+    return;
+  }
+  document.documentElement.dataset.visualRouteFrameSequenceStatus = 'ready';
+  installRouteFrameSequenceDomBridge();
+}
+
+function isRouteFrameSequenceReady(): boolean {
+  return routeFrameSequenceDescriptor !== null
+    && hasTerminalRouteFrameSequenceEvidence()
+    && document.documentElement.dataset.visualRouteFrameSequenceStatus
+      === 'ready';
+}
+
+function installRouteFrameSequenceDomBridge(): void {
+  if (
+    routeFrameSequenceDomControl !== null
+    || routeFrameSequenceDescriptor === null
+    || !hasTerminalRouteFrameSequenceEvidence()
+  ) {
+    return;
+  }
+  const bridgeRoot = document.documentElement;
+  const requestControl = document.createElement('input');
+  const outputControl = document.createElement('output');
+  requestControl.type = 'text';
+  requestControl.inputMode = 'numeric';
+  requestControl.autocomplete = 'off';
+  requestControl.tabIndex = -1;
+  requestControl.setAttribute(
+    'data-testid',
+    'hamlet-route-frame-sequence-request',
+  );
+  requestControl.setAttribute(
+    'aria-label',
+    'Route frame sequence index',
+  );
+  requestControl.style.position = 'fixed';
+  requestControl.style.left = '0';
+  requestControl.style.top = '0';
+  requestControl.style.width = '2px';
+  requestControl.style.height = '2px';
+  requestControl.style.boxSizing = 'border-box';
+  requestControl.style.padding = '0';
+  requestControl.style.margin = '0';
+  requestControl.style.border = '0';
+  requestControl.style.opacity = '0';
+  requestControl.style.zIndex = '2147483647';
+  requestControl.style.pointerEvents = 'auto';
+  outputControl.hidden = true;
+  outputControl.setAttribute(
+    'data-testid',
+    'hamlet-route-frame-sequence-native-png-output',
+  );
+  outputControl.setAttribute('aria-hidden', 'true');
+  bridgeRoot.dataset.visualRouteFrameSequenceReplayStatus = 'idle';
+  const clearReplayCompletion = (): void => {
+    outputControl.textContent = '';
+    outputControl.removeAttribute('data-completed-index');
+    outputControl.removeAttribute('data-completed-elapsed-ms');
+    outputControl.removeAttribute('data-completed-signature');
+    outputControl.removeAttribute('data-completed-camera-pose-signature');
+    delete bridgeRoot.dataset.visualRouteFrameSequenceCompletedIndex;
+    delete bridgeRoot.dataset.visualRouteFrameSequenceCompletedElapsedMs;
+    delete bridgeRoot.dataset.visualRouteFrameSequenceCompletedSignature;
+    delete bridgeRoot.dataset
+      .visualRouteFrameSequenceCompletedCameraPoseSignature;
+  };
+  let lastHandledRequestIndex: string | null = null;
+  let replayGeneration = 0;
+  const handleReplayRequest = async (): Promise<void> => {
+    const requestedIndex = requestControl.value;
+    if (requestedIndex === '') {
+      replayGeneration += 1;
+      lastHandledRequestIndex = null;
+      clearReplayCompletion();
+      bridgeRoot.dataset.visualRouteFrameSequenceReplayStatus = 'idle';
+      return;
+    }
+    if (requestedIndex === lastHandledRequestIndex) return;
+    const generation = ++replayGeneration;
+    lastHandledRequestIndex = requestedIndex;
+    clearReplayCompletion();
+    bridgeRoot.dataset.visualRouteFrameSequenceReplayStatus = 'rendering';
+    try {
+      const frameIndex = resolveHamletRouteFrameSequenceDomRequest(
+        requestedIndex,
+      );
+      if (frameIndex === null) {
+        throw new Error('Route frame sequence DOM request was empty.');
+      }
+      const completed = await captureRouteFrameSequencePng(frameIndex);
+      if (
+        generation !== replayGeneration
+        || requestControl.value !== requestedIndex
+      ) {
+        return;
+      }
+      const completionIdentity = Object.freeze({
+        index: String(completed.frame.frameIndex),
+        elapsedMs: completed.frame.elapsedMs.toFixed(3),
+        signature: completed.frame.signature,
+        cameraPoseSignature: completed.frame.cameraPoseSignature,
+      });
+      outputControl.setAttribute(
+        'data-completed-index',
+        completionIdentity.index,
+      );
+      outputControl.setAttribute(
+        'data-completed-elapsed-ms',
+        completionIdentity.elapsedMs,
+      );
+      outputControl.setAttribute(
+        'data-completed-signature',
+        completionIdentity.signature,
+      );
+      outputControl.setAttribute(
+        'data-completed-camera-pose-signature',
+        completionIdentity.cameraPoseSignature,
+      );
+      outputControl.textContent = completed.dataUrl;
+      bridgeRoot.dataset.visualRouteFrameSequenceCompletedIndex =
+        completionIdentity.index;
+      bridgeRoot.dataset.visualRouteFrameSequenceCompletedElapsedMs =
+        completionIdentity.elapsedMs;
+      bridgeRoot.dataset.visualRouteFrameSequenceCompletedSignature =
+        completionIdentity.signature;
+      bridgeRoot.dataset
+        .visualRouteFrameSequenceCompletedCameraPoseSignature =
+          completionIdentity.cameraPoseSignature;
+      bridgeRoot.dataset.visualRouteFrameSequenceReplayStatus = 'complete';
+    } catch {
+      if (
+        generation !== replayGeneration
+        || requestControl.value !== requestedIndex
+      ) {
+        return;
+      }
+      clearReplayCompletion();
+      bridgeRoot.dataset.visualRouteFrameSequenceReplayStatus = 'error';
+    }
+  };
+  requestControl.addEventListener('input', handleReplayRequest);
+  requestControl.addEventListener('change', handleReplayRequest);
+  routeFrameSequenceDomControl = requestControl;
+  document.body.append(requestControl, outputControl);
+}
+
+function captureRouteFrameSequenceFrame(
+  frameIndex: number,
+): HamletRouteFrameSequenceCapture {
+  if (!isRouteFrameSequenceReady() || !routeFrameSequenceDescriptor) {
+    throw new Error(
+      'Route frame sequence capture requires terminal route-update evidence.',
+    );
+  }
+  if (motionAnimationFrame !== null) {
+    cancelAnimationFrame(motionAnimationFrame);
+    motionAnimationFrame = null;
+  }
+  motionLoopEnabled = false;
+  const elapsedMs = resolveHamletRouteFrameSequenceElapsedMs(frameIndex);
+  seekMotionRoute(elapsedMs, 'paused', false);
+  fixtureTimeSeconds = elapsedMs / 1_000;
+  sky.updateCamera(camera);
+  sky.updateSun(sunDirection);
+  sky.updateTime(fixtureTimeSeconds);
+  render(0, true, null, false, true);
+  document.body.dataset.captureId = HAMLET_MOTION_ROUTE_ID;
+  document.body.dataset.captureReady = 'true';
+  document.documentElement.dataset.visualRouteFrameSequenceIndex =
+    String(frameIndex);
+  document.documentElement.dataset.visualRouteFrameSequenceElapsedMs =
+    elapsedMs.toFixed(3);
+  document.documentElement.dataset.visualRouteFrameSequenceSignature =
+    routeFrameSequenceDescriptor.signature;
+  const motion: HamletFixtureMotionState = {
+    ...motionState,
+    cameraPosition: [...motionState.cameraPosition],
+    cameraTarget: [...motionState.cameraTarget],
+    cameraOrientation: [...motionState.cameraOrientation],
+    lod: { ...motionState.lod },
+  };
+  return {
+    signature: routeFrameSequenceDescriptor.signature,
+    frameIndex,
+    elapsedMs,
+    cameraPoseSignature: createRouteFrameCameraPoseSignature(
+      frameIndex,
+      elapsedMs,
+      motion,
+    ),
+    motion,
+  };
+}
+
+async function captureRouteFrameSequencePng(
+  frameIndex: number,
+): Promise<HamletRouteFrameNativePngCapture> {
+  const frame = captureRouteFrameSequenceFrame(frameIndex);
+  await rendererBackend.waitForSubmittedWork();
+  const canvas = renderer.domElement;
+  const rendererPixelRatio = renderer.getPixelRatio();
+  if (
+    canvas.width !== 1280
+    || canvas.height !== 720
+    || rendererPixelRatio !== 1
+    || performanceProtocol?.valid !== true
+  ) {
+    throw new Error(
+      'Native route capture requires the validated 1280x720@renderer-pr1 drawing buffer.',
+    );
+  }
+  const dataUrl = canvas.toDataURL('image/png');
+  if (!dataUrl.startsWith('data:image/png;base64,')) {
+    throw new Error(
+      'Native route capture did not produce an exact PNG data URL.',
+    );
+  }
+  return {
+    frame,
+    captureSurface: {
+      source: 'renderer-drawing-buffer',
+      protocol: '1280x720@renderer-pr1',
+      width: 1280,
+      height: 720,
+      rendererPixelRatio: 1,
+      mimeType: 'image/png',
+    },
+    dataUrl,
+  };
+}
+
+function createRouteFrameCameraPoseSignature(
+  frameIndex: number,
+  elapsedMs: number,
+  motion: HamletFixtureMotionState,
+): string {
+  const numbers = [
+    ...motion.cameraPosition,
+    ...motion.cameraTarget,
+    ...motion.cameraOrientation,
+  ].map((value) => value.toFixed(6));
+  return [
+    routeFrameSequenceDescriptor?.routeId ?? 'missing-route',
+    frameIndex,
+    elapsedMs.toFixed(3),
+    ...numbers,
+    motion.lod.forest,
+    motion.lod.groundcover,
+    motion.lod.building,
+  ].join('|');
 }
 
 function isMotionSettledStartReady(): boolean {
@@ -2143,6 +2874,7 @@ function stopMotion(status: 'idle' | 'paused'): void {
 function seekMotionRoute(
   elapsedMs: number,
   status: HamletFixtureMotionState['status'],
+  renderFrame = true,
 ): void {
   const sample = sampleHamletMotionRoute(elapsedMs);
   camera.position.copy(sample.position);
@@ -2175,7 +2907,7 @@ function seekMotionRoute(
     lod,
   };
   publishMotionState();
-  render(0);
+  if (renderFrame) render(0);
 }
 
 function publishMotionState(): void {
@@ -2265,6 +2997,9 @@ function advanceRouteWarmupProtocol(): void {
     && visualPerf !== undefined
     && startMotionRoute(0, true)
   ) {
+    if (requestedVisualRouteUpdatePair) {
+      resetRouteUpdatePairVisualBaseline();
+    }
     visualPerf.armTraceAfterCurrentFrame();
     routeWarmupWork.stage = 'complete';
     publishRouteWarmupWork();
@@ -2330,6 +3065,32 @@ function isNoRenderMeasuredWindowActive(): boolean {
     && document.documentElement.dataset.visualProfileStatus === 'collecting';
 }
 
+function isFreshDomPairCollectorReady(): boolean {
+  return document.documentElement.dataset.visualProfileStatus === 'collecting';
+}
+
+function resetRouteUpdatePairVisualBaseline(): void {
+  previousTickNowMs = 0;
+  fixtureTimeSeconds = 0;
+  sky.updateCamera(camera);
+  sky.updateSun(sunDirection);
+  sky.updateTime(0);
+}
+
+function restartRouteUpdatePairArmFromCanonicalZero(): void {
+  const completedRoutesBeforeRestart = completedMotionRoutes;
+  stopMotion('paused');
+  if (!startMotionRoute(0, true)) {
+    throw new Error(
+      'Route-update pair could not restart its canonical arm baseline.',
+    );
+  }
+  completedMotionRoutes = completedRoutesBeforeRestart;
+  publishCompletedMotionRoutes();
+  resetRouteUpdatePairVisualBaseline();
+  render(0);
+}
+
 function startContinuousTick(): void {
   if (motionAnimationFrame !== null) return;
   const tick = (nowMs: number): void => {
@@ -2346,24 +3107,115 @@ function startContinuousTick(): void {
     }
     const frameCpuStartedAtMs = requestedVisualProfile ? performance.now() : null;
     motionAnimationFrame = requestAnimationFrame(tick);
+    const routeLodSkyTreatmentActive =
+      requestedVisualRouteLodSkyDirectRender
+      && routeWarmupWork.stage === 'complete'
+      && frameCpuStartedAtMs !== null
+      && routeLodSkyDirectRenderCapture !== null;
+    const routeUpdatePairTreatmentActive =
+      requestedVisualRouteUpdatePair
+      && routeWarmupWork.stage === 'complete'
+      && frameCpuStartedAtMs !== null
+      && routeUpdatePairCoordinator !== null;
+    let recordRouteLodSkyCanonicalUpdate = false;
+    let recordRouteUpdatePairCanonicalUpdate = false;
+    let routeUpdatePairCanonicalUpdatesEnabled = false;
+    if (
+      requestedVisualFrozenUpdateDirectRender
+      && routeWarmupWork.stage === 'complete'
+      && frameCpuStartedAtMs !== null
+      && frozenUpdateDirectRenderCapture !== null
+    ) {
+      const treatmentStep =
+        frozenUpdateDirectRenderCapture.appendRafTimestamp(nowMs);
+      if (treatmentStep.armCollectorAfterCurrentFrame) {
+        window.__visualPerf?.armTraceAfterCurrentFrame();
+        document.documentElement.dataset.visualFrozenDirectRenderStatus =
+          'judged-cohort-arming';
+      } else if (
+        treatmentStep.report
+        && frozenUpdateDirectRenderCaptureReport === null
+      ) {
+        frozenUpdateDirectRenderCaptureReport = treatmentStep.report;
+        document.documentElement.dataset.visualFrozenDirectRenderStatus =
+          'awaiting-schema-5-report';
+      }
+      // The lead-in and judged cohort retain the profiled callback shell and
+      // one direct-color renderer submission while skipping route, LOD, scene,
+      // and sky updates. URL validation keeps forest, post, and shadows off.
+      const frameBeforeRenderAtMs = performance.now();
+      const frameAfterProfileRenderPathAtMs = render(
+        0,
+        true,
+        nowMs,
+        false,
+        true,
+      )!;
+      const frameCpuCompletedAtMs = performance.now();
+      latestProfileFrameTiming = {
+        frameRafTimestampMs: nowMs,
+        frameCallbackEntryTimestampMs: frameCpuStartedAtMs,
+        frameCpuDurationMs: Math.max(
+          0,
+          frameCpuCompletedAtMs - frameCpuStartedAtMs,
+        ),
+        frameUpdatePreRenderDurationMs: Math.max(
+          0,
+          frameBeforeRenderAtMs - frameCpuStartedAtMs,
+        ),
+        frameRenderSubmissionDurationMs: Math.max(
+          0,
+          frameAfterProfileRenderPathAtMs - frameBeforeRenderAtMs,
+        ),
+        framePostRenderDurationMs: Math.max(
+          0,
+          frameCpuCompletedAtMs - frameAfterProfileRenderPathAtMs,
+        ),
+      };
+      if (
+        finalizedFixtureEvidence
+        && motionAnimationFrame !== null
+      ) {
+        cancelAnimationFrame(motionAnimationFrame);
+        motionAnimationFrame = null;
+      }
+      return;
+    }
     if (
       requestedVisualNoUpdateShell
       && routeWarmupWork.stage === 'complete'
       && frameCpuStartedAtMs !== null
-      && noUpdateShellCapture !== null
+      && (
+        noUpdateShellCapture !== null
+        || domPublicationPairCoordinator !== null
+      )
     ) {
-      const controlStep = noUpdateShellCapture.appendRafTimestamp(nowMs);
-      if (controlStep.armCollectorAfterCurrentFrame) {
-        if (requestedVisualDeferredDom) {
+      if (
+        domPublicationPairAwaitingFreshCollector
+        && isFreshDomPairCollectorReady()
+      ) {
+        domPublicationPairAwaitingFreshCollector = false;
+      }
+      const activeNoUpdateShellCapture =
+        domPublicationPairCoordinator ?? noUpdateShellCapture;
+      const controlStep = domPublicationPairAwaitingFreshCollector
+        ? null
+        : activeNoUpdateShellCapture!.appendRafTimestamp(nowMs);
+      if (controlStep?.armCollectorAfterCurrentFrame) {
+        if (
+          requestedVisualDeferredDom
+          || domPublicationPairCoordinator?.getCurrentTreatment()
+            === HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT
+        ) {
           window.__visualPerf?.deferDomPublicationUntilReady();
           deferredDomCohortActive = true;
         }
         window.__visualPerf?.armTraceAfterCurrentFrame();
         publishNoUpdateShellStatus('judged-cohort-arming');
-      } else if (controlStep.report) {
+      } else if (controlStep?.report) {
         noUpdateShellCaptureReport = controlStep.report;
         publishNoUpdateShellStatus('awaiting-schema-5-report');
-      } else {
+      } else if (controlStep) {
         publishNoUpdateShellStatus('collecting');
       }
       // This treatment retains the complete profiled callback shell and its
@@ -2406,13 +3258,72 @@ function startContinuousTick(): void {
       }
       return;
     }
-    const dtMs = previousTickNowMs === 0
-      ? 0
-      : Math.min(100, Math.max(0, nowMs - previousTickNowMs));
-    previousTickNowMs = nowMs;
-    fixtureTimeSeconds += dtMs / 1000;
+    if (routeUpdatePairTreatmentActive) {
+      if (
+        routeUpdatePairAwaitingFreshCollector
+        && isFreshDomPairCollectorReady()
+      ) {
+        restartRouteUpdatePairArmFromCanonicalZero();
+        routeUpdatePairAwaitingFreshCollector = false;
+        document.documentElement.dataset.visualRouteUpdatePairStatus =
+          'second-arm-lead-in';
+        document.documentElement.dataset.visualRouteUpdatePairTreatment =
+          routeUpdatePairCoordinator.getCurrentTreatment();
+      }
+      if (!routeUpdatePairAwaitingFreshCollector) {
+        const currentTreatment =
+          routeUpdatePairCoordinator.getCurrentTreatment();
+        routeUpdatePairCanonicalUpdatesEnabled =
+          currentTreatment
+            !== HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT;
+        const treatmentStep =
+          routeUpdatePairCoordinator.appendRafTimestamp(nowMs);
+        recordRouteUpdatePairCanonicalUpdate =
+          treatmentStep.recordCompletedCanonicalUpdateBlock;
+        if (treatmentStep.armCollectorAfterCurrentFrame) {
+          window.__visualPerf?.armTraceAfterCurrentFrame();
+          document.documentElement.dataset.visualRouteUpdatePairStatus =
+            currentTreatment
+              === HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT
+              ? 'off-arm-judged-cohort-arming'
+              : 'on-arm-judged-cohort-arming';
+        } else if (treatmentStep.captureComplete) {
+          routeUpdatePairArmCaptureComplete = true;
+          document.documentElement.dataset.visualRouteUpdatePairStatus =
+            'awaiting-schema-5-report';
+        }
+      }
+    }
+    if (routeLodSkyTreatmentActive) {
+      const treatmentStep =
+        routeLodSkyDirectRenderCapture.appendRafTimestamp(nowMs);
+      recordRouteLodSkyCanonicalUpdate =
+        treatmentStep.recordCompletedCanonicalUpdateBlock;
+      if (treatmentStep.armCollectorAfterCurrentFrame) {
+        window.__visualPerf?.armTraceAfterCurrentFrame();
+        document.documentElement.dataset.visualRouteLodSkyDirectRenderStatus =
+          'judged-cohort-arming';
+      } else if (
+        treatmentStep.report
+        && routeLodSkyDirectRenderCaptureReport === null
+      ) {
+        routeLodSkyDirectRenderCaptureReport = treatmentStep.report;
+        document.documentElement.dataset.visualRouteLodSkyDirectRenderStatus =
+          'awaiting-schema-5-report';
+      }
+    }
+    let dtMs = 0;
+    const canonicalSceneUpdateBlockEnabled =
+      !routeUpdatePairTreatmentActive
+      || routeUpdatePairCanonicalUpdatesEnabled;
+    if (canonicalSceneUpdateBlockEnabled) {
+      dtMs = previousTickNowMs === 0
+        ? 0
+        : Math.min(100, Math.max(0, nowMs - previousTickNowMs));
+      previousTickNowMs = nowMs;
+      fixtureTimeSeconds += dtMs / 1000;
 
-    if (motionState.status === 'running') {
+      if (motionState.status === 'running') {
       const unboundedElapsed = motionStartOffsetMs + nowMs - motionStartNowMs;
       const routeCycle = Math.floor(
         unboundedElapsed / HAMLET_MOTION_ROUTE.durationMs,
@@ -2498,6 +3409,41 @@ function startContinuousTick(): void {
     sky.updateCamera(camera);
     sky.updateSun(sunDirection);
     sky.updateTime(fixtureTimeSeconds);
+    if (recordRouteLodSkyCanonicalUpdate) {
+      if (motionState.status !== 'running') {
+        throw new Error(
+          'Canonical route stopped during its measured update block.',
+        );
+      }
+      routeLodSkyDirectRenderCapture!.recordCompletedCanonicalUpdateBlock({
+        routeId: HAMLET_MOTION_ROUTE_ID,
+        routeStatus: 'running',
+        routeElapsedMs: motionState.elapsedMs,
+        routeCycle: lastMotionRouteCycle,
+        phase: motionState.lod.building,
+        lod: { ...motionState.lod },
+        forest: { ...latestForestFrameWork },
+        groundcoverDelta: { ...latestGroundcoverFrameDelta },
+      });
+    }
+      if (recordRouteUpdatePairCanonicalUpdate) {
+        if (motionState.status !== 'running') {
+          throw new Error(
+            'Route-update pair stopped during its measured ON update block.',
+          );
+        }
+        routeUpdatePairCoordinator!.recordCompletedCanonicalUpdateBlock({
+          routeId: HAMLET_MOTION_ROUTE_ID,
+          routeStatus: 'running',
+          routeElapsedMs: motionState.elapsedMs,
+          routeCycle: lastMotionRouteCycle,
+          phase: motionState.lod.building,
+          lod: { ...motionState.lod },
+          forest: { ...latestForestFrameWork },
+          groundcoverDelta: { ...latestGroundcoverFrameDelta },
+        });
+      }
+    }
     if (frameCpuStartedAtMs === null) {
       render(dtMs / 1000);
       return;
@@ -2508,6 +3454,7 @@ function startContinuousTick(): void {
       true,
       nowMs,
       isNoRenderMeasuredWindowActive(),
+      routeLodSkyTreatmentActive || routeUpdatePairTreatmentActive,
     )!;
     // Stop only after render() has completed its telemetry, evidence, and DOM
     // work. GPU execution and presentation remain outside this callback span.
@@ -2534,6 +3481,17 @@ function startContinuousTick(): void {
         frameCpuCompletedAtMs - frameAfterProfileRenderPathAtMs,
       ),
     };
+    if (
+      (
+        requestedVisualRouteLodSkyDirectRender
+        || requestedVisualRouteUpdatePair
+      )
+      && finalizedFixtureEvidence
+      && motionAnimationFrame !== null
+    ) {
+      cancelAnimationFrame(motionAnimationFrame);
+      motionAnimationFrame = null;
+    }
   };
   motionAnimationFrame = requestAnimationFrame(tick);
 }
@@ -2543,6 +3501,7 @@ function render(
   profileRenderSubmission = false,
   profileFrameRafTimestampMs: number | null = null,
   skipProfilePostProcessorRender = false,
+  directColorSceneRender = false,
 ): number | null {
   const width = root!.clientWidth;
   const height = Math.max(1, root!.clientHeight);
@@ -2557,6 +3516,7 @@ function render(
   }
   const shadowMap = renderer.shadowMap as typeof renderer.shadowMap & { needsUpdate?: boolean };
   if (shadowMapNeedsRefresh) {
+    sun.shadow.needsUpdate = true;
     shadowMap.needsUpdate = true;
     shadowMapNeedsRefresh = false;
   }
@@ -2570,7 +3530,8 @@ function render(
       ? null
       : visualGpuTimestampProfiler?.beginFrame(profileFrameRafTimestampMs) ?? null;
     try {
-      postProcessor.render(dt);
+      if (directColorSceneRender) renderer.render(scene, camera);
+      else postProcessor.render(dt);
       postProcessorRendered = true;
       renderPathCompletedAtMs = performance.now();
     } finally {
@@ -2593,7 +3554,7 @@ function render(
   if (postProcessorRendered) renderedFrameCount += 1;
 
   const forestStats = getSeedThreeForestStructuralStats(forest);
-  const structural = countFixtureStructuralSubmissions(scene);
+  const structural = countFixtureStructuralSubmissions(scene, camera);
   const metrics: HamletFixtureMetrics = {
     fixtureId: HAMLET_FIXTURE_ID,
     seed: HAMLET_FIXTURE_SEED,
@@ -2606,17 +3567,20 @@ function render(
     trees: forestStats.trees.totalTrees,
     visibleTrees: forestStats.trees.visibleTrees,
     forestDraws: forestStats.draws,
+    forestEdgeLayer,
     drawCalls: structural.draws,
     triangles: structural.triangles,
     staticBatching: {
       roads: { ...roadBatch.stats },
       settlement: { ...settlementBatch.stats },
       fields: { ...fieldBatch.stats },
+      structureShadows: structureShadowBatch.getStats(),
     },
     motion: motionState,
   };
   window.__HAMLET_FIXTURE_METRICS__ = metrics;
   maybeFinalizeFixtureEvidence();
+  maybeInstallGroundcoverTransitionEvidenceBridge();
   if (!deferredDomCohortActive || finalizedFixtureEvidence) {
     metricsElement!.textContent = [
       `${activeViewId} · ${rendererBackend.kind}`,

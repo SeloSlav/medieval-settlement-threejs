@@ -8,29 +8,59 @@ import {
   countFixtureStructuralSubmissions,
 } from '../src/e2e/staticFixtureBatch.ts';
 import {
+  auditHamletRouteLodSkyDirectRenderCollector,
   HAMLET_ABLATION_IDS,
   HAMLET_BARE_RAF_LEAD_IN_MS,
   HAMLET_BARE_RAF_WINDOW_MS,
   HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT,
   HAMLET_DEGRADED_NO_RENDER_DISABLED_SUBSYSTEMS,
   HAMLET_FOREST_ROUTE_WORK_BUDGET,
+  HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT,
   HAMLET_NO_UPDATE_SHELL_LEAD_IN_MS,
   HAMLET_NO_UPDATE_SHELL_TREATMENT,
   HAMLET_NO_UPDATE_SHELL_WINDOW_MS,
   HAMLET_PERFORMANCE_VIEWPORT,
+  HAMLET_ROUTE_FOREST_RENDERER_DISABLED,
+  HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+  HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+  HAMLET_ROUTE_SEQUENCE_CAPTURE_FPS,
+  HAMLET_ROUTE_SHADOW_SUBSYSTEM_DISABLED,
+  HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+  HAMLET_ROUTE_UPDATE_PAIR_EXPERIMENT,
   advanceHamletFixtureRouteWarmupDrain,
   canFinalizeHamletFixtureEvidence,
+  canFinalizeHamletFrozenUpdateDirectRenderEvidence,
   canFinalizeHamletNoUpdateShellEvidence,
+  canFinalizeHamletRouteLodSkyDirectRenderEvidence,
+  canFinalizeHamletRouteUpdatePairArmEvidence,
   createHamletBareRafCapture,
+  createHamletDomPublicationPairCoordinator,
   createHamletFixtureEvidenceEnvelope,
+  createHamletFrozenUpdateDirectRenderCapture,
+  createHamletFrozenUpdateDirectRenderEvidence,
   createHamletNoUpdateShellCapture,
+  createHamletRouteFrameSequenceDescriptor,
+  createHamletRouteLodSkyDirectRenderCapture,
+  createHamletRouteLodSkyDirectRenderEvidence,
+  createHamletRouteUpdatePairCoordinator,
+  doesHamletFrozenUpdateDirectRenderMatchCollector,
   doesHamletNoUpdateShellMatchCollector,
+  doesHamletRouteLodSkyDirectRenderMatchCollector,
   resolveHamletBareRafPairRequest,
   resolveHamletDeferredDomRequest,
+  resolveHamletDomPublicationPairOrder,
+  resolveHamletDomPublicationPairRequest,
   resolveHamletForestUpdateAblationTelemetry,
   resolveHamletFixtureAblation,
+  resolveHamletFrozenUpdateDirectRenderRequest,
   resolveHamletNoUpdateShellRequest,
   resolveHamletPerformanceProtocol,
+  resolveHamletRouteFrameSequenceDomRequest,
+  resolveHamletRouteFrameSequenceElapsedMs,
+  resolveHamletRouteLodSkyDirectRenderRequest,
+  resolveHamletRouteUpdatePairOrder,
+  resolveHamletRouteUpdatePairRequest,
+  type HamletRouteLodSkyFrameUpdate,
 } from '../src/e2e/hamletFixturePerformance.ts';
 import {
   HAMLET_FIELD_SPECS,
@@ -211,6 +241,102 @@ assert.equal(
   HAMLET_NO_UPDATE_SHELL_TREATMENT,
   'profiled-no-update-no-render-shell',
 );
+assert.equal(
+  HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT,
+  'profiled-frozen-update-direct-color-render',
+);
+assert.equal(
+  HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+  'profiled-canonical-route-lod-scene-sky-direct-color-render',
+);
+assert.equal(HAMLET_ROUTE_SEQUENCE_CAPTURE_FPS, 30);
+const routeFrameSequenceDescriptor =
+  createHamletRouteFrameSequenceDescriptor();
+assert.deepEqual(routeFrameSequenceDescriptor, {
+  schemaVersion: 1,
+  routeId: HAMLET_MOTION_ROUTE_ID,
+  durationMs: HAMLET_MOTION_ROUTE.durationMs,
+  framesPerSecond: 30,
+  frameCount: 631,
+  ordering: 'frame-index-ascending',
+  renderer: 'direct-color-scene',
+  vegetation:
+    'frozen-groundcover-forest-work-with-forest-render-disabled',
+  forestRenderer: HAMLET_ROUTE_FOREST_RENDERER_DISABLED,
+  forestUpdates: 'frozen-after-settled-warmup',
+  postProcessing: 'disabled',
+  shadowSubsystem: HAMLET_ROUTE_SHADOW_SUBSYSTEM_DISABLED,
+  signature:
+    'gorski-kotar-lod-traverse-v1|21000ms|30fps|631frames|direct-color|frozen-vegetation|forest-post-shadows-off',
+});
+assert.deepEqual(
+  createHamletRouteFrameSequenceDescriptor(
+    HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+  ),
+  {
+    ...routeFrameSequenceDescriptor,
+    shadowSubsystem: HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+    signature:
+      'gorski-kotar-lod-traverse-v1|21000ms|30fps|631frames|direct-color|frozen-vegetation|forest-post-disabled-shadows-on',
+  },
+  'the shadow-on route sequence must carry a distinct auditable signature',
+);
+assert.deepEqual(
+  createHamletRouteFrameSequenceDescriptor(
+    HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+    HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+  ),
+  {
+    ...routeFrameSequenceDescriptor,
+    vegetation:
+      'frozen-groundcover-and-forest-update-work-with-forest-render-enabled',
+    forestRenderer: HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+    shadowSubsystem: HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+    signature:
+      'gorski-kotar-lod-traverse-v1|21000ms|30fps|631frames|direct-color|groundcover-and-forest-updates-frozen|forest-render-on|post-disabled|shadows-on',
+  },
+  'the forest-on route sequence must explicitly retain frozen updates, post off, and shadows on',
+);
+assert.throws(
+  () => createHamletRouteFrameSequenceDescriptor(
+    HAMLET_ROUTE_SHADOW_SUBSYSTEM_DISABLED,
+    HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+  ),
+  /requires the existing shadow subsystem/,
+  'the Round 47 forest restoration must not silently disable existing shadows',
+);
+assert.equal(resolveHamletRouteFrameSequenceElapsedMs(0), 0);
+assert.equal(resolveHamletRouteFrameSequenceElapsedMs(315), 10_500);
+assert.equal(resolveHamletRouteFrameSequenceElapsedMs(630), 21_000);
+assert.throws(
+  () => resolveHamletRouteFrameSequenceElapsedMs(631),
+  /integer from 0 to 630/,
+  'the deterministic sequence hook must reject frames outside its manifest',
+);
+assert.equal(resolveHamletRouteFrameSequenceDomRequest(null), null);
+assert.equal(resolveHamletRouteFrameSequenceDomRequest('0'), 0);
+assert.equal(resolveHamletRouteFrameSequenceDomRequest('315'), 315);
+assert.equal(resolveHamletRouteFrameSequenceDomRequest('630'), 630);
+assert.equal(
+  resolveHamletRouteFrameSequenceDomRequest('315'),
+  315,
+  'clearing the terminal control must permit the same canonical index again',
+);
+for (const invalidDomRequest of [
+  '',
+  '01',
+  '1.5',
+  '-1',
+  ' 1',
+  '1 ',
+  '631',
+]) {
+  assert.throws(
+    () => resolveHamletRouteFrameSequenceDomRequest(invalidDomRequest),
+    /canonical integer index|integer from 0 to 630/,
+    `the DOM replay bridge must reject ${JSON.stringify(invalidDomRequest)}`,
+  );
+}
 assert.deepEqual(
   HAMLET_DEGRADED_NO_RENDER_DISABLED_SUBSYSTEMS,
   ['forest', 'post', 'shadows'],
@@ -320,6 +446,263 @@ assert.throws(
   'the profiled shell and callback-only control must remain mutually exclusive',
 );
 assert.equal(
+  resolveHamletFrozenUpdateDirectRenderRequest({
+    requested: false,
+    visualProfile: false,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: null,
+    ablationId: 'baseline',
+    disabledSubsystems: [],
+  }),
+  false,
+  'the frozen-update direct render must remain absent by default',
+);
+assert.equal(
+  resolveHamletFrozenUpdateDirectRenderRequest({
+    requested: true,
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: HAMLET_MOTION_ROUTE_ID,
+    ablationId: 'groundcover-stream-forest-update-frozen',
+    disabledSubsystems: ['shadows', 'forest', 'post'],
+  }),
+  true,
+  'the exact frozen-update render-on treatment must be accepted',
+);
+for (const invalidDirectRender of [
+  {
+    visualProfile: false,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    gpuTimestampMarkersEnabled: true,
+    disabledSubsystems: ['forest', 'post', 'shadows'],
+  },
+  {
+    visualProfile: true,
+    visualNoRender: true,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    gpuTimestampMarkersEnabled: true,
+    disabledSubsystems: ['forest', 'post', 'shadows'],
+  },
+  {
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    gpuTimestampMarkersEnabled: false,
+    disabledSubsystems: ['forest', 'post', 'shadows'],
+  },
+  {
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    gpuTimestampMarkersEnabled: true,
+    disabledSubsystems: ['forest', 'post'],
+  },
+]) {
+  assert.throws(
+    () => resolveHamletFrozenUpdateDirectRenderRequest({
+      requested: true,
+      ...invalidDirectRender,
+      routeId: HAMLET_MOTION_ROUTE_ID,
+      ablationId: 'groundcover-stream-forest-update-frozen',
+    }),
+    /one exact render-on treatment/,
+    'the direct-render rung must reject every workload or instrumentation drift',
+  );
+}
+assert.equal(
+  resolveHamletRouteLodSkyDirectRenderRequest({
+    requested: false,
+    visualProfile: false,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: null,
+    ablationId: 'baseline',
+    disabledSubsystems: [],
+  }),
+  false,
+  'the route/LOD/sky render treatment must remain absent by default',
+);
+assert.equal(
+  resolveHamletRouteLodSkyDirectRenderRequest({
+    requested: true,
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: HAMLET_MOTION_ROUTE_ID,
+    ablationId: 'groundcover-stream-forest-update-frozen',
+    disabledSubsystems: ['post', 'shadows', 'forest'],
+  }),
+  true,
+  'the one exact canonical route/LOD/scene/sky treatment must be accepted',
+);
+assert.equal(
+  resolveHamletRouteLodSkyDirectRenderRequest({
+    requested: true,
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: HAMLET_MOTION_ROUTE_ID,
+    ablationId: 'groundcover-stream-forest-update-frozen',
+    disabledSubsystems: ['post', 'forest'],
+  }),
+  true,
+  'the controlled shadow restoration may enable only the existing shadow subsystem',
+);
+assert.equal(
+  resolveHamletRouteLodSkyDirectRenderRequest({
+    requested: true,
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: HAMLET_MOTION_ROUTE_ID,
+    ablationId: 'groundcover-stream-forest-update-frozen',
+    disabledSubsystems: ['post'],
+  }),
+  true,
+  'the controlled forest restoration may enable only the existing forest renderer while retaining shadows',
+);
+for (const invalidRouteLodSkyDirectRender of [
+  {
+    visualProfile: false,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    disabledSubsystems: ['forest', 'post', 'shadows'],
+  },
+  {
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: true,
+    gpuTimestampMarkersEnabled: true,
+    disabledSubsystems: ['forest', 'post', 'shadows'],
+  },
+  {
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    gpuTimestampMarkersEnabled: false,
+    disabledSubsystems: ['forest', 'post', 'shadows'],
+  },
+  {
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    disabledSubsystems: ['post', 'shadows'],
+  },
+]) {
+  assert.throws(
+    () => resolveHamletRouteLodSkyDirectRenderRequest({
+      requested: true,
+      ...invalidRouteLodSkyDirectRender,
+      routeId: HAMLET_MOTION_ROUTE_ID,
+      ablationId: 'groundcover-stream-forest-update-frozen',
+    }),
+    /one exact route-update treatment/,
+    'the route/LOD/sky rung must reject every workload or control drift',
+  );
+}
+assert.equal(
+  resolveHamletRouteUpdatePairRequest({
+    requested: false,
+    visualProfile: false,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    visualRouteLodSkyDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: null,
+    ablationId: 'baseline',
+    disabledSubsystems: [],
+  }),
+  false,
+  'the route-update pair must remain absent by default',
+);
+assert.equal(
+  resolveHamletRouteUpdatePairRequest({
+    requested: true,
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: false,
+    visualRouteLodSkyDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: HAMLET_MOTION_ROUTE_ID,
+    ablationId: 'groundcover-stream-forest-update-frozen',
+    disabledSubsystems: ['post', 'forest', 'shadows'],
+  }),
+  true,
+  'the exact same-document route-update pair must be explicitly accepted',
+);
+assert.throws(
+  () => resolveHamletRouteUpdatePairRequest({
+    requested: true,
+    visualProfile: true,
+    visualNoRender: false,
+    visualBareRafPair: false,
+    visualNoUpdateShell: false,
+    visualFrozenDirectRender: true,
+    visualRouteLodSkyDirectRender: false,
+    gpuTimestampMarkersEnabled: true,
+    routeId: HAMLET_MOTION_ROUTE_ID,
+    ablationId: 'groundcover-stream-forest-update-frozen',
+    disabledSubsystems: ['forest', 'post', 'shadows'],
+  }),
+  /one exact paired treatment/,
+  'the pair must reject every fixed-arm control',
+);
+assert.deepEqual(
+  resolveHamletRouteUpdatePairOrder(0),
+  [
+    HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT,
+    HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+  ],
+);
+assert.deepEqual(
+  resolveHamletRouteUpdatePairOrder(0xffff_ffff),
+  [
+    HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+    HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT,
+  ],
+);
+assert.throws(
+  () => resolveHamletRouteUpdatePairOrder(-1),
+  /unsigned 32-bit draw/,
+);
+assert.equal(
   resolveHamletDeferredDomRequest({
     requested: false,
     visualNoUpdateShell: false,
@@ -342,6 +725,54 @@ assert.throws(
   }),
   /requires the exact visualNoUpdateShell=1 treatment/,
   'visualDeferDom must reject every broader fixture or profiler treatment',
+);
+assert.equal(
+  resolveHamletDomPublicationPairRequest({
+    requested: false,
+    visualNoUpdateShell: false,
+    visualDeferDom: false,
+  }),
+  false,
+  'the randomized DOM pair must remain absent from the default fixture',
+);
+assert.equal(
+  resolveHamletDomPublicationPairRequest({
+    requested: true,
+    visualNoUpdateShell: true,
+    visualDeferDom: false,
+  }),
+  true,
+  'the randomized pair must own both treatments inside the exact shell',
+);
+assert.throws(
+  () => resolveHamletDomPublicationPairRequest({
+    requested: true,
+    visualNoUpdateShell: true,
+    visualDeferDom: true,
+  }),
+  /owns both publication treatments/,
+  'a fixed deferred treatment must not contaminate randomized pair order',
+);
+assert.deepEqual(
+  resolveHamletDomPublicationPairOrder(0),
+  [
+    HAMLET_NO_UPDATE_SHELL_TREATMENT,
+    HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT,
+  ],
+  'an even cryptographic draw must serialize DOM-on then deferred-DOM',
+);
+assert.deepEqual(
+  resolveHamletDomPublicationPairOrder(0xffff_ffff),
+  [
+    HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT,
+    HAMLET_NO_UPDATE_SHELL_TREATMENT,
+  ],
+  'an odd cryptographic draw must serialize deferred-DOM then DOM-on',
+);
+assert.throws(
+  () => resolveHamletDomPublicationPairOrder(0x1_0000_0000),
+  /unsigned 32-bit draw/,
+  'pair order must reject a substituted or lossy random value',
 );
 
 const pairIdentity = {
@@ -448,6 +879,263 @@ assert.equal(
   noUpdateShellCapture.getReport()?.judgedCohort.frameTimesMs[0],
   10,
   'published no-update shell cohorts must be immutable to consumers',
+);
+
+const frozenDirectRenderCapture =
+  createHamletFrozenUpdateDirectRenderCapture(pairIdentity);
+let frozenDirectRenderTimestampMs = 10_000;
+frozenDirectRenderCapture.appendRafTimestamp(
+  frozenDirectRenderTimestampMs,
+);
+for (const frameTimeMs of expectedNoUpdateLeadInFrameTimesMs) {
+  frozenDirectRenderTimestampMs += frameTimeMs;
+  frozenDirectRenderCapture.appendRafTimestamp(
+    frozenDirectRenderTimestampMs,
+  );
+}
+frozenDirectRenderTimestampMs += 10;
+frozenDirectRenderCapture.appendRafTimestamp(
+  frozenDirectRenderTimestampMs,
+);
+for (const frameTimeMs of expectedNoUpdateShellFrameTimesMs) {
+  frozenDirectRenderTimestampMs += frameTimeMs;
+  frozenDirectRenderCapture.appendRafTimestamp(
+    frozenDirectRenderTimestampMs,
+  );
+}
+const frozenDirectRenderCaptureReport =
+  frozenDirectRenderCapture.getReport();
+assert.ok(frozenDirectRenderCaptureReport);
+assert.equal(frozenDirectRenderCaptureReport.leadIn.elapsedMs, 250);
+assert.deepEqual(
+  frozenDirectRenderCaptureReport.leadIn.frameTimesMs,
+  expectedNoUpdateLeadInFrameTimesMs,
+  'render-on lead-in isolation must preserve its complete ordered intervals',
+);
+assert.deepEqual(
+  frozenDirectRenderCaptureReport.judgedCohort.frameTimesMs,
+  expectedNoUpdateShellFrameTimesMs,
+  'render-on evidence must retain the exact ordered 30-second cohort',
+);
+assert.deepEqual(
+  frozenDirectRenderCaptureReport.judgedCohort.skippedWork,
+  {
+    motionRouteUpdates: 0,
+    lodSceneUpdates: 0,
+    skyUpdates: 0,
+  },
+  'the render-on treatment must skip only route, LOD, and sky updates',
+);
+assert.deepEqual(
+  frozenDirectRenderCaptureReport.judgedCohort.retainedRender,
+  {
+    mode: 'direct-color-scene',
+    submission: 'renderer.render(scene,camera)',
+    postProcessing: false,
+  },
+  'the treatment must explicitly retain one direct-color scene submission',
+);
+assert.deepEqual(
+  frozenDirectRenderCaptureReport.judgedCohort.retainedShell,
+  {
+    schemaVersion: 5,
+    rafScheduling: 'requestAnimationFrame',
+    collector: 'visual-performance-hooks',
+    postamble: 'telemetry-evidence-dom',
+    gpuTimestamp: 'required-when-supported',
+  },
+  'the direct renderer must retain schema-5 and GPU timestamp instrumentation',
+);
+
+function createZeroWorkRouteLodSkyFrameUpdate(
+  routeClockMs: number,
+): HamletRouteLodSkyFrameUpdate {
+  const routeCycle = Math.floor(
+    routeClockMs / HAMLET_MOTION_ROUTE.durationMs,
+  );
+  const routeElapsedMs =
+    routeClockMs % HAMLET_MOTION_ROUTE.durationMs;
+  const sample = sampleHamletMotionRoute(routeElapsedMs);
+  const phase = resolveHamletBuildingLodBand(sample.distanceMeters);
+  return {
+    routeId: HAMLET_MOTION_ROUTE_ID,
+    routeStatus: 'running',
+    routeElapsedMs,
+    routeCycle,
+    phase,
+    lod: {
+      forest: sample.distanceMeters
+          <= HAMLET_MOTION_ROUTE.lodBands.forest.nearDistanceMeters
+        ? 'near'
+        : 'overview',
+      groundcover: sample.distanceMeters
+          <= HAMLET_MOTION_ROUTE.lodBands.groundcover.fullDetailMeters
+        ? 'full'
+        : sample.distanceMeters
+            <= HAMLET_MOTION_ROUTE.lodBands.groundcover.transitionStartMeters
+          ? 'transition'
+          : 'hidden',
+      building: phase,
+    },
+    forest: {
+      selectionChanged: false,
+      selectorSkipped: true,
+      workChunks: 0,
+      matrixWrites: 0,
+      bucketUploads: 0,
+      pendingBuckets: 0,
+    },
+    groundcoverDelta: {
+      generationSubsteps: 0,
+      clearWriteSubsteps: 0,
+      refreshes: 0,
+      gpuFlagUpdates: 0,
+      gpuUpdateRanges: 0,
+      bytesUploaded: 0,
+      completedSlots: 0,
+      cancelledSlots: 0,
+      pendingSlots: 0,
+    },
+  };
+}
+
+const routeLodSkyDirectRenderCapture =
+  createHamletRouteLodSkyDirectRenderCapture(pairIdentity);
+let routeLodSkyDirectRenderTimestampMs = 20_000;
+let routeLodSkyDirectRenderClockMs = 0;
+const appendRouteLodSkyDirectRenderFrame = () => {
+  const step = routeLodSkyDirectRenderCapture.appendRafTimestamp(
+    routeLodSkyDirectRenderTimestampMs,
+  );
+  if (step.recordCompletedCanonicalUpdateBlock) {
+    routeLodSkyDirectRenderCapture.recordCompletedCanonicalUpdateBlock(
+      createZeroWorkRouteLodSkyFrameUpdate(
+        routeLodSkyDirectRenderClockMs,
+      ),
+    );
+  }
+  return step;
+};
+appendRouteLodSkyDirectRenderFrame();
+for (const frameTimeMs of expectedNoUpdateLeadInFrameTimesMs) {
+  routeLodSkyDirectRenderTimestampMs += frameTimeMs;
+  routeLodSkyDirectRenderClockMs += frameTimeMs;
+  appendRouteLodSkyDirectRenderFrame();
+}
+routeLodSkyDirectRenderTimestampMs += 10;
+routeLodSkyDirectRenderClockMs += 10;
+appendRouteLodSkyDirectRenderFrame();
+for (const frameTimeMs of expectedNoUpdateShellFrameTimesMs) {
+  routeLodSkyDirectRenderTimestampMs += frameTimeMs;
+  routeLodSkyDirectRenderClockMs += frameTimeMs;
+  appendRouteLodSkyDirectRenderFrame();
+}
+const routeLodSkyDirectRenderCaptureReport =
+  routeLodSkyDirectRenderCapture.getReport();
+assert.ok(routeLodSkyDirectRenderCaptureReport);
+assert.equal(
+  routeLodSkyDirectRenderCaptureReport.forestRenderer,
+  HAMLET_ROUTE_FOREST_RENDERER_DISABLED,
+);
+assert.equal(
+  routeLodSkyDirectRenderCaptureReport.forestUpdates,
+  'frozen-after-settled-warmup',
+);
+assert.equal(
+  routeLodSkyDirectRenderCaptureReport.postProcessing,
+  'disabled',
+);
+assert.equal(routeLodSkyDirectRenderCaptureReport.leadIn.elapsedMs, 250);
+assert.deepEqual(
+  routeLodSkyDirectRenderCaptureReport.leadIn.frameTimesMs,
+  expectedNoUpdateLeadInFrameTimesMs,
+  'the restored-update treatment must preserve the exact 250ms lead-in',
+);
+assert.deepEqual(
+  routeLodSkyDirectRenderCaptureReport.judgedCohort.frameTimesMs,
+  expectedNoUpdateShellFrameTimesMs,
+  'the restored-update treatment must preserve the exact ordered 30s cohort',
+);
+assert.deepEqual(
+  routeLodSkyDirectRenderCaptureReport.judgedCohort.retainedUpdates,
+  {
+    motionRoute: 'canonical-loop',
+    lodScene: 'updateSceneLods',
+    sky: ['updateCamera', 'updateSun', 'updateTime'],
+  },
+);
+assert.deepEqual(
+  routeLodSkyDirectRenderCaptureReport
+    .judgedCohort.updates.updateCounts,
+  {
+    motionRoute: 3_000,
+    lodScene: 3_000,
+    sky: {
+      camera: 3_000,
+      sun: 3_000,
+      time: 3_000,
+    },
+  },
+  'every judged interval must retain exactly one route/LOD/scene/sky update block',
+);
+assert.deepEqual(
+  routeLodSkyDirectRenderCaptureReport
+    .judgedCohort.updates.phaseSequence.slice(0, 3),
+  ['strategic', 'settlement', 'road-eye'],
+  'the ordered cohort must visibly progress strategic to settlement to road-eye',
+);
+assert.ok(
+  Object.values(
+    routeLodSkyDirectRenderCaptureReport
+      .judgedCohort.updates.phaseFrameCounts,
+  ).every((count) => count > 0),
+  'all three canonical route phases must contribute judged frames',
+);
+assert.ok(
+  routeLodSkyDirectRenderCaptureReport
+    .judgedCohort.updates.route.wrapCount >= 1,
+  'the 30-second cohort must include a complete 21-second route wrap',
+);
+assert.deepEqual(
+  routeLodSkyDirectRenderCaptureReport
+    .judgedCohort.updates.lodStatesTraversed,
+  {
+    forest: ['overview', 'near'],
+    groundcover: ['hidden', 'transition', 'full'],
+    building: ['strategic', 'settlement', 'road-eye'],
+  },
+  'all authored LOD states must be exercised by the judged route',
+);
+assert.deepEqual(
+  routeLodSkyDirectRenderCaptureReport
+    .judgedCohort.updates.frozenVegetationWork,
+  {
+    forest: {
+      selectionChanges: 0,
+      workChunks: 0,
+      matrixWrites: 0,
+      bucketUploads: 0,
+      maxPendingBuckets: 0,
+      selectorSkippedFrames: 3_000,
+    },
+    groundcover: {
+      generationSubsteps: 0,
+      clearWriteSubsteps: 0,
+      refreshes: 0,
+      gpuFlagUpdates: 0,
+      gpuUpdateRanges: 0,
+      bytesUploaded: 0,
+      completedSlots: 0,
+      cancelledSlots: 0,
+      maxPendingSlots: 0,
+    },
+  },
+  'forest and groundcover work must stay frozen across every restored update',
+);
+assert.deepEqual(
+  routeLodSkyDirectRenderCaptureReport.routeFrameSequence,
+  routeFrameSequenceDescriptor,
+  'terminal evidence must carry the deterministic popping-review sequence manifest',
 );
 
 const deferredDomShellCapture = createHamletNoUpdateShellCapture(
@@ -1201,6 +1889,26 @@ assert.equal(
   'the default fixture must not publish no-update treatment evidence',
 );
 assert.equal(
+  'pairedDomPublicationControl' in sampleEnvelope,
+  false,
+  'the randomized DOM pair must not change default evidence shape',
+);
+assert.equal(
+  'frozenUpdateDirectRender' in sampleEnvelope,
+  false,
+  'the render-on diagnostic must not change default evidence shape',
+);
+assert.equal(
+  'routeLodSkyDirectRender' in sampleEnvelope,
+  false,
+  'the restored-update diagnostic must not change default evidence shape',
+);
+assert.equal(
+  'pairedRouteUpdateControl' in sampleEnvelope,
+  false,
+  'the same-document route-update pair must not change default evidence shape',
+);
+assert.equal(
   sampleEnvelope.forestWork.converged,
   true,
   'a frozen selector must publish zero pending work instead of stale pending buckets',
@@ -1252,6 +1960,778 @@ assert.equal(
   false,
   'a missing schema-5 interval must fail treatment integrity',
 );
+
+const frozenDirectRendererRecord = {
+  routeElapsedMs: 0,
+  routeCycle: 0,
+  phase: 'strategic' as const,
+  forest: {
+    selectionChanged: false,
+    selectorSkipped: true,
+    workChunks: 0,
+    matrixWrites: 0,
+    bucketUploads: 0,
+    pendingBuckets: 0,
+  },
+  groundcoverDelta: {
+    generationSubsteps: 0,
+    clearWriteSubsteps: 0,
+    refreshes: 0,
+    gpuFlagUpdates: 0,
+    gpuUpdateRanges: 0,
+    bytesUploaded: 0,
+    completedSlots: 0,
+    cancelledSlots: 0,
+    pendingSlots: 0,
+  },
+  dtMs: 10,
+  traceMs: 10,
+  intervalStartRafTimestampMs: 20_000,
+  intervalEndRafTimestampMs: 20_010,
+  precedingFrameRafTimestampMs: 20_000,
+  precedingFrameCallbackEntryTimestampMs: 20_000.1,
+  precedingFrameEntryLatenessMs: 0.1,
+  precedingFrameCpuDurationMs: 1.2,
+  precedingFrameUpdatePreRenderDurationMs: 0.1,
+  precedingFrameRenderSubmissionDurationMs: 0.9,
+  precedingFramePostRenderDurationMs: 0.2,
+  precedingFrameGpuRafTimestampMs: 20_000,
+  precedingFrameGpuQueryId: 41,
+  precedingFrameGpuDurationMs: 0.75,
+  precedingFrameGpuTimingStatus: 'available' as const,
+  precedingFrameGpuTimingLimitation: null,
+  renderer: {
+    drawCalls: 48,
+    frameCalls: 1,
+    triangles: 420_000,
+  },
+};
+const frozenDirectRendererCollectorReport: VisualPerformanceReport = {
+  ...samplePerformanceReport,
+  sampleCount:
+    frozenDirectRenderCaptureReport.judgedCohort.sampleCount,
+  metrics: {
+    ...frozenDirectRenderCaptureReport.judgedCohort.metrics,
+  },
+  renderer: {
+    medianDrawCalls: 48,
+    medianFrameCalls: 1,
+    medianTriangles: 420_000,
+  },
+  slowFrames: [frozenDirectRendererRecord],
+  context: {
+    ...samplePerformanceReport.context,
+    gpuTiming: {
+      ...samplePerformanceReport.context.gpuTiming,
+      attemptedFrames: 3_000,
+      submittedFrames: 3_000,
+      resolvedFrames: 3_000,
+    },
+    subsystems: {
+      ...samplePerformanceReport.context.subsystems,
+      post: false,
+      shadows: false,
+      forest: false,
+      sky: true,
+      groundcover: true,
+    },
+  },
+};
+assert.equal(
+  doesHamletFrozenUpdateDirectRenderMatchCollector(
+    frozenDirectRenderCaptureReport,
+    frozenDirectRendererCollectorReport,
+  ),
+  true,
+  'positive renderer counters and available GPU timestamps must exactly agree',
+);
+for (const invalidDirectRendererReport of [
+  {
+    ...frozenDirectRendererCollectorReport,
+    renderer: {
+      ...frozenDirectRendererCollectorReport.renderer,
+      medianFrameCalls: 0,
+    },
+  },
+  {
+    ...frozenDirectRendererCollectorReport,
+    context: {
+      ...frozenDirectRendererCollectorReport.context,
+      subsystems: {
+        ...frozenDirectRendererCollectorReport.context.subsystems,
+        forest: true,
+      },
+    },
+  },
+  {
+    ...frozenDirectRendererCollectorReport,
+    slowFrames: [{
+      ...frozenDirectRendererRecord,
+      precedingFrameGpuTimingStatus: 'missing' as const,
+      precedingFrameGpuDurationMs: null,
+    }],
+  },
+]) {
+  assert.equal(
+    doesHamletFrozenUpdateDirectRenderMatchCollector(
+      frozenDirectRenderCaptureReport,
+      invalidDirectRendererReport,
+    ),
+    false,
+    'renderer, subsystem, or GPU evidence drift must invalidate the treatment',
+  );
+}
+const unavailableGpuDirectRendererReport: VisualPerformanceReport = {
+  ...frozenDirectRendererCollectorReport,
+  slowFrames: [{
+    ...frozenDirectRendererRecord,
+    precedingFrameGpuQueryId: null,
+    precedingFrameGpuDurationMs: null,
+    precedingFrameGpuTimingStatus: 'unavailable',
+    precedingFrameGpuTimingLimitation:
+      'The selected GPUDevice did not enable timestamp-query.',
+  }],
+  context: {
+    ...frozenDirectRendererCollectorReport.context,
+    gpuTiming: {
+      requested: true,
+      status: 'unavailable',
+      source: 'unavailable',
+      feature: 'timestamp-query',
+      api: 'unavailable',
+      span: 'unavailable',
+      unit: 'milliseconds',
+      slotCount: 0,
+      attemptedFrames: 0,
+      submittedFrames: 0,
+      resolvedFrames: 0,
+      pendingFrames: 0,
+      droppedFrames: 0,
+      failedFrames: 0,
+      limitations: [
+        'The selected GPUDevice did not enable timestamp-query.',
+      ],
+    },
+  },
+};
+assert.equal(
+  doesHamletFrozenUpdateDirectRenderMatchCollector(
+    frozenDirectRenderCaptureReport,
+    unavailableGpuDirectRendererReport,
+  ),
+  true,
+  'unsupported timestamp queries must remain admissible only with explicit terminal limitations',
+);
+const frozenDirectRendererEvidence =
+  createHamletFrozenUpdateDirectRenderEvidence(
+    frozenDirectRenderCaptureReport,
+    frozenDirectRendererCollectorReport,
+  );
+assert.deepEqual(
+  frozenDirectRendererEvidence.collectorAgreement.renderer,
+  frozenDirectRendererCollectorReport.renderer,
+);
+assert.equal(
+  frozenDirectRendererEvidence.collectorAgreement
+    .gpuTimestamp.retainedAvailableRecords,
+  1,
+);
+assert.equal(
+  frozenDirectRendererEvidence.collectorAgreement
+    .gpuTimestamp.spanInterpretation,
+  'schema-5 queue bookends surround the direct-color renderer submission because post is disabled',
+);
+assert.equal(
+  doesHamletRouteLodSkyDirectRenderMatchCollector(
+    routeLodSkyDirectRenderCaptureReport,
+    frozenDirectRendererCollectorReport,
+  ),
+  true,
+  'route/LOD/scene/sky counts and progression must agree with the same direct-render schema-5/GPU cohort',
+);
+assert.deepEqual(
+  auditHamletRouteLodSkyDirectRenderCollector(
+    routeLodSkyDirectRenderCaptureReport,
+    frozenDirectRendererCollectorReport,
+  ),
+  {
+    matches: true,
+    failures: [],
+    captureSampleCount:
+      routeLodSkyDirectRenderCaptureReport.judgedCohort.sampleCount,
+    collectorSampleCount:
+      frozenDirectRendererCollectorReport.sampleCount,
+    captureMetrics: {
+      ...routeLodSkyDirectRenderCaptureReport.judgedCohort.metrics,
+    },
+    collectorMetrics: {
+      ...frozenDirectRendererCollectorReport.metrics,
+    },
+    captureForestEdgeLayout: null,
+    captureSequenceSignature:
+      routeLodSkyDirectRenderCaptureReport.routeFrameSequence.signature,
+    expectedSequenceSignature:
+      routeLodSkyDirectRenderCaptureReport.routeFrameSequence.signature,
+  },
+  'the exact collector audit must remain empty for a valid route cohort',
+);
+const invalidRouteLodSkyCapture = JSON.parse(
+  JSON.stringify(routeLodSkyDirectRenderCaptureReport),
+) as typeof routeLodSkyDirectRenderCaptureReport;
+invalidRouteLodSkyCapture.judgedCohort
+  .updates.frozenVegetationWork.forest.workChunks = 1;
+assert.equal(
+  doesHamletRouteLodSkyDirectRenderMatchCollector(
+    invalidRouteLodSkyCapture,
+    frozenDirectRendererCollectorReport,
+  ),
+  false,
+  'any forest or groundcover work must invalidate the restored-update rung',
+);
+assert.deepEqual(
+  auditHamletRouteLodSkyDirectRenderCollector(
+    invalidRouteLodSkyCapture,
+    frozenDirectRendererCollectorReport,
+  ).failures,
+  ['cohort-updates'],
+  'the audit must name the precise route-cohort agreement failure',
+);
+const routeLodSkyDirectRendererEvidence =
+  createHamletRouteLodSkyDirectRenderEvidence(
+    routeLodSkyDirectRenderCaptureReport,
+    frozenDirectRendererCollectorReport,
+  );
+assert.equal(
+  routeLodSkyDirectRendererEvidence
+    .judgedCohort.updates.updateCounts.motionRoute,
+  routeLodSkyDirectRendererEvidence.judgedCohort.sampleCount,
+);
+assert.equal(
+  routeLodSkyDirectRendererEvidence
+    .collectorAgreement.actualRendererSubmissions,
+  true,
+);
+const shadowOnRouteLodSkyCapture = JSON.parse(
+  JSON.stringify(routeLodSkyDirectRenderCaptureReport),
+) as typeof routeLodSkyDirectRenderCaptureReport;
+shadowOnRouteLodSkyCapture.shadowSubsystem =
+  HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED;
+shadowOnRouteLodSkyCapture.routeFrameSequence =
+  createHamletRouteFrameSequenceDescriptor(
+    HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+  );
+const shadowOnDirectRendererCollectorReport: VisualPerformanceReport = {
+  ...frozenDirectRendererCollectorReport,
+  context: {
+    ...frozenDirectRendererCollectorReport.context,
+    subsystems: {
+      ...frozenDirectRendererCollectorReport.context.subsystems,
+      shadows: true,
+    },
+  },
+};
+assert.equal(
+  doesHamletRouteLodSkyDirectRenderMatchCollector(
+    shadowOnRouteLodSkyCapture,
+    shadowOnDirectRendererCollectorReport,
+  ),
+  true,
+  'the shadow-on variant must agree only with a schema-5 collector that observed shadows enabled',
+);
+assert.equal(
+  doesHamletRouteLodSkyDirectRenderMatchCollector(
+    shadowOnRouteLodSkyCapture,
+    frozenDirectRendererCollectorReport,
+  ),
+  false,
+  'shadow-on evidence must reject a collector that actually ran shadows off',
+);
+assert.equal(
+  createHamletRouteLodSkyDirectRenderEvidence(
+    shadowOnRouteLodSkyCapture,
+    shadowOnDirectRendererCollectorReport,
+  ).collectorAgreement.subsystems.shadows,
+  true,
+  'terminal evidence must truthfully serialize the restored shadow subsystem',
+);
+const forestOnRouteLodSkyCapture = JSON.parse(
+  JSON.stringify(shadowOnRouteLodSkyCapture),
+) as typeof routeLodSkyDirectRenderCaptureReport;
+forestOnRouteLodSkyCapture.forestRenderer =
+  HAMLET_ROUTE_FOREST_RENDERER_ENABLED;
+forestOnRouteLodSkyCapture.routeFrameSequence =
+  createHamletRouteFrameSequenceDescriptor(
+    HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+    HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+  );
+const forestOnDirectRendererCollectorReport: VisualPerformanceReport = {
+  ...shadowOnDirectRendererCollectorReport,
+  context: {
+    ...shadowOnDirectRendererCollectorReport.context,
+    subsystems: {
+      ...shadowOnDirectRendererCollectorReport.context.subsystems,
+      forest: true,
+    },
+  },
+};
+assert.equal(
+  doesHamletRouteLodSkyDirectRenderMatchCollector(
+    forestOnRouteLodSkyCapture,
+    forestOnDirectRendererCollectorReport,
+  ),
+  true,
+  'the forest-on treatment must agree with a collector that observed only forest restored over the shadow-on control',
+);
+assert.equal(
+  doesHamletRouteLodSkyDirectRenderMatchCollector(
+    forestOnRouteLodSkyCapture,
+    shadowOnDirectRendererCollectorReport,
+  ),
+  false,
+  'forest-on evidence must reject a collector that actually hid the forest',
+);
+const forestEdgeLayoutCapture = JSON.parse(
+  JSON.stringify(forestOnRouteLodSkyCapture),
+) as typeof routeLodSkyDirectRenderCaptureReport;
+forestEdgeLayoutCapture.forestEdgeLayout =
+  'clustered-sapling-shrub-256';
+forestEdgeLayoutCapture.routeFrameSequence =
+  createHamletRouteFrameSequenceDescriptor(
+    HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+    HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+    forestEdgeLayoutCapture.forestEdgeLayout,
+  );
+assert.equal(
+  doesHamletRouteLodSkyDirectRenderMatchCollector(
+    forestEdgeLayoutCapture,
+    forestOnDirectRendererCollectorReport,
+  ),
+  true,
+  'a layout-bearing forest capture must match the descriptor reconstructed from the same immutable layout identity',
+);
+const driftedForestEdgeLayoutCapture = JSON.parse(
+  JSON.stringify(forestEdgeLayoutCapture),
+) as typeof forestEdgeLayoutCapture;
+driftedForestEdgeLayoutCapture.forestEdgeLayout = 'legacy-perimeter';
+assert.equal(
+  doesHamletRouteLodSkyDirectRenderMatchCollector(
+    driftedForestEdgeLayoutCapture,
+    forestOnDirectRendererCollectorReport,
+  ),
+  false,
+  'a capture-level forest-edge layout drift must fail against its serialized route sequence',
+);
+const forestOnDirectRendererEvidence =
+  createHamletRouteLodSkyDirectRenderEvidence(
+    forestOnRouteLodSkyCapture,
+    forestOnDirectRendererCollectorReport,
+  );
+assert.deepEqual(
+  {
+    forestRenderer: forestOnDirectRendererEvidence.forestRenderer,
+    forestUpdates: forestOnDirectRendererEvidence.forestUpdates,
+    postProcessing: forestOnDirectRendererEvidence.postProcessing,
+    shadows:
+      forestOnDirectRendererEvidence
+        .collectorAgreement.subsystems.shadows,
+    forest:
+      forestOnDirectRendererEvidence
+        .collectorAgreement.subsystems.forest,
+  },
+  {
+    forestRenderer: HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+    forestUpdates: 'frozen-after-settled-warmup',
+    postProcessing: 'disabled',
+    shadows: true,
+    forest: true,
+  },
+  'terminal evidence must explicitly identify forest on, updates frozen, post off, and shadows on',
+);
+
+function runRouteUpdatePair(
+  drawUint32: number,
+  initialTimestampMs: number,
+) {
+  const coordinator = createHamletRouteUpdatePairCoordinator(
+    pairIdentity,
+    drawUint32,
+  );
+  let timestampMs = initialTimestampMs;
+  let terminalPair = null;
+  for (let armIndex = 0; armIndex < 2; armIndex += 1) {
+    if (armIndex > 0) timestampMs += 1_000;
+    let routeClockMs = 0;
+    const treatment = coordinator.getCurrentTreatment();
+    const appendFrame = () => {
+      const step = coordinator.appendRafTimestamp(timestampMs);
+      if (step.recordCompletedCanonicalUpdateBlock) {
+        coordinator.recordCompletedCanonicalUpdateBlock(
+          createZeroWorkRouteLodSkyFrameUpdate(routeClockMs),
+        );
+      }
+      return step;
+    };
+    appendFrame();
+    for (const frameTimeMs of expectedNoUpdateLeadInFrameTimesMs) {
+      timestampMs += frameTimeMs;
+      routeClockMs += frameTimeMs;
+      appendFrame();
+    }
+    timestampMs += 10;
+    routeClockMs += 10;
+    appendFrame();
+    let captureComplete = false;
+    for (const frameTimeMs of expectedNoUpdateShellFrameTimesMs) {
+      timestampMs += frameTimeMs;
+      routeClockMs += frameTimeMs;
+      captureComplete = appendFrame().captureComplete;
+    }
+    assert.equal(
+      captureComplete,
+      true,
+      'each pair arm must complete its exact independent 30-second capture',
+    );
+    const completion = coordinator.completeCurrentArm({
+      performanceReport: frozenDirectRendererCollectorReport,
+      completedAtPerformanceTimestampMs: timestampMs + 1,
+    });
+    assert.equal(
+      completion.advanceToNextArm,
+      armIndex === 0,
+      'only arm one may install the next fresh collector generation',
+    );
+    if (treatment === HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT) {
+      assert.throws(
+        () => coordinator.recordCompletedCanonicalUpdateBlock(
+          createZeroWorkRouteLodSkyFrameUpdate(routeClockMs),
+        ),
+        armIndex === 0
+          ? /canonical update block was not requested/
+          : /already complete|forbidden in the OFF arm/,
+        'the OFF arm must never accept a canonical update record',
+      );
+    }
+    terminalPair = completion.report;
+  }
+  assert.ok(terminalPair);
+  return { coordinator, report: terminalPair };
+}
+
+for (const [drawUint32, expectedOrder] of [
+  [
+    4,
+    [
+      HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT,
+      HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+    ],
+  ],
+  [
+    5,
+    [
+      HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+      HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT,
+    ],
+  ],
+] as const) {
+  const { coordinator, report } = runRouteUpdatePair(
+    drawUint32,
+    500_000 + drawUint32 * 100_000,
+  );
+  assert.equal(report.experiment, HAMLET_ROUTE_UPDATE_PAIR_EXPERIMENT);
+  assert.deepEqual(report.randomizedOrder, expectedOrder);
+  assert.equal(report.randomization.drawUint32, drawUint32);
+  assert.equal(report.randomization.orderBit, drawUint32 & 1);
+  assert.equal(report.runUuid, pairIdentity.runUuid);
+  assert.equal(
+    report.performanceTimeOriginMs,
+    pairIdentity.performanceTimeOriginMs,
+  );
+  assert.deepEqual(
+    report.arms.map((arm) => arm.collectorGeneration),
+    [1, 2],
+    'the serialized arms must name two fresh schema-5 collectors',
+  );
+  assert.deepEqual(
+    report.arms.map((arm) => arm.leadIn.frameTimesMs),
+    [
+      expectedNoUpdateLeadInFrameTimesMs,
+      expectedNoUpdateLeadInFrameTimesMs,
+    ],
+    'both arms must serialize independent complete 250ms lead-ins',
+  );
+  assert.deepEqual(
+    report.arms.map((arm) => arm.judgedCohort.frameTimesMs),
+    [
+      expectedNoUpdateShellFrameTimesMs,
+      expectedNoUpdateShellFrameTimesMs,
+    ],
+    'both arms must serialize the exact ordered 30-second interval arrays',
+  );
+  const offArm = report.arms.find(
+    (arm) =>
+      arm.treatment === HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT,
+  )!;
+  const onArm = report.arms.find(
+    (arm) =>
+      arm.treatment === HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+  )!;
+  assert.deepEqual(offArm.canonicalUpdateBlock.updateCounts, {
+    motionRoute: 0,
+    lodScene: 0,
+    sky: { camera: 0, sun: 0, time: 0 },
+  });
+  assert.deepEqual(onArm.canonicalUpdateBlock.updateCounts, {
+    motionRoute: onArm.judgedCohort.sampleCount,
+    lodScene: onArm.judgedCohort.sampleCount,
+    sky: {
+      camera: onArm.judgedCohort.sampleCount,
+      sun: onArm.judgedCohort.sampleCount,
+      time: onArm.judgedCohort.sampleCount,
+    },
+  });
+  assert.equal(onArm.canonicalUpdateBlock.phaseAndLodCoverage, true);
+  assert.deepEqual(
+    report.controlledDifference,
+    {
+      canonicalRouteLodSceneSkyUpdates: 'off-vs-on',
+      renderer: {
+        mode: 'direct-color-scene',
+        submission: 'renderer.render(scene,camera)',
+        postProcessing: false,
+      },
+      vegetation: 'frozen',
+      disabledSubsystems: ['forest', 'post', 'shadows'],
+      schemaVersion: 5,
+      gpuTimestamp: 'identical-required-when-supported',
+    },
+    'the terminal pair must declare only the canonical update block as different',
+  );
+  assert.ok(Object.values(report.agreements).every(Boolean));
+  assert.deepEqual(report.armHandoffGapsMs, {
+    firstCohortEndToSecondLeadInStart: 1_000,
+    firstTerminalFreezeToSecondLeadInStart: 999,
+  });
+  assert.notStrictEqual(
+    report.arms[0].judgedCohort.frameTimesMs,
+    report.arms[1].judgedCohort.frameTimesMs,
+  );
+  const mutablePair = report as typeof report & {
+    arms: [
+      { judgedCohort: { frameTimesMs: number[] } },
+      { judgedCohort: { frameTimesMs: number[] } },
+    ];
+  };
+  mutablePair.arms[0].judgedCohort.frameTimesMs[0] = 999;
+  assert.equal(mutablePair.arms[1].judgedCohort.frameTimesMs[0], 10);
+  assert.equal(
+    coordinator.getReport()?.arms[0].judgedCohort.frameTimesMs[0],
+    10,
+    'returned paired evidence must not mutate the coordinator snapshot',
+  );
+}
+
+function runDomPublicationPair(
+  drawUint32: number,
+  initialTimestampMs: number,
+  firstArmCounterOverride?: 'periodic' | 'terminal-only-after-freeze',
+) {
+  const coordinator = createHamletDomPublicationPairCoordinator(
+    pairIdentity,
+    drawUint32,
+  );
+  let timestampMs = initialTimestampMs;
+  let terminalPair = null;
+  for (let armIndex = 0; armIndex < 2; armIndex += 1) {
+    if (armIndex > 0) timestampMs += 1_000;
+    const treatment = coordinator.getCurrentTreatment();
+    coordinator.appendRafTimestamp(timestampMs);
+    for (const frameTimeMs of expectedNoUpdateLeadInFrameTimesMs) {
+      timestampMs += frameTimeMs;
+      coordinator.appendRafTimestamp(timestampMs);
+    }
+    timestampMs += 10;
+    coordinator.appendRafTimestamp(timestampMs);
+    let armCapture = null;
+    for (const frameTimeMs of expectedNoUpdateShellFrameTimesMs) {
+      timestampMs += frameTimeMs;
+      armCapture = coordinator.appendRafTimestamp(timestampMs).report;
+    }
+    assert.ok(armCapture);
+    assert.equal(
+      armCapture.treatment,
+      treatment,
+      'each serialized arm must retain its randomized treatment identity',
+    );
+    const publicationMode = armIndex === 0 && firstArmCounterOverride
+      ? firstArmCounterOverride
+      : treatment === HAMLET_NO_UPDATE_SHELL_TREATMENT
+        ? 'periodic'
+        : 'terminal-only-after-freeze';
+    const domPublication = publicationMode === 'periodic'
+      ? {
+          mode: 'periodic' as const,
+          inMemoryReportConstructions: 61,
+          jsonSerializations: 61,
+          cohortDomPublications: 60,
+          terminalDomPublications: 1,
+        }
+      : {
+          mode: 'terminal-only-after-freeze' as const,
+          inMemoryReportConstructions: 61,
+          jsonSerializations: 61,
+          cohortDomPublications: 0,
+          terminalDomPublications: 1,
+        };
+    const completion = coordinator.completeCurrentArm({
+      performanceReport: {
+        ...noUpdateCollectorReport,
+        sampleCount: armCapture.judgedCohort.sampleCount,
+        metrics: { ...armCapture.judgedCohort.metrics },
+      },
+      domPublication,
+      completedAtPerformanceTimestampMs: timestampMs + 1,
+    });
+    assert.equal(
+      completion.advanceToNextArm,
+      armIndex === 0,
+      'only the first exact arm may advance to a fresh collector',
+    );
+    terminalPair = completion.report;
+  }
+  assert.ok(terminalPair);
+  return { coordinator, report: terminalPair };
+}
+
+assert.throws(
+  () => runDomPublicationPair(2, 50_000, 'terminal-only-after-freeze'),
+  /counters do not match its treatment/,
+  'the DOM-on arm must reject a deferred or zero-publication counter set',
+);
+assert.throws(
+  () => runDomPublicationPair(3, 60_000, 'periodic'),
+  /counters do not match its treatment/,
+  'the deferred arm must reject any cohort-time DOM publication',
+);
+
+for (const [drawUint32, expectedOrder] of [
+  [
+    2,
+    [
+      HAMLET_NO_UPDATE_SHELL_TREATMENT,
+      HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT,
+    ],
+  ],
+  [
+    3,
+    [
+      HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT,
+      HAMLET_NO_UPDATE_SHELL_TREATMENT,
+    ],
+  ],
+] as const) {
+  const { coordinator, report } = runDomPublicationPair(
+    drawUint32,
+    100_000 + drawUint32 * 100_000,
+  );
+  assert.deepEqual(
+    report.randomizedOrder,
+    expectedOrder,
+    'the terminal artifact must serialize the cryptographically selected order',
+  );
+  assert.equal(report.randomization.drawUint32, drawUint32);
+  assert.equal(report.randomization.orderBit, drawUint32 & 1);
+  assert.equal(report.runUuid, pairIdentity.runUuid);
+  assert.equal(
+    report.performanceTimeOriginMs,
+    pairIdentity.performanceTimeOriginMs,
+  );
+  assert.deepEqual(
+    report.arms.map((arm) => arm.leadIn.frameTimesMs),
+    [
+      expectedNoUpdateLeadInFrameTimesMs,
+      expectedNoUpdateLeadInFrameTimesMs,
+    ],
+    'both randomized arms must serialize independent complete 250ms lead-ins',
+  );
+  assert.deepEqual(
+    report.arms.map((arm) => arm.judgedCohort.frameTimesMs),
+    [
+      expectedNoUpdateShellFrameTimesMs,
+      expectedNoUpdateShellFrameTimesMs,
+    ],
+    'both randomized arms must serialize complete exact 30-second cohorts',
+  );
+  assert.deepEqual(
+    report.arms.map((arm) => arm.sequenceIndex),
+    [1, 2],
+  );
+  assert.deepEqual(
+    report.arms.map((arm) => arm.collectorAgreement),
+    expectedOrder.map((treatment) => ({
+      schemaVersion: 5,
+      exactSampleCount: true,
+      exactMetrics: true,
+      zeroRendererSubmissions: true,
+      domPublication: treatment === HAMLET_NO_UPDATE_SHELL_TREATMENT
+        ? {
+            mode: 'periodic',
+            inMemoryReportConstructions: 61,
+            jsonSerializations: 61,
+            cohortDomPublications: 60,
+            terminalDomPublications: 1,
+          }
+        : {
+            mode: 'terminal-only-after-freeze',
+            inMemoryReportConstructions: 61,
+            jsonSerializations: 61,
+            cohortDomPublications: 0,
+            terminalDomPublications: 1,
+          },
+    })),
+    'each arm must serialize every schema-5 and DOM publication counter',
+  );
+  assert.deepEqual(report.armHandoffGapsMs, {
+    firstCohortEndToSecondLeadInStart: 1_000,
+    firstTerminalFreezeToSecondLeadInStart: 999,
+  });
+  assert.notStrictEqual(
+    report.arms[0].judgedCohort.frameTimesMs,
+    report.arms[1].judgedCohort.frameTimesMs,
+    'the paired arms must not share a mutable ordered interval array',
+  );
+  const mutablePair = report as typeof report & {
+    arms: [
+      {
+        judgedCohort: {
+          frameTimesMs: number[];
+          metrics: { medianFps: number };
+        };
+        performanceReport: {
+          metrics: { medianFps: number };
+        };
+      },
+      {
+        judgedCohort: {
+          frameTimesMs: number[];
+          metrics: { medianFps: number };
+        };
+      },
+    ];
+  };
+  mutablePair.arms[0].judgedCohort.frameTimesMs[0] = 999;
+  mutablePair.arms[0].judgedCohort.metrics.medianFps = 1;
+  mutablePair.arms[0].performanceReport.metrics.medianFps = 2;
+  assert.equal(
+    mutablePair.arms[1].judgedCohort.frameTimesMs[0],
+    10,
+    'mutating one returned arm must not leak into the other arm',
+  );
+  const immutablePair = coordinator.getReport();
+  assert.equal(immutablePair?.arms[0].judgedCohort.frameTimesMs[0], 10);
+  assert.equal(immutablePair?.arms[0].judgedCohort.metrics.medianFps, 100);
+  assert.equal(immutablePair?.arms[0].performanceReport.metrics.medianFps, 100);
+}
+
 const noUpdateEnvelope = createHamletFixtureEvidenceEnvelope({
   fixtureId: 'manor-lords-hamlet-v1',
   routeId: HAMLET_MOTION_ROUTE_ID,
@@ -1308,6 +2788,228 @@ assert.equal(
   ),
   false,
   'any render submission must invalidate the no-render treatment',
+);
+const frozenDirectRendererEnvelope = {
+  ...noUpdateEnvelope,
+  performanceReport: frozenDirectRendererCollectorReport,
+};
+assert.equal(
+  canFinalizeHamletFrozenUpdateDirectRenderEvidence(
+    frozenDirectRendererEnvelope,
+    frozenDirectRenderCaptureReport,
+    'ready',
+  ),
+  true,
+  'the render-on arm may finalize only after warmup, freeze, schema-5 agreement, and positive submissions',
+);
+assert.equal(
+  canFinalizeHamletFrozenUpdateDirectRenderEvidence(
+    {
+      ...frozenDirectRendererEnvelope,
+      forestWork: {
+        ...frozenDirectRendererEnvelope.forestWork,
+        selectorEvaluations: 1,
+      },
+    },
+    frozenDirectRenderCaptureReport,
+    'ready',
+  ),
+  false,
+  'any measured forest selector work must invalidate the frozen-update arm',
+);
+const routeLodSkyDirectRendererEnvelope = {
+  ...frozenDirectRendererEnvelope,
+  presentationTreatment: {
+    id: 'groundcover-continuous-alpha-hash-whole-field-route',
+    rendererTreatment:
+      HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
+    disabledSubsystems: ['forest', 'post', 'shadows'],
+    groundcoverFadeMode: 'continuous-alpha-hash' as const,
+    groundcoverSubmission:
+      'three-whole-field-instanced-meshes' as const,
+    forestRenderer: HAMLET_ROUTE_FOREST_RENDERER_DISABLED,
+    forestUpdates: 'frozen-after-settled-warmup' as const,
+    postProcessing: 'disabled' as const,
+    shadowSubsystem: HAMLET_ROUTE_SHADOW_SUBSYSTEM_DISABLED,
+  },
+  route: {
+    ...frozenDirectRendererEnvelope.route,
+    completedRoutes: 1,
+  },
+};
+assert.equal(
+  canFinalizeHamletRouteLodSkyDirectRenderEvidence(
+    routeLodSkyDirectRendererEnvelope,
+    routeLodSkyDirectRenderCaptureReport,
+    'ready',
+  ),
+  true,
+  'the restored-update rung must require a measured full route, all phases, exact updates, and schema-5/GPU agreement',
+);
+assert.equal(
+  canFinalizeHamletRouteLodSkyDirectRenderEvidence(
+    {
+      ...routeLodSkyDirectRendererEnvelope,
+      route: {
+        ...routeLodSkyDirectRendererEnvelope.route,
+        completedRoutes: 0,
+      },
+    },
+    routeLodSkyDirectRenderCaptureReport,
+    'ready',
+  ),
+  false,
+  'warmup alone must not masquerade as measured canonical route progression',
+);
+const forestOnRouteLodSkyDirectRendererEnvelope = {
+  ...routeLodSkyDirectRendererEnvelope,
+  performanceReport: forestOnDirectRendererCollectorReport,
+  presentationTreatment: {
+    ...routeLodSkyDirectRendererEnvelope.presentationTreatment,
+    disabledSubsystems: ['post'],
+    forestRenderer: HAMLET_ROUTE_FOREST_RENDERER_ENABLED,
+    shadowSubsystem: HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED,
+  },
+};
+assert.equal(
+  canFinalizeHamletRouteLodSkyDirectRenderEvidence(
+    forestOnRouteLodSkyDirectRendererEnvelope,
+    forestOnRouteLodSkyCapture,
+    'ready',
+  ),
+  true,
+  'the forest-on arm may finalize only when its explicit presentation identity and positive forest content agree',
+);
+for (const invalidForestOnEnvelope of [
+  {
+    ...forestOnRouteLodSkyDirectRendererEnvelope,
+    presentationTreatment: undefined,
+  },
+  {
+    ...forestOnRouteLodSkyDirectRendererEnvelope,
+    presentationTreatment: {
+      ...forestOnRouteLodSkyDirectRendererEnvelope.presentationTreatment,
+      disabledSubsystems: ['forest', 'post'],
+    },
+  },
+  {
+    ...forestOnRouteLodSkyDirectRendererEnvelope,
+    presentationTreatment: {
+      ...forestOnRouteLodSkyDirectRendererEnvelope.presentationTreatment,
+      groundcoverFadeMode: 'legacy-pipeline-cutover' as const,
+    },
+  },
+  {
+    ...forestOnRouteLodSkyDirectRendererEnvelope,
+    content: {
+      ...forestOnRouteLodSkyDirectRendererEnvelope.content,
+      visibleTrees: 0,
+      forestDraws: 0,
+    },
+  },
+]) {
+  assert.equal(
+    canFinalizeHamletRouteLodSkyDirectRenderEvidence(
+      invalidForestOnEnvelope,
+      forestOnRouteLodSkyCapture,
+      'ready',
+    ),
+    false,
+    'missing, contradictory, legacy-fade, or empty forest presentation evidence must not finalize',
+  );
+}
+assert.equal(
+  canFinalizeHamletRouteUpdatePairArmEvidence(
+    frozenDirectRendererEnvelope,
+    'ready',
+  ),
+  true,
+  'either randomized arm may freeze only after the common full-route warmup and exact frozen state',
+);
+assert.equal(
+  canFinalizeHamletRouteUpdatePairArmEvidence(
+    {
+      ...frozenDirectRendererEnvelope,
+      groundcoverWork: {
+        ...frozenDirectRendererEnvelope.groundcoverWork,
+        pendingSlots: 1,
+        converged: false,
+      },
+    },
+    'ready',
+  ),
+  false,
+  'the paired collector must reject any vegetation-state drift',
+);
+const serializedFrozenDirectRendererEnvelope =
+  createHamletFixtureEvidenceEnvelope({
+    fixtureId: frozenDirectRendererEnvelope.fixtureId,
+    routeId: frozenDirectRendererEnvelope.routeId,
+    routeDurationMs: frozenDirectRendererEnvelope.routeDurationMs,
+    ablation: frozenDirectRendererEnvelope.ablation,
+    protocol: frozenDirectRendererEnvelope.protocol,
+    performanceReport: frozenDirectRendererCollectorReport,
+    forestWork: frozenDirectRendererEnvelope.forestWork,
+    groundcoverWork: frozenDirectRendererEnvelope.groundcoverWork,
+    completedRoutes: frozenDirectRendererEnvelope.route.completedRoutes,
+    routeWarmup: frozenDirectRendererEnvelope.route.warmup,
+    content: frozenDirectRendererEnvelope.content,
+    frozenUpdateDirectRender: frozenDirectRendererEvidence,
+  });
+assert.equal(
+  serializedFrozenDirectRendererEnvelope.frozenUpdateDirectRender
+    ?.collectorAgreement.actualRendererSubmissions,
+  true,
+  'terminal evidence must serialize the positive direct-render agreement',
+);
+const serializedRouteLodSkyDirectRendererEnvelope =
+  createHamletFixtureEvidenceEnvelope({
+    fixtureId: routeLodSkyDirectRendererEnvelope.fixtureId,
+    routeId: routeLodSkyDirectRendererEnvelope.routeId,
+    routeDurationMs: routeLodSkyDirectRendererEnvelope.routeDurationMs,
+    ablation: routeLodSkyDirectRendererEnvelope.ablation,
+    protocol: routeLodSkyDirectRendererEnvelope.protocol,
+    performanceReport: frozenDirectRendererCollectorReport,
+    forestWork: routeLodSkyDirectRendererEnvelope.forestWork,
+    groundcoverWork: routeLodSkyDirectRendererEnvelope.groundcoverWork,
+    completedRoutes:
+      routeLodSkyDirectRendererEnvelope.route.completedRoutes,
+    routeWarmup: routeLodSkyDirectRendererEnvelope.route.warmup,
+    content: routeLodSkyDirectRendererEnvelope.content,
+    routeLodSkyDirectRender: routeLodSkyDirectRendererEvidence,
+  });
+assert.equal(
+  serializedRouteLodSkyDirectRendererEnvelope
+    .routeLodSkyDirectRender?.routeFrameSequence.signature,
+  routeFrameSequenceDescriptor.signature,
+  'terminal evidence must serialize the deterministic LOD popping-review sequence signature',
+);
+const routeUpdatePairFixtureReport =
+  runRouteUpdatePair(6, 1_500_000).report;
+const serializedRouteUpdatePairEnvelope =
+  createHamletFixtureEvidenceEnvelope({
+    fixtureId: frozenDirectRendererEnvelope.fixtureId,
+    routeId: frozenDirectRendererEnvelope.routeId,
+    routeDurationMs: frozenDirectRendererEnvelope.routeDurationMs,
+    ablation: frozenDirectRendererEnvelope.ablation,
+    protocol: frozenDirectRendererEnvelope.protocol,
+    performanceReport: frozenDirectRendererCollectorReport,
+    forestWork: frozenDirectRendererEnvelope.forestWork,
+    groundcoverWork: frozenDirectRendererEnvelope.groundcoverWork,
+    completedRoutes: 1,
+    routeWarmup: frozenDirectRendererEnvelope.route.warmup,
+    content: frozenDirectRendererEnvelope.content,
+    pairedRouteUpdateControl: routeUpdatePairFixtureReport,
+  });
+assert.equal(
+  serializedRouteUpdatePairEnvelope
+    .pairedRouteUpdateControl?.experiment,
+  HAMLET_ROUTE_UPDATE_PAIR_EXPERIMENT,
+);
+assert.ok(
+  serializedRouteUpdatePairEnvelope
+    .pairedRouteUpdateControl?.agreements.onUpdatesExactlyOncePerInterval,
+  'the envelope must retain the terminal normalized update agreement',
 );
 assert.equal(
   canFinalizeHamletFixtureEvidence(sampleEnvelope, 'ready'),
@@ -1790,9 +3492,43 @@ assert.deepEqual(
 );
 
 const fixtureSource = readFileSync('src/e2e/hamletFixture.ts', 'utf8');
+const rendererBackendSource = readFileSync(
+  'src/scene/RendererBackend.ts',
+  'utf8',
+);
 const visualPerformanceHookSource = readFileSync(
   'src/e2e/visualPerformanceHooks.ts',
   'utf8',
+);
+assert.match(
+  fixtureSource,
+  /const structureShadowBatch = new BatchedBuildingShadowProxies\([\s\S]*?structureShadowBatch\.upsertBuilding\([\s\S]*?structureShadowBatch\.flush\(\);/,
+  'the representative hamlet must use the production coarse structure-shadow path',
+);
+assert.match(
+  fixtureSource,
+  /function configureWorldMesh\([\s\S]*?mesh\.castShadow = false;[\s\S]*?mesh\.receiveShadow = true;/,
+  'detailed fixture structures must receive shadows without re-entering the atlas',
+);
+assert.match(
+  fixtureSource,
+  /sun\.shadow\.camera\.layers\.enable\(TREE_SHADOW_CAST_LAYER\);[\s\S]*?countFixtureStructuralSubmissions\(scene, camera\)/,
+  'the shadow camera alone must see proxies while color structural telemetry ignores them',
+);
+assert.match(
+  fixtureSource,
+  /sun\.shadow\.autoUpdate = false;[\s\S]*?if \(shadowMapNeedsRefresh\) \{\s*sun\.shadow\.needsUpdate = true;\s*shadowMap\.needsUpdate = true;\s*shadowMapNeedsRefresh = false;/,
+  'the representative static atlas must refresh explicitly instead of redrawing every frame',
+);
+assert.match(
+  fixtureSource,
+  /const profileLegacyGroundcoverShadowReception =[\s\S]*?requestedVisualProfile[\s\S]*?visualGroundcoverShadowReceive'\) === 'legacy'[\s\S]*?if \(profileLegacyGroundcoverShadowReception\) \{[\s\S]*?mesh\.receiveShadow = true;/,
+  'the profiler may opt into the legacy receiver path only for controlled comparison',
+);
+assert.match(
+  fixtureSource,
+  /document\.body\.dataset\.groundcoverShadowReception =[\s\S]*?mesh-received-legacy-profile[\s\S]*?: 'terrain-projected';/,
+  'fixture telemetry must distinguish the production policy from the explicit legacy profile',
 );
 assert.match(
   visualPerformanceHookSource,
@@ -1816,8 +3552,8 @@ assert.match(
 );
 assert.equal(
   fixtureSource.match(/visualGpuTimestampMarkersEnabled/g)?.length,
-  2,
-  'the marker control must not alter route, scene, render, vegetation, warmup, or collector behavior',
+  5,
+  'the marker control may govern only instrumentation, the two fixed direct-render treatments, and their exact pair',
 );
 assert.match(
   fixtureSource,
@@ -1833,6 +3569,26 @@ assert.match(
   fixtureSource,
   /const requestedVisualDeferredDom = resolveHamletDeferredDomRequest\(\{\s*requested: params\.get\('visualDeferDom'\) === '1',\s*visualNoUpdateShell: requestedVisualNoUpdateShell,\s*\}\);/,
   'DOM deferral must be a separately explicit exact-shell control',
+);
+assert.match(
+  fixtureSource,
+  /const requestedVisualDomPublicationPair =\s*resolveHamletDomPublicationPairRequest\(\{\s*requested: params\.get\('visualDomPair'\) === '1',\s*visualNoUpdateShell: requestedVisualNoUpdateShell,\s*visualDeferDom: requestedVisualDeferredDom,\s*\}\);/,
+  'the randomized pair must be an explicit exact-shell treatment',
+);
+assert.match(
+  fixtureSource,
+  /const requestedVisualFrozenUpdateDirectRender =\s*resolveHamletFrozenUpdateDirectRenderRequest\(\{[\s\S]*?requested: params\.get\('visualFrozenDirectRender'\) === '1',[\s\S]*?visualNoRender: requestedVisualNoRender,[\s\S]*?visualNoUpdateShell: requestedVisualNoUpdateShell,[\s\S]*?gpuTimestampMarkersEnabled: visualGpuTimestampMarkersEnabled,[\s\S]*?disabledSubsystems: requestedVisualDisabledSubsystems,/,
+  'the render-on rung must be an explicit exact-query treatment',
+);
+assert.match(
+  fixtureSource,
+  /const requestedVisualRouteLodSkyDirectRender =\s*resolveHamletRouteLodSkyDirectRenderRequest\(\{[\s\S]*?requested: params\.get\('visualRouteLodSkyDirectRender'\) === '1',[\s\S]*?visualFrozenDirectRender: requestedVisualFrozenUpdateDirectRender,[\s\S]*?gpuTimestampMarkersEnabled: visualGpuTimestampMarkersEnabled,[\s\S]*?disabledSubsystems: requestedVisualDisabledSubsystems,/,
+  'the restored route/LOD/scene/sky rung must be a separate exact-query treatment',
+);
+assert.match(
+  fixtureSource,
+  /const requestedVisualRouteUpdatePair =\s*resolveHamletRouteUpdatePairRequest\(\{[\s\S]*?requested: params\.get\('visualRouteUpdatePair'\) === '1',[\s\S]*?visualFrozenDirectRender: requestedVisualFrozenUpdateDirectRender,[\s\S]*?visualRouteLodSkyDirectRender:\s*requestedVisualRouteLodSkyDirectRender,[\s\S]*?gpuTimestampMarkersEnabled: visualGpuTimestampMarkersEnabled,[\s\S]*?disabledSubsystems: requestedVisualDisabledSubsystems,/,
+  'Round 42 must remain one explicit exact-query paired treatment',
 );
 assert.match(
   fixtureSource,
@@ -1873,6 +3629,10 @@ for (const runtimeContract of [
   '__HAMLET_FIXTURE_MOTION_ROUTE__',
   '__HAMLET_FIXTURE_CAPTURE_VIEW__',
   '__HAMLET_FIXTURE_CAPTURE_MOTION__',
+  '__HAMLET_FIXTURE_ROUTE_FRAME_SEQUENCE__',
+  '__HAMLET_FIXTURE_ROUTE_FRAME_SEQUENCE_READY__',
+  '__HAMLET_FIXTURE_CAPTURE_ROUTE_FRAME__',
+  '__HAMLET_FIXTURE_CAPTURE_ROUTE_FRAME_PNG__',
   '__HAMLET_FIXTURE_BOOT_STATE__',
   '__HAMLET_FIXTURE_WAIT_FOR_TERMINAL__',
   '__HAMLET_FIXTURE_DETAILED_TEXTURES_READY__',
@@ -1914,7 +3674,7 @@ assert.doesNotMatch(
 );
 assert.match(
   fixtureSource,
-  /routeWarmupWork\.stage === 'resettling'[\s\S]*?startMotionRoute\(0, true\)\s*\)\s*\{\s*visualPerf\.armTraceAfterCurrentFrame\(\);\s*routeWarmupWork\.stage = 'complete';/,
+  /routeWarmupWork\.stage === 'resettling'[\s\S]*?startMotionRoute\(0, true\)\s*\)\s*\{[\s\S]*?visualPerf\.armTraceAfterCurrentFrame\(\);\s*routeWarmupWork\.stage = 'complete';/,
   'the route-zero seek/render callback must arm collection only after that callback completes',
 );
 assert.match(
@@ -1926,6 +3686,36 @@ assert.match(
   fixtureSource,
   /runUuid: crypto\.randomUUID\(\),\s*performanceTimeOriginMs: performance\.timeOrigin,/,
   'both paired arms must carry one document-local UUID and performance time origin',
+);
+assert.match(
+  fixtureSource,
+  /const domPublicationPairRandomDraw = requestedVisualDomPublicationPair\s*\? crypto\.getRandomValues\(new Uint32Array\(1\)\)\[0\]!\s*: null;[\s\S]*?createHamletDomPublicationPairCoordinator\(\s*noUpdateShellIdentity,\s*domPublicationPairRandomDraw,\s*\)/,
+  'the DOM pair must use one serialized cryptographic order draw and shared document identity',
+);
+assert.match(
+  fixtureSource,
+  /const routeUpdatePairIdentity: HamletPerformancePairIdentity \| null =\s*requestedVisualRouteUpdatePair\s*\? \{\s*runUuid: crypto\.randomUUID\(\),\s*performanceTimeOriginMs: performance\.timeOrigin,\s*\}\s*: null;[\s\S]*?const routeUpdatePairRandomDraw = requestedVisualRouteUpdatePair\s*\? crypto\.getRandomValues\(new Uint32Array\(1\)\)\[0\]!\s*: null;[\s\S]*?createHamletRouteUpdatePairCoordinator\(\s*routeUpdatePairIdentity,\s*routeUpdatePairRandomDraw,\s*\)/,
+  'the route-update pair must use one shared document identity and serialized cryptographic order draw',
+);
+assert.match(
+  fixtureSource,
+  /routeUpdatePairCoordinator\.completeCurrentArm\(\{[\s\S]*?performanceReport,[\s\S]*?completedAtPerformanceTimestampMs: performance\.now\(\),[\s\S]*?completion\.advanceToNextArm[\s\S]*?stopFrameCollection\(\);[\s\S]*?routeUpdatePairArmCaptureComplete = false;[\s\S]*?routeUpdatePairAwaitingFreshCollector = true;[\s\S]*?installVisualPerformanceHooksIfRequested\(\s*hamletVisualPerformanceApp,\s*\);/,
+  'arm one must freeze before a fresh same-document schema-5 collector is installed',
+);
+assert.match(
+  fixtureSource,
+  /pairedRouteUpdateControl: completion\.report,[\s\S]*?visualRouteUpdatePairStatus =\s*'ready';[\s\S]*?dataset\.hamletFixtureEvidence =\s*JSON\.stringify\(finalizedFixtureEvidence\);[\s\S]*?installRouteFrameSequenceDomBridge\(\);/,
+  'only the terminal two-arm route-update pair may publish evidence and visual hooks',
+);
+assert.match(
+  fixtureSource,
+  /domPublicationPairCoordinator\.completeCurrentArm\(\{[\s\S]*?performanceReport,[\s\S]*?getDomPublicationEvidence\(\),[\s\S]*?completedAtPerformanceTimestampMs: performance\.now\(\),[\s\S]*?completion\.advanceToNextArm[\s\S]*?stopFrameCollection\(\);[\s\S]*?noUpdateShellCaptureReport = null;[\s\S]*?deferredDomCohortActive = false;[\s\S]*?domPublicationPairAwaitingFreshCollector = true;[\s\S]*?installVisualPerformanceHooksIfRequested\(\s*hamletVisualPerformanceApp,\s*\);/,
+  'arm one must freeze all evidence, clear arm-local state, and install a fresh same-document collector',
+);
+assert.match(
+  fixtureSource,
+  /pairedDomPublicationControl: completion\.report,[\s\S]*?dataset\.visualDomPairStatus = 'ready';[\s\S]*?dataset\.hamletFixtureEvidence =\s*JSON\.stringify\(finalizedFixtureEvidence\);/,
+  'only the completed two-arm reversion may publish the terminal paired artifact',
 );
 assert.match(
   fixtureSource,
@@ -1944,8 +3734,18 @@ assert.match(
 );
 assert.match(
   fixtureSource,
-  /const noUpdateShellCapture = noUpdateShellIdentity\s*\? createHamletNoUpdateShellCapture\(noUpdateShellIdentity, \{\s*deferCohortDomPublication: requestedVisualDeferredDom,\s*\}\)\s*: null;/,
+  /const noUpdateShellCapture = noUpdateShellIdentity\s*&& !domPublicationPairCoordinator\s*\? createHamletNoUpdateShellCapture\(noUpdateShellIdentity, \{\s*deferCohortDomPublication: requestedVisualDeferredDom,\s*\}\)\s*: null;/,
   'the no-update lead-in and ordered cohort must remain absent from the default fixture',
+);
+assert.match(
+  fixtureSource,
+  /const frozenUpdateDirectRenderCapture =\s*frozenUpdateDirectRenderIdentity\s*\? createHamletFrozenUpdateDirectRenderCapture\(\s*frozenUpdateDirectRenderIdentity,\s*\)\s*: null;/,
+  'the direct-render lead-in and ordered cohort must remain absent by default',
+);
+assert.match(
+  fixtureSource,
+  /const requestedForestEdgeLayout = resolveHamletForestEdgeLayout\([\s\S]*?dataset\.visualRouteForestEdgeLayout =\s*requestedForestEdgeLayout;[\s\S]*?const requestedVisualRouteShadowSubsystem =[\s\S]*?HAMLET_ROUTE_SHADOW_SUBSYSTEM_ENABLED[\s\S]*?HAMLET_ROUTE_SHADOW_SUBSYSTEM_DISABLED;[\s\S]*?const requestedVisualRouteForestRenderer =[\s\S]*?HAMLET_ROUTE_FOREST_RENDERER_ENABLED[\s\S]*?HAMLET_ROUTE_FOREST_RENDERER_DISABLED;[\s\S]*?const routeFrameSequenceDescriptor =\s*requestedVisualRouteLodSkyDirectRender\s*\|\| requestedVisualRouteUpdatePair\s*\|\| requestedGroundcoverTransitionEvidence\s*\? createHamletRouteFrameSequenceDescriptor\(\s*requestedVisualRouteShadowSubsystem,\s*requestedVisualRouteForestRenderer,\s*requestedForestEdgeLayout,\s*\)\s*: null;[\s\S]*?const routeLodSkyDirectRenderCapture =\s*routeLodSkyDirectRenderIdentity\s*\? createHamletRouteLodSkyDirectRenderCapture\(\s*routeLodSkyDirectRenderIdentity,\s*\{\s*shadowSubsystem: requestedVisualRouteShadowSubsystem,\s*forestRenderer: requestedVisualRouteForestRenderer,\s*forestEdgeLayout: requestedForestEdgeLayout,\s*\},\s*\)\s*: null;/,
+  'the shadow, forest, and immutable edge-layout identities must drive the collector and terminal frame sequence while remaining absent by default',
 );
 const bareRafTickBranch = fixtureSource.slice(
   fixtureSource.indexOf('if (bareRafControlCollecting) {'),
@@ -1969,7 +3769,7 @@ for (const forbiddenBareRafWork of [
 const noUpdateShellTickBranch = fixtureSource.slice(
   fixtureSource.indexOf('if (\n      requestedVisualNoUpdateShell'),
   fixtureSource.indexOf(
-    'const dtMs = previousTickNowMs === 0',
+    'if (routeUpdatePairTreatmentActive) {',
   ),
 );
 for (const skippedNoUpdateShellWork of [
@@ -2003,24 +3803,116 @@ assert.doesNotMatch(
   /dataset\.|metricsElement/,
   'the deferred cohort branch must not directly mutate status datasets or metrics text',
 );
+const frozenDirectRenderTickBranch = fixtureSource.slice(
+  fixtureSource.indexOf(
+    'if (\n      requestedVisualFrozenUpdateDirectRender',
+  ),
+  fixtureSource.indexOf('if (\n      requestedVisualNoUpdateShell'),
+);
+for (const skippedFrozenDirectRenderWork of [
+  'sampleHamletMotionRoute(',
+  'updateSceneLods(',
+  'advanceRouteWarmupProtocol(',
+  'sky.updateCamera(',
+  'sky.updateSun(',
+  'sky.updateTime(',
+]) {
+  assert.ok(
+    !frozenDirectRenderTickBranch.includes(skippedFrozenDirectRenderWork),
+    `the render-on arm must skip ${skippedFrozenDirectRenderWork}`,
+  );
+}
+for (const retainedFrozenDirectRenderWork of [
+  'appendRafTimestamp(nowMs)',
+  'armTraceAfterCurrentFrame()',
+  'render(',
+  'performance.now()',
+  'latestProfileFrameTiming',
+]) {
+  assert.ok(
+    frozenDirectRenderTickBranch.includes(retainedFrozenDirectRenderWork),
+    `the render-on arm must retain ${retainedFrozenDirectRenderWork}`,
+  );
+}
+assert.match(
+  frozenDirectRenderTickBranch,
+  /render\(\s*0,\s*true,\s*nowMs,\s*false,\s*true,\s*\)/,
+  'the exact cohort must request the direct-color scene renderer',
+);
+const routeUpdatePairTickBranch = fixtureSource.slice(
+  fixtureSource.indexOf('if (routeUpdatePairTreatmentActive) {'),
+  fixtureSource.indexOf('if (routeLodSkyTreatmentActive) {'),
+);
+for (const retainedRouteUpdatePairControl of [
+  'restartRouteUpdatePairArmFromCanonicalZero()',
+  'getCurrentTreatment()',
+  'appendRafTimestamp(nowMs)',
+  'recordCompletedCanonicalUpdateBlock',
+  'armTraceAfterCurrentFrame()',
+]) {
+  assert.ok(
+    routeUpdatePairTickBranch.includes(retainedRouteUpdatePairControl),
+    `the same-document pair must retain ${retainedRouteUpdatePairControl}`,
+  );
+}
+assert.match(
+  routeUpdatePairTickBranch,
+  /routeUpdatePairCanonicalUpdatesEnabled =\s*currentTreatment\s*!== HAMLET_FROZEN_UPDATE_DIRECT_RENDER_TREATMENT;/,
+  'the randomized treatment identity must control only one canonical update gate',
+);
 assert.match(
   fixtureSource,
-  /const frameCpuStartedAtMs = requestedVisualProfile \? performance\.now\(\) : null;\s*motionAnimationFrame = requestAnimationFrame\(tick\);\s*if \(\s*requestedVisualNoUpdateShell/,
+  /const canonicalSceneUpdateBlockEnabled =\s*!routeUpdatePairTreatmentActive\s*\|\| routeUpdatePairCanonicalUpdatesEnabled;\s*if \(canonicalSceneUpdateBlockEnabled\) \{[\s\S]*?sampleHamletMotionRoute\(elapsed\)[\s\S]*?updateSceneLods\([\s\S]*?sky\.updateCamera\(camera\);\s*sky\.updateSun\(sunDirection\);\s*sky\.updateTime\(fixtureTimeSeconds\);[\s\S]*?routeUpdatePairCoordinator!\.recordCompletedCanonicalUpdateBlock\(\{[\s\S]*?\n    \}\s*if \(frameCpuStartedAtMs === null\)/,
+  'only the complete canonical route/LOD/scene/sky update block may differ between paired arms',
+);
+const routeLodSkyDirectRenderTickBranch = fixtureSource.slice(
+  fixtureSource.indexOf('if (routeLodSkyTreatmentActive) {'),
+  fixtureSource.indexOf('if (frameCpuStartedAtMs === null) {'),
+);
+for (const restoredRouteLodSkyWork of [
+  'appendRafTimestamp(nowMs)',
+  'sampleHamletMotionRoute(elapsed)',
+  'updateSceneLods(',
+  'publishMotionState()',
+  'advanceRouteWarmupProtocol()',
+  'sky.updateCamera(camera)',
+  'sky.updateSun(sunDirection)',
+  'sky.updateTime(fixtureTimeSeconds)',
+  'recordCompletedCanonicalUpdateBlock({',
+]) {
+  assert.ok(
+    routeLodSkyDirectRenderTickBranch.includes(restoredRouteLodSkyWork),
+    `the Round 41 treatment must retain ${restoredRouteLodSkyWork}`,
+  );
+}
+assert.match(
+  routeLodSkyDirectRenderTickBranch,
+  /sky\.updateCamera\(camera\);\s*sky\.updateSun\(sunDirection\);\s*sky\.updateTime\(fixtureTimeSeconds\);[\s\S]*?recordCompletedCanonicalUpdateBlock\(\{[\s\S]*?routeId: HAMLET_MOTION_ROUTE_ID,[\s\S]*?routeStatus: 'running',[\s\S]*?lod: \{ \.\.\.motionState\.lod \},[\s\S]*?forest: \{ \.\.\.latestForestFrameWork \},[\s\S]*?groundcoverDelta: \{ \.\.\.latestGroundcoverFrameDelta \},/,
+  'the evidence counter must run only after the complete canonical route/LOD/scene/sky block',
+);
+assert.match(
+  fixtureSource,
+  /const frameAfterProfileRenderPathAtMs = render\(\s*dtMs \/ 1000,\s*true,\s*nowMs,\s*isNoRenderMeasuredWindowActive\(\),\s*routeLodSkyTreatmentActive \|\| routeUpdatePairTreatmentActive,\s*\)!;/,
+  'only the fixed restored-update treatment or its exact pair may select the direct-color renderer on the normal route path',
+);
+assert.match(
+  fixtureSource,
+  /const frameCpuStartedAtMs = requestedVisualProfile \? performance\.now\(\) : null;\s*motionAnimationFrame = requestAnimationFrame\(tick\);[\s\S]*?if \(\s*requestedVisualNoUpdateShell/,
   'the treatment must retain the ordinary profiled callback clock and rAF scheduler',
 );
 assert.match(
   fixtureSource,
-  /const controlStep = noUpdateShellCapture\.appendRafTimestamp\(nowMs\);[\s\S]*?controlStep\.armCollectorAfterCurrentFrame[\s\S]*?window\.__visualPerf\?\.deferDomPublicationUntilReady\(\);[\s\S]*?window\.__visualPerf\?\.armTraceAfterCurrentFrame\(\);[\s\S]*?const frameBeforeRenderAtMs = performance\.now\(\);[\s\S]*?render\(\s*0,\s*true,\s*nowMs,\s*true,\s*\)[\s\S]*?latestProfileFrameTiming = \{/,
+  /const activeNoUpdateShellCapture =\s*domPublicationPairCoordinator \?\? noUpdateShellCapture;[\s\S]*?activeNoUpdateShellCapture!\.appendRafTimestamp\(nowMs\);[\s\S]*?controlStep\?\.armCollectorAfterCurrentFrame[\s\S]*?window\.__visualPerf\?\.deferDomPublicationUntilReady\(\);[\s\S]*?window\.__visualPerf\?\.armTraceAfterCurrentFrame\(\);[\s\S]*?const frameBeforeRenderAtMs = performance\.now\(\);[\s\S]*?render\(\s*0,\s*true,\s*nowMs,\s*true,\s*\)[\s\S]*?latestProfileFrameTiming = \{/,
   'the terminal lead-in callback must reset the retained schema-5 collector before a no-render profiled cohort',
 );
 assert.match(
   fixtureSource,
-  /function publishNoUpdateShellStatus\(status: string\): void \{\s*if \(requestedVisualDeferredDom\) return;\s*document\.documentElement\.dataset\.visualNoUpdateShellStatus = status;\s*\}/,
+  /function publishNoUpdateShellStatus\(status: string\): void \{\s*if \(\s*requestedVisualDeferredDom\s*\|\| domPublicationPairCoordinator\?\.getCurrentTreatment\(\)\s*=== HAMLET_DEFERRED_DOM_NO_UPDATE_SHELL_TREATMENT\s*\) \{\s*return;\s*\}\s*document\.documentElement\.dataset\.visualNoUpdateShellStatus = status;\s*\}/,
   'all shell status datasets must be suppressed by the explicit deferred treatment',
 );
 assert.match(
   fixtureSource,
-  /maybeFinalizeFixtureEvidence\(\);\s*if \(!deferredDomCohortActive \|\| finalizedFixtureEvidence\) \{\s*metricsElement!\.textContent = /,
+  /maybeFinalizeFixtureEvidence\(\);\s*maybeInstallGroundcoverTransitionEvidenceBridge\(\);\s*if \(!deferredDomCohortActive \|\| finalizedFixtureEvidence\) \{\s*metricsElement!\.textContent = /,
   'metrics text must remain unchanged throughout the deferred cohort and publish only after finalization',
 );
 assert.match(
@@ -2032,6 +3924,126 @@ assert.match(
   fixtureSource,
   /canFinalizeHamletNoUpdateShellEvidence\([\s\S]*?noUpdateShellCaptureReport,[\s\S]*?collectorAgreement: \{[\s\S]*?schemaVersion: 5,[\s\S]*?exactSampleCount: true,[\s\S]*?exactMetrics: true,[\s\S]*?zeroRendererSubmissions: true,/,
   'final evidence must require the complete independent cohort to agree with schema 5',
+);
+assert.match(
+  fixtureSource,
+  /canFinalizeHamletFrozenUpdateDirectRenderEvidence\([\s\S]*?frozenUpdateDirectRenderCaptureReport,[\s\S]*?createHamletFrozenUpdateDirectRenderEvidence\([\s\S]*?performanceReport,[\s\S]*?frozenUpdateDirectRender,[\s\S]*?visualFrozenDirectRenderStatus =\s*'ready';/,
+  'terminal render-on evidence must require exact schema-5 renderer and GPU agreement',
+);
+assert.match(
+  fixtureSource,
+  /canFinalizeHamletRouteLodSkyDirectRenderEvidence\([\s\S]*?routeLodSkyDirectRenderCaptureReport,[\s\S]*?createHamletRouteLodSkyDirectRenderEvidence\([\s\S]*?performanceReport,[\s\S]*?routeLodSkyDirectRender,[\s\S]*?visualRouteLodSkyDirectRenderStatus =\s*'ready';[\s\S]*?dataset\.hamletFixtureEvidence =\s*JSON\.stringify\(finalizedFixtureEvidence\);[\s\S]*?installRouteFrameSequenceDomBridge\(\);[\s\S]*?visualRouteFrameSequenceStatus =\s*'ready';/,
+  'terminal Round 41 evidence and its sequence hook must require exact route/update/schema-5/GPU agreement',
+);
+assert.match(
+  fixtureSource,
+  /if \(routeFrameSequenceDescriptor\) \{[\s\S]*?__HAMLET_FIXTURE_ROUTE_FRAME_SEQUENCE__ = \{[\s\S]*?__HAMLET_FIXTURE_ROUTE_FRAME_SEQUENCE_READY__ =\s*isRouteFrameSequenceReady;[\s\S]*?__HAMLET_FIXTURE_CAPTURE_ROUTE_FRAME__ =\s*captureRouteFrameSequenceFrame;/,
+  'the deterministic frame hook must exist only for an explicit route-evidence URL',
+);
+assert.match(
+  fixtureSource,
+  /requestedGroundcoverTransitionEvidence[\s\S]*?!requestedVisualRouteLodSkyDirectRender[\s\S]*?groundcoverTransitionEvidence=1 requires the canonical Hamlet route,[\s\S]*?visualGroundcoverEvidenceTreatment[\s\S]*?waiting-for-settled-groundcover[\s\S]*?function maybeInstallGroundcoverTransitionEvidenceBridge\(\): void \{[\s\S]*?!grassField\.isStreamSettled\(\)[\s\S]*?visualRouteFrameSequenceStatus = 'ready';[\s\S]*?installRouteFrameSequenceDomBridge\(\);/,
+  'the transition bridge must use the exact direct-color treatment identity and wait for frozen groundcover convergence',
+);
+assert.match(
+  fixtureSource,
+  /presentationTreatment:[\s\S]*?requestedVisualRouteLodSkyDirectRender[\s\S]*?disabledSubsystems:[\s\S]*?requestedVisualDisabledSubsystems[\s\S]*?groundcoverSubmission:[\s\S]*?'three-whole-field-instanced-meshes'[\s\S]*?forestRenderer:[\s\S]*?requestedVisualRouteForestRenderer[\s\S]*?forestUpdates:[\s\S]*?'frozen-after-settled-warmup'[\s\S]*?postProcessing:[\s\S]*?'disabled'[\s\S]*?shadowSubsystem:[\s\S]*?requestedVisualRouteShadowSubsystem/,
+  'route evidence must serialize groundcover identity plus forest on/off, frozen forest updates, post off, and shadow state',
+);
+assert.match(
+  fixtureSource,
+  /function captureRouteFrameSequenceFrame\([\s\S]*?if \(!isRouteFrameSequenceReady\(\)[\s\S]*?cancelAnimationFrame\(motionAnimationFrame\);[\s\S]*?resolveHamletRouteFrameSequenceElapsedMs\(frameIndex\);[\s\S]*?seekMotionRoute\(elapsedMs, 'paused', false\);[\s\S]*?sky\.updateCamera\(camera\);[\s\S]*?sky\.updateSun\(sunDirection\);[\s\S]*?sky\.updateTime\(fixtureTimeSeconds\);[\s\S]*?render\(0, true, null, false, true\);[\s\S]*?visualRouteFrameSequenceSignature =\s*routeFrameSequenceDescriptor\.signature;/,
+  'sequence frames must be terminal-gated, deterministic seeks rendered through the same direct-color LOD/sky path',
+);
+assert.match(
+  fixtureSource,
+  /renderer\.domElement\.setAttribute\(\s*'data-testid',\s*'hamlet-native-render-capture-surface',\s*\);/,
+  'the exact native renderer surface must be addressable without viewport screenshot inference',
+);
+assert.match(
+  fixtureSource,
+  /__HAMLET_FIXTURE_CAPTURE_ROUTE_FRAME_PNG__ =\s*captureRouteFrameSequencePng;/,
+  'the native PNG hook must remain terminal route-evidence only',
+);
+assert.match(
+  fixtureSource,
+  /async function captureRouteFrameSequencePng\([\s\S]*?captureRouteFrameSequenceFrame\(frameIndex\);[\s\S]*?await rendererBackend\.waitForSubmittedWork\(\);[\s\S]*?canvas\.width !== 1280[\s\S]*?canvas\.height !== 720[\s\S]*?rendererPixelRatio !== 1[\s\S]*?performanceProtocol\?\.valid !== true[\s\S]*?canvas\.toDataURL\('image\/png'\);[\s\S]*?source: 'renderer-drawing-buffer',[\s\S]*?protocol: '1280x720@renderer-pr1',[\s\S]*?width: 1280,[\s\S]*?height: 720,[\s\S]*?mimeType: 'image\/png',/,
+  'visual capture must wait for submitted GPU work before exporting the validated native 1280x720 drawing buffer',
+);
+assert.match(
+  rendererBackendSource,
+  /waitForSubmittedWork: \(\) =>\s*waitForNativeWebGPUSubmittedWork\(renderer\),[\s\S]*?async function waitForNativeWebGPUSubmittedWork\([\s\S]*?const backend = \(renderer as RendererWithBackend\)\.backend;[\s\S]*?backend\.device\?\.queue[\s\S]*?typeof queue\?\.onSubmittedWorkDone !== 'function'[\s\S]*?throw new Error\([\s\S]*?Native WebGPU capture synchronization is unavailable on the active renderer device queue\.[\s\S]*?await queue\.onSubmittedWorkDone\(\);/,
+  'native capture synchronization must inspect the active WebGPU backend and fail closed when its queue cannot be awaited',
+);
+assert.equal(
+  rendererBackendSource.match(
+    /waitForSubmittedWork: async \(\) => \{\},/g,
+  )?.length,
+  2,
+  'both WebGL node fallback paths must preserve their synchronous no-op capture behavior',
+);
+assert.match(
+  fixtureSource,
+  /function createRouteFrameCameraPoseSignature\([\s\S]*?routeFrameSequenceDescriptor\?\.routeId \?\? 'missing-route',[\s\S]*?frameIndex,[\s\S]*?elapsedMs\.toFixed\(3\),[\s\S]*?motion\.lod\.forest,[\s\S]*?motion\.lod\.groundcover,[\s\S]*?motion\.lod\.building,/,
+  'cross-arm camera identity must exclude the treatment-specific forest-edge signature',
+);
+assert.match(
+  fixtureSource,
+  /function installRouteFrameSequenceDomBridge\(\): void \{\s*if \(\s*routeFrameSequenceDomControl !== null\s*\|\| routeFrameSequenceDescriptor === null\s*\|\| !hasTerminalRouteFrameSequenceEvidence\(\)\s*\) \{\s*return;\s*\}[\s\S]*?document\.createElement\('input'\);[\s\S]*?document\.createElement\('output'\);[\s\S]*?requestControl\.type = 'text';[\s\S]*?requestControl\.setAttribute\(\s*'data-testid',\s*'hamlet-route-frame-sequence-request',\s*\);[\s\S]*?requestControl\.setAttribute\(\s*'aria-label',\s*'Route frame sequence index',\s*\);[\s\S]*?requestControl\.style\.position = 'fixed';[\s\S]*?requestControl\.style\.width = '2px';[\s\S]*?requestControl\.style\.height = '2px';[\s\S]*?requestControl\.style\.opacity = '0';[\s\S]*?requestControl\.style\.pointerEvents = 'auto';[\s\S]*?outputControl\.hidden = true;[\s\S]*?outputControl\.setAttribute\(\s*'data-testid',\s*'hamlet-route-frame-sequence-native-png-output',\s*\);/,
+  'the terminal bridge must preserve its Playwright-fillable request control and expose one hidden native-PNG output',
+);
+const routeFrameSequenceDomBridgeSource = fixtureSource.match(
+  /function installRouteFrameSequenceDomBridge\(\): void \{[\s\S]*?\n\}\n\nfunction captureRouteFrameSequenceFrame\(/,
+)?.[0];
+assert.ok(
+  routeFrameSequenceDomBridgeSource,
+  'the route frame sequence DOM bridge source must remain independently auditable',
+);
+assert.match(
+  routeFrameSequenceDomBridgeSource,
+  /const clearReplayCompletion = \(\): void => \{\s*outputControl\.textContent = '';\s*outputControl\.removeAttribute\('data-completed-index'\);\s*outputControl\.removeAttribute\('data-completed-elapsed-ms'\);\s*outputControl\.removeAttribute\('data-completed-signature'\);\s*outputControl\.removeAttribute\('data-completed-camera-pose-signature'\);[\s\S]*?delete bridgeRoot\.dataset\.visualRouteFrameSequenceCompletedIndex;[\s\S]*?delete bridgeRoot\.dataset\.visualRouteFrameSequenceCompletedElapsedMs;[\s\S]*?delete bridgeRoot\.dataset\.visualRouteFrameSequenceCompletedSignature;[\s\S]*?visualRouteFrameSequenceCompletedCameraPoseSignature;/,
+  'clearing a replay must remove PNG bytes, sequence identity, and camera-pose identity',
+);
+const nativeCaptureCallOffset = routeFrameSequenceDomBridgeSource.indexOf(
+  'captureRouteFrameSequencePng(frameIndex)',
+);
+const preCaptureClearOffset = routeFrameSequenceDomBridgeSource.lastIndexOf(
+  'clearReplayCompletion();',
+  nativeCaptureCallOffset,
+);
+const pngPublishOffset = routeFrameSequenceDomBridgeSource.indexOf(
+  'outputControl.textContent = completed.dataUrl;',
+);
+assert.ok(
+  preCaptureClearOffset >= 0
+    && nativeCaptureCallOffset > preCaptureClearOffset
+    && pngPublishOffset > nativeCaptureCallOffset,
+  'native capture must clear prior output before rendering and publish only after capture succeeds',
+);
+assert.match(
+  routeFrameSequenceDomBridgeSource,
+  /const completed = await captureRouteFrameSequencePng\(frameIndex\);\s*if \(\s*generation !== replayGeneration\s*\|\| requestControl\.value !== requestedIndex\s*\) \{\s*return;\s*\}\s*const completionIdentity = Object\.freeze\(\{\s*index: String\(completed\.frame\.frameIndex\),\s*elapsedMs: completed\.frame\.elapsedMs\.toFixed\(3\),\s*signature: completed\.frame\.signature,\s*cameraPoseSignature: completed\.frame\.cameraPoseSignature,\s*\}\);[\s\S]*?outputControl\.setAttribute\(\s*'data-completed-index',[\s\S]*?outputControl\.setAttribute\(\s*'data-completed-elapsed-ms',[\s\S]*?outputControl\.setAttribute\(\s*'data-completed-signature',[\s\S]*?outputControl\.setAttribute\(\s*'data-completed-camera-pose-signature',[\s\S]*?outputControl\.textContent = completed\.dataUrl;[\s\S]*?visualRouteFrameSequenceCompletedCameraPoseSignature[\s\S]*?visualRouteFrameSequenceReplayStatus = 'complete';/,
+  'successful captures must publish exact native PNG data with immutable frame and camera-pose identity',
+);
+assert.match(
+  routeFrameSequenceDomBridgeSource,
+  /\} catch \{\s*if \(\s*generation !== replayGeneration\s*\|\| requestControl\.value !== requestedIndex\s*\) \{\s*return;\s*\}\s*clearReplayCompletion\(\);\s*bridgeRoot\.dataset\.visualRouteFrameSequenceReplayStatus = 'error';/,
+  'failed requests must clear any partial publication so no stale PNG survives',
+);
+assert.match(
+  routeFrameSequenceDomBridgeSource,
+  /if \(requestedIndex === ''\) \{\s*replayGeneration \+= 1;[\s\S]*?clearReplayCompletion\(\);[\s\S]*?visualRouteFrameSequenceReplayStatus = 'idle';[\s\S]*?if \(requestedIndex === lastHandledRequestIndex\) return;\s*const generation = \+\+replayGeneration;/,
+  'blank requests must invalidate in-flight work while duplicate DOM events must not invalidate the active capture',
+);
+assert.match(
+  fixtureSource,
+  /requestControl\.addEventListener\('input', handleReplayRequest\);\s*requestControl\.addEventListener\('change', handleReplayRequest\);\s*routeFrameSequenceDomControl = requestControl;\s*document\.body\.append\(requestControl, outputControl\);/,
+  'the terminal request and output controls must be installed together exactly once',
+);
+assert.equal(
+  fixtureSource.match(/installRouteFrameSequenceDomBridge\(\)/g)?.length,
+  4,
+  'the DOM bridge may be defined once and installed only by fixed, paired, or settled transition evidence',
 );
 assert.match(
   visualPerformanceHookSource,
@@ -2055,13 +4067,13 @@ assert.match(
 );
 assert.match(
   fixtureSource,
-  /if \(frameCpuStartedAtMs === null\) \{\s*render\(dtMs \/ 1000\);\s*return;\s*\}\s*const frameBeforeRenderAtMs = performance\.now\(\);\s*const frameAfterProfileRenderPathAtMs = render\(\s*dtMs \/ 1000,\s*true,\s*nowMs,\s*isNoRenderMeasuredWindowActive\(\),\s*\)!;[\s\S]*?const frameCpuCompletedAtMs = performance\.now\(\);/,
+  /if \(frameCpuStartedAtMs === null\) \{\s*render\(dtMs \/ 1000\);\s*return;\s*\}\s*const frameBeforeRenderAtMs = performance\.now\(\);\s*const frameAfterProfileRenderPathAtMs = render\(\s*dtMs \/ 1000,\s*true,\s*nowMs,\s*isNoRenderMeasuredWindowActive\(\),\s*routeLodSkyTreatmentActive \|\| routeUpdatePairTreatmentActive,\s*\)!;[\s\S]*?const frameCpuCompletedAtMs = performance\.now\(\);/,
   'the two added callback boundaries must run only on the visual-profile path',
 );
 assert.match(
   fixtureSource,
-  /if \(!profileRenderSubmission\) \{\s*postProcessor\.render\(dt\);\s*postProcessorRendered = true;\s*\} else if \(!skipProfilePostProcessorRender\) \{[\s\S]*?visualGpuTimestampProfiler\?\.beginFrame\(profileFrameRafTimestampMs\)[\s\S]*?try \{\s*postProcessor\.render\(dt\);\s*postProcessorRendered = true;\s*renderPathCompletedAtMs = performance\.now\(\);[\s\S]*?visualGpuTimestampProfiler\?\.endFrame\(gpuTimestampHandle\);[\s\S]*?\} else \{\s*const result = executeVisualProfileRenderPath\(\{[\s\S]*?skipPostProcessorRender: true,[\s\S]*?postProcessorRender: \(renderDt\) => postProcessor\.render\(renderDt\),[\s\S]*?gpuTimestampProfiler: visualGpuTimestampProfiler,[\s\S]*?now: \(\) => performance\.now\(\),/,
-  'default and marker-on rendering must remain direct while only the no-render treatment enters the isolated skip path',
+  /if \(!profileRenderSubmission\) \{\s*postProcessor\.render\(dt\);\s*postProcessorRendered = true;\s*\} else if \(!skipProfilePostProcessorRender\) \{[\s\S]*?visualGpuTimestampProfiler\?\.beginFrame\(profileFrameRafTimestampMs\)[\s\S]*?try \{\s*if \(directColorSceneRender\) renderer\.render\(scene, camera\);\s*else postProcessor\.render\(dt\);[\s\S]*?renderPathCompletedAtMs = performance\.now\(\);[\s\S]*?visualGpuTimestampProfiler\?\.endFrame\(gpuTimestampHandle\);[\s\S]*?\} else \{\s*const result = executeVisualProfileRenderPath\(\{[\s\S]*?skipPostProcessorRender: true,[\s\S]*?postProcessorRender: \(renderDt\) => postProcessor\.render\(renderDt\),[\s\S]*?gpuTimestampProfiler: visualGpuTimestampProfiler,[\s\S]*?now: \(\) => performance\.now\(\),/,
+  'default, direct-color, and no-render paths must remain explicit and mutually exclusive',
 );
 assert.match(
   fixtureSource,
@@ -2078,8 +4090,8 @@ const profiledRenderSource = fixtureSource.slice(
 );
 assert.equal(
   continuousTickSource.match(/performance\.now\(\)/g)?.length,
-  5,
-  'both mutually exclusive profiled paths must reuse one callback entry sample and add only pre-render and completion boundaries',
+  7,
+  'all three mutually exclusive profiled paths must reuse one callback entry sample and two boundaries',
 );
 assert.equal(
   profiledRenderSource.match(/performance\.now\(\)/g)?.length,
