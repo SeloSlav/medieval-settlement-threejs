@@ -463,6 +463,11 @@ export async function createSeedThreeForest(
     for (const cardMesh of bucket.overviewSet.cards) group.add(cardMesh);
   }
 
+  // Start from a deterministic close-camera state so all three global modes
+  // behave correctly before the first camera update (and never flash one frame).
+  const crownUnderlayVisible = shouldShowSeedThreeCrownUnderlay(false, 0, false);
+  for (const mesh of crownUnderlayMeshes) mesh.visible = crownUnderlayVisible;
+
   const visibilitySelector = createForestLodSelector(visibilityItems, {
     cellSize: 48,
     frustumPadding: FOREST_VISIBILITY_PADDING,
@@ -485,7 +490,7 @@ export async function createSeedThreeForest(
     visibilitySelector,
     seasonalCardMaterials: [...seasonalCardMaterials],
     crownUnderlayMeshes,
-    crownUnderlayVisible: true,
+    crownUnderlayVisible,
     deciduousFoliage: {
       springFlush: 0,
       autumnColor: 0,

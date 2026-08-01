@@ -14,11 +14,16 @@ import {
 } from '../vendor/seedthree/src/core/branch-cards.js';
 import { GORSKI_KOTAR_SPECIES } from '../src/vegetation/seedthree/gorskiKotarPresets.ts';
 import {
+  SEEDTHREE_CROWN_UNDERLAY_MODE,
   SEEDTHREE_CROWN_UNDERLAY_HIDE_DISTANCE,
   SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE,
   SEEDTHREE_FOREST_WIND_SPEED,
   shouldShowSeedThreeCrownUnderlay,
 } from '../src/vegetation/seedthree/seedThreeCanopyPresentation.ts';
+import {
+  SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY,
+  stabilizeSeedThreeForestCardMaterial,
+} from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
 import { seedThreeBranchCardCacheKey } from '../src/vegetation/seedthree/seedThreeBranchCards.ts';
 import {
   SEEDTHREE_BRANCH_CARD_BAKE_REVISION,
@@ -66,32 +71,49 @@ assert.equal(
 );
 assert.equal(SEEDTHREE_CROWN_UNDERLAY_HIDE_DISTANCE, 112);
 assert.equal(SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE, 128);
+assert.equal(SEEDTHREE_CROWN_UNDERLAY_MODE, 'always');
 assert.equal(SEEDTHREE_FOREST_WIND_SPEED, 0.84);
 assert.equal(
-  shouldShowSeedThreeCrownUnderlay(true, 111.99, false),
+  shouldShowSeedThreeCrownUnderlay(false, 0, true),
+  true,
+  'the default global mode must keep the extra canopy visible at every zoom level',
+);
+assert.equal(
+  shouldShowSeedThreeCrownUnderlay(true, 999, false, 'off'),
+  false,
+  'off mode must suppress the extra canopy at every zoom level',
+);
+assert.equal(
+  shouldShowSeedThreeCrownUnderlay(true, 111.99, false, 'distance'),
   false,
   'zooming in must remove strategic crown fill below the inner threshold',
 );
 assert.equal(
-  shouldShowSeedThreeCrownUnderlay(true, 112, false),
+  shouldShowSeedThreeCrownUnderlay(true, 112, false, 'distance'),
   true,
   'visible crown fill must remain stable at the inner hysteresis boundary',
 );
 assert.equal(
-  shouldShowSeedThreeCrownUnderlay(false, 127.99, false),
+  shouldShowSeedThreeCrownUnderlay(false, 127.99, false, 'distance'),
   false,
   'zooming out must not reveal crown fill before the outer threshold',
 );
 assert.equal(
-  shouldShowSeedThreeCrownUnderlay(false, 128, false),
+  shouldShowSeedThreeCrownUnderlay(false, 128, false, 'distance'),
   true,
   'strategic crown fill must return at the outer threshold',
 );
 assert.equal(
-  shouldShowSeedThreeCrownUnderlay(true, 999, true),
+  shouldShowSeedThreeCrownUnderlay(true, 999, true, 'distance'),
   false,
-  'first-person presentation must never show the crown underlay',
+  'distance mode must hide the crown underlay in first person',
 );
+
+const physicalFoliage = new THREE.MeshPhysicalMaterial({ specularIntensity: 1 });
+stabilizeSeedThreeForestCardMaterial(physicalFoliage);
+assert.equal(physicalFoliage.alphaToCoverage, true);
+assert.equal(physicalFoliage.specularIntensity, SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY);
+physicalFoliage.dispose();
 
 for (const preset of deciduous) {
   const species = GORSKI_KOTAR_SPECIES[preset];

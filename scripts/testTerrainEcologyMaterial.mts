@@ -38,7 +38,23 @@ const ecologyEnd = source.indexOf('function buildTerrainSnowNodes');
 assert.ok(ecologyStart >= 0 && ecologyEnd > ecologyStart);
 const ecologySource = source.slice(ecologyStart, ecologyEnd);
 
-assert.match(ecologySource, /Domain-warped oblique waves/);
+assert.match(ecologySource, /Low-frequency samples of the authored grass maps/);
+assert.match(ecologySource, /const meadowPatchUv =/);
+assert.match(ecologySource, /const densePatchUv =/);
+assert.match(ecologySource, /const dryPatchUv =/);
+assert.match(ecologySource, /const meadowPatch = smoothstep/);
+assert.match(ecologySource, /const densePatch = smoothstep/);
+assert.match(ecologySource, /const dryPatch = smoothstep/);
+assert.equal(
+  (ecologySource.match(/\.level\(float\(2\)/g) ?? []).length,
+  3,
+  'all strategic coverage samples must use a coarse mip instead of individual grass clumps',
+);
+assert.doesNotMatch(
+  ecologySource,
+  /macroWarp|world\.x[\s\S]*?sin\(/,
+  'overview coverage must not regress to map-spanning directional waves',
+);
 assert.match(ecologySource, /attribute\('normal', 'vec3'\)/);
 assert.match(ecologySource, /const lowland = sub/);
 assert.match(ecologySource, /const moisture = smoothstep/);
@@ -77,8 +93,8 @@ assert.match(
   /const resolvedAlbedo = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
 );
 assert.match(ecologySource, /vec3\(0\.15, 0\.22, 0\.05\)/);
-assert.match(ecologySource, /vec3\(0\.018, 0\.035, 0\.009\)/);
-assert.match(ecologySource, /vec3\(0\.34, 0\.275, 0\.09\)/);
+assert.match(ecologySource, /vec3\(0\.024, 0\.045, 0\.012\)/);
+assert.match(ecologySource, /vec3\(0\.26, 0\.225, 0\.085\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
 assert.match(ecologySource, /const rainNormalVisibility = mix/);
 assert.match(source, /const weatherResolvedRoadWear = roadWear\.mul\(shoreRainVisibility\)/);
@@ -128,13 +144,13 @@ assert.doesNotMatch(
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
-  23,
-  'layered close soil plus the packed snow-atlas sample must retain a bounded texture budget',
+  26,
+  'layered close soil, packed snow atlas and three reused albedo coverage samples must retain a bounded texture budget',
 );
 assert.equal(
   (source.match(/\bsin\(/g) ?? []).length,
-  3,
-  'the ecological pass must reuse its three macro waves without new trigonometric noise',
+  0,
+  'terrain ecology must avoid directional trigonometric bands',
 );
 assert.equal(
   (source.match(/new MeshStandardNodeMaterial\(\)/g) ?? []).length,

@@ -79,10 +79,10 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 142px 56px 42px minmax(0, 1fr) 48px;
+  grid-template-columns: 192px 78px 42px minmax(0, 1fr) 48px;
   align-items: stretch;
   gap: 0;
-  width: min(858px, calc(100vw - 64px));
+  width: min(930px, calc(100vw - 64px));
   min-height: 52px;
   padding: 4px 6px;
   overflow: visible;
@@ -199,7 +199,7 @@ select:focus-visible {
 
 .settlement-hud__approval-panel {
   top: calc(100% + 10px);
-  left: -142px;
+  left: -192px;
   right: auto;
 }
 
@@ -2009,8 +2009,8 @@ select:focus-visible {
 
 @media (max-width: 1080px) {
   .settlement-hud {
-    grid-template-columns: 132px 52px 40px minmax(0, 1fr) 44px;
-    width: min(652px, calc(100vw - 70px));
+    grid-template-columns: 182px 76px 40px minmax(0, 1fr) 44px;
+    width: min(726px, calc(100vw - 70px));
   }
 
   .settlement-hud__body {
@@ -2018,7 +2018,7 @@ select:focus-visible {
   }
 
   .settlement-hud__approval-panel {
-    left: -132px;
+    left: -182px;
   }
 
   .settlement-hud__body > .settlement-hud__stat:nth-child(n + 7) {
@@ -2037,7 +2037,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 108px 46px 38px minmax(0, 1fr) 42px;
+    grid-template-columns: 174px 74px 38px minmax(0, 1fr) 42px;
     width: calc(100vw - 14px);
     min-height: 48px;
   }
@@ -2168,7 +2168,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 98px 44px 34px minmax(0, 1fr) 40px;
+    grid-template-columns: 166px 72px 34px minmax(0, 1fr) 40px;
   }
 
   .settlement-hud__body {

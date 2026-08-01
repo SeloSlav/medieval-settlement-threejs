@@ -12,7 +12,6 @@ import {
   normalize,
   pow,
   positionWorld,
-  sin,
   smoothstep,
   sub,
   texture,
@@ -32,6 +31,7 @@ import type { TerrainBlendTextureSet } from '../roads/RoadTextureLoader.ts';
 type TslNode = {
   add(value: TslNode): TslNode;
   div(value: TslNode): TslNode;
+  level(value: TslNode): TslNode;
   mul(value: TslNode): TslNode;
   sub(value: TslNode): TslNode;
   r: TslNode;
@@ -157,67 +157,104 @@ function buildGrassBlendNodes(
   ) as TslNode;
   const closeMaterialDetail = zoomDetailGate.mul(footprintDetailGate) as TslNode;
   const world = positionWorld as TslNode;
-  // Domain-warped oblique waves form broad ecological masses without another
-  // texture read or the obvious dots/checker cells produced by hash noise.
-  // Existing biome weights stay authoritative; this makes their lowland,
-  // meadow and dry-shoulder hierarchy legible from overview distance.
-  const macroWarp = sin(
-    world.x
-      .mul(float(0.0062) as TslNode)
-      .add(world.z.mul(float(-0.0086) as TslNode))
-      .add(float(1.73) as TslNode) as TslNode,
+  // Low-frequency samples of the authored grass maps form irregular coverage
+  // splotches. Their different rotations, scales and offsets prevent any one
+  // direction or repetition interval from spanning the whole strategic map.
+  // Reusing existing albedo bindings adds no new sampler resources.
+  const meadowPatchUv = meadowUv
+    .mul(float(0.024) as TslNode)
+    .add(vec2(0.17, 0.63) as TslNode) as TslNode;
+  const densePatchUv = denseUv
+    .mul(float(0.019) as TslNode)
+    .add(vec2(0.74, 0.29) as TslNode) as TslNode;
+  const dryPatchUv = dryUv
+    .mul(float(0.029) as TslNode)
+    .add(vec2(0.41, 0.86) as TslNode) as TslNode;
+  const meadowPatchColor = (texture(
+    textures.meadow.albedo,
+    meadowPatchUv,
+  ) as TslNode).level(float(2) as TslNode) as TslNode;
+  const densePatchColor = (texture(
+    textures.dense.albedo,
+    densePatchUv,
+  ) as TslNode).level(float(2) as TslNode) as TslNode;
+  const dryPatchColor = (texture(
+    textures.dry.albedo,
+    packedDrySnowUv(dryPatchUv, false),
+  ) as TslNode).level(float(2) as TslNode) as TslNode;
+  const meadowPatch = smoothstep(
+    float(0.035) as TslNode,
+    float(0.17) as TslNode,
+    meadowPatchColor.r
+      .mul(float(0.299) as TslNode)
+      .add(meadowPatchColor.g.mul(float(0.587) as TslNode))
+      .add(meadowPatchColor.b.mul(float(0.114) as TslNode)) as TslNode,
   ) as TslNode;
-  const macroA = (sin(
-    world.x
-      .mul(float(0.0152) as TslNode)
-      .add(world.z.mul(float(0.0098) as TslNode))
-      .add(macroWarp.mul(float(1.12) as TslNode)) as TslNode,
-  ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
-  const macroB = (sin(
-    world.x
-      .mul(float(-0.036) as TslNode)
-      .add(world.z.mul(float(0.026) as TslNode))
-      .add(macroWarp.mul(float(-1.67) as TslNode))
-      .add(float(2.41) as TslNode) as TslNode,
-  ) as TslNode).mul(float(0.5) as TslNode).add(float(0.5) as TslNode);
+  const densePatch = smoothstep(
+    float(0.016) as TslNode,
+    float(0.105) as TslNode,
+    densePatchColor.r
+      .mul(float(0.299) as TslNode)
+      .add(densePatchColor.g.mul(float(0.587) as TslNode))
+      .add(densePatchColor.b.mul(float(0.114) as TslNode)) as TslNode,
+  ) as TslNode;
+  const dryPatch = smoothstep(
+    float(0.055) as TslNode,
+    float(0.28) as TslNode,
+    dryPatchColor.r
+      .mul(float(0.299) as TslNode)
+      .add(dryPatchColor.g.mul(float(0.587) as TslNode))
+      .add(dryPatchColor.b.mul(float(0.114) as TslNode)) as TslNode,
+  ) as TslNode;
+  const macroA = meadowPatch
+    .mul(float(0.58) as TslNode)
+    .add((sub(float(1) as TslNode, densePatch) as TslNode).mul(float(0.27) as TslNode))
+    .add(dryPatch.mul(float(0.15) as TslNode)) as TslNode;
+  const macroB = dryPatch
+    .mul(float(0.58) as TslNode)
+    .add(densePatch.mul(float(0.27) as TslNode))
+    .add((sub(float(1) as TslNode, meadowPatch) as TslNode).mul(float(0.15) as TslNode)) as TslNode;
   const macro = macroA.mul(float(0.68) as TslNode).add(macroB.mul(float(0.32) as TslNode));
 
   // Strategic zoom uses three broad, overlapping coverages instead of the
   // near-camera vertex mix alone. A small baseline keeps each texture present;
-  // the two warped fields then gather light meadow, pale dry grass and dense
-  // green into soft-edged runs with substantial overlap between them.
+  // the three independent fields then gather light meadow, pale dry grass and
+  // dense green into soft-edged islands with substantial overlap between them.
   const lightOverlap = smoothstep(
-    float(0.18) as TslNode,
-    float(0.86) as TslNode,
-    macroA
+    float(0.22) as TslNode,
+    float(0.78) as TslNode,
+    meadowPatch
       .mul(float(0.72) as TslNode)
-      .add(macroB.mul(float(0.28) as TslNode)) as TslNode,
+      .add((sub(float(1) as TslNode, densePatch) as TslNode).mul(float(0.18) as TslNode))
+      .add((sub(float(1) as TslNode, dryPatch) as TslNode).mul(float(0.1) as TslNode)) as TslNode,
   ) as TslNode;
   const darkOverlap = smoothstep(
-    float(0.28) as TslNode,
+    float(0.22) as TslNode,
     float(0.78) as TslNode,
-    (sub(float(1) as TslNode, macroA) as TslNode)
-      .mul(float(0.8) as TslNode)
-      .add((sub(float(1) as TslNode, macroB) as TslNode).mul(float(0.2) as TslNode)) as TslNode,
+    densePatch
+      .mul(float(0.72) as TslNode)
+      .add((sub(float(1) as TslNode, meadowPatch) as TslNode).mul(float(0.18) as TslNode))
+      .add(dryPatch.mul(float(0.1) as TslNode)) as TslNode,
   ) as TslNode;
   const dryOverlap = smoothstep(
-    float(0.32) as TslNode,
-    float(0.82) as TslNode,
-    macroB
-      .mul(float(0.76) as TslNode)
-      .add(macroA.mul(float(0.24) as TslNode)) as TslNode,
+    float(0.22) as TslNode,
+    float(0.78) as TslNode,
+    dryPatch
+      .mul(float(0.72) as TslNode)
+      .add((sub(float(1) as TslNode, meadowPatch) as TslNode).mul(float(0.18) as TslNode))
+      .add((sub(float(1) as TslNode, densePatch) as TslNode).mul(float(0.1) as TslNode)) as TslNode,
   ) as TslNode;
   const overviewLightWeight = w.x
-    .mul(float(0.14) as TslNode)
-    .add(lightOverlap.mul(float(0.86) as TslNode))
-    .add(float(0.04) as TslNode) as TslNode;
+    .mul(float(0.25) as TslNode)
+    .add(lightOverlap.mul(float(0.68) as TslNode))
+    .add(float(0.08) as TslNode) as TslNode;
   const overviewDarkWeight = w.y
-    .mul(float(0.22) as TslNode)
-    .add(darkOverlap.mul(float(0.88) as TslNode))
+    .mul(float(0.18) as TslNode)
+    .add(darkOverlap.mul(float(0.62) as TslNode))
     .add(float(0.035) as TslNode) as TslNode;
   const overviewDryWeight = w.z
-    .mul(float(0.2) as TslNode)
-    .add(dryOverlap.mul(float(0.84) as TslNode))
+    .mul(float(0.15) as TslNode)
+    .add(dryOverlap.mul(float(0.58) as TslNode))
     .add(float(0.035) as TslNode) as TslNode;
   const overviewWeightSum = max(
     overviewLightWeight.add(overviewDarkWeight).add(overviewDryWeight),
@@ -231,8 +268,8 @@ function buildGrassBlendNodes(
   // a warm straw/beige dry layer. The authored albedos still supply the grain,
   // with a stable base preventing their distant mip averages from flattening.
   const overviewLightColor = vec3(0.15, 0.22, 0.05) as TslNode;
-  const overviewDarkColor = vec3(0.018, 0.035, 0.009) as TslNode;
-  const overviewDryColor = vec3(0.34, 0.275, 0.09) as TslNode;
+  const overviewDarkColor = vec3(0.024, 0.045, 0.012) as TslNode;
+  const overviewDryColor = vec3(0.26, 0.225, 0.085) as TslNode;
   const overviewBaseColor = overviewLightColor
     .mul(overviewLight)
     .add(overviewDarkColor.mul(overviewDark))
