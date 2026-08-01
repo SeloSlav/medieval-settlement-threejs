@@ -250,9 +250,15 @@ export function createRiverWaterMesh(
       const bed = terrain.getHeightAt(wx, wz);
       sim.terrain[i] = bed;
       if (wetMask[i]) {
+        const surfaceOverride = riverField.layout.getWaterSurfaceOverride(wx, wz);
         const shore = 1 - Math.min(1, Math.max(0, organicSigned[i]) / 6);
         const centerDepth = 1 - shore;
-        const depth = RIVER_WATER_DEPTH + shore * RIVER_SHORE_DEPTH_LIFT + centerDepth * RIVER_CENTER_DEPTH_BOOST;
+        const riverDepth = RIVER_WATER_DEPTH
+          + shore * RIVER_SHORE_DEPTH_LIFT
+          + centerDepth * RIVER_CENTER_DEPTH_BOOST;
+        const depth = surfaceOverride === null
+          ? riverDepth
+          : Math.max(0.15, surfaceOverride - bed);
         baseDepth[i] = depth;
         sim.depth[i] = depth;
       } else {

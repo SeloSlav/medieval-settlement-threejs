@@ -8,7 +8,7 @@ import { createHeightfieldNormals } from './terrainNormals.ts';
 const DATABASE_NAME = 'medieval-road-system-generated-world';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'terrain-startup';
-const CACHE_FORMAT_VERSION = 'terrain-startup-v2-smooth-heightfield-normals';
+const CACHE_FORMAT_VERSION = 'terrain-startup-v3-regional-terrain-presets';
 
 export type TerrainStartupData = {
   terrain: TerrainGeometryData;
@@ -48,6 +48,7 @@ export function terrainStartupCacheKey(request: TerrainStartupRequest): string {
   return [
     CACHE_FORMAT_VERSION,
     settings.seed >>> 0,
+    settings.terrainPreset,
     settings.mapSize,
     settings.topography,
     settings.hydrology,

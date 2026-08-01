@@ -10,6 +10,8 @@ export function getStillWaterSurfaceY(terrain: Terrain, riverField: RiverField, 
   if (!riverField.isRenderedWetAt(x, z)) {
     return terrain.getHeightAt(x, z);
   }
+  const surfaceOverride = riverField.layout.getWaterSurfaceOverride(x, z);
+  if (surfaceOverride !== null) return surfaceOverride;
   const bed = terrain.getHeightAt(x, z);
   const organic = riverField.sampleOrganicSignedDistance(x, z);
   const shore = 1 - Math.min(1, Math.max(0, organic) / 6);

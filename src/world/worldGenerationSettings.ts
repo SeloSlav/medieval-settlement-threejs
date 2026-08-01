@@ -1,3 +1,5 @@
+import { terrainPresetFromSeed, type WorldTerrainPreset } from './worldTerrainPresets.ts';
+
 export const DEFAULT_WORLD_SEED = 0x71a2e0d;
 
 export type WorldMapSize = 'small' | 'medium' | 'large';
@@ -5,6 +7,8 @@ export type WorldConflictMode = 'peaceful' | 'frontier';
 
 export type WorldGenerationSettings = {
   seed: number;
+  /** Authored terrain recipe encoded into the persisted world seed. */
+  terrainPreset: WorldTerrainPreset;
   mapSize: WorldMapSize;
   /** 0 = gentle rolling hills, 100 = rugged highlands */
   topography: number;
@@ -36,6 +40,7 @@ export const MAP_SIZE_PRESETS: Record<WorldMapSize, WorldDimensions & { label: s
 
 export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
   seed: DEFAULT_WORLD_SEED,
+  terrainPreset: terrainPresetFromSeed(DEFAULT_WORLD_SEED),
   mapSize: 'medium',
   topography: 50,
   hydrology: 50,
@@ -130,6 +135,7 @@ export function normalizeWorldGenerationSettings(
   const conflictMode = partial.conflictMode === 'frontier' ? 'frontier' : 'peaceful';
   return {
     seed,
+    terrainPreset: terrainPresetFromSeed(seed),
     mapSize,
     topography: clampPercent(partial.topography ?? DEFAULT_WORLD_GENERATION_SETTINGS.topography),
     hydrology: clampPercent(partial.hydrology ?? DEFAULT_WORLD_GENERATION_SETTINGS.hydrology),

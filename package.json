@@ -93,6 +93,7 @@
     "test:fire-safety-planning": "npx tsx scripts/testFireSafetyPlanning.mts",
     "test:fire-recovery-planning": "npx tsx scripts/testSettlementFireRecovery.mts",
     "test:world-config": "npx tsx scripts/testWorldConfigAuthority.mts",
+    "test:world-terrain-presets": "npx tsx scripts/testWorldTerrainPresets.mts",
     "test:regional-resources": "npx tsx scripts/testRegionalResourceDistribution.mts",
     "test:startup-chunking": "node --experimental-strip-types scripts/testStartupChunking.mts",
     "test:visual-performance-hooks": "node --experimental-strip-types scripts/testVisualPerformanceHooks.mts",

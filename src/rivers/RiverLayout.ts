@@ -1,4 +1,5 @@
 import type { TerrainBounds } from '../terrain/Terrain.ts';
+import type { WorldTerrainPreset } from '../world/worldTerrainPresets.ts';
 import { hashF64 } from './riverHash.ts';
 
 export type RiverPoint = {
@@ -19,12 +20,14 @@ export type RiverLayoutOptions = {
   riverCount?: number;
   tributaryCount?: number;
   drain?: { x: number; z: number };
+  terrainPreset?: WorldTerrainPreset;
 };
 
 export type SerializedRiverLayout = {
   bounds: TerrainBounds;
   seed: number;
   drain: { x: number; z: number };
+  terrainPreset?: WorldTerrainPreset;
   corridors: RiverCorridor[];
 };
 
@@ -41,6 +44,7 @@ export class RiverLayout {
   readonly corridors: RiverCorridor[];
   readonly drain: { x: number; z: number };
   readonly seed: number;
+  readonly terrainPreset: WorldTerrainPreset;
   private readonly bounds: TerrainBounds;
   private readonly segmentCells: Map<string, IndexedRiverSegment[]>;
 
@@ -49,11 +53,13 @@ export class RiverLayout {
     seed: number,
     drain: { x: number; z: number },
     corridors: RiverCorridor[],
+    terrainPreset: WorldTerrainPreset = 'custom',
   ) {
     this.bounds = bounds;
     this.seed = seed;
     this.drain = drain;
     this.corridors = corridors;
+    this.terrainPreset = terrainPreset;
     this.segmentCells = buildRiverSegmentCells(corridors);
   }
 
@@ -63,6 +69,27 @@ export class RiverLayout {
     const riverCount = options.riverCount ?? 4;
     const tributaryCount = options.tributaryCount ?? 1;
     const drain = options.drain ?? { x: 0, z: -88 };
+    const terrainPreset = options.terrainPreset ?? 'custom';
+
+    if (terrainPreset === 'kupa_valley') {
+      const corridor = buildKupaCorridor(bounds, seed);
+      const mouth = corridor.points[corridor.points.length - 1];
+      return new RiverLayout(
+        bounds,
+        seed,
+        mouth ? { x: mouth.x, z: mouth.z } : drain,
+        [corridor],
+        terrainPreset,
+      );
+    }
+
+    if (terrainPreset === 'vinodol_coast') {
+      const coastalDrain = {
+        x: coastalShoreX(bounds, seed, (bounds.minZ + bounds.maxZ) * 0.5),
+        z: (bounds.minZ + bounds.maxZ) * 0.5,
+      };
+      return new RiverLayout(bounds, seed, coastalDrain, [], terrainPreset);
+    }
 
     const corridors: RiverCorridor[] = [];
     for (let i = 0; i < riverCount; i++) {
@@ -89,11 +116,17 @@ export class RiverLayout {
       }
     }
 
-    return new RiverLayout(bounds, seed, drain, corridors);
+    return new RiverLayout(bounds, seed, drain, corridors, terrainPreset);
   }
 
   static fromSerialized(data: SerializedRiverLayout): RiverLayout {
-    return new RiverLayout(data.bounds, data.seed, data.drain, data.corridors);
+    return new RiverLayout(
+      data.bounds,
+      data.seed,
+      data.drain,
+      data.corridors,
+      data.terrainPreset ?? 'custom',
+    );
   }
 
   serialize(): SerializedRiverLayout {
@@ -101,12 +134,15 @@ export class RiverLayout {
       bounds: this.bounds,
       seed: this.seed,
       drain: this.drain,
+      terrainPreset: this.terrainPreset,
       corridors: this.corridors,
     };
   }
 
   getValleyDepression(x: number, z: number): number {
-    const lake = sampleConfluenceLake(x, z, this.drain, this.seed);
+    const lake = this.terrainPreset === 'kupa_valley' || this.terrainPreset === 'vinodol_coast'
+      ? { mask: 0, depth: 0 }
+      : sampleConfluenceLake(x, z, this.drain, this.seed);
     const hit = this.sampleCorridor(x, z);
     const corridorDepth = hit
       ? (1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.95, hit.distance)) *
@@ -117,12 +153,27 @@ export class RiverLayout {
   }
 
   sampleRiverMask(x: number, z: number): number {
-    const lake = sampleConfluenceLake(x, z, this.drain, this.seed);
+    const lake = this.terrainPreset === 'kupa_valley' || this.terrainPreset === 'vinodol_coast'
+      ? { mask: 0, depth: 0 }
+      : sampleConfluenceLake(x, z, this.drain, this.seed);
     const hit = this.sampleCorridor(x, z);
     const corridorMask = hit
       ? 1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.72, hit.distance)
       : 0;
-    return Math.max(lake.mask, corridorMask);
+    const coastMask = this.terrainPreset === 'vinodol_coast'
+      ? sampleCoastalSea(x, z, this.bounds, this.seed)
+      : 0;
+    return Math.max(lake.mask, corridorMask, coastMask);
+  }
+
+  getCoastalShoreX(z: number): number | null {
+    return this.terrainPreset === 'vinodol_coast'
+      ? coastalShoreX(this.bounds, this.seed, z)
+      : null;
+  }
+
+  getWaterSurfaceOverride(_x: number, _z: number): number | null {
+    return this.terrainPreset === 'vinodol_coast' ? -4.4 : null;
   }
 
   isWaterAt(x: number, z: number): boolean {
@@ -206,6 +257,54 @@ export class RiverLayout {
       Math.floor(z / SEGMENT_CELL_SIZE),
     )) ?? [];
   }
+}
+
+function buildKupaCorridor(bounds: TerrainBounds, seed: number): RiverCorridor {
+  const spanX = bounds.maxX - bounds.minX;
+  const spanZ = bounds.maxZ - bounds.minZ;
+  const centerX = (bounds.minX + bounds.maxX) * 0.5 - spanX * 0.09;
+  const pointCount = Math.max(2, Math.ceil(spanZ / 2.6) + 1);
+  const phase = hashF64(seed ^ 0x6b75, 1, 7) * TAU;
+  const points: RiverPoint[] = [];
+
+  for (let index = 0; index < pointCount; index++) {
+    const progress = index / (pointCount - 1);
+    const z = lerp(bounds.maxZ, bounds.minZ, progress);
+    const broadMeander = Math.sin(progress * TAU * 1.28 + phase) * spanX * 0.014;
+    const localMeander = Math.sin(progress * TAU * 4.1 - phase * 0.7) * spanX * 0.0045;
+    const widthNoise = hashF64(seed ^ 0x4b50, Math.floor(progress * 24), 3);
+    points.push({
+      x: centerX + broadMeander + localMeander,
+      z,
+      progress,
+      halfWidth: 25 + widthNoise * 10,
+      channelDepth: 2.15 + widthNoise * 0.7,
+    });
+  }
+  return { points };
+}
+
+function coastalShoreX(bounds: TerrainBounds, seed: number, z: number): number {
+  const spanX = bounds.maxX - bounds.minX;
+  const spanZ = bounds.maxZ - bounds.minZ;
+  const normalizedZ = (z - bounds.minZ) / Math.max(1, spanZ);
+  const phase = hashF64(seed ^ 0x560d, 4, 9) * TAU;
+  const broad = Math.sin(normalizedZ * TAU * 1.35 + phase) * spanX * 0.018;
+  const coves = Math.sin(normalizedZ * TAU * 3.7 - phase * 0.55) * spanX * 0.007;
+  // The rendered terrain includes a non-playable perimeter. At 27.2% of the
+  // full heightfield, the shoreline leaves about one fifth of the playable map
+  // under the Adriatic across every supported map size.
+  return bounds.minX + spanX * 0.272 + broad + coves;
+}
+
+function sampleCoastalSea(
+  x: number,
+  z: number,
+  bounds: TerrainBounds,
+  seed: number,
+): number {
+  const shoreX = coastalShoreX(bounds, seed, z);
+  return 1 - smoothstep(shoreX - 5, shoreX + 2.5, x);
 }
 
 function buildRiverSegmentCells(

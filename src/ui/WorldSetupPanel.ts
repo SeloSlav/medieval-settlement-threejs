@@ -9,6 +9,12 @@ import {
   type WorldMapSize,
 } from '../world/worldGenerationSettings.ts';
 import {
+  applyTerrainPreset,
+  seedForTerrainPreset,
+  WORLD_TERRAIN_PRESETS,
+  type WorldTerrainPreset,
+} from '../world/worldTerrainPresets.ts';
+import {
   createRegionalDepositSurvey,
   createRegionalResourcePlan,
   describeResourceAbundance,
@@ -19,7 +25,10 @@ import {
 export class WorldSetupPanel {
   private readonly backdrop: HTMLElement;
   private readonly resolve: (settings: WorldGenerationSettings) => void;
-  private draft: WorldGenerationSettings = { ...DEFAULT_WORLD_GENERATION_SETTINGS };
+  private draft: WorldGenerationSettings = applyTerrainPreset(
+    { ...DEFAULT_WORLD_GENERATION_SETTINGS },
+    'kupa_valley',
+  );
 
   private constructor(parent: HTMLElement, resolve: (settings: WorldGenerationSettings) => void) {
     this.resolve = resolve;
@@ -41,6 +50,15 @@ export class WorldSetupPanel {
             <section class="world-setup-section" aria-label="Map size">
             <h2 class="world-setup-section__title">Map size</h2>
             <div class="world-setup-size-grid" data-size-grid></div>
+            </section>
+
+            <section class="world-setup-section world-setup-landscape" aria-label="Landscape">
+              <div class="world-setup-section-heading">
+                <h2 class="world-setup-section__title">Landscape</h2>
+                <span>Seeded regional profiles</span>
+              </div>
+              <div class="world-setup-landscape-grid" data-landscape-grid></div>
+              <p class="world-setup-landscape-note" data-landscape-note></p>
             </section>
 
             <section class="world-setup-section" aria-label="Settlement mode">
@@ -65,7 +83,8 @@ export class WorldSetupPanel {
             </div>
             </section>
 
-            <section class="world-setup-section" aria-label="Topography">
+            <div class="world-setup-custom-landscape" data-custom-landscape-controls hidden>
+            <section class="world-setup-section" aria-label="Custom topography">
             <label class="world-setup-slider-label" for="world-setup-topography">
               <span>Topography</span>
               <strong data-topography-value>${this.draft.topography}</strong>
@@ -74,7 +93,7 @@ export class WorldSetupPanel {
             <p class="world-setup-slider-hint">Low = gentle rolling hills. High = rugged ridges and steep valleys.</p>
             </section>
 
-            <section class="world-setup-section" aria-label="Hydrology">
+            <section class="world-setup-section" aria-label="Custom hydrology">
             <label class="world-setup-slider-label" for="world-setup-hydrology">
               <span>Hydrology</span>
               <strong data-hydrology-value>${this.draft.hydrology}</strong>
@@ -83,7 +102,7 @@ export class WorldSetupPanel {
             <p class="world-setup-slider-hint">Low = drier land with fewer rivers. High = wetter valleys and more waterways.</p>
             </section>
 
-            <section class="world-setup-section" aria-label="Forest density">
+            <section class="world-setup-section" aria-label="Custom forest density">
             <label class="world-setup-slider-label" for="world-setup-forest">
               <span>Forest density</span>
               <strong data-forest-value>${this.draft.forestDensity}</strong>
@@ -91,6 +110,7 @@ export class WorldSetupPanel {
             <input id="world-setup-forest" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.forestDensity}" />
             <p class="world-setup-slider-hint">Low = open meadows and scattered woodland. High = dense conifer cover.</p>
             </section>
+            </div>
 
             <section class="world-setup-section world-setup-resources" aria-label="Regional resources">
             <h2 class="world-setup-section__title">Regional resources</h2>
@@ -127,6 +147,7 @@ export class WorldSetupPanel {
     `;
 
     parent.appendChild(this.backdrop);
+    this.renderTerrainPresetOptions();
     this.renderSizeOptions();
     this.bindEvents();
   }
@@ -155,6 +176,39 @@ export class WorldSetupPanel {
     const pressureControls = this.backdrop.querySelector<HTMLElement>('[data-pressure-controls]')!;
     const pressureSlider = this.backdrop.querySelector<HTMLInputElement>('#world-setup-pressure')!;
     const pressureValue = this.backdrop.querySelector<HTMLElement>('[data-pressure-value]')!;
+    const landscapeGrid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
+    const landscapeNote = this.backdrop.querySelector<HTMLElement>('[data-landscape-note]')!;
+    const customLandscapeControls = this.backdrop.querySelector<HTMLElement>('[data-custom-landscape-controls]')!;
+
+    const syncLandscapeControls = (): void => {
+      topographySlider.value = String(this.draft.topography);
+      hydrologySlider.value = String(this.draft.hydrology);
+      forestSlider.value = String(this.draft.forestDensity);
+      topographyValue.textContent = topographySlider.value;
+      hydrologyValue.textContent = hydrologySlider.value;
+      forestValue.textContent = forestSlider.value;
+      seedInput.value = formatSeedHex(this.draft.seed);
+      customLandscapeControls.hidden = this.draft.terrainPreset !== 'custom';
+      const selected = WORLD_TERRAIN_PRESETS.find((preset) => preset.id === this.draft.terrainPreset)!;
+      landscapeNote.textContent = this.draft.terrainPreset === 'custom'
+        ? 'Custom map seeds vary the procedural terrain produced by your controls.'
+        : `${selected.name} seeds keep this landform and vary its bends, ridges, forests, and resources.`;
+      for (const option of landscapeGrid.querySelectorAll<HTMLButtonElement>('[data-terrain-preset]')) {
+        const isSelected = option.dataset.terrainPreset === this.draft.terrainPreset;
+        option.classList.toggle('is-selected', isSelected);
+        option.setAttribute('aria-pressed', String(isSelected));
+      }
+    };
+
+    for (const button of landscapeGrid.querySelectorAll<HTMLButtonElement>('[data-terrain-preset]')) {
+      button.addEventListener('click', () => {
+        const preset = button.dataset.terrainPreset as WorldTerrainPreset;
+        this.draft = applyTerrainPreset(this.draft, preset);
+        syncLandscapeControls();
+        this.renderResourceSummary();
+      });
+    }
+    syncLandscapeControls();
 
     for (const button of modeGrid.querySelectorAll<HTMLButtonElement>('[data-conflict-mode]')) {
       button.addEventListener('click', () => {
@@ -202,7 +256,7 @@ export class WorldSetupPanel {
       this.renderResourceSummary();
     });
     randomizeButton.addEventListener('click', () => {
-      this.draft.seed = randomWorldSeed();
+      this.draft.seed = seedForTerrainPreset(randomWorldSeed(), this.draft.terrainPreset);
       seedInput.value = formatSeedHex(this.draft.seed);
       this.renderResourceSummary();
     });
@@ -212,8 +266,8 @@ export class WorldSetupPanel {
         seedInput.value = formatSeedHex(this.draft.seed);
         return;
       }
-      this.draft.seed = parsed;
-      seedInput.value = formatSeedHex(parsed);
+      this.draft.seed = seedForTerrainPreset(parsed, this.draft.terrainPreset);
+      seedInput.value = formatSeedHex(this.draft.seed);
       this.renderResourceSummary();
     });
 
@@ -221,12 +275,37 @@ export class WorldSetupPanel {
       event.preventDefault();
       const parsed = parseSeedHex(seedInput.value);
       if (parsed !== null) {
-        this.draft.seed = parsed;
+        this.draft.seed = seedForTerrainPreset(parsed, this.draft.terrainPreset);
       }
       const settings = normalizeWorldGenerationSettings(this.draft);
       this.backdrop.remove();
       this.resolve(settings);
     });
+  }
+
+  private renderTerrainPresetOptions(): void {
+    const grid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
+    grid.innerHTML = WORLD_TERRAIN_PRESETS.map((preset) => {
+      const selected = preset.id === this.draft.terrainPreset ? ' is-selected' : '';
+      const features = preset.features
+        .map((feature) => `<span>${feature}</span>`)
+        .join('');
+      return `
+        <button
+          type="button"
+          class="world-setup-landscape-option${selected}"
+          data-terrain-preset="${preset.id}"
+          aria-pressed="${preset.id === this.draft.terrainPreset}"
+        >
+          <span class="world-setup-landscape-option__heading">
+            <strong>${preset.name}</strong>
+            <small>${preset.region}</small>
+          </span>
+          <span class="world-setup-landscape-option__description">${preset.description}</span>
+          <span class="world-setup-landscape-option__features">${features}</span>
+        </button>
+      `;
+    }).join('');
   }
 
   private renderSizeOptions(): void {

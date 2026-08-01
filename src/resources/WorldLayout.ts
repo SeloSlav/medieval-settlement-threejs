@@ -52,9 +52,14 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
   const riverLayout = RiverLayout.create({
     bounds: riverBounds,
     seed: riverSeed,
-    riverCount: hydrologyRiverCount(normalizedSettings.hydrology),
-    tributaryCount: hydrologyTributaryCount(normalizedSettings.hydrology),
+    riverCount: normalizedSettings.terrainPreset === 'risnjak_pass'
+      ? 3
+      : hydrologyRiverCount(normalizedSettings.hydrology),
+    tributaryCount: normalizedSettings.terrainPreset === 'risnjak_pass'
+      ? 2
+      : hydrologyTributaryCount(normalizedSettings.hydrology),
     drain: scaledRiverDrain(dims.playableHalf),
+    terrainPreset: normalizedSettings.terrainPreset,
   });
   const quarryLayout = QuarryLayout.create({
     bounds: riverBounds,

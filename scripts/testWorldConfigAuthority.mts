@@ -106,6 +106,7 @@ assert.deepEqual(
     kind: 'adopt-server',
     settings: {
       seed: generation.seed,
+      terrainPreset: generation.terrainPreset,
       mapSize: generation.mapSize,
       topography: generation.topography,
       hydrology: generation.hydrology,
