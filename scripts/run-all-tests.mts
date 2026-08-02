@@ -108,6 +108,7 @@ const tests = [
   'test:first-person-collision',
   'test:client-sync',
   'test:placement-regressions',
+  'test:road-building-connections',
   'test:deer-wildlife',
   'test:livestock',
   'test:livestock-policy',

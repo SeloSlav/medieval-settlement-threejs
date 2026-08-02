@@ -14,7 +14,7 @@ import {
   type FireCoverageBand,
 } from '../fires/fireRiskPolicy.ts';
 import { FIRE_SPREAD_RADIUS } from '../generated/gameBalance.ts';
-import { getBuildingPadParams } from './BuildingTerrainLayout.ts';
+import { getBuildingFootprintHalfExtents } from './BuildingTerrainLayout.ts';
 import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
 
 const PREVIEW_COLORS = {
@@ -22,7 +22,6 @@ const PREVIEW_COLORS = {
   invalid: 0xff5d50,
 } as const;
 
-const FOOTPRINT_SCALE = 0.92;
 const FOOTPRINT_FILL_LIFT = 0.105;
 const FOOTPRINT_BORDER_LIFT = 0.145;
 const FOOTPRINT_BORDER_WIDTH = 0.34;
@@ -142,9 +141,7 @@ export function updateBuildingPreviewGeometry(
   yaw: number,
   getHeightAt: (x: number, z: number) => number,
 ): void {
-  const params = getBuildingPadParams(kind);
-  const halfWidth = params.radiusX * params.innerFade * FOOTPRINT_SCALE;
-  const halfDepth = params.radiusZ * params.innerFade * FOOTPRINT_SCALE;
+  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(kind);
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
   const worldPoint = (localX: number, localZ: number) => ({

@@ -1,18 +1,18 @@
 ﻿import * as THREE from 'three';
 import { RoadMaterialFactory } from './RoadMaterialFactory.ts';
 import { RoadMeshBuilder } from './RoadMeshBuilder.ts';
+import { ROAD_WIDTH } from './roadDimensions.ts';
 
 const MAX_ANCHOR_MARKERS = 16;
 
-function geometrySignature(sampledPath: THREE.Vector3[], width: number, snapPoint: THREE.Vector3 | null): string {
+function geometrySignature(sampledPath: THREE.Vector3[], width: number): string {
   let hash = sampledPath.length;
   for (let i = 0; i < sampledPath.length; i++) {
     const point = sampledPath[i];
     hash = (hash * 31 + Math.round(point.x * 10)) | 0;
     hash = (hash * 31 + Math.round(point.z * 10)) | 0;
   }
-  const snapPart = snapPoint ? `${snapPoint.x.toFixed(1)},${snapPoint.z.toFixed(1)}` : 'none';
-  return `${hash}|${width.toFixed(1)}|${snapPart}`;
+  return `${hash}|${width.toFixed(1)}`;
 }
 
 export class RoadPreview {
@@ -20,7 +20,8 @@ export class RoadPreview {
   private readonly materials: RoadMaterialFactory;
   readonly group = new THREE.Group();
   private previewCoreMesh: THREE.Mesh | null = null;
-  private readonly marker: THREE.Mesh;
+  private readonly cursor = new THREE.Group();
+  private readonly cursorRing: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   private readonly anchorMarkers: THREE.InstancedMesh;
   private readonly anchorMaterialValid: THREE.MeshBasicMaterial;
   private readonly anchorMaterialInvalid: THREE.MeshBasicMaterial;
@@ -34,13 +35,25 @@ export class RoadPreview {
     this.meshBuilder = meshBuilder;
     this.materials = materials;
     this.group.name = 'Road preview';
-    this.marker = new THREE.Mesh(new THREE.RingGeometry(2.0, 2.55, 24), materials.snap);
-    this.marker.name = 'Snap marker';
-    this.marker.rotation.x = -Math.PI / 2;
-    this.marker.visible = false;
-    this.marker.renderOrder = 30;
-    this.marker.castShadow = false;
-    this.marker.receiveShadow = false;
+    this.cursor.name = 'Road placement cursor';
+    this.cursor.rotation.x = -Math.PI / 2;
+    this.cursor.visible = false;
+    this.cursor.renderOrder = 32;
+    this.cursorRing = new THREE.Mesh(
+      new THREE.RingGeometry(ROAD_WIDTH * 0.5 - 0.22, ROAD_WIDTH * 0.5, 40),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.96,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    this.cursorRing.name = 'Road placement cursor outline';
+    this.cursorRing.renderOrder = 32;
+    this.cursorRing.castShadow = false;
+    this.cursorRing.receiveShadow = false;
+    this.cursor.add(this.cursorRing);
     this.anchorMaterialValid = new THREE.MeshBasicMaterial({ color: 0xb0a89e, depthWrite: false });
     this.anchorMaterialInvalid = new THREE.MeshBasicMaterial({ color: 0xcc4444, depthWrite: false });
     this.anchorMarkers = new THREE.InstancedMesh(
@@ -54,25 +67,23 @@ export class RoadPreview {
     this.anchorMarkers.renderOrder = 31;
     this.anchorMarkers.castShadow = false;
     this.anchorMarkers.receiveShadow = false;
-    this.group.add(this.marker, this.anchorMarkers);
+    this.group.add(this.cursor, this.anchorMarkers);
   }
 
   update(
     _points: THREE.Vector3[],
     valid: boolean,
     width: number,
-    snapPoint: THREE.Vector3 | null,
     anchorPoints: THREE.Vector3[],
     sampledPath?: THREE.Vector3[],
   ): void {
     if (!sampledPath || sampledPath.length < 2) {
       this.clearRibbon();
       this.updateAnchors(anchorPoints, valid);
-      this.updateSnapMarker(snapPoint);
       return;
     }
 
-    const signature = geometrySignature(sampledPath, width, snapPoint);
+    const signature = geometrySignature(sampledPath, width);
     const geometryChanged = signature !== this.lastGeometrySignature;
     const validityChanged = valid !== this.lastMeshValid;
 
@@ -94,12 +105,15 @@ export class RoadPreview {
       this.lastMeshValid = valid;
       this.updateAnchors(anchorPoints, valid);
     }
-
-    this.updateSnapMarker(snapPoint);
   }
 
-  updateSnapMarker(snapPoint: THREE.Vector3 | null): void {
-    this.updateSnapMarkerInternal(snapPoint);
+  updateCursor(point: THREE.Vector3 | null): void {
+    if (!point) {
+      this.cursor.visible = false;
+      return;
+    }
+    this.cursor.visible = true;
+    this.cursor.position.set(point.x, point.y + 0.24, point.z);
   }
 
   setValidity(valid: boolean): void {
@@ -114,7 +128,6 @@ export class RoadPreview {
 
   clear(): void {
     this.clearRibbon();
-    this.marker.visible = false;
     this.anchorMarkers.count = 0;
     this.anchorMarkers.instanceMatrix.needsUpdate = true;
     this.lastAnchorSignature = '';
@@ -123,11 +136,13 @@ export class RoadPreview {
 
   dispose(): void {
     this.clear();
+    this.updateCursor(null);
     if (this.previewCoreMesh) {
       this.previewCoreMesh.geometry.dispose();
       this.previewCoreMesh = null;
     }
-    this.marker.geometry.dispose();
+    this.cursorRing.geometry.dispose();
+    this.cursorRing.material.dispose();
     this.anchorMarkers.geometry.dispose();
     this.anchorMaterialValid.dispose();
     this.anchorMaterialInvalid.dispose();
@@ -145,15 +160,6 @@ export class RoadPreview {
       this.group.remove(this.previewCoreMesh);
       this.previewCoreMesh.geometry.dispose();
       this.previewCoreMesh = null;
-    }
-  }
-
-  private updateSnapMarkerInternal(snapPoint: THREE.Vector3 | null): void {
-    if (snapPoint) {
-      this.marker.visible = true;
-      this.marker.position.set(snapPoint.x, snapPoint.y + 0.22, snapPoint.z);
-    } else {
-      this.marker.visible = false;
     }
   }
 

@@ -83,8 +83,8 @@ const MAX_BUILDING_SITE_MARGIN_SCALE = Math.max(
 );
 
 const FOOTPRINT_SAMPLE_FRACTIONS = [0, 0.55, 0.82, 1] as const;
-/** Matches placement preview silhouette scale in BuildingPlacementPreview. */
-const FOOTPRINT_PREVIEW_SCALE = 0.92;
+/** Shared scale for the visible building footprint and its perimeter features. */
+export const BUILDING_FOOTPRINT_SCALE = 0.92;
 const RESIDENCE_PAD_PARAMS: BuildingPadParams = {
   radiusX: 4.3,
   radiusZ: 4.7,
@@ -151,6 +151,18 @@ export function getBuildingPadParams(kind: BuildingKind): BuildingPadParams {
   return PAD_PARAMS[kind];
 }
 
+/** Half-extents of the exact rectangular footprint shown during placement. */
+export function getBuildingFootprintHalfExtents(kind: BuildingKind): {
+  halfWidth: number;
+  halfDepth: number;
+} {
+  const params = PAD_PARAMS[kind];
+  return {
+    halfWidth: params.radiusX * params.innerFade * BUILDING_FOOTPRINT_SCALE,
+    halfDepth: params.radiusZ * params.innerFade * BUILDING_FOOTPRINT_SCALE,
+  };
+}
+
 /** Conservative center-query radius for any building pad with obstacle clearance. */
 export function getBuildingSiteClearanceSearchRadius(clearanceRadius = 0): number {
   return MAX_BUILDING_SITE_BASE_RADIUS
@@ -201,7 +213,7 @@ export function sampleBuildingFootprintPoints(
   const points: Array<{ x: number; z: number }> = [];
 
   for (const fraction of FOOTPRINT_SAMPLE_FRACTIONS) {
-    const sampleFraction = fraction === 1 ? FOOTPRINT_PREVIEW_SCALE : fraction;
+    const sampleFraction = fraction === 1 ? BUILDING_FOOTPRINT_SCALE : fraction;
     for (const sx of [-1, 0, 1] as const) {
       for (const sz of [-1, 0, 1] as const) {
         if (fraction === 0 && (sx !== 0 || sz !== 0)) continue;

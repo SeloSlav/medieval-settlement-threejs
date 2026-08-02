@@ -72,11 +72,8 @@ export function isWorldInspectionBlocked(gate: PlacementInteractionGate): boolea
 export function isWorldResourceIconVisibilityBlocked(
   gate: PlacementInteractionGate,
 ): boolean {
-  if (!gate.isStarterCampPlacementActive()) {
-    return isWorldInspectionBlocked(gate);
-  }
   return isSessionGameplayBlocked(gate)
-    || gate.isRoadToolEnabled()
+    || (gate.isBuildingToolEnabled() && !gate.isStarterCampPlacementActive())
     || gate.isBurgageToolEnabled()
     || gate.isFarmFieldToolEnabled()
     || gate.isFirstPersonActive()

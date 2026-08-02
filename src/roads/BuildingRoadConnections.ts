@@ -1,12 +1,10 @@
 import * as THREE from 'three';
 import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
-import { getBuildingPadParams } from '../buildings/BuildingTerrainLayout.ts';
+import { getBuildingFootprintHalfExtents } from '../buildings/BuildingTerrainLayout.ts';
 import type { BuildingState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { RoadNetwork } from './RoadNetwork.ts';
 
-const FOOTPRINT_SCALE = 0.92;
-const CONNECTION_MARGIN = 0.72;
 const MARKER_LIFT = 0.16;
 
 export type BuildingRoadConnection = {
@@ -21,23 +19,21 @@ export type BuildingRoadConnectionSource = Pick<BuildingState, 'id' | 'kind' | '
 
 /**
  * Returns four road anchors at the midpoint of each rotated building edge.
- * The points sit just outside the placement footprint so a terminating road
- * reaches the building without running through its yard.
+ * Each anchor sits directly on the exact footprint perimeter shown during
+ * building placement.
  */
 export function getBuildingRoadConnectionPoints(
   building: BuildingRoadConnectionSource,
   terrain: Pick<Terrain, 'getPointAt'>,
   roadNetwork?: RoadNetwork | null,
 ): BuildingRoadConnection[] {
-  const pad = getBuildingPadParams(building.kind);
   const yaw = building.yaw ?? buildingPlacementYaw(
       building.kind,
       building.x,
       building.z,
       roadNetwork,
     );
-  const halfWidth = pad.radiusX * pad.innerFade * FOOTPRINT_SCALE + CONNECTION_MARGIN;
-  const halfDepth = pad.radiusZ * pad.innerFade * FOOTPRINT_SCALE + CONNECTION_MARGIN;
+  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(building.kind);
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
   const localOffsets = [
@@ -68,14 +64,14 @@ export class BuildingRoadConnections {
   private readonly ringGeometry = new THREE.RingGeometry(0.78, 1.14, 20);
   private readonly postGeometry = new THREE.CylinderGeometry(0.18, 0.28, 0.56, 8);
   private readonly ringMaterial = new THREE.MeshBasicMaterial({
-    color: 0xf0c96c,
+    color: 0xffffff,
     transparent: true,
     opacity: 0.9,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
   private readonly postMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffe5a0,
+    color: 0xffffff,
     transparent: true,
     opacity: 0.94,
     depthWrite: false,
@@ -194,6 +190,8 @@ export class BuildingRoadConnections {
       this.postMaterial,
       this.capacity,
     );
+    this.ringMarkers.name = 'Building road connection rings';
+    this.postMarkers.name = 'Building road connection posts';
     for (const markers of [this.ringMarkers, this.postMarkers]) {
       markers.count = 0;
       markers.renderOrder = 29;
