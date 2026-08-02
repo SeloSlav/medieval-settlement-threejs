@@ -6,7 +6,7 @@ export type SeedThreeCrownUnderlayMode = 'off' | 'always' | 'distance';
  * - 'always': extra canopy at every zoom level
  * - 'distance': extra canopy only beyond the thresholds below
  */
-export const SEEDTHREE_CROWN_UNDERLAY_MODE: SeedThreeCrownUnderlayMode = 'distance';
+export const SEEDTHREE_CROWN_UNDERLAY_MODE: SeedThreeCrownUnderlayMode = 'always';
 
 /** Distance mode reveals strategic canopy fill after the camera has clearly zoomed out. */
 export const SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE = 128;

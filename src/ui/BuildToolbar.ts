@@ -62,6 +62,7 @@ export class BuildToolbar {
   private readonly waterOverlayButton: HTMLButtonElement;
   private readonly cityAdminButton: HTMLButtonElement;
   private readonly settingsButton: HTMLButtonElement;
+  private readonly tutorialsButton: HTMLButtonElement;
   private readonly starterCampButton: HTMLButtonElement;
   private readonly buildButton: HTMLButtonElement;
   private readonly basicBuildMenu: HTMLElement;
@@ -270,6 +271,11 @@ export class BuildToolbar {
     },
   ) {
     root.innerHTML = `
+      <button type="button" class="tutorial-launcher" data-action="tutorials" aria-label="Open tutorials">
+        <span class="tutorial-launcher__mark" aria-hidden="true">?</span>
+        <span>Tutorials</span>
+      </button>
+
       <div class="hud-right-stack">
 
         <aside class="road-controls-panel" data-road-controls-panel aria-label="Active tool controls" hidden>
@@ -460,6 +466,7 @@ export class BuildToolbar {
     this.waterOverlayButton = this.mustButton(root, '[data-action="water-overlay"]');
     this.cityAdminButton = this.mustButton(root, '[data-action="city-admin"]');
     this.settingsButton = this.mustButton(root, '[data-action="settings"]');
+    this.tutorialsButton = this.mustButton(root, '[data-action="tutorials"]');
     this.starterCampButton = this.mustButton(root, '[data-action="place-starter-camp"]');
     this.buildButton = this.mustButton(root, '[data-action="commit-build"]');
     this.basicBuildMenu = this.mustElement(root, '[data-build-menu="basic"]');
@@ -550,6 +557,10 @@ export class BuildToolbar {
     this.settingsButton.addEventListener('click', () => {
       this.closeAllBuildMenus();
       this.gameMenu?.toggle();
+    });
+    this.tutorialsButton.addEventListener('click', () => {
+      this.closeAllBuildMenus();
+      handlers.onReplayTutorials?.();
     });
     this.starterCampButton.addEventListener('click', handlers.onPlaceStarterCamp);
     this.bindBuildMenuClicks(this.basicBuildMenu, () => this.setBasicBuildMenuOpen(false));
@@ -786,12 +797,15 @@ export class BuildToolbar {
   }
 
   private syncPrimaryHudVisibility(): void {
+    this.tutorialsButton.hidden = this.firstPersonActive;
     this.starterCampButton.hidden = this.firstPersonActive || !this.starterCampRequired;
     this.constructionDock.hidden = this.firstPersonActive || this.starterCampRequired;
   }
 
   private syncBuilderControlsPanel(): void {
-    this.builderControlsPanel.hidden = this.firstPersonActive || !isBuilderHudMode(this.hudMode);
+    this.builderControlsPanel.hidden = this.firstPersonActive
+      || this.hudMode === 'founders_camp'
+      || !isBuilderHudMode(this.hudMode);
   }
 
   dispose(): void {

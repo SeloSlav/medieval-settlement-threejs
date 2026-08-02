@@ -33,7 +33,11 @@ import {
   type SeedThreeInstancedLodSet as InstancedLodSet,
   type SeedThreeTreeSlot as TreeSlot,
 } from './seedThreeForestCompaction.ts';
-import { stabilizeSeedThreeForestCardMaterial } from './seedThreeForestMaterial.ts';
+import {
+  applySeedThreeForestCardMotion,
+  resolveSeedThreeForestCardMotion,
+  stabilizeSeedThreeForestCardMaterial,
+} from './seedThreeForestMaterial.ts';
 import {
   SEEDTHREE_FOREST_WIND_SPEED,
   shouldShowSeedThreeCrownUnderlay,
@@ -182,6 +186,7 @@ function createInstancedLodSet(
     autumnColor?: readonly [number, number, number];
     toneVariation?: number;
     crownUnderlayMeshes?: THREE.InstancedMesh[];
+    overviewCards?: boolean;
   } = {},
 ): InstancedLodSet {
   const groupCount = slots.length;
@@ -241,8 +246,11 @@ function createInstancedLodSet(
           geo.setAttribute(name, new THREE.InstancedBufferAttribute(arr, instancedAttr.itemSize));
         }
 
-        const fmat = stabilizeSeedThreeForestCardMaterial(
-          (instanced.userData.shareMaterial
+        const crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
+        const sourceMaterial = instanced.material as THREE.Material;
+        const fmat = applySeedThreeForestCardMotion(
+          stabilizeSeedThreeForestCardMaterial(
+            (instanced.userData.shareMaterial
             ? instanced.material
             : forestCardMaterial(instanced.material as THREE.Material, {
                 seasonalDeciduous: options.seasonalDeciduous,
@@ -250,6 +258,12 @@ function createInstancedLodSet(
                 autumnColor: options.autumnColor,
                 toneVariation: options.toneVariation,
               })) as THREE.Material,
+          ),
+          resolveSeedThreeForestCardMotion(
+            options.overviewCards === true,
+            crownUnderlay,
+          ),
+          sourceMaterial,
         );
         if (options.seasonalDeciduous) {
           options.seasonalCardMaterials?.add(fmat as THREE.Material);
@@ -264,7 +278,7 @@ function createInstancedLodSet(
         im.userData.neverCastShadow = !castShadow;
         im.userData.src = instanced;
         im.userData.k = cardsPerTree;
-        im.userData.crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
+        im.userData.crownUnderlay = crownUnderlay;
         if (im.userData.crownUnderlay) options.crownUnderlayMeshes?.push(im);
 
         const snap = new Float32Array(cardsPerTree * 16);
@@ -325,6 +339,7 @@ function createSpeciesBucket(
       autumnColor,
       toneVariation: overviewTone.variation,
       crownUnderlayMeshes,
+      overviewCards: true,
     },
   );
   const nearSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [] : [index]);
@@ -942,15 +957,9 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
     showTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, true),
     commit: () => commitSeedThreeForestMatrices(forest),
-    // Runtime LODs remain fully resident: camera-driven compaction caused pop-in
-    // and repeated buffer work while panning. Only the strategic crown underlay
-    // toggles as a draw-level visibility change; tree matrices remain untouched.
-    updateCamera: (_camera, cameraDistance, firstPersonActive) =>
-      updateSeedThreeCrownUnderlayVisibility(
-        forest,
-        cameraDistance,
-        firstPersonActive,
-      ),
+    // Runtime LODs and crown underlays remain fully resident. Camera-driven
+    // visibility changes caused pop-in and temporal instability while panning.
+    updateCamera: () => false,
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
     setDeciduousFoliage: (presentation) =>
       setSeedThreeForestDeciduousFoliage(forest, presentation),

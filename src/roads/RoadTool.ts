@@ -10,6 +10,10 @@ import {
   type RoadPlacementResult,
 } from './RoadPlacementValidation.ts';
 import { downsamplePath } from '../utils/pathGeometry.ts';
+import {
+  BuildingRoadConnections,
+  type BuildingRoadConnectionSource,
+} from './BuildingRoadConnections.ts';
 
 const ROAD_WIDTH = 4.2;
 const MIN_POINT_DISTANCE = 1.05;
@@ -48,6 +52,7 @@ export class RoadTool {
     onPlacementRejected?: (event: RoadPlacementRejectedEvent) => void;
     onToggle?: () => void;
     isBlocked: () => boolean;
+    getBuildings: () => Iterable<BuildingRoadConnectionSource>;
   };
   private enabled = false;
   private points: THREE.Vector3[] = [];
@@ -58,6 +63,7 @@ export class RoadTool {
   private undoStack: RoadNetworkSnapshot[] = [];
   private redoStack: RoadNetworkSnapshot[] = [];
   private readonly preview: RoadPreview;
+  private readonly buildingConnections: BuildingRoadConnections;
   private lastHoverPreviewX = Number.NaN;
   private lastHoverPreviewZ = Number.NaN;
   private cachedDraftValidation: RoadPlacementResult | null = null;
@@ -87,10 +93,17 @@ export class RoadTool {
     onPlacementRejected?: (event: RoadPlacementRejectedEvent) => void;
     onToggle?: () => void;
     isBlocked: () => boolean;
+    getBuildings: () => Iterable<BuildingRoadConnectionSource>;
   }) {
     this.options = options;
     this.preview = new RoadPreview(options.sceneManager.roadMeshBuilder, options.sceneManager.materials);
     options.sceneManager.previewGroup.add(this.preview.group);
+    this.buildingConnections = new BuildingRoadConnections({
+      parent: options.sceneManager.previewGroup,
+      terrain: options.sceneManager.terrain,
+      getBuildings: options.getBuildings,
+      getRoadNetwork: () => options.network,
+    });
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
     options.domElement.addEventListener('mousemove', this.onPointerMove);
     options.domElement.addEventListener('wheel', this.onWheel, { passive: false, capture: true });
@@ -113,6 +126,7 @@ export class RoadTool {
     if (enabled && this.options.isBlocked()) return;
     if (this.enabled === enabled) return;
     this.enabled = enabled;
+    this.buildingConnections.setVisible(enabled);
     this.options.onDeleteRequested(null);
     this.options.selection.setSelected(null);
     if (!enabled) this.cancelDraft(false);
@@ -143,7 +157,9 @@ export class RoadTool {
   }
 
   update(_dt: number): void {
-    if (!this.enabled || !this.hasDraft()) return;
+    if (!this.enabled) return;
+    this.buildingConnections.refresh();
+    if (!this.hasDraft()) return;
     if (this.pointerDirty) {
       this.pointerDirty = false;
       this.processPointerHover(this.pointerClientX, this.pointerClientY);
@@ -223,6 +239,7 @@ export class RoadTool {
     this.options.domElement.removeEventListener('wheel', this.onWheel, true);
     window.removeEventListener('keydown', this.onKeyDown);
     this.preview.dispose();
+    this.buildingConnections.dispose();
   }
 
   private readonly onPointerDown = (event: MouseEvent): void => {
@@ -505,9 +522,11 @@ export class RoadTool {
   }
 
   private applySnap(point: THREE.Vector3): THREE.Vector3 {
+    this.buildingConnections.refresh();
     const networkSnap = this.options.network.findSnap(point, SNAP_DISTANCE);
     const draftSnap = this.findDraftSnap(point, SNAP_DISTANCE);
-    const snap = pickNearestSnap(networkSnap, draftSnap);
+    const buildingSnap = this.buildingConnections.findSnap(point, SNAP_DISTANCE);
+    const snap = pickNearestSnap(pickNearestSnap(networkSnap, draftSnap), buildingSnap);
     this.latestSnapPoint = snap ? snap.point.clone() : null;
     if (snap) return snap.point.clone();
     return this.options.sceneManager.terrain.getPointAt(point.x, point.z, 0);

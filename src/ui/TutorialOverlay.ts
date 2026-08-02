@@ -1,6 +1,7 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 
 type TutorialId =
+  | 'welcome'
   | 'founding'
   | 'roads'
   | 'construction-supply'
@@ -73,6 +74,40 @@ const WORKSITE_BUILDING_KINDS = new Set<BuildingKind>([
 ]);
 
 const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
+  welcome: {
+    id: 'welcome',
+    eyebrow: 'Your valley is ready',
+    title: 'Begin Your Settlement',
+    rows: [
+      {
+        icon: 'camp',
+        label: 'Place the camp',
+        parts: [
+          { text: 'Choose ' },
+          { text: 'Place starter camp', emphasis: 'gold' },
+          { text: ' at the bottom of the screen, then pick clear, dry ground near timber, stone, food, and water.' },
+        ],
+      },
+      {
+        icon: 'road',
+        label: 'Follow the guided steps',
+        parts: [
+          { text: 'Tutorial cards will appear as you open ' },
+          { text: 'Roads, construction, workforce, and homes', emphasis: 'gold' },
+          { text: ' for the first time.' },
+        ],
+      },
+      {
+        icon: 'build',
+        label: 'Open tutorials again',
+        parts: [
+          { text: 'Use the always-visible ' },
+          { text: 'Tutorials', emphasis: 'gold' },
+          { text: ' button in the lower-left corner whenever you want to replay the full guide.' },
+        ],
+      },
+    ],
+  },
   founding: {
     id: 'founding',
     eyebrow: "Founders' Camp established",
@@ -362,6 +397,10 @@ export class TutorialOverlay {
     this.shown.clear();
     this.replayQueue = [...TUTORIAL_ORDER];
     if (!this.isOpen()) this.showNextReplayTutorial();
+  }
+
+  notifyWorldReady(hasFoundersCamp: boolean): void {
+    if (!hasFoundersCamp) this.show('welcome');
   }
 
   notifyBuildingPlaced(kind: BuildingKind, buildingKinds: Iterable<BuildingKind>): void {

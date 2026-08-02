@@ -328,6 +328,22 @@ assert.match(
 );
 
 const tutorialOverlay = read('src/ui/TutorialOverlay.ts');
+const buildToolbar = read('src/ui/BuildToolbar.ts');
+assert.match(
+  buildToolbar,
+  /class="tutorial-launcher"[\s\S]*?>Tutorials<[\s\S]*?handlers\.onReplayTutorials\?\.\(\)/,
+  'tutorial replay must have a permanently visible, plainly labeled HUD control',
+);
+assert.match(
+  tutorialOverlay,
+  /welcome:\s*\{[\s\S]*?Begin Your Settlement[\s\S]*?notifyWorldReady\(hasFoundersCamp: boolean\)[\s\S]*?this\.show\('welcome'\)/,
+  'a fresh world must show first-step guidance without waiting for a later tool event',
+);
+assert.match(
+  app,
+  /onPresentationReady\(\);[\s\S]*?tutorialOverlay\?\.notifyWorldReady/,
+  'the first tutorial must open after the playable presentation is visible',
+);
 assert.match(
   tutorialOverlay,
   /founding:\s*\{[\s\S]*?blocksGameplay: false/,
@@ -364,6 +380,11 @@ assert.match(
   toolbarStatus,
   /Compare water, timber, stone, food, and field ground[\s\S]*advice only; no site is blocked/,
   'founding help must explicitly explain that the logistics outlook is non-binding',
+);
+assert.match(
+  read('src/ui/BuildToolbar.ts'),
+  /builderControlsPanel\.hidden = this\.firstPersonActive[\s\S]*?this\.hudMode === 'founders_camp'[\s\S]*?!isBuilderHudMode\(this\.hudMode\)/,
+  'the compact founding outlook must replace the large controls panel during camp placement',
 );
 
 const simulation = read('server/src/reducers/simulation.rs');

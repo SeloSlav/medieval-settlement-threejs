@@ -52,15 +52,6 @@ export class WorldSetupPanel {
             <div class="world-setup-size-grid" data-size-grid></div>
             </section>
 
-            <section class="world-setup-section world-setup-landscape" aria-label="Landscape">
-              <div class="world-setup-section-heading">
-                <h2 class="world-setup-section__title">Landscape</h2>
-                <span>Seeded regional profiles</span>
-              </div>
-              <div class="world-setup-landscape-grid" data-landscape-grid></div>
-              <p class="world-setup-landscape-note" data-landscape-note></p>
-            </section>
-
             <section class="world-setup-section" aria-label="Settlement mode">
             <h2 class="world-setup-section__title">Settlement mode</h2>
             <div class="world-setup-mode-grid" data-mode-grid>
@@ -81,6 +72,15 @@ export class WorldSetupPanel {
               <input id="world-setup-pressure" class="world-setup-slider" type="range" min="10" max="100" step="5" value="50" />
               <p class="world-setup-slider-hint">Higher pressure brings scouts sooner and increases portable-goods losses at exposed holdings.</p>
             </div>
+            </section>
+
+            <section class="world-setup-section world-setup-landscape" aria-label="Landscape">
+              <div class="world-setup-section-heading">
+                <h2 class="world-setup-section__title">Landscape</h2>
+                <span>Seeded regional profiles</span>
+              </div>
+              <div class="world-setup-landscape-grid" data-landscape-grid></div>
+              <p class="world-setup-landscape-note" data-landscape-note></p>
             </section>
 
             <div class="world-setup-custom-landscape" data-custom-landscape-controls hidden>
@@ -299,7 +299,7 @@ export class WorldSetupPanel {
         >
           <span class="world-setup-landscape-option__heading">
             <strong>${preset.name}</strong>
-            <small>${preset.region}</small>
+            ${preset.region ? `<small>${preset.region}</small>` : ''}
           </span>
           <span class="world-setup-landscape-option__description">${preset.description}</span>
           <span class="world-setup-landscape-option__features">${features}</span>

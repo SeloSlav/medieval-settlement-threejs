@@ -420,6 +420,7 @@ export async function bootstrapAppSession(
       ambientAudio.playUiSound('road_place');
     },
     onStateChanged: () => bridge.syncToolbar(),
+    getBuildings: () => liveContext.gameState.buildings.values(),
     isBlocked: () => isRoadPlacementBlocked(placementGate),
     onDeleteRequested: (request) => {
       if (!toolbar) return;

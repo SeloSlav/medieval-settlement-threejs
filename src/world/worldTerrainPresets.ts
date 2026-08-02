@@ -60,7 +60,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
   {
     id: 'custom',
     name: 'Custom Map',
-    region: 'Gorski Kotar · Primorje',
+    region: '',
     description:
       'Shape a procedural regional landscape yourself with the topography, water, and woodland controls.',
     features: ['Adjustable relief', 'Adjustable waterways', 'Adjustable woodland'],

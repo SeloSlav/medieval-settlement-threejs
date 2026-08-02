@@ -22,6 +22,9 @@ import {
 } from '../src/vegetation/seedthree/seedThreeCanopyPresentation.ts';
 import {
   SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY,
+  SEEDTHREE_OVERVIEW_CARD_MOTION,
+  applySeedThreeForestCardMotion,
+  resolveSeedThreeForestCardMotion,
   stabilizeSeedThreeForestCardMaterial,
 } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
 import { seedThreeBranchCardCacheKey } from '../src/vegetation/seedthree/seedThreeBranchCards.ts';
@@ -73,6 +76,26 @@ assert.equal(SEEDTHREE_CROWN_UNDERLAY_HIDE_DISTANCE, 112);
 assert.equal(SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE, 128);
 assert.equal(SEEDTHREE_CROWN_UNDERLAY_MODE, 'always');
 assert.equal(SEEDTHREE_FOREST_WIND_SPEED, 0.84);
+assert.equal(SEEDTHREE_OVERVIEW_CARD_MOTION, 'static');
+assert.equal(resolveSeedThreeForestCardMotion(true, false), 'static');
+assert.equal(resolveSeedThreeForestCardMotion(true, true), 'static');
+assert.equal(resolveSeedThreeForestCardMotion(false, true), 'sway');
+assert.equal(resolveSeedThreeForestCardMotion(false, false), 'full');
+const rigidSwayNode = { kind: 'rigid-sway' };
+const sourceCrownMaterial = new THREE.MeshBasicMaterial() as THREE.MeshBasicMaterial & {
+  positionNode: unknown;
+};
+sourceCrownMaterial.positionNode = rigidSwayNode;
+const forestCrownMaterial = new THREE.MeshBasicMaterial() as THREE.MeshBasicMaterial & {
+  positionNode: unknown;
+};
+forestCrownMaterial.positionNode = { kind: 'incorrect-flutter' };
+applySeedThreeForestCardMotion(forestCrownMaterial, 'sway', sourceCrownMaterial);
+assert.equal(forestCrownMaterial.positionNode, rigidSwayNode);
+applySeedThreeForestCardMotion(forestCrownMaterial, 'static', sourceCrownMaterial);
+assert.equal(forestCrownMaterial.positionNode, null);
+sourceCrownMaterial.dispose();
+forestCrownMaterial.dispose();
 assert.equal(
   shouldShowSeedThreeCrownUnderlay(false, 0, true),
   true,

@@ -436,6 +436,10 @@ export class App {
     });
     markFirstPlayable();
     this.sessionLifecycle?.onPresentationReady();
+    this.tutorialOverlay?.notifyWorldReady(
+      [...(this.gameState?.buildings.values() ?? [])]
+        .some((building) => building.kind === 'founders_camp'),
+    );
     void session.sceneManager.loadCelestialSky().catch((error) => {
       console.warn('Historical star catalogue is still unavailable:', error);
     });

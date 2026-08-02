@@ -86,6 +86,7 @@ button {
 [data-ui-root] .game-controls-backdrop,
 [data-ui-root] .city-admin-backdrop,
 [data-ui-root] .tutorial-overlay,
+[data-ui-root] .tutorial-launcher,
 [data-ui-root] .quarry-map-icon,
 [data-ui-root] .foraging-map-icon,
 [data-ui-root] .toast--clickable,

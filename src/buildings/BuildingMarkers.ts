@@ -225,6 +225,26 @@ export class BuildingMarkers {
     }
   }
 
+  getRoadConnectionSources(): Array<
+    Pick<BuildingState, 'id' | 'kind' | 'x' | 'z'> & { yaw: number }
+  > {
+    const sources: Array<
+      Pick<BuildingState, 'id' | 'kind' | 'x' | 'z'> & { yaw: number }
+    > = [];
+    for (const [id, building] of this.buildingStates) {
+      const marker = this.buildingMeshes.get(id);
+      if (!marker) continue;
+      sources.push({
+        id,
+        kind: building.kind,
+        x: building.x,
+        z: building.z,
+        yaw: marker.rotation.y,
+      });
+    }
+    return sources;
+  }
+
   setDestroyedBuildingIds(ids: ReadonlySet<string>): void {
     if (setsEqual(this.destroyedBuildingIds, ids)) return;
     this.destroyedBuildingIds = new Set(ids);
