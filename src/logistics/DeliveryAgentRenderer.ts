@@ -27,7 +27,11 @@ import {
   type DeliveryCartWorkerVisual,
 } from './deliveryCartWorker.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
-import { samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
+import {
+  samplePolylineXZ,
+  type PointXZ,
+  type PolylineSampleXZ,
+} from '../utils/pathGeometry.ts';
 import { resolveRoadAwareGroundY } from '../roads/RoadSurfaceSampling.ts';
 import {
   DELIVERY_ROAD_SPEED_MULTIPLIER,
@@ -45,6 +49,7 @@ import {
   createSelectedAgentRoute,
   SELECTED_AGENT_ROUTE_Y_OFFSET,
   type SelectedAgentRoute,
+  type SelectedAgentRoutePoint,
   updateSelectedAgentRoute,
 } from '../scene/SelectedAgentRoute.ts';
 
@@ -53,7 +58,10 @@ const DISPLAY_BLEND_RATE = 14;
 type TripVisual = {
   mesh: THREE.Group;
   workers: DeliveryCartWorkerVisual[];
+  castShadow: boolean | null;
+  routePolylineJson: string;
   polyline: PointXZ[];
+  measuredPathDistance: number;
   pathDistance: number;
   serverProgress: number;
   displayProgress: number;
@@ -62,6 +70,7 @@ type TripVisual = {
   serverX: number;
   serverZ: number;
   yaw: number;
+  sampleScratch: PolylineSampleXZ;
 };
 
 type DeliveryAgentRendererOptions = {
@@ -90,7 +99,12 @@ export class DeliveryAgentRenderer {
   private readonly group = new THREE.Group();
   private readonly visuals = new Map<string, TripVisual>();
   private readonly selectedRoute: SelectedAgentRoute;
-  private latestTrips = new Map<string, DeliveryTripState>();
+  private readonly latestTrips = new Map<string, DeliveryTripState>();
+  private readonly nextTripIds = new Set<string>();
+  private readonly selectedRouteXzScratch: PointXZ[] = [];
+  private readonly selectedRouteXzPool: PointXZ[] = [];
+  private readonly selectedRoutePointScratch: SelectedAgentRoutePoint[] = [];
+  private readonly selectedRouteSampleScratch: PolylineSampleXZ = { x: 0, z: 0, yaw: 0 };
   private selectedTripId: string | null = null;
   private cartSource: DeliveryCartModelSource | null = null;
   private workerSources: DeliveryCartWorkerSources | null = null;
@@ -110,22 +124,15 @@ export class DeliveryAgentRenderer {
   }
 
   syncTrips(trips: Iterable<DeliveryTripState>): void {
-    const tripList = [...trips];
-    this.latestTrips = new Map(tripList.map((trip) => [trip.id, trip]));
-    const nextIds = new Set<string>();
-    for (const trip of tripList) {
-      nextIds.add(trip.id);
-      const polyline = decodeRoutePolyline(trip.routePolylineJson) ?? [];
-      const pathDistance = trip.pathDistance > 1e-6
-        ? trip.pathDistance
-        : polyline.length >= 2
-          ? this.measurePolyline(polyline)
-          : 0;
+    this.latestTrips.clear();
+    this.nextTripIds.clear();
+    for (const trip of trips) {
+      this.latestTrips.set(trip.id, trip);
+      this.nextTripIds.add(trip.id);
 
       const existing = this.visuals.get(trip.id);
       if (existing) {
-        existing.polyline = polyline;
-        existing.pathDistance = pathDistance;
+        this.syncRoute(existing, trip);
         this.applyAuthoritativeTripState(existing, trip);
         this.ensureCartMesh(existing, trip);
         this.ensureWorkerCrew(existing, trip);
@@ -136,11 +143,20 @@ export class DeliveryAgentRenderer {
       mesh.castShadow = true;
       mesh.receiveShadow = false;
       this.group.add(mesh);
+      const polyline = decodeRoutePolyline(trip.routePolylineJson) ?? [];
+      const measuredPathDistance = polyline.length >= 2
+        ? this.measurePolyline(polyline)
+        : 0;
       const visual: TripVisual = {
         mesh,
         workers: [],
+        castShadow: null,
+        routePolylineJson: trip.routePolylineJson,
         polyline,
-        pathDistance,
+        measuredPathDistance,
+        pathDistance: trip.pathDistance > 1e-6
+          ? trip.pathDistance
+          : measuredPathDistance,
         serverProgress: trip.progress,
         displayProgress: trip.progress,
         phase: trip.phase,
@@ -148,16 +164,17 @@ export class DeliveryAgentRenderer {
         serverX: trip.x,
         serverZ: trip.z,
         yaw: 0,
+        sampleScratch: { x: 0, z: 0, yaw: 0 },
       };
       this.visuals.set(trip.id, visual);
       this.ensureWorkerCrew(visual, trip);
     }
 
     for (const id of this.visuals.keys()) {
-      if (nextIds.has(id)) continue;
+      if (this.nextTripIds.has(id)) continue;
       this.removeTrip(id);
     }
-    if (this.selectedTripId && !nextIds.has(this.selectedTripId)) {
+    if (this.selectedTripId && !this.nextTripIds.has(this.selectedTripId)) {
       this.selectDeliveryAgent(null);
     }
   }
@@ -166,7 +183,11 @@ export class DeliveryAgentRenderer {
     const gameSpeed = this.getGameSpeed();
     for (const [tripId, visual] of this.visuals) {
       const currentSample = visual.polyline.length >= 2
-        ? samplePolylineXZ(visual.polyline, this.phaseSampleDistance(visual))
+        ? samplePolylineXZ(
+            visual.polyline,
+            this.phaseSampleDistance(visual),
+            visual.sampleScratch,
+          )
         : null;
       const onRoadSurface = this.isOnRoadSurface?.(
         currentSample?.x ?? visual.serverX,
@@ -194,7 +215,7 @@ export class DeliveryAgentRenderer {
 
       if (visual.polyline.length >= 2 && visual.pathDistance > 1e-6) {
         const distance = this.phaseSampleDistance(visual);
-        const sample = samplePolylineXZ(visual.polyline, distance);
+        const sample = samplePolylineXZ(visual.polyline, distance, visual.sampleScratch);
         if (sample) {
           x = sample.x;
           z = sample.z;
@@ -217,10 +238,13 @@ export class DeliveryAgentRenderer {
         );
       }
       const castShadow = isWithinShadowRange(x, z, view);
-      visual.mesh.traverse((object) => {
-        const mesh = object as THREE.Mesh;
-        if (mesh.isMesh) mesh.castShadow = castShadow;
-      });
+      if (visual.castShadow !== castShadow) {
+        visual.mesh.traverse((object) => {
+          const mesh = object as THREE.Mesh;
+          if (mesh.isMesh) mesh.castShadow = castShadow;
+        });
+        visual.castShadow = castShadow;
+      }
       if (this.selectedTripId === tripId) this.updateSelectedRoute(visual);
     }
   }
@@ -229,13 +253,23 @@ export class DeliveryAgentRenderer {
     for (const trip of trips) {
       const visual = this.visuals.get(trip.id);
       if (!visual) continue;
+      this.syncRoute(visual, trip);
       this.applyAuthoritativeTripState(visual, trip);
-      const polyline = decodeRoutePolyline(trip.routePolylineJson);
-      if (polyline && polyline.length >= 2) {
-        visual.polyline = polyline;
-        visual.pathDistance = trip.pathDistance > 1e-6 ? trip.pathDistance : this.measurePolyline(polyline);
-      }
     }
+  }
+
+  private syncRoute(visual: TripVisual, trip: DeliveryTripState): void {
+    if (visual.routePolylineJson !== trip.routePolylineJson) {
+      const polyline = decodeRoutePolyline(trip.routePolylineJson) ?? [];
+      visual.routePolylineJson = trip.routePolylineJson;
+      visual.polyline = polyline;
+      visual.measuredPathDistance = polyline.length >= 2
+        ? this.measurePolyline(polyline)
+        : 0;
+    }
+    visual.pathDistance = trip.pathDistance > 1e-6
+      ? trip.pathDistance
+      : visual.measuredPathDistance;
   }
 
   pickDeliveryAgent(
@@ -312,6 +346,7 @@ export class DeliveryAgentRenderer {
     this.cartSource = null;
     this.workerSources = null;
     this.latestTrips.clear();
+    this.nextTripIds.clear();
     this.selectedRoute.geometry.dispose();
     this.selectedRoute.material.dispose();
     this.group.removeFromParent();
@@ -371,6 +406,7 @@ export class DeliveryAgentRenderer {
     for (const worker of visual.workers) replacement.add(worker.root);
     this.group.add(replacement);
     visual.mesh = replacement;
+    visual.castShadow = null;
     this.ensureWorkerCrew(visual, trip);
   }
 
@@ -413,6 +449,7 @@ export class DeliveryAgentRenderer {
       );
       visual.workers.push(worker);
       visual.mesh.add(worker.root);
+      visual.castShadow = null;
     }
   }
 
@@ -447,20 +484,35 @@ export class DeliveryAgentRenderer {
     }
     const sampleDistance = this.phaseSampleDistance(visual);
     const route = visual.phase === 'inbound'
-      ? polylineToDistance(visual.polyline, sampleDistance)
-      : polylineFromDistance(visual.polyline, sampleDistance);
+      ? polylineToDistanceInto(
+          visual.polyline,
+          sampleDistance,
+          this.selectedRouteXzScratch,
+          this.selectedRouteXzPool,
+          this.selectedRouteSampleScratch,
+        )
+      : polylineFromDistanceInto(
+          visual.polyline,
+          sampleDistance,
+          this.selectedRouteXzScratch,
+          this.selectedRouteXzPool,
+          this.selectedRouteSampleScratch,
+        );
     if (route.length < 2) {
       this.selectedRoute.visible = false;
       return;
     }
-    updateSelectedAgentRoute(
-      this.selectedRoute,
-      route.map((point) => ({
-        x: point.x,
-        y: this.resolveGroundY(point.x, point.z) + SELECTED_AGENT_ROUTE_Y_OFFSET,
-        z: point.z,
-      })),
-    );
+    const routePoints = this.selectedRoutePointScratch;
+    for (let index = 0; index < route.length; index += 1) {
+      const source = route[index];
+      const point = routePoints[index] ?? { x: 0, y: 0, z: 0 };
+      point.x = source.x;
+      point.y = this.resolveGroundY(source.x, source.z) + SELECTED_AGENT_ROUTE_Y_OFFSET;
+      point.z = source.z;
+      routePoints[index] = point;
+    }
+    routePoints.length = route.length;
+    updateSelectedAgentRoute(this.selectedRoute, routePoints);
   }
 
   private resolveGroundY(x: number, z: number): number {
@@ -505,45 +557,67 @@ export class DeliveryAgentRenderer {
   }
 }
 
-function polylineFromDistance(
+function polylineFromDistanceInto(
   polyline: readonly PointXZ[],
   startDistance: number,
+  result: PointXZ[],
+  pool: PointXZ[],
+  sampleTarget: PolylineSampleXZ,
 ): PointXZ[] {
-  const sample = samplePolylineXZ(polyline, startDistance);
-  if (!sample) return [];
-  const result: PointXZ[] = [{ x: sample.x, z: sample.z }];
+  result.length = 0;
+  const sample = samplePolylineXZ(polyline, startDistance, sampleTarget);
+  if (!sample) return result;
+  writePointXZ(result, pool, 0, sample.x, sample.z);
   let traversed = 0;
   for (let index = 0; index < polyline.length - 1; index++) {
     const start = polyline[index]!;
     const end = polyline[index + 1]!;
     traversed += Math.hypot(end.x - start.x, end.z - start.z);
     if (traversed > startDistance + 1e-5) {
-      result.push({ x: end.x, z: end.z });
+      writePointXZ(result, pool, result.length, end.x, end.z);
     }
   }
   return result;
 }
 
-function polylineToDistance(
+function polylineToDistanceInto(
   polyline: readonly PointXZ[],
   endDistance: number,
+  result: PointXZ[],
+  pool: PointXZ[],
+  sampleTarget: PolylineSampleXZ,
 ): PointXZ[] {
-  const sample = samplePolylineXZ(polyline, endDistance);
-  if (!sample) return [];
-  const prefix: PointXZ[] = [{ x: polyline[0]!.x, z: polyline[0]!.z }];
+  result.length = 0;
+  const sample = samplePolylineXZ(polyline, endDistance, sampleTarget);
+  if (!sample) return result;
+  writePointXZ(result, pool, 0, polyline[0]!.x, polyline[0]!.z);
   let traversed = 0;
   for (let index = 0; index < polyline.length - 1; index++) {
     const start = polyline[index]!;
     const end = polyline[index + 1]!;
     traversed += Math.hypot(end.x - start.x, end.z - start.z);
     if (traversed >= endDistance - 1e-5) break;
-    prefix.push({ x: end.x, z: end.z });
+    writePointXZ(result, pool, result.length, end.x, end.z);
   }
-  const last = prefix[prefix.length - 1]!;
+  const last = result[result.length - 1]!;
   if (Math.hypot(last.x - sample.x, last.z - sample.z) > 1e-5) {
-    prefix.push({ x: sample.x, z: sample.z });
+    writePointXZ(result, pool, result.length, sample.x, sample.z);
   }
-  return prefix.reverse();
+  return result.reverse();
+}
+
+function writePointXZ(
+  result: PointXZ[],
+  pool: PointXZ[],
+  index: number,
+  x: number,
+  z: number,
+): void {
+  const point = pool[index] ?? { x: 0, z: 0 };
+  point.x = x;
+  point.z = z;
+  pool[index] = point;
+  result[index] = point;
 }
 
 function projectWorldPoint(

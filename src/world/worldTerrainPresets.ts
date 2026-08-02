@@ -29,8 +29,8 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     name: 'Kupa Valley',
     region: 'Gusti Laz · Gorski Kotar',
     description:
-      'A Kupa-sized river runs through a broad village bench, enclosed by steep wooded slopes.',
-    features: ['25–35 m river', 'Broad valley floor', 'Steep forested sides'],
+      'A Kupa-sized river runs through a broad village bench beneath mountain-scale wooded valley walls.',
+    features: ['25–35 m river', 'Broad valley floor', '500+ m valley sides'],
     topography: 78,
     hydrology: 58,
     forestDensity: 70,
@@ -63,7 +63,7 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     region: '',
     description:
       'Shape a procedural regional landscape yourself with the topography, water, and woodland controls.',
-    features: ['Adjustable relief', 'Adjustable waterways', 'Adjustable woodland'],
+    features: ['Mountain-scale relief', 'Adjustable waterways', 'Adjustable woodland'],
     topography: 50,
     hydrology: 50,
     forestDensity: 50,

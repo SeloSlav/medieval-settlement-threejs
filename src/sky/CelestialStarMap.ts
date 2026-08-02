@@ -37,6 +37,7 @@ export type CelestialStarMapOptions = {
 export function createCelestialStarMap(
   options: CelestialStarMapOptions = {},
 ): THREE.DataTexture {
+  const generationStartedAt = performance.now();
   const width = Math.max(256, Math.floor(options.width ?? DEFAULT_WIDTH));
   const height = Math.max(128, Math.floor(options.height ?? DEFAULT_HEIGHT));
   const epoch = options.epoch ?? CELESTIAL_SKY_EPOCH;
@@ -57,6 +58,9 @@ export function createCelestialStarMap(
   texture.userData.catalogEpoch = epoch;
   texture.userData.starCount = NAKED_EYE_STAR_DATA.length / 4;
   texture.userData.constellationLineCount = CLASSICAL_CONSTELLATION_LINES.length;
+  texture.userData.generationMs = Math.round(
+    (performance.now() - generationStartedAt) * 10,
+  ) / 10;
   texture.needsUpdate = true;
   return texture;
 }

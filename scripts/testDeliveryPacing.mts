@@ -495,6 +495,21 @@ assert.match(deliveryRenderer, /DELIVERY_ROAD_SPEED_MULTIPLIER/);
 assert.match(deliveryRenderer, /phaseChanged \|\| progressRestarted/);
 assert.match(
   deliveryRenderer,
+  /visual\.routePolylineJson !== trip\.routePolylineJson[\s\S]*visual\.measuredPathDistance/,
+  'unchanged cart routes should retain their decoded polyline and measured distance',
+);
+assert.match(
+  deliveryRenderer,
+  /if \(visual\.castShadow !== castShadow\)[\s\S]*visual\.mesh\.traverse[\s\S]*visual\.castShadow = castShadow/,
+  'cart shadow flags should only traverse the authored mesh when the range state changes',
+);
+assert.doesNotMatch(
+  deliveryRenderer,
+  /const tripList = \[\.\.\.trips\]/,
+  'trip synchronization should update its reusable lookup sets in one pass',
+);
+assert.match(
+  deliveryRenderer,
   /deliveryCartMeshName\([\s\S]*isRegionalImportTrip\(trip\)/,
   'cart mesh replacement must retain the live trip provenance',
 );
@@ -525,7 +540,11 @@ const villagerInspector = read('src/ui/VillagerInspector.ts');
 const deliveryTripClient = read('src/logistics/deliveryTrips.ts');
 assert.match(villagerInspector, />Distance left</);
 assert.match(villagerInspector, /inspection\.remainingMeters/);
-assert.match(villagerInspector, /this\.current\.textContent/);
+assert.match(
+  villagerInspector,
+  /setTextIfChanged\(this\.current, (?:inspection\.activity|presentation\.current)\)/,
+  'the current-activity field must still receive live villager or delivery presentation text',
+);
 assert.match(
   deliveryTripClient,
   /returningLoaded[\s\S]*Returning \$\{cargoAmount\} undelivered/,

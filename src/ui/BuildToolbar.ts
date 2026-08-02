@@ -25,8 +25,6 @@ import { toolbarModeToMenuAction } from './buildMenuMapping.ts';
 import type { PlacementBuildMenuAction } from './buildMenuCards.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import {
-  describeBuilderHelp,
-  describeBuilderTitle,
   describeToolbarStatus,
   isBuilderHudMode,
   type ToolbarStats,
@@ -71,7 +69,6 @@ export class BuildToolbar {
   private readonly militaryBuildMenu: HTMLElement;
   private readonly roadSnapControl: HTMLElement;
   private readonly roadSnapToggle: HTMLInputElement;
-  private readonly builderControlsPanel: HTMLElement;
   private readonly burgageLayoutHud: HTMLElement;
   private readonly burgagePlotDecreaseButton: HTMLButtonElement;
   private readonly burgagePlotIncreaseButton: HTMLButtonElement;
@@ -79,7 +76,6 @@ export class BuildToolbar {
   private readonly burgagePlotMaxLabel: HTMLElement;
   private readonly burgageRotateFrontageButton: HTMLButtonElement;
   private readonly burgageFrontageLabel: HTMLElement;
-  private readonly statusLabel: HTMLElement;
   private readonly deletePopup: HTMLElement;
   private readonly removeButton: HTMLButtonElement;
   private readonly cancelDeleteButton: HTMLButtonElement;
@@ -87,8 +83,6 @@ export class BuildToolbar {
   private readonly fpModePanel: HTMLElement;
   private readonly constructionDock: HTMLElement;
   private readonly zoomStat: HTMLElement;
-  private readonly builderPanelTitle: HTMLElement;
-  private readonly builderHelpList: HTMLElement;
   private readonly cropSuitabilityLegend: HTMLElement;
   private readonly cropSuitabilityTitle: HTMLElement;
   private readonly builderStatusBar: HTMLElement;
@@ -108,6 +102,15 @@ export class BuildToolbar {
   private lastBuildTop = Number.NaN;
   private lastHudLeft = Number.NaN;
   private lastHudTop = Number.NaN;
+  private burgageHudStateInitialized = false;
+  private lastHudPlotCount = 0;
+  private lastHudMaxPlotCount = 0;
+  private lastHudResidenceCount: number | null | undefined;
+  private lastHudCanDecrease = false;
+  private lastHudCanIncrease = false;
+  private lastHudValid = false;
+  private lastHudShowFrontage = false;
+  private lastHudFrontageLabel: string | null = null;
   private hudMode: ToolbarStats['mode'] = 'idle';
   private deleteCancel: (() => void) | null = null;
   private deleteRemove: (() => void) | null = null;
@@ -277,45 +280,19 @@ export class BuildToolbar {
       </button>
 
       <div class="hud-right-stack">
-
-        <aside class="road-controls-panel" data-road-controls-panel aria-label="Active tool controls" hidden>
-          <header class="road-controls-header">
-            <div>
-              <p class="road-controls-eyebrow">Builder</p>
-              <h2 class="road-controls-title">Roads</h2>
-              <p class="road-controls-status" data-road-status>Road tool off</p>
-            </div>
+        <aside class="crop-suitability-legend" data-crop-suitability-legend hidden aria-label="Crop suitability legend">
+          <header>
+            <strong data-crop-suitability-title>Crop suitability</strong>
+            <span>first-crop site potential</span>
           </header>
-
-          <section class="road-controls-help" aria-label="Active tool shortcuts">
-            <h3 class="road-controls-help-title">Controls</h3>
-            <ul class="road-controls-list">
-              <li><span>Toggle road tool</span><span class="road-controls-key">R</span></li>
-              <li><span>Place point</span><span class="road-controls-key">L-click</span></li>
-              <li><span>Undo last point</span><span class="road-controls-key">R-click</span></li>
-              <li><span>Curve segment</span><span class="road-controls-key">Ctrl + scroll</span></li>
-              <li><span>Build road</span><span class="road-controls-key">Hammer or Enter</span></li>
-              <li><span>Delete segment</span><span class="road-controls-key">Alt + L-click</span></li>
-              <li><span>Undo change</span><span class="road-controls-key">Ctrl + Z</span></li>
-              <li><span>Redo change</span><span class="road-controls-key">Ctrl + Y</span></li>
-              <li><span>Cancel / exit</span><span class="road-controls-key">Esc</span></li>
-            </ul>
-          </section>
-
-          <section class="crop-suitability-legend" data-crop-suitability-legend hidden aria-label="Crop suitability legend">
-            <header>
-              <strong data-crop-suitability-title>Crop suitability</strong>
-              <span>first-crop site potential</span>
-            </header>
-            <div class="crop-suitability-scale" aria-hidden="true">
-              <span class="crop-suitability-scale__poor"></span>
-              <span class="crop-suitability-scale__marginal"></span>
-              <span class="crop-suitability-scale__good"></span>
-              <span class="crop-suitability-scale__prime"></span>
-            </div>
-            <div class="crop-suitability-labels"><span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span></div>
-            <p>Combines groundwater, predicted starting soil, and slope. Parcel size and shape still affect final yield.</p>
-          </section>
+          <div class="crop-suitability-scale" aria-hidden="true">
+            <span class="crop-suitability-scale__poor"></span>
+            <span class="crop-suitability-scale__marginal"></span>
+            <span class="crop-suitability-scale__good"></span>
+            <span class="crop-suitability-scale__prime"></span>
+          </div>
+          <div class="crop-suitability-labels"><span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span></div>
+          <p>Combines groundwater, predicted starting soil, and slope. Parcel size and shape still affect final yield.</p>
         </aside>
       </div>
 
@@ -475,9 +452,6 @@ export class BuildToolbar {
     this.militaryBuildMenu = this.mustElement(root, '[data-build-menu="military"]');
     this.roadSnapControl = this.mustElement(root, '[data-road-snap-control]');
     this.roadSnapToggle = this.mustInput(root, '[data-road-snap-toggle]');
-    this.builderControlsPanel = this.mustElement(root, '[data-road-controls-panel]');
-    this.builderPanelTitle = this.mustElement(this.builderControlsPanel, '.road-controls-title');
-    this.builderHelpList = this.mustElement(this.builderControlsPanel, '.road-controls-list');
     this.cropSuitabilityLegend = this.mustElement(root, '[data-crop-suitability-legend]');
     this.cropSuitabilityTitle = this.mustElement(root, '[data-crop-suitability-title]');
     this.burgageLayoutHud = this.mustElement(root, '[data-burgage-layout-hud]');
@@ -487,7 +461,6 @@ export class BuildToolbar {
     this.burgagePlotMaxLabel = this.mustElement(root, '[data-burgage-plot-max]');
     this.burgageRotateFrontageButton = this.mustButton(root, '[data-action="burgage-rotate-frontage"]');
     this.burgageFrontageLabel = this.mustElement(root, '[data-burgage-frontage-label]');
-    this.statusLabel = this.mustElement(root, '[data-road-status]');
     this.deletePopup = this.mustElement(root, '[data-delete-popup]');
     this.removeButton = this.mustButton(root, '[data-action="confirm-delete"]');
     this.cancelDeleteButton = this.mustButton(root, '[data-action="cancel-delete"]');
@@ -540,7 +513,6 @@ export class BuildToolbar {
     }
     window.addEventListener('mousedown', this.onBuildMenuOutsideMouseDown, true);
 
-    this.syncBuilderControlsPanel();
     this.roadButton.addEventListener('click', () => {
       this.closeAllBuildMenus();
       handlers.onOpenRoads();
@@ -653,8 +625,7 @@ export class BuildToolbar {
     this.buildButton.disabled = !stats.canBuild;
     this.buildButton.classList.toggle('is-ready', stats.canBuild);
     this.buildButton.classList.toggle('has-draft', stats.hasDraft);
-    this.statusLabel.textContent = describeToolbarStatus(stats);
-    this.statusLabel.dataset.state = stats.placementBlocked
+    const statusState = stats.placementBlocked
       ? 'warning'
       : stats.placementReady
         ? 'ready'
@@ -663,13 +634,9 @@ export class BuildToolbar {
           : isBuilderHudMode(stats.mode)
             ? (stats.hasDraft ? 'draft' : 'active')
             : 'idle';
-    if (isBuilderHudMode(stats.mode)) {
-      this.builderPanelTitle.textContent = describeBuilderTitle(stats.mode);
-      this.builderHelpList.innerHTML = describeBuilderHelp(stats.mode);
-    }
     const cropSuitabilityVisible = stats.mode === 'farm-fields' && stats.farmCrop != null;
     this.cropSuitabilityActive = cropSuitabilityVisible;
-    this.cropSuitabilityLegend.hidden = !cropSuitabilityVisible;
+    this.cropSuitabilityLegend.hidden = this.firstPersonActive || !cropSuitabilityVisible;
     this.waterOverlayButton.disabled = !this.gameplayEnabled || cropSuitabilityVisible;
     this.waterOverlayButton.dataset.tooltip = cropSuitabilityVisible
       ? 'Crop suitability map is active during field layout'
@@ -680,8 +647,7 @@ export class BuildToolbar {
     const statusText = describeToolbarStatus(stats);
     this.builderStatusBar.textContent = statusText;
     this.builderStatusBar.hidden = this.firstPersonActive || !isBuilderHudMode(stats.mode);
-    this.builderStatusBar.dataset.state = this.statusLabel.dataset.state;
-    this.syncBuilderControlsPanel();
+    this.builderStatusBar.dataset.state = statusState;
   }
 
   setBuildButtonPosition(position: { clientX: number; clientY: number } | null, visible: boolean): void {
@@ -722,24 +688,57 @@ export class BuildToolbar {
       return;
     }
 
-    const plotLabel = state.plotCount === 1 ? 'plot' : 'plots';
-    const residenceHint = state.residenceCount != null && state.residenceCount !== state.plotCount
-      ? ` · ${state.residenceCount} fit`
-      : '';
-    this.burgagePlotCountLabel.textContent = state.plotCount.toString();
-    this.burgagePlotMaxLabel.textContent = `${plotLabel} / ${state.maxPlotCount} max${residenceHint}`;
-    this.burgagePlotDecreaseButton.disabled = !state.canDecrease;
-    this.burgagePlotIncreaseButton.disabled = !state.canIncrease;
-    this.burgageLayoutHud.dataset.state = state.valid ? 'ready' : 'warning';
-
     const showFrontage = state.canRotateFrontage && state.frontageLabel != null;
-    this.burgageRotateFrontageButton.hidden = !showFrontage;
-    if (showFrontage) {
+    const initialized = this.burgageHudStateInitialized;
+    const plotCountChanged = !initialized
+      || state.plotCount !== this.lastHudPlotCount;
+    const maxLabelChanged = plotCountChanged
+      || state.maxPlotCount !== this.lastHudMaxPlotCount
+      || state.residenceCount !== this.lastHudResidenceCount;
+    if (plotCountChanged) {
+      this.burgagePlotCountLabel.textContent = state.plotCount.toString();
+    }
+    if (maxLabelChanged) {
+      const plotLabel = state.plotCount === 1 ? 'plot' : 'plots';
+      const residenceHint = state.residenceCount != null
+        && state.residenceCount !== state.plotCount
+        ? ` · ${state.residenceCount} fit`
+        : '';
+      this.burgagePlotMaxLabel.textContent =
+        `${plotLabel} / ${state.maxPlotCount} max${residenceHint}`;
+    }
+    if (!initialized || state.canDecrease !== this.lastHudCanDecrease) {
+      this.burgagePlotDecreaseButton.disabled = !state.canDecrease;
+    }
+    if (!initialized || state.canIncrease !== this.lastHudCanIncrease) {
+      this.burgagePlotIncreaseButton.disabled = !state.canIncrease;
+    }
+    if (!initialized || state.valid !== this.lastHudValid) {
+      this.burgageLayoutHud.dataset.state = state.valid ? 'ready' : 'warning';
+    }
+    if (!initialized || showFrontage !== this.lastHudShowFrontage) {
+      this.burgageRotateFrontageButton.hidden = !showFrontage;
+    }
+    if (
+      showFrontage
+      && (!initialized || state.frontageLabel !== this.lastHudFrontageLabel)
+    ) {
       this.burgageFrontageLabel.textContent = state.frontageLabel;
     }
+    this.lastHudPlotCount = state.plotCount;
+    this.lastHudMaxPlotCount = state.maxPlotCount;
+    this.lastHudResidenceCount = state.residenceCount;
+    this.lastHudCanDecrease = state.canDecrease;
+    this.lastHudCanIncrease = state.canIncrease;
+    this.lastHudValid = state.valid;
+    this.lastHudShowFrontage = showFrontage;
+    this.lastHudFrontageLabel = state.frontageLabel;
+    this.burgageHudStateInitialized = true;
 
-    this.burgageLayoutHud.hidden = false;
-    this.burgageLayoutHudVisible = true;
+    if (!this.burgageLayoutHudVisible) {
+      this.burgageLayoutHud.hidden = false;
+      this.burgageLayoutHudVisible = true;
+    }
 
     const width = this.burgageLayoutHud.offsetWidth || 168;
     const height = this.burgageLayoutHud.offsetHeight || 44;
@@ -793,19 +792,13 @@ export class BuildToolbar {
       this.hideDeletePopup(false);
       this.builderStatusBar.hidden = true;
     }
-    this.syncBuilderControlsPanel();
+    this.cropSuitabilityLegend.hidden = active || !this.cropSuitabilityActive;
   }
 
   private syncPrimaryHudVisibility(): void {
     this.tutorialsButton.hidden = this.firstPersonActive;
     this.starterCampButton.hidden = this.firstPersonActive || !this.starterCampRequired;
     this.constructionDock.hidden = this.firstPersonActive || this.starterCampRequired;
-  }
-
-  private syncBuilderControlsPanel(): void {
-    this.builderControlsPanel.hidden = this.firstPersonActive
-      || this.hudMode === 'founders_camp'
-      || !isBuilderHudMode(this.hudMode);
   }
 
   dispose(): void {

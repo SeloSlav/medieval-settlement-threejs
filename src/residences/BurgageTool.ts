@@ -119,6 +119,7 @@ export class BurgageTool {
   private hoverCenter: THREE.Vector3 | null = null;
   private readonly undoStack: BurgagePlacementUndoEntry[] = [];
   private readonly redoStack: BurgagePlacementRedoEntry[] = [];
+  private readonly layoutHudProjectionScratch = new THREE.Vector3();
 
   constructor(options: BurgageToolOptions) {
     this.options = options;
@@ -226,38 +227,48 @@ export class BurgageTool {
     return `${count} cottage ${count === 1 ? 'worksite' : 'worksites'} queued — ${cost.timber} timber, ${cost.stone} stone reserved${frontageHint} · hammer or Enter to place`;
   }
 
-  getLayoutHudState(): BurgageLayoutHudState | null {
+  getLayoutHudState(target?: BurgageLayoutHudState): BurgageLayoutHudState | null {
     if (!this.enabled || !this.canAdjustLayout()) return null;
     const maxPlotCount = this.getMaxPlotCount();
     const validation = this.draftValidation;
     const residenceCount = validation.ok ? validation.layout.residences.length : null;
     const frontageOptions = this.cachedFrontageOptionCount;
-    return {
-      plotCount: this.plotCount,
-      residenceCount,
-      maxPlotCount,
-      canDecrease: this.plotCount > 1,
-      canIncrease: this.plotCount < maxPlotCount,
-      canRotateFrontage: frontageOptions > 1,
-      frontageLabel: frontageOptions > 1 ? frontageEdgeLabel(this.frontageEdge) : null,
-      valid: validation.ok,
+    const state = target ?? {
+      plotCount: 0,
+      residenceCount: null,
+      maxPlotCount: 0,
+      canDecrease: false,
+      canIncrease: false,
+      canRotateFrontage: false,
+      frontageLabel: null,
+      valid: false,
     };
+    state.plotCount = this.plotCount;
+    state.residenceCount = residenceCount;
+    state.maxPlotCount = maxPlotCount;
+    state.canDecrease = this.plotCount > 1;
+    state.canIncrease = this.plotCount < maxPlotCount;
+    state.canRotateFrontage = frontageOptions > 1;
+    state.frontageLabel = frontageOptions > 1 ? frontageEdgeLabel(this.frontageEdge) : null;
+    state.valid = validation.ok;
+    return state;
   }
 
-  getLayoutHudPosition(): { clientX: number; clientY: number } | null {
+  getLayoutHudPosition(
+    target?: { clientX: number; clientY: number },
+  ): { clientX: number; clientY: number } | null {
     if (!this.enabled || !this.canAdjustLayout()) return null;
-    const corners = this.resolvePreviewCorners();
+    const corners = this.placementStage >= 4 ? this.points : this.resolvePreviewCorners();
     if (corners.length !== 4) return null;
-    const zoneCorners = cornersFromPoints(corners.map((point) => ({ x: point.x, z: point.z })));
-    if (!zoneCorners) return null;
 
-    const [frontStart, frontEnd] = getZoneEdge(zoneCorners, this.frontageEdge);
+    const frontStart = corners[this.frontageEdge];
+    const frontEnd = corners[(this.frontageEdge + 1) % 4];
     const midX = (frontStart.x + frontEnd.x) * 0.5;
     const midZ = (frontStart.z + frontEnd.z) * 0.5;
     const rect = this.options.domElement.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return null;
 
-    const projected = new THREE.Vector3(
+    const projected = this.layoutHudProjectionScratch.set(
       midX,
       this.options.getHeightAt(midX, midZ) + 2.4,
       midZ,
@@ -265,10 +276,10 @@ export class BurgageTool {
     projected.project(this.options.camera);
     if (projected.z < -1 || projected.z > 1) return null;
 
-    return {
-      clientX: rect.left + (projected.x * 0.5 + 0.5) * rect.width,
-      clientY: rect.top + (-projected.y * 0.5 + 0.5) * rect.height,
-    };
+    const position = target ?? { clientX: 0, clientY: 0 };
+    position.clientX = rect.left + (projected.x * 0.5 + 0.5) * rect.width;
+    position.clientY = rect.top + (-projected.y * 0.5 + 0.5) * rect.height;
+    return position;
   }
 
   adjustPlotCount(delta: number): void {

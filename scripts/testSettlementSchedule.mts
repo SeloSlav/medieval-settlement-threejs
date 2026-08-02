@@ -10,8 +10,10 @@ import {
 import { gameClock, gameClockAtElapsedSeconds, isLaborPaused, laborPauseLabel } from '../src/world/gameCalendar.ts';
 import {
   deriveSettlementSchedule,
+  deriveSettlementScheduleFromClock,
   expectLaborPausedLikeServer,
   settlementScheduleDirtyKey,
+  type SettlementSchedule,
 } from '../src/world/settlementSchedule.ts';
 import { deriveInterpolatedSettlementSchedule } from '../src/world/settlementSchedule.ts';
 import { DEFAULT_PARISH_POLICY } from '../src/economy/chapelParish.ts';
@@ -19,6 +21,7 @@ import { DEFAULT_NIGHT_POLICY } from '../src/economy/nightPolicy.ts';
 import {
   interpolatedSimElapsedSeconds,
   SettlementPresentationController,
+  type SettlementPresentationTargets,
 } from '../src/app/settlementSchedulePresentation.ts';
 import { parseVisualQaConditions } from '../src/app/visualQaConditions.ts';
 import type { GameState } from '../src/resources/types.ts';
@@ -131,6 +134,53 @@ const clockFromElapsed = gameClockAtElapsedSeconds(
 assert.equal(clockFromElapsed.hour, CALENDAR_WORK_START_HOUR);
 assert.equal(clockFromElapsed.minute, 2);
 assert.equal(gameClock(workMorningTick).hour, CALENDAR_WORK_START_HOUR);
+
+const reusableClock = gameClockAtElapsedSeconds(0);
+const expectedReusableClock = gameClockAtElapsedSeconds(
+  elapsedAtWork + secondsPerGameMinute * 7.25,
+);
+assert.equal(
+  gameClockAtElapsedSeconds(
+    elapsedAtWork + secondsPerGameMinute * 7.25,
+    reusableClock,
+  ),
+  reusableClock,
+  'elapsed-time presentation should be able to reuse its owned clock record',
+);
+assert.deepEqual(reusableClock, expectedReusableClock);
+
+const reusableSchedule = deriveSettlementScheduleFromClock(
+  gameClockAtElapsedSeconds(elapsedAtWork),
+  DEFAULT_PARISH_POLICY,
+  null,
+);
+const reusableDayNight = reusableSchedule.dayNight;
+const reusableSunDirection = reusableSchedule.dayNight.sunDirection;
+const reusableGrade = reusableSchedule.dayNight.grade;
+const nextReusableClock = gameClockAtElapsedSeconds(
+  elapsedAtWork + secondsPerGameMinute * 11.75,
+);
+const expectedReusableSchedule = deriveSettlementScheduleFromClock(
+  gameClockAtElapsedSeconds(elapsedAtWork + secondsPerGameMinute * 11.75),
+  DEFAULT_PARISH_POLICY,
+  null,
+);
+assert.equal(
+  deriveSettlementScheduleFromClock(
+    nextReusableClock,
+    DEFAULT_PARISH_POLICY,
+    null,
+    undefined,
+    reusableSchedule,
+  ),
+  reusableSchedule,
+  'presentation schedule updates should reuse the controller-owned record',
+);
+assert.equal(reusableSchedule.clock, nextReusableClock);
+assert.equal(reusableSchedule.dayNight, reusableDayNight);
+assert.equal(reusableSchedule.dayNight.sunDirection, reusableSunDirection);
+assert.equal(reusableSchedule.dayNight.grade, reusableGrade);
+assert.deepEqual(reusableSchedule, expectedReusableSchedule);
 for (const speed of [1, 4, 8] as const) {
   assert.ok(
     Math.abs(
@@ -261,6 +311,103 @@ assert.equal(
   raidSchedule.laborPaused,
   true,
   'a capable hostile agent must stop visible civilian work immediately',
+);
+
+let presentationBuildingScans = 0;
+const countedBuildings = new Map(gameState.buildings);
+const countedBuildingValues = countedBuildings.values.bind(countedBuildings);
+countedBuildings.values = () => {
+  presentationBuildingScans += 1;
+  return countedBuildingValues();
+};
+let presentationCombatScans = 0;
+const countedCombatAgents = new Map(activeCombatAgents);
+const countedCombatValues = countedCombatAgents.values.bind(countedCombatAgents);
+countedCombatAgents.values = () => {
+  presentationCombatScans += 1;
+  return countedCombatValues();
+};
+const cachedPresentation = new SettlementPresentationController(
+  () => presentationNowMs,
+);
+cachedPresentation.sync(
+  emptyPresentationTargets,
+  {
+    simTick: anchorTick,
+    parishPolicy: DEFAULT_PARISH_POLICY,
+    nightPolicy: DEFAULT_NIGHT_POLICY,
+    gameSpeed: 4,
+    combatAgents: countedCombatAgents,
+  },
+  { buildings: countedBuildings } as unknown as GameState,
+  true,
+);
+const scansAfterSync = {
+  buildings: presentationBuildingScans,
+  combat: presentationCombatScans,
+};
+const cachedTickStarted = performance.now();
+for (let frame = 0; frame < 10_000; frame += 1) {
+  presentationNowMs += 16;
+  cachedPresentation.tick(emptyPresentationTargets);
+}
+const cachedTickElapsedMs = performance.now() - cachedTickStarted;
+assert.deepEqual(
+  {
+    buildings: presentationBuildingScans,
+    combat: presentationCombatScans,
+  },
+  scansAfterSync,
+  'interpolated presentation frames must reuse snapshot-derived chapel and raid state',
+);
+assert.ok(
+  cachedTickElapsedMs < 250,
+  `10,000 cached presentation frames took ${cachedTickElapsedMs.toFixed(1)} ms`,
+);
+
+const presentedSchedules: SettlementSchedule[] = [];
+const retainedPresentation = new SettlementPresentationController(
+  () => presentationNowMs,
+);
+const retainedTargets = {
+  ...emptyPresentationTargets,
+  ambientAudio: {
+    syncSettlementSchedule(value: SettlementSchedule | null) {
+      if (value) presentedSchedules.push(value);
+    },
+  },
+} as unknown as SettlementPresentationTargets;
+retainedPresentation.sync(
+  retainedTargets,
+  {
+    simTick: anchorTick,
+    parishPolicy: DEFAULT_PARISH_POLICY,
+    nightPolicy: DEFAULT_NIGHT_POLICY,
+    gameSpeed: 4,
+    combatAgents: noCombatAgents,
+  },
+  null,
+  true,
+);
+presentationNowMs += 16;
+retainedPresentation.tick(retainedTargets);
+const firstRetainedTick = presentedSchedules.at(-1)!;
+const firstRetainedTickSimTick = firstRetainedTick.clock.simTick;
+presentationNowMs += 16;
+retainedPresentation.tick(retainedTargets);
+const secondRetainedTick = presentedSchedules.at(-1)!;
+assert.equal(
+  secondRetainedTick,
+  firstRetainedTick,
+  'ordinary interpolated frames should retain one controller-owned schedule record',
+);
+assert.equal(secondRetainedTick.clock, firstRetainedTick.clock);
+assert.equal(secondRetainedTick.dayNight, firstRetainedTick.dayNight);
+assert.equal(secondRetainedTick.dayNight.sunDirection, firstRetainedTick.dayNight.sunDirection);
+assert.equal(secondRetainedTick.dayNight.grade, firstRetainedTick.dayNight.grade);
+assert.ok(
+  secondRetainedTick.clock.simTick > firstRetainedTickSimTick,
+  'the retained clock must still advance continuously',
 );
 
 const winterQa = parseVisualQaConditions('?visualQa=winter');

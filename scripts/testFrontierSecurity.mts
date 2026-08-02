@@ -2030,7 +2030,7 @@ assert.match(
 );
 assert.match(
   villagerRenderer,
-  /getGameSpeed\(\) === 0[\s\S]*combatAudio\.tick\(0, \[\], activeView\)/,
+  /getGameSpeed\(\) === 0[\s\S]*combatAudioSourceWorkspace\.sources\.length = 0[\s\S]*combatAudio\.tick\(0, this\.combatAudioSourceWorkspace\.sources, activeView\)/,
   'pausing must immediately silence in-flight close-combat one-shots',
 );
 assert.match(
@@ -2318,7 +2318,7 @@ assert.match(
 );
 assert.match(
   villagerRenderer,
-  /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*id: `combat:\$\{combat\.id\}`[\s\S]*tool: 'spear'/,
+  /for \(const visual of this\.combatAgentVisuals\.values\(\)\)[\s\S]*renderAgentFor\(`combat:\$\{combat\.id\}`\)[\s\S]*renderAgent\.tool = 'spear'/,
   'the ordinary crowd renderer must materialize every replicated combat row with a visible weapon',
 );
 assert.match(
@@ -2333,13 +2333,18 @@ assert.match(
 );
 assert.match(
   villagerRenderer,
-  /id: `combat:\$\{combat\.id\}`[\s\S]*y: this\.resolveGroundY\(visual\.displayX, visual\.displayZ\) \+ 0\.02/,
+  /renderAgentFor\(`combat:\$\{combat\.id\}`\)[\s\S]*renderAgent\.y = this\.resolveGroundY\(visual\.displayX, visual\.displayZ\) \+ 0\.02/,
   'combatants following a bridge route must render on the sampled deck rather than below it',
 );
 assert.match(
   villagerInspector,
-  /workplaceLabel\.textContent = inspection\.workplaceLabel[\s\S]*householdLabel\.textContent = inspection\.householdLabel[\s\S]*crewLabel\.textContent = inspection\.crewLabel[\s\S]*paceLabel\.textContent = inspection\.paceLabel/,
+  /setTextIfChanged\(this\.workplaceLabel, inspection\.workplaceLabel\)[\s\S]*setTextIfChanged\(this\.householdLabel, inspection\.householdLabel\)[\s\S]*setTextIfChanged\(this\.crewLabel, inspection\.crewLabel\)[\s\S]*setTextIfChanged\(this\.paceLabel, inspection\.paceLabel\)/,
   'the shared person inspector must relabel its rows for combat condition and objectives',
+);
+assert.match(
+  villagerInspector,
+  /function setTextIfChanged\([\s\S]*if \(element\.textContent !== value\) element\.textContent = value/,
+  'the inspector text helper must retain the exact DOM assignment while suppressing redundant writes',
 );
 assert.match(villagerRenderer, /activeCombatGuardSlots/);
 assert.match(villagerRenderer, /case 'fighting': return 'fight'/);

@@ -21,7 +21,7 @@ import type { SeedThreeForestController } from '../vegetation/seedthree/seedThre
 import type { SeedThreeForestStructuralStats } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
-import { TERRAIN_DIRT_FAR_DISTANCE } from '../grass/grassLodMath.ts';
+import { GRASS_BLADE_REVEAL } from '../grass/grassLodMath.ts';
 
 const ROAD_CLEAR_MARGIN = 1.35;
 const BUILDING_CLEAR_MARGIN = 1.35;
@@ -32,8 +32,8 @@ const UNDERGROWTH_CLEAR_MARGIN = 0.95;
  * instanced draws. Keep a small hysteresis band so wheel zoom cannot flicker
  * the group at the threshold.
  */
-const UNDERGROWTH_HIDE_DISTANCE = TERRAIN_DIRT_FAR_DISTANCE + 8;
-const UNDERGROWTH_SHOW_DISTANCE = TERRAIN_DIRT_FAR_DISTANCE;
+const UNDERGROWTH_HIDE_DISTANCE = GRASS_BLADE_REVEAL.far + 8;
+const UNDERGROWTH_SHOW_DISTANCE = GRASS_BLADE_REVEAL.far;
 
 export type ForestPlacementClearance = {
   roadNetwork?: RoadNetwork | null;
@@ -126,6 +126,7 @@ export class ForestManager {
   private removedRocks = new Set<number>();
   private treePhases = new Map<number, TreePhase>();
   private treeGrowthProgress = new Map<number, number>();
+  private collisionVersion = 0;
   private undergrowthVisible = true;
 
   constructor(
@@ -191,6 +192,10 @@ export class ForestManager {
       && !this.missingTreeEntities.has(layoutIndex);
   }
 
+  getCollisionVersion(): number {
+    return this.collisionVersion;
+  }
+
   applyTreePhase(layoutIndex: number, phase: TreePhase, growthProgress: number): void {
     if (this.applyTreePhaseWithoutCommit(layoutIndex, phase, growthProgress)) {
       this.commitTreeInstanceUpdates();
@@ -221,6 +226,7 @@ export class ForestManager {
     const phaseChanged = this.treePhases.get(layoutIndex) !== phase;
     const growthChanged = this.treeGrowthProgress.get(layoutIndex) !== growthProgress;
     if (!wasMissing && !phaseChanged && !growthChanged) return false;
+    this.collisionVersion += 1;
 
     this.treePhases.set(layoutIndex, phase);
     this.treeGrowthProgress.set(layoutIndex, growthProgress);
@@ -244,6 +250,7 @@ export class ForestManager {
 
     const previousMissing = this.missingTreeEntities;
     this.missingTreeEntities = nextMissing;
+    this.collisionVersion += 1;
     for (let layoutIndex = 0; layoutIndex < this.placements.length; layoutIndex++) {
       const wasMissing = previousMissing.has(layoutIndex);
       const isMissing = nextMissing.has(layoutIndex);
@@ -273,7 +280,10 @@ export class ForestManager {
       this.hideHarvestStump(layoutIndex);
       needsCommit = true;
     }
-    if (needsCommit) this.commitTreeInstanceUpdates();
+    if (needsCommit) {
+      this.collisionVersion += 1;
+      this.commitTreeInstanceUpdates();
+    }
   }
 
   private restoreTreePhaseVisual(
@@ -501,6 +511,7 @@ export class ForestManager {
 
     const previousRemoved = this.removedTrees;
     this.removedTrees = nextRemoved;
+    this.collisionVersion += 1;
     for (let treeIndex = 0; treeIndex < this.placements.length; treeIndex++) {
       const wasRemoved = previousRemoved.has(treeIndex);
       const isRemoved = nextRemoved.has(treeIndex);

@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import {
   BASELINE_CAMERA_DISTANCE,
   CLOSE_GROUND_FADE_START_ZOOM_PERCENT,
   CLOSE_GROUND_FULL_ZOOM_PERCENT,
+  DIRT_FADE_START_ZOOM_PERCENT,
+  DIRT_REVEAL_ZOOM_PERCENT,
   dirtZoomGate,
   grassBladeLodOpacity,
   grassBladeRevealOpacity,
@@ -87,17 +90,22 @@ assert.equal(grassBladeLodOpacity(2), 1);
 assert.equal(
   GRASS_BLADE_LOD_VISIBILITY_THRESHOLD,
   0,
-  'SeedThree blades must begin in the same LOD band as the brown soil',
+  'SeedThree blades must begin at the start of their close-vegetation LOD band',
 );
 const overviewGrassLod = grassBladeRevealOpacity(42);
 assert.ok(
   grassBladeLodOpacity(overviewGrassLod) < overviewGrassLod,
-  'early grass clumps must remain subtler than the continuous terrain dirt blend',
+  'early grass clumps must remain subtle during their continuous opacity blend',
 );
 assert.equal(
   isGrassBladeZoomActive(42),
   true,
-  'normal close-orbit grass must be visible while the brown dirt is blending',
+  'normal close-orbit grass must be visible before brown soil begins blending',
+);
+assert.equal(
+  dirtZoomGate(42),
+  0,
+  'brown soil must remain hidden at the beginning of the SeedThree grass transition',
 );
 assert.equal(
   CLOSE_GROUND_FADE_START_ZOOM_PERCENT,
@@ -128,20 +136,47 @@ assert.equal(
   false,
   '150% orbit view must remain free of close vegetation',
 );
-assert.equal(
-  grassBladeRevealOpacity(BASELINE_CAMERA_DISTANCE / 2.1),
-  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1),
-  'SeedThree blades and brown soil must use the same zoom transition',
-);
-const normalCloseGroundLod = dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1);
+const normalCloseGroundLod = grassBladeRevealOpacity(BASELINE_CAMERA_DISTANCE / 2.1);
 assert.ok(
   normalCloseGroundLod > 0.05 && normalCloseGroundLod < 0.09,
-  '210% orbit view must be at the subtle beginning of the close-ground handoff',
+  '210% orbit view must be at the subtle beginning of the vegetation handoff',
+);
+assert.equal(
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1),
+  0,
+  '210% orbit view must retain meadow ground beneath the emerging SeedThree grass',
+);
+assert.equal(
+  grassBladeRevealOpacity(
+    BASELINE_CAMERA_DISTANCE / (CLOSE_GROUND_FULL_ZOOM_PERCENT / 100),
+  ),
+  1,
+  'SeedThree grass must be fully revealed at 400% zoom',
+);
+assert.equal(
+  DIRT_FADE_START_ZOOM_PERCENT,
+  425,
+  'brown soil may begin only after SeedThree grass reaches full opacity',
+);
+assert.equal(
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / (DIRT_FADE_START_ZOOM_PERCENT / 100)),
+  0,
+  'brown soil must be absent at its delayed transition boundary',
 );
 assert.equal(
   dirtZoomGate(BASELINE_CAMERA_DISTANCE / (CLOSE_GROUND_FULL_ZOOM_PERCENT / 100)),
+  0,
+  'brown soil must remain absent when SeedThree grass first reaches full opacity',
+);
+assert.equal(
+  DIRT_REVEAL_ZOOM_PERCENT,
+  650,
+  'brown soil should require a distinctly ground-level zoom to reach full strength',
+);
+assert.equal(
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / (DIRT_REVEAL_ZOOM_PERCENT / 100)),
   1,
-  'closest orbit view must fully reveal authored dirt beneath SeedThree blades',
+  'ground-level orbit must fully reveal the authored brown soil',
 );
 
 const normal = new Float32Array(3);
@@ -297,6 +332,16 @@ assert.equal(
   1,
   'reed LOD must retain the existing single instanced draw',
 );
+assert.match(
+  reedSource,
+  /let instancesHidden = false;[\s\S]*?if \(instancesHidden\) return;[\s\S]*?instancesHidden = true;/,
+  'settled hidden reeds must not rewrite and republish identical matrices every frame',
+);
+assert.match(
+  reedSource,
+  /const refreshProximity[\s\S]*?instancesHidden = false;/,
+  'a visible proximity refresh must re-arm the next hidden transition',
+);
 assert.doesNotMatch(
   shoreStoneSource,
   /buildRiverShoreCrossingGaps|isInRiverShoreCrossingGap|rng\(\) > chance/,
@@ -326,7 +371,58 @@ assert.equal(
 disposeSharedRiverWaterMaterial();
 shoreTexture.dispose();
 
+const reedCount = 1_000;
+const hiddenFrames = 1_200;
+const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+const benchmarkGeometry = new THREE.BufferGeometry();
+const benchmarkMaterial = new THREE.MeshBasicMaterial();
+const oldMesh = new THREE.InstancedMesh(
+  benchmarkGeometry,
+  benchmarkMaterial,
+  reedCount,
+);
+const oldStartedAt = performance.now();
+for (let frame = 0; frame < hiddenFrames; frame += 1) {
+  for (let index = 0; index < reedCount; index += 1) {
+    oldMesh.setMatrixAt(index, hidden);
+  }
+  oldMesh.instanceMatrix.needsUpdate = true;
+}
+const oldElapsedMs = performance.now() - oldStartedAt;
+const optimizedMesh = new THREE.InstancedMesh(
+  benchmarkGeometry,
+  benchmarkMaterial,
+  reedCount,
+);
+let benchmarkInstancesHidden = false;
+const optimizedStartedAt = performance.now();
+for (let frame = 0; frame < hiddenFrames; frame += 1) {
+  if (benchmarkInstancesHidden) continue;
+  for (let index = 0; index < reedCount; index += 1) {
+    optimizedMesh.setMatrixAt(index, hidden);
+  }
+  optimizedMesh.instanceMatrix.needsUpdate = true;
+  benchmarkInstancesHidden = true;
+}
+const optimizedElapsedMs = performance.now() - optimizedStartedAt;
+assert.deepEqual(
+  optimizedMesh.instanceMatrix.array,
+  oldMesh.instanceMatrix.array,
+  'the guarded path must produce the identical hidden instance buffer',
+);
+assert.equal(oldMesh.instanceMatrix.version, hiddenFrames);
+assert.equal(optimizedMesh.instanceMatrix.version, 1);
+assert(optimizedElapsedMs < oldElapsedMs);
+const oldHiddenUploadBytes = reedCount * 16 * Float32Array.BYTES_PER_ELEMENT * hiddenFrames;
+const optimizedHiddenUploadBytes = reedCount * 16 * Float32Array.BYTES_PER_ELEMENT;
+oldMesh.dispose();
+optimizedMesh.dispose();
+benchmarkGeometry.dispose();
+benchmarkMaterial.dispose();
+
 console.log(
   'River water material tests passed: bounded continuous normals and '
-    + 'transparent physical-water depth/refraction remain active.',
+    + 'transparent physical-water depth/refraction remain active. '
+    + `Hidden-reed benchmark: ${oldElapsedMs.toFixed(1)}ms/${oldHiddenUploadBytes.toLocaleString()} bytes `
+    + `-> ${optimizedElapsedMs.toFixed(1)}ms/${optimizedHiddenUploadBytes.toLocaleString()} bytes.`,
 );

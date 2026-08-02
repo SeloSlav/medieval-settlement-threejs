@@ -61,7 +61,10 @@ function createDomElement(): HTMLElement {
   } as unknown as HTMLElement;
 }
 
-function createController(onViewChanged?: () => void): {
+function createController(
+  onViewChanged?: () => void,
+  continuousRenderLoop = false,
+): {
   controller: CameraController;
   camera: THREE.PerspectiveCamera;
   target: THREE.Vector3;
@@ -77,6 +80,7 @@ function createController(onViewChanged?: () => void): {
     bounds: { minX: -500, maxX: 500, minZ: -500, maxZ: 500 },
     getHeightAt: () => 0,
     onViewChanged,
+    continuousRenderLoop,
   });
   return { controller, camera, target, domElement };
 }
@@ -221,6 +225,26 @@ function rmbPan(domElement: HTMLElement, fromX: number, fromY: number, toX: numb
   rmbPan(domElement, 40, 0, 80, 0);
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   assert.equal(viewChangeCount, 2, 'subsequent pans should schedule another frame callback');
+}
+
+{
+  let renderCount = 0;
+  const { domElement } = createController(() => {
+    renderCount += 1;
+  }, true);
+  requestAnimationFrame(() => {
+    // This is the single continuous App render for the display frame.
+    renderCount += 1;
+  });
+  rmbPan(domElement, 0, 0, 40, 0);
+  rmbPan(domElement, 40, 0, 80, 0);
+  domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  assert.equal(
+    renderCount,
+    1,
+    'continuous play must render exactly once despite repeated view changes in one frame',
+  );
 }
 
 console.log('test:camera-controller passed');

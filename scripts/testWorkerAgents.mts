@@ -74,9 +74,66 @@ updateSelectedAgentRoute(selectedWorkerRoute, [
   { x: 8, y: 0.24, z: 4 },
 ]);
 assert.equal(selectedWorkerRoute.visible, true);
+const selectedRoutePosition = selectedWorkerRoute.geometry.getAttribute('position');
+const selectedRouteDistance = selectedWorkerRoute.geometry.getAttribute('lineDistance');
 assert.ok(
-  selectedWorkerRoute.geometry.getAttribute('lineDistance').count >= 2,
+  selectedRouteDistance.count >= 2,
   'the shared pink agent route must compute dashed-line distances',
+);
+assert.ok(
+  Math.abs(selectedRouteDistance.getX(1) - Math.hypot(
+    selectedRoutePosition.getX(1) - selectedRoutePosition.getX(0),
+    selectedRoutePosition.getY(1) - selectedRoutePosition.getY(0),
+    selectedRoutePosition.getZ(1) - selectedRoutePosition.getZ(0),
+  )) < 1e-6,
+  'reused route buffers must retain Three.js line-distance semantics',
+);
+updateSelectedAgentRoute(selectedWorkerRoute, [
+  { x: 1, y: 0.24, z: 2 },
+  { x: 5, y: 0.24, z: 4 },
+]);
+assert.strictEqual(
+  selectedWorkerRoute.geometry.getAttribute('position'),
+  selectedRoutePosition,
+  'same-sized moving routes must update the existing GPU position buffer',
+);
+assert.strictEqual(
+  selectedWorkerRoute.geometry.getAttribute('lineDistance'),
+  selectedRouteDistance,
+  'same-sized moving routes must update the existing GPU dash-distance buffer',
+);
+const movingRoute = [
+  { x: 1, y: 0.24, z: 2 },
+  { x: 5, y: 0.24, z: 4 },
+];
+const routePacingStarted = performance.now();
+for (let frame = 0; frame < 20_000; frame += 1) {
+  movingRoute[0].x = frame * 0.0001;
+  updateSelectedAgentRoute(selectedWorkerRoute, movingRoute);
+}
+const routePacingElapsed = performance.now() - routePacingStarted;
+assert.strictEqual(selectedWorkerRoute.geometry.getAttribute('position'), selectedRoutePosition);
+assert.strictEqual(selectedWorkerRoute.geometry.getAttribute('lineDistance'), selectedRouteDistance);
+assert.ok(
+  routePacingElapsed < 200,
+  `20,000 selected-route updates took ${routePacingElapsed.toFixed(1)} ms`,
+);
+updateSelectedAgentRoute(selectedWorkerRoute, [
+  { x: 0, y: 0.24, z: 0 },
+  { x: 2, y: 0.24, z: 1 },
+  { x: 5, y: 0.24, z: 4 },
+]);
+const grownRoutePosition = selectedWorkerRoute.geometry.getAttribute('position');
+assert.notStrictEqual(grownRoutePosition, selectedRoutePosition, 'route capacity must grow on demand');
+updateSelectedAgentRoute(selectedWorkerRoute, [
+  { x: 1, y: 0.24, z: 0 },
+  { x: 3, y: 0.24, z: 1 },
+  { x: 6, y: 0.24, z: 4 },
+]);
+assert.strictEqual(
+  selectedWorkerRoute.geometry.getAttribute('position'),
+  grownRoutePosition,
+  'grown route buffers must remain stable on subsequent frames',
 );
 updateSelectedAgentRoute(selectedWorkerRoute, []);
 assert.equal(selectedWorkerRoute.visible, false);
@@ -563,6 +620,21 @@ assert.match(
   /kind === 'clay_pit'[\s\S]*kind === 'charcoal_burner'[\s\S]*return 'shovel'/,
 );
 assert.match(villagerRendererSource, /kind === 'carpenter' \|\| kind === 'smithy'/);
+assert.match(
+  villagerRendererSource,
+  /workerSoundSourcePool[\s\S]*farmSongSourcePool[\s\S]*combatAudioFighterPool/,
+  'per-frame villager audio sources should use retained record pools',
+);
+assert.match(
+  villagerRendererSource,
+  /buildCombatAudioSources\(\s*this\.combatAudioFighters,\s*this\.combatAudioSourceWorkspace/,
+  'combat audio pairing should reuse its retained source-building workspace',
+);
+assert.doesNotMatch(
+  villagerRendererSource,
+  /renderAgents\.flatMap|\[\.\.\.this\.combatAgentVisuals\.values\(\)\]\.map/,
+  'audio presentation must not rebuild mapped and flat-mapped source arrays each frame',
+);
 
 for (const [kind, expectedActivity] of Object.entries(YARD_WORK_ACTIVITY)) {
   const workplace = readyYardBuilding(
@@ -744,6 +816,26 @@ const closeSoundView = buildCrowdViewState(
   0,
   0,
 );
+const reusedSoundView = buildCrowdViewState(12, 18, 90, 4, 7, closeSoundView);
+assert.equal(
+  reusedSoundView,
+  closeSoundView,
+  'the hot-loop crowd view builder should update a caller-owned state object in place',
+);
+assert.deepEqual(
+  reusedSoundView,
+  {
+    centerX: 12,
+    centerZ: 18,
+    viewRadius: 161.5,
+    shadowRadius: 80,
+    orbitDistance: 90,
+    listenerX: 4,
+    listenerZ: 7,
+  },
+  'reusing the crowd view state must preserve the exact derived presentation values',
+);
+buildCrowdViewState(0, 0, WORKER_SOUND_MAX_ZOOM_DISTANCE, 0, 0, closeSoundView);
 assert.equal(
   workerActivitySoundGain(WORKER_SOUND_FULL_VOLUME_DISTANCE, 0, closeSoundView),
   1,

@@ -33,6 +33,13 @@ type WorkerSoundSchedule = {
   mode: WorkerActivitySoundKind;
   nextPlayAt: number;
   sequence: number;
+  activeGeneration: number;
+};
+
+type WorkerSoundCandidate = {
+  id: string;
+  mode: WorkerActivitySoundKind;
+  gain: number;
 };
 
 export function workerActivitySoundGain(
@@ -68,6 +75,9 @@ export function workerActivitySoundGain(
 export class WorkerActivityAudio {
   private readonly pool: HTMLAudioElement[] = [];
   private readonly schedules = new Map<string, WorkerSoundSchedule>();
+  private readonly candidatePool: WorkerSoundCandidate[] = [];
+  private readonly candidates: WorkerSoundCandidate[] = [];
+  private activeGeneration = 0;
   private elapsedSeconds = 0;
   private lastGlobalPlayAt = Number.NEGATIVE_INFINITY;
 
@@ -77,10 +87,17 @@ export class WorkerActivityAudio {
     view: CrowdViewState | undefined,
   ): void {
     this.elapsedSeconds += Math.max(0, dtSeconds);
-    const activeIds = new Set(sources.map((source) => source.id));
-    for (const id of this.schedules.keys()) {
-      if (!activeIds.has(id)) this.schedules.delete(id);
+    const activeGeneration = ++this.activeGeneration;
+    for (const source of sources) {
+      const schedule = this.schedules.get(source.id);
+      if (schedule) schedule.activeGeneration = activeGeneration;
     }
+    for (const [id, schedule] of this.schedules) {
+      if (schedule.activeGeneration !== activeGeneration) this.schedules.delete(id);
+    }
+
+    const candidates = this.candidates;
+    candidates.length = 0;
 
     if (
       !isGameAudioEnabled()
@@ -93,23 +110,35 @@ export class WorkerActivityAudio {
       return;
     }
 
-    const candidates = sources
-      .map((source) => ({
-        source,
-        gain: workerActivitySoundGain(source.x, source.z, view),
-      }))
-      .filter((candidate) => candidate.gain > 0)
-      .sort((a, b) => b.gain - a.gain);
+    for (const source of sources) {
+      const gain = workerActivitySoundGain(source.x, source.z, view);
+      if (gain <= 0) continue;
+      const candidateIndex = candidates.length;
+      let candidate = this.candidatePool[candidateIndex];
+      if (!candidate) {
+        candidate = { id: source.id, mode: source.mode, gain };
+        this.candidatePool.push(candidate);
+      } else {
+        candidate.id = source.id;
+        candidate.mode = source.mode;
+        candidate.gain = gain;
+      }
+      candidates.push(candidate);
+    }
+    if (candidates.length > 1) {
+      candidates.sort((left, right) => right.gain - left.gain);
+    }
 
-    for (const { source, gain } of candidates) {
-      let schedule = this.schedules.get(source.id);
-      if (!schedule || schedule.mode !== source.mode) {
+    for (const candidate of candidates) {
+      let schedule = this.schedules.get(candidate.id);
+      if (!schedule || schedule.mode !== candidate.mode) {
         schedule = {
-          mode: source.mode,
+          mode: candidate.mode,
           nextPlayAt: this.elapsedSeconds + 0.16,
           sequence: 0,
+          activeGeneration,
         };
-        this.schedules.set(source.id, schedule);
+        this.schedules.set(candidate.id, schedule);
       }
       if (this.elapsedSeconds < schedule.nextPlayAt) continue;
       if (
@@ -119,11 +148,11 @@ export class WorkerActivityAudio {
         break;
       }
 
-      this.play(source, schedule, gain);
+      this.play(candidate, schedule, candidate.gain);
       schedule.sequence += 1;
       schedule.nextPlayAt = this.elapsedSeconds
-        + WORKER_SOUND_CADENCE_SECONDS[source.mode]
-        + deterministicJitter(source.id, schedule.sequence);
+        + WORKER_SOUND_CADENCE_SECONDS[candidate.mode]
+        + deterministicJitter(candidate.id, schedule.sequence);
       this.lastGlobalPlayAt = this.elapsedSeconds;
       break;
     }
@@ -134,10 +163,12 @@ export class WorkerActivityAudio {
     for (const audio of this.pool) audio.removeAttribute('src');
     this.pool.length = 0;
     this.schedules.clear();
+    this.candidates.length = 0;
+    this.candidatePool.length = 0;
   }
 
   private play(
-    source: WorkerActivitySoundSource,
+    source: WorkerSoundCandidate,
     schedule: WorkerSoundSchedule,
     gain: number,
   ): void {
@@ -148,7 +179,13 @@ export class WorkerActivityAudio {
       this.pool.push(audio);
     }
 
-    const audio = this.pool.find((candidate) => candidate.paused) ?? this.pool[0];
+    let audio: HTMLAudioElement | undefined;
+    for (const candidate of this.pool) {
+      if (!candidate.paused) continue;
+      audio = candidate;
+      break;
+    }
+    audio ??= this.pool[0];
     if (!audio) return;
     const clips = WORKER_ACTIVITY_CLIPS[source.mode];
     const variant = deterministicIndex(

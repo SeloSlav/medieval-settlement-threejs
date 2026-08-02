@@ -233,23 +233,23 @@ export class VillagerInspector {
   };
 
   private renderVillager(inspection: VillagerInspection): void {
-    this.workplaceLabel.textContent = inspection.workplaceLabel;
-    this.householdLabel.textContent = inspection.householdLabel;
-    this.crewLabel.textContent = inspection.crewLabel;
-    this.paceLabel.textContent = inspection.paceLabel;
-    this.distanceRow.hidden = true;
-    this.name.textContent = inspection.name;
-    this.eyebrow.textContent = inspection.eyebrow;
-    this.activity.textContent = inspection.activity;
-    this.current.textContent = inspection.activity;
-    this.activity.dataset.state = inspection.activityState;
-    this.initials.dataset.portraitVariant = inspection.modelVariant;
-    this.initials.textContent = inspection.initials;
-    this.occupation.textContent = inspection.occupation;
-    this.workplace.textContent = inspection.workplace;
-    this.household.textContent = inspection.household;
-    this.crew.textContent = inspection.crew;
-    this.pace.textContent = inspection.pace;
+    setTextIfChanged(this.workplaceLabel, inspection.workplaceLabel);
+    setTextIfChanged(this.householdLabel, inspection.householdLabel);
+    setTextIfChanged(this.crewLabel, inspection.crewLabel);
+    setTextIfChanged(this.paceLabel, inspection.paceLabel);
+    setHiddenIfChanged(this.distanceRow, true);
+    setTextIfChanged(this.name, inspection.name);
+    setTextIfChanged(this.eyebrow, inspection.eyebrow);
+    setTextIfChanged(this.activity, inspection.activity);
+    setTextIfChanged(this.current, inspection.activity);
+    setDatasetIfChanged(this.activity, 'state', inspection.activityState);
+    setDatasetIfChanged(this.initials, 'portraitVariant', inspection.modelVariant);
+    setTextIfChanged(this.initials, inspection.initials);
+    setTextIfChanged(this.occupation, inspection.occupation);
+    setTextIfChanged(this.workplace, inspection.workplace);
+    setTextIfChanged(this.household, inspection.household);
+    setTextIfChanged(this.crew, inspection.crew);
+    setTextIfChanged(this.pace, inspection.pace);
     this.marker.position.set(
       inspection.position.x,
       inspection.position.y + 2.12,
@@ -282,34 +282,37 @@ export class VillagerInspector {
       inspection.modelVariant,
     );
 
-    this.workplaceLabel.textContent = presentation.workplaceHeading;
-    this.householdLabel.textContent = presentation.routeHeading;
-    this.crewLabel.textContent = 'Cargo';
-    this.paceLabel.textContent = 'Cart speed';
-    this.distanceRow.hidden = false;
-    this.name.textContent = name;
-    this.eyebrow.textContent = presentation.eyebrow;
-    this.activity.textContent = presentation.activity;
-    this.current.textContent = presentation.current;
-    this.activity.dataset.state = 'active';
-    this.initials.dataset.portraitVariant = inspection.modelVariant;
-    this.initials.textContent = name
+    setTextIfChanged(this.workplaceLabel, presentation.workplaceHeading);
+    setTextIfChanged(this.householdLabel, presentation.routeHeading);
+    setTextIfChanged(this.crewLabel, 'Cargo');
+    setTextIfChanged(this.paceLabel, 'Cart speed');
+    setHiddenIfChanged(this.distanceRow, false);
+    setTextIfChanged(this.name, name);
+    setTextIfChanged(this.eyebrow, presentation.eyebrow);
+    setTextIfChanged(this.activity, presentation.activity);
+    setTextIfChanged(this.current, presentation.current);
+    setDatasetIfChanged(this.activity, 'state', 'active');
+    setDatasetIfChanged(this.initials, 'portraitVariant', inspection.modelVariant);
+    setTextIfChanged(this.initials, name
       .split(/\s+/)
       .slice(0, 2)
       .map((part) => part[0] ?? '')
       .join('')
-      .toLocaleUpperCase();
-    this.occupation.textContent = presentation.occupation;
-    this.workplace.textContent = originLabel;
-    this.household.textContent = presentation.routeTarget;
-    this.crew.textContent = presentation.cargoSummary;
+      .toLocaleUpperCase());
+    setTextIfChanged(this.occupation, presentation.occupation);
+    setTextIfChanged(this.workplace, originLabel);
+    setTextIfChanged(this.household, presentation.routeTarget);
+    setTextIfChanged(this.crew, presentation.cargoSummary);
     const speed = trip.speedMps
       * Math.max(1, trip.deliveryWorkers)
       * Math.max(1e-6, trip.travelSpeedMultiplier);
-    this.pace.textContent = `${speed.toFixed(1)} m/s`;
-    this.distance.textContent = inspection.remainingMeters == null
-      ? '—'
-      : `${Math.ceil(inspection.remainingMeters).toLocaleString()} m`;
+    setTextIfChanged(this.pace, `${speed.toFixed(1)} m/s`);
+    setTextIfChanged(
+      this.distance,
+      inspection.remainingMeters == null
+        ? '—'
+        : `${Math.ceil(inspection.remainingMeters).toLocaleString()} m`,
+    );
     this.marker.position.set(
       inspection.position.x,
       inspection.position.y + 2.12,
@@ -318,6 +321,18 @@ export class VillagerInspector {
     this.marker.rotation.y += 0.035;
     this.marker.visible = inspection.visible;
   }
+}
+
+function setTextIfChanged(element: HTMLElement, value: string): void {
+  if (element.textContent !== value) element.textContent = value;
+}
+
+function setHiddenIfChanged(element: HTMLElement, hidden: boolean): void {
+  if (element.hidden !== hidden) element.hidden = hidden;
+}
+
+function setDatasetIfChanged(element: HTMLElement, key: string, value: string): void {
+  if (element.dataset[key] !== value) element.dataset[key] = value;
 }
 
 function deliveryDestinationLabel(

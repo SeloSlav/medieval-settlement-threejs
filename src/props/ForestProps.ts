@@ -94,7 +94,15 @@ export async function createForestProps(
   );
   const isBlockedAt = options?.isBlockedAt;
   const enableTreeShadowFilter = options?.rendererBackend !== 'webgpu';
-  const materials = await createForestMaterials(maxAnisotropy, enableTreeShadowFilter);
+  // These independent texture/decode requests can run while deterministic CPU
+  // placement is generated. Neither material factory consumes the placement
+  // RNG, so the resulting forest stays byte-for-byte seeded as before.
+  const materialsPromise = createForestMaterials(maxAnisotropy, enableTreeShadowFilter);
+  const undergrowthMaterialsPromise = createUndergrowthMaterials(
+    maxAnisotropy,
+    options?.rendererBackend,
+    [],
+  );
   const forest = new THREE.Group();
   forest.name = 'Road-scale forest props';
   const allTreePlacements = computeForestTreePlacements(
@@ -109,8 +117,11 @@ export async function createForestProps(
   );
   const forestCores = options?.forestCores ?? createForestCores(rng, spawnConfig);
   const rockPlacements = createRockPlacements(rng, forestCores, allTreePlacements, spawnConfig, isBlockedAt);
-  const undergrowthMaterials = await createUndergrowthMaterials(maxAnisotropy, options?.rendererBackend, materials.textures);
   const undergrowthPlacements = createUndergrowthPlacements(rng, forestCores, spawnConfig, isBlockedAt);
+  const [materials, undergrowthMaterials] = await Promise.all([
+    materialsPromise,
+    undergrowthMaterialsPromise,
+  ]);
   const undergrowth = buildUndergrowthInstances(undergrowthPlacements, terrain, undergrowthMaterials, rng);
 
   if (options?.rendererBackend === 'webgpu') {
@@ -149,6 +160,7 @@ export async function createForestProps(
       undergrowthPlacements,
       terrain,
       () => {
+        seedThree.resetSeedThreeForestPreloadState();
         disposeUndergrowthInstances(undergrowth, undergrowthMaterials);
         disposeForestMaterials(materials);
         seedThreeController.dispose();

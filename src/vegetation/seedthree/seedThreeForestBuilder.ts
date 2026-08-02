@@ -22,12 +22,25 @@ import {
   type SeedThreePresetKey,
 } from './gorskiKotarSpecies.ts';
 import { GORSKI_KOTAR_SPECIES } from './gorskiKotarPresets.ts';
-import { loadSeedThreeSpeciesAssets, type SeedThreeSpeciesAssets } from './seedThreeAssets.ts';
-import { ensureSeedThreeBranchCards } from './seedThreeBranchCards.ts';
+import {
+  getSeedThreeSpeciesAssetStartupTimings,
+  loadSeedThreeSpeciesAssets,
+  type SeedThreeSpeciesAssets,
+  type SeedThreeSpeciesAssetStartupTiming,
+} from './seedThreeAssets.ts';
+import {
+  ensureSeedThreeBranchCards,
+  getSeedThreeBranchCardStartupTimings,
+  preloadSeedThreeBranchCardCache,
+  type SeedThreeBranchCardStartupTiming,
+} from './seedThreeBranchCards.ts';
 import type { SeedThreeForestController } from './seedThreeForestTypes.ts';
 import {
   createSeedThreeBucketMatrixWriteJob,
+  enabledSeedThreeTreeCountInPrefix,
+  partitionSeedThreeSelectionByStaticLod,
   runSeedThreeBucketMatrixWriteSlices,
+  updateSeedThreeLodPassInstanceCounts,
   writeSeedThreeLodMatrices,
   type SeedThreeBucketMatrixWriteJob,
   type SeedThreeInstancedLodSet as InstancedLodSet,
@@ -55,6 +68,13 @@ type SpeciesBucket = {
   overviewSet: InstancedLodSet;
   nearSlotIndices: number[];
   overviewSlotIndices: number[];
+  nearViewSlotCount: number;
+  overviewViewSlotCount: number;
+};
+
+type PassPartitionedBucketSelection = SeedThreeBucketSelection & {
+  nearViewSlotCount: number;
+  overviewViewSlotCount: number;
 };
 
 export type SeedThreeForestInstances = {
@@ -70,11 +90,11 @@ export type SeedThreeForestInstances = {
   deciduousFoliage: DeciduousFoliagePresentation;
   renderStats: SeedThreeForestRenderStats;
   pendingLodWork: {
-    desired: SeedThreeBucketSelection[];
+    desired: PassPartitionedBucketSelection[];
     pendingBucketIndices: number[];
     activeBucketJob: {
       bucketIndex: number;
-      desired: SeedThreeBucketSelection;
+      desired: PassPartitionedBucketSelection;
       job: SeedThreeBucketMatrixWriteJob;
     } | null;
   } | null;
@@ -119,6 +139,31 @@ export type SeedThreeForestRenderStats = {
   revision: number;
 };
 
+export type SeedThreeForestSpeciesStartupTiming = {
+  preset: SeedThreePresetKey;
+  assetWaitMs: number;
+  branchCardsMs: number;
+  prototypeBuildMs: number;
+};
+
+export type SeedThreeForestStartupTiming = {
+  preloadStartedAtMs: number | null;
+  preloadCompletedAtMs: number | null;
+  preloadDurationMs: number;
+  totalMs: number;
+  placementMs: number;
+  bucketBuildMs: number;
+  species: SeedThreeForestSpeciesStartupTiming[];
+  assets: SeedThreeSpeciesAssetStartupTiming[];
+  branchCards: SeedThreeBranchCardStartupTiming[];
+};
+
+let preloadStartedAtMs: number | null = null;
+let preloadCompletedAtMs: number | null = null;
+let preloadPromise: Promise<void> | null = null;
+let preloadGeneration = 0;
+let lastStartupTiming: SeedThreeForestStartupTiming | null = null;
+
 const FOREST_LOD_OPTS = {
   mobileTarget: true,
   meshQuality: 0.78,
@@ -134,6 +179,8 @@ const FOREST_NEAR_DISTANCE = 108;
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
 const FOREST_VISIBILITY_PADDING = 26;
 const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
+const FOREST_CONTINUOUS_UPDATE_BUDGET_MS = 2.75;
+const FOREST_MATRIX_WRITES_PER_CHUNK = 128;
 
 const OVERVIEW_CANOPY_TONE: Record<
   SeedThreePresetKey,
@@ -346,6 +393,8 @@ function createSpeciesBucket(
   const overviewSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [index] : []);
   writeSeedThreeLodMatrices(nearSet, slots, nearSlotIndices);
   writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
+  updateSeedThreeLodPassInstanceCounts(nearSet, nearSlotIndices.length);
+  updateSeedThreeLodPassInstanceCounts(overviewSet, overviewSlotIndices.length);
   return {
     preset: presetKey,
     slots,
@@ -353,6 +402,56 @@ function createSpeciesBucket(
     overviewSet,
     nearSlotIndices,
     overviewSlotIndices,
+    nearViewSlotCount: nearSlotIndices.length,
+    overviewViewSlotCount: overviewSlotIndices.length,
+  };
+}
+
+/** Begin immutable species texture fetch/decode before terrain generation ends. */
+export async function preloadSeedThreeForestAssets(maxAnisotropy: number): Promise<void> {
+  if (preloadPromise) return preloadPromise;
+  const requestGeneration = preloadGeneration;
+  preloadStartedAtMs = performance.now();
+  const request = Promise.all(GORSKI_KOTAR_PRESETS.flatMap((presetKey) => {
+    const species = GORSKI_KOTAR_SPECIES[presetKey];
+    if (!species) return [];
+    return [
+      loadSeedThreeSpeciesAssets(species, maxAnisotropy).then(() => undefined),
+      preloadSeedThreeBranchCardCache(species, FOREST_LOD_OPTS.mobileTarget),
+    ];
+  })).then(() => {
+    if (requestGeneration === preloadGeneration) {
+      preloadCompletedAtMs = performance.now();
+    }
+  });
+  preloadPromise = request;
+  try {
+    return await request;
+  } catch (error) {
+    // A transient texture/decode failure must remain retryable by the actual
+    // forest build; never retain a permanently rejected preload promise.
+    if (requestGeneration === preloadGeneration && preloadPromise === request) {
+      preloadPromise = null;
+    }
+    throw error;
+  }
+}
+
+export function resetSeedThreeForestPreloadState(): void {
+  preloadGeneration += 1;
+  preloadPromise = null;
+  preloadStartedAtMs = null;
+  preloadCompletedAtMs = null;
+  lastStartupTiming = null;
+}
+
+export function getSeedThreeForestStartupTiming(): SeedThreeForestStartupTiming | null {
+  if (!lastStartupTiming) return null;
+  return {
+    ...lastStartupTiming,
+    species: lastStartupTiming.species.map((timing) => ({ ...timing })),
+    assets: lastStartupTiming.assets.map((timing) => ({ ...timing })),
+    branchCards: lastStartupTiming.branchCards.map((timing) => ({ ...timing })),
   };
 }
 
@@ -363,6 +462,7 @@ export async function createSeedThreeForest(
   treeSeed: number,
   renderer: WebGPURenderer,
 ): Promise<SeedThreeForestInstances> {
+  const startupStartedAt = performance.now();
   // SeedThree uses one wind uniform for every connected vegetation material;
   // slowing it here keeps bark, cards, undergrowth, and grass phase-locked.
   windSpeed.value = SEEDTHREE_FOREST_WIND_SPEED;
@@ -373,28 +473,53 @@ export async function createSeedThreeForest(
 
   const assetsByPreset = new Map<SeedThreePresetKey, SeedThreeSpeciesAssets>();
   const prototypeByPreset = new Map<SeedThreePresetKey, THREE.LOD>();
+  const speciesStartupTimings: SeedThreeForestSpeciesStartupTiming[] = [];
 
-  for (const presetKey of GORSKI_KOTAR_PRESETS) {
+  // Texture fetch/decode is independent across species. Start every request
+  // before the renderer-exclusive branch-card bakes so network and image
+  // decode can overlap the first bake instead of forming a species-by-species
+  // startup waterfall. Keep the bake/build loop ordered for deterministic GPU
+  // atlas generation and exact seeded prototype geometry.
+  const assetEntryPromises = GORSKI_KOTAR_PRESETS.map(async (presetKey) => {
     const species = GORSKI_KOTAR_SPECIES[presetKey];
-    if (!species) continue;
+    if (!species) return null;
     const assets = await loadSeedThreeSpeciesAssets(species, maxAnisotropy);
+    return { presetKey, species, assets };
+  });
+
+  for (const entryPromise of assetEntryPromises) {
+    const assetWaitStartedAt = performance.now();
+    const entry = await entryPromise;
+    if (!entry) continue;
+    const assetWaitMs = performance.now() - assetWaitStartedAt;
+    const { presetKey, species, assets } = entry;
     assetsByPreset.set(presetKey, assets);
+    const branchCardsStartedAt = performance.now();
     const branchCards = await ensureSeedThreeBranchCards(
       renderer,
       species,
       assets,
       FOREST_LOD_OPTS.mobileTarget,
     );
+    const branchCardsMs = performance.now() - branchCardsStartedAt;
     if (!branchCards) {
       console.warn('[SeedThree] no branch cards for', presetKey, '— foliage may be missing');
     }
+    const prototypeBuildStartedAt = performance.now();
     const { group: prototype } = buildTree(species, `prototype:${presetKey}`, assets, {
       ...FOREST_LOD_OPTS,
       branchCards: branchCards ?? undefined,
     });
     prototypeByPreset.set(presetKey, prototype as THREE.LOD);
+    speciesStartupTimings.push({
+      preset: presetKey,
+      assetWaitMs,
+      branchCardsMs,
+      prototypeBuildMs: performance.now() - prototypeBuildStartedAt,
+    });
   }
 
+  const placementStartedAt = performance.now();
   const placementsByPreset = new Map<SeedThreePresetKey, TreeSlot[]>();
   const visibilityItems: Array<{
     x: number;
@@ -447,7 +572,9 @@ export async function createSeedThreeForest(
     bucket.push(slot);
     placementsByPreset.set(preset, bucket);
   }
+  const placementMs = performance.now() - placementStartedAt;
 
+  const bucketBuildStartedAt = performance.now();
   const buckets: SpeciesBucket[] = [];
   const seasonalCardMaterials = new Set<THREE.Material>();
   const crownUnderlayMeshes: THREE.InstancedMesh[] = [];
@@ -496,6 +623,28 @@ export async function createSeedThreeForest(
     (count, bucket) => count + bucket.overviewSlotIndices.length,
     0,
   );
+  const bucketBuildMs = performance.now() - bucketBuildStartedAt;
+  const preloadDurationMs = preloadStartedAtMs === null
+    ? 0
+    : (preloadCompletedAtMs ?? performance.now()) - preloadStartedAtMs;
+  lastStartupTiming = {
+    preloadStartedAtMs,
+    preloadCompletedAtMs,
+    preloadDurationMs,
+    totalMs: performance.now() - startupStartedAt,
+    placementMs,
+    bucketBuildMs,
+    species: speciesStartupTimings,
+    assets: getSeedThreeSpeciesAssetStartupTimings(),
+    branchCards: getSeedThreeBranchCardStartupTimings(),
+  };
+  if (typeof window !== 'undefined') {
+    const startup = (window as typeof window & {
+      __medievalRoadStartup?: { seedThree?: SeedThreeForestStartupTiming };
+    }).__medievalRoadStartup;
+    if (startup) startup.seedThree = lastStartupTiming;
+  }
+  console.info('[Startup] SeedThree forest stages', lastStartupTiming);
   return {
     group,
     placements,
@@ -546,6 +695,7 @@ export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances):
   for (const bucket of forest.buckets) {
     writeSeedThreeLodMatrices(bucket.nearSet, bucket.slots, bucket.nearSlotIndices);
     writeSeedThreeLodMatrices(bucket.overviewSet, bucket.slots, bucket.overviewSlotIndices);
+    updateBucketPassInstanceCounts(bucket);
   }
   forest.pendingLodWork = null;
   forest.visibilityDirty = false;
@@ -592,7 +742,12 @@ export function updateSeedThreeForestCamera(
     camera,
     firstPersonActive,
     casterBounds,
-    { maxBucketCompactions: Number.POSITIVE_INFINITY },
+    {
+      maxBucketCompactions: Number.POSITIVE_INFINITY,
+      maxUpdateDurationMs: FOREST_CONTINUOUS_UPDATE_BUDGET_MS,
+      maxMatrixWritesPerChunk: FOREST_MATRIX_WRITES_PER_CHUNK,
+      immediateWhenViewUncovered: true,
+    },
   );
   return result.selectionChanged || result.bucketCompactions > 0;
 }
@@ -610,6 +765,7 @@ export function updateSeedThreeForestCameraBudgeted(
     minimumDirectionAngle?: number;
     minimumProjectionChange?: number;
     minimumCasterBoundsChange?: number;
+    immediateWhenViewUncovered?: boolean;
   },
 ): SeedThreeForestBudgetedUpdateResult {
   const startedAt = performance.now();
@@ -645,8 +801,10 @@ export function updateSeedThreeForestCameraBudgeted(
   }
   if (selection.changed) {
     forest.updateTelemetry.selectionChanges += 1;
+    const desired = selectionsByBucket(forest, selection);
+    reconcileCountOnlyPassPartitions(forest, desired);
     forest.pendingLodWork = {
-      desired: selectionsByBucket(forest, selection),
+      desired,
       pendingBucketIndices: forest.pendingLodWork?.pendingBucketIndices ?? [],
       activeBucketJob: forest.pendingLodWork?.activeBucketJob ?? null,
     };
@@ -659,7 +817,17 @@ export function updateSeedThreeForestCameraBudgeted(
   let matrixSliceBudgetStop: 'time-limit' | 'headroom-limit' | null = null;
   let stopReason = work ? 'chunk-limit' : 'converged';
   if (work) {
-    const maxUpdateDurationMs = Number.isFinite(options.maxUpdateDurationMs)
+    // A bounded in-place rebuild is visually safe while the old color prefix
+    // already contains every tree in the new view. The 26 m selection envelope
+    // makes that the normal continuous-camera case. A discontinuous camera
+    // jump can expose trees absent from the published prefix; finish that rare
+    // transition immediately and atomically so a render can never observe a
+    // missing new-view tree or a partially rewritten species buffer.
+    const requiresImmediateCoverage = options.immediateWhenViewUncovered === true
+      && !currentForestColorPrefixesCoverDesiredView(forest, work.desired);
+    const maxUpdateDurationMs = requiresImmediateCoverage
+      ? Number.POSITIVE_INFINITY
+      : Number.isFinite(options.maxUpdateDurationMs)
       ? Math.max(0, options.maxUpdateDurationMs!)
       : Number.POSITIVE_INFINITY;
     const selectorAndBookkeepingMs = performance.now() - startedAt
@@ -672,6 +840,8 @@ export function updateSeedThreeForestCameraBudgeted(
     const currentSelections = forest.buckets.map((bucket) => ({
       near: bucket.nearSlotIndices,
       overview: bucket.overviewSlotIndices,
+      nearViewSlotCount: bucket.nearViewSlotCount,
+      overviewViewSlotCount: bucket.overviewViewSlotCount,
     }));
     const chunk = runForestBucketUpdateChunk(
       currentSelections,
@@ -699,6 +869,8 @@ export function updateSeedThreeForestCameraBudgeted(
               desired: {
                 near: [...desired.near],
                 overview: [...desired.overview],
+                nearViewSlotCount: desired.nearViewSlotCount,
+                overviewViewSlotCount: desired.overviewViewSlotCount,
               },
               job: createSeedThreeBucketMatrixWriteJob(
                 bucket.nearSet,
@@ -729,6 +901,9 @@ export function updateSeedThreeForestCameraBudgeted(
           if (!result.completed) return false;
           bucket.nearSlotIndices = [...desired.near];
           bucket.overviewSlotIndices = [...desired.overview];
+          bucket.nearViewSlotCount = desired.nearViewSlotCount;
+          bucket.overviewViewSlotCount = desired.overviewViewSlotCount;
+          updateBucketPassInstanceCounts(bucket);
           work.activeBucketJob = null;
           return true;
         },
@@ -784,11 +959,13 @@ export function updateSeedThreeForestCameraBudgeted(
 }
 
 function sameBucketSelection(
-  left: SeedThreeBucketSelection,
-  right: SeedThreeBucketSelection,
+  left: PassPartitionedBucketSelection,
+  right: PassPartitionedBucketSelection,
 ): boolean {
   return sameIndices(left.near, right.near)
-    && sameIndices(left.overview, right.overview);
+    && sameIndices(left.overview, right.overview)
+    && left.nearViewSlotCount === right.nearViewSlotCount
+    && left.overviewViewSlotCount === right.overviewViewSlotCount;
 }
 
 function sameIndices(left: readonly number[], right: readonly number[]): boolean {
@@ -801,21 +978,93 @@ function sameIndices(left: readonly number[], right: readonly number[]): boolean
 
 function selectionsByBucket(
   forest: SeedThreeForestInstances,
-  selection: { nearIndices: readonly number[]; overviewIndices: readonly number[] },
-): SeedThreeBucketSelection[] {
+  selection: {
+    nearIndices: readonly number[];
+    overviewIndices: readonly number[];
+    viewIndices: readonly number[];
+  },
+): PassPartitionedBucketSelection[] {
   const desired = forest.buckets.map(() => ({
     near: [] as number[],
     overview: [] as number[],
+    nearViewSlotCount: 0,
+    overviewViewSlotCount: 0,
   }));
-  for (const layoutIndex of selection.nearIndices) {
+  const staticLodPartition = partitionSeedThreeSelectionByStaticLod(
+    selection,
+    (layoutIndex) => {
+      const mapping = forest.slotByLayoutIndex[layoutIndex];
+      return mapping
+        ? forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex]?.forceOverview === true
+        : false;
+    },
+  );
+  for (let index = 0; index < staticLodPartition.nearIndices.length; index += 1) {
+    const layoutIndex = staticLodPartition.nearIndices[index]!;
     const mapping = forest.slotByLayoutIndex[layoutIndex];
-    if (mapping) desired[mapping.bucketIndex]?.near.push(mapping.slotIndex);
+    if (!mapping) continue;
+    const bucket = desired[mapping.bucketIndex];
+    bucket?.near.push(mapping.slotIndex);
+    if (bucket && index < staticLodPartition.nearViewCount) {
+      bucket.nearViewSlotCount += 1;
+    }
   }
-  for (const layoutIndex of selection.overviewIndices) {
+  for (let index = 0; index < staticLodPartition.overviewIndices.length; index += 1) {
+    const layoutIndex = staticLodPartition.overviewIndices[index]!;
     const mapping = forest.slotByLayoutIndex[layoutIndex];
-    if (mapping) desired[mapping.bucketIndex]?.overview.push(mapping.slotIndex);
+    if (!mapping) continue;
+    const bucket = desired[mapping.bucketIndex];
+    bucket?.overview.push(mapping.slotIndex);
+    if (bucket && index < staticLodPartition.overviewViewCount) {
+      bucket.overviewViewSlotCount += 1;
+    }
   }
   return desired;
+}
+
+function updateBucketPassInstanceCounts(bucket: SpeciesBucket): void {
+  updateSeedThreeLodPassInstanceCounts(
+    bucket.nearSet,
+    enabledSeedThreeTreeCountInPrefix(
+      bucket.slots,
+      bucket.nearSlotIndices,
+      bucket.nearViewSlotCount,
+    ),
+  );
+  updateSeedThreeLodPassInstanceCounts(
+    bucket.overviewSet,
+    enabledSeedThreeTreeCountInPrefix(
+      bucket.slots,
+      bucket.overviewSlotIndices,
+      bucket.overviewViewSlotCount,
+    ),
+  );
+}
+
+function reconcileCountOnlyPassPartitions(
+  forest: SeedThreeForestInstances,
+  desired: readonly PassPartitionedBucketSelection[],
+): void {
+  for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
+    const bucket = forest.buckets[bucketIndex]!;
+    const next = desired[bucketIndex]!;
+    if (
+      !sameIndices(bucket.nearSlotIndices, next.near)
+      || !sameIndices(bucket.overviewSlotIndices, next.overview)
+      || (
+        bucket.nearViewSlotCount === next.nearViewSlotCount
+        && bucket.overviewViewSlotCount === next.overviewViewSlotCount
+      )
+    ) {
+      continue;
+    }
+    // The packed transform order is already correct. Only the boundary between
+    // the color-visible prefix and its shadow-only suffix moved, so publishing
+    // the two scalar draw counts is sufficient and schedules no GPU upload.
+    bucket.nearViewSlotCount = next.nearViewSlotCount;
+    bucket.overviewViewSlotCount = next.overviewViewSlotCount;
+    updateBucketPassInstanceCounts(bucket);
+  }
 }
 
 function createSeedThreeUpdateTelemetry(): SeedThreeForestUpdateTelemetry {
@@ -957,9 +1206,19 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
     showTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, true),
     commit: () => commitSeedThreeForestMatrices(forest),
-    // Runtime LODs and crown underlays remain fully resident. Camera-driven
-    // visibility changes caused pop-in and temporal instability while panning.
-    updateCamera: () => false,
+    updateCamera: (camera, _cameraDistance, firstPersonActive, casterBounds) => {
+      // The selector retains a 26 m screen-space world envelope plus the full
+      // fitted directional-shadow caster envelope. It affects inclusion only:
+      // every retained tree keeps its authored static LOD and crown state. Its
+      // species buffers commit atomically, so no partially rewritten tree can
+      // reach a render pass.
+      return updateSeedThreeForestCamera(
+        forest,
+        camera,
+        firstPersonActive,
+        casterBounds,
+      );
+    },
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
     setDeciduousFoliage: (presentation) =>
       setSeedThreeForestDeciduousFoliage(forest, presentation),

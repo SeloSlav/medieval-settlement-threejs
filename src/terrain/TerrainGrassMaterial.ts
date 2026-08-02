@@ -959,9 +959,9 @@ export function createTerrainGrassMaterialWithRiverShore(
     quarryPad,
     resolvedWeather,
   );
-  // Preserve the complete 200-400% close-ground handoff. SeedThree blades use
-  // this same LOD band, so brown soil and physical grass arrive together
-  // instead of the soil snapping in before the authored vegetation.
+  // Brown soil uses its own delayed 425-650% handoff. SeedThree groundcover is
+  // already visually complete when this layer becomes readable, so strategic
+  // and mid-close views retain the authored meadow surface.
   const dirtSurfaceAmount = dirtAmount;
   const meadowWeight = sub(float(1) as TslNode, dirtSurfaceAmount) as TslNode;
   const shoreUndercoat = terrainColorShoreBlend.mul(float(0.58) as TslNode);

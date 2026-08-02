@@ -365,9 +365,34 @@ const foliageWindSource = readFileSync(
 );
 assert.match(settlementHudSource, /describeNextDayEnvironmentOutlook/);
 assert.match(settlementHudSource, /GAME_SPEEDS\.map/);
+assert.match(
+  settlementHudSource,
+  /date !== this\.displayedClockDate[\s\S]*time !== this\.displayedClockTime[\s\S]*detail !== this\.displayedClockDetail/,
+  'the per-frame presentation clock should only write changed visible strings',
+);
+assert.match(
+  settlementHudSource,
+  /displayFps === this\.displayedFps[\s\S]*displayZoom === this\.displayedZoom/,
+  'stable FPS and zoom readouts should not dirty the HUD DOM',
+);
 assert.match(townHallSource, /Next dawn outlook/);
 assert.match(appSource, /worldAnimationDelta\([\s\S]*?sceneManager\?\.render\(worldDt/);
 assert.match(appSource, /tickSettlementWorld\([\s\S]*?worldDt,/);
+assert.match(
+  appSource,
+  /settlementPresentation\.tick\(this\.settlementPresentationTargets\)/,
+  'the animation loop must reuse presentation targets instead of allocating them every frame',
+);
+assert.match(
+  appSource,
+  /minimap\.tick\(this\.minimapTickState\)/,
+  'the minimap animation tick must reuse its input record',
+);
+assert.match(
+  appSource,
+  /tickSettlementWorld\([\s\S]*?this\.snapshotApplierDeps\.settlementWorld/,
+  'the settlement animation tick must reuse the snapshot-applier target bundle',
+);
 assert.match(sceneManagerSource, /setWorldAnimationTime\(this\.worldAnimationElapsedSeconds\)/);
 for (const shaderSource of [
   riverWaterMaterialSource,

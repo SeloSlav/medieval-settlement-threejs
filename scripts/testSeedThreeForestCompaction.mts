@@ -2,8 +2,12 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
   createSeedThreeBucketMatrixWriteJob,
+  enabledSeedThreeTreeCountInPrefix,
+  partitionSeedThreeSelectionByStaticLod,
+  partitionSeedThreeSelectionByView,
   runSeedThreeBucketMatrixWriteChunk,
   runSeedThreeBucketMatrixWriteSlices,
+  updateSeedThreeLodPassInstanceCounts,
   writeSeedThreeLodMatrices,
   type SeedThreeTreeSlot,
 } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
@@ -93,12 +97,127 @@ const slot = (layoutIndex: number, x: number): SeedThreeTreeSlot => ({
 });
 const slots = [slot(0, 10), slot(1, 20)];
 
+const passPartition = partitionSeedThreeSelectionByView(
+  [0, 1, 2, 3, 4],
+  new Set([1, 3]),
+);
+assert.deepEqual(passPartition, {
+  orderedIndices: [1, 3, 0, 2, 4],
+  viewCount: 2,
+}, 'view-visible trees must form a stable prefix ahead of shadow-only casters');
+assert.deepEqual(
+  [...passPartition.orderedIndices].sort((a, b) => a - b),
+  [0, 1, 2, 3, 4],
+  'pass partitioning must preserve the exact conservative selected set',
+);
+
+const staticOverviewIndices = new Set([1, 4]);
+const staticLodFromFirstDistanceClassification = partitionSeedThreeSelectionByStaticLod(
+  {
+    nearIndices: [0, 1, 2],
+    overviewIndices: [3, 4],
+    viewIndices: [1, 2, 4],
+  },
+  (layoutIndex) => staticOverviewIndices.has(layoutIndex),
+);
+const staticLodFromOppositeDistanceClassification = partitionSeedThreeSelectionByStaticLod(
+  {
+    nearIndices: [3, 4],
+    overviewIndices: [0, 1, 2],
+    viewIndices: [1, 2, 4],
+  },
+  (layoutIndex) => staticOverviewIndices.has(layoutIndex),
+);
+assert.deepEqual(
+  staticLodFromFirstDistanceClassification,
+  staticLodFromOppositeDistanceClassification,
+  'camera-distance classifications must not alter any retained tree static LOD identity',
+);
+assert.deepEqual(staticLodFromFirstDistanceClassification, {
+  nearIndices: [2, 0, 3],
+  overviewIndices: [1, 4],
+  nearViewCount: 1,
+  overviewViewCount: 2,
+}, 'static LOD partitioning must retain the exact selected union and view prefixes');
+assert.deepEqual(
+  [
+    ...staticLodFromFirstDistanceClassification.nearIndices,
+    ...staticLodFromFirstDistanceClassification.overviewIndices,
+  ].sort((left, right) => left - right),
+  [0, 1, 2, 3, 4],
+  'static LOD restoration must neither add nor remove selected trees',
+);
+
 writeSeedThreeLodMatrices(nearSet, slots, [0]);
 writeSeedThreeLodMatrices(overviewSet, slots, [1]);
 assert.equal(nearSet.branches.count, 1, 'near bucket should submit one tree');
 assert.equal(nearSet.cards[0].count, 1, 'near card bucket should submit one tree');
 assert.equal(overviewSet.branches.count, 1, 'overview bucket should submit one tree');
 assert.equal(overviewSet.cards[0].count, 1, 'overview card bucket should submit one tree');
+
+updateSeedThreeLodPassInstanceCounts(nearSet, 0);
+const mainCamera = new THREE.PerspectiveCamera();
+mainCamera.layers.disable(1);
+const shadowCamera = new THREE.OrthographicCamera();
+shadowCamera.layers.enable(1);
+const invokeBeforeRender = (mesh: THREE.InstancedMesh, camera: THREE.Camera): void => {
+  mesh.onBeforeRender(
+    {} as THREE.WebGLRenderer,
+    new THREE.Scene(),
+    camera,
+    mesh.geometry,
+    mesh.material as THREE.Material,
+    null,
+  );
+};
+const invokeAfterRender = (mesh: THREE.InstancedMesh, camera: THREE.Camera): void => {
+  mesh.onAfterRender(
+    {} as THREE.WebGLRenderer,
+    new THREE.Scene(),
+    camera,
+    mesh.geometry,
+    mesh.material as THREE.Material,
+    null,
+  );
+};
+invokeBeforeRender(nearSet.branches, mainCamera);
+assert.equal(nearSet.branches.count, 0,
+  'the color camera must omit the shadow-only branch suffix');
+invokeAfterRender(nearSet.branches, mainCamera);
+assert.equal(nearSet.branches.count, 1,
+  'the complete conservative caster prefix must be restored after color submission');
+invokeBeforeRender(nearSet.branches, shadowCamera);
+assert.equal(nearSet.branches.count, 1,
+  'the directional shadow camera must retain every conservative caster');
+invokeAfterRender(nearSet.branches, shadowCamera);
+
+const passParitySet = makeLodSet(2);
+writeSeedThreeLodMatrices(passParitySet, slots, [0, 1]);
+updateSeedThreeLodPassInstanceCounts(passParitySet, 1);
+const branchTrianglesPerInstance = passParitySet.branches.geometry.index!.count / 3;
+invokeBeforeRender(passParitySet.branches, mainCamera);
+const colorTriangles = passParitySet.branches.count * branchTrianglesPerInstance;
+invokeAfterRender(passParitySet.branches, mainCamera);
+invokeBeforeRender(passParitySet.branches, shadowCamera);
+const shadowTriangles = passParitySet.branches.count * branchTrianglesPerInstance;
+invokeAfterRender(passParitySet.branches, shadowCamera);
+assert.equal(colorTriangles, branchTrianglesPerInstance,
+  'the color pass must submit exactly the view-visible tree prefix');
+assert.equal(shadowTriangles, branchTrianglesPerInstance * 2,
+  'the shadow pass must preserve exact conservative triangle coverage');
+assert.equal(
+  colorTriangles + branchTrianglesPerInstance,
+  shadowTriangles,
+  'the only removed color triangles must be the deterministic shadow-only suffix',
+);
+
+slots[0]!.enabled = false;
+assert.equal(
+  enabledSeedThreeTreeCountInPrefix(slots, [0, 1], 2),
+  1,
+  'pass counts must exclude disabled gameplay trees without changing selection identity',
+);
+slots[0]!.enabled = true;
 const activeDraws = (): number => [
   nearSet.branches,
   ...nearSet.cards,
@@ -160,6 +279,10 @@ multiSliceNearSet.branches.count = 7;
 multiSliceNearSet.cards[0].count = 7;
 multiSliceOverviewSet.branches.count = 3;
 multiSliceOverviewSet.cards[0].count = 3;
+const emptyOverviewMatrixVersion =
+  multiSliceOverviewSet.branches.instanceMatrix.version;
+const emptyOverviewOriginVersion =
+  multiSliceOverviewSet.cards[0].geometry.getAttribute('aTreeOrigin').version;
 const multiSliceJob = createSeedThreeBucketMatrixWriteJob(
   multiSliceNearSet,
   multiSliceOverviewSet,
@@ -186,6 +309,41 @@ assert.equal(multiSliceNearSet.branches.count, multiSliceSlots.length);
 assert.equal(multiSliceNearSet.cards[0].count, multiSliceSlots.length);
 assert.equal(multiSliceOverviewSet.branches.count, 0);
 assert.equal(multiSliceOverviewSet.cards[0].count, 0);
+assert.deepEqual(
+  multiSliceNearSet.branches.instanceMatrix.updateRanges,
+  [{ start: 0, count: multiSliceSlots.length * 16 }],
+  'forest matrix uploads must cover only the exact packed visible prefix',
+);
+assert.deepEqual(
+  multiSliceNearSet.branches.geometry.getAttribute('aWindVec').updateRanges,
+  [{ start: 0, count: multiSliceSlots.length * 3 }],
+  'branch wind uploads must cover only the exact packed visible prefix',
+);
+assert.deepEqual(
+  multiSliceNearSet.cards[0].geometry.getAttribute('aTreeOrigin').updateRanges,
+  [{ start: 0, count: multiSliceSlots.length * 3 }],
+  'card metadata uploads must cover only the exact packed visible prefix',
+);
+assert.deepEqual(
+  multiSliceOverviewSet.branches.instanceMatrix.updateRanges,
+  [],
+  'a zero-count LOD task must not schedule a buffer transfer',
+);
+assert.equal(
+  multiSliceOverviewSet.branches.instanceMatrix.version,
+  emptyOverviewMatrixVersion,
+  'a zero-count LOD task must preserve the last published matrix version',
+);
+assert.deepEqual(
+  multiSliceOverviewSet.cards[0].geometry.getAttribute('aTreeOrigin').updateRanges,
+  [],
+  'zero-count card metadata must not schedule a buffer transfer',
+);
+assert.equal(
+  multiSliceOverviewSet.cards[0].geometry.getAttribute('aTreeOrigin').version,
+  emptyOverviewOriginVersion,
+  'zero-count card metadata must preserve the last published version',
+);
 
 const frozenSelection: SeedThreeBucketSelection[] = Array.from(
   { length: 8 },
@@ -290,6 +448,7 @@ for (const set of [
   chunkOverviewSet,
   multiSliceNearSet,
   multiSliceOverviewSet,
+  passParitySet,
 ]) {
   set.branches.geometry.dispose();
   (set.branches.material as THREE.Material).dispose();

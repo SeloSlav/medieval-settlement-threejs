@@ -17,7 +17,9 @@ app.start().then(async () => {
   if (visualPerformanceHooksPromise) {
     const { installVisualPerformanceHooksIfRequested } =
       await visualPerformanceHooksPromise;
-    installVisualPerformanceHooksIfRequested(app);
+    installVisualPerformanceHooksIfRequested(app, {
+      deferPeriodicReportsUntilReady: true,
+    });
   }
 }).catch((error) => {
   console.error(error);

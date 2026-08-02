@@ -130,8 +130,9 @@ export function guardCompanyIssuedPolearms(
 
 export function issuedGuardPolearmsByCompany(
   agents: Iterable<CombatAgentState>,
+  issued: Map<string, number> = new Map<string, number>(),
 ): Map<string, number> {
-  const issued = new Map<string, number>();
+  issued.clear();
   for (const agent of agents) {
     if (
       agent.faction !== 'guard'

@@ -33,8 +33,20 @@ export type SeedThreeSpeciesAssets = {
   clusterCenter: SeedThreeCanopyCenterUniform;
 };
 
+export type SeedThreeSpeciesAssetStartupTiming = {
+  species: string;
+  source: 'memory' | 'loaded';
+  startedAtMs: number;
+  completedAtMs: number;
+  durationMs: number;
+  textureCount: number;
+};
+
 const loader = new THREE.TextureLoader();
 const assetCache = new Map<string, SeedThreeSpeciesAssets>();
+const assetPromiseCache = new Map<string, Promise<SeedThreeSpeciesAssets>>();
+const startupTimings = new Map<string, SeedThreeSpeciesAssetStartupTiming>();
+let assetCacheGeneration = 0;
 
 async function loadTex(url: string | undefined, srgb: boolean): Promise<THREE.Texture | null> {
   if (!url) return null;
@@ -58,20 +70,56 @@ export async function loadSeedThreeSpeciesAssets(
   maxAnisotropy: number,
 ): Promise<SeedThreeSpeciesAssets> {
   const cached = assetCache.get(species.name);
-  if (cached) return cached;
+  if (cached) {
+    const prior = startupTimings.get(species.name);
+    if (prior) startupTimings.set(species.name, { ...prior, source: 'memory' });
+    return cached;
+  }
+  const pending = assetPromiseCache.get(species.name);
+  if (pending) return pending;
+
+  const startedAtMs = performance.now();
+  const requestGeneration = assetCacheGeneration;
+  const request = createSeedThreeSpeciesAssets(species, maxAnisotropy);
+  assetPromiseCache.set(species.name, request);
+  try {
+    const assets = await request;
+    if (requestGeneration !== assetCacheGeneration) {
+      disposeSpeciesAssets(assets);
+      throw new Error(`SeedThree asset load invalidated during disposal: ${species.name}`);
+    }
+    assetCache.set(species.name, assets);
+    const completedAtMs = performance.now();
+    startupTimings.set(species.name, {
+      species: species.name,
+      source: 'loaded',
+      startedAtMs,
+      completedAtMs,
+      durationMs: completedAtMs - startedAtMs,
+      textureCount: countSpeciesTextures(assets),
+    });
+    return assets;
+  } catch (error) {
+    if (assetPromiseCache.get(species.name) === request) {
+      assetPromiseCache.delete(species.name);
+    }
+    throw error;
+  }
+}
+
+export function getSeedThreeSpeciesAssetStartupTimings(): SeedThreeSpeciesAssetStartupTiming[] {
+  return [...startupTimings.values()].map((timing) => ({ ...timing }));
+}
+
+async function createSeedThreeSpeciesAssets(
+  species: SeedThreeSpeciesPreset,
+  maxAnisotropy: number,
+): Promise<SeedThreeSpeciesAssets> {
 
   const base = species.bark.replace('_albedo.png', '');
   const leafBase = species.leaf.replace(/(_albedo)?\.png$/, '');
 
-  const [
-    barkTexture,
-    barkNormal,
-    barkRoughness,
-    leafTexture,
-    leafTranslucency,
-    leafNormal,
-    leafRoughness,
-  ] = await Promise.all([
+  const textureResults = await Promise.allSettled([
     loadTex(seedThreeBarkUrl(species.bark), true),
     loadOptional(seedThreeBarkUrl(`${base}_normal.png`), false),
     loadOptional(seedThreeBarkUrl(`${base}_roughness.png`), false),
@@ -80,6 +128,30 @@ export async function loadSeedThreeSpeciesAssets(
     loadOptional(seedThreeLeafUrl(`${leafBase}_normal.png`), false),
     loadOptional(seedThreeLeafUrl(`${leafBase}_roughness.png`), false),
   ]);
+  const requiredFailure = [textureResults[0], textureResults[3]].find(
+    (result): result is PromiseRejectedResult => result?.status === 'rejected',
+  );
+  if (requiredFailure) {
+    // Promise.all abandoned already-fulfilled sibling textures on a required
+    // bark/leaf failure. Wait for the fixed seven-request cohort, release every
+    // successful decode, then preserve the original required-error behavior.
+    for (const result of textureResults) {
+      if (result.status === 'fulfilled') result.value?.dispose();
+    }
+    throw requiredFailure.reason;
+  }
+  const textures = textureResults.map((result) => (
+    result.status === 'fulfilled' ? result.value : null
+  ));
+  const [
+    barkTexture,
+    barkNormal,
+    barkRoughness,
+    leafTexture,
+    leafTranslucency,
+    leafNormal,
+    leafRoughness,
+  ] = textures;
 
   for (const tex of [barkTexture, barkNormal, barkRoughness, leafTexture, leafTranslucency, leafNormal, leafRoughness]) {
     if (tex) tex.anisotropy = maxAnisotropy;
@@ -99,7 +171,7 @@ export async function loadSeedThreeSpeciesAssets(
   const leafFol = makeFoliageMaterial(vendorAssets, { ...species.foliage, mode: 'leaves' });
   const clusterFol = makeFoliageMaterial(vendorAssets, { ...species.foliage, mode: 'clusters' });
 
-  const assets: SeedThreeSpeciesAssets = {
+  return {
     ...vendorAssets,
     barkMat,
     leafMat: leafFol.material,
@@ -108,22 +180,39 @@ export async function loadSeedThreeSpeciesAssets(
     clusterCenter: clusterFol.centerUniform as SeedThreeCanopyCenterUniform,
   };
 
-  assetCache.set(species.name, assets);
-  return assets;
+}
+
+function countSpeciesTextures(assets: SeedThreeSpeciesAssets): number {
+  return [
+    assets.barkTexture,
+    assets.barkNormal,
+    assets.barkRoughness,
+    assets.leafTexture,
+    assets.leafTranslucency,
+    assets.leafNormal,
+    assets.leafRoughness,
+  ].filter(Boolean).length;
 }
 
 export function disposeSeedThreeAssetCache(): void {
+  assetCacheGeneration += 1;
   for (const assets of assetCache.values()) {
-    assets.barkTexture?.dispose();
-    assets.barkNormal?.dispose();
-    assets.barkRoughness?.dispose();
-    assets.leafTexture?.dispose();
-    assets.leafTranslucency?.dispose();
-    assets.leafNormal?.dispose();
-    assets.leafRoughness?.dispose();
-    assets.barkMat.dispose();
-    assets.leafMat.dispose();
-    assets.clusterMat.dispose();
+    disposeSpeciesAssets(assets);
   }
   assetCache.clear();
+  assetPromiseCache.clear();
+  startupTimings.clear();
+}
+
+function disposeSpeciesAssets(assets: SeedThreeSpeciesAssets): void {
+  assets.barkTexture?.dispose();
+  assets.barkNormal?.dispose();
+  assets.barkRoughness?.dispose();
+  assets.leafTexture?.dispose();
+  assets.leafTranslucency?.dispose();
+  assets.leafNormal?.dispose();
+  assets.leafRoughness?.dispose();
+  assets.barkMat.dispose();
+  assets.leafMat.dispose();
+  assets.clusterMat.dispose();
 }

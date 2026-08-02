@@ -94,6 +94,8 @@ import {
   setCharcoalClampSmokeThroughput,
 } from './meshes/materialChainBuildingMeshes.ts';
 import { processorOutputTargetForBuilding } from '../economy/processorOutputPolicy.ts';
+import { batchCompletedBuildingStaticMeshes } from './staticBuildingBatch.ts';
+import { BuildingStaticBatches } from './BuildingStaticBatches.ts';
 
 type BuildingMarkersOptions = {
   terrain: Terrain;
@@ -112,6 +114,7 @@ export class BuildingMarkers {
   private readonly buildingMeshes = new Map<string, THREE.Group>();
   private readonly buildingStates = new Map<string, BuildingState>();
   private readonly shadowProxyBatch: BatchedBuildingShadowProxies;
+  private readonly staticBatches: BuildingStaticBatches;
   private readonly foundersCampfires = new Set<THREE.Group>();
   private readonly watermillWheels = new Set<THREE.Group>();
   private foundersCampfireNightLighting = 0;
@@ -142,6 +145,7 @@ export class BuildingMarkers {
     this.getRoadConditionSpeedMultiplier = options.getRoadConditionSpeedMultiplier;
     this.onShadowCastersChanged = options.onShadowCastersChanged;
     this.group.name = 'Building markers';
+    this.staticBatches = new BuildingStaticBatches(this.group);
     this.shadowProxyBatch = new BatchedBuildingShadowProxies(
       this.group,
       'Batched completed-building shadow proxies',
@@ -220,6 +224,7 @@ export class BuildingMarkers {
       if (nextIds.has(id)) continue;
       this.removeBuilding(id);
     }
+    this.staticBatches.finalizeGeometryBuffers();
     if (this.shadowProxyBatch.flush()) {
       this.onShadowCastersChanged?.();
     }
@@ -252,6 +257,7 @@ export class BuildingMarkers {
       const building = this.buildingStates.get(id);
       const destroyed = ids.has(id);
       marker.visible = !destroyed;
+      this.staticBatches.setBuildingVisible(id, !destroyed);
       if (
         destroyed
         || !building
@@ -263,6 +269,7 @@ export class BuildingMarkers {
         this.shadowProxyBatch.upsertBuilding(id, building.kind, marker);
       }
     }
+    this.staticBatches.finalizeGeometryBuffers();
     if (this.shadowProxyBatch.flush()) {
       this.onShadowCastersChanged?.();
     }
@@ -422,6 +429,7 @@ export class BuildingMarkers {
     for (const id of [...this.buildingMeshes.keys()]) {
       this.removeBuilding(id);
     }
+    this.staticBatches.dispose();
     this.shadowProxyBatch.dispose();
     this.group.removeFromParent();
   }
@@ -570,6 +578,7 @@ export class BuildingMarkers {
     issuedGuardPolearms = 0,
   ): void {
     let marker = this.buildingMeshes.get(building.id);
+    let markerNeedsRegistration = false;
     const timberRatio = ratio(
       building.constructionDeliveredTimber,
       building.constructionRequiredTimber,
@@ -587,6 +596,7 @@ export class BuildingMarkers {
     if (marker && marker.userData.visualSignature !== visualSignature) {
       this.unregisterFoundersCampfire(marker);
       this.unregisterWatermillWheel(marker);
+      this.staticBatches.removeBuilding(building.id);
       this.group.remove(marker);
       disposeObject3D(marker);
       this.buildingMeshes.delete(building.id);
@@ -605,6 +615,7 @@ export class BuildingMarkers {
       marker = this.pendingPlacement ?? undefined;
       this.pendingPlacement = null;
       this.pendingPlacementKind = null;
+      markerNeedsRegistration = marker !== undefined;
     }
     if (!marker) {
       marker = operational
@@ -618,6 +629,9 @@ export class BuildingMarkers {
             stoneRatio,
             ironworkRatio,
           );
+      markerNeedsRegistration = true;
+    }
+    if (markerNeedsRegistration) {
       marker.userData.visualSignature = visualSignature;
       if (building.kind === 'founders_camp') {
         marker.name = "Founders' camp and open stockyard";
@@ -635,7 +649,7 @@ export class BuildingMarkers {
         this.getRoadNetwork?.() ?? null,
       );
       this.buildingMeshes.set(building.id, marker);
-      this.group.add(marker);
+      if (marker.parent !== this.group) this.group.add(marker);
       this.registerWatermillWheel(marker);
       setCharcoalClampSmokeThroughput(
         marker,
@@ -668,12 +682,17 @@ export class BuildingMarkers {
         );
         this.foundersCampfires.add(remoteCampfire);
       }
+      if (operational) {
+        batchCompletedBuildingStaticMeshes(marker);
+        this.staticBatches.registerBuilding(building.id, marker);
+      }
     }
 
     const y = this.terrain.getHeightAt(building.x, building.z);
     marker.position.set(building.x, y, building.z);
     const destroyed = this.destroyedBuildingIds.has(building.id);
     marker.visible = !destroyed;
+    this.staticBatches.updateBuilding(building.id, marker, !destroyed);
     if (operational && !destroyed && building.kind !== 'founders_camp') {
       this.shadowProxyBatch.upsertBuilding(
         building.id,
@@ -699,6 +718,7 @@ export class BuildingMarkers {
     if (!marker) return;
     this.unregisterFoundersCampfire(marker);
     this.unregisterWatermillWheel(marker);
+    this.staticBatches.removeBuilding(id);
     this.shadowProxyBatch.remove(id);
     this.group.remove(marker);
     // Construction materials and textures belong to BuildingMaterialLibrary;

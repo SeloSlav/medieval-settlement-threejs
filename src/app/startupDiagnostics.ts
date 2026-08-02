@@ -1,3 +1,5 @@
+import type { VegetationStartupTiming } from '../scene/SceneManager.ts';
+
 export type StartupDiagnostics = {
   startedAt: number;
   terrainSource?: 'cache' | 'generated';
@@ -6,6 +8,24 @@ export type StartupDiagnostics = {
   settlementPresentationReadyMs?: number;
   detailedWorldTexturesReadyMs?: number;
   vegetationReadyMs?: number;
+  vegetation?: VegetationStartupTiming;
+  seedThree?: import('../vegetation/seedthree/seedThreeForestBuilder.ts').SeedThreeForestStartupTiming;
+  firstPlayableAssets?: FirstPlayableAssetReadiness;
+};
+
+export type FirstPlayableAssetReadiness = {
+  celestialSkyHydrationMs: number;
+  celestialGenerationMs: number | null;
+  buildingMaterialHydrationMs: number;
+  vineyardHydrationMs: number;
+  villagerVisualHydrationMs: number;
+  gpuPrecompileMs: number;
+  totalMs: number;
+  celestialReady: boolean;
+  buildingMaterialsReady: boolean;
+  vineyardReady: boolean;
+  villagerVisualsReady: boolean;
+  gpuReady: boolean;
 };
 
 const stats: StartupDiagnostics = {
@@ -42,6 +62,16 @@ export function markDetailedWorldTexturesReady(): void {
 export function markVegetationReady(): void {
   stats.vegetationReadyMs = elapsed();
   console.info(`[Startup] vegetation ready in ${stats.vegetationReadyMs} ms`);
+}
+
+export function markFirstPlayableAssetsReady(
+  readiness: FirstPlayableAssetReadiness,
+): void {
+  stats.firstPlayableAssets = { ...readiness };
+  console.info(
+    '[Startup] first-playable assets ready',
+    stats.firstPlayableAssets,
+  );
 }
 
 export function markStartupCheckpoint(label: string): void {

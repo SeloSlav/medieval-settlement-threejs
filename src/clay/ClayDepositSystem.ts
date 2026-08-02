@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { ResourceNodeState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
+import { StaticInstancedShadowBatch } from '../scene/StaticInstancedShadowBatch.ts';
 import {
   clayDepositNodeId,
   type ClayDepositLayout,
@@ -51,6 +52,7 @@ export function createClayDepositSystem(
       polygonOffsetUnits: -1 - index,
     })
   );
+  const clodGeometry = new THREE.DodecahedronGeometry(1, 0);
   for (const material of materials) {
     material.userData.claySurface = {
       revision: 'alluvial-clay-v2',
@@ -60,7 +62,7 @@ export function createClayDepositSystem(
   }
 
   const visuals: ClayDepositVisual[] = layout.sites.map((site, index) => {
-    const visual = createClayBankPatch(terrain, site, materials);
+    const visual = createClayBankPatch(terrain, site, materials, clodGeometry);
     group.add(visual.group);
     return {
       nodeId: clayDepositNodeId(site, index),
@@ -68,6 +70,11 @@ export function createClayDepositSystem(
       exposedStrata: visual.exposedStrata,
     };
   });
+  const shadowBatch = new StaticInstancedShadowBatch(
+    group,
+    visuals.flatMap((visual) => visual.exposedStrata),
+    'Clay deposit exact caster batches',
+  );
 
   return {
     group,
@@ -85,11 +92,13 @@ export function createClayDepositSystem(
           changed = true;
         }
       }
+      if (changed) shadowBatch.rebuild();
       return changed;
     },
     isBlockedAt: (x, z) => layout.isBlockedForProps(x, z),
     isGrassBlockedAt: (x, z) => layout.isBlockedForGrass(x, z),
     dispose: () => {
+      shadowBatch.dispose();
       group.traverse((object) => {
         if (object instanceof THREE.Mesh) object.geometry.dispose();
       });
@@ -105,6 +114,7 @@ function createClayBankPatch(
   terrain: Terrain,
   site: ClayDepositSite,
   materials: readonly THREE.MeshStandardMaterial[],
+  clodGeometry: THREE.BufferGeometry,
 ): { group: THREE.Group; exposedStrata: THREE.Mesh[] } {
   const group = new THREE.Group();
   const exposedStrata: THREE.Mesh[] = [];
@@ -135,7 +145,7 @@ function createClayBankPatch(
     group.add(seam);
   }
 
-  const clods = createClayClods(terrain, site, materials);
+  const clods = createClayClods(terrain, site, materials, clodGeometry);
   exposedStrata.push(...clods);
   group.add(...clods);
 
@@ -146,6 +156,7 @@ function createClayClods(
   terrain: Terrain,
   site: ClayDepositSite,
   materials: readonly THREE.MeshStandardMaterial[],
+  clodGeometry: THREE.BufferGeometry,
 ): THREE.Mesh[] {
   const clods: THREE.Mesh[] = [];
   const count = site.kind === 'rich' ? 18 : 11;
@@ -166,7 +177,7 @@ function createClayClods(
       * (0.62 + pseudoRandom(seed, index * 4 + 2) * 0.72);
     const verticalScale = size * (0.48 + pseudoRandom(seed, index * 4 + 3) * 0.22);
     const clod = new THREE.Mesh(
-      new THREE.DodecahedronGeometry(1, 0),
+      clodGeometry,
       materials[1 + index % (materials.length - 1)],
     );
     clod.name = `${site.kind === 'rich' ? 'Rich' : 'Ordinary'} clay clod ${index + 1}`;

@@ -40,18 +40,22 @@ import {
 } from './grassLodMath.ts';
 import {
   coalesceStreamSlotRequests,
-  planSlotAttributeUpdateRanges,
   resolveStreamVisibilityHysteresis,
   runStreamSlotUpdateChunk,
 } from '@seedthree/core/stream-slot-budget.js';
 import { applyGroundCoverShadowPolicy } from '@seedthree/core/ground-cover-shadows.js';
 import { resolveGrassStreamViewTransition } from './grassStreamLifecycle.ts';
+import {
+  planGroundcoverAttributeUpdateRanges,
+  resolveGroundcoverSlotRewrite,
+  type GroundcoverSlotUpdate,
+} from './groundcoverSlotUpdates.ts';
 
 export const GRASS_BLADES_ENABLED = true;
 
 export type GrassBladeField = {
   group: THREE.Group;
-  getStreamTelemetry: () => GrassStreamTelemetry;
+  getStreamTelemetry: (target?: GrassStreamTelemetry) => GrassStreamTelemetry;
   isStreamSettled: () => boolean;
   primeAndFreezeStream: (
     cameraPosition: THREE.Vector3,
@@ -387,15 +391,34 @@ export async function createGrassBladeField(
   const commitSlot = (job: GrassSlotGenerationJob): {
     cleared: number;
     written: number;
+    update: GroundcoverSlotUpdate;
   } => {
     const { slotIndex, worldChunkX, worldChunkZ } = job.request;
+    const record = slotRecords[slotIndex]!;
+    const initialized = Number.isFinite(record.worldChunkX)
+      && Number.isFinite(record.worldChunkZ);
     let cleared = 0;
     let written = 0;
-    const meshCounts = streamMeshes.map((entry, meshIndex) => {
+    const dirtyInstanceCounts = Array.from(
+      { length: streamMeshes.length },
+      () => 0,
+    );
+    for (let meshIndex = 0; meshIndex < streamMeshes.length; meshIndex++) {
+      const entry = streamMeshes[meshIndex]!;
       const startIndex = slotIndex * entry.slotCapacity;
-      clearSlotRange(entry.mesh, startIndex, entry.slotCapacity);
-      cleared += entry.slotCapacity;
       const generated = job.generatedByMesh[meshIndex] ?? [];
+      const rewrite = resolveGroundcoverSlotRewrite(
+        initialized,
+        record.meshCounts[meshIndex] ?? 0,
+        generated.length,
+        entry.slotCapacity,
+      );
+      clearSlotRange(
+        entry.mesh,
+        startIndex + rewrite.clearStart,
+        rewrite.clearCount,
+      );
+      cleared += rewrite.clearCount;
       for (let index = 0; index < generated.length; index++) {
         const instance = generated[index]!;
         const instanceIndex = startIndex + index;
@@ -412,10 +435,16 @@ export async function createGrassBladeField(
         }
         written += 1;
       }
-      return generated.length;
-    });
-    slotRecords[slotIndex] = { worldChunkX, worldChunkZ, meshCounts };
-    return { cleared, written };
+      record.meshCounts[meshIndex] = generated.length;
+      dirtyInstanceCounts[meshIndex] = rewrite.dirtyInstanceCount;
+    }
+    record.worldChunkX = worldChunkX;
+    record.worldChunkZ = worldChunkZ;
+    return {
+      cleared,
+      written,
+      update: { slotIndex, dirtyInstanceCounts },
+    };
   };
 
   const queueFullStream = (
@@ -468,7 +497,7 @@ export async function createGrassBladeField(
   let roadDraftActive = false;
   const stepPendingSlots = (): void => {
     const updateStartedAt = performance.now();
-    const changedSlotIndices: number[] = [];
+    const changedSlots: GroundcoverSlotUpdate[] = [];
     const result = runStreamSlotUpdateChunk(pendingSlots, {
       maxDurationMs: GRASS_STREAM_UPDATE_BUDGET_MS,
       minimumHeadroomMs: GRASS_STREAM_MINIMUM_HEADROOM_MS,
@@ -512,7 +541,7 @@ export async function createGrassBladeField(
         const durationMs = performance.now() - startedAt;
         streamTelemetry.clearWriteSubsteps += 1;
         streamTelemetry.clearWriteDurationMs += durationMs;
-        changedSlotIndices.push(request.slotIndex);
+        changedSlots.push(committed.update);
         activeSlotJob = null;
         return {
           completed: true,
@@ -522,14 +551,14 @@ export async function createGrassBladeField(
       },
     });
     pendingSlots = result.pending;
-    if (changedSlotIndices.length > 0) {
+    if (changedSlots.length > 0) {
       const refreshStartedAt = performance.now();
       refreshMeshCount();
       streamTelemetry.refreshCount += 1;
       streamTelemetry.refreshDurationMs += performance.now() - refreshStartedAt;
       applyStreamMeshUpdateRanges(
         streamMeshes,
-        changedSlotIndices,
+        changedSlots,
         streamTelemetry,
       );
     }
@@ -576,8 +605,10 @@ export async function createGrassBladeField(
 
   return {
     group,
-    getStreamTelemetry() {
-      return { ...streamTelemetry };
+    getStreamTelemetry(target) {
+      if (!target) return { ...streamTelemetry };
+      Object.assign(target, streamTelemetry);
+      return target;
     },
     isStreamSettled() {
       return streamTelemetry.converged && streamTelemetry.mode !== 'priming-frozen';
@@ -612,6 +643,7 @@ export async function createGrassBladeField(
       buildInteractionActive = active;
     },
     setRoadDraftActive(active: boolean) {
+      if (roadDraftActive === active) return;
       roadDraftActive = active;
       if (active && streamTelemetry.mode !== 'frozen') {
         pendingSlots = [];
@@ -715,31 +747,34 @@ function createDisabledGrassBladeField(): GrassBladeField {
   const group = new THREE.Group();
   group.name = 'Grass blade field (disabled)';
   group.visible = false;
+  const telemetry: GrassStreamTelemetry = {
+    mode: 'frozen',
+    maxUpdateDurationBudgetMs: GRASS_STREAM_UPDATE_BUDGET_MS,
+    updates: 0,
+    generationSubsteps: 0,
+    generationDurationMs: 0,
+    clearWriteSubsteps: 0,
+    clearWriteDurationMs: 0,
+    refreshCount: 0,
+    refreshDurationMs: 0,
+    gpuFlagUpdates: 0,
+    gpuUpdateRanges: 0,
+    bytesUploaded: 0,
+    boundsScans: 0,
+    completedSlots: 0,
+    cancelledSlots: 0,
+    pendingSlots: 0,
+    maxPendingSlots: 0,
+    lastUpdateDurationMs: 0,
+    maxUpdateDurationMs: 0,
+    converged: true,
+  };
   return {
     group,
-    getStreamTelemetry() {
-      return {
-        mode: 'frozen',
-        maxUpdateDurationBudgetMs: GRASS_STREAM_UPDATE_BUDGET_MS,
-        updates: 0,
-        generationSubsteps: 0,
-        generationDurationMs: 0,
-        clearWriteSubsteps: 0,
-        clearWriteDurationMs: 0,
-        refreshCount: 0,
-        refreshDurationMs: 0,
-        gpuFlagUpdates: 0,
-        gpuUpdateRanges: 0,
-        bytesUploaded: 0,
-        boundsScans: 0,
-        completedSlots: 0,
-        cancelledSlots: 0,
-        pendingSlots: 0,
-        maxPendingSlots: 0,
-        lastUpdateDurationMs: 0,
-        maxUpdateDurationMs: 0,
-        converged: true,
-      };
+    getStreamTelemetry(target) {
+      if (!target) return { ...telemetry };
+      Object.assign(target, telemetry);
+      return target;
     },
     isStreamSettled() {
       return true;
@@ -767,10 +802,11 @@ function samePendingSlot(
 
 function applyStreamMeshUpdateRanges(
   streamMeshes: GrassStreamMesh[],
-  changedSlotIndices: readonly number[],
+  changedSlots: readonly GroundcoverSlotUpdate[],
   telemetry: GrassStreamTelemetry,
 ): void {
-  for (const entry of streamMeshes) {
+  for (let meshIndex = 0; meshIndex < streamMeshes.length; meshIndex++) {
+    const entry = streamMeshes[meshIndex]!;
     const attributes = [
       entry.mesh.instanceMatrix,
       entry.mesh.instanceColor,
@@ -779,12 +815,14 @@ function applyStreamMeshUpdateRanges(
     ].filter((attribute): attribute is THREE.InstancedBufferAttribute => !!attribute);
     for (const attribute of attributes) {
       const bytesPerElement = attribute.array.BYTES_PER_ELEMENT;
-      const plan = planSlotAttributeUpdateRanges(
-        changedSlotIndices,
+      const plan = planGroundcoverAttributeUpdateRanges(
+        changedSlots,
+        meshIndex,
         entry.slotCapacity,
         attribute.itemSize,
         bytesPerElement,
       );
+      if (plan.componentCount === 0) continue;
       attribute.clearUpdateRanges();
       for (const range of plan.ranges) {
         attribute.addUpdateRange(range.start, range.count);
@@ -798,9 +836,24 @@ function applyStreamMeshUpdateRanges(
 }
 
 function clearSlotRange(mesh: THREE.InstancedMesh, startIndex: number, capacity: number): void {
-  for (let index = 0; index < capacity; index++) {
-    mesh.setMatrixAt(startIndex + index, hiddenMatrix);
+  if (capacity <= 0) return;
+  (mesh.instanceMatrix.array as Float32Array).set(
+    hiddenMatrixBlock(capacity),
+    startIndex * 16,
+  );
+}
+
+const hiddenMatrixBlocks = new Map<number, Float32Array>();
+
+function hiddenMatrixBlock(count: number): Float32Array {
+  let block = hiddenMatrixBlocks.get(count);
+  if (block) return block;
+  block = new Float32Array(count * 16);
+  for (let index = 0; index < count; index++) {
+    block.set(hiddenMatrix.elements, index * 16);
   }
+  hiddenMatrixBlocks.set(count, block);
+  return block;
 }
 
 function chunkSeed(chunkX: number, chunkZ: number): number {
@@ -880,13 +933,15 @@ function* generateSeedThreeChunkInstances(
   };
 
   const localPlacements: { x: number; z: number; micro: boolean }[] = [];
+  let standardPlacementCount = 0;
+  let microPlacementCount = 0;
   const tuftTarget = GRASS_TUFTS_PER_CHUNK + Math.floor(rng() * 14);
 
   const tryPlaceTuft = (micro: boolean): boolean => {
     if (instancesByMesh.every((instances) => instances.length >= maxInstancesPerMesh)) {
       return false;
     }
-    if (!micro && localPlacements.filter((p) => !p.micro).length >= tuftTarget) return false;
+    if (!micro && standardPlacementCount >= tuftTarget) return false;
 
     let x: number;
     let z: number;
@@ -925,6 +980,8 @@ function* generateSeedThreeChunkInstances(
     }
 
     localPlacements.push({ x, z, micro });
+    if (micro) microPlacementCount += 1;
+    else standardPlacementCount += 1;
 
     const dry = Math.min(1, Math.max(0, (1 - density - 0.15) * 1.2)) + (rng() < 0.1 ? 0.3 : 0);
     const forestHeightMul = density > 0.38 ? THREE.MathUtils.lerp(0.78, 0.94, density) : 1;
@@ -952,12 +1009,16 @@ function* generateSeedThreeChunkInstances(
   };
 
   for (let attempt = 0; attempt < GRASS_TUFT_SCATTER_ATTEMPTS; attempt++) {
-    if (localPlacements.filter((p) => !p.micro).length >= tuftTarget) break;
+    if (standardPlacementCount >= tuftTarget) break;
     yield tryPlaceTuft(false) ? 1 : 0;
   }
 
   const microTarget = Math.floor(tuftTarget * 0.42);
-  for (let attempt = 0; attempt < GRASS_TUFT_SCATTER_ATTEMPTS && localPlacements.filter((p) => p.micro).length < microTarget; attempt++) {
+  for (
+    let attempt = 0;
+    attempt < GRASS_TUFT_SCATTER_ATTEMPTS && microPlacementCount < microTarget;
+    attempt++
+  ) {
     if (localPlacements.length < 3) break;
     yield tryPlaceTuft(true) ? 1 : 0;
   }

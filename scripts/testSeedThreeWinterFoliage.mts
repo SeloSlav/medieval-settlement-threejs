@@ -409,7 +409,7 @@ assert.match(
 );
 assert.match(
   sceneSource,
-  /this\.forestManager = await createForestProps[\s\S]*?if \(this\.environment\)[\s\S]*?this\.forestManager\.setDeciduousFoliage\(this\.environment\.deciduousFoliage\)/,
+  /const \[forestManager\] = await Promise\.all\(\[forestPromise, worldDetailsPromise\]\);[\s\S]*?this\.forestManager = forestManager;[\s\S]*?if \(this\.environment\)[\s\S]*?this\.forestManager\.setDeciduousFoliage\(this\.environment\.deciduousFoliage\)/,
   'a deferred forest must inherit an environment that arrived before vegetation creation',
 );
 assert.match(
@@ -434,7 +434,7 @@ assert.match(
 );
 assert.match(
   cardCacheSource,
-  /for \(const cachedSet of record\.sets\)[\s\S]*byLevel\.set\(cachedSet\.key,[\s\S]*for \(const \[key, set\] of cards\.byLevel\)[\s\S]*sets\.push\(\{\s*key,/,
+  /record\.sets\.map\(async \(cachedSet\)[\s\S]*return \[cachedSet\.key,[\s\S]*new Map<string, BranchCardsSet>\(restoredSets\)[\s\S]*for \(const \[key, set\] of cards\.byLevel\)[\s\S]*sets\.push\(\{\s*key,/,
   'persistent card storage must round-trip ordinary branch-card set names unchanged',
 );
 assert.match(

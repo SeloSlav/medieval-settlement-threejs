@@ -12,6 +12,7 @@ import {
   type AmbientRuleState,
 } from './ambientRules.ts';
 import { ChapelBellPlayer } from './ChapelBellPlayer.ts';
+import type { ChapelBellPosition, ChapelBellTick } from './ChapelBellPlayer.ts';
 import { RiverAudio } from './RiverAudio.ts';
 import { SoundtrackAudio } from './SoundtrackAudio.ts';
 import { UiAudio } from './UiAudio.ts';
@@ -27,7 +28,7 @@ import {
 export type AmbientAudioControllerConfig = {
   getCameraTarget: () => { x: number; z: number };
   getOrbitDistance: () => number;
-  getBuildings: () => Iterable<BuildingState>;
+  getBuildings: () => ReadonlyMap<string, BuildingState>;
   getBurgageZones: () => Iterable<BurgageZoneState>;
   getFireIncidents: () => Iterable<FireIncidentState>;
   camera: THREE.Camera;
@@ -45,6 +46,17 @@ export class AmbientAudioController {
   private readonly uiAudio = new UiAudio();
   private readonly fireAudio: FireAudio;
   private readonly config: AmbientAudioControllerConfig;
+  private readonly chapelPositions: ChapelBellPosition[] = [];
+  private lastChapelBuildingSnapshot: ReadonlyMap<string, BuildingState> | null = null;
+  private readonly chapelTick: ChapelBellTick = {
+    dtSeconds: 0,
+    clockHour: 0,
+    calendarMinute: 0,
+    chapels: this.chapelPositions,
+    listener: { x: 0, z: 0 },
+    orbitDistance: 0,
+    enabled: true,
+  };
   private readonly ambientRuleState: AmbientRuleState = { overviewActive: false, villageActive: false };
   private lastAmbientEvalAtMs = 0;
   private lastSettlementSignature = '';
@@ -108,21 +120,19 @@ export class AmbientAudioController {
 
     const schedule = this.schedule;
     if (schedule) {
-      const chapels = placedChapels(this.config.getBuildings());
-      this.chapelBell.tick(
-        {
-          dtSeconds,
-          clockHour: schedule.clock.hour,
-          calendarMinute:
-            schedule.clock.totalDays * 24 * 60
-            + schedule.clock.hour * 60
-            + schedule.clock.minute,
-          chapels,
-          listener: this.config.getCameraTarget(),
-          orbitDistance: this.config.getOrbitDistance(),
-          enabled: true,
-        },
-      );
+      const buildingSnapshot = this.config.getBuildings();
+      if (buildingSnapshot !== this.lastChapelBuildingSnapshot) {
+        syncPlacedChapels(buildingSnapshot.values(), this.chapelPositions);
+        this.lastChapelBuildingSnapshot = buildingSnapshot;
+      }
+      this.chapelTick.dtSeconds = dtSeconds;
+      this.chapelTick.clockHour = schedule.clock.hour;
+      this.chapelTick.calendarMinute = schedule.clock.totalDays * 24 * 60
+        + schedule.clock.hour * 60
+        + schedule.clock.minute;
+      this.chapelTick.listener = this.config.getCameraTarget();
+      this.chapelTick.orbitDistance = this.config.getOrbitDistance();
+      this.chapelBell.tick(this.chapelTick);
     }
 
     const nowMs = performance.now();
@@ -204,11 +214,13 @@ export class AmbientAudioController {
     this.running = false;
     this.unlocked = false;
     this.schedule = null;
+    this.lastChapelBuildingSnapshot = null;
+    this.chapelPositions.length = 0;
     this.isRaining = false;
   }
 
   private refreshSettlementZones(): void {
-    const buildings = [...this.config.getBuildings()];
+    const buildings = [...this.config.getBuildings().values()];
     const burgageZones = [...this.config.getBurgageZones()];
     const signature = settlementSignature(buildings, burgageZones);
     if (signature === this.lastSettlementSignature) return;
@@ -217,14 +229,25 @@ export class AmbientAudioController {
   }
 }
 
-function placedChapels(buildings: Iterable<BuildingState>): Array<{ x: number; z: number }> {
-  const chapels: Array<{ x: number; z: number }> = [];
+function syncPlacedChapels(
+  buildings: Iterable<BuildingState>,
+  chapels: ChapelBellPosition[],
+): void {
+  let chapelCount = 0;
   for (const building of buildings) {
     if (building.kind === 'chapel' && building.constructionComplete !== false) {
-      chapels.push({ x: building.x, z: building.z });
+      let chapel = chapels[chapelCount];
+      if (!chapel) {
+        chapel = { x: building.x, z: building.z };
+        chapels.push(chapel);
+      } else {
+        chapel.x = building.x;
+        chapel.z = building.z;
+      }
+      chapelCount += 1;
     }
   }
-  return chapels;
+  chapels.length = chapelCount;
 }
 
 function settlementSignature(buildings: BuildingState[], burgageZones: BurgageZoneState[]): string {

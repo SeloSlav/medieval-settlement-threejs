@@ -61,22 +61,26 @@ export class FireAudio {
   tick(dtSeconds: number): void {
     if (!this.enabled) return;
     const listener = this.config.getListener();
-    let nearest: { distance: number; intensity: number } | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    let nearestIntensity = 0;
+    let hasNearest = false;
     for (const incident of this.config.getFireIncidents()) {
       if (incident.status !== 'burning') continue;
       const distance = Math.hypot(
         incident.x - listener.x,
         incident.z - listener.z,
       );
-      if (!nearest || distance < nearest.distance) {
-        nearest = { distance, intensity: incident.intensity };
+      if (!hasNearest || distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIntensity = incident.intensity;
+        hasNearest = true;
       }
     }
 
-    const gain = nearest
+    const gain = hasNearest
       ? fireAudioGain(
-          nearest.distance,
-          nearest.intensity,
+          nearestDistance,
+          nearestIntensity,
           this.config.getOrbitDistance(),
         )
       : 0;

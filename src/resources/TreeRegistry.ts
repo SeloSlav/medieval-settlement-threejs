@@ -8,7 +8,7 @@ export class TreeRegistry {
   readonly entries: readonly TreeLayoutEntry[];
   readonly entryById: ReadonlyMap<string, TreeLayoutEntry>;
   readonly entryByLayoutIndex: ReadonlyMap<number, TreeLayoutEntry>;
-  private readonly spatialBuckets: Map<string, TreeLayoutEntry[]>;
+  private readonly spatialBuckets: Map<number, Map<number, TreeLayoutEntry[]>>;
 
   private constructor(entries: TreeLayoutEntry[]) {
     this.entries = entries;
@@ -28,9 +28,17 @@ export class TreeRegistry {
   }
 
   treesInRadius(x: number, z: number, radius: number): TreeLayoutEntry[] {
+    return this.treesInRadiusInto(x, z, radius, []);
+  }
+
+  treesInRadiusInto(
+    x: number,
+    z: number,
+    radius: number,
+    results: TreeLayoutEntry[],
+  ): TreeLayoutEntry[] {
+    results.length = 0;
     const radiusSq = radius * radius;
-    const seen = new Set<string>();
-    const results: TreeLayoutEntry[] = [];
     const cellRadius = Math.ceil(radius / TREE_CELL_SIZE);
 
     const originCellX = Math.floor(x / TREE_CELL_SIZE);
@@ -38,13 +46,13 @@ export class TreeRegistry {
 
     for (let dz = -cellRadius; dz <= cellRadius; dz++) {
       for (let dx = -cellRadius; dx <= cellRadius; dx++) {
-        const bucket = this.spatialBuckets.get(treeSpatialKey(originCellX + dx, originCellZ + dz));
+        const bucket = this.spatialBuckets
+          .get(originCellX + dx)
+          ?.get(originCellZ + dz);
         if (!bucket) continue;
         for (const entry of bucket) {
-          if (seen.has(entry.id)) continue;
           const distSq = (entry.x - x) ** 2 + (entry.z - z) ** 2;
           if (distSq > radiusSq) continue;
-          seen.add(entry.id);
           results.push(entry);
         }
       }
@@ -82,19 +90,21 @@ function toTreeLayoutEntry(layout: ForestTreeLayout): TreeLayoutEntry {
   };
 }
 
-function treeSpatialKey(cellX: number, cellZ: number): string {
-  return `${cellX}:${cellZ}`;
-}
-
-function buildTreeSpatialBuckets(entries: TreeLayoutEntry[]): Map<string, TreeLayoutEntry[]> {
-  const buckets = new Map<string, TreeLayoutEntry[]>();
+function buildTreeSpatialBuckets(
+  entries: TreeLayoutEntry[],
+): Map<number, Map<number, TreeLayoutEntry[]>> {
+  const buckets = new Map<number, Map<number, TreeLayoutEntry[]>>();
   for (const entry of entries) {
     const cellX = Math.floor(entry.x / TREE_CELL_SIZE);
     const cellZ = Math.floor(entry.z / TREE_CELL_SIZE);
-    const key = treeSpatialKey(cellX, cellZ);
-    const bucket = buckets.get(key);
+    let row = buckets.get(cellX);
+    if (!row) {
+      row = new Map();
+      buckets.set(cellX, row);
+    }
+    const bucket = row.get(cellZ);
     if (bucket) bucket.push(entry);
-    else buckets.set(key, [entry]);
+    else row.set(cellZ, [entry]);
   }
   return buckets;
 }

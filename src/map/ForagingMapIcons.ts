@@ -42,6 +42,12 @@ type ForagingIconEntry = {
   marker: WorldMapMarker;
   button: HTMLButtonElement;
   worldPoint: THREE.Vector3;
+  presentationNode: ResourceNodeState | undefined;
+  presentationRemaining: number;
+  presentationMaxYield: number;
+  presentationResource: ResourceNodeState['resource'] | null;
+  presentationIsRich: boolean | undefined;
+  presentationInitialized: boolean;
 };
 
 export class ForagingMapIcons {
@@ -57,6 +63,12 @@ export class ForagingMapIcons {
       marker,
       button: this.createIconButton(marker),
       worldPoint: new THREE.Vector3(),
+      presentationNode: undefined,
+      presentationRemaining: Number.NaN,
+      presentationMaxYield: Number.NaN,
+      presentationResource: null,
+      presentationIsRich: undefined,
+      presentationInitialized: false,
     }));
 
     for (const entry of this.entries) {
@@ -64,9 +76,9 @@ export class ForagingMapIcons {
     }
   }
 
-  update(): void {
+  update(getFrameRect?: () => DOMRect): void {
     const interactionBlocked = this.options.isBlocked();
-    this.root.classList.toggle('is-interaction-blocked', interactionBlocked);
+    toggleClassIfChanged(this.root, 'is-interaction-blocked', interactionBlocked);
     const frame = beginMapIconFrame(
       this.root,
       this.options.domElement,
@@ -74,6 +86,7 @@ export class ForagingMapIcons {
       this.options.getCamera,
       this.options.getZoomPercent,
       this.options.isVisibilityBlocked ?? this.options.isBlocked,
+      getFrameRect,
     );
     if (!frame) return;
 
@@ -83,31 +96,53 @@ export class ForagingMapIcons {
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
       if (!isWorldMapForagingMarkerVisible(marker, nodes)) {
-        button.hidden = true;
+        if (!button.hidden) button.hidden = true;
         continue;
       }
 
       const node = marker.kind === 'clay'
         ? geologicalNodeForMapMarker(marker, geologicalNodes)
         : nodes.get(marker.id);
-      const geologicalPresentation = marker.kind === 'clay'
-        ? describeGeologicalMapMarker(marker, node)
-        : null;
-      button.classList.toggle(
+      let geologicalPresentation: ReturnType<typeof describeGeologicalMapMarker> | null = null;
+      const geologicalPresentationChanged = marker.kind === 'clay'
+        && (
+          !entry.presentationInitialized
+          || entry.presentationNode !== node
+          || !Object.is(entry.presentationRemaining, node?.remaining ?? Number.NaN)
+          || !Object.is(entry.presentationMaxYield, node?.maxYield ?? Number.NaN)
+          || entry.presentationResource !== (node?.resource ?? null)
+          || entry.presentationIsRich !== node?.isRich
+        );
+      if (geologicalPresentationChanged) {
+        geologicalPresentation = describeGeologicalMapMarker(marker, node);
+        entry.presentationNode = node;
+        entry.presentationRemaining = node?.remaining ?? Number.NaN;
+        entry.presentationMaxYield = node?.maxYield ?? Number.NaN;
+        entry.presentationResource = node?.resource ?? null;
+        entry.presentationIsRich = node?.isRich;
+        entry.presentationInitialized = true;
+      }
+      toggleClassIfChanged(
+        button,
         'foraging-map-icon--depleted',
-        geologicalPresentation?.level === 'depleted'
+        (geologicalPresentationChanged
+          ? geologicalPresentation?.level === 'depleted'
+          : button.classList.contains('foraging-map-icon--depleted'))
           || (marker.kind !== 'clay' && (node?.remaining ?? 0) <= 0),
       );
       for (const level of ['low', 'deep'] as const) {
-        button.classList.toggle(
-          `foraging-map-icon--${level}`,
-          geologicalPresentation?.level === level,
-        );
+        if (geologicalPresentationChanged) {
+          toggleClassIfChanged(
+            button,
+            `foraging-map-icon--${level}`,
+            geologicalPresentation?.level === level,
+          );
+        }
       }
-      if (geologicalPresentation) {
-        button.dataset.tooltip = geologicalPresentation.label;
-        button.dataset.reserveLevel = geologicalPresentation.level;
-        button.setAttribute('aria-label', geologicalPresentation.label);
+      if (geologicalPresentationChanged && geologicalPresentation) {
+        setDatasetIfChanged(button, 'tooltip', geologicalPresentation.label);
+        setDatasetIfChanged(button, 'reserveLevel', geologicalPresentation.level);
+        setAttributeIfChanged(button, 'aria-label', geologicalPresentation.label);
       }
       placeProjectedMapButton(
         button,
@@ -163,4 +198,16 @@ export class ForagingMapIcons {
 
     return button;
   }
+}
+
+function toggleClassIfChanged(element: HTMLElement, className: string, active: boolean): void {
+  if (element.classList.contains(className) !== active) element.classList.toggle(className, active);
+}
+
+function setDatasetIfChanged(element: HTMLElement, key: string, value: string): void {
+  if (element.dataset[key] !== value) element.dataset[key] = value;
+}
+
+function setAttributeIfChanged(element: HTMLElement, name: string, value: string): void {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value);
 }

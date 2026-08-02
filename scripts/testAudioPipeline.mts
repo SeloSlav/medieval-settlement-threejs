@@ -46,6 +46,7 @@ import {
   COMBAT_AUDIO_CUTOFF_DISTANCE,
   COMBAT_AUDIO_MAX_SOURCES,
   COMBAT_AUDIO_MAX_ZOOM_DISTANCE,
+  createCombatAudioSourceWorkspace,
 } from '../src/audio/CombatAudio.ts';
 
 type AudioAsset = {
@@ -340,6 +341,40 @@ async function main(): Promise<void> {
     engagementSources.length === 1
     && engagementSources[0]?.id === 'guard:raider',
     'only a live opposing pair in the fighting state should emit melee sound',
+  );
+  const reusableCombatFighters = [
+    { id: 'Z-guard', faction: 'guard' as const, status: 'fighting' as const, health: 80, x: 0, z: 0 },
+    { id: 'a-raider', faction: 'raider' as const, status: 'fighting' as const, health: 70, x: 2, z: 0 },
+  ];
+  const combatSourceWorkspace = createCombatAudioSourceWorkspace();
+  const reusableCombatSources = buildCombatAudioSources(
+    reusableCombatFighters,
+    combatSourceWorkspace,
+  );
+  const reusableCombatSource = reusableCombatSources[0];
+  invariant(
+    reusableCombatSource?.id === 'Z-guard:a-raider',
+    'combat pair IDs must preserve default UTF-16 sort ordering',
+  );
+  reusableCombatFighters[1]!.x = 4;
+  const updatedCombatSources = buildCombatAudioSources(
+    reusableCombatFighters,
+    combatSourceWorkspace,
+  );
+  invariant(
+    updatedCombatSources === reusableCombatSources
+    && updatedCombatSources[0] === reusableCombatSource
+    && updatedCombatSources[0]?.x === 2,
+    'combat source workspace should reuse its result array and records while updating positions',
+  );
+  const reusablePairingStarted = performance.now();
+  for (let index = 0; index < 50_000; index += 1) {
+    buildCombatAudioSources(reusableCombatFighters, combatSourceWorkspace);
+  }
+  const reusablePairingElapsedMs = performance.now() - reusablePairingStarted;
+  invariant(
+    reusablePairingElapsedMs < 250,
+    `50,000 retained combat-audio source builds took ${reusablePairingElapsedMs.toFixed(1)}ms`,
   );
   const surroundedSource = buildCombatAudioSources([
     { id: 'guard-far', faction: 'guard', status: 'fighting', health: 80, x: 4, z: 0 },

@@ -66,6 +66,9 @@ export class SettlementPresentationController {
     'simTick' | 'parishPolicy' | 'monasteryPolicy' | 'nightPolicy' | 'gameSpeed' | 'combatAgents'
   > | null = null;
   private lastGameState: GameState | null = null;
+  private lastStaffedChapel = false;
+  private lastRaidThreatActive = false;
+  private tickSchedule: SettlementSchedule | null = null;
   private readonly now: () => number;
   private readonly visualQaConditions: VisualQaConditions | null;
 
@@ -131,6 +134,8 @@ export class SettlementPresentationController {
       gameState,
       raidThreatActive,
     );
+    this.lastStaffedChapel = schedule.staffedChapel;
+    this.lastRaidThreatActive = raidThreatActive;
     this.applyPresentation(
       targets,
       schedule,
@@ -149,8 +154,11 @@ export class SettlementPresentationController {
       elapsedSeconds,
       this.lastSnapshot.parishPolicy,
       this.lastGameState,
-      hasActiveRaiderThreat(this.lastSnapshot.combatAgents.values()),
+      this.lastRaidThreatActive,
+      this.lastStaffedChapel,
+      this.tickSchedule ?? undefined,
     );
+    this.tickSchedule = schedule;
     const monasteryFeastsEnabled =
       this.lastSnapshot.monasteryPolicy?.feastsEnabled ?? true;
     this.applyPresentation(
@@ -166,6 +174,8 @@ export class SettlementPresentationController {
     this.anchor = null;
     this.lastSnapshot = null;
     this.lastGameState = null;
+    this.lastStaffedChapel = false;
+    this.lastRaidThreatActive = false;
   }
 
   private elapsedSecondsAt(nowMs: number): number {
@@ -183,18 +193,28 @@ export class SettlementPresentationController {
     parishPolicy: SpacetimeGameSnapshot['parishPolicy'],
     gameState: GameState | null,
     raidThreatActive: boolean,
+    staffedChapelOverride?: boolean,
+    target?: SettlementSchedule,
   ): SettlementSchedule {
-    const clock = gameClockAtElapsedSeconds(elapsedSeconds);
+    const clock = gameClockAtElapsedSeconds(
+      elapsedSeconds,
+      this.visualQaConditions ? undefined : target?.clock,
+    );
     const schedule = deriveSettlementScheduleFromClock(
       this.visualQaConditions
         ? applyVisualQaClock(clock, this.visualQaConditions)
         : clock,
       parishPolicy,
       gameState,
+      staffedChapelOverride,
+      target,
     );
-    return raidThreatActive && !schedule.laborPaused
-      ? { ...schedule, laborPaused: true }
-      : schedule;
+    if (!raidThreatActive || schedule.laborPaused) return schedule;
+    if (target) {
+      schedule.laborPaused = true;
+      return schedule;
+    }
+    return { ...schedule, laborPaused: true };
   }
 
   private applyPresentation(

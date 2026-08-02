@@ -38,8 +38,13 @@ export class SpacetimeSnapshotApplier {
   private lastPlacedBuildingSignature = '';
   private lastBuildingMarkerSignature = '';
   private lastBuildingColliderSignature = '';
-  private lastIssuedGuardPolearmSignature = '';
+  private readonly issuedGuardPolearms = new Map<string, number>();
+  private lastIssuedGuardPolearmSignature = new Map<string, string>();
+  private nextIssuedGuardPolearmSignature = new Map<string, string>();
   private lastForestClearanceSignature = '';
+  private destroyedBuildingIds = new Set<string>();
+  private destroyedResidenceIds = new Set<string>();
+  private destroyedVisibilityInitialized = false;
   private readonly previousTreePhases = new Map<string, string>();
   private readonly previousTreeGrowth = new Map<string, number>();
 
@@ -50,28 +55,56 @@ export class SpacetimeSnapshotApplier {
     combatAgents: Iterable<CombatAgentState> = [],
   ): void {
     const buildingsChanged = !previous || state.buildings !== previous.buildings;
-    const issuedGuardPolearms = issuedGuardPolearmsByCompany(combatAgents);
-    const issuedGuardPolearmSignature = [...issuedGuardPolearms.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([buildingId, amount]) => `${buildingId}:${amount.toFixed(3)}`)
-      .join('|');
-    const issuedGuardPolearmsChanged =
-      issuedGuardPolearmSignature !== this.lastIssuedGuardPolearmSignature;
-    this.lastIssuedGuardPolearmSignature = issuedGuardPolearmSignature;
+    const issuedGuardPolearms = issuedGuardPolearmsByCompany(
+      combatAgents,
+      this.issuedGuardPolearms,
+    );
+    this.nextIssuedGuardPolearmSignature.clear();
+    for (const [buildingId, amount] of issuedGuardPolearms) {
+      this.nextIssuedGuardPolearmSignature.set(buildingId, amount.toFixed(3));
+    }
+    const issuedGuardPolearmsChanged = !mapEntriesShareValues(
+      this.nextIssuedGuardPolearmSignature,
+      this.lastIssuedGuardPolearmSignature,
+    );
+    if (issuedGuardPolearmsChanged) {
+      const previousSignature = this.lastIssuedGuardPolearmSignature;
+      this.lastIssuedGuardPolearmSignature = this.nextIssuedGuardPolearmSignature;
+      this.nextIssuedGuardPolearmSignature = previousSignature;
+    }
     const livestockHerdsChanged = !previous
       || state.livestockHerds !== previous.livestockHerds;
     const residencesChanged = !previous || state.residences !== previous.residences;
-    const destroyedBuildings = destroyedBuildingIds(state.fireIncidents.values());
-    const destroyedResidences = destroyedResidenceIds(state.fireIncidents.values());
-    const destroyedStructureVisibilityChanged = !previous
-      || !setsMatch(
-        destroyedBuildings,
-        destroyedBuildingIds(previous.fireIncidents.values()),
-      )
-      || !setsMatch(
-        destroyedResidences,
-        destroyedResidenceIds(previous.fireIncidents.values()),
-      );
+    const fireIncidentsChanged = !previous || !mapEntriesShareValues(
+      state.fireIncidents,
+      previous.fireIncidents,
+    );
+    let destroyedBuildings = this.destroyedBuildingIds;
+    let destroyedResidences = this.destroyedResidenceIds;
+    let destroyedStructureVisibilityChanged = false;
+    if (fireIncidentsChanged || !this.destroyedVisibilityInitialized) {
+      destroyedBuildings = destroyedBuildingIds(state.fireIncidents.values());
+      destroyedResidences = destroyedResidenceIds(state.fireIncidents.values());
+      if (!previous) {
+        destroyedStructureVisibilityChanged = true;
+      } else if (!this.destroyedVisibilityInitialized) {
+        destroyedStructureVisibilityChanged = !setsMatch(
+          destroyedBuildings,
+          destroyedBuildingIds(previous.fireIncidents.values()),
+        ) || !setsMatch(
+          destroyedResidences,
+          destroyedResidenceIds(previous.fireIncidents.values()),
+        );
+      } else {
+        destroyedStructureVisibilityChanged = !setsMatch(
+          destroyedBuildings,
+          this.destroyedBuildingIds,
+        ) || !setsMatch(destroyedResidences, this.destroyedResidenceIds);
+      }
+      this.destroyedBuildingIds = destroyedBuildings;
+      this.destroyedResidenceIds = destroyedResidences;
+      this.destroyedVisibilityInitialized = true;
+    }
     if (destroyedStructureVisibilityChanged) {
       deps.buildingMarkers?.setDestroyedBuildingIds?.(destroyedBuildings);
       deps.settlementWorld.residenceMarkers?.setDestroyedResidenceIds?.(
@@ -244,8 +277,13 @@ export class SpacetimeSnapshotApplier {
     this.lastPlacedBuildingSignature = '';
     this.lastBuildingMarkerSignature = '';
     this.lastBuildingColliderSignature = '';
-    this.lastIssuedGuardPolearmSignature = '';
+    this.issuedGuardPolearms.clear();
+    this.lastIssuedGuardPolearmSignature.clear();
+    this.nextIssuedGuardPolearmSignature.clear();
     this.lastForestClearanceSignature = '';
+    this.destroyedBuildingIds = new Set();
+    this.destroyedResidenceIds = new Set();
+    this.destroyedVisibilityInitialized = false;
     this.previousTreePhases.clear();
     this.previousTreeGrowth.clear();
   }

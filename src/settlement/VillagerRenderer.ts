@@ -36,10 +36,15 @@ import {
   WorkerActivityAudio,
   type WorkerActivitySoundSource,
 } from '../audio/WorkerActivityAudio.ts';
-import { FarmWorkerSongAudio } from '../audio/FarmWorkerSongAudio.ts';
+import {
+  FarmWorkerSongAudio,
+  type FarmSongSource,
+} from '../audio/FarmWorkerSongAudio.ts';
 import {
   buildCombatAudioSources,
   CombatAudio,
+  createCombatAudioSourceWorkspace,
+  type CombatAudioFighter,
 } from '../audio/CombatAudio.ts';
 import {
   CROWD_SIM_DT,
@@ -322,6 +327,7 @@ export type VillagerRendererOptions = {
 };
 
 export class VillagerRenderer {
+  readonly visualAssetsReady: Promise<boolean>;
   private readonly renderer: SettlementCrowdRenderer;
   private readonly activityAudio = new WorkerActivityAudio();
   private readonly farmWorkerSongAudio = new FarmWorkerSongAudio();
@@ -333,6 +339,15 @@ export class VillagerRenderer {
   private readonly routePathAroundObstacles:
     ((path: readonly PointXZ[]) => PointXZ[] | null) | null;
   private readonly agents = new Map<string, VillagerAgent>();
+  private readonly renderAgents: CrowdRenderAgent[] = [];
+  private readonly renderAgentsById = new Map<string, CrowdRenderAgent>();
+  private readonly workerSoundSources: WorkerActivitySoundSource[] = [];
+  private readonly workerSoundSourcePool: WorkerActivitySoundSource[] = [];
+  private readonly farmSongSources: FarmSongSource[] = [];
+  private readonly farmSongSourcePool: FarmSongSource[] = [];
+  private readonly combatAudioFighters: CombatAudioFighter[] = [];
+  private readonly combatAudioFighterPool: CombatAudioFighter[] = [];
+  private readonly combatAudioSourceWorkspace = createCombatAudioSourceWorkspace();
   private residences = new Map<string, ResidenceState>();
   private buildings = new Map<string, BuildingState>();
   private workerTargets = new Map<string, WorkerTarget[]>();
@@ -365,6 +380,20 @@ export class VillagerRenderer {
   private laborPaused = false;
   private sabbathPausedToday = false;
   private lastScheduleElapsedSeconds: number | null = null;
+  private lastRoutineClockTotalDays = Number.NaN;
+  private lastRoutineClockHour = Number.NaN;
+  private lastRoutineClockMinute = Number.NaN;
+  private lastRoutineClockMonth = Number.NaN;
+  private lastRoutineClockMonthDay = Number.NaN;
+  private lastRoutineClockIsSunday: boolean | null = null;
+  private lastRoutineClockIsWorkHours: boolean | null = null;
+  private lastRoutineLaborPaused: boolean | null = null;
+  private lastRoutineNightWatch = Number.NaN;
+  private lastRoutineNightGathering = Number.NaN;
+  private lastRoutineNightWork = Number.NaN;
+  private lastRoutineNightCurfew = Number.NaN;
+  private lastRoutineMonasteryFeastsEnabled: boolean | null = null;
+  private lastRoutineSabbathPausedToday: boolean | null = null;
   private commuteEstimateNetwork: RoadNetwork | null = null;
   private commuteEstimateTopologyRevision = -1;
   private readonly workerCommuteEstimateCache = new Map<
@@ -373,6 +402,7 @@ export class VillagerRenderer {
   >();
   private nightPolicy: NightPolicyState = { ...DEFAULT_NIGHT_POLICY };
   private lastView: CrowdViewState | undefined;
+  private inspectedAgentCache: VillagerAgent | null = null;
 
   constructor(options: VillagerRendererOptions) {
     this.getGameSpeed = options.getGameSpeed;
@@ -381,6 +411,11 @@ export class VillagerRenderer {
     this.isWaterAt = options.isWaterAt ?? null;
     this.routePathAroundObstacles = options.routePathAroundObstacles ?? null;
     this.renderer = new SettlementCrowdRenderer({ parent: options.parent });
+    this.visualAssetsReady = this.renderer.ready;
+  }
+
+  beginFirstPlayableGpuPrewarm(): () => void {
+    return this.renderer.beginFirstPlayableGpuPrewarm();
   }
 
   setSchedule(
@@ -391,10 +426,9 @@ export class VillagerRenderer {
     sabbathPausedToday = false,
   ): void {
     const scheduleElapsed = clockElapsedSeconds(clock);
-    if (
-      this.lastScheduleElapsedSeconds != null
-      && scheduleElapsed + 1 < this.lastScheduleElapsedSeconds
-    ) {
+    const scheduleRewound = this.lastScheduleElapsedSeconds != null
+      && scheduleElapsed + 1 < this.lastScheduleElapsedSeconds;
+    if (scheduleRewound) {
       // Deterministic QA fixtures and world reconnects may replace the clock
       // with an earlier snapshot; stale rest deadlines must not survive it.
       for (const agent of this.agents.values()) {
@@ -405,6 +439,35 @@ export class VillagerRenderer {
         agent.workArrivalElapsedSeconds = null;
       }
     }
+    const fullRoutinePass = scheduleRewound
+      || this.lastRoutineClockTotalDays !== clock.totalDays
+      || this.lastRoutineClockHour !== clock.hour
+      || this.lastRoutineClockMinute !== clock.minute
+      || this.lastRoutineClockMonth !== clock.month
+      || this.lastRoutineClockMonthDay !== clock.monthDay
+      || this.lastRoutineClockIsSunday !== clock.isSunday
+      || this.lastRoutineClockIsWorkHours !== clock.isWorkHours
+      || this.lastRoutineLaborPaused !== laborPaused
+      || this.lastRoutineNightWatch !== nightPolicy.watch
+      || this.lastRoutineNightGathering !== nightPolicy.gathering
+      || this.lastRoutineNightWork !== nightPolicy.work
+      || this.lastRoutineNightCurfew !== nightPolicy.curfew
+      || this.lastRoutineMonasteryFeastsEnabled !== monasteryFeastsEnabled
+      || this.lastRoutineSabbathPausedToday !== sabbathPausedToday;
+    this.lastRoutineClockTotalDays = clock.totalDays;
+    this.lastRoutineClockHour = clock.hour;
+    this.lastRoutineClockMinute = clock.minute;
+    this.lastRoutineClockMonth = clock.month;
+    this.lastRoutineClockMonthDay = clock.monthDay;
+    this.lastRoutineClockIsSunday = clock.isSunday;
+    this.lastRoutineClockIsWorkHours = clock.isWorkHours;
+    this.lastRoutineLaborPaused = laborPaused;
+    this.lastRoutineNightWatch = nightPolicy.watch;
+    this.lastRoutineNightGathering = nightPolicy.gathering;
+    this.lastRoutineNightWork = nightPolicy.work;
+    this.lastRoutineNightCurfew = nightPolicy.curfew;
+    this.lastRoutineMonasteryFeastsEnabled = monasteryFeastsEnabled;
+    this.lastRoutineSabbathPausedToday = sabbathPausedToday;
     this.lastScheduleElapsedSeconds = scheduleElapsed;
     this.clock = clock;
     this.laborPaused = laborPaused;
@@ -413,11 +476,17 @@ export class VillagerRenderer {
     this.sabbathPausedToday = sabbathPausedToday;
     let changed = false;
     for (const agent of this.agents.values()) {
+      // Residents and founders only observe minute-resolution home, mass, and
+      // feast schedules. Workers additionally have precise commute/rest
+      // deadlines, so they remain eligible between discrete clock changes.
+      if (!fullRoutinePass && agent.role !== 'worker') continue;
       changed = this.reconcileRoutine(agent) || changed;
     }
-    changed = this.syncCampAmbientAssignments() || changed;
-    changed = this.syncChapelAmbientAssignments() || changed;
-    if (changed) this.pushRenderState();
+    if (changed) {
+      this.syncCampAmbientAssignments();
+      this.syncChapelAmbientAssignments();
+      this.pushRenderState();
+    }
   }
 
   setFrontierAlert(
@@ -479,6 +548,9 @@ export class VillagerRenderer {
           combatGuardSlotKey(state.sourceBuildingId, state.sourceSlot),
         );
       }
+    }
+    for (const id of this.combatAgentVisuals.keys()) {
+      if (!agents.has(id)) this.renderAgentsById.delete(`combat:${id}`);
     }
     this.combatAgentVisuals = nextVisuals;
     this.activeCombatGuardSlots = nextGuardSlots;
@@ -1030,6 +1102,7 @@ export class VillagerRenderer {
     for (const id of [...this.agents.keys()]) {
       if (nextIds.has(id)) continue;
       this.agents.delete(id);
+      this.renderAgentsById.delete(id);
       this.workerCommuteEstimateCache.delete(id);
     }
     this.syncRefugeRallySlots();
@@ -1110,9 +1183,7 @@ export class VillagerRenderer {
       }
 
       this.interpolateDisplay(agent, simulationDt);
-      agent.x = this.readDisplayX(agent);
-      agent.z = this.readDisplayZ(agent);
-      agent.yaw = this.readDisplayYaw(agent);
+      this.syncDisplayPose(agent);
       agent.y = this.resolveAgentY(agent);
     }
 
@@ -1172,9 +1243,20 @@ export class VillagerRenderer {
       const visual = this.combatAgentVisuals.get(personIdentity.slice('combat:'.length));
       return visual ? this.describeCombatAgent(visual) : null;
     }
-    for (const agent of this.agents.values()) {
-      if (agent.personIdentity === personIdentity) return this.describeAgent(agent);
+    const cached = this.inspectedAgentCache;
+    if (
+      cached
+      && cached.personIdentity === personIdentity
+      && this.agents.get(cached.id) === cached
+    ) {
+      return this.describeAgent(cached);
     }
+    for (const agent of this.agents.values()) {
+      if (agent.personIdentity !== personIdentity) continue;
+      this.inspectedAgentCache = agent;
+      return this.describeAgent(agent);
+    }
+    if (cached?.personIdentity === personIdentity) this.inspectedAgentCache = null;
     return null;
   }
 
@@ -1237,7 +1319,22 @@ export class VillagerRenderer {
   }
 
   dispose(): void {
+    this.inspectedAgentCache = null;
     this.agents.clear();
+    this.renderAgents.length = 0;
+    this.renderAgentsById.clear();
+    this.workerSoundSources.length = 0;
+    this.workerSoundSourcePool.length = 0;
+    this.farmSongSources.length = 0;
+    this.farmSongSourcePool.length = 0;
+    this.combatAudioFighters.length = 0;
+    this.combatAudioFighterPool.length = 0;
+    this.combatAudioSourceWorkspace.guards.length = 0;
+    this.combatAudioSourceWorkspace.raiders.length = 0;
+    this.combatAudioSourceWorkspace.sources.length = 0;
+    this.combatAudioSourceWorkspace.sourcePool.length = 0;
+    this.combatAudioSourceWorkspace.sourceFirstIds.length = 0;
+    this.combatAudioSourceWorkspace.sourceSecondIds.length = 0;
     this.workerCommuteEstimateCache.clear();
     this.activityAudio.dispose();
     this.farmWorkerSongAudio.dispose();
@@ -1518,11 +1615,18 @@ export class VillagerRenderer {
     animationDt = 0,
     audioDt = animationDt,
   ): void {
-    const renderAgents: CrowdRenderAgent[] = [];
+    const renderAgents = this.renderAgents;
+    renderAgents.length = 0;
+    if (audioDt > 0) {
+      this.workerSoundSources.length = 0;
+      this.farmSongSources.length = 0;
+      this.combatAudioFighters.length = 0;
+    }
     let slot = 0;
     for (const agent of this.agents.values()) {
+      let workplace: BuildingState | null = null;
       if (agent.role === 'worker') {
-        const workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
+        workplace = agent.workplaceId ? this.buildings.get(agent.workplaceId) ?? null : null;
         if (!workplace || workplace.assignedLabor <= agent.workplaceSlot) continue;
         if (
           workplace.kind === 'guardhouse'
@@ -1546,23 +1650,28 @@ export class VillagerRenderer {
       ) {
         continue;
       }
-      renderAgents.push({
-        id: agent.id,
-        slot: slot++,
-        x: agent.x,
-        y: agent.y,
-        z: agent.z,
-        yaw: agent.yaw,
-        appearanceSeed: agent.appearanceSeed,
-        variant: agent.modelVariant,
-        mode: agent.mode,
-        tunicColor: agent.tunicColor,
-        skinColor: agent.skinColor,
-        hairColor: agent.hairColor,
-        tool: this.workerToolFor(agent),
-        movementSpeed: agent.currentMoveSpeed,
-        active: true,
-      });
+      const renderAgent = this.renderAgentFor(agent.id);
+      renderAgent.slot = slot++;
+      renderAgent.x = agent.x;
+      renderAgent.y = agent.y;
+      renderAgent.z = agent.z;
+      renderAgent.yaw = agent.yaw;
+      renderAgent.appearanceSeed = agent.appearanceSeed;
+      renderAgent.variant = agent.modelVariant;
+      renderAgent.mode = agent.mode;
+      renderAgent.tunicColor = agent.tunicColor;
+      renderAgent.skinColor = agent.skinColor;
+      renderAgent.hairColor = agent.hairColor;
+      renderAgent.tool = this.workerToolFor(agent);
+      renderAgent.movementSpeed = agent.currentMoveSpeed;
+      renderAgent.active = true;
+      renderAgents.push(renderAgent);
+      if (audioDt > 0) {
+        this.pushWorkerSoundSource(renderAgent, workplace);
+        if (agent.mode === 'tend' && workplace?.kind === 'threshing_barn') {
+          this.pushFarmSongSource(renderAgent);
+        }
+      }
     }
     for (const visual of this.combatAgentVisuals.values()) {
       const combat = visual.state;
@@ -1583,34 +1692,34 @@ export class VillagerRenderer {
             target.displayZ - visual.displayZ,
           )
         : visual.yaw;
-      renderAgents.push({
-        id: `combat:${combat.id}`,
-        slot: slot++,
-        x: visual.displayX,
-        y: this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02,
-        z: visual.displayZ,
-        yaw,
-        appearanceSeed,
-        variant: ordinaryGuard?.modelVariant ?? 'man',
-        mode: combatRenderMode(
-          combat.status,
-          combat.targetKind !== 'cart',
-        ),
-        tunicColor: ordinaryGuard?.tunicColor
-          ?? (combat.faction === 'raider'
-            ? raiderTunicColor(appearanceSeed)
-            : colors.tunic),
-        skinColor: ordinaryGuard?.skinColor ?? colors.skin,
-        hairColor: ordinaryGuard?.hairColor
-          ?? pickVillagerHairColor(appearanceSeed),
-        tool: 'spear',
-        movementSpeed: (combat.status === 'wounded-returning'
-          ? 0.68
-          : combat.faction === 'guard'
-            ? 1.42
-            : 1.34) * (isWading ? COMBAT_WADING_SPEED_MULTIPLIER : 1),
-        active: true,
-      });
+      const renderAgent = this.renderAgentFor(`combat:${combat.id}`);
+      renderAgent.slot = slot++;
+      renderAgent.x = visual.displayX;
+      renderAgent.y = this.resolveGroundY(visual.displayX, visual.displayZ) + 0.02;
+      renderAgent.z = visual.displayZ;
+      renderAgent.yaw = yaw;
+      renderAgent.appearanceSeed = appearanceSeed;
+      renderAgent.variant = ordinaryGuard?.modelVariant ?? 'man';
+      renderAgent.mode = combatRenderMode(
+        combat.status,
+        combat.targetKind !== 'cart',
+      );
+      renderAgent.tunicColor = ordinaryGuard?.tunicColor
+        ?? (combat.faction === 'raider'
+          ? raiderTunicColor(appearanceSeed)
+          : colors.tunic);
+      renderAgent.skinColor = ordinaryGuard?.skinColor ?? colors.skin;
+      renderAgent.hairColor = ordinaryGuard?.hairColor
+        ?? pickVillagerHairColor(appearanceSeed);
+      renderAgent.tool = 'spear';
+      renderAgent.movementSpeed = (combat.status === 'wounded-returning'
+        ? 0.68
+        : combat.faction === 'guard'
+          ? 1.42
+          : 1.34) * (isWading ? COMBAT_WADING_SPEED_MULTIPLIER : 1);
+      renderAgent.active = true;
+      renderAgents.push(renderAgent);
+      if (audioDt > 0) this.pushCombatAudioFighter(visual);
     }
     const activeView = view ?? this.lastView;
     this.renderer.syncAgents(renderAgents, activeView, animationDt);
@@ -1618,51 +1727,52 @@ export class VillagerRenderer {
       this.combatAudio.tick(
         audioDt,
         buildCombatAudioSources(
-          [...this.combatAgentVisuals.values()].map((visual) => ({
-            id: visual.state.id,
-            faction: visual.state.faction,
-            status: visual.state.status,
-            health: visual.state.health,
-            x: visual.displayX,
-            z: visual.displayZ,
-          })),
+          this.combatAudioFighters,
+          this.combatAudioSourceWorkspace,
         ),
         activeView,
       );
       this.activityAudio.tick(
         audioDt,
-        renderAgents.flatMap((agent) => {
-          const source = this.workerActivitySoundSource(agent);
-          return source ? [source] : [];
-        }),
+        this.workerSoundSources,
         activeView,
       );
       this.farmWorkerSongAudio.tick(
         audioDt,
-        renderAgents.flatMap((renderAgent) => {
-          const agent = this.agents.get(renderAgent.id);
-          const workplace = agent?.workplaceId
-            ? this.buildings.get(agent.workplaceId)
-            : null;
-          return (
-            agent?.mode === 'tend'
-            && workplace?.kind === 'threshing_barn'
-          )
-            ? [{
-                id: renderAgent.id,
-                x: renderAgent.x,
-                z: renderAgent.z,
-              }]
-            : [];
-        }),
+        this.farmSongSources,
         activeView,
       );
     } else if (this.getGameSpeed() === 0) {
       // A pause freezes the combat presentation and immediately silences any
       // in-flight melee one-shots instead of letting them finish over a frozen
       // battlefield.
-      this.combatAudio.tick(0, [], activeView);
+      this.combatAudioSourceWorkspace.sources.length = 0;
+      this.combatAudio.tick(0, this.combatAudioSourceWorkspace.sources, activeView);
     }
+  }
+
+  private renderAgentFor(id: string): CrowdRenderAgent {
+    let renderAgent = this.renderAgentsById.get(id);
+    if (renderAgent) return renderAgent;
+    renderAgent = {
+      id,
+      slot: 0,
+      x: 0,
+      y: 0,
+      z: 0,
+      yaw: 0,
+      appearanceSeed: 0,
+      variant: 'man',
+      mode: 'idle',
+      tunicColor: 0xffffff,
+      skinColor: 0xffffff,
+      hairColor: 0xffffff,
+      tool: null,
+      movementSpeed: 0,
+      active: true,
+    };
+    this.renderAgentsById.set(id, renderAgent);
+    return renderAgent;
   }
 
   private advanceCombatAgentVisuals(realDt: number): void {
@@ -1705,13 +1815,10 @@ export class VillagerRenderer {
     return nearest;
   }
 
-  private workerActivitySoundSource(
+  private workerActivitySoundMode(
     renderAgent: CrowdRenderAgent,
-  ): WorkerActivitySoundSource | null {
-    const agent = this.agents.get(renderAgent.id);
-    const workplace = agent?.workplaceId
-      ? this.buildings.get(agent.workplaceId)
-      : null;
+    workplace: BuildingState | null,
+  ): WorkerActivitySoundSource['mode'] | null {
     const mode = renderAgent.mode === 'chop'
       || renderAgent.mode === 'mine'
       ? renderAgent.mode
@@ -1735,14 +1842,63 @@ export class VillagerRenderer {
                   ? 'livestock'
                   : null
               : null;
-    return mode
-      ? {
-          id: renderAgent.id,
-          mode,
-          x: renderAgent.x,
-          z: renderAgent.z,
-        }
-      : null;
+    return mode;
+  }
+
+  private pushWorkerSoundSource(
+    renderAgent: CrowdRenderAgent,
+    workplace: BuildingState | null,
+  ): void {
+    const mode = this.workerActivitySoundMode(renderAgent, workplace);
+    if (!mode) return;
+    const sourceIndex = this.workerSoundSources.length;
+    let source = this.workerSoundSourcePool[sourceIndex];
+    if (!source) {
+      source = { id: renderAgent.id, mode, x: 0, z: 0 };
+      this.workerSoundSourcePool.push(source);
+    }
+    source.id = renderAgent.id;
+    source.mode = mode;
+    source.x = renderAgent.x;
+    source.z = renderAgent.z;
+    this.workerSoundSources.push(source);
+  }
+
+  private pushFarmSongSource(renderAgent: CrowdRenderAgent): void {
+    const sourceIndex = this.farmSongSources.length;
+    let source = this.farmSongSourcePool[sourceIndex];
+    if (!source) {
+      source = { id: renderAgent.id, x: 0, z: 0 };
+      this.farmSongSourcePool.push(source);
+    }
+    source.id = renderAgent.id;
+    source.x = renderAgent.x;
+    source.z = renderAgent.z;
+    this.farmSongSources.push(source);
+  }
+
+  private pushCombatAudioFighter(visual: CombatAgentVisual): void {
+    const fighterIndex = this.combatAudioFighters.length;
+    let fighter = this.combatAudioFighterPool[fighterIndex];
+    if (!fighter) {
+      fighter = {
+        id: visual.state.id,
+        faction: visual.state.faction,
+        status: visual.state.status,
+        health: visual.state.health,
+        x: visual.displayX,
+        z: visual.displayZ,
+      };
+      this.combatAudioFighterPool.push(fighter);
+    } else {
+      fighter.id = visual.state.id;
+      fighter.faction = visual.state.faction;
+      fighter.status = visual.state.status;
+      fighter.health = visual.state.health;
+      fighter.x = visual.displayX;
+      fighter.z = visual.displayZ;
+    }
+    this.combatAudioFighters.push(fighter);
   }
 
   private simStep(agent: VillagerAgent, dt: number): void {
@@ -1886,34 +2042,27 @@ export class VillagerRenderer {
     agent.displayPathCursor += (agent.simPathCursor - agent.displayPathCursor) * blend;
   }
 
-  private readDisplayX(agent: VillagerAgent): number {
-    if (agent.mode !== 'walk') return agent.x;
-    const sample = samplePolylineXZ(agent.path, agent.displayPathCursor);
-    return sample?.x ?? agent.x;
-  }
-
-  private readDisplayZ(agent: VillagerAgent): number {
-    if (agent.mode !== 'walk') return agent.z;
-    const sample = samplePolylineXZ(agent.path, agent.displayPathCursor);
-    return sample?.z ?? agent.z;
-  }
-
-  private readDisplayYaw(agent: VillagerAgent): number {
-    if (agent.mode !== 'walk') {
-      if (
-        agent.routinePhase === 'work'
-        || agent.routinePhase === 'at_mass'
-        || agent.routinePhase === 'at_feast'
-        || agent.routinePhase === 'at_refuge'
-        || agent.routinePhase === 'at_muster'
-      ) {
-        return agent.yaw;
+  private syncDisplayPose(agent: VillagerAgent): void {
+    if (agent.mode === 'walk') {
+      const sample = samplePolylineXZ(agent.path, agent.displayPathCursor);
+      if (sample) {
+        agent.x = sample.x;
+        agent.z = sample.z;
+        agent.yaw = sample.yaw;
       }
-      const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
-      return residence ? residence.yaw + agent.idleOffset.yaw : agent.yaw;
+      return;
     }
-    const sample = samplePolylineXZ(agent.path, agent.displayPathCursor);
-    return sample?.yaw ?? agent.yaw;
+    if (
+      agent.routinePhase === 'work'
+      || agent.routinePhase === 'at_mass'
+      || agent.routinePhase === 'at_feast'
+      || agent.routinePhase === 'at_refuge'
+      || agent.routinePhase === 'at_muster'
+    ) {
+      return;
+    }
+    const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
+    if (residence) agent.yaw = residence.yaw + agent.idleOffset.yaw;
   }
 
   private beginWorkerActivity(agent: VillagerAgent): void {

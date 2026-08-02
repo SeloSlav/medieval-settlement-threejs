@@ -125,6 +125,11 @@ function presetNoiseOffset(seed: number): { x: number; z: number } {
   };
 }
 
+// Risnjak National Park runs from roughly 290 m in the Kupa valley to
+// 1,528 m on Veliki Risnjak. The playable map condenses that 1,238 m regional
+// rise horizontally, so it renders a little over half of it on each side.
+const KUPA_REGIONAL_RELIEF_METERS = 1_528 - 290;
+
 function sampleKupaValleyHeight(x: number, z: number, relief: number, seed: number): number {
   const { playableHalf } = getActiveWorldDimensions();
   const offset = presetNoiseOffset(seed);
@@ -137,19 +142,60 @@ function sampleKupaValleyHeight(x: number, z: number, relief: number, seed: numb
     (z + offset.z) * 0.0048,
     4,
   );
-  const mountainRelief = sideSlope * (48 + ridge * 48) * relief;
+  const mountainRelief = sideSlope
+    * KUPA_REGIONAL_RELIEF_METERS
+    * (0.3 + ridge * 0.3)
+    * relief;
   const valleyUndulation = fbm(
     (x + offset.x) * 0.0065,
     (z + offset.z) * 0.0065,
     4,
   ) * (1.3 + sideSlope * 4.2) * relief;
   const riverGrade = -z / Math.max(1, playableHalf) * 1.6;
-  const forestShoulder = Math.pow(sideSlope, 2.2) * 18 * relief;
+  const forestShoulder = Math.pow(sideSlope, 2.2)
+    * KUPA_REGIONAL_RELIEF_METERS
+    * 0.055
+    * relief;
   return mountainRelief
     + forestShoulder
     + valleyUndulation
     + riverGrade
     + getEdgeHillHeight(x, z) * relief * 0.46;
+}
+
+function sampleCustomMountainHeight(
+  x: number,
+  z: number,
+  topography: number,
+  seed: number,
+): number {
+  const alpineStrength = smoothstep(62, 100, topography);
+  if (alpineStrength <= 0) return 0;
+
+  const { playableHalf } = getActiveWorldDimensions();
+  const offset = presetNoiseOffset(seed);
+  const normalizedX = Math.abs(x) / playableHalf;
+  const normalizedZ = Math.abs(z) / playableHalf;
+  const sideMassif = Math.max(
+    smoothstep(0.28, 0.94, normalizedX),
+    smoothstep(0.34, 0.98, normalizedZ) * 0.82,
+  );
+  if (sideMassif <= 0) return 0;
+
+  const longRidge = ridgedFbm(
+    (x + offset.x) * 0.0038,
+    (z + offset.z) * 0.0038,
+    5,
+  );
+  const brokenPeaks = ridgedFbm(
+    (x - offset.z) * 0.0082,
+    (z + offset.x) * 0.0082,
+    4,
+  );
+  const massifHeight = 95
+    + longRidge * 350
+    + Math.pow(brokenPeaks, 2.35) * 650;
+  return sideMassif * Math.pow(alpineStrength, 1.25) * massifHeight;
 }
 
 function sampleRisnjakPassHeight(x: number, z: number, relief: number, seed: number): number {
@@ -232,7 +278,13 @@ export function sampleRawTerrainHeight(x: number, z: number): number {
   const n2 = fbm(x * 0.04 + 18.4, z * 0.04 - 9.2, 3) * 1.2 * relief;
   const broad = (Math.sin(x * 0.012 + z * 0.005) * 1.35 + Math.cos(z * 0.011) * 1.0) * relief;
   const basin = -Math.exp(-((x - basinX) * (x - basinX) + (z - basinZ) * (z - basinZ)) / 62000) * 3.4 * relief;
-  return n1 + n2 + broad + basin + getMacroDrainage(x, z) * relief + getEdgeHillHeight(x, z) * relief;
+  return n1
+    + n2
+    + broad
+    + basin
+    + getMacroDrainage(x, z) * relief
+    + getEdgeHillHeight(x, z) * relief
+    + sampleCustomMountainHeight(x, z, settings.topography, settings.seed);
 }
 
 export function sampleNaturalTerrainHeight(x: number, z: number): number {

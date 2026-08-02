@@ -31,15 +31,29 @@ const pendingVineMeshes = new Set<THREE.InstancedMesh>();
 export function initializeVineyardVineResources(
   maxAnisotropy: number,
   rendererBackend: RendererBackendKind,
+  preloadTexture?: (texture: THREE.Texture) => void,
 ): Promise<void> {
-  if (vineTextures && vineMaterial) return Promise.resolve();
-  if (vineLoadPromise) return vineLoadPromise;
+  if (vineTextures && vineMaterial) {
+    preloadVineTextures(vineTextures, preloadTexture);
+    return Promise.resolve();
+  }
+  if (vineLoadPromise) {
+    return preloadTexture
+      ? vineLoadPromise.then(() => {
+          if (vineTextures) preloadVineTextures(vineTextures, preloadTexture);
+        })
+      : vineLoadPromise;
+  }
 
   vineLoadPromise = import('./seedThreeGroundCover.ts').then(async ({
     createSeedThreeGroundCoverMaterial,
     loadSeedThreeGroundCoverTextures,
   }) => {
     const textures = await loadSeedThreeGroundCoverTextures(SWEETGUM_LEAF_URLS, maxAnisotropy);
+    preloadTexture?.(textures.albedo);
+    if (textures.normal) preloadTexture?.(textures.normal);
+    if (textures.roughness) preloadTexture?.(textures.roughness);
+    if (textures.translucency) preloadTexture?.(textures.translucency);
     vineTextures = textures;
     vineMaterial = rendererBackend === 'webgl'
       ? new THREE.MeshStandardMaterial({
@@ -72,6 +86,17 @@ export function initializeVineyardVineResources(
       throw error;
     });
   return vineLoadPromise;
+}
+
+function preloadVineTextures(
+  textures: SeedThreeGroundCoverTextures,
+  preloadTexture?: (texture: THREE.Texture) => void,
+): void {
+  if (!preloadTexture) return;
+  preloadTexture(textures.albedo);
+  if (textures.normal) preloadTexture(textures.normal);
+  if (textures.roughness) preloadTexture(textures.roughness);
+  if (textures.translucency) preloadTexture(textures.translucency);
 }
 
 export function disposeVineyardVineResources(): void {

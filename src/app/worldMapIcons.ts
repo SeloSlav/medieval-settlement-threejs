@@ -26,6 +26,7 @@ export type WorldMapUiBundle = {
   quarry: QuarryMapIcons;
   foraging: ForagingMapIcons;
   minimap: TerrainMinimapOverlay;
+  update(): void;
 };
 
 export function createWorldMapUi(options: {
@@ -101,8 +102,22 @@ export function createWorldMapUi(options: {
     getFocus,
     isBlocked: () => isOverlayBlocked(placementGate),
   });
+  let sharedFrameRect: DOMRect | null = null;
+  const getFrameRect = (): DOMRect => {
+    sharedFrameRect ??= domElement.getBoundingClientRect();
+    return sharedFrameRect;
+  };
 
-  return { quarry, foraging, minimap };
+  return {
+    quarry,
+    foraging,
+    minimap,
+    update(): void {
+      sharedFrameRect = null;
+      quarry.update(getFrameRect);
+      foraging.update(getFrameRect);
+    },
+  };
 }
 
 export function resolveWorldMapFocus(

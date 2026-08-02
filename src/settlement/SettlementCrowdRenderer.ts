@@ -17,6 +17,11 @@ import {
 
 const MAX_INSTANCES = 1024;
 const MAX_ANIMATED_VILLAGERS = 72;
+export const ANIMATED_RIGS_PER_SHARD = 8;
+export const MAX_ANIMATED_SKELETON_BYTES = 15_872;
+const ANIMATED_SHARDS_PER_VARIANT = Math.ceil(
+  MAX_ANIMATED_VILLAGERS / ANIMATED_RIGS_PER_SHARD,
+);
 const MODEL_YAW_OFFSET = 0;
 const NOMINAL_WALK_SPEED = 1.2;
 const BODY_GEOMETRY = new THREE.CapsuleGeometry(0.22, 0.72, 4, 8);
@@ -76,6 +81,18 @@ type ProxyLayer = {
   modelMatrix: THREE.Matrix4;
 };
 
+type ProxyTransformCache = {
+  agents: CrowdRenderAgent[];
+  matrices: THREE.Matrix4[];
+  initialized: Uint8Array;
+  x: Float64Array;
+  y: Float64Array;
+  z: Float64Array;
+  yaw: Float64Array;
+  dirty: Uint8Array;
+  modelMatrix: THREE.Matrix4 | null;
+};
+
 type AnimatedVillager = {
   id: string;
   variant: VillagerModelVariant;
@@ -87,6 +104,33 @@ type AnimatedVillager = {
   actions: Record<VillagerRenderMode, THREE.AnimationAction>;
   mode: VillagerRenderMode;
   ownedMaterials: THREE.Material[];
+  colorBindings: Array<{
+    material: THREE.MeshStandardMaterial;
+    sourceMaterialName: string;
+  }>;
+  skeleton: THREE.Skeleton;
+};
+
+type AnimatedBatchLayer = {
+  mesh: THREE.SkinnedMesh;
+  geometry: THREE.BufferGeometry;
+  material: THREE.MeshStandardMaterial;
+  materialName: string;
+  sourceVertexCount: number;
+  sourceDrawCount: number;
+  slotColors: Uint32Array;
+  initializedColors: Uint8Array;
+  dirtyColors: Uint8Array;
+};
+
+type AnimatedVariantBatch = {
+  variant: VillagerModelVariant;
+  bonesPerRig: number;
+  shards: Array<{
+    skeleton: THREE.Skeleton;
+    skeletonBytes: number;
+    layers: AnimatedBatchLayer[];
+  }>;
 };
 
 export type CrowdRenderAgent = {
@@ -135,6 +179,7 @@ export function seatedVillagerContactHeight(
  * visible villagers as instanced, bind-pose copies of the same low-poly models.
  */
 export class SettlementCrowdRenderer {
+  readonly ready: Promise<boolean>;
   private readonly group = new THREE.Group();
   private readonly animatedGroup = new THREE.Group();
   private readonly proxyGroup = new THREE.Group();
@@ -149,10 +194,24 @@ export class SettlementCrowdRenderer {
   private readonly fallbackLegs: FallbackPartLayer;
   private readonly fallbackHead: FallbackPartLayer;
   private readonly animated = new Map<string, AnimatedVillager>();
+  private readonly animatedPool = new Map<string, AnimatedVillager[]>();
+  private idlePooledVisualCount = 0;
+  private readonly visibleAgents: CrowdRenderAgent[] = [];
+  private readonly animatedCandidates: CrowdRenderAgent[] = [];
+  private readonly animatedIds = new Set<string>();
+  private readonly proxyTransformCaches: Record<
+    VillagerModelVariant,
+    ProxyTransformCache
+  > = {
+    man: createProxyTransformCache(),
+    woman: createProxyTransformCache(),
+  };
+  private readonly proxyColorDirty = new Uint8Array(MAX_INSTANCES);
   private sources: Record<VillagerModelVariant, VillagerSource> | null = null;
   private toolSources: WorkerToolSources | null = null;
   private proxyLayers: ProxyLayer[] = [];
-  private latestAgents: CrowdRenderAgent[] = [];
+  private animatedBatches: Record<VillagerModelVariant, AnimatedVariantBatch> | null = null;
+  private readonly latestAgents: CrowdRenderAgent[] = [];
   private lastView: CrowdViewState | undefined;
   private elapsed = 0;
   private disposed = false;
@@ -167,7 +226,7 @@ export class SettlementCrowdRenderer {
     this.fallbackBody = this.createFallbackLayer('Villager loading body', BODY_GEOMETRY);
     this.fallbackLegs = this.createFallbackLayer('Villager loading legs', LEGS_GEOMETRY);
     this.fallbackHead = this.createFallbackLayer('Villager loading head', HEAD_GEOMETRY);
-    void this.loadSources();
+    this.ready = this.loadSources();
   }
 
   syncAgents(
@@ -175,14 +234,24 @@ export class SettlementCrowdRenderer {
     view?: CrowdViewState,
     dtSeconds = 0,
   ): void {
-    this.latestAgents = [...agents];
+    // Keep the same shallow snapshot semantics as the original array copy, but
+    // reuse its backing storage on every animation frame. loadSources() may
+    // replay this owned buffer directly after its asynchronous handoff.
+    if (agents !== this.latestAgents) {
+      this.latestAgents.length = 0;
+      for (const agent of agents) this.latestAgents.push(agent);
+    }
     this.lastView = view;
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
     this.elapsed += dt;
 
-    const visibleAgents = this.latestAgents.filter((agent) =>
-      agent.active && isWithinCrowdView(agent.x, agent.z, view)
-    );
+    const visibleAgents = this.visibleAgents;
+    visibleAgents.length = 0;
+    for (const agent of this.latestAgents) {
+      if (agent.active && isWithinCrowdView(agent.x, agent.z, view)) {
+        visibleAgents.push(agent);
+      }
+    }
 
     if (!this.sources) {
       this.updateFallback(visibleAgents);
@@ -192,18 +261,69 @@ export class SettlementCrowdRenderer {
     this.clearFallback();
     const animatedIds = this.pickAnimatedIds(visibleAgents, view);
     this.syncAnimatedVillagers(visibleAgents, animatedIds, dt);
+    this.updateAnimatedBatches(visibleAgents, animatedIds);
     this.updateProxyLayers(visibleAgents, animatedIds);
+  }
+
+  beginFirstPlayableGpuPrewarm(): () => void {
+    const changed: Array<{
+      layer: AnimatedBatchLayer;
+      visible: boolean;
+      drawStart: number;
+      drawCount: number;
+    }> = [];
+    if (!this.animatedBatches) return () => {};
+    for (const batch of Object.values(this.animatedBatches)) {
+      for (const shard of batch.shards) {
+        for (const layer of shard.layers) {
+          if (layer.mesh.visible) continue;
+          changed.push({
+            layer,
+            visible: layer.mesh.visible,
+            drawStart: layer.geometry.drawRange.start,
+            drawCount: layer.geometry.drawRange.count,
+          });
+          layer.mesh.visible = true;
+          layer.geometry.setDrawRange(0, layer.sourceDrawCount);
+        }
+      }
+    }
+    return () => {
+      for (const state of changed) {
+        state.layer.mesh.visible = state.visible;
+        state.layer.geometry.setDrawRange(state.drawStart, state.drawCount);
+      }
+    };
   }
 
   dispose(): void {
     this.disposed = true;
-    for (const id of [...this.animated.keys()]) this.removeAnimatedVillager(id);
+    for (const id of this.animated.keys()) this.removeAnimatedVillager(id);
+    for (const pool of this.animatedPool.values()) {
+      for (const visual of pool) this.disposeAnimatedVillager(visual);
+    }
+    this.animatedPool.clear();
+    this.idlePooledVisualCount = 0;
 
     for (const layer of this.proxyLayers) {
       layer.material.dispose();
       layer.mesh.removeFromParent();
     }
     this.proxyLayers = [];
+
+    if (this.animatedBatches) {
+      for (const batch of Object.values(this.animatedBatches)) {
+        for (const shard of batch.shards) {
+          shard.skeleton.dispose();
+          for (const layer of shard.layers) {
+            layer.mesh.removeFromParent();
+            layer.geometry.dispose();
+            layer.material.dispose();
+          }
+        }
+      }
+      this.animatedBatches = null;
+    }
 
     for (const layer of [this.fallbackBody, this.fallbackLegs, this.fallbackHead]) {
       layer.geometry.dispose();
@@ -220,7 +340,7 @@ export class SettlementCrowdRenderer {
     this.group.removeFromParent();
   }
 
-  private async loadSources(): Promise<void> {
+  private async loadSources(): Promise<boolean> {
     try {
       const [man, woman, tools] = await Promise.all([
         loadVillagerSource(MODEL_URLS.man, TARGET_HEIGHTS.man),
@@ -231,7 +351,7 @@ export class SettlementCrowdRenderer {
         disposeModelResources(man.scene);
         disposeModelResources(woman.scene);
         disposeWorkerToolSources(tools);
-        return;
+        return false;
       }
       this.sources = { man, woman };
       this.toolSources = tools;
@@ -239,9 +359,15 @@ export class SettlementCrowdRenderer {
         ...this.createProxyLayers('man', man),
         ...this.createProxyLayers('woman', woman),
       ];
+      this.animatedBatches = {
+        man: this.createAnimatedBatch('man', man),
+        woman: this.createAnimatedBatch('woman', woman),
+      };
       this.syncAgents(this.latestAgents, this.lastView);
+      return true;
     } catch (error) {
       console.warn('[Villagers] Animated CC0 Quaternius villagers failed to load.', error);
+      return false;
     }
   }
 
@@ -267,35 +393,48 @@ export class SettlementCrowdRenderer {
 
   private updateFallback(agents: readonly CrowdRenderAgent[]): void {
     let count = 0;
+    let bodyColorsDirty = false;
+    let legColorsDirty = false;
+    let headColorsDirty = false;
     for (const agent of agents) {
       if (count >= MAX_INSTANCES) break;
-      this.writeFallbackInstance(
+      bodyColorsDirty = this.writeFallbackInstance(
         this.fallbackBody.mesh,
         count,
         agent,
         0.62,
         agent.tunicColor,
-      );
-      this.writeFallbackInstance(
+      ) || bodyColorsDirty;
+      legColorsDirty = this.writeFallbackInstance(
         this.fallbackLegs.mesh,
         count,
         agent,
         0.22,
         darkenHex(agent.tunicColor, 0.55),
-      );
-      this.writeFallbackInstance(
+      ) || legColorsDirty;
+      headColorsDirty = this.writeFallbackInstance(
         this.fallbackHead.mesh,
         count,
         agent,
         1.18,
         agent.skinColor,
-      );
+      ) || headColorsDirty;
       count++;
     }
-    for (const layer of [this.fallbackBody, this.fallbackLegs, this.fallbackHead]) {
-      layer.mesh.count = count;
-      layer.mesh.instanceMatrix.needsUpdate = true;
-      if (layer.mesh.instanceColor) layer.mesh.instanceColor.needsUpdate = true;
+    this.commitFallbackLayer(this.fallbackBody, count, bodyColorsDirty);
+    this.commitFallbackLayer(this.fallbackLegs, count, legColorsDirty);
+    this.commitFallbackLayer(this.fallbackHead, count, headColorsDirty);
+  }
+
+  private commitFallbackLayer(
+    layer: FallbackPartLayer,
+    count: number,
+    colorsDirty: boolean,
+  ): void {
+    layer.mesh.count = count;
+    publishInstanceAttributePrefix(layer.mesh.instanceMatrix, count);
+    if (colorsDirty && layer.mesh.instanceColor) {
+      publishInstanceAttributePrefix(layer.mesh.instanceColor, count);
     }
   }
 
@@ -311,25 +450,31 @@ export class SettlementCrowdRenderer {
     agent: CrowdRenderAgent,
     yOffset: number,
     hexColor: number,
-  ): void {
+  ): boolean {
     this.position.set(agent.x, agent.y + yOffset, agent.z);
     this.euler.set(0, agent.yaw, 0);
     this.quaternion.setFromEuler(this.euler);
     this.matrix.compose(this.position, this.quaternion, this.scale);
     mesh.setMatrixAt(index, this.matrix);
     this.color.setHex(hexColor);
-    mesh.setColorAt(index, this.color);
+    return writeInstanceColorIfChanged(mesh, index, this.color);
   }
 
   private pickAnimatedIds(
     agents: readonly CrowdRenderAgent[],
     view?: CrowdViewState,
   ): Set<string> {
-    const candidates = agents.filter((agent) =>
-      isWorkMode(agent.mode)
-        ? isWithinWorkAnimationRange(agent.x, agent.z, view)
-        : isWithinShadowRange(agent.x, agent.z, view)
-    );
+    const candidates = this.animatedCandidates;
+    candidates.length = 0;
+    for (const agent of agents) {
+      if (
+        isWorkMode(agent.mode)
+          ? isWithinWorkAnimationRange(agent.x, agent.z, view)
+          : isWithinShadowRange(agent.x, agent.z, view)
+      ) {
+        candidates.push(agent);
+      }
+    }
     if (view) {
       candidates.sort((a, b) => {
         const aDx = a.x - view.centerX;
@@ -339,9 +484,13 @@ export class SettlementCrowdRenderer {
         return aDx * aDx + aDz * aDz - (bDx * bDx + bDz * bDz);
       });
     }
-    return new Set(
-      candidates.slice(0, MAX_ANIMATED_VILLAGERS).map((agent) => agent.id),
-    );
+    const animatedIds = this.animatedIds;
+    animatedIds.clear();
+    const count = Math.min(candidates.length, MAX_ANIMATED_VILLAGERS);
+    for (let index = 0; index < count; index++) {
+      animatedIds.add(candidates[index]!.id);
+    }
+    return animatedIds;
   }
 
   private syncAnimatedVillagers(
@@ -349,9 +498,10 @@ export class SettlementCrowdRenderer {
     animatedIds: ReadonlySet<string>,
     dt: number,
   ): void {
-    const byId = new Map(agents.map((agent) => [agent.id, agent]));
-    for (const id of [...this.animated.keys()]) {
-      if (!animatedIds.has(id) || !byId.has(id)) this.removeAnimatedVillager(id);
+    // animatedIds is selected exclusively from agents, so membership proves
+    // both that an id is still visible and that it remains animation-eligible.
+    for (const id of this.animated.keys()) {
+      if (!animatedIds.has(id)) this.removeAnimatedVillager(id);
     }
 
     for (const agent of agents) {
@@ -363,7 +513,7 @@ export class SettlementCrowdRenderer {
         || visual.toolKind !== agent.tool
       ) {
         if (visual) this.removeAnimatedVillager(agent.id);
-        visual = this.createAnimatedVillager(agent);
+        visual = this.acquireAnimatedVillager(agent);
         this.animated.set(agent.id, visual);
       }
 
@@ -386,26 +536,21 @@ export class SettlementCrowdRenderer {
     model.position.y = -source.bounds.min.y * scale + 0.012;
 
     const ownedMaterials: THREE.Material[] = [];
+    const colorBindings: AnimatedVillager['colorBindings'] = [];
+    let skeleton: THREE.Skeleton | null = null;
     model.traverse((object) => {
       const mesh = object as THREE.SkinnedMesh;
       if (!mesh.isSkinnedMesh) return;
-      mesh.castShadow = true;
+      skeleton ??= mesh.skeleton;
+      // The retained rig drives one aggregate SkinnedMesh per authored
+      // material layer. Keeping these source shells hidden preserves exact
+      // AnimationMixer/bone semantics without submitting them independently.
+      mesh.visible = false;
+      mesh.castShadow = false;
       mesh.receiveShadow = false;
       mesh.frustumCulled = false;
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      const clones = materials.map((material) => {
-        const clone = material.clone();
-        const standard = clone as THREE.MeshStandardMaterial;
-        if (standard.color) {
-          standard.color.setHex(resolvePartColor(material.name, agent));
-          standard.roughness = 0.9;
-          standard.metalness = 0;
-        }
-        ownedMaterials.push(clone);
-        return clone;
-      });
-      mesh.material = Array.isArray(mesh.material) ? clones : clones[0]!;
     });
+    if (!skeleton) throw new Error(`Missing ${agent.variant} villager skeleton`);
 
     const root = new THREE.Group();
     root.name = `${agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
@@ -448,20 +593,7 @@ export class SettlementCrowdRenderer {
         action.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
       }
     }
-    actions.walk.setEffectiveTimeScale(
-      1.06 * Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED),
-    );
-    actions.sit.setEffectiveTimeScale(1.15);
-    actions.rest.setEffectiveTimeScale(0.72);
-    actions.talk.setEffectiveTimeScale(0.82);
-    actions.chop.setEffectiveTimeScale(1.08);
-    actions.mine.setEffectiveTimeScale(0.9);
-    actions.gather.setEffectiveTimeScale(0.92);
-    actions.plant.setEffectiveTimeScale(0.78);
-    actions.fish.setEffectiveTimeScale(0.82);
-    actions.tend.setEffectiveTimeScale(0.9);
-    actions.build.setEffectiveTimeScale(1.08);
-    actions.fight.setEffectiveTimeScale(1.22);
+    configureActionSpeeds(actions, agent.movementSpeed);
     actions[agent.mode].play();
     if (agent.mode !== 'sit' && agent.mode !== 'rest') {
       actions[agent.mode].time =
@@ -479,7 +611,54 @@ export class SettlementCrowdRenderer {
       actions,
       mode: agent.mode,
       ownedMaterials,
+      colorBindings,
+      skeleton,
     };
+  }
+
+  private acquireAnimatedVillager(agent: CrowdRenderAgent): AnimatedVillager {
+    const poolKey = animatedPoolKey(agent.variant, agent.tool);
+    const pool = this.animatedPool.get(poolKey);
+    const pooledVisual = pool?.pop();
+    if (pooledVisual) this.idlePooledVisualCount -= 1;
+    const visual = pooledVisual ?? this.createAnimatedVillager(agent);
+    if (pooledVisual) this.resetPooledVillager(visual, agent);
+    visual.root.visible = true;
+    return visual;
+  }
+
+  private resetPooledVillager(
+    visual: AnimatedVillager,
+    agent: CrowdRenderAgent,
+  ): void {
+    const source = this.sources![agent.variant];
+    const scale = source.targetHeight / source.sourceHeight
+      * villagerHeightJitter(agent.appearanceSeed);
+    visual.id = agent.id;
+    visual.mode = agent.mode;
+    visual.root.name = `${agent.variant === 'woman' ? 'Woman' : 'Man'} villager ${agent.id}`;
+    visual.root.userData.villagerId = agent.id;
+    visual.root.userData.villagerGender = agent.variant;
+    visual.model.scale.setScalar(scale);
+    visual.model.position.y = -source.bounds.min.y * scale + MODEL_GROUNDING_HEIGHT;
+    for (const binding of visual.colorBindings) {
+      binding.material.color.setHex(
+        resolvePartColor(binding.sourceMaterialName, agent),
+      );
+    }
+    restartPooledVillagerActions(
+      visual.mixer,
+      visual.actions,
+      agent.mode,
+      agent.appearanceSeed,
+      agent.movementSpeed,
+    );
+    if (visual.tool && visual.toolKind) {
+      visual.tool.visible = workerToolVisibleInMode(
+        visual.toolKind,
+        agent.mode,
+      );
+    }
   }
 
   private transition(
@@ -502,10 +681,181 @@ export class SettlementCrowdRenderer {
     const visual = this.animated.get(id);
     if (!visual) return;
     visual.mixer.stopAllAction();
+    visual.root.visible = false;
+    if (visual.tool) visual.tool.visible = false;
+    this.animated.delete(id);
+    if (this.idlePooledVisualCount >= MAX_ANIMATED_VILLAGERS) {
+      this.disposeAnimatedVillager(visual);
+      return;
+    }
+    const poolKey = animatedPoolKey(visual.variant, visual.toolKind);
+    let pool = this.animatedPool.get(poolKey);
+    if (!pool) {
+      pool = [];
+      this.animatedPool.set(poolKey, pool);
+    }
+    pool.push(visual);
+    this.idlePooledVisualCount += 1;
+  }
+
+  private disposeAnimatedVillager(visual: AnimatedVillager): void {
+    visual.mixer.stopAllAction();
     visual.mixer.uncacheRoot(visual.model);
     for (const material of visual.ownedMaterials) material.dispose();
     visual.root.removeFromParent();
-    this.animated.delete(id);
+  }
+
+  private createAnimatedBatch(
+    variant: VillagerModelVariant,
+    source: VillagerSource,
+  ): AnimatedVariantBatch {
+    source.scene.updateMatrixWorld(true);
+    const sourceMeshes: THREE.SkinnedMesh[] = [];
+    source.scene.traverse((object) => {
+      const mesh = object as THREE.SkinnedMesh;
+      if (mesh.isSkinnedMesh) sourceMeshes.push(mesh);
+    });
+    const sourceSkeleton = sourceMeshes[0]?.skeleton;
+    if (!sourceSkeleton) throw new Error(`Missing ${variant} source skeleton`);
+    const bonesPerRig = sourceSkeleton.bones.length;
+    const skeletonBytes = bonesPerRig
+      * ANIMATED_RIGS_PER_SHARD
+      * 16
+      * Float32Array.BYTES_PER_ELEMENT;
+    if (skeletonBytes > MAX_ANIMATED_SKELETON_BYTES) {
+      throw new Error(
+        `${variant} villager skeleton shard requires ${skeletonBytes} bytes; `
+          + `the cross-backend limit is ${MAX_ANIMATED_SKELETON_BYTES}`,
+      );
+    }
+    const shards = Array.from(
+      { length: ANIMATED_SHARDS_PER_VARIANT },
+      (_, shardIndex) => {
+        const bones: THREE.Bone[] = [];
+        const boneInverses: THREE.Matrix4[] = [];
+        for (let slot = 0; slot < ANIMATED_RIGS_PER_SHARD; slot++) {
+          bones.push(...sourceSkeleton.bones);
+          boneInverses.push(...sourceSkeleton.boneInverses);
+        }
+        const skeleton = new THREE.Skeleton(bones, boneInverses);
+        const layers = sourceMeshes.map((sourceMesh) => {
+          const sourceMaterial = Array.isArray(sourceMesh.material)
+            ? sourceMesh.material[0]
+            : sourceMesh.material;
+          if (!(sourceMaterial instanceof THREE.MeshStandardMaterial)) {
+            throw new Error(
+              `${variant}/${sourceMesh.name} requires one MeshStandardMaterial`,
+            );
+          }
+          const geometry = createReplicatedSkinnedGeometry(
+            sourceMesh.geometry,
+            bonesPerRig,
+            ANIMATED_RIGS_PER_SHARD,
+          );
+          const material = sourceMaterial.clone();
+          material.name = `${sourceMaterial.name}: aggregate close villagers`;
+          material.color.setHex(0xffffff);
+          material.roughness = 0.9;
+          material.metalness = 0;
+          material.vertexColors = true;
+          const mesh = new THREE.SkinnedMesh(geometry, material);
+          mesh.name = `${variant} aggregate close villagers shard ${shardIndex}: ${sourceMaterial.name}`;
+          mesh.bindMode = sourceMesh.bindMode;
+          mesh.bind(skeleton, sourceMesh.bindMatrix);
+          mesh.castShadow = true;
+          mesh.receiveShadow = false;
+          mesh.frustumCulled = false;
+          mesh.visible = false;
+          geometry.setDrawRange(0, 0);
+          this.animatedGroup.add(mesh);
+          return {
+            mesh,
+            geometry,
+            material,
+            materialName: sourceMaterial.name,
+            sourceVertexCount: sourceMesh.geometry.getAttribute('position').count,
+            sourceDrawCount: sourceMesh.geometry.index?.count
+              ?? sourceMesh.geometry.getAttribute('position').count,
+            slotColors: new Uint32Array(ANIMATED_RIGS_PER_SHARD),
+            initializedColors: new Uint8Array(ANIMATED_RIGS_PER_SHARD),
+            dirtyColors: new Uint8Array(ANIMATED_RIGS_PER_SHARD),
+          } satisfies AnimatedBatchLayer;
+        });
+        return { skeleton, skeletonBytes, layers };
+      },
+    );
+    return { variant, bonesPerRig, shards };
+  }
+
+  private updateAnimatedBatches(
+    agents: readonly CrowdRenderAgent[],
+    animatedIds: ReadonlySet<string>,
+  ): void {
+    const batches = this.animatedBatches;
+    if (!batches) return;
+    const counts: Record<VillagerModelVariant, number> = { man: 0, woman: 0 };
+    for (const batch of Object.values(batches)) {
+      for (const shard of batch.shards) {
+        for (const layer of shard.layers) layer.dirtyColors.fill(0);
+      }
+    }
+    for (const agent of agents) {
+      if (!animatedIds.has(agent.id)) continue;
+      const visual = this.animated.get(agent.id);
+      if (!visual) continue;
+      const batch = batches[agent.variant];
+      const variantSlot = counts[agent.variant]++;
+      if (variantSlot >= MAX_ANIMATED_VILLAGERS) continue;
+      const shard = batch.shards[
+        Math.floor(variantSlot / ANIMATED_RIGS_PER_SHARD)
+      ]!;
+      const shardSlot = variantSlot % ANIMATED_RIGS_PER_SHARD;
+      const boneOffset = shardSlot * batch.bonesPerRig;
+      for (let bone = 0; bone < batch.bonesPerRig; bone++) {
+        shard.skeleton.bones[boneOffset + bone] = visual.skeleton.bones[bone]!;
+        shard.skeleton.boneInverses[boneOffset + bone] =
+          visual.skeleton.boneInverses[bone]!;
+      }
+      for (const layer of shard.layers) {
+        const color = resolvePartColor(layer.materialName, agent);
+        if (
+          layer.initializedColors[shardSlot]
+          && layer.slotColors[shardSlot] === color
+        ) {
+          continue;
+        }
+        layer.initializedColors[shardSlot] = 1;
+        layer.slotColors[shardSlot] = color;
+        layer.dirtyColors[shardSlot] = 1;
+        this.color.setHex(color);
+        const attribute = layer.geometry.getAttribute('color');
+        const array = attribute.array;
+        let offset = shardSlot * layer.sourceVertexCount * 3;
+        const end = offset + layer.sourceVertexCount * 3;
+        while (offset < end) {
+          array[offset++] = this.color.r;
+          array[offset++] = this.color.g;
+          array[offset++] = this.color.b;
+        }
+      }
+    }
+    for (const batch of Object.values(batches)) {
+      for (let shardIndex = 0; shardIndex < batch.shards.length; shardIndex++) {
+        const shard = batch.shards[shardIndex]!;
+        const count = Math.min(
+          ANIMATED_RIGS_PER_SHARD,
+          Math.max(
+            0,
+            counts[batch.variant] - shardIndex * ANIMATED_RIGS_PER_SHARD,
+          ),
+        );
+        for (const layer of shard.layers) {
+          layer.mesh.visible = count > 0;
+          layer.geometry.setDrawRange(0, count * layer.sourceDrawCount);
+          publishAnimatedColorRanges(layer, count);
+        }
+      }
+    }
   }
 
   private createProxyLayers(
@@ -544,6 +894,14 @@ export class SettlementCrowdRenderer {
         .makeTranslation(0, -source.bounds.min.y * modelScale + 0.012, 0)
         .multiply(new THREE.Matrix4().makeScale(modelScale, modelScale, modelScale))
         .multiply(sourceMesh.matrixWorld);
+      const transformCache = this.proxyTransformCaches[variant];
+      if (transformCache.modelMatrix === null) {
+        transformCache.modelMatrix = modelMatrix.clone();
+      } else if (!matrixElementsEqual(transformCache.modelMatrix, modelMatrix)) {
+        throw new Error(
+          `${variant} villager layers no longer share one exact proxy transform`,
+        );
+      }
       layers.push({
         variant,
         mesh,
@@ -560,30 +918,292 @@ export class SettlementCrowdRenderer {
     agents: readonly CrowdRenderAgent[],
     animatedIds: ReadonlySet<string>,
   ): void {
-    const proxyAgents = agents.filter((agent) => !animatedIds.has(agent.id));
+    const manCache = this.proxyTransformCaches.man;
+    const womanCache = this.proxyTransformCaches.woman;
+    manCache.agents.length = 0;
+    womanCache.agents.length = 0;
+    for (const agent of agents) {
+      if (animatedIds.has(agent.id)) continue;
+      this.proxyTransformCaches[agent.variant].agents.push(agent);
+    }
+    this.updateProxyTransformCache(manCache);
+    this.updateProxyTransformCache(womanCache);
+
     for (const layer of this.proxyLayers) {
-      let count = 0;
-      for (const agent of proxyAgents) {
-        if (agent.variant !== layer.variant || count >= MAX_INSTANCES) continue;
-        const walkCadence = Math.max(0.65, agent.movementSpeed / NOMINAL_WALK_SPEED);
-        const phase = this.elapsed * 7.5 * walkCadence
-          + (agent.appearanceSeed % 1024) * 0.07;
-        const bob = agent.mode === 'walk' ? Math.sin(phase) * 0.018 : 0;
-        this.position.set(agent.x, agent.y + bob, agent.z);
-        this.euler.set(0, agent.yaw + MODEL_YAW_OFFSET, 0);
-        this.quaternion.setFromEuler(this.euler);
-        this.agentMatrix.compose(this.position, this.quaternion, this.scale);
-        this.matrix.multiplyMatrices(this.agentMatrix, layer.modelMatrix);
-        layer.mesh.setMatrixAt(count, this.matrix);
+      const cache = this.proxyTransformCaches[layer.variant];
+      const count = Math.min(cache.agents.length, MAX_INSTANCES);
+      const instanceMatrixArray = layer.mesh.instanceMatrix.array;
+      this.proxyColorDirty.fill(0, 0, count);
+      for (let index = 0; index < count; index++) {
+        const agent = cache.agents[index]!;
+        if (cache.dirty[index]) {
+          cache.matrices[index]!.toArray(instanceMatrixArray, index * 16);
+        }
         this.color.setHex(resolvePartColor(layer.materialName, agent));
-        layer.mesh.setColorAt(count, this.color);
-        count++;
+        this.proxyColorDirty[index] = writeInstanceColorIfChanged(
+          layer.mesh,
+          index,
+          this.color,
+        ) ? 1 : 0;
       }
       layer.mesh.count = count;
-      layer.mesh.instanceMatrix.needsUpdate = true;
-      if (layer.mesh.instanceColor) layer.mesh.instanceColor.needsUpdate = true;
+      publishDirtyInstanceAttribute(
+        layer.mesh.instanceMatrix,
+        cache.dirty,
+        count,
+      );
+      if (layer.mesh.instanceColor) {
+        publishDirtyInstanceAttribute(
+          layer.mesh.instanceColor,
+          this.proxyColorDirty,
+          count,
+        );
+      }
     }
   }
+
+  private updateProxyTransformCache(cache: ProxyTransformCache): void {
+    const count = Math.min(cache.agents.length, MAX_INSTANCES);
+    const modelMatrix = cache.modelMatrix;
+    if (!modelMatrix && count > 0) {
+      throw new Error('Villager proxy transform cache is missing its source matrix');
+    }
+    cache.dirty.fill(0, 0, count);
+    for (let index = 0; index < count; index++) {
+      const agent = cache.agents[index]!;
+      const walkCadence = Math.max(
+        0.65,
+        agent.movementSpeed / NOMINAL_WALK_SPEED,
+      );
+      const phase = this.elapsed * 7.5 * walkCadence
+        + (agent.appearanceSeed % 1024) * 0.07;
+      const y = agent.y + (agent.mode === 'walk' ? Math.sin(phase) * 0.018 : 0);
+      const yaw = agent.yaw + MODEL_YAW_OFFSET;
+      if (
+        cache.initialized[index]
+        && cache.x[index] === agent.x
+        && cache.y[index] === y
+        && cache.z[index] === agent.z
+        && cache.yaw[index] === yaw
+      ) continue;
+      cache.initialized[index] = 1;
+      cache.x[index] = agent.x;
+      cache.y[index] = y;
+      cache.z[index] = agent.z;
+      cache.yaw[index] = yaw;
+      cache.dirty[index] = 1;
+      this.position.set(agent.x, y, agent.z);
+      this.euler.set(0, yaw, 0);
+      this.quaternion.setFromEuler(this.euler);
+      this.agentMatrix.compose(this.position, this.quaternion, this.scale);
+      let matrix = cache.matrices[index];
+      if (!matrix) {
+        matrix = new THREE.Matrix4();
+        cache.matrices[index] = matrix;
+      }
+      matrix.multiplyMatrices(this.agentMatrix, modelMatrix!);
+    }
+  }
+}
+
+function createProxyTransformCache(): ProxyTransformCache {
+  return {
+    agents: [],
+    matrices: [],
+    initialized: new Uint8Array(MAX_INSTANCES),
+    x: new Float64Array(MAX_INSTANCES),
+    y: new Float64Array(MAX_INSTANCES),
+    z: new Float64Array(MAX_INSTANCES),
+    yaw: new Float64Array(MAX_INSTANCES),
+    dirty: new Uint8Array(MAX_INSTANCES),
+    modelMatrix: null,
+  };
+}
+
+function createReplicatedSkinnedGeometry(
+  source: THREE.BufferGeometry,
+  bonesPerRig: number,
+  rigCount: number,
+): THREE.BufferGeometry {
+  const merged = new THREE.BufferGeometry();
+  const sourceVertexCount = source.getAttribute('position').count;
+  for (const [name, sourceAttribute] of Object.entries(source.attributes)) {
+    if (sourceAttribute instanceof THREE.InterleavedBufferAttribute) {
+      throw new Error(`Villager ${name} attribute must remain non-interleaved`);
+    }
+    const attribute = sourceAttribute as THREE.BufferAttribute;
+    const itemCount = attribute.array.length;
+    const ArrayType = attribute.array.constructor as {
+      new(length: number): typeof attribute.array;
+    };
+    const values = new ArrayType(itemCount * rigCount);
+    for (let slot = 0; slot < rigCount; slot++) {
+      const targetOffset = slot * itemCount;
+      values.set(attribute.array, targetOffset);
+      if (name !== 'skinIndex') continue;
+      const boneOffset = slot * bonesPerRig;
+      for (let index = 0; index < itemCount; index++) {
+        values[targetOffset + index] += boneOffset;
+      }
+    }
+    const replicated = new THREE.BufferAttribute(
+      values,
+      attribute.itemSize,
+      attribute.normalized,
+    );
+    replicated.setUsage(attribute.usage);
+    merged.setAttribute(name, replicated);
+  }
+  const sourceIndex = source.index;
+  if (sourceIndex) {
+    const useUint32 = sourceVertexCount * rigCount > 65_535;
+    const values = useUint32
+      ? new Uint32Array(sourceIndex.count * rigCount)
+      : new Uint16Array(sourceIndex.count * rigCount);
+    for (let slot = 0; slot < rigCount; slot++) {
+      const vertexOffset = slot * sourceVertexCount;
+      const targetOffset = slot * sourceIndex.count;
+      for (let index = 0; index < sourceIndex.count; index++) {
+        values[targetOffset + index] = sourceIndex.getX(index) + vertexOffset;
+      }
+    }
+    merged.setIndex(new THREE.BufferAttribute(values, 1));
+  }
+  const vertexCount = sourceVertexCount * rigCount;
+  const colors = new THREE.Float32BufferAttribute(vertexCount * 3, 3);
+  colors.setUsage(THREE.DynamicDrawUsage);
+  merged.setAttribute('color', colors);
+  return merged;
+}
+
+function publishAnimatedColorRanges(
+  layer: AnimatedBatchLayer,
+  slotCount: number,
+): void {
+  const attribute = layer.geometry.getAttribute('color') as THREE.BufferAttribute;
+  attribute.clearUpdateRanges();
+  let runStart = -1;
+  for (let slot = 0; slot <= slotCount; slot++) {
+    if (slot < slotCount && layer.dirtyColors[slot]) {
+      if (runStart < 0) runStart = slot;
+      continue;
+    }
+    if (runStart < 0) continue;
+    attribute.addUpdateRange(
+      runStart * layer.sourceVertexCount * attribute.itemSize,
+      (slot - runStart) * layer.sourceVertexCount * attribute.itemSize,
+    );
+    runStart = -1;
+  }
+  if (attribute.updateRanges.length > 0) attribute.needsUpdate = true;
+}
+
+function configureActionSpeeds(
+  actions: Record<VillagerRenderMode, THREE.AnimationAction>,
+  movementSpeed: number,
+): void {
+  actions.walk.setEffectiveTimeScale(
+    1.06 * Math.max(0.65, movementSpeed / NOMINAL_WALK_SPEED),
+  );
+  actions.sit.setEffectiveTimeScale(1.15);
+  actions.rest.setEffectiveTimeScale(0.72);
+  actions.talk.setEffectiveTimeScale(0.82);
+  actions.chop.setEffectiveTimeScale(1.08);
+  actions.mine.setEffectiveTimeScale(0.9);
+  actions.gather.setEffectiveTimeScale(0.92);
+  actions.plant.setEffectiveTimeScale(0.78);
+  actions.fish.setEffectiveTimeScale(0.82);
+  actions.tend.setEffectiveTimeScale(0.9);
+  actions.build.setEffectiveTimeScale(1.08);
+  actions.fight.setEffectiveTimeScale(1.22);
+}
+
+export function restartPooledVillagerActions(
+  mixer: THREE.AnimationMixer,
+  actions: Record<VillagerRenderMode, THREE.AnimationAction>,
+  mode: VillagerRenderMode,
+  appearanceSeed: number,
+  movementSpeed: number,
+): void {
+  mixer.stopAllAction();
+  for (const action of Object.values(actions)) action.stop();
+  configureActionSpeeds(actions, movementSpeed);
+  const activeAction = actions[mode];
+  activeAction.reset().play();
+  if (mode !== 'sit' && mode !== 'rest') {
+    activeAction.time = (appearanceSeed % 997) / 997
+      * activeAction.getClip().duration;
+  }
+}
+
+function writeInstanceColorIfChanged(
+  mesh: THREE.InstancedMesh,
+  index: number,
+  color: THREE.Color,
+): boolean {
+  const attribute = mesh.instanceColor;
+  if (!attribute) {
+    mesh.setColorAt(index, color);
+    return true;
+  }
+  const offset = index * attribute.itemSize;
+  const array = attribute.array;
+  const red = Math.fround(color.r);
+  const green = Math.fround(color.g);
+  const blue = Math.fround(color.b);
+  if (
+    array[offset] === red
+    && array[offset + 1] === green
+    && array[offset + 2] === blue
+  ) return false;
+  attribute.setXYZ(index, color.r, color.g, color.b);
+  return true;
+}
+
+function animatedPoolKey(
+  variant: VillagerModelVariant,
+  tool: WorkerToolKind | null,
+): string {
+  return `${variant}:${tool ?? 'unarmed'}`;
+}
+
+function publishInstanceAttributePrefix(
+  attribute: THREE.InstancedBufferAttribute,
+  instanceCount: number,
+): void {
+  attribute.clearUpdateRanges();
+  if (instanceCount <= 0) return;
+  attribute.addUpdateRange(0, instanceCount * attribute.itemSize);
+  attribute.needsUpdate = true;
+}
+
+function publishDirtyInstanceAttribute(
+  attribute: THREE.InstancedBufferAttribute,
+  dirty: Uint8Array,
+  instanceCount: number,
+): void {
+  attribute.clearUpdateRanges();
+  let runStart = -1;
+  for (let index = 0; index <= instanceCount; index++) {
+    if (index < instanceCount && dirty[index]) {
+      if (runStart < 0) runStart = index;
+      continue;
+    }
+    if (runStart < 0) continue;
+    attribute.addUpdateRange(
+      runStart * attribute.itemSize,
+      (index - runStart) * attribute.itemSize,
+    );
+    runStart = -1;
+  }
+  if (attribute.updateRanges.length > 0) attribute.needsUpdate = true;
+}
+
+function matrixElementsEqual(a: THREE.Matrix4, b: THREE.Matrix4): boolean {
+  for (let index = 0; index < 16; index++) {
+    if (a.elements[index] !== b.elements[index]) return false;
+  }
+  return true;
 }
 
 async function loadVillagerSource(

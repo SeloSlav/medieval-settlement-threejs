@@ -544,7 +544,7 @@ export function createVisualGauntletBuildArchive(
       sourceCommit: gitValue(['rev-parse', 'HEAD']),
       sourceStatusSha256: sha256Bytes(gitStatus),
       buildCommand:
-        options.buildCommand ?? 'npm.cmd run build -- --manifest',
+        options.buildCommand ?? 'npm.cmd run build:visual-gauntlet -- --manifest',
       ...(commitmentSha256
         ? {
             preBlindCommitment: {

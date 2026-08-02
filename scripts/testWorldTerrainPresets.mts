@@ -47,8 +47,46 @@ assert.ok(
 const kupaFloor = sampleNaturalTerrainHeight(35, 0);
 const kupaWestMountain = sampleNaturalTerrainHeight(-kupaDimensions.playableHalf * 0.88, 0);
 const kupaEastMountain = sampleNaturalTerrainHeight(kupaDimensions.playableHalf * 0.88, 0);
-assert.ok(kupaWestMountain - kupaFloor >= 55, 'Kupa west slope must enclose the valley floor.');
-assert.ok(kupaEastMountain - kupaFloor >= 55, 'Kupa east slope must enclose the valley floor.');
+const kupaWestRise = kupaWestMountain - kupaFloor;
+const kupaEastRise = kupaEastMountain - kupaFloor;
+assert.ok(
+  kupaWestRise >= 500,
+  `Kupa west slope must rise at least 500 m above the valley floor, got ${kupaWestRise.toFixed(1)} m.`,
+);
+assert.ok(
+  kupaEastRise >= 500,
+  `Kupa east slope must rise at least 500 m above the valley floor, got ${kupaEastRise.toFixed(1)} m.`,
+);
+let kupaMinimumSideRise = Number.POSITIVE_INFINITY;
+for (let index = 0; index < 12; index++) {
+  const variation = preparePreset('kupa_valley', 0x23d_4a21 + index * 0x7919);
+  const dimensions = resolveWorldDimensions(variation.settings.mapSize);
+  const floor = sampleNaturalTerrainHeight(35, 0);
+  const sideRise = Math.min(
+    sampleNaturalTerrainHeight(-dimensions.playableHalf * 0.88, 0) - floor,
+    sampleNaturalTerrainHeight(dimensions.playableHalf * 0.88, 0) - floor,
+  );
+  kupaMinimumSideRise = Math.min(kupaMinimumSideRise, sideRise);
+}
+assert.ok(
+  kupaMinimumSideRise >= 500,
+  `Kupa seeds must preserve 500 m valley walls, got a ${kupaMinimumSideRise.toFixed(1)} m minimum.`,
+);
+
+const customMountains = prepareCustom(100, 0x4d3a_91e7);
+const customDimensions = resolveWorldDimensions(customMountains.settings.mapSize);
+const customFloor = sampleNaturalTerrainHeight(0, 0);
+const customShoulders = [
+  sampleNaturalTerrainHeight(-customDimensions.playableHalf * 0.88, 0),
+  sampleNaturalTerrainHeight(customDimensions.playableHalf * 0.88, 0),
+  sampleNaturalTerrainHeight(0, -customDimensions.playableHalf * 0.88),
+  sampleNaturalTerrainHeight(0, customDimensions.playableHalf * 0.88),
+];
+const customMountainRise = Math.max(...customShoulders) - customFloor;
+assert.ok(
+  customMountainRise >= 350,
+  `Maximum custom topography must produce mountains at least 350 m above its central floor, got ${customMountainRise.toFixed(1)} m.`,
+);
 
 const risnjak = preparePreset('risnjak_pass', 0x7a2_1035);
 const risnjakDimensions = resolveWorldDimensions(risnjak.settings.mapSize);
@@ -88,6 +126,10 @@ assert.ok(
 console.log('world terrain preset tests passed', {
   kupaWaterWidth: Number(kupaWaterWidth.toFixed(1)),
   kupaBenchRelief: Number(kupaBenchRelief.toFixed(1)),
+  kupaWestRise: Number(kupaWestRise.toFixed(1)),
+  kupaEastRise: Number(kupaEastRise.toFixed(1)),
+  kupaMinimumSideRise: Number(kupaMinimumSideRise.toFixed(1)),
+  customMountainRise: Number(customMountainRise.toFixed(1)),
   risnjakShoulderRise: Number((Math.max(...passShoulders) - passFloor).toFixed(1)),
   vinodolWaterPercent: Number((coastalWaterShare * 100).toFixed(1)),
 });
@@ -101,6 +143,20 @@ function preparePreset(preset: Exclude<WorldTerrainPreset, 'custom'>, variation:
     },
     preset,
   );
+  setDraftWorldGeneration(settings);
+  const layout = createWorldLayout(settings);
+  setActiveRiverLayout(layout.riverLayout);
+  setActiveQuarryLayout(null);
+  return { settings, layout };
+}
+
+function prepareCustom(topography: number, seed: number) {
+  const settings = normalizeWorldGenerationSettings({
+    ...DEFAULT_WORLD_GENERATION_SETTINGS,
+    seed: seedForTerrainPreset(seed, 'custom'),
+    mapSize: 'medium',
+    topography,
+  });
   setDraftWorldGeneration(settings);
   const layout = createWorldLayout(settings);
   setActiveRiverLayout(layout.riverLayout);

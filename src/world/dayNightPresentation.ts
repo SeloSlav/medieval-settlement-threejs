@@ -52,6 +52,15 @@ const DAYS_PER_YEAR = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
 // falls late in December, just as it does in the northern hemisphere.
 const WINTER_SOLSTICE_DAY = DAYS_PER_YEAR - CALENDAR_DAYS_PER_MONTH * 0.35;
 const LOCAL_SIDEREAL_PHASE_HOURS = 8;
+const EVENING_WINDOW_PHASES = [
+  { at: 0, value: 1 },
+  { at: CALENDAR_WORK_START_HOUR - 1.25, value: 1 },
+  { at: CALENDAR_WORK_START_HOUR + 0.25, value: 0 },
+  { at: CALENDAR_WORK_END_HOUR - 2.5, value: 0 },
+  { at: CALENDAR_WORK_END_HOUR - 1.5, value: 0.55 },
+  { at: CALENDAR_WORK_END_HOUR - 0.5, value: 1 },
+  { at: CALENDAR_HOURS_PER_DAY, value: 1 },
+] as const;
 export const FAIR_DAY_FOG_COLOR = 0x9fbccc;
 export const NIGHT_FOG_COLOR = 0x506b80;
 
@@ -62,11 +71,11 @@ export function fractionalHour(clock: GameClock): number {
 export function computeDayNightState(
   clock: GameClock,
   laborPaused: boolean,
+  target?: DayNightLightingState,
 ): DayNightLightingState {
   const hour = fractionalHour(clock);
   const smokeAllowed = !laborPaused;
-  const { direction, elevationDeg } = computeSolarPosition(clock, hour);
-  SUN_DIRECTION.copy(direction);
+  const elevationDeg = computeSolarPosition(clock, hour);
 
   const dayAmount = smoothstep(-8, 9, elevationDeg);
   const night = 1 - smoothstep(-12, -4, elevationDeg);
@@ -109,37 +118,65 @@ export function computeDayNightState(
   const fogDensity = lerp(0.0007, 0.00072, dayAmount) + goldenHour * 0.00008;
   const eveningWindowGlow = computeEveningWindowGlow(hour, night);
 
-  return {
-    sunDirection: SUN_DIRECTION.clone(),
-    sunColor: sunWarm,
-    sunIntensity,
-    hemiSkyColor,
-    hemiGroundColor,
-    hemiIntensity,
-    ambientColor,
-    ambientIntensity,
-    buildingIndirectIntensity,
-    fillColor,
-    fillIntensity,
-    fogColor,
-    fogDensity,
-    dawnAmount: dawn,
-    duskAmount: dusk,
-    solarElevationDeg: elevationDeg,
-    nightAmount: night,
+  const state = target ?? {
+    sunDirection: new THREE.Vector3(),
+    sunColor: 0,
+    sunIntensity: 0,
+    hemiSkyColor: 0,
+    hemiGroundColor: 0,
+    hemiIntensity: 0,
+    ambientColor: 0,
+    ambientIntensity: 0,
+    buildingIndirectIntensity: 0,
+    fillColor: 0,
+    fillIntensity: 0,
+    fogColor: 0,
+    fogDensity: 0,
+    dawnAmount: 0,
+    duskAmount: 0,
+    solarElevationDeg: 0,
+    nightAmount: 0,
     grade: {
-      saturation: lerp(0.88, 1, dayAmount) + dawn * 0.035 + dusk * 0.07,
-      contrast: lerp(0.98, 1.035, dayAmount) + dusk * 0.012,
-      warmth: dawn * 0.28 + dusk * 0.4,
-      nightBlue: Math.max(night * 0.24, winterShadowFloor),
-      vignette: lerp(0.065, 0.05, dayAmount),
+      saturation: 0,
+      contrast: 0,
+      warmth: 0,
+      nightBlue: 0,
+      vignette: 0,
     },
-    skyAnimationTime: simElapsedSeconds(clock.simTick),
-    siderealAngle: computeSiderealAngle(clock, hour),
-    isNight,
-    smokeAllowed,
-    eveningWindowGlow,
+    skyAnimationTime: 0,
+    siderealAngle: 0,
+    isNight: false,
+    smokeAllowed: false,
+    eveningWindowGlow: 0,
   };
+  state.sunDirection.copy(SUN_DIRECTION);
+  state.sunColor = sunWarm;
+  state.sunIntensity = sunIntensity;
+  state.hemiSkyColor = hemiSkyColor;
+  state.hemiGroundColor = hemiGroundColor;
+  state.hemiIntensity = hemiIntensity;
+  state.ambientColor = ambientColor;
+  state.ambientIntensity = ambientIntensity;
+  state.buildingIndirectIntensity = buildingIndirectIntensity;
+  state.fillColor = fillColor;
+  state.fillIntensity = fillIntensity;
+  state.fogColor = fogColor;
+  state.fogDensity = fogDensity;
+  state.dawnAmount = dawn;
+  state.duskAmount = dusk;
+  state.solarElevationDeg = elevationDeg;
+  state.nightAmount = night;
+  state.grade.saturation = lerp(0.88, 1, dayAmount) + dawn * 0.035 + dusk * 0.07;
+  state.grade.contrast = lerp(0.98, 1.035, dayAmount) + dusk * 0.012;
+  state.grade.warmth = dawn * 0.28 + dusk * 0.4;
+  state.grade.nightBlue = Math.max(night * 0.24, winterShadowFloor);
+  state.grade.vignette = lerp(0.065, 0.05, dayAmount);
+  state.skyAnimationTime = simElapsedSeconds(clock.simTick);
+  state.siderealAngle = computeSiderealAngle(clock, hour);
+  state.isNight = isNight;
+  state.smokeAllowed = smokeAllowed;
+  state.eveningWindowGlow = eveningWindowGlow;
+  return state;
 }
 
 /**
@@ -163,7 +200,7 @@ export function computeSiderealAngle(
 function computeSolarPosition(
   clock: Pick<GameClock, 'month' | 'monthDay' | 'preciseCalendarDay'>,
   hour: number,
-): { direction: THREE.Vector3; elevationDeg: number } {
+): number {
   // Include time-of-day so solar declination also remains continuous across
   // midnight instead of taking a small step when the calendar date changes.
   const calendarDay = clock.preciseCalendarDay
@@ -186,29 +223,20 @@ function computeSolarPosition(
     - sinLatitude * cosDeclination * cosHourAngle;
   const up = sinLatitude * sinDeclination
     + cosLatitude * cosDeclination * cosHourAngle;
-  const direction = new THREE.Vector3(east, up, north).normalize();
-
-  return {
-    direction,
-    elevationDeg: THREE.MathUtils.radToDeg(Math.asin(clamp(up, -1, 1))),
-  };
+  SUN_DIRECTION.set(east, up, north).normalize();
+  return THREE.MathUtils.radToDeg(Math.asin(clamp(up, -1, 1)));
 }
 
 /** Darkness envelope for household-controlled lamps; sleep schedules turn individual homes off. */
 function computeEveningWindowGlow(hour: number, night: number): number {
-  const darkness = blendPhases(hour, [
-    { at: 0, value: 1 },
-    { at: CALENDAR_WORK_START_HOUR - 1.25, value: 1 },
-    { at: CALENDAR_WORK_START_HOUR + 0.25, value: 0 },
-    { at: CALENDAR_WORK_END_HOUR - 2.5, value: 0 },
-    { at: CALENDAR_WORK_END_HOUR - 1.5, value: 0.55 },
-    { at: CALENDAR_WORK_END_HOUR - 0.5, value: 1 },
-    { at: CALENDAR_HOURS_PER_DAY, value: 1 },
-  ]);
+  const darkness = blendPhases(hour, EVENING_WINDOW_PHASES);
   return clamp01(darkness * (0.82 + night * 0.18));
 }
 
-function blendPhases(hour: number, phases: { at: number; value: number }[]): number {
+function blendPhases(
+  hour: number,
+  phases: readonly { readonly at: number; readonly value: number }[],
+): number {
   if (phases.length === 0) return 0;
   if (hour <= phases[0].at) return phases[0].value;
   for (let i = 1; i < phases.length; i += 1) {

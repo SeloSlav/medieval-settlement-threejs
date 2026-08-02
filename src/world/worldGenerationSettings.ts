@@ -10,7 +10,7 @@ export type WorldGenerationSettings = {
   /** Authored terrain recipe encoded into the persisted world seed. */
   terrainPreset: WorldTerrainPreset;
   mapSize: WorldMapSize;
-  /** 0 = gentle rolling hills, 100 = rugged highlands */
+  /** 0 = gentle rolling hills, 100 = mountain-scale massifs */
   topography: number;
   /** 0 = dry with few rivers, 100 = wet with many rivers and valleys */
   hydrology: number;

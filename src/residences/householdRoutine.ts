@@ -15,10 +15,19 @@ export type HouseholdMemberRoutine = {
   readonly wakeHour: number;
 };
 
-const ROUTINE_CACHE = new Map<string, HouseholdMemberRoutine>();
+type HouseholdMemberProfile = {
+  readonly routine: HouseholdMemberRoutine;
+  readonly nightGroup: number;
+};
+
+const MEMBER_PROFILE_CACHE = new Map<string, HouseholdMemberProfile>();
 
 export function householdMemberRoutine(personIdentity: string): HouseholdMemberRoutine {
-  const cached = ROUTINE_CACHE.get(personIdentity);
+  return householdMemberProfile(personIdentity).routine;
+}
+
+function householdMemberProfile(personIdentity: string): HouseholdMemberProfile {
+  const cached = MEMBER_PROFILE_CACHE.get(personIdentity);
   if (cached) return cached;
 
   const random = mulberry32(hashStringSeed(`household-routine:${personIdentity}`));
@@ -35,8 +44,12 @@ export function householdMemberRoutine(personIdentity: string): HouseholdMemberR
     CALENDAR_WORK_START_HOUR - 1.45 + random() * 1.1,
   );
   const routine = { indoorsHour, bedtimeHour, wakeHour };
-  ROUTINE_CACHE.set(personIdentity, routine);
-  return routine;
+  const profile = {
+    routine,
+    nightGroup: hashStringSeed(`night-routine:${personIdentity}`) % 100,
+  };
+  MEMBER_PROFILE_CACHE.set(personIdentity, profile);
+  return profile;
 }
 
 export function householdMemberHomeState(
@@ -45,8 +58,7 @@ export function householdMemberHomeState(
   nightPolicy?: Pick<NightPolicyState, 'gathering' | 'curfew'>,
 ): HouseholdHomeState {
   const hour = fractionalHour(clock);
-  const routine = householdMemberRoutine(personIdentity);
-  const group = hashStringSeed(`night-routine:${personIdentity}`) % 100;
+  const { routine, nightGroup: group } = householdMemberProfile(personIdentity);
   let indoorsHour = routine.indoorsHour;
   let bedtimeHour = routine.bedtimeHour;
   if (nightPolicy?.gathering === 1 && group < 48) {

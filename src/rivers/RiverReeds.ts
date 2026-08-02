@@ -105,11 +105,14 @@ export async function createRiverReeds(
   mesh.visible = false;
   mesh.count = placements.length;
 
+  let instancesHidden = false;
   const hideAllInstances = (): void => {
+    if (instancesHidden) return;
     for (let index = 0; index < placements.length; index++) {
       mesh.setMatrixAt(index, hiddenMatrix);
     }
-    mesh.instanceMatrix.needsUpdate = true;
+    if (placements.length > 0) mesh.instanceMatrix.needsUpdate = true;
+    instancesHidden = true;
   };
 
   const fullScale = new THREE.Vector3();
@@ -132,7 +135,6 @@ export async function createRiverReeds(
 
   hideAllInstances();
 
-  mesh.instanceMatrix.needsUpdate = true;
   attributes.tint.needsUpdate = true;
   attributes.anchor.needsUpdate = true;
   attributes.wind.needsUpdate = true;
@@ -151,6 +153,7 @@ export async function createRiverReeds(
   const refreshProximity = (focusX: number, focusZ: number): void => {
     if (placements.length === 0) return;
 
+    instancesHidden = false;
     let matrixDirty = false;
     placements.forEach((placement, index) => {
       const focusDist = Math.hypot(placement.x - focusX, placement.z - focusZ);

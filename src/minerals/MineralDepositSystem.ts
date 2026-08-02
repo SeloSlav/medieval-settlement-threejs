@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ResourceNodeState } from '../resources/types.ts';
+import { StaticInstancedShadowBatch } from '../scene/StaticInstancedShadowBatch.ts';
 import type {
   MineralDepositLayout,
   MineralDepositResource,
@@ -61,6 +62,11 @@ export function createMineralDepositSystem(
       stones: visual.stones,
     };
   });
+  const shadowBatch = new StaticInstancedShadowBatch(
+    group,
+    visuals.flatMap((visual) => visual.stones),
+    'Mineral deposit exact caster batches',
+  );
 
   return {
     group,
@@ -81,11 +87,13 @@ export function createMineralDepositSystem(
           }
         });
       }
+      if (changed) shadowBatch.rebuild();
       return changed;
     },
     isBlockedAt: (x, z) => layout.isBlockedForProps(x, z),
     isGrassBlockedAt: (x, z) => layout.isBlockedForGrass(x, z),
     dispose: () => {
+      shadowBatch.dispose();
       for (const geometry of new Set(Object.values(geometries).flat())) geometry.dispose();
       for (const material of Object.values(materials).flat()) material.dispose();
       for (const texture of surfaceStyle.textures) texture.dispose();

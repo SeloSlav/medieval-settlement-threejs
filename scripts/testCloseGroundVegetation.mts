@@ -6,6 +6,11 @@ import {
   GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
 } from '../src/grass/grassLodMath.ts';
 import { resolveGrassStreamViewTransition } from '../src/grass/grassStreamLifecycle.ts';
+import {
+  planGroundcoverAttributeUpdateRanges,
+  resolveGroundcoverSlotRewrite,
+  type GroundcoverSlotUpdate,
+} from '../src/grass/groundcoverSlotUpdates.ts';
 import { resolveGroundCoverShadowPolicy } from '../vendor/seedthree/src/core/ground-cover-shadows.js';
 import { resolveStreamVisibilityHysteresis } from '../vendor/seedthree/src/core/stream-slot-budget.js';
 
@@ -53,6 +58,11 @@ assert.doesNotMatch(
   /function tuftGeometry|createGrassTuftGeometry|Grass blade stream|useSeedThreeClumps/,
   'the streamed field must not retain a parallel custom grass fallback',
 );
+assert.match(
+  fieldSource,
+  /setRoadDraftActive\(active: boolean\) \{\s*if \(roadDraftActive === active\) return;/,
+  'stable road-draft frames must not replace pending stream arrays or cancel the same job repeatedly',
+);
 assert.doesNotMatch(
   sceneSource,
   /useSeedThreeClumps/,
@@ -77,6 +87,16 @@ assert.match(
   lodSource,
   /CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 200/,
   'grass, wildflowers, and cattails should begin fading in at 200% zoom',
+);
+assert.match(
+  lodSource,
+  /DIRT_FADE_START_ZOOM_PERCENT = 425/,
+  'brown soil should wait until the SeedThree groundcover is visually complete',
+);
+assert.match(
+  lodSource,
+  /DIRT_REVEAL_ZOOM_PERCENT = 650/,
+  'brown soil should reach full strength only at ground-level zoom',
 );
 assert.match(
   fieldSource,
@@ -130,8 +150,8 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /planSlotAttributeUpdateRanges[\s\S]*clearUpdateRanges\(\)[\s\S]*addUpdateRange/,
-  'GPU uploads must cover only the actual changed fixed-capacity slots',
+  /planGroundcoverAttributeUpdateRanges[\s\S]*clearUpdateRanges\(\)[\s\S]*addUpdateRange/,
+  'GPU uploads must cover only the exact dirty prefix of changed slots',
 );
 assert.match(
   fieldSource,
@@ -200,8 +220,193 @@ assert.doesNotMatch(
 );
 assert.match(
   fieldSource,
-  /planSlotAttributeUpdateRanges\(\s*changedSlotIndices,\s*entry\.slotCapacity,/,
-  'whole-field slot uploads must retain the accepted changed-slot range planning',
+  /planGroundcoverAttributeUpdateRanges\(\s*changedSlots,\s*meshIndex,\s*entry\.slotCapacity,/,
+  'whole-field slot uploads must retain exact per-mesh changed-slot range planning',
+);
+
+assert.deepEqual(
+  resolveGroundcoverSlotRewrite(false, 42, 64, 110),
+  { dirtyInstanceCount: 110, clearStart: 0, clearCount: 110 },
+  'first initialization must still hide the complete fixed-capacity slot',
+);
+assert.deepEqual(
+  resolveGroundcoverSlotRewrite(true, 42, 64, 110),
+  { dirtyInstanceCount: 64, clearStart: 64, clearCount: 0 },
+  'growing a recycled slot should touch only its new live prefix',
+);
+assert.deepEqual(
+  resolveGroundcoverSlotRewrite(true, 64, 42, 110),
+  { dirtyInstanceCount: 64, clearStart: 42, clearCount: 22 },
+  'shrinking a recycled slot must hide exactly the old live tail',
+);
+assert.deepEqual(
+  resolveGroundcoverSlotRewrite(true, 42, 0, 110),
+  { dirtyInstanceCount: 42, clearStart: 0, clearCount: 42 },
+  'emptying a recycled slot must hide its complete old live prefix',
+);
+assert.deepEqual(
+  resolveGroundcoverSlotRewrite(true, 0, 55, 110),
+  { dirtyInstanceCount: 55, clearStart: 55, clearCount: 0 },
+  'regrowing an empty initialized slot should touch only the new live prefix',
+);
+
+function plannedGroundcoverUploadBytes(update: GroundcoverSlotUpdate): number {
+  const meshSpecs = [
+    { capacity: 110, itemSizes: [16, 3, 3, 3] },
+    { capacity: 110, itemSizes: [16, 3, 3, 3] },
+    { capacity: 8, itemSizes: [16, 4] },
+  ];
+  let bytes = 0;
+  for (let meshIndex = 0; meshIndex < meshSpecs.length; meshIndex++) {
+    const spec = meshSpecs[meshIndex]!;
+    for (const itemSize of spec.itemSizes) {
+      bytes += planGroundcoverAttributeUpdateRanges(
+        [update],
+        meshIndex,
+        spec.capacity,
+        itemSize,
+      ).byteCount;
+    }
+  }
+  return bytes;
+}
+
+assert.equal(
+  plannedGroundcoverUploadBytes({
+    slotIndex: 3,
+    dirtyInstanceCounts: [110, 110, 8],
+  }),
+  22_640,
+  'a first-time slot must retain the complete historical 22,640-byte upload',
+);
+assert.equal(
+  plannedGroundcoverUploadBytes({
+    slotIndex: 3,
+    dirtyInstanceCounts: [70, 45, 7],
+  }),
+  12_060,
+  'a representative recycled slot must publish only exact dirty components',
+);
+assert.deepEqual(
+  planGroundcoverAttributeUpdateRanges(
+    [
+      { slotIndex: 3, dirtyInstanceCounts: [64] },
+      { slotIndex: 4, dirtyInstanceCounts: [55] },
+    ],
+    0,
+    110,
+    16,
+  ),
+  {
+    ranges: [
+      { start: 5_280, count: 1_024 },
+      { start: 7_040, count: 880 },
+    ],
+    componentCount: 1_904,
+    byteCount: 7_616,
+  },
+  'separated recycled prefixes must not upload the untouched hidden gap',
+);
+assert.deepEqual(
+  planGroundcoverAttributeUpdateRanges(
+    [{ slotIndex: 3, dirtyInstanceCounts: [0] }],
+    0,
+    110,
+    16,
+  ),
+  { ranges: [], componentCount: 0, byteCount: 0 },
+  'an unchanged empty slot must not publish a phantom full-buffer upload',
+);
+assert.match(
+  fieldSource,
+  /if \(plan\.componentCount === 0\) continue;[\s\S]*attribute\.needsUpdate = true/,
+  'zero-component plans must not increment BufferAttribute versions',
+);
+
+const recycledCountSequence = [
+  [70, 45, 7],
+  [78, 50, 8],
+  [62, 41, 6],
+  [0, 0, 0],
+  [69, 44, 7],
+] as const;
+const slotCapacities = [110, 110, 8] as const;
+let initialized = false;
+let previousCounts = [0, 0, 0];
+let exactUploadBytes = 0;
+let exactClearWrites = 0;
+for (const nextCounts of recycledCountSequence) {
+  const dirtyInstanceCounts: number[] = [];
+  for (let meshIndex = 0; meshIndex < slotCapacities.length; meshIndex++) {
+    const rewrite = resolveGroundcoverSlotRewrite(
+      initialized,
+      previousCounts[meshIndex]!,
+      nextCounts[meshIndex]!,
+      slotCapacities[meshIndex]!,
+    );
+    dirtyInstanceCounts.push(rewrite.dirtyInstanceCount);
+    exactClearWrites += rewrite.clearCount;
+  }
+  exactUploadBytes += plannedGroundcoverUploadBytes({
+    slotIndex: 3,
+    dirtyInstanceCounts,
+  });
+  previousCounts = [...nextCounts];
+  initialized = true;
+}
+const fullCapacityUploadBytes = recycledCountSequence.length * 22_640;
+const fullCapacityClearWrites = recycledCountSequence.length
+  * slotCapacities.reduce((sum, capacity) => sum + capacity, 0);
+assert.ok(
+  exactUploadBytes < fullCapacityUploadBytes * 0.7,
+  'exact recycled-slot prefixes should remove at least 30% of transfer bytes',
+);
+assert.ok(
+  exactClearWrites < fullCapacityClearWrites * 0.35,
+  'tail-only hiding should remove at least 65% of redundant clear writes',
+);
+
+function applyGeneratedPrefix(buffer: number[], count: number): void {
+  for (let index = 0; index < count; index++) buffer[index] = 1_000 + index;
+}
+
+const legacyBuffer = Array.from({ length: 110 }, (_, index) => index);
+const exactBuffer = [...legacyBuffer];
+let previousLiveCount = 0;
+initialized = false;
+for (const nextLiveCount of [64, 42, 0, 55]) {
+  legacyBuffer.fill(-1);
+  applyGeneratedPrefix(legacyBuffer, nextLiveCount);
+
+  const rewrite = resolveGroundcoverSlotRewrite(
+    initialized,
+    previousLiveCount,
+    nextLiveCount,
+    exactBuffer.length,
+  );
+  exactBuffer.fill(
+    -1,
+    rewrite.clearStart,
+    rewrite.clearStart + rewrite.clearCount,
+  );
+  applyGeneratedPrefix(exactBuffer, nextLiveCount);
+  assert.deepEqual(
+    exactBuffer,
+    legacyBuffer,
+    `exact slot rewrite must match full clearing at live count ${nextLiveCount}`,
+  );
+  initialized = true;
+  previousLiveCount = nextLiveCount;
+}
+assert.match(
+  fieldSource,
+  /standardPlacementCount[\s\S]*microPlacementCount/,
+  'generation should count cohorts without allocating filter arrays in hot loops',
+);
+assert.doesNotMatch(
+  fieldSource,
+  /localPlacements\.filter/,
+  'groundcover generation must not repeatedly scan and allocate placement subsets',
 );
 
 assert.equal(
@@ -315,4 +520,8 @@ assert.ok(
 assert.equal(meadowTuft.subarray(1, 4).toString('ascii'), 'PNG');
 assert.equal(meadowTuft[25], 6, 'the generated meadow card should retain an RGBA alpha channel');
 
-console.log('Close-ground vegetation contract tests passed.');
+console.log(
+  'Close-ground vegetation contract tests passed. '
+  + `Representative recycled-slot sequence: ${exactUploadBytes}/${fullCapacityUploadBytes} bytes, `
+  + `${exactClearWrites}/${fullCapacityClearWrites} clear writes.`,
+);

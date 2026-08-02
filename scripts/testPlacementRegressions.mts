@@ -608,6 +608,24 @@ assert.equal(
   }),
   'Ready: field work extent 150 m | Cost 50 timber, 12 stone',
 );
+assert.equal(
+  describeToolbarStatus({
+    canBuild: false,
+    hasDraft: false,
+    mode: 'road',
+  }),
+  'Road · L-click start · Alt + L-click remove segment · Esc cancel',
+  'road placement should use the same concise bottom status bar as other builder tools',
+);
+assert.equal(
+  describeToolbarStatus({
+    canBuild: true,
+    hasDraft: true,
+    mode: 'road',
+  }),
+  'Road ready · L-click add point · R-click undo · Enter build · Esc cancel',
+  'the road status bar should surface only the most useful actions for the current state',
+);
 
 const buildingReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const placementValidation = readFileSync('server/src/placement_validation.rs', 'utf8');

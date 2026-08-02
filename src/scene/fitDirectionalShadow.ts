@@ -6,6 +6,15 @@ const SHADOW_VIEW = new THREE.Vector3();
 const SHADOW_TARGET = new THREE.Vector3();
 const SHADOW_VIEW_FORWARD = new THREE.Vector3();
 const SHADOW_SUN_OFFSET = new THREE.Vector3();
+const SHADOW_SAMPLE_COORDS = new Float64Array(64 * 3);
+const SHADOW_VIEW_BOUNDS: ViewBounds = {
+  minCamX: 0,
+  maxCamX: 0,
+  minCamY: 0,
+  maxCamY: 0,
+  minCamZ: 0,
+  maxCamZ: 0,
+};
 
 /** Max instanced pine height at largest scale and broad form. */
 const MAX_TREE_HEIGHT = 48;
@@ -28,27 +37,32 @@ export function computeViewShadowBounds(
   target: THREE.Vector3,
   viewDistance: number,
   padding = 1.3,
+  result?: TerrainBounds,
 ): TerrainBounds {
   const fovRad = THREE.MathUtils.degToRad(camera.fov);
   const halfHeight = Math.tan(fovRad * 0.5) * viewDistance;
   const halfWidth = halfHeight * camera.aspect;
   const extentX = Math.max(MIN_VIEW_SHADOW_EXTENT, halfWidth * padding);
   const extentZ = Math.max(MIN_VIEW_SHADOW_EXTENT, halfHeight * padding);
-  return {
-    minX: target.x - extentX,
-    maxX: target.x + extentX,
-    minZ: target.z - extentZ,
-    maxZ: target.z + extentZ,
-  };
+  const bounds = result ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  bounds.minX = target.x - extentX;
+  bounds.maxX = target.x + extentX;
+  bounds.minZ = target.z - extentZ;
+  bounds.maxZ = target.z + extentZ;
+  return bounds;
 }
 
-export function intersectTerrainBounds(a: TerrainBounds, b: TerrainBounds): TerrainBounds {
-  return {
-    minX: Math.max(a.minX, b.minX),
-    maxX: Math.min(a.maxX, b.maxX),
-    minZ: Math.max(a.minZ, b.minZ),
-    maxZ: Math.min(a.maxZ, b.maxZ),
-  };
+export function intersectTerrainBounds(
+  a: TerrainBounds,
+  b: TerrainBounds,
+  result?: TerrainBounds,
+): TerrainBounds {
+  const bounds = result ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  bounds.minX = Math.max(a.minX, b.minX);
+  bounds.maxX = Math.min(a.maxX, b.maxX);
+  bounds.minZ = Math.max(a.minZ, b.minZ);
+  bounds.maxZ = Math.min(a.maxZ, b.maxZ);
+  return bounds;
 }
 
 type ViewBounds = {
@@ -145,28 +159,46 @@ function buildShadowSampleCoords(
   minZ: number,
   maxZ: number,
   maxHeight: number,
-): Array<[number, number, number]> {
-  const sampleCoords: Array<[number, number, number]> = [
-    [minX, 0, minZ],
-    [minX, 0, maxZ],
-    [minX, maxHeight, minZ],
-    [minX, maxHeight, maxZ],
-    [maxX, 0, minZ],
-    [maxX, 0, maxZ],
-    [maxX, maxHeight, minZ],
-    [maxX, maxHeight, maxZ],
-  ];
+): Float64Array {
+  const sampleCoords = SHADOW_SAMPLE_COORDS;
+  let offset = 0;
+  offset = writeShadowSample(offset, minX, 0, minZ);
+  offset = writeShadowSample(offset, minX, 0, maxZ);
+  offset = writeShadowSample(offset, minX, maxHeight, minZ);
+  offset = writeShadowSample(offset, minX, maxHeight, maxZ);
+  offset = writeShadowSample(offset, maxX, 0, minZ);
+  offset = writeShadowSample(offset, maxX, 0, maxZ);
+  offset = writeShadowSample(offset, maxX, maxHeight, minZ);
+  offset = writeShadowSample(offset, maxX, maxHeight, maxZ);
 
   const edgeSteps = 6;
   for (let i = 0; i <= edgeSteps; i++) {
     const t = i / edgeSteps;
     const x = THREE.MathUtils.lerp(minX, maxX, t);
     const z = THREE.MathUtils.lerp(minZ, maxZ, t);
-    sampleCoords.push([x, 0, minZ], [x, maxHeight, minZ], [x, 0, maxZ], [x, maxHeight, maxZ]);
-    sampleCoords.push([minX, 0, z], [minX, maxHeight, z], [maxX, 0, z], [maxX, maxHeight, z]);
+    offset = writeShadowSample(offset, x, 0, minZ);
+    offset = writeShadowSample(offset, x, maxHeight, minZ);
+    offset = writeShadowSample(offset, x, 0, maxZ);
+    offset = writeShadowSample(offset, x, maxHeight, maxZ);
+    offset = writeShadowSample(offset, minX, 0, z);
+    offset = writeShadowSample(offset, minX, maxHeight, z);
+    offset = writeShadowSample(offset, maxX, 0, z);
+    offset = writeShadowSample(offset, maxX, maxHeight, z);
   }
 
   return sampleCoords;
+}
+
+function writeShadowSample(
+  offset: number,
+  x: number,
+  y: number,
+  z: number,
+): number {
+  SHADOW_SAMPLE_COORDS[offset] = x;
+  SHADOW_SAMPLE_COORDS[offset + 1] = y;
+  SHADOW_SAMPLE_COORDS[offset + 2] = z;
+  return offset + 3;
 }
 
 function syncLightPosition(
@@ -197,7 +229,7 @@ function syncShadowCameraFromLight(
 
 function measureViewBounds(
   shadowCam: THREE.OrthographicCamera,
-  sampleCoords: Array<[number, number, number]>,
+  sampleCoords: Float64Array,
 ): ViewBounds {
   let minCamX = Infinity;
   let maxCamX = -Infinity;
@@ -206,8 +238,12 @@ function measureViewBounds(
   let minCamZ = Infinity;
   let maxCamZ = -Infinity;
 
-  for (const [x, y, z] of sampleCoords) {
-    SHADOW_CORNER.set(x, y, z);
+  for (let offset = 0; offset < sampleCoords.length; offset += 3) {
+    SHADOW_CORNER.set(
+      sampleCoords[offset]!,
+      sampleCoords[offset + 1]!,
+      sampleCoords[offset + 2]!,
+    );
     SHADOW_VIEW.copy(SHADOW_CORNER).applyMatrix4(shadowCam.matrixWorldInverse);
     minCamX = Math.min(minCamX, SHADOW_VIEW.x);
     maxCamX = Math.max(maxCamX, SHADOW_VIEW.x);
@@ -217,5 +253,11 @@ function measureViewBounds(
     maxCamZ = Math.max(maxCamZ, SHADOW_VIEW.z);
   }
 
-  return { minCamX, maxCamX, minCamY, maxCamY, minCamZ, maxCamZ };
+  SHADOW_VIEW_BOUNDS.minCamX = minCamX;
+  SHADOW_VIEW_BOUNDS.maxCamX = maxCamX;
+  SHADOW_VIEW_BOUNDS.minCamY = minCamY;
+  SHADOW_VIEW_BOUNDS.maxCamY = maxCamY;
+  SHADOW_VIEW_BOUNDS.minCamZ = minCamZ;
+  SHADOW_VIEW_BOUNDS.maxCamZ = maxCamZ;
+  return SHADOW_VIEW_BOUNDS;
 }

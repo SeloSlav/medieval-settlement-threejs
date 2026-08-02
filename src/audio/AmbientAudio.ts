@@ -34,6 +34,7 @@ const AMBIENT_GAIN_FADE_SECONDS = 0.8;
 const SCORE_DUCK_ATTACK_SECONDS = 2.5;
 const SCORE_DUCK_RELEASE_SECONDS = 4;
 const AMBIENT_PLAY_RETRY_MS = 1000;
+const AMBIENT_LAYER_IDS = Object.keys(AMBIENT_LAYERS) as AmbientLayerId[];
 
 async function loadAudioAsBlobUrl(path: string): Promise<string> {
   const res = await fetch(path, { cache: 'no-store' });
@@ -75,7 +76,7 @@ export class AmbientAudio {
 
   setAmbientMix(mix: AmbientMix): void {
     if (!this.enabled) return;
-    for (const id of Object.keys(this.ambientTracks) as AmbientLayerId[]) {
+    for (const id of AMBIENT_LAYER_IDS) {
       this.ambientTracks[id].targetMix = 0;
     }
     if (mix.baseLayer) {
@@ -125,7 +126,7 @@ export class AmbientAudio {
     );
 
     const nowMs = performance.now();
-    for (const id of Object.keys(this.ambientTracks) as AmbientLayerId[]) {
+    for (const id of AMBIENT_LAYER_IDS) {
       const state = this.ambientTracks[id];
       const audio = state.audio;
       if (!audio) continue;
@@ -170,7 +171,7 @@ export class AmbientAudio {
       overlayVolume: 0,
       weatherVolume: 0,
     });
-    for (const id of Object.keys(this.ambientTracks) as AmbientLayerId[]) {
+    for (const id of AMBIENT_LAYER_IDS) {
       const state = this.ambientTracks[id];
       if (!state.audio) continue;
       state.audio.pause();

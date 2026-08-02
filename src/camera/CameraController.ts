@@ -40,6 +40,8 @@ export type CameraControllerConfig = {
   getCursorOverride?: () => string | null;
   shouldIgnoreInput?: (event: MouseEvent | WheelEvent) => boolean;
   onViewChanged?: () => void;
+  /** The owner already renders every animation frame, so view changes only invalidate that frame. */
+  continuousRenderLoop?: boolean;
 };
 
 export class CameraController {
@@ -283,7 +285,7 @@ export class CameraController {
   }
 
   private notifyViewChanged(): void {
-    if (!this.config.onViewChanged) return;
+    if (!this.config.onViewChanged || this.config.continuousRenderLoop) return;
     if (this.viewChangeFrame !== 0) return;
     this.viewChangeFrame = requestAnimationFrame(() => {
       this.viewChangeFrame = 0;

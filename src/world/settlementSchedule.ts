@@ -24,15 +24,28 @@ export function deriveSettlementScheduleFromClock(
   clock: GameClock,
   parishPolicy: ParishPolicyState,
   gameState: GameState | null,
+  staffedChapelOverride?: boolean,
+  target?: SettlementSchedule,
 ): SettlementSchedule {
   const sabbathObservance = parishPolicy.sabbathObservanceEnabled
     ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled;
-  const staffedChapel = gameState ? playerHasStaffedChapel(gameState.buildings.values()) : false;
+  const staffedChapel = staffedChapelOverride
+    ?? (gameState ? playerHasStaffedChapel(gameState.buildings.values()) : false);
   const laborPaused = isLaborPaused(clock, sabbathObservance, staffedChapel);
+  const pauseLabel = laborPauseLabel(clock, sabbathObservance, staffedChapel);
+  if (target) {
+    target.clock = clock;
+    target.laborPaused = laborPaused;
+    target.laborPauseLabel = pauseLabel;
+    computeDayNightState(clock, laborPaused, target.dayNight);
+    target.sabbathObservance = sabbathObservance;
+    target.staffedChapel = staffedChapel;
+    return target;
+  }
   return {
     clock,
     laborPaused,
-    laborPauseLabel: laborPauseLabel(clock, sabbathObservance, staffedChapel),
+    laborPauseLabel: pauseLabel,
     dayNight: computeDayNightState(clock, laborPaused),
     sabbathObservance,
     staffedChapel,

@@ -82,6 +82,15 @@
   border-top: 1px solid rgba(238, 232, 220, 0.1);
 }
 
+.hud-right-stack > .crop-suitability-legend {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 14px 34px var(--shadow);
+  backdrop-filter: blur(14px);
+}
+
 .crop-suitability-legend[hidden] {
   display: none;
 }

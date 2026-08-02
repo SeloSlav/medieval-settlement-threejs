@@ -164,9 +164,9 @@ export class RoadTool {
     };
   }
 
-  update(_dt: number): void {
+  update(dt: number): void {
     if (!this.enabled) return;
-    this.buildingConnections.refresh();
+    this.buildingConnections.update(dt);
     if (!this.hasDraft()) return;
     this.maybeRunDeferredValidation(false);
   }
@@ -260,6 +260,7 @@ export class RoadTool {
     if (event.button !== 0) return;
     const hit = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!hit) return;
+    this.buildingConnections.setCursor(hit);
     event.preventDefault();
     event.stopPropagation();
     const exitReason = this.getInvalidClickExitReason();
@@ -285,9 +286,11 @@ export class RoadTool {
   private processPointerHover(clientX: number, clientY: number): void {
     const hit = this.options.terrainProjector.pick(clientX, clientY);
     if (!hit) {
+      this.buildingConnections.setCursor(null);
       this.preview.updateCursor(null);
       return;
     }
+    this.buildingConnections.setCursor(hit);
     const snapped = this.applySnap(hit);
     this.preview.updateCursor(snapped);
     this.hoverPoint = snapped;

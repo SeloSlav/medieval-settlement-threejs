@@ -187,7 +187,6 @@ export function syncSettlementWorld(
   }
   if (deliveryTripsChanged) {
     targets.deliveryAgents?.syncTrips(state.deliveryTrips.values());
-    targets.deliveryAgents?.applyTripStates(state.deliveryTrips.values());
     targets.fireEffects?.syncTrips(state.deliveryTrips.values());
   }
   if (fireIncidentsChanged || residencesChanged || workerBuildingsChanged) {
@@ -203,11 +202,7 @@ export function tickSettlementWorld(
   targets: Pick<SettlementWorldSyncTargets, 'residenceMarkers' | 'backyardGardenMarkers' | 'livestockVisuals' | 'deliveryAgents' | 'fireEffects' | 'villagers'>,
   dt: number,
   view?: CrowdViewState,
-  gameState?: Pick<GameState, 'deliveryTrips'>,
 ): void {
-  if (gameState) {
-    targets.deliveryAgents?.applyTripStates(gameState.deliveryTrips.values());
-  }
   targets.residenceMarkers?.tick(dt);
   targets.backyardGardenMarkers?.tick(dt, view);
   targets.livestockVisuals?.tick(dt, view);

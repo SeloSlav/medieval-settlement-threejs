@@ -19,10 +19,11 @@ export function createCelestialStarMapPlaceholder(): THREE.DataTexture {
 }
 
 /**
- * Begins fetching the catalogue immediately, but leaves its CPU-heavy texture
- * generation to an idle turn after the first playable frame.
+ * Keeps the catalogue in a separate chunk and yields around its CPU-heavy
+ * texture generation. Startup awaits this work while the loading cover remains
+ * visible so it can never become a post-play long task.
  */
-export async function loadCelestialStarMapDeferred(): Promise<THREE.DataTexture> {
+export async function loadCelestialStarMapForStartup(): Promise<THREE.DataTexture> {
   const celestialModulePromise = import('./CelestialStarMap.ts');
   await waitForCelestialIdleTurn();
   const { createCelestialStarMap } = await celestialModulePromise;

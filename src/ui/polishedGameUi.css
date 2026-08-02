@@ -69,7 +69,7 @@ select:focus-visible {
   transform: translateX(-50%);
 }
 
-.hud-right-stack > .road-controls-panel {
+.hud-right-stack > .crop-suitability-legend {
   position: fixed;
   top: 92px;
   right: 16px;

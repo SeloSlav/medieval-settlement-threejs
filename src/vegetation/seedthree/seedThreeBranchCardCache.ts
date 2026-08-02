@@ -28,12 +28,12 @@ type CachedTextureChannels = {
 
 type CachedVariant = {
   attributes: Record<string, {
-    values: number[];
+    values: number[] | Float32Array;
     itemSize: number;
     normalized: boolean;
     instanced: boolean;
   }>;
-  indices: number[];
+  indices: number[] | Uint16Array | Uint32Array;
   chordLen: number;
   textures: CachedTextureChannels;
 };
@@ -50,6 +50,8 @@ type CacheRecord = {
   sets: CachedSet[];
 };
 
+let databasePromise: Promise<IDBDatabase> | null = null;
+
 export async function readSeedThreeBranchCards(cacheKey: string): Promise<SeedThreeBranchCards | null> {
   if (typeof indexedDB === 'undefined') return null;
   const key = seedThreePersistentBranchCardCacheKey(cacheKey);
@@ -58,14 +60,14 @@ export async function readSeedThreeBranchCards(cacheKey: string): Promise<SeedTh
     const record = await requestResult<CacheRecord | undefined>(
       database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key),
     );
-    database.close();
     if (!record?.sets.length) return null;
 
-    const byLevel = new Map<string, BranchCardsSet>();
-    for (const cachedSet of record.sets) {
+    const restoredSets = await Promise.all(record.sets.map(async (cachedSet) => {
       const centerUniform = uniform(new THREE.Vector3()) as unknown as { value: THREE.Vector3 };
-      const variants: BranchCardsSet['variants'] = [];
-      for (const cached of cachedSet.variants) {
+      // Every cached atlas is immutable. Decode all variants together instead
+      // of forcing up to forty createImageBitmap operations through a serial
+      // waterfall on a warm launch. Promise.all retains source order exactly.
+      const variants = await Promise.all(cachedSet.variants.map(async (cached) => {
         const textures = await restoreTextures(cached.textures);
         const geometry = new THREE.BufferGeometry();
         for (const [name, attributeData] of Object.entries(cached.attributes)) {
@@ -75,22 +77,23 @@ export async function readSeedThreeBranchCards(cacheKey: string): Promise<SeedTh
             : new THREE.BufferAttribute(values, attributeData.itemSize, attributeData.normalized);
           geometry.setAttribute(name, attribute);
         }
-        geometry.setIndex(cached.indices);
+        geometry.setIndex(new THREE.BufferAttribute(restoreIndex(cached.indices), 1));
         geometry.userData.shared = true;
         geometry.userData.crownUnderlay = cachedSet.key === '0:underlay';
-        variants.push({
+        return {
           geometry,
           material: createCardMaterial(textures, centerUniform, cachedSet.noFlutter),
           textures,
           chordLen: cached.chordLen,
-        });
-      }
-      byLevel.set(cachedSet.key, {
+        };
+      }));
+      return [cachedSet.key, {
         variants,
         centerUniform,
         foliageOnly: cachedSet.foliageOnly,
-      });
-    }
+      }] as const;
+    }));
+    const byLevel = new Map<string, BranchCardsSet>(restoredSets);
     const near = [...byLevel.values()][0];
     if (!near) return null;
     return { byLevel, variants: near.variants, centerUniform: near.centerUniform };
@@ -106,40 +109,46 @@ export async function writeSeedThreeBranchCards(
   noFlutterByLevel: ReadonlyMap<string, boolean>,
 ): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
-  const sets: CachedSet[] = [];
-  for (const [key, set] of cards.byLevel) {
-    const variants: CachedVariant[] = [];
-    for (const variant of set.variants) {
-      const index = variant.geometry.getIndex();
-      if (!index) continue;
-      const attributes: CachedVariant['attributes'] = {};
-      for (const [name, attribute] of Object.entries(variant.geometry.attributes)) {
-        attributes[name] = {
-          values: Array.from(attribute.array),
-          itemSize: attribute.itemSize,
-          normalized: attribute.normalized,
-          instanced: attribute instanceof THREE.InstancedBufferAttribute,
-        };
-      }
-      variants.push({
-        attributes,
-        indices: Array.from(index.array),
-        chordLen: variant.chordLen,
-        textures: await serializeTextures(variant.textures),
-      });
-    }
-    if (variants.length > 0) {
-      sets.push({
-        key,
-        foliageOnly: set.foliageOnly ?? key.endsWith(':fol'),
-        noFlutter: noFlutterByLevel.get(key) ?? false,
-        variants,
-      });
-    }
-  }
-  if (sets.length === 0) return;
-
   try {
+    // Texture serialization can reject before IndexedDB is opened (for
+    // example, if a canvas is lost during shutdown), so the entire snapshot
+    // belongs inside the guarded cache-write boundary.
+    const sets: CachedSet[] = [];
+    for (const [key, set] of cards.byLevel) {
+      const variants: CachedVariant[] = [];
+      for (const variant of set.variants) {
+        const index = variant.geometry.getIndex();
+        if (!index) continue;
+        const attributes: CachedVariant['attributes'] = {};
+        for (const [name, attribute] of Object.entries(variant.geometry.attributes)) {
+          attributes[name] = {
+            // IndexedDB structured-clones typed arrays directly. Keeping this as
+            // Float32 avoids allocating and cloning millions of boxed JS numbers,
+            // while restoring the exact same IEEE-754 values.
+            values: new Float32Array(attribute.array),
+            itemSize: attribute.itemSize,
+            normalized: attribute.normalized,
+            instanced: attribute instanceof THREE.InstancedBufferAttribute,
+          };
+        }
+        variants.push({
+          attributes,
+          indices: cloneIndex(index.array),
+          chordLen: variant.chordLen,
+          textures: await serializeTextures(variant.textures),
+        });
+      }
+      if (variants.length > 0) {
+        sets.push({
+          key,
+          foliageOnly: set.foliageOnly ?? key.endsWith(':fol'),
+          noFlutter: noFlutterByLevel.get(key) ?? false,
+          variants,
+        });
+      }
+    }
+    if (sets.length === 0) return;
+
     const database = await openDatabase();
     const transaction = database.transaction(STORE_NAME, 'readwrite');
     transaction.objectStore(STORE_NAME).put({
@@ -147,7 +156,6 @@ export async function writeSeedThreeBranchCards(
       sets,
     } satisfies CacheRecord);
     await transactionDone(transaction);
-    database.close();
   } catch (error) {
     console.warn('[SeedThree] branch-card cache could not be saved:', error);
   }
@@ -181,6 +189,19 @@ async function restoreTextures(blobs: CachedTextureChannels): Promise<Record<str
     textureFromBlob(blobs.trans, false),
   ]);
   return { albedo, normal, rough, trans };
+}
+
+function cloneIndex(values: ArrayLike<number>): Uint16Array | Uint32Array {
+  if (values instanceof Uint32Array) return new Uint32Array(values);
+  return new Uint16Array(values);
+}
+
+function restoreIndex(values: CachedVariant['indices']): Uint16Array | Uint32Array {
+  if (values instanceof Uint32Array) return new Uint32Array(values);
+  if (values instanceof Uint16Array) return new Uint16Array(values);
+  let maximum = 0;
+  for (const value of values) maximum = Math.max(maximum, value);
+  return maximum > 65_535 ? new Uint32Array(values) : new Uint16Array(values);
 }
 
 async function textureFromBlob(blob: Blob, srgb: boolean): Promise<THREE.Texture> {
@@ -233,15 +254,27 @@ function createCardMaterial(
 }
 
 function openDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (databasePromise) return databasePromise;
+  databasePromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains(STORE_NAME)) database.createObjectStore(STORE_NAME, { keyPath: 'key' });
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => {
+        database.close();
+        databasePromise = null;
+      };
+      resolve(database);
+    };
+    request.onerror = () => {
+      databasePromise = null;
+      reject(request.error);
+    };
   });
+  return databasePromise;
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {

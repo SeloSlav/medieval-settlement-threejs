@@ -32,11 +32,37 @@ export type CombatAudioSource = {
   z: number;
 };
 
+export type CombatAudioSourceWorkspace = {
+  guards: CombatAudioFighter[];
+  raiders: CombatAudioFighter[];
+  sourcePool: CombatAudioSource[];
+  sourceFirstIds: string[];
+  sourceSecondIds: string[];
+  sources: CombatAudioSource[];
+};
+
+export function createCombatAudioSourceWorkspace(): CombatAudioSourceWorkspace {
+  return {
+    guards: [],
+    raiders: [],
+    sourcePool: [],
+    sourceFirstIds: [],
+    sourceSecondIds: [],
+    sources: [],
+  };
+}
+
 type CombatSoundSchedule = {
   nextWeaponAt: number;
   nextVoiceAt: number;
   weaponSequence: number;
   voiceSequence: number;
+  activeGeneration: number;
+};
+
+type CombatSoundCandidate = {
+  id: string;
+  gain: number;
 };
 
 export function combatAudioGain(
@@ -74,9 +100,12 @@ export function combatAudioGain(
  */
 export function buildCombatAudioSources(
   fighters: Iterable<CombatAudioFighter>,
+  workspace?: CombatAudioSourceWorkspace,
 ): CombatAudioSource[] {
-  const guards: CombatAudioFighter[] = [];
-  const raiders: CombatAudioFighter[] = [];
+  const guards = workspace?.guards ?? [];
+  const raiders = workspace?.raiders ?? [];
+  guards.length = 0;
+  raiders.length = 0;
   for (const fighter of fighters) {
     if (
       fighter.status !== 'fighting'
@@ -89,10 +118,11 @@ export function buildCombatAudioSources(
     }
     (fighter.faction === 'raider' ? raiders : guards).push(fighter);
   }
-  if (guards.length === 0 || raiders.length === 0) return [];
+  const sources = workspace?.sources ?? [];
+  sources.length = 0;
+  if (guards.length === 0 || raiders.length === 0) return sources;
 
   raiders.sort((left, right) => left.id.localeCompare(right.id));
-  const sources: CombatAudioSource[] = [];
   const maxDistanceSquared =
     COMBAT_AUDIO_MAX_PAIR_DISTANCE * COMBAT_AUDIO_MAX_PAIR_DISTANCE;
 
@@ -125,13 +155,30 @@ export function buildCombatAudioSources(
       nearestDistanceSquared = distanceSquared;
     }
     if (!nearest) continue;
-    const pair = [fighter.id, nearest.id].sort();
-    const id = `${pair[0]}:${pair[1]}`;
-    sources.push({
-      id,
-      x: (fighter.x + nearest.x) * 0.5,
-      z: (fighter.z + nearest.z) * 0.5,
-    });
+    const fighterFirst = fighter.id <= nearest.id;
+    const firstId = fighterFirst ? fighter.id : nearest.id;
+    const secondId = fighterFirst ? nearest.id : fighter.id;
+    const sourceIndex = sources.length;
+    let source = workspace?.sourcePool[sourceIndex];
+    const id = (
+      source
+      && workspace?.sourceFirstIds[sourceIndex] === firstId
+      && workspace.sourceSecondIds[sourceIndex] === secondId
+    )
+      ? source.id
+      : `${firstId}:${secondId}`;
+    if (!source) {
+      source = { id, x: 0, z: 0 };
+      workspace?.sourcePool.push(source);
+    }
+    if (workspace) {
+      workspace.sourceFirstIds[sourceIndex] = firstId;
+      workspace.sourceSecondIds[sourceIndex] = secondId;
+    }
+    source.id = id;
+    source.x = (fighter.x + nearest.x) * 0.5;
+    source.z = (fighter.z + nearest.z) * 0.5;
+    sources.push(source);
   }
 
   return sources.sort((left, right) => left.id.localeCompare(right.id));
@@ -146,6 +193,9 @@ export class CombatAudio {
   private readonly weaponPool: HTMLAudioElement[] = [];
   private readonly voicePool: HTMLAudioElement[] = [];
   private readonly schedules = new Map<string, CombatSoundSchedule>();
+  private readonly candidatePool: CombatSoundCandidate[] = [];
+  private readonly candidates: CombatSoundCandidate[] = [];
+  private activeGeneration = 0;
   private elapsedSeconds = 0;
   private lastWeaponPlayAt = Number.NEGATIVE_INFINITY;
   private lastVoicePlayAt = Number.NEGATIVE_INFINITY;
@@ -156,10 +206,17 @@ export class CombatAudio {
     view: CrowdViewState | undefined,
   ): void {
     this.elapsedSeconds += Math.max(0, dtSeconds);
-    const activeIds = new Set(sources.map((source) => source.id));
-    for (const id of this.schedules.keys()) {
-      if (!activeIds.has(id)) this.schedules.delete(id);
+    const activeGeneration = ++this.activeGeneration;
+    for (const source of sources) {
+      const schedule = this.schedules.get(source.id);
+      if (schedule) schedule.activeGeneration = activeGeneration;
     }
+    for (const [id, schedule] of this.schedules) {
+      if (schedule.activeGeneration !== activeGeneration) this.schedules.delete(id);
+    }
+
+    const candidates = this.candidates;
+    candidates.length = 0;
 
     if (
       !isGameAudioEnabled()
@@ -171,23 +228,33 @@ export class CombatAudio {
       return;
     }
 
-    const candidates = sources
-      .map((source) => ({
-        source,
-        gain: combatAudioGain(source.x, source.z, view),
-      }))
-      .filter((candidate) => candidate.gain > 0)
-      .sort((left, right) => (
+    for (const source of sources) {
+      const gain = combatAudioGain(source.x, source.z, view);
+      if (gain <= 0) continue;
+      const candidateIndex = candidates.length;
+      let candidate = this.candidatePool[candidateIndex];
+      if (!candidate) {
+        candidate = { id: source.id, gain };
+        this.candidatePool.push(candidate);
+      } else {
+        candidate.id = source.id;
+        candidate.gain = gain;
+      }
+      candidates.push(candidate);
+    }
+    if (candidates.length > 1) {
+      candidates.sort((left, right) => (
         right.gain - left.gain
-        || left.source.id.localeCompare(right.source.id)
+        || left.id.localeCompare(right.id)
       ));
+    }
     if (candidates.length === 0) {
       this.stopAll();
       return;
     }
 
-    for (const { source, gain } of candidates) {
-      const schedule = this.scheduleFor(source.id);
+    for (const candidate of candidates) {
+      const schedule = this.scheduleFor(candidate.id);
       if (
         this.elapsedSeconds >= schedule.nextWeaponAt
         && this.elapsedSeconds - this.lastWeaponPlayAt
@@ -197,8 +264,8 @@ export class CombatAudio {
           this.weaponPool,
           WEAPON_POOL_SIZE,
           COMBAT_AUDIO_CLIPS.pike,
-          `${source.id}:weapon:${schedule.weaponSequence}`,
-          gain,
+          `${candidate.id}:weapon:${schedule.weaponSequence}`,
+          candidate.gain,
           0.93,
           0.018,
         );
@@ -206,15 +273,15 @@ export class CombatAudio {
         schedule.nextWeaponAt = this.elapsedSeconds
           + 0.5
           + deterministicUnit(
-            `${source.id}:weapon-cadence:${schedule.weaponSequence}`,
+            `${candidate.id}:weapon-cadence:${schedule.weaponSequence}`,
           ) * 0.34;
         this.lastWeaponPlayAt = this.elapsedSeconds;
         break;
       }
     }
 
-    for (const { source, gain } of candidates) {
-      const schedule = this.scheduleFor(source.id);
+    for (const candidate of candidates) {
+      const schedule = this.scheduleFor(candidate.id);
       if (
         this.elapsedSeconds >= schedule.nextVoiceAt
         && this.elapsedSeconds - this.lastVoicePlayAt
@@ -224,8 +291,8 @@ export class CombatAudio {
           this.voicePool,
           VOICE_POOL_SIZE,
           COMBAT_AUDIO_CLIPS.voices,
-          `${source.id}:voice:${schedule.voiceSequence}`,
-          gain,
+          `${candidate.id}:voice:${schedule.voiceSequence}`,
+          candidate.gain,
           0.96,
           0.012,
         );
@@ -233,7 +300,7 @@ export class CombatAudio {
         schedule.nextVoiceAt = this.elapsedSeconds
           + 2.8
           + deterministicUnit(
-            `${source.id}:voice-cadence:${schedule.voiceSequence}`,
+            `${candidate.id}:voice-cadence:${schedule.voiceSequence}`,
           ) * 2.4;
         this.lastVoicePlayAt = this.elapsedSeconds;
         break;
@@ -243,12 +310,13 @@ export class CombatAudio {
 
   dispose(): void {
     this.stopAll();
-    for (const audio of [...this.weaponPool, ...this.voicePool]) {
-      audio.removeAttribute('src');
-    }
+    for (const audio of this.weaponPool) audio.removeAttribute('src');
+    for (const audio of this.voicePool) audio.removeAttribute('src');
     this.weaponPool.length = 0;
     this.voicePool.length = 0;
     this.schedules.clear();
+    this.candidates.length = 0;
+    this.candidatePool.length = 0;
   }
 
   private scheduleFor(id: string): CombatSoundSchedule {
@@ -263,6 +331,7 @@ export class CombatAudio {
         + deterministicUnit(`${id}:voice-start`) * 1.8,
       weaponSequence: 0,
       voiceSequence: 0,
+      activeGeneration: this.activeGeneration,
     };
     this.schedules.set(id, schedule);
     return schedule;
@@ -283,8 +352,13 @@ export class CombatAudio {
       audio.preload = 'auto';
       pool.push(audio);
     }
-    const audio = pool.find((candidate) => candidate.paused)
-      ?? pool[deterministicIndex(`${key}:pool`, pool.length)];
+    let audio: HTMLAudioElement | undefined;
+    for (const candidate of pool) {
+      if (!candidate.paused) continue;
+      audio = candidate;
+      break;
+    }
+    audio ??= pool[deterministicIndex(`${key}:pool`, pool.length)];
     const clip = clips[deterministicIndex(`${key}:clip`, clips.length)];
     if (!audio || !clip) return;
 
@@ -298,7 +372,12 @@ export class CombatAudio {
   }
 
   private stopAll(): void {
-    for (const audio of [...this.weaponPool, ...this.voicePool]) {
+    this.stopPool(this.weaponPool);
+    this.stopPool(this.voicePool);
+  }
+
+  private stopPool(pool: readonly HTMLAudioElement[]): void {
+    for (const audio of pool) {
       if (audio.paused) continue;
       audio.pause();
       audio.currentTime = 0;

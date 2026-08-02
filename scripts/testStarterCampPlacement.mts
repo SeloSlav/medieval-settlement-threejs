@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
+import { FOUNDERS_CAMPFIRE_NAME } from '../src/buildings/meshes/foundersCampMesh.ts';
+import { fireEffectFromRoot } from '../src/fires/FireEffect.ts';
 import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import {
   isWorldInspectionBlocked,
@@ -205,13 +207,62 @@ const confirmedCampState = {
   storehouseAcceptsFirewood: true,
   foundingShelterActive: true,
 } satisfies BuildingState;
+const campConfirmationArrayBuffersBefore = process.memoryUsage().arrayBuffers;
 const campConfirmationStarted = performance.now();
 campMarkers.syncBuildings([confirmedCampState]);
 const campConfirmationElapsed = performance.now() - campConfirmationStarted;
-assert.strictEqual(
-  markerGroup?.getObjectByName("Founders' camp and open stockyard"),
-  optimisticCamp,
+const campConfirmationArrayBufferGrowth = Math.max(
+  0,
+  process.memoryUsage().arrayBuffers - campConfirmationArrayBuffersBefore,
+);
+const confirmedCamp = markerGroup?.getObjectByName("Founders' camp and open stockyard");
+assert.ok(
+  confirmedCamp === optimisticCamp,
   'authoritative confirmation should adopt the visible camp object',
+);
+assert.equal(
+  markerGroup?.getObjectByName('Pending building placement'),
+  undefined,
+  'authoritative confirmation should clear the optimistic marker identity',
+);
+assert.equal(
+  confirmedCamp?.userData.visualSignature,
+  'complete:founders_camp',
+  'the adopted camp should receive the same visual signature as a directly synchronized camp',
+);
+const confirmedCampfire = confirmedCamp?.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
+assert.ok(
+  confirmedCampfire instanceof THREE.Group,
+  'authoritative adoption should retain the prewarmed campfire object',
+);
+const confirmedCampfireEffect = fireEffectFromRoot(confirmedCampfire);
+assert.ok(confirmedCampfireEffect, 'the adopted campfire should retain its procedural effect');
+const campfireElapsedBeforeTick = confirmedCampfireEffect.elapsedSeconds;
+campMarkers.tick(0.125);
+assert.equal(
+  confirmedCampfireEffect.elapsedSeconds,
+  campfireElapsedBeforeTick + 0.125,
+  'the adopted campfire should be registered for the same animation tick as a direct sync',
+);
+const campResyncArrayBuffersBefore = process.memoryUsage().arrayBuffers;
+const campResyncStarted = performance.now();
+campMarkers.syncBuildings([confirmedCampState]);
+const campResyncElapsed = performance.now() - campResyncStarted;
+const campResyncArrayBufferGrowth = Math.max(
+  0,
+  process.memoryUsage().arrayBuffers - campResyncArrayBuffersBefore,
+);
+const confirmedCampRoots = markerGroup?.children.filter(
+  (child) => child.name === "Founders' camp and open stockyard",
+) ?? [];
+assert.equal(
+  confirmedCampRoots.length,
+  1,
+  'repeated authoritative sync should not leave an orphan or construct a duplicate camp',
+);
+assert.ok(
+  confirmedCampRoots[0] === optimisticCamp,
+  'repeated authoritative sync should retain the originally revealed camp',
 );
 assert.ok(
   campRevealElapsed < 10,
@@ -220,6 +271,18 @@ assert.ok(
 assert.ok(
   campConfirmationElapsed < 10,
   `camp confirmation took ${campConfirmationElapsed.toFixed(2)} ms`,
+);
+assert.ok(
+  campConfirmationArrayBufferGrowth < 128 * 1024,
+  `camp confirmation allocated ${(campConfirmationArrayBufferGrowth / 1024).toFixed(1)} KiB of ArrayBuffers`,
+);
+assert.ok(
+  campResyncElapsed < 10,
+  `unchanged camp resync took ${campResyncElapsed.toFixed(2)} ms`,
+);
+assert.ok(
+  campResyncArrayBufferGrowth < 128 * 1024,
+  `unchanged camp resync allocated ${(campResyncArrayBufferGrowth / 1024).toFixed(1)} KiB of ArrayBuffers`,
 );
 campMarkers.dispose();
 
@@ -375,16 +438,20 @@ assert.match(
   'camera and interaction gates should only honor modal tutorials',
 );
 
-const toolbarStatus = read('src/ui/buildToolbarStatus.ts');
-assert.match(
-  toolbarStatus,
-  /Compare water, timber, stone, food, and field ground[\s\S]*advice only; no site is blocked/,
-  'founding help must explicitly explain that the logistics outlook is non-binding',
+assert.doesNotMatch(
+  buildToolbar,
+  /data-road-controls-panel|Active tool controls/,
+  'placement guidance should not render a large instruction panel',
 );
 assert.match(
-  read('src/ui/BuildToolbar.ts'),
-  /builderControlsPanel\.hidden = this\.firstPersonActive[\s\S]*?this\.hudMode === 'founders_camp'[\s\S]*?!isBuilderHudMode\(this\.hudMode\)/,
-  'the compact founding outlook must replace the large controls panel during camp placement',
+  buildToolbar,
+  /data-builder-status/,
+  'placement guidance should remain in the compact bottom status bar',
+);
+assert.match(
+  read('src/app/appBootstrap.ts'),
+  /This temporary camp will support the settlement as it takes root/,
+  'founding guidance must describe the camp as temporary rather than the permanent settlement heart',
 );
 
 const simulation = read('server/src/reducers/simulation.rs');
@@ -396,5 +463,8 @@ assert.match(
 
 console.log(
   `Starter-camp placement flow checks passed (${profileElapsed.toFixed(1)} ms for 10,000 advisory assessments; `
-  + `${campRevealElapsed.toFixed(2)} ms reveal; ${campConfirmationElapsed.toFixed(2)} ms confirmation).`,
+  + `${campRevealElapsed.toFixed(2)} ms reveal; ${campConfirmationElapsed.toFixed(2)} ms confirmation; `
+  + `${campResyncElapsed.toFixed(2)} ms unchanged resync; `
+  + `${(campConfirmationArrayBufferGrowth / 1024).toFixed(1)} / `
+  + `${(campResyncArrayBufferGrowth / 1024).toFixed(1)} KiB confirmation/resync ArrayBuffer growth).`,
 );

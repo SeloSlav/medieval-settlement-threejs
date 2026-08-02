@@ -15,6 +15,55 @@ import {
   hydrateCelestialStarMapTexture,
 } from '../src/sky/CelestialStarMapLoader.ts';
 import { computeSiderealAngle } from '../src/world/dayNightPresentation.ts';
+import {
+  maximumOpaqueWorldDistanceFromCamera,
+  SKY_DEPTH_OCCLUSION_RADIUS,
+  SKY_OPAQUE_LAST_RENDER_ORDER,
+} from '../src/sky/skyDepthOcclusionPolicy.ts';
+import { MAP_SIZE_PRESETS } from '../src/world/worldGenerationSettings.ts';
+import {
+  createSkyMaterial,
+  setPerlinNoiseTexture,
+} from '../vendor/sky-cloud-3d/SkyCloudMesh.js';
+
+const maxOrbitDistance = 88 / 0.3;
+for (const dimensions of Object.values(MAP_SIZE_PRESETS)) {
+  assert.ok(
+    maximumOpaqueWorldDistanceFromCamera({
+      terrainSize: dimensions.terrainSize,
+      playableSize: dimensions.playableSize,
+      maxOrbitDistance,
+    }) < SKY_DEPTH_OCCLUSION_RADIUS,
+    `${dimensions.label} world opaques must remain in front of the depth-occluded sky`,
+  );
+}
+assert.ok(SKY_OPAQUE_LAST_RENDER_ORDER > 0,
+  'the depth-occluded sky must sort after ordinary opaque world geometry');
+
+const noise2d = new THREE.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1);
+noise2d.needsUpdate = true;
+const skyMaterial = createSkyMaterial({ perlinTexture: noise2d });
+const skyNodes = skyMaterial.userData.skyCloudNodes as {
+  staticNoiseMode: number;
+};
+assert.equal(skyNodes.staticNoiseMode, 0,
+  'the production 2D Perlin path must compile as a static shader specialization');
+const twoDimensionalColorNode = skyMaterial.colorNode;
+const replacement2d = noise2d.clone();
+setPerlinNoiseTexture(skyMaterial, replacement2d);
+assert.equal(skyMaterial.colorNode, twoDimensionalColorNode,
+  'replacing a 2D texture must retain the already-specialized node graph');
+const volumeNoise = new THREE.Data3DTexture(new Uint8Array([128]), 1, 1, 1);
+volumeNoise.needsUpdate = true;
+setPerlinNoiseTexture(skyMaterial, volumeNoise);
+assert.equal(skyNodes.staticNoiseMode, 1,
+  'the generic API must preserve its exact 3D-volume specialization');
+assert.notEqual(skyMaterial.colorNode, twoDimensionalColorNode,
+  'switching noise dimensionality must rebuild the specialized graph');
+skyMaterial.dispose();
+noise2d.dispose();
+replacement2d.dispose();
+volumeNoise.dispose();
 
 assert.equal(CELESTIAL_SKY_EPOCH, 1550);
 assert.ok(NAKED_EYE_STAR_DATA.length / 4 > 5_000, 'catalog should contain the naked-eye sky');
@@ -27,6 +76,8 @@ const map = createCelestialStarMap({ width: 512, height: 256 });
 assert.equal(map.image.width, 512);
 assert.equal(map.image.height, 256);
 assert.equal(map.userData.catalogEpoch, 1550);
+assert.equal(typeof map.userData.generationMs, 'number');
+assert.ok(map.userData.generationMs >= 0, 'celestial generation timing must be recorded');
 const pixels = map.image.data as Uint8Array;
 let illuminatedPixels = 0;
 let constellationPixels = 0;
@@ -94,6 +145,13 @@ assert.ok(
 
 map.dispose();
 
+const fullMap = createCelestialStarMap();
+assert.equal(fullMap.image.width, 2048);
+assert.equal(fullMap.image.height, 1024);
+const fullGenerationMs = fullMap.userData.generationMs as number;
+assert.ok(Number.isFinite(fullGenerationMs));
+fullMap.dispose();
+
 const placeholder = createCelestialStarMapPlaceholder();
 const placeholderUuid = placeholder.uuid;
 const placeholderVersion = placeholder.version;
@@ -144,7 +202,9 @@ assert.ok(
 placeholder.dispose();
 loadedMap.dispose();
 
-console.log('celestial sky tests passed');
+console.log(
+  `celestial sky tests passed (2048x1024 generated in ${fullGenerationMs.toFixed(1)} ms; 8 MiB RGBA)`,
+);
 
 function equatorialAngularDistance(
   a: { rightAscensionDeg: number; declinationDeg: number },

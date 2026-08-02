@@ -6,8 +6,12 @@ import { supportsNodeMaterials, type RendererBackendKind } from '../scene/Render
 import {
   createCelestialStarMapPlaceholder,
   hydrateCelestialStarMapTexture,
-  loadCelestialStarMapDeferred,
+  loadCelestialStarMapForStartup,
 } from './CelestialStarMapLoader.ts';
+import {
+  SKY_DEPTH_OCCLUSION_RADIUS,
+  SKY_OPAQUE_LAST_RENDER_ORDER,
+} from './skyDepthOcclusionPolicy.ts';
 
 type SkyCloudOptions = {
   cloudAbsorption?: number;
@@ -128,7 +132,12 @@ export class SkyCloudMesh extends THREE.Group {
     nativeSky.name = useNodeMaterials
       ? 'sky-cloud-3d node volumetric sky'
       : 'sky-cloud-3d WebGL volumetric sky';
-    nativeSky.renderOrder = -1000;
+    // This production dome is farther than every authored opaque world surface.
+    // Draw it last in the opaque list so terrain/forest depth rejects hidden
+    // volumetric fragments early; transparent water/weather still draw after it.
+    nativeSky.renderOrder = config.radius >= SKY_DEPTH_OCCLUSION_RADIUS
+      ? SKY_OPAQUE_LAST_RENDER_ORDER
+      : -1000;
     nativeSky.frustumCulled = false;
     nativeSky.userData.isSkyCloudMesh = true;
 
@@ -148,6 +157,19 @@ export class SkyCloudMesh extends THREE.Group {
       this.celestialLoadPromise = this.hydrateCelestialSky();
     }
     return this.celestialLoadPromise;
+  }
+
+  preloadCelestialTexture(
+    renderer: { initTexture(texture: THREE.Texture): void },
+  ): void {
+    renderer.initTexture(this.starMap);
+  }
+
+  get celestialGenerationMs(): number | null {
+    const duration = this.starMap.userData.generationMs;
+    return typeof duration === 'number' && Number.isFinite(duration)
+      ? duration
+      : null;
   }
 
   updateSun(direction: THREE.Vector3): void {
@@ -192,7 +214,7 @@ export class SkyCloudMesh extends THREE.Group {
   }
 
   private async hydrateCelestialSky(): Promise<void> {
-    const loadedStarMap = await loadCelestialStarMapDeferred();
+    const loadedStarMap = await loadCelestialStarMapForStartup();
     if (this.disposed) {
       loadedStarMap.dispose();
       return;

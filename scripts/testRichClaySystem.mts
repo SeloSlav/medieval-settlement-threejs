@@ -110,7 +110,18 @@ assert.ok(
   'the clay albedo must retain camera-readable grain and fine drying cracks',
 );
 assert.ok(
-  ordinaryClayMeshes.some((mesh) => mesh.castShadow),
+  (() => {
+    let shadowBatchFound = false;
+    clayVisualSystem.group.traverse((object) => {
+      const mesh = object as THREE.InstancedMesh;
+      if (
+        mesh.isInstancedMesh
+        && mesh.userData.staticInstancedShadowBatch === true
+        && mesh.castShadow
+      ) shadowBatchFound = true;
+    });
+    return shadowBatchFound;
+  })(),
   'raised clay deposit details must participate in scene shadows',
 );
 clayVisualSystem.dispose();

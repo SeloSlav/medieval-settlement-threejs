@@ -247,7 +247,8 @@ export function updateFireEffect(
   const elapsed = effect.elapsedSeconds;
   const strength = 0.38 + effect.intensity * 0.62;
 
-  for (const [index, flame] of effect.flames.entries()) {
+  for (let index = 0; index < effect.flames.length; index += 1) {
+    const flame = effect.flames[index]!;
     const flicker = 0.9
       + Math.sin(elapsed * (8.2 + index * 0.47) + flame.phase) * 0.105
       + Math.sin(elapsed * 13.7 + flame.phase * 1.8) * 0.045;
@@ -264,7 +265,8 @@ export function updateFireEffect(
     );
   }
 
-  for (const [index, puff] of effect.smoke.entries()) {
+  for (let index = 0; index < effect.smoke.length; index += 1) {
+    const puff = effect.smoke[index]!;
     const age = (
       elapsed * (0.11 + effect.intensity * 0.08)
       + index / Math.max(1, effect.smoke.length)
@@ -284,7 +286,8 @@ export function updateFireEffect(
       * (0.84 + effect.nightLighting * 0.28);
   }
 
-  for (const [index, spark] of effect.sparks.entries()) {
+  for (let index = 0; index < effect.sparks.length; index += 1) {
+    const spark = effect.sparks[index]!;
     const age = (
       elapsed * (0.36 + effect.intensity * 0.22)
       + index / Math.max(1, effect.sparks.length)

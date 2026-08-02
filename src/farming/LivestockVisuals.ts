@@ -35,6 +35,7 @@ type AnimalVisual = {
   speed: number;
   pasture: PastureState;
   random: () => number;
+  castShadow: boolean | null;
 };
 
 type ReplayableLivestockInput = {
@@ -127,10 +128,13 @@ export class LivestockVisuals {
         animal.z,
       );
       const castShadow = isWithinShadowRange(animal.x, animal.z, view);
-      animal.model.traverse((object) => {
-        const mesh = object as THREE.SkinnedMesh;
-        if (mesh.isSkinnedMesh) mesh.castShadow = castShadow;
-      });
+      if (castShadow !== animal.castShadow) {
+        animal.model.traverse((object) => {
+          const mesh = object as THREE.SkinnedMesh;
+          if (mesh.isSkinnedMesh) mesh.castShadow = castShadow;
+        });
+        animal.castShadow = castShadow;
+      }
       animal.mixer.update(dt);
     }
   }
@@ -247,6 +251,7 @@ export class LivestockVisuals {
       speed: herd.species === 'cattle' ? 0.72 : herd.species === 'sheep' ? 0.92 : 0.84,
       pasture,
       random,
+      castShadow: null,
     };
     actions[initialMode].play();
     actions[initialMode].time = random() * Math.max(0.1, actions[initialMode].getClip().duration);

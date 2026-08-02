@@ -462,6 +462,13 @@ export class SettlementHud {
   private lastApprovalScore: number | null = null;
   private lastApprovalTrend: 'rising' | 'falling' | 'steady' = 'steady';
   private approvalTrendExpiresAt = 0;
+  private displayedClockDate: string | null = null;
+  private displayedClockTime: string | null = null;
+  private displayedClockDetail: string | null = null;
+  private displayedSabbath: boolean | null = null;
+  private displayedNight: boolean | null = null;
+  private displayedFps: number | null = null;
+  private displayedZoom: number | null = null;
   readonly zoomStat: HTMLElement;
 
   constructor(parent: HTMLElement, onSetGameSpeed?: (speed: GameSpeed) => void) {
@@ -1092,26 +1099,50 @@ export class SettlementHud {
   }
 
   setSettlementClock(schedule: SettlementSchedule): void {
-    this.clockDate.textContent = formatCalendarDate(schedule.clock);
-    this.clockTime.textContent = formatClockTime(schedule.clock);
+    const date = formatCalendarDate(schedule.clock);
+    const time = formatClockTime(schedule.clock);
     const pauseLabel = schedule.laborPauseLabel;
-    this.clockDetail.textContent = pauseLabel
+    const detail = pauseLabel
       ? `${formatWeekday(schedule.clock)} · ${pauseLabel}`
       : formatWeekday(schedule.clock);
-    this.panel.classList.toggle('is-sabbath', pauseLabel === 'Sunday sabbath');
-    this.panel.classList.toggle('is-night', pauseLabel === 'Night hours');
+    const sabbath = pauseLabel === 'Sunday sabbath';
+    const night = pauseLabel === 'Night hours';
+    if (date !== this.displayedClockDate) {
+      this.clockDate.textContent = date;
+      this.displayedClockDate = date;
+    }
+    if (time !== this.displayedClockTime) {
+      this.clockTime.textContent = time;
+      this.displayedClockTime = time;
+    }
+    if (detail !== this.displayedClockDetail) {
+      this.clockDetail.textContent = detail;
+      this.displayedClockDetail = detail;
+    }
+    if (sabbath !== this.displayedSabbath) {
+      this.panel.classList.toggle('is-sabbath', sabbath);
+      this.displayedSabbath = sabbath;
+    }
+    if (night !== this.displayedNight) {
+      this.panel.classList.toggle('is-night', night);
+      this.displayedNight = night;
+    }
   }
 
   setFps(fps: number): void {
     const displayFps = Math.min(90, Math.round(fps));
+    if (displayFps === this.displayedFps) return;
     this.fpsValue.textContent = displayFps.toString();
     this.panel.classList.toggle('is-low', displayFps < 60);
     this.panel.classList.toggle('is-fast', displayFps >= 85);
+    this.displayedFps = displayFps;
   }
 
   setZoomPercent(zoomPercent: number): void {
     const displayZoom = Math.max(0, Math.round(zoomPercent));
+    if (displayZoom === this.displayedZoom) return;
     this.zoomValue.textContent = `${displayZoom}%`;
+    this.displayedZoom = displayZoom;
   }
 
   private readonly onResourceRowClick = (event: MouseEvent): void => {

@@ -453,6 +453,7 @@ function createNodeSet(options = {}) {
         uMieCoefficient: uniform(normalizeParamValue('mieCoefficient', options.mieCoefficient ?? DEFAULT_PARAMS.mieCoefficient)),
         uMieDirectionalG: uniform(normalizeParamValue('mieDirectionalG', options.mieDirectionalG ?? DEFAULT_PARAMS.mieDirectionalG)),
         uNoiseMode: uniform(noiseMode),
+        staticNoiseMode: noiseMode,
         uRayleigh: uniform(normalizeParamValue('rayleigh', options.rayleigh ?? DEFAULT_PARAMS.rayleigh)),
         uResolution: uniform(new Vector2(options.width ?? 1920, options.height ?? 1080)),
         uSiderealAngle: uniform(options.siderealAngle ?? 0.0),
@@ -640,11 +641,22 @@ function buildColorNode(nodes) {
 
     const noise3D = Fn(( [ pImmutable ] ) => {
         const p = vec3(pImmutable);
+        // The app supplies a 2D Perlin texture for the lifetime of this
+        // material. Specialize that immutable mode at graph construction so a
+        // mathematically zero mix weight does not still execute an inactive 3D
+        // texture sample in every FBM octave and light-march density probe.
+        if (nodes.staticNoiseMode === 0.0) {
+            return nodes.t_PerlinNoise.sample(p.xz.mul(0.01)).x;
+        }
+        if (nodes.staticNoiseMode === 1.0) {
+            return nodes.t_PerlinNoise3D.sample(
+                p.mul(vec3(0.0075, 0.005, 0.0075)),
+            ).x;
+        }
         const sample2D = nodes.t_PerlinNoise.sample(p.xz.mul(0.01)).x;
         const sample3D = nodes.t_PerlinNoise3D.sample(
             p.mul(vec3(0.0075, 0.005, 0.0075)),
         ).x;
-
         return mix(sample2D, sample3D, nodes.uNoiseMode);
     });
 
@@ -912,61 +924,66 @@ function buildColorNode(nodes) {
         atmosphericColor.assign(mix(atmosphericColor, twilightSky, twilightStrength));
 
         const nightAmount = float(1.0).sub(smoothstep(-0.25, -0.08, sunHeight)).toVar();
-        const observerLatitude = float(0.79587013891);
-        const sinLatitude = tslSin(observerLatitude).toVar();
-        const cosLatitude = tslCos(observerLatitude).toVar();
-        const sinSidereal = tslSin(nodes.uSiderealAngle).toVar();
-        const cosSidereal = tslCos(nodes.uSiderealAngle).toVar();
-        const meridian = cosLatitude.mul(rayDirection.y)
-            .sub(sinLatitude.mul(rayDirection.z))
-            .toVar();
-        const celestialNorth = sinLatitude.mul(rayDirection.y)
-            .add(cosLatitude.mul(rayDirection.z))
-            .toVar();
-        const equatorialDirection = normalize(vec3(
-            meridian.mul(cosSidereal).sub(rayDirection.x.mul(sinSidereal)),
-            celestialNorth,
-            meridian.mul(sinSidereal).add(rayDirection.x.mul(cosSidereal)),
-        )).toVar();
-        const starUv = vec2(
-            tslFract(atan(equatorialDirection.z, equatorialDirection.x).div(TWO_PI).add(1.0)),
-            float(0.5).sub(asin(clamp(equatorialDirection.y, -1.0, 1.0)).div(Math.PI)),
-        ).toVar();
-        const catalogSample = nodes.t_StarMap.sample(starUv).toVar();
-        const catalogStars = catalogSample.rgb.toVar();
-        const twinkle = tslSin(
-            nodes.uTime.mul(0.07)
-                .add(dot(floor(starUv.mul(1024.0)), vec2(0.067, 0.113))),
-        ).mul(0.03).add(0.97).toVar();
-        const starVisibility = nightAmount
-            .mul(smoothstep(0.035, 0.18, rayDirection.y))
-            .mul(float(1.0).sub(clouds.a))
-            .toVar();
-        atmosphericColor.addAssign(
-            catalogStars.mul(starVisibility).mul(twinkle).mul(1.55),
-        );
-        atmosphericColor.addAssign(
-            vec3(0.31, 0.45, 0.67)
-                .mul(catalogSample.a)
-                .mul(starVisibility)
-                .mul(nodes.uConstellationVisibility)
-                .mul(1.55),
-        );
+        // Daylight makes every celestial contribution exactly zero. Keep the
+        // complete historical star/moon path for twilight and night, but avoid
+        // its texture fetch, inverse trig, and high exponent on daylight pixels.
+        If(nightAmount.greaterThan(0.0), () => {
+            const observerLatitude = float(0.79587013891);
+            const sinLatitude = tslSin(observerLatitude).toVar();
+            const cosLatitude = tslCos(observerLatitude).toVar();
+            const sinSidereal = tslSin(nodes.uSiderealAngle).toVar();
+            const cosSidereal = tslCos(nodes.uSiderealAngle).toVar();
+            const meridian = cosLatitude.mul(rayDirection.y)
+                .sub(sinLatitude.mul(rayDirection.z))
+                .toVar();
+            const celestialNorth = sinLatitude.mul(rayDirection.y)
+                .add(cosLatitude.mul(rayDirection.z))
+                .toVar();
+            const equatorialDirection = normalize(vec3(
+                meridian.mul(cosSidereal).sub(rayDirection.x.mul(sinSidereal)),
+                celestialNorth,
+                meridian.mul(sinSidereal).add(rayDirection.x.mul(cosSidereal)),
+            )).toVar();
+            const starUv = vec2(
+                tslFract(atan(equatorialDirection.z, equatorialDirection.x).div(TWO_PI).add(1.0)),
+                float(0.5).sub(asin(clamp(equatorialDirection.y, -1.0, 1.0)).div(Math.PI)),
+            ).toVar();
+            const catalogSample = nodes.t_StarMap.sample(starUv).toVar();
+            const catalogStars = catalogSample.rgb.toVar();
+            const twinkle = tslSin(
+                nodes.uTime.mul(0.07)
+                    .add(dot(floor(starUv.mul(1024.0)), vec2(0.067, 0.113))),
+            ).mul(0.03).add(0.97).toVar();
+            const starVisibility = nightAmount
+                .mul(smoothstep(0.035, 0.18, rayDirection.y))
+                .mul(float(1.0).sub(clouds.a))
+                .toVar();
+            atmosphericColor.addAssign(
+                catalogStars.mul(starVisibility).mul(twinkle).mul(1.55),
+            );
+            atmosphericColor.addAssign(
+                vec3(0.31, 0.45, 0.67)
+                    .mul(catalogSample.a)
+                    .mul(starVisibility)
+                    .mul(nodes.uConstellationVisibility)
+                    .mul(1.55),
+            );
 
-        const moonDirection = normalize(nodes.uSunDirection.negate()).toVar();
-        const moonDot = max(0.0, dot(rayDirection, moonDirection)).toVar();
-        const moonAboveHorizon = smoothstep(-0.035, 0.09, moonDirection.y).toVar();
-        const moonDisk = smoothstep(0.99972, 0.99988, moonDot).toVar();
-        const moonHalo = pow(moonDot, 320.0).mul(0.16).toVar();
-        const moonVisibility = nightAmount
-            .mul(moonAboveHorizon)
-            .mul(float(1.0).sub(clouds.a))
-            .toVar();
-        atmosphericColor.addAssign(
-            vec3(0.76, 0.84, 1.0)
-                .mul(moonDisk.mul(0.92).add(moonHalo))
-                .mul(moonVisibility),
-        );
+            const moonDirection = normalize(nodes.uSunDirection.negate()).toVar();
+            const moonDot = max(0.0, dot(rayDirection, moonDirection)).toVar();
+            const moonAboveHorizon = smoothstep(-0.035, 0.09, moonDirection.y).toVar();
+            const moonDisk = smoothstep(0.99972, 0.99988, moonDot).toVar();
+            const moonHalo = pow(moonDot, 320.0).mul(0.16).toVar();
+            const moonVisibility = nightAmount
+                .mul(moonAboveHorizon)
+                .mul(float(1.0).sub(clouds.a))
+                .toVar();
+            atmosphericColor.addAssign(
+                vec3(0.76, 0.84, 1.0)
+                    .mul(moonDisk.mul(0.92).add(moonHalo))
+                    .mul(moonVisibility),
+            );
+        });
 
         return vec4(max(atmosphericColor, vec3(0.0)), 1.0);
     })();
@@ -1031,6 +1048,7 @@ function setPerlinNoiseTexture(material, nextTexture, managed = false) {
     }
 
     const isVolumeTexture = nextTexture.isData3DTexture === true;
+    const nextNoiseMode = isVolumeTexture ? 1.0 : 0.0;
     const configuredTexture = isVolumeTexture
         ? configureVolumeNoiseTexture(nextTexture, managed)
         : configureNoiseTexture(nextTexture, managed);
@@ -1039,7 +1057,11 @@ function setPerlinNoiseTexture(material, nextTexture, managed = false) {
         const previousTexture = nodes.t_PerlinNoise3D.value;
 
         nodes.t_PerlinNoise3D.value = configuredTexture;
-        nodes.uNoiseMode.value = 1.0;
+        nodes.uNoiseMode.value = nextNoiseMode;
+        if (nodes.staticNoiseMode !== nextNoiseMode) {
+            nodes.staticNoiseMode = nextNoiseMode;
+            material.colorNode = buildColorNode(nodes);
+        }
         material.needsUpdate = true;
 
         disposeManagedNoiseTexture(previousTexture, configuredTexture);
@@ -1050,7 +1072,11 @@ function setPerlinNoiseTexture(material, nextTexture, managed = false) {
     const previousTexture = nodes.t_PerlinNoise.value;
 
     nodes.t_PerlinNoise.value = configuredTexture;
-    nodes.uNoiseMode.value = 0.0;
+    nodes.uNoiseMode.value = nextNoiseMode;
+    if (nodes.staticNoiseMode !== nextNoiseMode) {
+        nodes.staticNoiseMode = nextNoiseMode;
+        material.colorNode = buildColorNode(nodes);
+    }
     material.needsUpdate = true;
 
     disposeManagedNoiseTexture(previousTexture, configuredTexture);

@@ -265,9 +265,21 @@ export function sharedBuildingDetailMaterial(key: BuildingDetailMaterialKey): TH
 }
 
 /** Loads the four 1K CC0 texture sets once and attaches them to all shared materials. */
-export function initializeBuildingMaterialLibrary(maxAnisotropy = 8): Promise<void> {
-  if (textureSets) return Promise.resolve();
-  if (textureLoadPromise) return textureLoadPromise;
+export function initializeBuildingMaterialLibrary(
+  maxAnisotropy = 8,
+  preloadTexture?: (texture: THREE.Texture) => void,
+): Promise<void> {
+  if (textureSets) {
+    preloadBuildingTextureSets(textureSets, preloadTexture);
+    return Promise.resolve();
+  }
+  if (textureLoadPromise) {
+    return preloadTexture
+      ? textureLoadPromise.then(() => {
+          if (textureSets) preloadBuildingTextureSets(textureSets, preloadTexture);
+        })
+      : textureLoadPromise;
+  }
 
   const anisotropy = Math.max(1, Math.min(8, maxAnisotropy));
   textureLoadPromise = Promise.all(
@@ -281,6 +293,9 @@ export function initializeBuildingMaterialLibrary(maxAnisotropy = 8): Promise<vo
       map.name = `Building ${family} diffuse`;
       normalMap.name = `Building ${family} normal`;
       roughnessMap.name = `Building ${family} roughness`;
+      preloadTexture?.(map);
+      preloadTexture?.(normalMap);
+      preloadTexture?.(roughnessMap);
       return [family, { map, normalMap, roughnessMap }] as const;
     }),
   ).then((entries) => {
@@ -296,6 +311,18 @@ export function initializeBuildingMaterialLibrary(maxAnisotropy = 8): Promise<vo
     throw error;
   });
   return textureLoadPromise;
+}
+
+function preloadBuildingTextureSets(
+  sets: Record<TextureFamily, BuildingTextureSet>,
+  preloadTexture?: (texture: THREE.Texture) => void,
+): void {
+  if (!preloadTexture) return;
+  for (const set of Object.values(sets)) {
+    preloadTexture(set.map);
+    preloadTexture(set.normalMap);
+    preloadTexture(set.roughnessMap);
+  }
 }
 
 export function disposeBuildingMaterialLibrary(): void {

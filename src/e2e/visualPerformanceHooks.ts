@@ -2,13 +2,18 @@ import * as THREE from 'three';
 import type { ScenePostProcessor } from '../scene/PostProcessing.ts';
 import type {
   RendererAdapterEvidence,
+  RendererBackend,
   SupportedRenderer,
 } from '../scene/RendererBackend.ts';
-import type {
-  VisualGpuFrameTiming,
-  VisualGpuFrameTimingStatus,
-  VisualGpuTimingEvidence,
-  VisualGpuTimestampProfiler,
+import type { GrassStreamTelemetry } from '../grass/GrassBladeField.ts';
+import {
+  createVisualGpuTimestampProfiler,
+  type VisualGpuFrameTiming,
+  type VisualGpuFrameTimingStatus,
+  type VisualGpuTimingEvidence,
+  type VisualGpuTimestampFrameHandle,
+  type VisualGpuTimestampProfiler,
+  VISUAL_GPU_TIMESTAMP_MARKERS_DISABLED_LIMITATION,
 } from './webGpuTimestampProfiler.ts';
 
 export type ProfileSubsystem =
@@ -38,7 +43,10 @@ type RuntimeSceneManager = {
   selectionGroup: THREE.Group;
   previewGroup: THREE.Group;
   terrain: { mesh: THREE.Mesh };
-  grassField: { group: THREE.Group } | null;
+  grassField: {
+    group: THREE.Group;
+    getStreamTelemetry(target?: GrassStreamTelemetry): GrassStreamTelemetry;
+  } | null;
   forestManager: { group: THREE.Group } | null;
   getRendererAdapterEvidence(): RendererAdapterEvidence;
   getVisualGpuFrameTiming?(frameTimestampMs: number): VisualGpuFrameTiming;
@@ -48,6 +56,7 @@ type RuntimeSceneManager = {
     backend: string;
     frames: number;
     calls: number;
+    renderPasses?: number;
     triangles: number;
     pixelRatio: number;
   };
@@ -55,6 +64,21 @@ type RuntimeSceneManager = {
 
 type RuntimeApp = {
   sceneManager: RuntimeSceneManager | null;
+  setVisualFrameProfiler?(profiler: RuntimeAppFrameProfiler | null): void;
+};
+
+type RuntimeAppFrameProfiler = {
+  beginFrame(rafTimestampMs: number, callbackEntryTimestampMs: number): void;
+  completeFrame(
+    callbackCompletedAtMs: number,
+    phase: VisualSlowFrameContext['phase'],
+  ): void;
+  dispose(): void;
+};
+
+export type VisualPerformanceInstallOptions = {
+  /** Avoid report construction/serialization during the measured cohort. */
+  deferPeriodicReportsUntilReady?: boolean;
 };
 
 export type VisualPerformanceMetrics = {
@@ -152,6 +176,231 @@ export type VisualSlowFrameContext = {
     pendingSlots: number;
   };
 };
+
+type RuntimeAppFrameAttribution = RuntimeAppFrameProfiler & {
+  wrapPostRender(render: ScenePostProcessor['render']): ScenePostProcessor['render'];
+  getSlowFrameContext(frameTimestampMs: number): VisualSlowFrameContext | null;
+  getVisualGpuFrameTiming(frameTimestampMs: number): VisualGpuFrameTiming;
+  getVisualGpuTimingEvidence(): VisualGpuTimingEvidence;
+};
+
+function createGrassStreamTelemetryScratch(): GrassStreamTelemetry {
+  return {
+    mode: 'active',
+    maxUpdateDurationBudgetMs: 0,
+    updates: 0,
+    generationSubsteps: 0,
+    generationDurationMs: 0,
+    clearWriteSubsteps: 0,
+    clearWriteDurationMs: 0,
+    refreshCount: 0,
+    refreshDurationMs: 0,
+    gpuFlagUpdates: 0,
+    gpuUpdateRanges: 0,
+    bytesUploaded: 0,
+    boundsScans: 0,
+    completedSlots: 0,
+    cancelledSlots: 0,
+    pendingSlots: 0,
+    maxPendingSlots: 0,
+    lastUpdateDurationMs: 0,
+    maxUpdateDurationMs: 0,
+    converged: true,
+  };
+}
+
+function createVisualSlowFrameContextScratch(): VisualSlowFrameContext {
+  return {
+    frameRafTimestampMs: -1,
+    frameCallbackEntryTimestampMs: -1,
+    frameCpuDurationMs: 0,
+    frameUpdatePreRenderDurationMs: 0,
+    frameRenderSubmissionDurationMs: 0,
+    framePostRenderDurationMs: 0,
+    frameGpuTiming: {
+      frameRafTimestampMs: -1,
+      queryId: null,
+      status: 'missing',
+      durationMs: null,
+      limitation: 'No application frame has completed yet.',
+    },
+    routeElapsedMs: 0,
+    routeCycle: 0,
+    phase: 'strategic',
+    forest: {
+      selectionChanged: false,
+      selectorSkipped: true,
+      workChunks: 0,
+      matrixWrites: 0,
+      bucketUploads: 0,
+      pendingBuckets: 0,
+    },
+    groundcoverDelta: {
+      generationSubsteps: 0,
+      clearWriteSubsteps: 0,
+      refreshes: 0,
+      gpuFlagUpdates: 0,
+      gpuUpdateRanges: 0,
+      bytesUploaded: 0,
+      completedSlots: 0,
+      cancelledSlots: 0,
+      pendingSlots: 0,
+    },
+  };
+}
+
+/**
+ * Query-only attribution for the real App loop. Keeping this adapter in the
+ * dynamically imported visual hook avoids shipping timestamp-query machinery
+ * or per-frame telemetry work in an ordinary play session.
+ */
+export function createRuntimeAppFrameAttribution(
+  manager: RuntimeSceneManager,
+  submitTimestampMarkers: boolean,
+): RuntimeAppFrameAttribution {
+  const stats = manager.getPerformanceStats();
+  const backend = {
+    kind: stats.backend,
+    renderer: manager.renderer,
+    maxAnisotropy: 1,
+    adapterEvidence: manager.getRendererAdapterEvidence(),
+  } as RendererBackend;
+  const gpuProfiler: VisualGpuTimestampProfiler =
+    createVisualGpuTimestampProfiler(backend, { submitTimestampMarkers });
+  const groundcoverStart = createGrassStreamTelemetryScratch();
+  const groundcoverEnd = createGrassStreamTelemetryScratch();
+  const emptyGroundcover = createGrassStreamTelemetryScratch();
+  const contexts = [
+    createVisualSlowFrameContextScratch(),
+    createVisualSlowFrameContextScratch(),
+  ];
+  const frame = {
+    rafTimestampMs: -1,
+    callbackEntryTimestampMs: -1,
+    renderStartedAtMs: -1,
+    renderCompletedAtMs: -1,
+  };
+  let nextContextIndex = 0;
+  let latestContext: VisualSlowFrameContext | null = null;
+
+  const readGroundcover = (target: GrassStreamTelemetry): GrassStreamTelemetry => {
+    if (manager.grassField) {
+      return manager.grassField.getStreamTelemetry(target);
+    }
+    Object.assign(target, emptyGroundcover);
+    return target;
+  };
+  const counterDelta = (current: number, previous: number): number =>
+    Math.max(0, current - previous);
+
+  return {
+    beginFrame: (rafTimestampMs, callbackEntryTimestampMs) => {
+      frame.rafTimestampMs = rafTimestampMs;
+      frame.callbackEntryTimestampMs = callbackEntryTimestampMs;
+      frame.renderStartedAtMs = callbackEntryTimestampMs;
+      frame.renderCompletedAtMs = callbackEntryTimestampMs;
+      readGroundcover(groundcoverStart);
+    },
+    completeFrame: (callbackCompletedAtMs, phase) => {
+      const context = contexts[nextContextIndex]!;
+      nextContextIndex = (nextContextIndex + 1) % contexts.length;
+      readGroundcover(groundcoverEnd);
+      context.frameRafTimestampMs = frame.rafTimestampMs;
+      context.frameCallbackEntryTimestampMs = frame.callbackEntryTimestampMs;
+      context.frameCpuDurationMs = Math.max(
+        0,
+        callbackCompletedAtMs - frame.callbackEntryTimestampMs,
+      );
+      context.frameUpdatePreRenderDurationMs = Math.max(
+        0,
+        frame.renderStartedAtMs - frame.callbackEntryTimestampMs,
+      );
+      context.frameRenderSubmissionDurationMs = Math.max(
+        0,
+        frame.renderCompletedAtMs - frame.renderStartedAtMs,
+      );
+      context.framePostRenderDurationMs = Math.max(
+        0,
+        callbackCompletedAtMs - frame.renderCompletedAtMs,
+      );
+      if (submitTimestampMarkers) {
+        context.frameGpuTiming = gpuProfiler.getFrameTiming(frame.rafTimestampMs);
+      } else {
+        const timing = context.frameGpuTiming;
+        timing.frameRafTimestampMs = frame.rafTimestampMs;
+        timing.queryId = null;
+        timing.status = 'unavailable';
+        timing.durationMs = null;
+        timing.limitation = VISUAL_GPU_TIMESTAMP_MARKERS_DISABLED_LIMITATION;
+      }
+      context.phase = phase;
+      context.routeElapsedMs = 0;
+      context.routeCycle = 0;
+      const delta = context.groundcoverDelta;
+      delta.generationSubsteps = counterDelta(
+        groundcoverEnd.generationSubsteps,
+        groundcoverStart.generationSubsteps,
+      );
+      delta.clearWriteSubsteps = counterDelta(
+        groundcoverEnd.clearWriteSubsteps,
+        groundcoverStart.clearWriteSubsteps,
+      );
+      delta.refreshes = counterDelta(
+        groundcoverEnd.refreshCount,
+        groundcoverStart.refreshCount,
+      );
+      delta.gpuFlagUpdates = counterDelta(
+        groundcoverEnd.gpuFlagUpdates,
+        groundcoverStart.gpuFlagUpdates,
+      );
+      delta.gpuUpdateRanges = counterDelta(
+        groundcoverEnd.gpuUpdateRanges,
+        groundcoverStart.gpuUpdateRanges,
+      );
+      delta.bytesUploaded = counterDelta(
+        groundcoverEnd.bytesUploaded,
+        groundcoverStart.bytesUploaded,
+      );
+      delta.completedSlots = counterDelta(
+        groundcoverEnd.completedSlots,
+        groundcoverStart.completedSlots,
+      );
+      delta.cancelledSlots = counterDelta(
+        groundcoverEnd.cancelledSlots,
+        groundcoverStart.cancelledSlots,
+      );
+      delta.pendingSlots = groundcoverEnd.pendingSlots;
+      latestContext = context;
+    },
+    dispose: () => gpuProfiler.dispose(),
+    wrapPostRender: (render) => (dt) => {
+      frame.renderStartedAtMs = performance.now();
+      if (!submitTimestampMarkers) {
+        try {
+          render.call(manager.postProcessor, dt);
+        } finally {
+          frame.renderCompletedAtMs = performance.now();
+        }
+        return;
+      }
+      const gpuFrameHandle: VisualGpuTimestampFrameHandle =
+        gpuProfiler.beginFrame(frame.rafTimestampMs);
+      try {
+        render.call(manager.postProcessor, dt);
+      } finally {
+        frame.renderCompletedAtMs = performance.now();
+        gpuProfiler.endFrame(gpuFrameHandle);
+      }
+    },
+    getSlowFrameContext: (frameTimestampMs) =>
+      latestContext?.frameRafTimestampMs === frameTimestampMs
+        ? latestContext
+        : null,
+    getVisualGpuFrameTiming: (frameTimestampMs) =>
+      gpuProfiler.getFrameTiming(frameTimestampMs),
+    getVisualGpuTimingEvidence: () => gpuProfiler.getEvidence(),
+  };
+}
 
 export type VisualSlowFrameRecord = Omit<
   VisualSlowFrameContext,
@@ -387,7 +636,7 @@ export function createVisualPerformanceTraceCapture(
 ): {
   appendInterval(
     sample: VisualPerformanceTraceSample,
-    slowFrame: VisualSlowFrameRecord,
+    slowFrame: VisualSlowFrameRecord | null,
   ): boolean;
   freezeIfComplete(
     traceStartRafTimestampMs: number,
@@ -406,7 +655,7 @@ export function createVisualPerformanceTraceCapture(
     appendInterval: (sample, slowFrame) => {
       if (frozen) return false;
       samples.push({ ...sample });
-      appendVisualSlowFrameRecord(slowFrames, slowFrame);
+      if (slowFrame) appendVisualSlowFrameRecord(slowFrames, slowFrame);
       return true;
     },
     freezeIfComplete: (
@@ -739,6 +988,17 @@ export function appendVisualSlowFrameRecord(
   if (records.length > limit) records.length = limit;
 }
 
+export function shouldCaptureVisualSlowFrame(
+  records: readonly VisualSlowFrameRecord[],
+  dtMs: number,
+  maxRecords = MAX_SLOW_FRAME_RECORDS,
+): boolean {
+  const limit = Math.max(0, Math.floor(maxRecords));
+  if (limit === 0 || !Number.isFinite(dtMs) || dtMs <= 0) return false;
+  return records.length < limit
+    || dtMs > records[Math.min(records.length, limit) - 1]!.dtMs;
+}
+
 export function selectVisualWorstFrameRecords(
   records: readonly VisualSlowFrameRecord[],
   sampleCount: number,
@@ -860,11 +1120,15 @@ export function createVisualPerformanceResetCoordinator(
   };
 }
 
-export function installVisualPerformanceHooksIfRequested(app: object): void {
+export function installVisualPerformanceHooksIfRequested(
+  app: object,
+  options: VisualPerformanceInstallOptions = {},
+): void {
   const params = new URLSearchParams(window.location.search);
   if (params.get('visualProfile') !== '1') return;
 
-  const manager = (app as RuntimeApp).sceneManager;
+  const runtimeApp = app as RuntimeApp;
+  const manager = runtimeApp.sceneManager;
   if (!manager) {
     throw new Error('Visual profiling requested before SceneManager initialization.');
   }
@@ -885,7 +1149,43 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     // must not capture their temporary pre-build absence as "disabled".
     groundcoverVisible: manager.grassField?.group.visible ?? true,
     forestVisible: manager.forestManager?.group.visible ?? true,
+    ownsSlowFrameContext: Object.hasOwn(manager, 'getSlowFrameContext'),
+    getSlowFrameContext: manager.getSlowFrameContext,
+    ownsVisualGpuFrameTiming: Object.hasOwn(manager, 'getVisualGpuFrameTiming'),
+    getVisualGpuFrameTiming: manager.getVisualGpuFrameTiming,
+    ownsVisualGpuTimingEvidence: Object.hasOwn(
+      manager,
+      'getVisualGpuTimingEvidence',
+    ),
+    getVisualGpuTimingEvidence: manager.getVisualGpuTimingEvidence,
   };
+  const appFrameAttribution = runtimeApp.setVisualFrameProfiler
+    ? createRuntimeAppFrameAttribution(
+        manager,
+        params.get('visualGpuTimestampMarkers') !== '0',
+      )
+    : null;
+  let disposeRealAppProfile = (): void => {
+    appFrameAttribution?.dispose();
+  };
+  if (appFrameAttribution) {
+    runtimeApp.setVisualFrameProfiler!({
+      beginFrame: appFrameAttribution.beginFrame,
+      completeFrame: appFrameAttribution.completeFrame,
+      dispose: () => disposeRealAppProfile(),
+    });
+    manager.getSlowFrameContext =
+      appFrameAttribution.getSlowFrameContext;
+    manager.getVisualGpuFrameTiming =
+      appFrameAttribution.getVisualGpuFrameTiming;
+    manager.getVisualGpuTimingEvidence =
+      appFrameAttribution.getVisualGpuTimingEvidence;
+  }
+  const wrapPostRender = (
+    render: ScenePostProcessor['render'],
+  ): ScenePostProcessor['render'] =>
+    appFrameAttribution?.wrapPostRender(render) ?? render;
+  manager.postProcessor.render = wrapPostRender(initial.postRender);
   const state = Object.fromEntries(SUBSYSTEMS.map((name) => [name, true])) as Record<
     ProfileSubsystem,
     boolean
@@ -902,7 +1202,12 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     cohortDomPublications: 0,
     terminalDomPublications: 0,
   });
-  let stopFrameCollection = (): void => {};
+  let stopCollector = (): void => {};
+  let stopFrameCollection = (): void => stopCollector();
+  let deferredScenePollTimeout: number | null = null;
+  let collectorSettleTimeout: number | null = null;
+  let realAppProfileDisposed = false;
+  let installedHooks: VisualPerformanceHooks | null = null;
   const resetCoordinator = createVisualPerformanceResetCoordinator(
     () => performance.now(),
     () => {
@@ -943,9 +1248,9 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     state[subsystem] = enabled;
     switch (subsystem) {
       case 'post':
-        manager.postProcessor.render = enabled
+        manager.postProcessor.render = wrapPostRender(enabled
           ? initial.postRender
-          : () => manager.renderer.render(manager.scene, manager.camera);
+          : () => manager.renderer.render(manager.scene, manager.camera));
         break;
       case 'sky':
         manager.sky.visible = enabled && initial.skyVisible;
@@ -1021,18 +1326,73 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
   profileDataset.visualProfileStatus = 'waiting-vegetation';
   for (const subsystem of requestedDisabled) applyEnabled(subsystem, false, false);
 
+  const disposeProfile = (): void => {
+    if (realAppProfileDisposed || appFrameAttribution === null) return;
+    realAppProfileDisposed = true;
+    if (deferredScenePollTimeout !== null) {
+      window.clearTimeout(deferredScenePollTimeout);
+      deferredScenePollTimeout = null;
+    }
+    if (collectorSettleTimeout !== null) {
+      window.clearTimeout(collectorSettleTimeout);
+      collectorSettleTimeout = null;
+    }
+    stopCollector();
+    for (const subsystem of SUBSYSTEMS) {
+      applyEnabled(subsystem, true, false);
+    }
+    manager.postProcessor.render = initial.postRender;
+    if (initial.ownsSlowFrameContext) {
+      manager.getSlowFrameContext = initial.getSlowFrameContext;
+    } else {
+      delete manager.getSlowFrameContext;
+    }
+    if (initial.ownsVisualGpuFrameTiming) {
+      manager.getVisualGpuFrameTiming = initial.getVisualGpuFrameTiming;
+    } else {
+      delete manager.getVisualGpuFrameTiming;
+    }
+    if (initial.ownsVisualGpuTimingEvidence) {
+      manager.getVisualGpuTimingEvidence = initial.getVisualGpuTimingEvidence;
+    } else {
+      delete manager.getVisualGpuTimingEvidence;
+    }
+    setUiVisible(true);
+    appFrameAttribution.dispose();
+    runtimeApp.setVisualFrameProfiler?.(null);
+    const profileWindow = window as typeof window & {
+      __visualPerf?: VisualPerformanceHooks;
+    };
+    if (profileWindow.__visualPerf === installedHooks) {
+      delete profileWindow.__visualPerf;
+    }
+    for (const key of Object.keys(profileDataset)) {
+      if (key.startsWith('visualProfile')) delete profileDataset[key];
+    }
+    latestReport = null;
+  };
+  disposeRealAppProfile = disposeProfile;
+  stopFrameCollection = (): void => {
+    stopCollector();
+    if (appFrameAttribution) disposeProfile();
+  };
+
   // Wait for the same full scene in every profile (including harnesses that
   // construct vegetation explicitly), then reapply all URL overrides after
   // vegetation's final shadow-preference sync. The five-second settling window
   // keeps shader compilation out of the trace.
   const waitForDeferredScene = (): void => {
+    deferredScenePollTimeout = null;
+    if (realAppProfileDisposed) return;
     if (manager.forestManager === null || manager.grassField === null) {
-      window.setTimeout(waitForDeferredScene, 100);
+      deferredScenePollTimeout = window.setTimeout(waitForDeferredScene, 100);
       return;
     }
     for (const subsystem of requestedDisabled) setEnabled(subsystem, false);
     profileDataset.visualProfileStatus = 'settling';
-    window.setTimeout(() => {
+    collectorSettleTimeout = window.setTimeout(() => {
+      collectorSettleTimeout = null;
+      if (realAppProfileDisposed) return;
       for (const subsystem of requestedDisabled) setEnabled(subsystem, false);
       const collector = startFrameIntervalCollector(
         manager,
@@ -1041,17 +1401,21 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
           latestReport = report;
         },
       );
+      if (options.deferPeriodicReportsUntilReady) {
+        collector.deferPeriodicReportsUntilReady();
+        collector.deferDomPublicationUntilReady();
+      }
       armTraceAfterCurrentFrame = collector.armAfterCurrentFrame;
       deferDomPublicationUntilReady =
         collector.deferDomPublicationUntilReady;
       getDomPublicationEvidence = collector.getDomPublicationEvidence;
-      stopFrameCollection = collector.stop;
+      stopCollector = collector.stop;
       resetCoordinator.attach(collector.settleThrough);
     }, 5_000);
   };
-  window.setTimeout(waitForDeferredScene, 100);
+  deferredScenePollTimeout = window.setTimeout(waitForDeferredScene, 100);
 
-  (window as typeof window & { __visualPerf?: VisualPerformanceHooks }).__visualPerf = {
+  installedHooks = {
     subsystems: SUBSYSTEMS,
     armTraceAfterCurrentFrame: () => armTraceAfterCurrentFrame(),
     deferDomPublicationUntilReady: () => deferDomPublicationUntilReady(),
@@ -1066,6 +1430,8 @@ export function installVisualPerformanceHooksIfRequested(app: object): void {
     reset,
     setEnabled,
   };
+  (window as typeof window & { __visualPerf?: VisualPerformanceHooks })
+    .__visualPerf = installedHooks;
 }
 
 function startFrameIntervalCollector(
@@ -1075,6 +1441,7 @@ function startFrameIntervalCollector(
 ): {
   armAfterCurrentFrame(): void;
   deferDomPublicationUntilReady(): void;
+  deferPeriodicReportsUntilReady(): void;
   getDomPublicationEvidence(): VisualPerformanceDomPublicationEvidence;
   settleThrough(settleUntil: number): void;
   stop(): void;
@@ -1099,15 +1466,30 @@ function startFrameIntervalCollector(
   let traceArmed = false;
   let traceIntegrityError: string | null = null;
   let frozenContext: VisualPerformanceReport['context'] | null = null;
-  let previousFrame: {
+  type CollectedFrame = {
     rafTimestampMs: number;
     renderer: VisualSlowFrameRecord['renderer'];
     context: VisualSlowFrameContext | null;
-  } | null = null;
+  };
+  const collectedFrames: [CollectedFrame, CollectedFrame] = [
+    {
+      rafTimestampMs: 0,
+      renderer: { drawCalls: 0, frameCalls: 0, triangles: 0 },
+      context: null,
+    },
+    {
+      rafTimestampMs: 0,
+      renderer: { drawCalls: 0, frameCalls: 0, triangles: 0 },
+      context: null,
+    },
+  ];
+  let nextCollectedFrameIndex = 0;
+  let previousFrame: CollectedFrame | null = null;
   let lastPublished = 0;
   let animationFrameId: number | null = null;
   let stopped = false;
   let lifecycleStatus = 'collecting';
+  let deferPeriodicReportsUntilReady = false;
 
   const mayWriteCohortDom = (): boolean =>
     domPublicationGate.getEvidence().mode === 'periodic';
@@ -1185,6 +1567,7 @@ function startFrameIntervalCollector(
 
   const publish = (now: number): void => {
     if (readyReportLatch.hasReadyReport()) return;
+    if (deferPeriodicReportsUntilReady && !traceCapture.isFrozen()) return;
     const samples = traceCapture.getSamples();
     if (samples.length === 0) return;
     const frameTimes = samples.map((sample) => sample.dt);
@@ -1306,17 +1689,16 @@ function startFrameIntervalCollector(
       scheduleFrame();
       return;
     }
-    const renderInfo = rendererInfo.render;
+    const performanceStats = manager.getPerformanceStats();
     const context = manager.getSlowFrameContext?.(now) ?? null;
-    const currentFrame = {
-      rafTimestampMs: now,
-      renderer: {
-        drawCalls: renderInfo.drawCalls ?? 0,
-        frameCalls: renderInfo.frameCalls ?? renderInfo.calls ?? 0,
-        triangles: renderInfo.triangles ?? 0,
-      },
-      context,
-    };
+    const currentFrame = collectedFrames[nextCollectedFrameIndex];
+    nextCollectedFrameIndex = (nextCollectedFrameIndex + 1)
+      % collectedFrames.length;
+    currentFrame.rafTimestampMs = now;
+    currentFrame.renderer.drawCalls = performanceStats.calls;
+    currentFrame.renderer.frameCalls = performanceStats.renderPasses ?? 0;
+    currentFrame.renderer.triangles = performanceStats.triangles;
+    currentFrame.context = context;
     if (traceArmingBoundary.consumeCompletedFrame()) {
       // The arming callback itself belongs to the preceding treatment (route
       // seek or explicit control lead-in). Clear any intervals accumulated
@@ -1346,25 +1728,14 @@ function startFrameIntervalCollector(
     const intervalStartRafTimestampMs = previousFrame?.rafTimestampMs ?? now;
     const dt = now - intervalStartRafTimestampMs;
     if (dt > 0 && !traceCapture.isFrozen()) {
-      const sample = {
-        at: now,
-        dt,
-        drawCalls: previousFrame?.renderer.drawCalls ?? 0,
-        frameCalls: previousFrame?.renderer.frameCalls ?? 0,
-        triangles: previousFrame?.renderer.triangles ?? 0,
-      };
-      const slowFrame = createVisualSlowFrameRecordForInterval({
-        intervalStartRafTimestampMs,
-        intervalEndRafTimestampMs: now,
-        traceStartRafTimestampMs: traceStart,
-        precedingFrame: previousFrame?.context
-          ? {
-              ...previousFrame.context,
-              renderer: previousFrame.renderer,
-            }
-          : null,
-      });
-      if (!slowFrame) {
+      const precedingContext = previousFrame?.context ?? null;
+      const contextIsCausallyAligned = precedingContext !== null
+        && precedingContext.frameRafTimestampMs === intervalStartRafTimestampMs
+        && calculateVisualFrameEntryLatenessMs(
+          precedingContext.frameRafTimestampMs,
+          precedingContext.frameCallbackEntryTimestampMs,
+        ) !== null;
+      if (!contextIsCausallyAligned) {
         const integrityError =
           'A frame interval could not be paired with its causally preceding CPU/GPU context.';
         resetTrace('integrity-error');
@@ -1374,6 +1745,41 @@ function startFrameIntervalCollector(
         }
         scheduleFrame();
         return;
+      }
+      const sample = {
+        at: now,
+        dt,
+        drawCalls: previousFrame?.renderer.drawCalls ?? 0,
+        frameCalls: previousFrame?.renderer.frameCalls ?? 0,
+        triangles: previousFrame?.renderer.triangles ?? 0,
+      };
+      const retainedSlowFrames = traceCapture.getSlowFrames();
+      const shouldCaptureSlowFrame = shouldCaptureVisualSlowFrame(
+        retainedSlowFrames,
+        dt,
+      );
+      let slowFrame: VisualSlowFrameRecord | null = null;
+      if (shouldCaptureSlowFrame) {
+        slowFrame = createVisualSlowFrameRecordForInterval({
+          intervalStartRafTimestampMs,
+          intervalEndRafTimestampMs: now,
+          traceStartRafTimestampMs: traceStart,
+          precedingFrame: {
+            ...precedingContext,
+            renderer: previousFrame!.renderer,
+          },
+        });
+        if (!slowFrame) {
+          const integrityError =
+            'A retained slow frame could not be materialized from its validated context.';
+          resetTrace('integrity-error');
+          traceIntegrityError = integrityError;
+          if (mayWriteCohortDom()) {
+            dataset.visualProfileIntegrityError = integrityError;
+          }
+          scheduleFrame();
+          return;
+        }
       }
       traceCapture.appendInterval(sample, slowFrame);
       if (
@@ -1402,6 +1808,9 @@ function startFrameIntervalCollector(
     armAfterCurrentFrame: traceArmingBoundary.armAfterCurrentFrame,
     deferDomPublicationUntilReady: domPublicationGate.deferUntilReady,
     getDomPublicationEvidence: domPublicationGate.getEvidence,
+    deferPeriodicReportsUntilReady: () => {
+      deferPeriodicReportsUntilReady = true;
+    },
     settleThrough: resettleGate.settleThrough,
     stop: () => {
       stopped = true;

@@ -224,19 +224,48 @@ export class GameTableSync {
       );
     }, false);
 
-    bindTable(db.quarry, () => {
-      this.state.quarries = syncQuarries(
-        db.quarry ? db.quarry.iter() : [],
-        db.foraging_node ? db.foraging_node.iter() : [],
-      );
+    let quarryRowsChanged = false;
+    let foragingRowsChanged = false;
+    let resourceNodesPending = false;
+    const scheduleResourceNodes = (): void => {
+      if (resourceNodesPending) return;
+      resourceNodesPending = true;
+      queueMicrotask(() => {
+        resourceNodesPending = false;
+        if (foragingRowsChanged) {
+          this.state.foragingNodes = syncForagingNodes(
+            db.foraging_node ? db.foraging_node.iter() : [],
+          );
+        }
+        if (quarryRowsChanged || foragingRowsChanged) {
+          this.state.quarries = syncQuarries(
+            db.quarry ? db.quarry.iter() : [],
+            db.foraging_node ? db.foraging_node.iter() : [],
+          );
+        }
+        quarryRowsChanged = false;
+        foragingRowsChanged = false;
+        notify();
+      });
+    };
+    const bindResourceNodeTable = (
+      table: TableHandle | undefined,
+      markChanged: () => void,
+    ): void => {
+      if (!table) return;
+      const handler = (): void => {
+        markChanged();
+        scheduleResourceNodes();
+      };
+      table.onInsert(handler);
+      table.onUpdate(handler);
+      table.onDelete(handler);
+    };
+    bindResourceNodeTable(db.quarry, () => {
+      quarryRowsChanged = true;
     });
-
-    bindTable(db.foraging_node, () => {
-      this.state.foragingNodes = syncForagingNodes(db.foraging_node ? db.foraging_node.iter() : []);
-      this.state.quarries = syncQuarries(
-        db.quarry ? db.quarry.iter() : [],
-        db.foraging_node ? db.foraging_node.iter() : [],
-      );
+    bindResourceNodeTable(db.foraging_node, () => {
+      foragingRowsChanged = true;
     });
 
     if (db.tree_entity) {
@@ -321,16 +350,28 @@ export class GameTableSync {
       );
     });
 
-    const applyResidenceBundle = (): void => {
-      this.state.residences = syncResidences(
-        db.residence ? db.residence.iter() : [],
-        db.residence_need ? db.residence_need.iter() : [],
-        this.state.identityHex,
-      );
+    let residenceBundlePending = false;
+    const scheduleResidenceBundle = (): void => {
+      if (residenceBundlePending) return;
+      residenceBundlePending = true;
+      queueMicrotask(() => {
+        residenceBundlePending = false;
+        this.state.residences = syncResidences(
+          db.residence ? db.residence.iter() : [],
+          db.residence_need ? db.residence_need.iter() : [],
+          this.state.identityHex,
+        );
+        notify();
+      });
     };
-
-    bindTable(db.residence, applyResidenceBundle);
-    bindTable(db.residence_need, applyResidenceBundle);
+    const bindResidenceBundleTable = (table: TableHandle | undefined): void => {
+      if (!table) return;
+      table.onInsert(scheduleResidenceBundle);
+      table.onUpdate(scheduleResidenceBundle);
+      table.onDelete(scheduleResidenceBundle);
+    };
+    bindResidenceBundleTable(db.residence);
+    bindResidenceBundleTable(db.residence_need);
 
     bindTable(db.backyard_garden, () => {
       this.state.backyardGardens = syncBackyardGardens(

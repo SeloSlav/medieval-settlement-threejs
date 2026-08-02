@@ -31,6 +31,8 @@ import type { GameClock } from '../world/gameCalendar.ts';
 import { residenceWindowActivity } from './householdRoutine.ts';
 import type { NightPolicyState } from '../economy/nightPolicy.ts';
 import type { ServiceCoverageView } from '../resources/serviceCoverage.ts';
+import { batchResidenceStaticMeshes } from './staticResidenceBatch.ts';
+import { ResidenceStaticBatches } from './ResidenceStaticBatches.ts';
 
 const WINDOW_GLOW_EMISSIVE = 0xffc060;
 const WINDOW_GLOW_COLOR = 0x4a3820;
@@ -1192,11 +1194,38 @@ function addResidenceUpgradeWorks(
   const halfDepth = dimensions.depth * 0.5 + 0.48;
   const scaffoldHeight =
     dimensions.foundationHeight + dimensions.groundHeight + dimensions.upperHeight + 0.65;
+  const scaffoldPostGeometry = new THREE.CylinderGeometry(
+    0.07,
+    0.085,
+    scaffoldHeight,
+    7,
+  );
+  const scaffoldWidthRailGeometry = new THREE.BoxGeometry(
+    dimensions.width + 1.15,
+    0.1,
+    0.1,
+  );
+  const scaffoldDepthRailGeometry = new THREE.BoxGeometry(
+    0.1,
+    0.1,
+    dimensions.depth + 1.15,
+  );
+  const scaffoldPlatformGeometry = new THREE.BoxGeometry(
+    0.58,
+    0.1,
+    dimensions.depth + 1.05,
+  );
+  const deliveredTimberGeometry = new THREE.CylinderGeometry(0.1, 0.12, 1.45, 7);
+  const deliveredStoneGeometries = [
+    new THREE.BoxGeometry(0.34, 0.24, 0.3),
+    new THREE.BoxGeometry(0.4, 0.24, 0.3),
+  ] as const;
+  const deliveredRoofTileGeometry = new THREE.BoxGeometry(0.34, 0.035, 0.38);
   for (const x of [-halfWidth, halfWidth]) {
     for (const z of [-halfDepth, halfDepth]) {
       const post = addMesh(
         works,
-        new THREE.CylinderGeometry(0.07, 0.085, scaffoldHeight, 7),
+        scaffoldPostGeometry,
         timberMaterial('weathered'),
         new THREE.Vector3(x, scaffoldHeight * 0.5, z),
       );
@@ -1207,7 +1236,7 @@ function addResidenceUpgradeWorks(
     for (const z of [-halfDepth, halfDepth]) {
       const rail = addMesh(
         works,
-        new THREE.BoxGeometry(dimensions.width + 1.15, 0.1, 0.1),
+        scaffoldWidthRailGeometry,
         timberMaterial('weathered'),
         new THREE.Vector3(0, y, z),
       );
@@ -1216,7 +1245,7 @@ function addResidenceUpgradeWorks(
     for (const x of [-halfWidth, halfWidth]) {
       const rail = addMesh(
         works,
-        new THREE.BoxGeometry(0.1, 0.1, dimensions.depth + 1.15),
+        scaffoldDepthRailGeometry,
         timberMaterial('weathered'),
         new THREE.Vector3(x, y, 0),
       );
@@ -1226,7 +1255,7 @@ function addResidenceUpgradeWorks(
   for (const x of [-halfWidth, halfWidth]) {
     const platform = addMesh(
       works,
-      new THREE.BoxGeometry(0.58, 0.1, dimensions.depth + 1.05),
+      scaffoldPlatformGeometry,
       timberMaterial('weathered'),
       new THREE.Vector3(x, Math.max(2.2, scaffoldHeight * 0.56), 0),
     );
@@ -1237,7 +1266,7 @@ function addResidenceUpgradeWorks(
   for (let index = 0; index < 8; index += 1) {
     const timber = addMesh(
       works,
-      new THREE.CylinderGeometry(0.1, 0.12, 1.45, 7),
+      deliveredTimberGeometry,
       timberMaterial(index % 2 === 0 ? 'light' : 'weathered'),
       new THREE.Vector3(
         -halfWidth + 0.75 + (index % 2) * 0.23,
@@ -1251,7 +1280,7 @@ function addResidenceUpgradeWorks(
   for (let index = 0; index < 8; index += 1) {
     const stone = addMesh(
       works,
-      new THREE.BoxGeometry(0.34 + (index % 2) * 0.06, 0.24, 0.3),
+      deliveredStoneGeometries[index % 2]!,
       stoneMaterial(index % 3 === 0 ? 'light' : 'mid'),
       new THREE.Vector3(
         halfWidth - 0.75 + (index % 2) * 0.28,
@@ -1275,7 +1304,7 @@ function addResidenceUpgradeWorks(
     for (let layer = 0; layer < 4; layer += 1) {
       addMesh(
         stack,
-        new THREE.BoxGeometry(0.34, 0.035, 0.38),
+        deliveredRoofTileGeometry,
         layer % 2 === 0
           ? sharedBuildingMaterial('clayRed')
           : sharedBuildingMaterial('clayDark'),
@@ -1798,6 +1827,7 @@ export function createResidencePreviewMesh(seed = 0): THREE.Group {
 
 export class ResidenceMarkers {
   private readonly root: THREE.Group;
+  private readonly staticBatches: ResidenceStaticBatches;
   private readonly shadowProxyBatch: BatchedBuildingShadowProxies;
   private readonly onShadowCastersChanged?: () => void;
   private readonly serviceCoverageRoot: THREE.Group;
@@ -1814,14 +1844,23 @@ export class ResidenceMarkers {
   private serviceCoverageDirty = false;
   private readonly smokeEmitters = new Map<string, ChimneySmokeEmitter>();
   private readonly smokeEligible = new Map<string, boolean>();
+  private readonly smokeActive = new Map<string, boolean>();
   private readonly residenceOccupied = new Map<string, boolean>();
   private readonly residencePopulation = new Map<string, number>();
+  private readonly residenceWindowActivities = new Map<string, number>();
+  private readonly appliedWindowGlow = new Map<string, number>();
+  private readonly appliedWindowOccupied = new Map<string, boolean>();
   private fireDisabledResidenceIds = new Set<string>();
   private destroyedResidenceIds = new Set<string>();
   private chimneySmokeAllowed = true;
   private eveningWindowGlow = 0;
   private nightPolicy: Pick<NightPolicyState, 'gathering' | 'curfew'> | undefined;
   private householdClock: GameClock | null = null;
+  private householdActivityInputsInitialized = false;
+  private householdActivityHour = -1;
+  private householdActivityMinute = -1;
+  private householdActivityGathering: NightPolicyState['gathering'] | undefined;
+  private householdActivityCurfew: NightPolicyState['curfew'] | undefined;
 
   constructor(
     parent: THREE.Group,
@@ -1830,6 +1869,7 @@ export class ResidenceMarkers {
     this.onShadowCastersChanged = onShadowCastersChanged;
     this.root = new THREE.Group();
     this.root.name = 'Residences';
+    this.staticBatches = new ResidenceStaticBatches(this.root);
     this.shadowProxyBatch = new BatchedBuildingShadowProxies(
       this.root,
       'Batched residence shadow proxies',
@@ -1880,27 +1920,29 @@ export class ResidenceMarkers {
   }
 
   setChimneySmokeAllowed(allowed: boolean): void {
+    if (this.chimneySmokeAllowed === allowed) return;
     this.chimneySmokeAllowed = allowed;
-    for (const [id, emitter] of this.smokeEmitters) {
-      emitter.setActive(
-        allowed
-          && !this.fireDisabledResidenceIds.has(id)
-          && (this.smokeEligible.get(id) ?? false),
-      );
+    for (const id of this.smokeEmitters.keys()) {
+      this.updateSmokeActive(id);
     }
   }
 
   setFireDisabledResidenceIds(ids: ReadonlySet<string>): void {
     if (setsEqual(this.fireDisabledResidenceIds, ids)) return;
+    const previousIds = this.fireDisabledResidenceIds;
     this.fireDisabledResidenceIds = new Set(ids);
-    for (const [id, emitter] of this.smokeEmitters) {
-      emitter.setActive(
-        this.chimneySmokeAllowed
-          && !this.fireDisabledResidenceIds.has(id)
-          && (this.smokeEligible.get(id) ?? false),
-      );
+    for (const id of previousIds) {
+      if (ids.has(id)) continue;
+      this.updateSmokeActive(id);
+      const marker = this.meshes.get(id);
+      if (marker) this.applyWindowGlowForResidence(marker, id);
     }
-    this.applyWindowGlow();
+    for (const id of ids) {
+      if (previousIds.has(id)) continue;
+      this.updateSmokeActive(id);
+      const marker = this.meshes.get(id);
+      if (marker) this.applyWindowGlowForResidence(marker, id);
+    }
   }
 
   setDestroyedResidenceIds(ids: ReadonlySet<string>): void {
@@ -1909,6 +1951,7 @@ export class ResidenceMarkers {
     for (const [id, marker] of this.meshes) {
       const destroyed = ids.has(id);
       marker.visible = !destroyed;
+      this.staticBatches.setResidenceVisible(id, !destroyed);
       const tier = Number(marker.userData.residenceTier ?? 0);
       if (destroyed || tier <= 0) {
         this.shadowProxyBatch.remove(id);
@@ -1925,6 +1968,8 @@ export class ResidenceMarkers {
 
   setHouseholdClock(clock: GameClock): void {
     this.householdClock = clock;
+    if (!this.updateHouseholdActivityInputs(clock, this.nightPolicy)) return;
+    this.recomputeHouseholdWindowActivities();
     this.applyWindowGlow();
   }
 
@@ -1933,36 +1978,30 @@ export class ResidenceMarkers {
     glow: number,
     nightPolicy?: Pick<NightPolicyState, 'gathering' | 'curfew'>,
   ): void {
+    const glowChanged = this.eveningWindowGlow !== glow;
     this.householdClock = clock;
     this.eveningWindowGlow = glow;
     this.nightPolicy = nightPolicy;
+    const activityChanged = this.updateHouseholdActivityInputs(clock, nightPolicy);
+    if (activityChanged) this.recomputeHouseholdWindowActivities();
+    if (!activityChanged && !glowChanged) return;
     this.applyWindowGlow();
   }
 
   setEveningWindowGlow(glow: number): void {
+    if (this.eveningWindowGlow === glow) return;
     this.eveningWindowGlow = glow;
     this.applyWindowGlow();
   }
 
   private applyWindowGlow(): void {
     for (const [id, marker] of this.meshes) {
-      const material = marker.userData.windowMaterial as THREE.MeshStandardMaterial | undefined;
-      if (!material) continue;
-      applyResidenceWindowGlow(
-        material,
-        this.windowGlowForResidence(id),
-        this.residenceOccupied.get(id) ?? false,
-      );
+      this.applyWindowGlowForResidence(marker, id);
     }
   }
 
   tick(dt: number): void {
-    for (const [id, emitter] of this.smokeEmitters) {
-      emitter.setActive(
-        this.chimneySmokeAllowed
-          && !this.fireDisabledResidenceIds.has(id)
-          && (this.smokeEligible.get(id) ?? false),
-      );
+    for (const emitter of this.smokeEmitters.values()) {
       emitter.tick(dt);
     }
   }
@@ -1986,10 +2025,14 @@ export class ResidenceMarkers {
           this.serviceCoverageDirty = true;
         }
         this.root.remove(marker);
+        this.staticBatches.removeResidence(residence.id);
         disposeGroup(marker);
         this.meshes.delete(residence.id);
         this.smokeEmitters.get(residence.id)?.dispose();
         this.smokeEmitters.delete(residence.id);
+        this.smokeActive.delete(residence.id);
+        this.appliedWindowGlow.delete(residence.id);
+        this.appliedWindowOccupied.delete(residence.id);
         marker = undefined;
       }
       if (!marker) {
@@ -2007,11 +2050,17 @@ export class ResidenceMarkers {
             );
         marker.userData.fpCollisionAggregate = true;
         this.root.add(marker);
+        batchResidenceStaticMeshes(marker);
+        this.staticBatches.registerResidence(residence.id, marker);
         this.meshes.set(residence.id, marker);
 
         const chimneyEmitter = marker.getObjectByName('ChimneyEmitter');
         if (chimneyEmitter) {
-          this.smokeEmitters.set(residence.id, new ChimneySmokeEmitter(chimneyEmitter, appearanceSeed));
+          this.smokeEmitters.set(
+            residence.id,
+            new ChimneySmokeEmitter(chimneyEmitter, appearanceSeed),
+          );
+          this.smokeActive.set(residence.id, false);
         }
       }
       const y = getHeightAt(residence.x, residence.z);
@@ -2035,6 +2084,7 @@ export class ResidenceMarkers {
         1 - condition * 0.065,
         1 - condition * 0.012,
       );
+      this.staticBatches.updateResidence(residence.id, marker, !destroyed);
       const completedTier = residence.tier === 0 ? null : residence.tier;
       if (completedTier == null || destroyed) {
         this.shadowProxyBatch.remove(residence.id);
@@ -2050,16 +2100,24 @@ export class ResidenceMarkers {
         && residence.population > 0
         && getNeedStock(residence.needs, 'firewood') > 0;
       this.smokeEligible.set(residence.id, smokeEligible);
-      this.smokeEmitters.get(residence.id)?.setActive(
-        this.chimneySmokeAllowed
-          && !this.fireDisabledResidenceIds.has(residence.id)
-          && smokeEligible,
-      );
+      this.updateSmokeActive(residence.id);
       this.residenceOccupied.set(
         residence.id,
         !residence.abandoned && residence.population > 0,
       );
+      const previousPopulation = this.residencePopulation.get(residence.id);
       this.residencePopulation.set(residence.id, residence.population);
+      if (
+        this.householdClock
+        && (
+          previousPopulation === undefined
+          || householdMemberCount(previousPopulation)
+            !== householdMemberCount(residence.population)
+          || !this.residenceWindowActivities.has(residence.id)
+        )
+      ) {
+        this.recomputeHouseholdWindowActivity(residence.id, residence.population);
+      }
       this.applyWindowGlowForResidence(marker, residence.id);
       syncFirewoodPile(marker, getNeedStock(residence.needs, 'firewood'));
       syncInitialResidenceConstruction(marker, residence);
@@ -2072,18 +2130,24 @@ export class ResidenceMarkers {
         this.serviceCoverageDirty = true;
       }
       this.root.remove(marker);
+      this.staticBatches.removeResidence(id);
       this.shadowProxyBatch.remove(id);
       disposeGroup(marker);
       this.meshes.delete(id);
       this.smokeEmitters.get(id)?.dispose();
       this.smokeEmitters.delete(id);
       this.smokeEligible.delete(id);
+      this.smokeActive.delete(id);
       this.residenceOccupied.delete(id);
       this.residencePopulation.delete(id);
+      this.residenceWindowActivities.delete(id);
+      this.appliedWindowGlow.delete(id);
+      this.appliedWindowOccupied.delete(id);
     }
     if (this.shadowProxyBatch.flush()) {
       this.onShadowCastersChanged?.();
     }
+    this.staticBatches.finalizeGeometryBuffers();
     if (this.serviceCoverageDirty) this.syncServiceCoverageHighlights();
   }
 
@@ -2147,23 +2211,89 @@ export class ResidenceMarkers {
   private applyWindowGlowForResidence(marker: THREE.Group, residenceId: string): void {
     const material = marker.userData.windowMaterial as THREE.MeshStandardMaterial | undefined;
     if (!material) return;
+    const glow = this.windowGlowForResidence(residenceId);
+    const occupied = this.residenceOccupied.get(residenceId) ?? false;
+    if (
+      this.appliedWindowGlow.get(residenceId) === glow
+      && this.appliedWindowOccupied.get(residenceId) === occupied
+    ) {
+      return;
+    }
     applyResidenceWindowGlow(
       material,
-      this.windowGlowForResidence(residenceId),
-      this.residenceOccupied.get(residenceId) ?? false,
+      glow,
+      occupied,
     );
+    this.appliedWindowGlow.set(residenceId, glow);
+    this.appliedWindowOccupied.set(residenceId, occupied);
   }
 
   private windowGlowForResidence(residenceId: string): number {
     if (this.fireDisabledResidenceIds.has(residenceId)) return 0;
     if (!this.householdClock) return this.eveningWindowGlow;
-    const householdActivity = residenceWindowActivity(
+    let householdActivity = this.residenceWindowActivities.get(residenceId);
+    if (householdActivity === undefined) {
+      householdActivity = this.recomputeHouseholdWindowActivity(
+        residenceId,
+        this.residencePopulation.get(residenceId) ?? 0,
+      );
+    }
+    return this.eveningWindowGlow * householdActivity;
+  }
+
+  private updateSmokeActive(residenceId: string): void {
+    const emitter = this.smokeEmitters.get(residenceId);
+    if (!emitter) return;
+    const active = this.chimneySmokeAllowed
+      && !this.fireDisabledResidenceIds.has(residenceId)
+      && (this.smokeEligible.get(residenceId) ?? false);
+    if (this.smokeActive.get(residenceId) === active) return;
+    this.smokeActive.set(residenceId, active);
+    emitter.setActive(active);
+  }
+
+  private updateHouseholdActivityInputs(
+    clock: Pick<GameClock, 'hour' | 'minute'>,
+    nightPolicy?: Pick<NightPolicyState, 'gathering' | 'curfew'>,
+  ): boolean {
+    const gathering = nightPolicy?.gathering;
+    const curfew = nightPolicy?.curfew;
+    if (
+      this.householdActivityInputsInitialized
+      && this.householdActivityHour === clock.hour
+      && this.householdActivityMinute === clock.minute
+      && this.householdActivityGathering === gathering
+      && this.householdActivityCurfew === curfew
+    ) {
+      return false;
+    }
+    this.householdActivityInputsInitialized = true;
+    this.householdActivityHour = clock.hour;
+    this.householdActivityMinute = clock.minute;
+    this.householdActivityGathering = gathering;
+    this.householdActivityCurfew = curfew;
+    return true;
+  }
+
+  private recomputeHouseholdWindowActivities(): void {
+    for (const [residenceId, population] of this.residencePopulation) {
+      this.recomputeHouseholdWindowActivity(residenceId, population);
+    }
+  }
+
+  private recomputeHouseholdWindowActivity(
+    residenceId: string,
+    population: number,
+  ): number {
+    if (!this.householdClock) return 1;
+    const activity = residenceWindowActivity(
       residenceId,
-      this.residencePopulation.get(residenceId) ?? 0,
+      population,
       this.householdClock,
       this.nightPolicy,
     );
-    return this.eveningWindowGlow * householdActivity;
+    this.residenceWindowActivities.set(residenceId, activity);
+    return activity;
   }
 
   dispose(): void {
@@ -2172,8 +2302,12 @@ export class ResidenceMarkers {
     }
     this.smokeEmitters.clear();
     this.smokeEligible.clear();
+    this.smokeActive.clear();
     this.residenceOccupied.clear();
     this.residencePopulation.clear();
+    this.residenceWindowActivities.clear();
+    this.appliedWindowGlow.clear();
+    this.appliedWindowOccupied.clear();
     this.fireDisabledResidenceIds.clear();
     this.serviceCoverageIds.clear();
     this.serviceCoverageKind = null;
@@ -2181,6 +2315,7 @@ export class ResidenceMarkers {
       disposeGroup(marker);
     }
     this.meshes.clear();
+    this.staticBatches.dispose();
     this.shadowProxyBatch.dispose();
     this.serviceCoverageGeometry.dispose();
     this.serviceCoverageMaterial.dispose();
@@ -2205,6 +2340,10 @@ function setsEqual<T>(left: ReadonlySet<T>, right: ReadonlySet<T>): boolean {
   return true;
 }
 
+function householdMemberCount(population: number): number {
+  return Math.max(0, Math.min(32, Math.floor(population)));
+}
+
 function syncFirewoodPile(marker: THREE.Group, firewoodStock: number): void {
   const pile = marker.getObjectByName('FirewoodPile');
   if (!(pile instanceof THREE.Group)) return;
@@ -2223,11 +2362,14 @@ function syncFirewoodPile(marker: THREE.Group, firewoodStock: number): void {
 function disposeGroup(group: THREE.Group): void {
   const windowMaterial = group.userData.windowMaterial as THREE.Material | undefined;
   if (windowMaterial) windowMaterial.dispose();
+  const geometries = new Set<THREE.BufferGeometry>();
   group.traverse((child) => {
     if (child instanceof THREE.Mesh) {
-      child.geometry.dispose();
+      if (child.userData.residenceStaticCollisionProxy === true) return;
+      geometries.add(child.geometry);
     }
   });
+  for (const geometry of geometries) geometry.dispose();
 }
 
 export function syncInitialResidenceConstruction(

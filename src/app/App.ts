@@ -9,7 +9,7 @@ import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import { FarmFieldTool } from '../farming/FarmFieldTool.ts';
 import type { PastureMarkers } from '../farming/PastureMarkers.ts';
 import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
-import { BurgageTool } from '../residences/BurgageTool.ts';
+import { BurgageTool, type BurgageLayoutHudState } from '../residences/BurgageTool.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import type { BurialMarkers } from '../residences/BurialMarkers.ts';
 import type { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
@@ -51,7 +51,10 @@ import { raidWithdrawingCartCount } from '../logistics/deliveryTrips.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { VillagerInspector } from '../ui/VillagerInspector.ts';
-import { SettlementPresentationController } from './settlementSchedulePresentation.ts';
+import {
+  SettlementPresentationController,
+  type SettlementPresentationTargets,
+} from './settlementSchedulePresentation.ts';
 import {
   applyVisualQaEnvironment,
   parseVisualQaConditions,
@@ -82,7 +85,7 @@ import {
   syncSettlementWorld,
   tickSettlementWorld,
 } from './settlementWorldSync.ts';
-import { buildCrowdViewState } from '../settlement/crowdView.ts';
+import { buildCrowdViewState, type CrowdViewState } from '../settlement/crowdView.ts';
 import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { SessionLifecycleController } from './SessionLifecycleController.ts';
 import { beginNewWorld } from './worldBootstrapFlow.ts';
@@ -108,8 +111,28 @@ import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { createSmokeTestHooks, installSmokeTestHooks } from '../e2e/smokeTestHooks.ts';
 import { sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
-import { markFirstPlayable, markVegetationReady } from './startupDiagnostics.ts';
+import {
+  markFirstPlayable,
+  markFirstPlayableAssetsReady,
+  markVegetationReady,
+} from './startupDiagnostics.ts';
 import { formatDawnReport } from '../economy/nightPolicy.ts';
+import { Vector3 } from 'three';
+
+export type AppFrameProfilePhase = 'strategic' | 'settlement' | 'road-eye';
+
+export type AppFrameProfiler = {
+  beginFrame(rafTimestampMs: number, callbackEntryTimestampMs: number): void;
+  completeFrame(
+    callbackCompletedAtMs: number,
+    phase: AppFrameProfilePhase,
+  ): void;
+  dispose(): void;
+};
+
+function roundStartupDuration(durationMs: number): number {
+  return Math.round(durationMs * 10) / 10;
+}
 
 export class App {
   private readonly root: HTMLElement;
@@ -159,6 +182,21 @@ export class App {
   private fpsSampleStart = 0;
   private fpsFrameCount = 0;
   private fpsAccumulatedSeconds = 0;
+  private readonly crowdViewScratch = new Vector3();
+  private readonly crowdViewState: CrowdViewState = buildCrowdViewState(0, 0, 240);
+  private readonly minimapTickState = { keyHeld: false };
+  private readonly burgageLayoutHudStateScratch: BurgageLayoutHudState = {
+    plotCount: 0,
+    residenceCount: null,
+    maxPlotCount: 0,
+    canDecrease: false,
+    canIncrease: false,
+    canRotateFrontage: false,
+    frontageLabel: null,
+    valid: false,
+  };
+  private readonly burgageLayoutHudPositionScratch = { clientX: 0, clientY: 0 };
+  private settlementPresentationTargets: SettlementPresentationTargets | null = null;
   private ambientAudio: AmbientAudioController | null = null;
   private readonly visualQaConditions = import.meta.env.DEV
     ? parseVisualQaConditions(window.location.search)
@@ -177,6 +215,7 @@ export class App {
   private raidProjectionSignature = '';
   private combatInspectorSignature = '';
   private projectedRaidTargets: ProjectedRaidTarget[] = [];
+  private visualFrameProfiler: AppFrameProfiler | null = null;
   private disposed = false;
 
   constructor(root: HTMLElement) {
@@ -355,6 +394,14 @@ export class App {
         this.villagers?.invalidateNavigation();
       },
     };
+    this.settlementPresentationTargets = {
+      settlementHud: this.toolbar?.settlementHud ?? null,
+      sceneManager: this.sceneManager,
+      buildingMarkers: this.buildingMarkers,
+      residenceMarkers: this.residenceMarkers,
+      villagers: this.villagers,
+      ambientAudio: this.ambientAudio,
+    };
 
     if (this.visualQaConditions) {
       // Deterministic capture pages are intentionally offline: marking the
@@ -380,14 +427,7 @@ export class App {
         connected: true,
       };
       this.settlementPresentation.sync(
-        {
-          settlementHud: this.toolbar?.settlementHud ?? null,
-          sceneManager: this.sceneManager,
-          buildingMarkers: this.buildingMarkers,
-          residenceMarkers: this.residenceMarkers,
-          villagers: this.villagers,
-          ambientAudio: this.ambientAudio,
-        },
+        this.settlementPresentationTargets,
         offlineSnapshot,
         this.getVisualQaPresentationState(this.gameState),
         true,
@@ -426,7 +466,134 @@ export class App {
         this.toastManager?.show('Forest vegetation failed to load. Try refreshing the page.', { variant: 'error' });
       }
     }
-    session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+    const firstPlayableAssetStartedAt = performance.now();
+    let celestialSkyHydrationMs = 0;
+    let buildingMaterialHydrationMs = 0;
+    let vineyardHydrationMs = 0;
+    let villagerVisualHydrationMs = 0;
+    let villagerVisualsReady = false;
+    session.loadingScreen?.setProgress({
+      label: 'Finishing world…',
+      detail: 'Hydrating sky and material textures',
+      phase: 'vegetation',
+      fraction: 0.86,
+    });
+    const firstPlayableAssetResults = await Promise.allSettled([
+      (async () => {
+        const startedAt = performance.now();
+        try {
+          await session.sceneManager.loadCelestialSky();
+        } finally {
+          celestialSkyHydrationMs = performance.now() - startedAt;
+        }
+      })(),
+      ...(import.meta.env.VITE_E2E_TEST !== '1'
+        ? [
+            (async () => {
+              const startedAt = performance.now();
+              try {
+                await initializeBuildingMaterialLibrary(
+                  session.sceneManager.textureAnisotropy,
+                  (texture) => session.sceneManager.preloadTexture(texture),
+                );
+              } finally {
+                buildingMaterialHydrationMs = performance.now() - startedAt;
+              }
+            })(),
+            (async () => {
+              const startedAt = performance.now();
+              try {
+                await initializeVineyardVineResources(
+                  session.sceneManager.textureAnisotropy,
+                  session.sceneManager.rendererBackend,
+                  (texture) => session.sceneManager.preloadTexture(texture),
+                );
+              } finally {
+                vineyardHydrationMs = performance.now() - startedAt;
+              }
+            })(),
+            (async () => {
+              const startedAt = performance.now();
+              try {
+                villagerVisualsReady = await session.villagers.visualAssetsReady;
+              } finally {
+                villagerVisualHydrationMs = performance.now() - startedAt;
+              }
+            })(),
+          ]
+        : []),
+    ]);
+    if (this.disposed) return;
+    if (firstPlayableAssetResults[0]?.status === 'rejected') {
+      console.warn(
+        'Historical star catalogue is unavailable:',
+        firstPlayableAssetResults[0].reason,
+      );
+    }
+    if (firstPlayableAssetResults[1]?.status === 'rejected') {
+      console.warn(
+        'Detailed building textures are unavailable:',
+        firstPlayableAssetResults[1].reason,
+      );
+    }
+    if (firstPlayableAssetResults[2]?.status === 'rejected') {
+      console.warn(
+        'Detailed vineyard foliage is unavailable:',
+        firstPlayableAssetResults[2].reason,
+      );
+    }
+    if (
+      firstPlayableAssetResults[3]?.status === 'rejected'
+      || (import.meta.env.VITE_E2E_TEST !== '1' && !villagerVisualsReady)
+    ) {
+      console.warn(
+        'Authored villager visuals are unavailable:',
+        firstPlayableAssetResults[3]?.status === 'rejected'
+          ? firstPlayableAssetResults[3].reason
+          : 'source model or batch construction failed',
+      );
+    }
+    session.loadingScreen?.setProgress({
+      label: 'Finishing world…',
+      detail: 'Uploading textures and compiling shaders',
+      phase: 'vegetation',
+      fraction: 0.94,
+    });
+    const gpuPrecompileStartedAt = performance.now();
+    let gpuReady = true;
+    const restoreVillagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();
+    try {
+      await session.sceneManager.precompileFirstPlayableScene();
+      session.sceneManager.render(0, session.cameraController.getOrbitDistance());
+      await session.sceneManager.waitForFirstPlayableGpuWork();
+    } catch (error) {
+      gpuReady = false;
+      console.warn('First-playable GPU prewarm is unavailable:', error);
+    } finally {
+      restoreVillagerPrewarm();
+    }
+    if (this.disposed) return;
+    const gpuPrecompileMs = performance.now() - gpuPrecompileStartedAt;
+    markFirstPlayableAssetsReady({
+      celestialSkyHydrationMs: roundStartupDuration(celestialSkyHydrationMs),
+      celestialGenerationMs: session.sceneManager.celestialGenerationMs,
+      buildingMaterialHydrationMs: roundStartupDuration(buildingMaterialHydrationMs),
+      vineyardHydrationMs: roundStartupDuration(vineyardHydrationMs),
+      villagerVisualHydrationMs: roundStartupDuration(villagerVisualHydrationMs),
+      gpuPrecompileMs: roundStartupDuration(gpuPrecompileMs),
+      totalMs: roundStartupDuration(performance.now() - firstPlayableAssetStartedAt),
+      celestialReady: firstPlayableAssetResults[0]?.status === 'fulfilled',
+      buildingMaterialsReady: import.meta.env.VITE_E2E_TEST === '1'
+        || firstPlayableAssetResults[1]?.status === 'fulfilled',
+      vineyardReady: import.meta.env.VITE_E2E_TEST === '1'
+        || firstPlayableAssetResults[2]?.status === 'fulfilled',
+      villagerVisualsReady: import.meta.env.VITE_E2E_TEST === '1'
+        || (
+          firstPlayableAssetResults[3]?.status === 'fulfilled'
+          && villagerVisualsReady
+        ),
+      gpuReady,
+    });
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     session.loadingScreen?.setProgress({
       label: 'Entering world…',
@@ -440,19 +607,7 @@ export class App {
       [...(this.gameState?.buildings.values() ?? [])]
         .some((building) => building.kind === 'founders_camp'),
     );
-    void session.sceneManager.loadCelestialSky().catch((error) => {
-      console.warn('Historical star catalogue is still unavailable:', error);
-    });
     if (import.meta.env.VITE_E2E_TEST !== '1') {
-      void initializeBuildingMaterialLibrary(session.sceneManager.textureAnisotropy).catch((error) => {
-        console.warn('Detailed building textures are still unavailable:', error);
-      });
-      void initializeVineyardVineResources(
-        session.sceneManager.textureAnisotropy,
-        session.sceneManager.rendererBackend,
-      ).catch((error) => {
-        console.warn('Detailed vineyard foliage is still unavailable:', error);
-      });
       this.animationId = requestAnimationFrame(this.tick);
     }
   }
@@ -501,11 +656,22 @@ export class App {
     this.toolbar?.dispose();
     this.input?.dispose();
     this.ambientAudio?.dispose();
+    this.visualFrameProfiler?.dispose();
+    this.visualFrameProfiler = null;
     this.sceneManager?.dispose();
+  }
+
+  /** Installs the dynamically loaded, query-only frame attribution adapter. */
+  setVisualFrameProfiler(profiler: AppFrameProfiler | null): void {
+    if (this.visualFrameProfiler === profiler) return;
+    this.visualFrameProfiler?.dispose();
+    this.visualFrameProfiler = profiler;
   }
 
   private readonly tick = (time: number): void => {
     if (this.disposed) return;
+    const frameProfiler = this.visualFrameProfiler;
+    frameProfiler?.beginFrame(time, performance.now());
     const rawDt = (time - this.lastTime) / 1000;
     if (rawDt > 0.25) this.resetFpsSample(time);
     const dt = Math.min(0.05, Math.max(0.001, rawDt));
@@ -518,16 +684,12 @@ export class App {
     );
     this.syncBuildInteractionPerf();
     this.frontierRiskMarkers?.tick(worldDt);
-    this.settlementPresentation.tick({
-      settlementHud: this.toolbar?.settlementHud ?? null,
-      sceneManager: this.sceneManager,
-      buildingMarkers: this.buildingMarkers,
-      residenceMarkers: this.residenceMarkers,
-      villagers: this.villagers,
-      ambientAudio: this.ambientAudio,
-    });
+    if (this.settlementPresentationTargets) {
+      this.settlementPresentation.tick(this.settlementPresentationTargets);
+    }
     this.buildingMarkers?.tick(worldDt);
-    this.worldMapUi?.minimap.tick({ keyHeld: this.input?.isDown('g') ?? false });
+    this.minimapTickState.keyHeld = this.input?.isDown('g') ?? false;
+    this.worldMapUi?.minimap.tick(this.minimapTickState);
     if (firstPersonActive) {
       this.firstPersonController?.update(dt);
       this.toolbar?.setFirstPersonMode(true);
@@ -536,8 +698,7 @@ export class App {
       this.burgageTool?.update();
       this.farmFieldTool?.update();
       this.updateBuildButtonPosition();
-      this.worldMapUi?.quarry.update();
-      this.worldMapUi?.foraging.update();
+      this.worldMapUi?.update();
       this.sceneManager?.render(
         worldDt,
         12,
@@ -553,28 +714,29 @@ export class App {
       this.burgageTool?.update();
       this.farmFieldTool?.update();
       this.updateBuildButtonPosition();
-      this.worldMapUi?.quarry.update();
-      this.worldMapUi?.foraging.update();
+      this.worldMapUi?.update();
       this.sceneManager?.render(worldDt, this.cameraController?.getOrbitDistance());
     }
-    this.updateFps(time, dt);
+    this.updateFps(time, rawDt);
     const crowdView = this.buildCrowdViewState();
-    tickSettlementWorld(
-      {
-        residenceMarkers: this.residenceMarkers,
-        backyardGardenMarkers: this.backyardGardenMarkers,
-        livestockVisuals: this.livestockVisuals,
-        deliveryAgents: this.deliveryAgents,
-        fireEffects: this.fireEffects,
-        villagers: this.villagers,
-      },
-      worldDt,
-      crowdView,
-      this.gameState ?? undefined,
-    );
+    if (this.snapshotApplierDeps) {
+      tickSettlementWorld(
+        this.snapshotApplierDeps.settlementWorld,
+        worldDt,
+        crowdView,
+      );
+    }
     this.villagerInspector?.tick();
     this.ambientAudio?.tick(dt);
     this.animationId = requestAnimationFrame(this.tick);
+    if (frameProfiler) {
+      const phase = firstPersonActive
+        ? 'road-eye'
+        : (this.cameraController?.getOrbitDistance() ?? 240) > 120
+          ? 'strategic'
+          : 'settlement';
+      frameProfiler.completeFrame(performance.now(), phase);
+    }
   };
 
   private onForestReady(): void {
@@ -698,8 +860,12 @@ export class App {
     if (!this.toolbar || !roadTool || !burgageTool || !farmFieldTool) return;
     const farmFieldEnabled = farmFieldTool.isEnabled();
     const burgageEnabled = burgageTool.isEnabled();
-    const layoutHudState = burgageEnabled ? burgageTool.getLayoutHudState() : null;
-    const layoutHudPosition = layoutHudState ? burgageTool.getLayoutHudPosition() : null;
+    const layoutHudState = burgageEnabled
+      ? burgageTool.getLayoutHudState(this.burgageLayoutHudStateScratch)
+      : null;
+    const layoutHudPosition = layoutHudState
+      ? burgageTool.getLayoutHudPosition(this.burgageLayoutHudPositionScratch)
+      : null;
     this.toolbar.setBurgageLayoutHud(layoutHudPosition, layoutHudState);
 
     const visible = farmFieldEnabled
@@ -719,14 +885,14 @@ export class App {
     this.toolbar.setBuildButtonPosition(position, true);
   }
 
-  private updateFps(time: number, dt: number): void {
+  private updateFps(time: number, rawDt: number): void {
     this.fpsFrameCount++;
-    this.fpsAccumulatedSeconds += dt;
+    this.fpsAccumulatedSeconds += rawDt;
     const sampleMs = time - this.fpsSampleStart;
     if (sampleMs < 400) return;
     const fps = this.fpsFrameCount / Math.max(this.fpsAccumulatedSeconds, 0.001);
     this.toolbar?.setFps(fps);
-    (window as typeof window & { __medievalRoadStats?: { backend?: string; fps: number; calls?: number; triangles?: number; pixelRatio?: number } })
+    (window as typeof window & { __medievalRoadStats?: { backend?: string; fps: number; calls?: number; renderPasses?: number; triangles?: number; pixelRatio?: number } })
       .__medievalRoadStats = { fps, ...this.sceneManager?.getPerformanceStats() };
     this.resetFpsSample(time);
   }
@@ -894,19 +1060,14 @@ export class App {
       raidThreatActive,
       withdrawingCarts,
     );
-    this.settlementPresentation.sync(
-      {
-        settlementHud: this.toolbar?.settlementHud ?? null,
-        sceneManager: this.sceneManager,
-        buildingMarkers: this.buildingMarkers,
-        residenceMarkers: this.residenceMarkers,
-        villagers: this.villagers,
-        ambientAudio: this.ambientAudio,
-      },
-      snapshot,
-      state,
-      this.spacetimeStore?.isConnected ?? false,
-    );
+    if (this.settlementPresentationTargets) {
+      this.settlementPresentation.sync(
+        this.settlementPresentationTargets,
+        snapshot,
+        state,
+        this.spacetimeStore?.isConnected ?? false,
+      );
+    }
   }
 
   private syncForestClearance(): void {
@@ -1256,16 +1417,19 @@ export class App {
   private buildCrowdViewState() {
     const camera = this.sceneManager?.camera.position;
     if (this.firstPersonController?.isActive()) {
-      const pos = this.firstPersonController.getPosition();
+      const pos = this.firstPersonController.getPosition(this.crowdViewScratch);
       return buildCrowdViewState(
         pos.x,
         pos.z,
         12,
         camera?.x ?? pos.x,
         camera?.z ?? pos.z,
+        this.crowdViewState,
       );
     }
-    const target = this.cameraController?.getTargetPosition();
+    const target = this.cameraController
+      ? this.cameraController.getTargetPosition(this.crowdViewScratch)
+      : null;
     const orbit = this.cameraController?.getOrbitDistance() ?? 240;
     if (!target) {
       return buildCrowdViewState(
@@ -1274,6 +1438,7 @@ export class App {
         orbit,
         camera?.x ?? 0,
         camera?.z ?? 0,
+        this.crowdViewState,
       );
     }
     return buildCrowdViewState(
@@ -1282,6 +1447,7 @@ export class App {
       orbit,
       camera?.x ?? target.x,
       camera?.z ?? target.z,
+      this.crowdViewState,
     );
   }
 }

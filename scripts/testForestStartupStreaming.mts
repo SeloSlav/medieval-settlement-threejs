@@ -11,7 +11,7 @@ const forestBuilder = fs.readFileSync(
 );
 
 assert.ok(
-  sceneManager.includes('if (this.vegetationBuildActive) return;'),
+  /if \(this\.vegetationBuildActive\) \{[\s\S]{0,300}\breturn;\s*\}/.test(sceneManager),
   'screen rendering must not interleave with the startup-only branch-card bake',
 );
 
@@ -37,8 +37,12 @@ assert.equal(
   'startup forest assembly must not stretch across hundreds of animation-frame yields',
 );
 assert.ok(
-  forestBuilder.includes('updateCamera: () => false'),
-  'the runtime controller must not cull or repack trees when the camera moves',
+  /updateCamera:[\s\S]{0,900}updateSeedThreeForestCameraBudgeted\(/.test(forestBuilder),
+  'the runtime controller must use the frame-budgeted conservative camera compactor',
+);
+assert.ok(
+  /updateSeedThreeForestCameraBudgeted\([\s\S]{0,500}maxUpdateDurationMs:\s*(?!Number\.POSITIVE_INFINITY)[A-Z0-9_.]+/.test(forestBuilder),
+  'runtime forest compaction must carry an explicit finite main-thread time budget',
 );
 assert.ok(
   forestBuilder.includes('slot.forceOverview ? [] : [index]')
@@ -100,5 +104,5 @@ console.log(JSON.stringify({
   trees: trees.length,
   medianNearestMeters: Number(medianNearest.toFixed(2)),
   clusteredPercent: Number((clusteredShare * 100).toFixed(1)),
-  runtimeResidency: 'always-visible-static-lod',
+  runtimeResidency: 'camera-compacted-static-lod',
 }));

@@ -21,35 +21,51 @@ export class RockSpatialIndex {
     bounds: PathBoundsXZ,
     roadHalfWidth: number,
   ): boolean {
-    for (const rock of this.queryBounds(bounds)) {
-      if (isRockNearPath(rock, path, roadHalfWidth)) return true;
+    const minCellX = Math.floor(bounds.minX / CELL_SIZE);
+    const maxCellX = Math.floor(bounds.maxX / CELL_SIZE);
+    const minCellZ = Math.floor(bounds.minZ / CELL_SIZE);
+    const maxCellZ = Math.floor(bounds.maxZ / CELL_SIZE);
+    for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+      for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+        const bucket = this.cells.get(packCell(cellX, cellZ));
+        if (!bucket) continue;
+        for (const rock of bucket) {
+          if (isRockNearPath(rock, path, roadHalfWidth)) return true;
+        }
+      }
     }
     return false;
   }
 
   rocksInRadius(x: number, z: number, radius: number): RockObstacle[] {
-    const radiusSq = radius * radius;
-    return this.queryBounds({
-      minX: x - radius,
-      maxX: x + radius,
-      minZ: z - radius,
-      maxZ: z + radius,
-    }).filter((rock) => {
-      const reach = radius + (rock.collisionRadius ?? rock.scale * 1.35);
-      return (rock.x - x) ** 2 + (rock.z - z) ** 2 <= Math.max(radiusSq, reach * reach);
-    });
+    return this.rocksInRadiusInto(x, z, radius, []);
   }
 
-  private queryBounds(bounds: PathBoundsXZ): RockObstacle[] {
-    const minCellX = Math.floor(bounds.minX / CELL_SIZE);
-    const maxCellX = Math.floor(bounds.maxX / CELL_SIZE);
-    const minCellZ = Math.floor(bounds.minZ / CELL_SIZE);
-    const maxCellZ = Math.floor(bounds.maxZ / CELL_SIZE);
-    const results: RockObstacle[] = [];
+  rocksInRadiusInto(
+    x: number,
+    z: number,
+    radius: number,
+    results: RockObstacle[],
+  ): RockObstacle[] {
+    results.length = 0;
+    const radiusSq = radius * radius;
+    const minCellX = Math.floor((x - radius) / CELL_SIZE);
+    const maxCellX = Math.floor((x + radius) / CELL_SIZE);
+    const minCellZ = Math.floor((z - radius) / CELL_SIZE);
+    const maxCellZ = Math.floor((z + radius) / CELL_SIZE);
     for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
       for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
         const bucket = this.cells.get(packCell(cellX, cellZ));
-        if (bucket) results.push(...bucket);
+        if (!bucket) continue;
+        for (const rock of bucket) {
+          const reach = radius + (rock.collisionRadius ?? rock.scale * 1.35);
+          if (
+            (rock.x - x) ** 2 + (rock.z - z) ** 2
+            <= Math.max(radiusSq, reach * reach)
+          ) {
+            results.push(rock);
+          }
+        }
       }
     }
     return results;

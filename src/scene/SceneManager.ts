@@ -2,7 +2,11 @@ import * as THREE from 'three';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
 import { createForestProps } from '../props/ForestProps.ts';
 import type { ForestManager } from '../props/ForestManager.ts';
-import { createGrassBladeField, GRASS_BLADES_ENABLED, type GrassBladeField } from '../grass/GrassBladeField.ts';
+import {
+  createGrassBladeField,
+  GRASS_BLADES_ENABLED,
+  type GrassBladeField,
+} from '../grass/GrassBladeField.ts';
 import { updateTerrainZoomBlend } from '../grass/GrassLodConfig.ts';
 import { createRiverSystem, type RiverSystem } from '../rivers/RiverSystem.ts';
 import { updateTerrainRoadWear } from '../terrain/TerrainRoadWear.ts';
@@ -31,14 +35,16 @@ import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { BridgeSamplingContext } from '../roads/RiverBridgeSpans.ts';
 import { getStillWaterSurfaceY } from '../rivers/RiverWaterLevel.ts';
 import { SkyCloudMesh } from '../sky/SkyCloudMesh.ts';
+import { SKY_DEPTH_OCCLUSION_RADIUS } from '../sky/skyDepthOcclusionPolicy.ts';
 import {
   FAIR_DAY_FOG_COLOR,
+  type DayNightGrade,
   type DayNightLightingState,
 } from '../world/dayNightPresentation.ts';
 import { Terrain } from '../terrain/Terrain.ts';
 import { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
-import { computePathBoundsXZ } from '../utils/pathGeometry.ts';
+import { computePathBoundsXZ, type RockObstacle } from '../utils/pathGeometry.ts';
 import { RockSpatialIndex } from '../utils/rockSpatialIndex.ts';
 import { yieldToMain } from '../utils/yieldToMain.ts';
 import { createPostProcessor, type ScenePostProcessor } from './PostProcessing.ts';
@@ -66,8 +72,8 @@ import {
 } from './constellationPreference.ts';
 import type { LoadingPhase } from '../ui/loadingProgress.ts';
 import { createBerryPatchVisuals, type BerryPatchVisuals } from '../foraging/BerryPatchVisuals.ts';
-import { createDeerWildlifeVisuals, type DeerWildlifeVisuals } from '../foraging/DeerWildlifeVisuals.ts';
-import { createFishWildlifeVisuals, type FishWildlifeVisuals } from '../foraging/FishWildlifeVisuals.ts';
+import type { DeerWildlifeVisuals } from '../foraging/DeerWildlifeVisuals.ts';
+import type { FishWildlifeVisuals } from '../foraging/FishWildlifeVisuals.ts';
 import {
   createMushroomPatchVisuals,
   type MushroomPatchVisuals,
@@ -86,6 +92,13 @@ import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import { markStartupCheckpoint } from '../app/startupDiagnostics.ts';
 import { setWorldAnimationTime } from './worldAnimationTime.ts';
 import { shouldRefreshDirectionalShadow } from './directionalShadowRefreshPolicy.ts';
+import {
+  beginRendererFrame,
+  configureRendererFrameStats,
+  readRendererFrameStats,
+  type RendererFrameStats,
+  type RendererInfoLike,
+} from './rendererFrameStats.ts';
 
 export type SceneLoadProgress = {
   label: string;
@@ -94,8 +107,27 @@ export type SceneLoadProgress = {
   fraction: number;
 };
 
+export type VegetationStartupTiming = {
+  totalMs: number;
+  stages: Record<string, number>;
+};
+
+type StartupPrecompilableRenderer = SupportedRenderer & {
+  initTexture(texture: THREE.Texture): void;
+  compileAsync(
+    scene: THREE.Object3D,
+    camera: THREE.Camera,
+    targetScene?: THREE.Scene | null,
+  ): Promise<unknown>;
+};
+
 const MOON_KEY_DIRECTION = new THREE.Vector3(-0.38, 0.82, 0.42).normalize();
 const MOON_FILL_DIRECTION = new THREE.Vector3(0.52, 0.48, -0.71).normalize();
+// These implementations were formerly part of the synchronous game-entry
+// parse. Fetch them immediately but evaluate them as parallel vegetation
+// chunks; the later build reuses these exact promises before loading the GLBs.
+const deerVisualModulePromise = import('../foraging/DeerWildlifeVisuals.ts');
+const fishVisualModulePromise = import('../foraging/FishWildlifeVisuals.ts');
 
 export class SceneManager {
   private readonly container: HTMLElement;
@@ -104,6 +136,7 @@ export class SceneManager {
   readonly renderer: SupportedRenderer;
   readonly rendererBackend: RendererBackendKind;
   private readonly rendererAdapterEvidence: RendererAdapterEvidence;
+  private readonly waitForSubmittedWork: () => Promise<void>;
   readonly postProcessor: ScenePostProcessor;
   private readonly maxAnisotropy: number;
   readonly cameraTarget = new THREE.Vector3();
@@ -161,9 +194,17 @@ export class SceneManager {
   private readonly junctionGroup = new THREE.Group();
   private readonly edgeVisuals = new Map<string, { revision: number; group: THREE.Group }>();
   private rockSpatialIndex: RockSpatialIndex | null = null;
+  private rockCollisionVersion = 0;
   private buildInteractionActive = false;
   private renderFrame = 0;
   private completedRenderFrames = 0;
+  private lastRendererFrameStats: RendererFrameStats = {
+    drawCalls: 0,
+    renderPasses: 0,
+    triangles: 0,
+  };
+  private readonly viewShadowBounds = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  private readonly shadowBounds = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
   private readonly firstPersonDeerObserver = { x: 0, z: 0, crouching: false };
   private lastShadowTargetX = Number.NaN;
   private lastShadowTargetZ = Number.NaN;
@@ -174,7 +215,13 @@ export class SceneManager {
   private unsubscribeConstellationPreference: (() => void) | null = null;
   private environment: EnvironmentState | null = null;
   private lastDayNightState: DayNightLightingState | null = null;
-
+  private readonly dayNightGrade: DayNightGrade = {
+    saturation: 0,
+    contrast: 0,
+    warmth: 0,
+    nightBlue: 0,
+    vignette: 0,
+  };
   private constructor(
     container: HTMLElement,
     backend: RendererBackend,
@@ -189,11 +236,13 @@ export class SceneManager {
   ) {
     this.container = container;
     this.renderer = backend.renderer;
+    configureRendererFrameStats(this.renderer.info as unknown as RendererInfoLike);
     this.rendererBackend = backend.kind;
     this.rendererAdapterEvidence = {
       ...backend.adapterEvidence,
       limitations: [...backend.adapterEvidence.limitations],
     };
+    this.waitForSubmittedWork = backend.waitForSubmittedWork;
     this.maxAnisotropy = backend.maxAnisotropy;
     this.materials = materials;
     this.scene = new THREE.Scene();
@@ -218,7 +267,7 @@ export class SceneManager {
       maxCloudDistance: 6200,
       mieCoefficient: 0.0032,
       mieDirectionalG: 0.6,
-      radius: 1900,
+      radius: SKY_DEPTH_OCCLUSION_RADIUS,
       rayleigh: 0.7,
       turbidity: 1.45,
       windSpeedX: 0.085,
@@ -280,8 +329,22 @@ export class SceneManager {
       phase: 'graphics',
       fraction: 0,
     });
+    const backendPromise = createPreferredRenderer();
+    // Start the immutable forest cache/network path as soon as the renderer
+    // reports its anisotropy limit. Road and river startup textures may still
+    // be decoding at this point, so this creates more useful overlap than
+    // waiting for the entire graphics Promise.all barrier below.
+    void backendPromise
+      .then((backend) => {
+        if (backend.kind !== 'webgpu') return;
+        return import('../vegetation/seedthree/seedThreeForestBuilder.ts')
+          .then(({ preloadSeedThreeForestAssets }) => (
+            preloadSeedThreeForestAssets(backend.maxAnisotropy)
+          ));
+      })
+      .catch(() => undefined);
     const [backend, materials, startupTextures] = await Promise.all([
-      createPreferredRenderer(),
+      backendPromise,
       materialsPromise ?? Promise.resolve(RoadMaterialFactory.createProgressive(8)),
       startupTexturesPromise ?? beginProgressiveStartupTextureLoad(),
     ]);
@@ -386,6 +449,28 @@ export class SceneManager {
     return this.sky.loadCelestialSky();
   }
 
+  preloadTexture(texture: THREE.Texture): void {
+    (this.renderer as StartupPrecompilableRenderer).initTexture(texture);
+  }
+
+  get celestialGenerationMs(): number | null {
+    return this.sky.celestialGenerationMs;
+  }
+
+  /**
+   * Makes hydrated startup textures resident and compiles the exact live scene
+   * material variants before gameplay can schedule its first animation frame.
+   */
+  async precompileFirstPlayableScene(): Promise<void> {
+    const renderer = this.renderer as StartupPrecompilableRenderer;
+    this.sky.preloadCelestialTexture(renderer);
+    await renderer.compileAsync(this.scene, this.camera);
+  }
+
+  waitForFirstPlayableGpuWork(): Promise<void> {
+    return this.waitForSubmittedWork();
+  }
+
   /** Builds forest and grass after the first frame — same bundle, no dynamic import. */
   async finishVegetation(): Promise<void> {
     if (this.vegetationBuilt) return;
@@ -402,72 +487,108 @@ export class SceneManager {
   }
 
   private async buildVegetation(): Promise<void> {
-    await Promise.all([
-      this.riverSystem.finishDetails(),
-      this.quarrySystem.finishDetails(),
-    ]);
-    this.forestManager = await createForestProps(this.terrain, this.maxAnisotropy, {
-      isBlockedAt: (x, z) =>
-        this.riverSystem.isBlockedAt(x, z)
-        || this.quarrySystem.isBlockedAt(x, z)
-        || this.clayDepositSystem.isBlockedAt(x, z)
-        || this.mineralDepositSystem.isBlockedAt(x, z),
-      rendererBackend: this.rendererBackend,
-      webgpuRenderer: this.rendererBackend === 'webgpu' ? this.renderer : undefined,
-      treeSeed: this.worldLayout.treeSeed,
-      densityScale: forestDensityScale(this.worldLayout.settings.forestDensity),
-      forestCores: this.worldLayout.forestCores,
-    });
-    // Environment sync can precede deferred vegetation creation. Seed the new
-    // forest from the retained presentation state before its first scene frame.
-    if (this.environment) {
-      this.forestManager.setDeciduousFoliage(this.environment.deciduousFoliage);
-    }
+    const startedAt = performance.now();
+    const stages: Record<string, number> = {};
+    const startStage = <T>(name: string, factory: () => T | Promise<T>): Promise<T> => {
+      const stageStartedAt = performance.now();
+      return Promise.resolve(factory())
+        .finally(() => {
+          stages[name] = performance.now() - stageStartedAt;
+        });
+    };
     const isForagingSiteBlocked = (x: number, z: number) =>
       this.riverSystem.isBlockedAt(x, z)
       || this.quarrySystem.isBlockedAt(x, z)
       || this.clayDepositSystem.isBlockedAt(x, z)
       || this.mineralDepositSystem.isBlockedAt(x, z);
-    const deerVisualsPromise = createDeerWildlifeVisuals(
-      this.terrain,
-      this.worldLayout.foragingLayout.sites,
-      this.worldLayout.foragingLayout.seed,
-      {
-        isSpawnBlockedAt: isForagingSiteBlocked,
-        isMovementBlockedAt: (x, z) => this.quarrySystem.isBlockedAt(x, z),
-      },
-    ).catch((error: unknown) => {
+    const deerVisualsPromise = startStage('deer', () => deerVisualModulePromise.then(({
+      createDeerWildlifeVisuals,
+    }) => createDeerWildlifeVisuals(
+        this.terrain,
+        this.worldLayout.foragingLayout.sites,
+        this.worldLayout.foragingLayout.seed,
+        {
+          isSpawnBlockedAt: isForagingSiteBlocked,
+          isMovementBlockedAt: (x, z) => this.quarrySystem.isBlockedAt(x, z),
+        },
+      ))).catch((error: unknown) => {
       console.warn('Animated deer model could not be loaded:', error);
       return null;
     });
-    const fishVisualsPromise = createFishWildlifeVisuals(
-      this.terrain,
-      this.worldLayout.foragingLayout.sites,
-      this.worldLayout.foragingLayout.seed,
-      {
-        isWaterAt: (x, z) => this.riverSystem.field.isRenderedWetAt(x, z),
-        getWaterSurfaceY: (x, z) =>
-          getStillWaterSurfaceY(this.terrain, this.riverSystem.field, x, z),
-      },
-    ).catch((error: unknown) => {
+    const fishVisualsPromise = startStage('fish', () => fishVisualModulePromise.then(({
+      createFishWildlifeVisuals,
+    }) => createFishWildlifeVisuals(
+        this.terrain,
+        this.worldLayout.foragingLayout.sites,
+        this.worldLayout.foragingLayout.seed,
+        {
+          isWaterAt: (x, z) => this.riverSystem.field.isRenderedWetAt(x, z),
+          getWaterSurfaceY: (x, z) =>
+            getStillWaterSurfaceY(this.terrain, this.riverSystem.field, x, z),
+        },
+      ))).catch((error: unknown) => {
       console.warn('Animated fish model could not be loaded:', error);
       return null;
     });
-    this.berryPatchVisuals = await createBerryPatchVisuals(
+    const berryPatchPromise = startStage('berry', () => createBerryPatchVisuals(
+        this.terrain,
+        this.worldLayout.foragingLayout.sites,
+        this.maxAnisotropy,
+        this.rendererBackend,
+        this.worldLayout.foragingLayout.seed,
+        isForagingSiteBlocked,
+      ));
+    const grassFieldPromise = GRASS_BLADES_ENABLED
+      ? startStage('grass', () => createGrassBladeField(this.terrain, {
+          isBlockedAt: (x, z) =>
+            this.riverSystem.isGrassBlockedAt(x, z)
+            || this.quarrySystem.isGrassBlockedAt(x, z)
+            || this.clayDepositSystem.isGrassBlockedAt(x, z)
+            || this.mineralDepositSystem.isGrassBlockedAt(x, z)
+            || (getActivePlacedBuildingLayout()?.isBlockedForGrass(x, z) ?? false),
+          maxAnisotropy: this.maxAnisotropy,
+          rendererBackend: this.rendererBackend,
+        }))
+      : Promise.resolve(null);
+    const worldDetailsPromise = startStage('details', () => Promise.all([
+      this.riverSystem.finishDetails(),
+      this.quarrySystem.finishDetails(),
+    ]));
+    const forestPromise = startStage('forest', () => createForestProps(
       this.terrain,
-      this.worldLayout.foragingLayout.sites,
       this.maxAnisotropy,
-      this.rendererBackend,
-      this.worldLayout.foragingLayout.seed,
-      isForagingSiteBlocked,
-    );
+      {
+        isBlockedAt: (x, z) =>
+          this.riverSystem.isBlockedAt(x, z)
+          || this.quarrySystem.isBlockedAt(x, z)
+          || this.clayDepositSystem.isBlockedAt(x, z)
+          || this.mineralDepositSystem.isBlockedAt(x, z),
+        rendererBackend: this.rendererBackend,
+        webgpuRenderer: this.rendererBackend === 'webgpu' ? this.renderer : undefined,
+        treeSeed: this.worldLayout.treeSeed,
+        densityScale: forestDensityScale(this.worldLayout.settings.forestDensity),
+        forestCores: this.worldLayout.forestCores,
+      },
+    ));
+    const mushroomPatchPromise = startStage('mushrooms', () => (
+      createMushroomPatchVisuals(
+        this.terrain,
+        this.worldLayout.foragingLayout.sites,
+        this.worldLayout.foragingLayout.seed,
+        isForagingSiteBlocked,
+      )
+    ));
+
+    const [forestManager] = await Promise.all([forestPromise, worldDetailsPromise]);
+    this.forestManager = forestManager;
+    // Environment sync can precede deferred vegetation creation. Seed the new
+    // forest from the retained presentation state before its first scene frame.
+    if (this.environment) {
+      this.forestManager.setDeciduousFoliage(this.environment.deciduousFoliage);
+    }
+    this.berryPatchVisuals = await berryPatchPromise;
     this.scene.add(this.berryPatchVisuals.group);
-    this.mushroomPatchVisuals = createMushroomPatchVisuals(
-      this.terrain,
-      this.worldLayout.foragingLayout.sites,
-      this.worldLayout.foragingLayout.seed,
-      isForagingSiteBlocked,
-    );
+    this.mushroomPatchVisuals = await mushroomPatchPromise;
     this.scene.add(this.mushroomPatchVisuals.group);
     this.deerWildlifeVisuals = await deerVisualsPromise;
     if (this.deerWildlifeVisuals) this.scene.add(this.deerWildlifeVisuals.group);
@@ -475,17 +596,8 @@ export class SceneManager {
     if (this.fishWildlifeVisuals) this.scene.add(this.fishWildlifeVisuals.group);
     this.applyForagingVisualState();
     if (GRASS_BLADES_ENABLED) {
-      this.grassField = await createGrassBladeField(this.terrain, {
-        isBlockedAt: (x, z) =>
-          this.riverSystem.isGrassBlockedAt(x, z)
-          || this.quarrySystem.isGrassBlockedAt(x, z)
-          || this.clayDepositSystem.isGrassBlockedAt(x, z)
-          || this.mineralDepositSystem.isGrassBlockedAt(x, z)
-          || (getActivePlacedBuildingLayout()?.isBlockedForGrass(x, z) ?? false),
-        maxAnisotropy: this.maxAnisotropy,
-        rendererBackend: this.rendererBackend,
-      });
-      this.scene.add(this.grassField.group);
+      this.grassField = await grassFieldPromise;
+      if (this.grassField) this.scene.add(this.grassField.group);
       // Draw reeds after grass so shoreline cattails stay visible at ground level.
       this.scene.attach(this.riverSystem.reedsGroup);
     }
@@ -503,6 +615,12 @@ export class SceneManager {
     }
 
     this.applyShadowPreferences();
+    (window as typeof window & {
+      __medievalRoadStartup: { vegetation?: VegetationStartupTiming };
+    }).__medievalRoadStartup.vegetation = {
+      totalMs: performance.now() - startedAt,
+      stages,
+    };
   }
 
   applyShadowPreferences(): void {
@@ -607,6 +725,7 @@ export class SceneManager {
       ...this.quarrySystem.rockPlacements,
     ];
     this.rockSpatialIndex = rocks.length > 0 ? new RockSpatialIndex(rocks) : null;
+    this.rockCollisionVersion += 1;
   }
 
   render(
@@ -615,7 +734,15 @@ export class SceneManager {
     firstPersonActive = false,
     firstPersonCrouching = false,
   ): void {
-    if (this.vegetationBuildActive) return;
+    const rendererInfo = this.renderer.info as unknown as RendererInfoLike;
+    const rendererFrameBoundary = beginRendererFrame(rendererInfo);
+    if (this.vegetationBuildActive) {
+      this.lastRendererFrameStats = readRendererFrameStats(
+        rendererInfo,
+        rendererFrameBoundary,
+      );
+      return;
+    }
     this.worldAnimationElapsedSeconds += Math.max(0, dt);
     setWorldAnimationTime(this.worldAnimationElapsedSeconds);
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
@@ -624,8 +751,13 @@ export class SceneManager {
       this.cameraTarget,
       cameraDistance,
       1.24,
+      this.viewShadowBounds,
     );
-    const shadowBounds = intersectTerrainBounds(viewShadowBounds, this.terrain.bounds);
+    const shadowBounds = intersectTerrainBounds(
+      viewShadowBounds,
+      this.terrain.bounds,
+      this.shadowBounds,
+    );
     this.materials.updateWeather(dt);
     updateTerrainZoomBlend(this.terrain, cameraDistance, firstPersonActive);
     this.grassField?.updateCameraState(
@@ -692,10 +824,18 @@ export class SceneManager {
       this.sky.visible = skyVisible;
       this.precipitation.group.visible = precipitationVisible;
       this.completedRenderFrames++;
+      this.lastRendererFrameStats = readRendererFrameStats(
+        rendererInfo,
+        rendererFrameBoundary,
+      );
       return;
     }
     this.postProcessor.render(dt);
     this.completedRenderFrames++;
+    this.lastRendererFrameStats = readRendererFrameStats(
+      rendererInfo,
+      rendererFrameBoundary,
+    );
   }
 
   private shouldRefreshShadowMap(cameraDistance: number, nowMs: number): boolean {
@@ -807,16 +947,18 @@ export class SceneManager {
       );
     }
     this.riverSystem.setNightAmount(state.nightAmount);
-    this.postProcessor.setDayNightGrade({
-      ...state.grade,
-      saturation: state.grade.saturation * weather.saturationMultiplier,
-      contrast: state.grade.contrast * THREE.MathUtils.lerp(1, 0.95, atmosphericBlend),
-      warmth: Math.max(
-        0,
-        state.grade.warmth + (this.environment?.weather === 'drought' ? 0.08 : -atmosphericBlend * 0.08),
-      ),
-      vignette: state.grade.vignette + atmosphericBlend * 0.025,
-    });
+    this.dayNightGrade.saturation =
+      state.grade.saturation * weather.saturationMultiplier;
+    this.dayNightGrade.contrast =
+      state.grade.contrast * THREE.MathUtils.lerp(1, 0.95, atmosphericBlend);
+    this.dayNightGrade.warmth = Math.max(
+      0,
+      state.grade.warmth
+        + (this.environment?.weather === 'drought' ? 0.08 : -atmosphericBlend * 0.08),
+    );
+    this.dayNightGrade.nightBlue = state.grade.nightBlue;
+    this.dayNightGrade.vignette = state.grade.vignette + atmosphericBlend * 0.025;
+    this.postProcessor.setDayNightGrade(this.dayNightGrade);
     this.postProcessor.setWeatherWetness(weather.wetness);
   }
 
@@ -841,14 +983,16 @@ export class SceneManager {
     backend: RendererBackendKind;
     frames: number;
     calls: number;
+    renderPasses: number;
     triangles: number;
     pixelRatio: number;
   } {
     return {
       backend: this.rendererBackend,
       frames: this.completedRenderFrames,
-      calls: this.renderer.info.render.calls,
-      triangles: this.renderer.info.render.triangles,
+      calls: this.lastRendererFrameStats.drawCalls,
+      renderPasses: this.lastRendererFrameStats.renderPasses,
+      triangles: this.lastRendererFrameStats.triangles,
       pixelRatio: this.renderer.getPixelRatio(),
     };
   }
@@ -893,6 +1037,27 @@ export class SceneManager {
 
   getRockObstaclesNear(x: number, z: number, radius: number): readonly import('../utils/pathGeometry.ts').RockObstacle[] {
     return this.rockSpatialIndex?.rocksInRadius(x, z, radius) ?? [];
+  }
+
+  getRockObstaclesNearInto(
+    x: number,
+    z: number,
+    radius: number,
+    results: RockObstacle[],
+  ): readonly RockObstacle[] {
+    if (!this.rockSpatialIndex) {
+      results.length = 0;
+      return results;
+    }
+    return this.rockSpatialIndex.rocksInRadiusInto(x, z, radius, results);
+  }
+
+  getRockCollisionVersion(): number {
+    return this.rockCollisionVersion;
+  }
+
+  getForestCollisionVersion(): number {
+    return this.forestManager?.getCollisionVersion() ?? 0;
   }
 
   setForestClearanceSources(

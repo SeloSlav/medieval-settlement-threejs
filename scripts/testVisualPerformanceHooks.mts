@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   areVisualSlowFrameGpuTimingsTerminal,
   appendVisualSlowFrameRecord,
   calculateVisualPerformanceMetrics,
+  createRuntimeAppFrameAttribution,
   createUnavailableVisualGpuTimingEvidence,
   createVisualPerformanceDomPublicationGate,
   createVisualPerformanceReadyReportLatch,
@@ -17,6 +19,7 @@ import {
   hydrateVisualSlowFrameGpuTiming,
   resetVisualPerformanceSubsystems,
   selectVisualWorstFrameRecords,
+  shouldCaptureVisualSlowFrame,
   VISUAL_FRAME_CPU_SPAN,
   VISUAL_FRAME_CPU_SUBSPANS,
   VISUAL_FRAME_GPU_SPAN,
@@ -1455,6 +1458,23 @@ assert.deepEqual(
   [24.3, 22, 19.13],
   'detailed attribution must retain the bounded worst frames below the old 25 ms cutoff',
 );
+assert.equal(shouldCaptureVisualSlowFrame(boundedSlowFrames, 19.12, 3), false);
+assert.equal(shouldCaptureVisualSlowFrame(boundedSlowFrames, 19.13, 3), false);
+assert.equal(shouldCaptureVisualSlowFrame(boundedSlowFrames, 19.14, 3), true);
+const skippedDetailCapture = createVisualPerformanceTraceCapture(30_000);
+assert.equal(
+  skippedDetailCapture.appendInterval(
+    { at: 1, dt: 19.12, drawCalls: 1, frameCalls: 1, triangles: 1 },
+    null,
+  ),
+  true,
+);
+assert.equal(skippedDetailCapture.getSamples().length, 1);
+assert.equal(
+  skippedDetailCapture.getSlowFrames().length,
+  0,
+  'non-candidate intervals should enter the metric cohort without allocating detail records',
+);
 assert.deepEqual(
   boundedSlowFrames.map((record) => [
     record.dtMs,
@@ -2101,6 +2121,134 @@ assert.notDeepEqual(
   report.context.gpuTiming.limitations,
   reportGpuEvidence.limitations,
   'report context should snapshot GPU timing limitations',
+);
+
+const realAppGroundcoverWork = {
+  mode: 'active' as const,
+  maxUpdateDurationBudgetMs: 0,
+  updates: 3,
+  generationSubsteps: 10,
+  generationDurationMs: 0,
+  clearWriteSubsteps: 20,
+  clearWriteDurationMs: 0,
+  refreshCount: 30,
+  refreshDurationMs: 0,
+  gpuFlagUpdates: 40,
+  gpuUpdateRanges: 50,
+  bytesUploaded: 60,
+  boundsScans: 0,
+  completedSlots: 70,
+  cancelledSlots: 80,
+  pendingSlots: 2,
+  maxPendingSlots: 2,
+  lastUpdateDurationMs: 0,
+  maxUpdateDurationMs: 0,
+  converged: false,
+};
+let realAppRenderCalls = 0;
+const realAppPostProcessor = {
+  render(this: unknown, _dt: number) {
+    assert.equal(this, realAppPostProcessor);
+    realAppRenderCalls += 1;
+    realAppGroundcoverWork.generationSubsteps += 2;
+    realAppGroundcoverWork.bytesUploaded += 128;
+    realAppGroundcoverWork.pendingSlots = 1;
+  },
+};
+const realAppAttribution = createRuntimeAppFrameAttribution({
+  renderer: {},
+  postProcessor: realAppPostProcessor,
+  grassField: {
+    getStreamTelemetry: (target: typeof realAppGroundcoverWork) =>
+      Object.assign(target, realAppGroundcoverWork),
+  },
+  getPerformanceStats: () => ({ backend: 'webgpu' }),
+  getRendererAdapterEvidence: () => ({
+    source: 'unavailable',
+    identityStatus: 'unavailable',
+    fallbackStatus: 'unavailable',
+    vendor: null,
+    architecture: null,
+    device: null,
+    description: null,
+    isFallbackAdapter: null,
+    limitations: [],
+  }),
+} as never, false);
+const realAppCallbackEntry = performance.now();
+realAppAttribution.beginFrame(123.5, realAppCallbackEntry);
+realAppAttribution.wrapPostRender(realAppPostProcessor.render)(1 / 60);
+realAppAttribution.completeFrame(performance.now(), 'settlement');
+const realAppContext = realAppAttribution.getSlowFrameContext(123.5);
+assert.ok(realAppContext);
+assert.equal(realAppRenderCalls, 1);
+assert.equal(realAppContext.phase, 'settlement');
+assert.equal(realAppContext.groundcoverDelta.generationSubsteps, 2);
+assert.equal(realAppContext.groundcoverDelta.bytesUploaded, 128);
+assert.equal(realAppContext.groundcoverDelta.pendingSlots, 1);
+assert.equal(realAppContext.frameGpuTiming.status, 'unavailable');
+assert.equal(
+  realAppAttribution.getVisualGpuTimingEvidence().attemptedFrames,
+  0,
+  'marker-off certification must not submit or allocate per-frame timestamp-query work',
+);
+realAppAttribution.dispose();
+
+const mainSource = readFileSync(
+  new URL('../src/main.ts', import.meta.url),
+  'utf8',
+);
+const appSource = readFileSync(
+  new URL('../src/app/App.ts', import.meta.url),
+  'utf8',
+);
+const sceneManagerSource = readFileSync(
+  new URL('../src/scene/SceneManager.ts', import.meta.url),
+  'utf8',
+);
+const hookSource = readFileSync(
+  new URL('../src/e2e/visualPerformanceHooks.ts', import.meta.url),
+  'utf8',
+);
+assert.match(
+  mainSource,
+  /installVisualPerformanceHooksIfRequested\(app,\s*\{\s*deferPeriodicReportsUntilReady:\s*true/,
+  'the real App profile must not build and serialize growing reports inside its judged cohort',
+);
+assert.match(
+  appSource,
+  /frameProfiler\?\.beginFrame\(time, performance\.now\(\)\)[\s\S]*?frameProfiler\.completeFrame\(performance\.now\(\), phase\)/,
+  'the real App callback must expose causally aligned CPU boundaries',
+);
+assert.match(
+  appSource,
+  /this\.updateFps\(time, rawDt\);/,
+  'the actual-App FPS counter must include unclamped rAF stalls',
+);
+assert.doesNotMatch(
+  sceneManagerSource,
+  /webGpuTimestampProfiler|enableVisualFrameProfiling|VisualSlowFrameContext/,
+  'profile-only attribution must not inflate the ordinary SceneManager chunk',
+);
+assert.match(
+  hookSource,
+  /createRuntimeAppFrameAttribution\([\s\S]*?setVisualFrameProfiler[\s\S]*?wrapPostRender\(initial\.postRender\)[\s\S]*?getSlowFrameContext/,
+  'the dynamically loaded hook must install real App CPU/GPU attribution and wrap the render boundary',
+);
+assert.match(
+  hookSource,
+  /if \(deferPeriodicReportsUntilReady && !traceCapture\.isFrozen\(\)\) return;/,
+  'terminal-only mode must skip report construction until the frame cohort freezes',
+);
+assert.match(
+  hookSource,
+  /const disposeProfile = \(\): void => \{[\s\S]*?clearTimeout\(deferredScenePollTimeout\)[\s\S]*?manager\.postProcessor\.render = initial\.postRender;[\s\S]*?setVisualFrameProfiler\?\.\(null\)[\s\S]*?delete profileWindow\.__visualPerf;/,
+  'disposing the real App profiler must cancel pending work and restore every runtime monkey patch',
+);
+assert.match(
+  appSource,
+  /setVisualFrameProfiler\(profiler: AppFrameProfiler \| null\): void/,
+  'the dynamically installed profiler must be detachable without leaving ordinary frame work behind',
 );
 
 console.log('Visual performance hook tests passed.');

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { TreePhase } from '../../resources/types.ts';
+import type { TreeLayoutEntry, TreePhase } from '../../resources/types.ts';
 import type { TreeRegistry } from '../../resources/TreeRegistry.ts';
 import { routeAgentPolyline } from '../../settlement/agentNavigation.ts';
 import type { PointXZ, RockObstacle } from '../../utils/pathGeometry.ts';
@@ -21,8 +21,17 @@ export type FpCollisionWorldConfig = {
   getStaticRoots: () => readonly THREE.Object3D[];
   getHeightAt: (x: number, z: number) => number;
   getRockObstaclesNear?: (x: number, z: number, radius: number) => readonly RockObstacle[];
+  getRockObstaclesNearInto?: (
+    x: number,
+    z: number,
+    radius: number,
+    results: RockObstacle[],
+  ) => readonly RockObstacle[];
+  getRockStateVersion?: () => unknown;
   getTreeRegistry?: () => TreeRegistry | null;
   getTreeState?: (treeId: string) => TreeCollisionState | undefined;
+  getTreeStateVersion?: () => unknown;
+  getTreeActivityVersion?: () => unknown;
   isTreeLayoutActive?: (layoutIndex: number) => boolean;
 };
 
@@ -33,6 +42,9 @@ export type FpBoxCollider = {
   halfX: number;
   halfZ: number;
   yaw: number;
+  /** Cached once with the static collider so hot movement/path probes avoid trig. */
+  cosYaw?: number;
+  sinYaw?: number;
   minY: number;
   maxY: number;
   allowStep?: boolean;
@@ -82,6 +94,17 @@ export class FpCollisionWorld {
   private readonly config: FpCollisionWorldConfig;
   private readonly staticIndex = new StaticColliderIndex();
   private readonly nearby: FpCollider[] = [];
+  private readonly dynamicColliders: FpCylinderCollider[] = [];
+  private readonly nearbyRocks: RockObstacle[] = [];
+  private readonly nearbyTrees: TreeLayoutEntry[] = [];
+  private dynamicColliderCount = 0;
+  private lastPrepareX = Number.NaN;
+  private lastPrepareZ = Number.NaN;
+  private lastTreeRegistry: TreeRegistry | null = null;
+  private lastRockStateVersion: unknown;
+  private lastTreeStateVersion: unknown;
+  private lastTreeActivityVersion: unknown;
+  private hasPreparedDynamic = false;
   private staticDirty = true;
 
   constructor(config: FpCollisionWorldConfig) {
@@ -108,12 +131,42 @@ export class FpCollisionWorld {
   }
 
   prepare(x: number, z: number): void {
-    if (this.staticDirty) this.rebuildStaticIndex();
+    const staticWasDirty = this.staticDirty;
+    if (staticWasDirty) this.rebuildStaticIndex();
+
+    const treeRegistry = this.config.getTreeRegistry?.() ?? null;
+    const rockStateVersion = this.config.getRockStateVersion?.();
+    const treeStateVersion = this.config.getTreeStateVersion?.();
+    const treeActivityVersion = this.config.getTreeActivityVersion?.();
+    const versionsAvailable = rockStateVersion !== undefined
+      && treeStateVersion !== undefined
+      && treeActivityVersion !== undefined;
+    if (
+      !staticWasDirty
+      && versionsAvailable
+      && this.hasPreparedDynamic
+      && x === this.lastPrepareX
+      && z === this.lastPrepareZ
+      && treeRegistry === this.lastTreeRegistry
+      && Object.is(rockStateVersion, this.lastRockStateVersion)
+      && Object.is(treeStateVersion, this.lastTreeStateVersion)
+      && Object.is(treeActivityVersion, this.lastTreeActivityVersion)
+    ) {
+      return;
+    }
 
     this.nearby.length = 0;
+    this.dynamicColliderCount = 0;
     this.staticIndex.queryCircleInto(x, z, PREPARE_RADIUS_M, this.nearby);
     this.appendNearbyRocks(x, z);
-    this.appendNearbyTrees(x, z);
+    this.appendNearbyTrees(x, z, treeRegistry);
+    this.lastPrepareX = x;
+    this.lastPrepareZ = z;
+    this.lastTreeRegistry = treeRegistry;
+    this.lastRockStateVersion = rockStateVersion;
+    this.lastTreeStateVersion = treeStateVersion;
+    this.lastTreeActivityVersion = treeActivityVersion;
+    this.hasPreparedDynamic = versionsAvailable;
   }
 
   sampleSupportTopY(
@@ -183,7 +236,14 @@ export class FpCollisionWorld {
   }
 
   private appendNearbyRocks(x: number, z: number): void {
-    const rocks = this.config.getRockObstaclesNear?.(x, z, ROCK_QUERY_RADIUS_M);
+    const rocks = this.config.getRockObstaclesNearInto
+      ? this.config.getRockObstaclesNearInto(
+          x,
+          z,
+          ROCK_QUERY_RADIUS_M,
+          this.nearbyRocks,
+        )
+      : this.config.getRockObstaclesNear?.(x, z, ROCK_QUERY_RADIUS_M);
     if (!rocks) return;
 
     for (const rock of rocks) {
@@ -195,22 +255,24 @@ export class FpCollisionWorld {
       const minY = rock.collisionMinY ?? terrainY;
       const maxY = rock.collisionMaxY ?? terrainY + Math.max(0.24, rock.scale * 0.92);
       if (maxY <= minY + 0.02) continue;
-      this.nearby.push({
-        shape: 'cylinder',
-        x: rock.x,
-        z: rock.z,
-        radius,
-        minY,
-        maxY,
-      });
+      this.appendDynamicCollider(rock.x, rock.z, radius, minY, maxY);
     }
   }
 
-  private appendNearbyTrees(x: number, z: number): void {
-    const registry = this.config.getTreeRegistry?.();
+  private appendNearbyTrees(
+    x: number,
+    z: number,
+    registry: TreeRegistry | null,
+  ): void {
     if (!registry) return;
 
-    for (const tree of registry.treesInRadius(x, z, ROCK_QUERY_RADIUS_M)) {
+    const trees = registry.treesInRadiusInto(
+      x,
+      z,
+      ROCK_QUERY_RADIUS_M,
+      this.nearbyTrees,
+    );
+    for (const tree of trees) {
       if (this.config.isTreeLayoutActive && !this.config.isTreeLayoutActive(tree.layoutIndex)) {
         continue;
       }
@@ -219,48 +281,77 @@ export class FpCollisionWorld {
 
       const terrainY = this.config.getHeightAt(tree.x, tree.z);
       if (state.phase === 'stump') {
-        this.nearby.push({
-          shape: 'cylinder',
-          x: tree.x,
-          z: tree.z,
-          radius: Math.max(0.2, tree.scale * 0.34),
-          minY: terrainY,
-          maxY: terrainY + Math.max(0.22, tree.scale * 0.42),
-          allowStep: true,
-        });
+        this.appendDynamicCollider(
+          tree.x,
+          tree.z,
+          Math.max(0.2, tree.scale * 0.34),
+          terrainY,
+          terrainY + Math.max(0.22, tree.scale * 0.42),
+          true,
+        );
         continue;
       }
 
       if (state.phase === 'growing') {
         const growth = THREE.MathUtils.clamp(state.growthProgress, 0, 1);
-        this.nearby.push({
-          shape: 'cylinder',
-          x: tree.x,
-          z: tree.z,
-          radius: Math.max(0.13, tree.scale * THREE.MathUtils.lerp(0.12, 0.3, growth)),
-          minY: terrainY,
-          maxY: terrainY + Math.max(0.45, tree.scale * THREE.MathUtils.lerp(0.8, 5.2, growth)),
-          allowStep: false,
-        });
+        this.appendDynamicCollider(
+          tree.x,
+          tree.z,
+          Math.max(0.13, tree.scale * THREE.MathUtils.lerp(0.12, 0.3, growth)),
+          terrainY,
+          terrainY + Math.max(0.45, tree.scale * THREE.MathUtils.lerp(0.8, 5.2, growth)),
+          false,
+        );
         continue;
       }
 
       const formScale = tree.form === 'young' || tree.form === 'midstory' ? 0.72 : 1;
-      this.nearby.push({
-        shape: 'cylinder',
-        x: tree.x,
-        z: tree.z,
-        radius: Math.max(0.2, tree.scale * 0.36 * formScale),
-        minY: terrainY,
-        maxY: terrainY + Math.max(4, tree.scale * 12 * formScale),
-        allowStep: false,
-      });
+      this.appendDynamicCollider(
+        tree.x,
+        tree.z,
+        Math.max(0.2, tree.scale * 0.36 * formScale),
+        terrainY,
+        terrainY + Math.max(4, tree.scale * 12 * formScale),
+        false,
+      );
     }
+  }
+
+  private appendDynamicCollider(
+    x: number,
+    z: number,
+    radius: number,
+    minY: number,
+    maxY: number,
+    allowStep?: boolean,
+  ): void {
+    let collider = this.dynamicColliders[this.dynamicColliderCount];
+    if (!collider) {
+      collider = {
+        shape: 'cylinder',
+        x,
+        z,
+        radius,
+        minY,
+        maxY,
+        allowStep,
+      };
+      this.dynamicColliders.push(collider);
+    } else {
+      collider.x = x;
+      collider.z = z;
+      collider.radius = radius;
+      collider.minY = minY;
+      collider.maxY = maxY;
+      collider.allowStep = allowStep;
+    }
+    this.dynamicColliderCount += 1;
+    this.nearby.push(collider);
   }
 }
 
 class StaticColliderIndex {
-  private readonly cells = new Map<string, FpCollider[]>();
+  private readonly cells = new Map<number, Map<number, FpCollider[]>>();
   private readonly querySeen = new Set<FpCollider>();
 
   clear(): void {
@@ -274,11 +365,15 @@ class StaticColliderIndex {
     const minCellZ = Math.floor(bounds.minZ / STATIC_CELL_SIZE_M);
     const maxCellZ = Math.floor(bounds.maxZ / STATIC_CELL_SIZE_M);
     for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+      let row = this.cells.get(cellX);
+      if (!row) {
+        row = new Map();
+        this.cells.set(cellX, row);
+      }
       for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-        const key = `${cellX}:${cellZ}`;
-        const bucket = this.cells.get(key);
+        const bucket = row.get(cellZ);
         if (bucket) bucket.push(collider);
-        else this.cells.set(key, [collider]);
+        else row.set(cellZ, [collider]);
       }
     }
   }
@@ -290,8 +385,10 @@ class StaticColliderIndex {
     const maxCellZ = Math.floor((z + radius) / STATIC_CELL_SIZE_M);
     this.querySeen.clear();
     for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+      const row = this.cells.get(cellX);
+      if (!row) continue;
       for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-        const bucket = this.cells.get(`${cellX}:${cellZ}`);
+        const bucket = row.get(cellZ);
         if (!bucket) continue;
         for (const collider of bucket) {
           if (this.querySeen.has(collider)) continue;
@@ -309,8 +406,10 @@ class StaticColliderIndex {
     const maxCellZ = Math.floor((z + radius) / STATIC_CELL_SIZE_M);
     this.querySeen.clear();
     for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+      const row = this.cells.get(cellX);
+      if (!row) continue;
       for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-        const bucket = this.cells.get(`${cellX}:${cellZ}`);
+        const bucket = row.get(cellZ);
         if (!bucket) continue;
         for (const collider of bucket) {
           if (this.querySeen.has(collider)) continue;
@@ -507,6 +606,8 @@ function validateBoxCollider(collider: FpBoxCollider): FpBoxCollider | null {
   ) {
     return null;
   }
+  collider.cosYaw = Math.cos(collider.yaw);
+  collider.sinYaw = Math.sin(collider.yaw);
   return collider;
 }
 
@@ -562,8 +663,8 @@ function colliderBoundsXZ(collider: FpCollider): {
     };
   }
 
-  const cos = Math.abs(Math.cos(collider.yaw));
-  const sin = Math.abs(Math.sin(collider.yaw));
+  const cos = Math.abs(collider.cosYaw ?? Math.cos(collider.yaw));
+  const sin = Math.abs(collider.sinYaw ?? Math.sin(collider.yaw));
   const extentX = collider.halfX * cos + collider.halfZ * sin;
   const extentZ = collider.halfX * sin + collider.halfZ * cos;
   return {
@@ -585,10 +686,15 @@ function diskOverlapsCollider(
     return (x - collider.x) ** 2 + (z - collider.z) ** 2 <= combinedRadius ** 2;
   }
 
-  const local = worldToBoxLocal(x, z, collider);
-  const closestX = THREE.MathUtils.clamp(local.x, -collider.halfX, collider.halfX);
-  const closestZ = THREE.MathUtils.clamp(local.z, -collider.halfZ, collider.halfZ);
-  return (local.x - closestX) ** 2 + (local.z - closestZ) ** 2 <= radius ** 2;
+  const dx = x - collider.centerX;
+  const dz = z - collider.centerZ;
+  const cos = collider.cosYaw ?? Math.cos(collider.yaw);
+  const sin = collider.sinYaw ?? Math.sin(collider.yaw);
+  const localX = dx * cos - dz * sin;
+  const localZ = dx * sin + dz * cos;
+  const closestX = THREE.MathUtils.clamp(localX, -collider.halfX, collider.halfX);
+  const closestZ = THREE.MathUtils.clamp(localZ, -collider.halfZ, collider.halfZ);
+  return (localX - closestX) ** 2 + (localZ - closestZ) ** 2 <= radius ** 2;
 }
 
 function bodyOverlapsVertically(
@@ -657,11 +763,16 @@ function resolveBoxCollision(
   playerRadius: number,
   collider: FpBoxCollider,
 ): boolean {
-  const local = worldToBoxLocal(position.x, position.z, collider);
-  const closestX = THREE.MathUtils.clamp(local.x, -collider.halfX, collider.halfX);
-  const closestZ = THREE.MathUtils.clamp(local.z, -collider.halfZ, collider.halfZ);
-  const dx = local.x - closestX;
-  const dz = local.z - closestZ;
+  const centerDx = position.x - collider.centerX;
+  const centerDz = position.z - collider.centerZ;
+  const cos = collider.cosYaw ?? Math.cos(collider.yaw);
+  const sin = collider.sinYaw ?? Math.sin(collider.yaw);
+  const localX = centerDx * cos - centerDz * sin;
+  const localZ = centerDx * sin + centerDz * cos;
+  const closestX = THREE.MathUtils.clamp(localX, -collider.halfX, collider.halfX);
+  const closestZ = THREE.MathUtils.clamp(localZ, -collider.halfZ, collider.halfZ);
+  const dx = localX - closestX;
+  const dz = localZ - closestZ;
   const distanceSq = dx * dx + dz * dz;
   if (distanceSq >= playerRadius * playerRadius) return false;
 
@@ -674,27 +785,30 @@ function resolveBoxCollision(
     localNormalZ = dz / distance;
     push = playerRadius - distance + PLAYER_COLLISION_SKIN_M;
   } else {
-    const previous = worldToBoxLocal(previousX, previousZ, collider);
-    const distanceToLeft = local.x + collider.halfX;
-    const distanceToRight = collider.halfX - local.x;
-    const distanceToBack = local.z + collider.halfZ;
-    const distanceToFront = collider.halfZ - local.z;
+    const previousDx = previousX - collider.centerX;
+    const previousDz = previousZ - collider.centerZ;
+    const previousLocalX = previousDx * cos - previousDz * sin;
+    const previousLocalZ = previousDx * sin + previousDz * cos;
+    const distanceToLeft = localX + collider.halfX;
+    const distanceToRight = collider.halfX - localX;
+    const distanceToBack = localZ + collider.halfZ;
+    const distanceToFront = collider.halfZ - localZ;
     const minimum = Math.min(distanceToLeft, distanceToRight, distanceToBack, distanceToFront);
 
     if (
-      Math.abs(previous.x) > collider.halfX
-      && Math.abs(previous.z) <= collider.halfZ + playerRadius
+      Math.abs(previousLocalX) > collider.halfX
+      && Math.abs(previousLocalZ) <= collider.halfZ + playerRadius
     ) {
-      localNormalX = previous.x < 0 ? -1 : 1;
+      localNormalX = previousLocalX < 0 ? -1 : 1;
       localNormalZ = 0;
-      push = collider.halfX + playerRadius - Math.abs(local.x) + PLAYER_COLLISION_SKIN_M;
+      push = collider.halfX + playerRadius - Math.abs(localX) + PLAYER_COLLISION_SKIN_M;
     } else if (
-      Math.abs(previous.z) > collider.halfZ
-      && Math.abs(previous.x) <= collider.halfX + playerRadius
+      Math.abs(previousLocalZ) > collider.halfZ
+      && Math.abs(previousLocalX) <= collider.halfX + playerRadius
     ) {
       localNormalX = 0;
-      localNormalZ = previous.z < 0 ? -1 : 1;
-      push = collider.halfZ + playerRadius - Math.abs(local.z) + PLAYER_COLLISION_SKIN_M;
+      localNormalZ = previousLocalZ < 0 ? -1 : 1;
+      push = collider.halfZ + playerRadius - Math.abs(localZ) + PLAYER_COLLISION_SKIN_M;
     } else if (minimum === distanceToLeft) {
       localNormalX = -1;
       localNormalZ = 0;
@@ -714,25 +828,12 @@ function resolveBoxCollision(
     }
   }
 
-  const cos = Math.cos(collider.yaw);
-  const sin = Math.sin(collider.yaw);
   const normalX = localNormalX * cos + localNormalZ * sin;
   const normalZ = -localNormalX * sin + localNormalZ * cos;
   position.x += normalX * push;
   position.z += normalZ * push;
   removeVelocityIntoNormal(velocity, normalX, normalZ);
   return true;
-}
-
-function worldToBoxLocal(x: number, z: number, collider: FpBoxCollider): { x: number; z: number } {
-  const dx = x - collider.centerX;
-  const dz = z - collider.centerZ;
-  const cos = Math.cos(collider.yaw);
-  const sin = Math.sin(collider.yaw);
-  return {
-    x: dx * cos - dz * sin,
-    z: dx * sin + dz * cos,
-  };
 }
 
 function removeVelocityIntoNormal(

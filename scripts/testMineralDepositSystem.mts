@@ -131,11 +131,10 @@ for (const resource of ['iron', 'salt'] as const) {
         outcrop.geometry.computeBoundingBox();
         const top = outcrop.geometry.boundingBox?.max.y ?? 0;
         return outcrop.position.y + top * outcrop.scale.y > 0
-          && outcrop.castShadow
           && outcrop.receiveShadow;
       },
     ),
-    `${resource} outcrops must break the terrain plane and receive and cast scene shadows`,
+    `${resource} outcrops must break the terrain plane and receive scene shadows`,
   );
   assert.ok(
     outcrops.every((outcrop) => {
@@ -361,6 +360,19 @@ for (const resource of ['iron', 'salt'] as const) {
     );
   }
 }
+const mineralShadowBatches: THREE.InstancedMesh[] = [];
+mineralVisualSystem.group.traverse((object) => {
+  const mesh = object as THREE.InstancedMesh;
+  if (
+    mesh.isInstancedMesh
+    && mesh.userData.staticInstancedShadowBatch === true
+    && mesh.castShadow
+  ) mineralShadowBatches.push(mesh);
+});
+assert.ok(
+  mineralShadowBatches.length > 0,
+  'mineral outcrop geometry must retain exact instanced scene-shadow submissions',
+);
 const mineralOutcrops: THREE.Mesh[] = [];
 mineralVisualSystem.group.traverse((object) => {
   if (object instanceof THREE.Mesh && object.name.includes('outcrop')) mineralOutcrops.push(object);

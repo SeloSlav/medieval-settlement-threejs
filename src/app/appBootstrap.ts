@@ -234,9 +234,13 @@ export async function bootstrapAppSession(
   const firstPersonCollisionWorld = new FpCollisionWorld({
     getStaticRoots: () => sceneManager.getFirstPersonCollisionRoots(),
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
-    getRockObstaclesNear: (x, z, radius) => sceneManager.getRockObstaclesNear(x, z, radius),
+    getRockObstaclesNearInto: (x, z, radius, results) =>
+      sceneManager.getRockObstaclesNearInto(x, z, radius, results),
+    getRockStateVersion: () => sceneManager.getRockCollisionVersion(),
     getTreeRegistry: () => liveContext.treeRegistry,
     getTreeState: (treeId) => liveContext.gameState.trees.get(treeId),
+    getTreeStateVersion: () => liveContext.gameState.trees,
+    getTreeActivityVersion: () => sceneManager.getForestCollisionVersion(),
     isTreeLayoutActive: (layoutIndex) =>
       sceneManager.getForestManager()?.isTreeLayoutActiveForCollision(layoutIndex) ?? false,
   });
@@ -265,15 +269,12 @@ export async function bootstrapAppSession(
     audioParent: sceneManager.scene,
     riverLayout: sceneManager.riverField.layout,
     getRiverWaterSurfaceY: sceneManager.getBridgeSamplingContext().getWaterSurfaceY,
-    getCameraTarget: () => {
-      const target = sceneManager.cameraTarget;
-      return { x: target.x, z: target.z };
-    },
+    getCameraTarget: () => sceneManager.cameraTarget,
     getOrbitDistance: () => {
       if (firstPersonController?.isActive()) return 12;
       return cameraController?.getOrbitDistance() ?? 240;
     },
-    getBuildings: () => liveContext.gameState.buildings.values(),
+    getBuildings: () => liveContext.gameState.buildings,
     getBurgageZones: () => liveContext.gameState.burgageZones.values(),
     getFireIncidents: () => liveContext.gameState.fireIncidents.values(),
   });
@@ -364,6 +365,7 @@ export async function bootstrapAppSession(
       || (buildingTool?.shouldBlockCameraInput(event) ?? false)
       || (burgageTool?.shouldBlockCameraInput(event) ?? false)
       || (farmFieldTool?.shouldBlockCameraInput(event) ?? false),
+    continuousRenderLoop: import.meta.env.VITE_E2E_TEST !== '1',
     onViewChanged: () => {
       if (firstPersonController?.isActive()) return;
       sceneManager.render(0, cameraController.getOrbitDistance());
@@ -715,7 +717,7 @@ export async function bootstrapAppSession(
       villagerInspector?.clearSelection();
       if (!wasActive) {
         toastManager?.show(
-          'Choose clear, dry ground for your founders. This will become the heart of your settlement.',
+          'Choose clear, dry ground for your founders. This temporary camp will support the settlement as it takes root.',
           { variant: 'info', durationMs: 6000 },
         );
       }

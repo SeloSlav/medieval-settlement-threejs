@@ -29,6 +29,11 @@ type WaterJetVisual = {
   length: number;
 };
 
+type FireTargetEntry = {
+  incident: FireIncidentState;
+  order: number;
+};
+
 const RUBBLE_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
 const DROPLET_GEOMETRY = new THREE.SphereGeometry(0.065, 6, 4);
 const STREAM_GEOMETRY = new THREE.CylinderGeometry(0.035, 0.065, 1, 7);
@@ -59,8 +64,16 @@ export class FireEffectsRenderer {
   private readonly root = new THREE.Group();
   private readonly visuals = new Map<string, FireVisual>();
   private readonly waterJets = new Map<string, WaterJetVisual>();
-  private incidents = new Map<string, FireIncidentState>();
-  private trips = new Map<string, DeliveryTripState>();
+  private readonly trips = new Map<string, DeliveryTripState>();
+  private readonly incidentList: FireIncidentState[] = [];
+  private readonly nextIncidentIds = new Set<string>();
+  private readonly buildingIncidentByTarget = new Map<string, FireTargetEntry>();
+  private readonly residenceIncidentByTarget = new Map<string, FireTargetEntry>();
+  private readonly activeWaterJetIds = new Set<string>();
+  private readonly waterStart = new THREE.Vector3();
+  private readonly waterEnd = new THREE.Vector3();
+  private readonly waterDirection = new THREE.Vector3();
+  private readonly waterUp = new THREE.Vector3(0, 1, 0);
 
   constructor(terrain: Terrain, parent: THREE.Group) {
     this.terrain = terrain;
@@ -73,9 +86,22 @@ export class FireEffectsRenderer {
     buildings: ReadonlyMap<string, BuildingState>,
     residences: ReadonlyMap<string, ResidenceState>,
   ): void {
-    const list = [...incidents];
-    this.incidents = new Map(list.map((incident) => [incident.id, incident]));
-    const nextIds = new Set<string>();
+    const list = this.incidentList;
+    list.length = 0;
+    for (const incident of incidents) list.push(incident);
+    this.buildingIncidentByTarget.clear();
+    this.residenceIncidentByTarget.clear();
+    for (let index = 0; index < list.length; index += 1) {
+      const incident = list[index]!;
+      const targetIndex = incident.targetKind === 'building'
+        ? this.buildingIncidentByTarget
+        : this.residenceIncidentByTarget;
+      if (!targetIndex.has(incident.targetId)) {
+        targetIndex.set(incident.targetId, { incident, order: index });
+      }
+    }
+    const nextIds = this.nextIncidentIds;
+    nextIds.clear();
 
     for (const incident of list) {
       nextIds.add(incident.id);
@@ -107,7 +133,8 @@ export class FireEffectsRenderer {
   }
 
   syncTrips(trips: Iterable<DeliveryTripState>): void {
-    this.trips = new Map([...trips].map((trip) => [trip.id, trip]));
+    this.trips.clear();
+    for (const trip of trips) this.trips.set(trip.id, trip);
   }
 
   tick(dt: number): void {
@@ -120,7 +147,8 @@ export class FireEffectsRenderer {
     this.syncWaterJets();
     for (const jet of this.waterJets.values()) {
       jet.phase += dt;
-      for (const [index, droplet] of jet.droplets.entries()) {
+      for (let index = 0; index < jet.droplets.length; index += 1) {
+        const droplet = jet.droplets[index]!;
         const t = (jet.phase * 1.8 + index / jet.droplets.length) % 1;
         droplet.position.set(0, (t - 0.5) * jet.length, Math.sin(t * Math.PI) * 0.15);
       }
@@ -132,6 +160,12 @@ export class FireEffectsRenderer {
     this.visuals.clear();
     for (const jet of this.waterJets.values()) jet.root.removeFromParent();
     this.waterJets.clear();
+    this.trips.clear();
+    this.incidentList.length = 0;
+    this.nextIncidentIds.clear();
+    this.buildingIncidentByTarget.clear();
+    this.residenceIncidentByTarget.clear();
+    this.activeWaterJetIds.clear();
     this.root.removeFromParent();
     RUBBLE_GEOMETRY.dispose();
     DROPLET_GEOMETRY.dispose();
@@ -219,14 +253,22 @@ export class FireEffectsRenderer {
   }
 
   private syncWaterJets(): void {
-    const activeIds = new Set<string>();
+    const activeIds = this.activeWaterJetIds;
+    activeIds.clear();
     for (const trip of this.trips.values()) {
       if (trip.destinationKind !== 'fire' || trip.phase !== 'unloading') continue;
-      const incident = [...this.incidents.values()].find((candidate) =>
-        (trip.targetBuildingId && candidate.targetKind === 'building'
-          && candidate.targetId === trip.targetBuildingId)
-        || (trip.residenceId && candidate.targetKind === 'residence'
-          && candidate.targetId === trip.residenceId));
+      const buildingIncident = trip.targetBuildingId
+        ? this.buildingIncidentByTarget.get(trip.targetBuildingId)
+        : undefined;
+      const residenceIncident = trip.residenceId
+        ? this.residenceIncidentByTarget.get(trip.residenceId)
+        : undefined;
+      const incidentEntry = !buildingIncident
+        ? residenceIncident
+        : !residenceIncident || buildingIncident.order <= residenceIncident.order
+          ? buildingIncident
+          : residenceIncident;
+      const incident = incidentEntry?.incident;
       if (!incident || incident.status !== 'burning') continue;
       activeIds.add(trip.id);
       let jet = this.waterJets.get(trip.id);
@@ -235,16 +277,30 @@ export class FireEffectsRenderer {
         this.waterJets.set(trip.id, jet);
         this.root.add(jet.root);
       }
-      const start = new THREE.Vector3(
+      const start = this.waterStart.set(
         trip.x,
         this.terrain.getHeightAt(trip.x, trip.z) + 1.1,
         trip.z,
       );
       const fireVisual = this.visuals.get(incident.id);
-      const end = fireVisual
-        ? fireVisual.root.position.clone().add(new THREE.Vector3(0, 0.8, 0))
-        : new THREE.Vector3(incident.x, this.terrain.getHeightAt(incident.x, incident.z) + 4, incident.z);
-      orientCylinderBetween(jet, start, end);
+      const end = this.waterEnd;
+      if (fireVisual) {
+        end.copy(fireVisual.root.position);
+        end.y += 0.8;
+      } else {
+        end.set(
+          incident.x,
+          this.terrain.getHeightAt(incident.x, incident.z) + 4,
+          incident.z,
+        );
+      }
+      orientCylinderBetween(
+        jet,
+        start,
+        end,
+        this.waterDirection,
+        this.waterUp,
+      );
     }
     for (const [id, jet] of this.waterJets) {
       if (activeIds.has(id)) continue;
@@ -314,15 +370,17 @@ function orientCylinderBetween(
   jet: WaterJetVisual,
   start: THREE.Vector3,
   end: THREE.Vector3,
+  direction: THREE.Vector3,
+  up: THREE.Vector3,
 ): void {
-  const direction = end.clone().sub(start);
+  direction.copy(end).sub(start);
   const length = Math.max(0.1, direction.length());
   jet.length = length;
   jet.root.position.copy(start).add(end).multiplyScalar(0.5);
   jet.root.scale.set(1, 1, 1);
   jet.stream.scale.set(1, length, 1);
   jet.root.quaternion.setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0),
+    up,
     direction.normalize(),
   );
 }

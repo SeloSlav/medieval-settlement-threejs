@@ -34,6 +34,12 @@ type QuarryIconEntry = {
   marker: WorldMapMarker;
   button: HTMLButtonElement;
   worldPoint: THREE.Vector3;
+  presentationNode: ResourceNodeState | undefined;
+  presentationRemaining: number;
+  presentationMaxYield: number;
+  presentationResource: ResourceNodeState['resource'] | null;
+  presentationIsRich: boolean | undefined;
+  presentationInitialized: boolean;
 };
 
 export class QuarryMapIcons {
@@ -49,6 +55,12 @@ export class QuarryMapIcons {
       marker,
       button: this.createIconButton(marker),
       worldPoint: new THREE.Vector3(),
+      presentationNode: undefined,
+      presentationRemaining: Number.NaN,
+      presentationMaxYield: Number.NaN,
+      presentationResource: null,
+      presentationIsRich: undefined,
+      presentationInitialized: false,
     }));
 
     for (const entry of this.entries) {
@@ -56,9 +68,9 @@ export class QuarryMapIcons {
     }
   }
 
-  update(): void {
+  update(getFrameRect?: () => DOMRect): void {
     const interactionBlocked = this.options.isBlocked();
-    this.root.classList.toggle('is-interaction-blocked', interactionBlocked);
+    toggleClassIfChanged(this.root, 'is-interaction-blocked', interactionBlocked);
     const frame = beginMapIconFrame(
       this.root,
       this.options.domElement,
@@ -66,6 +78,7 @@ export class QuarryMapIcons {
       this.options.getCamera,
       this.options.getZoomPercent,
       this.options.isVisibilityBlocked ?? this.options.isBlocked,
+      getFrameRect,
     );
     if (!frame) return;
 
@@ -73,15 +86,31 @@ export class QuarryMapIcons {
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
       const node = geologicalNodeForMapMarker(marker, nodes);
-      const presentation = describeGeologicalMapMarker(marker, node);
-      button.dataset.tooltip = presentation.label;
-      button.dataset.reserveLevel = presentation.level;
-      button.setAttribute('aria-label', presentation.label);
-      for (const level of ['low', 'depleted', 'deep'] as const) {
-        button.classList.toggle(
-          `quarry-map-icon--${level}`,
-          presentation.level === level,
-        );
+      if (
+        !entry.presentationInitialized
+        || entry.presentationNode !== node
+        || !Object.is(entry.presentationRemaining, node?.remaining ?? Number.NaN)
+        || !Object.is(entry.presentationMaxYield, node?.maxYield ?? Number.NaN)
+        || entry.presentationResource !== (node?.resource ?? null)
+        || entry.presentationIsRich !== node?.isRich
+      ) {
+        const presentation = describeGeologicalMapMarker(marker, node);
+        setDatasetIfChanged(button, 'tooltip', presentation.label);
+        setDatasetIfChanged(button, 'reserveLevel', presentation.level);
+        setAttributeIfChanged(button, 'aria-label', presentation.label);
+        for (const level of ['low', 'depleted', 'deep'] as const) {
+          toggleClassIfChanged(
+            button,
+            `quarry-map-icon--${level}`,
+            presentation.level === level,
+          );
+        }
+        entry.presentationNode = node;
+        entry.presentationRemaining = node?.remaining ?? Number.NaN;
+        entry.presentationMaxYield = node?.maxYield ?? Number.NaN;
+        entry.presentationResource = node?.resource ?? null;
+        entry.presentationIsRich = node?.isRich;
+        entry.presentationInitialized = true;
       }
       placeProjectedMapButton(
         button,
@@ -128,4 +157,16 @@ export class QuarryMapIcons {
 
     return button;
   }
+}
+
+function toggleClassIfChanged(element: HTMLElement, className: string, active: boolean): void {
+  if (element.classList.contains(className) !== active) element.classList.toggle(className, active);
+}
+
+function setDatasetIfChanged(element: HTMLElement, key: string, value: string): void {
+  if (element.dataset[key] !== value) element.dataset[key] = value;
+}
+
+function setAttributeIfChanged(element: HTMLElement, name: string, value: string): void {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value);
 }

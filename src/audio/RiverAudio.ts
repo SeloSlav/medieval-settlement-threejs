@@ -32,31 +32,9 @@ export function nearestRiverSoundPoint(
   riverLayout: Pick<RiverLayout, 'corridors' | 'drain'>,
   x: number,
   z: number,
+  out: RiverSoundPoint = { x: 0, z: 0, distance: 0 },
 ): RiverSoundPoint {
-  let best: RiverSoundPoint | null = null;
-
-  const considerWaterDisc = (
-    centerX: number,
-    centerZ: number,
-    radius: number,
-  ): void => {
-    const dx = x - centerX;
-    const dz = z - centerZ;
-    const centerDistance = Math.hypot(dx, dz);
-    const surfaceDistance = Math.max(0, centerDistance - radius);
-    if (best && surfaceDistance >= best.distance) return;
-
-    if (centerDistance <= radius || centerDistance <= 1e-6) {
-      best = { x, z, distance: 0 };
-      return;
-    }
-    const scale = radius / centerDistance;
-    best = {
-      x: centerX + dx * scale,
-      z: centerZ + dz * scale,
-      distance: surfaceDistance,
-    };
-  };
+  let hasBest = false;
 
   for (const corridor of riverLayout.corridors) {
     for (let index = 0; index < corridor.points.length - 1; index++) {
@@ -68,7 +46,11 @@ export function nearestRiverSoundPoint(
       const t = lengthSq <= 1e-6
         ? 0
         : clamp01(((x - a.x) * abx + (z - a.z) * abz) / lengthSq);
-      considerWaterDisc(
+      hasBest = considerWaterDisc(
+        out,
+        hasBest,
+        x,
+        z,
         a.x + abx * t,
         a.z + abz * t,
         lerp(a.halfWidth, b.halfWidth, t) * RIVER_WATER_HALF_WIDTH_MULTIPLIER,
@@ -77,17 +59,50 @@ export function nearestRiverSoundPoint(
   }
 
   // The corridors converge into the broad lake at the drain.
-  considerWaterDisc(
+  hasBest = considerWaterDisc(
+    out,
+    hasBest,
+    x,
+    z,
     riverLayout.drain.x,
     riverLayout.drain.z,
     CONFLUENCE_WATER_RADIUS,
   );
 
-  return best ?? {
-    x: riverLayout.drain.x,
-    z: riverLayout.drain.z,
-    distance: Math.hypot(x - riverLayout.drain.x, z - riverLayout.drain.z),
-  };
+  if (!hasBest) {
+    out.x = riverLayout.drain.x;
+    out.z = riverLayout.drain.z;
+    out.distance = Math.hypot(x - riverLayout.drain.x, z - riverLayout.drain.z);
+  }
+  return out;
+}
+
+function considerWaterDisc(
+  out: RiverSoundPoint,
+  hasBest: boolean,
+  x: number,
+  z: number,
+  centerX: number,
+  centerZ: number,
+  radius: number,
+): boolean {
+  const dx = x - centerX;
+  const dz = z - centerZ;
+  const centerDistance = Math.hypot(dx, dz);
+  const surfaceDistance = Math.max(0, centerDistance - radius);
+  if (hasBest && surfaceDistance >= out.distance) return true;
+
+  if (centerDistance <= radius || centerDistance <= 1e-6) {
+    out.x = x;
+    out.z = z;
+    out.distance = 0;
+    return true;
+  }
+  const scale = radius / centerDistance;
+  out.x = centerX + dx * scale;
+  out.z = centerZ + dz * scale;
+  out.distance = surfaceDistance;
+  return true;
 }
 
 /**
@@ -100,6 +115,7 @@ export class RiverAudio {
   private readonly listener: THREE.AudioListener;
   private readonly source: THREE.PositionalAudio;
   private readonly targetPosition = new THREE.Vector3();
+  private readonly nearestPoint: RiverSoundPoint = { x: 0, z: 0, distance: 0 };
   private refreshElapsed = POSITION_REFRESH_SECONDS;
   private loadGeneration = 0;
   private currentVolume = 0;
@@ -146,6 +162,7 @@ export class RiverAudio {
         this.config.riverLayout,
         cameraPosition.x,
         cameraPosition.z,
+        this.nearestPoint,
       );
       this.targetPosition.set(
         point.x,

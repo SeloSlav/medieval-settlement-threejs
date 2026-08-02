@@ -90,7 +90,7 @@ export class WorldSetupPanel {
               <strong data-topography-value>${this.draft.topography}</strong>
             </label>
             <input id="world-setup-topography" class="world-setup-slider" type="range" min="0" max="100" step="1" value="${this.draft.topography}" />
-            <p class="world-setup-slider-hint">Low = gentle rolling hills. High = rugged ridges and steep valleys.</p>
+            <p class="world-setup-slider-hint">Low = gentle rolling hills. Above 80 creates mountain-scale ridges hundreds of metres high.</p>
             </section>
 
             <section class="world-setup-section" aria-label="Custom hydrology">
@@ -191,7 +191,7 @@ export class WorldSetupPanel {
       customLandscapeControls.hidden = this.draft.terrainPreset !== 'custom';
       const selected = WORLD_TERRAIN_PRESETS.find((preset) => preset.id === this.draft.terrainPreset)!;
       landscapeNote.textContent = this.draft.terrainPreset === 'custom'
-        ? 'Custom map seeds vary the procedural terrain produced by your controls.'
+        ? 'Custom map seeds vary the procedural terrain; the highest topography settings add major mountain massifs.'
         : `${selected.name} seeds keep this landform and vary its bends, ridges, forests, and resources.`;
       for (const option of landscapeGrid.querySelectorAll<HTMLButtonElement>('[data-terrain-preset]')) {
         const isSelected = option.dataset.terrainPreset === this.draft.terrainPreset;

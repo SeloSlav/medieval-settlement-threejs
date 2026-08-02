@@ -62,7 +62,10 @@ export function gameClock(simTick: number): GameClock {
   return gameClockAtElapsedSeconds(simElapsedSeconds(simTick));
 }
 
-export function gameClockAtElapsedSeconds(elapsedSeconds: number): GameClock {
+export function gameClockAtElapsedSeconds(
+  elapsedSeconds: number,
+  target?: GameClock,
+): GameClock {
   const elapsed = Math.max(0, elapsedSeconds);
   const calendarElapsed = elapsed + CALENDAR_DAY_START_OFFSET_SECONDS;
   const simTick = elapsed / SIM_TICK_SECONDS;
@@ -82,20 +85,31 @@ export function gameClockAtElapsedSeconds(elapsedSeconds: number): GameClock {
   const isSunday = weekday === CALENDAR_SUNDAY_WEEKDAY;
   const isWorkHours = hour >= CALENDAR_WORK_START_HOUR && hour < CALENDAR_WORK_END_HOUR;
 
-  return {
-    simTick,
-    totalDays,
-    hour,
-    minute,
-    preciseHour: hoursIntoDay,
-    preciseCalendarDay: dayOfYear + hoursIntoDay / CALENDAR_HOURS_PER_DAY,
-    weekday,
-    monthDay,
-    month,
-    year,
-    isSunday,
-    isWorkHours,
+  const clock = target ?? {
+    simTick: 0,
+    totalDays: 0,
+    hour: 0,
+    minute: 0,
+    weekday: 0,
+    monthDay: 0,
+    month: 0,
+    year: 0,
+    isSunday: false,
+    isWorkHours: false,
   };
+  clock.simTick = simTick;
+  clock.totalDays = totalDays;
+  clock.hour = hour;
+  clock.minute = minute;
+  clock.preciseHour = hoursIntoDay;
+  clock.preciseCalendarDay = dayOfYear + hoursIntoDay / CALENDAR_HOURS_PER_DAY;
+  clock.weekday = weekday;
+  clock.monthDay = monthDay;
+  clock.month = month;
+  clock.year = year;
+  clock.isSunday = isSunday;
+  clock.isWorkHours = isWorkHours;
+  return clock;
 }
 
 export function formatClockTime(clock: GameClock): string {

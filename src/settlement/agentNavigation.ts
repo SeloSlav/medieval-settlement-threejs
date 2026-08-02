@@ -6,6 +6,16 @@ const NAV_SEGMENT_SAMPLE_M = 0.22;
 const MAX_NAV_CELLS = 24_000;
 const CARDINAL_COST = 1;
 const DIAGONAL_COST = Math.SQRT2;
+const NAV_DIRECTIONS = [
+  { x: 1, z: 0, cost: CARDINAL_COST },
+  { x: -1, z: 0, cost: CARDINAL_COST },
+  { x: 0, z: 1, cost: CARDINAL_COST },
+  { x: 0, z: -1, cost: CARDINAL_COST },
+  { x: 1, z: 1, cost: DIAGONAL_COST },
+  { x: 1, z: -1, cost: DIAGONAL_COST },
+  { x: -1, z: 1, cost: DIAGONAL_COST },
+  { x: -1, z: -1, cost: DIAGONAL_COST },
+] as const;
 
 type GridPoint = {
   x: number;
@@ -31,23 +41,29 @@ export function routeAgentPolyline(
 ): PointXZ[] | null {
   if (path.length < 2) return path.map(copyPoint);
 
-  const routed: PointXZ[] = [];
-  for (let index = 0; index < path.length - 1; index++) {
-    const start = path[index];
-    const end = path[index + 1];
-    const leg = routeAgentLeg(start, end, isBlocked);
-    if (!leg) return null;
-    for (const point of leg) {
-      pushDistinct(routed, point);
+  const workspace = acquireWorkspace();
+  try {
+    const routed: PointXZ[] = [];
+    for (let index = 0; index < path.length - 1; index++) {
+      const start = path[index];
+      const end = path[index + 1];
+      const leg = routeAgentLeg(start, end, isBlocked, workspace);
+      if (!leg) return null;
+      for (const point of leg) {
+        pushDistinct(routed, point);
+      }
     }
+    return routed;
+  } finally {
+    releaseWorkspace(workspace);
   }
-  return routed;
 }
 
 function routeAgentLeg(
   start: PointXZ,
   end: PointXZ,
   isBlocked: AgentObstacleTest,
+  workspace: NavSearchWorkspace,
 ): PointXZ[] | null {
   if (
     !isBlocked(start.x, start.z)
@@ -62,7 +78,13 @@ function routeAgentLeg(
     NAV_SEARCH_PADDING_M * 2,
     NAV_SEARCH_PADDING_M * 4,
   ]) {
-    const route = routeAgentLegWithinBounds(start, end, isBlocked, padding);
+    const route = routeAgentLegWithinBounds(
+      start,
+      end,
+      isBlocked,
+      padding,
+      workspace,
+    );
     if (route) return route;
   }
   return null;
@@ -73,6 +95,7 @@ function routeAgentLegWithinBounds(
   end: PointXZ,
   isBlocked: AgentObstacleTest,
   padding: number,
+  workspace: NavSearchWorkspace,
 ): PointXZ[] | null {
   const originX = Math.floor((Math.min(start.x, end.x) - padding) / NAV_GRID_STEP_M)
     * NAV_GRID_STEP_M;
@@ -86,7 +109,8 @@ function routeAgentLegWithinBounds(
   ) + 1;
   if (width * height > MAX_NAV_CELLS) return null;
 
-  const blockedCache = new Int8Array(width * height);
+  const cellCount = width * height;
+  const blockedCache = workspace.prepareBlockedCache(cellCount);
   const gridBlocked = (x: number, z: number): boolean => {
     if (x < 0 || z < 0 || x >= width || z >= height) return true;
     const key = z * width + x;
@@ -128,7 +152,14 @@ function routeAgentLegWithinBounds(
   );
   if (!gridStart || !gridEnd) return null;
 
-  const gridPath = findGridPath(gridStart, gridEnd, gridBlocked, width, height);
+  const gridPath = findGridPath(
+    gridStart,
+    gridEnd,
+    gridBlocked,
+    width,
+    height,
+    workspace,
+  );
   if (!gridPath) return null;
 
   const worldPath = gridPath.map(gridToWorld);
@@ -145,37 +176,17 @@ function findGridPath(
   isBlocked: (x: number, z: number) => boolean,
   width: number,
   height: number,
+  workspace: NavSearchWorkspace,
 ): GridPoint[] | null {
   const cellCount = width * height;
-  const gScores = new Float64Array(cellCount);
-  gScores.fill(Number.POSITIVE_INFINITY);
-  const parents = new Int32Array(cellCount);
-  parents.fill(-1);
-  const closed = new Uint8Array(cellCount);
-  const open = new MinHeap();
+  const { gScores, parents, closed, open } = workspace.prepareSearch(cellCount);
   const startKey = start.z * width + start.x;
   const endKey = end.z * width + end.x;
   gScores[startKey] = 0;
-  open.push({
-    ...start,
-    key: startKey,
-    g: 0,
-    f: octileDistance(start.x, start.z, end.x, end.z),
-  });
-
-  const directions = [
-    { x: 1, z: 0, cost: CARDINAL_COST },
-    { x: -1, z: 0, cost: CARDINAL_COST },
-    { x: 0, z: 1, cost: CARDINAL_COST },
-    { x: 0, z: -1, cost: CARDINAL_COST },
-    { x: 1, z: 1, cost: DIAGONAL_COST },
-    { x: 1, z: -1, cost: DIAGONAL_COST },
-    { x: -1, z: 1, cost: DIAGONAL_COST },
-    { x: -1, z: -1, cost: DIAGONAL_COST },
-  ] as const;
+  open.push(startKey, 0, octileDistance(start.x, start.z, end.x, end.z));
 
   while (open.size > 0) {
-    const current = open.pop();
+    const current = open.pop(width);
     if (!current || closed[current.key]) continue;
     if (current.g > gScores[current.key] + 1e-8) continue;
     if (current.key === endKey) {
@@ -183,7 +194,7 @@ function findGridPath(
     }
     closed[current.key] = 1;
 
-    for (const direction of directions) {
+    for (const direction of NAV_DIRECTIONS) {
       const nextX = current.x + direction.x;
       const nextZ = current.z + direction.z;
       if (isBlocked(nextX, nextZ)) continue;
@@ -204,13 +215,11 @@ function findGridPath(
       if (nextG + 1e-8 >= gScores[nextKey]) continue;
       gScores[nextKey] = nextG;
       parents[nextKey] = current.key;
-      open.push({
-        x: nextX,
-        z: nextZ,
-        key: nextKey,
-        g: nextG,
-        f: nextG + octileDistance(nextX, nextZ, end.x, end.z),
-      });
+      open.push(
+        nextKey,
+        nextG,
+        nextG + octileDistance(nextX, nextZ, end.x, end.z),
+      );
     }
   }
 
@@ -341,44 +350,126 @@ function pushDistinct(path: PointXZ[], point: PointXZ): void {
   path.push(copyPoint(point));
 }
 
+class NavSearchWorkspace {
+  blockedCache = new Int8Array(0);
+  gScores = new Float64Array(0);
+  parents = new Int32Array(0);
+  closed = new Uint8Array(0);
+  readonly open = new MinHeap();
+  private capacity = 0;
+
+  prepareBlockedCache(cellCount: number): Int8Array {
+    this.ensureCapacity(cellCount);
+    this.blockedCache.fill(0, 0, cellCount);
+    return this.blockedCache;
+  }
+
+  prepareSearch(cellCount: number): {
+    gScores: Float64Array;
+    parents: Int32Array;
+    closed: Uint8Array;
+    open: MinHeap;
+  } {
+    this.ensureCapacity(cellCount);
+    this.gScores.fill(Number.POSITIVE_INFINITY, 0, cellCount);
+    this.parents.fill(-1, 0, cellCount);
+    this.closed.fill(0, 0, cellCount);
+    this.open.reset();
+    return this;
+  }
+
+  private ensureCapacity(cellCount: number): void {
+    if (this.capacity >= cellCount) return;
+    let capacity = Math.max(256, this.capacity);
+    while (capacity < cellCount) capacity *= 2;
+    this.blockedCache = new Int8Array(capacity);
+    this.gScores = new Float64Array(capacity);
+    this.parents = new Int32Array(capacity);
+    this.closed = new Uint8Array(capacity);
+    this.capacity = capacity;
+  }
+}
+
+const workspacePool: NavSearchWorkspace[] = [];
+
+function acquireWorkspace(): NavSearchWorkspace {
+  return workspacePool.pop() ?? new NavSearchWorkspace();
+}
+
+function releaseWorkspace(workspace: NavSearchWorkspace): void {
+  workspacePool.push(workspace);
+}
+
 class MinHeap {
-  private readonly values: SearchNode[] = [];
+  private readonly keys: number[] = [];
+  private readonly gScores: number[] = [];
+  private readonly fScores: number[] = [];
+  private readonly popped: SearchNode = {
+    x: 0,
+    z: 0,
+    key: 0,
+    g: 0,
+    f: 0,
+  };
+  private count = 0;
 
   get size(): number {
-    return this.values.length;
+    return this.count;
   }
 
-  push(node: SearchNode): void {
-    this.values.push(node);
-    let index = this.values.length - 1;
+  reset(): void {
+    this.count = 0;
+  }
+
+  push(key: number, g: number, f: number): void {
+    let index = this.count;
+    this.count += 1;
     while (index > 0) {
       const parent = Math.floor((index - 1) / 2);
-      if (this.values[parent].f <= node.f) break;
-      this.values[index] = this.values[parent];
+      if (this.fScores[parent] <= f) break;
+      this.keys[index] = this.keys[parent];
+      this.gScores[index] = this.gScores[parent];
+      this.fScores[index] = this.fScores[parent];
       index = parent;
     }
-    this.values[index] = node;
+    this.keys[index] = key;
+    this.gScores[index] = g;
+    this.fScores[index] = f;
   }
 
-  pop(): SearchNode | undefined {
-    const first = this.values[0];
-    const last = this.values.pop();
-    if (!first || !last || this.values.length === 0) return first;
+  pop(width: number): SearchNode | undefined {
+    if (this.count === 0) return undefined;
+    const firstKey = this.keys[0];
+    this.popped.x = firstKey % width;
+    this.popped.z = Math.floor(firstKey / width);
+    this.popped.key = firstKey;
+    this.popped.g = this.gScores[0];
+    this.popped.f = this.fScores[0];
+
+    this.count -= 1;
+    if (this.count === 0) return this.popped;
+    const lastKey = this.keys[this.count];
+    const lastG = this.gScores[this.count];
+    const lastF = this.fScores[this.count];
 
     let index = 0;
     while (true) {
       const left = index * 2 + 1;
       const right = left + 1;
-      if (left >= this.values.length) break;
-      const smaller = right < this.values.length
-        && this.values[right].f < this.values[left].f
+      if (left >= this.count) break;
+      const smaller = right < this.count
+        && this.fScores[right] < this.fScores[left]
         ? right
         : left;
-      if (this.values[smaller].f >= last.f) break;
-      this.values[index] = this.values[smaller];
+      if (this.fScores[smaller] >= lastF) break;
+      this.keys[index] = this.keys[smaller];
+      this.gScores[index] = this.gScores[smaller];
+      this.fScores[index] = this.fScores[smaller];
       index = smaller;
     }
-    this.values[index] = last;
-    return first;
+    this.keys[index] = lastKey;
+    this.gScores[index] = lastG;
+    this.fScores[index] = lastF;
+    return this.popped;
   }
 }

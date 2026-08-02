@@ -4,7 +4,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
+import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { RenderPipeline, type WebGPURenderer } from 'three/webgpu';
 import {
   abs,
@@ -73,6 +73,13 @@ const ACTIVE_BLOOM = CROATIAN_NAIVE_ART_POST_PROCESSING_ENABLED
       threshold: CROATIAN_NAIVE_ART_STYLE.bloomThreshold,
     }
   : DEFAULT_BLOOM;
+
+/**
+ * Native fullscreen submissions made after the scene pass: bloom high-pass,
+ * five horizontal/vertical blur pairs, bloom composite, and final grade/output.
+ */
+export const WEBGPU_BLOOM_FULLSCREEN_PASS_COUNT = 12;
+export const WEBGPU_POST_FULLSCREEN_PASS_COUNT = WEBGPU_BLOOM_FULLSCREEN_PASS_COUNT + 1;
 
 const DAYLIGHT_GRADE_SHADER = {
   uniforms: {
@@ -186,6 +193,13 @@ class WebGPUPostProcessor implements ScenePostProcessor {
   private readonly gradeWarmth = uniform(DEFAULT_GRADE.warmth);
   private readonly gradeNightBlue = uniform(DEFAULT_GRADE.nightBlue);
   private readonly gradeVignette = uniform(DEFAULT_GRADE.vignette);
+  private readonly gradeUniforms = {
+    saturation: this.gradeSaturation,
+    contrast: this.gradeContrast,
+    warmth: this.gradeWarmth,
+    nightBlue: this.gradeNightBlue,
+    vignette: this.gradeVignette,
+  };
   private readonly weatherNaiveArtRetention = uniform(1);
 
   constructor(renderer: WebGPURenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
@@ -193,7 +207,7 @@ class WebGPUPostProcessor implements ScenePostProcessor {
     this.scenePass = pass(scene, camera) as PassNodeLike;
 
     const sceneColor = this.scenePass.getTextureNode('output');
-    this.bloomPass = bloom(
+    this.bloomPass = new StableSizeBloomNode(
       sceneColor,
       ACTIVE_BLOOM.strength,
       ACTIVE_BLOOM.radius,
@@ -228,16 +242,7 @@ class WebGPUPostProcessor implements ScenePostProcessor {
   }
 
   setDayNightGrade(grade: DayNightGrade): void {
-    applyDayNightGradeUniforms(
-      {
-        saturation: this.gradeSaturation,
-        contrast: this.gradeContrast,
-        warmth: this.gradeWarmth,
-        nightBlue: this.gradeNightBlue,
-        vignette: this.gradeVignette,
-      },
-      grade,
-    );
+    applyDayNightGradeUniforms(this.gradeUniforms, grade);
   }
 
   setWeatherWetness(wetness: number): void {
@@ -250,6 +255,23 @@ class WebGPUPostProcessor implements ScenePostProcessor {
 
   setSize(): void {
     // WebGPU pass nodes size themselves from the renderer drawing buffer each frame.
+  }
+}
+
+/**
+ * BloomNode checks and resizes eleven render targets every frame even when the
+ * drawing buffer is unchanged. Keep its exact stock render path and cache only
+ * that idempotent size work. A real resize still reaches the stock method.
+ */
+class StableSizeBloomNode extends BloomNode {
+  private width = -1;
+  private height = -1;
+
+  override setSize(width: number, height: number): void {
+    if (width === this.width && height === this.height) return;
+    this.width = width;
+    this.height = height;
+    super.setSize(width, height);
   }
 }
 

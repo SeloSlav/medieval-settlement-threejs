@@ -22,17 +22,23 @@ export function buildCrowdViewState(
   orbitDistance: number,
   listenerX = centerX,
   listenerZ = centerZ,
+  target?: CrowdViewState,
 ): CrowdViewState {
   const viewRadius = Math.max(120, orbitDistance * 1.35 + FRUSTUM_SIM_MARGIN);
-  return {
-    centerX,
-    centerZ,
-    viewRadius,
+  const state = target ?? {
+    centerX: 0,
+    centerZ: 0,
+    viewRadius: 0,
     shadowRadius: AGENT_SHADOW_DISTANCE,
-    orbitDistance,
-    listenerX,
-    listenerZ,
   };
+  state.centerX = centerX;
+  state.centerZ = centerZ;
+  state.viewRadius = viewRadius;
+  state.shadowRadius = AGENT_SHADOW_DISTANCE;
+  state.orbitDistance = orbitDistance;
+  state.listenerX = listenerX;
+  state.listenerZ = listenerZ;
+  return state;
 }
 
 export function isWithinCrowdView(

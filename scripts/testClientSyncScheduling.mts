@@ -17,6 +17,7 @@ import type {
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { isOnRoadSurface } from '../src/roads/roadConnectivity.ts';
+import { issuedGuardPolearmsByCompany } from '../src/security/combatAgents.ts';
 import { changedBuildingPadBounds } from '../src/terrain/TerrainBuildingPads.ts';
 
 await testTableCallbackCoalescing();
@@ -29,11 +30,94 @@ testForestPhaseUpdatesCommitOncePerBatch();
 testTreeVisualSyncSkipsUnchangedSnapshots();
 testWorldGenerationReferenceStaysStableAcrossTicks();
 testQuantizedStockVisualSignatures();
+testIssuedGuardPolearmAggregationReuse();
+testIssuedGuardPolearmSnapshotQuantization();
 const markerSignatureElapsed = testBuildingMarkerSignatureScale();
 
 console.log(
   `client sync scheduling tests passed (${markerSignatureElapsed.toFixed(1)} ms for 100,000 dynamic building signatures)`,
 );
+
+function testIssuedGuardPolearmAggregationReuse(): void {
+  const agents = [
+    { faction: 'guard', sourceBuildingId: 'guardhouse-a', issuedPolearms: 1.25 },
+    { faction: 'guard', sourceBuildingId: 'guardhouse-a', issuedPolearms: 0.75 },
+    { faction: 'guard', sourceBuildingId: 'guardhouse-b', issuedPolearms: 3 },
+    { faction: 'raider', sourceBuildingId: 'guardhouse-a', issuedPolearms: 99 },
+    { faction: 'guard', sourceBuildingId: null, issuedPolearms: 8 },
+  ];
+  const target = new Map<string, number>([['stale', 100]]);
+  assert.strictEqual(
+    issuedGuardPolearmsByCompany(agents as never, target),
+    target,
+    'snapshot aggregation should reuse its caller-owned map',
+  );
+  assert.deepEqual(
+    [...target],
+    [['guardhouse-a', 2], ['guardhouse-b', 3]],
+    'reused aggregation must clear stale entries and preserve exact insertion/total semantics',
+  );
+
+  const started = performance.now();
+  for (let index = 0; index < 20_000; index += 1) {
+    issuedGuardPolearmsByCompany(agents as never, target);
+  }
+  const elapsed = performance.now() - started;
+  assert.ok(elapsed < 250, `20,000 issued-polearm aggregations took ${elapsed.toFixed(1)} ms`);
+}
+
+function testIssuedGuardPolearmSnapshotQuantization(): void {
+  const state = emptyGameState();
+  const applier = new SpacetimeSnapshotApplier();
+  const deps = {
+    sceneManager: null,
+    buildingMarkers: null,
+    terrainMinimap: null,
+    burgageFencing: null,
+    forestVisualSync: null,
+    settlementWorld: {
+      residenceMarkers: null,
+      farmFieldMarkers: null,
+      pastureMarkers: null,
+      livestockVisuals: null,
+      backyardGardenMarkers: null,
+      deliveryAgents: null,
+      villagers: null,
+      getHeightAt: () => 0,
+      getRoadNetwork: () => null,
+      getTreeRegistry: () => null,
+    },
+  };
+  const guard = (issuedPolearms: number) => [{
+    faction: 'guard',
+    sourceBuildingId: 'guardhouse-a',
+    issuedPolearms,
+  }];
+  const internals = applier as unknown as {
+    issuedGuardPolearms: Map<string, number>;
+    lastIssuedGuardPolearmSignature: Map<string, string>;
+  };
+  const numericScratch = internals.issuedGuardPolearms;
+
+  applier.apply(deps as never, state, null, guard(1.0004) as never);
+  const firstSignature = internals.lastIssuedGuardPolearmSignature;
+  assert.equal(firstSignature.get('guardhouse-a'), '1.000');
+  applier.apply(deps as never, state, state, guard(1.00049) as never);
+  assert.strictEqual(
+    internals.lastIssuedGuardPolearmSignature,
+    firstSignature,
+    'sub-millipolearm changes must retain the original toFixed(3) invalidation semantics',
+  );
+  assert.strictEqual(internals.issuedGuardPolearms, numericScratch);
+
+  applier.apply(deps as never, state, state, guard(1.0006) as never);
+  assert.notStrictEqual(
+    internals.lastIssuedGuardPolearmSignature,
+    firstSignature,
+    'crossing the existing three-decimal boundary must still invalidate the signature',
+  );
+  assert.equal(internals.lastIssuedGuardPolearmSignature.get('guardhouse-a'), '1.001');
+}
 
 function testAuthoritativeTableSubscriptions(): void {
   assert.ok(
@@ -140,6 +224,105 @@ async function testTableCallbackCoalescing(): Promise<void> {
   assert.equal(notifications, 1, 'one table burst should notify app listeners once');
   assert.equal(state.buildings.size, 1);
   assert.equal(state.buildings.get('building-1')?.actionCooldown, 99);
+
+  let residenceReads = 0;
+  let needReads = 0;
+  let residenceNotifications = 0;
+  const residenceCallbacks: Array<() => void> = [];
+  const needCallbacks: Array<() => void> = [];
+  const residenceRow = {
+    id: 1n,
+    owner,
+    zoneId: 1n,
+    parcelIndex: 0n,
+    x: 0,
+    z: 0,
+    yaw: 0,
+    population: 4n,
+    abandoned: false,
+  };
+  const needRow = {
+    residenceId: 1n,
+    needKind: 0n,
+    stock: 1,
+    deficitTicks: 0n,
+  };
+  const residenceTable = {
+    iter: () => {
+      residenceReads += 1;
+      return [residenceRow];
+    },
+    onInsert: (callback: () => void) => residenceCallbacks.push(callback),
+    onUpdate: (callback: () => void) => residenceCallbacks.push(callback),
+    onDelete: (callback: () => void) => residenceCallbacks.push(callback),
+  };
+  const needTable = {
+    iter: () => {
+      needReads += 1;
+      return [needRow];
+    },
+    onInsert: (callback: () => void) => needCallbacks.push(callback),
+    onUpdate: (callback: () => void) => needCallbacks.push(callback),
+    onDelete: (callback: () => void) => needCallbacks.push(callback),
+  };
+  new GameTableSync(
+    state as ConstructorParameters<typeof GameTableSync>[0],
+    () => {
+      residenceNotifications += 1;
+    },
+  ).attachHandlers({
+    db: {
+      residence: residenceTable,
+      residence_need: needTable,
+    },
+  } as never);
+  for (const callback of residenceCallbacks) callback();
+  for (const callback of needCallbacks) callback();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(residenceReads, 1, 'one residence/need burst should read residences once');
+  assert.equal(needReads, 1, 'one residence/need burst should read needs once');
+  assert.equal(residenceNotifications, 1, 'one residence/need burst should notify once');
+
+  let quarryReads = 0;
+  let foragingReads = 0;
+  let resourceNotifications = 0;
+  const quarryCallbacks: Array<() => void> = [];
+  const foragingCallbacks: Array<() => void> = [];
+  const emptyTable = (
+    callbacks: Array<() => void>,
+    countRead: () => void,
+  ) => ({
+    iter: () => {
+      countRead();
+      return [];
+    },
+    onInsert: (callback: () => void) => callbacks.push(callback),
+    onUpdate: (callback: () => void) => callbacks.push(callback),
+    onDelete: (callback: () => void) => callbacks.push(callback),
+  });
+  new GameTableSync(
+    state as ConstructorParameters<typeof GameTableSync>[0],
+    () => {
+      resourceNotifications += 1;
+    },
+  ).attachHandlers({
+    db: {
+      quarry: emptyTable(quarryCallbacks, () => { quarryReads += 1; }),
+      foraging_node: emptyTable(foragingCallbacks, () => { foragingReads += 1; }),
+    },
+  } as never);
+  for (const callback of quarryCallbacks) callback();
+  for (const callback of foragingCallbacks) callback();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(quarryReads, 1, 'one quarry/foraging burst should read quarries once');
+  assert.equal(
+    foragingReads,
+    2,
+    'one quarry/foraging burst should read foraging once per derived client map',
+  );
+  assert.equal(resourceNotifications, 1, 'one quarry/foraging burst should notify once');
 }
 
 function testPlacementClearanceKeepsRoadWorkCached(): void {
@@ -375,6 +558,13 @@ function testSettlementSyncSkipsUnchangedDomains(): void {
 
 function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
   const first = emptyGameState();
+  let fireValuesReads = 0;
+  const fireIncidents = first.fireIncidents;
+  const fireValues = fireIncidents.values.bind(fireIncidents);
+  fireIncidents.values = () => {
+    fireValuesReads += 1;
+    return fireValues();
+  };
   first.trees.set('tree-1', {
     treeId: 'tree-1',
     layoutIndex: 1,
@@ -453,6 +643,7 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
   assert.equal(collisionInvalidations, 1);
 
   const tickOnly = { ...first, tick: 1 };
+  fireValuesReads = 0;
   applier.apply(deps as never, tickOnly, first);
   assert.equal(syncAllCalls, 1);
   assert.equal(syncTreeCalls, 0);
@@ -463,6 +654,11 @@ function testTreeVisualSyncSkipsUnchangedSnapshots(): void {
     collisionInvalidations,
     1,
     'tick-only snapshots should not rebuild first-person static collision geometry',
+  );
+  assert.equal(
+    fireValuesReads,
+    0,
+    'tick-only snapshots should reuse destroyed-structure visibility sets without rescanning fires',
   );
 
   const changedTrees = new Map(tickOnly.trees);

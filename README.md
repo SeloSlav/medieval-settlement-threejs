@@ -1,5 +1,34 @@
 # Medieval Settlement — Three.js
 
+## Run the game locally
+
+This is the shortest way to start the complete game on Windows. You need [Node.js 22.12 or newer](https://nodejs.org/), [Rust](https://rustup.rs/), and the [SpacetimeDB CLI](https://spacetimedb.com/) installed first. The setup commands below use PowerShell.
+
+1. Open PowerShell in this project folder, download the project's submodule and install its packages:
+
+```powershell
+git submodule update --init --recursive
+npm install
+rustup target add wasm32-unknown-unknown
+```
+
+2. Start the local database in its own PowerShell window and leave that window open:
+
+```powershell
+spacetime start
+```
+
+3. Open a second PowerShell window in the project folder. The first time you run the game, publish its backend and then start the web app:
+
+```powershell
+npm run deploy:local
+npm run dev
+```
+
+4. Open the address printed by Vite, normally [http://localhost:5173/](http://localhost:5173/).
+
+The backend is now running at `http://localhost:3000` and the game is running at `http://localhost:5173`. On later visits, start `spacetime start` and `npm run dev` again. You only need to rerun `npm run deploy:local` after backend, schema, or balance changes.
+
 A real-time Three.js sandbox for growing a **medieval settlement** on a procedural 3D landscape. On a fresh game, choose map size, topography, hydrology, forest density, regional resource abundance and variety, and world seed before generation begins. Draw dirt road networks across rolling hills, pine forests, and winding rivers — wooden bridges and graded ramps appear automatically when a path crosses water. Place production buildings to harvest timber, stone, game, berries, and fish; connect wells and woodcutter's lodges along those roads; then lay out residence zones along your roads so settlers move in over time. Homes need firewood, water, and food — road-based delivery crews haul supplies from lodges, wells, hunter's halls, forager's sheds, and fishing camps while you watch wooden carts travel the network. Assign workers from your labor pool, plant backyard gardens for local food and village gold, and keep the supply chain running before homes are abandoned. A [SpacetimeDB](https://spacetimedb.com/) Rust module runs the authoritative economy simulation; the client renders replicated state in real time. Toggle the hydrology overlay to scout well sites, use the crop-specific suitability map while laying out fields, inspect foraging nodes and quarries from map icons, and drop into first-person walk mode to explore on foot.
 
 <p align="center">
@@ -346,27 +375,9 @@ A real-time Three.js sandbox for growing a **medieval settlement** on a procedur
 | Open game menu | Click the menu button (top-left) or `Escape` (RTS mode) |
 | Start a new world | Game menu → **New world…** (resets the server database when connected; always clears local settings and player identity) |
 
-## Quick Start
+## Production build
 
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run the development server (roads only — buildings and residences require SpacetimeDB):
-
-```bash
-npm run dev
-```
-
-Open the local URL printed by Vite, usually:
-
-```text
-http://localhost:5173/
-```
-
-Create a production build:
+Create an optimized build:
 
 ```bash
 npm run build
@@ -382,15 +393,9 @@ npm run preview
 
 This project uses [SpacetimeDB 2.0.1](https://spacetimedb.com/) for authoritative game state: treasury, buildings, trees, quarries, foraging nodes, roads, residence zones, backyard gardens, delivery trips, and the full settlement supply chain. The client is a thin renderer — all economy simulation runs in the Rust module via a scheduled `tick_sim` reducer every 200 ms.
 
-### Run locally
+### Backend commands
 
-1. Start the SpacetimeDB standalone server (once per machine):
-
-```bash
-spacetime start
-```
-
-2. Publish the Rust module and regenerate TypeScript bindings:
+Publish the Rust module and regenerate TypeScript bindings:
 
 ```bash
 npm run deploy:local
@@ -402,12 +407,6 @@ To wipe and republish from scratch:
 
 ```bash
 npm run deploy:local-clean
-```
-
-3. Start the Vite dev server:
-
-```bash
-npm run dev
 ```
 
 The client connects to `http://localhost:3000` with database name `city-builder`.
