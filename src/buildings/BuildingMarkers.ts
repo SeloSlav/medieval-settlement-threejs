@@ -96,6 +96,7 @@ import {
 import { processorOutputTargetForBuilding } from '../economy/processorOutputPolicy.ts';
 import { batchCompletedBuildingStaticMeshes } from './staticBuildingBatch.ts';
 import { BuildingStaticBatches } from './BuildingStaticBatches.ts';
+import { refreshBuildingDetailCasterBatches } from './buildingDetailShadowBatch.ts';
 
 type BuildingMarkersOptions = {
   terrain: Terrain;
@@ -218,6 +219,8 @@ export class BuildingMarkers {
         livestockHerds?.get(building.id),
         issuedGuardPolearms?.get(building.id) ?? 0,
       );
+      const marker = this.buildingMeshes.get(building.id);
+      if (marker) refreshBuildingDetailCasterBatches(marker);
     }
 
     for (const id of this.buildingMeshes.keys()) {
@@ -310,6 +313,7 @@ export class BuildingMarkers {
     for (const marker of this.buildingMeshes.values()) {
       if (marker.name !== "Founders' camp and open stockyard") continue;
       setFoundersCampWinterAccumulation(marker, winterAccumulation);
+      refreshBuildingDetailCasterBatches(marker);
     }
   }
 

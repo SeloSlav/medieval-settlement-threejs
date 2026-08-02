@@ -19,6 +19,9 @@ import {
 } from '../../fires/FireEffect.ts';
 import { markBuildingDetailShadowCaster } from '../buildingShadowProxy.ts';
 import {
+  installBuildingDetailCasterBatches,
+} from '../buildingDetailShadowBatch.ts';
+import {
   FOUNDERS_CAMP_BENCH_SEAT,
   FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT,
   FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
@@ -1706,6 +1709,7 @@ export function createFoundersCampMesh(): THREE.Group {
       markBuildingDetailShadowCaster(mesh);
     }
   });
+  installBuildingDetailCasterBatches(group, 'Founders exact caster batches');
   return group;
 }
 
@@ -1728,5 +1732,6 @@ export function createRemoteWorkCampMesh(): THREE.Group {
       markBuildingDetailShadowCaster(mesh);
     }
   });
+  installBuildingDetailCasterBatches(camp, 'Remote camp exact caster batches');
   return camp;
 }
