@@ -409,6 +409,18 @@ fn place_building_internal(
         return Err("Cannot build over a physical resource deposit.".to_string());
     }
 
+    // A fresh world has no roads, zones, fields, pastures, or other buildings
+    // for the founding camp to overlap. Its active, seed-aware rendered water
+    // mask and terrain shape have already been validated by the placement
+    // client. The static server hydrology grid is a groundwater proxy for
+    // wells and crops, not the active river layout, so consulting it here can
+    // reject visibly dry ground from another world seed. Route the one-time
+    // camp directly after the only server-side spatial conflict that can exist
+    // in a fresh world: a generated physical resource deposit.
+    if kind == "founders_camp" {
+        return crate::reducers::bootstrap::place_founding_camp(ctx, x, z);
+    }
+
     // Generated mineral landmarks are authoritative terrain anchors. Do not let
     // the coarse static hydrology grid reject a visually dry clay site in
     // worlds whose river seed differs from the embedded default grid.
@@ -633,10 +645,6 @@ fn place_building_internal(
 
     if is_too_close_to_buildings(ctx, owner, &kind, x, z) {
         return Err("Too close to another building.".to_string());
-    }
-
-    if kind == "founders_camp" {
-        return crate::reducers::bootstrap::place_founding_camp(ctx, x, z);
     }
 
     let cost = building_cost(&kind)?;

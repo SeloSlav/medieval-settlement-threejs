@@ -562,6 +562,7 @@ export class App {
     const gpuPrecompileStartedAt = performance.now();
     let gpuReady = true;
     const restoreVillagerPrewarm = session.villagers.beginFirstPlayableGpuPrewarm();
+    const restoreFoundersCampPrewarm = session.buildingMarkers.beginFoundersCampGpuPrewarm();
     try {
       await session.sceneManager.precompileFirstPlayableScene();
       session.sceneManager.render(0, session.cameraController.getOrbitDistance());
@@ -570,6 +571,7 @@ export class App {
       gpuReady = false;
       console.warn('First-playable GPU prewarm is unavailable:', error);
     } finally {
+      restoreFoundersCampPrewarm();
       restoreVillagerPrewarm();
     }
     if (this.disposed) return;
@@ -715,7 +717,13 @@ export class App {
       this.farmFieldTool?.update();
       this.updateBuildButtonPosition();
       this.worldMapUi?.update();
-      this.sceneManager?.render(worldDt, this.cameraController?.getOrbitDistance());
+      this.sceneManager?.render(
+        worldDt,
+        this.cameraController?.getOrbitDistance(),
+        false,
+        false,
+        this.cameraController?.isPointerNavigationActive() ?? false,
+      );
     }
     this.updateFps(time, rawDt);
     const crowdView = this.buildCrowdViewState();

@@ -338,12 +338,14 @@ export class ForestManager {
     cameraDistance: number,
     firstPersonActive: boolean,
     casterBounds: TerrainBounds,
+    cameraInteractionActive = false,
   ): void {
     this.seedThreeForest?.updateCamera(
       camera,
       cameraDistance,
       firstPersonActive,
       casterBounds,
+      cameraInteractionActive,
     );
     if (!this.undergrowth) return;
     const threshold = this.undergrowthVisible

@@ -137,11 +137,23 @@ function rmbPan(domElement: HTMLElement, fromX: number, fromY: number, toX: numb
   }));
 }
 
+function releaseMouse(button: number): void {
+  window.dispatchEvent(mouseEvent({
+    type: 'mouseup',
+    button,
+  }));
+}
+
 {
   const { controller, target, domElement } = createController();
   const startX = target.x;
   rmbPan(domElement, 100, 100, 160, 100);
+  assert.equal(controller.isPointerNavigationActive(), true,
+    'RMB pan should expose active pointer navigation to render scheduling');
   assert.notEqual(target.x, startX, 'RMB pan should move target immediately');
+  releaseMouse(2);
+  assert.equal(controller.isPointerNavigationActive(), false,
+    'RMB release should settle pointer navigation before the next render');
   const afterPanX = target.x;
   controller.update(0.016);
   controller.update(0.016);

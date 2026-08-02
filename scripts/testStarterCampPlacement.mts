@@ -161,6 +161,18 @@ const campMarkers = new BuildingMarkers({
   parent: markerParent,
 });
 campMarkers.prewarmFoundersCampPlacement();
+const restoreCampGpuPrewarm = campMarkers.beginFoundersCampGpuPrewarm();
+const gpuPrewarmedCamp = markerParent.getObjectByName("Founders' camp and open stockyard");
+assert.ok(
+  gpuPrewarmedCamp,
+  'the prebuilt camp should be attached while startup compiles live-scene shaders',
+);
+restoreCampGpuPrewarm();
+assert.equal(
+  markerParent.getObjectByName("Founders' camp and open stockyard"),
+  undefined,
+  'the covered startup prewarm should detach the camp before play',
+);
 const campRevealStarted = performance.now();
 campMarkers.showPendingPlacement('founders_camp', 12, -8);
 const campRevealElapsed = performance.now() - campRevealStarted;
@@ -334,6 +346,11 @@ assert.match(
   /if kind == "founders_camp" \{\s*return crate::reducers::bootstrap::place_founding_camp\(ctx, x, z\);/,
   'ordinary building placement must route the founders camp to its one-time setup',
 );
+assert.ok(
+  buildingReducer.indexOf('if kind == "founders_camp" {')
+    < buildingReducer.indexOf('&& is_open_water(x, z)'),
+  'the founding camp must bypass the seed-agnostic server water proxy',
+);
 assert.match(
   buildingReducer,
   /Place the founders' camp before building the settlement/,
@@ -393,6 +410,16 @@ assert.match(
   buildingMarkers,
   /prewarmFoundersCampPlacement\(\)[\s\S]*?createBuildingMesh\('founders_camp'\)/,
   'the detailed founders camp should be constructed before the placement click',
+);
+assert.match(
+  buildingMarkers,
+  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?this\.group\.add\(marker\)/,
+  'the prebuilt camp should join the covered startup scene for shader compilation',
+);
+assert.match(
+  app,
+  /beginFoundersCampGpuPrewarm\(\)[\s\S]*?precompileFirstPlayableScene\(\)[\s\S]*?restoreFoundersCampPrewarm\(\)/,
+  'startup should compile and then detach the founding-camp mesh before play',
 );
 assert.match(
   buildingMarkers,

@@ -60,6 +60,7 @@ import {
   type SeedThreeBucketSelection,
 } from '@seedthree/core/forest-update-budget.js';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
+import { planSeedThreeForestInteractionWork } from './seedThreeForestInteraction.ts';
 
 type SpeciesBucket = {
   preset: SeedThreePresetKey;
@@ -99,6 +100,7 @@ export type SeedThreeForestInstances = {
     } | null;
   } | null;
   visibilityDirty: boolean;
+  cameraInteractionActive: boolean;
   updateTelemetry: SeedThreeForestUpdateTelemetry;
 };
 
@@ -672,6 +674,7 @@ export async function createSeedThreeForest(
     },
     pendingLodWork: null,
     visibilityDirty: false,
+    cameraInteractionActive: false,
     updateTelemetry: createSeedThreeUpdateTelemetry(),
   };
 }
@@ -738,6 +741,7 @@ export function updateSeedThreeForestCamera(
   camera: THREE.Camera,
   firstPersonActive: boolean,
   casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
+  cameraInteractionActive = false,
 ): boolean {
   const result = updateSeedThreeForestCameraBudgeted(
     forest,
@@ -749,6 +753,7 @@ export function updateSeedThreeForestCamera(
       maxUpdateDurationMs: FOREST_CONTINUOUS_UPDATE_BUDGET_MS,
       maxMatrixWritesPerChunk: FOREST_MATRIX_WRITES_PER_CHUNK,
       immediateWhenViewUncovered: true,
+      cameraInteractionActive,
     },
   );
   return result.selectionChanged || result.bucketCompactions > 0;
@@ -768,9 +773,13 @@ export function updateSeedThreeForestCameraBudgeted(
     minimumProjectionChange?: number;
     minimumCasterBoundsChange?: number;
     immediateWhenViewUncovered?: boolean;
+    cameraInteractionActive?: boolean;
   },
 ): SeedThreeForestBudgetedUpdateResult {
   const startedAt = performance.now();
+  const cameraInteractionActive = options.cameraInteractionActive === true;
+  const previousCameraInteractionActive = forest.cameraInteractionActive;
+  forest.cameraInteractionActive = cameraInteractionActive;
   const selection = selectForestLods(forest.visibilitySelector, camera, {
     nearDistance: firstPersonActive
       ? FOREST_FIRST_PERSON_NEAR_DISTANCE
@@ -820,21 +829,32 @@ export function updateSeedThreeForestCameraBudgeted(
   let coverageImmediate = false;
   let stopReason = work ? 'chunk-limit' : 'converged';
   if (work) {
-    // A bounded in-place rebuild is visually safe while the old conservative
-    // view+shadow selection already contains every tree in the new view. During
-    // convergence, expose that complete resident selection to the color pass;
-    // its non-view trees remain outside the padded frustum and are GPU-clipped.
-    // A discontinuous camera jump can expose trees absent even from that
-    // resident selection; finish that rare transition immediately and
-    // atomically so a render can never observe a missing new-view tree.
-    const requiresImmediateCoverage = options.immediateWhenViewUncovered === true
-      && !currentForestResidentSelectionsCoverDesiredView(forest, work.desired);
+    // A covered resident selection can stay unchanged throughout pointer
+    // navigation. Publishing the queued species only after button release keeps
+    // their silhouettes from catching up over several frames. Discontinuous
+    // movement that escapes the resident envelope still completes immediately.
+    const protectVisibleCoverage = options.immediateWhenViewUncovered === true;
+    const residentSelectionCoversDesiredView =
+      currentForestResidentSelectionsCoverDesiredView(forest, work.desired);
+    const interactionWork = planSeedThreeForestInteractionWork(
+      previousCameraInteractionActive,
+      cameraInteractionActive,
+      residentSelectionCoversDesiredView,
+    );
+    const requiresImmediateCoverage = protectVisibleCoverage
+      && !residentSelectionCoversDesiredView;
+    const deferCoveredInteractionWork = protectVisibleCoverage
+      && interactionWork.deferCoveredWork;
+    const completeInteractionWorkImmediately = protectVisibleCoverage
+      && interactionWork.completeImmediately;
     coverageImmediate = requiresImmediateCoverage;
-    if (!requiresImmediateCoverage && options.immediateWhenViewUncovered === true) {
+    if (residentSelectionCoversDesiredView && protectVisibleCoverage) {
       exposeResidentForestSelectionsForDesiredView(forest, work.desired);
     }
-    const maxUpdateDurationMs = requiresImmediateCoverage
+    const maxUpdateDurationMs = completeInteractionWorkImmediately
       ? Number.POSITIVE_INFINITY
+      : deferCoveredInteractionWork
+      ? 0
       : Number.isFinite(options.maxUpdateDurationMs)
       ? Math.max(0, options.maxUpdateDurationMs!)
       : Number.POSITIVE_INFINITY;
@@ -858,10 +878,14 @@ export function updateSeedThreeForestCameraBudgeted(
       {
         maxDurationMs: availableWorkMs,
         minimumChunkHeadroomMs: Number.isFinite(availableWorkMs) ? 0.12 : 0,
-        maxChunks: Number.isFinite(maxUpdateDurationMs)
+        maxChunks: deferCoveredInteractionWork
+          ? 0
+          : Number.isFinite(maxUpdateDurationMs)
           ? 1
           : Number.POSITIVE_INFINITY,
-        maxBucketCompletions: options.maxBucketCompactions,
+        maxBucketCompletions: completeInteractionWorkImmediately
+          ? Number.POSITIVE_INFINITY
+          : options.maxBucketCompactions,
         now: () => performance.now(),
         applyBucketChunk: (bucketIndex, context) => {
           const bucket = forest.buckets[bucketIndex];
@@ -918,7 +942,9 @@ export function updateSeedThreeForestCameraBudgeted(
       },
     );
     bucketCompactions = chunk.completedBucketIndices.length;
-    stopReason = chunk.stopReason;
+    stopReason = deferCoveredInteractionWork
+      ? 'interaction-deferred'
+      : chunk.stopReason;
     if (chunk.stopReason === 'chunk-limit' && matrixSliceBudgetStop) {
       stopReason = matrixSliceBudgetStop;
     }
@@ -1349,7 +1375,13 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     hideTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, false),
     showTree: (layoutIndex) => setSeedThreeTreeVisible(forest, layoutIndex, true),
     commit: () => commitSeedThreeForestMatrices(forest),
-    updateCamera: (camera, _cameraDistance, firstPersonActive, casterBounds) => {
+    updateCamera: (
+      camera,
+      _cameraDistance,
+      firstPersonActive,
+      casterBounds,
+      cameraInteractionActive,
+    ) => {
       // The selector retains a 26 m screen-space world envelope plus the full
       // fitted directional-shadow caster envelope. It affects inclusion only:
       // every retained tree keeps its authored static LOD and crown state. Its
@@ -1360,6 +1392,7 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
         camera,
         firstPersonActive,
         casterBounds,
+        cameraInteractionActive,
       );
     },
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),

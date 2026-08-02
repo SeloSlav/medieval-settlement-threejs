@@ -733,6 +733,7 @@ export class SceneManager {
     orbitDistance?: number,
     firstPersonActive = false,
     firstPersonCrouching = false,
+    cameraInteractionActive = false,
   ): void {
     const rendererInfo = this.renderer.info as unknown as RendererInfoLike;
     const rendererFrameBoundary = beginRendererFrame(rendererInfo);
@@ -771,6 +772,7 @@ export class SceneManager {
       cameraDistance,
       firstPersonActive,
       shadowBounds,
+      cameraInteractionActive,
     );
     this.riverSystem.updateCameraState(
       this.camera.position,

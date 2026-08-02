@@ -12,6 +12,7 @@ import {
   type SeedThreeTreeSlot,
 } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
 import { stabilizeSeedThreeForestCardMaterial } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
+import { planSeedThreeForestInteractionWork } from '../src/vegetation/seedthree/seedThreeForestInteraction.ts';
 import {
   planForestBucketUpdates,
 } from '../vendor/seedthree/src/core/forest-update-budget.js';
@@ -20,6 +21,22 @@ type SeedThreeBucketSelection = {
   near: readonly number[];
   overview: readonly number[];
 };
+
+assert.deepEqual(
+  planSeedThreeForestInteractionWork(false, true, true),
+  { deferCoveredWork: true, completeImmediately: false },
+  'covered forest compaction should remain stable while pointer navigation is active',
+);
+assert.deepEqual(
+  planSeedThreeForestInteractionWork(true, false, true),
+  { deferCoveredWork: false, completeImmediately: true },
+  'pointer release should publish the final covered forest selection atomically',
+);
+assert.deepEqual(
+  planSeedThreeForestInteractionWork(false, true, false),
+  { deferCoveredWork: false, completeImmediately: true },
+  'an uncovered moving view must be filled immediately instead of showing a gap',
+);
 
 const alphaCutoutMaterial = new THREE.MeshBasicMaterial({ alphaTest: 0.35 });
 assert.equal(alphaCutoutMaterial.alphaToCoverage, false);

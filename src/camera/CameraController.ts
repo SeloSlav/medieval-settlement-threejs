@@ -97,6 +97,10 @@ export class CameraController {
     return this.currentYaw;
   }
 
+  isPointerNavigationActive(): boolean {
+    return this.isPanning || this.isRotating;
+  }
+
   getTargetPosition(out = new THREE.Vector3()): THREE.Vector3 {
     return out.copy(this.config.target);
   }

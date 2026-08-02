@@ -331,12 +331,42 @@ export class BuildingMarkers {
   }
 
   prewarmFoundersCampPlacement(): void {
-    if (this.prewarmedFoundersCamp || this.pendingPlacementKind === 'founders_camp') return;
+    if (
+      this.prewarmedFoundersCamp
+      || this.pendingPlacementKind === 'founders_camp'
+      || [...this.buildingStates.values()].some((building) => building.kind === 'founders_camp')
+    ) return;
     this.prewarmedFoundersCamp = createBuildingMesh('founders_camp');
     setBuildingDetailShadowsEnabled(
       this.prewarmedFoundersCamp,
       areBuildingShadowsEnabled(),
     );
+  }
+
+  /**
+   * Temporarily exposes the prebuilt founding camp while the loading screen is
+   * compiling the live scene. Keeping the mesh detached during normal startup
+   * avoids a stray world object, but excluding it from compileAsync made the
+   * first placement click pay the entire shader compilation cost.
+   */
+  beginFoundersCampGpuPrewarm(): () => void {
+    this.prewarmFoundersCampPlacement();
+    const marker = this.prewarmedFoundersCamp;
+    if (!marker || marker.parent) return () => {};
+
+    const previousVisible = marker.visible;
+    const previousPosition = marker.position.clone();
+    marker.visible = true;
+    marker.position.set(0, this.terrain.getHeightAt(0, 0), 0);
+    this.group.add(marker);
+
+    return () => {
+      if (marker === this.prewarmedFoundersCamp && marker.parent === this.group) {
+        marker.removeFromParent();
+        marker.visible = previousVisible;
+        marker.position.copy(previousPosition);
+      }
+    };
   }
 
   showPendingPlacement(kind: BuildingKind, x: number, z: number): void {
