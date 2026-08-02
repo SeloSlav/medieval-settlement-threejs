@@ -273,7 +273,7 @@ export class BuildToolbar {
       onMusicVolumeChange?: (volume: number) => void;
     },
   ) {
-    root.innerHTML = `
+    root.insertAdjacentHTML('beforeend', `
       <button type="button" class="tutorial-launcher" data-action="tutorials" aria-label="Open tutorials">
         <span class="tutorial-launcher__mark" aria-hidden="true">?</span>
         <span>Tutorials</span>
@@ -404,7 +404,7 @@ export class BuildToolbar {
         </div>
       </div>
 
-    `;
+    `);
 
     this.root = root;
     this.onToggleCityAdministration = handlers.onToggleCityAdministration;

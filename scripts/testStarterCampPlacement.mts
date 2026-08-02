@@ -345,6 +345,16 @@ assert.match(toolbar, />Place starter camp</);
 assert.match(toolbar, /setStarterCampRequired\(required: boolean\)/);
 assert.match(
   toolbar,
+  /root\.insertAdjacentHTML\('beforeend'/,
+  'mounting the toolbar must preserve the tutorial overlay already attached to the shared UI root',
+);
+assert.doesNotMatch(
+  toolbar,
+  /root\.innerHTML\s*=/,
+  'mounting the toolbar must not detach an open tutorial while its input gate remains active',
+);
+assert.match(
+  toolbar,
   /this\.constructionDock\.hidden = this\.firstPersonActive \|\| this\.starterCampRequired/,
   'the normal construction dock should be replaced until the camp exists',
 );

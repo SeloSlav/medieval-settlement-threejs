@@ -361,6 +361,7 @@ declare module '@seedthree/core/instance-matrix-chunks.js' {
     options?: {
       isSlotVisible?: (slot: TSlot) => boolean;
       resolveTreeOriginY?: (slot: TSlot) => number;
+      windXZInitializedZero?: boolean;
     },
   ): InstanceMatrixWriteJob;
 

@@ -347,7 +347,20 @@ assert.match(townHallInspector, /Work in motion/);
 assert.match(townHallInspector, /Haulage posture/);
 assert.match(townHallInspector, /data-inspect-delivery-trip/);
 assert.match(townHallInspector, /data-inspect-building/);
-assert.match(settlementHud, /compare permanent jobs, temporary builders, cart crews/);
+const laborHudIndex = settlementHud.indexOf('data-resource="labor"');
+const populationHudIndex = settlementHud.indexOf('data-resource="population"');
+const housingHudIndex = settlementHud.indexOf('data-resource="housing"');
+const timberHudIndex = settlementHud.indexOf('data-resource="timber"');
+assert.ok(
+  laborHudIndex >= 0
+    && laborHudIndex < populationHudIndex
+    && populationHudIndex < housingHudIndex
+    && housingHudIndex < timberHudIndex,
+  'the HUD should lead with free workers, total population, and residents housed',
+);
+assert.match(settlementHud, /data-tooltip-title="Workers free to assign"/);
+assert.match(settlementHud, /data-tooltip-title="Total population"/);
+assert.match(settlementHud, /data-tooltip-title="Residents housed"/);
 assert.match(settlementHud, /data-stockpile-transit="timber"/);
 assert.match(settlementHud, /Loaded carts are shown separately/);
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-delivery-trip\]'\)/);

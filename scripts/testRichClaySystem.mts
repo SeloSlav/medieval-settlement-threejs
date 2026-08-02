@@ -8,9 +8,15 @@ import {
 import {
   clayDepositAtCenter,
   clayDepositMaxYield,
+  clayDepositNodeId,
   type ClayDepositSite,
 } from '../src/clay/ClayDepositLayout.ts';
 import { createClayDepositSystem } from '../src/clay/ClayDepositSystem.ts';
+import { applyShadowPreferences } from '../src/scene/applyShadowPreferences.ts';
+import {
+  setBuildingShadowsEnabled,
+  setTreeShadowsEnabled,
+} from '../src/scene/shadowPreference.ts';
 import {
   CLAY_BANK_ORDINARY_YIELD_MAX,
   CLAY_BANK_RICH_YIELD_THRESHOLD,
@@ -124,6 +130,79 @@ assert.ok(
   })(),
   'raised clay deposit details must participate in scene shadows',
 );
+const countClayCasterInstances = (): number => {
+  let count = 0;
+  clayVisualSystem.group.traverse((object) => {
+    const mesh = object as THREE.InstancedMesh;
+    if (mesh.isInstancedMesh && mesh.userData.staticInstancedShadowBatch === true) {
+      count += mesh.count;
+    }
+  });
+  return count;
+};
+assert.equal(
+  countClayCasterInstances(),
+  layout.clayDepositLayout.sites.reduce(
+    (count, site) => count + (site.kind === 'rich' ? 20 : 12),
+    0,
+  ),
+  'the exact caster batches must initially contain every authored clay stratum and clod',
+);
+const depletedClayVisualNodes = layout.clayDepositLayout.sites.map(
+  (site, index): ResourceNodeState => ({
+    nodeId: clayDepositNodeId(site, index),
+    kind: 'quarry',
+    resource: 'clay',
+    remaining: 0,
+    maxYield: clayDepositMaxYield(site),
+    x: site.x,
+    z: site.z,
+    isRich: site.kind === 'rich',
+  }),
+);
+assert.equal(clayVisualSystem.syncNodes(depletedClayVisualNodes), true);
+assert.equal(
+  countClayCasterInstances(),
+  layout.clayDepositLayout.sites.filter((site) => site.kind === 'rich').length * 20,
+  'ordinary clay depletion must remove the same exact caster instances while rich seams remain',
+);
+
+const previousLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+const shadowPreferences = new Map<string, string>();
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem: (key: string) => shadowPreferences.get(key) ?? null,
+    setItem: (key: string, value: string) => shadowPreferences.set(key, value),
+    removeItem: (key: string) => shadowPreferences.delete(key),
+  },
+});
+setTreeShadowsEnabled(false);
+setBuildingShadowsEnabled(true);
+const preferenceSun = new THREE.DirectionalLight();
+applyShadowPreferences({
+  sunLight: preferenceSun,
+  forestManager: null,
+  propGroups: [clayVisualSystem.group],
+  buildingRoot: new THREE.Group(),
+});
+assert.equal(preferenceSun.castShadow, true);
+clayVisualSystem.group.traverse((object) => {
+  const mesh = object as THREE.InstancedMesh;
+  if (mesh.isInstancedMesh && mesh.userData.staticInstancedShadowBatch === true) {
+    assert.equal(
+      mesh.castShadow,
+      true,
+      'tree-shadow preferences must not disable deposit shadows while building shadows keep the sun active',
+    );
+  }
+});
+setTreeShadowsEnabled(true);
+if (previousLocalStorage) {
+  Object.defineProperty(globalThis, 'localStorage', previousLocalStorage);
+} else {
+  delete (globalThis as typeof globalThis & { localStorage?: unknown }).localStorage;
+}
 clayVisualSystem.dispose();
 const physicalDeposits = createPhysicalDepositFootprints(layout);
 const resources = new Set(physicalDeposits.map((deposit) => deposit.resource));

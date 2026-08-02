@@ -27,6 +27,14 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   });
   const starterCamp = page.getByRole('button', { name: /Place starter camp/ });
   await expect(starterCamp).toBeVisible({ timeout: SYNC_TIMEOUT_MS });
+  const welcomeTutorial = page.getByRole('dialog', { name: 'Begin Your Settlement' });
+  await expect(welcomeTutorial).toBeVisible({ timeout: SYNC_TIMEOUT_MS });
+  await welcomeTutorial.getByRole('button', { name: 'Got it' }).click();
+  await starterCamp.click();
+  await expect.poll(
+    () => page.evaluate(() => window.__medievalE2e?.getBuildingMode()),
+    { timeout: SYNC_TIMEOUT_MS },
+  ).toBe('founders_camp');
   await page.evaluate(async () => {
     await window.__medievalE2e!.placeFoundersCampAtFirstValidSpot();
   });

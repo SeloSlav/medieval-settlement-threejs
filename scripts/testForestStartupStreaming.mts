@@ -37,7 +37,8 @@ assert.equal(
   'startup forest assembly must not stretch across hundreds of animation-frame yields',
 );
 assert.ok(
-  /updateCamera:[\s\S]{0,900}updateSeedThreeForestCameraBudgeted\(/.test(forestBuilder),
+  /updateCamera:[\s\S]{0,900}updateSeedThreeForestCamera\(/.test(forestBuilder)
+    && /export function updateSeedThreeForestCamera\([\s\S]{0,900}updateSeedThreeForestCameraBudgeted\(/.test(forestBuilder),
   'the runtime controller must use the frame-budgeted conservative camera compactor',
 );
 assert.ok(

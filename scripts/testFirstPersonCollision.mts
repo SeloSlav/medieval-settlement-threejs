@@ -222,19 +222,35 @@ function resolveAt(
     'the open founders camp grounds should not behave like one invisible building collider',
   );
 
-  const tentPosition = new THREE.Vector3(29.1, 0.034, 2.8);
-  const tentVelocity = new THREE.Vector3(2, 0, 0);
-  collisionWorld.prepare(tentPosition.x, tentPosition.z);
-  collisionWorld.resolvePlayer(tentPosition, 26.8, 2.8, tentVelocity, {
-    bodyHeight: 1.78,
-    footRadius: FP_WALK_FOOT_RADIUS_XZ,
-    maxStepHeight: FP_WALK_STEP_UP_MARGIN,
-    grounded: true,
+  foundersCamp.updateWorldMatrix(true, true);
+  const tents: THREE.Object3D[] = [];
+  foundersCamp.traverse((object) => {
+    if (object.name === 'Founding canvas tent') tents.push(object);
   });
-  assert.ok(
-    Math.hypot(tentPosition.x - 29.1, tentPosition.z - 2.8) > 0.01,
-    'each canvas tent should retain its own first-person collider',
-  );
+  assert.equal(tents.length, 3, 'the complete founders camp must retain all three canvas tents');
+  for (const tent of tents) {
+    const tentPosition = tent.localToWorld(new THREE.Vector3(0, 0.034, 0));
+    const originalPosition = tentPosition.clone();
+    const previousPosition = tent.localToWorld(new THREE.Vector3(-3, 0.034, 0));
+    const tentVelocity = tentPosition.clone().sub(previousPosition).setY(0).normalize();
+    collisionWorld.prepare(tentPosition.x, tentPosition.z);
+    collisionWorld.resolvePlayer(
+      tentPosition,
+      previousPosition.x,
+      previousPosition.z,
+      tentVelocity,
+      {
+        bodyHeight: 1.78,
+        footRadius: FP_WALK_FOOT_RADIUS_XZ,
+        maxStepHeight: FP_WALK_STEP_UP_MARGIN,
+        grounded: true,
+      },
+    );
+    assert.ok(
+      tentPosition.distanceTo(originalPosition) > 0.01,
+      'each canvas tent should retain its own first-person collider',
+    );
+  }
 }
 
 {

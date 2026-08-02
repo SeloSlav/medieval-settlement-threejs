@@ -237,56 +237,57 @@ const SETTLEMENT_HUD_HTML = `
       <span class="settlement-hud__totals-mode-label" data-resource-totals-mode-label>Surplus</span>
     </button>
     <div class="settlement-hud__body">
-      <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip="Unreserved timber stored at physical yards, mills, and depots. Material loaded on carts is shown separately and cannot be spent until unloaded.">
-        <span class="settlement-hud__label">Timber</span>
-        <strong class="settlement-hud__value" data-stockpile="timber">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="timber" hidden></span>
+      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip-title="Workers free to assign" data-tooltip="People currently available for a new work assignment.">
+        <span class="settlement-hud__label">Labor</span>
+        <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
+        <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="stone" data-tooltip="Unreserved stone stored at physical quarry yards and depots. Material loaded on carts is shown separately and cannot be spent until unloaded.">
-        <span class="settlement-hud__label">Stone</span>
-        <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="stone" hidden></span>
-      </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="firewood" data-tooltip="Firewood stored at physical lodges, depots, markets, and homes. Loaded carts are shown separately until unloading.">
-        <span class="settlement-hud__label">Firewood</span>
-        <strong class="settlement-hud__value" data-stockpile="firewood">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="firewood" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" data-tooltip="Water stored at physical wells, workplaces, and homes. Loaded carts and fire buckets are shown separately until delivery.">
-        <span class="settlement-hud__label">Water</span>
-        <strong class="settlement-hud__value" data-stockpile="water">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="water" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip="Food stored at physical producers, granaries, markets, institutions, and homes. Loaded carts are shown separately, remain unavailable until unloading, and keep spoiling on the road.">
-        <span class="settlement-hud__label">Food</span>
-        <strong class="settlement-hud__value" data-stockpile="food">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
-      </div>
-      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip="Spendable civic gold secured in the founders' lockbox, reclamation chests, or Town Hall treasury. Market working cash, ferry fares, monastery visitor gifts, guard-company pay chests, and moving lockboxes are shown separately; parish and monastery funds remain separate.">
-        <span class="settlement-hud__label">Gold</span>
-        <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
-      </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip="Total population: starting townsfolk plus residents who have moved into homes.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip-title="Total population" data-tooltip="All townsfolk currently living in the settlement.">
         <span class="settlement-hud__label">Population</span>
         <strong class="settlement-hud__value" data-stockpile="population">0</strong>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-tooltip="Residents housed versus total housing capacity. A first settler establishes an empty home; later arrivals require every need active at that house tier to hold a local buffer. Select a Town Hall for the settlement-wide growth forecast.">
+      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-tooltip-title="Residents housed" data-tooltip="Residents living in homes compared with total housing capacity.">
         <span class="settlement-hud__label">Housing</span>
         <strong class="settlement-hud__value" data-stockpile="housing">0/0</strong>
         <span class="settlement-hud__sub" data-stockpile="housing-sub">0 vacant</span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip="Workers free to assign. Labor equals population minus workers assigned to buildings or reserved outside those rosters on active cart runs. Reducing a source roster does not free its traveling crew until the cart returns. Select a Town Hall to compare permanent jobs, temporary builders, cart crews, live route load, sector staffing, and the workforce available when current housing fills.">
-        <span class="settlement-hud__label">Labor</span>
-        <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
-        <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
+      <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip-title="Stored timber" data-tooltip="Unreserved timber in yards, mills, and depots.">
+        <span class="settlement-hud__label">Timber</span>
+        <strong class="settlement-hud__value" data-stockpile="timber">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="timber" hidden></span>
+      </div>
+      <div class="settlement-hud__stat" tabindex="0" data-resource="stone" data-tooltip-title="Stored stone" data-tooltip="Unreserved stone in quarry yards and depots.">
+        <span class="settlement-hud__label">Stone</span>
+        <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="stone" hidden></span>
+      </div>
+      <div class="settlement-hud__stat" tabindex="0" data-resource="firewood" data-tooltip-title="Stored firewood" data-tooltip="Firewood in lodges, depots, markets, and homes.">
+        <span class="settlement-hud__label">Firewood</span>
+        <strong class="settlement-hud__value" data-stockpile="firewood">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="firewood" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" data-tooltip-title="Stored water" data-tooltip="Water in wells, workplaces, and homes.">
+        <span class="settlement-hud__label">Water</span>
+        <strong class="settlement-hud__value" data-stockpile="water">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="water" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip-title="Stored food" data-tooltip="Food in producers, granaries, markets, institutions, and homes.">
+        <span class="settlement-hud__label">Food</span>
+        <strong class="settlement-hud__value" data-stockpile="food">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip-title="Civic gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
+        <span class="settlement-hud__label">Gold</span>
+        <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
       </div>
     </div>
     <details class="settlement-hud__stores" data-specialty-stores>
       <summary
         class="settlement-hud__stores-summary"
         aria-label="Stores and provisions, no specialty stock"
-        data-tooltip="Open specialty stores and provisions"
+        data-tooltip-title="Stores and provisions"
+        data-tooltip="Open the detailed inventory of specialty goods."
       >
         <span class="settlement-hud__stores-label">Stores</span>
         <strong class="settlement-hud__stores-status" data-specialty-stores-status>0</strong>
@@ -545,7 +546,7 @@ export class SettlementHud {
         ?.textContent
         ?.trim() || resource;
       const detail = row.dataset.tooltip?.trim();
-      row.dataset.tooltipTitle = label;
+      row.dataset.tooltipTitle = row.dataset.tooltipTitle?.trim() || label;
       row.dataset.tooltip = detail || label;
       row.classList.add('is-resource-locator');
       row.setAttribute('role', 'button');
@@ -895,32 +896,26 @@ export class SettlementHud {
     ].join(' · ');
 
     this.foodStat.dataset.tooltip = [
-      `${provisioning.foodStock.toFixed(1)} food is stored across physical buildings and homes; ${provisioning.usableFoodStock.toFixed(1)} is currently accessible. Loaded carts are shown separately beneath the stored total.`,
+      `${provisioning.foodStock.toFixed(1)} food is stored; ${provisioning.usableFoodStock.toFixed(1)} is accessible.`,
       provisioning.fireQuarantinedFoodStock > 0.05
-        ? `${provisioning.fireQuarantinedFoodStock.toFixed(1)} food is quarantined at fire-damaged sites and does not extend the runway.`
+        ? `Fire damage quarantines ${provisioning.fireQuarantinedFoodStock.toFixed(1)} food.`
         : null,
-      `Current fresh demand: ${provisioning.totalFoodPerDay.toFixed(1)} per day from ${provisioning.grossFoodDemandPerDay.toFixed(1)} gross meal demand; ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)} preserved food is presently replacing fresh calories in household meals.`,
-      `Current loss: ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)} fresh · ${formatPreservedFoodLoss(provisioning.preservedFoodSpoilagePerDay)} cured.`,
-      `Spoilage-adjusted fresh-food runway: ${formatProvisionRunway(provisioning.foodRunwayDays)}; the forecast spends the finite ${provisioning.usablePreservedFoodStock.toFixed(1)} usable cured reserve at the seasonal rotation before fresh demand rises.`,
-      provisioning.roadBranches === null
-        ? null
-        : `Weakest occupied road branch: ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)} from physical household-usable stores.`,
-      'Granaries reduce fresh-food spoilage but add a collection haul; disable intake at a granary to keep local suppliers serving nearby homes directly.',
+      provisioning.totalFoodPerDay > 0.05
+        ? `Fresh-food runway is ${formatProvisionRunway(provisioning.foodRunwayDays)}. Loaded carts appear below the stored total.`
+        : 'No current food demand. Loaded carts appear below the stored total.',
     ].filter(Boolean).join(' ');
     this.firewoodStat.dataset.tooltip = [
-      `${provisioning.firewoodStock.toFixed(1)} firewood is stored across physical buildings and homes; ${provisioning.usableFirewoodStock.toFixed(1)} is currently accessible. Loaded carts are shown separately beneath the stored total.`,
+      `${provisioning.firewoodStock.toFixed(1)} firewood is stored; ${provisioning.usableFirewoodStock.toFixed(1)} is accessible.`,
       provisioning.fireQuarantinedFirewoodStock > 0.05
-        ? `${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood is quarantined at fire-damaged sites and does not extend the runway.`
+        ? `Fire damage quarantines ${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood.`
         : null,
-      `Current runway: ${formatProvisionRunway(provisioning.currentFirewoodRunwayDays)}.`,
-      `Winter runway: ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} at frost demand.`,
-      provisioning.roadBranches === null || provisioning.roadBranches.heatedBranches === 0
-        ? null
-        : `Weakest heated road branch: ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at frost demand.`,
+      provisioning.heatedResidents > 0
+        ? `Runway is ${formatProvisionRunway(provisioning.currentFirewoodRunwayDays)} now and ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} in winter.`
+        : 'No current household firewood demand.',
     ].filter(Boolean).join(' ');
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
-      ? `Spendable civic gold is secured at physical settlement lockboxes. Armed guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current wage runway is ${formatProvisionRunway(provisioning.guardWageRunwayDays)}. Local receipts and gold en route appear separately and become spendable only after unloading.`
-      : "Spendable civic gold is secured at the founders' lockbox, reclamation chests, or Town Hall treasury. Parish and monastery funds remain separate; local receipts and moving lockboxes appear until unloading.";
+      ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
+      : 'Spendable gold in settlement lockboxes and the Town Hall treasury.';
   }
 
   setApprovalState(approval: SettlementApproval): void {

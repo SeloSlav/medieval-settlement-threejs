@@ -97,6 +97,67 @@ const slot = (layoutIndex: number, x: number): SeedThreeTreeSlot => ({
 });
 const slots = [slot(0, 10), slot(1, 20)];
 
+const affineParitySet = makeLodSet(1);
+const affineSlot: SeedThreeTreeSlot = {
+  ...slot(0, 0),
+  matrix: new THREE.Matrix4().compose(
+    new THREE.Vector3(7.25, -1.5, 11.75),
+    new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      1.137,
+    ),
+    new THREE.Vector3(1.73, 1.73, 1.73),
+  ),
+  pos: new THREE.Vector3(7.25, -1.35, 11.75),
+  seasonalDeciduous: true,
+};
+const affineCardSource = new THREE.Matrix4()
+  .makeRotationX(-0.413)
+  .setPosition(0.75, 5.5, -2.25);
+affineParitySet.cards[0].userData.srcMatrices = new Float32Array(
+  affineCardSource.elements,
+);
+affineParitySet.cards[0].userData.weights = new Float32Array([0.37]);
+writeSeedThreeLodMatrices(affineParitySet, [affineSlot], [0]);
+const expectedAffineCard = new THREE.Matrix4().multiplyMatrices(
+  affineSlot.matrix,
+  new THREE.Matrix4().fromArray(
+    affineParitySet.cards[0].userData.srcMatrices as Float32Array,
+  ),
+);
+assert.deepEqual(
+  Array.from(affineParitySet.cards[0].instanceMatrix.array.slice(0, 16)),
+  Array.from(new Float32Array(expectedAffineCard.elements)),
+  'direct affine packing must be bit-identical to Matrix4 multiplication after Float32 upload',
+);
+assert.deepEqual(
+  Array.from(affineParitySet.branches.instanceMatrix.array.slice(0, 16)),
+  Array.from(new Float32Array(affineSlot.matrix.elements)),
+  'direct branch packing must preserve the exact source transform bits',
+);
+assert.deepEqual(
+  Array.from(
+    affineParitySet.cards[0].geometry.getAttribute('aWindVec').array.slice(0, 3),
+  ),
+  [0, Math.fround(0.37), 0],
+  'direct card metadata packing must preserve the source wind weight',
+);
+
+const genericParitySet = makeLodSet(1);
+const projectiveCardSource = new Float32Array(affineCardSource.elements);
+projectiveCardSource[3] = 0.125;
+genericParitySet.cards[0].userData.srcMatrices = projectiveCardSource;
+writeSeedThreeLodMatrices(genericParitySet, [affineSlot], [0]);
+const expectedProjectiveCard = new THREE.Matrix4().multiplyMatrices(
+  affineSlot.matrix,
+  new THREE.Matrix4().fromArray(projectiveCardSource),
+);
+assert.deepEqual(
+  Array.from(genericParitySet.cards[0].instanceMatrix.array.slice(0, 16)),
+  Array.from(new Float32Array(expectedProjectiveCard.elements)),
+  'non-affine source matrices must retain the exact generic Matrix4 result',
+);
+
 const passPartition = partitionSeedThreeSelectionByView(
   [0, 1, 2, 3, 4],
   new Set([1, 3]),
@@ -449,6 +510,8 @@ for (const set of [
   multiSliceNearSet,
   multiSliceOverviewSet,
   passParitySet,
+  affineParitySet,
+  genericParitySet,
 ]) {
   set.branches.geometry.dispose();
   (set.branches.material as THREE.Material).dispose();

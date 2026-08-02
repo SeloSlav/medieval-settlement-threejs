@@ -73,6 +73,9 @@ export function createSeedThreeBucketMatrixWriteJob(
     nearSlotIndices,
     overviewSlotIndices,
     {
+      // These attributes are zero-filled at mesh creation and this compactor is
+      // their sole writer; only the Y wind weight varies per packed instance.
+      windXZInitializedZero: true,
       isSlotVisible: (slot) => (
         slot.enabled && slot.visibilityParent?.enabled !== false
       ),

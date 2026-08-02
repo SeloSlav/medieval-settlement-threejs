@@ -582,6 +582,47 @@ assert.equal(
   98_304,
   'all six static RGBA weathering maps must remain within the exact 96 KiB CPU texture budget',
 );
+assert.equal(
+  mineralShadowBatches.reduce((count, batch) => count + batch.count, 0),
+  mineralVisualLayout.mineralDepositLayout.sites.reduce(
+    (count, site) => count + (site.grade === 'rich' ? 18 : 10),
+    0,
+  ),
+  'the initial exact caster prefixes must contain every authored mineral outcrop',
+);
+const mineralBatchIdentities = [...mineralShadowBatches];
+const exhaustedMineralNodes = mineralVisualLayout.mineralDepositLayout.sites.map(
+  (site, index): ResourceNodeState => ({
+    nodeId: mineralDepositNodeId(site, index),
+    kind: 'quarry',
+    resource: site.resource,
+    remaining: 0,
+    maxYield: mineralDepositMaxYield(site),
+    x: site.x,
+    z: site.z,
+    isRich: site.grade === 'rich',
+  }),
+);
+assert.equal(mineralVisualSystem.syncNodes(exhaustedMineralNodes), true);
+assert.equal(
+  mineralShadowBatches.reduce((count, batch) => count + batch.count, 0),
+  mineralVisualLayout.mineralDepositLayout.sites.filter(
+    (site) => site.grade === 'rich',
+  ).length * 18,
+  'ordinary mineral depletion must remove exactly its outcrop casters while rich deposits remain',
+);
+const mineralBatchesAfterDepletion: THREE.InstancedMesh[] = [];
+mineralVisualSystem.group.traverse((object) => {
+  const mesh = object as THREE.InstancedMesh;
+  if (mesh.isInstancedMesh && mesh.userData.staticInstancedShadowBatch === true) {
+    mineralBatchesAfterDepletion.push(mesh);
+  }
+});
+assert.deepEqual(
+  mineralBatchesAfterDepletion,
+  mineralBatchIdentities,
+  'deposit depletion must update reusable caster prefixes without allocating replacement GPU meshes',
+);
 mineralVisualSystem.dispose();
 
 function measureWeatheringTexture(texture: THREE.DataTexture): {

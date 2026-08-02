@@ -113,6 +113,8 @@ export type SeedThreeForestUpdateTelemetry = {
   workChunks: number;
   matrixWrites: number;
   timeBudgetStops: number;
+  coverageImmediateUpdates: number;
+  maxCoverageImmediateDurationMs: number;
   pendingBuckets: number;
   lastDurationMs: number;
   maxDurationMs: number;
@@ -815,16 +817,22 @@ export function updateSeedThreeForestCameraBudgeted(
   let matrixWrites = 0;
   let workChunks = 0;
   let matrixSliceBudgetStop: 'time-limit' | 'headroom-limit' | null = null;
+  let coverageImmediate = false;
   let stopReason = work ? 'chunk-limit' : 'converged';
   if (work) {
-    // A bounded in-place rebuild is visually safe while the old color prefix
-    // already contains every tree in the new view. The 26 m selection envelope
-    // makes that the normal continuous-camera case. A discontinuous camera
-    // jump can expose trees absent from the published prefix; finish that rare
-    // transition immediately and atomically so a render can never observe a
-    // missing new-view tree or a partially rewritten species buffer.
+    // A bounded in-place rebuild is visually safe while the old conservative
+    // view+shadow selection already contains every tree in the new view. During
+    // convergence, expose that complete resident selection to the color pass;
+    // its non-view trees remain outside the padded frustum and are GPU-clipped.
+    // A discontinuous camera jump can expose trees absent even from that
+    // resident selection; finish that rare transition immediately and
+    // atomically so a render can never observe a missing new-view tree.
     const requiresImmediateCoverage = options.immediateWhenViewUncovered === true
-      && !currentForestColorPrefixesCoverDesiredView(forest, work.desired);
+      && !currentForestResidentSelectionsCoverDesiredView(forest, work.desired);
+    coverageImmediate = requiresImmediateCoverage;
+    if (!requiresImmediateCoverage && options.immediateWhenViewUncovered === true) {
+      exposeResidentForestSelectionsForDesiredView(forest, work.desired);
+    }
     const maxUpdateDurationMs = requiresImmediateCoverage
       ? Number.POSITIVE_INFINITY
       : Number.isFinite(options.maxUpdateDurationMs)
@@ -938,6 +946,13 @@ export function updateSeedThreeForestCameraBudgeted(
     || stopReason === 'headroom-limit'
     ? 1
     : 0;
+  forest.updateTelemetry.coverageImmediateUpdates += coverageImmediate ? 1 : 0;
+  if (coverageImmediate) {
+    forest.updateTelemetry.maxCoverageImmediateDurationMs = Math.max(
+      forest.updateTelemetry.maxCoverageImmediateDurationMs,
+      durationMs,
+    );
+  }
   forest.updateTelemetry.pendingBuckets =
     forest.pendingLodWork?.pendingBucketIndices.length ?? 0;
   forest.updateTelemetry.lastDurationMs = durationMs;
@@ -1067,6 +1082,132 @@ function reconcileCountOnlyPassPartitions(
   }
 }
 
+function currentForestResidentSelectionsCoverDesiredView(
+  forest: SeedThreeForestInstances,
+  desired: readonly PassPartitionedBucketSelection[],
+): boolean {
+  for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
+    const bucket = forest.buckets[bucketIndex]!;
+    const next = desired[bucketIndex]!;
+    if (!selectionContainsRequiredPrefix(
+      bucket.nearSlotIndices,
+      bucket.nearViewSlotCount,
+      next.near,
+      next.nearViewSlotCount,
+    )) return false;
+    if (!selectionContainsRequiredPrefix(
+      bucket.overviewSlotIndices,
+      bucket.overviewViewSlotCount,
+      next.overview,
+      next.overviewViewSlotCount,
+    )) return false;
+  }
+  return true;
+}
+
+function exposeResidentForestSelectionsForDesiredView(
+  forest: SeedThreeForestInstances,
+  desired: readonly PassPartitionedBucketSelection[],
+): void {
+  for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
+    const bucket = forest.buckets[bucketIndex]!;
+    const next = desired[bucketIndex]!;
+    const nearPrefixCovers = sortedPrefixContains(
+      bucket.nearSlotIndices,
+      bucket.nearViewSlotCount,
+      next.near,
+      next.nearViewSlotCount,
+    );
+    const overviewPrefixCovers = sortedPrefixContains(
+      bucket.overviewSlotIndices,
+      bucket.overviewViewSlotCount,
+      next.overview,
+      next.overviewViewSlotCount,
+    );
+    if (!nearPrefixCovers) {
+      updateSeedThreeLodPassInstanceCounts(
+        bucket.nearSet,
+        enabledSeedThreeTreeCountInPrefix(
+          bucket.slots,
+          bucket.nearSlotIndices,
+          bucket.nearSlotIndices.length,
+        ),
+      );
+    }
+    if (!overviewPrefixCovers) {
+      updateSeedThreeLodPassInstanceCounts(
+        bucket.overviewSet,
+        enabledSeedThreeTreeCountInPrefix(
+          bucket.slots,
+          bucket.overviewSlotIndices,
+          bucket.overviewSlotIndices.length,
+        ),
+      );
+    }
+  }
+}
+
+function selectionContainsRequiredPrefix(
+  available: readonly number[],
+  availablePartition: number,
+  required: readonly number[],
+  requiredLength: number,
+): boolean {
+  const partition = Math.min(
+    available.length,
+    Math.max(0, availablePartition),
+  );
+  const requiredEnd = Math.min(required.length, Math.max(0, requiredLength));
+  for (let requiredIndex = 0; requiredIndex < requiredEnd; requiredIndex += 1) {
+    const value = required[requiredIndex]!;
+    if (
+      !sortedRangeContains(available, 0, partition, value)
+      && !sortedRangeContains(available, partition, available.length, value)
+    ) return false;
+  }
+  return true;
+}
+
+function sortedRangeContains(
+  values: readonly number[],
+  start: number,
+  end: number,
+  target: number,
+): boolean {
+  let low = start;
+  let high = end - 1;
+  while (low <= high) {
+    const middle = (low + high) >>> 1;
+    const value = values[middle]!;
+    if (value < target) low = middle + 1;
+    else if (value > target) high = middle - 1;
+    else return true;
+  }
+  return false;
+}
+
+function sortedPrefixContains(
+  available: readonly number[],
+  availableLength: number,
+  required: readonly number[],
+  requiredLength: number,
+): boolean {
+  const availableEnd = Math.min(available.length, Math.max(0, availableLength));
+  const requiredEnd = Math.min(required.length, Math.max(0, requiredLength));
+  let availableIndex = 0;
+  for (let requiredIndex = 0; requiredIndex < requiredEnd; requiredIndex += 1) {
+    const requiredValue = required[requiredIndex]!;
+    while (availableIndex < availableEnd && available[availableIndex]! < requiredValue) {
+      availableIndex += 1;
+    }
+    if (availableIndex >= availableEnd || available[availableIndex] !== requiredValue) {
+      return false;
+    }
+    availableIndex += 1;
+  }
+  return true;
+}
+
 function createSeedThreeUpdateTelemetry(): SeedThreeForestUpdateTelemetry {
   return {
     selectorCalls: 0,
@@ -1079,6 +1220,8 @@ function createSeedThreeUpdateTelemetry(): SeedThreeForestUpdateTelemetry {
     workChunks: 0,
     matrixWrites: 0,
     timeBudgetStops: 0,
+    coverageImmediateUpdates: 0,
+    maxCoverageImmediateDurationMs: 0,
     pendingBuckets: 0,
     lastDurationMs: 0,
     maxDurationMs: 0,
