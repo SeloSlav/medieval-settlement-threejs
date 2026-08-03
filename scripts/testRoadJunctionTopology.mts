@@ -116,6 +116,20 @@ assert(
   'the non-incident elbow quadrant should stay at the compact hub instead of expanding into a slab',
 );
 
+const core = elbowPatch.children[1] as THREE.Mesh;
+const coreUvs = core.geometry.getAttribute('uv');
+assert.equal(coreUvs.getX(0), 0.5, 'the junction center should sample the middle of the road texture');
+let minimumCoreU = Infinity;
+let maximumCoreU = -Infinity;
+for (let index = 0; index < coreUvs.count; index++) {
+  minimumCoreU = Math.min(minimumCoreU, coreUvs.getX(index));
+  maximumCoreU = Math.max(maximumCoreU, coreUvs.getX(index));
+}
+assert(
+  maximumCoreU - minimumCoreU >= 1,
+  'the opaque junction patch must preserve lateral UV distance instead of collapsing the texture to one column',
+);
+
 const deadEndPatches = patches.children.filter((child) => child.name.startsWith('Road endpoint '));
 assert.equal(deadEndPatches.length, 2, 'only the two true dead ends should receive terminal caps');
 for (const group of deadEndPatches as THREE.Group[]) {

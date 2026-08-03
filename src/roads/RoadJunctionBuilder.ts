@@ -261,14 +261,14 @@ export class RoadJunctionBuilder {
     const yOffset = blend ? BLEND_Y_OFFSET : CORE_Y_OFFSET;
     const centerY = this.terrain.getHeightAt(center.x, center.z) + yOffset;
     positions.push(center.x, centerY, center.z);
-    uvs.push(1, 0.5);
+    uvs.push(blend ? 1 : 0.5, 0.5);
 
     for (const local of ring) {
       const x = center.x + local.x;
       const z = center.z + local.y;
       positions.push(x, this.terrain.getHeightAt(x, z) + yOffset, z);
-      const fadeU = blend ? 0 : 0.5;
-      uvs.push(fadeU, 0.5 + local.x / Math.max(1, radius * 2.4));
+      const lateralU = 0.5 + local.y / Math.max(1, width);
+      uvs.push(blend ? 0 : lateralU, 0.5 + local.x / Math.max(1, radius * 2.4));
     }
 
     for (let i = 1; i <= ring.length; i++) {
