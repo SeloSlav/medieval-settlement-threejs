@@ -201,6 +201,7 @@ export function partitionSeedThreeSelectionByStaticLod(
     viewIndices: readonly number[];
   },
   forceOverview: (layoutIndex: number) => boolean,
+  includeForcedOverviewInNear = false,
 ): {
   nearIndices: number[];
   overviewIndices: number[];
@@ -230,6 +231,10 @@ export function partitionSeedThreeSelectionByStaticLod(
     if (forceOverview(layoutIndex)) {
       overviewIndices.push(layoutIndex);
       if (viewVisible) overviewViewCount += 1;
+      if (includeForcedOverviewInNear) {
+        nearIndices.push(layoutIndex);
+        if (viewVisible) nearViewCount += 1;
+      }
     } else {
       nearIndices.push(layoutIndex);
       if (viewVisible) nearViewCount += 1;

@@ -48,9 +48,18 @@ import {
 } from './seedThreeForestCompaction.ts';
 import {
   applySeedThreeForestCardMotion,
+  applySeedThreeOverviewBillboardFade,
+  createSeedThreeOverviewBarkFadeMaterial,
+  createSeedThreeOverviewFadeMaterial,
   resolveSeedThreeForestCardMotion,
+  setSeedThreeOverviewBillboardFadeOpacity,
   stabilizeSeedThreeForestCardMaterial,
 } from './seedThreeForestMaterial.ts';
+import { BASELINE_ORBIT_DISTANCE } from '../../camera/CameraCurves.ts';
+import {
+  updateSeedThreeOverviewBillboardFade,
+  type SeedThreeOverviewBillboardFadeState,
+} from './seedThreeOverviewBillboardFade.ts';
 import {
   SEEDTHREE_FOREST_WIND_SPEED,
   shouldShowSeedThreeCrownUnderlay,
@@ -80,6 +89,7 @@ type PassPartitionedBucketSelection = SeedThreeBucketSelection & {
 
 export type SeedThreeForestInstances = {
   group: THREE.Group;
+  overviewBillboardGroup: THREE.Group;
   placements: ForestTreePlacement[];
   buckets: SpeciesBucket[];
   slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null>;
@@ -101,6 +111,8 @@ export type SeedThreeForestInstances = {
   } | null;
   visibilityDirty: boolean;
   cameraInteractionActive: boolean;
+  overviewBillboardFade: SeedThreeOverviewBillboardFadeState;
+  ownedOverviewFadeMaterials: THREE.Material[];
   updateTelemetry: SeedThreeForestUpdateTelemetry;
 };
 
@@ -238,6 +250,7 @@ function createInstancedLodSet(
     toneVariation?: number;
     crownUnderlayMeshes?: THREE.InstancedMesh[];
     overviewCards?: boolean;
+    ownedOverviewFadeMaterials?: Set<THREE.Material>;
   } = {},
 ): InstancedLodSet {
   const groupCount = slots.length;
@@ -254,7 +267,14 @@ function createInstancedLodSet(
       geo.userData.forestClone = true;
       geo.setAttribute('aWindVec', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
       geo.setAttribute('aAnchorPos', new THREE.InstancedBufferAttribute(new Float32Array(groupCount * 3), 3));
-      const im = new THREE.InstancedMesh(geo, forestBarkMaterial(mesh.material as THREE.Material), groupCount);
+      const sourceMaterial = forestBarkMaterial(mesh.material as THREE.Material);
+      const material = options.overviewCards === true
+        ? createSeedThreeOverviewBarkFadeMaterial(sourceMaterial)
+        : sourceMaterial;
+      if (options.overviewCards === true) {
+        options.ownedOverviewFadeMaterials?.add(material);
+      }
+      const im = new THREE.InstancedMesh(geo, material, groupCount);
       im.name = `${debugName} branches`;
       im.castShadow = castShadow;
       im.receiveShadow = true;
@@ -298,12 +318,8 @@ function createInstancedLodSet(
         }
 
         const crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
-        // Whole-crown underlays are visual filler, not foliage silhouettes.
-        // Sending their large crossed quads through the shadow pass projects
-        // the card bounds as rectangular shadows at strategic-map distances.
-        const cardCastsShadow = castShadow && !crownUnderlay;
         const sourceMaterial = instanced.material as THREE.Material;
-        const fmat = applySeedThreeForestCardMotion(
+        const baseForestMaterial = applySeedThreeForestCardMotion(
           stabilizeSeedThreeForestCardMaterial(
             (instanced.userData.shareMaterial
             ? instanced.material
@@ -320,6 +336,15 @@ function createInstancedLodSet(
           ),
           sourceMaterial,
         );
+        const fmat = crownUnderlay && options.overviewCards !== true
+          ? createSeedThreeOverviewFadeMaterial(baseForestMaterial)
+          : baseForestMaterial;
+        if (crownUnderlay && options.overviewCards !== true) {
+          options.ownedOverviewFadeMaterials?.add(fmat);
+        }
+        if (options.overviewCards === true) {
+          applySeedThreeOverviewBillboardFade(fmat);
+        }
         if (options.seasonalDeciduous) {
           options.seasonalCardMaterials?.add(fmat as THREE.Material);
         }
@@ -327,10 +352,14 @@ function createInstancedLodSet(
           userData: Record<string, unknown>;
         };
         im.name = `${debugName} cards`;
-        im.castShadow = cardCastsShadow;
+        // Crown underlays are large crossed canopy-fill quads. They improve the
+        // color silhouette, but their baked alpha is not preserved by the
+        // WebGPU shadow variant and turns into rectangular terrain shadows.
+        const castsTreeSilhouette = castShadow && !crownUnderlay;
+        im.castShadow = castsTreeSilhouette;
         im.receiveShadow = true;
         im.frustumCulled = false;
-        im.userData.neverCastShadow = !cardCastsShadow;
+        im.userData.neverCastShadow = !castsTreeSilhouette;
         im.userData.src = instanced;
         im.userData.k = cardsPerTree;
         im.userData.crownUnderlay = crownUnderlay;
@@ -359,6 +388,7 @@ function createSpeciesBucket(
   rng: Rng,
   seasonalCardMaterials: Set<THREE.Material>,
   crownUnderlayMeshes: THREE.InstancedMesh[],
+  ownedOverviewFadeMaterials: Set<THREE.Material>,
 ): SpeciesBucket {
   const nearLevel = findLodLevel(prototype, 'LOD2');
   // LOD4's crossed whole-limb cards read as flat green triangles from the
@@ -380,6 +410,7 @@ function createSpeciesBucket(
       seasonalCardMaterials,
       autumnColor,
       crownUnderlayMeshes,
+      ownedOverviewFadeMaterials,
     },
   );
   const overviewSet = createInstancedLodSet(
@@ -395,9 +426,13 @@ function createSpeciesBucket(
       toneVariation: overviewTone.variation,
       crownUnderlayMeshes,
       overviewCards: true,
+      ownedOverviewFadeMaterials,
+      castShadow: false,
     },
   );
-  const nearSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [] : [index]);
+  // The real LOD2 tree stays resident under every far-card slot. Zooming then
+  // changes only one opacity uniform; no geometry swaps at the fade boundary.
+  const nearSlotIndices = slots.map((_, index) => index);
   const overviewSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [index] : []);
   writeSeedThreeLodMatrices(nearSet, slots, nearSlotIndices);
   writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
@@ -478,6 +513,10 @@ export async function createSeedThreeForest(
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
   const group = new THREE.Group();
   group.name = 'SeedThree Gorski Kotar forest';
+  const overviewBillboardGroup = new THREE.Group();
+  overviewBillboardGroup.name = 'SeedThree overview tree billboards';
+  overviewBillboardGroup.visible = false;
+  group.add(overviewBillboardGroup);
 
   const assetsByPreset = new Map<SeedThreePresetKey, SeedThreeSpeciesAssets>();
   const prototypeByPreset = new Map<SeedThreePresetKey, THREE.LOD>();
@@ -586,6 +625,7 @@ export async function createSeedThreeForest(
   const buckets: SpeciesBucket[] = [];
   const seasonalCardMaterials = new Set<THREE.Material>();
   const crownUnderlayMeshes: THREE.InstancedMesh[] = [];
+  const ownedOverviewFadeMaterials = new Set<THREE.Material>();
 
   for (const presetKey of GORSKI_KOTAR_PRESETS) {
     const slots = placementsByPreset.get(presetKey);
@@ -605,17 +645,23 @@ export async function createSeedThreeForest(
       new Rng(`bucket:${presetKey}:${treeSeed}`),
       seasonalCardMaterials,
       crownUnderlayMeshes,
+      ownedOverviewFadeMaterials,
     );
     buckets.push(bucket);
     if (bucket.nearSet.branches) group.add(bucket.nearSet.branches);
-    for (const cardMesh of bucket.nearSet.cards) group.add(cardMesh);
-    if (bucket.overviewSet.branches) group.add(bucket.overviewSet.branches);
-    for (const cardMesh of bucket.overviewSet.cards) group.add(cardMesh);
+    for (const cardMesh of bucket.nearSet.cards) {
+      if (cardMesh.userData.crownUnderlay === true) overviewBillboardGroup.add(cardMesh);
+      else group.add(cardMesh);
+    }
+    if (bucket.overviewSet.branches) overviewBillboardGroup.add(bucket.overviewSet.branches);
+    for (const cardMesh of bucket.overviewSet.cards) overviewBillboardGroup.add(cardMesh);
   }
 
   // Start from a deterministic close-camera state so all three global modes
   // behave correctly before the first camera update (and never flash one frame).
-  const crownUnderlayVisible = shouldShowSeedThreeCrownUnderlay(false, 0, false);
+  // Crown-fill cards share the overview crossfade group. Keep the meshes live;
+  // their ancestor visibility and shared opacity uniform own the transition.
+  const crownUnderlayVisible = true;
   for (const mesh of crownUnderlayMeshes) mesh.visible = crownUnderlayVisible;
 
   const visibilitySelector = createForestLodSelector(visibilityItems, {
@@ -653,8 +699,10 @@ export async function createSeedThreeForest(
     if (startup) startup.seedThree = lastStartupTiming;
   }
   console.info('[Startup] SeedThree forest stages', lastStartupTiming);
+  setSeedThreeOverviewBillboardFadeOpacity(0);
   return {
     group,
+    overviewBillboardGroup,
     placements,
     buckets,
     slotByLayoutIndex,
@@ -679,6 +727,8 @@ export async function createSeedThreeForest(
     pendingLodWork: null,
     visibilityDirty: false,
     cameraInteractionActive: false,
+    overviewBillboardFade: { enabled: false, opacity: 0 },
+    ownedOverviewFadeMaterials: [...ownedOverviewFadeMaterials],
     updateTelemetry: createSeedThreeUpdateTelemetry(),
   };
 }
@@ -1061,6 +1111,7 @@ function selectionsByBucket(
         ? forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex]?.forceOverview === true
         : false;
     },
+    true,
   );
   for (let index = 0; index < staticLodPartition.nearIndices.length; index += 1) {
     const layoutIndex = staticLodPartition.nearIndices[index]!;
@@ -1302,6 +1353,37 @@ export function setSeedThreeForestDeciduousFoliage(
   }
 }
 
+export function updateSeedThreeForestOverviewBillboardFade(
+  forest: SeedThreeForestInstances,
+  cameraDistance: number,
+  firstPersonActive: boolean,
+  deltaSeconds: number,
+): boolean {
+  const previous = forest.overviewBillboardFade;
+  const zoomPercent = Number.isFinite(cameraDistance) && cameraDistance > 0
+    ? (BASELINE_ORBIT_DISTANCE / cameraDistance) * 100
+    : 100;
+  const next = updateSeedThreeOverviewBillboardFade(
+    previous,
+    zoomPercent,
+    deltaSeconds,
+    firstPersonActive,
+  );
+  forest.overviewBillboardFade = {
+    enabled: next.enabled,
+    opacity: next.opacity,
+  };
+  setSeedThreeOverviewBillboardFadeOpacity(next.opacity);
+  const visibilityChanged = forest.overviewBillboardGroup.visible !== next.visible;
+  forest.overviewBillboardGroup.visible = next.visible;
+  forest.overviewBillboardGroup.userData.fadeEnabled = next.enabled;
+  forest.overviewBillboardGroup.userData.fadeOpacity = next.opacity;
+  forest.overviewBillboardGroup.userData.fadeTargetOpacity = next.targetOpacity;
+  return visibilityChanged
+    || previous.enabled !== next.enabled
+    || Math.abs(previous.opacity - next.opacity) > 1e-4;
+}
+
 export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.InstancedMesh;
@@ -1309,6 +1391,7 @@ export function disposeSeedThreeForest(forest: SeedThreeForestInstances): void {
     if (mesh.geometry.userData.forestClone) mesh.geometry.dispose();
     mesh.dispose();
   });
+  for (const material of forest.ownedOverviewFadeMaterials) material.dispose();
 }
 
 export function createSeedThreeForestController(forest: SeedThreeForestInstances): SeedThreeForestController {
@@ -1318,23 +1401,29 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     commit: () => commitSeedThreeForestMatrices(forest),
     updateCamera: (
       camera,
-      _cameraDistance,
+      cameraDistance,
       firstPersonActive,
       casterBounds,
       cameraInteractionActive,
+      deltaSeconds = 1 / 60,
     ) => {
       // The selector retains a 26 m screen-space world envelope plus the full
-      // fitted directional-shadow caster envelope. It affects inclusion only:
-      // every retained tree keeps its authored static LOD and crown state. Its
-      // species buffers commit atomically, so no partially rewritten tree can
-      // reach a render pass.
-      return updateSeedThreeForestCamera(
+      // fitted directional-shadow caster envelope. Every far-card slot keeps a
+      // real LOD2 tree resident beneath it, so zoom changes only opacity.
+      const fadeChanged = updateSeedThreeForestOverviewBillboardFade(
+        forest,
+        cameraDistance,
+        firstPersonActive,
+        deltaSeconds,
+      );
+      const selectionChanged = updateSeedThreeForestCamera(
         forest,
         camera,
         firstPersonActive,
         casterBounds,
         cameraInteractionActive,
       );
+      return fadeChanged || selectionChanged;
     },
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
     setDeciduousFoliage: (presentation) =>

@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { float, uniform } from 'three/tsl';
 
 /** Forest foliage is diffuse/transmissive; a sun-driven glossy lobe reads as shimmer. */
 export const SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY = 0;
@@ -26,6 +27,77 @@ export function resolveSeedThreeForestCardMotion(
 type SeedThreePositionNodeMaterial = THREE.Material & {
   positionNode?: unknown;
 };
+
+type TslNode = {
+  mul(value: unknown): TslNode;
+};
+
+type SeedThreeOpacityNodeMaterial = THREE.Material & {
+  opacityNode?: TslNode | null;
+};
+
+const overviewBillboardFadeOpacity = uniform(0) as { value: number } & TslNode;
+
+/** Smoothly blend the far-card overlay over an always-resident real tree. */
+export function applySeedThreeOverviewBillboardFade(
+  material: THREE.Material,
+): THREE.Material {
+  if (material.userData.seedThreeOverviewBillboardFade === true) return material;
+  const target = material as SeedThreeOpacityNodeMaterial;
+  const baseOpacity = target.opacityNode ?? (float(1) as TslNode);
+  target.opacityNode = baseOpacity.mul(overviewBillboardFadeOpacity);
+  // Both alpha hashing and an animated alpha-test threshold change foliage
+  // coverage discontinuously while zooming. The overview layer is small and
+  // temporary, so conventional blending is the stable crossfade here.
+  material.alphaTest = 0;
+  material.alphaHash = false;
+  material.alphaToCoverage = false;
+  material.transparent = true;
+  material.depthWrite = false;
+  material.userData.seedThreeOverviewBillboardFade = true;
+  material.needsUpdate = true;
+  return material;
+}
+
+/** Clone a cached forest material so fading overview geometry cannot fade near trees. */
+export function createSeedThreeOverviewFadeMaterial(
+  source: THREE.Material,
+): THREE.Material {
+  const material = source.clone();
+  // NodeMaterial.clone() omits these standard texture/node properties in the
+  // current Three WebGPU path, so restore the complete forest material recipe.
+  for (const property of [
+    'map',
+    'normalMap',
+    'roughnessMap',
+    'colorNode',
+    'normalNode',
+    'roughnessNode',
+    'metalnessNode',
+    'positionNode',
+    'opacityNode',
+    'thicknessColorNode',
+    'thicknessDistortionNode',
+    'thicknessAmbientNode',
+    'thicknessAttenuationNode',
+    'thicknessPowerNode',
+    'thicknessScaleNode',
+  ]) {
+    const value = Reflect.get(source, property);
+    if (value !== undefined) Reflect.set(material, property, value);
+  }
+  material.userData.seedThreeOwnedOverviewFadeMaterial = true;
+  return applySeedThreeOverviewBillboardFade(material);
+}
+
+export const createSeedThreeOverviewBarkFadeMaterial = createSeedThreeOverviewFadeMaterial;
+
+export function setSeedThreeOverviewBillboardFadeOpacity(opacity: number): void {
+  overviewBillboardFadeOpacity.value = Math.max(
+    0,
+    Math.min(1, Number.isFinite(opacity) ? opacity : 0),
+  );
+}
 
 /**
  * Override only the card-position node after SeedThree has built its forest

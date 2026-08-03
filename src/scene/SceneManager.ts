@@ -784,6 +784,7 @@ export class SceneManager {
       firstPersonActive,
       shadowBounds,
       cameraInteractionActive,
+      dt,
     );
     this.riverSystem.updateCameraState(
       this.camera.position,

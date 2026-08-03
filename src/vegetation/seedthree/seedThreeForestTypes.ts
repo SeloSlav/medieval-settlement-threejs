@@ -38,6 +38,7 @@ export type SeedThreeForestController = {
     firstPersonActive: boolean,
     casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
     cameraInteractionActive?: boolean,
+    deltaSeconds?: number,
   ): boolean;
   getStructuralStats(): SeedThreeForestStructuralStats;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void;
