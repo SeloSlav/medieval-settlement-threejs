@@ -151,6 +151,7 @@ const tests = [
   'test:river-water-material',
   'test:seedthree-forest-ecology',
   'test:seedthree-forest-compaction',
+  'test:seedthree-overview-billboard-fade',
   'test:forest-startup-streaming',
   'test:vegetation-startup-performance',
   'test:seedthree-winter-foliage',
