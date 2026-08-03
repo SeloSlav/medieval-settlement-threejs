@@ -46,9 +46,9 @@ assert.ok(
   'runtime forest compaction must carry an explicit finite main-thread time budget',
 );
 assert.ok(
-  forestBuilder.includes('slot.forceOverview ? [] : [index]')
+  forestBuilder.includes('const nearSlotIndices = slots.map((_, index) => index)')
     && forestBuilder.includes('slot.forceOverview ? [index] : []'),
-  'every enabled tree must receive one static near or overview draw assignment',
+  'every overview tree must retain its real near LOD underneath the fading quad layer',
 );
 assert.ok(
   forestBuilder.includes("Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.playableSize * 0.44"),
@@ -105,5 +105,5 @@ console.log(JSON.stringify({
   trees: trees.length,
   medianNearestMeters: Number(medianNearest.toFixed(2)),
   clusteredPercent: Number((clusteredShare * 100).toFixed(1)),
-  runtimeResidency: 'camera-compacted-static-lod',
+  runtimeResidency: 'camera-compacted-overlapping-overview-lod',
 }));
