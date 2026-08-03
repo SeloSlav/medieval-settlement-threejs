@@ -723,7 +723,7 @@ export class App {
         this.cameraController?.getOrbitDistance(),
         false,
         false,
-        this.cameraController?.isPointerNavigationActive() ?? false,
+        this.cameraController?.isNavigationActive() ?? false,
       );
     }
     this.updateFps(time, rawDt);

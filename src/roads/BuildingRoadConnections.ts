@@ -396,7 +396,7 @@ export function markerRevealOpacity(distance: number, isNearest: boolean): numbe
   return 1 - fade;
 }
 
-function createFadingMarkerMaterial(
+export function createFadingMarkerMaterial(
   opacity: number,
   side: THREE.Side,
 ): THREE.MeshBasicMaterial {
@@ -404,6 +404,7 @@ function createFadingMarkerMaterial(
     color: 0xffffff,
     transparent: true,
     opacity,
+    depthTest: false,
     depthWrite: false,
     side,
   });

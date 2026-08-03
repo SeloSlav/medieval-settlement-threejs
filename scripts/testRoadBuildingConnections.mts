@@ -91,6 +91,8 @@ for (const markerName of [
   assert.equal(markers.count, 1, 'only the closest node should render at the outer reveal range');
   assert(markers.material instanceof THREE.MeshBasicMaterial);
   assert.equal(markers.material.color.getHex(), 0xffffff, `${markerName} should be white`);
+  assert.equal(markers.material.depthTest, false, `${markerName} should render as an overlay`);
+  assert.equal(markers.material.depthWrite, false, `${markerName} must not alter scene depth`);
   const markerOpacity = markers.geometry.getAttribute('markerOpacity');
   assert(markerOpacity instanceof THREE.InstancedBufferAttribute);
   assert(markerOpacity.getX(0) > 0, `${markerName} should be fading in`);

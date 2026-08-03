@@ -15,6 +15,7 @@ import {
   type BuildingRoadConnectionSource,
 } from './BuildingRoadConnections.ts';
 import { ROAD_WIDTH } from './roadDimensions.ts';
+import { RoadNodeSnapMarkers } from './RoadNodeSnapMarkers.ts';
 
 const MIN_POINT_DISTANCE = 1.05;
 const MIN_COMMIT_LENGTH = 3.5;
@@ -63,6 +64,7 @@ export class RoadTool {
   private redoStack: RoadNetworkSnapshot[] = [];
   private readonly preview: RoadPreview;
   private readonly buildingConnections: BuildingRoadConnections;
+  private readonly roadNodeSnapMarkers: RoadNodeSnapMarkers;
   private lastHoverPreviewX = Number.NaN;
   private lastHoverPreviewZ = Number.NaN;
   private cachedDraftValidation: RoadPlacementResult | null = null;
@@ -102,6 +104,10 @@ export class RoadTool {
       getBuildings: options.getBuildings,
       getRoadNetwork: () => options.network,
     });
+    this.roadNodeSnapMarkers = new RoadNodeSnapMarkers({
+      parent: options.sceneManager.previewGroup,
+      network: options.network,
+    });
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
     window.addEventListener('mousemove', this.onPointerMove, { capture: true });
     options.domElement.addEventListener('wheel', this.onWheel, { passive: false, capture: true });
@@ -125,6 +131,7 @@ export class RoadTool {
     if (this.enabled === enabled) return;
     this.enabled = enabled;
     this.buildingConnections.setVisible(enabled);
+    this.roadNodeSnapMarkers.setVisible(enabled);
     if (
       enabled
       && Number.isFinite(this.pointerClientX)
@@ -167,6 +174,7 @@ export class RoadTool {
   update(dt: number): void {
     if (!this.enabled) return;
     this.buildingConnections.update(dt);
+    this.roadNodeSnapMarkers.update(dt);
     if (!this.hasDraft()) return;
     this.maybeRunDeferredValidation(false);
   }
@@ -243,6 +251,7 @@ export class RoadTool {
     window.removeEventListener('keydown', this.onKeyDown);
     this.preview.dispose();
     this.buildingConnections.dispose();
+    this.roadNodeSnapMarkers.dispose();
   }
 
   private readonly onPointerDown = (event: MouseEvent): void => {
@@ -261,6 +270,7 @@ export class RoadTool {
     const hit = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!hit) return;
     this.buildingConnections.setCursor(hit);
+    this.roadNodeSnapMarkers.setCursor(hit);
     event.preventDefault();
     event.stopPropagation();
     const exitReason = this.getInvalidClickExitReason();
@@ -287,10 +297,12 @@ export class RoadTool {
     const hit = this.options.terrainProjector.pick(clientX, clientY);
     if (!hit) {
       this.buildingConnections.setCursor(null);
+      this.roadNodeSnapMarkers.setCursor(null);
       this.preview.updateCursor(null);
       return;
     }
     this.buildingConnections.setCursor(hit);
+    this.roadNodeSnapMarkers.setCursor(hit);
     const snapped = this.applySnap(hit);
     this.preview.updateCursor(snapped);
     this.hoverPoint = snapped;

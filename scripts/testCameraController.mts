@@ -119,6 +119,7 @@ function keyboardEvent(type: 'keydown' | 'keyup', key: string): KeyboardEvent {
     type,
     key,
     bubbles: true,
+    preventDefault() {},
   } as KeyboardEvent;
 }
 
@@ -148,12 +149,12 @@ function releaseMouse(button: number): void {
   const { controller, target, domElement } = createController();
   const startX = target.x;
   rmbPan(domElement, 100, 100, 160, 100);
-  assert.equal(controller.isPointerNavigationActive(), true,
-    'RMB pan should expose active pointer navigation to render scheduling');
+  assert.equal(controller.isNavigationActive(), true,
+    'RMB pan should expose active navigation to render scheduling');
   assert.notEqual(target.x, startX, 'RMB pan should move target immediately');
   releaseMouse(2);
-  assert.equal(controller.isPointerNavigationActive(), false,
-    'RMB release should settle pointer navigation before the next render');
+  assert.equal(controller.isNavigationActive(), false,
+    'RMB release should settle navigation before the next render');
   const afterPanX = target.x;
   controller.update(0.016);
   controller.update(0.016);
@@ -171,11 +172,15 @@ function releaseMouse(button: number): void {
 {
   const { controller, target } = createController();
   window.dispatchEvent(keyboardEvent('keydown', 'd'));
+  assert.equal(controller.isNavigationActive(), true,
+    'keyboard pan should share the camera navigation activity state');
   controller.update(0.05);
   const afterKeyX = target.x;
   controller.update(0.05);
   assert.notEqual(target.x, afterKeyX, 'keyboard pan should move target every frame');
   window.dispatchEvent(keyboardEvent('keyup', 'd'));
+  assert.equal(controller.isNavigationActive(), false,
+    'keyboard release should settle the camera navigation activity state');
   const settledX = target.x;
   controller.update(0.5);
   assert.equal(target.x, settledX, 'keyboard pan must not keep drifting via smoothing');
@@ -189,6 +194,34 @@ function releaseMouse(button: number): void {
   const afterWheel = controller.getOrbitDistance();
   controller.update(0.5);
   assert.equal(controller.getOrbitDistance(), afterWheel, 'zoom must not ease after wheel input');
+}
+
+{
+  const { controller } = createController();
+  const navigationKeys = [
+    'w',
+    'a',
+    's',
+    'd',
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'q',
+    'e',
+  ];
+  for (const key of navigationKeys) {
+    window.dispatchEvent(keyboardEvent('keydown', key));
+    assert.equal(controller.isNavigationActive(), true,
+      `${key} should mark keyboard navigation active`);
+    window.dispatchEvent(keyboardEvent('keyup', key));
+    assert.equal(controller.isNavigationActive(), false,
+      `${key} release should clear keyboard navigation activity`);
+  }
+  window.dispatchEvent(keyboardEvent('keydown', 'f'));
+  assert.equal(controller.isNavigationActive(), false,
+    'non-navigation shortcuts should not hold forest interaction work');
+  window.dispatchEvent(keyboardEvent('keyup', 'f'));
 }
 
 {

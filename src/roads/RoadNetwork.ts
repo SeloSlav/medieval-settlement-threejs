@@ -9,6 +9,11 @@ export type SnapTarget =
   | { kind: 'node'; nodeId: string; point: THREE.Vector3; distance: number }
   | { kind: 'segment'; edgeId: string; point: THREE.Vector3; distance: number; t: number };
 
+export type RoadIncident = {
+  edge: RoadEdge;
+  end: 'start' | 'end';
+};
+
 export type RoadNetworkSnapshot = {
   nextNodeId: number;
   nextEdgeId: number;
@@ -40,6 +45,7 @@ type RouteEvent = {
 };
 
 const CLOSED_ENDPOINT_DISTANCE = 1.25;
+const SPLIT_ENDPOINT_REUSE_DISTANCE = 1.25;
 
 export class RoadNetwork {
   readonly nodes = new Map<string, RoadNode>();
@@ -109,6 +115,13 @@ export class RoadNetwork {
           samples[i + 1],
           snapProjectionScratch,
         );
+        const endpointSnap = projection.distance <= maxDistance
+          ? this.endpointSnapNearProjection(indexed.edgeId, projection.point, point, maxDistance)
+          : null;
+        if (endpointSnap) {
+          if (!best || endpointSnap.distance < best.distance) best = endpointSnap;
+          continue;
+        }
         if (projection.distance <= maxDistance && (!best || projection.distance < best.distance)) {
           const t = (i + projection.t) / Math.max(1, samples.length - 1);
           best = {
@@ -281,6 +294,28 @@ export class RoadNetwork {
     return [...node.edgeIds].map((id) => this.edges.get(id)).filter((edge): edge is RoadEdge => Boolean(edge));
   }
 
+  getIncidents(node: RoadNode): RoadIncident[] {
+    const incidents: RoadIncident[] = [];
+    for (const edgeId of node.edgeIds) {
+      const edge = this.edges.get(edgeId);
+      if (!edge) continue;
+      if (edge.startNodeId === node.id) incidents.push({ edge, end: 'start' });
+      if (edge.endNodeId === node.id) incidents.push({ edge, end: 'end' });
+    }
+    return incidents;
+  }
+
+  getNodeDegree(node: RoadNode): number {
+    let degree = 0;
+    for (const edgeId of node.edgeIds) {
+      const edge = this.edges.get(edgeId);
+      if (!edge) continue;
+      if (edge.startNodeId === node.id) degree += 1;
+      if (edge.endNodeId === node.id) degree += 1;
+    }
+    return degree;
+  }
+
   private resolveEndpoint(points: THREE.Vector3[], index: number): string | null {
     const snap = this.findSnap(points[index], 5.4);
     if (!snap) return null;
@@ -311,7 +346,7 @@ export class RoadNetwork {
           if (routeDistance < 4 || cumulative[cumulative.length - 1] - routeDistance < 4) continue;
           if (events.some((event) => distanceXZ(event.point, hit.point) < 3)) continue;
           const nearNode = this.findNearestNode(hit.point, 3.5);
-          const node = nearNode ?? this.splitEdgeAtPoint(edge.id, hit.point);
+          const node = this.splitEdgeAtPoint(edge.id, hit.point, nearNode);
           events.push({ distance: routeDistance, point: node.position.clone(), nodeId: node.id });
           break;
         }
@@ -320,15 +355,27 @@ export class RoadNetwork {
     return events.sort((a, b) => a.distance - b.distance);
   }
 
-  private splitEdgeAtPoint(edgeId: string, point: THREE.Vector3): RoadNode {
+  private splitEdgeAtPoint(edgeId: string, point: THREE.Vector3, preferredNode: RoadNode | null = null): RoadNode {
     const edge = this.edges.get(edgeId);
     if (!edge) return this.createNode(point);
-    const existing = this.findNearestNode(point, 1.25);
-    if (existing) return existing;
 
     const path = getEdgePath(edge);
     const split = nearestPathIndex(path, point);
-    const node = this.createNode(split.point);
+    const startNode = this.nodes.get(edge.startNodeId);
+    if (startNode && (
+      preferredNode?.id === startNode.id
+      || distanceXZ(split.point, startNode.position) <= SPLIT_ENDPOINT_REUSE_DISTANCE
+    )) return startNode;
+    const endNode = this.nodes.get(edge.endNodeId);
+    if (endNode && (
+      preferredNode?.id === endNode.id
+      || distanceXZ(split.point, endNode.position) <= SPLIT_ENDPOINT_REUSE_DISTANCE
+    )) return endNode;
+
+    const nearbyNode = preferredNode ?? this.findNearestNode(split.point, SPLIT_ENDPOINT_REUSE_DISTANCE);
+    const node = nearbyNode && !nearbyNode.edgeIds.has(edge.id)
+      ? nearbyNode
+      : this.createNode(split.point);
     const first = path.slice(0, split.index + 1);
     const second = path.slice(split.index + 1);
     first.push(node.position.clone());
@@ -394,8 +441,28 @@ export class RoadNetwork {
 
   private classifyJunctions(): void {
     for (const node of this.nodes.values()) {
-      node.junctionType = classify(node.edgeIds.size);
+      node.junctionType = classify(this.getNodeDegree(node));
     }
+  }
+
+  private endpointSnapNearProjection(
+    edgeId: string,
+    projection: THREE.Vector3,
+    cursor: THREE.Vector3,
+    maxDistance: number,
+  ): Extract<SnapTarget, { kind: 'node' }> | null {
+    const edge = this.edges.get(edgeId);
+    if (!edge) return null;
+    let best: Extract<SnapTarget, { kind: 'node' }> | null = null;
+    for (const nodeId of [edge.startNodeId, edge.endNodeId]) {
+      const node = this.nodes.get(nodeId);
+      if (!node || distanceXZ(projection, node.position) > SPLIT_ENDPOINT_REUSE_DISTANCE) continue;
+      const distance = distanceXZ(cursor, node.position);
+      if (distance <= maxDistance && (!best || distance < best.distance)) {
+        best = { kind: 'node', nodeId, point: node.position.clone(), distance };
+      }
+    }
+    return best;
   }
 
   private findNearestNode(point: THREE.Vector3, maxDistance: number): RoadNode | null {

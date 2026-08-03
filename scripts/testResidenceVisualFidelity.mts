@@ -40,13 +40,15 @@ for (const seed of seeds) {
   assertNamedPart(residence, 'Residence deep-eave door canopy roof');
   assert.equal(
     residence.userData.residenceYardWork,
-    'chopping-block',
-    'every cottage yard needs one compact work prop in its merged detail mesh',
+    undefined,
+    'residence yards must not retain the removed axe/chopping-block marker',
   );
 
   const yardDetail = String(residence.userData.residenceYardDetail);
   yardDetails.add(yardDetail);
   assertNamedPart(residence, `Residence lived-in yard detail:${yardDetail}`);
+  assertResidenceYardHasNoChoppingBlock(residence);
+  assertSideWindowClearance(residence, 1);
 
   const roofSurfaces = collectRoofSurfaces(residence);
   const roofFieldSurfaces = collectRoofFieldSurfaces(residence);
@@ -124,6 +126,7 @@ for (const tier of [1, 2, 3] as const) {
       'without explicit physical per-residence retrofit state, appearance must stay wood',
     );
     const residence = createResidenceMesh(seed, tier);
+    assertSideWindowClearance(residence, tier);
     assert.equal(
       residence.userData.residenceRoof,
       'brown',
@@ -158,6 +161,59 @@ console.log(
 
 function assertNamedPart(root: THREE.Object3D, name: string): void {
   assert.ok(root.getObjectByName(name), `missing structural/material judge: ${name}`);
+}
+
+function assertResidenceYardHasNoChoppingBlock(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    assert.equal(
+      object.userData.residenceYardWork,
+      undefined,
+      `${object.name || object.type} must not retain removed axe/stump geometry metadata`,
+    );
+    assert.doesNotMatch(
+      object.name,
+      /axe|stump|chopping[- ]block/i,
+      'the residence model must not contain a front-yard axe or stump mesh',
+    );
+  });
+}
+
+function assertSideWindowClearance(
+  root: THREE.Object3D,
+  tier: 1 | 2 | 3,
+): void {
+  const panes: THREE.Mesh[] = [];
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh && object.name === 'Residence side window pane') {
+      panes.push(object);
+    }
+  });
+  assert.equal(
+    panes.length,
+    tier === 1 ? 2 : 4,
+    `tier-${tier} must retain one side-window pane per wall and storey`,
+  );
+  assert.ok(
+    panes.every((pane) => Math.abs(Math.abs(pane.position.z) - 1.25) <= 1e-9),
+    'side windows must sit 1.25 m from the center posts',
+  );
+  assert.deepEqual(
+    new Set(panes.map((pane) => Math.sign(pane.position.z))),
+    tier === 1 ? new Set([-1]) : new Set([-1, 1]),
+    'higher tiers must split their lower and upper side windows across the center post',
+  );
+  const widestPane = Math.max(
+    ...panes.map((pane) => (pane.geometry as THREE.BoxGeometry).parameters.depth),
+  );
+  const openShutterClearance = 1.25
+    - widestPane * 0.5
+    - 0.08 // casing beyond the aperture
+    - widestPane * 0.5 // one half-window-wide shutter folded flat
+    - 0.075; // half of the 0.15 m center post
+  assert.ok(
+    openShutterClearance >= 0.3,
+    `open side shutters need roughly 0.33 m of visual clearance (${openShutterClearance.toFixed(3)} m)`,
+  );
 }
 
 function collectRoofSurfaces(root: THREE.Object3D): THREE.Mesh[] {
@@ -638,9 +694,9 @@ function assertResidenceCameraContract(): void {
       && yardFrame.maxX <= 0.9
       && yardFrame.minY >= -0.9
       && yardFrame.maxY <= 0.9
-      && yardFrame.maxX - yardFrame.minX >= 0.25
+      && yardFrame.maxX - yardFrame.minX >= 0.18
       && yardFrame.maxY - yardFrame.minY >= 0.15,
-    `residence judge must retain a legible work-yard detail (${JSON.stringify(yardFrame)})`,
+    `residence judge must retain a legible yard detail without relying on the removed stump (${JSON.stringify(yardFrame)})`,
   );
   assert.ok(
     neighborFrame.maxX < -1.2,

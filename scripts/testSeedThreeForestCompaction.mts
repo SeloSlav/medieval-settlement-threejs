@@ -24,17 +24,17 @@ type SeedThreeBucketSelection = {
 
 assert.deepEqual(
   planSeedThreeForestInteractionWork(false, true, true),
-  { deferCoveredWork: true, completeImmediately: false },
-  'covered forest compaction should remain stable while pointer navigation is active',
+  { deferCoveredWork: true, discardCoveredWork: false, completeImmediately: false },
+  'covered forest compaction should remain stable while camera navigation is active',
 );
 assert.deepEqual(
   planSeedThreeForestInteractionWork(true, false, true),
-  { deferCoveredWork: false, completeImmediately: true },
-  'pointer release should publish the final covered forest selection atomically',
+  { deferCoveredWork: false, discardCoveredWork: true, completeImmediately: false },
+  'navigation release should discard a redundant covered forest repack',
 );
 assert.deepEqual(
   planSeedThreeForestInteractionWork(false, true, false),
-  { deferCoveredWork: false, completeImmediately: true },
+  { deferCoveredWork: false, discardCoveredWork: false, completeImmediately: true },
   'an uncovered moving view must be filled immediately instead of showing a gap',
 );
 

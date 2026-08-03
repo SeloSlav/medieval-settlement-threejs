@@ -135,6 +135,7 @@
     "test:client-sync": "npx tsx scripts/testClientSyncScheduling.mts",
     "test:placement-regressions": "node --experimental-strip-types scripts/testPlacementRegressions.mts",
     "test:road-building-connections": "npx tsx scripts/testRoadBuildingConnections.mts",
+    "test:road-junction-topology": "npx tsx scripts/testRoadJunctionTopology.mts",
     "test:deer-wildlife": "npx tsx scripts/testDeerWildlife.mts",
     "test:livestock": "npx tsx scripts/testLivestock.mts",
     "test:livestock-policy": "node --experimental-strip-types scripts/testLivestockPolicy.mts",

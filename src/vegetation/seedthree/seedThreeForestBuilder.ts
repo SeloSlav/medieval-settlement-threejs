@@ -813,7 +813,6 @@ export function updateSeedThreeForestCameraBudgeted(
   if (selection.changed) {
     forest.updateTelemetry.selectionChanges += 1;
     const desired = selectionsByBucket(forest, selection);
-    reconcileCountOnlyPassPartitions(forest, desired);
     forest.pendingLodWork = {
       desired,
       pendingBucketIndices: forest.pendingLodWork?.pendingBucketIndices ?? [],
@@ -829,10 +828,10 @@ export function updateSeedThreeForestCameraBudgeted(
   let coverageImmediate = false;
   let stopReason = work ? 'chunk-limit' : 'converged';
   if (work) {
-    // A covered resident selection can stay unchanged throughout pointer
-    // navigation. Publishing the queued species only after button release keeps
-    // their silhouettes from catching up over several frames. Discontinuous
-    // movement that escapes the resident envelope still completes immediately.
+    // A covered resident visible prefix can stay unchanged throughout camera
+    // navigation. Releasing the controls discards that redundant repack instead
+    // of flashing a new instance order into the same view. Movement that escapes
+    // the resident prefix still completes immediately to preserve coverage.
     const protectVisibleCoverage = options.immediateWhenViewUncovered === true;
     const residentSelectionCoversDesiredView =
       currentForestResidentSelectionsCoverDesiredView(forest, work.desired);
@@ -845,15 +844,23 @@ export function updateSeedThreeForestCameraBudgeted(
       && !residentSelectionCoversDesiredView;
     const deferCoveredInteractionWork = protectVisibleCoverage
       && interactionWork.deferCoveredWork;
+    const discardCoveredInteractionWork = protectVisibleCoverage
+      && interactionWork.discardCoveredWork;
     const completeInteractionWorkImmediately = protectVisibleCoverage
       && interactionWork.completeImmediately;
     coverageImmediate = requiresImmediateCoverage;
-    if (residentSelectionCoversDesiredView && protectVisibleCoverage) {
-      exposeResidentForestSelectionsForDesiredView(forest, work.desired);
+    if (discardCoveredInteractionWork) {
+      work.pendingBucketIndices.length = 0;
+      work.activeBucketJob = null;
+      forest.pendingLodWork = null;
+      stopReason = 'resident-retained';
+    }
+    if (!deferCoveredInteractionWork && !discardCoveredInteractionWork) {
+      reconcileCountOnlyPassPartitions(forest, work.desired);
     }
     const maxUpdateDurationMs = completeInteractionWorkImmediately
       ? Number.POSITIVE_INFINITY
-      : deferCoveredInteractionWork
+      : deferCoveredInteractionWork || discardCoveredInteractionWork
       ? 0
       : Number.isFinite(options.maxUpdateDurationMs)
       ? Math.max(0, options.maxUpdateDurationMs!)
@@ -871,78 +878,89 @@ export function updateSeedThreeForestCameraBudgeted(
       nearViewSlotCount: bucket.nearViewSlotCount,
       overviewViewSlotCount: bucket.overviewViewSlotCount,
     }));
-    const chunk = runForestBucketUpdateChunk(
-      currentSelections,
-      work.desired,
-      work.pendingBucketIndices,
-      {
-        maxDurationMs: availableWorkMs,
-        minimumChunkHeadroomMs: Number.isFinite(availableWorkMs) ? 0.12 : 0,
-        maxChunks: deferCoveredInteractionWork
-          ? 0
-          : Number.isFinite(maxUpdateDurationMs)
-          ? 1
-          : Number.POSITIVE_INFINITY,
-        maxBucketCompletions: completeInteractionWorkImmediately
-          ? Number.POSITIVE_INFINITY
-          : options.maxBucketCompactions,
-        now: () => performance.now(),
-        applyBucketChunk: (bucketIndex, context) => {
-          const bucket = forest.buckets[bucketIndex];
-          const desired = work.desired[bucketIndex];
-          if (!bucket || !desired) return true;
-          if (
-            !work.activeBucketJob
-            || work.activeBucketJob.bucketIndex !== bucketIndex
-            || !sameBucketSelection(work.activeBucketJob.desired, desired)
-          ) {
-            work.activeBucketJob = {
-              bucketIndex,
-              desired: {
-                near: [...desired.near],
-                overview: [...desired.overview],
-                nearViewSlotCount: desired.nearViewSlotCount,
-                overviewViewSlotCount: desired.overviewViewSlotCount,
-              },
-              job: createSeedThreeBucketMatrixWriteJob(
-                bucket.nearSet,
-                bucket.overviewSet,
-                bucket.slots,
-                desired.near,
-                desired.overview,
-              ),
-            };
-          }
-          const result = runSeedThreeBucketMatrixWriteSlices(
-            work.activeBucketJob.job,
-            {
-              deadlineMs: context.deadlineMs,
-              minimumChunkHeadroomMs: Number.isFinite(context.remainingMs)
-                ? 0.12
-                : 0,
-              maxMatrixWritesPerChunk: options.maxMatrixWritesPerChunk
-                ?? Number.POSITIVE_INFINITY,
+    const chunk = discardCoveredInteractionWork
+      ? {
+          completedBucketIndices: [] as number[],
+          pendingBucketIndices: [] as number[],
+          cancelledBucketIndices: [] as number[],
+          chunks: 0,
+          durationMs: 0,
+          stopReason: 'converged',
+        }
+      : runForestBucketUpdateChunk(
+          currentSelections,
+          work.desired,
+          work.pendingBucketIndices,
+          {
+            maxDurationMs: availableWorkMs,
+            minimumChunkHeadroomMs: Number.isFinite(availableWorkMs) ? 0.12 : 0,
+            maxChunks: deferCoveredInteractionWork || discardCoveredInteractionWork
+              ? 0
+              : Number.isFinite(maxUpdateDurationMs)
+              ? 1
+              : Number.POSITIVE_INFINITY,
+            maxBucketCompletions: completeInteractionWorkImmediately
+              ? Number.POSITIVE_INFINITY
+              : options.maxBucketCompactions,
+            now: () => performance.now(),
+            applyBucketChunk: (bucketIndex, context) => {
+              const bucket = forest.buckets[bucketIndex];
+              const desired = work.desired[bucketIndex];
+              if (!bucket || !desired) return true;
+              if (
+                !work.activeBucketJob
+                || work.activeBucketJob.bucketIndex !== bucketIndex
+                || !sameBucketSelection(work.activeBucketJob.desired, desired)
+              ) {
+                work.activeBucketJob = {
+                  bucketIndex,
+                  desired: {
+                    near: [...desired.near],
+                    overview: [...desired.overview],
+                    nearViewSlotCount: desired.nearViewSlotCount,
+                    overviewViewSlotCount: desired.overviewViewSlotCount,
+                  },
+                  job: createSeedThreeBucketMatrixWriteJob(
+                    bucket.nearSet,
+                    bucket.overviewSet,
+                    bucket.slots,
+                    desired.near,
+                    desired.overview,
+                  ),
+                };
+              }
+              const result = runSeedThreeBucketMatrixWriteSlices(
+                work.activeBucketJob.job,
+                {
+                  deadlineMs: context.deadlineMs,
+                  minimumChunkHeadroomMs: Number.isFinite(context.remainingMs)
+                    ? 0.12
+                    : 0,
+                  maxMatrixWritesPerChunk: options.maxMatrixWritesPerChunk
+                    ?? Number.POSITIVE_INFINITY,
+                },
+              );
+              workChunks += result.chunks;
+              matrixWrites += result.matrixWrites;
+              matrixSliceBudgetStop = result.stopReason === 'time-limit'
+                || result.stopReason === 'headroom-limit'
+                ? result.stopReason
+                : null;
+              if (!result.completed) return false;
+              bucket.nearSlotIndices = [...desired.near];
+              bucket.overviewSlotIndices = [...desired.overview];
+              bucket.nearViewSlotCount = desired.nearViewSlotCount;
+              bucket.overviewViewSlotCount = desired.overviewViewSlotCount;
+              updateBucketPassInstanceCounts(bucket);
+              work.activeBucketJob = null;
+              return true;
             },
-          );
-          workChunks += result.chunks;
-          matrixWrites += result.matrixWrites;
-          matrixSliceBudgetStop = result.stopReason === 'time-limit'
-            || result.stopReason === 'headroom-limit'
-            ? result.stopReason
-            : null;
-          if (!result.completed) return false;
-          bucket.nearSlotIndices = [...desired.near];
-          bucket.overviewSlotIndices = [...desired.overview];
-          bucket.nearViewSlotCount = desired.nearViewSlotCount;
-          bucket.overviewViewSlotCount = desired.overviewViewSlotCount;
-          updateBucketPassInstanceCounts(bucket);
-          work.activeBucketJob = null;
-          return true;
-        },
-      },
-    );
+          },
+        );
     bucketCompactions = chunk.completedBucketIndices.length;
-    stopReason = deferCoveredInteractionWork
+    stopReason = discardCoveredInteractionWork
+      ? 'resident-retained'
+      : deferCoveredInteractionWork
       ? 'interaction-deferred'
       : chunk.stopReason;
     if (chunk.stopReason === 'chunk-limit' && matrixSliceBudgetStop) {
@@ -1115,13 +1133,13 @@ function currentForestResidentSelectionsCoverDesiredView(
   for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
     const bucket = forest.buckets[bucketIndex]!;
     const next = desired[bucketIndex]!;
-    if (!selectionContainsRequiredPrefix(
+    if (!sortedPrefixContains(
       bucket.nearSlotIndices,
       bucket.nearViewSlotCount,
       next.near,
       next.nearViewSlotCount,
     )) return false;
-    if (!selectionContainsRequiredPrefix(
+    if (!sortedPrefixContains(
       bucket.overviewSlotIndices,
       bucket.overviewViewSlotCount,
       next.overview,
@@ -1129,87 +1147,6 @@ function currentForestResidentSelectionsCoverDesiredView(
     )) return false;
   }
   return true;
-}
-
-function exposeResidentForestSelectionsForDesiredView(
-  forest: SeedThreeForestInstances,
-  desired: readonly PassPartitionedBucketSelection[],
-): void {
-  for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
-    const bucket = forest.buckets[bucketIndex]!;
-    const next = desired[bucketIndex]!;
-    const nearPrefixCovers = sortedPrefixContains(
-      bucket.nearSlotIndices,
-      bucket.nearViewSlotCount,
-      next.near,
-      next.nearViewSlotCount,
-    );
-    const overviewPrefixCovers = sortedPrefixContains(
-      bucket.overviewSlotIndices,
-      bucket.overviewViewSlotCount,
-      next.overview,
-      next.overviewViewSlotCount,
-    );
-    if (!nearPrefixCovers) {
-      updateSeedThreeLodPassInstanceCounts(
-        bucket.nearSet,
-        enabledSeedThreeTreeCountInPrefix(
-          bucket.slots,
-          bucket.nearSlotIndices,
-          bucket.nearSlotIndices.length,
-        ),
-      );
-    }
-    if (!overviewPrefixCovers) {
-      updateSeedThreeLodPassInstanceCounts(
-        bucket.overviewSet,
-        enabledSeedThreeTreeCountInPrefix(
-          bucket.slots,
-          bucket.overviewSlotIndices,
-          bucket.overviewSlotIndices.length,
-        ),
-      );
-    }
-  }
-}
-
-function selectionContainsRequiredPrefix(
-  available: readonly number[],
-  availablePartition: number,
-  required: readonly number[],
-  requiredLength: number,
-): boolean {
-  const partition = Math.min(
-    available.length,
-    Math.max(0, availablePartition),
-  );
-  const requiredEnd = Math.min(required.length, Math.max(0, requiredLength));
-  for (let requiredIndex = 0; requiredIndex < requiredEnd; requiredIndex += 1) {
-    const value = required[requiredIndex]!;
-    if (
-      !sortedRangeContains(available, 0, partition, value)
-      && !sortedRangeContains(available, partition, available.length, value)
-    ) return false;
-  }
-  return true;
-}
-
-function sortedRangeContains(
-  values: readonly number[],
-  start: number,
-  end: number,
-  target: number,
-): boolean {
-  let low = start;
-  let high = end - 1;
-  while (low <= high) {
-    const middle = (low + high) >>> 1;
-    const value = values[middle]!;
-    if (value < target) low = middle + 1;
-    else if (value > target) high = middle - 1;
-    else return true;
-  }
-  return false;
 }
 
 function sortedPrefixContains(

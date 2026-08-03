@@ -38,6 +38,8 @@ const WINDOW_GLOW_EMISSIVE = 0xffc060;
 const WINDOW_GLOW_COLOR = 0x4a3820;
 const WINDOW_DARK_EMISSIVE = 0x18201f;
 const WINDOW_DARK_COLOR = 0x303a39;
+// Leaves 0.315 m between the widest window's folded-open shutter and center post.
+const SIDE_WINDOW_CENTER_OFFSET_METERS = 1.25;
 
 function createWindowMaterial(): THREE.MeshStandardMaterial {
   const material = sharedBuildingMaterial('glass').clone();
@@ -216,12 +218,13 @@ function addSideWindow(
   weatheredMaterial: THREE.Material = timberMaterial('weathered'),
   structuralMaterial: THREE.Material = timberMaterial('dark'),
 ): void {
-  addMesh(
+  const pane = addMesh(
     group,
     new THREE.BoxGeometry(0.075, height, width),
     windowMaterial,
     new THREE.Vector3(x + side * 0.065, y, z),
   );
+  pane.name = 'Residence side window pane';
   addMesh(
     group,
     new THREE.BoxGeometry(0.2, 0.12, width + 0.3),
@@ -1152,32 +1155,14 @@ function addTierOneYardDetail(
       });
     }
   }
-  const propGeometry = mergeBoxParts(parts);
-  const stumpGeometry = new THREE.CylinderGeometry(0.3, 0.35, 0.48, 9);
-  stumpGeometry.rotateZ(0.035);
-  stumpGeometry.translate(
-    entrySide * Math.min(halfWidth - 0.68, 1.32),
-    0.24,
-    halfDepth + 1.02,
-  );
-  const combinedYardGeometry = mergeGeometries(
-    [propGeometry, stumpGeometry],
-    false,
-  );
-  propGeometry.dispose();
-  stumpGeometry.dispose();
-  if (!combinedYardGeometry) {
-    throw new Error('Could not merge residence lived-in yard geometry.');
-  }
   const prop = addMesh(
     group,
-    combinedYardGeometry,
+    mergeBoxParts(parts),
     weatheredMaterial,
     new THREE.Vector3(),
   );
   prop.name = `Residence lived-in yard detail:${detail}`;
   prop.userData.residenceYardDetail = detail;
-  prop.userData.residenceYardWork = 'chopping-block';
   return detail;
 }
 
@@ -1514,13 +1499,24 @@ export function createResidenceMesh(
       side,
       x,
       foundationHeight + groundHeight * 0.56,
-      -0.35,
+      -SIDE_WINDOW_CENTER_OFFSET_METERS,
       tier === 1 ? 0.58 : 0.74,
       tier === 1 ? 0.7 : 0.98,
       tierOneWeatheredMaterial,
       tierOneStructuralMaterial,
     );
-    if (tier > 1) addSideWindow(group, windowMaterial, side, x, groundTop + upperHeight * 0.54, 0.42, 0.78, 1.05);
+    if (tier > 1) {
+      addSideWindow(
+        group,
+        windowMaterial,
+        side,
+        x,
+        groundTop + upperHeight * 0.54,
+        SIDE_WINDOW_CENTER_OFFSET_METERS,
+        0.78,
+        1.05,
+      );
+    }
   }
 
   for (let step = 0; step < 2; step++) {
@@ -1615,7 +1611,6 @@ export function createResidenceMesh(
       halfD,
       tierOneWeatheredMaterial,
     );
-    group.userData.residenceYardWork = 'chopping-block';
   } else if (archetype === 'stone_portal') {
     addStonePortalPorch(
       group,

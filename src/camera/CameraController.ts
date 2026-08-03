@@ -30,6 +30,18 @@ const RMB_PAN_MULTIPLIER = 0.105;
 const KEY_PAN_SPEED = 34;
 const KEY_ROTATE_SPEED = 2.8;
 const INSPECT_FOCUS_DISTANCE = 90;
+const NAVIGATION_KEYS = new Set([
+  'w',
+  'a',
+  's',
+  'd',
+  'arrowup',
+  'arrowdown',
+  'arrowleft',
+  'arrowright',
+  'q',
+  'e',
+]);
 
 export type CameraControllerConfig = {
   camera: THREE.PerspectiveCamera;
@@ -97,8 +109,12 @@ export class CameraController {
     return this.currentYaw;
   }
 
-  isPointerNavigationActive(): boolean {
-    return this.isPanning || this.isRotating;
+  isNavigationActive(): boolean {
+    if (this.isPanning || this.isRotating) return true;
+    for (const key of NAVIGATION_KEYS) {
+      if (this.keys.has(key)) return true;
+    }
+    return false;
   }
 
   getTargetPosition(out = new THREE.Vector3()): THREE.Vector3 {

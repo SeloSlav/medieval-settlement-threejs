@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { RoadEdge } from './RoadEdge.ts';
 
 export const ROAD_END_TRIM = 0.5;
+export const ROAD_CAP_OVERLAP = 0.14;
+export type RoadEdgeEnd = 'start' | 'end';
 
 export function getEdgePath(edge: RoadEdge): THREE.Vector3[] {
   const sampled = edge.sampledPath;
@@ -15,9 +17,13 @@ export function getEdgePath(edge: RoadEdge): THREE.Vector3[] {
 }
 
 export function inwardDirectionAtNode(edge: RoadEdge, nodeId: string): THREE.Vector3 {
+  return inwardDirectionAtEdgeEnd(edge, edge.startNodeId === nodeId ? 'start' : 'end');
+}
+
+export function inwardDirectionAtEdgeEnd(edge: RoadEdge, end: RoadEdgeEnd): THREE.Vector3 {
   const path = getEdgePath(edge);
   if (path.length < 2) return new THREE.Vector3(1, 0, 0);
-  if (edge.startNodeId === nodeId) {
+  if (end === 'start') {
     return new THREE.Vector3(path[1].x - path[0].x, 0, path[1].z - path[0].z).normalize();
   }
   const last = path.length - 1;
@@ -28,19 +34,63 @@ export function exteriorDirectionAtNode(edge: RoadEdge, nodeId: string): THREE.V
   return inwardDirectionAtNode(edge, nodeId).multiplyScalar(-1);
 }
 
-export function trimPathAtEndpoint(path: THREE.Vector3[], nodeId: string, edge: RoadEdge, width: number): void {
+export function exteriorDirectionAtEdgeEnd(edge: RoadEdge, end: RoadEdgeEnd): THREE.Vector3 {
+  return inwardDirectionAtEdgeEnd(edge, end).multiplyScalar(-1);
+}
+
+export function roadTerminalTrimDistance(width: number): number {
+  return width * Math.max(0, ROAD_END_TRIM - ROAD_CAP_OVERLAP);
+}
+
+export function trimPathAtEndpoint(
+  path: THREE.Vector3[],
+  nodeId: string,
+  edge: RoadEdge,
+  width: number,
+  trimDistance = roadTerminalTrimDistance(width),
+): void {
   if (path.length < 2) return;
-  const trim = width * ROAD_END_TRIM;
   if (edge.startNodeId === nodeId) {
-    path[0].addScaledVector(inwardDirectionAtNode(edge, nodeId), trim);
+    trimPathStart(path, trimDistance);
     return;
   }
   if (edge.endNodeId === nodeId) {
-    const last = path.length - 1;
-    path[last].addScaledVector(inwardDirectionAtNode(edge, nodeId), trim);
+    trimPathEnd(path, trimDistance);
   }
 }
 
 export function roadPerpendicular(direction: THREE.Vector3): THREE.Vector3 {
   return new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+}
+
+function trimPathStart(path: THREE.Vector3[], trimDistance: number): void {
+  let remaining = Math.max(0, trimDistance);
+  for (let index = 1; index < path.length; index++) {
+    const segmentLength = distanceXZ(path[index - 1], path[index]);
+    if (segmentLength <= 1e-6) continue;
+    if (remaining <= segmentLength) {
+      const trimmed = path[index - 1].clone().lerp(path[index], remaining / segmentLength);
+      path.splice(0, index, trimmed);
+      return;
+    }
+    remaining -= segmentLength;
+  }
+}
+
+function trimPathEnd(path: THREE.Vector3[], trimDistance: number): void {
+  let remaining = Math.max(0, trimDistance);
+  for (let index = path.length - 1; index > 0; index--) {
+    const segmentLength = distanceXZ(path[index], path[index - 1]);
+    if (segmentLength <= 1e-6) continue;
+    if (remaining <= segmentLength) {
+      const trimmed = path[index].clone().lerp(path[index - 1], remaining / segmentLength);
+      path.splice(index, path.length - index, trimmed);
+      return;
+    }
+    remaining -= segmentLength;
+  }
+}
+
+function distanceXZ(a: THREE.Vector3, b: THREE.Vector3): number {
+  return Math.hypot(a.x - b.x, a.z - b.z);
 }

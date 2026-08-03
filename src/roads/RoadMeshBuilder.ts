@@ -3,7 +3,7 @@ import { Terrain } from '../terrain/Terrain.ts';
 import type { RoadEdge } from './RoadEdge.ts';
 import { RoadMaterialFactory } from './RoadMaterialFactory.ts';
 import type { RoadNetwork } from './RoadNetwork.ts';
-import { trimPathAtEndpoint } from './roadEndpoint.ts';
+import { roadTerminalTrimDistance, trimPathAtEndpoint } from './roadEndpoint.ts';
 import {
   applyBridgeHeightsToPath,
   detectBridgeSpans,
@@ -56,20 +56,41 @@ export class RoadMeshBuilder {
 
     const ribbonPath = sampled.map((point) => point.clone());
     const spans = this.resolveBridgeSpans(ribbonPath, edge);
-    const bridgeBlends = spans.length > 0
+    let bridgeBlends = spans.length > 0
       ? applyBridgeHeightsToPath(ribbonPath, spans, this.requireBridgeCtx(), CORE_Y_OFFSET)
       : new Float32Array(ribbonPath.length);
     // Publish the same elevated centerline used by the rendered ribbon. Player,
     // villager, and delivery-agent ground sampling must not read the untouched
     // riverbed-height path while the visible bridge sits above it.
-    edge.surfacePath = ribbonPath.map((point) => point.clone());
+    const untrimmedSurfacePath = ribbonPath.map((point) => point.clone());
+    edge.surfacePath = untrimmedSurfacePath;
 
     const startNode = network.nodes.get(edge.startNodeId);
     const endNode = network.nodes.get(edge.endNodeId);
-    const startIsEndpoint = startNode?.edgeIds.size === 1;
-    const endIsEndpoint = endNode?.edgeIds.size === 1;
-    if (startNode && startIsEndpoint) trimPathAtEndpoint(ribbonPath, edge.startNodeId, edge, edge.width);
-    if (endNode && endIsEndpoint) trimPathAtEndpoint(ribbonPath, edge.endNodeId, edge, edge.width);
+    const startIsEndpoint = startNode ? network.getNodeDegree(startNode) === 1 : false;
+    const endIsEndpoint = endNode ? network.getNodeDegree(endNode) === 1 : false;
+    const endpointCount = Number(startIsEndpoint) + Number(endIsEndpoint);
+    const availableTrim = Math.max(0, pathLength(ribbonPath) - 0.2);
+    const terminalTrim = Math.min(
+      roadTerminalTrimDistance(edge.width),
+      endpointCount > 0 ? availableTrim / endpointCount : 0,
+    );
+    if (startNode && startIsEndpoint) {
+      trimPathAtEndpoint(ribbonPath, edge.startNodeId, edge, edge.width, terminalTrim);
+    }
+    if (endNode && endIsEndpoint) {
+      trimPathAtEndpoint(ribbonPath, edge.endNodeId, edge, edge.width, terminalTrim);
+    }
+    const startTrim = startIsEndpoint ? terminalTrim : 0;
+    if (endpointCount > 0) {
+      bridgeBlends = resamplePathAttribute(
+        untrimmedSurfacePath,
+        bridgeBlends,
+        ribbonPath,
+        startTrim,
+      );
+    }
+    const renderedSpans = offsetBridgeSpans(spans, startTrim);
 
     const group = new THREE.Group();
     group.name = `Road edge ${edge.id}`;
@@ -99,7 +120,13 @@ export class RoadMeshBuilder {
     group.add(edgeBlend);
 
     if (hasBridge && this.bridgeCtx) {
-      const supports = buildBridgeSupports(ribbonPath, edge.width, spans, this.bridgeCtx, this.materials.bridgeSupport);
+      const supports = buildBridgeSupports(
+        ribbonPath,
+        edge.width,
+        renderedSpans,
+        this.bridgeCtx,
+        this.materials.bridgeSupport,
+      );
       if (supports) group.add(supports);
       const railings = buildBridgeRailings(
         crossSections.map((section, index) => ({
@@ -545,6 +572,66 @@ function pathLength(path: THREE.Vector3[]): number {
   let length = 0;
   for (let i = 1; i < path.length; i++) length += Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z);
   return length;
+}
+
+function resamplePathAttribute(
+  sourcePath: THREE.Vector3[],
+  sourceValues: Float32Array,
+  targetPath: THREE.Vector3[],
+  targetStartDistance: number,
+): Float32Array {
+  const result = new Float32Array(targetPath.length);
+  if (sourcePath.length < 2 || sourceValues.length !== sourcePath.length || targetPath.length === 0) {
+    return result;
+  }
+
+  const sourceDistances = cumulativeDistancesXZ(sourcePath);
+  const targetDistances = cumulativeDistancesXZ(targetPath);
+  let sourceIndex = 0;
+  for (let targetIndex = 0; targetIndex < targetPath.length; targetIndex++) {
+    const distance = targetStartDistance + targetDistances[targetIndex];
+    while (
+      sourceIndex < sourceDistances.length - 2
+      && sourceDistances[sourceIndex + 1] < distance
+    ) {
+      sourceIndex += 1;
+    }
+    const startDistance = sourceDistances[sourceIndex];
+    const endDistance = sourceDistances[sourceIndex + 1];
+    const t = THREE.MathUtils.clamp(
+      (distance - startDistance) / Math.max(1e-6, endDistance - startDistance),
+      0,
+      1,
+    );
+    result[targetIndex] = THREE.MathUtils.lerp(
+      sourceValues[sourceIndex],
+      sourceValues[sourceIndex + 1],
+      t,
+    );
+  }
+  return result;
+}
+
+function offsetBridgeSpans(spans: BridgeSpan[], startDistance: number): BridgeSpan[] {
+  if (startDistance <= 1e-6) return spans;
+  return spans.map((span) => ({
+    ...span,
+    rampStart: span.rampStart - startDistance,
+    deckStart: span.deckStart - startDistance,
+    deckEnd: span.deckEnd - startDistance,
+    rampEnd: span.rampEnd - startDistance,
+  }));
+}
+
+function cumulativeDistancesXZ(path: THREE.Vector3[]): number[] {
+  const result = [0];
+  for (let index = 1; index < path.length; index++) {
+    result.push(
+      result[index - 1]
+      + Math.hypot(path[index].x - path[index - 1].x, path[index].z - path[index - 1].z),
+    );
+  }
+  return result;
 }
 
 function estimateCurvature(points: THREE.Vector3[]): number {

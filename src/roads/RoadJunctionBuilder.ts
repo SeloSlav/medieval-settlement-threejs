@@ -5,16 +5,16 @@ import { RoadMaterialFactory } from './RoadMaterialFactory.ts';
 import { RoadNetwork } from './RoadNetwork.ts';
 import type { RoadNode } from './RoadNode.ts';
 import {
-  exteriorDirectionAtNode,
+  exteriorDirectionAtEdgeEnd,
   getEdgePath,
-  inwardDirectionAtNode,
+  inwardDirectionAtEdgeEnd,
   ROAD_END_TRIM,
   roadPerpendicular,
+  type RoadEdgeEnd,
 } from './roadEndpoint.ts';
 
 const CORE_Y_OFFSET = 0.12;
 const BLEND_Y_OFFSET = 0.16;
-const CAP_OVERLAP = 0.14;
 
 export class RoadJunctionBuilder {
   private readonly terrain: Terrain;
@@ -35,17 +35,17 @@ export class RoadJunctionBuilder {
   }
 
   private buildNodePatch(node: RoadNode, network: RoadNetwork): THREE.Group | null {
-    const edges = network.getConnectedEdges(node);
-    if (edges.length === 0) return null;
-    const width = averageWidth(edges);
-    const isEndpoint = edges.length === 1;
+    const incidents = network.getIncidents(node);
+    if (incidents.length === 0) return null;
+    const width = averageWidth(incidents.map(({ edge }) => edge));
+    const isEndpoint = incidents.length === 1;
     const group = new THREE.Group();
     group.name = `Road ${node.junctionType} ${node.id}`;
     group.userData.nodeId = node.id;
 
     if (isEndpoint) {
-      const edge = edges[0];
-      const frame = this.endpointFrame(node, edge, width);
+      const { edge, end } = incidents[0];
+      const frame = this.endpointFrame(node, edge, end, width);
       const blend = this.buildEndpointBlendCap(frame, width);
       const core = this.buildEndpointCoreCap(frame, width);
       blend.castShadow = false;
@@ -58,9 +58,9 @@ export class RoadJunctionBuilder {
       return group;
     }
 
-    const radius = width * (edges.length === 2 ? 0.78 : 1.08);
+    const radius = width * (incidents.length === 2 ? 0.78 : 1.08);
     const blendRadius = radius + width * 0.58;
-    const directions = edges.map((edge) => inwardDirectionAtNode(edge, node.id));
+    const directions = incidents.map(({ edge, end }) => inwardDirectionAtEdgeEnd(edge, end));
     const core = this.buildJunctionPatchMesh(node.position, directions, radius, width, false);
     const blend = this.buildJunctionPatchMesh(node.position, directions, blendRadius, width, true);
     blend.castShadow = false;
@@ -73,26 +73,22 @@ export class RoadJunctionBuilder {
     return group;
   }
 
-  private endpointFrame(node: RoadNode, edge: RoadEdge, width: number): EndpointFrame {
-    const inward = inwardDirectionAtNode(edge, node.id);
-    const exterior = exteriorDirectionAtNode(edge, node.id);
+  private endpointFrame(node: RoadNode, edge: RoadEdge, end: RoadEdgeEnd, width: number): EndpointFrame {
+    const inward = inwardDirectionAtEdgeEnd(edge, end);
+    const exterior = exteriorDirectionAtEdgeEnd(edge, end);
     const perp = roadPerpendicular(inward);
     const trim = width * ROAD_END_TRIM;
-    const overlap = width * CAP_OVERLAP;
-    const mouthCenter = node.position.clone().addScaledVector(inward, trim - overlap);
+    const mouthCenter = node.position.clone().addScaledVector(inward, trim);
     const path = getEdgePath(edge);
     const roadLength = pathLength(path);
-    const textureBaseV = (roadLength - trim + overlap) / 5.8;
+    const textureBaseV = (roadLength - trim) / 5.8;
     return { inward, exterior, perp, mouthCenter, width, textureBaseV };
   }
 
   private buildEndpointCoreCap(frame: EndpointFrame, width: number): THREE.Mesh {
-    const half = width * 0.5;
     const bulge = width * 0.54;
     const ring = this.endpointArcPoints(frame, bulge, 20);
-    const left = frame.mouthCenter.clone().addScaledVector(frame.perp, half);
-    const right = frame.mouthCenter.clone().addScaledVector(frame.perp, -half);
-    const boundary = [left, ...ring, right];
+    const boundary = ring;
 
     const positions: number[] = [];
     const uvs: number[] = [];
@@ -134,10 +130,8 @@ export class RoadJunctionBuilder {
     const indices: number[] = [];
 
     const rings = ringScales.map(({ bulge, fadeU }) => {
-      const left = frame.mouthCenter.clone().addScaledVector(frame.perp, half);
-      const right = frame.mouthCenter.clone().addScaledVector(frame.perp, -half);
       const arc = this.endpointArcPoints(frame, bulge, arcCount);
-      const points = [left, ...arc, right];
+      const points = arc;
       const startIndex = positions.length / 3;
       for (const point of points) {
         const alongInward = point.clone().sub(frame.mouthCenter).dot(frame.inward);
@@ -200,7 +194,11 @@ export class RoadJunctionBuilder {
       this.pushCapVertex(positions, uvs, innerEdge, BLEND_Y_OFFSET, 0.74, frame.textureBaseV + 0.02);
       this.pushCapVertex(positions, uvs, outerEdge, BLEND_Y_OFFSET, 0.2, frame.textureBaseV + (wingDepth * 0.22) / 5.8);
       this.pushCapVertex(positions, uvs, outerCorner, BLEND_Y_OFFSET, 0.03, frame.textureBaseV + wingDepth / 5.8);
-      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      if (perpSign > 0) {
+        indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      } else {
+        indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+      }
     }
   }
 
@@ -269,33 +267,40 @@ export class RoadJunctionBuilder {
       const x = center.x + local.x;
       const z = center.z + local.y;
       positions.push(x, this.terrain.getHeightAt(x, z) + yOffset, z);
-      const dist = local.length() / Math.max(1, radius);
-      const fadeU = blend ? THREE.MathUtils.clamp(1 - dist * 0.92, 0, 1) : 0.5;
+      const fadeU = blend ? 0 : 0.5;
       uvs.push(fadeU, 0.5 + local.x / Math.max(1, radius * 2.4));
     }
 
     for (let i = 1; i <= ring.length; i++) {
       const next = i === ring.length ? 1 : i + 1;
-      indices.push(0, i, next);
+      indices.push(0, next, i);
     }
 
     return this.createCapMesh(positions, uvs, indices, blend ? this.materials.roadEdge : this.materials.road);
   }
 
   private junctionRing(directions: THREE.Vector3[], radius: number, width: number, blend: boolean): THREE.Vector2[] {
-    const points: Array<{ angle: number; point: THREE.Vector2 }> = [];
-    const spread = blend ? 0.78 : 0.49;
-    for (let i = 0; i < directions.length; i++) {
-      const base = Math.atan2(directions[i].z, directions[i].x);
-      for (const offset of [-spread, -spread * 0.35, spread * 0.35, spread]) {
-        const angle = base + offset;
-        const wobble = 1 + Math.sin((i + 1) * 9.31 + offset * 4.7) * (blend ? 0.12 : 0.06);
-        const r = radius + width * (Math.abs(offset) < spread * 0.5 ? 0.28 : 0.05);
-        points.push({ angle: normalizeAngle(angle), point: new THREE.Vector2(Math.cos(angle) * r * wobble, Math.sin(angle) * r * wobble) });
+    const sampleCount = Math.max(48, directions.length * 16);
+    const halfWidth = width * (blend ? 1.42 : 0.54);
+    const hubRadius = width * (blend ? 0.58 : 0.5);
+    const points: THREE.Vector2[] = [];
+
+    for (let i = 0; i < sampleCount; i++) {
+      const angle = -Math.PI + (i / sampleCount) * Math.PI * 2;
+      let ringRadius = hubRadius;
+      for (const direction of directions) {
+        const directionAngle = Math.atan2(direction.z, direction.x);
+        const delta = normalizeAngle(angle - directionAngle);
+        const along = Math.cos(delta);
+        if (along < -1e-5) continue;
+        const across = Math.abs(Math.sin(delta));
+        const frontExit = along <= 1e-5 ? Infinity : radius / along;
+        const sideExit = across <= 1e-5 ? Infinity : halfWidth / across;
+        ringRadius = Math.max(ringRadius, Math.min(frontExit, sideExit));
       }
+      points.push(new THREE.Vector2(Math.cos(angle) * ringRadius, Math.sin(angle) * ringRadius));
     }
-    points.sort((a, b) => a.angle - b.angle);
-    return points.map((entry) => entry.point);
+    return points;
   }
 }
 
