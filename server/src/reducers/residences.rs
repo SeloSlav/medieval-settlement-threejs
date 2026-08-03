@@ -34,7 +34,7 @@ use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::simulation::{
     building_fire_state, cancel_trips_for_residence, clear_backyard_garden_for_residence,
     clear_fire_for_target, clear_residence_needs, ensure_residence_needs, insert_reclamation_pile,
-    residence_fire_state, ReclamationStock, FIRE_TARGET_RESIDENCE,
+    local_delivery_distance, residence_fire_state, ReclamationStock, FIRE_TARGET_RESIDENCE,
 };
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
@@ -701,10 +701,14 @@ pub(crate) fn ensure_upgrade_source_route(
             {
                 return false;
             }
-            network
-                .road_path_distance(building.x, building.z, residence.x, residence.z)
-                .is_some()
-                || building.kind == "founders_camp"
+            local_delivery_distance(
+                network,
+                building.x,
+                building.z,
+                residence.x,
+                residence.z,
+            )
+            .is_some()
         });
     if reachable {
         Ok(())
@@ -753,8 +757,13 @@ fn has_connected_services(
 
     required_services.iter().all(|service| {
         buildings.iter().any(|building| {
-            let Some(distance) =
-                network.road_path_distance(building.x, building.z, residence.x, residence.z)
+            let Some(distance) = local_delivery_distance(
+                &network,
+                building.x,
+                building.z,
+                residence.x,
+                residence.z,
+            )
             else {
                 return false;
             };

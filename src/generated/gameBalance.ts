@@ -77,14 +77,14 @@ export const PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR = 1.15;
 export const PRESERVED_FOOD_STORAGE_CART_FACTOR = 1.35;
 export const PRESERVED_FOOD_STORAGE_TREASURY_FACTOR = 1.25;
 
-export const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY = 0.1;
-export const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY = 0.0015;
+export const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY = 0.025;
+export const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY = 0.0005;
 export const FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY = 1;
 export const FIRE_BUILDING_BASE_FLAMMABILITY = {"founders_camp":0,"remote_work_camp":1.55,"town_hall":0,"well":0,"marketplace":0,"stone_quarry":0,"large_quarry":0,"mine":0,"chapel":0.32,"monastery":0.32,"smokehouse":2.2,"charcoal_burner":2.2,"smithy":1.8,"potter_kiln":1.8,"clay_pit":0.15,"brewery":1.45,"granary":1.45,"lumber_mill":1.7,"woodcutters_lodge":1.7,"reforester":1.7,"carpenter":1.7,"threshing_barn":1.65,"apiary":1.25,"fishing_camp":1.25,"hunters_hall":1.25,"foragers_shed":1.25} as const satisfies Partial<Record<BuildingKind, number>>;
 export const FIRE_DROUGHT_RISK_MULTIPLIER = 1.8;
 export const FIRE_RAIN_RISK_MULTIPLIER = 0.25;
 export const FIRE_SPREAD_RADIUS = 26;
-export const FIRE_SPREAD_CHANCE_PER_SECOND = 0.012;
+export const FIRE_SPREAD_CHANCE_PER_SECOND = 0.008;
 export const FIRE_INITIAL_INTENSITY = 0.28;
 export const FIRE_INTENSITY_GROWTH_PER_SECOND = 0.012;
 export const FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND = 0.004;
@@ -115,8 +115,8 @@ export const ECONOMIC_ACTIVITY_TAX_RATE_MAX = 0.45;
 export const LOW_TAX_PRODUCTIVITY_BOOST = 0.28;
 export const HIGH_TAX_PRODUCTIVITY_DRAG = 0.58;
 export const FOOD_SALE_GOLD_PER_UNIT = 0.35;
-export const RESIDENCE_TIMBER_COST = 8;
-export const RESIDENCE_STONE_COST = 12;
+export const RESIDENCE_TIMBER_COST = 5;
+export const RESIDENCE_STONE_COST = 6;
 export const RESIDENCE_TIER2_TIMBER_COST = 18;
 export const RESIDENCE_TIER2_STONE_COST = 14;
 export const RESIDENCE_TIER2_GOLD_COST = 8;
@@ -147,7 +147,7 @@ export const PALISADED_REFUGE_BREACH_SECONDS = 12;
 export const PALISADED_REFUGE_RESIDENT_CAPACITY = 32;
 export const PALISADED_REFUGE_RALLY_THREAT_THRESHOLD = 0.7;
 
-export const STARTING_POPULATION = 5;
+export const STARTING_POPULATION = 10;
 export const POPULATION_PER_RESIDENCE = 3;
 export const RESIDENCE_POPULATION_NARROW = 2;
 export const RESIDENCE_POPULATION_WIDE = 4;
@@ -250,6 +250,7 @@ export const MONASTERY_MIN_FOOTPRINT_SLOPE = 1.8;
 
 export const BUILDING_ROAD_ACCESS_DISTANCE = 20;
 export const BURGAGE_ROAD_FRONTAGE_DISTANCE = 16;
+export const OFFROAD_DELIVERY_SPEED_MULTIPLIER = 0.45;
 export const MIN_DELIVERY_TRIP_SEC = 4;
 export const FIREWOOD_DELIVERY_SPEED_MPS = 2.1;
 export const WATER_DELIVERY_SPEED_MPS = 2.2;
@@ -1377,10 +1378,10 @@ export const BUILDING_DEFINITIONS = {
 export const BUILDING_COSTS = {
   founders_camp: { timber: 0, stone: 0 },
   salvage_pile: { timber: 0, stone: 0 },
-  lumber_mill: { timber: 45, stone: 15 },
+  lumber_mill: { timber: 30, stone: 8 },
   reforester: { timber: 35, stone: 10 },
-  woodcutters_lodge: { timber: 40, stone: 12 },
-  stone_quarry: { timber: 25, stone: 40 },
+  woodcutters_lodge: { timber: 24, stone: 6 },
+  stone_quarry: { timber: 18, stone: 14 },
   large_quarry: { timber: 90, stone: 70, ironwork: 6 },
   remote_work_camp: { timber: 14, stone: 3 },
   mine: { timber: 60, stone: 45, ironwork: 4 },
@@ -1389,9 +1390,9 @@ export const BUILDING_COSTS = {
   smithy: { timber: 42, stone: 38 },
   potter_kiln: { timber: 36, stone: 24 },
   well: { timber: 18, stone: 22 },
-  hunters_hall: { timber: 38, stone: 14 },
-  foragers_shed: { timber: 28, stone: 8 },
-  fishing_camp: { timber: 34, stone: 10 },
+  hunters_hall: { timber: 30, stone: 10 },
+  foragers_shed: { timber: 20, stone: 4 },
+  fishing_camp: { timber: 24, stone: 6 },
   chapel: { timber: 22, stone: 34, ironwork: 3 },
   marketplace: { timber: 32, stone: 26 },
   town_hall: { timber: 88, stone: 96, ironwork: 6 },

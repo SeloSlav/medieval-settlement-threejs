@@ -25,12 +25,12 @@ export function assessWellWaterSupply(
   const storedWater = Math.max(0, building.water);
   const nearestWell = connectedWells[0];
   const nearestWellDistance = nearestWell
-    ? worldQueries.getRoadPathDistance(building.x, building.z, nearestWell.x, nearestWell.z)
+    ? worldQueries.getLocalDeliveryDistance(building.x, building.z, nearestWell.x, nearestWell.z)
     : null;
   const drySuffix = connectedWells.length > 0 && wellsWithWater === 0 ? ', all dry' : '';
   const wellSummary = connectedWells.length === 0
-    ? 'None staffed — build/connect a well or assign its crew'
-    : `${connectedWells.length} by road${nearestWellDistance != null ? ` (nearest ${nearestWellDistance.toFixed(0)} m)` : ''}${drySuffix}`;
+    ? 'None staffed — build a well or assign its crew'
+    : `${connectedWells.length} available${nearestWellDistance != null ? ` (nearest ${nearestWellDistance.toFixed(0)} m travel equivalent)` : ''}${drySuffix}`;
 
   return {
     required: requiredPerCycle,
@@ -52,13 +52,13 @@ export function formatWellWaterDetailRows(
     return noneLabel ? `<li><span>Water use</span><span>${noneLabel}</span></li>` : '';
   }
   const inboundLabel = assessment.inboundWater ? ' · cart inbound' : '';
-  return `<li><span>Road-linked wells</span><span>${assessment.wellSummary}</span></li><li><span>Stored water</span><span>${assessment.storedWater.toFixed(1)} / ${assessment.required} needed${inboundLabel}</span></li><li><span>Water per cycle</span><span>${assessment.required}</span></li>`;
+  return `<li><span>Supplying wells</span><span>${assessment.wellSummary}</span></li><li><span>Stored water</span><span>${assessment.storedWater.toFixed(1)} / ${assessment.required} needed${inboundLabel}</span></li><li><span>Water per cycle</span><span>${assessment.required}</span></li>`;
 }
 
 export function wellWaterStatusIssue(assessment: WellWaterAssessment | null): string | null {
   if (!assessment) return null;
   if (!assessment.hasLinkedWell) {
-    return 'Idle — needs a staffed, road-connected well to operate';
+    return 'Idle — needs a staffed well to operate';
   }
   if (assessment.hasWaterAvailable) {
     return null;

@@ -19,6 +19,10 @@ import {
 import { FARM_CROPS, type FarmCrop, type GameState, type InspectableTarget, type LivestockSpecies } from './types.ts';
 import type { WorldQueries } from './WorldQueries.ts';
 import { renderInspectableTarget } from './inspector/renderInspectableTarget.ts';
+import {
+  inspectorDetailIcon,
+  inspectorDetailState,
+} from './inspector/detailRowPresentation.ts';
 import { handleSupplementalPanelClick } from './inspector/supplementalPanel.ts';
 import type { ParishPolicyState } from '../economy/chapelParish.ts';
 import type { MonasteryPolicyState } from '../economy/monasteryPolicy.ts';
@@ -1773,13 +1777,20 @@ export class ResourceInspector {
         score: inspectorRowScore(row, label, value, index),
       };
     });
-    const primaryTarget = Math.min(6, Math.max(3, Math.ceil(rows.length * 0.22)));
-    const primaryRows = new Set(
-      [...ranked]
-        .sort((a, b) => b.score - a.score || a.index - b.index)
-        .slice(0, primaryTarget)
-        .map(({ row }) => row),
+    const pinnedPrimaryRows = ranked
+      .filter(({ row }) => row.hasAttribute('data-inspector-primary'))
+      .map(({ row }) => row);
+    const primaryTarget = Math.max(
+      pinnedPrimaryRows.length,
+      Math.min(6, Math.max(3, Math.ceil(rows.length * 0.22))),
     );
+    const primaryRows = new Set(pinnedPrimaryRows);
+    for (const { row } of [...ranked].sort(
+      (a, b) => b.score - a.score || a.index - b.index,
+    )) {
+      if (primaryRows.size >= primaryTarget) break;
+      primaryRows.add(row);
+    }
     for (const { row } of ranked) {
       if (row.querySelector('button, input, select, progress')) primaryRows.add(row);
     }
@@ -1988,6 +1999,7 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
 
 function decorateInspectorRow(row: HTMLElement, label: string, value: string): void {
   const normalized = `${label} ${value}`.toLowerCase();
+  const state = inspectorDetailState(label, value);
   const labelElement = row.firstElementChild;
   const valueElement = row.lastElementChild;
   labelElement?.classList.add('inspector-detail-label');
@@ -1995,12 +2007,10 @@ function decorateInspectorRow(row: HTMLElement, label: string, value: string): v
   const icon = document.createElement('span');
   icon.className = 'inspector-row-icon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.textContent = inspectorDetailIcon(normalized);
+  icon.textContent = inspectorDetailIcon(normalized, state);
   row.prepend(icon);
-  if (/(\bfire\b|burn|destroy|danger|critical|blocked|short|starv|damage|exposed|unserved)/.test(normalized)) {
-    row.dataset.state = 'warning';
-  } else if (/(ready|complete|healthy|connected|active|staffed|supplied|secure)/.test(normalized)) {
-    row.dataset.state = 'positive';
+  if (state) {
+    row.dataset.state = state;
   } else {
     delete row.dataset.state;
   }
@@ -2044,21 +2054,6 @@ function inspectorRowScore(
   if (value.length > 72) score -= 12;
   if (index > 12) score -= 2;
   return score;
-}
-
-function inspectorDetailIcon(normalized: string): string {
-  if (/(timber|firewood|wood|log)/.test(normalized)) return '\u2571';
-  if (/(\bfire\b|burn|damage)/.test(normalized)) return '!';
-  if (/(labor|worker|staff|builder|crew)/.test(normalized)) return '\u2692';
-  if (/(stone|quarry|rock)/.test(normalized)) return '\u25C6';
-  if (/(water|river|well|ferry)/.test(normalized)) return '\u224B';
-  if (/(food|grain|flour|ale|honey|wine|crop|yield|field|fertility)/.test(normalized)) return '\u2767';
-  if (/(house|resident|population|shelter|home|vacant)/.test(normalized)) return '\u2302';
-  if (/(road|cart|route|delivery|haul)/.test(normalized)) return '\u21C4';
-  if (/(gold|coin|tax|receipt|wealth|wage)/.test(normalized)) return '\u25C9';
-  if (/(guard|watch|security|threat|arm|polearm)/.test(normalized)) return '\u2726';
-  if (/(stored|storage|stock|capacity|warehouse)/.test(normalized)) return '\u25A3';
-  return '\u25C7';
 }
 
 function inspectorPolicyIcon(title: string): string {

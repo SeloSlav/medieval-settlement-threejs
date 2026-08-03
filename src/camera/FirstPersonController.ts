@@ -124,6 +124,23 @@ export class FirstPersonController {
     return this.active && this.crouchToggle;
   }
 
+  /**
+   * Exposes continuous first-person camera input to render systems that need
+   * to defer incremental visibility-buffer changes until the view settles.
+   */
+  isCameraNavigationActive(): boolean {
+    if (!this.active || this.config.isMenuOpen?.()) return false;
+    return this.input.forward
+      || this.input.backward
+      || this.input.left
+      || this.input.right
+      || !this.loco.grounded
+      || this.loco.velocity.lengthSq() > 0.01
+      || Math.abs(this.lookInertia.velYaw) > 1e-7
+      || Math.abs(this.lookInertia.velPitch) > 1e-7
+      || Math.abs(this.look.headLookYaw) > 1e-7;
+  }
+
   toggle(spawn?: FirstPersonSpawn): void {
     if (this.active) this.deactivate();
     else this.activate(spawn ?? this.config.getOrbitSpawn?.());

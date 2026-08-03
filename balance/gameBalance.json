@@ -80,8 +80,8 @@
     }
   },
   "fires": {
-    "lightningIgnitionChancePerRainDay": 0.1,
-    "accidentIgnitionChancePerStructureDay": 0.0015,
+    "lightningIgnitionChancePerRainDay": 0.025,
+    "accidentIgnitionChancePerStructureDay": 0.0005,
     "defaultBuildingBaseFlammability": 1,
     "buildingBaseFlammability": {
       "founders_camp": 0,
@@ -114,7 +114,7 @@
     "droughtRiskMultiplier": 1.8,
     "rainRiskMultiplier": 0.25,
     "spreadRadius": 26,
-    "spreadChancePerSecond": 0.012,
+    "spreadChancePerSecond": 0.008,
     "initialIntensity": 0.28,
     "intensityGrowthPerSecond": 0.012,
     "rainIntensityDampingPerSecond": 0.004,
@@ -146,8 +146,8 @@
     "lowTaxProductivityBoost": 0.28,
     "highTaxProductivityDrag": 0.58,
     "foodSaleGoldPerUnit": 0.35,
-    "residenceTimberCost": 8,
-    "residenceStoneCost": 12,
+    "residenceTimberCost": 5,
+    "residenceStoneCost": 6,
     "residenceTier2TimberCost": 18,
     "residenceTier2StoneCost": 14,
     "residenceTier2GoldCost": 8,
@@ -289,7 +289,7 @@
     }
   ],
   "population": {
-    "starting": 5,
+    "starting": 10,
     "perResidence": 3,
     "residencePopulationNarrow": 2,
     "residencePopulationWide": 4,
@@ -393,6 +393,7 @@
   "roads": {
     "buildingRoadAccessDistance": 20,
     "burgageRoadFrontageDistance": 16,
+    "offroadDeliverySpeedMultiplier": 0.45,
     "minDeliveryTripSec": 4,
     "firewoodDeliverySpeedMps": 2.1,
     "waterDeliverySpeedMps": 2.2,
@@ -829,7 +830,7 @@
     },
     "lumber_mill": {
       "label": "Lumber mill",
-      "cost": { "timber": 45, "stone": 15 },
+      "cost": { "timber": 30, "stone": 8 },
       "storage": { "timber": 240, "firewood": 0, "stone": 0, "water": 48, "food": 0, "ironwork": 3 },
       "workRadius": 210,
       "pickRadius": 8,
@@ -863,7 +864,7 @@
     },
     "woodcutters_lodge": {
       "label": "Woodcutter's lodge",
-      "cost": { "timber": 40, "stone": 12 },
+      "cost": { "timber": 24, "stone": 6 },
       "storage": { "timber": 60, "firewood": 120, "stone": 0, "food": 0, "ironwork": 3 },
       "workRadius": 0,
       "pickRadius": 8,
@@ -880,7 +881,7 @@
     },
     "stone_quarry": {
       "label": "Stonecutter's camp",
-      "cost": { "timber": 25, "stone": 40 },
+      "cost": { "timber": 18, "stone": 14 },
       "storage": { "timber": 0, "firewood": 0, "stone": 180, "food": 0, "ironwork": 3 },
       "workRadius": 80,
       "pickRadius": 10,
@@ -1041,7 +1042,7 @@
     },
     "hunters_hall": {
       "label": "Hunter's hall",
-      "cost": { "timber": 38, "stone": 14 },
+      "cost": { "timber": 30, "stone": 10 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 100 },
       "workRadius": 68,
       "pickRadius": 9,
@@ -1058,7 +1059,7 @@
     },
     "foragers_shed": {
       "label": "Forager's shed",
-      "cost": { "timber": 28, "stone": 8 },
+      "cost": { "timber": 20, "stone": 4 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 80, "remedies": 36 },
       "workRadius": 48,
       "pickRadius": 8,
@@ -1075,7 +1076,7 @@
     },
     "fishing_camp": {
       "label": "Fishing camp",
-      "cost": { "timber": 34, "stone": 10 },
+      "cost": { "timber": 24, "stone": 6 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "food": 120 },
       "workRadius": 64,
       "pickRadius": 9,

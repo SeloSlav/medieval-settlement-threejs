@@ -6,7 +6,6 @@ use crate::balance_generated::{
     CONSTRUCTION_TREASURY_TRANSFER_PER_SEC, CONSTRUCTION_WORK_PER_WORKER_PER_SEC,
     FARMSTEAD_STARTER_BARLEY_SEED, FARMSTEAD_STARTER_SEED_GRAIN, TICK_DT,
 };
-use crate::building_defs::building_def;
 use crate::construction_priority::{
     construction_priority_bucket, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
     CONSTRUCTION_PRIORITY_NORMAL,
@@ -16,9 +15,10 @@ use crate::economy::{building_commodity_stock, CommodityKind};
 use crate::reducers::livestock::{starter_herd, SPECIES_CATTLE, SPECIES_SWINE};
 use crate::roads::RoadNetwork;
 use crate::simulation::delivery_trips::{
-    available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
+    available_free_haulers, building_has_inbound_supply_trip, construction_source_cart_busy,
     try_start_construction_supply_trip, DELIVERY_DESTINATION_BUILDING,
 };
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::supply_policy::{
     construction_source_available_stock, construction_source_priority,
@@ -136,7 +136,6 @@ fn dispatch_reserved_stock(
     let Some(network) = tick.road_network(site.owner) else {
         return;
     };
-    let allow_offroad = building_def(&site.kind).is_some_and(|def| !def.requires_road);
     let free_haulers = available_free_haulers(ctx, site.owner);
     let mut source_groups: [Vec<Building>; 8] = std::array::from_fn(|_| Vec::new());
     for source_id in tick.construction_source_ids(ctx, site.owner, commodity) {
@@ -146,7 +145,7 @@ fn dispatch_reserved_stock(
         if source.id == site.id
             || !source.construction_complete
             || tick.building_disabled_by_fire(ctx, source.id)
-            || building_has_active_trip(ctx, source.id)
+            || construction_source_cart_busy(ctx, &source)
             || (source.kind == "village_storehouse"
                 && building_has_inbound_supply_trip(ctx, source.id))
             || construction_source_stock(&source, commodity) <= 1e-6
@@ -159,20 +158,14 @@ fn dispatch_reserved_stock(
     }
 
     // Preserve the existing storehouse/specialist preference, but compare
-    // candidates inside each priority class by real road distance. Only the
+    // candidates inside each priority class by time-weighted local distance. Only the
     // first reachable class performs a dispatch, so no whole-set sort or route
     // polyline construction is needed for candidates that cannot win.
     for sources in source_groups {
         let selected = select_supply_route_candidate(
             sources.into_iter().filter_map(|source| {
-                let source_allows_offroad = source.kind == "founders_camp";
-                construction_route_distance(
-                    &network,
-                    &source,
-                    site,
-                    allow_offroad || source_allows_offroad,
-                )
-                .map(|distance| (source, distance))
+                construction_route_distance(&network, &source, site)
+                    .map(|distance| (source, distance))
             }),
             |candidate| candidate.1,
             |candidate| candidate.0.id,
@@ -180,7 +173,6 @@ fn dispatch_reserved_stock(
         let Some((mut source, _distance)) = selected else {
             continue;
         };
-        let source_allows_offroad = source.kind == "founders_camp";
         if try_start_construction_supply_trip(
             ctx,
             tick,
@@ -189,7 +181,6 @@ fn dispatch_reserved_stock(
             &mut source,
             site,
             commodity,
-            allow_offroad || source_allows_offroad,
             free_haulers,
         ) {
             return;
@@ -216,17 +207,9 @@ fn construction_route_distance(
     network: &RoadNetwork,
     source: &Building,
     site: &Building,
-    allow_offroad: bool,
 ) -> Option<f64> {
-    network
-        .road_path_distance(source.x, source.z, site.x, site.z)
-        .or_else(|| {
-            if !allow_offroad {
-                return None;
-            }
-            let distance = ((site.x - source.x).powi(2) + (site.z - source.z).powi(2)).sqrt();
-            (distance > 1e-6).then_some(distance)
-        })
+    local_delivery_distance(network, source.x, source.z, site.x, site.z)
+        .filter(|distance| *distance > 1e-6)
 }
 
 fn advance_builder_work(

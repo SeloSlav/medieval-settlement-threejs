@@ -31,6 +31,13 @@ export type ParcelFenceOpening = {
   width: number;
 };
 
+export type ResolvedParcelFenceOpening = {
+  center: Point2;
+  start: Point2;
+  end: Point2;
+  width: number;
+};
+
 export type BurgageLayoutResult = {
   frontageLength: number;
   maxPlotCount: number;
@@ -334,16 +341,20 @@ function fenceEdgeKey(a: Point2, b: Point2): string {
   return `${bx},${bz}|${ax},${az}`;
 }
 
-/** Split a frontage rail so the unbuilt span reads as a walk-through gate. */
-function splitFenceEdgeAroundOpening(
+/**
+ * Resolve a gate span onto a specific fence edge. The clamped center is the
+ * single source of truth for both the missing rails and the visible gateway,
+ * so the gateway can never drift onto a side or rear boundary.
+ */
+export function resolveFenceOpeningOnEdge(
   start: Point2,
   end: Point2,
   opening: ParcelFenceOpening,
-): Array<[Point2, Point2]> {
+): ResolvedParcelFenceOpening | null {
   const dx = end.x - start.x;
   const dz = end.z - start.z;
   const length = Math.hypot(dx, dz);
-  if (length <= 1e-6 || opening.width <= 0) return [[start, end]];
+  if (length <= 1e-6 || opening.width <= 0) return null;
 
   const dirX = dx / length;
   const dirZ = dz / length;
@@ -361,9 +372,33 @@ function splitFenceEdgeAroundOpening(
     z: start.z + dirZ * gapEndDistance,
   };
 
+  return {
+    center: {
+      x: start.x + dirX * centerDistance,
+      z: start.z + dirZ * centerDistance,
+    },
+    start: gapStart,
+    end: gapEnd,
+    width: gapEndDistance - gapStartDistance,
+  };
+}
+
+/** Split a frontage rail so the unbuilt span reads as a walk-through gate. */
+function splitFenceEdgeAroundOpening(
+  start: Point2,
+  end: Point2,
+  opening: ParcelFenceOpening,
+): Array<[Point2, Point2]> {
+  const resolved = resolveFenceOpeningOnEdge(start, end, opening);
+  if (!resolved) return [[start, end]];
+
+  const edgeLength = Math.hypot(end.x - start.x, end.z - start.z);
+  const gapStartDistance = Math.hypot(resolved.start.x - start.x, resolved.start.z - start.z);
+  const gapEndDistance = Math.hypot(resolved.end.x - start.x, resolved.end.z - start.z);
+
   const result: Array<[Point2, Point2]> = [];
-  if (gapStartDistance >= 0.5) result.push([start, gapStart]);
-  if (length - gapEndDistance >= 0.5) result.push([gapEnd, end]);
+  if (gapStartDistance >= 0.5) result.push([start, resolved.start]);
+  if (edgeLength - gapEndDistance >= 0.5) result.push([resolved.end, end]);
   return result;
 }
 

@@ -1,4 +1,7 @@
-import { RESIDENCE_WATER_CAPACITY } from '../generated/gameBalance.ts';
+import {
+  OFFROAD_DELIVERY_SPEED_MULTIPLIER,
+  RESIDENCE_WATER_CAPACITY,
+} from '../generated/gameBalance.ts';
 import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
@@ -59,6 +62,77 @@ export function roadPathDistancesFrom(
     pathfinder.roadPathDistance(ax, az, target.x, target.z));
 }
 
+function effectiveDeliveryDistance(
+  roadDistance: number | null,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): number | null {
+  if (roadDistance != null && Number.isFinite(roadDistance)) return roadDistance;
+  const directDistance = Math.hypot(bx - ax, bz - az);
+  if (!Number.isFinite(directDistance)) return null;
+  return directDistance / Math.max(OFFROAD_DELIVERY_SPEED_MULTIPLIER, 1e-6);
+}
+
+/**
+ * Time-weighted local delivery distance. Disconnected destinations remain
+ * reachable across open ground, while road routes are substantially faster.
+ */
+export function localDeliveryDistance(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): number | null {
+  return effectiveDeliveryDistance(roadPathDistance(network, ax, az, bx, bz), ax, az, bx, bz);
+}
+
+export type LocalDeliveryRoute = {
+  distance: number;
+  polyline: RoadPoint[];
+  speedMultiplier: number;
+  offroad: boolean;
+};
+
+export function localDeliveryRoute(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): LocalDeliveryRoute | null {
+  const roadRoute = roadPathRoute(network, ax, az, bx, bz);
+  if (roadRoute && Number.isFinite(roadRoute.distance) && roadRoute.distance > 1e-6) {
+    return { ...roadRoute, speedMultiplier: 1, offroad: false };
+  }
+  const distance = Math.hypot(bx - ax, bz - az);
+  if (!Number.isFinite(distance) || distance <= 1e-6) return null;
+  return {
+    distance,
+    polyline: [{ x: ax, z: az }, { x: bx, z: bz }],
+    speedMultiplier: OFFROAD_DELIVERY_SPEED_MULTIPLIER,
+    offroad: true,
+  };
+}
+
+export function localDeliveryDistancesFrom(
+  network: RoadNetwork,
+  ax: number,
+  az: number,
+  targets: readonly RoadPoint[],
+): Array<number | null> {
+  const roadDistances = roadPathDistancesFrom(network, ax, az, targets);
+  return targets.map((target, index) => effectiveDeliveryDistance(
+    roadDistances[index],
+    ax,
+    az,
+    target.x,
+    target.z,
+  ));
+}
+
 export function isOperationalFirewoodSupplier(building: BuildingState): boolean {
   return building.constructionComplete !== false
     && building.assignedLabor > 0
@@ -104,7 +178,7 @@ export function claimResidenceRoutesByNearestSupplier(
   candidateAllowed: (
     supplier: BuildingState,
     residence: ResidenceState,
-    roadDistance: number,
+    effectiveDistance: number,
   ) => boolean,
 ): Map<string, ResidenceSupplierRouteClaim> {
   const bestByResidence = new Map<string, ResidenceSupplierRouteClaim>();
@@ -114,7 +188,7 @@ export function claimResidenceRoutesByNearestSupplier(
   }));
 
   for (const supplier of suppliers) {
-    const distances = roadPathDistancesFrom(
+    const distances = localDeliveryDistancesFrom(
       network,
       supplier.x,
       supplier.z,
@@ -152,7 +226,7 @@ export function claimResidencesByNearestSupplier(
   candidateAllowed: (
     supplier: BuildingState,
     residence: ResidenceState,
-    roadDistance: number,
+    effectiveDistance: number,
   ) => boolean,
 ): Map<string, string> {
   return new Map(
@@ -212,7 +286,7 @@ export function claimResidencesForFoodSuppliers(
   eligible: (
     supplier: BuildingState,
     residence: ResidenceState,
-    roadDistance: number,
+    effectiveDistance: number,
   ) => boolean = () => true,
 ): Map<string, string> {
   // A staffed but empty seasonal producer must not strand nearby homes while a
@@ -239,7 +313,7 @@ export function sortByRoadPathDistance<T extends { x: number; z: number }>(
   items: T[],
 ): T[] {
   const routed = items.map((item, index) => ({ item, index, distance: Infinity }));
-  const distances = roadPathDistancesFrom(network, origin.x, origin.z, items);
+  const distances = localDeliveryDistancesFrom(network, origin.x, origin.z, items);
   for (let index = 0; index < routed.length; index += 1) {
     routed[index].distance = distances[index] ?? Infinity;
   }
@@ -260,8 +334,8 @@ export function compareResidencesForDelivery(
   const runwayA = residenceFirewoodRunwaySeconds(a) ?? Infinity;
   const runwayB = residenceFirewoodRunwaySeconds(b) ?? Infinity;
   if (Math.abs(runwayA - runwayB) > 1e-6) return runwayA - runwayB;
-  const distanceA = roadPathDistance(network, lodge.x, lodge.z, a.x, a.z) ?? Infinity;
-  const distanceB = roadPathDistance(network, lodge.x, lodge.z, b.x, b.z) ?? Infinity;
+  const distanceA = localDeliveryDistance(network, lodge.x, lodge.z, a.x, a.z) ?? Infinity;
+  const distanceB = localDeliveryDistance(network, lodge.x, lodge.z, b.x, b.z) ?? Infinity;
   if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
   return compareStableEntityIds(a.id, b.id);
 }
@@ -286,7 +360,7 @@ export function peekNextDeliveryTarget(
   residences: readonly ResidenceState[],
 ): ResidenceState | null {
   const eligible = residences.filter(residenceNeedsPriorityFirewood);
-  const distances = roadPathDistancesFrom(network, lodge.x, lodge.z, eligible);
+  const distances = localDeliveryDistancesFrom(network, lodge.x, lodge.z, eligible);
   let bestIndex = -1;
   for (let index = 0; index < eligible.length; index += 1) {
     if (distances[index] == null) continue;
@@ -319,8 +393,8 @@ export function compareResidencesForWaterDelivery(
   const runwayA = residenceWaterRunwaySeconds(a) ?? Infinity;
   const runwayB = residenceWaterRunwaySeconds(b) ?? Infinity;
   if (Math.abs(runwayA - runwayB) > 1e-6) return runwayA - runwayB;
-  const distanceA = roadPathDistance(network, well.x, well.z, a.x, a.z) ?? Infinity;
-  const distanceB = roadPathDistance(network, well.x, well.z, b.x, b.z) ?? Infinity;
+  const distanceA = localDeliveryDistance(network, well.x, well.z, a.x, a.z) ?? Infinity;
+  const distanceB = localDeliveryDistance(network, well.x, well.z, b.x, b.z) ?? Infinity;
   if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
   return compareStableEntityIds(a.id, b.id);
 }
@@ -348,7 +422,7 @@ export function peekNextWaterDeliveryTarget(
       getNeedStock(residence.needs, 'water'),
       RESIDENCE_WATER_CAPACITY,
     ));
-  const distances = roadPathDistancesFrom(network, well.x, well.z, eligible);
+  const distances = localDeliveryDistancesFrom(network, well.x, well.z, eligible);
   let bestIndex = -1;
   for (let index = 0; index < eligible.length; index += 1) {
     if (distances[index] == null) continue;
@@ -391,7 +465,7 @@ function sortResidencesByRunwayAndDistance(
   residences: readonly ResidenceState[],
   runwayFor: (residence: ResidenceState) => number | null,
 ): ResidenceState[] {
-  const distances = roadPathDistancesFrom(network, origin.x, origin.z, residences);
+  const distances = localDeliveryDistancesFrom(network, origin.x, origin.z, residences);
   return residences
     .map((residence, index) => ({
       residence,

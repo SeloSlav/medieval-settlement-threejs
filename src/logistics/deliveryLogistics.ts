@@ -7,7 +7,7 @@ import {
   WATER_DELIVERY_SPEED_MPS,
   WATER_DELIVERY_UNLOAD_SEC,
 } from '../generated/gameBalance.ts';
-import { roadPathDistance } from './roadLogistics.ts';
+import { localDeliveryDistance, roadPathDistance } from './roadLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 
 type RoadPoint = { x: number; z: number };
@@ -26,7 +26,7 @@ export function roadDeliveryTripSeconds(
     return Infinity;
   }
 
-  const oneWayMeters = roadPathDistance(network, origin.x, origin.z, target.x, target.z);
+  const oneWayMeters = localDeliveryDistance(network, origin.x, origin.z, target.x, target.z);
   if (oneWayMeters == null) {
     return Infinity;
   }
@@ -109,6 +109,6 @@ export function formatDeliveryTripDuration(seconds: number): string {
 }
 
 export function formatDeliveryRoadDistance(meters: number | null): string {
-  if (meters == null) return 'off road';
+  if (meters == null) return 'off-road · 45% speed';
   return `${Math.round(meters)} m one-way`;
 }

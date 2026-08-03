@@ -7,7 +7,7 @@ import {
   type BuildingKind,
   type BuildingResourceCost,
 } from '../generated/gameBalance.ts';
-import { roadPathDistance } from '../logistics/roadLogistics.ts';
+import { localDeliveryDistance } from '../logistics/roadLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { getBuildingCost } from '../resources/buildingEconomy.ts';
 
@@ -100,7 +100,7 @@ export function hasRoadLinkedCarpenter(
     if (!isOperationalCarpenter(building)) continue;
     if (disabledBuildingIds.has(building.id)) continue;
     if (!isEligible(building)) continue;
-    if (roadPathDistance(network, origin.x, origin.z, building.x, building.z) != null) {
+    if (localDeliveryDistance(network, origin.x, origin.z, building.x, building.z) != null) {
       return true;
     }
   }

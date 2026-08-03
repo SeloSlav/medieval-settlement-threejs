@@ -93,7 +93,7 @@ export function renderMineralMineInspector(
           ? ` + ${inboundSupportTimber.toFixed(1)} inbound`
           : ''
       } / ${RICH_MINE_SUPPORT_TARGET.toFixed(1)} timber target · ${supportRunway.toFixed(1)} cycles</span></li>
-      <li><span>Timber crib wear</span><span>${MINE_TIMBER_SUPPORT_PER_CYCLE.toFixed(1)} timber per completed deep batch · nearest road-linked lumber mill or village storehouse supplies it</span></li>`
+      <li><span>Timber crib wear</span><span>${MINE_TIMBER_SUPPORT_PER_CYCLE.toFixed(1)} timber per completed deep batch · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>`
     : '<li><span>Shaft timber</span><span>Ordinary surface seam · no recurring deep-support cost</span></li>';
 
   return {
@@ -157,7 +157,7 @@ export function renderMineralMineInspector(
           ? 'No dispatch until the shaft is centered on a physical mineral deposit'
           : resource === 'iron'
           ? 'Mine carts serve road-linked smithies; market iron covers a local shortfall'
-          : 'Mine carts serve road-linked smokehouses and pastoral holdings; market salt covers a local shortfall'
+          : 'Mine carts serve smokehouses and pastoral holdings; roads speed the haul and market salt covers a local shortfall'
       }</span></li>
       ${supportRows}
       ${civilianToolRows(building)}

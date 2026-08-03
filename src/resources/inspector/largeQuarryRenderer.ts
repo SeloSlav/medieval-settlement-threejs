@@ -98,7 +98,7 @@ export function renderLargeQuarryInspector(
           ? ` + ${inboundSupportTimber.toFixed(2)} inbound`
           : ''
       } / ${LARGE_QUARRY_SUPPORT_TARGET.toFixed(2)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
-      <li><span>Support wear</span><span>${LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE.toFixed(2)} timber per completed stone batch · nearest road-linked lumber mill or village storehouse supplies it</span></li>
+      <li><span>Support wear</span><span>${LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE.toFixed(2)} timber per completed stone batch · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>
       <li><span>Yard ceiling</span><span>${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)} stone · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}

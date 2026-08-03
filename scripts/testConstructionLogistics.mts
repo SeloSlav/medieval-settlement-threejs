@@ -14,6 +14,7 @@ import {
   CONSTRUCTION_WORK_PER_WORKER_PER_SEC,
   FIREWOOD_DELIVERY_SPEED_MPS,
   FOOD_DELIVERY_SPEED_MPS,
+  OFFROAD_DELIVERY_SPEED_MULTIPLIER,
   TIMBER_DELIVERY_SPEED_MPS,
   WATER_DELIVERY_SPEED_MPS,
 } from '../src/generated/gameBalance.ts';
@@ -312,7 +313,11 @@ assert.doesNotMatch(
   /ctx\.db\.building\(\)\.owner\(\)/,
   'construction carts must not rescan every owner building for each site and commodity',
 );
-assert.match(constructionDispatch, /road_path_distance/);
+assert.match(
+  constructionDispatch,
+  /local_delivery_distance/,
+  'construction should prefer roads but retain a slower cross-country fallback',
+);
 assert.match(constructionDispatch, /select_supply_route_candidate/);
 
 const roadNetworkServer = read('server/src/roads/network.rs');
@@ -340,6 +345,21 @@ assert.doesNotMatch(
 assert.match(constructionTrip, /available_free_haulers\.min\(1\)/);
 assert.match(
   constructionTrip,
+  /construction_source_cart_busy\(ctx, origin\)/,
+  'the construction trip boundary must use source-specific cart capacity',
+);
+assert.match(
+  constructionServer,
+  /construction_source_cart_busy\(ctx, &source\)/,
+  'construction source selection must share the trip-start cart-capacity rule',
+);
+assert.match(
+  deliveryTripServer,
+  /pub fn construction_source_cart_busy[\s\S]*source\.kind != "founders_camp"[\s\S]*building_has_active_trip/,
+  'the open founders stockyard must support multiple independently reserved free haulers',
+);
+assert.match(
+  constructionTrip,
   /STOREHOUSE_HAUL_PER_WORKER/,
   'staffed storehouses should retain a batch-hauling advantage',
 );
@@ -352,9 +372,19 @@ assert.match(
 const constructionInspector = read('src/resources/inspector/constructionRenderer.ts');
 assert.doesNotMatch(constructionInspector, /Waiting for a staffed material source/);
 assert.match(constructionInspector, /Unassigned hauler bringing/);
-assert.match(constructionInspector, /No road route to/);
+assert.match(constructionInspector, /No usable haul route to/);
 assert.match(constructionInspector, /Material source/);
 assert.match(constructionInspector, /routeDistance/);
+assert.doesNotMatch(
+  constructionInspector,
+  /countActiveFreeConstructionHaulers/,
+  'construction supply must not deduct free-hauler trip reservations twice',
+);
+assert.match(
+  constructionInspector,
+  /source\.kind !== 'founders_camp'[\s\S]*getActiveDeliveryTrip\(source\)/,
+  'the inspector must expose spare founding haulers while another camp cart is active',
+);
 assert.doesNotMatch(
   constructionInspector.slice(constructionInspector.indexOf('function resolveConstructionSupply')),
   /\.sort\(/,
@@ -879,6 +909,18 @@ const constructionContext = (
       ) => typeof pathDistance === 'function'
         ? pathDistance(ax, az, bx, bz)
         : pathDistance,
+      getLocalDeliveryDistance: (
+        ax: number,
+        az: number,
+        bx: number,
+        bz: number,
+      ) => {
+        const roadDistance = typeof pathDistance === 'function'
+          ? pathDistance(ax, az, bx, bz)
+          : pathDistance;
+        return roadDistance
+          ?? Math.hypot(bx - ax, bz - az) / OFFROAD_DELIVERY_SPEED_MULTIPLIER;
+      },
       getActiveDeliveryTrip: () => null,
       getRoadAccessLabel: () => 'Connected (5 m to road)',
     },
@@ -923,7 +965,8 @@ assert.equal(
     siteTarget,
     constructionContext([stoneSource], 5, null) as never,
   ).statusText,
-  "No road route to 15 stone at Stonecutter's camp",
+  "Unassigned worker fetching 15 stone from Stonecutter's camp",
+  'construction supplies must remain available off-road at the slower travel rate',
 );
 const staffedStorehouse = buildingState({
   id: 'storehouse',
@@ -1001,6 +1044,19 @@ assert.equal(
 );
 assert.match(routeAwareView.detailsHtml, /Large Quarry · 20m haul/);
 assert.match(routeAwareView.detailsHtml, /Queue priority<\/span><span>Normal/);
+assert.equal(
+  (routeAwareView.detailsHtml.match(/data-inspector-primary/g) ?? []).length,
+  4,
+  'construction inspectors must pin a complete 2x2 summary grid',
+);
+assert.match(
+  routeAwareView.detailsHtml,
+  /data-inspector-primary><span>Timber delivered<\/span>/,
+);
+assert.match(
+  routeAwareView.detailsHtml,
+  /data-inspector-primary><span>Stone delivered<\/span>/,
+);
 assert.match(routeAwareView.supplementalPanelHtml ?? '', /data-construction-priority="3"/);
 assert.match(routeAwareView.supplementalPanelHtml ?? '', /urgent sites claim available carts/);
 

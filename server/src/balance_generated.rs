@@ -75,13 +75,13 @@ pub const PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR: f64 = 1.15;
 pub const PRESERVED_FOOD_STORAGE_CART_FACTOR: f64 = 1.35;
 pub const PRESERVED_FOOD_STORAGE_TREASURY_FACTOR: f64 = 1.25;
 
-pub const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY: f64 = 0.1;
-pub const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY: f64 = 0.0015;
+pub const FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY: f64 = 0.025;
+pub const FIRE_ACCIDENT_IGNITION_CHANCE_PER_STRUCTURE_DAY: f64 = 0.0005;
 pub const FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY: f64 = 1.0;
 pub const FIRE_DROUGHT_RISK_MULTIPLIER: f64 = 1.8;
 pub const FIRE_RAIN_RISK_MULTIPLIER: f64 = 0.25;
 pub const FIRE_SPREAD_RADIUS: f64 = 26.0;
-pub const FIRE_SPREAD_CHANCE_PER_SECOND: f64 = 0.012;
+pub const FIRE_SPREAD_CHANCE_PER_SECOND: f64 = 0.008;
 pub const FIRE_INITIAL_INTENSITY: f64 = 0.28;
 pub const FIRE_INTENSITY_GROWTH_PER_SECOND: f64 = 0.012;
 pub const FIRE_RAIN_INTENSITY_DAMPING_PER_SECOND: f64 = 0.004;
@@ -112,8 +112,8 @@ pub const ECONOMIC_ACTIVITY_TAX_RATE_MAX: f64 = 0.45;
 pub const LOW_TAX_PRODUCTIVITY_BOOST: f64 = 0.28;
 pub const HIGH_TAX_PRODUCTIVITY_DRAG: f64 = 0.58;
 pub const FOOD_SALE_GOLD_PER_UNIT: f64 = 0.35;
-pub const RESIDENCE_TIMBER_COST: f64 = 8.0;
-pub const RESIDENCE_STONE_COST: f64 = 12.0;
+pub const RESIDENCE_TIMBER_COST: f64 = 5.0;
+pub const RESIDENCE_STONE_COST: f64 = 6.0;
 pub const RESIDENCE_TIER2_TIMBER_COST: f64 = 18.0;
 pub const RESIDENCE_TIER2_STONE_COST: f64 = 14.0;
 pub const RESIDENCE_TIER2_GOLD_COST: f64 = 8.0;
@@ -144,7 +144,7 @@ pub const PALISADED_REFUGE_BREACH_SECONDS: f64 = 12.0;
 pub const PALISADED_REFUGE_RESIDENT_CAPACITY: u32 = 32;
 pub const PALISADED_REFUGE_RALLY_THREAT_THRESHOLD: f64 = 0.7;
 
-pub const STARTING_POPULATION: u32 = 5;
+pub const STARTING_POPULATION: u32 = 10;
 pub const POPULATION_PER_RESIDENCE: u32 = 3;
 pub const RESIDENCE_POPULATION_NARROW: u32 = 2;
 pub const RESIDENCE_POPULATION_WIDE: u32 = 4;
@@ -247,6 +247,7 @@ pub const MONASTERY_MIN_FOOTPRINT_SLOPE: f64 = 1.8;
 
 pub const BUILDING_ROAD_ACCESS_DISTANCE: f64 = 20.0;
 pub const BURGAGE_ROAD_FRONTAGE_DISTANCE: f64 = 16.0;
+pub const OFFROAD_DELIVERY_SPEED_MULTIPLIER: f64 = 0.45;
 pub const MIN_DELIVERY_TRIP_SEC: f64 = 4.0;
 pub const FIREWOOD_DELIVERY_SPEED_MPS: f64 = 2.1;
 pub const WATER_DELIVERY_SPEED_MPS: f64 = 2.2;
@@ -854,8 +855,8 @@ const SALVAGE_PILE: BuildingDef = BuildingDef {
 
 const LUMBER_MILL: BuildingDef = BuildingDef {
     kind: "lumber_mill",
-    cost_timber: 45.0,
-    cost_stone: 15.0,
+    cost_timber: 30.0,
+    cost_stone: 8.0,
     cost_ironwork: 0.0,
     storage_timber: 240.0,
     storage_firewood: 0.0,
@@ -948,8 +949,8 @@ const REFORESTER: BuildingDef = BuildingDef {
 
 const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
     kind: "woodcutters_lodge",
-    cost_timber: 40.0,
-    cost_stone: 12.0,
+    cost_timber: 24.0,
+    cost_stone: 6.0,
     cost_ironwork: 0.0,
     storage_timber: 60.0,
     storage_firewood: 120.0,
@@ -995,8 +996,8 @@ const WOODCUTTERS_LODGE: BuildingDef = BuildingDef {
 
 const STONE_QUARRY: BuildingDef = BuildingDef {
     kind: "stone_quarry",
-    cost_timber: 25.0,
-    cost_stone: 40.0,
+    cost_timber: 18.0,
+    cost_stone: 14.0,
     cost_ironwork: 0.0,
     storage_timber: 0.0,
     storage_firewood: 0.0,
@@ -1418,8 +1419,8 @@ const WELL: BuildingDef = BuildingDef {
 
 const HUNTERS_HALL: BuildingDef = BuildingDef {
     kind: "hunters_hall",
-    cost_timber: 38.0,
-    cost_stone: 14.0,
+    cost_timber: 30.0,
+    cost_stone: 10.0,
     cost_ironwork: 0.0,
     storage_timber: 0.0,
     storage_firewood: 0.0,
@@ -1465,8 +1466,8 @@ const HUNTERS_HALL: BuildingDef = BuildingDef {
 
 const FORAGERS_SHED: BuildingDef = BuildingDef {
     kind: "foragers_shed",
-    cost_timber: 28.0,
-    cost_stone: 8.0,
+    cost_timber: 20.0,
+    cost_stone: 4.0,
     cost_ironwork: 0.0,
     storage_timber: 0.0,
     storage_firewood: 0.0,
@@ -1512,8 +1513,8 @@ const FORAGERS_SHED: BuildingDef = BuildingDef {
 
 const FISHING_CAMP: BuildingDef = BuildingDef {
     kind: "fishing_camp",
-    cost_timber: 34.0,
-    cost_stone: 10.0,
+    cost_timber: 24.0,
+    cost_stone: 6.0,
     cost_ironwork: 0.0,
     storage_timber: 0.0,
     storage_firewood: 0.0,

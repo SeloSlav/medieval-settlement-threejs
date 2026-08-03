@@ -18,6 +18,7 @@ use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_building_supply_trip,
 };
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
@@ -808,7 +809,7 @@ pub fn step_reclamation_piles(
                     }
                     let priority = reclamation_destination_priority(commodity, &target.kind)?;
                     let distance =
-                        network.road_path_distance(pile.x, pile.z, target.x, target.z)?;
+                        local_delivery_distance(&network, pile.x, pile.z, target.x, target.z)?;
                     (distance > EPSILON).then_some((target, priority, distance))
                 })
                 .min_by(|a, b| {

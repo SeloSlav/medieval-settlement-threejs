@@ -19,8 +19,8 @@ use crate::reducers::residences::ensure_upgrade_source_route;
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
     building_fire_state, cancel_trips_for_residence, clear_fire_for_target,
-    clear_residence_project, ensure_residence_needs, FIRE_STATE_BURNING, FIRE_STATE_DESTROYED,
-    FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE,
+    clear_residence_project, ensure_residence_needs, local_delivery_distance,
+    FIRE_STATE_BURNING, FIRE_STATE_DESTROYED, FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE,
 };
 use crate::tables::{Building, FireIncident, Residence};
 
@@ -309,9 +309,7 @@ fn has_operational_carpenter_support(
             && shop.construction_complete
             && shop.assigned_labor > 0
             && building_fire_state(ctx, shop.id).is_none()
-            && network
-                .road_path_distance(target.x(), target.z(), shop.x, shop.z)
-                .is_some()
+            && local_delivery_distance(&network, target.x(), target.z(), shop.x, shop.z).is_some()
     })
 }
 

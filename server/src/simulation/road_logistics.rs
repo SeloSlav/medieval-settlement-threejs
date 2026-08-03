@@ -1,10 +1,11 @@
-//! Road-graph distance and branch claims for firewood logistics.
+//! Road-preferred local delivery distance and supplier claims.
 
 use crate::balance_generated::{
-    HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY, REMEDY_DELIVERY_TARGET_DAYS,
+    HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY, OFFROAD_DELIVERY_SPEED_MULTIPLIER,
+    REMEDY_DELIVERY_TARGET_DAYS,
 };
 use crate::constants::RESIDENCE_WATER_PER_PERSON_PER_SEC;
-use crate::roads::RoadNetwork;
+use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::simulation::lodge_logistics::residence_firewood_runway_seconds as residence_runway_seconds;
 use crate::supply_policy::{
     compare_supply_route_candidates, is_firewood_supplier_operational,
@@ -15,14 +16,85 @@ use crate::well_policy::position_within_well_service_radius;
 
 pub use crate::simulation::lodge_logistics::lodge_labor_split;
 
-pub fn road_path_distance(
+#[derive(Debug, Clone)]
+pub struct LocalDeliveryRoute {
+    pub route: RoadPathRoute,
+    pub speed_multiplier: f64,
+}
+
+fn direct_distance(ax: f64, az: f64, bx: f64, bz: f64) -> Option<f64> {
+    let distance = ((bx - ax).powi(2) + (bz - az).powi(2)).sqrt();
+    distance.is_finite().then_some(distance)
+}
+
+fn effective_delivery_distance(
+    road_distance: Option<f64>,
+    direct_distance: Option<f64>,
+) -> Option<f64> {
+    road_distance
+        .filter(|distance| distance.is_finite())
+        .or_else(|| {
+            direct_distance.map(|distance| distance / OFFROAD_DELIVERY_SPEED_MULTIPLIER.max(1e-6))
+        })
+}
+
+/// Time-weighted local logistics distance. A connected road route wins when
+/// available; otherwise a carrier may cross open ground at the off-road speed.
+/// Callers can continue comparing one number while roads retain their value.
+pub fn local_delivery_distance(
     network: &RoadNetwork,
     ax: f64,
     az: f64,
     bx: f64,
     bz: f64,
 ) -> Option<f64> {
-    network.road_path_distance(ax, az, bx, bz)
+    effective_delivery_distance(
+        network.road_path_distance(ax, az, bx, bz),
+        direct_distance(ax, az, bx, bz),
+    )
+}
+
+pub fn local_delivery_distances_from(
+    network: &RoadNetwork,
+    ax: f64,
+    az: f64,
+    targets: &[(f64, f64)],
+) -> Vec<Option<f64>> {
+    network
+        .road_path_distances_from(ax, az, targets)
+        .into_iter()
+        .zip(targets)
+        .map(|(road_distance, (bx, bz))| {
+            effective_delivery_distance(road_distance, direct_distance(ax, az, *bx, *bz))
+        })
+        .collect()
+}
+
+/// Builds the authoritative path and movement penalty for a local trip.
+pub fn local_delivery_route(
+    network: &RoadNetwork,
+    ax: f64,
+    az: f64,
+    bx: f64,
+    bz: f64,
+) -> Option<LocalDeliveryRoute> {
+    if let Some(route) = network
+        .road_path_route(ax, az, bx, bz)
+        .filter(|route| route.distance.is_finite() && route.distance > 1e-6)
+    {
+        return Some(LocalDeliveryRoute {
+            route,
+            speed_multiplier: 1.0,
+        });
+    }
+    let distance = direct_distance(ax, az, bx, bz).filter(|distance| *distance > 1e-6)?;
+    Some(LocalDeliveryRoute {
+        route: RoadPathRoute {
+            distance,
+            polyline: vec![[ax, az], [bx, bz]],
+        },
+        speed_multiplier: OFFROAD_DELIVERY_SPEED_MULTIPLIER,
+    })
 }
 
 /// Find the single household that should receive the next cart.
@@ -62,7 +134,7 @@ pub fn select_residence_for_need_delivery(
         })
         .collect();
     let route_distances =
-        network.road_path_distances_from(supplier.x, supplier.z, &target_positions);
+        local_delivery_distances_from(network, supplier.x, supplier.z, &target_positions);
 
     let selected =
         select_need_delivery_candidate(eligible.into_iter().zip(route_distances).filter_map(
@@ -122,7 +194,7 @@ pub fn select_residence_for_remedy_delivery(
         })
         .collect::<Vec<_>>();
     let route_distances =
-        network.road_path_distances_from(supplier.x, supplier.z, &target_positions);
+        local_delivery_distances_from(network, supplier.x, supplier.z, &target_positions);
 
     let selected_index = eligible
         .into_iter()
@@ -166,7 +238,8 @@ pub fn claim_residences_by_nearest_supplier(
         std::collections::HashMap::new();
 
     for supplier in suppliers {
-        let distances = network.road_path_distances_from(supplier.x, supplier.z, &target_positions);
+        let distances =
+            local_delivery_distances_from(network, supplier.x, supplier.z, &target_positions);
         for (residence, distance) in residences.iter().zip(distances) {
             let Some(distance) = distance.filter(|distance| distance.is_finite()) else {
                 continue;
@@ -219,7 +292,7 @@ pub fn claim_residences_for_firewood_suppliers(
     claim_residences_by_nearest_supplier(network, &operational, residences, |_, _, _| true)
 }
 
-/// Each residence is claimed by the nearest road-connected well within its service extent.
+/// Each residence is claimed by the nearest staffed well within its service extent.
 pub fn claim_residences_for_wells(
     network: &RoadNetwork,
     wells: &[Building],

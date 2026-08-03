@@ -22,6 +22,7 @@ use crate::tables::Building;
 use super::population_policy::{
     labor_reconciliation_updates, population_limit_blocks_labor_request, LaborAssignment,
 };
+pub use super::population_policy::initial_construction_labor;
 
 pub fn residence_population_for_parcel(parcel_frontage: f64) -> u32 {
     if parcel_frontage >= WIDE_PARCEL_FRONTAGE_MIN {
@@ -206,10 +207,6 @@ pub fn available_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
     )
 }
 
-pub fn initial_construction_labor(available_labor: u32) -> u32 {
-    available_labor.min(CONSTRUCTION_MAX_BUILDERS)
-}
-
 /// Clamp building assignments immediately after residence population is lost.
 pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identity) {
     let cart_floors = staffed_cart_workers_by_building(ctx, owner);
@@ -392,18 +389,8 @@ pub fn building_accepts_labor(kind: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{initial_construction_labor, settlement_population};
-    use crate::balance_generated::{CONSTRUCTION_MAX_BUILDERS, STARTING_POPULATION};
-
-    #[test]
-    fn new_sites_take_available_builders_up_to_the_construction_cap() {
-        assert_eq!(initial_construction_labor(0), 0);
-        assert_eq!(initial_construction_labor(2), 2);
-        assert_eq!(
-            initial_construction_labor(CONSTRUCTION_MAX_BUILDERS + 3),
-            CONSTRUCTION_MAX_BUILDERS,
-        );
-    }
+    use super::settlement_population;
+    use crate::balance_generated::STARTING_POPULATION;
 
     #[test]
     fn physical_founders_move_into_early_housing_while_legacy_population_stays_additive() {

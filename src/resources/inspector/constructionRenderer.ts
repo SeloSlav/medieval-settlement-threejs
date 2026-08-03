@@ -1,4 +1,3 @@
-import { CONSTRUCTION_DELIVERY_UNLOAD_SEC } from '../../generated/gameBalance.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import {
   constructionSourceAvailableStock,
@@ -116,7 +115,7 @@ export function renderConstructionInspector(
         statusState = 'warning';
         break;
       case 'unreachable':
-        statusText = `No road route to ${amount} at ${sourceLabel}`;
+        statusText = `No usable haul route to ${amount} at ${sourceLabel}`;
         statusState = 'warning';
         break;
       case 'fire-disabled':
@@ -158,10 +157,10 @@ export function renderConstructionInspector(
     statusText,
     statusState,
     detailsHtml: `
-      <li><span>Builder progress</span><span>${progress}%</span></li>
-      <li><span>Queue priority</span><span>${constructionPriorityLabel(priority)}</span></li>
-      <li><span>Timber delivered</span><span>${formatAmount(building.constructionDeliveredTimber)} / ${formatAmount(building.constructionRequiredTimber)}</span></li>
-      <li><span>Stone delivered</span><span>${formatAmount(building.constructionDeliveredStone)} / ${formatAmount(building.constructionRequiredStone)}</span></li>
+      <li data-inspector-primary><span>Builder progress</span><span>${progress}%</span></li>
+      <li data-inspector-primary><span>Queue priority</span><span>${constructionPriorityLabel(priority)}</span></li>
+      <li data-inspector-primary><span>Timber delivered</span><span>${formatAmount(building.constructionDeliveredTimber)} / ${formatAmount(building.constructionRequiredTimber)}</span></li>
+      <li data-inspector-primary><span>Stone delivered</span><span>${formatAmount(building.constructionDeliveredStone)} / ${formatAmount(building.constructionRequiredStone)}</span></li>
       ${(building.constructionRequiredIronwork ?? 0) > 0 ? `<li><span>Ironwork fittings delivered</span><span>${formatAmount(building.constructionDeliveredIronwork ?? 0)} / ${formatAmount(building.constructionRequiredIronwork ?? 0)}</span></li>` : ''}
       <li><span>Incoming haul</span><span>${incomingLabel}</span></li>
       <li><span>Material source</span><span>${nextSourceLabel}</span></li>
@@ -193,11 +192,10 @@ function resolveConstructionSupply(
   site: BuildingState,
   material: ConstructionMaterial,
 ): SupplyResolution {
-  const requiresRoad = getBuildingDefinition(site.kind).requiresRoad;
-  const freeHaulers = Math.max(
-    0,
-    context.populationStats.available - countActiveFreeConstructionHaulers(context),
-  );
+  // PopulationStats already deducts every trip's authoritative
+  // freeHaulerWorkers reservation. Subtracting visible carts again makes the
+  // inspector hide a genuinely available second founding hauler.
+  const freeHaulers = Math.max(0, context.populationStats.available);
   const sources = [...context.gameState.buildings.values()].filter((source) =>
     source.id !== site.id
     && source.constructionComplete !== false
@@ -216,16 +214,11 @@ function resolveConstructionSupply(
       fireBlocked.push(source);
       continue;
     }
-    const roadDistance = context.worldQueries.getRoadPathDistance(
+    const routeDistance = context.worldQueries.getLocalDeliveryDistance(
       source.x,
       source.z,
       site.x,
       site.z,
-    );
-    const routeDistance = roadDistance ?? (
-      !requiresRoad || source.kind === 'founders_camp'
-        ? directDistance(source, site)
-        : null
     );
     if (routeDistance == null) {
       unreachable.push(source);
@@ -233,7 +226,10 @@ function resolveConstructionSupply(
     }
     routeDistances.set(source.id, routeDistance);
     if (
-      context.worldQueries.getActiveDeliveryTrip(source)
+      (
+        source.kind !== 'founders_camp'
+        && context.worldQueries.getActiveDeliveryTrip(source)
+      )
       || (
         source.kind === 'village_storehouse'
         && context.worldQueries.getInboundSupplyTrip(source)
@@ -292,24 +288,6 @@ function resolveConstructionSupply(
     return { state: 'unreachable', source: disconnected.source, routeDistance: null };
   }
   return { state: 'missing', source: null, routeDistance: null };
-}
-
-function countActiveFreeConstructionHaulers(context: InspectorRenderContext): number {
-  let count = 0;
-  for (const trip of context.gameState.deliveryTrips.values()) {
-    if (
-      trip.destinationKind !== 'building'
-      || (
-        trip.cargoKind !== 'timber'
-        && trip.cargoKind !== 'stone'
-        && trip.cargoKind !== 'ironwork'
-      )
-      || Math.abs(trip.unloadSeconds - CONSTRUCTION_DELIVERY_UNLOAD_SEC) > 1e-6
-    ) continue;
-    const origin = context.gameState.buildings.get(trip.buildingId);
-    if (origin?.assignedLabor === 0) count += trip.deliveryWorkers;
-  }
-  return count;
 }
 
 function directDistance(left: BuildingState, right: BuildingState): number {

@@ -17,7 +17,9 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::select_residence_for_need_delivery;
+use crate::simulation::road_logistics::{
+    local_delivery_distance, select_residence_for_need_delivery,
+};
 use crate::simulation::tick_context::SimTickContext;
 use crate::storehouse_policy::{
     compare_storehouse_destination, compare_storehouse_source_priority,
@@ -174,7 +176,8 @@ fn dispatch_overflow_collection_for_owner(
                 if storehouse_collection_room(storehouse, source.commodity) <= 1e-6 {
                     return None;
                 }
-                let distance = network.road_path_distance(
+                let distance = local_delivery_distance(
+                    network,
                     source.building.x,
                     source.building.z,
                     storehouse.x,

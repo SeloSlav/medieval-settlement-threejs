@@ -28,6 +28,31 @@ import type {
   InspectorRenderContext,
   InspectorView,
 } from '../src/resources/inspector/renderInspectableTarget.ts';
+import {
+  inspectorDetailIcon,
+  inspectorDetailState,
+} from '../src/resources/inspector/detailRowPresentation.ts';
+
+assert.equal(
+  inspectorDetailState('Fire risk', 'Structurally fire-safe'),
+  'positive',
+);
+assert.equal(
+  inspectorDetailIcon('fire risk structurally fire-safe', 'positive'),
+  '\u2713',
+);
+assert.equal(
+  inspectorDetailState(
+    'Spread exposure',
+    'Isolated \u00b7 no other occupied structure within 22 m',
+  ),
+  'positive',
+);
+assert.equal(inspectorDetailState('Active cart', 'None'), null);
+assert.equal(
+  inspectorDetailState('Fire response', 'Uncovered \u00b7 no ready well'),
+  'warning',
+);
 
 assert.equal(buildingBaseFlammability('founders_camp'), 0);
 assert.equal(buildingBaseFlammability('town_hall'), 0);

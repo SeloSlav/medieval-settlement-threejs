@@ -773,8 +773,8 @@ assert.match(
 );
 assert.match(
   marketplaceTradeSource,
-  /road_path_distances_from/,
-  'staging-source selection should build one road-distance tree instead of one Dijkstra solve per store',
+  /local_delivery_distances_from/,
+  'staging-source selection should batch road routes while retaining off-road fallback per store',
 );
 assert.match(
   marketplaceTradeSource,

@@ -115,11 +115,11 @@ function permanentStorageStatus(
     case 'receiving':
       return 'Compatible storage is already receiving another cart';
     case 'disconnected':
-      return `Connect the camp to ${storageNeed(plan)} by road`;
+      return `No usable haul route to ${storageNeed(plan)}`;
     case 'labor':
       return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} ready · awaiting one free hauler for ${plannedTargetLabel}`;
     case 'ready':
-      return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} next · ${plannedTargetLabel} ${plan.routeDistance?.toFixed(0) ?? '?'} m by road`;
+      return `${plan.targetRoom.toFixed(0)} ${materialLabel(plan).toLowerCase()} next · ${plannedTargetLabel} ${plan.routeDistance?.toFixed(0) ?? '?'} m travel equivalent`;
     default: {
       const unreachable: never = plan.blocker;
       return unreachable;
@@ -143,7 +143,7 @@ export function renderFoundersCampInspector(
     activeTrip,
     availableLabor: context.populationStats.available,
     roadPathDistance: (ax, az, bx, bz) =>
-      context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
+      context.worldQueries.getLocalDeliveryDistance(ax, az, bx, bz),
   });
   const hasStock = relocationPlan.pendingAmount > 1e-6 || building.gold > 1e-6;
   const completedTownHall = Array.from(context.gameState.buildings.values()).find(

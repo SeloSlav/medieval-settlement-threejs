@@ -5,6 +5,7 @@ import {
   FIRE_DEFAULT_BUILDING_BASE_FLAMMABILITY,
   FIRE_MINIMUM_BUCKET_WATER,
   FIRE_SPREAD_RADIUS,
+  OFFROAD_DELIVERY_SPEED_MULTIPLIER,
 } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type {
@@ -186,7 +187,8 @@ export function assessBuildingFireSafety(
       target.x,
       target.z,
     );
-    const selectionDistance = roadDistance ?? directDistance;
+    const selectionDistance = roadDistance
+      ?? directDistance / Math.max(OFFROAD_DELIVERY_SPEED_MULTIPLIER, 1e-6);
     const candidate = { well: building, readiness, selectionDistance };
     if (readiness === 'ready') {
       if (betterWell(candidate, bestReadyWell)) bestReadyWell = candidate;
@@ -313,7 +315,8 @@ function fireResponseRouteDistance(
     ? target.z + dz / centerDistance * standOff
     : target.z;
   return roadPathDistance?.(well.x, well.z, targetX, targetZ)
-    ?? Math.hypot(targetX - well.x, targetZ - well.z);
+    ?? Math.hypot(targetX - well.x, targetZ - well.z)
+      / Math.max(OFFROAD_DELIVERY_SPEED_MULTIPLIER, 1e-6);
 }
 
 function planarDistance(

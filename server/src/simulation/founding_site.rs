@@ -16,6 +16,7 @@ use crate::simulation::delivery_trips::{
     try_start_building_supply_trip,
 };
 use crate::simulation::reclamation::reclamation_destination_priority;
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{GameClock, SimTickContext};
 use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
@@ -161,7 +162,7 @@ fn try_start_stockyard_relocation(
             .filter_map(|candidate| {
                 let (priority, room) = founding_destination_room(&candidate, commodity)?;
                 let distance =
-                    network.road_path_distance(site.x, site.z, candidate.x, candidate.z)?;
+                    local_delivery_distance(&network, site.x, site.z, candidate.x, candidate.z)?;
                 Some((candidate, priority, room, distance))
             })
             .min_by(|a, b| {

@@ -108,6 +108,7 @@ pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};
 pub(crate) use residence_upgrades::clear_residence_project;
 pub use residence_upgrades::step_residence_upgrades;
+pub(crate) use road_logistics::{local_delivery_distance, local_delivery_distances_from};
 pub use seasonal_labor_steward::{
     call_up_active_seasonal_labor_for_owner, owner_has_staffed_town_hall,
     recall_idle_seasonal_labor_for_owner, reconcile_seasonal_labor_for_owner,

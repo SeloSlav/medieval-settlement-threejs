@@ -205,6 +205,7 @@ export class SceneManager {
   };
   private readonly viewShadowBounds = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
   private readonly shadowBounds = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  private readonly firstPersonViewFocus = new THREE.Vector3();
   private readonly firstPersonDeerObserver = { x: 0, z: 0, crouching: false };
   private lastShadowTargetX = Number.NaN;
   private lastShadowTargetZ = Number.NaN;
@@ -747,9 +748,15 @@ export class SceneManager {
     this.worldAnimationElapsedSeconds += Math.max(0, dt);
     setWorldAnimationTime(this.worldAnimationElapsedSeconds);
     const cameraDistance = orbitDistance ?? this.camera.position.distanceTo(this.cameraTarget);
+    // The RTS target is intentionally frozen while first-person mode is active.
+    // Center streaming and fitted shadows on the player instead, otherwise the
+    // resident forest envelope is left behind as the player walks away.
+    const viewFocus = firstPersonActive
+      ? this.firstPersonViewFocus.copy(this.camera.position)
+      : this.cameraTarget;
     const viewShadowBounds = computeViewShadowBounds(
       this.camera,
-      this.cameraTarget,
+      viewFocus,
       cameraDistance,
       1.24,
       this.viewShadowBounds,
@@ -802,13 +809,13 @@ export class SceneManager {
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
     const shadowRefreshNowMs = performance.now();
-    if (this.shouldRefreshShadowMap(cameraDistance, shadowRefreshNowMs)) {
+    if (this.shouldRefreshShadowMap(cameraDistance, shadowRefreshNowMs, viewFocus)) {
       fitDirectionalLightShadow(this.sunLight, {
         bounds: shadowBounds,
         sunOffsetDir: this.shadowKeyDirection,
       });
-      this.lastShadowTargetX = this.cameraTarget.x;
-      this.lastShadowTargetZ = this.cameraTarget.z;
+      this.lastShadowTargetX = viewFocus.x;
+      this.lastShadowTargetZ = viewFocus.z;
       this.lastShadowDistance = cameraDistance;
       this.lastShadowKeyDirection.copy(this.shadowKeyDirection);
       this.lastDirectionalShadowRefreshMs = shadowRefreshNowMs;
@@ -840,7 +847,11 @@ export class SceneManager {
     );
   }
 
-  private shouldRefreshShadowMap(cameraDistance: number, nowMs: number): boolean {
+  private shouldRefreshShadowMap(
+    cameraDistance: number,
+    nowMs: number,
+    viewFocus: THREE.Vector3,
+  ): boolean {
     if (!Number.isFinite(this.lastShadowTargetX)) return true;
     if (shouldRefreshDirectionalShadow(
       this.lastShadowKeyDirection.dot(this.shadowKeyDirection),
@@ -852,8 +863,8 @@ export class SceneManager {
     // spikes during pans and zooms.
     const interval = this.buildInteractionActive ? 8 : 5;
     if (this.renderFrame % interval !== 0) return false;
-    const dx = this.cameraTarget.x - this.lastShadowTargetX;
-    const dz = this.cameraTarget.z - this.lastShadowTargetZ;
+    const dx = viewFocus.x - this.lastShadowTargetX;
+    const dz = viewFocus.z - this.lastShadowTargetZ;
     if (Math.hypot(dx, dz) > 14) return true;
     return Math.abs(cameraDistance - this.lastShadowDistance) > 12;
   }

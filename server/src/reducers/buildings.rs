@@ -63,7 +63,8 @@ use crate::simulation::{
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
     game_clock, owner_has_staffed_town_hall, preserve_in_transit_cart_labor,
     recall_idle_seasonal_labor_for_owner, staffed_cart_workers_by_building,
-    try_start_chapel_treasury_trip, SimTickContext, FIRE_TARGET_BUILDING,
+    try_start_chapel_treasury_trip, local_delivery_distance, SimTickContext,
+    FIRE_TARGET_BUILDING,
 };
 use crate::specialty_trade_policy::is_valid_specialty_export_policy;
 use crate::storehouse_policy::{
@@ -656,7 +657,7 @@ fn place_building_internal(
                     && shop.construction_complete
                     && shop.assigned_labor > 0
                     && building_fire_state(ctx, shop.id).is_none()
-                    && network.road_path_distance(x, z, shop.x, shop.z).is_some()
+                    && local_delivery_distance(network, x, z, shop.x, shop.z).is_some()
             })
         })
         .unwrap_or(false);

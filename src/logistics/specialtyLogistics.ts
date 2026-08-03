@@ -20,8 +20,8 @@ import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
   compareStableEntityIds,
-  roadPathDistance,
-  roadPathDistancesFrom,
+  localDeliveryDistance,
+  localDeliveryDistancesFrom,
 } from './roadLogistics.ts';
 export const SPECIALTY_CONSUMPTION_SECONDS_PER_DAY =
   CALENDAR_SECONDS_PER_DAY
@@ -105,7 +105,7 @@ function findRoadLinkedSpecialtySupplier(
     }
     return !requireStock || specialtySupplierStock(building, needKind) > 1e-6;
   });
-  const distances = roadPathDistancesFrom(
+  const distances = localDeliveryDistancesFrom(
     network,
     residence.x,
     residence.z,
@@ -252,8 +252,8 @@ export function compareResidencesForSpecialtyDelivery(
   const runwayA = specialtyRunwaySeconds(a, needKind) ?? Infinity;
   const runwayB = specialtyRunwaySeconds(b, needKind) ?? Infinity;
   if (Math.abs(runwayA - runwayB) > 1e-6) return runwayA - runwayB;
-  const distanceA = roadPathDistance(network, supplier.x, supplier.z, a.x, a.z) ?? Infinity;
-  const distanceB = roadPathDistance(network, supplier.x, supplier.z, b.x, b.z) ?? Infinity;
+  const distanceA = localDeliveryDistance(network, supplier.x, supplier.z, a.x, a.z) ?? Infinity;
+  const distanceB = localDeliveryDistance(network, supplier.x, supplier.z, b.x, b.z) ?? Infinity;
   if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
   return compareStableEntityIds(a.id, b.id);
 }
@@ -270,7 +270,7 @@ export function peekNextSpecialtyDeliveryTarget(
     && residence.population > 0
     && residence.tier >= 3
     && getNeedStock(residence.needs, needKind) + 1e-6 < capacity);
-  const distances = roadPathDistancesFrom(network, supplier.x, supplier.z, eligible);
+  const distances = localDeliveryDistancesFrom(network, supplier.x, supplier.z, eligible);
   let bestIndex = -1;
   for (let index = 0; index < eligible.length; index += 1) {
     const distance = distances[index];

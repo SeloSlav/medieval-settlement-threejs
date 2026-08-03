@@ -1,6 +1,6 @@
 import type { BuildingState, GameState, ResidenceState } from '../resources/types.ts';
 import { decodeRoutePolyline } from './routePolyline.ts';
-import { roadPathDistance, roadPathRoute } from './roadLogistics.ts';
+import { localDeliveryRoute } from './roadLogistics.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { PointXZ } from '../utils/pathGeometry.ts';
 
@@ -380,13 +380,13 @@ export function tripPathDistance(
 
   const endpoints = resolveTripEndpoints(trip, state);
   if (!endpoints) return null;
-  return roadPathDistance(
+  return localDeliveryRoute(
     network,
     endpoints.origin.x,
     endpoints.origin.z,
     endpoints.destinationX,
     endpoints.destinationZ,
-  );
+  )?.distance ?? null;
 }
 
 export function tripRoutePolyline(
@@ -399,7 +399,7 @@ export function tripRoutePolyline(
 
   const endpoints = resolveTripEndpoints(trip, state);
   if (!endpoints) return null;
-  return roadPathRoute(
+  return localDeliveryRoute(
     network,
     endpoints.origin.x,
     endpoints.origin.z,

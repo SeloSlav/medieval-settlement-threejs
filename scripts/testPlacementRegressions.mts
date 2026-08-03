@@ -162,6 +162,13 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
     resolveRoadsideBuildingPlacement('well', 4, 5, roads).z > 5,
     'road-dependent utility buildings should also settle onto the road verge',
   );
+  const reclamationPile = resolveRoadsideBuildingPlacement('salvage_pile', 13, 6, roads);
+  assert(
+    Math.abs(Math.abs(
+      buildingPlacementYaw('salvage_pile', reclamationPile.x, reclamationPile.z, roads),
+    ) - Math.PI) < 0.01,
+    'every road-snapped footprint should face the road even without an authored facade flag',
+  );
 
   assert.deepEqual(
     resolveRoadsideBuildingPlacement('hunters_hall', 4, 6, roads),

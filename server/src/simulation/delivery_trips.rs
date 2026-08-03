@@ -44,6 +44,7 @@ use crate::simulation::game_calendar::{game_clock, GameClock};
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::raid_agents::issued_guard_polearms_by_building;
 use crate::simulation::residence_needs::{apply_need_delivery, ResidenceNeedKind};
+use crate::simulation::road_logistics::{local_delivery_distance, local_delivery_route};
 use crate::simulation::settlement_security::{
     building_portable_stores_at_site, delivery_trip_portable_stores,
 };
@@ -214,6 +215,13 @@ pub fn building_has_active_trip(ctx: &ReducerContext, building_id: u64) -> bool 
         .building_id()
         .filter(&building_id)
         .any(|trip| !is_regional_market_trip(&trip))
+}
+
+/// The founders' camp is an open stockyard rather than a staffed cart post.
+/// Each departure already reserves its own free settlement worker, so several
+/// founding haulers may load there concurrently without duplicating labor.
+pub fn construction_source_cart_busy(ctx: &ReducerContext, source: &Building) -> bool {
+    source.kind != "founders_camp" && building_has_active_trip(ctx, source.id)
 }
 
 pub fn building_has_inbound_supply_trip(ctx: &ReducerContext, building_id: u64) -> bool {
@@ -511,6 +519,7 @@ pub fn start_external_market_import_trip(
             load_amount: amount,
         },
         route,
+        1.0,
         Some(1),
     );
     true
@@ -563,6 +572,7 @@ pub fn start_regional_market_export_trip(
             load_amount: amount,
         },
         route,
+        1.0,
         Some(1),
     );
     true
@@ -611,6 +621,7 @@ pub fn start_external_market_import_trip_to_residence(
             load_amount: amount,
         },
         route,
+        1.0,
         Some(1),
     );
     true
@@ -1045,7 +1056,6 @@ pub fn try_start_residence_upgrade_supply_trip(
     origin: &mut Building,
     residence: &mut Residence,
     commodity: CommodityKind,
-    allow_offroad: bool,
     available_free_haulers: u32,
 ) -> bool {
     if !origin.construction_complete
@@ -1100,20 +1110,9 @@ pub fn try_start_residence_upgrade_supply_trip(
     if load <= 1e-6 {
         return false;
     }
-    let route = network
-        .road_path_route(origin.x, origin.z, residence.x, residence.z)
-        .or_else(|| {
-            if !allow_offroad {
-                return None;
-            }
-            let distance =
-                ((residence.x - origin.x).powi(2) + (residence.z - origin.z).powi(2)).sqrt();
-            (distance > 1e-6).then_some(RoadPathRoute {
-                distance,
-                polyline: vec![[origin.x, origin.z], [residence.x, residence.z]],
-            })
-        });
-    let Some(route) = route else {
+    let Some(local_route) =
+        local_delivery_route(network, origin.x, origin.z, residence.x, residence.z)
+    else {
         return false;
     };
 
@@ -1160,7 +1159,8 @@ pub fn try_start_residence_upgrade_supply_trip(
             unload_seconds: CONSTRUCTION_DELIVERY_UNLOAD_SEC,
             load_amount: withdrawn,
         },
-        route,
+        local_route.route,
+        local_route.speed_multiplier,
         None,
     );
     true
@@ -1195,16 +1195,8 @@ pub fn try_start_fire_response_trip(
     } else {
         (incident.x, incident.z)
     };
-    let route = network
-        .road_path_route(well.x, well.z, target_x, target_z)
-        .or_else(|| {
-            let distance = ((target_x - well.x).powi(2) + (target_z - well.z).powi(2)).sqrt();
-            (distance > 1e-6).then_some(RoadPathRoute {
-                distance,
-                polyline: vec![[well.x, well.z], [target_x, target_z]],
-            })
-        });
-    let Some(route) = route else {
+    let Some(local_route) = local_delivery_route(network, well.x, well.z, target_x, target_z)
+    else {
         return false;
     };
 
@@ -1240,7 +1232,8 @@ pub fn try_start_fire_response_trip(
             unload_seconds: FIRE_BUCKET_UNLOAD_SECONDS,
             load_amount: load,
         },
-        route,
+        local_route.route,
+        local_route.speed_multiplier,
         None,
     );
     true
@@ -1259,14 +1252,13 @@ pub fn try_start_construction_supply_trip(
     origin: &mut Building,
     site: &mut Building,
     commodity: CommodityKind,
-    allow_offroad: bool,
     available_free_haulers: u32,
 ) -> bool {
     if !origin.construction_complete
         || site.construction_complete
         || origin.owner != site.owner
         || tick.building_disabled_by_fire(ctx, origin.id)
-        || building_has_active_trip(ctx, origin.id)
+        || construction_source_cart_busy(ctx, origin)
         || (origin.kind == "village_storehouse" && building_has_inbound_supply_trip(ctx, origin.id))
     {
         return false;
@@ -1318,19 +1310,8 @@ pub fn try_start_construction_supply_trip(
         return false;
     }
 
-    let route = network
-        .road_path_route(origin.x, origin.z, site.x, site.z)
-        .or_else(|| {
-            if !allow_offroad {
-                return None;
-            }
-            let distance = ((site.x - origin.x).powi(2) + (site.z - origin.z).powi(2)).sqrt();
-            (distance > 1e-6).then_some(RoadPathRoute {
-                distance,
-                polyline: vec![[origin.x, origin.z], [site.x, site.z]],
-            })
-        });
-    let Some(route) = route else {
+    let Some(local_route) = local_delivery_route(network, origin.x, origin.z, site.x, site.z)
+    else {
         return false;
     };
 
@@ -1375,7 +1356,8 @@ pub fn try_start_construction_supply_trip(
             unload_seconds: CONSTRUCTION_DELIVERY_UNLOAD_SEC,
             load_amount: withdrawn,
         },
-        route,
+        local_route.route,
+        local_route.speed_multiplier,
         None,
     );
     true
@@ -1395,12 +1377,11 @@ fn try_start_road_trip(
     }
 
     let (dest_x, dest_z) = spec.destination.end_point();
-    let Some(route) = network.road_path_route(spec.origin.x, spec.origin.z, dest_x, dest_z) else {
+    let Some(local_route) =
+        local_delivery_route(network, spec.origin.x, spec.origin.z, dest_x, dest_z)
+    else {
         return false;
     };
-    if route.distance <= 1e-6 {
-        return false;
-    }
 
     let mut origin = spec.origin.clone();
     let withdrawn = withdraw(&mut origin, spec.load_amount);
@@ -1418,7 +1399,8 @@ fn try_start_road_trip(
             load_amount,
             ..spec
         },
-        route,
+        local_route.route,
+        local_route.speed_multiplier,
         None,
     );
     true
@@ -1430,6 +1412,7 @@ fn insert_trip(
     network: &RoadNetwork,
     spec: StartTripSpec,
     route: RoadPathRoute,
+    route_speed_multiplier: f64,
     free_hauler_workers_override: Option<u32>,
 ) {
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
@@ -1463,7 +1446,8 @@ fn insert_trip(
                 .road_speed_multiplier()
         })
         .unwrap_or(1.0);
-    let travel_speed_multiplier = cartwright_multiplier * road_condition_multiplier;
+    let travel_speed_multiplier =
+        cartwright_multiplier * road_condition_multiplier * route_speed_multiplier;
     let free_hauler_workers = free_hauler_workers_override
         .unwrap_or_else(|| {
             free_hauler_workers_for_trip(&spec.origin, spec.cargo_kind, spec.delivery_workers)
@@ -1719,24 +1703,19 @@ fn trip_route(
             } else {
                 (target_x, target_z)
             };
-            network
-                .road_path_route(building.x, building.z, x, z)
-                .or_else(|| {
-                    let distance = ((x - building.x).powi(2) + (z - building.z).powi(2)).sqrt();
-                    (distance > 1e-6).then_some(RoadPathRoute {
-                        distance,
-                        polyline: vec![[building.x, building.z], [x, z]],
-                    })
-                })
+            local_delivery_route(network, building.x, building.z, x, z)
+                .map(|route| route.route)
         }
         DELIVERY_DESTINATION_BUILDING => {
             let target = ctx.db.building().id().find(&trip.target_building_id)?;
-            network.road_path_route(building.x, building.z, target.x, target.z)
+            local_delivery_route(network, building.x, building.z, target.x, target.z)
+                .map(|route| route.route)
         }
         DELIVERY_DESTINATION_REGIONAL_TRADE => None,
         _ => {
             let residence = ctx.db.residence().id().find(&trip.residence_id)?;
-            network.road_path_route(building.x, building.z, residence.x, residence.z)
+            local_delivery_route(network, building.x, building.z, residence.x, residence.z)
+                .map(|route| route.route)
         }
     }
 }
@@ -1923,8 +1902,7 @@ fn carpenter_delivery_multiplier_for_origin(
             {
                 return None;
             }
-            network
-                .road_path_distance(origin.x, origin.z, shop.x, shop.z)
+            local_delivery_distance(network, origin.x, origin.z, shop.x, shop.z)
                 .map(|distance| (shop, distance))
         })
         .min_by(|(a, a_distance), (b, b_distance)| {

@@ -1,6 +1,24 @@
 use std::collections::BinaryHeap;
 
+use crate::balance_generated::CONSTRUCTION_MAX_BUILDERS;
 use crate::construction_priority::{CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT};
+
+/// Keep a small material-cart pipeline available when a new worksite opens.
+/// One villager can be returning with the first empty cart while the other
+/// starts the next material haul; without both, a five-person founding crew
+/// appears to deadlock between stone and timber deliveries.
+const INITIAL_CONSTRUCTION_HAULER_RESERVE: u32 = 2;
+
+pub fn initial_construction_labor(available_labor: u32) -> u32 {
+    if available_labor == 0 {
+        return 0;
+    }
+
+    available_labor
+        .saturating_sub(INITIAL_CONSTRUCTION_HAULER_RESERVE)
+        .max(1)
+        .min(CONSTRUCTION_MAX_BUILDERS)
+}
 
 /// Labor requests cannot increase a building beyond the settlement's current population.
 pub fn population_limit_blocks_labor_request(
@@ -142,8 +160,20 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        labor_reconciliation_updates, population_limit_blocks_labor_request, LaborAssignment,
+        initial_construction_labor, labor_reconciliation_updates,
+        population_limit_blocks_labor_request, LaborAssignment, CONSTRUCTION_MAX_BUILDERS,
     };
+
+    #[test]
+    fn new_construction_preserves_an_early_material_cart_pipeline() {
+        assert_eq!(initial_construction_labor(0), 0);
+        assert_eq!(initial_construction_labor(1), 1);
+        assert_eq!(initial_construction_labor(2), 1);
+        assert_eq!(initial_construction_labor(4), 2);
+        assert_eq!(initial_construction_labor(5), 3);
+        assert_eq!(initial_construction_labor(6), CONSTRUCTION_MAX_BUILDERS);
+        assert_eq!(initial_construction_labor(20), CONSTRUCTION_MAX_BUILDERS);
+    }
 
     #[test]
     fn overassigned_settlements_can_reduce_building_labor() {

@@ -37,9 +37,9 @@ use crate::season_policy::environment_for;
 use crate::simulation::{
     building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_regional_market_trip, game_clock, labor_and_logistics_paused,
-    regional_market_export_route, regional_market_import_route, start_external_market_import_trip,
-    start_regional_market_export_trip, try_start_building_supply_trip, GameClock,
-    MarketCaravanDispatch, SimTickContext,
+    local_delivery_distances_from, regional_market_export_route, regional_market_import_route,
+    start_external_market_import_trip, start_regional_market_export_trip,
+    try_start_building_supply_trip, GameClock, MarketCaravanDispatch, SimTickContext,
 };
 use crate::tables::Building;
 
@@ -934,8 +934,12 @@ fn stage_physical_market_resource(
         candidate_points.push((source.x, source.z));
         candidates.push((source, exportable));
     }
-    let distances =
-        network.road_path_distances_from(marketplace.x, marketplace.z, &candidate_points);
+    let distances = local_delivery_distances_from(
+        network,
+        marketplace.x,
+        marketplace.z,
+        &candidate_points,
+    );
     let mut accessible = 0.0;
     let mut best: Option<(Building, f64)> = None;
     for ((source, exportable), distance) in candidates.into_iter().zip(distances) {
@@ -955,14 +959,14 @@ fn stage_physical_market_resource(
     let stageable = accessible.min(remote_budget);
     if stageable + 1e-6 < needed {
         return Err(format!(
-            "Not enough cart-ready {} to stage this trade (need {} more). Construction reserves, busy carts, fire-damaged stores, and disconnected stock remain protected.",
+            "Not enough cart-ready {} to stage this trade (need {} more). Construction reserves, busy carts, and fire-damaged stores remain protected.",
             trade_resource_name(resource),
             (needed - stageable).ceil() as i64
         ));
     }
     let Some((mut source, _)) = best else {
         return Err(format!(
-            "No free road-linked source can stage {} at this marketplace.",
+            "No free local source can stage {} at this marketplace.",
             trade_resource_name(resource)
         ));
     };

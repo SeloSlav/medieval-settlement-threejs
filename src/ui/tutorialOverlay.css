@@ -244,6 +244,8 @@
 
 .tutorial-row__icon--timber,
 .tutorial-row__icon--stone,
+.tutorial-row__icon--firewood,
+.tutorial-row__icon--water,
 .tutorial-row__icon--food,
 .tutorial-row__icon--housing,
 .tutorial-row__icon--labor {
@@ -257,6 +259,14 @@
 
 .tutorial-row__icon--stone {
   background-position: 50% 0;
+}
+
+.tutorial-row__icon--firewood {
+  background-position: 100% 0;
+}
+
+.tutorial-row__icon--water {
+  background-position: 0 50%;
 }
 
 .tutorial-row__icon--food {

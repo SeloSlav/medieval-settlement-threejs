@@ -60,7 +60,7 @@ import {
 } from '../../generated/gameBalance.ts';
 import {
   compareStableEntityIds,
-  roadPathDistancesFrom,
+  localDeliveryDistancesFrom,
 } from '../../logistics/roadLogistics.ts';
 
 type HarvestBuildingKind = Extract<BuildingKind, 'foragers_shed' | 'hunters_hall' | 'fishing_camp'>;
@@ -129,7 +129,7 @@ function nextRemedyDeliveryTarget(
         && (residence.remedyStock ?? 0) + 1e-6 < target
         && !alreadySupplied.has(residence.id);
     });
-  const distances = roadPathDistancesFrom(
+  const distances = localDeliveryDistancesFrom(
     context.worldQueries.getRoadNetworkSnapshot(),
     supplier.x,
     supplier.z,
@@ -254,12 +254,10 @@ export function renderHarvestBuildingInspector(
     ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${nextInstitutionalDispatch.target.food.toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} food`
     : institutionalSurplus <= 1e-6
       ? 'None · local household reserve is protected'
-      : 'No eligible road-linked institution';
-  const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
-  const onRoad = roadAccess.startsWith('Connected');
+      : 'No eligible institution requesting food';
   const deliveryTripSeconds = nextCareTarget
     ? (() => {
-        const distance = context.worldQueries.getRoadPathDistance(
+        const distance = context.worldQueries.getLocalDeliveryDistance(
           building.x,
           building.z,
           nextCareTarget.x,
@@ -300,7 +298,6 @@ export function renderHarvestBuildingInspector(
     && harvestableStock > 1e-6
     && seasonAvailable;
   const canDeliver = crew.delivering > 0
-    && onRoad
     && (
       (nextCareTarget != null && (building.remedies ?? 0) > 1e-6)
       || (nextFoodDeliveryTarget != null && building.food > 1e-6)
@@ -313,16 +310,13 @@ export function renderHarvestBuildingInspector(
   if (building.assignedLabor === 0) {
     statusText = copy.idleLabel;
     statusState = 'idle';
-  } else if (!onRoad && crew.delivering > 0) {
-    statusText = 'Off road — connect to the road network for deliveries';
-    statusState = 'warning';
   } else if (activeTrip) {
     statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${activeDestinationLabel}`;
     statusState = 'active';
   } else if (canDeliver) {
     statusText = nextCareTarget
       ? `Dispatching remedies — care preempts the ordinary food round`
-      : `Delivering food — ${claimedResidences.length} road-linked home${claimedResidences.length === 1 ? '' : 's'}`;
+      : `Delivering food — ${claimedResidences.length} claimed home${claimedResidences.length === 1 ? '' : 's'}`;
     statusState = 'active';
   } else if (managedStockFull) {
     statusText = 'Paused — local food storage is full';
@@ -405,7 +399,7 @@ export function renderHarvestBuildingInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Crew split</span><span>${formatFoodCrewSplit(building.assignedLabor)}</span></li>
       <li><span>Harvest interval</span><span>${processingWorkers > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${processingWorkers} harvesting / ${building.assignedLabor} assigned)</span></li>
-      <li><span>Road-linked homes</span><span>${building.food <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
+      <li><span>Food territory</span><span>${building.food <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Local food reserve</span><span>${localFoodReserve.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
       <li><span>Next surplus cart</span><span>${nextInstitutionalLabel}</span></li>
       ${remedyRows}

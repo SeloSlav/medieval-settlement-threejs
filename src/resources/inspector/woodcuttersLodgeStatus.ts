@@ -72,12 +72,7 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
     timberPerCycle,
   } = input;
 
-  if (!onRoad) {
-    return {
-      statusText: 'Not connected — place near a road and link with paths',
-      statusState: 'idle',
-    };
-  }
+  const haulMode = onRoad ? 'by road' : 'cross-country at reduced speed';
   if (assignedLabor === 0) {
     return {
       statusText: 'Idle — assign lodge workers to process timber and run deliveries',
@@ -86,19 +81,19 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
   }
   if (connectedMillCount === 0) {
     return {
-      statusText: 'No road-linked lumber mills — connect a mill by road',
+      statusText: 'No lumber mill has timber available for this lodge',
       statusState: 'warning',
     };
   }
   if (millsWithTimber === 0 && timber <= 0) {
     return {
-      statusText: 'Road-linked mills have no timber yet',
+      statusText: 'Available lumber mills have no timber yet',
       statusState: 'warning',
     };
   }
   if (claimedResidenceCount === 0 && !hasIndustrialTarget) {
     return {
-      statusText: 'No heated homes or staffed fuel-burning workshops on this road branch',
+      statusText: 'No heated homes or staffed fuel-burning workshops currently need fuel',
       statusState: 'warning',
     };
   }
@@ -120,7 +115,7 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
   }
   if (firewood <= 0 && timber <= 0) {
     return {
-      statusText: `Dispatching timber haul from nearest road-linked mill`,
+      statusText: `Dispatching timber haul from nearest mill ${haulMode}`,
       statusState: 'active',
     };
   }
@@ -160,7 +155,7 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
     };
   }
   return {
-    statusText: `Serving ${claimedResidenceCount} claimed residence${claimedResidenceCount === 1 ? '' : 's'} on this branch`,
+    statusText: `Serving ${claimedResidenceCount} claimed residence${claimedResidenceCount === 1 ? '' : 's'} ${haulMode}`,
     statusState: 'active',
   };
 }

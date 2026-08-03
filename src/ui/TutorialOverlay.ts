@@ -1,4 +1,5 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
+import { PersistentTutorialCompletions } from './PersistentTutorialCompletions.ts';
 
 type TutorialId =
   | 'welcome'
@@ -7,7 +8,8 @@ type TutorialId =
   | 'construction-supply'
   | 'workforce'
   | 'residence-placement'
-  | 'first-homes';
+  | 'first-homes'
+  | 'fire';
 
 type TutorialIcon =
   | 'camp'
@@ -15,6 +17,8 @@ type TutorialIcon =
   | 'build'
   | 'timber'
   | 'stone'
+  | 'firewood'
+  | 'water'
   | 'food'
   | 'housing'
   | 'labor';
@@ -43,6 +47,7 @@ type TutorialOverlayOptions = {
 };
 
 const SKIP_TUTORIALS_STORAGE_KEY = 'selo-empire.skip-tutorials.v1';
+const COMPLETED_TUTORIALS_STORAGE_KEY = 'selo-empire.completed-tutorials.v1';
 
 const WORKSITE_BUILDING_KINDS = new Set<BuildingKind>([
   'lumber_mill',
@@ -116,10 +121,10 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
     rows: [
       {
         icon: 'camp',
-        label: 'Starter supplies',
+        label: 'Ten founders, ample supplies',
         parts: [
-          { text: 'Your camp holds starter ' },
-          { text: 'Timber, Stone, Food, and Water', emphasis: 'gold' },
+          { text: 'Your camp begins with 10 people plus enough ' },
+          { text: 'Timber and Stone for the full starter chain', emphasis: 'gold' },
           { text: '. Watch the bar above—these reserves will not last forever.' },
         ],
       },
@@ -137,8 +142,8 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
         label: 'First buildings',
         parts: [
           { text: 'Secure ' },
-          { text: 'Timber, Stone, and Food', emphasis: 'gold' },
-          { text: " first: place a Lumber Mill, a Stonecutter's Camp, and a Forager's Shed, Hunter's Hall, or Fishing Camp. Add homes once supplies are moving." },
+          { text: 'Timber, Firewood, Stone, and Food', emphasis: 'gold' },
+          { text: " first: place a Lumber Mill, Woodcutter's Lodge, Stonecutter's Camp, and a Forager's Shed, Hunter's Hall, or Fishing Camp. Then add roadside homes." },
         ],
       },
     ],
@@ -159,11 +164,11 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
       },
       {
         icon: 'build',
-        label: 'Road access',
+        label: 'Road advantage',
         parts: [
-          { text: 'Run roads close to building entrances. Connected ' },
-          { text: 'producers, stores, and homes', emphasis: 'gold' },
-          { text: ' can exchange supplies.' },
+          { text: 'Local carts can cross open ground, so a missing connection never stops essential supplies. ' },
+          { text: 'Road-connected routes move at full speed', emphasis: 'gold' },
+          { text: '; off-road hauls run at 45% speed.' },
         ],
       },
       {
@@ -202,11 +207,11 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
       },
       {
         icon: 'build',
-        label: 'Protect starter supplies',
+        label: 'Keep two hands free',
         parts: [
-          { text: 'Road-connect both producers before spending starter stock on homes and expansion, or ' },
-          { text: 'construction can stall', emphasis: 'gold' },
-          { text: '.' },
+          { text: 'Assign about two workers to each basic producer and leave ' },
+          { text: 'two people unassigned for building and carts', emphasis: 'gold' },
+          { text: '. The larger founding crew and cheaper starter sites leave room to recover from mistakes.' },
         ],
       },
     ],
@@ -295,11 +300,11 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
       },
       {
         icon: 'food',
-        label: 'Household needs',
+        label: 'Food goes straight home',
         parts: [
-          { text: 'Homes consume ' },
-          { text: 'Food, Water, and winter Firewood', emphasis: 'gold' },
-          { text: '. Build providers before extending the village too far.' },
+          { text: 'A staffed Forager, Hunter, or Fishing camp sends Food directly to road-linked homes; ' },
+          { text: 'no Marketplace is required', emphasis: 'gold' },
+          { text: '. Add Water and winter Firewood as the village grows.' },
         ],
       },
       {
@@ -313,7 +318,45 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
       },
     ],
   },
+  fire: {
+    id: 'fire',
+    eyebrow: 'First structure fire reported',
+    title: 'Fire in the Settlement',
+    rows: [
+      {
+        icon: 'firewood',
+        label: 'Fire damage',
+        parts: [
+          { text: 'Fire shuts the structure down. Select it to see ' },
+          { text: 'intensity, damage, water, and response', emphasis: 'gold' },
+          { text: '.' },
+        ],
+      },
+      {
+        icon: 'water',
+        label: 'Well response',
+        parts: [
+          { text: 'A completed, staffed well with Water inside its work extent ' },
+          { text: 'automatically sends buckets', emphasis: 'gold' },
+          { text: '. Fire calls take priority, and short road routes speed the trips.' },
+        ],
+      },
+      {
+        icon: 'build',
+        label: 'Collapse and recovery',
+        parts: [
+          { text: 'At 100% damage it collapses: most stored goods are lost, homes empty, and ' },
+          { text: 'rebuilding costs 70% of the original materials', emphasis: 'gold' },
+          { text: '. Extinguished structures still need repair.' },
+        ],
+      },
+    ],
+  },
 };
+
+function isTutorialId(value: string): value is TutorialId {
+  return Object.prototype.hasOwnProperty.call(TUTORIALS, value);
+}
 
 const TUTORIAL_ORDER: readonly TutorialId[] = [
   'founding',
@@ -322,6 +365,7 @@ const TUTORIAL_ORDER: readonly TutorialId[] = [
   'workforce',
   'residence-placement',
   'first-homes',
+  'fire',
 ];
 
 export class TutorialOverlay {
@@ -334,12 +378,18 @@ export class TutorialOverlay {
   private readonly confirmButton: HTMLButtonElement;
   private readonly options: TutorialOverlayOptions;
   private readonly shown = new Set<TutorialId>();
+  private readonly completions: PersistentTutorialCompletions<TutorialId>;
   private replayQueue: TutorialId[] = [];
   private current: TutorialId | null = null;
   private previousFocus: HTMLElement | null = null;
 
   constructor(parent: HTMLElement, options: TutorialOverlayOptions = {}) {
     this.options = options;
+    this.completions = new PersistentTutorialCompletions(
+      () => window.localStorage,
+      COMPLETED_TUTORIALS_STORAGE_KEY,
+      isTutorialId,
+    );
     this.root = document.createElement('div');
     this.root.className = 'tutorial-overlay';
     this.root.hidden = true;
@@ -395,6 +445,7 @@ export class TutorialOverlay {
   replayAll(): void {
     this.setTutorialsSkipped(false);
     this.shown.clear();
+    this.completions.clear();
     this.replayQueue = [...TUTORIAL_ORDER];
     if (!this.isOpen()) this.showNextReplayTutorial();
   }
@@ -441,6 +492,10 @@ export class TutorialOverlay {
     if (zoneCount === 1) this.show('first-homes');
   }
 
+  notifyFireStarted(): boolean {
+    return this.show('fire');
+  }
+
   dispose(): void {
     window.removeEventListener('keydown', this.onKeyDown, { capture: true });
     this.confirmButton.removeEventListener('click', this.dismiss);
@@ -450,7 +505,7 @@ export class TutorialOverlay {
   }
 
   private show(id: TutorialId): boolean {
-    if (this.shown.has(id) || this.areTutorialsSkipped()) return false;
+    if (this.shown.has(id) || this.completions.has(id) || this.areTutorialsSkipped()) return false;
     if (this.isOpen()) {
       if (!this.replayQueue.includes(id)) this.replayQueue.push(id);
       return true;
@@ -511,6 +566,7 @@ export class TutorialOverlay {
 
   private readonly dismiss = (): void => {
     if (!this.isOpen()) return;
+    this.completions.complete(this.current!);
     const skipTutorials = this.skipCheckbox.checked;
     if (skipTutorials) {
       this.setTutorialsSkipped(true);

@@ -706,6 +706,7 @@ export class App {
         12,
         true,
         this.firstPersonController?.isCrouching() ?? false,
+        this.firstPersonController?.isCameraNavigationActive() ?? false,
       );
     } else {
       this.cameraController?.update(dt);
@@ -1084,6 +1085,11 @@ export class App {
   }
 
   private notifyFireChanges(state: GameState, previous: GameState | null): void {
+    const newlyReportedFire = [...state.fireIncidents.values()].some((incident) => (
+      incident.status === 'burning'
+      && (!previous || !previous.fireIncidents.has(incident.id))
+    ));
+    if (newlyReportedFire) this.tutorialOverlay?.notifyFireStarted();
     if (!previous) return;
     for (const incident of state.fireIncidents.values()) {
       const prior = previous.fireIncidents.get(incident.id);

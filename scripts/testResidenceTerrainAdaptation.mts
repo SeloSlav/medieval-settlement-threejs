@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import { BuildingTerrainLayout } from '../src/buildings/BuildingTerrainLayout.ts';
-import { sampleTerrainFenceBays } from '../src/residences/BurgageFencing.ts';
+import {
+  resolveResidenceFrontageGateway,
+  sampleTerrainFenceBays,
+} from '../src/residences/BurgageFencing.ts';
+import {
+  computeBurgageLayout,
+  getParcelFenceSegments,
+  getZoneEdge,
+  oppositeFrontageEdge,
+  type BurgageFrontageEdge,
+  type BurgageZoneCorners,
+} from '../src/residences/burgageLayout.ts';
 import { residenceFootprintHeightDelta } from '../src/residences/burgagePlacementValidation.ts';
 import {
   createHeightfieldNormals,
@@ -57,6 +68,8 @@ for (let index = 0; index < bays.length; index++) {
     almostEqual(bays[index - 1].endGroundHeight, bay.startGroundHeight);
   }
 }
+
+testResidenceGatewaysStayOnFrontage();
 
 almostEqual(
   residenceFootprintHeightDelta(
@@ -123,4 +136,69 @@ function testRegionalTerrainNormalsMatchFullRecompute(): void {
     maximumError === 0,
     `regional terrain normals must match a full smooth-heightfield recompute, including its boundary (max error ${maximumError})`,
   );
+}
+
+function testResidenceGatewaysStayOnFrontage(): void {
+  const corners: BurgageZoneCorners = {
+    a: { x: -12, z: -12 },
+    b: { x: 12, z: -12 },
+    c: { x: 12, z: 12 },
+    d: { x: -12, z: 12 },
+  };
+
+  for (const frontageEdge of [0, 1, 2, 3] as const satisfies readonly BurgageFrontageEdge[]) {
+    const burgage = computeBurgageLayout(corners, frontageEdge, 1);
+    assert.ok(burgage, `frontage edge ${frontageEdge} should produce a valid test parcel`);
+    const parcel = burgage.parcels[0];
+    const placement = burgage.residences[0];
+    const gateway = resolveResidenceFrontageGateway(
+      {
+        id: `frontage-${frontageEdge}`,
+        zoneId: 'frontage-test',
+        ...placement,
+      },
+      parcel,
+    );
+    assert.ok(gateway, `frontage edge ${frontageEdge} should have a gateway`);
+
+    const [frontStart, frontEnd] = getZoneEdge(corners, frontageEdge);
+    const [rearStart, rearEnd] = getZoneEdge(corners, oppositeFrontageEdge(frontageEdge));
+    almostEqual(pointSegmentDistance(gateway.center, frontStart, frontEnd), 0);
+    almostEqual(pointSegmentDistance(gateway.start, frontStart, frontEnd), 0);
+    almostEqual(pointSegmentDistance(gateway.end, frontStart, frontEnd), 0);
+    assert.ok(
+      pointSegmentDistance(gateway.center, rearStart, rearEnd) > 20,
+      `frontage edge ${frontageEdge} gateway must not migrate to the rear fence`,
+    );
+
+    const fenceSegments = getParcelFenceSegments(
+      burgage,
+      new Set([parcel.index]),
+      new Map([[parcel.index, { center: gateway.center, width: gateway.width }]]),
+    );
+    const frontageRailLength = fenceSegments
+      .filter(([start, end]) => (
+        pointSegmentDistance(start, frontStart, frontEnd) < 1e-6
+        && pointSegmentDistance(end, frontStart, frontEnd) < 1e-6
+      ))
+      .reduce((total, [start, end]) => total + Math.hypot(end.x - start.x, end.z - start.z), 0);
+    almostEqual(
+      frontageRailLength,
+      Math.hypot(frontEnd.x - frontStart.x, frontEnd.z - frontStart.z) - gateway.width,
+    );
+  }
+}
+
+function pointSegmentDistance(
+  point: { x: number; z: number },
+  start: { x: number; z: number },
+  end: { x: number; z: number },
+): number {
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  const lengthSq = dx * dx + dz * dz;
+  const t = lengthSq <= 1e-9
+    ? 0
+    : Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.z - start.z) * dz) / lengthSq));
+  return Math.hypot(point.x - (start.x + dx * t), point.z - (start.z + dz * t));
 }

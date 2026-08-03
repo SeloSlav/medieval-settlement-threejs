@@ -658,7 +658,12 @@ export function createReplicatedDeerCasterGeometry(
     replicated.gpuType = attribute.gpuType;
     merged.setAttribute(name, replicated);
   }
-  for (const [name, morphTargets] of Object.entries(source.morphAttributes)) {
+  const morphAttributeNames = Object.keys(source.morphAttributes) as Array<
+    keyof THREE.BufferGeometry['morphAttributes']
+  >;
+  for (const name of morphAttributeNames) {
+    const morphTargets = source.morphAttributes[name];
+    if (!morphTargets) continue;
     merged.morphAttributes[name] = morphTargets.map((sourceAttribute) => {
       if (sourceAttribute instanceof THREE.InterleavedBufferAttribute) {
         throw new Error(`Deer ${name} morph attribute must remain non-interleaved.`);

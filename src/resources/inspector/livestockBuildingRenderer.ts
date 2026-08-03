@@ -173,7 +173,7 @@ export function renderLivestockBuildingInspector(
     ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${nextInstitutionalDispatch.target.food.toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} food`
     : institutionalSurplus <= 1e-6
       ? 'None · local household reserve is protected'
-      : 'No eligible road-linked institution';
+      : 'No eligible institution requesting food';
   const nextFoodTarget = context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
   const nextPreservedTarget = building.kind === 'pastoral_farmstead'
     ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'preservedFood')
@@ -198,7 +198,7 @@ export function renderLivestockBuildingInspector(
       ? nextWoolDispatch.duty === 'working-buffer'
         ? `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · ${staffingPriorityLabel(nextWoolDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(nextWoolDispatch.target.weaverInputPolicy, 'wool')} · ${(nextWoolDispatch.target.wool ?? 0).toFixed(1)} / ${nextWoolDispatch.desiredStock.toFixed(1)} wool`
         : `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · active buffers covered · nearest overflow route`
-      : 'No road-linked weaver can receive wool';
+      : 'No weaver can currently receive wool';
   const dairySaltEmpty = Boolean(
     herd?.species !== 'swine'
       && fodderPlan
@@ -406,7 +406,7 @@ export function renderLivestockBuildingInspector(
               ? 'Waiting for healthy, supplied sheep'
               : `Open now · ${projectedFleece.toFixed(1)} wool expected with full-clip room secured`
           : `Next window: June–July · ${projectedFleece.toFixed(1)} wool at current flock condition · ${(herd.lastWoolOutput ?? 0).toFixed(1)} stored in last shearing`}</span></li>
-      <li><span>Textile route</span><span>Holding cart → road-linked weaver → cloth cart → marketplace</span></li>
+      <li><span>Textile route</span><span>Holding cart → weaver → cloth cart → marketplace; roads speed every local leg</span></li>
       <li><span>Next wool cart</span><span>${nextWoolCart}</span></li>` : ''}
       <li><span>Food territory</span><span>${building.food <= 1e-6 ? 'Yielding while empty' : foodTerritory.length === 0 ? 'None on branch' : `${foodTerritory.length} households claimed`}</span></li>
       <li><span>Local food reserve</span><span>${householdFoodFloor.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>

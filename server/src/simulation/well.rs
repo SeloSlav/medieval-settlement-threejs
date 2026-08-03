@@ -25,7 +25,7 @@ use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
-    lodge_labor_split, road_path_distance, select_residence_for_need_delivery,
+    local_delivery_distance, lodge_labor_split, select_residence_for_need_delivery,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
@@ -230,7 +230,7 @@ fn select_industrial_water_target(
                     return None;
                 }
                 let distance =
-                    road_path_distance(network, well.x, well.z, candidate.x, candidate.z)?;
+                    local_delivery_distance(network, well.x, well.z, candidate.x, candidate.z)?;
                 Some(IndustrialWaterCandidate {
                     building_id: candidate.id,
                     work_priority: candidate.construction_priority,

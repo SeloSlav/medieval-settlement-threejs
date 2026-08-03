@@ -20,6 +20,7 @@ use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::RoadNetwork;
 use crate::season_policy::{EnvironmentState, WeatherKind};
 use crate::simulation::game_calendar::GameClock;
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
     building_has_active_trip, cancel_trips_for_residence, clear_backyard_garden_for_residence,
@@ -629,9 +630,14 @@ fn nearest_eligible_well_id(
                 && within_extent(building, incident.x, incident.z)
         })
     {
-        let road_distance = network
-            .road_path_distance(well.x, well.z, incident.x, incident.z)
-            .unwrap_or_else(|| distance(well.x, well.z, incident.x, incident.z));
+        let road_distance = local_delivery_distance(
+            network,
+            well.x,
+            well.z,
+            incident.x,
+            incident.z,
+        )
+        .unwrap_or_else(|| distance(well.x, well.z, incident.x, incident.z));
         match best {
             None => best = Some((well.id, road_distance)),
             Some((best_id, best_distance))

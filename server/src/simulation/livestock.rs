@@ -47,6 +47,7 @@ use crate::simulation::expanded_economy::{
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::ResidenceNeedKind;
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{farm_field, Building, FarmField, LivestockHerd, Pasture};
 
@@ -543,7 +544,8 @@ fn dispatch_manure_to_crop_farmstead(
         {
             continue;
         }
-        let Some(distance) = network.road_path_distance(source.x, source.z, target.x, target.z)
+        let Some(distance) =
+            local_delivery_distance(network, source.x, source.z, target.x, target.z)
         else {
             continue;
         };

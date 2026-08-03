@@ -39,7 +39,6 @@ export function renderStorehouseInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
-  const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const inboundTrip = context.worldQueries.getInboundSupplyTrip(building);
   const claimedResidences = context.worldQueries.getClaimedResidencesForFirewoodSupplier(building);
@@ -113,9 +112,7 @@ export function renderStorehouseInspector(
         : sum,
     0,
   );
-  const status = !roadAccess.startsWith('Connected')
-    ? ['Connect to a road before haulers can collect overflow', 'warning'] as const
-    : building.assignedLabor <= 0
+  const status = building.assignedLabor <= 0
       ? ['Storage active · assign haulers to distribute fuel and collect overflow', 'idle'] as const
       : deliveringHouseholdFuel
         ? [`Household fuel cart ${formatTripPhaseLabel(activeTrip!.phase).toLowerCase()}`, 'active'] as const
@@ -147,7 +144,7 @@ export function renderStorehouseInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Communal reserve, household fuel distribution, construction logistics, and raw-material buffering</span></li>
       <li><span>Duty priority</span><span>Claimed homes below their winter-night fuel floor first; urgent workshop buffers next; incoming producer overflow last</span></li>
-      <li><span>Fuel territory</span><span>${claimedResidences.length === 0 ? 'None on branch' : `${claimedResidences.length} households claimed`}</span></li>
+      <li><span>Fuel territory</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} households claimed`}</span></li>
       <li><span>Next fuel delivery</span><span>${nextFuelLabel}</span></li>
       <li><span>Fuel road distance</span><span>${formatDeliveryRoadDistance(fuelDistance)}</span></li>
       <li><span>Fuel cart</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} firewood · ${formatDeliveryTripDuration(fuelTripSeconds)}` : 'Paused · no haulers'}</span></li>

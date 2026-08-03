@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 
 const tests = [
   'test:rust',
+  'test:opening-balance',
   'test:lodge-logistics',
   'test:industrial-firewood',
   'test:service-territories',
@@ -82,6 +83,7 @@ const tests = [
   'test:visual-performance-hooks',
   'test:renderer-frame-stats',
   'test:connection-recovery',
+  'test:tutorial-progress',
   'test:building-processor-status',
   'test:industrial-water-logistics',
   'test:chapel-bell-schedule',

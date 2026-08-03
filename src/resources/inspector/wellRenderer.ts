@@ -94,8 +94,6 @@ export function renderWellInspector(
       nextTargetLabel,
     ),
   );
-  const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
-  const onRoad = roadAccess.startsWith('Connected');
   const deliveryTripSeconds = context.worldQueries.getWellDeliveryTripSeconds(building, nextDeliveryTarget);
   const deliveryDistance = activeTrip
     ? context.worldQueries.getActiveTripPathDistance(activeTrip)
@@ -104,16 +102,13 @@ export function renderWellInspector(
       : null;
   const waterPerTrip = wellWaterPerDelivery(crew.delivering);
   const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
-  const canDeliver = crew.delivering > 0 && onRoad && building.water > 0 && nextDeliveryTarget != null && !activeTrip;
+  const canDeliver = crew.delivering > 0 && building.water > 0 && nextDeliveryTarget != null && !activeTrip;
 
   let statusText: string;
   let statusState: InspectorView['statusState'];
   if (building.assignedLabor === 0) {
     statusText = 'Idle — assign labor to draw and deliver water';
     statusState = 'idle';
-  } else if (!onRoad) {
-    statusText = 'Off road — connect to the road network';
-    statusState = 'warning';
   } else if (activeTrip) {
     statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${activeTargetLabel}`;
     statusState = 'active';
@@ -123,7 +118,7 @@ export function renderWellInspector(
       : `Supplying workshop — ${nextTargetLabel}`;
     statusState = 'active';
   } else if (building.water + 1e-6 >= capacity) {
-    statusText = `Full — ${claimedResidences.length} road-linked home${claimedResidences.length === 1 ? '' : 's'} in range`;
+    statusText = `Full — ${claimedResidences.length} claimed home${claimedResidences.length === 1 ? '' : 's'} in range`;
     statusState = 'active';
   } else if (drawingWorkers > 0) {
     statusText = `Drawing water — ${fillPct}% (${Math.round(building.water)} / ${Math.round(capacity)})`;
@@ -153,7 +148,7 @@ export function renderWellInspector(
       <li><span>Stored water</span><span>${Math.round(building.water)} / ${Math.round(capacity)}</span></li>
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
       ${buildingExtentRow(building.kind)}
-      <li><span>Road-linked homes</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
+      <li><span>Water territory</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'granary').length} granary · ${industrialConsumers.filter((item) => item.kind === 'weaver').length} linen loom · ${industrialConsumers.filter((item) => item.kind === 'smithy').length} smithy · ${industrialConsumers.filter((item) => item.kind === 'potter_kiln').length} pottery`}</span></li>
       <li><span>Dispatch rule</span><span>Fires first · households second · workshop priority, input policy, then buffer coverage</span></li>
       <li><span>Supplies</span><span>Homes, brewhouses, granary bakeries, flax-working looms, smithy quench tubs, and potters' puddling troughs by visible cart</span></li>

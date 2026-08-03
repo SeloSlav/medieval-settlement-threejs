@@ -2,6 +2,7 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
+  localDeliveryDistance,
   roadPathDistance,
   sortByRoadPathDistance,
 } from '../logistics/roadLogistics.ts';
@@ -522,7 +523,7 @@ export class WorldQueries {
         candidate.kind === 'well'
         && candidate.constructionComplete !== false
         && candidate.assignedLabor > 0
-        && roadPathDistance(network, building.x, building.z, candidate.x, candidate.z) != null,
+        && localDeliveryDistance(network, building.x, building.z, candidate.x, candidate.z) != null,
     );
     return sortByRoadPathDistance(network, building, wells);
   }
@@ -536,7 +537,7 @@ export class WorldQueries {
       (candidate) =>
         candidate.constructionComplete !== false
         && industrialWaterRequirement(candidate.kind) > 0
-        && roadPathDistance(network, well.x, well.z, candidate.x, candidate.z) != null,
+        && localDeliveryDistance(network, well.x, well.z, candidate.x, candidate.z) != null,
     );
   }
 
@@ -575,7 +576,7 @@ export class WorldQueries {
       ) {
         return [];
       }
-      const distance = roadPathDistance(
+      const distance = localDeliveryDistance(
         network,
         well.x,
         well.z,
@@ -628,6 +629,10 @@ export class WorldQueries {
 
   getRoadPathDistance(ax: number, az: number, bx: number, bz: number): number | null {
     return roadPathDistance(this.getRoadNetwork(), ax, az, bx, bz);
+  }
+
+  getLocalDeliveryDistance(ax: number, az: number, bx: number, bz: number): number | null {
+    return localDeliveryDistance(this.getRoadNetwork(), ax, az, bx, bz);
   }
 
   getRoadComponentId(x: number, z: number): number | null {
@@ -786,7 +791,7 @@ export class WorldQueries {
       (building) =>
         building.kind === 'lumber_mill'
         && building.constructionComplete !== false
-        && roadPathDistance(network, lodge.x, lodge.z, building.x, building.z) != null,
+        && localDeliveryDistance(network, lodge.x, lodge.z, building.x, building.z) != null,
     );
     return sortByRoadPathDistance(network, lodge, mills);
   }
@@ -971,7 +976,13 @@ export class WorldQueries {
         || !targetKinds.includes(candidate.kind)
         || !isEligible(candidate)
       ) continue;
-      const distance = roadPathDistance(network, origin.x, origin.z, candidate.x, candidate.z);
+      const distance = localDeliveryDistance(
+        network,
+        origin.x,
+        origin.z,
+        candidate.x,
+        candidate.z,
+      );
       if (distance == null) continue;
       if (
         distance + 1e-6 < bestDistance
@@ -1025,7 +1036,7 @@ export class WorldQueries {
     return selectGrainDispatchTarget(
       this.fireEnabledBuildings(state, fireDisabled),
       farmstead.id,
-      (target) => roadPathDistance(
+      (target) => localDeliveryDistance(
         network,
         farmstead.x,
         farmstead.z,
@@ -1138,7 +1149,7 @@ export class WorldQueries {
     return selectGrainProcessorTarget(
       this.fireEnabledBuildings(state, fireDisabled),
       granary.id,
-      (target) => roadPathDistance(
+      (target) => localDeliveryDistance(
         network,
         granary.x,
         granary.z,
@@ -1230,7 +1241,7 @@ export class WorldQueries {
       const assignments = assignLocalMaterialInputTargets(
         localSources,
         this.fireEnabledBuildings(state, fireDisabled),
-        (producer, target) => roadPathDistance(
+        (producer, target) => localDeliveryDistance(
           network,
           producer.x,
           producer.z,
@@ -1248,7 +1259,7 @@ export class WorldQueries {
       this.fireEnabledBuildings(state, fireDisabled),
       source.id,
       commodity,
-      (target) => roadPathDistance(
+      (target) => localDeliveryDistance(
         network,
         source.x,
         source.z,
@@ -1301,7 +1312,7 @@ export class WorldQueries {
       this.fireEnabledBuildings(state, fireDisabled),
       source.id,
       conflictEnabled,
-      (target) => roadPathDistance(
+      (target) => localDeliveryDistance(
         network,
         source.x,
         source.z,
@@ -1371,7 +1382,7 @@ export class WorldQueries {
     const assignments = assignMarketplaceMaterialInputTargets(
       materialSources,
       this.fireEnabledBuildings(state, fireDisabled),
-      (market, target) => roadPathDistance(
+      (market, target) => localDeliveryDistance(
         network,
         market.x,
         market.z,
@@ -1422,7 +1433,7 @@ export class WorldQueries {
     return selectCriticalGuardhouseFoodTarget(
       this.fireEnabledBuildings(state, fireDisabled),
       granary.id,
-      (target) => roadPathDistance(
+      (target) => localDeliveryDistance(
         network,
         granary.x,
         granary.z,
@@ -1454,7 +1465,13 @@ export class WorldQueries {
         || residence.tier < minTier
         || fireDisabledResidences.has(residence.id)
       ) continue;
-      const distance = roadPathDistance(network, origin.x, origin.z, residence.x, residence.z);
+      const distance = localDeliveryDistance(
+        network,
+        origin.x,
+        origin.z,
+        residence.x,
+        residence.z,
+      );
       if (distance == null) continue;
       if (
         distance + 1e-6 < bestDistance

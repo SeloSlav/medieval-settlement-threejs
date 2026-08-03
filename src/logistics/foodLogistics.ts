@@ -28,8 +28,8 @@ import {
 } from './processorInputLogistics.ts';
 import {
   compareStableEntityIds,
-  roadPathDistance,
-  roadPathDistancesFrom,
+  localDeliveryDistance,
+  localDeliveryDistancesFrom,
 } from './roadLogistics.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 
@@ -170,8 +170,8 @@ export function compareResidencesForFoodDelivery(
   const runwayA = residenceFoodRunwaySeconds(a) ?? Infinity;
   const runwayB = residenceFoodRunwaySeconds(b) ?? Infinity;
   if (Math.abs(runwayA - runwayB) > 1e-6) return runwayA - runwayB;
-  const distanceA = roadPathDistance(network, supplier.x, supplier.z, a.x, a.z) ?? Infinity;
-  const distanceB = roadPathDistance(network, supplier.x, supplier.z, b.x, b.z) ?? Infinity;
+  const distanceA = localDeliveryDistance(network, supplier.x, supplier.z, a.x, a.z) ?? Infinity;
+  const distanceB = localDeliveryDistance(network, supplier.x, supplier.z, b.x, b.z) ?? Infinity;
   if (Math.abs(distanceA - distanceB) > 1e-6) return distanceA - distanceB;
   return compareStableEntityIds(a.id, b.id);
 }
@@ -185,7 +185,7 @@ export function peekNextFoodDeliveryTarget(
     !residence.abandoned
     && residence.population > 0
     && getNeedStock(residence.needs, 'food') + 1e-6 < RESIDENCE_FOOD_CAPACITY);
-  const distances = roadPathDistancesFrom(network, supplier.x, supplier.z, eligible);
+  const distances = localDeliveryDistancesFrom(network, supplier.x, supplier.z, eligible);
   let bestIndex = -1;
   for (let index = 0; index < eligible.length; index += 1) {
     const distance = distances[index];

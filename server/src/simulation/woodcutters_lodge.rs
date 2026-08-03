@@ -26,7 +26,9 @@ use crate::simulation::game_calendar::GameClock;
 use crate::simulation::has_industrial_firewood_target;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::{lodge_labor_split, select_residence_for_need_delivery};
+use crate::simulation::road_logistics::{
+    local_delivery_distance, lodge_labor_split, select_residence_for_need_delivery,
+};
 use crate::simulation::tick_context::SimTickContext;
 use crate::supply_policy::{household_firewood_needs_priority, select_supply_route_candidate};
 use crate::tables::{Building, Residence};
@@ -192,8 +194,7 @@ fn dispatch_timber_supply_if_needed(
                 {
                     return None;
                 }
-                network
-                    .road_path_distance(row.x, row.z, lodge.x, lodge.z)
+                local_delivery_distance(network, row.x, row.z, lodge.x, lodge.z)
                     .map(|distance| (row, distance))
             }),
         |candidate| candidate.1,

@@ -13,6 +13,21 @@ function pseudoRandomYaw(x: number, z: number): number {
   return (Math.abs(Math.floor(Math.sin(x * 0.017 + z * 0.013) * 6283)) % 360) * (Math.PI / 180);
 }
 
+/**
+ * Buildings whose placement is pulled onto a road verge must also inherit the
+ * road-facing yaw. A few utility/yard definitions intentionally have no
+ * authored `facesRoad` facade, but leaving those at a random angle made the
+ * default-on snap appear broken even after their footprint moved to the road.
+ */
+function buildingUsesRoadsideSnap(kind: BuildingKind): boolean {
+  const definition = getBuildingDefinition(kind);
+  return definition.requiresRoad
+    && !definition.requiresWaterShore
+    && kind !== 'large_quarry'
+    && kind !== 'mine'
+    && kind !== 'clay_pit';
+}
+
 /** Mesh doors face local +Z; rotate so +Z points toward the nearest road. */
 export function buildingPlacementYaw(
   kind: BuildingKind,
@@ -20,7 +35,7 @@ export function buildingPlacementYaw(
   z: number,
   roadNetwork?: RoadNetwork | null,
 ): number {
-  if (roadNetwork && buildingFacesRoad(kind)) {
+  if (roadNetwork && (buildingFacesRoad(kind) || buildingUsesRoadsideSnap(kind))) {
     const snap = roadNetwork.findSnap(new THREE.Vector3(x, 0, z), ROAD_FACING_SNAP_DISTANCE);
     if (snap) {
       const dx = snap.point.x - x;
@@ -48,11 +63,7 @@ export function resolveRoadsideBuildingPlacement(
   const definition = getBuildingDefinition(kind);
   if (
     !roadNetwork
-    || !definition.requiresRoad
-    || definition.requiresWaterShore
-    || kind === 'large_quarry'
-    || kind === 'mine'
-    || kind === 'clay_pit'
+    || !buildingUsesRoadsideSnap(kind)
   ) {
     return { x, z };
   }

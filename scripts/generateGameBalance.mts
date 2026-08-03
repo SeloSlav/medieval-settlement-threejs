@@ -408,6 +408,7 @@ export type GameBalance = {
   roads: {
     buildingRoadAccessDistance: number;
     burgageRoadFrontageDistance: number;
+    offroadDeliverySpeedMultiplier: number;
     minDeliveryTripSec: number;
     firewoodDeliverySpeedMps: number;
     waterDeliverySpeedMps: number;
@@ -915,6 +916,7 @@ function generateRust(): string {
     '',
     `pub const BUILDING_ROAD_ACCESS_DISTANCE: f64 = ${rustF64(b.roads.buildingRoadAccessDistance)};`,
     `pub const BURGAGE_ROAD_FRONTAGE_DISTANCE: f64 = ${rustF64(b.roads.burgageRoadFrontageDistance)};`,
+    `pub const OFFROAD_DELIVERY_SPEED_MULTIPLIER: f64 = ${rustF64(b.roads.offroadDeliverySpeedMultiplier)};`,
     `pub const MIN_DELIVERY_TRIP_SEC: f64 = ${rustF64(b.roads.minDeliveryTripSec)};`,
     `pub const FIREWOOD_DELIVERY_SPEED_MPS: f64 = ${rustF64(b.roads.firewoodDeliverySpeedMps)};`,
     `pub const WATER_DELIVERY_SPEED_MPS: f64 = ${rustF64(b.roads.waterDeliverySpeedMps)};`,
@@ -1728,6 +1730,7 @@ function generateTypeScript(): string {
     '',
     `export const BUILDING_ROAD_ACCESS_DISTANCE = ${b.roads.buildingRoadAccessDistance};`,
     `export const BURGAGE_ROAD_FRONTAGE_DISTANCE = ${b.roads.burgageRoadFrontageDistance};`,
+    `export const OFFROAD_DELIVERY_SPEED_MULTIPLIER = ${b.roads.offroadDeliverySpeedMultiplier};`,
     `export const MIN_DELIVERY_TRIP_SEC = ${b.roads.minDeliveryTripSec};`,
     `export const FIREWOOD_DELIVERY_SPEED_MPS = ${b.roads.firewoodDeliverySpeedMps};`,
     `export const WATER_DELIVERY_SPEED_MPS = ${b.roads.waterDeliverySpeedMps};`,

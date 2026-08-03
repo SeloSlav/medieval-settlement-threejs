@@ -113,7 +113,7 @@ export function renderWoodcuttersLodgeInspector(
     availableUnreservedTimber,
     timberReserve,
   );
-  const canDeliver = crew.delivering > 0 && onRoad && building.firewood > 0 && nextDeliveryTarget != null && !activeTrip;
+  const canDeliver = crew.delivering > 0 && building.firewood > 0 && nextDeliveryTarget != null && !activeTrip;
   const { statusText, statusState } = resolveWoodcuttersLodgeStatus({
     onRoad,
     assignedLabor: building.assignedLabor,
@@ -145,9 +145,11 @@ export function renderWoodcuttersLodgeInspector(
     : null;
   const millSummary = connectedMills.length === 0
     ? 'None'
-    : `${connectedMills.length} by road${nearestMillDistance != null ? ` (nearest ${nearestMillDistance.toFixed(0)} m)` : ''}`;
+    : nearestMillDistance != null
+      ? `${connectedMills.length} reachable (nearest ${nearestMillDistance.toFixed(0)} m by road)`
+      : `${connectedMills.length} reachable off-road at reduced speed`;
   const residenceSummary = claimedResidences.length === 0
-    ? 'None on branch'
+    ? 'None in range'
     : `${claimedResidences.length} claimed`;
   const industrialFuelDuty = industrialDispatch
     ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${staffingPriorityLabel(industrialDispatch.workPriority)} priority · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
@@ -177,7 +179,7 @@ export function renderWoodcuttersLodgeInspector(
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Crew split</span><span>${crewLabel}</span></li>
-      <li><span>Road-linked mills</span><span>${millSummary}</span></li>
+      <li><span>Supplying mills</span><span>${millSummary}</span></li>
       <li><span>Claimed residences</span><span>${residenceSummary}</span></li>
       <li><span>Surplus fuel duty</span><span>${nextDeliveryTarget ? `Protected household stock first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
       <li><span>Process interval</span><span>${definition.harvestInterval}s</span></li>

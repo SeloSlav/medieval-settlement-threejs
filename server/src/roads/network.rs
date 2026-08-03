@@ -90,10 +90,6 @@ impl RoadNetwork {
         let river_navigation = snapshot
             .river_navigation
             .and_then(RiverNavigationGrid::from_row);
-        if snapshot.nodes.is_empty() && snapshot.edges.is_empty() && river_navigation.is_none() {
-            return None;
-        }
-
         let mut nodes = HashMap::new();
         for node in snapshot.nodes {
             nodes.insert(node.id, (node.position[0], node.position[2]));
@@ -1101,6 +1097,13 @@ fn append_polyline(path: &mut Vec<[f64; 2]>, segment: &[[f64; 2]]) {
 mod tests {
     use super::RoadNetwork;
     use std::time::Instant;
+
+    #[test]
+    fn empty_snapshot_still_supports_cross_country_logistics() {
+        let network = RoadNetwork::from_snapshot_json(r#"{"nodes":[],"edges":[]}"#)
+            .expect("an empty but valid owner network");
+        assert!(network.road_path_distance(0.0, 0.0, 10.0, 0.0).is_none());
+    }
 
     fn wet_row_hex(resolution: usize, wet_row: usize) -> String {
         let mut bytes = vec![0_u8; (resolution * resolution + 7) / 8];

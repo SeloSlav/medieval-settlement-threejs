@@ -535,8 +535,6 @@ function renderLogisticsRows(
 ): string {
   if (!OUTBOUND_SUPPLY_KINDS.has(building.kind)) return '';
 
-  const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
-  const onRoad = roadAccess.startsWith('Connected');
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const inboundTrip = context.worldQueries.getInboundSupplyTrip(building);
   const protectedSeedGrain = building.kind === 'threshing_barn'
@@ -733,10 +731,6 @@ function renderLogisticsRows(
     + potteryTerritoryRows
     + hospitalityRoutingRows
     + breweryReserveRows;
-
-  if (!onRoad) {
-    return `${householdTerritoryRows}<li><span>Deliveries</span><span>Off road — connect to dispatch hauls</span></li>`;
-  }
 
   const requiresLabor = building.kind !== 'monastery' && !seedHaulUsesHoldingCrew;
   if (requiresLabor && building.assignedLabor === 0) {
@@ -1122,7 +1116,7 @@ export function renderExpandedBuildingInspector(
         ? granaryPreservationDispatch.duty === 'working-buffer'
           ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${staffingPriorityLabel(granaryPreservationDispatch.workPriority)} priority · ${granaryPreservationDispatch.target.food.toFixed(1)} / ${granaryPreservationDispatch.desiredStock.toFixed(1)} fresh food`
           : `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · active buffers covered · nearest overflow route`
-        : 'No road-linked smokehouse can receive fresh food'
+        : 'No smokehouse can currently receive fresh food'
     : '';
   const granaryExportableStock = building.kind === 'granary'
     ? granaryExportableGrain(
@@ -1245,7 +1239,7 @@ export function renderExpandedBuildingInspector(
           ? `${institutionalFoodDutyLabel(routineFreshFoodDispatch.duty)} → ${context.worldQueries.getBuildingLabel(routineFreshFoodDispatch.target.kind)} · ${routineFreshFoodDispatch.target.food.toFixed(1)} / ${routineFreshFoodDispatch.desiredStock.toFixed(1)} food`
           : routineFreshFoodSurplus <= 1e-6
             ? 'None · local household reserve is protected'
-            : 'No eligible road-linked institution'}</span></li>`
+            : 'No eligible institution requesting food'}</span></li>`
       : '';
   const farmsteadPlanning = building.kind === 'threshing_barn'
     ? renderFarmsteadPlanning(building, context)
@@ -1372,7 +1366,7 @@ function renderFarmsteadPlanning(
   const grainDispatch = context.worldQueries.getNextFarmGrainDispatch(building);
   const grainRoutingLabel = grainDispatch == null
     ? exportableGrain > 1e-6
-      ? 'No road-linked capacity'
+      ? 'No eligible grain capacity'
       : building.grain > 1e-6 && plan.seedGrainRequired > 1e-6
         ? 'Held for linked fields'
         : 'No grain awaiting haul'

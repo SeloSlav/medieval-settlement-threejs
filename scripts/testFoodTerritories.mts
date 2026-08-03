@@ -5,7 +5,9 @@ import {
   claimResidencesForFoodSuppliers,
   FOOD_SUPPLIER_KINDS,
   isOperationalFoodSupplier,
+  localDeliveryRoute,
 } from '../src/logistics/roadLogistics.ts';
+import { OFFROAD_DELIVERY_SPEED_MULTIPLIER } from '../src/generated/gameBalance.ts';
 import type { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../src/resources/types.ts';
 
@@ -77,6 +79,33 @@ const network = {
       Math.hypot(bx - ax, bz - az),
   }),
 } as unknown as RoadNetwork;
+
+const disconnectedNetwork = {
+  getPathfinder: () => ({
+    roadPathDistance: () => null,
+    roadPathRoute: () => null,
+  }),
+} as unknown as RoadNetwork;
+
+const offroadHome = residence('offroad-home', 0);
+const offroadForager = building('offroad-forager', 'foragers_shed', 18, 1);
+assert.equal(
+  claimResidencesForFoodSuppliers(
+    disconnectedNetwork,
+    [offroadForager],
+    [offroadHome],
+  ).get(offroadHome.id),
+  offroadForager.id,
+  'a staffed stocked food producer must still claim an off-road household',
+);
+const offroadRoute = localDeliveryRoute(disconnectedNetwork, 18, 0, 0, 0);
+assert.equal(offroadRoute?.offroad, true);
+assert.equal(offroadRoute?.distance, 18);
+assert.equal(offroadRoute?.speedMultiplier, OFFROAD_DELIVERY_SPEED_MULTIPLIER);
+assert.ok(
+  OFFROAD_DELIVERY_SPEED_MULTIPLIER > 0 && OFFROAD_DELIVERY_SPEED_MULTIPLIER < 1,
+  'off-road delivery must remain possible but slower than a road cart',
+);
 
 assert.deepEqual(FOOD_SUPPLIER_KINDS, [
   'hunters_hall',
@@ -207,6 +236,12 @@ assert.match(
 const harvesters = fs.readFileSync('server/src/simulation/food_supplier.rs', 'utf8');
 assert.match(harvesters, /food_supplier_for/);
 assert.doesNotMatch(harvesters, /owner_food_suppliers|claim_residences_for_food_suppliers/);
+const deliveryTrips = fs.readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
+assert.match(deliveryTrips, /local_delivery_route/);
+assert.match(deliveryTrips, /route_speed_multiplier/);
+const roadLogistics = fs.readFileSync('server/src/simulation/road_logistics.rs', 'utf8');
+assert.match(roadLogistics, /OFFROAD_DELIVERY_SPEED_MULTIPLIER/);
+assert.match(roadLogistics, /local_delivery_distances_from/);
 const supply = fs.readFileSync('server/src/simulation/residence_needs/supply.rs', 'utf8');
 assert.match(supply, /has_food_route[\s\S]{0,120}food_supplier_for/);
 const marketplace = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');

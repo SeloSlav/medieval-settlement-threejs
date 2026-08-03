@@ -82,7 +82,9 @@ use crate::simulation::landmark_access::monastery_linked_to_chapel;
 use crate::simulation::residence_needs::{
     apply_need_consumed_at_source, load_needs, need_stock, ResidenceNeedKind,
 };
-use crate::simulation::road_logistics::select_residence_for_need_delivery;
+use crate::simulation::road_logistics::{
+    local_delivery_distance, select_residence_for_need_delivery,
+};
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
 use crate::specialty_trade_policy::{
@@ -219,7 +221,8 @@ pub fn step_institutional_food_dispatch(
             else {
                 continue;
             };
-            let Some(distance) = network.road_path_distance(source.x, source.z, target.x, target.z)
+            let Some(distance) =
+                local_delivery_distance(network, source.x, source.z, target.x, target.z)
             else {
                 continue;
             };
@@ -497,8 +500,7 @@ fn dispatch_seed_commodity_from_source(
                 if building_commodity_stock(&target, commodity) + 1e-6 >= required {
                     return None;
                 }
-                network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
+                local_delivery_distance(network, source.x, source.z, target.x, target.z)
                     .filter(|distance| distance.is_finite())
                     .map(|distance| RoutedSeedTarget {
                         building: target,
@@ -600,8 +602,7 @@ pub(crate) fn has_industrial_firewood_target(
                 && processor_accepts_input(&target, CommodityKind::Firewood)
                 && building_commodity_room(&target, CommodityKind::Firewood) > 1e-6
                 && !building_has_inbound_supply_trip(ctx, target.id)
-                && network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
+                && local_delivery_distance(network, source.x, source.z, target.x, target.z)
                     .is_some_and(|distance| distance.is_finite())
         })
 }
@@ -692,8 +693,13 @@ pub fn step_marketplace_material_dispatch(
                     {
                         return None;
                     }
-                    network
-                        .road_path_distance(marketplace.x, marketplace.z, building.x, building.z)
+                    local_delivery_distance(
+                        network,
+                        marketplace.x,
+                        marketplace.z,
+                        building.x,
+                        building.z,
+                    )
                         .filter(|distance| distance.is_finite())
                         .map(|distance| (building, distance))
                 })
@@ -897,7 +903,7 @@ pub fn step_local_material_dispatch(
                     continue;
                 };
                 let Some(distance) =
-                    network.road_path_distance(source.x, source.z, target.x, target.z)
+                    local_delivery_distance(network, source.x, source.z, target.x, target.z)
                 else {
                     continue;
                 };
@@ -2687,8 +2693,7 @@ fn dispatch_farmstead_grain(
                     target.grain,
                     desired_stock,
                 )?;
-                network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
+                local_delivery_distance(network, source.x, source.z, target.x, target.z)
                     .map(|distance| RoutedGrainTarget {
                         runway_cycles: grain_input_runway_cycles(
                             &target.kind,
@@ -2803,8 +2808,7 @@ fn next_granary_grain_dispatch(
                 if desired_stock <= 1e-6 || target.grain + 1e-6 >= desired_stock {
                     return None;
                 }
-                network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
+                local_delivery_distance(network, source.x, source.z, target.x, target.z)
                     .map(|distance| RoutedGrainTarget {
                         runway_cycles: grain_input_runway_cycles(
                             &target.kind,
@@ -2908,8 +2912,7 @@ fn next_granary_guard_food_dispatch(
                 if runway_days + 1e-9 >= GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS {
                     return None;
                 }
-                network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
+                local_delivery_distance(network, source.x, source.z, target.x, target.z)
                     .map(|distance| RoutedGuardFoodTarget {
                         building: target,
                         distance,
@@ -2999,8 +3002,7 @@ fn dispatch_polearms_to_guardhouse(
                 if desired_stock <= 1e-6 || target.polearms + 1e-6 >= desired_stock {
                     return None;
                 }
-                network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
+                local_delivery_distance(network, source.x, source.z, target.x, target.z)
                     .map(|distance| {
                         (
                             RoutedBuilding {
@@ -3143,8 +3145,7 @@ fn dispatch_to_building_where_limited(
                 } else {
                     processor_input_runway_cycles(stock, per_cycle)
                 };
-                network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
+                local_delivery_distance(network, source.x, source.z, target.x, target.z)
                     .map(|distance| RoutedProcessorInputTarget {
                         building: target,
                         distance,
@@ -3268,8 +3269,7 @@ fn dispatch_monastery_feast_ale(
                 if shortfall <= 1e-6 {
                     return None;
                 }
-                network
-                    .road_path_distance(source.x, source.z, building.x, building.z)
+                local_delivery_distance(network, source.x, source.z, building.x, building.z)
                     .filter(|distance| distance.is_finite())
                     .map(|distance| RoutedMonasteryReserveTarget {
                         building,
@@ -3548,8 +3548,7 @@ fn request_connected_commodity_with_source_availability(
                 if transferable <= 1e-6 {
                     return None;
                 }
-                network
-                    .road_path_distance(source.x, source.z, target.x, target.z)
+                local_delivery_distance(network, source.x, source.z, target.x, target.z)
                     .map(|distance| {
                         (
                             RoutedBuilding {

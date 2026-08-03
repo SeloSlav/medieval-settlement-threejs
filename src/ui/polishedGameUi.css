@@ -903,7 +903,16 @@ select:focus-visible {
 }
 
 .resource-inspector-details [data-inspector-details] > li[data-state='positive'] > .inspector-row-icon {
-  color: #9eb87a;
+  color: #a9d982;
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-state='positive'] {
+  border-color: rgba(126, 178, 91, 0.36);
+  background: linear-gradient(145deg, rgba(69, 119, 48, 0.2), rgba(255, 255, 255, 0.015));
+}
+
+.resource-inspector-details [data-inspector-details] > li[data-state='positive'] > .inspector-detail-value {
+  color: #dcebc9;
 }
 
 .resource-inspector-details [data-inspector-details] > li > .inspector-detail-label {
@@ -1070,14 +1079,15 @@ select:focus-visible {
 }
 
 .resource-inspector-actions {
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 4px 10px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 5px;
 }
 
 .resource-inspector-demolish {
-  grid-row: span 2;
-  height: 30px;
+  min-width: 0;
+  min-height: 30px;
+  height: auto;
   padding: 0 10px;
   border-radius: 2px;
   color: #dba895;
@@ -1089,9 +1099,11 @@ select:focus-visible {
 }
 
 .resource-inspector-demolish-hint {
+  min-width: 0;
   color: #7f7769;
   font-size: 9px;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 /* Policies and action cards --------------------------------------------- */

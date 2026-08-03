@@ -23,6 +23,7 @@ use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_residence_upgrade_supply_trip, DeliveryTripPhase, DELIVERY_DESTINATION_RESIDENCE,
 };
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{
     clear_fire_for_target, ensure_residence_needs, labor_and_logistics_paused, GameClock,
     SimTickContext, FIRE_TARGET_RESIDENCE,
@@ -201,7 +202,6 @@ fn dispatch_upgrade_material(
             {
                 continue;
             }
-            let allow_offroad = source.kind == "founders_camp";
             if try_start_residence_upgrade_supply_trip(
                 ctx,
                 tick,
@@ -210,7 +210,6 @@ fn dispatch_upgrade_material(
                 &mut source,
                 residence,
                 commodity,
-                allow_offroad,
                 free_haulers,
             ) {
                 return;
@@ -250,7 +249,6 @@ fn dispatch_upgrade_material(
         let Some((mut source, _distance)) = selected else {
             continue;
         };
-        let allow_offroad = source.kind == "founders_camp";
         if try_start_residence_upgrade_supply_trip(
             ctx,
             tick,
@@ -259,7 +257,6 @@ fn dispatch_upgrade_material(
             &mut source,
             residence,
             commodity,
-            allow_offroad,
             free_haulers,
         ) {
             return;
@@ -272,16 +269,8 @@ fn upgrade_route_distance(
     source: &Building,
     residence: &Residence,
 ) -> Option<f64> {
-    network
-        .road_path_distance(source.x, source.z, residence.x, residence.z)
-        .or_else(|| {
-            if source.kind != "founders_camp" {
-                return None;
-            }
-            let distance =
-                ((residence.x - source.x).powi(2) + (residence.z - source.z).powi(2)).sqrt();
-            (distance > 1e-6).then_some(distance)
-        })
+    local_delivery_distance(network, source.x, source.z, residence.x, residence.z)
+        .filter(|distance| *distance > 1e-6)
 }
 
 fn has_inbound_upgrade_material(
