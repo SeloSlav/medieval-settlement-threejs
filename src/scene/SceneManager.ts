@@ -44,7 +44,7 @@ import {
 import { Terrain } from '../terrain/Terrain.ts';
 import { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
-import { computePathBoundsXZ, type RockObstacle } from '../utils/pathGeometry.ts';
+import type { RockObstacle } from '../utils/pathGeometry.ts';
 import { RockSpatialIndex } from '../utils/rockSpatialIndex.ts';
 import { yieldToMain } from '../utils/yieldToMain.ts';
 import { createPostProcessor, type ScenePostProcessor } from './PostProcessing.ts';
@@ -1105,31 +1105,6 @@ export class SceneManager {
     };
   }
 
-  isRoadPathBlocked(path: THREE.Vector3[], roadWidth: number): boolean {
-    return this.getRoadPathBlockReason(path, roadWidth) !== null;
-  }
-
-  getRoadPathBlockReason(
-    path: THREE.Vector3[],
-    roadWidth: number,
-    _bridgeCtx?: BridgeSamplingContext,
-    sampledPath?: THREE.Vector3[],
-    rockCheckPath?: THREE.Vector3[],
-  ): 'river' | 'rocks' | null {
-    if (path.length < 2) return null;
-    const sampled = sampledPath ?? this.roadMeshBuilder.samplePath(path, 1.25);
-    if (sampled.length < 2) return null;
-
-    const roadHalfWidth = roadWidth * 0.5;
-    const rockPath = rockCheckPath ?? sampled;
-    const bounds = computePathBoundsXZ(rockPath, roadHalfWidth + 10);
-    if (this.rockSpatialIndex?.findRockBlockNearPath(rockPath, bounds, roadHalfWidth)) {
-      return 'rocks';
-    }
-
-    return null;
-  }
-
   sampleRoadDeckY(x: number, z: number): number | null {
     const network = this.roadNetworkRef;
     if (!network) return null;
@@ -1152,7 +1127,9 @@ export class SceneManager {
 
     this.rebuildJunctions(network);
     this.forestManager?.syncRoadClearance(network);
+    this.riverSystem.syncRoadClearance(network);
     this.grassField?.syncRoadClearance(network);
+    this.rebuildRockSpatialIndex();
     updateTerrainRoadWear(this.terrain, network);
     this.refreshShadowMap();
   }

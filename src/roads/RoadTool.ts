@@ -9,7 +9,6 @@ import {
   type RoadPlacementFailureReason,
   type RoadPlacementResult,
 } from './RoadPlacementValidation.ts';
-import { downsamplePath } from '../utils/pathGeometry.ts';
 import {
   BuildingRoadConnections,
   type BuildingRoadConnectionSource,
@@ -27,7 +26,6 @@ const HOVER_PREVIEW_MOVE_THRESHOLD = 1.1;
 const VALIDATION_INTERVAL_MS = 180;
 const PREVIEW_MESH_SAMPLE_SPACING = 1.5;
 const PREVIEW_MESH_MAX_SAMPLES = 80;
-const COMMIT_VALIDATION_SAMPLE_SPACING = 1.25;
 
 export type RoadDeleteRequest = {
   edgeId: string;
@@ -74,7 +72,6 @@ export class RoadTool {
   private pointerClientY = Number.NaN;
   private validationScheduled = false;
   private readonly previewSampleScratch: THREE.Vector3[] = [];
-  private readonly validationPathScratch: THREE.Vector3[] = [];
   private readonly anchorScratch: THREE.Vector3[] = [];
   private readonly curveScratch: number[] = [];
   private readonly projectScratch = new THREE.Vector3();
@@ -182,9 +179,7 @@ export class RoadTool {
   commitDraft(): void {
     if (this.options.isBlocked()) return;
     const path = this.buildDraftPath();
-    const meshBuilder = this.options.sceneManager.roadMeshBuilder;
-    const sampledPath = meshBuilder.samplePath(path, COMMIT_VALIDATION_SAMPLE_SPACING);
-    const validation = validateRoadPlacement(path, this.options.sceneManager, ROAD_WIDTH, MIN_COMMIT_LENGTH, { sampledPath });
+    const validation = validateRoadPlacement(path, MIN_COMMIT_LENGTH);
     if (!validation.ok) {
       this.options.onPlacementRejected?.({ reason: validation.reason, action: 'commit' });
       return;
@@ -466,22 +461,7 @@ export class RoadTool {
       return;
     }
 
-    if (this.previewSampleScratch.length < 2) {
-      const meshBuilder = this.options.sceneManager.roadMeshBuilder;
-      meshBuilder.samplePathInto(
-        path,
-        PREVIEW_MESH_SAMPLE_SPACING,
-        this.previewSampleScratch,
-        PREVIEW_MESH_MAX_SAMPLES,
-      );
-    }
-
-    const validationSample = downsamplePath(this.previewSampleScratch, 2.5, this.validationPathScratch);
-    const rockCheckPath = downsamplePath(validationSample, 4.0);
-    const validation = validateRoadPlacement(path, this.options.sceneManager, ROAD_WIDTH, MIN_COMMIT_LENGTH, {
-      sampledPath: validationSample,
-      rockCheckPath,
-    });
+    const validation = validateRoadPlacement(path, MIN_COMMIT_LENGTH);
     this.cachedDraftValidation = validation;
     this.validationDirty = false;
     this.lastValidationTime = performance.now();
@@ -646,7 +626,7 @@ export class RoadTool {
     );
     if (path.length < 2) return null;
 
-    const result = validateRoadPlacement(path, this.options.sceneManager, ROAD_WIDTH, MIN_COMMIT_LENGTH);
+    const result = validateRoadPlacement(path, MIN_COMMIT_LENGTH);
     if (result.ok || result.reason === 'too_short') return null;
     return result.reason;
   }

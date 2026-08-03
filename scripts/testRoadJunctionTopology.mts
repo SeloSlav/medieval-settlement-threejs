@@ -231,8 +231,10 @@ function verifyBridgeJunction(arms: readonly THREE.Vector3[], expectedRuns: numb
   assert(patch);
   assert.equal(
     patch.children.length,
-    2,
-    'a bridge junction should contain only its shared deck and perimeter-railing group',
+    expectedRuns > 0 ? 2 : 1,
+    expectedRuns > 0
+      ? 'a bridge junction should contain only its shared deck and perimeter-railing group'
+      : 'a four-way bridge junction should contain only its fully open shared deck',
   );
   assert.equal(patch.userData.bridgeJunction, true);
 
@@ -254,6 +256,14 @@ function verifyBridgeJunction(arms: readonly THREE.Vector3[], expectedRuns: numb
   }
 
   const railings = patch.getObjectByName('Bridge junction railings') as THREE.Group | undefined;
+  if (expectedRuns === 0) {
+    assert.equal(
+      railings,
+      undefined,
+      'four-way bridge junctions must not fence any route through the shared center',
+    );
+    return;
+  }
   assert(railings);
   assert.equal(
     railings.userData.railingRunCount,
@@ -289,7 +299,7 @@ verifyBridgeJunction(
 );
 verifyBridgeJunction(
   [point(20, 0), point(-20, 0), point(0, 20), point(0, -20)],
-  4,
+  0,
 );
 
 const markerNetwork = new RoadNetwork();

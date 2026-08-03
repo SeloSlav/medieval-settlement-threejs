@@ -117,6 +117,7 @@ const tests = [
   'test:placement-regressions',
   'test:road-building-connections',
   'test:road-junction-topology',
+  'test:road-rock-clearance',
   'test:deer-wildlife',
   'test:livestock',
   'test:livestock-policy',

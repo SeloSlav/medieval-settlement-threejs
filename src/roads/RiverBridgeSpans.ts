@@ -23,7 +23,6 @@ export const BRIDGE_RAMP_MAX = 22;
 /** Max rise/run for approach ramps (~5°). */
 export const BRIDGE_MAX_RAMP_GRADE = 0.09;
 export const BRIDGE_DECK_CLEARANCE = 0.28;
-export const MAX_BRIDGE_SPAN_LENGTH = 58;
 const MIN_WET_RUN_LENGTH = 1.8;
 
 export function detectBridgeSpans(sampledPath: THREE.Vector3[], ctx: BridgeSamplingContext): BridgeSpan[] {
@@ -70,33 +69,6 @@ export function detectBridgeSpans(sampledPath: THREE.Vector3[], ctx: BridgeSampl
   }
 
   return spans;
-}
-
-export function maxWetRunLength(sampledPath: THREE.Vector3[], isWaterAt: (x: number, z: number) => boolean): number {
-  if (sampledPath.length < 2) return 0;
-  const distances = cumulativeDistances(sampledPath);
-
-  let best = 0;
-  let wetStart = -1;
-  let runStartDist = 0;
-  for (let i = 0; i < sampledPath.length; i++) {
-    const point = sampledPath[i];
-    if (isWaterAt(point.x, point.z)) {
-      if (wetStart < 0) {
-        wetStart = i;
-        runStartDist = distances[i];
-      }
-      continue;
-    }
-    if (wetStart >= 0) {
-      best = Math.max(best, distances[i - 1] - runStartDist);
-      wetStart = -1;
-    }
-  }
-  if (wetStart >= 0) {
-    best = Math.max(best, distances[distances.length - 1] - runStartDist);
-  }
-  return best;
 }
 
 export function bridgeBlendAtDistance(distance: number, spans: BridgeSpan[]): number {

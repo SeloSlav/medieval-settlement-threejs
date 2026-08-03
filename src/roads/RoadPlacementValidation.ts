@@ -1,11 +1,6 @@
 import * as THREE from 'three';
-import type { SceneManager } from '../scene/SceneManager.ts';
-import {
-  MAX_BRIDGE_SPAN_LENGTH,
-  maxWetRunLength,
-} from './RiverBridgeSpans.ts';
 
-export type RoadPlacementFailureReason = 'river' | 'river_too_wide' | 'rocks' | 'too_steep' | 'too_short';
+export type RoadPlacementFailureReason = 'too_steep' | 'too_short';
 
 export type RoadPlacementResult =
   | { ok: true }
@@ -13,17 +8,9 @@ export type RoadPlacementResult =
 
 const MAX_SEGMENT_SLOPE = 0.45;
 
-export type RoadPlacementValidationOptions = {
-  sampledPath?: THREE.Vector3[];
-  rockCheckPath?: THREE.Vector3[];
-};
-
 export function validateRoadPlacement(
   points: THREE.Vector3[],
-  sceneManager: SceneManager,
-  roadWidth: number,
   minCommitLength: number,
-  options?: RoadPlacementValidationOptions,
 ): RoadPlacementResult {
   if (points.length < 2) return { ok: false, reason: 'too_short' };
   if (pathLength(points) < minCommitLength) return { ok: false, reason: 'too_short' };
@@ -34,31 +21,14 @@ export function validateRoadPlacement(
     if (dxz > 0.1 && dy / dxz > MAX_SEGMENT_SLOPE) return { ok: false, reason: 'too_steep' };
   }
 
-  const bridgeCtx = sceneManager.getBridgeSamplingContext();
-  const sampled = options?.sampledPath ?? sceneManager.roadMeshBuilder.samplePath(points, 1.25);
-  const wetSpan = maxWetRunLength(sampled, bridgeCtx.isWaterAt);
-  if (wetSpan > MAX_BRIDGE_SPAN_LENGTH) return { ok: false, reason: 'river_too_wide' };
-
-  const blockReason = sceneManager.getRoadPathBlockReason(
-    points,
-    roadWidth,
-    bridgeCtx,
-    sampled,
-    options?.rockCheckPath,
-  );
-  if (blockReason) return { ok: false, reason: blockReason };
-
   return { ok: true };
 }
 
 export function isRoadPlacementValid(
   points: THREE.Vector3[],
-  sceneManager: SceneManager,
-  roadWidth: number,
   minCommitLength: number,
-  options?: RoadPlacementValidationOptions,
 ): boolean {
-  return validateRoadPlacement(points, sceneManager, roadWidth, minCommitLength, options).ok;
+  return validateRoadPlacement(points, minCommitLength).ok;
 }
 
 function pathLength(points: THREE.Vector3[]): number {

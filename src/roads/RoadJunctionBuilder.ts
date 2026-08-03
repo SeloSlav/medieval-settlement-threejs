@@ -91,19 +91,25 @@ export class RoadJunctionBuilder {
       group.userData.bridgeJunction = true;
       group.add(core);
 
-      const railingPaths = this.bridgeJunctionRailingPaths(
-        node.position,
-        directions,
-        width,
-        surfaceY,
-      );
-      const railings = buildBridgeJunctionRailings(
-        railingPaths,
-        this.materials.bridgeSupport,
-      );
-      if (railings) {
-        railings.userData.nodeId = node.id;
-        group.add(railings);
+      // A four-way bridge hub has no safely fenceable corner: perimeter runs
+      // visually and physically pinch the two crossing routes at the center.
+      // The incident arm railings are already trimmed back to the hub edge, so
+      // leave cross/higher-degree junction decks fully open.
+      if (directions.length < 4) {
+        const railingPaths = this.bridgeJunctionRailingPaths(
+          node.position,
+          directions,
+          width,
+          surfaceY,
+        );
+        const railings = buildBridgeJunctionRailings(
+          railingPaths,
+          this.materials.bridgeSupport,
+        );
+        if (railings) {
+          railings.userData.nodeId = node.id;
+          group.add(railings);
+        }
       }
       return group;
     }

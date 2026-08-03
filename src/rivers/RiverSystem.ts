@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { MeshStandardNodeMaterial } from 'three/webgpu';
 import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { MossyRockTextureSet } from '../utils/propTextureLoad.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { RiverField } from './RiverField.ts';
@@ -41,6 +42,7 @@ export type RiverSystem = {
     buildings: Iterable<BuildingTerrainSource>,
     farmFieldPolygons: Iterable<Point2[]>,
   ) => void;
+  syncRoadClearance: (network: RoadNetwork | null) => void;
   isBlockedAt: (x: number, z: number) => boolean;
   isGrassBlockedAt: (x: number, z: number) => boolean;
   updateCameraState: (
@@ -79,6 +81,7 @@ export async function createRiverSystem(
     buildings: BuildingTerrainSource[];
     farmFieldPolygons: Point2[][];
   } | null = null;
+  let roadNetwork: RoadNetwork | null = null;
 
   const finishDetails = (): Promise<void> => {
     if (detailsPromise) return detailsPromise;
@@ -109,6 +112,7 @@ export async function createRiverSystem(
       if (clearance) {
         nextShoreStones.syncPlacementClearance(clearance.buildings, clearance.farmFieldPolygons);
       }
+      nextShoreStones.syncRoadClearance(roadNetwork);
     })();
     return detailsPromise;
   };
@@ -137,6 +141,10 @@ export async function createRiverSystem(
         farmFieldPolygons: [...farmFieldPolygons],
       };
       shoreStones?.syncPlacementClearance(clearance.buildings, clearance.farmFieldPolygons);
+    },
+    syncRoadClearance: (network) => {
+      roadNetwork = network;
+      shoreStones?.syncRoadClearance(network);
     },
     isBlockedAt: (x, z) => riverField.isBlockedForProps(x, z),
     isGrassBlockedAt: (x, z) => riverField.isGrassBlockedAt(x, z),

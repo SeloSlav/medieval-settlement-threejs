@@ -5,6 +5,7 @@ import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
 import type { RoadEdge } from '../roads/RoadEdge.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { collectRoadRemovedRockIndices } from '../roads/roadRockClearance.ts';
 import { distancePointToPolylineXZ, type RockObstacle } from '../utils/pathGeometry.ts';
 import { distancePointToPolygon2 } from '../utils/polygonGeometry.ts';
 import type { UndergrowthInstances, UndergrowthKind, UndergrowthPlacement } from './ForestUndergrowth.ts';
@@ -123,6 +124,8 @@ export class ForestManager {
   private roadRemovedUndergrowth = new Set<number>();
   private placementRemovedUndergrowth = new Set<number>();
   private removedUndergrowth = new Set<number>();
+  private roadRemovedRocks = new Set<number>();
+  private placementRemovedRocks = new Set<number>();
   private removedRocks = new Set<number>();
   private treePhases = new Map<number, TreePhase>();
   private treeGrowthProgress = new Map<number, number>();
@@ -395,6 +398,15 @@ export class ForestManager {
       ));
     }
 
+    this.roadRemovedRocks = collectRoadRemovedRockIndices(
+      this.allRockPlacements,
+      network,
+    );
+    this.applyRockClearance(removedIndexSetUnion(
+      this.roadRemovedRocks,
+      this.placementRemovedRocks,
+    ));
+
     if (network) {
       this.syncRoadStumps(network);
     } else {
@@ -454,7 +466,7 @@ export class ForestManager {
     ));
 
     this.syncPlacementUndergrowthClearance(clearanceIndex);
-    this.syncRockClearance(clearanceIndex);
+    this.syncPlacementRockClearance(clearanceIndex);
   }
 
   dispose(): void {
@@ -555,10 +567,10 @@ export class ForestManager {
     this.undergrowth.juniperShadowMesh.instanceMatrix.needsUpdate = true;
   }
 
-  private syncRockClearance(
+  private syncPlacementRockClearance(
     clearanceIndex: PlacementClearanceSpatialIndex,
   ): void {
-    const nextRemoved = new Set<number>();
+    const nextPlacementRemoved = new Set<number>();
     for (let index = 0; index < this.rockInstances.length; index++) {
       const placement = this.rockInstances[index].placement;
       const clearRadius = placement.scale * 1.35 + 0.35;
@@ -582,9 +594,17 @@ export class ForestManager {
           (polygon) => distancePointToPolygon2(placement, polygon) <= clearRadius,
         )
       ) {
-        nextRemoved.add(index);
+        nextPlacementRemoved.add(index);
       }
     }
+    this.placementRemovedRocks = nextPlacementRemoved;
+    this.applyRockClearance(removedIndexSetUnion(
+      this.roadRemovedRocks,
+      this.placementRemovedRocks,
+    ));
+  }
+
+  private applyRockClearance(nextRemoved: Set<number>): void {
     if (removedIndexSetsEqual(nextRemoved, this.removedRocks)) return;
 
     for (let index = 0; index < this.rockInstances.length; index++) {

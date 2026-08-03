@@ -3,6 +3,8 @@ import type { BuildingTerrainSource } from '../buildings/BuildingTerrainLayout.t
 import { pointWithinBuildingSiteClearance } from '../buildings/BuildingTerrainLayout.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { createRockShadowGeometry } from '../props/ForestProps.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
+import { collectRoadRemovedRockIndices } from '../roads/roadRockClearance.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
@@ -46,6 +48,7 @@ export type RiverShoreStoneField = {
     buildings: Iterable<BuildingTerrainSource>,
     farmFieldPolygons: Iterable<Point2[]>,
   ) => void;
+  syncRoadClearance: (network: RoadNetwork | null) => void;
 };
 
 const TAU = Math.PI * 2;
@@ -65,6 +68,7 @@ export function createRiverShoreStones(
       group,
       placements,
       syncPlacementClearance: () => {},
+      syncRoadClearance: () => {},
     };
   }
 
@@ -157,8 +161,30 @@ export function createRiverShoreStones(
   });
 
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+  let roadRemoved = new Set<number>();
+  let placementRemoved = new Set<number>();
   let removed = new Set<number>();
-  let activePlacements: ReadonlyArray<RockObstacle> = instances.map((instance) => instance.placement);
+  const allRockPlacements = instances.map((instance) => instance.placement);
+  let activePlacements: ReadonlyArray<RockObstacle> = [...allRockPlacements];
+
+  const applyClearance = (nextRemoved: Set<number>): void => {
+    if (indexSetsEqual(nextRemoved, removed)) return;
+
+    for (let index = 0; index < instances.length; index++) {
+      if (nextRemoved.has(index) === removed.has(index)) continue;
+      const instance = instances[index];
+      const instanceMatrix = nextRemoved.has(index) ? hiddenMatrix : instance.visualMatrix;
+      instance.mesh.setMatrixAt(instance.instanceIndex, instanceMatrix);
+      instance.shadowMesh.setMatrixAt(instance.instanceIndex, instanceMatrix);
+      instance.mesh.instanceMatrix.needsUpdate = true;
+      instance.shadowMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    removed = nextRemoved;
+    activePlacements = instances
+      .filter((_, index) => !nextRemoved.has(index))
+      .map((instance) => instance.placement);
+  };
 
   return {
     group,
@@ -169,7 +195,7 @@ export function createRiverShoreStones(
       const buildingList = [...buildings];
       const farmFields = [...farmFieldPolygons];
       const clearanceIndex = new PlacementClearanceSpatialIndex(buildingList, [], farmFields);
-      const nextRemoved = new Set<number>();
+      const nextPlacementRemoved = new Set<number>();
 
       for (let index = 0; index < instances.length; index++) {
         const placement = instances[index].placement;
@@ -192,25 +218,15 @@ export function createRiverShoreStones(
           clearRadius,
           (polygon) => distancePointToPolygon2(placement, polygon) <= clearRadius,
         );
-        if (overlapsBuilding || overlapsFarmField) nextRemoved.add(index);
+        if (overlapsBuilding || overlapsFarmField) nextPlacementRemoved.add(index);
       }
 
-      if (indexSetsEqual(nextRemoved, removed)) return;
-
-      for (let index = 0; index < instances.length; index++) {
-        if (nextRemoved.has(index) === removed.has(index)) continue;
-        const instance = instances[index];
-        const instanceMatrix = nextRemoved.has(index) ? hiddenMatrix : instance.visualMatrix;
-        instance.mesh.setMatrixAt(instance.instanceIndex, instanceMatrix);
-        instance.shadowMesh.setMatrixAt(instance.instanceIndex, instanceMatrix);
-        instance.mesh.instanceMatrix.needsUpdate = true;
-        instance.shadowMesh.instanceMatrix.needsUpdate = true;
-      }
-
-      removed = nextRemoved;
-      activePlacements = instances
-        .filter((_, index) => !nextRemoved.has(index))
-        .map((instance) => instance.placement);
+      placementRemoved = nextPlacementRemoved;
+      applyClearance(indexSetUnion(roadRemoved, placementRemoved));
+    },
+    syncRoadClearance(network) {
+      roadRemoved = collectRoadRemovedRockIndices(allRockPlacements, network);
+      applyClearance(indexSetUnion(roadRemoved, placementRemoved));
     },
   };
 }
@@ -221,6 +237,14 @@ function indexSetsEqual(left: ReadonlySet<number>, right: ReadonlySet<number>): 
     if (!right.has(value)) return false;
   }
   return true;
+}
+
+function indexSetUnion(left: ReadonlySet<number>, right: ReadonlySet<number>): Set<number> {
+  if (left.size === 0) return new Set(right);
+  if (right.size === 0) return new Set(left);
+  const union = new Set(left);
+  for (const index of right) union.add(index);
+  return union;
 }
 
 function createShoreStonePlacements(riverField: RiverField, rng: () => number): StonePlacement[] {

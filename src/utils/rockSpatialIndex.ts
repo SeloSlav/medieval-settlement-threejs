@@ -1,6 +1,4 @@
-import type { PathBoundsXZ, RockObstacle } from './pathGeometry.ts';
-import { isRockNearPath } from './pathGeometry.ts';
-import type * as THREE from 'three';
+import type { RockObstacle } from './pathGeometry.ts';
 
 const CELL_SIZE = 18;
 
@@ -14,27 +12,6 @@ export class RockSpatialIndex {
       if (bucket) bucket.push(rock);
       else this.cells.set(key, [rock]);
     }
-  }
-
-  findRockBlockNearPath(
-    path: THREE.Vector3[],
-    bounds: PathBoundsXZ,
-    roadHalfWidth: number,
-  ): boolean {
-    const minCellX = Math.floor(bounds.minX / CELL_SIZE);
-    const maxCellX = Math.floor(bounds.maxX / CELL_SIZE);
-    const minCellZ = Math.floor(bounds.minZ / CELL_SIZE);
-    const maxCellZ = Math.floor(bounds.maxZ / CELL_SIZE);
-    for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
-      for (let cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-        const bucket = this.cells.get(packCell(cellX, cellZ));
-        if (!bucket) continue;
-        for (const rock of bucket) {
-          if (isRockNearPath(rock, path, roadHalfWidth)) return true;
-        }
-      }
-    }
-    return false;
   }
 
   rocksInRadius(x: number, z: number, radius: number): RockObstacle[] {
