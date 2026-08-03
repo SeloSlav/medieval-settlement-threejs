@@ -454,6 +454,11 @@ assert.match(
 );
 assert.match(
   builderSource,
+  /const cardCastsShadow = castShadow && !crownUnderlay;[\s\S]*im\.castShadow = cardCastsShadow;[\s\S]*im\.userData\.neverCastShadow = !cardCastsShadow;/,
+  'whole-crown filler quads must stay out of the shadow pass while ordinary foliage cards retain authored shadows',
+);
+assert.match(
+  builderSource,
   /windSpeed\.value = SEEDTHREE_FOREST_WIND_SPEED/,
   'the forest must apply the slower shared wind tempo before materials compile',
 );

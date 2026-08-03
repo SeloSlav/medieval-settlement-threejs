@@ -192,7 +192,11 @@ export class SceneManager {
   }
   private readonly roadGroup = new THREE.Group();
   private readonly junctionGroup = new THREE.Group();
-  private readonly edgeVisuals = new Map<string, { revision: number; group: THREE.Group }>();
+  private readonly edgeVisuals = new Map<string, {
+    revision: number;
+    topologyKey: string;
+    group: THREE.Group;
+  }>();
   private rockSpatialIndex: RockSpatialIndex | null = null;
   private rockCollisionVersion = 0;
   private buildInteractionActive = false;
@@ -1268,7 +1272,12 @@ export class SceneManager {
 
   private upsertEdge(edge: RoadEdge, network: RoadNetwork): void {
     const existing = this.edgeVisuals.get(edge.id);
-    if (existing && existing.revision === edge.revision) return;
+    const topologyKey = this.edgeTopologyKey(edge, network);
+    if (
+      existing
+      && existing.revision === edge.revision
+      && existing.topologyKey === topologyKey
+    ) return;
     if (existing) {
       this.roadGroup.remove(existing.group);
       disposeObject3D(existing.group);
@@ -1276,7 +1285,19 @@ export class SceneManager {
     }
     const group = this.roadMeshBuilder.buildEdge(edge, network);
     this.roadGroup.add(group);
-    this.edgeVisuals.set(edge.id, { revision: edge.revision, group });
+    this.edgeVisuals.set(edge.id, { revision: edge.revision, topologyKey, group });
+  }
+
+  private edgeTopologyKey(edge: RoadEdge, network: RoadNetwork): string {
+    return [edge.startNodeId, edge.endNodeId].map((nodeId) => {
+      const node = network.nodes.get(nodeId);
+      if (!node) return `${nodeId}:missing`;
+      const incidents = network.getIncidents(node)
+        .map((incident) => `${incident.edge.id}:${incident.edge.width.toFixed(3)}`)
+        .sort()
+        .join(',');
+      return `${nodeId}:${incidents}`;
+    }).join('|');
   }
 
   private rebuildJunctions(network: RoadNetwork): void {

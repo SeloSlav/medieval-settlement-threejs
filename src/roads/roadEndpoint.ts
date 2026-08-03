@@ -3,6 +3,8 @@ import type { RoadEdge } from './RoadEdge.ts';
 
 export const ROAD_END_TRIM = 0.5;
 export const ROAD_CAP_OVERLAP = 0.14;
+/** Length of each road arm covered by a shared node patch, as a width multiplier. */
+export const ROAD_JUNCTION_REACH = 0.74;
 export type RoadEdgeEnd = 'start' | 'end';
 
 export function getEdgePath(edge: RoadEdge): THREE.Vector3[] {

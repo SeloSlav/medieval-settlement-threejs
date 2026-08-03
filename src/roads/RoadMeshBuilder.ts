@@ -3,14 +3,21 @@ import { Terrain } from '../terrain/Terrain.ts';
 import type { RoadEdge } from './RoadEdge.ts';
 import { RoadMaterialFactory } from './RoadMaterialFactory.ts';
 import type { RoadNetwork } from './RoadNetwork.ts';
-import { roadTerminalTrimDistance, trimPathAtEndpoint } from './roadEndpoint.ts';
+import {
+  ROAD_JUNCTION_REACH,
+  roadTerminalTrimDistance,
+  trimPathAtEndpoint,
+} from './roadEndpoint.ts';
 import {
   applyBridgeHeightsToPath,
   detectBridgeSpans,
   type BridgeSamplingContext,
   type BridgeSpan,
 } from './RiverBridgeSpans.ts';
-import { buildBridgeRailings } from './BridgeRailings.ts';
+import {
+  BRIDGE_RAILING_START_BLEND,
+  buildBridgeRailings,
+} from './BridgeRailings.ts';
 import { buildBridgeSupports } from './BridgeSupports.ts';
 
 const CORE_Y_OFFSET = 0.12;
@@ -136,6 +143,15 @@ export class RoadMeshBuilder {
           bridgeBlend: section.bridgeBlend,
         })),
         this.materials.bridgeSupport,
+        {
+          start: !startIsEndpoint && bridgeBlends[0] > BRIDGE_RAILING_START_BLEND
+            ? edge.width * ROAD_JUNCTION_REACH
+            : 0,
+          end: !endIsEndpoint
+            && bridgeBlends[bridgeBlends.length - 1] > BRIDGE_RAILING_START_BLEND
+            ? edge.width * ROAD_JUNCTION_REACH
+            : 0,
+        },
       );
       if (railings) group.add(railings);
     }

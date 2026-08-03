@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { RoadJunctionBuilder } from '../src/roads/RoadJunctionBuilder.ts';
+import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
 import { RoadNetwork, type RoadNetworkSnapshot } from '../src/roads/RoadNetwork.ts';
 import { RoadNodeSnapMarkers } from '../src/roads/RoadNodeSnapMarkers.ts';
 import {
   ROAD_CAP_OVERLAP,
   ROAD_END_TRIM,
+  ROAD_JUNCTION_REACH,
   roadTerminalTrimDistance,
   trimPathAtEndpoint,
 } from '../src/roads/roadEndpoint.ts';
@@ -81,10 +83,14 @@ assert.equal(loopNode.junctionType, 'bend', 'a closed loop node is joined road, 
 const elbow = new RoadNetwork();
 elbow.addRoadPath([point(-10, 0), point(0, 0)]);
 elbow.addRoadPath([point(0, 0), point(0, 10)]);
-const flatTerrain = { getHeightAt: () => 0 };
+const flatTerrain = {
+  getHeightAt: () => 0,
+  getPointAt: (x: number, z: number, yOffset = 0) => new THREE.Vector3(x, yOffset, z),
+};
 const materials = {
   road: new THREE.MeshBasicMaterial(),
   roadEdge: new THREE.MeshBasicMaterial(),
+  bridgeSupport: new THREE.MeshBasicMaterial(),
 };
 const patches = new RoadJunctionBuilder(flatTerrain as never, materials as never).build(elbow);
 const elbowNode = [...elbow.nodes.values()].find((node) => elbow.getNodeDegree(node) === 2);
@@ -176,6 +182,116 @@ for (let index = outerRingStart; index < outerRingStart + arcVertexCount; index+
   assert.equal(startBlendUvs.getX(index), 0, 'the terminal feather must reach zero opacity at its outer arc');
 }
 
+const bridgeContext = {
+  isWaterAt: () => true,
+  getTerrainY: () => 0,
+  getWaterSurfaceY: () => 2,
+};
+
+function verifyBridgeJunction(arms: readonly THREE.Vector3[], expectedRuns: number): void {
+  const network = new RoadNetwork();
+  for (const arm of arms) network.addRoadPath([point(0, 0), arm]);
+  const node = [...network.nodes.values()].find((candidate) => (
+    Math.abs(candidate.position.x) < 1e-6
+    && Math.abs(candidate.position.z) < 1e-6
+    && network.getNodeDegree(candidate) === arms.length
+  ));
+  assert(node);
+
+  const meshBuilder = new RoadMeshBuilder(
+    flatTerrain as never,
+    materials as never,
+    bridgeContext,
+  );
+  const edgeGroups = [...network.edges.values()].map((edge) => ({
+    edge,
+    group: meshBuilder.buildEdge(edge, network),
+  }));
+  const junctionReach = 4.2 * ROAD_JUNCTION_REACH;
+  const matrix = new THREE.Matrix4();
+  const position = new THREE.Vector3();
+  for (const { group } of edgeGroups) {
+    const posts = group.getObjectByName('Bridge railing posts') as THREE.InstancedMesh | undefined;
+    assert(posts, 'each bridge arm should still carry railings outside the shared hub');
+    let closestPost = Infinity;
+    for (let index = 0; index < posts.count; index++) {
+      posts.getMatrixAt(index, matrix);
+      position.setFromMatrixPosition(matrix);
+      const postDistance = Math.hypot(position.x, position.z);
+      closestPost = Math.min(closestPost, postDistance);
+    }
+    assert(
+      closestPost >= junctionReach - 0.2,
+      `arm railings should stop at the junction perimeter instead of entering the shared deck (${closestPost.toFixed(3)} < ${junctionReach.toFixed(3)})`,
+    );
+  }
+
+  const patches = new RoadJunctionBuilder(flatTerrain as never, materials as never).build(network);
+  const patch = patches.getObjectByName(`Road ${node.junctionType} ${node.id}`) as THREE.Group | undefined;
+  assert(patch);
+  assert.equal(
+    patch.children.length,
+    2,
+    'a bridge junction should contain only its shared deck and perimeter-railing group',
+  );
+  assert.equal(patch.userData.bridgeJunction, true);
+
+  const deck = patch.getObjectByName(`Bridge junction deck ${node.id}`) as THREE.Mesh | undefined;
+  assert(deck, 'connected bridge arms should share an explicit junction deck');
+  const deckPositions = deck.geometry.getAttribute('position');
+  const expectedDeckY = edgeGroups[0].edge.surfacePath?.[0]?.y;
+  assert(expectedDeckY != null && expectedDeckY > 2);
+  for (let index = 0; index < deckPositions.count; index++) {
+    assert(
+      deckPositions.getY(index) > expectedDeckY
+      && deckPositions.getY(index) - expectedDeckY < 0.02,
+      'the junction deck should sit just above the incident bridge surface instead of dropping to terrain',
+    );
+  }
+  const bridgeBlend = deck.geometry.getAttribute('bridgeBlend');
+  for (let index = 0; index < bridgeBlend.count; index++) {
+    assert.equal(bridgeBlend.getX(index), 1, 'the shared deck should use the bridge surface material');
+  }
+
+  const railings = patch.getObjectByName('Bridge junction railings') as THREE.Group | undefined;
+  assert(railings);
+  assert.equal(
+    railings.userData.railingRunCount,
+    expectedRuns,
+    'the shared railing runs should follow the junction topology',
+  );
+  const junctionPosts = railings.getObjectByName(
+    'Bridge junction railing posts',
+  ) as THREE.InstancedMesh | undefined;
+  assert(junctionPosts && junctionPosts.count >= expectedRuns * 2);
+  const directions = network.getIncidents(node).map(({ edge, end }) => {
+    const path = edge.surfacePath ?? edge.sampledPath;
+    const neighbor = end === 'start' ? path[1] : path[path.length - 2];
+    return neighbor.clone().sub(node.position).setY(0).normalize();
+  });
+  for (let index = 0; index < junctionPosts.count; index++) {
+    junctionPosts.getMatrixAt(index, matrix);
+    position.setFromMatrixPosition(matrix).sub(node.position);
+    for (const direction of directions) {
+      const along = position.x * direction.x + position.z * direction.z;
+      const across = Math.abs(-position.x * direction.z + position.z * direction.x);
+      assert(
+        !(along >= junctionReach - 4.2 * 0.12 && across < 4.2 * 0.3),
+        'junction railings must leave every connected bridge mouth open',
+      );
+    }
+  }
+}
+
+verifyBridgeJunction(
+  [point(20, 0), point(-20, 0), point(0, 20)],
+  3,
+);
+verifyBridgeJunction(
+  [point(20, 0), point(-20, 0), point(0, 20), point(0, -20)],
+  4,
+);
+
 const markerNetwork = new RoadNetwork();
 markerNetwork.addRoadPath([point(0, 0), point(30, 0)]);
 const markerParent = new THREE.Group();
@@ -215,5 +331,6 @@ assert.equal(markerParent.children.length, 0);
 
 materials.road.dispose();
 materials.roadEdge.dispose();
+materials.bridgeSupport.dispose();
 
 console.log('Road junction topology tests passed.');

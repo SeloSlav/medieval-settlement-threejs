@@ -2,19 +2,29 @@
 import { Terrain } from '../terrain/Terrain.ts';
 import type { RoadEdge } from './RoadEdge.ts';
 import { RoadMaterialFactory } from './RoadMaterialFactory.ts';
-import { RoadNetwork } from './RoadNetwork.ts';
+import { RoadNetwork, type RoadIncident } from './RoadNetwork.ts';
 import type { RoadNode } from './RoadNode.ts';
+import {
+  BRIDGE_RAILING_EDGE_INSET,
+  BRIDGE_RAILING_START_BLEND,
+  buildBridgeJunctionRailings,
+} from './BridgeRailings.ts';
+import { bridgeBlendAtDistance } from './RiverBridgeSpans.ts';
 import {
   exteriorDirectionAtEdgeEnd,
   getEdgePath,
   inwardDirectionAtEdgeEnd,
   ROAD_END_TRIM,
+  ROAD_JUNCTION_REACH,
   roadPerpendicular,
   type RoadEdgeEnd,
 } from './roadEndpoint.ts';
 
 const CORE_Y_OFFSET = 0.12;
 const BLEND_Y_OFFSET = 0.16;
+const BRIDGE_JUNCTION_LIFT = 0.014;
+const BRIDGE_MOUTH_TOLERANCE = 0.14;
+const BRIDGE_JUNCTION_SEGMENTS = 64;
 
 export class RoadJunctionBuilder {
   private readonly terrain: Terrain;
@@ -58,9 +68,48 @@ export class RoadJunctionBuilder {
       return group;
     }
 
+    const directions = uniqueDirections(
+      incidents.map(({ edge, end }) => inwardDirectionAtEdgeEnd(edge, end)),
+    );
+    if (directions.length === 0) return null;
+    const bridgeSurface = this.bridgeSurfaceAtNode(incidents);
+    if (bridgeSurface) {
+      const surfaceY = bridgeSurface.y + BRIDGE_JUNCTION_LIFT;
+      const core = this.buildBridgeJunctionCore(
+        node.position,
+        directions,
+        width,
+        surfaceY,
+        bridgeSurface.blend,
+      );
+      core.name = `Bridge junction deck ${node.id}`;
+      core.userData.nodeId = node.id;
+      core.userData.fpNoCollision = true;
+      core.castShadow = false;
+      core.receiveShadow = true;
+      core.renderOrder = 15;
+      group.userData.bridgeJunction = true;
+      group.add(core);
+
+      const railingPaths = this.bridgeJunctionRailingPaths(
+        node.position,
+        directions,
+        width,
+        surfaceY,
+      );
+      const railings = buildBridgeJunctionRailings(
+        railingPaths,
+        this.materials.bridgeSupport,
+      );
+      if (railings) {
+        railings.userData.nodeId = node.id;
+        group.add(railings);
+      }
+      return group;
+    }
+
     const radius = width * (incidents.length === 2 ? 0.78 : 1.08);
     const blendRadius = radius + width * 0.58;
-    const directions = incidents.map(({ edge, end }) => inwardDirectionAtEdgeEnd(edge, end));
     const core = this.buildJunctionPatchMesh(node.position, directions, radius, width, false);
     const blend = this.buildJunctionPatchMesh(node.position, directions, blendRadius, width, true);
     blend.castShadow = false;
@@ -71,6 +120,27 @@ export class RoadJunctionBuilder {
     blend.renderOrder = 10;
     group.add(blend, core);
     return group;
+  }
+
+  private bridgeSurfaceAtNode(
+    incidents: RoadIncident[],
+  ): JunctionBridgeSurface | null {
+    let bridgeBlend = 0;
+    let deckY = -Infinity;
+    for (const { edge, end } of incidents) {
+      const spans = edge.materialData?.bridgeSpans ?? [];
+      if (spans.length === 0) continue;
+      const distance = end === 'start' ? 0 : edge.length;
+      const blend = bridgeBlendAtDistance(distance, spans);
+      if (blend <= BRIDGE_RAILING_START_BLEND) continue;
+
+      const surfacePath = edge.surfacePath;
+      const endpoint = surfacePath?.[end === 'start' ? 0 : surfacePath.length - 1];
+      if (!endpoint) continue;
+      bridgeBlend = Math.max(bridgeBlend, blend);
+      deckY = Math.max(deckY, endpoint.y);
+    }
+    return Number.isFinite(deckY) ? { blend: bridgeBlend, y: deckY } : null;
   }
 
   private endpointFrame(node: RoadNode, edge: RoadEdge, end: RoadEdgeEnd, width: number): EndpointFrame {
@@ -234,6 +304,7 @@ export class RoadJunctionBuilder {
     uvs: number[],
     indices: number[],
     material: THREE.Material,
+    bridgeBlend = 0,
   ): THREE.Mesh {
     const geometry = new THREE.BufferGeometry();
     geometry.setIndex(indices);
@@ -241,7 +312,10 @@ export class RoadJunctionBuilder {
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
     const vertexCount = positions.length / 3;
-    geometry.setAttribute('bridgeBlend', new THREE.BufferAttribute(new Float32Array(vertexCount), 1));
+    geometry.setAttribute(
+      'bridgeBlend',
+      new THREE.BufferAttribute(new Float32Array(vertexCount).fill(bridgeBlend), 1),
+    );
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     return new THREE.Mesh(geometry, material);
@@ -279,6 +353,95 @@ export class RoadJunctionBuilder {
     return this.createCapMesh(positions, uvs, indices, blend ? this.materials.roadEdge : this.materials.road);
   }
 
+  private buildBridgeJunctionCore(
+    center: THREE.Vector3,
+    directions: THREE.Vector3[],
+    width: number,
+    surfaceY: number,
+    bridgeBlend: number,
+  ): THREE.Mesh {
+    const halfWidth = width * 0.5;
+    const reach = width * ROAD_JUNCTION_REACH;
+    const contour = junctionContour(
+      directions,
+      halfWidth,
+      reach,
+      BRIDGE_JUNCTION_SEGMENTS,
+    );
+    const textureDirection = junctionTextureDirection(directions);
+    const texturePerp = roadPerpendicular(textureDirection);
+    const positions: number[] = [center.x, surfaceY, center.z];
+    const uvs: number[] = [0.5, 0.5];
+    const indices: number[] = [];
+
+    for (const local of contour) {
+      const along = local.x * textureDirection.x + local.y * textureDirection.z;
+      const lateral = local.x * texturePerp.x + local.y * texturePerp.z;
+      positions.push(center.x + local.x, surfaceY, center.z + local.y);
+      uvs.push(0.5 + lateral / width, 0.5 + along / 5.8);
+    }
+    for (let index = 0; index < contour.length; index++) {
+      const current = index + 1;
+      const next = (index + 1) % contour.length + 1;
+      indices.push(0, next, current);
+    }
+    return this.createCapMesh(
+      positions,
+      uvs,
+      indices,
+      this.materials.road,
+      bridgeBlend,
+    );
+  }
+
+  private bridgeJunctionRailingPaths(
+    center: THREE.Vector3,
+    directions: readonly THREE.Vector3[],
+    width: number,
+    deckY: number,
+  ): THREE.Vector3[][] {
+    const radius = Math.max(
+      width * 0.22,
+      width * 0.5 - BRIDGE_RAILING_EDGE_INSET,
+    );
+    const reach = width * ROAD_JUNCTION_REACH;
+    const contour = junctionContour(
+      [...directions],
+      radius,
+      reach,
+      BRIDGE_JUNCTION_SEGMENTS,
+    );
+    if (contour.length < 2) return [];
+
+    const railSegments = contour.map((point, index) => {
+      const next = contour[(index + 1) % contour.length];
+      return !isBridgeMouthSegment(point, next, directions, reach);
+    });
+    const firstOpening = railSegments.findIndex((active) => !active);
+    if (firstOpening < 0) return [];
+
+    const paths: THREE.Vector3[][] = [];
+    let current: THREE.Vector3[] = [];
+    for (let step = 1; step <= contour.length; step++) {
+      const index = (firstOpening + step) % contour.length;
+      if (railSegments[index]) {
+        if (current.length === 0) {
+          current.push(toJunctionWorldPoint(contour[index], center, deckY));
+        }
+        current.push(toJunctionWorldPoint(
+          contour[(index + 1) % contour.length],
+          center,
+          deckY,
+        ));
+        continue;
+      }
+      if (current.length >= 2) paths.push(current);
+      current = [];
+    }
+    if (current.length >= 2) paths.push(current);
+    return paths;
+  }
+
   private junctionRing(directions: THREE.Vector3[], radius: number, width: number, blend: boolean): THREE.Vector2[] {
     const sampleCount = Math.max(48, directions.length * 16);
     const halfWidth = width * (blend ? 1.42 : 0.54);
@@ -312,6 +475,79 @@ type EndpointFrame = {
   width: number;
   textureBaseV: number;
 };
+
+type JunctionBridgeSurface = {
+  blend: number;
+  y: number;
+};
+
+function isBridgeMouthSegment(
+  start: THREE.Vector2,
+  end: THREE.Vector2,
+  directions: readonly THREE.Vector3[],
+  reach: number,
+): boolean {
+  const midX = (start.x + end.x) * 0.5;
+  const midZ = (start.y + end.y) * 0.5;
+  return directions.some((direction) => (
+    midX * direction.x + midZ * direction.z >= reach - BRIDGE_MOUTH_TOLERANCE
+  ));
+}
+
+function toJunctionWorldPoint(
+  local: THREE.Vector2,
+  center: THREE.Vector3,
+  surfaceY: number,
+): THREE.Vector3 {
+  return new THREE.Vector3(center.x + local.x, surfaceY, center.z + local.y);
+}
+
+/** Star-shaped outline of a round hub plus short road-strip stubs. */
+export function junctionContour(
+  directions: THREE.Vector3[],
+  radius: number,
+  reach: number,
+  segments = BRIDGE_JUNCTION_SEGMENTS,
+): THREE.Vector2[] {
+  const contour: THREE.Vector2[] = [];
+  for (let index = 0; index < segments; index++) {
+    const angle = index / segments * Math.PI * 2;
+    const ux = Math.cos(angle);
+    const uz = Math.sin(angle);
+    let radialExtent = radius;
+    for (const direction of directions) {
+      const along = ux * direction.x + uz * direction.z;
+      if (along <= 1e-4) continue;
+      const lateral = Math.abs(ux * direction.z - uz * direction.x);
+      const widthExtent = lateral <= 1e-4 ? Infinity : radius / lateral;
+      const reachExtent = reach / along;
+      radialExtent = Math.max(radialExtent, Math.min(widthExtent, reachExtent));
+    }
+    contour.push(new THREE.Vector2(ux * radialExtent, uz * radialExtent));
+  }
+  return contour;
+}
+
+function uniqueDirections(directions: THREE.Vector3[]): THREE.Vector3[] {
+  const unique: THREE.Vector3[] = [];
+  for (const direction of directions) {
+    if (direction.lengthSq() < 1e-6) continue;
+    direction.y = 0;
+    direction.normalize();
+    if (unique.some((candidate) => candidate.dot(direction) > 0.9995)) continue;
+    unique.push(direction);
+  }
+  return unique;
+}
+
+function junctionTextureDirection(directions: THREE.Vector3[]): THREE.Vector3 {
+  const sum = directions.reduce(
+    (result, direction) => result.add(direction),
+    new THREE.Vector3(),
+  );
+  if (sum.lengthSq() > 0.05) return sum.setY(0).normalize();
+  return directions[0]?.clone().setY(0).normalize() ?? new THREE.Vector3(1, 0, 0);
+}
 
 function averageWidth(edges: RoadEdge[]): number {
   return edges.reduce((sum, edge) => sum + edge.width, 0) / Math.max(1, edges.length);

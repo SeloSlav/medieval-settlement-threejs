@@ -298,6 +298,10 @@ function createInstancedLodSet(
         }
 
         const crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
+        // Whole-crown underlays are visual filler, not foliage silhouettes.
+        // Sending their large crossed quads through the shadow pass projects
+        // the card bounds as rectangular shadows at strategic-map distances.
+        const cardCastsShadow = castShadow && !crownUnderlay;
         const sourceMaterial = instanced.material as THREE.Material;
         const fmat = applySeedThreeForestCardMotion(
           stabilizeSeedThreeForestCardMaterial(
@@ -323,10 +327,10 @@ function createInstancedLodSet(
           userData: Record<string, unknown>;
         };
         im.name = `${debugName} cards`;
-        im.castShadow = castShadow;
+        im.castShadow = cardCastsShadow;
         im.receiveShadow = true;
         im.frustumCulled = false;
-        im.userData.neverCastShadow = !castShadow;
+        im.userData.neverCastShadow = !cardCastsShadow;
         im.userData.src = instanced;
         im.userData.k = cardsPerTree;
         im.userData.crownUnderlay = crownUnderlay;

@@ -104,13 +104,15 @@ export function bridgeBlendAtDistance(distance: number, spans: BridgeSpan[]): nu
   for (const span of spans) {
     if (distance < span.rampStart || distance > span.rampEnd) continue;
 
-    const climbStart = span.rampStart + (span.approachHold ?? BRIDGE_APPROACH_HOLD);
-    if (distance < climbStart) continue;
-
+    // A wet span can begin at the first path sample, leaving no room for an
+    // approach hold or entry ramp. The deck test must win in that case so a
+    // bridge connected at its start node reaches the node at full deck height.
     if (distance >= span.deckStart && distance <= span.deckEnd) {
       blend = Math.max(blend, 1);
       continue;
     }
+    const climbStart = span.rampStart + (span.approachHold ?? BRIDGE_APPROACH_HOLD);
+    if (distance < climbStart) continue;
     if (distance < span.deckStart) {
       blend = Math.max(blend, smootherstep(climbStart, span.deckStart, distance));
       continue;
