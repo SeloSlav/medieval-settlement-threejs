@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { WorldDimensions } from '../world/worldGenerationSettings.ts';
+import { forestDensityAt, type ForestCore } from '../props/forestField.ts';
 import { sampleTerrainBlendWeights, sampleTerrainUv } from './TerrainBlendWeights.ts';
 import { sampleBaseTerrainHeight } from './TerrainHeight.ts';
 import { createHeightfieldNormals } from './terrainNormals.ts';
@@ -10,6 +11,8 @@ import { createHeightfieldNormals } from './terrainNormals.ts';
 // not production terrain tessellation. Keeping its software-rendered world
 // lightweight makes that regression check deterministic on CI.
 export const TERRAIN_RESOLUTION = import.meta.env?.VITE_E2E_TEST === '1' ? 257 : 769;
+export const FOREST_FLOOR_BLEND_START = 0.34;
+export const FOREST_FLOOR_BLEND_END = 0.68;
 
 export type TerrainGeometryData = {
   resolution: number;
@@ -17,6 +20,7 @@ export type TerrainGeometryData = {
   normals: Float32Array;
   uvs: Float32Array;
   colors: Float32Array;
+  forestBlends: Float32Array;
   shoreBlends: Float32Array;
   quarryPadBlends: Float32Array;
   indices: Uint32Array;
@@ -32,6 +36,7 @@ export async function buildTerrainGeometryData(
   dimensions: WorldDimensions,
   onProgress?: (completedRows: number, totalRows: number) => void,
   yieldControl: () => Promise<void> = async () => undefined,
+  forestCores: readonly ForestCore[] = [],
 ): Promise<TerrainGeometryData> {
   const resolution = TERRAIN_RESOLUTION;
   const size = dimensions.terrainSize;
@@ -39,6 +44,7 @@ export async function buildTerrainGeometryData(
   const positions = new Float32Array(vertexCount * 3);
   const uvs = new Float32Array(vertexCount * 2);
   const colors = new Float32Array(vertexCount * 3);
+  const forestBlends = new Float32Array(vertexCount);
   const shoreBlends = new Float32Array(vertexCount);
   const quarryPadBlends = new Float32Array(vertexCount);
   const step = size / (resolution - 1);
@@ -65,6 +71,15 @@ export async function buildTerrainGeometryData(
       colors[colorOffset] = weights[0];
       colors[colorOffset + 1] = weights[1];
       colors[colorOffset + 2] = weights[2];
+
+      const forestDensity = forestDensityAt(
+        x,
+        z,
+        forestCores,
+        dimensions.playableSize * 0.5,
+        dimensions.terrainSize * 0.5,
+      );
+      forestBlends[vertexIndex] = forestFloorBlendAtDensity(forestDensity);
 
       shoreBlends[vertexIndex] = riverField?.sampleMudBlendAt(x, z) ?? 0;
       quarryPadBlends[vertexIndex] = quarryLayout?.getPadBlend(x, z) ?? 0;
@@ -106,6 +121,7 @@ export async function buildTerrainGeometryData(
     normals,
     uvs,
     colors,
+    forestBlends,
     shoreBlends,
     quarryPadBlends,
     indices,
@@ -127,6 +143,7 @@ export function createTerrainGeometry(data: TerrainGeometryData): THREE.BufferGe
   geometry.setAttribute('uv', new THREE.BufferAttribute(data.uvs, 2));
   geometry.setAttribute('uv2', new THREE.BufferAttribute(data.uvs, 2));
   geometry.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
+  geometry.setAttribute('forestBlend', new THREE.BufferAttribute(data.forestBlends, 1));
   geometry.setAttribute('shoreBlend', new THREE.BufferAttribute(data.shoreBlends, 1));
   geometry.setAttribute('roadWearBlend', new THREE.BufferAttribute(roadWearBlends, 1));
   geometry.setAttribute('quarryPadBlend', new THREE.BufferAttribute(data.quarryPadBlends, 1));
@@ -136,4 +153,14 @@ export function createTerrainGeometry(data: TerrainGeometryData): THREE.BufferGe
     data.boundingSphere.radius,
   );
   return geometry;
+}
+
+export function forestFloorBlendAtDensity(density: number): number {
+  const t = THREE.MathUtils.clamp(
+    (density - FOREST_FLOOR_BLEND_START)
+      / (FOREST_FLOOR_BLEND_END - FOREST_FLOOR_BLEND_START),
+    0,
+    1,
+  );
+  return t * t * (3 - 2 * t);
 }

@@ -336,8 +336,8 @@ assert.match(roadFactorySource, /roadWeatherProfile\(environment\)/);
 assert.doesNotMatch(roadFactorySource, /loadTerrainSnowTextures|terrainSnowTextures/);
 assert.match(
   roadTextureLoaderSource,
-  /manor_grass_dry\/snow_albedo_atlas\.png/,
-  'the terrain pipeline must load the packed dry-grass and generated-snow atlas',
+  /manor_grass_dry\/snow_leaf_albedo_atlas\.png/,
+  'the terrain pipeline must load the packed dry-grass, generated-snow, and forest-litter atlas',
 );
 assert.match(roadFactorySource, /1 - Math\.exp\(-Math\.max\(0,\s*dt\) \* 2\.8\)/);
 assert.match(roadFactorySource, /readonly rainTerrain!:\s*THREE\.MeshStandardMaterial/);
@@ -409,9 +409,16 @@ assert.match(
   /this\.terrain\.mesh\.material\s*=\s*this\.fairTerrainMaterial;[\s\S]*?this\.terrain\.dispose\(\)/,
   'terrain disposal must restore and release its generated fair-weather material',
 );
-assert.match(terrainMaterialSource, /const stableColorNode = biomeBaseColor/);
+assert.match(
+  terrainMaterialSource,
+  /const stableColorNode = mix\([\s\S]*?forestStableColorNode[\s\S]*?forestBlend/,
+);
 assert.match(terrainMaterialSource, /const rainMoisture = smoothstep/);
-assert.match(terrainMaterialSource, /const rainStableColorNode = rainMacroColor/);
+assert.match(terrainMaterialSource, /const grassRainStableColorNode = rainMacroColor/);
+assert.match(
+  terrainMaterialSource,
+  /const rainStableColorNode = mix\([\s\S]*?forestRainStableColorNode[\s\S]*?forestBlend/,
+);
 assert.match(
   terrainMaterialSource,
   /TERRAIN_FULL_RAIN_ALBEDO_DETAIL_FLOOR = 1/,

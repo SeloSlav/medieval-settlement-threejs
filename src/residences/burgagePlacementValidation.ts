@@ -15,6 +15,7 @@ import {
   cornersToArray,
   getZoneEdge,
   measureZoneDepth,
+  measureZoneSideDepths,
   resolveBurgageLayout,
   suggestPlotCount,
   type ResidencePlacement,
@@ -142,7 +143,11 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
   }
 
   const zoneDepth = measureZoneDepth(zoneCorners, context.frontageEdge);
-  if (zoneDepth > MAX_ZONE_DEPTH + 0.05) {
+  const sideDepths = measureZoneSideDepths(zoneCorners, context.frontageEdge);
+  if (zoneDepth + 1e-6 < MIN_ZONE_DEPTH) {
+    return { ok: false, reason: 'too_small' };
+  }
+  if (Math.max(...sideDepths) > MAX_ZONE_DEPTH + 0.05) {
     return { ok: false, reason: 'too_deep' };
   }
 
@@ -154,9 +159,6 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
   const layout = context.precomputedLayout
     ?? resolveBurgageLayout(zoneCorners, context.frontageEdge, context.plotCount);
   if (!layout || layout.residences.length === 0) {
-    if (zoneDepth < MIN_ZONE_DEPTH) {
-      return { ok: false, reason: 'too_small' };
-    }
     return { ok: false, reason: 'no_fit' };
   }
   if (layout.residences.some((residence) => (

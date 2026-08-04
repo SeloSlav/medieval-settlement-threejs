@@ -1,7 +1,10 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{backyard_garden_def_by_slug, BackyardGardenKind};
-use crate::burgage::{backyard_center, measure_zone_depth, Point2, ZoneCorners};
+use crate::burgage::{
+    backyard_center, measure_zone_depth, min_backyard_extension_depth, residence_backyard_depth,
+    Point2, ZoneCorners,
+};
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::{
@@ -43,6 +46,40 @@ pub fn place_backyard_garden(
     }
     if residence.tier == 0 {
         return Err("Finish the cottage before improving its backyard.".to_string());
+    }
+    let zone = ctx
+        .db
+        .burgage_zone()
+        .id()
+        .find(&residence.zone_id)
+        .ok_or_else(|| "Residence plot not found.".to_string())?;
+    let corners = ZoneCorners {
+        a: Point2 {
+            x: zone.corner_ax,
+            z: zone.corner_az,
+        },
+        b: Point2 {
+            x: zone.corner_bx,
+            z: zone.corner_bz,
+        },
+        c: Point2 {
+            x: zone.corner_cx,
+            z: zone.corner_cz,
+        },
+        d: Point2 {
+            x: zone.corner_dx,
+            z: zone.corner_dz,
+        },
+    };
+    let backyard_depth = residence_backyard_depth(
+        &corners,
+        zone.frontage_edge,
+        zone.plot_count,
+        residence.parcel_index,
+    )
+    .unwrap_or(0.0);
+    if backyard_depth + 1e-6 < min_backyard_extension_depth() {
+        return Err("This plot is not deep enough for a backyard attachment.".to_string());
     }
 
     if ctx

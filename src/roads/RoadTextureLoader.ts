@@ -70,7 +70,7 @@ export class RoadTextureLoader {
       this.loadTerrainBlendSet('/assets/textures/terrain/manor_grass_dense'),
       this.loadTerrainBlendSet(
         '/assets/textures/terrain/manor_grass_dry',
-        '/assets/textures/terrain/manor_grass_dry/snow_albedo_atlas.png',
+        '/assets/textures/terrain/manor_grass_dry/snow_leaf_albedo_atlas.png',
       ),
     ]);
     return { meadow, dense, dry };

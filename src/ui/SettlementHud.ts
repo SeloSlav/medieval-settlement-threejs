@@ -62,6 +62,12 @@ import {
   type HudResourceKind,
 } from '../resources/resourceTotals.ts';
 import { CALENDAR_SECONDS_PER_DAY, SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+import {
+  applyHeraldryToElement,
+  createHeraldryShield,
+  getCurrentNobleProfile,
+  getNoble,
+} from './nobleProfile.ts';
 
 function gameSpeedTimingLabel(speed: GameSpeed): string {
   if (speed === 0) return 'Freezes the calendar, economy, and world simulation';
@@ -74,6 +80,36 @@ function gameSpeedTimingLabel(speed: GameSpeed): string {
 
 const SETTLEMENT_HUD_HTML = `
   <div class="settlement-hud" data-settlement-hud data-fps-panel aria-label="Settlement overview" aria-live="polite">
+    <aside class="noble-hud" data-noble-hud aria-label="Plemićki profil">
+      <div class="noble-hud__portrait-shell">
+        <img class="noble-hud__portrait" data-noble-hud-portrait alt="" width="560" height="560" />
+        <span class="noble-hud__shield" data-noble-hud-shield></span>
+      </div>
+      <div class="noble-hud__identity">
+        <span>Gospodar Gorskog kotara</span>
+        <strong data-noble-hud-name></strong>
+        <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" data-tooltip-title="Civic gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
+          <span class="settlement-hud__label">Gold</span>
+          <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
+          <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="noble-hud__eye"
+        data-noble-eye
+        data-tooltip-title="Pogled iz prvog lica"
+        data-tooltip="Prošeći svojim posjedom. Tipka ~ i dalje radi."
+        aria-label="Uđi u pogled iz prvog lica"
+        aria-pressed="false"
+        disabled
+      >
+        <svg viewBox="0 0 28 18" aria-hidden="true">
+          <path d="M1.5 9s4.4-7 12.5-7 12.5 7 12.5 7-4.4 7-12.5 7S1.5 9 1.5 9Z" />
+          <circle cx="14" cy="9" r="3.3" />
+        </svg>
+      </button>
+    </aside>
     <div class="settlement-hud__clock" data-settlement-clock>
       <span class="settlement-hud__clock-date" data-clock-date>Year 1</span>
       <span class="settlement-hud__clock-time" data-clock-time>08:00</span>
@@ -276,11 +312,6 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="food">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--gold" tabindex="0" data-resource="gold" data-tooltip-title="Civic gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
-        <span class="settlement-hud__label">Gold</span>
-        <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
-      </div>
     </div>
     <details class="settlement-hud__stores" data-specialty-stores>
       <summary
@@ -450,6 +481,8 @@ export class SettlementHud {
   private readonly speedButtons: HTMLButtonElement[];
   private readonly fpsValue: HTMLElement;
   private readonly zoomValue: HTMLElement;
+  private readonly nobleEye: HTMLButtonElement;
+  private onToggleFirstPerson: (() => void) | null = null;
   private onLocateResource: ((resource: HudResourceKind) => void) | null = null;
   private onInspectGeologyAttention: ((buildingId: string) => void) | null = null;
   private onInspectSecurityAttention: ((
@@ -482,6 +515,18 @@ export class SettlementHud {
     parent.appendChild(panel);
     this.root = panel;
     this.panel = panel;
+    const profile = getCurrentNobleProfile();
+    const noble = getNoble(profile.nobleId);
+    const noblePortrait = this.mustElement('[data-noble-hud-portrait]') as HTMLImageElement;
+    const nobleName = this.mustElement('[data-noble-hud-name]');
+    const nobleShieldMount = this.mustElement('[data-noble-hud-shield]');
+    noblePortrait.src = noble.portrait;
+    noblePortrait.alt = `Portret: ${profile.displayName}`;
+    nobleName.textContent = profile.displayName;
+    const nobleShield = createHeraldryShield('heraldry-shield--hud');
+    applyHeraldryToElement(nobleShield, profile.heraldry);
+    nobleShieldMount.appendChild(nobleShield);
+    this.nobleEye = this.mustButton('[data-noble-eye]');
     this.clockDate = this.mustElement('[data-clock-date]');
     this.clockTime = this.mustElement('[data-clock-time]');
     this.clockDetail = this.mustElement('[data-clock-detail]');
@@ -558,9 +603,28 @@ export class SettlementHud {
     this.geologyAlert.addEventListener('click', this.onGeologyAlertClick);
     this.approvalButton.addEventListener('click', this.onApprovalToggle);
     this.approvalClose.addEventListener('click', this.onApprovalClose);
+    this.nobleEye.addEventListener('click', this.onNobleEyeClick);
     window.addEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);
     window.addEventListener('keydown', this.onApprovalEscape, true);
   }
+
+  setFirstPersonToggle(handler: (() => void) | null): void {
+    this.onToggleFirstPerson = handler;
+    this.nobleEye.disabled = handler === null;
+  }
+
+  setFirstPersonActive(active: boolean): void {
+    this.nobleEye.classList.toggle('is-active', active);
+    this.nobleEye.setAttribute('aria-pressed', String(active));
+    this.nobleEye.setAttribute(
+      'aria-label',
+      active ? 'Napusti pogled iz prvog lica' : 'Uđi u pogled iz prvog lica',
+    );
+  }
+
+  private readonly onNobleEyeClick = (): void => {
+    this.onToggleFirstPerson?.();
+  };
 
   setResourceLocator(handler: ((resource: HudResourceKind) => void) | null): void {
     this.onLocateResource = handler;
@@ -1287,6 +1351,7 @@ export class SettlementHud {
   }
 
   dispose(): void {
+    this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
     this.geologyAlert.removeEventListener('click', this.onGeologyAlertClick);
     window.removeEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);

@@ -22,6 +22,16 @@ import {
 } from '../src/placement/TerrainOverlayGeometry.ts';
 import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLayout.ts';
 import { burgageZoneTouchesWater } from '../src/residences/burgagePlacementValidation.ts';
+import { BurgagePreview } from '../src/residences/BurgagePreview.ts';
+import { BurgageTool } from '../src/residences/BurgageTool.ts';
+import { backyardGardenPlacementForParcel } from '../src/residences/backyardPosition.ts';
+import {
+  MAX_ZONE_DEPTH,
+  MIN_ZONE_DEPTH,
+  cornersFromPoints,
+  measureZoneSideDepths,
+  resolveBurgageLayout,
+} from '../src/residences/burgageLayout.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import type {
@@ -135,6 +145,135 @@ function testBurgageWaterValidationSamplesTheWholeZone(): void {
     false,
     'nearby water outside the parcel must not block dry shoreline placement',
   );
+}
+
+function testOrganicBurgagePlotsAndPreviewIcons(): void {
+  const authoredRearCorner = new THREE.Vector3(-3, 0, 12);
+  const draftTool = Object.create(BurgageTool.prototype) as BurgageTool;
+  Object.assign(draftTool as object, {
+    placementStage: 3,
+    points: [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(24, 0, 0),
+      new THREE.Vector3(27, 0, 18),
+    ],
+    hoverPoint: authoredRearCorner,
+    options: { getHeightAt: () => 0 },
+  });
+  const draftCorners = (draftTool as unknown as {
+    resolvePreviewCorners: () => THREE.Vector3[];
+  }).resolvePreviewCorners();
+  assert.deepEqual(
+    { x: draftCorners[3].x, z: draftCorners[3].z },
+    { x: -3, z: 12 },
+    'the fourth plot point must remain the independently picked rear corner',
+  );
+
+  const angledCorners = cornersFromPoints([
+    { x: 0, z: 0 },
+    { x: 24, z: 0 },
+    { x: 27, z: 18 },
+    { x: -3, z: 12 },
+  ]);
+  assert.ok(angledCorners);
+  assert.deepEqual(
+    measureZoneSideDepths(angledCorners, 0).map((depth) => Math.round(depth)),
+    [12, 18],
+    'independently authored rear corners must retain their different perpendicular depths',
+  );
+  const angledLayout = resolveBurgageLayout(angledCorners, 0, 3);
+  assert.ok(angledLayout && angledLayout.residences.length >= 2);
+  assert.notEqual(
+    angledLayout.parcels[0].polygon[3].z,
+    angledLayout.parcels.at(-1)?.polygon[2].z,
+    'parcel subdivision must follow the angled rear boundary instead of rebuilding a rectangle',
+  );
+
+  const shallowDepth = MIN_ZONE_DEPTH + 0.2;
+  const shallowCorners = cornersFromPoints([
+    { x: 0, z: 0 },
+    { x: 24, z: 0 },
+    { x: 24, z: shallowDepth },
+    { x: 0, z: shallowDepth },
+  ]);
+  assert.ok(shallowCorners);
+  const shallowLayout = resolveBurgageLayout(shallowCorners, 0, 3);
+  assert.ok(shallowLayout && shallowLayout.residences.length === 3);
+  for (const residence of shallowLayout.residences) {
+    const parcel = shallowLayout.parcels.find((entry) => entry.index === residence.parcelIndex);
+    assert.ok(parcel);
+    assert.equal(
+      backyardGardenPlacementForParcel(residence, parcel),
+      null,
+      'a cottage may fit while its parcel remains too shallow for a backyard attachment',
+    );
+  }
+
+  const deepCorners = cornersFromPoints([
+    { x: 0, z: 0 },
+    { x: 24, z: 0 },
+    { x: 24, z: Math.min(18, MAX_ZONE_DEPTH) },
+    { x: 0, z: Math.min(18, MAX_ZONE_DEPTH) },
+  ]);
+  assert.ok(deepCorners);
+  const deepLayout = resolveBurgageLayout(deepCorners, 0, 3);
+  assert.ok(deepLayout && deepLayout.residences.length === 3);
+
+  const preview = new BurgagePreview();
+  const shallowPreviewCorners = [
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(24, 0, 0),
+    new THREE.Vector3(24, 0, shallowDepth),
+    new THREE.Vector3(0, 0, shallowDepth),
+  ];
+  preview.update(
+    shallowPreviewCorners,
+    shallowLayout,
+    true,
+    () => 0,
+    false,
+    4,
+    null,
+    0,
+    shallowPreviewCorners,
+    2,
+    shallowPreviewCorners,
+    null,
+  );
+  const residenceIcons = preview.group.getObjectByName('Residence placement icons') as THREE.InstancedMesh;
+  const backyardIcons = preview.group.getObjectByName('Backyard extension placement icons') as THREE.InstancedMesh;
+  assert.equal(residenceIcons.count, 3, 'shallow plots should retain their cottage placement icons');
+  assert.equal(backyardIcons.count, 0, 'shallow plots should omit backyard extension icons');
+
+  const previewCorners = [
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(24, 0, 0),
+    new THREE.Vector3(24, 0, 18),
+    new THREE.Vector3(0, 0, 18),
+  ];
+  preview.update(
+    previewCorners,
+    deepLayout,
+    false,
+    () => 0,
+    true,
+    3,
+    previewCorners[3],
+    0,
+    previewCorners,
+    2,
+    previewCorners.slice(0, 3),
+    null,
+  );
+  const border = preview.group.getObjectByName('Residence plot dotted border') as THREE.Mesh;
+  assert.equal(residenceIcons.count, 3, 'every fitting cottage should have a placement icon');
+  assert.equal(backyardIcons.count, 3, 'every deep-enough parcel should have a backyard icon');
+  assert.equal(
+    (border.material as THREE.MeshBasicMaterial).color.getHex(),
+    0xff5d50,
+    'a complete hovered four-corner preview must turn red before the final click when invalid',
+  );
+  preview.dispose();
 }
 
 function testRoadFacingBuildingsSnapToRoadSides(): void {
@@ -561,6 +700,7 @@ testClearanceSpatialIndexKeepsNearbyCandidates();
 testRoadFacingBuildingsSnapToRoadSides();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
+testOrganicBurgagePlotsAndPreviewIcons();
 testPlacementOverlaysFollowTerrainHeight();
 testPlacementPreviewShowsTerrainFollowingExtent();
 testCivicAndFrontierPlacementPrerequisites();

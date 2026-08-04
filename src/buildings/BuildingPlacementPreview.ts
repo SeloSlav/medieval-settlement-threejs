@@ -14,7 +14,7 @@ import {
   type FireCoverageBand,
 } from '../fires/fireRiskPolicy.ts';
 import { FIRE_SPREAD_RADIUS } from '../generated/gameBalance.ts';
-import { getBuildingFootprintHalfExtents } from './BuildingTerrainLayout.ts';
+import { getBuildingFootprintCorners } from './BuildingTerrainLayout.ts';
 import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
 
 const PREVIEW_COLORS = {
@@ -141,19 +141,7 @@ export function updateBuildingPreviewGeometry(
   yaw: number,
   getHeightAt: (x: number, z: number) => number,
 ): void {
-  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(kind);
-  const cos = Math.cos(yaw);
-  const sin = Math.sin(yaw);
-  const worldPoint = (localX: number, localZ: number) => ({
-    x: x + localX * cos - localZ * sin,
-    z: z + localX * sin + localZ * cos,
-  });
-  const corners = [
-    worldPoint(-halfWidth, -halfDepth),
-    worldPoint(halfWidth, -halfDepth),
-    worldPoint(halfWidth, halfDepth),
-    worldPoint(-halfWidth, halfDepth),
-  ] as const;
+  const corners = getBuildingFootprintCorners(kind, x, z, yaw);
 
   const fill = group.getObjectByName('Building footprint fill');
   if (fill instanceof THREE.Mesh) {

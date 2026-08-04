@@ -1,6 +1,7 @@
 import { clearStoredSpacetimeToken } from '../network/identityPersistence.ts';
 import { probeServerWorldConfig } from '../network/serverWorldProbe.ts';
 import { resetWorld } from '../data/spacetimeReducers.ts';
+import { NobleSetupPanel } from '../ui/NobleSetupPanel.ts';
 import { WorldSetupPanel } from '../ui/WorldSetupPanel.ts';
 import { resolveWorldGenerationAuthority } from '../world/worldConfigAuthority.ts';
 import {
@@ -20,6 +21,7 @@ export async function resolveWorldGenerationSettings(
 ): Promise<WorldGenerationSettings> {
   const explicitNewWorld = new URLSearchParams(window.location.search).has('new');
   if (explicitNewWorld) {
+    await NobleSetupPanel.prompt(root);
     return WorldSetupPanel.prompt(root);
   }
 
@@ -52,6 +54,7 @@ export async function resolveWorldGenerationSettings(
       detail: 'Choose map size, landscape, and seed',
     });
   }
+  await NobleSetupPanel.prompt(root);
   return WorldSetupPanel.prompt(root);
 }
 

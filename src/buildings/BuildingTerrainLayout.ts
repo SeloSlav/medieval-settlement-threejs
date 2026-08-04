@@ -163,6 +163,33 @@ export function getBuildingFootprintHalfExtents(kind: BuildingKind): {
   };
 }
 
+/** Exact world-space footprint corners shared by placement and hover feedback. */
+export function getBuildingFootprintCorners(
+  kind: BuildingKind,
+  x: number,
+  z: number,
+  yaw: number,
+): [
+  { x: number; z: number },
+  { x: number; z: number },
+  { x: number; z: number },
+  { x: number; z: number },
+] {
+  const { halfWidth, halfDepth } = getBuildingFootprintHalfExtents(kind);
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  const worldPoint = (localX: number, localZ: number) => ({
+    x: x + localX * cos - localZ * sin,
+    z: z + localX * sin + localZ * cos,
+  });
+  return [
+    worldPoint(-halfWidth, -halfDepth),
+    worldPoint(halfWidth, -halfDepth),
+    worldPoint(halfWidth, halfDepth),
+    worldPoint(-halfWidth, halfDepth),
+  ];
+}
+
 /** Conservative center-query radius for any building pad with obstacle clearance. */
 export function getBuildingSiteClearanceSearchRadius(clearanceRadius = 0): number {
   return MAX_BUILDING_SITE_BASE_RADIUS

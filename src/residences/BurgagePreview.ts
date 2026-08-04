@@ -11,6 +11,7 @@ import type { Point2 } from '../utils/polygonGeometry.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import type { BurgageLayoutResult } from './burgageLayout.ts';
 import { getParcelDividerSegments } from './burgageLayout.ts';
+import { backyardGardenPlacementForParcel } from './backyardPosition.ts';
 
 const VALID_COLOR = 0xfffdf5;
 const INVALID_COLOR = 0xff5d50;
@@ -19,8 +20,10 @@ const BORDER_LIFT = 0.17;
 const FRONTAGE_LIFT = 0.205;
 const DIVIDER_LIFT = 0.155;
 const MARKER_LIFT = 0.2;
+const ICON_LIFT = 0.235;
 const BORDER_DASH_LENGTH = 1.5;
 const BORDER_DASH_GAP = 0.82;
+const MAX_PREVIEW_ICONS = 128;
 
 function cornersSignature(corners: readonly THREE.Vector3[]): string {
   return corners
@@ -37,12 +40,52 @@ function layoutSignature(layout: BurgageLayoutResult | null): string {
   if (!layout) return 'none';
   return [
     layout.plotCount,
+    layout.residences
+      .map((residence) => (
+        `${residence.x.toFixed(2)},${residence.z.toFixed(2)},${residence.yaw.toFixed(2)}`
+      ))
+      .join('|'),
     getParcelDividerSegments(layout)
       .map(([start, end]) => (
         `${start.x.toFixed(2)},${start.z.toFixed(2)}-${end.x.toFixed(2)},${end.z.toFixed(2)}`
       ))
       .join('|'),
   ].join(';');
+}
+
+function createGroundIconGeometry(points: ReadonlyArray<readonly [number, number]>): THREE.ShapeGeometry {
+  const shape = new THREE.Shape();
+  const [first, ...rest] = points;
+  shape.moveTo(first[0], first[1]);
+  for (const point of rest) shape.lineTo(point[0], point[1]);
+  shape.closePath();
+  const geometry = new THREE.ShapeGeometry(shape);
+  geometry.rotateX(Math.PI * 0.5);
+  return geometry;
+}
+
+function createHouseIconGeometry(): THREE.ShapeGeometry {
+  return createGroundIconGeometry([
+    [-0.9, -0.72],
+    [0.9, -0.72],
+    [0.9, 0.12],
+    [0, 0.94],
+    [-0.9, 0.12],
+  ]);
+}
+
+function createBackyardIconGeometry(): THREE.ShapeGeometry {
+  return createGroundIconGeometry([
+    [-0.78, -0.68],
+    [-0.24, -0.68],
+    [-0.24, 0.18],
+    [0.24, 0.18],
+    [0.24, -0.12],
+    [0.86, 0.46],
+    [0.24, 1.02],
+    [0.24, 0.7],
+    [-0.78, 0.7],
+  ]);
 }
 
 function toPoint2(point: THREE.Vector3): Point2 {
@@ -77,10 +120,15 @@ export class BurgagePreview {
   private readonly dividerLines: THREE.Mesh;
   private readonly cornerMarkers: THREE.InstancedMesh;
   private readonly hoverMarker: THREE.Mesh;
+  private readonly residenceIcons: THREE.InstancedMesh;
+  private readonly backyardIcons: THREE.InstancedMesh;
   private readonly cornerMatrix = new THREE.Matrix4();
+  private readonly iconMatrix = new THREE.Matrix4();
+  private readonly iconQuaternion = new THREE.Quaternion();
   private lastGeometrySignature = '';
   private lastValid: boolean | null = null;
   private lastPlacing = false;
+  private lastValidationVisible = false;
 
   constructor() {
     this.group.name = 'Terrain-hugging residence plot preview';
@@ -157,6 +205,30 @@ export class BurgagePreview {
     this.hoverMarker.frustumCulled = false;
     this.hoverMarker.visible = false;
     this.group.add(this.hoverMarker);
+
+    this.residenceIcons = new THREE.InstancedMesh(
+      createHouseIconGeometry(),
+      createOverlayMaterial(VALID_COLOR, 0.9),
+      MAX_PREVIEW_ICONS,
+    );
+    this.residenceIcons.name = 'Residence placement icons';
+    this.residenceIcons.renderOrder = 18;
+    this.residenceIcons.frustumCulled = false;
+    this.residenceIcons.count = 0;
+    this.residenceIcons.visible = false;
+    this.group.add(this.residenceIcons);
+
+    this.backyardIcons = new THREE.InstancedMesh(
+      createBackyardIconGeometry(),
+      createOverlayMaterial(VALID_COLOR, 0.82),
+      MAX_PREVIEW_ICONS,
+    );
+    this.backyardIcons.name = 'Backyard extension placement icons';
+    this.backyardIcons.renderOrder = 18;
+    this.backyardIcons.frustumCulled = false;
+    this.backyardIcons.count = 0;
+    this.backyardIcons.visible = false;
+    this.group.add(this.backyardIcons);
   }
 
   update(
@@ -225,7 +297,7 @@ export class BurgagePreview {
 
   setValidity(valid: boolean): void {
     this.lastValid = valid;
-    const color = valid || this.lastPlacing ? VALID_COLOR : INVALID_COLOR;
+    const color = valid || !this.lastValidationVisible ? VALID_COLOR : INVALID_COLOR;
     for (const object of [
       this.zoneFill,
       this.zoneBorder,
@@ -234,13 +306,15 @@ export class BurgagePreview {
       this.dividerLines,
       this.cornerMarkers,
       this.hoverMarker,
+      this.residenceIcons,
+      this.backyardIcons,
     ]) {
       const material = object.material;
       if (material instanceof THREE.MeshBasicMaterial) {
         material.color.setHex(color);
       }
     }
-    (this.zoneFill.material as THREE.MeshBasicMaterial).opacity = valid || this.lastPlacing
+    (this.zoneFill.material as THREE.MeshBasicMaterial).opacity = valid || !this.lastValidationVisible
       ? 0.105
       : 0.085;
   }
@@ -260,6 +334,7 @@ export class BurgagePreview {
   ): void {
     this.group.visible = true;
     this.lastPlacing = placing;
+    this.lastValidationVisible = corners.length === 4;
     this.setValidity(valid);
 
     const markerSource = placedPoints.length > 0
@@ -294,7 +369,7 @@ export class BurgagePreview {
       this.hoverMarker.visible = false;
     }
 
-    if (depthGuide && placing && placementStage === 2) {
+    if (depthGuide && placing && (placementStage === 2 || placementStage === 3)) {
       updateTerrainRibbonGeometry(
         this.depthGuide.geometry,
         [[toPoint2(depthGuide.from), toPoint2(depthGuide.to)]],
@@ -362,7 +437,14 @@ export class BurgagePreview {
     setGeometryVisible(this.frontageBorder);
 
     if (closeLoop) {
-      if (corners.length === 4) {
+      if (outlinePolygon && outlinePolygon.length > 4) {
+        updateTerrainPolygonFanGeometry(
+          this.zoneFill.geometry,
+          outlineSource,
+          getHeightAt,
+          FILL_LIFT,
+        );
+      } else if (corners.length === 4) {
         updateTerrainQuadGeometry(
           this.zoneFill.geometry,
           corners.map(toPoint2) as [Point2, Point2, Point2, Point2],
@@ -401,16 +483,67 @@ export class BurgagePreview {
       },
     );
     setGeometryVisible(this.dividerLines);
+
+    let residenceIconCount = 0;
+    let backyardIconCount = 0;
+    if (layout) {
+      for (const residence of layout.residences) {
+        if (residenceIconCount < MAX_PREVIEW_ICONS) {
+          this.iconQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), residence.yaw);
+          this.iconMatrix.compose(
+            new THREE.Vector3(
+              residence.x,
+              getHeightAt(residence.x, residence.z) + ICON_LIFT,
+              residence.z,
+            ),
+            this.iconQuaternion,
+            new THREE.Vector3(1.18, 1.18, 1.18),
+          );
+          this.residenceIcons.setMatrixAt(residenceIconCount, this.iconMatrix);
+          residenceIconCount += 1;
+        }
+
+        const parcel = layout.parcels.find((entry) => entry.index === residence.parcelIndex);
+        const backyard = parcel
+          ? backyardGardenPlacementForParcel(residence, parcel)
+          : null;
+        if (backyard && backyardIconCount < MAX_PREVIEW_ICONS) {
+          this.iconQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), residence.yaw);
+          this.iconMatrix.compose(
+            new THREE.Vector3(
+              backyard.x,
+              getHeightAt(backyard.x, backyard.z) + ICON_LIFT,
+              backyard.z,
+            ),
+            this.iconQuaternion,
+            new THREE.Vector3(1.08, 1.08, 1.08),
+          );
+          this.backyardIcons.setMatrixAt(backyardIconCount, this.iconMatrix);
+          backyardIconCount += 1;
+        }
+      }
+    }
+    this.residenceIcons.count = residenceIconCount;
+    this.residenceIcons.visible = residenceIconCount > 0;
+    this.residenceIcons.instanceMatrix.needsUpdate = residenceIconCount > 0;
+    this.backyardIcons.count = backyardIconCount;
+    this.backyardIcons.visible = backyardIconCount > 0;
+    this.backyardIcons.instanceMatrix.needsUpdate = backyardIconCount > 0;
   }
 
   clear(): void {
     this.lastGeometrySignature = '';
     this.lastValid = null;
     this.lastPlacing = false;
+    this.lastValidationVisible = false;
     this.group.visible = false;
     this.cornerMarkers.count = 0;
     this.cornerMarkers.visible = false;
     this.hoverMarker.visible = false;
+    this.residenceIcons.count = 0;
+    this.residenceIcons.visible = false;
+    this.backyardIcons.count = 0;
+    this.backyardIcons.visible = false;
   }
 
   dispose(): void {

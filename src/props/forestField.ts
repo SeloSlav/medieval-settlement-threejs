@@ -114,7 +114,7 @@ export function createForestCores(rng: () => number, spawnConfig: ForestSpawnCon
 export function forestDensityAt(
   x: number,
   z: number,
-  forestCores: ForestCore[],
+  forestCores: readonly ForestCore[],
   extent: number,
   terrainExtent?: number,
 ): number {

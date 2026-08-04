@@ -26,10 +26,19 @@ import type {
   TerrainBlendTextureSet,
   TextureSet,
 } from '../src/roads/RoadTextureLoader.ts';
+import {
+  FOREST_FLOOR_BLEND_END,
+  FOREST_FLOOR_BLEND_START,
+  forestFloorBlendAtDensity,
+} from '../src/terrain/terrainGeometryData.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const source = readFileSync(
   `${projectRoot}src/terrain/TerrainGrassMaterial.ts`,
+  'utf8',
+);
+const textureLoaderSource = readFileSync(
+  `${projectRoot}src/roads/RoadTextureLoader.ts`,
   'utf8',
 );
 
@@ -78,20 +87,30 @@ assert.match(ecologySource, /const denseGrain = smoothstep/);
 assert.match(ecologySource, /const dryGrain = smoothstep/);
 assert.match(ecologySource, /const overviewTexturedColor = mix/);
 assert.match(ecologySource, /float\(0\.88\)/);
-assert.match(ecologySource, /const biomeBaseColor =/);
-assert.match(ecologySource, /const stableColorNode = biomeBaseColor/);
-assert.match(ecologySource, /const colorNode = resolvedAlbedo/);
+assert.match(ecologySource, /const grassStableColorNode = mix/);
+assert.match(ecologySource, /const stableColorNode = mix\([\s\S]*?forestStableColorNode[\s\S]*?forestBlend/);
+assert.match(ecologySource, /const colorNode = mix\([\s\S]*?forestColorNode[\s\S]*?forestBlend/);
 assert.doesNotMatch(
   ecologySource,
   /const (?:macroTint|ecologyTint|forestTint|drainageTint|hierarchyTint|broadSoilValue) =/,
   'fair-weather terrain must preserve the authored grass-to-dirt blend instead of applying a green ecology wash',
 );
 assert.match(ecologySource, /const rainMoisture = smoothstep/);
-assert.match(ecologySource, /const rainStableColorNode = rainMacroColor/);
+assert.match(ecologySource, /const grassRainStableColorNode = rainMacroColor/);
 assert.match(
   ecologySource,
-  /const resolvedAlbedo = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
+  /const rainStableColorNode = mix\([\s\S]*?forestRainStableColorNode[\s\S]*?forestBlend/,
 );
+assert.match(
+  ecologySource,
+  /const grassColorNode = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
+);
+assert.match(ecologySource, /attribute\('forestBlend', 'float'\)/);
+assert.match(ecologySource, /packedForestLitterUv\(forestUv\)/);
+assert.match(ecologySource, /const forestColorNode = forestColor\.rgb/);
+assert.match(ecologySource, /const forestNormalNode = bumpMap/);
+assert.match(ecologySource, /const forestRoughnessNode = mix/);
+assert.match(ecologySource, /const forestAoNode = mix/);
 assert.match(ecologySource, /vec3\(0\.15, 0\.22, 0\.05\)/);
 assert.match(ecologySource, /vec3\(0\.024, 0\.045, 0\.012\)/);
 assert.match(ecologySource, /vec3\(0\.26, 0\.225, 0\.085\)/);
@@ -144,8 +163,8 @@ assert.doesNotMatch(
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
-  26,
-  'layered close soil, packed snow atlas and three reused albedo coverage samples must retain a bounded texture budget',
+  27,
+  'layered close soil, packed snow/leaf atlas and reused albedo coverage samples must retain a bounded texture budget',
 );
 assert.equal(
   (source.match(/\bsin\(/g) ?? []).length,
@@ -182,7 +201,17 @@ assert.match(
 );
 assert.match(
   source,
-  /const rainStableBaseColorNode = applyCloseZoomDirtBlend\([\s\S]*?dirtSurface\.colorNode[\s\S]*?dirtSurfaceAmount/,
+  /const baseColorNode = mix\(\s*grassOrDirtColorNode,\s*blendNodes\.forestColorNode,\s*forestSurfaceBlend/,
+  'forest litter must override both overview grass and close dirt after their zoom handoff',
+);
+assert.match(
+  source,
+  /const forestSurfaceBlend = blendNodes\.forestBlend\.mul\([\s\S]*?wornMask/,
+  'forest litter must retain a smooth edge while yielding to roads, banks, and quarry pads',
+);
+assert.match(
+  source,
+  /const rainStableGrassOrDirtColorNode = applyCloseZoomDirtBlend\([\s\S]*?dirtSurface\.colorNode[\s\S]*?dirtSurfaceAmount[\s\S]*?const rainStableBaseColorNode = mix/,
   'rain must retain the authored layered dirt albedo instead of resolving to green meadow',
 );
 assert.match(source, /dirtSurface\.normalNode/);
@@ -361,10 +390,24 @@ assert.ok(
   'exposed winter ground should become snow-covered while retaining slight terrain variation',
 );
 assert.match(source, /packedDrySnowUv\(grassUv, true\)/);
+assert.match(textureLoaderSource, /snow_leaf_albedo_atlas\.png/);
 assert.match(source, /const revealStart = sub/);
 assert.match(source, /\.mul\(exposure\)/);
 assert.match(source, /function resolveTerrainWeather/);
 assert.match(source, /if \(weather\?\.wetness && weather\?\.frost\) return weather/);
+
+assert.equal(forestFloorBlendAtDensity(FOREST_FLOOR_BLEND_START - 0.01), 0);
+assert.equal(forestFloorBlendAtDensity(FOREST_FLOOR_BLEND_START), 0);
+assert.equal(forestFloorBlendAtDensity(FOREST_FLOOR_BLEND_END), 1);
+assert.equal(forestFloorBlendAtDensity(FOREST_FLOOR_BLEND_END + 0.01), 1);
+assert.ok(
+  Math.abs(
+    forestFloorBlendAtDensity(
+      (FOREST_FLOOR_BLEND_START + FOREST_FLOOR_BLEND_END) * 0.5,
+    ) - 0.5,
+  ) < 1e-12,
+  'the contiguous-forest boundary must crossfade smoothly at its midpoint',
+);
 
 function textureSet(): TextureSet {
   return {

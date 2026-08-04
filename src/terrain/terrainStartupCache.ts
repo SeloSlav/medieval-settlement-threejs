@@ -1,6 +1,7 @@
 import type { SerializedQuarryLayout } from '../quarries/QuarryLayout.ts';
 import type { SerializedRiverField } from '../rivers/RiverField.ts';
 import type { SerializedRiverLayout } from '../rivers/RiverLayout.ts';
+import type { ForestCore } from '../props/forestField.ts';
 import type { WorldDimensions, WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { TERRAIN_RESOLUTION, type TerrainGeometryData } from './terrainGeometryData.ts';
 import { createHeightfieldNormals } from './terrainNormals.ts';
@@ -8,7 +9,7 @@ import { createHeightfieldNormals } from './terrainNormals.ts';
 const DATABASE_NAME = 'medieval-road-system-generated-world';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'terrain-startup';
-const CACHE_FORMAT_VERSION = 'terrain-startup-v4-mountain-relief';
+const CACHE_FORMAT_VERSION = 'terrain-startup-v5-forest-floor';
 
 export type TerrainStartupData = {
   terrain: TerrainGeometryData;
@@ -20,6 +21,7 @@ export type TerrainStartupRequest = {
   dimensions: WorldDimensions;
   riverLayout: SerializedRiverLayout;
   quarryLayout: SerializedQuarryLayout;
+  forestCores: ForestCore[];
 };
 
 type CacheRecord = {
@@ -36,6 +38,7 @@ type CompactTerrainStartupData = {
     heights: Float32Array;
     uvs: Float32Array;
     colors: Uint8Array;
+    forestBlends: Uint8Array;
     shoreBlends: Uint8Array;
     quarryPadBlends: Uint8Array;
     boundingSphere: TerrainGeometryData['boundingSphere'];
@@ -54,6 +57,7 @@ export function terrainStartupCacheKey(request: TerrainStartupRequest): string {
     settings.hydrology,
     settings.resourceAbundance,
     settings.resourceVariety,
+    settings.forestDensity,
     dimensions.playableSize,
     dimensions.terrainSize,
     TERRAIN_RESOLUTION,
@@ -100,6 +104,7 @@ function compact(data: TerrainStartupData): CompactTerrainStartupData {
   const vertexCount = terrain.resolution * terrain.resolution;
   const heights = new Float32Array(vertexCount);
   const colors = new Uint8Array(vertexCount * 3);
+  const forestBlends = new Uint8Array(vertexCount);
   const shoreBlends = new Uint8Array(vertexCount);
   const quarryPadBlends = new Uint8Array(vertexCount);
   for (let index = 0; index < vertexCount; index++) {
@@ -108,6 +113,7 @@ function compact(data: TerrainStartupData): CompactTerrainStartupData {
     colors[colorOffset] = Math.round(terrain.colors[colorOffset] * 255);
     colors[colorOffset + 1] = Math.round(terrain.colors[colorOffset + 1] * 255);
     colors[colorOffset + 2] = Math.round(terrain.colors[colorOffset + 2] * 255);
+    forestBlends[index] = Math.round(terrain.forestBlends[index] * 255);
     shoreBlends[index] = Math.round(terrain.shoreBlends[index] * 255);
     quarryPadBlends[index] = Math.round(terrain.quarryPadBlends[index] * 255);
   }
@@ -120,6 +126,7 @@ function compact(data: TerrainStartupData): CompactTerrainStartupData {
       heights,
       uvs: terrain.uvs,
       colors,
+      forestBlends,
       shoreBlends,
       quarryPadBlends,
       boundingSphere: terrain.boundingSphere,
@@ -134,6 +141,7 @@ function expand(data: CompactTerrainStartupData): TerrainStartupData {
   const vertexCount = resolution * resolution;
   const positions = new Float32Array(vertexCount * 3);
   const colors = new Float32Array(vertexCount * 3);
+  const forestBlends = new Float32Array(vertexCount);
   const shoreBlends = new Float32Array(vertexCount);
   const quarryPadBlends = new Float32Array(vertexCount);
   const step = compactTerrain.terrainSize / (resolution - 1);
@@ -151,6 +159,7 @@ function expand(data: CompactTerrainStartupData): TerrainStartupData {
       colors[colorOffset] = compactTerrain.colors[colorOffset] / 255;
       colors[colorOffset + 1] = compactTerrain.colors[colorOffset + 1] / 255;
       colors[colorOffset + 2] = compactTerrain.colors[colorOffset + 2] / 255;
+      forestBlends[index] = compactTerrain.forestBlends[index] / 255;
       shoreBlends[index] = compactTerrain.shoreBlends[index] / 255;
       quarryPadBlends[index] = compactTerrain.quarryPadBlends[index] / 255;
     }
@@ -167,6 +176,7 @@ function expand(data: CompactTerrainStartupData): TerrainStartupData {
       normals,
       uvs: compactTerrain.uvs,
       colors,
+      forestBlends,
       shoreBlends,
       quarryPadBlends,
       indices: createTerrainIndices(resolution),
@@ -205,6 +215,7 @@ function isValid(data: TerrainStartupData): boolean {
     && terrain.normals?.length === vertexCount * 3
     && terrain.uvs?.length === vertexCount * 2
     && terrain.colors?.length === vertexCount * 3
+    && terrain.forestBlends?.length === vertexCount
     && terrain.shoreBlends?.length === vertexCount
     && terrain.quarryPadBlends?.length === vertexCount
     && terrain.indices?.length === (terrain.resolution - 1) * (terrain.resolution - 1) * 6

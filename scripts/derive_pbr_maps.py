@@ -106,6 +106,28 @@ def save_dry_snow_albedo_atlas(
     atlas.save(out_path)
 
 
+def save_dry_snow_leaf_albedo_atlas(
+    dry_albedo_path: Path,
+    snow_albedo_path: Path,
+    leaf_albedo: Image.Image,
+    out_path: Path,
+) -> None:
+    """Pack three terrain albedos into one binding for the WebGPU material."""
+    dry = Image.open(dry_albedo_path).convert("RGB")
+    snow = Image.open(snow_albedo_path).convert("RGB")
+    if dry.size != leaf_albedo.size:
+        dry = dry.resize(leaf_albedo.size, Image.Resampling.LANCZOS)
+    if snow.size != leaf_albedo.size:
+        snow = snow.resize(leaf_albedo.size, Image.Resampling.LANCZOS)
+    width, height = leaf_albedo.size
+    atlas = Image.new("RGB", (width, height * 3))
+    # Texture.flipY exposes image-bottom at low V: forest, snow, then dry.
+    atlas.paste(dry, (0, 0))
+    atlas.paste(snow, (0, height))
+    atlas.paste(leaf_albedo, (0, height * 2))
+    atlas.save(out_path)
+
+
 def height_to_normal(height: Image.Image, strength: float) -> Image.Image:
     width, height_px = height.size
     src = height.load()
@@ -167,9 +189,10 @@ def main() -> None:
     parser.add_argument("--road-source")
     parser.add_argument("--grass-source")
     parser.add_argument("--snow-source")
+    parser.add_argument("--forest-source")
     args = parser.parse_args()
 
-    if not any((args.road_source, args.grass_source, args.snow_source)):
+    if not any((args.road_source, args.grass_source, args.snow_source, args.forest_source)):
         parser.error("provide at least one texture source")
 
     if args.road_source:
@@ -209,6 +232,23 @@ def main() -> None:
         )
         (snow_dir / "README.md").write_text(
             "Settled snow PBR texture set. Albedo was generated with Codex built-in image generation for this project, then processed locally for seamless tiling; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. The runtime albedo is packed with dry grass in manor_grass_dry/snow_albedo_atlas.png to stay within the terrain shader's 16-sampler portability limit.\n",
+            encoding="utf-8",
+        )
+
+    if args.forest_source:
+        forest_dir = Path("public/assets/textures/terrain/forest_leaf_litter")
+        forest_dir.mkdir(parents=True, exist_ok=True)
+        forest = ensure_square_tile(Path(args.forest_source))
+        forest.save(forest_dir / "albedo.png")
+        save_height_maps(forest, forest_dir, road=False)
+        save_dry_snow_leaf_albedo_atlas(
+            Path("public/assets/textures/terrain/manor_grass_dry/albedo.png"),
+            Path("public/assets/textures/terrain/snow_ground/albedo.png"),
+            forest,
+            Path("public/assets/textures/terrain/manor_grass_dry/snow_leaf_albedo_atlas.png"),
+        )
+        (forest_dir / "README.md").write_text(
+            "Forest leaf-litter PBR texture set. The original albedo was generated with Codex built-in image generation using a user-provided forest-floor image as a material reference, then processed locally for seamless tiling; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. The runtime albedo is packed with dry grass and snow in manor_grass_dry/snow_leaf_albedo_atlas.png to preserve the terrain shader's portable sampler budget.\n",
             encoding="utf-8",
         )
 

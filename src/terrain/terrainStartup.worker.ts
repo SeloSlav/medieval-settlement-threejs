@@ -42,6 +42,8 @@ async function generate(request: TerrainStartupRequest): Promise<void> {
       (completedRows, totalRows) => {
         post({ type: 'progress', completedRows, totalRows });
       },
+      undefined,
+      request.forestCores,
     );
     const data: TerrainStartupData = { terrain, riverField: riverField.serialize() };
     post(
@@ -51,6 +53,7 @@ async function generate(request: TerrainStartupRequest): Promise<void> {
         terrain.normals.buffer,
         terrain.uvs.buffer,
         terrain.colors.buffer,
+        terrain.forestBlends.buffer,
         terrain.shoreBlends.buffer,
         terrain.quarryPadBlends.buffer,
         terrain.indices.buffer,

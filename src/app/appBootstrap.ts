@@ -1155,6 +1155,23 @@ export async function bootstrapAppSession(
       cameraController.syncFromFirstPerson(pos.x, pos.z, firstPersonController.getBodyYaw());
     },
   });
+  toolbar.setFirstPersonToggle(() => {
+    if (!sessionGate.isReady()) {
+      toastManager?.show('Pričekaj da se svijet poveže prije ulaska u pogled iz prvog lica.', {
+        variant: 'info',
+        durationMs: 3200,
+      });
+      return;
+    }
+    if (!isSettlementFounded()) {
+      toastManager?.show('Najprije postavi osnivački tabor.', {
+        variant: 'info',
+        durationMs: 3200,
+      });
+      return;
+    }
+    firstPersonController.toggle();
+  });
 
   placementGate.isRoadToolEnabled = () => roadTool.isEnabled();
   placementGate.isBuildingToolEnabled = () => buildingTool.isEnabled();

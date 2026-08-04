@@ -26,6 +26,7 @@ export async function loadTerrainStartupData(
     dimensions,
     riverLayout: worldLayout.riverLayout.serialize(),
     quarryLayout: worldLayout.quarryLayout.serialize(),
+    forestCores: worldLayout.forestCores,
   };
   const key = terrainStartupCacheKey(request);
   const cached = await readTerrainStartupCache(key);
@@ -50,6 +51,7 @@ export async function loadTerrainStartupData(
       dimensions,
       (completedRows, totalRows) => onProgress?.(completedRows, totalRows, 'generated'),
       yieldToMain,
+      worldLayout.forestCores,
     );
     generated = { terrain, riverField: riverField.serialize() };
   }

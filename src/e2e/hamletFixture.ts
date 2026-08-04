@@ -1502,6 +1502,7 @@ function createHamletTerrainGeometry(): THREE.BufferGeometry {
   const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
   const uvs = geometry.getAttribute('uv') as THREE.BufferAttribute;
   const colors = new Float32Array(positions.count * 3);
+  const forestBlends = new Float32Array(positions.count);
   const dirtZoomGates = new Float32Array(positions.count);
   const shoreBlends = new Float32Array(positions.count);
   const roadWearBlends = new Float32Array(positions.count);
@@ -1533,6 +1534,7 @@ function createHamletTerrainGeometry(): THREE.BufferGeometry {
     colors[index * 3] = meadowWeight / sum;
     colors[index * 3 + 1] = denseWeight / sum;
     colors[index * 3 + 2] = dryWeight / sum;
+    forestBlends[index] = THREE.MathUtils.smoothstep(forestWeight, 0.32, 0.78);
     dirtZoomGates[index] = 1;
   }
 
@@ -1540,6 +1542,7 @@ function createHamletTerrainGeometry(): THREE.BufferGeometry {
   uvs.needsUpdate = true;
   geometry.setAttribute('uv2', uvs.clone());
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('forestBlend', new THREE.BufferAttribute(forestBlends, 1));
   geometry.setAttribute('shoreBlend', new THREE.BufferAttribute(shoreBlends, 1));
   geometry.setAttribute('roadWearBlend', new THREE.BufferAttribute(roadWearBlends, 1));
   geometry.setAttribute('quarryPadBlend', new THREE.BufferAttribute(quarryPadBlends, 1));

@@ -52,10 +52,14 @@ export const HOUSE_SETBACK = 3.5;
 export const MAIN_HOUSE_WIDTH = 6.6;
 export const MAIN_HOUSE_DEPTH = 7.4;
 export const RESIDENCE_PICK_RADIUS = 5.5;
-export const MIN_PARCEL_DEPTH = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + 2.5;
+/** Breathing room between the cottage wall and the rear plot boundary. */
+export const HOUSE_REAR_CLEARANCE = 0.5;
+export const MIN_PARCEL_DEPTH = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + HOUSE_REAR_CLEARANCE;
 export const MIN_ZONE_DEPTH = MIN_PARCEL_DEPTH;
 /** Usable garden/livestock strip behind the house footprint. */
 export const MAX_BACKYARD_DEPTH = 12;
+/** Less space than this remains a house-only plot with no backyard attachment. */
+export const MIN_BACKYARD_EXTENSION_DEPTH = 1.5;
 export const MAX_ZONE_DEPTH = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + MAX_BACKYARD_DEPTH;
 export const MAX_ROAD_FRONTAGE_DISTANCE = 16;
 
@@ -205,6 +209,35 @@ export function measureZoneDepth(corners: BurgageZoneCorners, frontageEdge: Burg
     distancePointToSegment(frontStart, rearStart, rearEnd),
     distancePointToSegment(frontEnd, rearStart, rearEnd),
   );
+}
+
+/**
+ * Perpendicular depth at both authored rear corners. Unlike measureZoneDepth,
+ * this preserves a deliberately angled rear edge and catches either corner
+ * exceeding the placement depth cap.
+ */
+export function measureZoneSideDepths(
+  corners: BurgageZoneCorners,
+  frontageEdge: BurgageFrontageEdge,
+): [number, number] {
+  const [frontStart, frontEnd] = getZoneEdge(corners, frontageEdge);
+  const [rearEnd, rearStart] = getZoneEdge(corners, oppositeFrontageEdge(frontageEdge));
+  const frontDx = frontEnd.x - frontStart.x;
+  const frontDz = frontEnd.z - frontStart.z;
+  const frontLength = Math.hypot(frontDx, frontDz);
+  if (frontLength <= 1e-6) return [0, 0];
+
+  let normal = { x: -frontDz / frontLength, z: frontDx / frontLength };
+  const frontMid = midpoint(frontStart, frontEnd);
+  const rearMid = midpoint(rearStart, rearEnd);
+  if ((rearMid.x - frontMid.x) * normal.x + (rearMid.z - frontMid.z) * normal.z < 0) {
+    normal = { x: -normal.x, z: -normal.z };
+  }
+
+  return [
+    (rearStart.x - frontStart.x) * normal.x + (rearStart.z - frontStart.z) * normal.z,
+    (rearEnd.x - frontEnd.x) * normal.x + (rearEnd.z - frontEnd.z) * normal.z,
+  ];
 }
 
 function isValidZoneShape(corners: Point2[]): boolean {

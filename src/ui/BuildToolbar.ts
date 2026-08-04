@@ -779,6 +779,7 @@ export class BuildToolbar {
   setFirstPersonMode(active: boolean): void {
     if (this.firstPersonActive === active) return;
     this.firstPersonActive = active;
+    this.settlementHud.setFirstPersonActive(active);
     this.root.classList.toggle('is-first-person', active);
     this.fpModePanel.classList.toggle('is-active', active);
     this.syncPrimaryHudVisibility();
@@ -793,6 +794,10 @@ export class BuildToolbar {
       this.builderStatusBar.hidden = true;
     }
     this.cropSuitabilityLegend.hidden = active || !this.cropSuitabilityActive;
+  }
+
+  setFirstPersonToggle(handler: (() => void) | null): void {
+    this.settlementHud.setFirstPersonToggle(handler);
   }
 
   private syncPrimaryHudVisibility(): void {

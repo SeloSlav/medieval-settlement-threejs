@@ -54,6 +54,7 @@ import {
   type ServiceCoverageView,
 } from './serviceCoverage.ts';
 import type { WorksiteCommuteSummary } from '../settlement/workerCommute.ts';
+import { PlayerAuthoredHoverOutline } from './PlayerAuthoredHoverOutline.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -283,6 +284,7 @@ export class ResourceInspector {
   private readonly laborIncrease: HTMLButtonElement;
   private readonly supplementalPanelSection: HTMLElement;
   private readonly marker: THREE.Mesh;
+  private readonly hoverOutline: PlayerAuthoredHoverOutline;
   private selectedTarget: InspectableTarget | null = null;
   private serviceCoverageBuildingId: string | null = null;
   private serviceCoverageResidenceIds = new Set<string>();
@@ -309,6 +311,15 @@ export class ResourceInspector {
 
   constructor(options: ResourceInspectorOptions) {
     this.options = options;
+    this.hoverOutline = new PlayerAuthoredHoverOutline({
+      domElement: options.domElement,
+      terrainProjector: options.terrainProjector,
+      parent: options.sceneManager.selectionGroup,
+      getState: options.getState,
+      getRoadNetwork: () => options.worldQueries.getRoadNetworkSnapshot(),
+      getHeightAt: (x, z) => options.worldQueries.getHeightAt(x, z),
+      isBlocked: options.isBlocked,
+    });
 
     options.uiRoot.insertAdjacentHTML(
       'beforeend',
@@ -1376,6 +1387,7 @@ export class ResourceInspector {
 
   dispose(): void {
     this.clearServiceCoverage();
+    this.hoverOutline.dispose();
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
     this.demolishButton.removeEventListener('click', this.onDemolishPrimaryClick);
     this.demolishSecondaryButton.removeEventListener('click', this.onDemolishSecondaryClick);
