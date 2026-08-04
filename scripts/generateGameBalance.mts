@@ -289,6 +289,7 @@ export type GameBalance = {
     householdMaxWealth: number;
     townHallPopulationRequired: number;
     townHallUnstaffedTaxCollectionMultiplier: number;
+    localMarketTaxCartThreshold: number;
   };
   frontierEconomy: {
     carpenterTimberPerPolearm: number;
@@ -805,6 +806,7 @@ function generateRust(): string {
     `pub const HOUSEHOLD_MAX_WEALTH: f64 = ${rustF64(b.economy.householdMaxWealth)};`,
     `pub const TOWN_HALL_POPULATION_REQUIRED: u32 = ${b.economy.townHallPopulationRequired};`,
     `pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = ${rustF64(b.economy.townHallUnstaffedTaxCollectionMultiplier)};`,
+    `pub const LOCAL_MARKET_TAX_CART_THRESHOLD: f64 = ${rustF64(b.economy.localMarketTaxCartThreshold)};`,
     '',
     `pub const CARPENTER_TIMBER_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterTimberPerPolearm)};`,
     `pub const CARPENTER_IRONWORK_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterIronworkPerPolearm)};`,
@@ -1624,6 +1626,7 @@ function generateTypeScript(): string {
     `export const HOUSEHOLD_MAX_WEALTH = ${b.economy.householdMaxWealth};`,
     `export const TOWN_HALL_POPULATION_REQUIRED = ${b.economy.townHallPopulationRequired};`,
     `export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = ${b.economy.townHallUnstaffedTaxCollectionMultiplier};`,
+    `export const LOCAL_MARKET_TAX_CART_THRESHOLD = ${b.economy.localMarketTaxCartThreshold};`,
     '',
     `export const CARPENTER_TIMBER_PER_POLEARM = ${b.frontierEconomy.carpenterTimberPerPolearm};`,
     `export const CARPENTER_IRONWORK_PER_POLEARM = ${b.frontierEconomy.carpenterIronworkPerPolearm};`,

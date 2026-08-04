@@ -180,9 +180,14 @@ assert.match(
   'indexed ids must still resolve fresh authoritative rows after earlier substep mutations',
 );
 assert.match(
+  marketplace,
+  /!is_trading_post[\s\S]{0,180}building\.firewood > 1e-6[\s\S]{0,420}ResidenceNeedKind::Firewood/,
+  'household fuel dispatch must originate from local Marketplace inventory only',
+);
+assert.match(
   tickContext,
-  /fn build_firewood_claims[\s\S]*?building_ids_for_kinds\(ctx, owner, &\["marketplace"\]\)[\s\S]*?ResidenceNeedKind::Firewood/,
-  'household fuel claims must route through staffed Marketplace stalls only',
+  /fn marketplace_has_stall_workers[\s\S]*?ResidenceNeedKind::Firewood[\s\S]*?"village_storehouse"/,
+  'household fuel stalls must be operated by staffed village storehouses',
 );
 assert.match(tickContext, /building_ids_for_kinds\(ctx, owner, &\["well"\]\)/);
 assert.match(

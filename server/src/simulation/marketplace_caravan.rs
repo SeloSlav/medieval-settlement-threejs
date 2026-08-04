@@ -7,7 +7,8 @@ use crate::balance_generated::{
     FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, MARKET_CARAVAN_ALE_PER_DELIVERY,
     MARKET_CARAVAN_CLOTH_PER_DELIVERY, MARKET_CARAVAN_FIREWOOD_PER_DELIVERY,
     MARKET_CARAVAN_POTTERY_PER_DELIVERY, MARKET_CARAVAN_PRESERVED_FOOD_PER_DELIVERY,
-    SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_CLOTH,
+    LOCAL_MARKET_TAX_CART_THRESHOLD, SPECIALTY_EXPORT_GOLD_PER_ALE,
+    SPECIALTY_EXPORT_GOLD_PER_CLOTH,
     SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_WINE, STOREHOUSE_HAUL_PER_WORKER,
     TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS,
     WATER_DELIVERY_UNLOAD_SEC,
@@ -460,8 +461,14 @@ pub fn step_marketplace_caravans(
                 building.gold,
                 building.marketplace_gold_reserve_target,
             )
-        } else {
+        } else if building.gold + 1e-9 >= LOCAL_MARKET_TAX_CART_THRESHOLD
+            || (clock.hour == 18 && clock.minute < 15)
+        {
+            // Batch local tolls into useful carts, with one early-evening
+            // sweep so a quiet market never strands its final small balance.
             building.gold.max(0.0)
+        } else {
+            0.0
         };
         if collectible_gold > 1e-6
             && !building_has_active_trip(ctx, building.id)

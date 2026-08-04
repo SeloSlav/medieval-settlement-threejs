@@ -203,7 +203,12 @@ assert.equal(splitClaims.get(east.id), eastSwineherd.id);
 
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
 assert.match(tickContext, /food_claims:\s*RefCell/);
-assert.match(tickContext, /pub fn food_supplier_for/);
+assert.match(tickContext, /pub fn food_claim_count_for_supplier/);
+assert.doesNotMatch(
+  tickContext,
+  /pub fn food_supplier_for/,
+  'routine home delivery is selected by the staffed Marketplace stall, while food claims only protect producer reserves',
+);
 assert.match(tickContext, /fn build_food_claims/);
 assert.match(tickContext, /MONASTERY_COVERAGE_RADIUS/);
 const foodClaimsSource = tickContext.slice(
@@ -229,13 +234,16 @@ assert.match(deliveryTrips, /route_speed_multiplier/);
 const roadLogistics = fs.readFileSync('server/src/simulation/road_logistics.rs', 'utf8');
 assert.match(roadLogistics, /OFFROAD_DELIVERY_SPEED_MULTIPLIER/);
 assert.match(roadLogistics, /local_delivery_distances_from/);
-const supply = fs.readFileSync('server/src/simulation/residence_needs/supply.rs', 'utf8');
-assert.match(supply, /has_food_route[\s\S]{0,120}food_supplier_for/);
 const marketplace = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
 assert.doesNotMatch(
   marketplace,
   /food_supplier_for/,
-  'paid emergency orders must keep their explicit household priority override',
+  'Marketplace stalls must select their actual household targets directly',
+);
+assert.match(
+  marketplace,
+  /select_residence_for_need_delivery[\s\S]*marketplace_stall_workplace/,
+  'routine food must be selected and dispatched from a staffed Marketplace stall',
 );
 const expandedInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 assert.match(expandedInspector, /Food territory/);

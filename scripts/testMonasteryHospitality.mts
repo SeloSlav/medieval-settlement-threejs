@@ -309,8 +309,8 @@ assert.match(
 );
 assert.match(
   tickContext,
-  /build_specialty_claims[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_ALE[\s\S]*?build_food_claims[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_FOOD/,
-  'authoritative household claims must ignore monastery stock held by the feast floor',
+  /build_food_claims[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_FOOD/,
+  'authoritative food claims must ignore monastery stock held by the feast floor while ale uses granary-run Marketplace stalls',
 );
 assert.match(
   tickContext,

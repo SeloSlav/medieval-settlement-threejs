@@ -272,13 +272,22 @@ assert.equal(
 );
 
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
-assert.match(tickContext, /specialty_claims:\s*RefCell/);
-assert.match(tickContext, /PRESERVED_FOOD_SUPPLIER_KINDS/);
 assert.match(tickContext, /MONASTERY_COVERAGE_RADIUS/);
-assert.match(
+assert.doesNotMatch(
   tickContext,
-  /marketplace_has_stall_workers\([\s\S]*?ResidenceNeedKind::Ale/,
-  'ale claims must require a staffed granary stall at the Marketplace',
+  /specialty_claims:\s*RefCell|fn build_specialty_claims|pub fn specialty_supplier_for/,
+  'routine specialty service must be centralized at Marketplace stalls instead of producer territories',
+);
+const marketplaceCaravan = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
+assert.match(
+  marketplaceCaravan,
+  /marketplace_stall_workplace[\s\S]*ResidenceNeedKind::Food \| ResidenceNeedKind::PreservedFood \| ResidenceNeedKind::Ale[\s\S]*"granary"/,
+  'preserved food and ale carts must reserve granary-run Marketplace stall workers',
+);
+assert.match(
+  marketplaceCaravan,
+  /ResidenceNeedKind::Firewood \| ResidenceNeedKind::Cloth \| ResidenceNeedKind::Pottery[\s\S]*"village_storehouse"/,
+  'cloth and pottery carts must reserve storehouse-run Marketplace stall workers',
 );
 const potter = { ...building('potter', 'potter_kiln', 4), pottery: 12 };
 assert.equal(
@@ -286,12 +295,9 @@ assert.equal(
   goodsMarket.id,
   'only a stocked Marketplace goods stall should claim household-ware service',
 );
-assert.match(
-  tickContext,
-  /ResidenceNeedKind::PreservedFood => \{[\s\S]*building_preserved_food_stock\(building\) > 1e-6/,
-);
-assert.match(tickContext, /ResidenceNeedKind::Cloth => building\.cloth > 1e-6/);
-assert.match(tickContext, /ResidenceNeedKind::Pottery => building\.pottery > 1e-6/);
+assert.match(marketplaceCaravan, /ResidenceNeedKind::PreservedFood/);
+assert.match(marketplaceCaravan, /ResidenceNeedKind::Cloth/);
+assert.match(marketplaceCaravan, /ResidenceNeedKind::Pottery/);
 const expanded = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(
   expanded,
@@ -313,9 +319,6 @@ assert.match(
   /local_material_target_kinds[\s\S]*?\("potter_kiln", CommodityKind::Pottery\)[\s\S]*?"village_storehouse"/,
   'new kiln output must move to the storehouse before a goods stall serves it',
 );
-const supply = fs.readFileSync('server/src/simulation/residence_needs/supply.rs', 'utf8');
-assert.match(supply, /ResidenceNeedKind::PreservedFood[\s\S]*specialty_supplier_for|specialty_supplier_for[\s\S]*ResidenceNeedKind::PreservedFood/);
-assert.doesNotMatch(supply, /"smokehouse",\s*"granary",\s*"monastery"/);
 const residenceUpgrades = fs.readFileSync('server/src/reducers/residences.rs', 'utf8');
 assert.match(residenceUpgrades, /PRESERVED_FOOD_PRODUCER_KINDS/);
 assert.doesNotMatch(

@@ -201,21 +201,28 @@ const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRen
 assert.match(residenceInspector, /Firewood supplier/);
 assert.match(residenceInspector, /accepting storehouse/);
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
-assert.match(tickContext, /firewood_claims: RefCell/);
 assert.match(tickContext, /water_claims: RefCell/);
-assert.match(tickContext, /pub fn firewood_supplier_for/);
 assert.match(tickContext, /pub fn well_supplier_for/);
-assert.match(tickContext, /fn build_firewood_claims/);
 assert.match(tickContext, /fn build_water_claims/);
+assert.doesNotMatch(
+  tickContext,
+  /firewood_claims: RefCell|pub fn firewood_supplier_for|fn build_firewood_claims/,
+  'routine firewood territory now belongs to staffed Marketplace goods stalls',
+);
 const lodgeServer = fs.readFileSync('server/src/simulation/woodcutters_lodge.rs', 'utf8');
 const wellServer = fs.readFileSync('server/src/simulation/well.rs', 'utf8');
-const recoverySupplyServer = fs.readFileSync(
-  'server/src/simulation/residence_needs/supply.rs',
-  'utf8',
-);
 assert.doesNotMatch(lodgeServer, /tick\.firewood_supplier_for/);
 assert.doesNotMatch(storehouseServer, /tick\.firewood_supplier_for/);
 assert.match(wellServer, /tick\.well_supplier_for/);
+const marketplaceCaravan = fs.readFileSync(
+  'server/src/simulation/marketplace_caravan.rs',
+  'utf8',
+);
+assert.match(
+  marketplaceCaravan,
+  /ResidenceNeedKind::Firewood[\s\S]*marketplace_stall_workplace[\s\S]*"village_storehouse"/,
+  'storehouse workers must own Marketplace firewood stalls and their household carts',
+);
 assert.match(
   lodgeServer,
   /tick\.building_ids_for_kinds\(ctx,\s*lodge\.owner,\s*&\["lumber_mill"\]\)/,
@@ -225,13 +232,6 @@ assert.doesNotMatch(
   wellServer,
   /claim_residences_for_wells/,
   'each well should consume the shared per-tick territory instead of rebuilding it',
-);
-assert.match(recoverySupplyServer, /firewood_supplier_for/);
-assert.match(recoverySupplyServer, /well_supplier_for/);
-assert.doesNotMatch(
-  recoverySupplyServer,
-  /claim_residences_for_(?:firewood_suppliers|wells)/,
-  'abandoned-home recovery should reuse the same territory maps as deliveries',
 );
 
 const manyHomes = Array.from({ length: 10_000 }, (_, index) =>

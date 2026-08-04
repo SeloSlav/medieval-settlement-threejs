@@ -13,6 +13,7 @@ import {
   type InspectorView,
 } from './renderInspectableTarget.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
+import { LOCAL_MARKET_TAX_CART_THRESHOLD } from '../../generated/gameBalance.ts';
 
 export function renderMarketStallsInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -73,7 +74,7 @@ export function renderMarketStallsInspector(
       <li><span>Goods stalls</span><span>${goodsStalls} from staffed Village Storehouses · firewood, cloth, pottery, and shared herb remedies</span></li>
       <li><span>Capacity rule</span><span>Each assigned granary or storehouse worker supports one active stall and its household cart capacity</span></li>
       <li><span>Backyard exchange</span><span>Edible surplus and herb remedies become physical stock for other homes; flower and ordinary herb sales are aggregated discretionary trade</span></li>
-      <li><span>Local tax lockbox</span><span>${heldTax.toFixed(1)} gold held${taxCartActive ? ' · collection cart active' : heldTax > 1e-6 ? ' · waiting for a free hauler to the civic treasury' : ''}</span></li>
+      <li><span>Local tax lockbox</span><span>${heldTax.toFixed(1)} gold held${taxCartActive ? ' · collection cart active' : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD ? ' · waiting for a free hauler to the civic treasury' : heldTax > 1e-6 ? ` · batching toward ${LOCAL_MARKET_TAX_CART_THRESHOLD.toFixed(0)} gold or the evening sweep` : ''}</span></li>
       <li><span>Water</span><span>Supplied independently from unstaffed wells</span></li>
       <li><span>Regional trade</span><span>Handled only by a staffed Trading Post</span></li>
     `,

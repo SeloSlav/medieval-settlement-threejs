@@ -165,7 +165,8 @@
     "residenceTileRoofFlammabilityMultiplier": 0.55,
     "householdMaxWealth": 200,
     "townHallPopulationRequired": 24,
-    "townHallUnstaffedTaxCollectionMultiplier": 0.6
+    "townHallUnstaffedTaxCollectionMultiplier": 0.6,
+    "localMarketTaxCartThreshold": 1
   },
   "frontierEconomy": {
     "carpenterTimberPerPolearm": 2,

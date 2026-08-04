@@ -472,7 +472,11 @@ assert.match(
   /macro_rules! spoil_preserved[\s\S]*PRESERVED_FOOD_STORAGE_TREASURY_FACTOR[\s\S]*spoil_preserved!\(preserved_food\)[\s\S]*spoil_preserved!\(cheese\)/,
   'legacy compatibility stock must not become an immortal cured reserve',
 );
-assert.match(residenceProvisions, /pub fn spoil_preserved_food\(/);
+assert.doesNotMatch(
+  residenceProvisions,
+  /pub fn spoil_preserved_food\(/,
+  'typed household cured food must age through the unified residence inventory pass',
+);
 assert.match(
   residenceNeeds,
   /fn spoil_residence_food_inventory[\s\S]*preserved_food_spoilage_fraction_per_second[\s\S]*PRESERVED_FOOD_COMMODITIES[\s\S]*withdraw_residence_commodity[\s\S]*preserved_fraction/,
