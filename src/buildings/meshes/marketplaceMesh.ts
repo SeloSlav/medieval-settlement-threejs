@@ -25,8 +25,16 @@ export const MARKET_RECEIPT_VISUAL_SEGMENTS = 3;
 export const MARKET_RECEIPT_VISUAL_CAPACITY =
   STOREHOUSE_HAUL_PER_WORKER * MARKET_RECEIPT_VISUAL_SEGMENTS;
 
-function addMarketTable(group: THREE.Group, x: number, z: number, rotation = 0): void {
+function addMarketTable(
+  group: THREE.Group,
+  name: string,
+  x: number,
+  z: number,
+  rotation = 0,
+): void {
   const table = new THREE.Group();
+  table.name = name;
+  table.visible = false;
   table.position.set(x, 0, z);
   table.rotation.y = rotation;
   addMesh(
@@ -473,9 +481,12 @@ export function createMarketplaceMesh(): THREE.Group {
     );
   }
 
-  addMarketTable(group, -1.95, -0.65);
-  addMarketTable(group, 1.15, -0.65);
-  addMarketTable(group, -0.45, 1.15);
+  addMarketTable(group, 'MarketFoodStall0', -2.35, -0.82);
+  addMarketTable(group, 'MarketFoodStall1', 0, -0.82);
+  addMarketTable(group, 'MarketFoodStall2', 2.35, -0.82);
+  addMarketTable(group, 'MarketGoodsStall0', -2.35, 1.02, Math.PI);
+  addMarketTable(group, 'MarketGoodsStall1', 0, 1.02, Math.PI);
+  addMarketTable(group, 'MarketGoodsStall2', 2.35, 1.02, Math.PI);
   addMarketSpecialtyStalls(group);
   addMarketStagingStock(group);
   addMarketProceedsChest(group);

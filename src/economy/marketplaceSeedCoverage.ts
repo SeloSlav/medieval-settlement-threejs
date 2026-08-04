@@ -248,7 +248,7 @@ export function seedGrainSourceCoveragePlan(
   const sourceStock = Math.max(0, source.grain);
   const sourceOperational = source.constructionComplete !== false
     && !fireDisabled.has(source.id)
-    && (source.kind !== 'marketplace' || source.assignedLabor > 0);
+    && (source.kind !== 'trading_post' || source.assignedLabor > 0);
 
   return {
     sourceBusy: inbound.sourceBusy,

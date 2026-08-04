@@ -147,7 +147,7 @@ const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
   granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then redistributes them by road cart',
-  bakery: 'Flour + hauled water + firewood + baker labor -> bread for household and institutional food supply',
+  bakery: 'Flour + hauled water + firewood + baker labor -> bread, tracked as fresh food for Marketplace stalls and institutions',
   brewery: 'Barley + water + firewood → malt → ale',
   smokehouse: 'Fresh food + firewood + local or imported salt + pottery vessels → preserved food',
   apiary: 'April-September forest forage → food, monastery hospitality, or export honey',
@@ -177,13 +177,7 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'potter_kiln',
 ]);
 
-const HOUSEHOLD_FOOD_DISTRIBUTORS = new Set<BuildingKind>([
-  'granary',
-  'bakery',
-  'apiary',
-  'vineyard',
-  'monastery',
-]);
+const HOUSEHOLD_FOOD_DISTRIBUTORS = new Set<BuildingKind>(['marketplace']);
 
 function buildingHasOutboundStock(
   building: BuildingState,
@@ -243,9 +237,9 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'threshing_barn':
       return 'Highest-priority active processor, then lowest runway and granary reserve';
     case 'watermill':
-      return 'Highest-priority flour-short bakery, then lowest runway and road route';
+      return 'Active bakery working buffers first, then staffed granary storage, then emergency bakery overflow';
     case 'bakery':
-      return 'Claimed food-needy household, then critical institution or granary reserve';
+      return 'Protected bread surplus to critical institutions or a staffed granary for Marketplace stalls';
     case 'granary':
       return 'Critical processor, company, and brewery buffers first · then fresh and cured household policy';
     case 'brewery':
@@ -614,7 +608,9 @@ function renderLogisticsRows(
       : flourDispatch
       ? flourDispatch.duty === 'working-buffer'
         ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${flourDispatch.target.flour.toFixed(1)} / ${flourDispatch.desiredStock.toFixed(1)} flour · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
-        : `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · overflow after active bakery buffers · shortest road`
+        : flourDispatch.duty === 'central-storage'
+          ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · central flour reserve after active bakery buffers · shortest road`
+          : `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · emergency overflow because no granary can receive flour · shortest road`
       : ironworkDispatch
         ? ironworkDispatch.duty === 'working-buffer'
           ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${staffingPriorityLabel(ironworkDispatch.workPriority)} priority · ${(ironworkDispatch.target.ironwork ?? 0).toFixed(2)} / ${ironworkDispatch.desiredStock.toFixed(2)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
@@ -1575,7 +1571,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       <div class="resource-action-row">${POTTERY_DISPATCH_POLICY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-pottery-dispatch-policy="${preset.policy}" title="${preset.hint}" ${normalizePotteryDispatchPolicy(building.potteryDispatchPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Homes-first protects prosperous household wares before smokehouse packing stock. Preservation-first stages the highest-priority smokehouse working buffer before replacing household breakage. Either order immediately falls through when its first duty has no reachable shortage, and market export always waits until both local duties are covered.</p>
+      <p class="inspector-action-panel__hint">Market-wares-first lets staffed storehouse workers collect pottery for household stalls before smokehouse packing stock. Preservation-first stages the highest-priority smokehouse working buffer before storehouse collection. Either order immediately falls through when its first duty has no reachable shortage, and Trading Post export always waits until both local duties are covered.</p>
     `
     : '';
   const potterFiringPolicy = building.kind === 'potter_kiln'
@@ -1585,7 +1581,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
         .map((preset) => `<button type="button" class="resource-action-button" data-potter-firing-policy="${preset.policy}" title="${preset.hint}" ${normalizePotterFiringPolicy(building.potterFiringPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
       <p class="inspector-action-panel__hint">${normalizePotterFiringPolicy(building.potterFiringPolicy) === POTTER_FIRE_ROOF_TILES
-        ? 'Tile firing suspends new household and smokehouse vessel output. Existing vessels still dispatch; fired tiles remain stacked here until a tier-3 residence commissions a road-hauled retrofit.'
+        ? 'Tile firing suspends new market and smokehouse vessel output. Existing vessels still dispatch; fired tiles remain stacked here until a tier-3 residence commissions a road-hauled retrofit.'
         : 'Vessel firing serves household breakage, preserving crocks, then export. Commissioned roof projects wait until this or another linked kiln fires enough physical tiles.'}</p>
     `
     : '';

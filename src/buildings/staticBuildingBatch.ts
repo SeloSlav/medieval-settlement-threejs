@@ -28,6 +28,12 @@ const DYNAMIC_BUILDING_NAMES = new Set([
   'Watermill wheel',
   'CharcoalClampSmoke',
   'ClayBankStrata',
+  'MarketFoodStall0',
+  'MarketFoodStall1',
+  'MarketFoodStall2',
+  'MarketGoodsStall0',
+  'MarketGoodsStall1',
+  'MarketGoodsStall2',
 ]);
 
 const DYNAMIC_BUILDING_NAME_PARTS = [

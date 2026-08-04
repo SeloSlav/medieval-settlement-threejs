@@ -330,7 +330,7 @@ export function computeGoldAwaitingCollection(
   let gold = 0;
   for (const building of buildings) {
     if (
-      building.kind === 'trading_post'
+      (building.kind === 'marketplace' || building.kind === 'trading_post')
       && building.constructionComplete !== false
       && Number.isFinite(building.gold)
     ) {

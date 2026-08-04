@@ -210,15 +210,17 @@ const emptyNearbySmokehouse = building('empty-nearby', 'smokehouse', 2);
 emptyNearbySmokehouse.preservedFood = 0;
 const stockedDistantSmokehouse = building('stocked-distant', 'smokehouse', 8);
 stockedDistantSmokehouse.preservedFood = 40;
+const stockedMarketplace = building('stocked-market', 'marketplace', 6);
+stockedMarketplace.preservedFood = 40;
 assert.equal(
   findRoadLinkedSupplierForResidence(
     tierTwo,
-    [emptyNearbySmokehouse, stockedDistantSmokehouse],
+    [emptyNearbySmokehouse, stockedDistantSmokehouse, stockedMarketplace],
     network,
     'preservedFood',
   )?.id,
-  stockedDistantSmokehouse.id,
-  'live deliveries must still prefer a stocked supplier',
+  stockedMarketplace.id,
+  'live deliveries must use stocked Marketplace inventory',
 );
 assert.equal(
   findRoadLinkedUpgradeSupplierForResidence(

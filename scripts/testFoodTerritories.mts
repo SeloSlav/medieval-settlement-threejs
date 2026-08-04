@@ -88,15 +88,15 @@ const disconnectedNetwork = {
 } as unknown as RoadNetwork;
 
 const offroadHome = residence('offroad-home', 0);
-const offroadForager = building('offroad-forager', 'foragers_shed', 18, 1);
+const offroadMarket = building('offroad-market', 'marketplace', 18, 0);
 assert.equal(
   claimResidencesForFoodSuppliers(
     disconnectedNetwork,
-    [offroadForager],
+    [offroadMarket],
     [offroadHome],
   ).get(offroadHome.id),
-  offroadForager.id,
-  'a staffed stocked food producer must still claim an off-road household',
+  offroadMarket.id,
+  'a stocked Marketplace food stall must still claim an off-road household',
 );
 const offroadRoute = localDeliveryRoute(disconnectedNetwork, 18, 0, 0, 0);
 assert.equal(offroadRoute?.offroad, true);
@@ -107,18 +107,7 @@ assert.ok(
   'off-road delivery must remain possible but slower than a road cart',
 );
 
-assert.deepEqual(FOOD_SUPPLIER_KINDS, [
-  'hunters_hall',
-  'foragers_shed',
-  'fishing_camp',
-  'bakery',
-  'granary',
-  'apiary',
-  'vineyard',
-  'pastoral_farmstead',
-  'swineherd',
-  'monastery',
-]);
+assert.deepEqual(FOOD_SUPPLIER_KINDS, ['marketplace']);
 for (const kind of FOOD_SUPPLIER_KINDS) {
   const deliveryLabor = kind === 'granary' ? 1 : 0;
   assert.equal(
@@ -128,9 +117,9 @@ for (const kind of FOOD_SUPPLIER_KINDS) {
   );
 }
 assert.equal(
-  isOperationalFoodSupplier(building('market', 'marketplace', 1, 3)),
-  false,
-  'paid marketplace emergency carts must remain outside routine territories',
+  isOperationalFoodSupplier(building('market', 'marketplace', 1, 0)),
+  true,
+  'the Marketplace itself is the stock origin while granary workers own its stalls',
 );
 
 const home = residence('home', 0);
@@ -138,16 +127,17 @@ const idleGranary = building('idle-granary', 'granary', 2, 0);
 const staffedFarmstead = building('farmstead', 'pastoral_farmstead', 18, 2);
 assert.equal(
   claimResidencesForFoodSuppliers(network, [idleGranary, staffedFarmstead], [home]).get(home.id),
-  staffedFarmstead.id,
-  'an idle granary must not hide a functioning pastoral food route',
+  undefined,
+  'producers and granaries must stock the Marketplace instead of delivering to homes',
 );
 
 const granary = building('granary', 'granary', 5, 2);
+const market = building('market', 'marketplace', 7, 0);
 const huntingCamp = building('hunter', 'hunters_hall', 25, 2);
 assert.equal(
-  claimResidencesForFoodSuppliers(network, [huntingCamp, granary], [home]).get(home.id),
-  granary.id,
-  'centralized food storage should claim nearby homes when a granary hauler is staffed',
+  claimResidencesForFoodSuppliers(network, [huntingCamp, granary, market], [home]).get(home.id),
+  market.id,
+  'centralized Marketplace stock should claim homes while granary workers own the stall',
 );
 const emptyWinterApiary = {
   ...building('empty-apiary', 'apiary', 2, 1),
@@ -156,11 +146,11 @@ const emptyWinterApiary = {
 assert.equal(
   claimResidencesForFoodSuppliers(
     network,
-    [emptyWinterApiary, huntingCamp],
+    [emptyWinterApiary, huntingCamp, market],
     [home],
   ).get(home.id),
-  huntingCamp.id,
-  'an empty seasonal producer must yield its branch to a stocked supplier',
+  market.id,
+  'seasonal producers never bypass the food stall route',
 );
 assert.equal(
   claimResidencesForFoodSuppliers(network, [emptyWinterApiary], [home]).has(home.id),
@@ -170,7 +160,7 @@ assert.equal(
 assert.equal(
   claimResidencesForFoodSuppliers(
     network,
-    [building('10', 'granary', -5, 2), building('2', 'granary', 5, 2)],
+    [building('10', 'marketplace', -5, 0), building('2', 'marketplace', 5, 0)],
     [home],
   ).get(home.id),
   '2',
@@ -181,28 +171,28 @@ const monastery = building('monastery', 'monastery', 3, 0);
 assert.equal(
   claimResidencesForFoodSuppliers(
     network,
-    [granary, monastery],
+    [granary, monastery, market],
     [home],
     (supplier) => supplier.kind !== 'monastery',
   ).get(home.id),
-  granary.id,
-  'an unlinked monastery must not claim charity territory',
+  market.id,
+  'an unlinked monastery must not bypass the Marketplace',
 );
 assert.equal(
   claimResidencesForFoodSuppliers(
     network,
-    [granary, monastery],
+    [granary, monastery, market],
     [home],
     () => true,
   ).get(home.id),
-  monastery.id,
-  'a parish-linked monastery may become the nearest routine food supplier',
+  market.id,
+  'even linked monastery output must reach homes through a granary food stall',
 );
 
 const west = residence('west', 0);
 const east = residence('east', 100);
-const westGranary = building('west-granary', 'granary', 10, 2);
-const eastSwineherd = building('east-swineherd', 'swineherd', 90, 2);
+const westGranary = building('west-market', 'marketplace', 10, 0);
+const eastSwineherd = building('east-market', 'marketplace', 90, 0);
 const splitClaims = claimResidencesForFoodSuppliers(
   network,
   [westGranary, eastSwineherd],
@@ -221,8 +211,8 @@ const foodClaimsSource = tickContext.slice(
 );
 assert.match(
   foodClaimsSource,
-  /is_food_supplier_operational[\s\S]*?building\.kind == "monastery"[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_FOOD[\s\S]*?building\.food[\s\S]*?> 1e-6/,
-  'authoritative food claims must relinquish empty suppliers and protected monastery feast stock',
+  /is_food_supplier_operational\([\s\S]*?marketplace_has_stall_workers\([\s\S]*?ResidenceNeedKind::Food[\s\S]*?fn marketplace_has_stall_workers[\s\S]*?marketplace\.kind != "marketplace"[\s\S]*?ResidenceNeedKind::Food[\s\S]*?=> "granary"/,
+  'authoritative food claims must require a Marketplace backed by granary stall workers',
 );
 assert.match(
   foodClaimsSource,
@@ -230,13 +220,8 @@ assert.match(
   'healthy suppliers must take over territory while damaged suppliers and homes are offline',
 );
 const expanded = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
-assert.match(
-  expanded,
-  /ResidenceNeedKind::Food\s*=>[\s\S]{0,120}food_supplier_for/,
-  'granaries, seasonal producers, and livestock must honor the shared food claim',
-);
 const harvesters = fs.readFileSync('server/src/simulation/food_supplier.rs', 'utf8');
-assert.match(harvesters, /food_supplier_for/);
+assert.doesNotMatch(harvesters, /food_supplier_for/);
 assert.doesNotMatch(harvesters, /owner_food_suppliers|claim_residences_for_food_suppliers/);
 const deliveryTrips = fs.readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 assert.match(deliveryTrips, /local_delivery_route/);

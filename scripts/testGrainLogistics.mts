@@ -305,7 +305,7 @@ assert.equal(
 
 function processorInputDestination(
   id: string,
-  kind: Extract<BuildingKind, 'bakery' | 'brewery' | 'smokehouse' | 'weaver'>,
+  kind: Extract<BuildingKind, 'bakery' | 'brewery' | 'smokehouse' | 'weaver' | 'granary'>,
   x: number,
   stock: number,
   assignedLabor = 1,
@@ -317,7 +317,7 @@ function processorInputDestination(
     kind,
     x,
     z: 0,
-    flour: kind === 'bakery' ? stock : 0,
+    flour: kind === 'bakery' || kind === 'granary' ? stock : 0,
     barley: kind === 'brewery' ? stock : 0,
     food: kind === 'smokehouse' ? stock : 0,
     wool: kind === 'weaver' ? stock : 0,
@@ -383,6 +383,36 @@ assert.equal(
   )?.target.id,
   lowPriorityEmptyBakery.id,
   'an uncovered active buffer should beat higher-tier warehouse overflow',
+);
+const centralFlourGranary = processorInputDestination('flour-store', 'granary', 80, 0, 1, 1);
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [bufferedHighBakery, centralFlourGranary],
+    'watermill',
+    'flour',
+    (target) => target.x,
+  )?.target.id,
+  centralFlourGranary.id,
+  'once every bakery working buffer is covered, mill surplus should centralize before overfilling a bakery',
+);
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [lowPriorityEmptyBakery, centralFlourGranary],
+    'watermill',
+    'flour',
+    (target) => target.x,
+  )?.target.id,
+  lowPriorityEmptyBakery.id,
+  'an active bakery working buffer must still beat a nearer or emptier granary',
+);
+assert.equal(
+  selectDirectProcessorInputTarget(
+    [bufferedHighBakery, centralFlourGranary],
+    'watermill',
+    'flour',
+    (target) => target.x,
+  )?.duty,
+  'central-storage',
 );
 const idleEmptyBakery = processorInputDestination('10', 'bakery', 1, 0, 0, 3);
 assert.equal(
@@ -680,7 +710,8 @@ assert.match(expandedInspector, /Next grain cart/);
 assert.match(expandedInspector, /staffingPriorityLabel\(granaryGrainDispatch\.workPriority\)/);
 assert.match(expandedInspector, /processor work priority/);
 assert.match(expandedInspector, /getNextDirectProcessorInputDispatch/);
-assert.match(expandedInspector, /overflow after active bakery buffers/);
+assert.match(expandedInspector, /central flour reserve after active bakery buffers/);
+assert.match(expandedInspector, /emergency overflow because no granary can receive flour/);
 assert.match(expandedInspector, /Next preservation buffer/);
 assert.match(expandedInspector, /critical, preempts food cart/);
 assert.match(expandedInspector, /Spring crop labor/);
@@ -714,7 +745,7 @@ assert.match(seedDistribution, /&\["threshing_barn"\]/);
 assert.match(seedDistribution, /target\.assigned_labor == 0/);
 assert.match(seedDistribution, /building_has_inbound_commodity_trip/);
 assert.match(seedDistribution, /tick\.farmstead_seed_reserve_for/);
-assert.match(seedDistribution, /source\.kind == "marketplace" && source\.assigned_labor == 0/);
+assert.match(seedDistribution, /source\.kind == "trading_post" && source\.assigned_labor == 0/);
 assert.match(seedDistribution, /GRAIN_TRANSFER_PER_TRIP/);
 assert.match(
   seedDistribution,

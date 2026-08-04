@@ -159,45 +159,63 @@ export function buildingMarkerSignatures(
           LOCAL_RECEIPT_VISUAL_SEGMENTS,
         )}`
         : '';
-      const storehouseState = building.kind === 'village_storehouse'
+      const depotStorageCaps = (
+        building.kind === 'village_storehouse'
+        || building.kind === 'trading_post'
+      )
+        ? BUILDING_STORAGE_CAPS[building.kind] as Partial<Record<
+            'timber' | 'stone' | 'firewood' | 'iron' | 'clay' | 'salt',
+            number
+          >>
+        : null;
+      const storehouseState = (
+        building.kind === 'village_storehouse'
+        || building.kind === 'trading_post'
+      )
         && building.constructionComplete !== false
         ? `:storehouse:${
           stockpileVisualLevel(
             building.timber,
-            BUILDING_STORAGE_CAPS.village_storehouse.timber,
+            depotStorageCaps?.timber ?? 0,
             STOREHOUSE_TIMBER_VISUAL_SEGMENTS,
           )
         }:${
           stockpileVisualLevel(
             building.stone,
-            BUILDING_STORAGE_CAPS.village_storehouse.stone,
+            depotStorageCaps?.stone ?? 0,
             STOREHOUSE_STONE_VISUAL_SEGMENTS,
           )
         }:${
           stockpileVisualLevel(
             building.firewood,
-            BUILDING_STORAGE_CAPS.village_storehouse.firewood,
+            depotStorageCaps?.firewood ?? 0,
             STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
           )
         }:${
           stockpileVisualLevel(
             building.iron ?? 0,
-            BUILDING_STORAGE_CAPS.village_storehouse.iron ?? 0,
+            depotStorageCaps?.iron ?? 0,
             STOREHOUSE_IRON_VISUAL_SEGMENTS,
           )
         }:${
           stockpileVisualLevel(
             building.clay ?? 0,
-            BUILDING_STORAGE_CAPS.village_storehouse.clay ?? 0,
+            depotStorageCaps?.clay ?? 0,
             STOREHOUSE_CLAY_VISUAL_SEGMENTS,
           )
         }:${
           stockpileVisualLevel(
             building.salt ?? 0,
-            BUILDING_STORAGE_CAPS.village_storehouse.salt ?? 0,
+            depotStorageCaps?.salt ?? 0,
             STOREHOUSE_SALT_VISUAL_SEGMENTS,
           )
-        }`
+        }:${building.kind === 'trading_post'
+          ? stockpileVisualLevel(
+              building.gold,
+              MARKET_RECEIPT_VISUAL_CAPACITY,
+              MARKET_RECEIPT_VISUAL_SEGMENTS,
+            )
+          : 0}`
         : '';
       const guardhousePayrollState = building.kind === 'guardhouse'
         && building.constructionComplete !== false
@@ -292,15 +310,17 @@ function marketplaceVisualState(building: BuildingState): string {
   }
   const cratedGoods = building.firewood
     + building.food
-    + building.grain
-    + (building.barley ?? 0)
-    + (building.ironwork ?? 0);
+    + building.preservedFood
+    + building.ale
+    + (building.cloth ?? 0)
+    + (building.pottery ?? 0);
   const cratedCapacity =
     BUILDING_STORAGE_CAPS.marketplace.firewood
     + BUILDING_STORAGE_CAPS.marketplace.food
-    + BUILDING_STORAGE_CAPS.marketplace.grain
-    + (BUILDING_STORAGE_CAPS.marketplace.barley ?? 0)
-    + (BUILDING_STORAGE_CAPS.marketplace.ironwork ?? 0);
+    + BUILDING_STORAGE_CAPS.marketplace.preservedFood
+    + BUILDING_STORAGE_CAPS.marketplace.ale
+    + (BUILDING_STORAGE_CAPS.marketplace.cloth ?? 0)
+    + (BUILDING_STORAGE_CAPS.marketplace.pottery ?? 0);
   return `:market:${
     stockpileVisualLevel(
       building.timber,

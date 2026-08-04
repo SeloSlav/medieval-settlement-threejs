@@ -15,7 +15,7 @@ import type { BuildingState } from '../src/resources/types.ts';
 function makeMarket(partial: Partial<BuildingState> = {}): BuildingState {
   return {
     id: 'market-1',
-    kind: 'marketplace',
+    kind: 'trading_post',
     x: 0,
     z: 0,
     workRadius: 0,
@@ -95,9 +95,13 @@ assert.equal(apiary.requiresMatureTrees, true);
 assert.equal(apiary.workRadius, 48);
 assert.equal(vineyard.requiresHillside, true);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.ale, 140);
-assert.equal(BUILDING_STORAGE_CAPS.marketplace.honey, 100);
-assert.equal(BUILDING_STORAGE_CAPS.marketplace.wine, 120);
 assert.equal(BUILDING_STORAGE_CAPS.marketplace.cloth, 120);
+assert.equal(BUILDING_STORAGE_CAPS.marketplace.honey, undefined);
+assert.equal(BUILDING_STORAGE_CAPS.marketplace.wine, undefined);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.ale, 180);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.honey, 140);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.wine, 160);
+assert.equal(BUILDING_STORAGE_CAPS.trading_post.cloth, 160);
 
 const expandedEconomy = readFileSync(
   new URL('../server/src/simulation/expanded_economy.rs', import.meta.url),
@@ -110,10 +114,11 @@ const marketplaceCaravan = readFileSync(
 assert.doesNotMatch(expandedEconomy, /fn export_specialty/);
 assert.match(expandedEconomy, /apiary_is_active/);
 assert.match(expandedEconomy, /vineyard_is_harvesting/);
-assert.match(expandedEconomy, /CommodityKind::Ale,\s*&\["marketplace"\]/s);
-assert.match(expandedEconomy, /CommodityKind::Honey,\s*&\["marketplace"\]/s);
-assert.match(expandedEconomy, /CommodityKind::Wine,\s*&\["marketplace"\]/s);
-assert.match(expandedEconomy, /CommodityKind::Cloth,\s*&\["marketplace"\]/s);
+assert.match(expandedEconomy, /CommodityKind::Ale,\s*&\["granary"\]/s);
+assert.match(expandedEconomy, /CommodityKind::Honey,\s*&\["trading_post"\]/s);
+assert.match(expandedEconomy, /CommodityKind::Wine,\s*&\["trading_post"\]/s);
+assert.match(expandedEconomy, /CommodityKind::Cloth,\s*&\["village_storehouse"\]/s);
+assert.match(expandedEconomy, /CommodityKind::Cloth,\s*&\["trading_post"\]/s);
 assert.match(marketplaceCaravan, /CommodityKind::Cloth/);
 assert.match(marketplaceCaravan, /withdraw_building_commodity/);
 assert.match(marketplaceCaravan, /specialty_export_capacity/);

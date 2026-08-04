@@ -467,10 +467,10 @@ function evaluateAttempt(
 ): AttemptResult {
   if (logisticsPaused) return { status: 'closed', quote };
   const marketCapacity = quote.kind === 'food'
-    ? BUILDING_STORAGE_CAPS.marketplace.food
+    ? BUILDING_STORAGE_CAPS.trading_post.food
     : Math.max(
         marketplace.waterCapacity,
-        BUILDING_STORAGE_CAPS.marketplace.water,
+        BUILDING_STORAGE_CAPS.trading_post.water,
       );
   const marketStock = quote.kind === 'food' ? marketplace.food : marketplace.water;
   if (marketCapacity - marketStock + 1e-6 < quote.amount) {

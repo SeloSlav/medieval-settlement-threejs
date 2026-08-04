@@ -97,6 +97,36 @@ function addTownHallTreasuryChest(group: THREE.Group): void {
   group.add(chest);
 }
 
+function addTradingPostProceedsChest(group: THREE.Group): void {
+  const chest = new THREE.Group();
+  chest.name = 'TradingPostProceedsChest';
+  chest.visible = false;
+  const placements = [
+    [-0.7, 0.96, 4.2],
+    [0, 0.96, 4.2],
+    [0.7, 0.96, 4.2],
+  ] as const;
+  placements.forEach(([x, y, z], index) => {
+    const segment = new THREE.Group();
+    segment.name = 'TradingPostReceiptSegment';
+    segment.visible = false;
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.58, 0.4, 0.48),
+      timberMaterial(index === 1 ? 'weathered' : 'dark'),
+      new THREE.Vector3(x, y + 0.22, z),
+    );
+    addMesh(
+      segment,
+      new THREE.BoxGeometry(0.07, 0.45, 0.52),
+      metalMaterial('iron'),
+      new THREE.Vector3(x, y + 0.26, z),
+    );
+    chest.add(segment);
+  });
+  group.add(chest);
+}
+
 function addGuardhousePayrollChest(group: THREE.Group): void {
   const chest = new THREE.Group();
   chest.name = 'GuardhousePayrollChest';
@@ -350,6 +380,7 @@ export function createVillageStorehouseMesh(): THREE.Group {
     saltStock.add(segment);
   }
   group.add(saltStock);
+  addTradingPostProceedsChest(group);
   addMesh(group, new THREE.BoxGeometry(0.7, 0.06, 1.8), earth, new THREE.Vector3(-0.4, 0.06, 6.35));
   return group;
 }

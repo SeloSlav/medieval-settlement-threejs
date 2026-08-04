@@ -440,7 +440,7 @@ pub struct Building {
     /// ignored by other building kinds.
     #[default(6u8)]
     pub guardhouse_food_reserve: u8,
-    /// Desired seed grain held at this marketplace in whole twenty-four-unit
+    /// Desired seed grain held at this Trading Post in whole twenty-four-unit
     /// import lots. Appended for additive save compatibility; existing saves
     /// remain manual-only, and farmsteads must still collect the grain by road.
     #[default(0u8)]
@@ -452,7 +452,7 @@ pub struct Building {
     pub founding_shelter_active: bool,
     /// Stable compact code for one cart-staged manual export or barter order
     /// awaiting physical stock. The offer itself remains balance-defined, and
-    /// progress is derived from marketplace stock and delivery trips.
+    /// progress is derived from Trading Post stock and delivery trips.
     /// Appended for additive save compatibility; existing saves have no order.
     #[default(0u8)]
     pub marketplace_pending_trade_code: u8,
@@ -468,7 +468,7 @@ pub struct Building {
     /// this subset. Appended for additive save compatibility.
     #[default(0.0)]
     pub civic_receipts_gold: f64,
-    /// Working coin kept physically at a marketplace for imports. Only gold
+    /// Working coin kept physically at a Trading Post for imports. Only gold
     /// above this target is swept back to the civic treasury. Appended with
     /// the former one-lot purchasing capacity as the save-compatible default.
     #[default(32u8)]
@@ -545,7 +545,7 @@ pub struct Building {
     pub construction_reserved_ironwork: f64,
     #[default(0.0)]
     pub construction_treasury_ironwork: f64,
-    /// Potter cart duty: 0 replaces household wares before workshop supply,
+    /// Potter cart duty: 0 stocks storehouse market wares before workshop supply,
     /// 1 stages smokehouse vessels first. Either order exports only after its
     /// two local duties. Appended so established kilns retain household-first.
     #[default(0u8)]

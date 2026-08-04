@@ -452,10 +452,10 @@ pub fn building_has_inbound_commodity_trip(
         })
 }
 
-/// A regional merchant uses the marketplace as both the settlement-side
+/// A regional merchant uses the Trading Post as both the settlement-side
 /// contract anchor and destination. Ordinary local trips never route a
 /// building to itself because their zero-length route is rejected. External
-/// merchants do not occupy the marketplace's own settlement cart, so one
+/// merchants do not occupy a local settlement cart, so one
 /// local delivery may run alongside one regional import.
 fn is_external_market_import_trip(trip: &DeliveryTrip) -> bool {
     trip.building_id != 0
@@ -495,7 +495,7 @@ pub fn building_has_regional_market_trip(ctx: &ReducerContext, marketplace_id: u
 }
 
 /// Builds the physical regional leg from a stable Adriatic-facing edge to the
-/// marketplace. The off-road approach joins the same connected road component
+/// Trading Post. The off-road approach joins the same connected road component
 /// used by local carts, so a remote or poorly extended trade branch carries a
 /// real travel-time cost.
 pub fn regional_market_import_route(
@@ -677,8 +677,8 @@ pub fn start_regional_market_export_trip(
     true
 }
 
-/// Sends one paid household or parish order through its marketplace and on to
-/// the exact residence. The marketplace id is retained in target_building_id
+/// Sends one paid household or parish order through its Trading Post and on to
+/// the exact residence. The post id is retained in target_building_id
 /// as a save-compatible marker for the external merchant leg.
 pub fn start_external_market_import_trip_to_residence(
     ctx: &ReducerContext,
@@ -732,7 +732,7 @@ fn external_market_import_ready(
     amount: f64,
     route: &RoadPathRoute,
 ) -> bool {
-    marketplace.kind == "marketplace"
+    marketplace.kind == "trading_post"
         && marketplace.construction_complete
         && amount > 1e-6
         && amount.is_finite()

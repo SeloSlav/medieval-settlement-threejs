@@ -225,13 +225,18 @@ assert.deepEqual(
 );
 assert.match(
   server,
-  /dispatch_need\([\s\S]*?ResidenceNeedKind::Food[\s\S]*?dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Honey[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Honey[\s\S]*?&\["marketplace"\]/,
-  'apiaries must serve household food, then monastery hospitality, then export',
+  /step_apiary[\s\S]*?dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Honey[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Honey[\s\S]*?&\["trading_post"\]/,
+  'apiaries must reserve monastery hospitality before exporting honey through the Trading Post',
 );
 assert.match(
   server,
-  /dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Wine[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Wine[\s\S]*?&\["marketplace"\]/,
-  'vineyards must supply monastery hospitality before export',
+  /step_vineyard[\s\S]*?dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Wine[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Wine[\s\S]*?&\["trading_post"\]/,
+  'vineyards must reserve monastery hospitality before exporting wine through the Trading Post',
+);
+assert.match(
+  server,
+  /step_institutional_food_dispatch[\s\S]*?INSTITUTIONAL_FOOD_SOURCE_KINDS[\s\S]*?&\["guardhouse", "smokehouse", "granary"\]/,
+  'apiary and vineyard food must enter staffed storage or institutional supply instead of going directly to homes',
 );
 assert.match(
   server,
@@ -245,18 +250,18 @@ assert.match(
 );
 assert.match(
   server,
-  /step_brewery[\s\S]*?dispatch_monastery_feast_ale[\s\S]*?dispatch_need\([\s\S]*?ResidenceNeedKind::Ale[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Ale[\s\S]*?&\["marketplace"\]/,
-  'brewery ale must refill the bounded feast floor before household delivery and export',
+  /step_brewery[\s\S]*?dispatch_monastery_feast_ale[\s\S]*?CommodityKind::Ale,[\s\S]*?&\["granary"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
+  'brewery ale must refill the bounded feast floor, then enter granary stalls, with Trading Post export last',
 );
 assert.match(
   server,
   /fn dispatch_monastery_feast_ale[\s\S]*?monastery_hospitality_enabled[\s\S]*?monastery_has_parish_link[\s\S]*?building_has_inbound_supply_trip[\s\S]*?monastery_feast_refill_shortfall[\s\S]*?MONASTERY_FEAST_ALE/,
   'feast staging must require the policy, a parish link, no duplicate inbound cart, and an exact one-batch shortfall',
 );
-assert.match(
+assert.doesNotMatch(
   server,
-  /fn dispatch_monastery_covered_need[\s\S]*?CommodityKind::Food => MONASTERY_FEAST_FOOD[\s\S]*?CommodityKind::Ale => MONASTERY_FEAST_ALE[\s\S]*?monastery_feast_surplus[\s\S]*?per_delivery\.min\(available\)/,
-  'routine monastery food and ale carts must not withdraw the protected batch',
+  /fn dispatch_monastery_covered_need/,
+  'monasteries must not bypass depot-owned stalls with routine household deliveries',
 );
 assert.match(
   server,

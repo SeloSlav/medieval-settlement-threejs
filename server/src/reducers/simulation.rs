@@ -469,9 +469,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .collect();
     step_village_storehouse_overflow_collection(ctx, &tick, &clock, village_storehouses);
 
-    // Producers have now attempted their own household and specialty duties.
-    // Their remaining free carts arbitrate all institutional fresh-food demand
-    // together, so target construction order cannot decide who gets supplied.
+    // Producers have finished their own specialty-reserve duties. Their output
+    // now moves to staffed granaries or other institutional consumers; only
+    // depot workers subsequently stock the household Marketplace stalls.
     let institutional_food_sources = institutional_food_source_ids
         .into_iter()
         .filter_map(|building_id| ctx.db.building().id().find(&building_id))

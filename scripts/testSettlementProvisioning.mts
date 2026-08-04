@@ -5,7 +5,7 @@ import {
   GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
   GUARDHOUSE_WAGE_PER_GUARD_PER_DAY,
   PRESERVED_FOOD_SPOILAGE_PER_DAY,
-  PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+  PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
@@ -392,8 +392,11 @@ splitHome.needs.food.stock = 4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
 splitBranchState.residences.set(splitHome.id, splitHome);
 const remoteGranary = building('remote-granary', 'granary', 2, 0);
 remoteGranary.x = 100;
-remoteGranary.food = 300;
 splitBranchState.buildings.set(remoteGranary.id, remoteGranary);
+const remoteFoodMarket = building('remote-food-market', 'marketplace', 0, 0);
+remoteFoodMarket.x = 100;
+remoteFoodMarket.food = 300;
+splitBranchState.buildings.set(remoteFoodMarket.id, remoteFoodMarket);
 const splitBranches = computeSettlementProvisioning({
   state: splitBranchState,
   totals: computeResourceTotals(splitBranchState),
@@ -404,7 +407,7 @@ const splitBranches = computeSettlementProvisioning({
 });
 assert.ok(
   splitBranches.foodRunwayDays > 50,
-  'aggregate stores should demonstrate the false comfort of a remote granary',
+  'aggregate stores should demonstrate the false comfort of a remote staffed market',
 );
 assert.equal(splitBranches.householdBufferReadyHouseholds, 1);
 assert.equal(splitBranches.roadBranches?.activeBranches, 1);
@@ -421,7 +424,7 @@ assert.equal(
 
 splitBranchState.deliveryTrips.set('split-food-cart', {
   id: 'split-food-cart',
-  buildingId: remoteGranary.id,
+  buildingId: remoteFoodMarket.id,
   residenceId: splitHome.id,
   destinationKind: 'residence',
   targetBuildingId: null,
@@ -467,9 +470,9 @@ curedBranchHome.needs.food.stock =
   5 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
 curedBranchState.residences.set(curedBranchHome.id, curedBranchHome);
 const curedBranchSmokehouse = building(
-  'cured-branch-smokehouse',
-  'smokehouse',
-  2,
+  'cured-branch-market',
+  'marketplace',
+  0,
   0,
 );
 curedBranchSmokehouse.x = 7;
@@ -478,6 +481,9 @@ curedBranchState.buildings.set(
   curedBranchSmokehouse.id,
   curedBranchSmokehouse,
 );
+const curedBranchGranary = building('cured-branch-granary', 'granary', 1, 0);
+curedBranchGranary.x = 7;
+curedBranchState.buildings.set(curedBranchGranary.id, curedBranchGranary);
 const curedBranch = computeSettlementProvisioning({
   state: curedBranchState,
   totals: computeResourceTotals(curedBranchState),
@@ -493,7 +499,7 @@ assert.ok(Math.abs(
   curedBranch.preservedFoodSpoilagePerDay
   - 14
     * PRESERVED_FOOD_SPOILAGE_PER_DAY
-    * PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
+    * PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
 ) < 1e-9);
 assert.ok(
   curedBranch.foodRunwayDays <= curedBranch.foodRunwayWithoutSpoilageDays,
@@ -596,14 +602,14 @@ assert.equal(reconnectedBranches.roadBranches?.firstExposedResidenceId, null);
 assert.equal(
   settlementProvisionLevel(reconnectedBranches, 7),
   'ready',
-  'reconnecting the same physical granary should restore the branch forecast',
+  'reconnecting the same staffed food stall should restore the branch forecast',
 );
 
 splitBranchState.deliveryTrips.clear();
-splitBranchState.fireIncidents.set('remote-granary-fire', {
+splitBranchState.fireIncidents.set('remote-market-fire', {
   id: 'remote-granary-fire',
   targetKind: 'building',
-  targetId: remoteGranary.id,
+  targetId: remoteFoodMarket.id,
 } as FireIncidentState);
 const fireDisabledSupplier = computeSettlementProvisioning({
   state: splitBranchState,
@@ -632,10 +638,17 @@ const localGranary = building('local-granary', 'granary', 2, 0);
 localGranary.x = 0;
 localGranary.food = 300;
 splitFuelState.buildings.set(localGranary.id, localGranary);
-const remoteLodge = building('remote-lodge', 'woodcutters_lodge', 2, 0);
-remoteLodge.x = 100;
-remoteLodge.firewood = 5_000;
-splitFuelState.buildings.set(remoteLodge.id, remoteLodge);
+const localFoodMarket = building('local-food-market', 'marketplace', 0, 0);
+localFoodMarket.x = 0;
+localFoodMarket.food = 300;
+splitFuelState.buildings.set(localFoodMarket.id, localFoodMarket);
+const remoteStorehouse = building('remote-storehouse', 'village_storehouse', 2, 0);
+remoteStorehouse.x = 100;
+splitFuelState.buildings.set(remoteStorehouse.id, remoteStorehouse);
+const remoteGoodsMarket = building('remote-goods-market', 'marketplace', 0, 0);
+remoteGoodsMarket.x = 100;
+remoteGoodsMarket.firewood = 5_000;
+splitFuelState.buildings.set(remoteGoodsMarket.id, remoteGoodsMarket);
 const splitFuel = computeSettlementProvisioning({
   state: splitFuelState,
   totals: computeResourceTotals(splitFuelState),
@@ -838,8 +851,11 @@ const roadPerfState = emptyGameState();
 for (let branch = 0; branch < 100; branch += 1) {
   const granary = building(`perf-granary-${branch}`, 'granary', 2, 0);
   granary.x = branch;
-  granary.food = 100_000;
   roadPerfState.buildings.set(granary.id, granary);
+  const market = building(`perf-market-${branch}`, 'marketplace', 0, 0);
+  market.x = branch;
+  market.food = 100_000;
+  roadPerfState.buildings.set(market.id, market);
   for (let index = 0; index < 1_000; index += 1) {
     const home = residence(`road-home-${branch}-${index}`, 1, 4);
     home.x = branch;

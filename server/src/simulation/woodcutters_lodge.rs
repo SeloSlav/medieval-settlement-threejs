@@ -4,8 +4,7 @@ use crate::balance_generated::CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
 use crate::building_defs::building_def;
 use crate::civilian_tool_policy::{civilian_tool_throughput_multiplier, civilian_tools_maintained};
 use crate::constants::{
-    FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC, LODGE_FIREWOOD_PER_CYCLE,
-    LODGE_FIREWOOD_PER_DELIVERY, LODGE_TIMBER_PER_CYCLE, LODGE_TIMBER_PER_DELIVERY, TICK_DT,
+    LODGE_FIREWOOD_PER_CYCLE, LODGE_TIMBER_PER_CYCLE, LODGE_TIMBER_PER_DELIVERY, TICK_DT,
     TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
@@ -13,24 +12,16 @@ use crate::economy::{
     available_unreserved_building_timber, building_storage_caps, deposit_building,
     withdraw_building, withdraw_building_commodity, CommodityKind,
 };
-use crate::simulation::delivery_cargo::has_delivery_stock_room;
-use crate::simulation::delivery_supplier::{
-    delivery_work_ready, dispatch_delivery_if_ready, DeliveryDispatchConfig,
-};
 use crate::simulation::delivery_trips::{
-    available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
-    onsite_building_labor, try_start_timber_supply_trip,
+    building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
+    try_start_timber_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::has_industrial_firewood_target;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::{
-    local_delivery_distance, select_residence_for_need_delivery,
-};
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
-use crate::supply_policy::{household_firewood_needs_priority, select_supply_route_candidate};
-use crate::tables::{Building, Residence};
+use crate::supply_policy::select_supply_route_candidate;
+use crate::tables::Building;
 use crate::woodcutter_policy::woodcutter_can_process;
 
 pub fn step_woodcutters_lodge(
@@ -62,17 +53,6 @@ pub fn step_woodcutters_lodge(
         lodge.action_cooldown = (lodge.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
     }
     let process_ready = onsite_labor > 0 && lodge.action_cooldown <= 0.0;
-    let delivery_ready = available_free_haulers(ctx, lodge.owner) > 0
-        && delivery_work_ready(1, lodge.firewood > 0.0, lodge.id, ctx);
-
-    let delivery_targets = if delivery_ready {
-        collect_delivery_targets(ctx, tick, network, &lodge)
-    } else {
-        Vec::new()
-    };
-    let has_target =
-        !delivery_targets.is_empty() || has_industrial_firewood_target(ctx, tick, &lodge);
-
     if process_ready {
         // One authoritative stock scan serves both policy checks. Dispatching
         // cannot lead to same-tick processing because it only runs when the
@@ -90,61 +70,7 @@ pub fn step_woodcutters_lodge(
         lodge = process_timber_to_firewood(lodge, onsite_labor, available_timber, tools_maintained);
         lodge.action_cooldown = def.action_interval;
     }
-    if delivery_ready && has_target {
-        dispatch_delivery_if_ready(
-            ctx,
-            tick,
-            clock,
-            network,
-            &mut lodge,
-            1,
-            &delivery_targets,
-            DeliveryDispatchConfig {
-                need_kind: ResidenceNeedKind::Firewood,
-                speed_mps: FIREWOOD_DELIVERY_SPEED_MPS,
-                unload_seconds: FIREWOOD_DELIVERY_UNLOAD_SEC,
-                per_delivery: LODGE_FIREWOOD_PER_DELIVERY,
-            },
-        );
-    }
-
     ctx.db.building().id().update(lodge);
-}
-
-fn collect_delivery_targets(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    network: &crate::roads::RoadNetwork,
-    lodge: &Building,
-) -> Vec<Residence> {
-    let residences: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&lodge.owner)
-        .filter(|residence| ResidenceNeedKind::Firewood.is_active_for_tier(residence.tier))
-        .filter(|residence| {
-            tick.firewood_supplier_for(ctx, lodge.owner, residence.id) == Some(lodge.id)
-        })
-        .collect();
-    select_residence_for_need_delivery(
-        network,
-        lodge,
-        residences,
-        None,
-        None,
-        |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Firewood),
-        |residence, stock| {
-            has_delivery_stock_room(ResidenceNeedKind::Firewood, stock)
-                && household_firewood_needs_priority(
-                    residence.abandoned,
-                    residence.population,
-                    stock,
-                )
-        },
-    )
-    .into_iter()
-    .collect()
 }
 
 fn dispatch_timber_supply_if_needed(

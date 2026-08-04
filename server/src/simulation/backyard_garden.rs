@@ -28,9 +28,8 @@ pub fn step_backyard_gardens(
     clock: &GameClock,
     environment: EnvironmentState,
 ) {
-    // The tick context builds one exact nearest-market road territory per
-    // owner and shares it with household emergency orders. Aggregate tolls so
-    // a large town still updates each physical market coffer only once.
+    // The tick context builds one exact local-market road territory per owner.
+    // Aggregate tolls so a large town updates each physical market coffer once.
     let mut tax_policy_by_owner: HashMap<spacetimedb::Identity, (f64, f64)> = HashMap::new();
     let mut market_tolls_by_market: HashMap<u64, f64> = HashMap::new();
     for garden in ctx.db.backyard_garden().iter() {
@@ -46,7 +45,8 @@ pub fn step_backyard_gardens(
         if residence.population == 0 || tick.residence_disabled_by_fire(ctx, residence.id) {
             continue;
         }
-        let marketplace_id = tick.marketplace_for_residence(ctx, garden.owner, residence.id);
+        let marketplace_id =
+            tick.local_marketplace_for_residence(ctx, garden.owner, residence.id);
         let (tax_rate, collection_multiplier) =
             *tax_policy_by_owner.entry(garden.owner).or_insert_with(|| {
                 (

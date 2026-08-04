@@ -5,7 +5,7 @@ export type PotteryDispatchPolicy =
   | typeof POTTERY_DISPATCH_HOUSEHOLDS_FIRST
   | typeof POTTERY_DISPATCH_PRESERVATION_FIRST;
 
-export type PotteryDispatchDuty = 'household' | 'preservation' | 'export';
+export type PotteryDispatchDuty = 'market-stalls' | 'preservation' | 'export';
 
 export const POTTERY_DISPATCH_POLICY_PRESETS: readonly {
   policy: PotteryDispatchPolicy;
@@ -14,13 +14,13 @@ export const POTTERY_DISPATCH_POLICY_PRESETS: readonly {
 }[] = [
   {
     policy: POTTERY_DISPATCH_HOUSEHOLDS_FIRST,
-    label: 'Homes first',
-    hint: 'Replace prosperous household wares, then stage smokehouse vessels, then export.',
+    label: 'Market wares first',
+    hint: 'Send wares to a staffed storehouse for market stalls, then stage smokehouse vessels, then export.',
   },
   {
     policy: POTTERY_DISPATCH_PRESERVATION_FIRST,
     label: 'Preservation first',
-    hint: 'Stage smokehouse vessels, then replace household wares, then export.',
+    hint: 'Stage smokehouse vessels, then send wares to a staffed storehouse, then export.',
   },
 ];
 
@@ -44,8 +44,8 @@ export function potteryDispatchOrder(
 ): readonly PotteryDispatchDuty[] {
   return normalizePotteryDispatchPolicy(policy)
     === POTTERY_DISPATCH_PRESERVATION_FIRST
-    ? ['preservation', 'household', 'export']
-    : ['household', 'preservation', 'export'];
+    ? ['preservation', 'market-stalls', 'export']
+    : ['market-stalls', 'preservation', 'export'];
 }
 
 export function potteryDispatchPolicyLabel(
@@ -54,5 +54,5 @@ export function potteryDispatchPolicyLabel(
   return normalizePotteryDispatchPolicy(policy)
     === POTTERY_DISPATCH_PRESERVATION_FIRST
     ? 'Preservation first'
-    : 'Household wares first';
+    : 'Market wares first';
 }

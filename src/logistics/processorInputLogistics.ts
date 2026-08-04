@@ -53,7 +53,10 @@ export type DirectProcessorInputCommodity =
   | 'charcoal'
   | 'pottery';
 export type MarketplaceMaterialInputCommodity = 'iron' | 'salt' | 'pottery';
-export type ProcessorInputDispatchDuty = 'working-buffer' | 'workshop-overflow';
+export type ProcessorInputDispatchDuty =
+  | 'working-buffer'
+  | 'central-storage'
+  | 'workshop-overflow';
 
 type ProcessorInputDestinationLike = Pick<
   BuildingState,
@@ -120,11 +123,11 @@ const TARGET_KINDS: Record<
     'watermill',
     'carpenter',
   ],
-  iron: ['smithy', 'marketplace'],
+  iron: ['smithy', 'trading_post'],
   clay: ['potter_kiln'],
-  salt: ['smokehouse', 'pastoral_farmstead', 'marketplace'],
+  salt: ['smokehouse', 'pastoral_farmstead', 'trading_post'],
   charcoal: ['smithy'],
-  pottery: ['smokehouse', 'marketplace'],
+  pottery: ['smokehouse', 'village_storehouse', 'trading_post'],
 };
 
 export function directlyDispatchedProcessorInputPerCycle(
@@ -203,12 +206,14 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
  * for replacement iron tools. Imported raw iron and salt stop at processor
  * working buffers. Local mine carts do the same first, then may centralize
- * surplus up to a staffed marketplace's selected reserve, where imports cover
+ * surplus up to a staffed Trading Post's selected reserve, where imports cover
  * only any remaining gap;
  * after the kiln's household-ware duty, pottery reaches staffed smokehouses
  * before becoming market export stock. Preserved food is a
  * storage-only overflow route to the nearest granary that accepts perishable
  * surplus, never a processor input.
+ * Flour centralizes at a staffed granary once bakery working buffers are
+ * covered; bakery warehouse overflow remains available only as a last resort.
  * Other inputs resume nearest storage overflow once buffers are covered.
  */
 export function selectDirectProcessorInputTarget<
@@ -248,7 +253,7 @@ export function selectDirectProcessorInputTarget<
     const routeDistance = routeDistanceFor(target);
     if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
 
-    const marketplaceReserveTarget = target.kind === 'marketplace'
+    const marketplaceReserveTarget = target.kind === 'trading_post'
       ? commodity === 'iron'
         ? normalizeMarketplaceIronTarget(target.marketplaceIronTarget)
         : commodity === 'salt'
@@ -262,10 +267,13 @@ export function selectDirectProcessorInputTarget<
     );
     const toolRack = commodity === 'ironwork' && isCivilianToolSite(target.kind);
     if (toolRack && !civilianToolRefillDue(stock, capacity)) continue;
+    const centralFlourStorage = commodity === 'flour' && target.kind === 'granary';
     const duty: ProcessorInputDispatchDuty = toolRack
       ? target.assignedLabor > 0
         ? 'working-buffer'
         : 'workshop-overflow'
+      : centralFlourStorage
+        ? 'central-storage'
       : target.assignedLabor > 0 && stock + 1e-6 < workingTarget
         ? 'working-buffer'
         : 'workshop-overflow';
@@ -397,7 +405,7 @@ export function localMaterialInputCommodity(
 }
 
 /**
- * One marketplace cart chooses between imported iron, salt, and uncommitted
+ * One Trading Post cart chooses between imported iron, salt, and uncommitted
  * pottery returned from export stock. This mirrors the authoritative
  * source-side pass, so a later-built urgent workshop can beat an older target
  * instead of losing to update order.
@@ -455,7 +463,7 @@ export function selectMarketplaceMaterialInputTarget<
 }
 
 /**
- * Match every free marketplace cart across the settlement in one pass.
+ * Match every free Trading Post cart across the settlement in one pass.
  * Workshop urgency remains authoritative; among equal needs the shortest
  * source-to-target road wins, so an older remote market cannot reserve work
  * that a newer nearby market could serve more efficiently.
@@ -645,7 +653,7 @@ function compareProcessorInputCandidates<T extends ProcessorInputDestinationLike
   selected: RoutedProcessorInputDestination<T>,
 ): number {
   if (candidate.duty !== selected.duty) {
-    return candidate.duty === 'working-buffer' ? -1 : 1;
+    return processorInputDutyRank(candidate.duty) - processorInputDutyRank(selected.duty);
   }
   if (candidate.duty === 'working-buffer') {
     if (candidate.workPriority !== selected.workPriority) {
@@ -662,6 +670,14 @@ function compareProcessorInputCandidates<T extends ProcessorInputDestinationLike
     return candidate.routeDistance - selected.routeDistance;
   }
   return compareStableEntityIds(candidate.target.id, selected.target.id);
+}
+
+function processorInputDutyRank(duty: ProcessorInputDispatchDuty): number {
+  switch (duty) {
+    case 'working-buffer': return 0;
+    case 'central-storage': return 1;
+    case 'workshop-overflow': return 2;
+  }
 }
 
 function directMaterialCommodityRank(

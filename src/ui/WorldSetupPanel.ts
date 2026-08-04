@@ -126,7 +126,7 @@ export class WorldSetupPanel {
               <strong data-resource-variety-value>${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}</strong>
             </label>
             <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
-            <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich mineral rolls into fewer resource families. Staffed marketplaces can import iron and Adriatic salt after local seams run short; trade supplements physical geology rather than replacing it.</p>
+            <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich mineral rolls into fewer resource families. Staffed Trading Posts can import iron and Adriatic salt after local seams run short; trade supplements physical geology rather than replacing it.</p>
             <div class="world-setup-resource-summary" data-resource-summary aria-live="polite">${this.resourceSummaryMarkup()}</div>
             </section>
 

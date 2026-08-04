@@ -460,7 +460,13 @@ export class WorldQueries {
 
   private firewoodClaims(): FirewoodDeliveryClaimQueries {
     const { network, buildings, residences } = this.deliverySnapshot();
-    return new FirewoodDeliveryClaimQueries(network, buildings, residences);
+    return new FirewoodDeliveryClaimQueries(
+      network,
+      buildings.filter((building) =>
+        building.kind !== 'marketplace'
+        || this.marketplaceHasStallWorkforce(building, 'village_storehouse')),
+      residences,
+    );
   }
 
   private wellClaims(): WellDeliveryClaimQueries {
@@ -481,19 +487,53 @@ export class WorldQueries {
       buildings,
       residences,
       (supplier, residence, distance) =>
-        supplier.kind !== 'monastery'
-        || (
-          monasteryFeastSurplus(
-            supplier.food,
-            monasteryFeastReserve('food'),
-            reserveEnabled,
-          ) > 1e-6
-          &&
-          distance <= MONASTERY_COVERAGE_RADIUS
-          && !fireDisabled.has(supplier.id)
-          && findServingChapel(residence, chapels, probe) != null
-          && monasteryLinkedToChapel(supplier, chapels, probe)
+        (
+          supplier.kind !== 'marketplace'
+          || this.marketplaceHasStallWorkforce(supplier, 'granary')
+        )
+        && (
+          supplier.kind !== 'monastery'
+          || (
+            monasteryFeastSurplus(
+              supplier.food,
+              monasteryFeastReserve('food'),
+              reserveEnabled,
+            ) > 1e-6
+            && distance <= MONASTERY_COVERAGE_RADIUS
+            && !fireDisabled.has(supplier.id)
+            && findServingChapel(residence, chapels, probe) != null
+            && monasteryLinkedToChapel(supplier, chapels, probe)
+          )
         ),
+    );
+  }
+
+  private marketplaceHasStallWorkforce(
+    marketplace: BuildingState,
+    workplaceKind: Extract<BuildingKind, 'granary' | 'village_storehouse'>,
+  ): boolean {
+    if (
+      marketplace.kind !== 'marketplace'
+      || marketplace.constructionComplete === false
+    ) {
+      return false;
+    }
+    const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    if (fireDisabled.has(marketplace.id)) return false;
+    const network = this.getRoadNetwork();
+    return [...state.buildings.values()].some((workplace) =>
+      workplace.kind === workplaceKind
+      && workplace.constructionComplete !== false
+      && workplace.assignedLabor > 0
+      && !fireDisabled.has(workplace.id)
+      && localDeliveryDistance(
+        network,
+        workplace.x,
+        workplace.z,
+        marketplace.x,
+        marketplace.z,
+      ) != null
     );
   }
 
@@ -850,6 +890,8 @@ export class WorldQueries {
       this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'preservedFood',
+      (building) => building.kind !== 'marketplace'
+        || this.marketplaceHasStallWorkforce(building, 'granary'),
     );
   }
 
@@ -886,6 +928,8 @@ export class WorldQueries {
       this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'cloth',
+      (building) => building.kind !== 'marketplace'
+        || this.marketplaceHasStallWorkforce(building, 'village_storehouse'),
     );
   }
 
@@ -928,24 +972,30 @@ export class WorldQueries {
       network,
       'ale',
       (building, distance) =>
-        building.kind !== 'monastery'
-        || (
-          (
-            !requireStock
-            || monasteryFeastSurplus(
-              building.ale,
-              monasteryFeastReserve('ale'),
-              reserveEnabled,
-            ) > 1e-6
-          )
-          &&
-          hasParishAccess
-          && distance <= MONASTERY_COVERAGE_RADIUS
-          && !fireDisabled.has(building.id)
-          && monasteryLinkedToChapel(
-            building,
-            chapels,
-            (a, b, c, d) => roadPathDistance(network, a, b, c, d),
+        (
+          !requireStock
+          || building.kind !== 'marketplace'
+          || this.marketplaceHasStallWorkforce(building, 'granary')
+        )
+        && (
+          building.kind !== 'monastery'
+          || (
+            (
+              !requireStock
+              || monasteryFeastSurplus(
+                building.ale,
+                monasteryFeastReserve('ale'),
+                reserveEnabled,
+              ) > 1e-6
+            )
+            && hasParishAccess
+            && distance <= MONASTERY_COVERAGE_RADIUS
+            && !fireDisabled.has(building.id)
+            && monasteryLinkedToChapel(
+              building,
+              chapels,
+              (a, b, c, d) => roadPathDistance(network, a, b, c, d),
+            )
           )
         ),
     );
@@ -1074,6 +1124,8 @@ export class WorldQueries {
       this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'pottery',
+      (building) => building.kind !== 'marketplace'
+        || this.marketplaceHasStallWorkforce(building, 'village_storehouse'),
     );
   }
 
@@ -1346,7 +1398,7 @@ export class WorldQueries {
     const potteryReservedForTrade = pendingTrade?.kind === 'goldSell'
       && pendingTrade.resource === 'pottery';
     if (
-      source.kind !== 'marketplace'
+      source.kind !== 'trading_post'
       || source.constructionComplete === false
       || source.assignedLabor <= 0
       || fireDisabled.has(source.id)

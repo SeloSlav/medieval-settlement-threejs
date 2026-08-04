@@ -637,7 +637,7 @@ export async function setMarketplaceIronworkTarget(
   ironworkTarget: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid marketplace id.');
+  if (serverId === null) throw new Error('Invalid Trading Post id.');
   await callReducer('setMarketplaceIronworkTarget', 'set_marketplace_ironwork_target', {
     buildingId: serverId,
     ironworkTarget: Math.max(0, Math.min(48, Math.floor(ironworkTarget))),
@@ -649,7 +649,7 @@ export async function setMarketplaceIronTarget(
   ironTarget: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid marketplace id.');
+  if (serverId === null) throw new Error('Invalid Trading Post id.');
   await callReducer('setMarketplaceIronTarget', 'set_marketplace_iron_target', {
     buildingId: serverId,
     ironTarget: Math.max(0, Math.min(48, Math.floor(ironTarget))),
@@ -661,7 +661,7 @@ export async function setMarketplaceSaltTarget(
   saltTarget: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid marketplace id.');
+  if (serverId === null) throw new Error('Invalid Trading Post id.');
   await callReducer('setMarketplaceSaltTarget', 'set_marketplace_salt_target', {
     buildingId: serverId,
     saltTarget: Math.max(0, Math.min(72, Math.floor(saltTarget))),
@@ -673,7 +673,7 @@ export async function setMarketplaceGoldReserveTarget(
   goldReserveTarget: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid marketplace id.');
+  if (serverId === null) throw new Error('Invalid Trading Post id.');
   await callReducer(
     'setMarketplaceGoldReserveTarget',
     'set_marketplace_gold_reserve_target',
@@ -689,7 +689,7 @@ export async function setMarketplaceSeedGrainTarget(
   seedGrainTarget: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid marketplace id.');
+  if (serverId === null) throw new Error('Invalid Trading Post id.');
   await callReducer('setMarketplaceSeedGrainTarget', 'set_marketplace_seed_grain_target', {
     buildingId: serverId,
     seedGrainTarget: Math.max(0, Math.min(96, Math.floor(seedGrainTarget))),
@@ -701,7 +701,7 @@ export async function setMarketplaceSpecialtyExportPolicy(
   exportPolicy: number,
 ): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) throw new Error('Invalid marketplace id.');
+  if (serverId === null) throw new Error('Invalid Trading Post id.');
   await callReducer(
     'setMarketplaceSpecialtyExportPolicy',
     'set_marketplace_specialty_export_policy',
@@ -793,7 +793,7 @@ export async function marketplaceTrade(buildingId: string, tradeId: string): Pro
 export async function cancelMarketplaceTradeOrder(buildingId: string): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
   if (serverId === null) {
-    throw new Error('Invalid marketplace id.');
+    throw new Error('Invalid Trading Post id.');
   }
   await callReducer(
     'cancelMarketplaceTradeOrder',

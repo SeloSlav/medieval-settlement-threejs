@@ -337,7 +337,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.marketplaceTrade(buildingId, tradeId),
-        'Marketplace trade failed.',
+        'Trading Post trade failed.',
       );
     },
     onCancelMarketplaceTradeOrder: async (buildingId) => {
@@ -348,7 +348,7 @@ export function createInspectorSpacetimeActions(
         toastManager.show(
           'Bulk order canceled. Any dispatched cart will still unload its physical cargo here.',
         );
-      }, 'Could not cancel the marketplace order.');
+      }, 'Could not cancel the Trading Post order.');
     },
     onCollectChapelCoffer: async (buildingId) => {
       const store = requireReady();
@@ -686,7 +686,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setMarketplaceIronworkTarget(buildingId, ironworkTarget),
-        'Could not update the marketplace ironwork target.',
+        'Could not update the Trading Post ironwork target.',
       );
     },
     onSetMarketplaceIronTarget: async (buildingId, ironTarget) => {
@@ -694,7 +694,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setMarketplaceIronTarget(buildingId, ironTarget),
-        'Could not update the marketplace iron target.',
+        'Could not update the Trading Post iron target.',
       );
     },
     onSetMarketplaceSaltTarget: async (buildingId, saltTarget) => {
@@ -702,7 +702,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setMarketplaceSaltTarget(buildingId, saltTarget),
-        'Could not update the marketplace salt target.',
+        'Could not update the Trading Post salt target.',
       );
     },
     onSetMarketplaceGoldReserveTarget: async (buildingId, goldReserveTarget) => {
@@ -710,7 +710,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setMarketplaceGoldReserveTarget(buildingId, goldReserveTarget),
-        'Could not update the marketplace cash reserve.',
+        'Could not update the Trading Post cash reserve.',
       );
     },
     onSetMarketplaceSeedGrainTarget: async (buildingId, seedGrainTarget) => {
@@ -718,7 +718,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setMarketplaceSeedGrainTarget(buildingId, seedGrainTarget),
-        'Could not update the marketplace seed-grain target.',
+        'Could not update the Trading Post seed-grain target.',
       );
     },
     onSetMarketplaceSpecialtyExportPolicy: async (buildingId, exportPolicy) => {
@@ -726,7 +726,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setMarketplaceSpecialtyExportPolicy(buildingId, exportPolicy),
-        'Could not update the marketplace specialty export policy.',
+        'Could not update the Trading Post specialty export policy.',
       );
     },
     onSetHarvestReservePercent: async (buildingId, reservePercent) => {

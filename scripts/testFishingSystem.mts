@@ -178,24 +178,30 @@ const camp = {
   constructionComplete: true,
 } as BuildingState;
 const residence = { id: 'home-1', x: 20, z: 0 } as ResidenceState;
+const market = {
+  ...camp,
+  id: 'market-1',
+  kind: 'marketplace',
+  assignedLabor: 0,
+} as BuildingState;
 const connectedNetwork = {
   getPathfinder: () => ({
     roadPathDistance: () => 20,
   }),
 } as RoadNetwork;
 assert.equal(
-  claimResidencesForFoodSuppliers(connectedNetwork, [camp], [residence]).get(residence.id),
-  camp.id,
-  'stocked fishing camps should participate in normal residence food claims',
+  claimResidencesForFoodSuppliers(connectedNetwork, [camp, market], [residence]).get(residence.id),
+  market.id,
+  'fishing output must reach a Marketplace food stall before serving homes',
 );
 assert.equal(
   claimResidencesForFoodSuppliers(
     connectedNetwork,
-    [{ ...camp, food: 0 }],
+    [camp],
     [residence],
   ).has(residence.id),
   false,
-  'an empty fishing camp must yield household service until its next catch',
+  'a fishing camp must never bypass granary and Marketplace logistics',
 );
 
 assert.ok(FISH_ICON_HTML.includes('map-resource-icon-glyph--fish'));

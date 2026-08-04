@@ -86,33 +86,34 @@ const network = {
 const home = residence('home', 0);
 const idleLodge = building('idle-lodge', 'woodcutters_lodge', 2, 0);
 const staffedLodge = building('staffed-lodge', 'woodcutters_lodge', 20, 1);
+const marketplace = building('market', 'marketplace', 6, 0);
 assert.equal(
-  claimResidencesForFirewoodSuppliers(network, [idleLodge, staffedLodge], [home]).get(home.id),
-  idleLodge.id,
-  'a stocked lodge should use a free hauler even while its production roster is empty',
+  claimResidencesForFirewoodSuppliers(network, [idleLodge, staffedLodge, marketplace], [home]).get(home.id),
+  marketplace.id,
+  'only staged Marketplace fuel should participate in household delivery claims',
 );
 
 const depot = building('depot', 'village_storehouse', 5, 2);
 assert.equal(
   claimResidencesForFirewoodSuppliers(network, [staffedLodge, depot], [home]).get(home.id),
-  depot.id,
-  'an accepting staffed storehouse should form a household fuel territory',
+  undefined,
+  'storehouse workers must stock Marketplace stalls instead of serving homes directly',
 );
 assert.equal(
   claimResidencesForFirewoodSuppliers(
     network,
-    [staffedLodge, { ...depot, storehouseAcceptsFirewood: false }],
+    [{ ...marketplace, constructionComplete: false }, staffedLodge, depot],
     [home],
   ).get(home.id),
-  staffedLodge.id,
-  'turning off firewood acceptance should immediately relinquish the territory',
+  undefined,
+  'an incomplete Marketplace cannot provide household fuel service',
 );
 assert.equal(
   claimResidencesForFirewoodSuppliers(
     network,
     [
-      building('10', 'woodcutters_lodge', 10, 1),
-      building('2', 'woodcutters_lodge', -10, 1),
+      building('10', 'marketplace', 10, 0),
+      building('2', 'marketplace', -10, 0),
     ],
     [home],
   ).get(home.id),
@@ -143,9 +144,9 @@ assert.equal(
 const idleCamp = building('idle-camp', 'fishing_camp', 4, 0);
 const staffedCamp = building('staffed-camp', 'fishing_camp', 30, 1);
 assert.equal(
-  claimResidencesForFoodSuppliers(network, [idleCamp, staffedCamp], [home]).get(home.id),
-  idleCamp.id,
-  'stored fresh food should remain deliverable after the production crew is reassigned',
+  claimResidencesForFoodSuppliers(network, [idleCamp, staffedCamp, marketplace], [home]).get(home.id),
+  marketplace.id,
+  'fresh food must be staged at the Marketplace before a granary stall can serve it',
 );
 
 const idleSmokehouse = building('idle-smokehouse', 'smokehouse', 3, 0);
@@ -153,34 +154,34 @@ const staffedFarmstead = building('staffed-farmstead', 'pastoral_farmstead', 18,
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,
-    [idleSmokehouse, staffedFarmstead],
+    [idleSmokehouse, staffedFarmstead, marketplace],
     network,
     'preservedFood',
   )?.id,
-  idleSmokehouse.id,
-  'stored cured food should use a free hauler instead of borrowing producer labor',
+  marketplace.id,
+  'stored cured food must be delivered from a Marketplace food stall',
 );
 const autonomousMonastery = building('monastery', 'monastery', 7, 0);
 assert.equal(
   findRoadLinkedSupplierForResidence(
     home,
-    [building('idle-brewery', 'brewery', 2, 0), autonomousMonastery],
+    [building('idle-brewery', 'brewery', 2, 0), autonomousMonastery, marketplace],
     network,
     'ale',
   )?.id,
-  'idle-brewery',
-  'stored ale should remain deliverable after the brewery production crew is reassigned',
+  marketplace.id,
+  'stored ale must be delivered from a Marketplace food stall',
 );
 
 assert.equal(STOREHOUSE_FIREWOOD_PER_DELIVERY, 8);
 const storehouseServer = fs.readFileSync('server/src/simulation/village_storehouse.rs', 'utf8');
-assert.match(storehouseServer, /firewood_supplier_for/);
+assert.match(storehouseServer, /step_storehouse_market_stalls/);
 assert.match(storehouseServer, /STOREHOUSE_FIREWOOD_PER_DELIVERY/);
-assert.match(storehouseServer, /ResidenceNeedKind::Firewood/);
+assert.match(storehouseServer, /CommodityKind::Firewood/);
 assert.ok(
-  storehouseServer.indexOf('dispatch_delivery_if_ready')
+  storehouseServer.indexOf('step_storehouse_market_stalls')
     < storehouseServer.indexOf('dispatch_overflow_collection_for_owner'),
-  'household fuel must be considered before overflow collection',
+  'stall stocking must be considered before overflow collection',
 );
 const constructionTrips = fs.readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 assert.match(
@@ -212,17 +213,8 @@ const recoverySupplyServer = fs.readFileSync(
   'server/src/simulation/residence_needs/supply.rs',
   'utf8',
 );
-for (const [label, source] of [
-  ['woodcutter lodge', lodgeServer],
-  ['village storehouse', storehouseServer],
-] as const) {
-  assert.match(source, /tick\.firewood_supplier_for/);
-  assert.doesNotMatch(
-    source,
-    /claim_residences_for_firewood_suppliers/,
-    `${label} should consume the shared per-tick territory instead of rebuilding it`,
-  );
-}
+assert.doesNotMatch(lodgeServer, /tick\.firewood_supplier_for/);
+assert.doesNotMatch(storehouseServer, /tick\.firewood_supplier_for/);
 assert.match(wellServer, /tick\.well_supplier_for/);
 assert.match(
   lodgeServer,
@@ -254,7 +246,7 @@ const countedNetwork = {
   }),
 } as unknown as RoadNetwork;
 const firewoodSuppliers = Array.from({ length: 8 }, (_, index) =>
-  building(`perf-firewood-${index}`, index % 2 === 0 ? 'woodcutters_lodge' : 'village_storehouse', index * 400, 2));
+  building(`perf-firewood-${index}`, 'marketplace', index * 400, 0));
 const wells = Array.from({ length: 8 }, (_, index) =>
   building(`perf-well-${index}`, 'well', index * 400, 2, { workRadius: 5_000 }));
 const territoryStart = performance.now();
@@ -332,13 +324,13 @@ const realRoadHomes = [
 const realRoadClaims = claimResidencesForFirewoodSuppliers(
   lineNetwork,
   [
-    building('real-road-west-lodge', 'woodcutters_lodge', 8, 1),
-    building('real-road-east-lodge', 'woodcutters_lodge', (lineNodeCount - 2) * 8, 1),
+    building('real-road-west-market', 'marketplace', 8, 0),
+    building('real-road-east-market', 'marketplace', (lineNodeCount - 2) * 8, 0),
   ],
   realRoadHomes,
 );
-assert.equal(realRoadClaims.get('real-road-west'), 'real-road-west-lodge');
-assert.equal(realRoadClaims.get('real-road-east'), 'real-road-east-lodge');
+assert.equal(realRoadClaims.get('real-road-west'), 'real-road-west-market');
+assert.equal(realRoadClaims.get('real-road-east'), 'real-road-east-market');
 
 const branchNetwork = new RoadNetwork();
 branchNetwork.restore({

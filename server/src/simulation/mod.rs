@@ -63,7 +63,6 @@ pub use delivery_trips::{
     start_external_market_import_trip_to_residence, start_regional_market_export_trip,
     step_delivery_trips, try_start_building_supply_trip, try_start_fire_response_trip,
 };
-pub(crate) use expanded_economy::has_industrial_firewood_target;
 pub use expanded_economy::{
     step_apiary, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
     step_bakery, step_ferry_landing, step_granary, step_guardhouse,

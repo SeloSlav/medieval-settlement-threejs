@@ -57,6 +57,7 @@ pub struct SimTickContext {
     food_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     food_claim_counts: RefCell<HashMap<Identity, HashMap<u64, u32>>>,
     marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
+    local_marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     specialty_claims: RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     active_remote_camp_by_worksite: RefCell<HashMap<(Identity, u64), bool>>,
     waiting_corpse_index: RefCell<Option<HashMap<Identity, CorpseSpatialIndex>>>,
@@ -101,6 +102,7 @@ impl SimTickContext {
             food_claims: RefCell::new(HashMap::new()),
             food_claim_counts: RefCell::new(HashMap::new()),
             marketplace_claims: RefCell::new(HashMap::new()),
+            local_marketplace_claims: RefCell::new(HashMap::new()),
             specialty_claims: RefCell::new(HashMap::new()),
             active_remote_camp_by_worksite: RefCell::new(HashMap::new()),
             waiting_corpse_index: RefCell::new(None),
@@ -767,10 +769,9 @@ impl SimTickContext {
             .copied()
     }
 
-    /// Returns the nearest operational marketplace by exact road distance.
-    /// Garden trade and emergency household orders share this once-per-owner
-    /// territory map, so adding spatially useful markets matters without
-    /// repeating Dijkstra searches in each economy pass.
+    /// Returns the nearest staffed Trading Post by exact road distance for
+    /// emergency household imports. The save-compatible method name remains
+    /// while regional trade is now physically separate from local markets.
     pub fn marketplace_for_residence(
         &self,
         ctx: &ReducerContext,
@@ -782,6 +783,28 @@ impl SimTickContext {
             self.marketplace_claims.borrow_mut().insert(owner, claims);
         }
         self.marketplace_claims
+            .borrow()
+            .get(&owner)
+            .and_then(|claims| claims.get(&residence_id))
+            .copied()
+    }
+
+    /// Returns the nearest food-stall Marketplace. Backyard commerce belongs
+    /// to the local market square and is closed when no staffed granary owns a
+    /// stall there; it never creates receipts at the regional Trading Post.
+    pub fn local_marketplace_for_residence(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        residence_id: u64,
+    ) -> Option<u64> {
+        if !self.local_marketplace_claims.borrow().contains_key(&owner) {
+            let claims = self.build_local_marketplace_claims(ctx, owner);
+            self.local_marketplace_claims
+                .borrow_mut()
+                .insert(owner, claims);
+        }
+        self.local_marketplace_claims
             .borrow()
             .get(&owner)
             .and_then(|claims| claims.get(&residence_id))
@@ -924,6 +947,46 @@ impl SimTickContext {
         })
     }
 
+    fn build_local_marketplace_claims(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+    ) -> HashMap<u64, u64> {
+        let Some(network) = self.road_network(owner) else {
+            return HashMap::new();
+        };
+        let marketplaces: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["marketplace"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter(|building| {
+                building.construction_complete
+                    && !self.building_disabled_by_fire(ctx, building.id)
+                    && self.marketplace_has_stall_workers(
+                        ctx,
+                        network,
+                        building,
+                        ResidenceNeedKind::Food,
+                    )
+            })
+            .collect();
+        let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| {
+                !residence.abandoned
+                    && residence.population > 0
+                    && !self.residence_disabled_by_fire(ctx, residence.id)
+            })
+            .collect();
+        claim_residences_by_nearest_supplier(network, &marketplace_refs, &residences, |_, _, _| {
+            true
+        })
+    }
+
     /// Returns the single nearest supplier assigned to this tier-3 household.
     /// Claims are built lazily once per owner and need for the simulation
     /// substep, so every brewery/smokehouse does not repeat the same Dijkstra
@@ -945,12 +1008,6 @@ impl SimTickContext {
             .get(&key)
             .and_then(|claims| claims.get(&residence_id))
             .copied()
-    }
-
-    pub fn invalidate_specialty_claims(&self, owner: Identity, need_kind: ResidenceNeedKind) {
-        self.specialty_claims
-            .borrow_mut()
-            .remove(&(owner, need_kind));
     }
 
     /// Count bodies that have not yet been collected near one home. The

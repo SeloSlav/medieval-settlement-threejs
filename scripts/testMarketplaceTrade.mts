@@ -17,6 +17,7 @@ import {
   tradeResourceSpendScope,
 } from '../src/economy/marketplaceTrade.ts';
 import {
+  BUILDING_STORAGE_CAPS,
   MARKETPLACE_TRADE_OFFERS,
   MARKET_COMMODITIES,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
@@ -220,7 +221,7 @@ assert.match(
 );
 const marketplace = makeBuilding({
   id: 'market',
-  kind: 'marketplace',
+  kind: 'trading_post',
   x: 0,
   z: 0,
   timber: 5,
@@ -357,7 +358,7 @@ assert.notEqual(
   buildingMarkerCollectionSignature(new Map([[marketplace.id, marketplace]])),
   buildingMarkerCollectionSignature(new Map([[
     marketplace.id,
-    { ...marketplace, timber: marketplace.timber + 20 },
+    { ...marketplace, timber: marketplace.timber + 40 },
   ]])),
   'physical market staging piles must refresh when their visible stock level changes',
 );
@@ -594,15 +595,15 @@ assert.equal(
   8 / SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
 );
 
-assert.equal(canReceiveMarketplaceTrade({ ...marketplace, timber: 50 }, buyTimber), true);
-assert.equal(canReceiveMarketplaceTrade({ ...marketplace, timber: 51 }, buyTimber), false);
-assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ironwork: 42 }, buyIronwork), true);
-assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ironwork: 43 }, buyIronwork), false);
-assert.equal(canReceiveMarketplaceTrade({ ...marketplace, grain: 24 }, buySeedGrain), true);
-assert.equal(canReceiveMarketplaceTrade({ ...marketplace, grain: 25 }, buySeedGrain), false);
+assert.equal(canReceiveMarketplaceTrade({ ...marketplace, timber: BUILDING_STORAGE_CAPS.trading_post.timber - 10 }, buyTimber), true);
+assert.equal(canReceiveMarketplaceTrade({ ...marketplace, timber: BUILDING_STORAGE_CAPS.trading_post.timber - 9 }, buyTimber), false);
+assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ironwork: BUILDING_STORAGE_CAPS.trading_post.ironwork - 6 }, buyIronwork), true);
+assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ironwork: BUILDING_STORAGE_CAPS.trading_post.ironwork - 5 }, buyIronwork), false);
+assert.equal(canReceiveMarketplaceTrade({ ...marketplace, grain: BUILDING_STORAGE_CAPS.trading_post.grain - 24 }, buySeedGrain), true);
+assert.equal(canReceiveMarketplaceTrade({ ...marketplace, grain: BUILDING_STORAGE_CAPS.trading_post.grain - 23 }, buySeedGrain), false);
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, stone: 60 }, sellStone), true);
-assert.equal(canReceiveCommodityTrade({ ...marketplace, food: 88 }, buyPork!), true);
-assert.equal(canReceiveCommodityTrade({ ...marketplace, food: 89 }, buyPork!), false);
+assert.equal(canReceiveCommodityTrade({ ...marketplace, food: BUILDING_STORAGE_CAPS.trading_post.food - 8 }, buyPork!), true);
+assert.equal(canReceiveCommodityTrade({ ...marketplace, food: BUILDING_STORAGE_CAPS.trading_post.food - 7 }, buyPork!), false);
 
 const manyBuildings = Array.from({ length: 10_000 }, (_, index) => makeBuilding({
   id: `store-${index}`,
@@ -814,7 +815,16 @@ assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_proceeds/);
 assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_cash_reserve/);
 assert.match(marketplaceCaravanSource, /marketplace_gold_reserve_shortfall/);
 assert.match(marketplaceCaravanSource, /marketplace_gold_sweep_surplus/);
-assert.match(marketplaceCaravanSource, /marketplace_caravan_workers/);
+assert.match(
+  marketplaceCaravanSource,
+  /marketplace_stall_workplace[\s\S]*ResidenceNeedKind::Food[\s\S]*"granary"[\s\S]*ResidenceNeedKind::Firewood[\s\S]*"village_storehouse"/,
+  'Marketplace stall deliveries must use the matching staffed granary or storehouse workforce',
+);
+assert.doesNotMatch(
+  marketplaceCaravanSource,
+  /fn marketplace_caravan_workers/,
+  'the unstaffed Marketplace must not synthesize its own delivery workforce',
+);
 assert.match(marketplaceCaravanSource, /CommodityKind::Gold/);
 assert.match(marketplaceCaravanSource, /onsite_building_labor/);
 assert.match(

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
+  BUILDING_STORAGE_CAPS,
   CALENDAR_SECONDS_PER_DAY,
   HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS,
   HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS,
@@ -34,7 +35,7 @@ function market(
 ): BuildingState {
   return {
     id,
-    kind: 'marketplace',
+    kind: 'trading_post',
     x,
     z: 0,
     workRadius: 0,
@@ -52,7 +53,7 @@ function market(
     wine: 0,
     gold: 0,
     waterCapacity: 48,
-    assignedLabor: 0,
+    assignedLabor: 1,
     constructionComplete: true,
     constructionProgress: 1,
     constructionRequiredTimber: 0,
@@ -227,7 +228,7 @@ assert.equal(exactTrigger.branches.get('10')?.assignedHomes, 1);
 assert.equal(
   exactTrigger.completedMarketplaces,
   1,
-  'an unstaffed completed marketplace retains its baseline household caravan',
+  'a staffed completed Trading Post enables one regional household route',
 );
 
 const coolingState = state({
@@ -346,7 +347,7 @@ assert.equal(busy.branches.get('10')?.blockedHomes, 1);
 
 const marketFull = computeSettlementHouseholdMarketPlan({
   state: state({
-    markets: [market('10', 0, { food: 90 })],
+    markets: [market('10', 0, { food: BUILDING_STORAGE_CAPS.trading_post.food })],
     homes: [home('market-full-home', 20)],
   }),
   marketState: DEFAULT_REGIONAL_MARKET_STATE,
@@ -380,7 +381,7 @@ waterFallbackHome.needs.food.stock = 0;
 waterFallbackHome.needs.water.stock = 0;
 const waterFallback = computeSettlementHouseholdMarketPlan({
   state: state({
-    markets: [market('10', 0, { food: 90 })],
+    markets: [market('10', 0, { food: BUILDING_STORAGE_CAPS.trading_post.food })],
     homes: [waterFallbackHome],
   }),
   marketState: DEFAULT_REGIONAL_MARKET_STATE,
@@ -568,8 +569,9 @@ assert.match(householdServer, /marketplace_for_residence\(/);
 assert.match(
   tickContextServer,
   /build_marketplace_claims[\s\S]*claim_residences_by_nearest_supplier\(/,
-  'household orders and garden tolls should share one exact nearest-market territory',
+  'household imports should share one exact nearest-Trading-Post territory',
 );
+assert.match(tickContextServer, /build_local_marketplace_claims/);
 assert.match(householdServer, /labor_and_logistics_paused\(ctx, tick, owner, clock\)/);
 assert.match(householdServer, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.doesNotMatch(householdServer, /residence_has_marketplace_access/);

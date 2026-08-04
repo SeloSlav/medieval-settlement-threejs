@@ -145,11 +145,11 @@ const remoteCarpenter = building('remote-carpenter', 'carpenter', 200, {
   ironwork: 2,
   carpenterPolearmReserve: 6,
 });
-const westMarket = building('west-market', 'marketplace', 0, {
+const westMarket = building('west-market', 'trading_post', 0, {
   assignedLabor: 1,
   ironwork: 3,
 });
-const eastMarket = building('east-market', 'marketplace', 100, {
+const eastMarket = building('east-market', 'trading_post', 100, {
   assignedLabor: 1,
   ironwork: 5,
 });
@@ -366,7 +366,7 @@ const localIndustrySmithy = building('local-industry-smithy', 'smithy', 0, {
 });
 const localIndustryMarket = building(
   'local-industry-market',
-  'marketplace',
+  'trading_post',
   0,
   {
     assignedLabor: 1,

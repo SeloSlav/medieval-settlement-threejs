@@ -1789,7 +1789,7 @@ pub fn set_pottery_dispatch_policy(
 ) -> Result<(), String> {
     if !is_valid_pottery_dispatch_policy(dispatch_policy) {
         return Err(
-            "Pottery dispatch policy must be Household wares first or Preservation first."
+            "Pottery dispatch policy must be Market wares first or Preservation first."
                 .to_string(),
         );
     }

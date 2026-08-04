@@ -37,11 +37,7 @@ assert.doesNotMatch(
 );
 
 for (const path of [
-  'server/src/simulation/woodcutters_lodge.rs',
-  'server/src/simulation/village_storehouse.rs',
   'server/src/simulation/well.rs',
-  'server/src/simulation/food_supplier.rs',
-  'server/src/simulation/expanded_economy.rs',
 ] as const) {
   const source = read(path);
   assert.match(source, /select_residence_for_need_delivery\(/, `${path} must use one-pass selection`);
@@ -185,7 +181,8 @@ assert.match(
 );
 assert.match(
   tickContext,
-  /building_ids_for_kinds\(ctx, owner, &\["woodcutters_lodge", "village_storehouse"\]\)/,
+  /fn build_firewood_claims[\s\S]*?building_ids_for_kinds\(ctx, owner, &\["marketplace"\]\)[\s\S]*?ResidenceNeedKind::Firewood/,
+  'household fuel claims must route through staffed Marketplace stalls only',
 );
 assert.match(tickContext, /building_ids_for_kinds\(ctx, owner, &\["well"\]\)/);
 assert.match(

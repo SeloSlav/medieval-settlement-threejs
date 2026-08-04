@@ -1,4 +1,4 @@
-//! Shared marketplace provender and water ordering — treasury, household, or relief gold.
+//! Trading Post provender and water ordering — treasury, household, or relief gold.
 
 use spacetimedb::ReducerContext;
 
@@ -54,7 +54,7 @@ pub fn order_food_commodity(
         .building()
         .id()
         .find(&marketplace_id)
-        .ok_or_else(|| "Marketplace not found.".to_string())?;
+        .ok_or_else(|| "Trading Post not found.".to_string())?;
     validate_order_marketplace(ctx, tick, &building, owner)?;
     if physical_market_orders_enabled(ctx, owner) {
         return order_physical_market_import(
@@ -81,7 +81,7 @@ pub fn order_food_commodity(
     let (deposited, updated) = deposit_building_food(&building, cap, commodity.food_amount);
     if deposited + 1e-6 < commodity.food_amount {
         refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
-        return Err("Marketplace needs room for the full provender order.".to_string());
+        return Err("Trading Post needs room for the full provender order.".to_string());
     }
     building = updated;
     ctx.db.building().id().update(building.clone());
@@ -139,7 +139,7 @@ pub fn order_water_commodity(
         .building()
         .id()
         .find(&marketplace_id)
-        .ok_or_else(|| "Marketplace not found.".to_string())?;
+        .ok_or_else(|| "Trading Post not found.".to_string())?;
     validate_order_marketplace(ctx, tick, &building, owner)?;
     if physical_market_orders_enabled(ctx, owner) {
         return order_physical_market_import(
@@ -168,7 +168,7 @@ pub fn order_water_commodity(
     let (deposited, updated) = deposit_building_water(&building, cap, commodity.water_amount);
     if deposited + 1e-6 < commodity.water_amount {
         refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
-        return Err("Marketplace needs room for the full water order.".to_string());
+        return Err("Trading Post needs room for the full water order.".to_string());
     }
     building = updated;
     ctx.db.building().id().update(building.clone());
@@ -218,13 +218,13 @@ fn order_physical_market_import(
     }
     if building_has_regional_market_trip(ctx, marketplace.id) {
         return Err(
-            "This marketplace already has a regional caravan on the road. Wait for it to unload and leave the map."
+            "This Trading Post already has a regional caravan on the road. Wait for it to unload and leave the map."
                 .to_string(),
         );
     }
     let network = tick
         .road_network(owner)
-        .ok_or_else(|| "Connect the marketplace to a road before ordering goods.".to_string())?;
+        .ok_or_else(|| "Connect the Trading Post to a road before ordering goods.".to_string())?;
 
     let named_residence = match dispatch.priority_residence_id {
         Some(residence_id) => {
@@ -307,7 +307,7 @@ fn order_physical_market_import(
     };
     if !started {
         return Err(
-            "The regional caravan could not enter this marketplace's road branch.".to_string(),
+            "The regional caravan could not enter this Trading Post's road branch.".to_string(),
         );
     }
     if charged_from_market {
@@ -344,7 +344,7 @@ fn ensure_physical_market_import_room(
         _ => 0.0,
     };
     if room + 1e-6 < amount {
-        return Err("Marketplace needs room for the full regional order.".to_string());
+        return Err("Trading Post needs room for the full regional order.".to_string());
     }
     Ok(())
 }
@@ -422,7 +422,7 @@ fn pay_market_gold(
             if physical {
                 if marketplace.gold + 1e-6 < gold_cost {
                     return Err(format!(
-                        "Marketplace coffer needs {} more gold. Raise its cash reserve or wait for a treasury cart.",
+                        "Trading Post coffer needs {} more gold. Raise its cash reserve or wait for a treasury cart.",
                         (gold_cost - marketplace.gold.max(0.0)).ceil() as i64
                     ));
                 }

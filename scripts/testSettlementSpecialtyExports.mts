@@ -96,12 +96,12 @@ function trip(
 
 const buildings = new Map<string, BuildingState>();
 const trips = new Map<string, DeliveryTripState>();
-const westMarket = building('west-market', 'marketplace', 0, {
+const westMarket = building('west-market', 'trading_post', 0, {
   assignedLabor: 2,
   actionCooldown: 5,
   ale: 4,
 });
-const westOverflowMarket = building('west-overflow-market', 'marketplace', 10, {
+const westOverflowMarket = building('west-overflow-market', 'trading_post', 10, {
   assignedLabor: 1,
 });
 const westBrewery = building('west-brewery', 'brewery', 0, {
@@ -124,9 +124,9 @@ const remoteVineyard = building('remote-vineyard', 'vineyard', 100, {
   assignedLabor: 1,
   wine: 8,
 });
-const fullHoneyMarket = building('full-honey-market', 'marketplace', 200, {
+const fullHoneyMarket = building('full-honey-market', 'trading_post', 200, {
   assignedLabor: 1,
-  honey: 100,
+  honey: 140,
 });
 const blockedApiary = building('blocked-apiary', 'apiary', 200, {
   assignedLabor: 1,
@@ -182,10 +182,10 @@ assert.equal(split.laborBlockedProducerStock, 5);
 assert.equal(split.roadStrandedProducerStock, 8);
 assert.equal(split.storageBlockedProducerStock, 9);
 assert.equal(split.receivingBlockedProducerStock, 0);
-assert.equal(split.marketQueueUnits, 104);
+assert.equal(split.marketQueueUnits, 144);
 assert.equal(split.inTransitToMarkets, 3);
-assert.equal(split.projectedMarketQueueUnits, 107);
-assert.equal(split.activeMarketQueueUnits, 107);
+assert.equal(split.projectedMarketQueueUnits, 147);
+assert.equal(split.activeMarketQueueUnits, 147);
 assert.equal(split.blockedMarketQueueUnits, 0);
 assert.equal(split.exportWorkers, 3);
 assert.ok(Math.abs(split.exportRatePerSecond - 1.35) < 1e-9);
@@ -207,7 +207,7 @@ assert.equal(split.firstAttentionBuildingId, remoteVineyard.id);
 assert.equal(split.firstAttentionKind, 'producer-road');
 assert.equal(split.slowestActiveMarketId, fullHoneyMarket.id);
 assert.ok(
-  Math.abs((split.slowestActiveMarketClearSeconds ?? 0) - 100 / 0.45) < 1e-9,
+  Math.abs((split.slowestActiveMarketClearSeconds ?? 0) - 140 / 0.45) < 1e-9,
 );
 
 const splitRows = renderSettlementSpecialtyExportRows(split);
@@ -240,7 +240,7 @@ assert.equal(reconnected.roadPlan?.roadMatchedProducerStock, 38);
 assert.equal(reconnected.firstAttentionBuildingId, westApiary.id);
 assert.equal(reconnected.firstAttentionKind, 'producer-labor');
 
-const receivingMarket = building('receiving-market', 'marketplace', 0, {
+const receivingMarket = building('receiving-market', 'trading_post', 0, {
   assignedLabor: 1,
 });
 const receivingBrewery = building('receiving-brewery', 'brewery', 0, {
@@ -295,7 +295,7 @@ assert.equal(
 
 const unstaffedReceivingMarket = building(
   'unstaffed-receiving-market',
-  'marketplace',
+  'trading_post',
   0,
   { assignedLabor: 0 },
 );
@@ -318,25 +318,25 @@ assert.equal(unstaffedDestination.dispatchReadyProducerStock, 4);
 assert.equal(unstaffedDestination.operationalMarkets, 0);
 assert.equal(unstaffedDestination.activeBrokerMarkets, 0);
 
-const heldMarket = building('held-market', 'marketplace', 0, {
+const heldMarket = building('held-market', 'trading_post', 0, {
   assignedLabor: 1,
   cloth: 5,
   marketplaceSpecialtyExportPolicy: 2,
 });
-const idleMarket = building('idle-market', 'marketplace', 10, {
+const idleMarket = building('idle-market', 'trading_post', 10, {
   assignedLabor: 0,
   wine: 7,
 });
-const manualMarket = building('manual-market', 'marketplace', 20, {
+const manualMarket = building('manual-market', 'trading_post', 20, {
   assignedLabor: 1,
   actionCooldown: 5,
   ale: 3,
 });
-const roadlessMarket = building('roadless-market', 'marketplace', 30, {
+const roadlessMarket = building('roadless-market', 'trading_post', 30, {
   assignedLabor: 1,
   honey: 4,
 });
-const unfinishedMarket = building('unfinished-market', 'marketplace', 40, {
+const unfinishedMarket = building('unfinished-market', 'trading_post', 40, {
   assignedLabor: 1,
   ale: 2,
   constructionComplete: false,
@@ -366,7 +366,7 @@ assert.equal(held.blockedMarketQueueUnits, 21);
 assert.equal(held.firstAttentionBuildingId, roadlessMarket.id);
 assert.equal(held.firstAttentionKind, 'market-road');
 
-const burningMarket = building('burning-market', 'marketplace', 0, {
+const burningMarket = building('burning-market', 'trading_post', 0, {
   assignedLabor: 1,
   ale: 2,
 });
@@ -469,7 +469,7 @@ for (let index = 0; index < 50_000; index += 1) {
   const branch = index % 200;
   const market = building(
     `perf-market-${index}`,
-    'marketplace',
+    'trading_post',
     branch,
     { assignedLabor: 1, honey: 1 },
   );

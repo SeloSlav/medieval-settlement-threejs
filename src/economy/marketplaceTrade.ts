@@ -102,7 +102,7 @@ export type MarketplaceTradeStagingPlan = {
 };
 
 /**
- * Physical-economy exports settle only from goods already at this market.
+ * Physical-economy exports settle only from goods already at this Trading Post.
  * The first click may therefore order a visible inbound staging cart rather
  * than immediately changing regional prices or paying the settlement.
  */
@@ -208,7 +208,7 @@ export function marketplaceManualTradeStatus(
       ...timing,
       ready: false,
       label: 'Trade desk fire-disabled',
-      reason: 'Repair the fire-damaged marketplace before trading.',
+      reason: 'Repair the fire-damaged Trading Post before trading.',
     };
   }
   if (building.constructionComplete === false) {
@@ -216,7 +216,7 @@ export function marketplaceManualTradeStatus(
       ...timing,
       ready: false,
       label: 'Trade desk under construction',
-      reason: 'Complete the marketplace before trading.',
+      reason: 'Complete the Trading Post before trading.',
     };
   }
   if (building.assignedLabor <= 0) {
@@ -232,7 +232,7 @@ export function marketplaceManualTradeStatus(
       ...timing,
       ready: false,
       label: 'Trade desk has no road access',
-      reason: 'Connect the marketplace to a road before trading.',
+      reason: 'Connect the Trading Post to a road before trading.',
     };
   }
   if (regionalCaravanActive) {
@@ -286,7 +286,7 @@ export function marketplaceResourceRoom(
   building: BuildingState,
   resource: TradeResourceKind,
 ): number {
-  const cap = BUILDING_STORAGE_CAPS.marketplace[resource] ?? 0;
+  const cap = BUILDING_STORAGE_CAPS.trading_post[resource] ?? 0;
   return Math.max(0, cap - (building[resource] ?? 0));
 }
 
@@ -320,7 +320,7 @@ export function canReceiveCommodityTrade(
   building: BuildingState,
   commodity: MarketCommodityOffer,
 ): boolean {
-  return Math.max(0, (BUILDING_STORAGE_CAPS.marketplace.food ?? 0) - building.food) + 1e-6
+  return Math.max(0, (BUILDING_STORAGE_CAPS.trading_post.food ?? 0) - building.food) + 1e-6
     >= commodity.foodAmount;
 }
 
@@ -328,7 +328,7 @@ export function canReceiveWaterCommodityTrade(
   building: BuildingState,
   commodity: MarketWaterCommodityOffer,
 ): boolean {
-  return Math.max(0, (BUILDING_STORAGE_CAPS.marketplace.water ?? 0) - building.water) + 1e-6
+  return Math.max(0, (BUILDING_STORAGE_CAPS.trading_post.water ?? 0) - building.water) + 1e-6
     >= commodity.waterAmount;
 }
 

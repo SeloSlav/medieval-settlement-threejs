@@ -217,7 +217,7 @@ function marketplaceCommodityRoom(
   commodity: SpecialtyExportCargoKind,
   approaching: number,
 ): number {
-  const capacity = BUILDING_STORAGE_CAPS.marketplace[commodity] ?? 0;
+  const capacity = BUILDING_STORAGE_CAPS.trading_post[commodity] ?? 0;
   return Math.max(
     0,
     capacity - buildingCommodityStock(market, commodity) - positive(approaching),

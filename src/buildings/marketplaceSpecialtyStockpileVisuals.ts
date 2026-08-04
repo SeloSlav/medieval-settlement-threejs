@@ -28,14 +28,14 @@ export function marketplaceSpecialtyStockpileVisualSignature(
     )
   }:${
     stockpileVisualLevel(
-      building.honey,
-      BUILDING_STORAGE_CAPS.marketplace.honey,
+      0,
+      1,
       MARKET_HONEY_VISUAL_SEGMENTS,
     )
   }:${
     stockpileVisualLevel(
-      building.wine,
-      BUILDING_STORAGE_CAPS.marketplace.wine,
+      0,
+      1,
       MARKET_WINE_VISUAL_SEGMENTS,
     )
   }:${
@@ -46,14 +46,14 @@ export function marketplaceSpecialtyStockpileVisualSignature(
     )
   }:${
     stockpileVisualLevel(
-      building.iron ?? 0,
-      BUILDING_STORAGE_CAPS.marketplace.iron ?? 0,
+      0,
+      1,
       MARKET_IRON_VISUAL_SEGMENTS,
     )
   }:${
     stockpileVisualLevel(
-      building.salt ?? 0,
-      BUILDING_STORAGE_CAPS.marketplace.salt ?? 0,
+      0,
+      1,
       MARKET_SALT_VISUAL_SEGMENTS,
     )
   }:${
@@ -81,15 +81,15 @@ export function syncMarketplaceSpecialtyStockpileVisuals(
     marker,
     'MarketHoneyStockpile',
     'MarketHoneySegment',
-    building.honey,
-    BUILDING_STORAGE_CAPS.marketplace.honey,
+    0,
+    1,
   );
   syncNamedStockpile(
     marker,
     'MarketWineStockpile',
     'MarketWineSegment',
-    building.wine,
-    BUILDING_STORAGE_CAPS.marketplace.wine,
+    0,
+    1,
   );
   syncNamedStockpile(
     marker,
@@ -102,15 +102,15 @@ export function syncMarketplaceSpecialtyStockpileVisuals(
     marker,
     'MarketIronStockpile',
     'MarketIronSegment',
-    building.iron ?? 0,
-    BUILDING_STORAGE_CAPS.marketplace.iron ?? 0,
+    0,
+    1,
   );
   syncNamedStockpile(
     marker,
     'MarketSaltStockpile',
     'MarketSaltSegment',
-    building.salt ?? 0,
-    BUILDING_STORAGE_CAPS.marketplace.salt ?? 0,
+    0,
+    1,
   );
   syncNamedStockpile(
     marker,

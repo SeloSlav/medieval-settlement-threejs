@@ -195,20 +195,20 @@ assert.equal(
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
 );
 assert.equal(
-  directlyDispatchedProcessorInputPerCycle('marketplace', 'pottery'),
+  directlyDispatchedProcessorInputPerCycle('trading_post', 'pottery'),
   0,
-  'the market is export overflow, not a pottery processor',
+  'the Trading Post is export overflow, not a pottery processor',
 );
 assert.deepEqual(
   potteryDispatchOrder(POTTERY_DISPATCH_HOUSEHOLDS_FIRST),
-  ['household', 'preservation', 'export'],
+  ['market-stalls', 'preservation', 'export'],
 );
 assert.deepEqual(
   potteryDispatchOrder(POTTERY_DISPATCH_PRESERVATION_FIRST),
-  ['preservation', 'household', 'export'],
+  ['preservation', 'market-stalls', 'export'],
 );
 assert.equal(normalizePotteryDispatchPolicy(99), POTTERY_DISPATCH_HOUSEHOLDS_FIRST);
-assert.equal(potteryDispatchPolicyLabel(0), 'Household wares first');
+assert.equal(potteryDispatchPolicyLabel(0), 'Market wares first');
 assert.equal(potteryDispatchPolicyLabel(1), 'Preservation first');
 assert.deepEqual(
   POTTERY_DISPATCH_POLICY_PRESETS.map((preset) => preset.policy),
@@ -219,17 +219,17 @@ const householdFirstPotterPanel = renderProcessorOutputTargetPanel(
 );
 assert.match(householdFirstPotterPanel ?? '', /data-pottery-dispatch-policy="0"[^>]*disabled/);
 assert.match(householdFirstPotterPanel ?? '', /data-pottery-dispatch-policy="1"/);
-assert.match(householdFirstPotterPanel ?? '', /market export always waits until both local duties/);
+assert.match(householdFirstPotterPanel ?? '', /Trading Post export always waits until both local duties/);
 const tileFiringPotterPanel = renderProcessorOutputTargetPanel(
   building('potter_kiln', { potterFiringPolicy: POTTER_FIRE_ROOF_TILES }),
 );
 assert.match(tileFiringPotterPanel ?? '', /data-potter-firing-policy="1"[^>]*disabled/);
 assert.match(
   tileFiringPotterPanel ?? '',
-  /Tile firing suspends new household and smokehouse vessel output/,
+  /Tile firing suspends new market and smokehouse vessel output/,
 );
 
-const nearbyMarket = building('marketplace', {
+const nearbyMarket = building('trading_post', {
   id: 'near-market',
   x: 5,
   assignedLabor: 2,
@@ -300,7 +300,7 @@ assert.equal(
 );
 assert.equal(charcoalTarget?.desiredStock, SMITHY_CHARCOAL_PER_CYCLE * 3);
 
-const materialMarket = building('marketplace', {
+const materialMarket = building('trading_post', {
   id: 'material-market',
   iron: 12,
   salt: 12,
@@ -437,12 +437,12 @@ assert.equal(
   'pottery committed to an active market order must not be recalled to a smokehouse',
 );
 
-const olderRemoteMarket = building('marketplace', {
+const olderRemoteMarket = building('trading_post', {
   id: 'older-remote-market',
   x: 0,
   iron: 12,
 });
-const newerNearMarket = building('marketplace', {
+const newerNearMarket = building('trading_post', {
   id: 'newer-near-market',
   x: 90,
   iron: 12,
@@ -477,7 +477,7 @@ assert.equal(
   'the remaining market cart should cover the next workshop instead of duplicating an inbound trip',
 );
 
-const mixedMaterialMarket = building('marketplace', {
+const mixedMaterialMarket = building('trading_post', {
   id: 'mixed-material-market',
   salt: 12,
   pottery: 12,
@@ -655,7 +655,7 @@ const hungryReserveSmithy = building('smithy', {
   assignedLabor: 2,
   iron: 0,
 });
-const localIronReserveMarket = building('marketplace', {
+const localIronReserveMarket = building('trading_post', {
   id: 'local-iron-reserve-market',
   x: 5,
   assignedLabor: 2,
@@ -725,7 +725,7 @@ const localSaltReserveAssignment = assignLocalMaterialInputTargets(
       assignedLabor: 2,
       salt: SMOKEHOUSE_SALT_PER_CYCLE * 3,
     }),
-    building('marketplace', {
+    building('trading_post', {
       id: 'local-salt-reserve-market',
       assignedLabor: 2,
       salt: 12,
@@ -1158,10 +1158,10 @@ assert.match(
   /potter_fires_roof_tiles[\s\S]*CommodityKind::RoofTiles, POTTER_ROOF_TILES_PER_CYCLE[\s\S]*step_processor/,
   'tile firing must manufacture a distinct physical output at the kiln',
 );
-assert.match(
+assert.doesNotMatch(
   potterKilnStep,
-  /if !firing_roof_tiles[\s\S]*pottery_households_first/,
-  'a tile firing must suspend rather than duplicate household-vessel dispatch',
+  /invalidate_specialty_claims|dispatch_need/,
+  'pottery production must not directly claim or deliver to households',
 );
 assert.doesNotMatch(
   potterKilnStep,
@@ -1191,7 +1191,7 @@ assert.match(
 );
 assert.match(
   localMaterialDispatchStep,
-  /\("mine", CommodityKind::Iron\)[\s\S]*\["smithy", "marketplace"\][\s\S]*\("mine", CommodityKind::Salt\)[\s\S]*"pastoral_farmstead", "marketplace"/,
+  /\("mine", CommodityKind::Iron\)[\s\S]*\["smithy", "trading_post"\][\s\S]*\("mine", CommodityKind::Salt\)[\s\S]*"pastoral_farmstead", "trading_post"/,
   'local mine carts must include selected physical market reserves after workshop buffers',
 );
 assert.match(
@@ -1210,15 +1210,15 @@ assert.match(
   'smithy carts must include mineral mines in the same physical replacement-tool route as other extraction sites',
 );
 assert.match(
-  potterKilnStep,
-  /pottery_households_first\(potter\.pottery_dispatch_policy\)[\s\S]*dispatch_need/,
-  'household-first kilns must attempt their claimed cupboards before material arbitration',
+  localMaterialDispatchStep,
+  /pottery_households_first\(source\.pottery_dispatch_policy\)[\s\S]*"village_storehouse"[\s\S]*"smokehouse"/,
+  'market-wares-first kilns must prioritize staffed storehouse collection before preservation',
 );
 const preservationPass = localMaterialDispatchStep.indexOf(
   'dispatch_local_material_candidates(',
 );
 const preservationFallback = localMaterialDispatchStep.indexOf(
-  'if dispatch_need(',
+  'deferred_pottery_local,',
   preservationPass,
 );
 const deferredExportPass = localMaterialDispatchStep.indexOf(
@@ -1229,12 +1229,12 @@ assert.ok(
   preservationPass >= 0
     && preservationFallback > preservationPass
     && deferredExportPass > preservationFallback,
-  'preservation-first kilns must run smokehouse, household, then export phases in authority order',
+  'kilns must run preferred local duty, alternate local duty, then export in authority order',
 );
 assert.match(
   localMaterialDispatchStep,
-  /candidate\.building\.kind == "marketplace"[\s\S]*deferred_pottery_exports\.push/,
-  'preservation-first authority must defer broker overflow until local cupboards have a chance',
+  /candidate\.building\.kind == "trading_post"[\s\S]*deferred_pottery_exports\.push/,
+  'authority must defer Trading Post overflow until both local duties have a chance',
 );
 const generatedBuildingTable = readFileSync('src/generated/building_table.ts', 'utf8');
 const generatedPotteryReducer = readFileSync(
@@ -1367,7 +1367,7 @@ assert.ok(
 );
 
 const assignmentSources = Array.from({ length: 100 }, (_, index) =>
-  building('marketplace', {
+  building('trading_post', {
     id: `assignment-market-${index}`,
     x: index * 8,
     iron: 12,

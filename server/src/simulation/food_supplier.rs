@@ -6,9 +6,8 @@ use crate::balance_generated::{
 };
 use crate::building_defs::building_def;
 use crate::constants::{
-    BERRIES_PER_HARVEST, FISH_PER_HARVEST, FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC,
-    FOOD_PER_DELIVERY, GAME_ANIMALS_PER_HARVEST, GAME_PER_HARVEST, MUSHROOMS_PER_HARVEST,
-    RICH_FISH_YIELD_MULTIPLIER, TICK_DT,
+    BERRIES_PER_HARVEST, FISH_PER_HARVEST, GAME_ANIMALS_PER_HARVEST, GAME_PER_HARVEST,
+    MUSHROOMS_PER_HARVEST, RICH_FISH_YIELD_MULTIPLIER, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
@@ -17,20 +16,14 @@ use crate::economy::{
 };
 use crate::foraging_policy::harvest_available;
 use crate::harvest_reserve_policy::harvestable_wild_stock;
-use crate::simulation::delivery_cargo::has_delivery_stock_room;
-use crate::simulation::delivery_supplier::{
-    delivery_work_ready, dispatch_delivery_if_ready, DeliveryDispatchConfig,
-};
+use crate::simulation::delivery_supplier::delivery_work_ready;
 use crate::simulation::delivery_trips::{
     available_free_haulers, onsite_building_labor, residence_has_inbound_remedy_trip,
     try_start_remedy_delivery_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::{
-    select_residence_for_need_delivery, select_residence_for_remedy_delivery,
-};
+use crate::simulation::road_logistics::select_residence_for_remedy_delivery;
 use crate::simulation::spatial::find_nearest_harvestable_foraging_node;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, ForagingNode, Residence};
@@ -117,9 +110,8 @@ fn step_food_supplier(
         supplier.action_cooldown = (supplier.action_cooldown - TICK_DT).max(0.0);
     }
     let harvest_ready = onsite_labor > 0 && supplier.action_cooldown <= 0.0;
-    let has_delivery_stock = supplier.food > 0.0
-        || (gathers_remedies
-            && building_commodity_stock(&supplier, CommodityKind::Remedies) > 1e-6);
+    let has_delivery_stock =
+        gathers_remedies && building_commodity_stock(&supplier, CommodityKind::Remedies) > 1e-6;
     let delivery_ready = network.is_some()
         && available_free_haulers(ctx, supplier.owner) > 0
         && delivery_work_ready(1, has_delivery_stock, supplier.id, ctx);
@@ -137,18 +129,6 @@ fn step_food_supplier(
     } else {
         None
     };
-    let delivery_targets = if delivery_ready && remedy_target.is_none() && supplier.food > 1e-6 {
-        collect_delivery_targets(
-            ctx,
-            tick,
-            network.expect("delivery readiness requires a road network"),
-            &supplier,
-        )
-    } else {
-        Vec::new()
-    };
-    let has_target = remedy_target.is_some() || !delivery_targets.is_empty();
-
     if harvest_ready {
         supplier = harvest_from_node(
             ctx,
@@ -162,7 +142,7 @@ fn step_food_supplier(
         );
         supplier.action_cooldown = def.action_interval;
     }
-    if delivery_ready && has_target {
+    if delivery_ready {
         if let Some(network) = network {
             if let Some(residence) = remedy_target.as_ref() {
                 try_start_remedy_delivery_trip(
@@ -173,22 +153,6 @@ fn step_food_supplier(
                     &mut supplier,
                     residence,
                     1,
-                );
-            } else {
-                dispatch_delivery_if_ready(
-                    ctx,
-                    tick,
-                    clock,
-                    network,
-                    &mut supplier,
-                    1,
-                    &delivery_targets,
-                    DeliveryDispatchConfig {
-                        need_kind: ResidenceNeedKind::Food,
-                        speed_mps: FOOD_DELIVERY_SPEED_MPS,
-                        unload_seconds: FOOD_DELIVERY_UNLOAD_SEC,
-                        per_delivery: FOOD_PER_DELIVERY,
-                    },
                 );
             }
         }
@@ -314,32 +278,4 @@ fn find_nearest_harvestable_node(
         }
     }
     nearest
-}
-
-fn collect_delivery_targets(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    network: &crate::roads::RoadNetwork,
-    supplier: &Building,
-) -> Vec<Residence> {
-    let targets: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&supplier.owner)
-        .filter(|residence| {
-            tick.food_supplier_for(ctx, supplier.owner, residence.id) == Some(supplier.id)
-        })
-        .collect();
-    select_residence_for_need_delivery(
-        network,
-        supplier,
-        targets,
-        None,
-        None,
-        |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Food),
-        |_, stock| has_delivery_stock_room(ResidenceNeedKind::Food, stock),
-    )
-    .into_iter()
-    .collect()
 }

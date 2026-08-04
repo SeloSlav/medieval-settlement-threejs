@@ -62,16 +62,16 @@ const expectedCapacity = permanentCapacity.reduce(
 assert.equal(plan.permanentAssigned, 3);
 assert.equal(plan.permanentCapacity, expectedCapacity);
 assert.equal(plan.openPermanentPosts, expectedCapacity - 3);
-assert.equal(plan.unstaffedWorksites, 3);
-assert.equal(plan.firstUnstaffedBuildingId, '2');
+assert.equal(plan.unstaffedWorksites, 2);
+assert.equal(plan.firstUnstaffedBuildingId, '10');
 assert.equal(plan.sectors.provisions.assigned, 0);
 assert.equal(plan.sectors.provisions.capacity, BUILDING_DEFINITIONS.well.maxLabor);
 assert.equal(plan.sectors.materials.assigned, 2);
-assert.equal(plan.sectors.logistics.unstaffedWorksites, 1);
+assert.equal(plan.sectors.logistics.unstaffedWorksites, 0);
 assert.equal(plan.sectors.defense.unstaffedWorksites, 1);
 assert.equal(plan.sectors.civic.unstaffedWorksites, 1);
 assert.equal(plan.staffingPriorities[1].worksites, 0);
-assert.equal(plan.staffingPriorities[2].worksites, 5);
+assert.equal(plan.staffingPriorities[2].worksites, 4);
 assert.equal(plan.staffingPriorities[2].assigned, 3);
 assert.equal(plan.staffingPriorities[3].worksites, 0);
 assert.equal(plan.constructionAssigned, 3);
@@ -211,7 +211,11 @@ assert.ok(renderedInspector.detailsHtml.includes(
 assert.ok(renderedInspector.detailsHtml.includes(
   `At full housing labor</span><span>${renderedPlan.populationAtFullHousing} people`,
 ));
-assert.match(renderedInspector.detailsHtml, /data-inspect-building="market"/);
+assert.doesNotMatch(
+  renderedInspector.detailsHtml,
+  /data-inspect-building="market"/,
+  'an unstaffed Marketplace square must never appear as a vacant labor worksite',
+);
 assert.match(renderedInspector.detailsHtml, /No active building sites · no carts traveling/);
 assert.match(renderedInspector.detailsHtml, /Staffing priority<\/span><span>Normal/);
 assert.match(renderedInspector.supplementalPanelHtml ?? '', /data-staffing-priority="1"/);
@@ -306,7 +310,11 @@ const perfCargo = computeInTransitResourceTotals(perfTrips.values());
 const cargoElapsedMs = performance.now() - cargoStarted;
 assert.equal(perfPlan.sectors.provisions.worksites, 0);
 assert.equal(perfPlan.sectors.materials.worksites, 20_000);
-assert.equal(perfPlan.sectors.logistics.worksites, 20_000);
+assert.equal(
+  perfPlan.sectors.logistics.worksites,
+  0,
+  'Marketplace squares have no labor posts; depot workers own their stalls',
+);
 assert.equal(perfPlan.sectors.civic.worksites, 20_000);
 assert.equal(perfPlan.sectors.defense.worksites, 20_000);
 assert.equal(perfPlan.haulage.activeTrips, 100_000);

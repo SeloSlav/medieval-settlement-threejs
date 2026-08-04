@@ -76,7 +76,7 @@ pub fn execute_marketplace_trade(
         }
         let network = tick
             .road_network(owner)
-            .ok_or_else(|| "Connect the marketplace to a road before trading.".to_string())?;
+            .ok_or_else(|| "Connect the Trading Post to a road before trading.".to_string())?;
         let clock = current_game_clock(ctx);
         apply_marketplace_trade(
             ctx,
@@ -95,7 +95,7 @@ pub fn execute_marketplace_trade(
             .building()
             .id()
             .find(&building_id)
-            .ok_or_else(|| "Marketplace not found.".to_string())?;
+            .ok_or_else(|| "Trading Post not found.".to_string())?;
         updated.marketplace_pending_trade_code = pending_trade_code(trade_id)
             .ok_or_else(|| "This trade cannot be persisted as a staged order.".to_string())?;
         ctx.db.building().id().update(updated);
@@ -311,22 +311,22 @@ fn validate_marketplace(
         .building()
         .id()
         .find(&building_id)
-        .ok_or_else(|| "Marketplace not found.".to_string())?;
+        .ok_or_else(|| "Trading Post not found.".to_string())?;
     if building.owner != owner {
-        return Err("You do not own this marketplace.".to_string());
+        return Err("You do not own this Trading Post.".to_string());
     }
     if building.kind != "trading_post" {
         return Err("Only Trading Posts can broker regional trade.".to_string());
     }
     if !building.construction_complete {
-        return Err("The marketplace is still under construction.".to_string());
+        return Err("The Trading Post is still under construction.".to_string());
     }
     if tick.building_disabled_by_fire(ctx, building.id) {
-        return Err("Repair the fire-damaged marketplace before trading.".to_string());
+        return Err("Repair the fire-damaged Trading Post before trading.".to_string());
     }
     if building.marketplace_pending_trade_code != 0 {
         return Err(
-            "This marketplace is already staging a bulk order. Let it settle or cancel it first."
+            "This Trading Post is already staging a bulk order. Let it settle or cancel it first."
                 .to_string(),
         );
     }
@@ -334,7 +334,7 @@ fn validate_marketplace(
         && building_has_regional_market_trip(ctx, building.id)
     {
         return Err(
-            "This marketplace already has a regional caravan on the road. Wait for it to unload and leave the map."
+            "This Trading Post already has a regional caravan on the road. Wait for it to unload and leave the map."
                 .to_string(),
         );
     }
@@ -353,7 +353,7 @@ fn validate_marketplace(
             return Err("Assign at least one broker before placing a manual trade.".to_string());
         }
         if !has_road_access {
-            return Err("Connect the marketplace to a road before trading.".to_string());
+            return Err("Connect the Trading Post to a road before trading.".to_string());
         }
         return Err(format!(
             "The brokers need another {:.1} seconds before the next trade.",
@@ -532,7 +532,7 @@ fn apply_marketplace_trade(
                 .building()
                 .id()
                 .find(&building_id)
-                .ok_or_else(|| "Marketplace not found.".to_string())?;
+                .ok_or_else(|| "Trading Post not found.".to_string())?;
             credit_marketplace_receipt_gold(
                 ctx,
                 &mut settlement_market,
@@ -552,7 +552,7 @@ fn apply_marketplace_trade(
                     route,
                 ) {
                     return Err(
-                        "The regional caravan could not enter this marketplace's road branch."
+                        "The regional caravan could not enter this Trading Post's road branch."
                             .to_string(),
                     );
                 }
@@ -583,11 +583,11 @@ fn dispatch_physical_market_export(
         .building()
         .id()
         .find(&marketplace.id)
-        .ok_or_else(|| "Marketplace not found.".to_string())?;
+        .ok_or_else(|| "Trading Post not found.".to_string())?;
     let available = market_exportable_building_stock(&current, resource);
     if available + 1e-6 < amount {
         return Err(format!(
-            "Marketplace needs {} more staged {} before the merchant can depart.",
+            "Trading Post needs {} more staged {} before the merchant can depart.",
             (amount - available).ceil() as i64,
             trade_resource_name(resource)
         ));
@@ -615,7 +615,7 @@ fn dispatch_physical_market_export(
 }
 
 /// Advances one save-persistent physical export order. It is called on the
-/// marketplace scheduler's existing staggered cadence, so inactive markets add
+/// Trading Post scheduler's existing staggered cadence, so inactive posts add
 /// no route-search work. Failed attempts remain pending: fire, Sabbath, labor,
 /// storage pressure, busy carts, and lost road access are all readable pauses
 /// rather than destructive failures.
@@ -734,10 +734,10 @@ fn spend_marketplace_coffer_gold(
         .building()
         .id()
         .find(&marketplace_id)
-        .ok_or_else(|| "Marketplace not found.".to_string())?;
+        .ok_or_else(|| "Trading Post not found.".to_string())?;
     if marketplace.gold + 1e-6 < amount {
         return Err(format!(
-            "Marketplace coffer needs {} more gold. Raise its cash reserve or wait for a treasury cart.",
+            "Trading Post coffer needs {} more gold. Raise its cash reserve or wait for a treasury cart.",
             (amount - marketplace.gold.max(0.0)).ceil() as i64
         ));
     }
@@ -788,7 +788,7 @@ pub(crate) fn settle_regional_market_export(
                 && building.kind == "trading_post"
                 && building.construction_complete
         })
-        .ok_or_else(|| "The contracting marketplace no longer exists.".to_string())?;
+        .ok_or_else(|| "The contracting Trading Post no longer exists.".to_string())?;
     if !sold_amount.is_finite() || sold_amount < 0.0 {
         return Err("The regional export load is invalid.".to_string());
     }
@@ -886,7 +886,7 @@ fn stage_physical_market_resource(
         .building()
         .id()
         .find(&marketplace.id)
-        .ok_or_else(|| "Marketplace not found.".to_string())?;
+        .ok_or_else(|| "Trading Post not found.".to_string())?;
     let local_stock = market_exportable_building_stock(&market, resource);
     if local_stock + 1e-6 >= amount {
         return Ok(PhysicalMarketSpend::Ready);
@@ -894,7 +894,7 @@ fn stage_physical_market_resource(
 
     if building_has_inbound_commodity_trip(ctx, marketplace.id, commodity) {
         return Err(format!(
-            "A {} staging cart is already inbound to this marketplace.",
+            "A {} staging cart is already inbound to this Trading Post.",
             trade_resource_name(resource)
         ));
     }
@@ -966,7 +966,7 @@ fn stage_physical_market_resource(
     }
     let Some((mut source, _)) = best else {
         return Err(format!(
-            "No free local source can stage {} at this marketplace.",
+            "No free local source can stage {} at this Trading Post.",
             trade_resource_name(resource)
         ));
     };
@@ -1081,7 +1081,7 @@ fn ensure_marketplace_room(
         return Ok(());
     }
     Err(format!(
-        "Marketplace {} storage needs {} more free capacity.",
+        "Trading Post {} storage needs {} more free capacity.",
         trade_resource_name(resource),
         (amount - room).ceil() as i64
     ))
@@ -1332,11 +1332,11 @@ fn deposit_marketplace_resource(
         .building()
         .id()
         .find(&building_id)
-        .ok_or_else(|| "Marketplace not found.".to_string())?;
+        .ok_or_else(|| "Trading Post not found.".to_string())?;
     let deposited = deposit_building_commodity(&mut marketplace, trade_commodity(resource), amount);
     if deposited + 1e-6 < amount {
         return Err(format!(
-            "Marketplace {} storage cannot receive the full shipment.",
+            "Trading Post {} storage cannot receive the full shipment.",
             trade_resource_name(resource)
         ));
     }

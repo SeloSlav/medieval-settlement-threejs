@@ -16,8 +16,8 @@ pub fn normalize_pottery_dispatch_policy(policy: u8) -> u8 {
     }
 }
 
-/// The additive zero default preserves the kiln's established behavior:
-/// prosperous homes receive replacement wares before preservation workshops.
+/// The additive zero default sends wares to staffed storehouse market stalls
+/// before preservation workshops. The legacy function name is save-compatible.
 pub fn pottery_households_first(policy: u8) -> bool {
     normalize_pottery_dispatch_policy(policy) == POTTERY_DISPATCH_HOUSEHOLDS_FIRST
 }

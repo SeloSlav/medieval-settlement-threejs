@@ -87,7 +87,7 @@ assert.match(
   /building_ids_for_kinds\(ctx,\s*owner,\s*STOREHOUSE_OVERFLOW_SOURCE_KINDS\)/,
   'each owner-wide depot pass should inspect only indexed overflow-source kinds',
 );
-assert.match(hauling, /pub fn step_village_storehouse_household_firewood/);
+assert.match(hauling, /pub fn step_storehouse_market_stalls/);
 assert.match(hauling, /pub fn step_village_storehouse_overflow_collection/);
 assert.match(hauling, /idle_by_owner: HashMap<Identity, Vec<Building>>/);
 

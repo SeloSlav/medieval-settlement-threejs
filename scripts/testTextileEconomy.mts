@@ -813,16 +813,20 @@ assert.match(
   expandedEconomy,
   /FarmCropProduce::Fibre => Some\(CommodityKind::Flax\)/,
 );
-assert.match(expandedEconomy, /CommodityKind::Cloth,[\s\S]{0,120}&\["marketplace"\]/);
 assert.match(
   expandedEconomy,
-  /step_weaver[\s\S]*dispatch_need\([\s\S]*ResidenceNeedKind::Cloth[\s\S]*dispatch_to_building\(/,
-  'weavers must dispatch to claimed homes before exporting remaining cloth',
+  /step_weaver[\s\S]*CommodityKind::Cloth,[\s\S]{0,120}&\["village_storehouse"\][\s\S]*CommodityKind::Cloth,[\s\S]{0,120}&\["trading_post"\]/,
+  'weavers must stage household cloth through a storehouse before considering regional export',
 );
 assert.match(
   expandedEconomy,
-  /starting_cloth <= 1e-6[\s\S]*ctx\.db\.building\(\)\.id\(\)\.update\(weaver\.clone\(\)\)[\s\S]*invalidate_specialty_claims[\s\S]*ResidenceNeedKind::Cloth/,
-  'the first woven batch must be visible when household territory claims are built',
+  /step_weaver[\s\S]*&\["village_storehouse"\]/,
+  'storehouse workers must collect woven cloth for their household-goods stalls',
+);
+assert.doesNotMatch(
+  expandedEconomy,
+  /dispatch_need\([\s\S]*ResidenceNeedKind::Cloth|invalidate_specialty_claims[\s\S]*ResidenceNeedKind::Cloth/,
+  'weavers must stay at production instead of serving residences directly',
 );
 assert.match(marketplaceCaravan, /CommodityKind::Cloth, SPECIALTY_EXPORT_GOLD_PER_CLOTH/);
 assert.match(commodities, /Self::Wool => 13/);

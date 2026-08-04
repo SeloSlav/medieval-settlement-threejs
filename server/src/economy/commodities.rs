@@ -163,6 +163,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
                     | "monastery"
                     | "town_hall"
                     | "marketplace"
+                    | "trading_post"
                     | "ferry_landing"
                     | "guardhouse"
             ) {

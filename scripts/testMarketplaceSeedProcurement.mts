@@ -437,8 +437,8 @@ assert.match(
 assert.match(syncSource, /marketplaceSeedGrainTarget: row\.marketplaceSeedGrainTarget/);
 assert.match(
   expandedEconomySource,
-  /source\.kind == "marketplace" && source\.assigned_labor == 0/,
-  'an unstaffed marketplace must not launch a seed or armory cart',
+  /source\.kind == "trading_post" && source\.assigned_labor == 0/,
+  'an unstaffed Trading Post must not launch a seed or armory cart',
 );
 assert.match(
   marketplaceInspectorSource,

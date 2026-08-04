@@ -244,9 +244,59 @@ export class BuildingMarkers {
       if (nextIds.has(id)) continue;
       this.removeBuilding(id);
     }
+    this.syncMarketplaceStallVisuals();
     this.staticBatches.finalizeGeometryBuffers();
     if (this.shadowProxyBatch.flush()) {
       this.onShadowCastersChanged?.();
+    }
+  }
+
+  private syncMarketplaceStallVisuals(): void {
+    const network = this.getRoadNetwork?.() ?? null;
+    for (const marketplace of this.buildingStates.values()) {
+      if (
+        marketplace.kind !== 'marketplace'
+        || marketplace.constructionComplete === false
+      ) {
+        continue;
+      }
+      let foodStalls = 0;
+      let goodsStalls = 0;
+      if (network) {
+        for (const workplace of this.buildingStates.values()) {
+          if (
+            workplace.constructionComplete === false
+            || workplace.assignedLabor <= 0
+            || (
+              workplace.kind !== 'granary'
+              && workplace.kind !== 'village_storehouse'
+            )
+            || network.getPathfinder().roadPathDistance(
+              workplace.x,
+              workplace.z,
+              marketplace.x,
+              marketplace.z,
+            ) == null
+          ) {
+            continue;
+          }
+          if (workplace.kind === 'granary') {
+            foodStalls += workplace.assignedLabor;
+          } else {
+            goodsStalls += workplace.assignedLabor;
+          }
+        }
+      }
+      const marker = this.buildingMeshes.get(marketplace.id);
+      if (!marker) continue;
+      for (let index = 0; index < 3; index += 1) {
+        const foodStall = marker.getObjectByName(`MarketFoodStall${index}`);
+        if (foodStall) foodStall.visible = index < foodStalls;
+        const goodsStall = marker.getObjectByName(`MarketGoodsStall${index}`);
+        if (goodsStall) goodsStall.visible = index < goodsStalls;
+      }
+      marker.userData.marketFoodStalls = foodStalls;
+      marker.userData.marketGoodsStalls = goodsStalls;
     }
   }
 
@@ -1012,15 +1062,17 @@ function syncBuildingVisualState(
       const stagedCratedGoods =
         building.firewood
         + building.food
-        + building.grain
-        + (building.barley ?? 0)
-        + (building.ironwork ?? 0);
+        + building.preservedFood
+        + building.ale
+        + (building.cloth ?? 0)
+        + (building.pottery ?? 0);
       const cratedCapacity =
         BUILDING_STORAGE_CAPS.marketplace.firewood
         + BUILDING_STORAGE_CAPS.marketplace.food
-        + BUILDING_STORAGE_CAPS.marketplace.grain
-        + (BUILDING_STORAGE_CAPS.marketplace.barley ?? 0)
-        + (BUILDING_STORAGE_CAPS.marketplace.ironwork ?? 0);
+        + BUILDING_STORAGE_CAPS.marketplace.preservedFood
+        + BUILDING_STORAGE_CAPS.marketplace.ale
+        + (BUILDING_STORAGE_CAPS.marketplace.cloth ?? 0)
+        + (BUILDING_STORAGE_CAPS.marketplace.pottery ?? 0);
       syncStockpileSegments(
         crates,
         'MarketCratedStageSegment',
@@ -1030,14 +1082,18 @@ function syncBuildingVisualState(
     }
     marker.userData.marketStagingSegments = MARKET_STAGING_VISUAL_SEGMENTS;
   }
-  if (building.kind === 'village_storehouse') {
+  if (building.kind === 'village_storehouse' || building.kind === 'trading_post') {
+    const storageCaps = BUILDING_STORAGE_CAPS[building.kind] as Partial<Record<
+      'timber' | 'stone' | 'firewood' | 'iron' | 'clay' | 'salt',
+      number
+    >>;
     const timber = marker.getObjectByName('StorehouseTimberStockpile');
     if (timber instanceof THREE.Group) {
       syncStockpileSegments(
         timber,
         'StorehouseTimberSegment',
         building.timber,
-        BUILDING_STORAGE_CAPS.village_storehouse.timber,
+        storageCaps.timber ?? 0,
       );
     }
     const stone = marker.getObjectByName('StorehouseStoneStockpile');
@@ -1046,7 +1102,7 @@ function syncBuildingVisualState(
         stone,
         'StorehouseStoneSegment',
         building.stone,
-        BUILDING_STORAGE_CAPS.village_storehouse.stone,
+        storageCaps.stone ?? 0,
       );
     }
     const firewood = marker.getObjectByName('StorehouseFirewoodStockpile');
@@ -1055,7 +1111,7 @@ function syncBuildingVisualState(
         firewood,
         'StorehouseFirewoodSegment',
         building.firewood,
-        BUILDING_STORAGE_CAPS.village_storehouse.firewood,
+        storageCaps.firewood ?? 0,
       );
     }
     const iron = marker.getObjectByName('StorehouseIronStockpile');
@@ -1064,7 +1120,7 @@ function syncBuildingVisualState(
         iron,
         'StorehouseIronSegment',
         building.iron ?? 0,
-        BUILDING_STORAGE_CAPS.village_storehouse.iron ?? 0,
+        storageCaps.iron ?? 0,
       );
     }
     const clay = marker.getObjectByName('StorehouseClayStockpile');
@@ -1073,7 +1129,7 @@ function syncBuildingVisualState(
         clay,
         'StorehouseClaySegment',
         building.clay ?? 0,
-        BUILDING_STORAGE_CAPS.village_storehouse.clay ?? 0,
+        storageCaps.clay ?? 0,
       );
     }
     const salt = marker.getObjectByName('StorehouseSaltStockpile');
@@ -1082,7 +1138,7 @@ function syncBuildingVisualState(
         salt,
         'StorehouseSaltSegment',
         building.salt ?? 0,
-        BUILDING_STORAGE_CAPS.village_storehouse.salt ?? 0,
+        storageCaps.salt ?? 0,
       );
     }
     marker.userData.storehouseTimberSegments = STOREHOUSE_TIMBER_VISUAL_SEGMENTS;
@@ -1091,6 +1147,15 @@ function syncBuildingVisualState(
     marker.userData.storehouseIronSegments = STOREHOUSE_IRON_VISUAL_SEGMENTS;
     marker.userData.storehouseClaySegments = STOREHOUSE_CLAY_VISUAL_SEGMENTS;
     marker.userData.storehouseSaltSegments = STOREHOUSE_SALT_VISUAL_SEGMENTS;
+    const proceedsChest = marker.getObjectByName('TradingPostProceedsChest');
+    if (proceedsChest instanceof THREE.Group) {
+      syncStockpileSegments(
+        proceedsChest,
+        'TradingPostReceiptSegment',
+        building.kind === 'trading_post' ? building.gold : 0,
+        MARKET_RECEIPT_VISUAL_CAPACITY,
+      );
+    }
   }
   if (building.kind === 'charcoal_burner') {
     const smoke = marker.getObjectByName(CHARCOAL_CLAMP_SMOKE_NAME);

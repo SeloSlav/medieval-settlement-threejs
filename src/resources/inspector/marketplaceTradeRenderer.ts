@@ -107,19 +107,19 @@ export function renderMarketplaceTradePanel(
         ? priceTag ?? 'Regional caravan rates'
         : 'Direct barter — no gold involved';
     const actionTitle = staging.requiresStaging && staging.resource
-      ? `Order ${staging.missing.toFixed(0)} ${staging.resource} staged at this market`
+      ? `Order ${staging.missing.toFixed(0)} ${staging.resource} staged at this Trading Post`
       : describeMarketplaceTradeOfferForMarket(offer, marketState);
     const hint = manualTrade.reason
       ?? (!affordable
         ? offer.kind === 'goldBuy' && physicalEconomy
-          ? 'Not enough marketplace coffer gold'
-          : 'Not enough market-accessible stock'
+          ? 'Not enough Trading Post coffer gold'
+          : 'Not enough trade-accessible stock'
         : !hasRoom
-          ? 'Marketplace storage lacks room for the full shipment'
+          ? 'Trading Post storage lacks room for the full shipment'
           : staging.inbound && staging.resource
             ? `${staging.resource} staging cart inbound · merchant departs after the full lot arrives`
             : staging.requiresStaging && staging.resource
-              ? `${staging.localStock.toFixed(0)} / ${staging.required.toFixed(0)} at market · one order dispatches follow-up source carts`
+              ? `${staging.localStock.toFixed(0)} / ${staging.required.toFixed(0)} at the Trading Post · one order dispatches follow-up source carts`
               : marketHint);
     const civilianToolBoundary = 'resource' in offer && offer.resource === 'ironwork'
       ? ' · finished imports serve market, carpenter, construction, and military demand; civilian tool racks accept only smithy-cart refills'
@@ -149,13 +149,13 @@ export function renderMarketplaceTradePanel(
     const hint = manualTrade.reason
       ?? (!affordable
         ? physicalEconomy
-          ? 'Not enough marketplace coffer gold'
+          ? 'Not enough Trading Post coffer gold'
           : 'Not enough treasury gold'
         : !hasRoom
-          ? 'Marketplace needs room for the full order'
+          ? 'Trading Post needs room for the full order'
           : `${commodity.origin} · ${
               physicalEconomy
-                ? 'live merchant cart to this market, then local delivery'
+                ? 'live merchant cart to this Trading Post, then local delivery'
                 : 'delivered to homes'
             }${priceTag ? ` · ${priceTag}` : ''}`);
     return `
@@ -183,13 +183,13 @@ export function renderMarketplaceTradePanel(
     const hint = manualTrade.reason
       ?? (!affordable
         ? physicalEconomy
-          ? 'Not enough marketplace coffer gold'
+          ? 'Not enough Trading Post coffer gold'
           : 'Not enough treasury gold'
         : !hasRoom
-          ? 'Marketplace needs room for the full order'
+          ? 'Trading Post needs room for the full order'
           : `${commodity.origin} · ${
               physicalEconomy
-                ? 'live regional cart to this market, then local delivery'
+                ? 'live regional cart to this Trading Post, then local delivery'
                 : 'delivered to homes'
             }${priceTag ? ` · ${priceTag}` : ''}`);
     return `
@@ -212,8 +212,8 @@ export function renderMarketplaceTradePanel(
     <div class="marketplace-trade-panel">
       <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
       <p class="marketplace-trade-intro">${physicalEconomy
-        ? 'Bulk exports use only goods physically staged at this market by visible source carts. Once a full lot arrives, one live merchant carries it to the regional map edge, exchanges only what survives the road, and returns with raid-vulnerable coin or barter cargo before the receipt enters market storage. Imports spend only coin physically held in this market coffer; free haulers replenish its chosen reserve from the civic treasury, while brokers return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
-        : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here; in the physical economy those specialties also leave on discrete live merchant loads rather than disappearing at the stall. Every paid import is carried from the map edge: manual lots unload here for local distribution, while named household and parish orders pass through this market's road branch before reaching their exact home.</p>
+        ? 'Bulk exports use only goods physically staged at this Trading Post by visible source carts. Once a full lot arrives, one live merchant carries it to the regional map edge, exchanges only what survives the road, and returns with raid-vulnerable coin or barter cargo before the receipt enters Trading Post storage. Imports spend only coin physically held in this Trading Post coffer; free haulers replenish its chosen reserve from the civic treasury, while brokers return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
+        : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here; in the physical economy those specialties also leave on discrete live merchant loads. Every paid import is carried from the map edge: manual lots unload here for local distribution, while named household and parish orders pass through this Trading Post's road branch before reaching their exact home.</p>
       <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
       ${pendingOffer
         ? renderPendingMarketplaceOrder(
@@ -295,9 +295,9 @@ function renderMarketplaceGoldReserve(building: BuildingState): string {
     status = `${held.toFixed(1)} / ${target} gold held — working cash ready for imports.`;
   }
   return `
-    <section class="marketplace-trade-section" aria-label="Market cash reserve">
-      <h3 class="marketplace-trade-section__title">Market cash reserve</h3>
-      <p class="resource-inspector-note">Choose how much civic coin to keep physically at this market. Treasury-to-market handcarts consume one free hauler and road time; a larger reserve supports costly or repeated imports but leaves less gold available for wages and residence improvements.</p>
+    <section class="marketplace-trade-section" aria-label="Trading Post cash reserve">
+      <h3 class="marketplace-trade-section__title">Trading Post cash reserve</h3>
+      <p class="resource-inspector-note">Choose how much civic coin to keep physically at this Trading Post. Treasury-to-post handcarts consume one free hauler and road time; a larger reserve supports costly or repeated imports but leaves less gold available for wages and residence improvements.</p>
       <div class="resource-action-row">${MARKETPLACE_GOLD_RESERVE_TARGETS
         .map((reserveTarget) => `<button type="button" class="resource-action-button" data-marketplace-gold-reserve-target="${reserveTarget}" ${reserveTarget === target ? 'disabled' : ''}>${reserveTarget === 0 ? 'Receipts only' : `Keep ${reserveTarget}`}</button>`)
         .join('')}</div>
@@ -348,7 +348,7 @@ function renderPendingMarketplaceOrder(
         data-building-id="${building.id}"
       >
         <span class="marketplace-trade-option__title">Cancel bulk order</span>
-        <span class="marketplace-trade-option__hint">Already-dispatched carts still unload here; staged goods remain physical market stock.</span>
+        <span class="marketplace-trade-option__hint">Already-dispatched carts still unload here; staged goods remain physical Trading Post stock.</span>
       </button>
     </section>`;
 }
@@ -373,7 +373,7 @@ function renderSpecialtyExportPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Specialty export policy">
       <h3 class="marketplace-trade-section__title">Specialty export policy</h3>
-      <p class="resource-inspector-note">Ale, honey, wine, and cloth must arrive here by physical cart. Selling deepens regional supply and lowers the next rate; holding can recover price but may fill this market and back up its producer routes.</p>
+      <p class="resource-inspector-note">Ale, honey, wine, and cloth must arrive here by physical cart. Selling deepens regional supply and lowers the next rate; holding can recover price but may fill this Trading Post and back up its producer routes.</p>
       <div class="resource-action-row">${MARKETPLACE_SPECIALTY_EXPORT_POLICIES
         .map((policy) => `<button type="button" class="resource-action-button" data-marketplace-specialty-export-policy="${policy.value}" title="${policy.hint}" ${policy.value === plan.policy.value ? 'disabled' : ''}>${policy.label}</button>`)
         .join('')}</div>
@@ -400,7 +400,7 @@ function renderIronworkProcurementPolicy(
   } else if (nextStandingOrder && nextStandingOrder !== 'ironwork') {
     status = `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} ironwork lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
-    status = `Waiting for ${nextCost.toFixed(0)} market-coffer gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+    status = `Waiting for ${nextCost.toFixed(0)} Trading Post coffer gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (!manualTrade.ready) {
     status = `Waiting — ${manualTrade.label.toLowerCase()}.`;
   } else {
@@ -410,7 +410,7 @@ function renderIronworkProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Frontier ironwork procurement">
       <h3 class="marketplace-trade-section__title">Frontier ironwork procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the shared standing-order queue, physically held market-coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes market stock only after unloading; a full market leaves the cart waiting visibly at the stall, and carpenters must still collect the fittings by road. Imported finished fittings serve carpentry, construction, and armament demand but do not refill civilian tool racks; those require locally forged stock carried by a smithy cart. The most depleted selected reserve goes first.</p>
+      <p class="resource-inspector-note">Standing stock target — this Trading Post buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the shared standing-order queue, physically held Trading Post coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes Trading Post stock only after unloading; a full post leaves the cart waiting visibly at its loading bay, and carpenters must still collect the fittings by road. Imported finished fittings serve carpentry, construction, and armament demand but do not refill civilian tool racks; those require locally forged stock carried by a smithy cart. The most depleted selected reserve goes first.</p>
       <div class="resource-action-row">${MARKETPLACE_IRONWORK_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-ironwork-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>
@@ -439,7 +439,7 @@ function renderSeedGrainProcurementPolicy(
   } else if (nextStandingOrder && nextStandingOrder !== 'seedGrain') {
     status = `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
-    status = `Waiting for ${nextCost.toFixed(0)} market-coffer gold; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
+    status = `Waiting for ${nextCost.toFixed(0)} Trading Post coffer gold; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (!manualTrade.ready) {
     status = `Waiting — ${manualTrade.label.toLowerCase()}.`;
   } else {
@@ -453,7 +453,7 @@ function renderSeedGrainProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Seed-grain procurement">
       <h3 class="marketplace-trade-section__title">Seed-grain procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use broker time, physically held market-coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes market stock only after unloading.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free market or granary serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
+      <p class="resource-inspector-note">Standing stock target — this Trading Post buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use broker time, physically held Trading Post coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes Trading Post stock only after unloading.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free Trading Post or granary cart serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
       <div class="resource-action-row">${MARKETPLACE_SEED_GRAIN_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-seed-grain-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>
@@ -481,7 +481,7 @@ function renderMaterialProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Workshop input procurement">
       <h3 class="marketplace-trade-section__title">Workshop input reserves</h3>
-      <p class="resource-inspector-note">Set a physical reserve for local mine output and regional fallback. Mine carts restore staffed workshop buffers first, then carry surplus iron or salt to a staffed road-linked market up to the selected level. Adriatic merchant carts buy only the remaining whole-lot shortfall, consuming broker time, coffer gold, and the current regional rate before their cargo becomes usable on arrival. Free market carts then stage iron, salt, and uncommitted pottery at staffed smithies, smokehouses, and pastoral holdings; paid household orders and seed recovery retain first claim, then work priority, cycle runway, road length, and stable order decide the next production site and supplying market. Pastoral salt preserves farmhouse cheese and part of autumn slaughter; fresh dairy and herd care continue when it runs out. Pottery promised to an active export order stays at the market. All standing imports share one queue and the most depleted selected reserve goes first.</p>
+      <p class="resource-inspector-note">Set a physical reserve for local mine output and regional fallback. Mine carts restore staffed workshop buffers first, then carry surplus iron or salt to a staffed road-linked Trading Post up to the selected level. Adriatic merchant carts buy only the remaining whole-lot shortfall, consuming trader time, coffer gold, and the current regional rate before their cargo becomes usable on arrival. Free Trading Post carts then stage iron, salt, and uncommitted pottery at staffed smithies, smokehouses, and pastoral holdings; paid household orders and seed recovery retain first claim, then work priority, cycle runway, road length, and stable order decide the next production site and supplying post. Pastoral salt preserves farmhouse cheese and part of autumn slaughter; fresh dairy and herd care continue when it runs out. Pottery promised to an active export order stays at the Trading Post. All standing imports share one queue and the most depleted selected reserve goes first.</p>
       <h4 class="marketplace-trade-section__title">Iron reserve for smithing</h4>
       <div class="resource-action-row">${renderTargetButtons(
         'iron',

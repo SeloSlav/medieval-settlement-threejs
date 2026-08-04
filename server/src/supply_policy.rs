@@ -543,6 +543,7 @@ pub fn select_seed_grain_delivery_candidate<T>(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ProcessorInputDispatchDuty {
     WorkingBuffer,
+    CentralStorage,
     WorkshopOverflow,
 }
 
@@ -599,6 +600,30 @@ pub fn processor_input_dispatch_duty(
         ProcessorInputDispatchDuty::WorkingBuffer
     } else {
         ProcessorInputDispatchDuty::WorkshopOverflow
+    }
+}
+
+/// Flour should take the shortest productive route first: a staffed bakery's
+/// working buffer beats storage, while a staffed granary beats overfilling a
+/// bakery warehouse. Bakery overflow remains a last resort when no central
+/// flour store can receive the mill's surplus.
+pub fn processor_input_dispatch_duty_for_target(
+    target_kind: &str,
+    commodity: &str,
+    assigned_labor: u32,
+    stock: f64,
+    per_cycle: f64,
+    processor_output_target_percent: u8,
+) -> ProcessorInputDispatchDuty {
+    if target_kind == "granary" && commodity == "flour" {
+        ProcessorInputDispatchDuty::CentralStorage
+    } else {
+        processor_input_dispatch_duty(
+            assigned_labor,
+            stock,
+            per_cycle,
+            processor_output_target_percent,
+        )
     }
 }
 
@@ -661,8 +686,8 @@ pub fn local_material_dispatch_target(
 /// Direct producer carts first restore operating processors to a small working
 /// buffer. Within that duty, completed-building work priority wins before
 /// input preference, cycle runway, road distance, and stable building id.
-/// Once every active buffer is covered, ordinary nearest-route overflow
-/// behavior resumes.
+/// Once every active buffer is covered, central flour storage wins before
+/// ordinary nearest-route workshop overflow behavior resumes.
 pub fn compare_processor_input_dispatch_candidates(
     a_duty: ProcessorInputDispatchDuty,
     a_work_priority: u8,
@@ -829,7 +854,8 @@ mod tests {
         is_specialty_supplier_operational, is_well_supplier_operational,
         large_quarry_support_runway_cycles, large_quarry_support_target,
         large_quarry_supports_ready, local_material_dispatch_target, processor_input_dispatch_duty,
-        processor_input_runway_cycles, processor_input_target, rich_mine_support_runway_cycles,
+        processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
+        processor_input_target, rich_mine_support_runway_cycles,
         rich_mine_support_target, rich_mine_supports_ready, select_grain_dispatch_candidate,
         select_need_delivery_candidate, select_processor_input_dispatch_candidate,
         select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
@@ -1388,6 +1414,69 @@ mod tests {
         assert!(
             started.elapsed() < Duration::from_millis(100),
             "100k direct input candidates should remain a one-pass selection"
+        );
+    }
+
+    #[test]
+    fn flour_routes_to_bakery_buffers_then_granary_then_bakery_overflow() {
+        let bakery_buffer = processor_input_dispatch_duty_for_target(
+            "bakery",
+            "flour",
+            1,
+            0.0,
+            super::BAKERY_FLOUR_PER_CYCLE,
+            100,
+        );
+        let granary = processor_input_dispatch_duty_for_target(
+            "granary", "flour", 1, 0.0, 0.0, 100,
+        );
+        let bakery_overflow = processor_input_dispatch_duty_for_target(
+            "bakery",
+            "flour",
+            1,
+            9.0,
+            super::BAKERY_FLOUR_PER_CYCLE,
+            100,
+        );
+
+        assert_eq!(bakery_buffer, ProcessorInputDispatchDuty::WorkingBuffer);
+        assert_eq!(granary, ProcessorInputDispatchDuty::CentralStorage);
+        assert_eq!(bakery_overflow, ProcessorInputDispatchDuty::WorkshopOverflow);
+        assert_eq!(
+            compare_processor_input_dispatch_candidates(
+                bakery_buffer,
+                1,
+                0,
+                0.0,
+                100.0,
+                1,
+                granary,
+                3,
+                0,
+                f64::INFINITY,
+                1.0,
+                2,
+            ),
+            Ordering::Less,
+            "a bakery working buffer must beat a nearer granary",
+        );
+        assert_eq!(
+            compare_processor_input_dispatch_candidates(
+                granary,
+                1,
+                0,
+                f64::INFINITY,
+                100.0,
+                2,
+                bakery_overflow,
+                3,
+                0,
+                3.0,
+                1.0,
+                1,
+            ),
+            Ordering::Less,
+            "central flour storage must beat bakery warehouse overflow",
         );
     }
 

@@ -16,15 +16,18 @@ import {
 } from '../src/buildings/marketplaceSpecialtyStockpileVisuals.ts';
 import type { BuildingState } from '../src/resources/types.ts';
 
-const stockGroups = [
+const retailStockGroups = [
   ['MarketAleStockpile', 'MarketAleSegment', MARKET_ALE_VISUAL_SEGMENTS],
-  ['MarketHoneyStockpile', 'MarketHoneySegment', MARKET_HONEY_VISUAL_SEGMENTS],
-  ['MarketWineStockpile', 'MarketWineSegment', MARKET_WINE_VISUAL_SEGMENTS],
   ['MarketClothStockpile', 'MarketClothSegment', MARKET_CLOTH_VISUAL_SEGMENTS],
-  ['MarketIronStockpile', 'MarketIronSegment', MARKET_IRON_VISUAL_SEGMENTS],
-  ['MarketSaltStockpile', 'MarketSaltSegment', MARKET_SALT_VISUAL_SEGMENTS],
   ['MarketPotteryStockpile', 'MarketPotterySegment', MARKET_POTTERY_VISUAL_SEGMENTS],
 ] as const;
+const nonRetailStockGroups = [
+  ['MarketHoneyStockpile', 'MarketHoneySegment', MARKET_HONEY_VISUAL_SEGMENTS],
+  ['MarketWineStockpile', 'MarketWineSegment', MARKET_WINE_VISUAL_SEGMENTS],
+  ['MarketIronStockpile', 'MarketIronSegment', MARKET_IRON_VISUAL_SEGMENTS],
+  ['MarketSaltStockpile', 'MarketSaltSegment', MARKET_SALT_VISUAL_SEGMENTS],
+] as const;
+const stockGroups = [...retailStockGroups, ...nonRetailStockGroups] as const;
 
 const marketMarker = createBuildingMesh('marketplace');
 for (const [containerName, segmentName, segmentCount] of stockGroups) {
@@ -43,12 +46,11 @@ syncMarketplaceSpecialtyStockpileVisuals(
   market({ ale: 47, honey: 34, wine: 40, cloth: 80, iron: 20, salt: 30, pottery: 60 }),
 );
 assertVisibleSegments(marketMarker, 'MarketAleStockpile', 'MarketAleSegment', 2);
-assertVisibleSegments(marketMarker, 'MarketHoneyStockpile', 'MarketHoneySegment', 2);
-assertVisibleSegments(marketMarker, 'MarketWineStockpile', 'MarketWineSegment', 1);
 assertVisibleSegments(marketMarker, 'MarketClothStockpile', 'MarketClothSegment', 2);
-assertVisibleSegments(marketMarker, 'MarketIronStockpile', 'MarketIronSegment', 2);
-assertVisibleSegments(marketMarker, 'MarketSaltStockpile', 'MarketSaltSegment', 2);
 assertVisibleSegments(marketMarker, 'MarketPotteryStockpile', 'MarketPotterySegment', 2);
+for (const [containerName, segmentName] of nonRetailStockGroups) {
+  assertVisibleSegments(marketMarker, containerName, segmentName, 0);
+}
 
 syncMarketplaceSpecialtyStockpileVisuals(marketMarker, market());
 for (const [containerName, segmentName] of stockGroups) {

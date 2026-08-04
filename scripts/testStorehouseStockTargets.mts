@@ -343,7 +343,7 @@ assert.match(
   'one depot crew must accept at most one overflow collection trip per substep',
 );
 const householdDutyIndex = simulationLoop.indexOf(
-  'step_village_storehouse_household_firewood(ctx',
+  'step_storehouse_market_stalls(ctx',
 );
 const localMaterialDutyIndex = simulationLoop.indexOf(
   'step_local_material_dispatch(ctx',
@@ -355,12 +355,12 @@ assert.ok(
   householdDutyIndex >= 0
   && householdDutyIndex < localMaterialDutyIndex
   && localMaterialDutyIndex < overflowCollectionIndex,
-  'depot carts must protect households, then supply workshop buffers, before collecting overflow',
+  'depot carts must stock household market stalls, then supply workshop buffers, before collecting overflow',
 );
 assert.match(
   storehouseStep,
-  /dispatch_delivery_if_ready[\s\S]*idle_by_owner[\s\S]*dispatch_overflow_collection_for_owner/,
-  'claimed household fuel must remain ahead of overflow collection',
+  /step_storehouse_market_stalls[\s\S]*idle_by_owner[\s\S]*dispatch_overflow_collection_for_owner/,
+  'market-stall stocking must remain ahead of overflow collection',
 );
 assert.match(
   storehouseStep,

@@ -1,12 +1,11 @@
-//! Marketplace caravan deliveries — haul provender and water from the market to homes.
+//! Local Marketplace stall deliveries and Trading Post regional logistics.
 
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     BUILDING_ROAD_ACCESS_DISTANCE, FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC,
     FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, MARKET_CARAVAN_ALE_PER_DELIVERY,
-    MARKET_CARAVAN_CLOTH_PER_DELIVERY, MARKET_CARAVAN_DELIVERY_WORKERS,
-    MARKET_CARAVAN_FIREWOOD_PER_DELIVERY, MARKET_CARAVAN_LABOR_PER_WORKER,
+    MARKET_CARAVAN_CLOTH_PER_DELIVERY, MARKET_CARAVAN_FIREWOOD_PER_DELIVERY,
     MARKET_CARAVAN_POTTERY_PER_DELIVERY, MARKET_CARAVAN_PRESERVED_FOOD_PER_DELIVERY,
     SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_CLOTH,
     SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_WINE, STOREHOUSE_HAUL_PER_WORKER,
@@ -52,13 +51,6 @@ pub struct MarketCaravanDispatch {
     /// A paid household or relief lot must fit and load in full. Routine
     /// marketplace distribution keeps its worker-scaled carrying capacity.
     pub exact_load_amount: Option<f64>,
-}
-
-pub fn marketplace_caravan_workers(building: &Building) -> u32 {
-    MARKET_CARAVAN_DELIVERY_WORKERS
-        + building
-            .assigned_labor
-            .saturating_mul(MARKET_CARAVAN_LABOR_PER_WORKER)
 }
 
 pub fn try_dispatch_marketplace_caravan(
@@ -396,9 +388,9 @@ pub fn step_marketplace_caravans(
                 );
             }
         }
-        // Household stalls always spend the market's first cart. Regional
-        // exports and proceeds collection may use it only when no home is
-        // currently waiting for stocked goods.
+        // Local stall deliveries are handled above by granary/storehouse
+        // workers. Only a staffed Trading Post can launch regional exports or
+        // return trade proceeds.
         if is_trading_post && !building_has_active_trip(ctx, building.id) {
             changed |= sell_marketplace_specialties(ctx, tick, clock, &mut building);
         }

@@ -11,9 +11,9 @@ use crate::balance_generated::{
     BAKERY_WATER_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
     FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY,
-    FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
+    GRAIN_TRANSFER_PER_TRIP,
     MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
-    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_COVERAGE_RADIUS,
+    MINE_TIMBER_SUPPORT_PER_CYCLE,
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
     MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
@@ -61,7 +61,7 @@ use crate::marketplace_procurement_policy::{
 };
 use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
-    monastery_feast_surplus, monastery_hospitality_use, monastery_pilgrimage_gold,
+    monastery_hospitality_use, monastery_pilgrimage_gold,
 };
 use crate::potter_firing_policy::potter_fires_roof_tiles;
 use crate::pottery_dispatch_policy::pottery_households_first;
@@ -70,21 +70,15 @@ use crate::processor_output_policy::{
     ProcessorOutputKind,
 };
 use crate::season_policy::{EnvironmentState, WeatherKind};
-use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, onsite_building_labor, try_start_building_supply_trip,
-    try_start_delivery_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::landmark_access::monastery_linked_to_chapel;
-use crate::simulation::residence_needs::{
-    apply_need_consumed_at_source, load_needs, need_stock, ResidenceNeedKind,
-};
-use crate::simulation::road_logistics::{
-    local_delivery_distance, select_residence_for_need_delivery,
-};
+use crate::simulation::residence_needs::{apply_need_consumed_at_source, ResidenceNeedKind};
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
 use crate::specialty_trade_policy::{
@@ -96,7 +90,8 @@ use crate::supply_policy::{
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
     grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, local_material_dispatch_target, processor_input_dispatch_duty,
-    processor_input_runway_cycles, processor_input_target, rich_mine_support_target,
+    processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
+    processor_input_target, rich_mine_support_target,
     rich_mine_supports_ready, select_grain_dispatch_candidate,
     select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
     select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
@@ -176,8 +171,9 @@ struct InstitutionalFoodDispatchCandidate {
     runway: f64,
 }
 
-/// Match every free fresh-food producer cart to one institutional destination
-/// after the producers have attempted their household duties for this tick.
+/// Match every fresh-food producer to one staffed storage or institutional
+/// destination after production for this tick. Producers never run the
+/// household last mile: granary workers later stock Marketplace food stalls.
 /// Building update order therefore cannot let an older granary, smokehouse, or
 /// guardhouse seize a cart before a more urgent destination is considered.
 pub fn step_institutional_food_dispatch(
@@ -573,40 +569,6 @@ pub fn step_watermill(
     ctx.db.building().id().update(mill);
 }
 
-/// Firewood distributors first cover each claimed home's protected winter-night
-/// stock. Each remaining staffed source then sends at most one physical surplus
-/// cart to the highest-priority operating workshop with the lowest fuel runway.
-///
-/// Dispatching from the source side removes building-update-order bias: an
-/// older kiln cannot repeatedly pull the communal cart ahead of an urgent
-/// smokehouse, and a storehouse already serving a cold home is unavailable.
-pub(crate) fn has_industrial_firewood_target(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    source: &Building,
-) -> bool {
-    if source.firewood <= 1e-6 || building_has_active_trip(ctx, source.id) {
-        return false;
-    }
-    let Some(network) = tick.road_network(source.owner) else {
-        return false;
-    };
-    tick.building_ids_for_kinds(ctx, source.owner, INDUSTRIAL_FIREWOOD_TARGET_KINDS)
-        .into_iter()
-        .filter_map(|target_id| ctx.db.building().id().find(&target_id))
-        .any(|target| {
-            target.id != source.id
-                && target.construction_complete
-                && !tick.building_disabled_by_fire(ctx, target.id)
-                && target.assigned_labor > 0
-                && processor_accepts_input(&target, CommodityKind::Firewood)
-                && building_commodity_room(&target, CommodityKind::Firewood) > 1e-6
-                && !building_has_inbound_supply_trip(ctx, target.id)
-                && local_delivery_distance(network, source.x, source.z, target.x, target.z)
-                    .is_some_and(|distance| distance.is_finite())
-        })
-}
-
 pub fn step_industrial_firewood_dispatch(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -860,6 +822,7 @@ pub fn step_local_material_dispatch(
     sources: Vec<Building>,
 ) {
     let mut candidates = Vec::new();
+    let mut deferred_pottery_local = Vec::new();
     let mut deferred_pottery_exports = Vec::new();
 
     for source in &sources {
@@ -916,22 +879,29 @@ pub fn step_local_material_dispatch(
                     duty,
                     runway_cycles,
                 };
-                if source.kind == "potter_kiln"
-                    && !pottery_households_first(source.pottery_dispatch_policy)
-                    && candidate.building.kind == "trading_post"
-                {
-                    // Preservation-first is smokehouse -> home -> export. Keep
-                    // market overflow out of the first material pass so a nearby
-                    // broker cannot consume the kiln cart before local cupboards.
-                    deferred_pottery_exports.push(candidate);
-                } else {
+                if source.kind != "potter_kiln" {
                     candidates.push(candidate);
+                    continue;
+                }
+                if candidate.building.kind == "trading_post" {
+                    deferred_pottery_exports.push(candidate);
+                    continue;
+                }
+                let market_wares_first = pottery_households_first(source.pottery_dispatch_policy);
+                let is_primary_local_duty =
+                    (market_wares_first && candidate.building.kind == "village_storehouse")
+                        || (!market_wares_first && candidate.building.kind == "smokehouse");
+                if is_primary_local_duty {
+                    candidates.push(candidate);
+                } else {
+                    deferred_pottery_local.push(candidate);
                 }
             }
         }
     }
 
     sort_local_material_candidates(&mut candidates);
+    sort_local_material_candidates(&mut deferred_pottery_local);
     sort_local_material_candidates(&mut deferred_pottery_exports);
 
     let mut used_sources = HashSet::new();
@@ -945,30 +915,17 @@ pub fn step_local_material_dispatch(
         &mut used_targets,
     );
 
-    // Preservation-first kilns that found no smokehouse work now try their
-    // claimed homes. A cart that actually leaves is unavailable to export.
-    for source in &sources {
-        if source.kind != "potter_kiln"
-            || pottery_households_first(source.pottery_dispatch_policy)
-            || used_sources.contains(&source.id)
-        {
-            continue;
-        }
-        let Some(mut potter) = ctx.db.building().id().find(&source.id) else {
-            continue;
-        };
-        if dispatch_need(
-            ctx,
-            tick,
-            clock,
-            &mut potter,
-            ResidenceNeedKind::Pottery,
-            2.0,
-        ) {
-            used_sources.insert(potter.id);
-            ctx.db.building().id().update(potter);
-        }
-    }
+    // A kiln's second local duty runs only if its preferred destination had no
+    // work. Storehouse keepers collect market wares; free haulers serve the
+    // smokehouse buffer. Production workers remain at the kiln in both cases.
+    dispatch_local_material_candidates(
+        ctx,
+        tick,
+        clock,
+        deferred_pottery_local,
+        &mut used_sources,
+        &mut used_targets,
+    );
 
     // Only kilns still idle after both local duties may stage export stock.
     dispatch_local_material_candidates(
@@ -1111,7 +1068,9 @@ fn local_material_target_kinds(
             "watermill",
             "carpenter",
         ]),
-        ("potter_kiln", CommodityKind::Pottery) => Some(&["smokehouse", "trading_post"]),
+        ("potter_kiln", CommodityKind::Pottery) => {
+            Some(&["smokehouse", "village_storehouse", "trading_post"])
+        }
         ("village_storehouse", CommodityKind::Iron) if source.storehouse_accepts_iron => {
             Some(&["smithy", "trading_post"])
         }
@@ -1753,7 +1712,6 @@ pub fn step_weaver(
     clock: &GameClock,
     building: Building,
 ) {
-    let starting_cloth = building.cloth;
     let inputs = if weaver_uses_flax(
         building.weaver_input_policy,
         building.wool,
@@ -1781,13 +1739,6 @@ pub fn step_weaver(
         &inputs,
         &[(CommodityKind::Cloth, WEAVER_CLOTH_PER_CYCLE)],
     );
-    if starting_cloth <= 1e-6 && weaver.cloth > 1e-6 {
-        // Specialty claims read authoritative building rows. Expose the first
-        // completed batch before claims are built so it serves households
-        // instead of slipping directly into an export cart.
-        ctx.db.building().id().update(weaver.clone());
-        tick.invalidate_specialty_claims(weaver.owner, ResidenceNeedKind::Cloth);
-    }
     dispatch_to_building(
         ctx,
         tick,
@@ -1975,13 +1926,12 @@ pub fn step_potter_kiln(
     building: Building,
 ) {
     let firing_roof_tiles = potter_fires_roof_tiles(building.potter_firing_policy);
-    let starting_pottery = building.pottery;
     let output = if firing_roof_tiles {
         (CommodityKind::RoofTiles, POTTER_ROOF_TILES_PER_CYCLE)
     } else {
         (CommodityKind::Pottery, POTTER_POTTERY_PER_CYCLE)
     };
-    let mut potter = step_processor(
+    let potter = step_processor(
         ctx,
         tick,
         clock,
@@ -1993,36 +1943,6 @@ pub fn step_potter_kiln(
         ],
         &[output],
     );
-    if !firing_roof_tiles && starting_pottery <= 1e-6 && potter.pottery > 1e-6 {
-        ctx.db.building().id().update(potter.clone());
-        tick.invalidate_specialty_claims(potter.owner, ResidenceNeedKind::Pottery);
-    }
-    if !firing_roof_tiles {
-        dispatch_to_building(
-            ctx,
-            tick,
-            clock,
-            &mut potter,
-            CommodityKind::Pottery,
-            &["smokehouse"],
-        );
-        dispatch_to_building(
-            ctx,
-            tick,
-            clock,
-            &mut potter,
-            CommodityKind::Pottery,
-            &["village_storehouse"],
-        );
-        dispatch_to_building(
-            ctx,
-            tick,
-            clock,
-            &mut potter,
-            CommodityKind::Pottery,
-            &["trading_post"],
-        );
-    }
     ctx.db.building().id().update(potter);
 }
 
@@ -3149,7 +3069,9 @@ fn dispatch_to_building_where_limited(
                 let stock = building_commodity_stock(&target, commodity);
                 let per_cycle =
                     directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
-                let duty = processor_input_dispatch_duty(
+                let duty = processor_input_dispatch_duty_for_target(
+                    &target.kind,
+                    directly_dispatched_commodity_name(commodity).unwrap_or(""),
                     target.assigned_labor,
                     stock,
                     per_cycle,
@@ -3228,22 +3150,28 @@ fn directly_dispatched_processor_input_per_cycle(
     target_kind: &str,
     commodity: CommodityKind,
 ) -> f64 {
-    let commodity = match commodity {
-        CommodityKind::Barley => "barley",
-        CommodityKind::Flour => "flour",
-        CommodityKind::Food => "food",
-        CommodityKind::Wool => "wool",
-        CommodityKind::Flax => "flax",
-        CommodityKind::Ironwork => "ironwork",
-        CommodityKind::Clay => "clay",
-        CommodityKind::Charcoal => "charcoal",
-        CommodityKind::Pottery => "pottery",
-        CommodityKind::Firewood => "firewood",
-        CommodityKind::Iron => "iron",
-        CommodityKind::Salt => "salt",
-        _ => return 0.0,
+    let Some(commodity) = directly_dispatched_commodity_name(commodity) else {
+        return 0.0;
     };
     processor_input_per_cycle_for_dispatch(target_kind, commodity)
+}
+
+fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'static str> {
+    match commodity {
+        CommodityKind::Barley => Some("barley"),
+        CommodityKind::Flour => Some("flour"),
+        CommodityKind::Food => Some("food"),
+        CommodityKind::Wool => Some("wool"),
+        CommodityKind::Flax => Some("flax"),
+        CommodityKind::Ironwork => Some("ironwork"),
+        CommodityKind::Clay => Some("clay"),
+        CommodityKind::Charcoal => Some("charcoal"),
+        CommodityKind::Pottery => Some("pottery"),
+        CommodityKind::Firewood => Some("firewood"),
+        CommodityKind::Iron => Some("iron"),
+        CommodityKind::Salt => Some("salt"),
+        _ => None,
+    }
 }
 
 fn dispatch_monastery_hospitality(
@@ -3336,159 +3264,6 @@ fn dispatch_monastery_feast_ale(
         commodity_transfer_per_trip(CommodityKind::Ale),
         needed,
     );
-}
-
-fn dispatch_monastery_covered_need(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    supplier: &mut Building,
-    need_kind: ResidenceNeedKind,
-    per_delivery: f64,
-) {
-    let commodity = need_to_commodity(need_kind);
-    let reserve_enabled = tick.monastery_hospitality_enabled(ctx, supplier.owner);
-    let reserve = match commodity {
-        CommodityKind::Food => MONASTERY_FEAST_FOOD,
-        CommodityKind::Ale => MONASTERY_FEAST_ALE,
-        _ => 0.0,
-    };
-    let available = monastery_feast_surplus(
-        building_commodity_stock(supplier, commodity),
-        reserve,
-        reserve_enabled,
-    );
-    if building_has_active_trip(ctx, supplier.id) || available <= 1e-6 {
-        return;
-    }
-    let Some(network) = tick.road_network(supplier.owner) else {
-        return;
-    };
-    let targets = collect_need_delivery_targets(
-        ctx,
-        tick,
-        network,
-        supplier,
-        need_kind,
-        Some(MONASTERY_COVERAGE_RADIUS),
-    );
-    try_start_delivery_trip(
-        ctx,
-        tick,
-        clock,
-        network,
-        supplier,
-        1,
-        &targets,
-        need_kind,
-        FOOD_DELIVERY_SPEED_MPS,
-        FOOD_DELIVERY_UNLOAD_SEC,
-        per_delivery.min(available),
-    );
-}
-
-pub(crate) fn dispatch_need(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    supplier: &mut Building,
-    need_kind: ResidenceNeedKind,
-    per_delivery: f64,
-) -> bool {
-    if labor_and_logistics_paused(ctx, tick, supplier.owner, clock)
-        || building_has_active_trip(ctx, supplier.id)
-        || building_commodity_stock(supplier, need_to_commodity(need_kind)) <= 1e-6
-    {
-        return false;
-    }
-    let Some(network) = tick.road_network(supplier.owner) else {
-        return false;
-    };
-    let targets = collect_need_delivery_targets(ctx, tick, network, supplier, need_kind, None);
-    try_start_delivery_trip(
-        ctx,
-        tick,
-        clock,
-        network,
-        supplier,
-        1,
-        &targets,
-        need_kind,
-        FOOD_DELIVERY_SPEED_MPS,
-        FOOD_DELIVERY_UNLOAD_SEC,
-        per_delivery,
-    )
-}
-
-fn collect_need_delivery_targets(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    network: &crate::roads::RoadNetwork,
-    supplier: &Building,
-    need_kind: ResidenceNeedKind,
-    max_distance: Option<f64>,
-) -> Vec<Residence> {
-    let residences: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&supplier.owner)
-        .filter(|residence| {
-            if residence.abandoned
-                || residence.population == 0
-                || !need_kind.is_active_for_tier(residence.tier)
-            {
-                return false;
-            }
-            let claimed_supplier = match need_kind {
-                ResidenceNeedKind::Food => {
-                    tick.food_supplier_for(ctx, supplier.owner, residence.id)
-                }
-                ResidenceNeedKind::Ale
-                | ResidenceNeedKind::PreservedFood
-                | ResidenceNeedKind::Cloth
-                | ResidenceNeedKind::Pottery => {
-                    tick.specialty_supplier_for(ctx, supplier.owner, residence.id, need_kind)
-                }
-                ResidenceNeedKind::Firewood | ResidenceNeedKind::Water => None,
-            };
-            if matches!(
-                need_kind,
-                ResidenceNeedKind::Food
-                    | ResidenceNeedKind::Ale
-                    | ResidenceNeedKind::PreservedFood
-                    | ResidenceNeedKind::Cloth
-                    | ResidenceNeedKind::Pottery
-            ) && claimed_supplier != Some(supplier.id)
-            {
-                return false;
-            }
-            true
-        })
-        .collect();
-    select_residence_for_need_delivery(
-        network,
-        supplier,
-        residences,
-        None,
-        max_distance,
-        |residence| need_stock(&load_needs(ctx, residence.id), need_kind),
-        |_, stock| has_delivery_stock_room(need_kind, stock),
-    )
-    .into_iter()
-    .collect()
-}
-
-fn need_to_commodity(kind: ResidenceNeedKind) -> CommodityKind {
-    match kind {
-        ResidenceNeedKind::Firewood => CommodityKind::Firewood,
-        ResidenceNeedKind::Water => CommodityKind::Water,
-        ResidenceNeedKind::Food => CommodityKind::Food,
-        ResidenceNeedKind::Ale => CommodityKind::Ale,
-        ResidenceNeedKind::PreservedFood => CommodityKind::PreservedFood,
-        ResidenceNeedKind::Cloth => CommodityKind::Cloth,
-        ResidenceNeedKind::Pottery => CommodityKind::Pottery,
-    }
 }
 
 pub(crate) fn request_connected_commodity(
