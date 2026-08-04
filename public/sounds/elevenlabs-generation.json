@@ -80,6 +80,105 @@
       "sha256": "0285b9433d26832afbd7a895a83feb1b8afc6feacfb1d9fec1c8dcffff05c17e"
     },
     {
+      "id": "building-apiary",
+      "output": "public/sounds/buildings/apiary.mp3",
+      "generatedAt": "2026-08-04T10:05:50.537Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "26",
+      "byteLength": 41839,
+      "sha256": "d59bdec406bd7487d741bd8ef33086cdf4d4f8712a21c04e2abff4a6add98689"
+    },
+    {
+      "id": "building-brewery",
+      "output": "public/sounds/buildings/brewery.mp3",
+      "generatedAt": "2026-08-04T10:05:43.307Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "22",
+      "byteLength": 36406,
+      "sha256": "4aff454a45fdb3467522922fcd2e5ccd8070dd2c157db778cef6a9547c11d1bf"
+    },
+    {
+      "id": "building-carpenter",
+      "output": "public/sounds/buildings/carpenter.mp3",
+      "generatedAt": "2026-08-04T10:05:55.250Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "21",
+      "byteLength": 34316,
+      "sha256": "ddec67ab3d80592426a477b7ec157f167079123759238b2329fe564fc1081677"
+    },
+    {
+      "id": "building-chapel",
+      "output": "public/sounds/buildings/chapel.mp3",
+      "generatedAt": "2026-08-04T10:05:16.306Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "28",
+      "byteLength": 45183,
+      "sha256": "54e81860357da9872971cf92b1581eaa4a5e4f969c83f4a1f2401edcbc0f66d8"
+    },
+    {
+      "id": "building-charcoal-burner",
+      "output": "public/sounds/buildings/charcoal_burner.mp3",
+      "generatedAt": "2026-08-04T10:04:57.315Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "1224ba58419405bf013aa8b842b4601d0ce686f637e4e5c4d94b884c167326d3"
+    },
+    {
+      "id": "building-clay-pit",
+      "output": "public/sounds/buildings/clay_pit.mp3",
+      "generatedAt": "2026-08-04T10:04:55.293Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "21",
+      "byteLength": 34316,
+      "sha256": "ad33fe906001270a4171da5ef6196a2c72576b140f3d04eb140441d9a167fcda"
+    },
+    {
+      "id": "building-ferry-landing",
+      "output": "public/sounds/buildings/ferry_landing.mp3",
+      "generatedAt": "2026-08-04T10:06:03.461Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "26",
+      "byteLength": 41839,
+      "sha256": "6bf4ef3d6381c7525422a97d212b7d572929a7b68cd3c118626f66b42096b805"
+    },
+    {
+      "id": "building-fishing-camp",
+      "output": "public/sounds/buildings/fishing_camp.mp3",
+      "generatedAt": "2026-08-04T10:05:13.660Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "25",
+      "byteLength": 40586,
+      "sha256": "8d1f637759d92bcb1263915e785d3e99902c1b0b4ee15f6310a9f1ea4b100cec"
+    },
+    {
+      "id": "building-foragers-shed",
+      "output": "public/sounds/buildings/foragers_shed.mp3",
+      "generatedAt": "2026-08-04T10:05:11.655Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "20",
+      "byteLength": 33062,
+      "sha256": "fba749f7551283e6d6508856e6c7a46c7988c4cc0f6fe96de6a43fc7457e3a37"
+    },
+    {
       "id": "building-founders-camp",
       "output": "public/sounds/buildings/founders_camp.mp3",
       "generatedAt": "2026-08-04T10:04:34.586Z",
@@ -91,6 +190,160 @@
       "sha256": "cbf7a96112b624a404714b8c71f4bd384a130ad06d98a7e9e1dd4e4b41dbf99d"
     },
     {
+      "id": "building-granary",
+      "output": "public/sounds/buildings/granary.mp3",
+      "generatedAt": "2026-08-04T10:05:48.538Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "23",
+      "byteLength": 37660,
+      "sha256": "ffb9353853c595d56d010ed7533c5be14499bf72a42517c291fb89e47f539bd0"
+    },
+    {
+      "id": "building-guardhouse",
+      "output": "public/sounds/buildings/guardhouse.mp3",
+      "generatedAt": "2026-08-04T10:05:26.529Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "20",
+      "byteLength": 33062,
+      "sha256": "fbfeee73182d6437abfde0b28c7b8131d1c3808b2220facbdf11c0b212ed7593"
+    },
+    {
+      "id": "building-hunters-hall",
+      "output": "public/sounds/buildings/hunters_hall.mp3",
+      "generatedAt": "2026-08-04T10:05:09.783Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "20",
+      "byteLength": 33062,
+      "sha256": "009faedcafe6be5504482a0741d6b2cc5e2f425d03e93f6043ff62e3ed2ef641"
+    },
+    {
+      "id": "building-large-quarry",
+      "output": "public/sounds/buildings/large_quarry.mp3",
+      "generatedAt": "2026-08-04T10:04:49.202Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "22",
+      "byteLength": 36406,
+      "sha256": "832e90d647f2f96695a5425d7802adc95ac18c43a4fb213762510520f65a3018"
+    },
+    {
+      "id": "building-lumber-mill",
+      "output": "public/sounds/buildings/lumber_mill.mp3",
+      "generatedAt": "2026-08-04T10:04:38.864Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "25",
+      "byteLength": 40586,
+      "sha256": "2851463eaa24d8d0ae16904257a90d9f5be922c99907de19448932ea15b94943"
+    },
+    {
+      "id": "building-marketplace",
+      "output": "public/sounds/buildings/marketplace.mp3",
+      "generatedAt": "2026-08-04T10:05:18.205Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "20",
+      "byteLength": 33062,
+      "sha256": "c0b067285a814d3a5fb950fffafb4b913cc8ffb1af65054cbbb13168e2db2de2"
+    },
+    {
+      "id": "building-mine",
+      "output": "public/sounds/buildings/mine.mp3",
+      "generatedAt": "2026-08-04T10:04:53.161Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "21",
+      "byteLength": 34316,
+      "sha256": "d161c64da7c35f02aa899ea49cacab8fce2933366a7ba0ea727a63c7f3d31927"
+    },
+    {
+      "id": "building-monastery",
+      "output": "public/sounds/buildings/monastery.mp3",
+      "generatedAt": "2026-08-04T10:05:41.485Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "25",
+      "byteLength": 40586,
+      "sha256": "69954be86edfb30c21195e221d65b837be4626ad6448725b1b7ff1a4449a47fe"
+    },
+    {
+      "id": "building-palisaded-refuge",
+      "output": "public/sounds/buildings/palisaded_refuge.mp3",
+      "generatedAt": "2026-08-04T10:05:28.623Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "93c5226f731d140db2350a7965aafd55fa2e9b0dc5cc7fe3955f971914bad4f8"
+    },
+    {
+      "id": "building-pastoral-farmstead",
+      "output": "public/sounds/buildings/pastoral_farmstead.mp3",
+      "generatedAt": "2026-08-04T10:05:36.701Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "bf94db357a9d94d14a316ea74a0bb63f95489a67d314de53343a54ceca81b6cd"
+    },
+    {
+      "id": "building-potter-kiln",
+      "output": "public/sounds/buildings/potter_kiln.mp3",
+      "generatedAt": "2026-08-04T10:05:05.543Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "f41f22ca3fef66996b2a6ad6c158e843f28049dbcb50fd8f291f4cbe6e318726"
+    },
+    {
+      "id": "building-reforester",
+      "output": "public/sounds/buildings/reforester.mp3",
+      "generatedAt": "2026-08-04T10:04:40.857Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "21",
+      "byteLength": 34316,
+      "sha256": "d3820e6ce16bd745ad09a872d02fcbda374da6164224b9183b60e511364f30fd"
+    },
+    {
+      "id": "building-remote-work-camp",
+      "output": "public/sounds/buildings/remote_work_camp.mp3",
+      "generatedAt": "2026-08-04T10:04:51.130Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "23",
+      "byteLength": 37660,
+      "sha256": "86e83a4d09037cd762b66f3840a625791414a20833a6224d1a1869c3f28fe24c"
+    },
+    {
+      "id": "building-residence",
+      "output": "public/sounds/buildings/residence.mp3",
+      "generatedAt": "2026-08-04T10:06:08.340Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "22",
+      "byteLength": 36406,
+      "sha256": "011934c08506f6971a400859a0e15b4e397f08ccc70e3bbc099deb6fc9dc0d70"
+    },
+    {
       "id": "building-salvage-pile",
       "output": "public/sounds/buildings/salvage_pile.mp3",
       "generatedAt": "2026-08-04T10:04:36.510Z",
@@ -100,6 +353,149 @@
       "characterCost": "17",
       "byteLength": 28047,
       "sha256": "a27d4923e6c08df14e4224ee9dc21ce76949151f2a4c227cc04d7b39e1a70f91"
+    },
+    {
+      "id": "building-smithy",
+      "output": "public/sounds/buildings/smithy.mp3",
+      "generatedAt": "2026-08-04T10:04:59.482Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "20",
+      "byteLength": 33062,
+      "sha256": "e3d783bb9a2d7480ff406ae1b62754176da769d96f467d0ad3b11777eeecbd0f"
+    },
+    {
+      "id": "building-smokehouse",
+      "output": "public/sounds/buildings/smokehouse.mp3",
+      "generatedAt": "2026-08-04T10:05:45.536Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "23",
+      "byteLength": 37660,
+      "sha256": "696a9faeb7d5ca8cc0690583a61ef79fb958bf4a0ba1150da860fa31b600cf42"
+    },
+    {
+      "id": "building-stone-quarry",
+      "output": "public/sounds/buildings/stone_quarry.mp3",
+      "generatedAt": "2026-08-04T10:04:44.804Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "18",
+      "byteLength": 29301,
+      "sha256": "059c902f20fa18d2f50eb6739ab79772641264bff70e520dd4639f4c9ddb5d55"
+    },
+    {
+      "id": "building-swineherd",
+      "output": "public/sounds/buildings/swineherd.mp3",
+      "generatedAt": "2026-08-04T10:05:39.242Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "23",
+      "byteLength": 37660,
+      "sha256": "dc26a22d494801a13612c4f202025cb661dbff33a1a64838e2f8791dba1713b1"
+    },
+    {
+      "id": "building-threshing-barn",
+      "output": "public/sounds/buildings/threshing_barn.mp3",
+      "generatedAt": "2026-08-04T10:05:30.688Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "20",
+      "byteLength": 33062,
+      "sha256": "93fba1935ea7d036541f0ca762160a968d46bf481abe29e2c1676cdd643fcd21"
+    },
+    {
+      "id": "building-town-hall",
+      "output": "public/sounds/buildings/town_hall.mp3",
+      "generatedAt": "2026-08-04T10:05:20.386Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "23",
+      "byteLength": 37660,
+      "sha256": "92eec856b8770addf94bd3263c1de4258505c9a8e030987361dd44468f0ff8fb"
+    },
+    {
+      "id": "building-village-storehouse",
+      "output": "public/sounds/buildings/village_storehouse.mp3",
+      "generatedAt": "2026-08-04T10:05:22.440Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "21",
+      "byteLength": 34316,
+      "sha256": "8b1917d18a440e9466e90cee1b6969a99f5280f4188a705c8b1f7d2ad2aa0dc2"
+    },
+    {
+      "id": "building-vineyard",
+      "output": "public/sounds/buildings/vineyard.mp3",
+      "generatedAt": "2026-08-04T10:06:05.783Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "20",
+      "byteLength": 33062,
+      "sha256": "730cbdceb593d1b6d40b8925e905e7c427c6f041bf854dd7048e5dac0494b025"
+    },
+    {
+      "id": "building-watchtower",
+      "output": "public/sounds/buildings/watchtower.mp3",
+      "generatedAt": "2026-08-04T10:05:24.397Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "04e55d1136a8c77bec37d041585a89b90819a995267f673b1db16b512f71a7d3"
+    },
+    {
+      "id": "building-watermill",
+      "output": "public/sounds/buildings/watermill.mp3",
+      "generatedAt": "2026-08-04T10:05:52.936Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "27",
+      "byteLength": 43929,
+      "sha256": "8fd7954ad92afcbb52e3d7c31534291e03411af38588e8791f3a54045c7b4ee5"
+    },
+    {
+      "id": "building-weaver",
+      "output": "public/sounds/buildings/weaver.mp3",
+      "generatedAt": "2026-08-04T10:06:00.726Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "22",
+      "byteLength": 36406,
+      "sha256": "3180fd910955b6839fa70ef0ea24fad3a21d6bd7e4b3c1cb42f2b8adac527bc6"
+    },
+    {
+      "id": "building-well",
+      "output": "public/sounds/buildings/well.mp3",
+      "generatedAt": "2026-08-04T10:05:07.852Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "25",
+      "byteLength": 40586,
+      "sha256": "71145c83671ea72af6c74c69c80bb067cbf3220ff111f3996db3de3e6f008cb4"
+    },
+    {
+      "id": "building-woodcutters-lodge",
+      "output": "public/sounds/buildings/woodcutters_lodge.mp3",
+      "generatedAt": "2026-08-04T10:04:42.713Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "18",
+      "byteLength": 29301,
+      "sha256": "8cf9f1001a910ec3b2cf9364df1bef645dc90d96357620a42b2d84a98b5cde4f"
     },
     {
       "id": "combat-pike-1",
@@ -431,3 +827,16 @@
       "byteLength": 36406,
       "sha256": "a5d477c752f8ad346d4166679b5008bc305f2b34c4a007ccef7d237b9382fe05"
     },
+    {
+      "id": "worker-livestock-3",
+      "output": "public/sounds/workers/livestock_3.mp3",
+      "generatedAt": "2026-07-28T05:57:24.422Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "22",
+      "byteLength": 36406,
+      "sha256": "a40a2fadbf77c6675f6a2a305f7247d2177e4abdaac98731b8a7a45646969381"
+    }
+  ]
+}
