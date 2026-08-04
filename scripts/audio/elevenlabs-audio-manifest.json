@@ -342,6 +342,386 @@
       "promptInfluence": 0.85
     },
     {
+      "id": "building-founders-camp",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/founders_camp.mp3",
+      "prompt": "Short soft atmospheric Foley from a small late-medieval founders camp: one canvas tent flap and a light timber support creak in calm outdoor air, intimate and understated, no voices, no footsteps, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.84
+    },
+    {
+      "id": "building-salvage-pile",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/salvage_pile.mp3",
+      "prompt": "Short soft atmospheric Foley: a loose weathered plank settles against a small pile of reclaimed timber and stone with a muted wooden knock and tiny gravel shift, no voices, no music",
+      "durationSeconds": 1.7,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "building-lumber-mill",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/lumber_mill.mp3",
+      "prompt": "Short restrained medieval lumber-yard Foley: two slow pulls of a hand saw through a thick timber beam, fibrous wood texture and a quiet trestle creak, soft and realistic, no voices, no music",
+      "durationSeconds": 2.5,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "building-reforester",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/reforester.mp3",
+      "prompt": "Short soft woodland work Foley: a wooden planting dibber presses into damp soil beside saplings, followed by a small leaf and wicker rustle, natural and delicate, no voices, no birds, no music",
+      "durationSeconds": 2.1,
+      "loop": false,
+      "promptInfluence": 0.84
+    },
+    {
+      "id": "building-woodcutters-lodge",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/woodcutters_lodge.mp3",
+      "prompt": "Short restrained medieval woodcutter Foley: one controlled iron axe bite into a splitting log, a dry timber crack and soft chips landing, compact and natural, no voices, no music, no cinematic impact",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.89
+    },
+    {
+      "id": "building-stone-quarry",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/stone_quarry.mp3",
+      "prompt": "Short restrained stone-working Foley: one small iron chisel tapped against limestone, a precise dry ring and a few fine chips falling, close but soft, no voices, no music, no heavy boom",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.89
+    },
+    {
+      "id": "building-large-quarry",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/large_quarry.mp3",
+      "prompt": "Short realistic medieval quarry Foley: one measured hand hammer strike on a wedge in a broad stone face, low stone resonance and a restrained scatter of grit, no voices, no music, no cinematic boom",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.89
+    },
+    {
+      "id": "building-remote-work-camp",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/remote_work_camp.mp3",
+      "prompt": "Short quiet atmospheric Foley from a remote medieval work camp: a canvas shelter stirs, a wooden stool creaks once, and small camp gear shifts softly, no fire, no voices, no music",
+      "durationSeconds": 2.3,
+      "loop": false,
+      "promptInfluence": 0.83
+    },
+    {
+      "id": "building-mine",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/mine.mp3",
+      "prompt": "Short subdued medieval mine Foley: one iron pick taps exposed rock inside a shallow timbered adit, tight earthy resonance and two pebbles falling, realistic and restrained, no voices, no music",
+      "durationSeconds": 2.1,
+      "loop": false,
+      "promptInfluence": 0.89
+    },
+    {
+      "id": "building-clay-pit",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/clay_pit.mp3",
+      "prompt": "Short soft earth-working Foley: an iron-edged wooden spade cuts into dense wet clay and lifts with a sticky pull and muted clod drop, close and natural, no voices, no music",
+      "durationSeconds": 2.1,
+      "loop": false,
+      "promptInfluence": 0.87
+    },
+    {
+      "id": "building-charcoal-burner",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/charcoal_burner.mp3",
+      "prompt": "Short subdued charcoal-clamp Foley: a low covered ember crackle, one tiny dry wood pop, and a faint settling of packed earth, warm but quiet, no roaring fire, no voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "building-smithy",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/smithy.mp3",
+      "prompt": "Short restrained medieval smithy Foley: one small hand hammer strike on hot iron over an anvil followed by a very soft forge hiss, authentic metal resonance without harshness, no voices, no music, no cinematic impact",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "building-potter-kiln",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/potter_kiln.mp3",
+      "prompt": "Short soft pottery-workshop Foley: a slow wooden potter wheel turns once, damp clay brushes under the hand, then one quiet fired ceramic clink, intimate and natural, no voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "building-well",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/well.mp3",
+      "prompt": "Short quiet village-well Foley: a wooden windlass turns with one gentle axle creak and a rope tightens around the drum, with a faint bucket water movement below, no voices, no music",
+      "durationSeconds": 2.5,
+      "loop": false,
+      "promptInfluence": 0.87
+    },
+    {
+      "id": "building-hunters-hall",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/hunters_hall.mp3",
+      "prompt": "Short restrained hunter's lodge Foley: a leather quiver shifts against a timber wall and one bowstring gives a soft testing twang, dry and intimate, no animal cry, no voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "building-foragers-shed",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/foragers_shed.mp3",
+      "prompt": "Short delicate forager's shed Foley: herbs and dry leaves are placed into a wicker basket with a soft woven creak and tiny wooden shelf tap, no voices, no birds, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.84
+    },
+    {
+      "id": "building-fishing-camp",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/fishing_camp.mp3",
+      "prompt": "Short soft riverside fishing-camp Foley: wet rope slides over a weathered wooden peg, the small dock creaks once, and a little water laps below, no voices, no birds, no music",
+      "durationSeconds": 2.5,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "building-chapel",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/chapel.mp3",
+      "prompt": "One single soft strike of a small rural medieval bronze chapel bell, modest clear tone with natural open-air village resonance, devotional and restrained, no repeated ringing, no voices, no music",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "building-marketplace",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/marketplace.mp3",
+      "prompt": "Short quiet medieval market Foley: a small wooden crate is set beside a wicker basket under canvas, with one muted wood knock and soft weave rustle, no coins, no voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "building-town-hall",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/town_hall.mp3",
+      "prompt": "Short hushed medieval town-hall Foley: a quill makes two brief strokes on parchment, paper shifts, and a heavy timber desk creaks softly, no voices, no footsteps, no music",
+      "durationSeconds": 2.3,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "building-village-storehouse",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/village_storehouse.mp3",
+      "prompt": "Short subdued medieval storehouse Foley: a small barrel shifts on timber flooring and a wooden crate lid settles with one warm creak, no voices, no footsteps, no music",
+      "durationSeconds": 2.1,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "building-watchtower",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/watchtower.mp3",
+      "prompt": "Short quiet wooden watchtower Foley: high timber braces flex with one dry creak and a loose banner rope taps softly against the post, light outdoor air, no voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "building-guardhouse",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/guardhouse.mp3",
+      "prompt": "Short restrained medieval guardhouse Foley: an ash spear shaft settles into a wooden rack with a soft tap, followed by a little leather and mail movement, no voices, no footsteps, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.87
+    },
+    {
+      "id": "building-palisaded-refuge",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/palisaded_refuge.mp3",
+      "prompt": "Short subdued palisade Foley: a thick timber gate shifts slightly on wooden hinges and a crossbar gives one low creak, secure and heavy but quiet, no alarm, no voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.87
+    },
+    {
+      "id": "building-threshing-barn",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/threshing_barn.mp3",
+      "prompt": "Short soft medieval threshing-barn Foley: one wooden flail lands across dry grain stalks on a plank floor, with a compact straw rush and light grain scatter, no voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "building-pastoral-farmstead",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/pastoral_farmstead.mp3",
+      "prompt": "Short gentle pastoral farmstead Foley: a small wooden pen gate moves through straw with one soft sheep bleat at middle distance, calm and understated, no human voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.82
+    },
+    {
+      "id": "building-swineherd",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/swineherd.mp3",
+      "prompt": "Short gentle woodland swine-yard Foley: one pig roots softly through straw and leaf litter with a single subdued grunt beside a wooden rail, no human voices, no music",
+      "durationSeconds": 2.3,
+      "loop": false,
+      "promptInfluence": 0.82
+    },
+    {
+      "id": "building-monastery",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/monastery.mp3",
+      "prompt": "Short hushed medieval monastery Foley: one parchment page turns in a stone cloister and a small wooden book rest creaks softly, spacious but intimate, no bell, no chant, no voices, no music",
+      "durationSeconds": 2.5,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "building-brewery",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/brewery.mp3",
+      "prompt": "Short subdued medieval brewery Foley: a wooden cask bung is pressed into place with one muted mallet tap, followed by a gentle liquid slosh inside the barrel, no voices, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "building-smokehouse",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/smokehouse.mp3",
+      "prompt": "Short quiet medieval smokehouse Foley: a hanging wooden drying rack shifts once above a very low smouldering fire with one gentle ember pop, no sizzling, no voices, no music",
+      "durationSeconds": 2.3,
+      "loop": false,
+      "promptInfluence": 0.85
+    },
+    {
+      "id": "building-granary",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/granary.mp3",
+      "prompt": "Short soft medieval granary Foley: a small wooden scoop moves through dry grain and kernels pour quietly into a timber bin, delicate and close, no rats, no voices, no music",
+      "durationSeconds": 2.3,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "building-apiary",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/apiary.mp3",
+      "prompt": "Short calm apiary atmosphere: a small restrained cluster of honeybees hums around one wooden skep with a light grass rustle, gentle and close, no loud swarm, no voices, no music",
+      "durationSeconds": 2.6,
+      "loop": false,
+      "promptInfluence": 0.84
+    },
+    {
+      "id": "building-watermill",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/watermill.mp3",
+      "prompt": "Short restrained medieval watermill Foley: a wooden wheel turns through one slow joint creak, a millstone gives a soft granular grind, and a little channel water passes, no voices, no music",
+      "durationSeconds": 2.7,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "building-carpenter",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/carpenter.mp3",
+      "prompt": "Short intimate medieval carpenter Foley: one smooth pull of a wooden hand plane across a timber board, a thin shaving curls away and lands softly, no hammer, no voices, no music",
+      "durationSeconds": 2.1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "building-weaver",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/weaver.mp3",
+      "prompt": "Short soft medieval weaving Foley: a wooden loom shuttle passes once through taut thread followed by one muted frame clack and cloth rustle, rhythmic but restrained, no voices, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.89
+    },
+    {
+      "id": "building-ferry-landing",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/ferry_landing.mp3",
+      "prompt": "Short quiet medieval ferry-landing Foley: a mooring rope tightens around a wooden bollard, the small boat hull creaks once, and calm river water laps gently, no voices, no birds, no music",
+      "durationSeconds": 2.6,
+      "loop": false,
+      "promptInfluence": 0.87
+    },
+    {
+      "id": "building-vineyard",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/vineyard.mp3",
+      "prompt": "Short delicate vineyard Foley: small iron pruning shears make one clean cut through a grapevine stem followed by a soft leaf and wicker-basket rustle, no voices, no birds, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "building-residence",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/residence.mp3",
+      "prompt": "Short soft atmosphere from an occupied late-medieval timber residence: one warm structural wood creak and a quiet shutter settling against its frame, intimate and calm, no voices, no footsteps, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
       "id": "music-valley-first-light",
       "group": "soundtrack",
       "kind": "music",

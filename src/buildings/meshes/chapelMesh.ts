@@ -39,7 +39,7 @@ function createChapelMaterials(): ChapelMaterials {
   };
 }
 
-function addParishCoffer(group: THREE.Group, frontZ: number): void {
+function addParishCoffer(group: THREE.Group, frontZ: number, chestX = -1.58): void {
   const chest = new THREE.Group();
   chest.name = 'ChapelCofferChest';
   chest.visible = false;
@@ -47,15 +47,15 @@ function addParishCoffer(group: THREE.Group, frontZ: number): void {
     chest,
     new THREE.BoxGeometry(0.88, 0.48, 0.58),
     timberMaterial('dark'),
-    new THREE.Vector3(-1.58, 0.58, frontZ + 0.38),
+    new THREE.Vector3(chestX, 0.58, frontZ + 0.38),
   );
   addMesh(
     chest,
     new THREE.BoxGeometry(0.94, 0.18, 0.64),
     timberMaterial('weathered'),
-    new THREE.Vector3(-1.58, 0.91, frontZ + 0.38),
+    new THREE.Vector3(chestX, 0.91, frontZ + 0.38),
   );
-  for (const x of [-1.88, -1.28]) {
+  for (const x of [chestX - 0.3, chestX + 0.3]) {
     addMesh(
       chest,
       new THREE.BoxGeometry(0.09, 0.72, 0.66),
@@ -67,7 +67,7 @@ function addParishCoffer(group: THREE.Group, frontZ: number): void {
     chest,
     new THREE.BoxGeometry(0.18, 0.22, 0.1),
     sharedBuildingDetailMaterial('brass'),
-    new THREE.Vector3(-1.58, 0.67, frontZ + 0.7),
+    new THREE.Vector3(chestX, 0.67, frontZ + 0.7),
   );
   group.add(chest);
 }
@@ -373,16 +373,229 @@ function addBellTower(
   );
 }
 
+function addCompactChurchRoof(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+  wallTop: number,
+  ridgeHeight: number,
+  material: THREE.Material,
+): void {
+  const halfW = width * 0.5;
+  const roofPitch = Math.atan2(ridgeHeight, halfW);
+  const slopeLen = halfW / Math.cos(roofPitch) + 0.25;
+  for (const side of [-1, 1] as const) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(slopeLen, 0.14, depth + 0.42),
+      material,
+      new THREE.Vector3(side * halfW * 0.46, wallTop + ridgeHeight * 0.48, 0),
+      new THREE.Euler(0, 0, side * -roofPitch),
+    );
+  }
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.22, 0.17, depth + 0.52),
+    material,
+    new THREE.Vector3(0, wallTop + ridgeHeight + 0.02, 0),
+  );
+}
+
+function addCompactBellCote(
+  group: THREE.Group,
+  materials: ChapelMaterials,
+  z: number,
+  baseY: number,
+  roofMaterial: THREE.Material,
+  stoneTier: boolean,
+): void {
+  const span = stoneTier ? 1.42 : 1.18;
+  const height = stoneTier ? 1.72 : 1.45;
+  const postMaterial = stoneTier ? stoneMaterial('light') : timberMaterial('dark');
+  for (const x of [-span * 0.5, span * 0.5]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(stoneTier ? 0.24 : 0.18, height, 0.22),
+      postMaterial,
+      new THREE.Vector3(x, baseY + height * 0.5, z),
+    );
+  }
+  addMesh(
+    group,
+    new THREE.BoxGeometry(span + 0.28, 0.2, 0.34),
+    postMaterial,
+    new THREE.Vector3(0, baseY + height, z),
+  );
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(0.18, 0.34, 0.58, 10),
+    materials.brass,
+    new THREE.Vector3(0, baseY + height * 0.55, z),
+  );
+  addMesh(
+    group,
+    new THREE.ConeGeometry(span * 0.72, stoneTier ? 1.08 : 0.9, 4),
+    roofMaterial,
+    new THREE.Vector3(0, baseY + height + (stoneTier ? 0.48 : 0.4), z),
+    new THREE.Euler(0, Math.PI * 0.25, 0),
+  );
+  const crossY = baseY + height + (stoneTier ? 1.22 : 1.02);
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.05, 0.62, 0.05),
+    metalMaterial('iron'),
+    new THREE.Vector3(0, crossY, z),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.38, 0.05, 0.05),
+    metalMaterial('iron'),
+    new THREE.Vector3(0, crossY + 0.08, z),
+  );
+}
+
+function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
+  const stoneTier = tier === 2;
+  const root = new THREE.Group();
+  root.name = stoneTier ? 'Small Stone Church' : 'Small Wooden Church';
+  const group = new THREE.Group();
+  group.name = `${root.name} authored model`;
+  root.add(group);
+
+  const materials = createChapelMaterials();
+  const width = stoneTier ? 4.5 : 3.55;
+  const depth = stoneTier ? 5.65 : 4.5;
+  const foundationHeight = stoneTier ? 0.46 : 0.3;
+  const wallHeight = stoneTier ? 2.85 : 2.28;
+  const ridgeHeight = stoneTier ? 1.95 : 1.55;
+  const halfW = width * 0.5;
+  const halfD = depth * 0.5;
+  const wallTop = foundationHeight + wallHeight;
+  const frontZ = halfD - 0.04;
+  const wallMaterial = stoneTier
+    ? stoneMaterial('light')
+    : timberMaterial('weathered');
+  const roofMaterial = sharedBuildingMaterial(stoneTier ? 'clayRed' : 'shingle');
+
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width + 0.34, foundationHeight, depth + 0.34),
+    stoneMaterial(stoneTier ? 'mid' : 'mortar'),
+    new THREE.Vector3(0, foundationHeight * 0.5, 0),
+  );
+  if (stoneTier) addFoundationStones(group, width, depth);
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width, wallHeight, depth),
+    wallMaterial,
+    new THREE.Vector3(0, foundationHeight + wallHeight * 0.5, 0),
+  );
+
+  if (stoneTier) {
+    for (const z of [-1.2, 1.0]) {
+      addLancetWindow(group, materials, 'left', z, 1.05, halfW);
+      addLancetWindow(group, materials, 'right', z, 1.05, halfW);
+    }
+    for (const side of [-1, 1] as const) {
+      addSideButtress(group, side, -1.5, wallTop, halfW);
+      addSideButtress(group, side, 1.35, wallTop, halfW);
+    }
+  } else {
+    for (const side of [-1, 1] as const) {
+      for (const z of [-0.9, 0.8]) {
+        addMesh(
+          group,
+          new THREE.BoxGeometry(0.08, 0.88, 0.68),
+          materials.glass,
+          new THREE.Vector3(side * (halfW + 0.045), 1.45, z),
+        );
+        addMesh(
+          group,
+          new THREE.BoxGeometry(0.12, 1.08, 0.09),
+          timberMaterial('dark'),
+          new THREE.Vector3(side * (halfW + 0.085), 1.45, z),
+        );
+        addMesh(
+          group,
+          new THREE.BoxGeometry(0.12, 0.09, 0.82),
+          timberMaterial('dark'),
+          new THREE.Vector3(side * (halfW + 0.09), 1.45, z),
+        );
+      }
+      for (const z of [-1.78, -0.58, 0.62, 1.78]) {
+        addMesh(
+          group,
+          new THREE.BoxGeometry(0.16, wallHeight + 0.16, 0.18),
+          timberMaterial('dark'),
+          new THREE.Vector3(side * (halfW + 0.07), foundationHeight + wallHeight * 0.5, z),
+        );
+      }
+    }
+  }
+
+  addCompactChurchRoof(group, width, depth, wallTop, ridgeHeight, roofMaterial);
+  for (const zSign of [-1, 1] as const) {
+    addTriangularGableWall(
+      group,
+      'z',
+      zSign * (halfD + 0.01),
+      halfW,
+      wallTop,
+      ridgeHeight,
+      0.14,
+      wallMaterial,
+    );
+  }
+
+  if (stoneTier) {
+    addPlankDoor(group, materials, frontZ, foundationHeight + 0.04);
+  } else {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(1.18, 1.94, 0.16),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, foundationHeight + 0.97, frontZ + 0.09),
+    );
+    for (const x of [-0.42, -0.14, 0.14, 0.42]) {
+      addMesh(
+        group,
+        new THREE.BoxGeometry(0.19, 1.76, 0.04),
+        timberMaterial('mid'),
+        new THREE.Vector3(x, foundationHeight + 0.97, frontZ + 0.19),
+      );
+    }
+  }
+
+  addCompactBellCote(
+    group,
+    materials,
+    -halfD * 0.35,
+    wallTop + ridgeHeight * 0.78,
+    roofMaterial,
+    stoneTier,
+  );
+  addParishCoffer(group, frontZ, stoneTier ? -1.42 : -1.12);
+  for (let step = 0; step < 2; step++) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry((stoneTier ? 2.0 : 1.62) - step * 0.25, 0.14, 0.52),
+      stoneMaterial(step === 0 ? 'mid' : 'light'),
+      new THREE.Vector3(0, 0.07 + step * 0.1, halfD + 0.36 - step * 0.13),
+    );
+  }
+  return root;
+}
+
 /**
  * Gorski parish church: limewashed nave, hand-laid limestone base, deep tile
  * roof and an open oak belfry. The underlying chapel asset is enlarged as one
  * authored unit so it reads as the settlement's spiritual landmark.
  */
-export function createChapelMesh(): THREE.Group {
+function createLargeStoneChurchMesh(): THREE.Group {
   const root = new THREE.Group();
-  root.name = 'Parish Church';
+  root.name = 'Large Stone Church';
   const group = new THREE.Group();
-  group.name = 'Parish Church authored model';
+  group.name = 'Large Stone Church authored model';
   group.scale.setScalar(PARISH_CHURCH_MODEL_SCALE);
   root.add(group);
   const materials = createChapelMaterials();
@@ -526,4 +739,9 @@ export function createChapelMesh(): THREE.Group {
   }
 
   return root;
+}
+
+export function createChapelMesh(tier: 1 | 2 | 3 = 3): THREE.Group {
+  if (tier === 1 || tier === 2) return createCompactChurchMesh(tier);
+  return createLargeStoneChurchMesh();
 }

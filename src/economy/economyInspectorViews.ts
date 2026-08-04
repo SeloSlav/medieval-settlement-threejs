@@ -25,6 +25,7 @@ import {
   payableParishExpensePerDay,
   type ParishPolicyState,
 } from './chapelParish.ts';
+import { chapelTitheMultiplier } from './chapelUpgrade.ts';
 
 export function buildResidenceCommunityContext(
   servingChapel: BuildingState | null,
@@ -73,6 +74,7 @@ export function buildResidenceParishEconomyView(
           Number.POSITIVE_INFINITY,
           sabbathObservance,
           hasMonasteryCoverage,
+          chapelTitheMultiplier(servingChapel.chapelTier),
         )
       : 0;
   const tithePerDay = payableChapelTithePerDay(
@@ -81,6 +83,7 @@ export function buildResidenceParishEconomyView(
     residence.householdWealth,
     sabbathObservance,
     hasMonasteryCoverage,
+    chapelTitheMultiplier(servingChapel.chapelTier),
   );
 
   return {
@@ -167,6 +170,8 @@ export function buildChapelInspectorEconomyView(
           linkedPopulation,
           building.assignedLabor,
           sabbathObservance,
+          false,
+          chapelTitheMultiplier(building.chapelTier),
         )} → coffer`
       : '—',
     attendanceLabel: staffed ? formatChapelAttendanceChance(building.assignedLabor) : '—',

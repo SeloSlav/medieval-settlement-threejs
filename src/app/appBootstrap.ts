@@ -276,6 +276,7 @@ export async function bootstrapAppSession(
     },
     getBuildings: () => liveContext.gameState.buildings,
     getBurgageZones: () => liveContext.gameState.burgageZones.values(),
+    getResidences: () => liveContext.gameState.residences.values(),
     getFireIncidents: () => liveContext.gameState.fireIncidents.values(),
   });
 

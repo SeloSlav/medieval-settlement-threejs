@@ -80,6 +80,28 @@
       "sha256": "0285b9433d26832afbd7a895a83feb1b8afc6feacfb1d9fec1c8dcffff05c17e"
     },
     {
+      "id": "building-founders-camp",
+      "output": "public/sounds/buildings/founders_camp.mp3",
+      "generatedAt": "2026-08-04T10:04:34.586Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "20",
+      "byteLength": 33062,
+      "sha256": "cbf7a96112b624a404714b8c71f4bd384a130ad06d98a7e9e1dd4e4b41dbf99d"
+    },
+    {
+      "id": "building-salvage-pile",
+      "output": "public/sounds/buildings/salvage_pile.mp3",
+      "generatedAt": "2026-08-04T10:04:36.510Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "17",
+      "byteLength": 28047,
+      "sha256": "a27d4923e6c08df14e4224ee9dc21ce76949151f2a4c227cc04d7b39e1a70f91"
+    },
+    {
       "id": "combat-pike-1",
       "output": "public/sounds/combat/pike_melee_1.mp3",
       "generatedAt": "2026-07-29T08:25:16.867Z",
@@ -409,16 +431,3 @@
       "byteLength": 36406,
       "sha256": "a5d477c752f8ad346d4166679b5008bc305f2b34c4a007ccef7d237b9382fe05"
     },
-    {
-      "id": "worker-livestock-3",
-      "output": "public/sounds/workers/livestock_3.mp3",
-      "generatedAt": "2026-07-28T05:57:24.422Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "22",
-      "byteLength": 36406,
-      "sha256": "a40a2fadbf77c6675f6a2a305f7247d2177e4abdaac98731b8a7a45646969381"
-    }
-  ]
-}

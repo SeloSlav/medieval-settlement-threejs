@@ -11,6 +11,9 @@ const visualGauntletEntry = fileURLToPath(
 const hamletFixtureEntry = fileURLToPath(
   new URL('./hamlet-fixture.html', import.meta.url),
 );
+const buildingLineupEntry = fileURLToPath(
+  new URL('./building-lineup.html', import.meta.url),
+);
 const publicRoot = fileURLToPath(new URL('./public', import.meta.url));
 
 function vendorChunk(id: string): string | undefined {
@@ -52,6 +55,9 @@ export default defineConfig(({ mode }) => {
   }
   if ((includeQaArchives || mode === 'e2e') && existsSync(hamletFixtureEntry)) {
     buildInputs['hamlet-fixture'] = hamletFixtureEntry;
+  }
+  if (mode === 'e2e' && existsSync(buildingLineupEntry)) {
+    buildInputs['building-lineup'] = buildingLineupEntry;
   }
 
   return {

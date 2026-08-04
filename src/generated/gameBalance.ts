@@ -228,6 +228,19 @@ export const CHAPEL_COMMUNITY_ATTENDANCE_BONUS = 0.15;
 export const CHAPEL_RECOVERY_STOCK_MULTIPLIER = 0.65;
 export const CHAPEL_RECOVERY_NEEDS_REQUIRED = 2;
 export const CHAPEL_COFFER_CAPACITY = 500;
+export const CHAPEL_TIER1_COFFER_CAPACITY = 300;
+export const CHAPEL_TIER3_COFFER_CAPACITY = 800;
+export const CHAPEL_TIER1_TITHE_MULTIPLIER = 1;
+export const CHAPEL_TIER2_TITHE_MULTIPLIER = 1.2;
+export const CHAPEL_TIER3_TITHE_MULTIPLIER = 1.45;
+export const CHAPEL_TIER2_UPGRADE_TIMBER = 12;
+export const CHAPEL_TIER2_UPGRADE_STONE = 30;
+export const CHAPEL_TIER2_UPGRADE_IRONWORK = 2;
+export const CHAPEL_TIER2_UPGRADE_ROOF_TILES = 24;
+export const CHAPEL_TIER3_UPGRADE_TIMBER = 28;
+export const CHAPEL_TIER3_UPGRADE_STONE = 52;
+export const CHAPEL_TIER3_UPGRADE_IRONWORK = 4;
+export const CHAPEL_TIER3_UPGRADE_ROOF_TILES = 48;
 export const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY = 2.5;
 export const CHAPEL_UPKEEP_GOLD_PER_DAY = 0.35;
 export const CHAPEL_UNSTAFFED_UPKEEP_FRACTION = 0.25;
@@ -997,7 +1010,7 @@ export const BUILDING_DEFINITIONS = {
     kind: 'chapel',
     label: "Church",
     workRadius: 0,
-    pickRadius: 9,
+    pickRadius: 10,
     harvestInterval: 0,
     regrowRatePerSecond: 0,
     maxLabor: 1,
@@ -1393,7 +1406,7 @@ export const BUILDING_COSTS = {
   hunters_hall: { timber: 30, stone: 10 },
   foragers_shed: { timber: 20, stone: 4 },
   fishing_camp: { timber: 24, stone: 6 },
-  chapel: { timber: 22, stone: 34, ironwork: 3 },
+  chapel: { timber: 24, stone: 2 },
   marketplace: { timber: 32, stone: 26 },
   town_hall: { timber: 88, stone: 96, ironwork: 6 },
   village_storehouse: { timber: 54, stone: 28 },

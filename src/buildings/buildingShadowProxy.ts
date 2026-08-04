@@ -142,8 +142,9 @@ export class BatchedBuildingShadowProxies {
     id: string,
     kind: BuildingKind,
     marker: THREE.Object3D,
+    chapelTier: 1 | 2 | 3 = 3,
   ): boolean {
-    return this.upsert(id, buildingShadowProxySpec(kind), marker);
+    return this.upsert(id, buildingShadowProxySpec(kind, chapelTier), marker);
   }
 
   upsertResidence(
@@ -306,10 +307,26 @@ function createShadowProxyMesh(geometry: THREE.BufferGeometry, height: number): 
   return mesh;
 }
 
-function buildingShadowProxySpec(kind: BuildingKind): ShadowProxySpec {
+function buildingShadowProxySpec(
+  kind: BuildingKind,
+  chapelTier: 1 | 2 | 3 = 3,
+): ShadowProxySpec {
   const params = getBuildingPadParams(kind);
-  const scale = params.innerFade * 0.92;
-  const height = BUILDING_SHADOW_HEIGHT[kind];
+  const tierScale = kind === 'chapel'
+    ? chapelTier === 1
+      ? 0.57
+      : chapelTier === 2
+        ? 0.76
+        : 1
+    : 1;
+  const scale = params.innerFade * 0.92 * tierScale;
+  const height = kind === 'chapel'
+    ? chapelTier === 1
+      ? 6.4
+      : chapelTier === 2
+        ? 7.8
+        : BUILDING_SHADOW_HEIGHT.chapel
+    : BUILDING_SHADOW_HEIGHT[kind];
   switch (kind) {
     case 'stone_quarry':
     case 'large_quarry':

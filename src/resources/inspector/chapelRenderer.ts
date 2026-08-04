@@ -7,7 +7,6 @@ import {
 } from '../../economy/economyInspectorViews.ts';
 import { isChapelStaffed } from '../../logistics/landmarkAccess.ts';
 import {
-  CHAPEL_COFFER_CAPACITY,
   CHAPEL_COFFER_RESERVE_MAX,
   CHAPEL_COFFER_RESERVE_MIN,
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
@@ -15,6 +14,12 @@ import {
   CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
   CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
 } from '../../generated/gameBalance.ts';
+import {
+  chapelCofferCapacityForTier,
+  chapelTierDefinition,
+  chapelUpgradeCost,
+} from '../../economy/chapelUpgrade.ts';
+import { computeResourceTotals } from '../resourceTotals.ts';
 import { fireForTarget } from '../../fires/fireIncident.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
@@ -62,7 +67,6 @@ export function renderChapelInspector(
   context: InspectorRenderContext,
 ): InspectorView {
   const { building } = target;
-  const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
   const suspendedByFire = fireForTarget(
     context.gameState.fireIncidents.values(),
@@ -113,11 +117,31 @@ export function renderChapelInspector(
     ?? context.worldQueries.countRoadConnectedResidences(building, false);
   const linkedPopulation = parishRelief?.assignedPopulation
     ?? context.worldQueries.countRoadConnectedPopulation(building);
+  const tier = chapelTierDefinition(building.chapelTier);
+  const cofferCapacity = chapelCofferCapacityForTier(building.chapelTier);
+  const upgrade = chapelUpgradeCost(building.chapelTier);
+  const resources = computeResourceTotals(context.gameState);
+  const upgradeBlocker = suspendedByFire
+    ? 'Repair the church before upgrading it.'
+    : upgrade == null
+      ? null
+      : resources.timber + 1e-6 < upgrade.timber
+        ? `Need ${Math.ceil(upgrade.timber - resources.timber)} more timber.`
+        : resources.stone + 1e-6 < upgrade.stone
+          ? `Need ${Math.ceil(upgrade.stone - resources.stone)} more stone.`
+          : resources.ironwork + 1e-6 < upgrade.ironwork
+            ? `Need ${Math.ceil(upgrade.ironwork - resources.ironwork)} more ironwork.`
+            : resources.roofTiles + 1e-6 < upgrade.roofTiles
+              ? `Need ${Math.ceil(upgrade.roofTiles - resources.roofTiles)} more fired roof tiles.`
+              : null;
+  const upgradeCostLabel = upgrade == null
+    ? ''
+    : `${upgrade.timber} timber + ${upgrade.stone} stone + ${upgrade.ironwork} ironwork + ${upgrade.roofTiles} fired roof tiles`;
   const { settlementBoost } = formatChapelCommunityBoosts();
   const economy = buildChapelInspectorEconomyView(
     building,
     linkedPopulation,
-    CHAPEL_COFFER_CAPACITY,
+    cofferCapacity,
     CHAPEL_COFFER_COLLECT_ACTION,
     parishPolicy.sabbathObservanceEnabled,
   );
@@ -175,6 +199,12 @@ export function renderChapelInspector(
     : '';
   const collectPanelHtml = `
     <div class="inspector-action-panel">
+      ${upgrade == null
+        ? '<p class="inspector-action-panel__hint">The large stone church is fully upgraded.</p>'
+        : `<button type="button" class="inspector-action-panel__button" data-action="upgrade-chapel"${upgradeBlocker ? ' disabled' : ''}>
+            Upgrade to tier ${upgrade.targetTier} (${upgradeCostLabel})
+          </button>
+          <p class="inspector-action-panel__hint">${upgradeBlocker ?? 'Rebuild the church in place; the final footprint was reserved when the wooden church was laid out.'}</p>`}
       <p class="inspector-action-panel__hint">${suspendedByFire
         ? 'Structural recovery is required before tithes, expenses, relief, or manual coffer collection resume.'
         : collectBlocker ?? 'A free villager carries one chest load to the road-linked Town Hall; coin remains physically vulnerable en route.'}</p>
@@ -194,7 +224,7 @@ export function renderChapelInspector(
 
   return {
     eyebrow: 'Building',
-    title: label,
+    title: tier.label,
     statusText: formatLinkedHomeStatus(
       connectedHomes,
       linkedPopulation,
@@ -211,6 +241,8 @@ export function renderChapelInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
+      <li><span>Church tier</span><span>${tier.tier} / 3 · ${tier.material}</span></li>
+      <li><span>Tier benefits</span><span>${tier.titheMultiplier <= 1 ? 'Base' : `+${Math.round((tier.titheMultiplier - 1) * 100)}%`} tithe yield · ${cofferCapacity} gold coffer</span></li>
       <li><span>Purpose</span><span>Parish hub — tithes, settlement, resilience, and easier recovery</span></li>
       <li><span>Priest</span><span>${suspendedByFire ? 'Displaced · parish work suspended' : staffed ? 'Serving the parish' : 'Unstaffed — benefits inactive'}</span></li>
       <li><span>Coffer</span><span>${cofferLabel}</span></li>

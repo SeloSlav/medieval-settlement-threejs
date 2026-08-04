@@ -304,6 +304,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         carpenter_cart_service_target_trips: 0,
         remote_work_camp_enabled: false,
         linked_worksite_id: 0,
+        chapel_tier: 0,
     });
 
     resources.timber = 0.0;

@@ -9,6 +9,7 @@ export type SupplementalPanelHandlers = {
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
   onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
   onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
+  onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
   onRetrofitResidenceTileRoof?: (residenceId: string) => void | Promise<void>;
   onSetResidenceUpgradePriority?: (
@@ -22,6 +23,15 @@ export function handleSupplementalPanelClick(
   eventTarget: HTMLElement,
   handlers: SupplementalPanelHandlers,
 ): boolean {
+  const chapelUpgrade = eventTarget.closest<HTMLElement>('[data-action="upgrade-chapel"]');
+  if (
+    chapelUpgrade
+    && target?.kind === 'building'
+    && target.building.kind === 'chapel'
+  ) {
+    void handlers.onUpgradeChapel?.(target.building.id);
+    return true;
+  }
   const upgradeButton = eventTarget.closest<HTMLElement>('[data-action="upgrade-residence"]');
   if (upgradeButton && target?.kind === 'residence') {
     void handlers.onUpgradeResidence?.(target.residence.id);

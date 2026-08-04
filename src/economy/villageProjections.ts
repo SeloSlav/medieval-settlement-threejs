@@ -10,6 +10,7 @@ import {
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
 import { totalChapelCofferGold } from '../resources/chapelCoffer.ts';
 import { payableChapelTithePerDay } from './householdWealth.ts';
+import { chapelTitheMultiplier } from './chapelUpgrade.ts';
 import { gardenMarketActivity } from './gardenMarketActivity.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
 
@@ -184,6 +185,8 @@ export function estimateVillageChapelTithePerDay(
       chapel.assignedLabor,
       residence.householdWealth,
       sabbathObservance,
+      false,
+      chapelTitheMultiplier(chapel.chapelTier),
     );
   }
 

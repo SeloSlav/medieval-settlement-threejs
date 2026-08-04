@@ -1,7 +1,9 @@
 use spacetimedb::ReducerContext;
 
 use super::storage::{
+    available_unreserved_building_ironwork, available_unreserved_building_roof_tiles,
     available_unreserved_building_stone, available_unreserved_building_timber,
+    available_unreserved_treasury_ironwork, available_unreserved_treasury_roof_tiles,
     available_unreserved_treasury_stone, available_unreserved_treasury_timber,
 };
 use crate::db::*;
@@ -10,6 +12,8 @@ use crate::tables::Building;
 enum AggregateSpendField {
     Timber,
     Stone,
+    Ironwork,
+    RoofTiles,
 }
 
 pub fn spend_aggregate_timber(
@@ -28,6 +32,22 @@ pub fn spend_aggregate_stone(
     spend_aggregate(ctx, owner, amount, AggregateSpendField::Stone)
 }
 
+pub fn spend_aggregate_ironwork(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    amount: f64,
+) -> Result<(), String> {
+    spend_aggregate(ctx, owner, amount, AggregateSpendField::Ironwork)
+}
+
+pub fn spend_aggregate_roof_tiles(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    amount: f64,
+) -> Result<(), String> {
+    spend_aggregate(ctx, owner, amount, AggregateSpendField::RoofTiles)
+}
+
 fn spend_aggregate(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -41,15 +61,21 @@ fn spend_aggregate(
     let resource_name = match field {
         AggregateSpendField::Timber => "timber",
         AggregateSpendField::Stone => "stone",
+        AggregateSpendField::Ironwork => "ironwork",
+        AggregateSpendField::RoofTiles => "fired roof tiles",
     };
 
     let available_building = match field {
         AggregateSpendField::Timber => available_unreserved_building_timber(ctx, owner),
         AggregateSpendField::Stone => available_unreserved_building_stone(ctx, owner),
+        AggregateSpendField::Ironwork => available_unreserved_building_ironwork(ctx, owner),
+        AggregateSpendField::RoofTiles => available_unreserved_building_roof_tiles(ctx, owner),
     };
     let available_treasury = match field {
         AggregateSpendField::Timber => available_unreserved_treasury_timber(ctx, owner),
         AggregateSpendField::Stone => available_unreserved_treasury_stone(ctx, owner),
+        AggregateSpendField::Ironwork => available_unreserved_treasury_ironwork(ctx, owner),
+        AggregateSpendField::RoofTiles => available_unreserved_treasury_roof_tiles(ctx, owner),
     };
     if amount > available_building + available_treasury + 1e-6 {
         return Err(format!(
@@ -75,6 +101,8 @@ fn spend_aggregate(
         let available = match field {
             AggregateSpendField::Timber => building.timber,
             AggregateSpendField::Stone => building.stone,
+            AggregateSpendField::Ironwork => building.ironwork,
+            AggregateSpendField::RoofTiles => building.roof_tiles,
         };
         let withdraw = remaining.min(available).min(remaining_building_budget);
         if withdraw <= 0.0 {
@@ -89,6 +117,14 @@ fn spend_aggregate(
                 stone: building.stone - withdraw,
                 ..building
             },
+            AggregateSpendField::Ironwork => Building {
+                ironwork: building.ironwork - withdraw,
+                ..building
+            },
+            AggregateSpendField::RoofTiles => Building {
+                roof_tiles: building.roof_tiles - withdraw,
+                ..building
+            },
         };
         ctx.db.building().id().update(updated);
         remaining -= withdraw;
@@ -101,6 +137,8 @@ fn spend_aggregate(
             match field {
                 AggregateSpendField::Timber => treasury.timber -= from_treasury,
                 AggregateSpendField::Stone => treasury.stone -= from_treasury,
+                AggregateSpendField::Ironwork => treasury.ironwork -= from_treasury,
+                AggregateSpendField::RoofTiles => treasury.roof_tiles -= from_treasury,
             }
             remaining -= from_treasury;
             ctx.db.player_resources().owner().update(treasury);

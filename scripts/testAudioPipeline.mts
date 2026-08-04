@@ -8,6 +8,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import {
   AMBIENT_LAYERS,
+  BUILDING_AUDIO_CLIPS,
   CHURCH_BELL_CLIP,
   COMBAT_AUDIO_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
@@ -18,6 +19,14 @@ import {
   WORKER_ACTIVITY_CLIPS,
   type AudioClipDefinition,
 } from '../src/audio/audioCatalog.ts';
+import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
+import {
+  buildingAudioGain,
+  buildingAudioTailGain,
+  BUILDING_AUDIO_CUTOFF_DISTANCE,
+  BUILDING_AUDIO_MAX_ZOOM_DISTANCE,
+  BUILDING_AUDIO_TAIL_SECONDS,
+} from '../src/audio/BuildingAudio.ts';
 import {
   fireAudioGain,
   FIRE_AUDIO_CUTOFF_DISTANCE,
@@ -125,6 +134,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(UI_SOUNDS),
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
+    ...Object.values(BUILDING_AUDIO_CLIPS),
   ];
 }
 
@@ -254,6 +264,56 @@ async function main(): Promise<void> {
       );
     }
   }
+
+  const buildingAssets = manifest.assets.filter((asset) => (
+    asset.group === 'building-foley'
+  ));
+  invariant(
+    buildingAssets.length === BUILDING_KINDS.length + 1,
+    'Building Foley must cover every generated building kind plus residences',
+  );
+  for (const kind of [...BUILDING_KINDS, 'residence'] as const) {
+    const asset = buildingAssets.find((candidate) => (
+      candidate.id === `building-${kind.replaceAll('_', '-')}`
+    ));
+    invariant(asset, `Missing building Foley manifest entry: ${kind}`);
+    invariant(
+      asset.durationSeconds != null
+      && asset.durationSeconds >= 1
+      && asset.durationSeconds <= 3,
+      `Building Foley must remain within 1-3 seconds: ${kind}`,
+    );
+    invariant(
+      !/\bfad(?:e|es|ed|ing)?\b/i.test(asset.prompt),
+      `Building Foley processing instructions must stay out of the prompt: ${kind}`,
+    );
+    invariant(
+      BUILDING_AUDIO_CLIPS[kind].path === `/${asset.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`,
+      `Building Foley runtime path differs from its manifest output: ${kind}`,
+    );
+  }
+  invariant(
+    buildingAudioTailGain(BUILDING_AUDIO_TAIL_SECONDS) === 1
+    && buildingAudioTailGain(BUILDING_AUDIO_TAIL_SECONDS * 0.5) === 0.5
+    && buildingAudioTailGain(0) === 0,
+    'Building Foley needs a smooth playback-only tail envelope',
+  );
+  const closeBuildingView = {
+    centerX: 0,
+    centerZ: 0,
+    viewRadius: 120,
+    shadowRadius: 80,
+    orbitDistance: 18,
+  };
+  invariant(
+    buildingAudioGain(0, 0, closeBuildingView) === 1
+    && buildingAudioGain(BUILDING_AUDIO_CUTOFF_DISTANCE, 0, closeBuildingView) === 0
+    && buildingAudioGain(0, 0, {
+      ...closeBuildingView,
+      orbitDistance: BUILDING_AUDIO_MAX_ZOOM_DISTANCE + 1,
+    }) === 0,
+    'Building Foley must be limited to close settlement inspection',
+  );
 
   const missingRuntimeFiles: string[] = [];
   for (const clip of runtimeClips()) {

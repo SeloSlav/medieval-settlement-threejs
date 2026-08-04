@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import {
   AMBIENT_LAYERS,
+  BUILDING_AUDIO_CLIPS,
   CHURCH_BELL_CLIP,
   COMBAT_AUDIO_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
@@ -75,6 +76,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(UI_SOUNDS),
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
+    ...Object.values(BUILDING_AUDIO_CLIPS),
   ];
 }
 

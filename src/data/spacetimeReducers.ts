@@ -818,6 +818,14 @@ export async function collectChapelCoffer(buildingId: string): Promise<void> {
   await callReducer('collectChapelCoffer', 'collect_chapel_coffer', { buildingId: serverId });
 }
 
+export async function upgradeChapel(buildingId: string): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) {
+    throw new Error('Invalid church id.');
+  }
+  await callReducer('upgradeChapel', 'upgrade_chapel', { buildingId: serverId });
+}
+
 export async function demolishBuilding(buildingId: string): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
   if (serverId === null) {

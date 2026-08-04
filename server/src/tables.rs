@@ -589,6 +589,11 @@ pub struct Building {
     /// fire, repair, and demolition lifecycle.
     #[default(0u64)]
     pub linked_worksite_id: u64,
+    /// Visual and service tier for the legacy `chapel` kind: 1 small timber,
+    /// 2 small stone, 3 large stone. The legacy default preserves the former
+    /// large church when an established settlement is migrated.
+    #[default(3u8)]
+    pub chapel_tier: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

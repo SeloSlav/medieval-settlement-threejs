@@ -4,7 +4,9 @@
 
 use spacetimedb::ReducerContext;
 
+#[cfg(test)]
 use crate::balance_generated::CHAPEL_COFFER_CAPACITY;
+use crate::chapel_upgrade_policy::chapel_coffer_capacity_for_tier;
 use crate::db::*;
 use crate::economy::credit_treasury_gold;
 use crate::economy::parish_accounting::{record_parish_ledger, ParishLedgerKind};
@@ -29,8 +31,17 @@ pub fn chapel_monastery_tithe_due(building: &Building) -> f64 {
     }
 }
 
+#[cfg(test)]
 pub fn chapel_coffer_capacity() -> f64 {
     CHAPEL_COFFER_CAPACITY
+}
+
+pub fn chapel_coffer_capacity_for(chapel: &Building) -> f64 {
+    if chapel.kind == "chapel" {
+        chapel_coffer_capacity_for_tier(chapel.chapel_tier)
+    } else {
+        0.0
+    }
 }
 
 /// Maximum gross tithe that can be accepted without disembodied overflow.
@@ -48,7 +59,7 @@ pub fn chapel_tithe_payment_room(
         return 0.0;
     }
     let parish_fraction = 1.0 - monastery_share.clamp(0.0, 0.8);
-    let parish_room = (chapel_coffer_capacity() - chapel_coffer_gold(&chapel)).max(0.0);
+    let parish_room = (chapel_coffer_capacity_for(&chapel) - chapel_coffer_gold(&chapel)).max(0.0);
     if parish_fraction <= 1e-9 {
         f64::MAX
     } else {
@@ -89,7 +100,7 @@ pub fn deposit_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
         return 0.0;
     }
 
-    let room = (chapel_coffer_capacity() - chapel_coffer_gold(chapel)).max(0.0);
+    let room = (chapel_coffer_capacity_for(chapel) - chapel_coffer_gold(chapel)).max(0.0);
     let deposited = amount.min(room);
     if deposited <= 1e-9 {
         return 0.0;
@@ -165,8 +176,8 @@ fn validate_chapel_owner(chapel: &Building, owner: spacetimedb::Identity) -> Res
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_coffer_capacity, chapel_coffer_gold, clear_coffer_in_place, deposit_coffer_in_place,
-        withdraw_coffer_in_place,
+        chapel_coffer_capacity, chapel_coffer_capacity_for, chapel_coffer_gold,
+        clear_coffer_in_place, deposit_coffer_in_place, withdraw_coffer_in_place,
     };
     use crate::tables::Building;
 
@@ -261,12 +272,24 @@ mod tests {
             storehouse_salt_target_percent: 100,
             roof_tiles: 0.0,
             potter_firing_policy: 0,
+            remote_work_camp_enabled: false,
+            linked_worksite_id: 0,
+            chapel_tier: 2,
         }
     }
 
     #[test]
     fn coffer_capacity_is_positive() {
         assert!(chapel_coffer_capacity() > 0.0);
+    }
+
+    #[test]
+    fn upgraded_churches_hold_larger_coffers() {
+        let mut chapel = sample_chapel(0.0);
+        chapel.chapel_tier = 1;
+        let timber_capacity = chapel_coffer_capacity_for(&chapel);
+        chapel.chapel_tier = 3;
+        assert!(chapel_coffer_capacity_for(&chapel) > timber_capacity);
     }
 
     #[test]

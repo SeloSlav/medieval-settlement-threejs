@@ -36,6 +36,7 @@ export type InspectorSpacetimeActions = {
   onMarketplaceTrade: (buildingId: string, tradeId: string) => Promise<void>;
   onCancelMarketplaceTradeOrder: (buildingId: string) => Promise<void>;
   onCollectChapelCoffer: (buildingId: string) => Promise<void>;
+  onUpgradeChapel: (buildingId: string) => Promise<void>;
   onDemolishFarmField: (fieldId: string) => Promise<void>;
   onSetFarmFieldCrop: (fieldId: string, crop: FarmCrop) => Promise<void>;
   onSetFarmFieldFollowingCrop: (fieldId: string, crop: FarmCrop | null) => Promise<void>;
@@ -386,6 +387,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setFarmFieldFollowingCrop(fieldId, crop),
         'Could not change the field rotation.',
+      );
+    },
+    onUpgradeChapel: async (buildingId) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.upgradeChapel(buildingId),
+        'Could not upgrade the church.',
       );
     },
     onSetFarmFieldPriority: async (fieldId, priority) => {

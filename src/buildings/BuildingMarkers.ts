@@ -269,7 +269,12 @@ export class BuildingMarkers {
       ) {
         this.shadowProxyBatch.remove(id);
       } else {
-        this.shadowProxyBatch.upsertBuilding(id, building.kind, marker);
+        this.shadowProxyBatch.upsertBuilding(
+          id,
+          building.kind,
+          marker,
+          building.chapelTier ?? 3,
+        );
       }
     }
     this.staticBatches.finalizeGeometryBuffers();
@@ -655,7 +660,7 @@ export class BuildingMarkers {
       marker = operational
         ? building.kind === 'founders_camp'
           ? this.takeFoundersCampMesh()
-          : createBuildingMesh(building.kind)
+          : createBuildingMesh(building.kind, building.chapelTier ?? 3)
         : createConstructionSiteMesh(
             building.kind,
             building.constructionProgress,
@@ -732,6 +737,7 @@ export class BuildingMarkers {
         building.id,
         building.kind,
         marker,
+        building.chapelTier ?? 3,
       );
     } else {
       this.shadowProxyBatch.remove(building.id);

@@ -106,6 +106,7 @@ type ResourceInspectorOptions = {
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
   onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
   onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
+  onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
   onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
   onSetSeasonalLaborSteward?: (enabled: boolean) => void | Promise<void>;
   onSetConstructionLaborSteward?: (enabled: boolean) => void | Promise<void>;
@@ -1052,6 +1053,7 @@ export class ResourceInspector {
       onMarketplaceTrade: this.options.onMarketplaceTrade,
       onCancelMarketplaceTradeOrder: this.options.onCancelMarketplaceTradeOrder,
       onCollectChapelCoffer: this.options.onCollectChapelCoffer,
+      onUpgradeChapel: this.options.onUpgradeChapel,
       onUpgradeResidence: this.options.onUpgradeResidence,
       onRetrofitResidenceTileRoof: this.options.onRetrofitResidenceTileRoof,
       onSetResidenceUpgradePriority: this.options.onSetResidenceUpgradePriority,

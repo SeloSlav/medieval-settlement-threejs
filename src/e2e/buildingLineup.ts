@@ -38,7 +38,8 @@ const showStockedState = lineupParams.get('stocked') === '1';
 const showCampSeating = lineupParams.get('seating') === '1';
 const compareResidences = lineupParams.get('compare') === 'residences';
 const compareServiceCoverage = lineupParams.get('compare') === 'service-coverage';
-const comparisonMode = compareResidences || compareServiceCoverage;
+const compareChurchTiers = lineupParams.get('compare') === 'church-tiers';
+const comparisonMode = compareResidences || compareServiceCoverage || compareChurchTiers;
 const selectedKinds = comparisonMode
   ? []
   : requestedKind && BUILDING_KINDS.includes(requestedKind as (typeof BUILDING_KINDS)[number])
@@ -126,6 +127,8 @@ const STOCKED_PREVIEW_PREFIXES = [
 ] as const;
 const COLS = compareServiceCoverage
   ? 2
+  : compareChurchTiers
+    ? 3
   : compareResidences
     ? 4
     : selectedKinds.length === 1
@@ -142,6 +145,11 @@ if (compareServiceCoverage) {
   if (subtitle) {
     subtitle.textContent = 'Actual assignments · one instanced draw per overlay';
   }
+} else if (compareChurchTiers) {
+  const heading = document.querySelector('h1');
+  const subtitle = document.querySelector('header p');
+  if (heading) heading.textContent = 'Church Upgrade Lineup';
+  if (subtitle) subtitle.textContent = 'Reserved final footprint · timber → stone → landmark';
 }
 labels.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
 labels.style.gridTemplateRows = `repeat(${ROWS}, minmax(0, 1fr))`;
@@ -164,6 +172,12 @@ const viewSpecs = compareServiceCoverage
         mesh: createServiceCoveragePreview('marketplace'),
         label: 'Marketplace · 4 assigned homes · 1 outside the territory',
       },
+    ]
+  : compareChurchTiers
+  ? [
+      { mesh: createBuildingMesh('chapel', 1), label: 'Tier 1 · Small wooden church' },
+      { mesh: createBuildingMesh('chapel', 2), label: 'Tier 2 · Small stone church' },
+      { mesh: createBuildingMesh('chapel', 3), label: 'Tier 3 · Large stone church' },
     ]
   : compareResidences
   ? [

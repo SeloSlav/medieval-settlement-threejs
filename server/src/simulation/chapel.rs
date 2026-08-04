@@ -11,7 +11,9 @@ use crate::economy::{
     chapel_monastery_tithe_due, chapel_tithe_payment_room, debit_residence_wealth,
     deposit_chapel_tithe, CommodityKind,
 };
-use crate::simulation::chapel_community::{chapel_attendance_chance, chapel_tithe_gold_per_tick};
+use crate::simulation::chapel_community::{
+    chapel_attendance_chance, chapel_tithe_gold_per_tick_for_tier,
+};
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, try_start_building_supply_trip,
 };
@@ -76,7 +78,8 @@ pub fn step_chapels(
             .filter(|route| route.monastery_id.is_some())
             .map(|route| route.share)
             .unwrap_or(0.0);
-        let tithe_due = chapel_tithe_gold_per_tick(residence.population);
+        let tithe_due =
+            chapel_tithe_gold_per_tick_for_tier(residence.population, chapel.chapel_tier);
         let payment_room = chapel_tithe_payment_room(ctx, chapel.id, monastery_share);
         let paid = debit_residence_wealth(ctx, &residence, tithe_due.min(payment_room));
         if paid <= 1e-9 {

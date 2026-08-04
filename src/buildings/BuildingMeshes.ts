@@ -49,7 +49,7 @@ import {
   createPalisadedRefugeMesh,
 } from './meshes/civicLogisticsBuildingMeshes.ts';
 
-export function createBuildingMesh(kind: BuildingKind): THREE.Group {
+export function createBuildingMesh(kind: BuildingKind, chapelTier: 1 | 2 | 3 = 3): THREE.Group {
   switch (kind) {
     case 'founders_camp':
       return createFoundersCampMesh();
@@ -86,7 +86,7 @@ export function createBuildingMesh(kind: BuildingKind): THREE.Group {
     case 'fishing_camp':
       return createFishingCampMesh();
     case 'chapel':
-      return createChapelMesh();
+      return createChapelMesh(chapelTier);
     case 'marketplace':
       return createMarketplaceMesh();
     case 'town_hall': return createTownHallMesh();

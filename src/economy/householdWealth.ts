@@ -43,23 +43,24 @@ export function formatChapelAttendanceChance(assignedLabor: number): string {
   return `${Math.round(chance * 100)}% per tick`;
 }
 
-export function chapelTitheGoldPerTick(population: number): number {
+export function chapelTitheGoldPerTick(population: number, titheMultiplier = 1): number {
   if (population <= 0) {
     return 0;
   }
 
   return population
     * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
+    * titheMultiplier
     * SIM_TICK_SECONDS
     / GAME_WORKDAY_SECONDS;
 }
 
-export function chapelTitheGoldPerDay(population: number): number {
+export function chapelTitheGoldPerDay(population: number, titheMultiplier = 1): number {
   if (population <= 0) {
     return 0;
   }
 
-  return population * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY;
+  return population * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY * titheMultiplier;
 }
 
 /** Expected tithe when attending, before household wealth caps payment. */
@@ -68,6 +69,7 @@ export function expectedChapelTithePerDay(
   assignedLabor: number,
   sabbathObservance = false,
   hasMonasteryCoverage = false,
+  titheMultiplier = 1,
 ): number {
   const chance = chapelAttendanceChance(
     assignedLabor,
@@ -77,7 +79,7 @@ export function expectedChapelTithePerDay(
   const titheDayShare = sabbathObservance
     ? (CALENDAR_DAYS_PER_WEEK - 1) / CALENDAR_DAYS_PER_WEEK
     : 1;
-  return chapelTitheGoldPerDay(population) * chance * titheDayShare;
+  return chapelTitheGoldPerDay(population, titheMultiplier) * chance * titheDayShare;
 }
 
 /** Conservative daily tithe estimate limited by current household wealth. */
@@ -87,6 +89,7 @@ export function payableChapelTithePerDay(
   householdWealth: number,
   sabbathObservance = false,
   hasMonasteryCoverage = false,
+  titheMultiplier = 1,
 ): number {
   return Math.min(
     expectedChapelTithePerDay(
@@ -94,6 +97,7 @@ export function payableChapelTithePerDay(
       assignedLabor,
       sabbathObservance,
       hasMonasteryCoverage,
+      titheMultiplier,
     ),
     householdWealth,
   );

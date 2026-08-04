@@ -385,6 +385,19 @@ export type GameBalance = {
     chapelRecoveryStockMultiplier: number;
     chapelRecoveryNeedsRequired: number;
     chapelCofferCapacity: number;
+    chapelTier1CofferCapacity: number;
+    chapelTier3CofferCapacity: number;
+    chapelTier1TitheMultiplier: number;
+    chapelTier2TitheMultiplier: number;
+    chapelTier3TitheMultiplier: number;
+    chapelTier2UpgradeTimber: number;
+    chapelTier2UpgradeStone: number;
+    chapelTier2UpgradeIronwork: number;
+    chapelTier2UpgradeRoofTiles: number;
+    chapelTier3UpgradeTimber: number;
+    chapelTier3UpgradeStone: number;
+    chapelTier3UpgradeIronwork: number;
+    chapelTier3UpgradeRoofTiles: number;
     chapelPriestSalaryGoldPerDay: number;
     chapelUpkeepGoldPerDay: number;
     chapelUnstaffedUpkeepFraction: number;
@@ -894,6 +907,19 @@ function generateRust(): string {
     `pub const CHAPEL_RECOVERY_STOCK_MULTIPLIER: f64 = ${rustF64(b.population.chapelRecoveryStockMultiplier)};`,
     `pub const CHAPEL_RECOVERY_NEEDS_REQUIRED: u32 = ${b.population.chapelRecoveryNeedsRequired};`,
     `pub const CHAPEL_COFFER_CAPACITY: f64 = ${rustF64(b.population.chapelCofferCapacity)};`,
+    `pub const CHAPEL_TIER1_COFFER_CAPACITY: f64 = ${rustF64(b.population.chapelTier1CofferCapacity)};`,
+    `pub const CHAPEL_TIER3_COFFER_CAPACITY: f64 = ${rustF64(b.population.chapelTier3CofferCapacity)};`,
+    `pub const CHAPEL_TIER1_TITHE_MULTIPLIER: f64 = ${rustF64(b.population.chapelTier1TitheMultiplier)};`,
+    `pub const CHAPEL_TIER2_TITHE_MULTIPLIER: f64 = ${rustF64(b.population.chapelTier2TitheMultiplier)};`,
+    `pub const CHAPEL_TIER3_TITHE_MULTIPLIER: f64 = ${rustF64(b.population.chapelTier3TitheMultiplier)};`,
+    `pub const CHAPEL_TIER2_UPGRADE_TIMBER: f64 = ${rustF64(b.population.chapelTier2UpgradeTimber)};`,
+    `pub const CHAPEL_TIER2_UPGRADE_STONE: f64 = ${rustF64(b.population.chapelTier2UpgradeStone)};`,
+    `pub const CHAPEL_TIER2_UPGRADE_IRONWORK: f64 = ${rustF64(b.population.chapelTier2UpgradeIronwork)};`,
+    `pub const CHAPEL_TIER2_UPGRADE_ROOF_TILES: f64 = ${rustF64(b.population.chapelTier2UpgradeRoofTiles)};`,
+    `pub const CHAPEL_TIER3_UPGRADE_TIMBER: f64 = ${rustF64(b.population.chapelTier3UpgradeTimber)};`,
+    `pub const CHAPEL_TIER3_UPGRADE_STONE: f64 = ${rustF64(b.population.chapelTier3UpgradeStone)};`,
+    `pub const CHAPEL_TIER3_UPGRADE_IRONWORK: f64 = ${rustF64(b.population.chapelTier3UpgradeIronwork)};`,
+    `pub const CHAPEL_TIER3_UPGRADE_ROOF_TILES: f64 = ${rustF64(b.population.chapelTier3UpgradeRoofTiles)};`,
     `pub const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY: f64 = ${rustF64(b.population.chapelPriestSalaryGoldPerDay)};`,
     `pub const CHAPEL_UPKEEP_GOLD_PER_DAY: f64 = ${rustF64(b.population.chapelUpkeepGoldPerDay)};`,
     `pub const CHAPEL_UNSTAFFED_UPKEEP_FRACTION: f64 = ${rustF64(b.population.chapelUnstaffedUpkeepFraction)};`,
@@ -1708,6 +1734,19 @@ function generateTypeScript(): string {
     `export const CHAPEL_RECOVERY_STOCK_MULTIPLIER = ${b.population.chapelRecoveryStockMultiplier};`,
     `export const CHAPEL_RECOVERY_NEEDS_REQUIRED = ${b.population.chapelRecoveryNeedsRequired};`,
     `export const CHAPEL_COFFER_CAPACITY = ${b.population.chapelCofferCapacity};`,
+    `export const CHAPEL_TIER1_COFFER_CAPACITY = ${b.population.chapelTier1CofferCapacity};`,
+    `export const CHAPEL_TIER3_COFFER_CAPACITY = ${b.population.chapelTier3CofferCapacity};`,
+    `export const CHAPEL_TIER1_TITHE_MULTIPLIER = ${b.population.chapelTier1TitheMultiplier};`,
+    `export const CHAPEL_TIER2_TITHE_MULTIPLIER = ${b.population.chapelTier2TitheMultiplier};`,
+    `export const CHAPEL_TIER3_TITHE_MULTIPLIER = ${b.population.chapelTier3TitheMultiplier};`,
+    `export const CHAPEL_TIER2_UPGRADE_TIMBER = ${b.population.chapelTier2UpgradeTimber};`,
+    `export const CHAPEL_TIER2_UPGRADE_STONE = ${b.population.chapelTier2UpgradeStone};`,
+    `export const CHAPEL_TIER2_UPGRADE_IRONWORK = ${b.population.chapelTier2UpgradeIronwork};`,
+    `export const CHAPEL_TIER2_UPGRADE_ROOF_TILES = ${b.population.chapelTier2UpgradeRoofTiles};`,
+    `export const CHAPEL_TIER3_UPGRADE_TIMBER = ${b.population.chapelTier3UpgradeTimber};`,
+    `export const CHAPEL_TIER3_UPGRADE_STONE = ${b.population.chapelTier3UpgradeStone};`,
+    `export const CHAPEL_TIER3_UPGRADE_IRONWORK = ${b.population.chapelTier3UpgradeIronwork};`,
+    `export const CHAPEL_TIER3_UPGRADE_ROOF_TILES = ${b.population.chapelTier3UpgradeRoofTiles};`,
     `export const CHAPEL_PRIEST_SALARY_GOLD_PER_DAY = ${b.population.chapelPriestSalaryGoldPerDay};`,
     `export const CHAPEL_UPKEEP_GOLD_PER_DAY = ${b.population.chapelUpkeepGoldPerDay};`,
     `export const CHAPEL_UNSTAFFED_UPKEEP_FRACTION = ${b.population.chapelUnstaffedUpkeepFraction};`,

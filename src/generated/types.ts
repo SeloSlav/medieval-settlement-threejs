@@ -124,6 +124,7 @@ export const Building = __t.object("Building", {
   potterFiringPolicy: __t.u8(),
   remoteWorkCampEnabled: __t.bool(),
   linkedWorksiteId: __t.u64(),
+  chapelTier: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -610,4 +611,3 @@ export const WorldConfig = __t.object("WorldConfig", {
   resourceVariety: __t.u8(),
 });
 export type WorldConfig = __Infer<typeof WorldConfig>;
-

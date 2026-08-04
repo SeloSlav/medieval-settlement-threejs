@@ -5,6 +5,7 @@ use crate::balance_generated::{
 };
 use crate::building_defs::{building_def, building_def_or_err};
 use crate::burgage::{zone_overlaps_footprint, Point2};
+use crate::chapel_upgrade_policy::{chapel_upgrade_cost, normalize_chapel_tier};
 use crate::construction_priority::{
     construction_labor_ready, construction_labor_rotation,
     construction_labor_rotation_with_reserve, is_valid_construction_priority,
@@ -19,8 +20,9 @@ use crate::economy::{
     credit_treasury_commodity, credit_treasury_firewood, credit_treasury_food,
     credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
     guardhouse_roster_count, guardhouse_roster_floors, initial_construction_labor,
-    record_parish_ledger, total_ironwork, total_stone, total_timber, CommodityKind,
-    ParishLedgerKind,
+    record_parish_ledger, spend_aggregate_ironwork, spend_aggregate_roof_tiles,
+    spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
+    total_timber, CommodityKind, ParishLedgerKind,
 };
 use crate::foraging_policy::harvest_available;
 use crate::frontier_economy_policy::{
@@ -61,9 +63,9 @@ use crate::simulation::{
     building_fire_state, building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_owner,
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
-    game_clock, owner_has_staffed_town_hall, preserve_in_transit_cart_labor,
-    recall_idle_seasonal_labor_for_owner, staffed_cart_workers_by_building,
-    try_start_chapel_treasury_trip, local_delivery_distance, SimTickContext,
+    game_clock, local_delivery_distance, owner_has_staffed_town_hall,
+    preserve_in_transit_cart_labor, recall_idle_seasonal_labor_for_owner,
+    staffed_cart_workers_by_building, try_start_chapel_treasury_trip, SimTickContext,
     FIRE_TARGET_BUILDING,
 };
 use crate::specialty_trade_policy::is_valid_specialty_export_policy;
@@ -739,6 +741,7 @@ fn place_building_internal(
     } else {
         0
     };
+    let chapel_tier = if kind == "chapel" { 1 } else { 0 };
     ctx.db.building().insert(Building {
         id: building_id,
         owner,
@@ -830,6 +833,7 @@ fn place_building_internal(
         carpenter_cart_service_target_trips,
         remote_work_camp_enabled: false,
         linked_worksite_id,
+        chapel_tier,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -837,6 +841,63 @@ fn place_building_internal(
         ..config
     });
 
+    Ok(())
+}
+
+#[reducer]
+pub fn upgrade_chapel(ctx: &ReducerContext, building_id: u64) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    let mut chapel = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Church not found.".to_string())?;
+    if chapel.owner != owner || chapel.kind != "chapel" {
+        return Err("You do not own this church.".to_string());
+    }
+    if !chapel.construction_complete {
+        return Err("Complete the church before upgrading it.".to_string());
+    }
+    if building_fire_state(ctx, chapel.id).is_some() {
+        return Err("Repair the church before beginning an upgrade.".to_string());
+    }
+
+    chapel.chapel_tier = normalize_chapel_tier(chapel.chapel_tier);
+    let cost = chapel_upgrade_cost(chapel.chapel_tier)
+        .ok_or_else(|| "This church is already at the highest tier.".to_string())?;
+    if total_timber(ctx, owner) + 1e-6 < cost.timber {
+        return Err(format!(
+            "Not enough timber for this church upgrade (need {} timber).",
+            cost.timber.round() as i64
+        ));
+    }
+    if total_stone(ctx, owner) + 1e-6 < cost.stone {
+        return Err(format!(
+            "Not enough stone for this church upgrade (need {} stone).",
+            cost.stone.round() as i64
+        ));
+    }
+    if total_ironwork(ctx, owner) + 1e-6 < cost.ironwork {
+        return Err(format!(
+            "Not enough ironwork for this church upgrade (need {} ironwork).",
+            cost.ironwork.round() as i64
+        ));
+    }
+    if total_roof_tiles(ctx, owner) + 1e-6 < cost.roof_tiles {
+        return Err(format!(
+            "Not enough fired roof tiles for this church upgrade (need {} roof tiles).",
+            cost.roof_tiles.round() as i64
+        ));
+    }
+
+    spend_aggregate_timber(ctx, owner, cost.timber)?;
+    spend_aggregate_stone(ctx, owner, cost.stone)?;
+    spend_aggregate_ironwork(ctx, owner, cost.ironwork)?;
+    spend_aggregate_roof_tiles(ctx, owner, cost.roof_tiles)?;
+    chapel.chapel_tier = cost.target_tier;
+    ctx.db.building().id().update(chapel);
     Ok(())
 }
 

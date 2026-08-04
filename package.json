@@ -60,6 +60,7 @@
     "test:civilian-tool-economy": "npx tsx scripts/testCivilianToolEconomy.mts",
     "test:village-economy": "npx tsx scripts/testVillageEconomy.mts",
     "test:chapel-community": "npx tsx scripts/testChapelCommunity.mts",
+    "test:chapel-upgrade": "npx tsx scripts/testChapelUpgrade.mts",
     "test:household-economy": "npx tsx scripts/testHouseholdEconomy.mts",
     "test:residence-upgrade": "node --experimental-strip-types scripts/testResidenceUpgrade.mts",
     "test:residence-visual-fidelity": "npx tsx scripts/testResidenceVisualFidelity.mts",

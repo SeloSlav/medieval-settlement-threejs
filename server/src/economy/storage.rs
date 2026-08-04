@@ -68,6 +68,14 @@ pub fn total_ironwork(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64
     .max(0.0)
 }
 
+pub fn total_roof_tiles(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    (treasury_roof_tiles(ctx, owner) + building_sum(ctx, owner, |building| building.roof_tiles)
+        - reserved_residence_upgrade_total(ctx, owner, |residence| {
+            residence.upgrade_reserved_roof_tiles
+        }))
+    .max(0.0)
+}
+
 pub(crate) fn available_unreserved_building_timber(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -105,6 +113,17 @@ pub(crate) fn available_unreserved_building_ironwork(
     (stock - reserved).max(0.0)
 }
 
+pub(crate) fn available_unreserved_building_roof_tiles(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> f64 {
+    let stock = building_sum(ctx, owner, |building| building.roof_tiles);
+    let reserved = reserved_residence_upgrade_total(ctx, owner, |residence| {
+        residence.upgrade_reserved_roof_tiles
+    });
+    (stock - reserved).max(0.0)
+}
+
 pub(crate) fn available_unreserved_treasury_timber(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -131,6 +150,13 @@ pub(crate) fn available_unreserved_treasury_ironwork(
         building.construction_treasury_ironwork
     });
     (treasury_ironwork(ctx, owner) - reserved).max(0.0)
+}
+
+pub(crate) fn available_unreserved_treasury_roof_tiles(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+) -> f64 {
+    treasury_roof_tiles(ctx, owner).max(0.0)
 }
 
 /// Splits a new construction reservation between physical building inventories
@@ -523,6 +549,16 @@ fn treasury_ironwork(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 
         .find(&owner)
         .filter(|row| !row.physical_founding_site_enabled)
         .map(|row| row.ironwork)
+        .unwrap_or(0.0)
+}
+
+fn treasury_roof_tiles(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    ctx.db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .filter(|row| !row.physical_founding_site_enabled)
+        .map(|row| row.roof_tiles)
         .unwrap_or(0.0)
 }
 

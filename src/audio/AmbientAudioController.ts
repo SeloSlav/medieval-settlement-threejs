@@ -1,6 +1,11 @@
 import type * as THREE from 'three';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
-import type { BuildingState, BurgageZoneState } from '../resources/types.ts';
+import type {
+  BuildingState,
+  BurgageZoneState,
+  ResidenceState,
+} from '../resources/types.ts';
+import type { CrowdViewState } from '../settlement/crowdView.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import type { EnvironmentState, Season } from '../world/seasonPolicy.ts';
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
@@ -18,6 +23,7 @@ import { SoundtrackAudio } from './SoundtrackAudio.ts';
 import { UiAudio } from './UiAudio.ts';
 import type { UiSoundId } from './audioCatalog.ts';
 import { FireAudio } from './FireAudio.ts';
+import { BuildingAudio } from './BuildingAudio.ts';
 import {
   getAmbienceVolume,
   getMusicVolume,
@@ -30,6 +36,7 @@ export type AmbientAudioControllerConfig = {
   getOrbitDistance: () => number;
   getBuildings: () => ReadonlyMap<string, BuildingState>;
   getBurgageZones: () => Iterable<BurgageZoneState>;
+  getResidences: () => Iterable<ResidenceState>;
   getFireIncidents: () => Iterable<FireIncidentState>;
   camera: THREE.Camera;
   audioParent: THREE.Object3D;
@@ -45,6 +52,7 @@ export class AmbientAudioController {
   private readonly soundtrack = new SoundtrackAudio();
   private readonly uiAudio = new UiAudio();
   private readonly fireAudio: FireAudio;
+  private readonly buildingAudio = new BuildingAudio();
   private readonly config: AmbientAudioControllerConfig;
   private readonly chapelPositions: ChapelBellPosition[] = [];
   private lastChapelBuildingSnapshot: ReadonlyMap<string, BuildingState> | null = null;
@@ -58,6 +66,13 @@ export class AmbientAudioController {
     enabled: true,
   };
   private readonly ambientRuleState: AmbientRuleState = { overviewActive: false, villageActive: false };
+  private readonly buildingAudioView: CrowdViewState = {
+    centerX: 0,
+    centerZ: 0,
+    viewRadius: 120,
+    shadowRadius: 80,
+    orbitDistance: 240,
+  };
   private lastAmbientEvalAtMs = 0;
   private lastSettlementSignature = '';
   private settlementZones: ReturnType<typeof buildSettlementZones> = [];
@@ -92,6 +107,7 @@ export class AmbientAudioController {
     this.musicEnabled = isMusicEnabled();
     this.audio.setVolume(getAmbienceVolume());
     this.riverAudio.setVolume(getAmbienceVolume());
+    this.buildingAudio.setVolume(getAmbienceVolume());
     this.soundtrack.setVolume(getMusicVolume());
     this.setEnabled(isGameAudioEnabled());
   }
@@ -167,6 +183,18 @@ export class AmbientAudioController {
     this.audio.tick(dtSeconds);
     this.riverAudio.tick(dtSeconds);
     this.fireAudio.tick(dtSeconds);
+    const listener = this.config.getCameraTarget();
+    this.buildingAudioView.centerX = listener.x;
+    this.buildingAudioView.centerZ = listener.z;
+    this.buildingAudioView.listenerX = listener.x;
+    this.buildingAudioView.listenerZ = listener.z;
+    this.buildingAudioView.orbitDistance = this.config.getOrbitDistance();
+    this.buildingAudio.tick(
+      dtSeconds,
+      this.config.getBuildings().values(),
+      this.config.getResidences(),
+      this.buildingAudioView,
+    );
   }
 
   setEnabled(enabled: boolean): void {
@@ -174,6 +202,7 @@ export class AmbientAudioController {
     this.audio.setEnabled(enabled);
     this.riverAudio.setEnabled(enabled);
     this.fireAudio.setEnabled(enabled);
+    this.buildingAudio.setEnabled(enabled);
     this.soundtrack.setEnabled(enabled && this.musicEnabled);
     this.uiAudio.setEnabled(enabled);
     if (!enabled) {
@@ -196,6 +225,7 @@ export class AmbientAudioController {
   setAmbienceVolume(volume: number): void {
     this.audio.setVolume(volume);
     this.riverAudio.setVolume(volume);
+    this.buildingAudio.setVolume(volume);
   }
 
   playUiSound(id: UiSoundId): void {
@@ -209,6 +239,7 @@ export class AmbientAudioController {
     this.chapelBell.dispose();
     this.riverAudio.dispose();
     this.fireAudio.dispose();
+    this.buildingAudio.dispose();
     this.soundtrack.dispose();
     this.uiAudio.dispose();
     this.running = false;

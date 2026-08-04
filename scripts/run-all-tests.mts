@@ -41,6 +41,7 @@ const tests = [
   'test:civilian-tool-economy',
   'test:village-economy',
   'test:chapel-community',
+  'test:chapel-upgrade',
   'test:household-economy',
   'test:residence-upgrade',
   'test:residence-visual-fidelity',

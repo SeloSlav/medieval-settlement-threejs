@@ -17,6 +17,7 @@ import CallUpYearRoundLaborReducer from "../call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "../cancel_marketplace_trade_order_reducer";
 import ClientConnectedReducer from "../client_connected_reducer";
 import CollectChapelCofferReducer from "../collect_chapel_coffer_reducer";
+import UpgradeChapelReducer from "../upgrade_chapel_reducer";
 import ConfigureWorldReducer from "../configure_world_reducer";
 import DemolishBackyardGardenReducer from "../demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "../demolish_building_reducer";
@@ -97,6 +98,7 @@ export type CallUpYearRoundLaborParams = __Infer<typeof CallUpYearRoundLaborRedu
 export type CancelMarketplaceTradeOrderParams = __Infer<typeof CancelMarketplaceTradeOrderReducer>;
 export type ClientConnectedParams = __Infer<typeof ClientConnectedReducer>;
 export type CollectChapelCofferParams = __Infer<typeof CollectChapelCofferReducer>;
+export type UpgradeChapelParams = __Infer<typeof UpgradeChapelReducer>;
 export type ConfigureWorldParams = __Infer<typeof ConfigureWorldReducer>;
 export type DemolishBackyardGardenParams = __Infer<typeof DemolishBackyardGardenReducer>;
 export type DemolishBuildingParams = __Infer<typeof DemolishBuildingReducer>;
@@ -165,4 +167,3 @@ export type StartFarmFieldEarlyHarvestParams = __Infer<typeof StartFarmFieldEarl
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;
-

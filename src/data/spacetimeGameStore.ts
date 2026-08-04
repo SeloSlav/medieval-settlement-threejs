@@ -907,6 +907,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.collectChapelCoffer(buildingId);
   }
 
+  upgradeChapel(buildingId: string): Promise<void> {
+    return spacetimeReducers.upgradeChapel(buildingId);
+  }
+
   demolishBuilding(buildingId: string): Promise<void> {
     return spacetimeReducers.demolishBuilding(buildingId);
   }

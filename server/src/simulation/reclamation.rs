@@ -530,6 +530,7 @@ pub fn insert_reclamation_pile(
         carpenter_cart_service_target_trips: 0,
         remote_work_camp_enabled: false,
         linked_worksite_id: 0,
+        chapel_tier: 0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

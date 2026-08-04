@@ -49,7 +49,7 @@ import { monasteryStockpileVisualSignature } from './monasteryStockpileVisuals.t
 
 export function buildingMeshSignature(building: BuildingState): string {
   if (building.constructionComplete !== false) {
-    return `complete:${building.kind}`;
+    return `complete:${building.kind}${building.kind === 'chapel' ? `:tier-${building.chapelTier ?? 3}` : ''}`;
   }
   return constructionVisualSignature(
     building.constructionProgress,

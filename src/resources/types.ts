@@ -164,6 +164,8 @@ export type BuildingState = {
   /** Parent worksite for a separately constructed overnight camp. */
   linkedWorksiteId?: string;
   chapelMonasteryTitheDue?: number;
+  /** 1 small timber, 2 small stone, 3 large stone; legacy rows default to 3. */
+  chapelTier?: 1 | 2 | 3;
   /** Source-held fares or gifts pledged to the civic treasury. */
   civicReceiptsGold?: number;
 };

@@ -44,6 +44,7 @@ import CallUpTargetReadyProcessorLaborReducer from "./call_up_target_ready_proce
 import CallUpYearRoundLaborReducer from "./call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "./cancel_marketplace_trade_order_reducer";
 import CollectChapelCofferReducer from "./collect_chapel_coffer_reducer";
+import UpgradeChapelReducer from "./upgrade_chapel_reducer";
 import ConfigureWorldReducer from "./configure_world_reducer";
 import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "./demolish_building_reducer";
@@ -531,6 +532,7 @@ const reducersSchema = __reducers(
   __reducerSchema("call_up_year_round_labor", CallUpYearRoundLaborReducer),
   __reducerSchema("cancel_marketplace_trade_order", CancelMarketplaceTradeOrderReducer),
   __reducerSchema("collect_chapel_coffer", CollectChapelCofferReducer),
+  __reducerSchema("upgrade_chapel", UpgradeChapelReducer),
   __reducerSchema("configure_world", ConfigureWorldReducer),
   __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
   __reducerSchema("demolish_building", DemolishBuildingReducer),
@@ -654,4 +656,3 @@ export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
     return new SubscriptionBuilder(this);
   };
 }
-

@@ -9,6 +9,7 @@ use crate::balance_generated::{
     RESIDENCE_SETTLE_TICKS,
 };
 use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
+use crate::chapel_upgrade_policy::chapel_tithe_multiplier;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 
 pub fn effective_settle_ticks(
@@ -90,19 +91,28 @@ pub fn chapel_attendance_chance(
     chance.clamp(0.0, 1.0)
 }
 
+#[cfg(test)]
 pub fn chapel_tithe_gold_per_tick(population: u32) -> f64 {
+    chapel_tithe_gold_per_tick_for_tier(population, 1)
+}
+
+pub fn chapel_tithe_gold_per_tick_for_tier(population: u32, chapel_tier: u8) -> f64 {
     if population == 0 {
         return 0.0;
     }
 
-    chapel_daily_gold_per_work_tick(population as f64 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY)
+    chapel_daily_gold_per_work_tick(
+        population as f64
+            * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY
+            * chapel_tithe_multiplier(chapel_tier),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_attendance_chance, chapel_tithe_gold_per_tick, effective_settle_ticks,
-        recovery_needs_required,
+        chapel_attendance_chance, chapel_tithe_gold_per_tick, chapel_tithe_gold_per_tick_for_tier,
+        effective_settle_ticks, recovery_needs_required,
     };
     use crate::balance_generated::{
         CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
@@ -160,5 +170,15 @@ mod tests {
     fn chapel_tithe_gold_per_tick_matches_balance() {
         let expected = chapel_daily_gold_per_work_tick(3.0 * CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY);
         assert!((chapel_tithe_gold_per_tick(3) - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn upgraded_churches_collect_larger_tithes() {
+        assert!(
+            chapel_tithe_gold_per_tick_for_tier(3, 3) > chapel_tithe_gold_per_tick_for_tier(3, 2)
+        );
+        assert!(
+            chapel_tithe_gold_per_tick_for_tier(3, 2) > chapel_tithe_gold_per_tick_for_tier(3, 1)
+        );
     }
 }
