@@ -1,11 +1,12 @@
 use std::cmp::Ordering;
 
 use crate::balance_generated::{
-    BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+    BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
+    BREWERY_BREWING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_FIREWOOD_PER_CYCLE, CALENDAR_SECONDS_PER_DAY,
     CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP, CARPENTER_CART_SERVICE_TARGET_TRIPS,
     CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
     HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
     LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES, LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
     LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE, MINE_TIMBER_SUPPORT_BUFFER_CYCLES,
@@ -16,7 +17,7 @@ use crate::balance_generated::{
     SMOKEHOUSE_SALT_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
     WEAVER_WOOL_PER_CYCLE, WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 };
-use crate::civilian_tool_policy::is_civilian_tool_site;
+use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
 
 pub const ALE_SUPPLIER_KINDS: &[&str] = &["brewery", "monastery"];
@@ -24,8 +25,9 @@ pub const ALE_SUPPLIER_KINDS: &[&str] = &["brewery", "monastery"];
 /// prosperous household. Storage depots deliberately remain outside this
 /// roster so an empty granary cannot satisfy a tier-three upgrade gate.
 pub const PRESERVED_FOOD_PRODUCER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead"];
-/// Stocked buildings whose own staffed cart can serve cured household rations.
-/// Granaries join only after physical stock reaches them.
+/// Stocked buildings whose output can serve cured household rations. Ordinary
+/// producers use free haulers; staffed granaries use their assigned food carts
+/// after physical stock reaches them.
 pub const PRESERVED_FOOD_SUPPLIER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead", "granary"];
 pub const CLOTH_SUPPLIER_KINDS: &[&str] = &["weaver"];
 pub const POTTERY_SUPPLIER_KINDS: &[&str] = &["potter_kiln"];
@@ -37,6 +39,7 @@ pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
     "hunters_hall",
     "foragers_shed",
     "fishing_camp",
+    "bakery",
     "granary",
     "apiary",
     "vineyard",
@@ -44,13 +47,15 @@ pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
     "swineherd",
     "monastery",
 ];
-/// Fresh-food producers whose own carts may carry genuine household surplus
-/// to a granary, smokehouse, or armed company. Granaries and monasteries keep
-/// their separate household, preservation, charity, and emergency policies.
+/// Fresh-food producers whose stored output may be carried as genuine household
+/// surplus to a granary, smokehouse, or armed company. Unassigned haulers move
+/// it; granaries and monasteries keep their separate household, preservation,
+/// charity, and emergency policies.
 pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
     "hunters_hall",
     "foragers_shed",
     "fishing_camp",
+    "bakery",
     "apiary",
     "vineyard",
     "pastoral_farmstead",
@@ -67,7 +72,7 @@ pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
 pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "monastery"];
 pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "granary", "monastery"];
 pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
-    "granary",
+    "bakery",
     "brewery",
     "smokehouse",
     "charcoal_burner",
@@ -336,6 +341,22 @@ pub fn is_firewood_supplier_operational(
             || (kind == "village_storehouse" && storehouse_accepts_firewood))
 }
 
+/// Live household delivery may draw stored lodge output with a free hauler.
+/// Storehouses remain dedicated logistics workplaces and therefore still need
+/// one assigned worker to operate their cart.
+pub fn is_firewood_supplier_delivery_operational(
+    kind: &str,
+    construction_complete: bool,
+    assigned_labor: u32,
+    storehouse_accepts_firewood: bool,
+) -> bool {
+    construction_complete
+        && (kind == "woodcutters_lodge"
+            || (kind == "village_storehouse"
+                && assigned_labor > 0
+                && storehouse_accepts_firewood))
+}
+
 /// Fuel carts protect enough cupboard stock to carry a household through the
 /// winter overnight no-work window. Once every claimed home reaches this
 /// runway, the same cart and road branch may serve staffed hot workshops.
@@ -356,9 +377,9 @@ pub fn household_firewood_needs_priority(abandoned: bool, population: u32, stock
 pub fn is_well_supplier_operational(
     kind: &str,
     construction_complete: bool,
-    assigned_labor: u32,
+    _assigned_labor: u32,
 ) -> bool {
-    kind == "well" && is_staffed_operational_supplier(construction_complete, assigned_labor)
+    kind == "well" && construction_complete
 }
 
 pub fn is_food_supplier_operational(
@@ -367,7 +388,8 @@ pub fn is_food_supplier_operational(
     assigned_labor: u32,
 ) -> bool {
     FOOD_SUPPLIER_KINDS.contains(&kind)
-        && is_specialty_supplier_operational(kind, construction_complete, assigned_labor)
+        && construction_complete
+        && (kind != "granary" || assigned_labor > 0)
 }
 
 pub fn is_specialty_supplier_operational(
@@ -376,6 +398,17 @@ pub fn is_specialty_supplier_operational(
     assigned_labor: u32,
 ) -> bool {
     construction_complete && (kind == "monastery" || assigned_labor > 0)
+}
+
+/// Existing specialty stock uses the delivery labor contract instead of a
+/// producer's roster. Granaries alone need an additional assigned post because
+/// their first worker is the stationary keeper/baker.
+pub fn is_specialty_supplier_delivery_operational(
+    kind: &str,
+    construction_complete: bool,
+    assigned_labor: u32,
+) -> bool {
+    construction_complete && (kind != "granary" || assigned_labor > 0)
 }
 
 /// Food kept at a routine supplier before an institution may collect surplus.
@@ -534,14 +567,14 @@ pub enum ProcessorInputDispatchDuty {
 pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodity: &str) -> f64 {
     match (target_kind, commodity) {
         (kind, "ironwork") if is_civilian_tool_site(kind) => CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
-        ("granary", "firewood") => GRANARY_FIREWOOD_PER_CYCLE,
+        ("bakery", "firewood") => BAKERY_FIREWOOD_PER_CYCLE,
         ("brewery", "firewood") => {
             BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE
         }
         ("smokehouse", "firewood") => SMOKEHOUSE_FIREWOOD_PER_CYCLE,
         ("charcoal_burner", "firewood") => CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
         ("potter_kiln", "firewood") => POTTER_FIREWOOD_PER_CYCLE,
-        ("granary", "flour") => GRANARY_FLOUR_PER_CYCLE,
+        ("bakery", "flour") => BAKERY_FLOUR_PER_CYCLE,
         ("smokehouse", "food") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
         ("smokehouse", "salt") => SMOKEHOUSE_SALT_PER_CYCLE,
@@ -587,8 +620,9 @@ pub fn processor_input_dispatch_duty(
 ///
 /// Raw iron and salt are deliberately bounded: active processors receive only
 /// their selected working buffer, then a staffed marketplace may centralize
-/// the remainder up to its player-selected reserve. Clay, charcoal, ironwork,
-/// and pottery retain their ordinary workshop-overflow behavior.
+/// the remainder up to its player-selected reserve. Civilian tool racks use
+/// separate low-stock/full-refill hysteresis; other materials retain ordinary
+/// workshop-overflow behavior.
 pub fn local_material_dispatch_target(
     target_kind: &str,
     commodity: &str,
@@ -601,6 +635,18 @@ pub fn local_material_dispatch_target(
     let stock = stock.max(0.0);
     let capacity = capacity.max(0.0);
     let is_raw_market_material = matches!(commodity, "iron" | "salt");
+
+    if commodity == "ironwork" && is_civilian_tool_site(target_kind) {
+        if !civilian_tool_refill_due(stock, capacity) {
+            return None;
+        }
+        let duty = if assigned_labor > 0 {
+            ProcessorInputDispatchDuty::WorkingBuffer
+        } else {
+            ProcessorInputDispatchDuty::WorkshopOverflow
+        };
+        return Some((duty, capacity));
+    }
 
     if is_raw_market_material && target_kind == "marketplace" {
         let desired_stock = marketplace_reserve_target.max(0.0).min(capacity);
@@ -696,10 +742,9 @@ pub fn select_processor_input_dispatch_candidate<T>(
     })
 }
 
-/// Construction sources retain a stable service hierarchy before road
-/// distance is considered. A staffed central store loads most efficiently,
-/// followed by the relevant craft or producer; unstaffed stores need a free
-/// settlement hauler and follow the staffed classes in the same order.
+/// Construction sources retain a stable storage hierarchy before road
+/// distance is considered. Staffed sources lead their class; unstaffed yards
+/// remain usable through a free handcart worker after staffed options.
 pub fn construction_source_priority(kind: &str, assigned_labor: u32) -> u8 {
     let kind_priority = match kind {
         "founders_camp" | "salvage_pile" | "village_storehouse" => 0,
@@ -707,11 +752,7 @@ pub fn construction_source_priority(kind: &str, assigned_labor: u32) -> u8 {
         "lumber_mill" | "stone_quarry" | "large_quarry" => 2,
         _ => 3,
     };
-    if assigned_labor > 0 {
-        kind_priority
-    } else {
-        kind_priority + 4
-    }
+    kind_priority + if assigned_labor > 0 { 0 } else { 4 }
 }
 
 /// Lower stock per resident means less remaining runway for any one need kind.
@@ -797,7 +838,8 @@ mod tests {
         grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, grain_work_priority,
         granary_dispatch_order, household_firewood_needs_priority,
         household_firewood_priority_target, household_food_reserve, institutional_food_surplus,
-        is_firewood_supplier_operational, is_food_supplier_operational,
+        is_firewood_supplier_delivery_operational, is_firewood_supplier_operational,
+        is_food_supplier_operational, is_specialty_supplier_delivery_operational,
         is_specialty_supplier_operational, is_well_supplier_operational,
         large_quarry_support_runway_cycles, large_quarry_support_target,
         large_quarry_supports_ready, local_material_dispatch_target, processor_input_dispatch_duty,
@@ -1210,6 +1252,21 @@ mod tests {
             ProcessorInputDispatchDuty::WorkshopOverflow
         );
         assert_eq!(
+            local_material_dispatch_target("mine", "ironwork", 4, 0.59, 3.0, 25, 0.0),
+            Some((ProcessorInputDispatchDuty::WorkingBuffer, 3.0)),
+            "a staffed tool rack below reorder must request one full-rack refill independent of output policy"
+        );
+        assert_eq!(
+            local_material_dispatch_target("mine", "ironwork", 4, 0.6, 3.0, 100, 0.0),
+            None,
+            "hysteresis must prevent fractional top-up cart spam above the reorder point"
+        );
+        assert_eq!(
+            local_material_dispatch_target("stone_quarry", "ironwork", 0, 0.2, 3.0, 50, 0.0),
+            Some((ProcessorInputDispatchDuty::WorkshopOverflow, 3.0)),
+            "idle sites may be pre-stocked only after staffed working-buffer claims"
+        );
+        assert_eq!(
             local_material_dispatch_target("smithy", "iron", 2, 0.0, 48.0, 100, 0.0),
             Some((ProcessorInputDispatchDuty::WorkingBuffer, 6.0)),
             "local ore must first restore the staffed forge's selected working buffer"
@@ -1558,7 +1615,7 @@ mod tests {
     }
 
     #[test]
-    fn household_services_require_a_finished_staffed_supplier() {
+    fn household_services_follow_the_delivery_labor_contract() {
         assert!(is_firewood_supplier_operational(
             "woodcutters_lodge",
             true,
@@ -1566,6 +1623,12 @@ mod tests {
             false
         ));
         assert!(!is_firewood_supplier_operational(
+            "woodcutters_lodge",
+            true,
+            0,
+            false
+        ));
+        assert!(is_firewood_supplier_delivery_operational(
             "woodcutters_lodge",
             true,
             0,
@@ -1583,12 +1646,19 @@ mod tests {
             2,
             false
         ));
-        assert!(is_well_supplier_operational("well", true, 1));
-        assert!(!is_well_supplier_operational("well", false, 1));
+        assert!(!is_firewood_supplier_delivery_operational(
+            "village_storehouse",
+            true,
+            0,
+            true
+        ));
+        assert!(is_well_supplier_operational("well", true, 0));
+        assert!(!is_well_supplier_operational("well", false, 0));
         assert!(is_food_supplier_operational("fishing_camp", true, 1));
-        assert!(!is_food_supplier_operational("fishing_camp", true, 0));
+        assert!(is_food_supplier_operational("fishing_camp", true, 0));
         assert!(is_food_supplier_operational("granary", true, 2));
-        assert!(is_food_supplier_operational("pastoral_farmstead", true, 1));
+        assert!(!is_food_supplier_operational("granary", true, 1));
+        assert!(is_food_supplier_operational("pastoral_farmstead", true, 0));
         assert!(is_food_supplier_operational("monastery", true, 0));
         assert!(!is_food_supplier_operational("marketplace", true, 3));
     }
@@ -1598,6 +1668,15 @@ mod tests {
         assert!(is_specialty_supplier_operational("monastery", true, 0));
         assert!(!is_specialty_supplier_operational("brewery", true, 0));
         assert!(is_specialty_supplier_operational("smokehouse", true, 1));
+        assert!(is_specialty_supplier_delivery_operational(
+            "brewery", true, 0
+        ));
+        assert!(!is_specialty_supplier_delivery_operational(
+            "granary", true, 1
+        ));
+        assert!(is_specialty_supplier_delivery_operational(
+            "granary", true, 2
+        ));
     }
 
     #[test]

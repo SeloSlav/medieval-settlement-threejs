@@ -25,11 +25,15 @@ export function assessWellWaterSupply(
   const storedWater = Math.max(0, building.water);
   const nearestWell = connectedWells[0];
   const nearestWellDistance = nearestWell
-    ? worldQueries.getLocalDeliveryDistance(building.x, building.z, nearestWell.x, nearestWell.z)
+    ? typeof worldQueries.getLocalDeliveryDistance === 'function'
+      ? worldQueries.getLocalDeliveryDistance(building.x, building.z, nearestWell.x, nearestWell.z)
+      : typeof worldQueries.getRoadPathDistance === 'function'
+        ? worldQueries.getRoadPathDistance(building.x, building.z, nearestWell.x, nearestWell.z)
+        : Math.hypot(nearestWell.x - building.x, nearestWell.z - building.z)
     : null;
   const drySuffix = connectedWells.length > 0 && wellsWithWater === 0 ? ', all dry' : '';
   const wellSummary = connectedWells.length === 0
-    ? 'None staffed — build a well or assign its crew'
+    ? 'None connected — build a well on this road branch'
     : `${connectedWells.length} available${nearestWellDistance != null ? ` (nearest ${nearestWellDistance.toFixed(0)} m travel equivalent)` : ''}${drySuffix}`;
 
   return {
@@ -58,7 +62,7 @@ export function formatWellWaterDetailRows(
 export function wellWaterStatusIssue(assessment: WellWaterAssessment | null): string | null {
   if (!assessment) return null;
   if (!assessment.hasLinkedWell) {
-    return 'Idle — needs a staffed well to operate';
+    return 'Idle — needs a road-linked well to operate';
   }
   if (assessment.hasWaterAvailable) {
     return null;

@@ -280,7 +280,7 @@ assert.match(
 );
 assert.match(
   deliveryTripSource,
-  /pub fn start_external_market_import_trip[\s\S]*Some\(1\)/,
+  /pub fn start_external_market_import_trip[\s\S]*labor_source: DeliveryLaborSource::External/,
   'the live merchant cart must use an external crew rather than consuming settlement labor',
 );
 assert.match(

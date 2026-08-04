@@ -19,9 +19,8 @@ export type FireCoverageBand = 'fireproof' | 'covered' | 'unready' | 'uncovered'
 export type FireWellReadiness =
   | 'ready'
   | 'busy'
-  | 'unstaffed'
-  | 'dry'
-  | 'unstaffed_and_dry';
+  | 'no_hauler'
+  | 'dry';
 
 export type FireSafetyAssessment = {
   baseFlammability: number;
@@ -55,6 +54,8 @@ type FireSafetyContext = {
   residences?: Iterable<ResidenceState>;
   fireDisabledBuildingIds?: ReadonlySet<string>;
   busyBuildingIds?: ReadonlySet<string>;
+  /** Current unassigned labor available to carry a bucket. Omit for layout previews. */
+  freeHaulersAvailable?: number;
   roadPathDistance?: (
     ax: number,
     az: number,
@@ -180,7 +181,11 @@ export function assessBuildingFireSafety(
     const directDistance = planarDistance(target, building);
     if (directDistance > building.workRadius + 1e-6) continue;
 
-    const readiness = wellReadiness(building, busyBuildings.has(building.id));
+    const readiness = wellReadiness(
+      building,
+      busyBuildings.has(building.id),
+      context.freeHaulersAvailable == null || context.freeHaulersAvailable > 0,
+    );
     const roadDistance = context.roadPathDistance?.(
       building.x,
       building.z,
@@ -271,22 +276,22 @@ export function describePlacementFireSafety(
 
 export function wellReadinessLabel(readiness: FireWellReadiness | null): string {
   switch (readiness) {
-    case 'unstaffed': return 'the well is unstaffed';
     case 'dry': return `it holds less than ${FIRE_MINIMUM_BUCKET_WATER} water`;
-    case 'unstaffed_and_dry': return 'the well is unstaffed and dry';
+    case 'no_hauler': return 'no unassigned hauler is available';
     case 'busy': return 'its bucket carrier is still away';
     case 'ready': return 'it is ready';
     case null: return 'it is unavailable';
   }
 }
 
-function wellReadiness(well: BuildingState, busy: boolean): FireWellReadiness {
+function wellReadiness(
+  well: BuildingState,
+  busy: boolean,
+  freeHaulerAvailable: boolean,
+): FireWellReadiness {
   if (busy) return 'busy';
-  const staffed = well.assignedLabor > 0;
-  const supplied = well.water + 1e-6 >= FIRE_MINIMUM_BUCKET_WATER;
-  if (staffed && supplied) return 'ready';
-  if (!staffed && !supplied) return 'unstaffed_and_dry';
-  return staffed ? 'dry' : 'unstaffed';
+  if (well.water + 1e-6 < FIRE_MINIMUM_BUCKET_WATER) return 'dry';
+  return freeHaulerAvailable ? 'ready' : 'no_hauler';
 }
 
 function betterWell(

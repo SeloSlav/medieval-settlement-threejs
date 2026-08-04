@@ -3,6 +3,9 @@ import {
   BUILDING_STORAGE_CAPS,
   FIRE_SPREAD_RADIUS,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
+  STARTING_GOLD,
+  STARTING_STONE,
+  STARTING_TIMBER,
 } from '../generated/gameBalance.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import type {
@@ -346,6 +349,7 @@ export class BuildingMarkers {
       || [...this.buildingStates.values()].some((building) => building.kind === 'founders_camp')
     ) return;
     this.prewarmedFoundersCamp = createBuildingMesh('founders_camp');
+    syncInitialFoundersCampVisualState(this.prewarmedFoundersCamp);
     setBuildingDetailShadowsEnabled(
       this.prewarmedFoundersCamp,
       areBuildingShadowsEnabled(),
@@ -1126,6 +1130,38 @@ function syncBuildingVisualState(
   syncSeasonalStockpileVisuals(marker, building);
   syncMarketplaceSpecialtyStockpileVisuals(marker, building);
   syncMonasteryStockpileVisuals(marker, building);
+}
+
+function syncInitialFoundersCampVisualState(marker: THREE.Group): void {
+  const timber = marker.getObjectByName('FoundingTimberStockpile');
+  if (timber instanceof THREE.Group) {
+    const visibleCount = syncStockpileSegments(
+      timber,
+      'FoundingTimberSegment',
+      STARTING_TIMBER,
+      BUILDING_STORAGE_CAPS.founders_camp.timber,
+    );
+    const accumulation = timber.getObjectByName(
+      FOUNDERS_CAMP_TIMBER_WINTER_ACCUMULATION_NAME,
+    );
+    if (accumulation instanceof THREE.InstancedMesh) accumulation.count = visibleCount;
+  }
+  const stone = marker.getObjectByName('FoundingStoneStockpile');
+  if (stone instanceof THREE.Group) {
+    const visibleCount = syncStockpileSegments(
+      stone,
+      'FoundingStoneSegment',
+      STARTING_STONE,
+      BUILDING_STORAGE_CAPS.founders_camp.stone,
+    );
+    const accumulation = stone.getObjectByName(
+      FOUNDERS_CAMP_STONE_WINTER_ACCUMULATION_NAME,
+    );
+    if (accumulation instanceof THREE.InstancedMesh) accumulation.count = visibleCount;
+  }
+  const chest = marker.getObjectByName('FoundingTreasuryChest');
+  if (chest) chest.visible = STARTING_GOLD > 1e-6;
+  refreshBuildingDetailCasterBatches(marker);
 }
 
 function createRadiusRing(color: number, opacity: number): THREE.Mesh {

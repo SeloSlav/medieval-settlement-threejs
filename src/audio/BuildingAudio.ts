@@ -88,8 +88,8 @@ export class BuildingAudio {
 
   tick(
     dtSeconds: number,
-    buildings: Iterable<BuildingState>,
-    residences: Iterable<ResidenceState>,
+    buildings: ReadonlyMap<string, BuildingState>,
+    residences: ReadonlyMap<string, ResidenceState>,
     view: CrowdViewState | undefined,
   ): void {
     const dt = Math.max(0, dtSeconds);
@@ -113,7 +113,7 @@ export class BuildingAudio {
     }
 
     const activeGeneration = ++this.activeGeneration;
-    for (const building of buildings) {
+    for (const building of buildings.values()) {
       if (building.constructionComplete === false) continue;
       this.addCandidate(
         `building:${building.id}`,
@@ -124,7 +124,7 @@ export class BuildingAudio {
         activeGeneration,
       );
     }
-    for (const residence of residences) {
+    for (const residence of residences.values()) {
       if (
         residence.tier <= 0
         || residence.abandoned

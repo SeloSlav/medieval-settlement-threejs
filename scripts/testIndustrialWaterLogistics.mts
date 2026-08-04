@@ -258,7 +258,7 @@ assert.equal(
 );
 assert.match(
   wellInspector,
-  /Fires first · households second · workshop priority, input policy, then buffer coverage/,
+  /Nearest urgent fire first · households second · workshop priority, input policy, then buffer coverage/,
 );
 assert.match(wellInspector, /staffingPriorityLabel/);
 assert.match(wellInspector, /weaverFibreDeliveryPreferenceLabel/);

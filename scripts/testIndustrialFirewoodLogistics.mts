@@ -185,7 +185,11 @@ assert.equal(plan.inactiveStock, 5);
 assert.equal(plan.quarantinedStock, 7);
 assert.equal(plan.unservedBranches, 1);
 assert.ok(plan.flowDeficitBranches >= 1);
-assert.equal(plan.firstDeficitTargetId, '20');
+assert.equal(
+  plan.firstDeficitTargetId,
+  '40',
+  'the staffed western lodge should cover its branch before the unserved eastern household',
+);
 assert.equal(
   plan.industrialDemandPerDay,
   industrialFirewoodCapacityPerDay(granary, false)

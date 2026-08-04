@@ -1,7 +1,7 @@
 //! Pure well-yield policy shared by the authoritative simulation and native tests.
 
 use crate::balance_generated::{
-    BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE, GRANARY_WATER_PER_CYCLE,
+    BAKERY_WATER_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE,
     MILL_WATER_PER_HARVEST, POTTER_WATER_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
     WEAVER_FLAX_WATER_PER_CYCLE, WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
 };
@@ -21,11 +21,11 @@ pub struct IndustrialWaterCandidate {
 }
 
 pub const INDUSTRIAL_WATER_BUILDING_KINDS: &[&str] =
-    &["granary", "brewery", "weaver", "smithy", "potter_kiln"];
+    &["bakery", "brewery", "weaver", "smithy", "potter_kiln"];
 
 pub fn industrial_water_requirement(building_kind: &str) -> f64 {
     match building_kind {
-        "granary" => GRANARY_WATER_PER_CYCLE,
+        "bakery" => BAKERY_WATER_PER_CYCLE,
         "brewery" => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
         "weaver" => WEAVER_FLAX_WATER_PER_CYCLE,
         "smithy" => SMITHY_WATER_PER_CYCLE,
@@ -97,30 +97,19 @@ pub fn effective_well_hydrology(hydrology: f64) -> f64 {
 
 pub fn well_refill_per_second(
     hydrology: f64,
-    processing_workers: u32,
     weather_multiplier: f64,
 ) -> f64 {
     WELL_BASE_REFILL_PER_SEC
         * effective_well_hydrology(hydrology)
-        * processing_workers as f64
         * weather_multiplier.max(0.0)
 }
 
 pub fn well_refill_amount(
     hydrology: f64,
-    processing_workers: u32,
     weather_multiplier: f64,
     dt: f64,
 ) -> f64 {
-    well_refill_per_second(hydrology, processing_workers, weather_multiplier) * dt.max(0.0)
-}
-
-pub fn well_refill_workers(available_labor: u32, has_delivery_target: bool) -> u32 {
-    if has_delivery_target {
-        available_labor.saturating_sub(1)
-    } else {
-        available_labor
-    }
+    well_refill_per_second(hydrology, weather_multiplier) * dt.max(0.0)
 }
 
 pub fn position_within_well_service_radius(
@@ -138,18 +127,6 @@ pub fn position_within_well_service_radius(
     dx * dx + dz * dz <= work_radius * work_radius
 }
 
-pub fn prioritize_fire_response(
-    fire_response_needed: bool,
-    refill_ready: bool,
-    normal_work: (bool, bool),
-) -> (bool, bool) {
-    if fire_response_needed {
-        (false, refill_ready)
-    } else {
-        normal_work
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,42 +135,15 @@ mod tests {
     #[test]
     fn dry_wells_still_draw_a_useful_baseline_supply() {
         assert_eq!(effective_well_hydrology(0.0), WELL_MINIMUM_REFILL_HYDROLOGY);
-        assert!(well_refill_per_second(0.0, 1, 1.0) > 0.0);
+        assert!(well_refill_per_second(0.0, 1.0) > 0.0);
     }
 
     #[test]
-    fn refill_is_faster_for_every_well_and_scales_with_labor() {
-        let poor_site = well_refill_per_second(0.03, 1, 1.0);
-        let good_site = well_refill_per_second(0.8, 1, 1.0);
+    fn refill_is_passive_and_faster_at_better_sites() {
+        let poor_site = well_refill_per_second(0.03, 1.0);
+        let good_site = well_refill_per_second(0.8, 1.0);
         assert!(poor_site >= 0.1);
         assert!(good_site > poor_site);
-        assert_eq!(well_refill_per_second(0.8, 2, 1.0), good_site * 2.0);
-    }
-
-    #[test]
-    fn fire_calls_preempt_household_delivery_without_changing_refill_rules() {
-        assert_eq!(
-            prioritize_fire_response(true, true, (true, false)),
-            (false, true)
-        );
-        assert_eq!(
-            prioritize_fire_response(true, false, (true, true)),
-            (false, false)
-        );
-        assert_eq!(
-            prioritize_fire_response(false, true, (true, false)),
-            (true, false)
-        );
-    }
-
-    #[test]
-    fn idle_deliverers_join_the_drawing_crew_until_demand_appears() {
-        assert_eq!(well_refill_workers(1, false), 1);
-        assert_eq!(well_refill_workers(2, false), 2);
-        assert_eq!(well_refill_workers(4, false), 4);
-        assert_eq!(well_refill_workers(1, true), 0);
-        assert_eq!(well_refill_workers(2, true), 1);
-        assert_eq!(well_refill_workers(4, true), 3);
     }
 
     #[test]

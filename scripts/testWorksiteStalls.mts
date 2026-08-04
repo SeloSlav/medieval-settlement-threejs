@@ -97,15 +97,15 @@ state.foragingNodes.set(
 const winterPlan = computeSettlementWorksiteStallPlan(state, 1);
 assert.equal(winterPlan.auditedSites, 10);
 assert.equal(winterPlan.stalledSites, 6);
-assert.equal(winterPlan.stalledWorkers, 20);
+assert.equal(winterPlan.stalledWorkers, 21);
 assert.equal(winterPlan.inputStalledSites, 1);
 assert.equal(winterPlan.outputStalledSites, 2);
 assert.equal(winterPlan.sourceStalledSites, 2);
 assert.equal(winterPlan.reserveStalledSites, 1);
 assert.equal(winterPlan.dispatchDutySites, 3);
 assert.equal(winterPlan.reclaimableSites, 6);
-assert.equal(winterPlan.reclaimableWorkers, 18);
-assert.equal(winterPlan.retainedDispatchers, 3);
+assert.equal(winterPlan.reclaimableWorkers, 21);
+assert.equal(winterPlan.retainedDispatchers, 0);
 assert.equal(winterPlan.supplyEnRouteSites, 1);
 assert.equal(winterPlan.supplyEnRouteWorkers, 2);
 assert.equal(winterPlan.firstReclaimableBuildingId, starvedWeaver.id);
@@ -113,8 +113,8 @@ assert.equal(winterPlan.firstAttention?.buildingId, starvedWeaver.id);
 assert.equal(winterPlan.firstAttention?.detail, 'no wool or flax on site');
 assert.equal(
   winterPlan.sites.find((site) => site.buildingId === reserveHunter.id)?.assignedWorkers,
-  2,
-  'the hunting tally should count the processing crew rather than double-counting its dispatcher',
+  3,
+  'autonomous delivery must not remove a hunter from the processing tally',
 );
 assert.equal(
   winterPlan.sites.some((site) => site.buildingId === partialMill.id),
@@ -128,16 +128,16 @@ assert.equal(
 );
 assert.equal(
   winterPlan.sites.find((site) => site.buildingId === fullQuarry.id)?.targetLabor,
-  1,
-  'a quarry cart already on the road should retain one dispatcher',
+  0,
+  'a quarry cart already on the road must not retain a producer',
 );
 const recalled = applyWorksiteStallRecall(state.buildings, winterPlan);
-assert.equal(recalled.get(cappedBrewery.id)?.assignedLabor, 1);
+assert.equal(recalled.get(cappedBrewery.id)?.assignedLabor, 0);
 assert.equal(recalled.get(starvedWeaver.id)?.assignedLabor, 0);
-assert.equal(recalled.get(fullQuarry.id)?.assignedLabor, 1);
+assert.equal(recalled.get(fullQuarry.id)?.assignedLabor, 0);
 assert.equal(recalled.get(exhaustedQuarry.id)?.assignedLabor, 0);
 assert.equal(recalled.get(misplacedLargeQuarry.id)?.assignedLabor, 0);
-assert.equal(recalled.get(reserveHunter.id)?.assignedLabor, 1);
+assert.equal(recalled.get(reserveHunter.id)?.assignedLabor, 0);
 assert.equal(recalled.get(suppliedMill.id)?.assignedLabor, 2);
 assert.equal(state.buildings.get(fullQuarry.id)?.assignedLabor, 4);
 
@@ -192,7 +192,7 @@ assert.equal(materialPlan.auditedSites, 5);
 assert.equal(materialPlan.stalledSites, 3);
 assert.equal(materialPlan.inputStalledSites, 2);
 assert.equal(materialPlan.outputStalledSites, 1);
-assert.equal(materialPlan.reclaimableWorkers, 6);
+assert.equal(materialPlan.reclaimableWorkers, 7);
 assert.equal(
   materialPlan.sites.find(
     (site) => site.buildingId === saltAndPotteryStarvedSmokehouse.id,
@@ -209,8 +209,8 @@ assert.equal(
 assert.equal(
   materialPlan.sites.find((site) => site.buildingId === fullClayPit.id)
     ?.targetLabor,
-  1,
-  'a full clay yard must retain one dispatcher while reclaiming its extraction crew',
+  0,
+  'a full clay yard must release its extraction crew while logistics moves stock',
 );
 assert.equal(
   materialPlan.sites.some(
@@ -301,7 +301,7 @@ assert.equal(mineralPlan.auditedSites, 4);
 assert.equal(mineralPlan.stalledSites, 3);
 assert.equal(mineralPlan.sourceStalledSites, 2);
 assert.equal(mineralPlan.outputStalledSites, 1);
-assert.equal(mineralPlan.reclaimableWorkers, 8);
+assert.equal(mineralPlan.reclaimableWorkers, 9);
 assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === exhaustedIronMine.id)
     ?.detail,
@@ -310,8 +310,8 @@ assert.equal(
 assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)
     ?.targetLabor,
-  1,
-  'a mine at its selected yard target must retain one dispatcher while its salt cart is active',
+  0,
+  'a mine at its selected yard target must not retain a producer for its salt cart',
 );
 assert.equal(
   mineralPlan.sites.find((site) => site.buildingId === fullSaltMine.id)?.detail,

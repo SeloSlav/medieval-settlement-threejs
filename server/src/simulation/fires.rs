@@ -247,7 +247,6 @@ pub fn select_fire_for_well(
 ) -> Option<FireIncident> {
     if well.kind != "well"
         || !well.construction_complete
-        || well.assigned_labor == 0
         || fire_response_load(well.water) <= 0.0
         || well.work_radius <= 0.0
     {
@@ -283,7 +282,6 @@ pub fn select_fire_for_well(
 pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building, sim_tick: u64) -> bool {
     if well.kind != "well"
         || !well.construction_complete
-        || well.assigned_labor == 0
         || well.work_radius <= 0.0
     {
         return false;

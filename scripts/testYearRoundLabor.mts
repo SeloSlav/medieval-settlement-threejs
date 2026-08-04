@@ -71,8 +71,8 @@ for (const site of [
 }
 
 const freeLaborPlan = computeSettlementYearRoundLaborRotation(freeLaborState, 3);
-assert.equal(freeLaborPlan.worksites, 4);
-assert.equal(freeLaborPlan.understaffedSites, 4);
+assert.equal(freeLaborPlan.worksites, 3);
+assert.equal(freeLaborPlan.understaffedSites, 3);
 assert.equal(
   freeLaborPlan.openPosts,
   BUILDING_DEFINITIONS.lumber_mill.maxLabor
@@ -92,18 +92,17 @@ assert.deepEqual(
     assignment.targetLabor,
   ]),
   [
-    [urgentMill.id, 2],
-    [urgentWell.id, 1],
+    [urgentMill.id, 3],
   ],
-  'urgent worksites should share free labor before lower priorities',
+  'the remaining urgent workplace should fill before lower priorities',
 );
 
 const freeLaborApplied = applyYearRoundLaborRotation(
   freeLaborState.buildings,
   freeLaborPlan,
 );
-assert.equal(freeLaborApplied.get(urgentMill.id)?.assignedLabor, 2);
-assert.equal(freeLaborApplied.get(urgentWell.id)?.assignedLabor, 1);
+assert.equal(freeLaborApplied.get(urgentMill.id)?.assignedLabor, 3);
+assert.equal(freeLaborApplied.get(urgentWell.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(seasonalApiary.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(targetBrewery.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(sourceBoundHunter.id)?.assignedLabor, 0);
@@ -153,8 +152,8 @@ assert.equal(rebalanced.get(fullHall.id)?.assignedLabor, 1);
 
 const donorOrderState = emptyGameState();
 donorOrderState.buildings.set('10', building('10', 'chapel', 0, true, 3));
-donorOrderState.buildings.set('30', building('30', 'well', 1, true, 1));
-donorOrderState.buildings.set('40', building('40', 'well', 1, true, 1));
+donorOrderState.buildings.set('30', building('30', 'guardhouse', 1, true, 1));
+donorOrderState.buildings.set('40', building('40', 'guardhouse', 1, true, 1));
 const donorOrder = computeSettlementYearRoundLaborRotation(donorOrderState, 0);
 assert.deepEqual(
   donorOrder.assignments.map((assignment) => [
@@ -204,13 +203,13 @@ const inspector = renderTownHallInspector(
   },
 );
 assert.match(inspector.detailsHtml, /Year-round balance/);
-assert.match(inspector.detailsHtml, /2 lower-priority workers move/);
-assert.match(inspector.detailsHtml, /data-inspect-building="40"/);
+assert.match(inspector.detailsHtml, /5 total workers deploy/);
+assert.match(inspector.detailsHtml, /data-inspect-building="10"/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-balance-year-round-labor/);
 assert.match(inspector.supplementalPanelHtml ?? '', /minimum necessary workers move from strictly lower tiers/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Town Hall clerks are never displaced/);
 assert.match(inspector.supplementalPanelHtml ?? '', /source-bound production/);
-assert.match(inspector.supplementalPanelHtml ?? '', /Reassign 2 lower-priority workers/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 5 year-round workers/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Future hiring remains explicit/);
 
 const perfState = emptyGameState();

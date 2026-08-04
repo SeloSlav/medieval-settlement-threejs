@@ -527,6 +527,7 @@ export type GameBalance = {
     smithyWaterPerCycle: number;
     smithyIronworkPerCycle: number;
     civilianToolIronworkPerCycle: number;
+    civilianToolReorderCycles: number;
     civilianToolThroughputMultiplier: number;
     potterClayPerCycle: number;
     potterFirewoodPerCycle: number;
@@ -667,6 +668,7 @@ const simKindByKind: Record<string, string | null> = {
   brewery: 'Brewery',
   smokehouse: 'Smokehouse',
   granary: 'Granary',
+  bakery: 'Bakery',
   apiary: 'Apiary',
   watermill: 'Watermill',
   carpenter: 'Carpenter',
@@ -1047,6 +1049,7 @@ function generateRust(): string {
     `pub const SMITHY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.smithyWaterPerCycle)};`,
     `pub const SMITHY_IRONWORK_PER_CYCLE: f64 = ${rustF64(b.production.smithyIronworkPerCycle)};`,
     `pub const CIVILIAN_TOOL_IRONWORK_PER_CYCLE: f64 = ${rustF64(b.production.civilianToolIronworkPerCycle)};`,
+    `pub const CIVILIAN_TOOL_REORDER_CYCLES: f64 = ${rustF64(b.production.civilianToolReorderCycles)};`,
     `pub const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER: f64 = ${rustF64(b.production.civilianToolThroughputMultiplier)};`,
     `pub const POTTER_CLAY_PER_CYCLE: f64 = ${rustF64(b.production.potterClayPerCycle)};`,
     `pub const POTTER_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.potterFirewoodPerCycle)};`,
@@ -1295,6 +1298,7 @@ function generateRust(): string {
   lines.push('    Brewery,');
   lines.push('    Smokehouse,');
   lines.push('    Granary,');
+  lines.push('    Bakery,');
   lines.push('    Apiary,');
   lines.push('    Watermill,');
   lines.push('    Carpenter,');
@@ -1875,6 +1879,7 @@ function generateTypeScript(): string {
     `export const SMITHY_WATER_PER_CYCLE = ${b.production.smithyWaterPerCycle};`,
     `export const SMITHY_IRONWORK_PER_CYCLE = ${b.production.smithyIronworkPerCycle};`,
     `export const CIVILIAN_TOOL_IRONWORK_PER_CYCLE = ${b.production.civilianToolIronworkPerCycle};`,
+    `export const CIVILIAN_TOOL_REORDER_CYCLES = ${b.production.civilianToolReorderCycles};`,
     `export const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER = ${b.production.civilianToolThroughputMultiplier};`,
     `export const POTTER_CLAY_PER_CYCLE = ${b.production.potterClayPerCycle};`,
     `export const POTTER_FIREWOOD_PER_CYCLE = ${b.production.potterFirewoodPerCycle};`,

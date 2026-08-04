@@ -25,8 +25,8 @@ pub fn owner_has_staffed_town_hall(ctx: &ReducerContext, owner: Identity) -> boo
     })
 }
 
-/// Releases only labor whose seasonal work is dormant. A site retains one
-/// dispatcher while exportable stock or an active cart still needs attention.
+/// Releases only labor whose seasonal work is dormant. Logistics labor handles
+/// stored stock and active carts independently of the production roster.
 pub fn recall_idle_seasonal_labor_for_owner(
     ctx: &ReducerContext,
     owner: Identity,

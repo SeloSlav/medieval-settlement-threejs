@@ -859,7 +859,7 @@ function residenceUpgradePanel(
     ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
     : `Blocked · ${plan.blockers.join(' · ')}.`;
   const guidance = plan.nextTier === 2
-    ? "Firewood needs a staffed lodge or accepting storehouse; water needs a staffed well whose service radius reaches this home. Roads make both deliveries faster."
+    ? "Firewood needs a staffed lodge or accepting storehouse; water needs a completed well whose service radius reaches this home. Unassigned haulers make routine deliveries, and roads make their trips faster."
     : 'Preserved food needs a staffed smokehouse or pastoral holding; ale needs a staffed brewhouse or parish-linked monastery; household textiles need a staffed weaver.';
   const throughput = prosperity && projection
     ? projection.immediateSustainable

@@ -755,7 +755,7 @@ const mineToolAssignment = assignLocalMaterialInputTargets(
 );
 assert.equal(mineToolAssignment.get('mine-tool-smithy')?.commodity, 'ironwork');
 assert.equal(mineToolAssignment.get('mine-tool-smithy')?.target.id, 'tool-starved-mine');
-assert.equal(mineToolAssignment.get('mine-tool-smithy')?.desiredStock, 0.75);
+assert.equal(mineToolAssignment.get('mine-tool-smithy')?.desiredStock, 3);
 
 for (const offerId of ['buy_iron', 'buy_salt', 'sell_pottery']) {
   assert.ok(

@@ -992,8 +992,8 @@ pub(crate) fn rotate_construction_labor_for_owner_with_reserve(
 }
 
 /// Recalls only production workers whose seasonal task is currently dormant.
-/// A site keeps one worker while stored exportable goods or an active cart
-/// still need a hauler. Restaffing remains an explicit player decision.
+/// Stored output remains available to logistics labor. Restaffing remains an
+/// explicit player decision.
 #[reducer]
 pub fn recall_idle_seasonal_labor(ctx: &ReducerContext) -> Result<(), String> {
     let owner = ctx.sender();
@@ -1279,8 +1279,8 @@ fn production_site_ready(
 /// Returns surplus crews from authoritatively stalled processors, mines,
 /// quarries, hunting halls, and seasonally active fishing camps. The legacy
 /// reducer name is retained for generated-binding and save compatibility.
-/// Matching inbound inputs protect recovering workshops; stored output or an
-/// active cart keeps one dispatcher.
+/// Matching inbound inputs protect recovering workshops; stored output and
+/// active carts never retain production workers.
 pub fn recall_target_idle_processor_labor_for_owner(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,

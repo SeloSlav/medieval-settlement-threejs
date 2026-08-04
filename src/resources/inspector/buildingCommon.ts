@@ -19,7 +19,12 @@ import {
 } from '../resourceTotals.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import type { InspectorLaborView } from './renderInspectableTarget.ts';
-import { CONSTRUCTION_MAX_BUILDERS } from '../../generated/gameBalance.ts';
+import {
+  CONSTRUCTION_MAX_BUILDERS,
+  MIN_DELIVERY_TRIP_SEC,
+  TIMBER_DELIVERY_SPEED_MPS,
+  TIMBER_DELIVERY_UNLOAD_SEC,
+} from '../../generated/gameBalance.ts';
 import {
   CONSTRUCTION_PRIORITY_HOLD,
   normalizeConstructionPriority,
@@ -69,7 +74,10 @@ export function buildingStorageRows(
   ].filter(Boolean).join('');
 }
 
-export function civilianToolRows(building: BuildingState): string {
+export function civilianToolRows(
+  building: BuildingState,
+  worldQueries?: WorldQueries,
+): string {
   const plan = civilianToolPlan(building);
   if (plan == null) return '';
   const bonus = Math.round((CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER - 1) * 100);
@@ -82,7 +90,7 @@ export function civilianToolRows(building: BuildingState): string {
     ? `${FARM_TOOL_IRONWORK_PER_WORKER_DAY} ironwork per completed worker-day · wear follows actual field progress`
     : isWatermill
       ? `${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed milling cycle · dressing hammers, gudgeons, and fittings share the smithy buffer`
-      : `${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed cycle · smithy handcart restores a 3-cycle buffer`;
+      : `${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed cycle · partial batches wear tools in proportion to real output`;
   const toolLabel = isWatermill ? 'Mill dressing' : 'Work tools';
   const maintainedLabel = isWatermill
     ? `Stone faces dressed and iron fittings sound · +${bonus}% throughput · ${runway}`
@@ -90,9 +98,64 @@ export function civilianToolRows(building: BuildingState): string {
   const baselineLabel = isWatermill
     ? `Worn stone faces · baseline milling · deliver ironwork for +${bonus}% throughput`
     : `Baseline hand tools · deliver ironwork for +${bonus}% throughput`;
+  const refillWork = isFarmstead
+    ? `${(plan.refillAmount / FARM_TOOL_IRONWORK_PER_WORKER_DAY).toFixed(0)} active worker-days`
+    : `${(plan.refillAmount / CIVILIAN_TOOL_IRONWORK_PER_CYCLE).toFixed(0)} cycles`;
+  const refillRule = plan.reorderDue
+    ? `${plan.refillAmount.toFixed(2)} ironwork requested · refill to ${plan.refillTarget.toFixed(2)} (${refillWork})`
+    : `reorders below ${plan.reorderStock.toFixed(2)} · next cart refills to ${plan.refillTarget.toFixed(2)}`;
+  const inbound = worldQueries && typeof worldQueries.getInboundSupplyTrip === 'function'
+    ? worldQueries.getInboundSupplyTrip(building)
+    : null;
+  const inboundIronwork = inbound?.cargoKind === 'ironwork' ? inbound : null;
+  const smithy = worldQueries && typeof worldQueries.findNearestRoadLinkedBuilding === 'function'
+    ? worldQueries.findNearestRoadLinkedBuilding(
+        building,
+        ['smithy'],
+        (candidate) => candidate.assignedLabor > 0,
+      )
+    : null;
+  let supplyRoute: string;
+  if (inboundIronwork && worldQueries) {
+    const remainingSeconds = typeof worldQueries.getDeliveryTripRemainingSeconds === 'function'
+      ? worldQueries.getDeliveryTripRemainingSeconds(inboundIronwork)
+      : MIN_DELIVERY_TRIP_SEC;
+    supplyRoute = `${inboundIronwork.amount.toFixed(2)} ironwork inbound · ${remainingSeconds.toFixed(0)}s ETA`;
+  } else if (smithy && worldQueries) {
+    const distance = typeof worldQueries.getLocalDeliveryDistance === 'function'
+      ? worldQueries.getLocalDeliveryDistance(
+          smithy.x,
+          smithy.z,
+          building.x,
+          building.z,
+        ) ?? 0
+      : typeof worldQueries.getRoadPathDistance === 'function'
+        ? worldQueries.getRoadPathDistance(
+            smithy.x,
+            smithy.z,
+            building.x,
+            building.z,
+          ) ?? Math.hypot(building.x - smithy.x, building.z - smithy.z)
+        : Math.hypot(building.x - smithy.x, building.z - smithy.z);
+    const travelSpeedMultiplier = typeof worldQueries.getDeliveryTravelSpeedMultiplier === 'function'
+      ? worldQueries.getDeliveryTravelSpeedMultiplier(smithy)
+      : 1;
+    const tripSeconds = Math.max(
+      MIN_DELIVERY_TRIP_SEC,
+      distance * 2 / (
+        TIMBER_DELIVERY_SPEED_MPS
+        * Math.max(1e-6, travelSpeedMultiplier)
+      ) + TIMBER_DELIVERY_UNLOAD_SEC,
+    );
+    supplyRoute = `staffed smithy · ${distance.toFixed(0)}m delivery road · about ${tripSeconds.toFixed(0)}s per refill run`;
+  } else {
+    supplyRoute = 'no road-reachable staffed smithy';
+  }
   return `
     <li><span>${toolLabel}</span><span>${plan.maintained ? maintainedLabel : baselineLabel}</span></li>
     <li><span>Tool wear</span><span>${wear}</span></li>
+    <li><span>Rack refill</span><span>${refillRule}</span></li>
+    <li><span>Smithy route</span><span>${supplyRoute} · only smithy carts refill this rack; finished ironwork held at a market does not</span></li>
   `;
 }
 
@@ -152,14 +215,14 @@ export function buildingLaborView(
   const cartLaborHint = cartWorkers <= 0
     ? ''
     : rosteredWorkersAway > 0
-      ? ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart; ${rosteredWorkersAway} ${rosteredWorkersAway === 1 ? 'rostered worker is' : 'rostered workers are'} away, leaving ${onsiteWorkers} on site. Production and work timers use only the on-site crew until return${reservedOutsideRoster > 0 ? ` (${reservedOutsideRoster} additional ${reservedOutsideRoster === 1 ? 'hauler is' : 'haulers are'} reserved outside the roster)` : ''}.`
+      ? ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart; ${rosteredWorkersAway} ${rosteredWorkersAway === 1 ? 'rostered worker is' : 'rostered workers are'} away, leaving ${onsiteWorkers} on site. Only the on-site crew performs this building's role until return${reservedOutsideRoster > 0 ? ` (${reservedOutsideRoster} additional ${reservedOutsideRoster === 1 ? 'hauler is' : 'haulers are'} reserved outside the roster)` : ''}.`
       : ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart and already reserved outside this roster.`;
   return {
     visible: true,
     count: building.assignedLabor,
     hint: building.constructionComplete !== false
       ? `${building.assignedLabor}/${buildingCap} workers here · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
-      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available. Builders construct; unassigned workers fetch reserved stock, while staffed storehouses dispatch faster carts.`,
+      : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available. Builders construct; unassigned workers fetch every reserved material cart from the best reachable source.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,
   };

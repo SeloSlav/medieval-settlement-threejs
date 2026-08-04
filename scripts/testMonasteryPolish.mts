@@ -159,9 +159,9 @@ assert.equal(
   'single-household inspection must show the same nearest monastery as the bulk territory',
 );
 assert.equal(
-  communityClaims.monasteries.has(remoteHome.id),
-  false,
-  'a monastery on a disconnected branch must not cover a home without a staffed parish chapel',
+  communityClaims.monasteries.get(remoteHome.id)?.supplierId,
+  newerNearMonastery.id,
+  'a remote household may walk overland to its parish, while the monastery itself remains chapel-linked',
 );
 
 assert.equal(clampMonasteryTitheShare(0.95), 0.8);

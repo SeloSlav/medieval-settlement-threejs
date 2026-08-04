@@ -10,6 +10,7 @@ import {
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CIVILIAN_TOOL_REORDER_CYCLES,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   FARM_TOOL_IRONWORK_PER_WORKER_DAY,
   FARM_WORK_METERS_PER_WORKER_PER_SEC,
@@ -17,6 +18,8 @@ import {
 import {
   CIVILIAN_TOOL_SITE_KINDS,
   civilianToolPlan,
+  civilianToolRefillDue,
+  civilianToolReorderStock,
   civilianToolRunwayCycles,
   civilianToolThroughputMultiplier,
   farmToolIronworkForWork,
@@ -35,12 +38,16 @@ import {
 } from '../src/buildings/bulkStockpileVisuals.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
-assert.equal(CIVILIAN_TOOL_IRONWORK_PER_CYCLE, 0.25);
+assert.equal(CIVILIAN_TOOL_IRONWORK_PER_CYCLE, 0.1);
+assert.equal(CIVILIAN_TOOL_REORDER_CYCLES, 6);
 assert.equal(CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER, 1.2);
 assert.equal(civilianToolThroughputMultiplier(0), 1);
-assert.equal(civilianToolThroughputMultiplier(0.24), 1);
-assert.equal(civilianToolThroughputMultiplier(0.25), 1.2);
-assert.equal(civilianToolRunwayCycles(3), 12);
+assert.equal(civilianToolThroughputMultiplier(0.09), 1);
+assert.equal(civilianToolThroughputMultiplier(0.1), 1.2);
+assert.equal(civilianToolRunwayCycles(3), 30);
+assert.ok(Math.abs(civilianToolReorderStock(3) - 0.6) < 1e-9);
+assert.equal(civilianToolRefillDue(0.6, 3), false);
+assert.equal(civilianToolRefillDue(0.59, 3), true);
 assert.equal(FARM_TOOL_IRONWORK_PER_WORKER_DAY, 0.05);
 const farmWorkerDayWork = FARM_WORK_METERS_PER_WORKER_PER_SEC
   * CALENDAR_SECONDS_PER_DAY
@@ -85,6 +92,14 @@ const farmsteadInspector = readFileSync(
   new URL('../src/resources/inspector/expandedBuildingRenderer.ts', import.meta.url),
   'utf8',
 );
+const buildingCommon = readFileSync(
+  new URL('../src/resources/inspector/buildingCommon.ts', import.meta.url),
+  'utf8',
+);
+const marketplaceTradeRenderer = readFileSync(
+  new URL('../src/resources/inspector/marketplaceTradeRenderer.ts', import.meta.url),
+  'utf8',
+);
 const ironworkHudTag = settlementHudSource.match(
   /<div[^>]*data-resource="ironwork"[^>]*>/,
 )?.[0];
@@ -103,9 +118,19 @@ assert.match(
   /withdraw_building_commodity\([\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
 );
 assert.match(
+  woodcutterSimulation,
+  /firewood_added \/ full_firewood_output/,
+  'partial firewood batches must wear tools only in proportion to actual output',
+);
+assert.match(
   expandedEconomySimulation,
   /"lumber_mill",\s*"woodcutters_lodge",\s*"stone_quarry"/,
   'smithies must include winter-fuel axes in physical ironwork dispatch',
+);
+assert.match(
+  expandedEconomySimulation,
+  /mill\.flour - flour_before\) \/ WATERMILL_FLOUR_PER_CYCLE/,
+  'partial watermill batches must wear dressing tools in proportion to actual flour',
 );
 assert.match(
   expandedEconomySimulation,
@@ -127,14 +152,17 @@ assert.match(
   /step_mine[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*geology_throughput \* tool_throughput[\s\S]*produced > 1e-6[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
   'authoritative iron and salt extraction must multiply geology by maintained tools and wear ironwork only after real output',
 );
-assert.match(woodcutterInspector, /civilianToolRows\(building\)/);
-assert.match(mineralMineInspector, /civilianToolRows\(building\)/);
+assert.match(woodcutterInspector, /civilianToolRows\(building, context\.worldQueries\)/);
+assert.match(mineralMineInspector, /civilianToolRows\(building, context\.worldQueries\)/);
 assert.match(buildMenuCards, /replacement axes raise output but wear each cycle/);
 assert.match(buildMenuCards, /picks and hammer heads raise output but wear each cycle/);
 assert.match(buildMenuCards, /ploughshares, hoes, sickles, and scythes/);
 assert.match(buildMenuCards, /Smith-dressed millstones and maintained iron fittings raise output/);
 assert.match(farmsteadInspector, /Seasonal tool reserve/);
 assert.match(farmsteadInspector, /smith-dressed millstones and iron fittings/);
+assert.match(buildingCommon, /reorders below/);
+assert.match(buildingCommon, /only smithy carts refill this rack/);
+assert.match(marketplaceTradeRenderer, /do not refill civilian tool racks/);
 const conflictVisibilityMethod = settlementHudSource.slice(
   settlementHudSource.indexOf('setConflictEnabled(enabled: boolean)'),
   settlementHudSource.indexOf('setSettlementClock(', settlementHudSource.indexOf(
@@ -160,7 +188,9 @@ for (const kind of CIVILIAN_TOOL_SITE_KINDS) {
   );
   const plan = civilianToolPlan(building(kind, { ironwork: 0.75 }));
   assert.ok(plan?.maintained);
-  assert.equal(plan.runwayCycles, 3);
+  assert.equal(plan.runwayCycles, 7.5);
+  assert.equal(plan.reorderDue, false);
+  assert.ok(Math.abs(plan.reorderStock - 0.6) < 1e-9);
 
   const marker = createBuildingMesh(kind);
   const stockpile = marker.getObjectByName('CivilianToolStockpile');
@@ -221,7 +251,7 @@ const watermillTarget = selectDirectProcessorInputTarget(
 );
 assert.equal(watermillTarget?.target.id, 'watermill');
 assert.equal(watermillTarget?.duty, 'working-buffer');
-assert.equal(watermillTarget?.desiredStock, 0.75);
+assert.equal(watermillTarget?.desiredStock, 3);
 
 const mineralMineTarget = selectDirectProcessorInputTarget(
   [mineralMine],
@@ -231,7 +261,7 @@ const mineralMineTarget = selectDirectProcessorInputTarget(
 );
 assert.equal(mineralMineTarget?.target.id, 'mine');
 assert.equal(mineralMineTarget?.duty, 'working-buffer');
-assert.equal(mineralMineTarget?.desiredStock, 0.75);
+assert.equal(mineralMineTarget?.desiredStock, 3);
 
 const priorityTarget = selectDirectProcessorInputTarget(
   [lowPriorityQuarry, highPriorityClay, carpenter],
@@ -241,7 +271,7 @@ const priorityTarget = selectDirectProcessorInputTarget(
 );
 assert.equal(priorityTarget?.target.id, 'clay');
 assert.equal(priorityTarget?.duty, 'working-buffer');
-assert.equal(priorityTarget?.desiredStock, 0.75);
+assert.equal(priorityTarget?.desiredStock, 3);
 
 highPriorityClay.ironwork = 0.75;
 const runwayTarget = selectDirectProcessorInputTarget(
@@ -281,7 +311,7 @@ assert.notEqual(
 
 const perfSites = Array.from({ length: 100_000 }, (_, index) =>
   building(CIVILIAN_TOOL_SITE_KINDS[index % CIVILIAN_TOOL_SITE_KINDS.length], {
-    ironwork: (index % 13) * 0.25,
+    ironwork: (index % 31) * 0.1,
   }));
 const started = performance.now();
 let maintained = 0;

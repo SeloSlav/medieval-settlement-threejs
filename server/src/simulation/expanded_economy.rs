@@ -7,12 +7,12 @@ use crate::balance_generated::{
     BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
     BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
-    CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
+    BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_FOOD_PER_CYCLE,
+    BAKERY_WATER_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
     FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY,
     FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
-    GRANARY_FIREWOOD_PER_CYCLE, GRANARY_FLOUR_PER_CYCLE, GRANARY_FOOD_PER_CYCLE,
-    GRANARY_WATER_PER_CYCLE, MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
+    MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
     MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
     MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
@@ -192,7 +192,6 @@ pub fn step_institutional_food_dispatch(
     for source in sources {
         if !INSTITUTIONAL_FOOD_SOURCE_KINDS.contains(&source.kind.as_str())
             || !source.construction_complete
-            || source.assigned_labor == 0
             || tick.building_disabled_by_fire(ctx, source.id)
             || labor_and_logistics_paused(ctx, tick, source.owner, clock)
             || building_has_active_trip(ctx, source.id)
@@ -400,15 +399,14 @@ pub fn step_threshing_barn(
     );
     tick.set_farmstead_seed_reserve(ctx, building.owner, building.id, seed_reserve);
     tick.set_farmstead_barley_seed_reserve(ctx, building.owner, building.id, barley_seed_reserve);
-    if !labor_and_logistics_paused(ctx, tick, building.owner, clock) && building.assigned_labor > 0
-    {
+    if !labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         dispatch_to_building(
             ctx,
             tick,
             clock,
             &mut building,
             CommodityKind::Flax,
-            &["weaver"],
+            &["weaver", "granary"],
         );
         dispatch_farmstead_grain(ctx, tick, clock, &mut building, seed_reserve);
         dispatch_farmstead_barley(ctx, tick, clock, &mut building, barley_seed_reserve);
@@ -556,10 +554,12 @@ pub fn step_watermill(
         throughput_multiplier,
     );
     if tools_maintained && mill.flour > flour_before + 1e-6 {
+        let completed_cycle_share =
+            ((mill.flour - flour_before) / WATERMILL_FLOUR_PER_CYCLE).clamp(0.0, 1.0);
         withdraw_building_commodity(
             &mut mill,
             CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * completed_cycle_share,
         );
     }
     dispatch_to_building(
@@ -568,7 +568,7 @@ pub fn step_watermill(
         clock,
         &mut mill,
         CommodityKind::Flour,
-        &["granary"],
+        &["bakery", "granary"],
     );
     ctx.db.building().id().update(mill);
 }
@@ -616,7 +616,6 @@ pub fn step_industrial_firewood_dispatch(
     for mut source in sources {
         if !source.construction_complete
             || tick.building_disabled_by_fire(ctx, source.id)
-            || source.assigned_labor == 0
             || source.firewood <= 1e-6
             || (source.kind == "village_storehouse" && !source.storehouse_accepts_firewood)
             || !matches!(
@@ -866,7 +865,6 @@ pub fn step_local_material_dispatch(
     for source in &sources {
         if !LOCAL_MATERIAL_SOURCE_KINDS.contains(&source.kind.as_str())
             || !source.construction_complete
-            || source.assigned_labor == 0
             || tick.building_disabled_by_fire(ctx, source.id)
             || labor_and_logistics_paused(ctx, tick, source.owner, clock)
             || building_has_active_trip(ctx, source.id)
@@ -1028,7 +1026,6 @@ fn dispatch_local_material_candidates(
             continue;
         };
         if !source.construction_complete
-            || source.assigned_labor == 0
             || !target.construction_complete
             || target.owner != source.owner
             || !target_kinds.contains(&target.kind.as_str())
@@ -1274,18 +1271,6 @@ pub fn step_granary(
     building: Building,
 ) {
     let mut granary = building;
-    granary = step_processor(
-        ctx,
-        tick,
-        clock,
-        granary,
-        &[
-            (CommodityKind::Flour, GRANARY_FLOUR_PER_CYCLE),
-            (CommodityKind::Water, GRANARY_WATER_PER_CYCLE),
-            (CommodityKind::Firewood, GRANARY_FIREWOOD_PER_CYCLE),
-        ],
-        &[(CommodityKind::Food, GRANARY_FOOD_PER_CYCLE)],
-    );
     let grain_dispatch = next_granary_grain_dispatch(ctx, tick, clock, &granary);
     let guard_food_dispatch = next_granary_guard_food_dispatch(ctx, tick, clock, &granary);
     let grain_is_critical = grain_dispatch
@@ -1311,9 +1296,16 @@ pub fn step_granary(
             dispatch_granary_grain(ctx, tick, clock, &mut granary, dispatch);
         }
     }
-    // Brewing barley has its own physical chain. Once urgent bread grain and
-    // military provisions are covered, restore a staffed brewhouse's selected
-    // malting buffer before the granary spends its one cart on routine food.
+    // Once urgent milling grain and military provisions are covered, granary
+    // keepers replenish the workshops that consume centralized farm goods.
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut granary,
+        CommodityKind::Flour,
+        &["bakery"],
+    );
     dispatch_to_building(
         ctx,
         tick,
@@ -1322,12 +1314,20 @@ pub fn step_granary(
         CommodityKind::Barley,
         &["brewery"],
     );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut granary,
+        CommodityKind::Flax,
+        &["weaver"],
+    );
     for duty in granary_dispatch_order(granary.granary_households_first) {
         match duty {
             GranaryDispatchDuty::Households => {
                 dispatch_need(ctx, tick, clock, &mut granary, ResidenceNeedKind::Food, 4.0);
                 // Cured provisions share the household cart duty but never
-                // preempt staple food. This makes founding and producer-hauled
+                // preempt staple food. This makes founding and producer-origin
                 // granary stock usable without creating a second cart.
                 dispatch_need(
                     ctx,
@@ -1356,6 +1356,35 @@ pub fn step_granary(
         }
     }
     ctx.db.building().id().update(granary);
+}
+
+pub fn step_bakery(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let mut bakery = step_processor(
+        ctx,
+        tick,
+        clock,
+        building,
+        &[
+            (CommodityKind::Flour, BAKERY_FLOUR_PER_CYCLE),
+            (CommodityKind::Water, BAKERY_WATER_PER_CYCLE),
+            (CommodityKind::Firewood, BAKERY_FIREWOOD_PER_CYCLE),
+        ],
+        &[(CommodityKind::Food, BAKERY_FOOD_PER_CYCLE)],
+    );
+    dispatch_need(
+        ctx,
+        tick,
+        clock,
+        &mut bakery,
+        ResidenceNeedKind::Food,
+        4.0,
+    );
+    ctx.db.building().id().update(bakery);
 }
 
 fn step_farmstead_fields(
@@ -2511,20 +2540,13 @@ fn extraction_accepts_maintenance_input(
         }),
         _ => return true,
     };
-    let Some(output) = output else {
-        return false;
-    };
-    processor_output_headroom(
-        building_commodity_stock(building, output),
-        building_commodity_cap(&building.kind, output),
-        building.processor_output_target_percent,
-    ) > 1e-6
+    output.is_some()
 }
 
 fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
     match kind {
         "watermill" => commodity == CommodityKind::Grain,
-        "granary" => matches!(
+        "bakery" => matches!(
             commodity,
             CommodityKind::Flour | CommodityKind::Water | CommodityKind::Firewood
         ),
@@ -2655,8 +2677,7 @@ fn dispatch_farmstead_grain(
     source: &mut Building,
     seed_reserve: f64,
 ) {
-    if source.assigned_labor == 0
-        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+    if labor_and_logistics_paused(ctx, tick, source.owner, clock)
         || building_has_active_trip(ctx, source.id)
         || source.grain <= 1e-6
     {
@@ -2767,7 +2788,7 @@ fn dispatch_farmstead_barley(
     );
 }
 
-/// Central grain leaves from a staffed granary rather than being claimed by
+/// Central grain leaves with an extra granary hauler rather than being claimed by
 /// whichever processor happens to run first. One pass chooses the operational
 /// processor in the highest work-priority tier, then the least cycle runway,
 /// shortest road route, and stable id. Existing inbound trips keep multiple
@@ -2779,7 +2800,7 @@ fn next_granary_grain_dispatch(
     source: &Building,
 ) -> Option<RoutedGrainTarget> {
     if source.kind != "granary"
-        || source.assigned_labor == 0
+        || source.assigned_labor <= 1
         || labor_and_logistics_paused(ctx, tick, source.owner, clock)
         || building_has_active_trip(ctx, source.id)
         || granary_exportable_grain(source.grain, source.granary_grain_reserve) <= 1e-6
@@ -2880,7 +2901,7 @@ fn next_granary_guard_food_dispatch(
 ) -> Option<RoutedGuardFoodTarget> {
     if !frontier_economy_enabled(ctx)
         || source.kind != "granary"
-        || source.assigned_labor == 0
+        || source.assigned_labor <= 1
         || labor_and_logistics_paused(ctx, tick, source.owner, clock)
         || building_has_active_trip(ctx, source.id)
     {
@@ -2982,8 +3003,7 @@ fn dispatch_polearms_to_guardhouse(
     clock: &GameClock,
     source: &mut Building,
 ) {
-    if source.assigned_labor == 0
-        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+    if labor_and_logistics_paused(ctx, tick, source.owner, clock)
         || building_has_active_trip(ctx, source.id)
         || source.polearms <= 1e-6
     {
@@ -3085,8 +3105,7 @@ fn dispatch_to_building_where_limited(
     transferable_limit: f64,
     target_is_eligible: impl Fn(&Building) -> bool,
 ) {
-    if source.assigned_labor == 0
-        || labor_and_logistics_paused(ctx, tick, source.owner, clock)
+    if labor_and_logistics_paused(ctx, tick, source.owner, clock)
         || building_has_active_trip(ctx, source.id)
     {
         return;
@@ -3244,7 +3263,6 @@ fn dispatch_monastery_feast_ale(
 ) {
     let reserve_enabled = tick.monastery_hospitality_enabled(ctx, source.owner);
     if !reserve_enabled
-        || source.assigned_labor == 0
         || labor_and_logistics_paused(ctx, tick, source.owner, clock)
         || building_has_active_trip(ctx, source.id)
         || source.ale <= 1e-6
@@ -3365,8 +3383,7 @@ pub(crate) fn dispatch_need(
     need_kind: ResidenceNeedKind,
     per_delivery: f64,
 ) -> bool {
-    if supplier.assigned_labor == 0
-        || labor_and_logistics_paused(ctx, tick, supplier.owner, clock)
+    if labor_and_logistics_paused(ctx, tick, supplier.owner, clock)
         || building_has_active_trip(ctx, supplier.id)
         || building_commodity_stock(supplier, need_to_commodity(need_kind)) <= 1e-6
     {
@@ -3547,7 +3564,6 @@ fn request_connected_commodity_with_source_availability(
                     || tick.building_disabled_by_fire(ctx, source.id)
                     || !source_kinds.contains(&source.kind.as_str())
                     || (source.kind == "marketplace" && source.assigned_labor == 0)
-                    || (source.kind == "well" && source.assigned_labor == 0)
                     || building_has_active_trip(ctx, source.id)
                 {
                     return None;

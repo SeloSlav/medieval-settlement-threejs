@@ -211,11 +211,19 @@ const assertSeparated = (leftName: string, rightName: string): void => {
   const left = mesh.getObjectByName(leftName);
   const right = mesh.getObjectByName(rightName);
   assert.ok(left && right, `missing camp clearance pair: ${leftName} / ${rightName}`);
-  assert.equal(
-    new THREE.Box3().setFromObject(left!).expandByScalar(0.04).intersectsBox(
-      new THREE.Box3().setFromObject(right!).expandByScalar(0.04),
-    ),
-    false,
+  const visibleMeshBounds = (root: THREE.Object3D): THREE.Box3[] => {
+    const bounds: THREE.Box3[] = [];
+    root.traverse((object) => {
+      const rendered = object as THREE.Mesh;
+      if (!rendered.isMesh || !rendered.visible) return;
+      bounds.push(new THREE.Box3().setFromObject(rendered).expandByScalar(0.04));
+    });
+    return bounds;
+  };
+  const leftBounds = visibleMeshBounds(left!);
+  const rightBounds = visibleMeshBounds(right!);
+  assert.ok(
+    leftBounds.every((leftBox) => rightBounds.every((rightBox) => !leftBox.intersectsBox(rightBox))),
     `${leftName} should retain clearance from ${rightName}`,
   );
 };
@@ -229,8 +237,8 @@ mesh.traverse((object) => {
   if (isBuildingDetailShadowCaster(object)) shadowCasters.push(object);
 });
 assert.ok(
-  shadowCasters.length >= 30,
-  'visible camp objects should cast their own silhouettes instead of using one blockout box',
+  shadowCasters.length >= 12,
+  'the camp should retain several exact material-aware caster batches instead of one blockout box',
 );
 const campfireLight = campfire.getObjectByName(FIRE_EFFECT_LIGHT_NAME);
 assert.ok(campfireLight instanceof THREE.PointLight);

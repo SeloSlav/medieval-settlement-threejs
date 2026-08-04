@@ -25,7 +25,7 @@ import {
 import type { WorldQueries } from '../src/resources/WorldQueries.ts';
 
 const buildings = new Map<string, BuildingState>();
-buildings.set('1', building('1', 'well', 1));
+buildings.set('1', building('1', 'well', 0));
 buildings.set('4', building('4', 'lumber_mill', 2));
 buildings.set('10', building('10', 'guardhouse', 0));
 buildings.set('2', building('2', 'marketplace', 0));
@@ -36,7 +36,7 @@ buildings.set('20', building('20', 'granary', 3, false, 2));
 buildings.set('21', building('21', 'smokehouse', 0, false, 0));
 
 const trips = new Map<string, DeliveryTripState>([
-  ['trip-a', trip('trip-a', '1', 1)],
+  ['trip-a', { ...trip('trip-a', '1', 1), freeHaulerWorkers: 1 }],
   ['trip-b', trip('trip-b', '2', 2)],
 ]);
 
@@ -59,20 +59,20 @@ const expectedCapacity = permanentCapacity.reduce(
   (sum, kind) => sum + BUILDING_DEFINITIONS[kind].maxLabor,
   0,
 );
-assert.equal(plan.permanentAssigned, 4);
+assert.equal(plan.permanentAssigned, 3);
 assert.equal(plan.permanentCapacity, expectedCapacity);
-assert.equal(plan.openPermanentPosts, expectedCapacity - 4);
+assert.equal(plan.openPermanentPosts, expectedCapacity - 3);
 assert.equal(plan.unstaffedWorksites, 3);
 assert.equal(plan.firstUnstaffedBuildingId, '2');
-assert.equal(plan.sectors.provisions.assigned, 1);
+assert.equal(plan.sectors.provisions.assigned, 0);
 assert.equal(plan.sectors.provisions.capacity, BUILDING_DEFINITIONS.well.maxLabor);
 assert.equal(plan.sectors.materials.assigned, 2);
 assert.equal(plan.sectors.logistics.unstaffedWorksites, 1);
 assert.equal(plan.sectors.defense.unstaffedWorksites, 1);
 assert.equal(plan.sectors.civic.unstaffedWorksites, 1);
 assert.equal(plan.staffingPriorities[1].worksites, 0);
-assert.equal(plan.staffingPriorities[2].worksites, 6);
-assert.equal(plan.staffingPriorities[2].assigned, 4);
+assert.equal(plan.staffingPriorities[2].worksites, 5);
+assert.equal(plan.staffingPriorities[2].assigned, 3);
 assert.equal(plan.staffingPriorities[3].worksites, 0);
 assert.equal(plan.constructionAssigned, 3);
 assert.equal(plan.constructionCapacity, CONSTRUCTION_MAX_BUILDERS);
@@ -145,7 +145,7 @@ assert.equal(
 assert.equal(laborSurplus.futurePermanentPostShortfall, 0);
 
 const renderedTownHall = building('hall', 'town_hall', 1);
-const renderedWell = building('well', 'well', 1);
+const renderedWell = building('well', 'well', 0);
 const renderedMarket = building('market', 'marketplace', 0);
 const renderedState: GameState = {
   seed: 1,
@@ -236,20 +236,21 @@ const activeCartLabor = buildingLaborView(
   activePopulation,
   renderedQueries,
 );
-assert.match(activeCartLabor.hint, /1 worker is traveling with this cart/);
-assert.match(activeCartLabor.hint, /already reserved outside this roster/);
+assert.equal(activeCartLabor.visible, false, 'wells must not expose worker assignment controls');
+const renderedStorehouse = building('storehouse', 'village_storehouse', 1);
 const rosterBackedCartLabor = buildingLaborView(
-  renderedWell,
+  renderedStorehouse,
   renderedPopulation,
   {
     getActiveDeliveryTrip: () => ({
       ...renderedState.deliveryTrips.get('route')!,
+      laborBuildingId: renderedStorehouse.id,
       freeHaulerWorkers: 0,
     }),
   } as unknown as WorldQueries,
 );
 assert.match(rosterBackedCartLabor.hint, /1 rostered worker is away, leaving 0 on site/);
-assert.match(rosterBackedCartLabor.hint, /Production and work timers use only the on-site crew until return/);
+assert.match(rosterBackedCartLabor.hint, /Only the on-site crew performs this building's role until return/);
 const activeHaulageInspector = renderTownHallInspector(
   {
     kind: 'building',
@@ -303,7 +304,7 @@ const elapsedMs = performance.now() - started;
 const cargoStarted = performance.now();
 const perfCargo = computeInTransitResourceTotals(perfTrips.values());
 const cargoElapsedMs = performance.now() - cargoStarted;
-assert.equal(perfPlan.sectors.provisions.worksites, 20_000);
+assert.equal(perfPlan.sectors.provisions.worksites, 0);
 assert.equal(perfPlan.sectors.materials.worksites, 20_000);
 assert.equal(perfPlan.sectors.logistics.worksites, 20_000);
 assert.equal(perfPlan.sectors.civic.worksites, 20_000);

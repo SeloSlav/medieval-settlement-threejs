@@ -5,7 +5,8 @@ use crate::db::*;
 use crate::economy::step_regional_markets;
 use crate::frontier_economy_policy::{armed_guards, guardhouse_payroll_buckets};
 use crate::simulation::{
-    materialize_all_physical_resource_ledgers, step_apiary, step_backyard_gardens, step_brewery,
+    materialize_all_physical_resource_ledgers, step_apiary, step_backyard_gardens, step_bakery,
+    step_brewery,
     step_burials, step_carpenter, step_chapel_parish, step_chapels, step_charcoal_burner,
     step_clay_pit, step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
     step_ferry_landing, step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
@@ -256,6 +257,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::Brewery
             | crate::building_defs::BuildingSimKind::Smokehouse
             | crate::building_defs::BuildingSimKind::Granary
+            | crate::building_defs::BuildingSimKind::Bakery
             | crate::building_defs::BuildingSimKind::Apiary
             | crate::building_defs::BuildingSimKind::Watermill
             | crate::building_defs::BuildingSimKind::Carpenter
@@ -398,6 +400,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             }
             crate::building_defs::BuildingSimKind::Granary => {
                 step_granary(ctx, &tick, &clock, building)
+            }
+            crate::building_defs::BuildingSimKind::Bakery => {
+                step_bakery(ctx, &tick, &clock, building)
             }
             crate::building_defs::BuildingSimKind::Apiary => {
                 step_apiary(ctx, &tick, &clock, building)

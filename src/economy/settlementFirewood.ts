@@ -6,7 +6,7 @@ import {
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-  GRANARY_FIREWOOD_PER_CYCLE,
+  BAKERY_FIREWOOD_PER_CYCLE,
   LODGE_FIREWOOD_PER_CYCLE,
   LODGE_TIMBER_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
@@ -28,7 +28,7 @@ import type {
 } from '../resources/types.ts';
 
 export const INDUSTRIAL_FIREWOOD_KINDS = [
-  'granary',
+  'bakery',
   'brewery',
   'smokehouse',
   'charcoal_burner',
@@ -371,8 +371,8 @@ export function industrialFirewoodCapacityPerDay(
     sabbathObserved,
   );
   switch (building.kind) {
-    case 'granary':
-      return cycles * GRANARY_FIREWOOD_PER_CYCLE;
+    case 'bakery':
+      return cycles * BAKERY_FIREWOOD_PER_CYCLE;
     case 'brewery':
       return cycles / 2 * (
         BREWERY_MALTING_FIREWOOD_PER_CYCLE

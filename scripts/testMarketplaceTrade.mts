@@ -814,7 +814,7 @@ assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_proceeds/);
 assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_cash_reserve/);
 assert.match(marketplaceCaravanSource, /marketplace_gold_reserve_shortfall/);
 assert.match(marketplaceCaravanSource, /marketplace_gold_sweep_surplus/);
-assert.match(marketplaceCaravanSource, /available_free_haulers/);
+assert.match(marketplaceCaravanSource, /marketplace_caravan_workers/);
 assert.match(marketplaceCaravanSource, /CommodityKind::Gold/);
 assert.match(marketplaceCaravanSource, /onsite_building_labor/);
 assert.match(

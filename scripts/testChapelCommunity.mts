@@ -100,7 +100,7 @@ assert.match(chapelSimulation, /CommodityKind::Gold/);
 assert.match(chapelSimulation, /free_haulers_by_owner/);
 assert.match(
   deliveryTripSimulation,
-  /cargo_kind == CommodityKind::Gold\.as_u8\(\)[\s\S]*?origin\.kind\.as_str\(\)[\s\S]*?"chapel"[\s\S]*?if origin\.assigned_labor == 0 \|\| is_free_gold_errand[\s\S]*?delivery_workers/,
+  /DeliveryLaborSource::Free => available_free_haulers/,
   'chapel and civic gold errands must retain their borrowed free villager for the full trip',
 );
 assert.match(

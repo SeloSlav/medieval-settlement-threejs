@@ -19,15 +19,14 @@ use crate::foraging_policy::harvest_available;
 use crate::harvest_reserve_policy::harvestable_wild_stock;
 use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_supplier::{
-    delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
-    DeliveryDispatchConfig,
+    delivery_work_ready, dispatch_delivery_if_ready, DeliveryDispatchConfig,
 };
 use crate::simulation::delivery_trips::{
-    onsite_building_labor, residence_has_inbound_remedy_trip, try_start_remedy_delivery_trip,
+    available_free_haulers, onsite_building_labor, residence_has_inbound_remedy_trip,
+    try_start_remedy_delivery_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::lodge_logistics::lodge_labor_split;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
     select_residence_for_need_delivery, select_residence_for_remedy_delivery,
@@ -114,18 +113,16 @@ fn step_food_supplier(
 
     let mut supplier = building;
     let onsite_labor = onsite_building_labor(ctx, &supplier);
-    let mut split = lodge_labor_split(supplier.assigned_labor);
-    split.processing = split.processing.min(onsite_labor);
-    if split.processing > 0 {
+    if onsite_labor > 0 {
         supplier.action_cooldown = (supplier.action_cooldown - TICK_DT).max(0.0);
     }
-    let single_worker = supplier.assigned_labor == 1;
-    let harvest_ready = split.processing > 0 && supplier.action_cooldown <= 0.0;
+    let harvest_ready = onsite_labor > 0 && supplier.action_cooldown <= 0.0;
     let has_delivery_stock = supplier.food > 0.0
         || (gathers_remedies
             && building_commodity_stock(&supplier, CommodityKind::Remedies) > 1e-6);
     let delivery_ready = network.is_some()
-        && delivery_work_ready(split.delivering, has_delivery_stock, supplier.id, ctx);
+        && available_free_haulers(ctx, supplier.owner) > 0
+        && delivery_work_ready(1, has_delivery_stock, supplier.id, ctx);
 
     let remedy_target = if delivery_ready
         && gathers_remedies
@@ -152,23 +149,20 @@ fn step_food_supplier(
     };
     let has_target = remedy_target.is_some() || !delivery_targets.is_empty();
 
-    let (do_deliver, do_harvest) =
-        should_alternate_single_worker(single_worker, harvest_ready, delivery_ready, has_target);
-
-    if do_harvest {
+    if harvest_ready {
         supplier = harvest_from_node(
             ctx,
             supplier,
             node_kinds,
             resource_units_per_harvest,
             food_per_resource_unit,
-            split.processing,
+            onsite_labor,
             clock.month,
             gathers_remedies,
         );
         supplier.action_cooldown = def.action_interval;
     }
-    if do_deliver {
+    if delivery_ready && has_target {
         if let Some(network) = network {
             if let Some(residence) = remedy_target.as_ref() {
                 try_start_remedy_delivery_trip(
@@ -178,7 +172,7 @@ fn step_food_supplier(
                     network,
                     &mut supplier,
                     residence,
-                    split.delivering,
+                    1,
                 );
             } else {
                 dispatch_delivery_if_ready(
@@ -187,7 +181,7 @@ fn step_food_supplier(
                     clock,
                     network,
                     &mut supplier,
-                    split.delivering,
+                    1,
                     &delivery_targets,
                     DeliveryDispatchConfig {
                         need_kind: ResidenceNeedKind::Food,

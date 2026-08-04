@@ -189,9 +189,69 @@ struct StartTripSpec {
     destination: TripDestination,
     cargo_kind: u8,
     delivery_workers: u32,
+    labor_source: DeliveryLaborSource,
     speed_mps: f64,
     unload_seconds: f64,
     load_amount: f64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DeliveryLaborSource {
+    /// One flexible villager reserves one handcart for the complete round trip.
+    Free,
+    /// A dedicated logistics workplace supplies the crew without borrowing
+    /// labor from the building where cargo happens to be stored.
+    Building(u64),
+    /// A regional merchant exists outside the settlement population budget.
+    External,
+}
+
+fn is_logistics_workplace(kind: &str) -> bool {
+    matches!(kind, "village_storehouse" | "granary" | "marketplace")
+}
+
+fn ordinary_supply_labor_source(origin: &Building, target: &Building) -> DeliveryLaborSource {
+    if is_logistics_workplace(&origin.kind) {
+        DeliveryLaborSource::Building(origin.id)
+    } else if is_logistics_workplace(&target.kind) {
+        DeliveryLaborSource::Building(target.id)
+    } else {
+        DeliveryLaborSource::Free
+    }
+}
+
+fn household_delivery_labor_source(origin: &Building) -> DeliveryLaborSource {
+    if is_logistics_workplace(&origin.kind) {
+        DeliveryLaborSource::Building(origin.id)
+    } else {
+        DeliveryLaborSource::Free
+    }
+}
+
+fn delivery_labor_available(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    source: DeliveryLaborSource,
+) -> u32 {
+    match source {
+        DeliveryLaborSource::Free => available_free_haulers(ctx, owner).min(1),
+        DeliveryLaborSource::Building(building_id) => ctx
+            .db
+            .building()
+            .id()
+            .find(&building_id)
+            .map(|building| onsite_building_labor(ctx, &building))
+            .unwrap_or(0),
+        DeliveryLaborSource::External => 1,
+    }
+}
+
+fn resolve_delivery_workers(ctx: &ReducerContext, spec: &StartTripSpec) -> u32 {
+    spec.delivery_workers.min(delivery_labor_available(
+        ctx,
+        spec.origin.owner,
+        spec.labor_source,
+    ))
 }
 
 pub fn step_delivery_trips(
@@ -251,14 +311,30 @@ pub fn staffed_cart_workers_by_building(
         if staffed_workers == 0 {
             continue;
         }
+        let labor_building_id = trip_labor_building_id(&trip);
+        if labor_building_id == 0 {
+            continue;
+        }
         workers_by_building
-            .entry(trip.building_id)
+            .entry(labor_building_id)
             .and_modify(|workers: &mut u32| {
                 *workers = workers.saturating_add(staffed_workers);
             })
             .or_insert(staffed_workers);
     }
     workers_by_building
+}
+
+fn trip_labor_building_id(trip: &DeliveryTrip) -> u64 {
+    if trip.labor_building_id != 0 {
+        trip.labor_building_id
+    } else if trip.free_hauler_workers < trip.delivery_workers {
+        // Compatibility for a trip created before labor ownership was split
+        // from its cargo origin.
+        trip.building_id
+    } else {
+        0
+    }
 }
 
 fn rostered_cart_workers(
@@ -276,10 +352,10 @@ fn rostered_cart_workers(
 /// part of the cart crew still backed by this roster preserves genuinely free
 /// founding, reclamation, and chapel errands.
 pub fn onsite_building_labor(ctx: &ReducerContext, building: &Building) -> u32 {
-    let workers_away = ctx
+    let indexed_workers = ctx
         .db
         .delivery_trip()
-        .building_id()
+        .labor_building_id()
         .filter(&building.id)
         .map(|trip| {
             rostered_cart_workers(
@@ -288,7 +364,23 @@ pub fn onsite_building_labor(ctx: &ReducerContext, building: &Building) -> u32 {
                 trip.free_hauler_workers,
             )
         })
-        .fold(0_u32, u32::saturating_add)
+        .fold(0_u32, u32::saturating_add);
+    let legacy_workers = ctx
+        .db
+        .delivery_trip()
+        .building_id()
+        .filter(&building.id)
+        .filter(|trip| trip.labor_building_id == 0 && trip.free_hauler_workers < trip.delivery_workers)
+        .map(|trip| {
+            rostered_cart_workers(
+                building.assigned_labor,
+                trip.delivery_workers,
+                trip.free_hauler_workers,
+            )
+        })
+        .fold(0_u32, u32::saturating_add);
+    let workers_away = indexed_workers
+        .saturating_add(legacy_workers)
         .min(building.assigned_labor);
     building.assigned_labor.saturating_sub(workers_away)
 }
@@ -301,12 +393,22 @@ pub fn preserve_in_transit_cart_labor(
     building_id: u64,
     retained_building_labor: u32,
 ) -> u32 {
-    let trips: Vec<DeliveryTrip> = ctx
+    let mut trips: Vec<DeliveryTrip> = ctx
         .db
         .delivery_trip()
-        .building_id()
+        .labor_building_id()
         .filter(&building_id)
         .collect();
+    trips.extend(
+        ctx.db
+            .delivery_trip()
+            .building_id()
+            .filter(&building_id)
+            .filter(|trip| {
+                trip.labor_building_id == 0
+                    && trip.free_hauler_workers < trip.delivery_workers
+            }),
+    );
     let mut remaining_roster_backing = retained_building_labor;
     let mut newly_reserved = 0_u32;
 
@@ -329,19 +431,6 @@ pub fn preserve_in_transit_cart_labor(
     }
 
     newly_reserved
-}
-
-fn free_hauler_workers_for_trip(origin: &Building, cargo_kind: u8, delivery_workers: u32) -> u32 {
-    let is_free_gold_errand = cargo_kind == CommodityKind::Gold.as_u8()
-        && matches!(
-            origin.kind.as_str(),
-            "chapel" | "town_hall" | "founders_camp" | "salvage_pile"
-        );
-    if origin.assigned_labor == 0 || is_free_gold_errand {
-        delivery_workers
-    } else {
-        0
-    }
 }
 
 /// Returns whether a matching commodity is still traveling to or unloading at
@@ -514,13 +603,13 @@ pub fn start_external_market_import_trip(
             },
             cargo_kind: commodity.as_u8(),
             delivery_workers: 1,
+            labor_source: DeliveryLaborSource::External,
             speed_mps: TIMBER_DELIVERY_SPEED_MPS,
             unload_seconds: TIMBER_DELIVERY_UNLOAD_SEC,
             load_amount: amount,
         },
         route,
         1.0,
-        Some(1),
     );
     true
 }
@@ -567,13 +656,13 @@ pub fn start_regional_market_export_trip(
             },
             cargo_kind: commodity.as_u8(),
             delivery_workers: 1,
+            labor_source: DeliveryLaborSource::External,
             speed_mps,
             unload_seconds,
             load_amount: amount,
         },
         route,
         1.0,
-        Some(1),
     );
     true
 }
@@ -616,13 +705,13 @@ pub fn start_external_market_import_trip_to_residence(
             },
             cargo_kind: commodity.as_u8(),
             delivery_workers: 1,
+            labor_source: DeliveryLaborSource::External,
             speed_mps,
             unload_seconds,
             load_amount: amount,
         },
         route,
         1.0,
-        Some(1),
     );
     true
 }
@@ -760,6 +849,12 @@ pub fn try_start_delivery_trip(
     unload_seconds: f64,
     per_delivery_amount: f64,
 ) -> bool {
+    let labor_source = household_delivery_labor_source(building);
+    let delivery_workers = delivery_workers.min(delivery_labor_available(
+        ctx,
+        building.owner,
+        labor_source,
+    ));
     if delivery_workers == 0
         || tick.building_disabled_by_fire(ctx, building.id)
         || building_has_active_trip(ctx, building.id)
@@ -799,6 +894,7 @@ pub fn try_start_delivery_trip(
             },
             cargo_kind: need_kind.as_u8(),
             delivery_workers,
+            labor_source,
             speed_mps,
             unload_seconds,
             load_amount,
@@ -831,6 +927,12 @@ pub fn try_start_remedy_delivery_trip(
     residence: &Residence,
     delivery_workers: u32,
 ) -> bool {
+    let labor_source = DeliveryLaborSource::Free;
+    let delivery_workers = delivery_workers.min(delivery_labor_available(
+        ctx,
+        forager.owner,
+        labor_source,
+    ));
     if forager.kind != "foragers_shed"
         || delivery_workers == 0
         || forager.owner != residence.owner
@@ -874,6 +976,7 @@ pub fn try_start_remedy_delivery_trip(
             },
             cargo_kind: CommodityKind::Remedies.as_u8(),
             delivery_workers,
+            labor_source,
             speed_mps: REMEDY_DELIVERY_SPEED_MPS,
             unload_seconds: REMEDY_DELIVERY_UNLOAD_SEC,
             load_amount: load,
@@ -934,6 +1037,7 @@ pub fn try_start_residence_wealth_trip(
             },
             cargo_kind: CommodityKind::Gold.as_u8(),
             delivery_workers: 1,
+            labor_source: DeliveryLaborSource::Free,
             speed_mps,
             unload_seconds,
             load_amount: load,
@@ -991,6 +1095,77 @@ pub fn try_start_building_supply_trip(
     per_delivery_amount: f64,
     needed: f64,
 ) -> bool {
+    let labor_source = ordinary_supply_labor_source(origin, target);
+    try_start_building_supply_trip_with_labor(
+        ctx,
+        tick,
+        clock,
+        network,
+        origin,
+        target,
+        delivery_workers,
+        commodity,
+        speed_mps,
+        unload_seconds,
+        per_delivery_amount,
+        needed,
+        labor_source,
+    )
+}
+
+/// Ad-hoc cleanup and founding-stock work always belongs to the flexible
+/// settlement pool, even when the destination is a staffed depot.
+pub fn try_start_free_building_supply_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    origin: &mut Building,
+    target: &Building,
+    commodity: CommodityKind,
+    speed_mps: f64,
+    unload_seconds: f64,
+    per_delivery_amount: f64,
+    needed: f64,
+) -> bool {
+    try_start_building_supply_trip_with_labor(
+        ctx,
+        tick,
+        clock,
+        network,
+        origin,
+        target,
+        1,
+        commodity,
+        speed_mps,
+        unload_seconds,
+        per_delivery_amount,
+        needed,
+        DeliveryLaborSource::Free,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn try_start_building_supply_trip_with_labor(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    origin: &mut Building,
+    target: &Building,
+    delivery_workers: u32,
+    commodity: CommodityKind,
+    speed_mps: f64,
+    unload_seconds: f64,
+    per_delivery_amount: f64,
+    needed: f64,
+    labor_source: DeliveryLaborSource,
+) -> bool {
+    let delivery_workers = delivery_workers.min(delivery_labor_available(
+        ctx,
+        origin.owner,
+        labor_source,
+    ));
     if delivery_workers == 0
         || tick.building_disabled_by_fire(ctx, origin.id)
         || tick.building_disabled_by_fire(ctx, target.id)
@@ -1035,6 +1210,7 @@ pub fn try_start_building_supply_trip(
             },
             cargo_kind: commodity.as_u8(),
             delivery_workers,
+            labor_source,
             speed_mps,
             unload_seconds,
             load_amount: load,
@@ -1046,8 +1222,8 @@ pub fn try_start_building_supply_trip(
 
 /// Loads one reserved residence-improvement material and sends it to the
 /// occupied household over the same physical cart network as new construction.
-/// Staffed depots use their roster; unstaffed stores and civic-gold errands
-/// reserve one free villager for the full round trip.
+/// Every improvement load reserves one free villager for the full round trip;
+/// storage and production rosters remain at their assigned jobs.
 pub fn try_start_residence_upgrade_supply_trip(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1088,18 +1264,11 @@ pub fn try_start_residence_upgrade_supply_trip(
     if reserved <= 1e-6 {
         return false;
     }
-    let needs_free_hauler = origin.assigned_labor == 0 || commodity == CommodityKind::Gold;
-    let workers = if needs_free_hauler {
-        available_free_haulers.min(1)
-    } else {
-        origin.assigned_labor.min(2)
-    };
+    let workers = available_free_haulers.min(1);
     if workers == 0 {
         return false;
     }
-    let haul_per_worker = if commodity == CommodityKind::Gold
-        || (origin.kind == "village_storehouse" && origin.assigned_labor > 0)
-    {
+    let haul_per_worker = if commodity == CommodityKind::Gold {
         STOREHOUSE_HAUL_PER_WORKER
     } else {
         CONSTRUCTION_HAUL_PER_WORKER
@@ -1155,19 +1324,20 @@ pub fn try_start_residence_upgrade_supply_trip(
             },
             cargo_kind: commodity.as_u8(),
             delivery_workers: workers,
+            labor_source: DeliveryLaborSource::Free,
             speed_mps: CONSTRUCTION_DELIVERY_SPEED_MPS,
             unload_seconds: CONSTRUCTION_DELIVERY_UNLOAD_SEC,
             load_amount: withdrawn,
         },
         local_route.route,
         local_route.speed_multiplier,
-        None,
     );
     true
 }
 
-/// Dispatch one visible bucket carrier from a staffed well. Fire response may
-/// leave the road for the last leg, but still uses the cached authoritative route.
+/// Dispatch one visible bucket carrier from an unstaffed well. A free hauler
+/// claims the nearest ready source; fire response may leave the road for the
+/// last leg, but still uses the cached authoritative route.
 pub fn try_start_fire_response_trip(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1176,7 +1346,7 @@ pub fn try_start_fire_response_trip(
     incident: &FireIncident,
 ) -> bool {
     if well.kind != "well"
-        || well.assigned_labor == 0
+        || available_free_haulers(ctx, well.owner) == 0
         || fire_response_load(well.water) <= 0.0
         || building_has_active_trip(ctx, well.id)
     {
@@ -1228,22 +1398,22 @@ pub fn try_start_fire_response_trip(
             destination,
             cargo_kind: CommodityKind::Water.as_u8(),
             delivery_workers: 1,
+            labor_source: DeliveryLaborSource::Free,
             speed_mps: FIRE_BUCKET_SPEED_MPS,
             unload_seconds: FIRE_BUCKET_UNLOAD_SECONDS,
             load_amount: load,
         },
         local_route.route,
         local_route.speed_multiplier,
-        None,
     );
     true
 }
 
 /// Loads reserved construction stock from any completed source and sends it to
-/// a construction site. Staffed sources use their crew; unstaffed sources draw
-/// one worker from the owner's free-labor pool. Staffed storehouses use their
-/// larger logistics-cart capacity. The reservation is reduced at loading time;
-/// if the trip is recalled, it is restored while the load physically returns.
+/// a construction site. Construction always reserves one flexible villager;
+/// production and storage rosters remain at their assigned jobs. The
+/// reservation is reduced at loading time; if the trip is recalled, it is
+/// restored while the load physically returns.
 pub fn try_start_construction_supply_trip(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1279,19 +1449,27 @@ pub fn try_start_construction_supply_trip(
         }
         _ => 0.0,
     };
-    let workers = if origin.assigned_labor > 0 {
-        origin.assigned_labor.min(2)
+    let storehouse_workers = if origin.kind == "village_storehouse" {
+        onsite_building_labor(ctx, origin).min(2)
     } else {
-        available_free_haulers.min(1)
+        0
+    };
+    let (workers, haul_per_worker, labor_source) = if storehouse_workers > 0 {
+        (
+            storehouse_workers,
+            STOREHOUSE_HAUL_PER_WORKER,
+            DeliveryLaborSource::Building(origin.id),
+        )
+    } else {
+        (
+            available_free_haulers.min(1),
+            CONSTRUCTION_HAUL_PER_WORKER,
+            DeliveryLaborSource::Free,
+        )
     };
     if workers == 0 {
         return false;
     }
-    let haul_per_worker = if origin.kind == "village_storehouse" && origin.assigned_labor > 0 {
-        STOREHOUSE_HAUL_PER_WORKER
-    } else {
-        CONSTRUCTION_HAUL_PER_WORKER
-    };
     let commodity_name = match commodity {
         CommodityKind::Timber => "timber",
         CommodityKind::Stone => "stone",
@@ -1352,13 +1530,13 @@ pub fn try_start_construction_supply_trip(
             },
             cargo_kind: commodity.as_u8(),
             delivery_workers: workers,
+            labor_source,
             speed_mps: CONSTRUCTION_DELIVERY_SPEED_MPS,
             unload_seconds: CONSTRUCTION_DELIVERY_UNLOAD_SEC,
             load_amount: withdrawn,
         },
         local_route.route,
         local_route.speed_multiplier,
-        None,
     );
     true
 }
@@ -1368,11 +1546,15 @@ fn try_start_road_trip(
     tick: &SimTickContext,
     clock: &GameClock,
     network: &RoadNetwork,
-    spec: StartTripSpec,
+    mut spec: StartTripSpec,
     withdraw: impl FnOnce(&mut Building, f64) -> f64,
     write_origin: impl FnOnce(&Building),
 ) -> bool {
     if labor_and_logistics_paused(ctx, tick, spec.origin.owner, clock) {
+        return false;
+    }
+    spec.delivery_workers = resolve_delivery_workers(ctx, &spec);
+    if spec.delivery_workers == 0 {
         return false;
     }
 
@@ -1401,7 +1583,6 @@ fn try_start_road_trip(
         },
         local_route.route,
         local_route.speed_multiplier,
-        None,
     );
     true
 }
@@ -1413,7 +1594,6 @@ fn insert_trip(
     spec: StartTripSpec,
     route: RoadPathRoute,
     route_speed_multiplier: f64,
-    free_hauler_workers_override: Option<u32>,
 ) {
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
     let (start_x, start_z) = RoadNetwork::sample_polyline_xz(&route.polyline, 0.0);
@@ -1448,16 +1628,17 @@ fn insert_trip(
         .unwrap_or(1.0);
     let travel_speed_multiplier =
         cartwright_multiplier * road_condition_multiplier * route_speed_multiplier;
-    let free_hauler_workers = free_hauler_workers_override
-        .unwrap_or_else(|| {
-            free_hauler_workers_for_trip(&spec.origin, spec.cargo_kind, spec.delivery_workers)
-        })
-        .min(spec.delivery_workers);
+    let (labor_building_id, free_hauler_workers) = match spec.labor_source {
+        DeliveryLaborSource::Free => (0, spec.delivery_workers),
+        DeliveryLaborSource::Building(building_id) => (building_id, 0),
+        DeliveryLaborSource::External => (0, 0),
+    };
 
     ctx.db.delivery_trip().insert(DeliveryTrip {
         id: 0,
         owner: spec.origin.owner,
         building_id: spec.origin.id,
+        labor_building_id,
         residence_id,
         destination_kind,
         target_building_id,

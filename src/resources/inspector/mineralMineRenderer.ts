@@ -160,7 +160,7 @@ export function renderMineralMineInspector(
           : 'Mine carts serve smokehouses and pastoral holdings; roads speed the haul and market salt covers a local shortfall'
       }</span></li>
       ${supportRows}
-      ${civilianToolRows(building)}
+      ${civilianToolRows(building, context.worldQueries)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind)}
     `,

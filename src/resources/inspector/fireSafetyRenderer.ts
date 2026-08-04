@@ -31,6 +31,7 @@ export function withBuildingFireSafety(
     busyBuildingIds: new Set(
       [...context.gameState.deliveryTrips.values()].map((trip) => trip.buildingId),
     ),
+    freeHaulersAvailable: context.populationStats?.available,
     roadPathDistance: (ax, az, bx, bz) =>
       context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
     travelSpeedMultiplierForWell: (well) =>

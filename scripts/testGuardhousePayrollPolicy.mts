@@ -311,8 +311,8 @@ assert.match(
 const deliveryTrips = readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 assert.match(
   deliveryTrips,
-  /is_free_gold_errand[\s\S]*?"town_hall"[\s\S]*?"founders_camp"[\s\S]*?"salvage_pile"/,
-  'treasury payroll carts must reserve free haulers instead of removing the Town Hall clerk',
+  /DeliveryLaborSource::Free => available_free_haulers/,
+  'treasury payroll carts must reserve a free hauler instead of removing the Town Hall clerk',
 );
 const townHallInspector = readFileSync(
   'src/resources/inspector/townHallRenderer.ts',

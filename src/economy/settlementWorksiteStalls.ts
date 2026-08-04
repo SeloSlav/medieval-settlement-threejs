@@ -272,7 +272,7 @@ function processorStall(
 ): WorksiteStallSite | 'supply_en_route' | null {
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
   const hasDispatchDuty = hasActiveOriginTrip || outputStock(building) > 1e-6;
-  const targetLabor = hasDispatchDuty ? Math.min(1, assignedLabor) : 0;
+  const targetLabor = 0;
   const base = {
     buildingId: building.id,
     kind: building.kind,
@@ -330,7 +330,7 @@ function clayPitStall(
 ): WorksiteStallSite | null {
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
   const hasDispatchDuty = hasActiveOriginTrip || (building.clay ?? 0) > 1e-6;
-  const targetLabor = hasDispatchDuty ? Math.min(1, assignedLabor) : 0;
+  const targetLabor = 0;
   if ((extractionOutputHeadroom(building, 'clay') ?? Number.POSITIVE_INFINITY) > 1e-6) {
     return null;
   }
@@ -395,7 +395,7 @@ function mineStall(
     ? Math.max(0, building.iron ?? 0) + Math.max(0, building.salt ?? 0)
     : Math.max(0, building[source.resource] ?? 0);
   const hasDispatchDuty = hasActiveOriginTrip || outputStock > 1e-6;
-  const targetLabor = hasDispatchDuty ? Math.min(1, assignedLabor) : 0;
+  const targetLabor = 0;
   const base = {
     buildingId: building.id,
     kind: 'mine' as const,
@@ -449,7 +449,7 @@ function quarryStall(
 ): WorksiteStallSite | 'supply_en_route' | null {
   const kind = building.kind as Extract<BuildingKind, 'stone_quarry' | 'large_quarry'>;
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
-  const targetLabor = hasActiveOriginTrip ? Math.min(1, assignedLabor) : 0;
+  const targetLabor = 0;
   const base = {
     buildingId: building.id,
     kind,
@@ -526,7 +526,7 @@ function wildStockStall(
   const nodeKind = kind === 'hunters_hall' ? 'game' : 'fish';
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
   const hasDispatchDuty = hasActiveOriginTrip || building.food > 1e-6;
-  const targetLabor = hasDispatchDuty ? Math.min(1, assignedLabor) : 0;
+  const targetLabor = 0;
   const base = {
     buildingId: building.id,
     kind,

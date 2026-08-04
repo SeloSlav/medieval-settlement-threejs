@@ -25,7 +25,7 @@ use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{delivery_stock_room, has_delivery_stock_room};
 use crate::simulation::delivery_supplier::{dispatch_delivery_if_ready, DeliveryDispatchConfig};
 use crate::simulation::delivery_trips::{
-    available_free_haulers, building_has_active_trip, building_has_inbound_commodity_trip,
+    building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_regional_market_trip, onsite_building_labor, regional_market_export_route,
     start_regional_market_export_trip, try_start_building_supply_trip,
 };
@@ -310,7 +310,6 @@ fn try_dispatch_marketplace_cash_reserve(
         || onsite_building_labor(ctx, &marketplace) == 0
         || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
         || building_has_inbound_commodity_trip(ctx, marketplace.id, CommodityKind::Gold)
-        || available_free_haulers(ctx, marketplace.owner) == 0
     {
         return false;
     }

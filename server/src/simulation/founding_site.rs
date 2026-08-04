@@ -13,7 +13,7 @@ use crate::economy::{
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
-    try_start_building_supply_trip,
+    try_start_free_building_supply_trip,
 };
 use crate::simulation::reclamation::reclamation_destination_priority;
 use crate::simulation::road_logistics::local_delivery_distance;
@@ -79,14 +79,13 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
             {
                 if let Some(network) = tick.road_network(site.owner) {
                     let gold = site.gold;
-                    if try_start_building_supply_trip(
+                    if try_start_free_building_supply_trip(
                         ctx,
                         tick,
                         clock,
                         network,
                         &mut site,
                         town_hall,
-                        1,
                         CommodityKind::Gold,
                         TIMBER_DELIVERY_SPEED_MPS,
                         TIMBER_DELIVERY_UNLOAD_SEC,
@@ -175,14 +174,13 @@ fn try_start_stockyard_relocation(
             continue;
         };
         let requested = relocatable.min(target_room);
-        if try_start_building_supply_trip(
+        if try_start_free_building_supply_trip(
             ctx,
             tick,
             clock,
             network,
             site,
             &target,
-            1,
             commodity,
             TIMBER_DELIVERY_SPEED_MPS,
             TIMBER_DELIVERY_UNLOAD_SEC,

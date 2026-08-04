@@ -520,10 +520,7 @@ fn dispatch_manure_to_crop_farmstead(
     clock: &GameClock,
     source: &mut Building,
 ) {
-    if source.manure <= 1e-6
-        || source.assigned_labor == 0
-        || building_has_active_trip(ctx, source.id)
-    {
+    if source.manure <= 1e-6 || building_has_active_trip(ctx, source.id) {
         return;
     }
     let Some(network) = tick.road_network(source.owner) else {

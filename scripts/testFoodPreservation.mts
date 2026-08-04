@@ -416,8 +416,8 @@ assert.match(
 );
 assert.match(
   expandedEconomy,
-  /supplier\.assigned_labor == 0[\s\S]*building_has_active_trip/,
-  'unstaffed processors must not dispatch household provision carts',
+  /pub\(crate\) fn dispatch_need[\s\S]*building_has_active_trip[\s\S]*try_start_delivery_trip/,
+  'household provision carts should use the shared free-hauler path without removing processor labor',
 );
 assert.match(
   expandedEconomy,

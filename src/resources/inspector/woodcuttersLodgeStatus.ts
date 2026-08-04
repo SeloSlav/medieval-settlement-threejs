@@ -1,7 +1,6 @@
 import type { ResidenceState } from '../types.ts';
 import { formatFirewoodRunwayDays, residenceFirewoodRunwayDays } from '../../logistics/firewoodLogistics.ts';
 import type { LodgeLaborSplit } from '../../logistics/lodgeLogistics.ts';
-import { lodgeLaborAlternates } from '../../logistics/lodgeLogistics.ts';
 import type { DeliveryTripState } from '../../logistics/deliveryTrips.ts';
 import { formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
 
@@ -73,19 +72,19 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
   } = input;
 
   const haulMode = onRoad ? 'by road' : 'cross-country at reduced speed';
-  if (assignedLabor === 0) {
+  if (assignedLabor === 0 && firewood <= 0) {
     return {
-      statusText: 'Idle — assign lodge workers to process timber and run deliveries',
+      statusText: 'Idle — assign lodge workers to process timber',
       statusState: 'idle',
     };
   }
-  if (connectedMillCount === 0) {
+  if (connectedMillCount === 0 && firewood <= 0) {
     return {
       statusText: 'No lumber mill has timber available for this lodge',
       statusState: 'warning',
     };
   }
-  if (millsWithTimber === 0 && timber <= 0) {
+  if (millsWithTimber === 0 && timber <= 0 && firewood <= 0) {
     return {
       statusText: 'Available lumber mills have no timber yet',
       statusState: 'warning',
@@ -121,9 +120,7 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
   }
   if (firewood <= 0) {
     return {
-      statusText: lodgeLaborAlternates(assignedLabor)
-        ? 'Processing timber — lone worker alternates with delivery runs'
-        : `Processing timber into firewood (${crew.processing} at lodge)`,
+      statusText: `Processing timber into firewood (${crew.processing} at lodge)`,
       statusState: 'active',
     };
   }
@@ -146,6 +143,12 @@ export function resolveWoodcuttersLodgeStatus(input: LodgeStatusInput): {
     return {
       statusText: `Serving stored firewood — timber processing held at the ${Math.round(timberReserve)} reserve`,
       statusState: 'warning',
+    };
+  }
+  if ((hasNextTarget || hasIndustrialTarget) && crew.delivering <= 0) {
+    return {
+      statusText: 'Stored firewood ready — waiting for an unassigned hauler',
+      statusState: 'idle',
     };
   }
   if (!hasNextTarget && hasIndustrialTarget) {

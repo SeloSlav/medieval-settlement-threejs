@@ -123,8 +123,8 @@ leanQuarry.stone = 45;
 assert.equal(extractionOutputHeadroom(leanQuarry, 'stone'), 0);
 assert.equal(
   extractionAcceptsMaintenance(leanQuarry),
-  false,
-  'a target-held quarry must not claim additional replacement tools',
+  true,
+  'a target-held quarry may stockpile replacement tools before extraction resumes',
 );
 leanQuarry.stone = 44;
 assert.equal(
@@ -135,7 +135,7 @@ assert.equal(
 leanQuarry.stone = 45;
 const leanIronMine = processor('iron-mine', 'mine', 25);
 leanIronMine.iron = 60;
-assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), false);
+assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), true);
 leanIronMine.iron = 59;
 assert.equal(extractionAcceptsMaintenance(leanIronMine, 'iron'), true);
 assert.equal(
@@ -260,8 +260,8 @@ const extractionToolTarget = selectDirectProcessorInputTarget(
 );
 assert.equal(
   extractionToolTarget?.target.id,
-  openToolQuarry.id,
-  'smithy arbitration must skip an extraction work deliberately held at its yard target',
+  heldToolQuarry.id,
+  'tool-rack stockpiling must be independent of the selected finished-stone yard target',
 );
 
 const candidates = Array.from({ length: 100_000 }, (_, index) => {

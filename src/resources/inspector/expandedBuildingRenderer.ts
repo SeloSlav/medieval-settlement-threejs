@@ -146,7 +146,8 @@ const PROCESS: Record<string, string> = {
   potter_kiln: 'Riverbank clay + firewood + carted puddling water -> either vessels or rare prosperous-house roof tiles',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
-  granary: 'Buffers grain, bakes staple food, and redistributes road-hauled fresh and cured provisions',
+  granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then redistributes them by road cart',
+  bakery: 'Flour + hauled water + firewood + baker labor -> bread for household and institutional food supply',
   brewery: 'Barley + water + firewood → malt → ale',
   smokehouse: 'Fresh food + firewood + local or imported salt + pottery vessels → preserved food',
   apiary: 'April-September forest forage → food, monastery hospitality, or export honey',
@@ -162,6 +163,7 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'threshing_barn',
   'watermill',
   'granary',
+  'bakery',
   'brewery',
   'smokehouse',
   'apiary',
@@ -177,6 +179,7 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
 
 const HOUSEHOLD_FOOD_DISTRIBUTORS = new Set<BuildingKind>([
   'granary',
+  'bakery',
   'apiary',
   'vineyard',
   'monastery',
@@ -197,10 +200,15 @@ function buildingHasOutboundStock(
     case 'granary':
       return building.food > 0
         || building.preservedFood > 0
+        || building.flour > 0
+        || building.barley > 0
+        || building.flax > 0
         || granaryExportableGrain(
           building.grain,
           building.granaryGrainReserve ?? 0,
         ) > 1e-6;
+    case 'bakery':
+      return building.food > 0;
     case 'brewery':
       return (building.barley ?? 0) > 0
         || (building.malt ?? 0) > 0
@@ -295,9 +303,9 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
     case 'threshing_barn':
       return ['watermill', 'brewery', 'granary', 'monastery', 'weaver'];
     case 'watermill':
-      return ['granary'];
+      return ['bakery', 'granary'];
     case 'granary':
-      return ['smokehouse'];
+      return ['bakery', 'brewery', 'weaver', 'smokehouse'];
     case 'apiary':
     case 'vineyard':
       return ['marketplace'];
@@ -595,7 +603,7 @@ function renderLogisticsRows(
     ? context.worldQueries.getNextFarmFlaxDispatch(building)
     : null;
   const destination = seedHaulUsesHoldingCrew
-    ? 'Least-covered staffed farmstead, then shorter road'
+    ? 'Least-covered active farmstead, then shorter road'
     : flaxDispatch
       ? flaxDispatch.duty === 'working-buffer'
         ? `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · ${staffingPriorityLabel(flaxDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(flaxDispatch.target.weaverInputPolicy, 'flax')} · ${(flaxDispatch.target.flax ?? 0).toFixed(1)} / ${flaxDispatch.desiredStock.toFixed(1)} flax`
@@ -732,11 +740,6 @@ function renderLogisticsRows(
     + hospitalityRoutingRows
     + breweryReserveRows;
 
-  const requiresLabor = building.kind !== 'monastery' && !seedHaulUsesHoldingCrew;
-  if (requiresLabor && building.assignedLabor === 0) {
-    return `${householdTerritoryRows}<li><span>Deliveries</span><span>Idle — assign workers to dispatch hauls</span></li>`;
-  }
-
   if (activeTrip) {
     const tripPath = context.worldQueries.getActiveTripPathDistance(activeTrip);
     return householdTerritoryRows + renderOutboundDeliveryRows(
@@ -748,6 +751,27 @@ function renderLogisticsRows(
       cargoPerTripLabel(building),
       deliveryContext,
     );
+  }
+
+  const logisticsWorkplace = building.kind === 'granary'
+    ? building
+    : nearestTarget?.id != null
+      ? context.gameState.buildings.get(nearestTarget.id) ?? null
+      : null;
+  const logisticsLaborAvailable = logisticsWorkplace?.kind === 'granary'
+    ? logisticsWorkplace.assignedLabor > 1
+    : logisticsWorkplace?.kind === 'village_storehouse'
+      || logisticsWorkplace?.kind === 'marketplace'
+      ? logisticsWorkplace.assignedLabor > 0
+      : context.populationStats.available > 0;
+  if (!logisticsLaborAvailable) {
+    const laborMessage = logisticsWorkplace?.kind === 'granary'
+      ? 'Waiting for an additional granary hauler (the first post remains keeper/baker)'
+      : logisticsWorkplace?.kind === 'village_storehouse'
+        || logisticsWorkplace?.kind === 'marketplace'
+        ? `Waiting for a worker at the ${context.worldQueries.getBuildingLabel(logisticsWorkplace.kind)}`
+        : 'Waiting for an unassigned hauler';
+    return `${householdTerritoryRows}<li><span>Deliveries</span><span>${laborMessage}</span></li>`;
   }
 
   const inboundRow = renderInboundSupplyRow(inboundTrip, deliveryContext);
@@ -811,8 +835,8 @@ function formatGranarySeedCart(
   if (building.grain <= 0.05 || plan.nextDispatchAmount <= 0.05) {
     return `Awaiting physical grain &middot; next holding ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance} ${inspect}`;
   }
-  const collection = building.assignedLabor <= 0
-    ? ' &middot; holding crew collects'
+  const collection = building.assignedLabor <= 1
+    ? ' &middot; waiting for an additional granary hauler'
     : '';
   return `${plan.nextDispatchAmount.toFixed(1)} grain &rarr; ${context.worldQueries.getBuildingLabel('threshing_barn')} at ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance}${collection} ${inspect}`;
 }
@@ -1140,8 +1164,8 @@ export function renderExpandedBuildingInspector(
             ? ' · critical, preempts food cart'
             : ' · after available food duty'
         }`
-      : building.assignedLabor <= 0
-        ? 'Idle — assign granary keepers to dispatch'
+      : building.assignedLabor <= 1
+        ? 'Waiting for an additional granary hauler'
         : granaryExportableStock <= 1e-6
           ? building.grain > 1e-6
             ? 'Strategic floor holds current grain'
@@ -1151,8 +1175,8 @@ export function renderExpandedBuildingInspector(
   const granaryGuardFoodDispatchLabel = building.kind === 'granary' && context.conflictEnabled
     ? granaryGuardFoodDispatch
       ? `${context.worldQueries.getBuildingLabel(granaryGuardFoodDispatch.target.kind)} · ${granaryGuardFoodDispatch.target.food.toFixed(1)} / ${granaryGuardFoodDispatch.desiredStock.toFixed(1)} · ${granaryGuardFoodDispatch.runwayDays.toFixed(1)} days`
-      : building.assignedLabor <= 0
-        ? 'Idle — assign granary keepers to dispatch'
+      : building.assignedLabor <= 1
+        ? 'Waiting for an additional granary hauler'
         : granaryInstitutionalFood <= 1e-6
           ? building.food > 1e-6
             ? 'Household reserve holds current food'
@@ -1177,7 +1201,8 @@ export function renderExpandedBuildingInspector(
         )}</span></li>`
     : '';
   const granaryRows = building.kind === 'granary'
-    ? `<li><span>Central grain reserve</span><span>${granaryReserveLabel(building)}</span></li>
+    ? `<li><span>Labor roles</span><span>First post: keeper/baker · ${Math.max(0, building.assignedLabor - 1)} food hauler${Math.max(0, building.assignedLabor - 1) === 1 ? '' : 's'} · hauling never slows baking</span></li>
+      <li><span>Central grain reserve</span><span>${granaryReserveLabel(building)}</span></li>
       <li><span>Seed exception</span><span>Linked farmsteads may draw through the floor; least-covered eligible holding goes first</span></li>
       <li><span>Next seed cart</span><span>${formatGranarySeedCart(granarySeedPlan, building, context)}</span></li>
       <li><span>Next grain cart</span><span>${granaryGrainDispatchLabel}</span></li>
@@ -1278,7 +1303,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),
@@ -1496,7 +1521,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before route distance. If no smokehouse can receive food, the granary falls through to fresh household food and then cured rations.';
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food and lets one staffed depot redistribute cured reserves, but it consumes producer road hauls. Cured provisions retain best in their smokehouse loft and age slightly faster after transfer here, so local-only and central-reserve branches are both valid layouts. Every routine food supplier still protects its household territory before offering surplus. Fresh-food surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
+      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food; extra granary staff can redistribute cured reserves without interrupting the fixed keeper/baker, but every trip consumes road-cart capacity. Cured provisions retain best in their smokehouse loft and age slightly faster after transfer here, so local-only and central-reserve branches are both valid layouts. Every routine food supplier still protects its household territory before offering surplus. Fresh-food surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh and cured surplus</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
       <p class="inspector-action-panel__hint">${priorityHint}</p>
@@ -1509,7 +1534,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
       <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-grain-reserve="${preset.reserve}" ${grainReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">A staffed granary collects fresh stock above local reserves until its selected fresh-food target. Producers with no claimed homes can send their whole stock. When perishable collection is enabled, cured provisions use separate capacity and arrive only after smokehouses cover their household duties; disabling it stops new cured intake but keepers may still distribute stock already here. Staff are required for every granary delivery.</p>
+      <p class="inspector-action-panel__hint">A granary with an extra assigned hauler collects fresh stock above local reserves until its selected fresh-food target. Producers with no claimed homes can send their whole stock. When perishable collection is enabled, cured provisions use separate capacity and arrive only after smokehouses cover their household duties; disabling it stops new cured intake but an extra granary hauler may still distribute stock already here. The first assigned post remains the fixed keeper/baker and never leaves on carts.</p>
     </div>
   `;
 }

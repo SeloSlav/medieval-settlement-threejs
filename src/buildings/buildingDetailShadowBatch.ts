@@ -175,9 +175,14 @@ class BuildingDetailCasterBatches {
       cursor += 1;
       if (!visible) continue;
       source.updateWorldMatrix(true, false);
-      const worldElements = source.matrixWorld.elements;
+      // The merged caster geometry is stored relative to the building root.
+      // Moving or rotating a whole building therefore cannot invalidate it.
+      // Hashing world matrices here made authoritative adoption of the
+      // prewarmed founders' camp rebuild every shadow bucket on the click.
+      this.relativeMatrix.multiplyMatrices(this.rootWorldInverse, source.matrixWorld);
+      const relativeElements = this.relativeMatrix.elements;
       for (let elementIndex = 0; elementIndex < 16; elementIndex += 1) {
-        const value = worldElements[elementIndex]!;
+        const value = relativeElements[elementIndex]!;
         if (values[cursor] !== value) changed = true;
         values[cursor] = value;
         cursor += 1;

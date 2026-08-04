@@ -7,32 +7,33 @@ export type LodgeLaborSplit = {
   delivering: number;
 };
 
-/** One deliverer when possible; remaining workers process. A lone worker alternates roles. */
-export function lodgeLaborSplit(assignedLabor: number): LodgeLaborSplit {
-  if (assignedLabor <= 0) {
-    return { processing: 0, delivering: 0 };
-  }
-  if (assignedLabor === 1) {
-    return { processing: 1, delivering: 1 };
-  }
-  return { processing: assignedLabor - 1, delivering: 1 };
+/** Assigned lodge workers always process; a free settlement hauler carries stock. */
+export function lodgeLaborSplit(
+  assignedLabor: number,
+  freeHaulersAvailable = 1,
+): LodgeLaborSplit {
+  return {
+    processing: Math.max(0, Math.floor(assignedLabor)),
+    delivering: freeHaulersAvailable > 0 ? 1 : 0,
+  };
 }
 
-export function lodgeLaborAlternates(assignedLabor: number): boolean {
-  return assignedLabor === 1;
+export function lodgeLaborAlternates(_assignedLabor: number): boolean {
+  return false;
 }
 
-/** Sustained winter planning reserves one carrier; a lone worker splits time evenly. */
+/** Delivery never reduces the producer's sustained processing headcount. */
 export function lodgeSustainedProcessingLabor(assignedLabor: number): number {
-  if (assignedLabor <= 0) return 0;
-  return assignedLabor === 1 ? 0.5 : assignedLabor - 1;
+  return Math.max(0, Math.floor(assignedLabor));
 }
 
 export function formatLodgeCrewSplit(split: LodgeLaborSplit, assignedLabor: number): string {
-  if (split.processing === 0 && split.delivering === 0) return 'None assigned';
-  if (lodgeLaborAlternates(assignedLabor)) return '1 worker — alternates processing & delivery';
-  if (split.delivering === 0) return `${split.processing} processing`;
-  return `${split.processing} processing · ${split.delivering} delivering`;
+  const processing = Math.max(0, Math.floor(assignedLabor));
+  const producerLabel = processing === 0 ? 'No producer assigned' : `${processing} processing`;
+  const haulLabel = split.delivering > 0
+    ? 'free hauler available'
+    : 'waiting for a free hauler';
+  return `${producerLabel} · ${haulLabel}`;
 }
 
 export function lodgeFirewoodPerDelivery(deliveryWorkers: number): number {

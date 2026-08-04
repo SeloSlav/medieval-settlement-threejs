@@ -253,6 +253,9 @@ const tablesSchema = __schema({
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
+      { name: 'labor_building_id', algorithm: 'btree', columns: [
+        'laborBuildingId',
+      ] },
       { name: 'owner', algorithm: 'btree', columns: [
         'owner',
       ] },

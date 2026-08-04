@@ -205,9 +205,9 @@ assert.equal(
   'mass attendance should choose the nearest road-reachable chapel, not straight-line distance',
 );
 assert.equal(
-  claimMassChapelForResidence(home, operational, new RoadNetwork()),
-  null,
-  'a residence without a chapel road route should not receive a parish or attend mass',
+  claimMassChapelForResidence(home, operational, new RoadNetwork())?.chapel.id,
+  closerButDisconnected.id,
+  'a residence without a road may still walk overland to the nearest operational chapel',
 );
 
 const originalWarn = console.warn;
@@ -253,7 +253,7 @@ const campAmbientState = villagers as unknown as {
   pendingCampSeatAssignments: Map<string, PendingSeat>;
   campAmbientElapsedSeconds: number;
 };
-assert.equal(agents.size, 5);
+assert.equal(agents.size, 10, 'the complete founding household should be visible at camp');
 assert.ok(
   [...agents.values()].every((agent) => agent.mode === 'walk'),
   'founders should set off toward their ambient activities immediately',

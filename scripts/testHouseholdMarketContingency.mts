@@ -281,10 +281,14 @@ const split = computeSettlementHouseholdMarketPlan({
   clock: workClock(),
   sabbathObserved: false,
 });
-assert.equal(split.routedCriticalHomes, 1);
-assert.equal(split.unroutedHomes, 1);
-assert.equal(split.firstAttentionResidenceId, 'east');
-assert.match(formatHouseholdMarketBottlenecks(split), /off market roads/);
+assert.equal(split.routedCriticalHomes, 2);
+assert.equal(split.unroutedHomes, 0);
+assert.equal(
+  split.firstAttentionResidenceId,
+  'east',
+  'the slower open-ground household should remain the first logistics warning',
+);
+assert.doesNotMatch(formatHouseholdMarketBottlenecks(split), /off market roads/);
 
 const tied = computeSettlementHouseholdMarketPlan({
   state: state({

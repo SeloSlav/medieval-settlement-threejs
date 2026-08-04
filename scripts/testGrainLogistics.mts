@@ -675,7 +675,7 @@ assert.match(expandedInspector, /getNextGranaryGrainDispatch/);
 assert.match(expandedInspector, /seedGrainSourceCoveragePlan/);
 assert.match(expandedInspector, /Next seed cart/);
 assert.match(expandedInspector, /least-covered eligible holding goes first/);
-assert.match(expandedInspector, /holding crew collects/);
+assert.match(expandedInspector, /waiting for an additional granary hauler/);
 assert.match(expandedInspector, /Next grain cart/);
 assert.match(expandedInspector, /staffingPriorityLabel\(granaryGrainDispatch\.workPriority\)/);
 assert.match(expandedInspector, /processor work priority/);
@@ -749,7 +749,7 @@ const granaryDispatch = expandedSimulation.slice(
   expandedSimulation.indexOf('fn next_granary_grain_dispatch'),
   expandedSimulation.indexOf('pub(crate) fn dispatch_to_building'),
 );
-assert.match(granaryDispatch, /source\.assigned_labor == 0/);
+assert.match(granaryDispatch, /source\.assigned_labor <= 1/);
 assert.match(granaryDispatch, /select_grain_dispatch_candidate/);
 assert.match(
   granaryDispatch,

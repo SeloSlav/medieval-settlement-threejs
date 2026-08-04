@@ -322,10 +322,10 @@ pub const GRAIN_TRANSFER_PER_TRIP: f64 = 6.0;
 pub const WATERMILL_GRAIN_PER_CYCLE: f64 = 3.0;
 pub const WATERMILL_WATER_PER_CYCLE: f64 = 0.0;
 pub const WATERMILL_FLOUR_PER_CYCLE: f64 = 4.0;
-pub const GRANARY_FLOUR_PER_CYCLE: f64 = 3.0;
-pub const GRANARY_WATER_PER_CYCLE: f64 = 2.0;
-pub const GRANARY_FIREWOOD_PER_CYCLE: f64 = 1.0;
-pub const GRANARY_FOOD_PER_CYCLE: f64 = 4.0;
+pub const GRANARY_FLOUR_PER_CYCLE: f64 = undefined;
+pub const GRANARY_WATER_PER_CYCLE: f64 = undefined;
+pub const GRANARY_FIREWOOD_PER_CYCLE: f64 = undefined;
+pub const GRANARY_FOOD_PER_CYCLE: f64 = undefined;
 pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = 6.0;
 pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = 0.5;
 pub const BREWERY_BARLEY_PER_MALT_CYCLE: f64 = 3.0;
@@ -360,7 +360,8 @@ pub const SMITHY_IRON_PER_CYCLE: f64 = 2.0;
 pub const SMITHY_CHARCOAL_PER_CYCLE: f64 = 1.0;
 pub const SMITHY_WATER_PER_CYCLE: f64 = 1.0;
 pub const SMITHY_IRONWORK_PER_CYCLE: f64 = 2.0;
-pub const CIVILIAN_TOOL_IRONWORK_PER_CYCLE: f64 = 0.25;
+pub const CIVILIAN_TOOL_IRONWORK_PER_CYCLE: f64 = 0.1;
+pub const CIVILIAN_TOOL_REORDER_CYCLES: f64 = 6.0;
 pub const CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER: f64 = 1.2;
 pub const POTTER_CLAY_PER_CYCLE: f64 = 3.0;
 pub const POTTER_FIREWOOD_PER_CYCLE: f64 = 1.0;
@@ -519,6 +520,7 @@ pub fn fire_building_base_flammability(kind: &str) -> f64 {
         "potter_kiln" => 1.8,
         "clay_pit" => 0.15,
         "brewery" => 1.45,
+        "bakery" => 2.0,
         "granary" => 1.45,
         "lumber_mill" => 1.7,
         "woodcutters_lodge" => 1.7,
@@ -714,6 +716,7 @@ pub enum BuildingSimKind {
     Brewery,
     Smokehouse,
     Granary,
+    Bakery,
     Apiary,
     Watermill,
     Carpenter,
@@ -1416,8 +1419,8 @@ const WELL: BuildingDef = BuildingDef {
     storage_roof_tiles: 0.0,
     storage_manure: 0.0,
     storage_remedies: 0.0,
-    accepts_labor: true,
-    max_labor: 2,
+    accepts_labor: false,
+    max_labor: 0,
     work_radius: 90.0,
     action_interval: 0.0,
     pick_radius: 6.0,
@@ -2190,14 +2193,14 @@ const GRANARY: BuildingDef = BuildingDef {
     cost_stone: 28.0,
     cost_ironwork: 3.0,
     storage_timber: 0.0,
-    storage_firewood: 60.0,
+    storage_firewood: 0.0,
     storage_stone: 0.0,
-    storage_water: 120.0,
+    storage_water: 0.0,
     storage_food: 340.0,
     storage_grain: 360.0,
     storage_barley: 240.0,
     storage_malt: 0.0,
-    storage_flax: 0.0,
+    storage_flax: 180.0,
     storage_flour: 260.0,
     storage_ale: 0.0,
     storage_preserved_food: 180.0,
@@ -2218,7 +2221,7 @@ const GRANARY: BuildingDef = BuildingDef {
     accepts_labor: true,
     max_labor: 3,
     work_radius: 0.0,
-    action_interval: 5.0,
+    action_interval: 4.0,
     pick_radius: 9.0,
     requires_road: true,
     requires_mature_trees: false,
@@ -2229,6 +2232,53 @@ const GRANARY: BuildingDef = BuildingDef {
     requires_water_shore: false,
     requires_hillside: false,
     sim_kind: Some(BuildingSimKind::Granary),
+};
+
+const BAKERY: BuildingDef = BuildingDef {
+    kind: "bakery",
+    cost_timber: 36.0,
+    cost_stone: 30.0,
+    cost_ironwork: 2.0,
+    storage_timber: 0.0,
+    storage_firewood: 36.0,
+    storage_stone: 0.0,
+    storage_water: 48.0,
+    storage_food: 100.0,
+    storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
+    storage_flax: 0.0,
+    storage_flour: 96.0,
+    storage_ale: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
+    storage_polearms: 0.0,
+    storage_iron: 0.0,
+    storage_clay: 0.0,
+    storage_salt: 0.0,
+    storage_charcoal: 0.0,
+    storage_pottery: 0.0,
+    storage_roof_tiles: 0.0,
+    storage_manure: 0.0,
+    storage_remedies: 0.0,
+    accepts_labor: true,
+    max_labor: 2,
+    work_radius: 0.0,
+    action_interval: 5.0,
+    pick_radius: 8.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: Some(BuildingSimKind::Bakery),
 };
 
 const APIARY: BuildingDef = BuildingDef {
@@ -2513,7 +2563,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)

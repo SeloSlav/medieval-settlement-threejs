@@ -7,7 +7,7 @@ import {
 
 export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'watermill',
-  'granary',
+  'bakery',
   'brewery',
   'smokehouse',
   'weaver',
@@ -111,7 +111,7 @@ const OUTPUT_BY_KIND: Record<
   ProcessorOutputCommodity
 > = {
   watermill: 'flour',
-  granary: 'food',
+  bakery: 'food',
   brewery: 'ale',
   smokehouse: 'preservedFood',
   weaver: 'cloth',
@@ -125,7 +125,7 @@ const INPUTS_BY_KIND: Record<
   readonly ProcessorInputCommodity[]
 > = {
   watermill: ['grain'],
-  granary: ['flour', 'water', 'firewood'],
+  bakery: ['flour', 'water', 'firewood'],
   brewery: ['barley', 'water', 'firewood'],
   smokehouse: ['food', 'firewood', 'salt', 'pottery'],
   weaver: ['wool', 'flax', 'water'],
@@ -291,11 +291,9 @@ export function extractionOutputCommodity(
 }
 
 /**
- * Replacement tools are a production input, not generic storage. A staffed
- * extraction site whose physical output yard has reached its chosen ceiling
- * keeps its existing tool rack but does not claim more scarce smithy output.
- * Once a cart draws the yard below target, maintenance deliveries become
- * eligible again.
+ * Replacement tools are durable worksite reserves, so an extraction yard may
+ * refill its rack even while finished output is held at the chosen ceiling.
+ * Unknown mineral sites remain ineligible because they have no valid workface.
  */
 export function extractionAcceptsMaintenance(
   building: Pick<
@@ -308,8 +306,7 @@ export function extractionAcceptsMaintenance(
 ): boolean {
   if (!isExtractionOutputTargetKind(building.kind)) return true;
   const output = extractionOutputCommodity(building.kind, mineralResource);
-  if (output === null) return false;
-  return (extractionOutputHeadroom(building, output) ?? 0) > 1e-6;
+  return output !== null;
 }
 
 export function processorNeedsInputs(

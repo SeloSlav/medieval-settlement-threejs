@@ -15,19 +15,18 @@ use crate::economy::{
 };
 use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_supplier::{
-    delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
-    DeliveryDispatchConfig,
+    delivery_work_ready, dispatch_delivery_if_ready, DeliveryDispatchConfig,
 };
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
-    try_start_timber_supply_trip,
+    available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
+    onsite_building_labor, try_start_timber_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::has_industrial_firewood_target;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
-    local_delivery_distance, lodge_labor_split, select_residence_for_need_delivery,
+    local_delivery_distance, select_residence_for_need_delivery,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::supply_policy::{household_firewood_needs_priority, select_supply_route_candidate};
@@ -57,16 +56,14 @@ pub fn step_woodcutters_lodge(
 
     let mut lodge = building;
     let onsite_labor = onsite_building_labor(ctx, &lodge);
-    let mut split = lodge_labor_split(lodge.assigned_labor);
-    split.processing = split.processing.min(onsite_labor);
     let tools_maintained = civilian_tools_maintained(lodge.ironwork);
     let throughput_multiplier = civilian_tool_throughput_multiplier(lodge.ironwork);
-    if split.processing > 0 {
+    if onsite_labor > 0 {
         lodge.action_cooldown = (lodge.action_cooldown - TICK_DT * throughput_multiplier).max(0.0);
     }
-    let single_worker = lodge.assigned_labor == 1;
-    let process_ready = split.processing > 0 && lodge.action_cooldown <= 0.0;
-    let delivery_ready = delivery_work_ready(split.delivering, lodge.firewood > 0.0, lodge.id, ctx);
+    let process_ready = onsite_labor > 0 && lodge.action_cooldown <= 0.0;
+    let delivery_ready = available_free_haulers(ctx, lodge.owner) > 0
+        && delivery_work_ready(1, lodge.firewood > 0.0, lodge.id, ctx);
 
     let delivery_targets = if delivery_ready {
         collect_delivery_targets(ctx, tick, network, &lodge)
@@ -76,10 +73,7 @@ pub fn step_woodcutters_lodge(
     let has_target =
         !delivery_targets.is_empty() || has_industrial_firewood_target(ctx, tick, &lodge);
 
-    let (do_deliver, do_process) =
-        should_alternate_single_worker(single_worker, process_ready, delivery_ready, has_target);
-
-    if do_process {
+    if process_ready {
         // One authoritative stock scan serves both policy checks. Dispatching
         // cannot lead to same-tick processing because it only runs when the
         // lodge lacks the next cycle's timber.
@@ -90,21 +84,20 @@ pub fn step_woodcutters_lodge(
             clock,
             network,
             lodge,
-            split.processing,
+            onsite_labor,
             available_timber,
         );
-        lodge =
-            process_timber_to_firewood(lodge, split.processing, available_timber, tools_maintained);
+        lodge = process_timber_to_firewood(lodge, onsite_labor, available_timber, tools_maintained);
         lodge.action_cooldown = def.action_interval;
     }
-    if do_deliver {
+    if delivery_ready && has_target {
         dispatch_delivery_if_ready(
             ctx,
             tick,
             clock,
             network,
             &mut lodge,
-            split.delivering,
+            1,
             &delivery_targets,
             DeliveryDispatchConfig {
                 need_kind: ResidenceNeedKind::Firewood,
@@ -237,8 +230,12 @@ fn process_timber_to_firewood(
     }
 
     let labor = processing_workers as f64;
-    let timber_needed = LODGE_TIMBER_PER_CYCLE * labor;
-    let firewood_output = LODGE_FIREWOOD_PER_CYCLE * labor;
+    let full_timber_needed = LODGE_TIMBER_PER_CYCLE * labor;
+    let full_firewood_output = LODGE_FIREWOOD_PER_CYCLE * labor;
+    let output_room = (caps.firewood - lodge.firewood).max(0.0);
+    let cycle_share = (output_room / full_firewood_output).clamp(0.0, 1.0);
+    let timber_needed = full_timber_needed * cycle_share;
+    let firewood_output = full_firewood_output * cycle_share;
 
     if lodge.timber + 1e-6 < timber_needed
         || !woodcutter_can_process(
@@ -260,7 +257,8 @@ fn process_timber_to_firewood(
         withdraw_building_commodity(
             &mut processed,
             CommodityKind::Ironwork,
-            CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+                * (firewood_added / full_firewood_output).clamp(0.0, 1.0),
         );
     }
     processed

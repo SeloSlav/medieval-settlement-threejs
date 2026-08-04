@@ -90,7 +90,7 @@ export function renderLargeQuarryInspector(
           : 'idle',
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
-      ${civilianToolRows(building)}
+      ${civilianToolRows(building, context.worldQueries)}
       <li><span>Source</span><span>Rich underground stone · non-depleting during settlement play</span></li>
       <li><span>Surface reserve</span><span>Separate · ${Math.round(richDeposit?.remaining ?? 0)} remaining</span></li>
       <li><span>Chamber supports</span><span>${Math.max(0, building.timber).toFixed(2)} onsite${

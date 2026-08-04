@@ -5,6 +5,7 @@ import {
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CIVILIAN_TOOL_REORDER_CYCLES,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   FARM_TOOL_IRONWORK_PER_WORKER_DAY,
   FARM_WORK_METERS_PER_WORKER_PER_SEC,
@@ -28,6 +29,10 @@ export type CivilianToolPlan = {
   maintained: boolean;
   ironwork: number;
   capacity: number;
+  reorderStock: number;
+  refillTarget: number;
+  refillAmount: number;
+  reorderDue: boolean;
   runwayCycles: number;
   throughputMultiplier: number;
 };
@@ -46,6 +51,33 @@ export function civilianToolRunwayCycles(ironwork: number): number {
   return CIVILIAN_TOOL_IRONWORK_PER_CYCLE <= 1e-9
     ? Infinity
     : Math.max(0, ironwork) / CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
+}
+
+export function civilianToolReorderStock(capacity: number): number {
+  return Math.min(
+    Math.max(0, capacity),
+    Math.max(
+      CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+      CIVILIAN_TOOL_IRONWORK_PER_CYCLE * CIVILIAN_TOOL_REORDER_CYCLES,
+    ),
+  );
+}
+
+export function civilianToolRefillDue(
+  ironwork: number,
+  capacity: number,
+): boolean {
+  return capacity > 1e-6
+    && Math.max(0, ironwork) + 1e-6 < civilianToolReorderStock(capacity);
+}
+
+export function civilianToolRefillAmount(
+  ironwork: number,
+  capacity: number,
+): number {
+  return civilianToolRefillDue(ironwork, capacity)
+    ? Math.max(0, capacity - Math.max(0, ironwork))
+    : 0;
 }
 
 export function civilianToolThroughputMultiplier(ironwork: number): number {
@@ -87,12 +119,18 @@ export function civilianToolPlan(
   if (!isCivilianToolSite(building.kind)) return null;
   const ironwork = Math.max(0, building.ironwork ?? 0);
   const farmstead = building.kind === 'threshing_barn';
+  const capacity = BUILDING_STORAGE_CAPS[building.kind].ironwork ?? 0;
+  const reorderDue = civilianToolRefillDue(ironwork, capacity);
   return {
     maintained: farmstead
       ? farmToolsMaintained(ironwork)
       : civilianToolsMaintained(ironwork),
     ironwork,
-    capacity: BUILDING_STORAGE_CAPS[building.kind].ironwork ?? 0,
+    capacity,
+    reorderStock: civilianToolReorderStock(capacity),
+    refillTarget: capacity,
+    refillAmount: reorderDue ? Math.max(0, capacity - ironwork) : 0,
+    reorderDue,
     runwayCycles: civilianToolRunwayCycles(ironwork),
     throughputMultiplier: farmstead
       ? farmToolThroughputMultiplier(ironwork)

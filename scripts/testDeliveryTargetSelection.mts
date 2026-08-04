@@ -196,7 +196,11 @@ assert.match(
 
 const woodcuttersLodge = read('server/src/simulation/woodcutters_lodge.rs');
 assert.match(woodcuttersLodge, /select_supply_route_candidate\(/);
-assert.match(woodcuttersLodge, /road_path_distance/);
+assert.match(
+  woodcuttersLodge,
+  /local_delivery_distance/,
+  'mill selection should use the shared road-first, off-road-fallback delivery cost',
+);
 assert.doesNotMatch(
   woodcuttersLodge,
   /road_path_route/,

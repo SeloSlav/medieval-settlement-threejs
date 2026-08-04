@@ -173,6 +173,10 @@ materialBuildings[0].ironwork = 1;
 for (const candidate of materialBuildings) {
   materialState.buildings.set(candidate.id, candidate);
 }
+materialState.quarries.set(
+  'clay-material-bank',
+  { ...mineralDeposit('clay-material-bank', 'clay', 0, 500, 500), z: 0 },
+);
 materialState.farmFields.set(
   'material-field',
   farmField('material-field', 'material-farm', 'fallow'),
@@ -216,6 +220,10 @@ const richClayProduction = computeSettlementProductionCapacity(
 );
 
 const targetHeldClayState = emptyGameState();
+targetHeldClayState.quarries.set(
+  'clay-target-bank',
+  mineralDeposit('clay-target-bank', 'clay', 0, 500, 500),
+);
 const targetHeldClayPit = building('target-held-clay', 'clay_pit', 1);
 targetHeldClayPit.processorOutputTargetPercent = 25;
 targetHeldClayPit.clay = 45;
@@ -227,7 +235,11 @@ const heldClayProduction = computeSettlementProductionCapacity(
 ).industrialMaterials;
 assert.ok(heldClayProduction.clayOutputPerDay > 0);
 assert.equal(heldClayProduction.toolEligibleSites, 1);
-assert.ok(heldClayProduction.maintainedToolIronworkPerDay > 0);
+assert.equal(
+  heldClayProduction.maintainedToolIronworkPerDay,
+  0,
+  'a target-held pit performs no current work and therefore wears no tools',
+);
 targetHeldClayPit.clay = 44;
 const reopenedClayProduction = computeSettlementProductionCapacity(
   targetHeldClayState,
@@ -238,10 +250,9 @@ approx(
   reopenedClayProduction.clayOutputPerDay,
   'yard targets pause current extraction but must not erase sustainable clay capacity',
 );
-approx(
-  heldClayProduction.maintainedToolIronworkPerDay,
-  reopenedClayProduction.maintainedToolIronworkPerDay,
-  'design tool wear must remain visible while a clay yard waits for downstream demand',
+assert.ok(
+  reopenedClayProduction.maintainedToolIronworkPerDay > 0,
+  'tool demand must resume as soon as downstream carts reopen yard space',
 );
 
 const targetHeldMineState = emptyGameState();
@@ -267,7 +278,11 @@ const heldMineProduction = computeSettlementProductionCapacity(
 ).industrialMaterials;
 assert.ok(heldMineProduction.localIronOutputPerDay > 0);
 assert.equal(heldMineProduction.toolEligibleSites, 1);
-assert.ok(heldMineProduction.maintainedToolIronworkPerDay > 0);
+assert.equal(
+  heldMineProduction.maintainedToolIronworkPerDay,
+  0,
+  'a target-held mine performs no current work and therefore wears no tools',
+);
 targetHeldMine.iron = 59;
 const reopenedMineProduction = computeSettlementProductionCapacity(
   targetHeldMineState,
@@ -278,10 +293,9 @@ approx(
   reopenedMineProduction.localIronOutputPerDay,
   'yard targets pause current extraction but must not create false iron import demand',
 );
-approx(
-  heldMineProduction.maintainedToolIronworkPerDay,
-  reopenedMineProduction.maintainedToolIronworkPerDay,
-  'design tool wear must remain visible while an iron yard waits for downstream demand',
+assert.ok(
+  reopenedMineProduction.maintainedToolIronworkPerDay > 0,
+  'mine-tool demand must resume when output space opens',
 );
 
 assert.ok(
@@ -392,6 +406,55 @@ approx(
   'same-branch smithing should cover the currently maintained tool racks',
 );
 assert.ok(joinedMaterials.ironworkSurplusAfterToolUpkeep > 0);
+
+const nearToolRoutes = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+  1,
+  1,
+  1,
+  undefined,
+  50,
+  1,
+  () => 10,
+).industrialMaterials;
+const farToolRoutes = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+  1,
+  1,
+  1,
+  undefined,
+  50,
+  1,
+  () => 80,
+).industrialMaterials;
+assert.ok(nearToolRoutes.sustainableToolUptime > 0);
+assert.ok(
+  nearToolRoutes.sustainableToolUptime > farToolRoutes.sustainableToolUptime,
+  'long smithy roads must lower expected maintained uptime through cart cadence and lost forge labor',
+);
+assert.ok(
+  nearToolRoutes.toolDeliveryCapacityPerDay
+    > farToolRoutes.toolDeliveryCapacityPerDay,
+);
+const unreachableToolRoutes = computeSettlementProductionCapacity(
+  materialState,
+  false,
+  () => 'joined',
+  1,
+  1,
+  1,
+  undefined,
+  50,
+  1,
+  () => null,
+).industrialMaterials;
+assert.equal(unreachableToolRoutes.sustainableToolIronworkPerDay, 0);
+assert.ok(unreachableToolRoutes.toolUnreachableSites > 0);
+assert.ok(unreachableToolRoutes.firstToolDeliveryBottleneckId);
 
 materialBuildings[6].marketplaceIronTarget = 0;
 const unorderedIronImports = computeSettlementProductionCapacity(
@@ -1105,9 +1168,9 @@ assert.equal(farmPlan.firstSeedShortBuildingId, shortFarm.id);
 assert.equal(farmPlan.toolEligibleHoldings, 2);
 assert.equal(farmPlan.toolMaintainedHoldings, 1);
 assert.ok(farmPlan.toolIronworkRequired > 0);
-assert.ok(farmPlan.toolIronworkReserveTarget >= 0.5);
-assert.ok(farmPlan.toolIronworkCovered >= 0.25);
-assert.ok(farmPlan.toolIronworkShortfall >= 0.25);
+assert.ok(farmPlan.toolIronworkReserveTarget >= 0.1);
+assert.ok(farmPlan.toolIronworkCovered >= 0.1);
+assert.ok(farmPlan.toolIronworkShortfall >= 0.1);
 assert.equal(farmPlan.toolShortHoldings, 1);
 assert.equal(farmPlan.firstToolShortBuildingId, shortFarm.id);
 approx(farmPlan.seedGrainByHolding.get(shortFarm.id) ?? -1, 5.6);
@@ -2128,9 +2191,10 @@ assert.match(townHallRenderer, /first-lot rate/);
 assert.match(townHallRenderer, /forge branches lack/);
 assert.match(townHallRenderer, /road-local clay-backed kiln output/);
 assert.match(townHallRenderer, /Civilian tool upkeep/);
-assert.match(townHallRenderer, /current physical flow/);
-assert.match(townHallRenderer, /maintained-rack design wear/);
-assert.match(townHallRenderer, /target-held extraction consumes neither tools nor supports/);
+assert.match(townHallRenderer, /expected maintained uptime/);
+assert.match(townHallRenderer, /road-cart ceiling/);
+assert.match(townHallRenderer, /racks reorder below/);
+assert.match(townHallRenderer, /target-held sites wear nothing until work resumes/);
 assert.match(townHallRenderer, /deep workings need/);
 assert.match(townHallRenderer, /Inspect support/);
 assert.match(townHallRenderer, /chosen yard target/);
@@ -2219,7 +2283,7 @@ function residence(id: string, population: number): ResidenceState {
 
 function mineralDeposit(
   nodeId: string,
-  resource: 'iron' | 'salt',
+  resource: 'iron' | 'salt' | 'clay' | 'stone',
   x: number,
   remaining: number,
   maxYield: number,

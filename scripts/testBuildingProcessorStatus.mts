@@ -64,6 +64,7 @@ function stubWorldQueries(
           && roadDistance(building.x, building.z, candidate.x, candidate.z) != null,
       ),
     getRoadPathDistance: roadDistance,
+    getLocalDeliveryDistance: roadDistance,
     getInboundSupplyTrip: () => null,
     hasRoadPathToBuildingKind: (ax, az, kind) =>
       buildings.some(
@@ -112,13 +113,13 @@ const readyWell = makeBuilding({
   x: 10,
   z: 0,
   water: 5,
-  assignedLabor: 1,
+  assignedLabor: 0,
 });
 const readyQueries = stubWorldQueries([readyGranary, readyWell], connected);
 
 assert.equal(
   getBuildingProcessorStatus(granary, noWellQueries)?.statusText,
-  'Idle — needs a staffed, road-connected well to operate',
+  'Idle — needs a road-linked well to operate',
 );
 assert.equal(
   getBuildingProcessorStatus(granary, noWellQueries)?.statusState,
@@ -158,7 +159,7 @@ const smithy = makeBuilding({
 });
 assert.equal(
   getBuildingProcessorStatus(smithy, noWellQueries)?.statusText,
-  'Idle — needs a staffed, road-connected well to operate',
+  'Idle — needs a road-linked well to operate',
 );
 assert.equal(
   getBuildingProcessorStatus(smithy, readyQueries)?.statusText,
@@ -185,7 +186,7 @@ const potter = makeBuilding({
 });
 assert.equal(
   getBuildingProcessorStatus(potter, noWellQueries)?.statusText,
-  'Idle — needs a staffed, road-connected well to operate',
+  'Idle — needs a road-linked well to operate',
 );
 assert.equal(
   getBuildingProcessorStatus(potter, readyQueries)?.statusText,

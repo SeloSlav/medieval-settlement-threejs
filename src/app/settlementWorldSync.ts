@@ -75,6 +75,7 @@ export function syncSettlementWorld(
     previous.deliveryTrips,
     (current, prior) =>
       current.buildingId === prior.buildingId
+      && current.laborBuildingId === prior.laborBuildingId
       && current.deliveryWorkers === prior.deliveryWorkers
       && current.freeHaulerWorkers === prior.freeHaulerWorkers,
   );

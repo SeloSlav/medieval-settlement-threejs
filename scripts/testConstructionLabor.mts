@@ -150,10 +150,10 @@ const inspector = renderTownHallInspector(
 assert.match(inspector.detailsHtml, /Construction crews/);
 assert.match(inspector.detailsHtml, /Construction steward<\/span><span>Manual/);
 assert.match(inspector.detailsHtml, /2 blocked builders can be released/);
-assert.match(inspector.detailsHtml, /4 workers can move to ready sites/);
+assert.match(inspector.detailsHtml, /8 workers can move to ready sites/);
 assert.match(inspector.detailsHtml, /data-inspect-building="blocked-site"/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-rotate-construction-labor/);
-assert.match(inspector.supplementalPanelHtml ?? '', /Rotate 2 blocked → 4 ready/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Rotate 2 blocked → 8 ready/);
 assert.match(inspector.supplementalPanelHtml ?? '', /crews awaiting inbound material stay in place/);
 assert.match(inspector.supplementalPanelHtml ?? '', /sharing workers round-robin within each tier/);
 assert.match(

@@ -15,12 +15,16 @@ import {
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  LODGE_TIMBER_PER_CYCLE,
+  MILL_WATER_PER_HARVEST,
+  MIN_DELIVERY_TRIP_SEC,
+  RICH_MINE_THROUGHPUT_MULTIPLIER,
   FARM_TOOL_IRONWORK_PER_WORKER_DAY,
   CLAY_PIT_CLAY_PER_CYCLE,
-  GRANARY_FIREWOOD_PER_CYCLE,
-  GRANARY_FLOUR_PER_CYCLE,
-  GRANARY_FOOD_PER_CYCLE,
-  GRANARY_WATER_PER_CYCLE,
+  BAKERY_FIREWOOD_PER_CYCLE,
+  BAKERY_FLOUR_PER_CYCLE,
+  BAKERY_FOOD_PER_CYCLE,
+  BAKERY_WATER_PER_CYCLE,
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
@@ -40,6 +44,8 @@ import {
   SMITHY_IRONWORK_PER_CYCLE,
   SMITHY_IRON_PER_CYCLE,
   SMITHY_WATER_PER_CYCLE,
+  TIMBER_DELIVERY_SPEED_MPS,
+  TIMBER_DELIVERY_UNLOAD_SEC,
   WATERMILL_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
@@ -48,6 +54,7 @@ import {
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import {
+  rosteredCartWorkersByBuilding,
   tripDeliveryRemainingSeconds,
   type DeliveryCargoKind,
   type DeliveryTripState,
@@ -76,9 +83,9 @@ import {
 } from './potterFiringPolicy.ts';
 import {
   civilianToolsMaintained,
+  civilianToolReorderStock,
   civilianToolThroughputMultiplier,
   farmToolsMaintained,
-  farmToolThroughputMultiplier,
   isCivilianToolSite,
 } from './civilianToolPolicy.ts';
 import {
@@ -91,6 +98,8 @@ import {
 } from './settlementGeology.ts';
 import { normalizeMarketplaceIronTarget } from './marketplaceMaterialProcurementPolicy.ts';
 import { weaverUsesFlax } from './weaverInputPolicy.ts';
+import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
+import { richMineSupportsReady } from './mineSupportPolicy.ts';
 
 export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
@@ -248,6 +257,12 @@ export type IndustrialMaterialPlan = {
   fullToolIronworkPerDay: number;
   roadCoveredToolIronworkPerDay: number;
   roadCoveredFullToolIronworkPerDay: number;
+  toolDeliveryCapacityPerDay: number;
+  sustainableToolIronworkPerDay: number;
+  sustainableToolUptime: number;
+  toolCartWorkerDaysPerDay: number;
+  toolRefillLoad: number;
+  toolUnreachableSites: number;
   ironworkSurplusAfterToolUpkeep: number;
   firstPotteryBottleneckId: string | null;
   firstPotteryBottleneckResidenceId: string | null;
@@ -255,6 +270,7 @@ export type IndustrialMaterialPlan = {
   firstIronImportMarketId: string | null;
   firstIronImportAttentionId: string | null;
   firstUnmaintainedToolSiteId: string | null;
+  firstToolDeliveryBottleneckId: string | null;
 };
 
 export type ProductionGrainRoadBranch = {
@@ -267,6 +283,11 @@ type ProductionRoadEntity = Pick<BuildingState | ResidenceState, 'id' | 'x' | 'z
 export type ProductionRoadComponentResolver = (
   entity: ProductionRoadEntity,
 ) => string | number | null;
+
+export type ProductionRoadDistanceResolver = (
+  source: ProductionRoadEntity,
+  target: ProductionRoadEntity,
+) => number | null;
 
 export type ProsperityRoadBranch = {
   currentResidents: number;
@@ -358,7 +379,7 @@ type IndustrialMaterialBranch = {
   smithyIronworkPerDay: number;
   smithyIronPerDay: number;
   smithyCharcoalPerDay: number;
-  hasStaffedWell: boolean;
+  hasOperationalWell: boolean;
   maintainedToolIronworkPerDay: number;
   fullToolIronworkPerDay: number;
   hasStaffedMarket: boolean;
@@ -375,6 +396,20 @@ type IndustrialMaterialBranch = {
   firstMarketId: string | null;
   firstIronImportMarketId: string | null;
   firstToolSiteId: string | null;
+  toolSites: ToolMaintenanceSiteForecast[];
+  toolSmithies: ToolSmithyForecast[];
+};
+
+type ToolMaintenanceSiteForecast = {
+  building: BuildingState;
+  demandPerDay: number;
+  refillLoad: number;
+};
+
+type ToolSmithyForecast = {
+  building: BuildingState;
+  ironworkPerWorkerDay: number;
+  availableIronworkPerDay: number;
 };
 
 type TimedInputDelivery = {
@@ -427,7 +462,7 @@ function industrialMaterialBranchByKey(
     smithyIronworkPerDay: 0,
     smithyIronPerDay: 0,
     smithyCharcoalPerDay: 0,
-    hasStaffedWell: false,
+    hasOperationalWell: false,
     maintainedToolIronworkPerDay: 0,
     fullToolIronworkPerDay: 0,
     hasStaffedMarket: false,
@@ -444,6 +479,8 @@ function industrialMaterialBranchByKey(
     firstMarketId: null,
     firstIronImportMarketId: null,
     firstToolSiteId: null,
+    toolSites: [],
+    toolSmithies: [],
   };
   branches.set(key, branch);
   return branch;
@@ -656,6 +693,88 @@ function buildingInputRunway(
   );
 }
 
+function stockTargetHasRoom(
+  building: BuildingState,
+  commodity: 'timber' | 'firewood' | 'stone' | 'iron' | 'salt' | 'clay' | 'flour',
+): boolean {
+  const capacity = (BUILDING_STORAGE_CAPS[building.kind] as Record<
+    string,
+    number | undefined
+  >)[commodity] ?? 0;
+  const policyTarget = processorOutputTargetForBuilding(building);
+  const extractionTarget = (
+    building.kind === 'stone_quarry'
+    || building.kind === 'large_quarry'
+    || building.kind === 'mine'
+    || building.kind === 'clay_pit'
+  )
+    ? capacity * normalizeProcessorOutputTargetPercent(
+      building.processorOutputTargetPercent,
+    ) / 100
+    : null;
+  const target = extractionTarget
+    ?? (policyTarget == null ? capacity : Math.min(capacity, policyTarget));
+  return Math.max(0, Number(building[commodity] ?? 0)) + 1e-6 < target;
+}
+
+function centeredDepositExists(
+  building: Pick<BuildingState, 'x' | 'z'>,
+  deposits: Iterable<{ x: number; z: number; resource: string; remaining: number; isRich?: boolean }>,
+  resource: 'stone' | 'clay',
+  richOnly = false,
+): boolean {
+  for (const deposit of deposits) {
+    const dx = deposit.x - building.x;
+    const dz = deposit.z - building.z;
+    if (
+      deposit.resource === resource
+      && dx * dx + dz * dz <= 6.25
+      && (!richOnly || deposit.isRich === true)
+      && (deposit.isRich === true || deposit.remaining > 1e-6)
+    ) return true;
+  }
+  return false;
+}
+
+/** Current physical gates that can prevent a tool-wearing cycle from starting. */
+function civilianToolSiteCanWork(
+  building: BuildingState,
+  state: GameState,
+  mineDeposit: ReturnType<typeof mineralDepositBeneath>,
+): boolean {
+  switch (building.kind) {
+    case 'lumber_mill':
+      return stockTargetHasRoom(building, 'timber')
+        && (MILL_WATER_PER_HARVEST <= 1e-9 || building.water + 1e-6 >= MILL_WATER_PER_HARVEST);
+    case 'woodcutters_lodge':
+      return stockTargetHasRoom(building, 'firewood')
+        && building.timber + 1e-6 >= LODGE_TIMBER_PER_CYCLE;
+    case 'stone_quarry':
+      return stockTargetHasRoom(building, 'stone')
+        && centeredDepositExists(building, state.quarries.values(), 'stone');
+    case 'large_quarry':
+      return stockTargetHasRoom(building, 'stone')
+        && centeredDepositExists(building, state.quarries.values(), 'stone', true)
+        && largeQuarrySupportsReady(building.timber);
+    case 'mine': {
+      if (mineDeposit == null) return false;
+      const output = mineDeposit.resource === 'iron' ? 'iron' : 'salt';
+      return stockTargetHasRoom(building, output)
+        && (mineDeposit.isRich !== true || richMineSupportsReady(building.timber));
+    }
+    case 'clay_pit':
+      return stockTargetHasRoom(building, 'clay')
+        && centeredDepositExists(building, state.quarries.values(), 'clay');
+    case 'watermill':
+      return stockTargetHasRoom(building, 'flour')
+        && building.grain + 1e-6 >= WATERMILL_GRAIN_PER_CYCLE;
+    case 'threshing_barn':
+      return true;
+    default:
+      return false;
+  }
+}
+
 function completedProcessorOverview(
   state: GameState,
   sabbathObserved: boolean,
@@ -668,7 +787,7 @@ function completedProcessorOverview(
 ): ProcessorOverview {
   const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
   const deliveries = timedInputDeliveries(state.deliveryTrips.values());
-  const bakeryCyclesPerWorker = cyclesPerCalendarDay('granary', 1, sabbathObserved);
+  const bakeryCyclesPerWorker = cyclesPerCalendarDay('bakery', 1, sabbathObserved);
   const breweryCyclesPerWorker = cyclesPerCalendarDay('brewery', 1, sabbathObserved);
   const smokehouseCyclesPerWorker = cyclesPerCalendarDay('smokehouse', 1, sabbathObserved);
   const weaverCyclesPerWorker = cyclesPerCalendarDay('weaver', 1, sabbathObserved);
@@ -725,6 +844,10 @@ function completedProcessorOverview(
   const prosperityRoadBranches = componentFor
     ? new Map<string, ProsperityRoadBranch>()
     : null;
+  const cartWorkersAway = rosteredCartWorkersByBuilding(
+    state.buildings,
+    state.deliveryTrips.values(),
+  );
   const activeFarmToolHoldings = new Set<string>();
   for (const field of state.farmFields.values()) {
     if (
@@ -739,13 +862,24 @@ function completedProcessorOverview(
     }
   }
   for (const building of state.buildings.values()) {
-    if (building.constructionComplete === false || building.assignedLabor <= 0) {
+    if (building.constructionComplete === false) {
       continue;
     }
+    if (building.kind === 'well') {
+      if (!fireDisabled.has(building.id)) {
+        industrialMaterialBranch(
+          industrialMaterialBranches,
+          building,
+          componentFor,
+        ).hasOperationalWell = true;
+      }
+      continue;
+    }
+    if (building.assignedLabor <= 0) continue;
     if (fireDisabled.has(building.id)) {
       if (
         building.kind === 'watermill'
-        || building.kind === 'granary'
+        || building.kind === 'bakery'
         || building.kind === 'brewery'
         || building.kind === 'smokehouse'
         || building.kind === 'weaver'
@@ -768,6 +902,14 @@ function completedProcessorOverview(
     const mineDeposit = building.kind === 'mine'
       ? mineralDepositBeneath(building, state.quarries.values())
       : null;
+    const onsiteLabor = Math.max(
+      0,
+      building.assignedLabor - (cartWorkersAway.get(building.id) ?? 0),
+    );
+    const commuteEfficiency = Math.max(
+      0,
+      Math.min(1, building.commuteEfficiency ?? 1),
+    );
     if (
       isCivilianToolSite(building.kind)
       && (
@@ -785,45 +927,38 @@ function completedProcessorOverview(
         ? farmToolsMaintained(building.ironwork ?? 0)
         : civilianToolsMaintained(building.ironwork ?? 0);
       const weeklyWorkShare = sabbathObserved ? 6 / 7 : 1;
+      const canWork = civilianToolSiteCanWork(building, state, mineDeposit);
       let fullyEquippedDemand: number;
       let maintainedDemand: number;
       if (building.kind === 'threshing_barn') {
-        fullyEquippedDemand = building.assignedLabor
+        fullyEquippedDemand = (canWork ? onsiteLabor * commuteEfficiency : 0)
           * weeklyWorkShare
           * CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
           * FARM_TOOL_IRONWORK_PER_WORKER_DAY;
         maintainedDemand = maintained
-          ? building.assignedLabor
-            * weeklyWorkShare
-            * farmToolThroughputMultiplier(building.ironwork ?? 0)
-            * FARM_TOOL_IRONWORK_PER_WORKER_DAY
+          ? fullyEquippedDemand
           : 0;
       } else {
         const productiveToolLabor = building.kind === 'woodcutters_lodge'
-          ? lodgeSustainedProcessingLabor(building.assignedLabor)
-          : building.assignedLabor;
+          ? lodgeSustainedProcessingLabor(onsiteLabor)
+          : onsiteLabor;
         const environmentThroughput = building.kind === 'watermill'
           ? watermillThroughputMultiplier
           : building.kind === 'clay_pit'
             ? clayPitThroughputMultiplier * clayBankYield
-            : 1;
-        const maintainedCycles = cyclesPerCalendarDay(
-          building.kind,
-          productiveToolLabor,
-          sabbathObserved,
-          civilianToolThroughputMultiplier(building.ironwork ?? 0)
-            * environmentThroughput,
-        );
+            : building.kind === 'mine' && mineDeposit?.isRich === true
+              ? RICH_MINE_THROUGHPUT_MULTIPLIER
+              : 1;
         const fullyEquippedCycles = cyclesPerCalendarDay(
           building.kind,
-          productiveToolLabor,
+          canWork ? productiveToolLabor * commuteEfficiency : 0,
           sabbathObserved,
           CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER * environmentThroughput,
         );
         fullyEquippedDemand = fullyEquippedCycles
           * CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
         maintainedDemand = maintained
-          ? maintainedCycles * CIVILIAN_TOOL_IRONWORK_PER_CYCLE
+          ? fullyEquippedDemand
           : 0;
       }
       fullToolIronworkPerDay += fullyEquippedDemand;
@@ -838,6 +973,15 @@ function completedProcessorOverview(
         materialBranch.firstToolSiteId,
         building.id,
       );
+      const toolCapacity = BUILDING_STORAGE_CAPS[building.kind].ironwork ?? 0;
+      materialBranch.toolSites.push({
+        building,
+        demandPerDay: fullyEquippedDemand,
+        refillLoad: Math.max(
+          0,
+          toolCapacity - civilianToolReorderStock(toolCapacity),
+        ),
+      });
       if (maintained) {
         toolMaintainedSites += 1;
         maintainedToolIronworkPerDay += maintainedDemand;
@@ -892,27 +1036,27 @@ function completedProcessorOverview(
         );
         break;
       }
-      case 'granary': {
-        bakeryWorkers += building.assignedLabor;
+      case 'bakery': {
+        bakeryWorkers += onsiteLabor;
         recordGrainRoadActivity(
           grainChainBranches,
           building,
           'bakery',
           componentFor,
         );
-        const cycles = bakeryCyclesPerWorker * building.assignedLabor;
+        const cycles = bakeryCyclesPerWorker * onsiteLabor;
         let runway = buildingInputRunway(
           deliveries,
           building,
           'flour',
-          cycles * GRANARY_FLOUR_PER_CYCLE,
+          cycles * BAKERY_FLOUR_PER_CYCLE,
         );
         let limitingInput: ProcessorInput = 'flour';
         const waterRunway = buildingInputRunway(
           deliveries,
           building,
           'water',
-          cycles * GRANARY_WATER_PER_CYCLE,
+          cycles * BAKERY_WATER_PER_CYCLE,
         );
         if (waterRunway.days < runway.days) {
           runway = waterRunway;
@@ -922,7 +1066,7 @@ function completedProcessorOverview(
           deliveries,
           building,
           'firewood',
-          cycles * GRANARY_FIREWOOD_PER_CYCLE,
+          cycles * BAKERY_FIREWOOD_PER_CYCLE,
         );
         if (firewoodRunway.days < runway.days) {
           runway = firewoodRunway;
@@ -939,8 +1083,8 @@ function completedProcessorOverview(
           outputRoomDays(
             building.food,
             processorOutputTargetForBuilding(building)
-              ?? (BUILDING_STORAGE_CAPS.granary.food ?? 0),
-            cycles * GRANARY_FOOD_PER_CYCLE,
+              ?? (BUILDING_STORAGE_CAPS.bakery.food ?? 0),
+            cycles * BAKERY_FOOD_PER_CYCLE,
           ),
           building.id,
           normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
@@ -1216,7 +1360,9 @@ function completedProcessorOverview(
       }
       case 'smithy': {
         smithyWorkers += building.assignedLabor;
-        const cycles = smithyCyclesPerWorker * building.assignedLabor;
+        const cycles = smithyCyclesPerWorker
+          * building.assignedLabor
+          * commuteEfficiency;
         const branch = industrialMaterialBranch(
           industrialMaterialBranches,
           building,
@@ -1225,6 +1371,13 @@ function completedProcessorOverview(
         branch.smithyIronworkPerDay += cycles * SMITHY_IRONWORK_PER_CYCLE;
         branch.smithyIronPerDay += cycles * SMITHY_IRON_PER_CYCLE;
         branch.smithyCharcoalPerDay += cycles * SMITHY_CHARCOAL_PER_CYCLE;
+        branch.toolSmithies.push({
+          building,
+          ironworkPerWorkerDay: smithyCyclesPerWorker
+            * commuteEfficiency
+            * SMITHY_IRONWORK_PER_CYCLE,
+          availableIronworkPerDay: 0,
+        });
         branch.firstSmithyId = earlierStableId(branch.firstSmithyId, building.id);
         let runway = buildingInputRunway(
           deliveries,
@@ -1270,15 +1423,6 @@ function completedProcessorOverview(
           building.id,
           normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
         );
-        break;
-      }
-      case 'well': {
-        const branch = industrialMaterialBranch(
-          industrialMaterialBranches,
-          building,
-          componentFor,
-        );
-        branch.hasStaffedWell = true;
         break;
       }
       case 'mine': {
@@ -1479,6 +1623,176 @@ function cyclesPerCalendarDay(
     / interval;
 }
 
+type ToolMaintenanceRoutePlan = {
+  deliveryCapacityPerDay: number;
+  sustainableIronworkPerDay: number;
+  uptime: number;
+  cartWorkerDaysPerDay: number;
+  forgeOutputAfterCarts: number;
+  unreachableSites: number;
+  firstBottleneckId: string | null;
+};
+
+/**
+ * Long-run smithy-cart cadence. Each worksite consumes a large average refill
+ * load (full rack minus reorder stock), then targets are load-balanced across
+ * reachable smithies. Cart time also removes one smith from the forge, so
+ * sustainable supply solves both the road-time and forgings constraints.
+ */
+function toolMaintenanceRoutePlan(
+  toolSites: readonly ToolMaintenanceSiteForecast[],
+  toolSmithies: readonly ToolSmithyForecast[],
+  sabbathObserved: boolean,
+  routeDistanceFor: ProductionRoadDistanceResolver | undefined,
+  travelSpeedMultiplier: number,
+): ToolMaintenanceRoutePlan {
+  const sites = toolSites
+    .filter((site) => site.demandPerDay > 1e-9 && site.refillLoad > 1e-9)
+    .sort((left, right) =>
+      (right.building.constructionPriority ?? 2)
+        - (left.building.constructionPriority ?? 2)
+      || compareStableEntityIds(left.building.id, right.building.id));
+  const totalDemand = sites.reduce((sum, site) => sum + site.demandPerDay, 0);
+  if (totalDemand <= 1e-9) {
+    return {
+      deliveryCapacityPerDay: 0,
+      sustainableIronworkPerDay: 0,
+      uptime: 1,
+      cartWorkerDaysPerDay: 0,
+      forgeOutputAfterCarts: toolSmithies.reduce(
+        (sum, smithy) => sum + smithy.availableIronworkPerDay,
+        0,
+      ),
+      unreachableSites: 0,
+      firstBottleneckId: null,
+    };
+  }
+
+  const workSeconds = WORKDAY_SECONDS * (sabbathObserved ? 6 / 7 : 1);
+  const speed = TIMBER_DELIVERY_SPEED_MPS
+    * Math.max(1e-6, travelSpeedMultiplier);
+  const smithyLoads = toolSmithies
+    .filter((smithy) => smithy.availableIronworkPerDay > 1e-9)
+    .map((smithy) => ({
+    smithy,
+    seconds: 0,
+    demand: 0,
+    firstSiteId: null as string | null,
+    }));
+  let reachableDemand = 0;
+  let unreachableSites = 0;
+  let firstBottleneckId: string | null = null;
+  let fallbackSmithyIndex = 0;
+
+  for (const site of sites) {
+    let selected: (typeof smithyLoads)[number] | null = null;
+    let selectedTripSeconds = Infinity;
+    let selectedLoad = Infinity;
+    if (!routeDistanceFor && smithyLoads.length > 0) {
+      selected = smithyLoads[fallbackSmithyIndex % smithyLoads.length] ?? null;
+      fallbackSmithyIndex += 1;
+      selectedTripSeconds = Math.max(
+        MIN_DELIVERY_TRIP_SEC,
+        TIMBER_DELIVERY_UNLOAD_SEC,
+      );
+    } else {
+      for (const candidate of smithyLoads) {
+        const distance = routeDistanceFor?.(
+          candidate.smithy.building,
+          site.building,
+        );
+        if (distance == null || !Number.isFinite(distance) || distance < 0) continue;
+        const tripSeconds = Math.max(
+          MIN_DELIVERY_TRIP_SEC,
+          distance * 2 / speed + TIMBER_DELIVERY_UNLOAD_SEC,
+        );
+        const requiredSeconds = tripSeconds * site.demandPerDay / site.refillLoad;
+        const projectedLoad = Math.max(
+          (candidate.seconds + requiredSeconds) / workSeconds,
+          (candidate.demand + site.demandPerDay)
+            / candidate.smithy.availableIronworkPerDay,
+        );
+        if (
+          projectedLoad + 1e-9 < selectedLoad
+          || (
+            Math.abs(projectedLoad - selectedLoad) <= 1e-9
+            && tripSeconds + 1e-9 < selectedTripSeconds
+          )
+        ) {
+          selected = candidate;
+          selectedTripSeconds = tripSeconds;
+          selectedLoad = projectedLoad;
+        }
+      }
+    }
+    if (selected == null) {
+      unreachableSites += 1;
+      firstBottleneckId ??= site.building.id;
+      continue;
+    }
+    selected.seconds += selectedTripSeconds * site.demandPerDay / site.refillLoad;
+    selected.demand += site.demandPerDay;
+    selected.firstSiteId ??= site.building.id;
+    reachableDemand += site.demandPerDay;
+  }
+
+  if (reachableDemand <= 1e-9) {
+    return {
+      deliveryCapacityPerDay: 0,
+      sustainableIronworkPerDay: 0,
+      uptime: 0,
+      cartWorkerDaysPerDay: 0,
+      forgeOutputAfterCarts: toolSmithies.reduce(
+        (sum, smithy) => sum + smithy.availableIronworkPerDay,
+        0,
+      ),
+      unreachableSites,
+      firstBottleneckId: firstBottleneckId ?? sites[0]?.building.id ?? null,
+    };
+  }
+
+  let deliveryCapacityPerDay = 0;
+  let sustainableIronworkPerDay = 0;
+  let cartWorkerDaysPerDay = 0;
+  let forgeOutputAfterCarts = 0;
+  for (const load of smithyLoads) {
+    if (load.seconds <= 1e-9 || load.demand <= 1e-9) {
+      forgeOutputAfterCarts += load.smithy.availableIronworkPerDay;
+      continue;
+    }
+    const routeScale = Math.max(0, Math.min(1, workSeconds / load.seconds));
+    const laborLossAtFullUptime = load.seconds / workSeconds
+      * load.smithy.ironworkPerWorkerDay;
+    const supplyScale = load.smithy.availableIronworkPerDay
+      / (load.demand + laborLossAtFullUptime);
+    const sourceUptime = Math.max(0, Math.min(1, routeScale, supplyScale));
+    deliveryCapacityPerDay += load.demand * routeScale;
+    sustainableIronworkPerDay += load.demand * sourceUptime;
+    cartWorkerDaysPerDay += load.seconds / workSeconds * sourceUptime;
+    forgeOutputAfterCarts += Math.max(
+      0,
+      load.smithy.availableIronworkPerDay
+        - laborLossAtFullUptime * sourceUptime,
+    );
+  }
+  const uptime = sustainableIronworkPerDay / totalDemand;
+  if (uptime < 1 - 1e-6 && firstBottleneckId == null) {
+    const mostLoaded = smithyLoads
+      .filter((load) => load.seconds > 1e-9)
+      .sort((left, right) => right.seconds - left.seconds)[0];
+    firstBottleneckId = mostLoaded?.firstSiteId ?? sites[0]?.building.id ?? null;
+  }
+  return {
+    deliveryCapacityPerDay,
+    sustainableIronworkPerDay,
+    uptime,
+    cartWorkerDaysPerDay,
+    forgeOutputAfterCarts,
+    unreachableSites,
+    firstBottleneckId,
+  };
+}
+
 function industrialMaterialRoadPlan(
   branches: ReadonlyMap<string, IndustrialMaterialBranch>,
   overview: Pick<
@@ -1496,6 +1810,9 @@ function industrialMaterialRoadPlan(
     | 'firstUnmaintainedToolSiteId'
   >,
   prosperityRoadBranches: Map<string, ProsperityRoadBranch> | null,
+  sabbathObserved: boolean,
+  toolRouteDistanceFor: ProductionRoadDistanceResolver | undefined,
+  toolCartTravelSpeedMultiplier: number,
 ): IndustrialMaterialPlan {
   let activeRoadBranches = 0;
   let potteryMatchedBranches = 0;
@@ -1533,12 +1850,19 @@ function industrialMaterialRoadPlan(
   let smithyWaterPerDay = 0;
   let roadCoveredToolIronworkPerDay = 0;
   let roadCoveredFullToolIronworkPerDay = 0;
+  let toolDeliveryCapacityPerDay = 0;
+  let sustainableToolIronworkPerDay = 0;
+  let toolCartWorkerDaysPerDay = 0;
+  let toolUnreachableSites = 0;
   let ironworkSurplusAfterToolUpkeep = 0;
   let firstPotteryBottleneckId: string | null = null;
   let firstPotteryBottleneckResidenceId: string | null = null;
   let firstSmithyBottleneckId: string | null = null;
   let firstIronImportMarketId: string | null = null;
   let firstIronImportAttentionId: string | null = null;
+  let firstToolDeliveryBottleneckId: string | null = null;
+  const allToolSites: ToolMaintenanceSiteForecast[] = [];
+  const allToolSmithies: ToolSmithyForecast[] = [];
 
   for (const [branchKey, branch] of branches) {
     const branchPotteryDemand = branch.smokehousePotteryDemandPerDay
@@ -1577,7 +1901,7 @@ function industrialMaterialRoadPlan(
       ? Math.min(
         1,
         branch.clayOutputPerDay / branch.potterClayPerDay,
-        branch.hasStaffedWell ? 1 : 0,
+        branch.hasOperationalWell ? 1 : 0,
       )
       : 0;
     const branchPotteryOutput = branch.potterOutputPerDay * kilnInputScale;
@@ -1655,7 +1979,7 @@ function industrialMaterialRoadPlan(
     const nonIronSupportedIronwork = Math.min(
       branch.smithyIronworkPerDay,
       charcoalSupportedIronwork,
-      branch.hasStaffedWell ? Number.POSITIVE_INFINITY : 0,
+      branch.hasOperationalWell ? Number.POSITIVE_INFINITY : 0,
     );
     const nonIronSupportedRawIron = nonIronSupportedIronwork
       * SMITHY_IRON_PER_CYCLE
@@ -1710,18 +2034,21 @@ function industrialMaterialRoadPlan(
     smithyWaterPerDay += branchIronworkOutput
       * SMITHY_WATER_PER_CYCLE
       / SMITHY_IRONWORK_PER_CYCLE;
-    roadCoveredToolIronworkPerDay += Math.min(
-      branchIronworkOutput,
-      branch.maintainedToolIronworkPerDay,
-    );
-    roadCoveredFullToolIronworkPerDay += Math.min(
-      branchIronworkOutput,
-      branch.fullToolIronworkPerDay,
-    );
-    ironworkSurplusAfterToolUpkeep += Math.max(
+    const installedSmithyOutput = branch.toolSmithies.reduce(
+      (sum, smithy) => sum + smithy.ironworkPerWorkerDay
+        * Math.max(0, smithy.building.assignedLabor),
       0,
-      branchIronworkOutput - branch.maintainedToolIronworkPerDay,
     );
+    for (const smithy of branch.toolSmithies) {
+      const installedShare = installedSmithyOutput > 1e-9
+        ? smithy.ironworkPerWorkerDay
+          * Math.max(0, smithy.building.assignedLabor)
+          / installedSmithyOutput
+        : 0;
+      smithy.availableIronworkPerDay = branchIronworkOutput * installedShare;
+      allToolSmithies.push(smithy);
+    }
+    allToolSites.push(...branch.toolSites);
     if (branchIronworkOutput > 1e-9) {
       smithyMatchedBranches += 1;
     }
@@ -1743,6 +2070,41 @@ function industrialMaterialRoadPlan(
           candidate,
         );
       }
+    }
+  }
+
+  const toolRoutes = toolMaintenanceRoutePlan(
+    allToolSites,
+    allToolSmithies,
+    sabbathObserved,
+    toolRouteDistanceFor,
+    toolCartTravelSpeedMultiplier,
+  );
+  const maintainedShare = overview.fullToolIronworkPerDay > 1e-9
+    ? Math.min(
+      1,
+      overview.maintainedToolIronworkPerDay / overview.fullToolIronworkPerDay,
+    )
+    : 1;
+  roadCoveredToolIronworkPerDay = toolRoutes.sustainableIronworkPerDay
+    * maintainedShare;
+  roadCoveredFullToolIronworkPerDay = toolRoutes.sustainableIronworkPerDay;
+  toolDeliveryCapacityPerDay = toolRoutes.deliveryCapacityPerDay;
+  sustainableToolIronworkPerDay = toolRoutes.sustainableIronworkPerDay;
+  toolCartWorkerDaysPerDay = toolRoutes.cartWorkerDaysPerDay;
+  toolUnreachableSites = toolRoutes.unreachableSites;
+  firstToolDeliveryBottleneckId = toolRoutes.firstBottleneckId;
+  ironworkSurplusAfterToolUpkeep = Math.max(
+    0,
+    toolRoutes.forgeOutputAfterCarts - toolRoutes.sustainableIronworkPerDay,
+  );
+  if (toolRoutes.uptime < 1 - 1e-6) {
+    smithyBlockedBranches += 1;
+    if (toolRoutes.firstBottleneckId !== null) {
+      firstSmithyBottleneckId = earlierStableId(
+        firstSmithyBottleneckId,
+        toolRoutes.firstBottleneckId,
+      );
     }
   }
 
@@ -1799,6 +2161,21 @@ function industrialMaterialRoadPlan(
     fullToolIronworkPerDay: overview.fullToolIronworkPerDay,
     roadCoveredToolIronworkPerDay,
     roadCoveredFullToolIronworkPerDay,
+    toolDeliveryCapacityPerDay,
+    sustainableToolIronworkPerDay,
+    sustainableToolUptime: overview.fullToolIronworkPerDay > 1e-9
+      ? Math.max(
+        0,
+        Math.min(1, sustainableToolIronworkPerDay / overview.fullToolIronworkPerDay),
+      )
+      : 1,
+    toolCartWorkerDaysPerDay,
+    toolRefillLoad: Math.max(
+      0,
+      (BUILDING_STORAGE_CAPS.lumber_mill.ironwork ?? 0)
+        - civilianToolReorderStock(BUILDING_STORAGE_CAPS.lumber_mill.ironwork ?? 0),
+    ),
+    toolUnreachableSites,
     ironworkSurplusAfterToolUpkeep,
     firstPotteryBottleneckId,
     firstPotteryBottleneckResidenceId,
@@ -1806,6 +2183,7 @@ function industrialMaterialRoadPlan(
     firstIronImportMarketId,
     firstIronImportAttentionId,
     firstUnmaintainedToolSiteId: overview.firstUnmaintainedToolSiteId,
+    firstToolDeliveryBottleneckId,
   };
 }
 
@@ -1835,16 +2213,16 @@ function grainChainRoadPlan(
       watermillThroughputMultiplier,
     );
     const bakeryCycles = cyclesPerCalendarDay(
-      'granary',
+      'bakery',
       branch.bakeryWorkers,
       sabbathObserved,
     );
     const millFlourPerDay = millCycles * WATERMILL_FLOUR_PER_CYCLE;
-    const bakeryFlourPerDay = bakeryCycles * GRANARY_FLOUR_PER_CYCLE;
+    const bakeryFlourPerDay = bakeryCycles * BAKERY_FLOUR_PER_CYCLE;
     const matchedFlourPerDay = Math.min(millFlourPerDay, bakeryFlourPerDay);
     matchedFoodPerDay += matchedFlourPerDay
-      * GRANARY_FOOD_PER_CYCLE
-      / GRANARY_FLOUR_PER_CYCLE;
+      * BAKERY_FOOD_PER_CYCLE
+      / BAKERY_FLOUR_PER_CYCLE;
     const breadGrainPerDay = matchedFlourPerDay
       / WATERMILL_FLOUR_PER_CYCLE
       * WATERMILL_GRAIN_PER_CYCLE;
@@ -1870,8 +2248,8 @@ function grainChainRoadPlan(
     }
 
     const imbalance = Math.abs(millFlourPerDay - bakeryFlourPerDay)
-      * GRANARY_FOOD_PER_CYCLE
-      / GRANARY_FLOUR_PER_CYCLE;
+      * BAKERY_FOOD_PER_CYCLE
+      / BAKERY_FLOUR_PER_CYCLE;
     const candidateId = millFlourPerDay > bakeryFlourPerDay
       ? branch.firstMillId
       : branch.firstBakeryId;
@@ -1930,6 +2308,8 @@ export function computeSettlementProductionCapacity(
   calendarMonth?: number,
   resourceAbundance = 50,
   charcoalBurnerThroughputMultiplier = 1,
+  toolRouteDistanceFor?: ProductionRoadDistanceResolver,
+  toolCartTravelSpeedMultiplier = 1,
 ): SettlementProductionCapacity {
   const normalizedWatermillThroughput = Number.isFinite(
     watermillThroughputMultiplier,
@@ -2010,7 +2390,7 @@ export function computeSettlementProductionCapacity(
     sabbathObserved,
     normalizedWatermillThroughput,
   );
-  const bakeryCycles = cyclesPerCalendarDay('granary', bakeryWorkers, sabbathObserved);
+  const bakeryCycles = cyclesPerCalendarDay('bakery', bakeryWorkers, sabbathObserved);
   const breweryCycles = cyclesPerCalendarDay('brewery', breweryWorkers, sabbathObserved);
   const breweryAleCycles = breweryCycles / 2;
   const smokehouseCycles = cyclesPerCalendarDay(
@@ -2021,10 +2401,10 @@ export function computeSettlementProductionCapacity(
   const weaverCycles = cyclesPerCalendarDay('weaver', weaverWorkers, sabbathObserved);
 
   const flourOutputPerDay = millCycles * WATERMILL_FLOUR_PER_CYCLE;
-  const bakeryFlourCapacityPerDay = bakeryCycles * GRANARY_FLOUR_PER_CYCLE;
+  const bakeryFlourCapacityPerDay = bakeryCycles * BAKERY_FLOUR_PER_CYCLE;
   const hypotheticalBreadFoodPerDay = Math.min(
-    bakeryCycles * GRANARY_FOOD_PER_CYCLE,
-    flourOutputPerDay * GRANARY_FOOD_PER_CYCLE / GRANARY_FLOUR_PER_CYCLE,
+    bakeryCycles * BAKERY_FOOD_PER_CYCLE,
+    flourOutputPerDay * BAKERY_FOOD_PER_CYCLE / BAKERY_FLOUR_PER_CYCLE,
   );
   const {
     matchedFoodPerDay: breadFoodCapacityPerDay,
@@ -2036,8 +2416,8 @@ export function computeSettlementProductionCapacity(
     hypotheticalBreadFoodPerDay,
     normalizedWatermillThroughput,
   );
-  const breadCyclesPerDay = breadFoodCapacityPerDay / GRANARY_FOOD_PER_CYCLE;
-  const matchedFlourPerDay = breadCyclesPerDay * GRANARY_FLOUR_PER_CYCLE;
+  const breadCyclesPerDay = breadFoodCapacityPerDay / BAKERY_FOOD_PER_CYCLE;
+  const matchedFlourPerDay = breadCyclesPerDay * BAKERY_FLOUR_PER_CYCLE;
   const millCyclesForBread = matchedFlourPerDay / WATERMILL_FLOUR_PER_CYCLE;
 
   let tierThreeResidents = 0;
@@ -2113,6 +2493,11 @@ export function computeSettlementProductionCapacity(
       firstUnmaintainedToolSiteId,
     },
     prosperityRoadBranches,
+    sabbathObserved,
+    toolRouteDistanceFor,
+    Number.isFinite(toolCartTravelSpeedMultiplier)
+      ? Math.max(1e-6, toolCartTravelSpeedMultiplier)
+      : 1,
   );
 
   return {
@@ -2150,8 +2535,8 @@ export function computeSettlementProductionCapacity(
     grainChainRoads,
     grainRoadBranches: roadComponentFor ? grainRoadBranches : null,
     breadGrainPerDay: millCyclesForBread * WATERMILL_GRAIN_PER_CYCLE,
-    breadWaterPerDay: breadCyclesPerDay * GRANARY_WATER_PER_CYCLE,
-    breadFirewoodPerDay: breadCyclesPerDay * GRANARY_FIREWOOD_PER_CYCLE,
+    breadWaterPerDay: breadCyclesPerDay * BAKERY_WATER_PER_CYCLE,
+    breadFirewoodPerDay: breadCyclesPerDay * BAKERY_FIREWOOD_PER_CYCLE,
     aleOutputPerDay: breweryAleCycles * BREWERY_ALE_PER_CYCLE,
     aleBarleyPerDay: breweryAleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
     aleWaterPerDay: breweryAleCycles * (
@@ -2218,10 +2603,10 @@ export function grainChainBalanceLabel(
   },
 ): string {
   if (capacity.millWorkers <= 0 && capacity.bakeryWorkers <= 0) {
-    return 'No staffed mill or granary';
+    return 'No staffed mill or bakery';
   }
-  if (capacity.millWorkers <= 0) return 'Mill missing — granaries cannot receive flour';
-  if (capacity.bakeryWorkers <= 0) return 'Granary missing — milled flour has no bakery';
+  if (capacity.millWorkers <= 0) return 'Mill missing — bakeries cannot receive flour';
+  if (capacity.bakeryWorkers <= 0) return 'Bakery missing — milled flour has no destination';
   if ((capacity.grainChainRoads?.fragmentationFoodPerDay ?? 0) > 0.05) {
     return `Road-limited — ${capacity.grainChainRoads!.fragmentationFoodPerDay.toFixed(1)} food / day stranded between branches`;
   }
@@ -2232,5 +2617,5 @@ export function grainChainBalanceLabel(
   );
   if (Math.abs(difference) <= tolerance) return 'Balanced milling and baking capacity';
   if (difference < 0) return 'Mill-limited — add mill labor before bakery labor';
-  return 'Bakery-limited — add granary labor before mill labor';
+  return 'Bakery-limited — add bakery labor before mill labor';
 }

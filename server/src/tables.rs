@@ -1207,6 +1207,7 @@ pub struct RaidIncursionRoute {
     accessor = delivery_trip,
     public,
     index(accessor = building_id, btree(columns = [building_id])),
+    index(accessor = labor_building_id, btree(columns = [labor_building_id])),
     index(accessor = residence_id, btree(columns = [residence_id])),
     index(accessor = target_building_id, btree(columns = [target_building_id])),
     index(accessor = owner, btree(columns = [owner]))
@@ -1249,6 +1250,11 @@ pub struct DeliveryTrip {
     /// building assignment was reduced while they were already on the road.
     #[default(0)]
     pub free_hauler_workers: u32,
+    /// Assigned logistics workplace supplying the cart crew. Zero means the
+    /// trip reserves unassigned settlement labor instead. Cargo still returns
+    /// to `building_id`; labor ownership is intentionally independent.
+    #[default(0u64)]
+    pub labor_building_id: u64,
 }
 
 /// A server-authoritative structural fire. Resolved fires linger briefly so the

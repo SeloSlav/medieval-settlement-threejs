@@ -377,7 +377,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
 
     if !has_connected_services(ctx, &residence, required_services) {
         return Err(if next_tier == 2 {
-            "Tier 2 requires staffed road-linked firewood distribution (a lodge or accepting storehouse) and a staffed well.".to_string()
+            "Tier 2 requires road-linked firewood distribution (a staffed lodge or accepting storehouse) and a completed well in service range.".to_string()
         } else {
             "Tier 3 requires staffed road-linked preserved-food, ale, cloth, and pottery suppliers (a linked monastery can supply ale).".to_string()
         });

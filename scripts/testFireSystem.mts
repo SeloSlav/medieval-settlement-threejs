@@ -286,8 +286,8 @@ assert.match(
 );
 assert.match(
   wellSource,
-  /fire_response_needed_for_well[\s\S]*delivery_ready = !fire_response_needed[\s\S]*prioritize_fire_response/,
-  'fire calls must preempt household delivery work',
+  /if !building_has_active_trip[\s\S]*select_fire_for_well[\s\S]*try_start_fire_response_trip[\s\S]*let fire_response_needed = fire_response_needed_for_well[\s\S]*let delivery_ready = !fire_response_needed/,
+  'a free well hauler must attempt fire response before household or industrial delivery work',
 );
 assert.match(
   rendererSource,

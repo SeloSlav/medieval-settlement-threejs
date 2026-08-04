@@ -149,7 +149,6 @@ fn dispatch_reserved_stock(
             || (source.kind == "village_storehouse"
                 && building_has_inbound_supply_trip(ctx, source.id))
             || construction_source_stock(&source, commodity) <= 1e-6
-            || (source.assigned_labor == 0 && free_haulers == 0)
         {
             continue;
         }

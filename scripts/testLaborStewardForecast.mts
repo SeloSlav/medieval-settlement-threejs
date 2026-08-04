@@ -232,7 +232,7 @@ const inspector = renderTownHallInspector(
 assert.match(inspector.detailsHtml, /Dawn labor review/);
 assert.match(
   inspector.detailsHtml,
-  /Next dawn: seasonal release 2\/deploy 1.*production deploy 2.*construction steady.*1 free after review.*1 held free/,
+  /Next dawn: seasonal release 2\/deploy 1.*production deploy 3.*construction deploy 4.*1 free after review.*1 held free/,
 );
 assert.match(
   inspector.detailsHtml,

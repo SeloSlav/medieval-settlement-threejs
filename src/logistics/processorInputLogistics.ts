@@ -5,8 +5,8 @@ import {
   BUILDING_STORAGE_CAPS,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
-  GRANARY_FIREWOOD_PER_CYCLE,
-  GRANARY_FLOUR_PER_CYCLE,
+  BAKERY_FIREWOOD_PER_CYCLE,
+  BAKERY_FLOUR_PER_CYCLE,
   LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
@@ -19,7 +19,10 @@ import {
   WEAVER_FLAX_PER_CYCLE,
   WEAVER_WOOL_PER_CYCLE,
 } from '../generated/gameBalance.ts';
-import { isCivilianToolSite } from '../economy/civilianToolPolicy.ts';
+import {
+  civilianToolRefillDue,
+  isCivilianToolSite,
+} from '../economy/civilianToolPolicy.ts';
 import {
   normalizeStaffingPriority,
   type StaffingPriority,
@@ -95,17 +98,17 @@ const TARGET_KINDS: Record<
 > = {
   barley: ['brewery'],
   firewood: [
-    'granary',
+    'bakery',
     'brewery',
     'smokehouse',
     'charcoal_burner',
     'potter_kiln',
   ],
-  flour: ['granary'],
+  flour: ['bakery', 'granary'],
   food: ['smokehouse'],
   preservedFood: ['granary'],
   wool: ['weaver'],
-  flax: ['weaver'],
+  flax: ['weaver', 'granary'],
   ironwork: [
     'lumber_mill',
     'woodcutters_lodge',
@@ -134,8 +137,8 @@ export function directlyDispatchedProcessorInputPerCycle(
       return BREWERY_BARLEY_PER_MALT_CYCLE;
     case 'firewood':
       switch (targetKind) {
-        case 'granary':
-          return GRANARY_FIREWOOD_PER_CYCLE;
+        case 'bakery':
+          return BAKERY_FIREWOOD_PER_CYCLE;
         case 'brewery':
           return BREWERY_MALTING_FIREWOOD_PER_CYCLE
             + BREWERY_BREWING_FIREWOOD_PER_CYCLE;
@@ -149,7 +152,7 @@ export function directlyDispatchedProcessorInputPerCycle(
           return 0;
       }
     case 'flour':
-      return GRANARY_FLOUR_PER_CYCLE;
+      return targetKind === 'bakery' ? BAKERY_FLOUR_PER_CYCLE : 0;
     case 'food':
       return SMOKEHOUSE_FOOD_PER_CYCLE;
     case 'preservedFood':
@@ -256,10 +259,15 @@ export function selectDirectProcessorInputTarget<
       perCycle,
       target.processorOutputTargetPercent,
     );
-    const duty: ProcessorInputDispatchDuty = target.assignedLabor > 0
-      && stock + 1e-6 < workingTarget
-      ? 'working-buffer'
-      : 'workshop-overflow';
+    const toolRack = commodity === 'ironwork' && isCivilianToolSite(target.kind);
+    if (toolRack && !civilianToolRefillDue(stock, capacity)) continue;
+    const duty: ProcessorInputDispatchDuty = toolRack
+      ? target.assignedLabor > 0
+        ? 'working-buffer'
+        : 'workshop-overflow'
+      : target.assignedLabor > 0 && stock + 1e-6 < workingTarget
+        ? 'working-buffer'
+        : 'workshop-overflow';
     if (
       marketplaceMaterial
       && (
@@ -273,7 +281,9 @@ export function selectDirectProcessorInputTarget<
     ) {
       continue;
     }
-    const desiredStock = marketplaceReserveTarget != null
+    const desiredStock = toolRack
+      ? capacity
+      : marketplaceReserveTarget != null
       ? Math.min(capacity, marketplaceReserveTarget)
       : duty === 'working-buffer'
         ? workingTarget

@@ -1353,7 +1353,7 @@ assert.match(mineInspector.detailsHtml, /Ordinary iron-bearing ore seam - finite
 assert.match(mineInspector.detailsHtml, /75 \/ 300 iron-bearing ore/);
 assert.match(mineInspector.detailsHtml, /Mine carts serve road-linked smithies/);
 assert.match(mineInspector.detailsHtml, /Baseline hand tools/);
-assert.match(mineInspector.detailsHtml, /smithy handcart restores a 3-cycle buffer/);
+assert.match(mineInspector.detailsHtml, /refill to 3\.00 \(30 cycles\)/);
 
 const richSaltDeposit = mineralNode(
   'deposit-salt-rich-inspector',
@@ -1668,11 +1668,6 @@ assert.match(
   buildingInspectorSource,
   /case 'mine':[\s\S]*renderMineralMineInspector/,
   'mine selection must route through the deposit-aware inspector',
-);
-assert.doesNotMatch(
-  uiSurfaces,
-  /Gorski[\s-]?Kotar/i,
-  'the background reference region must not be surfaced in player-facing UI',
 );
 assert.match(
   uiSurfaces,

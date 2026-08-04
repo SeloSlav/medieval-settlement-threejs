@@ -3,7 +3,6 @@ import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
 import {
   isProcessorOutputTargetKind,
-  processorOutputCommodity,
   processorOutputHeadroom,
   type ProcessorOutputTargetKind,
 } from './processorOutputPolicy.ts';
@@ -85,11 +84,6 @@ type OperationalProductionLaborState =
 export function computeSettlementProcessorLaborRecallPlan(
   state: Pick<GameState, 'buildings' | 'deliveryTrips'>,
 ): SettlementProcessorLaborRecallPlan {
-  const activeTripOrigins = new Set<string>();
-  for (const trip of state.deliveryTrips.values()) {
-    activeTripOrigins.add(trip.buildingId);
-  }
-
   const sites: ProcessorLaborSitePlan[] = [];
   let targetPausedSites = 0;
   let reclaimableSites = 0;
@@ -107,12 +101,8 @@ export function computeSettlementProcessorLaborRecallPlan(
       continue;
     }
     targetPausedSites += 1;
-    const output = processorOutputCommodity(building.kind);
-    const hasDispatchDuty = activeTripOrigins.has(building.id)
-      || (building[output] ?? 0) > 1e-6;
     const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
-    const targetLabor = Math.min(assignedLabor, hasDispatchDuty ? 1 : 0);
-    if (targetLabor === 1) retainedDispatchers += 1;
+    const targetLabor = 0;
     if (targetLabor >= assignedLabor) continue;
 
     const reclaimable = assignedLabor - targetLabor;
@@ -122,7 +112,7 @@ export function computeSettlementProcessorLaborRecallPlan(
       assignedLabor,
       targetLabor,
       reclaimableWorkers: reclaimable,
-      retainedDispatcher: targetLabor === 1,
+      retainedDispatcher: false,
     });
     reclaimableSites += 1;
     reclaimableWorkers += reclaimable;

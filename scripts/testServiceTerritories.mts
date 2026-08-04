@@ -88,8 +88,8 @@ const idleLodge = building('idle-lodge', 'woodcutters_lodge', 2, 0);
 const staffedLodge = building('staffed-lodge', 'woodcutters_lodge', 20, 1);
 assert.equal(
   claimResidencesForFirewoodSuppliers(network, [idleLodge, staffedLodge], [home]).get(home.id),
-  staffedLodge.id,
-  'an idle nearer lodge must not steal a staffed lodge territory',
+  idleLodge.id,
+  'a stocked lodge should use a free hauler even while its production roster is empty',
 );
 
 const depot = building('depot', 'village_storehouse', 5, 2);
@@ -124,8 +124,8 @@ const idleWell = building('idle-well', 'well', 3, 0);
 const staffedWell = building('staffed-well', 'well', 25, 1);
 assert.equal(
   claimResidencesForWells(network, [idleWell, staffedWell], [home]).get(home.id),
-  staffedWell.id,
-  'well coverage must reflect its actual staffed bucket crew',
+  idleWell.id,
+  'autonomous wells should claim the nearest household regardless of legacy assigned labor',
 );
 assert.equal(
   claimResidencesForWells(
@@ -144,8 +144,8 @@ const idleCamp = building('idle-camp', 'fishing_camp', 4, 0);
 const staffedCamp = building('staffed-camp', 'fishing_camp', 30, 1);
 assert.equal(
   claimResidencesForFoodSuppliers(network, [idleCamp, staffedCamp], [home]).get(home.id),
-  staffedCamp.id,
-  'fresh-food branch claims must ignore idle producers',
+  idleCamp.id,
+  'stored fresh food should remain deliverable after the production crew is reassigned',
 );
 
 const idleSmokehouse = building('idle-smokehouse', 'smokehouse', 3, 0);
@@ -157,7 +157,8 @@ assert.equal(
     network,
     'preservedFood',
   )?.id,
-  staffedFarmstead.id,
+  idleSmokehouse.id,
+  'stored cured food should use a free hauler instead of borrowing producer labor',
 );
 const autonomousMonastery = building('monastery', 'monastery', 7, 0);
 assert.equal(
@@ -167,8 +168,8 @@ assert.equal(
     network,
     'ale',
   )?.id,
-  autonomousMonastery.id,
-  'the resident monastic community remains the intentional autonomous exception',
+  'idle-brewery',
+  'stored ale should remain deliverable after the brewery production crew is reassigned',
 );
 
 assert.equal(STOREHOUSE_FIREWOOD_PER_DELIVERY, 8);

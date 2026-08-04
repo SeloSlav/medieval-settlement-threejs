@@ -92,8 +92,11 @@ export function granaryDispatchPriorityLabel(householdsFirst: boolean): string {
   return householdsFirst ? 'Households first' : 'Winter preservation first';
 }
 
-export function foodLaborSplit(assignedLabor: number): FoodLaborSplit {
-  const split = lodgeLaborSplit(assignedLabor);
+export function foodLaborSplit(
+  assignedLabor: number,
+  freeHaulersAvailable = 1,
+): FoodLaborSplit {
+  const split = lodgeLaborSplit(assignedLabor, freeHaulersAvailable);
   return { harvesting: split.processing, delivering: split.delivering };
 }
 
@@ -101,12 +104,15 @@ export function foodLaborAlternates(assignedLabor: number): boolean {
   return lodgeLaborAlternates(assignedLabor);
 }
 
-export function formatFoodCrewSplit(assignedLabor: number): string {
-  const split = foodLaborSplit(assignedLabor);
-  if (split.harvesting === 0 && split.delivering === 0) return 'None assigned';
-  if (foodLaborAlternates(assignedLabor)) return '1 worker — alternates harvesting & delivery';
-  if (split.delivering === 0) return `${split.harvesting} harvesting`;
-  return `${split.harvesting} harvesting · ${split.delivering} delivering`;
+export function formatFoodCrewSplit(
+  assignedLabor: number,
+  freeHaulersAvailable = 1,
+): string {
+  const split = foodLaborSplit(assignedLabor, freeHaulersAvailable);
+  const producerLabel = split.harvesting === 0
+    ? 'No gatherer assigned'
+    : `${split.harvesting} harvesting`;
+  return `${producerLabel} · free hauler delivers`;
 }
 
 export function foodPerDelivery(deliveryWorkers: number): number {

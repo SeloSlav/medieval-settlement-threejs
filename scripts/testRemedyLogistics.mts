@@ -63,7 +63,7 @@ const routePolicy = read('server/src/simulation/road_logistics.rs');
 const remedySelector = routePolicy.match(
   /pub fn select_residence_for_remedy_delivery[\s\S]*?(?=\n\/\/\/ Assign every residence)/,
 )?.[0] ?? '';
-assert.match(remedySelector, /road_path_distances_from/);
+assert.match(remedySelector, /local_delivery_distances_from/);
 assert.doesNotMatch(
   remedySelector,
   /road_path_distance\(/,

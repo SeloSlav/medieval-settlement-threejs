@@ -91,8 +91,8 @@ assert.match(
 
 const reclamation = read('server/src/simulation/reclamation.rs');
 assert.match(reclamation, /available_free_haulers/);
-assert.match(reclamation, /road_path_distance/);
-assert.match(reclamation, /try_start_building_supply_trip/);
+assert.match(reclamation, /local_delivery_distance/);
+assert.match(reclamation, /try_start_free_building_supply_trip/);
 assert.match(reclamation, /free_haulers_by_owner/);
 assert.match(reclamation, /destination_ids_by_owner/);
 assert.match(reclamation, /CommodityKind::Gold/);

@@ -10,6 +10,11 @@ import {
   isWorldResourceIconVisibilityBlocked,
   type PlacementInteractionGate,
 } from '../src/input/PlacementInteractionGate.ts';
+import {
+  STARTING_GOLD,
+  STARTING_STONE,
+  STARTING_TIMBER,
+} from '../src/generated/gameBalance.ts';
 import type {
   BuildingState,
   ForagingNodeState,
@@ -186,9 +191,9 @@ const confirmedCampState = {
   z: -8,
   workRadius: 0,
   actionCooldown: 0,
-  timber: 160,
+  timber: STARTING_TIMBER,
   firewood: 24,
-  stone: 140,
+  stone: STARTING_STONE,
   water: 0,
   food: 0,
   grain: 0,
@@ -201,7 +206,7 @@ const confirmedCampState = {
   cloth: 0,
   ironwork: 0,
   polearms: 0,
-  gold: 8,
+  gold: STARTING_GOLD,
   waterCapacity: 0,
   assignedLabor: 0,
   constructionComplete: true,

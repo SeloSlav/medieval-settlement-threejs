@@ -403,7 +403,8 @@ const noMarketRoute = computeSettlementParishReliefPlan({
 });
 assert.equal(
   noMarketRoute.parishes.get('chapel')?.status,
-  'no-market-route',
+  'ready',
+  'a chapel without a connected road should retain a slower open-ground relief route',
 );
 
 const fullHome = home('full-home', 25, {

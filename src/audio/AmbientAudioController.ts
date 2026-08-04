@@ -157,8 +157,9 @@ export class AmbientAudioController {
     if (!this.running || !this.audio.getEnabled()) return;
 
     const schedule = this.schedule;
+    const buildingSnapshot = this.config.getBuildings();
+    const residenceSnapshot = this.config.getResidences();
     if (schedule) {
-      const buildingSnapshot = this.config.getBuildings();
       if (buildingSnapshot !== this.lastChapelBuildingSnapshot) {
         syncPlacedChapels(buildingSnapshot.values(), this.chapelPositions);
         this.lastChapelBuildingSnapshot = buildingSnapshot;
@@ -213,14 +214,14 @@ export class AmbientAudioController {
     this.buildingAudioView.orbitDistance = this.config.getOrbitDistance();
     this.buildingAudio.tick(
       dtSeconds,
-      this.config.getBuildings().values(),
-      this.config.getResidences().values(),
+      buildingSnapshot,
+      residenceSnapshot,
       this.buildingAudioView,
     );
     this.worldFoley.tick(dtSeconds, {
       view: this.buildingAudioView,
-      buildings: this.config.getBuildings(),
-      residences: this.config.getResidences(),
+      buildings: buildingSnapshot,
+      residences: residenceSnapshot,
       deliveryTrips: this.config.getDeliveryTrips(),
       fireIncidents: this.config.getFireIncidents(),
       livestockHerds: this.config.getLivestockHerds(),

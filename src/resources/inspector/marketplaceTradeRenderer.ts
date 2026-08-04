@@ -121,6 +121,9 @@ export function renderMarketplaceTradePanel(
             : staging.requiresStaging && staging.resource
               ? `${staging.localStock.toFixed(0)} / ${staging.required.toFixed(0)} at market · one order dispatches follow-up source carts`
               : marketHint);
+    const civilianToolBoundary = 'resource' in offer && offer.resource === 'ironwork'
+      ? ' · finished imports serve market, carpenter, construction, and military demand; civilian tool racks accept only smithy-cart refills'
+      : '';
     return `
       <li class="marketplace-trade-row">
         <button
@@ -132,7 +135,7 @@ export function renderMarketplaceTradePanel(
           ${disabled}
         >
           <span class="marketplace-trade-option__title">${actionTitle}</span>
-          <span class="marketplace-trade-option__hint">${hint}</span>
+          <span class="marketplace-trade-option__hint">${hint}${civilianToolBoundary}</span>
         </button>
       </li>`;
   };
@@ -407,7 +410,7 @@ function renderIronworkProcurementPolicy(
   return `
     <section class="marketplace-trade-section" aria-label="Frontier ironwork procurement">
       <h3 class="marketplace-trade-section__title">Frontier ironwork procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the shared standing-order queue, physically held market-coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes market stock only after unloading; a full market leaves the cart waiting visibly at the stall, and carpenters must still collect the fittings by road. The most depleted selected reserve goes first.</p>
+      <p class="resource-inspector-note">Standing stock target — this market buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the shared standing-order queue, physically held market-coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes market stock only after unloading; a full market leaves the cart waiting visibly at the stall, and carpenters must still collect the fittings by road. Imported finished fittings serve carpentry, construction, and armament demand but do not refill civilian tool racks; those require locally forged stock carried by a smithy cart. The most depleted selected reserve goes first.</p>
       <div class="resource-action-row">${MARKETPLACE_IRONWORK_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-ironwork-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>

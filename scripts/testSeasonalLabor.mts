@@ -36,7 +36,7 @@ assert.equal(seasonalProductionActive('vineyard', 11), false);
 assert.equal(seasonalProductionActive('fishing_camp', 1), false);
 assert.equal(seasonalProductionActive('fishing_camp', 3), true);
 assert.equal(seasonalProductionActive('granary', 1), null);
-assert.equal(seasonalLaborTarget('apiary', 1, 3, true), 1);
+assert.equal(seasonalLaborTarget('apiary', 1, 3, true), 0);
 assert.equal(seasonalLaborTarget('apiary', 1, 3, false), 0);
 assert.equal(seasonalLaborTarget('apiary', 4, 3, false), 3);
 assert.equal(DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED, false);
@@ -74,26 +74,27 @@ winterState.deliveryTrips.set('cart', trip('cart', cartApiary.id));
 
 const winterPlan = computeSettlementSeasonalLaborPlan(winterState, 1);
 assert.equal(winterPlan.dormantSites, 6);
-assert.equal(winterPlan.reclaimableSites, 5);
-assert.equal(winterPlan.reclaimableWorkers, 10);
-assert.equal(winterPlan.retainedHaulers, 3);
+assert.equal(winterPlan.reclaimableSites, 6);
+assert.equal(winterPlan.reclaimableWorkers, 13);
+assert.equal(winterPlan.retainedHaulers, 0);
 assert.equal(winterPlan.firstReclaimableBuildingId, forager.id);
 assert.deepEqual(
   winterPlan.sites.map((site) => [site.buildingId, site.targetLabor]),
   [
     [forager.id, 0],
-    [fishing.id, 1],
+    [fishing.id, 0],
     [apiary.id, 0],
-    [vineyard.id, 1],
+    [vineyard.id, 0],
     [farmstead.id, 0],
+    [cartApiary.id, 0],
   ],
 );
 
 const recalled = applySeasonalLaborRecall(winterState.buildings, winterPlan);
 assert.equal(recalled.get(forager.id)?.assignedLabor, 0);
-assert.equal(recalled.get(fishing.id)?.assignedLabor, 1);
-assert.equal(recalled.get(vineyard.id)?.assignedLabor, 1);
-assert.equal(recalled.get(cartApiary.id)?.assignedLabor, 1);
+assert.equal(recalled.get(fishing.id)?.assignedLabor, 0);
+assert.equal(recalled.get(vineyard.id)?.assignedLabor, 0);
+assert.equal(recalled.get(cartApiary.id)?.assignedLabor, 0);
 assert.equal(recalled.get(granary.id)?.assignedLabor, 3);
 assert.equal(winterState.buildings.get(forager.id)?.assignedLabor, 2);
 

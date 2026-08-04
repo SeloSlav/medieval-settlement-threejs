@@ -57,22 +57,23 @@ for (const site of [brewery, weaver, smokehouse, granary, carpenter]) {
 
 const recallPlan = computeSettlementProcessorLaborRecallPlan(recallState);
 assert.equal(recallPlan.targetPausedSites, 3);
-assert.equal(recallPlan.reclaimableSites, 2);
-assert.equal(recallPlan.reclaimableWorkers, 4);
-assert.equal(recallPlan.retainedDispatchers, 3);
+assert.equal(recallPlan.reclaimableSites, 3);
+assert.equal(recallPlan.reclaimableWorkers, 7);
+assert.equal(recallPlan.retainedDispatchers, 0);
 assert.equal(recallPlan.firstReclaimableBuildingId, brewery.id);
 assert.deepEqual(
   recallPlan.sites.map((site) => [site.buildingId, site.targetLabor]),
   [
-    [brewery.id, 1],
-    [granary.id, 1],
+    [brewery.id, 0],
+    [weaver.id, 0],
+    [granary.id, 0],
   ],
 );
 
 const recalled = applyProcessorLaborRecall(recallState.buildings, recallPlan);
-assert.equal(recalled.get(brewery.id)?.assignedLabor, 1);
-assert.equal(recalled.get(granary.id)?.assignedLabor, 1);
-assert.equal(recalled.get(weaver.id)?.assignedLabor, 1);
+assert.equal(recalled.get(brewery.id)?.assignedLabor, 0);
+assert.equal(recalled.get(granary.id)?.assignedLabor, 0);
+assert.equal(recalled.get(weaver.id)?.assignedLabor, 0);
 assert.equal(recalled.get(smokehouse.id)?.assignedLabor, 2);
 assert.equal(recalled.get(carpenter.id)?.assignedLabor, 4);
 assert.equal(recallState.buildings.get(brewery.id)?.assignedLabor, 3);
@@ -368,8 +369,8 @@ for (const site of [cappedStewardBrewery, suppliedStewardMill]) {
   stewardState.buildings.set(site.id, site);
 }
 const stewardPlan = computeSettlementProductionStewardPlan(stewardState, 6, 0);
-assert.equal(stewardPlan.recalledWorkers, 2);
-assert.equal(stewardPlan.calledWorkers, 2);
+assert.equal(stewardPlan.recalledWorkers, 3);
+assert.equal(stewardPlan.calledWorkers, 3);
 assert.equal(stewardPlan.availableLaborAfter, 0);
 assert.equal(stewardPlan.firstChangedBuildingId, cappedStewardBrewery.id);
 assert.equal(
@@ -379,8 +380,8 @@ assert.equal(
 );
 assert.equal(
   stewardPlan.callup.assignments[0]?.targetLabor,
-  2,
-  'the output-capped brewery dispatcher must not be immediately rehired',
+  3,
+  'the output-capped brewery crew must not be immediately rehired',
 );
 
 const reservedStewardPlan = computeSettlementProductionStewardPlan(
@@ -390,8 +391,8 @@ const reservedStewardPlan = computeSettlementProductionStewardPlan(
   2,
 );
 assert.equal(reservedStewardPlan.laborReserve, 2);
-assert.equal(reservedStewardPlan.recalledWorkers, 2);
-assert.equal(reservedStewardPlan.calledWorkers, 0);
+assert.equal(reservedStewardPlan.recalledWorkers, 3);
+assert.equal(reservedStewardPlan.calledWorkers, 1);
 assert.equal(reservedStewardPlan.availableLaborAfter, 2);
 
 const recoveringState = emptyGameState();
@@ -466,22 +467,22 @@ assert.match(inspector.detailsHtml, /supplied sites fill by priority/);
 assert.match(inspector.detailsHtml, /Dawn labor review/);
 assert.match(
   inspector.detailsHtml,
-  /Next dawn: production release 2\/deploy 3.*5 free after review/,
+  /Next dawn: production release 3\/deploy 3.*6 free after review/,
 );
 assert.match(
   inspector.detailsHtml,
   /aria-label="Inspect first dawn labor steward crew change"/,
 );
 assert.match(inspector.detailsHtml, /Target-paused workshops/);
-assert.match(inspector.detailsHtml, /2 reclaimable workers across 1 target-paused workshop/);
+assert.match(inspector.detailsHtml, /3 reclaimable workers across 1 target-paused workshop/);
 assert.match(inspector.detailsHtml, /data-inspect-building="brewery"/);
 assert.match(inspector.detailsHtml, /Production call-up/);
 assert.match(inspector.detailsHtml, /ready production posts/);
 assert.match(inspector.detailsHtml, /1 blocked/);
 assert.match(inspector.detailsHtml, /data-inspect-building="mill"/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-recall-target-idle-processor-labor/);
-assert.match(inspector.supplementalPanelHtml ?? '', /Recall 2 stalled production workers/);
-assert.match(inspector.supplementalPanelHtml ?? '', /One dispatcher remains for stored output/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Recall 3 stalled production workers/);
+assert.match(inspector.supplementalPanelHtml ?? '', /no producer is retained as a dispatcher/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Matching inbound supplies protect recovering workshops/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-call-up-target-ready-processor-labor/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 3 production workers/);
@@ -510,7 +511,7 @@ for (let index = 0; index < 100_000; index += 1) {
 const recallStarted = performance.now();
 const perfRecallPlan = computeSettlementProcessorLaborRecallPlan(perfState);
 const recallElapsedMs = performance.now() - recallStarted;
-assert.equal(perfRecallPlan.reclaimableWorkers, 200_000);
+assert.equal(perfRecallPlan.reclaimableWorkers, 300_000);
 assert.ok(
   recallElapsedMs < 250,
   `100,000-site workshop recall plan took ${recallElapsedMs.toFixed(1)} ms`,
@@ -586,8 +587,8 @@ const perfStewardPlan = computeSettlementProductionStewardPlan(
   0,
 );
 const stewardElapsedMs = performance.now() - stewardStarted;
-assert.equal(perfStewardPlan.recalledWorkers, 100_000);
-assert.equal(perfStewardPlan.calledWorkers, 100_000);
+assert.equal(perfStewardPlan.recalledWorkers, 150_000);
+assert.equal(perfStewardPlan.calledWorkers, 150_000);
 assert.equal(perfStewardPlan.availableLaborAfter, 0);
 assert.ok(
   stewardElapsedMs < 1_500,

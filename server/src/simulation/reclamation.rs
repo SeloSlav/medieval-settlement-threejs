@@ -16,7 +16,7 @@ use crate::reducers::buildings::next_available_building_id;
 use crate::roads::load_owner_road_network;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
-    try_start_building_supply_trip,
+    try_start_free_building_supply_trip,
 };
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
@@ -824,14 +824,13 @@ pub fn step_reclamation_piles(
                 continue;
             };
 
-            if try_start_building_supply_trip(
+            if try_start_free_building_supply_trip(
                 ctx,
                 tick,
                 clock,
                 network,
                 &mut pile,
                 &target,
-                1,
                 commodity,
                 TIMBER_DELIVERY_SPEED_MPS,
                 TIMBER_DELIVERY_UNLOAD_SEC,

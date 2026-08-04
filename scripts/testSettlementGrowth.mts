@@ -217,7 +217,10 @@ assert.doesNotMatch(
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-residence\]'\)/);
 assert.match(resourceInspector, /findResidenceTarget\(inspectResidenceId\)/);
 assert.match(worldQueries, /findResidenceTarget\(residenceId: string\)/);
-assert.match(settlementHud, /later arrivals require every need active at that house tier/);
+assert.match(
+  settlementHud,
+  /Authoritative arrivals,[\s\S]*departures,[\s\S]*welfare remain household-driven/,
+);
 
 console.log(`settlement growth forecast tests passed (${elapsedMs.toFixed(1)} ms for 100,000 homes / 25,000 fire outages)`);
 

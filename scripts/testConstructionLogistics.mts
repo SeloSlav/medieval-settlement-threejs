@@ -158,7 +158,7 @@ assert.equal(
     (total, kind) => total + (getBuildingCost(kind).ironwork ?? 0),
     0,
   ),
-  51,
+  48,
   'advanced civic, defensive, and processing buildout should create a modest but meaningful fittings demand',
 );
 for (const kind of [
@@ -252,7 +252,7 @@ assert.match(
 );
 assert.match(
   deliveryTripServer,
-  /free_hauler_workers_for_trip[\s\S]*free_hauler_workers,/,
+  /let \(labor_building_id, free_hauler_workers\) = match spec\.labor_source[\s\S]*DeliveryLaborSource::Free => \(0, spec\.delivery_workers\)[\s\S]*free_hauler_workers,/,
   'new trips must persist their free-labor reservation',
 );
 assert.match(
@@ -1228,22 +1228,20 @@ assert.equal(
 );
 
 const placementServer = read('server/src/reducers/buildings.rs');
+const placementReducer = placementServer.slice(
+  placementServer.indexOf('pub fn place_building'),
+  placementServer.indexOf('pub fn upgrade_chapel'),
+);
 assert.match(placementServer, /construction_complete: false/);
 assert.match(placementServer, /construction_treasury_reservation/);
 assert.match(placementServer, /initial_construction_labor/);
 assert.doesNotMatch(
-  placementServer.slice(
-    placementServer.indexOf('pub fn place_building'),
-    placementServer.indexOf('pub fn assign_building_labor'),
-  ),
+  placementReducer,
   /assigned_labor:\s*0/,
   'new construction sites must not silently start with zero builders when labor is available',
 );
 assert.doesNotMatch(
-  placementServer.slice(
-    placementServer.indexOf('pub fn place_building'),
-    placementServer.indexOf('pub fn assign_building_labor'),
-  ),
+  placementReducer,
   /spend_aggregate_timber/,
   'building placement must reserve resources instead of consuming them instantly',
 );

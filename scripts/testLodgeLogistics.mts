@@ -47,10 +47,11 @@ function residence(id: string, firewoodStock: number, population = 4): Residence
   };
 }
 
-assert.deepEqual(lodgeLaborSplit(0), { processing: 0, delivering: 0 });
+assert.deepEqual(lodgeLaborSplit(0), { processing: 0, delivering: 1 });
+assert.deepEqual(lodgeLaborSplit(0, 0), { processing: 0, delivering: 0 });
 assert.deepEqual(lodgeLaborSplit(1), { processing: 1, delivering: 1 });
-assert.deepEqual(lodgeLaborSplit(3), { processing: 2, delivering: 1 });
-assert.equal(lodgeLaborAlternates(1), true);
+assert.deepEqual(lodgeLaborSplit(3), { processing: 3, delivering: 1 });
+assert.equal(lodgeLaborAlternates(1), false);
 assert.equal(lodgeLaborAlternates(2), false);
 assert.equal(lodgeFirewoodPerDelivery(2), lodgeFirewoodPerDelivery(1) * 2);
 
@@ -114,8 +115,8 @@ assert.equal(normalizeWoodcutterTimberReserve(39.6), 40);
 assert.equal(normalizeWoodcutterTimberReserve(1_000), WOODCUTTER_TIMBER_RESERVE_MAX);
 assert.equal(timberAboveWoodcutterReserve(87, 40), 47);
 assert.equal(lodgeSustainedProcessingLabor(0), 0);
-assert.equal(lodgeSustainedProcessingLabor(1), 0.5);
-assert.equal(lodgeSustainedProcessingLabor(4), 3);
+assert.equal(lodgeSustainedProcessingLabor(1), 1);
+assert.equal(lodgeSustainedProcessingLabor(4), 4);
 assert.deepEqual(
   WOODCUTTER_TIMBER_RESERVE_PRESETS.map(({ reserve }) => reserve),
   [0, 40, 100, 200],

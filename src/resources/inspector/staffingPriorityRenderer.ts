@@ -13,7 +13,8 @@ const PRIORITIZED_CART_INPUTS: Partial<Record<BuildingState['kind'], string>> = 
   watermill: 'Grain',
   brewery: 'Grain, well-water, and firewood',
   monastery: 'Grain',
-  granary: 'Flour and well-water',
+  granary: 'Food collection and distribution',
+  bakery: 'Flour, well-water, and oven fuel',
   smokehouse: 'Dispatched fresh food',
   weaver: 'Wool',
 };

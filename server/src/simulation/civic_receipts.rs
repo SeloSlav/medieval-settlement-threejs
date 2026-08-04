@@ -17,9 +17,8 @@ use crate::tables::Building;
 
 /// Dispatches one physical handcart of locally collected civic income.
 ///
-/// Staffed sources use one of their own workers. Autonomous sources such as
-/// monasteries require a free settlement hauler, preserving the labor cost of
-/// converting locally held coin into spendable civic money.
+/// Civic receipts always use a free settlement hauler. Clerks, craftspeople,
+/// and producers remain at their assigned work while the chest is in transit.
 pub fn try_dispatch_local_civic_receipts(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -34,7 +33,7 @@ pub fn try_dispatch_local_civic_receipts(
     if load <= 1e-9 {
         return false;
     }
-    if source.assigned_labor == 0 && available_free_haulers(ctx, source.owner) == 0 {
+    if available_free_haulers(ctx, source.owner) == 0 {
         return false;
     }
     let Some(target) = physical_treasury_seat(ctx, source.owner) else {

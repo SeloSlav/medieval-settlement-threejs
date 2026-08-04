@@ -31,4 +31,5 @@ export default __t.row({
   travelSpeedMultiplier: __t.f64().name("travel_speed_multiplier"),
   routePolylineJson: __t.string().name("route_polyline_json"),
   freeHaulerWorkers: __t.u32().name("free_hauler_workers"),
+  laborBuildingId: __t.u64().name("labor_building_id"),
 });

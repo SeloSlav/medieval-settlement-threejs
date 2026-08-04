@@ -13,11 +13,10 @@ use crate::roads::RoadNetwork;
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::has_delivery_stock_room;
 use crate::simulation::delivery_supplier::{
-    delivery_work_ready, dispatch_delivery_if_ready, should_alternate_single_worker,
-    DeliveryDispatchConfig,
+    delivery_work_ready, dispatch_delivery_if_ready, DeliveryDispatchConfig,
 };
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
+    available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_building_supply_trip,
 };
 use crate::simulation::expanded_economy::processor_accepts_input;
@@ -25,7 +24,7 @@ use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::simulation::road_logistics::{
-    local_delivery_distance, lodge_labor_split, select_residence_for_need_delivery,
+    local_delivery_distance, select_residence_for_need_delivery,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
@@ -35,8 +34,8 @@ use crate::simulation::{
 use crate::tables::{Building, Residence};
 use crate::well_policy::{
     industrial_water_input_preference_rank, industrial_water_requirement, industrial_water_target,
-    prioritize_fire_response, select_industrial_water_candidate, well_refill_amount,
-    well_refill_workers, IndustrialWaterCandidate, INDUSTRIAL_WATER_BUILDING_KINDS,
+    select_industrial_water_candidate, well_refill_amount, IndustrialWaterCandidate,
+    INDUSTRIAL_WATER_BUILDING_KINDS,
 };
 
 pub fn step_well(
@@ -60,7 +59,10 @@ pub fn step_well(
     };
 
     let mut well = building;
-    if !building_has_active_trip(ctx, well.id) {
+    // Compatibility for saves created while wells exposed worker slots.
+    well.assigned_labor = 0;
+    ctx.db.building().id().update(well.clone());
+    if !building_has_active_trip(ctx, well.id) && available_free_haulers(ctx, well.owner) > 0 {
         if let Some(incident) = select_fire_for_well(ctx, tick, network, &well, sim_tick) {
             if reserve_fire_response(ctx, incident.id, well.id) {
                 if try_start_fire_response_trip(ctx, tick, network, &mut well, &incident) {
@@ -86,11 +88,9 @@ pub fn step_well(
     well.water_capacity = capacity;
     well.action_cooldown = (well.action_cooldown - TICK_DT).max(0.0);
 
-    let available_labor = onsite_building_labor(ctx, &well);
-    let split = lodge_labor_split(available_labor);
-    let single_worker = available_labor == 1;
     let delivery_ready = !fire_response_needed
-        && delivery_work_ready(split.delivering, well.water > 0.0, well.id, ctx);
+        && available_free_haulers(ctx, well.owner) > 0
+        && delivery_work_ready(1, well.water > 0.0, well.id, ctx);
 
     let household_targets = if delivery_ready {
         collect_delivery_targets(ctx, tick, network, &well)
@@ -104,33 +104,25 @@ pub fn step_well(
     };
     let has_target = !household_targets.is_empty() || industrial_target.is_some();
     let delivery_ready = delivery_ready && has_target;
-    let refill_workers = well_refill_workers(available_labor, has_target);
-    let refill_ready = refill_workers > 0;
 
-    let (do_deliver, do_refill) = prioritize_fire_response(
-        fire_response_needed,
-        refill_ready,
-        should_alternate_single_worker(single_worker, refill_ready, delivery_ready, has_target),
-    );
+    // A completed well is infrastructure, not a workplace. Groundwater
+    // accumulates at the baseline draw rate while flexible haulers claim its
+    // stored water only when an actual route is ready.
+    well.water = (well.water
+        + well_refill_amount(
+            hydrology,
+            environment.well_refill_multiplier(),
+            TICK_DT,
+        ))
+    .min(capacity);
 
-    if do_refill {
-        well.water = (well.water
-            + well_refill_amount(
-                hydrology,
-                refill_workers,
-                environment.well_refill_multiplier(),
-                TICK_DT,
-            ))
-        .min(capacity);
-
-        if well.action_cooldown <= 0.0 && should_surge(well.id, sim_tick, hydrology) {
-            let surge = lerp(WELL_SURGE_AMOUNT_MIN, WELL_SURGE_AMOUNT_MAX, hydrology);
-            well.water = (well.water + surge).min(capacity);
-            well.action_cooldown = WELL_SURGE_COOLDOWN_SEC;
-        }
+    if well.action_cooldown <= 0.0 && should_surge(well.id, sim_tick, hydrology) {
+        let surge = lerp(WELL_SURGE_AMOUNT_MIN, WELL_SURGE_AMOUNT_MAX, hydrology);
+        well.water = (well.water + surge).min(capacity);
+        well.action_cooldown = WELL_SURGE_COOLDOWN_SEC;
     }
 
-    if do_deliver {
+    if delivery_ready {
         if !household_targets.is_empty() {
             dispatch_delivery_if_ready(
                 ctx,
@@ -138,7 +130,7 @@ pub fn step_well(
                 clock,
                 network,
                 &mut well,
-                split.delivering,
+                1,
                 &household_targets,
                 DeliveryDispatchConfig {
                     need_kind: ResidenceNeedKind::Water,
@@ -159,7 +151,7 @@ pub fn step_well(
                 network,
                 &mut well,
                 &target,
-                split.delivering,
+                1,
                 CommodityKind::Water,
                 WATER_DELIVERY_SPEED_MPS,
                 WATER_DELIVERY_UNLOAD_SEC,

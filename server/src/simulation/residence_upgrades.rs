@@ -186,6 +186,9 @@ fn dispatch_upgrade_material(
         return;
     };
     let free_haulers = available_free_haulers(ctx, residence.owner);
+    if free_haulers == 0 {
+        return;
+    }
 
     if commodity == CommodityKind::Gold {
         if free_haulers == 0 {
@@ -229,7 +232,6 @@ fn dispatch_upgrade_material(
             || (source.kind == "village_storehouse"
                 && building_has_inbound_supply_trip(ctx, source.id))
             || building_commodity_stock(&source, commodity) <= 1e-6
-            || (source.assigned_labor == 0 && free_haulers == 0)
         {
             continue;
         }

@@ -47,71 +47,73 @@ export class NobleSetupPanel {
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'noble-setup-backdrop';
     this.backdrop.innerHTML = `
-      <form class="noble-setup-shell" aria-label="Odabir plemićkog roda i grba">
+      <form class="noble-setup-shell" aria-label="Noble house and coat of arms selection">
         <header class="noble-setup-heading">
-          <p>Nova igra · Gorski kotar · ljeta Gospodnjeg 1550.</p>
-          <h1>Izaberi svoj plemićki rod</h1>
-          <span>Odaberi povijesni lik kao polazište, potom mu podari ime i znamenje.</span>
+          <h1>Choose Your Noble House</h1>
         </header>
 
         <div class="noble-setup-layout">
           <section class="noble-setup-identity" aria-labelledby="noble-identity-title">
-            <h2 id="noble-identity-title">Tvoj gospodar</h2>
-            <div class="noble-setup-portrait-frame">
-              <img data-noble-preview-portrait alt="Odabrani plemić" width="560" height="560" />
-              <div class="noble-setup-main-shield" data-main-shield></div>
-              <div class="noble-setup-portrait-caption">
-                <span data-noble-preview-title></span>
-                <small data-noble-preview-years></small>
+            <h2 id="noble-identity-title">Your Noble</h2>
+            <div class="noble-setup-identity-showcase">
+              <div class="noble-setup-portrait-frame">
+                <img data-noble-preview-portrait alt="Selected noble" width="560" height="560" />
+              </div>
+              <div class="noble-setup-emblem-card">
+                <span>Coat of Arms</span>
+                <div class="noble-setup-main-shield" data-main-shield></div>
               </div>
             </div>
 
             <label class="noble-setup-name-label" for="noble-name">
-              <span>Ime gospodara</span>
+              <span>Character Name</span>
               <input id="noble-name" data-noble-name maxlength="42" autocomplete="off" spellcheck="false" />
             </label>
 
+            <div class="noble-setup-portrait-caption">
+              <span data-noble-preview-title></span>
+              <small data-noble-preview-years></small>
+            </div>
+
             <div class="noble-setup-section-heading">
-              <h3>Povijesni likovi</h3>
-              <span>12 hrvatskih velikaša i krajiških prvaka</span>
+              <h3>Historical Figures</h3>
             </div>
             <div class="noble-setup-nobles" data-noble-grid></div>
-            <p class="noble-setup-history-note">Portreti su povijesno utemeljene interpretacije. Odabrano ime možeš slobodno promijeniti.</p>
           </section>
 
           <section class="noble-setup-armory" aria-labelledby="noble-armory-title">
             <div class="noble-setup-section-heading noble-setup-section-heading--armory">
               <div>
-                <p class="noble-setup-eyebrow">Grb</p>
-                <h2 id="noble-armory-title">Znamenje tvoje kuće</h2>
+                <p class="noble-setup-eyebrow">Coat of Arms</p>
+                <h2 id="noble-armory-title">Heraldry of Your House</h2>
               </div>
-              <span>Boje i simboli ostaju vidljivi u igri</span>
+              <span>These colors and symbols will represent you in the game</span>
             </div>
 
-            <div class="noble-setup-presets" aria-label="Gotovi grbovi" data-preset-strip></div>
+            <div class="noble-setup-presets" aria-label="Coat of arms presets" data-preset-strip></div>
 
             <div class="noble-setup-armory-columns">
               <section class="noble-setup-editor-panel" aria-labelledby="noble-field-title">
                 <div class="noble-setup-editor-title">
                   <span aria-hidden="true">I</span>
-                  <h3 id="noble-field-title">Polje</h3>
+                  <h3 id="noble-field-title">Field</h3>
                 </div>
                 <div class="noble-setup-color-setting">
-                  <span>Temeljna boja</span>
+                  <span>Primary Color</span>
                   <div class="noble-setup-colors" data-field-colors></div>
                 </div>
                 <div class="noble-setup-color-setting">
-                  <span>Boja uzorka</span>
+                  <span>Pattern Color</span>
                   <div class="noble-setup-colors" data-pattern-colors></div>
                 </div>
                 <div class="noble-setup-patterns" data-pattern-grid></div>
                 <label class="noble-setup-slider-row" for="noble-pattern-tiling">
-                  <span>Ponavljanje</span>
+                  <span>Tiling</span>
                   <input id="noble-pattern-tiling" type="range" min="1" max="6" step="1" data-tiling />
                   <strong data-tiling-value></strong>
                 </label>
                 <label class="noble-setup-slider-row" for="noble-pattern-angle">
-                  <span>Kut</span>
+                  <span>Angle</span>
                   <input id="noble-pattern-angle" type="range" min="-45" max="45" step="5" data-angle />
                   <strong data-angle-value></strong>
                 </label>
@@ -120,20 +122,20 @@ export class NobleSetupPanel {
               <section class="noble-setup-editor-panel" aria-labelledby="noble-charge-title">
                 <div class="noble-setup-editor-title">
                   <span aria-hidden="true">II</span>
-                  <h3 id="noble-charge-title">Znamenje</h3>
+                  <h3 id="noble-charge-title">Charge</h3>
                 </div>
                 <div class="noble-setup-color-setting">
-                  <span>Boja znamenja</span>
+                  <span>Charge Color</span>
                   <div class="noble-setup-colors" data-charge-colors></div>
                 </div>
                 <div class="noble-setup-charges" data-charge-grid></div>
                 <label class="noble-setup-slider-row" for="noble-charge-count">
-                  <span>Broj znamenja</span>
+                  <span>Number of Charges</span>
                   <input id="noble-charge-count" type="range" min="1" max="5" step="1" data-count />
                   <strong data-count-value></strong>
                 </label>
                 <label class="noble-setup-slider-row" for="noble-charge-scale">
-                  <span>Veličina</span>
+                  <span>Scale</span>
                   <input id="noble-charge-scale" type="range" min="24" max="84" step="1" data-scale />
                   <strong data-scale-value></strong>
                 </label>
@@ -143,8 +145,8 @@ export class NobleSetupPanel {
         </div>
 
         <footer class="noble-setup-actions">
-          <span>Sljedeće: veličina karte, krajolik i način igre</span>
-          <button type="submit">Nastavi na uređenje zemlje <i aria-hidden="true">›</i></button>
+          <span>Next: map size, landscape, and game mode</span>
+          <button type="submit">Continue to Map Setup <i aria-hidden="true">›</i></button>
         </footer>
       </form>
     `;
@@ -233,7 +235,7 @@ export class NobleSetupPanel {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'noble-setup-preset';
-      button.setAttribute('aria-label', `Gotovi grb ${index + 1}`);
+      button.setAttribute('aria-label', `Coat of arms preset ${index + 1}`);
       const shield = createHeraldryShield('heraldry-shield--preset');
       applyHeraldryToElement(shield, preset);
       button.appendChild(shield);
@@ -340,7 +342,7 @@ export class NobleSetupPanel {
   private syncIdentity(): void {
     const noble = getNoble(this.draft.nobleId);
     this.previewPortrait.src = noble.portrait;
-    this.previewPortrait.alt = `Portret: ${noble.name}`;
+    this.previewPortrait.alt = `Portrait of ${noble.name}`;
     this.previewName.value = this.draft.displayName;
     this.previewTitle.textContent = noble.title;
     this.previewYears.textContent = noble.years;
@@ -380,7 +382,6 @@ export class NobleSetupPanel {
       const selected = button.dataset.chargeChoice === heraldry.charge;
       button.classList.toggle('is-selected', selected);
       button.setAttribute('aria-pressed', String(selected));
-      button.style.setProperty('--charge-preview-color', heraldry.chargeColor);
     }
     for (const button of this.backdrop.querySelectorAll<HTMLButtonElement>('[data-color-key]')) {
       const key = button.dataset.colorKey as 'fieldColor' | 'patternColor' | 'chargeColor';

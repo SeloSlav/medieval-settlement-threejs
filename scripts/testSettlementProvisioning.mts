@@ -111,7 +111,7 @@ assert.match(settlementHud, /Sunday stores/);
 assert.match(settlementHud, /Household buffers/);
 assert.match(settlementHud, /Local delivery buffer/);
 assert.match(settlementHud, /Road-branch audit/);
-assert.match(settlementHud, /Weakest occupied road branch/);
+assert.match(settlementHud, /weakest branch/);
 assert.match(settlementHud, /gross meal demand/);
 assert.match(settlementHud, /finite cured stock/);
 assert.match(settlementHud, /guard food/);

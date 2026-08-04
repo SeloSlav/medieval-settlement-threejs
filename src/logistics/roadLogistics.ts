@@ -135,17 +135,19 @@ export function localDeliveryDistancesFrom(
 
 export function isOperationalFirewoodSupplier(building: BuildingState): boolean {
   return building.constructionComplete !== false
-    && building.assignedLabor > 0
     && (
       building.kind === 'woodcutters_lodge'
-      || (building.kind === 'village_storehouse' && building.storehouseAcceptsFirewood)
+      || (
+        building.kind === 'village_storehouse'
+        && building.assignedLabor > 0
+        && building.storehouseAcceptsFirewood
+      )
     );
 }
 
 export function isOperationalWellSupplier(building: BuildingState): boolean {
   return building.kind === 'well'
-    && building.constructionComplete !== false
-    && building.assignedLabor > 0;
+    && building.constructionComplete !== false;
 }
 
 export const FOOD_SUPPLIER_KINDS: readonly BuildingState['kind'][] = [
@@ -163,7 +165,7 @@ export const FOOD_SUPPLIER_KINDS: readonly BuildingState['kind'][] = [
 export function isOperationalFoodSupplier(building: BuildingState): boolean {
   return FOOD_SUPPLIER_KINDS.includes(building.kind)
     && building.constructionComplete !== false
-    && (building.kind === 'monastery' || building.assignedLabor > 0);
+    && (building.kind !== 'granary' || building.assignedLabor > 1);
 }
 
 export type ResidenceSupplierRouteClaim = {
@@ -247,7 +249,9 @@ export function claimResidencesForFirewoodSuppliers(
   suppliers: readonly BuildingState[],
   residences: readonly ResidenceState[],
 ): Map<string, string> {
-  const distributors = suppliers.filter(isOperationalFirewoodSupplier);
+  const distributors = suppliers.filter(
+    (supplier) => isOperationalFirewoodSupplier(supplier) && supplier.firewood > 1e-6,
+  );
   return claimResidencesByNearestSupplier(
     network,
     distributors,
@@ -289,8 +293,8 @@ export function claimResidencesForFoodSuppliers(
     effectiveDistance: number,
   ) => boolean = () => true,
 ): Map<string, string> {
-  // A staffed but empty seasonal producer must not strand nearby homes while a
-  // stocked granary or holding can serve the same road branch.
+  // An empty seasonal producer must not strand nearby homes while a stocked
+  // granary or holding can serve the same road branch.
   const foodSuppliers = suppliers.filter(
     (supplier) => isOperationalFoodSupplier(supplier) && supplier.food > 1e-6,
   );

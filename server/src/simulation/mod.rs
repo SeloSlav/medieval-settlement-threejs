@@ -66,7 +66,8 @@ pub use delivery_trips::{
 pub(crate) use expanded_economy::has_industrial_firewood_target;
 pub use expanded_economy::{
     step_apiary, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
-    step_ferry_landing, step_granary, step_guardhouse, step_industrial_firewood_dispatch,
+    step_bakery, step_ferry_landing, step_granary, step_guardhouse,
+    step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_local_material_dispatch,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_potter_kiln,
     step_seed_grain_distribution, step_smithy, step_smokehouse, step_threshing_barn, step_vineyard,

@@ -23,9 +23,10 @@ use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::supply_policy::{
-    is_firewood_supplier_operational, is_food_supplier_operational,
-    is_specialty_supplier_operational, is_well_supplier_operational, ALE_SUPPLIER_KINDS,
-    CLOTH_SUPPLIER_KINDS, POTTERY_SUPPLIER_KINDS, PRESERVED_FOOD_SUPPLIER_KINDS,
+    is_firewood_supplier_delivery_operational, is_food_supplier_operational,
+    is_specialty_supplier_delivery_operational, is_well_supplier_operational,
+    ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, POTTERY_SUPPLIER_KINDS,
+    PRESERVED_FOOD_SUPPLIER_KINDS,
 };
 use crate::tables::{corpse, farm_field, livestock_herd, Building, Residence};
 
@@ -731,7 +732,7 @@ impl SimTickContext {
             .copied()
     }
 
-    /// Returns the one staffed well assigned to this household. The well's
+    /// Returns the nearest completed well claimed by this household. The well's
     /// physical service extent remains part of the authoritative claim.
     pub fn well_supplier_for(
         &self,
@@ -837,7 +838,7 @@ impl SimTickContext {
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter(|building| {
                 !self.building_disabled_by_fire(ctx, building.id)
-                    && is_firewood_supplier_operational(
+                    && is_firewood_supplier_delivery_operational(
                         &building.kind,
                         building.construction_complete,
                         building.assigned_labor,
@@ -1025,7 +1026,7 @@ impl SimTickContext {
         let suppliers: Vec<&Building> = buildings
             .iter()
             .filter(|building| {
-                is_specialty_supplier_operational(
+                is_specialty_supplier_delivery_operational(
                     &building.kind,
                     building.construction_complete,
                     building.assigned_labor,

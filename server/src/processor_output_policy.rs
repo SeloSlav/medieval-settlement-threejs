@@ -41,7 +41,7 @@ pub enum ProcessorInputKind {
 pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
     match kind {
         "watermill" => Some(ProcessorOutputKind::Flour),
-        "granary" => Some(ProcessorOutputKind::Food),
+        "bakery" => Some(ProcessorOutputKind::Food),
         "brewery" => Some(ProcessorOutputKind::Ale),
         "smokehouse" => Some(ProcessorOutputKind::PreservedFood),
         "weaver" => Some(ProcessorOutputKind::Cloth),
@@ -57,7 +57,7 @@ pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
 
     match kind {
         "watermill" => &[Grain],
-        "granary" => &[Flour, Water, Firewood],
+        "bakery" => &[Flour, Water, Firewood],
         "brewery" => &[Barley, Water, Firewood],
         "smokehouse" => &[Food, Firewood, Salt, Pottery],
         "weaver" => &[Wool, Flax, Water],

@@ -104,14 +104,14 @@ export function seasonalLaborTarget(
   kind: BuildingKind,
   month: number,
   assignedLabor: number,
-  hasDispatchDuty: boolean,
+  _hasDispatchDuty: boolean,
   farmFieldWorkActive = false,
 ): number | null {
   const active = seasonalProductionActive(kind, month, farmFieldWorkActive);
   if (active === null) return null;
   const assigned = Math.max(0, Math.floor(assignedLabor));
   if (active) return assigned;
-  return Math.min(assigned, hasDispatchDuty ? 1 : 0);
+  return 0;
 }
 
 function farmFieldWorkActive(fields: readonly FarmFieldState[], month: number): boolean {
@@ -215,7 +215,6 @@ export function computeSettlementSeasonalLaborPlan(
       hasDispatchDuty,
       fieldWorkActive,
     );
-    if (targetLabor === 1 && hasDispatchDuty) retainedHaulers += 1;
     if (targetLabor === null || targetLabor >= building.assignedLabor) continue;
 
     const reclaimable = building.assignedLabor - targetLabor;
@@ -226,7 +225,7 @@ export function computeSettlementSeasonalLaborPlan(
       assignedLabor: building.assignedLabor,
       targetLabor,
       reclaimableWorkers: reclaimable,
-      retainedHauler: targetLabor === 1 && hasDispatchDuty,
+      retainedHauler: false,
     });
     reclaimableWorkers += reclaimable;
     reclaimableSites += 1;

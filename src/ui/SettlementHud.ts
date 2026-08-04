@@ -80,13 +80,13 @@ function gameSpeedTimingLabel(speed: GameSpeed): string {
 
 const SETTLEMENT_HUD_HTML = `
   <div class="settlement-hud" data-settlement-hud data-fps-panel aria-label="Settlement overview" aria-live="polite">
-    <aside class="noble-hud" data-noble-hud aria-label="Plemićki profil">
+    <aside class="noble-hud" data-noble-hud aria-label="Noble profile">
       <div class="noble-hud__portrait-shell">
         <img class="noble-hud__portrait" data-noble-hud-portrait alt="" width="560" height="560" />
         <span class="noble-hud__shield" data-noble-hud-shield></span>
       </div>
       <div class="noble-hud__identity">
-        <span>Gospodar Gorskog kotara</span>
+        <span>Lord of Gorski Kotar</span>
         <strong data-noble-hud-name></strong>
         <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" data-tooltip-title="Civic gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
           <span class="settlement-hud__label">Gold</span>
@@ -98,9 +98,9 @@ const SETTLEMENT_HUD_HTML = `
         type="button"
         class="noble-hud__eye"
         data-noble-eye
-        data-tooltip-title="Pogled iz prvog lica"
-        data-tooltip="Prošeći svojim posjedom. Tipka ~ i dalje radi."
-        aria-label="Uđi u pogled iz prvog lica"
+        data-tooltip-title="First-Person View"
+        data-tooltip="Walk through your estate. The ~ key still works."
+        aria-label="Enter first-person view"
         aria-pressed="false"
         disabled
       >
@@ -117,7 +117,7 @@ const SETTLEMENT_HUD_HTML = `
       <span class="settlement-hud__season" data-season-status tabindex="0"></span>
       <div class="settlement-hud__fire-alert" data-fire-alert hidden>
         <strong data-fire-count>Fire</strong>
-        <span data-fire-response>Awaiting a staffed well</span>
+        <span data-fire-response>Awaiting a ready well and free hauler</span>
       </div>
       <button
         type="button"
@@ -416,7 +416,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="roofTiles">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="roofTiles" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Smith-forged heads, nails, hinges, and fittings stored at smithies, markets, carpenter workshops, and maintained lumber, stone, and clay worksites. Smithies require ore, charcoal, and quench water physically carted from a staffed well. A smithy handcart first restores staffed tool buffers by priority and shortest road; each maintained production cycle wears 0.25 ironwork for 20% faster output. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Smith-forged heads, nails, hinges, and fittings stored at smithies, markets, carpenter workshops, and maintained lumber, stone, and clay worksites. Smithies require ore, charcoal, and quench water physically carted from a completed well by an unassigned hauler. A smithy handcart first restores staffed tool buffers by priority and shortest road; each maintained production cycle wears 0.25 ironwork for 20% faster output. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Ironwork</span>
         <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>
@@ -521,7 +521,7 @@ export class SettlementHud {
     const nobleName = this.mustElement('[data-noble-hud-name]');
     const nobleShieldMount = this.mustElement('[data-noble-hud-shield]');
     noblePortrait.src = noble.portrait;
-    noblePortrait.alt = `Portret: ${profile.displayName}`;
+    noblePortrait.alt = `Portrait of ${profile.displayName}`;
     nobleName.textContent = profile.displayName;
     const nobleShield = createHeraldryShield('heraldry-shield--hud');
     applyHeraldryToElement(nobleShield, profile.heraldry);
@@ -618,7 +618,7 @@ export class SettlementHud {
     this.nobleEye.setAttribute('aria-pressed', String(active));
     this.nobleEye.setAttribute(
       'aria-label',
-      active ? 'Napusti pogled iz prvog lica' : 'Uđi u pogled iz prvog lica',
+      active ? 'Exit first-person view' : 'Enter first-person view',
     );
   }
 
@@ -757,7 +757,7 @@ export class SettlementHud {
       worst.extinguishChance > 0
         ? `${Math.round(worst.extinguishChance * 100)}% chance on the last bucket attempt`
         : 'Extinguishing odds improve as buckets cool the fire',
-      'Only staffed wells whose work extent reaches the fire can respond.',
+      'A completed well in range needs stored water and an unassigned hauler to respond.',
     ].join(' · ');
   }
 

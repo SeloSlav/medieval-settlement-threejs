@@ -1,6 +1,8 @@
 import {
   ECONOMIC_ACTIVITY_TAX_RATE_MAX,
   ECONOMIC_ACTIVITY_TAX_RATE_MIN,
+  CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
+  CIVILIAN_TOOL_REORDER_CYCLES,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
   MONASTERY_UNLINKED_PRODUCTIVITY,
   RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
@@ -1419,9 +1421,9 @@ function formatSeasonalLabor(plan: SettlementSeasonalLaborPlan): string {
     const dormant = plan.dormantSites > 0
       ? `${plan.dormantSites} dormant ${plan.dormantSites === 1 ? 'site' : 'sites'}`
       : '';
-    return `${[dormant, fire].filter(Boolean).join(' · ')} · ${plan.retainedHaulers} necessary ${plan.retainedHaulers === 1 ? 'hauler' : 'haulers'}`;
+    return `${[dormant, fire].filter(Boolean).join(' · ')} · no seasonal production labor to recall`;
   }
-  return `${plan.reclaimableWorkers} idle ${plan.reclaimableWorkers === 1 ? 'worker' : 'workers'} across ${plan.reclaimableSites} ${plan.reclaimableSites === 1 ? 'site' : 'sites'}${fire ? ` · ${fire}` : ''} · ${plan.retainedHaulers} ${plan.retainedHaulers === 1 ? 'hauler remains' : 'haulers remain'} for stored goods or active carts`;
+  return `${plan.reclaimableWorkers} idle ${plan.reclaimableWorkers === 1 ? 'worker' : 'workers'} across ${plan.reclaimableSites} ${plan.reclaimableSites === 1 ? 'site' : 'sites'}${fire ? ` · ${fire}` : ''} · stored goods remain available to logistics labor`;
 }
 
 function formatSeasonalCallup(plan: SettlementSeasonalCallupPlan): string {
@@ -1442,9 +1444,9 @@ function formatSeasonalCallup(plan: SettlementSeasonalCallupPlan): string {
 function formatProcessorLaborRecall(plan: SettlementProcessorLaborRecallPlan): string {
   if (plan.targetPausedSites === 0) return 'No staffed workshop is paused at its output target';
   if (plan.reclaimableWorkers === 0) {
-    return `${plan.targetPausedSites} target-paused ${plan.targetPausedSites === 1 ? 'workshop' : 'workshops'} · ${plan.retainedDispatchers} necessary ${plan.retainedDispatchers === 1 ? 'dispatcher' : 'dispatchers'}`;
+    return `${plan.targetPausedSites} target-paused ${plan.targetPausedSites === 1 ? 'workshop' : 'workshops'} · no production labor to recall`;
   }
-  return `${plan.reclaimableWorkers} reclaimable ${plan.reclaimableWorkers === 1 ? 'worker' : 'workers'} across ${plan.reclaimableSites} target-paused ${plan.reclaimableSites === 1 ? 'workshop' : 'workshops'} · ${plan.retainedDispatchers} ${plan.retainedDispatchers === 1 ? 'dispatcher retained' : 'dispatchers retained'}`;
+  return `${plan.reclaimableWorkers} reclaimable ${plan.reclaimableWorkers === 1 ? 'worker' : 'workers'} across ${plan.reclaimableSites} target-paused ${plan.reclaimableSites === 1 ? 'workshop' : 'workshops'} · logistics labor handles stored output`;
 }
 
 function formatYearRoundLaborRotation(plan: SettlementYearRoundLaborRotation): string {
@@ -1487,14 +1489,14 @@ function formatWorksiteStalls(
     plan.reserveStalledSites > 0 ? `${plan.reserveStalledSites} reserve-held` : '',
   ].filter(Boolean).join(' · ');
   const duty = plan.dispatchDutySites > 0
-    ? ` · ${plan.dispatchDutySites} ${plan.dispatchDutySites === 1 ? 'site retains' : 'sites retain'} delivery duty`
+    ? ` · ${plan.dispatchDutySites} ${plan.dispatchDutySites === 1 ? 'site has' : 'sites have'} stored output or a logistics cart`
     : '';
   const inbound = plan.supplyEnRouteSites > 0
     ? ` · ${plan.supplyEnRouteSites} more recovering by cart`
     : '';
   const recall = plan.reclaimableWorkers > 0
-    ? ` · ${plan.reclaimableWorkers} safely recallable${plan.retainedDispatchers > 0 ? ` while ${plan.retainedDispatchers} ${plan.retainedDispatchers === 1 ? 'dispatcher remains' : 'dispatchers remain'}` : ''}`
-    : ' · no labor can leave without interrupting dispatch';
+    ? ` · ${plan.reclaimableWorkers} safely recallable · no producer is retained for delivery`
+    : ' · no assigned production labor to recall';
   const first = plan.sites.find(
     (site) => site.buildingId === plan.firstReclaimableBuildingId,
   ) ?? plan.firstAttention;
@@ -2045,6 +2047,33 @@ export function renderTownHallInspector(
     clock.month,
     clock.monthDay,
   );
+  const toolRouteTargets = [...context.gameState.buildings.values()];
+  const toolRouteDistances = new Map<string, Map<string, number | null>>();
+  const toolRouteDistanceFor = (
+    source: { id: string; x: number; z: number },
+    destination: { id: string; x: number; z: number },
+  ): number | null => {
+    let distances = toolRouteDistances.get(source.id);
+    if (!distances) {
+      const values = typeof context.worldQueries.getLocalDeliveryDistancesFrom === 'function'
+        ? context.worldQueries.getLocalDeliveryDistancesFrom(source, toolRouteTargets)
+        : toolRouteTargets.map((target) =>
+            context.worldQueries.getLocalDeliveryDistance(
+              source.x,
+              source.z,
+              target.x,
+              target.z,
+            ));
+      distances = new Map(
+        toolRouteTargets.map((candidate, index) => [
+          candidate.id,
+          values[index] ?? null,
+        ]),
+      );
+      toolRouteDistances.set(source.id, distances);
+    }
+    return distances.get(destination.id) ?? null;
+  };
   const production = context.settlementProduction
     ?? computeSettlementProductionCapacity(
       context.gameState,
@@ -2061,6 +2090,10 @@ export function renderTownHallInspector(
       clock.month,
       context.worldResourceAbundance ?? 50,
       environment.charcoalBurnerThroughputMultiplier,
+      toolRouteDistanceFor,
+      typeof context.worldQueries.getRoadConditionSpeedMultiplier === 'function'
+        ? context.worldQueries.getRoadConditionSpeedMultiplier()
+        : 1,
     );
   const industrialMaterials = production.industrialMaterials;
   const geology = computeSettlementGeologyPlan(
@@ -2074,6 +2107,9 @@ export function renderTownHallInspector(
   const unmaintainedToolInspect = industrialMaterials.firstUnmaintainedToolSiteId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${industrialMaterials.firstUnmaintainedToolSiteId}" aria-label="Inspect first unmaintained civilian tool rack">Inspect</button>`;
+  const toolDeliveryInspect = industrialMaterials.firstToolDeliveryBottleneckId === null
+    ? ''
+    : ` <button type="button" class="inspector-jump-button" data-inspect-building="${industrialMaterials.firstToolDeliveryBottleneckId}" aria-label="Inspect first civilian tool delivery bottleneck">Inspect route</button>`;
   const leanClayPitInspect = industrialMaterials.firstLeanClayPitId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-building="${industrialMaterials.firstLeanClayPitId}" aria-label="Inspect first lean clay bank">Inspect</button>`;
@@ -2439,7 +2475,7 @@ export function renderTownHallInspector(
           marketState,
         ).amount,
       )}</span></li>
-      <li><span>Civilian tool upkeep</span><span>${industrialMaterials.toolMaintainedSites} / ${industrialMaterials.toolEligibleSites} staffed heavy-tool sites equipped &middot; ${industrialMaterials.roadCoveredToolIronworkPerDay.toFixed(2)} / ${industrialMaterials.maintainedToolIronworkPerDay.toFixed(2)} maintained-rack design wear covered on the same road branches &middot; ${industrialMaterials.roadCoveredFullToolIronworkPerDay.toFixed(2)} / ${industrialMaterials.fullToolIronworkPerDay.toFixed(2)} full-rack design wear &middot; target-held extraction consumes neither tools nor supports until yard space opens &middot; same-branch smithy surplus before carpentry ${industrialMaterials.ironworkSurplusAfterToolUpkeep.toFixed(2)}${unmaintainedToolInspect}</span></li>
+      <li><span>Civilian tool upkeep</span><span>${industrialMaterials.toolMaintainedSites} / ${industrialMaterials.toolEligibleSites} active racks currently equipped &middot; expected maintained uptime ${Math.round(industrialMaterials.sustainableToolUptime * 100)}% (${industrialMaterials.sustainableToolIronworkPerDay.toFixed(2)} / ${industrialMaterials.fullToolIronworkPerDay.toFixed(2)} ironwork/day of runnable demand after commute, cart absences, geology, weather, inputs, and yard stalls) &middot; road-cart ceiling ${industrialMaterials.toolDeliveryCapacityPerDay.toFixed(2)}/day, ${industrialMaterials.toolCartWorkerDaysPerDay.toFixed(2)} smith worker-days spent hauling, ${industrialMaterials.toolUnreachableSites} unreachable sites &middot; racks reorder below ${(CIVILIAN_TOOL_IRONWORK_PER_CYCLE * CIVILIAN_TOOL_REORDER_CYCLES).toFixed(2)} and take about ${industrialMaterials.toolRefillLoad.toFixed(2)} per ordinary refill &middot; target-held sites wear nothing until work resumes &middot; post-haul smithy surplus before carpentry ${industrialMaterials.ironworkSurplusAfterToolUpkeep.toFixed(2)}${toolDeliveryInspect}${unmaintainedToolInspect}</span></li>
       <li><span>Mill / bakery balance</span><span>${production.flourOutputPerDay.toFixed(1)} flour made / ${production.bakeryFlourCapacityPerDay.toFixed(1)} bakery intake · ${flourBalance}</span></li>
       <li><span>Grain-chain roads</span><span>${formatGrainChainRoads(production.grainChainRoads)}</span></li>
       <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} fresh food / day vs ${provisioning.totalFoodPerDay.toFixed(1)} current fresh demand after ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)} cured-ration displacement · gross meals remain ${provisioning.grossFoodDemandPerDay.toFixed(1)} / day · needs ${production.breadGrainPerDay.toFixed(1)} grain + ${production.breadWaterPerDay.toFixed(1)} water + ${production.breadFirewoodPerDay.toFixed(1)} firewood</span></li>
@@ -2549,7 +2585,7 @@ export function renderTownHallInspector(
             ${staffedTownHallAvailable ? '' : 'disabled'} />
           <span>Daily production labor steward</span>
         </label>
-        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases surplus crews only from genuinely stalled workshops, exhausted or target-held extraction yards, and reserve-held hunting halls, retaining a dispatcher for stored output or an active cart. It then fills supplied, below-target production sites by staffing priority and fair within-tier rotation. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
+        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases full production crews from genuinely stalled workshops, exhausted or target-held extraction yards, and reserve-held hunting halls. Stored output and active carts remain logistics work. It then fills supplied, below-target production sites by staffing priority and fair within-tier rotation. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
@@ -2576,7 +2612,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && constructionLabor.assignments.length > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide construction rotation.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Recall only surplus crews at seasonally dormant farms, apiaries, vineyards, foragers, and fishing camps. One hauler remains wherever stored goods or an active cart still need attention. Staffing priorities stay unchanged.${seasonalLaborStewardEnabled ? ' The steward will call labor back when work becomes active.' : ' You must restaff before the next work window.'}</p>
+        <p class="inspector-action-panel__hint">Recall full production crews at seasonally dormant farms, apiaries, vineyards, foragers, and fishing camps. Stored goods remain available to the appropriate logistics labor; no producer is retained as a hauler. Staffing priorities stay unchanged.${seasonalLaborStewardEnabled ? ' The steward will call labor back when work becomes active.' : ' You must restaff before the next work window.'}</p>
         <button type="button" class="resource-action-button" data-recall-idle-seasonal-labor ${staffedTownHallAvailable && seasonalLabor.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${seasonalLabor.reclaimableWorkers > 0
             ? `Recall ${seasonalLabor.reclaimableWorkers} idle ${seasonalLabor.reclaimableWorkers === 1 ? 'worker' : 'workers'}`
@@ -2596,7 +2632,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && seasonalCallup.callupWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide call-up.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Recall only labor that cannot currently produce: workshops with an empty input or reached output target, exhausted or target-held extraction yards, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. One dispatcher remains for stored output or an active cart.${productionLaborStewardEnabled ? ' The steward will redeploy released labor to ready production sites.' : ' Restaffing remains an explicit decision.'}</p>
+        <p class="inspector-action-panel__hint">Recall labor that cannot currently produce: workshops with an empty input or reached output target, exhausted or target-held extraction yards, and active-season hunting or fishing sites without harvestable stock. Matching inbound supplies protect recovering workshops. Stored output and active carts remain logistics work, so no producer is retained as a dispatcher.${productionLaborStewardEnabled ? ' The steward will redeploy released labor to ready production sites.' : ' Restaffing remains an explicit decision.'}</p>
         <button type="button" class="resource-action-button" data-recall-target-idle-processor-labor ${staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${worksiteStalls.reclaimableWorkers > 0
             ? `Recall ${worksiteStalls.reclaimableWorkers} stalled production ${worksiteStalls.reclaimableWorkers === 1 ? 'worker' : 'workers'}`

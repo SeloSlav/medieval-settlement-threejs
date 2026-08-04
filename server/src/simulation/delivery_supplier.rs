@@ -1,4 +1,4 @@
-//! Shared delivery dispatch choreography for lodge, well, and food suppliers.
+//! Shared delivery dispatch choreography for logistics and free-hauler suppliers.
 
 use spacetimedb::ReducerContext;
 
@@ -24,17 +24,6 @@ pub fn delivery_work_ready(
     ctx: &ReducerContext,
 ) -> bool {
     delivering_workers > 0 && building_has_stock && !building_has_active_trip(ctx, building_id)
-}
-
-pub fn should_alternate_single_worker(
-    single_worker: bool,
-    alternate_work_ready: bool,
-    delivery_ready: bool,
-    has_target: bool,
-) -> (bool, bool) {
-    let do_deliver = delivery_ready && (!single_worker || !alternate_work_ready || has_target);
-    let do_alternate = alternate_work_ready && (!single_worker || !delivery_ready || !has_target);
-    (do_deliver, do_alternate)
 }
 
 pub fn dispatch_delivery_if_ready(

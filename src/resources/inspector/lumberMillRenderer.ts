@@ -42,7 +42,7 @@ export function renderLumberMillInspector(
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${processorStatus?.waterDetailHtml ?? ''}
-      ${civilianToolRows(building)}
+      ${civilianToolRows(building, context.worldQueries)}
       ${buildingExtentRow(building.kind)}
       <li><span>Harvest interval</span><span>${onsiteLabor > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}

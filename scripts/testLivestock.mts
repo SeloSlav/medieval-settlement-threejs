@@ -234,7 +234,7 @@ assert.match(
 );
 assert.match(
   serverLivestock,
-  /dispatch_manure_to_crop_farmstead[\s\S]*road_path_distance[\s\S]*LIVESTOCK_MANURE_TRANSFER_PER_TRIP/,
+  /dispatch_manure_to_crop_farmstead[\s\S]*local_delivery_distance[\s\S]*LIVESTOCK_MANURE_TRANSFER_PER_TRIP/,
   'manure must travel in bounded carts to road-reachable crop holdings',
 );
 assert.match(

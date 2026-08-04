@@ -67,7 +67,7 @@ assert.match(hauling, /"lumber_mill"[\s\S]*CommodityKind::Timber/);
 assert.match(hauling, /"stone_quarry"[\s\S]*CommodityKind::Stone/);
 assert.match(hauling, /"woodcutters_lodge"[\s\S]*CommodityKind::Firewood/);
 assert.doesNotMatch(hauling, /CommodityKind::(?:Food|Grain|Flour|Ale|PreservedFood)/);
-assert.match(hauling, /road_path_distance/);
+assert.match(hauling, /local_delivery_distance/);
 assert.match(hauling, /try_start_building_supply_trip/);
 assert.match(
   hauling,

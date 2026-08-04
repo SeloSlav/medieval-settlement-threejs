@@ -3,6 +3,7 @@ import type { RiverField } from '../rivers/RiverField.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
   localDeliveryDistance,
+  localDeliveryDistancesFrom,
   roadPathDistance,
   sortByRoadPathDistance,
 } from '../logistics/roadLogistics.ts';
@@ -54,14 +55,13 @@ import {
   farmsteadSeedBarleyRequired,
 } from '../farming/farmWorkPlanning.ts';
 import {
-  foodLaborSplit,
   foodSupplierDeliveryTripSeconds,
   INSTITUTIONAL_FOOD_SOURCE_KINDS,
   type RoutedInstitutionalFoodDestination,
   institutionalFoodSurplus,
   selectInstitutionalFoodTarget,
 } from '../logistics/foodLogistics.ts';
-import { lodgeDeliveryTripSeconds, lodgeLaborSplit } from '../logistics/lodgeLogistics.ts';
+import { lodgeDeliveryTripSeconds } from '../logistics/lodgeLogistics.ts';
 import { firewoodDeliveryTripSeconds } from '../logistics/deliveryLogistics.ts';
 import {
   industrialWaterRequirement,
@@ -69,7 +69,6 @@ import {
   isResidenceInWellRange,
   selectIndustrialWaterCandidate,
   wellDeliveryTripSeconds,
-  wellLaborSplit,
 } from '../logistics/waterLogistics.ts';
 import {
   extractionAcceptsMaintenance,
@@ -92,6 +91,7 @@ import type { BuildingKind, BuildingState, BurgageZoneState, GameState, Inspecta
 import type { WorldLayoutRegistry } from './WorldLayoutRegistry.ts';
 import { buildingKindLabel, findNearestBuilding as findBuilding } from './WorldLayoutRegistry.ts';
 import { countTreesNearBuilding } from './ForestVisualSync.ts';
+import { computePopulationStats } from './resourceTotals.ts';
 import type { TreeRegistry } from './TreeRegistry.ts';
 import { RESIDENCE_PICK_RADIUS } from '../residences/burgageLayout.ts';
 import { isPointInPolygon2 } from '../utils/polygonGeometry.ts';
@@ -603,7 +603,7 @@ export class WorldQueries {
       network,
       well,
       target,
-      wellLaborSplit(well.assignedLabor).delivering,
+      1,
       this.getDeliveryTravelSpeedMultiplier(well),
     );
   }
@@ -633,6 +633,18 @@ export class WorldQueries {
 
   getLocalDeliveryDistance(ax: number, az: number, bx: number, bz: number): number | null {
     return localDeliveryDistance(this.getRoadNetwork(), ax, az, bx, bz);
+  }
+
+  getLocalDeliveryDistancesFrom(
+    origin: { x: number; z: number },
+    targets: readonly { x: number; z: number }[],
+  ): Array<number | null> {
+    return localDeliveryDistancesFrom(
+      this.getRoadNetwork(),
+      origin.x,
+      origin.z,
+      targets,
+    );
   }
 
   getRoadComponentId(x: number, z: number): number | null {
@@ -1497,11 +1509,12 @@ export class WorldQueries {
     target: ResidenceState | null,
   ): number {
     const network = this.getRoadNetwork();
+    const freeHaulerWorkers = computePopulationStats(this.getGameState()).available > 0 ? 1 : 0;
     return foodSupplierDeliveryTripSeconds(
       network,
       supplier,
       target,
-      foodLaborSplit(supplier.assignedLabor).delivering,
+      freeHaulerWorkers,
       this.getDeliveryTravelSpeedMultiplier(supplier),
     );
   }
@@ -1511,11 +1524,12 @@ export class WorldQueries {
     target: ResidenceState | null,
   ): number {
     const network = this.getRoadNetwork();
+    const freeHaulerWorkers = computePopulationStats(this.getGameState()).available > 0 ? 1 : 0;
     return lodgeDeliveryTripSeconds(
       network,
       lodge,
       target,
-      lodgeLaborSplit(lodge.assignedLabor).delivering,
+      freeHaulerWorkers,
       this.getDeliveryTravelSpeedMultiplier(lodge),
     );
   }
@@ -1554,6 +1568,10 @@ export class WorldQueries {
   getActiveTripRemainingSeconds(building: BuildingState): number | null {
     const trip = this.getActiveDeliveryTrip(building);
     if (!trip) return null;
+    return tripRemainingSeconds(trip, this.getActiveTripPathDistance(trip));
+  }
+
+  getDeliveryTripRemainingSeconds(trip: DeliveryTripState): number {
     return tripRemainingSeconds(trip, this.getActiveTripPathDistance(trip));
   }
 

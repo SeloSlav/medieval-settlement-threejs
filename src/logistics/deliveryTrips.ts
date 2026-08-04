@@ -52,6 +52,7 @@ export type DeliveryDestinationKind = (typeof DELIVERY_DESTINATION_KINDS)[number
 export type DeliveryTripState = {
   id: string;
   buildingId: string;
+  laborBuildingId?: string | null;
   residenceId: string | null;
   destinationKind: DeliveryDestinationKind;
   targetBuildingId: string | null;
@@ -78,14 +79,23 @@ export type TripEndpoint = {
 };
 
 export function rosteredCartWorkers(
-  building: Pick<BuildingState, 'assignedLabor'>,
+  building: Pick<BuildingState, 'assignedLabor'> & Partial<Pick<BuildingState, 'id'>>,
   trip: DeliveryTripState | null | undefined,
 ): number {
   if (!trip) return 0;
+  const laborBuildingId = tripLaborBuildingId(trip);
+  if (laborBuildingId == null) return 0;
+  if (building.id != null && laborBuildingId !== building.id) return 0;
   return Math.min(
     Math.max(0, building.assignedLabor),
     Math.max(0, trip.deliveryWorkers - trip.freeHaulerWorkers),
   );
+}
+
+export function tripLaborBuildingId(trip: DeliveryTripState): string | null {
+  if (trip.laborBuildingId) return trip.laborBuildingId;
+  // Compatibility for trips synchronized from a pre-split server schema.
+  return trip.freeHaulerWorkers < trip.deliveryWorkers ? trip.buildingId : null;
 }
 
 /**
@@ -99,15 +109,16 @@ export function rosteredCartWorkersByBuilding(
 ): Map<string, number> {
   const travelingWorkers = new Map<string, number>();
   for (const trip of trips) {
-    if (!buildings.has(trip.buildingId)) continue;
+    const laborBuildingId = tripLaborBuildingId(trip);
+    if (!laborBuildingId || !buildings.has(laborBuildingId)) continue;
     const rosteredWorkers = Math.max(
       0,
       Math.floor(trip.deliveryWorkers) - Math.floor(trip.freeHaulerWorkers),
     );
     if (rosteredWorkers <= 0) continue;
     travelingWorkers.set(
-      trip.buildingId,
-      (travelingWorkers.get(trip.buildingId) ?? 0) + rosteredWorkers,
+      laborBuildingId,
+      (travelingWorkers.get(laborBuildingId) ?? 0) + rosteredWorkers,
     );
   }
 
@@ -127,7 +138,7 @@ export function rosteredCartWorkersByBuilding(
 
 /** Mirrors the server's authoritative physical-presence rule. */
 export function onsiteBuildingLabor(
-  building: Pick<BuildingState, 'assignedLabor'>,
+  building: Pick<BuildingState, 'assignedLabor'> & Partial<Pick<BuildingState, 'id'>>,
   trip: DeliveryTripState | null | undefined,
 ): number {
   return Math.max(0, building.assignedLabor - rosteredCartWorkers(building, trip));

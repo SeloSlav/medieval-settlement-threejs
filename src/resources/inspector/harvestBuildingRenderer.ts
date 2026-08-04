@@ -223,7 +223,10 @@ export function renderHarvestBuildingInspector(
   const seasonAvailable = nearestNode
     ? isForagingHarvestAvailable(nearestNode.kind as HarvestForagingKind, month)
     : true;
-  const crew = foodLaborSplit(building.assignedLabor);
+  const crew = foodLaborSplit(
+    building.assignedLabor,
+    context.populationStats.available,
+  );
   const claimedResidences = context.worldQueries.getClaimedResidencesForFoodSupplier(building);
   const foodCapacity = buildingStorageCaps(building.kind).food ?? 0;
   const managedStockFull = managesWildStock
@@ -307,10 +310,7 @@ export function renderHarvestBuildingInspector(
 
   let statusText: string;
   let statusState: InspectorView['statusState'];
-  if (building.assignedLabor === 0) {
-    statusText = copy.idleLabel;
-    statusState = 'idle';
-  } else if (activeTrip) {
+  if (activeTrip) {
     statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${activeDestinationLabel}`;
     statusState = 'active';
   } else if (canDeliver) {
@@ -318,6 +318,18 @@ export function renderHarvestBuildingInspector(
       ? `Dispatching remedies — care preempts the ordinary food round`
       : `Delivering food — ${claimedResidences.length} claimed home${claimedResidences.length === 1 ? '' : 's'}`;
     statusState = 'active';
+  } else if (
+    crew.delivering <= 0
+    && (
+      (nextCareTarget != null && (building.remedies ?? 0) > 1e-6)
+      || (nextFoodDeliveryTarget != null && building.food > 1e-6)
+    )
+  ) {
+    statusText = 'Stored goods ready — waiting for an unassigned hauler';
+    statusState = 'idle';
+  } else if (building.assignedLabor === 0) {
+    statusText = copy.idleLabel;
+    statusState = 'idle';
   } else if (managedStockFull) {
     statusText = 'Paused — local food storage is full';
     statusState = 'idle';
@@ -363,7 +375,7 @@ export function renderHarvestBuildingInspector(
       <li><span>Road distance</span><span>${formatDeliveryRoadDistance(deliveryDistance)}</span></li>
       <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
       <li><span>Cart load</span><span>${nextCareTarget ? `${REMEDIES_PER_DELIVERY * crew.delivering} remedies` : `${foodPerTrip} food`}</span></li>`
-    : `<li><span>Delivery</span><span>Paused — no deliverer assigned</span></li>`;
+    : `<li><span>Delivery</span><span>Waiting for an unassigned hauler</span></li>`;
 
   const reserveRows = managesWildStock
     ? `<li><span>Wild-stock reserve</span><span>${reservePercent}% of carrying capacity${nearestNode ? ` / ${protectedStock.toFixed(1)} protected here` : ''}</span></li>
@@ -397,7 +409,7 @@ export function renderHarvestBuildingInspector(
       ${buildingCostRows(building.kind, cost)}
       ${buildingExtentRow(building.kind)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Crew split</span><span>${formatFoodCrewSplit(building.assignedLabor)}</span></li>
+      <li><span>Labor roles</span><span>${formatFoodCrewSplit(building.assignedLabor, context.populationStats.available)}</span></li>
       <li><span>Harvest interval</span><span>${processingWorkers > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${processingWorkers} harvesting / ${building.assignedLabor} assigned)</span></li>
       <li><span>Food territory</span><span>${building.food <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Local food reserve</span><span>${localFoodReserve.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>

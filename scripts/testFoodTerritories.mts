@@ -119,10 +119,11 @@ assert.deepEqual(FOOD_SUPPLIER_KINDS, [
   'monastery',
 ]);
 for (const kind of FOOD_SUPPLIER_KINDS) {
+  const deliveryLabor = kind === 'granary' ? 2 : 0;
   assert.equal(
-    isOperationalFoodSupplier(building(`supplier-${kind}`, kind, 10, kind === 'monastery' ? 0 : 1)),
+    isOperationalFoodSupplier(building(`supplier-${kind}`, kind, 10, deliveryLabor)),
     true,
-    `${kind} already dispatches household food and must participate in routine claims`,
+    `${kind} must participate when its delivery labor contract can move stored food`,
   );
 }
 assert.equal(
@@ -145,7 +146,7 @@ const huntingCamp = building('hunter', 'hunters_hall', 25, 2);
 assert.equal(
   claimResidencesForFoodSuppliers(network, [huntingCamp, granary], [home]).get(home.id),
   granary.id,
-  'centralized food storage should claim nearby homes when staffed',
+  'centralized food storage should claim nearby homes when an extra hauler is staffed',
 );
 const emptyWinterApiary = {
   ...building('empty-apiary', 'apiary', 2, 1),

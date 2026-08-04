@@ -376,7 +376,7 @@ assert.match(
   'stable FPS and zoom readouts should not dirty the HUD DOM',
 );
 assert.match(townHallSource, /Next dawn outlook/);
-assert.match(appSource, /worldAnimationDelta\([\s\S]*?sceneManager\?\.render\(worldDt/);
+assert.match(appSource, /worldAnimationDelta\([\s\S]*?sceneManager\?\.render\([\s\S]*?worldDt/);
 assert.match(appSource, /tickSettlementWorld\([\s\S]*?worldDt,/);
 assert.match(
   appSource,

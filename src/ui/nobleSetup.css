@@ -237,7 +237,7 @@
   z-index: 4;
   display: grid;
   justify-items: center;
-  padding: 13px 28px 15px;
+  padding: 11px 28px 12px;
   border-bottom: 1px solid rgba(211, 188, 137, 0.2);
   background:
     linear-gradient(90deg, transparent, rgba(205, 173, 102, 0.07) 18% 82%, transparent),
@@ -256,17 +256,13 @@
   transform: translateX(-50%);
 }
 
-.noble-setup-heading p,
 .noble-setup-heading h1,
-.noble-setup-heading span,
 .noble-setup-section-heading h3,
 .noble-setup-section-heading p,
-.noble-setup-editor-title h3,
-.noble-setup-history-note {
+.noble-setup-editor-title h3 {
   margin: 0;
 }
 
-.noble-setup-heading p,
 .noble-setup-eyebrow {
   color: #b89c64;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -277,18 +273,13 @@
 }
 
 .noble-setup-heading h1 {
-  margin: 2px 0 1px;
+  margin: 0;
   color: #f2e6ca;
   font-size: clamp(25px, 2.1vw, 36px);
   font-weight: 500;
   letter-spacing: 0.015em;
   line-height: 1.04;
   text-shadow: 0 3px 14px rgba(0, 0, 0, 0.58);
-}
-
-.noble-setup-heading > span {
-  color: #aaa18e;
-  font-size: 11px;
 }
 
 .noble-setup-layout {
@@ -307,8 +298,9 @@
 
 .noble-setup-identity {
   display: grid;
-  grid-template-rows: auto minmax(220px, 1fr) auto auto auto;
-  gap: 11px;
+  grid-template-rows: repeat(6, auto);
+  align-content: start;
+  gap: 8px;
   border-right: 1px solid rgba(213, 190, 139, 0.18);
   background:
     radial-gradient(circle at 24% 28%, rgba(137, 112, 62, 0.12), transparent 46%),
@@ -325,12 +317,22 @@
   text-transform: uppercase;
 }
 
+.noble-setup-identity-showcase {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(106px, 0.44fr);
+  align-self: start;
+  gap: 10px;
+  min-height: 0;
+}
+
 .noble-setup-portrait-frame {
   position: relative;
-  min-height: 220px;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 1;
   overflow: hidden;
-  border: 1px solid rgba(218, 190, 126, 0.4);
-  border-radius: 3px 3px 20px 3px;
+  border: 1px solid rgba(218, 190, 126, 0.46);
+  border-radius: 3px;
   background: #161812;
   box-shadow:
     inset 0 0 0 4px rgba(18, 16, 12, 0.7),
@@ -342,48 +344,63 @@
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 220px;
   object-fit: cover;
-  object-position: center 17%;
+  object-position: center;
   filter: saturate(0.87) contrast(1.04);
 }
 
-.noble-setup-portrait-frame::after {
-  position: absolute;
-  inset: 0;
-  content: '';
+.noble-setup-emblem-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  place-items: center;
+  min-width: 0;
+  padding: 10px 8px 12px;
+  border: 1px solid rgba(218, 190, 126, 0.34);
+  border-radius: 3px 3px 18px 3px;
   background:
-    linear-gradient(180deg, transparent 52%, rgba(8, 10, 8, 0.9)),
-    linear-gradient(90deg, rgba(4, 5, 4, 0.24), transparent 26% 70%, rgba(4, 5, 4, 0.22));
-  pointer-events: none;
+    radial-gradient(circle at 50% 42%, rgba(196, 155, 77, 0.12), transparent 60%),
+    rgba(8, 10, 8, 0.56);
+  box-shadow: inset 0 0 0 4px rgba(18, 16, 12, 0.45), 0 12px 34px rgba(0, 0, 0, 0.2);
+}
+
+.noble-setup-emblem-card > span {
+  color: #a99d85;
+  font: 750 8px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
 }
 
 .noble-setup-main-shield {
-  position: absolute;
-  z-index: 2;
-  right: 18px;
-  bottom: 15px;
+  display: grid;
+  place-items: center;
+  width: 100%;
 }
 
-.heraldry-shield--main { width: clamp(92px, 8.4vw, 126px); }
+.heraldry-shield--main { width: min(100%, 118px); }
 
 .noble-setup-portrait-caption {
-  position: absolute;
-  z-index: 2;
-  right: 138px;
-  bottom: 20px;
-  left: 18px;
-  display: grid;
-  gap: 3px;
-  text-shadow: 0 2px 6px #000;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  min-height: 17px;
+  padding: 0 4px;
+  text-align: center;
 }
 
 .noble-setup-portrait-caption span {
-  color: #e5d3a8;
-  font-size: 14px;
+  overflow: hidden;
+  color: #cdbd9b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.noble-setup-portrait-caption small { color: #aaa08b; font-size: 10px; }
+.noble-setup-portrait-caption small {
+  flex: 0 0 auto;
+  color: #817969;
+  font: 8px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+}
 
 .noble-setup-name-label {
   display: grid;
@@ -509,12 +526,6 @@
   border: 1px solid rgba(244, 212, 133, 0.34);
   content: '';
   pointer-events: none;
-}
-
-.noble-setup-history-note {
-  color: #7f786b;
-  font: italic 9px/1.3 Inter, ui-sans-serif, system-ui, sans-serif;
-  text-align: center;
 }
 
 .noble-setup-armory {
@@ -669,6 +680,27 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  scrollbar-color: rgba(211, 178, 99, 0.72) rgba(4, 6, 4, 0.5);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.noble-setup-charges::-webkit-scrollbar {
+  width: 8px;
+}
+
+.noble-setup-charges::-webkit-scrollbar-track {
+  border: 1px solid rgba(205, 181, 125, 0.08);
+  background: rgba(4, 6, 4, 0.52);
+}
+
+.noble-setup-charges::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(4, 6, 4, 0.52);
+  border-radius: 6px;
+  background: rgba(211, 178, 99, 0.72);
 }
 
 .noble-setup-charge {
@@ -683,7 +715,7 @@
 .noble-setup-charge > span {
   width: 36px;
   height: 36px;
-  background: var(--charge-preview-color, #d8d1bb);
+  background: #fff;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.52));
   mask: var(--charge-icon) center / contain no-repeat;
 }
@@ -765,9 +797,9 @@
   .noble-setup-backdrop { padding: 0; }
   .noble-setup-shell { width: 100%; height: 100%; border: 0; }
   .noble-setup-heading { padding: 10px 14px; }
-  .noble-setup-heading > span { display: none; }
   .noble-setup-layout { grid-template-columns: 1fr; overflow-y: auto; }
-  .noble-setup-identity { grid-template-rows: auto 310px auto auto auto; border-right: 0; border-bottom: 1px solid rgba(213, 190, 139, 0.18); overflow: visible; }
+  .noble-setup-identity { grid-template-rows: auto auto auto auto auto auto; border-right: 0; border-bottom: 1px solid rgba(213, 190, 139, 0.18); overflow: visible; }
+  .noble-setup-identity-showcase { grid-template-columns: minmax(0, 1fr) minmax(120px, 0.42fr); }
   .noble-setup-armory { overflow: visible; }
   .noble-setup-actions { padding: 8px 12px; }
   .noble-setup-actions > span { display: none; }
@@ -785,9 +817,11 @@
   .noble-setup-shell { height: calc(100vh - 18px); }
   .noble-setup-heading { padding: 8px 24px 10px; }
   .noble-setup-heading h1 { font-size: 25px; }
-  .noble-setup-heading > span { display: none; }
   .noble-setup-identity, .noble-setup-armory { padding-top: 11px; padding-bottom: 11px; }
-  .noble-setup-portrait-frame, .noble-setup-portrait-frame > img { min-height: 190px; }
+  .noble-setup-identity-showcase {
+    grid-template-columns: minmax(0, 225px) minmax(96px, 1fr);
+    justify-content: center;
+  }
   .noble-setup-charge { min-height: 48px; }
   .noble-setup-charge > span { width: 29px; height: 29px; }
   .noble-setup-actions { min-height: 50px; }

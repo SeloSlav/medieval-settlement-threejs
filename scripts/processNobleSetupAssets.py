@@ -42,6 +42,63 @@ CHARGES = (
 
 CHARGE_ATLAS = "exec-ba739b1f-a803-45ec-9f6c-21565e8e025d.png"
 
+ADDITIONAL_CHARGE_ATLASES = (
+    (
+        "exec-f7df67f6-6799-4a7b-a795-f3a73f027b15.png",
+        5,
+        5,
+        (
+            "latin-cross", "patriarchal-cross", "papal-cross", "cross-pattee", "cross-potent",
+            "cross-moline", "cross-fleury", "cross-bottony", "cross-crosslet", "maltese-cross",
+            "jerusalem-cross", "calvary-cross", "tau-cross", "chi-rho", "ihs-monogram",
+            "lamb-of-god", "pelican-in-piety", "holy-dove", "chalice-and-host", "keys-of-saint-peter",
+            "crown-of-thorns", "three-nails", "anchor-cross", "crowned-cross", "passion-ladder",
+        ),
+    ),
+    (
+        "exec-27647092-ad2d-467a-b2ca-5e8ccf8fc0c7.png",
+        5,
+        5,
+        (
+            "madonna-and-child", "marian-monogram", "saint-james-shell", "saint-catherine-wheel", "saint-paul-sword",
+            "crossed-keys", "bishop-mitre", "abbot-crozier", "papal-tiara", "rosary",
+            "censer", "sanctus-bell", "closed-gospel", "open-gospel", "monstrance",
+            "reliquary", "church", "chapel", "monastery", "baptismal-font",
+            "lily", "rose", "grape-cluster", "wheat-sheaf", "olive-branch",
+        ),
+    ),
+    (
+        "exec-4d906a3b-f496-4613-b26a-6ec648e1ff88.png",
+        5,
+        5,
+        (
+            "griffin", "wyvern", "dragon", "unicorn", "horse",
+            "bull", "ram", "goat", "hound", "fox",
+            "lynx", "hare", "squirrel", "dolphin", "fish",
+            "pike-fish", "swan", "rooster", "owl", "peacock",
+            "stork", "pelican", "bee", "serpent", "double-headed-eagle",
+        ),
+    ),
+    (
+        "exec-66993333-acf4-4421-a4a2-1d0a58cf72eb.png",
+        5,
+        5,
+        (
+            "spear", "halberd", "mace", "war-hammer", "bow-and-arrow",
+            "crossbow", "quiver", "round-shield", "great-helm", "gauntlet",
+            "spur", "horseshoe", "hunting-horn", "war-banner", "single-axe",
+            "scythe", "ploughshare", "blacksmith-hammer", "anvil", "wagon-wheel",
+            "anchor", "sailing-ship", "chain-links", "portcullis", "castle",
+        ),
+    ),
+    (
+        "exec-72dc749b-89fa-48f0-8ac5-0797ca303f1a.png",
+        2,
+        2,
+        ("sun", "comet", "mountain", "waves"),
+    ),
+)
+
 
 def prepare_portrait(source: Path, destination: Path) -> None:
     with Image.open(source) as image:
@@ -54,13 +111,19 @@ def prepare_portrait(source: Path, destination: Path) -> None:
         portrait.save(destination, "WEBP", quality=88, method=6)
 
 
-def prepare_charge(source: Image.Image, index: int, destination: Path) -> None:
-    col = index % 4
-    row = index // 4
-    x0 = round(col * source.width / 4)
-    x1 = round((col + 1) * source.width / 4)
-    y0 = round(row * source.height / 4)
-    y1 = round((row + 1) * source.height / 4)
+def prepare_charge(
+    source: Image.Image,
+    index: int,
+    destination: Path,
+    columns: int = 4,
+    rows: int = 4,
+) -> None:
+    col = index % columns
+    row = index // columns
+    x0 = round(col * source.width / columns)
+    x1 = round((col + 1) * source.width / columns)
+    y0 = round(row * source.height / rows)
+    y1 = round((row + 1) * source.height / rows)
     cell = source.crop((x0, y0, x1, y1)).convert("L")
     cell = ImageEnhance.Contrast(cell).enhance(1.45)
     alpha = cell.point(lambda value: 0 if value < 18 else min(255, round((value - 18) * 1.18)))
@@ -96,7 +159,19 @@ def main() -> None:
         for index, charge in enumerate(CHARGES):
             prepare_charge(atlas, index, charge_dir / f"{charge}.png")
 
-    print(f"Prepared {len(PORTRAITS)} portraits and {len(CHARGES)} recolorable charges in {output_dir}")
+    additional_count = 0
+    for source_name, columns, rows, charges in ADDITIONAL_CHARGE_ATLASES:
+        if len(charges) != columns * rows:
+            raise RuntimeError(f"{source_name} has {len(charges)} names for a {columns}x{rows} atlas")
+        with Image.open(source_dir / source_name) as atlas:
+            for index, charge in enumerate(charges):
+                prepare_charge(atlas, index, charge_dir / f"{charge}.png", columns, rows)
+        additional_count += len(charges)
+
+    print(
+        f"Prepared {len(PORTRAITS)} portraits and "
+        f"{len(CHARGES) + additional_count} recolorable charges in {output_dir}"
+    )
 
 
 if __name__ == "__main__":

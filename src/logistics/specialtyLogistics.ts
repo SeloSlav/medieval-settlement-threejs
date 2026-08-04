@@ -46,6 +46,11 @@ const POTTERY_SUPPLIER_KINDS: readonly BuildingKind[] = ['potter_kiln'];
 
 export function isOperationalSpecialtySupplier(building: BuildingState): boolean {
   return building.constructionComplete !== false
+    && (building.kind !== 'granary' || building.assignedLabor > 1);
+}
+
+export function isSustainableSpecialtySupplier(building: BuildingState): boolean {
+  return building.constructionComplete !== false
     && (building.kind === 'monastery' || building.assignedLabor > 0);
 }
 
@@ -100,7 +105,10 @@ function findRoadLinkedSpecialtySupplier(
     ? supplierKindsForNeed(needKind)
     : upgradeSupplierKindsForNeed(needKind);
   const suppliers = [...buildings].filter((building) => {
-    if (!isOperationalSpecialtySupplier(building) || !supplierKinds.includes(building.kind)) {
+    const laborReady = requireStock
+      ? isOperationalSpecialtySupplier(building)
+      : isSustainableSpecialtySupplier(building);
+    if (!laborReady || !supplierKinds.includes(building.kind)) {
       return false;
     }
     return !requireStock || specialtySupplierStock(building, needKind) > 1e-6;

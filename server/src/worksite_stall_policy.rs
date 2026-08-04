@@ -112,18 +112,18 @@ fn spatial_cell(x: f64, z: f64) -> (i32, i32) {
 }
 
 /// Returns a lower labor target only when a site is authoritatively stalled.
-/// Matching inbound supply protects a recovering site; stored output or an
-/// already-active cart keeps one dispatcher.
+/// Matching inbound supply protects a recovering site. Stored output and carts
+/// do not retain production workers because logistics labor handles them.
 pub fn stalled_labor_target(
     assigned_labor: u32,
     stalled: bool,
     supply_en_route: bool,
-    has_dispatch_duty: bool,
+    _has_dispatch_duty: bool,
 ) -> Option<u32> {
     if assigned_labor == 0 || !stalled || supply_en_route {
         return None;
     }
-    let target = u32::from(has_dispatch_duty).min(assigned_labor);
+    let target = 0;
     (target < assigned_labor).then_some(target)
 }
 
@@ -138,10 +138,10 @@ mod tests {
     }
 
     #[test]
-    fn recall_preserves_recovering_sites_and_one_dispatcher() {
+    fn recall_preserves_recovering_sites_but_not_dispatchers() {
         assert_eq!(stalled_labor_target(3, true, false, false), Some(0));
-        assert_eq!(stalled_labor_target(3, true, false, true), Some(1));
-        assert_eq!(stalled_labor_target(1, true, false, true), None);
+        assert_eq!(stalled_labor_target(3, true, false, true), Some(0));
+        assert_eq!(stalled_labor_target(1, true, false, true), Some(0));
         assert_eq!(stalled_labor_target(3, true, true, false), None);
         assert_eq!(stalled_labor_target(3, false, false, false), None);
     }

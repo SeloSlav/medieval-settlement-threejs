@@ -176,7 +176,7 @@ mod tests {
         let first_load = fire_response_load(1.9);
         assert_eq!(first_load, 1.9);
 
-        let refilled = crate::well_policy::well_refill_amount(0.03, 1, 1.0, 20.0);
+        let refilled = crate::well_policy::well_refill_amount(0.03, 1.0, 20.0);
         let second_load = fire_response_load(refilled);
         assert!(second_load >= 2.0);
 

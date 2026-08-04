@@ -1095,7 +1095,7 @@ export class App {
       const prior = previous.fireIncidents.get(incident.id);
       if (!prior && incident.status === 'burning') {
         this.toastManager?.show(
-          'Structure fire reported. A staffed well can respond if the fire lies inside its work extent.',
+          'Structure fire reported. A completed well can respond when it has water and an unassigned hauler is available.',
           { variant: 'error', durationMs: 7000 },
         );
         continue;

@@ -11,7 +11,6 @@ import {
 import {
   formatLodgeCrewSplit,
   lodgeFirewoodPerDelivery,
-  lodgeLaborAlternates,
   lodgeLaborSplit,
 } from '../../logistics/lodgeLogistics.ts';
 import type { InspectableTarget } from '../types.ts';
@@ -51,7 +50,10 @@ export function renderWoodcuttersLodgeInspector(
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
   const definition = getBuildingDefinition(building.kind);
-  const crew = lodgeLaborSplit(building.assignedLabor);
+  const crew = lodgeLaborSplit(
+    building.assignedLabor,
+    context.populationStats.available,
+  );
   const crewLabel = formatLodgeCrewSplit(crew, building.assignedLabor);
   const connectedMills = context.worldQueries.getRoadConnectedMills(building);
   const claimedResidences = context.worldQueries.getClaimedResidencesForFirewoodSupplier(building);
@@ -70,7 +72,7 @@ export function renderWoodcuttersLodgeInspector(
     ? context.worldQueries.getActiveTripPathDistance(activeTrip)
     : null;
   const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
-  const industrialDispatch = building.assignedLabor > 0 && building.firewood > 1e-6
+  const industrialDispatch = building.firewood > 1e-6
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'firewood')
     : null;
   const activeBuildingDestination = activeTrip?.cargoKind === 'firewood'
@@ -104,7 +106,7 @@ export function renderWoodcuttersLodgeInspector(
       context.worldQueries.getActiveTripPathDistance(inboundTimberTrip),
     )
     : null;
-  const processingWorkers = lodgeLaborAlternates(building.assignedLabor) ? 1 : crew.processing;
+  const processingWorkers = crew.processing;
   const timberPerCycle = LODGE_TIMBER_PER_CYCLE * processingWorkers;
   const firewoodPerCycle = LODGE_FIREWOOD_PER_CYCLE * processingWorkers;
   const timberReserve = normalizeWoodcutterTimberReserve(building.woodcutterTimberReserve ?? 0);
@@ -162,12 +164,10 @@ export function renderWoodcuttersLodgeInspector(
       <li><span>Road distance</span><span>${formatDeliveryRoadDistance(activeTripDistance ?? deliveryDistance)}</span></li>
       <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
       <li><span>Firewood per trip</span><span>${firewoodPerTrip}</span></li>`
-    : `<li><span>Delivery</span><span>Paused — no lodge workers</span></li>`;
+    : `<li><span>Delivery</span><span>Waiting for an unassigned hauler</span></li>`;
 
   const processOutputLabel = building.assignedLabor > 0
-    ? lodgeLaborAlternates(building.assignedLabor)
-      ? `${firewoodPerCycle} firewood from ${timberPerCycle} timber when processing`
-      : `${firewoodPerCycle} firewood from ${timberPerCycle} timber`
+    ? `${firewoodPerCycle} firewood from ${timberPerCycle} timber`
     : `up to ${LODGE_FIREWOOD_PER_CYCLE * definition.maxLabor} firewood (${definition.maxLabor} workers)`;
 
   return {
@@ -178,7 +178,7 @@ export function renderWoodcuttersLodgeInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Crew split</span><span>${crewLabel}</span></li>
+      <li><span>Labor roles</span><span>${crewLabel}</span></li>
       <li><span>Supplying mills</span><span>${millSummary}</span></li>
       <li><span>Claimed residences</span><span>${residenceSummary}</span></li>
       <li><span>Surplus fuel duty</span><span>${nextDeliveryTarget ? `Protected household stock first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
@@ -187,7 +187,7 @@ export function renderWoodcuttersLodgeInspector(
       <li><span>Construction timber floor</span><span>${Math.round(timberReserve)}</span></li>
       <li><span>Unreserved building timber</span><span>${Math.floor(availableUnreservedTimber)} total · ${Math.floor(timberAboveReserve)} above floor</span></li>
       ${deliveryRow}
-      ${civilianToolRows(building)}
+      ${civilianToolRows(building, context.worldQueries)}
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {

@@ -8,13 +8,12 @@ use crate::constants::RESIDENCE_WATER_PER_PERSON_PER_SEC;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::simulation::lodge_logistics::residence_firewood_runway_seconds as residence_runway_seconds;
 use crate::supply_policy::{
-    compare_supply_route_candidates, is_firewood_supplier_operational,
+    compare_supply_route_candidates, is_firewood_supplier_delivery_operational,
     is_well_supplier_operational, select_need_delivery_candidate, NeedDeliveryCandidate,
 };
 use crate::tables::{Building, Residence};
 use crate::well_policy::position_within_well_service_radius;
 
-pub use crate::simulation::lodge_logistics::lodge_labor_split;
 
 #[derive(Debug, Clone)]
 pub struct LocalDeliveryRoute {
@@ -270,9 +269,9 @@ pub fn claim_residences_by_nearest_supplier(
         .collect()
 }
 
-/// Each residence is claimed by its nearest operational firewood distributor.
-/// A staffed village storehouse can therefore become a road-network fuel hub,
-/// while unfinished or unstaffed suppliers cannot strand a branch.
+/// Each residence is claimed by its nearest stocked delivery-ready firewood
+/// source. Lodges use unassigned haulers; a staffed village storehouse can
+/// become a dedicated road-network fuel hub.
 pub fn claim_residences_for_firewood_suppliers(
     network: &RoadNetwork,
     suppliers: &[Building],
@@ -281,7 +280,8 @@ pub fn claim_residences_for_firewood_suppliers(
     let operational: Vec<&Building> = suppliers
         .iter()
         .filter(|supplier| {
-            is_firewood_supplier_operational(
+            supplier.firewood > 1e-6
+                && is_firewood_supplier_delivery_operational(
                 &supplier.kind,
                 supplier.construction_complete,
                 supplier.assigned_labor,
@@ -292,7 +292,7 @@ pub fn claim_residences_for_firewood_suppliers(
     claim_residences_by_nearest_supplier(network, &operational, residences, |_, _, _| true)
 }
 
-/// Each residence is claimed by the nearest staffed well within its service extent.
+/// Each residence is claimed by the nearest completed well within its service extent.
 pub fn claim_residences_for_wells(
     network: &RoadNetwork,
     wells: &[Building],

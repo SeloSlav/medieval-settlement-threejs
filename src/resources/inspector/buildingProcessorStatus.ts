@@ -10,10 +10,10 @@ import {
   CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CLAY_PIT_CLAY_PER_CYCLE,
-  GRANARY_FIREWOOD_PER_CYCLE,
-  GRANARY_FLOUR_PER_CYCLE,
-  GRANARY_FOOD_PER_CYCLE,
-  GRANARY_WATER_PER_CYCLE,
+  BAKERY_FIREWOOD_PER_CYCLE,
+  BAKERY_FLOUR_PER_CYCLE,
+  BAKERY_FOOD_PER_CYCLE,
+  BAKERY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   MONASTERY_GRAIN_PER_CYCLE,
   MONASTERY_UNLINKED_PRODUCTIVITY,
@@ -118,17 +118,17 @@ type ProcessorProfile = {
 };
 
 const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
-  granary: {
+  bakery: {
     requiresLabor: true,
-    waterPerCycle: GRANARY_WATER_PER_CYCLE,
+    waterPerCycle: BAKERY_WATER_PER_CYCLE,
     inputs: [
-      { key: 'flour', label: 'flour', required: GRANARY_FLOUR_PER_CYCLE, deliveryHint: 'mill deliveries may supply' },
-      { key: 'firewood', label: 'firewood', required: GRANARY_FIREWOOD_PER_CYCLE, deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway' },
+      { key: 'flour', label: 'flour', required: BAKERY_FLOUR_PER_CYCLE, deliveryHint: 'mill or granary deliveries may supply' },
+      { key: 'firewood', label: 'firewood', required: BAKERY_FIREWOOD_PER_CYCLE, deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway' },
     ],
     output: 'food',
-    outputPerCycle: GRANARY_FOOD_PER_CYCLE,
-    operatingLabel: 'Baking staple food',
-    idleNoWorkersLabel: 'Idle — assign workers to bake food',
+    outputPerCycle: BAKERY_FOOD_PER_CYCLE,
+    operatingLabel: 'Baking bread',
+    idleNoWorkersLabel: 'Idle — assign bakers to make bread',
   },
   smokehouse: {
     requiresLabor: true,
@@ -757,10 +757,11 @@ export function getBuildingProcessorStatus(
   worldQueries: WorldQueries,
   context: BuildingProcessorContext = {},
 ): BuildingProcessorStatus | null {
-  const onsiteLabor = onsiteBuildingLabor(
+  const rosteredOnsiteLabor = onsiteBuildingLabor(
     building,
     worldQueries.getActiveDeliveryTrip?.(building) ?? null,
   );
+  const onsiteLabor = rosteredOnsiteLabor;
   if (building.kind === 'brewery') {
     return getBreweryStatus(building, worldQueries, onsiteLabor);
   }

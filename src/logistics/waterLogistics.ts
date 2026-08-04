@@ -1,7 +1,7 @@
 import {
   BREWERY_BREWING_WATER_PER_CYCLE,
   BREWERY_MALTING_WATER_PER_CYCLE,
-  GRANARY_WATER_PER_CYCLE,
+  BAKERY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   POTTER_WATER_PER_CYCLE,
   RESIDENCE_WATER_CAPACITY,
@@ -19,16 +19,6 @@ import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts
 import { weaverFibreDeliveryPreferenceRank } from '../economy/weaverInputPolicy.ts';
 import { GAME_DAY_SECONDS } from './firewoodLogistics.ts';
 
-export {
-  formatLodgeCrewSplit,
-  lodgeLaborAlternates,
-  lodgeLaborSplit,
-  type LodgeLaborSplit,
-} from './lodgeLogistics.ts';
-
-/** Wells reuse the same crew split as woodcutter's lodges. */
-export { lodgeLaborSplit as wellLaborSplit } from './lodgeLogistics.ts';
-
 export function wellWaterPerDelivery(deliveryWorkers: number): number {
   if (deliveryWorkers <= 0) return 0;
   return WELL_WATER_PER_DELIVERY * deliveryWorkers;
@@ -43,8 +33,8 @@ export type IndustrialWaterCandidate = {
 
 export function industrialWaterRequirement(kind: BuildingKind): number {
   switch (kind) {
-    case 'granary':
-      return GRANARY_WATER_PER_CYCLE;
+    case 'bakery':
+      return BAKERY_WATER_PER_CYCLE;
     case 'brewery':
       return BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE;
     case 'weaver':
@@ -65,7 +55,7 @@ export function industrialWaterTarget(
   processorOutputTargetPercent: number | undefined = 100,
 ): number {
   const perCycle = industrialWaterRequirement(kind);
-  return kind === 'granary'
+  return kind === 'bakery'
     || kind === 'brewery'
     || kind === 'weaver'
     || kind === 'smithy'
@@ -164,11 +154,8 @@ export function wellDeliveryTripSeconds(
   );
 }
 
-export function formatWellCrewSplit(assignedLabor: number): string {
-  if (assignedLabor <= 0) return 'None assigned';
-  if (assignedLabor === 1) return '1 worker — alternates drawing & delivery';
-  const processing = assignedLabor - 1;
-  return `${processing} drawing · 1 delivering`;
+export function formatWellCrewSplit(_assignedLabor = 0): string {
+  return 'No assigned crew · free hauler dispatched on demand';
 }
 
 export function residenceWaterDemandPerSecond(residence: ResidenceState): number {

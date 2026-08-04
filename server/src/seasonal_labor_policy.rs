@@ -47,20 +47,20 @@ pub fn seasonal_production_active(
     }
 }
 
-/// Dormant seasonal sites retain at most one worker when stored goods or an
-/// active cart still create a dispatch duty. The helper never adds labor.
+/// Dormant seasonal sites release their full production roster. Stored goods
+/// are collected by logistics labor, never by the seasonal crew.
 pub fn seasonal_labor_target(
     kind: &str,
     month: u32,
     assigned_labor: u32,
-    has_dispatch_duty: bool,
+    _has_dispatch_duty: bool,
     farm_field_work_active: bool,
 ) -> Option<u32> {
     let active = seasonal_production_active(kind, month, farm_field_work_active)?;
     if active {
         return Some(assigned_labor);
     }
-    Some(assigned_labor.min(u32::from(has_dispatch_duty)))
+    Some(0)
 }
 
 /// Distributes free labor to active seasonal sites by staffing priority.
@@ -164,8 +164,8 @@ mod tests {
     }
 
     #[test]
-    fn dormant_site_keeps_one_hauler_only_when_dispatch_is_pending() {
-        assert_eq!(seasonal_labor_target("apiary", 1, 3, true, false), Some(1));
+    fn dormant_site_releases_producers_even_when_stock_is_waiting() {
+        assert_eq!(seasonal_labor_target("apiary", 1, 3, true, false), Some(0));
         assert_eq!(seasonal_labor_target("apiary", 1, 3, false, false), Some(0));
         assert_eq!(seasonal_labor_target("apiary", 4, 3, false, false), Some(3));
     }

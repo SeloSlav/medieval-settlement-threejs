@@ -1522,6 +1522,30 @@ export class ResourceInspector {
           gameClock(gameState.tick),
         )
       : null;
+    const productionRouteTargets = needsProductionForecast
+      ? [...gameState.buildings.values()]
+      : [];
+    const productionRouteDistances = new Map<string, Map<string, number | null>>();
+    const productionToolRouteDistance = (
+      source: { id: string; x: number; z: number },
+      destination: { id: string; x: number; z: number },
+    ): number | null => {
+      let distances = productionRouteDistances.get(source.id);
+      if (!distances) {
+        const values = this.options.worldQueries.getLocalDeliveryDistancesFrom(
+          source,
+          productionRouteTargets,
+        );
+        distances = new Map(
+          productionRouteTargets.map((candidate, index) => [
+            candidate.id,
+            values[index] ?? null,
+          ]),
+        );
+        productionRouteDistances.set(source.id, distances);
+      }
+      return distances.get(destination.id) ?? null;
+    };
     const settlementProduction = needsProductionForecast
       ? computeSettlementProductionCapacity(
           gameState,
@@ -1536,6 +1560,8 @@ export class ResourceInspector {
           gameClock(gameState.tick).month,
           this.options.getWorldResourceAbundance?.() ?? 50,
           productionEnvironment?.charcoalBurnerThroughputMultiplier ?? 1,
+          productionToolRouteDistance,
+          this.options.worldQueries.getRoadConditionSpeedMultiplier(),
         )
       : undefined;
     const view = renderInspectableTarget(target, {
@@ -1600,8 +1626,8 @@ export class ResourceInspector {
         ? 'Structural recovery is underway through the shared construction queue'
         : fire.status === 'burning'
         ? fire.responseWellId
-          ? 'A staffed well has dispatched a bucket carrier'
-          : 'No staffed well currently has this fire inside its work extent'
+          ? 'A nearby well has dispatched an unassigned bucket carrier'
+          : 'No ready well and unassigned hauler can currently answer this fire'
         : fire.status === 'destroyed'
           ? 'Fire out; the surviving foundations can be rebuilt'
           : 'Fire suppressed; structural repairs are required';

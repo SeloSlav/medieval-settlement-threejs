@@ -1180,14 +1180,14 @@ export async function bootstrapAppSession(
   });
   toolbar.setFirstPersonToggle(() => {
     if (!sessionGate.isReady()) {
-      toastManager?.show('Pričekaj da se svijet poveže prije ulaska u pogled iz prvog lica.', {
+      toastManager?.show('Wait for the world to connect before entering first-person view.', {
         variant: 'info',
         durationMs: 3200,
       });
       return;
     }
     if (!isSettlementFounded()) {
-      toastManager?.show('Najprije postavi osnivački tabor.', {
+      toastManager?.show('Place your founding camp first.', {
         variant: 'info',
         durationMs: 3200,
       });
