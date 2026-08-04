@@ -13,7 +13,7 @@ use crate::balance_generated::{
     FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY,
     FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, GRAIN_TRANSFER_PER_TRIP,
     MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
-    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_CHARITY_FOOD_PER_DELIVERY, MONASTERY_COVERAGE_RADIUS,
+    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_COVERAGE_RADIUS,
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
     MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
@@ -414,7 +414,7 @@ pub fn step_threshing_barn(
     ctx.db.building().id().update(building);
 }
 
-/// Granaries and staffed marketplaces each launch at most one seed cart per
+/// Granaries and staffed Trading Posts each launch at most one seed cart per
 /// simulation step. Source-side selection removes farm-row iteration bias:
 /// lowest claim coverage wins, then the shortest authoritative road route and
 /// stable holding id. The existing inbound-trip gate prevents overlapping
@@ -429,10 +429,10 @@ pub fn step_seed_grain_distribution(
         .building()
         .iter()
         .filter(|source| {
-            matches!(source.kind.as_str(), "granary" | "marketplace")
+            matches!(source.kind.as_str(), "granary" | "trading_post")
                 && source.construction_complete
                 && (source.grain > 1e-6 || source.barley > 1e-6)
-                && (source.kind != "marketplace" || source.assigned_labor > 0)
+                && (source.kind != "trading_post" || source.assigned_labor > 0)
                 && !tick.building_disabled_by_fire(ctx, source.id)
         })
         .map(|source| source.id)
@@ -470,7 +470,7 @@ fn dispatch_seed_commodity_from_source(
     if source_stock <= 1e-6
         || building_has_active_trip(ctx, source.id)
         || labor_and_logistics_paused(ctx, tick, source.owner, clock)
-        || (source.kind == "marketplace" && source.assigned_labor == 0)
+        || (source.kind == "trading_post" && source.assigned_labor == 0)
     {
         return false;
     }
@@ -656,7 +656,7 @@ pub fn step_marketplace_material_dispatch(
     let mut candidates = Vec::new();
 
     for marketplace in marketplaces {
-        if marketplace.kind != "marketplace"
+        if marketplace.kind != "trading_post"
             || !marketplace.construction_complete
             || marketplace.assigned_labor == 0
             || tick.building_disabled_by_fire(ctx, marketplace.id)
@@ -787,7 +787,7 @@ pub fn step_marketplace_material_dispatch(
         };
         let pottery_reserved_for_trade =
             pending_marketplace_trade_commodity(&marketplace) == Some(CommodityKind::Pottery);
-        if marketplace.kind != "marketplace"
+        if marketplace.kind != "trading_post"
             || !marketplace.construction_complete
             || marketplace.assigned_labor == 0
             || target.owner != marketplace.owner
@@ -918,7 +918,7 @@ pub fn step_local_material_dispatch(
                 };
                 if source.kind == "potter_kiln"
                     && !pottery_households_first(source.pottery_dispatch_policy)
-                    && candidate.building.kind == "marketplace"
+                    && candidate.building.kind == "trading_post"
                 {
                     // Preservation-first is smokehouse -> home -> export. Keep
                     // market overflow out of the first material pass so a nearby
@@ -1096,8 +1096,8 @@ fn local_material_target_kinds(
     commodity: CommodityKind,
 ) -> Option<&'static [&'static str]> {
     match (source.kind.as_str(), commodity) {
-        ("mine", CommodityKind::Iron) => Some(&["smithy", "marketplace"]),
-        ("mine", CommodityKind::Salt) => Some(&["smokehouse", "pastoral_farmstead", "marketplace"]),
+        ("mine", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
+        ("mine", CommodityKind::Salt) => Some(&["smokehouse", "pastoral_farmstead", "trading_post"]),
         ("clay_pit", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("charcoal_burner", CommodityKind::Charcoal) => Some(&["smithy"]),
         ("smithy", CommodityKind::Ironwork) => Some(&[
@@ -1111,15 +1111,15 @@ fn local_material_target_kinds(
             "watermill",
             "carpenter",
         ]),
-        ("potter_kiln", CommodityKind::Pottery) => Some(&["smokehouse", "marketplace"]),
+        ("potter_kiln", CommodityKind::Pottery) => Some(&["smokehouse", "trading_post"]),
         ("village_storehouse", CommodityKind::Iron) if source.storehouse_accepts_iron => {
-            Some(&["smithy", "marketplace"])
+            Some(&["smithy", "trading_post"])
         }
         ("village_storehouse", CommodityKind::Clay) if source.storehouse_accepts_clay => {
             Some(&["potter_kiln"])
         }
         ("village_storehouse", CommodityKind::Salt) if source.storehouse_accepts_salt => {
-            Some(&["smokehouse", "pastoral_farmstead", "marketplace"])
+            Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
         }
         _ => None,
     }
@@ -1140,7 +1140,7 @@ fn local_material_target_plan(
     };
     let stock = building_commodity_stock(target, commodity);
     let capacity = building_commodity_cap(&target.kind, commodity);
-    let marketplace_reserve_target = if target.kind == "marketplace" {
+    let marketplace_reserve_target = if target.kind == "trading_post" {
         match commodity {
             CommodityKind::Iron => {
                 normalize_marketplace_iron_target(target.marketplace_iron_target) as f64
@@ -1325,17 +1325,29 @@ pub fn step_granary(
     for duty in granary_dispatch_order(granary.granary_households_first) {
         match duty {
             GranaryDispatchDuty::Households => {
-                dispatch_need(ctx, tick, clock, &mut granary, ResidenceNeedKind::Food, 4.0);
-                // Cured provisions share the household cart duty but never
-                // preempt staple food. This makes founding and producer-origin
-                // granary stock usable without creating a second cart.
-                dispatch_need(
+                dispatch_to_building(
                     ctx,
                     tick,
                     clock,
                     &mut granary,
-                    ResidenceNeedKind::PreservedFood,
-                    3.0,
+                    CommodityKind::Food,
+                    &["marketplace"],
+                );
+                dispatch_to_building(
+                    ctx,
+                    tick,
+                    clock,
+                    &mut granary,
+                    CommodityKind::PreservedFood,
+                    &["marketplace"],
+                );
+                dispatch_to_building(
+                    ctx,
+                    tick,
+                    clock,
+                    &mut granary,
+                    CommodityKind::Ale,
+                    &["marketplace"],
                 );
             }
             GranaryDispatchDuty::Preservation => {
@@ -1364,7 +1376,7 @@ pub fn step_bakery(
     clock: &GameClock,
     building: Building,
 ) {
-    let mut bakery = step_processor(
+    let bakery = step_processor(
         ctx,
         tick,
         clock,
@@ -1375,14 +1387,6 @@ pub fn step_bakery(
             (CommodityKind::Firewood, BAKERY_FIREWOOD_PER_CYCLE),
         ],
         &[(CommodityKind::Food, BAKERY_FOOD_PER_CYCLE)],
-    );
-    dispatch_need(
-        ctx,
-        tick,
-        clock,
-        &mut bakery,
-        ResidenceNeedKind::Food,
-        4.0,
     );
     ctx.db.building().id().update(bakery);
 }
@@ -1724,14 +1728,21 @@ pub fn step_brewery(
         };
     }
     dispatch_monastery_feast_ale(ctx, tick, clock, &mut brewery);
-    dispatch_need(ctx, tick, clock, &mut brewery, ResidenceNeedKind::Ale, 3.0);
     dispatch_to_building(
         ctx,
         tick,
         clock,
         &mut brewery,
         CommodityKind::Ale,
-        &["marketplace"],
+        &["granary"],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut brewery,
+        CommodityKind::Ale,
+        &["trading_post"],
     );
     ctx.db.building().id().update(brewery);
 }
@@ -1777,14 +1788,21 @@ pub fn step_weaver(
         ctx.db.building().id().update(weaver.clone());
         tick.invalidate_specialty_claims(weaver.owner, ResidenceNeedKind::Cloth);
     }
-    dispatch_need(ctx, tick, clock, &mut weaver, ResidenceNeedKind::Cloth, 2.0);
     dispatch_to_building(
         ctx,
         tick,
         clock,
         &mut weaver,
         CommodityKind::Cloth,
-        &["marketplace"],
+        &["village_storehouse"],
+    );
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut weaver,
+        CommodityKind::Cloth,
+        &["trading_post"],
     );
     ctx.db.building().id().update(weaver);
 }
@@ -1811,14 +1829,6 @@ pub fn step_smokehouse(
             CommodityKind::PreservedFood,
             SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
         )],
-    );
-    dispatch_need(
-        ctx,
-        tick,
-        clock,
-        &mut smokehouse,
-        ResidenceNeedKind::PreservedFood,
-        3.0,
     );
     // Once claimed household cupboards are covered, the smokehouse's same
     // physical cart may move surplus into a granary that has opted into
@@ -1987,17 +1997,30 @@ pub fn step_potter_kiln(
         ctx.db.building().id().update(potter.clone());
         tick.invalidate_specialty_claims(potter.owner, ResidenceNeedKind::Pottery);
     }
-    if !firing_roof_tiles && pottery_households_first(potter.pottery_dispatch_policy) {
-        // The additive default preserves established behavior. Kilns ordered
-        // to prioritize preservation wait for the settlement-wide material
-        // arbitration pass before trying household cupboards.
-        dispatch_need(
+    if !firing_roof_tiles {
+        dispatch_to_building(
             ctx,
             tick,
             clock,
             &mut potter,
-            ResidenceNeedKind::Pottery,
-            2.0,
+            CommodityKind::Pottery,
+            &["smokehouse"],
+        );
+        dispatch_to_building(
+            ctx,
+            tick,
+            clock,
+            &mut potter,
+            CommodityKind::Pottery,
+            &["village_storehouse"],
+        );
+        dispatch_to_building(
+            ctx,
+            tick,
+            clock,
+            &mut potter,
+            CommodityKind::Pottery,
+            &["trading_post"],
         );
     }
     ctx.db.building().id().update(potter);
@@ -2023,7 +2046,6 @@ pub fn step_apiary(
     } else {
         building
     };
-    dispatch_need(ctx, tick, clock, &mut apiary, ResidenceNeedKind::Food, 2.0);
     dispatch_monastery_hospitality(ctx, tick, clock, &mut apiary, CommodityKind::Honey);
     dispatch_to_building(
         ctx,
@@ -2031,7 +2053,7 @@ pub fn step_apiary(
         clock,
         &mut apiary,
         CommodityKind::Honey,
-        &["marketplace"],
+        &["trading_post"],
     );
     ctx.db.building().id().update(apiary);
 }
@@ -2056,14 +2078,6 @@ pub fn step_vineyard(
     } else {
         building
     };
-    dispatch_need(
-        ctx,
-        tick,
-        clock,
-        &mut vineyard,
-        ResidenceNeedKind::Food,
-        2.0,
-    );
     dispatch_monastery_hospitality(ctx, tick, clock, &mut vineyard, CommodityKind::Wine);
     dispatch_to_building(
         ctx,
@@ -2071,7 +2085,7 @@ pub fn step_vineyard(
         clock,
         &mut vineyard,
         CommodityKind::Wine,
-        &["marketplace"],
+        &["trading_post"],
     );
     ctx.db.building().id().update(vineyard);
 }
@@ -2132,21 +2146,13 @@ pub fn step_monastery(
         // before ordinary household carts. This makes feast preparation a
         // predictable reserve decision instead of a race with the noon route.
         run_monastery_feast(ctx, tick, clock, &mut monastery);
-        dispatch_monastery_covered_need(
+        dispatch_to_building(
             ctx,
             tick,
             clock,
             &mut monastery,
-            ResidenceNeedKind::Food,
-            MONASTERY_CHARITY_FOOD_PER_DELIVERY,
-        );
-        dispatch_monastery_covered_need(
-            ctx,
-            tick,
-            clock,
-            &mut monastery,
-            ResidenceNeedKind::Ale,
-            3.0,
+            CommodityKind::Ale,
+            &["granary"],
         );
     }
     try_dispatch_local_civic_receipts(ctx, tick, clock, &mut monastery, receipt_daily_income);
@@ -2204,7 +2210,7 @@ pub fn step_carpenter(
         clock,
         &building,
         CommodityKind::Ironwork,
-        &["smithy", "marketplace"],
+        &["smithy", "trading_post"],
         cart_service_ironwork,
     );
 
@@ -2233,7 +2239,7 @@ pub fn step_carpenter(
             clock,
             &building,
             CommodityKind::Ironwork,
-            &["smithy", "marketplace"],
+            &["smithy", "trading_post"],
             cart_service_ironwork + CARPENTER_IRONWORK_PER_POLEARM * next_batch,
         );
     }
@@ -3197,6 +3203,11 @@ fn dispatch_to_building_where_limited(
     let needed = (routed_target.desired_stock - building_commodity_stock(target, commodity))
         .max(0.0)
         .min(transferable);
+    let delivery_workers = if matches!(source.kind.as_str(), "granary" | "village_storehouse") {
+        source.assigned_labor.max(1)
+    } else {
+        1
+    };
     try_start_building_supply_trip(
         ctx,
         tick,
@@ -3204,7 +3215,7 @@ fn dispatch_to_building_where_limited(
         network,
         source,
         target,
-        1,
+        delivery_workers,
         commodity,
         TIMBER_DELIVERY_SPEED_MPS,
         TIMBER_DELIVERY_UNLOAD_SEC,
@@ -3564,7 +3575,7 @@ fn request_connected_commodity_with_source_availability(
                 if !source.construction_complete
                     || tick.building_disabled_by_fire(ctx, source.id)
                     || !source_kinds.contains(&source.kind.as_str())
-                    || (source.kind == "marketplace" && source.assigned_labor == 0)
+                    || (source.kind == "trading_post" && source.assigned_labor == 0)
                     || building_has_active_trip(ctx, source.id)
                 {
                     return None;

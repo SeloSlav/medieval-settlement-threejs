@@ -12,8 +12,8 @@ use crate::economy::{
     player_economic_activity_tax_rate, taxed_economic_activity,
     town_hall_tax_collection_multiplier,
 };
-use crate::season_policy::EnvironmentState;
 use crate::residence_service_policy::service_economic_multiplier;
+use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::food;
@@ -43,8 +43,7 @@ pub fn step_backyard_gardens(
         if labor_and_logistics_paused(ctx, tick, residence.owner, clock) {
             continue;
         }
-        if residence.population == 0 || tick.residence_disabled_by_fire(ctx, residence.id)
-        {
+        if residence.population == 0 || tick.residence_disabled_by_fire(ctx, residence.id) {
             continue;
         }
         let marketplace_id = tick.marketplace_for_residence(ctx, garden.owner, residence.id);

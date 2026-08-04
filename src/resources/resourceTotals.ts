@@ -1,5 +1,4 @@
 import {
-  ABANDON_AFTER_DEFICIT_TICKS,
   BUILDING_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
   CONSTRUCTION_MAX_BUILDERS,
@@ -35,7 +34,6 @@ import {
 export { residenceNeedsStatus } from '../residences/residenceNeeds.ts';
 
 export {
-  ABANDON_AFTER_DEFICIT_TICKS,
   formatFirewoodRunwayDays,
   GAME_DAY_SECONDS,
   POPULATION_PER_RESIDENCE,
@@ -332,7 +330,7 @@ export function computeGoldAwaitingCollection(
   let gold = 0;
   for (const building of buildings) {
     if (
-      building.kind === 'marketplace'
+      building.kind === 'trading_post'
       && building.constructionComplete !== false
       && Number.isFinite(building.gold)
     ) {

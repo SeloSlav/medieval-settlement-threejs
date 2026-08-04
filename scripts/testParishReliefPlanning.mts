@@ -9,6 +9,7 @@ import {
   CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
   CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
   RESIDENCE_FOOD_CAPACITY,
+  RESIDENCE_SERVICE_WARNING_DAYS,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../src/economy/regionalMarket.ts';
@@ -100,7 +101,10 @@ function market(
   x: number,
   overrides: Partial<BuildingState> = {},
 ): BuildingState {
-  return building(id, 'marketplace', x, overrides);
+  return building(id, 'trading_post', x, {
+    assignedLabor: 1,
+    ...overrides,
+  });
 }
 
 function home(
@@ -108,7 +112,7 @@ function home(
   x: number,
   overrides: Partial<ResidenceState> = {},
 ): ResidenceState {
-  return {
+  const residence = {
     id,
     zoneId: `zone-${id}`,
     parcelIndex: 0,
@@ -125,6 +129,15 @@ function home(
     lastHouseholdMarketTick: 0,
     ...overrides,
   };
+  if (residence.abandoned) {
+    // Migrate the old abandonment fixtures to occupied homes with a sustained
+    // food shortage, which is the current poor-relief eligibility rule.
+    residence.abandoned = false;
+    residence.population = Math.max(1, residence.population);
+    residence.householdWealth = Math.max(10, residence.householdWealth);
+    residence.needs.food.deficitTicks = dayTicks * RESIDENCE_SERVICE_WARNING_DAYS;
+  }
+  return residence;
 }
 
 function state(input: {
@@ -253,7 +266,7 @@ const readyPlan = computeSettlementParishReliefPlan({
 });
 const readyParish = readyPlan.parishes.get('chapel');
 assert.equal(readyParish?.assignedHomes, 3);
-assert.equal(readyParish?.assignedPopulation, 8);
+assert.equal(readyParish?.assignedPopulation, 9);
 assert.equal(readyParish?.almsRecipientId, 'poor');
 assert.equal(readyParish?.almsStatus, 'ready');
 assert.equal(readyParish?.almsAmount, CHAPEL_CHARITY_GOLD_PER_DAY);
@@ -432,7 +445,7 @@ const marketFull = computeSettlementParishReliefPlan({
     buildings: [
       chapel('chapel', 0),
       market('market', 10, {
-        food: BUILDING_STORAGE_CAPS.marketplace.food,
+        food: BUILDING_STORAGE_CAPS.trading_post.food,
       }),
     ],
     homes: [abandoned],
@@ -613,7 +626,10 @@ assert.equal(operationalParish?.reliefHomes, 0);
 assert.equal(operationalParish?.targetResidenceId, null);
 assert.equal(operationalParish?.status, 'no-relief-home');
 assert.equal(householdFirePlan.fireDisabledHomes, 2);
-assert.equal(householdFirePlan.fireDisabledResidents, fireDisabledPoor.population);
+assert.equal(
+  householdFirePlan.fireDisabledResidents,
+  fireDisabledPoor.population + fireDisabledAbandoned.population,
+);
 assert.equal(householdFirePlan.fireDisabledReliefHomes, 1);
 assert.equal(householdFirePlan.unassignedHomes, 0);
 assert.match(
@@ -699,7 +715,8 @@ assert.equal(
   perfPlan.reliefHomes,
   perfHomes.filter(
     (residence, index) =>
-      residence.abandoned && Math.floor(index / 8) % 4 !== 0,
+      residence.needs.food.deficitTicks >= dayTicks * RESIDENCE_SERVICE_WARNING_DAYS
+      && Math.floor(index / 8) % 4 !== 0,
   ).length,
 );
 assert.equal(perfPlan.readyParishes, 8);

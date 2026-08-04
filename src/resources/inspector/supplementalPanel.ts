@@ -58,7 +58,7 @@ export function handleSupplementalPanelClick(
     return true;
   }
   const tradeId = parseMarketplaceTradeId(eventTarget);
-  if (tradeId && target?.kind === 'building' && target.building.kind === 'marketplace') {
+  if (tradeId && target?.kind === 'building' && target.building.kind === 'trading_post') {
     void handlers.onMarketplaceTrade?.(target.building.id, tradeId);
     return true;
   }
@@ -68,7 +68,7 @@ export function handleSupplementalPanelClick(
   if (
     cancelTradeOrder
     && target?.kind === 'building'
-    && target.building.kind === 'marketplace'
+    && target.building.kind === 'trading_post'
   ) {
     void handlers.onCancelMarketplaceTradeOrder?.(target.building.id);
     return true;

@@ -11,8 +11,8 @@ use crate::balance_generated::{
 };
 
 fn ticks_for_days(days: f64) -> u32 {
-    ((days.max(0.0) * CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64)
-        .min(u64::from(u32::MAX)) as u32
+    ((days.max(0.0) * CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64).min(u64::from(u32::MAX))
+        as u32
 }
 
 pub fn service_shortage_warns(deficit_ticks: u32) -> bool {

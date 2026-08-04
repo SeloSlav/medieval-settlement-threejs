@@ -112,14 +112,13 @@ assertNear(
 
 const mixedState = stateWith(
   residence('full', 1, 3, 3),
-  residence('abandoned', 2, 0, 6, 0, true),
+  residence('legacy-abandoned-flag', 2, 0, 6, 0, true),
   hungry,
   tierThree,
 );
 const mixedPlan = computeSettlementGrowthPlan({ state: mixedState });
 assert.equal(mixedPlan.fullHomes, 1);
-assert.equal(mixedPlan.abandonedHomes, 1);
-assert.equal(mixedPlan.candidateHomes, 2);
+assert.equal(mixedPlan.candidateHomes, 3);
 
 const fireDisabledGrowthHome = residence('fire-growth-home', 3, 6, 10);
 for (const kind of ['food', 'firewood', 'water', 'preservedFood', 'ale', 'cloth'] as const) {
@@ -203,7 +202,8 @@ const settlementHud = readFileSync(
 assert.match(townHallInspector, /Housing pipeline/);
 assert.match(townHallInspector, /Growth bottlenecks/);
 assert.match(townHallInspector, /At full housing/);
-assert.match(townHallInspector, /operational vacant places/);
+assert.match(townHallInspector, /Reusable housing/);
+assert.match(townHallInspector, /homes never decay from vacancy/);
 assert.match(townHallInspector, /fire-disabled homes/);
 assert.match(townHallInspector, /Prosperous-house growth/);
 assert.match(townHallInspector, /winter fresh food\/day after cured-ration displacement/);

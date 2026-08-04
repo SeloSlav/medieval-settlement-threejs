@@ -18,8 +18,8 @@ use crate::simulation::{
     step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
     step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
-    step_smithy, step_smokehouse, step_stone_quarry, step_swineherd, step_threshing_barn,
-    step_village_storehouse_household_firewood, step_village_storehouse_overflow_collection,
+    step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls,
+    step_swineherd, step_threshing_barn, step_village_storehouse_overflow_collection,
     step_vineyard, step_watermill, step_weaver, step_well, step_woodcutters_lodge,
     step_workforce_commutes, try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
@@ -192,7 +192,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let mut guardhouse_payroll_ids: Vec<(u8, u64)> = Vec::new();
     let mut village_storehouse_ids: Vec<u64> = Vec::new();
     let mut reclamation_pile_ids: Vec<u64> = Vec::new();
-    let mut marketplace_ids: Vec<u64> = Vec::new();
+    let mut trading_post_ids: Vec<u64> = Vec::new();
     let mut institutional_food_source_ids: Vec<u64> = Vec::new();
     let mut local_material_source_ids: Vec<u64> = Vec::new();
     let mut expanded_ids: Vec<(crate::building_defs::BuildingSimKind, u64)> = Vec::new();
@@ -205,7 +205,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             "chapel" => chapel_ids.push(building.id),
             "monastery" => monastery_ids.push(building.id),
             "salvage_pile" => reclamation_pile_ids.push(building.id),
-            "marketplace" => marketplace_ids.push(building.id),
+            "trading_post" => trading_post_ids.push(building.id),
             _ => {}
         }
         if INSTITUTIONAL_FOOD_SOURCE_KINDS.contains(&building.kind.as_str()) {
@@ -296,7 +296,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
 
     step_marketplace_caravans(ctx, &clock, &tick, environment);
     step_seed_grain_distribution(ctx, &tick, &clock);
-    let material_marketplaces = marketplace_ids
+    let material_marketplaces = trading_post_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
         .collect();
@@ -363,11 +363,11 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     // first available cart. Sources left idle after those physical duties may
     // feed workshops, where work priority and fuel runway replace
     // construction-order bias.
-    let village_storehouses = village_storehouse_ids
+    let household_storehouses = village_storehouse_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
         .collect();
-    step_village_storehouse_household_firewood(ctx, &tick, &clock, village_storehouses);
+    step_storehouse_market_stalls(ctx, &tick, &clock, household_storehouses);
     let industrial_firewood_sources = woodcutters_lodge_ids
         .iter()
         .chain(village_storehouse_ids.iter())

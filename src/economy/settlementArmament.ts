@@ -492,7 +492,7 @@ export function computeSettlementArmamentPlan(input: {
     }
 
     if (
-      building.kind === 'marketplace'
+      building.kind === 'trading_post'
       && building.assignedLabor > 0
       && !disabledByFire
     ) {

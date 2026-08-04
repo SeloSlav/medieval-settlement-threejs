@@ -1376,7 +1376,7 @@ export class WorldQueries {
     }
     const materialSources = [...this.fireEnabledBuildings(state, fireDisabled)]
       .filter((candidate) =>
-        candidate.kind === 'marketplace'
+        candidate.kind === 'trading_post'
         && candidate.constructionComplete !== false
         && candidate.assignedLabor > 0
         && !activeSources.has(candidate.id));

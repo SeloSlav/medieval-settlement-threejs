@@ -197,15 +197,6 @@ pub const HERB_REMEDY_CAPACITY: f64 = 18.0;
 pub const HERB_TREATMENT_PER_SICK_DAY: f64 = 0.15;
 pub const HERB_RECOVERY_MULTIPLIER: f64 = 2.5;
 pub const HERB_MORTALITY_MULTIPLIER: f64 = 0.35;
-pub const RESIDENCE_NEGLECTED_DAYS: f64 = 360.0;
-pub const RESIDENCE_DILAPIDATED_DAYS: f64 = 720.0;
-pub const RESIDENCE_RUINED_DAYS: f64 = 1440.0;
-pub const RESIDENCE_NEGLECTED_REPAIR_TIMBER: f64 = 2.0;
-pub const RESIDENCE_NEGLECTED_REPAIR_STONE: f64 = 0.0;
-pub const RESIDENCE_DILAPIDATED_REPAIR_TIMBER: f64 = 6.0;
-pub const RESIDENCE_DILAPIDATED_REPAIR_STONE: f64 = 3.0;
-pub const RESIDENCE_RUINED_REPAIR_TIMBER: f64 = 12.0;
-pub const RESIDENCE_RUINED_REPAIR_STONE: f64 = 8.0;
 pub const GRAVEYARD_MIN_AREA: f64 = 48.0;
 pub const GRAVEYARD_MIN_EDGE: f64 = 4.0;
 pub const GRAVEYARD_MAX_SLOPE: f64 = 12.0;
@@ -1636,7 +1627,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_flax: 0.0,
     storage_flour: 0.0,
     storage_ale: 140.0,
-    storage_preserved_food: 0.0,
+    storage_preserved_food: 120.0,
     storage_honey: 100.0,
     storage_wine: 120.0,
     storage_wool: 0.0,
@@ -1651,11 +1642,58 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_roof_tiles: 0.0,
     storage_manure: 0.0,
     storage_remedies: 0.0,
-    accepts_labor: true,
-    max_labor: 2,
+    accepts_labor: false,
+    max_labor: 0,
     work_radius: 0.0,
     action_interval: 0.0,
     pick_radius: 8.0,
+    requires_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: None,
+};
+
+const TRADING_POST: BuildingDef = BuildingDef {
+    kind: "trading_post",
+    cost_timber: 64.0,
+    cost_stone: 42.0,
+    cost_ironwork: 4.0,
+    storage_timber: 180.0,
+    storage_firewood: 120.0,
+    storage_stone: 180.0,
+    storage_water: 72.0,
+    storage_food: 160.0,
+    storage_grain: 120.0,
+    storage_barley: 120.0,
+    storage_malt: 0.0,
+    storage_flax: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 180.0,
+    storage_preserved_food: 120.0,
+    storage_honey: 140.0,
+    storage_wine: 160.0,
+    storage_wool: 0.0,
+    storage_cloth: 160.0,
+    storage_ironwork: 96.0,
+    storage_polearms: 0.0,
+    storage_iron: 96.0,
+    storage_clay: 0.0,
+    storage_salt: 120.0,
+    storage_charcoal: 0.0,
+    storage_pottery: 144.0,
+    storage_roof_tiles: 0.0,
+    storage_manure: 0.0,
+    storage_remedies: 0.0,
+    accepts_labor: true,
+    max_labor: 5,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 10.0,
     requires_road: true,
     requires_mature_trees: false,
     requires_quarry_stone: false,
@@ -1734,14 +1772,14 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     storage_honey: 0.0,
     storage_wine: 0.0,
     storage_wool: 0.0,
-    storage_cloth: 0.0,
+    storage_cloth: 180.0,
     storage_ironwork: 0.0,
     storage_polearms: 0.0,
     storage_iron: 180.0,
     storage_clay: 180.0,
     storage_salt: 144.0,
     storage_charcoal: 0.0,
-    storage_pottery: 0.0,
+    storage_pottery: 180.0,
     storage_roof_tiles: 0.0,
     storage_manure: 0.0,
     storage_remedies: 0.0,
@@ -2199,7 +2237,7 @@ const GRANARY: BuildingDef = BuildingDef {
     storage_malt: 0.0,
     storage_flax: 180.0,
     storage_flour: 260.0,
-    storage_ale: 0.0,
+    storage_ale: 180.0,
     storage_preserved_food: 180.0,
     storage_honey: 0.0,
     storage_wine: 0.0,
@@ -2560,7 +2598,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TRADING_POST, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)
@@ -2905,11 +2943,15 @@ pub const MARKET_REGIONAL_INDEX_DRIFT: f64 = 0.014;
 pub const MARKET_REGIONAL_INDEX_MEAN_REVERSION: f64 = 0.08;
 pub const MARKET_TRADE_IMPACT_PER_TEN_UNITS: f64 = 0.04;
 pub const MARKET_LOCAL_FOOD_DEMAND_WEIGHT: f64 = 0.32;
-pub const MARKET_CARAVAN_DELIVERY_WORKERS: u32 = 1;
+pub const MARKET_CARAVAN_DELIVERY_WORKERS: u32 = 0;
 pub const MARKET_CARAVAN_LABOR_PER_WORKER: u32 = 1;
 pub const MARKET_CARAVAN_FOOD_PER_DELIVERY: f64 = 4.0;
 pub const MARKET_CARAVAN_WATER_PER_DELIVERY: f64 = 3.0;
 pub const MARKET_CARAVAN_FIREWOOD_PER_DELIVERY: f64 = 5.0;
+pub const MARKET_CARAVAN_PRESERVED_FOOD_PER_DELIVERY: f64 = 3.0;
+pub const MARKET_CARAVAN_ALE_PER_DELIVERY: f64 = 3.0;
+pub const MARKET_CARAVAN_CLOTH_PER_DELIVERY: f64 = 2.0;
+pub const MARKET_CARAVAN_POTTERY_PER_DELIVERY: f64 = 2.0;
 pub const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS: f64 = 0.75;
 pub const HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS: u64 = 450;
 

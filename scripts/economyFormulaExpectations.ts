@@ -3,8 +3,6 @@
  * Keep in sync with `server/src/simulation/chapel_community.rs` and `chapel_parish.rs`.
  */
 import {
-  ABANDON_AFTER_DEFICIT_TICKS,
-  CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER,
   CHAPEL_AUTO_SWEEP_FRACTION,
   CHAPEL_AUTO_SWEEP_INTERVAL_TICKS,
   CHAPEL_BASE_ATTENDANCE_CHANCE,
@@ -23,13 +21,9 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
-  MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER,
   MONASTERY_ATTENDANCE_BONUS,
   MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
   RESIDENCE_SETTLE_TICKS,
-  RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER,
-  RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER,
-  RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 
@@ -55,28 +49,6 @@ export function expectedEffectiveSettleTicks(
   }
 
   return Math.max(1, ticks);
-}
-
-export function expectedEffectiveAbandonAfterDeficitTicks(
-  hasChapelAccess: boolean,
-  hasMonasteryCoverage = false,
-  residenceTier: 1 | 2 | 3 = 3,
-): number {
-  const tierGrace = residenceTier === 1
-    ? RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER
-    : residenceTier === 2
-      ? RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER
-      : RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER;
-  const baseTicks = ABANDON_AFTER_DEFICIT_TICKS * tierGrace;
-  if (!hasChapelAccess) {
-    return Math.ceil(baseTicks);
-  }
-
-  let ticks = baseTicks / CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER;
-  if (hasMonasteryCoverage) {
-    ticks /= MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER;
-  }
-  return Math.ceil(ticks);
 }
 
 export function expectedChapelAttendanceChance(

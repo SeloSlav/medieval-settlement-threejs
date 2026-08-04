@@ -65,7 +65,6 @@ import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
 import RepairFireDamageReducer from "./repair_fire_damage_reducer";
-import RepairResidenceDecayReducer from "./repair_residence_decay_reducer";
 import ResetWorldReducer from "./reset_world_reducer";
 import RetrofitResidenceTileRoofReducer from "./retrofit_residence_tile_roof_reducer";
 import RotateConstructionLaborReducer from "./rotate_construction_labor_reducer";
@@ -556,7 +555,6 @@ const reducersSchema = __reducers(
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),
   __reducerSchema("repair_fire_damage", RepairFireDamageReducer),
-  __reducerSchema("repair_residence_decay", RepairResidenceDecayReducer),
   __reducerSchema("reset_world", ResetWorldReducer),
   __reducerSchema("retrofit_residence_tile_roof", RetrofitResidenceTileRoofReducer),
   __reducerSchema("rotate_construction_labor", RotateConstructionLaborReducer),
@@ -659,4 +657,3 @@ export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
     return new SubscriptionBuilder(this);
   };
 }
-

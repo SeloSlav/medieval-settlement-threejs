@@ -359,15 +359,6 @@ export type GameBalance = {
     herbTreatmentPerSickDay: number;
     herbRecoveryMultiplier: number;
     herbMortalityMultiplier: number;
-    residenceNeglectedDays: number;
-    residenceDilapidatedDays: number;
-    residenceRuinedDays: number;
-    residenceNeglectedRepairTimber: number;
-    residenceNeglectedRepairStone: number;
-    residenceDilapidatedRepairTimber: number;
-    residenceDilapidatedRepairStone: number;
-    residenceRuinedRepairTimber: number;
-    residenceRuinedRepairStone: number;
     graveyardMinArea: number;
     graveyardMinEdge: number;
     graveyardMaxSlope: number;
@@ -882,15 +873,6 @@ function generateRust(): string {
     `pub const HERB_TREATMENT_PER_SICK_DAY: f64 = ${rustF64(b.population.herbTreatmentPerSickDay)};`,
     `pub const HERB_RECOVERY_MULTIPLIER: f64 = ${rustF64(b.population.herbRecoveryMultiplier)};`,
     `pub const HERB_MORTALITY_MULTIPLIER: f64 = ${rustF64(b.population.herbMortalityMultiplier)};`,
-    `pub const RESIDENCE_NEGLECTED_DAYS: f64 = ${rustF64(b.population.residenceNeglectedDays)};`,
-    `pub const RESIDENCE_DILAPIDATED_DAYS: f64 = ${rustF64(b.population.residenceDilapidatedDays)};`,
-    `pub const RESIDENCE_RUINED_DAYS: f64 = ${rustF64(b.population.residenceRuinedDays)};`,
-    `pub const RESIDENCE_NEGLECTED_REPAIR_TIMBER: f64 = ${rustF64(b.population.residenceNeglectedRepairTimber)};`,
-    `pub const RESIDENCE_NEGLECTED_REPAIR_STONE: f64 = ${rustF64(b.population.residenceNeglectedRepairStone)};`,
-    `pub const RESIDENCE_DILAPIDATED_REPAIR_TIMBER: f64 = ${rustF64(b.population.residenceDilapidatedRepairTimber)};`,
-    `pub const RESIDENCE_DILAPIDATED_REPAIR_STONE: f64 = ${rustF64(b.population.residenceDilapidatedRepairStone)};`,
-    `pub const RESIDENCE_RUINED_REPAIR_TIMBER: f64 = ${rustF64(b.population.residenceRuinedRepairTimber)};`,
-    `pub const RESIDENCE_RUINED_REPAIR_STONE: f64 = ${rustF64(b.population.residenceRuinedRepairStone)};`,
     `pub const GRAVEYARD_MIN_AREA: f64 = ${rustF64(b.population.graveyardMinArea)};`,
     `pub const GRAVEYARD_MIN_EDGE: f64 = ${rustF64(b.population.graveyardMinEdge)};`,
     `pub const GRAVEYARD_MAX_SLOPE: f64 = ${rustF64(b.population.graveyardMaxSlope)};`,
@@ -1710,15 +1692,6 @@ function generateTypeScript(): string {
     `export const HERB_TREATMENT_PER_SICK_DAY = ${b.population.herbTreatmentPerSickDay};`,
     `export const HERB_RECOVERY_MULTIPLIER = ${b.population.herbRecoveryMultiplier};`,
     `export const HERB_MORTALITY_MULTIPLIER = ${b.population.herbMortalityMultiplier};`,
-    `export const RESIDENCE_NEGLECTED_DAYS = ${b.population.residenceNeglectedDays};`,
-    `export const RESIDENCE_DILAPIDATED_DAYS = ${b.population.residenceDilapidatedDays};`,
-    `export const RESIDENCE_RUINED_DAYS = ${b.population.residenceRuinedDays};`,
-    `export const RESIDENCE_NEGLECTED_REPAIR_TIMBER = ${b.population.residenceNeglectedRepairTimber};`,
-    `export const RESIDENCE_NEGLECTED_REPAIR_STONE = ${b.population.residenceNeglectedRepairStone};`,
-    `export const RESIDENCE_DILAPIDATED_REPAIR_TIMBER = ${b.population.residenceDilapidatedRepairTimber};`,
-    `export const RESIDENCE_DILAPIDATED_REPAIR_STONE = ${b.population.residenceDilapidatedRepairStone};`,
-    `export const RESIDENCE_RUINED_REPAIR_TIMBER = ${b.population.residenceRuinedRepairTimber};`,
-    `export const RESIDENCE_RUINED_REPAIR_STONE = ${b.population.residenceRuinedRepairStone};`,
     `export const GRAVEYARD_MIN_AREA = ${b.population.graveyardMinArea};`,
     `export const GRAVEYARD_MIN_EDGE = ${b.population.graveyardMinEdge};`,
     `export const GRAVEYARD_MAX_SLOPE = ${b.population.graveyardMaxSlope};`,

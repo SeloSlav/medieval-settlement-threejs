@@ -20,6 +20,7 @@ use crate::economy::{
     chapel_coffer_gold, credit_residence_wealth, credit_treasury_gold, withdraw_coffer_in_place,
 };
 use crate::economy::{record_parish_ledger, ParishLedgerKind};
+use crate::residence_service_policy::service_shortage_warns;
 use crate::simulation::delivery_cargo::delivery_stock_room;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, try_start_building_supply_trip,
@@ -289,8 +290,7 @@ fn try_chapel_alms_delivery(
     }
     let mut poorest: Option<&Residence> = None;
     for residence in residences.iter().copied() {
-        if residence.abandoned
-            || residence.population == 0
+        if residence.population == 0
             || residence.owner != chapel.owner
             || residence.household_wealth >= HOUSEHOLD_MAX_WEALTH - 1e-9
             || tick.residence_disabled_by_fire(ctx, residence.id)
@@ -341,8 +341,9 @@ fn try_chapel_poor_relief(
         .building()
         .iter()
         .filter(|building| {
-            building.kind == "marketplace"
+            building.kind == "trading_post"
                 && building.construction_complete
+                && building.assigned_labor > 0
                 && building.owner == chapel.owner
                 && !tick.building_disabled_by_fire(ctx, building.id)
         })
@@ -368,7 +369,15 @@ fn try_chapel_poor_relief(
     let parish_residences: Vec<Residence> = residences
         .iter()
         .copied()
-        .filter(|residence| residence.abandoned && residence.owner == chapel.owner)
+        .filter(|residence| {
+            if residence.population == 0 || residence.owner != chapel.owner {
+                return false;
+            }
+            load_needs(ctx, residence.id)
+                .iter()
+                .find(|need| need.kind == ResidenceNeedKind::Food)
+                .is_some_and(|need| service_shortage_warns(need.deficit_ticks))
+        })
         .cloned()
         .collect();
     if parish_residences.is_empty() {
@@ -420,7 +429,7 @@ fn try_chapel_poor_relief(
 
     let gold_cost = scaled_gold_cost(commodity.base_gold_cost, market.food_price_mult);
     let dispatch = MarketCaravanDispatch {
-        include_abandoned: true,
+        include_abandoned: false,
         priority_residence_id: Some(residence.id),
         exact_load_amount: Some(commodity.food_amount),
     };
@@ -452,7 +461,7 @@ fn distribute_wealth_charity(
 ) -> f64 {
     let mut poorest: Option<&Residence> = None;
     for residence in residences.iter().copied() {
-        if residence.abandoned || residence.population == 0 || residence.owner != chapel.owner {
+        if residence.population == 0 || residence.owner != chapel.owner {
             continue;
         }
 

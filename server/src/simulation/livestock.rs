@@ -42,11 +42,10 @@ use crate::simulation::delivery_trips::{
     try_start_building_supply_trip,
 };
 use crate::simulation::expanded_economy::{
-    dispatch_need, dispatch_to_building, request_connected_commodity,
+    dispatch_to_building, request_connected_commodity,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{farm_field, Building, FarmField, LivestockHerd, Pasture};
@@ -174,28 +173,6 @@ fn step_livestock_building(
                 &mut building,
                 CommodityKind::Wool,
                 &["weaver"],
-            );
-        }
-        dispatch_need(
-            ctx,
-            tick,
-            clock,
-            &mut building,
-            ResidenceNeedKind::Food,
-            if herd.species == SPECIES_SWINE {
-                3.0
-            } else {
-                2.0
-            },
-        );
-        if herd.species != SPECIES_SWINE {
-            dispatch_need(
-                ctx,
-                tick,
-                clock,
-                &mut building,
-                ResidenceNeedKind::PreservedFood,
-                2.0,
             );
         }
         if herd.species == SPECIES_CATTLE {

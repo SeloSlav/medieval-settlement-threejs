@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   CALENDAR_SECONDS_PER_DAY,
-  COMFORT_MIGRATION_START_DAYS,
   HERB_TREATMENT_PER_SICK_DAY,
   MALNUTRITION_DAYS,
+  RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS,
   SIM_TICK_SECONDS,
   STARVATION_DEATH_START_DAYS,
 } from '../src/generated/gameBalance.ts';
@@ -63,7 +63,7 @@ for (const label of [
   'Household health',
   'Illness and remedies',
   'Mortality and burial',
-  'Vacant structures',
+  'Reusable housing',
   'Inspect highest-risk household',
 ]) {
   assert.ok(townHallSource.includes(label), `Town Hall welfare ledger is missing ${label}`);
@@ -81,7 +81,9 @@ malnourished.hungerTicks = ticksForDays(MALNUTRITION_DAYS + 1);
 malnourished.malnutrition = 0.35;
 malnourished.sickPopulation = 1;
 malnourished.remedyStock = 0;
-malnourished.comfortDeficitTicks = ticksForDays(COMFORT_MIGRATION_START_DAYS);
+malnourished.needs.food.deficitTicks = ticksForDays(
+  RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS,
+);
 malnourished.deathsTotal = 1;
 state.residences.set(malnourished.id, malnourished);
 
@@ -95,22 +97,13 @@ treatedSick.remedyStock = 3;
 state.residences.set(treatedSick.id, treatedSick);
 state.residences.set('5', residence('5', 5));
 
-const ruin = residence('30', 0);
-ruin.abandoned = true;
-ruin.condition = 3;
-state.residences.set(ruin.id, ruin);
-const dilapidated = residence('31', 0);
-dilapidated.abandoned = true;
-dilapidated.condition = 2;
-dilapidated.decayRepairActive = true;
-state.residences.set(dilapidated.id, dilapidated);
-const neglected = residence('32', 0);
-neglected.abandoned = true;
-neglected.condition = 1;
-state.residences.set(neglected.id, neglected);
-const sound = residence('33', 0);
-sound.abandoned = true;
-state.residences.set(sound.id, sound);
+for (const id of ['30', '31', '32', '33']) {
+  const emptyHome = residence(id, 0);
+  // Legacy save flags must not change the reusable-housing count.
+  emptyHome.abandoned = true;
+  emptyHome.condition = Number(id) - 30;
+  state.residences.set(emptyHome.id, emptyHome);
+}
 
 state.buildings.set('chapel', building('chapel', 'chapel', 2));
 state.graveyards = new Map([
@@ -153,8 +146,10 @@ assert.equal(welfare.untreatedSickHouseholds, 1);
 assert.equal(welfare.remedyStock, 3);
 assert.equal(welfare.remedyDemandPerDay, 3 * HERB_TREATMENT_PER_SICK_DAY);
 assert.ok(Math.abs(welfare.remedyRunwayDays - 3 / (3 * HERB_TREATMENT_PER_SICK_DAY)) < 1e-9);
-assert.equal(welfare.comfortWarningHouseholds, 1);
-assert.equal(welfare.migrationRiskHouseholds, 1);
+assert.equal(welfare.serviceWarningHouseholds, 1);
+assert.equal(welfare.upgradeBlockedHouseholds, 1);
+assert.ok(welfare.serviceEconomicOutputMultiplier < 1);
+assert.ok(welfare.serviceEconomicOutputMultiplier > 0.9);
 assert.equal(welfare.totalDeaths, 3);
 assert.equal(welfare.waitingBodies, 1);
 assert.equal(welfare.outboundEmptyCarts, 1);
@@ -167,13 +162,8 @@ assert.equal(welfare.occupiedGraves, 2);
 assert.equal(welfare.reservedGraves, 2);
 assert.equal(welfare.openGraves, 1);
 assert.equal(welfare.staffedGravediggers, 2);
-assert.equal(welfare.vacantSoundHomes, 1);
-assert.equal(welfare.neglectedHomes, 1);
-assert.equal(welfare.dilapidatedHomes, 1);
-assert.equal(welfare.ruinedHomes, 1);
-assert.equal(welfare.activeDecayRepairs, 1);
+assert.equal(welfare.vacantHomes, 4);
 assert.equal(welfare.firstAttentionResidenceId, starving.id);
-assert.equal(welfare.firstDecayResidenceId, ruin.id);
 
 const integrated = computeSettlementProvisioning({
   state,
@@ -239,12 +229,13 @@ function residence(id: string, population: number): ResidenceState {
     tier: 1,
     settlementTicks: 0,
     needs: {
-      firewood: { stock: 0, deficitSeconds: 0 },
-      water: { stock: 0, deficitSeconds: 0 },
-      food: { stock: 0, deficitSeconds: 0 },
-      preservedFood: { stock: 0, deficitSeconds: 0 },
-      ale: { stock: 0, deficitSeconds: 0 },
-      cloth: { stock: 0, deficitSeconds: 0 },
+      firewood: { stock: 0, deficitTicks: 0 },
+      water: { stock: 0, deficitTicks: 0 },
+      food: { stock: 0, deficitTicks: 0 },
+      preservedFood: { stock: 0, deficitTicks: 0 },
+      ale: { stock: 0, deficitTicks: 0 },
+      cloth: { stock: 0, deficitTicks: 0 },
+      pottery: { stock: 0, deficitTicks: 0 },
     },
     abandoned: false,
     householdWealth: 0,

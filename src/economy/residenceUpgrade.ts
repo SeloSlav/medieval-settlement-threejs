@@ -100,7 +100,6 @@ export type ResidenceBackyardProject = ResidenceMaterialProject & {
 };
 
 export type ResidenceFireRepairProject = ResidenceMaterialProject;
-export type ResidenceDecayRepairProject = ResidenceMaterialProject;
 export type ResidenceRoofTileProject = ResidenceMaterialProject;
 
 type UpgradeDefinition = {
@@ -252,14 +251,6 @@ export function residenceFireRepairProject(
   trips: Iterable<DeliveryTripState> = [],
 ): ResidenceFireRepairProject | null {
   if (residence.fireRepairActive !== true) return null;
-  return residenceMaterialProject(residence, trips);
-}
-
-export function residenceDecayRepairProject(
-  residence: ResidenceState,
-  trips: Iterable<DeliveryTripState> = [],
-): ResidenceDecayRepairProject | null {
-  if (residence.decayRepairActive !== true) return null;
   return residenceMaterialProject(residence, trips);
 }
 

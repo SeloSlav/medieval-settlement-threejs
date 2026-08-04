@@ -25,8 +25,8 @@ use crate::processor_output_policy::processor_input_staging_cycles;
 pub const ALE_PRODUCER_KINDS: &[&str] = &["brewery", "monastery"];
 pub const CLOTH_PRODUCER_KINDS: &[&str] = &["weaver"];
 pub const POTTERY_PRODUCER_KINDS: &[&str] = &["potter_kiln"];
-/// Staffed marketplaces are the single last-mile supplier for household
-/// consumables. Water remains the deliberate exception and comes from wells.
+/// Staffed food and material depots own the last household mile. Water remains
+/// the deliberate exception and comes from unstaffed wells.
 pub const ALE_SUPPLIER_KINDS: &[&str] = &["marketplace"];
 /// Buildings that can create a sustainable preserved-food service for a new
 /// prosperous household. Storage depots deliberately remain outside this
@@ -52,6 +52,7 @@ pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
     "vineyard",
     "pastoral_farmstead",
     "swineherd",
+    "monastery",
 ];
 pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "mine",
@@ -339,10 +340,10 @@ pub fn is_firewood_supplier_operational(
 pub fn is_firewood_supplier_delivery_operational(
     kind: &str,
     construction_complete: bool,
-    assigned_labor: u32,
+    _assigned_labor: u32,
     _storehouse_accepts_firewood: bool,
 ) -> bool {
-    kind == "marketplace" && construction_complete && assigned_labor > 0
+    kind == "marketplace" && construction_complete
 }
 
 /// Fuel carts protect enough cupboard stock to carry a household through the
@@ -373,9 +374,9 @@ pub fn is_well_supplier_operational(
 pub fn is_food_supplier_operational(
     kind: &str,
     construction_complete: bool,
-    assigned_labor: u32,
+    _assigned_labor: u32,
 ) -> bool {
-    FOOD_SUPPLIER_KINDS.contains(&kind) && construction_complete && assigned_labor > 0
+    FOOD_SUPPLIER_KINDS.contains(&kind) && construction_complete
 }
 
 pub fn is_specialty_supplier_operational(
@@ -383,7 +384,7 @@ pub fn is_specialty_supplier_operational(
     construction_complete: bool,
     assigned_labor: u32,
 ) -> bool {
-    kind == "marketplace" && construction_complete && assigned_labor > 0
+    construction_complete && (kind == "monastery" || assigned_labor > 0)
 }
 
 /// Existing producer stock uses free haulers, while stocked granaries use any
@@ -391,9 +392,9 @@ pub fn is_specialty_supplier_operational(
 pub fn is_specialty_supplier_delivery_operational(
     kind: &str,
     construction_complete: bool,
-    assigned_labor: u32,
+    _assigned_labor: u32,
 ) -> bool {
-    kind == "marketplace" && construction_complete && assigned_labor > 0
+    kind == "marketplace" && construction_complete
 }
 
 /// Food kept at a routine supplier before an institution may collect surplus.
@@ -419,7 +420,6 @@ pub fn institutional_food_surplus(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InstitutionalFoodDispatchDuty {
     CriticalGuard,
-    MarketplaceStalls,
     PreservationBuffer,
     GuardReserve,
     GranaryIntake,
@@ -634,7 +634,7 @@ pub fn local_material_dispatch_target(
         return Some((duty, capacity));
     }
 
-    if is_raw_market_material && target_kind == "marketplace" {
+    if is_raw_market_material && target_kind == "trading_post" {
         let desired_stock = marketplace_reserve_target.max(0.0).min(capacity);
         return (assigned_labor > 0 && stock + 1e-6 < desired_stock)
             .then_some((ProcessorInputDispatchDuty::WorkshopOverflow, desired_stock));

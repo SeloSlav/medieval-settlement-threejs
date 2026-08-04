@@ -316,9 +316,9 @@ export function renderMarketplaceInspector(
         * environment.preservedFoodSpoilageFractionPerDay
         * buildingPreservedFoodStorageFactor(building.kind),
       )}</span></li>
-      <li><span>Purpose</span><span>Foreign trade hub — exchange gold and goods with neighboring villages</span></li>
+      <li><span>Purpose</span><span>Dedicated Trading Post — exchange gold and goods with neighboring regions</span></li>
       <li><span>Linked homes</span><span>${connectedHomes}</span></li>
-      <li><span>Caravan crew</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
+      <li><span>Trade routes</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
       <li><span>Bulk trade desk</span><span>${manualTrade.label}</span></li>
       <li><span>Active bulk order</span><span>${pendingOrderLabel}</span></li>
       <li><span>Production input cart</span><span>${workshopInputCart}</span></li>
@@ -326,7 +326,7 @@ export function renderMarketplaceInspector(
       <li><span>Specialty queue</span><span>${specialtyQueueLabel}</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
       <li><span>Market coffer</span><span>${proceedsCollection}</span></li>
-      <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this market by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
+      <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this Trading Post by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
       <li><span>Backyard sales</span><span>Road-linked homes trade here; activity tolls enter this market lockbox</span></li>
       <li><span>Emergency branch</span><span>${householdBranchLabel}</span></li>

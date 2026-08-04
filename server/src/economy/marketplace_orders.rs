@@ -355,14 +355,14 @@ fn validate_order_marketplace(
     building: &Building,
     owner: spacetimedb::Identity,
 ) -> Result<(), String> {
-    if building.owner != owner || building.kind != "marketplace" {
-        return Err("Marketplace not found.".to_string());
+    if building.owner != owner || building.kind != "trading_post" {
+        return Err("Trading Post not found.".to_string());
     }
     if !building.construction_complete {
-        return Err("Complete the marketplace before ordering goods.".to_string());
+        return Err("Complete the Trading Post before ordering goods.".to_string());
     }
     if tick.building_disabled_by_fire(ctx, building.id) {
-        return Err("Repair the fire-damaged marketplace before ordering goods.".to_string());
+        return Err("Repair the fire-damaged Trading Post before ordering goods.".to_string());
     }
     Ok(())
 }

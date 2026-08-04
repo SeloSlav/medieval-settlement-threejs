@@ -64,13 +64,12 @@ const distressed = computeSettlementApproval({
       sickHouseholds: 2,
       sickResidents: 4,
       untreatedSickHouseholds: 2,
-      comfortWarningHouseholds: 4,
-      migrationRiskHouseholds: 2,
+      serviceWarningHouseholds: 4,
+      upgradeBlockedHouseholds: 2,
+      serviceEconomicOutputMultiplier: 0.72,
       uncollectedBodiesAtHomes: 1,
       openGraves: 0,
       oldestUncollectedBodyDays: 2,
-      dilapidatedHomes: 1,
-      ruinedHomes: 1,
     }),
   }),
   nightPolicy: {
@@ -98,7 +97,8 @@ assert.ok(distressed.factors.some((factor) =>
 assert.ok(distressed.factors.some((factor) =>
   factor.key === 'fire-disruption' && factor.impact < 0));
 assert.match(distressed.summary, /strongest current pressure/i);
-assert.match(distressed.effects[1] ?? '', /2 households have reached/);
+assert.match(distressed.effects[1] ?? '', /4 sustained-shortage homes/);
+assert.match(distressed.effects[2] ?? '', /2 homes are blocked/);
 
 const peaceful = computeSettlementApproval({
   provisioning: provisioning(),
@@ -170,13 +170,13 @@ function welfare(
     sickHouseholds: 0,
     sickResidents: 0,
     untreatedSickHouseholds: 0,
-    comfortWarningHouseholds: 0,
-    migrationRiskHouseholds: 0,
+    serviceWarningHouseholds: 0,
+    upgradeBlockedHouseholds: 0,
+    serviceEconomicOutputMultiplier: 1,
     uncollectedBodiesAtHomes: 0,
     oldestUncollectedBodyDays: 0,
     openGraves: 0,
-    dilapidatedHomes: 0,
-    ruinedHomes: 0,
+    vacantHomes: 0,
     ...overrides,
   } as SettlementProvisioning['welfare'];
 }

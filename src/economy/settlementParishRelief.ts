@@ -10,6 +10,7 @@ import {
   CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
   HOUSEHOLD_MAX_WEALTH,
   RESIDENCE_FOOD_CAPACITY,
+  RESIDENCE_SERVICE_WARNING_DAYS,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
 import {
@@ -20,7 +21,10 @@ import {
   claimResidenceRoutesByNearestSupplier,
   compareStableEntityIds,
 } from '../logistics/roadLogistics.ts';
-import { getNeedStock } from '../residences/residenceNeedState.ts';
+import {
+  getNeedDeficitTicks,
+  getNeedStock,
+} from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { chapelCofferGold } from '../resources/chapelCoffer.ts';
 import type {
@@ -130,6 +134,7 @@ export type SettlementParishReliefInput = {
 };
 
 const TICKS_PER_DAY = Math.round(CALENDAR_SECONDS_PER_DAY / SIM_TICK_SECONDS);
+const SERVICE_WARNING_TICKS = TICKS_PER_DAY * RESIDENCE_SERVICE_WARNING_DAYS;
 const RELIEF_INTERVAL_TICKS = TICKS_PER_DAY * CHAPEL_POOR_RELIEF_INTERVAL_DAYS;
 const CHAPEL_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
@@ -191,11 +196,11 @@ export function computeSettlementParishReliefPlan(
   );
   const completedMarketplaces = [...state.buildings.values()].filter(
     (building) =>
-      building.kind === 'marketplace'
+      building.kind === 'trading_post'
       && building.constructionComplete !== false,
   );
   const operationalMarketplaces = completedMarketplaces.filter(
-    (marketplace) => !disabledBuildingIds.has(marketplace.id),
+    (marketplace) => marketplace.assignedLabor > 0 && !disabledBuildingIds.has(marketplace.id),
   );
   const fireDisabledMarketplaces = completedMarketplaces.filter(
     (marketplace) => disabledBuildingIds.has(marketplace.id),
@@ -216,13 +221,11 @@ export function computeSettlementParishReliefPlan(
     operationalResidences,
     () => true,
   );
-  const abandonedResidences = operationalResidences.filter(
-    (residence) => residence.abandoned,
-  );
+  const reliefResidences = operationalResidences.filter(foodReliefEligible);
   const marketClaims = claimResidenceRoutesByNearestSupplier(
     roadNetwork,
     operationalMarketplaces,
-    abandonedResidences,
+    reliefResidences,
     () => true,
   );
   const fireBlockedMarketClaims = fireDisabledMarketplaces.length === 0
@@ -230,7 +233,7 @@ export function computeSettlementParishReliefPlan(
     : claimResidenceRoutesByNearestSupplier(
         roadNetwork,
         fireDisabledMarketplaces,
-        abandonedResidences,
+        reliefResidences,
         () => true,
       );
   const activeMarketTrips = new Set(
@@ -263,9 +266,7 @@ export function computeSettlementParishReliefPlan(
 
   for (const chapel of completedChapels) {
     const assigned = assignedByChapel.get(chapel.id) ?? [];
-    const occupied = assigned.filter(
-      (residence) => !residence.abandoned && residence.population > 0,
-    );
+    const occupied = assigned.filter((residence) => residence.population > 0);
     const almsRecipient = occupied
       .filter((residence) => residence.householdWealth < HOUSEHOLD_MAX_WEALTH - 1e-9)
       .sort(comparePoorestResidence)[0] ?? null;
@@ -284,17 +285,17 @@ export function computeSettlementParishReliefPlan(
           Math.max(0, HOUSEHOLD_MAX_WEALTH - almsRecipient.householdWealth),
         );
     const almsCooldownSeconds = Math.max(0, chapel.actionCooldown);
-    const abandoned = assigned.filter((residence) => residence.abandoned);
+    const serviceStrained = assigned.filter(foodReliefEligible);
     const cofferGold = chapelCofferGold(chapel);
     const reliefBudget = Math.min(
       CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
       Math.max(0, cofferGold),
     );
     const quote = bestAffordableHouseholdFoodQuote(reliefBudget, marketState);
-    const routed = abandoned
+    const routed = serviceStrained
       .filter((residence) => marketClaims.has(residence.id))
       .sort(compareLowestFoodResidence);
-    const fireBlockedRouted = abandoned
+    const fireBlockedRouted = serviceStrained
       .filter(
         (residence) =>
           !marketClaims.has(residence.id)
@@ -308,7 +309,7 @@ export function computeSettlementParishReliefPlan(
             RESIDENCE_FOOD_CAPACITY - getNeedStock(residence.needs, 'food') + 1e-6
               >= quote.amount,
         ) ?? null;
-    const fallbackTarget = target ?? routed[0] ?? fireBlockedRouted[0] ?? abandoned
+    const fallbackTarget = target ?? routed[0] ?? fireBlockedRouted[0] ?? serviceStrained
       .slice()
       .sort(compareLowestFoodResidence)[0] ?? null;
     const marketClaim = fallbackTarget == null
@@ -364,7 +365,7 @@ export function computeSettlementParishReliefPlan(
       status = 'fire-disabled';
     } else if (chapel.assignedLabor <= 0) {
       status = 'unstaffed';
-    } else if (abandoned.length === 0) {
+    } else if (serviceStrained.length === 0) {
       status = 'no-relief-home';
     } else if (cofferGold < CHAPEL_CHARITY_MIN_COFFER_GOLD) {
       status = 'below-coffer-threshold';
@@ -411,7 +412,7 @@ export function computeSettlementParishReliefPlan(
       almsCooldownSeconds,
       almsTripId: activeAlmsTrip?.id ?? null,
       almsGoldInTransit: activeAlmsTrip?.amount ?? 0,
-      reliefHomes: abandoned.length,
+      reliefHomes: serviceStrained.length,
       targetResidenceId: fallbackTarget?.id ?? null,
       marketplaceId: marketplace?.id ?? marketClaim?.supplierId ?? null,
       marketRoadDistance: marketClaim?.distance ?? null,
@@ -493,9 +494,7 @@ export function computeSettlementParishReliefPlan(
       (total, residence) => total + Math.max(0, residence.population),
       0,
     ),
-    fireDisabledReliefHomes: fireDisabledResidences.filter(
-      (residence) => residence.abandoned,
-    ).length,
+    fireDisabledReliefHomes: fireDisabledResidences.filter(foodReliefEligible).length,
     dailyAlmsRecipients,
     activeAlmsTrips,
     almsGoldInTransit,
@@ -518,6 +517,11 @@ function comparePoorestResidence(
 ): number {
   return left.householdWealth - right.householdWealth
     || compareStableEntityIds(left.id, right.id);
+}
+
+function foodReliefEligible(residence: ResidenceState): boolean {
+  return residence.population > 0
+    && getNeedDeficitTicks(residence.needs, 'food') >= SERVICE_WARNING_TICKS;
 }
 
 function compareLowestFoodResidence(
@@ -598,7 +602,7 @@ export function formatChapelPoorRelief(plan: ChapelReliefPlan): string {
     case 'fire-disabled': return 'Paused by church fire damage';
     case 'below-coffer-threshold':
       return `Held below ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold coffer threshold`;
-    case 'no-relief-home': return 'No abandoned parish home needs a dole';
+    case 'no-relief-home': return 'No food-strained parish household needs a dole';
     case 'no-market-route': return 'Blocked · no shared parish-to-market route';
     case 'market-fire-disabled': return 'Blocked · reachable marketplace is fire-damaged';
     case 'unaffordable': return `Blocked · ${plan.reliefBudget.toFixed(1)} gold cannot fund a full lot`;
@@ -625,9 +629,9 @@ export function formatSettlementParishRelief(
   }
   if (!plan.dueNow) {
     const suspended = plan.fireDisabledReliefHomes > 0
-      ? ` · ${plan.fireDisabledReliefHomes} damaged abandoned ${plan.fireDisabledReliefHomes === 1 ? 'home waits' : 'homes wait'} for recovery`
+      ? ` · ${plan.fireDisabledReliefHomes} fire-damaged service-strained ${plan.fireDisabledReliefHomes === 1 ? 'home waits' : 'homes wait'} for recovery`
       : '';
-    return `${plan.activeParishes} parishes · ${plan.reliefHomes} operational abandoned homes in relief territory${suspended}`;
+    return `${plan.activeParishes} parishes · ${plan.reliefHomes} food-strained homes in relief territory${suspended}`;
   }
   return `${plan.readyParishes} ready · ${plan.blockedParishes} blocked this Monday`;
 }

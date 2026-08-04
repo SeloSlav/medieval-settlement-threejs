@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  CALENDAR_SECONDS_PER_DAY,
+  RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS,
   RESIDENCE_STONE_COST,
   RESIDENCE_TIMBER_COST,
   RESIDENCE_TIER2_GOLD_COST,
@@ -11,6 +13,7 @@ import {
   RESIDENCE_TIER3_TIMBER_COST,
   RESIDENCE_TILE_ROOF_TILE_COST,
   RESIDENCE_TILE_ROOF_TIMBER_COST,
+  SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 import { residenceSettlementReadiness } from '../src/economy/residenceSettlement.ts';
 import {
@@ -152,12 +155,27 @@ assert.equal(poorPlan.ready, false);
 assert.match(poorPlan.blockers.join(' '), /3 timber short/);
 assert.match(poorPlan.blockers.join(' '), /2 gold short/);
 
-const abandoned = residence('abandoned', 1, 0);
-abandoned.abandoned = true;
-const abandonedPlan = evaluateResidenceUpgrade(abandoned, richTotals, allServices);
-assert.ok(abandonedPlan);
-assert.equal(abandonedPlan.ready, false);
-assert.match(abandonedPlan.blockers.join(' '), /occupied household required/);
+const vacant = residence('vacant', 1, 0);
+vacant.abandoned = true;
+const vacantPlan = evaluateResidenceUpgrade(vacant, richTotals, allServices);
+assert.ok(vacantPlan);
+assert.equal(vacantPlan.ready, false);
+assert.match(vacantPlan.blockers.join(' '), /occupied household required/);
+
+const serviceStrained = residence('service-strained', 1, 3);
+serviceStrained.needs.food.deficitTicks = Math.ceil(
+  RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS
+    * CALENDAR_SECONDS_PER_DAY
+    / SIM_TICK_SECONDS,
+);
+const serviceStrainedPlan = evaluateResidenceUpgrade(
+  serviceStrained,
+  richTotals,
+  allServices,
+);
+assert.ok(serviceStrainedPlan);
+assert.equal(serviceStrainedPlan.ready, false);
+assert.match(serviceStrainedPlan.blockers.join(' '), /sustained household needs/);
 
 const tierTwo = residence('tier-two', 2, 6);
 const tierThreePlan = evaluateResidenceUpgrade(tierTwo, richTotals, allServices);
@@ -639,11 +657,13 @@ function residence(
     tier,
     settlementTicks: 0,
     needs: {
-      firewood: { stock: 0, deficitSeconds: 0 },
-      water: { stock: 0, deficitSeconds: 0 },
-      food: { stock: 0, deficitSeconds: 0 },
-      preservedFood: { stock: 0, deficitSeconds: 0 },
-      ale: { stock: 0, deficitSeconds: 0 },
+      firewood: { stock: 0, deficitTicks: 0 },
+      water: { stock: 0, deficitTicks: 0 },
+      food: { stock: 0, deficitTicks: 0 },
+      preservedFood: { stock: 0, deficitTicks: 0 },
+      ale: { stock: 0, deficitTicks: 0 },
+      cloth: { stock: 0, deficitTicks: 0 },
+      pottery: { stock: 0, deficitTicks: 0 },
     },
     abandoned: false,
     householdWealth: 0,

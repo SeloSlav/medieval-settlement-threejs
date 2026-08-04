@@ -5,7 +5,6 @@ import type { BuildingState, ResidenceState } from '../resources/types.ts';
 import { chapelCofferGold } from '../resources/chapelCoffer.ts';
 import { RESIDENCE_NEED_KINDS, type ResidenceCommunityContext } from '../residences/residenceNeedState.ts';
 import {
-  formatChapelAbandonmentGracePercent,
   formatChapelRecoveryStockMultiplierPercent,
   formatChapelSettlementBoostPercent,
   formatChapelTithePerDay,
@@ -191,11 +190,9 @@ export function buildChapelInspectorEconomyView(
 
 export function formatChapelCommunityBoosts(): {
   settlementBoost: string;
-  abandonmentGrace: string;
 } {
   return {
     settlementBoost: formatChapelSettlementBoostPercent(),
-    abandonmentGrace: formatChapelAbandonmentGracePercent(),
   };
 }
 

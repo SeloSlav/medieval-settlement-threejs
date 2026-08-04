@@ -1,21 +1,15 @@
 import {
-  ABANDON_AFTER_DEFICIT_TICKS,
-  CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER,
   CHAPEL_RECOVERY_NEEDS_REQUIRED,
   CHAPEL_RECOVERY_STOCK_MULTIPLIER,
   CALENDAR_DAYS_PER_WEEK,
   CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS,
   CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
-  MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER,
   MONASTERY_RECOVERY_STOCK_MULTIPLIER,
   MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
   RESIDENCE_RECOVERY_FIREWOOD_MIN,
   RESIDENCE_RECOVERY_FOOD_MIN,
   RESIDENCE_RECOVERY_WATER_MIN,
   RESIDENCE_SETTLE_TICKS,
-  RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER,
-  RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER,
-  RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER,
 } from '../generated/gameBalance.ts';
 import type { ResidenceNeedKind } from '../residences/residenceNeedState.ts';
 import { RESIDENCE_NEED_KINDS } from '../residences/residenceNeedState.ts';
@@ -43,28 +37,6 @@ export function effectiveResidenceSettleTicks(
   }
 
   return Math.max(1, ticks);
-}
-
-export function effectiveAbandonAfterDeficitTicks(
-  hasChapelAccess: boolean,
-  hasMonasteryCoverage = false,
-  residenceTier: 1 | 2 | 3 = 3,
-): number {
-  const tierGrace = residenceTier === 1
-    ? RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER
-    : residenceTier === 2
-      ? RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER
-      : RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER;
-  const baseTicks = ABANDON_AFTER_DEFICIT_TICKS * tierGrace;
-  if (!hasChapelAccess) {
-    return Math.ceil(baseTicks);
-  }
-
-  let ticks = baseTicks / CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER;
-  if (hasMonasteryCoverage) {
-    ticks /= MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER;
-  }
-  return Math.ceil(ticks);
 }
 
 export function recoveryStockMin(
@@ -126,16 +98,6 @@ export function formatChapelSettlementBoostPercent(): string {
 
 export function formatMonasterySettlementBoostPercent(): string {
   const percent = Math.round((1 - MONASTERY_SETTLEMENT_TICKS_MULTIPLIER) * 100);
-  return `${percent}%`;
-}
-
-export function formatChapelAbandonmentGracePercent(): string {
-  const percent = Math.round((1 / CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER - 1) * 100);
-  return `${percent}%`;
-}
-
-export function formatMonasteryAbandonmentGracePercent(): string {
-  const percent = Math.round((1 / MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER - 1) * 100);
   return `${percent}%`;
 }
 

@@ -192,7 +192,8 @@ unfinished sowing cannot spill into winter.
 - Sheep produce no wool income.
 - Household firewood demand rises to 200% and continues through nights and
   sabbaths. An unsupplied higher-tier residence accumulates its ordinary firewood
-  deficit and can eventually be abandoned.
+  deficit, lowering approval and household market/tax output and eventually
+  blocking residence promotion; the home itself remains permanent.
 - Vegetable, herb, and flower garden work stops. Hens continue at 75%.
 - Fresh-food spoilage falls to 0.2% per day.
 - New cart trips travel at 72% pace on frosted tracks.
@@ -343,14 +344,15 @@ is enabled, tithe forecasts use a seven-day average: the attendance bonus
 applies on the six collection days, while Sunday itself remains tithe-free.
 
 At the Monday 08:00 tick, each eligible parish may spend up to 14 coffer gold on
-one full regional food lot for recovery. It considers only abandoned homes in
-its own territory, assigns each to its nearest completed marketplace by exact
-road route, and selects the routed home with the lowest food stock and room for
-the entire lot. The current regional price determines which food offer has the
-best provision per gold. The import must fit in marketplace storage, the target
-cupboard must fit the full lot, the market cart must be free, and the route must
-be usable. The coffer and parish ledger change only after that named cart
-departs; a blocked order is free and waits until the next Monday.
+one full regional food lot for recovery. It considers occupied homes in its own
+territory whose food need has remained unmet through the service-warning period,
+assigns each to its nearest completed marketplace by exact road route, and
+selects the routed home with the lowest food stock and room for the entire lot.
+The current regional price determines which food offer has the best provision
+per gold. The import must fit in marketplace storage, the target cupboard must
+fit the full lot, the market cart must be free, and the route must be usable.
+The coffer and parish ledger change only after that named cart departs; a blocked
+order is free and waits until the next Monday.
 
 The cadence is derived from the global simulation tick, so no save migration or
 per-chapel timer is required. A low automatic coffer-sweep reserve can keep a

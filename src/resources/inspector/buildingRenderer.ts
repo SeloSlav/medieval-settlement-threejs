@@ -1,6 +1,7 @@
 import type { InspectableTarget } from '../types.ts';
 import { renderChapelInspector } from './chapelRenderer.ts';
 import { renderMarketplaceInspector } from './marketplaceInspector.ts';
+import { renderMarketStallsInspector } from './marketStallsRenderer.ts';
 import { renderHarvestBuildingInspector } from './harvestBuildingRenderer.ts';
 import { renderLumberMillInspector } from './lumberMillRenderer.ts';
 import { renderReforesterInspector } from './reforesterRenderer.ts';
@@ -75,6 +76,8 @@ export function renderBuildingInspector(
     case 'chapel':
       return withStaffingPriority(renderChapelInspector(target, context), building);
     case 'marketplace':
+      return renderMarketStallsInspector(target, context);
+    case 'trading_post':
       return withStaffingPriority(renderMarketplaceInspector(target, context), building);
     case 'town_hall':
       return withStaffingPriority(renderTownHallInspector(target, context), building);

@@ -370,10 +370,6 @@ export class SpacetimeGameStore {
     return spacetimeReducers.demolishResidence(residenceId);
   }
 
-  repairResidenceDecay(residenceId: string): Promise<void> {
-    return spacetimeReducers.repairResidenceDecay(residenceId);
-  }
-
   upgradeResidence(residenceId: string): Promise<void> {
     return spacetimeReducers.upgradeResidence(residenceId);
   }

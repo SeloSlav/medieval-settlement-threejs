@@ -22,12 +22,6 @@ import {
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_CAPACITY,
-  RESIDENCE_DILAPIDATED_REPAIR_STONE,
-  RESIDENCE_DILAPIDATED_REPAIR_TIMBER,
-  RESIDENCE_NEGLECTED_REPAIR_STONE,
-  RESIDENCE_NEGLECTED_REPAIR_TIMBER,
-  RESIDENCE_RUINED_REPAIR_STONE,
-  RESIDENCE_RUINED_REPAIR_TIMBER,
   RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER,
   RESIDENCE_TILE_ROOF_SALVAGE_FRACTION,
   RESIDENCE_TILE_ROOF_TILE_COST,
@@ -75,11 +69,9 @@ import { residenceSettlementReadiness } from '../../economy/residenceSettlement.
 import {
   evaluateResidenceUpgrade,
   residenceBackyardProject,
-  residenceDecayRepairProject,
   residenceFireRepairProject,
   residenceRoofTileProject,
   residenceUpgradeProject,
-  type ResidenceDecayRepairProject,
   type ResidenceFireRepairProject,
   type ResidenceRoofTileProject,
   type ResidenceUpgradePlan,
@@ -261,10 +253,6 @@ export function renderResidenceInspector(
     residence,
     context.gameState.deliveryTrips.values(),
   );
-  const decayRepairProject = residenceDecayRepairProject(
-    residence,
-    context.gameState.deliveryTrips.values(),
-  );
   const roofTileProject = residenceRoofTileProject(
     residence,
     context.gameState.deliveryTrips.values(),
@@ -276,7 +264,7 @@ export function renderResidenceInspector(
       && trip.residenceId === residence.id
       && trip.phase !== 'inbound',
   ) ?? null;
-  const structuralRepairProject = fireRepairProject ?? decayRepairProject;
+  const structuralRepairProject = fireRepairProject;
   const initialConstruction = residence.tier === 0 && upgradeProject?.targetTier === 1;
   const upgradePlan = upgradeProject
     || backyardProject
@@ -529,9 +517,7 @@ export function renderResidenceInspector(
     : remedyDailyDemand > 1e-9
       ? `${(residence.remedyStock ?? 0).toFixed(1)} at home · ${remedyCoverageDays.toFixed(1)} treatment days`
       : `${(residence.remedyStock ?? 0).toFixed(1)} at home · no current treatment demand`;
-  const condition = residence.condition ?? 0;
   const service = residenceServiceState(residence);
-  const conditionLabel = ['Sound', 'Neglected', 'Dilapidated', 'Ruin'][condition] ?? 'Sound';
   const roofRetrofitBlockers = [
     ...(context.gameState.physicalFoundingSiteEnabled === true
       ? []
@@ -548,13 +534,6 @@ export function renderResidenceInspector(
       ? []
       : [`${formatUpgradeAmount(RESIDENCE_TILE_ROOF_TILE_COST - context.resourceTotals.roofTiles)} fired tiles short`]),
   ];
-  const repairCost = condition === 1
-    ? [RESIDENCE_NEGLECTED_REPAIR_TIMBER, RESIDENCE_NEGLECTED_REPAIR_STONE]
-    : condition === 2
-      ? [RESIDENCE_DILAPIDATED_REPAIR_TIMBER, RESIDENCE_DILAPIDATED_REPAIR_STONE]
-      : condition >= 3
-        ? [RESIDENCE_RUINED_REPAIR_TIMBER, RESIDENCE_RUINED_REPAIR_STONE]
-        : [0, 0];
   const householdCorpses = Array.from((context.gameState.corpses ?? new Map()).values())
     .filter((corpse) => corpse.residenceId === residence.id);
   const statusText = roofTileProject
@@ -562,7 +541,7 @@ export function renderResidenceInspector(
       ?? `Roof retrofit ${Math.round(roofTileProject.progress * 100)}% complete`
     : structuralRepairProject
     ? structuralRepairProject.blockers[0]
-      ?? `${decayRepairProject ? 'Vacant-home restoration' : 'Structural recovery'} ${Math.round(structuralRepairProject.progress * 100)}% complete`
+      ?? `Structural recovery ${Math.round(structuralRepairProject.progress * 100)}% complete`
     : initialConstruction && upgradeProject
     ? upgradeProject.blockers[0]
       ?? `Cottage frame ${Math.round(upgradeProject.progress * 100)}% complete`
@@ -574,16 +553,14 @@ export function renderResidenceInspector(
     eyebrow: roofTileProject
       ? 'Roof worksite'
       : structuralRepairProject
-      ? decayRepairProject ? 'Vacant-home worksite' : 'Fire recovery worksite'
+      ? 'Fire recovery worksite'
       : initialConstruction
         ? 'Cottage worksite'
         : 'Residence',
     title: roofTileProject
       ? 'Fired-tile roof retrofit'
       : structuralRepairProject
-      ? decayRepairProject
-        ? `${conditionLabel} home restoration`
-        : residenceFire?.status === 'destroyed'
+      ? residenceFire?.status === 'destroyed'
         ? 'Homestead reconstruction'
         : 'Homestead repairs'
       : initialConstruction
@@ -609,14 +586,12 @@ export function renderResidenceInspector(
       <li><span>Unable to work</span><span>${residence.sickPopulation ?? 0} sick resident${(residence.sickPopulation ?? 0) === 1 ? '' : 's'}</span></li>
       <li><span>Herbal remedies</span><span>${remedySupplyLabel} · treatment speeds recovery and reduces mortality</span></li>
       <li><span>Deaths</span><span>${residence.deathsTotal ?? 0} total · ${householdCorpses.length} unburied or in transit</span></li>
-      <li><span>Structure</span><span>${conditionLabel}${condition >= 2 ? ' · blocks resettlement until repaired' : ''}</span></li>
+      <li><span>Housing tenure</span><span>Permanent · empty slots remain available to new settlers</span></li>
       <li><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 3`}</span></li>
       <li><span>Roof covering</span><span>${residence.tiledRoof === true ? 'Fired clay tile · rare prosperous-house retrofit' : 'Split wooden shingle · regional default'}</span></li>
       <li><span>Roof fire exposure</span><span>${residence.tiledRoof === true ? `${Math.round((1 - RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER) * 100)}% lower ignition and spread weighting · not fireproof` : 'Full wooden-roof exposure'}</span></li>
       ${roofTileProject
         ? residenceRoofTileProjectRows(roofTileProject)
-        : decayRepairProject
-        ? residenceDecayRepairProjectRows(decayRepairProject, conditionLabel)
         : fireRepairProject
         ? residenceFireRepairProjectRows(fireRepairProject, residence.tier)
         : upgradeProject
@@ -703,17 +678,8 @@ export function renderResidenceInspector(
         : undefined,
     },
     labor: hiddenLabor(),
-    supplementalPanelHtml: `${condition > 0 && !decayRepairProject
-      ? `<div class="inspector-action-panel">
-          <button type="button" class="inspector-action-panel__button" data-residence-decay-repair>
-            Repair ${conditionLabel.toLowerCase()} home (${repairCost[0]} timber${repairCost[1] > 0 ? `, ${repairCost[1]} stone` : ''})
-          </button>
-          <p class="inspector-action-panel__hint">Materials remain in real stores until a cart and builder are available. Dilapidated homes and ruins cannot take settlers until restoration finishes.</p>
-        </div>`
-      : ''}${roofTileProject
+    supplementalPanelHtml: `${roofTileProject
       ? residenceRoofTileProjectPanel(roofTileProject)
-      : decayRepairProject
-      ? residenceDecayRepairProjectPanel(decayRepairProject)
       : fireRepairProject
       ? residenceFireRepairProjectPanel(fireRepairProject)
       : upgradeProject
@@ -811,27 +777,6 @@ function residenceRoofTileProjectRows(
   `;
 }
 
-function residenceDecayRepairProjectRows(
-  project: ResidenceDecayRepairProject,
-  conditionLabel: string,
-): string {
-  const incoming = project.incomingTrips.length === 0
-    ? 'None'
-    : project.incomingTrips.map((trip) =>
-      `${formatUpgradeAmount(trip.amount)} ${trip.cargoKind} <button type="button" class="inspector-jump-button" data-inspect-delivery-trip="${trip.id}" aria-label="Inspect incoming ${trip.cargoKind} cart">Inspect cart</button>`,
-    ).join(' · ');
-  return `
-    <li><span>Restoration target</span><span>${conditionLabel} vacant home → sound</span></li>
-    <li><span>Builder progress</span><span>${Math.round(project.progress * 100)}%</span></li>
-    <li><span>Queue priority</span><span>${project.priorityLabel}</span></li>
-    <li><span>Builder</span><span>${project.assignedLabor > 0 ? '1 restoring the structure' : 'Waiting for free labor'}</span></li>
-    <li><span>Timber onsite</span><span>${formatUpgradeAmount(project.delivered.timber)} / ${formatUpgradeAmount(project.required.timber)} · ${formatUpgradeAmount(project.reserved.timber)} at source</span></li>
-    <li><span>Stone onsite</span><span>${formatUpgradeAmount(project.delivered.stone)} / ${formatUpgradeAmount(project.required.stone)} · ${formatUpgradeAmount(project.reserved.stone)} at source</span></li>
-    <li><span>Incoming haul</span><span>${incoming}</span></li>
-    <li><span>Resettlement</span><span>Starts only after restoration and survival-stock checks</span></li>
-  `;
-}
-
 function residenceProsperityRows(
   plan: SettlementProsperityPlan,
   projection: TierThreeUpgradeProjection,
@@ -926,19 +871,6 @@ function residenceRoofTileProjectPanel(
     : project.blockers.join(' · ');
   return `<div class="inspector-action-panel">
     <p class="resource-inspector-note">This is a residence-local worksite: kiln stock is reserved but remains visible at its source until a real cart reaches the house. ${status} Hold releases the builder and stops new carts without losing reservations.</p>
-    <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
-      residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
-  </div>`;
-}
-
-function residenceDecayRepairProjectPanel(
-  project: ResidenceDecayRepairProject,
-): string {
-  const status = project.blockers.length === 0
-    ? 'Supplied and staffed; restoration advances as delivered material permits.'
-    : project.blockers.join(' · ');
-  return `<div class="inspector-action-panel">
-    <p class="resource-inspector-note">Restoration is physical: one builder works from timber and stone brought from real stores by cart. ${status} Hold releases the builder and stops new carts without losing reservations.</p>
     <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
       residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
   </div>`;

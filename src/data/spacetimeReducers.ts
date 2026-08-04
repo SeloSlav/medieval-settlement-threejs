@@ -147,14 +147,6 @@ export async function retrofitResidenceTileRoof(residenceId: string): Promise<vo
   );
 }
 
-export async function repairResidenceDecay(residenceId: string): Promise<void> {
-  const serverId = parseResidenceServerId(residenceId);
-  if (serverId === null) throw new Error('Invalid residence id.');
-  await callReducer('repairResidenceDecay', 'repair_residence_decay', {
-    residenceId: serverId,
-  });
-}
-
 export async function setResidenceUpgradePriority(
   residenceId: string,
   priority: number,

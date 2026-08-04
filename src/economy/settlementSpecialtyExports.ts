@@ -388,7 +388,7 @@ export function computeSettlementSpecialtyExportPlan(input: {
   };
 
   for (const building of input.state.buildings.values()) {
-    if (building.kind === 'marketplace') {
+    if (building.kind === 'trading_post') {
       const component = input.roadComponentFor
         ? input.roadComponentFor(building)
         : 'settlement';

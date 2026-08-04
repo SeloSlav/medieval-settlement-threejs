@@ -205,7 +205,7 @@ function buildingResourceHolding(
         : 'secured in the settlement lockbox',
     };
   }
-  if (building.kind === 'marketplace') {
+  if (building.kind === 'trading_post') {
     return {
       amount: finitePositive(building.gold),
       detail: 'market receipts awaiting treasury collection',

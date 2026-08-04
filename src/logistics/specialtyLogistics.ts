@@ -36,17 +36,17 @@ const PRESERVED_FOOD_PRODUCER_KINDS: readonly BuildingKind[] = [
   'smokehouse',
   'pastoral_farmstead',
 ];
-const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = [
-  ...PRESERVED_FOOD_PRODUCER_KINDS,
-  'granary',
-];
-const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['brewery', 'monastery'];
-const CLOTH_SUPPLIER_KINDS: readonly BuildingKind[] = ['weaver'];
-const POTTERY_SUPPLIER_KINDS: readonly BuildingKind[] = ['potter_kiln'];
+const ALE_PRODUCER_KINDS: readonly BuildingKind[] = ['brewery', 'monastery'];
+const CLOTH_PRODUCER_KINDS: readonly BuildingKind[] = ['weaver'];
+const POTTERY_PRODUCER_KINDS: readonly BuildingKind[] = ['potter_kiln'];
+const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
+const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
+const CLOTH_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
+const POTTERY_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
 
 export function isOperationalSpecialtySupplier(building: BuildingState): boolean {
-  return building.constructionComplete !== false
-    && (building.kind !== 'granary' || building.assignedLabor > 0);
+  return building.kind === 'marketplace'
+    && building.constructionComplete !== false;
 }
 
 export function isSustainableSpecialtySupplier(building: BuildingState): boolean {
@@ -320,7 +320,11 @@ function upgradeSupplierKindsForNeed(
 ): readonly BuildingKind[] {
   return needKind === 'preservedFood'
     ? PRESERVED_FOOD_PRODUCER_KINDS
-    : supplierKindsForNeed(needKind);
+    : needKind === 'ale'
+      ? ALE_PRODUCER_KINDS
+      : needKind === 'cloth'
+        ? CLOTH_PRODUCER_KINDS
+        : POTTERY_PRODUCER_KINDS;
 }
 
 function specialtySupplierStock(
@@ -348,6 +352,9 @@ export function formatSpecialtyRunwayDays(days: number): string {
 
 export {
   PRESERVED_FOOD_PRODUCER_KINDS,
+  ALE_PRODUCER_KINDS,
+  CLOTH_PRODUCER_KINDS,
+  POTTERY_PRODUCER_KINDS,
   PRESERVED_FOOD_SUPPLIER_KINDS,
   ALE_SUPPLIER_KINDS,
   CLOTH_SUPPLIER_KINDS,

@@ -19,7 +19,6 @@ export type InspectorSpacetimeActions = {
   onDemolishResidence: (residenceId: string) => Promise<void>;
   onUpgradeResidence: (residenceId: string) => Promise<void>;
   onRetrofitResidenceTileRoof: (residenceId: string) => Promise<void>;
-  onRepairResidenceDecay: (residenceId: string) => Promise<void>;
   onDemolishGraveyard: (graveyardId: string) => Promise<void>;
   onSetResidenceUpgradePriority: (residenceId: string, priority: number) => Promise<void>;
   onRepairFireDamage: (targetKind: FireTargetKind, targetId: string) => Promise<void>;
@@ -180,14 +179,6 @@ export function createInspectorSpacetimeActions(
         'Roof retrofit failed.',
       );
     },
-    onRepairResidenceDecay: async (residenceId) => {
-      const store = requireReady();
-      if (!store) return;
-      await runReducer(
-        () => store.repairResidenceDecay(residenceId),
-        'Residence repair failed.',
-      );
-    },
     onSetResidenceUpgradePriority: async (residenceId, priority) => {
       const store = requireReady();
       if (!store) return;
@@ -212,10 +203,6 @@ export function createInspectorSpacetimeActions(
       const residence = state.residences.get(residenceId);
       if (!residence) {
         toastManager.show('Residence not found.', { variant: 'error' });
-        return;
-      }
-      if (residence.abandoned) {
-        toastManager.show('Cannot plant a backyard garden at an abandoned residence.', { variant: 'error' });
         return;
       }
       if (state.backyardGardens.has(residenceId)) {

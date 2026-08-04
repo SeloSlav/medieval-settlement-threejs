@@ -120,7 +120,7 @@ pub use settlement_security::{ensure_settlement_security, step_settlement_securi
 pub use stone_quarry::step_stone_quarry;
 pub use tick_context::{SharedRoadNetworks, SimTickContext};
 pub use village_storehouse::{
-    step_village_storehouse_household_firewood, step_village_storehouse_overflow_collection,
+    step_storehouse_market_stalls, step_village_storehouse_overflow_collection,
 };
 pub use well::step_well;
 pub use woodcutters_lodge::step_woodcutters_lodge;

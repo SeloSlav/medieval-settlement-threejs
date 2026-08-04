@@ -207,7 +207,7 @@ enum DeliveryLaborSource {
 }
 
 fn is_logistics_workplace(kind: &str) -> bool {
-    matches!(kind, "village_storehouse" | "granary" | "marketplace")
+    matches!(kind, "village_storehouse" | "granary" | "trading_post")
 }
 
 fn ordinary_supply_labor_source(origin: &Building, target: &Building) -> DeliveryLaborSource {
@@ -477,11 +477,21 @@ fn is_regional_market_trip(trip: &DeliveryTrip) -> bool {
 }
 
 pub fn building_has_regional_market_trip(ctx: &ReducerContext, marketplace_id: u64) -> bool {
-    ctx.db
+    let active_routes = ctx.db
         .delivery_trip()
         .building_id()
         .filter(&marketplace_id)
-        .any(|trip| is_regional_market_trip(&trip))
+        .filter(|trip| is_regional_market_trip(trip))
+        .count() as u32;
+    let route_capacity = ctx
+        .db
+        .building()
+        .id()
+        .find(&marketplace_id)
+        .filter(|building| building.kind == "trading_post")
+        .map(|building| building.assigned_labor.min(5))
+        .unwrap_or(1);
+    route_capacity == 0 || active_routes >= route_capacity
 }
 
 /// Builds the physical regional leg from a stable Adriatic-facing edge to the
@@ -901,6 +911,69 @@ pub fn try_start_delivery_trip(
         },
         |origin, amount| withdraw_delivery_cargo(origin, need_kind, amount),
         |origin| *building = origin.clone(),
+    )
+}
+
+/// Dispatch stock already staged at a marketplace using a worker rostered at
+/// the granary or storehouse that owns the stall. The marketplace itself has
+/// no labor slots; the named logistics worker remains reserved for the whole
+/// round trip.
+pub fn try_start_market_stall_delivery_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    marketplace: &mut Building,
+    stall_workplace_id: u64,
+    delivery_workers: u32,
+    targets: &[Residence],
+    need_kind: ResidenceNeedKind,
+    speed_mps: f64,
+    unload_seconds: f64,
+    per_delivery_amount: f64,
+) -> bool {
+    let labor_source = DeliveryLaborSource::Building(stall_workplace_id);
+    let delivery_workers = delivery_workers.min(delivery_labor_available(
+        ctx,
+        marketplace.owner,
+        labor_source,
+    ));
+    if delivery_workers == 0
+        || tick.building_disabled_by_fire(ctx, marketplace.id)
+        || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
+    {
+        return false;
+    }
+    let available = building_delivery_stock(marketplace, need_kind);
+    let batch = per_delivery_amount * delivery_workers as f64;
+    let Some((residence_id, residence_x, residence_z, load_amount)) =
+        pick_delivery_target(ctx, available, batch, targets, need_kind, |residence_id| {
+            !tick.residence_disabled_by_fire(ctx, residence_id)
+        })
+    else {
+        return false;
+    };
+    try_start_road_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        StartTripSpec {
+            origin: marketplace.clone(),
+            destination: TripDestination::Residence {
+                id: residence_id,
+                x: residence_x,
+                z: residence_z,
+            },
+            cargo_kind: need_kind.as_u8(),
+            delivery_workers,
+            labor_source,
+            speed_mps,
+            unload_seconds,
+            load_amount,
+        },
+        |origin, amount| withdraw_delivery_cargo(origin, need_kind, amount),
+        |origin| *marketplace = origin.clone(),
     )
 }
 

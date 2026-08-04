@@ -4,7 +4,7 @@ import { MENU_ACTION_TO_BUILDING_KIND } from './buildMenuMapping.ts';
 
 export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
-  | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'marketplace'
+  | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'smokehouse'
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'carpenter' | 'ferry-landing' | 'vineyard'
   | 'weaver'
@@ -34,6 +34,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp', chapel: '/assets/ui/build-menu/cards/chapel.webp',
   fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
   marketplace: '/assets/ui/build-menu/cards/market.webp', residences: '/assets/ui/build-menu/cards/residence.webp',
+  trading_post: '/assets/ui/build-menu/cards/market.webp',
   town_hall: '/assets/ui/build-menu/cards/town-hall.webp', village_storehouse: '/assets/ui/build-menu/cards/village-storehouse.webp',
   watchtower: '/assets/ui/build-menu/cards/watchtower.webp',
   guardhouse: '/assets/ui/build-menu/cards/guardhouse.webp',
@@ -55,7 +56,8 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   well: ['Well', 'E', 'Draws groundwater and dispatches it to road-linked homes.'],
   chapel: ['Church', 'C', 'A staffed parish church collects tithes and supports nearby households.'],
   monastery: ['Pauline monastery', 'O', 'A hillside parish institution turning grain, optional honey-and-wine hospitality, and tithes into charity and pilgrim income.'],
-  marketplace: ['Marketplace', 'P', 'Trade hub for household produce, emergency seed grain, and specialty exports.'],
+  marketplace: ['Marketplace', 'P', 'Shared stall space stocked and operated by staffed granaries and storehouses. More logistics workers create more active stalls.'],
+  trading_post: ['Trading Post', 'X', 'Employs up to five regional traders. Each worker opens capacity for one concurrent import or export route.'],
   town_hall: ['Town Hall', 'T', 'Physical seat of settlement government, taxation, and the economic ledger. Requires a church, marketplace, and 24 people.'],
   village_storehouse: ['Village storehouse', 'S', 'Hauls surplus timber, stone, and firewood from producers into shared construction stock. Never stores food.'],
   watchtower: ['Frontier watchtower', 'W', 'Staffed hill tower warns nearby homes and stores, reducing losses when raiders cross the frontier.'],
@@ -101,7 +103,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
 
 /** Housing, water, faith, trade, and transport. */
 export const BASIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('town_hall'), entry('village_storehouse'), entry('ferry_landing'),
+  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('ferry_landing'),
 ];
 
 /** Farms, grain processing, and village food production. */

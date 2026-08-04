@@ -26,21 +26,20 @@ use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
     burgage_zone_has_road_frontage, burgage_zone_overlaps_buildings, zone_overlaps_resource_deposit,
 };
+use crate::residence_service_policy::service_shortage_blocks_upgrade;
 use crate::residence_upgrade_policy::{
     residence_project_active, residence_upgrade_household_contribution,
 };
-use crate::residence_service_policy::service_shortage_blocks_upgrade;
-use crate::resident_welfare_policy::repair_cost;
 use crate::roads::{load_owner_road_network, RoadNetwork};
+use crate::simulation::residence_needs::load_needs;
 use crate::simulation::{
     building_fire_state, cancel_trips_for_residence, clear_backyard_garden_for_residence,
     clear_fire_for_target, clear_residence_needs, ensure_residence_needs, insert_reclamation_pile,
     local_delivery_distance, residence_fire_state, ReclamationStock, FIRE_TARGET_RESIDENCE,
 };
-use crate::simulation::residence_needs::load_needs;
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
-    is_well_supplier_operational, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, POTTERY_SUPPLIER_KINDS,
+    is_well_supplier_operational, ALE_PRODUCER_KINDS, CLOTH_PRODUCER_KINDS, POTTERY_PRODUCER_KINDS,
     PRESERVED_FOOD_PRODUCER_KINDS,
 };
 use crate::tables::{farm_field, BurgageZone, Residence};
@@ -54,6 +53,9 @@ enum ResidenceUpgradeService {
     Ale,
     Cloth,
     Pottery,
+    Marketplace,
+    GranaryStalls,
+    StorehouseStalls,
 }
 
 #[reducer]
@@ -372,6 +374,8 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             &[
                 ResidenceUpgradeService::Firewood,
                 ResidenceUpgradeService::Water,
+                ResidenceUpgradeService::Marketplace,
+                ResidenceUpgradeService::StorehouseStalls,
             ],
         ),
         3 => (
@@ -384,6 +388,9 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
                 ResidenceUpgradeService::Ale,
                 ResidenceUpgradeService::Cloth,
                 ResidenceUpgradeService::Pottery,
+                ResidenceUpgradeService::Marketplace,
+                ResidenceUpgradeService::GranaryStalls,
+                ResidenceUpgradeService::StorehouseStalls,
             ],
         ),
         _ => return Err("This residence is already at tier 3.".to_string()),
@@ -391,9 +398,9 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
 
     if !has_connected_services(ctx, &residence, required_services) {
         return Err(if next_tier == 2 {
-            "Tier 2 requires road-linked firewood distribution (a staffed lodge or accepting storehouse) and a completed well in service range.".to_string()
+            "Tier 2 requires a staffed woodcutter and storehouse, a road-linked Marketplace for fuel stalls, and a completed well in service range.".to_string()
         } else {
-            "Tier 3 requires staffed road-linked preserved-food, ale, cloth, and pottery suppliers (a linked monastery can supply ale).".to_string()
+            "Tier 3 requires a Marketplace with staffed granary and storehouse stalls plus preserved-food, ale, cloth, and pottery production.".to_string()
         });
     }
     let physical_economy = ctx
@@ -486,7 +493,7 @@ pub fn retrofit_residence_tile_roof(ctx: &ReducerContext, residence_id: u64) -> 
     if residence.tiled_roof {
         return Err("This residence already has a fired-tile roof.".to_string());
     }
-    if residence.abandoned || residence.population == 0 {
+    if residence.population == 0 {
         return Err("Only an occupied residence can commission a roof retrofit.".to_string());
     }
     if residence_fire_state(ctx, residence.id).is_some() {
@@ -604,88 +611,6 @@ pub fn set_residence_upgrade_priority(
     Ok(())
 }
 
-#[reducer]
-pub fn repair_residence_decay(ctx: &ReducerContext, residence_id: u64) -> Result<(), String> {
-    let owner = ctx.sender();
-    ensure_player_resources(ctx, owner);
-    let mut residence = ctx
-        .db
-        .residence()
-        .id()
-        .find(&residence_id)
-        .ok_or_else(|| "Residence not found.".to_string())?;
-    if residence.owner != owner {
-        return Err("You do not own this residence.".to_string());
-    }
-    if residence.condition == 0 {
-        return Err("This residence is already sound.".to_string());
-    }
-    if !residence.abandoned || residence.population > 0 {
-        return Err("Only a vacant residence can require decay restoration.".to_string());
-    }
-    if residence_fire_state(ctx, residence.id).is_some() {
-        return Err("Resolve the fire damage before restoring long-term decay.".to_string());
-    }
-    if residence_project_active(
-        residence.upgrade_target_tier,
-        residence.tier,
-        residence.backyard_project_kind,
-        residence.fire_repair_active,
-        residence.decay_repair_active,
-        residence.roof_tile_retrofit_active,
-    ) {
-        return Err("This household already has structural works underway.".to_string());
-    }
-    let (timber, stone) = repair_cost(residence.condition);
-    if total_timber(ctx, owner) + 1e-6 < timber || total_stone(ctx, owner) + 1e-6 < stone {
-        return Err(format!(
-            "Repair requires {} timber and {} stone.",
-            timber.round(),
-            stone.round()
-        ));
-    }
-    let physical_economy = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&owner)
-        .is_some_and(|resources| resources.physical_founding_site_enabled);
-    if physical_economy {
-        let network = load_owner_road_network(ctx, owner).ok_or_else(|| {
-            "Vacant-home restoration requires a road-linked material source.".to_string()
-        })?;
-        if timber > 1e-6 {
-            ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Timber, timber)?;
-        }
-        if stone > 1e-6 {
-            ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Stone, stone)?;
-        }
-        residence.decay_repair_active = true;
-        residence.upgrade_progress = 0.0;
-        residence.upgrade_required_timber = timber;
-        residence.upgrade_required_stone = stone;
-        residence.upgrade_required_gold = 0.0;
-        residence.upgrade_delivered_timber = 0.0;
-        residence.upgrade_delivered_stone = 0.0;
-        residence.upgrade_delivered_gold = 0.0;
-        residence.upgrade_reserved_timber = timber;
-        residence.upgrade_reserved_stone = stone;
-        residence.upgrade_reserved_gold = 0.0;
-        residence.upgrade_assigned_labor = available_building_labor(ctx, owner).min(1);
-        residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
-        ctx.db.residence().id().update(residence);
-        return Ok(());
-    }
-
-    spend_aggregate_timber(ctx, owner, timber)?;
-    spend_aggregate_stone(ctx, owner, stone)?;
-    residence.condition = 0;
-    residence.vacancy_ticks = 0;
-    residence.settlement_ticks = 0;
-    ctx.db.residence().id().update(residence);
-    Ok(())
-}
-
 pub(crate) fn ensure_upgrade_source_route(
     ctx: &ReducerContext,
     network: &RoadNetwork,
@@ -716,14 +641,8 @@ pub(crate) fn ensure_upgrade_source_route(
             {
                 return false;
             }
-            local_delivery_distance(
-                network,
-                building.x,
-                building.z,
-                residence.x,
-                residence.z,
-            )
-            .is_some()
+            local_delivery_distance(network, building.x, building.z, residence.x, residence.z)
+                .is_some()
         });
     if reachable {
         Ok(())
@@ -772,13 +691,8 @@ fn has_connected_services(
 
     required_services.iter().all(|service| {
         buildings.iter().any(|building| {
-            let Some(distance) = local_delivery_distance(
-                &network,
-                building.x,
-                building.z,
-                residence.x,
-                residence.z,
-            )
+            let Some(distance) =
+                local_delivery_distance(&network, building.x, building.z, residence.x, residence.z)
             else {
                 return false;
             };
@@ -811,7 +725,7 @@ fn has_connected_services(
                         )
                 }
                 ResidenceUpgradeService::Ale => {
-                    ALE_SUPPLIER_KINDS.contains(&building.kind.as_str())
+                    ALE_PRODUCER_KINDS.contains(&building.kind.as_str())
                         && is_specialty_supplier_operational(
                             &building.kind,
                             building.construction_complete,
@@ -829,7 +743,7 @@ fn has_connected_services(
                                 })))
                 }
                 ResidenceUpgradeService::Cloth => {
-                    CLOTH_SUPPLIER_KINDS.contains(&building.kind.as_str())
+                    CLOTH_PRODUCER_KINDS.contains(&building.kind.as_str())
                         && is_specialty_supplier_operational(
                             &building.kind,
                             building.construction_complete,
@@ -837,12 +751,25 @@ fn has_connected_services(
                         )
                 }
                 ResidenceUpgradeService::Pottery => {
-                    POTTERY_SUPPLIER_KINDS.contains(&building.kind.as_str())
+                    POTTERY_PRODUCER_KINDS.contains(&building.kind.as_str())
                         && is_specialty_supplier_operational(
                             &building.kind,
                             building.construction_complete,
                             building.assigned_labor,
                         )
+                }
+                ResidenceUpgradeService::Marketplace => {
+                    building.kind == "marketplace" && building.construction_complete
+                }
+                ResidenceUpgradeService::GranaryStalls => {
+                    building.kind == "granary"
+                        && building.construction_complete
+                        && building.assigned_labor > 0
+                }
+                ResidenceUpgradeService::StorehouseStalls => {
+                    building.kind == "village_storehouse"
+                        && building.construction_complete
+                        && building.assigned_labor > 0
                 }
             }
         })

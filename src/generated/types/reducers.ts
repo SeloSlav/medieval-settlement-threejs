@@ -38,7 +38,6 @@ import RecallIdleSeasonalLaborReducer from "../recall_idle_seasonal_labor_reduce
 import RecallTargetIdleProcessorLaborReducer from "../recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "../remove_road_edge_reducer";
 import RepairFireDamageReducer from "../repair_fire_damage_reducer";
-import RepairResidenceDecayReducer from "../repair_residence_decay_reducer";
 import ResetWorldReducer from "../reset_world_reducer";
 import RetrofitResidenceTileRoofReducer from "../retrofit_residence_tile_roof_reducer";
 import RotateConstructionLaborReducer from "../rotate_construction_labor_reducer";
@@ -119,7 +118,6 @@ export type RecallIdleSeasonalLaborParams = __Infer<typeof RecallIdleSeasonalLab
 export type RecallTargetIdleProcessorLaborParams = __Infer<typeof RecallTargetIdleProcessorLaborReducer>;
 export type RemoveRoadEdgeParams = __Infer<typeof RemoveRoadEdgeReducer>;
 export type RepairFireDamageParams = __Infer<typeof RepairFireDamageReducer>;
-export type RepairResidenceDecayParams = __Infer<typeof RepairResidenceDecayReducer>;
 export type ResetWorldParams = __Infer<typeof ResetWorldReducer>;
 export type RetrofitResidenceTileRoofParams = __Infer<typeof RetrofitResidenceTileRoofReducer>;
 export type RotateConstructionLaborParams = __Infer<typeof RotateConstructionLaborReducer>;
@@ -167,4 +165,3 @@ export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
 export type UpgradeChapelParams = __Infer<typeof UpgradeChapelReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;
-

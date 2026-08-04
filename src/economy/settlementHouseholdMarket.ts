@@ -203,11 +203,11 @@ export function computeSettlementHouseholdMarketPlan(
   );
   const completedMarkets = [...state.buildings.values()].filter(
     (building) =>
-      building.kind === 'marketplace'
+      building.kind === 'trading_post'
       && building.constructionComplete !== false,
   );
   const operationalMarkets = completedMarkets.filter(
-    (marketplace) => !fireDisabledMarketIds.has(marketplace.id),
+    (marketplace) => marketplace.assignedLabor > 0 && !fireDisabledMarketIds.has(marketplace.id),
   );
   const disabledMarkets = completedMarkets.filter(
     (marketplace) => fireDisabledMarketIds.has(marketplace.id),

@@ -9,24 +9,19 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{building_commodity_cap, building_commodity_stock, CommodityKind};
-use crate::simulation::delivery_cargo::has_delivery_stock_room;
-use crate::simulation::delivery_supplier::{dispatch_delivery_if_ready, DeliveryDispatchConfig};
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_supply_trip, try_start_building_supply_trip,
+    building_has_active_trip, building_has_inbound_commodity_trip,
+    building_has_inbound_supply_trip, try_start_building_supply_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::{
-    local_delivery_distance, select_residence_for_need_delivery,
-};
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::storehouse_policy::{
     compare_storehouse_destination, compare_storehouse_source_priority,
     storehouse_filtered_collection_headroom,
 };
-use crate::supply_policy::household_firewood_needs_priority;
-use crate::tables::{Building, Residence};
+use crate::tables::Building;
 
 const STOREHOUSE_OVERFLOW_SOURCE_KINDS: &[&str] = &[
     "lumber_mill",
@@ -45,16 +40,17 @@ struct OverflowSource {
     fill_ratio: f64,
 }
 
-/// Give each staffed depot its household-heating opportunity before either
-/// industrial fuel or collection work may claim its cart.
-pub fn step_village_storehouse_household_firewood(
+/// Staffed storehouse workers stock shared market stalls with fuel and durable
+/// household goods. Every assigned keeper contributes one handcart load.
+pub fn step_storehouse_market_stalls(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
     storehouses: Vec<Building>,
 ) {
     for mut storehouse in storehouses {
-        if !storehouse.construction_complete
+        if storehouse.kind != "village_storehouse"
+            || !storehouse.construction_complete
             || tick.building_disabled_by_fire(ctx, storehouse.id)
             || storehouse.assigned_labor == 0
             || labor_and_logistics_paused(ctx, tick, storehouse.owner, clock)
@@ -66,26 +62,76 @@ pub fn step_village_storehouse_household_firewood(
         let Some(network) = tick.road_network(storehouse.owner) else {
             continue;
         };
-
-        if storehouse.storehouse_accepts_firewood && storehouse.firewood > 1e-6 {
-            let targets = collect_firewood_delivery_targets(ctx, tick, network, &storehouse);
-            let workers = storehouse.assigned_labor.min(2);
-            if dispatch_delivery_if_ready(
+        for (commodity, stock, speed_mps, unload_seconds, per_delivery) in [
+            (
+                CommodityKind::Firewood,
+                storehouse.firewood,
+                FIREWOOD_DELIVERY_SPEED_MPS,
+                FIREWOOD_DELIVERY_UNLOAD_SEC,
+                STOREHOUSE_FIREWOOD_PER_DELIVERY,
+            ),
+            (
+                CommodityKind::Cloth,
+                storehouse.cloth,
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                2.0,
+            ),
+            (
+                CommodityKind::Pottery,
+                storehouse.pottery,
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                2.0,
+            ),
+        ] {
+            if stock <= 1e-6 || building_has_active_trip(ctx, storehouse.id) {
+                continue;
+            }
+            let target = tick
+                .building_ids_for_kinds(ctx, storehouse.owner, &["marketplace"])
+                .into_iter()
+                .filter_map(|id| ctx.db.building().id().find(&id))
+                .filter(|market| {
+                    market.construction_complete
+                        && !tick.building_disabled_by_fire(ctx, market.id)
+                        && !building_has_inbound_commodity_trip(ctx, market.id, commodity)
+                })
+                .filter_map(|market| {
+                    let cap = building_commodity_cap(&market.kind, commodity);
+                    let desired = cap * 0.75;
+                    let needed = (desired - building_commodity_stock(&market, commodity)).max(0.0);
+                    let distance = local_delivery_distance(
+                        network,
+                        storehouse.x,
+                        storehouse.z,
+                        market.x,
+                        market.z,
+                    )?;
+                    (needed > 1e-6).then_some((market, needed, distance))
+                })
+                .min_by(|a, b| {
+                    a.2.total_cmp(&b.2).then_with(|| a.0.id.cmp(&b.0.id))
+                });
+            let Some((market, needed, _)) = target else {
+                continue;
+            };
+            let workers = storehouse.assigned_labor;
+            if try_start_building_supply_trip(
                 ctx,
                 tick,
                 clock,
                 network,
                 &mut storehouse,
+                &market,
                 workers,
-                &targets,
-                DeliveryDispatchConfig {
-                    need_kind: ResidenceNeedKind::Firewood,
-                    speed_mps: FIREWOOD_DELIVERY_SPEED_MPS,
-                    unload_seconds: FIREWOOD_DELIVERY_UNLOAD_SEC,
-                    per_delivery: STOREHOUSE_FIREWOOD_PER_DELIVERY,
-                },
+                commodity,
+                speed_mps,
+                unload_seconds,
+                per_delivery,
+                needed,
             ) {
-                ctx.db.building().id().update(storehouse);
+                ctx.db.building().id().update(storehouse.clone());
             }
         }
     }
@@ -263,40 +309,4 @@ fn overflow_source_commodities(source: &Building) -> &'static [CommodityKind] {
         "clay_pit" => &[CommodityKind::Clay],
         _ => &[],
     }
-}
-
-fn collect_firewood_delivery_targets(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    network: &crate::roads::RoadNetwork,
-    storehouse: &Building,
-) -> Vec<Residence> {
-    let residences: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&storehouse.owner)
-        .filter(|residence| ResidenceNeedKind::Firewood.is_active_for_tier(residence.tier))
-        .filter(|residence| {
-            tick.firewood_supplier_for(ctx, storehouse.owner, residence.id) == Some(storehouse.id)
-        })
-        .collect();
-    select_residence_for_need_delivery(
-        network,
-        storehouse,
-        residences,
-        None,
-        None,
-        |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Firewood),
-        |residence, stock| {
-            has_delivery_stock_room(ResidenceNeedKind::Firewood, stock)
-                && household_firewood_needs_priority(
-                    residence.abandoned,
-                    residence.population,
-                    stock,
-                )
-        },
-    )
-    .into_iter()
-    .collect()
 }

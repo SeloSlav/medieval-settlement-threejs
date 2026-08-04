@@ -134,15 +134,8 @@ export function localDeliveryDistancesFrom(
 }
 
 export function isOperationalFirewoodSupplier(building: BuildingState): boolean {
-  return building.constructionComplete !== false
-    && (
-      building.kind === 'woodcutters_lodge'
-      || (
-        building.kind === 'village_storehouse'
-        && building.assignedLabor > 0
-        && building.storehouseAcceptsFirewood
-      )
-    );
+  return building.kind === 'marketplace'
+    && building.constructionComplete !== false;
 }
 
 export function isOperationalWellSupplier(building: BuildingState): boolean {
@@ -151,22 +144,12 @@ export function isOperationalWellSupplier(building: BuildingState): boolean {
 }
 
 export const FOOD_SUPPLIER_KINDS: readonly BuildingState['kind'][] = [
-  'hunters_hall',
-  'foragers_shed',
-  'fishing_camp',
-  'bakery',
-  'granary',
-  'apiary',
-  'vineyard',
-  'pastoral_farmstead',
-  'swineherd',
-  'monastery',
+  'marketplace',
 ];
 
 export function isOperationalFoodSupplier(building: BuildingState): boolean {
   return FOOD_SUPPLIER_KINDS.includes(building.kind)
-    && building.constructionComplete !== false
-    && (building.kind !== 'granary' || building.assignedLabor > 0);
+    && building.constructionComplete !== false;
 }
 
 export type ResidenceSupplierRouteClaim = {

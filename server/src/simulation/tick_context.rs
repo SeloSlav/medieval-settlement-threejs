@@ -844,6 +844,12 @@ impl SimTickContext {
                         building.assigned_labor,
                         building.storehouse_accepts_firewood,
                     )
+                    && self.marketplace_has_stall_workers(
+                        ctx,
+                        network,
+                        building,
+                        ResidenceNeedKind::Firewood,
+                    )
             })
             .collect();
         let residences: Vec<Residence> = ctx
@@ -892,7 +898,7 @@ impl SimTickContext {
             return HashMap::new();
         };
         let marketplaces: Vec<Building> = self
-            .building_ids_for_kinds(ctx, owner, &["marketplace"])
+            .building_ids_for_kinds(ctx, owner, &["trading_post"])
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter(|building| {
@@ -1034,6 +1040,7 @@ impl SimTickContext {
                     building.assigned_labor,
                 ) && !self.building_disabled_by_fire(ctx, building.id)
                     && supplier_kinds.contains(&building.kind.as_str())
+                    && self.marketplace_has_stall_workers(ctx, network, building, need_kind)
                     && match need_kind {
                         ResidenceNeedKind::Ale => {
                             let available = if building.kind == "monastery" {
@@ -1119,6 +1126,12 @@ impl SimTickContext {
                     building.construction_complete,
                     building.assigned_labor,
                 ) && !self.building_disabled_by_fire(ctx, building.id)
+                    && self.marketplace_has_stall_workers(
+                        ctx,
+                        network,
+                        building,
+                        ResidenceNeedKind::Food,
+                    )
                     && (if building.kind == "monastery" {
                         monastery_feast_surplus(
                             building.food,
@@ -1165,5 +1178,42 @@ impl SimTickContext {
                         && distance <= MONASTERY_COVERAGE_RADIUS)
             },
         )
+    }
+
+    fn marketplace_has_stall_workers(
+        &self,
+        ctx: &ReducerContext,
+        network: &crate::roads::RoadNetwork,
+        marketplace: &Building,
+        need_kind: ResidenceNeedKind,
+    ) -> bool {
+        if marketplace.kind != "marketplace" {
+            return false;
+        }
+        let workplace_kind = match need_kind {
+            ResidenceNeedKind::Food
+            | ResidenceNeedKind::PreservedFood
+            | ResidenceNeedKind::Ale => "granary",
+            ResidenceNeedKind::Firewood
+            | ResidenceNeedKind::Cloth
+            | ResidenceNeedKind::Pottery => "village_storehouse",
+            ResidenceNeedKind::Water => return false,
+        };
+        self.building_ids_for_kinds(ctx, marketplace.owner, &[workplace_kind])
+            .into_iter()
+            .filter_map(|id| ctx.db.building().id().find(&id))
+            .any(|workplace| {
+                workplace.construction_complete
+                    && workplace.assigned_labor > 0
+                    && !self.building_disabled_by_fire(ctx, workplace.id)
+                    && crate::simulation::road_logistics::local_delivery_distance(
+                        network,
+                        workplace.x,
+                        workplace.z,
+                        marketplace.x,
+                        marketplace.z,
+                    )
+                    .is_some()
+            })
     }
 }

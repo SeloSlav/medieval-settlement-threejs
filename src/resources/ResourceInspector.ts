@@ -83,7 +83,6 @@ type ResourceInspectorOptions = {
   onDemolishResidence?: (residenceId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
   onRetrofitResidenceTileRoof?: (residenceId: string) => void | Promise<void>;
-  onRepairResidenceDecay?: (residenceId: string) => void | Promise<void>;
   onSetResidenceUpgradePriority?: (
     residenceId: string,
     priority: number,
@@ -634,13 +633,6 @@ export class ResourceInspector {
       }
       return;
     }
-    if (
-      (event.target as HTMLElement).closest('[data-residence-decay-repair]')
-      && this.selectedTarget?.kind === 'residence'
-    ) {
-      void this.options.onRepairResidenceDecay?.(this.selectedTarget.residence.id);
-      return;
-    }
     const demolishGraveyardId = (event.target as HTMLElement)
       .closest<HTMLElement>('[data-demolish-graveyard]')
       ?.dataset.demolishGraveyard;
@@ -876,7 +868,7 @@ export class ResourceInspector {
     }
     if (
       this.selectedTarget?.kind === 'building'
-      && this.selectedTarget.building.kind === 'marketplace'
+      && this.selectedTarget.building.kind === 'trading_post'
     ) {
       const targetValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-marketplace-ironwork-target]')

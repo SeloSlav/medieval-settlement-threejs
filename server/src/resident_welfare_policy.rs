@@ -4,10 +4,7 @@
 use std::collections::HashMap;
 
 use crate::balance_generated::{
-    CALENDAR_SECONDS_PER_DAY, HUNGER_WARNING_DAYS, MALNUTRITION_DAYS, MALNUTRITION_RECOVERY_DAYS, RESIDENCE_DILAPIDATED_DAYS,
-    RESIDENCE_DILAPIDATED_REPAIR_STONE, RESIDENCE_DILAPIDATED_REPAIR_TIMBER,
-    RESIDENCE_NEGLECTED_DAYS, RESIDENCE_NEGLECTED_REPAIR_STONE, RESIDENCE_NEGLECTED_REPAIR_TIMBER,
-    RESIDENCE_RUINED_DAYS, RESIDENCE_RUINED_REPAIR_STONE, RESIDENCE_RUINED_REPAIR_TIMBER,
+    CALENDAR_SECONDS_PER_DAY, HUNGER_WARNING_DAYS, MALNUTRITION_DAYS, MALNUTRITION_RECOVERY_DAYS,
     STARVATION_DEATH_INTERVAL_DAYS, STARVATION_DEATH_START_DAYS, TICK_DT,
 };
 
@@ -15,11 +12,6 @@ pub const HEALTH_STAGE_WELL: u8 = 0;
 pub const HEALTH_STAGE_HUNGRY: u8 = 1;
 pub const HEALTH_STAGE_MALNOURISHED: u8 = 2;
 pub const HEALTH_STAGE_STARVING: u8 = 3;
-
-pub const RESIDENCE_CONDITION_SOUND: u8 = 0;
-pub const RESIDENCE_CONDITION_NEGLECTED: u8 = 1;
-pub const RESIDENCE_CONDITION_DILAPIDATED: u8 = 2;
-pub const RESIDENCE_CONDITION_RUIN: u8 = 3;
 
 pub fn ticks_for_days(days: f64) -> u32 {
     ((days.max(0.0) * CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64).min(u64::from(u32::MAX))
@@ -100,40 +92,6 @@ pub fn next_malnutrition(
     let recovery_per_tick =
         TICK_DT / (MALNUTRITION_RECOVERY_DAYS * CALENDAR_SECONDS_PER_DAY).max(TICK_DT);
     (current - recovery_per_tick).max(0.0)
-}
-
-pub fn residence_condition(vacancy_ticks: u32) -> u8 {
-    if vacancy_ticks >= ticks_for_days(RESIDENCE_RUINED_DAYS) {
-        RESIDENCE_CONDITION_RUIN
-    } else if vacancy_ticks >= ticks_for_days(RESIDENCE_DILAPIDATED_DAYS) {
-        RESIDENCE_CONDITION_DILAPIDATED
-    } else if vacancy_ticks >= ticks_for_days(RESIDENCE_NEGLECTED_DAYS) {
-        RESIDENCE_CONDITION_NEGLECTED
-    } else {
-        RESIDENCE_CONDITION_SOUND
-    }
-}
-
-pub fn condition_blocks_resettlement(condition: u8) -> bool {
-    condition >= RESIDENCE_CONDITION_DILAPIDATED
-}
-
-pub fn repair_cost(condition: u8) -> (f64, f64) {
-    match condition {
-        RESIDENCE_CONDITION_NEGLECTED => (
-            RESIDENCE_NEGLECTED_REPAIR_TIMBER,
-            RESIDENCE_NEGLECTED_REPAIR_STONE,
-        ),
-        RESIDENCE_CONDITION_DILAPIDATED => (
-            RESIDENCE_DILAPIDATED_REPAIR_TIMBER,
-            RESIDENCE_DILAPIDATED_REPAIR_STONE,
-        ),
-        RESIDENCE_CONDITION_RUIN..=u8::MAX => (
-            RESIDENCE_RUINED_REPAIR_TIMBER,
-            RESIDENCE_RUINED_REPAIR_STONE,
-        ),
-        _ => (0.0, 0.0),
-    }
 }
 
 /// Stable pseudo-random unit value. It does not depend on table iteration
@@ -261,25 +219,6 @@ mod tests {
         let current = 0.7;
         assert_eq!(next_malnutrition(current, 0, false, true), current);
         assert!(next_malnutrition(current, 0, false, false) < current);
-    }
-
-    #[test]
-    fn empty_homes_decay_slowly_and_each_stage_has_a_repair_cost() {
-        assert_eq!(residence_condition(0), RESIDENCE_CONDITION_SOUND);
-        assert_eq!(
-            residence_condition(ticks_for_days(RESIDENCE_NEGLECTED_DAYS)),
-            RESIDENCE_CONDITION_NEGLECTED
-        );
-        assert_eq!(
-            residence_condition(ticks_for_days(RESIDENCE_DILAPIDATED_DAYS)),
-            RESIDENCE_CONDITION_DILAPIDATED
-        );
-        assert_eq!(
-            residence_condition(ticks_for_days(RESIDENCE_RUINED_DAYS)),
-            RESIDENCE_CONDITION_RUIN
-        );
-        assert_eq!(repair_cost(RESIDENCE_CONDITION_SOUND), (0.0, 0.0));
-        assert!(repair_cost(RESIDENCE_CONDITION_RUIN).0 > 0.0);
     }
 
     #[test]

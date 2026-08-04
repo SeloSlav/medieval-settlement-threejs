@@ -15,21 +15,21 @@ use crate::construction_priority::{
 };
 use crate::db::*;
 use crate::economy::{available_building_labor, building_commodity_stock, CommodityKind};
+use crate::residence_service_policy::service_shortage_blocks_upgrade;
 use crate::residence_upgrade_policy::{
     advance_residence_upgrade, residence_project_active, residence_upgrade_complete,
     ResidenceUpgradeWork,
 };
-use crate::residence_service_policy::service_shortage_blocks_upgrade;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_residence_upgrade_supply_trip, DeliveryTripPhase, DELIVERY_DESTINATION_RESIDENCE,
 };
+use crate::simulation::residence_needs::load_needs;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::{
     clear_fire_for_target, ensure_residence_needs, labor_and_logistics_paused, GameClock,
     SimTickContext, FIRE_TARGET_RESIDENCE,
 };
-use crate::simulation::residence_needs::load_needs;
 use crate::supply_policy::{construction_source_priority, select_supply_route_candidate};
 use crate::tables::{BackyardGarden, Building, Residence};
 
@@ -352,7 +352,7 @@ fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
     }
 
     if residence.decay_repair_active {
-        residence.condition = crate::resident_welfare_policy::RESIDENCE_CONDITION_SOUND;
+        residence.condition = 0;
         residence.vacancy_ticks = 0;
         residence.settlement_ticks = 0;
         clear_residence_project(residence);
@@ -362,7 +362,7 @@ fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
     if residence.fire_repair_active {
         clear_fire_for_target(ctx, FIRE_TARGET_RESIDENCE, residence.id);
         residence.abandoned = false;
-        residence.condition = crate::resident_welfare_policy::RESIDENCE_CONDITION_SOUND;
+        residence.condition = 0;
         residence.vacancy_ticks = 0;
         residence.settlement_ticks = 0;
         clear_residence_project(residence);

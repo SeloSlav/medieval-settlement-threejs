@@ -27,6 +27,7 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   fishing_camp: 5.2,
   chapel: 11.9,
   marketplace: 5.3,
+  trading_post: 6.9,
   town_hall: 9.2,
   village_storehouse: 6.7,
   watchtower: 10.8,
@@ -354,6 +355,7 @@ function buildingShadowProxySpec(
     case 'fishing_camp':
     case 'chapel':
     case 'marketplace':
+    case 'trading_post':
     case 'town_hall':
     case 'village_storehouse':
     case 'watchtower':

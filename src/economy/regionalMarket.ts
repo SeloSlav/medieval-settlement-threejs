@@ -189,9 +189,9 @@ export function marketplaceCaravanWorkers(assignedLabor: number): number {
 export function formatMarketplaceCaravanCrew(assignedLabor: number): string {
   const workers = marketplaceCaravanWorkers(assignedLabor);
   if (assignedLabor <= 0) {
-    return `${workers} caravan hand — baseline throughput`;
+    return 'Closed — assign a regional trader to open a route';
   }
-  return `${workers} caravan hands — ${assignedLabor} marketplace worker${assignedLabor === 1 ? '' : 's'} assigned`;
+  return `${workers} concurrent route slot${workers === 1 ? '' : 's'} — ${assignedLabor} regional trader${assignedLabor === 1 ? '' : 's'} assigned`;
 }
 
 export function clampMarketMultiplier(value: number): number {

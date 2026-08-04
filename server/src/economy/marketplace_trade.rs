@@ -119,7 +119,7 @@ pub fn try_execute_standing_marketplace_import(
     let Some(marketplace) = ctx.db.building().id().find(&building_id) else {
         return false;
     };
-    if marketplace.kind != "marketplace"
+    if marketplace.kind != "trading_post"
         || !marketplace.construction_complete
         || tick.building_disabled_by_fire(ctx, marketplace.id)
         || marketplace.assigned_labor == 0
@@ -315,8 +315,8 @@ fn validate_marketplace(
     if building.owner != owner {
         return Err("You do not own this marketplace.".to_string());
     }
-    if building.kind != "marketplace" {
-        return Err("Only marketplaces can broker foreign trade.".to_string());
+    if building.kind != "trading_post" {
+        return Err("Only Trading Posts can broker regional trade.".to_string());
     }
     if !building.construction_complete {
         return Err("The marketplace is still under construction.".to_string());
@@ -643,7 +643,7 @@ pub(crate) fn try_advance_pending_marketplace_trade(
         clear_pending_marketplace_trade(ctx, building_id);
         return true;
     }
-    if marketplace.kind != "marketplace"
+    if marketplace.kind != "trading_post"
         || !marketplace.construction_complete
         || tick.building_disabled_by_fire(ctx, marketplace.id)
         || marketplace.assigned_labor == 0
@@ -785,7 +785,7 @@ pub(crate) fn settle_regional_market_export(
         .find(&marketplace_id)
         .filter(|building| {
             building.owner == owner
-                && building.kind == "marketplace"
+                && building.kind == "trading_post"
                 && building.construction_complete
         })
         .ok_or_else(|| "The contracting marketplace no longer exists.".to_string())?;

@@ -46,7 +46,7 @@ pub fn step_residence_needs(
     world_seed: u64,
     sim_tick: u64,
 ) {
-    if residence.abandoned || residence.population == 0 {
+    if residence.population == 0 {
         return;
     }
 

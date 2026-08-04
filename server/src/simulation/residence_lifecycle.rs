@@ -25,10 +25,15 @@ pub fn step_residence(
     let residence_id = residence.id;
     // Save-compatible migration: completed homes are permanent housing stock.
     // Legacy rows are normalized in place instead of entering a recovery loop.
-    if residence.abandoned || residence.vacancy_ticks != 0 || residence.condition != 0 {
+    if residence.abandoned
+        || residence.vacancy_ticks != 0
+        || residence.condition != 0
+        || residence.decay_repair_active
+    {
         residence.abandoned = false;
         residence.vacancy_ticks = 0;
         residence.condition = 0;
+        residence.decay_repair_active = false;
         ctx.db.residence().id().update(residence.clone());
     }
     let has_chapel_access =

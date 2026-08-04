@@ -76,7 +76,7 @@ export function residenceRecoveryReady(
 
 export function residenceNeedsStatus(
   residence: ResidenceState,
-  supply: ResidenceNeedSupplyContext = {
+  _supply: ResidenceNeedSupplyContext = {
     servingLodgeId: null,
     servingWellId: null,
     servingFoodSupplierId: null,
@@ -423,7 +423,7 @@ function activeNeedKinds(residence: ResidenceState): ResidenceNeedKind[] {
 }
 
 function residenceFoodRunwayDays(residence: ResidenceState): number | null {
-  if (residence.abandoned || residence.population === 0) return null;
+  if (residence.population === 0) return null;
   const stock = getNeed(residence.needs, 'food').stock;
   const dailyUse = residence.population * RESIDENCE_FOOD_PER_PERSON_PER_SEC * GAME_DAY_SECONDS;
   if (dailyUse <= 1e-9) return null;

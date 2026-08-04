@@ -207,6 +207,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   fishing_camp: { path: '/sounds/buildings/fishing_camp.mp3', volume: 0.05 },
   chapel: { path: '/sounds/buildings/chapel.mp3', volume: 0.075 },
   marketplace: { path: '/sounds/buildings/marketplace.mp3', volume: 0.04 },
+  trading_post: { path: '/sounds/buildings/marketplace.mp3', volume: 0.045 },
   town_hall: { path: '/sounds/buildings/town_hall.mp3', volume: 0.04 },
   village_storehouse: { path: '/sounds/buildings/village_storehouse.mp3', volume: 0.045 },
   watchtower: { path: '/sounds/buildings/watchtower.mp3', volume: 0.045 },

@@ -34,6 +34,7 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
             "smokehouse" => FRESH_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
             "monastery" => FRESH_FOOD_STORAGE_MONASTERY_FACTOR,
             "marketplace" => FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR,
+            "trading_post" => FRESH_FOOD_STORAGE_MARKETPLACE_FACTOR,
             _ => FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
         };
         let preserved_storage_factor = match building.kind.as_str() {
@@ -41,6 +42,7 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
             "smokehouse" => PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
             "monastery" => PRESERVED_FOOD_STORAGE_MONASTERY_FACTOR,
             "marketplace" => PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
+            "trading_post" => PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
             _ => PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
         };
         let spoiled_fresh = building.food * fresh_rate * fresh_storage_factor * TICK_DT;

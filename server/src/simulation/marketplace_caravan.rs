@@ -30,6 +30,7 @@ use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_regional_market_trip, onsite_building_labor, regional_market_export_route,
     start_regional_market_export_trip, try_start_building_supply_trip,
+    try_start_market_stall_delivery_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -69,9 +70,8 @@ pub fn try_dispatch_marketplace_caravan(
     per_delivery_amount: f64,
     dispatch: MarketCaravanDispatch,
 ) -> bool {
-    if building.kind != "marketplace"
+    if !matches!(building.kind.as_str(), "marketplace" | "trading_post")
         || !building.construction_complete
-        || building.assigned_labor == 0
         || tick.building_disabled_by_fire(ctx, building.id)
     {
         return false;
@@ -86,7 +86,9 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Pottery => building.pottery,
     };
-    if stock <= 1e-6 || building_has_active_trip(ctx, building.id) {
+    if stock <= 1e-6
+        || (building.kind == "trading_post" && building_has_active_trip(ctx, building.id))
+    {
         return false;
     }
 
@@ -137,7 +139,15 @@ pub fn try_dispatch_marketplace_caravan(
         return false;
     }
 
-    let delivery_workers = marketplace_caravan_workers(building);
+    let stall_workplace = if building.kind == "marketplace" {
+        marketplace_stall_workplace(ctx, tick, building, need_kind)
+    } else {
+        let workers = onsite_building_labor(ctx, building);
+        (workers > 0).then_some((building.id, workers))
+    };
+    let Some((stall_workplace_id, delivery_workers)) = stall_workplace else {
+        return false;
+    };
     let per_worker_amount = match dispatch.exact_load_amount {
         Some(amount) if amount.is_finite() && amount > 1e-6 => {
             amount / delivery_workers.max(1) as f64
@@ -157,21 +167,77 @@ pub fn try_dispatch_marketplace_caravan(
         }
     };
 
-    dispatch_delivery_if_ready(
-        ctx,
-        tick,
-        clock,
-        network,
-        building,
-        delivery_workers,
-        &targets,
-        DeliveryDispatchConfig {
+    if building.kind == "marketplace" {
+        try_start_market_stall_delivery_trip(
+            ctx,
+            tick,
+            clock,
+            network,
+            building,
+            stall_workplace_id,
+            delivery_workers,
+            &targets,
             need_kind,
             speed_mps,
             unload_seconds,
-            per_delivery: per_worker_amount,
-        },
-    )
+            per_worker_amount,
+        )
+    } else {
+        dispatch_delivery_if_ready(
+            ctx,
+            tick,
+            clock,
+            network,
+            building,
+            delivery_workers,
+            &targets,
+            DeliveryDispatchConfig {
+                need_kind,
+                speed_mps,
+                unload_seconds,
+                per_delivery: per_worker_amount,
+            },
+        )
+    }
+}
+
+fn marketplace_stall_workplace(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    marketplace: &Building,
+    need_kind: ResidenceNeedKind,
+) -> Option<(u64, u32)> {
+    let workplace_kind = match need_kind {
+        ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
+            "granary"
+        }
+        ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
+            "village_storehouse"
+        }
+        ResidenceNeedKind::Water => return None,
+    };
+    let network = tick.road_network(marketplace.owner)?;
+    tick.building_ids_for_kinds(ctx, marketplace.owner, &[workplace_kind])
+        .into_iter()
+        .filter_map(|id| ctx.db.building().id().find(&id))
+        .filter(|workplace| {
+            workplace.construction_complete
+                && workplace.assigned_labor > 0
+                && !tick.building_disabled_by_fire(ctx, workplace.id)
+        })
+        .filter_map(|workplace| {
+            let workers = onsite_building_labor(ctx, &workplace);
+            let distance = crate::simulation::road_logistics::local_delivery_distance(
+                network,
+                workplace.x,
+                workplace.z,
+                marketplace.x,
+                marketplace.z,
+            )?;
+            (workers > 0).then_some((workplace.id, workers, distance))
+        })
+        .min_by(|a, b| a.2.total_cmp(&b.2).then_with(|| a.0.cmp(&b.0)))
+        .map(|(id, workers, _)| (id, workers))
 }
 
 pub fn step_marketplace_caravans(
@@ -185,11 +251,19 @@ pub fn step_marketplace_caravans(
         .building()
         .iter()
         .filter(|building| {
-            building.kind == "marketplace"
+            matches!(building.kind.as_str(), "marketplace" | "trading_post")
                 && building.construction_complete
-                && building.assigned_labor > 0
                 && !tick.building_disabled_by_fire(ctx, building.id)
-                && (building.action_cooldown > 1e-6
+                && ((building.kind == "marketplace"
+                    && (building.firewood > 1e-6
+                        || building.food > 1e-6
+                        || building.preserved_food > 1e-6
+                        || building.ale > 1e-6
+                        || building.cloth > 1e-6
+                        || building.pottery > 1e-6))
+                    || (building.kind == "trading_post"
+                        && building.assigned_labor > 0
+                        && (building.action_cooldown > 1e-6
                     || building.marketplace_seed_grain_target > 0
                     || building.marketplace_ironwork_target > 0
                     || building.marketplace_iron_target > 0
@@ -200,16 +274,12 @@ pub fn step_marketplace_caravans(
                         building.marketplace_gold_reserve_target,
                     ) > 1e-6
                     || building.marketplace_pending_trade_code != 0
-                    || building.firewood > 1e-6
-                    || building.food > 1e-6
-                    || building.preserved_food > 1e-6
-                    || building.water > 1e-6
                     || building.ale > 1e-6
                     || building.honey > 1e-6
                     || building.wine > 1e-6
                     || building.cloth > 1e-6
                     || building.pottery > 1e-6
-                    || building.gold > 1e-6)
+                    || building.gold > 1e-6)))
         })
         .map(|building| building.id)
         .collect();
@@ -217,7 +287,13 @@ pub fn step_marketplace_caravans(
     let dispatch = MarketCaravanDispatch::default();
 
     for building_id in marketplace_ids {
-        if clock.sim_tick % 5 == building_id % 5 {
+        let is_trading_post = ctx
+            .db
+            .building()
+            .id()
+            .find(&building_id)
+            .is_some_and(|building| building.kind == "trading_post");
+        if is_trading_post && clock.sim_tick % 5 == building_id % 5 {
             let has_pending_order = ctx
                 .db
                 .building()
@@ -247,15 +323,23 @@ pub fn step_marketplace_caravans(
             continue;
         };
         let mut changed = false;
-        if building.action_cooldown > 1e-6
+        if is_trading_post
+            && building.action_cooldown > 1e-6
             && onsite_building_labor(ctx, &building) > 0
             && !labor_and_logistics_paused(ctx, tick, building.owner, clock)
         {
             building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
             changed = true;
         }
-        let pending_commodity = pending_marketplace_trade_commodity(&building);
-        if building.firewood > 1e-6 && pending_commodity != Some(CommodityKind::Firewood) {
+        let pending_commodity = if is_trading_post {
+            pending_marketplace_trade_commodity(&building)
+        } else {
+            None
+        };
+        if !is_trading_post
+            && building.firewood > 1e-6
+            && pending_commodity != Some(CommodityKind::Firewood)
+        {
             changed |= try_dispatch_marketplace_caravan(
                 ctx,
                 clock,
@@ -266,7 +350,7 @@ pub fn step_marketplace_caravans(
                 dispatch,
             );
         }
-        if !building_has_active_trip(ctx, building.id)
+        if !is_trading_post
             && building.food > 1e-6
             && pending_commodity != Some(CommodityKind::Food)
         {
@@ -277,17 +361,6 @@ pub fn step_marketplace_caravans(
                 &mut building,
                 ResidenceNeedKind::Food,
                 crate::balance_generated::MARKET_CARAVAN_FOOD_PER_DELIVERY,
-                dispatch,
-            );
-        }
-        if !building_has_active_trip(ctx, building.id) && building.water > 1e-6 {
-            changed |= try_dispatch_marketplace_caravan(
-                ctx,
-                clock,
-                tick,
-                &mut building,
-                ResidenceNeedKind::Water,
-                crate::balance_generated::MARKET_CARAVAN_WATER_PER_DELIVERY,
                 dispatch,
             );
         }
@@ -309,7 +382,9 @@ pub fn step_marketplace_caravans(
                 MARKET_CARAVAN_POTTERY_PER_DELIVERY,
             ),
         ] {
-            if !building_has_active_trip(ctx, building.id) && stock > 1e-6 {
+            if !is_trading_post
+                && stock > 1e-6
+            {
                 changed |= try_dispatch_marketplace_caravan(
                     ctx,
                     clock,
@@ -324,10 +399,11 @@ pub fn step_marketplace_caravans(
         // Household stalls always spend the market's first cart. Regional
         // exports and proceeds collection may use it only when no home is
         // currently waiting for stocked goods.
-        if !building_has_active_trip(ctx, building.id) {
+        if is_trading_post && !building_has_active_trip(ctx, building.id) {
             changed |= sell_marketplace_specialties(ctx, tick, clock, &mut building);
         }
-        if marketplace_gold_sweep_surplus(building.gold, building.marketplace_gold_reserve_target)
+        if is_trading_post
+            && marketplace_gold_sweep_surplus(building.gold, building.marketplace_gold_reserve_target)
             > 1e-6
             && !building_has_active_trip(ctx, building.id)
         {
