@@ -79,11 +79,11 @@ export const NOBLES = [
     portrait: '/assets/ui/noble-setup/portraits/nikola-jurisic.webp',
   },
   {
-    id: 'jelena-zrinska',
-    name: 'Jelena Zrinska',
-    title: 'plemkinja roda Zrinskih',
-    years: 'prva polovina XVI. st.',
-    portrait: '/assets/ui/noble-setup/portraits/jelena-zrinska.webp',
+    id: 'vuk-frankapan',
+    name: 'Vuk I. Frankapan',
+    title: 'knez Bosiljeva, Ribnika i Novigrada',
+    years: 'prije 1521. – 1546. · naslijeđe',
+    portrait: '/assets/ui/noble-setup/portraits/vuk-frankapan.webp',
   },
 ] as const;
 

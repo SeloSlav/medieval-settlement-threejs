@@ -18,7 +18,7 @@ PORTRAITS = {
     "exec-c8cd5c9a-8013-4947-a43e-5a88dd5bc635.png": "gaspar-alapic.webp",
     "exec-61573fdb-e40a-4848-9fee-2385da066b07.png": "franjo-tahi.webp",
     "exec-87f37368-45bd-497d-a9d2-3f8f7068ac6c.png": "nikola-jurisic.webp",
-    "exec-fa985d3c-4d6f-4906-a945-0ea2a4f5ae51.png": "jelena-zrinska.webp",
+    "exec-1c45f74d-939c-4565-825b-4421d2c10869.png": "vuk-frankapan.webp",
 }
 
 CHARGES = (
