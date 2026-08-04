@@ -4,8 +4,16 @@ import {
   industrialWaterInputPreferenceRank,
   industrialWaterRequirement,
   industrialWaterTarget,
+  residenceHasWaterRoom,
   selectIndustrialWaterCandidate,
 } from '../src/logistics/waterLogistics.ts';
+import {
+  CALENDAR_SECONDS_PER_DAY,
+  RESIDENCE_WATER_CAPACITY,
+  RESIDENCE_WATER_PER_PERSON_PER_SEC,
+  RESIDENCE_WATER_REORDER_FRACTION,
+  WELL_WATER_PER_DELIVERY,
+} from '../src/generated/gameBalance.ts';
 import {
   WEAVER_INPUT_POLICY_FLAX_FIRST,
   WEAVER_INPUT_POLICY_WOOL_FIRST,
@@ -58,17 +66,25 @@ function makeBuilding(
   };
 }
 
-assert.ok(industrialWaterRequirement('granary') > 0);
+const householdWaterReorder = RESIDENCE_WATER_CAPACITY * RESIDENCE_WATER_REORDER_FRACTION;
+assert.equal(residenceHasWaterRoom(householdWaterReorder), false);
+assert.equal(residenceHasWaterRoom(householdWaterReorder - 0.01), true);
+assert.equal(RESIDENCE_WATER_CAPACITY - householdWaterReorder, WELL_WATER_PER_DELIVERY);
+const normalHouseholdDaysPerWaterRun = WELL_WATER_PER_DELIVERY
+  / (3 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY);
+assert.ok(normalHouseholdDaysPerWaterRun > 3.7 && normalHouseholdDaysPerWaterRun < 3.8);
+
+assert.ok(industrialWaterRequirement('bakery') > 0);
 assert.ok(industrialWaterRequirement('brewery') > 0);
 assert.equal(industrialWaterRequirement('weaver'), 1);
 assert.equal(industrialWaterRequirement('smithy'), 1);
 assert.equal(industrialWaterRequirement('potter_kiln'), 1);
 assert.equal(industrialWaterRequirement('lumber_mill'), 0);
 assert.equal(industrialWaterRequirement('watermill'), 0);
-assert.equal(industrialWaterTarget('granary', 25), 2);
-assert.equal(industrialWaterTarget('granary', 50), 4);
-assert.equal(industrialWaterTarget('granary', 75), 6);
-assert.equal(industrialWaterTarget('granary', 100), 6);
+assert.equal(industrialWaterTarget('bakery', 25), 2);
+assert.equal(industrialWaterTarget('bakery', 50), 4);
+assert.equal(industrialWaterTarget('bakery', 75), 6);
+assert.equal(industrialWaterTarget('bakery', 100), 6);
 assert.equal(industrialWaterTarget('brewery', 50), 6);
 assert.equal(industrialWaterTarget('weaver', 25), 1);
 assert.equal(industrialWaterTarget('weaver', 100), 3);
@@ -82,7 +98,7 @@ assert.equal(
   industrialWaterInputPreferenceRank('weaver', WEAVER_INPUT_POLICY_FLAX_FIRST),
   0,
 );
-assert.equal(industrialWaterInputPreferenceRank('granary', 2), 1);
+assert.equal(industrialWaterInputPreferenceRank('bakery', 2), 1);
 assert.equal(
   industrialWaterInputPreferenceRank('weaver', WEAVER_INPUT_POLICY_WOOL_FIRST),
   2,
@@ -90,7 +106,7 @@ assert.equal(
 
 const candidates = [
   {
-    building: makeBuilding('8', 'granary', 1),
+    building: makeBuilding('8', 'bakery', 1),
     requiredPerCycle: 2,
     stockRatio: 0.5,
     distance: 10,
@@ -102,7 +118,7 @@ const candidates = [
     distance: 30,
   },
   {
-    building: makeBuilding('6', 'granary', 0),
+    building: makeBuilding('6', 'bakery', 0),
     requiredPerCycle: 2,
     stockRatio: 0,
     distance: 30,
@@ -115,7 +131,7 @@ assert.equal(
 );
 
 const highPriorityCandidate = {
-  building: makeBuilding('8', 'granary', 1, 3),
+  building: makeBuilding('8', 'bakery', 1, 3),
   requiredPerCycle: 2,
   stockRatio: 0.5,
   distance: 100,
@@ -146,7 +162,7 @@ const flaxFirstLoom = {
   distance: 100,
 };
 const neutralEmptyBakery = {
-  building: makeBuilding('bakery-neutral', 'granary', 0),
+  building: makeBuilding('bakery-neutral', 'bakery', 0),
   requiredPerCycle: 2,
   stockRatio: 0,
   distance: 10,
@@ -202,7 +218,7 @@ assert.equal(
 const selectionStarted = performance.now();
 const largeSelection = selectIndustrialWaterCandidate(
   Array.from({ length: 100_000 }, (_, index) => ({
-    building: makeBuilding(String(index), 'granary', index === 99_999 ? 0 : 1),
+    building: makeBuilding(String(index), 'bakery', index === 99_999 ? 0 : 1),
     requiredPerCycle: 2,
     stockRatio: index === 99_999 ? 0 : 0.5,
     distance: 100_000 - index,

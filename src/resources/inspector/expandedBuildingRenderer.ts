@@ -201,8 +201,8 @@ function buildingHasOutboundStock(
       return building.food > 0
         || building.preservedFood > 0
         || building.flour > 0
-        || building.barley > 0
-        || building.flax > 0
+        || (building.barley ?? 0) > 0
+        || (building.flax ?? 0) > 0
         || granaryExportableGrain(
           building.grain,
           building.granaryGrainReserve ?? 0,
@@ -244,6 +244,8 @@ function outboundDestinationLabel(building: BuildingState): string {
       return 'Highest-priority active processor, then lowest runway and granary reserve';
     case 'watermill':
       return 'Highest-priority flour-short bakery, then lowest runway and road route';
+    case 'bakery':
+      return 'Claimed food-needy household, then critical institution or granary reserve';
     case 'granary':
       return 'Critical processor, company, and brewery buffers first · then fresh and cured household policy';
     case 'brewery':
@@ -277,6 +279,7 @@ function cargoPerTripLabel(building: BuildingState): string | null {
     case 'threshing_barn':
     case 'watermill':
     case 'brewery':
+    case 'bakery':
     case 'apiary':
     case 'vineyard':
       return `${GRAIN_TRANSFER_PER_TRIP} per haul`;
@@ -759,14 +762,14 @@ function renderLogisticsRows(
       ? context.gameState.buildings.get(nearestTarget.id) ?? null
       : null;
   const logisticsLaborAvailable = logisticsWorkplace?.kind === 'granary'
-    ? logisticsWorkplace.assignedLabor > 1
+    ? logisticsWorkplace.assignedLabor > 0
     : logisticsWorkplace?.kind === 'village_storehouse'
       || logisticsWorkplace?.kind === 'marketplace'
       ? logisticsWorkplace.assignedLabor > 0
       : context.populationStats.available > 0;
   if (!logisticsLaborAvailable) {
     const laborMessage = logisticsWorkplace?.kind === 'granary'
-      ? 'Waiting for an additional granary hauler (the first post remains keeper/baker)'
+      ? 'Waiting for an assigned granary hauler'
       : logisticsWorkplace?.kind === 'village_storehouse'
         || logisticsWorkplace?.kind === 'marketplace'
         ? `Waiting for a worker at the ${context.worldQueries.getBuildingLabel(logisticsWorkplace.kind)}`
@@ -835,8 +838,8 @@ function formatGranarySeedCart(
   if (building.grain <= 0.05 || plan.nextDispatchAmount <= 0.05) {
     return `Awaiting physical grain &middot; next holding ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance} ${inspect}`;
   }
-  const collection = building.assignedLabor <= 1
-    ? ' &middot; waiting for an additional granary hauler'
+  const collection = building.assignedLabor <= 0
+    ? ' &middot; waiting for an assigned granary hauler'
     : '';
   return `${plan.nextDispatchAmount.toFixed(1)} grain &rarr; ${context.worldQueries.getBuildingLabel('threshing_barn')} at ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance}${collection} ${inspect}`;
 }
@@ -1164,8 +1167,8 @@ export function renderExpandedBuildingInspector(
             ? ' · critical, preempts food cart'
             : ' · after available food duty'
         }`
-      : building.assignedLabor <= 1
-        ? 'Waiting for an additional granary hauler'
+      : building.assignedLabor <= 0
+        ? 'Waiting for an assigned granary hauler'
         : granaryExportableStock <= 1e-6
           ? building.grain > 1e-6
             ? 'Strategic floor holds current grain'
@@ -1175,8 +1178,8 @@ export function renderExpandedBuildingInspector(
   const granaryGuardFoodDispatchLabel = building.kind === 'granary' && context.conflictEnabled
     ? granaryGuardFoodDispatch
       ? `${context.worldQueries.getBuildingLabel(granaryGuardFoodDispatch.target.kind)} · ${granaryGuardFoodDispatch.target.food.toFixed(1)} / ${granaryGuardFoodDispatch.desiredStock.toFixed(1)} · ${granaryGuardFoodDispatch.runwayDays.toFixed(1)} days`
-      : building.assignedLabor <= 1
-        ? 'Waiting for an additional granary hauler'
+      : building.assignedLabor <= 0
+        ? 'Waiting for an assigned granary hauler'
         : granaryInstitutionalFood <= 1e-6
           ? building.food > 1e-6
             ? 'Household reserve holds current food'
@@ -1201,7 +1204,7 @@ export function renderExpandedBuildingInspector(
         )}</span></li>`
     : '';
   const granaryRows = building.kind === 'granary'
-    ? `<li><span>Labor roles</span><span>First post: keeper/baker · ${Math.max(0, building.assignedLabor - 1)} food hauler${Math.max(0, building.assignedLabor - 1) === 1 ? '' : 's'} · hauling never slows baking</span></li>
+    ? `<li><span>Labor roles</span><span>${building.assignedLabor} assigned food keeper${building.assignedLabor === 1 ? '' : 's'} and handcart hauler${building.assignedLabor === 1 ? '' : 's'} · no baking work</span></li>
       <li><span>Central grain reserve</span><span>${granaryReserveLabel(building)}</span></li>
       <li><span>Seed exception</span><span>Linked farmsteads may draw through the floor; least-covered eligible holding goes first</span></li>
       <li><span>Next seed cart</span><span>${formatGranarySeedCart(granarySeedPlan, building, context)}</span></li>
@@ -1521,7 +1524,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before route distance. If no smokehouse can receive food, the granary falls through to fresh household food and then cured rations.';
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food; extra granary staff can redistribute cured reserves without interrupting the fixed keeper/baker, but every trip consumes road-cart capacity. Cured provisions retain best in their smokehouse loft and age slightly faster after transfer here, so local-only and central-reserve branches are both valid layouts. Every routine food supplier still protects its household territory before offering surplus. Fresh-food surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
+      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food; every assigned granary worker is a food keeper and handcart hauler. Cured provisions retain best in their smokehouse loft and age slightly faster after transfer here, so local-only and central-reserve branches are both valid layouts. Every routine food supplier still protects its household territory before offering surplus. Fresh-food surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh and cured surplus</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
       <p class="inspector-action-panel__hint">${priorityHint}</p>
@@ -1534,7 +1537,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
       <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-grain-reserve="${preset.reserve}" ${grainReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">A granary with an extra assigned hauler collects fresh stock above local reserves until its selected fresh-food target. Producers with no claimed homes can send their whole stock. When perishable collection is enabled, cured provisions use separate capacity and arrive only after smokehouses cover their household duties; disabling it stops new cured intake but an extra granary hauler may still distribute stock already here. The first assigned post remains the fixed keeper/baker and never leaves on carts.</p>
+      <p class="inspector-action-panel__hint">A staffed granary collects fresh stock above local reserves until its selected fresh-food target. Producers with no claimed homes can send their whole stock. When perishable collection is enabled, cured provisions use separate capacity and arrive only after smokehouses cover their household duties; disabling it stops new cured intake but assigned granary haulers may still distribute stock already here. Baking happens only at a staffed bakery.</p>
     </div>
   `;
 }

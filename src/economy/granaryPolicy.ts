@@ -32,7 +32,7 @@ export const GRANARY_FRESH_FOOD_TARGET_PRESETS = [
   {
     percent: 90,
     label: 'Deep reserve',
-    hint: 'Maximizes sheltered stock while retaining headroom for the granary bakery.',
+    hint: 'Maximizes sheltered stock while retaining headroom for incoming harvest carts.',
   },
 ] as const;
 

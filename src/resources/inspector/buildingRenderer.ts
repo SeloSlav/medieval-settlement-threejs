@@ -109,6 +109,7 @@ export function renderBuildingInspector(
     case 'brewery':
     case 'smokehouse':
     case 'granary':
+    case 'bakery':
     case 'apiary':
     case 'watermill':
     case 'clay_pit':

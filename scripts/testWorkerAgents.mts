@@ -492,6 +492,7 @@ const expectedWorkplaces = [
   'brewery',
   'smokehouse',
   'granary',
+  'bakery',
   'apiary',
   'watermill',
   'carpenter',

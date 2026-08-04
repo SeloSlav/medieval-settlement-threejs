@@ -58,7 +58,7 @@ assert.deepEqual(
   PROCESSOR_OUTPUT_TARGET_KINDS,
   [
     'watermill',
-    'granary',
+    'bakery',
     'brewery',
     'smokehouse',
     'weaver',
@@ -100,7 +100,7 @@ for (const kind of EXTRACTION_OUTPUT_TARGET_KINDS) {
 assert.equal(isProductionOutputTargetKind('smithy'), true);
 assert.equal(isProductionOutputTargetKind('hunters_hall'), false);
 assert.equal(processorOutputCommodity('watermill'), 'flour');
-assert.equal(processorOutputCommodity('granary'), 'food');
+assert.equal(processorOutputCommodity('bakery'), 'food');
 assert.equal(processorOutputCommodity('brewery'), 'ale');
 assert.equal(processorOutputCommodity('smokehouse'), 'preservedFood');
 assert.equal(processorOutputCommodity('weaver'), 'cloth');
@@ -183,25 +183,25 @@ assert.equal(processorOutputHeadroom(mill), 0);
 assert.equal(processorNeedsInputs(mill), false);
 assert.equal(processorAcceptsInput(mill, 'grain'), false);
 
-const granary = processor('granary', 'granary', 25);
-granary.food = processorOutputTargetForBuilding(granary) ?? 0;
+const bakery = processor('bakery', 'bakery', 25);
+bakery.food = processorOutputTargetForBuilding(bakery) ?? 0;
 assert.equal(
-  processorAcceptsInput(granary, 'flour'),
+  processorAcceptsInput(bakery, 'flour'),
   false,
   'bakery flour should stop at the finished-food target',
 );
 assert.equal(
-  processorAcceptsInput(granary, 'firewood'),
+  processorAcceptsInput(bakery, 'firewood'),
   false,
   'bakery fuel should stop at the finished-food target',
 );
 assert.equal(
-  processorAcceptsInput(granary, 'water'),
+  processorAcceptsInput(bakery, 'water'),
   false,
   'well carts should stop supplying a paused bakery',
 );
 assert.equal(
-  processorAcceptsInput(granary, 'food'),
+  processorAcceptsInput(processor('granary', 'granary', 25), 'food'),
   true,
   'fresh-food centralization must remain governed by its independent intake target',
 );

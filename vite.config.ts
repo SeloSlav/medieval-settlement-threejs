@@ -17,6 +17,8 @@ const buildingLineupEntry = fileURLToPath(
 const publicRoot = fileURLToPath(new URL('./public', import.meta.url));
 
 function vendorChunk(id: string): string | undefined {
+  const normalizedId = id.replaceAll('\\', '/');
+  if (normalizedId.endsWith('/src/ui/SettlementHud.ts')) return 'settlement-hud';
   if (!id.includes('node_modules')) {
     if (id.includes('/vendor/seedthree/')) return 'seedthree-vendor';
     if (id.includes('/vendor/sky-cloud-3d/')) return 'sky-vendor';

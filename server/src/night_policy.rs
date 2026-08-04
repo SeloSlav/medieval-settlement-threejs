@@ -32,7 +32,7 @@ pub fn valid_policy_code(value: u8) -> bool {
 pub fn is_continuous_night_process(kind: &str) -> bool {
     matches!(
         kind,
-        "brewery" | "charcoal_burner" | "potter_kiln" | "smokehouse" | "watermill"
+        "bakery" | "brewery" | "charcoal_burner" | "potter_kiln" | "smokehouse" | "watermill"
     )
 }
 
@@ -43,7 +43,7 @@ pub fn is_staffed_night_work(kind: &str) -> bool {
     is_continuous_night_process(kind)
         || matches!(
             kind,
-            "carpenter" | "granary" | "monastery" | "smithy" | "weaver"
+            "carpenter" | "monastery" | "smithy" | "weaver"
         )
 }
 

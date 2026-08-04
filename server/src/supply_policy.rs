@@ -400,9 +400,8 @@ pub fn is_specialty_supplier_operational(
     construction_complete && (kind == "monastery" || assigned_labor > 0)
 }
 
-/// Existing specialty stock uses the delivery labor contract instead of a
-/// producer's roster. Granaries alone need an additional assigned post because
-/// their first worker is the stationary keeper/baker.
+/// Existing producer stock uses free haulers, while stocked granaries use any
+/// assigned food-keeper post under the same delivery labor contract.
 pub fn is_specialty_supplier_delivery_operational(
     kind: &str,
     construction_complete: bool,
@@ -964,6 +963,7 @@ mod tests {
                 "hunters_hall",
                 "foragers_shed",
                 "fishing_camp",
+                "bakery",
                 "apiary",
                 "vineyard",
                 "pastoral_farmstead",
@@ -1162,7 +1162,7 @@ mod tests {
         assert_eq!(
             INDUSTRIAL_FIREWOOD_TARGET_KINDS,
             &[
-                "granary",
+                "bakery",
                 "brewery",
                 "smokehouse",
                 "charcoal_burner",
@@ -1170,8 +1170,8 @@ mod tests {
             ]
         );
         assert_eq!(
-            directly_dispatched_processor_input_per_cycle("granary", "firewood"),
-            super::GRANARY_FIREWOOD_PER_CYCLE,
+            directly_dispatched_processor_input_per_cycle("bakery", "firewood"),
+            super::BAKERY_FIREWOOD_PER_CYCLE,
         );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("brewery", "firewood"),
@@ -1657,7 +1657,8 @@ mod tests {
         assert!(is_food_supplier_operational("fishing_camp", true, 1));
         assert!(is_food_supplier_operational("fishing_camp", true, 0));
         assert!(is_food_supplier_operational("granary", true, 2));
-        assert!(!is_food_supplier_operational("granary", true, 1));
+        assert!(is_food_supplier_operational("granary", true, 1));
+        assert!(!is_food_supplier_operational("granary", true, 0));
         assert!(is_food_supplier_operational("pastoral_farmstead", true, 0));
         assert!(is_food_supplier_operational("monastery", true, 0));
         assert!(!is_food_supplier_operational("marketplace", true, 3));
@@ -1671,11 +1672,8 @@ mod tests {
         assert!(is_specialty_supplier_delivery_operational(
             "brewery", true, 0
         ));
-        assert!(!is_specialty_supplier_delivery_operational(
-            "granary", true, 1
-        ));
         assert!(is_specialty_supplier_delivery_operational(
-            "granary", true, 2
+            "granary", true, 1
         ));
     }
 
@@ -1687,6 +1685,7 @@ mod tests {
                 "hunters_hall",
                 "foragers_shed",
                 "fishing_camp",
+                "bakery",
                 "granary",
                 "apiary",
                 "vineyard",

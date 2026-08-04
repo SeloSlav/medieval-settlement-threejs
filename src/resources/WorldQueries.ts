@@ -1298,7 +1298,6 @@ export class WorldQueries {
         source.kind as (typeof INSTITUTIONAL_FOOD_SOURCE_KINDS)[number],
       )
       || source.constructionComplete === false
-      || source.assignedLabor <= 0
       || fireDisabled.has(source.id)
       || findActiveTripForBuilding(state.deliveryTrips.values(), source.id) != null
       || institutionalFoodSurplus(

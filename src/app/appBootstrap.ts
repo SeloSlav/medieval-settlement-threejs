@@ -1,4 +1,4 @@
-import { AmbientAudioController } from '../audio/AmbientAudioController.ts';
+import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import { CameraController } from '../camera/CameraController.ts';
 import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { FpCollisionWorld } from '../camera/fp/fpCollisionWorld.ts';
@@ -83,7 +83,7 @@ import { beginNewWorld, resolveWorldGenerationSettings } from './worldBootstrapF
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
 import { TutorialOverlay } from '../ui/TutorialOverlay.ts';
-import { VillagerInspector } from '../ui/VillagerInspector.ts';
+import type { VillagerInspector } from '../ui/VillagerInspector.ts';
 import { saveWorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { getDraftWorldGeneration, setDraftWorldGeneration } from '../world/worldGenerationContext.ts';
 import { mountTooltips } from '../ui/tooltips.ts';
@@ -263,6 +263,7 @@ export async function bootstrapAppSession(
   let resourceInspector: ResourceInspector;
   let villagerInspector: VillagerInspector;
 
+  const { AmbientAudioController } = await import('../audio/AmbientAudioController.ts');
   const ambientAudio = new AmbientAudioController({
     unlockElement: sceneManager.renderer.domElement,
     camera: sceneManager.camera,
@@ -862,6 +863,7 @@ export async function bootstrapAppSession(
     () => sessionGate.isReady(),
     toastManager,
   );
+  const { VillagerInspector } = await import('../ui/VillagerInspector.ts');
   villagerInspector = new VillagerInspector({
     domElement: sceneManager.renderer.domElement,
     uiRoot,

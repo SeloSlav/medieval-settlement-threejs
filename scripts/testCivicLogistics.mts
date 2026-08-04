@@ -17,6 +17,8 @@ import { BASIC_BUILD_MENU_ENTRIES } from '../src/ui/buildMenuCards.ts';
 
 assert.ok(BUILDING_KINDS.includes('town_hall'));
 assert.ok(BUILDING_KINDS.includes('village_storehouse'));
+assert.ok(BUILDING_KINDS.includes('granary'));
+assert.ok(BUILDING_KINDS.includes('bakery'));
 assert.equal(TOWN_HALL_POPULATION_REQUIRED, 24);
 assert.ok(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER > 0 && TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER < 1);
 assert.ok(STOREHOUSE_OVERFLOW_THRESHOLD >= 0.5 && STOREHOUSE_OVERFLOW_THRESHOLD < 1);
@@ -29,6 +31,17 @@ assert.equal(getBuildingExtent('village_storehouse', 0), null);
 assert.equal(BUILDING_STORAGE_CAPS.town_hall.timber, 0);
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.food ?? 0, 0, 'storehouse must never replace the granary');
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.grain ?? 0, 0, 'storehouse must never accept grain');
+assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.flour ?? 0, 0, 'storehouse must never accept flour');
+assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.flax ?? 0, 0, 'storehouse must never accept farm crops');
+assert.ok(BUILDING_STORAGE_CAPS.granary.food > 0, 'granary must shelter gathered foodstuffs');
+assert.ok(BUILDING_STORAGE_CAPS.granary.grain > 0, 'granary must shelter grain crops');
+assert.ok(BUILDING_STORAGE_CAPS.granary.barley > 0, 'granary must shelter barley crops');
+assert.ok(BUILDING_STORAGE_CAPS.granary.flax > 0, 'granary must shelter flax crops');
+assert.ok(BUILDING_STORAGE_CAPS.granary.flour > 0, 'granary must shelter flour');
+assert.equal(BUILDING_STORAGE_CAPS.granary.firewood ?? 0, 0, 'granary must not keep bakery fuel');
+assert.ok(BUILDING_STORAGE_CAPS.bakery.flour > 0, 'bakery must stage flour for bread');
+assert.ok(BUILDING_STORAGE_CAPS.bakery.firewood > 0, 'bakery must stage oven fuel');
+assert.ok(BUILDING_STORAGE_CAPS.bakery.water > 0, 'bakery must stage carted well water');
 assert.ok(BUILDING_STORAGE_CAPS.village_storehouse.timber >= 300);
 assert.ok(BUILDING_STORAGE_CAPS.village_storehouse.stone >= 300);
 

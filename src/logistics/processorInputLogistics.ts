@@ -228,6 +228,7 @@ export function selectDirectProcessorInputTarget<
       target.id === sourceId
       || !TARGET_KINDS[commodity].includes(target.kind)
       || target.constructionComplete === false
+      || (target.kind === 'granary' && target.assignedLabor <= 0)
       || ((commodity === 'firewood' || marketplaceMaterial) && target.assignedLabor <= 0)
       || hasInboundSupply(target)
       || !acceptsInput(target)

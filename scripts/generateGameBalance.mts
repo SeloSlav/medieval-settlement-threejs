@@ -318,6 +318,7 @@ export type GameBalance = {
     residenceFirewoodPerPersonPerSec: number;
     residenceFirewoodPriorityWinterDays: number;
     residenceWaterCapacity: number;
+    residenceWaterReorderFraction: number;
     residenceWaterPerPersonPerSec: number;
     residenceFoodCapacity: number;
     residenceFoodPerPersonPerSec: number;
@@ -488,10 +489,10 @@ export type GameBalance = {
     watermillGrainPerCycle: number;
     watermillWaterPerCycle: number;
     watermillFlourPerCycle: number;
-    granaryFlourPerCycle: number;
-    granaryWaterPerCycle: number;
-    granaryFirewoodPerCycle: number;
-    granaryFoodPerCycle: number;
+    bakeryFlourPerCycle: number;
+    bakeryWaterPerCycle: number;
+    bakeryFirewoodPerCycle: number;
+    bakeryFoodPerCycle: number;
     householdFoodReservePerClaim: number;
     householdFoodReserveCapacityFraction: number;
     breweryBarleyPerMaltCycle: number;
@@ -844,6 +845,7 @@ function generateRust(): string {
     `pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFirewoodPerPersonPerSec)};`,
     `pub const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS: f64 = ${rustF64(b.population.residenceFirewoodPriorityWinterDays)};`,
     `pub const RESIDENCE_WATER_CAPACITY: f64 = ${rustF64(b.population.residenceWaterCapacity)};`,
+    `pub const RESIDENCE_WATER_REORDER_FRACTION: f64 = ${rustF64(b.population.residenceWaterReorderFraction)};`,
     `pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceWaterPerPersonPerSec)};`,
     `pub const RESIDENCE_FOOD_CAPACITY: f64 = ${rustF64(b.population.residenceFoodCapacity)};`,
     `pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFoodPerPersonPerSec)};`,
@@ -1010,10 +1012,10 @@ function generateRust(): string {
     `pub const WATERMILL_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.watermillGrainPerCycle)};`,
     `pub const WATERMILL_WATER_PER_CYCLE: f64 = ${rustF64(b.production.watermillWaterPerCycle)};`,
     `pub const WATERMILL_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.watermillFlourPerCycle)};`,
-    `pub const GRANARY_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.granaryFlourPerCycle)};`,
-    `pub const GRANARY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.granaryWaterPerCycle)};`,
-    `pub const GRANARY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.granaryFirewoodPerCycle)};`,
-    `pub const GRANARY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.granaryFoodPerCycle)};`,
+    `pub const BAKERY_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.bakeryFlourPerCycle)};`,
+    `pub const BAKERY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.bakeryWaterPerCycle)};`,
+    `pub const BAKERY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryFirewoodPerCycle)};`,
+    `pub const BAKERY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryFoodPerCycle)};`,
     `pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = ${rustF64(b.production.householdFoodReservePerClaim)};`,
     `pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = ${rustF64(b.production.householdFoodReserveCapacityFraction)};`,
     `pub const BREWERY_BARLEY_PER_MALT_CYCLE: f64 = ${rustF64(b.production.breweryBarleyPerMaltCycle)};`,
@@ -1675,6 +1677,7 @@ function generateTypeScript(): string {
     `export const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC = ${b.population.residenceFirewoodPerPersonPerSec};`,
     `export const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS = ${b.population.residenceFirewoodPriorityWinterDays};`,
     `export const RESIDENCE_WATER_CAPACITY = ${b.population.residenceWaterCapacity};`,
+    `export const RESIDENCE_WATER_REORDER_FRACTION = ${b.population.residenceWaterReorderFraction};`,
     `export const RESIDENCE_WATER_PER_PERSON_PER_SEC = ${b.population.residenceWaterPerPersonPerSec};`,
     `export const RESIDENCE_FOOD_CAPACITY = ${b.population.residenceFoodCapacity};`,
     `export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = ${b.population.residenceFoodPerPersonPerSec};`,
@@ -1840,10 +1843,10 @@ function generateTypeScript(): string {
     `export const WATERMILL_GRAIN_PER_CYCLE = ${b.production.watermillGrainPerCycle};`,
     `export const WATERMILL_WATER_PER_CYCLE = ${b.production.watermillWaterPerCycle};`,
     `export const WATERMILL_FLOUR_PER_CYCLE = ${b.production.watermillFlourPerCycle};`,
-    `export const GRANARY_FLOUR_PER_CYCLE = ${b.production.granaryFlourPerCycle};`,
-    `export const GRANARY_WATER_PER_CYCLE = ${b.production.granaryWaterPerCycle};`,
-    `export const GRANARY_FIREWOOD_PER_CYCLE = ${b.production.granaryFirewoodPerCycle};`,
-    `export const GRANARY_FOOD_PER_CYCLE = ${b.production.granaryFoodPerCycle};`,
+    `export const BAKERY_FLOUR_PER_CYCLE = ${b.production.bakeryFlourPerCycle};`,
+    `export const BAKERY_WATER_PER_CYCLE = ${b.production.bakeryWaterPerCycle};`,
+    `export const BAKERY_FIREWOOD_PER_CYCLE = ${b.production.bakeryFirewoodPerCycle};`,
+    `export const BAKERY_FOOD_PER_CYCLE = ${b.production.bakeryFoodPerCycle};`,
     `export const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM = ${b.production.householdFoodReservePerClaim};`,
     `export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = ${b.production.householdFoodReserveCapacityFraction};`,
     `export const BREWERY_BARLEY_PER_MALT_CYCLE = ${b.production.breweryBarleyPerMaltCycle};`,

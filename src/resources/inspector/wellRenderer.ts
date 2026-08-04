@@ -138,9 +138,9 @@ export function renderWellInspector(
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
       ${buildingExtentRow(building.kind)}
       <li><span>Water territory</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
-      <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'granary').length} granary · ${industrialConsumers.filter((item) => item.kind === 'weaver').length} linen loom · ${industrialConsumers.filter((item) => item.kind === 'smithy').length} smithy · ${industrialConsumers.filter((item) => item.kind === 'potter_kiln').length} pottery`}</span></li>
+      <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'bakery').length} bakery · ${industrialConsumers.filter((item) => item.kind === 'weaver').length} linen loom · ${industrialConsumers.filter((item) => item.kind === 'smithy').length} smithy · ${industrialConsumers.filter((item) => item.kind === 'potter_kiln').length} pottery`}</span></li>
       <li><span>Dispatch rule</span><span>Nearest urgent fire first · households second · workshop priority, input policy, then buffer coverage</span></li>
-      <li><span>Supplies</span><span>Homes, brewhouses, granary bakeries, flax-working looms, smithy quench tubs, and potters' puddling troughs by visible cart</span></li>
+      <li><span>Supplies</span><span>Homes, bakeries, brewhouses, flax-working looms, smithy quench tubs, and potters' puddling troughs by visible cart</span></li>
       ${deliveryRow}
     `,
     demolish: {

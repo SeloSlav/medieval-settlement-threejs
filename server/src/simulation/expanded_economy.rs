@@ -3133,6 +3133,7 @@ fn dispatch_to_building_where_limited(
                     || tick.building_disabled_by_fire(ctx, target.id)
                     || !target_kinds.contains(&target.kind.as_str())
                     || !target_is_eligible(&target)
+                    || (target.kind == "granary" && target.assigned_labor == 0)
                     || !processor_accepts_input(&target, commodity)
                     || building_commodity_room(&target, commodity) <= 1e-6
                     || building_has_inbound_supply_trip(ctx, target.id)

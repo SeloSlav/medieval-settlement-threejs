@@ -56,6 +56,7 @@ assert.deepEqual(INSTITUTIONAL_FOOD_SOURCE_KINDS, [
   'hunters_hall',
   'foragers_shed',
   'fishing_camp',
+  'bakery',
   'apiary',
   'vineyard',
   'pastoral_farmstead',

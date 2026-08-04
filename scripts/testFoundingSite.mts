@@ -410,7 +410,10 @@ assert.equal(world.quarryLayout.isBlockedForProps(siteA.x, siteA.z), false);
 
 const physicalThree = gameState(true, 3);
 assert.equal(computePopulationStats(physicalThree).total, STARTING_POPULATION);
-assert.equal(computePopulationStats(gameState(true, 7)).total, 7);
+assert.equal(
+  computePopulationStats(gameState(true, STARTING_POPULATION + 4)).total,
+  STARTING_POPULATION + 4,
+);
 assert.equal(
   computePopulationStats(gameState(false, 3)).total,
   STARTING_POPULATION + 3,
@@ -805,8 +808,8 @@ assert.match(
 const constructionServer = read('server/src/simulation/construction.rs');
 assert.match(
   constructionServer,
-  /source\.kind == "founders_camp"/,
-  'founding handcarts must be allowed to leave the road network',
+  /construction_route_distance[\s\S]*local_delivery_distance/,
+  'founding handcarts must retain the bounded open-ground fallback used by local deliveries',
 );
 const storageServer = read('server/src/economy/storage.rs');
 for (const accessor of ['treasury_timber', 'treasury_stone', 'treasury_ironwork']) {
@@ -841,7 +844,7 @@ assert.match(foundingLifecycle, /"town_hall"/);
 assert.match(foundingLifecycle, /"village_storehouse"/);
 assert.match(foundingLifecycle, /building_has_active_trip/);
 assert.match(foundingLifecycle, /available_free_haulers/);
-assert.match(foundingLifecycle, /try_start_building_supply_trip/);
+assert.match(foundingLifecycle, /try_start_free_building_supply_trip/);
 assert.match(foundingLifecycle, /CommodityKind::Gold/);
 assert.match(foundingLifecycle, /try_start_stockyard_relocation/);
 assert.match(foundingLifecycle, /storehouse_filtered_collection_headroom/);
@@ -935,8 +938,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /if \(!this\.visualQaConditions \|\| this\.gameState\.trees\.size > 0\) \{\s*this\.forestVisualSync\.syncAll\(this\.gameState\.trees\);\s*\}/,
-  'offline visual-QA must not hide generated trees with an empty replicated tree map',
+  /if \(this\.gameState\.trees\.size > 0\) \{\s*this\.forestVisualSync\.syncAll\(this\.gameState\.trees\);\s*\}/,
+  'an empty initial replicated tree map must not hide the generated forest before authoritative rows arrive',
 );
 const townHallInspector = read('src/resources/inspector/townHallRenderer.ts');
 assert.match(townHallInspector, /Treasury chest/);

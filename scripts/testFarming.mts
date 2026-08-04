@@ -14,8 +14,8 @@ import {
   FARM_OPTIMAL_FIELD_AREA,
   FARMSTEAD_STARTER_SEED_GRAIN,
   FARMSTEAD_STARTER_BARLEY_SEED,
-  GRANARY_FIREWOOD_PER_CYCLE,
-  GRANARY_WATER_PER_CYCLE,
+  BAKERY_FIREWOOD_PER_CYCLE,
+  BAKERY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   WATERMILL_WATER_PER_CYCLE,
   CALENDAR_DAYS_PER_MONTH,
@@ -230,8 +230,8 @@ assert.ok(largeYield > optimalYield, 'oversized fields should remain useful and 
 assert.ok(largeYield / (FARM_OPTIMAL_FIELD_AREA * 2) < optimalYield / FARM_OPTIMAL_FIELD_AREA, 'oversized fields should yield less grain per square metre');
 assert.equal(MILL_WATER_PER_HARVEST, 0, 'lumber should not consume well water');
 assert.equal(WATERMILL_WATER_PER_CYCLE, 0, 'a river-powered mill should not consume well water');
-assert.ok(GRANARY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
-assert.ok(GRANARY_FIREWOOD_PER_CYCLE > 0, 'bakery production should consume fuel');
+assert.ok(BAKERY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
+assert.ok(BAKERY_FIREWOOD_PER_CYCLE > 0, 'bakery production should consume fuel');
 assert.ok(
   BREWERY_MALTING_FIREWOOD_PER_CYCLE
     + BREWERY_BREWING_FIREWOOD_PER_CYCLE > 0,

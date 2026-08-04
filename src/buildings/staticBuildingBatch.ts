@@ -53,6 +53,7 @@ export function isDynamicBuildingBatchBoundary(object: THREE.Object3D): boolean 
     || object.userData.fpCollisionChildrenOnly === true
     || object.userData.foundersCampWinterAccumulation === true
     || object.userData.campSmoke === true
+    || object.userData.buildingDetailCasterBatch === true
   ) {
     return true;
   }

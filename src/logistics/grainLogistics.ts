@@ -190,7 +190,7 @@ export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
 }
 
 /**
- * Mirrors extra-post granary dispatch. Only processors below their working buffer
+ * Mirrors assigned granary-hauler dispatch. Only processors below their working buffer
  * are eligible; work priority wins first, then the least cycle runway, route
  * distance, and stable id. Multiple granaries skip targets that already have
  * an inbound grain cart.

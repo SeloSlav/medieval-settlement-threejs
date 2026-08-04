@@ -1,4 +1,4 @@
-﻿import { AmbientAudioController } from '../audio/AmbientAudioController.ts';
+﻿import type { AmbientAudioController } from '../audio/AmbientAudioController.ts';
 import { CameraController } from '../camera/CameraController.ts';
 import { FirstPersonController } from '../camera/FirstPersonController.ts';
 import { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
@@ -50,7 +50,7 @@ import type { VillagerRenderer } from '../settlement/VillagerRenderer.ts';
 import { raidWithdrawingCartCount } from '../logistics/deliveryTrips.ts';
 import { BuildToolbar, type ToolbarStats } from '../ui/BuildToolbar.ts';
 import { ToastManager } from '../ui/ToastManager.ts';
-import { VillagerInspector } from '../ui/VillagerInspector.ts';
+import type { VillagerInspector } from '../ui/VillagerInspector.ts';
 import {
   SettlementPresentationController,
   type SettlementPresentationTargets,

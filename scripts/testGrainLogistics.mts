@@ -81,7 +81,7 @@ assert.deepEqual(
 assert.equal(GRAIN_INPUT_BUFFER_CYCLES, 3);
 assert.equal(GRAIN_CRITICAL_RUNWAY_CYCLES, 1);
 assert.equal(PROCESSOR_INPUT_BUFFER_CYCLES, 3);
-assert.equal(directlyDispatchedProcessorInputPerCycle('granary', 'flour'), 3);
+assert.equal(directlyDispatchedProcessorInputPerCycle('bakery', 'flour'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('brewery', 'barley'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('smokehouse', 'food'), 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('weaver', 'wool'), 3);
@@ -305,7 +305,7 @@ assert.equal(
 
 function processorInputDestination(
   id: string,
-  kind: Extract<BuildingKind, 'brewery' | 'granary' | 'smokehouse' | 'weaver'>,
+  kind: Extract<BuildingKind, 'bakery' | 'brewery' | 'smokehouse' | 'weaver'>,
   x: number,
   stock: number,
   assignedLabor = 1,
@@ -317,7 +317,7 @@ function processorInputDestination(
     kind,
     x,
     z: 0,
-    flour: kind === 'granary' ? stock : 0,
+    flour: kind === 'bakery' ? stock : 0,
     barley: kind === 'brewery' ? stock : 0,
     food: kind === 'smokehouse' ? stock : 0,
     wool: kind === 'weaver' ? stock : 0,
@@ -328,8 +328,8 @@ function processorInputDestination(
   } as BuildingState;
 }
 
-const highPriorityBakery = processorInputDestination('8', 'granary', 80, 6, 1, 3);
-const lowPriorityEmptyBakery = processorInputDestination('7', 'granary', 5, 0, 1, 1);
+const highPriorityBakery = processorInputDestination('8', 'bakery', 80, 6, 1, 3);
+const lowPriorityEmptyBakery = processorInputDestination('7', 'bakery', 5, 0, 1, 1);
 const priorityFlourDispatch = selectDirectProcessorInputTarget(
   [lowPriorityEmptyBakery, highPriorityBakery],
   'watermill',
@@ -373,7 +373,7 @@ assert.equal(
 );
 assert.equal(barleyDispatch?.desiredStock, 9);
 
-const bufferedHighBakery = processorInputDestination('9', 'granary', 2, 9, 1, 3);
+const bufferedHighBakery = processorInputDestination('9', 'bakery', 2, 9, 1, 3);
 assert.equal(
   selectDirectProcessorInputTarget(
     [bufferedHighBakery, lowPriorityEmptyBakery],
@@ -384,7 +384,7 @@ assert.equal(
   lowPriorityEmptyBakery.id,
   'an uncovered active buffer should beat higher-tier warehouse overflow',
 );
-const idleEmptyBakery = processorInputDestination('10', 'granary', 1, 0, 0, 3);
+const idleEmptyBakery = processorInputDestination('10', 'bakery', 1, 0, 0, 3);
 assert.equal(
   selectDirectProcessorInputTarget(
     [idleEmptyBakery, lowPriorityEmptyBakery],
@@ -521,8 +521,8 @@ assert.equal(
   highPrioritySmokehouse.id,
   'granary and swine food carts should restore high-priority preservation buffers first',
 );
-const leanBakery = processorInputDestination('15', 'granary', 3, 3, 1, 2, 25);
-const deepBakery = processorInputDestination('16', 'granary', 4, 3, 1, 2, 75);
+const leanBakery = processorInputDestination('15', 'bakery', 3, 3, 1, 2, 25);
+const deepBakery = processorInputDestination('16', 'bakery', 4, 3, 1, 2, 75);
 assert.equal(
   selectDirectProcessorInputTarget(
     [leanBakery, deepBakery],
@@ -540,7 +540,7 @@ assert.equal(
     'flour',
     (target) => target.x,
   )?.desiredStock,
-  BUILDING_STORAGE_CAPS.granary.flour,
+  BUILDING_STORAGE_CAPS.bakery.flour,
   'covered Lean workshops remain eligible only as ordinary overflow storage',
 );
 
@@ -572,7 +572,7 @@ assert.ok(
 );
 
 const processorInputPerfTargets = Array.from({ length: 100_000 }, (_, index) =>
-  processorInputDestination(String(index), 'granary', 100_000 - index, 0));
+  processorInputDestination(String(index), 'bakery', 100_000 - index, 0));
 const processorInputPerfStart = performance.now();
 const processorInputPerfSelected = selectDirectProcessorInputTarget(
   processorInputPerfTargets,
@@ -675,7 +675,7 @@ assert.match(expandedInspector, /getNextGranaryGrainDispatch/);
 assert.match(expandedInspector, /seedGrainSourceCoveragePlan/);
 assert.match(expandedInspector, /Next seed cart/);
 assert.match(expandedInspector, /least-covered eligible holding goes first/);
-assert.match(expandedInspector, /waiting for an additional granary hauler/);
+assert.match(expandedInspector, /Waiting for an assigned granary hauler/);
 assert.match(expandedInspector, /Next grain cart/);
 assert.match(expandedInspector, /staffingPriorityLabel\(granaryGrainDispatch\.workPriority\)/);
 assert.match(expandedInspector, /processor work priority/);
@@ -696,8 +696,8 @@ assert.match(farmsteadStep, /dispatch_farmstead_grain/);
 assert.doesNotMatch(farmsteadStep, /request_connected_seed_grain/);
 assert.match(
   farmsteadStep,
-  /dispatch_to_building\([\s\S]{0,200}CommodityKind::Flax,[\s\S]{0,80}&\["weaver"\]/,
-  'field flax must leave the farmstead as its distinct physical commodity',
+  /dispatch_to_building\([\s\S]{0,200}CommodityKind::Flax,[\s\S]{0,80}&\["weaver", "granary"\]/,
+  'field flax must leave the farmstead as its distinct physical commodity for weavers or granary storage',
 );
 assert.doesNotMatch(
   farmsteadStep,
@@ -780,7 +780,7 @@ assert.ok(
 assert.match(expandedSimulation, /fn connected_source_surplus/);
 assert.match(expandedSimulation, /directly_dispatched_processor_input_per_cycle/);
 assert.match(expandedSimulation, /processor_input_per_cycle_for_dispatch\(target_kind, commodity\)/);
-assert.match(supplyPolicy, /\("granary", "flour"\)/);
+assert.match(supplyPolicy, /\("bakery", "flour"\)/);
 assert.match(supplyPolicy, /\("brewery", "barley"\)/);
 assert.match(supplyPolicy, /\("smokehouse", "food"\)/);
 assert.match(supplyPolicy, /\("weaver", "wool"\)/);

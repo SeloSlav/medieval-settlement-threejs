@@ -12,7 +12,7 @@ pub fn is_production_labor_kind(kind: &str) -> bool {
     matches!(
         kind,
         "watermill"
-            | "granary"
+            | "bakery"
             | "brewery"
             | "smokehouse"
             | "weaver"
@@ -150,7 +150,7 @@ mod tests {
     fn source_bound_producers_share_the_explicit_production_labor_control() {
         for kind in [
             "watermill",
-            "granary",
+            "bakery",
             "brewery",
             "smokehouse",
             "weaver",

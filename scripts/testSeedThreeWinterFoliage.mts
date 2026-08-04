@@ -389,7 +389,12 @@ assert.match(
 );
 assert.match(
   matrixChunkSource,
-  /task\.treeOrigin\.setXYZ\([\s\S]*job\.resolveTreeOriginY\(slot\)/,
+  /task\.treeOriginY = job\.resolveTreeOriginY\(slot\)/,
+  'the reusable SeedThree primitive must retain the consumer-resolved origin in its allocation-free task state',
+);
+assert.match(
+  matrixChunkSource,
+  /writeVec3\(\s*treeOrigins,[\s\S]*treeOriginY,[\s\S]*treeZ/,
   'the reusable SeedThree primitive must write the consumer-resolved origin into the real card buffer',
 );
 assert.doesNotMatch(
@@ -454,7 +459,7 @@ assert.match(
 );
 assert.match(
   builderSource,
-  /const cardCastsShadow = castShadow && !crownUnderlay;[\s\S]*im\.castShadow = cardCastsShadow;[\s\S]*im\.userData\.neverCastShadow = !cardCastsShadow;/,
+  /const castsTreeSilhouette = castShadow && !crownUnderlay;[\s\S]*im\.castShadow = castsTreeSilhouette;[\s\S]*im\.userData\.neverCastShadow = !castsTreeSilhouette;/,
   'whole-crown filler quads must stay out of the shadow pass while ordinary foliage cards retain authored shadows',
 );
 assert.match(

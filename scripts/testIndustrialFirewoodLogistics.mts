@@ -6,7 +6,7 @@ import {
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
-  GRANARY_FIREWOOD_PER_CYCLE,
+  BAKERY_FIREWOOD_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
 } from '../src/generated/gameBalance.ts';
@@ -29,7 +29,7 @@ import type {
 } from '../src/resources/types.ts';
 
 const expectedFirewoodPerCycle = new Map<BuildingKind, number>([
-  ['granary', GRANARY_FIREWOOD_PER_CYCLE],
+  ['bakery', BAKERY_FIREWOOD_PER_CYCLE],
   [
     'brewery',
     BREWERY_MALTING_FIREWOOD_PER_CYCLE
@@ -52,7 +52,7 @@ assert.deepEqual(
   'output stock policy must also control the firewood working buffer',
 );
 
-const lowPriorityNear = building('10', 'granary', {
+const lowPriorityNear = building('10', 'bakery', {
   x: 4,
   assignedLabor: 1,
   constructionPriority: 1,
@@ -130,7 +130,7 @@ const burningStorehouse = building('13', 'village_storehouse', {
   assignedLabor: 1,
   firewood: 7,
 });
-const granary = building('30', 'granary', {
+const bakery = building('30', 'bakery', {
   assignedLabor: 2,
   firewood: 2,
 });
@@ -143,7 +143,7 @@ for (const site of [
   storehouse,
   inactiveLodge,
   burningStorehouse,
-  granary,
+  bakery,
   brewery,
 ]) {
   state.buildings.set(site.id, site);
@@ -158,7 +158,7 @@ state.deliveryTrips.set(
     buildingId: lodge.id,
     residenceId: null,
     destinationKind: 'building',
-    targetBuildingId: granary.id,
+    targetBuildingId: bakery.id,
     cargoKind: 'firewood',
     amount: 2,
     phase: 'outbound',
@@ -192,7 +192,7 @@ assert.equal(
 );
 assert.equal(
   plan.industrialDemandPerDay,
-  industrialFirewoodCapacityPerDay(granary, false)
+  industrialFirewoodCapacityPerDay(bakery, false)
     + industrialFirewoodCapacityPerDay(brewery, false),
 );
 assert.ok(plan.lodgeOutputCapacityPerDay > 0);

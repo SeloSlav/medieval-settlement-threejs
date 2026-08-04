@@ -99,7 +99,7 @@ const deepReservePanel = renderGranaryPolicyPanel(makeGranary({
 }));
 assert.match(deepReservePanel, /data-granary-fresh-food-target="90"[^>]*disabled/);
 assert.match(deepReservePanel, /Current target 306 food/);
-assert.match(deepReservePanel, /retaining headroom for the granary bakery/);
+assert.match(deepReservePanel, /retaining headroom for incoming harvest carts/);
 
 const tableSource = readFileSync('server/src/tables.rs', 'utf8');
 const serverPolicySource = readFileSync('server/src/granary_policy.rs', 'utf8');

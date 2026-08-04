@@ -46,7 +46,7 @@ const POTTERY_SUPPLIER_KINDS: readonly BuildingKind[] = ['potter_kiln'];
 
 export function isOperationalSpecialtySupplier(building: BuildingState): boolean {
   return building.constructionComplete !== false
-    && (building.kind !== 'granary' || building.assignedLabor > 1);
+    && (building.kind !== 'granary' || building.assignedLabor > 0);
 }
 
 export function isSustainableSpecialtySupplier(building: BuildingState): boolean {

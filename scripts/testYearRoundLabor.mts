@@ -27,7 +27,7 @@ for (const kind of [
   'apiary',
   'vineyard',
   'watermill',
-  'granary',
+  'bakery',
   'brewery',
   'smokehouse',
   'weaver',
@@ -38,7 +38,7 @@ for (const kind of [
 ] as const) {
   assert.equal(isYearRoundLaborKind(kind), false, `${kind} keeps its own staffing control`);
 }
-for (const kind of ['lumber_mill', 'well', 'chapel', 'guardhouse', 'carpenter'] as const) {
+for (const kind of ['lumber_mill', 'well', 'chapel', 'guardhouse', 'carpenter', 'granary'] as const) {
   assert.equal(isYearRoundLaborKind(kind), true, `${kind} is an ordinary year-round worksite`);
 }
 

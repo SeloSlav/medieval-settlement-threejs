@@ -1936,6 +1936,7 @@ const BUILDING_INSPECTOR_ART: Partial<Record<string, string>> = {
   foragers_shed: 'foragers-hut.webp',
   founders_camp: 'residence.webp',
   granary: 'granary.webp',
+  bakery: 'granary.webp',
   guardhouse: 'guardhouse.webp',
   hunters_hall: 'hunter-hall.webp',
   large_quarry: 'large-quarry.webp',

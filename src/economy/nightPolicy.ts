@@ -82,6 +82,7 @@ export function normalizeNightPolicyCode(value: number | null | undefined): Nigh
 }
 
 const CONTINUOUS_NIGHT_KINDS = new Set<BuildingKind>([
+  'bakery',
   'brewery',
   'charcoal_burner',
   'potter_kiln',
@@ -92,7 +93,6 @@ const CONTINUOUS_NIGHT_KINDS = new Set<BuildingKind>([
 const STAFFED_NIGHT_KINDS = new Set<BuildingKind>([
   ...CONTINUOUS_NIGHT_KINDS,
   'carpenter',
-  'granary',
   'monastery',
   'smithy',
   'weaver',

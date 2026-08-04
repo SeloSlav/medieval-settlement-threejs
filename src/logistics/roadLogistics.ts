@@ -154,6 +154,7 @@ export const FOOD_SUPPLIER_KINDS: readonly BuildingState['kind'][] = [
   'hunters_hall',
   'foragers_shed',
   'fishing_camp',
+  'bakery',
   'granary',
   'apiary',
   'vineyard',
@@ -165,7 +166,7 @@ export const FOOD_SUPPLIER_KINDS: readonly BuildingState['kind'][] = [
 export function isOperationalFoodSupplier(building: BuildingState): boolean {
   return FOOD_SUPPLIER_KINDS.includes(building.kind)
     && building.constructionComplete !== false
-    && (building.kind !== 'granary' || building.assignedLabor > 1);
+    && (building.kind !== 'granary' || building.assignedLabor > 0);
 }
 
 export type ResidenceSupplierRouteClaim = {

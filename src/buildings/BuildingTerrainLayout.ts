@@ -62,6 +62,7 @@ const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   brewery: { radiusX: 5.6, radiusZ: 4.7, innerFade: 0.88, outerFade: 1.3 },
   smokehouse: { radiusX: 4.4, radiusZ: 4.0, innerFade: 0.88, outerFade: 1.28 },
   granary: { radiusX: 5.8, radiusZ: 4.7, innerFade: 0.88, outerFade: 1.3 },
+  bakery: { radiusX: 5.1, radiusZ: 4.5, innerFade: 0.88, outerFade: 1.3 },
   apiary: { radiusX: 5.3, radiusZ: 4.6, innerFade: 0.88, outerFade: 1.28 },
   watermill: { radiusX: 6.7, radiusZ: 4.9, innerFade: 0.86, outerFade: 1.35 },
   carpenter: { radiusX: 6.4, radiusZ: 4.8, innerFade: 0.88, outerFade: 1.32 },

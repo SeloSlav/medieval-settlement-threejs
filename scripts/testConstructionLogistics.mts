@@ -149,6 +149,7 @@ const fittingCosts = [
   'brewery',
   'smokehouse',
   'granary',
+  'bakery',
   'watermill',
   'carpenter',
   'ferry_landing',
@@ -158,7 +159,7 @@ assert.equal(
     (total, kind) => total + (getBuildingCost(kind).ironwork ?? 0),
     0,
   ),
-  48,
+  50,
   'advanced civic, defensive, and processing buildout should create a modest but meaningful fittings demand',
 );
 for (const kind of [

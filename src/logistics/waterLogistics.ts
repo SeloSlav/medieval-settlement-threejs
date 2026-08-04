@@ -6,6 +6,7 @@ import {
   POTTER_WATER_PER_CYCLE,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
+  RESIDENCE_WATER_REORDER_FRACTION,
   SMITHY_WATER_PER_CYCLE,
   WEAVER_FLAX_WATER_PER_CYCLE,
   WELL_WATER_PER_DELIVERY,
@@ -176,7 +177,10 @@ export function residenceWaterRunwayDays(residence: ResidenceState): number | nu
 }
 
 export function residenceHasWaterRoom(waterStock: number): boolean {
-  return hasNeedStockRoom(waterStock, RESIDENCE_WATER_CAPACITY);
+  return hasNeedStockRoom(
+    waterStock,
+    RESIDENCE_WATER_CAPACITY * RESIDENCE_WATER_REORDER_FRACTION,
+  );
 }
 
 export function formatWaterRunwayDays(days: number): string {

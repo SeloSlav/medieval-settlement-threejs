@@ -26,6 +26,7 @@ import {
 } from './meshes/materialChainBuildingMeshes.ts';
 import {
   createApiaryMesh,
+  createBakeryMesh,
   createBreweryMesh,
   createCarpenterMesh,
   createFerryLandingMesh,
@@ -99,6 +100,7 @@ export function createBuildingMesh(kind: BuildingKind, chapelTier: 1 | 2 | 3 = 3
     case 'brewery': return createBreweryMesh();
     case 'smokehouse': return createSmokehouseMesh();
     case 'granary': return createGranaryMesh();
+    case 'bakery': return createBakeryMesh();
     case 'apiary': return createApiaryMesh();
     case 'watermill': return createWatermillMesh();
     case 'carpenter': return createCarpenterMesh();

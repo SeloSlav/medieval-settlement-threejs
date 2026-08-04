@@ -6,7 +6,7 @@ export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
   | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'marketplace'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'smokehouse'
-  | 'granary' | 'apiary' | 'watermill' | 'carpenter' | 'ferry-landing' | 'vineyard'
+  | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'carpenter' | 'ferry-landing' | 'vineyard'
   | 'weaver'
   | 'pastoral-farmstead' | 'swineherd'
   | 'town-hall' | 'village-storehouse'
@@ -41,6 +41,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   threshing_barn: '/assets/ui/build-menu/cards/threshing-barn.webp',
   monastery: '/assets/ui/build-menu/cards/monastery.webp', brewery: '/assets/ui/build-menu/cards/brewery.webp',
   smokehouse: '/assets/ui/build-menu/cards/smokehouse.webp', granary: '/assets/ui/build-menu/cards/granary.webp',
+  bakery: '/assets/ui/build-menu/cards/bakery.webp',
   apiary: '/assets/ui/build-menu/cards/apiary.webp', watermill: '/assets/ui/build-menu/cards/watermill.webp',
   carpenter: '/assets/ui/build-menu/cards/carpenter.webp', ferry_landing: '/assets/ui/build-menu/cards/ferry-landing.webp',
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
@@ -76,7 +77,8 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   fishing_camp: ['Fishing camp', 'Z', 'Catches from a finite river population that reproduces in spring; overfishing can cause extinction.'],
   threshing_barn: ['Farmstead', 'T', 'Road-linked labor hub that ploughs, sows, tends, harvests, and stores crops. Smith-maintained ploughshares, hoes, sickles, and scythes shorten seasonal labor peaks.'],
   watermill: ['Grain watermill', 'M', 'Uses seasonal river power to grind grain into flour. Smith-dressed millstones and maintained iron fittings raise output; spring rain speeds it, while drought and frost slow it. Must touch open water.'],
-  granary: ['Village granary', 'N', 'Stores grain and flour, bakes staple food, and collects wild-food surplus.'],
+  granary: ['Village granary', 'N', 'Food-only logistics hub for wild foods, farm crops, flour, and cured provisions. Assigned keepers collect and distribute goods by handcart; it never bakes.'],
+  bakery: ['Village bakery', 'B', 'Assigned bakers turn flour, carted well-water, and firewood into bread. Delivery carts always use unassigned haulers.'],
   brewery: ['Brewhouse', 'B', 'Boils grain and water over firewood into ale for prosperous households and export.'],
   smokehouse: ['Smokehouse', 'Q', 'Uses fresh food, firewood, local or imported salt, and pottery to create larger preserved-food batches. Severe fire risk makes isolation and well coverage important.'],
   apiary: ['Forest apiary', 'A', 'Produces seasonal honey and food. Hospitality-enabled monasteries take honey before market export.'],
@@ -104,7 +106,7 @@ export const BASIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Farms, grain processing, and village food production. */
 export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('threshing_barn'), entry('watermill'), entry('granary'), entry('brewery'), entry('smokehouse'),
+  entry('threshing_barn'), entry('watermill'), entry('granary'), entry('bakery'), entry('brewery'), entry('smokehouse'),
   entry('apiary'), entry('vineyard'),
   entry('pastoral_farmstead'), entry('swineherd'),
 ];

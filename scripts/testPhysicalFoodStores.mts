@@ -131,7 +131,14 @@ assert.notEqual(
   'the first preservation vessel must invalidate the smokehouse visual signature',
 );
 
-const granary = building('granary', { grain: 141, barley: 160, food: 261 });
+const granary = building('granary', {
+  grain: 141,
+  barley: 160,
+  flour: 130,
+  flax: 90,
+  food: 261,
+  preservedFood: 50,
+});
 const granaryMarker = createBuildingMesh('granary');
 syncFoodStockpileVisuals(granaryMarker, granary);
 assertVisibleSegments(granaryMarker, 'GranaryGrainStockpile', 'GranaryGrainSegment', 2);
@@ -237,6 +244,7 @@ function building(
     BuildingState,
     | 'grain'
     | 'flour'
+    | 'flax'
     | 'food'
     | 'firewood'
     | 'ale'

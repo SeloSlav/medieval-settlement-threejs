@@ -75,9 +75,9 @@ function stubWorldQueries(
   } as WorldQueries;
 }
 
-const granary = makeBuilding({
-  id: 'granary-1',
-  kind: 'granary',
+const bakery = makeBuilding({
+  id: 'bakery-1',
+  kind: 'bakery',
   x: 0,
   z: 0,
   assignedLabor: 2,
@@ -95,11 +95,11 @@ const well = makeBuilding({
 const connected = (_ax: number, _az: number, bx: number, bz: number) =>
   bx === 10 && bz === 0 ? 12 : null;
 
-const noWellQueries = stubWorldQueries([granary], connected);
-const dryWellQueries = stubWorldQueries([granary, well], connected);
-const readyGranary = makeBuilding({
-  id: 'granary-2',
-  kind: 'granary',
+const noWellQueries = stubWorldQueries([bakery], connected);
+const dryWellQueries = stubWorldQueries([bakery, well], connected);
+const readyBakery = makeBuilding({
+  id: 'bakery-2',
+  kind: 'bakery',
   x: 0,
   z: 0,
   assignedLabor: 2,
@@ -115,37 +115,37 @@ const readyWell = makeBuilding({
   water: 5,
   assignedLabor: 0,
 });
-const readyQueries = stubWorldQueries([readyGranary, readyWell], connected);
+const readyQueries = stubWorldQueries([readyBakery, readyWell], connected);
 
 assert.equal(
-  getBuildingProcessorStatus(granary, noWellQueries)?.statusText,
+  getBuildingProcessorStatus(bakery, noWellQueries)?.statusText,
   'Idle — needs a road-linked well to operate',
 );
 assert.equal(
-  getBuildingProcessorStatus(granary, noWellQueries)?.statusState,
+  getBuildingProcessorStatus(bakery, noWellQueries)?.statusState,
   'warning',
 );
 
 assert.equal(
-  getBuildingProcessorStatus(granary, dryWellQueries)?.statusText,
+  getBuildingProcessorStatus(bakery, dryWellQueries)?.statusText,
   'Waiting for water — all linked wells are dry (2 needed)',
 );
 
 assert.equal(
-  getBuildingProcessorStatus(readyGranary, readyQueries)?.statusText,
-  'Baking staple food',
+  getBuildingProcessorStatus(readyBakery, readyQueries)?.statusText,
+  'Baking bread',
 );
 assert.equal(
-  getBuildingProcessorStatus(readyGranary, readyQueries)?.statusState,
+  getBuildingProcessorStatus(readyBakery, readyQueries)?.statusState,
   'active',
 );
 assert.match(
-  getBuildingProcessorStatus(readyGranary, readyQueries)?.waterDetailHtml ?? '',
+  getBuildingProcessorStatus(readyBakery, readyQueries)?.waterDetailHtml ?? '',
   /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · flour limits/,
 );
 assert.match(
-  getBuildingProcessorStatus(readyGranary, readyQueries)?.waterDetailHtml ?? '',
-  /Output room<\/span><span>85 cycles · food before 340 target/,
+  getBuildingProcessorStatus(readyBakery, readyQueries)?.waterDetailHtml ?? '',
+  /Output room<\/span><span>25 cycles · food before 100 target/,
 );
 
 const smithy = makeBuilding({
@@ -342,9 +342,9 @@ assert.match(
   'brewing must report its physical firing-fuel bottleneck',
 );
 
-const leanGranary = makeBuilding({
-  id: 'granary-lean',
-  kind: 'granary',
+const leanBakery = makeBuilding({
+  id: 'bakery-lean',
+  kind: 'bakery',
   x: 0,
   z: 0,
   assignedLabor: 2,
@@ -354,7 +354,7 @@ const leanGranary = makeBuilding({
   water: 2,
 });
 assert.match(
-  getBuildingProcessorStatus(leanGranary, readyQueries)?.waterDetailHtml ?? '',
+  getBuildingProcessorStatus(leanBakery, readyQueries)?.waterDetailHtml ?? '',
   /On-site input buffer<\/span><span>1\.0 cycle on site \/ 1 cycle staged · flour limits/,
   'the inspector should expose the selected input staging depth, not only output capacity',
 );

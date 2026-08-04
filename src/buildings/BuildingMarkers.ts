@@ -72,6 +72,7 @@ import {
   SALVAGE_GOODS_VISUAL_CAPACITY,
   SALVAGE_STONE_VISUAL_CAPACITY,
   SALVAGE_TIMBER_VISUAL_CAPACITY,
+  stockpileVisualLevel,
   syncStockpileSegments,
   STOREHOUSE_FIREWOOD_VISUAL_SEGMENTS,
   STOREHOUSE_IRON_VISUAL_SEGMENTS,
@@ -216,6 +217,15 @@ export class BuildingMarkers {
     const nextIds = new Set<string>();
     for (const building of buildings) {
       nextIds.add(building.id);
+      const priorState = this.buildingStates.get(building.id);
+      if (
+        priorState === building
+        && this.buildingMeshes.has(building.id)
+        && livestockHerds?.has(building.id) !== true
+        && issuedGuardPolearms?.has(building.id) !== true
+      ) {
+        continue;
+      }
       this.buildingStates.set(building.id, building);
       this.upsertBuilding(
         building,
@@ -223,7 +233,11 @@ export class BuildingMarkers {
         issuedGuardPolearms?.get(building.id) ?? 0,
       );
       const marker = this.buildingMeshes.get(building.id);
-      if (marker) refreshBuildingDetailCasterBatches(marker);
+      if (marker?.userData.skipNextDetailCasterRefresh === true) {
+        delete marker.userData.skipNextDetailCasterRefresh;
+      } else if (marker) {
+        refreshBuildingDetailCasterBatches(marker);
+      }
     }
 
     for (const id of this.buildingMeshes.keys()) {
@@ -350,6 +364,11 @@ export class BuildingMarkers {
     ) return;
     this.prewarmedFoundersCamp = createBuildingMesh('founders_camp');
     syncInitialFoundersCampVisualState(this.prewarmedFoundersCamp);
+    setFoundersCampWinterAccumulation(
+      this.prewarmedFoundersCamp,
+      this.foundersCampWinterAccumulation,
+    );
+    batchCompletedBuildingStaticMeshes(this.prewarmedFoundersCamp);
     setBuildingDetailShadowsEnabled(
       this.prewarmedFoundersCamp,
       areBuildingShadowsEnabled(),
@@ -622,6 +641,7 @@ export class BuildingMarkers {
   ): void {
     let marker = this.buildingMeshes.get(building.id);
     let markerNeedsRegistration = false;
+    let adoptedPendingFoundersCamp = false;
     const timberRatio = ratio(
       building.constructionDeliveredTimber,
       building.constructionRequiredTimber,
@@ -659,6 +679,7 @@ export class BuildingMarkers {
       this.pendingPlacement = null;
       this.pendingPlacementKind = null;
       markerNeedsRegistration = marker !== undefined;
+      adoptedPendingFoundersCamp = marker !== undefined;
     }
     if (!marker) {
       marker = operational
@@ -682,7 +703,11 @@ export class BuildingMarkers {
       if (marker.userData.fpCollisionChildrenOnly !== true) {
         marker.userData.fpCollisionAggregate = true;
       }
-      if (operational && building.kind === 'founders_camp') {
+      if (
+        operational
+        && building.kind === 'founders_camp'
+        && !adoptedPendingFoundersCamp
+      ) {
         setBuildingDetailShadowsEnabled(marker, areBuildingShadowsEnabled());
       }
       marker.rotation.y = buildingPlacementYaw(
@@ -698,7 +723,7 @@ export class BuildingMarkers {
         marker,
         this.charcoalBurnerThroughputMultiplier,
       );
-      if (building.kind === 'founders_camp') {
+      if (building.kind === 'founders_camp' && !adoptedPendingFoundersCamp) {
         setFoundersCampWinterAccumulation(
           marker,
           this.foundersCampWinterAccumulation,
@@ -726,8 +751,15 @@ export class BuildingMarkers {
         this.foundersCampfires.add(remoteCampfire);
       }
       if (operational) {
-        batchCompletedBuildingStaticMeshes(marker);
-        this.staticBatches.registerBuilding(building.id, marker);
+        if (!marker.userData.staticBuildingBatchStats) {
+          batchCompletedBuildingStaticMeshes(marker);
+        }
+        // There is only one founders' camp. Its locally merged, GPU-prewarmed
+        // structure gains nothing from cross-building packing, while adopting
+        // it into those buffers made the placement confirmation visibly hitch.
+        if (building.kind !== 'founders_camp') {
+          this.staticBatches.registerBuilding(building.id, marker);
+        }
       }
     }
 
@@ -748,6 +780,12 @@ export class BuildingMarkers {
     }
     if (operational) {
       syncBuildingVisualState(marker, building, herd, issuedGuardPolearms);
+    }
+    if (
+      adoptedPendingFoundersCamp
+      && foundersCampMatchesInitialVisualState(building)
+    ) {
+      marker.userData.skipNextDetailCasterRefresh = true;
     }
   }
 
@@ -1162,6 +1200,30 @@ function syncInitialFoundersCampVisualState(marker: THREE.Group): void {
   const chest = marker.getObjectByName('FoundingTreasuryChest');
   if (chest) chest.visible = STARTING_GOLD > 1e-6;
   refreshBuildingDetailCasterBatches(marker);
+}
+
+function foundersCampMatchesInitialVisualState(building: BuildingState): boolean {
+  return building.kind === 'founders_camp'
+    && building.foundingShelterActive !== false
+    && stockpileVisualLevel(
+      building.timber,
+      BUILDING_STORAGE_CAPS.founders_camp.timber,
+      FOUNDING_TIMBER_VISUAL_SEGMENTS,
+    ) === stockpileVisualLevel(
+      STARTING_TIMBER,
+      BUILDING_STORAGE_CAPS.founders_camp.timber,
+      FOUNDING_TIMBER_VISUAL_SEGMENTS,
+    )
+    && stockpileVisualLevel(
+      building.stone,
+      BUILDING_STORAGE_CAPS.founders_camp.stone,
+      FOUNDING_STONE_VISUAL_SEGMENTS,
+    ) === stockpileVisualLevel(
+      STARTING_STONE,
+      BUILDING_STORAGE_CAPS.founders_camp.stone,
+      FOUNDING_STONE_VISUAL_SEGMENTS,
+    )
+    && (building.gold > 1e-6) === (STARTING_GOLD > 1e-6);
 }
 
 function createRadiusRing(color: number, opacity: number): THREE.Mesh {

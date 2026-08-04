@@ -118,6 +118,14 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
           GRANARY_PROVISION_VISUAL_SEGMENTS,
         )
       }`;
+    case 'bakery':
+      return `:food-store:${
+        stockpileVisualLevel(
+          building.food + building.flour,
+          BUILDING_STORAGE_CAPS.bakery.food + BUILDING_STORAGE_CAPS.bakery.flour,
+          3,
+        )
+      }`;
     case 'watermill':
       return `:food-store:${
         stockpileVisualLevel(
@@ -252,6 +260,15 @@ export function syncFoodStockpileVisuals(
         granaryProvisionCapacity(),
       );
       break;
+    case 'bakery':
+      syncNamedStockpile(
+        marker,
+        'BakeryFoodStockpile',
+        'BakeryFoodSegment',
+        building.food + building.flour,
+        BUILDING_STORAGE_CAPS.bakery.food + BUILDING_STORAGE_CAPS.bakery.flour,
+      );
+      break;
     case 'watermill':
       syncNamedStockpile(
         marker,
@@ -280,12 +297,13 @@ function foodSupplierVisualSignature(
 }
 
 function granaryProvisionStock(building: BuildingState): number {
-  return building.food + building.flour + building.preservedFood;
+  return building.food + building.flour + (building.flax ?? 0) + building.preservedFood;
 }
 
 function granaryProvisionCapacity(): number {
   return BUILDING_STORAGE_CAPS.granary.food
     + BUILDING_STORAGE_CAPS.granary.flour
+    + BUILDING_STORAGE_CAPS.granary.flax
     + BUILDING_STORAGE_CAPS.granary.preservedFood;
 }
 

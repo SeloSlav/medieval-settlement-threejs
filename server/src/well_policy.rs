@@ -243,11 +243,11 @@ mod tests {
     fn industrial_water_requirements_only_include_wet_processors() {
         assert_eq!(
             INDUSTRIAL_WATER_BUILDING_KINDS,
-            &["granary", "brewery", "weaver", "smithy", "potter_kiln"]
+            &["bakery", "brewery", "weaver", "smithy", "potter_kiln"]
         );
         assert_eq!(
-            industrial_water_requirement("granary"),
-            GRANARY_WATER_PER_CYCLE
+            industrial_water_requirement("bakery"),
+            BAKERY_WATER_PER_CYCLE
         );
         assert_eq!(
             industrial_water_requirement("brewery"),
@@ -284,15 +284,15 @@ mod tests {
             ),
             2
         );
-        assert_eq!(industrial_water_input_preference_rank("granary", 2), 1);
+        assert_eq!(industrial_water_input_preference_rank("bakery", 2), 1);
     }
 
     #[test]
     fn industrial_water_targets_follow_the_workshop_stock_policy() {
-        assert_eq!(industrial_water_target("granary", 25), 2.0);
-        assert_eq!(industrial_water_target("granary", 50), 4.0);
-        assert_eq!(industrial_water_target("granary", 75), 6.0);
-        assert_eq!(industrial_water_target("granary", 100), 6.0);
+        assert_eq!(industrial_water_target("bakery", 25), 2.0);
+        assert_eq!(industrial_water_target("bakery", 50), 4.0);
+        assert_eq!(industrial_water_target("bakery", 75), 6.0);
+        assert_eq!(industrial_water_target("bakery", 100), 6.0);
         assert_eq!(industrial_water_target("brewery", 50), 6.0);
         assert_eq!(industrial_water_target("weaver", 25), 1.0);
         assert_eq!(industrial_water_target("weaver", 100), 3.0);

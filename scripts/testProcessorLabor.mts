@@ -47,11 +47,11 @@ weaver.cloth = 30;
 const smokehouse = building('30', 'smokehouse', 2);
 smokehouse.processorOutputTargetPercent = 50;
 smokehouse.preservedFood = 20;
-const granary = building('40', 'granary', 3);
-granary.processorOutputTargetPercent = 25;
-granary.food = 85;
+const bakery = building('40', 'bakery', 3);
+bakery.processorOutputTargetPercent = 25;
+bakery.food = 85;
 const carpenter = building('50', 'carpenter', 4);
-for (const site of [brewery, weaver, smokehouse, granary, carpenter]) {
+for (const site of [brewery, weaver, smokehouse, bakery, carpenter]) {
   recallState.buildings.set(site.id, site);
 }
 
@@ -66,13 +66,13 @@ assert.deepEqual(
   [
     [brewery.id, 0],
     [weaver.id, 0],
-    [granary.id, 0],
+    [bakery.id, 0],
   ],
 );
 
 const recalled = applyProcessorLaborRecall(recallState.buildings, recallPlan);
 assert.equal(recalled.get(brewery.id)?.assignedLabor, 0);
-assert.equal(recalled.get(granary.id)?.assignedLabor, 0);
+assert.equal(recalled.get(bakery.id)?.assignedLabor, 0);
 assert.equal(recalled.get(weaver.id)?.assignedLabor, 0);
 assert.equal(recalled.get(smokehouse.id)?.assignedLabor, 2);
 assert.equal(recalled.get(carpenter.id)?.assignedLabor, 4);

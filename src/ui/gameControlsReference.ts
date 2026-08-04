@@ -88,6 +88,7 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
       { action: 'Farmstead', keys: 'T' },
       { action: 'Grain watermill', keys: 'M' },
       { action: 'Village granary', keys: 'N' },
+      { action: 'Village bakery', keys: 'B' },
       { action: 'Brewhouse', keys: 'B' },
       { action: 'Smokehouse', keys: 'Q' },
       { action: 'Forest apiary', keys: 'A' },

@@ -70,6 +70,7 @@ const WORKSITE_BUILDING_KINDS = new Set<BuildingKind>([
   'brewery',
   'smokehouse',
   'granary',
+  'bakery',
   'apiary',
   'watermill',
   'carpenter',

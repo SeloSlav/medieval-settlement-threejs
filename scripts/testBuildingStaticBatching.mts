@@ -10,6 +10,7 @@ import { BuildingStaticBatches } from '../src/buildings/BuildingStaticBatches.ts
 
 type RenderSnapshot = {
   readonly draws: number;
+  readonly colorDraws: number;
   readonly triangles: number;
   readonly materials: readonly string[];
   readonly buckets: readonly [string, number][];
@@ -126,8 +127,12 @@ assert.ok(
   `dense actual-building fixture must retain the reviewed load (got ${denseBeforeDraws})`,
 );
 assert.ok(
-  denseAfter.draws <= 210,
-  `20 dense completed buildings must stay at or below 210 color submissions (got ${denseAfter.draws})`,
+  denseAfter.colorDraws <= 210,
+  `20 dense completed buildings must stay at or below 210 color submissions (got ${denseAfter.colorDraws})`,
+);
+assert.ok(
+  denseAfter.draws <= 235,
+  `20 dense completed buildings must stay at or below 235 color-plus-shadow render objects (got ${denseAfter.draws})`,
 );
 assert.ok(
   denseAfter.draws <= denseBeforeDraws * 0.2,
@@ -331,6 +336,7 @@ function collectDynamicObjects(root: THREE.Object3D): Array<{
 function renderSnapshot(root: THREE.Object3D): RenderSnapshot {
   root.updateWorldMatrix(true, true);
   let draws = 0;
+  let colorDraws = 0;
   let triangles = 0;
   const materials = new Set<string>();
   const buckets = new Map<string, number>();
@@ -375,6 +381,7 @@ function renderSnapshot(root: THREE.Object3D): RenderSnapshot {
         mesh.customDistanceMaterial?.uuid ?? '',
       ].join('|');
       draws += 1;
+      if ((mesh.layers.mask & 1) !== 0) colorDraws += 1;
       triangles += submittedTriangles;
       materials.add(material.uuid);
       buckets.set(key, (buckets.get(key) ?? 0) + submittedTriangles);
@@ -427,6 +434,7 @@ function renderSnapshot(root: THREE.Object3D): RenderSnapshot {
   });
   return {
     draws,
+    colorDraws,
     triangles: Math.round(triangles),
     materials: [...materials].sort(),
     buckets: [...buckets.entries()].sort(([left], [right]) => left.localeCompare(right)),

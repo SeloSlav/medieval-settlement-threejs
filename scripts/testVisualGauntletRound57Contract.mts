@@ -282,7 +282,27 @@ const seedThreeHead = spawnSync(
   { encoding: 'utf8' },
 );
 assert.equal(seedThreeHead.status, 0, seedThreeHead.stderr);
-assert.equal(seedThreeHead.stdout.trim(), expectedSeedThree);
+assert.match(seedThreeHead.stdout.trim(), /^[0-9a-f]{40}$/);
+
+const seedThreeEvidenceIsAncestor = spawnSync(
+  'git',
+  [
+    '-c',
+    `safe.directory=${path.join(root, 'vendor', 'seedthree')}`,
+    '-C',
+    path.join(root, 'vendor', 'seedthree'),
+    'merge-base',
+    '--is-ancestor',
+    expectedSeedThree,
+    'HEAD',
+  ],
+  { encoding: 'utf8' },
+);
+assert.equal(
+  seedThreeEvidenceIsAncestor.status,
+  0,
+  `the live SeedThree integration must retain the archived Round 57 revision in its history: ${seedThreeEvidenceIsAncestor.stderr}`,
+);
 
 const tracker = readFileSync(path.join(root, 'visual-gauntlet.html'), 'utf8');
 assert.match(tracker, /Round 57 · valid 98% blind tie recorded/);

@@ -42,6 +42,7 @@ pub fn is_visible_worker_workplace(kind: &str) -> bool {
             | "brewery"
             | "smokehouse"
             | "granary"
+            | "bakery"
             | "apiary"
             | "watermill"
             | "carpenter"

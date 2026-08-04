@@ -473,6 +473,68 @@ export function createBreweryMesh(): THREE.Group {
   return group;
 }
 
+export function createBakeryMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'Village bakery';
+  const shell = addGableShell(group, {
+    width: 7.4,
+    depth: 5.8,
+    stoneHeight: 1.15,
+    wallHeight: 2.7,
+    ridgeHeight: 2.2,
+    wallMaterial: residenceFacadeMaterial('white'),
+    roofMaterial: tileMaterial(1),
+    stoneGroundFloor: true,
+  });
+  addPlankDoor(group, -1.45, 1.18, shell.frontZ + 0.03, 1.0, 1.88);
+  addSmallWindow(group, 1.35, 2.18, shell.frontZ + 0.03, 0.78, 0.92);
+
+  // A masonry oven and tall flue keep the workshop visually distinct from
+  // the raised crop store next door.
+  addMesh(
+    group,
+    new THREE.BoxGeometry(2.35, 1.45, 1.9),
+    stoneMaterial('light'),
+    new THREE.Vector3(2.15, 0.74, 3.55),
+  );
+  addMesh(
+    group,
+    new THREE.SphereGeometry(1.14, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    stoneMaterial('mid'),
+    new THREE.Vector3(2.15, 1.42, 3.55),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.78, 0.72, 0.08),
+    timberMaterial('dark'),
+    new THREE.Vector3(2.15, 0.78, 4.51),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.72, 3.9, 0.72),
+    stoneMaterial('mid'),
+    new THREE.Vector3(2.75, 4.35, 1.45),
+  );
+  addMesh(
+    group,
+    new THREE.BoxGeometry(0.92, 0.22, 0.92),
+    stoneMaterial('mortar'),
+    new THREE.Vector3(2.75, 6.35, 1.45),
+  );
+  addSegmentedStockProps(
+    group,
+    'BakeryFoodStockpile',
+    'BakeryFoodSegment',
+    [
+      [-2.75, 0, 3.55, 0.92],
+      [-2.05, 0, 3.75, 0.82],
+      [-3.2, 0, 2.85, 0.74],
+    ],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
+  return group;
+}
+
 export function createSmokehouseMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Smokehouse';

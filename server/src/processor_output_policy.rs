@@ -172,7 +172,7 @@ mod tests {
     fn only_staffed_conversion_workshops_use_the_policy() {
         for kind in [
             "watermill",
-            "granary",
+            "bakery",
             "brewery",
             "smokehouse",
             "weaver",
@@ -211,7 +211,8 @@ mod tests {
         use ProcessorInputKind::*;
 
         assert_eq!(processor_input_kinds("watermill"), &[Grain]);
-        assert_eq!(processor_input_kinds("granary"), &[Flour, Water, Firewood]);
+        assert_eq!(processor_input_kinds("bakery"), &[Flour, Water, Firewood]);
+        assert!(processor_input_kinds("granary").is_empty());
         assert_eq!(processor_input_kinds("brewery"), &[Barley, Water, Firewood]);
         assert_eq!(
             processor_input_kinds("smokehouse"),
