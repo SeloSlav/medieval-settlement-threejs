@@ -1,13 +1,23 @@
 import type * as THREE from 'three';
 import type { FireIncidentState } from '../fires/fireIncident.ts';
 import type {
+  BackyardGardenState,
   BuildingState,
   BurgageZoneState,
+  ForagingNodeState,
+  GraveyardState,
+  LivestockHerdState,
   ResidenceState,
 } from '../resources/types.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
+import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
+import type { CombatAgentState } from '../security/combatAgents.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
-import type { EnvironmentState, Season } from '../world/seasonPolicy.ts';
+import type {
+  EnvironmentState,
+  Season,
+  WeatherKind,
+} from '../world/seasonPolicy.ts';
 import type { SettlementSchedule } from '../world/settlementSchedule.ts';
 import { AmbientAudio } from './AmbientAudio.ts';
 import {
@@ -24,6 +34,8 @@ import { UiAudio } from './UiAudio.ts';
 import type { UiSoundId } from './audioCatalog.ts';
 import { FireAudio } from './FireAudio.ts';
 import { BuildingAudio } from './BuildingAudio.ts';
+import { WorldFoleyAudio } from './WorldFoleyAudio.ts';
+import type { FootstepSurface } from './audioCatalog.ts';
 import {
   getAmbienceVolume,
   getMusicVolume,
@@ -36,8 +48,14 @@ export type AmbientAudioControllerConfig = {
   getOrbitDistance: () => number;
   getBuildings: () => ReadonlyMap<string, BuildingState>;
   getBurgageZones: () => Iterable<BurgageZoneState>;
-  getResidences: () => Iterable<ResidenceState>;
+  getResidences: () => ReadonlyMap<string, ResidenceState>;
   getFireIncidents: () => Iterable<FireIncidentState>;
+  getDeliveryTrips: () => Iterable<DeliveryTripState>;
+  getLivestockHerds: () => Iterable<LivestockHerdState>;
+  getBackyardGardens: () => Iterable<BackyardGardenState>;
+  getForagingNodes: () => Iterable<ForagingNodeState>;
+  getGraveyards: () => Iterable<GraveyardState>;
+  getCombatAgents: () => Iterable<CombatAgentState>;
   camera: THREE.Camera;
   audioParent: THREE.Object3D;
   riverLayout: RiverLayout;
@@ -53,6 +71,7 @@ export class AmbientAudioController {
   private readonly uiAudio = new UiAudio();
   private readonly fireAudio: FireAudio;
   private readonly buildingAudio = new BuildingAudio();
+  private readonly worldFoley = new WorldFoleyAudio();
   private readonly config: AmbientAudioControllerConfig;
   private readonly chapelPositions: ChapelBellPosition[] = [];
   private lastChapelBuildingSnapshot: ReadonlyMap<string, BuildingState> | null = null;
@@ -79,6 +98,7 @@ export class AmbientAudioController {
   private schedule: SettlementSchedule | null = null;
   private isRaining = false;
   private season: Season = 'summer';
+  private weather: WeatherKind = 'fair';
   private enabled = true;
   private musicEnabled = true;
   private running = false;
@@ -108,6 +128,7 @@ export class AmbientAudioController {
     this.audio.setVolume(getAmbienceVolume());
     this.riverAudio.setVolume(getAmbienceVolume());
     this.buildingAudio.setVolume(getAmbienceVolume());
+    this.worldFoley.setVolume(getAmbienceVolume());
     this.soundtrack.setVolume(getMusicVolume());
     this.setEnabled(isGameAudioEnabled());
   }
@@ -129,6 +150,7 @@ export class AmbientAudioController {
   ): void {
     this.isRaining = environment?.weather === 'rain';
     this.season = environment?.season ?? 'summer';
+    this.weather = environment?.weather ?? 'fair';
   }
 
   tick(dtSeconds: number): void {
@@ -192,9 +214,23 @@ export class AmbientAudioController {
     this.buildingAudio.tick(
       dtSeconds,
       this.config.getBuildings().values(),
-      this.config.getResidences(),
+      this.config.getResidences().values(),
       this.buildingAudioView,
     );
+    this.worldFoley.tick(dtSeconds, {
+      view: this.buildingAudioView,
+      buildings: this.config.getBuildings(),
+      residences: this.config.getResidences(),
+      deliveryTrips: this.config.getDeliveryTrips(),
+      fireIncidents: this.config.getFireIncidents(),
+      livestockHerds: this.config.getLivestockHerds(),
+      backyardGardens: this.config.getBackyardGardens(),
+      foragingNodes: this.config.getForagingNodes(),
+      graveyards: this.config.getGraveyards(),
+      combatAgents: this.config.getCombatAgents(),
+      season: this.season,
+      weather: this.weather,
+    });
   }
 
   setEnabled(enabled: boolean): void {
@@ -203,6 +239,7 @@ export class AmbientAudioController {
     this.riverAudio.setEnabled(enabled);
     this.fireAudio.setEnabled(enabled);
     this.buildingAudio.setEnabled(enabled);
+    this.worldFoley.setEnabled(enabled);
     this.soundtrack.setEnabled(enabled && this.musicEnabled);
     this.uiAudio.setEnabled(enabled);
     if (!enabled) {
@@ -226,10 +263,15 @@ export class AmbientAudioController {
     this.audio.setVolume(volume);
     this.riverAudio.setVolume(volume);
     this.buildingAudio.setVolume(volume);
+    this.worldFoley.setVolume(volume);
   }
 
   playUiSound(id: UiSoundId): void {
     this.uiAudio.play(id);
+  }
+
+  playFootstep(surface: FootstepSurface): void {
+    this.worldFoley.playFootstep(surface);
   }
 
   dispose(): void {
@@ -240,6 +282,7 @@ export class AmbientAudioController {
     this.riverAudio.dispose();
     this.fireAudio.dispose();
     this.buildingAudio.dispose();
+    this.worldFoley.dispose();
     this.soundtrack.dispose();
     this.uiAudio.dispose();
     this.running = false;

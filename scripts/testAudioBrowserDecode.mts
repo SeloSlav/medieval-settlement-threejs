@@ -18,6 +18,7 @@ import {
   RIVER_WATER_CLIP,
   UI_SOUNDS,
   WORKER_ACTIVITY_CLIPS,
+  WORLD_FOLEY_CLIPS,
   type AudioClipDefinition,
 } from '../src/audio/audioCatalog.ts';
 import {
@@ -77,6 +78,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
     ...Object.values(BUILDING_AUDIO_CLIPS),
+    ...Object.values(WORLD_FOLEY_CLIPS),
   ];
 }
 

@@ -39,6 +39,44 @@ export type UiSoundId =
 
 export type BuildingAudioKind = BuildingKind | 'residence';
 
+export type FootstepSurface = 'grass' | 'dirt' | 'timber' | 'stone' | 'water';
+
+export type WorldFoleySoundId =
+  | 'cart_roll_1'
+  | 'cart_roll_2'
+  | 'cart_cargo_1'
+  | 'cart_cargo_2'
+  | 'cart_load'
+  | 'cart_unload'
+  | 'construction_timber'
+  | 'construction_stone'
+  | 'demolition_timber'
+  | 'demolition_stone'
+  | `footstep_${FootstepSurface}_${1 | 2 | 3}`
+  | 'fire_bucket_1'
+  | 'fire_bucket_2'
+  | 'fire_steam'
+  | 'fire_ignite'
+  | 'fire_extinguish'
+  | 'animal_cattle_1'
+  | 'animal_cattle_2'
+  | 'animal_sheep_1'
+  | 'animal_sheep_2'
+  | 'animal_swine_1'
+  | 'animal_swine_2'
+  | 'animal_chicken_1'
+  | 'animal_chicken_2'
+  | 'animal_deer_1'
+  | 'animal_deer_2'
+  | 'season_winter_gust'
+  | 'season_autumn_leaves'
+  | 'season_rain_roof'
+  | 'event_residence_complete'
+  | 'event_residence_upgrade'
+  | 'event_raid_alarm'
+  | 'event_burial'
+  | 'event_trade_arrival';
+
 export const AMBIENT_LAYERS: Record<AmbientLayerId, AudioClipDefinition> = {
   birds_wind_day: { path: '/sounds/ambient/birds_wind_day.mp3', volume: 0.95, loop: true },
   village_day: { path: '/sounds/ambient/village_day.mp3', volume: 0.45, loop: true },
@@ -188,4 +226,60 @@ export const BUILDING_AUDIO_CLIPS: Record<
   ferry_landing: { path: '/sounds/buildings/ferry_landing.mp3', volume: 0.05 },
   vineyard: { path: '/sounds/buildings/vineyard.mp3', volume: 0.045 },
   residence: { path: '/sounds/buildings/residence.mp3', volume: 0.035 },
+};
+
+function worldFoleyClip(name: string, volume: number): AudioClipDefinition {
+  return { path: `/sounds/world/${name}.mp3`, volume };
+}
+
+/** Event-driven movement, weather, wildlife, and settlement feedback cues. */
+export const WORLD_FOLEY_CLIPS: Record<WorldFoleySoundId, AudioClipDefinition> = {
+  cart_roll_1: worldFoleyClip('cart_roll_1', 0.055),
+  cart_roll_2: worldFoleyClip('cart_roll_2', 0.055),
+  cart_cargo_1: worldFoleyClip('cart_cargo_1', 0.045),
+  cart_cargo_2: worldFoleyClip('cart_cargo_2', 0.045),
+  cart_load: worldFoleyClip('cart_load', 0.06),
+  cart_unload: worldFoleyClip('cart_unload', 0.06),
+  construction_timber: worldFoleyClip('construction_timber', 0.075),
+  construction_stone: worldFoleyClip('construction_stone', 0.075),
+  demolition_timber: worldFoleyClip('demolition_timber', 0.085),
+  demolition_stone: worldFoleyClip('demolition_stone', 0.085),
+  footstep_grass_1: worldFoleyClip('footstep_grass_1', 0.12),
+  footstep_grass_2: worldFoleyClip('footstep_grass_2', 0.12),
+  footstep_grass_3: worldFoleyClip('footstep_grass_3', 0.12),
+  footstep_dirt_1: worldFoleyClip('footstep_dirt_1', 0.12),
+  footstep_dirt_2: worldFoleyClip('footstep_dirt_2', 0.12),
+  footstep_dirt_3: worldFoleyClip('footstep_dirt_3', 0.12),
+  footstep_timber_1: worldFoleyClip('footstep_timber_1', 0.115),
+  footstep_timber_2: worldFoleyClip('footstep_timber_2', 0.115),
+  footstep_timber_3: worldFoleyClip('footstep_timber_3', 0.115),
+  footstep_stone_1: worldFoleyClip('footstep_stone_1', 0.11),
+  footstep_stone_2: worldFoleyClip('footstep_stone_2', 0.11),
+  footstep_stone_3: worldFoleyClip('footstep_stone_3', 0.11),
+  footstep_water_1: worldFoleyClip('footstep_water_1', 0.105),
+  footstep_water_2: worldFoleyClip('footstep_water_2', 0.105),
+  footstep_water_3: worldFoleyClip('footstep_water_3', 0.105),
+  fire_bucket_1: worldFoleyClip('fire_bucket_1', 0.095),
+  fire_bucket_2: worldFoleyClip('fire_bucket_2', 0.095),
+  fire_steam: worldFoleyClip('fire_steam', 0.075),
+  fire_ignite: worldFoleyClip('fire_ignite', 0.09),
+  fire_extinguish: worldFoleyClip('fire_extinguish', 0.075),
+  animal_cattle_1: worldFoleyClip('animal_cattle_1', 0.045),
+  animal_cattle_2: worldFoleyClip('animal_cattle_2', 0.045),
+  animal_sheep_1: worldFoleyClip('animal_sheep_1', 0.045),
+  animal_sheep_2: worldFoleyClip('animal_sheep_2', 0.045),
+  animal_swine_1: worldFoleyClip('animal_swine_1', 0.045),
+  animal_swine_2: worldFoleyClip('animal_swine_2', 0.045),
+  animal_chicken_1: worldFoleyClip('animal_chicken_1', 0.04),
+  animal_chicken_2: worldFoleyClip('animal_chicken_2', 0.04),
+  animal_deer_1: worldFoleyClip('animal_deer_1', 0.04),
+  animal_deer_2: worldFoleyClip('animal_deer_2', 0.04),
+  season_winter_gust: worldFoleyClip('season_winter_gust', 0.035),
+  season_autumn_leaves: worldFoleyClip('season_autumn_leaves', 0.035),
+  season_rain_roof: worldFoleyClip('season_rain_roof', 0.04),
+  event_residence_complete: worldFoleyClip('event_residence_complete', 0.075),
+  event_residence_upgrade: worldFoleyClip('event_residence_upgrade', 0.075),
+  event_raid_alarm: worldFoleyClip('event_raid_alarm', 0.11),
+  event_burial: worldFoleyClip('event_burial', 0.065),
+  event_trade_arrival: worldFoleyClip('event_trade_arrival', 0.075),
 };

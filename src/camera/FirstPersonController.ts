@@ -31,6 +31,7 @@ import {
   type FpLocomotionWalkOptions,
   type WalkGroundSampler,
 } from './fp/fpLocomotion.ts';
+import type { FootstepSurface } from '../audio/audioCatalog.ts';
 
 export type FirstPersonControllerConfig = {
   camera: THREE.PerspectiveCamera;
@@ -41,6 +42,8 @@ export type FirstPersonControllerConfig = {
   collisionWorld?: FpCollisionWorld;
   getOrbitSpawn?: () => FirstPersonSpawn;
   onModeChange?: (active: boolean) => void;
+  getFootstepSurface?: (x: number, y: number, z: number) => FootstepSurface;
+  onFootstep?: (surface: FootstepSurface) => void;
   isMenuOpen?: () => boolean;
   isSessionReady?: () => boolean;
 };
@@ -77,6 +80,7 @@ export class FirstPersonController {
   private camBobY = 0;
   private camBobRoll = 0;
   private lastEyeLine: number = fpLocomotionConstants.eyeStand;
+  private footstepDistance = 0;
 
   constructor(config: FirstPersonControllerConfig) {
     this.config = config;
@@ -172,6 +176,7 @@ export class FirstPersonController {
     this.camBobY = 0;
     this.camBobRoll = 0;
     this.lastEyeLine = fpLocomotionConstants.eyeStand;
+    this.footstepDistance = 0;
     this.config.collisionWorld?.invalidateStatic();
     this.config.collisionWorld?.prepare(this.pos.x, this.pos.z);
     this.config.collisionWorld?.resolvePlayer(
@@ -237,6 +242,8 @@ export class FirstPersonController {
       }
     }
 
+    const previousX = this.pos.x;
+    const previousZ = this.pos.z;
     const eyeLine = stepFpLocomotion(
       this.loco,
       this.pos,
@@ -250,6 +257,26 @@ export class FirstPersonController {
 
     const horizontalSpeed = Math.hypot(this.loco.velocity.x, this.loco.velocity.z);
     const moving = this.input.forward || this.input.backward || this.input.left || this.input.right;
+    if (this.loco.grounded && moving && horizontalSpeed > 0.12) {
+      this.footstepDistance += Math.hypot(
+        this.pos.x - previousX,
+        this.pos.z - previousZ,
+      );
+      const stride = this.input.crouch
+        ? 0.75
+        : this.input.sprint ? 2.4 : 0.95;
+      while (this.footstepDistance >= stride) {
+        this.footstepDistance -= stride;
+        const surface = this.config.getFootstepSurface?.(
+          this.pos.x,
+          this.pos.y,
+          this.pos.z,
+        ) ?? 'grass';
+        this.config.onFootstep?.(surface);
+      }
+    } else if (!moving) {
+      this.footstepDistance = Math.min(this.footstepDistance, 0.2);
+    }
     if (
       this.loco.grounded &&
       !this.input.crouch &&

@@ -722,6 +722,486 @@
       "promptInfluence": 0.86
     },
     {
+      "id": "world-cart-roll-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/cart_roll_1.mp3",
+      "prompt": "Short soft medieval handcart Foley: wooden wheels roll over a compact dirt lane with a restrained axle creak and a few small stones, close and natural, no horse, no voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-cart-roll-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/cart_roll_2.mp3",
+      "prompt": "Short soft variation of a two-wheeled medieval handcart moving along dry packed earth, gentle timber wheel rumble and one quiet axle complaint, no horse, no voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-cart-cargo-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/cart_cargo_1.mp3",
+      "prompt": "Short restrained moving-cart Foley: a few wooden crates and bundled tools shift softly in a medieval handcart over an uneven dirt road, warm wood rattle, no voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-cart-cargo-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/cart_cargo_2.mp3",
+      "prompt": "Short subtle cargo-cart variation: wicker, sacks, and one small timber box jostle gently as wooden wheels cross a shallow rut, understated and realistic, no voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-cart-load",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/cart_load.mp3",
+      "prompt": "Short soft medieval loading Foley: a modest wooden crate is lifted onto a handcart and settles against a folded sack with one muted timber knock, no voices, no footsteps, no music",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-cart-unload",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/cart_unload.mp3",
+      "prompt": "Short soft medieval unloading Foley: a small crate slides from a wooden handcart and is placed on packed earth beside a sack, controlled and quiet, no voices, no footsteps, no music",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-construction-timber",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/construction_timber.mp3",
+      "prompt": "Short restrained medieval timber construction completion: a fitted beam settles into its joint followed by one compact wooden mallet tap and a warm structural creak, no voices, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-construction-stone",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/construction_stone.mp3",
+      "prompt": "Short restrained medieval masonry completion: one dressed stone is seated into lime mortar with a muted wooden mallet tap and a little grit settling, no voices, no music, no heavy impact",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-demolition-timber",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/demolition_timber.mp3",
+      "prompt": "Short controlled medieval timber dismantling Foley: two weathered boards pull apart, one beam drops onto soft earth, and loose wood settles, restrained salvage work, no voices, no cinematic crash, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-demolition-stone",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/demolition_stone.mp3",
+      "prompt": "Short controlled medieval masonry dismantling Foley: a few small stones loosen and settle into rubble with dry grit and one muted block impact, restrained salvage work, no voices, no cinematic crash, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-grass-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_grass_1.mp3",
+      "prompt": "One soft close leather boot footstep through short slightly damp meadow grass, natural cloth movement, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-grass-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_grass_2.mp3",
+      "prompt": "One soft leather boot footstep variation on cool flattened grass with a small leafy brush, close realistic Foley, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-grass-3",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_grass_3.mp3",
+      "prompt": "One subdued close leather boot footstep variation in mixed grass and soft soil, delicate vegetation compression, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-dirt-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_dirt_1.mp3",
+      "prompt": "One soft close leather boot footstep on a compact medieval dirt road, tiny dry grit crunch, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-dirt-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_dirt_2.mp3",
+      "prompt": "One restrained leather boot footstep variation on packed earth with two small pebbles, close natural Foley, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-dirt-3",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_dirt_3.mp3",
+      "prompt": "One muted close leather boot footstep variation on firm slightly dusty soil, compact heel and soft grit, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-timber-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_timber_1.mp3",
+      "prompt": "One soft close leather boot footstep on a broad weathered timber bridge plank with a quiet wood response, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-timber-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_timber_2.mp3",
+      "prompt": "One restrained leather boot footstep variation on an old wooden deck, small plank creak and dry sole contact, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-timber-3",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_timber_3.mp3",
+      "prompt": "One subdued close leather boot footstep variation across a heavy timber board with a warm hollow knock, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-stone-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_stone_1.mp3",
+      "prompt": "One soft close leather boot footstep on worn dry limestone paving with a small natural roomless reflection, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-stone-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_stone_2.mp3",
+      "prompt": "One restrained leather boot footstep variation on rough stone slabs with a faint grit scrape, close natural Foley, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-stone-3",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_stone_3.mp3",
+      "prompt": "One muted close leather boot footstep variation on old masonry flooring, compact sole contact and tiny pebble movement, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-water-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_water_1.mp3",
+      "prompt": "One soft close leather boot footstep into very shallow stream water over mud, restrained splash and small ripple, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-water-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_water_2.mp3",
+      "prompt": "One subdued leather boot footstep variation through ankle-shallow water, a compact slosh and wet sole lift, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-footstep-water-3",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/footstep_water_3.mp3",
+      "prompt": "One soft close leather boot footstep variation in a shallow grassy puddle, delicate water displacement and mud suction, no second step, no voice, no music",
+      "durationSeconds": 1,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-fire-bucket-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/fire_bucket_1.mp3",
+      "prompt": "Short restrained fire-response Foley: a wooden bucket of water is thrown across burning timber with one broad soft splash and brief ember disturbance, no voices, no music",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-fire-bucket-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/fire_bucket_2.mp3",
+      "prompt": "Short fire-response Foley variation: bucket water strikes a small wooden structure fire, compact splash and dampened crackle, realistic and not dramatic, no voices, no music",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.9
+    },
+    {
+      "id": "world-fire-steam",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/fire_steam.mp3",
+      "prompt": "Short soft steam hiss as cool bucket water reaches hot charred timber and embers, restrained outdoor fire response, no splash, no voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-fire-ignite",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/fire_ignite.mp3",
+      "prompt": "Short restrained wooden structure ignition: dry kindling catches with one low breath of flame and a few small cracks, realistic not explosive, no voices, no music, no cinematic whoosh",
+      "durationSeconds": 1.8,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-fire-extinguish",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/fire_extinguish.mp3",
+      "prompt": "Short quiet aftermath of a small extinguished timber fire: wet embers hiss softly, one final tiny crack, and damp char settles, no voices, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-animal-cattle-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_cattle_1.mp3",
+      "prompt": "Short calm pastoral one-shot: one nearby cow gives a low gentle moo with faint grass movement, natural outdoor farm sound, no other animals, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-animal-cattle-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_cattle_2.mp3",
+      "prompt": "Short calm cattle variation: one cow makes a quiet breathy low call beside a pasture rail, sparse and realistic, no herd chorus, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-animal-sheep-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_sheep_1.mp3",
+      "prompt": "Short gentle pastoral one-shot: one adult sheep gives a single quiet natural bleat with faint wool and grass movement, no flock chorus, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-animal-sheep-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_sheep_2.mp3",
+      "prompt": "Short restrained sheep variation: one soft middle-distance bleat near a wooden pasture fence, calm and realistic, no flock chorus, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-animal-swine-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_swine_1.mp3",
+      "prompt": "Short gentle farm one-shot: one pig makes a subdued grunt while nosing straw and soil, natural and close, no squeal, no other animals, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-animal-swine-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_swine_2.mp3",
+      "prompt": "Short restrained pig variation: one quiet double grunt beside a wooden pen with soft leaf litter movement, no squeal, no other animals, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-animal-chicken-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_chicken_1.mp3",
+      "prompt": "Short gentle hen-yard one-shot: one hen gives two quiet clucks while scratching dry soil and straw, no rooster, no flock chorus, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-animal-chicken-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_chicken_2.mp3",
+      "prompt": "Short restrained chicken variation: one small hen gives a soft cluck and shifts through straw beside a cottage, no rooster, no flock chorus, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-animal-deer-1",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_deer_1.mp3",
+      "prompt": "Short subtle woodland one-shot: one nearby roe deer gives a quiet natural nasal bark with a small leaf movement, restrained wildlife ambience, no birds, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.84
+    },
+    {
+      "id": "world-animal-deer-2",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/animal_deer_2.mp3",
+      "prompt": "Short subtle roe deer variation: one soft alert bark at middle distance followed by a twig and leaves shifting, no herd, no birds, no human voices, no music",
+      "durationSeconds": 2,
+      "loop": false,
+      "promptInfluence": 0.84
+    },
+    {
+      "id": "world-season-winter-gust",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/season_winter_gust.mp3",
+      "prompt": "Short soft winter air movement through a quiet late-medieval mountain settlement, cold breeze around timber eaves and bare branches, understated, no whistle, no voices, no music",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.84
+    },
+    {
+      "id": "world-season-autumn-leaves",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/season_autumn_leaves.mp3",
+      "prompt": "Short soft autumn atmosphere: a light breeze gathers a small scatter of dry beech leaves across grass and packed earth, gentle and natural, no birds, no voices, no music",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.84
+    },
+    {
+      "id": "world-season-rain-roof",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/season_rain_roof.mp3",
+      "prompt": "Short close rain detail beside a medieval cottage: gentle spring droplets patter across wooden shingles and a clay roof edge, soft and diffuse, no thunder, no voices, no music",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.86
+    },
+    {
+      "id": "world-event-residence-complete",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_residence_complete.mp3",
+      "prompt": "Short warm settlement milestone Foley: a new timber cottage door settles into its frame, one light wooden latch click, and a quiet structural creak, humble and satisfying, no voices, no music",
+      "durationSeconds": 2.2,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-event-residence-upgrade",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_residence_upgrade.mp3",
+      "prompt": "Short restrained medieval home-improvement milestone: a dressed stone sill and timber fitting are seated with one soft mallet tap and warm house creak, no voices, no music, no fanfare",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-event-raid-alarm",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_raid_alarm.mp3",
+      "prompt": "Short restrained late-medieval village raid alarm: two urgent strikes on a small iron watch bell from a timber tower, clear but not cinematic, no shouting, no battle, no music",
+      "durationSeconds": 2.8,
+      "loop": false,
+      "promptInfluence": 0.92
+    },
+    {
+      "id": "world-event-burial",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_burial.mp3",
+      "prompt": "Short solemn rural burial Foley: one wooden-handled spade places soft earth onto a grave followed by a single very quiet distant handbell tone, respectful and restrained, no voices, no music",
+      "durationSeconds": 2.5,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
+      "id": "world-event-trade-arrival",
+      "group": "world-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/world/event_trade_arrival.mp3",
+      "prompt": "Short understated medieval trade arrival Foley: a merchant handcart stops on packed earth, a small crate and coin pouch settle against timber, practical and warm, no voices, no melody, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
       "id": "music-valley-first-light",
       "group": "soundtrack",
       "kind": "music",

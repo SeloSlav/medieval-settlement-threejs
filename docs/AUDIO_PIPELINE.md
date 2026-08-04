@@ -103,3 +103,9 @@ The `building-foley` group contains one short, non-looping atmospheric cue for
 every generated building kind plus occupied residences. These cues describe
 only their physical source to ElevenLabs. A short playback gain envelope
 supplies the quiet tail separately, keeping that processing out of prompts.
+The `world-foley` group adds short event-driven cart, logistics, construction,
+demolition, first-person surface, fire-response, animal, seasonal, raid,
+burial, trade, and household milestone cues. Runtime schedules are sparse and
+distance-bounded; state transitions come from the replicated game state rather
+than random background playback. The same playback-only tail treatment is
+applied to these cues.

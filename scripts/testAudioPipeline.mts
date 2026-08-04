@@ -17,6 +17,7 @@ import {
   RIVER_WATER_CLIP,
   UI_SOUNDS,
   WORKER_ACTIVITY_CLIPS,
+  WORLD_FOLEY_CLIPS,
   type AudioClipDefinition,
 } from '../src/audio/audioCatalog.ts';
 import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
@@ -27,6 +28,13 @@ import {
   BUILDING_AUDIO_MAX_ZOOM_DISTANCE,
   BUILDING_AUDIO_TAIL_SECONDS,
 } from '../src/audio/BuildingAudio.ts';
+import {
+  worldFoleyGain,
+  worldFoleyTailGain,
+  WORLD_FOLEY_CUTOFF_DISTANCE,
+  WORLD_FOLEY_MAX_ZOOM_DISTANCE,
+  WORLD_FOLEY_TAIL_SECONDS,
+} from '../src/audio/WorldFoleyAudio.ts';
 import {
   fireAudioGain,
   FIRE_AUDIO_CUTOFF_DISTANCE,
@@ -135,6 +143,7 @@ function runtimeClips(): AudioClipDefinition[] {
     ...Object.values(WORKER_ACTIVITY_CLIPS).flat(),
     ...Object.values(COMBAT_AUDIO_CLIPS).flat(),
     ...Object.values(BUILDING_AUDIO_CLIPS),
+    ...Object.values(WORLD_FOLEY_CLIPS),
   ];
 }
 
@@ -313,6 +322,50 @@ async function main(): Promise<void> {
       orbitDistance: BUILDING_AUDIO_MAX_ZOOM_DISTANCE + 1,
     }) === 0,
     'Building Foley must be limited to close settlement inspection',
+  );
+
+  const worldAssets = manifest.assets.filter((asset) => (
+    asset.group === 'world-foley'
+  ));
+  invariant(
+    worldAssets.length === Object.keys(WORLD_FOLEY_CLIPS).length
+    && worldAssets.length === 48,
+    'World Foley manifest and runtime catalog must retain all 48 cues',
+  );
+  for (const [id, clip] of Object.entries(WORLD_FOLEY_CLIPS)) {
+    const asset = worldAssets.find((candidate) => (
+      candidate.id === `world-${id.replaceAll('_', '-')}`
+    ));
+    invariant(asset, `Missing world Foley manifest entry: ${id}`);
+    invariant(
+      asset.durationSeconds != null
+      && asset.durationSeconds >= 1
+      && asset.durationSeconds <= 3,
+      `World Foley must remain within 1-3 seconds: ${id}`,
+    );
+    invariant(
+      !/\bfad(?:e|es|ed|ing)?\b/i.test(asset.prompt),
+      `World Foley processing instructions must stay out of the prompt: ${id}`,
+    );
+    invariant(
+      clip.path === `/${asset.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`,
+      `World Foley runtime path differs from its manifest output: ${id}`,
+    );
+  }
+  invariant(
+    worldFoleyTailGain(WORLD_FOLEY_TAIL_SECONDS) === 1
+    && worldFoleyTailGain(WORLD_FOLEY_TAIL_SECONDS * 0.5) === 0.5
+    && worldFoleyTailGain(0) === 0,
+    'World Foley needs a smooth playback-only tail envelope',
+  );
+  invariant(
+    worldFoleyGain(0, 0, closeBuildingView) === 1
+    && worldFoleyGain(WORLD_FOLEY_CUTOFF_DISTANCE, 0, closeBuildingView) === 0
+    && worldFoleyGain(0, 0, {
+      ...closeBuildingView,
+      orbitDistance: WORLD_FOLEY_MAX_ZOOM_DISTANCE + 1,
+    }) === 0,
+    'World Foley must remain bounded by distance and inspection zoom',
   );
 
   const missingRuntimeFiles: string[] = [];

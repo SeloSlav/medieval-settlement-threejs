@@ -276,8 +276,14 @@ export async function bootstrapAppSession(
     },
     getBuildings: () => liveContext.gameState.buildings,
     getBurgageZones: () => liveContext.gameState.burgageZones.values(),
-    getResidences: () => liveContext.gameState.residences.values(),
+    getResidences: () => liveContext.gameState.residences,
     getFireIncidents: () => liveContext.gameState.fireIncidents.values(),
+    getDeliveryTrips: () => liveContext.gameState.deliveryTrips.values(),
+    getLivestockHerds: () => liveContext.gameState.livestockHerds.values(),
+    getBackyardGardens: () => liveContext.gameState.backyardGardens.values(),
+    getForagingNodes: () => liveContext.gameState.foragingNodes.values(),
+    getGraveyards: () => liveContext.gameState.graveyards?.values() ?? [],
+    getCombatAgents: () => spacetimeStore.snapshot.combatAgents.values(),
   });
 
   const worldQueries = new WorldQueries({
@@ -1131,6 +1137,22 @@ export async function bootstrapAppSession(
     bounds: sceneManager.terrain.bounds,
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getRoadDeckY: (x, z) => sceneManager.sampleRoadDeckY(x, z),
+    getFootstepSurface: (x, y, z) => {
+      const terrainY = sceneManager.terrain.getHeightAt(x, z);
+      const roadDeckY = sceneManager.sampleRoadDeckY(x, z);
+      const waterY = sceneManager.getBridgeSamplingContext().getWaterSurfaceY(x, z);
+      if (
+        sceneManager.riverField.isRenderedWetAt(x, z)
+        && y <= waterY + 0.32
+      ) {
+        return 'water';
+      }
+      if (roadDeckY != null && roadDeckY > terrainY + 0.12) return 'timber';
+      if (y > Math.max(terrainY, roadDeckY ?? terrainY) + 0.18) return 'stone';
+      if (isOnRoadSurface(x, z, roadNetwork)) return 'dirt';
+      return 'grass';
+    },
+    onFootstep: (surface) => ambientAudio.playFootstep(surface),
     collisionWorld: firstPersonCollisionWorld,
     getOrbitSpawn: () => {
       const target = cameraController.getTargetPosition();
