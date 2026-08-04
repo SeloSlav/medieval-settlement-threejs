@@ -17,7 +17,6 @@ import CallUpYearRoundLaborReducer from "../call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "../cancel_marketplace_trade_order_reducer";
 import ClientConnectedReducer from "../client_connected_reducer";
 import CollectChapelCofferReducer from "../collect_chapel_coffer_reducer";
-import UpgradeChapelReducer from "../upgrade_chapel_reducer";
 import ConfigureWorldReducer from "../configure_world_reducer";
 import DemolishBackyardGardenReducer from "../demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "../demolish_building_reducer";
@@ -85,6 +84,7 @@ import SetWoodcutterTimberReserveReducer from "../set_woodcutter_timber_reserve_
 import StartFarmFieldEarlyHarvestReducer from "../start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "../sync_road_network_reducer";
 import TickSimReducer from "../tick_sim_reducer";
+import UpgradeChapelReducer from "../upgrade_chapel_reducer";
 import UpgradeResidenceReducer from "../upgrade_residence_reducer";
 
 export type AssignBuildingLaborParams = __Infer<typeof AssignBuildingLaborReducer>;
@@ -98,7 +98,6 @@ export type CallUpYearRoundLaborParams = __Infer<typeof CallUpYearRoundLaborRedu
 export type CancelMarketplaceTradeOrderParams = __Infer<typeof CancelMarketplaceTradeOrderReducer>;
 export type ClientConnectedParams = __Infer<typeof ClientConnectedReducer>;
 export type CollectChapelCofferParams = __Infer<typeof CollectChapelCofferReducer>;
-export type UpgradeChapelParams = __Infer<typeof UpgradeChapelReducer>;
 export type ConfigureWorldParams = __Infer<typeof ConfigureWorldReducer>;
 export type DemolishBackyardGardenParams = __Infer<typeof DemolishBackyardGardenReducer>;
 export type DemolishBuildingParams = __Infer<typeof DemolishBuildingReducer>;
@@ -166,4 +165,6 @@ export type SetWoodcutterTimberReserveParams = __Infer<typeof SetWoodcutterTimbe
 export type StartFarmFieldEarlyHarvestParams = __Infer<typeof StartFarmFieldEarlyHarvestReducer>;
 export type SyncRoadNetworkParams = __Infer<typeof SyncRoadNetworkReducer>;
 export type TickSimParams = __Infer<typeof TickSimReducer>;
+export type UpgradeChapelParams = __Infer<typeof UpgradeChapelReducer>;
 export type UpgradeResidenceParams = __Infer<typeof UpgradeResidenceReducer>;
+

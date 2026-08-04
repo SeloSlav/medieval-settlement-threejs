@@ -44,7 +44,6 @@ import CallUpTargetReadyProcessorLaborReducer from "./call_up_target_ready_proce
 import CallUpYearRoundLaborReducer from "./call_up_year_round_labor_reducer";
 import CancelMarketplaceTradeOrderReducer from "./cancel_marketplace_trade_order_reducer";
 import CollectChapelCofferReducer from "./collect_chapel_coffer_reducer";
-import UpgradeChapelReducer from "./upgrade_chapel_reducer";
 import ConfigureWorldReducer from "./configure_world_reducer";
 import DemolishBackyardGardenReducer from "./demolish_backyard_garden_reducer";
 import DemolishBuildingReducer from "./demolish_building_reducer";
@@ -112,6 +111,7 @@ import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_r
 import StartFarmFieldEarlyHarvestReducer from "./start_farm_field_early_harvest_reducer";
 import SyncRoadNetworkReducer from "./sync_road_network_reducer";
 import TickSimReducer from "./tick_sim_reducer";
+import UpgradeChapelReducer from "./upgrade_chapel_reducer";
 import UpgradeResidenceReducer from "./upgrade_residence_reducer";
 
 // Import all procedure arg schemas
@@ -532,7 +532,6 @@ const reducersSchema = __reducers(
   __reducerSchema("call_up_year_round_labor", CallUpYearRoundLaborReducer),
   __reducerSchema("cancel_marketplace_trade_order", CancelMarketplaceTradeOrderReducer),
   __reducerSchema("collect_chapel_coffer", CollectChapelCofferReducer),
-  __reducerSchema("upgrade_chapel", UpgradeChapelReducer),
   __reducerSchema("configure_world", ConfigureWorldReducer),
   __reducerSchema("demolish_backyard_garden", DemolishBackyardGardenReducer),
   __reducerSchema("demolish_building", DemolishBuildingReducer),
@@ -600,6 +599,7 @@ const reducersSchema = __reducers(
   __reducerSchema("start_farm_field_early_harvest", StartFarmFieldEarlyHarvestReducer),
   __reducerSchema("sync_road_network", SyncRoadNetworkReducer),
   __reducerSchema("tick_sim", TickSimReducer),
+  __reducerSchema("upgrade_chapel", UpgradeChapelReducer),
   __reducerSchema("upgrade_residence", UpgradeResidenceReducer),
 );
 
@@ -656,3 +656,4 @@ export class DbConnection extends __DbConnectionImpl<typeof REMOTE_MODULE> {
     return new SubscriptionBuilder(this);
   };
 }
+
