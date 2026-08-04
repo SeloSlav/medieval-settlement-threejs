@@ -850,6 +850,183 @@
   gap: 7px 10px;
 }
 
+.settlement-hud__food-breakdown {
+  display: grid;
+  gap: 9px;
+  max-height: min(390px, calc(100vh - 220px));
+  padding: 11px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(213, 190, 139, 0.28);
+  border-radius: 8px;
+  color: #d9cfbb;
+  background:
+    linear-gradient(135deg, rgba(255, 239, 197, 0.035), transparent 36%),
+    rgba(7, 10, 7, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 245, 213, 0.045);
+}
+
+.settlement-hud__food-breakdown[hidden] {
+  display: none;
+}
+
+.settlement-hud__food-breakdown-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settlement-hud__food-breakdown-header h2 {
+  margin: 2px 0 0;
+  color: #eee2ca;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.settlement-hud__food-breakdown-eyebrow {
+  color: #a8956b;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__food-breakdown-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(211, 188, 137, 0.2);
+  border-radius: 5px;
+  color: #c8bda7;
+  background: rgba(255, 255, 255, 0.025);
+  font: 17px/1 Georgia, serif;
+  cursor: pointer;
+}
+
+.settlement-hud__food-breakdown-close:hover,
+.settlement-hud__food-breakdown-close:focus-visible {
+  border-color: rgba(222, 190, 112, 0.65);
+  color: #f0dfb8;
+  outline: none;
+}
+
+.settlement-hud__food-breakdown-copy {
+  margin: 0;
+  color: #a9a18f;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.settlement-hud__food-breakdown-table {
+  display: grid;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.settlement-hud__food-breakdown-columns,
+.settlement-hud__food-breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(82px, 1.6fr) repeat(4, minmax(34px, 0.7fr));
+  align-items: center;
+  gap: 5px;
+}
+
+.settlement-hud__food-breakdown-columns {
+  padding: 0 5px 4px;
+  color: #8f8878;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.settlement-hud__food-breakdown-columns span:not(:first-child),
+.settlement-hud__food-breakdown-row span {
+  text-align: right;
+}
+
+.settlement-hud__food-breakdown-row {
+  min-height: 24px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.018);
+  font-size: 8px;
+}
+
+.settlement-hud__food-breakdown-row[hidden] {
+  display: none;
+}
+
+.settlement-hud__food-breakdown-row strong {
+  color: #c8bda7;
+  font-weight: 700;
+}
+
+.settlement-hud__food-breakdown-row span {
+  color: #aaa391;
+}
+
+.settlement-hud__food-breakdown-row span:last-child {
+  color: #9bc17c;
+  font-weight: 750;
+}
+
+.settlement-hud__food-breakdown-row--legacy strong,
+.settlement-hud__food-breakdown-row--legacy span {
+  color: #ac9270;
+}
+
+.settlement-hud__food-breakdown-row--total {
+  margin-top: 4px;
+  border-top: 1px solid rgba(211, 188, 137, 0.18);
+  border-radius: 0;
+  background: transparent;
+}
+
+.settlement-hud__food-breakdown-row--total strong,
+.settlement-hud__food-breakdown-row--total span {
+  color: #e0cfaa;
+}
+
+.settlement-hud__food-breakdown-empty {
+  padding: 9px 5px;
+  color: #8f8878;
+  font-size: 8px;
+  font-style: italic;
+  text-align: center;
+}
+
+.settlement-hud__food-breakdown-empty[hidden] {
+  display: none;
+}
+
+.settlement-hud__food-breakdown-locate {
+  justify-self: start;
+  padding: 5px 8px;
+  border: 1px solid rgba(213, 180, 99, 0.36);
+  border-radius: 5px;
+  color: #cfbd92;
+  background: rgba(126, 96, 40, 0.14);
+  font: 750 8px/1.2 Inter, ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.settlement-hud__food-breakdown-locate:hover,
+.settlement-hud__food-breakdown-locate:focus-visible {
+  border-color: rgba(225, 190, 106, 0.72);
+  color: #f0dfb8;
+  outline: none;
+}
+
+.settlement-hud__stat--food.is-open::after {
+  content: '\25B4';
+  opacity: 0.9;
+}
+
 .settlement-hud__stores {
   margin: 0;
   padding-top: 7px;

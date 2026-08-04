@@ -74,6 +74,12 @@ import {
   formatPreservedFoodLoss,
 } from '../../economy/foodPreservation.ts';
 import {
+  edibleFoodStock,
+  freshFoodStock,
+  preservableFoodStock,
+  preservedFoodStock,
+} from '../../economy/foodInventory.ts';
+import {
   GRANARY_FRESH_FOOD_TARGET_PRESETS,
   GRANARY_GRAIN_RESERVE_PRESETS,
   granaryExportableGrain,
@@ -147,14 +153,14 @@ const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
   granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then redistributes them by road cart',
-  bakery: 'Flour + hauled water + firewood + baker labor -> bread, tracked as fresh food for Marketplace stalls and institutions',
+  bakery: 'Flour + hauled water + firewood + baker labor -> bread for homes, Marketplace stalls, and institutions',
   brewery: 'Barley + water + firewood → malt → ale',
-  smokehouse: 'Fresh food + firewood + local or imported salt + pottery vessels → preserved food',
-  apiary: 'April-September forest forage → food, monastery hospitality, or export honey',
-  vineyard: 'September-October grape harvest → food, monastery hospitality, or export wine',
-  monastery: 'Tithes + food + hospitality stores → charity, feasts, pilgrimages',
+  smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
+  apiary: 'April-September forest forage -> honey for meals, monastery hospitality, or export',
+  vineyard: 'September-October harvest -> grapes for meals or wine for hospitality and export',
+  monastery: 'Tithes + named meal stores + hospitality goods -> charity, feasts, and pilgrimages',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
-  weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-3 households, then marketplace export',
+  weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-3 Marketplace stalls, then Trading Post export',
   ferry_landing: 'River crossing → fares held at the landing → civic collection',
 };
 
@@ -192,8 +198,7 @@ function buildingHasOutboundStock(
     case 'watermill':
       return building.flour > 0;
     case 'granary':
-      return building.food > 0
-        || building.preservedFood > 0
+      return edibleFoodStock(building) > 0
         || building.flour > 0
         || (building.barley ?? 0) > 0
         || (building.flax ?? 0) > 0
@@ -202,19 +207,20 @@ function buildingHasOutboundStock(
           building.granaryGrainReserve ?? 0,
         ) > 1e-6;
     case 'bakery':
-      return building.food > 0;
+      return (building.bread ?? 0) > 0;
     case 'brewery':
       return (building.barley ?? 0) > 0
         || (building.malt ?? 0) > 0
         || building.ale > 0;
     case 'smokehouse':
-      return building.preservedFood > 0;
+      return preservedFoodStock(building) > 0;
     case 'apiary':
-      return building.honey > 0 || building.food > 0;
+      return building.honey > 0;
     case 'vineyard':
-      return building.wine > 0 || building.food > 0;
+      return building.wine > 0 || (building.grapes ?? 0) > 0;
     case 'monastery':
-      return building.food > protectedMonasteryFood + 1e-6;
+      return Math.max(0, edibleFoodStock(building) - building.honey)
+        > protectedMonasteryFood + 1e-6;
     case 'carpenter':
       return (building.polearms ?? 0) > 0;
     case 'weaver':
@@ -455,16 +461,16 @@ function outboundTripTarget(
       'barley',
     )?.target ?? null;
     if (barleyTarget) return barleyTarget;
-    const householdFoodTarget = building.food > 1e-6
+    const householdFoodTarget = edibleFoodStock(building) > 1e-6
       ? context.worldQueries.getNextFoodDeliveryTargetForSupplier(building)
       : null;
-    const preservationTarget = building.food > 1e-6
+    const preservationTarget = preservableFoodStock(building) > 1e-6
       ? context.worldQueries.getNextDirectProcessorInputDispatch(
         building,
         'food',
       )?.target ?? null
       : null;
-    const curedHouseholdTarget = building.preservedFood > 1e-6
+    const curedHouseholdTarget = preservedFoodStock(building) > 1e-6
       ? context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
         building,
         'preservedFood',
@@ -641,12 +647,12 @@ function renderLogisticsRows(
         const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
         const availableFood = building.kind === 'monastery'
           ? monasteryFeastSurplus(
-              building.food,
+              Math.max(0, edibleFoodStock(building) - building.honey),
               MONASTERY_FEAST_FOOD,
               policy.feastsEnabled,
             )
-          : building.food;
-        return `<li><span>Food territory</span><span>${availableFood <= 1e-6 ? building.kind === 'monastery' && building.food > 1e-6 ? `${MONASTERY_FEAST_FOOD} feast food protected` : 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} households claimed`}</span></li>
+          : edibleFoodStock(building);
+        return `<li><span>Food territory</span><span>${availableFood <= 1e-6 ? building.kind === 'monastery' && edibleFoodStock(building) > 1e-6 ? `${MONASTERY_FEAST_FOOD} feast meals protected` : 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} households claimed`}</span></li>
           <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'None needing food'}</span></li>`;
       })()
     : '';
@@ -667,7 +673,7 @@ function renderLogisticsRows(
                 'preservedFood',
               )
             : null;
-          return `<li><span>Cured-food territory</span><span>${building.preservedFood <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
+          return `<li><span>Cured-food territory</span><span>${preservedFoodStock(building) <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
           <li><span>Next cured ration</span><span>${next ? `Parcel #${next.parcelIndex + 1} · lowest household runway` : 'Household cupboards covered'}</span></li>
           ${building.kind === 'smokehouse' ? `<li><span>Cured overflow</span><span>${overflow ? `${context.worldQueries.getBuildingLabel(overflow.target.kind)} · ${overflow.routeDistance.toFixed(0)} m road · only after household duty` : 'No reachable granary with room'}</span></li>` : ''}`;
         })()
@@ -1122,7 +1128,7 @@ export function renderExpandedBuildingInspector(
     : null;
   const granaryInstitutionalFood = building.kind === 'granary'
     ? institutionalFoodSurplus(
-        building.food,
+        edibleFoodStock(building),
         context.worldQueries.getClaimedResidencesForFoodSupplier(building).length,
         buildingStorageCaps('granary').food ?? 0,
       )
@@ -1132,12 +1138,12 @@ export function renderExpandedBuildingInspector(
     : null;
   const granaryPreservationDispatchLabel = building.kind === 'granary'
     ? granaryInstitutionalFood <= 1e-6
-      ? building.food > 1e-6
+      ? edibleFoodStock(building) > 1e-6
         ? 'Household reserve holds current fresh food'
         : 'No fresh food available'
       : granaryPreservationDispatch
         ? granaryPreservationDispatch.duty === 'working-buffer'
-          ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${staffingPriorityLabel(granaryPreservationDispatch.workPriority)} priority · ${granaryPreservationDispatch.target.food.toFixed(1)} / ${granaryPreservationDispatch.desiredStock.toFixed(1)} fresh food`
+          ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${staffingPriorityLabel(granaryPreservationDispatch.workPriority)} priority · ${preservableFoodStock(granaryPreservationDispatch.target).toFixed(1)} / ${granaryPreservationDispatch.desiredStock.toFixed(1)} preservable food`
           : `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · active buffers covered · nearest overflow route`
         : 'No smokehouse can currently receive fresh food'
     : '';
@@ -1173,11 +1179,11 @@ export function renderExpandedBuildingInspector(
     : '';
   const granaryGuardFoodDispatchLabel = building.kind === 'granary' && context.conflictEnabled
     ? granaryGuardFoodDispatch
-      ? `${context.worldQueries.getBuildingLabel(granaryGuardFoodDispatch.target.kind)} · ${granaryGuardFoodDispatch.target.food.toFixed(1)} / ${granaryGuardFoodDispatch.desiredStock.toFixed(1)} · ${granaryGuardFoodDispatch.runwayDays.toFixed(1)} days`
+      ? `${context.worldQueries.getBuildingLabel(granaryGuardFoodDispatch.target.kind)} · ${edibleFoodStock(granaryGuardFoodDispatch.target).toFixed(1)} / ${granaryGuardFoodDispatch.desiredStock.toFixed(1)} · ${granaryGuardFoodDispatch.runwayDays.toFixed(1)} days`
       : building.assignedLabor <= 0
         ? 'Waiting for an assigned granary hauler'
         : granaryInstitutionalFood <= 1e-6
-          ? building.food > 1e-6
+          ? edibleFoodStock(building) > 1e-6
             ? 'Household reserve holds current food'
             : 'No food available'
           : `No armed company below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS}-day emergency floor`
@@ -1194,7 +1200,7 @@ export function renderExpandedBuildingInspector(
     ? `<li><span>Cured-store aging</span><span>${preservedStorageFactor < 1
         ? `${Math.round((1 - preservedStorageFactor) * 100)}% slower than ordinary dry storage`
         : 'Ordinary dry storage'} · ${formatPreservedFoodLoss(
-          building.preservedFood
+          preservedFoodStock(building)
           * environment.preservedFoodSpoilageFractionPerDay
           * preservedStorageFactor,
         )}</span></li>`
@@ -1210,7 +1216,7 @@ export function renderExpandedBuildingInspector(
       <li><span>Dispatch priority</span><span>${granaryDispatchPriorityLabel(building.granaryHouseholdsFirst === true)}</span></li>
       <li><span>Next preservation buffer</span><span>${granaryPreservationDispatchLabel}</span></li>
       <li><span>Household priority</span><span>1 food cart per source-claimed home · capped at 50% source storage</span></li>
-      <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(building.food * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
+      <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(freshFoodStock(building) * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
     : '';
   const grainProcessorRows = building.kind === 'watermill'
     || building.kind === 'monastery'
@@ -1239,11 +1245,13 @@ export function renderExpandedBuildingInspector(
     ? context.worldQueries.getClaimedResidencesForFoodSupplier(building).length
     : 0;
   const routineFreshFoodCapacity = routineFreshFoodSource
-    ? buildingStorageCaps(building.kind).food ?? 0
+    ? building.kind === 'apiary'
+      ? buildingStorageCaps(building.kind).honey ?? 0
+      : buildingStorageCaps(building.kind).food ?? 0
     : 0;
   const routineFreshFoodSurplus = routineFreshFoodSource
     ? institutionalFoodSurplus(
-        building.food,
+        edibleFoodStock(building),
         routineFreshFoodClaims,
         routineFreshFoodCapacity,
       )
@@ -1258,9 +1266,9 @@ export function renderExpandedBuildingInspector(
     ? `<li><span>Fresh-food priority</span><span>Producer-owned carts protect household reserves, then serve a critical company before this working batch</span></li>
       <li><span>Shared arbitration</span><span>Smokehouse batch → routine company reserve → enabled granary intake · work priority and lowest runway break ties</span></li>`
     : routineFreshFoodSource
-      ? `<li><span>Local food reserve</span><span>${(building.food - routineFreshFoodSurplus).toFixed(1)} protected · ${routineFreshFoodSurplus.toFixed(1)} central surplus</span></li>
+      ? `<li><span>Local food reserve</span><span>${(edibleFoodStock(building) - routineFreshFoodSurplus).toFixed(1)} protected · ${routineFreshFoodSurplus.toFixed(1)} central surplus</span></li>
         <li><span>Next surplus cart</span><span>${routineFreshFoodDispatch
-          ? `${institutionalFoodDutyLabel(routineFreshFoodDispatch.duty)} → ${context.worldQueries.getBuildingLabel(routineFreshFoodDispatch.target.kind)} · ${routineFreshFoodDispatch.target.food.toFixed(1)} / ${routineFreshFoodDispatch.desiredStock.toFixed(1)} food`
+          ? `${institutionalFoodDutyLabel(routineFreshFoodDispatch.duty)} → ${context.worldQueries.getBuildingLabel(routineFreshFoodDispatch.target.kind)} · ${edibleFoodStock(routineFreshFoodDispatch.target).toFixed(1)} / ${routineFreshFoodDispatch.desiredStock.toFixed(1)} meals`
           : routineFreshFoodSurplus <= 1e-6
             ? 'None · local household reserve is protected'
             : 'No eligible institution requesting food'}</span></li>`

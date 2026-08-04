@@ -5,6 +5,7 @@ import {
   MARKET_COMMODITIES,
   MARKET_WATER_COMMODITIES,
   RESIDENCE_FOOD_CAPACITY,
+  RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_WATER_CAPACITY,
   SIM_TICK_SECONDS,
   type MarketCommodityOffer,
@@ -28,6 +29,11 @@ import {
   effectiveWaterCommodityGoldCost,
   type RegionalMarketState,
 } from './regionalMarket.ts';
+import {
+  NAMED_FOOD_LABELS,
+  freshFoodStock,
+  preservedFoodStock,
+} from './foodInventory.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import { gameClock, type GameClock } from '../world/gameCalendar.ts';
 
@@ -35,11 +41,51 @@ export type HouseholdMarketOrderKind = 'food' | 'water';
 
 export type HouseholdMarketOrderQuote = {
   kind: HouseholdMarketOrderKind;
+  resourceKind: MarketCommodityOffer['resourceKind'] | null;
   offerId: string;
   label: string;
   amount: number;
   goldCost: number;
 };
+
+export function foodOrderQuoteUsesPreservedStorage(
+  quote: HouseholdMarketOrderQuote,
+): boolean {
+  return quote.kind === 'food'
+    && quote.resourceKind !== null
+    && (quote.resourceKind === 'curedMeat' || quote.resourceKind === 'cheese');
+}
+
+export function foodOrderQuoteResidenceRoom(
+  residence: ResidenceState,
+  quote: HouseholdMarketOrderQuote,
+): number {
+  if (quote.kind !== 'food') return 0;
+  return foodOrderQuoteUsesPreservedStorage(quote)
+    ? Math.max(0, RESIDENCE_PRESERVED_FOOD_CAPACITY - preservedFoodStock(residence))
+    : Math.max(0, RESIDENCE_FOOD_CAPACITY - freshFoodStock(residence));
+}
+
+export function foodOrderQuoteMarketplaceRoom(
+  marketplace: BuildingState,
+  quote: HouseholdMarketOrderQuote,
+): number {
+  if (quote.kind !== 'food') return 0;
+  const caps = marketplace.kind === 'marketplace'
+    ? BUILDING_STORAGE_CAPS.marketplace
+    : BUILDING_STORAGE_CAPS.trading_post;
+  return foodOrderQuoteUsesPreservedStorage(quote)
+    ? Math.max(0, caps.preservedFood - preservedFoodStock(marketplace))
+    : Math.max(0, caps.food - freshFoodStock(marketplace));
+}
+
+export function householdMarketOrderResourceLabel(
+  quote: HouseholdMarketOrderQuote,
+): string {
+  return quote.resourceKind == null
+    ? quote.kind
+    : NAMED_FOOD_LABELS[quote.resourceKind].toLowerCase();
+}
 
 export type HouseholdMarketOrderStatus =
   | 'safe'
@@ -148,6 +194,7 @@ export function bestAffordableHouseholdFoodQuote(
     wealth,
     (offer) => effectiveCommodityGoldCost(offer, marketState),
     (offer) => offer.foodAmount,
+    (offer) => offer.resourceKind,
     'food',
   );
 }
@@ -161,6 +208,7 @@ export function bestAffordableHouseholdWaterQuote(
     wealth,
     (offer) => effectiveWaterCommodityGoldCost(offer, marketState),
     (offer) => offer.waterAmount,
+    () => null,
     'water',
   );
 }
@@ -170,6 +218,7 @@ function bestAffordableQuote<T extends MarketCommodityOffer | MarketWaterCommodi
   wealth: number,
   goldCostFor: (offer: T) => number,
   amountFor: (offer: T) => number,
+  resourceKindFor: (offer: T) => MarketCommodityOffer['resourceKind'] | null,
   kind: HouseholdMarketOrderKind,
 ): HouseholdMarketOrderQuote | null {
   let best: HouseholdMarketOrderQuote | null = null;
@@ -183,6 +232,7 @@ function bestAffordableQuote<T extends MarketCommodityOffer | MarketWaterCommodi
     bestValue = value;
     best = {
       kind,
+      resourceKind: resourceKindFor(offer),
       offerId: offer.id,
       label: offer.label,
       amount,
@@ -466,22 +516,20 @@ function evaluateAttempt(
   logisticsPaused: boolean,
 ): AttemptResult {
   if (logisticsPaused) return { status: 'closed', quote };
-  const marketCapacity = quote.kind === 'food'
-    ? BUILDING_STORAGE_CAPS.trading_post.food
+  const marketRoom = quote.kind === 'food'
+    ? foodOrderQuoteMarketplaceRoom(marketplace, quote)
     : Math.max(
         marketplace.waterCapacity,
         BUILDING_STORAGE_CAPS.trading_post.water,
-      );
-  const marketStock = quote.kind === 'food' ? marketplace.food : marketplace.water;
-  if (marketCapacity - marketStock + 1e-6 < quote.amount) {
+      ) - marketplace.water;
+  if (marketRoom + 1e-6 < quote.amount) {
     return { status: 'market-storage-full', quote };
   }
   if (marketCartBusy) return { status: 'market-cart-busy', quote };
-  const householdStock = getNeedStock(residence.needs, quote.kind);
-  const householdCapacity = quote.kind === 'food'
-    ? RESIDENCE_FOOD_CAPACITY
-    : RESIDENCE_WATER_CAPACITY;
-  if (householdCapacity - householdStock + 1e-6 < quote.amount) {
+  const householdRoom = quote.kind === 'food'
+    ? foodOrderQuoteResidenceRoom(residence, quote)
+    : RESIDENCE_WATER_CAPACITY - getNeedStock(residence.needs, quote.kind);
+  if (householdRoom + 1e-6 < quote.amount) {
     return { status: 'household-storage-full', quote };
   }
   if (!Number.isFinite(roadDistance) || roadDistance <= 1e-6) {
@@ -499,7 +547,7 @@ export function formatHouseholdMarketResidenceStatus(
     return `Standing order idle - triggers at ${Math.round(HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS * 24)}h of food or active water runway`;
   }
   const order = plan.quote
-    ? `${plan.quote.label}: ${plan.quote.amount} ${plan.quote.kind} for ${plan.quote.goldCost} gold`
+    ? `${plan.quote.label}: ${plan.quote.amount} ${householdMarketOrderResourceLabel(plan.quote)} for ${plan.quote.goldCost} gold`
     : null;
   switch (plan.status) {
     case 'ready':

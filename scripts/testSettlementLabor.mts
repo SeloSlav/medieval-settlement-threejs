@@ -128,9 +128,9 @@ assert.equal(inTransit.food, 4);
 assert.equal(inTransit.water, 2);
 assert.equal(inTransit.timber, 0, 'an empty returning cart should not report cargo');
 assert.equal(
-  Object.values(inTransit).reduce((sum, amount) => sum + amount, 0),
+  inTransit.timber + inTransit.firewood + inTransit.water + inTransit.food,
   haulage.cargoInTransit,
-  'the HUD transit ledger should account for every loaded physical cart exactly once',
+  'aggregate food plus non-food cargo rows must account for every loaded physical cart exactly once',
 );
 
 const laborSurplus = computeSettlementLaborPlan({

@@ -9,6 +9,7 @@ import { gardenMarketActivity } from './gardenMarketActivity.ts';
 
 export type BackyardGardenTickEffects = {
   selfFood: number;
+  marketFood: number;
   economicActivity: number;
 };
 
@@ -106,18 +107,21 @@ export function computeBackyardGardenTickEffects(
     : 0;
 
   let selfFood = 0;
+  let marketFood = 0;
   if (def.foodPerPersonPerSec > 0) {
-    const totalFood = def.foodPerPersonPerSec * pop * seconds;
-    selfFood = totalFood
-      * Math.max(0, Math.min(1, def.foodSelfShare))
-      * outputMultiplier;
+    const totalFood = def.foodPerPersonPerSec * pop * seconds * outputMultiplier;
+    const selfShare = hasMarketAccess
+      ? Math.max(0, Math.min(1, def.foodSelfShare))
+      : 1;
+    selfFood = totalFood * selfShare;
+    marketFood = hasMarketAccess ? Math.max(0, totalFood - selfFood) : 0;
   }
 
   const economicActivity = hasMarketAccess
     ? gardenMarketActivity(def, pop, seconds) * outputMultiplier
     : 0;
 
-  return { selfFood, economicActivity };
+  return { selfFood, marketFood, economicActivity };
 }
 
 export function foodSaleGoldFromSelfShare(

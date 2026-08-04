@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import {
+  freshFoodStock,
+  preservedFoodStock,
+} from '../economy/foodInventory.ts';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import {
@@ -28,14 +32,14 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
   switch (building.kind) {
     case 'hunters_hall':
       return foodSupplierVisualSignature(
-        building,
+        (building.meat ?? 0) + building.food,
         BUILDING_STORAGE_CAPS.hunters_hall.food,
         HUNTERS_FOOD_VISUAL_SEGMENTS,
       );
     case 'foragers_shed':
       return `:food-store:${
         stockpileVisualLevel(
-          building.food,
+          building.food + (building.berries ?? 0) + (building.mushrooms ?? 0),
           BUILDING_STORAGE_CAPS.foragers_shed.food,
           FORAGERS_FOOD_VISUAL_SEGMENTS,
         )
@@ -48,7 +52,7 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
       }`;
     case 'fishing_camp':
       return foodSupplierVisualSignature(
-        building,
+        (building.fish ?? 0) + building.food,
         BUILDING_STORAGE_CAPS.fishing_camp.food,
         FISHING_FOOD_VISUAL_SEGMENTS,
       );
@@ -81,7 +85,7 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
         )
       }:${
         stockpileVisualLevel(
-          building.food,
+          freshFoodStock(building),
           BUILDING_STORAGE_CAPS.smokehouse.food,
           SMOKEHOUSE_FRESH_FOOD_VISUAL_SEGMENTS,
         )
@@ -99,7 +103,7 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
         )
       }:${
         stockpileVisualLevel(
-          building.preservedFood,
+          preservedFoodStock(building),
           BUILDING_STORAGE_CAPS.smokehouse.preservedFood,
           SMOKEHOUSE_PRESERVED_FOOD_VISUAL_SEGMENTS,
         )
@@ -121,7 +125,7 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
     case 'bakery':
       return `:food-store:${
         stockpileVisualLevel(
-          building.food + building.flour,
+          (building.bread ?? 0) + building.flour,
           BUILDING_STORAGE_CAPS.bakery.food + BUILDING_STORAGE_CAPS.bakery.flour,
           3,
         )
@@ -155,7 +159,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'HuntersFoodStockpile',
         'HuntersFoodSegment',
-        building.food,
+        (building.meat ?? 0) + building.food,
         BUILDING_STORAGE_CAPS.hunters_hall.food,
       );
       break;
@@ -164,7 +168,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'ForagersFoodStockpile',
         'ForagersFoodSegment',
-        building.food,
+        building.food + (building.berries ?? 0) + (building.mushrooms ?? 0),
         BUILDING_STORAGE_CAPS.foragers_shed.food,
       );
       syncNamedStockpile(
@@ -180,7 +184,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'FishingFoodStockpile',
         'FishingFoodSegment',
-        building.food,
+        (building.fish ?? 0) + building.food,
         BUILDING_STORAGE_CAPS.fishing_camp.food,
       );
       break;
@@ -219,7 +223,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'SmokehouseFreshFoodStockpile',
         'SmokehouseFreshFoodSegment',
-        building.food,
+        freshFoodStock(building),
         BUILDING_STORAGE_CAPS.smokehouse.food,
       );
       syncNamedStockpile(
@@ -240,7 +244,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'SmokehousePreservedFoodStockpile',
         'SmokehousePreservedFoodSegment',
-        building.preservedFood,
+        preservedFoodStock(building),
         BUILDING_STORAGE_CAPS.smokehouse.preservedFood,
       );
       break;
@@ -265,7 +269,7 @@ export function syncFoodStockpileVisuals(
         marker,
         'BakeryFoodStockpile',
         'BakeryFoodSegment',
-        building.food + building.flour,
+        (building.bread ?? 0) + building.flour,
         BUILDING_STORAGE_CAPS.bakery.food + BUILDING_STORAGE_CAPS.bakery.flour,
       );
       break;
@@ -289,15 +293,18 @@ export function syncFoodStockpileVisuals(
 }
 
 function foodSupplierVisualSignature(
-  building: BuildingState,
+  amount: number,
   capacity: number,
   segments: number,
 ): string {
-  return `:food-store:${stockpileVisualLevel(building.food, capacity, segments)}`;
+  return `:food-store:${stockpileVisualLevel(amount, capacity, segments)}`;
 }
 
 function granaryProvisionStock(building: BuildingState): number {
-  return building.food + building.flour + (building.flax ?? 0) + building.preservedFood;
+  return freshFoodStock(building)
+    + building.flour
+    + (building.flax ?? 0)
+    + preservedFoodStock(building);
 }
 
 function granaryProvisionCapacity(): number {

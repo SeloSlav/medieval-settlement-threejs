@@ -286,18 +286,18 @@ assert.doesNotMatch(
   /request_connected_commodity\([\s\S]{0,180}?CommodityKind::Firewood/,
   'hot workshops must no longer pull fuel in database update order',
 );
-for (const [label, source] of [
-  ['woodcutter lodge', lodgeSimulation],
-  ['village storehouse', storehouseSimulation],
-] as const) {
-  assert.match(
-    source,
-    /household_firewood_needs_priority/,
-    `${label} must stop preempting industry once its claimed homes reach protected stock`,
-  );
-}
+assert.doesNotMatch(
+  lodgeSimulation,
+  /ResidenceNeedKind|household_firewood_needs_priority|try_start_delivery_trip/,
+  'woodcutters must produce fuel without directly claiming household routes',
+);
+assert.match(
+  storehouseSimulation,
+  /pub fn step_storehouse_market_stalls[\s\S]*CommodityKind::Firewood[\s\S]*&\["marketplace"\]/,
+  'staffed storehouse workers must stock Marketplace fuel stalls before surplus fuel serves industry',
+);
 const householdDispatchIndex = authoritativeLoop.indexOf(
-  'step_village_storehouse_household_firewood(',
+  'step_storehouse_market_stalls(',
 );
 const industrialDispatchIndex = authoritativeLoop.indexOf('step_industrial_firewood_dispatch(');
 const overflowDispatchIndex = authoritativeLoop.indexOf(

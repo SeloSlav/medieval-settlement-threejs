@@ -31,6 +31,12 @@ import {
 } from '../../generated/gameBalance.ts';
 import { formatPreservedFoodLoss } from '../../economy/foodPreservation.ts';
 import {
+  NAMED_FOOD_KINDS,
+  NAMED_FOOD_LABELS,
+  edibleFoodStock,
+  preservedFoodStock,
+} from '../../economy/foodInventory.ts';
+import {
   formatFoodRunwayDays,
   residenceFoodRunwayDays,
 } from '../../logistics/foodLogistics.ts';
@@ -102,7 +108,7 @@ import {
   residenceNeedsStatus,
   getNeedStock,
 } from '../../residences/residenceNeeds.ts';
-import type { BuildingState, InspectableTarget } from '../types.ts';
+import type { BuildingState, InspectableTarget, ResidenceState } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
 
@@ -343,9 +349,23 @@ export function renderResidenceInspector(
   const grossFoodPerDay = residence.population
     * RESIDENCE_FOOD_PER_PERSON_PER_SEC
     * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
+  const physicalPreservedFood = preservedFoodStock(residence);
+  const physicalFreshMeals = Math.max(
+    0,
+    edibleFoodStock(residence) - physicalPreservedFood,
+  );
+  const householdFreshMeals = residence.foodInventoryMigrated === true
+    ? physicalFreshMeals
+    : Math.max(physicalFreshMeals, getNeedStock(residence.needs, 'food'));
+  const householdPreservedFood = residence.foodInventoryMigrated === true
+    ? physicalPreservedFood
+    : Math.max(
+        physicalPreservedFood,
+        getNeedStock(residence.needs, 'preservedFood'),
+      );
   const mealAllocation = allocatePreservedMeal(
-    getNeedStock(residence.needs, 'food'),
-    getNeedStock(residence.needs, 'preservedFood'),
+    householdFreshMeals,
+    householdPreservedFood,
     grossFoodPerDay,
     preservedFoodRotationPerDay,
     residence.tier >= 3,
@@ -411,9 +431,9 @@ export function renderResidenceInspector(
     : formatWaterRunwayDays(waterRunwayDays);
   const foodRunwayDays = residence.tier >= 3
     ? freshFoodRunwayWithPreservedRotation({
-        freshStock: getNeedStock(residence.needs, 'food'),
+        freshStock: householdFreshMeals,
         grossFoodDemandPerDay: grossFoodPerDay,
-        preservedStock: getNeedStock(residence.needs, 'preservedFood'),
+        preservedStock: householdPreservedFood,
         preservedRotationPerDay: preservedFoodRotationPerDay,
         preservedFoodSpoilageFractionPerDay:
           environment.preservedFoodSpoilageFractionPerDay
@@ -626,16 +646,17 @@ export function renderResidenceInspector(
       ${residence.tier > 0 && settlersRemaining > 0 && fireDisabled
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — structural recovery required before settlement resumes</span></li>`
         : ''}
-      ${residence.tier > 0 ? `<li><span>Food stock</span><span>${Math.round(getNeedStock(residence.needs, 'food'))} / ${RESIDENCE_FOOD_CAPACITY}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Fresh pantry</span><span>${householdFreshMeals.toFixed(1)} / ${RESIDENCE_FOOD_CAPACITY}</span></li>` : ''}
+      ${residence.tier > 0 ? householdFoodContentsRow(residence) : ''}
       ${residence.tier > 0 ? `<li><span>${residence.tier >= 3 ? 'Fresh-food runway' : 'Food runway'}</span><span>${foodRunwayLabel}${residence.tier >= 3 ? ' with finite household preserved stock' : ''}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Next daily meal</span><span>${mealAllocation.freshUsed.toFixed(2)} fresh + ${preservedMealUse.toFixed(2)} preserved${mealAllocation.preservedFallbackUsed > 1e-6 ? ` (${mealAllocation.preservedFallbackUsed.toFixed(2)} emergency fallback)` : ''}${mealAllocation.unmet > 1e-6 ? ` &middot; ${mealAllocation.unmet.toFixed(2)} unmet` : ''} &middot; ${grossFoodPerDay.toFixed(2)} total demand</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Firewood stock</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Firewood runway</span><span>${firewoodRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Water runway</span><span>${waterRunwayLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Preserved food</span><span>${Math.round(getNeedStock(residence.needs, 'preservedFood'))} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li><span>Preserved pantry</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
-        getNeedStock(residence.needs, 'preservedFood')
+        householdPreservedFood
         * environment.preservedFoodSpoilageFractionPerDay
         * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       )} · consume or replenish regularly</span></li>` : ''}
@@ -890,9 +911,23 @@ function upgradeSupplierHasStock(
   if (!supplier) return false;
   if (kind === 'firewood') return supplier.firewood > 1e-6;
   if (kind === 'water') return supplier.water > 1e-6;
-  if (kind === 'preservedFood') return supplier.preservedFood > 1e-6;
+  if (kind === 'preservedFood') return preservedFoodStock(supplier) > 1e-6;
   if (kind === 'ale') return supplier.ale > 1e-6;
   return (supplier.cloth ?? 0) > 1e-6;
+}
+
+function householdFoodContentsRow(residence: ResidenceState): string {
+  const contents = NAMED_FOOD_KINDS
+    .map((kind) => ({ kind, amount: Math.max(0, residence[kind] ?? 0) }))
+    .filter(({ amount }) => amount > 1e-6)
+    .map(({ kind, amount }) => `${NAMED_FOOD_LABELS[kind]} ${amount.toFixed(1)}`);
+  if ((residence.food ?? 0) > 1e-6) {
+    contents.push(`Legacy mixed food ${residence.food!.toFixed(1)}`);
+  }
+  if ((residence.preservedFood ?? 0) > 1e-6) {
+    contents.push(`Legacy preserved food ${residence.preservedFood!.toFixed(1)}`);
+  }
+  return `<li><span>Pantry contents</span><span>${contents.length > 0 ? contents.join(' · ') : 'Empty'}</span></li>`;
 }
 
 function formatUpgradeAmount(value: number): string {

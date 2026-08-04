@@ -20,8 +20,9 @@ use crate::economy::{
     adriatic_trade_entry_point, available_building_labor, building_commodity_room,
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
     credit_residence_wealth, credit_treasury_commodity, deposit_building_commodity,
-    record_parish_ledger, restore_local_civic_receipts, settle_regional_market_export,
-    withdraw_building_commodity, withdraw_coffer_in_place, CommodityKind, ParishLedgerKind,
+    deposit_residence_commodity, record_parish_ledger, restore_local_civic_receipts,
+    settle_regional_market_export, withdraw_building_commodity, withdraw_coffer_in_place,
+    CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::raid_agent_policy::{
@@ -34,7 +35,7 @@ use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
 use crate::simulation::delivery_cargo::{
     building_delivery_stock, pick_delivery_target, residence_delivery_room,
-    withdraw_delivery_cargo, DeliveryCargoTotals,
+    selected_food_delivery_commodity, withdraw_delivery_cargo, DeliveryCargoTotals,
 };
 use crate::simulation::fires::{
     apply_fire_water, building_fire_state, release_fire_response, residence_fire_state,
@@ -43,7 +44,9 @@ use crate::simulation::fires::{
 use crate::simulation::game_calendar::{game_clock, GameClock};
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::raid_agents::issued_guard_polearms_by_building;
-use crate::simulation::residence_needs::{apply_need_delivery, ResidenceNeedKind};
+use crate::simulation::residence_needs::{
+    apply_need_delivery, sync_food_need_rows, ResidenceNeedKind,
+};
 use crate::simulation::road_logistics::{local_delivery_distance, local_delivery_route};
 use crate::simulation::settlement_security::{
     building_portable_stores_at_site, delivery_trip_portable_stores,
@@ -876,20 +879,35 @@ pub fn try_start_delivery_trip(
         return false;
     }
 
-    let available = building_delivery_stock(building, need_kind);
+    let delivery_commodity = selected_food_delivery_commodity(building, need_kind);
+    let available = delivery_commodity
+        .map(|commodity| building_commodity_stock(building, commodity))
+        .unwrap_or_else(|| building_delivery_stock(building, need_kind));
     if available <= 1e-6 {
         return false;
     }
 
     let batch = per_delivery_amount * delivery_workers as f64;
     let Some((residence_id, residence_x, residence_z, load_amount)) =
-        pick_delivery_target(ctx, available, batch, targets, need_kind, |residence_id| {
-            !tick.residence_disabled_by_fire(ctx, residence_id)
-        })
+        pick_delivery_target(
+            ctx,
+            available,
+            batch,
+            targets,
+            need_kind,
+            delivery_commodity,
+            |residence_id| !tick.residence_disabled_by_fire(ctx, residence_id),
+        )
     else {
         return false;
     };
 
+    let cargo_kind = delivery_commodity
+        .map(CommodityKind::as_u8)
+        .unwrap_or_else(|| need_kind.as_u8());
+    let load_amount = delivery_commodity
+        .map(|commodity| load_amount.min(building_commodity_stock(building, commodity)))
+        .unwrap_or(load_amount);
     try_start_road_trip(
         ctx,
         tick,
@@ -902,14 +920,18 @@ pub fn try_start_delivery_trip(
                 x: residence_x,
                 z: residence_z,
             },
-            cargo_kind: need_kind.as_u8(),
+            cargo_kind,
             delivery_workers,
             labor_source,
             speed_mps,
             unload_seconds,
             load_amount,
         },
-        |origin, amount| withdraw_delivery_cargo(origin, need_kind, amount),
+        |origin, amount| {
+            delivery_commodity
+                .map(|commodity| withdraw_building_commodity(origin, commodity, amount))
+                .unwrap_or_else(|| withdraw_delivery_cargo(origin, need_kind, amount))
+        },
         |origin| *building = origin.clone(),
     )
 }
@@ -944,15 +966,30 @@ pub fn try_start_market_stall_delivery_trip(
     {
         return false;
     }
-    let available = building_delivery_stock(marketplace, need_kind);
+    let delivery_commodity = selected_food_delivery_commodity(marketplace, need_kind);
+    let available = delivery_commodity
+        .map(|commodity| building_commodity_stock(marketplace, commodity))
+        .unwrap_or_else(|| building_delivery_stock(marketplace, need_kind));
     let batch = per_delivery_amount * delivery_workers as f64;
     let Some((residence_id, residence_x, residence_z, load_amount)) =
-        pick_delivery_target(ctx, available, batch, targets, need_kind, |residence_id| {
-            !tick.residence_disabled_by_fire(ctx, residence_id)
-        })
+        pick_delivery_target(
+            ctx,
+            available,
+            batch,
+            targets,
+            need_kind,
+            delivery_commodity,
+            |residence_id| !tick.residence_disabled_by_fire(ctx, residence_id),
+        )
     else {
         return false;
     };
+    let cargo_kind = delivery_commodity
+        .map(CommodityKind::as_u8)
+        .unwrap_or_else(|| need_kind.as_u8());
+    let load_amount = delivery_commodity
+        .map(|commodity| load_amount.min(building_commodity_stock(marketplace, commodity)))
+        .unwrap_or(load_amount);
     try_start_road_trip(
         ctx,
         tick,
@@ -965,14 +1002,18 @@ pub fn try_start_market_stall_delivery_trip(
                 x: residence_x,
                 z: residence_z,
             },
-            cargo_kind: need_kind.as_u8(),
+            cargo_kind,
             delivery_workers,
             labor_source,
             speed_mps,
             unload_seconds,
             load_amount,
         },
-        |origin, amount| withdraw_delivery_cargo(origin, need_kind, amount),
+        |origin, amount| {
+            delivery_commodity
+                .map(|commodity| withdraw_building_commodity(origin, commodity, amount))
+                .unwrap_or_else(|| withdraw_delivery_cargo(origin, need_kind, amount))
+        },
         |origin| *marketplace = origin.clone(),
     )
 }
@@ -987,6 +1028,78 @@ pub fn residence_has_inbound_remedy_trip(ctx: &ReducerContext, residence_id: u64
                 && trip.cargo_kind == CommodityKind::Remedies.as_u8()
                 && DeliveryTripPhase::from_u8(trip.phase) != Some(DeliveryTripPhase::Inbound)
         })
+}
+
+/// A storehouse worker operating the Marketplace's goods stall carries pooled
+/// household herb surplus to the least-covered sick home. The market square
+/// owns no labor slots, so the named depot worker remains reserved for the
+/// complete round trip just like every other stall delivery.
+pub fn try_start_market_stall_remedy_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    marketplace: &mut Building,
+    stall_workplace_id: u64,
+    delivery_workers: u32,
+    residence: &Residence,
+) -> bool {
+    let labor_source = DeliveryLaborSource::Building(stall_workplace_id);
+    let delivery_workers = delivery_workers.min(delivery_labor_available(
+        ctx,
+        marketplace.owner,
+        labor_source,
+    ));
+    if marketplace.kind != "marketplace"
+        || delivery_workers == 0
+        || marketplace.owner != residence.owner
+        || residence.abandoned
+        || residence.population == 0
+        || residence.sick_population == 0
+        || tick.building_disabled_by_fire(ctx, marketplace.id)
+        || tick.residence_disabled_by_fire(ctx, residence.id)
+        || residence_has_inbound_remedy_trip(ctx, residence.id)
+        || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
+    {
+        return false;
+    }
+
+    let target_stock = (residence.sick_population as f64
+        * HERB_TREATMENT_PER_SICK_DAY
+        * REMEDY_DELIVERY_TARGET_DAYS)
+        .min(HERB_REMEDY_CAPACITY);
+    let household_room = (HERB_REMEDY_CAPACITY - residence.remedy_stock).max(0.0);
+    let needed = (target_stock - residence.remedy_stock).max(0.0);
+    let load = building_commodity_stock(marketplace, CommodityKind::Remedies)
+        .min(household_room)
+        .min(needed)
+        .min(REMEDIES_PER_DELIVERY * delivery_workers as f64);
+    if load <= 1e-6 {
+        return false;
+    }
+
+    try_start_road_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        StartTripSpec {
+            origin: marketplace.clone(),
+            destination: TripDestination::ResidenceRemedy {
+                id: residence.id,
+                x: residence.x,
+                z: residence.z,
+            },
+            cargo_kind: CommodityKind::Remedies.as_u8(),
+            delivery_workers,
+            labor_source,
+            speed_mps: REMEDY_DELIVERY_SPEED_MPS,
+            unload_seconds: REMEDY_DELIVERY_UNLOAD_SEC,
+            load_amount: load,
+        },
+        |origin, amount| withdraw_building_commodity(origin, CommodityKind::Remedies, amount),
+        |origin| *marketplace = origin.clone(),
+    )
 }
 
 /// Load dried remedies from a staffed forager shed and credit them only after
@@ -2016,6 +2129,8 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
         && commodity == CommodityKind::Remedies
     {
         unload_remedies_to_residence(ctx, trip);
+    } else if commodity.is_edible() {
+        unload_food_to_residence(ctx, trip, commodity);
     } else if matches!(
         commodity,
         CommodityKind::Timber
@@ -2041,6 +2156,45 @@ fn complete_unload(ctx: &ReducerContext, trip: &mut DeliveryTrip, sim_tick: u64)
         unload_residence_upgrade_material(ctx, trip, commodity);
     } else if let Some(need_kind) = ResidenceNeedKind::from_u8(trip.cargo_kind) {
         unload_need_to_residence(ctx, trip, need_kind);
+    }
+}
+
+fn unload_food_to_residence(
+    ctx: &ReducerContext,
+    trip: &mut DeliveryTrip,
+    commodity: CommodityKind,
+) {
+    let Some(mut residence) = ctx.db.residence().id().find(&trip.residence_id) else {
+        return;
+    };
+    if residence.abandoned
+        || residence.population == 0
+        || residence_fire_state(ctx, residence.id).is_some()
+    {
+        return;
+    }
+    let delivered = deposit_residence_commodity(
+        &mut residence,
+        commodity,
+        trip.amount,
+        crate::simulation::residence_needs::food::stock_capacity(),
+        crate::simulation::residence_needs::provisions::stock_capacity(
+            ResidenceNeedKind::PreservedFood,
+        ),
+    );
+    if delivered <= 1e-6 {
+        return;
+    }
+    trip.amount = (trip.amount - delivered).max(0.0);
+    ctx.db.residence().id().update(residence.clone());
+    sync_food_need_rows(ctx, &residence);
+    if let Some(origin) = ctx.db.building().id().find(&trip.building_id) {
+        if origin.kind == "monastery" {
+            if let Some(mut resources) = ctx.db.player_resources().owner().find(&trip.owner) {
+                resources.monastery_food_charity_total += delivered;
+                ctx.db.player_resources().owner().update(resources);
+            }
+        }
     }
 }
 

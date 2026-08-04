@@ -199,7 +199,10 @@ const eastHome = residence('east-home', 100, 4);
 const junctionHome = residence('junction-home', 50, 2);
 const splitState = state({
   tick: september.simTick,
-  buildings: [building('west-market', 'marketplace', 0)],
+  buildings: [
+    building('west-market', 'marketplace', 0),
+    building('west-granary', 'granary', 5, true, 1),
+  ],
   residences: [westHome, eastHome, junctionHome],
   gardens: [
     garden('west-apples', westHome.id, 'apple_orchard'),
@@ -209,6 +212,7 @@ const splitState = state({
 });
 const components = new Map<string, number | readonly number[]>([
   ['west-market', 1],
+  ['west-granary', 1],
   ['west-home', 1],
   ['east-home', 2],
   ['junction-home', [2, 1]],
@@ -234,6 +238,7 @@ assert.equal(split.matchedGardenBranches, 1);
 assert.equal(split.unservedGardenBranches, 1);
 assert.equal(split.firstUnlinkedResidenceId, eastHome.id);
 assert.ok(split.currentDaySelfFood > 0);
+assert.ok(split.currentDayMarketFood > 0);
 assert.ok(split.currentDayRoutedActivity > 0);
 assert.ok(split.currentDayStrandedActivity > 0);
 assert.ok(split.horizonRoutedActivity > split.currentDayRoutedActivity);
@@ -287,7 +292,10 @@ assert.equal(reconnected.horizonStrandedActivity, 0);
 
 const unfinishedMarketState = state({
   tick: september.simTick,
-  buildings: [building('unfinished-market', 'marketplace', 0, false)],
+  buildings: [
+    building('unfinished-market', 'marketplace', 0, false),
+    building('unfinished-market-granary', 'granary', 2, true, 1),
+  ],
   residences: [westHome],
   gardens: [garden('west-apples', westHome.id, 'apple_orchard')],
 });
@@ -306,7 +314,10 @@ assert.ok(unfinished.currentDaySelfFood > 0);
 
 const burnedMarketState = state({
   tick: september.simTick,
-  buildings: [building('burned-market', 'marketplace', 0)],
+  buildings: [
+    building('burned-market', 'marketplace', 0),
+    building('burned-market-granary', 'granary', 2, true, 1),
+  ],
   residences: [westHome],
   gardens: [garden('burned-market-apples', westHome.id, 'apple_orchard')],
   fireDisabledBuildingIds: ['burned-market'],
@@ -347,7 +358,10 @@ const burnedGardenHome = residence('burned-garden-home', 0);
 const burnedGarden = computeSettlementBackyardEconomyPlan({
   state: state({
     tick: september.simTick,
-    buildings: [building('garden-market', 'marketplace', 0)],
+    buildings: [
+      building('garden-market', 'marketplace', 0),
+      building('garden-market-granary', 'granary', 2, true, 1),
+    ],
     residences: [burnedGardenHome],
     gardens: [garden('burned-home-apples', burnedGardenHome.id, 'apple_orchard')],
     fireDisabledResidenceIds: [burnedGardenHome.id],
@@ -375,7 +389,10 @@ const sunday = gameClock(0);
 assert.equal(sunday.isSunday, true);
 const sabbathState = state({
   tick: sunday.simTick,
-  buildings: [building('market', 'marketplace', 0)],
+  buildings: [
+    building('market', 'marketplace', 0),
+    building('market-granary', 'granary', 2, true, 1),
+  ],
   residences: [residence('sabbath-home', 0)],
   gardens: [
     garden('sabbath-vegetables', 'sabbath-home', 'vegetable_garden'),
@@ -397,6 +414,51 @@ assert.equal(sabbath.currentDaySelfFood, 0);
 assert.equal(sabbath.currentDayRoutedActivity, 0);
 assert.ok(sabbath.horizonSelfFood > 0);
 assert.ok(sabbath.horizonRoutedActivity > 0);
+
+const unstaffedMarket = computeSettlementBackyardEconomyPlan({
+  state: state({
+    tick: september.simTick,
+    buildings: [building('empty-market', 'marketplace', 0)],
+    residences: [westHome],
+    gardens: [garden('unstalled-apples', westHome.id, 'apple_orchard')],
+  }),
+  clock: september,
+  hydrology: 50,
+  taxRate: 0.25,
+  taxCollectionMultiplier: 1,
+  sabbathObserved: false,
+  roadComponentFor: () => 1,
+});
+assert.equal(unstaffedMarket.unstaffedMarketplaces, 1);
+assert.equal(unstaffedMarket.marketLinkedGardens, 0);
+assert.equal(unstaffedMarket.currentDayMarketFood, 0);
+assert.ok(
+  unstaffedMarket.currentDaySelfFood > split.byKind.apple_orchard.currentSelfFood,
+  'an edible plot must keep its full crop when no granary worker runs a food stall',
+);
+
+const goodsStallState = state({
+  tick: september.simTick,
+  buildings: [
+    building('goods-market', 'marketplace', 0),
+    building('goods-storehouse', 'village_storehouse', 2, true, 1),
+  ],
+  residences: [westHome],
+  gardens: [garden('market-flowers', westHome.id, 'flower_garden')],
+});
+const goodsStall = computeSettlementBackyardEconomyPlan({
+  state: goodsStallState,
+  clock: september,
+  hydrology: 50,
+  taxRate: 0.25,
+  taxCollectionMultiplier: 1,
+  sabbathObserved: false,
+  roadComponentFor: () => 1,
+});
+assert.equal(goodsStall.goodsStallMarketplaces, 1);
+assert.equal(goodsStall.foodStallMarketplaces, 0);
+assert.equal(goodsStall.marketLinkedGardens, 1);
+assert.ok(goodsStall.currentDayRoutedActivity > 0);
 
 const dailyVegetable = backyardGardenEconomyPerDay(
   'vegetable_garden',
@@ -422,8 +484,8 @@ assert.ok(
 );
 
 const rows = renderSettlementBackyardEconomyRows(split);
-assert.match(rows, /Garden season/);
-assert.match(rows, /Market-garden roads/);
+assert.match(rows, /Backyard food sharing/);
+assert.match(rows, /Backyard stall coverage/);
 assert.match(rows, /next 120 days/);
 assert.match(rows, /data-inspect-residence="east-home"/);
 
@@ -442,8 +504,8 @@ const readout = buildVillageAdminReadout({
   parishPolicy: DEFAULT_PARISH_POLICY,
 });
 assert.ok(readout.backyardEconomy);
-assert.match(readout.gdpLabel, /gold today/);
-assert.match(readout.taxIncomeLabel, /levied at markets/);
+assert.match(readout.gdpLabel, /gold local trade today/);
+assert.match(readout.taxIncomeLabel, /market lockboxes/);
 const scalarReadout = buildVillageAdminReadout({
   gameState: {
     ...splitState,
@@ -480,7 +542,8 @@ const backyardView = renderBackyardInspector(
 assert.equal(backyardView.statusText, 'Harvesting');
 assert.match(backyardView.detailsHtml, /September harvest/);
 assert.match(backyardView.detailsHtml, /Home food today/);
-assert.match(backyardView.detailsHtml, /Market activity today/);
+assert.match(backyardView.detailsHtml, /Shared market food today/);
+assert.match(backyardView.detailsHtml, /Local trade value today/);
 assert.match(backyardView.detailsHtml, /collection without a staffed clerk/);
 
 const backyardProjectHome: ResidenceState = {
@@ -578,6 +641,14 @@ for (let branch = 0; branch < 200; branch += 1) {
     branch,
   );
   largeBuildings.set(market.id, market);
+  const granary = building(
+    `granary-${branch}`,
+    'granary',
+    branch,
+    true,
+    1,
+  );
+  largeBuildings.set(granary.id, granary);
 }
 for (let index = 0; index < 100_000; index += 1) {
   const home = residence(`home-${index}`, index % 200, 3);
@@ -647,6 +718,14 @@ const serverMarketplaceTradeSource = readFileSync(
   new URL('../server/src/economy/marketplace_trade.rs', import.meta.url),
   'utf8',
 );
+const serverMarketplaceCaravanSource = readFileSync(
+  new URL('../server/src/simulation/marketplace_caravan.rs', import.meta.url),
+  'utf8',
+);
+const serverDeliveryTripsSource = readFileSync(
+  new URL('../server/src/simulation/delivery_trips.rs', import.meta.url),
+  'utf8',
+);
 const serverBackyardReducerSource = readFileSync(
   new URL('../server/src/reducers/backyards.rs', import.meta.url),
   'utf8',
@@ -666,8 +745,10 @@ assert.doesNotMatch(
   'garden tolls must not teleport from a household into the civic treasury',
 );
 assert.match(serverStepSource, /market_tolls_by_market/);
-assert.match(serverStepSource, /marketplace_for_residence/);
+assert.match(serverStepSource, /local_marketplace_for_residence/);
 assert.match(serverStepSource, /credit_marketplace_receipt_gold/);
+assert.match(serverStepSource, /ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::Cloth/);
+assert.match(serverStepSource, /CommodityKind::Remedies/);
 assert.match(
   serverStepSource,
   /market_tolls\.sort_by_key[\s\S]*for \(marketplace_id, toll\) in market_tolls/,
@@ -685,8 +766,8 @@ assert.match(serverTickContextSource, /marketplace_claims/);
 assert.match(serverTickContextSource, /building_disabled_by_fire\(ctx, building\.id\)/);
 assert.match(
   serverTickContextSource,
-  /build_marketplace_claims[\s\S]*claim_residences_by_nearest_supplier/,
-  'garden trade should use an exact nearest-market road territory cached once per owner',
+  /build_local_marketplace_claims[\s\S]*marketplace_has_stall_workers[\s\S]*claim_residences_by_nearest_supplier/,
+  'garden trade should use a cached nearest market territory backed by the correct depot stall',
 );
 assert.match(
   serverHouseholdMarketOrdersSource,
@@ -702,6 +783,21 @@ assert.match(
   serverMarketplaceTradeSource,
   /credit_marketplace_receipt_gold[\s\S]*physical_trade_staging_enabled[\s\S]*deposit_building_commodity/,
   'new saves should place garden tolls in the same physical market lockbox as export receipts',
+);
+assert.match(
+  serverMarketplaceCaravanSource,
+  /try_dispatch_marketplace_remedies[\s\S]*try_start_market_stall_remedy_trip/,
+  'storehouse-run goods stalls must physically share backyard herb remedies with sick homes',
+);
+assert.match(
+  serverMarketplaceCaravanSource,
+  /let collectible_gold = if is_trading_post[\s\S]*building\.gold\.max\(0\.0\)[\s\S]*try_dispatch_marketplace_proceeds/,
+  'local tax must remain in the Marketplace lockbox until its treasury cart launches',
+);
+assert.match(
+  serverDeliveryTripsSource,
+  /try_start_market_stall_remedy_trip[\s\S]*DeliveryLaborSource::Building\(stall_workplace_id\)[\s\S]*TripDestination::ResidenceRemedy/,
+  'market remedy deliveries must reserve an actual storehouse stall worker',
 );
 assert.match(
   serverBackyardReducerSource,

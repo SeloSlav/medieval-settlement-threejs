@@ -111,11 +111,12 @@ export class CityAdministrationPanel {
         <button type="button" class="city-admin-panel__close" data-action="close" aria-label="Close">×</button>
       </header>
       <p class="city-admin-panel__intro">
-        Set trade tax and parish coffer policy. Tithes land in church coffers first; salary, upkeep, and charity
-        spend from the coffer before you collect or auto-sweep surplus into treasury.
+        Set the local activity tax and parish coffer policy. Backyard sellers earn household wealth; tax is held
+        in Marketplace lockboxes until a free hauler reaches the civic treasury. Tithes are separate household
+        payments that land in church coffers first.
       </p>
       <label class="city-admin-panel__slider-label" for="city-admin-tax-slider">
-        <span>Activity tax rate</span>
+        <span>Local activity tax rate</span>
         <strong data-tax-rate-value>${DEFAULT_TAX_PERCENT}%</strong>
       </label>
       <input
@@ -202,7 +203,7 @@ export class CityAdministrationPanel {
       </div>
       <dl class="city-admin-panel__stats">
         <div class="city-admin-panel__stat">
-          <dt>Garden market activity today</dt>
+          <dt>Local backyard trade today</dt>
           <dd data-gdp-value>0 gold today</dd>
         </div>
         <div class="city-admin-panel__stat">
@@ -210,7 +211,7 @@ export class CityAdministrationPanel {
           <dd data-household-wealth-value>0 gold saved</dd>
         </div>
         <div class="city-admin-panel__stat">
-          <dt>Household garden income today</dt>
+          <dt>Household backyard income today</dt>
           <dd data-household-savings-value>0 gold today</dd>
         </div>
         <div class="city-admin-panel__stat">
@@ -218,7 +219,7 @@ export class CityAdministrationPanel {
           <dd data-productivity-value>100%</dd>
         </div>
         <div class="city-admin-panel__stat">
-          <dt>Garden tolls levied today</dt>
+          <dt>Local market taxes levied today</dt>
           <dd data-tax-income-value>0 gold today</dd>
         </div>
         <div class="city-admin-panel__stat">

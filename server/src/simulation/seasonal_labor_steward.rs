@@ -2,7 +2,7 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::building_defs::building_def;
 use crate::db::*;
-use crate::economy::available_building_labor;
+use crate::economy::{available_building_labor, building_edible_food_stock};
 use crate::farming::{
     farmstead_exportable_grain, field_seed_crop, field_seed_grain_remaining, field_work_allowed,
     CROP_BARLEY, STAGE_GROWING,
@@ -82,10 +82,10 @@ pub fn recall_idle_seasonal_labor_for_owner(
                 }
             });
         let has_outbound_stock = match building.kind.as_str() {
-            "foragers_shed" => building.food > 1e-6 || building.remedies > 1e-6,
-            "fishing_camp" => building.food > 1e-6,
-            "apiary" => building.food > 1e-6 || building.honey > 1e-6,
-            "vineyard" => building.food > 1e-6 || building.wine > 1e-6,
+            "foragers_shed" => building_edible_food_stock(&building) > 1e-6 || building.remedies > 1e-6,
+            "fishing_camp" => building.fish > 1e-6,
+            "apiary" => building.honey > 1e-6,
+            "vineyard" => building.grapes > 1e-6 || building.wine > 1e-6,
             "threshing_barn" => {
                 farmstead_exportable_grain(building.grain, seed_grain_required) > 1e-6
                     || farmstead_exportable_grain(building.barley, barley_seed_required) > 1e-6

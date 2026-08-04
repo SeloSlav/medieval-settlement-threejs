@@ -1,4 +1,5 @@
 import {
+  BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
   CALENDAR_SECONDS_PER_DAY,
   HOUSEHOLD_MAX_WEALTH,
@@ -47,7 +48,9 @@ export type BackyardGardenKindPlan = {
   population: number;
   currentMultiplier: number;
   currentSelfFood: number;
+  currentMarketFood: number;
   currentRoutedActivity: number;
+  horizonMarketFood: number;
   horizonRoutedActivity: number;
 };
 
@@ -61,12 +64,16 @@ export type SettlementBackyardEconomyPlan = {
   marketLinkedGardens: number;
   marketUnlinkedGardens: number;
   operationalMarketplaces: number;
+  foodStallMarketplaces: number;
+  goodsStallMarketplaces: number;
+  unstaffedMarketplaces: number;
   fireDisabledMarketplaces: number;
   marketRoadBranches: number;
   occupiedGardenBranches: number;
   matchedGardenBranches: number;
   unservedGardenBranches: number;
   currentDaySelfFood: number;
+  currentDayMarketFood: number;
   currentDayPotentialActivity: number;
   currentDayRoutedActivity: number;
   currentDayStrandedActivity: number;
@@ -78,6 +85,7 @@ export type SettlementBackyardEconomyPlan = {
   servicePressuredGardens: number;
   currentDayServiceLostActivity: number;
   horizonSelfFood: number;
+  horizonMarketFood: number;
   horizonPotentialActivity: number;
   horizonRoutedActivity: number;
   horizonStrandedActivity: number;
@@ -117,7 +125,9 @@ function emptyKindPlan(): BackyardGardenKindPlan {
     population: 0,
     currentMultiplier: 0,
     currentSelfFood: 0,
+    currentMarketFood: 0,
     currentRoutedActivity: 0,
+    horizonMarketFood: 0,
     horizonRoutedActivity: 0,
   };
 }
@@ -225,13 +235,43 @@ export function computeSettlementBackyardEconomyPlan(input: {
   }
 
   const marketComponents = new Set<string>();
+  const foodMarketComponents = new Set<string>();
+  const goodsMarketComponents = new Set<string>();
+  const granaryComponents = new Set<string>();
+  const storehouseComponents = new Set<string>();
   let operationalMarketplaces = 0;
+  let foodStallMarketplaces = 0;
+  let goodsStallMarketplaces = 0;
+  let unstaffedMarketplaces = 0;
   let fireDisabledMarketplaces = 0;
   const incidents = input.state.fireIncidents?.values() ?? [];
   const fireDisabledBuildings = fireDisabledBuildingIds(incidents);
   const fireDisabledResidences = fireDisabledResidenceIds(
     input.state.fireIncidents?.values() ?? [],
   );
+  let hasStaffedGranary = false;
+  let hasStaffedStorehouse = false;
+  for (const building of input.state.buildings.values()) {
+    if (
+      building.constructionComplete === false
+      || building.assignedLabor <= 0
+      || fireDisabledBuildings.has(building.id)
+    ) {
+      continue;
+    }
+    const componentSet = building.kind === 'granary'
+      ? granaryComponents
+      : building.kind === 'village_storehouse'
+        ? storehouseComponents
+        : null;
+    if (!componentSet) continue;
+    if (building.kind === 'granary') hasStaffedGranary = true;
+    if (building.kind === 'village_storehouse') hasStaffedStorehouse = true;
+    if (!input.roadComponentFor) continue;
+    for (const key of componentKeys(input.roadComponentFor(building))) {
+      componentSet.add(key);
+    }
+  }
   for (const building of input.state.buildings.values()) {
     if (
       building.kind !== 'marketplace'
@@ -243,10 +283,26 @@ export function computeSettlementBackyardEconomyPlan(input: {
       fireDisabledMarketplaces += 1;
       continue;
     }
+    const keys = input.roadComponentFor
+      ? componentKeys(input.roadComponentFor(building))
+      : [];
+    const hasFoodStall = input.roadComponentFor
+      ? keys.some((key) => granaryComponents.has(key))
+      : hasStaffedGranary;
+    const hasGoodsStall = input.roadComponentFor
+      ? keys.some((key) => storehouseComponents.has(key))
+      : hasStaffedStorehouse;
+    if (!hasFoodStall && !hasGoodsStall) {
+      unstaffedMarketplaces += 1;
+      continue;
+    }
     operationalMarketplaces += 1;
-    if (!input.roadComponentFor) continue;
-    for (const key of componentKeys(input.roadComponentFor(building))) {
+    if (hasFoodStall) foodStallMarketplaces += 1;
+    if (hasGoodsStall) goodsStallMarketplaces += 1;
+    for (const key of keys) {
       marketComponents.add(key);
+      if (hasFoodStall) foodMarketComponents.add(key);
+      if (hasGoodsStall) goodsMarketComponents.add(key);
     }
   }
 
@@ -259,6 +315,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
   let marketLinkedGardens = 0;
   let marketUnlinkedGardens = 0;
   let currentDaySelfFood = 0;
+  let currentDayMarketFood = 0;
   let currentDayPotentialActivity = 0;
   let currentDayRoutedActivity = 0;
   let currentDayStrandedActivity = 0;
@@ -270,6 +327,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
   let servicePressuredGardens = 0;
   let currentDayServiceLostActivity = 0;
   let horizonSelfFood = 0;
+  let horizonMarketFood = 0;
   let horizonPotentialActivity = 0;
   let horizonRoutedActivity = 0;
   let horizonStrandedActivity = 0;
@@ -314,13 +372,20 @@ export function computeSettlementBackyardEconomyPlan(input: {
       ? componentKeys(input.roadComponentFor(residence))
       : [];
     for (const key of keys) occupiedGardenBranches.add(key);
+    const requiresFoodStall = BACKYARD_GARDEN_DEFINITIONS[garden.kind]
+      .foodPerPersonPerSec > 0;
+    const eligibleMarketComponents = requiresFoodStall
+      ? foodMarketComponents
+      : goodsMarketComponents;
     const marketLinked = input.roadComponentFor
-      ? keys.some((key) => marketComponents.has(key))
-      : operationalMarketplaces > 0;
+      ? keys.some((key) => eligibleMarketComponents.has(key))
+      : requiresFoodStall
+        ? foodStallMarketplaces > 0
+        : goodsStallMarketplaces > 0;
     if (marketLinked) {
       marketLinkedGardens += 1;
       for (const key of keys) {
-        if (marketComponents.has(key)) matchedGardenBranches.add(key);
+        if (eligibleMarketComponents.has(key)) matchedGardenBranches.add(key);
       }
     } else {
       marketUnlinkedGardens += 1;
@@ -348,7 +413,8 @@ export function computeSettlementBackyardEconomyPlan(input: {
             serviceMultiplier: service.economicMultiplier,
           },
         );
-    currentDaySelfFood += potentialToday.selfFood;
+    currentDaySelfFood += actualToday.selfFood;
+    currentDayMarketFood += actualToday.marketFood;
     currentDayPotentialActivity += potentialToday.activity;
     currentDayRoutedActivity += actualToday.activity;
     if (!marketLinked) currentDayStrandedActivity += potentialToday.activity;
@@ -367,7 +433,8 @@ export function computeSettlementBackyardEconomyPlan(input: {
     );
     currentDayStorableHouseholdIncome += Math.min(actualToday.net, wealthRoom);
     if (actualToday.net > wealthRoom + 0.05) wealthCappedGardens += 1;
-    kindPlan.currentSelfFood += potentialToday.selfFood;
+    kindPlan.currentSelfFood += actualToday.selfFood;
+    kindPlan.currentMarketFood += actualToday.marketFood;
     kindPlan.currentRoutedActivity += actualToday.activity;
 
     const potentialHorizon = backyardGardenEconomyPerDay(
@@ -391,13 +458,15 @@ export function computeSettlementBackyardEconomyPlan(input: {
             serviceMultiplier: service.economicMultiplier,
           },
         );
-    horizonSelfFood += potentialHorizon.selfFood;
+    horizonSelfFood += actualHorizon.selfFood;
+    horizonMarketFood += actualHorizon.marketFood;
     horizonPotentialActivity += potentialHorizon.activity;
     horizonRoutedActivity += actualHorizon.activity;
     if (!marketLinked) horizonStrandedActivity += potentialHorizon.activity;
     horizonCollectedTax += actualHorizon.tax;
     horizonHouseholdIncome += actualHorizon.net;
     kindPlan.horizonRoutedActivity += actualHorizon.activity;
+    kindPlan.horizonMarketFood += actualHorizon.marketFood;
 
     if (
       !marketLinked
@@ -432,12 +501,16 @@ export function computeSettlementBackyardEconomyPlan(input: {
     marketLinkedGardens,
     marketUnlinkedGardens,
     operationalMarketplaces,
+    foodStallMarketplaces,
+    goodsStallMarketplaces,
+    unstaffedMarketplaces,
     fireDisabledMarketplaces,
     marketRoadBranches: marketComponents.size,
     occupiedGardenBranches: occupiedGardenBranches.size,
     matchedGardenBranches: matchedGardenBranches.size,
     unservedGardenBranches: unservedGardenBranches.size,
     currentDaySelfFood,
+    currentDayMarketFood,
     currentDayPotentialActivity,
     currentDayRoutedActivity,
     currentDayStrandedActivity,
@@ -449,6 +522,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
     servicePressuredGardens,
     currentDayServiceLostActivity,
     horizonSelfFood,
+    horizonMarketFood,
     horizonPotentialActivity,
     horizonRoutedActivity,
     horizonStrandedActivity,

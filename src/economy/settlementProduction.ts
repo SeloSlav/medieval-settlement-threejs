@@ -100,6 +100,7 @@ import { normalizeMarketplaceIronTarget } from './marketplaceMaterialProcurement
 import { weaverUsesFlax } from './weaverInputPolicy.ts';
 import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
+import { preservedFoodStock } from './foodInventory.ts';
 
 export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
@@ -1081,7 +1082,7 @@ function completedProcessorOverview(
         bakeryOutputRoom = updateFirstToFill(
           bakeryOutputRoom,
           outputRoomDays(
-            building.food,
+            building.bread ?? 0,
             processorOutputTargetForBuilding(building)
               ?? (BUILDING_STORAGE_CAPS.bakery.food ?? 0),
             cycles * BAKERY_FOOD_PER_CYCLE,
@@ -1231,7 +1232,7 @@ function completedProcessorOverview(
         smokehouseOutputRoom = updateFirstToFill(
           smokehouseOutputRoom,
           outputRoomDays(
-            building.preservedFood,
+            preservedFoodStock(building),
             processorOutputTargetForBuilding(building)
               ?? (BUILDING_STORAGE_CAPS.smokehouse.preservedFood ?? 0),
             cycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,

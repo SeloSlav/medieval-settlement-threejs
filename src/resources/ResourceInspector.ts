@@ -3,14 +3,30 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import {
+  FOOD_RESOURCE_KINDS,
   HUD_RESOURCE_KINDS,
   computeResourceTotals,
   computeMarketplaceTradeAvailability,
   maxAssignableLabor,
   type HudResourceKind,
+  type FoodResourceKind,
   type PopulationStats,
   type ResourceTotals,
 } from './resourceTotals.ts';
+
+const FOOD_BREAKDOWN_ROW_KINDS = [
+  ...FOOD_RESOURCE_KINDS,
+  'legacyFood',
+  'legacyPreservedFood',
+] as const;
+type FoodBreakdownRowKind = FoodResourceKind | 'legacyFood' | 'legacyPreservedFood';
+type FoodBreakdownRowElements = {
+  row: HTMLElement;
+  stored: HTMLElement;
+  transit: HTMLElement;
+  homes: HTMLElement;
+  surplus: HTMLElement;
+};
 import {
   readResourceTotalsPresentation,
   saveResourceTotalsPresentation,
@@ -265,6 +281,15 @@ export class ResourceInspector {
   private readonly stockpileRoot: HTMLElement;
   private readonly stockpileValues: Record<HudResourceKind, HTMLElement>;
   private readonly stockpileTransitValues: Record<HudResourceKind, HTMLElement>;
+  private readonly foodBreakdownRows: Record<
+    FoodBreakdownRowKind,
+    FoodBreakdownRowElements
+  >;
+  private readonly foodBreakdownEmpty: HTMLElement;
+  private readonly foodBreakdownTotalStored: HTMLElement;
+  private readonly foodBreakdownTotalTransit: HTMLElement;
+  private readonly foodBreakdownTotalHomes: HTMLElement;
+  private readonly foodBreakdownTotalSurplus: HTMLElement;
   private readonly resourceTotalsModeButton: HTMLButtonElement;
   private readonly resourceTotalsModeLabel: HTMLElement;
   private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
@@ -449,6 +474,23 @@ export class ResourceInspector {
         this.mustElement(options.uiRoot, `[data-stockpile-transit="${resource}"]`),
       ]),
     ) as Record<HudResourceKind, HTMLElement>;
+    this.foodBreakdownRows = Object.fromEntries(
+      FOOD_BREAKDOWN_ROW_KINDS.map((kind) => [
+        kind,
+        {
+          row: this.mustElement(options.uiRoot, `[data-food-breakdown-row="${kind}"]`),
+          stored: this.mustElement(options.uiRoot, `[data-food-breakdown-stored="${kind}"]`),
+          transit: this.mustElement(options.uiRoot, `[data-food-breakdown-transit="${kind}"]`),
+          homes: this.mustElement(options.uiRoot, `[data-food-breakdown-homes="${kind}"]`),
+          surplus: this.mustElement(options.uiRoot, `[data-food-breakdown-surplus="${kind}"]`),
+        },
+      ]),
+    ) as Record<FoodBreakdownRowKind, FoodBreakdownRowElements>;
+    this.foodBreakdownEmpty = this.mustElement(options.uiRoot, '[data-food-breakdown-empty]');
+    this.foodBreakdownTotalStored = this.mustElement(options.uiRoot, '[data-food-breakdown-total-stored]');
+    this.foodBreakdownTotalTransit = this.mustElement(options.uiRoot, '[data-food-breakdown-total-transit]');
+    this.foodBreakdownTotalHomes = this.mustElement(options.uiRoot, '[data-food-breakdown-total-homes]');
+    this.foodBreakdownTotalSurplus = this.mustElement(options.uiRoot, '[data-food-breakdown-total-surplus]');
     this.populationValue = this.mustElement(options.uiRoot, '[data-stockpile="population"]');
     this.housingValue = this.mustElement(options.uiRoot, '[data-stockpile="housing"]');
     this.housingSub = this.mustElement(options.uiRoot, '[data-stockpile="housing-sub"]');
@@ -1231,6 +1273,7 @@ export class ResourceInspector {
     this.stockpileValues.charcoal.textContent = Math.round(totals.charcoal).toString();
     this.stockpileValues.pottery.textContent = Math.round(totals.pottery).toString();
     this.stockpileValues.roofTiles.textContent = Math.round(totals.roofTiles).toString();
+    this.renderFoodBreakdown();
     for (const resource of HUD_RESOURCE_KINDS) {
       const transit = this.stockpileTransitValues[resource];
       const amount = Math.max(0, this.inTransitTotals?.[resource] ?? 0);
@@ -1296,6 +1339,35 @@ export class ResourceInspector {
       specialtyStoreSummary.dataset.tooltip = `${storeDescription}. Open specialty stores and provisions.`;
       specialtyStoreSummary.setAttribute('aria-label', `Stores and provisions, ${storeDescription.toLowerCase()}`);
     }
+  }
+
+  private renderFoodBreakdown(): void {
+    if (!this.storedTotals || !this.surplusTotals) return;
+    let activeRows = 0;
+    for (const kind of FOOD_BREAKDOWN_ROW_KINDS) {
+      const stored = Math.max(0, this.storedTotals[kind]);
+      const transit = Math.max(0, this.inTransitTotals?.[kind] ?? 0);
+      const surplus = Math.max(0, this.surplusTotals[kind]);
+      const homes = Math.max(0, stored - surplus);
+      const elements = this.foodBreakdownRows[kind];
+      const visible = stored + transit > 1e-6;
+      elements.row.hidden = !visible;
+      if (visible) activeRows += 1;
+      elements.stored.textContent = formatTransitAmount(stored);
+      elements.transit.textContent = formatTransitAmount(transit);
+      elements.homes.textContent = formatTransitAmount(homes);
+      elements.surplus.textContent = formatTransitAmount(surplus);
+    }
+    const stored = Math.max(0, this.storedTotals.food);
+    const transit = Math.max(0, this.inTransitTotals?.food ?? 0);
+    const surplus = Math.max(0, this.surplusTotals.food);
+    this.foodBreakdownEmpty.hidden = activeRows > 0;
+    this.foodBreakdownTotalStored.textContent = formatTransitAmount(stored);
+    this.foodBreakdownTotalTransit.textContent = formatTransitAmount(transit);
+    this.foodBreakdownTotalHomes.textContent = formatTransitAmount(
+      Math.max(0, stored - surplus),
+    );
+    this.foodBreakdownTotalSurplus.textContent = formatTransitAmount(surplus);
   }
 
   selectQuarry(quarryId: string): void {

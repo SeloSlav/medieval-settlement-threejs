@@ -344,7 +344,7 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /unsalted_slaughter[\s\S]*CommodityKind::Food/,
+  /unsalted_slaughter[\s\S]*CommodityKind::Meat/,
   'unsalted autumn meat must enter vulnerable fresh-food storage',
 );
 assert.doesNotMatch(

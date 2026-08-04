@@ -19,6 +19,7 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, GameState, ResidenceState } from '../resources/types.ts';
 import { buildingKindLabel } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
+import { edibleFoodStock, type FoodInventoryLike } from '../economy/foodInventory.ts';
 
 export type SettlementSecurityState = {
   threat: number;
@@ -99,7 +100,7 @@ type GuardhouseFoodCandidateLike = Pick<
   BuildingState,
   'id' | 'kind' | 'food' | 'polearms' | 'assignedLabor' | 'constructionComplete'
   | 'guardhouseFoodReserve'
->;
+> & FoodInventoryLike;
 
 export type RoutedGuardhouseFoodTarget<T extends GuardhouseFoodCandidateLike> = {
   target: T;
@@ -183,14 +184,15 @@ export function selectCriticalGuardhouseFoodTarget<
       target.polearms,
       target.guardhouseFoodReserve,
     );
+    const foodStock = edibleFoodStock(target);
     const runwayDays = guardhouseFoodRunwayDays(
       target.assignedLabor,
       target.polearms,
-      target.food,
+      foodStock,
     );
     if (
       desiredStock <= 1e-6
-      || target.food + 1e-6 >= desiredStock
+      || foodStock + 1e-6 >= desiredStock
       || runwayDays + 1e-9 >= GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS
     ) continue;
     const routeDistance = routeDistanceFor(target);
@@ -530,6 +532,21 @@ type PortableRaidStoresLike = {
   charcoal?: number;
   pottery?: number;
   remedies?: number;
+  bread?: number;
+  meat?: number;
+  fish?: number;
+  berries?: number;
+  mushrooms?: number;
+  milk?: number;
+  apples?: number;
+  cherries?: number;
+  vegetables?: number;
+  eggs?: number;
+  grapes?: number;
+  porridge?: number;
+  curedMeat?: number;
+  smokedFish?: number;
+  cheese?: number;
   gold: number;
 };
 
@@ -1265,6 +1282,21 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.charcoal)
     + positivePortableAmount(stores.pottery) * 1.25
     + positivePortableAmount(stores.remedies) * 1.25
+    + positivePortableAmount(stores.bread)
+    + positivePortableAmount(stores.meat)
+    + positivePortableAmount(stores.fish)
+    + positivePortableAmount(stores.berries)
+    + positivePortableAmount(stores.mushrooms)
+    + positivePortableAmount(stores.milk)
+    + positivePortableAmount(stores.apples)
+    + positivePortableAmount(stores.cherries)
+    + positivePortableAmount(stores.vegetables)
+    + positivePortableAmount(stores.eggs)
+    + positivePortableAmount(stores.grapes)
+    + positivePortableAmount(stores.porridge)
+    + positivePortableAmount(stores.curedMeat)
+    + positivePortableAmount(stores.smokedFish)
+    + positivePortableAmount(stores.cheese)
     + positivePortableAmount(stores.gold);
 }
 
@@ -1291,6 +1323,21 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['charcoal', 'charcoal', 1],
   ['pottery', 'pottery', 1.25],
   ['remedies', 'dried remedies', 1.25],
+  ['bread', 'bread', 1],
+  ['meat', 'meat', 1],
+  ['fish', 'fish', 1],
+  ['berries', 'berries', 1],
+  ['mushrooms', 'mushrooms', 1],
+  ['milk', 'milk', 1],
+  ['apples', 'apples', 1],
+  ['cherries', 'cherries', 1],
+  ['vegetables', 'vegetables', 1],
+  ['eggs', 'eggs', 1],
+  ['grapes', 'grapes', 1],
+  ['porridge', 'porridge', 1],
+  ['curedMeat', 'cured meat', 1],
+  ['smokedFish', 'smoked fish', 1],
+  ['cheese', 'cheese', 1],
   ['gold', 'gold', 1],
 ] as const;
 
@@ -1337,6 +1384,21 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   charcoal: 1,
   pottery: 1.25,
   remedies: 1.25,
+  bread: 1,
+  meat: 1,
+  fish: 1,
+  berries: 1,
+  mushrooms: 1,
+  milk: 1,
+  apples: 1,
+  cherries: 1,
+  vegetables: 1,
+  eggs: 1,
+  grapes: 1,
+  porridge: 1,
+  curedMeat: 1,
+  smokedFish: 1,
+  cheese: 1,
 };
 
 function deliveryTripRaidValue(trip: DeliveryTripState): number {
@@ -1354,6 +1416,8 @@ function deliveryTripRaidSummary(trip: DeliveryTripState | undefined): string {
 function deliveryCargoLabel(kind: DeliveryCargoKind): string {
   switch (kind) {
     case 'preservedFood': return 'preserved food';
+    case 'curedMeat': return 'cured meat';
+    case 'smokedFish': return 'smoked fish';
     default: return kind;
   }
 }

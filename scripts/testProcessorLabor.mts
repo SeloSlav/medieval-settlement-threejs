@@ -49,7 +49,7 @@ smokehouse.processorOutputTargetPercent = 50;
 smokehouse.preservedFood = 20;
 const bakery = building('40', 'bakery', 3);
 bakery.processorOutputTargetPercent = 25;
-bakery.food = 85;
+bakery.bread = 85;
 const carpenter = building('50', 'carpenter', 4);
 for (const site of [brewery, weaver, smokehouse, bakery, carpenter]) {
   recallState.buildings.set(site.id, site);

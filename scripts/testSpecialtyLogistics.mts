@@ -288,7 +288,7 @@ assert.equal(
 );
 assert.match(
   tickContext,
-  /ResidenceNeedKind::PreservedFood => building\.preserved_food > 1e-6/,
+  /ResidenceNeedKind::PreservedFood => \{[\s\S]*building_preserved_food_stock\(building\) > 1e-6/,
 );
 assert.match(tickContext, /ResidenceNeedKind::Cloth => building\.cloth > 1e-6/);
 assert.match(tickContext, /ResidenceNeedKind::Pottery => building\.pottery > 1e-6/);
@@ -300,12 +300,12 @@ assert.match(
 );
 assert.match(
   expanded,
-  /step_smokehouse[\s\S]*?dispatch_to_building_where\([\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["granary"\][\s\S]*?granary_accepts_fresh_food/,
+  /step_smokehouse[\s\S]*?for commodity in \[[\s\S]*?CommodityKind::Cheese[\s\S]*?CommodityKind::PreservedFood[\s\S]*?dispatch_to_building_where\([\s\S]*?commodity[\s\S]*?&\["granary"\][\s\S]*?granary_accepts_fresh_food/,
   'a smokehouse must centralize cured output at the granary before market delivery',
 );
 assert.match(
   expanded,
-  /processor_accepts_input[\s\S]*?building\.kind == "granary"[\s\S]*?CommodityKind::PreservedFood[\s\S]*?granary_accepts_fresh_food/,
+  /processor_accepts_input[\s\S]*?building\.kind == "granary"[\s\S]*?commodity\.is_fresh_food\(\) \|\| commodity\.is_preserved_food\(\)[\s\S]*?granary_accepts_fresh_food/,
   'every authoritative cured-food producer must honor the shared granary intake switch',
 );
 assert.match(
@@ -325,7 +325,7 @@ assert.doesNotMatch(
 const livestock = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
 assert.match(
   livestock,
-  /dispatch_manure_to_crop_farmstead[\s\S]*?CommodityKind::PreservedFood[\s\S]*?&\["granary"\]/,
+  /dispatch_manure_to_crop_farmstead[\s\S]*?CommodityKind::Cheese[\s\S]*?&\["granary"\][\s\S]*?CommodityKind::CuredMeat[\s\S]*?&\["granary"\]/,
   'pastoral cured output must move through the granary rather than directly to homes',
 );
 const expandedInspector = fs.readFileSync(

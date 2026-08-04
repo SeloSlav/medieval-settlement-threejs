@@ -191,10 +191,10 @@ assert.match(panel, /Queued behind the more depleted salt reserve; 2 iron lots r
 assert.match(panel, /Next twelve-unit lot ready for 14 gold; 2 lots remain/);
 assert.match(
   panel,
-  /Mine carts restore staffed workshop buffers first[\s\S]*carry surplus iron or salt to a staffed road-linked market/,
+  /Mine carts restore staffed workshop buffers first[\s\S]*carry surplus iron or salt to a staffed road-linked Trading Post/,
   'the inspector must explain local-first physical reserve logistics',
 );
-assert.match(panel, /Pottery promised to an active export order stays at the market/);
+assert.match(panel, /Pottery promised to an active export order stays at the Trading Post/);
 
 const tablesSource = fs.readFileSync('server/src/tables.rs', 'utf8');
 const reducerSource = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
@@ -259,9 +259,9 @@ assert.match(
   'physical bulk imports must dispatch an authoritative map-edge cart instead of crediting market stock',
 );
 assert.match(
-  tradeSource,
-  /building_has_regional_market_trip[\s\S]*regional caravan on the road/,
-  'one marketplace must not overlap regional import and export caravans',
+  `${deliveryTripSource}\n${tradeSource}`,
+  /active_routes[\s\S]*assigned_labor\.min\(5\)[\s\S]*active_routes >= route_capacity[\s\S]*All regional trader route slots are occupied/,
+  'each assigned Trading Post worker must open one concurrent regional route slot, capped at five',
 );
 assert.match(
   tradeSource,

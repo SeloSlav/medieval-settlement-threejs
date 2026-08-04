@@ -244,6 +244,39 @@ pub struct PlayerResources {
     /// Fresh production remains physically at a kiln until hauled.
     #[default(0.0)]
     pub roof_tiles: f64,
+    /// Typed ready-to-eat provisions. `food` and `preserved_food` above remain
+    /// legacy mixed stores so existing saves migrate additively without
+    /// fabricating a composition that can no longer be recovered.
+    #[default(0.0)]
+    pub bread: f64,
+    #[default(0.0)]
+    pub meat: f64,
+    #[default(0.0)]
+    pub fish: f64,
+    #[default(0.0)]
+    pub berries: f64,
+    #[default(0.0)]
+    pub mushrooms: f64,
+    #[default(0.0)]
+    pub milk: f64,
+    #[default(0.0)]
+    pub apples: f64,
+    #[default(0.0)]
+    pub cherries: f64,
+    #[default(0.0)]
+    pub vegetables: f64,
+    #[default(0.0)]
+    pub eggs: f64,
+    #[default(0.0)]
+    pub grapes: f64,
+    #[default(0.0)]
+    pub porridge: f64,
+    #[default(0.0)]
+    pub cured_meat: f64,
+    #[default(0.0)]
+    pub smoked_fish: f64,
+    #[default(0.0)]
+    pub cheese: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -600,6 +633,39 @@ pub struct Building {
     /// large church when an established settlement is migrated.
     #[default(3u8)]
     pub chapel_tier: u8,
+    /// Typed ready-to-eat provisions. These share the building's fresh or
+    /// preserved capacity according to commodity metadata; the legacy `food`
+    /// columns remain readable mixed-provision stores for old saves.
+    #[default(0.0)]
+    pub bread: f64,
+    #[default(0.0)]
+    pub meat: f64,
+    #[default(0.0)]
+    pub fish: f64,
+    #[default(0.0)]
+    pub berries: f64,
+    #[default(0.0)]
+    pub mushrooms: f64,
+    #[default(0.0)]
+    pub milk: f64,
+    #[default(0.0)]
+    pub apples: f64,
+    #[default(0.0)]
+    pub cherries: f64,
+    #[default(0.0)]
+    pub vegetables: f64,
+    #[default(0.0)]
+    pub eggs: f64,
+    #[default(0.0)]
+    pub grapes: f64,
+    #[default(0.0)]
+    pub porridge: f64,
+    #[default(0.0)]
+    pub cured_meat: f64,
+    #[default(0.0)]
+    pub smoked_fish: f64,
+    #[default(0.0)]
+    pub cheese: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).
@@ -925,6 +991,50 @@ pub struct Residence {
     pub upgrade_delivered_roof_tiles: f64,
     #[default(0.0)]
     pub upgrade_reserved_roof_tiles: f64,
+    /// Physical pantry composition. Food-need rows retain only derived
+    /// meal-equivalent availability and deficit state; these fields are the
+    /// authoritative goods consumed by the household.
+    #[default(0.0)]
+    pub food: f64,
+    #[default(0.0)]
+    pub preserved_food: f64,
+    #[default(0.0)]
+    pub honey: f64,
+    #[default(0.0)]
+    pub bread: f64,
+    #[default(0.0)]
+    pub meat: f64,
+    #[default(0.0)]
+    pub fish: f64,
+    #[default(0.0)]
+    pub berries: f64,
+    #[default(0.0)]
+    pub mushrooms: f64,
+    #[default(0.0)]
+    pub milk: f64,
+    #[default(0.0)]
+    pub apples: f64,
+    #[default(0.0)]
+    pub cherries: f64,
+    #[default(0.0)]
+    pub vegetables: f64,
+    #[default(0.0)]
+    pub eggs: f64,
+    #[default(0.0)]
+    pub grapes: f64,
+    #[default(0.0)]
+    pub porridge: f64,
+    #[default(0.0)]
+    pub cured_meat: f64,
+    #[default(0.0)]
+    pub smoked_fish: f64,
+    #[default(0.0)]
+    pub cheese: f64,
+    /// False only for pre-typed-food saves whose pantry still lives solely in
+    /// ResidenceNeed rows. The first need tick moves those quantities into
+    /// physical mixed-provision fields exactly once.
+    #[default(false)]
+    pub food_inventory_migrated: bool,
 }
 
 #[spacetimedb::table(

@@ -276,6 +276,21 @@ mod tests {
             linked_worksite_id: 0,
             commute_efficiency: 1.0,
             chapel_tier: 2,
+            bread: 0.0,
+            meat: 0.0,
+            fish: 0.0,
+            berries: 0.0,
+            mushrooms: 0.0,
+            milk: 0.0,
+            apples: 0.0,
+            cherries: 0.0,
+            vegetables: 0.0,
+            eggs: 0.0,
+            grapes: 0.0,
+            porridge: 0.0,
+            cured_meat: 0.0,
+            smoked_fish: 0.0,
+            cheese: 0.0,
         }
     }
 

@@ -31,6 +31,11 @@ import {
 import { cattleManurePerCycle } from '../../farming/manurePlanning.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
+import {
+  edibleFoodStock,
+  freshFoodStock,
+  preservedFoodStock,
+} from '../../economy/foodInventory.ts';
 import { getBuildingDefinition } from '../buildings.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
 import {
@@ -131,7 +136,7 @@ export function renderLivestockBuildingInspector(
       livestockSaltedOutputCapacity(building.salt ?? 0),
       Math.max(
         0,
-        (storageCaps.preservedFood ?? 0) - building.preservedFood,
+        (storageCaps.preservedFood ?? 0) - preservedFoodStock(building),
       ),
     )
     : 0;
@@ -145,8 +150,8 @@ export function renderLivestockBuildingInspector(
   const cullHasStorage = Boolean(
     herd
     && livestockPolicy
-    && (storageCaps.food ?? 0) - building.food + 1e-6 >= cullFreshOutput
-    && (storageCaps.preservedFood ?? 0) - building.preservedFood + 1e-6
+    && (storageCaps.food ?? 0) - freshFoodStock(building) + 1e-6 >= cullFreshOutput
+    && (storageCaps.preservedFood ?? 0) - preservedFoodStock(building) + 1e-6
       >= cullSaltedOutput,
   );
   const inboundTrip = context.worldQueries.getInboundSupplyTrip(building);
@@ -160,7 +165,7 @@ export function renderLivestockBuildingInspector(
   const foodCapacity = storageCaps.food ?? 0;
   const householdFoodFloor = householdFoodReserve(foodTerritory.length, foodCapacity);
   const institutionalSurplus = institutionalFoodSurplus(
-    building.food,
+    edibleFoodStock(building),
     foodTerritory.length,
     foodCapacity,
   );
@@ -170,7 +175,7 @@ export function renderLivestockBuildingInspector(
       context.conflictEnabled === true,
     );
   const nextInstitutionalCart = nextInstitutionalDispatch
-    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${nextInstitutionalDispatch.target.food.toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} food`
+    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${edibleFoodStock(nextInstitutionalDispatch.target).toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} meals`
     : institutionalSurplus <= 1e-6
       ? 'None · local household reserve is protected'
       : 'No eligible institution requesting food';
@@ -389,10 +394,10 @@ export function renderLivestockBuildingInspector(
       <li><span>Winter herd plan</span><span>${winterHerdPlan}</span></li>
       <li><span>Winter grain reserve</span><span>${winterGrainReserve}</span></li>
       ${winterResupplyRow}
-      <li><span>Fresh-food stock</span><span>${building.food.toFixed(1)} / ${storageCaps.food ?? 0}</span></li>
-      ${building.kind === 'pastoral_farmstead' ? `<li><span>Preserved stock</span><span>${building.preservedFood.toFixed(1)} / ${storageCaps.preservedFood ?? 0}</span></li>
+      <li><span>Fresh-food stock</span><span>${freshFoodStock(building).toFixed(1)} / ${storageCaps.food ?? 0} · meat ${Math.max(0, building.meat ?? 0).toFixed(1)} · milk ${Math.max(0, building.milk ?? 0).toFixed(1)}</span></li>
+      ${building.kind === 'pastoral_farmstead' ? `<li><span>Preserved stock</span><span>${preservedFoodStock(building).toFixed(1)} / ${storageCaps.preservedFood ?? 0} · cured meat ${Math.max(0, building.curedMeat ?? 0).toFixed(1)} · cheese ${Math.max(0, building.cheese ?? 0).toFixed(1)}</span></li>
       <li><span>Cured-store aging</span><span>Ordinary dry storage · ${formatPreservedFoodLoss(
-        building.preservedFood
+        preservedFoodStock(building)
         * environment.preservedFoodSpoilageFractionPerDay
         * buildingPreservedFoodStorageFactor(building.kind),
       )}</span></li>` : ''}
@@ -408,7 +413,7 @@ export function renderLivestockBuildingInspector(
           : `Next window: June–July · ${projectedFleece.toFixed(1)} wool at current flock condition · ${(herd.lastWoolOutput ?? 0).toFixed(1)} stored in last shearing`}</span></li>
       <li><span>Textile route</span><span>Holding cart → weaver → cloth cart → marketplace; roads speed every local leg</span></li>
       <li><span>Next wool cart</span><span>${nextWoolCart}</span></li>` : ''}
-      <li><span>Food territory</span><span>${building.food <= 1e-6 ? 'Yielding while empty' : foodTerritory.length === 0 ? 'None on branch' : `${foodTerritory.length} households claimed`}</span></li>
+      <li><span>Food territory</span><span>${edibleFoodStock(building) <= 1e-6 ? 'Yielding while empty' : foodTerritory.length === 0 ? 'None on branch' : `${foodTerritory.length} households claimed`}</span></li>
       <li><span>Local food reserve</span><span>${householdFoodFloor.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
       <li><span>Next food cart</span><span>${nextFoodTarget ? `Parcel #${nextFoodTarget.parcelIndex + 1}` : 'None needing food'}</span></li>
       <li><span>Next surplus cart</span><span>${nextInstitutionalCart}</span></li>

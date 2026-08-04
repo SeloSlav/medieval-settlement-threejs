@@ -13,15 +13,15 @@ use crate::chapel_parish_policy::{
 };
 use crate::db::*;
 use crate::economy::{
-    best_affordable_food_commodity, ensure_market_state, order_food_commodity, scaled_gold_cost,
-    CommodityKind, MarketGoldPayer,
+    best_affordable_food_commodity, ensure_market_state, market_food_commodity_kind,
+    order_food_commodity, scaled_gold_cost, CommodityKind, MarketGoldPayer,
 };
 use crate::economy::{
     chapel_coffer_gold, credit_residence_wealth, credit_treasury_gold, withdraw_coffer_in_place,
 };
 use crate::economy::{record_parish_ledger, ParishLedgerKind};
 use crate::residence_service_policy::service_shortage_warns;
-use crate::simulation::delivery_cargo::delivery_stock_room;
+use crate::simulation::delivery_cargo::residence_commodity_delivery_room;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, try_start_building_supply_trip,
     try_start_residence_wealth_trip,
@@ -397,12 +397,17 @@ fn try_chapel_poor_relief(
 
     let mut target: Option<&Residence> = None;
     let mut lowest_food = f64::INFINITY;
+    let Ok(physical_commodity) = market_food_commodity_kind(commodity) else {
+        return 0.0;
+    };
     for residence in &parish_residences {
         if !market_claims.contains_key(&residence.id) {
             continue;
         }
         let food_stock = need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Food);
-        if delivery_stock_room(ResidenceNeedKind::Food, food_stock) + 1e-6 < commodity.food_amount {
+        if residence_commodity_delivery_room(residence, physical_commodity) + 1e-6
+            < commodity.food_amount
+        {
             continue;
         }
         if food_stock + 1e-6 < lowest_food

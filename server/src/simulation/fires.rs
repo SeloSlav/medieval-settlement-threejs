@@ -703,6 +703,21 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.pottery = 0.0;
             building.manure = 0.0;
             building.remedies = 0.0;
+            building.bread = 0.0;
+            building.meat = 0.0;
+            building.fish = 0.0;
+            building.berries = 0.0;
+            building.mushrooms = 0.0;
+            building.milk = 0.0;
+            building.apples = 0.0;
+            building.cherries = 0.0;
+            building.vegetables = 0.0;
+            building.eggs = 0.0;
+            building.grapes = 0.0;
+            building.porridge = 0.0;
+            building.cured_meat = 0.0;
+            building.smoked_fish = 0.0;
+            building.cheese = 0.0;
             building.gold = 0.0;
             building.civic_receipts_gold = 0.0;
             ctx.db.building().id().update(building);
@@ -716,6 +731,25 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             clear_residence_project(&mut residence);
             clear_residence_needs(ctx, residence.id);
             clear_backyard_garden_for_residence(ctx, residence.id);
+            residence.food = 0.0;
+            residence.preserved_food = 0.0;
+            residence.honey = 0.0;
+            residence.bread = 0.0;
+            residence.meat = 0.0;
+            residence.fish = 0.0;
+            residence.berries = 0.0;
+            residence.mushrooms = 0.0;
+            residence.milk = 0.0;
+            residence.apples = 0.0;
+            residence.cherries = 0.0;
+            residence.vegetables = 0.0;
+            residence.eggs = 0.0;
+            residence.grapes = 0.0;
+            residence.porridge = 0.0;
+            residence.cured_meat = 0.0;
+            residence.smoked_fish = 0.0;
+            residence.cheese = 0.0;
+            residence.food_inventory_migrated = true;
             residence.population = 0;
             // The structure is fire-disabled until rebuilt, but its housing
             // identity is permanent and must never enter legacy abandonment.

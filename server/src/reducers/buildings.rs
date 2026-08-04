@@ -835,6 +835,21 @@ fn place_building_internal(
         linked_worksite_id,
         commute_efficiency: 1.0,
         chapel_tier,
+        bread: 0.0,
+        meat: 0.0,
+        fish: 0.0,
+        berries: 0.0,
+        mushrooms: 0.0,
+        milk: 0.0,
+        apples: 0.0,
+        cherries: 0.0,
+        vegetables: 0.0,
+        eggs: 0.0,
+        grapes: 0.0,
+        porridge: 0.0,
+        cured_meat: 0.0,
+        smoked_fish: 0.0,
+        cheese: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1035,6 +1050,9 @@ pub fn call_up_active_seasonal_labor(ctx: &ReducerContext) -> Result<(), String>
 }
 
 fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
+    if kind == "bakery" {
+        return Some(CommodityKind::Bread);
+    }
     match processor_output_kind(kind)? {
         ProcessorOutputKind::Flour => Some(CommodityKind::Flour),
         ProcessorOutputKind::Food => Some(CommodityKind::Food),
@@ -1048,6 +1066,13 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
 }
 
 fn processor_output_room(building: &Building) -> Option<f64> {
+    if building.kind == "smokehouse" {
+        return Some(processor_output_headroom(
+            crate::economy::building_preserved_food_stock(building),
+            building_commodity_cap(&building.kind, CommodityKind::PreservedFood),
+            building.processor_output_target_percent,
+        ));
+    }
     let commodity = if building.kind == "potter_kiln"
         && potter_fires_roof_tiles(building.potter_firing_policy)
     {
@@ -1106,7 +1131,14 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         .copied()
         .map(processor_input_commodity)
         .filter(|commodity| {
-            building_commodity_stock(building, *commodity) <= 1e-6
+            let stock_missing = if building.kind == "smokehouse"
+                && *commodity == CommodityKind::Food
+            {
+                crate::economy::building_preservable_food_stock(building) <= 1e-6
+            } else {
+                building_commodity_stock(building, *commodity) <= 1e-6
+            };
+            stock_missing
                 && !(building.kind == "brewery"
                     && *commodity == CommodityKind::Barley
                     && building.malt > 1e-6)
@@ -1117,7 +1149,20 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
     }
     let every_missing_input_en_route = missing_inputs
         .iter()
-        .all(|commodity| building_has_inbound_commodity_trip(ctx, building.id, *commodity));
+        .all(|commodity| {
+            if building.kind == "smokehouse" && *commodity == CommodityKind::Food {
+                [
+                    CommodityKind::Food,
+                    CommodityKind::Meat,
+                    CommodityKind::Fish,
+                    CommodityKind::Milk,
+                ]
+                .into_iter()
+                .any(|kind| building_has_inbound_commodity_trip(ctx, building.id, kind))
+            } else {
+                building_has_inbound_commodity_trip(ctx, building.id, *commodity)
+            }
+        });
     (true, every_missing_input_en_route)
 }
 
@@ -1269,7 +1314,7 @@ fn production_site_ready(
                 && large_quarry_supports_ready(building.timber)
         }
         "hunters_hall" => {
-            !commodity_output_blocked(building, CommodityKind::Food)
+            !commodity_output_blocked(building, CommodityKind::Meat)
                 && wild_stock_source_usable(building, "game", foraging_buckets)
         }
         _ => false,
@@ -1316,8 +1361,12 @@ pub fn recall_target_idle_processor_labor_for_owner(
         let (stalled, supply_en_route, has_dispatch_duty) = match building.kind.as_str() {
             kind if is_processor_output_target_kind(kind) => {
                 let (stalled, supply_en_route) = processor_stall_and_recovery(ctx, &building);
-                let has_output_stock = processor_output_commodity(kind)
-                    .is_some_and(|commodity| building_commodity_stock(&building, commodity) > 1e-6);
+                let has_output_stock = if kind == "smokehouse" {
+                    crate::economy::building_preserved_food_stock(&building) > 1e-6
+                } else {
+                    processor_output_commodity(kind)
+                        .is_some_and(|commodity| building_commodity_stock(&building, commodity) > 1e-6)
+                };
                 (
                     stalled,
                     supply_en_route,
@@ -1386,10 +1435,18 @@ pub fn recall_target_idle_processor_labor_for_owner(
                     "fish"
                 };
                 (
-                    commodity_output_blocked(&building, CommodityKind::Food)
+                    commodity_output_blocked(
+                        &building,
+                        if building.kind == "hunters_hall" {
+                            CommodityKind::Meat
+                        } else {
+                            CommodityKind::Fish
+                        },
+                    )
                         || !wild_stock_source_usable(&building, node_kind, &foraging_buckets),
                     false,
-                    building.food > 1e-6 || has_active_trip,
+                    crate::economy::building_edible_food_stock(&building) > 1e-6
+                        || has_active_trip,
                 )
             }
             _ => continue,
@@ -2458,6 +2515,21 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             barley: building.barley * recoverable,
             malt: building.malt * recoverable,
             flax: building.flax * recoverable,
+            bread: building.bread * recoverable,
+            meat: building.meat * recoverable,
+            fish: building.fish * recoverable,
+            berries: building.berries * recoverable,
+            mushrooms: building.mushrooms * recoverable,
+            milk: building.milk * recoverable,
+            apples: building.apples * recoverable,
+            cherries: building.cherries * recoverable,
+            vegetables: building.vegetables * recoverable,
+            eggs: building.eggs * recoverable,
+            grapes: building.grapes * recoverable,
+            porridge: building.porridge * recoverable,
+            cured_meat: building.cured_meat * recoverable,
+            smoked_fish: building.smoked_fish * recoverable,
+            cheese: building.cheese * recoverable,
             gold: building.gold * recoverable,
             water_capacity: 0.0,
             assigned_labor: 0,
@@ -2593,6 +2665,25 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         CommodityKind::Flax,
         (building.flax + trip_cargo.flax) * recoverable,
     );
+    for (commodity, amount) in [
+        (CommodityKind::Bread, building.bread + trip_cargo.bread),
+        (CommodityKind::Meat, building.meat + trip_cargo.meat),
+        (CommodityKind::Fish, building.fish + trip_cargo.fish),
+        (CommodityKind::Berries, building.berries + trip_cargo.berries),
+        (CommodityKind::Mushrooms, building.mushrooms + trip_cargo.mushrooms),
+        (CommodityKind::Milk, building.milk + trip_cargo.milk),
+        (CommodityKind::Apples, building.apples + trip_cargo.apples),
+        (CommodityKind::Cherries, building.cherries + trip_cargo.cherries),
+        (CommodityKind::Vegetables, building.vegetables + trip_cargo.vegetables),
+        (CommodityKind::Eggs, building.eggs + trip_cargo.eggs),
+        (CommodityKind::Grapes, building.grapes + trip_cargo.grapes),
+        (CommodityKind::Porridge, building.porridge + trip_cargo.porridge),
+        (CommodityKind::CuredMeat, building.cured_meat + trip_cargo.cured_meat),
+        (CommodityKind::SmokedFish, building.smoked_fish + trip_cargo.smoked_fish),
+        (CommodityKind::Cheese, building.cheese + trip_cargo.cheese),
+    ] {
+        credit_treasury_commodity(ctx, owner, commodity, amount * recoverable);
+    }
 
     Ok(())
 }

@@ -28,6 +28,7 @@ import {
 } from './processorOutputPolicy.ts';
 import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
+import { freshFoodStock } from './foodInventory.ts';
 import {
   normalizeStaffingPriority,
   type StaffingPriority,
@@ -228,7 +229,9 @@ function outputStock(building: BuildingState): number {
     return Math.max(0, building[processorOutputCommodity(building.kind)] ?? 0);
   }
   if (building.kind === 'hunters_hall' || building.kind === 'fishing_camp') {
-    return Math.max(0, building.food);
+    return building.kind === 'hunters_hall'
+      ? Math.max(0, building.meat ?? 0)
+      : Math.max(0, building.fish ?? 0);
   }
   return 0;
 }
@@ -525,7 +528,7 @@ function wildStockStall(
   const kind = building.kind as Extract<BuildingKind, 'hunters_hall' | 'fishing_camp'>;
   const nodeKind = kind === 'hunters_hall' ? 'game' : 'fish';
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
-  const hasDispatchDuty = hasActiveOriginTrip || building.food > 1e-6;
+  const hasDispatchDuty = hasActiveOriginTrip || outputStock(building) > 1e-6;
   const targetLabor = 0;
   const base = {
     buildingId: building.id,
@@ -538,7 +541,7 @@ function wildStockStall(
     hasDispatchDuty,
   };
   const foodCapacity = BUILDING_STORAGE_CAPS[kind].food ?? 0;
-  if (foodCapacity > 0 && building.food >= foodCapacity - 1e-6) {
+  if (foodCapacity > 0 && freshFoodStock(building) >= foodCapacity - 1e-6) {
     return {
       ...base,
       reason: 'output_blocked',

@@ -2,6 +2,7 @@ import {
   BUILDING_STORAGE_CAPS,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
 } from '../generated/gameBalance.ts';
+import { edibleFoodStock } from '../economy/foodInventory.ts';
 import type { BuildingState, LivestockHerdState } from '../resources/types.ts';
 import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import { constructionVisualSignature } from './ConstructionSiteMesh.ts';
@@ -95,14 +96,12 @@ export function buildingMarkerSignatures(
         : '';
       const salvageGoods = building.firewood
         + building.water
-        + building.food
+        + edibleFoodStock(building)
         + building.grain
         + (building.barley ?? 0)
         + (building.malt ?? 0)
         + building.flour
         + building.ale
-        + building.preservedFood
-        + building.honey
         + building.wine
         + (building.ironwork ?? 0)
         + (building.polearms ?? 0)
@@ -309,8 +308,7 @@ function marketplaceVisualState(building: BuildingState): string {
     return '';
   }
   const cratedGoods = building.firewood
-    + building.food
-    + building.preservedFood
+    + edibleFoodStock(building)
     + building.ale
     + (building.cloth ?? 0)
     + (building.pottery ?? 0);

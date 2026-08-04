@@ -8,7 +8,7 @@ import {
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
   CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
   CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
-  RESIDENCE_FOOD_CAPACITY,
+  RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_SERVICE_WARNING_DAYS,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
@@ -424,7 +424,9 @@ const fullHome = home('full-home', 25, {
   abandoned: true,
   population: 0,
 });
-fullHome.needs.food.stock = RESIDENCE_FOOD_CAPACITY;
+fullHome.curedMeat = RESIDENCE_PRESERVED_FOOD_CAPACITY;
+fullHome.needs.food.stock = RESIDENCE_PRESERVED_FOOD_CAPACITY;
+fullHome.needs.preservedFood.stock = RESIDENCE_PRESERVED_FOOD_CAPACITY;
 const householdFull = computeSettlementParishReliefPlan({
   state: state({
     buildings: [chapel('chapel', 0), market('market', 10)],
@@ -445,7 +447,7 @@ const marketFull = computeSettlementParishReliefPlan({
     buildings: [
       chapel('chapel', 0),
       market('market', 10, {
-        food: BUILDING_STORAGE_CAPS.trading_post.food,
+        curedMeat: BUILDING_STORAGE_CAPS.marketplace.preservedFood,
       }),
     ],
     homes: [abandoned],

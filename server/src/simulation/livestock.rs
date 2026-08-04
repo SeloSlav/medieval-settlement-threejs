@@ -187,10 +187,20 @@ fn step_livestock_building(
                 tick,
                 clock,
                 &mut building,
-                CommodityKind::PreservedFood,
+                CommodityKind::Cheese,
                 &["granary"],
             );
         }
+        // All livestock species can create cured meat when surplus animals
+        // are culled; pigs must not strand that stock at the holding.
+        dispatch_to_building(
+            ctx,
+            tick,
+            clock,
+            &mut building,
+            CommodityKind::CuredMeat,
+            &["granary"],
+        );
     }
 
     ctx.db.livestock_herd().building_id().update(herd);
@@ -257,10 +267,11 @@ fn run_livestock_cycle(
     // meat only when actual surplus animals are culled below.
     let food = productive_heads * species_food_per_cycle(herd.species);
     let preserved = productive_heads * species_preserved_per_cycle(herd.species);
-    herd.last_food_output = deposit_building_commodity(building, CommodityKind::Food, food);
+    herd.last_food_output = deposit_building_commodity(building, CommodityKind::Milk, food);
     // Fresh dairy remains available without imported salt. Only the portion
     // actually salted and placed in the cured store becomes durable cheese.
-    herd.last_preserved_output = store_salted_farmstead_output(building, preserved);
+    herd.last_preserved_output =
+        store_salted_farmstead_output(building, CommodityKind::Cheese, preserved);
     if herd.species == SPECIES_CATTLE {
         deposit_building_commodity(
             building,
@@ -312,7 +323,7 @@ fn run_livestock_cycle(
     let (slaughter_food, slaughter_preserved) = species_slaughter_yields(herd.species);
     let saltable_slaughter =
         slaughter_preserved.min(farmstead_salted_output_capacity(building).min(
-            building_commodity_room(building, CommodityKind::PreservedFood),
+            building_commodity_room(building, CommodityKind::CuredMeat),
         ));
     let unsalted_slaughter = (slaughter_preserved - saltable_slaughter).max(0.0);
     if can_cull_one(
@@ -320,8 +331,8 @@ fn run_livestock_cycle(
         herd.head_count,
         herd.breeding_reserve,
         maximum_herd,
-        building_commodity_room(building, CommodityKind::Food),
-        building_commodity_room(building, CommodityKind::PreservedFood),
+        building_commodity_room(building, CommodityKind::Meat),
+        building_commodity_room(building, CommodityKind::CuredMeat),
         slaughter_food + unsalted_slaughter,
         saltable_slaughter,
     ) {
@@ -333,10 +344,14 @@ fn run_livestock_cycle(
         // because an imported salt cart has not reached the holding.
         herd.last_food_output += deposit_building_commodity(
             building,
-            CommodityKind::Food,
+            CommodityKind::Meat,
             slaughter_food + unsalted_slaughter,
         );
-        herd.last_preserved_output += store_salted_farmstead_output(building, saltable_slaughter);
+        herd.last_preserved_output += store_salted_farmstead_output(
+            building,
+            CommodityKind::CuredMeat,
+            saltable_slaughter,
+        );
     }
 }
 
@@ -348,12 +363,16 @@ fn farmstead_salted_output_capacity(building: &Building) -> f64 {
     }
 }
 
-fn store_salted_farmstead_output(building: &mut Building, desired_output: f64) -> f64 {
+fn store_salted_farmstead_output(
+    building: &mut Building,
+    output: CommodityKind,
+    desired_output: f64,
+) -> f64 {
     let stored = desired_output
         .max(0.0)
         .min(building_commodity_room(
             building,
-            CommodityKind::PreservedFood,
+            output,
         ))
         .min(farmstead_salted_output_capacity(building));
     if stored <= 1e-9 {
@@ -364,7 +383,7 @@ fn store_salted_farmstead_output(building: &mut Building, desired_output: f64) -
         CommodityKind::Salt,
         stored * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
     );
-    deposit_building_commodity(building, CommodityKind::PreservedFood, stored)
+    deposit_building_commodity(building, output, stored)
 }
 
 fn grazing_capacity(ctx: &ReducerContext, building: &Building, herd: &LivestockHerd) -> f64 {

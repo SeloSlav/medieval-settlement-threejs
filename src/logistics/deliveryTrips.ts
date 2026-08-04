@@ -36,6 +36,21 @@ export const DELIVERY_CARGO_KINDS = [
   'manure',
   'remedies',
   'roofTiles',
+  'bread',
+  'meat',
+  'fish',
+  'berries',
+  'mushrooms',
+  'milk',
+  'apples',
+  'cherries',
+  'vegetables',
+  'eggs',
+  'grapes',
+  'porridge',
+  'curedMeat',
+  'smokedFish',
+  'cheese',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -250,6 +265,36 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'remedies';
     case 26:
       return 'roofTiles';
+    case 27:
+      return 'bread';
+    case 28:
+      return 'meat';
+    case 29:
+      return 'fish';
+    case 30:
+      return 'berries';
+    case 31:
+      return 'mushrooms';
+    case 32:
+      return 'milk';
+    case 33:
+      return 'apples';
+    case 34:
+      return 'cherries';
+    case 35:
+      return 'vegetables';
+    case 36:
+      return 'eggs';
+    case 37:
+      return 'grapes';
+    case 38:
+      return 'porridge';
+    case 39:
+      return 'curedMeat';
+    case 40:
+      return 'smokedFish';
+    case 41:
+      return 'cheese';
     default:
       return null;
   }
@@ -292,7 +337,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'water':
       return 'Water';
     case 'food':
-      return 'Food';
+      return 'Mixed provisions (legacy)';
     case 'timber':
       return 'Timber';
     case 'grain':
@@ -306,7 +351,37 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'ale':
       return 'Ale';
     case 'preservedFood':
-      return 'Preserved food';
+      return 'Mixed preserved provisions (legacy)';
+    case 'bread':
+      return 'Bread';
+    case 'meat':
+      return 'Meat';
+    case 'fish':
+      return 'Fish';
+    case 'berries':
+      return 'Berries';
+    case 'mushrooms':
+      return 'Mushrooms';
+    case 'milk':
+      return 'Milk';
+    case 'apples':
+      return 'Apples';
+    case 'cherries':
+      return 'Cherries';
+    case 'vegetables':
+      return 'Vegetables';
+    case 'eggs':
+      return 'Eggs';
+    case 'grapes':
+      return 'Grapes';
+    case 'porridge':
+      return 'Porridge';
+    case 'curedMeat':
+      return 'Cured meat';
+    case 'smokedFish':
+      return 'Smoked fish';
+    case 'cheese':
+      return 'Cheese';
     case 'honey':
       return 'Honey';
     case 'wine':
@@ -708,6 +783,18 @@ export function cargoColor(kind: DeliveryCargoKind): number {
     case 'water':
       return 0x3f8fd6;
     case 'food':
+    case 'bread':
+    case 'meat':
+    case 'fish':
+    case 'berries':
+    case 'mushrooms':
+    case 'milk':
+    case 'apples':
+    case 'cherries':
+    case 'vegetables':
+    case 'eggs':
+    case 'grapes':
+    case 'porridge':
       return 0x5f9f4a;
     case 'timber':
       return 0x8a684c;
@@ -722,6 +809,9 @@ export function cargoColor(kind: DeliveryCargoKind): number {
     case 'ale':
       return 0xb8860b;
     case 'preservedFood':
+    case 'curedMeat':
+    case 'smokedFish':
+    case 'cheese':
       return 0x8b5a3c;
     case 'honey':
       return 0xd4a017;

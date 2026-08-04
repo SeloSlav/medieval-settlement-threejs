@@ -113,8 +113,33 @@ export function isResidenceConnectedToMarketplace(
   residence: ResidenceState,
   buildings: Iterable<BuildingState>,
   probe: RoadPathProbe,
+  stallKind: 'food' | 'goods' = 'food',
 ): boolean {
-  return hasRoadPathToBuildingKind(buildings, residence.x, residence.z, 'marketplace', probe);
+  const candidates = [...buildings];
+  const workplaceKind = stallKind === 'food' ? 'granary' : 'village_storehouse';
+  return candidates.some((marketplace) =>
+    marketplace.kind === 'marketplace'
+    && marketplace.constructionComplete !== false
+    && isRoadPathConnected(
+      probe,
+      residence.x,
+      residence.z,
+      marketplace.x,
+      marketplace.z,
+    )
+    && candidates.some((workplace) =>
+      workplace.kind === workplaceKind
+      && workplace.constructionComplete !== false
+      && workplace.assignedLabor > 0
+      && isRoadPathConnected(
+        probe,
+        workplace.x,
+        workplace.z,
+        marketplace.x,
+        marketplace.z,
+      )
+    )
+  );
 }
 
 export function isResidenceConnectedToChapel(

@@ -160,7 +160,7 @@ const frontierPanel = renderMarketplaceTradePanel(
 );
 assert.match(
   frontierPanel,
-  /Seed grain, salt, raw iron, and frontier ironwork share this broker queue/,
+  /Seed grain, salt, raw iron, and frontier ironwork share this trader queue/,
 );
 assert.match(
   frontierPanel,

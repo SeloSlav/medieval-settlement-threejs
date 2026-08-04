@@ -306,6 +306,21 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         linked_worksite_id: 0,
         commute_efficiency: 1.0,
         chapel_tier: 0,
+        bread: resources.bread.max(0.0),
+        meat: resources.meat.max(0.0),
+        fish: resources.fish.max(0.0),
+        berries: resources.berries.max(0.0),
+        mushrooms: resources.mushrooms.max(0.0),
+        milk: resources.milk.max(0.0),
+        apples: resources.apples.max(0.0),
+        cherries: resources.cherries.max(0.0),
+        vegetables: resources.vegetables.max(0.0),
+        eggs: resources.eggs.max(0.0),
+        grapes: resources.grapes.max(0.0),
+        porridge: resources.porridge.max(0.0),
+        cured_meat: resources.cured_meat.max(0.0),
+        smoked_fish: resources.smoked_fish.max(0.0),
+        cheese: resources.cheese.max(0.0),
     });
 
     resources.timber = 0.0;
@@ -333,6 +348,21 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.barley = 0.0;
     resources.malt = 0.0;
     resources.flax = 0.0;
+    resources.bread = 0.0;
+    resources.meat = 0.0;
+    resources.fish = 0.0;
+    resources.berries = 0.0;
+    resources.mushrooms = 0.0;
+    resources.milk = 0.0;
+    resources.apples = 0.0;
+    resources.cherries = 0.0;
+    resources.vegetables = 0.0;
+    resources.eggs = 0.0;
+    resources.grapes = 0.0;
+    resources.porridge = 0.0;
+    resources.cured_meat = 0.0;
+    resources.smoked_fish = 0.0;
+    resources.cheese = 0.0;
     resources.physical_founding_site_enabled = true;
     resources.legacy_unhoused_population_bonus_enabled = false;
     ctx.db.player_resources().owner().update(resources);

@@ -108,6 +108,18 @@ function addCargo(
       addWaterLoad(group);
       break;
     case 'food':
+    case 'bread':
+    case 'meat':
+    case 'fish':
+    case 'berries':
+    case 'mushrooms':
+    case 'milk':
+    case 'apples':
+    case 'cherries':
+    case 'vegetables':
+    case 'eggs':
+    case 'grapes':
+    case 'porridge':
       addFoodLoad(group);
       break;
     case 'grain':
@@ -122,6 +134,9 @@ function addCargo(
       addAleLoad(group);
       break;
     case 'preservedFood':
+    case 'curedMeat':
+    case 'smokedFish':
+    case 'cheese':
       addPreservedFoodLoad(group);
       break;
     case 'honey':

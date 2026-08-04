@@ -52,7 +52,7 @@ pub use chapel_parish::{step_chapel_parish, try_start_chapel_treasury_trip};
 pub use civic_receipts::try_dispatch_local_civic_receipts;
 pub use construction::step_construction_sites;
 pub use construction_labor_steward::step_construction_labor_stewards;
-pub(crate) use delivery_cargo::delivery_stock_room;
+pub(crate) use delivery_cargo::{delivery_stock_room, residence_commodity_delivery_room};
 pub use delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, building_has_regional_market_trip,

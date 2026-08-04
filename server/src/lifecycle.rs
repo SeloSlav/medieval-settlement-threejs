@@ -168,6 +168,21 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         night_community_cohesion: 0.5,
         night_labor_fatigue: 0.0,
         roof_tiles: 0.0,
+        bread: 0.0,
+        meat: 0.0,
+        fish: 0.0,
+        berries: 0.0,
+        mushrooms: 0.0,
+        milk: 0.0,
+        apples: 0.0,
+        cherries: 0.0,
+        vegetables: 0.0,
+        eggs: 0.0,
+        grapes: 0.0,
+        porridge: 0.0,
+        cured_meat: 0.0,
+        smoked_fish: 0.0,
+        cheese: 0.0,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

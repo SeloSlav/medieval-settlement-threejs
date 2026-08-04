@@ -21,6 +21,7 @@ import {
 } from './regionalMarket.ts';
 import type { MarketCommodityOffer, MarketWaterCommodityOffer } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
+import { freshFoodStock, preservedFoodStock } from './foodInventory.ts';
 
 export type MarketplaceTradeAvailability = Record<TradeResourceKind | 'gold', number>;
 
@@ -41,7 +42,7 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   timber: 'Timber',
   stone: 'Stone',
   firewood: 'Firewood',
-  food: 'Food',
+  food: 'Bread',
   grain: 'Grain',
   barley: 'Barley',
   ironwork: 'Ironwork',
@@ -224,7 +225,7 @@ export function marketplaceManualTradeStatus(
       ...timing,
       ready: false,
       label: 'Trade desk unstaffed',
-      reason: 'Assign at least one broker to place manual orders.',
+      reason: 'Assign at least one regional trader to place manual orders.',
     };
   }
   if (!hasRoadAccess) {
@@ -239,16 +240,16 @@ export function marketplaceManualTradeStatus(
     return {
       ...timing,
       ready: false,
-      label: 'Regional merchant on the road',
-      reason: 'Wait for the current import or export merchant to complete the round trip.',
+      label: 'All regional routes occupied',
+      reason: 'Wait for an import or export merchant to complete its round trip and free a trader route slot.',
     };
   }
   if (building.actionCooldown > 1e-6) {
     return {
       ...timing,
       ready: false,
-      label: `Brokers settling caravan · ${building.actionCooldown.toFixed(1)}s`,
-      reason: `The brokers need another ${building.actionCooldown.toFixed(1)} seconds.`,
+      label: `Regional traders settling caravan · ${building.actionCooldown.toFixed(1)}s`,
+      reason: `The regional traders need another ${building.actionCooldown.toFixed(1)} seconds.`,
     };
   }
   if (marketplacePendingTradeOffer(building.marketplacePendingTradeCode)) {
@@ -256,7 +257,7 @@ export function marketplaceManualTradeStatus(
       ...timing,
       ready: false,
       label: 'Bulk order staging',
-      reason: 'This market is already staging a bulk order. Let it depart or cancel it first.',
+      reason: 'This Trading Post is already staging a bulk order. Let it depart or cancel it first.',
     };
   }
   return {
@@ -287,7 +288,10 @@ export function marketplaceResourceRoom(
   resource: TradeResourceKind,
 ): number {
   const cap = BUILDING_STORAGE_CAPS.trading_post[resource] ?? 0;
-  return Math.max(0, cap - (building[resource] ?? 0));
+  const stock = resource === 'food'
+    ? freshFoodStock(building)
+    : (building[resource] ?? 0);
+  return Math.max(0, cap - stock);
 }
 
 export function marketplaceTradeOfferReceive(
@@ -320,8 +324,12 @@ export function canReceiveCommodityTrade(
   building: BuildingState,
   commodity: MarketCommodityOffer,
 ): boolean {
-  return Math.max(0, (BUILDING_STORAGE_CAPS.trading_post.food ?? 0) - building.food) + 1e-6
-    >= commodity.foodAmount;
+  const preserved = commodity.resourceKind === 'curedMeat'
+    || commodity.resourceKind === 'cheese';
+  const room = preserved
+    ? (BUILDING_STORAGE_CAPS.trading_post.preservedFood ?? 0) - preservedFoodStock(building)
+    : (BUILDING_STORAGE_CAPS.trading_post.food ?? 0) - freshFoodStock(building);
+  return Math.max(0, room) + 1e-6 >= commodity.foodAmount;
 }
 
 export function canReceiveWaterCommodityTrade(

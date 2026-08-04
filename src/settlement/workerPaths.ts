@@ -23,6 +23,7 @@ import { isWildStockHarvestable } from '../foraging/harvestReservePolicy.ts';
 import { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
+import { preservableFoodStock } from '../economy/foodInventory.ts';
 import { processorOutputHeadroom } from '../economy/processorOutputPolicy.ts';
 
 export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
@@ -219,7 +220,7 @@ export function workerProductionBlocker(
       if (building.firewood <= 1e-6) return 'firewood';
       return building.water > 1e-6 ? null : 'water';
     case 'smokehouse':
-      if (building.food <= 1e-6) return 'food';
+      if (preservableFoodStock(building) <= 1e-6) return 'food';
       if (building.firewood <= 1e-6) return 'firewood';
       if ((building.salt ?? 0) <= 1e-6) return 'salt';
       return (building.pottery ?? 0) > 1e-6 ? null : 'pottery';

@@ -182,10 +182,10 @@ assert.match(
   /row\.kind != "lumber_mill"[\s\S]*tick\.building_disabled_by_fire\(ctx, row\.id\)/,
   'lodges must not dispatch timber out of fire-disabled lumber mills',
 );
-assert.match(
+assert.doesNotMatch(
   lodgeSimulation,
-  /household_firewood_needs_priority/,
-  'lodges must release their carts once claimed homes reach protected winter-night stock',
+  /ResidenceNeedKind|household_firewood_needs_priority|try_start_delivery_trip/,
+  'woodcutters must remain at production and never deliver firewood directly to homes',
 );
 
 console.log('lodge logistics tests passed');

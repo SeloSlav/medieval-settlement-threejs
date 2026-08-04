@@ -85,8 +85,8 @@ export function renderMarketplaceTradePanel(
   const nextStandingOrder = nextMarketplaceStandingOrder(building, conflictEnabled);
   const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
   const nextTurnaround = manualTrade.nextCooldownSeconds == null
-    ? 'Each broker shortens the trade desk turnaround.'
-    : `Each broker shortens the trade desk turnaround; current regional road conditions make the next settlement ${manualTrade.nextCooldownSeconds.toFixed(1)}s.`;
+    ? 'Each regional trader opens one concurrent route slot and shortens trade-desk turnaround.'
+    : `Each regional trader opens one concurrent route slot and shortens trade-desk turnaround; current road conditions make the next settlement ${manualTrade.nextCooldownSeconds.toFixed(1)}s.`;
   const renderOffer = (offer: (typeof sections.goldBuy)[number]) => {
     const affordable = canAffordMarketplaceTrade(availability, offer, marketState);
     const hasRoom = canReceiveMarketplaceTrade(building, offer);
@@ -212,7 +212,7 @@ export function renderMarketplaceTradePanel(
     <div class="marketplace-trade-panel">
       <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
       <p class="marketplace-trade-intro">${physicalEconomy
-        ? 'Bulk exports use only goods physically staged at this Trading Post by visible source carts. Once a full lot arrives, one live merchant carries it to the regional map edge, exchanges only what survives the road, and returns with raid-vulnerable coin or barter cargo before the receipt enters Trading Post storage. Imports spend only coin physically held in this Trading Post coffer; free haulers replenish its chosen reserve from the civic treasury, while brokers return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
+        ? 'Bulk exports use only goods physically staged at this Trading Post by visible source carts. Once a full lot arrives, one live merchant carries it to the regional map edge, exchanges only what survives the road, and returns with raid-vulnerable coin or barter cargo before the receipt enters Trading Post storage. Imports spend only coin physically held in this Trading Post coffer; free haulers replenish its chosen reserve from the civic treasury, while regional traders return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
         : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Ale, cloth, and any honey or wine left after enabled monastery hospitality must be hauled here; in the physical economy those specialties also leave on discrete live merchant loads. Every paid import is carried from the map edge: manual lots unload here for local distribution, while named household and parish orders pass through this Trading Post's road branch before reaching their exact home.</p>
       <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
       ${pendingOffer
@@ -290,7 +290,7 @@ function renderMarketplaceGoldReserve(building: BuildingState): string {
   } else if (shortfall > 1e-6) {
     status = `${held.toFixed(1)} / ${target} gold held — ${shortfall.toFixed(1)} awaits a free treasury handcart.`;
   } else if (surplus > 1e-6) {
-    status = `${target} gold reserved for imports — ${surplus.toFixed(1)} surplus awaits a broker cart to the treasury.`;
+    status = `${target} gold reserved for imports — ${surplus.toFixed(1)} surplus awaits a regional-trader cart to the treasury.`;
   } else {
     status = `${held.toFixed(1)} / ${target} gold held — working cash ready for imports.`;
   }
@@ -394,7 +394,7 @@ function renderIronworkProcurementPolicy(
   ).amount;
   let status: string;
   if (plan.target <= 0) {
-    status = 'Manual-only — brokers place no automatic ironwork orders.';
+    status = 'Manual-only — regional traders place no automatic ironwork orders.';
   } else if (!plan.nextOrderDue) {
     status = `Holding ${plan.stock.toFixed(1)} / ${plan.target} ironwork; the next six-unit lot waits until it fits without overshooting.`;
   } else if (nextStandingOrder && nextStandingOrder !== 'ironwork') {
@@ -433,7 +433,7 @@ function renderSeedGrainProcurementPolicy(
   ).amount;
   let status: string;
   if (plan.target <= 0) {
-    status = 'Manual-only — brokers place no automatic seed-grain orders.';
+    status = 'Manual-only — regional traders place no automatic seed-grain orders.';
   } else if (!plan.nextOrderDue) {
     status = `Holding ${plan.stock.toFixed(1)} / ${plan.target} grain; the next 24-unit lot waits until it fits without overshooting.`;
   } else if (nextStandingOrder && nextStandingOrder !== 'seedGrain') {
@@ -447,13 +447,13 @@ function renderSeedGrainProcurementPolicy(
   }
 
   const sharedQueue = conflictEnabled
-    ? ' Seed grain, salt, raw iron, and frontier ironwork share this broker queue; the most depleted selected target goes first.'
-    : ' Seed grain, salt, and raw iron share this broker queue; the most depleted selected target goes first.';
+    ? ' Seed grain, salt, raw iron, and frontier ironwork share this trader queue; the most depleted selected target goes first.'
+    : ' Seed grain, salt, and raw iron share this trader queue; the most depleted selected target goes first.';
   const coverageHtml = renderSeedCoverage(coverage);
   return `
     <section class="marketplace-trade-section" aria-label="Seed-grain procurement">
       <h3 class="marketplace-trade-section__title">Seed-grain procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this Trading Post buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use broker time, physically held Trading Post coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes Trading Post stock only after unloading.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free Trading Post or granary cart serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
+      <p class="resource-inspector-note">Standing stock target — this Trading Post buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use regional-trader time, physically held Trading Post coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes Trading Post stock only after unloading.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free Trading Post or granary cart serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
       <div class="resource-action-row">${MARKETPLACE_SEED_GRAIN_TARGETS
         .map((target) => `<button type="button" class="resource-action-button" data-marketplace-seed-grain-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
         .join('')}</div>
@@ -524,7 +524,7 @@ function formatMaterialProcurementStatus(
   nextStandingOrder: MarketplaceStandingOrder,
 ): string {
   if (plan.target <= 0) {
-    return `No central reserve — mine carts serve workshops directly and brokers place no automatic ${resource} orders.`;
+    return `No central reserve — mine carts serve workshops directly and regional traders place no automatic ${resource} orders.`;
   }
   if (!plan.nextOrderDue) {
     return `Holding ${plan.stock.toFixed(1)} / ${plan.target} ${resource}; local mine carts may fill the remainder, while the next twelve-unit import waits until it fits without overshooting.`;

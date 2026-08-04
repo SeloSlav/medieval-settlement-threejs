@@ -43,6 +43,7 @@ import {
   assignLocalMaterialInputTargets,
   assignMarketplaceMaterialInputTargets,
   localMaterialInputCommodities,
+  processorInputCommodityStock,
   selectDirectProcessorInputTarget,
   type DirectProcessorInputCommodity,
   type RoutedMarketplaceMaterialDestination,
@@ -74,6 +75,7 @@ import {
   extractionAcceptsMaintenance,
   processorAcceptsInput,
 } from '../economy/processorOutputPolicy.ts';
+import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { mineralDepositBeneath } from '../economy/settlementGeology.ts';
 import {
   monasteryFeastRefillShortfall,
@@ -495,7 +497,7 @@ export class WorldQueries {
           supplier.kind !== 'monastery'
           || (
             monasteryFeastSurplus(
-              supplier.food,
+              Math.max(0, edibleFoodStock(supplier) - supplier.honey),
               monasteryFeastReserve('food'),
               reserveEnabled,
             ) > 1e-6
@@ -801,8 +803,23 @@ export class WorldQueries {
     return count;
   }
 
-  isResidenceConnectedToMarketplace(residence: ResidenceState): boolean {
-    return this.hasRoadPathToBuildingKind(residence.x, residence.z, 'marketplace');
+  isResidenceConnectedToMarketplace(
+    residence: ResidenceState,
+    stallKind: 'food' | 'goods' = 'food',
+  ): boolean {
+    const state = this.getGameState();
+    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
+    const workplaceKind = stallKind === 'food' ? 'granary' : 'village_storehouse';
+    return [...state.buildings.values()].some((marketplace) =>
+      !fireDisabled.has(marketplace.id)
+      && this.marketplaceHasStallWorkforce(marketplace, workplaceKind)
+      && this.getRoadPathDistance(
+        residence.x,
+        residence.z,
+        marketplace.x,
+        marketplace.z,
+      ) != null
+    );
   }
 
   isResidenceConnectedToChapel(residence: ResidenceState): boolean {
@@ -1258,7 +1275,7 @@ export class WorldQueries {
       source.constructionComplete === false
       || source.assignedLabor <= 0
       || fireDisabled.has(source.id)
-      || Math.max(0, Number(source[commodity] ?? 0)) <= 1e-6
+      || processorInputCommodityStock(source, commodity) <= 1e-6
       || findActiveTripForBuilding(state.deliveryTrips.values(), source.id) != null
     ) {
       return null;
@@ -1353,7 +1370,7 @@ export class WorldQueries {
       || fireDisabled.has(source.id)
       || findActiveTripForBuilding(state.deliveryTrips.values(), source.id) != null
       || institutionalFoodSurplus(
-        source.food,
+        edibleFoodStock(source),
         claimedHouseholds,
         sourceCapacity,
       ) <= 1e-6
@@ -1476,7 +1493,7 @@ export class WorldQueries {
     }
     const claimedHouseholds = this.getClaimedResidencesForFoodSupplier(granary).length;
     const transferable = institutionalFoodSurplus(
-      granary.food,
+      edibleFoodStock(granary),
       claimedHouseholds,
       BUILDING_STORAGE_CAPS.granary.food,
     );

@@ -10,7 +10,11 @@ use crate::balance_generated::{
     PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR, PRESERVED_FOOD_STORAGE_TREASURY_FACTOR, TICK_DT,
 };
 use crate::db::*;
-use crate::economy::CommodityKind;
+use crate::economy::{
+    building_fresh_food_stock, building_preserved_food_stock, building_commodity_stock,
+    withdraw_building_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
+    PRESERVED_FOOD_COMMODITIES,
+};
 use crate::season_policy::EnvironmentState;
 use crate::tables::{Building, DeliveryTrip, PlayerResources};
 
@@ -25,8 +29,10 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         return;
     }
 
-    for building in ctx.db.building().iter().collect::<Vec<Building>>() {
-        if building.food <= 1e-9 && building.preserved_food <= 1e-9 {
+    for mut building in ctx.db.building().iter().collect::<Vec<Building>>() {
+        if building_fresh_food_stock(&building) <= 1e-9
+            && building_preserved_food_stock(&building) <= 1e-9
+        {
             continue;
         }
         let fresh_storage_factor = match building.kind.as_str() {
@@ -45,14 +51,21 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
             "trading_post" => PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
             _ => PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
         };
-        let spoiled_fresh = building.food * fresh_rate * fresh_storage_factor * TICK_DT;
-        let spoiled_preserved =
-            building.preserved_food * preserved_rate * preserved_storage_factor * TICK_DT;
-        ctx.db.building().id().update(Building {
-            food: (building.food - spoiled_fresh).max(0.0),
-            preserved_food: (building.preserved_food - spoiled_preserved).max(0.0),
-            ..building
-        });
+        for commodity in FRESH_FOOD_COMMODITIES {
+            let spoiled = building_commodity_stock(&building, commodity)
+                * fresh_rate
+                * fresh_storage_factor
+                * TICK_DT;
+            withdraw_building_commodity(&mut building, commodity, spoiled);
+        }
+        for commodity in PRESERVED_FOOD_COMMODITIES {
+            let spoiled = building_commodity_stock(&building, commodity)
+                * preserved_rate
+                * preserved_storage_factor
+                * TICK_DT;
+            withdraw_building_commodity(&mut building, commodity, spoiled);
+        }
+        ctx.db.building().id().update(building);
     }
 
     // A loaded handcart is a physical store, not a pause button for decay.
@@ -63,14 +76,15 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         .delivery_trip()
         .iter()
         .filter(|trip| {
-            matches!(
-                CommodityKind::from_u8(trip.cargo_kind),
-                Some(CommodityKind::Food | CommodityKind::PreservedFood)
-            ) && trip.amount > 1e-9
+            CommodityKind::from_u8(trip.cargo_kind)
+                .is_some_and(|kind| kind.is_fresh_food() || kind.is_preserved_food())
+                && trip.amount > 1e-9
         })
         .collect::<Vec<DeliveryTrip>>()
     {
-        let (rate, storage_factor) = if trip.cargo_kind == CommodityKind::PreservedFood.as_u8() {
+        let (rate, storage_factor) = if CommodityKind::from_u8(trip.cargo_kind)
+            .is_some_and(CommodityKind::is_preserved_food)
+        {
             (preserved_rate, PRESERVED_FOOD_STORAGE_CART_FACTOR)
         } else {
             (fresh_rate, FRESH_FOOD_STORAGE_CART_FACTOR)
@@ -82,25 +96,49 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         });
     }
 
-    for resources in ctx
+    for mut resources in ctx
         .db
         .player_resources()
         .iter()
         .collect::<Vec<PlayerResources>>()
     {
-        if resources.food <= 1e-9 && resources.preserved_food <= 1e-9 {
-            continue;
+        macro_rules! spoil_fresh {
+            ($field:ident) => {
+                resources.$field = (resources.$field
+                    - resources.$field
+                        * fresh_rate
+                        * FRESH_FOOD_STORAGE_TREASURY_FACTOR
+                        * TICK_DT)
+                    .max(0.0);
+            };
         }
-        let spoiled_fresh =
-            resources.food * fresh_rate * FRESH_FOOD_STORAGE_TREASURY_FACTOR * TICK_DT;
-        let spoiled_preserved = resources.preserved_food
-            * preserved_rate
-            * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR
-            * TICK_DT;
-        ctx.db.player_resources().owner().update(PlayerResources {
-            food: (resources.food - spoiled_fresh).max(0.0),
-            preserved_food: (resources.preserved_food - spoiled_preserved).max(0.0),
-            ..resources
-        });
+        macro_rules! spoil_preserved {
+            ($field:ident) => {
+                resources.$field = (resources.$field
+                    - resources.$field
+                        * preserved_rate
+                        * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR
+                        * TICK_DT)
+                    .max(0.0);
+            };
+        }
+        spoil_fresh!(food);
+        spoil_fresh!(bread);
+        spoil_fresh!(meat);
+        spoil_fresh!(fish);
+        spoil_fresh!(berries);
+        spoil_fresh!(mushrooms);
+        spoil_fresh!(milk);
+        spoil_fresh!(apples);
+        spoil_fresh!(cherries);
+        spoil_fresh!(vegetables);
+        spoil_fresh!(eggs);
+        spoil_fresh!(grapes);
+        spoil_fresh!(porridge);
+        spoil_preserved!(preserved_food);
+        spoil_preserved!(cured_meat);
+        spoil_preserved!(smoked_fish);
+        spoil_preserved!(cheese);
+        ctx.db.player_resources().owner().update(resources);
     }
 }

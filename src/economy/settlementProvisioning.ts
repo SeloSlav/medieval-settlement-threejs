@@ -56,6 +56,13 @@ import {
 import {
   freshFoodRunwayWithPreservedRotation,
 } from './preservedFoodPolicy.ts';
+import {
+  edibleFoodStock,
+  freshFoodStock,
+  isFreshFoodCargo,
+  isPreservedFoodCargo,
+  preservedFoodStock,
+} from './foodInventory.ts';
 
 export const WINTER_RESERVE_DAYS = CALENDAR_DAYS_PER_MONTH * 3;
 export const PROVISION_WARNING_DAYS = 5;
@@ -214,6 +221,10 @@ function roadProvisionBranch(
 
 function finiteStock(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value ?? 0) : 0;
+}
+
+function preservedFoodStockForResidence(residence: ResidenceState): number {
+  return preservedFoodStock(residence);
 }
 
 function addBranchFoodStock(
@@ -466,11 +477,16 @@ export function computeSettlementProvisioning(input: {
   let heatedResidents = 0;
   let displacedHouseholds = 0;
   let displacedResidents = 0;
+  let fireQuarantinedFoodStock = 0;
   let fireQuarantinedFirewoodStock = 0;
   let fireQuarantinedPreservedFoodStock = 0;
+  // ResourceTotals exposes unreserved food, while residence pantries are
+  // deliberately protected household stock. Provisioning still needs the
+  // gross physical amount before subtracting any fire quarantine.
+  let householdPantryFoodStock = 0;
   let usablePreservedFoodStock = state.physicalFoundingSiteEnabled === true
     ? 0
-    : finiteStock(state.stockpile.preservedFood);
+    : preservedFoodStock(state.stockpile);
   let usablePreservedFoodWeightedStock =
     usablePreservedFoodStock * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR;
   let householdBufferHouseholds = 0;
@@ -492,18 +508,25 @@ export function computeSettlementProvisioning(input: {
   let sabbathClothShortHomes = 0;
   let sabbathPotteryShortHomes = 0;
   for (const residence of state.residences.values()) {
+    const householdFreshStock = freshFoodStock(residence);
+    const householdPreservedStock = preservedFoodStockForResidence(residence);
+    const householdHoneyStock = finiteStock(residence.honey);
+    const householdEdibleStock = householdFreshStock
+      + householdPreservedStock
+      + householdHoneyStock;
+    const fireDisabled = fireDisabledResidences.has(residence.id);
+    householdPantryFoodStock += householdEdibleStock;
     accumulateResidenceWelfare(
       welfareAccumulator,
       residence,
-      fireDisabledResidences.has(residence.id),
+      fireDisabled,
     );
-    if (fireDisabledResidences.has(residence.id)) {
+    if (fireDisabled) {
       fireQuarantinedFirewoodStock += finiteStock(
         getNeedStock(residence.needs, 'firewood'),
       );
-      fireQuarantinedPreservedFoodStock += finiteStock(
-        getNeedStock(residence.needs, 'preservedFood'),
-      );
+      fireQuarantinedFoodStock += householdEdibleStock;
+      fireQuarantinedPreservedFoodStock += householdPreservedStock;
       if (!residence.abandoned && residence.population > 0) {
         displacedHouseholds += 1;
         displacedResidents += residence.population;
@@ -520,14 +543,9 @@ export function computeSettlementProvisioning(input: {
     const grossFoodNeeded = residence.population
       * RESIDENCE_FOOD_PER_PERSON_PER_SEC
       * workdaySeconds;
-    let preservedFoodStock = 0;
     let preservedFoodNeeded = 0;
     let preservedFoodRotationUsed = 0;
-    let foodNeeded = grossFoodNeeded;
     if (residence.tier >= 3) {
-      preservedFoodStock = finiteStock(
-        getNeedStock(residence.needs, 'preservedFood'),
-      );
       preservedFoodNeeded = residence.population
         * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
         * workdaySeconds
@@ -536,17 +554,13 @@ export function computeSettlementProvisioning(input: {
       // portion of allocatePreservedMeal with a full fresh-food plan, so no
       // emergency fallback is projected into ordinary daily demand.
       preservedFoodRotationUsed = Math.min(
-        preservedFoodStock,
+        householdPreservedStock,
         preservedFoodNeeded,
         grossFoodNeeded,
       );
-      foodNeeded = Math.max(
-        0,
-        grossFoodNeeded - preservedFoodRotationUsed,
-      );
-      usablePreservedFoodStock += preservedFoodStock;
+      usablePreservedFoodStock += householdPreservedStock;
       usablePreservedFoodWeightedStock +=
-        preservedFoodStock * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
+        householdPreservedStock * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
       householdPreservedFoodRotationTargetPerDay += preservedFoodNeeded;
       householdPreservedFoodRotationPerDay += preservedFoodRotationUsed;
     }
@@ -565,7 +579,7 @@ export function computeSettlementProvisioning(input: {
       roadBranch.preservedFoodRotationPerDay += preservedFoodNeeded;
       addBranchPreservedFoodStock(
         roadBranch,
-        preservedFoodStock,
+        householdPreservedStock,
         PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       );
       roadBranch.firstResidenceId = roadBranch.firstResidenceId === null
@@ -574,11 +588,11 @@ export function computeSettlementProvisioning(input: {
         : roadBranch.firstResidenceId;
       addBranchFoodStock(
         roadBranch,
-        getNeedStock(residence.needs, 'food'),
+        householdFreshStock + householdHoneyStock,
         FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
       );
     }
-    if (getNeedStock(residence.needs, 'food') + 1e-6 < foodNeeded) {
+    if (householdEdibleStock + 1e-6 < grossFoodNeeded) {
       householdBufferFoodShortHomes += 1;
       householdBufferReady = false;
     }
@@ -619,7 +633,7 @@ export function computeSettlementProvisioning(input: {
       const potteryNeeded = residence.population
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
         * workdaySeconds;
-      if (getNeedStock(residence.needs, 'preservedFood') + 1e-6 < preservedFoodNeeded) {
+      if (householdPreservedStock + 1e-6 < preservedFoodNeeded) {
         householdBufferPreservedFoodShortHomes += 1;
         householdBufferReady = false;
       }
@@ -641,7 +655,7 @@ export function computeSettlementProvisioning(input: {
     if (!sabbathObserved) continue;
     sabbathHouseholds += 1;
     let sabbathReady = householdBufferReady;
-    if (getNeedStock(residence.needs, 'food') + 1e-6 < foodNeeded) {
+    if (householdEdibleStock + 1e-6 < grossFoodNeeded) {
       sabbathFoodShortHomes += 1;
     }
     if (residence.tier >= 2) {
@@ -670,7 +684,7 @@ export function computeSettlementProvisioning(input: {
       const potteryNeeded = residence.population
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
         * workdaySeconds;
-      if (getNeedStock(residence.needs, 'preservedFood') + 1e-6 < preservedFoodNeeded) {
+      if (householdPreservedStock + 1e-6 < preservedFoodNeeded) {
         sabbathPreservedFoodShortHomes += 1;
       }
       if (getNeedStock(residence.needs, 'ale') + 1e-6 < aleNeeded) {
@@ -700,9 +714,8 @@ export function computeSettlementProvisioning(input: {
       && marketHasStallWorkforce(building, 'food');
     if (fireDisabled) {
       fireQuarantinedFirewoodStock += finiteStock(building.firewood);
-      fireQuarantinedPreservedFoodStock += finiteStock(
-        building.preservedFood,
-      );
+      fireQuarantinedFoodStock += edibleFoodStock(building);
+      fireQuarantinedPreservedFoodStock += preservedFoodStock(building);
     }
     if (roadProvisionBranches && roadComponentFor) {
       // Monastery charity has parish and route-length restrictions inside a
@@ -714,7 +727,7 @@ export function computeSettlementProvisioning(input: {
         && !fireDisabled
         && isOperationalFoodSupplier(building)
         && marketHasStallWorkforce(building, 'food')
-        && building.food > 1e-6
+        && edibleFoodStock(building) > 1e-6
       ) {
         const branch = roadProvisionBranch(
           roadProvisionBranches,
@@ -725,7 +738,7 @@ export function computeSettlementProvisioning(input: {
         branch.hasFoodSupplyRoute = true;
         addBranchFoodStock(
           branch,
-          building.food,
+          freshFoodStock(building) + finiteStock(building.honey),
           buildingFreshFoodStorageFactor(building.kind),
         );
       }
@@ -745,7 +758,7 @@ export function computeSettlementProvisioning(input: {
       }
       if (
         operationalPreservedFoodSupplier
-        && building.preservedFood > 1e-6
+        && preservedFoodStock(building) > 1e-6
       ) {
         const branch = roadProvisionBranch(
           roadProvisionBranches,
@@ -755,13 +768,13 @@ export function computeSettlementProvisioning(input: {
         );
         addBranchPreservedFoodStock(
           branch,
-          building.preservedFood,
+          preservedFoodStock(building),
           buildingPreservedFoodStorageFactor(building.kind),
         );
       }
     }
     if (operationalPreservedFoodSupplier) {
-      const stock = finiteStock(building.preservedFood);
+      const stock = preservedFoodStock(building);
       usablePreservedFoodStock += stock;
       usablePreservedFoodWeightedStock +=
         stock * buildingPreservedFoodStorageFactor(building.kind);
@@ -780,13 +793,14 @@ export function computeSettlementProvisioning(input: {
       Math.floor(Math.max(0, building.polearms ?? 0)),
     );
     armedGuards += armedHere;
-    guardFoodStock += Math.max(0, building.food);
+    const guardFood = edibleFoodStock(building);
+    guardFoodStock += guardFood;
     guardPayChestGold += finiteStock(building.gold);
     if (armedHere > 0) {
       guardProvisionRunwayDays = Math.min(
         guardProvisionRunwayDays,
         runwayDays(
-          building.food,
+          guardFood,
           armedHere * GUARDHOUSE_FOOD_PER_GUARD_PER_DAY,
         ),
       );
@@ -796,7 +810,7 @@ export function computeSettlementProvisioning(input: {
   let guardPayrollInTransitGold = 0;
   for (const trip of state.deliveryTrips.values()) {
     if (
-      trip.cargoKind === 'preservedFood'
+      isPreservedFoodCargo(trip.cargoKind)
       && trip.phase !== 'inbound'
       && trip.amount > 1e-9
     ) {
@@ -810,12 +824,9 @@ export function computeSettlementProvisioning(input: {
       const residenceCanReceive = residence !== undefined
         && !residence.abandoned
         && residence.population > 0
-        && residence.tier >= 3
         && !fireDisabledResidences.has(residence.id);
       const buildingCanReceive = targetBuilding !== undefined
-        && !fireDisabledBuildings.has(targetBuilding.id)
-        && PRESERVED_FOOD_SUPPLIER_KINDS.includes(targetBuilding.kind)
-        && isOperationalSpecialtySupplier(targetBuilding);
+        && !fireDisabledBuildings.has(targetBuilding.id);
       if (residenceCanReceive || buildingCanReceive) {
         const stock = finiteStock(trip.amount);
         usablePreservedFoodStock += stock;
@@ -842,9 +853,10 @@ export function computeSettlementProvisioning(input: {
         trip.phase === 'inbound'
         || trip.amount <= 1e-9
         || (
-          trip.cargoKind !== 'food'
+          !isFreshFoodCargo(trip.cargoKind)
+          && trip.cargoKind !== 'honey'
           && trip.cargoKind !== 'firewood'
-          && trip.cargoKind !== 'preservedFood'
+          && !isPreservedFoodCargo(trip.cargoKind)
         )
       ) {
         continue;
@@ -862,7 +874,6 @@ export function computeSettlementProvisioning(input: {
           residence.abandoned
           || residence.population <= 0
           || fireDisabledResidences.has(residence.id)
-          || (trip.cargoKind === 'preservedFood' && residence.tier < 3)
         )
       ) {
         continue;
@@ -873,7 +884,7 @@ export function computeSettlementProvisioning(input: {
           fireDisabledBuildings.has(targetBuilding.id)
           ||
           (
-            trip.cargoKind === 'food'
+            (isFreshFoodCargo(trip.cargoKind) || trip.cargoKind === 'honey')
             && (
               targetBuilding.kind === 'monastery'
               || !isOperationalFoodSupplier(targetBuilding)
@@ -884,7 +895,7 @@ export function computeSettlementProvisioning(input: {
             && !isOperationalFirewoodSupplier(targetBuilding)
           )
           || (
-            trip.cargoKind === 'preservedFood'
+            isPreservedFoodCargo(trip.cargoKind)
             && (
               !isOperationalSpecialtySupplier(targetBuilding)
               || !PRESERVED_FOOD_SUPPLIER_KINDS.includes(targetBuilding.kind)
@@ -903,7 +914,7 @@ export function computeSettlementProvisioning(input: {
         destinationKind,
         roadComponentFor,
       );
-      if (trip.cargoKind === 'food') {
+      if (isFreshFoodCargo(trip.cargoKind) || trip.cargoKind === 'honey') {
         addBranchFoodStock(
           branch,
           trip.amount,
@@ -945,10 +956,15 @@ export function computeSettlementProvisioning(input: {
       : 0;
   const usablePreservedFoodSpoilagePerDay =
     preservedFoodSpoilageFractionPerDay * usablePreservedFoodWeightedStock;
-  const usableFoodStock = Math.max(
+  const foodStock = totals.food + householdPantryFoodStock;
+  const usableFoodStock = Math.max(0, foodStock - fireQuarantinedFoodStock);
+  const usableFreshFoodStock = Math.max(
     0,
-    Math.min(totals.food, foodPreservation.usableStock),
+    usableFoodStock - usablePreservedFoodStock,
   );
+  const usableFreshFoodSpoilageFractionPerDay = usableFreshFoodStock > 1e-9
+    ? foodPreservation.spoilagePerDay / usableFreshFoodStock
+    : 0;
   const usableFirewoodStock = Math.max(
     0,
     totals.firewood - fireQuarantinedFirewoodStock,
@@ -1000,9 +1016,9 @@ export function computeSettlementProvisioning(input: {
     householdBufferAleShortHomes,
     householdBufferClothShortHomes,
     householdBufferPotteryShortHomes,
-    foodStock: totals.food,
+    foodStock,
     usableFoodStock,
-    fireQuarantinedFoodStock: foodPreservation.quarantinedStock,
+    fireQuarantinedFoodStock,
     firewoodStock: totals.firewood,
     usableFirewoodStock,
     fireQuarantinedFirewoodStock,
@@ -1019,22 +1035,22 @@ export function computeSettlementProvisioning(input: {
     preservedFoodSpoilageFractionPerDay:
       usablePreservedFoodSpoilageFractionPerDay,
     foodSpoilagePerDay: foodPreservation.spoilagePerDay,
-    foodSpoilageFractionPerDay: foodPreservation.usableSpoilageFractionPerDay,
+    foodSpoilageFractionPerDay: usableFreshFoodSpoilageFractionPerDay,
     protectedFoodShare: foodPreservation.usableProtectedShare,
     foodPreservation,
     foodRunwayWithoutSpoilageDays: freshFoodRunwayWithPreservedRotation({
-      freshStock: usableFoodStock,
+      freshStock: usableFreshFoodStock,
       grossFoodDemandPerDay,
       preservedStock: usablePreservedFoodStock,
       preservedRotationPerDay: householdPreservedFoodRotationTargetPerDay,
     }),
     foodRunwayDays: freshFoodRunwayWithPreservedRotation({
-      freshStock: usableFoodStock,
+      freshStock: usableFreshFoodStock,
       grossFoodDemandPerDay,
       preservedStock: usablePreservedFoodStock,
       preservedRotationPerDay: householdPreservedFoodRotationTargetPerDay,
       freshFoodSpoilageFractionPerDay:
-        foodPreservation.usableSpoilageFractionPerDay,
+        usableFreshFoodSpoilageFractionPerDay,
       preservedFoodSpoilageFractionPerDay:
         usablePreservedFoodSpoilageFractionPerDay,
     }),

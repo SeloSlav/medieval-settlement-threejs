@@ -46,15 +46,10 @@ assert.ok(
   'starter stone must fund all four basic producers, housing every founder, and a recovery cushion',
 );
 
-for (const directFoodProducer of ['foragers_shed', 'hunters_hall', 'fishing_camp'] as const) {
-  assert.ok(
-    FOOD_SUPPLIER_KINDS.includes(directFoodProducer),
-    `${directFoodProducer} must deliver food directly to homes`,
-  );
-}
-assert.ok(
-  !FOOD_SUPPLIER_KINDS.includes('marketplace' as (typeof FOOD_SUPPLIER_KINDS)[number]),
-  'a marketplace must remain optional for routine household food',
+assert.deepEqual(
+  FOOD_SUPPLIER_KINDS,
+  ['marketplace'],
+  'routine household food must come from granary-run Marketplace stalls, never directly from producers',
 );
 
 assert.ok(
@@ -75,7 +70,7 @@ const tutorial = readFileSync(
   'utf8',
 );
 assert.match(tutorial, /Timber, Firewood, Stone, and Food/);
-assert.match(tutorial, /no Marketplace is required/);
+assert.match(tutorial, /Staff a [\s\S]*Granary[\s\S]*connect a Marketplace/);
 assert.match(tutorial, /two people unassigned for building and carts/);
 
 console.log(

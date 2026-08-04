@@ -347,7 +347,9 @@ assert.equal(busy.branches.get('10')?.blockedHomes, 1);
 
 const marketFull = computeSettlementHouseholdMarketPlan({
   state: state({
-    markets: [market('10', 0, { food: BUILDING_STORAGE_CAPS.trading_post.food })],
+    markets: [market('10', 0, {
+      curedMeat: BUILDING_STORAGE_CAPS.trading_post.preservedFood,
+    })],
     homes: [home('market-full-home', 20)],
   }),
   marketState: DEFAULT_REGIONAL_MARKET_STATE,
@@ -361,7 +363,9 @@ const fullLotHome = home('home-full-lot', 20, {
   population: 100,
   populationCapacity: 100,
 });
-fullLotHome.needs.food.stock = 30;
+fullLotHome.curedMeat = 21;
+fullLotHome.needs.food.stock = 21;
+fullLotHome.needs.preservedFood.stock = 21;
 const householdFull = computeSettlementHouseholdMarketPlan({
   state: state({
     markets: [market('10', 0)],
@@ -381,7 +385,9 @@ waterFallbackHome.needs.food.stock = 0;
 waterFallbackHome.needs.water.stock = 0;
 const waterFallback = computeSettlementHouseholdMarketPlan({
   state: state({
-    markets: [market('10', 0, { food: BUILDING_STORAGE_CAPS.trading_post.food })],
+    markets: [market('10', 0, {
+      curedMeat: BUILDING_STORAGE_CAPS.trading_post.preservedFood,
+    })],
     homes: [waterFallbackHome],
   }),
   marketState: DEFAULT_REGIONAL_MARKET_STATE,
@@ -524,7 +530,7 @@ assert.match(
     exactTrigger.residences.get('trigger') ?? null,
     'Highland market',
   ),
-  /Smoked pork: 8 food for 10 gold - ready from Highland market/,
+  /Smoked pork: 8 cured meat for 10 gold - ready from Highland market/,
 );
 
 const perfMarkets = Array.from(

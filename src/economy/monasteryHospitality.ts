@@ -12,6 +12,7 @@ import {
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import { MONTH_NAMES, type GameClock } from '../world/gameCalendar.ts';
+import { edibleFoodStock, type FoodInventoryLike } from './foodInventory.ts';
 
 export const MONASTERY_FEASTS = [
   { name: 'Epiphany', month: 1, monthDay: 6 },
@@ -150,9 +151,10 @@ export function monasteryHospitalityPlan(
 }
 
 export function monasteryFeastReadiness(
-  monastery: Pick<BuildingState, 'food' | 'ale' | 'honey' | 'wine'>,
+  monastery: Pick<BuildingState, 'ale' | 'honey' | 'wine'> & FoodInventoryLike,
 ): MonasteryFeastReadiness {
-  const missingFood = Math.max(0, MONASTERY_FEAST_FOOD - finiteStock(monastery.food));
+  const mealStock = Math.max(0, edibleFoodStock(monastery) - finiteStock(monastery.honey));
+  const missingFood = Math.max(0, MONASTERY_FEAST_FOOD - mealStock);
   const missingAle = Math.max(0, MONASTERY_FEAST_ALE - finiteStock(monastery.ale));
   const missingHoney = Math.max(0, MONASTERY_FEAST_HONEY - finiteStock(monastery.honey));
   const missingWine = Math.max(0, MONASTERY_FEAST_WINE - finiteStock(monastery.wine));

@@ -1,5 +1,6 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
+import { edibleFoodStock } from '../../economy/foodInventory.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
 import type {
   BuildingKind,
@@ -231,10 +232,10 @@ export function renderHarvestBuildingInspector(
   const foodCapacity = buildingStorageCaps(building.kind).food ?? 0;
   const managedStockFull = managesWildStock
     && foodCapacity > 0
-    && building.food >= foodCapacity - 1e-6;
+    && edibleFoodStock(building) >= foodCapacity - 1e-6;
   const localFoodReserve = householdFoodReserve(claimedResidences.length, foodCapacity);
   const institutionalSurplus = institutionalFoodSurplus(
-    building.food,
+    edibleFoodStock(building),
     claimedResidences.length,
     foodCapacity,
   );
@@ -254,7 +255,7 @@ export function renderHarvestBuildingInspector(
       context.conflictEnabled === true,
     );
   const nextInstitutionalLabel = nextInstitutionalDispatch
-    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${nextInstitutionalDispatch.target.food.toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} food`
+    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${edibleFoodStock(nextInstitutionalDispatch.target).toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} meals`
     : institutionalSurplus <= 1e-6
       ? 'None · local household reserve is protected'
       : 'No eligible institution requesting food';
@@ -303,7 +304,7 @@ export function renderHarvestBuildingInspector(
   const canDeliver = crew.delivering > 0
     && (
       (nextCareTarget != null && (building.remedies ?? 0) > 1e-6)
-      || (nextFoodDeliveryTarget != null && building.food > 1e-6)
+      || (nextFoodDeliveryTarget != null && edibleFoodStock(building) > 1e-6)
     )
     && !activeTrip;
   const cycleSeconds = definition.harvestInterval;
@@ -322,7 +323,7 @@ export function renderHarvestBuildingInspector(
     crew.delivering <= 0
     && (
       (nextCareTarget != null && (building.remedies ?? 0) > 1e-6)
-      || (nextFoodDeliveryTarget != null && building.food > 1e-6)
+      || (nextFoodDeliveryTarget != null && edibleFoodStock(building) > 1e-6)
     )
   ) {
     statusText = 'Stored goods ready — waiting for an unassigned hauler';
@@ -411,7 +412,7 @@ export function renderHarvestBuildingInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Labor roles</span><span>${formatFoodCrewSplit(building.assignedLabor, context.populationStats.available)}</span></li>
       <li><span>Harvest interval</span><span>${processingWorkers > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${processingWorkers} harvesting / ${building.assignedLabor} assigned)</span></li>
-      <li><span>Food territory</span><span>${building.food <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
+      <li><span>Food territory</span><span>${edibleFoodStock(building) <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
       <li><span>Local food reserve</span><span>${localFoodReserve.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
       <li><span>Next surplus cart</span><span>${nextInstitutionalLabel}</span></li>
       ${remedyRows}

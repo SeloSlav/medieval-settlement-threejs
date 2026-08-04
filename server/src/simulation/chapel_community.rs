@@ -1,7 +1,7 @@
 use crate::balance_generated::{
     CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
-    CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_RECOVERY_NEEDS_REQUIRED,
-    CHAPEL_RECOVERY_STOCK_MULTIPLIER, CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
+    CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_RECOVERY_STOCK_MULTIPLIER,
+    CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
     CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS, CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
     CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY, MONASTERY_ATTENDANCE_BONUS,
     MONASTERY_RECOVERY_STOCK_MULTIPLIER, MONASTERY_SETTLEMENT_TICKS_MULTIPLIER,
@@ -59,14 +59,6 @@ pub fn recovery_stock_min(
     threshold
 }
 
-pub fn recovery_needs_required(has_chapel_access: bool) -> u32 {
-    if has_chapel_access {
-        CHAPEL_RECOVERY_NEEDS_REQUIRED.min(ResidenceNeedKind::ALL.len() as u32)
-    } else {
-        ResidenceNeedKind::ALL.len() as u32
-    }
-}
-
 pub fn chapel_attendance_chance(
     assigned_labor: u32,
     sabbath_observance: bool,
@@ -112,16 +104,15 @@ pub fn chapel_tithe_gold_per_tick_for_tier(population: u32, chapel_tier: u8) -> 
 mod tests {
     use super::{
         chapel_attendance_chance, chapel_tithe_gold_per_tick, chapel_tithe_gold_per_tick_for_tier,
-        effective_settle_ticks, recovery_needs_required,
+        effective_settle_ticks,
     };
     use crate::balance_generated::{
         CHAPEL_BASE_ATTENDANCE_CHANCE, CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
-        CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_RECOVERY_NEEDS_REQUIRED,
-        CHAPEL_SETTLEMENT_TICKS_MULTIPLIER, CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
+        CHAPEL_PRIEST_ATTENDANCE_BONUS, CHAPEL_SETTLEMENT_TICKS_MULTIPLIER,
+        CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
         MONASTERY_SETTLEMENT_TICKS_MULTIPLIER, RESIDENCE_SETTLE_TICKS,
     };
     use crate::chapel_parish_policy::chapel_daily_gold_per_work_tick;
-    use crate::simulation::residence_needs::ResidenceNeedKind;
 
     #[test]
     fn effective_settle_ticks_matches_balance() {
@@ -139,18 +130,6 @@ mod tests {
                 * CHAPEL_SETTLEMENT_TICKS_MULTIPLIER
                 * MONASTERY_SETTLEMENT_TICKS_MULTIPLIER)
                 .ceil()) as u32,
-        );
-    }
-
-    #[test]
-    fn recovery_needs_required_uses_all_needs_without_chapel() {
-        assert_eq!(
-            recovery_needs_required(false),
-            ResidenceNeedKind::ALL.len() as u32,
-        );
-        assert_eq!(
-            recovery_needs_required(true),
-            CHAPEL_RECOVERY_NEEDS_REQUIRED
         );
     }
 

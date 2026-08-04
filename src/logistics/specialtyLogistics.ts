@@ -17,6 +17,7 @@ import {
 import { spoilageAdjustedRunwayDays } from '../economy/foodPreservation.ts';
 import type { BuildingKind, BuildingState, ResidenceState } from '../resources/types.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
+import { preservedFoodStock } from '../economy/foodInventory.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import {
   compareStableEntityIds,
@@ -168,7 +169,12 @@ export function residencePreservedFoodRunwaySeconds(
   ambientSpoilageFractionPerDay = PRESERVED_FOOD_SPOILAGE_PER_DAY,
 ): number | null {
   if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
-  const stock = getNeedStock(residence.needs, 'preservedFood');
+  const stock = Math.max(
+    preservedFoodStock(residence),
+    residence.foodInventoryMigrated === true
+      ? 0
+      : getNeedStock(residence.needs, 'preservedFood'),
+  );
   const multiplier = Number.isFinite(seasonalDemandMultiplier)
     ? Math.max(0, seasonalDemandMultiplier)
     : 1;
@@ -334,7 +340,7 @@ function specialtySupplierStock(
   if (needKind === 'ale') return building.ale;
   if (needKind === 'cloth') return building.cloth ?? 0;
   if (needKind === 'pottery') return building.pottery ?? 0;
-  return building.preservedFood;
+  return preservedFoodStock(building);
 }
 
 function specialtyCapacity(needKind: SpecialtyNeedKind): number {

@@ -9,6 +9,7 @@ import { BUILDING_DEFINITIONS } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingKind, BuildingState, FarmFieldState, GameState } from '../resources/types.ts';
 import { apiaryIsActive, vineyardIsHarvesting } from './specialtyTrade.ts';
+import { edibleFoodStock } from './foodInventory.ts';
 import {
   normalizeStaffingPriority,
   STAFFING_PRIORITY_HIGH,
@@ -127,12 +128,13 @@ function hasOutboundSeasonalStock(
 ): boolean {
   switch (building.kind) {
     case 'foragers_shed':
+      return edibleFoodStock(building) > 1e-6 || (building.remedies ?? 0) > 1e-6;
     case 'fishing_camp':
-      return building.food > 1e-6;
+      return (building.fish ?? 0) > 1e-6;
     case 'apiary':
-      return building.food > 1e-6 || building.honey > 1e-6;
+      return building.honey > 1e-6;
     case 'vineyard':
-      return building.food > 1e-6 || building.wine > 1e-6;
+      return (building.grapes ?? 0) > 1e-6 || building.wine > 1e-6;
     case 'threshing_barn':
       return farmsteadExportableGrain(building.grain, fields) > 1e-6;
     default:

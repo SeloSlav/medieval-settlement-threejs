@@ -8,8 +8,8 @@ use crate::constants::RESIDENCE_WATER_PER_PERSON_PER_SEC;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::simulation::lodge_logistics::residence_firewood_runway_seconds as residence_runway_seconds;
 use crate::supply_policy::{
-    compare_supply_route_candidates, is_firewood_supplier_delivery_operational,
-    is_well_supplier_operational, select_need_delivery_candidate, NeedDeliveryCandidate,
+    compare_supply_route_candidates, is_well_supplier_operational, select_need_delivery_candidate,
+    NeedDeliveryCandidate,
 };
 use crate::tables::{Building, Residence};
 use crate::well_policy::position_within_well_service_radius;
@@ -267,29 +267,6 @@ pub fn claim_residences_by_nearest_supplier(
         .into_iter()
         .map(|(residence_id, (supplier_id, _))| (residence_id, supplier_id))
         .collect()
-}
-
-/// Each residence is claimed by its nearest stocked delivery-ready firewood
-/// source. Lodges use unassigned haulers; a staffed village storehouse can
-/// become a dedicated road-network fuel hub.
-pub fn claim_residences_for_firewood_suppliers(
-    network: &RoadNetwork,
-    suppliers: &[Building],
-    residences: &[Residence],
-) -> std::collections::HashMap<u64, u64> {
-    let operational: Vec<&Building> = suppliers
-        .iter()
-        .filter(|supplier| {
-            supplier.firewood > 1e-6
-                && is_firewood_supplier_delivery_operational(
-                &supplier.kind,
-                supplier.construction_complete,
-                supplier.assigned_labor,
-                supplier.storehouse_accepts_firewood,
-            )
-        })
-        .collect();
-    claim_residences_by_nearest_supplier(network, &operational, residences, |_, _, _| true)
 }
 
 /// Each residence is claimed by the nearest completed well within its service extent.

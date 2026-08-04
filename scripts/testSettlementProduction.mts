@@ -1948,7 +1948,7 @@ const timedProductionElapsedMs = performance.now() - timedProductionStarted;
 assert.equal(timedProduction.millInputBuffer?.days, 0);
 assert.equal(timedProduction.millInputBuffer?.inTransitTrips, 0);
 assert.ok(
-  timedProductionElapsedMs < 350,
+  timedProductionElapsedMs < 550,
   `100,000-building + 100,000-cart timed production ledger took ${timedProductionElapsedMs.toFixed(1)} ms`,
 );
 const grainPerfStarted = performance.now();

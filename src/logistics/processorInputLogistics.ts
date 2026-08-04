@@ -35,6 +35,11 @@ import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts
 import { weaverFibreDeliveryPreferenceRank } from '../economy/weaverInputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
+import {
+  preservableFoodStock,
+  preservedFoodStock,
+  type FoodInventoryLike,
+} from '../economy/foodInventory.ts';
 
 export const PROCESSOR_INPUT_BUFFER_CYCLES = 3;
 
@@ -83,7 +88,7 @@ type ProcessorInputDestinationLike = Pick<
   | 'salt'
   | 'charcoal'
   | 'pottery'
->;
+> & FoodInventoryLike;
 
 export type RoutedProcessorInputDestination<T extends ProcessorInputDestinationLike> = {
   target: T;
@@ -245,7 +250,7 @@ export function selectDirectProcessorInputTarget<
     ) {
       continue;
     }
-    const stock = Math.max(0, Number(target[commodity] ?? 0));
+    const stock = processorInputCommodityStock(target, commodity);
     const capacity = (BUILDING_STORAGE_CAPS[target.kind] as Record<string, number | undefined>)[
       commodity
     ] ?? 0;
@@ -315,6 +320,15 @@ export function selectDirectProcessorInputTarget<
     }
   }
   return best;
+}
+
+export function processorInputCommodityStock(
+  inventory: FoodInventoryLike & Partial<Record<DirectProcessorInputCommodity, number>>,
+  commodity: DirectProcessorInputCommodity,
+): number {
+  if (commodity === 'food') return preservableFoodStock(inventory);
+  if (commodity === 'preservedFood') return preservedFoodStock(inventory);
+  return Math.max(0, Number(inventory[commodity] ?? 0));
 }
 
 export type RoutedMarketplaceMaterialDestination<

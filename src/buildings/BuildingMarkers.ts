@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { edibleFoodStock } from '../economy/foodInventory.ts';
 import {
   BUILDING_STORAGE_CAPS,
   FIRE_SPREAD_RADIUS,
@@ -1003,14 +1004,12 @@ function syncBuildingVisualState(
         'SalvageGoodsSegment',
         building.firewood
           + building.water
-          + building.food
+          + edibleFoodStock(building)
           + building.grain
           + (building.barley ?? 0)
           + (building.malt ?? 0)
           + building.flour
           + building.ale
-          + building.preservedFood
-          + building.honey
           + building.wine
           + (building.ironwork ?? 0)
           + (building.polearms ?? 0)
@@ -1061,8 +1060,7 @@ function syncBuildingVisualState(
     if (crates instanceof THREE.Group) {
       const stagedCratedGoods =
         building.firewood
-        + building.food
-        + building.preservedFood
+        + edibleFoodStock(building)
         + building.ale
         + (building.cloth ?? 0)
         + (building.pottery ?? 0);

@@ -1,5 +1,6 @@
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
+import { preservedFoodStock } from './foodInventory.ts';
 import {
   normalizePotterFiringPolicy,
   POTTER_FIRE_ROOF_TILES,
@@ -31,7 +32,7 @@ export type ExtractionOutputTargetKind =
 
 export type ProcessorOutputCommodity =
   | 'flour'
-  | 'food'
+  | 'bread'
   | 'ale'
   | 'preservedFood'
   | 'cloth'
@@ -111,7 +112,7 @@ const OUTPUT_BY_KIND: Record<
   ProcessorOutputCommodity
 > = {
   watermill: 'flour',
-  bakery: 'food',
+  bakery: 'bread',
   brewery: 'ale',
   smokehouse: 'preservedFood',
   weaver: 'cloth',
@@ -221,11 +222,12 @@ export function processorOutputTargetForBuilding(
 ): number | null {
   const output = processorOutputCommodityForBuilding(building);
   if (!output || !isProcessorOutputTargetKind(building.kind)) return null;
-  const capacity = (
-    BUILDING_STORAGE_CAPS[building.kind] as Partial<
-      Record<ProcessorOutputCommodity, number>
-    >
-  )[output] ?? 0;
+  const capacities = BUILDING_STORAGE_CAPS[building.kind] as Partial<
+    Record<ProcessorOutputCommodity | 'food', number>
+  >;
+  const capacity = output === 'bread'
+    ? capacities.food ?? 0
+    : capacities[output] ?? 0;
   return processorOutputTarget(capacity, building.processorOutputTargetPercent);
 }
 
@@ -241,7 +243,10 @@ export function processorOutputHeadroom(
   const output = processorOutputCommodityForBuilding(building);
   if (!output) return null;
   const target = processorOutputTargetForBuilding(building) ?? 0;
-  return Math.max(0, target - Math.max(0, building[output] ?? 0));
+  const stock = building.kind === 'smokehouse'
+    ? preservedFoodStock(building)
+    : Math.max(0, building[output] ?? 0);
+  return Math.max(0, target - stock);
 }
 
 export function extractionOutputTarget(
@@ -335,7 +340,7 @@ export function processorAcceptsInput(
   commodity: ProcessorInputCommodity,
 ): boolean {
   if (building.kind === 'pastoral_farmstead' && commodity === 'salt') {
-    return Math.max(0, building.preservedFood ?? 0) + 1e-6
+    return preservedFoodStock(building) + 1e-6
       < (BUILDING_STORAGE_CAPS.pastoral_farmstead.preservedFood ?? 0);
   }
   return !processorUsesInput(building.kind, commodity)

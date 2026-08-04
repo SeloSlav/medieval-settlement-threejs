@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import {
@@ -41,7 +42,7 @@ export function armoryStockpileVisualSignature(
     case 'guardhouse':
       return `:company-store:${
         stockpileVisualLevel(
-          building.food,
+          edibleFoodStock(building),
           BUILDING_STORAGE_CAPS.guardhouse.food,
           GUARDHOUSE_FOOD_VISUAL_SEGMENTS,
         )
@@ -91,7 +92,7 @@ export function syncArmoryStockpileVisuals(
         marker,
         'GuardhouseFoodStockpile',
         'GuardhouseFoodSegment',
-        building.food,
+        edibleFoodStock(building),
         BUILDING_STORAGE_CAPS.guardhouse.food,
       );
       syncNamedStockpile(

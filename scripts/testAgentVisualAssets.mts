@@ -299,6 +299,21 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   roofTiles: 'Fired roof tile stack 1 layer 1',
   manure: 'Manure cart heap',
   remedies: 'Dried remedy bundle 1',
+  bread: 'Bread loaf',
+  meat: 'Fresh food basket',
+  fish: 'Fresh food basket',
+  berries: 'Fresh food basket',
+  mushrooms: 'Fresh food basket',
+  milk: 'Fresh food basket',
+  apples: 'Food apples',
+  cherries: 'Fresh food basket',
+  vegetables: 'Food root vegetables',
+  eggs: 'Fresh food basket',
+  grapes: 'Fresh food basket',
+  porridge: 'Fresh food basket',
+  curedMeat: 'Preserved food crock 1',
+  smokedFish: 'Preserved food crock 1',
+  cheese: 'Preserved food crock 1',
 };
 for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {
   const cart = createDeliveryCartMesh(kind, {

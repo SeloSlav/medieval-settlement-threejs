@@ -103,9 +103,9 @@ assertVisibleSegments(
 const apiaryMarker = createBuildingMesh('apiary');
 syncSeasonalStockpileVisuals(
   apiaryMarker,
-  building('apiary', { food: 21, honey: 47 }),
+  building('apiary', { honey: 47 }),
 );
-assertVisibleSegments(apiaryMarker, 'ApiaryFoodStockpile', 'ApiaryFoodSegment', 2);
+assertVisibleSegments(apiaryMarker, 'ApiaryFoodStockpile', 'ApiaryFoodSegment', 0);
 assertVisibleSegments(apiaryMarker, 'ApiaryHoneyStockpile', 'ApiaryHoneySegment', 2);
 
 const pastoralMarker = createBuildingMesh('pastoral_farmstead');
@@ -128,7 +128,7 @@ assert.notEqual(
 const vineyardMarker = createBuildingMesh('vineyard');
 syncSeasonalStockpileVisuals(
   vineyardMarker,
-  building('vineyard', { food: 1, wine: 91 }),
+  building('vineyard', { grapes: 1, wine: 91 }),
 );
 assertVisibleSegments(vineyardMarker, 'VineyardFoodStockpile', 'VineyardFoodSegment', 1);
 assertVisibleSegments(vineyardMarker, 'VineyardWineStockpile', 'VineyardWineSegment', 2);
@@ -138,28 +138,26 @@ assertVisibleSegments(vineyardMarker, 'VineyardWineStockpile', 'VineyardWineSegm
 
 assert.equal(
   seasonalProducerOutputBlocker(building('apiary', {
-    honey: BUILDING_STORAGE_CAPS.apiary.honey - APIARY_HONEY_PER_CYCLE,
-    food: BUILDING_STORAGE_CAPS.apiary.food - APIARY_FOOD_PER_CYCLE,
+    honey: BUILDING_STORAGE_CAPS.apiary.honey
+      - APIARY_HONEY_PER_CYCLE
+      - APIARY_FOOD_PER_CYCLE,
   })),
   null,
   'an exact whole apiary batch must fit',
 );
 const honeyBlocked = seasonalProducerOutputBlocker(building('apiary', {
-  honey: BUILDING_STORAGE_CAPS.apiary.honey - APIARY_HONEY_PER_CYCLE + 0.1,
+  honey: BUILDING_STORAGE_CAPS.apiary.honey
+    - APIARY_HONEY_PER_CYCLE
+    - APIARY_FOOD_PER_CYCLE
+    + 0.1,
 }));
 assert.equal(honeyBlocked?.commodity, 'honey');
 assert.ok(Math.abs((honeyBlocked?.missingRoom ?? 0) - 0.1) < 1e-9);
 
-const apiaryFoodBlocked = seasonalProducerOutputBlocker(building('apiary', {
-  honey: 0,
-  food: BUILDING_STORAGE_CAPS.apiary.food - APIARY_FOOD_PER_CYCLE + 0.1,
-}));
-assert.equal(apiaryFoodBlocked?.commodity, 'food');
-
 assert.equal(
   seasonalProducerOutputBlocker(building('vineyard', {
     wine: BUILDING_STORAGE_CAPS.vineyard.wine - VINEYARD_WINE_PER_CYCLE,
-    food: BUILDING_STORAGE_CAPS.vineyard.food - VINEYARD_FOOD_PER_CYCLE,
+    grapes: BUILDING_STORAGE_CAPS.vineyard.food - VINEYARD_FOOD_PER_CYCLE,
   })),
   null,
   'an exact whole vineyard batch must fit',
@@ -207,7 +205,7 @@ const perfBuilding = building('apiary');
 const started = performance.now();
 let checksum = 0;
 for (let index = 0; index < 100_000; index += 1) {
-  perfBuilding.food = index % 41;
+  perfBuilding.grapes = index % 41;
   perfBuilding.honey = index % 141;
   checksum += seasonalStockpileVisualSignature(perfBuilding).length;
   checksum += seasonalProducerOutputBlocker(perfBuilding)?.missingRoom ?? 0;
@@ -244,7 +242,7 @@ function building(
   kind: BuildingKind,
   stocks: Partial<Pick<
     BuildingState,
-    'food' | 'grain' | 'barley' | 'flax' | 'honey' | 'wine' | 'salt'
+    'food' | 'grain' | 'barley' | 'flax' | 'honey' | 'wine' | 'salt' | 'grapes'
   >> = {},
 ): BuildingState {
   return {
@@ -263,6 +261,7 @@ function building(
     preservedFood: 0,
     honey: 0,
     wine: 0,
+    grapes: 0,
     firewood: 0,
     salt: 0,
     assignedLabor: 1,

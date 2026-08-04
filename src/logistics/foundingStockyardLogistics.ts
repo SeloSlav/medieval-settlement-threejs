@@ -77,6 +77,21 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'ironwork',
   'polearms',
   'water',
+  'bread',
+  'meat',
+  'fish',
+  'berries',
+  'mushrooms',
+  'milk',
+  'apples',
+  'cherries',
+  'vegetables',
+  'eggs',
+  'grapes',
+  'porridge',
+  'curedMeat',
+  'smokedFish',
+  'cheese',
 ] as const satisfies readonly FoundingRelocationCommodity[];
 
 function finiteStock(value: number | undefined): number {
@@ -142,6 +157,21 @@ function foundingDestinationPriority(
     case 'firewood':
       return null;
     case 'food':
+    case 'bread':
+    case 'meat':
+    case 'fish':
+    case 'berries':
+    case 'mushrooms':
+    case 'milk':
+    case 'apples':
+    case 'cherries':
+    case 'vegetables':
+    case 'eggs':
+    case 'grapes':
+    case 'porridge':
+    case 'curedMeat':
+    case 'smokedFish':
+    case 'cheese':
     case 'grain':
     case 'barley':
     case 'flour':

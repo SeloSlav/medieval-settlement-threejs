@@ -1310,8 +1310,8 @@ export function renderSettlementSpecialtyExportRows(
     ? `${plan.activeMarketQueueUnits.toFixed(1)} units at active desks`
     : 'no stock at active desks';
   const brokerThroughput = physicalEconomy
-    ? `${plan.exportWorkers} free ${plan.exportWorkers === 1 ? 'broker prepares' : 'brokers prepare'} discrete loads; each market runs one live regional merchant and road length controls throughput`
-    : `${plan.exportWorkers} free ${plan.exportWorkers === 1 ? 'broker' : 'brokers'} clear ${plan.exportRatePerSecond.toFixed(2)} units/s`;
+    ? `${plan.exportWorkers} free regional ${plan.exportWorkers === 1 ? 'trader prepares' : 'traders prepare'} discrete loads; each trader opens one concurrent Trading Post route and road length controls throughput`
+    : `${plan.exportWorkers} free regional ${plan.exportWorkers === 1 ? 'trader' : 'traders'} clear ${plan.exportRatePerSecond.toFixed(2)} units/s`;
   const brokerState = physicalEconomy
     ? `${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets ready at the current ${Math.round(plan.marketRate * 100)}% regional rate`
     : `${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets actively selling at the current ${Math.round(plan.marketRate * 100)}% regional rate`;
@@ -1345,6 +1345,9 @@ export function renderSettlementBackyardEconomyRows(
   const fireBlockedMarkets = plan.fireDisabledMarketplaces > 0
     ? ` &middot; ${plan.fireDisabledMarketplaces} market${plan.fireDisabledMarketplaces === 1 ? '' : 's'} fire-disabled`
     : '';
+  const unstaffedMarkets = plan.unstaffedMarketplaces > 0
+    ? ` &middot; ${plan.unstaffedMarketplaces} market${plan.unstaffedMarketplaces === 1 ? '' : 's'} without a staffed depot stall`
+    : '';
   const fireBlockedGardens = plan.fireDisabledGardens > 0
     ? ` &middot; ${plan.fireDisabledGardens} occupied ${plan.fireDisabledGardens === 1 ? 'plot' : 'plots'} (${plan.fireDisabledGardenResidents} ${plan.fireDisabledGardenResidents === 1 ? 'resident' : 'residents'}) suspended by household fire damage`
     : '';
@@ -1356,9 +1359,9 @@ export function renderSettlementBackyardEconomyRows(
     : '';
 
   return `
-    <li><span>Garden season</span><span>${productionState} &middot; ${environment} &middot; ${plan.currentDaySelfFood.toFixed(1)} home food at today's full workday conditions${fireBlockedGardens}</span></li>
-    <li><span>Market-garden roads</span><span>${roadState} &middot; ${plan.marketLinkedGardens} linked, ${plan.marketUnlinkedGardens} unlinked${fireBlockedMarkets}${inspect}</span></li>
-    <li><span>Garden trade outlook</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''}${servicePressure} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
+    <li><span>Backyard food sharing</span><span>${productionState} &middot; ${environment} &middot; ${plan.currentDaySelfFood.toFixed(1)} food kept by producing homes &middot; ${plan.currentDayMarketFood.toFixed(1)} pooled for other households${fireBlockedGardens}</span></li>
+    <li><span>Backyard stall coverage</span><span>${roadState} &middot; ${plan.foodStallMarketplaces} granary-run food markets + ${plan.goodsStallMarketplaces} storehouse-run goods markets &middot; ${plan.marketLinkedGardens} linked, ${plan.marketUnlinkedGardens} unlinked${unstaffedMarkets}${fireBlockedMarkets}${inspect}</span></li>
+    <li><span>Local trade and tax base</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''}${servicePressure} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
   `;
 }
 
@@ -2420,7 +2423,7 @@ export function renderTownHallInspector(
       <li><span>Emergency market orders</span><span>${formatHouseholdMarketSettlementSummary(householdMarketPlan)}</span></li>
       <li><span>Emergency purchasing power</span><span>${formatHouseholdMarketPurchasingPower(householdMarketPlan)}</span></li>
       <li><span>Emergency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
-      <li><span>Garden tolls levied</span><span>${readout.taxIncomeLabel}</span></li>
+      <li><span>Local activity tax levied</span><span>${readout.taxIncomeLabel}</span></li>
       <li><span>Collection capacity</span><span>${collectionRate}%${staffedTownHallAvailable ? '' : ' without a staffed clerk'}</span></li>
       <li><span>Church tithe</span><span>${readout.chapelTitheLabel}</span></li>
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
@@ -2516,9 +2519,9 @@ export function renderTownHallInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">The Town Hall sets the settlement-wide activity tax. Church and monastery policy remain at those buildings.</p>
+        <p class="inspector-action-panel__hint">The Town Hall sets the local activity tax on staffed Marketplace sales. Levies wait in market lockboxes for free-hauler collection; church tithes remain separate.</p>
         <label class="city-admin-panel__slider-label">
-          <span>Activity tax rate</span>
+          <span>Local activity tax rate</span>
           <strong data-policy-tax-rate-value>${Math.round(taxRate * 100)}%</strong>
         </label>
         <input class="city-admin-panel__slider" type="range"

@@ -44,6 +44,24 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} fish`;
     case 'food':
       return `${Math.round(amount)} food`;
+    case 'bread':
+      return `${Math.round(amount)} bread`;
+    case 'meat':
+      return `${Math.round(amount)} meat`;
+    case 'milk':
+      return `${Math.round(amount)} milk`;
+    case 'apples':
+      return `${Math.round(amount)} apples`;
+    case 'cherries':
+      return `${Math.round(amount)} cherries`;
+    case 'vegetables':
+      return `${Math.round(amount)} vegetables`;
+    case 'eggs':
+      return `${Math.round(amount)} eggs`;
+    case 'grapes':
+      return `${Math.round(amount)} grapes`;
+    case 'porridge':
+      return `${Math.round(amount)} porridge`;
     case 'grain':
       return `${Math.round(amount)} grain`;
     case 'barley':
@@ -56,6 +74,12 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} ale`;
     case 'preservedFood':
       return `${Math.round(amount)} preserved food`;
+    case 'curedMeat':
+      return `${Math.round(amount)} cured meat`;
+    case 'smokedFish':
+      return `${Math.round(amount)} smoked fish`;
+    case 'cheese':
+      return `${Math.round(amount)} cheese`;
     case 'honey':
       return `${Math.round(amount)} honey`;
     case 'wine':

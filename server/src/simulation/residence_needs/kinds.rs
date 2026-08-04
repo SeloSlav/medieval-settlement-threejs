@@ -35,13 +35,6 @@ impl ResidenceNeedKind {
             || (self == Self::Firewood && self.is_active_for_tier(tier) && cold_weather)
     }
 
-    pub fn is_status_need(self) -> bool {
-        matches!(
-            self,
-            Self::Ale | Self::PreservedFood | Self::Cloth | Self::Pottery
-        )
-    }
-
     pub fn as_u8(self) -> u8 {
         match self {
             Self::Firewood => 0,

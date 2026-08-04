@@ -49,8 +49,8 @@ export function seasonalStockpileVisualSignature(building: BuildingState): strin
     case 'apiary':
       return `:seasonal-store:${
         stockpileVisualLevel(
-          building.food,
-          BUILDING_STORAGE_CAPS.apiary.food,
+          0,
+          BUILDING_STORAGE_CAPS.apiary.honey,
           APIARY_FOOD_VISUAL_SEGMENTS,
         )
       }:${
@@ -63,7 +63,7 @@ export function seasonalStockpileVisualSignature(building: BuildingState): strin
     case 'vineyard':
       return `:seasonal-store:${
         stockpileVisualLevel(
-          building.food,
+          building.grapes ?? 0,
           BUILDING_STORAGE_CAPS.vineyard.food,
           VINEYARD_FOOD_VISUAL_SEGMENTS,
         )
@@ -129,8 +129,8 @@ export function syncSeasonalStockpileVisuals(
         marker,
         'ApiaryFoodStockpile',
         'ApiaryFoodSegment',
-        building.food,
-        BUILDING_STORAGE_CAPS.apiary.food,
+        0,
+        BUILDING_STORAGE_CAPS.apiary.honey,
       );
       syncNamedStockpile(
         marker,
@@ -145,7 +145,7 @@ export function syncSeasonalStockpileVisuals(
         marker,
         'VineyardFoodStockpile',
         'VineyardFoodSegment',
-        building.food,
+        building.grapes ?? 0,
         BUILDING_STORAGE_CAPS.vineyard.food,
       );
       syncNamedStockpile(

@@ -9,6 +9,7 @@ import {
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
 import type { BuildingState, GameState, ResidenceState } from '../src/resources/types.ts';
 import { WorldQueries } from '../src/resources/WorldQueries.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 
 function residence(overrides: Partial<ResidenceState> = {}): ResidenceState {
   return {
@@ -49,6 +50,8 @@ function building(overrides: Partial<BuildingState>): BuildingState {
 }
 
 const marketplace = building({ id: 'b-market', kind: 'marketplace', x: 20, z: 10 });
+const staffedGranary = building({ id: 'b-granary', kind: 'granary', x: 22, z: 10, assignedLabor: 1 });
+const staffedStorehouse = building({ id: 'b-storehouse', kind: 'village_storehouse', x: 18, z: 10, assignedLabor: 1 });
 const staffedChapel = building({ id: 'b-chapel', kind: 'chapel', x: 10, z: 20, assignedLabor: 1 });
 const idleChapel = building({ id: 'b-chapel-idle', kind: 'chapel', x: 30, z: 30, assignedLabor: 0 });
 const monastery = building({ id: 'b-monastery', kind: 'monastery', x: 15, z: 15 });
@@ -57,15 +60,26 @@ const home = residence();
 const connectedProbe = (ax: number, az: number, bx: number, bz: number): number | null => {
   const connected =
     (ax === home.x && az === home.z && bx === marketplace.x && bz === marketplace.z)
+    || (ax === staffedGranary.x && az === staffedGranary.z && bx === marketplace.x && bz === marketplace.z)
+    || (ax === staffedStorehouse.x && az === staffedStorehouse.z && bx === marketplace.x && bz === marketplace.z)
     || (ax === home.x && az === home.z && bx === staffedChapel.x && bz === staffedChapel.z);
   return connected ? 12 : null;
 };
 
-const buildings = [marketplace, staffedChapel, idleChapel];
+const buildings = [marketplace, staffedGranary, staffedStorehouse, staffedChapel, idleChapel];
 
 assert.equal(
   isResidenceConnectedToMarketplace(home, buildings, connectedProbe),
   true,
+);
+assert.equal(
+  isResidenceConnectedToMarketplace(home, buildings, connectedProbe, 'goods'),
+  true,
+);
+assert.equal(
+  isResidenceConnectedToMarketplace(home, [marketplace], connectedProbe),
+  false,
+  'an empty market square cannot accept backyard food without a granary stall worker',
 );
 assert.equal(
   isResidenceConnectedToChapel(home, buildings, connectedProbe),
@@ -101,7 +115,7 @@ class StubWorldQueries extends WorldQueries {
         findNearestForagingNode: () => null,
       } as never,
       getGameState: () => state,
-      getRoadNetwork: () => ({ nodes: new Map(), edges: new Map() } as never),
+      getRoadNetwork: () => new RoadNetwork(),
       getTreeRegistry: () => null,
     });
     this.connected = connected;
@@ -120,6 +134,7 @@ const gameState = {
 
 const connectedQueries = new StubWorldQueries(true, gameState);
 assert.equal(connectedQueries.isResidenceConnectedToMarketplace(home), true);
+assert.equal(connectedQueries.isResidenceConnectedToMarketplace(home, 'goods'), true);
 assert.equal(connectedQueries.getServingChapelForResidence(home)?.id, staffedChapel.id);
 assert.equal(connectedQueries.isResidenceConnectedToChapel(home), true);
 assert.equal(connectedQueries.isResidenceInMonasteryCoverage(home), true);

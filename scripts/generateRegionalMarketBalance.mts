@@ -3,6 +3,7 @@ export type MarketCommodityBalance = {
   label: string;
   origin: string;
   description: string;
+  resourceKind: 'meat' | 'curedMeat' | 'cheese';
   foodAmount: number;
   baseGoldCost: number;
 };
@@ -55,6 +56,7 @@ function generateFoodCommodityRust(commodities: MarketCommodityBalance[]): strin
     '    pub label: &\'static str,',
     '    pub origin: &\'static str,',
     '    pub description: &\'static str,',
+    '    pub resource_kind: &\'static str,',
     '    pub food_amount: f64,',
     '    pub base_gold_cost: f64,',
     '}',
@@ -68,6 +70,7 @@ function generateFoodCommodityRust(commodities: MarketCommodityBalance[]): strin
     lines.push(`    label: "${commodity.label}",`);
     lines.push(`    origin: "${commodity.origin}",`);
     lines.push(`    description: "${commodity.description}",`);
+    lines.push(`    resource_kind: "${commodity.resourceKind}",`);
     lines.push(`    food_amount: ${rustF64(commodity.foodAmount)},`);
     lines.push(`    base_gold_cost: ${rustF64(commodity.baseGoldCost)},`);
     lines.push('};');
@@ -189,6 +192,7 @@ export function generateRegionalMarketTypeScript(balance: BalanceWithRegionalMar
     '  label: string;',
     '  origin: string;',
     '  description: string;',
+    "  resourceKind: 'meat' | 'curedMeat' | 'cheese';",
     '  foodAmount: number;',
     '  baseGoldCost: number;',
     '};',

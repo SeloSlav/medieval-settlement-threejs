@@ -1,8 +1,6 @@
 use crate::constants::{RESIDENCE_FOOD_PER_PERSON_PER_SEC, TICK_DT};
 use crate::economy::residence_food_capacity;
-use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
 use crate::simulation::residence_needs::state::NeedState;
-use crate::simulation::residence_needs::supply::ResidenceNeedSupplyContext;
 use crate::tables::Residence;
 
 #[derive(Clone, Copy, Debug)]
@@ -48,14 +46,6 @@ pub fn on_unmet(need: &NeedState) -> NeedState {
         stock: 0.0,
         ..*need
     }
-}
-
-pub fn evaluate_recovery(
-    need: &NeedState,
-    supply: &ResidenceNeedSupplyContext,
-    stock_min: f64,
-) -> bool {
-    supply.has_route(ResidenceNeedKind::Food) && need.stock + 1e-9 >= stock_min
 }
 
 pub fn apply_delivery(need: &NeedState, delivered: f64) -> NeedState {

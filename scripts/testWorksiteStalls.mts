@@ -102,7 +102,7 @@ assert.equal(winterPlan.inputStalledSites, 1);
 assert.equal(winterPlan.outputStalledSites, 2);
 assert.equal(winterPlan.sourceStalledSites, 2);
 assert.equal(winterPlan.reserveStalledSites, 1);
-assert.equal(winterPlan.dispatchDutySites, 3);
+assert.equal(winterPlan.dispatchDutySites, 2);
 assert.equal(winterPlan.reclaimableSites, 6);
 assert.equal(winterPlan.reclaimableWorkers, 21);
 assert.equal(winterPlan.retainedDispatchers, 0);
@@ -516,7 +516,10 @@ assert.match(largeQuarrySimulation, /RICH_DEPOSIT_CENTER_TOLERANCE: f64 = 2\.5/)
 assert.match(largeQuarrySimulation, /request_connected_commodity/);
 assert.match(largeQuarrySimulation, /large_quarry_supports_ready/);
 assert.match(largeQuarrySimulation, /LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE/);
-assert.match(foodSupplierSimulation, /building\.food >= food_cap - 1e-6/);
+assert.match(
+  foodSupplierSimulation,
+  /let food_commodity = match node\.node_kind\.as_str\(\)[\s\S]*building_commodity_room\(&building, food_commodity\)[\s\S]*food_room <= 1e-6/,
+);
 assert.match(foodSupplierSimulation, /find_nearest_harvestable_foraging_node/);
 assert.match(serverReducer, /stalled_labor_target/);
 assert.match(serverReducer, /processor_input_kinds/);

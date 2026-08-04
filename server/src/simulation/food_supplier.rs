@@ -11,8 +11,7 @@ use crate::constants::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_stock, building_food_storage_cap, deposit_building_commodity,
-    deposit_building_food, CommodityKind,
+    building_commodity_room, building_commodity_stock, deposit_building_commodity, CommodityKind,
 };
 use crate::foraging_policy::harvest_available;
 use crate::harvest_reserve_policy::harvestable_wild_stock;
@@ -175,14 +174,20 @@ fn harvest_from_node(
         return building;
     }
 
-    let food_cap = building_food_storage_cap(&building.kind);
-    if building.food >= food_cap - 1e-6 {
-        return building;
-    }
-
     let Some(node) = find_nearest_harvestable_node(ctx, &building, node_kinds, month) else {
         return building;
     };
+    let food_commodity = match node.node_kind.as_str() {
+        "game" => CommodityKind::Meat,
+        "fish" => CommodityKind::Fish,
+        "berries" => CommodityKind::Berries,
+        "mushrooms" => CommodityKind::Mushrooms,
+        _ => return building,
+    };
+    let food_room = building_commodity_room(&building, food_commodity);
+    if food_room <= 1e-6 {
+        return building;
+    }
 
     let labor = workers as f64;
     let richness_multiplier = if node.node_kind == "fish" && node.max_yield >= 200.0 {
@@ -191,7 +196,6 @@ fn harvest_from_node(
         1.0
     };
     let requested = resource_units_per_harvest * richness_multiplier * labor;
-    let food_room = (food_cap - building.food).max(0.0);
     let max_resource_for_room = food_room / food_per_resource_unit.max(1e-9);
     let available = harvestable_wild_stock(
         &node.node_kind,
@@ -211,10 +215,14 @@ fn harvest_from_node(
     });
 
     let produced_food = extracted * food_per_resource_unit;
-    let (deposited, mut updated_building) =
-        deposit_building_food(&building, food_cap, produced_food);
+    let mut updated_building = building;
+    let deposited = deposit_building_commodity(
+        &mut updated_building,
+        food_commodity,
+        produced_food,
+    );
     if deposited <= 0.0 {
-        return building;
+        return updated_building;
     }
     if gathers_remedies
         && (FORAGER_REMEDY_SEASON_START_MONTH as u32..=FORAGER_REMEDY_SEASON_END_MONTH as u32)

@@ -13,6 +13,7 @@ import {
   type MarketplaceTradeOffer,
   type TradeResourceKind,
 } from '../generated/gameBalance.ts';
+import { NAMED_FOOD_LABELS } from './foodInventory.ts';
 
 export type RegionalMarketState = {
   timberPriceMult: number;
@@ -135,7 +136,8 @@ export function describeCommodityOffer(
   state: RegionalMarketState,
 ): string {
   const gold = effectiveCommodityGoldCost(commodity, state);
-  return `${commodity.label} — ${commodity.foodAmount} food for ${gold} gold`;
+  const resource = NAMED_FOOD_LABELS[commodity.resourceKind].toLowerCase();
+  return `${commodity.label} — ${commodity.foodAmount} ${resource} for ${gold} gold`;
 }
 
 export function describeMarketplaceTradeOfferWithPrices(

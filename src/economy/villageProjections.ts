@@ -21,6 +21,7 @@ export type BackyardGardenEconomyPerDay = {
   tax: number;
   net: number;
   selfFood: number;
+  marketFood: number;
 };
 
 export const BACKYARD_WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
@@ -61,17 +62,25 @@ export function backyardGardenEconomyPerDay(
     ? Math.max(0, requestedCollectionMultiplier)
     : 0;
   const tax = assessedTax * Math.min(1, collectionMultiplier);
-  const selfFood = def.foodPerPersonPerSec
+  const totalFood = def.foodPerPersonPerSec
     * Math.max(0, population)
     * BACKYARD_WORKDAY_SECONDS
-    * Math.max(0, Math.min(1, def.foodSelfShare))
     * seasonalMultiplier;
+  // Without a staffed food stall the household keeps its full edible crop.
+  // With one, the configured share stays in its pantry and the remainder is
+  // offered to other households through the physical Marketplace pool.
+  const selfShare = marketLinked
+    ? Math.max(0, Math.min(1, def.foodSelfShare))
+    : 1;
+  const selfFood = totalFood * selfShare;
+  const marketFood = marketLinked ? Math.max(0, totalFood - selfFood) : 0;
   return {
     activity: adjusted,
     assessedTax,
     tax,
     net: Math.max(0, adjusted - tax),
     selfFood,
+    marketFood,
   };
 }
 

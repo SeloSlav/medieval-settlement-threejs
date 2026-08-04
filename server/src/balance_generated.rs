@@ -1641,7 +1641,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_pottery: 96.0,
     storage_roof_tiles: 0.0,
     storage_manure: 0.0,
-    storage_remedies: 0.0,
+    storage_remedies: 48.0,
     accepts_labor: false,
     max_labor: 0,
     work_radius: 0.0,
@@ -2654,7 +2654,7 @@ const BACKYARD_APPLE_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 4.0,
     food_self_share: 0.55,
     food_per_person_per_sec: 0.009,
-    gold_per_person_per_sec: 0.008,
+    gold_per_person_per_sec: 0.0,
 };
 
 const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
@@ -2665,7 +2665,7 @@ const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 3.0,
     food_self_share: 0.5,
     food_per_person_per_sec: 0.008,
-    gold_per_person_per_sec: 0.01,
+    gold_per_person_per_sec: 0.0,
 };
 
 const BACKYARD_VEGETABLE_GARDEN: BackyardGardenDef = BackyardGardenDef {
@@ -2676,7 +2676,7 @@ const BACKYARD_VEGETABLE_GARDEN: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 2.0,
     food_self_share: 0.65,
     food_per_person_per_sec: 0.012,
-    gold_per_person_per_sec: 0.006,
+    gold_per_person_per_sec: 0.0,
 };
 
 const BACKYARD_FLOWER_GARDEN: BackyardGardenDef = BackyardGardenDef {
@@ -2709,7 +2709,7 @@ const BACKYARD_HEN_YARD: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 1.0,
     food_self_share: 0.82,
     food_per_person_per_sec: 0.0105,
-    gold_per_person_per_sec: 0.002,
+    gold_per_person_per_sec: 0.0,
 };
 
 const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[BACKYARD_APPLE_ORCHARD, BACKYARD_CHERRY_ORCHARD, BACKYARD_VEGETABLE_GARDEN, BACKYARD_FLOWER_GARDEN, BACKYARD_HERB_GARDEN, BACKYARD_HEN_YARD];
@@ -2961,6 +2961,7 @@ pub struct MarketCommodityOffer {
     pub label: &'static str,
     pub origin: &'static str,
     pub description: &'static str,
+    pub resource_kind: &'static str,
     pub food_amount: f64,
     pub base_gold_cost: f64,
 }
@@ -2970,6 +2971,7 @@ const COMMODITY_BUY_PORK: MarketCommodityOffer = MarketCommodityOffer {
     label: "Smoked pork",
     origin: "Kvarner lowlands",
     description: "Salt-cured pork — staple provender for hungry households",
+    resource_kind: "curedMeat",
     food_amount: 8.0,
     base_gold_cost: 10.0,
 };
@@ -2979,6 +2981,7 @@ const COMMODITY_BUY_LAMB: MarketCommodityOffer = MarketCommodityOffer {
     label: "Highland lamb",
     origin: "Mountain pastures",
     description: "Pastured lamb from the highland flocks — a regional specialty",
+    resource_kind: "meat",
     food_amount: 6.0,
     base_gold_cost: 13.0,
 };
@@ -2988,6 +2991,7 @@ const COMMODITY_BUY_VEAL: MarketCommodityOffer = MarketCommodityOffer {
     label: "Istrian veal",
     origin: "Coastal caravans",
     description: "Tender veal from Istrian herds — premium but nourishing",
+    resource_kind: "meat",
     food_amount: 5.0,
     base_gold_cost: 15.0,
 };
@@ -2997,6 +3001,7 @@ const COMMODITY_BUY_KOBASICA: MarketCommodityOffer = MarketCommodityOffer {
     label: "Dried sausage",
     origin: "Lika smokehouses",
     description: "Smoked kobasica — keeps well on the road",
+    resource_kind: "curedMeat",
     food_amount: 4.0,
     base_gold_cost: 8.0,
 };
@@ -3006,6 +3011,7 @@ const COMMODITY_BUY_CHEESE: MarketCommodityOffer = MarketCommodityOffer {
     label: "Mountain cheese",
     origin: "Highland dairies",
     description: "Hard sheep's cheese from upland dairies",
+    resource_kind: "cheese",
     food_amount: 3.0,
     base_gold_cost: 7.0,
 };

@@ -12,15 +12,16 @@ use crate::economy::marketplace_trade_policy::market_order_should_commit;
 use crate::economy::regional_market::{record_market_trade, scaled_gold_cost};
 use crate::economy::regional_market_policy::MarketTradeDirection;
 use crate::economy::{
-    building_food_storage_cap, building_water_storage_cap, credit_treasury_gold,
-    debit_residence_wealth, deposit_building_food, deposit_building_water, spend_treasury_gold,
-    CommodityKind,
+    building_commodity_room, building_water_storage_cap, credit_treasury_gold,
+    debit_residence_wealth, deposit_building_commodity, deposit_building_water,
+    spend_treasury_gold, CommodityKind,
 };
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::residence_needs::{load_needs, need_stock};
 use crate::simulation::{
     building_has_regional_market_trip, delivery_stock_room, regional_market_import_route,
-    regional_market_import_route_to_residence, start_external_market_import_trip,
+    regional_market_import_route_to_residence, residence_commodity_delivery_room,
+    start_external_market_import_trip,
     start_external_market_import_trip_to_residence, try_dispatch_marketplace_caravan, GameClock,
     MarketCaravanDispatch, SimTickContext,
 };
@@ -31,6 +32,17 @@ pub enum MarketGoldPayer {
     Treasury,
     Household,
     Relief,
+}
+
+pub(crate) fn market_food_commodity_kind(
+    commodity: &MarketCommodityOffer,
+) -> Result<CommodityKind, String> {
+    match commodity.resource_kind {
+        "meat" => Ok(CommodityKind::Meat),
+        "curedMeat" => Ok(CommodityKind::CuredMeat),
+        "cheese" => Ok(CommodityKind::Cheese),
+        kind => Err(format!("Unsupported regional food commodity: {kind}.")),
+    }
 }
 
 pub fn order_food_commodity(
@@ -56,13 +68,14 @@ pub fn order_food_commodity(
         .find(&marketplace_id)
         .ok_or_else(|| "Trading Post not found.".to_string())?;
     validate_order_marketplace(ctx, tick, &building, owner)?;
+    let physical_commodity = market_food_commodity_kind(commodity)?;
     if physical_market_orders_enabled(ctx, owner) {
         return order_physical_market_import(
             ctx,
             tick,
             &mut building,
             owner,
-            CommodityKind::Food,
+            physical_commodity,
             commodity.food_amount,
             gold_cost,
             FOOD_DELIVERY_SPEED_MPS,
@@ -77,13 +90,12 @@ pub fn order_food_commodity(
 
     let paid_from_market = pay_market_gold(ctx, owner, gold_cost, payer, residence, &mut building)?;
 
-    let cap = building_food_storage_cap(&building.kind);
-    let (deposited, updated) = deposit_building_food(&building, cap, commodity.food_amount);
+    let deposited =
+        deposit_building_commodity(&mut building, physical_commodity, commodity.food_amount);
     if deposited + 1e-6 < commodity.food_amount {
         refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
         return Err("Trading Post needs room for the full provender order.".to_string());
     }
-    building = updated;
     ctx.db.building().id().update(building.clone());
 
     let mut dispatch_building = ctx
@@ -218,7 +230,7 @@ fn order_physical_market_import(
     }
     if building_has_regional_market_trip(ctx, marketplace.id) {
         return Err(
-            "This Trading Post already has a regional caravan on the road. Wait for it to unload and leave the map."
+            "All regional trader route slots are occupied. Wait for a caravan to complete its round trip."
                 .to_string(),
         );
     }
@@ -244,7 +256,7 @@ fn order_physical_market_import(
                 .find(&residence_id)
                 .ok_or_else(|| "Household not found.".to_string())?;
             let need_kind = match commodity {
-                CommodityKind::Food => ResidenceNeedKind::Food,
+                kind if kind.is_edible() => ResidenceNeedKind::Food,
                 CommodityKind::Water => ResidenceNeedKind::Water,
                 _ => return Err("Unsupported named regional order.".to_string()),
             };
@@ -257,7 +269,12 @@ fn order_physical_market_import(
                 return Err("The named household can no longer receive this order.".to_string());
             }
             let current_stock = need_stock(&load_needs(ctx, current.id), need_kind);
-            if delivery_stock_room(need_kind, current_stock) + 1e-6 < amount {
+            let room = if commodity.is_edible() {
+                residence_commodity_delivery_room(&current, commodity)
+            } else {
+                delivery_stock_room(need_kind, current_stock)
+            };
+            if room + 1e-6 < amount {
                 return Err("The named household needs room for the full order.".to_string());
             }
             Some(current)
@@ -333,9 +350,7 @@ fn ensure_physical_market_import_room(
     amount: f64,
 ) -> Result<(), String> {
     let room = match commodity {
-        CommodityKind::Food => {
-            (building_food_storage_cap(&marketplace.kind) - marketplace.food).max(0.0)
-        }
+        kind if kind.is_edible() => building_commodity_room(marketplace, kind),
         CommodityKind::Water => (marketplace
             .water_capacity
             .max(building_water_storage_cap(&marketplace.kind))

@@ -96,6 +96,7 @@ export function buildResidenceParishEconomyView(
 export type BackyardEconomyView = {
   activityPerDay: number;
   selfFoodPerDay: number;
+  marketFoodPerDay: number;
   assessedTaxPerDay: number;
   taxPerDay: number;
   netWealthPerDay: number;
@@ -123,6 +124,7 @@ export function buildBackyardEconomyView(
   return {
     activityPerDay: economy.activity,
     selfFoodPerDay: economy.selfFood,
+    marketFoodPerDay: economy.marketFood,
     assessedTaxPerDay: economy.assessedTax,
     taxPerDay: economy.tax,
     netWealthPerDay: economy.net,

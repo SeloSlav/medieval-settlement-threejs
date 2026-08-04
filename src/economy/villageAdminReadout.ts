@@ -166,7 +166,7 @@ export function buildVillageAdminReadout(input: {
     taxRateLabel: formatTaxRatePercent(taxRate),
     reserveLabel: `${Math.round(parishPolicy.cofferReserveGold)} gold`,
     productivityLabel: formatProductivityPercent(taxRate),
-    gdpLabel: `~${backyardEconomy.currentDayRoutedActivity.toFixed(1)} gold today`,
+    gdpLabel: `~${backyardEconomy.currentDayRoutedActivity.toFixed(1)} gold local trade today`,
     householdWealthLabel: wealthSummary.occupiedHomes > 0
       ? `${wealthSummary.totalWealth.toFixed(1)} gold (${wealthSummary.homesWithSavings}/${wealthSummary.occupiedHomes} homes)`
       : '0 gold saved',
@@ -209,9 +209,9 @@ function formatBackyardTax(plan: SettlementBackyardEconomyPlan): string {
   const collected = plan.currentDayCollectedTax;
   const assessed = plan.currentDayAssessedTax;
   if (collected + 0.05 < assessed) {
-    return `~${collected.toFixed(1)} gold levied at markets of ${assessed.toFixed(1)} assessed today`;
+    return `~${collected.toFixed(1)} gold levied into market lockboxes of ${assessed.toFixed(1)} assessed today`;
   }
-  return `~${collected.toFixed(1)} gold levied at markets today`;
+  return `~${collected.toFixed(1)} gold levied into market lockboxes today`;
 }
 
 function emptyReadout(taxRate: number, parishPolicy: ParishPolicyState): VillageAdminReadout {

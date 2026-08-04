@@ -42,6 +42,7 @@ function processor(
     malt: 0,
     flour: 0,
     food: 0,
+    bread: 0,
     ale: 0,
     preservedFood: 0,
     cloth: 0,
@@ -100,7 +101,7 @@ for (const kind of EXTRACTION_OUTPUT_TARGET_KINDS) {
 assert.equal(isProductionOutputTargetKind('smithy'), true);
 assert.equal(isProductionOutputTargetKind('hunters_hall'), false);
 assert.equal(processorOutputCommodity('watermill'), 'flour');
-assert.equal(processorOutputCommodity('bakery'), 'food');
+assert.equal(processorOutputCommodity('bakery'), 'bread');
 assert.equal(processorOutputCommodity('brewery'), 'ale');
 assert.equal(processorOutputCommodity('smokehouse'), 'preservedFood');
 assert.equal(processorOutputCommodity('weaver'), 'cloth');
@@ -184,7 +185,7 @@ assert.equal(processorNeedsInputs(mill), false);
 assert.equal(processorAcceptsInput(mill, 'grain'), false);
 
 const bakery = processor('bakery', 'bakery', 25);
-bakery.food = processorOutputTargetForBuilding(bakery) ?? 0;
+bakery.bread = processorOutputTargetForBuilding(bakery) ?? 0;
 assert.equal(
   processorAcceptsInput(bakery, 'flour'),
   false,

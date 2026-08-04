@@ -28,6 +28,21 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'firewood':
       return 'a Village Storehouse with intake enabled';
     case 'food':
+    case 'bread':
+    case 'meat':
+    case 'fish':
+    case 'berries':
+    case 'mushrooms':
+    case 'milk':
+    case 'apples':
+    case 'cherries':
+    case 'vegetables':
+    case 'eggs':
+    case 'grapes':
+    case 'porridge':
+    case 'curedMeat':
+    case 'smokedFish':
+    case 'cheese':
     case 'grain':
     case 'barley':
     case 'flour':

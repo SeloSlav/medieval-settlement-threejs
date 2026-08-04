@@ -66,14 +66,6 @@ pub fn civilian_tool_refill_due(ironwork: f64, capacity: f64) -> bool {
     capacity > 1e-6 && ironwork.max(0.0) + 1e-6 < civilian_tool_reorder_stock(capacity)
 }
 
-pub fn civilian_tool_refill_amount(ironwork: f64, capacity: f64) -> f64 {
-    if civilian_tool_refill_due(ironwork, capacity) {
-        (capacity.max(0.0) - ironwork.max(0.0)).max(0.0)
-    } else {
-        0.0
-    }
-}
-
 pub fn farm_tool_ironwork_for_work(completed_work: f64) -> f64 {
     let workday_seconds = CALENDAR_SECONDS_PER_DAY
         * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR) as f64
@@ -116,8 +108,6 @@ mod tests {
         assert!((reorder - 0.6).abs() < 1e-9);
         assert!(!civilian_tool_refill_due(reorder, capacity));
         assert!(civilian_tool_refill_due(reorder - 0.01, capacity));
-        assert!((civilian_tool_refill_amount(reorder - 0.01, capacity) - 2.41).abs() < 1e-9);
-        assert_eq!(civilian_tool_refill_amount(capacity, capacity), 0.0);
     }
 
     #[test]

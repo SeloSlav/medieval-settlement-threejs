@@ -305,21 +305,6 @@ pub fn deposit_building(
     (timber_deposited, firewood_deposited, stone_deposited, next)
 }
 
-pub fn deposit_building_food(building: &Building, cap: f64, amount: f64) -> (f64, Building) {
-    let mut next = building.clone();
-    let room = (cap - next.food).max(0.0);
-    let deposited = amount.min(room);
-    next.food += deposited;
-    (deposited, next)
-}
-
-pub fn withdraw_building_food(building: &Building, amount: f64) -> (f64, Building) {
-    let mut next = building.clone();
-    let withdrawn = amount.min(next.food);
-    next.food -= withdrawn;
-    (withdrawn, next)
-}
-
 pub fn withdraw_building(
     building: &Building,
     timber: f64,
@@ -354,12 +339,6 @@ pub fn withdraw_building_water(building: &Building, amount: f64) -> (f64, Buildi
 pub fn building_water_storage_cap(kind: &str) -> f64 {
     building_def(kind)
         .map(|def| def.storage_water)
-        .unwrap_or(0.0)
-}
-
-pub fn building_food_storage_cap(kind: &str) -> f64 {
-    building_def(kind)
-        .map(|def| def.storage_food)
         .unwrap_or(0.0)
 }
 

@@ -3,18 +3,17 @@ pub mod food;
 mod kinds;
 pub mod provisions;
 pub mod state;
-mod supply;
 pub mod water;
 
 pub use kinds::ResidenceNeedKind;
-pub use state::{load_needs, need_stock};
+pub use state::{load_needs, need_stock, sync_food_need_rows};
 
 use crate::balance_generated::{
     BASE_ILLNESS_CHANCE_PER_PERSON_DAY, CALENDAR_SECONDS_PER_DAY, COLD_EXPOSURE_ILLNESS_MULTIPLIER,
     CORPSE_DISEASE_RADIUS, CORPSE_ILLNESS_MULTIPLIER, FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
     HERB_MORTALITY_MULTIPLIER, HERB_RECOVERY_MULTIPLIER, HERB_TREATMENT_PER_SICK_DAY,
     ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS, MALNUTRITION_ILLNESS_MULTIPLIER,
-    TICK_DT, UNSAFE_WATER_ILLNESS_MULTIPLIER,
+    PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR, TICK_DT, UNSAFE_WATER_ILLNESS_MULTIPLIER,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
@@ -22,14 +21,19 @@ use crate::simulation::labor_schedule::is_consumption_paused;
 use spacetimedb::ReducerContext;
 
 use crate::db::*;
-use crate::economy::reconcile_building_labor;
+use crate::economy::{
+    reconcile_building_labor, residence_fresh_food_stock, residence_preserved_food_stock,
+    withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
+    PRESERVED_FOOD_COMMODITIES,
+};
 use crate::preserved_food_policy::allocate_preserved_meal;
 use crate::resident_welfare_policy::{
     deterministic_unit, next_malnutrition, next_service_deficit_ticks, starvation_death_due,
     starvation_episode_resolved, ticks_for_days,
 };
 use crate::simulation::residence_needs::state::{
-    delete_needs, find_need_mut, init_needs, persist_needs, NeedState,
+    delete_needs, find_need_mut, init_needs, migrate_and_sync_food_inventory, persist_needs,
+    NeedState,
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{corpse, Corpse, Residence};
@@ -50,13 +54,10 @@ pub fn step_residence_needs(
         return;
     }
 
+    migrate_and_sync_food_inventory(&mut residence, &mut needs);
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
-    if let Some(need) = find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood) {
-        *need = provisions::spoil_preserved_food(
-            need,
-            environment.preserved_food_spoilage_fraction_per_second(),
-        );
-    }
+    spoil_residence_food_inventory(&mut residence, environment);
+    migrate_and_sync_food_inventory(&mut residence, &mut needs);
 
     let cold_weather = environment.firewood_demand_multiplier() > 1.0 + 1e-9;
     let mut food_unmet = false;
@@ -65,14 +66,8 @@ pub fn step_residence_needs(
     let mut service_unmet = false;
 
     if !general_consumption_paused && ResidenceNeedKind::Food.is_active_for_tier(residence.tier) {
-        food_unmet = consume_food_with_preserved(&residence, &mut needs, environment);
+        food_unmet = consume_food_with_preserved(&mut residence, &mut needs, environment);
         service_unmet = food_unmet;
-    } else if let Some(need) = find_need_mut(&mut needs, ResidenceNeedKind::Food) {
-        *need = food::spoil(
-            need,
-            environment.fresh_food_spoilage_fraction_per_second()
-                * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
-        );
     }
 
     for kind in ResidenceNeedKind::ALL {
@@ -148,6 +143,7 @@ pub fn step_residence_needs(
         general_consumption_paused,
     );
     residence.abandoned = false;
+    migrate_and_sync_food_inventory(&mut residence, &mut needs);
     let owner = residence.owner;
     persist_needs(ctx, residence.id, &needs);
     let next_effective_workers = residence
@@ -160,7 +156,7 @@ pub fn step_residence_needs(
 }
 
 fn consume_food_with_preserved(
-    residence: &Residence,
+    residence: &mut Residence,
     needs: &mut [NeedState],
     environment: EnvironmentState,
 ) -> bool {
@@ -170,46 +166,96 @@ fn consume_food_with_preserved(
     else {
         return true;
     };
-    let spoiled = food::spoil(
-        &needs[food_index],
-        environment.fresh_food_spoilage_fraction_per_second() * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
-    );
     let demand = food::demand(residence);
-    let preserved_index = if residence.tier >= 3 {
-        needs
-            .iter()
-            .position(|need| need.kind == ResidenceNeedKind::PreservedFood)
-    } else {
-        None
-    };
-    let preserved_stock = preserved_index
-        .map(|index| needs[index].stock)
-        .unwrap_or(0.0);
+    let fresh_stock = residence_fresh_food_stock(residence);
+    let preserved_stock = residence_preserved_food_stock(residence);
     let rotation_demand = provisions::preserved_food_demand(
         residence,
         environment.preserved_food_demand_multiplier(),
     );
     let allocation = allocate_preserved_meal(
-        spoiled.stock,
+        fresh_stock,
         preserved_stock,
         demand,
         rotation_demand,
         residence.tier >= 3,
     );
-    needs[food_index] = NeedState {
-        stock: (spoiled.stock - allocation.fresh_used).max(0.0),
-        ..spoiled
-    };
-    if let Some(preserved_index) = preserved_index {
-        needs[preserved_index].stock =
-            (needs[preserved_index].stock - allocation.preserved_used()).max(0.0);
-    }
+    withdraw_residence_food_group(residence, false, allocation.fresh_used);
+    withdraw_residence_food_group(residence, true, allocation.preserved_used());
+    migrate_and_sync_food_inventory(residence, needs);
     if allocation.unmet <= 1e-9 {
         needs[food_index].deficit_ticks = 0;
         return false;
     }
     needs[food_index].deficit_ticks = needs[food_index].deficit_ticks.saturating_add(1);
     true
+}
+
+fn spoil_residence_food_inventory(residence: &mut Residence, environment: EnvironmentState) {
+    let fresh_fraction = (
+        environment.fresh_food_spoilage_fraction_per_second()
+            * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR
+            * TICK_DT
+    )
+        .clamp(0.0, 1.0);
+    let preserved_fraction = (
+        environment.preserved_food_spoilage_fraction_per_second()
+            * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
+            * TICK_DT
+    )
+        .clamp(0.0, 1.0);
+    for commodity in FRESH_FOOD_COMMODITIES {
+        let stock = crate::economy::residence_commodity_stock(residence, commodity);
+        withdraw_residence_commodity(residence, commodity, stock * fresh_fraction);
+    }
+    for commodity in PRESERVED_FOOD_COMMODITIES {
+        let stock = crate::economy::residence_commodity_stock(residence, commodity);
+        withdraw_residence_commodity(residence, commodity, stock * preserved_fraction);
+    }
+    // Honey is already modeled as a durable specialty and does not share the
+    // fresh-food spoilage pass.
+}
+
+fn withdraw_residence_food_group(
+    residence: &mut Residence,
+    preserved: bool,
+    mut amount: f64,
+) -> f64 {
+    let order: &[CommodityKind] = if preserved {
+        &[
+            CommodityKind::Cheese,
+            CommodityKind::SmokedFish,
+            CommodityKind::CuredMeat,
+            CommodityKind::PreservedFood,
+        ]
+    } else {
+        &[
+            CommodityKind::Meat,
+            CommodityKind::Fish,
+            CommodityKind::Milk,
+            CommodityKind::Mushrooms,
+            CommodityKind::Berries,
+            CommodityKind::Grapes,
+            CommodityKind::Cherries,
+            CommodityKind::Apples,
+            CommodityKind::Vegetables,
+            CommodityKind::Eggs,
+            CommodityKind::Porridge,
+            CommodityKind::Bread,
+            CommodityKind::Food,
+            CommodityKind::Honey,
+        ]
+    };
+    let mut withdrawn = 0.0;
+    for commodity in order {
+        if amount <= 1e-9 {
+            break;
+        }
+        let used = withdraw_residence_commodity(residence, *commodity, amount);
+        withdrawn += used;
+        amount = (amount - used * commodity.meal_value()).max(0.0);
+    }
+    withdrawn
 }
 
 fn update_health(

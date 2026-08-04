@@ -50,9 +50,13 @@ export function renderBackyardInspector(
   }
 
   const def = BACKYARD_GARDEN_DEFINITIONS[garden.kind];
+  const producesFood = def.foodPerPersonPerSec > 0;
   const foodStock = Math.round(getNeedStock(residence.needs, 'food'));
   const taxRate = context.getEconomicActivityTaxRate?.() ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
-  const hasMarketAccess = context.worldQueries.isResidenceConnectedToMarketplace(residence);
+  const hasMarketAccess = context.worldQueries.isResidenceConnectedToMarketplace(
+    residence,
+    producesFood ? 'food' : 'goods',
+  );
   const clock = gameClock(context.gameState.tick);
   const environment = environmentFor(
     context.gameState.seed,
@@ -90,7 +94,9 @@ export function renderBackyardInspector(
       serviceMultiplier: service.economicMultiplier,
     },
   );
-  const producesFood = def.foodPerPersonPerSec > 0;
+  const stallLabel = producesFood
+    ? 'Granary-run food stall'
+    : 'Storehouse-run goods stall';
   const statusText = sabbathPaused
       ? 'Paused — Sunday Sabbath'
       : !season.active
@@ -99,7 +105,7 @@ export function renderBackyardInspector(
           ? garden.kind === 'apple_orchard' || garden.kind === 'cherry_orchard'
             ? 'Harvesting'
             : 'Growing and trading'
-          : 'Growing — no marketplace link';
+          : `Growing — no staffed ${producesFood ? 'food' : 'goods'} stall`;
   const statusState = !season.active
     ? 'warning'
     : sabbathPaused
@@ -121,16 +127,25 @@ export function renderBackyardInspector(
       <li><span>Population</span><span>${residence.population}</span></li>
       <li><span>Seasonal output</span><span>${season.label}${sabbathPaused ? ' · paused today by parish policy' : ''}</span></li>
       ${producesFood
-        ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${Math.round(def.foodSelfShare * 100)}% of plot food stays home)</span></li>
+        ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `${Math.round(def.foodSelfShare * 100)}% reserved for this home` : '100% kept without a staffed stall'})</span></li>
+           <li><span>Shared market food today</span><span>${economy.marketFoodPerDay.toFixed(1)}${hasMarketAccess ? ' pooled for other households' : ' — household keeps the full crop without a stall'}</span></li>
            <li><span>Household food stock</span><span>${foodStock}</span></li>`
         : ''}
-      <li><span>Marketplace link</span><span>${hasMarketAccess ? 'Road-connected' : 'None — sales paused'}</span></li>
-      <li><span>Market activity today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · needs a road path to a completed marketplace' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>
+      ${garden.kind === 'herb_garden'
+        ? '<li><span>Herb sharing</span><span>Household remedies fill first; surplus remedies enter the goods stall for sick homes</span></li>'
+        : garden.kind === 'flower_garden'
+          ? '<li><span>Flower sales</span><span>Discretionary local trade; flowers are not a survival need</span></li>'
+          : ''}
+      <li><span>Marketplace link</span><span>${hasMarketAccess ? `${stallLabel} connected` : `None — needs a Marketplace and staffed ${producesFood ? 'Granary' : 'Storehouse'}`}</span></li>
+      <li><span>Local trade value today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · selling paused' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>
       <li><span>Household services</span><span>${formatResidenceServiceConsequence(service)}</span></li>
-      <li><span>Market toll (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · waits in the serving market lockbox</span></li>
+      <li><span>Local activity tax (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · held in the market lockbox until a free hauler carts it to the civic treasury</span></li>
       <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>
       <li><span>Build cost</span><span>${formatBackyardGardenCost(garden.kind)}</span></li>
     `,
+    supplementalPanelHtml: `<p class="resource-inspector-note">${producesFood
+      ? 'The household consumes its reserved share directly. The remainder becomes real Marketplace inventory that a granary stall can deliver to other homes.'
+      : 'Routine local purchases are aggregated: the seller gains household wealth and one activity tax is levied. Parish tithes remain a separate later household payment.'}</p>`,
     demolish: {
       visible: true,
       label: 'Remove garden',

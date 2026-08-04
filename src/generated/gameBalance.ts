@@ -1478,7 +1478,7 @@ export const BUILDING_STORAGE_CAPS = {
   foragers_shed: { timber: 0, firewood: 0, stone: 0, food: 80, remedies: 36 },
   fishing_camp: { timber: 0, firewood: 0, stone: 0, food: 120 },
   chapel: { timber: 0, firewood: 0, stone: 0 },
-  marketplace: { timber: 0, firewood: 80, stone: 0, food: 96, ale: 140, preservedFood: 120, cloth: 120, pottery: 96 },
+  marketplace: { timber: 0, firewood: 80, stone: 0, food: 96, ale: 140, preservedFood: 120, cloth: 120, pottery: 96, remedies: 48 },
   trading_post: { timber: 180, firewood: 120, stone: 180, water: 72, food: 160, grain: 120, barley: 120, ale: 180, preservedFood: 120, honey: 140, wine: 160, cloth: 160, ironwork: 96, iron: 96, salt: 120, pottery: 144 },
   town_hall: { timber: 0, firewood: 0, stone: 0 },
   village_storehouse: { timber: 360, firewood: 280, stone: 360, cloth: 180, iron: 180, clay: 180, salt: 144, pottery: 180 },
@@ -1518,21 +1518,21 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     label: "Apple orchard",
     foodSelfShare: 0.55,
     foodPerPersonPerSec: 0.009,
-    goldPerPersonPerSec: 0.008,
+    goldPerPersonPerSec: 0,
   },
   cherry_orchard: {
     kind: 'cherry_orchard',
     label: "Cherry orchard",
     foodSelfShare: 0.5,
     foodPerPersonPerSec: 0.008,
-    goldPerPersonPerSec: 0.01,
+    goldPerPersonPerSec: 0,
   },
   vegetable_garden: {
     kind: 'vegetable_garden',
     label: "Vegetable garden",
     foodSelfShare: 0.65,
     foodPerPersonPerSec: 0.012,
-    goldPerPersonPerSec: 0.006,
+    goldPerPersonPerSec: 0,
   },
   flower_garden: {
     kind: 'flower_garden',
@@ -1553,7 +1553,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     label: "Hen yard",
     foodSelfShare: 0.82,
     foodPerPersonPerSec: 0.0105,
-    goldPerPersonPerSec: 0.002,
+    goldPerPersonPerSec: 0,
   },
 } as const satisfies Record<BackyardGardenKind, BackyardGardenDefinition>;
 
@@ -1658,16 +1658,17 @@ export type MarketCommodityOffer = {
   label: string;
   origin: string;
   description: string;
+  resourceKind: 'meat' | 'curedMeat' | 'cheese';
   foodAmount: number;
   baseGoldCost: number;
 };
 
 export const MARKET_COMMODITIES = [
-  {"id":"buy_pork","label":"Smoked pork","origin":"Kvarner lowlands","description":"Salt-cured pork — staple provender for hungry households","foodAmount":8,"baseGoldCost":10},
-  {"id":"buy_lamb","label":"Highland lamb","origin":"Mountain pastures","description":"Pastured lamb from the highland flocks — a regional specialty","foodAmount":6,"baseGoldCost":13},
-  {"id":"buy_veal","label":"Istrian veal","origin":"Coastal caravans","description":"Tender veal from Istrian herds — premium but nourishing","foodAmount":5,"baseGoldCost":15},
-  {"id":"buy_kobasica","label":"Dried sausage","origin":"Lika smokehouses","description":"Smoked kobasica — keeps well on the road","foodAmount":4,"baseGoldCost":8},
-  {"id":"buy_cheese","label":"Mountain cheese","origin":"Highland dairies","description":"Hard sheep's cheese from upland dairies","foodAmount":3,"baseGoldCost":7},
+  {"id":"buy_pork","label":"Smoked pork","origin":"Kvarner lowlands","description":"Salt-cured pork — staple provender for hungry households","resourceKind":"curedMeat","foodAmount":8,"baseGoldCost":10},
+  {"id":"buy_lamb","label":"Highland lamb","origin":"Mountain pastures","description":"Pastured lamb from the highland flocks — a regional specialty","resourceKind":"meat","foodAmount":6,"baseGoldCost":13},
+  {"id":"buy_veal","label":"Istrian veal","origin":"Coastal caravans","description":"Tender veal from Istrian herds — premium but nourishing","resourceKind":"meat","foodAmount":5,"baseGoldCost":15},
+  {"id":"buy_kobasica","label":"Dried sausage","origin":"Lika smokehouses","description":"Smoked kobasica — keeps well on the road","resourceKind":"curedMeat","foodAmount":4,"baseGoldCost":8},
+  {"id":"buy_cheese","label":"Mountain cheese","origin":"Highland dairies","description":"Hard sheep's cheese from upland dairies","resourceKind":"cheese","foodAmount":3,"baseGoldCost":7},
 ] as const satisfies readonly MarketCommodityOffer[];
 
 export type MarketCommodityId = (typeof MARKET_COMMODITIES)[number]['id'];

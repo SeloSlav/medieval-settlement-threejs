@@ -4,6 +4,10 @@ import {
 } from '../../logistics/deliveryTrips.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import {
+  NAMED_FOOD_KINDS,
+  NAMED_FOOD_LABELS,
+} from '../../economy/foodInventory.ts';
+import {
   hiddenDemolish,
   hiddenLabor,
   type InspectorRenderContext,
@@ -18,12 +22,15 @@ const STOCK_ROWS: Array<[
   ['Stone', (building) => building.stone],
   ['Firewood', (building) => building.firewood],
   ['Water', (building) => building.water],
-  ['Food', (building) => building.food],
+  ['Legacy mixed food', (building) => building.food],
   ['Grain', (building) => building.grain],
   ['Flour', (building) => building.flour],
   ['Ale', (building) => building.ale],
-  ['Preserved food', (building) => building.preservedFood],
-  ['Honey', (building) => building.honey],
+  ['Legacy preserved food', (building) => building.preservedFood],
+  ...NAMED_FOOD_KINDS.map((kind) => [
+    NAMED_FOOD_LABELS[kind],
+    (building: BuildingState) => building[kind] ?? 0,
+  ] as [string, (building: BuildingState) => number]),
   ['Wine', (building) => building.wine],
   ['Ironwork', (building) => building.ironwork ?? 0],
   ['Polearms', (building) => building.polearms ?? 0],

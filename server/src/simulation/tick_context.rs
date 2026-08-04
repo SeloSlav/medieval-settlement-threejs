@@ -7,11 +7,10 @@ use std::sync::Arc;
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_ALE,
-    MONASTERY_FEAST_FOOD,
+    CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_FOOD,
 };
 use crate::db::*;
-use crate::economy::CommodityKind;
+use crate::economy::{building_edible_food_stock, CommodityKind};
 use crate::farming::{
     field_manure_required, field_seed_crop, field_seed_grain_remaining, CROP_BARLEY,
 };
@@ -23,10 +22,7 @@ use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
 use crate::supply_policy::{
-    is_firewood_supplier_delivery_operational, is_food_supplier_operational,
-    is_specialty_supplier_delivery_operational, is_well_supplier_operational,
-    ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, POTTERY_SUPPLIER_KINDS,
-    PRESERVED_FOOD_SUPPLIER_KINDS,
+    is_food_supplier_operational, is_well_supplier_operational,
 };
 use crate::tables::{corpse, farm_field, livestock_herd, Building, Residence};
 
@@ -52,13 +48,12 @@ pub struct SimTickContext {
     chapel_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     monastery_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     disabled_fire_targets: RefCell<Option<HashSet<(u8, u64)>>>,
-    firewood_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     water_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     food_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     food_claim_counts: RefCell<HashMap<Identity, HashMap<u64, u32>>>,
     marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
-    local_marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
-    specialty_claims: RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
+    local_marketplace_claims:
+        RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     active_remote_camp_by_worksite: RefCell<HashMap<(Identity, u64), bool>>,
     waiting_corpse_index: RefCell<Option<HashMap<Identity, CorpseSpatialIndex>>>,
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
@@ -97,13 +92,11 @@ impl SimTickContext {
             chapel_claims: RefCell::new(HashMap::new()),
             monastery_claims: RefCell::new(HashMap::new()),
             disabled_fire_targets: RefCell::new(None),
-            firewood_claims: RefCell::new(HashMap::new()),
             water_claims: RefCell::new(HashMap::new()),
             food_claims: RefCell::new(HashMap::new()),
             food_claim_counts: RefCell::new(HashMap::new()),
             marketplace_claims: RefCell::new(HashMap::new()),
             local_marketplace_claims: RefCell::new(HashMap::new()),
-            specialty_claims: RefCell::new(HashMap::new()),
             active_remote_camp_by_worksite: RefCell::new(HashMap::new()),
             waiting_corpse_index: RefCell::new(None),
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
@@ -714,26 +707,6 @@ impl SimTickContext {
             .insert(owner, sources);
     }
 
-    /// Returns the one routine firewood distributor assigned to this household.
-    /// Building steps and abandoned-home recovery share this lazily built map,
-    /// avoiding one full territory rebuild for every lodge and storehouse.
-    pub fn firewood_supplier_for(
-        &self,
-        ctx: &ReducerContext,
-        owner: Identity,
-        residence_id: u64,
-    ) -> Option<u64> {
-        if !self.firewood_claims.borrow().contains_key(&owner) {
-            let claims = self.build_firewood_claims(ctx, owner);
-            self.firewood_claims.borrow_mut().insert(owner, claims);
-        }
-        self.firewood_claims
-            .borrow()
-            .get(&owner)
-            .and_then(|claims| claims.get(&residence_id))
-            .copied()
-    }
-
     /// Returns the nearest completed well claimed by this household. The well's
     /// physical service extent remains part of the authoritative claim.
     pub fn well_supplier_for(
@@ -747,22 +720,6 @@ impl SimTickContext {
             self.water_claims.borrow_mut().insert(owner, claims);
         }
         self.water_claims
-            .borrow()
-            .get(&owner)
-            .and_then(|claims| claims.get(&residence_id))
-            .copied()
-    }
-
-    /// Returns the one routine food distributor assigned to this household.
-    /// Paid marketplace emergency orders intentionally bypass these claims.
-    pub fn food_supplier_for(
-        &self,
-        ctx: &ReducerContext,
-        owner: Identity,
-        residence_id: u64,
-    ) -> Option<u64> {
-        self.ensure_food_claims(ctx, owner);
-        self.food_claims
             .borrow()
             .get(&owner)
             .and_then(|claims| claims.get(&residence_id))
@@ -797,16 +754,18 @@ impl SimTickContext {
         ctx: &ReducerContext,
         owner: Identity,
         residence_id: u64,
+        stall_need: ResidenceNeedKind,
     ) -> Option<u64> {
-        if !self.local_marketplace_claims.borrow().contains_key(&owner) {
-            let claims = self.build_local_marketplace_claims(ctx, owner);
+        let key = (owner, stall_need);
+        if !self.local_marketplace_claims.borrow().contains_key(&key) {
+            let claims = self.build_local_marketplace_claims(ctx, owner, stall_need);
             self.local_marketplace_claims
                 .borrow_mut()
-                .insert(owner, claims);
+                .insert(key, claims);
         }
         self.local_marketplace_claims
             .borrow()
-            .get(&owner)
+            .get(&key)
             .and_then(|claims| claims.get(&residence_id))
             .copied()
     }
@@ -849,44 +808,6 @@ impl SimTickContext {
         }
         let claims = self.build_food_claims(ctx, owner);
         self.food_claims.borrow_mut().insert(owner, claims);
-    }
-
-    fn build_firewood_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
-        let Some(network) = self.road_network(owner) else {
-            return HashMap::new();
-        };
-        let suppliers: Vec<Building> = self
-            .building_ids_for_kinds(ctx, owner, &["marketplace"])
-            .into_iter()
-            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
-            .filter(|building| {
-                !self.building_disabled_by_fire(ctx, building.id)
-                    && is_firewood_supplier_delivery_operational(
-                        &building.kind,
-                        building.construction_complete,
-                        building.assigned_labor,
-                        building.storehouse_accepts_firewood,
-                    )
-                    && self.marketplace_has_stall_workers(
-                        ctx,
-                        network,
-                        building,
-                        ResidenceNeedKind::Firewood,
-                    )
-            })
-            .collect();
-        let residences: Vec<Residence> = ctx
-            .db
-            .residence()
-            .owner()
-            .filter(&owner)
-            .filter(|residence| !self.residence_disabled_by_fire(ctx, residence.id))
-            .collect();
-        crate::simulation::road_logistics::claim_residences_for_firewood_suppliers(
-            network,
-            &suppliers,
-            &residences,
-        )
     }
 
     fn build_water_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
@@ -951,6 +872,7 @@ impl SimTickContext {
         &self,
         ctx: &ReducerContext,
         owner: Identity,
+        stall_need: ResidenceNeedKind,
     ) -> HashMap<u64, u64> {
         let Some(network) = self.road_network(owner) else {
             return HashMap::new();
@@ -966,7 +888,7 @@ impl SimTickContext {
                         ctx,
                         network,
                         building,
-                        ResidenceNeedKind::Food,
+                        stall_need,
                     )
             })
             .collect();
@@ -985,29 +907,6 @@ impl SimTickContext {
         claim_residences_by_nearest_supplier(network, &marketplace_refs, &residences, |_, _, _| {
             true
         })
-    }
-
-    /// Returns the single nearest supplier assigned to this tier-3 household.
-    /// Claims are built lazily once per owner and need for the simulation
-    /// substep, so every brewery/smokehouse does not repeat the same Dijkstra
-    /// searches while the delivery heartbeat keeps its lightweight road cache.
-    pub fn specialty_supplier_for(
-        &self,
-        ctx: &ReducerContext,
-        owner: Identity,
-        residence_id: u64,
-        need_kind: ResidenceNeedKind,
-    ) -> Option<u64> {
-        let key = (owner, need_kind);
-        if !self.specialty_claims.borrow().contains_key(&key) {
-            let claims = self.build_specialty_claims(ctx, owner, need_kind);
-            self.specialty_claims.borrow_mut().insert(key, claims);
-        }
-        self.specialty_claims
-            .borrow()
-            .get(&key)
-            .and_then(|claims| claims.get(&residence_id))
-            .copied()
     }
 
     /// Count bodies that have not yet been collected near one home. The
@@ -1057,105 +956,6 @@ impl SimTickContext {
         *self.waiting_corpse_index.borrow_mut() = Some(by_owner);
     }
 
-    fn build_specialty_claims(
-        &self,
-        ctx: &ReducerContext,
-        owner: Identity,
-        need_kind: ResidenceNeedKind,
-    ) -> HashMap<u64, u64> {
-        let Some(network) = self.road_network(owner) else {
-            return HashMap::new();
-        };
-        let supplier_kinds = match need_kind {
-            ResidenceNeedKind::Ale => ALE_SUPPLIER_KINDS,
-            ResidenceNeedKind::PreservedFood => PRESERVED_FOOD_SUPPLIER_KINDS,
-            ResidenceNeedKind::Cloth => CLOTH_SUPPLIER_KINDS,
-            ResidenceNeedKind::Pottery => POTTERY_SUPPLIER_KINDS,
-            _ => return HashMap::new(),
-        };
-        let buildings: Vec<Building> = self
-            .owner_building_ids(ctx, owner)
-            .into_iter()
-            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
-            .collect();
-        let chapels: Vec<&Building> = buildings
-            .iter()
-            .filter(|building| {
-                building.kind == "chapel"
-                    && building.construction_complete
-                    && building.assigned_labor > 0
-                    && !self.building_disabled_by_fire(ctx, building.id)
-            })
-            .collect();
-        let reserve_enabled = self.monastery_hospitality_enabled(ctx, owner);
-        let suppliers: Vec<&Building> = buildings
-            .iter()
-            .filter(|building| {
-                is_specialty_supplier_delivery_operational(
-                    &building.kind,
-                    building.construction_complete,
-                    building.assigned_labor,
-                ) && !self.building_disabled_by_fire(ctx, building.id)
-                    && supplier_kinds.contains(&building.kind.as_str())
-                    && self.marketplace_has_stall_workers(ctx, network, building, need_kind)
-                    && match need_kind {
-                        ResidenceNeedKind::Ale => {
-                            let available = if building.kind == "monastery" {
-                                monastery_feast_surplus(
-                                    building.ale,
-                                    MONASTERY_FEAST_ALE,
-                                    reserve_enabled,
-                                )
-                            } else {
-                                building.ale
-                            };
-                            available > 1e-6
-                        }
-                        ResidenceNeedKind::PreservedFood => building.preserved_food > 1e-6,
-                        ResidenceNeedKind::Cloth => building.cloth > 1e-6,
-                        ResidenceNeedKind::Pottery => building.pottery > 1e-6,
-                        _ => false,
-                    }
-                    && (building.kind != "monastery"
-                        || chapels.iter().any(|chapel| {
-                            network.road_connected(building.x, building.z, chapel.x, chapel.z)
-                        }))
-            })
-            .collect();
-        let residences: Vec<Residence> = ctx
-            .db
-            .residence()
-            .owner()
-            .filter(&owner)
-            .filter(|residence| {
-                !residence.abandoned
-                    && residence.population > 0
-                    && need_kind.is_active_for_tier(residence.tier)
-                    && !self.residence_disabled_by_fire(ctx, residence.id)
-            })
-            .collect();
-        let parish_residences: HashSet<u64> = residences
-            .iter()
-            .filter(|residence| {
-                chapels.iter().any(|chapel| {
-                    network.road_connected(residence.x, residence.z, chapel.x, chapel.z)
-                })
-            })
-            .map(|residence| residence.id)
-            .collect();
-
-        claim_residences_by_nearest_supplier(
-            network,
-            &suppliers,
-            &residences,
-            |supplier, residence, distance| {
-                supplier.kind != "monastery"
-                    || (parish_residences.contains(&residence.id)
-                        && distance <= MONASTERY_COVERAGE_RADIUS)
-            },
-        )
-    }
-
     fn build_food_claims(&self, ctx: &ReducerContext, owner: Identity) -> HashMap<u64, u64> {
         let Some(network) = self.road_network(owner) else {
             return HashMap::new();
@@ -1191,12 +991,13 @@ impl SimTickContext {
                     )
                     && (if building.kind == "monastery" {
                         monastery_feast_surplus(
-                            building.food,
+                            (building_edible_food_stock(building) - building.honey.max(0.0))
+                                .max(0.0),
                             MONASTERY_FEAST_FOOD,
                             reserve_enabled,
                         )
                     } else {
-                        building.food
+                        building_edible_food_stock(building)
                     }) > 1e-6
                     && (building.kind != "monastery"
                         || chapels.iter().any(|chapel| {

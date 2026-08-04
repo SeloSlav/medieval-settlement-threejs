@@ -301,11 +301,11 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
       },
       {
         icon: 'food',
-        label: 'Food goes straight home',
+        label: 'Food reaches the market',
         parts: [
-          { text: 'A staffed Forager, Hunter, or Fishing camp sends Food directly to road-linked homes; ' },
-          { text: 'no Marketplace is required', emphasis: 'gold' },
-          { text: '. Add Water and winter Firewood as the village grows.' },
+          { text: 'Foragers, Hunters, Fishing camps, and Bakeries produce food while free haulers or granary keepers centralize it. Staff a ' },
+          { text: 'Granary', emphasis: 'gold' },
+          { text: ' and connect a Marketplace so its food stalls can stock and serve road-linked homes. Wells remain unstaffed; storehouse workers supply market fuel and household goods.' },
         ],
       },
       {

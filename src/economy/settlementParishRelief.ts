@@ -1,5 +1,4 @@
 import {
-  BUILDING_STORAGE_CAPS,
   CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
@@ -9,7 +8,6 @@ import {
   CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
   CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
   HOUSEHOLD_MAX_WEALTH,
-  RESIDENCE_FOOD_CAPACITY,
   RESIDENCE_SERVICE_WARNING_DAYS,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
@@ -35,6 +33,9 @@ import { gameClock, type GameClock } from '../world/gameCalendar.ts';
 import type { RegionalMarketState } from './regionalMarket.ts';
 import {
   bestAffordableHouseholdFoodQuote,
+  foodOrderQuoteMarketplaceRoom,
+  foodOrderQuoteResidenceRoom,
+  householdMarketOrderResourceLabel,
   type HouseholdMarketOrderQuote,
 } from './settlementHouseholdMarket.ts';
 
@@ -306,8 +307,7 @@ export function computeSettlementParishReliefPlan(
       ? routed[0] ?? null
       : routed.find(
           (residence) =>
-            RESIDENCE_FOOD_CAPACITY - getNeedStock(residence.needs, 'food') + 1e-6
-              >= quote.amount,
+            foodOrderQuoteResidenceRoom(residence, quote) + 1e-6 >= quote.amount,
         ) ?? null;
     const fallbackTarget = target ?? routed[0] ?? fireBlockedRouted[0] ?? serviceStrained
       .slice()
@@ -386,8 +386,7 @@ export function computeSettlementParishReliefPlan(
     } else if (marketClaim.distance <= 1e-6) {
       status = 'route-too-short';
     } else if (
-      BUILDING_STORAGE_CAPS.marketplace.food - marketplace.food + 1e-6
-        < quote.amount
+      foodOrderQuoteMarketplaceRoom(marketplace, quote) + 1e-6 < quote.amount
     ) {
       status = 'market-storage-full';
     } else if (activeMarketTrips.has(marketplace.id)) {
@@ -595,7 +594,7 @@ export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
 export function formatChapelPoorRelief(plan: ChapelReliefPlan): string {
   const order = plan.quote == null
     ? null
-    : `${plan.quote.label} · ${plan.quote.amount} food · ${plan.quote.goldCost} gold`;
+    : `${plan.quote.label} · ${plan.quote.amount} ${householdMarketOrderResourceLabel(plan.quote)} · ${plan.quote.goldCost} gold`;
   switch (plan.status) {
     case 'unbuilt': return 'Complete the church first';
     case 'unstaffed': return 'Assign a priest to form a parish';

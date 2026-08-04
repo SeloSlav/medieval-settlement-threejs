@@ -32,6 +32,12 @@ import {
   localDeliveryDistancesFrom,
 } from './roadLogistics.ts';
 import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
+import {
+  edibleFoodStock,
+  freshFoodStock,
+  preservableFoodStock,
+  type FoodInventoryLike,
+} from '../economy/foodInventory.ts';
 
 export type FoodLaborSplit = {
   harvesting: number;
@@ -70,7 +76,7 @@ type InstitutionalFoodDestinationLike = Pick<
   | 'guardhouseFoodReserve'
   | 'granaryAcceptsFreshFood'
   | 'granaryFreshFoodTargetPercent'
->;
+> & FoodInventoryLike;
 
 export type RoutedInstitutionalFoodDestination<
   T extends InstitutionalFoodDestinationLike,
@@ -147,7 +153,7 @@ export function institutionalFoodSurplus(
 
 export function residenceFoodRunwaySeconds(residence: ResidenceState): number | null {
   if (residence.abandoned || residence.population === 0) return null;
-  const stock = getNeedStock(residence.needs, 'food');
+  const stock = residenceFoodStock(residence);
   const usePerSec = residence.population * RESIDENCE_FOOD_PER_PERSON_PER_SEC;
   if (usePerSec <= 1e-9) return null;
   return stock / usePerSec;
@@ -191,7 +197,7 @@ export function peekNextFoodDeliveryTarget(
   const eligible = residences.filter((residence) =>
     !residence.abandoned
     && residence.population > 0
-    && getNeedStock(residence.needs, 'food') + 1e-6 < RESIDENCE_FOOD_CAPACITY);
+    && residenceFoodStock(residence) + 1e-6 < RESIDENCE_FOOD_CAPACITY);
   const distances = localDeliveryDistancesFrom(network, supplier.x, supplier.z, eligible);
   let bestIndex = -1;
   for (let index = 0; index < eligible.length; index += 1) {
@@ -280,16 +286,17 @@ function institutionalFoodTargetPlan<T extends InstitutionalFoodDestinationLike>
   acceptsFood: boolean,
 ): Omit<RoutedInstitutionalFoodDestination<T>, 'target' | 'routeDistance'> | null {
   if (target.kind === 'guardhouse' && conflictEnabled) {
+    const stock = edibleFoodStock(target);
     const desiredStock = guardhouseFoodTarget(
       target.assignedLabor,
       target.polearms,
       target.guardhouseFoodReserve,
     );
-    if (desiredStock <= 1e-6 || target.food + 1e-6 >= desiredStock) return null;
+    if (desiredStock <= 1e-6 || stock + 1e-6 >= desiredStock) return null;
     const runway = guardhouseFoodRunwayDays(
       target.assignedLabor,
       target.polearms,
-      target.food,
+      stock,
     );
     return {
       duty: runway + 1e-9 < GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS
@@ -303,35 +310,44 @@ function institutionalFoodTargetPlan<T extends InstitutionalFoodDestinationLike>
     };
   }
   if (target.kind === 'smokehouse' && acceptsFood) {
+    const stock = preservableFoodStock(target);
     const desiredStock = processorInputTarget(
       SMOKEHOUSE_FOOD_PER_CYCLE,
       target.processorOutputTargetPercent,
     );
-    if (desiredStock <= 1e-6 || target.food + 1e-6 >= desiredStock) return null;
+    if (desiredStock <= 1e-6 || stock + 1e-6 >= desiredStock) return null;
     return {
       duty: 'preservation-buffer',
       desiredStock,
       runway: processorInputRunwayCycles(
-        target.food,
+        stock,
         SMOKEHOUSE_FOOD_PER_CYCLE,
       ),
       priority: normalizeStaffingPriority(target.constructionPriority),
     };
   }
   if (target.kind === 'granary' && target.granaryAcceptsFreshFood !== false) {
+    const stock = freshFoodStock(target);
     const desiredStock = granaryFreshFoodTarget(
       BUILDING_STORAGE_CAPS.granary.food ?? 0,
       target.granaryFreshFoodTargetPercent,
     );
-    if (desiredStock <= 1e-6 || target.food + 1e-6 >= desiredStock) return null;
+    if (desiredStock <= 1e-6 || stock + 1e-6 >= desiredStock) return null;
     return {
       duty: 'granary-intake',
       desiredStock,
-      runway: Math.max(0, target.food) / desiredStock,
+      runway: stock / desiredStock,
       priority: normalizeStaffingPriority(target.constructionPriority),
     };
   }
   return null;
+}
+
+function residenceFoodStock(residence: ResidenceState): number {
+  const physical = edibleFoodStock(residence);
+  return residence.foodInventoryMigrated === true
+    ? physical
+    : Math.max(physical, getNeedStock(residence.needs, 'food'));
 }
 
 function institutionalFoodCandidatePrecedes<

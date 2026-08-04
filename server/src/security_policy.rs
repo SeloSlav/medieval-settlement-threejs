@@ -266,6 +266,21 @@ pub struct RaidPortableStores {
     pub charcoal: f64,
     pub pottery: f64,
     pub remedies: f64,
+    pub bread: f64,
+    pub meat: f64,
+    pub fish: f64,
+    pub berries: f64,
+    pub mushrooms: f64,
+    pub milk: f64,
+    pub apples: f64,
+    pub cherries: f64,
+    pub vegetables: f64,
+    pub eggs: f64,
+    pub grapes: f64,
+    pub porridge: f64,
+    pub cured_meat: f64,
+    pub smoked_fish: f64,
+    pub cheese: f64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -300,6 +315,21 @@ impl RaidPortableStores {
             + positive_store(self.charcoal)
             + positive_store(self.pottery) * 1.25
             + positive_store(self.remedies) * 1.25
+            + positive_store(self.bread)
+            + positive_store(self.meat)
+            + positive_store(self.fish)
+            + positive_store(self.berries)
+            + positive_store(self.mushrooms)
+            + positive_store(self.milk)
+            + positive_store(self.apples)
+            + positive_store(self.cherries)
+            + positive_store(self.vegetables)
+            + positive_store(self.eggs)
+            + positive_store(self.grapes)
+            + positive_store(self.porridge)
+            + positive_store(self.cured_meat)
+            + positive_store(self.smoked_fish)
+            + positive_store(self.cheese)
     }
 
     pub fn goods_amount(self) -> f64 {
@@ -325,6 +355,21 @@ impl RaidPortableStores {
             + positive_store(self.charcoal)
             + positive_store(self.pottery)
             + positive_store(self.remedies)
+            + positive_store(self.bread)
+            + positive_store(self.meat)
+            + positive_store(self.fish)
+            + positive_store(self.berries)
+            + positive_store(self.mushrooms)
+            + positive_store(self.milk)
+            + positive_store(self.apples)
+            + positive_store(self.cherries)
+            + positive_store(self.vegetables)
+            + positive_store(self.eggs)
+            + positive_store(self.grapes)
+            + positive_store(self.porridge)
+            + positive_store(self.cured_meat)
+            + positive_store(self.smoked_fish)
+            + positive_store(self.cheese)
     }
 
     pub fn plunder(self, loss_fraction: f64) -> RaidPlunder {
@@ -366,6 +411,21 @@ impl RaidPortableStores {
         plunder_good!(charcoal);
         plunder_good!(pottery);
         plunder_good!(remedies);
+        plunder_good!(bread);
+        plunder_good!(meat);
+        plunder_good!(fish);
+        plunder_good!(berries);
+        plunder_good!(mushrooms);
+        plunder_good!(milk);
+        plunder_good!(apples);
+        plunder_good!(cherries);
+        plunder_good!(vegetables);
+        plunder_good!(eggs);
+        plunder_good!(grapes);
+        plunder_good!(porridge);
+        plunder_good!(cured_meat);
+        plunder_good!(smoked_fish);
+        plunder_good!(cheese);
         let (gold, wealth_lost) = plunder_store(self.gold, fraction);
         remaining.gold = gold;
 
@@ -406,6 +466,21 @@ impl RaidPortableStores {
             charcoal: removed!(charcoal),
             pottery: removed!(pottery),
             remedies: removed!(remedies),
+            bread: removed!(bread),
+            meat: removed!(meat),
+            fish: removed!(fish),
+            berries: removed!(berries),
+            mushrooms: removed!(mushrooms),
+            milk: removed!(milk),
+            apples: removed!(apples),
+            cherries: removed!(cherries),
+            vegetables: removed!(vegetables),
+            eggs: removed!(eggs),
+            grapes: removed!(grapes),
+            porridge: removed!(porridge),
+            cured_meat: removed!(cured_meat),
+            smoked_fish: removed!(smoked_fish),
+            cheese: removed!(cheese),
         }
     }
 }

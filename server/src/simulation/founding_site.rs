@@ -22,7 +22,7 @@ use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
-const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 18] = [
+const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 33] = [
     CommodityKind::Timber,
     CommodityKind::Stone,
     CommodityKind::Firewood,
@@ -41,6 +41,21 @@ const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 18] = [
     CommodityKind::Ironwork,
     CommodityKind::Polearms,
     CommodityKind::Water,
+    CommodityKind::Bread,
+    CommodityKind::Meat,
+    CommodityKind::Fish,
+    CommodityKind::Berries,
+    CommodityKind::Mushrooms,
+    CommodityKind::Milk,
+    CommodityKind::Apples,
+    CommodityKind::Cherries,
+    CommodityKind::Vegetables,
+    CommodityKind::Eggs,
+    CommodityKind::Grapes,
+    CommodityKind::Porridge,
+    CommodityKind::CuredMeat,
+    CommodityKind::SmokedFish,
+    CommodityKind::Cheese,
 ];
 
 pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
@@ -325,6 +340,21 @@ fn has_portable_stock(building: &Building) -> bool {
         building.barley,
         building.malt,
         building.flax,
+        building.bread,
+        building.meat,
+        building.fish,
+        building.berries,
+        building.mushrooms,
+        building.milk,
+        building.apples,
+        building.cherries,
+        building.vegetables,
+        building.eggs,
+        building.grapes,
+        building.porridge,
+        building.cured_meat,
+        building.smoked_fish,
+        building.cheese,
     ]
     .into_iter()
     .any(|amount| amount > EPSILON)

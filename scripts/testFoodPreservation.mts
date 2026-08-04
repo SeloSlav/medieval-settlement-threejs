@@ -89,6 +89,7 @@ curedState.buildings.set(curedHolding.id, curedHolding);
 const curedHome = residence('cured-home', 0);
 curedHome.tier = 3;
 curedHome.needs.preservedFood.stock = 10;
+curedHome.preservedFood = 10;
 curedState.residences.set(curedHome.id, curedHome);
 curedState.deliveryTrips.set(
   'cured-cart',
@@ -303,6 +304,7 @@ fireQuarantineState.buildings.get('fire-granary')!.preservedFood = 20;
 fireQuarantineState.buildings.get('fire-hunter')!.preservedFood = 30;
 fireQuarantineState.buildings.get('healthy-market')!.preservedFood = 10;
 fireQuarantineState.residences.get('fire-home')!.needs.preservedFood.stock = 40;
+fireQuarantineState.residences.get('fire-home')!.preservedFood = 40;
 const fireQuarantine = analyzeFreshFoodPreservation(
   fireQuarantineState,
   ambientSpoilage,
@@ -407,17 +409,26 @@ const serverFoodSpoilage = readFileSync(
   new URL('../server/src/simulation/food_spoilage.rs', import.meta.url),
   'utf8',
 );
+const deliveryTrips = readFileSync(
+  new URL('../server/src/simulation/delivery_trips.rs', import.meta.url),
+  'utf8',
+);
 
 assert.match(residenceFood, /pub fn spoil\(/);
 assert.match(
   residenceNeeds,
-  /general_consumption_paused[\s\S]*food::spoil\(/,
+  /general_consumption_paused[\s\S]*spoil_residence_food_inventory\(/,
   'household stores must keep spoiling outside consumption hours',
 );
 assert.match(
   expandedEconomy,
-  /pub\(crate\) fn dispatch_need[\s\S]*building_has_active_trip[\s\S]*try_start_delivery_trip/,
-  'household provision carts should use the shared free-hauler path without removing processor labor',
+  /destination's logistics[\s\S]*producers never lose production labor to hauling[\s\S]*pub fn step_institutional_food_dispatch[\s\S]*try_start_building_supply_trip/,
+  'food producers must centralize output without losing production labor or directly serving households',
+);
+assert.match(
+  deliveryTrips,
+  /fn ordinary_supply_labor_source[\s\S]*is_logistics_workplace\(&target\.kind\)[\s\S]*DeliveryLaborSource::Building\(target\.id\)/,
+  'a staffed granary must supply the collection worker when it receives producer output',
 );
 assert.match(
   expandedEconomy,
@@ -443,28 +454,28 @@ assert.match(townHallInspector, /data-inspect-building=/);
 assert.match(townHallInspector, /data-inspect-residence=/);
 assert.match(
   serverFoodSpoilage,
-  /for building in ctx\.db\.building\(\)\.iter\(\)[\s\S]*building\.food[\s\S]*storage_factor/,
+  /for mut building in ctx\.db\.building\(\)\.iter\(\)[\s\S]*building_fresh_food_stock[\s\S]*FRESH_FOOD_COMMODITIES[\s\S]*withdraw_building_commodity[\s\S]*building\(\)\.id\(\)\.update/,
   'damaged building stores remain in the server-wide fresh-food spoilage pass',
 );
 assert.match(
   serverFoodSpoilage,
-  /delivery_trip\(\)[\s\S]*CommodityKind::Food \| CommodityKind::PreservedFood[\s\S]*PRESERVED_FOOD_STORAGE_CART_FACTOR[\s\S]*delivery_trip\(\)\.id\(\)\.update/,
+  /delivery_trip\(\)[\s\S]*CommodityKind::from_u8[\s\S]*is_fresh_food\(\) \|\| kind\.is_preserved_food\(\)[\s\S]*PRESERVED_FOOD_STORAGE_CART_FACTOR[\s\S]*delivery_trip\(\)\.id\(\)\.update/,
   'loaded fresh and cured food must keep aging in the authoritative delivery row',
 );
 assert.match(
   serverFoodSpoilage,
-  /preserved_food_spoilage_fraction_per_second\(\)[\s\S]*building\.preserved_food \* preserved_rate \* preserved_storage_factor[\s\S]*preserved_food: \(building\.preserved_food - spoiled_preserved\)/,
+  /preserved_food_spoilage_fraction_per_second\(\)[\s\S]*PRESERVED_FOOD_COMMODITIES[\s\S]*building_commodity_stock[\s\S]*preserved_rate[\s\S]*withdraw_building_commodity/,
   'every physical building store must lose cured provisions according to its storage quality',
 );
 assert.match(
   serverFoodSpoilage,
-  /resources\.preserved_food[\s\S]*PRESERVED_FOOD_STORAGE_TREASURY_FACTOR[\s\S]*preserved_food: \(resources\.preserved_food - spoiled_preserved\)/,
+  /macro_rules! spoil_preserved[\s\S]*PRESERVED_FOOD_STORAGE_TREASURY_FACTOR[\s\S]*spoil_preserved!\(preserved_food\)[\s\S]*spoil_preserved!\(cheese\)/,
   'legacy compatibility stock must not become an immortal cured reserve',
 );
 assert.match(residenceProvisions, /pub fn spoil_preserved_food\(/);
 assert.match(
   residenceNeeds,
-  /find_need_mut\(&mut needs, ResidenceNeedKind::PreservedFood\)[\s\S]*provisions::spoil_preserved_food[\s\S]*preserved_food_spoilage_fraction_per_second/,
+  /fn spoil_residence_food_inventory[\s\S]*preserved_food_spoilage_fraction_per_second[\s\S]*PRESERVED_FOOD_COMMODITIES[\s\S]*withdraw_residence_commodity[\s\S]*preserved_fraction/,
   'household cupboard stock must age even while ordinary consumption is paused',
 );
 assert.match(townHallInspector, /Cured-food aging/);
@@ -582,6 +593,8 @@ function residence(id: string, food: number): ResidenceState {
     populationCapacity: 1,
     tier: 1,
     settlementTicks: 0,
+    food,
+    preservedFood: 0,
     needs: {
       firewood: { stock: 0, deficitSeconds: 0 },
       water: { stock: 0, deficitSeconds: 0 },

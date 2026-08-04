@@ -243,6 +243,7 @@
       "label": "Smoked pork",
       "origin": "Kvarner lowlands",
       "description": "Salt-cured pork — staple provender for hungry households",
+      "resourceKind": "curedMeat",
       "foodAmount": 8,
       "baseGoldCost": 10
     },
@@ -251,6 +252,7 @@
       "label": "Highland lamb",
       "origin": "Mountain pastures",
       "description": "Pastured lamb from the highland flocks — a regional specialty",
+      "resourceKind": "meat",
       "foodAmount": 6,
       "baseGoldCost": 13
     },
@@ -259,6 +261,7 @@
       "label": "Istrian veal",
       "origin": "Coastal caravans",
       "description": "Tender veal from Istrian herds — premium but nourishing",
+      "resourceKind": "meat",
       "foodAmount": 5,
       "baseGoldCost": 15
     },
@@ -267,6 +270,7 @@
       "label": "Dried sausage",
       "origin": "Lika smokehouses",
       "description": "Smoked kobasica — keeps well on the road",
+      "resourceKind": "curedMeat",
       "foodAmount": 4,
       "baseGoldCost": 8
     },
@@ -275,6 +279,7 @@
       "label": "Mountain cheese",
       "origin": "Highland dairies",
       "description": "Hard sheep's cheese from upland dairies",
+      "resourceKind": "cheese",
       "foodAmount": 3,
       "baseGoldCost": 7
     }
@@ -1125,7 +1130,7 @@
     "marketplace": {
       "label": "Marketplace",
       "cost": { "timber": 32, "stone": 26 },
-      "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 0, "barley": 0, "ale": 140, "honey": 0, "wine": 0, "cloth": 120, "ironwork": 0, "iron": 0, "salt": 0, "pottery": 96 },
+      "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 0, "barley": 0, "ale": 140, "honey": 0, "wine": 0, "cloth": 120, "ironwork": 0, "iron": 0, "salt": 0, "pottery": 96, "remedies": 48 },
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 0,
@@ -1523,21 +1528,21 @@
       "cost": { "timber": 10, "stone": 4 },
       "foodSelfShare": 0.55,
       "foodPerPersonPerSec": 0.009,
-      "goldPerPersonPerSec": 0.008
+      "goldPerPersonPerSec": 0
     },
     "cherry_orchard": {
       "label": "Cherry orchard",
       "cost": { "timber": 9, "stone": 3 },
       "foodSelfShare": 0.5,
       "foodPerPersonPerSec": 0.008,
-      "goldPerPersonPerSec": 0.01
+      "goldPerPersonPerSec": 0
     },
     "vegetable_garden": {
       "label": "Vegetable garden",
       "cost": { "timber": 5, "stone": 2 },
       "foodSelfShare": 0.65,
       "foodPerPersonPerSec": 0.012,
-      "goldPerPersonPerSec": 0.006
+      "goldPerPersonPerSec": 0
     },
     "flower_garden": {
       "label": "Flower garden",
@@ -1558,7 +1563,7 @@
       "cost": { "timber": 6, "stone": 1 },
       "foodSelfShare": 0.82,
       "foodPerPersonPerSec": 0.0105,
-      "goldPerPersonPerSec": 0.002
+      "goldPerPersonPerSec": 0
     }
   }
 }

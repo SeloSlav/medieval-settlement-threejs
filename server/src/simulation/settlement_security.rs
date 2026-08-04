@@ -697,6 +697,21 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         charcoal: building.charcoal,
         pottery: building.pottery,
         remedies: building.remedies,
+        bread: building.bread,
+        meat: building.meat,
+        fish: building.fish,
+        berries: building.berries,
+        mushrooms: building.mushrooms,
+        milk: building.milk,
+        apples: building.apples,
+        cherries: building.cherries,
+        vegetables: building.vegetables,
+        eggs: building.eggs,
+        grapes: building.grapes,
+        porridge: building.porridge,
+        cured_meat: building.cured_meat,
+        smoked_fish: building.smoked_fish,
+        cheese: building.cheese,
     }
 }
 
@@ -857,10 +872,25 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Timber) => stores.timber = amount,
         Some(CommodityKind::Firewood) => stores.firewood = amount,
         Some(CommodityKind::Food) => stores.food = amount,
+        Some(CommodityKind::Bread) => stores.bread = amount,
+        Some(CommodityKind::Meat) => stores.meat = amount,
+        Some(CommodityKind::Fish) => stores.fish = amount,
+        Some(CommodityKind::Berries) => stores.berries = amount,
+        Some(CommodityKind::Mushrooms) => stores.mushrooms = amount,
+        Some(CommodityKind::Milk) => stores.milk = amount,
+        Some(CommodityKind::Apples) => stores.apples = amount,
+        Some(CommodityKind::Cherries) => stores.cherries = amount,
+        Some(CommodityKind::Vegetables) => stores.vegetables = amount,
+        Some(CommodityKind::Eggs) => stores.eggs = amount,
+        Some(CommodityKind::Grapes) => stores.grapes = amount,
+        Some(CommodityKind::Porridge) => stores.porridge = amount,
         Some(CommodityKind::Grain) => stores.grain = amount,
         Some(CommodityKind::Flour) => stores.flour = amount,
         Some(CommodityKind::Ale) => stores.ale = amount,
         Some(CommodityKind::PreservedFood) => stores.preserved_food = amount,
+        Some(CommodityKind::CuredMeat) => stores.cured_meat = amount,
+        Some(CommodityKind::SmokedFish) => stores.smoked_fish = amount,
+        Some(CommodityKind::Cheese) => stores.cheese = amount,
         Some(CommodityKind::Honey) => stores.honey = amount,
         Some(CommodityKind::Wine) => stores.wine = amount,
         Some(CommodityKind::Wool) => stores.wool = amount,
@@ -895,10 +925,25 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Timber) => stores.timber,
         Some(CommodityKind::Firewood) => stores.firewood,
         Some(CommodityKind::Food) => stores.food,
+        Some(CommodityKind::Bread) => stores.bread,
+        Some(CommodityKind::Meat) => stores.meat,
+        Some(CommodityKind::Fish) => stores.fish,
+        Some(CommodityKind::Berries) => stores.berries,
+        Some(CommodityKind::Mushrooms) => stores.mushrooms,
+        Some(CommodityKind::Milk) => stores.milk,
+        Some(CommodityKind::Apples) => stores.apples,
+        Some(CommodityKind::Cherries) => stores.cherries,
+        Some(CommodityKind::Vegetables) => stores.vegetables,
+        Some(CommodityKind::Eggs) => stores.eggs,
+        Some(CommodityKind::Grapes) => stores.grapes,
+        Some(CommodityKind::Porridge) => stores.porridge,
         Some(CommodityKind::Grain) => stores.grain,
         Some(CommodityKind::Flour) => stores.flour,
         Some(CommodityKind::Ale) => stores.ale,
         Some(CommodityKind::PreservedFood) => stores.preserved_food,
+        Some(CommodityKind::CuredMeat) => stores.cured_meat,
+        Some(CommodityKind::SmokedFish) => stores.smoked_fish,
+        Some(CommodityKind::Cheese) => stores.cheese,
         Some(CommodityKind::Honey) => stores.honey,
         Some(CommodityKind::Wine) => stores.wine,
         Some(CommodityKind::Wool) => stores.wool,
@@ -964,6 +1009,21 @@ fn treasury_portable_stores(
         charcoal: treasury.charcoal,
         pottery: treasury.pottery,
         remedies: 0.0,
+        bread: treasury.bread,
+        meat: treasury.meat,
+        fish: treasury.fish,
+        berries: treasury.berries,
+        mushrooms: treasury.mushrooms,
+        milk: treasury.milk,
+        apples: treasury.apples,
+        cherries: treasury.cherries,
+        vegetables: treasury.vegetables,
+        eggs: treasury.eggs,
+        grapes: treasury.grapes,
+        porridge: treasury.porridge,
+        cured_meat: treasury.cured_meat,
+        smoked_fish: treasury.smoked_fish,
+        cheese: treasury.cheese,
     }
 }
 
@@ -1042,6 +1102,21 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.charcoal = stores.charcoal;
     building.pottery = stores.pottery;
     building.remedies = stores.remedies;
+    building.bread = stores.bread;
+    building.meat = stores.meat;
+    building.fish = stores.fish;
+    building.berries = stores.berries;
+    building.mushrooms = stores.mushrooms;
+    building.milk = stores.milk;
+    building.apples = stores.apples;
+    building.cherries = stores.cherries;
+    building.vegetables = stores.vegetables;
+    building.eggs = stores.eggs;
+    building.grapes = stores.grapes;
+    building.porridge = stores.porridge;
+    building.cured_meat = stores.cured_meat;
+    building.smoked_fish = stores.smoked_fish;
+    building.cheese = stores.cheese;
     building.civic_receipts_gold = building
         .civic_receipts_gold
         .max(0.0)
@@ -1082,6 +1157,21 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(salt);
     subtract_loss!(charcoal);
     subtract_loss!(pottery);
+    subtract_loss!(bread);
+    subtract_loss!(meat);
+    subtract_loss!(fish);
+    subtract_loss!(berries);
+    subtract_loss!(mushrooms);
+    subtract_loss!(milk);
+    subtract_loss!(apples);
+    subtract_loss!(cherries);
+    subtract_loss!(vegetables);
+    subtract_loss!(eggs);
+    subtract_loss!(grapes);
+    subtract_loss!(porridge);
+    subtract_loss!(cured_meat);
+    subtract_loss!(smoked_fish);
+    subtract_loss!(cheese);
 }
 
 fn portable_store_loss(before: f64, remaining: f64) -> f64 {

@@ -91,7 +91,7 @@ export function specialtySeasonStatus(
 }
 
 export type SeasonalProducerOutputBlocker = {
-  commodity: 'food' | 'honey' | 'wine';
+  commodity: 'honey' | 'wine' | 'grapes';
   label: string;
   stock: number;
   capacity: number;
@@ -105,13 +105,12 @@ export function seasonalProducerOutputBlocker(
 ): SeasonalProducerOutputBlocker | null {
   const outputs = building.kind === 'apiary'
     ? [
-        ['honey', 'Honey', building.honey, BUILDING_STORAGE_CAPS.apiary.honey, APIARY_HONEY_PER_CYCLE],
-        ['food', 'Food', building.food, BUILDING_STORAGE_CAPS.apiary.food, APIARY_FOOD_PER_CYCLE],
+        ['honey', 'Honey', building.honey, BUILDING_STORAGE_CAPS.apiary.honey, APIARY_HONEY_PER_CYCLE + APIARY_FOOD_PER_CYCLE],
       ] as const
     : building.kind === 'vineyard'
       ? [
           ['wine', 'Wine', building.wine, BUILDING_STORAGE_CAPS.vineyard.wine, VINEYARD_WINE_PER_CYCLE],
-          ['food', 'Food', building.food, BUILDING_STORAGE_CAPS.vineyard.food, VINEYARD_FOOD_PER_CYCLE],
+          ['grapes', 'Grapes', building.grapes ?? 0, BUILDING_STORAGE_CAPS.vineyard.food, VINEYARD_FOOD_PER_CYCLE],
         ] as const
       : null;
   if (!outputs) return null;

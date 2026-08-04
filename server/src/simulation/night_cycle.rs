@@ -4,7 +4,10 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
 use crate::db::*;
-use crate::economy::{debit_residence_wealth, withdraw_building_commodity, CommodityKind};
+use crate::economy::{
+    debit_residence_wealth, withdraw_building_commodity, withdraw_residence_fresh_food,
+    withdraw_residence_preserved_food, CommodityKind,
+};
 use crate::frontier_economy_policy::armed_guards;
 use crate::night_policy::{
     curfew_security_multiplier, gathering_share, lighting_firewood_per_household,
@@ -12,7 +15,7 @@ use crate::night_policy::{
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::residence_needs::state::{
-    find_need_mut, load_needs, need_stock, persist_needs,
+    load_needs, migrate_and_sync_food_inventory, need_stock, persist_needs,
 };
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::tables::{Building, Residence};
@@ -103,7 +106,9 @@ fn complete_night_for_owner(
     let mut well_rested = 0u32;
     let mut cold_households = 0u32;
     for (household_index, residence) in residences.iter().enumerate() {
+        let mut current = residence.clone();
         let mut needs = load_needs(ctx, residence.id);
+        migrate_and_sync_food_inventory(&mut current, &mut needs);
         let warm = residence.tier < 2
             || (need_stock(&needs, ResidenceNeedKind::Firewood) > 1e-6
                 && needs
@@ -116,31 +121,26 @@ fn complete_night_for_owner(
         }
 
         let meal_due = EVENING_MEAL_PER_PERSON * residence.population as f64;
-        let fresh_used = take_need_stock(&mut needs, ResidenceNeedKind::Food, meal_due);
+        let fresh_used = withdraw_residence_fresh_food(&mut current, meal_due);
         let preserved_used = if fresh_used + 1e-6 < meal_due && residence.tier >= 3 {
-            take_need_stock(
-                &mut needs,
-                ResidenceNeedKind::PreservedFood,
-                meal_due - fresh_used,
-            )
+            withdraw_residence_preserved_food(&mut current, meal_due - fresh_used)
         } else {
             0.0
         };
         let fed = fresh_used + preserved_used + 1e-6 >= meal_due;
+        migrate_and_sync_food_inventory(&mut current, &mut needs);
         persist_needs(ctx, residence.id, &needs);
 
         let worked_night_shift = household_index < tired_household_slots as usize;
         if fed && warm && !active_raid && !worked_night_shift {
             well_rested += 1;
             if residence.population < residence.population_capacity {
-                if let Some(mut current) = ctx.db.residence().id().find(&residence.id) {
-                    current.settlement_ticks = current
-                        .settlement_ticks
-                        .saturating_add(RESTED_SETTLEMENT_PROGRESS + cohesion_progress_bonus);
-                    ctx.db.residence().id().update(current);
-                }
+                current.settlement_ticks = current
+                    .settlement_ticks
+                    .saturating_add(RESTED_SETTLEMENT_PROGRESS + cohesion_progress_bonus);
             }
         }
+        ctx.db.residence().id().update(current);
     }
 
     let social_households = ((household_count as f64
@@ -214,19 +214,6 @@ fn complete_night_for_owner(
     resources.night_labor_fatigue =
         (resources.night_labor_fatigue * 0.65 + fatigue_target * 0.35).clamp(0.0, 1.0);
     ctx.db.player_resources().owner().update(resources);
-}
-
-fn take_need_stock(
-    needs: &mut [crate::simulation::residence_needs::state::NeedState],
-    kind: ResidenceNeedKind,
-    amount: f64,
-) -> f64 {
-    let Some(need) = find_need_mut(needs, kind) else {
-        return 0.0;
-    };
-    let taken = need.stock.min(amount.max(0.0));
-    need.stock -= taken;
-    taken
 }
 
 fn withdraw_owner_building_firewood(ctx: &ReducerContext, owner: Identity, amount: f64) -> f64 {

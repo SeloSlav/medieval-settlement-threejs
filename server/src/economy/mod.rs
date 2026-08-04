@@ -4,7 +4,6 @@ mod aggregate_spend;
 mod chapel_coffer;
 mod civic_receipts;
 mod commodities;
-mod garden_market_activity;
 mod household_wealth;
 mod marketplace_orders;
 mod marketplace_trade;
@@ -19,8 +18,14 @@ mod village_economy;
 
 pub use commodities::{
     building_commodity_cap, building_commodity_room, building_commodity_stock,
-    credit_treasury_commodity, deposit_building_commodity, withdraw_building_commodity,
-    CommodityKind,
+    building_edible_food_stock, building_fresh_food_stock, building_preservable_food_stock,
+    building_preserved_food_stock, credit_treasury_commodity, deposit_building_commodity,
+    deposit_residence_commodity, first_building_edible_commodity, residence_commodity_stock,
+    residence_edible_food_stock,
+    residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building_commodity,
+    withdraw_building_edible_food, withdraw_residence_commodity, withdraw_residence_fresh_food,
+    withdraw_residence_preserved_food, CommodityKind, FRESH_FOOD_COMMODITIES,
+    PRESERVED_FOOD_COMMODITIES,
 };
 pub(crate) use marketplace_trade_policy::adriatic_trade_entry_point;
 
@@ -36,12 +41,12 @@ pub use civic_receipts::{
     credit_local_civic_receipts, local_civic_receipts, mark_local_civic_receipts_dispatched,
     restore_local_civic_receipts,
 };
-pub use garden_market_activity::garden_market_activity;
 pub use household_wealth::{credit_residence_wealth, debit_residence_wealth};
 pub use marketplace_orders::{
     best_affordable_food_commodity, best_affordable_water_commodity, order_food_commodity,
     order_water_commodity, MarketGoldPayer,
 };
+pub(crate) use marketplace_orders::market_food_commodity_kind;
 pub use marketplace_trade::execute_marketplace_trade;
 pub(crate) use marketplace_trade::{
     credit_marketplace_receipt_gold, pending_marketplace_trade_commodity,
@@ -66,13 +71,13 @@ pub(crate) use storage::{
     available_unreserved_building_ironwork, available_unreserved_building_timber,
 };
 pub use storage::{
-    building_food_storage_cap, building_storage_caps, building_water_storage_cap,
+    building_storage_caps, building_water_storage_cap,
     construction_treasury_reservation, construction_treasury_reservation_excluding_building,
     credit_treasury_firewood, credit_treasury_food, credit_treasury_gold, credit_treasury_stone,
-    credit_treasury_timber, credit_treasury_water, deposit_building, deposit_building_food,
+    credit_treasury_timber, credit_treasury_water, deposit_building,
     deposit_building_water, residence_firewood_capacity, residence_food_capacity,
     residence_water_capacity, spend_treasury_gold, total_ironwork, total_roof_tiles, total_stone,
-    total_timber, treasury_gold, withdraw_building, withdraw_building_food,
+    total_timber, treasury_gold, withdraw_building,
     withdraw_building_water,
 };
 pub use village_economy::{

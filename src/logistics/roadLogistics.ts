@@ -5,6 +5,7 @@ import {
 import { getNeedStock, hasNeedStockRoom } from '../residences/residenceNeedState.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, ResidenceState } from '../resources/types.ts';
+import { edibleFoodStock } from '../economy/foodInventory.ts';
 import {
   residenceFirewoodRunwaySeconds,
   residenceNeedsPriorityFirewood,
@@ -280,7 +281,7 @@ export function claimResidencesForFoodSuppliers(
   // An empty seasonal producer must not strand nearby homes while a stocked
   // granary or holding can serve the same road branch.
   const foodSuppliers = suppliers.filter(
-    (supplier) => isOperationalFoodSupplier(supplier) && supplier.food > 1e-6,
+    (supplier) => isOperationalFoodSupplier(supplier) && edibleFoodStock(supplier) > 1e-6,
   );
   const occupiedResidences = residences.filter(
     (residence) =>

@@ -334,7 +334,7 @@ fn validate_marketplace(
         && building_has_regional_market_trip(ctx, building.id)
     {
         return Err(
-            "This Trading Post already has a regional caravan on the road. Wait for it to unload and leave the map."
+            "All regional trader route slots are occupied. Wait for a caravan to complete its round trip."
                 .to_string(),
         );
     }
@@ -350,13 +350,13 @@ fn validate_marketplace(
         has_road_access,
     ) {
         if building.assigned_labor == 0 {
-            return Err("Assign at least one broker before placing a manual trade.".to_string());
+            return Err("Assign at least one regional trader before placing a manual trade.".to_string());
         }
         if !has_road_access {
             return Err("Connect the Trading Post to a road before trading.".to_string());
         }
         return Err(format!(
-            "The brokers need another {:.1} seconds before the next trade.",
+            "The regional traders need another {:.1} seconds before the next trade.",
             building.action_cooldown
         ));
     }
@@ -1046,7 +1046,9 @@ fn trade_commodity(resource: TradeResource) -> CommodityKind {
         TradeResource::Timber => CommodityKind::Timber,
         TradeResource::Stone => CommodityKind::Stone,
         TradeResource::Firewood => CommodityKind::Firewood,
-        TradeResource::Food => CommodityKind::Food,
+        // Regional "food" contracts are represented physically as imported
+        // bread; the broad trade category remains only for pricing/history.
+        TradeResource::Food => CommodityKind::Bread,
         TradeResource::Grain => CommodityKind::Grain,
         TradeResource::Barley => CommodityKind::Barley,
         TradeResource::Ironwork => CommodityKind::Ironwork,
@@ -1061,7 +1063,7 @@ fn trade_resource_name(resource: TradeResource) -> &'static str {
         TradeResource::Timber => "timber",
         TradeResource::Stone => "stone",
         TradeResource::Firewood => "firewood",
-        TradeResource::Food => "food",
+        TradeResource::Food => "bread",
         TradeResource::Grain => "grain",
         TradeResource::Barley => "barley",
         TradeResource::Ironwork => "ironwork",
@@ -1239,7 +1241,7 @@ fn treasury_trade_stock(
             .player_resources()
             .owner()
             .find(&owner)
-            .map(|row| row.food)
+            .map(|row| row.bread)
             .unwrap_or(0.0),
         TradeResource::Grain => ctx
             .db
@@ -1309,7 +1311,7 @@ fn withdraw_treasury_trade_stock(
         TradeResource::Timber => treasury.timber -= amount,
         TradeResource::Stone => treasury.stone -= amount,
         TradeResource::Firewood => treasury.firewood -= amount,
-        TradeResource::Food => treasury.food -= amount,
+        TradeResource::Food => treasury.bread -= amount,
         TradeResource::Grain => treasury.grain -= amount,
         TradeResource::Barley => treasury.barley -= amount,
         TradeResource::Ironwork => treasury.ironwork -= amount,

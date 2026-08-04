@@ -32,6 +32,7 @@ import {
   normalizeGuardhousePayPriority,
 } from '../../security/guardhousePayrollPolicy.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
+import { edibleFoodStock } from '../../economy/foodInventory.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
@@ -127,7 +128,7 @@ export function renderGuardhouseInspector(
     ? foodTarget / dailyFood
     : Number.POSITIVE_INFINITY;
   const foodRunwayDays = dailyFood > 1e-9
-    ? Math.max(0, building.food) / dailyFood
+    ? edibleFoodStock(building) / dailyFood
     : Number.POSITIVE_INFINITY;
   const orderedMusterPostId = normalizeGuardhouseMusterWatchtowerId(
     building.guardhouseMusterWatchtowerId,
@@ -278,7 +279,7 @@ export function renderGuardhouseInspector(
       <li><span>Settlement defense</span><span>${settlementReady.toFixed(1)}${guardRequirement > 0 ? ` / ${guardRequirement.toFixed(1)} required` : ''}</span></li>
       <li><span>Projected raid</span><span>${settlement ? formatFrontierForecast(settlement, context.enemyPressure) : 'Awaiting frontier reports'}</span></li>
       <li><span>Daily upkeep</span><span>${dailyFood.toFixed(1)} food · ${dailyWages.toFixed(1)} gold</span></li>
-      <li><span>Food endurance</span><span>${building.food.toFixed(1)} on site · ${formatProvisionRunway(foodRunwayDays)}</span></li>
+      <li><span>Food endurance</span><span>${edibleFoodStock(building).toFixed(1)} named meals on site · ${formatProvisionRunway(foodRunwayDays)}</span></li>
       <li><span>Ration policy</span><span>${guardhouseFoodReserveLabel(foodReserve)} · ${foodReserve} food per armed guard</span></li>
       <li><span>Company priority</span><span>${guardhousePayPriorityLabel(companyPriority)} · scarce polearms, routine provisions, and wages</span></li>
       <li><span>Next-day wages</span><span>${suspendedByFire ? 'Suspended during fire recovery' : payroll ? `${payroll.fundedGold.toFixed(1)} / ${payroll.dailyWage.toFixed(1)} funded · claim ${payroll.claimPosition} of ${payroll.companyCount}` : armed > 0 ? 'Awaiting payroll forecast' : 'No armed guards to pay'}</span></li>

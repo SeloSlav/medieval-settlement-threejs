@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'grain', 'barley', 'malt', 'flour', 'ale', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'roofTiles', 'gold'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'grain', 'barley', 'malt', 'flour', 'ale', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'roofTiles', 'gold', 'bread', 'meat', 'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes', 'porridge', 'curedMeat', 'smokedFish', 'cheese'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -102,6 +102,21 @@ export type BuildingState = {
   roofTiles?: number;
   manure?: number;
   remedies?: number;
+  bread?: number;
+  meat?: number;
+  fish?: number;
+  berries?: number;
+  mushrooms?: number;
+  milk?: number;
+  apples?: number;
+  cherries?: number;
+  vegetables?: number;
+  eggs?: number;
+  grapes?: number;
+  porridge?: number;
+  curedMeat?: number;
+  smokedFish?: number;
+  cheese?: number;
   gold: number;
   waterCapacity: number;
   assignedLabor: number;
@@ -291,6 +306,26 @@ export type ResidenceState = {
   tier: 0 | 1 | 2 | 3;
   settlementTicks: number;
   needs: ResidenceNeedsState;
+  /** Physical household pantry. `needs.food` is only the derived meal total. */
+  food?: number;
+  preservedFood?: number;
+  honey?: number;
+  bread?: number;
+  meat?: number;
+  fish?: number;
+  berries?: number;
+  mushrooms?: number;
+  milk?: number;
+  apples?: number;
+  cherries?: number;
+  vegetables?: number;
+  eggs?: number;
+  grapes?: number;
+  porridge?: number;
+  curedMeat?: number;
+  smokedFish?: number;
+  cheese?: number;
+  foodInventoryMigrated?: boolean;
   /** Deprecated replicated save field. Runtime homes are never abandoned. */
   abandoned: boolean;
   householdWealth: number;
@@ -434,7 +469,7 @@ export type InspectableTarget =
     };
 
 export function createEmptyStockpile(): ResourceStockpile {
-  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, barley: 0, malt: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, flax: 0, cloth: 0, ironwork: 0, polearms: 0, iron: 0, clay: 0, salt: 0, charcoal: 0, pottery: 0, roofTiles: 0, gold: 0 };
+  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, grain: 0, barley: 0, malt: 0, flour: 0, ale: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, flax: 0, cloth: 0, ironwork: 0, polearms: 0, iron: 0, clay: 0, salt: 0, charcoal: 0, pottery: 0, roofTiles: 0, gold: 0, bread: 0, meat: 0, milk: 0, apples: 0, cherries: 0, vegetables: 0, eggs: 0, grapes: 0, porridge: 0, curedMeat: 0, smokedFish: 0, cheese: 0 };
 }
 
 export function isResourceKind(value: string): value is ResourceKind {

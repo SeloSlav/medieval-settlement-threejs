@@ -698,7 +698,7 @@ assert.match(expandedInspector, /Central grain reserve/);
 assert.match(expandedInspector, /data-granary-grain-reserve/);
 assert.match(expandedInspector, /Linked farmsteads may still take this grain/);
 assert.match(expandedInspector, /Grain working buffer/);
-assert.match(expandedInspector, /building\.food > 0[\s\S]*granaryExportableGrain/);
+assert.match(expandedInspector, /edibleFoodStock\(building\) > 0[\s\S]*granaryExportableGrain/);
 assert.match(expandedInspector, /getNextFarmGrainDispatch/);
 assert.match(expandedInspector, /getNextFarmBarleyDispatch/);
 assert.match(expandedInspector, /getNextGranaryGrainDispatch/);
@@ -813,7 +813,7 @@ assert.match(expandedSimulation, /directly_dispatched_processor_input_per_cycle/
 assert.match(expandedSimulation, /processor_input_per_cycle_for_dispatch\(target_kind, commodity\)/);
 assert.match(supplyPolicy, /\("bakery", "flour"\)/);
 assert.match(supplyPolicy, /\("brewery", "barley"\)/);
-assert.match(supplyPolicy, /\("smokehouse", "food"\)/);
+assert.match(supplyPolicy, /\("smokehouse", "food" \| "meat" \| "fish" \| "milk"\)/);
 assert.match(supplyPolicy, /\("weaver", "wool"\)/);
 assert.match(supplyPolicy, /\("weaver", "flax"\)/);
 assert.match(expandedSimulation, /select_processor_input_dispatch_candidate/);

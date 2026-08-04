@@ -112,7 +112,7 @@ function makeState(buildings: BuildingState[]): GameState {
       timber: 20,
       stone: 12,
       firewood: 2,
-      food: 1,
+      bread: 1,
       gold: 30,
     },
     quarries: new Map(),
@@ -137,6 +137,7 @@ assert.ok(buyIronwork, 'buy_ironwork offer exists');
 assert.ok(sellStone, 'sell_stone offer exists');
 assert.ok(timberForStone, 'timber_for_stone offer exists');
 assert.ok(buyPork, 'buy_pork commodity exists');
+assert.equal(buyPork.resourceKind, 'curedMeat');
 
 const marketplaceMesh = createMarketplaceMesh();
 const marketProceedsChest = marketplaceMesh.getObjectByName('MarketProceedsChest');
@@ -227,7 +228,7 @@ const marketplace = makeBuilding({
   timber: 5,
   stone: 4,
   firewood: 3,
-  food: 2,
+  bread: 2,
   grain: 24,
   ironwork: 5,
 });
@@ -239,7 +240,7 @@ const connectedStore = makeBuilding({
   timber: 20,
   stone: 16,
   firewood: 12,
-  food: 8,
+  bread: 8,
   grain: 6,
   ironwork: 4,
 });
@@ -494,7 +495,7 @@ const stagingPanel = renderMarketplaceTradePanel(
   true,
   new Set(),
 );
-assert.match(stagingPanel, /Order 6 stone staged at this market/);
+assert.match(stagingPanel, /Order 6 stone staged at this Trading Post/);
 assert.match(stagingPanel, /visible source carts/);
 const inboundStagingPanel = renderMarketplaceTradePanel(
   marketplace,
@@ -509,7 +510,7 @@ const inboundStagingPanel = renderMarketplaceTradePanel(
 assert.match(inboundStagingPanel, /stone staging cart inbound/);
 assert.match(
   inboundStagingPanel,
-  /disabled aria-disabled="true"[\s\S]*Order 6 stone staged at this market/,
+  /disabled aria-disabled="true"[\s\S]*Order 6 stone staged at this Trading Post/,
   'the same commodity cannot order a second inbound staging cart',
 );
 assert.equal(marketplacePendingTradeOffer(2)?.id, 'sell_stone');
@@ -544,7 +545,7 @@ assert.match(
 );
 assert.match(
   pendingTradePanel,
-  /disabled aria-disabled="true"[\s\S]*This market is already staging a bulk order/,
+  /disabled aria-disabled="true"[\s\S]*This Trading Post is already staging a bulk order/,
   'a pending bulk order occupies the manual trade desk',
 );
 
@@ -567,7 +568,7 @@ const regionalCaravanTrade = marketplaceManualTradeStatus(
   true,
 );
 assert.equal(regionalCaravanTrade.ready, false);
-assert.equal(regionalCaravanTrade.label, 'Regional merchant on the road');
+assert.equal(regionalCaravanTrade.label, 'All regional routes occupied');
 assert.match(regionalCaravanTrade.reason ?? '', /import or export merchant/);
 const fireDisabledTrade = marketplaceManualTradeStatus(
   marketplace,
@@ -577,7 +578,7 @@ const fireDisabledTrade = marketplaceManualTradeStatus(
 );
 assert.equal(fireDisabledTrade.ready, false);
 assert.match(fireDisabledTrade.label, /fire-disabled/i);
-assert.match(fireDisabledTrade.reason ?? '', /Repair the fire-damaged marketplace/);
+assert.match(fireDisabledTrade.reason ?? '', /Repair the fire-damaged Trading Post/);
 assert.equal(marketplaceManualTradeCooldown(1), 8);
 assert.equal(marketplaceManualTradeCooldown(2), 4);
 assert.equal(
@@ -602,8 +603,8 @@ assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ironwork: BUILDING_STO
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, grain: BUILDING_STORAGE_CAPS.trading_post.grain - 24 }, buySeedGrain), true);
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, grain: BUILDING_STORAGE_CAPS.trading_post.grain - 23 }, buySeedGrain), false);
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, stone: 60 }, sellStone), true);
-assert.equal(canReceiveCommodityTrade({ ...marketplace, food: BUILDING_STORAGE_CAPS.trading_post.food - 8 }, buyPork!), true);
-assert.equal(canReceiveCommodityTrade({ ...marketplace, food: BUILDING_STORAGE_CAPS.trading_post.food - 7 }, buyPork!), false);
+assert.equal(canReceiveCommodityTrade({ ...marketplace, curedMeat: BUILDING_STORAGE_CAPS.trading_post.preservedFood - 8 }, buyPork!), true);
+assert.equal(canReceiveCommodityTrade({ ...marketplace, curedMeat: BUILDING_STORAGE_CAPS.trading_post.preservedFood - 7 }, buyPork!), false);
 
 const manyBuildings = Array.from({ length: 10_000 }, (_, index) => makeBuilding({
   id: `store-${index}`,
@@ -613,7 +614,7 @@ const manyBuildings = Array.from({ length: 10_000 }, (_, index) => makeBuilding(
   timber: 1,
   stone: 1,
   firewood: 1,
-  food: 1,
+  bread: 1,
 }));
 const largeState = makeState([marketplace, ...manyBuildings]);
 const started = performance.now();
@@ -765,7 +766,7 @@ assert.match(
 assert.match(
   marketplaceOrderSource,
   /None => start_external_market_import_trip\(/,
-  'manual provender and water orders must arrive at the marketplace on a map-edge cart',
+  'manual provender and water orders must arrive at the Trading Post on a map-edge cart',
 );
 assert.match(
   marketplaceOrderSource,
@@ -875,7 +876,7 @@ assert.doesNotMatch(marketplaceOrderSource, /credit_treasury_(?:food|water)/);
 assert.match(marketplaceOrderSource, /marketplace\.gold = \(marketplace\.gold - gold_cost\)/);
 assert.match(marketplaceTradeSource, /spend_marketplace_coffer_gold/);
 assert.match(marketplaceOrderSource, /building_disabled_by_fire\(ctx, building\.id\)/);
-assert.match(marketplaceInspectorSource, /Regional route/);
+assert.match(marketplaceInspectorSource, /Active regional routes/);
 assert.match(marketplaceInspectorSource, /physically outbound to the regional exchange/);
 assert.match(
   marketplaceTradeRendererSource,
@@ -883,16 +884,16 @@ assert.match(
 );
 assert.match(marketplaceInspectorSource, /getRoadConditionSpeedMultiplier/);
 assert.match(marketplaceInspectorSource, /marketFireDisabled/);
-assert.match(marketplaceInspectorSource, /Market coffer/);
+assert.match(marketplaceInspectorSource, /Trading Post coffer/);
 assert.match(marketplaceInspectorSource, /working gold/);
 assert.match(marketplaceInspectorSource, /inboundCashTrip/);
-assert.match(marketplaceTradeRendererSource, /current regional road conditions/);
+assert.match(marketplaceTradeRendererSource, /current road conditions/);
 assert.match(marketplaceTradeRendererSource, /visible source carts/);
 assert.match(marketplaceTradeRendererSource, /regional merchant departure queued/);
 assert.match(marketplaceTradeRendererSource, /final receipt follows the rate and surviving load/);
-assert.match(marketplaceTradeRendererSource, /Market cash reserve/);
+assert.match(marketplaceTradeRendererSource, /Trading Post cash reserve/);
 assert.match(marketplaceTradeRendererSource, /data-marketplace-gold-reserve-target/);
-assert.match(marketplaceTradeRendererSource, /physically held in this market coffer/);
+assert.match(marketplaceTradeRendererSource, /physically held in this Trading Post coffer/);
 assert.match(
   marketplaceTradeRendererSource,
   /Every paid import is carried from the map edge/,

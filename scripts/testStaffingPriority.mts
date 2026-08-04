@@ -121,7 +121,7 @@ assert.match(
 );
 assert.match(
   fires,
-  /fn destroy_target[\s\S]{0,2600}FIRE_TARGET_RESIDENCE =>[\s\S]{0,700}residence\.population = 0[\s\S]{0,450}reconcile_building_labor\(ctx, owner\)/,
+  /fn destroy_target[\s\S]{0,4200}FIRE_TARGET_RESIDENCE =>[\s\S]{0,1800}residence\.population = 0[\s\S]{0,700}reconcile_building_labor\(ctx, owner\)/,
   'fire destruction must release over-assigned labor in the same transaction',
 );
 assert.match(

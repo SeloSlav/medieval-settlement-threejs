@@ -49,6 +49,7 @@ import {
   buildingPreservedFoodStorageFactor,
   formatPreservedFoodLoss,
 } from '../../economy/foodPreservation.ts';
+import { preservedFoodStock } from '../../economy/foodInventory.ts';
 import type { BuildingState } from '../types.ts';
 import {
   marketplaceGoldReserveShortfall,
@@ -69,11 +70,11 @@ const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>([
   'pottery',
 ]);
 
-function formatLinkedHomeStatus(connectedHomes: number): string {
-  if (connectedHomes <= 0) {
-    return 'Caravans awaiting your orders';
+function formatRegionalDeskStatus(reachableHomes: number): string {
+  if (reachableHomes <= 0) {
+    return 'Regional trade desk ready';
   }
-  return `Trading with ${connectedHomes} road-linked home${connectedHomes === 1 ? '' : 's'}`;
+  return `Regional desk ready · ${reachableHomes} home${reachableHomes === 1 ? '' : 's'} reachable for paid emergency orders`;
 }
 
 export function renderMarketplaceInspector(
@@ -83,11 +84,11 @@ export function renderMarketplaceInspector(
   const { building } = target;
   const availability = context.getTradeAvailability?.(building);
   if (!availability) {
-    throw new Error('Marketplace inspector requires trade availability.');
+    throw new Error('Trading Post inspector requires trade availability.');
   }
   const marketState = context.getMarketState?.();
   if (!marketState) {
-    throw new Error('Marketplace inspector requires regional market state.');
+    throw new Error('Trading Post inspector requires regional market state.');
   }
 
   const label = context.worldQueries.getBuildingLabel(building.kind);
@@ -108,13 +109,14 @@ export function renderMarketplaceInspector(
   const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
   const potteryReservedForTrade = pendingOffer?.kind === 'goldSell'
     && pendingOffer.resource === 'pottery';
+  const traderCount = Math.max(0, Math.min(5, Math.floor(building.assignedLabor)));
   const activeMarketTrips = Array.from(context.gameState.deliveryTrips.values())
     .filter((trip) => trip.buildingId === building.id);
-  const regionalTradeTrip = activeMarketTrips.find(isRegionalMarketTrip) ?? null;
-  const regionalExportTrip = regionalTradeTrip && isRegionalExportTrip(regionalTradeTrip)
-    ? regionalTradeTrip
-    : null;
-  const activeMarketTrip = activeMarketTrips.find((trip) => trip !== regionalTradeTrip) ?? null;
+  const regionalTradeTrips = activeMarketTrips.filter(isRegionalMarketTrip);
+  const regionalTradeTrip = regionalTradeTrips[0] ?? null;
+  const regionalRoutesFull = traderCount <= 0 || regionalTradeTrips.length >= traderCount;
+  const regionalExportTrip = regionalTradeTrips.find(isRegionalExportTrip) ?? null;
+  const activeMarketTrip = activeMarketTrips.find((trip) => !isRegionalMarketTrip(trip)) ?? null;
   const activeMaterialTarget = activeMarketTrip?.destinationKind === 'building'
     && activeMarketTrip.targetBuildingId
     && (
@@ -204,24 +206,23 @@ export function renderMarketplaceInspector(
     hasRoadAccess,
     roadSpeedMultiplier,
     marketFireDisabled,
-    regionalTradeTrip != null,
+    regionalRoutesFull,
   );
-  const brokerCount = Math.max(0, Math.floor(building.assignedLabor));
   const routeCondition = roadSpeedMultiplier < 0.999
     ? `${Math.round(roadSpeedMultiplier * 100)}% caravan pace`
     : 'Firm roads';
   const regionalRoute = regionalTradeTrip
-    ? formatRegionalImportTrip(
+    ? `${formatRegionalImportTrip(
         regionalTradeTrip,
         regionalTradeTrip.residenceId
           ? context.gameState.residences.get(regionalTradeTrip.residenceId)?.parcelIndex
           : undefined,
-      )
+      )} · ${regionalTradeTrips.length} / ${traderCount} route slots active`
     : marketFireDisabled
     ? 'Paused · repair fire damage before regional trade resumes'
-    : brokerCount <= 0
-      ? `${routeCondition} · assign a broker to open regional trade`
-      : `${routeCondition} · next ${manualTrade.nextCooldownSeconds?.toFixed(1)}s settlement with ${brokerCount} ${brokerCount === 1 ? 'broker' : 'brokers'}`;
+    : traderCount <= 0
+      ? `${routeCondition} · assign a regional trader to open a route`
+      : `${routeCondition} · ${traderCount} concurrent route slot${traderCount === 1 ? '' : 's'} · next desk settlement in ${manualTrade.nextCooldownSeconds?.toFixed(1)}s`;
   const specialtyPlan = marketplaceSpecialtyExportPlan(
     building,
     marketState.specialtyPriceMult,
@@ -233,7 +234,7 @@ export function renderMarketplaceInspector(
     && hasRoadAccess
     && !marketFireDisabled
     && specialtyQueue.exportWorkers > 0
-    && regionalTradeTrip == null;
+    && !regionalRoutesFull;
   const specialtyExportHeld = specialtyQueue.units > 1e-6
     && !specialtyPlan.saleAllowed
     && !marketFireDisabled;
@@ -287,15 +288,15 @@ export function renderMarketplaceInspector(
       : regionalTradeTrip
         ? `${cargoKindLabel(regionalTradeTrip.cargoKind)} regional merchant · ${formatTripPhaseLabel(regionalTradeTrip.phase)}`
       : pendingOffer
-        ? `Staging bulk order · ${pendingStaging?.localStock.toFixed(0)} / ${pendingStaging?.required.toFixed(0)} at market`
+        ? `Staging bulk order · ${pendingStaging?.localStock.toFixed(0)} / ${pendingStaging?.required.toFixed(0)} at Trading Post`
       : specialtyExportActive
         ? physicalEconomy
           ? `Preparing next specialty merchant load at ${Math.round(specialtyPlan.marketRate * 100)}%`
-          : `Brokering specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
+          : `Trading specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
         : specialtyExportHeld
           ? `Holding specialty exports - regional rate ${Math.round(specialtyPlan.marketRate * 100)}%`
           : manualTrade.ready
-            ? formatLinkedHomeStatus(connectedHomes)
+            ? formatRegionalDeskStatus(connectedHomes)
             : manualTrade.label,
     statusState: !marketFireDisabled
       && (
@@ -312,23 +313,23 @@ export function renderMarketplaceInspector(
       <li><span>Cured-store aging</span><span>${Math.round(
         (1 - buildingPreservedFoodStorageFactor(building.kind)) * 100,
       )}% slower than ordinary dry storage · ${formatPreservedFoodLoss(
-        building.preservedFood
+        preservedFoodStock(building)
         * environment.preservedFoodSpoilageFractionPerDay
         * buildingPreservedFoodStorageFactor(building.kind),
       )}</span></li>
       <li><span>Purpose</span><span>Dedicated Trading Post — exchange gold and goods with neighboring regions</span></li>
-      <li><span>Linked homes</span><span>${connectedHomes}</span></li>
-      <li><span>Trade routes</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
+      <li><span>Regional traders</span><span>${Math.floor(building.assignedLabor)} / 5 assigned</span></li>
+      <li><span>Concurrent routes</span><span>${formatMarketplaceCaravanCrew(building.assignedLabor)}</span></li>
       <li><span>Bulk trade desk</span><span>${manualTrade.label}</span></li>
       <li><span>Active bulk order</span><span>${pendingOrderLabel}</span></li>
       <li><span>Production input cart</span><span>${workshopInputCart}</span></li>
-      <li><span>Regional route</span><span>${regionalRoute}</span></li>
+      <li><span>Active regional routes</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueueLabel}</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
-      <li><span>Market coffer</span><span>${proceedsCollection}</span></li>
+      <li><span>Trading Post coffer</span><span>${proceedsCollection}</span></li>
       <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this Trading Post by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
-      <li><span>Backyard sales</span><span>Road-linked homes trade here; activity tolls enter this market lockbox</span></li>
+      <li><span>Household stalls</span><span>Handled only by granary and storehouse workers at a Marketplace</span></li>
       <li><span>Emergency branch</span><span>${householdBranchLabel}</span></li>
       <li><span>Paid-cart queue</span><span>${householdBranchBottleneck}</span></li>
       <li><span>Household orders</span><span>At 18h runway, homes buy a full food-first lot with savings; busy, resting, or blocked carts wait without charging</span></li>
@@ -389,10 +390,10 @@ function formatRegionalImportTrip(
     if (household) {
       return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading at ${household}${clearsIn}`;
     }
-    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading into physical market storage${clearsIn}`;
+    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading into Trading Post storage${clearsIn}`;
   }
   if (household) {
-    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound through this market to ${household}${clearsIn}`;
+    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound through this Trading Post to ${household}${clearsIn}`;
   }
   return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound from the Adriatic-facing map edge${clearsIn}`;
 }
@@ -441,13 +442,13 @@ function formatMarketplaceProceedsCollection(options: {
   }
   if (shortfall > 1e-6) {
     if (options.market.assignedLabor <= 0) {
-      return `${lockbox} - assign a broker to request ${shortfall.toFixed(1)} reserve gold`;
+      return `${lockbox} - assign a regional trader to request ${shortfall.toFixed(1)} reserve gold`;
     }
     if (!options.treasurySeat) {
       return `${lockbox} - reserve awaits a founding or Town Hall treasury chest`;
     }
     if (!options.treasuryRouteAvailable) {
-      return `${lockbox} - connect this market to ${options.treasurySeatLabel}`;
+      return `${lockbox} - connect this Trading Post to ${options.treasurySeatLabel}`;
     }
     return `${held.toFixed(1)} / ${target} working gold - ${shortfall.toFixed(1)} awaits a free treasury handcart`;
   }
@@ -458,21 +459,21 @@ function formatMarketplaceProceedsCollection(options: {
   }
   const sweepable = `${surplus.toFixed(1)} surplus of ${held.toFixed(1)} coffer gold`;
   if (options.market.assignedLabor <= 0) {
-    return `${sweepable} - assign a broker to sweep it`;
+    return `${sweepable} - assign a regional trader to sweep it`;
   }
   if (options.market.actionCooldown > 1e-6 && options.market.assignedLabor <= 1) {
-    return `${sweepable} - sole broker at the trade desk for ${options.market.actionCooldown.toFixed(1)}s`;
+    return `${sweepable} - sole regional trader at the trade desk for ${options.market.actionCooldown.toFixed(1)}s`;
   }
   if (options.activeTrip) {
-    return `${sweepable} - market cart busy carrying ${options.activeTrip.cargoKind}`;
+    return `${sweepable} - Trading Post cart busy carrying ${options.activeTrip.cargoKind}`;
   }
   if (!options.treasurySeat) {
     return `${sweepable} - awaiting a founding or Town Hall treasury chest`;
   }
   if (!options.treasuryRouteAvailable) {
-    return `${sweepable} - connect this market to ${options.treasurySeatLabel}`;
+    return `${sweepable} - connect this Trading Post to ${options.treasurySeatLabel}`;
   }
-  return `${sweepable} - next broker handcart carries up to ${STOREHOUSE_HAUL_PER_WORKER.toFixed(0)} gold`;
+  return `${sweepable} - next regional-trader handcart carries up to ${STOREHOUSE_HAUL_PER_WORKER.toFixed(0)} gold`;
 }
 
 function formatSpecialtyExportDesk(
@@ -485,26 +486,26 @@ function formatSpecialtyExportDesk(
   regionalExportTrip: DeliveryTripState | null,
   physicalEconomy: boolean,
 ): string {
-  if (fireDisabled) return 'Paused - repair fire damage before brokers resume';
+  if (fireDisabled) return 'Paused - repair fire damage before regional traders resume';
   if (regionalExportTrip) {
-    return `Regional merchant ${formatTripPhaseLabel(regionalExportTrip.phase).toLowerCase()} - next specialty load waits for the route`;
+    return `Regional merchant ${formatTripPhaseLabel(regionalExportTrip.phase).toLowerCase()} - another trader may open the next free route slot`;
   }
   if (queue.units <= 1e-6) return 'Ready - awaiting ale, honey, wine, or cloth hauls';
   if (!plan.saleAllowed) {
     return `Holding - ${Math.round(plan.marketRate * 100)}% regional rate below ${Math.round(plan.policy.minRate * 100)}% floor`;
   }
-  if (!hasRoadAccess) return 'Stalled - connect this market to a road';
-  if (assignedLabor <= 0) return 'Stalled - assign at least one broker';
+  if (!hasRoadAccess) return 'Stalled - connect this Trading Post to a road';
+  if (assignedLabor <= 0) return 'Stalled - assign at least one regional trader';
   if (queue.exportWorkers <= 0) {
     return actionCooldown > 1e-6
-      ? 'Paused - sole broker is settling a manual trade'
-      : 'Stalled - no broker capacity';
+      ? 'Paused - sole regional trader is settling a manual trade'
+      : 'Stalled - no regional-trader capacity';
   }
   if (physicalEconomy) {
-    return `${queue.exportWorkers} broker${queue.exportWorkers === 1 ? '' : 's'} ready - one live merchant load at a time; route length controls throughput`;
+    return `${queue.exportWorkers} regional trader${queue.exportWorkers === 1 ? '' : 's'} ready - one live merchant load per open route slot; route length controls throughput`;
   }
   const clearTime = queue.clearSeconds == null
     ? ''
     : ` - clears in about ${queue.clearSeconds.toFixed(1)}s`;
-  return `${queue.exportWorkers} broker${queue.exportWorkers === 1 ? '' : 's'} - ${queue.unitsPerSecond.toFixed(2)} units/s at ${Math.round(plan.marketRate * 100)}%${clearTime}`;
+  return `${queue.exportWorkers} regional trader${queue.exportWorkers === 1 ? '' : 's'} - ${queue.unitsPerSecond.toFixed(2)} units/s at ${Math.round(plan.marketRate * 100)}%${clearTime}`;
 }

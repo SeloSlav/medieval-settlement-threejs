@@ -90,8 +90,11 @@ export function createBuildingMesh(kind: BuildingKind, chapelTier: 1 | 2 | 3 = 3
       return createChapelMesh(chapelTier);
     case 'marketplace':
       return createMarketplaceMesh();
-    case 'trading_post':
-      return createVillageStorehouseMesh();
+    case 'trading_post': {
+      const tradingPost = createVillageStorehouseMesh();
+      tradingPost.name = 'Trading post';
+      return tradingPost;
+    }
     case 'town_hall': return createTownHallMesh();
     case 'village_storehouse': return createVillageStorehouseMesh();
     case 'watchtower': return createWatchtowerMesh();

@@ -23,7 +23,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 27] = [
+const RECOVERY_ORDER: [CommodityKind; 42] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -32,6 +32,21 @@ const RECOVERY_ORDER: [CommodityKind; 27] = [
     CommodityKind::Malt,
     CommodityKind::Flour,
     CommodityKind::PreservedFood,
+    CommodityKind::Bread,
+    CommodityKind::Meat,
+    CommodityKind::Fish,
+    CommodityKind::Berries,
+    CommodityKind::Mushrooms,
+    CommodityKind::Milk,
+    CommodityKind::Apples,
+    CommodityKind::Cherries,
+    CommodityKind::Vegetables,
+    CommodityKind::Eggs,
+    CommodityKind::Grapes,
+    CommodityKind::Porridge,
+    CommodityKind::CuredMeat,
+    CommodityKind::SmokedFish,
+    CommodityKind::Cheese,
     CommodityKind::Ale,
     CommodityKind::Honey,
     CommodityKind::Wine,
@@ -82,6 +97,21 @@ pub struct ReclamationStock {
     pub manure: f64,
     pub remedies: f64,
     pub roof_tiles: f64,
+    pub bread: f64,
+    pub meat: f64,
+    pub fish: f64,
+    pub berries: f64,
+    pub mushrooms: f64,
+    pub milk: f64,
+    pub apples: f64,
+    pub cherries: f64,
+    pub vegetables: f64,
+    pub eggs: f64,
+    pub grapes: f64,
+    pub porridge: f64,
+    pub cured_meat: f64,
+    pub smoked_fish: f64,
+    pub cheese: f64,
 }
 
 impl ReclamationStock {
@@ -196,6 +226,21 @@ impl ReclamationStock {
                 roof_tiles: amount,
                 ..Self::default()
             },
+            CommodityKind::Bread => Self { bread: amount, ..Self::default() },
+            CommodityKind::Meat => Self { meat: amount, ..Self::default() },
+            CommodityKind::Fish => Self { fish: amount, ..Self::default() },
+            CommodityKind::Berries => Self { berries: amount, ..Self::default() },
+            CommodityKind::Mushrooms => Self { mushrooms: amount, ..Self::default() },
+            CommodityKind::Milk => Self { milk: amount, ..Self::default() },
+            CommodityKind::Apples => Self { apples: amount, ..Self::default() },
+            CommodityKind::Cherries => Self { cherries: amount, ..Self::default() },
+            CommodityKind::Vegetables => Self { vegetables: amount, ..Self::default() },
+            CommodityKind::Eggs => Self { eggs: amount, ..Self::default() },
+            CommodityKind::Grapes => Self { grapes: amount, ..Self::default() },
+            CommodityKind::Porridge => Self { porridge: amount, ..Self::default() },
+            CommodityKind::CuredMeat => Self { cured_meat: amount, ..Self::default() },
+            CommodityKind::SmokedFish => Self { smoked_fish: amount, ..Self::default() },
+            CommodityKind::Cheese => Self { cheese: amount, ..Self::default() },
         }
     }
 
@@ -234,6 +279,21 @@ impl ReclamationStock {
             manure: 0.0,
             remedies: 0.0,
             roof_tiles: resources.roof_tiles.max(0.0),
+            bread: resources.bread.max(0.0),
+            meat: resources.meat.max(0.0),
+            fish: resources.fish.max(0.0),
+            berries: resources.berries.max(0.0),
+            mushrooms: resources.mushrooms.max(0.0),
+            milk: resources.milk.max(0.0),
+            apples: resources.apples.max(0.0),
+            cherries: resources.cherries.max(0.0),
+            vegetables: resources.vegetables.max(0.0),
+            eggs: resources.eggs.max(0.0),
+            grapes: resources.grapes.max(0.0),
+            porridge: resources.porridge.max(0.0),
+            cured_meat: resources.cured_meat.max(0.0),
+            smoked_fish: resources.smoked_fish.max(0.0),
+            cheese: resources.cheese.max(0.0),
         }
     }
 
@@ -266,6 +326,21 @@ impl ReclamationStock {
             CommodityKind::Manure => self.manure,
             CommodityKind::Remedies => self.remedies,
             CommodityKind::RoofTiles => self.roof_tiles,
+            CommodityKind::Bread => self.bread,
+            CommodityKind::Meat => self.meat,
+            CommodityKind::Fish => self.fish,
+            CommodityKind::Berries => self.berries,
+            CommodityKind::Mushrooms => self.mushrooms,
+            CommodityKind::Milk => self.milk,
+            CommodityKind::Apples => self.apples,
+            CommodityKind::Cherries => self.cherries,
+            CommodityKind::Vegetables => self.vegetables,
+            CommodityKind::Eggs => self.eggs,
+            CommodityKind::Grapes => self.grapes,
+            CommodityKind::Porridge => self.porridge,
+            CommodityKind::CuredMeat => self.cured_meat,
+            CommodityKind::SmokedFish => self.smoked_fish,
+            CommodityKind::Cheese => self.cheese,
         }
     }
 
@@ -297,6 +372,21 @@ impl ReclamationStock {
         building.manure += self.manure;
         building.remedies += self.remedies;
         building.roof_tiles += self.roof_tiles;
+        building.bread += self.bread;
+        building.meat += self.meat;
+        building.fish += self.fish;
+        building.berries += self.berries;
+        building.mushrooms += self.mushrooms;
+        building.milk += self.milk;
+        building.apples += self.apples;
+        building.cherries += self.cherries;
+        building.vegetables += self.vegetables;
+        building.eggs += self.eggs;
+        building.grapes += self.grapes;
+        building.porridge += self.porridge;
+        building.cured_meat += self.cured_meat;
+        building.smoked_fish += self.smoked_fish;
+        building.cheese += self.cheese;
     }
 }
 
@@ -326,6 +416,21 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.charcoal = 0.0;
     resources.pottery = 0.0;
     resources.roof_tiles = 0.0;
+    resources.bread = 0.0;
+    resources.meat = 0.0;
+    resources.fish = 0.0;
+    resources.berries = 0.0;
+    resources.mushrooms = 0.0;
+    resources.milk = 0.0;
+    resources.apples = 0.0;
+    resources.cherries = 0.0;
+    resources.vegetables = 0.0;
+    resources.eggs = 0.0;
+    resources.grapes = 0.0;
+    resources.porridge = 0.0;
+    resources.cured_meat = 0.0;
+    resources.smoked_fish = 0.0;
+    resources.cheese = 0.0;
 }
 
 fn recovery_pile_position_beside_building(
@@ -532,6 +637,21 @@ pub fn insert_reclamation_pile(
         linked_worksite_id: 0,
         commute_efficiency: 1.0,
         chapel_tier: 0,
+        bread: stock.bread.max(0.0),
+        meat: stock.meat.max(0.0),
+        fish: stock.fish.max(0.0),
+        berries: stock.berries.max(0.0),
+        mushrooms: stock.mushrooms.max(0.0),
+        milk: stock.milk.max(0.0),
+        apples: stock.apples.max(0.0),
+        cherries: stock.cherries.max(0.0),
+        vegetables: stock.vegetables.max(0.0),
+        eggs: stock.eggs.max(0.0),
+        grapes: stock.grapes.max(0.0),
+        porridge: stock.porridge.max(0.0),
+        cured_meat: stock.cured_meat.max(0.0),
+        smoked_fish: stock.smoked_fish.max(0.0),
+        cheese: stock.cheese.max(0.0),
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
@@ -867,6 +987,21 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             _ => Some(3),
         },
         CommodityKind::Food
+        | CommodityKind::Bread
+        | CommodityKind::Meat
+        | CommodityKind::Fish
+        | CommodityKind::Berries
+        | CommodityKind::Mushrooms
+        | CommodityKind::Milk
+        | CommodityKind::Apples
+        | CommodityKind::Cherries
+        | CommodityKind::Vegetables
+        | CommodityKind::Eggs
+        | CommodityKind::Grapes
+        | CommodityKind::Porridge
+        | CommodityKind::CuredMeat
+        | CommodityKind::SmokedFish
+        | CommodityKind::Cheese
         | CommodityKind::Grain
         | CommodityKind::Barley
         | CommodityKind::Flour

@@ -2001,6 +2001,21 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         charcoal: stores.charcoal,
         pottery: stores.pottery,
         remedies: stores.remedies,
+        bread: stores.bread,
+        meat: stores.meat,
+        fish: stores.fish,
+        berries: stores.berries,
+        mushrooms: stores.mushrooms,
+        milk: stores.milk,
+        apples: stores.apples,
+        cherries: stores.cherries,
+        vegetables: stores.vegetables,
+        eggs: stores.eggs,
+        grapes: stores.grapes,
+        porridge: stores.porridge,
+        cured_meat: stores.cured_meat,
+        smoked_fish: stores.smoked_fish,
+        cheese: stores.cheese,
         ..ReclamationStock::default()
     }
 }

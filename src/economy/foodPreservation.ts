@@ -18,8 +18,13 @@ import {
   PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
   PRESERVED_FOOD_STORAGE_TREASURY_FACTOR,
 } from '../generated/gameBalance.ts';
-import { getNeedStock } from '../residences/residenceNeedState.ts';
 import type { BuildingKind, GameState } from '../resources/types.ts';
+import {
+  freshFoodStock,
+  isFreshFoodCargo,
+  isPreservedFoodCargo,
+  preservedFoodStock,
+} from './foodInventory.ts';
 import { granaryFreshFoodTarget } from './granaryPolicy.ts';
 
 export type FreshFoodLossSite = {
@@ -132,7 +137,7 @@ export function analyzeFreshFoodPreservation(
     : PRESERVED_FOOD_SPOILAGE_PER_DAY;
   const treasuryStock = state.physicalFoundingSiteEnabled === true
     ? 0
-    : finiteStock(state.stockpile.food);
+    : freshFoodStock(state.stockpile);
   let totalStock = treasuryStock;
   let weightedStock = totalStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR;
   let usableStock = treasuryStock;
@@ -146,7 +151,7 @@ export function analyzeFreshFoodPreservation(
   let largestLossSite: FreshFoodLossSite | null = null;
   const treasuryPreservedStock = state.physicalFoundingSiteEnabled === true
     ? 0
-    : finiteStock(state.stockpile.preservedFood);
+    : preservedFoodStock(state.stockpile);
   let preservedTotalStock = treasuryPreservedStock;
   let preservedWeightedStock =
     treasuryPreservedStock * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR;
@@ -190,8 +195,8 @@ export function analyzeFreshFoodPreservation(
   });
 
   for (const building of state.buildings.values()) {
-    const stock = finiteStock(building.food);
-    const preservedStock = finiteStock(building.preservedFood);
+    const stock = freshFoodStock(building);
+    const preservedStock = preservedFoodStock(building);
     const fireDisabled = options.fireDisabledBuildingIds?.has(building.id) ?? false;
     if (building.kind === 'granary' && building.constructionComplete !== false) {
       granaryNetwork.completedGranaries += 1;
@@ -264,7 +269,7 @@ export function analyzeFreshFoodPreservation(
   for (const trip of state.deliveryTrips.values()) {
     const stock = finiteStock(trip.amount);
     if (stock <= 0) continue;
-    if (trip.cargoKind === 'preservedFood') {
+    if (isPreservedFoodCargo(trip.cargoKind)) {
       preservedTotalStock += stock;
       preservedWeightedStock += stock * PRESERVED_FOOD_STORAGE_CART_FACTOR;
       preservedTransitStock += stock;
@@ -280,7 +285,7 @@ export function analyzeFreshFoodPreservation(
       });
       continue;
     }
-    if (trip.cargoKind !== 'food') continue;
+    if (!isFreshFoodCargo(trip.cargoKind)) continue;
     totalStock += stock;
     weightedStock += stock * FRESH_FOOD_STORAGE_CART_FACTOR;
     transitStock += stock;
@@ -296,10 +301,8 @@ export function analyzeFreshFoodPreservation(
   }
 
   for (const residence of state.residences.values()) {
-    const stock = finiteStock(getNeedStock(residence.needs, 'food'));
-    const preservedStock = finiteStock(
-      getNeedStock(residence.needs, 'preservedFood'),
-    );
+    const stock = freshFoodStock(residence);
+    const preservedStock = preservedFoodStock(residence);
     const fireDisabled = options.fireDisabledResidenceIds?.has(residence.id) ?? false;
     if (preservedStock > 0) {
       preservedTotalStock += preservedStock;

@@ -2,8 +2,9 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{RESIDENCE_CLOTH_CAPACITY, RESIDENCE_POTTERY_CAPACITY};
 use crate::db::*;
+use crate::economy::{residence_edible_food_stock, residence_preserved_food_stock};
 use crate::simulation::residence_needs::kinds::ResidenceNeedKind;
-use crate::tables::ResidenceNeed;
+use crate::tables::{Residence, ResidenceNeed};
 
 #[derive(Clone, Copy, Debug)]
 pub struct NeedState {
@@ -99,6 +100,37 @@ pub fn persist_needs(ctx: &ReducerContext, residence_id: u64, needs: &[NeedState
     for need in needs {
         persist_need(ctx, residence_id, need);
     }
+}
+
+/// Move old save pantry values out of need rows exactly once, then make the
+/// Food and PreservedFood rows derived read models over physical commodities.
+pub fn migrate_and_sync_food_inventory(
+    residence: &mut Residence,
+    needs: &mut [NeedState],
+) {
+    if !residence.food_inventory_migrated {
+        residence.food += need_stock(needs, ResidenceNeedKind::Food).max(0.0);
+        residence.preserved_food +=
+            need_stock(needs, ResidenceNeedKind::PreservedFood).max(0.0);
+        residence.food_inventory_migrated = true;
+    }
+    if let Some(food_need) = find_need_mut(needs, ResidenceNeedKind::Food) {
+        food_need.stock = residence_edible_food_stock(residence);
+    }
+    if let Some(preserved_need) = find_need_mut(needs, ResidenceNeedKind::PreservedFood) {
+        preserved_need.stock = residence_preserved_food_stock(residence);
+    }
+}
+
+pub fn sync_food_need_rows(ctx: &ReducerContext, residence: &Residence) {
+    let mut needs = load_needs(ctx, residence.id);
+    if let Some(food_need) = find_need_mut(&mut needs, ResidenceNeedKind::Food) {
+        food_need.stock = residence_edible_food_stock(residence);
+    }
+    if let Some(preserved_need) = find_need_mut(&mut needs, ResidenceNeedKind::PreservedFood) {
+        preserved_need.stock = residence_preserved_food_stock(residence);
+    }
+    persist_needs(ctx, residence.id, &needs);
 }
 
 pub fn init_needs(ctx: &ReducerContext, residence_id: u64) {

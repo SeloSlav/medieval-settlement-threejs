@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import {
@@ -11,6 +12,10 @@ export const MONASTERY_ALE_VISUAL_SEGMENTS = 3;
 export const MONASTERY_HONEY_VISUAL_SEGMENTS = 3;
 export const MONASTERY_WINE_VISUAL_SEGMENTS = 3;
 
+function monasteryMealStock(building: BuildingState): number {
+  return Math.max(0, edibleFoodStock(building) - Math.max(0, building.honey));
+}
+
 export function monasteryStockpileVisualSignature(
   building: BuildingState,
 ): string {
@@ -19,7 +24,7 @@ export function monasteryStockpileVisualSignature(
   }
   return `:monastery-pantry:${
     stockpileVisualLevel(
-      building.food,
+      monasteryMealStock(building),
       BUILDING_STORAGE_CAPS.monastery.food,
       MONASTERY_FOOD_VISUAL_SEGMENTS,
     )
@@ -53,7 +58,7 @@ export function syncMonasteryStockpileVisuals(
     marker,
     'MonasteryFoodStockpile',
     'MonasteryFoodSegment',
-    building.food,
+    monasteryMealStock(building),
     BUILDING_STORAGE_CAPS.monastery.food,
   );
   syncNamedStockpile(

@@ -39,9 +39,9 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       water: row.water,
       gold: row.gold ?? 0,
       game: 0,
-      berries: 0,
-      mushrooms: 0,
-      fish: 0,
+      berries: row.berries ?? 0,
+      mushrooms: row.mushrooms ?? 0,
+      fish: row.fish ?? 0,
       food: row.food ?? 0,
       grain: row.grain ?? 0,
       barley: row.barley ?? 0,
@@ -64,6 +64,18 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       roofTiles: Number(
         (row as typeof row & Partial<{ roofTiles: number }>).roofTiles ?? 0,
       ),
+      bread: row.bread ?? 0,
+      meat: row.meat ?? 0,
+      milk: row.milk ?? 0,
+      apples: row.apples ?? 0,
+      cherries: row.cherries ?? 0,
+      vegetables: row.vegetables ?? 0,
+      eggs: row.eggs ?? 0,
+      grapes: row.grapes ?? 0,
+      porridge: row.porridge ?? 0,
+      curedMeat: row.curedMeat ?? 0,
+      smokedFish: row.smokedFish ?? 0,
+      cheese: row.cheese ?? 0,
     };
     state.physicalFoundingSiteEnabled = row.physicalFoundingSiteEnabled ?? false;
     state.legacyUnhousedPopulationBonusEnabled =

@@ -3,8 +3,9 @@
 use spacetimedb::ReducerContext;
 
 use crate::economy::{
-    withdraw_building, withdraw_building_commodity, withdraw_building_food,
-    withdraw_building_water, CommodityKind,
+    building_commodity_stock, building_edible_food_stock, building_preserved_food_stock,
+    residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building,
+    withdraw_building_commodity, withdraw_building_water, CommodityKind,
 };
 use crate::simulation::residence_needs::{firewood, food, provisions, water};
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
@@ -39,6 +40,21 @@ pub struct DeliveryCargoTotals {
     pub manure: f64,
     pub remedies: f64,
     pub roof_tiles: f64,
+    pub bread: f64,
+    pub meat: f64,
+    pub fish: f64,
+    pub berries: f64,
+    pub mushrooms: f64,
+    pub milk: f64,
+    pub apples: f64,
+    pub cherries: f64,
+    pub vegetables: f64,
+    pub eggs: f64,
+    pub grapes: f64,
+    pub porridge: f64,
+    pub cured_meat: f64,
+    pub smoked_fish: f64,
+    pub cheese: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -71,6 +87,21 @@ impl DeliveryCargoTotals {
             CommodityKind::Manure => self.manure += amount,
             CommodityKind::Remedies => self.remedies += amount,
             CommodityKind::RoofTiles => self.roof_tiles += amount,
+            CommodityKind::Bread => self.bread += amount,
+            CommodityKind::Meat => self.meat += amount,
+            CommodityKind::Fish => self.fish += amount,
+            CommodityKind::Berries => self.berries += amount,
+            CommodityKind::Mushrooms => self.mushrooms += amount,
+            CommodityKind::Milk => self.milk += amount,
+            CommodityKind::Apples => self.apples += amount,
+            CommodityKind::Cherries => self.cherries += amount,
+            CommodityKind::Vegetables => self.vegetables += amount,
+            CommodityKind::Eggs => self.eggs += amount,
+            CommodityKind::Grapes => self.grapes += amount,
+            CommodityKind::Porridge => self.porridge += amount,
+            CommodityKind::CuredMeat => self.cured_meat += amount,
+            CommodityKind::SmokedFish => self.smoked_fish += amount,
+            CommodityKind::Cheese => self.cheese += amount,
         }
     }
 }
@@ -79,9 +110,9 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
     match kind {
         ResidenceNeedKind::Firewood => building.firewood,
         ResidenceNeedKind::Water => building.water,
-        ResidenceNeedKind::Food => building.food,
+        ResidenceNeedKind::Food => building_edible_food_stock(building),
         ResidenceNeedKind::Ale => building.ale,
-        ResidenceNeedKind::PreservedFood => building.preserved_food,
+        ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Pottery => building.pottery,
     }
@@ -103,15 +134,13 @@ pub fn withdraw_delivery_cargo(
             *building = updated;
             withdrawn
         }
-        ResidenceNeedKind::Food => {
-            let (withdrawn, updated) = withdraw_building_food(building, amount);
-            *building = updated;
-            withdrawn
-        }
+        ResidenceNeedKind::Food => selected_food_delivery_commodity(building, kind)
+            .map(|commodity| withdraw_building_commodity(building, commodity, amount))
+            .unwrap_or(0.0),
         ResidenceNeedKind::Ale => withdraw_building_commodity(building, CommodityKind::Ale, amount),
-        ResidenceNeedKind::PreservedFood => {
-            withdraw_building_commodity(building, CommodityKind::PreservedFood, amount)
-        }
+        ResidenceNeedKind::PreservedFood => selected_food_delivery_commodity(building, kind)
+            .map(|commodity| withdraw_building_commodity(building, commodity, amount))
+            .unwrap_or(0.0),
         ResidenceNeedKind::Cloth => {
             withdraw_building_commodity(building, CommodityKind::Cloth, amount)
         }
@@ -119,6 +148,53 @@ pub fn withdraw_delivery_cargo(
             withdraw_building_commodity(building, CommodityKind::Pottery, amount)
         }
     }
+}
+
+/// Select one physical provision for a cart. Fast-spoiling foods leave first;
+/// durable and legacy mixed stores remain the fallback. A cart carries one
+/// traceable commodity even though every edible type satisfies the Food need.
+pub fn selected_food_delivery_commodity(
+    building: &Building,
+    need_kind: ResidenceNeedKind,
+) -> Option<CommodityKind> {
+    const FRESH_ORDER: [CommodityKind; 14] = [
+        CommodityKind::Meat,
+        CommodityKind::Fish,
+        CommodityKind::Milk,
+        CommodityKind::Mushrooms,
+        CommodityKind::Berries,
+        CommodityKind::Grapes,
+        CommodityKind::Cherries,
+        CommodityKind::Apples,
+        CommodityKind::Vegetables,
+        CommodityKind::Eggs,
+        CommodityKind::Porridge,
+        CommodityKind::Bread,
+        CommodityKind::Food,
+        CommodityKind::Honey,
+    ];
+    const PRESERVED_ORDER: [CommodityKind; 4] = [
+        CommodityKind::Cheese,
+        CommodityKind::SmokedFish,
+        CommodityKind::CuredMeat,
+        CommodityKind::PreservedFood,
+    ];
+
+    let candidates: &[CommodityKind] = match need_kind {
+        ResidenceNeedKind::Food => &[
+            FRESH_ORDER[0], FRESH_ORDER[1], FRESH_ORDER[2], FRESH_ORDER[3],
+            FRESH_ORDER[4], FRESH_ORDER[5], FRESH_ORDER[6], FRESH_ORDER[7],
+            FRESH_ORDER[8], FRESH_ORDER[9], FRESH_ORDER[10], FRESH_ORDER[11],
+            FRESH_ORDER[12], PRESERVED_ORDER[0], PRESERVED_ORDER[1],
+            PRESERVED_ORDER[2], PRESERVED_ORDER[3], FRESH_ORDER[13],
+        ],
+        ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER,
+        _ => return None,
+    };
+    candidates
+        .iter()
+        .copied()
+        .find(|commodity| building_commodity_stock(building, *commodity) > 1e-6)
 }
 
 pub fn delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> f64 {
@@ -154,23 +230,45 @@ pub fn residence_delivery_room(
     delivery_stock_room(kind, stock)
 }
 
+pub fn residence_commodity_delivery_room(
+    residence: &crate::tables::Residence,
+    commodity: CommodityKind,
+) -> f64 {
+    if commodity.is_preserved_food() {
+        return (provisions::stock_capacity(ResidenceNeedKind::PreservedFood)
+            - residence_preserved_food_stock(residence))
+        .max(0.0);
+    }
+    if commodity.is_fresh_food() || commodity == CommodityKind::Honey {
+        return (food::stock_capacity() - residence_fresh_food_stock(residence)).max(0.0);
+    }
+    0.0
+}
+
 pub fn pick_delivery_target(
     ctx: &ReducerContext,
     available: f64,
     batch: f64,
     targets: &[crate::tables::Residence],
     kind: ResidenceNeedKind,
+    commodity: Option<CommodityKind>,
     target_is_operational: impl Fn(u64) -> bool,
 ) -> Option<(u64, f64, f64, f64)> {
     for residence in targets {
         if !target_is_operational(residence.id) {
             continue;
         }
-        let stock = need_stock(&load_needs(ctx, residence.id), kind);
-        if !has_delivery_stock_room(kind, stock) {
-            continue;
-        }
-        let room = delivery_stock_room(kind, stock);
+        let room = commodity.map_or_else(
+            || {
+                let stock = need_stock(&load_needs(ctx, residence.id), kind);
+                if has_delivery_stock_room(kind, stock) {
+                    delivery_stock_room(kind, stock)
+                } else {
+                    0.0
+                }
+            },
+            |physical| residence_commodity_delivery_room(residence, physical),
+        );
         if room <= 1e-6 {
             continue;
         }

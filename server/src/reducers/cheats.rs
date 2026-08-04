@@ -36,6 +36,21 @@ fn physical_resource_stock(ctx: &ReducerContext, owner: spacetimedb::Identity) -
         stock.wool += building.wool.max(0.0);
         stock.flax += building.flax.max(0.0);
         stock.cloth += building.cloth.max(0.0);
+        stock.bread += building.bread.max(0.0);
+        stock.meat += building.meat.max(0.0);
+        stock.fish += building.fish.max(0.0);
+        stock.berries += building.berries.max(0.0);
+        stock.mushrooms += building.mushrooms.max(0.0);
+        stock.milk += building.milk.max(0.0);
+        stock.apples += building.apples.max(0.0);
+        stock.cherries += building.cherries.max(0.0);
+        stock.vegetables += building.vegetables.max(0.0);
+        stock.eggs += building.eggs.max(0.0);
+        stock.grapes += building.grapes.max(0.0);
+        stock.porridge += building.porridge.max(0.0);
+        stock.cured_meat += building.cured_meat.max(0.0);
+        stock.smoked_fish += building.smoked_fish.max(0.0);
+        stock.cheese += building.cheese.max(0.0);
         if matches!(
             building.kind.as_str(),
             "founders_camp" | "salvage_pile" | "town_hall"
@@ -94,6 +109,21 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
     resources.wool = top_up_ledger(resources.wool, physical.map_or(0.0, |s| s.wool), amount);
     resources.flax = top_up_ledger(resources.flax, physical.map_or(0.0, |s| s.flax), amount);
     resources.cloth = top_up_ledger(resources.cloth, physical.map_or(0.0, |s| s.cloth), amount);
+    resources.bread = top_up_ledger(resources.bread, physical.map_or(0.0, |s| s.bread), amount);
+    resources.meat = top_up_ledger(resources.meat, physical.map_or(0.0, |s| s.meat), amount);
+    resources.fish = top_up_ledger(resources.fish, physical.map_or(0.0, |s| s.fish), amount);
+    resources.berries = top_up_ledger(resources.berries, physical.map_or(0.0, |s| s.berries), amount);
+    resources.mushrooms = top_up_ledger(resources.mushrooms, physical.map_or(0.0, |s| s.mushrooms), amount);
+    resources.milk = top_up_ledger(resources.milk, physical.map_or(0.0, |s| s.milk), amount);
+    resources.apples = top_up_ledger(resources.apples, physical.map_or(0.0, |s| s.apples), amount);
+    resources.cherries = top_up_ledger(resources.cherries, physical.map_or(0.0, |s| s.cherries), amount);
+    resources.vegetables = top_up_ledger(resources.vegetables, physical.map_or(0.0, |s| s.vegetables), amount);
+    resources.eggs = top_up_ledger(resources.eggs, physical.map_or(0.0, |s| s.eggs), amount);
+    resources.grapes = top_up_ledger(resources.grapes, physical.map_or(0.0, |s| s.grapes), amount);
+    resources.porridge = top_up_ledger(resources.porridge, physical.map_or(0.0, |s| s.porridge), amount);
+    resources.cured_meat = top_up_ledger(resources.cured_meat, physical.map_or(0.0, |s| s.cured_meat), amount);
+    resources.smoked_fish = top_up_ledger(resources.smoked_fish, physical.map_or(0.0, |s| s.smoked_fish), amount);
+    resources.cheese = top_up_ledger(resources.cheese, physical.map_or(0.0, |s| s.cheese), amount);
     ctx.db.player_resources().owner().update(resources);
     materialize_physical_resource_ledger(ctx, owner)?;
     Ok(())

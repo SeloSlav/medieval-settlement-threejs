@@ -575,6 +575,21 @@ assert.deepEqual(
     'ironwork',
     'polearms',
     'water',
+    'bread',
+    'meat',
+    'fish',
+    'berries',
+    'mushrooms',
+    'milk',
+    'apples',
+    'cherries',
+    'vegetables',
+    'eggs',
+    'grapes',
+    'porridge',
+    'curedMeat',
+    'smokedFish',
+    'cheese',
   ],
   'every portable non-gold commodity must leave a cleared founding yard by physical cart',
 );
@@ -852,7 +867,7 @@ assert.match(foundingLifecycle, /building_has_inbound_supply_trip/);
 assert.match(foundingLifecycle, /relocatable_stock/);
 assert.match(
   foundingLifecycle,
-  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*18\]/,
+  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*33\]/,
   'all portable non-gold commodities must participate in founding-yard clearance',
 );
 for (const variant of [
@@ -870,6 +885,21 @@ for (const variant of [
   'Ironwork',
   'Polearms',
   'Water',
+  'Bread',
+  'Meat',
+  'Fish',
+  'Berries',
+  'Mushrooms',
+  'Milk',
+  'Apples',
+  'Cherries',
+  'Vegetables',
+  'Eggs',
+  'Grapes',
+  'Porridge',
+  'CuredMeat',
+  'SmokedFish',
+  'Cheese',
 ]) {
   assert.match(
     foundingLifecycle,

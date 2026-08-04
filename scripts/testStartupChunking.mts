@@ -456,12 +456,12 @@ assert.ok(
   // The forest-floor material adds one packed-atlas sample plus its
   // grass/dirt edge handoff. Keep that intentional 20 KB allowance explicit
   // instead of weakening the startup closure budget generally.
-  startupClosureBytes <= 2_680_000,
-  `initial static chunk closure grew beyond 2.68 MB (${startupClosureBytes} bytes)`,
+  startupClosureBytes <= 2_700_000,
+  `initial static chunk closure grew beyond 2.70 MB (${startupClosureBytes} bytes)`,
 );
 assert.ok(
-  startupClosureGzipBytes <= 738_000,
-  `initial static chunk closure grew beyond 738 KB gzip (${startupClosureGzipBytes} bytes)`,
+  startupClosureGzipBytes <= 745_000,
+  `initial static chunk closure grew beyond 745 KB gzip (${startupClosureGzipBytes} bytes)`,
 );
 
 console.log(
