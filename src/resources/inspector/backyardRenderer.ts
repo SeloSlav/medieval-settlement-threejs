@@ -29,6 +29,10 @@ import {
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { backyardGardenPlacement } from '../../residences/backyardPosition.ts';
 import { getNeedStock } from '../../residences/residenceNeeds.ts';
+import {
+  formatResidenceServiceConsequence,
+  residenceServiceState,
+} from '../../economy/residenceSatisfaction.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import type { BurgageZoneState, InspectableTarget } from '../types.ts';
@@ -73,20 +77,21 @@ export function renderBackyardInspector(
   const taxCollectionMultiplier = staffedTownHall
     ? 1
     : TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER;
-  const seasonalMultiplier = sabbathPaused || residence.abandoned
-    ? 0
-    : season.multiplier;
+  const service = residenceServiceState(residence);
+  const seasonalMultiplier = sabbathPaused ? 0 : season.multiplier;
   const economy = buildBackyardEconomyView(
     garden.kind,
-    residence.abandoned ? 0 : residence.population,
+    residence.population,
     taxRate,
     hasMarketAccess,
-    { seasonalMultiplier, taxCollectionMultiplier },
+    {
+      seasonalMultiplier,
+      taxCollectionMultiplier,
+      serviceMultiplier: service.economicMultiplier,
+    },
   );
   const producesFood = def.foodPerPersonPerSec > 0;
-  const statusText = residence.abandoned
-    ? 'Paused — residence abandoned'
-    : sabbathPaused
+  const statusText = sabbathPaused
       ? 'Paused — Sunday Sabbath'
       : !season.active
         ? 'Dormant — out of season'
@@ -95,7 +100,7 @@ export function renderBackyardInspector(
             ? 'Harvesting'
             : 'Growing and trading'
           : 'Growing — no marketplace link';
-  const statusState = residence.abandoned || !season.active
+  const statusState = !season.active
     ? 'warning'
     : sabbathPaused
       ? 'idle'
@@ -113,7 +118,7 @@ export function renderBackyardInspector(
     statusState,
     detailsHtml: `
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
-      <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population}</span></li>
+      <li><span>Population</span><span>${residence.population}</span></li>
       <li><span>Seasonal output</span><span>${season.label}${sabbathPaused ? ' · paused today by parish policy' : ''}</span></li>
       ${producesFood
         ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${Math.round(def.foodSelfShare * 100)}% of plot food stays home)</span></li>
@@ -121,6 +126,7 @@ export function renderBackyardInspector(
         : ''}
       <li><span>Marketplace link</span><span>${hasMarketAccess ? 'Road-connected' : 'None — sales paused'}</span></li>
       <li><span>Market activity today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · needs a road path to a completed marketplace' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>
+      <li><span>Household services</span><span>${formatResidenceServiceConsequence(service)}</span></li>
       <li><span>Market toll (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · waits in the serving market lockbox</span></li>
       <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>
       <li><span>Build cost</span><span>${formatBackyardGardenCost(garden.kind)}</span></li>
@@ -147,7 +153,6 @@ function renderEmptyBackyardPicker(
     return renderBackyardProject(residence.parcelIndex, project);
   }
   const totals = context.resourceTotals;
-  const abandoned = residence.abandoned;
   const underConstruction = residence.tier === 0;
   const placement = backyardGardenPlacement(residence, zone);
   const blockingPile = placement
@@ -161,13 +166,10 @@ function renderEmptyBackyardPicker(
     const def = BACKYARD_GARDEN_DEFINITIONS[kind];
     const tag = def.foodPerPersonPerSec > 0 ? 'Food' : 'Market';
     const cost = getBackyardGardenCost(kind);
-    const affordable = !abandoned
-      && !underConstruction
+    const affordable = !underConstruction
       && blockingPile === null
       && canAffordBackyardGarden(totals, kind);
-    const disabledReason = abandoned
-      ? 'Cannot plant while the residence is abandoned.'
-      : underConstruction
+    const disabledReason = underConstruction
         ? 'Finish the cottage before improving its backyard.'
       : blockingPile
         ? 'Haul away the reclaimed timber and stone from this backyard first.'
@@ -197,17 +199,15 @@ function renderEmptyBackyardPicker(
   return {
     eyebrow: 'Backyard',
     title: 'Empty backyard',
-    statusText: abandoned
-      ? 'Abandoned — gardens unavailable'
-      : underConstruction
+    statusText: underConstruction
         ? 'Cottage construction must finish'
       : blockingPile
         ? 'Reclamation pile blocks rebuilding'
         : 'Pick a garden type',
-    statusState: abandoned || underConstruction || blockingPile ? 'warning' : 'neutral',
+    statusState: underConstruction || blockingPile ? 'warning' : 'neutral',
     detailsHtml: `
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1} of ${zone.plotCount}</span></li>
-      <li><span>Population</span><span>${residence.abandoned ? 0 : residence.population}</span></li>
+      <li><span>Population</span><span>${residence.population}</span></li>
       <li><span>Available timber</span><span>${Math.floor(totals.timber)}</span></li>
       <li><span>Available stone</span><span>${Math.floor(totals.stone)}</span></li>
     `,

@@ -605,7 +605,7 @@ export async function createSeedThreeForest(
       visibilityRadius,
       enabled: true,
       forceOverview: placement.edgeBand?.maximumDetail === 'overview-card'
-        || Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.playableSize * 0.44,
+        || Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.generationSize * 0.44,
       seasonalDeciduous: gorskiKotarSpeciesIsDeciduous(placement.species),
     };
     visibilityItems[layoutIndex] = {

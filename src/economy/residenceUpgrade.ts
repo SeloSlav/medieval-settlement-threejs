@@ -18,6 +18,7 @@ import {
   normalizeConstructionPriority,
   type ConstructionPriority,
 } from '../logistics/constructionPriority.ts';
+import { residenceServiceState } from './residenceSatisfaction.ts';
 
 export type ResidenceUpgradeServiceKind =
   | 'firewood'
@@ -186,9 +187,13 @@ export function evaluateResidenceUpgrade(
       ready: available + 1e-6 >= required,
     }),
   );
-  const occupied = !residence.abandoned && residence.population > 0;
+  const occupied = residence.population > 0;
+  const serviceState = residenceServiceState(residence);
   const blockers = [
     ...(!occupied ? ['occupied household required'] : []),
+    ...(serviceState.upgradeBlocked
+      ? ['sustained household needs must recover before promotion']
+      : []),
     ...(context.fireDisabled ? ['repair fire damage before upgrading'] : []),
     ...services.filter((service) => !service.ready).map(
       (service) => `${service.label.toLowerCase()} route missing`,

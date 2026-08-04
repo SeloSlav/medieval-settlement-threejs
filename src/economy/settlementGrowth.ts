@@ -31,7 +31,6 @@ export type SettlementGrowthPlan = {
   pausedHomes: number;
   firstArrivalHomes: number;
   fullHomes: number;
-  abandonedHomes: number;
   fireDisabledHomes: number;
   fireDisabledResidents: number;
   fireDisabledHousingCapacity: number;
@@ -78,7 +77,6 @@ export function computeSettlementGrowthPlan(input: {
   let pausedHomes = 0;
   let firstArrivalHomes = 0;
   let fullHomes = 0;
-  let abandonedHomes = 0;
   let fireDisabledHomes = 0;
   let fireDisabledResidents = 0;
   let fireDisabledHousingCapacity = 0;
@@ -109,10 +107,6 @@ export function computeSettlementGrowthPlan(input: {
         0,
         residence.populationCapacity - residence.population,
       );
-      continue;
-    }
-    if (residence.abandoned) {
-      abandonedHomes += 1;
       continue;
     }
     const vacancies = Math.max(0, residence.populationCapacity - residence.population);
@@ -181,7 +175,6 @@ export function computeSettlementGrowthPlan(input: {
     pausedHomes,
     firstArrivalHomes,
     fullHomes,
-    abandonedHomes,
     fireDisabledHomes,
     fireDisabledResidents,
     fireDisabledHousingCapacity,

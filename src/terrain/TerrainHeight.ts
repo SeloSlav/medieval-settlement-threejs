@@ -89,9 +89,9 @@ function ridgedFbm(x: number, z: number, octaves: number): number {
 }
 
 function getEdgeHillFactor(x: number, z: number): number {
-  const { playableSize, terrainSize } = getActiveWorldDimensions();
+  const { generationSize, terrainSize } = getActiveWorldDimensions();
   const edgeDistance = Math.max(Math.abs(x), Math.abs(z));
-  const hillStart = playableSize * 0.44;
+  const hillStart = generationSize * 0.44;
   const hillEnd = terrainSize * 0.5;
   return smoothstep(hillStart, hillEnd, edgeDistance);
 }
@@ -126,12 +126,12 @@ function presetNoiseOffset(seed: number): { x: number; z: number } {
 }
 
 // Risnjak National Park runs from roughly 290 m in the Kupa valley to
-// 1,528 m on Veliki Risnjak. The playable map condenses that 1,238 m regional
-// rise horizontally, so it renders a little over half of it on each side.
+// 1,528 m on Veliki Risnjak. The authored terrain scale condenses that 1,238 m
+// regional rise horizontally, so it renders a little over half on each side.
 const KUPA_REGIONAL_RELIEF_METERS = 1_528 - 290;
 
 function sampleKupaValleyHeight(x: number, z: number, relief: number, seed: number): number {
-  const { playableHalf } = getActiveWorldDimensions();
+  const { generationHalf: playableHalf } = getActiveWorldDimensions();
   const offset = presetNoiseOffset(seed);
   const normalizedX = x / playableHalf;
   const westSlope = smoothstep(0.31, 0.94, -normalizedX);
@@ -172,7 +172,7 @@ function sampleCustomMountainHeight(
   const alpineStrength = smoothstep(62, 100, topography);
   if (alpineStrength <= 0) return 0;
 
-  const { playableHalf } = getActiveWorldDimensions();
+  const { generationHalf: playableHalf } = getActiveWorldDimensions();
   const offset = presetNoiseOffset(seed);
   const normalizedX = Math.abs(x) / playableHalf;
   const normalizedZ = Math.abs(z) / playableHalf;
@@ -199,7 +199,7 @@ function sampleCustomMountainHeight(
 }
 
 function sampleRisnjakPassHeight(x: number, z: number, relief: number, seed: number): number {
-  const { playableHalf } = getActiveWorldDimensions();
+  const { generationHalf: playableHalf } = getActiveWorldDimensions();
   const offset = presetNoiseOffset(seed);
   const angle = 0.31 + ((seed & 0xff) / 0xff - 0.5) * 0.12;
   const crossPass = x * Math.cos(angle) + z * Math.sin(angle);
@@ -229,7 +229,7 @@ function sampleRisnjakPassHeight(x: number, z: number, relief: number, seed: num
 }
 
 function sampleVinodolCoastHeight(x: number, z: number, relief: number, seed: number): number {
-  const { playableHalf } = getActiveWorldDimensions();
+  const { generationHalf: playableHalf } = getActiveWorldDimensions();
   const offset = presetNoiseOffset(seed);
   const shoreX = activeRiverLayout?.getCoastalShoreX(z) ?? -playableHalf * 0.6;
   const inland = x - shoreX;

@@ -169,9 +169,12 @@ pub fn raider_company_should_rout(
 
 pub fn playable_half_for_map_size(map_size: u8) -> f64 {
     match map_size {
-        0 => 310.0,
-        2 => 510.0,
-        _ => 410.0,
+        // Keep these in sync with the full terrain extents in
+        // src/world/worldGenerationSettings.ts. The visible heightfield is
+        // playable all the way to its edge for every map size.
+        0 => 408.5,
+        2 => 672.0,
+        _ => 540.0,
     }
 }
 
@@ -769,6 +772,13 @@ mod tests {
     }
 
     #[test]
+    fn every_visible_map_footprint_is_playable() {
+        assert_eq!(playable_half_for_map_size(0) * 2.0, 817.0);
+        assert_eq!(playable_half_for_map_size(1) * 2.0, 1080.0);
+        assert_eq!(playable_half_for_map_size(2) * 2.0, 1344.0);
+    }
+
+    #[test]
     fn muster_uses_later_fit_slots_and_only_onsite_weapons() {
         assert_eq!(
             select_guard_muster_slots(4, 3.0, &[0]),
@@ -781,16 +791,17 @@ mod tests {
 
     #[test]
     fn entry_is_deterministic_on_a_safe_playable_edge() {
-        let entry = raid_entry_point(42, 250.0, 0.0, 310.0);
-        assert_eq!(entry, raid_entry_point(42, 250.0, 0.0, 310.0));
-        let limit = 310.0 - MAP_EDGE_INSET_METERS;
+        let playable_half = playable_half_for_map_size(0);
+        let entry = raid_entry_point(42, 250.0, 0.0, playable_half);
+        assert_eq!(entry, raid_entry_point(42, 250.0, 0.0, playable_half));
+        let limit = playable_half - MAP_EDGE_INSET_METERS;
         assert!((entry.0.abs() - limit).abs() < 1e-9 || (entry.1.abs() - limit).abs() < 1e-9);
         assert!(distance(entry.0, entry.1, 250.0, 0.0) >= 90.0);
 
         let (approach, offset) = raid_approach_from_entry(entry.0, entry.1);
         assert_ne!(approach, RAID_APPROACH_UNKNOWN);
         assert_eq!(
-            raid_entry_point_for_approach(approach, offset, playable_half_for_map_size(0)),
+            raid_entry_point_for_approach(approach, offset, playable_half),
             Some(entry),
         );
         assert_eq!(

@@ -717,7 +717,9 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             clear_residence_needs(ctx, residence.id);
             clear_backyard_garden_for_residence(ctx, residence.id);
             residence.population = 0;
-            residence.abandoned = true;
+            // The structure is fire-disabled until rebuilt, but its housing
+            // identity is permanent and must never enter legacy abandonment.
+            residence.abandoned = false;
             residence.tiled_roof = false;
             residence.settlement_ticks = 0;
             ctx.db.residence().id().update(residence);

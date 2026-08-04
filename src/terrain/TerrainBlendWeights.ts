@@ -27,9 +27,9 @@ export function sampleTerrainUv(x: number, z: number): [number, number] {
 }
 
 function sampleEdgeHillFactor(x: number, z: number): number {
-  const { playableSize, terrainSize } = getActiveWorldDimensions();
+  const { generationSize, terrainSize } = getActiveWorldDimensions();
   const edgeDistance = Math.max(Math.abs(x), Math.abs(z));
-  const hillStart = playableSize * 0.44;
+  const hillStart = generationSize * 0.44;
   const hillEnd = terrainSize * 0.5;
   return smoothstep(hillStart, hillEnd, edgeDistance);
 }

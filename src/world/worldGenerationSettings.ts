@@ -27,15 +27,40 @@ export type WorldGenerationSettings = {
 };
 
 export type WorldDimensions = {
+  /** Full player-accessible width of the rendered heightfield. */
   playableSize: number;
   terrainSize: number;
   playableHalf: number;
+  /** Original authored scale used to keep terrain and resource layouts stable. */
+  generationSize: number;
+  generationHalf: number;
 };
 
 export const MAP_SIZE_PRESETS: Record<WorldMapSize, WorldDimensions & { label: string }> = {
-  small: { playableSize: 620, terrainSize: 817, playableHalf: 310, label: 'Small' },
-  medium: { playableSize: 820, terrainSize: 1080, playableHalf: 410, label: 'Medium' },
-  large: { playableSize: 1020, terrainSize: 1344, playableHalf: 510, label: 'Large' },
+  small: {
+    playableSize: 817,
+    terrainSize: 817,
+    playableHalf: 408.5,
+    generationSize: 620,
+    generationHalf: 310,
+    label: 'Small',
+  },
+  medium: {
+    playableSize: 1080,
+    terrainSize: 1080,
+    playableHalf: 540,
+    generationSize: 820,
+    generationHalf: 410,
+    label: 'Medium',
+  },
+  large: {
+    playableSize: 1344,
+    terrainSize: 1344,
+    playableHalf: 672,
+    generationSize: 1020,
+    generationHalf: 510,
+    label: 'Large',
+  },
 };
 
 export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
@@ -52,14 +77,14 @@ export const DEFAULT_WORLD_GENERATION_SETTINGS: WorldGenerationSettings = {
 };
 
 const STORAGE_KEY = 'medieval-road-system:world-generation';
-const TERRAIN_TO_PLAYABLE_RATIO = 1080 / 820;
-
 export function resolveWorldDimensions(mapSize: WorldMapSize): WorldDimensions {
   const preset = MAP_SIZE_PRESETS[mapSize];
   return {
     playableSize: preset.playableSize,
-    terrainSize: Math.round(preset.playableSize * TERRAIN_TO_PLAYABLE_RATIO),
-    playableHalf: preset.playableSize * 0.5,
+    terrainSize: preset.terrainSize,
+    playableHalf: preset.playableHalf,
+    generationSize: preset.generationSize,
+    generationHalf: preset.generationHalf,
   };
 }
 

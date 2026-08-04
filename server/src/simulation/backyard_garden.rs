@@ -13,6 +13,7 @@ use crate::economy::{
     town_hall_tax_collection_multiplier,
 };
 use crate::season_policy::EnvironmentState;
+use crate::residence_service_policy::service_economic_multiplier;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::food;
@@ -42,9 +43,7 @@ pub fn step_backyard_gardens(
         if labor_and_logistics_paused(ctx, tick, residence.owner, clock) {
             continue;
         }
-        if residence.abandoned
-            || residence.population == 0
-            || tick.residence_disabled_by_fire(ctx, residence.id)
+        if residence.population == 0 || tick.residence_disabled_by_fire(ctx, residence.id)
         {
             continue;
         }
@@ -122,7 +121,16 @@ fn step_one_garden(
         return 0.0;
     }
 
-    let economic_activity = garden_market_activity(def, population, TICK_DT) * seasonal_multiplier;
+    let max_service_deficit = load_needs(ctx, residence.id)
+        .into_iter()
+        .filter(|need| need.kind.is_active_for_tier(residence.tier))
+        .map(|need| need.deficit_ticks)
+        .max()
+        .unwrap_or(0);
+    let satisfaction_multiplier = service_economic_multiplier(max_service_deficit);
+    let economic_activity = garden_market_activity(def, population, TICK_DT)
+        * seasonal_multiplier
+        * satisfaction_multiplier;
     if economic_activity <= 1e-9 {
         return 0.0;
     }

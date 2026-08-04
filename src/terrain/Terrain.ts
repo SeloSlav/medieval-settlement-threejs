@@ -24,6 +24,7 @@ export type TerrainBounds = {
 export class Terrain {
   readonly size: number;
   readonly playableSize: number;
+  readonly generationSize: number;
   readonly resolution = TERRAIN_RESOLUTION;
   readonly bounds: TerrainBounds;
   readonly mesh: THREE.Mesh;
@@ -57,6 +58,7 @@ export class Terrain {
   private constructor(material: THREE.Material, geometry: THREE.BufferGeometry, dimensions: WorldDimensions) {
     this.size = dimensions.terrainSize;
     this.playableSize = dimensions.playableSize;
+    this.generationSize = dimensions.generationSize;
     const half = this.playableSize * 0.5;
     this.bounds = { minX: -half, maxX: half, minZ: -half, maxZ: half };
     this.dirtZoomGateAttr = geometry.getAttribute('dirtZoomGate') as THREE.BufferAttribute;

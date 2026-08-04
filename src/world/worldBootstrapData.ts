@@ -124,7 +124,7 @@ export function computeWorldBootstrapDataFromLayout(worldLayout: WorldLayout): W
     });
   }
 
-  const treePlacements = computeForestTreePlacements(dims.playableSize, dims.terrainSize, isBlockedAt, {
+  const treePlacements = computeForestTreePlacements(dims.generationSize, dims.terrainSize, isBlockedAt, {
     treeSeed: worldLayout.treeSeed,
     densityScale: forestDensityScale(worldLayout.settings.forestDensity),
     // Use the same authored woodland cores as the visual forest. Recreating a

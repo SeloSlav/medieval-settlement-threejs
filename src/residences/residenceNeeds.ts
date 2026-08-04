@@ -4,8 +4,11 @@ import {
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_CAPACITY,
   SIM_TICK_SECONDS,
-  COMFORT_MIGRATION_START_DAYS,
 } from '../generated/gameBalance.ts';
+import {
+  formatResidenceServiceConsequence,
+  residenceServiceState,
+} from '../economy/residenceSatisfaction.ts';
 import {
   effectiveResidenceSettleTicks,
   recoveryNeedsRequired,
@@ -85,9 +88,6 @@ export function residenceNeedsStatus(
       label: 'Cottage construction underway',
       state: 'idle',
     };
-  }
-  if (residence.abandoned) {
-    return describeAbandonedResidence(residence, supply, community);
   }
   if (residence.population === 0) {
     return describeAwaitingSettlers(residence, community);
@@ -182,39 +182,6 @@ function evaluateNeedRecovery(
   }
 }
 
-function describeAbandonedResidence(
-  residence: ResidenceState,
-  supply: ResidenceNeedSupplyContext,
-  community: ResidenceCommunityContext,
-): ResidenceNeedsStatus {
-  const recovery = evaluateResidenceNeedRecovery(residence, supply, community);
-  if (residenceRecoveryReady(recovery, community)) {
-    return {
-      label: community.hasChapelAccess
-        ? 'Restocking complete — church parish welcomes settlers back'
-        : 'Restocking complete — settlers return once supply holds',
-      state: 'idle',
-    };
-  }
-
-  const pending = recovery.filter((status) => !status.ready);
-  const restocking = pending.find((status) => status.stock > 0);
-  if (restocking) {
-    return {
-      label: `Abandoned — restocking ${restocking.label.toLowerCase()} (${Math.round(restocking.stock)} / ${restocking.threshold})`,
-      state: 'warning',
-    };
-  }
-
-  const waitingOn = pending.map((status) => status.label.toLowerCase()).join(', ');
-  return {
-    label: waitingOn
-      ? `Abandoned — awaiting ${waitingOn} from supply routes`
-      : 'Abandoned — awaiting supply routes',
-    state: 'abandoned',
-  };
-}
-
 function describeAwaitingSettlers(
   residence: ResidenceState,
   community: ResidenceCommunityContext,
@@ -267,15 +234,10 @@ function describeDeficitWarning(
     };
   }
 
-  const migrationStartTicks = COMFORT_MIGRATION_START_DAYS * GAME_DAY_SECONDS / SIM_TICK_SECONDS;
-  const remainingTicks = Math.max(
-    0,
-    migrationStartTicks - (residence.comfortDeficitTicks ?? 0),
-  );
-  const remainingSeconds = remainingTicks * SIM_TICK_SECONDS;
   const needLabelText = unmetKinds.map((kind) => needLabel(kind).toLowerCase()).join(', ');
+  const service = residenceServiceState(residence);
   return {
-    label: `Status shortage (${needLabelText}) — a resident may leave in ${formatShortDuration(remainingSeconds)}`,
+    label: `Status shortage (${needLabelText}) — ${formatResidenceServiceConsequence(service)}`,
     state: 'warning',
   };
 }

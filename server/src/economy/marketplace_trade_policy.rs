@@ -302,7 +302,11 @@ mod tests {
 
     #[test]
     fn adriatic_imports_enter_from_a_stable_south_or_west_map_edge() {
-        for map_half in [310.0, 410.0, 510.0] {
+        for map_half in [
+            crate::raid_agent_policy::playable_half_for_map_size(0),
+            crate::raid_agent_policy::playable_half_for_map_size(1),
+            crate::raid_agent_policy::playable_half_for_map_size(2),
+        ] {
             let first = adriatic_trade_entry_point(17, 42.0, -31.0, map_half).expect("trade entry");
             let repeated =
                 adriatic_trade_entry_point(17, 42.0, -31.0, map_half).expect("trade entry");

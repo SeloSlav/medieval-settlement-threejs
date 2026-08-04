@@ -78,7 +78,7 @@ export type ResidenceNeedRecoveryStatus = {
 
 export type ResidenceNeedsStatus = {
   label: string;
-  state: 'active' | 'idle' | 'warning' | 'abandoned';
+  state: 'active' | 'idle' | 'warning';
 };
 
 export function createDefaultNeeds(): ResidenceNeedsState {

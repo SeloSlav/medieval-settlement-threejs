@@ -39,6 +39,7 @@ mod quarry_balance;
 mod raid_agent_policy;
 mod reducers;
 mod residence_settlement_policy;
+mod residence_service_policy;
 mod residence_upgrade_policy;
 mod resident_welfare_policy;
 mod roads;

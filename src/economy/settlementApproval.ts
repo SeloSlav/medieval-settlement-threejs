@@ -112,20 +112,20 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
   if (welfare.activeHouseholds > 0) {
     const warningShare = Math.min(
       1,
-      welfare.comfortWarningHouseholds / welfare.activeHouseholds,
+      welfare.serviceWarningHouseholds / welfare.activeHouseholds,
     );
-    const riskShare = Math.min(
+    const blockedShare = Math.min(
       1,
-      welfare.migrationRiskHouseholds / welfare.activeHouseholds,
+      welfare.upgradeBlockedHouseholds / welfare.activeHouseholds,
     );
-    const comfortPenalty = Math.round(warningShare * 8 + riskShare * 6);
+    const servicePenalty = Math.round(warningShare * 8 + blockedShare * 8);
     factors.push({
-      key: 'household-comfort',
-      label: 'Household comfort',
-      impact: comfortPenalty > 0 ? -clampInteger(comfortPenalty, 1, 14) : 4,
-      detail: comfortPenalty > 0
-        ? `${welfare.comfortWarningHouseholds} homes have sustained status shortages; ${welfare.migrationRiskHouseholds} have reached emigration risk. Restore ale, preserved food, textiles, or pottery required by their tier.`
-        : 'No occupied household is nearing comfort-driven emigration.',
+      key: 'household-services',
+      label: 'Household services',
+      impact: servicePenalty > 0 ? -clampInteger(servicePenalty, 1, 16) : 4,
+      detail: servicePenalty > 0
+        ? `${welfare.serviceWarningHouseholds} homes have sustained unmet needs; ${welfare.upgradeBlockedHouseholds} cannot be promoted until service recovers. Their taxable household output averages ${Math.round(welfare.serviceEconomicOutputMultiplier * 100)}%.`
+        : 'Every occupied home has stable need service and full taxable household output.',
     });
   }
 
@@ -173,16 +173,6 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
         10,
       ),
       detail: `${welfare.uncollectedBodiesAtHomes} ${welfare.uncollectedBodiesAtHomes === 1 ? 'body remains' : 'bodies remain'} at homes; provide graves and staffed chapel carts.`,
-    });
-  }
-
-  const blockedVacantHomes = welfare.dilapidatedHomes + welfare.ruinedHomes;
-  if (blockedVacantHomes > 0) {
-    factors.push({
-      key: 'vacant-home-decay',
-      label: 'Vacant-home decay',
-      impact: -clampInteger(blockedVacantHomes * 2, 2, 8),
-      detail: `${blockedVacantHomes} vacant ${blockedVacantHomes === 1 ? 'home blocks' : 'homes block'} resettlement until restored.`,
     });
   }
 
@@ -293,10 +283,14 @@ function approvalEffects(
     effects.push(`Settler growth: ${households - ready} of ${households} established ${households === 1 ? 'home is' : 'homes are'} pausing later arrivals until local buffers recover.`);
   }
 
-  const migrationRisk = Math.max(0, provisioning.welfare.migrationRiskHouseholds);
-  effects.push(migrationRisk > 0
-    ? `Retention: ${migrationRisk} ${migrationRisk === 1 ? 'household has' : 'households have'} reached comfort-driven emigration risk.`
-    : 'Retention: no household has reached comfort-driven emigration risk.');
+  const serviceWarnings = Math.max(0, provisioning.welfare.serviceWarningHouseholds);
+  const blockedUpgrades = Math.max(0, provisioning.welfare.upgradeBlockedHouseholds);
+  effects.push(serviceWarnings > 0
+    ? `Economy: ${serviceWarnings} sustained-shortage ${serviceWarnings === 1 ? 'home is' : 'homes are'} reducing household market activity and assessed tax; current output averages ${Math.round(provisioning.welfare.serviceEconomicOutputMultiplier * 100)}%.`
+    : 'Economy: stable household services preserve full market activity and assessed tax.');
+  effects.push(blockedUpgrades > 0
+    ? `Residence promotion: ${blockedUpgrades} ${blockedUpgrades === 1 ? 'home is' : 'homes are'} blocked from tier upgrades until all active needs recover.`
+    : 'Residence promotion: no home is blocked by a sustained need shortage.');
 
   const cohesionBonus = Math.round(finiteUnit(cohesion) * 2);
   effects.push(

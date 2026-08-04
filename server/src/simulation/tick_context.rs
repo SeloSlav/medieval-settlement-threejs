@@ -833,7 +833,7 @@ impl SimTickContext {
             return HashMap::new();
         };
         let suppliers: Vec<Building> = self
-            .building_ids_for_kinds(ctx, owner, &["woodcutters_lodge", "village_storehouse"])
+            .building_ids_for_kinds(ctx, owner, &["marketplace"])
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter(|building| {
@@ -896,7 +896,9 @@ impl SimTickContext {
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter(|building| {
-                building.construction_complete && !self.building_disabled_by_fire(ctx, building.id)
+                building.construction_complete
+                    && building.assigned_labor > 0
+                    && !self.building_disabled_by_fire(ctx, building.id)
             })
             .collect();
         let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();

@@ -291,9 +291,8 @@ function coastalShoreX(bounds: TerrainBounds, seed: number, z: number): number {
   const phase = hashF64(seed ^ 0x560d, 4, 9) * TAU;
   const broad = Math.sin(normalizedZ * TAU * 1.35 + phase) * spanX * 0.018;
   const coves = Math.sin(normalizedZ * TAU * 3.7 - phase * 0.55) * spanX * 0.007;
-  // The rendered terrain includes a non-playable perimeter. At 27.2% of the
-  // full heightfield, the shoreline leaves about one fifth of the playable map
-  // under the Adriatic across every supported map size.
+  // Keep the authored Adriatic frontage at a stable share of the full map
+  // across every supported size.
   return bounds.minX + spanX * 0.272 + broad + coves;
 }
 

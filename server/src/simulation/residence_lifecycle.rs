@@ -6,9 +6,7 @@ use crate::simulation::game_calendar::GameClock;
 use crate::simulation::landmark_access::{
     residence_has_chapel_access, residence_has_monastery_coverage,
 };
-use crate::simulation::residence_needs::{
-    load_needs, step_residence_decay, step_residence_needs, step_residence_recovery,
-};
+use crate::simulation::residence_needs::{load_needs, step_residence_needs};
 use crate::simulation::residence_settlement::step_residence_settlement;
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
@@ -18,37 +16,29 @@ pub fn step_residence(
     tick: &SimTickContext,
     chapels: &[Building],
     monasteries: &[Building],
-    residence: Residence,
+    mut residence: Residence,
     clock: &GameClock,
     environment: EnvironmentState,
     world_seed: u64,
     sim_tick: u64,
 ) {
     let residence_id = residence.id;
+    // Save-compatible migration: completed homes are permanent housing stock.
+    // Legacy rows are normalized in place instead of entering a recovery loop.
+    if residence.abandoned || residence.vacancy_ticks != 0 || residence.condition != 0 {
+        residence.abandoned = false;
+        residence.vacancy_ticks = 0;
+        residence.condition = 0;
+        ctx.db.residence().id().update(residence.clone());
+    }
     let has_chapel_access =
         residence_has_chapel_access(ctx, tick, residence.owner, &residence, chapels);
     let has_monastery_coverage =
         residence_has_monastery_coverage(ctx, tick, residence.owner, &residence, monasteries);
 
-    step_residence_decay(ctx, residence);
-
     let Some(residence) = ctx.db.residence().id().find(&residence_id) else {
         return;
     };
-    step_residence_recovery(
-        ctx,
-        tick,
-        residence,
-        has_chapel_access,
-        has_monastery_coverage,
-    );
-
-    let Some(residence) = ctx.db.residence().id().find(&residence_id) else {
-        return;
-    };
-    if residence.abandoned {
-        return;
-    }
     let needs = load_needs(ctx, residence.id);
 
     if !tick.owner_has_active_raider_threat(ctx, residence.owner) {

@@ -821,6 +821,8 @@ pub struct Residence {
     #[default(1)]
     pub tier: u8,
     pub settlement_ticks: u32,
+    /// Deprecated additive save field. Runtime homes normalize this to false;
+    /// empty population capacity remains reusable housing.
     pub abandoned: bool,
     /// Gold saved by the household from marketplace garden sales (capped).
     #[default(0.0)]

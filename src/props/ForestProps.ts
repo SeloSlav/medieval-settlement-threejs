@@ -88,7 +88,7 @@ export async function createForestProps(
 ): Promise<ForestManager> {
   const rng = mulberry32(options?.treeSeed ?? 0x5eedf0a5);
   const spawnConfig = createForestSpawnConfig(
-    terrain.playableSize,
+    terrain.generationSize,
     terrain.size,
     options?.densityScale ?? 1,
   );
@@ -106,7 +106,7 @@ export async function createForestProps(
   const forest = new THREE.Group();
   forest.name = 'Road-scale forest props';
   const allTreePlacements = computeForestTreePlacements(
-    terrain.playableSize,
+    terrain.generationSize,
     terrain.size,
     isBlockedAt,
     {

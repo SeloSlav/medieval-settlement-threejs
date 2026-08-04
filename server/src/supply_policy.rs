@@ -20,7 +20,14 @@ use crate::balance_generated::{
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
 
-pub const ALE_SUPPLIER_KINDS: &[&str] = &["brewery", "monastery"];
+/// Production buildings prove that a settlement can sustainably create the
+/// good. They never provide routine household delivery themselves.
+pub const ALE_PRODUCER_KINDS: &[&str] = &["brewery", "monastery"];
+pub const CLOTH_PRODUCER_KINDS: &[&str] = &["weaver"];
+pub const POTTERY_PRODUCER_KINDS: &[&str] = &["potter_kiln"];
+/// Staffed marketplaces are the single last-mile supplier for household
+/// consumables. Water remains the deliberate exception and comes from wells.
+pub const ALE_SUPPLIER_KINDS: &[&str] = &["marketplace"];
 /// Buildings that can create a sustainable preserved-food service for a new
 /// prosperous household. Storage depots deliberately remain outside this
 /// roster so an empty granary cannot satisfy a tier-three upgrade gate.
@@ -28,25 +35,10 @@ pub const PRESERVED_FOOD_PRODUCER_KINDS: &[&str] = &["smokehouse", "pastoral_far
 /// Stocked buildings whose output can serve cured household rations. Ordinary
 /// producers use free haulers; staffed granaries use their assigned food carts
 /// after physical stock reaches them.
-pub const PRESERVED_FOOD_SUPPLIER_KINDS: &[&str] = &["smokehouse", "pastoral_farmstead", "granary"];
-pub const CLOTH_SUPPLIER_KINDS: &[&str] = &["weaver"];
-pub const POTTERY_SUPPLIER_KINDS: &[&str] = &["potter_kiln"];
-/// Every non-market building that already dispatches food to households.
-///
-/// Marketplace caravans remain outside territorial claims because they are a
-/// paid, household-prioritized emergency service rather than routine supply.
-pub const FOOD_SUPPLIER_KINDS: &[&str] = &[
-    "hunters_hall",
-    "foragers_shed",
-    "fishing_camp",
-    "bakery",
-    "granary",
-    "apiary",
-    "vineyard",
-    "pastoral_farmstead",
-    "swineherd",
-    "monastery",
-];
+pub const PRESERVED_FOOD_SUPPLIER_KINDS: &[&str] = &["marketplace"];
+pub const CLOTH_SUPPLIER_KINDS: &[&str] = &["marketplace"];
+pub const POTTERY_SUPPLIER_KINDS: &[&str] = &["marketplace"];
+pub const FOOD_SUPPLIER_KINDS: &[&str] = &["marketplace"];
 /// Fresh-food producers whose stored output may be carried as genuine household
 /// surplus to a granary, smokehouse, or armed company. Unassigned haulers move
 /// it; granaries and monasteries keep their separate household, preservation,
@@ -348,13 +340,9 @@ pub fn is_firewood_supplier_delivery_operational(
     kind: &str,
     construction_complete: bool,
     assigned_labor: u32,
-    storehouse_accepts_firewood: bool,
+    _storehouse_accepts_firewood: bool,
 ) -> bool {
-    construction_complete
-        && (kind == "woodcutters_lodge"
-            || (kind == "village_storehouse"
-                && assigned_labor > 0
-                && storehouse_accepts_firewood))
+    kind == "marketplace" && construction_complete && assigned_labor > 0
 }
 
 /// Fuel carts protect enough cupboard stock to carry a household through the
@@ -387,9 +375,7 @@ pub fn is_food_supplier_operational(
     construction_complete: bool,
     assigned_labor: u32,
 ) -> bool {
-    FOOD_SUPPLIER_KINDS.contains(&kind)
-        && construction_complete
-        && (kind != "granary" || assigned_labor > 0)
+    FOOD_SUPPLIER_KINDS.contains(&kind) && construction_complete && assigned_labor > 0
 }
 
 pub fn is_specialty_supplier_operational(
@@ -397,7 +383,7 @@ pub fn is_specialty_supplier_operational(
     construction_complete: bool,
     assigned_labor: u32,
 ) -> bool {
-    construction_complete && (kind == "monastery" || assigned_labor > 0)
+    kind == "marketplace" && construction_complete && assigned_labor > 0
 }
 
 /// Existing producer stock uses free haulers, while stocked granaries use any
@@ -407,7 +393,7 @@ pub fn is_specialty_supplier_delivery_operational(
     construction_complete: bool,
     assigned_labor: u32,
 ) -> bool {
-    construction_complete && (kind != "granary" || assigned_labor > 0)
+    kind == "marketplace" && construction_complete && assigned_labor > 0
 }
 
 /// Food kept at a routine supplier before an institution may collect surplus.
@@ -433,6 +419,7 @@ pub fn institutional_food_surplus(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum InstitutionalFoodDispatchDuty {
     CriticalGuard,
+    MarketplaceStalls,
     PreservationBuffer,
     GuardReserve,
     GranaryIntake,

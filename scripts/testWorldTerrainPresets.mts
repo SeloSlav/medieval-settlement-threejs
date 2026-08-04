@@ -8,6 +8,7 @@ import {
 import { setDraftWorldGeneration } from '../src/world/worldGenerationContext.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
+  MAP_SIZE_PRESETS,
   normalizeWorldGenerationSettings,
   resolveWorldDimensions,
 } from '../src/world/worldGenerationSettings.ts';
@@ -19,6 +20,23 @@ import {
 } from '../src/world/worldTerrainPresets.ts';
 
 const authoredPresets = ['kupa_valley', 'risnjak_pass', 'vinodol_coast'] as const;
+
+for (const [mapSize, preset] of Object.entries(MAP_SIZE_PRESETS)) {
+  const dimensions = resolveWorldDimensions(mapSize as keyof typeof MAP_SIZE_PRESETS);
+  assert.equal(
+    dimensions.playableSize,
+    dimensions.terrainSize,
+    `${mapSize} terrain must remain playable across its full visible footprint`,
+  );
+  assert.equal(dimensions.playableHalf, dimensions.terrainSize * 0.5);
+  assert.deepEqual(dimensions, {
+    playableSize: preset.playableSize,
+    terrainSize: preset.terrainSize,
+    playableHalf: preset.playableHalf,
+    generationSize: preset.generationSize,
+    generationHalf: preset.generationHalf,
+  });
+}
 
 for (const [index, preset] of authoredPresets.entries()) {
   const seed = seedForTerrainPreset(0x1234_5678 + index * 0x1111, preset);
@@ -45,8 +63,8 @@ assert.ok(
   `Kupa village bench should remain buildable, got ${kupaBenchRelief.toFixed(1)} m relief`,
 );
 const kupaFloor = sampleNaturalTerrainHeight(35, 0);
-const kupaWestMountain = sampleNaturalTerrainHeight(-kupaDimensions.playableHalf * 0.88, 0);
-const kupaEastMountain = sampleNaturalTerrainHeight(kupaDimensions.playableHalf * 0.88, 0);
+const kupaWestMountain = sampleNaturalTerrainHeight(-kupaDimensions.generationHalf * 0.88, 0);
+const kupaEastMountain = sampleNaturalTerrainHeight(kupaDimensions.generationHalf * 0.88, 0);
 const kupaWestRise = kupaWestMountain - kupaFloor;
 const kupaEastRise = kupaEastMountain - kupaFloor;
 assert.ok(
@@ -63,8 +81,8 @@ for (let index = 0; index < 12; index++) {
   const dimensions = resolveWorldDimensions(variation.settings.mapSize);
   const floor = sampleNaturalTerrainHeight(35, 0);
   const sideRise = Math.min(
-    sampleNaturalTerrainHeight(-dimensions.playableHalf * 0.88, 0) - floor,
-    sampleNaturalTerrainHeight(dimensions.playableHalf * 0.88, 0) - floor,
+    sampleNaturalTerrainHeight(-dimensions.generationHalf * 0.88, 0) - floor,
+    sampleNaturalTerrainHeight(dimensions.generationHalf * 0.88, 0) - floor,
   );
   kupaMinimumSideRise = Math.min(kupaMinimumSideRise, sideRise);
 }
@@ -77,10 +95,10 @@ const customMountains = prepareCustom(100, 0x4d3a_91e7);
 const customDimensions = resolveWorldDimensions(customMountains.settings.mapSize);
 const customFloor = sampleNaturalTerrainHeight(0, 0);
 const customShoulders = [
-  sampleNaturalTerrainHeight(-customDimensions.playableHalf * 0.88, 0),
-  sampleNaturalTerrainHeight(customDimensions.playableHalf * 0.88, 0),
-  sampleNaturalTerrainHeight(0, -customDimensions.playableHalf * 0.88),
-  sampleNaturalTerrainHeight(0, customDimensions.playableHalf * 0.88),
+  sampleNaturalTerrainHeight(-customDimensions.generationHalf * 0.88, 0),
+  sampleNaturalTerrainHeight(customDimensions.generationHalf * 0.88, 0),
+  sampleNaturalTerrainHeight(0, -customDimensions.generationHalf * 0.88),
+  sampleNaturalTerrainHeight(0, customDimensions.generationHalf * 0.88),
 ];
 const customMountainRise = Math.max(...customShoulders) - customFloor;
 assert.ok(
@@ -92,10 +110,10 @@ const risnjak = preparePreset('risnjak_pass', 0x7a2_1035);
 const risnjakDimensions = resolveWorldDimensions(risnjak.settings.mapSize);
 const passFloor = sampleNaturalTerrainHeight(0, 0);
 const passShoulders = [
-  sampleNaturalTerrainHeight(-risnjakDimensions.playableHalf * 0.82, 0),
-  sampleNaturalTerrainHeight(risnjakDimensions.playableHalf * 0.82, 0),
-  sampleNaturalTerrainHeight(0, -risnjakDimensions.playableHalf * 0.82),
-  sampleNaturalTerrainHeight(0, risnjakDimensions.playableHalf * 0.82),
+  sampleNaturalTerrainHeight(-risnjakDimensions.generationHalf * 0.82, 0),
+  sampleNaturalTerrainHeight(risnjakDimensions.generationHalf * 0.82, 0),
+  sampleNaturalTerrainHeight(0, -risnjakDimensions.generationHalf * 0.82),
+  sampleNaturalTerrainHeight(0, risnjakDimensions.generationHalf * 0.82),
 ];
 assert.ok(
   Math.max(...passShoulders) - passFloor >= 70,
@@ -111,8 +129,8 @@ const coastalWaterShare = sampleWaterShare(
   161,
 );
 assert.ok(
-  coastalWaterShare >= 0.17 && coastalWaterShare <= 0.23,
-  `Vinodol sea should cover about one fifth of the playable map, got ${(coastalWaterShare * 100).toFixed(1)}%`,
+  coastalWaterShare >= 0.25 && coastalWaterShare <= 0.29,
+  `Vinodol sea frontage should keep its authored share of the full map, got ${(coastalWaterShare * 100).toFixed(1)}%`,
 );
 const shoreline = vinodol.layout.riverLayout.getCoastalShoreX(0);
 assert.notEqual(shoreline, null);

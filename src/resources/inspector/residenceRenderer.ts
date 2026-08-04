@@ -53,6 +53,10 @@ import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts
 import { effectiveResidenceSettleTicks } from '../../economy/chapelCommunity.ts';
 import { formatHouseholdWealth } from '../../economy/householdWealth.ts';
 import {
+  formatResidenceServiceConsequence,
+  residenceServiceState,
+} from '../../economy/residenceSatisfaction.ts';
+import {
   computeSettlementHouseholdMarketPlan,
   formatHouseholdMarketResidenceStatus,
 } from '../../economy/settlementHouseholdMarket.ts';
@@ -526,13 +530,14 @@ export function renderResidenceInspector(
       ? `${(residence.remedyStock ?? 0).toFixed(1)} at home · ${remedyCoverageDays.toFixed(1)} treatment days`
       : `${(residence.remedyStock ?? 0).toFixed(1)} at home · no current treatment demand`;
   const condition = residence.condition ?? 0;
+  const service = residenceServiceState(residence);
   const conditionLabel = ['Sound', 'Neglected', 'Dilapidated', 'Ruin'][condition] ?? 'Sound';
   const roofRetrofitBlockers = [
     ...(context.gameState.physicalFoundingSiteEnabled === true
       ? []
       : ['physical founding-store economy required']),
     ...(residence.tier >= 3 ? [] : ['prosperous tier-3 house required']),
-    ...(!residence.abandoned && residence.population > 0
+    ...(residence.population > 0
       ? []
       : ['occupied household required']),
     ...(fireDisabled ? ['repair fire damage first'] : []),
@@ -583,8 +588,6 @@ export function renderResidenceInspector(
         : 'Homestead repairs'
       : initialConstruction
       ? 'Cottage construction'
-      : residence.abandoned
-      ? 'Abandoned residence'
       : residenceCount === 1
         ? 'Residence'
         : `Residence plot (${residenceCount} residences)`,
@@ -600,7 +603,7 @@ export function renderResidenceInspector(
       <li><span>Plots</span><span>${zone.plotCount}</span></li>
       <li><span>Residences</span><span>${residenceCount}</span></li>
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
-      <li><span>Population</span><span>${initialConstruction ? `0 / ${capacity} · founders remain at camp` : `${residence.abandoned ? 0 : residence.population} / ${capacity}`}</span></li>
+      <li><span>Population</span><span>${initialConstruction ? `0 / ${capacity} · founders remain at camp` : `${residence.population} / ${capacity}`}</span></li>
       <li><span>Health</span><span>${healthLabel}</span></li>
       <li><span>Malnutrition</span><span>${Math.round((residence.malnutrition ?? 0) * 100)}%</span></li>
       <li><span>Unable to work</span><span>${residence.sickPopulation ?? 0} sick resident${(residence.sickPopulation ?? 0) === 1 ? '' : 's'}</span></li>
@@ -627,6 +630,7 @@ export function renderResidenceInspector(
         ? residenceProsperityRows(prosperityPlan, tierThreeProjection)
         : ''}
       <li><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
+      ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Emergency market</span><span>${householdMarketStatus}</span></li>` : ''}
       ${residence.tier > 0 ? '<li><span>Standing-order rule</span><span>At 18h food or active water runway - food first - household-funded full lot</span></li>' : ''}
@@ -635,17 +639,16 @@ export function renderResidenceInspector(
         : parishEconomy.hasChapelAccess
           ? `<li><span>Parish tithe</span><span>~${parishEconomy.tithePerDay.toFixed(1)} gold / day when attending (${parishEconomy.attendancePercent}% chance${parishEconomy.wealthLimited ? ', wealth-limited' : ''}) → church coffer</span></li>`
           : ''}
-      ${residence.tier > 0 && settleEtaSeconds != null && !residence.abandoned
+      ${residence.tier > 0 && settleEtaSeconds != null
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — next in ~${formatSettleEta(settleEtaSeconds)}</span></li>`
         : ''}
       ${residence.tier > 0
         && settlersRemaining > 0
-        && !residence.abandoned
         && !fireDisabled
         && !settlementReadiness.ready
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — paused for ${formatSettlementWait(settlementReadiness.waitingOn)}</span></li>`
         : ''}
-      ${residence.tier > 0 && settlersRemaining > 0 && !residence.abandoned && fireDisabled
+      ${residence.tier > 0 && settlersRemaining > 0 && fireDisabled
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — structural recovery required before settlement resumes</span></li>`
         : ''}
       ${residence.tier > 0 ? `<li><span>Food stock</span><span>${Math.round(getNeedStock(residence.needs, 'food'))} / ${RESIDENCE_FOOD_CAPACITY}</span></li>` : ''}

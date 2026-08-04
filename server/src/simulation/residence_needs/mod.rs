@@ -25,11 +25,9 @@ use crate::db::*;
 use crate::economy::reconcile_building_labor;
 use crate::preserved_food_policy::allocate_preserved_meal;
 use crate::resident_welfare_policy::{
-    comfort_migration_due, condition_blocks_resettlement, deterministic_unit,
-    next_comfort_deficit_ticks, next_malnutrition, residence_condition, starvation_death_due,
+    deterministic_unit, next_malnutrition, next_service_deficit_ticks, starvation_death_due,
     starvation_episode_resolved, ticks_for_days,
 };
-use crate::simulation::chapel_community::{recovery_needs_required, recovery_stock_min};
 use crate::simulation::residence_needs::state::{
     delete_needs, find_need_mut, init_needs, persist_needs, NeedState,
 };
@@ -64,10 +62,11 @@ pub fn step_residence_needs(
     let mut food_unmet = false;
     let mut water_unmet = false;
     let mut cold_unmet = false;
-    let mut comfort_unmet = false;
+    let mut service_unmet = false;
 
     if !general_consumption_paused && ResidenceNeedKind::Food.is_active_for_tier(residence.tier) {
         food_unmet = consume_food_with_preserved(&residence, &mut needs, environment);
+        service_unmet = food_unmet;
     } else if let Some(need) = find_need_mut(&mut needs, ResidenceNeedKind::Food) {
         *need = food::spoil(
             need,
@@ -114,14 +113,12 @@ pub fn step_residence_needs(
             ConsumeResult::Unmet => {
                 *need = on_unmet_need(kind, need);
                 need.deficit_ticks = need.deficit_ticks.saturating_add(1);
+                service_unmet = true;
                 if kind == ResidenceNeedKind::Water {
                     water_unmet = true;
                 }
                 if kind == ResidenceNeedKind::Firewood && cold_weather {
                     cold_unmet = true;
-                }
-                if kind.is_status_need() || (kind == ResidenceNeedKind::Firewood && !cold_weather) {
-                    comfort_unmet = true;
                 }
             }
         }
@@ -142,20 +139,15 @@ pub fn step_residence_needs(
         sim_tick,
     );
 
-    let previous_comfort_ticks = residence.comfort_deficit_ticks;
-    residence.comfort_deficit_ticks = next_comfort_deficit_ticks(
+    // The additive save column keeps its old name for compatibility, but it
+    // now tracks any continuously unmet active household service. Shortages
+    // affect approval, market output, and promotion eligibility—not tenure.
+    residence.comfort_deficit_ticks = next_service_deficit_ticks(
         residence.comfort_deficit_ticks,
-        comfort_unmet,
+        service_unmet,
         general_consumption_paused,
     );
-    if residence.population > 0
-        && comfort_migration_due(previous_comfort_ticks, residence.comfort_deficit_ticks)
-    {
-        residence.population = residence.population.saturating_sub(1);
-        residence.sick_population = residence.sick_population.min(residence.population);
-        residence.settlement_ticks = 0;
-    }
-    residence.abandoned = residence.population == 0;
+    residence.abandoned = false;
     let owner = residence.owner;
     persist_needs(ctx, residence.id, &needs);
     let next_effective_workers = residence
@@ -380,61 +372,6 @@ fn insert_corpse(
     tick.record_waiting_corpse(residence.owner, x, z, CORPSE_DISEASE_RADIUS);
 }
 
-pub fn step_residence_decay(ctx: &ReducerContext, mut residence: Residence) {
-    if residence.tier == 0 || residence.decay_repair_active {
-        return;
-    }
-    if residence.population > 0 && !residence.abandoned {
-        if residence.vacancy_ticks > 0 {
-            residence.vacancy_ticks = 0;
-            ctx.db.residence().id().update(residence);
-        }
-        return;
-    }
-    residence.vacancy_ticks = residence.vacancy_ticks.saturating_add(1);
-    residence.condition = residence_condition(residence.vacancy_ticks);
-    ctx.db.residence().id().update(residence);
-}
-
-pub fn step_residence_recovery(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    residence: Residence,
-    has_chapel_access: bool,
-    has_monastery_coverage: bool,
-) {
-    if !residence.abandoned {
-        return;
-    }
-    if condition_blocks_resettlement(residence.condition) {
-        return;
-    }
-
-    let needs = load_needs(ctx, residence.id);
-    let supply = supply::build_supply_context(tick, ctx, &residence);
-    if !recovery_ready(
-        &needs,
-        &supply,
-        residence.tier,
-        has_chapel_access,
-        has_monastery_coverage,
-    ) {
-        return;
-    }
-
-    let mut recovered_needs = needs;
-    for need in &mut recovered_needs {
-        need.deficit_ticks = 0;
-    }
-    persist_needs(ctx, residence.id, &recovered_needs);
-    ctx.db.residence().id().update(Residence {
-        abandoned: false,
-        settlement_ticks: 0,
-        population: 0,
-        ..residence
-    });
-}
-
 pub fn apply_need_delivery(
     ctx: &ReducerContext,
     residence_id: u64,
@@ -477,49 +414,6 @@ pub fn ensure_residence_needs(ctx: &ReducerContext, residence_id: u64) {
 
 pub fn clear_residence_needs(ctx: &ReducerContext, residence_id: u64) {
     delete_needs(ctx, residence_id);
-}
-
-fn recovery_ready(
-    needs: &[NeedState],
-    supply: &supply::ResidenceNeedSupplyContext,
-    tier: u8,
-    has_chapel_access: bool,
-    has_monastery_coverage: bool,
-) -> bool {
-    let food_ready = state::find_need(needs, ResidenceNeedKind::Food).is_some_and(|need| {
-        evaluate_recovery(
-            ResidenceNeedKind::Food,
-            need,
-            supply,
-            has_chapel_access,
-            has_monastery_coverage,
-        )
-    });
-    if !food_ready {
-        return false;
-    }
-    let ready_count = ResidenceNeedKind::ALL
-        .into_iter()
-        .filter(|kind| kind.is_vital_for_tier(tier, true))
-        .filter(|kind| {
-            let Some(need) = state::find_need(needs, *kind) else {
-                return false;
-            };
-            evaluate_recovery(
-                *kind,
-                need,
-                supply,
-                has_chapel_access,
-                has_monastery_coverage,
-            )
-        })
-        .count();
-
-    let active_count = ResidenceNeedKind::ALL
-        .into_iter()
-        .filter(|kind| kind.is_vital_for_tier(tier, true))
-        .count();
-    ready_count >= (recovery_needs_required(has_chapel_access) as usize).min(active_count)
 }
 
 enum ConsumeResult {
@@ -583,27 +477,6 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => provisions::on_unmet(need),
-    }
-}
-
-fn evaluate_recovery(
-    kind: ResidenceNeedKind,
-    need: &NeedState,
-    supply: &supply::ResidenceNeedSupplyContext,
-    has_chapel_access: bool,
-    has_monastery_coverage: bool,
-) -> bool {
-    let stock_min = recovery_stock_min(kind, has_chapel_access, has_monastery_coverage);
-    match kind {
-        ResidenceNeedKind::Firewood => firewood::evaluate_recovery(need, supply, stock_min),
-        ResidenceNeedKind::Water => water::evaluate_recovery(need, supply, stock_min),
-        ResidenceNeedKind::Food => food::evaluate_recovery(need, supply, stock_min),
-        ResidenceNeedKind::Ale
-        | ResidenceNeedKind::PreservedFood
-        | ResidenceNeedKind::Cloth
-        | ResidenceNeedKind::Pottery => {
-            provisions::evaluate_recovery(kind, need, supply, stock_min)
-        }
     }
 }
 

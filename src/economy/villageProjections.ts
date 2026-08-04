@@ -13,6 +13,7 @@ import { payableChapelTithePerDay } from './householdWealth.ts';
 import { chapelTitheMultiplier } from './chapelUpgrade.ts';
 import { gardenMarketActivity } from './gardenMarketActivity.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
+import { residenceServiceState } from './residenceSatisfaction.ts';
 
 export type BackyardGardenEconomyPerDay = {
   activity: number;
@@ -34,6 +35,7 @@ export function backyardGardenEconomyPerDay(
     seasonalMultiplier?: number;
     hasMarketAccess?: boolean;
     taxCollectionMultiplier?: number;
+    serviceMultiplier?: number;
   } = {},
 ): BackyardGardenEconomyPerDay {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
@@ -46,8 +48,12 @@ export function backyardGardenEconomyPerDay(
     ? gardenMarketActivity(def, population, BACKYARD_WORKDAY_SECONDS)
       * seasonalMultiplier
     : 0;
+  const requestedServiceMultiplier = options.serviceMultiplier ?? 1;
+  const serviceMultiplier = Number.isFinite(requestedServiceMultiplier)
+    ? Math.max(0, Math.min(1, requestedServiceMultiplier))
+    : 1;
   const { adjusted, tax: assessedTax } = taxedEconomicActivity(
-    baseActivity,
+    baseActivity * serviceMultiplier,
     taxRate,
   );
   const requestedCollectionMultiplier = options.taxCollectionMultiplier ?? 1;
@@ -95,20 +101,21 @@ export function backyardGardenNetWealthPerDay(
 
 export function estimateVillageGdpPerDay(
   gardens: Iterable<{ kind: BackyardGardenKind; residenceId: string }>,
-  getResidence: (id: string) => { abandoned: boolean; population: number } | undefined,
+  getResidence: (id: string) => ResidenceState | undefined,
 ): number {
   let total = 0;
   for (const garden of gardens) {
     const residence = getResidence(garden.residenceId);
-    if (!residence || residence.abandoned || residence.population <= 0) continue;
-    total += backyardGardenActivityPerDay(garden.kind, residence.population);
+    if (!residence || residence.population <= 0) continue;
+    total += backyardGardenActivityPerDay(garden.kind, residence.population)
+      * residenceServiceState(residence).economicMultiplier;
   }
   return total;
 }
 
 export function estimateVillageTaxPerDay(
   gardens: Iterable<{ kind: BackyardGardenKind; residenceId: string }>,
-  getResidence: (id: string) => { abandoned: boolean; population: number } | undefined,
+  getResidence: (id: string) => ResidenceState | undefined,
   taxRate: number,
 ): number {
   const gdp = estimateVillageGdpPerDay(gardens, getResidence);
@@ -127,7 +134,7 @@ export function summarizeHouseholdWealth(residences: Iterable<ResidenceState>): 
   let homesWithSavings = 0;
 
   for (const residence of residences) {
-    if (residence.abandoned || residence.population <= 0) {
+    if (residence.population <= 0) {
       continue;
     }
 
@@ -151,14 +158,19 @@ export function estimateVillageHouseholdSavingsPerDay(
 
   for (const garden of gardens) {
     const residence = getResidence(garden.residenceId);
-    if (!residence || residence.abandoned || residence.population <= 0) {
+    if (!residence || residence.population <= 0) {
       continue;
     }
     if (!isMarketplaceLinked(residence)) {
       continue;
     }
 
-    total += backyardGardenNetWealthPerDay(garden.kind, residence.population, taxRate);
+    total += backyardGardenEconomyPerDay(
+      garden.kind,
+      residence.population,
+      taxRate,
+      { serviceMultiplier: residenceServiceState(residence).economicMultiplier },
+    ).net;
   }
 
   return total;

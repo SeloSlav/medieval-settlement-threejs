@@ -29,6 +29,10 @@ export type RegionalMarketBalance = {
   caravanFoodPerDelivery: number;
   caravanWaterPerDelivery: number;
   caravanFirewoodPerDelivery: number;
+  caravanPreservedFoodPerDelivery: number;
+  caravanAlePerDelivery: number;
+  caravanClothPerDelivery: number;
+  caravanPotteryPerDelivery: number;
   householdAutoBuyRunwayDays: number;
   householdAutoBuyCooldownTicks: number;
 };
@@ -144,6 +148,10 @@ export function generateRegionalMarketRust(balance: BalanceWithRegionalMarket): 
     `pub const MARKET_CARAVAN_FOOD_PER_DELIVERY: f64 = ${rustF64(market.caravanFoodPerDelivery)};`,
     `pub const MARKET_CARAVAN_WATER_PER_DELIVERY: f64 = ${rustF64(market.caravanWaterPerDelivery)};`,
     `pub const MARKET_CARAVAN_FIREWOOD_PER_DELIVERY: f64 = ${rustF64(market.caravanFirewoodPerDelivery)};`,
+    `pub const MARKET_CARAVAN_PRESERVED_FOOD_PER_DELIVERY: f64 = ${rustF64(market.caravanPreservedFoodPerDelivery)};`,
+    `pub const MARKET_CARAVAN_ALE_PER_DELIVERY: f64 = ${rustF64(market.caravanAlePerDelivery)};`,
+    `pub const MARKET_CARAVAN_CLOTH_PER_DELIVERY: f64 = ${rustF64(market.caravanClothPerDelivery)};`,
+    `pub const MARKET_CARAVAN_POTTERY_PER_DELIVERY: f64 = ${rustF64(market.caravanPotteryPerDelivery)};`,
     `pub const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS: f64 = ${rustF64(market.householdAutoBuyRunwayDays)};`,
     `pub const HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS: u64 = ${market.householdAutoBuyCooldownTicks};`,
     '',
@@ -167,6 +175,10 @@ export function generateRegionalMarketTypeScript(balance: BalanceWithRegionalMar
     `export const MARKET_CARAVAN_FOOD_PER_DELIVERY = ${market.caravanFoodPerDelivery};`,
     `export const MARKET_CARAVAN_WATER_PER_DELIVERY = ${market.caravanWaterPerDelivery};`,
     `export const MARKET_CARAVAN_FIREWOOD_PER_DELIVERY = ${market.caravanFirewoodPerDelivery};`,
+    `export const MARKET_CARAVAN_PRESERVED_FOOD_PER_DELIVERY = ${market.caravanPreservedFoodPerDelivery};`,
+    `export const MARKET_CARAVAN_ALE_PER_DELIVERY = ${market.caravanAlePerDelivery};`,
+    `export const MARKET_CARAVAN_CLOTH_PER_DELIVERY = ${market.caravanClothPerDelivery};`,
+    `export const MARKET_CARAVAN_POTTERY_PER_DELIVERY = ${market.caravanPotteryPerDelivery};`,
     `export const MARKET_CARAVAN_DELIVERY_WORKERS = ${market.caravanDeliveryWorkers};`,
     `export const MARKET_CARAVAN_LABOR_PER_WORKER = ${market.caravanLaborPerWorker};`,
     `export const HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS = ${market.householdAutoBuyRunwayDays};`,

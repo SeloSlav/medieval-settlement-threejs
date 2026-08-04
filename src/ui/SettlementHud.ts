@@ -1087,11 +1087,9 @@ export class SettlementHud {
           ? 'Household health'
           : welfare.sickResidents > 0
             ? 'Illness watch'
-            : welfare.migrationRiskHouseholds > 0
-              ? 'Household strain'
-              : welfare.dilapidatedHomes + welfare.ruinedHomes > 0
-                ? 'Vacant homes decaying'
-                : 'Welfare watch';
+            : welfare.upgradeBlockedHouseholds > 0
+              ? 'Household services'
+              : 'Welfare watch';
     this.welfareAlert.dataset.tooltipTitle = this.welfareLabel.textContent;
     this.welfareDetail.textContent = [
       welfare.starvingResidents > 0
@@ -1114,12 +1112,12 @@ export class SettlementHud {
       welfare.uncollectedBodiesAtHomes > 0 || welfare.burialGrounds > 0
         ? `${welfare.openGraves} graves open`
         : null,
-      welfare.dilapidatedHomes + welfare.ruinedHomes > 0
-        ? `${welfare.dilapidatedHomes + welfare.ruinedHomes} homes block resettlement`
+      welfare.upgradeBlockedHouseholds > 0
+        ? `${welfare.upgradeBlockedHouseholds} upgrades blocked`
         : null,
     ].filter(Boolean).join(' · ');
     this.welfareAlert.dataset.tooltip = [
-      `${welfare.stableResidents} / ${welfare.activeResidents} residents live in households without a current health or comfort warning.`,
+      `${welfare.stableResidents} / ${welfare.activeResidents} residents live in households without a current health or service warning.`,
       welfare.sickResidents > 0
         ? `${welfare.sickResidents} residents cannot work while ill. The settlement holds ${welfare.householdRemedyStock.toFixed(1)} remedies in homes, ${welfare.preparedRemedyStock.toFixed(1)} at sheds, and ${welfare.remediesInTransit.toFixed(1)} on carts against ${welfare.remedyDemandPerDay.toFixed(2)} per day; ${welfare.untreatedSickHouseholds} sick homes are not yet supplied for a full day.`
         : 'No resident is currently unable to work through illness.',
@@ -1129,13 +1127,11 @@ export class SettlementHud {
       welfare.burialGrounds > 0
         ? `${welfare.occupiedGraves} graves are occupied, ${welfare.reservedGraves} reserved by moving carts, and ${welfare.openGraves} remain open across ${welfare.burialGrounds} grounds.`
         : 'No consecrated burial ground has been laid out.',
-      welfare.comfortWarningHouseholds > 0
-        ? `${welfare.comfortWarningHouseholds} households have sustained comfort shortages; ${welfare.migrationRiskHouseholds} have reached emigration risk.`
-        : 'No household is nearing comfort-driven emigration.',
-      welfare.dilapidatedHomes + welfare.ruinedHomes > 0
-        ? `${welfare.dilapidatedHomes} vacant homes are dilapidated and ${welfare.ruinedHomes} are ruins; both block resettlement until physically restored.`
-        : 'No vacant structure currently blocks resettlement through decay.',
-      'Open the Town Hall ledger to inspect the highest-risk household and the first decaying vacant home.',
+      welfare.serviceWarningHouseholds > 0
+        ? `${welfare.serviceWarningHouseholds} households have sustained unmet needs; ${welfare.upgradeBlockedHouseholds} cannot be promoted and taxable household output averages ${Math.round(welfare.serviceEconomicOutputMultiplier * 100)}%.`
+        : 'Household services are stable, preserving full taxable output and residence promotion.',
+      `${welfare.vacantHomes} empty ${welfare.vacantHomes === 1 ? 'home remains' : 'homes remain'} permanently reusable for arriving settlers.`,
+      'Open the Town Hall ledger to inspect the highest-risk household.',
     ].join(' · ');
   }
 

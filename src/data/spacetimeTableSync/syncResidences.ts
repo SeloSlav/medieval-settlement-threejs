@@ -83,7 +83,9 @@ export function syncResidences(
       tier: Math.max(0, Math.min(3, Number(row.tier ?? 1))) as 0 | 1 | 2 | 3,
       settlementTicks: Number(row.settlementTicks ?? 0),
       needs: needsByResidence.get(residenceId) ?? createDefaultNeeds(),
-      abandoned: row.abandoned,
+      // Kept in the replicated schema for old saves only. Completed homes are
+      // permanent housing and empty capacity immediately re-enters settlement.
+      abandoned: false,
       householdWealth: Number(row.householdWealth ?? 0),
       lastHouseholdMarketTick: Number(row.lastHouseholdMarketTick ?? 0),
       upgradeTargetTier: Math.max(
@@ -111,9 +113,9 @@ export function syncResidences(
       remedyStock: Number(upgradeRow.remedyStock ?? 0),
       deathsTotal: Number(upgradeRow.deathsTotal ?? 0),
       comfortDeficitTicks: Number(upgradeRow.comfortDeficitTicks ?? 0),
-      vacancyTicks: Number(upgradeRow.vacancyTicks ?? 0),
-      condition: Math.max(0, Math.min(3, Number(upgradeRow.condition ?? 0))) as 0 | 1 | 2 | 3,
-      decayRepairActive: upgradeRow.decayRepairActive === true,
+      vacancyTicks: 0,
+      condition: 0,
+      decayRepairActive: false,
       tiledRoof: upgradeRow.tiledRoof === true,
       roofTileRetrofitActive: upgradeRow.roofTileRetrofitActive === true,
       upgradeRequiredRoofTiles: Number(upgradeRow.upgradeRequiredRoofTiles ?? 0),

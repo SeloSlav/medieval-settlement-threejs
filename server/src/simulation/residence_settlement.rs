@@ -2,7 +2,6 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::residence_settlement_policy::settlement_buffers_ready;
-use crate::resident_welfare_policy::condition_blocks_resettlement;
 use crate::simulation::chapel_community::{effective_settle_ticks, recovery_stock_min};
 use crate::simulation::residence_needs::state::NeedState;
 use crate::tables::Residence;
@@ -15,10 +14,8 @@ pub fn step_residence_settlement(
     sabbath_observance: bool,
     needs: &[NeedState],
 ) {
-    if residence.abandoned
-        || residence.tier == 0
+    if residence.tier == 0
         || residence.population_capacity == 0
-        || condition_blocks_resettlement(residence.condition)
     {
         return;
     }

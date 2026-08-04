@@ -233,9 +233,6 @@ export function renderSettlementWelfareRows(welfare: SettlementWelfare): string 
   const welfareInspectButton = welfare.firstAttentionResidenceId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${welfare.firstAttentionResidenceId}" aria-label="Inspect highest-risk household">Inspect</button>`;
-  const decayInspectButton = welfare.firstDecayResidenceId === null
-    ? ''
-    : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${welfare.firstDecayResidenceId}" aria-label="Inspect most decayed vacant home">Inspect</button>`;
   const hungerStatus = [
     welfare.hungryResidents > 0 ? `${welfare.hungryResidents} hungry` : null,
     welfare.malnourishedResidents > 0
@@ -243,18 +240,18 @@ export function renderSettlementWelfareRows(welfare: SettlementWelfare): string 
       : null,
     welfare.starvingResidents > 0 ? `${welfare.starvingResidents} starving` : null,
   ].filter(Boolean).join(' · ') || 'no hunger warning';
-  const comfortStatus = welfare.comfortWarningHouseholds > 0
-    ? ` · ${welfare.comfortWarningHouseholds} comfort-strained homes / ${welfare.migrationRiskHouseholds} at emigration risk`
+  const serviceStatus = welfare.serviceWarningHouseholds > 0
+    ? ` · ${welfare.serviceWarningHouseholds} service-strained homes / ${welfare.upgradeBlockedHouseholds} promotion-blocked / ${Math.round(welfare.serviceEconomicOutputMultiplier * 100)}% taxable output`
     : '';
   const burialStatus = welfare.burialGrounds > 0
     ? `${welfare.occupiedGraves} occupied + ${welfare.reservedGraves} reserved / ${welfare.graveCapacity} graves · ${welfare.openGraves} open`
     : 'no consecrated burial ground';
 
   return `
-    <li><span>Household health</span><span>${welfare.stableHouseholds} / ${welfare.activeHouseholds} occupied homes stable · ${hungerStatus}${comfortStatus}${welfareInspectButton}</span></li>
+    <li><span>Household health</span><span>${welfare.stableHouseholds} / ${welfare.activeHouseholds} occupied homes stable · ${hungerStatus}${serviceStatus}${welfareInspectButton}</span></li>
     <li><span>Illness and remedies</span><span>${welfare.sickResidents} residents unable to work across ${welfare.sickHouseholds} homes · ${welfare.householdRemedyStock.toFixed(1)} at homes + ${welfare.preparedRemedyStock.toFixed(1)} at sheds + ${welfare.remediesInTransit.toFixed(1)} on carts · ${welfare.remedyDemandPerDay.toFixed(2)} / day · ${formatWelfareRunway(welfare.remedyRunwayDays)}${welfare.untreatedSickHouseholds > 0 ? ` · ${welfare.untreatedSickHouseholds} homes await one treatment day` : ''}</span></li>
     <li><span>Mortality and burial</span><span>${welfare.totalDeaths} deaths recorded · ${welfare.uncollectedBodiesAtHomes} bodies remain at homes (${welfare.waitingBodies} waiting, ${welfare.outboundEmptyCarts} empty carts outbound) · ${welfare.loadedBurialCarts} loaded carts inbound · ${burialStatus} · ${welfare.staffedGravediggers} chapel workers available</span></li>
-    <li><span>Vacant structures</span><span>${welfare.vacantSoundHomes} sound · ${welfare.neglectedHomes} neglected · ${welfare.dilapidatedHomes} dilapidated · ${welfare.ruinedHomes} ruins · ${welfare.activeDecayRepairs} active restorations${decayInspectButton}</span></li>
+    <li><span>Reusable housing</span><span>${welfare.vacantHomes} empty ${welfare.vacantHomes === 1 ? 'home' : 'homes'} remain available for new settlers · homes never decay from vacancy</span></li>
   `;
 }
 
@@ -1354,11 +1351,14 @@ export function renderSettlementBackyardEconomyRows(
   const capped = plan.wealthCappedGardens > 0
     ? ` &middot; ${plan.wealthCappedGardens} ${plan.wealthCappedGardens === 1 ? 'household is' : 'households are'} at or near the wealth cap`
     : '';
+  const servicePressure = plan.servicePressuredGardens > 0
+    ? ` &middot; ${plan.servicePressuredGardens} need-strained ${plan.servicePressuredGardens === 1 ? 'home reduces' : 'homes reduce'} today's taxable activity by ${plan.currentDayServiceLostActivity.toFixed(1)} gold`
+    : '';
 
   return `
     <li><span>Garden season</span><span>${productionState} &middot; ${environment} &middot; ${plan.currentDaySelfFood.toFixed(1)} home food at today's full workday conditions${fireBlockedGardens}</span></li>
     <li><span>Market-garden roads</span><span>${roadState} &middot; ${plan.marketLinkedGardens} linked, ${plan.marketUnlinkedGardens} unlinked${fireBlockedMarkets}${inspect}</span></li>
-    <li><span>Garden trade outlook</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
+    <li><span>Garden trade outlook</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''}${servicePressure} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
   `;
 }
 
@@ -2407,7 +2407,7 @@ export function renderTownHallInspector(
       ${renderConstructionQueueRows(constructionPlan)}
       <li><span>Construction crews</span><span>${formatConstructionLabor(constructionLabor)}${constructionLaborInspectButton}</span></li>
       ${renderStorehouseNetworkRows(laborPlan.storehouseNetwork)}
-      <li><span>Housing pipeline</span><span>${growth.vacantSlots} operational vacant places · ${growth.progressingHomes} / ${growth.candidateHomes} homes admitting settlers${growth.firstArrivalHomes > 0 ? ` · ${growth.firstArrivalHomes} awaiting first household` : ''}${growth.abandonedHomes > 0 ? ` · ${growth.abandonedHomes} abandoned` : ''}${growth.fireDisabledHomes > 0 ? ` · ${growth.fireDisabledHomes} fire-disabled homes / ${growth.fireDisabledHousingCapacity} places offline` : ''}</span></li>
+      <li><span>Housing pipeline</span><span>${growth.vacantSlots} reusable vacant places · ${growth.progressingHomes} / ${growth.candidateHomes} homes admitting settlers${growth.firstArrivalHomes > 0 ? ` · ${growth.firstArrivalHomes} awaiting first household` : ''}${growth.fireDisabledHomes > 0 ? ` · ${growth.fireDisabledHomes} fire-disabled homes / ${growth.fireDisabledHousingCapacity} places offline` : ''}</span></li>
       <li><span>Next settler</span><span>${growth.nextArrivalSeconds === null ? growth.vacantSlots > 0 ? 'Paused until household buffers recover' : growth.fireDisabledVacantSlots > 0 ? `${growth.fireDisabledVacantSlots} vacant places return after structural recovery` : 'No vacant housing' : formatGrowthDuration(growth.nextArrivalSeconds)}</span></li>
       <li><span>Growth bottlenecks</span><span>${formatGrowthBottlenecks(growth)}${growthInspectButton}</span></li>
       <li><span>At full housing</span><span>+${growth.additionalFoodPerDay.toFixed(1)} winter fresh food/day after cured-ration displacement · ${growth.additionalGrossFoodPerDay.toFixed(1)} gross meal demand · +${growth.additionalWaterPerDay.toFixed(1)} water/day · +${growth.additionalWinterFirewoodPerDay.toFixed(1)} winter firewood/day</span></li>

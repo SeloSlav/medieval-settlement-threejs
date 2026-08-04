@@ -19,6 +19,7 @@ use crate::residence_upgrade_policy::{
     advance_residence_upgrade, residence_project_active, residence_upgrade_complete,
     ResidenceUpgradeWork,
 };
+use crate::residence_service_policy::service_shortage_blocks_upgrade;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_residence_upgrade_supply_trip, DeliveryTripPhase, DELIVERY_DESTINATION_RESIDENCE,
@@ -28,6 +29,7 @@ use crate::simulation::{
     clear_fire_for_target, ensure_residence_needs, labor_and_logistics_paused, GameClock,
     SimTickContext, FIRE_TARGET_RESIDENCE,
 };
+use crate::simulation::residence_needs::load_needs;
 use crate::supply_policy::{construction_source_priority, select_supply_route_candidate};
 use crate::tables::{BackyardGarden, Building, Residence};
 
@@ -50,8 +52,16 @@ pub fn step_residence_upgrades(ctx: &ReducerContext, tick: &SimTickContext, cloc
     }) {
         let structural_repair = residence.fire_repair_active || residence.decay_repair_active;
         let initial_cottage_works = residence.tier == 0 && residence.upgrade_target_tier == 1;
-        let suspended = (residence.abandoned && !structural_repair)
-            || (residence.population == 0 && !initial_cottage_works && !structural_repair)
+        let service_blocked = residence.upgrade_target_tier > residence.tier
+            && residence.tier > 0
+            && load_needs(ctx, residence.id)
+                .into_iter()
+                .filter(|need| need.kind.is_active_for_tier(residence.tier))
+                .map(|need| need.deficit_ticks)
+                .max()
+                .is_some_and(service_shortage_blocks_upgrade);
+        let suspended = (residence.population == 0 && !initial_cottage_works && !structural_repair)
+            || (service_blocked && !structural_repair)
             || (tick.residence_disabled_by_fire(ctx, residence.id)
                 && !residence.fire_repair_active)
             || construction_priority_bucket(residence.upgrade_priority)

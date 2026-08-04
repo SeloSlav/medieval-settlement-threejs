@@ -51,7 +51,7 @@ assert.ok(
   'every overview tree must retain its real near LOD underneath the fading quad layer',
 );
 assert.ok(
-  forestBuilder.includes("Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.playableSize * 0.44"),
+  forestBuilder.includes("Math.max(Math.abs(placement.x), Math.abs(placement.z)) >= terrain.generationSize * 0.44"),
   'remote edge trees should use a static overview mesh without becoming invisible',
 );
 assert.ok(

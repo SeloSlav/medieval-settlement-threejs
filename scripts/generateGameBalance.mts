@@ -337,14 +337,15 @@ export type GameBalance = {
     residenceClothPerPersonPerSec: number;
     residencePotteryCapacity: number;
     residencePotteryPerPersonPerSec: number;
-    abandonAfterDeficitTicks: number;
     hungerWarningDays: number;
     malnutritionDays: number;
     starvationDeathStartDays: number;
     starvationDeathIntervalDays: number;
     malnutritionRecoveryDays: number;
-    comfortMigrationStartDays: number;
-    comfortMigrationIntervalDays: number;
+    residenceServiceWarningDays: number;
+    residenceUpgradeServiceBlockDays: number;
+    residenceServiceMaxPenaltyDays: number;
+    residenceServiceMinEconomicMultiplier: number;
     baseIllnessChancePerPersonDay: number;
     malnutritionIllnessMultiplier: number;
     unsafeWaterIllnessMultiplier: number;
@@ -374,15 +375,11 @@ export type GameBalance = {
     graveyardAdjacencyDistance: number;
     graveAreaPerBurial: number;
     burialCartSpeedMps: number;
-    residenceTier1AbandonmentGraceMultiplier: number;
-    residenceTier2AbandonmentGraceMultiplier: number;
-    residenceTier3AbandonmentGraceMultiplier: number;
     residenceRecoveryFirewoodMin: number;
     residenceRecoveryWaterMin: number;
     residenceRecoveryFoodMin: number;
     residenceSettleTicks: number;
     chapelSettlementTicksMultiplier: number;
-    chapelAbandonmentDeficitMultiplier: number;
     chapelTitheGoldPerPersonPerDay: number;
     chapelBaseAttendanceChance: number;
     chapelPriestAttendanceBonus: number;
@@ -418,7 +415,6 @@ export type GameBalance = {
     sabbathObservanceAttendanceBonus: number;
     sabbathObservanceSettlementBonus: number;
     monasterySettlementTicksMultiplier: number;
-    monasteryAbandonmentDeficitMultiplier: number;
     monasteryRecoveryStockMultiplier: number;
     monasteryAttendanceBonus: number;
     monasteryMinFootprintSlope: number;
@@ -864,14 +860,15 @@ function generateRust(): string {
     `pub const RESIDENCE_CLOTH_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceClothPerPersonPerSec)};`,
     `pub const RESIDENCE_POTTERY_CAPACITY: f64 = ${rustF64(b.population.residencePotteryCapacity)};`,
     `pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePotteryPerPersonPerSec)};`,
-    `pub const ABANDON_AFTER_DEFICIT_TICKS: u32 = ${b.population.abandonAfterDeficitTicks};`,
     `pub const HUNGER_WARNING_DAYS: f64 = ${rustF64(b.population.hungerWarningDays)};`,
     `pub const MALNUTRITION_DAYS: f64 = ${rustF64(b.population.malnutritionDays)};`,
     `pub const STARVATION_DEATH_START_DAYS: f64 = ${rustF64(b.population.starvationDeathStartDays)};`,
     `pub const STARVATION_DEATH_INTERVAL_DAYS: f64 = ${rustF64(b.population.starvationDeathIntervalDays)};`,
     `pub const MALNUTRITION_RECOVERY_DAYS: f64 = ${rustF64(b.population.malnutritionRecoveryDays)};`,
-    `pub const COMFORT_MIGRATION_START_DAYS: f64 = ${rustF64(b.population.comfortMigrationStartDays)};`,
-    `pub const COMFORT_MIGRATION_INTERVAL_DAYS: f64 = ${rustF64(b.population.comfortMigrationIntervalDays)};`,
+    `pub const RESIDENCE_SERVICE_WARNING_DAYS: f64 = ${rustF64(b.population.residenceServiceWarningDays)};`,
+    `pub const RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS: f64 = ${rustF64(b.population.residenceUpgradeServiceBlockDays)};`,
+    `pub const RESIDENCE_SERVICE_MAX_PENALTY_DAYS: f64 = ${rustF64(b.population.residenceServiceMaxPenaltyDays)};`,
+    `pub const RESIDENCE_SERVICE_MIN_ECONOMIC_MULTIPLIER: f64 = ${rustF64(b.population.residenceServiceMinEconomicMultiplier)};`,
     `pub const BASE_ILLNESS_CHANCE_PER_PERSON_DAY: f64 = ${rustF64(b.population.baseIllnessChancePerPersonDay)};`,
     `pub const MALNUTRITION_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.malnutritionIllnessMultiplier)};`,
     `pub const UNSAFE_WATER_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.unsafeWaterIllnessMultiplier)};`,
@@ -901,15 +898,11 @@ function generateRust(): string {
     `pub const GRAVEYARD_ADJACENCY_DISTANCE: f64 = ${rustF64(b.population.graveyardAdjacencyDistance)};`,
     `pub const GRAVE_AREA_PER_BURIAL: f64 = ${rustF64(b.population.graveAreaPerBurial)};`,
     `pub const BURIAL_CART_SPEED_MPS: f64 = ${rustF64(b.population.burialCartSpeedMps)};`,
-    `pub const RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER: f64 = ${rustF64(b.population.residenceTier1AbandonmentGraceMultiplier)};`,
-    `pub const RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER: f64 = ${rustF64(b.population.residenceTier2AbandonmentGraceMultiplier)};`,
-    `pub const RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER: f64 = ${rustF64(b.population.residenceTier3AbandonmentGraceMultiplier)};`,
     `pub const RESIDENCE_RECOVERY_FIREWOOD_MIN: f64 = ${rustF64(b.population.residenceRecoveryFirewoodMin)};`,
     `pub const RESIDENCE_RECOVERY_WATER_MIN: f64 = ${rustF64(b.population.residenceRecoveryWaterMin)};`,
     `pub const RESIDENCE_RECOVERY_FOOD_MIN: f64 = ${rustF64(b.population.residenceRecoveryFoodMin)};`,
     `pub const RESIDENCE_SETTLE_TICKS: u32 = ${b.population.residenceSettleTicks};`,
     `pub const CHAPEL_SETTLEMENT_TICKS_MULTIPLIER: f64 = ${rustF64(b.population.chapelSettlementTicksMultiplier)};`,
-    `pub const CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER: f64 = ${rustF64(b.population.chapelAbandonmentDeficitMultiplier)};`,
     `pub const CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY: f64 = ${rustF64(b.population.chapelTitheGoldPerPersonPerDay)};`,
     `pub const CHAPEL_BASE_ATTENDANCE_CHANCE: f64 = ${rustF64(b.population.chapelBaseAttendanceChance)};`,
     `pub const CHAPEL_PRIEST_ATTENDANCE_BONUS: f64 = ${rustF64(b.population.chapelPriestAttendanceBonus)};`,
@@ -945,7 +938,6 @@ function generateRust(): string {
     `pub const CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS: f64 = ${rustF64(b.population.sabbathObservanceAttendanceBonus)};`,
     `pub const CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS: f64 = ${rustF64(b.population.sabbathObservanceSettlementBonus)};`,
     `pub const MONASTERY_SETTLEMENT_TICKS_MULTIPLIER: f64 = ${rustF64(b.population.monasterySettlementTicksMultiplier)};`,
-    `pub const MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER: f64 = ${rustF64(b.population.monasteryAbandonmentDeficitMultiplier)};`,
     `pub const MONASTERY_RECOVERY_STOCK_MULTIPLIER: f64 = ${rustF64(b.population.monasteryRecoveryStockMultiplier)};`,
     `pub const MONASTERY_ATTENDANCE_BONUS: f64 = ${rustF64(b.population.monasteryAttendanceBonus)};`,
     `pub const MONASTERY_MIN_FOOTPRINT_SLOPE: f64 = ${rustF64(b.population.monasteryMinFootprintSlope)};`,
@@ -1696,14 +1688,15 @@ function generateTypeScript(): string {
     `export const RESIDENCE_CLOTH_PER_PERSON_PER_SEC = ${b.population.residenceClothPerPersonPerSec};`,
     `export const RESIDENCE_POTTERY_CAPACITY = ${b.population.residencePotteryCapacity};`,
     `export const RESIDENCE_POTTERY_PER_PERSON_PER_SEC = ${b.population.residencePotteryPerPersonPerSec};`,
-    `export const ABANDON_AFTER_DEFICIT_TICKS = ${b.population.abandonAfterDeficitTicks};`,
     `export const HUNGER_WARNING_DAYS = ${b.population.hungerWarningDays};`,
     `export const MALNUTRITION_DAYS = ${b.population.malnutritionDays};`,
     `export const STARVATION_DEATH_START_DAYS = ${b.population.starvationDeathStartDays};`,
     `export const STARVATION_DEATH_INTERVAL_DAYS = ${b.population.starvationDeathIntervalDays};`,
     `export const MALNUTRITION_RECOVERY_DAYS = ${b.population.malnutritionRecoveryDays};`,
-    `export const COMFORT_MIGRATION_START_DAYS = ${b.population.comfortMigrationStartDays};`,
-    `export const COMFORT_MIGRATION_INTERVAL_DAYS = ${b.population.comfortMigrationIntervalDays};`,
+    `export const RESIDENCE_SERVICE_WARNING_DAYS = ${b.population.residenceServiceWarningDays};`,
+    `export const RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS = ${b.population.residenceUpgradeServiceBlockDays};`,
+    `export const RESIDENCE_SERVICE_MAX_PENALTY_DAYS = ${b.population.residenceServiceMaxPenaltyDays};`,
+    `export const RESIDENCE_SERVICE_MIN_ECONOMIC_MULTIPLIER = ${b.population.residenceServiceMinEconomicMultiplier};`,
     `export const BASE_ILLNESS_CHANCE_PER_PERSON_DAY = ${b.population.baseIllnessChancePerPersonDay};`,
     `export const MALNUTRITION_ILLNESS_MULTIPLIER = ${b.population.malnutritionIllnessMultiplier};`,
     `export const UNSAFE_WATER_ILLNESS_MULTIPLIER = ${b.population.unsafeWaterIllnessMultiplier};`,
@@ -1733,15 +1726,11 @@ function generateTypeScript(): string {
     `export const GRAVEYARD_ADJACENCY_DISTANCE = ${b.population.graveyardAdjacencyDistance};`,
     `export const GRAVE_AREA_PER_BURIAL = ${b.population.graveAreaPerBurial};`,
     `export const BURIAL_CART_SPEED_MPS = ${b.population.burialCartSpeedMps};`,
-    `export const RESIDENCE_TIER1_ABANDONMENT_GRACE_MULTIPLIER = ${b.population.residenceTier1AbandonmentGraceMultiplier};`,
-    `export const RESIDENCE_TIER2_ABANDONMENT_GRACE_MULTIPLIER = ${b.population.residenceTier2AbandonmentGraceMultiplier};`,
-    `export const RESIDENCE_TIER3_ABANDONMENT_GRACE_MULTIPLIER = ${b.population.residenceTier3AbandonmentGraceMultiplier};`,
     `export const RESIDENCE_RECOVERY_FIREWOOD_MIN = ${b.population.residenceRecoveryFirewoodMin};`,
     `export const RESIDENCE_RECOVERY_WATER_MIN = ${b.population.residenceRecoveryWaterMin};`,
     `export const RESIDENCE_RECOVERY_FOOD_MIN = ${b.population.residenceRecoveryFoodMin};`,
     `export const RESIDENCE_SETTLE_TICKS = ${b.population.residenceSettleTicks};`,
     `export const CHAPEL_SETTLEMENT_TICKS_MULTIPLIER = ${b.population.chapelSettlementTicksMultiplier};`,
-    `export const CHAPEL_ABANDONMENT_DEFICIT_MULTIPLIER = ${b.population.chapelAbandonmentDeficitMultiplier};`,
     `export const CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY = ${b.population.chapelTitheGoldPerPersonPerDay};`,
     `export const CHAPEL_BASE_ATTENDANCE_CHANCE = ${b.population.chapelBaseAttendanceChance};`,
     `export const CHAPEL_PRIEST_ATTENDANCE_BONUS = ${b.population.chapelPriestAttendanceBonus};`,
@@ -1777,7 +1766,6 @@ function generateTypeScript(): string {
     `export const CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS = ${b.population.sabbathObservanceAttendanceBonus};`,
     `export const CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS = ${b.population.sabbathObservanceSettlementBonus};`,
     `export const MONASTERY_SETTLEMENT_TICKS_MULTIPLIER = ${b.population.monasterySettlementTicksMultiplier};`,
-    `export const MONASTERY_ABANDONMENT_DEFICIT_MULTIPLIER = ${b.population.monasteryAbandonmentDeficitMultiplier};`,
     `export const MONASTERY_RECOVERY_STOCK_MULTIPLIER = ${b.population.monasteryRecoveryStockMultiplier};`,
     `export const MONASTERY_ATTENDANCE_BONUS = ${b.population.monasteryAttendanceBonus};`,
     `export const MONASTERY_MIN_FOOTPRINT_SLOPE = ${b.population.monasteryMinFootprintSlope};`,

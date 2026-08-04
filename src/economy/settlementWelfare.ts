@@ -1,12 +1,12 @@
 import {
   CALENDAR_SECONDS_PER_DAY,
-  COMFORT_MIGRATION_START_DAYS,
   HERB_TREATMENT_PER_SICK_DAY,
   HUNGER_WARNING_DAYS,
   MALNUTRITION_DAYS,
   SIM_TICK_SECONDS,
   STARVATION_DEATH_START_DAYS,
 } from '../generated/gameBalance.ts';
+import { residenceServiceState } from './residenceSatisfaction.ts';
 import {
   fireDisabledBuildingIds,
   fireDisabledResidenceIds,
@@ -37,8 +37,9 @@ export type SettlementWelfare = {
   remedyStock: number;
   remedyDemandPerDay: number;
   remedyRunwayDays: number;
-  comfortWarningHouseholds: number;
-  migrationRiskHouseholds: number;
+  serviceWarningHouseholds: number;
+  upgradeBlockedHouseholds: number;
+  serviceEconomicOutputMultiplier: number;
   totalDeaths: number;
   waitingBodies: number;
   outboundEmptyCarts: number;
@@ -51,13 +52,8 @@ export type SettlementWelfare = {
   reservedGraves: number;
   openGraves: number;
   staffedGravediggers: number;
-  vacantSoundHomes: number;
-  neglectedHomes: number;
-  dilapidatedHomes: number;
-  ruinedHomes: number;
-  activeDecayRepairs: number;
+  vacantHomes: number;
   firstAttentionResidenceId: string | null;
-  firstDecayResidenceId: string | null;
 };
 
 /**
@@ -85,7 +81,7 @@ export type SettlementWelfareAccumulator = Omit<
   | 'staffedGravediggers'
 > & {
   firstAttentionRank: number;
-  firstDecayRank: number;
+  serviceEconomicMultiplierTotal: number;
 };
 
 export function createSettlementWelfareAccumulator(): SettlementWelfareAccumulator {
@@ -105,18 +101,14 @@ export function createSettlementWelfareAccumulator(): SettlementWelfareAccumulat
     untreatedSickHouseholds: 0,
     remedyStock: 0,
     remedyDemandPerDay: 0,
-    comfortWarningHouseholds: 0,
-    migrationRiskHouseholds: 0,
+    serviceWarningHouseholds: 0,
+    upgradeBlockedHouseholds: 0,
+    serviceEconomicOutputMultiplier: 1,
     totalDeaths: 0,
-    vacantSoundHomes: 0,
-    neglectedHomes: 0,
-    dilapidatedHomes: 0,
-    ruinedHomes: 0,
-    activeDecayRepairs: 0,
+    vacantHomes: 0,
     firstAttentionResidenceId: null,
-    firstDecayResidenceId: null,
     firstAttentionRank: Number.POSITIVE_INFINITY,
-    firstDecayRank: Number.POSITIVE_INFINITY,
+    serviceEconomicMultiplierTotal: 0,
   };
 }
 
@@ -128,18 +120,8 @@ export function accumulateResidenceWelfare(
   accumulator.totalDeaths += finiteCount(residence.deathsTotal);
   if (residence.tier === 0) return;
 
-  const vacant = residence.abandoned || residence.population <= 0;
-  if (vacant) {
-    const condition = Math.max(0, Math.min(3, residence.condition ?? 0));
-    if (condition === 0) accumulator.vacantSoundHomes += 1;
-    if (condition === 1) accumulator.neglectedHomes += 1;
-    if (condition === 2) accumulator.dilapidatedHomes += 1;
-    if (condition === 3) accumulator.ruinedHomes += 1;
-    if (residence.decayRepairActive === true) accumulator.activeDecayRepairs += 1;
-    if (condition > 0) {
-      updateDecayAttention(accumulator, residence.id, 3 - condition);
-      updateWelfareAttention(accumulator, residence.id, 10 - condition);
-    }
+  if (residence.population <= 0) {
+    accumulator.vacantHomes += 1;
     return;
   }
 
@@ -182,20 +164,21 @@ export function accumulateResidenceWelfare(
     updateWelfareAttention(accumulator, residence.id, untreated ? 3 : 4);
   }
 
-  const comfortDays = ticksToDays(residence.comfortDeficitTicks);
-  if (comfortDays >= COMFORT_MIGRATION_START_DAYS * 0.5) {
-    accumulator.comfortWarningHouseholds += 1;
+  const service = residenceServiceState(residence);
+  accumulator.serviceEconomicMultiplierTotal += service.economicMultiplier;
+  if (service.warning) {
+    accumulator.serviceWarningHouseholds += 1;
     updateWelfareAttention(accumulator, residence.id, 6);
   }
-  if (comfortDays >= COMFORT_MIGRATION_START_DAYS) {
-    accumulator.migrationRiskHouseholds += 1;
+  if (service.upgradeBlocked) {
+    accumulator.upgradeBlockedHouseholds += 1;
   }
 
   if (
     hungerDays < HUNGER_WARNING_DAYS
     && malnutrition < 0.05
     && sick === 0
-    && comfortDays < COMFORT_MIGRATION_START_DAYS * 0.5
+    && !service.warning
   ) {
     accumulator.stableHouseholds += 1;
     accumulator.stableResidents += population;
@@ -276,17 +259,12 @@ export function finalizeSettlementWelfare(
     || accumulator.hungryResidents > 0
     || accumulator.malnourishedResidents > 0
     || accumulator.sickResidents > 0
-    || accumulator.comfortWarningHouseholds > 0
-    || uncollectedBodiesAtHomes > 0
-    || accumulator.dilapidatedHomes > 0
-    || accumulator.ruinedHomes > 0;
+    || accumulator.serviceWarningHouseholds > 0
+    || uncollectedBodiesAtHomes > 0;
   const hasWelfareState = accumulator.activeResidents > 0
     || accumulator.totalDeaths > 0
     || burialGrounds > 0
-    || accumulator.vacantSoundHomes > 0
-    || accumulator.neglectedHomes > 0
-    || accumulator.dilapidatedHomes > 0
-    || accumulator.ruinedHomes > 0;
+    || accumulator.vacantHomes > 0;
 
   return {
     level: critical ? 'critical' : watch ? 'watch' : hasWelfareState ? 'stable' : 'none',
@@ -309,8 +287,11 @@ export function finalizeSettlementWelfare(
     remedyStock: totalRemedyStock,
     remedyDemandPerDay: accumulator.remedyDemandPerDay,
     remedyRunwayDays,
-    comfortWarningHouseholds: accumulator.comfortWarningHouseholds,
-    migrationRiskHouseholds: accumulator.migrationRiskHouseholds,
+    serviceWarningHouseholds: accumulator.serviceWarningHouseholds,
+    upgradeBlockedHouseholds: accumulator.upgradeBlockedHouseholds,
+    serviceEconomicOutputMultiplier: accumulator.activeHouseholds > 0
+      ? accumulator.serviceEconomicMultiplierTotal / accumulator.activeHouseholds
+      : 1,
     totalDeaths: accumulator.totalDeaths,
     waitingBodies,
     outboundEmptyCarts,
@@ -323,13 +304,8 @@ export function finalizeSettlementWelfare(
     reservedGraves,
     openGraves,
     staffedGravediggers,
-    vacantSoundHomes: accumulator.vacantSoundHomes,
-    neglectedHomes: accumulator.neglectedHomes,
-    dilapidatedHomes: accumulator.dilapidatedHomes,
-    ruinedHomes: accumulator.ruinedHomes,
-    activeDecayRepairs: accumulator.activeDecayRepairs,
+    vacantHomes: accumulator.vacantHomes,
     firstAttentionResidenceId: accumulator.firstAttentionResidenceId,
-    firstDecayResidenceId: accumulator.firstDecayResidenceId,
   };
 }
 
@@ -367,26 +343,6 @@ function updateWelfareAttention(
   ) {
     accumulator.firstAttentionRank = rank;
     accumulator.firstAttentionResidenceId = residenceId;
-  }
-}
-
-function updateDecayAttention(
-  accumulator: SettlementWelfareAccumulator,
-  residenceId: string,
-  rank: number,
-): void {
-  if (
-    rank < accumulator.firstDecayRank
-    || (
-      rank === accumulator.firstDecayRank
-      && (
-        accumulator.firstDecayResidenceId === null
-        || compareStableEntityIds(residenceId, accumulator.firstDecayResidenceId) < 0
-      )
-    )
-  ) {
-    accumulator.firstDecayRank = rank;
-    accumulator.firstDecayResidenceId = residenceId;
   }
 }
 

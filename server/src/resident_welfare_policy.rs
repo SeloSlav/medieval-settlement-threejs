@@ -4,8 +4,7 @@
 use std::collections::HashMap;
 
 use crate::balance_generated::{
-    CALENDAR_SECONDS_PER_DAY, COMFORT_MIGRATION_INTERVAL_DAYS, COMFORT_MIGRATION_START_DAYS,
-    HUNGER_WARNING_DAYS, MALNUTRITION_DAYS, MALNUTRITION_RECOVERY_DAYS, RESIDENCE_DILAPIDATED_DAYS,
+    CALENDAR_SECONDS_PER_DAY, HUNGER_WARNING_DAYS, MALNUTRITION_DAYS, MALNUTRITION_RECOVERY_DAYS, RESIDENCE_DILAPIDATED_DAYS,
     RESIDENCE_DILAPIDATED_REPAIR_STONE, RESIDENCE_DILAPIDATED_REPAIR_TIMBER,
     RESIDENCE_NEGLECTED_DAYS, RESIDENCE_NEGLECTED_REPAIR_STONE, RESIDENCE_NEGLECTED_REPAIR_TIMBER,
     RESIDENCE_RUINED_DAYS, RESIDENCE_RUINED_REPAIR_STONE, RESIDENCE_RUINED_REPAIR_TIMBER,
@@ -66,19 +65,7 @@ pub fn starvation_episode_resolved(hunger_ticks: u32) -> bool {
     hunger_stage(hunger_ticks) != HEALTH_STAGE_STARVING
 }
 
-pub fn comfort_migration_due(previous_ticks: u32, next_ticks: u32) -> bool {
-    let first = ticks_for_days(COMFORT_MIGRATION_START_DAYS);
-    if next_ticks < first {
-        return false;
-    }
-    if previous_ticks < first {
-        return true;
-    }
-    let interval = ticks_for_days(COMFORT_MIGRATION_INTERVAL_DAYS).max(1);
-    previous_ticks.saturating_sub(first) / interval < next_ticks.saturating_sub(first) / interval
-}
-
-pub fn next_comfort_deficit_ticks(
+pub fn next_service_deficit_ticks(
     previous_ticks: u32,
     comfort_unmet: bool,
     consumption_paused: bool,
@@ -263,18 +250,10 @@ mod tests {
     }
 
     #[test]
-    fn comfort_shortages_trigger_departures_without_using_health_stages() {
-        let first = ticks_for_days(COMFORT_MIGRATION_START_DAYS);
-        assert!(!comfort_migration_due(first - 2, first - 1));
-        assert!(comfort_migration_due(first - 1, first));
-        assert!(!comfort_migration_due(first, first + 1));
-        assert!(comfort_migration_due(
-            first + ticks_for_days(COMFORT_MIGRATION_INTERVAL_DAYS) - 1,
-            first + ticks_for_days(COMFORT_MIGRATION_INTERVAL_DAYS)
-        ));
-        assert_eq!(next_comfort_deficit_ticks(120, true, true), 120);
-        assert_eq!(next_comfort_deficit_ticks(120, true, false), 121);
-        assert_eq!(next_comfort_deficit_ticks(120, false, false), 118);
+    fn service_shortages_accumulate_and_recover_without_removing_residents() {
+        assert_eq!(next_service_deficit_ticks(120, true, true), 120);
+        assert_eq!(next_service_deficit_ticks(120, true, false), 121);
+        assert_eq!(next_service_deficit_ticks(120, false, false), 118);
     }
 
     #[test]

@@ -291,6 +291,7 @@ export type ResidenceState = {
   tier: 0 | 1 | 2 | 3;
   settlementTicks: number;
   needs: ResidenceNeedsState;
+  /** Deprecated replicated save field. Runtime homes are never abandoned. */
   abandoned: boolean;
   householdWealth: number;
   /** Last successful household-funded market dispatch; absent in older fixtures/saves. */
@@ -327,7 +328,7 @@ export type ResidenceState = {
   vacancyTicks?: number;
   /** 0 sound, 1 neglected, 2 dilapidated, 3 ruin. */
   condition?: 0 | 1 | 2 | 3;
-  /** Physical material-and-builder project restoring a vacant structure. */
+  /** Deprecated save-compatibility field from the removed vacancy-decay system. */
   decayRepairActive?: boolean;
   /** Completed local fired-clay roof; absent legacy rows remain shingle-roofed. */
   tiledRoof?: boolean;

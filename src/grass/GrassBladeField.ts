@@ -194,7 +194,7 @@ export async function createGrassBladeField(
     return createDisabledGrassBladeField();
   }
 
-  const spawnConfig = createForestSpawnConfig(terrain.playableSize, terrain.size);
+  const spawnConfig = createForestSpawnConfig(terrain.generationSize, terrain.size);
   const context: GrassFieldContext = {
     terrain,
     extent: spawnConfig.extent,

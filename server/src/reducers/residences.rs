@@ -29,6 +29,7 @@ use crate::placement_validation::{
 use crate::residence_upgrade_policy::{
     residence_project_active, residence_upgrade_household_contribution,
 };
+use crate::residence_service_policy::service_shortage_blocks_upgrade;
 use crate::resident_welfare_policy::repair_cost;
 use crate::roads::{load_owner_road_network, RoadNetwork};
 use crate::simulation::{
@@ -36,6 +37,7 @@ use crate::simulation::{
     clear_fire_for_target, clear_residence_needs, ensure_residence_needs, insert_reclamation_pile,
     local_delivery_distance, residence_fire_state, ReclamationStock, FIRE_TARGET_RESIDENCE,
 };
+use crate::simulation::residence_needs::load_needs;
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
     is_well_supplier_operational, ALE_SUPPLIER_KINDS, CLOTH_SUPPLIER_KINDS, POTTERY_SUPPLIER_KINDS,
@@ -325,7 +327,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     if residence.owner != owner {
         return Err("You do not own this residence.".to_string());
     }
-    if residence.abandoned || residence.population == 0 {
+    if residence.population == 0 {
         return Err("Only an occupied residence can be upgraded.".to_string());
     }
     if residence_fire_state(ctx, residence.id).is_some() {
@@ -340,6 +342,18 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         residence.roof_tile_retrofit_active,
     ) {
         return Err("This household already has improvement works underway.".to_string());
+    }
+    let max_service_deficit = load_needs(ctx, residence.id)
+        .into_iter()
+        .filter(|need| need.kind.is_active_for_tier(residence.tier))
+        .map(|need| need.deficit_ticks)
+        .max()
+        .unwrap_or(0);
+    if service_shortage_blocks_upgrade(max_service_deficit) {
+        return Err(
+            "Restore this household's sustained unmet needs before upgrading the residence."
+                .to_string(),
+        );
     }
 
     let next_tier = residence.tier.saturating_add(1);

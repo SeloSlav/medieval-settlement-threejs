@@ -58,24 +58,24 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     tributaryCount: normalizedSettings.terrainPreset === 'risnjak_pass'
       ? 2
       : hydrologyTributaryCount(normalizedSettings.hydrology),
-    drain: scaledRiverDrain(dims.playableHalf),
+    drain: scaledRiverDrain(dims.generationHalf),
     terrainPreset: normalizedSettings.terrainPreset,
   });
   const quarryLayout = QuarryLayout.create({
     bounds: riverBounds,
     seed: normalizedSettings.seed,
     riverLayout,
-    playableHalf: dims.playableHalf,
+    playableHalf: dims.generationHalf,
     ordinarySiteCount: resourcePlan.ordinaryQuarryCount,
     richSiteCount: resourcePlan.richStoneDepositCount,
   });
   const densityScale = forestDensityScale(normalizedSettings.forestDensity);
-  const spawnConfig = createForestSpawnConfig(dims.playableSize, dims.terrainSize, densityScale);
+  const spawnConfig = createForestSpawnConfig(dims.generationSize, dims.terrainSize, densityScale);
   const forestCores = createForestCores(mulberry32(forestSeed), spawnConfig);
   const foragingLayout = ForagingLayout.create({
     forestCores,
     riverLayout,
-    playableHalf: dims.playableHalf,
+    playableHalf: dims.generationHalf,
     seed: normalizedSettings.seed ^ 0x4f0d21,
     nodeCounts: resourcePlan.foragingNodeCounts,
   });
@@ -83,7 +83,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     riverLayout,
     quarrySites: quarryLayout.sites,
     foragingSites: foragingLayout.sites,
-    playableHalf: dims.playableHalf,
+    playableHalf: dims.generationHalf,
     seed: deriveSubSeed(normalizedSettings.seed, 'rich-clay'),
     ordinarySiteCount: resourcePlan.ordinaryClayDepositCount,
     richSiteCount: resourcePlan.richClayDepositCount,
@@ -95,7 +95,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     quarrySites: quarryLayout.sites,
     foragingSites: foragingLayout.sites,
     claySites: clayDepositLayout.sites,
-    playableHalf: dims.playableHalf,
+    playableHalf: dims.generationHalf,
     seed: deriveSubSeed(normalizedSettings.seed, 'iron-salt-deposits'),
     mapSize: normalizedSettings.mapSize,
     resourceVariety: normalizedSettings.resourceVariety,

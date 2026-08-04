@@ -76,7 +76,7 @@ export async function buildTerrainGeometryData(
         x,
         z,
         forestCores,
-        dimensions.playableSize * 0.5,
+        dimensions.generationSize * 0.5,
         dimensions.terrainSize * 0.5,
       );
       forestBlends[vertexIndex] = forestFloorBlendAtDensity(forestDensity);
