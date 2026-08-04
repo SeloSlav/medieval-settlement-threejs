@@ -466,7 +466,7 @@ assert.match(inspector.detailsHtml, /supplied sites fill by priority/);
 assert.match(inspector.detailsHtml, /Dawn labor review/);
 assert.match(
   inspector.detailsHtml,
-  /Next dawn: production release 2\/deploy 3.*0 free after review/,
+  /Next dawn: production release 2\/deploy 3.*5 free after review/,
 );
 assert.match(
   inspector.detailsHtml,
@@ -484,7 +484,7 @@ assert.match(inspector.supplementalPanelHtml ?? '', /Recall 2 stalled production
 assert.match(inspector.supplementalPanelHtml ?? '', /One dispatcher remains for stored output/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Matching inbound supplies protect recovering workshops/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-call-up-target-ready-processor-labor/);
-assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 1 production worker/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 3 production workers/);
 assert.match(inspector.supplementalPanelHtml ?? '', /equal-priority sites share workers round-robin/);
 assert.match(
   inspector.supplementalPanelHtml ?? '',

@@ -20,7 +20,7 @@ use crate::simulation::{
     step_smithy, step_smokehouse, step_stone_quarry, step_swineherd, step_threshing_barn,
     step_village_storehouse_household_firewood, step_village_storehouse_overflow_collection,
     step_vineyard, step_watermill, step_weaver, step_well, step_woodcutters_lodge,
-    try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
+    step_workforce_commutes, try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
 use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
 use crate::tables::WorldConfig;
@@ -172,6 +172,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     );
     let tick = SimTickContext::with_road_networks(road_networks);
     step_fires(ctx, &clock, environment, world_seed, sim_tick);
+    step_workforce_commutes(ctx, &tick, sim_tick);
     step_construction_sites(ctx, &tick, &clock);
     step_residence_upgrades(ctx, &tick, &clock);
     step_household_market_orders(ctx, &tick, &clock, sim_tick);

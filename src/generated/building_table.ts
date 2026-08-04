@@ -101,5 +101,6 @@ export default __t.row({
   potterFiringPolicy: __t.u8().name("potter_firing_policy"),
   remoteWorkCampEnabled: __t.bool().name("remote_work_camp_enabled"),
   linkedWorksiteId: __t.u64().name("linked_worksite_id"),
+  commuteEfficiency: __t.f64().name("commute_efficiency"),
   chapelTier: __t.u8().name("chapel_tier"),
 });

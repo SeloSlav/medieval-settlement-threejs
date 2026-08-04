@@ -589,6 +589,12 @@ pub struct Building {
     /// fire, repair, and demolition lifecycle.
     #[default(0u64)]
     pub linked_worksite_id: u64,
+    /// Fraction of an exposed rural crew's nominal shift left after its
+    /// household commute. Rebuilt from current homes and roads once per day;
+    /// a completed, fire-safe linked camp bypasses it at runtime. The additive
+    /// default preserves existing production until the first review.
+    #[default(1.0)]
+    pub commute_efficiency: f64,
     /// Visual and service tier for the legacy `chapel` kind: 1 small timber,
     /// 2 small stone, 3 large stone. The legacy default preserves the former
     /// large church when an established settlement is migrated.

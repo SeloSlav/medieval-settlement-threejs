@@ -43,6 +43,7 @@ mod tick_context;
 mod village_storehouse;
 mod well;
 mod woodcutters_lodge;
+mod workforce_commute;
 
 pub use backyard_garden::{clear_backyard_garden_for_residence, step_backyard_gardens};
 pub use burial::step_burials;
@@ -122,3 +123,4 @@ pub use village_storehouse::{
 };
 pub use well::step_well;
 pub use woodcutters_lodge::step_woodcutters_lodge;
+pub use workforce_commute::{commute_adjusted_labor, step_workforce_commutes};

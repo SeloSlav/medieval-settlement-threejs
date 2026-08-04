@@ -56,6 +56,7 @@ mod weaver_input_policy;
 mod well_policy;
 mod woodcutter_policy;
 mod worksite_stall_policy;
+mod workforce_commute_policy;
 mod world_entities;
 mod world_gen;
 mod year_round_labor_policy;

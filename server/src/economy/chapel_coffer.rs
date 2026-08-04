@@ -274,6 +274,7 @@ mod tests {
             potter_firing_policy: 0,
             remote_work_camp_enabled: false,
             linked_worksite_id: 0,
+            commute_efficiency: 1.0,
             chapel_tier: 2,
         }
     }

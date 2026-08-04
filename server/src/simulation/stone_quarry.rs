@@ -11,9 +11,9 @@ use crate::economy::{
 use crate::processor_output_policy::processor_output_headroom;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::spatial::find_nearest_quarry;
 use crate::simulation::SimTickContext;
+use crate::simulation::{commute_adjusted_labor, labor_and_logistics_paused};
 use crate::tables::{Building, Quarry};
 
 pub fn step_stone_quarry(
@@ -33,7 +33,8 @@ pub fn step_stone_quarry(
     let work_radius = def.work_radius;
 
     let onsite_labor = onsite_building_labor(ctx, &building);
-    if onsite_labor == 0 {
+    let productive_labor = commute_adjusted_labor(ctx, tick, &building, onsite_labor);
+    if productive_labor <= 1e-9 {
         return;
     }
 
@@ -48,7 +49,7 @@ pub fn step_stone_quarry(
         return;
     }
 
-    let labor_interval = interval / onsite_labor as f64;
+    let labor_interval = interval / productive_labor;
 
     let caps = building_storage_caps(&building.kind);
     let output_headroom = processor_output_headroom(

@@ -22,6 +22,10 @@ import type {
 } from '../src/resources/types.ts';
 import { computeVillagerSlots } from '../src/settlement/villagerPaths.ts';
 import {
+  commuteEffectiveShiftRatio,
+  WORKDAY_SECONDS,
+} from '../src/settlement/workerCommute.ts';
+import {
   allocateProductionWorkers,
   collectWorkerTargets,
   pickWorkerWalkPath,
@@ -57,7 +61,11 @@ import {
   workLodgingFiresidePosition,
 } from '../src/buildings/remoteWorkCamp.ts';
 import { createRemoteWorkCampMesh } from '../src/buildings/meshes/foundersCampMesh.ts';
-import { BUILDING_COSTS } from '../src/generated/gameBalance.ts';
+import {
+  BUILDING_COSTS,
+  WORKFORCE_AVERAGE_WALK_SPEED_MPS,
+  WORKFORCE_ROAD_SPEED_MULTIPLIER,
+} from '../src/generated/gameBalance.ts';
 import { BUILDING_KIND_TO_MENU_ACTION } from '../src/ui/buildMenuMapping.ts';
 import {
   createSelectedAgentRoute,
@@ -150,7 +158,11 @@ const roster = allocateProductionWorkers(
   [residenceA, residenceB],
   [serviceWell, stoneCamp, lumberMill],
 );
-assert.equal(roster.assignments.length, 5, 'resource and processing labor cannot exceed real settlers');
+assert.equal(
+  roster.assignments.length,
+  6,
+  'staffed posts may use the unhoused remainder of the ten-person founding population',
+);
 assert.deepEqual(
   roster.assignments.map((assignment) => assignment.buildingId),
   [
@@ -159,14 +171,15 @@ assert.deepEqual(
     'building-2',
     'building-2',
     'building-3',
+    'building-3',
   ],
 );
 assert.equal(roster.remainingPopulationByResidence.get(residenceA.id), 0);
 assert.equal(roster.remainingPopulationByResidence.get(residenceB.id), 0);
 assert.equal(
   roster.assignments.filter((assignment) => assignment.homeResidenceId === null).length,
-  0,
-  'fully housed settlements must not manufacture fallback workers beyond the real population',
+  1,
+  'the one unfilled post should use one real settler still sleeping at the founders camp',
 );
 assert.ok(
   roster.assignments.every((assignment) => assignment.onSite),
@@ -193,6 +206,7 @@ assert.deepEqual(
   [
     'worker:building-1:0',
     'worker:building-3:0',
+    'worker:building-3:1',
   ],
   'only roster-backed cart crews should disappear from workplace bodies',
 );
@@ -225,8 +239,8 @@ const illnessRoster = allocateProductionWorkers(
 );
 assert.equal(
   illnessRoster.assignments.length,
-  5,
-  'sick residents must not be replaced by imaginary workers when no founders remain unhoused',
+  8,
+  'homebound sick residents remain unavailable while healthy unhoused founders fill real open posts',
 );
 assert.deepEqual(
   illnessRoster.assignments.map((assignment) => assignment.personIdentity),
@@ -236,8 +250,11 @@ assert.deepEqual(
     'illness-household:person:5',
     'illness-household:person:6',
     'illness-household:person:7',
+    'starting-population:0',
+    'starting-population:1',
+    'starting-population:2',
   ],
-  'the first household identities remain reserved for visible homebound sick residents',
+  'the first household identities remain reserved for visible homebound sick residents before founders fill the roster',
 );
 
 const commuteRoads = new RoadNetwork();
@@ -265,6 +282,10 @@ assert.equal(hasBuiltInWorkLodging('hunters_hall'), true);
 assert.equal(hasBuiltInWorkLodging('reforester'), true);
 assert.equal(hasBuiltInWorkLodging('threshing_barn'), false);
 assert.deepEqual(BUILDING_COSTS.remote_work_camp, { timber: 14, stone: 3 });
+assert.equal(WORKFORCE_AVERAGE_WALK_SPEED_MPS, 1.225);
+assert.equal(WORKFORCE_ROAD_SPEED_MULTIPLIER, 1.25);
+assert.equal(commuteEffectiveShiftRatio(0), 1);
+assert.ok(Math.abs(commuteEffectiveShiftRatio(WORKDAY_SECONDS * 0.125) - 0.75) < 1e-9);
 assert.equal(
   BUILDING_KIND_TO_MENU_ACTION.remote_work_camp,
   undefined,
@@ -602,10 +623,25 @@ assert.ok(
 );
 const villagerRendererSource = fs.readFileSync('src/settlement/VillagerRenderer.ts', 'utf8');
 const buildingReducerSource = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
+const commuteAuthoritySource = fs.readFileSync(
+  'server/src/simulation/workforce_commute.rs',
+  'utf8',
+);
+const generatedBuildingSource = fs.readFileSync('src/generated/building_table.ts', 'utf8');
+const lodgingInspectorSource = fs.readFileSync(
+  'src/resources/inspector/remoteWorkCampRenderer.ts',
+  'utf8',
+);
 assert.match(buildingReducerSource, /pub fn place_remote_work_camp/);
 assert.match(buildingReducerSource, /place_building_internal\(ctx, "remote_work_camp"\.to_string\(\), x, z, worksite_id\)/);
 assert.match(buildingReducerSource, /Demolish this worksite's overnight camp first/);
 assert.doesNotMatch(buildingReducerSource, /pub fn set_remote_work_camp/);
+assert.match(generatedBuildingSource, /commuteEfficiency: __t\.f64\(\)/);
+assert.match(commuteAuthoritySource, /seasonal_labor_steward_review_due/);
+assert.match(commuteAuthoritySource, /road_path_distances_from/);
+assert.match(commuteAuthoritySource, /worksite_has_active_remote_camp/);
+assert.match(lodgingInspectorSource, /Authoritative output labor/);
+assert.match(lodgingInspectorSource, /restoring the worksite\\'s full productive shift/);
 assert.match(villagerRendererSource, /scanFromWatchtower/);
 assert.match(villagerRendererSource, /resolveAgentY/);
 assert.match(villagerRendererSource, /Keeping watch from the frontier gallery/);

@@ -56,6 +56,8 @@ pub mod simulation {
 
 #[path = "../../src/labor_steward_policy.rs"]
 pub mod labor_steward_policy;
+#[path = "../../src/workforce_commute_policy.rs"]
+pub mod workforce_commute_policy;
 #[path = "../../src/season_policy.rs"]
 pub mod season_policy;
 #[path = "../../src/seasonal_labor_policy.rs"]

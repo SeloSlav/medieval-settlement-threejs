@@ -2622,7 +2622,16 @@ fn cycle_labor_if_ready_at_rate(
         if onsite_labor == 0 {
             return None;
         }
-        onsite_labor as f64
+        let productive_labor = crate::simulation::commute_adjusted_labor(
+            ctx,
+            tick,
+            building,
+            onsite_labor,
+        );
+        if productive_labor <= 1e-9 {
+            return None;
+        }
+        productive_labor
     };
     building.action_cooldown =
         (building.action_cooldown - TICK_DT * throughput_multiplier.max(0.0)).max(0.0);
@@ -2636,7 +2645,7 @@ fn reset_cycle(building: &mut Building, labor: f64) {
     let interval = building_def(&building.kind)
         .map(|def| def.action_interval)
         .unwrap_or(1.0);
-    building.action_cooldown = interval / labor.max(1.0);
+    building.action_cooldown = interval / labor.max(0.05);
 }
 
 fn dispatch_farmstead_grain(

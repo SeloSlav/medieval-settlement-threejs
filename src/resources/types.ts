@@ -163,6 +163,8 @@ export type BuildingState = {
   foundingShelterActive?: boolean;
   /** Parent worksite for a separately constructed overnight camp. */
   linkedWorksiteId?: string;
+  /** Authoritative share of an exposed yard's shift left after commuting. */
+  commuteEfficiency?: number;
   chapelMonasteryTitheDue?: number;
   /** 1 small timber, 2 small stone, 3 large stone; legacy rows default to 3. */
   chapelTier?: 1 | 2 | 3;

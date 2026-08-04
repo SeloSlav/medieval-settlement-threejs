@@ -274,11 +274,18 @@ export function allocateProductionWorkers(
     ]),
   );
   const assignments: WorkerAssignment[] = [];
-  const housedPopulation = activeResidences.reduce(
-    (sum, residence) => sum + Math.max(0, Math.floor(residence.population)),
+  const healthyHousedPopulation = activeResidences.reduce(
+    (sum, residence) => sum + Math.max(
+      0,
+      Math.floor(residence.population)
+        - Math.min(
+            Math.floor(residence.population),
+            Math.max(0, Math.floor(residence.sickPopulation ?? 0)),
+          ),
+    ),
     0,
   );
-  const unhousedPopulation = Math.max(0, STARTING_POPULATION - housedPopulation);
+  const unhousedPopulation = Math.max(0, STARTING_POPULATION - healthyHousedPopulation);
 
   const workplaces = buildings
     .filter((building) =>

@@ -169,6 +169,10 @@ export type GameBalance = {
     workStartHour: number;
     workEndHour: number;
   };
+  workforce: {
+    averageWalkSpeedMps: number;
+    roadSpeedMultiplier: number;
+  };
   seasons: {
     springRainChance: number;
     springRainCropGrowthMultiplier: number;
@@ -699,6 +703,8 @@ function generateRust(): string {
     `pub const CALENDAR_DAY_START_OFFSET_SECONDS: f64 = ${rustF64(b.calendar.secondsPerDay * b.calendar.dayStartHour / b.calendar.hoursPerDay)};`,
     `pub const CALENDAR_WORK_START_HOUR: u32 = ${b.calendar.workStartHour};`,
     `pub const CALENDAR_WORK_END_HOUR: u32 = ${b.calendar.workEndHour};`,
+    `pub const WORKFORCE_AVERAGE_WALK_SPEED_MPS: f64 = ${rustF64(b.workforce.averageWalkSpeedMps)};`,
+    `pub const WORKFORCE_ROAD_SPEED_MULTIPLIER: f64 = ${rustF64(b.workforce.roadSpeedMultiplier)};`,
     '',
     `pub const SPRING_RAIN_CHANCE: f64 = ${rustF64(b.seasons.springRainChance)};`,
     `pub const SPRING_RAIN_CROP_GROWTH_MULTIPLIER: f64 = ${rustF64(b.seasons.springRainCropGrowthMultiplier)};`,
@@ -1525,6 +1531,8 @@ function generateTypeScript(): string {
     `export const CALENDAR_WORK_START_HOUR = ${b.calendar.workStartHour};`,
     `export const CALENDAR_WORK_END_HOUR = ${b.calendar.workEndHour};`,
     `export const SECONDS_PER_DAY = ${b.calendar.secondsPerDay};`,
+    `export const WORKFORCE_AVERAGE_WALK_SPEED_MPS = ${b.workforce.averageWalkSpeedMps};`,
+    `export const WORKFORCE_ROAD_SPEED_MULTIPLIER = ${b.workforce.roadSpeedMultiplier};`,
     '',
     `export const SPRING_RAIN_CHANCE = ${b.seasons.springRainChance};`,
     `export const SPRING_RAIN_CROP_GROWTH_MULTIPLIER = ${b.seasons.springRainCropGrowthMultiplier};`,

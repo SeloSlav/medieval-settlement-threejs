@@ -124,6 +124,7 @@ export const Building = __t.object("Building", {
   potterFiringPolicy: __t.u8(),
   remoteWorkCampEnabled: __t.bool(),
   linkedWorksiteId: __t.u64(),
+  commuteEfficiency: __t.f64(),
   chapelTier: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;

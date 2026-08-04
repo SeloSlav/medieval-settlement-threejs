@@ -43,6 +43,7 @@ function buildingStateFromRow(
     roofTiles: number;
     potterFiringPolicy: number;
     linkedWorksiteId: bigint;
+    commuteEfficiency: number;
     chapelTier: number;
   }>;
   return {
@@ -138,6 +139,7 @@ function buildingStateFromRow(
       || materialRow.linkedWorksiteId === 0n
       ? undefined
       : buildingClientId(materialRow.linkedWorksiteId),
+    commuteEfficiency: Math.max(0, Math.min(1, Number(materialRow.commuteEfficiency ?? 1))),
     chapelMonasteryTitheDue: row.chapelMonasteryTitheDue,
     chapelTier: Math.max(1, Math.min(3, Number(materialRow.chapelTier ?? 3))) as 1 | 2 | 3,
     civicReceiptsGold: row.civicReceiptsGold,

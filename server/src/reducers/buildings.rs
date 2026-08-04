@@ -833,6 +833,7 @@ fn place_building_internal(
         carpenter_cart_service_target_trips,
         remote_work_camp_enabled: false,
         linked_worksite_id,
+        commute_efficiency: 1.0,
         chapel_tier,
     });
 

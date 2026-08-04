@@ -40,11 +40,15 @@ export function withWorksiteLodging(
     : `${Math.round(summary.averageOneWayDistance)} m average Â· ${formatDisplayedDuration(
         summary.averageOneWaySeconds,
       )} one way Â· ${Math.round(summary.longestOneWayDistance)} m longest`;
+  const authoritativeEfficiency = Math.max(
+    0,
+    Math.min(1, building.commuteEfficiency ?? summary?.effectiveShiftRatio ?? 1),
+  );
   const effectiveShift = lodgingActive
-    ? 'Full local shift Â· crew sleeps at the worksite'
-    : summary && summary.measuredWorkers > 0
-      ? `${Math.round(summary.effectiveShiftRatio * 100)}% commute-adjusted shift Â· ${commuteBandLabel(summary.band)}`
-      : 'Awaiting a housed crew';
+    ? '100% productive shift Â· crew sleeps at the worksite'
+    : building.commuteEfficiency != null || summary && summary.measuredWorkers > 0
+      ? `${Math.round(authoritativeEfficiency * 100)}% productive shift after commute Â· ${summary && summary.measuredWorkers > 0 ? commuteBandLabel(summary.band) : 'daily workforce cache'}`
+      : 'Awaiting the first daily workforce review';
 
   const panel = policy === 'built_in'
     ? `
@@ -63,7 +67,7 @@ export function withWorksiteLodging(
             ? 'The linked camp is fire-disabled. Its crew resumes the household commute until the camp is repaired or cleared.'
             : camp.constructionComplete === false
             ? 'Builders and haulers are raising the linked tents and fire ring. The crew still commutes home until construction is complete.'
-            : 'The linked tents and campfire are operational. Demolish the camp itself to return this crew to household commuting.'}</p>
+            : 'The linked tents and campfire are operational, restoring the worksite\'s full productive shift. Demolish the camp itself to return this crew to household commuting.'}</p>
           <button type="button" class="inspector-action-panel__button" data-inspect-building="${camp.id}">${camp.constructionComplete === false ? 'Inspect camp construction' : 'Inspect overnight camp'}</button>
         </section>
       `
@@ -88,7 +92,7 @@ export function withWorksiteLodging(
     ...view,
     detailsHtml: `${view.detailsHtml}
       <li><span>Household commute</span><span>${commute}</span></li>
-      <li><span>Shift availability</span><span>${effectiveShift}</span></li>
+      <li><span>Authoritative output labor</span><span>${effectiveShift}</span></li>
       <li><span>Night lodging</span><span>${lodgingLabel}</span></li>`,
     supplementalPanelHtml: `${view.supplementalPanelHtml ?? ''}${panel}`,
   };
@@ -116,6 +120,7 @@ export function renderRemoteWorkCampInspector(
       <li><span>Linked worksite</span><span>${parentLabel}${worksite ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${worksite.id}" aria-label="Inspect linked worksite">Inspect</button>` : ''}</span></li>
       <li><span>Shelter</span><span>Two canvas-and-timber sleeping tents</span></li>
       <li><span>Night routine</span><span>Crew gathers at the fire, sleeps in the tents, and begins the next shift locally</span></li>
+      <li><span>Economic effect</span><span>Restores the linked yard to a full productive shift while this camp is complete and fire-safe</span></li>
       <li><span>Households</span><span>Workers keep their assigned homes; this is seasonal work lodging, not permanent housing</span></li>
     `,
     demolish: {

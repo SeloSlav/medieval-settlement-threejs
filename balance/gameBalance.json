@@ -17,6 +17,10 @@
     "workStartHour": 6,
     "workEndHour": 20
   },
+  "workforce": {
+    "averageWalkSpeedMps": 1.225,
+    "roadSpeedMultiplier": 1.25
+  },
   "seasons": {
     "springRainChance": 0.55,
     "springRainCropGrowthMultiplier": 1.12,

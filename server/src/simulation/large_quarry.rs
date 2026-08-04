@@ -14,8 +14,8 @@ use crate::processor_output_policy::processor_output_headroom;
 use crate::simulation::delivery_trips::onsite_building_labor;
 use crate::simulation::expanded_economy::request_connected_commodity;
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::SimTickContext;
+use crate::simulation::{commute_adjusted_labor, labor_and_logistics_paused};
 use crate::supply_policy::{large_quarry_support_target, large_quarry_supports_ready};
 use crate::tables::{Building, Quarry};
 
@@ -38,7 +38,8 @@ pub fn step_large_quarry(
     };
     let interval = def.action_interval;
     let onsite_labor = onsite_building_labor(ctx, &building);
-    if onsite_labor == 0 {
+    let productive_labor = commute_adjusted_labor(ctx, tick, &building, onsite_labor);
+    if productive_labor <= 1e-9 {
         return;
     }
 
@@ -76,7 +77,7 @@ pub fn step_large_quarry(
         return;
     }
 
-    let labor_interval = interval / onsite_labor as f64;
+    let labor_interval = interval / productive_labor;
     if output_headroom <= 1e-6 || !has_rich_source {
         ctx.db.building().id().update(Building {
             action_cooldown: labor_interval,
