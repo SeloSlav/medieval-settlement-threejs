@@ -139,13 +139,13 @@ export function renderBackyardInspector(
       <li><span>Marketplace link</span><span>${hasMarketAccess ? `${stallLabel} connected` : `None — needs a Marketplace and staffed ${producesFood ? 'Granary' : 'Storehouse'}`}</span></li>
       <li><span>Local trade value today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · selling paused' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>
       <li><span>Household services</span><span>${formatResidenceServiceConsequence(service)}</span></li>
-      <li><span>Local activity tax (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · held in the market lockbox until a free hauler carts it to the civic treasury</span></li>
+      <li><span>Local market levy (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · held in the market lockbox until a free hauler carts it to the civic treasury</span></li>
       <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>
       <li><span>Build cost</span><span>${formatBackyardGardenCost(garden.kind)}</span></li>
     `,
     supplementalPanelHtml: `<p class="resource-inspector-note">${producesFood
       ? 'The household consumes its reserved share directly. The remainder becomes real Marketplace inventory that a granary stall can deliver to other homes.'
-      : 'Routine local purchases are aggregated: the seller gains household wealth and one activity tax is levied. Parish tithes remain a separate later household payment.'}</p>`,
+      : 'Routine local purchases are aggregated: the seller gains household wealth and one local market levy is assessed. Parish tithes remain a separate later household payment.'}</p>`,
     demolish: {
       visible: true,
       label: 'Remove garden',

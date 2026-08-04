@@ -2423,7 +2423,7 @@ export function renderTownHallInspector(
       <li><span>Emergency market orders</span><span>${formatHouseholdMarketSettlementSummary(householdMarketPlan)}</span></li>
       <li><span>Emergency purchasing power</span><span>${formatHouseholdMarketPurchasingPower(householdMarketPlan)}</span></li>
       <li><span>Emergency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
-      <li><span>Local activity tax levied</span><span>${readout.taxIncomeLabel}</span></li>
+      <li><span>Local market levy assessed</span><span>${readout.taxIncomeLabel}</span></li>
       <li><span>Collection capacity</span><span>${collectionRate}%${staffedTownHallAvailable ? '' : ' without a staffed clerk'}</span></li>
       <li><span>Church tithe</span><span>${readout.chapelTitheLabel}</span></li>
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
@@ -2519,9 +2519,9 @@ export function renderTownHallInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">The Town Hall sets the local activity tax on staffed Marketplace sales. Levies wait in market lockboxes for free-hauler collection; church tithes remain separate.</p>
+        <p class="inspector-action-panel__hint">The Town Hall sets the local market levy on household goods sold through staffed Marketplace stalls. Levy receipts wait in market lockboxes for free-hauler collection; church tithes remain separate.</p>
         <label class="city-admin-panel__slider-label">
-          <span>Local activity tax rate</span>
+          <span>Local market levy</span>
           <strong data-policy-tax-rate-value>${Math.round(taxRate * 100)}%</strong>
         </label>
         <input class="city-admin-panel__slider" type="range"

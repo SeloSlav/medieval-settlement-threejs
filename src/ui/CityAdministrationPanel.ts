@@ -111,12 +111,12 @@ export class CityAdministrationPanel {
         <button type="button" class="city-admin-panel__close" data-action="close" aria-label="Close">×</button>
       </header>
       <p class="city-admin-panel__intro">
-        Set the local activity tax and parish coffer policy. Backyard sellers earn household wealth; tax is held
+        Set the local market levy and parish coffer policy. Backyard sellers earn household wealth; levy receipts are held
         in Marketplace lockboxes until a free hauler reaches the civic treasury. Tithes are separate household
         payments that land in church coffers first.
       </p>
       <label class="city-admin-panel__slider-label" for="city-admin-tax-slider">
-        <span>Local activity tax rate</span>
+        <span>Local market levy</span>
         <strong data-tax-rate-value>${DEFAULT_TAX_PERCENT}%</strong>
       </label>
       <input
@@ -219,7 +219,7 @@ export class CityAdministrationPanel {
           <dd data-productivity-value>100%</dd>
         </div>
         <div class="city-admin-panel__stat">
-          <dt>Local market taxes levied today</dt>
+          <dt>Local market levy assessed today</dt>
           <dd data-tax-income-value>0 gold today</dd>
         </div>
         <div class="city-admin-panel__stat">
