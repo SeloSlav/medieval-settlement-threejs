@@ -530,7 +530,7 @@ assert.match(
     exactTrigger.residences.get('trigger') ?? null,
     'Highland market',
   ),
-  /Smoked pork: 8 cured meat for 10 gold - ready from Highland market/,
+  /Smoked pork: 8 cured meat for 10\.00 gold - ready from Highland market/,
 );
 
 const perfMarkets = Array.from(
@@ -605,7 +605,7 @@ const marketplaceInspector = readFileSync(
   'utf8',
 );
 assert.match(marketplaceInspector, /Emergency branch/);
-assert.match(marketplaceInspector, /wait without charging/);
+assert.match(marketplaceInspector, /household import duty; public and parish orders are exempt/);
 const townHallInspector = readFileSync(
   'src/resources/inspector/townHallRenderer.ts',
   'utf8',

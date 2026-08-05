@@ -237,8 +237,8 @@ assert.doesNotMatch(fires, /candidates\.sort_by/);
 const marketplaceInspector = read('src/resources/inspector/marketplaceInspector.ts');
 assert.match(
   marketplaceInspector,
-  /wait without charging/,
-  'players should be told that blocked household orders remain unpaid',
+  /household import duty; public and parish orders are exempt/,
+  'players should see the household import duty and its public-order exemptions',
 );
 
 console.log('one-pass household/building selection and transactional emergency-order tests passed');
