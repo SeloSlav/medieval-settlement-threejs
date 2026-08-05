@@ -307,6 +307,10 @@ const seedThreeForestLeafBases = [
   'loblolly_needle',
   'pine_needle',
 ] as const;
+const seedThreeBackyardLeafBases = [
+  'apple_single',
+  'cherry_single',
+] as const;
 const seedThreeUndergrowthBases = [
   'bilberry',
   'fern',
@@ -316,7 +320,7 @@ const seedThreeExpectedOriginalFiles = new Set<string>([
   ...seedThreeBarkBases.flatMap((base) => (
     ['albedo', 'normal', 'roughness'] as const
   ).map((channel) => `vendor/seedthree/assets/bark/${base}_${channel}.png`)),
-  ...[...seedThreeForestLeafBases, ...seedThreeUndergrowthBases].flatMap((base) => (
+  ...[...seedThreeForestLeafBases, ...seedThreeBackyardLeafBases, ...seedThreeUndergrowthBases].flatMap((base) => (
     ['albedo', 'normal', 'roughness', 'translucency'] as const
   ).map((channel) => `vendor/seedthree/assets/leaves/${base}_${channel}.png`)),
   ...['', '_normal', '_roughness', '_translucency'].map((suffix) => (
@@ -344,8 +348,8 @@ assert.deepEqual(
   'production builds must contain exactly the SeedThree textures used at runtime',
 );
 assert.ok(
-  seedThreeAssets.length <= 71,
-  `SeedThree output grew beyond 71 emitted assets (${seedThreeAssets.length})`,
+  seedThreeAssets.length <= 79,
+  `SeedThree output grew beyond 79 emitted assets (${seedThreeAssets.length})`,
 );
 const seedThreeAssetBytes = seedThreeAssets.reduce((total, asset) => (
   total + (typeof asset.source === 'string'
@@ -353,8 +357,8 @@ const seedThreeAssetBytes = seedThreeAssets.reduce((total, asset) => (
     : asset.source.byteLength)
 ), 0);
 assert.ok(
-  seedThreeAssetBytes <= 96_000_000,
-  `SeedThree output grew beyond its 96 MB source budget (${seedThreeAssetBytes} bytes)`,
+  seedThreeAssetBytes <= 100_000_000,
+  `SeedThree output grew beyond its 100 MB source budget (${seedThreeAssetBytes} bytes)`,
 );
 const entryChunk = chunks.find((chunk) => chunk.isEntry);
 assert.ok(entryChunk, 'production build must expose one application entry chunk');
@@ -456,14 +460,15 @@ assert.ok(
   // The forest-floor material adds one packed-atlas sample plus its
   // grass/dirt edge handoff. The Eanpa facade adds the historical-sky state
   // bridge while the much larger engine and legacy fallback remain deferred.
+  // Apple and cherry add eight species-specific leaf material URLs.
   // Keep this intentional raw-source allowance explicit; the compressed
   // transfer budget below remains the stronger network guardrail.
-  startupClosureBytes <= 2_770_000,
-  `initial static chunk closure grew beyond 2.77 MB (${startupClosureBytes} bytes)`,
+  startupClosureBytes <= 2_780_000,
+  `initial static chunk closure grew beyond 2.78 MB (${startupClosureBytes} bytes)`,
 );
 assert.ok(
-  startupClosureGzipBytes <= 765_000,
-  `initial static chunk closure grew beyond 765 KB gzip (${startupClosureGzipBytes} bytes)`,
+  startupClosureGzipBytes <= 766_000,
+  `initial static chunk closure grew beyond 766 KB gzip (${startupClosureGzipBytes} bytes)`,
 );
 
 console.log(

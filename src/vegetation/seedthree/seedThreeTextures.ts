@@ -12,7 +12,7 @@ const barkModules = import.meta.glob(
 
 const leafModules = import.meta.glob(
   [
-    '../../../vendor/seedthree/assets/leaves/{american_beech_single,white_oak_single,red_maple_single,sweetgum_single,douglas_fir_needle,loblolly_needle,pine_needle}_{albedo,normal,roughness,translucency}.png',
+    '../../../vendor/seedthree/assets/leaves/{american_beech_single,white_oak_single,red_maple_single,sweetgum_single,douglas_fir_needle,loblolly_needle,pine_needle,apple_single,cherry_single}_{albedo,normal,roughness,translucency}.png',
     '../../../vendor/seedthree/assets/leaves/{bilberry,fern,juniper_scrub}_{albedo,normal,roughness,translucency}.png',
     '../../../vendor/seedthree/assets/leaves/cattail_reed_card{,_normal,_roughness,_translucency}.png',
   ],
