@@ -30,7 +30,10 @@ import type { TerrainBlendTextureSet } from '../roads/RoadTextureLoader.ts';
 
 type TslNode = {
   add(value: TslNode): TslNode;
+  dFdx(): TslNode;
+  dFdy(): TslNode;
   div(value: TslNode): TslNode;
+  grad(gradX: TslNode, gradY: TslNode): TslNode;
   level(value: TslNode): TslNode;
   mul(value: TslNode): TslNode;
   sub(value: TslNode): TslNode;
@@ -102,11 +105,21 @@ function packedDrySnowUv(grassUv: TslNode, snow: boolean): TslNode {
 
 function packedForestLitterUv(forestUv: TslNode): TslNode {
   const tileUv = fract(forestUv) as TslNode;
+  // Keep a full-mip safety border inside the leaf third of the packed atlas.
+  // Without this inset, distant litter samples can pull pale snow texels into
+  // the tile and turn its repeated wrap seams into straight white dashes.
   return vec2(
     tileUv.x,
     tileUv.y
-      .mul(float(0.329) as TslNode)
-      .add(float(0.002) as TslNode),
+      .mul(float(0.28) as TslNode)
+      .add(float(0.026) as TslNode),
+  ) as TslNode;
+}
+
+function packedForestLitterGradient(gradient: TslNode): TslNode {
+  return vec2(
+    gradient.x,
+    gradient.y.mul(float(0.28) as TslNode),
   ) as TslNode;
 }
 
@@ -162,9 +175,12 @@ function buildGrassBlendNodes(
     textures.dry.albedo,
     packedDrySnowUv(dryUv, false),
   ) as TslNode;
-  const forestColor = texture(
+  const forestColor = (texture(
     textures.dry.albedo,
     packedForestLitterUv(forestUv),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUv.dFdx()),
+    packedForestLitterGradient(forestUv.dFdy()),
   ) as TslNode;
   const forestBlend = smoothstep(
     float(0.04) as TslNode,
@@ -180,8 +196,8 @@ function buildGrassBlendNodes(
     float(0.24) as TslNode,
     forestLuminance,
   ) as TslNode;
-  const forestColorNode = forestColor.rgb.mul(vec3(0.9, 0.84, 0.78) as TslNode) as TslNode;
-  const forestStableColorNode = mix(
+  const forestDetailColorNode = forestColor.rgb.mul(vec3(0.9, 0.84, 0.78) as TslNode) as TslNode;
+  const forestDetailStableColorNode = mix(
     vec3(0.018, 0.009, 0.005) as TslNode,
     vec3(0.12, 0.065, 0.032) as TslNode,
     forestGrain,
@@ -263,6 +279,28 @@ function buildGrassBlendNodes(
     .add(densePatch.mul(float(0.27) as TslNode))
     .add((sub(float(1) as TslNode, meadowPatch) as TslNode).mul(float(0.15) as TslNode)) as TslNode;
   const macro = macroA.mul(float(0.68) as TslNode).add(macroB.mul(float(0.32) as TslNode));
+  // Strategic cameras cannot resolve individual leaves. Resolve the litter to
+  // a low-frequency brown field there, then reveal the authored atlas only as
+  // the camera and pixel footprint can support it. This also keeps twig-shaped
+  // texels from aliasing into bright screen-space dashes.
+  const forestOverviewVariation = macroA
+    .mul(float(0.62) as TslNode)
+    .add(macroB.mul(float(0.38) as TslNode)) as TslNode;
+  const forestOverviewColorNode = mix(
+    vec3(0.028, 0.016, 0.008) as TslNode,
+    vec3(0.072, 0.042, 0.02) as TslNode,
+    forestOverviewVariation,
+  ) as TslNode;
+  const forestColorNode = mix(
+    forestOverviewColorNode,
+    forestDetailColorNode,
+    closeMaterialDetail,
+  ) as TslNode;
+  const forestStableColorNode = mix(
+    forestOverviewColorNode,
+    forestDetailStableColorNode,
+    closeMaterialDetail,
+  ) as TslNode;
 
   // Strategic zoom uses three broad, overlapping coverages instead of the
   // near-camera vertex mix alone. A small baseline keeps each texture present;
@@ -514,9 +552,16 @@ function buildGrassBlendNodes(
     normalDetailStrength.mul(rainNormalVisibility),
   ) as TslNode;
   const grassNormalNode = normalMap(resolvedNormalSample);
-  const forestNormalNode = bumpMap(
+  const forestBumpNode = bumpMap(
     forestLuminance,
-    float(0.24) as TslNode,
+    float(0.18) as TslNode,
+  ) as TslNode;
+  const forestNormalNode = normalize(
+    mix(
+      grassNormalNode,
+      forestBumpNode,
+      closeMaterialDetail.mul(rainNormalVisibility),
+    ) as TslNode,
   ) as TslNode;
   const normalNode = normalize(
     mix(grassNormalNode, forestNormalNode, forestBlend) as TslNode,
@@ -536,10 +581,15 @@ function buildGrassBlendNodes(
     blendedRoughness,
     roughnessDetailStrength,
   ) as TslNode;
-  const forestRoughnessNode = mix(
+  const forestDetailRoughnessNode = mix(
     float(0.97) as TslNode,
     float(0.86) as TslNode,
     forestGrain,
+  ) as TslNode;
+  const forestRoughnessNode = mix(
+    float(0.94) as TslNode,
+    forestDetailRoughnessNode,
+    closeMaterialDetail,
   ) as TslNode;
   const roughnessNode = mix(
     grassRoughnessNode,
@@ -566,10 +616,15 @@ function buildGrassBlendNodes(
     blendedAo,
     aoDetailStrength.mul(rainAoVisibility),
   ) as TslNode;
-  const forestAoNode = mix(
+  const forestDetailAoNode = mix(
     float(0.72) as TslNode,
     float(0.98) as TslNode,
     forestGrain,
+  ) as TslNode;
+  const forestAoNode = mix(
+    float(0.86) as TslNode,
+    forestDetailAoNode,
+    closeMaterialDetail.mul(rainAoVisibility),
   ) as TslNode;
   const aoNode = mix(
     grassAoNode,

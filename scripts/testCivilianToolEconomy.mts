@@ -134,8 +134,8 @@ assert.match(
 );
 assert.match(
   expandedEconomySimulation,
-  /"clay_pit",\s*"threshing_barn",\s*"watermill",\s*"carpenter"/,
-  'smithies must include farm and watermill tools in physical ironwork dispatch',
+  /"clay_pit",\s*"threshing_barn",\s*"watermill",\s*"windmill",\s*"carpenter"/,
+  'smithies must include farm and both mill types in physical ironwork dispatch',
 );
 assert.match(
   expandedEconomySimulation,

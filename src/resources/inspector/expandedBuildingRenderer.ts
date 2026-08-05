@@ -152,6 +152,7 @@ const PROCESS: Record<string, string> = {
   potter_kiln: 'Riverbank clay + firewood + carted puddling water -> either vessels or rare prosperous-house roof tiles',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
+  windmill: 'Grain + upland wind + smith-dressed millstones and iron fittings → flour without river access',
   granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then stocks Marketplace stalls and physical institutional routes',
   bakery: 'Flour + hauled water + firewood + baker labor -> bread for Marketplace stalls and institutions',
   brewery: 'Barley + water + firewood → malt → ale',
@@ -168,6 +169,7 @@ const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
   'mine',
   'threshing_barn',
   'watermill',
+  'windmill',
   'granary',
   'bakery',
   'brewery',
@@ -196,6 +198,7 @@ function buildingHasOutboundStock(
         || (building.barley ?? 0) > 1e-6
         || (building.flax ?? 0) > 1e-6;
     case 'watermill':
+    case 'windmill':
       return building.flour > 0;
     case 'granary':
       return edibleFoodStock(building) > 0
@@ -243,6 +246,7 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'threshing_barn':
       return 'Highest-priority active processor, then lowest runway and granary reserve';
     case 'watermill':
+    case 'windmill':
       return 'Active bakery working buffers first, then staffed granary storage, then emergency bakery overflow';
     case 'bakery':
       return 'Protected bread surplus to critical institutions or a staffed granary for Marketplace stalls';
@@ -278,6 +282,7 @@ function cargoPerTripLabel(building: BuildingState): string | null {
   switch (building.kind) {
     case 'threshing_barn':
     case 'watermill':
+    case 'windmill':
     case 'brewery':
     case 'bakery':
     case 'apiary':
@@ -304,8 +309,9 @@ function cargoPerTripLabel(building: BuildingState): string | null {
 function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
   switch (kind) {
     case 'threshing_barn':
-      return ['watermill', 'brewery', 'granary', 'monastery', 'weaver'];
+      return ['watermill', 'windmill', 'brewery', 'granary', 'monastery', 'weaver'];
     case 'watermill':
+    case 'windmill':
       return ['bakery', 'granary'];
     case 'granary':
       return ['bakery', 'brewery', 'weaver', 'smokehouse'];
@@ -329,6 +335,7 @@ function outboundTargetKinds(kind: BuildingKind): BuildingKind[] {
         'clay_pit',
         'threshing_barn',
         'watermill',
+        'windmill',
         'carpenter',
       ];
     case 'potter_kiln':
@@ -349,7 +356,7 @@ function outboundTripTarget(
       ?? context.worldQueries.getNextFarmBarleyDispatch(building)?.target
       ?? null;
   }
-  if (building.kind === 'watermill') {
+  if (building.kind === 'watermill' || building.kind === 'windmill') {
     return context.worldQueries.getNextDirectProcessorInputDispatch(
       building,
       'flour',
@@ -563,7 +570,7 @@ function renderLogisticsRows(
     && activeTrip.targetBuildingId != null
     && context.gameState.buildings.get(activeTrip.targetBuildingId)?.kind === 'threshing_barn';
   const seedHaulUsesHoldingCrew = seedDispatchReady || activeSeedCollection;
-  const flourDispatch = building.kind === 'watermill'
+  const flourDispatch = building.kind === 'watermill' || building.kind === 'windmill'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'flour')
     : null;
   const ironworkDispatch = building.kind === 'smithy'
@@ -1182,6 +1189,7 @@ export function renderExpandedBuildingInspector(
       <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(freshFoodStock(building) * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
     : '';
   const grainProcessorRows = building.kind === 'watermill'
+    || building.kind === 'windmill'
     || building.kind === 'monastery'
     ? `<li><span>Grain working buffer</span><span>${formatGrainWorkingBuffer(
         building.grain,
@@ -1192,7 +1200,7 @@ export function renderExpandedBuildingInspector(
         building.processorOutputTargetPercent,
       )}</span></li>`
     : '';
-  const watermillPowerRows = building.kind === 'watermill'
+  const millPowerRows = building.kind === 'watermill'
     ? `<li><span>River power</span><span>${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput · ${environment.weather === 'rain'
         ? 'strong spring flow'
         : environment.weather === 'drought'
@@ -1201,7 +1209,10 @@ export function renderExpandedBuildingInspector(
             ? 'ice and debris slow the race'
             : 'normal flow'}</span></li>
       <li><span>Seasonal planning</span><span>Flour capacity follows live river power · stockpile before frost and drought</span></li>`
-    : '';
+    : building.kind === 'windmill'
+      ? `<li><span>Wind power</span><span>100% modeled milling pace · independent of rivers, stream flow, and hauled water</span></li>
+        <li><span>Site role</span><span>Dry-map flour processor · road carts connect farmstead or granary grain to bakeries</span></li>`
+      : '';
   const routineFreshFoodSource = building.kind === 'apiary'
     || building.kind === 'vineyard';
   const routineFreshFoodClaims = routineFreshFoodSource
@@ -1273,7 +1284,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${watermillPowerRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${millPowerRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

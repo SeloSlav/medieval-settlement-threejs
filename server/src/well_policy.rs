@@ -270,6 +270,7 @@ mod tests {
             POTTER_WATER_PER_CYCLE
         );
         assert_eq!(industrial_water_requirement("watermill"), 0.0);
+        assert_eq!(industrial_water_requirement("windmill"), 0.0);
         assert_eq!(
             industrial_water_input_preference_rank(
                 "weaver",
@@ -301,6 +302,7 @@ mod tests {
         assert_eq!(industrial_water_target("potter_kiln", 25), 1.0);
         assert_eq!(industrial_water_target("potter_kiln", 100), 3.0);
         assert_eq!(industrial_water_target("watermill", 25), 0.0);
+        assert_eq!(industrial_water_target("windmill", 25), 0.0);
     }
 
     #[test]

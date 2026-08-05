@@ -8,6 +8,7 @@ import {
 
 export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'watermill',
+  'windmill',
   'bakery',
   'brewery',
   'smokehouse',
@@ -112,6 +113,7 @@ const OUTPUT_BY_KIND: Record<
   ProcessorOutputCommodity
 > = {
   watermill: 'flour',
+  windmill: 'flour',
   bakery: 'bread',
   brewery: 'ale',
   smokehouse: 'preservedFood',
@@ -126,6 +128,7 @@ const INPUTS_BY_KIND: Record<
   readonly ProcessorInputCommodity[]
 > = {
   watermill: ['grain'],
+  windmill: ['grain'],
   bakery: ['flour', 'water', 'firewood'],
   brewery: ['barley', 'water', 'firewood'],
   smokehouse: ['food', 'firewood', 'salt', 'pottery'],

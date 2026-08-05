@@ -875,6 +875,7 @@ export function updateSeedThreeForestCameraBudgeted(
   }
 
   const work = forest.pendingLodWork;
+  const initialSelection = selection.triggerReasons.includes('initial');
   let bucketCompactions = 0;
   let matrixWrites = 0;
   let workChunks = 0;
@@ -900,9 +901,13 @@ export function updateSeedThreeForestCameraBudgeted(
       && interactionWork.deferCoveredWork;
     const discardCoveredInteractionWork = protectVisibleCoverage
       && interactionWork.discardCoveredWork;
-    const completeInteractionWorkImmediately = protectVisibleCoverage
-      && interactionWork.completeImmediately;
-    coverageImmediate = requiresImmediateCoverage;
+    // Publish the first camera-sized resident set atomically before the forest
+    // reaches a render pass. Otherwise a wheel event can correctly retain the
+    // oversized startup buffers and leave every off-screen transition tree
+    // submitted for the rest of the session.
+    const completeInteractionWorkImmediately = initialSelection
+      || (protectVisibleCoverage && interactionWork.completeImmediately);
+    coverageImmediate = requiresImmediateCoverage || initialSelection;
     if (discardCoveredInteractionWork) {
       work.pendingBucketIndices.length = 0;
       work.activeBucketJob = null;

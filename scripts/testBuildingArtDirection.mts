@@ -61,6 +61,7 @@ const expectedLeanToRoofs = new Map<string, number>([
   ['palisaded_refuge', 1],
   ['pastoral_farmstead', 1],
   ['monastery', 1],
+  ['windmill', 1],
   ['brewery', 1],
   ['smokehouse', 1],
   ['carpenter', 1],

@@ -73,10 +73,10 @@ const worldQueries = readFileSync(
 );
 
 assert.deepEqual(GRAIN_DISPATCH_SOURCE_KINDS, ['threshing_barn', 'granary']);
-assert.deepEqual(GRAIN_PROCESSOR_KINDS, ['watermill', 'monastery']);
+assert.deepEqual(GRAIN_PROCESSOR_KINDS, ['watermill', 'windmill', 'monastery']);
 assert.deepEqual(
   GRAIN_DISPATCH_TARGET_KINDS,
-  ['watermill', 'granary', 'monastery'],
+  ['watermill', 'windmill', 'granary', 'monastery'],
 );
 assert.equal(GRAIN_INPUT_BUFFER_CYCLES, 3);
 assert.equal(GRAIN_CRITICAL_RUNWAY_CYCLES, 1);
@@ -675,7 +675,7 @@ assert.match(monasteryStep, /step_autonomous_processor/);
 
 assert.match(
   supplyPolicy,
-  /pub const GRAIN_PROCESSOR_KINDS: &\[&str\] = &\["watermill", "monastery"\]/,
+  /pub const GRAIN_PROCESSOR_KINDS: &\[&str\] = &\["watermill", "windmill", "monastery"\]/,
   'central grain arbitration must share one authoritative processor list',
 );
 assert.match(supplyPolicy, /pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3\.0/);

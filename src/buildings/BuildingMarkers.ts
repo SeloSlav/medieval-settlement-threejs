@@ -123,6 +123,7 @@ export class BuildingMarkers {
   private readonly staticBatches: BuildingStaticBatches;
   private readonly foundersCampfires = new Set<THREE.Group>();
   private readonly watermillWheels = new Set<THREE.Group>();
+  private readonly windmillSails = new Set<THREE.Group>();
   private foundersCampfireNightLighting = 0;
   private foundersCampWinterAccumulation = false;
   private watermillThroughputMultiplier = 1;
@@ -399,6 +400,10 @@ export class BuildingMarkers {
       * this.watermillThroughputMultiplier;
     for (const wheel of this.watermillWheels) {
       wheel.rotation.x -= wheelRotation;
+    }
+    const sailRotation = Math.min(Math.max(dtSeconds, 0), 0.1) * 0.24;
+    for (const sails of this.windmillSails) {
+      sails.rotation.z -= sailRotation;
     }
   }
 
@@ -710,6 +715,7 @@ export class BuildingMarkers {
     if (marker && marker.userData.visualSignature !== visualSignature) {
       this.unregisterFoundersCampfire(marker);
       this.unregisterWatermillWheel(marker);
+      this.unregisterWindmillSails(marker);
       this.staticBatches.removeBuilding(building.id);
       this.group.remove(marker);
       disposeObject3D(marker);
@@ -770,6 +776,7 @@ export class BuildingMarkers {
       this.buildingMeshes.set(building.id, marker);
       if (marker.parent !== this.group) this.group.add(marker);
       this.registerWatermillWheel(marker);
+      this.registerWindmillSails(marker);
       setCharcoalClampSmokeThroughput(
         marker,
         this.charcoalBurnerThroughputMultiplier,
@@ -851,6 +858,7 @@ export class BuildingMarkers {
     if (!marker) return;
     this.unregisterFoundersCampfire(marker);
     this.unregisterWatermillWheel(marker);
+    this.unregisterWindmillSails(marker);
     this.staticBatches.removeBuilding(id);
     this.shadowProxyBatch.remove(id);
     this.group.remove(marker);
@@ -878,6 +886,16 @@ export class BuildingMarkers {
   private unregisterWatermillWheel(marker: THREE.Group): void {
     const wheel = marker.getObjectByName('Watermill wheel');
     if (wheel instanceof THREE.Group) this.watermillWheels.delete(wheel);
+  }
+
+  private registerWindmillSails(marker: THREE.Group): void {
+    const sails = marker.getObjectByName('Windmill sails');
+    if (sails instanceof THREE.Group) this.windmillSails.add(sails);
+  }
+
+  private unregisterWindmillSails(marker: THREE.Group): void {
+    const sails = marker.getObjectByName('Windmill sails');
+    if (sails instanceof THREE.Group) this.windmillSails.delete(sails);
   }
 }
 

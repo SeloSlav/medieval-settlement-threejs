@@ -59,6 +59,7 @@ assert.deepEqual(
   PROCESSOR_OUTPUT_TARGET_KINDS,
   [
     'watermill',
+    'windmill',
     'bakery',
     'brewery',
     'smokehouse',
@@ -84,6 +85,7 @@ for (const percent of [25, 50, 75, 100]) {
   assert.equal(normalizeProcessorOutputTargetPercent(percent), percent);
 }
 assert.equal(isProcessorOutputTargetKind('watermill'), true);
+assert.equal(isProcessorOutputTargetKind('windmill'), true);
 assert.equal(isProcessorOutputTargetKind('monastery'), false);
 assert.deepEqual(
   EXTRACTION_OUTPUT_TARGET_KINDS,
@@ -101,6 +103,7 @@ for (const kind of EXTRACTION_OUTPUT_TARGET_KINDS) {
 assert.equal(isProductionOutputTargetKind('smithy'), true);
 assert.equal(isProductionOutputTargetKind('hunters_hall'), false);
 assert.equal(processorOutputCommodity('watermill'), 'flour');
+assert.equal(processorOutputCommodity('windmill'), 'flour');
 assert.equal(processorOutputCommodity('bakery'), 'bread');
 assert.equal(processorOutputCommodity('brewery'), 'ale');
 assert.equal(processorOutputCommodity('smokehouse'), 'preservedFood');
@@ -179,6 +182,9 @@ mill.flour = 62;
 assert.equal(processorOutputHeadroom(mill), 3);
 assert.equal(processorNeedsInputs(mill), true);
 assert.equal(processorAcceptsInput(mill, 'grain'), true);
+const windmill = processor('windmill', 'windmill', 25);
+assert.equal(processorOutputTargetForBuilding(windmill), 65);
+assert.deepEqual(processorInputCommodities('windmill'), ['grain']);
 mill.flour = 65;
 assert.equal(processorOutputHeadroom(mill), 0);
 assert.equal(processorNeedsInputs(mill), false);

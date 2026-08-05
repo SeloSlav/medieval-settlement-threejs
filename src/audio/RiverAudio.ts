@@ -114,6 +114,7 @@ export class RiverAudio {
   private readonly config: RiverAudioConfig;
   private readonly listener: THREE.AudioListener;
   private readonly source: THREE.PositionalAudio;
+  private readonly hasRiverSound: boolean;
   private readonly targetPosition = new THREE.Vector3();
   private readonly nearestPoint: RiverSoundPoint = { x: 0, z: 0, distance: 0 };
   private refreshElapsed = POSITION_REFRESH_SECONDS;
@@ -129,6 +130,7 @@ export class RiverAudio {
     this.config = config;
     this.listener = new THREE.AudioListener();
     this.source = new THREE.PositionalAudio(this.listener);
+    this.hasRiverSound = config.riverLayout.terrainPreset !== 'delnice_meadow';
     this.source.name = 'Spatial river water audio';
     this.source.panner.panningModel = 'HRTF';
     this.source
@@ -140,7 +142,11 @@ export class RiverAudio {
     this.source.setVolume(0);
     config.camera.add(this.listener);
     config.parent.add(this.source);
-    this.load();
+    if (!this.hasRiverSound) {
+      this.enabled = false;
+    } else {
+      this.load();
+    }
   }
 
   start(): void {
@@ -189,8 +195,8 @@ export class RiverAudio {
   }
 
   setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-    if (enabled) {
+    this.enabled = enabled && this.hasRiverSound;
+    if (this.enabled) {
       if (this.started) this.start();
       return;
     }

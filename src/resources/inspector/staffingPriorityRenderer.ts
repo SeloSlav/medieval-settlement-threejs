@@ -11,6 +11,7 @@ import type { InspectorView } from './renderInspectableTarget.ts';
 
 const PRIORITIZED_CART_INPUTS: Partial<Record<BuildingState['kind'], string>> = {
   watermill: 'Grain',
+  windmill: 'Grain',
   brewery: 'Grain, well-water, and firewood',
   monastery: 'Grain',
   granary: 'Food collection and distribution',

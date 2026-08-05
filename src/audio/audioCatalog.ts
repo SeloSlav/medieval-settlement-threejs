@@ -223,6 +223,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   bakery: { path: '/sounds/buildings/brewery.mp3', volume: 0.045 },
   apiary: { path: '/sounds/buildings/apiary.mp3', volume: 0.04 },
   watermill: { path: '/sounds/buildings/watermill.mp3', volume: 0.055 },
+  windmill: { path: '/sounds/buildings/threshing_barn.mp3', volume: 0.05 },
   carpenter: { path: '/sounds/buildings/carpenter.mp3', volume: 0.06 },
   weaver: { path: '/sounds/buildings/weaver.mp3', volume: 0.05 },
   ferry_landing: { path: '/sounds/buildings/ferry_landing.mp3', volume: 0.05 },

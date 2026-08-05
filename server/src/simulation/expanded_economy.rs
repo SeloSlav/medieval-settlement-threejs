@@ -608,6 +608,45 @@ pub fn step_watermill(
     ctx.db.building().id().update(mill);
 }
 
+pub fn step_windmill(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    building: Building,
+) {
+    let tools_maintained = civilian_tools_maintained(building.ironwork);
+    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork);
+    let flour_before = building.flour;
+    let mut mill = building;
+    mill = step_processor_at_rate(
+        ctx,
+        tick,
+        clock,
+        mill,
+        &[(CommodityKind::Grain, WATERMILL_GRAIN_PER_CYCLE)],
+        &[(CommodityKind::Flour, WATERMILL_FLOUR_PER_CYCLE)],
+        throughput_multiplier,
+    );
+    if tools_maintained && mill.flour > flour_before + 1e-6 {
+        let completed_cycle_share =
+            ((mill.flour - flour_before) / WATERMILL_FLOUR_PER_CYCLE).clamp(0.0, 1.0);
+        withdraw_building_commodity(
+            &mut mill,
+            CommodityKind::Ironwork,
+            CIVILIAN_TOOL_IRONWORK_PER_CYCLE * completed_cycle_share,
+        );
+    }
+    dispatch_to_building(
+        ctx,
+        tick,
+        clock,
+        &mut mill,
+        CommodityKind::Flour,
+        &["bakery", "granary"],
+    );
+    ctx.db.building().id().update(mill);
+}
+
 pub fn step_industrial_firewood_dispatch(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1105,6 +1144,7 @@ fn local_material_target_kinds(
             "clay_pit",
             "threshing_barn",
             "watermill",
+            "windmill",
             "carpenter",
         ]),
         ("potter_kiln", CommodityKind::Pottery) => {
@@ -2555,7 +2595,7 @@ fn extraction_accepts_maintenance_input(
 
 fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
     match kind {
-        "watermill" => commodity == CommodityKind::Grain,
+        "watermill" | "windmill" => commodity == CommodityKind::Grain,
         "bakery" => matches!(
             commodity,
             CommodityKind::Flour | CommodityKind::Water | CommodityKind::Firewood

@@ -1,6 +1,11 @@
 import type { WorldGenerationSettings } from './worldGenerationSettings.ts';
 
-export type WorldTerrainPreset = 'kupa_valley' | 'risnjak_pass' | 'vinodol_coast' | 'custom';
+export type WorldTerrainPreset =
+  | 'kupa_valley'
+  | 'risnjak_pass'
+  | 'delnice_meadow'
+  | 'vinodol_coast'
+  | 'custom';
 
 export type WorldTerrainPresetDefinition = {
   id: WorldTerrainPreset;
@@ -20,6 +25,7 @@ const CUSTOM_SEED_FALLBACK_XOR = 0x4d3a_91e7;
 const PRESET_SEED_SIGNATURES = {
   kupa_valley: 0x6b70_0000,
   risnjak_pass: 0x7150_0000,
+  delnice_meadow: 0x4310_0000,
   vinodol_coast: 0x5600_0000,
 } as const satisfies Record<Exclude<WorldTerrainPreset, 'custom'>, number>;
 
@@ -45,6 +51,17 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     topography: 92,
     hydrology: 46,
     forestDensity: 84,
+  },
+  {
+    id: 'delnice_meadow',
+    name: 'Delnice',
+    region: 'Delnice · Gorski Kotar',
+    description:
+      'A broad, level upland meadow with no river, enclosed by forested mountain ridges along every border.',
+    features: ['Open meadow floor', 'No surface water', 'Mountain ring'],
+    topography: 76,
+    hydrology: 0,
+    forestDensity: 30,
   },
   {
     id: 'vinodol_coast',

@@ -121,9 +121,10 @@ export function bulkStockpileVisualSignature(building: BuildingState): string {
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'watermill':
+    case 'windmill':
       return `:tools:${stockpileVisualLevel(
         building.ironwork ?? 0,
-        BUILDING_STORAGE_CAPS.watermill.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS[building.kind].ironwork ?? 0,
         CIVILIAN_TOOL_IRONWORK_VISUAL_SEGMENTS,
       )}`;
     case 'charcoal_burner':
@@ -271,6 +272,7 @@ export function syncBulkStockpileVisuals(
       syncCivilianToolStockpile(marker, building);
       break;
     case 'watermill':
+    case 'windmill':
       syncCivilianToolStockpile(marker, building);
       break;
     case 'charcoal_burner':

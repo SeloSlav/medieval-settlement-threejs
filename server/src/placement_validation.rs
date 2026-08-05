@@ -497,6 +497,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.86,
             outer_fade: 1.35,
         },
+        "windmill" => BuildingPadParams {
+            radius_x: 7.2,
+            radius_z: 6.0,
+            inner_fade: 0.86,
+            outer_fade: 1.34,
+        },
         "carpenter" => BuildingPadParams {
             radius_x: 6.4,
             radius_z: 4.8,

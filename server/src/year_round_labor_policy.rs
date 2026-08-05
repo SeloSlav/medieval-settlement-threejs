@@ -152,6 +152,7 @@ mod tests {
             "apiary",
             "vineyard",
             "watermill",
+            "windmill",
             "bakery",
             "brewery",
             "smokehouse",

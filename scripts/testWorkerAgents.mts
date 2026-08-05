@@ -495,6 +495,7 @@ const expectedWorkplaces = [
   'bakery',
   'apiary',
   'watermill',
+  'windmill',
   'carpenter',
   'weaver',
   'watchtower',

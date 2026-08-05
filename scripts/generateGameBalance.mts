@@ -675,6 +675,7 @@ const simKindByKind: Record<string, string | null> = {
   bakery: 'Bakery',
   apiary: 'Apiary',
   watermill: 'Watermill',
+  windmill: 'Windmill',
   carpenter: 'Carpenter',
   weaver: 'Weaver',
   ferry_landing: 'FerryLanding',
@@ -1309,6 +1310,7 @@ function generateRust(): string {
   lines.push('    Bakery,');
   lines.push('    Apiary,');
   lines.push('    Watermill,');
+  lines.push('    Windmill,');
   lines.push('    Carpenter,');
   lines.push('    Weaver,');
   lines.push('    Guardhouse,');

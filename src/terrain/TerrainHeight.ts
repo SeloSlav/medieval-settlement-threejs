@@ -228,6 +228,34 @@ function sampleRisnjakPassHeight(x: number, z: number, relief: number, seed: num
   return mountain + saddle + meadow + getEdgeHillHeight(x, z) * relief * 0.58;
 }
 
+function sampleDelniceMeadowHeight(x: number, z: number, relief: number, seed: number): number {
+  const { terrainSize } = getActiveWorldDimensions();
+  const terrainHalf = terrainSize * 0.5;
+  const offset = presetNoiseOffset(seed);
+  const edge = Math.max(Math.abs(x), Math.abs(z)) / Math.max(1, terrainHalf);
+  const mountainRing = smoothstep(0.62, 0.96, edge);
+  const ridge = ridgedFbm(
+    (x + offset.x) * 0.0046,
+    (z + offset.z) * 0.0046,
+    5,
+  );
+  const brokenPeaks = ridgedFbm(
+    (x - offset.z) * 0.011,
+    (z + offset.x) * 0.011,
+    3,
+  );
+  const meadowUndulation = fbm(
+    (x + offset.x) * 0.006,
+    (z + offset.z) * 0.006,
+    4,
+  ) * 1.15;
+  const mountainHeight = mountainRing * mountainRing * (
+    96 + ridge * 150 + brokenPeaks * 42
+  ) * relief;
+  return meadowUndulation * (1 - mountainRing * 0.72) * relief
+    + mountainHeight;
+}
+
 function sampleVinodolCoastHeight(x: number, z: number, relief: number, seed: number): number {
   const { generationHalf: playableHalf } = getActiveWorldDimensions();
   const offset = presetNoiseOffset(seed);
@@ -270,6 +298,9 @@ export function sampleRawTerrainHeight(x: number, z: number): number {
   }
   if (settings.terrainPreset === 'risnjak_pass') {
     return sampleRisnjakPassHeight(x, z, relief, settings.seed);
+  }
+  if (settings.terrainPreset === 'delnice_meadow') {
+    return sampleDelniceMeadowHeight(x, z, relief, settings.seed);
   }
   if (settings.terrainPreset === 'vinodol_coast') {
     return sampleVinodolCoastHeight(x, z, relief, settings.seed);

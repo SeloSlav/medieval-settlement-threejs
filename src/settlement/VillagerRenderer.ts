@@ -4240,6 +4240,7 @@ function describeVillagerActivity(
           case 'granary': return `Handling grain at ${workplaceLabel}`;
           case 'bakery': return `Baking bread at ${workplaceLabel}`;
           case 'watermill': return `Tending the mill at ${workplaceLabel}`;
+          case 'windmill': return `Tending the sails at ${workplaceLabel}`;
           case 'vineyard': return `Tending vines at ${workplaceLabel}`;
           case 'charcoal_burner': return `Sealing and venting the clamp at ${workplaceLabel}`;
           case 'potter_kiln': return `Shaping and firing vessels at ${workplaceLabel}`;

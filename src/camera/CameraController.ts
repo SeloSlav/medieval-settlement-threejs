@@ -30,6 +30,8 @@ const RMB_PAN_MULTIPLIER = 0.105;
 const KEY_PAN_SPEED = 34;
 const KEY_ROTATE_SPEED = 2.8;
 const INSPECT_FOCUS_DISTANCE = 90;
+/** Keep the resident render set stable until a wheel/trackpad zoom burst settles. */
+const WHEEL_NAVIGATION_GRACE_MS = 220;
 const NAVIGATION_KEYS = new Set([
   'w',
   'a',
@@ -75,6 +77,7 @@ export class CameraController {
   private lastMouseY = 0;
   private activeCursor = '';
   private viewChangeFrame = 0;
+  private wheelNavigationUntilMs = 0;
 
   constructor(config: CameraControllerConfig) {
     this.config = config;
@@ -111,6 +114,7 @@ export class CameraController {
 
   isNavigationActive(): boolean {
     if (this.isPanning || this.isRotating) return true;
+    if (performance.now() < this.wheelNavigationUntilMs) return true;
     for (const key of NAVIGATION_KEYS) {
       if (this.keys.has(key)) return true;
     }
@@ -140,6 +144,7 @@ export class CameraController {
     if (enabled) return;
     this.isPanning = false;
     this.isRotating = false;
+    this.wheelNavigationUntilMs = 0;
     this.keys.clear();
   }
 
@@ -268,6 +273,7 @@ export class CameraController {
     if (event.deltaX !== 0) {
       this.pan(event.deltaX * 0.03, 0);
     }
+    this.wheelNavigationUntilMs = performance.now() + WHEEL_NAVIGATION_GRACE_MS;
     this.commitViewChange();
   };
 

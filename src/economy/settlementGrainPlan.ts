@@ -378,7 +378,7 @@ export function computeSettlementGrainPlan(
       && (
         (building.kind === 'monastery')
         || (
-          (building.kind === 'watermill' || building.kind === 'brewery')
+          (building.kind === 'watermill' || building.kind === 'windmill' || building.kind === 'brewery')
           && building.assignedLabor > 0
         )
       )

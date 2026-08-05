@@ -79,7 +79,10 @@ export async function buildTerrainGeometryData(
         dimensions.generationSize * 0.5,
         dimensions.terrainSize * 0.5,
       );
-      forestBlends[vertexIndex] = forestFloorBlendAtDensity(forestDensity);
+      forestBlends[vertexIndex] = forestFloorBlendAtDensity(
+        forestDensity,
+        riverField?.isRenderedWetAt(x, z) ?? false,
+      );
 
       shoreBlends[vertexIndex] = riverField?.sampleMudBlendAt(x, z) ?? 0;
       quarryPadBlends[vertexIndex] = quarryLayout?.getPadBlend(x, z) ?? 0;
@@ -167,7 +170,11 @@ export function createTerrainGeometry(data: TerrainGeometryData): THREE.BufferGe
   return geometry;
 }
 
-export function forestFloorBlendAtDensity(density: number): number {
+export function forestFloorBlendAtDensity(
+  density: number,
+  blockedByRenderedWater = false,
+): number {
+  if (blockedByRenderedWater) return 0;
   const t = THREE.MathUtils.clamp(
     (density - FOREST_FLOOR_BLEND_START)
       / (FOREST_FLOOR_BLEND_END - FOREST_FLOOR_BLEND_START),

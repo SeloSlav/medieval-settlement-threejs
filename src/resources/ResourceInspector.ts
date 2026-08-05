@@ -2042,6 +2042,7 @@ const BUILDING_INSPECTOR_ART: Partial<Record<string, string>> = {
   vineyard: 'vineyard.webp',
   watchtower: 'watchtower.webp',
   watermill: 'watermill.webp',
+  windmill: 'windmill.webp',
   weaver: 'weaver.webp',
   well: 'water-well.webp',
   woodcutters_lodge: 'woodcutters-lodge.webp',

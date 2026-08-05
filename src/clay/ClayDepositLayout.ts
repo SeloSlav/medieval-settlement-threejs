@@ -89,9 +89,9 @@ export function nearestClayDeposit(
 }
 
 /**
- * Deterministic alluvial deposits are generated beside rivers. Every world has
- * at least one ordinary bank; rich banks are optional seed rolls supplied by
- * the regional resource plan.
+ * Deterministic alluvial deposits are generated beside rivers. Riverless maps
+ * fall back to dry upland clay lenses so every world still has its promised
+ * ordinary source; rich banks remain optional regional seed rolls.
  */
 export class ClayDepositLayout {
   readonly sites: readonly ClayDepositSite[];
@@ -109,11 +109,14 @@ export class ClayDepositLayout {
       ...(options.quarrySites ?? []),
       ...(options.foragingSites ?? []),
     ];
-    const candidates = collectBankCandidates(
+    let candidates = collectBankCandidates(
       options.riverLayout,
       playableHalf,
       seed,
     );
+    if (candidates.length === 0) {
+      candidates = collectDryClayCandidates(options.riverLayout, playableHalf, seed);
+    }
     const richSiteCount = Math.max(0, Math.min(1, Math.floor(options.richSiteCount ?? 1)));
     const ordinarySiteCount = Math.max(1, Math.min(4, Math.floor(options.ordinarySiteCount ?? 1)));
     const grades: ClayDepositSite['kind'][] = [
@@ -220,6 +223,43 @@ function collectBankCandidates(
     }
   });
 
+  return candidates;
+}
+
+function collectDryClayCandidates(
+  riverLayout: RiverLayout,
+  playableHalf: number,
+  seed: number,
+): BankCandidate[] {
+  const candidates: BankCandidate[] = [];
+  const limit = playableHalf - PLAYABLE_EDGE_CLEARANCE;
+  const minimumRadius = Math.min(limit * 0.48, CENTRAL_CLEARING_RADIUS + 54);
+  const maximumRadius = Math.max(
+    minimumRadius + 1,
+    Math.min(limit * 0.72, playableHalf * 0.56),
+  );
+
+  for (let index = 0; index < 32; index += 1) {
+    const angle = hashF64(seed ^ 0x7c31, index, 0) * Math.PI * 2;
+    const radius = minimumRadius
+      + (maximumRadius - minimumRadius) * hashF64(seed ^ 0x2d95, index, 1);
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const probes = [
+      { x, z },
+      { x: x - 8, z },
+      { x: x + 8, z },
+      { x, z: z - 8 },
+      { x, z: z + 8 },
+    ];
+    if (probes.some((probe) => riverLayout.isWaterAt(probe.x, probe.z))) continue;
+    candidates.push({
+      x,
+      z,
+      rotation: angle + Math.PI * 0.5,
+      score: hashF64(seed ^ 0x61a7, index, 2) * 4 - radius / playableHalf,
+    });
+  }
   return candidates;
 }
 

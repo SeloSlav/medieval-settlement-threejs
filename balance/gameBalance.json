@@ -1463,6 +1463,24 @@
       "requiresBerries": false,
       "requiresWaterShore": true
     },
+    "windmill": {
+      "label": "Grain windmill",
+      "cost": { "timber": 64, "stone": 58, "ironwork": 6 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "grain": 180, "flour": 260, "ironwork": 3 },
+      "workRadius": 0,
+      "pickRadius": 11,
+      "harvestInterval": 7,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 3,
+      "acceptsLabor": true,
+      "requiresRoad": true,
+      "facesRoad": true,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false,
+      "requiresWaterShore": false
+    },
     "carpenter": {
       "label": "Carpenter and wheelwright",
       "cost": { "timber": 52, "stone": 20, "ironwork": 2 },

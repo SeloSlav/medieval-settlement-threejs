@@ -85,6 +85,7 @@ const OCCUPATIONS: Record<BuildingKind, string> = {
   bakery: 'Baker',
   apiary: 'Beekeeper',
   watermill: 'Miller',
+  windmill: 'Miller',
   carpenter: 'Carpenter',
   weaver: 'Weaver',
   ferry_landing: 'Ferryman',

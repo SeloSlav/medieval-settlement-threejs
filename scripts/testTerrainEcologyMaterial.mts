@@ -43,6 +43,10 @@ const textureLoaderSource = readFileSync(
   `${projectRoot}src/roads/RoadTextureLoader.ts`,
   'utf8',
 );
+const terrainGeometrySource = readFileSync(
+  `${projectRoot}src/terrain/terrainGeometryData.ts`,
+  'utf8',
+);
 
 const ecologyStart = source.indexOf('function buildGrassBlendNodes');
 const ecologyEnd = source.indexOf('function buildTerrainSnowNodes');
@@ -109,8 +113,11 @@ assert.match(
 );
 assert.match(ecologySource, /attribute\('forestBlend', 'float'\)/);
 assert.match(ecologySource, /packedForestLitterUv\(forestUv\)/);
-assert.match(ecologySource, /const forestColorNode = forestColor\.rgb/);
-assert.match(ecologySource, /const forestNormalNode = bumpMap/);
+assert.match(ecologySource, /packedForestLitterGradient\(forestUv\.dFdx\(\)\)/);
+assert.match(ecologySource, /packedForestLitterGradient\(forestUv\.dFdy\(\)\)/);
+assert.match(ecologySource, /const forestColorNode = mix\([\s\S]*?forestOverviewColorNode[\s\S]*?forestDetailColorNode[\s\S]*?closeMaterialDetail/);
+assert.match(ecologySource, /const forestBumpNode = bumpMap/);
+assert.match(ecologySource, /const forestNormalNode = normalize\([\s\S]*?forestBumpNode[\s\S]*?closeMaterialDetail\.mul\(rainNormalVisibility\)/);
 assert.match(ecologySource, /const forestRoughnessNode = mix/);
 assert.match(ecologySource, /const forestAoNode = mix/);
 assert.match(ecologySource, /vec3\(0\.15, 0\.22, 0\.05\)/);
@@ -402,6 +409,16 @@ assert.equal(forestFloorBlendAtDensity(FOREST_FLOOR_BLEND_START - 0.01), 0);
 assert.equal(forestFloorBlendAtDensity(FOREST_FLOOR_BLEND_START), 0);
 assert.equal(forestFloorBlendAtDensity(FOREST_FLOOR_BLEND_END), 1);
 assert.equal(forestFloorBlendAtDensity(FOREST_FLOOR_BLEND_END + 0.01), 1);
+assert.equal(
+  forestFloorBlendAtDensity(1, true),
+  0,
+  'forest litter must never be painted onto rendered river water',
+);
+assert.match(
+  terrainGeometrySource,
+  /forestFloorBlendAtDensity\([\s\S]*?riverField\?\.isRenderedWetAt\(x, z\)/,
+  'terrain generation must feed the rendered-water mask into the forest-floor blend',
+);
 assert.ok(
   Math.abs(
     forestFloorBlendAtDensity(

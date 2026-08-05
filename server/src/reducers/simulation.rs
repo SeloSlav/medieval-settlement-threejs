@@ -21,7 +21,7 @@ use crate::simulation::{
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls,
     step_swineherd, step_threshing_barn, step_village_storehouse_overflow_collection,
-    step_vineyard, step_watermill, step_weaver, step_well, step_woodcutters_lodge,
+    step_vineyard, step_watermill, step_weaver, step_well, step_windmill, step_woodcutters_lodge,
     step_workforce_commutes, try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
 use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
@@ -262,6 +262,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::Bakery
             | crate::building_defs::BuildingSimKind::Apiary
             | crate::building_defs::BuildingSimKind::Watermill
+            | crate::building_defs::BuildingSimKind::Windmill
             | crate::building_defs::BuildingSimKind::Carpenter
             | crate::building_defs::BuildingSimKind::Weaver
             | crate::building_defs::BuildingSimKind::FerryLanding
@@ -410,6 +411,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             }
             crate::building_defs::BuildingSimKind::Watermill => {
                 step_watermill(ctx, &tick, &clock, environment, building)
+            }
+            crate::building_defs::BuildingSimKind::Windmill => {
+                step_windmill(ctx, &tick, &clock, building)
             }
             crate::building_defs::BuildingSimKind::Carpenter => {
                 step_carpenter(ctx, &tick, &clock, building)

@@ -91,6 +91,10 @@ export class RiverLayout {
       return new RiverLayout(bounds, seed, coastalDrain, [], terrainPreset);
     }
 
+    if (terrainPreset === 'delnice_meadow') {
+      return new RiverLayout(bounds, seed, drain, [], terrainPreset);
+    }
+
     const corridors: RiverCorridor[] = [];
     for (let i = 0; i < riverCount; i++) {
       const jitter = hashF64(seed ^ 0x5151, i, 0) * 0.22 - 0.11;
@@ -140,6 +144,7 @@ export class RiverLayout {
   }
 
   getValleyDepression(x: number, z: number): number {
+    if (this.terrainPreset === 'delnice_meadow') return 0;
     const lake = this.terrainPreset === 'kupa_valley' || this.terrainPreset === 'vinodol_coast'
       ? { mask: 0, depth: 0 }
       : sampleConfluenceLake(x, z, this.drain, this.seed);
@@ -153,6 +158,7 @@ export class RiverLayout {
   }
 
   sampleRiverMask(x: number, z: number): number {
+    if (this.terrainPreset === 'delnice_meadow') return 0;
     const lake = this.terrainPreset === 'kupa_valley' || this.terrainPreset === 'vinodol_coast'
       ? { mask: 0, depth: 0 }
       : sampleConfluenceLake(x, z, this.drain, this.seed);

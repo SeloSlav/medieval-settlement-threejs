@@ -54,8 +54,8 @@ pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "potter_kiln",
     "village_storehouse",
 ];
-pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "monastery"];
-pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "granary", "monastery"];
+pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "windmill", "monastery"];
+pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "windmill", "granary", "monastery"];
 pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
     "bakery",
     "brewery",
@@ -169,11 +169,11 @@ pub fn grain_input_target(
     processor_output_target_percent: u8,
 ) -> f64 {
     let per_cycle = match kind {
-        "watermill" => WATERMILL_GRAIN_PER_CYCLE,
+        "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
         "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
-    let staging_cycles = if kind == "watermill" {
+    let staging_cycles = if matches!(kind, "watermill" | "windmill") {
         processor_input_staging_cycles(processor_output_target_percent)
     } else {
         GRAIN_INPUT_BUFFER_CYCLES
@@ -183,7 +183,7 @@ pub fn grain_input_target(
 
 pub fn grain_input_runway_cycles(kind: &str, stock: f64, productivity: f64) -> f64 {
     let per_cycle = match kind {
-        "watermill" => WATERMILL_GRAIN_PER_CYCLE,
+        "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
         "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
@@ -1091,15 +1091,16 @@ mod tests {
     fn grain_processors_stage_inputs_from_their_stock_policy() {
         assert_eq!(
             GRAIN_DISPATCH_TARGET_KINDS,
-            &["watermill", "granary", "monastery"]
+            &["watermill", "windmill", "granary", "monastery"]
         );
-        assert_eq!(GRAIN_PROCESSOR_KINDS, &["watermill", "monastery"]);
+        assert_eq!(GRAIN_PROCESSOR_KINDS, &["watermill", "windmill", "monastery"]);
         assert_eq!(GRAIN_INPUT_BUFFER_CYCLES, 3.0);
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
         assert_eq!(grain_input_target("watermill", 1.0, 25), 3.0);
         assert_eq!(grain_input_target("watermill", 1.0, 50), 6.0);
         assert_eq!(grain_input_target("watermill", 1.0, 75), 9.0);
         assert_eq!(grain_input_target("watermill", 1.0, 100), 9.0);
+        assert_eq!(grain_input_target("windmill", 1.0, 100), 9.0);
         assert_eq!(grain_input_target("brewery", 1.0, 50), 0.0);
         assert_eq!(grain_input_target("monastery", 1.0, 25), 6.0);
         assert_eq!(grain_input_target("monastery", 0.45, 100), 2.7);

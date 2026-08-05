@@ -767,6 +767,7 @@ function civilianToolSiteCanWork(
       return stockTargetHasRoom(building, 'clay')
         && centeredDepositExists(building, state.quarries.values(), 'clay');
     case 'watermill':
+    case 'windmill':
       return stockTargetHasRoom(building, 'flour')
         && building.grain + 1e-6 >= WATERMILL_GRAIN_PER_CYCLE;
     case 'threshing_barn':
@@ -880,6 +881,7 @@ function completedProcessorOverview(
     if (fireDisabled.has(building.id)) {
       if (
         building.kind === 'watermill'
+        || building.kind === 'windmill'
         || building.kind === 'bakery'
         || building.kind === 'brewery'
         || building.kind === 'smokehouse'
@@ -994,24 +996,28 @@ function completedProcessorOverview(
       }
     }
     switch (building.kind) {
-      case 'watermill': {
+      case 'watermill':
+      case 'windmill': {
         const toolThroughput = civilianToolThroughputMultiplier(
           building.ironwork ?? 0,
         );
+        const powerThroughput = building.kind === 'watermill'
+          ? watermillThroughputMultiplier
+          : 1;
         millWorkers += building.assignedLabor;
-        millEffectiveWorkers += building.assignedLabor * toolThroughput;
+        millEffectiveWorkers += building.assignedLabor * toolThroughput * powerThroughput;
         recordGrainRoadActivity(
           grainChainBranches,
           building,
           'mill',
           componentFor,
-          toolThroughput,
+          toolThroughput * powerThroughput,
         );
         const cycles = cyclesPerCalendarDay(
-          'watermill',
+          building.kind,
           building.assignedLabor,
           sabbathObserved,
-          watermillThroughputMultiplier * toolThroughput,
+          powerThroughput * toolThroughput,
         );
         millInputBuffer = updateFirstToStop(
           millInputBuffer,
@@ -1029,7 +1035,7 @@ function completedProcessorOverview(
           outputRoomDays(
             building.flour,
             processorOutputTargetForBuilding(building)
-              ?? (BUILDING_STORAGE_CAPS.watermill.flour ?? 0),
+              ?? (BUILDING_STORAGE_CAPS[building.kind].flour ?? 0),
             cycles * WATERMILL_FLOUR_PER_CYCLE,
           ),
           building.id,
@@ -2192,7 +2198,6 @@ function grainChainRoadPlan(
   branches: ReadonlyMap<string, GrainChainBranch>,
   sabbathObserved: boolean,
   hypotheticalFoodPerDay: number,
-  watermillThroughputMultiplier: number,
 ): GrainChainRoadPlan & {
   matchedFoodPerDay: number;
   grainRoadBranches: ReadonlyMap<string, ProductionGrainRoadBranch>;
@@ -2211,7 +2216,6 @@ function grainChainRoadPlan(
       'watermill',
       branch.millEffectiveWorkers,
       sabbathObserved,
-      watermillThroughputMultiplier,
     );
     const bakeryCycles = cyclesPerCalendarDay(
       'bakery',
@@ -2389,7 +2393,6 @@ export function computeSettlementProductionCapacity(
     'watermill',
     millEffectiveWorkers,
     sabbathObserved,
-    normalizedWatermillThroughput,
   );
   const bakeryCycles = cyclesPerCalendarDay('bakery', bakeryWorkers, sabbathObserved);
   const breweryCycles = cyclesPerCalendarDay('brewery', breweryWorkers, sabbathObserved);
@@ -2415,7 +2418,6 @@ export function computeSettlementProductionCapacity(
     grainChainBranches,
     sabbathObserved,
     hypotheticalBreadFoodPerDay,
-    normalizedWatermillThroughput,
   );
   const breadCyclesPerDay = breadFoodCapacityPerDay / BAKERY_FOOD_PER_CYCLE;
   const matchedFlourPerDay = breadCyclesPerDay * BAKERY_FLOUR_PER_CYCLE;

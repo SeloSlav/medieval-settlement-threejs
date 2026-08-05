@@ -12,9 +12,10 @@ import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts
 import { compareStableEntityIds } from './roadLogistics.ts';
 
 export const GRAIN_DISPATCH_SOURCE_KINDS = ['threshing_barn', 'granary'] as const;
-export const GRAIN_PROCESSOR_KINDS = ['watermill', 'monastery'] as const;
+export const GRAIN_PROCESSOR_KINDS = ['watermill', 'windmill', 'monastery'] as const;
 export const GRAIN_DISPATCH_TARGET_KINDS = [
   'watermill',
+  'windmill',
   'granary',
   'monastery',
 ] as const;
@@ -23,7 +24,7 @@ export const GRAIN_CRITICAL_RUNWAY_CYCLES = 1;
 
 export type GrainProcessorKind = Extract<
   BuildingKind,
-  'watermill' | 'monastery'
+  'watermill' | 'windmill' | 'monastery'
 >;
 export type GrainDispatchDuty =
   | 'working-buffer'
@@ -54,7 +55,7 @@ function grainInputPerCycle(
   kind: GrainProcessorKind,
   productivity = 1,
 ): number {
-  return kind === 'watermill'
+  return kind === 'watermill' || kind === 'windmill'
     ? WATERMILL_GRAIN_PER_CYCLE
     : MONASTERY_GRAIN_PER_CYCLE * Math.max(0, productivity);
 }

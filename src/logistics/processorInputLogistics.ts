@@ -126,6 +126,7 @@ const TARGET_KINDS: Record<
     'clay_pit',
     'threshing_barn',
     'watermill',
+    'windmill',
     'carpenter',
   ],
   iron: ['smithy', 'trading_post'],

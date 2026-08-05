@@ -191,9 +191,14 @@ function releaseMouse(button: number): void {
   const distanceBefore = controller.getOrbitDistance();
   domElement.dispatch('wheel', wheelEvent({ deltaY: 120 }));
   assert.notEqual(controller.getOrbitDistance(), distanceBefore, 'wheel zoom should apply immediately');
+  assert.equal(controller.isNavigationActive(), true,
+    'wheel zoom should hold the resident forest set while the input burst settles');
   const afterWheel = controller.getOrbitDistance();
   controller.update(0.5);
   assert.equal(controller.getOrbitDistance(), afterWheel, 'zoom must not ease after wheel input');
+  controller.setInputEnabled(false);
+  assert.equal(controller.isNavigationActive(), false,
+    'disabling camera input should clear the wheel navigation grace period');
 }
 
 {

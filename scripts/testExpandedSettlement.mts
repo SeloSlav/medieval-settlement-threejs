@@ -45,13 +45,14 @@ import { describeToolbarStatus } from '../src/ui/buildToolbarStatus.ts';
 
 const expanded = [
   'threshing_barn', 'monastery', 'brewery', 'smokehouse', 'granary',
-  'apiary', 'watermill', 'carpenter', 'ferry_landing', 'vineyard',
+  'apiary', 'watermill', 'windmill', 'carpenter', 'ferry_landing', 'vineyard',
 ] as const;
 for (const kind of expanded) {
   assert.ok(BUILDING_KINDS.includes(kind), `${kind} must remain a generated buildable kind`);
   assert.ok(BUILDING_DEFINITIONS[kind].label.length > 0, `${kind} needs player-facing copy`);
 }
 assert.equal(BUILDING_DEFINITIONS.watermill.requiresWaterShore, true);
+assert.equal(BUILDING_DEFINITIONS.windmill.requiresWaterShore, false);
 assert.equal(BUILDING_DEFINITIONS.ferry_landing.requiresWaterShore, true);
 assert.equal(BUILDING_DEFINITIONS.monastery.acceptsLabor, false);
 assert.equal(BUILDING_DEFINITIONS.monastery.requiresHillside, true);
@@ -69,7 +70,7 @@ assert.deepEqual(
   getBuildingExtent('apiary', BUILDING_DEFINITIONS.apiary.workRadius),
   { type: 'work', label: 'Bee forage extent', radius: 48 },
 );
-for (const kind of ['brewery', 'smokehouse', 'granary', 'watermill', 'carpenter', 'ferry_landing'] as const) {
+for (const kind of ['brewery', 'smokehouse', 'granary', 'watermill', 'windmill', 'carpenter', 'ferry_landing'] as const) {
   assert.equal(BUILDING_DEFINITIONS[kind].workRadius, 0, `${kind} has no spatial work extent`);
   assert.equal(getBuildingExtent(kind, BUILDING_DEFINITIONS[kind].workRadius), null, `${kind} must not render an extent ring`);
 }
@@ -166,6 +167,11 @@ assert.equal(carpenterCartServiceTripsAvailable(activeCarpenter), 15);
 assert.deepEqual(
   CARPENTER_CART_SERVICE_TARGET_PRESETS.map((preset) => preset.trips),
   [0, 5, 15, 30],
+);
+assert.equal(
+  validateBuildingPlacement('windmill', 0, 0, roadlessPlacementContext).ok,
+  true,
+  'windmills must be placeable on dry land without a river shore',
 );
 assert.equal(normalizeCarpenterCartServiceTargetTrips(undefined), 15);
 assert.equal(normalizeCarpenterCartServiceTargetTrips(7), 15);
@@ -397,6 +403,11 @@ const watermillModel = createBuildingMesh('watermill');
 assert.ok(
   watermillModel.getObjectByName('Watermill wheel') instanceof THREE.Group,
   'the river-power animation needs one stable wheel group',
+);
+const windmillModel = createBuildingMesh('windmill');
+assert.ok(
+  windmillModel.getObjectByName('Windmill sails') instanceof THREE.Group,
+  'the wind-power animation needs one stable sail group',
 );
 
 const tierSizes = ([1, 2, 3] as const).map((tier) =>

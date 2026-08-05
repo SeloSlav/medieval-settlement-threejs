@@ -131,19 +131,22 @@ export function foodStockpileVisualSignature(building: BuildingState): string {
         )
       }`;
     case 'watermill':
+    case 'windmill': {
+      const capacities = BUILDING_STORAGE_CAPS[building.kind];
       return `:food-store:${
         stockpileVisualLevel(
           building.grain,
-          BUILDING_STORAGE_CAPS.watermill.grain,
+          capacities.grain,
           WATERMILL_GRAIN_VISUAL_SEGMENTS,
         )
       }:${
         stockpileVisualLevel(
           building.flour,
-          BUILDING_STORAGE_CAPS.watermill.flour,
+          capacities.flour,
           WATERMILL_FLOUR_VISUAL_SEGMENTS,
         )
       }`;
+    }
     default:
       return '';
   }
@@ -274,21 +277,24 @@ export function syncFoodStockpileVisuals(
       );
       break;
     case 'watermill':
+    case 'windmill': {
+      const capacities = BUILDING_STORAGE_CAPS[building.kind];
       syncNamedStockpile(
         marker,
         'WatermillGrainStockpile',
         'WatermillGrainSegment',
         building.grain,
-        BUILDING_STORAGE_CAPS.watermill.grain,
+        capacities.grain,
       );
       syncNamedStockpile(
         marker,
         'WatermillFlourStockpile',
         'WatermillFlourSegment',
         building.flour,
-        BUILDING_STORAGE_CAPS.watermill.flour,
+        capacities.flour,
       );
       break;
+    }
   }
 }
 

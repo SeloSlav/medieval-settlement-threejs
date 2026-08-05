@@ -40,7 +40,7 @@ pub enum ProcessorInputKind {
 
 pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
     match kind {
-        "watermill" => Some(ProcessorOutputKind::Flour),
+        "watermill" | "windmill" => Some(ProcessorOutputKind::Flour),
         "bakery" => Some(ProcessorOutputKind::Food),
         "brewery" => Some(ProcessorOutputKind::Ale),
         "smokehouse" => Some(ProcessorOutputKind::PreservedFood),
@@ -56,7 +56,7 @@ pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
     use ProcessorInputKind::*;
 
     match kind {
-        "watermill" => &[Grain],
+        "watermill" | "windmill" => &[Grain],
         "bakery" => &[Flour, Water, Firewood],
         "brewery" => &[Barley, Water, Firewood],
         "smokehouse" => &[Food, Firewood, Salt, Pottery],
@@ -172,6 +172,7 @@ mod tests {
     fn only_staffed_conversion_workshops_use_the_policy() {
         for kind in [
             "watermill",
+            "windmill",
             "bakery",
             "brewery",
             "smokehouse",
@@ -187,6 +188,10 @@ mod tests {
         }
         assert_eq!(
             processor_output_kind("watermill"),
+            Some(ProcessorOutputKind::Flour)
+        );
+        assert_eq!(
+            processor_output_kind("windmill"),
             Some(ProcessorOutputKind::Flour)
         );
         assert_eq!(
@@ -211,6 +216,7 @@ mod tests {
         use ProcessorInputKind::*;
 
         assert_eq!(processor_input_kinds("watermill"), &[Grain]);
+        assert_eq!(processor_input_kinds("windmill"), &[Grain]);
         assert_eq!(processor_input_kinds("bakery"), &[Flour, Water, Firewood]);
         assert!(processor_input_kinds("granary").is_empty());
         assert_eq!(processor_input_kinds("brewery"), &[Barley, Water, Firewood]);

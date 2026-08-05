@@ -27,6 +27,7 @@ for (const kind of [
   'apiary',
   'vineyard',
   'watermill',
+  'windmill',
   'bakery',
   'brewery',
   'smokehouse',

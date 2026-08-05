@@ -19,7 +19,7 @@ import {
   type WorldTerrainPreset,
 } from '../src/world/worldTerrainPresets.ts';
 
-const authoredPresets = ['kupa_valley', 'risnjak_pass', 'vinodol_coast'] as const;
+const authoredPresets = ['kupa_valley', 'risnjak_pass', 'delnice_meadow', 'vinodol_coast'] as const;
 
 for (const [mapSize, preset] of Object.entries(MAP_SIZE_PRESETS)) {
   const dimensions = resolveWorldDimensions(mapSize as keyof typeof MAP_SIZE_PRESETS);
@@ -121,6 +121,41 @@ assert.ok(
 );
 assert.ok(risnjak.layout.riverLayout.corridors.length >= 3, 'Risnjak Pass needs several headwaters.');
 
+const delnice = preparePreset('delnice_meadow', 0x5d2_74b1);
+const delniceDimensions = resolveWorldDimensions(delnice.settings.mapSize);
+assert.equal(delnice.layout.riverLayout.corridors.length, 0, 'Delnice must not generate rivers.');
+assert.equal(
+  sampleWaterShare(delnice.layout.riverLayout, delniceDimensions.playableHalf, 81),
+  0,
+  'Delnice must have no surface water anywhere on the map.',
+);
+assert.ok(
+  delnice.layout.clayDepositLayout.sites.length >= 1,
+  'Riverless Delnice must retain at least one physical upland clay source.',
+);
+assert.ok(
+  delnice.layout.clayDepositLayout.sites.every((site) =>
+    !delnice.layout.riverLayout.isWaterAt(site.x, site.z)
+  ),
+  'Delnice clay sources must remain dry instead of reintroducing hidden surface water.',
+);
+const delniceMeadowRelief = sampleRelief(-170, 170, -170, 170, 17);
+assert.ok(
+  delniceMeadowRelief <= 4,
+  `Delnice's central meadow must stay broadly flat, got ${delniceMeadowRelief.toFixed(1)} m relief.`,
+);
+const delniceFloor = sampleNaturalTerrainHeight(0, 0);
+const delniceBorderRise = Math.min(
+  sampleNaturalTerrainHeight(-delniceDimensions.playableHalf * 0.92, 0) - delniceFloor,
+  sampleNaturalTerrainHeight(delniceDimensions.playableHalf * 0.92, 0) - delniceFloor,
+  sampleNaturalTerrainHeight(0, -delniceDimensions.playableHalf * 0.92) - delniceFloor,
+  sampleNaturalTerrainHeight(0, delniceDimensions.playableHalf * 0.92) - delniceFloor,
+);
+assert.ok(
+  delniceBorderRise >= 90,
+  `Delnice needs mountains around every border, got a ${delniceBorderRise.toFixed(1)} m minimum rise.`,
+);
+
 const vinodol = preparePreset('vinodol_coast', 0x4b8_2c11);
 const vinodolDimensions = resolveWorldDimensions(vinodol.settings.mapSize);
 const coastalWaterShare = sampleWaterShare(
@@ -149,6 +184,8 @@ console.log('world terrain preset tests passed', {
   kupaMinimumSideRise: Number(kupaMinimumSideRise.toFixed(1)),
   customMountainRise: Number(customMountainRise.toFixed(1)),
   risnjakShoulderRise: Number((Math.max(...passShoulders) - passFloor).toFixed(1)),
+  delniceMeadowRelief: Number(delniceMeadowRelief.toFixed(1)),
+  delniceMinimumBorderRise: Number(delniceBorderRise.toFixed(1)),
   vinodolWaterPercent: Number((coastalWaterShare * 100).toFixed(1)),
 });
 

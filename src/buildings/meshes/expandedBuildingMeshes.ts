@@ -748,6 +748,130 @@ export function createWatermillMesh(): THREE.Group {
   return group;
 }
 
+export function createWindmillMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'Windmill';
+
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(2.85, 3.55, 7.4, 12),
+    residenceFacadeMaterial('white'),
+    new THREE.Vector3(0, 3.7, 0),
+  );
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(3.62, 3.62, 0.52, 12),
+    stoneMaterial('mid'),
+    new THREE.Vector3(0, 0.26, 0),
+  );
+  addMesh(
+    group,
+    new THREE.CylinderGeometry(3.25, 2.9, 1.8, 8),
+    timberMaterial('dark'),
+    new THREE.Vector3(0, 8.25, 0),
+  );
+  addMesh(
+    group,
+    new THREE.ConeGeometry(3.9, 2.55, 8),
+    shingleMaterial(),
+    new THREE.Vector3(0, 10.42, 0),
+  );
+  addMesh(
+    group,
+    new THREE.SphereGeometry(0.18, 8, 6),
+    metalMaterial('iron'),
+    new THREE.Vector3(0, 11.78, 0),
+  );
+
+  addPlankDoor(group, 0, 0.56, 3.23, 1.0, 1.86);
+  addSmallWindow(group, -1.15, 3.15, 2.96, 0.62, 0.78);
+  addSmallWindow(group, 1.1, 5.55, 2.72, 0.56, 0.72);
+
+  const sails = new THREE.Group();
+  sails.name = 'Windmill sails';
+  sails.position.set(0, 8.35, 3.42);
+  sails.rotation.z = Math.PI * 0.12;
+  group.add(sails);
+  for (let bladeIndex = 0; bladeIndex < 4; bladeIndex += 1) {
+    const blade = new THREE.Group();
+    blade.rotation.z = bladeIndex * Math.PI * 0.5;
+    sails.add(blade);
+    addMesh(
+      blade,
+      new THREE.BoxGeometry(0.18, 5.1, 0.18),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, 2.55, 0),
+    );
+    for (const side of [-1, 1]) {
+      addMesh(
+        blade,
+        new THREE.BoxGeometry(0.13, 3.65, 0.13),
+        timberMaterial('weathered'),
+        new THREE.Vector3(side * 0.58, 3.05, 0),
+        new THREE.Euler(0, 0, side * -0.08),
+      );
+    }
+    for (let rung = 0; rung < 7; rung += 1) {
+      addMesh(
+        blade,
+        new THREE.BoxGeometry(1.32, 0.1, 0.11),
+        timberMaterial(rung % 2 ? 'light' : 'weathered'),
+        new THREE.Vector3(0, 1.65 + rung * 0.5, 0),
+      );
+    }
+  }
+  addMesh(
+    sails,
+    new THREE.CylinderGeometry(0.48, 0.48, 0.72, 10),
+    timberMaterial('dark'),
+    new THREE.Vector3(),
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+  );
+  addMesh(
+    sails,
+    new THREE.CylinderGeometry(0.16, 0.16, 1.15, 10),
+    metalMaterial('iron'),
+    new THREE.Vector3(0, 0, -0.08),
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+  );
+
+  addLeanToRoof(group, {
+    width: 3.5,
+    depth: 2.8,
+    thickness: 0.14,
+    material: shingleMaterial(),
+    position: new THREE.Vector3(3.55, 2.45, -0.55),
+    pitch: 0.16,
+    highEdge: 'negativeX',
+    name: 'Windmill loading porch roof',
+  });
+  for (const z of [-1.55, 0.45]) {
+    addMesh(
+      group,
+      new THREE.BoxGeometry(0.17, 2.35, 0.17),
+      timberMaterial('dark'),
+      new THREE.Vector3(4.75, 1.18, z),
+    );
+  }
+
+  addSegmentedStockProps(
+    group,
+    'WatermillGrainStockpile',
+    'WatermillGrainSegment',
+    [[3.25, 0, -0.75, 0.9], [4.0, 0, -0.68, 0.72], [3.62, 0, -1.32, 0.65]],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
+  addSegmentedStockProps(
+    group,
+    'WatermillFlourStockpile',
+    'WatermillFlourSegment',
+    [[3.3, 0, 1.05, 0.86], [4.02, 0, 1.12, 0.72], [3.62, 0, 1.62, 0.64]],
+    (segment, scale) => addSack(segment, 0, 0, scale),
+  );
+  group.add(createCivilianToolStockpile(new THREE.Vector3(-3.55, 0, -1.65), 0.18));
+  return group;
+}
+
 export function createCarpenterMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Carpenter and wheelwright';

@@ -36,6 +36,7 @@ import {
   createThreshingBarnMesh,
   createVineyardMesh,
   createWatermillMesh,
+  createWindmillMesh,
   createWeaverMesh,
 } from './meshes/expandedBuildingMeshes.ts';
 import {
@@ -108,6 +109,7 @@ export function createBuildingMesh(kind: BuildingKind, chapelTier: 1 | 2 | 3 = 3
     case 'bakery': return createBakeryMesh();
     case 'apiary': return createApiaryMesh();
     case 'watermill': return createWatermillMesh();
+    case 'windmill': return createWindmillMesh();
     case 'carpenter': return createCarpenterMesh();
     case 'weaver': return createWeaverMesh();
     case 'ferry_landing': return createFerryLandingMesh();

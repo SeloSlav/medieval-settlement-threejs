@@ -164,6 +164,17 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     operatingLabel: 'Digging and tempering riverbank clay',
     idleNoWorkersLabel: 'Idle - assign workers to dig clay',
   },
+  windmill: {
+    requiresLabor: true,
+    waterPerCycle: 0,
+    inputs: [
+      { key: 'grain', label: 'grain', required: WATERMILL_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
+    ],
+    output: 'flour',
+    outputPerCycle: WATERMILL_FLOUR_PER_CYCLE,
+    operatingLabel: 'Wind-milling grain into flour',
+    idleNoWorkersLabel: 'Idle — assign workers to run the windmill',
+  },
   charcoal_burner: {
     requiresLabor: true,
     waterPerCycle: 0,

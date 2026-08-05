@@ -388,8 +388,8 @@ export class WorldSetupPanel {
       clay: {
         name: 'Clay',
         extractor: 'Clay Pit',
-        ordinaryDetail: 'finite riverbank clay',
-        richDetail: 'deep alluvial source',
+        ordinaryDetail: 'finite surface clay',
+        richDetail: 'deep clay source',
       },
       iron: {
         name: 'Iron',

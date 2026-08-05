@@ -21,6 +21,7 @@ export const CIVILIAN_TOOL_SITE_KINDS = [
   'clay_pit',
   'threshing_barn',
   'watermill',
+  'windmill',
 ] as const satisfies readonly BuildingKind[];
 
 export type CivilianToolSiteKind = (typeof CIVILIAN_TOOL_SITE_KINDS)[number];
