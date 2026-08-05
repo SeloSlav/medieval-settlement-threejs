@@ -1,5 +1,14 @@
 # Medieval Settlement — Three.js
 
+<p align="center">
+  <img src="docs/screenshots/medieval-settlement-road-and-bridge-editor.png" alt="Overhead view of the Road and Bridge Editor with roads, bridges, and residences spanning a forest river valley" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/medieval-settlement-first-person-garden.png" alt="Walking through a cultivated medieval settlement garden" width="49%">
+  <img src="docs/screenshots/medieval-settlement-valley-overview.png" alt="Overhead view of a medieval settlement in a forested river valley" width="49%">
+</p>
+
 ## Run the game locally
 
 This is the shortest way to start the complete game on Windows. You need [Node.js 22.12 or newer](https://nodejs.org/), [Rust](https://rustup.rs/), and the [SpacetimeDB CLI](https://spacetimedb.com/) installed first. The setup commands below use PowerShell.
@@ -32,11 +41,6 @@ The backend is now running at `http://localhost:3000` and the game is running at
 A real-time Three.js sandbox for growing a **medieval settlement** on a procedural 3D landscape. On a fresh game, choose map size, topography, hydrology, forest density, regional resource abundance and variety, and world seed before generation begins. Draw dirt road networks across rolling hills, pine forests, and winding rivers — wooden bridges and graded ramps appear automatically when a path crosses water. Place production buildings to harvest timber, stone, game, berries, and fish; connect wells and depots along those roads; then lay out residence zones so settlers move in over time. Homes need firewood, water, and food: physical haulers stock Marketplace stalls while wells refill from local groundwater, then connected homes receive those provisions through abstract availability instead of a cart visiting every door. Staffed Granaries and Village Storehouses still move real stock into the market. Plant backyard gardens for household consumption, cross-household exchange, savings, and a physically collected local tax; use a separate staffed Trading Post for regional imports and exports. A [SpacetimeDB](https://spacetimedb.com/) Rust module runs the authoritative economy simulation; the client renders replicated state in real time.
 
 Food is physical and keeps its identity throughout the economy: bakeries make bread, hunters supply meat, fishing camps land fish, foragers gather berries and mushrooms, households grow fruit, vegetables, and eggs, and livestock or specialty sites produce milk, cheese, cured meat, smoked fish, grapes, porridge, and honey. “Food” is only the meal-equivalent total used by household demand and the HUD summary. Clicking that HUD total opens the stored, carted, household, and surplus breakdown for every actual food commodity.
-
-<p align="center">
-  <img src="docs/screenshots/medieval-settlement-first-person-garden.png" alt="Walking through a cultivated medieval settlement garden" width="49%">
-  <img src="docs/screenshots/medieval-settlement-valley-overview.png" alt="Overhead view of a medieval settlement in a forested river valley" width="49%">
-</p>
 
 ## Recent updates (July 2026)
 
