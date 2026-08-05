@@ -1,7 +1,11 @@
 # Medieval Settlement — Three.js
 
 <p align="center">
-  <img src="docs/screenshots/medieval-settlement-road-and-bridge-editor.png" alt="Overhead view of the Road and Bridge Editor with roads, bridges, and residences spanning a forest river valley" width="100%">
+  <img src="docs/screenshots/selo-empire-noble-house-customization.png" alt="Selo Empire noble house selection and coat of arms customization" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/selo-empire-world-setup.png" alt="Selo Empire world setup with map size, settlement mode, landscape, and world seed options" width="100%">
 </p>
 
 <p align="center">

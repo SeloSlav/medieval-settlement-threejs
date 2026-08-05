@@ -27,9 +27,11 @@ import type {
   TextureSet,
 } from '../src/roads/RoadTextureLoader.ts';
 import {
+  createTerrainGeometry,
   FOREST_FLOOR_BLEND_END,
   FOREST_FLOOR_BLEND_START,
   forestFloorBlendAtDensity,
+  type TerrainGeometryData,
 } from '../src/terrain/terrainGeometryData.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -408,6 +410,56 @@ assert.ok(
   ) < 1e-12,
   'the contiguous-forest boundary must crossfade smoothly at its midpoint',
 );
+
+const terrainGeometryData: TerrainGeometryData = {
+  resolution: 2,
+  positions: new Float32Array([
+    -1, 0, -1,
+    1, 0, -1,
+    -1, 0, 1,
+    1, 0, 1,
+  ]),
+  normals: new Float32Array([
+    0, 1, 0,
+    0, 1, 0,
+    0, 1, 0,
+    0, 1, 0,
+  ]),
+  uvs: new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]),
+  colors: new Float32Array([
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1,
+    1 / 3, 1 / 3, 1 / 3,
+  ]),
+  forestBlends: new Float32Array([0.1, 0.2, 0.3, 0.4]),
+  shoreBlends: new Float32Array([0.5, 0.6, 0.7, 0.8]),
+  quarryPadBlends: new Float32Array([0.9, 0.8, 0.7, 0.6]),
+  indices: new Uint32Array([0, 2, 1, 1, 2, 3]),
+  boundingSphere: { center: [0, 0, 0], radius: Math.SQRT2 },
+};
+const terrainGeometry = createTerrainGeometry(terrainGeometryData);
+const forestBlendAttribute = terrainGeometry.getAttribute('forestBlend') as THREE.InterleavedBufferAttribute;
+const shoreBlendAttribute = terrainGeometry.getAttribute('shoreBlend') as THREE.InterleavedBufferAttribute;
+const quarryPadAttribute = terrainGeometry.getAttribute('quarryPadBlend') as THREE.InterleavedBufferAttribute;
+assert.ok(forestBlendAttribute.isInterleavedBufferAttribute);
+assert.equal(forestBlendAttribute.data, shoreBlendAttribute.data);
+assert.equal(forestBlendAttribute.data, quarryPadAttribute.data);
+assert.equal(forestBlendAttribute.getX(2), terrainGeometryData.forestBlends[2]);
+assert.equal(shoreBlendAttribute.getX(2), terrainGeometryData.shoreBlends[2]);
+assert.equal(quarryPadAttribute.getX(2), terrainGeometryData.quarryPadBlends[2]);
+const terrainVertexBuffers = new Set(
+  Object.values(terrainGeometry.attributes).map((attribute) => (
+    (attribute as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute
+      ? (attribute as THREE.InterleavedBufferAttribute).data
+      : attribute
+  )),
+);
+assert.ok(
+  terrainVertexBuffers.size <= 8,
+  `terrain geometry must fit WebGPU's portable eight vertex-buffer slots; got ${terrainVertexBuffers.size}`,
+);
+terrainGeometry.dispose();
 
 function textureSet(): TextureSet {
   return {

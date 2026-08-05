@@ -136,6 +136,18 @@ export function createTerrainGeometry(data: TerrainGeometryData): THREE.BufferGe
   const vertexCount = data.resolution * data.resolution;
   const roadWearBlends = new Float32Array(vertexCount);
   const dirtZoomGates = new Float32Array(vertexCount);
+  const staticMaskValues = new Float32Array(vertexCount * 3);
+  for (let index = 0; index < vertexCount; index++) {
+    const offset = index * 3;
+    staticMaskValues[offset] = data.forestBlends[index];
+    staticMaskValues[offset + 1] = data.shoreBlends[index];
+    staticMaskValues[offset + 2] = data.quarryPadBlends[index];
+  }
+  // WebGPU guarantees only eight vertex-buffer slots. These three immutable
+  // scalar masks used to consume one slot each; adding forestBlend pushed the
+  // river-shore terrain pipeline to nine. Interleave the static masks so the
+  // complete terrain geometry remains within the portable eight-slot limit.
+  const staticMasks = new THREE.InterleavedBuffer(staticMaskValues, 3);
   const geometry = new THREE.BufferGeometry();
   geometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
   geometry.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
@@ -143,10 +155,10 @@ export function createTerrainGeometry(data: TerrainGeometryData): THREE.BufferGe
   geometry.setAttribute('uv', new THREE.BufferAttribute(data.uvs, 2));
   geometry.setAttribute('uv2', new THREE.BufferAttribute(data.uvs, 2));
   geometry.setAttribute('color', new THREE.BufferAttribute(data.colors, 3));
-  geometry.setAttribute('forestBlend', new THREE.BufferAttribute(data.forestBlends, 1));
-  geometry.setAttribute('shoreBlend', new THREE.BufferAttribute(data.shoreBlends, 1));
+  geometry.setAttribute('forestBlend', new THREE.InterleavedBufferAttribute(staticMasks, 1, 0));
+  geometry.setAttribute('shoreBlend', new THREE.InterleavedBufferAttribute(staticMasks, 1, 1));
   geometry.setAttribute('roadWearBlend', new THREE.BufferAttribute(roadWearBlends, 1));
-  geometry.setAttribute('quarryPadBlend', new THREE.BufferAttribute(data.quarryPadBlends, 1));
+  geometry.setAttribute('quarryPadBlend', new THREE.InterleavedBufferAttribute(staticMasks, 1, 2));
   geometry.setAttribute('dirtZoomGate', new THREE.BufferAttribute(dirtZoomGates, 1));
   geometry.boundingSphere = new THREE.Sphere(
     new THREE.Vector3(...data.boundingSphere.center),
