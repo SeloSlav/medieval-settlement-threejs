@@ -101,10 +101,12 @@ import { weaverUsesFlax } from './weaverInputPolicy.ts';
 import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
 import { preservedFoodStock } from './foodInventory.ts';
+import { windSiteThroughputMultiplier } from '../wind/windField.ts';
 
 export type SettlementProductionCapacity = {
   capacityDaysPerWeek: number;
   watermillThroughputMultiplier: number;
+  windmillWeatherThroughputMultiplier: number;
   clayPitThroughputMultiplier: number;
   charcoalBurnerThroughputMultiplier: number;
   fireDisabledProcessorSites: number;
@@ -782,6 +784,7 @@ function completedProcessorOverview(
   sabbathObserved: boolean,
   componentFor: ProductionRoadComponentResolver | undefined,
   watermillThroughputMultiplier: number,
+  windmillWeatherThroughputMultiplier: number,
   clayPitThroughputMultiplier: number,
   charcoalBurnerThroughputMultiplier: number,
   resourceAbundance: number,
@@ -947,6 +950,9 @@ function completedProcessorOverview(
           : onsiteLabor;
         const environmentThroughput = building.kind === 'watermill'
           ? watermillThroughputMultiplier
+          : building.kind === 'windmill'
+            ? windSiteThroughputMultiplier(state.seed, building.x, building.z)
+              * windmillWeatherThroughputMultiplier
           : building.kind === 'clay_pit'
             ? clayPitThroughputMultiplier * clayBankYield
             : building.kind === 'mine' && mineDeposit?.isRich === true
@@ -1003,7 +1009,8 @@ function completedProcessorOverview(
         );
         const powerThroughput = building.kind === 'watermill'
           ? watermillThroughputMultiplier
-          : 1;
+          : windSiteThroughputMultiplier(state.seed, building.x, building.z)
+            * windmillWeatherThroughputMultiplier;
         millWorkers += building.assignedLabor;
         millEffectiveWorkers += building.assignedLabor * toolThroughput * powerThroughput;
         recordGrainRoadActivity(
@@ -2315,6 +2322,7 @@ export function computeSettlementProductionCapacity(
   charcoalBurnerThroughputMultiplier = 1,
   toolRouteDistanceFor?: ProductionRoadDistanceResolver,
   toolCartTravelSpeedMultiplier = 1,
+  windmillWeatherThroughputMultiplier = 1,
 ): SettlementProductionCapacity {
   const normalizedWatermillThroughput = Number.isFinite(
     watermillThroughputMultiplier,
@@ -2330,6 +2338,11 @@ export function computeSettlementProductionCapacity(
     charcoalBurnerThroughputMultiplier,
   )
     ? Math.max(0, charcoalBurnerThroughputMultiplier)
+    : 1;
+  const normalizedWindmillWeatherThroughput = Number.isFinite(
+    windmillWeatherThroughputMultiplier,
+  )
+    ? Math.max(0, windmillWeatherThroughputMultiplier)
     : 1;
   const normalizedPreservedFoodDemandMultiplier = Number.isFinite(
     currentPreservedFoodDemandMultiplier,
@@ -2384,6 +2397,7 @@ export function computeSettlementProductionCapacity(
     sabbathObserved,
     roadComponentFor,
     normalizedWatermillThroughput,
+    normalizedWindmillWeatherThroughput,
     normalizedClayPitThroughput,
     normalizedCharcoalBurnerThroughput,
     normalizedResourceAbundance,
@@ -2506,6 +2520,7 @@ export function computeSettlementProductionCapacity(
   return {
     capacityDaysPerWeek: sabbathObserved ? 6 : 7,
     watermillThroughputMultiplier: normalizedWatermillThroughput,
+    windmillWeatherThroughputMultiplier: normalizedWindmillWeatherThroughput,
     clayPitThroughputMultiplier: normalizedClayPitThroughput,
     charcoalBurnerThroughputMultiplier: normalizedCharcoalBurnerThroughput,
     fireDisabledProcessorSites,

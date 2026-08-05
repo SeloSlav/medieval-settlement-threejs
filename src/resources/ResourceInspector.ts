@@ -63,6 +63,7 @@ import {
 } from '../economy/storehousePolicy.ts';
 import { isProcessorOutputTargetKind } from '../economy/processorOutputPolicy.ts';
 import { computeSettlementProductionCapacity } from '../economy/settlementProduction.ts';
+import { windWeatherThroughputMultiplier } from '../wind/windField.ts';
 import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { gameClock } from '../world/gameCalendar.ts';
 import { environmentFor } from '../world/seasonPolicy.ts';
@@ -1646,6 +1647,7 @@ export class ResourceInspector {
           productionEnvironment?.charcoalBurnerThroughputMultiplier ?? 1,
           productionToolRouteDistance,
           this.options.worldQueries.getRoadConditionSpeedMultiplier(),
+          windWeatherThroughputMultiplier(productionEnvironment?.weather ?? 'fair'),
         )
       : undefined;
     const view = renderInspectableTarget(target, {

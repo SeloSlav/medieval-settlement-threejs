@@ -63,9 +63,11 @@ import { applyMaxAnisotropy, beginProgressiveStartupTextureLoad, type SceneStart
 import { HydrologyOverlay } from '../hydrology/HydrologyOverlay.ts';
 import { CropSuitabilityOverlay } from '../farming/CropSuitabilityOverlay.ts';
 import {
-  isHydrologyOverlayEnabled,
-  subscribeHydrologyOverlayPreference,
-} from './hydrologyOverlayPreference.ts';
+  getMapOverlaySelection,
+  subscribeMapOverlayPreference,
+  type MapOverlaySelection,
+} from './mapOverlayPreference.ts';
+import { WindOverlay } from '../wind/WindOverlay.ts';
 import {
   areConstellationGuidesEnabled,
   subscribeConstellationPreference,
@@ -179,8 +181,10 @@ export class SceneManager {
   private readonly clayDepositSystem: ClayDepositSystem;
   private readonly mineralDepositSystem: MineralDepositSystem;
   private hydrologyOverlay: HydrologyOverlay | null = null;
+  private windOverlay: WindOverlay | null = null;
   private cropSuitabilityOverlay: CropSuitabilityOverlay | null = null;
   private cropSuitabilityCrop: FarmCrop | null = null;
+  private mapOverlaySelection: MapOverlaySelection = getMapOverlaySelection();
   readonly worldLayout: WorldLayout;
 
   get riverField() {
@@ -216,7 +220,7 @@ export class SceneManager {
   private lastShadowDistance = Number.NaN;
   private lastDirectionalShadowRefreshMs = Number.NEGATIVE_INFINITY;
   private unsubscribeShadowPreferences: (() => void) | null = null;
-  private unsubscribeHydrologyOverlayPreference: (() => void) | null = null;
+  private unsubscribeMapOverlayPreference: (() => void) | null = null;
   private unsubscribeConstellationPreference: (() => void) | null = null;
   private environment: EnvironmentState | null = null;
   private lastDayNightState: DayNightLightingState | null = null;
@@ -288,10 +292,10 @@ export class SceneManager {
     this.clayDepositSystem = clayDepositSystem;
     this.mineralDepositSystem = mineralDepositSystem;
     this.worldLayout = worldLayout;
-    this.unsubscribeHydrologyOverlayPreference = subscribeHydrologyOverlayPreference(() => {
-      this.applyHydrologyOverlayPreference();
+    this.unsubscribeMapOverlayPreference = subscribeMapOverlayPreference(() => {
+      this.applyMapOverlayPreference();
     });
-    this.applyHydrologyOverlayPreference();
+    this.applyMapOverlayPreference();
     this.unsubscribeConstellationPreference = subscribeConstellationPreference(() => {
       this.sky.updateConstellationVisibility(areConstellationGuidesEnabled() ? 1 : 0);
     });
@@ -648,33 +652,52 @@ export class SceneManager {
     this.refreshShadowMap();
   }
 
-  applyHydrologyOverlayPreference(): void {
-    this.setHydrologyOverlayVisible(isHydrologyOverlayEnabled());
+  applyMapOverlayPreference(): void {
+    this.setMapOverlaySelection(getMapOverlaySelection());
   }
 
   isHydrologyOverlayVisible(): boolean {
     return this.hydrologyOverlay?.isVisible() ?? false;
   }
 
+  /** Compatibility hook for callers that only know about the legacy water layer. */
   setHydrologyOverlayVisible(visible: boolean): void {
-    if (this.cropSuitabilityCrop !== null) {
-      this.hydrologyOverlay?.setVisible(false);
-      return;
-    }
-    if (visible && !this.hydrologyOverlay) {
+    this.setMapOverlaySelection({
+      ...this.mapOverlaySelection,
+      mode: visible ? 'water' : 'none',
+    });
+  }
+
+  setMapOverlaySelection(selection: MapOverlaySelection): void {
+    this.mapOverlaySelection = selection;
+    this.applyMapOverlayVisibility();
+  }
+
+  setCropSuitabilityOverlayCrop(crop: FarmCrop | null): void {
+    if (crop === this.cropSuitabilityCrop) return;
+    this.cropSuitabilityCrop = crop;
+    this.applyMapOverlayVisibility();
+  }
+
+  private applyMapOverlayVisibility(): void {
+    const fieldCrop = this.cropSuitabilityCrop;
+    const mode = fieldCrop === null ? this.mapOverlaySelection.mode : 'fertility';
+    const crop = fieldCrop ?? this.mapOverlaySelection.crop;
+
+    if (mode === 'water' && !this.hydrologyOverlay) {
       this.hydrologyOverlay = new HydrologyOverlay({
         terrain: this.terrain,
         riverField: this.riverSystem.field,
         parent: this.scene,
       });
     }
-    this.hydrologyOverlay?.setVisible(visible);
-  }
-
-  setCropSuitabilityOverlayCrop(crop: FarmCrop | null): void {
-    if (crop === this.cropSuitabilityCrop) return;
-    this.cropSuitabilityCrop = crop;
-    if (crop !== null) {
+    if (mode === 'wind' && !this.windOverlay) {
+      this.windOverlay = new WindOverlay({
+        terrain: this.terrain,
+        parent: this.scene,
+      });
+    }
+    if (mode === 'fertility') {
       if (!this.cropSuitabilityOverlay) {
         this.cropSuitabilityOverlay = new CropSuitabilityOverlay({
           terrain: this.terrain,
@@ -682,12 +705,11 @@ export class SceneManager {
         });
       }
       this.cropSuitabilityOverlay.setCrop(crop);
-      this.cropSuitabilityOverlay.setVisible(true);
-      this.hydrologyOverlay?.setVisible(false);
-      return;
     }
-    this.cropSuitabilityOverlay?.setVisible(false);
-    this.setHydrologyOverlayVisible(isHydrologyOverlayEnabled());
+
+    this.hydrologyOverlay?.setVisible(mode === 'water');
+    this.windOverlay?.setVisible(mode === 'wind');
+    this.cropSuitabilityOverlay?.setVisible(mode === 'fertility');
   }
 
   resize(): void {
@@ -1184,12 +1206,14 @@ export class SceneManager {
   dispose(): void {
     this.unsubscribeShadowPreferences?.();
     this.unsubscribeShadowPreferences = null;
-    this.unsubscribeHydrologyOverlayPreference?.();
-    this.unsubscribeHydrologyOverlayPreference = null;
+    this.unsubscribeMapOverlayPreference?.();
+    this.unsubscribeMapOverlayPreference = null;
     this.unsubscribeConstellationPreference?.();
     this.unsubscribeConstellationPreference = null;
     this.hydrologyOverlay?.dispose();
     this.hydrologyOverlay = null;
+    this.windOverlay?.dispose();
+    this.windOverlay = null;
     this.cropSuitabilityOverlay?.dispose();
     this.cropSuitabilityOverlay = null;
     this.cropSuitabilityCrop = null;

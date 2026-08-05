@@ -3,8 +3,11 @@ import type { RiverField } from '../rivers/RiverField.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { forEachRiverFieldSample, mapRiverFieldRowForPlaneGeometry } from '../map/rasterizeRiverFieldBounds.ts';
 import { sampleHydrologyMapScore } from './sampleHydrology.ts';
+import { sampleAuthoritativeHydrologyScore } from './sampleAuthoritativeHydrology.ts';
 
 const OVERLAY_RESOLUTION = 512;
+const OVERLAY_MESH_SEGMENTS = 96;
+const OVERLAY_HEIGHT_OFFSET = 0.4;
 
 export type HydrologyOverlayOptions = {
   terrain: Terrain;
@@ -26,21 +29,37 @@ export class HydrologyOverlay {
       transparent: true,
       opacity: 0.58,
       depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+      toneMapped: false,
     });
 
-    // Match riverField world extent (full 1080m), not terrain.playable bounds (820m).
-    const geometry = new THREE.PlaneGeometry(riverField.spanX, riverField.spanZ, 1, 1);
+    // Match the full river-field extent and drape the layer over relief so
+    // groundwater remains readable in both meadow and mountain presets.
+    const geometry = new THREE.PlaneGeometry(
+      riverField.spanX,
+      riverField.spanZ,
+      OVERLAY_MESH_SEGMENTS,
+      OVERLAY_MESH_SEGMENTS,
+    );
     geometry.rotateX(-Math.PI * 0.5);
+    const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+    const centerX = riverField.startX + riverField.spanX * 0.5;
+    const centerZ = riverField.startZ + riverField.spanZ * 0.5;
+    for (let index = 0; index < position.count; index++) {
+      const x = position.getX(index) + centerX;
+      const z = position.getZ(index) + centerZ;
+      position.setY(index, this.terrain.getHeightAt(x, z) + OVERLAY_HEIGHT_OFFSET);
+    }
+    position.needsUpdate = true;
+    geometry.translate(centerX, 0, centerZ);
+    geometry.computeBoundingSphere();
 
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.name = 'Hydrology overlay';
     this.mesh.renderOrder = 4;
     this.mesh.visible = false;
-    this.mesh.position.set(
-      riverField.startX + riverField.spanX * 0.5,
-      0.35,
-      riverField.startZ + riverField.spanZ * 0.5,
-    );
     options.parent.add(this.mesh);
   }
 
@@ -64,7 +83,7 @@ export class HydrologyOverlay {
   }
 
   getTerrainHeightAt(x: number, z: number): number {
-    return this.terrain.getHeightAt(x, z) + 0.35;
+    return this.terrain.getHeightAt(x, z) + OVERLAY_HEIGHT_OFFSET;
   }
 }
 
@@ -73,7 +92,11 @@ function createHydrologyTexture(riverField: RiverField): THREE.DataTexture {
   const data = new Uint8Array(resolution * resolution * 4);
 
   forEachRiverFieldSample(riverField, resolution, ({ x, z, row, column }) => {
-    const score = sampleHydrologyMapScore(riverField, x, z);
+    const groundwater = sampleAuthoritativeHydrologyScore(x, z);
+    const riverPower = sampleHydrologyMapScore(riverField, x, z);
+    // Wells use the authoritative groundwater score; open water and banks
+    // remain bright so watermill placement can be read from the same layer.
+    const score = Math.max(groundwater * 0.82, riverPower);
     const color = hydrologyColor(score);
     const dataRow = mapRiverFieldRowForPlaneGeometry(row, resolution);
     const index = (dataRow * resolution + column) * 4;

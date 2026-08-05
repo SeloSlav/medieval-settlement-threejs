@@ -102,6 +102,11 @@ import { processorOutputTargetForBuilding } from '../economy/processorOutputPoli
 import { batchCompletedBuildingStaticMeshes } from './staticBuildingBatch.ts';
 import { BuildingStaticBatches } from './BuildingStaticBatches.ts';
 import { refreshBuildingDetailCasterBatches } from './buildingDetailShadowBatch.ts';
+import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import {
+  windSiteThroughputMultiplier,
+  windWeatherThroughputMultiplier,
+} from '../wind/windField.ts';
 
 type BuildingMarkersOptions = {
   terrain: Terrain;
@@ -123,10 +128,11 @@ export class BuildingMarkers {
   private readonly staticBatches: BuildingStaticBatches;
   private readonly foundersCampfires = new Set<THREE.Group>();
   private readonly watermillWheels = new Set<THREE.Group>();
-  private readonly windmillSails = new Set<THREE.Group>();
+  private readonly windmillSails = new Map<THREE.Group, number>();
   private foundersCampfireNightLighting = 0;
   private foundersCampWinterAccumulation = false;
   private watermillThroughputMultiplier = 1;
+  private windmillWeatherThroughputMultiplier = 1;
   private charcoalBurnerThroughputMultiplier = 1;
   private extentOverlayMesh: THREE.Mesh | null = null;
   private extentOverlayKind: BuildingKind | null = null;
@@ -363,6 +369,7 @@ export class BuildingMarkers {
     environment: Pick<
       EnvironmentState,
       | 'season'
+      | 'weather'
       | 'watermillThroughputMultiplier'
       | 'charcoalBurnerThroughputMultiplier'
     > | null,
@@ -370,6 +377,9 @@ export class BuildingMarkers {
     this.watermillThroughputMultiplier = Math.max(
       0,
       environment?.watermillThroughputMultiplier ?? 1,
+    );
+    this.windmillWeatherThroughputMultiplier = windWeatherThroughputMultiplier(
+      environment?.weather ?? 'fair',
     );
     this.charcoalBurnerThroughputMultiplier = Math.max(
       0,
@@ -402,8 +412,10 @@ export class BuildingMarkers {
       wheel.rotation.x -= wheelRotation;
     }
     const sailRotation = Math.min(Math.max(dtSeconds, 0), 0.1) * 0.24;
-    for (const sails of this.windmillSails) {
-      sails.rotation.z -= sailRotation;
+    for (const [sails, siteThroughput] of this.windmillSails) {
+      sails.rotation.z -= sailRotation
+        * siteThroughput
+        * this.windmillWeatherThroughputMultiplier;
     }
   }
 
@@ -776,7 +788,7 @@ export class BuildingMarkers {
       this.buildingMeshes.set(building.id, marker);
       if (marker.parent !== this.group) this.group.add(marker);
       this.registerWatermillWheel(marker);
-      this.registerWindmillSails(marker);
+      this.registerWindmillSails(marker, building);
       setCharcoalClampSmokeThroughput(
         marker,
         this.charcoalBurnerThroughputMultiplier,
@@ -888,9 +900,18 @@ export class BuildingMarkers {
     if (wheel instanceof THREE.Group) this.watermillWheels.delete(wheel);
   }
 
-  private registerWindmillSails(marker: THREE.Group): void {
+  private registerWindmillSails(marker: THREE.Group, building: BuildingState): void {
     const sails = marker.getObjectByName('Windmill sails');
-    if (sails instanceof THREE.Group) this.windmillSails.add(sails);
+    if (sails instanceof THREE.Group) {
+      this.windmillSails.set(
+        sails,
+        windSiteThroughputMultiplier(
+          getActiveWorldGeneration().seed,
+          building.x,
+          building.z,
+        ),
+      );
+    }
   }
 
   private unregisterWindmillSails(marker: THREE.Group): void {

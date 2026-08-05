@@ -56,6 +56,37 @@
     saturate(0.9);
 }
 
+/* Three contour bands distinguish the overlay launcher from resource icons. */
+.map-overlay-launcher-icon {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  width: 31px;
+  height: 31px;
+  padding: 5px 4px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  filter: drop-shadow(0 1px 1px rgba(12, 10, 7, 0.72));
+  pointer-events: none;
+}
+
+.map-overlay-launcher-icon i {
+  display: block;
+  height: 3px;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.map-overlay-launcher-icon i:nth-child(1) { width: 15px; margin-left: 2px; transform: rotate(-7deg); }
+.map-overlay-launcher-icon i:nth-child(2) { width: 21px; transform: rotate(4deg); }
+.map-overlay-launcher-icon i:nth-child(3) { width: 13px; margin-left: 6px; transform: rotate(-5deg); }
+
+.construction-dock-button:hover .map-overlay-launcher-icon,
+.construction-dock-button:focus-visible .map-overlay-launcher-icon {
+  transform: scale(1.04);
+}
+
 .starter-camp-button .gk-icon {
   --gk-icon-size: 46px;
 }

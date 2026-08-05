@@ -87,7 +87,10 @@ import type { VillagerInspector } from '../ui/VillagerInspector.ts';
 import { saveWorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { getDraftWorldGeneration, setDraftWorldGeneration } from '../world/worldGenerationContext.ts';
 import { mountTooltips } from '../ui/tooltips.ts';
-import { setHydrologyOverlayEnabled, isHydrologyOverlayEnabled } from '../scene/hydrologyOverlayPreference.ts';
+import {
+  getMapOverlaySelection,
+  setMapOverlaySelection,
+} from '../scene/mapOverlayPreference.ts';
 import { describeBuildingPlacementBlocker } from '../ui/buildToolbarStatus.ts';
 import {
   roadPlacementReasonToToastId,
@@ -796,10 +799,10 @@ export async function bootstrapAppSession(
       burgageTool.rotateFrontageEdge();
       bridge.syncToolbar();
     },
-    onSetWaterOverlay: (active) => {
-      setHydrologyOverlayEnabled(active);
-      sceneManager.setHydrologyOverlayVisible(active);
-      toolbar.setWaterOverlayActive(active);
+    onSetMapOverlay: (selection) => {
+      setMapOverlaySelection(selection);
+      sceneManager.setMapOverlaySelection(selection);
+      toolbar.setMapOverlaySelection(selection);
     },
     onSetGameSpeed: (speed) => {
       void spacetimeStore.setGameSpeed(speed).catch((error) => {
@@ -1227,7 +1230,7 @@ export async function bootstrapAppSession(
   });
   worldMapUi.minimap.syncBuildings(buildBuildingWorldMapMarkers(liveContext.gameState.buildings.values()));
 
-  toolbar.setWaterOverlayActive(isHydrologyOverlayEnabled());
+  toolbar.setMapOverlaySelection(getMapOverlaySelection());
   toolbar.setGameplayEnabled(false);
   loadingScreen?.setProgress({
     label: 'Connecting…',

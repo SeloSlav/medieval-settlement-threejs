@@ -60,6 +60,8 @@ pub mod labor_steward_policy;
 pub mod workforce_commute_policy;
 #[path = "../../src/season_policy.rs"]
 pub mod season_policy;
+#[path = "../../src/wind_policy.rs"]
+pub mod wind_policy;
 #[path = "../../src/seasonal_labor_policy.rs"]
 pub mod seasonal_labor_policy;
 #[path = "../../src/security_policy.rs"]

@@ -43,6 +43,10 @@ import {
   formatGrainWorkingBuffer,
   GRAIN_CRITICAL_RUNWAY_CYCLES,
 } from '../../logistics/grainLogistics.ts';
+import {
+  windSiteThroughputMultiplier,
+  windWeatherThroughputMultiplier,
+} from '../../wind/windField.ts';
 import { FARM_CROPS, type BuildingKind, type BuildingState, type InspectableTarget } from '../types.ts';
 import { buildingDemolishHint, buildingExtentRow, buildingLaborView, buildingRoadAccessRow, buildingStorageRows, civilianToolRows } from './buildingCommon.ts';
 import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
@@ -960,6 +964,13 @@ export function renderExpandedBuildingInspector(
     context.worldHydrology,
     clock,
   );
+  const windSiteThroughput = windSiteThroughputMultiplier(
+    context.gameState.seed,
+    building.x,
+    building.z,
+  );
+  const windWeatherThroughput = windWeatherThroughputMultiplier(environment.weather);
+  const windmillThroughput = windSiteThroughput * windWeatherThroughput;
   const clayBankYield = building.kind === 'clay_pit'
     ? clayBankYieldAt(
         building.x,
@@ -1017,6 +1028,14 @@ export function renderExpandedBuildingInspector(
           ? 'active' as const
           : 'warning' as const,
       }
+    : building.kind === 'windmill'
+      && processorStatus?.statusState === 'active'
+      ? {
+          statusText: `${Math.round(windmillThroughput * 100)}% wind power · ${Math.round(windSiteThroughput * 100)}% site exposure × ${Math.round(windWeatherThroughput * 100)}% ${environment.weather} wind`,
+          statusState: windmillThroughput < 0.8
+            ? 'warning' as const
+            : 'active' as const,
+        }
     : building.kind === 'clay_pit'
       && clayDepositResource === null
       ? {
@@ -1210,8 +1229,8 @@ export function renderExpandedBuildingInspector(
             : 'normal flow'}</span></li>
       <li><span>Seasonal planning</span><span>Flour capacity follows live river power · stockpile before frost and drought</span></li>`
     : building.kind === 'windmill'
-      ? `<li><span>Wind power</span><span>100% modeled milling pace · independent of rivers, stream flow, and hauled water</span></li>
-        <li><span>Site role</span><span>Dry-map flour processor · road carts connect farmstead or granary grain to bakeries</span></li>`
+      ? `<li><span>Wind exposure</span><span>${Math.round(windSiteThroughput * 100)}% site power × ${Math.round(windWeatherThroughput * 100)}% ${environment.weather} wind = ${Math.round(windmillThroughput * 100)}% current throughput</span></li>
+        <li><span>Site role</span><span>River-independent flour processor · use the wind overlay to find stronger ground, then connect grain and bakeries by road</span></li>`
       : '';
   const routineFreshFoodSource = building.kind === 'apiary'
     || building.kind === 'vineyard';

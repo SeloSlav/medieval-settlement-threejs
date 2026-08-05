@@ -71,7 +71,7 @@ select:focus-visible {
 
 .hud-right-stack > .crop-suitability-legend {
   position: fixed;
-  top: 92px;
+  top: 150px;
   right: 16px;
   width: 320px;
 }
@@ -1497,7 +1497,7 @@ select:focus-visible {
   background: #171914;
 }
 
-.construction-dock-button[data-action='water-overlay'],
+.construction-dock-button[data-action='overlay-menu'],
 .construction-dock-button[data-action='settings'] {
   margin-left: 8px;
 }
@@ -2205,7 +2205,7 @@ select:focus-visible {
     height: 39px;
   }
 
-  .construction-dock-button[data-action='water-overlay'],
+  .construction-dock-button[data-action='overlay-menu'],
   .construction-dock-button[data-action='settings'] {
     margin-left: 2px;
   }

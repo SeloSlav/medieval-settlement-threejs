@@ -1,7 +1,11 @@
 import { CompassHud } from './CompassHud.ts';
 import { GameMenu } from './GameMenu.ts';
 import type { BurgageLayoutHudState } from '../residences/BurgageTool.ts';
-import { isHydrologyOverlayEnabled } from '../scene/hydrologyOverlayPreference.ts';
+import {
+  FERTILITY_OVERLAY_CROPS,
+  getMapOverlaySelection,
+  type MapOverlaySelection,
+} from '../scene/mapOverlayPreference.ts';
 import {
   dismissDockToggles,
   handleDockHotkey,
@@ -57,7 +61,11 @@ export class BuildToolbar {
   private readonly agricultureBuildMenuButton: HTMLButtonElement;
   private readonly ruralIndustryBuildMenuButton: HTMLButtonElement;
   private readonly militaryBuildMenuButton: HTMLButtonElement;
-  private readonly waterOverlayButton: HTMLButtonElement;
+  private readonly overlayButton: HTMLButtonElement;
+  private readonly overlayMenu: HTMLElement;
+  private readonly overlayCropPicker: HTMLElement;
+  private readonly overlayModeButtons: HTMLButtonElement[];
+  private readonly overlayCropButtons: HTMLButtonElement[];
   private readonly cityAdminButton: HTMLButtonElement;
   private readonly settingsButton: HTMLButtonElement;
   private readonly tutorialsButton: HTMLButtonElement;
@@ -85,6 +93,9 @@ export class BuildToolbar {
   private readonly zoomStat: HTMLElement;
   private readonly cropSuitabilityLegend: HTMLElement;
   private readonly cropSuitabilityTitle: HTMLElement;
+  private readonly cropSuitabilitySubtitle: HTMLElement;
+  private readonly cropSuitabilityLabels: HTMLElement;
+  private readonly cropSuitabilityDescription: HTMLElement;
   private readonly builderStatusBar: HTMLElement;
   private readonly root: HTMLElement;
   private readonly compassHud: CompassHud;
@@ -95,7 +106,8 @@ export class BuildToolbar {
   private agricultureBuildMenuOpen = false;
   private ruralIndustryBuildMenuOpen = false;
   private militaryBuildMenuOpen = false;
-  private waterOverlayActive = false;
+  private overlayMenuOpen = false;
+  private mapOverlaySelection: MapOverlaySelection = getMapOverlaySelection();
   private buildButtonVisible = false;
   private burgageLayoutHudVisible = false;
   private lastBuildLeft = Number.NaN;
@@ -129,6 +141,7 @@ export class BuildToolbar {
       || this.agricultureBuildMenu.contains(target)
       || this.ruralIndustryBuildMenu.contains(target)
       || this.militaryBuildMenu.contains(target)
+      || this.overlayMenu.contains(target)
       || this.roadSnapControl.contains(target)
     ) return;
 
@@ -143,17 +156,17 @@ export class BuildToolbar {
   private readonly agricultureBuildMenuToggle: DockToggle;
   private readonly ruralIndustryBuildMenuToggle: DockToggle;
   private readonly militaryBuildMenuToggle: DockToggle;
-  private readonly waterOverlayToggle: DockToggle;
   private readonly dockToggles: DockToggle[];
   private readonly toolbarHandlers: BuildMenuHandlers & {
     onOpenRoads: () => void;
-    onSetWaterOverlay?: (active: boolean) => void;
+    onSetMapOverlay?: (selection: MapOverlaySelection) => void;
   };
   private readonly onToggleCityAdministration: () => void;
   private cityAdministrationOpen = false;
   private gameplayEnabled = true;
   private conflictEnabled = false;
   private cropSuitabilityActive = false;
+  private currentFarmCrop: MapOverlaySelection['crop'] = 'wheat';
   private currentGameSpeed: GameSpeed = 1;
   private lastRunningGameSpeed: GameSpeed = 1;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
@@ -180,10 +193,20 @@ export class BuildToolbar {
     }
     if (this.firstPersonActive) return;
     if (key === 'escape') {
-      if (dismissDockToggles(this.dockToggles)) {
+      if (this.overlayMenuOpen) {
+        this.setOverlayMenuOpen(false);
+        event.preventDefault();
+        event.stopPropagation();
+      } else if (dismissDockToggles(this.dockToggles)) {
         event.preventDefault();
         event.stopPropagation();
       }
+      return;
+    }
+    if (key === 'm') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.setOverlayMenuOpen(!this.overlayMenuOpen);
       return;
     }
     if (key === 'i' && !this.isAnyBuildMenuOpen()) {
@@ -255,7 +278,7 @@ export class BuildToolbar {
       onPlaceStarterCamp: () => void;
       onSelectResidences: () => void;
       onToggleCityAdministration: () => void;
-      onSetWaterOverlay?: (active: boolean) => void;
+      onSetMapOverlay?: (selection: MapOverlaySelection) => void;
       onSetRoadSnap?: (enabled: boolean) => void;
       onBurgagePlotDecrease?: () => void;
       onBurgagePlotIncrease?: () => void;
@@ -280,10 +303,10 @@ export class BuildToolbar {
       </button>
 
       <div class="hud-right-stack">
-        <aside class="crop-suitability-legend" data-crop-suitability-legend hidden aria-label="Crop suitability legend">
+        <aside class="crop-suitability-legend map-overlay-legend" data-crop-suitability-legend hidden aria-label="Map overlay legend">
           <header>
             <strong data-crop-suitability-title>Crop suitability</strong>
-            <span>first-crop site potential</span>
+            <span data-map-overlay-subtitle>first-crop site potential</span>
           </header>
           <div class="crop-suitability-scale" aria-hidden="true">
             <span class="crop-suitability-scale__poor"></span>
@@ -291,8 +314,8 @@ export class BuildToolbar {
             <span class="crop-suitability-scale__good"></span>
             <span class="crop-suitability-scale__prime"></span>
           </div>
-          <div class="crop-suitability-labels"><span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span></div>
-          <p>Combines groundwater, predicted starting soil, and slope. Parcel size and shape still affect final yield.</p>
+          <div class="crop-suitability-labels" data-map-overlay-labels><span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span></div>
+          <p data-map-overlay-description>Combines groundwater, predicted starting soil, and slope. Parcel size and shape still affect final yield.</p>
         </aside>
       </div>
 
@@ -323,6 +346,32 @@ export class BuildToolbar {
         <section class="construction-menu" id="military-build-menu" data-build-menu="military" hidden aria-label="Military menu">
           <div class="construction-menu__cards">
             ${renderBuildMenuCards(MILITARY_BUILD_MENU_ENTRIES)}
+          </div>
+        </section>
+
+        <section class="map-overlay-menu" id="map-overlay-menu" data-overlay-menu hidden aria-label="Map overlays">
+          <header class="map-overlay-menu__header">
+            <strong>Map overlays</strong>
+            <span>Choose a planning layer</span>
+          </header>
+          <div class="map-overlay-menu__modes">
+            <button type="button" class="map-overlay-option" data-overlay-mode="water" aria-pressed="false">
+              <span class="map-overlay-option__icon map-overlay-option__icon--water" aria-hidden="true"></span>
+              <span><strong>Water</strong><small>Wells &amp; watermills</small></span>
+            </button>
+            <button type="button" class="map-overlay-option" data-overlay-mode="wind" aria-pressed="false">
+              <span class="map-overlay-option__icon map-overlay-option__icon--wind" aria-hidden="true"></span>
+              <span><strong>Wind</strong><small>Windmill exposure</small></span>
+            </button>
+            <button type="button" class="map-overlay-option" data-overlay-mode="fertility" aria-pressed="false">
+              <span class="map-overlay-option__icon map-overlay-option__icon--fertility" aria-hidden="true"></span>
+              <span><strong>Fertility</strong><small>Crop-specific potential</small></span>
+            </button>
+          </div>
+          <div class="map-overlay-crops" data-overlay-crop-picker hidden aria-label="Fertility crop">
+            ${FERTILITY_OVERLAY_CROPS.map((crop) => `
+              <button type="button" data-overlay-crop="${crop}" aria-pressed="false">${cropLabel(crop)}</button>
+            `).join('')}
           </div>
         </section>
 
@@ -359,8 +408,8 @@ export class BuildToolbar {
           <span class="gk-icon gk-icon--construction gk-icon--defense" aria-hidden="true"></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">X</span>
         </button>
-        <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--water" data-action="water-overlay" data-tooltip="Water map (M)" aria-label="Water map (M)" aria-pressed="false">
-          <span class="gk-icon gk-icon--construction gk-icon--water" aria-hidden="true"></span>
+        <button type="button" class="construction-dock-button construction-dock-button--hotkey construction-dock-button--overlay" data-action="overlay-menu" data-tooltip="Map overlays (M)" aria-label="Map overlays (M)" aria-controls="map-overlay-menu" aria-haspopup="true" aria-expanded="false" aria-pressed="false">
+          <span class="map-overlay-launcher-icon" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="construction-dock-button__hotkey" aria-hidden="true">M</span>
         </button>
         <button type="button" class="construction-dock-button construction-dock-button--hotkey" data-action="city-admin" data-tooltip="Select Town Hall administration (I)" aria-label="Select Town Hall administration (I)" aria-pressed="false">
@@ -418,7 +467,7 @@ export class BuildToolbar {
       onSelectBuilding: handlers.onSelectBuilding,
       onSelectResidences: handlers.onSelectResidences,
       onOpenRoads: handlers.onOpenRoads,
-      onSetWaterOverlay: handlers.onSetWaterOverlay,
+      onSetMapOverlay: handlers.onSetMapOverlay,
     };
     window.addEventListener('keydown', this.onKeyDown, true);
     this.gameMenu = new GameMenu(root, {
@@ -440,7 +489,7 @@ export class BuildToolbar {
     this.agricultureBuildMenuButton = this.mustButton(root, '[data-action="agriculture-build-menu"]');
     this.ruralIndustryBuildMenuButton = this.mustButton(root, '[data-action="industry-build-menu"]');
     this.militaryBuildMenuButton = this.mustButton(root, '[data-action="military-build-menu"]');
-    this.waterOverlayButton = this.mustButton(root, '[data-action="water-overlay"]');
+    this.overlayButton = this.mustButton(root, '[data-action="overlay-menu"]');
     this.cityAdminButton = this.mustButton(root, '[data-action="city-admin"]');
     this.settingsButton = this.mustButton(root, '[data-action="settings"]');
     this.tutorialsButton = this.mustButton(root, '[data-action="tutorials"]');
@@ -450,10 +499,17 @@ export class BuildToolbar {
     this.agricultureBuildMenu = this.mustElement(root, '[data-build-menu="agriculture"]');
     this.ruralIndustryBuildMenu = this.mustElement(root, '[data-build-menu="industry"]');
     this.militaryBuildMenu = this.mustElement(root, '[data-build-menu="military"]');
+    this.overlayMenu = this.mustElement(root, '[data-overlay-menu]');
+    this.overlayCropPicker = this.mustElement(root, '[data-overlay-crop-picker]');
+    this.overlayModeButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-overlay-mode]'));
+    this.overlayCropButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-overlay-crop]'));
     this.roadSnapControl = this.mustElement(root, '[data-road-snap-control]');
     this.roadSnapToggle = this.mustInput(root, '[data-road-snap-toggle]');
     this.cropSuitabilityLegend = this.mustElement(root, '[data-crop-suitability-legend]');
     this.cropSuitabilityTitle = this.mustElement(root, '[data-crop-suitability-title]');
+    this.cropSuitabilitySubtitle = this.mustElement(root, '[data-map-overlay-subtitle]');
+    this.cropSuitabilityLabels = this.mustElement(root, '[data-map-overlay-labels]');
+    this.cropSuitabilityDescription = this.mustElement(root, '[data-map-overlay-description]');
     this.burgageLayoutHud = this.mustElement(root, '[data-burgage-layout-hud]');
     this.burgagePlotDecreaseButton = this.mustButton(root, '[data-action="burgage-plot-decrease"]');
     this.burgagePlotIncreaseButton = this.mustButton(root, '[data-action="burgage-plot-increase"]');
@@ -494,23 +550,16 @@ export class BuildToolbar {
       getActive: () => this.militaryBuildMenuOpen,
       setActive: (active) => this.setMilitaryBuildMenuOpen(active),
     };
-    this.waterOverlayToggle = {
-      button: this.waterOverlayButton,
-      hotkey: 'm',
-      getActive: () => this.waterOverlayActive,
-      setActive: (active) => this.applyWaterOverlay(active),
-    };
     this.dockToggles = [
       this.basicBuildMenuToggle,
       this.agricultureBuildMenuToggle,
       this.ruralIndustryBuildMenuToggle,
       this.militaryBuildMenuToggle,
-      this.waterOverlayToggle,
     ];
-    this.waterOverlayActive = isHydrologyOverlayEnabled();
     for (const toggle of this.dockToggles) {
       syncDockToggleButton(toggle);
     }
+    this.syncMapOverlayUi();
     window.addEventListener('mousedown', this.onBuildMenuOutsideMouseDown, true);
 
     this.roadButton.addEventListener('click', () => {
@@ -521,7 +570,23 @@ export class BuildToolbar {
     this.agricultureBuildMenuButton.addEventListener('click', () => toggleDockControl(this.agricultureBuildMenuToggle));
     this.ruralIndustryBuildMenuButton.addEventListener('click', () => toggleDockControl(this.ruralIndustryBuildMenuToggle));
     this.militaryBuildMenuButton.addEventListener('click', () => toggleDockControl(this.militaryBuildMenuToggle));
-    this.waterOverlayButton.addEventListener('click', () => toggleDockControl(this.waterOverlayToggle));
+    this.overlayButton.addEventListener('click', () => {
+      this.setOverlayMenuOpen(!this.overlayMenuOpen);
+    });
+    for (const button of this.overlayModeButtons) {
+      button.addEventListener('click', () => {
+        const mode = button.dataset.overlayMode as MapOverlaySelection['mode'];
+        const nextMode = this.mapOverlaySelection.mode === mode ? 'none' : mode;
+        this.applyMapOverlaySelection({ ...this.mapOverlaySelection, mode: nextMode });
+        if (mode !== 'fertility' || nextMode === 'none') this.setOverlayMenuOpen(false);
+      });
+    }
+    for (const button of this.overlayCropButtons) {
+      button.addEventListener('click', () => {
+        const crop = button.dataset.overlayCrop as MapOverlaySelection['crop'];
+        this.applyMapOverlaySelection({ mode: 'fertility', crop });
+      });
+    }
     this.cityAdminButton.addEventListener('click', () => {
       this.closeAllBuildMenus();
       this.onToggleCityAdministration();
@@ -560,8 +625,8 @@ export class BuildToolbar {
     this.cancelDeleteButton.addEventListener('click', () => this.hideDeletePopup(true));
   }
 
-  setWaterOverlayActive(active: boolean): void {
-    this.applyWaterOverlay(active, false);
+  setMapOverlaySelection(selection: MapOverlaySelection): void {
+    this.applyMapOverlaySelection(selection, false);
   }
 
   setGameplayEnabled(enabled: boolean): void {
@@ -573,16 +638,13 @@ export class BuildToolbar {
     this.agricultureBuildMenuButton.disabled = !enabled;
     this.ruralIndustryBuildMenuButton.disabled = !enabled;
     this.militaryBuildMenuButton.disabled = !enabled || !this.conflictEnabled;
-    this.waterOverlayButton.disabled = !enabled || this.cropSuitabilityActive;
+    this.overlayButton.disabled = !enabled || this.cropSuitabilityActive;
     this.cityAdminButton.disabled = !enabled;
     this.starterCampButton.disabled = !enabled;
     this.settlementHud.setSpeedControlsEnabled(enabled && !this.starterCampRequired);
     if (!enabled) {
       this.closeAllBuildMenus();
       dismissDockToggles(this.dockToggles);
-      if (this.waterOverlayActive) {
-        this.applyWaterOverlay(false);
-      }
     }
   }
 
@@ -600,16 +662,59 @@ export class BuildToolbar {
     this.syncPrimaryHudVisibility();
   }
 
-  private applyWaterOverlay(active: boolean, notify = true): void {
-    if (this.waterOverlayActive === active) {
-      syncDockToggleButton(this.waterOverlayToggle);
+  private applyMapOverlaySelection(selection: MapOverlaySelection, notify = true): void {
+    this.mapOverlaySelection = selection;
+    this.syncMapOverlayUi();
+    if (notify) this.toolbarHandlers.onSetMapOverlay?.(selection);
+  }
+
+  private syncMapOverlayUi(): void {
+    const active = this.mapOverlaySelection.mode !== 'none';
+    this.overlayButton.classList.toggle('is-active', active);
+    this.overlayButton.classList.toggle('has-active-tool', active && this.overlayMenuOpen);
+    this.overlayButton.setAttribute('aria-pressed', String(active));
+    for (const button of this.overlayModeButtons) {
+      const selected = button.dataset.overlayMode === this.mapOverlaySelection.mode;
+      button.classList.toggle('is-active', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    }
+    this.overlayCropPicker.hidden = this.mapOverlaySelection.mode !== 'fertility';
+    for (const button of this.overlayCropButtons) {
+      const selected = button.dataset.overlayCrop === this.mapOverlaySelection.crop;
+      button.classList.toggle('is-active', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    }
+    this.syncMapOverlayLegend();
+  }
+
+  private syncMapOverlayLegend(): void {
+    const selection = this.mapOverlaySelection;
+    const visible = this.cropSuitabilityActive || selection.mode !== 'none';
+    this.cropSuitabilityLegend.hidden = this.firstPersonActive || !visible;
+    if (this.cropSuitabilityActive || selection.mode === 'fertility') {
+      const crop = this.cropSuitabilityActive
+        ? this.currentFarmCrop
+        : selection.crop;
+      this.cropSuitabilityTitle.textContent = `${cropLabel(crop)} suitability`;
+      this.cropSuitabilitySubtitle.textContent = 'first-crop site potential';
+      this.cropSuitabilityLabels.innerHTML = '<span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span>';
+      this.cropSuitabilityDescription.textContent = 'Combines groundwater, predicted starting soil, and slope. Parcel size and shape still affect final yield.';
+      this.cropSuitabilityLegend.dataset.overlay = 'fertility';
       return;
     }
-    this.waterOverlayActive = active;
-    syncDockToggleButton(this.waterOverlayToggle);
-    if (notify) {
-      this.toolbarHandlers.onSetWaterOverlay?.(active);
+    if (selection.mode === 'water') {
+      this.cropSuitabilityTitle.textContent = 'Water availability';
+      this.cropSuitabilitySubtitle.textContent = 'groundwater & stream power';
+      this.cropSuitabilityLabels.innerHTML = '<span>Dry</span><span>Limited</span><span>Good</span><span>Abundant</span>';
+      this.cropSuitabilityDescription.textContent = 'Use wetter ground for reliable wells; watermills still require a valid riverbank site.';
+      this.cropSuitabilityLegend.dataset.overlay = 'water';
+      return;
     }
+    this.cropSuitabilityTitle.textContent = 'Wind exposure';
+    this.cropSuitabilitySubtitle.textContent = 'live windmill potential';
+    this.cropSuitabilityLabels.innerHTML = '<span>Sheltered</span><span>Weak</span><span>Good</span><span>Strong</span>';
+    this.cropSuitabilityDescription.textContent = 'Local exposure sets windmill power; rain strengthens wind while drought calms it.';
+    this.cropSuitabilityLegend.dataset.overlay = 'wind';
   }
 
   setStats(stats: ToolbarStats): void {
@@ -636,14 +741,13 @@ export class BuildToolbar {
             : 'idle';
     const cropSuitabilityVisible = stats.mode === 'farm-fields' && stats.farmCrop != null;
     this.cropSuitabilityActive = cropSuitabilityVisible;
-    this.cropSuitabilityLegend.hidden = this.firstPersonActive || !cropSuitabilityVisible;
-    this.waterOverlayButton.disabled = !this.gameplayEnabled || cropSuitabilityVisible;
-    this.waterOverlayButton.dataset.tooltip = cropSuitabilityVisible
+    if (stats.farmCrop != null) this.currentFarmCrop = stats.farmCrop;
+    this.overlayButton.disabled = !this.gameplayEnabled || cropSuitabilityVisible;
+    this.overlayButton.dataset.tooltip = cropSuitabilityVisible
       ? 'Crop suitability map is active during field layout'
-      : 'Water map (M)';
-    if (cropSuitabilityVisible) {
-      this.cropSuitabilityTitle.textContent = `${cropLabel(stats.farmCrop!)} suitability`;
-    }
+      : 'Map overlays (M)';
+    if (cropSuitabilityVisible) this.setOverlayMenuOpen(false);
+    this.syncMapOverlayLegend();
     const statusText = describeToolbarStatus(stats);
     this.builderStatusBar.textContent = statusText;
     this.builderStatusBar.hidden = this.firstPersonActive || !isBuilderHudMode(stats.mode);
@@ -793,7 +897,7 @@ export class BuildToolbar {
       this.hideDeletePopup(false);
       this.builderStatusBar.hidden = true;
     }
-    this.cropSuitabilityLegend.hidden = active || !this.cropSuitabilityActive;
+    this.syncMapOverlayLegend();
   }
 
   setFirstPersonToggle(handler: (() => void) | null): void {
@@ -841,6 +945,11 @@ export class BuildToolbar {
   }
 
   private isAnyBuildMenuOpen(): boolean {
+    return this.isAnyConstructionMenuOpen()
+      || this.overlayMenuOpen;
+  }
+
+  private isAnyConstructionMenuOpen(): boolean {
     return this.basicBuildMenuOpen
       || this.agricultureBuildMenuOpen
       || this.ruralIndustryBuildMenuOpen
@@ -852,6 +961,7 @@ export class BuildToolbar {
     this.setAgricultureBuildMenuOpen(false);
     this.setRuralIndustryBuildMenuOpen(false);
     this.setMilitaryBuildMenuOpen(false);
+    this.setOverlayMenuOpen(false);
   }
 
   private closeOtherBuildMenus(except: 'basic' | 'agriculture' | 'industry' | 'military'): void {
@@ -859,6 +969,23 @@ export class BuildToolbar {
     if (except !== 'agriculture') this.setAgricultureBuildMenuOpen(false);
     if (except !== 'industry') this.setRuralIndustryBuildMenuOpen(false);
     if (except !== 'military') this.setMilitaryBuildMenuOpen(false);
+    this.setOverlayMenuOpen(false);
+  }
+
+  private setOverlayMenuOpen(open: boolean): void {
+    const allowed = open && this.gameplayEnabled && !this.cropSuitabilityActive;
+    if (this.overlayMenuOpen === allowed) return;
+    if (allowed) {
+      this.setBasicBuildMenuOpen(false);
+      this.setAgricultureBuildMenuOpen(false);
+      this.setRuralIndustryBuildMenuOpen(false);
+      this.setMilitaryBuildMenuOpen(false);
+    }
+    this.overlayMenuOpen = allowed;
+    this.overlayMenu.hidden = !allowed;
+    this.overlayButton.classList.toggle('is-open', allowed);
+    this.overlayButton.setAttribute('aria-expanded', String(allowed));
+    this.syncMapOverlayUi();
   }
 
   private setBasicBuildMenuOpen(open: boolean): void {
@@ -912,7 +1039,7 @@ export class BuildToolbar {
     const agricultureConstruction = activeAction != null && AGRICULTURE_BUILD_MENU_ACTIONS.has(activeAction);
     const ruralIndustryConstruction = activeAction != null && RURAL_INDUSTRY_BUILD_MENU_ACTIONS.has(activeAction);
     const militaryConstruction = activeAction != null && MILITARY_BUILD_MENU_ACTIONS.has(activeAction);
-    const browsing = this.isAnyBuildMenuOpen();
+    const browsing = this.isAnyConstructionMenuOpen();
     this.roadSnapControl.hidden = !browsing;
 
     this.syncBuildMenuButton(

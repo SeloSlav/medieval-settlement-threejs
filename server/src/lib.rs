@@ -46,6 +46,7 @@ mod resident_welfare_policy;
 mod roads;
 mod schedule;
 mod season_policy;
+mod wind_policy;
 mod seasonal_labor_policy;
 mod security_policy;
 mod simulation;

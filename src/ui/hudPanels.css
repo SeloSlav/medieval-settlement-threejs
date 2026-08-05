@@ -140,6 +140,15 @@
   background: rgb(48, 142, 76);
 }
 
+.map-overlay-legend[data-overlay='water'] .crop-suitability-scale__poor { background: rgb(24, 34, 58); }
+.map-overlay-legend[data-overlay='water'] .crop-suitability-scale__marginal { background: rgb(38, 92, 148); }
+.map-overlay-legend[data-overlay='water'] .crop-suitability-scale__good { background: rgb(28, 132, 198); }
+.map-overlay-legend[data-overlay='water'] .crop-suitability-scale__prime { background: rgb(72, 178, 228); }
+.map-overlay-legend[data-overlay='wind'] .crop-suitability-scale__poor { background: rgb(70, 66, 98); }
+.map-overlay-legend[data-overlay='wind'] .crop-suitability-scale__marginal { background: rgb(70, 111, 146); }
+.map-overlay-legend[data-overlay='wind'] .crop-suitability-scale__good { background: rgb(80, 163, 165); }
+.map-overlay-legend[data-overlay='wind'] .crop-suitability-scale__prime { background: rgb(215, 224, 177); }
+
 .crop-suitability-legend p {
   margin: 0;
   line-height: 1.35;

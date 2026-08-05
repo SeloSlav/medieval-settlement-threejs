@@ -30,7 +30,7 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
       { action: 'Agriculture menu', keys: 'U' },
       { action: 'Industry menu', keys: 'V' },
       { action: 'Defenses menu (frontier only)', keys: 'X' },
-      { action: 'Water map overlay', keys: 'M' },
+      { action: 'Map overlays (water, wind, fertility)', keys: 'M' },
       { action: 'Select Town Hall administration', keys: 'I' },
       { action: 'Settings', keys: 'Esc' },
     ],

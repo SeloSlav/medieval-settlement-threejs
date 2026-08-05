@@ -413,7 +413,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
                 step_watermill(ctx, &tick, &clock, environment, building)
             }
             crate::building_defs::BuildingSimKind::Windmill => {
-                step_windmill(ctx, &tick, &clock, building)
+                step_windmill(ctx, &tick, &clock, environment, config.seed, building)
             }
             crate::building_defs::BuildingSimKind::Carpenter => {
                 step_carpenter(ctx, &tick, &clock, building)

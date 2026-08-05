@@ -612,10 +612,19 @@ pub fn step_windmill(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
+    environment: EnvironmentState,
+    world_seed: u64,
     building: Building,
 ) {
     let tools_maintained = civilian_tools_maintained(building.ironwork);
-    let throughput_multiplier = civilian_tool_throughput_multiplier(building.ironwork);
+    let wind_throughput = crate::wind_policy::windmill_throughput_multiplier(
+        world_seed,
+        building.x,
+        building.z,
+        environment.weather,
+    );
+    let throughput_multiplier = wind_throughput
+        * civilian_tool_throughput_multiplier(building.ironwork);
     let flour_before = building.flour;
     let mut mill = building;
     mill = step_processor_at_rate(

@@ -35,6 +35,7 @@ import {
 } from '../settlement/foundingSiteSuitability.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
 import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
+import { windSiteThroughputMultiplier } from '../wind/windField.ts';
 import {
   clayDepositAtCenter,
   type ClayDepositSite,
@@ -667,6 +668,23 @@ export class BuildingTool {
           return `Ready: ${grade.toLowerCase()} ${deposit.resource} deposit · ${reserve}`;
         })()
       : null;
+    const windmillDetail = kind === 'windmill'
+      ? (() => {
+          const siteThroughput = windSiteThroughputMultiplier(
+            getActiveWorldGeneration().seed,
+            x,
+            z,
+          );
+          const grade = siteThroughput >= 1.18
+            ? 'strong'
+            : siteThroughput >= 0.95
+              ? 'good'
+              : siteThroughput >= 0.78
+                ? 'weak'
+                : 'sheltered';
+          return `Ready: ${grade} wind exposure · ${Math.round(siteThroughput * 100)}% site power before live weather and iron tools`;
+        })()
+      : null;
     this.setPlacementStatusDetail(joinPlacementDetails(
       kind === 'town_hall'
         ? 'Ready: population, civic buildings, and road links confirmed'
@@ -674,6 +692,8 @@ export class BuildingTool {
           ? 'Ready: completed watchtower confirmed'
           : mineralMineDetail
             ? mineralMineDetail
+          : windmillDetail
+            ? windmillDetail
           : clayBankDetail
             ? clayBankDetail
             : extent
