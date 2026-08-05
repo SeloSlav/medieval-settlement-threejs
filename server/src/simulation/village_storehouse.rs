@@ -137,8 +137,8 @@ pub fn step_storehouse_market_stalls(
     }
 }
 
-/// Once household and industrial firewood claims have run, remaining idle
-/// depots clear producer overflow in one owner-wide pass. Fullest producers
+/// Once Marketplace-stall and industrial firewood duties have run, remaining
+/// idle depots clear producer overflow in one owner-wide pass. Fullest producers
 /// claim the nearest compatible depot, so database iteration and construction
 /// order cannot silently distort the logistics layout. Food and grain remain
 /// excluded so the granary and marketplace keep their specialized roles.

@@ -152,8 +152,8 @@ const PROCESS: Record<string, string> = {
   potter_kiln: 'Riverbank clay + firewood + carted puddling water -> either vessels or rare prosperous-house roof tiles',
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
-  granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then redistributes them by road cart',
-  bakery: 'Flour + hauled water + firewood + baker labor -> bread for homes, Marketplace stalls, and institutions',
+  granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then stocks Marketplace stalls and physical institutional routes',
+  bakery: 'Flour + hauled water + firewood + baker labor -> bread for Marketplace stalls and institutions',
   brewery: 'Barley + water + firewood → malt → ale',
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forest forage -> honey for meals, monastery hospitality, or export',
@@ -247,20 +247,20 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'bakery':
       return 'Protected bread surplus to critical institutions or a staffed granary for Marketplace stalls';
     case 'granary':
-      return 'Critical processor, company, and brewery buffers first · then fresh and cured household policy';
+      return 'Critical processor, company, and brewery buffers first · then fresh and cured Marketplace stalls';
     case 'brewery':
-      return `Linked monastery short of its ${MONASTERY_FEAST_ALE}-ale feast floor, then claimed tier-3 home, then road-linked export market`;
+      return `Linked monastery short of its ${MONASTERY_FEAST_ALE}-ale feast floor, then Marketplace ale stalls, then road-linked export market`;
     case 'smokehouse':
-      return 'Lowest-runway claimed tier-3 home, then nearest granary cured-food reserve';
+      return 'Nearest staffed granary or Marketplace cured-food reserve';
     case 'apiary':
     case 'vineyard':
-      return 'Claimed food-needy home, then provisioned monastery, then export market';
+      return 'Marketplace food stalls, then provisioned monastery, then export market';
     case 'monastery':
       return 'Claimed parish home needing food';
     case 'carpenter':
       return 'Nearest road-linked guardhouse';
     case 'weaver':
-      return 'Lowest-runway claimed tier-3 home, then road-linked export market';
+      return 'Staffed Storehouse for Marketplace cloth stalls, then road-linked export market';
     case 'clay_pit':
       return "Settlement-wide match: highest-priority road-linked potter's kiln, then shortest producer route";
     case 'charcoal_burner':
@@ -268,7 +268,7 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'smithy':
       return 'Settlement-wide match: highest-priority maintained worksite, then shortest forge route and overflow';
     case 'potter_kiln':
-      return 'Settlement-wide match: highest-priority smokehouse, then shortest kiln route and export marketplace';
+      return 'Settlement-wide match: staffed Storehouse market supply, highest-priority smokehouse, then export';
     default:
       return 'Awaiting destination';
   }
@@ -284,11 +284,11 @@ function cargoPerTripLabel(building: BuildingState): string | null {
     case 'vineyard':
       return `${GRAIN_TRANSFER_PER_TRIP} per haul`;
     case 'granary':
-      return `4 fresh or 3 cured per household haul · ${GRAIN_TRANSFER_PER_TRIP} per bulk haul`;
+      return `4 fresh or 3 cured per market-stall haul · ${GRAIN_TRANSFER_PER_TRIP} per bulk haul`;
     case 'smokehouse':
-      return `3 per household haul · ${GRAIN_TRANSFER_PER_TRIP} per granary haul`;
+      return `3 per cured-food haul · ${GRAIN_TRANSFER_PER_TRIP} per granary haul`;
     case 'weaver':
-      return `2 cloth per household haul · ${TEXTILE_TRANSFER_PER_TRIP} per market haul`;
+      return `${TEXTILE_TRANSFER_PER_TRIP} cloth per Storehouse or market haul`;
     case 'clay_pit':
     case 'charcoal_burner':
     case 'smithy':
@@ -658,39 +658,12 @@ function renderLogisticsRows(
     : '';
   const preservedFoodTerritoryRows =
     building.kind === 'smokehouse' || building.kind === 'granary'
-      ? (() => {
-          const claimed = context.worldQueries.getClaimedResidencesForSpecialtySupplier(
-            building,
-            'preservedFood',
-          );
-          const next = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
-            building,
-            'preservedFood',
-          );
-          const overflow = building.kind === 'smokehouse'
-            ? context.worldQueries.getNextDirectProcessorInputDispatch(
-                building,
-                'preservedFood',
-              )
-            : null;
-          return `<li><span>Cured-food territory</span><span>${preservedFoodStock(building) <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
-          <li><span>Next cured ration</span><span>${next ? `Parcel #${next.parcelIndex + 1} · lowest household runway` : 'Household cupboards covered'}</span></li>
-          ${building.kind === 'smokehouse' ? `<li><span>Cured overflow</span><span>${overflow ? `${context.worldQueries.getBuildingLabel(overflow.target.kind)} · ${overflow.routeDistance.toFixed(0)} m road · only after household duty` : 'No reachable granary with room'}</span></li>` : ''}`;
-        })()
+      ? `<li><span>Cured-food territory</span><span>Connected homes are served from stocked Marketplace food stalls</span></li>
+         <li><span>Physical cured route</span><span>${building.kind === 'smokehouse' ? 'Smokehouse → staffed Granary → Marketplace stall' : 'Granary → Marketplace stall'} · no routine home cart</span></li>`
       : '';
   const textileTerritoryRows = building.kind === 'weaver'
-    ? (() => {
-        const claimed = context.worldQueries.getClaimedResidencesForSpecialtySupplier(
-          building,
-          'cloth',
-        );
-        const next = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
-          building,
-          'cloth',
-        );
-        return `<li><span>Textile territory</span><span>${(building.cloth ?? 0) <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
-          <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'None needing cloth'}</span></li>`;
-      })()
+    ? `<li><span>Textile territory</span><span>Connected tier-3 homes draw cloth from stocked Marketplace goods stalls</span></li>
+       <li><span>Physical cloth route</span><span>Weaver → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
     : '';
   const hospitalityRoutingRows = building.kind === 'apiary' || building.kind === 'vineyard'
     ? (() => {
@@ -709,20 +682,10 @@ function renderLogisticsRows(
       })()
     : '';
   const potteryTerritoryRows = building.kind === 'potter_kiln'
-    ? (() => {
-        const claimed = context.worldQueries.getClaimedResidencesForSpecialtySupplier(
-          building,
-          'pottery',
-        );
-        const next = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
-          building,
-          'pottery',
-        );
-        return `<li><span>Kiln firing</span><span>${potterFiringPolicyLabel(building.potterFiringPolicy)}</span></li>
-          <li><span>Kiln cart order</span><span>${potteryDispatchPolicyLabel(building.potteryDispatchPolicy)} · export always last</span></li>
-          <li><span>Household-ware territory</span><span>${(building.pottery ?? 0) <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} tier-3 households claimed`}</span></li>
-          <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'Household cupboards covered'}</span></li>`;
-      })()
+    ? `<li><span>Kiln firing</span><span>${potterFiringPolicyLabel(building.potterFiringPolicy)}</span></li>
+       <li><span>Kiln cart order</span><span>${potteryDispatchPolicyLabel(building.potteryDispatchPolicy)} · export always last</span></li>
+       <li><span>Household-ware territory</span><span>Connected tier-3 homes draw pottery from stocked Marketplace goods stalls</span></li>
+       <li><span>Physical pottery route</span><span>Kiln → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
     : '';
   const breweryReserveRows = building.kind === 'brewery'
     ? (() => {
@@ -730,7 +693,7 @@ function renderLogisticsRows(
         const target = context.worldQueries.getNextMonasteryFeastAleTarget(building);
         return `<li><span>Feast ale priority</span><span>${
           !policy.feastsEnabled
-            ? 'Disabled — ale goes to claimed homes, then export'
+            ? 'Disabled — ale goes to Marketplace stalls, then export'
             : target
               ? `${context.worldQueries.getBuildingLabel(target.kind)} needs ${Math.max(0, MONASTERY_FEAST_ALE - target.ale).toFixed(1)} ale to secure one batch`
               : `Every eligible pantry holds ${MONASTERY_FEAST_ALE} ale, is already receiving it, or is unreachable`
@@ -1215,7 +1178,7 @@ export function renderExpandedBuildingInspector(
       <li><span>Fresh-food intake</span><span>${building.granaryAcceptsFreshFood === false ? `Local delivery only · ${granaryFoodTargetPercent}% target retained` : `Centralize to ${granaryFoodTargetPercent}% capacity · ${granaryFoodTarget.toFixed(0)} food`}</span></li>
       <li><span>Dispatch priority</span><span>${granaryDispatchPriorityLabel(building.granaryHouseholdsFirst === true)}</span></li>
       <li><span>Next preservation buffer</span><span>${granaryPreservationDispatchLabel}</span></li>
-      <li><span>Household priority</span><span>1 food cart per source-claimed home · capped at 50% source storage</span></li>
+      <li><span>Household priority</span><span>Protect one market-allocation batch per claimed home · capped at 50% source storage</span></li>
       <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(freshFoodStock(building) * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
     : '';
   const grainProcessorRows = building.kind === 'watermill'
@@ -1263,7 +1226,7 @@ export function renderExpandedBuildingInspector(
       )
     : null;
   const institutionalFoodRows = building.kind === 'smokehouse'
-    ? `<li><span>Fresh-food priority</span><span>Producer-owned carts protect household reserves, then serve a critical company before this working batch</span></li>
+    ? `<li><span>Fresh-food priority</span><span>Producer-owned carts protect local Marketplace reserves, then serve a critical company before this working batch</span></li>
       <li><span>Shared arbitration</span><span>Smokehouse batch → routine company reserve → enabled granary intake · work priority and lowest runway break ties</span></li>`
     : routineFreshFoodSource
       ? `<li><span>Local food reserve</span><span>${(edibleFoodStock(building) - routineFreshFoodSurplus).toFixed(1)} protected · ${routineFreshFoodSurplus.toFixed(1)} central surplus</span></li>
@@ -1524,11 +1487,11 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     freshFoodTargetPercent,
   );
   const priorityHint = householdsFirst
-    ? 'Household-first sends fresh food to the lowest-runway claimed home, then a cured ration if no fresh-food cart can leave. If neither home duty can run, the granary falls through to the highest-priority smokehouse working buffer.'
-    : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before route distance. If no smokehouse can receive food, the granary falls through to fresh household food and then cured rations.';
+    ? 'Household-first stocks fresh and cured Marketplace stalls before the granary falls through to the highest-priority smokehouse working buffer.'
+    : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before stocking fresh and cured Marketplace stalls.';
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food; every assigned granary worker is a food keeper and handcart hauler. Cured provisions retain best in their smokehouse loft and age slightly faster after transfer here, so local-only and central-reserve branches are both valid layouts. Every routine food supplier still protects its household territory before offering surplus. Fresh-food surplus carts then serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order.</p>
+      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food; every assigned granary worker is a food keeper and handcart hauler. Those haulers stock Marketplace stalls and physical institutional routes, but never cart routine provisions from a stall to individual homes. Fresh-food surplus carts still serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh and cured surplus</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
       <p class="inspector-action-panel__hint">${priorityHint}</p>
@@ -1536,12 +1499,12 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
       <div class="resource-action-row">${GRANARY_FRESH_FOOD_TARGET_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-fresh-food-target="${preset.percent}" title="${preset.hint}" ${freshFoodTargetPercent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Current target ${freshFoodTarget.toFixed(0)} food. Intake stops at this level, but household, smokehouse, and guard carts may continue drawing stock.</p>
+      <p class="inspector-action-panel__hint">Current target ${freshFoodTarget.toFixed(0)} food. Intake stops at this level, but Marketplace-stall, smokehouse, and guard carts may continue drawing stock.</p>
       <p class="resource-inspector-note">Strategic grain floor — mills, monasteries, and foreign sales cannot draw below it. Linked farmsteads may still take this grain when they need seed. Brewing barley has its own physical reserve.</p>
       <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-grain-reserve="${preset.reserve}" ${grainReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">A staffed granary collects fresh stock above local reserves until its selected fresh-food target. Producers with no claimed homes can send their whole stock. When perishable collection is enabled, cured provisions use separate capacity and arrive only after smokehouses cover their household duties; disabling it stops new cured intake but assigned granary haulers may still distribute stock already here. Baking happens only at a staffed bakery.</p>
+      <p class="inspector-action-panel__hint">A staffed granary collects fresh stock above local market reserves until its selected target. Sources with no dependent market branch can release their whole surplus. When perishable collection is enabled, cured provisions use separate capacity; disabling it stops new cured intake but assigned granary haulers may still stock Marketplace stalls from goods already here. Baking happens only at a staffed bakery.</p>
     </div>
   `;
 }

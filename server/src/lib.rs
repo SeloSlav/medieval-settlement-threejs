@@ -16,6 +16,7 @@ mod delivery_trip_policy;
 mod economy;
 mod farming;
 mod fire_policy;
+mod fiscal_policy;
 mod fire_recovery_policy;
 mod foraging_policy;
 mod frontier_economy_policy;

@@ -284,6 +284,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         founding_shelter_active: true,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
+        private_export_proceeds_gold: 0.0,
         barley: resources.barley.max(0.0),
         malt: resources.malt.max(0.0),
         flax: resources.flax.max(0.0),

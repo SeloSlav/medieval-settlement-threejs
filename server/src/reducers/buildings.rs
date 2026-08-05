@@ -15,14 +15,14 @@ use crate::construction_priority::{
 use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor, building_commodity_cap,
-    building_commodity_stock, building_cost, building_salvage_refund, chapel_coffer_gold,
-    collect_chapel_coffer as sweep_chapel_coffer, construction_treasury_reservation,
+    building_commodity_stock, building_cost, building_salvage_refund,
+    construction_treasury_reservation,
     credit_treasury_commodity, credit_treasury_firewood, credit_treasury_food,
     credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
     guardhouse_roster_count, guardhouse_roster_floors, initial_construction_labor,
-    record_parish_ledger, spend_aggregate_ironwork, spend_aggregate_roof_tiles,
+    spend_aggregate_ironwork, spend_aggregate_roof_tiles,
     spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
-    total_timber, CommodityKind, ParishLedgerKind,
+    total_timber, CommodityKind,
 };
 use crate::foraging_policy::harvest_available;
 use crate::frontier_economy_policy::{
@@ -65,7 +65,7 @@ use crate::simulation::{
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
     game_clock, local_delivery_distance, owner_has_staffed_town_hall,
     preserve_in_transit_cart_labor, recall_idle_seasonal_labor_for_owner,
-    staffed_cart_workers_by_building, try_start_chapel_treasury_trip, SimTickContext,
+    staffed_cart_workers_by_building,
     FIRE_TARGET_BUILDING,
 };
 use crate::specialty_trade_policy::is_valid_specialty_export_policy;
@@ -813,6 +813,7 @@ fn place_building_internal(
         founding_shelter_active: false,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
+        private_export_proceeds_gold: 0.0,
         barley: 0.0,
         malt: 0.0,
         flax: 0.0,
@@ -2319,38 +2320,10 @@ pub fn collect_chapel_coffer(ctx: &ReducerContext, building_id: u64) -> Result<(
     if !chapel.construction_complete {
         return Err("The chapel is still under construction.".to_string());
     }
-    if building_fire_state(ctx, building_id).is_some() {
-        return Err(
-            "Repair the fire-damaged chapel before collecting its sealed coffer.".to_string(),
-        );
-    }
-    let physical = ctx
-        .db
-        .player_resources()
-        .owner()
-        .find(&owner)
-        .is_some_and(|resources| resources.physical_founding_site_enabled);
-    if !physical {
-        return sweep_chapel_coffer(ctx, owner, building_id).map(|_| ());
-    }
-
-    let mut chapel = chapel;
-    let tick = SimTickContext::new(ctx);
-    let clock = game_clock(
-        ctx.db
-            .world_config()
-            .id()
-            .find(&0)
-            .map(|config| config.sim_tick)
-            .unwrap_or(0),
-    );
-    let requested = chapel_coffer_gold(&chapel);
-    let loaded = try_start_chapel_treasury_trip(ctx, &tick, &clock, &mut chapel, requested)?;
-    if loaded > 1e-9 {
-        ctx.db.building().id().update(chapel);
-        record_parish_ledger(ctx, owner, ParishLedgerKind::ManualCollect, loaded);
-    }
-    Ok(())
+    Err(
+        "Parish tithes belong to the church and cannot be transferred to the civic treasury."
+            .to_string(),
+    )
 }
 
 #[reducer]
@@ -2553,6 +2526,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             marketplace_gold_reserve_target: MARKETPLACE_GOLD_RESERVE_DEFAULT,
             chapel_monastery_tithe_due: 0.0,
             civic_receipts_gold: 0.0,
+            private_export_proceeds_gold: 0.0,
             remote_work_camp_enabled: false,
             linked_worksite_id: 0,
             ..building

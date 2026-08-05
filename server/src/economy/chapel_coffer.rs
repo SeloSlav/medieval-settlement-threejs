@@ -8,8 +8,6 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::CHAPEL_COFFER_CAPACITY;
 use crate::chapel_upgrade_policy::chapel_coffer_capacity_for_tier;
 use crate::db::*;
-use crate::economy::credit_treasury_gold;
-use crate::economy::parish_accounting::{record_parish_ledger, ParishLedgerKind};
 use crate::tables::Building;
 
 pub fn chapel_coffer_gold(building: &Building) -> f64 {
@@ -124,60 +122,11 @@ pub fn withdraw_coffer_in_place(chapel: &mut Building, amount: f64) -> f64 {
     withdrawn
 }
 
-pub fn clear_coffer_in_place(chapel: &mut Building) -> f64 {
-    let collected = chapel_coffer_gold(chapel);
-    if chapel.kind == "chapel" {
-        chapel.chapel_monastery_tithe_due = chapel_monastery_tithe_due(chapel);
-        chapel.gold = chapel.chapel_monastery_tithe_due;
-    }
-    collected
-}
-
-pub fn collect_chapel_coffer(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-    chapel_id: u64,
-) -> Result<f64, String> {
-    let chapel = ctx
-        .db
-        .building()
-        .id()
-        .find(&chapel_id)
-        .ok_or_else(|| "Chapel not found.".to_string())?;
-
-    validate_chapel_owner(&chapel, owner)?;
-
-    let collected = chapel_coffer_gold(&chapel);
-    if collected <= 1e-9 {
-        return Ok(0.0);
-    }
-
-    let mut updated = chapel;
-    clear_coffer_in_place(&mut updated);
-    ctx.db.building().id().update(updated);
-    credit_treasury_gold(ctx, owner, collected);
-    record_parish_ledger(ctx, owner, ParishLedgerKind::ManualCollect, collected);
-    Ok(collected)
-}
-
-fn validate_chapel_owner(chapel: &Building, owner: spacetimedb::Identity) -> Result<(), String> {
-    if chapel.owner != owner {
-        return Err("You do not own this chapel.".to_string());
-    }
-    if chapel.kind != "chapel" {
-        return Err("Building is not a chapel.".to_string());
-    }
-    if !chapel.construction_complete {
-        return Err("The chapel is still under construction.".to_string());
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
         chapel_coffer_capacity, chapel_coffer_capacity_for, chapel_coffer_gold,
-        clear_coffer_in_place, deposit_coffer_in_place, withdraw_coffer_in_place,
+        deposit_coffer_in_place, withdraw_coffer_in_place,
     };
     use crate::tables::Building;
 
@@ -250,6 +199,7 @@ mod tests {
             founding_shelter_active: false,
             chapel_monastery_tithe_due: 0.0,
             civic_receipts_gold: 0.0,
+            private_export_proceeds_gold: 0.0,
             barley: 0.0,
             malt: 0.0,
             flax: 0.0,
@@ -338,12 +288,4 @@ mod tests {
         assert!((chapel.gold - 12.0).abs() < 1e-9);
     }
 
-    #[test]
-    fn clearing_coffer_leaves_monastery_purse_in_place() {
-        let mut chapel = sample_chapel(30.0);
-        chapel.chapel_monastery_tithe_due = 12.0;
-        assert!((clear_coffer_in_place(&mut chapel) - 18.0).abs() < 1e-9);
-        assert!((chapel.gold - 12.0).abs() < 1e-9);
-        assert!((chapel.chapel_monastery_tithe_due - 12.0).abs() < 1e-9);
-    }
 }

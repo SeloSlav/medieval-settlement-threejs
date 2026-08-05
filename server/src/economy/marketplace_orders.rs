@@ -12,9 +12,9 @@ use crate::economy::marketplace_trade_policy::market_order_should_commit;
 use crate::economy::regional_market::{record_market_trade, scaled_gold_cost};
 use crate::economy::regional_market_policy::MarketTradeDirection;
 use crate::economy::{
-    building_commodity_room, building_water_storage_cap, credit_treasury_gold,
-    debit_residence_wealth, deposit_building_commodity, deposit_building_water,
-    spend_treasury_gold, CommodityKind,
+    building_commodity_room, building_water_storage_cap, collectible_household_import_duty,
+    credit_household_import_duty, credit_treasury_gold, debit_residence_wealth,
+    deposit_building_commodity, deposit_building_water, spend_treasury_gold, CommodityKind,
 };
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::residence_needs::{load_needs, need_stock};
@@ -68,6 +68,12 @@ pub fn order_food_commodity(
         .find(&marketplace_id)
         .ok_or_else(|| "Trading Post not found.".to_string())?;
     validate_order_marketplace(ctx, tick, &building, owner)?;
+    let import_duty = if payer == MarketGoldPayer::Household {
+        collectible_household_import_duty(ctx, &building, gold_cost)
+    } else {
+        0.0
+    };
+    let total_charge = gold_cost + import_duty;
     let physical_commodity = market_food_commodity_kind(commodity)?;
     if physical_market_orders_enabled(ctx, owner) {
         return order_physical_market_import(
@@ -78,6 +84,7 @@ pub fn order_food_commodity(
             physical_commodity,
             commodity.food_amount,
             gold_cost,
+            import_duty,
             FOOD_DELIVERY_SPEED_MPS,
             FOOD_DELIVERY_UNLOAD_SEC,
             payer,
@@ -88,12 +95,13 @@ pub fn order_food_commodity(
     }
     let original_building = building.clone();
 
-    let paid_from_market = pay_market_gold(ctx, owner, gold_cost, payer, residence, &mut building)?;
+    let paid_from_market =
+        pay_market_gold(ctx, owner, total_charge, payer, residence, &mut building)?;
 
     let deposited =
         deposit_building_commodity(&mut building, physical_commodity, commodity.food_amount);
     if deposited + 1e-6 < commodity.food_amount {
-        refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
+        refund_market_gold(ctx, owner, total_charge, payer, residence, paid_from_market);
         return Err("Trading Post needs room for the full provender order.".to_string());
     }
     ctx.db.building().id().update(building.clone());
@@ -115,9 +123,10 @@ pub fn order_food_commodity(
     );
     if !market_order_should_commit(dispatch.priority_residence_id.is_some(), dispatched) {
         ctx.db.building().id().update(original_building);
-        refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
+        refund_market_gold(ctx, owner, total_charge, payer, residence, paid_from_market);
         return Ok(false);
     }
+    credit_household_import_duty(ctx, &mut dispatch_building, import_duty);
     ctx.db.building().id().update(dispatch_building);
 
     record_market_trade(
@@ -153,6 +162,12 @@ pub fn order_water_commodity(
         .find(&marketplace_id)
         .ok_or_else(|| "Trading Post not found.".to_string())?;
     validate_order_marketplace(ctx, tick, &building, owner)?;
+    let import_duty = if payer == MarketGoldPayer::Household {
+        collectible_household_import_duty(ctx, &building, gold_cost)
+    } else {
+        0.0
+    };
+    let total_charge = gold_cost + import_duty;
     if physical_market_orders_enabled(ctx, owner) {
         return order_physical_market_import(
             ctx,
@@ -162,6 +177,7 @@ pub fn order_water_commodity(
             CommodityKind::Water,
             commodity.water_amount,
             gold_cost,
+            import_duty,
             WATER_DELIVERY_SPEED_MPS,
             WATER_DELIVERY_UNLOAD_SEC,
             payer,
@@ -172,14 +188,15 @@ pub fn order_water_commodity(
     }
     let original_building = building.clone();
 
-    let paid_from_market = pay_market_gold(ctx, owner, gold_cost, payer, residence, &mut building)?;
+    let paid_from_market =
+        pay_market_gold(ctx, owner, total_charge, payer, residence, &mut building)?;
 
     let cap = building
         .water_capacity
         .max(building_water_storage_cap(&building.kind));
     let (deposited, updated) = deposit_building_water(&building, cap, commodity.water_amount);
     if deposited + 1e-6 < commodity.water_amount {
-        refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
+        refund_market_gold(ctx, owner, total_charge, payer, residence, paid_from_market);
         return Err("Trading Post needs room for the full water order.".to_string());
     }
     building = updated;
@@ -202,9 +219,10 @@ pub fn order_water_commodity(
     );
     if !market_order_should_commit(dispatch.priority_residence_id.is_some(), dispatched) {
         ctx.db.building().id().update(original_building);
-        refund_market_gold(ctx, owner, gold_cost, payer, residence, paid_from_market);
+        refund_market_gold(ctx, owner, total_charge, payer, residence, paid_from_market);
         return Ok(false);
     }
+    credit_household_import_duty(ctx, &mut dispatch_building, import_duty);
     ctx.db.building().id().update(dispatch_building);
     Ok(dispatched)
 }
@@ -218,6 +236,7 @@ fn order_physical_market_import(
     commodity: CommodityKind,
     amount: f64,
     gold_cost: f64,
+    import_duty: f64,
     speed_mps: f64,
     unload_seconds: f64,
     payer: MarketGoldPayer,
@@ -237,6 +256,11 @@ fn order_physical_market_import(
     let network = tick
         .road_network(owner)
         .ok_or_else(|| "Connect the Trading Post to a road before ordering goods.".to_string())?;
+    if import_duty > 1e-9
+        && building_commodity_room(marketplace, CommodityKind::Gold) + 1e-6 < import_duty
+    {
+        return Err("Trading Post needs coffer room for the full household import duty.".to_string());
+    }
 
     let named_residence = match dispatch.priority_residence_id {
         Some(residence_id) => {
@@ -297,8 +321,9 @@ fn order_physical_market_import(
     // Payment is performed only after every physical route and destination
     // check succeeds. Reducer transaction rollback still protects the rare
     // insertion failure below.
+    let total_charge = gold_cost + import_duty;
     let charged_from_market =
-        pay_market_gold(ctx, owner, gold_cost, payer, residence, marketplace)?;
+        pay_market_gold(ctx, owner, total_charge, payer, residence, marketplace)?;
     let started = match named_residence.as_ref() {
         Some(target) => start_external_market_import_trip_to_residence(
             ctx,
@@ -323,13 +348,20 @@ fn order_physical_market_import(
         ),
     };
     if !started {
+        refund_market_gold(
+            ctx,
+            owner,
+            total_charge,
+            payer,
+            residence,
+            charged_from_market,
+        );
         return Err(
             "The regional caravan could not enter this Trading Post's road branch.".to_string(),
         );
     }
-    if charged_from_market {
-        ctx.db.building().id().update(marketplace.clone());
-    }
+    credit_household_import_duty(ctx, marketplace, import_duty);
+    ctx.db.building().id().update(marketplace.clone());
     if let Some(resource) = regional_trade_resource {
         record_market_trade(ctx, owner, resource, MarketTradeDirection::Import, amount);
     }

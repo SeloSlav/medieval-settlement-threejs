@@ -7,8 +7,6 @@ import {
 } from '../../economy/economyInspectorViews.ts';
 import { isChapelStaffed } from '../../logistics/landmarkAccess.ts';
 import {
-  CHAPEL_COFFER_RESERVE_MAX,
-  CHAPEL_COFFER_RESERVE_MIN,
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
   CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH,
   CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
@@ -38,8 +36,6 @@ import {
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 
-export const CHAPEL_COFFER_COLLECT_ACTION = 'collect-chapel-coffer';
-
 function formatLinkedHomeStatus(
   connectedHomes: number,
   linkedPopulation: number,
@@ -56,10 +52,6 @@ function formatLinkedHomeStatus(
     return 'Priest ready — awaiting road-linked homes';
   }
   return `Serving ${connectedHomes} nearest-road home${connectedHomes === 1 ? '' : 's'} (${linkedPopulation} villagers)`;
-}
-
-export function isChapelCofferCollectAction(button: HTMLElement): boolean {
-  return button.closest(`[data-action="${CHAPEL_COFFER_COLLECT_ACTION}"]`) != null;
 }
 
 export function renderChapelInspector(
@@ -142,10 +134,8 @@ export function renderChapelInspector(
     building,
     linkedPopulation,
     cofferCapacity,
-    CHAPEL_COFFER_COLLECT_ACTION,
     parishPolicy.sabbathObservanceEnabled,
   );
-  const clock = gameClock(context.gameState.tick);
   const monasteryPurse = Math.min(
     Math.max(0, building.chapelMonasteryTitheDue ?? 0),
     Math.max(0, building.gold),
@@ -155,31 +145,7 @@ export function renderChapelInspector(
   const activeGoldTarget = activeGoldTrip?.targetBuildingId == null
     ? null
     : context.gameState.buildings.get(activeGoldTrip.targetBuildingId) ?? null;
-  const completedTownHall = Array.from(context.gameState.buildings.values()).find(
-    (candidate) => candidate.kind === 'town_hall' && candidate.constructionComplete !== false,
-  ) ?? null;
-  const townHallRoadDistance = completedTownHall === null
-    ? null
-    : context.worldQueries.getRoadPathDistance(
-        building.x,
-        building.z,
-        completedTownHall.x,
-        completedTownHall.z,
-      );
   const cofferLabel = `${economy.cofferGold.toFixed(1)} / ${economy.cofferCapacity} gold${economy.cofferFull ? ' · full — new parish tithes wait for cart capacity' : ''}${suspendedByFire ? ' · sealed until structural recovery' : ''}`;
-  const collectBlocker = suspendedByFire
-    ? 'Repair the church before its sealed chest can move.'
-    : activeGoldTrip
-      ? 'Wait for the church handcart to return.'
-      : completedTownHall === null
-        ? 'Complete a Town Hall before collecting parish coffers.'
-        : townHallRoadDistance === null
-          ? 'Connect the church and Town Hall by road.'
-          : context.populationStats.available <= 0
-            ? 'A free villager is needed to carry the coffer.'
-            : !clock.isWorkHours || (clock.isSunday && parishPolicy.sabbathObservanceEnabled)
-              ? 'Coffer carts depart during working hours outside the observed Sabbath.'
-              : null;
   const monasteryPurseLabel = monasteryPurse <= 0.05
     ? 'No pledged gold waiting'
     : `${monasteryPurse.toFixed(1)} gold sealed for a linked monastery${
@@ -190,13 +156,6 @@ export function renderChapelInspector(
   const reliefInspectButton = parishRelief?.targetResidenceId == null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${parishRelief.targetResidenceId}" aria-label="Inspect parish relief household">Inspect</button>`;
-  const collectButtonHtml = economy.cofferGold > 0.05 && !suspendedByFire
-    ? `
-      <button type="button" class="inspector-action-panel__button" data-action="${CHAPEL_COFFER_COLLECT_ACTION}"${collectBlocker ? ' disabled' : ''}>
-        Send coffer cart (${economy.cofferGold.toFixed(1)} gold)
-      </button>
-    `
-    : '';
   const collectPanelHtml = `
     <div class="inspector-action-panel">
       ${upgrade == null
@@ -206,14 +165,10 @@ export function renderChapelInspector(
           </button>
           <p class="inspector-action-panel__hint">${upgradeBlocker ?? 'Rebuild the church in place; the final footprint was reserved when the wooden church was laid out.'}</p>`}
       <p class="inspector-action-panel__hint">${suspendedByFire
-        ? 'Structural recovery is required before tithes, expenses, relief, or manual coffer collection resume.'
-        : collectBlocker ?? 'A free villager carries one chest load to the road-linked Town Hall; coin remains physically vulnerable en route.'}</p>
-      ${collectButtonHtml}
-      <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-auto-sweep ${parishPolicy.autoSweepEnabled ? 'checked' : ''} /><span>Auto-cart surplus to treasury</span></label>
+        ? 'Structural recovery is required before tithes, parish expenses, or relief resume.'
+        : 'Parish tithes belong to the church. They fund clergy, upkeep, alms, poor relief, and pledged monastery support; they cannot be transferred to the civic treasury.'}</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-sabbath ${parishPolicy.sabbathObservanceEnabled ? 'checked' : ''} /><span>Observe Sunday Sabbath</span></label>
       <p class="inspector-action-panel__hint">Sabbath pauses work and carts for +${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance and +${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed. Households still consume delivered provisions, so stock them before Saturday night.</p>
-      <label class="city-admin-panel__slider-label"><span>Coffer reserve</span><strong data-policy-chapel-reserve-value>${Math.round(parishPolicy.cofferReserveGold)} gold</strong></label>
-      <input class="city-admin-panel__slider" type="range" data-policy-chapel-reserve min="${CHAPEL_COFFER_RESERVE_MIN}" max="${CHAPEL_COFFER_RESERVE_MAX}" step="5" value="${Math.round(parishPolicy.cofferReserveGold)}" />
       <p class="inspector-action-panel__hint">Keep at least ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold after wages and upkeep. In physical-economy settlements, one day of alms leaves as a visible purse carried by a free villager; long or blocked roads and church-cart contention delay it. Monday poor relief may spend up to ${CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH} gold per dispatch.</p>
       <button type="button" class="inspector-action-panel__button" data-land-parcel="graveyard"${building.constructionComplete === false || suspendedByFire ? ' disabled' : ''}>
         Lay adjacent burial ground
@@ -247,10 +202,10 @@ export function renderChapelInspector(
       <li><span>Priest</span><span>${suspendedByFire ? 'Displaced · parish work suspended' : staffed ? 'Serving the parish' : 'Unstaffed — benefits inactive'}</span></li>
       <li><span>Coffer</span><span>${cofferLabel}</span></li>
       <li><span>Monastery purse</span><span>${monasteryPurseLabel}</span></li>
-      <li><span>Coffer handcart</span><span>${activeGoldTrip ? `${activeGoldTrip.amount.toFixed(1)} gold · ${activeGoldTrip.phase}` : 'None'}</span></li>
+      <li><span>Parish handcart</span><span>${activeGoldTrip ? `${activeGoldTrip.amount.toFixed(1)} gold · ${activeGoldTrip.phase}` : 'None'}</span></li>
       <li><span>Parish territory</span><span>${parishRelief == null ? `${connectedHomes} road-linked homes` : formatChapelParishTerritory(parishRelief)}</span></li>
       <li><span>Tithe yield</span><span>${staffed ? economy.titheLabel : '—'}</span></li>
-      <li><span>Parish expenses</span><span>${suspendedByFire ? 'Paused · no wages, upkeep, charity, or auto-sweep leaves the sealed coffer' : formatChapelExpenseLabel(economy.expense, staffed)}</span></li>
+      <li><span>Parish expenses</span><span>${suspendedByFire ? 'Paused · no wages, upkeep, charity, or monastery remittance leaves the sealed coffer' : formatChapelExpenseLabel(economy.expense, staffed)}</span></li>
       ${parishRelief == null ? '' : `<li><span>Daily alms purse</span><span>${formatChapelDailyAlms(parishRelief)}</span></li>`}
       ${parishRelief == null ? '' : `<li><span>Monday poor relief</span><span>${formatChapelPoorRelief(parishRelief)}${reliefInspectButton}</span></li>`}
       <li><span>Attendance</span><span>${staffed ? economy.attendanceLabel : '—'}</span></li>

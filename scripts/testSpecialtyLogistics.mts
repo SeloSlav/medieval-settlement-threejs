@@ -336,7 +336,8 @@ const expandedInspector = fs.readFileSync(
   'utf8',
 );
 assert.match(expandedInspector, /Cured-food territory/);
-assert.match(expandedInspector, /Cured overflow/);
+assert.match(expandedInspector, /Physical cured route/);
+assert.match(expandedInspector, /no routine home cart/);
 assert.match(expandedInspector, /Collect fresh and cured surplus/);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(

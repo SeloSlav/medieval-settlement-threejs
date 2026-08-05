@@ -4,8 +4,6 @@ use crate::db::*;
 
 #[derive(Clone, Copy)]
 pub enum ParishLedgerKind {
-    ManualCollect,
-    AutoSweep,
     Salary,
     Upkeep,
     Charity,
@@ -26,8 +24,6 @@ pub fn record_parish_ledger(
     };
 
     match kind {
-        ParishLedgerKind::ManualCollect => resources.parish_manual_collect_total += amount,
-        ParishLedgerKind::AutoSweep => resources.parish_auto_sweep_total += amount,
         ParishLedgerKind::Salary => resources.parish_salary_paid_total += amount,
         ParishLedgerKind::Upkeep => resources.parish_upkeep_paid_total += amount,
         ParishLedgerKind::Charity => resources.parish_charity_paid_total += amount,

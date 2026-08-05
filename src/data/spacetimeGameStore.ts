@@ -72,6 +72,7 @@ import { GameTableSync } from './spacetimeTableSync/gameTableSync.ts';
 import { syncWorldConfig } from './spacetimeTableSync/syncWorldConfig.ts';
 import type { GameTableSyncState } from './spacetimeTableSync/gameTableSyncState.ts';
 import type { GameSpeed } from '../world/gameSpeed.ts';
+import { DEFAULT_FISCAL_POLICY, type FiscalPolicyState } from '../economy/fiscalPolicy.ts';
 import {
   applySeasonalLaborCallup,
   applySeasonalLaborRecall,
@@ -115,6 +116,7 @@ export type SpacetimeGameSnapshot = {
   physicalFoundingSiteEnabled: boolean;
   legacyUnhousedPopulationBonusEnabled: boolean;
   economicActivityTaxRate: number;
+  fiscalPolicy: FiscalPolicyState;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;
   productionLaborStewardEnabled: boolean;
@@ -158,6 +160,7 @@ function createEmptyTableState(): GameTableSyncState {
     physicalFoundingSiteEnabled: false,
     legacyUnhousedPopulationBonusEnabled: true,
     economicActivityTaxRate: ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+    fiscalPolicy: { ...DEFAULT_FISCAL_POLICY },
     seasonalLaborStewardEnabled: DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
     constructionLaborStewardEnabled: DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
     productionLaborStewardEnabled: DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED,
@@ -238,6 +241,7 @@ export class SpacetimeGameStore {
       physicalFoundingSiteEnabled: state.physicalFoundingSiteEnabled,
       legacyUnhousedPopulationBonusEnabled: state.legacyUnhousedPopulationBonusEnabled,
       economicActivityTaxRate: state.economicActivityTaxRate,
+      fiscalPolicy: this.snapshotRecord(state.fiscalPolicy),
       seasonalLaborStewardEnabled: state.seasonalLaborStewardEnabled,
       constructionLaborStewardEnabled: state.constructionLaborStewardEnabled,
       productionLaborStewardEnabled: state.productionLaborStewardEnabled,
@@ -500,6 +504,14 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setEconomicActivityTaxRate(taxRate);
   }
 
+  setFiscalPolicy(
+    landLevyRate: number,
+    importDutyRate: number,
+    exportDutyRate: number,
+  ): Promise<void> {
+    return spacetimeReducers.setFiscalPolicy(landLevyRate, importDutyRate, exportDutyRate);
+  }
+
   setSeasonalLaborSteward(enabled: boolean): Promise<void> {
     return spacetimeReducers.setSeasonalLaborSteward(enabled);
   }
@@ -516,16 +528,8 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setLaborStewardReserve(laborReserve);
   }
 
-  setChapelParishPolicy(
-    autoSweepEnabled: boolean,
-    cofferReserveGold: number,
-    sabbathObservanceEnabled: boolean,
-  ): Promise<void> {
-    return spacetimeReducers.setChapelParishPolicy(
-      autoSweepEnabled,
-      cofferReserveGold,
-      sabbathObservanceEnabled,
-    );
+  setChapelParishPolicy(sabbathObservanceEnabled: boolean): Promise<void> {
+    return spacetimeReducers.setChapelParishPolicy(sabbathObservanceEnabled);
   }
 
   setMonasteryPolicy(titheShare: number, feastsEnabled: boolean): Promise<void> {
@@ -897,10 +901,6 @@ export class SpacetimeGameStore {
 
   cancelMarketplaceTradeOrder(buildingId: string): Promise<void> {
     return spacetimeReducers.cancelMarketplaceTradeOrder(buildingId);
-  }
-
-  collectChapelCoffer(buildingId: string): Promise<void> {
-    return spacetimeReducers.collectChapelCoffer(buildingId);
   }
 
   upgradeChapel(buildingId: string): Promise<void> {

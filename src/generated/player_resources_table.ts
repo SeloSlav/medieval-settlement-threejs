@@ -91,4 +91,12 @@ export default __t.row({
   curedMeat: __t.f64().name("cured_meat"),
   smokedFish: __t.f64().name("smoked_fish"),
   cheese: __t.f64(),
+  landLevyRate: __t.f64().name("land_levy_rate"),
+  importDutyRate: __t.f64().name("import_duty_rate"),
+  exportDutyRate: __t.f64().name("export_duty_rate"),
+  landLevyAssessedTotal: __t.f64().name("land_levy_assessed_total"),
+  landLevyCollectedTotal: __t.f64().name("land_levy_collected_total"),
+  importDutyCollectedTotal: __t.f64().name("import_duty_collected_total"),
+  exportDutyCollectedTotal: __t.f64().name("export_duty_collected_total"),
+  privateExportIncomeTotal: __t.f64().name("private_export_income_total"),
 });

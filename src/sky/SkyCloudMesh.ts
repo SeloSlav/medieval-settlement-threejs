@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 import { loadBitmapTexture } from '../utils/textureLoad.ts';
-import { SkyCloudMesh as WebGPUSkyCloudMesh } from 'sky-cloud-3d';
-import { SkyCloudMesh as WebGLSkyCloudMesh } from 'sky-cloud-3d/webgl';
 import { supportsNodeMaterials, type RendererBackendKind } from '../scene/RendererBackend.ts';
 import {
   createCelestialStarMapPlaceholder,
@@ -9,9 +7,11 @@ import {
   loadCelestialStarMapForStartup,
 } from './CelestialStarMapLoader.ts';
 import {
-  SKY_DEPTH_OCCLUSION_RADIUS,
-  SKY_OPAQUE_LAST_RENDER_ORDER,
-} from './skyDepthOcclusionPolicy.ts';
+  GORSKI_KOTAR_1550_TO_J2000_PRECESSION,
+  GORSKI_KOTAR_LATITUDE_DEG,
+} from './gorskiKotarCelestial.ts';
+import type { OpenSkyFallback } from './OpenSkyFallback.ts';
+import { SKY_DEPTH_OCCLUSION_RADIUS } from './skyDepthOcclusionPolicy.ts';
 
 type SkyCloudOptions = {
   cloudAbsorption?: number;
@@ -25,13 +25,15 @@ type SkyCloudOptions = {
   maxCloudDistance?: number;
   mieCoefficient?: number;
   mieDirectionalG?: number;
+  observerLatitudeDeg?: number;
+  /** Retained temporarily for fixture/startup compatibility; Eanpa generates its own noise. */
   perlinTexture?: THREE.Texture;
   radius?: number;
   rayleigh?: number;
   rendererBackend?: RendererBackendKind;
-  sunDirection?: THREE.Vector3;
-  starMap?: THREE.Texture;
   siderealAngle?: number;
+  starMap?: THREE.Texture;
+  sunDirection?: THREE.Vector3;
   turbidity?: number;
   windSpeedX?: number;
   windSpeedZ?: number;
@@ -41,42 +43,52 @@ type SkyCloudOptions = {
   heightSegments?: number;
 };
 
-type SkyCloudNativeMesh = THREE.Mesh & {
-  isSkyCloudMesh?: boolean;
-  ready?: Promise<unknown>;
-  dispose?: () => void;
-  updateCamera?: (camera: THREE.Camera) => void;
-  updateAtmosphere?: (dawnAmount: number, duskAmount: number) => void;
-  updateConstellationVisibility?: (visibility: number) => void;
-  updateResolution?: (width: number, height: number) => void;
-  updateSiderealAngle?: (angle: number) => void;
-  updateSun?: (direction: THREE.Vector3) => void;
-  updateTime?: (time: number) => void;
+type EanpaUniform<T = unknown> = { value: T };
+
+type EanpaSkySystem = {
+  domes: THREE.Object3D[];
+  uniforms: Record<string, EanpaUniform>;
+  setConstellationVisibility(visibility: number): void;
+  setMoonDirection(direction: THREE.Vector3): void;
+  setSiderealAngle(angle: number): void;
+  setSunDirection(direction: THREE.Vector3): void;
+  update(time: number, camera?: THREE.Camera): void;
+  dispose(): void;
 };
 
 const DEFAULTS = {
-  cloudAbsorption: 0.38,
-  cloudCoverage: 0.3,
-  cloudHeight: 185,
-  cloudThickness: 58,
-  hazeStrength: 0.08,
+  cloudCoverage: 0.34,
+  constellationVisibility: 0,
   maxCloudDistance: 6200,
-  mieCoefficient: 0.0028,
-  mieDirectionalG: 0.52,
-  radius: 1900,
-  rayleigh: 0.62,
-  turbidity: 1.2,
-  windSpeedX: 0.12,
-  windSpeedZ: 0.07,
-  width: 1280,
-  height: 720,
-  widthSegments: 56,
-  heightSegments: 28,
+  observerLatitudeDeg: GORSKI_KOTAR_LATITUDE_DEG,
+  radius: SKY_DEPTH_OCCLUSION_RADIUS,
+  siderealAngle: 0,
+  sunDirection: new THREE.Vector3(0.5, 0.5, -0.5).normalize(),
 };
 
-const WEBGL_PERLIN_TEXTURE_URL = new URL('../../vendor/sky-cloud-3d/perlin256.png', import.meta.url).href;
+const EANPA_MOON_TEXTURE_URL = new URL(
+  '../../vendor/eanpa-sky/assets/moon_color_1k.jpg',
+  import.meta.url,
+).href;
+const EANPA_TYCHO_TEXTURE_URL = new URL(
+  '../../vendor/eanpa-sky/assets/starmap_tycho_4k.jpg',
+  import.meta.url,
+).href;
+const MOON_DIRECTION = new THREE.Vector3();
 
-export function configureSkyPerlinTexture(texture: THREE.Texture): THREE.Texture {
+/**
+ * Compatibility texture for the old progressive-startup contract. Eanpa's
+ * analytic cloud field does not consume it; keeping the stable async boundary
+ * avoids coupling this rendering migration to unrelated startup fixtures.
+ */
+export async function loadSkyPerlinTexture(): Promise<THREE.DataTexture> {
+  const texture = new THREE.DataTexture(
+    new Uint8Array([128, 128, 128, 255]),
+    1,
+    1,
+    THREE.RGBAFormat,
+  );
+  texture.name = 'Retired sky-noise compatibility texture';
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.minFilter = THREE.LinearFilter;
@@ -88,81 +100,74 @@ export function configureSkyPerlinTexture(texture: THREE.Texture): THREE.Texture
   return texture;
 }
 
-export async function loadSkyPerlinTexture(): Promise<THREE.Texture> {
-  const texture = await loadBitmapTexture(WEBGL_PERLIN_TEXTURE_URL, 1, {
-    generateMipmaps: false,
-    flipY: false,
-  });
-  return configureSkyPerlinTexture(texture);
-}
-
 /**
- * Thin app wrapper around the actual sky-cloud-3d volumetric package.
- * WebGPU uses the package's TSL/NodeMaterial path; WebGL uses its shader fallback.
+ * App facade for the MIT Eanpa Sky engine. The native node path supplies the
+ * atmosphere and volumetric clouds; the game's generated 1550 catalogue stays
+ * bound as Eanpa's celestial texture and is rotated by local sidereal time.
  */
 export class SkyCloudMesh extends THREE.Group {
   readonly isSkyCloudMesh = true;
   readonly ready: Promise<SkyCloudMesh>;
-  private readonly nativeSky: SkyCloudNativeMesh;
   private readonly starMap: THREE.DataTexture | THREE.Texture;
   private readonly usesDeferredStarMap: boolean;
+  private readonly sunDirection = DEFAULTS.sunDirection.clone();
+  private readonly observerLatitudeDeg: number;
+  private readonly radius: number;
+  private readonly rendererBackend: RendererBackendKind;
+  private readonly maxCloudDistance: number;
+  private readonly cloudCoverage: number;
+  private eanpa: EanpaSkySystem | null = null;
+  private fallback: OpenSkyFallback | null = null;
+  private moonTexture: THREE.Texture | null = null;
+  private starBackdrop: THREE.Texture | null = null;
+  private camera: THREE.Camera | null = null;
   private celestialLoadPromise: Promise<void> | null = null;
+  private siderealAngle: number;
+  private constellationVisibility: number;
+  private dawnAmount: number;
+  private duskAmount: number;
+  private animationTime = 0;
   private disposed = false;
 
   constructor(options: SkyCloudOptions = {}) {
     super();
-    const usesDeferredStarMap = options.starMap === undefined;
-    const starMap = options.starMap ?? createCelestialStarMapPlaceholder();
-    const config = { ...DEFAULTS, ...options, starMap };
-    const rendererBackend = config.rendererBackend ?? 'webgl';
-    const useNodeMaterials = supportsNodeMaterials(rendererBackend);
-    const NativeSky = useNodeMaterials ? WebGPUSkyCloudMesh : WebGLSkyCloudMesh;
-    // sky-cloud-3d otherwise generates a 96³ multi-octave volume texture
-    // synchronously, even while its supplied 2D Perlin path is active.
-    const inactiveVolumeNoise = useNodeMaterials && config.perlinTexture
-      ? createInactiveVolumeNoiseTexture()
-      : undefined;
-    const nativeOptions = {
-      ...config,
-      perlinTexture: config.perlinTexture,
-      perlinTextureUrl: config.perlinTexture ? undefined : WEBGL_PERLIN_TEXTURE_URL,
-      volumeNoiseTexture: inactiveVolumeNoise,
-    };
-    const nativeSky = new NativeSky(nativeOptions) as SkyCloudNativeMesh;
-    nativeSky.name = useNodeMaterials
-      ? 'sky-cloud-3d node volumetric sky'
-      : 'sky-cloud-3d WebGL volumetric sky';
-    // This production dome is farther than every authored opaque world surface.
-    // Draw it last in the opaque list so terrain/forest depth rejects hidden
-    // volumetric fragments early; transparent water/weather still draw after it.
-    nativeSky.renderOrder = config.radius >= SKY_DEPTH_OCCLUSION_RADIUS
-      ? SKY_OPAQUE_LAST_RENDER_ORDER
-      : -1000;
-    nativeSky.frustumCulled = false;
-    nativeSky.userData.isSkyCloudMesh = true;
-
-    this.name = nativeSky.name;
-    this.nativeSky = nativeSky;
-    this.starMap = starMap;
-    this.usesDeferredStarMap = usesDeferredStarMap;
-    this.add(nativeSky);
-    this.ready = Promise.resolve(nativeSky.ready).then(() => this);
-
-    if (options.sunDirection) this.updateSun(options.sunDirection);
+    this.name = 'Eanpa Sky volumetric atmosphere and historical sky';
+    this.userData.isSkyCloudMesh = true;
+    this.starMap = options.starMap ?? createCelestialStarMapPlaceholder();
+    this.usesDeferredStarMap = options.starMap === undefined;
+    this.rendererBackend = options.rendererBackend ?? 'webgl';
+    this.radius = options.radius ?? DEFAULTS.radius;
+    this.maxCloudDistance = options.maxCloudDistance ?? DEFAULTS.maxCloudDistance;
+    this.cloudCoverage = options.cloudCoverage ?? DEFAULTS.cloudCoverage;
+    this.observerLatitudeDeg = options.observerLatitudeDeg ?? DEFAULTS.observerLatitudeDeg;
+    this.siderealAngle = options.siderealAngle ?? DEFAULTS.siderealAngle;
+    this.constellationVisibility = THREE.MathUtils.clamp(
+      options.constellationVisibility ?? DEFAULTS.constellationVisibility,
+      0,
+      1,
+    );
+    this.dawnAmount = options.dawnAmount ?? 0;
+    this.duskAmount = options.duskAmount ?? 0;
+    this.sunDirection.copy(options.sunDirection ?? DEFAULTS.sunDirection).normalize();
+    this.ready = this.initialize();
   }
 
   loadCelestialSky(): Promise<void> {
-    if (!this.usesDeferredStarMap || this.disposed) return Promise.resolve();
+    if (!this.usesDeferredStarMap || this.disposed) {
+      return this.ready.then(() => undefined);
+    }
     if (!this.celestialLoadPromise) {
       this.celestialLoadPromise = this.hydrateCelestialSky();
     }
-    return this.celestialLoadPromise;
+    return Promise.all([this.ready, this.celestialLoadPromise]).then(() => undefined);
   }
 
   preloadCelestialTexture(
     renderer: { initTexture(texture: THREE.Texture): void },
   ): void {
     renderer.initTexture(this.starMap);
+    if (this.starBackdrop) renderer.initTexture(this.starBackdrop);
+    if (this.moonTexture) renderer.initTexture(this.moonTexture);
   }
 
   get celestialGenerationMs(): number | null {
@@ -173,44 +178,187 @@ export class SkyCloudMesh extends THREE.Group {
   }
 
   updateSun(direction: THREE.Vector3): void {
-    this.nativeSky.updateSun?.(direction);
+    this.sunDirection.copy(direction).normalize();
+    this.applySunDirection();
+    this.fallback?.updateSun(this.sunDirection);
   }
 
   updateTime(time: number): void {
-    this.nativeSky.updateTime?.(time);
+    this.animationTime = Number.isFinite(time) ? time : 0;
+    this.fallback?.updateTime(this.animationTime);
+    this.eanpa?.update(this.animationTime, this.camera ?? undefined);
   }
 
   updateSiderealAngle(angle: number): void {
-    this.nativeSky.updateSiderealAngle?.(angle);
+    this.siderealAngle = Number.isFinite(angle) ? angle : 0;
+    this.eanpa?.setSiderealAngle(this.siderealAngle);
+    this.fallback?.updateSiderealAngle(this.siderealAngle);
   }
 
   updateConstellationVisibility(visibility: number): void {
-    this.nativeSky.updateConstellationVisibility?.(THREE.MathUtils.clamp(visibility, 0, 1));
+    this.constellationVisibility = THREE.MathUtils.clamp(visibility, 0, 1);
+    this.eanpa?.setConstellationVisibility(this.constellationVisibility);
+    this.fallback?.updateConstellationVisibility(this.constellationVisibility);
   }
 
   updateAtmosphere(dawnAmount: number, duskAmount: number): void {
-    this.nativeSky.updateAtmosphere?.(dawnAmount, duskAmount);
+    this.dawnAmount = THREE.MathUtils.clamp(dawnAmount, 0, 1);
+    this.duskAmount = THREE.MathUtils.clamp(duskAmount, 0, 1);
+    // Eanpa keys its authored palette directly from the authoritative solar
+    // elevation. The explicit dawn/dusk envelopes remain for legacy WebGL.
+    this.fallback?.updateAtmosphere(this.dawnAmount, this.duskAmount);
   }
 
-  updateResolution(width: number, height: number): void {
-    this.nativeSky.updateResolution?.(width, height);
+  updateResolution(_width: number, _height: number): void {
+    // Eanpa reconstructs rays from the live camera matrices and does not need
+    // a screen-resolution uniform. Kept as a stable facade method.
   }
 
   updateCamera(camera: THREE.Camera): void {
-    if (this.nativeSky.updateCamera) {
-      this.nativeSky.updateCamera(camera);
-      return;
-    }
-
-    this.nativeSky.position.copy(camera.position);
+    this.camera = camera;
+    this.fallback?.updateCamera(camera);
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.nativeSky.removeFromParent();
-    disposeSky(this.nativeSky);
+    this.eanpa?.dispose();
+    this.eanpa = null;
+    this.fallback?.dispose();
+    this.fallback = null;
+    this.moonTexture?.dispose();
+    this.moonTexture = null;
+    this.starBackdrop?.dispose();
+    this.starBackdrop = null;
     this.starMap.dispose();
+    this.clear();
+  }
+
+  private async initialize(): Promise<SkyCloudMesh> {
+    const starBackdropPromise = loadBitmapTexture(EANPA_TYCHO_TEXTURE_URL, 4, {
+        anisotropyLimit: 4,
+      })
+      .then((texture) => {
+        texture.name = 'Eanpa Tycho 4K dense star field (J2000)';
+        return texture;
+      })
+      .catch((error: unknown) => {
+        console.warn('Eanpa Tycho texture could not be loaded; using the historical catalogue alone.', error);
+        return undefined;
+      });
+
+    if (!supportsNodeMaterials(this.rendererBackend)) {
+      const { OpenSkyFallback } = await import('./OpenSkyFallback.ts');
+      const starBackdrop = await starBackdropPromise;
+      const fallback = new OpenSkyFallback({
+        cloudCoverage: this.cloudCoverage,
+        constellationVisibility: this.constellationVisibility,
+        epochToJ2000Precession: GORSKI_KOTAR_1550_TO_J2000_PRECESSION,
+        observerLatitudeDeg: this.observerLatitudeDeg,
+        radius: this.radius,
+        siderealAngle: this.siderealAngle,
+        starBackdrop,
+        starMap: this.starMap,
+        sunDirection: this.sunDirection,
+      });
+      if (this.disposed) {
+        fallback.dispose();
+        starBackdrop?.dispose();
+        return this;
+      }
+      this.starBackdrop = starBackdrop ?? null;
+      this.fallback = fallback;
+      this.add(fallback);
+      this.applyCachedState();
+      return this;
+    }
+
+    const enginePromise = import('../../vendor/eanpa-sky/engine/sky_system.js');
+    const moonTexturePromise = loadBitmapTexture(EANPA_MOON_TEXTURE_URL, 1, {
+        srgb: true,
+        anisotropyLimit: 1,
+      })
+      .then((texture) => {
+        texture.name = 'Eanpa / NASA LROC moon color map';
+        return texture;
+      })
+      .catch((error: unknown) => {
+        console.warn('Eanpa moon texture could not be loaded; continuing without the moon disc.', error);
+        return undefined;
+      });
+    const [{ makeSkySystem }, moonTexture, starBackdrop] = await Promise.all([
+      enginePromise,
+      moonTexturePromise,
+      starBackdropPromise,
+    ]);
+    if (this.disposed) {
+      moonTexture?.dispose();
+      starBackdrop?.dispose();
+      return this;
+    }
+
+    const system = await makeSkySystem({
+      scene: this,
+      textures: {
+        stars: this.starMap,
+        starBackdrop,
+        moon: moonTexture,
+      },
+      opts: {
+        cloudFadeDist: this.maxCloudDistance,
+        cloudPasses: 1,
+        clouds: 'cumulus',
+        constellationVisibility: this.constellationVisibility,
+        domeRadius: this.radius,
+        lightSamples: 8,
+        observerLatitudeDeg: this.observerLatitudeDeg,
+        outputDither: 0,
+        siderealAngle: this.siderealAngle,
+        skySamples: 28,
+        starBackdropTransform: GORSKI_KOTAR_1550_TO_J2000_PRECESSION,
+        stableCloudPhase: true,
+        worldRayDir: true,
+      },
+    }) as EanpaSkySystem;
+    if (this.disposed) {
+      system.dispose();
+      moonTexture?.dispose();
+      starBackdrop?.dispose();
+      return this;
+    }
+
+    this.moonTexture = moonTexture ?? null;
+    this.starBackdrop = starBackdrop ?? null;
+    this.eanpa = system;
+    for (const [index, dome] of system.domes.entries()) {
+      dome.name = index === 0
+        ? 'Eanpa atmospheric and historical celestial dome'
+        : 'Eanpa volumetric cloud dome';
+      dome.userData.isSkyCloudMesh = true;
+    }
+    this.applyCachedState();
+    return this;
+  }
+
+  private applyCachedState(): void {
+    this.applySunDirection();
+    this.eanpa?.setSiderealAngle(this.siderealAngle);
+    this.eanpa?.setConstellationVisibility(this.constellationVisibility);
+    this.fallback?.updateSun(this.sunDirection);
+    this.fallback?.updateSiderealAngle(this.siderealAngle);
+    this.fallback?.updateConstellationVisibility(this.constellationVisibility);
+    this.fallback?.updateAtmosphere(this.dawnAmount, this.duskAmount);
+    if (this.camera) this.fallback?.updateCamera(this.camera);
+    this.updateTime(this.animationTime);
+  }
+
+  private applySunDirection(): void {
+    if (!this.eanpa) return;
+    MOON_DIRECTION.copy(this.sunDirection).negate();
+    // Eanpa chooses its night cloud key from the moon direction while setting
+    // the solar palette, so update the moon first.
+    this.eanpa.setMoonDirection(MOON_DIRECTION);
+    this.eanpa.setSunDirection(this.sunDirection);
   }
 
   private async hydrateCelestialSky(): Promise<void> {
@@ -219,44 +367,9 @@ export class SkyCloudMesh extends THREE.Group {
       loadedStarMap.dispose();
       return;
     }
-
-    hydrateCelestialStarMapTexture(
-      this.starMap as THREE.DataTexture,
-      loadedStarMap,
-    );
+    hydrateCelestialStarMapTexture(this.starMap as THREE.DataTexture, loadedStarMap);
     // The placeholder now owns the generated pixel buffer. The temporary
     // texture was never uploaded, so disposing its shell is safe.
     loadedStarMap.dispose();
-  }
-}
-
-function createInactiveVolumeNoiseTexture(): THREE.Data3DTexture {
-  const texture = new THREE.Data3DTexture(new Uint8Array([128]), 1, 1, 1);
-  texture.name = 'Inactive sky volume noise';
-  texture.format = THREE.RedFormat;
-  texture.type = THREE.UnsignedByteType;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.wrapR = THREE.RepeatWrapping;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
-  texture.unpackAlignment = 1;
-  texture.colorSpace = THREE.NoColorSpace;
-  texture.userData.isSkyCloudManagedNoiseTexture = true;
-  texture.needsUpdate = true;
-  return texture;
-}
-
-function disposeSky(sky: SkyCloudNativeMesh): void {
-  if (typeof sky.dispose === 'function') {
-    sky.dispose();
-    return;
-  }
-
-  sky.geometry?.dispose();
-  const materials = Array.isArray(sky.material) ? sky.material : [sky.material];
-  for (const material of materials) {
-    material?.dispose();
   }
 }

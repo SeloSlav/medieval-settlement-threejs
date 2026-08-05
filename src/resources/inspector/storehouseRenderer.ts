@@ -4,10 +4,7 @@ import {
   STOREHOUSE_HAUL_PER_WORKER,
   STOREHOUSE_OVERFLOW_THRESHOLD,
 } from '../../generated/gameBalance.ts';
-import {
-  formatDeliveryRoadDistance,
-  formatDeliveryTripDuration,
-} from '../../logistics/deliveryLogistics.ts';
+import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import { formatTripPhaseLabel } from '../../logistics/deliveryTrips.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { BuildingState, InspectableTarget } from '../types.ts';
@@ -19,10 +16,7 @@ import {
   buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
-import {
-  formatCooldown,
-  formatNextDeliveryTargetLabel,
-} from './woodcuttersLodgeStatus.ts';
+import { formatCooldown } from './woodcuttersLodgeStatus.ts';
 import {
   STOREHOUSE_COMMODITIES,
   STOREHOUSE_STOCK_TARGET_PRESETS,
@@ -41,8 +35,6 @@ export function renderStorehouseInspector(
   const { building } = target;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const inboundTrip = context.worldQueries.getInboundSupplyTrip(building);
-  const claimedResidences = context.worldQueries.getClaimedResidencesForFirewoodSupplier(building);
-  const nextFuelTarget = context.worldQueries.getNextFirewoodDeliveryTarget(building);
   const industrialDispatch = building.storehouseAcceptsFirewood
     && building.assignedLabor > 0
     && building.firewood > 1e-6
@@ -63,21 +55,7 @@ export function renderStorehouseInspector(
     .find(({ dispatch }) => dispatch != null) ?? null;
   const fuelWorkers = Math.min(2, building.assignedLabor);
   const fuelPerTrip = STOREHOUSE_FIREWOOD_PER_DELIVERY * fuelWorkers;
-  const fuelDistance = nextFuelTarget
-    ? context.worldQueries.getRoadPathDistance(
-      building.x,
-      building.z,
-      nextFuelTarget.x,
-      nextFuelTarget.z,
-    )
-    : null;
-  const fuelTripSeconds = context.worldQueries.getFirewoodDeliveryTripSeconds(
-    building,
-    nextFuelTarget,
-    fuelWorkers,
-  );
   const activeTripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
-  const nextFuelLabel = formatNextDeliveryTargetLabel(nextFuelTarget);
   const deliveringHouseholdFuel = activeTrip?.cargoKind === 'firewood'
     && activeTrip.residenceId != null;
   const deliveringIndustrialFuel = activeTrip?.cargoKind === 'firewood'
@@ -113,9 +91,9 @@ export function renderStorehouseInspector(
     0,
   );
   const status = building.assignedLabor <= 0
-      ? ['Storage active · assign haulers to distribute fuel and collect overflow', 'idle'] as const
+      ? ['Storage active · assign haulers to stock market stalls and collect overflow', 'idle'] as const
       : deliveringHouseholdFuel
-        ? [`Household fuel cart ${formatTripPhaseLabel(activeTrip!.phase).toLowerCase()}`, 'active'] as const
+        ? [`Legacy household fuel cart ${formatTripPhaseLabel(activeTrip!.phase).toLowerCase()}`, 'active'] as const
         : deliveringIndustrialFuel
           ? [`Industrial fuel cart to ${activeIndustrialTarget ? context.worldQueries.getBuildingLabel(activeIndustrialTarget.kind) : 'workshop'}`, 'active'] as const
         : activeTrip
@@ -124,10 +102,10 @@ export function renderStorehouseInspector(
             ? ['Collecting producer overflow', 'active'] as const
             : accepted.length === 0
               ? ['All acceptance filters disabled', 'idle'] as const
-              : building.storehouseAcceptsFirewood && building.firewood > 0 && nextFuelTarget
-                ? [`Ready to deliver fuel to ${nextFuelLabel}`, 'ok'] as const
+              : building.storehouseAcceptsFirewood && building.firewood > 0
+                ? ['Ready to stock Marketplace goods stalls before industrial fuel duty', 'ok'] as const
                 : industrialDispatch
-                  ? [`Protected household reserves covered · ${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} is next for surplus fuel`, 'ok'] as const
+                  ? [`Marketplace duty clear · ${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} is next for surplus fuel`, 'ok'] as const
                   : materialDispatch
                     ? [`Ready to supply ${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)}`, 'ok'] as const
                     : collectionHeadroom <= 0.05
@@ -142,13 +120,13 @@ export function renderStorehouseInspector(
     detailsHtml: `
       ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Role</span><span>Communal reserve, household fuel distribution, construction logistics, and raw-material buffering</span></li>
-      <li><span>Duty priority</span><span>Claimed homes below their winter-night fuel floor first; urgent workshop buffers next; incoming producer overflow last</span></li>
-      <li><span>Fuel territory</span><span>${claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} households claimed`}</span></li>
-      <li><span>Next fuel delivery</span><span>${nextFuelLabel}</span></li>
-      <li><span>Fuel road distance</span><span>${formatDeliveryRoadDistance(fuelDistance)}</span></li>
-      <li><span>Fuel cart</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} firewood · ${formatDeliveryTripDuration(fuelTripSeconds)}` : 'Paused · no haulers'}</span></li>
-      <li><span>Surplus fuel duty</span><span>${nextFuelTarget ? `Protected household stock first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
+      <li><span>Role</span><span>Communal reserve, Marketplace goods-stall supply, construction logistics, and raw-material buffering</span></li>
+      <li><span>Duty priority</span><span>Stock Marketplace firewood to cover household winter-night fuel floors first; urgent workshop buffers next; incoming producer overflow last</span></li>
+      <li><span>Fuel territory</span><span>Handled by staffed Marketplace stalls across their connected road branch · scarce fuel goes to nearest homes first</span></li>
+      <li><span>Next fuel delivery</span><span>Marketplace stall or urgent workshop · never a routine home cart</span></li>
+      <li><span>Last mile</span><span>Abstract from stocked goods stalls · no worker reserved</span></li>
+      <li><span>Market load</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} firewood per replenishment cart` : 'Paused · no haulers'}</span></li>
+      <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
       <li><span>Raw-material duty</span><span>${materialDispatch ? `${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)} · ${staffingPriorityLabel(materialDispatch.dispatch!.workPriority)} priority · ${materialDispatch.dispatch!.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(materialDispatch.dispatch!.routeDistance)}` : 'No staffed workshop currently requests stored iron, clay, or salt'}</span></li>
       <li><span>Collection trigger</span><span>Producer stock above ${Math.round(STOREHOUSE_OVERFLOW_THRESHOLD * 100)}%</span></li>
       <li><span>Cart assignment</span><span>Fullest producer first · nearest compatible idle depot</span></li>
@@ -156,7 +134,7 @@ export function renderStorehouseInspector(
       <li><span>Accepted cargo</span><span>${accepted.join(', ') || 'None'}</span></li>
       <li><span>Collection ceilings</span><span>${collectionTargets}</span></li>
       <li><span>Food policy</span><span>Never accepted — granaries remain specialized</span></li>
-      <li><span>Market role</span><span>No food retail or regional trade</span></li>
+      <li><span>Market role</span><span>Stocks firewood, cloth, and pottery at local goods stalls · no food or regional trade</span></li>
       <li><span>Hauling</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} · ${formatCooldown(activeTripRemaining ?? Infinity)} left` : inboundTrip ? 'Producer cart inbound' : 'Awaiting duty'}</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
@@ -164,14 +142,14 @@ export function renderStorehouseInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers first protect a half winter day of firewood in each claimed home. They then restore the most urgent staffed workshop buffer from stored iron, clay, salt, or surplus fuel before collecting fresh producer overflow. This lets a depot shorten mine-to-workshop routes without creating goods off-map.</p>
+        <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers first replenish Marketplace stalls; those stalls allocate firewood to connected homes instantly, filling the nearest shortages first without a last-mile cart. Haulers then restore the most urgent staffed workshop buffer from stored iron, clay, salt, or surplus fuel before collecting fresh producer overflow.</p>
         ${acceptanceToggle('timber', 'Timber', building.storehouseAcceptsTimber)}
         ${acceptanceToggle('stone', 'Stone', building.storehouseAcceptsStone)}
         ${acceptanceToggle('firewood', 'Firewood', building.storehouseAcceptsFirewood)}
         ${acceptanceToggle('iron', 'Iron', building.storehouseAcceptsIron !== false)}
         ${acceptanceToggle('clay', 'Clay', building.storehouseAcceptsClay !== false)}
         ${acceptanceToggle('salt', 'Salt', building.storehouseAcceptsSalt !== false)}
-        <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. After household fuel duties, the fullest blocked producer claims the nearest compatible idle depot. Targets cap incoming overflow carts only: construction and household fuel can still draw below them, material already above a lowered target remains available, and one cart already on the road may still arrive.</p>
+        <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. After market-stall and industrial duties, the fullest blocked producer claims the nearest compatible idle depot. Targets cap incoming overflow carts only: construction and stall replenishment can still draw below them, material already above a lowered target remains available, and one cart already on the road may still arrive.</p>
         ${renderStorehouseStockTargetControls(building)}
       </div>
     `,

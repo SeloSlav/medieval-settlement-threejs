@@ -1,7 +1,7 @@
 use crate::balance_generated::{
     CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, CHAPEL_AUTO_SWEEP_INTERVAL_TICKS, CHAPEL_CHARITY_GOLD_PER_DAY,
-    CHAPEL_POOR_RELIEF_INTERVAL_DAYS, TICK_DT,
+    CALENDAR_WORK_START_HOUR, CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
+    TICK_DT,
 };
 
 /// Configured "per day" parish rates accrue only while the parish office is
@@ -27,13 +27,6 @@ pub fn chapel_alms_dispatch_interval_seconds() -> f64 {
     chapel_workday_seconds()
 }
 
-/// Legacy auto-sweeps keep their configured global cadence. Physical
-/// settlements treat the same policy as a standing cart order during work
-/// hours, but this predicate remains the compatibility clock.
-pub fn chapel_auto_sweep_due(sim_tick: u64) -> bool {
-    CHAPEL_AUTO_SWEEP_INTERVAL_TICKS > 0 && sim_tick % CHAPEL_AUTO_SWEEP_INTERVAL_TICKS == 0
-}
-
 /// Poor relief leaves each parish on Monday morning. Deriving the cadence from
 /// the global tick preserves old saves without adding per-chapel timer state.
 pub fn chapel_poor_relief_due(sim_tick: u64) -> bool {
@@ -45,12 +38,12 @@ pub fn chapel_poor_relief_due(sim_tick: u64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds, chapel_auto_sweep_due,
+        chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds,
         chapel_daily_gold_per_work_tick, chapel_poor_relief_due, chapel_workday_seconds,
     };
     use crate::balance_generated::{
-        CALENDAR_SECONDS_PER_DAY, CHAPEL_AUTO_SWEEP_INTERVAL_TICKS, CHAPEL_CHARITY_GOLD_PER_DAY,
-        CHAPEL_POOR_RELIEF_INTERVAL_DAYS, TICK_DT,
+        CALENDAR_SECONDS_PER_DAY, CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_POOR_RELIEF_INTERVAL_DAYS,
+        TICK_DT,
     };
 
     #[test]
@@ -67,14 +60,6 @@ mod tests {
     fn physical_alms_batch_one_day_of_charity_into_one_purse() {
         assert!((chapel_alms_dispatch_amount() - CHAPEL_CHARITY_GOLD_PER_DAY).abs() < 1e-9);
         assert!((chapel_alms_dispatch_interval_seconds() - chapel_workday_seconds()).abs() < 1e-9);
-    }
-
-    #[test]
-    fn auto_sweep_keeps_its_global_cadence_outside_work_hours() {
-        assert!(chapel_auto_sweep_due(0));
-        assert!(!chapel_auto_sweep_due(CHAPEL_AUTO_SWEEP_INTERVAL_TICKS - 1));
-        assert!(chapel_auto_sweep_due(CHAPEL_AUTO_SWEEP_INTERVAL_TICKS));
-        assert!(chapel_auto_sweep_due(CHAPEL_AUTO_SWEEP_INTERVAL_TICKS * 2));
     }
 
     #[test]

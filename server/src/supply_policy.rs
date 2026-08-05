@@ -352,10 +352,10 @@ pub fn is_specialty_supplier_operational(
 
 /// Food kept at a routine supplier before an institution may collect surplus.
 ///
-/// One ordinary cart load is protected for each household claimed by that
-/// producer, but no more than half the source capacity. This lets remote
-/// branches keep serving locally while granaries, smokehouses, and guardhouses
-/// draw only from unclaimed or genuinely overflowing stock.
+/// One ordinary allocation batch is protected for each household claimed by
+/// that Marketplace, but no more than half the source capacity. This lets
+/// remote branches keep serving locally while granaries, smokehouses, and
+/// guardhouses draw only from unclaimed or genuinely overflowing stock.
 pub fn household_food_reserve(claimed_households: u32, source_capacity: f64) -> f64 {
     (claimed_households as f64 * HOUSEHOLD_FOOD_RESERVE_PER_CLAIM)
         .min(source_capacity.max(0.0) * HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION)

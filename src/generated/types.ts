@@ -141,6 +141,7 @@ export const Building = __t.object("Building", {
   curedMeat: __t.f64(),
   smokedFish: __t.f64(),
   cheese: __t.f64(),
+  privateExportProceedsGold: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -475,6 +476,14 @@ export const PlayerResources = __t.object("PlayerResources", {
   curedMeat: __t.f64(),
   smokedFish: __t.f64(),
   cheese: __t.f64(),
+  landLevyRate: __t.f64(),
+  importDutyRate: __t.f64(),
+  exportDutyRate: __t.f64(),
+  landLevyAssessedTotal: __t.f64(),
+  landLevyCollectedTotal: __t.f64(),
+  importDutyCollectedTotal: __t.f64(),
+  exportDutyCollectedTotal: __t.f64(),
+  privateExportIncomeTotal: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

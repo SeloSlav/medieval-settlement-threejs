@@ -66,6 +66,13 @@ pub fn step_household_market_orders(
         if owner_marketplaces.is_empty() {
             continue;
         }
+        let import_duty_rate = ctx
+            .db
+            .player_resources()
+            .owner()
+            .find(&owner)
+            .map(|resources| crate::fiscal_policy::clamp_import_duty_rate(resources.import_duty_rate))
+            .unwrap_or(0.0);
 
         let residences: Vec<_> = ctx
             .db
@@ -124,7 +131,7 @@ pub fn step_household_market_orders(
                 if let Some(commodity) = best_affordable_food_commodity(
                     all_market_food_commodities(),
                     wealth,
-                    market.food_price_mult,
+                    market.food_price_mult * (1.0 + import_duty_rate),
                 ) {
                     let gold_cost =
                         scaled_gold_cost(commodity.base_gold_cost, market.food_price_mult);
@@ -154,7 +161,7 @@ pub fn step_household_market_orders(
                 if let Some(commodity) = best_affordable_water_commodity(
                     all_market_water_commodities(),
                     wealth,
-                    market.firewood_price_mult,
+                    market.firewood_price_mult * (1.0 + import_duty_rate),
                 ) {
                     let gold_cost =
                         scaled_gold_cost(commodity.base_gold_cost, market.firewood_price_mult);

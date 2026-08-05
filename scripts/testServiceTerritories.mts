@@ -199,7 +199,7 @@ assert.match(storehouseInspector, /Fuel territory/);
 assert.match(storehouseInspector, /winter-night fuel floor/);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
 assert.match(residenceInspector, /Firewood supplier/);
-assert.match(residenceInspector, /accepting storehouse/);
+assert.match(residenceInspector, /staffed goods stall/);
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
 assert.match(tickContext, /water_claims: RefCell/);
 assert.match(tickContext, /pub fn well_supplier_for/);
@@ -213,7 +213,11 @@ const lodgeServer = fs.readFileSync('server/src/simulation/woodcutters_lodge.rs'
 const wellServer = fs.readFileSync('server/src/simulation/well.rs', 'utf8');
 assert.doesNotMatch(lodgeServer, /tick\.firewood_supplier_for/);
 assert.doesNotMatch(storehouseServer, /tick\.firewood_supplier_for/);
-assert.match(wellServer, /tick\.well_supplier_for/);
+const householdDistribution = fs.readFileSync(
+  'server/src/simulation/household_distribution.rs',
+  'utf8',
+);
+assert.match(householdDistribution, /tick\.well_supplier_for/);
 const marketplaceCaravan = fs.readFileSync(
   'server/src/simulation/marketplace_caravan.rs',
   'utf8',
@@ -221,7 +225,7 @@ const marketplaceCaravan = fs.readFileSync(
 assert.match(
   marketplaceCaravan,
   /ResidenceNeedKind::Firewood[\s\S]*marketplace_stall_workplace[\s\S]*"village_storehouse"/,
-  'storehouse workers must own Marketplace firewood stalls and their household carts',
+  'storehouse workers must own Marketplace firewood stalls',
 );
 assert.match(
   lodgeServer,

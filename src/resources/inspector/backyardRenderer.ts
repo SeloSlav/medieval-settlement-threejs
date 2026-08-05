@@ -144,7 +144,7 @@ export function renderBackyardInspector(
       <li><span>Build cost</span><span>${formatBackyardGardenCost(garden.kind)}</span></li>
     `,
     supplementalPanelHtml: `<p class="resource-inspector-note">${producesFood
-      ? 'The household consumes its reserved share directly. The remainder becomes real Marketplace inventory that a granary stall can deliver to other homes.'
+      ? 'The household consumes its reserved share directly. The remainder becomes real Marketplace inventory allocated abstractly to connected homes.'
       : 'Routine local purchases are aggregated: the seller gains household wealth and one local market levy is assessed. Parish tithes remain a separate later household payment.'}</p>`,
     demolish: {
       visible: true,

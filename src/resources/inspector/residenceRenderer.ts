@@ -380,6 +380,7 @@ export function renderResidenceInspector(
         clock: currentClock,
         sabbathObserved: parishPolicy.sabbathObservanceEnabled
           && settlementHasStaffedChapel(context.gameState),
+        importDutyRate: context.getFiscalPolicy?.().importDutyRate ?? 0,
         residenceIds: new Set([residence.id]),
       })
     : null;
@@ -828,7 +829,7 @@ function residenceUpgradePanel(
     ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
     : `Blocked · ${plan.blockers.join(' · ')}.`;
   const guidance = plan.nextTier === 2
-    ? "Firewood needs a staffed lodge or accepting storehouse; water needs a completed well whose service radius reaches this home. Unassigned haulers make routine deliveries, and roads make their trips faster."
+    ? "Firewood needs a staffed goods stall; water needs a completed well whose service radius and road branch reach this home. Household supply is allocated without a last-mile hauler."
     : 'Preserved food needs a staffed smokehouse or pastoral holding; ale needs a staffed brewhouse or parish-linked monastery; household textiles need a staffed weaver.';
   const throughput = prosperity && projection
     ? projection.immediateSustainable

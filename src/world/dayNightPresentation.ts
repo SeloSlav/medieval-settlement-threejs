@@ -8,6 +8,11 @@ import {
 } from '../generated/gameBalance.ts';
 import type { GameClock } from './gameCalendar.ts';
 import { simElapsedSeconds } from './gameCalendar.ts';
+import {
+  GORSKI_KOTAR_EPOCH_JULIAN_DAY,
+  GORSKI_KOTAR_LATITUDE_DEG,
+  GORSKI_KOTAR_LONGITUDE_DEG,
+} from '../sky/gorskiKotarCelestial.ts';
 
 export type DayNightGrade = {
   saturation: number;
@@ -44,14 +49,13 @@ export type DayNightLightingState = {
 };
 
 const SUN_DIRECTION = new THREE.Vector3();
-const SETTLEMENT_LATITUDE_RAD = THREE.MathUtils.degToRad(45.6);
+const SETTLEMENT_LATITUDE_RAD = THREE.MathUtils.degToRad(GORSKI_KOTAR_LATITUDE_DEG);
 const SOLAR_NOON_HOUR = 12.75;
 const AXIAL_TILT_DEG = 23.44;
 const DAYS_PER_YEAR = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
 // The fixed 30-day calendar keeps familiar month names. Its winter solstice
 // falls late in December, just as it does in the northern hemisphere.
 const WINTER_SOLSTICE_DAY = DAYS_PER_YEAR - CALENDAR_DAYS_PER_MONTH * 0.35;
-const LOCAL_SIDEREAL_PHASE_HOURS = 8;
 const EVENING_WINDOW_PHASES = [
   { at: 0, value: 1 },
   { at: CALENDAR_WORK_START_HOUR - 1.25, value: 1 },
@@ -179,22 +183,28 @@ export function computeDayNightState(
   return state;
 }
 
-/**
- * Approximate local sidereal time for Gorski Kotar. The extra yearly turn is
- * what brings different classical constellations into the evening sky each season.
- */
+/** Local apparent sky rotation for Gorski Kotar in the epoch-1550 calendar. */
 export function computeSiderealAngle(
   clock: Pick<GameClock, 'month' | 'monthDay' | 'preciseCalendarDay'>,
   hour: number,
 ): number {
-  const calendarDay = clock.preciseCalendarDay
-    ?? (clock.month - 1) * CALENDAR_DAYS_PER_MONTH + Math.max(0, clock.monthDay - 0.5);
-  const siderealHours = hour
-    + calendarDay / DAYS_PER_YEAR * CALENDAR_HOURS_PER_DAY
-    + LOCAL_SIDEREAL_PHASE_HOURS;
-  return positiveModulo(siderealHours, CALENDAR_HOURS_PER_DAY)
-    / CALENDAR_HOURS_PER_DAY
-    * Math.PI * 2;
+  const localCalendarMoment = clock.preciseCalendarDay
+    ?? (clock.month - 1) * CALENDAR_DAYS_PER_MONTH
+      + Math.max(0, clock.monthDay - 1)
+      + hour / CALENDAR_HOURS_PER_DAY;
+  // The game clock is local mean solar time. Convert it to UT before applying
+  // Greenwich sidereal rotation, then restore the observer longitude.
+  const julianDay = GORSKI_KOTAR_EPOCH_JULIAN_DAY
+    + localCalendarMoment
+    - GORSKI_KOTAR_LONGITUDE_DEG / 360;
+  const daysSinceJ2000 = julianDay - 2451545;
+  const centuriesSinceJ2000 = daysSinceJ2000 / 36525;
+  const greenwichSiderealDeg = 280.46061837
+    + 360.98564736629 * daysSinceJ2000
+    + 0.000387933 * centuriesSinceJ2000 * centuriesSinceJ2000
+    - centuriesSinceJ2000 * centuriesSinceJ2000 * centuriesSinceJ2000 / 38710000;
+  const localSiderealDeg = greenwichSiderealDeg + GORSKI_KOTAR_LONGITUDE_DEG;
+  return THREE.MathUtils.degToRad(positiveModulo(localSiderealDeg, 360));
 }
 
 function computeSolarPosition(

@@ -185,6 +185,8 @@ export type BuildingState = {
   chapelTier?: 1 | 2 | 3;
   /** Source-held fares or gifts pledged to the civic treasury. */
   civicReceiptsGold?: number;
+  /** Private automatic-export proceeds awaiting distribution to producer households. */
+  privateExportProceedsGold?: number;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {

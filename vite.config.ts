@@ -21,7 +21,7 @@ function vendorChunk(id: string): string | undefined {
   if (normalizedId.endsWith('/src/ui/SettlementHud.ts')) return 'settlement-hud';
   if (!id.includes('node_modules')) {
     if (id.includes('/vendor/seedthree/')) return 'seedthree-vendor';
-    if (id.includes('/vendor/sky-cloud-3d/')) return 'sky-vendor';
+    if (id.includes('/vendor/eanpa-sky/')) return 'sky-vendor';
     if (id.includes('/src/generated/')) return 'spacetime-generated';
     return undefined;
   }
@@ -70,8 +70,6 @@ export default defineConfig(({ mode }) => {
     // produces malformed WebGPU shaders across otherwise unrelated materials.
     dedupe: ['three'],
     alias: {
-      'sky-cloud-3d/webgl': fileURLToPath(new URL('./vendor/sky-cloud-3d/SkyCloudMesh.webgl', import.meta.url)),
-      'sky-cloud-3d': fileURLToPath(new URL('./vendor/sky-cloud-3d/SkyCloudMesh.js', import.meta.url)),
       '@seedthree': fileURLToPath(new URL('./vendor/seedthree/src', import.meta.url)),
     },
     },

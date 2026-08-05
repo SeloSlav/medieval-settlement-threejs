@@ -35,6 +35,8 @@ import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import { SkyCloudMesh, loadSkyPerlinTexture } from '../sky/SkyCloudMesh.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { updateTerrainRoadWear } from '../terrain/TerrainRoadWear.ts';
+import { computeDayNightState } from '../world/dayNightPresentation.ts';
+import type { GameClock } from '../world/gameCalendar.ts';
 import {
   createHamletForestPlacements,
   resolveHamletForestEdgeLayout,
@@ -414,6 +416,7 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 const params = new URLSearchParams(window.location.search);
+const requestedMoonlightSky = params.get('sky') === 'moonlight';
 const requestedMotionRouteId = params.get('route');
 const requestedVisualProfile = params.get('visualProfile') === '1';
 const requestedForestEdgeLayout = resolveHamletForestEdgeLayout(
@@ -613,13 +616,49 @@ const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 420);
 camera.layers.disable(TREE_SHADOW_CAST_LAYER);
 const motionCameraTarget = new THREE.Vector3();
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x78929d);
+const sceneBackground = new THREE.Color(0x78929d);
+scene.background = sceneBackground;
 scene.fog = new THREE.Fog(0x879da3, 230, 400);
 
-scene.add(new THREE.HemisphereLight(0xd9e8ec, 0x59634f, 1.35));
-scene.add(new THREE.AmbientLight(0xb8c8d2, 0.12));
+const moonlightClock: GameClock = {
+  simTick: 0,
+  totalDays: 224,
+  hour: 23,
+  minute: 0,
+  preciseHour: 23,
+  preciseCalendarDay: 224 + 23 / 24,
+  weekday: 0,
+  monthDay: 15,
+  month: 8,
+  year: 1,
+  isSunday: true,
+  isWorkHours: false,
+};
+const fixtureDayNight = requestedMoonlightSky
+  ? computeDayNightState(moonlightClock, true)
+  : null;
+const hemisphere = new THREE.HemisphereLight(0xd9e8ec, 0x59634f, 1.35);
+const ambient = new THREE.AmbientLight(0xb8c8d2, 0.12);
+scene.add(hemisphere);
+scene.add(ambient);
 const sun = new THREE.DirectionalLight(0xffe6b5, 3.15);
-sun.position.set(-75, 112, -58);
+sun.position.copy(
+  fixtureDayNight?.sunDirection
+    ?? new THREE.Vector3(-75, 112, -58).normalize(),
+).multiplyScalar(145);
+if (fixtureDayNight) {
+  renderer.toneMappingExposure = 0.72;
+  sceneBackground.setHex(fixtureDayNight.fogColor);
+  scene.fog.color.setHex(fixtureDayNight.fogColor);
+  hemisphere.color.setHex(fixtureDayNight.hemiSkyColor);
+  hemisphere.groundColor.setHex(fixtureDayNight.hemiGroundColor);
+  hemisphere.intensity = fixtureDayNight.hemiIntensity;
+  ambient.color.setHex(fixtureDayNight.ambientColor);
+  ambient.intensity = fixtureDayNight.ambientIntensity;
+  sun.color.setHex(fixtureDayNight.sunColor);
+  sun.intensity = fixtureDayNight.sunIntensity;
+  document.documentElement.dataset.fixtureSky = 'moonlight';
+}
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -112;
@@ -856,9 +895,18 @@ const sky = new SkyCloudMesh({
   perlinTexture: skyPerlinTexture,
   constellationVisibility: 0,
 });
-const skyRuntimeResult = await waitForBootStage('sky-runtime', sky.ready, 1_500);
+const skyRuntimeResult = await waitForBootStage(
+  'sky-runtime',
+  sky.ready,
+  requestedMoonlightSky ? 8_000 : 1_500,
+);
 skyRuntimeReady = skyRuntimeResult.ok;
 sky.visible = skyRuntimeReady;
+if (fixtureDayNight && skyRuntimeReady) {
+  await sky.loadCelestialSky();
+  sky.updateAtmosphere(fixtureDayNight.dawnAmount, fixtureDayNight.duskAmount);
+  sky.updateSiderealAngle(fixtureDayNight.siderealAngle);
+}
 refreshFullVisualReadiness();
 scene.add(sky);
 

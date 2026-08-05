@@ -4,6 +4,7 @@ mod aggregate_spend;
 mod chapel_coffer;
 mod civic_receipts;
 mod commodities;
+mod fiscal_accounting;
 mod household_wealth;
 mod marketplace_orders;
 mod marketplace_trade;
@@ -35,11 +36,17 @@ pub use aggregate_spend::{
 };
 pub use chapel_coffer::{
     chapel_coffer_gold, chapel_monastery_tithe_due, chapel_tithe_payment_room,
-    collect_chapel_coffer, deposit_chapel_tithe, withdraw_coffer_in_place,
+    deposit_chapel_tithe, withdraw_coffer_in_place,
 };
 pub use civic_receipts::{
     credit_local_civic_receipts, local_civic_receipts, mark_local_civic_receipts_dispatched,
     restore_local_civic_receipts,
+};
+pub use fiscal_accounting::{
+    collectible_household_import_duty, credit_household_import_duty,
+    credit_private_export_receipt,
+    private_export_proceeds, record_private_export_income, restore_private_export_proceeds,
+    withdraw_private_export_proceeds,
 };
 pub use household_wealth::{credit_residence_wealth, debit_residence_wealth};
 pub use marketplace_orders::{

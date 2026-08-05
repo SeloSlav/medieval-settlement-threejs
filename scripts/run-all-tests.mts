@@ -20,6 +20,7 @@ const tests = [
   'test:textile-economy',
   'test:monastery-hospitality',
   'test:civic-receipts',
+  'test:fiscal-policy',
   'test:frontier-security',
   'test:frontier-armory',
   'test:settlement-armament',

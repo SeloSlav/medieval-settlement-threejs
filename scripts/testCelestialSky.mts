@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import * as THREE from 'three';
 import {
   CELESTIAL_SKY_EPOCH,
@@ -20,11 +21,13 @@ import {
   SKY_DEPTH_OCCLUSION_RADIUS,
   SKY_OPAQUE_LAST_RENDER_ORDER,
 } from '../src/sky/skyDepthOcclusionPolicy.ts';
-import { MAP_SIZE_PRESETS } from '../src/world/worldGenerationSettings.ts';
 import {
-  createSkyMaterial,
-  setPerlinNoiseTexture,
-} from '../vendor/sky-cloud-3d/SkyCloudMesh.js';
+  GORSKI_KOTAR_1550_TO_J2000_PRECESSION,
+  GORSKI_KOTAR_CELESTIAL_EPOCH,
+  GORSKI_KOTAR_LATITUDE_DEG,
+  GORSKI_KOTAR_LONGITUDE_DEG,
+} from '../src/sky/gorskiKotarCelestial.ts';
+import { MAP_SIZE_PRESETS } from '../src/world/worldGenerationSettings.ts';
 
 const maxOrbitDistance = 88 / 0.3;
 for (const dimensions of Object.values(MAP_SIZE_PRESETS)) {
@@ -40,32 +43,34 @@ for (const dimensions of Object.values(MAP_SIZE_PRESETS)) {
 assert.ok(SKY_OPAQUE_LAST_RENDER_ORDER > 0,
   'the depth-occluded sky must sort after ordinary opaque world geometry');
 
-const noise2d = new THREE.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1);
-noise2d.needsUpdate = true;
-const skyMaterial = createSkyMaterial({ perlinTexture: noise2d });
-const skyNodes = skyMaterial.userData.skyCloudNodes as {
-  staticNoiseMode: number;
-};
-assert.equal(skyNodes.staticNoiseMode, 0,
-  'the production 2D Perlin path must compile as a static shader specialization');
-const twoDimensionalColorNode = skyMaterial.colorNode;
-const replacement2d = noise2d.clone();
-setPerlinNoiseTexture(skyMaterial, replacement2d);
-assert.equal(skyMaterial.colorNode, twoDimensionalColorNode,
-  'replacing a 2D texture must retain the already-specialized node graph');
-const volumeNoise = new THREE.Data3DTexture(new Uint8Array([128]), 1, 1, 1);
-volumeNoise.needsUpdate = true;
-setPerlinNoiseTexture(skyMaterial, volumeNoise);
-assert.equal(skyNodes.staticNoiseMode, 1,
-  'the generic API must preserve its exact 3D-volume specialization');
-assert.notEqual(skyMaterial.colorNode, twoDimensionalColorNode,
-  'switching noise dimensionality must rebuild the specialized graph');
-skyMaterial.dispose();
-noise2d.dispose();
-replacement2d.dispose();
-volumeNoise.dispose();
+const eanpaSource = fs.readFileSync('vendor/eanpa-sky/engine/sky_system.js', 'utf8');
+const eanpaLicense = fs.readFileSync('vendor/eanpa-sky/LICENSE', 'utf8');
+const skyFacadeSource = fs.readFileSync('src/sky/SkyCloudMesh.ts', 'utf8');
+assert.match(eanpaLicense, /MIT License/);
+assert.match(eanpaSource, /export async function makeSkySystem/);
+assert.match(eanpaSource, /observerLatitude/);
+assert.match(eanpaSource, /siderealAngle/);
+assert.match(eanpaSource, /setSunDirection/);
+assert.match(eanpaSource, /constellationVisibility/);
+assert.match(eanpaSource, /starBackdropNode/);
+assert.match(eanpaSource, /starBackdropTransform/);
+assert.match(eanpaSource, /backdrop\.mul\(backdrop\)\.mul\(1\.6\)/);
+assert.match(eanpaSource, /fract\(float\(0\.5\)\.sub\(/);
+assert.match(skyFacadeSource, /vendor\/eanpa-sky\/engine\/sky_system\.js/);
+assert.match(skyFacadeSource, /starmap_tycho_4k\.jpg/);
+assert.doesNotMatch(skyFacadeSource, /sky-cloud-3d/);
+assert.equal(
+  fs.statSync('vendor/eanpa-sky/assets/starmap_tycho_4k.jpg').size,
+  3_009_146,
+  'the pinned Eanpa 4096x2048 Tycho panorama must be vendored intact',
+);
+assert.equal(fs.existsSync('vendor/sky-cloud-3d'), false,
+  'the retired non-commercial sky package must not remain in the tree');
 
 assert.equal(CELESTIAL_SKY_EPOCH, 1550);
+assert.equal(GORSKI_KOTAR_CELESTIAL_EPOCH, 1550);
+assert.equal(GORSKI_KOTAR_LATITUDE_DEG, 45.6);
+assert.equal(GORSKI_KOTAR_LONGITUDE_DEG, 14.9);
 assert.ok(NAKED_EYE_STAR_DATA.length / 4 > 5_000, 'catalog should contain the naked-eye sky');
 assert.ok(
   CLASSICAL_CONSTELLATION_LINES.length >= 80,
@@ -109,6 +114,16 @@ assert.ok(
     && precessionDistance < THREE.MathUtils.degToRad(8),
   'the historical epoch should visibly account for roughly 450 years of axial precession',
 );
+const reference1550Vector = equatorialVector(reference1550);
+const recoveredJ2000Vector = applyMatrix3(
+  GORSKI_KOTAR_1550_TO_J2000_PRECESSION,
+  reference1550Vector,
+);
+assert.ok(
+  new THREE.Vector3(...recoveredJ2000Vector).angleTo(new THREE.Vector3(1, 0, 0)) < 1e-7,
+  'the Tycho backdrop must be inverse-precessed to J2000 before epoch-1550 sampling',
+);
+assertRotationMatrix(GORSKI_KOTAR_1550_TO_J2000_PRECESSION);
 
 assert.ok(
   Math.abs(
@@ -130,17 +145,32 @@ assert.ok(
 );
 
 const springAngle = computeSiderealAngle(
-  { month: 3, monthDay: 1, preciseCalendarDay: 20.5 },
+  { month: 3, monthDay: 1, preciseCalendarDay: 60 + 21 / 24 },
   21,
 );
 const summerAngle = computeSiderealAngle(
-  { month: 6, monthDay: 1, preciseCalendarDay: 110.5 },
+  { month: 6, monthDay: 1, preciseCalendarDay: 150 + 21 / 24 },
   21,
 );
 const seasonalRotation = positiveModulo(summerAngle - springAngle, Math.PI * 2);
 assert.ok(
-  Math.abs(seasonalRotation - Math.PI / 2) < 1e-9,
-  'the same evening hour should reveal a quarter-turn of new sky after one fictional season',
+  Math.abs(seasonalRotation - Math.PI / 2) < THREE.MathUtils.degToRad(2),
+  'the same evening hour should reveal roughly a quarter-turn of new sky after one fictional season',
+);
+const firstNightAngle = computeSiderealAngle(
+  { month: 1, monthDay: 1, preciseCalendarDay: 21 / 24 },
+  21,
+);
+const nextNightAngle = computeSiderealAngle(
+  { month: 1, monthDay: 2, preciseCalendarDay: 1 + 21 / 24 },
+  21,
+);
+assert.ok(
+  Math.abs(
+    positiveModulo(nextNightAngle - firstNightAngle, Math.PI * 2)
+      - THREE.MathUtils.degToRad(0.9856)
+  ) < THREE.MathUtils.degToRad(0.01),
+  'the star field should advance by the sidereal-vs-solar offset on consecutive nights',
 );
 
 map.dispose();
@@ -217,6 +247,44 @@ function equatorialAngularDistance(
   const dot = Math.sin(aDec) * Math.sin(bDec)
     + Math.cos(aDec) * Math.cos(bDec) * Math.cos(aRa - bRa);
   return Math.acos(THREE.MathUtils.clamp(dot, -1, 1));
+}
+
+function equatorialVector(
+  coordinate: { rightAscensionDeg: number; declinationDeg: number },
+): readonly [number, number, number] {
+  const rightAscension = THREE.MathUtils.degToRad(coordinate.rightAscensionDeg);
+  const declination = THREE.MathUtils.degToRad(coordinate.declinationDeg);
+  const cosDeclination = Math.cos(declination);
+  return [
+    cosDeclination * Math.cos(rightAscension),
+    Math.sin(declination),
+    cosDeclination * Math.sin(rightAscension),
+  ];
+}
+
+function applyMatrix3(
+  matrix: readonly number[],
+  vector: readonly [number, number, number],
+): readonly [number, number, number] {
+  return [
+    matrix[0] * vector[0] + matrix[1] * vector[1] + matrix[2] * vector[2],
+    matrix[3] * vector[0] + matrix[4] * vector[1] + matrix[5] * vector[2],
+    matrix[6] * vector[0] + matrix[7] * vector[1] + matrix[8] * vector[2],
+  ];
+}
+
+function assertRotationMatrix(matrix: readonly number[]): void {
+  const rows = [
+    new THREE.Vector3(matrix[0], matrix[1], matrix[2]),
+    new THREE.Vector3(matrix[3], matrix[4], matrix[5]),
+    new THREE.Vector3(matrix[6], matrix[7], matrix[8]),
+  ];
+  for (const row of rows) {
+    assert.ok(Math.abs(row.length() - 1) < 1e-10, 'precession rows must have unit length');
+  }
+  assert.ok(Math.abs(rows[0].dot(rows[1])) < 1e-10);
+  assert.ok(Math.abs(rows[0].dot(rows[2])) < 1e-10);
+  assert.ok(Math.abs(rows[1].dot(rows[2])) < 1e-10);
 }
 
 function positiveModulo(value: number, divisor: number): number {

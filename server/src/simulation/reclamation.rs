@@ -615,6 +615,7 @@ pub fn insert_reclamation_pile(
             crate::marketplace_procurement_policy::MARKETPLACE_GOLD_RESERVE_DEFAULT,
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
+        private_export_proceeds_gold: 0.0,
         barley: stock.barley.max(0.0),
         malt: stock.malt.max(0.0),
         flax: stock.flax.max(0.0),

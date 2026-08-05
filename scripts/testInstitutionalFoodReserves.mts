@@ -276,9 +276,9 @@ assert.match(granaryInspector, /Household priority/);
 assert.match(granaryInspector, /data-granary-households-first/);
 assert.match(granaryInspector, /Feed households before smokehouses/);
 assert.match(granaryInspector, /falls through/);
-assert.match(granaryInspector, /critical guards, smokehouse working batches, routine company reserves, and enabled granaries in that order/);
-assert.match(granaryInspector, /Producer-owned carts protect household reserves/);
-assert.match(granaryInspector, /Producers with no claimed homes can send their whole stock/);
+assert.match(granaryInspector, /critical guards, smokehouse working batches, routine company reserves, and enabled granaries/);
+assert.match(granaryInspector, /Producer-owned carts protect local Marketplace reserves/);
+assert.match(granaryInspector, /Sources with no dependent market branch can release their whole surplus/);
 assert.match(guardhouseInspector, /becomes an emergency claim/);
 assert.match(guardhouseInspector, /None until polearms arm the company/);
 

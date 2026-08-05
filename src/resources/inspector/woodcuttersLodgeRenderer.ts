@@ -6,7 +6,6 @@ import {
 } from '../../generated/gameBalance.ts';
 import {
   formatDeliveryRoadDistance,
-  formatDeliveryTripDuration,
 } from '../../logistics/deliveryLogistics.ts';
 import {
   formatLodgeCrewSplit,
@@ -62,7 +61,6 @@ export function renderWoodcuttersLodgeInspector(
   const millsWithTimber = connectedMills.filter((mill) => mill.timber > 0).length;
   const roadAccess = context.worldQueries.getRoadAccessLabel(building.x, building.z);
   const onRoad = roadAccess.startsWith('Connected');
-  const deliveryTripSeconds = context.worldQueries.getLodgeDeliveryTripSeconds(building, nextDeliveryTarget);
   const deliveryDistance = nextDeliveryTarget
     ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
     : null;
@@ -150,21 +148,25 @@ export function renderWoodcuttersLodgeInspector(
     : nearestMillDistance != null
       ? `${connectedMills.length} reachable (nearest ${nearestMillDistance.toFixed(0)} m by road)`
       : `${connectedMills.length} reachable off-road at reduced speed`;
-  const residenceSummary = claimedResidences.length === 0
-    ? 'None in range'
-    : `${claimedResidences.length} claimed`;
+  const residenceSummary = 'Lodge → staffed Storehouse → Marketplace stall → abstract household supply';
   const industrialFuelDuty = industrialDispatch
     ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${staffingPriorityLabel(industrialDispatch.workPriority)} priority · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
     : activeBuildingDestination
       ? `Cart committed to ${context.worldQueries.getBuildingLabel(activeBuildingDestination.kind)}`
       : 'No staffed workshop currently requests surplus fuel';
 
-  const deliveryRow = crew.delivering > 0
-    ? `<li><span>Next delivery</span><span>${activeDestinationLabel}</span></li>
+  const deliveryRow = activeTrip
+    ? `<li><span>Active physical cart</span><span>${activeDestinationLabel}</span></li>
       <li><span>Road distance</span><span>${formatDeliveryRoadDistance(activeTripDistance ?? deliveryDistance)}</span></li>
-      <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
+      <li><span>Delivery timer</span><span>${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left</span></li>
       <li><span>Firewood per trip</span><span>${firewoodPerTrip}</span></li>`
-    : `<li><span>Delivery</span><span>Waiting for an unassigned hauler</span></li>`;
+    : hasIndustrialTarget
+      ? `<li><span>Next physical cart</span><span>${industrialTargetLabel}</span></li>
+        <li><span>Household last mile</span><span>None · Storehouses stock Marketplace stalls instead</span></li>`
+      : crew.delivering > 0
+        ? `<li><span>Physical logistics</span><span>Ready for timber intake or industrial fuel duty</span></li>
+          <li><span>Household last mile</span><span>None · Storehouses stock Marketplace stalls instead</span></li>`
+        : `<li><span>Physical logistics</span><span>Waiting for an assigned lodge hauler</span></li>`;
 
   const processOutputLabel = building.assignedLabor > 0
     ? `${firewoodPerCycle} firewood from ${timberPerCycle} timber`
@@ -180,8 +182,8 @@ export function renderWoodcuttersLodgeInspector(
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Labor roles</span><span>${crewLabel}</span></li>
       <li><span>Supplying mills</span><span>${millSummary}</span></li>
-      <li><span>Claimed residences</span><span>${residenceSummary}</span></li>
-      <li><span>Surplus fuel duty</span><span>${nextDeliveryTarget ? `Protected household stock first · then ${industrialFuelDuty}` : industrialFuelDuty}</span></li>
+      <li><span>Household route</span><span>${residenceSummary}</span></li>
+      <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
       <li><span>Process interval</span><span>${definition.harvestInterval}s</span></li>
       <li><span>Output per cycle</span><span>${processOutputLabel}</span></li>
       <li><span>Construction timber floor</span><span>${Math.round(timberReserve)}</span></li>

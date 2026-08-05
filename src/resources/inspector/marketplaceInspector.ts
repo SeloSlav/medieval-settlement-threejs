@@ -259,6 +259,11 @@ export function renderMarketplaceInspector(
     ),
   );
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
+  const fiscalPolicy = context.getFiscalPolicy?.();
+  const privateExportCash = Math.min(
+    Math.max(0, building.privateExportProceedsGold ?? 0),
+    Math.max(0, building.gold),
+  );
   const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
     ? computeSettlementHouseholdMarketPlan({
         state: context.gameState,
@@ -267,6 +272,7 @@ export function renderMarketplaceInspector(
         clock: gameClock(context.gameState.tick),
         sabbathObserved: parishPolicy.sabbathObservanceEnabled
           && settlementHasStaffedChapel(context.gameState),
+        importDutyRate: context.getFiscalPolicy?.().importDutyRate ?? 0,
         includeBranchResidenceIds: true,
       })
     : null;
@@ -326,13 +332,16 @@ export function renderMarketplaceInspector(
       <li><span>Active regional routes</span><span>${regionalRoute}</span></li>
       <li><span>Specialty queue</span><span>${specialtyQueueLabel}</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
-      <li><span>Trading Post coffer</span><span>${proceedsCollection}</span></li>
+      <li><span>Public Trading Post coffer</span><span>${proceedsCollection}</span></li>
+      <li><span>Private export purse</span><span>${privateExportCash.toFixed(1)} gold awaiting free-hauler delivery to producer households</span></li>
+      <li><span>Automatic specialty exports</span><span>Private household trade · ${Math.round((fiscalPolicy?.exportDutyRate ?? 0) * 100)}% export duty to the civic lockbox, remainder to households</span></li>
+      <li><span>Manual bulk exports</span><span>Public Trading Post trade · full proceeds enter the civic treasury and are not charged the private export duty</span></li>
       <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this Trading Post by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
       <li><span>Household stalls</span><span>Handled only by granary and storehouse workers at a Marketplace</span></li>
       <li><span>Emergency branch</span><span>${householdBranchLabel}</span></li>
       <li><span>Paid-cart queue</span><span>${householdBranchBottleneck}</span></li>
-      <li><span>Household orders</span><span>At 18h runway, homes buy a full food-first lot with savings; busy, resting, or blocked carts wait without charging</span></li>
+      <li><span>Household orders</span><span>At 18h runway, homes buy a full food-first lot with savings plus ${Math.round((fiscalPolicy?.importDutyRate ?? 0) * 100)}% household import duty; public and parish orders are exempt</span></li>
     `,
     demolish: {
       visible: true,
@@ -432,17 +441,21 @@ function formatMarketplaceProceedsCollection(options: {
       options.inboundCashTrip.amount.toFixed(1)
     } inbound from ${options.treasurySeatLabel ?? 'the civic treasury'}`;
   }
-  const held = Math.max(0, options.market.gold);
+  const privateExportCash = Math.min(
+    Math.max(0, options.market.privateExportProceedsGold ?? 0),
+    Math.max(0, options.market.gold),
+  );
+  const held = Math.max(0, options.market.gold - privateExportCash);
   const target = marketplaceGoldReserveTarget(options.market);
   const shortfall = marketplaceGoldReserveShortfall(held, 0, target);
   const surplus = marketplaceGoldSweepSurplus(held, target);
-  const lockbox = `${held.toFixed(1)} gold in the visible coffer`;
+  const lockbox = `${held.toFixed(1)} public gold in the visible coffer`;
   if (options.marketFireDisabled) {
     return `${lockbox} - sealed until fire recovery`;
   }
   if (shortfall > 1e-6) {
     if (options.market.assignedLabor <= 0) {
-      return `${lockbox} - assign a regional trader to request ${shortfall.toFixed(1)} reserve gold`;
+      return `${lockbox} - staff the Trading Post and leave a free hauler to request ${shortfall.toFixed(1)} reserve gold`;
     }
     if (!options.treasurySeat) {
       return `${lockbox} - reserve awaits a founding or Town Hall treasury chest`;
@@ -459,10 +472,7 @@ function formatMarketplaceProceedsCollection(options: {
   }
   const sweepable = `${surplus.toFixed(1)} surplus of ${held.toFixed(1)} coffer gold`;
   if (options.market.assignedLabor <= 0) {
-    return `${sweepable} - assign a regional trader to sweep it`;
-  }
-  if (options.market.actionCooldown > 1e-6 && options.market.assignedLabor <= 1) {
-    return `${sweepable} - sole regional trader at the trade desk for ${options.market.actionCooldown.toFixed(1)}s`;
+    return `${sweepable} - the post is closed; assign a trader before public trade resumes`;
   }
   if (options.activeTrip) {
     return `${sweepable} - Trading Post cart busy carrying ${options.activeTrip.cargoKind}`;
@@ -473,7 +483,7 @@ function formatMarketplaceProceedsCollection(options: {
   if (!options.treasuryRouteAvailable) {
     return `${sweepable} - connect this Trading Post to ${options.treasurySeatLabel}`;
   }
-  return `${sweepable} - next regional-trader handcart carries up to ${STOREHOUSE_HAUL_PER_WORKER.toFixed(0)} gold`;
+  return `${sweepable} - next free-hauler handcart carries up to ${STOREHOUSE_HAUL_PER_WORKER.toFixed(0)} gold`;
 }
 
 function formatSpecialtyExportDesk(

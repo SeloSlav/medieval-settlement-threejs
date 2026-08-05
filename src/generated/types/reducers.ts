@@ -50,6 +50,7 @@ import SetEconomicActivityTaxRateReducer from "../set_economic_activity_tax_rate
 import SetFarmFieldCropReducer from "../set_farm_field_crop_reducer";
 import SetFarmFieldFollowingCropReducer from "../set_farm_field_following_crop_reducer";
 import SetFarmFieldPriorityReducer from "../set_farm_field_priority_reducer";
+import SetFiscalPolicyReducer from "../set_fiscal_policy_reducer";
 import SetGameSpeedReducer from "../set_game_speed_reducer";
 import SetGranaryFreshFoodTargetReducer from "../set_granary_fresh_food_target_reducer";
 import SetGranaryGrainReserveReducer from "../set_granary_grain_reserve_reducer";
@@ -130,6 +131,7 @@ export type SetEconomicActivityTaxRateParams = __Infer<typeof SetEconomicActivit
 export type SetFarmFieldCropParams = __Infer<typeof SetFarmFieldCropReducer>;
 export type SetFarmFieldFollowingCropParams = __Infer<typeof SetFarmFieldFollowingCropReducer>;
 export type SetFarmFieldPriorityParams = __Infer<typeof SetFarmFieldPriorityReducer>;
+export type SetFiscalPolicyParams = __Infer<typeof SetFiscalPolicyReducer>;
 export type SetGameSpeedParams = __Infer<typeof SetGameSpeedReducer>;
 export type SetGranaryFreshFoodTargetParams = __Infer<typeof SetGranaryFreshFoodTargetReducer>;
 export type SetGranaryGrainReserveParams = __Infer<typeof SetGranaryGrainReserveReducer>;

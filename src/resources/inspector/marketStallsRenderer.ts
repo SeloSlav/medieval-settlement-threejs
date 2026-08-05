@@ -62,7 +62,7 @@ export function renderMarketStallsInspector(
       : taxCartActive
         ? `${heldTax.toFixed(1)} tax gold remains — a free hauler is carrying the current lockbox load`
       : activeTrip
-        ? `${totalStalls} active stalls — a stallholder is serving a household`
+        ? `${totalStalls} active stalls — a remedy or lockbox cart is on the road`
         : `${totalStalls} active stalls stocking ${stockedNeeds} household need ${stockedNeeds === 1 ? 'category' : 'categories'}`,
     statusState: totalStalls > 0 ? 'active' : 'idle',
     detailsHtml: `
@@ -72,8 +72,9 @@ export function renderMarketStallsInspector(
       <li><span>Purpose</span><span>Shared local household exchange — it has no employees of its own</span></li>
       <li><span>Food stalls</span><span>${foodStalls} from staffed Granaries · pooled backyard and stored food, cured provisions, and ale</span></li>
       <li><span>Goods stalls</span><span>${goodsStalls} from staffed Village Storehouses · firewood, cloth, pottery, and shared herb remedies</span></li>
-      <li><span>Capacity rule</span><span>Each assigned granary or storehouse worker supports one active stall and its household cart capacity</span></li>
-      <li><span>Backyard exchange</span><span>Edible surplus and herb remedies become physical stock for other homes; flower and ordinary herb sales are aggregated discretionary trade</span></li>
+      <li><span>Distribution</span><span>Stock is allocated instantly to connected homes · nearest plots receive scarce goods first · no routine household cart</span></li>
+      <li><span>Capacity rule</span><span>Assigned granary and storehouse workers replenish and operate stalls without leaving on last-mile household trips</span></li>
+      <li><span>Backyard exchange</span><span>Edible surplus becomes physical stall stock for abstract household allocation; herb remedies retain targeted care carts</span></li>
       <li><span>Local tax lockbox</span><span>${heldTax.toFixed(1)} gold held${taxCartActive ? ' · collection cart active' : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD ? ' · waiting for a free hauler to the civic treasury' : heldTax > 1e-6 ? ` · batching toward ${LOCAL_MARKET_TAX_CART_THRESHOLD.toFixed(0)} gold or the evening sweep` : ''}</span></li>
       <li><span>Water</span><span>Supplied independently from unstaffed wells</span></li>
       <li><span>Regional trade</span><span>Handled only by a staffed Trading Post</span></li>

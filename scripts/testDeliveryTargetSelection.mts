@@ -36,14 +36,30 @@ assert.doesNotMatch(
   'routine server dispatch must not sort a whole claimed branch to start one cart',
 );
 
-for (const path of [
-  'server/src/simulation/well.rs',
-] as const) {
-  const source = read(path);
-  assert.match(source, /select_residence_for_need_delivery\(/, `${path} must use one-pass selection`);
-  assert.match(source, /has_delivery_stock_room\(/, `${path} must discard already-full homes`);
-  assert.doesNotMatch(source, /sort_residences_for_/, `${path} must not restore full-branch sorting`);
-}
+const well = read('server/src/simulation/well.rs');
+assert.match(
+  well,
+  /distribute_well_water\(ctx, tick, &mut well\)/,
+  'wells should allocate household water without starting a residence cart',
+);
+assert.doesNotMatch(
+  well,
+  /dispatch_delivery_if_ready|select_residence_for_need_delivery/,
+  'routine well-to-home carts must stay removed',
+);
+const householdDistribution = read('server/src/simulation/household_distribution.rs');
+assert.match(householdDistribution, /step_market_household_distribution/);
+assert.match(householdDistribution, /distribute_well_water/);
+assert.match(
+  householdDistribution,
+  /distance[\s\S]{0,100}residence_id/,
+  'scarce abstract supply should prioritize exact distance and then stable residence id',
+);
+assert.doesNotMatch(
+  householdDistribution,
+  /try_start_delivery_trip|dispatch_delivery_if_ready/,
+  'abstract allocation must not reserve a household cart crew',
+);
 
 const marketplace = read('server/src/simulation/marketplace_caravan.rs');
 assert.match(
@@ -81,7 +97,7 @@ assert.match(
 );
 assert.ok(
   marketplaceOrders.indexOf('regional_market_import_route_to_residence')
-    < marketplaceOrders.indexOf('pay_market_gold(ctx, owner, gold_cost'),
+    < marketplaceOrders.indexOf('pay_market_gold(ctx, owner, total_charge'),
   'the exact map-edge, marketplace, and household route must validate before payment',
 );
 assert.match(
@@ -180,9 +196,9 @@ assert.match(
   'indexed ids must still resolve fresh authoritative rows after earlier substep mutations',
 );
 assert.match(
-  marketplace,
-  /!is_trading_post[\s\S]{0,180}building\.firewood > 1e-6[\s\S]{0,420}ResidenceNeedKind::Firewood/,
-  'household fuel dispatch must originate from local Marketplace inventory only',
+  householdDistribution,
+  /MARKET_NEEDS[\s\S]{0,220}ResidenceNeedKind::Firewood[\s\S]*step_market_household_distribution/,
+  'household fuel allocation must originate from local Marketplace inventory only',
 );
 assert.match(
   tickContext,

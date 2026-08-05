@@ -167,6 +167,7 @@ export function claimResidenceRoutesByNearestSupplier(
     residence: ResidenceState,
     effectiveDistance: number,
   ) => boolean,
+  requireConnectedRoad = false,
 ): Map<string, ResidenceSupplierRouteClaim> {
   const bestByResidence = new Map<string, ResidenceSupplierRouteClaim>();
   const targets = residences.map((residence) => ({
@@ -175,12 +176,9 @@ export function claimResidenceRoutesByNearestSupplier(
   }));
 
   for (const supplier of suppliers) {
-    const distances = localDeliveryDistancesFrom(
-      network,
-      supplier.x,
-      supplier.z,
-      targets,
-    );
+    const distances = requireConnectedRoad
+      ? roadPathDistancesFrom(network, supplier.x, supplier.z, targets)
+      : localDeliveryDistancesFrom(network, supplier.x, supplier.z, targets);
     for (let index = 0; index < residences.length; index += 1) {
       const distance = distances[index];
       if (distance == null || !Number.isFinite(distance)) continue;
@@ -215,6 +213,7 @@ export function claimResidencesByNearestSupplier(
     residence: ResidenceState,
     effectiveDistance: number,
   ) => boolean,
+  requireConnectedRoad = false,
 ): Map<string, string> {
   return new Map(
     [...claimResidenceRoutesByNearestSupplier(
@@ -222,6 +221,7 @@ export function claimResidencesByNearestSupplier(
       suppliers,
       residences,
       candidateAllowed,
+      requireConnectedRoad,
     )].map(([residenceId, claim]) => [
       residenceId,
       claim.supplierId,
@@ -242,6 +242,7 @@ export function claimResidencesForFirewoodSuppliers(
     distributors,
     residences,
     () => true,
+    true,
   );
 }
 
@@ -265,6 +266,7 @@ export function claimResidencesForWells(
     activeWells,
     residences,
     (well, residence) => isResidenceInWellRange(well, residence),
+    true,
   );
 }
 
@@ -293,6 +295,7 @@ export function claimResidencesForFoodSuppliers(
     foodSuppliers,
     occupiedResidences,
     eligible,
+    true,
   );
 }
 

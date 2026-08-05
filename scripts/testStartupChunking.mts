@@ -454,14 +454,16 @@ const startupClosureGzipBytes = startupChunks.reduce(
 );
 assert.ok(
   // The forest-floor material adds one packed-atlas sample plus its
-  // grass/dirt edge handoff. Keep that intentional 20 KB allowance explicit
-  // instead of weakening the startup closure budget generally.
-  startupClosureBytes <= 2_700_000,
-  `initial static chunk closure grew beyond 2.70 MB (${startupClosureBytes} bytes)`,
+  // grass/dirt edge handoff. The Eanpa facade adds the historical-sky state
+  // bridge while the much larger engine and legacy fallback remain deferred.
+  // Keep this intentional raw-source allowance explicit; the compressed
+  // transfer budget below remains the stronger network guardrail.
+  startupClosureBytes <= 2_770_000,
+  `initial static chunk closure grew beyond 2.77 MB (${startupClosureBytes} bytes)`,
 );
 assert.ok(
-  startupClosureGzipBytes <= 745_000,
-  `initial static chunk closure grew beyond 745 KB gzip (${startupClosureGzipBytes} bytes)`,
+  startupClosureGzipBytes <= 765_000,
+  `initial static chunk closure grew beyond 765 KB gzip (${startupClosureGzipBytes} bytes)`,
 );
 
 console.log(

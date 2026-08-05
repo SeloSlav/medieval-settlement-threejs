@@ -61,8 +61,7 @@ pub fn is_consumption_paused(_ctx: &ReducerContext, _owner: Identity, clock: &Ga
     household_consumption_paused(clock)
 }
 
-/// Parish wages, upkeep, and local alms accrue during the workday. Accounting
-/// transfers such as auto-sweep may still keep their own global cadence.
+/// Parish wages, upkeep, and local alms accrue during the workday.
 pub fn is_parish_economy_paused(clock: &GameClock) -> bool {
     !is_work_hours(clock)
 }

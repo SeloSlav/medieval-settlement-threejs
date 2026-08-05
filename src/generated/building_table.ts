@@ -118,4 +118,5 @@ export default __t.row({
   curedMeat: __t.f64().name("cured_meat"),
   smokedFish: __t.f64().name("smoked_fish"),
   cheese: __t.f64(),
+  privateExportProceedsGold: __t.f64().name("private_export_proceeds_gold"),
 });

@@ -11,10 +11,6 @@ use crate::economy::CommodityKind;
 use crate::hydrology::sample_hydrology_score;
 use crate::roads::RoadNetwork;
 use crate::season_policy::EnvironmentState;
-use crate::simulation::delivery_cargo::has_delivery_stock_room;
-use crate::simulation::delivery_supplier::{
-    delivery_work_ready, dispatch_delivery_if_ready, DeliveryDispatchConfig,
-};
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
     try_start_building_supply_trip,
@@ -22,16 +18,13 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::expanded_economy::processor_accepts_input;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
-use crate::simulation::road_logistics::{
-    local_delivery_distance, select_residence_for_need_delivery,
-};
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
-    fire_response_needed_for_well, release_fire_response, reserve_fire_response,
-    select_fire_for_well, try_start_fire_response_trip,
+    distribute_well_water, fire_response_needed_for_well, release_fire_response,
+    reserve_fire_response, select_fire_for_well, try_start_fire_response_trip,
 };
-use crate::tables::{Building, Residence};
+use crate::tables::Building;
 use crate::well_policy::{
     industrial_water_input_preference_rank, industrial_water_requirement, industrial_water_target,
     select_industrial_water_candidate, well_refill_amount, IndustrialWaterCandidate,
@@ -74,9 +67,7 @@ pub fn step_well(
     }
 
     let fire_response_needed = fire_response_needed_for_well(ctx, &well, sim_tick);
-    if labor_and_logistics_paused(ctx, tick, well.owner, clock) && !fire_response_needed {
-        return;
-    }
+    let routine_logistics_paused = labor_and_logistics_paused(ctx, tick, well.owner, clock);
 
     let hydrology = sample_hydrology_score(well.x, well.z);
     let capacity = if well.water_capacity > 0.0 {
@@ -88,26 +79,9 @@ pub fn step_well(
     well.water_capacity = capacity;
     well.action_cooldown = (well.action_cooldown - TICK_DT).max(0.0);
 
-    let delivery_ready = !fire_response_needed
-        && available_free_haulers(ctx, well.owner) > 0
-        && delivery_work_ready(1, well.water > 0.0, well.id, ctx);
-
-    let household_targets = if delivery_ready {
-        collect_delivery_targets(ctx, tick, network, &well)
-    } else {
-        Vec::new()
-    };
-    let industrial_target = if delivery_ready && household_targets.is_empty() {
-        select_industrial_water_target(ctx, tick, network, &well)
-    } else {
-        None
-    };
-    let has_target = !household_targets.is_empty() || industrial_target.is_some();
-    let delivery_ready = delivery_ready && has_target;
-
     // A completed well is infrastructure, not a workplace. Groundwater
-    // accumulates at the baseline draw rate while flexible haulers claim its
-    // stored water only when an actual route is ready.
+    // accumulates at the baseline draw rate. Household availability is then
+    // allocated abstractly; flexible haulers are reserved only for industry.
     well.water = (well.water
         + well_refill_amount(
             hydrology,
@@ -122,24 +96,16 @@ pub fn step_well(
         well.action_cooldown = WELL_SURGE_COOLDOWN_SEC;
     }
 
-    if delivery_ready {
-        if !household_targets.is_empty() {
-            dispatch_delivery_if_ready(
-                ctx,
-                tick,
-                clock,
-                network,
-                &mut well,
-                1,
-                &household_targets,
-                DeliveryDispatchConfig {
-                    need_kind: ResidenceNeedKind::Water,
-                    speed_mps: WATER_DELIVERY_SPEED_MPS,
-                    unload_seconds: WATER_DELIVERY_UNLOAD_SEC,
-                    per_delivery: WELL_WATER_PER_DELIVERY,
-                },
-            );
-        } else if let Some(target) = industrial_target {
+    // Domestic water has first claim without consuming cart labor. Industry
+    // still requires a physical trip from the remainder.
+    distribute_well_water(ctx, tick, &mut well);
+    let industrial_delivery_ready = !fire_response_needed
+        && !routine_logistics_paused
+        && well.water > 1e-9
+        && available_free_haulers(ctx, well.owner) > 0
+        && !building_has_active_trip(ctx, well.id);
+    if industrial_delivery_ready {
+        if let Some(target) = select_industrial_water_target(ctx, tick, network, &well) {
             let needed =
                 (industrial_water_target(&target.kind, target.processor_output_target_percent)
                     - target.water)
@@ -162,33 +128,6 @@ pub fn step_well(
     }
 
     ctx.db.building().id().update(well);
-}
-
-fn collect_delivery_targets(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    network: &RoadNetwork,
-    well: &Building,
-) -> Vec<Residence> {
-    let residences: Vec<Residence> = ctx
-        .db
-        .residence()
-        .owner()
-        .filter(&well.owner)
-        .filter(|residence| ResidenceNeedKind::Water.is_active_for_tier(residence.tier))
-        .filter(|residence| tick.well_supplier_for(ctx, well.owner, residence.id) == Some(well.id))
-        .collect();
-    select_residence_for_need_delivery(
-        network,
-        well,
-        residences,
-        None,
-        None,
-        |residence| need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water),
-        |_, stock| has_delivery_stock_room(ResidenceNeedKind::Water, stock),
-    )
-    .into_iter()
-    .collect()
 }
 
 fn select_industrial_water_target(

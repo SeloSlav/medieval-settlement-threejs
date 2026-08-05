@@ -46,6 +46,9 @@ export type HouseholdMarketOrderQuote = {
   label: string;
   amount: number;
   goldCost: number;
+  /** Regional offer before the Town Hall's household-only import duty. */
+  baseGoldCost?: number;
+  importDuty?: number;
 };
 
 export function foodOrderQuoteUsesPreservedStorage(
@@ -166,6 +169,8 @@ export type SettlementHouseholdMarketInput = {
   residenceIds?: ReadonlySet<string>;
   /** Retain branch membership only when a marketplace coverage view needs it. */
   includeBranchResidenceIds?: boolean;
+  /** Household-only Town Hall customs rate; public and parish orders are exempt. */
+  importDutyRate?: number;
 };
 
 type AttemptResult = {
@@ -188,6 +193,7 @@ type AttemptResult = {
 export function bestAffordableHouseholdFoodQuote(
   wealth: number,
   marketState: RegionalMarketState,
+  importDutyRate = 0,
 ): HouseholdMarketOrderQuote | null {
   return bestAffordableQuote(
     MARKET_COMMODITIES,
@@ -196,12 +202,14 @@ export function bestAffordableHouseholdFoodQuote(
     (offer) => offer.foodAmount,
     (offer) => offer.resourceKind,
     'food',
+    importDutyRate,
   );
 }
 
 export function bestAffordableHouseholdWaterQuote(
   wealth: number,
   marketState: RegionalMarketState,
+  importDutyRate = 0,
 ): HouseholdMarketOrderQuote | null {
   return bestAffordableQuote(
     MARKET_WATER_COMMODITIES,
@@ -210,6 +218,7 @@ export function bestAffordableHouseholdWaterQuote(
     (offer) => offer.waterAmount,
     () => null,
     'water',
+    importDutyRate,
   );
 }
 
@@ -220,11 +229,14 @@ function bestAffordableQuote<T extends MarketCommodityOffer | MarketWaterCommodi
   amountFor: (offer: T) => number,
   resourceKindFor: (offer: T) => MarketCommodityOffer['resourceKind'] | null,
   kind: HouseholdMarketOrderKind,
+  importDutyRate: number,
 ): HouseholdMarketOrderQuote | null {
   let best: HouseholdMarketOrderQuote | null = null;
   let bestValue = -Infinity;
   for (const offer of offers) {
-    const goldCost = goldCostFor(offer);
+    const baseGoldCost = goldCostFor(offer);
+    const importDuty = baseGoldCost * Math.max(0, importDutyRate);
+    const goldCost = baseGoldCost + importDuty;
     if (goldCost > wealth + 1e-6) continue;
     const amount = amountFor(offer);
     const value = amount / goldCost;
@@ -237,6 +249,8 @@ function bestAffordableQuote<T extends MarketCommodityOffer | MarketWaterCommodi
       label: offer.label,
       amount,
       goldCost,
+      baseGoldCost,
+      importDuty,
     };
   }
   return best;
@@ -367,6 +381,7 @@ export function computeSettlementHouseholdMarketPlan(
       const foodQuote = bestAffordableHouseholdFoodQuote(
         residence.householdWealth,
         marketState,
+        input.importDutyRate ?? 0,
       );
       if (foodQuote) affordableAttempts.push(foodQuote);
     }
@@ -374,6 +389,7 @@ export function computeSettlementHouseholdMarketPlan(
       const waterQuote = bestAffordableHouseholdWaterQuote(
         residence.householdWealth,
         marketState,
+        input.importDutyRate ?? 0,
       );
       if (waterQuote) affordableAttempts.push(waterQuote);
     }
@@ -547,7 +563,7 @@ export function formatHouseholdMarketResidenceStatus(
     return `Standing order idle - triggers at ${Math.round(HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS * 24)}h of food or active water runway`;
   }
   const order = plan.quote
-    ? `${plan.quote.label}: ${plan.quote.amount} ${householdMarketOrderResourceLabel(plan.quote)} for ${plan.quote.goldCost} gold`
+    ? `${plan.quote.label}: ${plan.quote.amount} ${householdMarketOrderResourceLabel(plan.quote)} for ${plan.quote.goldCost.toFixed(2)} gold${(plan.quote.importDuty ?? 0) > 0.001 ? ` (includes ${plan.quote.importDuty!.toFixed(2)} import duty)` : ''}`
     : null;
   switch (plan.status) {
     case 'ready':

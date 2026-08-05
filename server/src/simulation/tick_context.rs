@@ -746,9 +746,9 @@ impl SimTickContext {
             .copied()
     }
 
-    /// Returns the nearest food-stall Marketplace. Backyard commerce belongs
-    /// to the local market square and is closed when no staffed granary owns a
-    /// stall there; it never creates receipts at the regional Trading Post.
+    /// Returns the nearest stocked Marketplace with the compatible staffed
+    /// stall. Local household availability never comes from the regional
+    /// Trading Post.
     pub fn local_marketplace_for_residence(
         &self,
         ctx: &ReducerContext,
@@ -771,8 +771,8 @@ impl SimTickContext {
     }
 
     /// Returns how many households depend on a routine food supplier. Granary
-    /// surplus intake uses this cached inverse count to protect local cart loads
-    /// without rescanning all homes for every candidate source.
+    /// surplus intake uses this cached inverse count to protect local market
+    /// availability without rescanning all homes for every candidate source.
     pub fn food_claim_count_for_supplier(
         &self,
         ctx: &ReducerContext,
@@ -884,6 +884,10 @@ impl SimTickContext {
             .filter(|building| {
                 building.construction_complete
                     && !self.building_disabled_by_fire(ctx, building.id)
+                    && crate::simulation::delivery_cargo::building_delivery_stock(
+                        building,
+                        stall_need,
+                    ) > 1e-6
                     && self.marketplace_has_stall_workers(
                         ctx,
                         network,
@@ -904,9 +908,19 @@ impl SimTickContext {
                     && !self.residence_disabled_by_fire(ctx, residence.id)
             })
             .collect();
-        claim_residences_by_nearest_supplier(network, &marketplace_refs, &residences, |_, _, _| {
-            true
-        })
+        claim_residences_by_nearest_supplier(
+            network,
+            &marketplace_refs,
+            &residences,
+            |marketplace, residence, _| {
+                network.road_connected(
+                    marketplace.x,
+                    marketplace.z,
+                    residence.x,
+                    residence.z,
+                )
+            },
+        )
     }
 
     /// Count bodies that have not yet been collected near one home. The
@@ -1031,14 +1045,15 @@ impl SimTickContext {
             &suppliers,
             &residences,
             |supplier, residence, distance| {
-                supplier.kind != "monastery"
-                    || (parish_residences.contains(&residence.id)
-                        && distance <= MONASTERY_COVERAGE_RADIUS)
+                network.road_connected(supplier.x, supplier.z, residence.x, residence.z)
+                    && (supplier.kind != "monastery"
+                        || (parish_residences.contains(&residence.id)
+                            && distance <= MONASTERY_COVERAGE_RADIUS))
             },
         )
     }
 
-    fn marketplace_has_stall_workers(
+    pub(crate) fn marketplace_has_stall_workers(
         &self,
         ctx: &ReducerContext,
         network: &crate::roads::RoadNetwork,

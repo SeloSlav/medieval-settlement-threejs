@@ -23,6 +23,7 @@ import {
   compareStableEntityIds,
   localDeliveryDistance,
   localDeliveryDistancesFrom,
+  roadPathDistancesFrom,
 } from './roadLogistics.ts';
 export const SPECIALTY_CONSUMPTION_SECONDS_PER_DAY =
   CALENDAR_SECONDS_PER_DAY
@@ -114,12 +115,9 @@ function findRoadLinkedSpecialtySupplier(
     }
     return !requireStock || specialtySupplierStock(building, needKind) > 1e-6;
   });
-  const distances = localDeliveryDistancesFrom(
-    network,
-    residence.x,
-    residence.z,
-    suppliers,
-  );
+  const distances = requireStock
+    ? roadPathDistancesFrom(network, residence.x, residence.z, suppliers)
+    : localDeliveryDistancesFrom(network, residence.x, residence.z, suppliers);
   let best: BuildingState | null = null;
   let bestDistance = Infinity;
 

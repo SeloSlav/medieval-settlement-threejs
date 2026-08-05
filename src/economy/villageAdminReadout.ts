@@ -2,7 +2,6 @@ import type { ParishPolicyState } from './chapelParish.ts';
 import {
   formatParishGoldPerDay,
   parishLedgerTotal,
-  sumPayableAutoSweepPerDay,
   sumPayableParishExpensePerDay,
 } from './chapelParish.ts';
 import { formatProductivityPercent, formatTaxRatePercent } from './villageEconomy.ts';
@@ -30,7 +29,6 @@ import {
 
 export type VillageAdminReadout = {
   taxRateLabel: string;
-  reserveLabel: string;
   productivityLabel: string;
   gdpLabel: string;
   householdWealthLabel: string;
@@ -38,7 +36,6 @@ export type VillageAdminReadout = {
   taxIncomeLabel: string;
   chapelTitheLabel: string;
   parishExpenseLabel: string;
-  autoSweepLabel: string;
   cofferBalanceLabel: string;
   parishLedgerLabel: string;
   backyardEconomy: SettlementBackyardEconomyPlan | null;
@@ -150,21 +147,15 @@ export function buildVillageAdminReadout(input: {
       fireDisabled.has(building.id)
       || building.constructionComplete === false),
   );
-  const collectableCoffer = Math.max(
+  const activeCoffer = Math.max(
     0,
     cofferBalance - structurallyQuarantinedCoffer,
   );
   const parishExpense = sumPayableParishExpensePerDay(chapels);
-  const autoSweep = sumPayableAutoSweepPerDay(
-    chapels,
-    parishPolicy.cofferReserveGold,
-    parishPolicy.autoSweepEnabled,
-  );
   const hasStaffedChapelOnMap = hasStaffedChapel(chapels);
 
   return {
     taxRateLabel: formatTaxRatePercent(taxRate),
-    reserveLabel: `${Math.round(parishPolicy.cofferReserveGold)} gold`,
     productivityLabel: formatProductivityPercent(taxRate),
     gdpLabel: `~${backyardEconomy.currentDayRoutedActivity.toFixed(1)} gold local trade today`,
     householdWealthLabel: wealthSummary.occupiedHomes > 0
@@ -181,13 +172,10 @@ export function buildVillageAdminReadout(input: {
     parishExpenseLabel: chapels.length > 0
       ? `${formatParishGoldPerDay(parishExpense)} (coffer-limited)`
       : 'No chapel',
-    autoSweepLabel: parishPolicy.autoSweepEnabled
-      ? `${formatParishGoldPerDay(autoSweep)} (rough est.)`
-      : 'Off',
     cofferBalanceLabel: structurallyQuarantinedCoffer > 0.05
-      ? `${collectableCoffer.toFixed(1)} gold collectable / ${cofferBalance.toFixed(1)} owned · ${structurallyQuarantinedCoffer.toFixed(1)} sealed pending structural recovery`
+      ? `${activeCoffer.toFixed(1)} gold active / ${cofferBalance.toFixed(1)} church-owned · ${structurallyQuarantinedCoffer.toFixed(1)} sealed pending structural recovery`
       : `${cofferBalance.toFixed(1)} gold`,
-    parishLedgerLabel: `${parishLedgerTotal(parishPolicy).toFixed(1)} gold moved`,
+    parishLedgerLabel: `${parishLedgerTotal(parishPolicy).toFixed(1)} gold spent on clergy, upkeep, and charity`,
     backyardEconomy,
   };
 }
@@ -217,7 +205,6 @@ function formatBackyardTax(plan: SettlementBackyardEconomyPlan): string {
 function emptyReadout(taxRate: number, parishPolicy: ParishPolicyState): VillageAdminReadout {
   return {
     taxRateLabel: formatTaxRatePercent(taxRate),
-    reserveLabel: `${Math.round(parishPolicy.cofferReserveGold)} gold`,
     productivityLabel: formatProductivityPercent(taxRate),
     gdpLabel: '0 gold / day',
     householdWealthLabel: '0 gold saved',
@@ -225,9 +212,8 @@ function emptyReadout(taxRate: number, parishPolicy: ParishPolicyState): Village
     taxIncomeLabel: '0 gold / day',
     chapelTitheLabel: 'Unstaffed chapel',
     parishExpenseLabel: 'No chapel',
-    autoSweepLabel: 'Off',
     cofferBalanceLabel: '0 gold',
-    parishLedgerLabel: `${parishLedgerTotal(parishPolicy).toFixed(1)} gold moved`,
+    parishLedgerLabel: `${parishLedgerTotal(parishPolicy).toFixed(1)} gold spent on clergy, upkeep, and charity`,
     backyardEconomy: null,
   };
 }

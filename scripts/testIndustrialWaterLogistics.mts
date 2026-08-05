@@ -262,8 +262,13 @@ assert.doesNotMatch(
 );
 assert.match(
   wellSimulation,
-  /if !household_targets\.is_empty\(\)[\s\S]*else if let Some\(target\) = industrial_target/,
-  'household deliveries must remain ahead of routine workshop supply',
+  /distribute_well_water\(ctx, tick, &mut well\)[\s\S]*select_industrial_water_target/,
+  'abstract household allocation must remain ahead of routine workshop carts',
+);
+assert.match(
+  wellSimulation,
+  /let routine_logistics_paused = labor_and_logistics_paused[\s\S]*distribute_well_water\(ctx, tick, &mut well\)[\s\S]*!routine_logistics_paused/,
+  'labor-free household water should keep allocating while Sabbath or work-hour rules pause carts',
 );
 assert.doesNotMatch(expandedEconomy, /ensure_(?:building_)?water/);
 assert.doesNotMatch(simulationModules, /mod water_logistics/);
@@ -274,15 +279,15 @@ assert.equal(
 );
 assert.match(
   wellInspector,
-  /Nearest urgent fire first · households second · workshop priority, input policy, then buffer coverage/,
+  /Connected homes draw abstractly from stored water · workshop priority, input policy, then buffer coverage uses physical carts/,
 );
 assert.match(wellInspector, /staffingPriorityLabel/);
 assert.match(wellInspector, /weaverFibreDeliveryPreferenceLabel/);
 assert.match(wellInspector, /industrialWaterTarget/);
 assert.match(wellInspector, /staged water/);
-assert.match(wellInspector, /by visible cart/);
+assert.match(wellInspector, /still receive visible carts/);
 assert.match(wellInspector, /flax-working looms/);
-assert.match(wellInspector, /smithy quench tubs/);
+assert.match(wellInspector, /smithies/);
 assert.match(
   worldQueries,
   /candidate\.kind === 'weaver' && \(candidate\.flax \?\? 0\) <= 1e-6/,

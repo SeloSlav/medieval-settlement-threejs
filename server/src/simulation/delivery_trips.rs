@@ -20,9 +20,10 @@ use crate::economy::{
     adriatic_trade_entry_point, available_building_labor, building_commodity_room,
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
     credit_residence_wealth, credit_treasury_commodity, deposit_building_commodity,
-    deposit_residence_commodity, record_parish_ledger, restore_local_civic_receipts,
+    deposit_residence_commodity, private_export_proceeds, record_parish_ledger,
+    record_private_export_income, restore_local_civic_receipts, restore_private_export_proceeds,
     settle_regional_market_export, withdraw_building_commodity, withdraw_coffer_in_place,
-    CommodityKind, ParishLedgerKind,
+    withdraw_private_export_proceeds, CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::raid_agent_policy::{
@@ -1238,6 +1239,76 @@ pub fn try_start_residence_wealth_trip(
     }
 }
 
+pub fn residence_has_inbound_wealth_trip(ctx: &ReducerContext, residence_id: u64) -> bool {
+    ctx.db
+        .delivery_trip()
+        .residence_id()
+        .filter(&residence_id)
+        .any(|trip| trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE_WEALTH)
+}
+
+/// Distributes private specialty-export proceeds from the Trading Post to
+/// household savings. A free villager carries the purse; assigned traders
+/// remain available for actual regional routes.
+pub fn try_start_private_export_income_trip(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    network: &RoadNetwork,
+    trading_post: &mut Building,
+    residence: &Residence,
+    requested: f64,
+) -> f64 {
+    if trading_post.kind != "trading_post"
+        || !trading_post.construction_complete
+        || trading_post.owner != residence.owner
+        || residence.abandoned
+        || residence.population == 0
+        || tick.building_disabled_by_fire(ctx, trading_post.id)
+        || tick.residence_disabled_by_fire(ctx, residence.id)
+        || building_has_active_trip(ctx, trading_post.id)
+        || residence_has_inbound_wealth_trip(ctx, residence.id)
+        || available_free_haulers(ctx, trading_post.owner) == 0
+    {
+        return 0.0;
+    }
+    let household_room = (HOUSEHOLD_MAX_WEALTH - residence.household_wealth).max(0.0);
+    let load = private_export_proceeds(trading_post)
+        .min(household_room)
+        .min(requested.max(0.0));
+    if load <= 1e-6 {
+        return 0.0;
+    }
+    let before = trading_post.gold;
+    let started = try_start_road_trip(
+        ctx,
+        tick,
+        clock,
+        network,
+        StartTripSpec {
+            origin: trading_post.clone(),
+            destination: TripDestination::ResidenceWealth {
+                id: residence.id,
+                x: residence.x,
+                z: residence.z,
+            },
+            cargo_kind: CommodityKind::Gold.as_u8(),
+            delivery_workers: 1,
+            labor_source: DeliveryLaborSource::Free,
+            speed_mps: TIMBER_DELIVERY_SPEED_MPS,
+            unload_seconds: TIMBER_DELIVERY_UNLOAD_SEC,
+            load_amount: load,
+        },
+        |source, amount| withdraw_private_export_proceeds(source, amount),
+        |source| *trading_post = source.clone(),
+    );
+    if started {
+        (before - trading_post.gold).max(0.0)
+    } else {
+        0.0
+    }
+}
+
 pub fn try_start_timber_supply_trip(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -2235,7 +2306,20 @@ fn unload_wealth_to_residence(ctx: &ReducerContext, trip: &mut DeliveryTrip) {
         return;
     }
     trip.amount = (trip.amount - delivered).max(0.0);
-    record_parish_ledger(ctx, trip.owner, ParishLedgerKind::Charity, delivered);
+    match ctx
+        .db
+        .building()
+        .id()
+        .find(&trip.building_id)
+        .map(|building| building.kind)
+        .as_deref()
+    {
+        Some("chapel") => {
+            record_parish_ledger(ctx, trip.owner, ParishLedgerKind::Charity, delivered)
+        }
+        Some("trading_post") => record_private_export_income(ctx, trip.owner, delivered),
+        _ => {}
+    }
 }
 
 fn unload_residence_upgrade_material(
@@ -2736,11 +2820,26 @@ fn return_commodity_to_building(
         }
         return 0.0;
     };
-    let deposited = deposit_building_commodity(&mut building, commodity, amount);
+    let private_specialty_receipt = commodity == CommodityKind::Gold
+        && is_regional_market_export_trip(trip)
+        && trip.residence_id == 0
+        && building.kind == "trading_post";
+    let deposited = if private_specialty_receipt {
+        let split = crate::economy::credit_private_export_receipt(ctx, &mut building, amount);
+        split.household_income + split.export_duty
+    } else {
+        deposit_building_commodity(&mut building, commodity, amount)
+    };
     if commodity == CommodityKind::Gold
         && matches!(building.kind.as_str(), "monastery" | "ferry_landing")
     {
         restore_local_civic_receipts(&mut building, deposited);
+    }
+    if commodity == CommodityKind::Gold
+        && building.kind == "trading_post"
+        && trip.destination_kind == DELIVERY_DESTINATION_RESIDENCE_WEALTH
+    {
+        restore_private_export_proceeds(&mut building, deposited);
     }
     let remainder = (amount - deposited).max(0.0);
     ctx.db.building().id().update(building.clone());

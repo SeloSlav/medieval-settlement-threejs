@@ -80,10 +80,10 @@ pub struct PlayerResources {
     /// Mayor tax rate on village economic activity (0–1 fraction).
     #[default(0.18)]
     pub economic_activity_tax_rate: f64,
-    /// Sweep coffer surplus above reserve into treasury on interval.
+    /// Deprecated compatibility field. Parish funds no longer sweep to civic accounts.
     #[default(false)]
     pub chapel_auto_sweep_enabled: bool,
-    /// Gold kept in coffer for parish operations before auto-sweep.
+    /// Deprecated compatibility field retained so existing saves migrate additively.
     #[default(80.0)]
     pub chapel_coffer_reserve_gold: f64,
     /// When true and a staffed chapel exists, villagers rest on Sundays.
@@ -95,10 +95,10 @@ pub struct PlayerResources {
     /// When true, linked monasteries provision daily hospitality and five annual feast days.
     #[default(true)]
     pub monastery_feasts_enabled: bool,
-    /// Lifetime gold manually collected from chapel coffers.
+    /// Historical compatibility ledger; new civic appropriation is prohibited.
     #[default(0.0)]
     pub parish_manual_collect_total: f64,
-    /// Lifetime gold auto-swept from chapel coffers to treasury.
+    /// Historical compatibility ledger; no new automatic sweeps occur.
     #[default(0.0)]
     pub parish_auto_sweep_total: f64,
     /// Lifetime priest salary paid from chapel coffers.
@@ -277,6 +277,25 @@ pub struct PlayerResources {
     pub smoked_fish: f64,
     #[default(0.0)]
     pub cheese: f64,
+    /// Optional annual land levy as a fraction of assessed burgage value.
+    #[default(0.0)]
+    pub land_levy_rate: f64,
+    /// Optional customs duty on private household-funded regional imports.
+    #[default(0.0)]
+    pub import_duty_rate: f64,
+    /// Optional customs share of automatic private specialty-export proceeds.
+    #[default(0.0)]
+    pub export_duty_rate: f64,
+    #[default(0.0)]
+    pub land_levy_assessed_total: f64,
+    #[default(0.0)]
+    pub land_levy_collected_total: f64,
+    #[default(0.0)]
+    pub import_duty_collected_total: f64,
+    #[default(0.0)]
+    pub export_duty_collected_total: f64,
+    #[default(0.0)]
+    pub private_export_income_total: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -666,6 +685,11 @@ pub struct Building {
     pub smoked_fish: f64,
     #[default(0.0)]
     pub cheese: f64,
+    /// Private automatic-export proceeds awaiting free-hauler distribution to
+    /// settlement households. This is a protected subset of `gold`, just as
+    /// `civic_receipts_gold` is the protected public subset.
+    #[default(0.0)]
+    pub private_export_proceeds_gold: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

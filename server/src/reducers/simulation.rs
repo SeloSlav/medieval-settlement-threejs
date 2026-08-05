@@ -13,7 +13,8 @@ use crate::simulation::{
     step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
     step_household_market_orders, step_hunters_hall, step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_large_quarry, step_live_raids,
-    step_local_material_dispatch, step_lumber_mill, step_marketplace_caravans,
+    step_land_levies, step_local_material_dispatch, step_lumber_mill,
+    step_market_household_distribution, step_marketplace_caravans,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_night_cycle,
     step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
     step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
@@ -177,6 +178,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     step_construction_sites(ctx, &tick, &clock);
     step_residence_upgrades(ctx, &tick, &clock);
     step_household_market_orders(ctx, &tick, &clock, sim_tick);
+    step_land_levies(ctx, &tick, &clock);
 
     let mut lumber_mill_ids: Vec<u64> = Vec::new();
     let mut reforester_ids: Vec<u64> = Vec::new();
@@ -488,6 +490,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
 
     step_backyard_gardens(ctx, &tick, &clock, environment);
     step_fresh_food_spoilage(ctx, environment);
+    // Physical hauling ends at stalls. Recalculate abstract household
+    // availability after all local production, intake, and spoilage changes.
+    step_market_household_distribution(ctx, &tick);
 
     let chapels: Vec<Building> = chapel_ids
         .into_iter()

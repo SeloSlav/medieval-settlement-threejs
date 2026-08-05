@@ -3,18 +3,16 @@ import {
   CLASSICAL_CONSTELLATION_LINES,
   NAKED_EYE_STAR_DATA,
 } from './celestialCatalog.generated.ts';
+import {
+  precessEquatorialCoordinate as precessJ2000Coordinate,
+  type EquatorialCoordinate,
+} from './celestialPrecession.ts';
+import { GORSKI_KOTAR_CELESTIAL_EPOCH } from './gorskiKotarCelestial.ts';
 
-const CATALOG_EPOCH = 2000;
-export const CELESTIAL_SKY_EPOCH = 1550;
+export const CELESTIAL_SKY_EPOCH = GORSKI_KOTAR_CELESTIAL_EPOCH;
 const DEFAULT_WIDTH = 2048;
 const DEFAULT_HEIGHT = 1024;
 const DEG_TO_RAD = Math.PI / 180;
-const ARCSEC_TO_RAD = DEG_TO_RAD / 3600;
-
-type EquatorialCoordinate = {
-  rightAscensionDeg: number;
-  declinationDeg: number;
-};
 
 type UnitVector = {
   x: number;
@@ -71,43 +69,7 @@ export function precessEquatorialCoordinate(
   declinationDeg: number,
   targetEpoch = CELESTIAL_SKY_EPOCH,
 ): EquatorialCoordinate {
-  if (targetEpoch === CATALOG_EPOCH) {
-    return { rightAscensionDeg: wrapDegrees(rightAscensionDeg), declinationDeg };
-  }
-
-  // IAU 1976/Meeus precession is amply accurate for a visual 16th-century sky.
-  const centuries = (targetEpoch - CATALOG_EPOCH) / 100;
-  const centuriesSquared = centuries * centuries;
-  const centuriesCubed = centuriesSquared * centuries;
-  const zeta = (
-    2306.2181 * centuries
-    + 0.30188 * centuriesSquared
-    + 0.017998 * centuriesCubed
-  ) * ARCSEC_TO_RAD;
-  const z = (
-    2306.2181 * centuries
-    + 1.09468 * centuriesSquared
-    + 0.018203 * centuriesCubed
-  ) * ARCSEC_TO_RAD;
-  const theta = (
-    2004.3109 * centuries
-    - 0.42665 * centuriesSquared
-    - 0.041833 * centuriesCubed
-  ) * ARCSEC_TO_RAD;
-  const rightAscension = rightAscensionDeg * DEG_TO_RAD;
-  const declination = declinationDeg * DEG_TO_RAD;
-  const shiftedRightAscension = rightAscension + zeta;
-  const cosDeclination = Math.cos(declination);
-  const a = cosDeclination * Math.sin(shiftedRightAscension);
-  const b = Math.cos(theta) * cosDeclination * Math.cos(shiftedRightAscension)
-    - Math.sin(theta) * Math.sin(declination);
-  const c = Math.sin(theta) * cosDeclination * Math.cos(shiftedRightAscension)
-    + Math.cos(theta) * Math.sin(declination);
-
-  return {
-    rightAscensionDeg: wrapDegrees((Math.atan2(a, b) + z) / DEG_TO_RAD),
-    declinationDeg: Math.asin(THREE.MathUtils.clamp(c, -1, 1)) / DEG_TO_RAD,
-  };
+  return precessJ2000Coordinate(rightAscensionDeg, declinationDeg, targetEpoch);
 }
 
 function drawCatalogStars(

@@ -2,30 +2,25 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::all_market_food_commodities;
 use crate::balance_generated::{
-    CHAPEL_AUTO_SWEEP_FRACTION, CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_CHARITY_MIN_COFFER_GOLD,
+    CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_CHARITY_MIN_COFFER_GOLD,
     CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
-    CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, HOUSEHOLD_MAX_WEALTH,
-    STOREHOUSE_HAUL_PER_WORKER, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, HOUSEHOLD_MAX_WEALTH, TICK_DT,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::chapel_parish_policy::{
-    chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds, chapel_auto_sweep_due,
+    chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds,
     chapel_daily_gold_per_work_tick, chapel_poor_relief_due,
 };
 use crate::db::*;
 use crate::economy::{
     best_affordable_food_commodity, ensure_market_state, market_food_commodity_kind,
-    order_food_commodity, scaled_gold_cost, CommodityKind, MarketGoldPayer,
+    order_food_commodity, scaled_gold_cost, MarketGoldPayer,
 };
-use crate::economy::{
-    chapel_coffer_gold, credit_residence_wealth, credit_treasury_gold, withdraw_coffer_in_place,
-};
+use crate::economy::{chapel_coffer_gold, credit_residence_wealth, withdraw_coffer_in_place};
 use crate::economy::{record_parish_ledger, ParishLedgerKind};
 use crate::residence_service_policy::service_shortage_warns;
 use crate::simulation::delivery_cargo::residence_commodity_delivery_room;
-use crate::simulation::delivery_trips::{
-    available_free_haulers, building_has_active_trip, try_start_building_supply_trip,
-    try_start_residence_wealth_trip,
-};
+use crate::simulation::delivery_trips::try_start_residence_wealth_trip;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_parish_economy_paused;
 use crate::simulation::marketplace_caravan::MarketCaravanDispatch;
@@ -54,60 +49,6 @@ pub fn chapel_charity_per_tick() -> f64 {
     chapel_daily_gold_per_work_tick(CHAPEL_CHARITY_GOLD_PER_DAY)
 }
 
-pub fn try_start_chapel_treasury_trip(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    chapel: &mut Building,
-    requested: f64,
-) -> Result<f64, String> {
-    let available = chapel_coffer_gold(chapel).min(requested.max(0.0));
-    if available <= 1e-9 {
-        return Ok(0.0);
-    }
-    if building_has_active_trip(ctx, chapel.id) {
-        return Err("This chapel already has a handcart on the road.".to_string());
-    }
-    if available_free_haulers(ctx, chapel.owner) == 0 {
-        return Err("A free villager is needed to carry the coffer.".to_string());
-    }
-    let target = ctx
-        .db
-        .building()
-        .owner()
-        .filter(&chapel.owner)
-        .filter(|building| building.kind == "town_hall" && building.construction_complete)
-        .min_by_key(|building| building.id)
-        .ok_or_else(|| "Complete a Town Hall before collecting parish coffers.".to_string())?;
-    let network = tick
-        .road_network(chapel.owner)
-        .ok_or_else(|| "Connect the chapel and Town Hall by road.".to_string())?;
-    if !tick.road_connected(chapel.owner, chapel.x, chapel.z, target.x, target.z) {
-        return Err("Connect the chapel and Town Hall by road.".to_string());
-    }
-
-    let before = chapel.gold;
-    if !try_start_building_supply_trip(
-        ctx,
-        tick,
-        clock,
-        network,
-        chapel,
-        &target,
-        1,
-        CommodityKind::Gold,
-        TIMBER_DELIVERY_SPEED_MPS,
-        TIMBER_DELIVERY_UNLOAD_SEC,
-        STOREHOUSE_HAUL_PER_WORKER,
-        available,
-    ) {
-        return Err(
-            "Coffer carts depart only during working hours from fire-safe buildings.".to_string(),
-        );
-    }
-    Ok((before - chapel.gold).max(0.0))
-}
-
 pub fn step_chapel_parish(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -117,8 +58,7 @@ pub fn step_chapel_parish(
     residences: &[Residence],
 ) {
     let economy_active = !is_parish_economy_paused(clock);
-    let auto_sweep_due = chapel_auto_sweep_due(sim_tick);
-    if !economy_active && !auto_sweep_due {
+    if !economy_active {
         return;
     }
 
@@ -150,7 +90,6 @@ pub fn step_chapel_parish(
             chapel,
             claimed,
             economy_active,
-            auto_sweep_due,
         );
     }
 }
@@ -163,7 +102,6 @@ fn step_one_chapel_parish(
     chapel: &Building,
     residences: &[&Residence],
     economy_active: bool,
-    auto_sweep_due: bool,
 ) {
     if chapel.kind != "chapel" {
         return;
@@ -243,32 +181,6 @@ fn step_one_chapel_parish(
                 if relief_spent > 1e-9 {
                     let relief_paid = withdraw_coffer_in_place(&mut chapel_row, relief_spent);
                     record_parish_ledger(ctx, owner, ParishLedgerKind::Charity, relief_paid);
-                }
-            }
-        }
-    }
-
-    if let Some(resources) = ctx.db.player_resources().owner().find(&owner) {
-        if resources.chapel_auto_sweep_enabled {
-            let physical = resources.physical_founding_site_enabled;
-            if (physical && economy_active) || (!physical && auto_sweep_due) {
-                let reserve = resources.chapel_coffer_reserve_gold;
-                let excess = chapel_coffer_gold(&chapel_row) - reserve;
-                if excess > 1e-9 {
-                    let requested = excess * CHAPEL_AUTO_SWEEP_FRACTION;
-                    let swept = if physical {
-                        try_start_chapel_treasury_trip(ctx, tick, clock, &mut chapel_row, requested)
-                            .unwrap_or(0.0)
-                    } else {
-                        let swept = withdraw_coffer_in_place(&mut chapel_row, requested);
-                        if swept > 1e-9 {
-                            credit_treasury_gold(ctx, owner, swept);
-                        }
-                        swept
-                    };
-                    if swept > 1e-9 {
-                        record_parish_ledger(ctx, owner, ParishLedgerKind::AutoSweep, swept);
-                    }
                 }
             }
         }

@@ -43,6 +43,7 @@ import { handleSupplementalPanelClick } from './inspector/supplementalPanel.ts';
 import type { ParishPolicyState } from '../economy/chapelParish.ts';
 import type { MonasteryPolicyState } from '../economy/monasteryPolicy.ts';
 import type { NightPolicyCode, NightPolicyState } from '../economy/nightPolicy.ts';
+import type { FiscalPolicyState } from '../economy/fiscalPolicy.ts';
 import type { RegionalMarketState } from '../economy/regionalMarket.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../economy/regionalMarket.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
@@ -80,6 +81,7 @@ type ResourceInspectorOptions = {
   worldQueries: WorldQueries;
   getState: () => GameState;
   getEconomicActivityTaxRate?: () => number;
+  getFiscalPolicy?: () => FiscalPolicyState;
   getSeasonalLaborStewardEnabled?: () => boolean;
   getConstructionLaborStewardEnabled?: () => boolean;
   getProductionLaborStewardEnabled?: () => boolean;
@@ -120,14 +122,18 @@ type ResourceInspectorOptions = {
   onSetConstructionPriority?: (buildingId: string, priority: number) => void | Promise<void>;
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
   onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
-  onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
   onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
   onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
+  onSetFiscalPolicy?: (
+    landLevyRate: number,
+    importDutyRate: number,
+    exportDutyRate: number,
+  ) => void | Promise<void>;
   onSetSeasonalLaborSteward?: (enabled: boolean) => void | Promise<void>;
   onSetConstructionLaborSteward?: (enabled: boolean) => void | Promise<void>;
   onSetProductionLaborSteward?: (enabled: boolean) => void | Promise<void>;
   onSetLaborStewardReserve?: (laborReserve: number) => void | Promise<void>;
-  onSetChapelParishPolicy?: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => void | Promise<void>;
+  onSetChapelParishPolicy?: (sabbathObservanceEnabled: boolean) => void | Promise<void>;
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
   onSetNightPolicies?: (
     watch: NightPolicyCode,
@@ -1086,7 +1092,6 @@ export class ResourceInspector {
       onPlaceBackyardGarden: this.options.onPlaceBackyardGarden,
       onMarketplaceTrade: this.options.onMarketplaceTrade,
       onCancelMarketplaceTradeOrder: this.options.onCancelMarketplaceTradeOrder,
-      onCollectChapelCoffer: this.options.onCollectChapelCoffer,
       onUpgradeChapel: this.options.onUpgradeChapel,
       onUpgradeResidence: this.options.onUpgradeResidence,
       onRetrofitResidenceTileRoof: this.options.onRetrofitResidenceTileRoof,
@@ -1104,9 +1109,15 @@ export class ResourceInspector {
     if (input.matches('[data-policy-tax-rate]')) {
       const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-tax-rate-value]');
       if (output) output.textContent = `${Math.round(Number(input.value))}%`;
-    } else if (input.matches('[data-policy-chapel-reserve]')) {
-      const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-chapel-reserve-value]');
-      if (output) output.textContent = `${Math.round(Number(input.value))} gold`;
+    } else if (input.matches('[data-policy-land-levy]')) {
+      const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-land-levy-value]');
+      if (output) output.textContent = `${Math.round(Number(input.value))}% annually`;
+    } else if (input.matches('[data-policy-import-duty]')) {
+      const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-import-duty-value]');
+      if (output) output.textContent = `${Math.round(Number(input.value))}%`;
+    } else if (input.matches('[data-policy-export-duty]')) {
+      const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-export-duty-value]');
+      if (output) output.textContent = `${Math.round(Number(input.value))}%`;
     } else if (input.matches('[data-policy-monastery-tithe]')) {
       const output = this.supplementalPanelSection.querySelector<HTMLElement>('[data-policy-monastery-tithe-value]');
       if (output) output.textContent = `${Math.round(Number(input.value))}%`;
@@ -1129,6 +1140,17 @@ export class ResourceInspector {
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-construction-labor-steward]')) {
       void this.options.onSetConstructionLaborSteward?.(input.checked);
+      return;
+    }
+    if (building.kind === 'town_hall' && input.matches('[data-policy-land-levy], [data-policy-import-duty], [data-policy-export-duty]')) {
+      const percent = (selector: string): number => Number(
+        this.supplementalPanelSection.querySelector<HTMLInputElement>(selector)?.value ?? 0,
+      ) / 100;
+      void this.options.onSetFiscalPolicy?.(
+        percent('[data-policy-land-levy]'),
+        percent('[data-policy-import-duty]'),
+        percent('[data-policy-export-duty]'),
+      );
       return;
     }
     if (building.kind === 'town_hall' && input.matches('[data-policy-production-labor-steward]')) {
@@ -1155,11 +1177,9 @@ export class ResourceInspector {
       );
       return;
     }
-    if (building.kind === 'chapel' && input.matches('[data-policy-chapel-auto-sweep], [data-policy-chapel-reserve], [data-policy-chapel-sabbath]')) {
-      const autoSweep = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-auto-sweep]')?.checked ?? false;
-      const reserve = Number(this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-reserve]')?.value ?? 80);
+    if (building.kind === 'chapel' && input.matches('[data-policy-chapel-sabbath]')) {
       const sabbath = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-policy-chapel-sabbath]')?.checked ?? false;
-      void this.options.onSetChapelParishPolicy?.(autoSweep, reserve, sabbath);
+      void this.options.onSetChapelParishPolicy?.(sabbath);
       return;
     }
     if (building.kind === 'monastery' && input.matches('[data-policy-monastery-tithe], [data-policy-monastery-feasts]')) {
@@ -1649,6 +1669,9 @@ export class ResourceInspector {
         : {}),
       ...(this.options.getConstructionLaborStewardEnabled
         ? { getConstructionLaborStewardEnabled: this.options.getConstructionLaborStewardEnabled }
+        : {}),
+      ...(this.options.getFiscalPolicy
+        ? { getFiscalPolicy: this.options.getFiscalPolicy }
         : {}),
       ...(this.options.getProductionLaborStewardEnabled
         ? { getProductionLaborStewardEnabled: this.options.getProductionLaborStewardEnabled }

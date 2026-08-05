@@ -95,8 +95,8 @@ assert.equal(
     [offroadMarket],
     [offroadHome],
   ).get(offroadHome.id),
-  offroadMarket.id,
-  'a stocked Marketplace food stall must still claim an off-road household',
+  undefined,
+  'abstract Marketplace availability must stay on the connected road branch',
 );
 const offroadRoute = localDeliveryRoute(disconnectedNetwork, 18, 0, 0, 0);
 assert.equal(offroadRoute?.offroad, true);
@@ -238,12 +238,21 @@ const marketplace = fs.readFileSync('server/src/simulation/marketplace_caravan.r
 assert.doesNotMatch(
   marketplace,
   /food_supplier_for/,
-  'Marketplace stalls must select their actual household targets directly',
+  'Marketplace stalls must not revive the legacy producer territory lookup',
+);
+const householdDistribution = fs.readFileSync(
+  'server/src/simulation/household_distribution.rs',
+  'utf8',
 );
 assert.match(
-  marketplace,
-  /select_residence_for_need_delivery[\s\S]*marketplace_stall_workplace/,
-  'routine food must be selected and dispatched from a staffed Marketplace stall',
+  householdDistribution,
+  /MARKET_NEEDS[\s\S]*ResidenceNeedKind::Food[\s\S]*step_market_household_distribution/,
+  'routine food must be allocated from stocked Marketplace stalls',
+);
+assert.doesNotMatch(
+  householdDistribution,
+  /try_start_delivery_trip|dispatch_delivery_if_ready/,
+  'routine market food must not create a last-mile household cart',
 );
 const expandedInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 assert.match(expandedInspector, /Food territory/);

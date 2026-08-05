@@ -15,12 +15,14 @@ import {
   normalizeNightPolicyCode,
 } from '../../economy/nightPolicy.ts';
 import type { GameTableSyncState } from './gameTableSyncState.ts';
+import { DEFAULT_FISCAL_POLICY } from '../../economy/fiscalPolicy.ts';
 
 export function syncPlayerResources(rows: Iterable<PlayerResources>, state: GameTableSyncState): void {
   state.stockpile = createEmptyStockpile();
   state.physicalFoundingSiteEnabled = false;
   state.legacyUnhousedPopulationBonusEnabled = true;
   state.economicActivityTaxRate = ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
+  state.fiscalPolicy = { ...DEFAULT_FISCAL_POLICY };
   state.seasonalLaborStewardEnabled = DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;
   state.constructionLaborStewardEnabled = DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED;
   state.productionLaborStewardEnabled = DEFAULT_PRODUCTION_LABOR_STEWARD_ENABLED;
@@ -81,6 +83,16 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
     state.legacyUnhousedPopulationBonusEnabled =
       row.legacyUnhousedPopulationBonusEnabled ?? true;
     state.economicActivityTaxRate = row.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
+    state.fiscalPolicy = {
+      landLevyRate: row.landLevyRate ?? DEFAULT_FISCAL_POLICY.landLevyRate,
+      importDutyRate: row.importDutyRate ?? DEFAULT_FISCAL_POLICY.importDutyRate,
+      exportDutyRate: row.exportDutyRate ?? DEFAULT_FISCAL_POLICY.exportDutyRate,
+      landLevyAssessedTotal: row.landLevyAssessedTotal ?? 0,
+      landLevyCollectedTotal: row.landLevyCollectedTotal ?? 0,
+      importDutyCollectedTotal: row.importDutyCollectedTotal ?? 0,
+      exportDutyCollectedTotal: row.exportDutyCollectedTotal ?? 0,
+      privateExportIncomeTotal: row.privateExportIncomeTotal ?? 0,
+    };
     state.seasonalLaborStewardEnabled = row.seasonalLaborStewardEnabled
       ?? DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;
     state.constructionLaborStewardEnabled = row.constructionLaborStewardEnabled
@@ -91,7 +103,7 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       row.laborStewardReserve ?? DEFAULT_LABOR_STEWARD_RESERVE,
     );
     state.parishPolicy = {
-      autoSweepEnabled: row.chapelAutoSweepEnabled ?? DEFAULT_PARISH_POLICY.autoSweepEnabled,
+      autoSweepEnabled: false,
       cofferReserveGold: row.chapelCofferReserveGold ?? DEFAULT_PARISH_POLICY.cofferReserveGold,
       sabbathObservanceEnabled: row.sabbathObservanceEnabled ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled,
       manualCollectTotal: row.parishManualCollectTotal ?? 0,

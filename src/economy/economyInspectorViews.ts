@@ -146,14 +146,12 @@ export type ChapelInspectorEconomyView = {
     total: number;
     cofferLimited: boolean;
   };
-  collectAction: string;
 };
 
 export function buildChapelInspectorEconomyView(
   building: BuildingState,
   linkedPopulation: number,
   cofferCapacity: number,
-  collectAction: string,
   sabbathObservance = false,
 ): ChapelInspectorEconomyView {
   const staffed = isChapelStaffed(building);
@@ -186,7 +184,6 @@ export function buildChapelInspectorEconomyView(
       total: uncapped.total,
       cofferLimited: uncapped.total + 0.05 < uncappedAtInfinity.total,
     },
-    collectAction,
   };
 }
 

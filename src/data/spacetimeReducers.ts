@@ -334,6 +334,18 @@ export async function setConstructionLaborSteward(enabled: boolean): Promise<voi
   });
 }
 
+export async function setFiscalPolicy(
+  landLevyRate: number,
+  importDutyRate: number,
+  exportDutyRate: number,
+): Promise<void> {
+  await callReducer('setFiscalPolicy', 'set_fiscal_policy', {
+    landLevyRate,
+    importDutyRate,
+    exportDutyRate,
+  });
+}
+
 export async function placeGraveyard(input: {
   chapelId: string;
   corners: Array<{ x: number; z: number }>;
@@ -378,14 +390,11 @@ export async function setLaborStewardReserve(laborReserve: number): Promise<void
   });
 }
 
-export async function setChapelParishPolicy(
-  autoSweepEnabled: boolean,
-  cofferReserveGold: number,
-  sabbathObservanceEnabled: boolean,
-): Promise<void> {
+export async function setChapelParishPolicy(sabbathObservanceEnabled: boolean): Promise<void> {
   await callReducer('setChapelParishPolicy', 'set_chapel_parish_policy', {
-    autoSweepEnabled,
-    cofferReserveGold,
+    // Retired fields stay on the reducer wire contract for existing databases.
+    autoSweepEnabled: false,
+    cofferReserveGold: 0,
     sabbathObservanceEnabled,
   });
 }
@@ -800,14 +809,6 @@ export async function cancelMarketplaceTradeOrder(buildingId: string): Promise<v
     'cancel_marketplace_trade_order',
     { buildingId: serverId },
   );
-}
-
-export async function collectChapelCoffer(buildingId: string): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) {
-    throw new Error('Invalid building id.');
-  }
-  await callReducer('collectChapelCoffer', 'collect_chapel_coffer', { buildingId: serverId });
 }
 
 export async function upgradeChapel(buildingId: string): Promise<void> {

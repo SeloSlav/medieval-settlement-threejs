@@ -34,7 +34,6 @@ export type InspectorSpacetimeActions = {
   onSetConstructionPriority: (buildingId: string, priority: number) => Promise<void>;
   onMarketplaceTrade: (buildingId: string, tradeId: string) => Promise<void>;
   onCancelMarketplaceTradeOrder: (buildingId: string) => Promise<void>;
-  onCollectChapelCoffer: (buildingId: string) => Promise<void>;
   onUpgradeChapel: (buildingId: string) => Promise<void>;
   onDemolishFarmField: (fieldId: string) => Promise<void>;
   onSetFarmFieldCrop: (fieldId: string, crop: FarmCrop) => Promise<void>;
@@ -46,11 +45,16 @@ export type InspectorSpacetimeActions = {
   onSetLivestockBreedingReserve: (buildingId: string, breedingReserve: number) => Promise<void>;
   onSetLivestockHaymakingPercent: (buildingId: string, haymakingPercent: number) => Promise<void>;
   onSetEconomicActivityTaxRate: (taxRate: number) => Promise<void>;
+  onSetFiscalPolicy: (
+    landLevyRate: number,
+    importDutyRate: number,
+    exportDutyRate: number,
+  ) => Promise<void>;
   onSetSeasonalLaborSteward: (enabled: boolean) => Promise<void>;
   onSetConstructionLaborSteward: (enabled: boolean) => Promise<void>;
   onSetProductionLaborSteward: (enabled: boolean) => Promise<void>;
   onSetLaborStewardReserve: (laborReserve: number) => Promise<void>;
-  onSetChapelParishPolicy: (autoSweepEnabled: boolean, cofferReserveGold: number, sabbathObservanceEnabled: boolean) => Promise<void>;
+  onSetChapelParishPolicy: (sabbathObservanceEnabled: boolean) => Promise<void>;
   onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
   onSetNightPolicies: (
     watch: NightPolicyCode,
@@ -350,14 +354,6 @@ export function createInspectorSpacetimeActions(
         );
       }, 'Could not cancel the Trading Post order.');
     },
-    onCollectChapelCoffer: async (buildingId) => {
-      const store = requireReady();
-      if (!store) return;
-      await runReducer(
-        () => store.collectChapelCoffer(buildingId),
-        'Could not collect chapel coffer.',
-      );
-    },
     onDemolishFarmField: async (fieldId) => {
       const store = requireReady();
       if (!store) return;
@@ -478,6 +474,14 @@ export function createInspectorSpacetimeActions(
           : 'Town Hall construction steward disabled. Builder rotation is manual.',
       );
     },
+    onSetFiscalPolicy: async (landLevyRate, importDutyRate, exportDutyRate) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setFiscalPolicy(landLevyRate, importDutyRate, exportDutyRate),
+        'Could not update the Town Hall land or customs policy.',
+      );
+    },
     onSetProductionLaborSteward: async (enabled) => {
       const store = requireReady();
       if (!store) return;
@@ -514,11 +518,11 @@ export function createInspectorSpacetimeActions(
           : `Town Hall stewards will leave ${laborReserve} ${laborReserve === 1 ? 'villager' : 'villagers'} free for explicit orders. Productive crews remain assigned.`,
       );
     },
-    onSetChapelParishPolicy: async (autoSweepEnabled, cofferReserveGold, sabbathObservanceEnabled) => {
+    onSetChapelParishPolicy: async (sabbathObservanceEnabled) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.setChapelParishPolicy(autoSweepEnabled, cofferReserveGold, sabbathObservanceEnabled),
+        () => store.setChapelParishPolicy(sabbathObservanceEnabled),
         'Could not update chapel policy.',
       );
     },

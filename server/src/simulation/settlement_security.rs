@@ -1121,6 +1121,10 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
         .civic_receipts_gold
         .max(0.0)
         .min(building.gold.max(0.0));
+    building.private_export_proceeds_gold = building
+        .private_export_proceeds_gold
+        .max(0.0)
+        .min((building.gold - building.civic_receipts_gold).max(0.0));
 }
 
 fn retain_unplundered_treasury_stores(

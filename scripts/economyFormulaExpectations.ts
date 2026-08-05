@@ -3,8 +3,6 @@
  * Keep in sync with `server/src/simulation/chapel_community.rs` and `chapel_parish.rs`.
  */
 import {
-  CHAPEL_AUTO_SWEEP_FRACTION,
-  CHAPEL_AUTO_SWEEP_INTERVAL_TICKS,
   CHAPEL_BASE_ATTENDANCE_CHANCE,
   CHAPEL_CHARITY_GOLD_PER_DAY,
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
@@ -50,7 +48,6 @@ export function expectedEffectiveSettleTicks(
 
   return Math.max(1, ticks);
 }
-
 export function expectedChapelAttendanceChance(
   assignedLabor: number,
   sabbathObservance = false,
@@ -127,27 +124,4 @@ export function expectedPayableParishExpensePerDay(
     : 0;
 
   return { salary, upkeep, charity, total: salary + upkeep + charity };
-}
-
-export function expectedPayableAutoSweepPerDay(
-  cofferGold: number,
-  assignedLabor: number,
-  reserveGold: number,
-  autoSweepEnabled: boolean,
-): number {
-  if (!autoSweepEnabled) {
-    return 0;
-  }
-
-  const expenses = expectedPayableParishExpensePerDay(assignedLabor, cofferGold);
-  const cofferAfterExpenses = Math.max(0, cofferGold - expenses.total);
-  const excess = Math.max(0, cofferAfterExpenses - reserveGold);
-  if (excess <= 0) {
-    return 0;
-  }
-
-  const sweepPerInterval = excess * CHAPEL_AUTO_SWEEP_FRACTION;
-  const intervalsPerDay = CALENDAR_SECONDS_PER_DAY
-    / (CHAPEL_AUTO_SWEEP_INTERVAL_TICKS * SIM_TICK_SECONDS);
-  return sweepPerInterval * intervalsPerDay;
 }

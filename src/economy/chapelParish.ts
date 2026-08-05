@@ -1,6 +1,4 @@
 import {
-  CHAPEL_AUTO_SWEEP_FRACTION,
-  CHAPEL_AUTO_SWEEP_INTERVAL_TICKS,
   CHAPEL_CHARITY_GOLD_PER_DAY,
   CHAPEL_CHARITY_MIN_COFFER_GOLD,
   CHAPEL_COFFER_RESERVE_DEFAULT,
@@ -9,8 +7,6 @@ import {
   CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
   CHAPEL_UNSTAFFED_UPKEEP_FRACTION,
   CHAPEL_UPKEEP_GOLD_PER_DAY,
-  SIM_TICK_SECONDS,
-  CALENDAR_SECONDS_PER_DAY,
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import { chapelCofferGold } from '../resources/chapelCoffer.ts';
@@ -113,62 +109,13 @@ export function sumPayableParishExpensePerDay(chapels: Iterable<BuildingState>):
   return total;
 }
 
-export function payableAutoSweepPerDay(
-  cofferGold: number,
-  assignedLabor: number,
-  reserveGold: number,
-  autoSweepEnabled: boolean,
-): number {
-  if (!autoSweepEnabled) {
-    return 0;
-  }
-
-  const expenses = payableParishExpensePerDay(assignedLabor, cofferGold);
-  const cofferAfterExpenses = Math.max(0, cofferGold - expenses.total);
-  const excess = Math.max(0, cofferAfterExpenses - reserveGold);
-  if (excess <= 0) {
-    return 0;
-  }
-
-  const sweepPerInterval = excess * CHAPEL_AUTO_SWEEP_FRACTION;
-  const intervalsPerDay = CALENDAR_SECONDS_PER_DAY
-    / (CHAPEL_AUTO_SWEEP_INTERVAL_TICKS * SIM_TICK_SECONDS);
-  return sweepPerInterval * intervalsPerDay;
-}
-
-export function sumPayableAutoSweepPerDay(
-  chapels: Iterable<BuildingState>,
-  reserveGold: number,
-  autoSweepEnabled: boolean,
-): number {
-  if (!autoSweepEnabled) {
-    return 0;
-  }
-
-  let total = 0;
-  for (const chapel of chapels) {
-    if (chapel.kind !== 'chapel' || chapel.constructionComplete === false) {
-      continue;
-    }
-    total += payableAutoSweepPerDay(
-      chapelCofferGold(chapel),
-      chapel.assignedLabor,
-      reserveGold,
-      true,
-    );
-  }
-  return total;
-}
-
 export function formatParishGoldPerDay(amount: number, approximate = true): string {
   const prefix = approximate ? '~' : '';
   return `${prefix}${amount.toFixed(1)} gold / day`;
 }
 
 export function parishLedgerTotal(policy: ParishPolicyState): number {
-  return policy.manualCollectTotal
-    + policy.autoSweepTotal
-    + policy.salaryPaidTotal
+  return policy.salaryPaidTotal
     + policy.upkeepPaidTotal
     + policy.charityPaidTotal;
 }

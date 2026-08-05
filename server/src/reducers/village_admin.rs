@@ -90,6 +90,35 @@ pub fn set_economic_activity_tax_rate(ctx: &ReducerContext, tax_rate: f64) -> Re
     Ok(())
 }
 
+/// Sets the three optional secular revenue policies. Church tithes are
+/// intentionally excluded: chapel and monastery funds remain ecclesiastical.
+#[reducer]
+pub fn set_fiscal_policy(
+    ctx: &ReducerContext,
+    land_levy_rate: f64,
+    import_duty_rate: f64,
+    export_duty_rate: f64,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    require_owned_building(ctx, "town_hall", true)?;
+    if !land_levy_rate.is_finite()
+        || !import_duty_rate.is_finite()
+        || !export_duty_rate.is_finite()
+    {
+        return Err("Fiscal rates must be finite numbers.".to_string());
+    }
+
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources not found.".to_string());
+    };
+    resources.land_levy_rate = crate::fiscal_policy::clamp_land_levy_rate(land_levy_rate);
+    resources.import_duty_rate = crate::fiscal_policy::clamp_import_duty_rate(import_duty_rate);
+    resources.export_duty_rate = crate::fiscal_policy::clamp_export_duty_rate(export_duty_rate);
+    ctx.db.player_resources().owner().update(resources);
+    Ok(())
+}
+
 #[reducer]
 pub fn set_chapel_parish_policy(
     ctx: &ReducerContext,
@@ -106,7 +135,11 @@ pub fn set_chapel_parish_policy(
         return Err("Player resources not found.".to_string());
     };
 
-    resources.chapel_auto_sweep_enabled = auto_sweep_enabled;
+    // Compatibility arguments remain in the reducer schema for existing
+    // clients, but parish money is no longer transferable to the lord's
+    // treasury. The coffer now exists solely for parish and monastery work.
+    let _ = auto_sweep_enabled;
+    resources.chapel_auto_sweep_enabled = false;
     resources.chapel_coffer_reserve_gold = reserve;
     resources.sabbath_observance_enabled = sabbath_observance_enabled;
     ctx.db.player_resources().owner().update(resources);

@@ -286,13 +286,14 @@ pub fn claim_residences_for_wells(
         })
         .collect();
     claim_residences_by_nearest_supplier(network, &operational, residences, |well, residence, _| {
-        position_within_well_service_radius(
-            well.x,
-            well.z,
-            well.work_radius,
-            residence.x,
-            residence.z,
-        )
+        network.road_connected(well.x, well.z, residence.x, residence.z)
+            && position_within_well_service_radius(
+                well.x,
+                well.z,
+                well.work_radius,
+                residence.x,
+                residence.z,
+            )
     })
 }
 

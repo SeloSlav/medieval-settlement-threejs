@@ -11,6 +11,17 @@ import {
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../../economy/monasteryPolicy.ts';
 import {
+  DEFAULT_FISCAL_POLICY,
+  EXPORT_DUTY_RATE_MAX,
+  EXPORT_DUTY_RATE_MIN,
+  fiscalRatePercent,
+  forecastMonthlyLandLevy,
+  IMPORT_DUTY_RATE_MAX,
+  IMPORT_DUTY_RATE_MIN,
+  LAND_LEVY_RATE_MAX,
+  LAND_LEVY_RATE_MIN,
+} from '../../economy/fiscalPolicy.ts';
+import {
   DEFAULT_NIGHT_POLICY,
   formatDawnReport,
   NIGHT_CURFEW_OPTIONS,
@@ -1784,6 +1795,7 @@ export function renderTownHallInspector(
     context.getLaborStewardReserve?.() ?? DEFAULT_LABOR_STEWARD_RESERVE,
   );
   const taxRate = context.getEconomicActivityTaxRate?.() ?? 0;
+  const fiscalPolicy = context.getFiscalPolicy?.() ?? DEFAULT_FISCAL_POLICY;
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
   const readout = buildVillageAdminReadout({
     gameState: context.gameState,
@@ -1795,6 +1807,11 @@ export function renderTownHallInspector(
   const collectionRate = staffedTownHallAvailable
     ? 100
     : Math.round(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER * 100);
+  const landLevyForecast = forecastMonthlyLandLevy(
+    context.gameState,
+    fiscalPolicy.landLevyRate,
+    collectionRate / 100,
+  );
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const nightPolicy = context.getNightPolicy?.() ?? DEFAULT_NIGHT_POLICY;
   const clock = gameClock(context.gameState.tick);
@@ -2201,6 +2218,7 @@ export function renderTownHallInspector(
         roadNetwork: roadNetworkSnapshot,
         clock,
         sabbathObserved: provisioning.sabbathObserved,
+        importDutyRate: fiscalPolicy.importDutyRate,
       });
   const householdMarketInspectButton =
     householdMarketPlan?.firstAttentionResidenceId == null
@@ -2424,6 +2442,11 @@ export function renderTownHallInspector(
       <li><span>Emergency purchasing power</span><span>${formatHouseholdMarketPurchasingPower(householdMarketPlan)}</span></li>
       <li><span>Emergency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
       <li><span>Local market levy assessed</span><span>${readout.taxIncomeLabel}</span></li>
+      <li><span>Land levy</span><span>${fiscalRatePercent(fiscalPolicy.landLevyRate)} annually · next monthly installment ${landLevyForecast.monthlyCollectable.toFixed(1)} collectable / ${landLevyForecast.monthlyAssessed.toFixed(1)} assessed from ${landLevyForecast.occupiedHomes} occupied homes</span></li>
+      <li><span>Land levy ledger</span><span>${fiscalPolicy.landLevyCollectedTotal.toFixed(1)} collected / ${fiscalPolicy.landLevyAssessedTotal.toFixed(1)} assessed lifetime</span></li>
+      <li><span>Household import duty</span><span>${fiscalRatePercent(fiscalPolicy.importDutyRate)} · ${fiscalPolicy.importDutyCollectedTotal.toFixed(1)} gold collected lifetime</span></li>
+      <li><span>Private export duty</span><span>${fiscalRatePercent(fiscalPolicy.exportDutyRate)} · ${fiscalPolicy.exportDutyCollectedTotal.toFixed(1)} gold collected from automatic specialty exports</span></li>
+      <li><span>Private export income</span><span>${fiscalPolicy.privateExportIncomeTotal.toFixed(1)} gold delivered to producer households lifetime</span></li>
       <li><span>Collection capacity</span><span>${collectionRate}%${staffedTownHallAvailable ? '' : ' without a staffed clerk'}</span></li>
       <li><span>Church tithe</span><span>${readout.chapelTitheLabel}</span></li>
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
@@ -2519,7 +2542,8 @@ export function renderTownHallInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">The Town Hall sets the local market levy on household goods sold through staffed Marketplace stalls. Levy receipts wait in market lockboxes for free-hauler collection; church tithes remain separate.</p>
+        <h4 class="inspector-action-panel__title">Optional civic revenue</h4>
+        <p class="inspector-action-panel__hint">All rates may remain at zero. Civic receipts wait in Marketplace or Trading Post lockboxes for free-hauler collection. Parish and monastery funds remain independent church property.</p>
         <label class="city-admin-panel__slider-label">
           <span>Local market levy</span>
           <strong data-policy-tax-rate-value>${Math.round(taxRate * 100)}%</strong>
@@ -2530,6 +2554,30 @@ export function renderTownHallInspector(
           max="${Math.round(ECONOMIC_ACTIVITY_TAX_RATE_MAX * 100)}"
           step="1" value="${Math.round(taxRate * 100)}" ${staffed ? '' : 'disabled'} />
         <div class="city-admin-panel__range-hints"><span>Growth</span><span>Revenue</span></div>
+        <label class="city-admin-panel__slider-label">
+          <span>Land levy</span>
+          <strong data-policy-land-levy-value>${Math.round(fiscalPolicy.landLevyRate * 100)}% annually</strong>
+        </label>
+        <input class="city-admin-panel__slider" type="range" data-policy-land-levy
+          min="${Math.round(LAND_LEVY_RATE_MIN * 100)}" max="${Math.round(LAND_LEVY_RATE_MAX * 100)}"
+          step="1" value="${Math.round(fiscalPolicy.landLevyRate * 100)}" ${staffed ? '' : 'disabled'} />
+        <p class="inspector-action-panel__hint">Assessed monthly from home tier, burgage plot area, and backyard improvements. A household pays only coin it actually has; unpaid assessment becomes a visible ledger gap, never debt.</p>
+        <label class="city-admin-panel__slider-label">
+          <span>Household import duty</span>
+          <strong data-policy-import-duty-value>${Math.round(fiscalPolicy.importDutyRate * 100)}%</strong>
+        </label>
+        <input class="city-admin-panel__slider" type="range" data-policy-import-duty
+          min="${Math.round(IMPORT_DUTY_RATE_MIN * 100)}" max="${Math.round(IMPORT_DUTY_RATE_MAX * 100)}"
+          step="1" value="${Math.round(fiscalPolicy.importDutyRate * 100)}" ${staffed ? '' : 'disabled'} />
+        <p class="inspector-action-panel__hint">Added only to private household emergency imports. Public treasury procurement and parish relief are exempt.</p>
+        <label class="city-admin-panel__slider-label">
+          <span>Private export duty</span>
+          <strong data-policy-export-duty-value>${Math.round(fiscalPolicy.exportDutyRate * 100)}%</strong>
+        </label>
+        <input class="city-admin-panel__slider" type="range" data-policy-export-duty
+          min="${Math.round(EXPORT_DUTY_RATE_MIN * 100)}" max="${Math.round(EXPORT_DUTY_RATE_MAX * 100)}"
+          step="1" value="${Math.round(fiscalPolicy.exportDutyRate * 100)}" ${staffed ? '' : 'disabled'} />
+        <p class="inspector-action-panel__hint">Applied to automatic household specialty exports. The untaxed remainder is carried to households as private income. Player-ordered Trading Post exports remain public trade and go directly to the civic treasury without this duty.</p>
       </div>
       <div class="inspector-action-panel">
         <h4 class="inspector-action-panel__title">Night orders</h4>

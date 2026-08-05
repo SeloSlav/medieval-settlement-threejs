@@ -290,6 +290,23 @@ export type GameBalance = {
     townHallPopulationRequired: number;
     townHallUnstaffedTaxCollectionMultiplier: number;
     localMarketTaxCartThreshold: number;
+    landLevyRateDefault: number;
+    landLevyRateMin: number;
+    landLevyRateMax: number;
+    importDutyRateDefault: number;
+    importDutyRateMin: number;
+    importDutyRateMax: number;
+    exportDutyRateDefault: number;
+    exportDutyRateMin: number;
+    exportDutyRateMax: number;
+    landLevyTier1AssessedValue: number;
+    landLevyTier2AssessedValue: number;
+    landLevyTier3AssessedValue: number;
+    landLevyReferencePlotArea: number;
+    landLevyAreaMultiplierMin: number;
+    landLevyAreaMultiplierMax: number;
+    landLevyBackyardMultiplier: number;
+    privateExportIncomeCartLoad: number;
   };
   frontierEconomy: {
     carpenterTimberPerPolearm: number;
@@ -399,8 +416,6 @@ export type GameBalance = {
     chapelCharityMinCofferGold: number;
     chapelPoorReliefGoldPerDispatch: number;
     chapelPoorReliefIntervalDays: number;
-    chapelAutoSweepIntervalTicks: number;
-    chapelAutoSweepFraction: number;
     chapelCofferReserveDefault: number;
     chapelCofferReserveMin: number;
     chapelCofferReserveMax: number;
@@ -807,6 +822,23 @@ function generateRust(): string {
     `pub const TOWN_HALL_POPULATION_REQUIRED: u32 = ${b.economy.townHallPopulationRequired};`,
     `pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = ${rustF64(b.economy.townHallUnstaffedTaxCollectionMultiplier)};`,
     `pub const LOCAL_MARKET_TAX_CART_THRESHOLD: f64 = ${rustF64(b.economy.localMarketTaxCartThreshold)};`,
+    `pub const LAND_LEVY_RATE_DEFAULT: f64 = ${rustF64(b.economy.landLevyRateDefault)};`,
+    `pub const LAND_LEVY_RATE_MIN: f64 = ${rustF64(b.economy.landLevyRateMin)};`,
+    `pub const LAND_LEVY_RATE_MAX: f64 = ${rustF64(b.economy.landLevyRateMax)};`,
+    `pub const IMPORT_DUTY_RATE_DEFAULT: f64 = ${rustF64(b.economy.importDutyRateDefault)};`,
+    `pub const IMPORT_DUTY_RATE_MIN: f64 = ${rustF64(b.economy.importDutyRateMin)};`,
+    `pub const IMPORT_DUTY_RATE_MAX: f64 = ${rustF64(b.economy.importDutyRateMax)};`,
+    `pub const EXPORT_DUTY_RATE_DEFAULT: f64 = ${rustF64(b.economy.exportDutyRateDefault)};`,
+    `pub const EXPORT_DUTY_RATE_MIN: f64 = ${rustF64(b.economy.exportDutyRateMin)};`,
+    `pub const EXPORT_DUTY_RATE_MAX: f64 = ${rustF64(b.economy.exportDutyRateMax)};`,
+    `pub const LAND_LEVY_TIER1_ASSESSED_VALUE: f64 = ${rustF64(b.economy.landLevyTier1AssessedValue)};`,
+    `pub const LAND_LEVY_TIER2_ASSESSED_VALUE: f64 = ${rustF64(b.economy.landLevyTier2AssessedValue)};`,
+    `pub const LAND_LEVY_TIER3_ASSESSED_VALUE: f64 = ${rustF64(b.economy.landLevyTier3AssessedValue)};`,
+    `pub const LAND_LEVY_REFERENCE_PLOT_AREA: f64 = ${rustF64(b.economy.landLevyReferencePlotArea)};`,
+    `pub const LAND_LEVY_AREA_MULTIPLIER_MIN: f64 = ${rustF64(b.economy.landLevyAreaMultiplierMin)};`,
+    `pub const LAND_LEVY_AREA_MULTIPLIER_MAX: f64 = ${rustF64(b.economy.landLevyAreaMultiplierMax)};`,
+    `pub const LAND_LEVY_BACKYARD_MULTIPLIER: f64 = ${rustF64(b.economy.landLevyBackyardMultiplier)};`,
+    `pub const PRIVATE_EXPORT_INCOME_CART_LOAD: f64 = ${rustF64(b.economy.privateExportIncomeCartLoad)};`,
     '',
     `pub const CARPENTER_TIMBER_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterTimberPerPolearm)};`,
     `pub const CARPENTER_IRONWORK_PER_POLEARM: f64 = ${rustF64(b.frontierEconomy.carpenterIronworkPerPolearm)};`,
@@ -914,8 +946,6 @@ function generateRust(): string {
     `pub const CHAPEL_CHARITY_MIN_COFFER_GOLD: f64 = ${rustF64(b.population.chapelCharityMinCofferGold)};`,
     `pub const CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH: f64 = ${rustF64(b.population.chapelPoorReliefGoldPerDispatch)};`,
     `pub const CHAPEL_POOR_RELIEF_INTERVAL_DAYS: u64 = ${b.population.chapelPoorReliefIntervalDays};`,
-    `pub const CHAPEL_AUTO_SWEEP_INTERVAL_TICKS: u64 = ${b.population.chapelAutoSweepIntervalTicks};`,
-    `pub const CHAPEL_AUTO_SWEEP_FRACTION: f64 = ${rustF64(b.population.chapelAutoSweepFraction)};`,
     `pub const CHAPEL_COFFER_RESERVE_DEFAULT: f64 = ${rustF64(b.population.chapelCofferReserveDefault)};`,
     `pub const CHAPEL_COFFER_RESERVE_MIN: f64 = ${rustF64(b.population.chapelCofferReserveMin)};`,
     `pub const CHAPEL_COFFER_RESERVE_MAX: f64 = ${rustF64(b.population.chapelCofferReserveMax)};`,
@@ -1627,6 +1657,23 @@ function generateTypeScript(): string {
     `export const TOWN_HALL_POPULATION_REQUIRED = ${b.economy.townHallPopulationRequired};`,
     `export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = ${b.economy.townHallUnstaffedTaxCollectionMultiplier};`,
     `export const LOCAL_MARKET_TAX_CART_THRESHOLD = ${b.economy.localMarketTaxCartThreshold};`,
+    `export const LAND_LEVY_RATE_DEFAULT = ${b.economy.landLevyRateDefault};`,
+    `export const LAND_LEVY_RATE_MIN = ${b.economy.landLevyRateMin};`,
+    `export const LAND_LEVY_RATE_MAX = ${b.economy.landLevyRateMax};`,
+    `export const IMPORT_DUTY_RATE_DEFAULT = ${b.economy.importDutyRateDefault};`,
+    `export const IMPORT_DUTY_RATE_MIN = ${b.economy.importDutyRateMin};`,
+    `export const IMPORT_DUTY_RATE_MAX = ${b.economy.importDutyRateMax};`,
+    `export const EXPORT_DUTY_RATE_DEFAULT = ${b.economy.exportDutyRateDefault};`,
+    `export const EXPORT_DUTY_RATE_MIN = ${b.economy.exportDutyRateMin};`,
+    `export const EXPORT_DUTY_RATE_MAX = ${b.economy.exportDutyRateMax};`,
+    `export const LAND_LEVY_TIER1_ASSESSED_VALUE = ${b.economy.landLevyTier1AssessedValue};`,
+    `export const LAND_LEVY_TIER2_ASSESSED_VALUE = ${b.economy.landLevyTier2AssessedValue};`,
+    `export const LAND_LEVY_TIER3_ASSESSED_VALUE = ${b.economy.landLevyTier3AssessedValue};`,
+    `export const LAND_LEVY_REFERENCE_PLOT_AREA = ${b.economy.landLevyReferencePlotArea};`,
+    `export const LAND_LEVY_AREA_MULTIPLIER_MIN = ${b.economy.landLevyAreaMultiplierMin};`,
+    `export const LAND_LEVY_AREA_MULTIPLIER_MAX = ${b.economy.landLevyAreaMultiplierMax};`,
+    `export const LAND_LEVY_BACKYARD_MULTIPLIER = ${b.economy.landLevyBackyardMultiplier};`,
+    `export const PRIVATE_EXPORT_INCOME_CART_LOAD = ${b.economy.privateExportIncomeCartLoad};`,
     '',
     `export const CARPENTER_TIMBER_PER_POLEARM = ${b.frontierEconomy.carpenterTimberPerPolearm};`,
     `export const CARPENTER_IRONWORK_PER_POLEARM = ${b.frontierEconomy.carpenterIronworkPerPolearm};`,
@@ -1734,8 +1781,6 @@ function generateTypeScript(): string {
     `export const CHAPEL_CHARITY_MIN_COFFER_GOLD = ${b.population.chapelCharityMinCofferGold};`,
     `export const CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH = ${b.population.chapelPoorReliefGoldPerDispatch};`,
     `export const CHAPEL_POOR_RELIEF_INTERVAL_DAYS = ${b.population.chapelPoorReliefIntervalDays};`,
-    `export const CHAPEL_AUTO_SWEEP_INTERVAL_TICKS = ${b.population.chapelAutoSweepIntervalTicks};`,
-    `export const CHAPEL_AUTO_SWEEP_FRACTION = ${b.population.chapelAutoSweepFraction};`,
     `export const CHAPEL_COFFER_RESERVE_DEFAULT = ${b.population.chapelCofferReserveDefault};`,
     `export const CHAPEL_COFFER_RESERVE_MIN = ${b.population.chapelCofferReserveMin};`,
     `export const CHAPEL_COFFER_RESERVE_MAX = ${b.population.chapelCofferReserveMax};`,

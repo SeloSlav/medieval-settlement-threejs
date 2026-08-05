@@ -1,6 +1,5 @@
 import type { BackyardGardenKind } from '../../residences/backyardGarden.ts';
 import { parseGardenPickerKind } from './backyardRenderer.ts';
-import { isChapelCofferCollectAction } from './chapelRenderer.ts';
 import { parseMarketplaceTradeId } from '../../economy/marketplaceTrade.ts';
 import type { InspectableTarget } from '../types.ts';
 
@@ -8,7 +7,6 @@ export type SupplementalPanelHandlers = {
   onPlaceBackyardGarden?: (residenceId: string, kind: BackyardGardenKind) => void | Promise<void>;
   onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
   onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
-  onCollectChapelCoffer?: (buildingId: string) => void | Promise<void>;
   onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
   onUpgradeResidence?: (residenceId: string) => void | Promise<void>;
   onRetrofitResidenceTileRoof?: (residenceId: string) => void | Promise<void>;
@@ -71,15 +69,6 @@ export function handleSupplementalPanelClick(
     && target.building.kind === 'trading_post'
   ) {
     void handlers.onCancelMarketplaceTradeOrder?.(target.building.id);
-    return true;
-  }
-
-  if (
-    isChapelCofferCollectAction(eventTarget)
-    && target?.kind === 'building'
-    && target.building.kind === 'chapel'
-  ) {
-    void handlers.onCollectChapelCoffer?.(target.building.id);
     return true;
   }
 

@@ -720,6 +720,7 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.cheese = 0.0;
             building.gold = 0.0;
             building.civic_receipts_gold = 0.0;
+            building.private_export_proceeds_gold = 0.0;
             ctx.db.building().id().update(building);
         }
         FIRE_TARGET_RESIDENCE => {
