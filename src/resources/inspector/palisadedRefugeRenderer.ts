@@ -71,7 +71,7 @@ export function renderPalisadedRefugeInspector(
     statusText: status[0],
     statusState: status[1],
     detailsHtml: `
-      ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
+      ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Warned families carry people and household coin into a compact civilian enclosure</span></li>
       <li><span>Rally reach</span><span>${radius > 0 ? `${Math.round(radius)} m` : 'None until fire recovery'}</span></li>

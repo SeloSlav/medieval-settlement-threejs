@@ -1891,6 +1891,7 @@ export class ResourceInspector {
 
   private applyPresentation(target: InspectableTarget): void {
     const presentation = inspectablePresentation(target);
+    this.panel.dataset.inspectorTarget = target.kind;
     this.panel.dataset.inspectorKind = presentation.kind;
     this.heroSymbol.textContent = presentation.symbol;
     this.heroArt.style.backgroundImage = presentation.image

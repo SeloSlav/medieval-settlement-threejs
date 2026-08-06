@@ -407,7 +407,7 @@ export function renderHarvestBuildingInspector(
     statusText,
     statusState,
     detailsHtml: `
-      ${buildingCostRows(building.kind, cost)}
+      ${buildingCostRows(cost)}
       ${buildingExtentRow(building.kind)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Labor roles</span><span>${formatFoodCrewSplit(building.assignedLabor, context.populationStats.available)}</span></li>

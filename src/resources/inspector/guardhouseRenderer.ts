@@ -259,7 +259,7 @@ export function renderGuardhouseInspector(
     statusText: status[0],
     statusState: status[1],
     detailsHtml: `
-      ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
+      ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Paid local guard company warned by the watch or mobilized by visible contact</span></li>
       ${woundedAgents.length > 0 ? `<li><span>Wounded company</span><span>${recoveryFeedback}</span></li>` : ''}

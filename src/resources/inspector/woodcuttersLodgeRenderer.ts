@@ -178,7 +178,7 @@ export function renderWoodcuttersLodgeInspector(
     statusText,
     statusState,
     detailsHtml: `
-      ${buildingCostRows(building.kind, cost)}
+      ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Labor roles</span><span>${crewLabel}</span></li>
       <li><span>Supplying mills</span><span>${millSummary}</span></li>

@@ -987,6 +987,26 @@ select:focus-visible {
   text-align: left;
 }
 
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-details > [data-inspector-details] {
+  gap: 5px;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-details [data-inspector-details] > li {
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 1px 6px;
+  min-height: 50px;
+  padding: 7px 7px 7px 6px;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-details [data-inspector-details] > li > .inspector-row-icon {
+  font-size: 16px;
+}
+
+.resource-inspector-panel[data-inspector-target='building'] .resource-inspector-details [data-inspector-details] > li > .inspector-detail-value {
+  font-size: 11px;
+  line-height: 1.18;
+}
+
 .resource-inspector-ledger {
   margin-top: 10px;
   border-top: 1px solid rgba(220, 195, 137, 0.12);

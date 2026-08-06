@@ -126,7 +126,7 @@ export function renderMineralMineInspector(
           ? 'idle'
           : 'warning',
     detailsHtml: `
-      ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
+      ${buildingCostRows(getBuildingCost(building.kind))}
       <li><span>Physical source</span><span>${
         deposit === null
           ? 'Missing - mine cannot produce'

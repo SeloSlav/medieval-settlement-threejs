@@ -261,9 +261,8 @@ export function buildingLaborView(
   };
 }
 
-export function buildingCostRows(kind: BuildingKind, cost: BuildingResourceCost): string {
+export function buildingCostRows(cost: BuildingResourceCost): string {
   return `
-    <li><span>Kind</span><span>${kind}</span></li>
     <li><span>Build cost</span><span>${formatBuildingCost(cost)}</span></li>
   `;
 }

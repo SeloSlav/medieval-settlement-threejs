@@ -194,7 +194,7 @@ export function renderChapelInspector(
           ? 'idle'
           : 'draft',
     detailsHtml: `
-      ${buildingCostRows(building.kind, cost)}
+      ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Church tier</span><span>${tier.tier} / 3 · ${tier.material}</span></li>
       <li><span>Tier benefits</span><span>${tier.titheMultiplier <= 1 ? 'Base' : `+${Math.round((tier.titheMultiplier - 1) * 100)}%`} tithe yield · ${cofferCapacity} gold coffer</span></li>

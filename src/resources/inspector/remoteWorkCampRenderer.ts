@@ -37,17 +37,17 @@ export function withWorksiteLodging(
   );
   const commute = !summary || summary.measuredWorkers === 0
     ? 'No housed crew route measured'
-    : `${Math.round(summary.averageOneWayDistance)} m average Â· ${formatDisplayedDuration(
+    : `${Math.round(summary.averageOneWayDistance)} m average · ${formatDisplayedDuration(
         summary.averageOneWaySeconds,
-      )} one way Â· ${Math.round(summary.longestOneWayDistance)} m longest`;
+      )} one way · ${Math.round(summary.longestOneWayDistance)} m longest`;
   const authoritativeEfficiency = Math.max(
     0,
     Math.min(1, building.commuteEfficiency ?? summary?.effectiveShiftRatio ?? 1),
   );
   const effectiveShift = lodgingActive
-    ? '100% productive shift Â· crew sleeps at the worksite'
+    ? '100% productive shift · crew sleeps at the worksite'
     : building.commuteEfficiency != null || summary && summary.measuredWorkers > 0
-      ? `${Math.round(authoritativeEfficiency * 100)}% productive shift after commute Â· ${summary && summary.measuredWorkers > 0 ? commuteBandLabel(summary.band) : 'daily workforce cache'}`
+      ? `${Math.round(authoritativeEfficiency * 100)}% productive shift after commute · ${summary && summary.measuredWorkers > 0 ? commuteBandLabel(summary.band) : 'daily workforce cache'}`
       : 'Awaiting the first daily workforce review';
 
   const panel = policy === 'built_in'
@@ -82,11 +82,11 @@ export function withWorksiteLodging(
   const lodgingLabel = policy === 'built_in'
     ? 'Bunks inside the existing building'
     : campFire
-      ? 'Linked camp fire-disabled Â· household commute active'
+      ? 'Linked camp fire-disabled · household commute active'
       : camp?.constructionComplete !== false && camp
       ? 'Linked tents and campfire'
       : camp
-        ? 'Camp under construction Â· household commute remains active'
+        ? 'Camp under construction · household commute remains active'
         : 'Assigned household or founders\' camp';
   return {
     ...view,
@@ -113,8 +113,8 @@ export function renderRemoteWorkCampInspector(
     eyebrow: 'Crew lodging',
     title: 'Overnight work camp',
     statusText: worksite
-      ? `Operational Â· serving ${parentLabel.toLocaleLowerCase()}`
-      : 'Unlinked Â· available for demolition',
+      ? `Operational · serving ${parentLabel.toLocaleLowerCase()}`
+      : 'Unlinked · available for demolition',
     statusState: worksite ? 'active' : 'warning',
     detailsHtml: `
       <li><span>Linked worksite</span><span>${parentLabel}${worksite ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${worksite.id}" aria-label="Inspect linked worksite">Inspect</button>` : ''}</span></li>
@@ -143,5 +143,5 @@ function formatDisplayedDuration(simulationSeconds: number): string {
 function commuteBandLabel(band: 'short' | 'long' | 'severe'): string {
   if (band === 'short') return 'short commute';
   if (band === 'long') return 'long commute';
-  return 'severe commute Â· nearby housing or a camp recommended';
+  return 'severe commute · nearby housing or a camp recommended';
 }

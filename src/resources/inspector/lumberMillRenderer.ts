@@ -39,7 +39,7 @@ export function renderLumberMillInspector(
     statusText: processorStatus?.statusText ?? 'Idle',
     statusState: processorStatus?.statusState ?? 'idle',
     detailsHtml: `
-      ${buildingCostRows(building.kind, cost)}
+      ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${processorStatus?.waterDetailHtml ?? ''}
       ${civilianToolRows(building, context.worldQueries)}

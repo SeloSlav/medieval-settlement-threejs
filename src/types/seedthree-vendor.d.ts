@@ -107,8 +107,6 @@ declare module '@seedthree/core/forest-lod.js' {
   export type ForestLodOptions = {
     cellSize?: number;
     frustumPadding?: number;
-    /** Keep a 360-degree color-visible bubble around a rapidly turning camera. */
-    viewRetentionRadius?: number;
     nearDistance?: number;
     lodHysteresis?: number;
     minimumCameraMove?: number;

@@ -133,7 +133,7 @@ export function renderWellInspector(
     statusText,
     statusState,
     detailsHtml: `
-      ${buildingCostRows(building.kind, cost)}
+      ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Labor</span><span>No assigned crew · household supply reserves no hauler</span></li>
       <li><span>Hydrology</span><span>${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)</span></li>

@@ -644,6 +644,7 @@ assert.match(commuteAuthoritySource, /road_path_distances_from/);
 assert.match(commuteAuthoritySource, /worksite_has_active_remote_camp/);
 assert.match(lodgingInspectorSource, /Authoritative output labor/);
 assert.match(lodgingInspectorSource, /restoring the worksite\\'s full productive shift/);
+assert.doesNotMatch(lodgingInspectorSource, /Â/, 'inspector copy must not contain mojibake');
 assert.match(villagerRendererSource, /scanFromWatchtower/);
 assert.match(villagerRendererSource, /resolveAgentY/);
 assert.match(villagerRendererSource, /Keeping watch from the frontier gallery/);

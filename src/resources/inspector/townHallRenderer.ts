@@ -2397,7 +2397,7 @@ export function renderTownHallInspector(
       : `Unstaffed — policy locked and only ${collectionRate}% of assessed tax is collected`,
     statusState: staffed ? 'active' : 'warning',
     detailsHtml: `
-      ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
+      ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Settlement government, taxation, and economic ledger</span></li>
       <li><span>Treasury chest</span><span>${building.gold.toFixed(0)} gold secured here${inboundTreasuryGold > 1e-6 ? ` · ${inboundTreasuryGold.toFixed(0)} incoming by handcart` : ''}</span></li>

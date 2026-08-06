@@ -70,6 +70,11 @@ import {
 } from '@seedthree/core/forest-update-budget.js';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 import { planSeedThreeForestInteractionWork } from './seedThreeForestInteraction.ts';
+import {
+  retainSeedThreeFirstPersonView,
+  sameSeedThreeForestIndexSelection,
+  type SeedThreeForestIndexSelection,
+} from './seedThreeFirstPersonForestRetention.ts';
 
 type SpeciesBucket = {
   preset: SeedThreePresetKey;
@@ -95,6 +100,7 @@ export type SeedThreeForestInstances = {
   slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null>;
   hiddenMatrix: THREE.Matrix4;
   visibilitySelector: ReturnType<typeof createForestLodSelector>;
+  effectiveCameraSelection: (SeedThreeForestIndexSelection & { revision: number }) | null;
   seasonalCardMaterials: THREE.Material[];
   crownUnderlayMeshes: THREE.InstancedMesh[];
   crownUnderlayVisible: boolean;
@@ -712,6 +718,7 @@ export async function createSeedThreeForest(
     slotByLayoutIndex,
     hiddenMatrix,
     visibilitySelector,
+    effectiveCameraSelection: null,
     seasonalCardMaterials: [...seasonalCardMaterials],
     crownUnderlayMeshes,
     crownUnderlayVisible,
@@ -839,16 +846,13 @@ export function updateSeedThreeForestCameraBudgeted(
   const cameraInteractionActive = options.cameraInteractionActive === true;
   const previousCameraInteractionActive = forest.cameraInteractionActive;
   forest.cameraInteractionActive = cameraInteractionActive;
-  const selection = selectForestLods(forest.visibilitySelector, camera, {
+  const rawSelection = selectForestLods(forest.visibilitySelector, camera, {
     nearDistance: firstPersonActive
       ? FOREST_FIRST_PERSON_NEAR_DISTANCE
       : FOREST_NEAR_DISTANCE,
     frustumPadding: firstPersonActive
       ? FOREST_VISIBILITY_PADDING + 8
       : FOREST_VISIBILITY_PADDING,
-    viewRetentionRadius: firstPersonActive
-      ? FOREST_FIRST_PERSON_VIEW_RETENTION_RADIUS
-      : 0,
     casterBounds,
     // Matches the directional-shadow fitter's broad-canopy horizontal margin.
     casterPadding: 14,
@@ -865,6 +869,38 @@ export function updateSeedThreeForestCameraBudgeted(
       ? {}
       : { minimumCasterBoundsChange: options.minimumCasterBoundsChange }),
   });
+  const selectedIndices = firstPersonActive
+    ? retainSeedThreeFirstPersonView(
+        rawSelection,
+        forest.visibilitySelector.items,
+        camera.position,
+        FOREST_FIRST_PERSON_VIEW_RETENTION_RADIUS,
+      )
+    : {
+        nearIndices: rawSelection.nearIndices,
+        overviewIndices: rawSelection.overviewIndices,
+        viewIndices: rawSelection.viewIndices,
+      };
+  const previousEffectiveSelection = forest.effectiveCameraSelection;
+  const effectiveSelectionChanged = !previousEffectiveSelection
+    || !sameSeedThreeForestIndexSelection(previousEffectiveSelection, selectedIndices);
+  const selectionRevision = effectiveSelectionChanged
+    ? (previousEffectiveSelection?.revision ?? 0) + 1
+    : previousEffectiveSelection.revision;
+  if (effectiveSelectionChanged) {
+    forest.effectiveCameraSelection = {
+      nearIndices: [...selectedIndices.nearIndices],
+      overviewIndices: [...selectedIndices.overviewIndices],
+      viewIndices: [...selectedIndices.viewIndices],
+      revision: selectionRevision,
+    };
+  }
+  const selection = {
+    ...rawSelection,
+    ...selectedIndices,
+    changed: effectiveSelectionChanged,
+    revision: selectionRevision,
+  };
   forest.updateTelemetry.selectorCalls += 1;
   forest.updateTelemetry.selectorEvaluations += selection.skipped ? 0 : 1;
   forest.updateTelemetry.selectorSkips += selection.skipped ? 1 : 0;

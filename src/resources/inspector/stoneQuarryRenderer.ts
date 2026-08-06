@@ -65,7 +65,7 @@ export function renderStoneQuarryInspector(
         ? 'warning'
         : 'idle',
     detailsHtml: `
-      ${buildingCostRows(building.kind, cost)}
+      ${buildingCostRows(cost)}
       ${civilianToolRows(building, context.worldQueries)}
       ${buildingExtentRow(building.kind)}
       <li><span>Harvest interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>

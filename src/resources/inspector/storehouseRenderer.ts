@@ -118,7 +118,7 @@ export function renderStorehouseInspector(
     statusText: status[0],
     statusState: status[1],
     detailsHtml: `
-      ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
+      ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Communal reserve, Marketplace goods-stall supply, construction logistics, and raw-material buffering</span></li>
       <li><span>Duty priority</span><span>Stock Marketplace firewood to cover household winter-night fuel floors first; urgent workshop buffers next; incoming producer overflow last</span></li>

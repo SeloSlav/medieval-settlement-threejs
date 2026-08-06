@@ -313,7 +313,7 @@ export function renderMarketplaceInspector(
       ? 'ok'
       : 'idle',
     detailsHtml: `
-      ${buildingCostRows(building.kind, cost)}
+      ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
       <li><span>Cured-store aging</span><span>${Math.round(

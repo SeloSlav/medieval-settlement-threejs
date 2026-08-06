@@ -50,7 +50,7 @@ export function renderWatchtowerInspector(
     statusText: status[0],
     statusState: status[1],
     detailsHtml: `
-      ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
+      ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Local holding coverage plus directional early warning on the frontier</span></li>
       <li><span>Posted watch</span><span>${suspendedByFire && building.assignedLabor > 0 ? `${building.assignedLabor} assigned ${building.assignedLabor === 1 ? 'lookout is' : 'lookouts are'} displaced during recovery` : building.assignedLabor > 0 ? `${building.assignedLabor} visible ${building.assignedLabor === 1 ? 'lookout' : 'lookouts'} in the raised gallery` : 'No lookout posted'}</span></li>

@@ -66,7 +66,7 @@ export function renderMarketStallsInspector(
         : `${totalStalls} active stalls stocking ${stockedNeeds} household need ${stockedNeeds === 1 ? 'category' : 'categories'}`,
     statusState: totalStalls > 0 ? 'active' : 'idle',
     detailsHtml: `
-      ${buildingCostRows(building.kind, getBuildingCost(building.kind))}
+      ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
       <li><span>Purpose</span><span>Shared local household exchange — it has no employees of its own</span></li>

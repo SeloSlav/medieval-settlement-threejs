@@ -33,7 +33,7 @@ export function renderReforesterInspector(
           : 'Idle — no stumps in range',
     statusState: regrowing ? 'active' : building.assignedLabor === 0 ? 'idle' : 'draft',
     detailsHtml: `
-      ${buildingCostRows(building.kind, cost)}
+      ${buildingCostRows(cost)}
       ${buildingExtentRow(building.kind)}
       <li><span>Regrowth rate</span><span>${building.assignedLabor > 0 ? `${(definition.regrowRatePerSecond * building.assignedLabor).toFixed(3)}/s` : `${definition.regrowRatePerSecond}/s per worker`}</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}

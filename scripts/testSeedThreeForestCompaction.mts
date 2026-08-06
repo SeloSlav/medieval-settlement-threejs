@@ -14,6 +14,10 @@ import {
 import { stabilizeSeedThreeForestCardMaterial } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
 import { planSeedThreeForestInteractionWork } from '../src/vegetation/seedthree/seedThreeForestInteraction.ts';
 import {
+  retainSeedThreeFirstPersonView,
+  sameSeedThreeForestIndexSelection,
+} from '../src/vegetation/seedthree/seedThreeFirstPersonForestRetention.ts';
+import {
   planForestBucketUpdates,
 } from '../vendor/seedthree/src/core/forest-update-budget.js';
 
@@ -36,6 +40,36 @@ assert.deepEqual(
   planSeedThreeForestInteractionWork(false, true, false),
   { deferCoveredWork: false, discardCoveredWork: false, completeImmediately: true },
   'an uncovered moving view must be filled immediately instead of showing a gap',
+);
+
+const retainedFirstPersonView = retainSeedThreeFirstPersonView(
+  {
+    nearIndices: [0],
+    overviewIndices: [],
+    viewIndices: [0],
+  },
+  [
+    { x: 0, z: 45, radius: 4 },
+    { x: 0, z: -45, radius: 4 },
+    { x: 0, z: -180, radius: 4 },
+    { x: 15, z: 0, radius: 4, forceOverview: true },
+  ],
+  { x: 0, z: 0 },
+  72,
+);
+assert.deepEqual(retainedFirstPersonView, {
+  nearIndices: [0, 1],
+  overviewIndices: [3],
+  viewIndices: [0, 1, 3],
+}, 'first-person retention must add nearby off-axis trees without extending to the far forest');
+assert.equal(
+  sameSeedThreeForestIndexSelection(retainedFirstPersonView, {
+    nearIndices: [0, 1],
+    overviewIndices: [3],
+    viewIndices: [0, 1, 3],
+  }),
+  true,
+  'an unchanged walking bubble must not schedule a forest repack while the POV turns',
 );
 
 const alphaCutoutMaterial = new THREE.MeshBasicMaterial({ alphaTest: 0.35 });
