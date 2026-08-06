@@ -43,7 +43,7 @@ use crate::economy::{
     FRESH_FOOD_COMMODITIES,
 };
 use crate::farming::{
-    advance_crop_rotation, crop_growth_allowed, crop_produce, expected_grain_yield,
+    advance_crop_rotation, centroid, crop_growth_allowed, crop_produce, expected_grain_yield,
     farmstead_exportable_grain, fertility_after_harvest, field_manure_fertility_bonus,
     field_manure_required, field_seed_crop, field_seed_grain_remaining, field_work_allowed,
     seed_grain_required, shape_efficiency, sowing_window_missed, work_required, CROP_BARLEY,
@@ -57,7 +57,9 @@ use crate::frontier_economy_policy::{
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
-use crate::hydrology::{clay_bank_yield_multiplier_with_richness, sample_hydrology_score};
+use crate::hydrology::{
+    clay_bank_yield_multiplier_with_richness, sample_world_hydrology_score,
+};
 use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
 };
@@ -1547,6 +1549,7 @@ fn step_farmstead_fields(
             continue;
         }
         let corners = field_corners(field);
+        let field_center = centroid(&corners);
         let shape = shape_efficiency(&corners);
         let plough_multiplier = cattle_support.get(&field.id).copied().unwrap_or(1.0);
         let required = (work_required(field.stage, field.area, shape)
@@ -1566,6 +1569,8 @@ fn step_farmstead_fields(
                     field.fertility,
                     field.average_slope_degrees,
                     shape,
+                    field_center.x,
+                    field_center.z,
                 ) * field.harvest_yield_multiplier.clamp(0.0, 1.0),
             )
         } else {
@@ -1929,6 +1934,8 @@ pub fn step_clay_pit(
     tick: &SimTickContext,
     clock: &GameClock,
     environment: EnvironmentState,
+    world_seed: u64,
+    world_hydrology: u8,
     resource_abundance: u8,
     building: Building,
 ) {
@@ -1945,6 +1952,8 @@ pub fn step_clay_pit(
         * clay_bank_yield_multiplier_at_deposit(
             building.x,
             building.z,
+            world_seed,
+            world_hydrology,
             resource_abundance,
             &deposit,
         );
@@ -1990,6 +1999,8 @@ fn clay_deposit_beneath(ctx: &ReducerContext, x: f64, z: f64) -> Option<Foraging
 fn clay_bank_yield_multiplier_at_deposit(
     x: f64,
     z: f64,
+    world_seed: u64,
+    world_hydrology: u8,
     resource_abundance: u8,
     deposit: &ForagingNode,
 ) -> f64 {
@@ -1999,7 +2010,7 @@ fn clay_bank_yield_multiplier_at_deposit(
         0.0
     };
     clay_bank_yield_multiplier_with_richness(
-        sample_hydrology_score(x, z),
+        sample_world_hydrology_score(x, z, world_seed, world_hydrology),
         resource_abundance,
         richness,
     )

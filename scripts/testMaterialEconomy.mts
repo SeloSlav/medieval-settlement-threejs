@@ -1251,13 +1251,13 @@ assert.match(
 );
 assert.match(
   clayPitStep,
-  /let Some\(mut deposit\) = clay_deposit_beneath[\s\S]*environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_deposit\(\s*building\.x,\s*building\.z,\s*resource_abundance,\s*&deposit/,
-  'authoritative clay digging must multiply weather by the local geological bank yield',
+  /let Some\(mut deposit\) = clay_deposit_beneath[\s\S]*environment\.clay_pit_throughput_multiplier\(\)\s*\*\s*clay_bank_yield_multiplier_at_deposit\(\s*building\.x,\s*building\.z,\s*world_seed,\s*world_hydrology,\s*resource_abundance,\s*&deposit/,
+  'authoritative clay digging must multiply weather by the map-specific geological bank yield',
 );
 assert.match(
   simulationReducerSource,
-  /step_clay_pit\(\s*ctx,\s*&tick,\s*&clock,\s*environment,\s*world_resource_abundance,\s*building/,
-  'weather and world resource abundance must reach every clay-pit production step',
+  /step_clay_pit\(\s*ctx,\s*&tick,\s*&clock,\s*environment,\s*world_seed,\s*world_hydrology,\s*world_resource_abundance,\s*building/,
+  'weather, map hydrology, and world resource abundance must reach every clay-pit production step',
 );
 assert.match(
   charcoalBurnerStep,
@@ -1292,6 +1292,8 @@ assert.match(
   /hydrology_grid\.json' with \{ type: 'json' \}/,
   'direct Node test runners and Vite must share an explicit JSON module boundary',
 );
+assert.match(hydrologySamplerSource, /applyWorldGroundwaterVariation/);
+assert.match(hydrologySource, /sample_world_hydrology_score/);
 assert.match(clayPitStep, /fn clay_bank_yield_multiplier_at_deposit/);
 assert.match(buildingToolSource, /geological clay yield before weather and iron tools/);
 assert.match(expandedInspectorSource, /Clay seam[\s\S]*Current digging pace/);

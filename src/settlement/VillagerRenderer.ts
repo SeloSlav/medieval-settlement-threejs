@@ -4048,7 +4048,11 @@ export class VillagerRenderer {
     if (workplace && workerProductionBlocker(workplace)) return null;
     const kind = workplace?.kind;
     if (kind === 'lumber_mill' || kind === 'woodcutters_lodge') return 'hatchet';
-    if (kind === 'stone_quarry' || kind === 'large_quarry') return 'pickaxe';
+    if (
+      kind === 'stone_quarry'
+      || kind === 'large_quarry'
+      || kind === 'mine'
+    ) return 'pickaxe';
     if (
       kind === 'reforester'
       || kind === 'clay_pit'

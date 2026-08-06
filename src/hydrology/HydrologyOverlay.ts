@@ -94,9 +94,9 @@ function createHydrologyTexture(riverField: RiverField): THREE.DataTexture {
   forEachRiverFieldSample(riverField, resolution, ({ x, z, row, column }) => {
     const groundwater = sampleAuthoritativeHydrologyScore(x, z);
     const riverPower = sampleHydrologyMapScore(riverField, x, z);
-    // Wells use the authoritative groundwater score; open water and banks
-    // remain bright so watermill placement can be read from the same layer.
-    const score = Math.max(groundwater * 0.82, riverPower);
+    // Inland colors now show the full authoritative well score. Open water
+    // and strong banks remain bright for watermill placement on the same map.
+    const score = Math.max(groundwater, riverPower);
     const color = hydrologyColor(score);
     const dataRow = mapRiverFieldRowForPlaneGeometry(row, resolution);
     const index = (dataRow * resolution + column) * 4;

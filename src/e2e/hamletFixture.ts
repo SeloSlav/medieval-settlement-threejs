@@ -442,7 +442,9 @@ const visualGpuTimestampMarkersEnabled =
 const groundcoverLodFadeMode: GrassBladeLodFadeMode =
   params.get('groundcoverFade') === 'legacy-pipeline-cutover'
     ? 'legacy-pipeline-cutover'
-    : 'continuous-alpha-hash';
+    : params.get('groundcoverFade') === 'continuous-alpha-hash'
+      ? 'continuous-alpha-hash'
+      : 'continuous-alpha-coverage';
 const requestedGroundcoverTransitionEvidence =
   params.get('groundcoverTransitionEvidence') === '1';
 const fixtureAblation = resolveHamletFixtureAblation(params.get('ablation'));

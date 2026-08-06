@@ -101,6 +101,8 @@ export function rasterizeCropSuitability(
         options.crop,
         options.sampleMoisture(x, z),
         options.sampleSlopeDegrees(x, z),
+        x,
+        z,
       );
       const color = cropSuitabilityColor(score);
       const index = (dataRow * resolution + column) * 4;

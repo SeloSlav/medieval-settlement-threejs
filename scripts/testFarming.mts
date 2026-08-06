@@ -41,6 +41,7 @@ import {
   fieldEdgeLengths,
   fieldShapeEfficiency,
   fieldSizeEfficiency,
+  cropEnvironmentalSuitability,
   cropSiteSuitability,
   initialFieldFertility,
   isValidFarmFieldCorners,
@@ -137,19 +138,56 @@ const oatsDry = moistureSuitability('oats', 0.38);
 const oatsWet = moistureSuitability('oats', 0.58);
 assert.ok(ryeDry > oatsDry, 'rye should be the better crop on drier ground');
 assert.ok(oatsWet > moistureSuitability('rye', 0.58), 'oats should be the better crop on wetter ground');
-assert.equal(initialFieldFertility(0.5, 0), 0.77);
-assert.ok(Math.abs(initialFieldFertility(10, 0) - 0.92) < 1e-9);
-assert.equal(initialFieldFertility(0, 100), 0.35);
+const dryOriginFertility = initialFieldFertility(0, 2, 0, 0);
+const wetOriginFertility = initialFieldFertility(0.8, 2, 0, 0);
+assert.ok(wetOriginFertility > dryOriginFertility);
 assert.ok(
-  cropSiteSuitability('rye', FARM_CROP_DEFINITIONS.rye.moistureIdeal, 1)
-    > cropSiteSuitability('rye', 0.95, 14),
+  initialFieldFertility(0.4, 2, 0, 0) > initialFieldFertility(0.4, 16, 0, 0),
+);
+assert.notEqual(
+  initialFieldFertility(0.2, 2, 40, -80),
+  initialFieldFertility(0.2, 2, -240, 180),
+);
+assert.equal(initialFieldFertility(0, 100, 0, 0), 0.35);
+assert.ok(
+  cropSiteSuitability('rye', 0.2, 1, 40, -80)
+    > cropSiteSuitability('rye', 0.2, 14, 40, -80),
   'the placement map should reward crop-matched gentle ground',
 );
 assert.ok(
-  cropSiteSuitability('oats', 0.58, 2)
-    > cropSiteSuitability('rye', 0.58, 2),
-  'crop cycling must materially change the spatial recommendation',
+  cropSiteSuitability('oats', 0.7, 2, 0, 0)
+    > cropSiteSuitability('oats', 0, 2, 0, 0),
+  'river and aquifer ground should remain valuable to moisture-loving oats',
 );
+assert.ok(
+  cropSiteSuitability('rye', 0, 2, 0, 0)
+    > cropSiteSuitability('rye', 0.7, 2, 0, 0),
+  'rye should create a strategic dry-upland alternative to river fields',
+);
+const strategicCrops = ['rye', 'oats', 'barley', 'flax', 'wheat'] as const;
+const dryLandSites = [] as Array<{ x: number; z: number }>;
+for (let z = -360; z <= 360; z += 60) {
+  for (let x = -360; x <= 360; x += 60) dryLandSites.push({ x, z });
+}
+const winners = new Set<string>();
+for (const site of dryLandSites) {
+  const ranked = strategicCrops
+    .map((crop) => ({ crop, score: cropEnvironmentalSuitability(crop, 0, site.x, site.z) }))
+    .sort((left, right) => right.score - left.score);
+  winners.add(ranked[0].crop);
+}
+for (const crop of strategicCrops) {
+  const scores = dryLandSites.map((site) => (
+    cropEnvironmentalSuitability(crop, 0, site.x, site.z)
+  ));
+  assert.ok(
+    Math.max(...scores) - Math.min(...scores) > 0.08,
+    `${crop} should have visibly different non-river soil pockets`,
+  );
+}
+for (const grain of ['rye', 'oats', 'barley', 'wheat'] as const) {
+  assert.ok(winners.has(grain), `${grain} should win some non-river land pockets`);
+}
 const poorSuitabilityColor = cropSuitabilityColor(0.1);
 const primeSuitabilityColor = cropSuitabilityColor(0.95);
 assert.ok(poorSuitabilityColor.r > poorSuitabilityColor.g);
@@ -832,9 +870,12 @@ const constructionSimulation = fs.readFileSync('server/src/simulation/constructi
 assert.match(constructionSimulation, /site\.grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
 assert.match(constructionSimulation, /site\.barley \+= FARMSTEAD_STARTER_BARLEY_SEED/);
 const farmFieldReducers = fs.readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
-assert.match(farmFieldReducers, /initial_field_fertility\(moisture, slope\)/);
+assert.match(
+  farmFieldReducers,
+  /initial_field_fertility\(moisture, slope, center\.x, center\.z\)/,
+);
 assert.match(farmFieldReducers, /is_valid_convex_quadrilateral/);
-assert.match(farmFieldReducers, /PARCEL_SAMPLE_DIVISIONS/);
+assert.match(farmFieldReducers, /active rendered-water[\s\S]*groundwater proxy/);
 assert.match(farmFieldReducers, /pub fn start_farm_field_early_harvest/);
 assert.match(farmFieldReducers, /early_harvest_available\(/);
 assert.match(farmFieldReducers, /field\.harvest_yield_multiplier = early_harvest_yield_multiplier/);

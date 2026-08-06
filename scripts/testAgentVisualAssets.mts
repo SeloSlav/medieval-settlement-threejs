@@ -442,6 +442,14 @@ const workerToolAssets: ReadonlyArray<{
     path: 'public/assets/models/worker-tools/kenney-tool-hammer.glb',
   },
   {
+    kind: 'hoe',
+    path: 'public/assets/models/worker-tools/kenney-tool-hoe.glb',
+  },
+  {
+    kind: 'shovel',
+    path: 'public/assets/models/worker-tools/kenney-tool-shovel.glb',
+  },
+  {
     kind: 'spear',
     path: 'public/assets/models/worker-tools/quaternius-spear.glb',
   },
@@ -486,11 +494,49 @@ for (const asset of workerToolAssets) {
     .setFromObject(tool)
     .getSize(new THREE.Vector3());
   const worldLength = Math.max(worldSize.x, worldSize.y, worldSize.z);
-  const expectedRange = asset.kind === 'spear' ? [1.65, 1.95] : [0.5, 0.8];
+  const expectedLengthRange: Record<WorkerToolKind, readonly [number, number]> = {
+    hatchet: [0.36, 0.46],
+    pickaxe: [0.72, 0.86],
+    hammer: [0.29, 0.38],
+    hoe: [0.77, 1],
+    shovel: [0.72, 0.95],
+    spear: [1.65, 1.95],
+  };
+  const expectedRange = expectedLengthRange[asset.kind];
   assert.ok(
     worldLength >= expectedRange[0] && worldLength <= expectedRange[1],
     `${asset.kind} should be scaled to a believable hand-tool length (got ${worldLength.toFixed(3)}m)`,
   );
+
+  if (asset.kind !== 'spear') {
+    const expectedAuthoredSize: Record<
+      Exclude<WorkerToolKind, 'spear'>,
+      readonly [number, number, number]
+    > = {
+      hatchet: [0.15, 0.42, 0.045],
+      pickaxe: [0.48, 0.82, 0.055],
+      hammer: [0.13, 0.34, 0.045],
+      hoe: [0.18, 0.95, 0.07],
+      shovel: [0.18, 0.9, 0.055],
+    };
+    const palmScale = tool.parent!.getWorldScale(new THREE.Vector3());
+    palmScale.set(
+      Math.abs(palmScale.x),
+      Math.abs(palmScale.y),
+      Math.abs(palmScale.z),
+    );
+    const fittedAuthoredSize = source.sourceSize.clone()
+      .multiply(tool.scale)
+      .multiply(palmScale);
+    fittedAuthoredSize.toArray().forEach((dimension, index) => {
+      const expected = expectedAuthoredSize[asset.kind][index]!;
+      assert.ok(
+        Math.abs(dimension - expected) < 0.002,
+        `${asset.kind} authored axis ${index} should fit ${expected.toFixed(3)}m `
+          + `instead of retaining toy-like proportions (got ${dimension.toFixed(3)}m)`,
+      );
+    });
+  }
 }
 
 assert.equal(

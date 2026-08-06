@@ -984,6 +984,24 @@ for (const [source, label] of [
     `authoritative ${label} placement must reject a deposit enclosed between parcel samples`,
   );
 }
+for (const [source, label] of [
+  [buildingReducer, 'buildings'],
+  [residenceReducer, 'residences'],
+  [farmFieldReducer, 'fields'],
+  [livestockReducer, 'pastures'],
+  [graveyardReducer, 'graveyards'],
+] as const) {
+  assert.doesNotMatch(
+    source,
+    /\bis_open_water\s*\(|\bis_near_open_water\s*\(|\bbuilding_overlaps_open_water\s*\(/,
+    `authoritative ${label} placement must not mistake the fixed groundwater grid for the active rendered-water mask`,
+  );
+}
+assert.match(
+  buildingReducer,
+  /Surface-water and shoreline placement is validated[\s\S]*active world's seed-aware rendered river mask/,
+  'building placement must document why the active client mask owns generated surface-water validation',
+);
 assert.match(
   placementValidation,
   /node_kind != "clay"[\s\S]*RICH_CLAY_DEPOSIT_PROTECTION_RADIUS[\s\S]*polygon_overlaps_circle/,

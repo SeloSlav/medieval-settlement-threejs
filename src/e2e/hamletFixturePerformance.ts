@@ -2888,6 +2888,7 @@ export type HamletFixtureEvidenceEnvelope = {
       typeof HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT;
     disabledSubsystems: string[];
     groundcoverFadeMode:
+      | 'continuous-alpha-coverage'
       | 'continuous-alpha-hash'
       | 'legacy-pipeline-cutover';
     groundcoverSubmission:
@@ -3217,7 +3218,7 @@ function doesHamletRoutePresentationMatchCapture(
     && presentation.postProcessing === capture.postProcessing
     && presentation.shadowSubsystem === capture.shadowSubsystem
     && edgeLayoutMatches
-    && presentation.groundcoverFadeMode === 'continuous-alpha-hash'
+    && presentation.groundcoverFadeMode === 'continuous-alpha-coverage'
     && presentation.groundcoverSubmission
       === 'three-whole-field-instanced-meshes';
 }

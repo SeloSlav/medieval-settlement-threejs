@@ -116,7 +116,7 @@ function sampleNearbyFieldGround(options: FoundingSiteAssessmentOptions): number
     const z = options.z + Math.sin(angle) * FIELD_SAMPLE_RADIUS;
     const moisture = clamp01(options.sampleGroundwater(x, z));
     const slope = sampleLocalSlopeDegrees(x, z, options.getHeightAt);
-    const soil = clamp01((initialFieldFertility(moisture, slope) - 0.35) / 0.60);
+    const soil = clamp01((initialFieldFertility(moisture, slope, x, z) - 0.35) / 0.60);
     const workableSlope = clamp01(1 - slope / 18);
     samples.push(soil * 0.55 + workableSlope * 0.45);
   }

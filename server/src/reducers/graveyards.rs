@@ -7,12 +7,9 @@ use crate::balance_generated::{
 use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_footprint, Point2};
 use crate::db::*;
 use crate::farming::{
-    bilinear_point, corners_from_values, edge_lengths, is_valid_convex_quadrilateral,
-    point_in_field, polygon_area,
+    corners_from_values, edge_lengths, is_valid_convex_quadrilateral, point_in_field, polygon_area,
 };
-use crate::placement_validation::{
-    building_pick_radius, is_open_water, zone_overlaps_resource_deposit,
-};
+use crate::placement_validation::{building_pick_radius, zone_overlaps_resource_deposit};
 use crate::tables::{corpse, farm_field, graveyard, Graveyard, Pasture};
 
 #[reducer]
@@ -87,19 +84,9 @@ pub fn place_graveyard(
     if zone_overlaps_resource_deposit(ctx, &corners) {
         return Err("Graveyards cannot cover a physical resource deposit.".to_string());
     }
-    const SAMPLE_DIVISIONS: usize = 4;
-    for v_index in 0..=SAMPLE_DIVISIONS {
-        for u_index in 0..=SAMPLE_DIVISIONS {
-            let point = bilinear_point(
-                &corners,
-                u_index as f64 / SAMPLE_DIVISIONS as f64,
-                v_index as f64 / SAMPLE_DIVISIONS as f64,
-            );
-            if is_open_water(point.x, point.z) {
-                return Err("Graveyards cannot cover open water.".to_string());
-            }
-        }
-    }
+    // The client samples the entire parcel against the active rendered-water
+    // mask. The server hydrology grid is a groundwater proxy, not this world's
+    // generated surface-water layout, so it must not contradict that result.
 
     let polygon = zone_corners_polygon(&corners);
     for building in ctx.db.building().owner().filter(&owner) {

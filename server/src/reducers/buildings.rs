@@ -35,7 +35,7 @@ use crate::granary_policy::{
     GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
 };
 use crate::harvest_reserve_policy::{harvestable_wild_stock, normalize_harvest_reserve_percent};
-use crate::hydrology::{sample_hydrology_score, well_capacity_from_hydrology};
+use crate::hydrology::{sample_world_hydrology_score, well_capacity_from_hydrology};
 use crate::labor_steward_policy::steward_deployable_labor;
 use crate::lifecycle::ensure_player_resources;
 use crate::marketplace_procurement_policy::{
@@ -44,8 +44,8 @@ use crate::marketplace_procurement_policy::{
     is_valid_marketplace_seed_grain_target, MARKETPLACE_GOLD_RESERVE_DEFAULT,
 };
 use crate::placement_validation::{
-    building_overlaps_open_water, building_overlaps_residence_zone, building_overlaps_road_surface,
-    building_site_contains_point, is_near_open_water, is_on_resource_deposit, is_open_water,
+    building_overlaps_residence_zone, building_overlaps_road_surface, building_site_contains_point,
+    is_on_resource_deposit,
 };
 use crate::potter_firing_policy::{is_valid_potter_firing_policy, potter_fires_roof_tiles};
 use crate::pottery_dispatch_policy::is_valid_pottery_dispatch_policy;
@@ -424,27 +424,12 @@ fn place_building_internal(
         return crate::reducers::bootstrap::place_founding_camp(ctx, x, z);
     }
 
-    // Generated mineral landmarks are authoritative terrain anchors. Do not let
-    // the coarse static hydrology grid reject a visually dry clay site in
-    // worlds whose river seed differs from the embedded default grid.
-    if kind != "large_quarry"
-        && !on_mineral_deposit
-        && !on_generated_clay_bank
-        && is_open_water(x, z)
-    {
-        return Err(if kind == "well" {
-            "Cannot build a well on open water.".to_string()
-        } else {
-            "Cannot build on water.".to_string()
-        });
-    }
-    if kind == "fishing_camp" && building_overlaps_open_water(&kind, x, z) {
-        return Err("The entire fishing camp must stand on dry land.".to_string());
-    }
-
-    if def.requires_water_shore && !on_generated_clay_bank && !is_near_open_water(x, z, 24.0) {
-        return Err("This building must be placed on a river or lake shore.".to_string());
-    }
+    // Surface-water and shoreline placement is validated by the placement
+    // client against the active world's seed-aware rendered river mask. The
+    // server hydrology grid is deliberately retained only as a groundwater and
+    // moisture proxy for wells, crops, and production. It represents one fixed
+    // layout, so using it here rejects visibly dry ground (including waterless
+    // maps) and can accept water from a different generated layout.
 
     // Parsing and indexing the serialized road graph is one of the more expensive
     // placement checks. Reuse one snapshot for overlap, landmark, and carpenter checks.
@@ -699,7 +684,7 @@ fn place_building_internal(
         .ok_or_else(|| "World not initialized.".to_string())?;
 
     let hydrology = if kind == "well" {
-        sample_hydrology_score(x, z)
+        sample_world_hydrology_score(x, z, config.seed, config.hydrology)
     } else {
         0.0
     };

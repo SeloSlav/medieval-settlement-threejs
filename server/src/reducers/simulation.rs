@@ -380,7 +380,16 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        step_well(ctx, &tick, sim_tick, &clock, environment, building);
+        step_well(
+            ctx,
+            &tick,
+            sim_tick,
+            world_seed,
+            world_hydrology,
+            &clock,
+            environment,
+            building,
+        );
     }
 
     for (sim_kind, building_id) in expanded_ids {
@@ -438,6 +447,8 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
                 &tick,
                 &clock,
                 environment,
+                world_seed,
+                world_hydrology,
                 world_resource_abundance,
                 building,
             ),

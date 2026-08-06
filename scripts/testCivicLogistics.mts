@@ -13,7 +13,7 @@ import {
   TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 } from '../src/generated/gameBalance.ts';
 import { BUILDING_KIND_TO_MENU_ACTION, MENU_ACTION_TO_BUILDING_KIND } from '../src/ui/buildMenuMapping.ts';
-import { BASIC_BUILD_MENU_ENTRIES } from '../src/ui/buildMenuCards.ts';
+import { CIVIC_BUILD_MENU_ENTRIES } from '../src/ui/buildMenuCards.ts';
 
 assert.ok(BUILDING_KINDS.includes('town_hall'));
 assert.ok(BUILDING_KINDS.includes('village_storehouse'));
@@ -49,8 +49,8 @@ assert.equal(BUILDING_KIND_TO_MENU_ACTION.town_hall, 'town-hall');
 assert.equal(BUILDING_KIND_TO_MENU_ACTION.village_storehouse, 'village-storehouse');
 assert.equal(MENU_ACTION_TO_BUILDING_KIND['town-hall'], 'town_hall');
 assert.equal(MENU_ACTION_TO_BUILDING_KIND['village-storehouse'], 'village_storehouse');
-assert.ok(BASIC_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'town_hall'));
-assert.ok(BASIC_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'village_storehouse'));
+assert.ok(CIVIC_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'town_hall'));
+assert.ok(CIVIC_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'village_storehouse'));
 
 for (const kind of ['town_hall', 'village_storehouse'] as const) {
   const model = createBuildingMesh(kind);

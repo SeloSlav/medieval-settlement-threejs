@@ -2,10 +2,14 @@ import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  GRASS_STREAM_CHUNK_RADIUS,
   GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
   GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
 } from '../src/grass/grassLodMath.ts';
-import { resolveGrassStreamViewTransition } from '../src/grass/grassStreamLifecycle.ts';
+import {
+  resolveGrassStreamSlotIndex,
+  resolveGrassStreamViewTransition,
+} from '../src/grass/grassStreamLifecycle.ts';
 import {
   planGroundcoverAttributeUpdateRanges,
   resolveGroundcoverSlotRewrite,
@@ -29,6 +33,10 @@ const wildflowerSource = readFileSync(
 );
 const sceneSource = readFileSync(
   `${projectRoot}src/scene/SceneManager.ts`,
+  'utf8',
+);
+const rendererSource = readFileSync(
+  `${projectRoot}src/scene/RendererBackend.ts`,
   'utf8',
 );
 const lodSource = readFileSync(
@@ -105,8 +113,23 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /lodFadeMode === 'continuous-alpha-hash'[\s\S]*?material\.alphaTest = 0;[\s\S]*?material\.alphaHash = true;[\s\S]*?material\.transparent = false;[\s\S]*?material\.depthWrite = true;/,
-  'the default close-ground fade must retain one stable coverage pipeline',
+  /lodFadeMode === 'continuous-alpha-coverage'[\s\S]*?material\.alphaTest = 0;[\s\S]*?material\.alphaHash = false;[\s\S]*?material\.alphaToCoverage = true;[\s\S]*?material\.transparent = false;[\s\S]*?material\.depthWrite = true;/,
+  'the default close-ground fade must use MSAA coverage without a moving alpha hash',
+);
+assert.match(
+  rendererSource,
+  /const RENDERER_OPTIONS = \{\s*antialias: true,/,
+  'alpha-to-coverage requires the renderer to retain its multisampled target',
+);
+assert.match(
+  fieldSource,
+  /resolveGrassStreamSlotIndex\(chunkX, chunkZ, GRID_SIDE\)/,
+  'streamed world chunks must keep stable toroidal slot identities',
+);
+assert.doesNotMatch(
+  fieldSource,
+  /gridIndex\(localX, localZ\)/,
+  'camera-local grid positions must not determine persistent grass slot identity',
 );
 assert.match(
   lodSource,
@@ -449,6 +472,37 @@ assert.equal(
   false,
   'groundcover should leave only at its lower hysteresis boundary',
 );
+
+const streamRadius = GRASS_STREAM_CHUNK_RADIUS;
+const streamGridSide = streamRadius * 2 + 1;
+const originalWindow = new Map<string, number>();
+for (let chunkZ = -streamRadius; chunkZ <= streamRadius; chunkZ += 1) {
+  for (let chunkX = -streamRadius; chunkX <= streamRadius; chunkX += 1) {
+    originalWindow.set(
+      `${chunkX},${chunkZ}`,
+      resolveGrassStreamSlotIndex(chunkX, chunkZ, streamGridSide),
+    );
+  }
+}
+assert.equal(
+  new Set(originalWindow.values()).size,
+  streamGridSide * streamGridSide,
+  'one complete stream window must assign every chunk a unique slot',
+);
+for (let chunkZ = -streamRadius; chunkZ <= streamRadius; chunkZ += 1) {
+  for (let chunkX = -streamRadius + 1; chunkX <= streamRadius; chunkX += 1) {
+    assert.equal(
+      resolveGrassStreamSlotIndex(chunkX, chunkZ, streamGridSide),
+      originalWindow.get(`${chunkX},${chunkZ}`),
+      'retained chunks must keep their slots after the camera crosses a chunk boundary',
+    );
+  }
+  assert.equal(
+    resolveGrassStreamSlotIndex(streamRadius + 1, chunkZ, streamGridSide),
+    resolveGrassStreamSlotIndex(-streamRadius, chunkZ, streamGridSide),
+    'only the entering stream column should recycle the column that left the window',
+  );
+}
 
 assert.deepEqual(
   resolveGrassStreamViewTransition({

@@ -4,10 +4,14 @@ import {
 } from '../../generated/gameBalance.ts';
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
 import {
+  cropEnvironmentalSuitability,
   cropHarvestUnit,
   cropLabel,
   cropProduce,
+  cropSoilSuitability,
+  effectiveFieldMoisture,
   expectedFieldYield,
+  fieldCentroid,
   fieldShapeEfficiency,
   fieldSizeEfficiency,
   moistureSuitability,
@@ -66,7 +70,13 @@ export function renderFarmFieldInspector(
   const expectedYield = activeFieldHarvestYield(field);
   const shape = Math.round(fieldShapeEfficiency(field.corners) * 100);
   const sizeEfficiency = Math.round(fieldSizeEfficiency(field.area) * 100);
-  const moistureFit = Math.round(moistureSuitability(field.crop, field.moisture) * 100);
+  const center = fieldCentroid(field.corners);
+  const effectiveMoisture = effectiveFieldMoisture(field.moisture, center.x, center.z);
+  const moistureFit = Math.round(moistureSuitability(field.crop, effectiveMoisture) * 100);
+  const soilFit = Math.round(cropSoilSuitability(field.crop, center.x, center.z) * 100);
+  const environmentalFit = Math.round(
+    cropEnvironmentalSuitability(field.crop, field.moisture, center.x, center.z) * 100,
+  );
   const cattleSupport = computeCattleFieldSupport(context.gameState).get(field.id);
   const manureRequired = fieldManureRequirement(field);
   const manureApplied = fieldManureApplied(field);
@@ -181,7 +191,8 @@ export function renderFarmFieldInspector(
       <li><span>Manure spread</span><span>${manureApplied.toFixed(1)} / ${manureRequired.toFixed(1)} this cycle · +${(manureBonus * 100).toFixed(1)} soil${field.stage === 'ploughing' ? ` · ${Math.max(0, farmstead?.manure ?? 0).toFixed(1)} waiting at farmstead` : ''}</span></li>
       <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(farmstead.grain)} grain · ${Math.round(farmstead.manure ?? 0)} manure stored` : 'Missing'}</span></li>
       <li><span>Field tools</span><span>${toolThroughputMultiplier > 1 ? `Maintained · ${Math.round((toolThroughputMultiplier - 1) * 100)}% faster field work` : 'Baseline hand tools · farmstead needs smith-forged ironwork for faster work'}</span></li>
-      <li><span>Moisture</span><span>${Math.round(field.moisture * 100)}% · ${moistureFit}% crop fit</span></li>
+      <li><span>Land fit</span><span>${environmentalFit}% for ${cropLabel(field.crop).toLowerCase()} · ${soilFit}% soil / ${moistureFit}% moisture</span></li>
+      <li><span>Water</span><span>${Math.round(field.moisture * 100)}% groundwater · ${Math.round(effectiveMoisture * 100)}% after soil retention</span></li>
       <li><span>Current-cycle soil</span><span>${Math.round(field.fertility * 100)}% → ${projectedFertility}% fertility</span></li>
       <li><span>Year 2 soil</span><span>${projectedFertility}% → ${Math.round(plannedFertility * 100)}% after ${cropLabel(field.nextCrop).toLowerCase()}</span></li>
       <li><span>Year 3 soil</span><span>${Math.round(plannedFertility * 100)}% → ${Math.round(yearThreeFertility * 100)}% after ${cropLabel(thirdCrop).toLowerCase()} · future manure excluded</span></li>

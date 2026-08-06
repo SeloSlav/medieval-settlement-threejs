@@ -124,26 +124,111 @@ export function fieldSizeEfficiency(area: number): number {
   return Math.max(FARM_LARGE_FIELD_EFFICIENCY_FLOOR, Math.min(1, efficiency));
 }
 
+export type ArableLandConditions = {
+  /** 0 = light/gravelly soil, 1 = heavy/clay-rich soil. */
+  texture: number;
+  /** Persistent depth of workable, nutrient-holding topsoil. */
+  depth: number;
+};
+
+/**
+ * Broad, deterministic soil pockets shared with the authoritative server.
+ * These vary independently from rivers so crop choice matters across the map.
+ */
+export function sampleArableLandConditions(x: number, z: number): ArableLandConditions {
+  const worldX = Number.isFinite(x) ? x : 0;
+  const worldZ = Number.isFinite(z) ? z : 0;
+  const texture = clamp01(
+    0.5
+      + Math.sin(worldX * 0.0107 + worldZ * 0.0061 + 0.8) * 0.22
+      + Math.sin(worldX * -0.0173 + worldZ * 0.0149 - 1.7) * 0.18
+      + Math.cos(worldX * 0.0049 - worldZ * 0.0127 + 2.4) * 0.10,
+  );
+  const depth = clamp01(
+    0.56
+      + Math.sin(worldX * 0.0063 - worldZ * 0.0091 - 0.4) * 0.21
+      + Math.cos(worldX * 0.0151 + worldZ * 0.0057 + 1.1) * 0.16
+      + Math.sin(worldX * 0.027 - worldZ * 0.018) * 0.08,
+  );
+  return { texture, depth };
+}
+
+export function effectiveFieldMoisture(
+  groundwater: number,
+  x: number,
+  z: number,
+): number {
+  const conditions = sampleArableLandConditions(x, z);
+  const soilRetention = 0.14 + conditions.texture * 0.16 + conditions.depth * 0.10;
+  return clamp01(clamp01(groundwater) * 0.68 + soilRetention);
+}
+
 export function moistureSuitability(crop: FarmCrop, moisture: number): number {
   const definition = cropDefinition(crop);
   if (definition.produce === 'none') return 1;
   const ideal = definition.moistureIdeal;
   const tolerance = definition.moistureTolerance;
-  const base = 1 - Math.abs(Math.max(0, Math.min(1, moisture)) - ideal) / Math.max(1e-6, tolerance);
-  return Math.max(0.25, Math.min(1, 0.25 + Math.max(0, Math.min(1, base)) * 0.75));
+  const match = 1 - Math.abs(clamp01(moisture) - ideal) / Math.max(1e-6, tolerance);
+  return 0.52 + clamp01(match) * 0.48;
 }
 
-/** Mirrors the authoritative starting-fertility rule used when a field is placed. */
-export function initialFieldFertility(
-  moisture: number,
+export function cropSoilSuitability(crop: FarmCrop, x: number, z: number): number {
+  const definition = cropDefinition(crop);
+  if (definition.produce === 'none') return 1;
+  const conditions = sampleArableLandConditions(x, z);
+  const textureMatch = 1 - Math.abs(conditions.texture - definition.soilTextureIdeal)
+    / Math.max(1e-6, definition.soilTextureTolerance);
+  const textureSuitability = 0.45 + clamp01(textureMatch) * 0.55;
+  const depthSuitability = 1
+    - definition.soilDepthDemand * (1 - conditions.depth) * 0.42;
+  return clamp01(textureSuitability * depthSuitability);
+}
+
+export function cropSlopeSuitability(
+  crop: FarmCrop,
   averageSlopeDegrees: number,
 ): number {
   return Math.max(
     0.35,
     Math.min(
+      1,
+      1
+        - Math.max(0, averageSlopeDegrees)
+          * FARM_SLOPE_PENALTY_PER_DEGREE
+          * cropDefinition(crop).slopePenaltyMultiplier,
+    ),
+  );
+}
+
+export function cropEnvironmentalSuitability(
+  crop: FarmCrop,
+  groundwater: number,
+  x: number,
+  z: number,
+): number {
+  if (cropProduce(crop) === 'none') return 1;
+  const moisture = moistureSuitability(crop, effectiveFieldMoisture(groundwater, x, z));
+  const soil = cropSoilSuitability(crop, x, z);
+  return moisture * 0.42 + soil * 0.58;
+}
+
+/** Mirrors the authoritative starting-fertility rule used when a field is placed. */
+export function initialFieldFertility(
+  groundwater: number,
+  averageSlopeDegrees: number,
+  x: number,
+  z: number,
+): number {
+  const conditions = sampleArableLandConditions(x, z);
+  const loamQuality = clamp01(1 - Math.abs(conditions.texture - 0.5) * 1.6);
+  return Math.max(
+    0.35,
+    Math.min(
       0.95,
-      0.62
-        + Math.max(0, Math.min(1, moisture)) * 0.30
+      0.50
+        + clamp01(groundwater) * 0.13
+        + conditions.depth * 0.20
+        + loamQuality * 0.12
         - Math.max(0, averageSlopeDegrees) * 0.006,
     ),
   );
@@ -155,33 +240,40 @@ export function initialFieldFertility(
  */
 export function cropSiteSuitability(
   crop: FarmCrop,
-  moisture: number,
+  groundwater: number,
   averageSlopeDegrees: number,
+  x: number,
+  z: number,
 ): number {
-  const fertility = initialFieldFertility(moisture, averageSlopeDegrees);
+  const fertility = initialFieldFertility(groundwater, averageSlopeDegrees, x, z);
   if (cropProduce(crop) === 'none') return fertility / 0.95;
-  const slope = Math.max(
-    0.35,
-    Math.min(1, 1 - Math.max(0, averageSlopeDegrees) * FARM_SLOPE_PENALTY_PER_DEGREE),
-  );
   return Math.max(
     0,
-    Math.min(1, moistureSuitability(crop, moisture) * (fertility / 0.95) * slope),
+    Math.min(
+      1,
+      cropEnvironmentalSuitability(crop, groundwater, x, z)
+        * (fertility / 0.95)
+        * cropSlopeSuitability(crop, averageSlopeDegrees),
+    ),
   );
 }
 
 export function expectedFieldYield(field: Pick<FarmFieldState, 'area' | 'crop' | 'moisture' | 'fertility' | 'averageSlopeDegrees' | 'corners'>): number {
   const definition = cropDefinition(field.crop);
   if (definition.produce === 'none') return 0;
-  const slope = Math.max(0.35, Math.min(1, 1 - field.averageSlopeDegrees * FARM_SLOPE_PENALTY_PER_DEGREE));
+  const center = fieldCentroid(field.corners);
   return field.area
     * FARM_BASE_GRAIN_PER_SQUARE_METER
     * definition.yieldMultiplier
-    * moistureSuitability(field.crop, field.moisture)
+    * cropEnvironmentalSuitability(field.crop, field.moisture, center.x, center.z)
     * Math.max(0.2, Math.min(1, field.fertility))
-    * slope
+    * cropSlopeSuitability(field.crop, field.averageSlopeDegrees)
     * fieldShapeEfficiency(field.corners)
     * fieldSizeEfficiency(field.area);
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
 }
 
 export function sampleAverageSlopeDegrees(

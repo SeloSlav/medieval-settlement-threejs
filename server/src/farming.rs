@@ -158,7 +158,8 @@ pub fn shape_efficiency(corners: &ZoneCorners) -> f64 {
     (aspect_efficiency * skew_efficiency).clamp(0.72, 1.0)
 }
 
-pub fn bilinear_point(corners: &ZoneCorners, u: f64, v: f64) -> Point2 {
+#[cfg(test)]
+fn bilinear_point(corners: &ZoneCorners, u: f64, v: f64) -> Point2 {
     let top_x = corners.a.x + (corners.b.x - corners.a.x) * u;
     let top_z = corners.a.z + (corners.b.z - corners.a.z) * u;
     let bottom_x = corners.d.x + (corners.c.x - corners.d.x) * u;
@@ -178,24 +179,87 @@ pub fn field_size_efficiency(area: f64) -> f64 {
         .clamp(FARM_LARGE_FIELD_EFFICIENCY_FLOOR, 1.0)
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct ArableLandConditions {
+    /// 0 = light/gravelly soil, 1 = heavy/clay-rich soil.
+    pub texture: f64,
+    /// Persistent depth of workable, nutrient-holding topsoil.
+    pub depth: f64,
+}
+
+/// Broad deterministic soil pockets mirrored by the client placement overlay.
+pub fn arable_land_conditions(x: f64, z: f64) -> ArableLandConditions {
+    let texture = (0.5
+        + (x * 0.0107 + z * 0.0061 + 0.8).sin() * 0.22
+        + (x * -0.0173 + z * 0.0149 - 1.7).sin() * 0.18
+        + (x * 0.0049 - z * 0.0127 + 2.4).cos() * 0.10)
+        .clamp(0.0, 1.0);
+    let depth = (0.56
+        + (x * 0.0063 - z * 0.0091 - 0.4).sin() * 0.21
+        + (x * 0.0151 + z * 0.0057 + 1.1).cos() * 0.16
+        + (x * 0.027 - z * 0.018).sin() * 0.08)
+        .clamp(0.0, 1.0);
+    ArableLandConditions { texture, depth }
+}
+
+pub fn effective_field_moisture(groundwater: f64, x: f64, z: f64) -> f64 {
+    let conditions = arable_land_conditions(x, z);
+    let soil_retention = 0.14 + conditions.texture * 0.16 + conditions.depth * 0.10;
+    (groundwater.clamp(0.0, 1.0) * 0.68 + soil_retention).clamp(0.0, 1.0)
+}
+
 pub fn moisture_suitability(crop: u8, moisture: f64) -> f64 {
     let definition = crop_definition(crop);
     if definition.produce == FarmCropProduce::None {
         return 1.0;
     }
     let (ideal, tolerance) = (definition.moisture_ideal, definition.moisture_tolerance);
-    let base = 1.0 - (moisture.clamp(0.0, 1.0) - ideal).abs() / tolerance.max(1e-6);
-    (0.25 + base.clamp(0.0, 1.0) * 0.75).clamp(0.25, 1.0)
+    let crop_match = 1.0 - (moisture.clamp(0.0, 1.0) - ideal).abs() / tolerance.max(1e-6);
+    0.52 + crop_match.clamp(0.0, 1.0) * 0.48
 }
 
-pub fn slope_suitability(average_slope_degrees: f64) -> f64 {
-    (1.0 - average_slope_degrees.max(0.0) * FARM_SLOPE_PENALTY_PER_DEGREE).clamp(0.35, 1.0)
+pub fn crop_soil_suitability(crop: u8, x: f64, z: f64) -> f64 {
+    let definition = crop_definition(crop);
+    if definition.produce == FarmCropProduce::None {
+        return 1.0;
+    }
+    let conditions = arable_land_conditions(x, z);
+    let texture_match = 1.0
+        - (conditions.texture - definition.soil_texture_ideal).abs()
+            / definition.soil_texture_tolerance.max(1e-6);
+    let texture_suitability = 0.45 + texture_match.clamp(0.0, 1.0) * 0.55;
+    let depth_suitability = 1.0 - definition.soil_depth_demand * (1.0 - conditions.depth) * 0.42;
+    (texture_suitability * depth_suitability).clamp(0.0, 1.0)
+}
+
+pub fn crop_slope_suitability(crop: u8, average_slope_degrees: f64) -> f64 {
+    (1.0 - average_slope_degrees.max(0.0)
+        * FARM_SLOPE_PENALTY_PER_DEGREE
+        * crop_definition(crop).slope_penalty_multiplier)
+        .clamp(0.35, 1.0)
+}
+
+pub fn crop_environmental_suitability(crop: u8, groundwater: f64, x: f64, z: f64) -> f64 {
+    if crop_definition(crop).produce == FarmCropProduce::None {
+        return 1.0;
+    }
+    let moisture = moisture_suitability(crop, effective_field_moisture(groundwater, x, z));
+    let soil = crop_soil_suitability(crop, x, z);
+    moisture * 0.42 + soil * 0.58
 }
 
 /// Predicts the soil quality of newly cleared arable land from the same
-/// groundwater and slope samples used during authoritative field placement.
-pub fn initial_field_fertility(moisture: f64, average_slope_degrees: f64) -> f64 {
-    (0.62 + moisture.clamp(0.0, 1.0) * 0.30 - average_slope_degrees.max(0.0) * 0.006)
+/// groundwater, soil, and slope samples used during authoritative placement.
+pub fn initial_field_fertility(
+    groundwater: f64,
+    average_slope_degrees: f64,
+    x: f64,
+    z: f64,
+) -> f64 {
+    let conditions = arable_land_conditions(x, z);
+    let loam_quality = (1.0 - (conditions.texture - 0.5).abs() * 1.6).clamp(0.0, 1.0);
+    (0.50 + groundwater.clamp(0.0, 1.0) * 0.13 + conditions.depth * 0.20 + loam_quality * 0.12
+        - average_slope_degrees.max(0.0) * 0.006)
         .clamp(0.35, 0.95)
 }
 
@@ -205,10 +269,12 @@ pub fn yield_suitability(
     fertility: f64,
     average_slope_degrees: f64,
     shape: f64,
+    x: f64,
+    z: f64,
 ) -> f64 {
-    moisture_suitability(crop, moisture)
+    crop_environmental_suitability(crop, moisture, x, z)
         * fertility.clamp(0.2, 1.0)
-        * slope_suitability(average_slope_degrees)
+        * crop_slope_suitability(crop, average_slope_degrees)
         * shape.clamp(0.72, 1.0)
 }
 
@@ -219,6 +285,8 @@ pub fn expected_grain_yield(
     fertility: f64,
     average_slope_degrees: f64,
     shape: f64,
+    x: f64,
+    z: f64,
 ) -> f64 {
     let definition = crop_definition(crop);
     if definition.produce == FarmCropProduce::None {
@@ -227,7 +295,15 @@ pub fn expected_grain_yield(
     area.max(0.0)
         * FARM_BASE_GRAIN_PER_SQUARE_METER
         * definition.yield_multiplier
-        * yield_suitability(crop, moisture, fertility, average_slope_degrees, shape)
+        * yield_suitability(
+            crop,
+            moisture,
+            fertility,
+            average_slope_degrees,
+            shape,
+            x,
+            z,
+        )
         * field_size_efficiency(area)
 }
 
@@ -399,6 +475,8 @@ mod tests {
             1.0,
             0.0,
             1.0,
+            0.0,
+            0.0,
         );
         let large_yield = expected_grain_yield(
             FARM_OPTIMAL_FIELD_AREA * 2.0,
@@ -407,6 +485,8 @@ mod tests {
             1.0,
             0.0,
             1.0,
+            0.0,
+            0.0,
         );
         assert!(large_yield > optimal_yield);
         assert!(large_yield / 2.0 < optimal_yield);
@@ -432,11 +512,49 @@ mod tests {
     }
 
     #[test]
-    fn initial_field_fertility_rewards_well_drained_gentle_ground() {
-        assert!((initial_field_fertility(0.5, 0.0) - 0.77).abs() < 1e-9);
-        assert!(initial_field_fertility(0.7, 2.0) > initial_field_fertility(0.3, 12.0));
-        assert!((initial_field_fertility(10.0, 0.0) - 0.92).abs() < 1e-9);
-        assert_eq!(initial_field_fertility(0.0, 100.0), 0.35);
+    fn initial_field_fertility_uses_soil_groundwater_and_slope() {
+        let gentle_dry = initial_field_fertility(0.0, 2.0, 40.0, -80.0);
+        let gentle_wet = initial_field_fertility(0.8, 2.0, 40.0, -80.0);
+        let steep_wet = initial_field_fertility(0.8, 16.0, 40.0, -80.0);
+        assert!(gentle_wet > gentle_dry);
+        assert!(gentle_wet > steep_wet);
+        assert_ne!(
+            initial_field_fertility(0.2, 2.0, 40.0, -80.0),
+            initial_field_fertility(0.2, 2.0, -240.0, 180.0),
+        );
+        assert_eq!(initial_field_fertility(0.0, 100.0, 0.0, 0.0), 0.35);
+    }
+
+    #[test]
+    fn crop_profiles_create_distinct_non_river_land_choices() {
+        let sites = [
+            (-300.0, -260.0),
+            (-180.0, 120.0),
+            (40.0, -80.0),
+            (190.0, 240.0),
+            (320.0, -140.0),
+        ];
+        let rye_scores = sites.map(|(x, z)| crop_environmental_suitability(CROP_RYE, 0.0, x, z));
+        let oats_scores = sites.map(|(x, z)| crop_environmental_suitability(CROP_OATS, 0.0, x, z));
+        assert_ne!(rye_scores, oats_scores);
+        assert!(
+            rye_scores.iter().copied().fold(f64::MIN, f64::max)
+                - rye_scores.iter().copied().fold(f64::MAX, f64::min)
+                > 0.08
+        );
+        assert!(
+            oats_scores.iter().copied().fold(f64::MIN, f64::max)
+                - oats_scores.iter().copied().fold(f64::MAX, f64::min)
+                > 0.08
+        );
+        assert!(
+            crop_environmental_suitability(CROP_OATS, 0.7, 0.0, 0.0)
+                > crop_environmental_suitability(CROP_OATS, 0.0, 0.0, 0.0)
+        );
+        assert!(
+            crop_environmental_suitability(CROP_RYE, 0.0, 0.0, 0.0)
+                > crop_environmental_suitability(CROP_RYE, 0.7, 0.0, 0.0)
+        );
     }
 
     #[test]

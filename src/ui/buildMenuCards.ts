@@ -71,7 +71,7 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   mine: ['Mineral mine', 'N', 'Build directly over an iron or salt deposit. Ordinary surface seams are finite and need no upkeep timber. Rich deep workings are faster and inexhaustible, but consume road-hauled shaft supports; smith-forged picks and hammer heads raise output but wear each cycle.'],
   clay_pit: ['Clay pit', 'C', 'Works a generated riverbank, coastal, or inland-basin clay deposit. Dry-map lenses are smaller and leaner; rich seed rolls expose faster deep clay that does not exhaust.'],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],
-  smithy: ['Forest bloomery & smithy', 'M', 'Reduces locally mined ore or reheats imported blooms and bars with charcoal, then forges them with carted quench water into tools, construction fittings, and frontier weapon heads. The compact hot-work yard carries elevated fire risk.'],
+  smithy: ['Forest bloomery & smithy', 'Y', 'Reduces locally mined ore or reheats imported blooms and bars with charcoal, then forges them with carted quench water into tools, construction fittings, and frontier weapon heads. The compact hot-work yard carries elevated fire risk.'],
   potter_kiln: ["Potter's kiln", 'P', 'Puddles river clay with carted well water, then spends firewood and labor firing either household/preserving vessels or costly roof tiles for prosperous homes. Choosing tiles interrupts new vessel output; elevated fire risk rewards well coverage and spacing.'],
   reforester: ['Reforester', 'F', 'Restores harvested woodland with native saplings.'],
   woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes. Smith-forged replacement axes raise output but wear each cycle.'],
@@ -83,11 +83,11 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   windmill: ['Grain windmill', 'I', 'Uses upland wind to grind grain into flour without needing a river. Smith-dressed millstones and maintained iron fittings raise output. Requires a road but no water frontage.'],
   granary: ['Village granary', 'N', 'Food-only logistics hub for wild foods, farm crops, flour, and cured provisions. Assigned keepers collect and distribute goods by handcart; it never bakes.'],
   bakery: ['Village bakery', 'B', 'Assigned bakers turn flour, carted well-water, and firewood into bread. Delivery carts always use unassigned haulers.'],
-  brewery: ['Brewhouse', 'B', 'Boils grain and water over firewood into ale for prosperous households and export.'],
+  brewery: ['Brewhouse', 'A', 'Boils grain and water over firewood into ale for prosperous households and export.'],
   smokehouse: ['Smokehouse', 'Q', 'Uses firewood, salt, and pottery to cure meat, smoke fish, or turn milk into cheese without losing the original food identity. Severe fire risk makes isolation and well coverage important.'],
   apiary: ['Forest apiary', 'A', 'Produces seasonal honey. Hospitality-enabled monasteries take honey before market export.'],
   carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10%. Prepared timber and smith-forged ironwork service connected carts for 18% faster departures; each accelerated trip consumes a small repair kit.'],
-  weaver: ["Weaver's workshop", 'I', 'Turns sheep wool and field-grown flax fibre into household textiles, then exports the surplus.'],
+  weaver: ["Weaver's workshop", 'V', 'Turns sheep wool and field-grown flax fibre into household textiles, then exports the surplus.'],
   vineyard: ['Vineyard terrace', 'V', 'An autumn hillside harvest yields grapes and wine for monastery hospitality or high-value export.'],
   pastoral_farmstead: ['Pastoral farmstead', 'D', 'Keeps cattle for fresh dairy, manure carts, and nearby ox power, or sheep for upland dairy and an annual wool clip. Local or imported salt turns dairy and part of autumn slaughter into durable provisions; draw fenced pasture and keep a road to its suppliers.'],
   swineherd: ['Woodland swineherd', 'X', 'Raises pigs on mature woodland mast for meat and cured meat. Felling its pannage trees forces inefficient grain feeding and reduces output.'],
@@ -103,23 +103,27 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
   artKey,
 });
 
-/** Housing, water, faith, trade, and transport. */
-export const BASIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('ferry_landing'),
+/** Housing, services, institutions, trade, transport, and shared storage. */
+export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
+  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'), entry('ferry_landing'),
 ];
 
-/** Farms, grain processing, and village food production. */
+/** Sites whose crews gather raw resources from the landscape. */
+export const GATHERING_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
+  entry('lumber_mill'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'), entry('mine'), entry('clay_pit'),
+  entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'),
+];
+
+/** Farming, husbandry, and other primary agricultural production. */
 export const AGRICULTURE_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('threshing_barn'), entry('watermill'), entry('windmill'), entry('granary'), entry('bakery'), entry('brewery'), entry('smokehouse'),
-  entry('apiary'), entry('vineyard'),
+  entry('threshing_barn'), entry('apiary'), entry('vineyard'),
   entry('pastoral_farmstead'), entry('swineherd'),
 ];
 
-/** Forestry, hunting, foraging, extraction, and rural craft. */
-export const RURAL_INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'), entry('woodcutters_lodge'), entry('lumber_mill'), entry('reforester'),
-  entry('stone_quarry'), entry('large_quarry'), entry('mine'), entry('carpenter'), entry('weaver'),
-  entry('clay_pit'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
+/** Workshops that process gathered or agricultural inputs into finished goods. */
+export const INDUSTRY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
+  entry('woodcutters_lodge'), entry('watermill'), entry('windmill'), entry('bakery'), entry('brewery'), entry('smokehouse'),
+  entry('carpenter'), entry('weaver'), entry('charcoal_burner'), entry('smithy'), entry('potter_kiln'),
 ];
 
 /** Conflict-enabled early warning and settlement defenses. */
@@ -128,9 +132,10 @@ export const MILITARY_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 ];
 
 export const BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  ...BASIC_BUILD_MENU_ENTRIES,
+  ...CIVIC_BUILD_MENU_ENTRIES,
+  ...GATHERING_BUILD_MENU_ENTRIES,
   ...AGRICULTURE_BUILD_MENU_ENTRIES,
-  ...RURAL_INDUSTRY_BUILD_MENU_ENTRIES,
+  ...INDUSTRY_BUILD_MENU_ENTRIES,
   ...MILITARY_BUILD_MENU_ENTRIES,
 ];
 

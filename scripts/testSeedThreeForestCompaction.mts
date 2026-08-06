@@ -269,50 +269,66 @@ assert.equal(overviewSet.cards[0].count, 1, 'overview card bucket should submit 
 
 updateSeedThreeLodPassInstanceCounts(nearSet, 0);
 const mainCamera = new THREE.PerspectiveCamera();
-mainCamera.layers.disable(1);
 const shadowCamera = new THREE.OrthographicCamera();
-shadowCamera.layers.enable(1);
-const invokeBeforeRender = (mesh: THREE.InstancedMesh, camera: THREE.Camera): void => {
-  mesh.onBeforeRender(
+const shadowDepthMaterial = new THREE.MeshDepthMaterial();
+const invokeBeforeShadow = (mesh: THREE.InstancedMesh): void => {
+  mesh.onBeforeShadow(
     {} as THREE.WebGLRenderer,
     new THREE.Scene(),
-    camera,
+    mainCamera,
+    shadowCamera,
     mesh.geometry,
-    mesh.material as THREE.Material,
-    null,
+    shadowDepthMaterial,
+    {} as THREE.Group,
   );
 };
-const invokeAfterRender = (mesh: THREE.InstancedMesh, camera: THREE.Camera): void => {
-  mesh.onAfterRender(
+const invokeAfterShadow = (mesh: THREE.InstancedMesh): void => {
+  mesh.onAfterShadow(
     {} as THREE.WebGLRenderer,
     new THREE.Scene(),
-    camera,
+    mainCamera,
+    shadowCamera,
     mesh.geometry,
-    mesh.material as THREE.Material,
-    null,
+    shadowDepthMaterial,
+    {} as THREE.Group,
   );
 };
-invokeBeforeRender(nearSet.branches, mainCamera);
 assert.equal(nearSet.branches.count, 0,
-  'the color camera must omit the shadow-only branch suffix');
-invokeAfterRender(nearSet.branches, mainCamera);
+  'the color count must stay resident before WebGPU snapshots its render bundle');
+invokeBeforeShadow(nearSet.branches);
 assert.equal(nearSet.branches.count, 1,
-  'the complete conservative caster prefix must be restored after color submission');
-invokeBeforeRender(nearSet.branches, shadowCamera);
+  'the dedicated shadow callback must expose every conservative caster');
+invokeAfterShadow(nearSet.branches);
+assert.equal(nearSet.branches.count, 0,
+  'the view-only color count must be restored immediately after the shadow pass');
+
+// A generic color callback must not mutate the resident view count. WebGPU
+// records instance counts before this callback, which is the regression that
+// caused momentary black forest draws while a first-person camera moved.
+nearSet.branches.onBeforeRender(
+  {} as THREE.WebGLRenderer,
+  new THREE.Scene(),
+  mainCamera,
+  nearSet.branches.geometry,
+  nearSet.branches.material as THREE.Material,
+  {} as THREE.Group,
+);
+assert.equal(nearSet.branches.count, 0,
+  'color submission must never expose the shadow-only suffix');
+
+invokeBeforeShadow(nearSet.branches);
 assert.equal(nearSet.branches.count, 1,
   'the directional shadow camera must retain every conservative caster');
-invokeAfterRender(nearSet.branches, shadowCamera);
+invokeAfterShadow(nearSet.branches);
 
 const passParitySet = makeLodSet(2);
 writeSeedThreeLodMatrices(passParitySet, slots, [0, 1]);
 updateSeedThreeLodPassInstanceCounts(passParitySet, 1);
 const branchTrianglesPerInstance = passParitySet.branches.geometry.index!.count / 3;
-invokeBeforeRender(passParitySet.branches, mainCamera);
 const colorTriangles = passParitySet.branches.count * branchTrianglesPerInstance;
-invokeAfterRender(passParitySet.branches, mainCamera);
-invokeBeforeRender(passParitySet.branches, shadowCamera);
+invokeBeforeShadow(passParitySet.branches);
 const shadowTriangles = passParitySet.branches.count * branchTrianglesPerInstance;
-invokeAfterRender(passParitySet.branches, shadowCamera);
+invokeAfterShadow(passParitySet.branches);
 assert.equal(colorTriangles, branchTrianglesPerInstance,
   'the color pass must submit exactly the view-visible tree prefix');
 assert.equal(shadowTriangles, branchTrianglesPerInstance * 2,
@@ -336,8 +352,8 @@ const activeDraws = (): number => [
   overviewSet.branches,
   ...overviewSet.cards,
 ].filter((mesh) => mesh.count > 0).length;
-assert.equal(activeDraws(), 4,
-  'disjoint near and overview bands should each issue one branch/card pair');
+assert.equal(activeDraws(), 2,
+  'shadow-only near geometry must stay out of resident color draw counts');
 
 const chunkNearSet = makeLodSet(2);
 const chunkOverviewSet = makeLodSet(2);
@@ -577,5 +593,6 @@ for (const cards of companionSet.cards) {
   cards.geometry.dispose();
   (cards.material as THREE.Material).dispose();
 }
+shadowDepthMaterial.dispose();
 
 console.log('test:seedthree-forest-compaction passed');

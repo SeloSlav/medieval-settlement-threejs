@@ -44,7 +44,10 @@ import {
   runStreamSlotUpdateChunk,
 } from '@seedthree/core/stream-slot-budget.js';
 import { applyGroundCoverShadowPolicy } from '@seedthree/core/ground-cover-shadows.js';
-import { resolveGrassStreamViewTransition } from './grassStreamLifecycle.ts';
+import {
+  resolveGrassStreamSlotIndex,
+  resolveGrassStreamViewTransition,
+} from './grassStreamLifecycle.ts';
 import {
   planGroundcoverAttributeUpdateRanges,
   resolveGroundcoverSlotRewrite,
@@ -179,6 +182,7 @@ export type GrassBladeFieldOptions = {
 };
 
 export type GrassBladeLodFadeMode =
+  | 'continuous-alpha-coverage'
   | 'continuous-alpha-hash'
   | 'legacy-pipeline-cutover';
 
@@ -281,9 +285,22 @@ export async function createGrassBladeField(
   for (const entry of streamMeshes) group.add(entry.mesh);
   group.userData.groundcoverSubmission = 'three-whole-field-instanced-meshes';
   const lodFadeMode =
-    options?.lodFadeMode ?? 'continuous-alpha-hash';
+    options?.lodFadeMode ?? 'continuous-alpha-coverage';
   group.userData.lodFadeMode = lodFadeMode;
-  if (lodFadeMode === 'continuous-alpha-hash') {
+  if (lodFadeMode === 'continuous-alpha-coverage') {
+    // The renderer is created with 4x MSAA. Feeding the authored texture alpha
+    // into its sample mask softens sub-pixel blade edges without a screen-space
+    // dither pattern, so wind and close camera motion cannot make the cutout
+    // sparkle from one frame to the next.
+    for (const material of displayMaterials) {
+      material.alphaTest = 0;
+      material.alphaHash = false;
+      material.alphaToCoverage = true;
+      material.transparent = false;
+      material.depthWrite = true;
+      material.needsUpdate = true;
+    }
+  } else if (lodFadeMode === 'continuous-alpha-hash') {
     // A stable alpha-hash pipeline turns opacity into spatially stable
     // coverage. The previous transparent -> opaque switch at 0.995 opacity
     // changed the entire meadow in one frame even though the numeric LOD gate
@@ -294,6 +311,7 @@ export async function createGrassBladeField(
       // before the hashed coverage had a chance to resolve it.
       material.alphaTest = 0;
       material.alphaHash = true;
+      material.alphaToCoverage = false;
       material.transparent = false;
       material.depthWrite = true;
       material.needsUpdate = true;
@@ -360,8 +378,6 @@ export async function createGrassBladeField(
     const dz = chunkCenterZ - focusZ;
     return dx * dx + dz * dz <= includeRadiusSq;
   };
-
-  const gridIndex = (localX: number, localZ: number): number => localZ * GRID_SIDE + localX;
 
   const worldChunkAt = (centerChunkX: number, centerChunkZ: number, localX: number, localZ: number) => ({
     chunkX: centerChunkX + localX - GRASS_STREAM_CHUNK_RADIUS,
@@ -459,7 +475,7 @@ export async function createGrassBladeField(
       for (let localX = 0; localX < GRID_SIDE; localX++) {
         const { chunkX, chunkZ } = worldChunkAt(centerChunkX, centerChunkZ, localX, localZ);
         if (!chunkInStreamRange(chunkX, chunkZ, focusX, focusZ, nearRadius)) continue;
-        const gridIdx = gridIndex(localX, localZ);
+        const gridIdx = resolveGrassStreamSlotIndex(chunkX, chunkZ, GRID_SIDE);
         const existing = slotRecords[gridIdx]!;
         if (existing.worldChunkX === chunkX && existing.worldChunkZ === chunkZ) continue;
         newestRequests.push({

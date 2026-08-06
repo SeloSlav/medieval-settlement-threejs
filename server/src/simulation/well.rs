@@ -8,7 +8,7 @@ use crate::constants::{
 };
 use crate::db::*;
 use crate::economy::CommodityKind;
-use crate::hydrology::sample_hydrology_score;
+use crate::hydrology::sample_world_hydrology_score;
 use crate::roads::RoadNetwork;
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_trips::{
@@ -35,6 +35,8 @@ pub fn step_well(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     sim_tick: u64,
+    world_seed: u64,
+    world_hydrology: u8,
     clock: &GameClock,
     environment: EnvironmentState,
     building: Building,
@@ -54,7 +56,12 @@ pub fn step_well(
     let mut well = building;
     // Compatibility for saves created while wells exposed worker slots.
     well.assigned_labor = 0;
-    let hydrology = sample_hydrology_score(well.x, well.z);
+    let hydrology = sample_world_hydrology_score(
+        well.x,
+        well.z,
+        world_seed,
+        world_hydrology,
+    );
     let capacity = if well.water_capacity > 0.0 {
         well.water_capacity
     } else {

@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 const tests = [
   'test:rust',
   'test:opening-balance',
+  'test:build-menus',
   'test:lodge-logistics',
   'test:industrial-firewood',
   'test:service-territories',
@@ -39,6 +40,7 @@ const tests = [
   'test:seasonal-producer-stores',
   'test:physical-marketplace-specialties',
   'test:material-economy',
+  'test:hydrology',
   'test:civilian-tool-economy',
   'test:village-economy',
   'test:chapel-community',

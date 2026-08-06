@@ -194,11 +194,14 @@ export class FarmFieldTool {
     this.refreshPreview();
     const moisture = this.validation.moisture;
     const slope = this.validation.slope;
-    const recommendation = moisture == null || slope == null
+    const center = this.validation.corners
+      ? fieldCentroid(this.validation.corners)
+      : null;
+    const recommendation = moisture == null || slope == null || center == null
       ? 'site map updated'
       : this.crop === 'fallow'
-        ? `${Math.round(initialFieldFertility(moisture, slope) * 100)}% predicted starting soil`
-        : `${Math.round(cropSiteSuitability(this.crop, moisture, slope) * 100)}% site potential here`;
+        ? `${Math.round(initialFieldFertility(moisture, slope, center.x, center.z) * 100)}% predicted starting soil`
+        : `${Math.round(cropSiteSuitability(this.crop, moisture, slope, center.x, center.z) * 100)}% site potential here`;
     this.options.onCropChanged?.(this.crop, recommendation);
     this.options.onModeChanged();
   }
@@ -246,15 +249,20 @@ export class FarmFieldTool {
     if (this.mode === 'graveyard') {
       return `${area} m² consecrated ground · about ${Math.floor(exactArea / GRAVE_AREA_PER_BURIAL)} graves · ${slope}° slope · ${placementHint}`;
     }
+    const center = fieldCentroid(this.validation.corners);
     const startingFertility = initialFieldFertility(
       this.validation.moisture,
       this.validation.slope,
+      center.x,
+      center.z,
     );
     const sitePotential = Math.round(
       cropSiteSuitability(
         this.crop,
         this.validation.moisture,
         this.validation.slope,
+        center.x,
+        center.z,
       ) * 100,
     );
     const firstHarvest = expectedFieldYield({

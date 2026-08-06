@@ -6,15 +6,12 @@ use crate::balance_generated::{
 use crate::burgage::{convex_zones_overlap, zone_corners_polygon, zone_overlaps_footprint, Point2};
 use crate::db::*;
 use crate::farming::{
-    bilinear_point, centroid, corners_from_values, early_harvest_available,
-    early_harvest_yield_multiplier, edge_lengths, initial_field_fertility,
-    is_valid_convex_quadrilateral, point_in_field, polygon_area, valid_crop, NO_FOLLOWING_CROP,
-    STAGE_HARVESTING, STAGE_PLOUGHING,
+    centroid, corners_from_values, early_harvest_available, early_harvest_yield_multiplier,
+    edge_lengths, initial_field_fertility, is_valid_convex_quadrilateral, point_in_field,
+    polygon_area, valid_crop, NO_FOLLOWING_CROP, STAGE_HARVESTING, STAGE_PLOUGHING,
 };
-use crate::hydrology::sample_hydrology_score;
-use crate::placement_validation::{
-    building_pick_radius, is_open_water, zone_overlaps_resource_deposit,
-};
+use crate::hydrology::sample_world_hydrology_score;
+use crate::placement_validation::{building_pick_radius, zone_overlaps_resource_deposit};
 use crate::simulation::game_clock;
 use crate::tables::{farm_field, FarmField};
 
@@ -89,19 +86,9 @@ pub fn place_farm_field(
     if zone_overlaps_resource_deposit(ctx, &corners) {
         return Err("Fields cannot cover a physical resource deposit.".to_string());
     }
-    const PARCEL_SAMPLE_DIVISIONS: usize = 4;
-    for v_index in 0..=PARCEL_SAMPLE_DIVISIONS {
-        for u_index in 0..=PARCEL_SAMPLE_DIVISIONS {
-            let point = bilinear_point(
-                &corners,
-                u_index as f64 / PARCEL_SAMPLE_DIVISIONS as f64,
-                v_index as f64 / PARCEL_SAMPLE_DIVISIONS as f64,
-            );
-            if is_open_water(point.x, point.z) {
-                return Err("Fields cannot cover open water.".to_string());
-            }
-        }
-    }
+    // The client samples the entire parcel against the active rendered-water
+    // mask. The server hydrology grid is a groundwater proxy, not this world's
+    // generated surface-water layout, so it must not contradict that result.
 
     for building in ctx.db.building().owner().filter(&owner) {
         let Some(radius) = building_pick_radius(&building.kind) else {
@@ -176,8 +163,19 @@ pub fn place_farm_field(
         ctx.db.tree_entity().tree_id().delete(&tree_id);
     }
 
-    let moisture = sample_hydrology_score(center.x, center.z).clamp(0.0, 1.0);
-    let initial_fertility = initial_field_fertility(moisture, slope);
+    let config = ctx
+        .db
+        .world_config()
+        .id()
+        .find(&0)
+        .ok_or_else(|| "World not initialized.".to_string())?;
+    let moisture = sample_world_hydrology_score(
+        center.x,
+        center.z,
+        config.seed,
+        config.hydrology,
+    );
+    let initial_fertility = initial_field_fertility(moisture, slope, center.x, center.z);
     ctx.db.farm_field().insert(FarmField {
         id: 0,
         owner,

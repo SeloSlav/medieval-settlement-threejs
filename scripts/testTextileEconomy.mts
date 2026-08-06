@@ -60,7 +60,7 @@ import {
 import type { WorldQueries } from '../src/resources/WorldQueries.ts';
 import {
   BUILD_MENU_ENTRIES,
-  RURAL_INDUSTRY_BUILD_MENU_ENTRIES,
+  INDUSTRY_BUILD_MENU_ENTRIES,
   renderBuildMenuCards,
 } from '../src/ui/buildMenuCards.ts';
 
@@ -127,7 +127,7 @@ const definition = getBuildingDefinition('weaver');
 assert.equal(definition.maxLabor, 2);
 assert.equal(definition.requiresRoad, true);
 assert.equal(definition.facesRoad, true);
-assert.ok(RURAL_INDUSTRY_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'weaver'));
+assert.ok(INDUSTRY_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'weaver'));
 assert.ok(BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'weaver'));
 assert.match(renderBuildMenuCards(), /weaver\.webp/);
 

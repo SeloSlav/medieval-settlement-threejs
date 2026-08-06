@@ -2820,11 +2820,11 @@ assert.equal(
 const routeLodSkyDirectRendererEnvelope = {
   ...frozenDirectRendererEnvelope,
   presentationTreatment: {
-    id: 'groundcover-continuous-alpha-hash-whole-field-route',
+    id: 'groundcover-continuous-alpha-coverage-whole-field-route',
     rendererTreatment:
       HAMLET_ROUTE_LOD_SKY_DIRECT_RENDER_TREATMENT,
     disabledSubsystems: ['forest', 'post', 'shadows'],
-    groundcoverFadeMode: 'continuous-alpha-hash' as const,
+    groundcoverFadeMode: 'continuous-alpha-coverage' as const,
     groundcoverSubmission:
       'three-whole-field-instanced-meshes' as const,
     forestRenderer: HAMLET_ROUTE_FOREST_RENDERER_DISABLED,

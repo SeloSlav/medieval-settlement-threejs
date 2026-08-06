@@ -81,6 +81,11 @@ type FarmCropBalance = {
   yieldMultiplier: number;
   moistureIdeal: number;
   moistureTolerance: number;
+  soilTextureIdeal: number;
+  soilTextureTolerance: number;
+  soilDepthDemand: number;
+  slopePenaltyMultiplier: number;
+  sitePreference: string;
   fertilityDelta: number;
   workStartMonth: number;
   workEndMonth: number;
@@ -1236,6 +1241,10 @@ function generateRust(): string {
   lines.push('    pub yield_multiplier: f64,');
   lines.push('    pub moisture_ideal: f64,');
   lines.push('    pub moisture_tolerance: f64,');
+  lines.push('    pub soil_texture_ideal: f64,');
+  lines.push('    pub soil_texture_tolerance: f64,');
+  lines.push('    pub soil_depth_demand: f64,');
+  lines.push('    pub slope_penalty_multiplier: f64,');
   lines.push('    pub fertility_delta: f64,');
   lines.push('    pub work_start_month: u8,');
   lines.push('    pub work_end_month: u8,');
@@ -1266,6 +1275,10 @@ function generateRust(): string {
     lines.push(`    yield_multiplier: ${rustF64(crop.yieldMultiplier)},`);
     lines.push(`    moisture_ideal: ${rustF64(crop.moistureIdeal)},`);
     lines.push(`    moisture_tolerance: ${rustF64(crop.moistureTolerance)},`);
+    lines.push(`    soil_texture_ideal: ${rustF64(crop.soilTextureIdeal)},`);
+    lines.push(`    soil_texture_tolerance: ${rustF64(crop.soilTextureTolerance)},`);
+    lines.push(`    soil_depth_demand: ${rustF64(crop.soilDepthDemand)},`);
+    lines.push(`    slope_penalty_multiplier: ${rustF64(crop.slopePenaltyMultiplier)},`);
     lines.push(`    fertility_delta: ${rustF64(crop.fertilityDelta)},`);
     lines.push(`    work_start_month: ${crop.workStartMonth},`);
     lines.push(`    work_end_month: ${crop.workEndMonth},`);
@@ -1974,6 +1987,11 @@ function generateTypeScript(): string {
     '  yieldMultiplier: number;',
     '  moistureIdeal: number;',
     '  moistureTolerance: number;',
+    '  soilTextureIdeal: number;',
+    '  soilTextureTolerance: number;',
+    '  soilDepthDemand: number;',
+    '  slopePenaltyMultiplier: number;',
+    '  sitePreference: string;',
     '  fertilityDelta: number;',
     '  workStartMonth: number;',
     '  workEndMonth: number;',
