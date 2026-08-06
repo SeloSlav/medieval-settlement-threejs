@@ -91,6 +91,8 @@ const firstPerson = updateSeedThreeOverviewBillboardFade(
 );
 assert.equal(firstPerson.enabled, false, 'first-person mode must never render overview quads');
 assert.equal(firstPerson.targetOpacity, 0);
+assert.equal(firstPerson.opacity, 0, 'first-person mode must remove residual overview opacity immediately');
+assert.equal(firstPerson.visible, false, 'first-person mode must hide the overlapping overview group immediately');
 
 const overlappingLods = partitionSeedThreeSelectionByStaticLod(
   {

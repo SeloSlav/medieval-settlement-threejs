@@ -194,6 +194,9 @@ const FOREST_LOD_OPTS = {
 
 const FOREST_NEAR_DISTANCE = 108;
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
+// Pointer-look changes direction continuously. Retain every nearby tree in the
+// color prefix so turning cannot repack a shadow-only instance into view.
+const FOREST_FIRST_PERSON_VIEW_RETENTION_RADIUS = 144;
 const FOREST_VISIBILITY_PADDING = 26;
 const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
 const FOREST_CONTINUOUS_UPDATE_BUDGET_MS = 2.75;
@@ -843,6 +846,9 @@ export function updateSeedThreeForestCameraBudgeted(
     frustumPadding: firstPersonActive
       ? FOREST_VISIBILITY_PADDING + 8
       : FOREST_VISIBILITY_PADDING,
+    viewRetentionRadius: firstPersonActive
+      ? FOREST_FIRST_PERSON_VIEW_RETENTION_RADIUS
+      : 0,
     casterBounds,
     // Matches the directional-shadow fitter's broad-canopy horizontal margin.
     casterPadding: 14,

@@ -43,11 +43,23 @@ export function updateSeedThreeOverviewBillboardFade(
   deltaSeconds: number,
   firstPersonActive = false,
 ): SeedThreeOverviewBillboardFadeResult {
+  // Strategic cards overlap the always-resident real tree. They are useful for
+  // an orbit-camera dissolve, but in first person even a short residual fade
+  // reads as two canopies fighting while the player turns. Remove the overlay
+  // atomically when walk mode takes ownership of the camera.
+  if (firstPersonActive) {
+    return {
+      enabled: false,
+      opacity: 0,
+      targetOpacity: 0,
+      visible: false,
+    };
+  }
   const safeZoomPercent = Number.isFinite(zoomPercent)
     ? Math.max(0, zoomPercent)
     : OVERVIEW_BILLBOARD_REMOVE_ZOOM_PERCENT;
   let enabled = previous.enabled;
-  if (firstPersonActive || safeZoomPercent >= OVERVIEW_BILLBOARD_REMOVE_ZOOM_PERCENT) {
+  if (safeZoomPercent >= OVERVIEW_BILLBOARD_REMOVE_ZOOM_PERCENT) {
     enabled = false;
   } else if (
     !enabled
