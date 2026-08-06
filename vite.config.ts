@@ -65,11 +65,12 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [explicitPublicAssetCopy(includeQaArchives)],
     optimizeDeps: {
-      // Both runtime packages expose native ESM browser builds, so prebundling
-      // is unnecessary. Dependency discovery can otherwise crawl the game's
-      // large import graph (and temporary worktrees) long enough to starve the
-      // dev server, including otherwise-static UI image requests.
+      // Keep automatic discovery off so Vite does not crawl the game's large
+      // import graph. SpacetimeDB's safe-stable-stringify dependency is
+      // CommonJS, though, so it must be explicitly prebundled for browser ESM
+      // default-export interop.
       noDiscovery: true,
+      include: ['safe-stable-stringify'],
     },
     server: {
       watch: {
