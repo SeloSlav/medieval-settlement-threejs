@@ -1917,19 +1917,31 @@ export class ResourceInspector {
     const pinnedPrimaryRows = ranked
       .filter(({ row }) => row.hasAttribute('data-inspector-primary'))
       .map(({ row }) => row);
+    const pinnedSecondaryRows = new Set(
+      ranked
+        .filter(({ row }) => row.hasAttribute('data-inspector-secondary'))
+        .map(({ row }) => row),
+    );
+    const primaryLimit = this.panel.dataset.inspectorTarget === 'building' ? 4 : 6;
     const primaryTarget = Math.max(
       pinnedPrimaryRows.length,
-      Math.min(6, Math.max(3, Math.ceil(rows.length * 0.22))),
+      Math.min(primaryLimit, Math.max(3, Math.ceil(rows.length * 0.22))),
     );
     const primaryRows = new Set(pinnedPrimaryRows);
     for (const { row } of [...ranked].sort(
       (a, b) => b.score - a.score || a.index - b.index,
     )) {
       if (primaryRows.size >= primaryTarget) break;
+      if (pinnedSecondaryRows.has(row)) continue;
       primaryRows.add(row);
     }
     for (const { row } of ranked) {
-      if (row.querySelector('button, input, select, progress')) primaryRows.add(row);
+      if (
+        !pinnedSecondaryRows.has(row)
+        && row.querySelector('button, input, select, progress')
+      ) {
+        primaryRows.add(row);
+      }
     }
 
     const primary = rows.filter((row) => primaryRows.has(row));
@@ -2148,6 +2160,11 @@ function decorateInspectorRow(row: HTMLElement, label: string, value: string): v
   icon.setAttribute('aria-hidden', 'true');
   icon.textContent = inspectorDetailIcon(normalized, state);
   row.prepend(icon);
+  const detail = row.dataset.inspectorDetail?.trim();
+  if (detail) {
+    row.title = detail;
+    row.setAttribute('aria-label', `${label}: ${value}. ${detail}`);
+  }
   if (state) {
     row.dataset.state = state;
   } else {
@@ -2182,15 +2199,20 @@ function inspectorRowScore(
   const normalized = `${normalizedLabel} ${normalizedValue}`;
   let score = index === 0 ? 18 : index === 1 ? 8 : 0;
   if (row.querySelector('button, input, select, progress')) score += 100;
-  if (/(\bfire\b|burn|destroy|danger|critical|blocked|short|starv|damage|exposed|unserved)/.test(normalized)) score += 30;
+  if (
+    row.dataset.state === 'warning'
+    && /(\bfire\b|burn|destroy|danger|critical|blocked|short|starv|damage|expos|unserved)/.test(normalized)
+  ) score += 30;
   if (/(status|progress|assigned|workforce|population|household|resident|active cart|crop|yield|output|input|condition|priority|coverage|readiness|runway)/.test(normalizedLabel)) score += 16;
-  if (/(role|current|available|vacant|capacity|service|production|health|security|threat)/.test(normalizedLabel)) score += 10;
+  if (/(current|available|vacant|capacity|service|production|health|security|threat)/.test(normalizedLabel)) score += 10;
   const ratio = normalizedValue.match(/(-?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
   if (ratio) score += Number(ratio[1]) > 0 ? 10 : -8;
   if (/\d+(?:\.\d+)?\s*%/.test(normalizedValue)) score += 6;
   if (/(stored|storage|stock)/.test(normalizedLabel)) score += 3;
-  if (/(lifecycle|clearance|permanent storage|construction supply|placement|access rule|final clearance)/.test(normalizedLabel)) score -= 9;
-  if (value.length > 72) score -= 12;
+  if (/(role|purpose|rule|lifecycle|clearance|permanent storage|construction supply|placement|final clearance)/.test(normalizedLabel)) score -= 32;
+  if (value.length <= 32) score += 6;
+  else if (value.length > 80) score -= 32;
+  else if (value.length > 52) score -= 14;
   if (index > 12) score -= 2;
   return score;
 }

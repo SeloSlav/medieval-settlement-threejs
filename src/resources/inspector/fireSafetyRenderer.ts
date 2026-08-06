@@ -39,7 +39,7 @@ export function withBuildingFireSafety(
     return {
       ...view,
       detailsHtml: `${view.detailsHtml}
-        <li><span>Fire risk</span><span>Structurally fire-safe</span></li>`,
+        <li><span>Fire risk</span><span>Fire-safe</span></li>`,
     };
   }
 
@@ -47,35 +47,40 @@ export function withBuildingFireSafety(
     0,
     Math.round((assessment.storedFuelMultiplier - 1) * 100),
   );
-  const riskDetail = `${fireRiskBandLabel(assessment.riskBand)} · ${assessment.currentFlammability.toFixed(2)}× ignition/spread susceptibility${
+  const riskDetail = `${fireRiskBandLabel(assessment.riskBand)} · ${assessment.currentFlammability.toFixed(2)}×${
     storedFuelIncrease > 0
-      ? ` · current fuel stores add ${storedFuelIncrease}%`
+      ? ` · +${storedFuelIncrease}% fuel`
       : ''
   }`;
+  const riskHelp = 'Relative chance of ignition and fire spread. Stored fuel raises the current risk.';
   const inspectWell = assessment.nearestWellId
     ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${assessment.nearestWellId}" aria-label="Inspect fire-response well">Inspect well</button>`
     : '';
   const responseDetail = assessment.coverage === 'covered'
     && assessment.responseDistance != null
     && assessment.firstBucketSeconds != null
-    ? `Ready · ${Math.round(assessment.responseDistance)} m route · ~${Math.ceil(assessment.firstBucketSeconds)}s to first bucket${inspectWell}`
+    ? `Ready · ${Math.round(assessment.responseDistance)} m · ~${Math.ceil(assessment.firstBucketSeconds)}s${inspectWell}`
     : assessment.coverage === 'unready'
-      ? `Extent covered, but ${wellReadinessLabel(assessment.nearestWellReadiness)}${inspectWell}`
-      : `Uncovered · no ready well extent reaches this structure`;
+      ? `Well unready · ${wellReadinessLabel(assessment.nearestWellReadiness)}${inspectWell}`
+      : `No ready well in range`;
   const exposed = assessment.exposedBuildingCount + assessment.exposedHouseholdCount;
   const exposureDetail = exposed === 0
-    ? `Isolated · no other occupied structure within ${FIRE_SPREAD_RADIUS} m`
-    : `${assessment.exposedBuildingCount} operational ${
+    ? 'Isolated'
+    : `${assessment.exposedBuildingCount} ${
         assessment.exposedBuildingCount === 1 ? 'building' : 'buildings'
-      } + ${assessment.exposedHouseholdCount} occupied ${
+      } · ${assessment.exposedHouseholdCount} ${
         assessment.exposedHouseholdCount === 1 ? 'home' : 'homes'
-      } within ${FIRE_SPREAD_RADIUS} m`;
+      } nearby`;
+  const exposureHelp = `Occupied structures within the ${FIRE_SPREAD_RADIUS} m fire-spread radius.`;
+  const responsePlacement = assessment.coverage === 'covered'
+    ? ' data-inspector-secondary'
+    : '';
 
   return {
     ...view,
     detailsHtml: `${view.detailsHtml}
-      <li><span>Fire risk</span><span>${riskDetail}</span></li>
-      <li><span>Fire response</span><span>${responseDetail}</span></li>
-      <li><span>Spread exposure</span><span>${exposureDetail}</span></li>`,
+      <li data-inspector-detail="${riskHelp}"><span>Fire risk</span><span>${riskDetail}</span></li>
+      <li${responsePlacement} data-inspector-detail="Distance and estimated time for the first bucket from the nearest usable well."><span>Fire response</span><span>${responseDetail}</span></li>
+      <li data-inspector-detail="${exposureHelp}"><span>Spread exposure</span><span>${exposureDetail}</span></li>`,
   };
 }

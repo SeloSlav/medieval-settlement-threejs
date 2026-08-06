@@ -213,8 +213,8 @@ const inspectorView = withBuildingFireSafety(
   } as unknown as InspectorRenderContext,
 );
 assert.match(inspectorView.detailsHtml, /Fire risk[\s\S]*Severe/);
-assert.match(inspectorView.detailsHtml, /Fire response[\s\S]*first bucket/);
-assert.match(inspectorView.detailsHtml, /Spread exposure[\s\S]*occupied home/);
+assert.match(inspectorView.detailsHtml, /Fire response[\s\S]*Ready[\s\S]*~\d+s/);
+assert.match(inspectorView.detailsHtml, /Spread exposure[\s\S]*1 home nearby/);
 assert.match(inspectorView.detailsHtml, /data-inspect-building="10"/);
 
 const perfBuildings = Array.from({ length: 100_000 }, (_, index) =>

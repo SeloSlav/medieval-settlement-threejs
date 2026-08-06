@@ -37,18 +37,18 @@ export function withWorksiteLodging(
   );
   const commute = !summary || summary.measuredWorkers === 0
     ? 'No housed crew route measured'
-    : `${Math.round(summary.averageOneWayDistance)} m average · ${formatDisplayedDuration(
+    : `${Math.round(summary.averageOneWayDistance)} m avg · ${formatDisplayedDuration(
         summary.averageOneWaySeconds,
-      )} one way · ${Math.round(summary.longestOneWayDistance)} m longest`;
+      )} · ${Math.round(summary.longestOneWayDistance)} m max`;
   const authoritativeEfficiency = Math.max(
     0,
     Math.min(1, building.commuteEfficiency ?? summary?.effectiveShiftRatio ?? 1),
   );
   const effectiveShift = lodgingActive
-    ? '100% productive shift · crew sleeps at the worksite'
+    ? '100% · onsite lodging'
     : building.commuteEfficiency != null || summary && summary.measuredWorkers > 0
-      ? `${Math.round(authoritativeEfficiency * 100)}% productive shift after commute · ${summary && summary.measuredWorkers > 0 ? commuteBandLabel(summary.band) : 'daily workforce cache'}`
-      : 'Awaiting the first daily workforce review';
+      ? `${Math.round(authoritativeEfficiency * 100)}% · ${summary && summary.measuredWorkers > 0 ? commuteBandLabel(summary.band) : 'daily commute'}`
+      : 'Awaiting review';
 
   const panel = policy === 'built_in'
     ? `
@@ -80,20 +80,20 @@ export function withWorksiteLodging(
       `;
 
   const lodgingLabel = policy === 'built_in'
-    ? 'Bunks inside the existing building'
+    ? 'Built-in bunks'
     : campFire
-      ? 'Linked camp fire-disabled · household commute active'
+      ? 'Camp fire-disabled'
       : camp?.constructionComplete !== false && camp
-      ? 'Linked tents and campfire'
+      ? 'Camp ready'
       : camp
-        ? 'Camp under construction · household commute remains active'
-        : 'Assigned household or founders\' camp';
+        ? 'Camp under construction'
+        : 'Household or founders’ camp';
   return {
     ...view,
     detailsHtml: `${view.detailsHtml}
-      <li><span>Household commute</span><span>${commute}</span></li>
-      <li><span>Authoritative output labor</span><span>${effectiveShift}</span></li>
-      <li><span>Night lodging</span><span>${lodgingLabel}</span></li>`,
+      <li data-inspector-secondary data-inspector-detail="Average travel time and the longest one-way route from workers’ homes."><span>Daily commute</span><span>${commute}</span></li>
+      <li data-inspector-primary data-inspector-detail="Productive shift after daily travel. Onsite lodging restores the full shift."><span>Shift output</span><span>${effectiveShift}</span></li>
+      <li data-inspector-secondary><span>Night lodging</span><span>${lodgingLabel}</span></li>`,
     supplementalPanelHtml: `${view.supplementalPanelHtml ?? ''}${panel}`,
   };
 }
@@ -143,5 +143,5 @@ function formatDisplayedDuration(simulationSeconds: number): string {
 function commuteBandLabel(band: 'short' | 'long' | 'severe'): string {
   if (band === 'short') return 'short commute';
   if (band === 'long') return 'long commute';
-  return 'severe commute · nearby housing or a camp recommended';
+  return 'severe commute';
 }

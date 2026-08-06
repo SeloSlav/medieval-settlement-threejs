@@ -126,6 +126,16 @@ export function renderWellInspector(
       <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
       <li><span>Water per trip</span><span>${waterPerTrip}</span></li>`
     : `<li><span>Physical cart</span><span>None required for households</span></li>`;
+  const workshopDemand = [
+    ['brewer', industrialConsumers.filter((item) => item.kind === 'brewery').length],
+    ['bakery', industrialConsumers.filter((item) => item.kind === 'bakery').length],
+    ['weaver', industrialConsumers.filter((item) => item.kind === 'weaver').length],
+    ['smithy', industrialConsumers.filter((item) => item.kind === 'smithy').length],
+    ['potter', industrialConsumers.filter((item) => item.kind === 'potter_kiln').length],
+  ]
+    .filter(([, count]) => Number(count) > 0)
+    .map(([name, count]) => `${count} ${name}${Number(count) === 1 ? '' : 's'}`)
+    .join(' · ');
 
   return {
     eyebrow: 'Building',
@@ -135,16 +145,15 @@ export function renderWellInspector(
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li><span>Labor</span><span>No assigned crew · household supply reserves no hauler</span></li>
+      <li data-inspector-secondary data-inspector-detail="Household water needs no assigned worker or last-mile cart."><span>Labor</span><span>None</span></li>
       <li><span>Hydrology</span><span>${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)</span></li>
       <li><span>Stored water</span><span>${Math.round(building.water)} / ${Math.round(capacity)}</span></li>
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
       ${buildingExtentRow(building.kind)}
-      <li><span>Water territory</span><span>${claimedResidences.length === 0 ? 'No connected homes in range' : `${claimedResidences.length} connected home${claimedResidences.length === 1 ? '' : 's'} · nearest homes receive scarce water first`}</span></li>
-      <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'bakery').length} bakery · ${industrialConsumers.filter((item) => item.kind === 'weaver').length} linen loom · ${industrialConsumers.filter((item) => item.kind === 'smithy').length} smithy · ${industrialConsumers.filter((item) => item.kind === 'potter_kiln').length} pottery`}</span></li>
-      <li><span>Distribution rule</span><span>Connected homes draw abstractly from stored water · workshop priority, input policy, then buffer coverage uses physical carts</span></li>
-      <li><span>Fire priority</span><span>Reserves new water ahead of homes and workshops · every useful free hauler may depart concurrently</span></li>
-      <li><span>Supplies</span><span>Homes without a last-mile cart; bakeries, brewhouses, flax-working looms, smithies, potters, and fire calls still receive visible carts</span></li>
+      <li><span>Homes served</span><span>${claimedResidences.length === 0 ? 'None connected' : claimedResidences.length}</span></li>
+      <li><span>Workshop demand</span><span>${workshopDemand || 'None'}</span></li>
+      <li data-inspector-secondary data-inspector-detail="Connected homes draw directly from storage. Workshops receive physical cart deliveries according to their input policy and buffer."><span>Distribution</span><span>Homes direct · workshops carted</span></li>
+      <li data-inspector-secondary data-inspector-detail="Fire calls reserve new water before homes and workshops; all useful free haulers may respond together."><span>Fire priority</span><span>Emergency calls first</span></li>
       ${deliveryRow}
     `,
     demolish: {

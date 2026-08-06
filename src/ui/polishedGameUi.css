@@ -1007,6 +1007,24 @@ select:focus-visible {
   line-height: 1.18;
 }
 
+.resource-inspector-details [data-inspector-detail] {
+  cursor: help;
+}
+
+.resource-inspector-details [data-inspector-detail] > .inspector-detail-label::after {
+  display: inline-grid;
+  place-items: center;
+  width: 10px;
+  height: 10px;
+  margin-left: 4px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  content: '?';
+  font-size: 7px;
+  line-height: 1;
+  opacity: 0.62;
+}
+
 .resource-inspector-ledger {
   margin-top: 10px;
   border-top: 1px solid rgba(220, 195, 137, 0.12);

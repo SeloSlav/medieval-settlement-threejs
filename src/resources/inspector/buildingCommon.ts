@@ -263,7 +263,7 @@ export function buildingLaborView(
 
 export function buildingCostRows(cost: BuildingResourceCost): string {
   return `
-    <li><span>Build cost</span><span>${formatBuildingCost(cost)}</span></li>
+    <li data-inspector-secondary><span>Build cost</span><span>${formatBuildingCost(cost)}</span></li>
   `;
 }
 
