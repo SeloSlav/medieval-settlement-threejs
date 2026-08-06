@@ -63,6 +63,7 @@ import { RoadTool } from '../roads/RoadTool.ts';
 import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
 import { SceneManager } from '../scene/SceneManager.ts';
 import { createInspectorSpacetimeActions } from './inspectorSpacetimeActions.ts';
+import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { createWorldMapUi, resolveWorldMapFocus, type WorldMapUiBundle } from './worldMapIcons.ts';
 import { buildBuildingWorldMapMarkers } from '../map/worldMapMarkers.ts';
 import type { DeliveryAgentRenderer } from '../logistics/DeliveryAgentRenderer.ts';
@@ -430,6 +431,12 @@ export async function bootstrapAppSession(
     onToggle: toggleRoadTool,
     onNetworkChanged: () => {
       sceneManager.syncRoadNetwork(roadNetwork);
+      syncPlacedBuildingTerrain({
+        sceneManager,
+        gameState: liveContext.gameState,
+        buildingMarkers,
+        forceMeshUpdate: true,
+      });
       buildingMarkers.refreshRoadFacingOrientations();
       roadSelection.refresh();
       bridge.syncToolbar();

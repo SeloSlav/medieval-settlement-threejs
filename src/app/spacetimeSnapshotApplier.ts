@@ -267,7 +267,7 @@ export class SpacetimeSnapshotApplier {
   syncForestClearance(deps: SpacetimeSnapshotApplierDeps, gameState: GameState): void {
     if (!deps.sceneManager) return;
     deps.sceneManager.setForestClearanceSources(
-      collectPlacedBuildingSources(gameState),
+      collectPlacedBuildingSources(gameState, deps.sceneManager.getRoadNetwork()),
       collectOccupiedParcelPolygons(gameState.burgageZones.values(), gameState.residences.values()),
       [...gameState.farmFields.values()].map((field) => field.corners),
     );

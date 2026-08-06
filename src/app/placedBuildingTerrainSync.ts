@@ -4,16 +4,31 @@ import type {
   ResidenceTerrainSource,
 } from '../buildings/BuildingTerrainLayout.ts';
 import type { BuildingMarkers } from '../buildings/BuildingMarkers.ts';
+import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { SceneManager } from '../scene/SceneManager.ts';
 import { setActivePlacedBuildingLayout, sampleNaturalTerrainHeight } from '../terrain/TerrainHeight.ts';
 import { updateTerrainBuildingPads } from '../terrain/TerrainBuildingPads.ts';
 
-export function collectPlacedBuildingSources(gameState: GameState | null): BuildingTerrainSource[] {
+export function collectPlacedBuildingSources(
+  gameState: GameState | null,
+  roadNetwork: RoadNetwork | null = null,
+): BuildingTerrainSource[] {
   if (!gameState) return [];
   const placedSources: BuildingTerrainSource[] = [];
   for (const building of gameState.buildings.values()) {
-    placedSources.push({ kind: building.kind, x: building.x, z: building.z });
+    placedSources.push({
+      kind: building.kind,
+      x: building.x,
+      z: building.z,
+      yaw: buildingPlacementYaw(
+        building.kind,
+        building.x,
+        building.z,
+        roadNetwork,
+      ),
+    });
   }
   return placedSources;
 }
@@ -70,7 +85,7 @@ export function syncBuildingTerrainLayout(
   gameState: GameState | null,
 ): void {
   if (!sceneManager) return;
-  const placedSources = collectPlacedBuildingSources(gameState);
+  const placedSources = collectPlacedBuildingSources(gameState, sceneManager.getRoadNetwork());
   const residenceSources = collectPlacedResidenceSources(gameState);
   const placedLayout = BuildingTerrainLayout.fromSettlement(
     placedSources,
@@ -86,9 +101,23 @@ export function syncPreviewTerrainPads(
   preview: BuildingTerrainSource | null,
 ): void {
   if (!sceneManager) return;
-  const placedSources = collectPlacedBuildingSources(gameState);
+  const roadNetwork = sceneManager.getRoadNetwork();
+  const placedSources = collectPlacedBuildingSources(gameState, roadNetwork);
   const residenceSources = collectPlacedResidenceSources(gameState);
-  const sources = preview ? [...placedSources, preview] : placedSources;
+  const sources = preview
+    ? [
+        ...placedSources,
+        {
+          ...preview,
+          yaw: preview.yaw ?? buildingPlacementYaw(
+            preview.kind,
+            preview.x,
+            preview.z,
+            roadNetwork,
+          ),
+        },
+      ]
+    : placedSources;
   const layout = sources.length > 0 || residenceSources.length > 0
     ? BuildingTerrainLayout.fromSettlement(sources, residenceSources, sampleNaturalTerrainHeight)
     : null;
@@ -105,7 +134,7 @@ export function syncPlacedBuildingTerrain(options: {
   const { sceneManager, gameState, buildingMarkers, forceMeshUpdate, onSignatureUpdate } = options;
   if (!sceneManager) return;
 
-  const placedSources = collectPlacedBuildingSources(gameState);
+  const placedSources = collectPlacedBuildingSources(gameState, sceneManager.getRoadNetwork());
   const residenceSources = collectPlacedResidenceSources(gameState);
   const placedLayout = BuildingTerrainLayout.fromSettlement(
     placedSources,

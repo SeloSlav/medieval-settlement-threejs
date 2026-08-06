@@ -7,6 +7,8 @@ export type BuildingTerrainSource = {
   kind: BuildingKind;
   x: number;
   z: number;
+  /** Resolved THREE.Object3D yaw shared with the rendered building mesh. */
+  yaw?: number;
 };
 
 export type ResidenceTerrainSource = {
@@ -211,7 +213,7 @@ export function pointWithinBuildingSiteClearance(
   clearanceRadius = 0,
 ): boolean {
   const params = PAD_PARAMS[building.kind];
-  const rotation = buildingPlacementYaw(building.kind, building.x, building.z);
+  const rotation = resolvedBuildingTerrainYaw(building);
   const dx = x - building.x;
   const dz = z - building.z;
   const cos = Math.cos(rotation);
@@ -240,8 +242,17 @@ export function sampleBuildingFootprintPoints(
   z: number,
   roadNetwork?: RoadNetwork | null,
 ): Array<{ x: number; z: number }> {
-  const params = PAD_PARAMS[kind];
   const rotation = buildingPlacementYaw(kind, x, z, roadNetwork);
+  return sampleBuildingFootprintPointsAtYaw(kind, x, z, rotation);
+}
+
+function sampleBuildingFootprintPointsAtYaw(
+  kind: BuildingKind,
+  x: number,
+  z: number,
+  rotation: number,
+): Array<{ x: number; z: number }> {
+  const params = PAD_PARAMS[kind];
   const cos = Math.cos(rotation);
   const sin = Math.sin(rotation);
   const points: Array<{ x: number; z: number }> = [];
@@ -269,8 +280,13 @@ function createBuildingPadSite(
   sampleNaturalHeight: (x: number, z: number) => number,
 ): TerrainPadSite {
   const params = PAD_PARAMS[building.kind];
-  const rotation = buildingPlacementYaw(building.kind, building.x, building.z);
-  const footprintHeights = sampleBuildingFootprintHeights(building.kind, building.x, building.z, sampleNaturalHeight);
+  const rotation = resolvedBuildingTerrainYaw(building);
+  const footprintHeights = sampleBuildingFootprintPointsAtYaw(
+    building.kind,
+    building.x,
+    building.z,
+    rotation,
+  ).map((point) => sampleNaturalHeight(point.x, point.z));
   const platformHeight = Math.max(...footprintHeights);
 
   return {
@@ -284,6 +300,12 @@ function createBuildingPadSite(
     shape: 'ellipse',
     maxRaise: building.kind === 'large_quarry' ? 1.5 : undefined,
   };
+}
+
+function resolvedBuildingTerrainYaw(building: BuildingTerrainSource): number {
+  return Number.isFinite(building.yaw)
+    ? building.yaw!
+    : buildingPlacementYaw(building.kind, building.x, building.z);
 }
 
 function createResidencePadSite(

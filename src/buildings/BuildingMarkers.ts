@@ -349,6 +349,7 @@ export class BuildingMarkers {
       if (Math.abs(yawDelta) <= 1e-5) continue;
 
       marker.rotation.y = yaw;
+      marker.position.y = this.terrain.getHeightAt(building.x, building.z);
       this.staticBatches.updateBuilding(id, marker, marker.visible);
       if (
         marker.visible

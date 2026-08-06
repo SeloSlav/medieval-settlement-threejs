@@ -122,7 +122,12 @@ assert.match(expandedEconomy, /CommodityKind::Cloth,\s*&\["trading_post"\]/s);
 assert.match(marketplaceCaravan, /CommodityKind::Cloth/);
 assert.match(marketplaceCaravan, /withdraw_building_commodity/);
 assert.match(marketplaceCaravan, /specialty_export_capacity/);
-assert.match(marketplaceCaravan, /credit_marketplace_receipt_gold/);
+assert.match(
+  marketplaceCaravan,
+  /credit_private_export_receipt[\s\S]*try_dispatch_private_export_income/,
+  'automatic specialty proceeds must remain private income until their household cart launches',
+);
+assert.match(marketplaceCaravan, /mark_local_civic_receipts_dispatched/);
 assert.doesNotMatch(marketplaceCaravan, /credit_treasury_gold/);
 
 const start = performance.now();

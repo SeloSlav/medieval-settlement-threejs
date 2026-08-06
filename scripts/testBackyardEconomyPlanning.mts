@@ -791,8 +791,13 @@ assert.match(
 );
 assert.match(
   serverMarketplaceCaravanSource,
-  /let collectible_gold = if is_trading_post[\s\S]*building\.gold\.max\(0\.0\)[\s\S]*try_dispatch_marketplace_proceeds/,
+  /let unpledged_gold = \(building\.gold - private_export_proceeds\(&building\)\)[\s\S]*let collectible_gold = if is_trading_post[\s\S]*unpledged_gold[\s\S]*try_dispatch_marketplace_proceeds/,
   'local tax must remain in the Marketplace lockbox until its treasury cart launches',
+);
+assert.match(
+  serverMarketplaceCaravanSource,
+  /fn try_dispatch_marketplace_proceeds[\s\S]*try_start_free_building_supply_trip[\s\S]*if started \{[\s\S]*mark_local_civic_receipts_dispatched/,
+  'a Marketplace must retire public receipts only after its physical treasury cart starts',
 );
 assert.match(
   serverDeliveryTripsSource,

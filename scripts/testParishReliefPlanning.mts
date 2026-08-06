@@ -666,7 +666,7 @@ const adminReadout = buildVillageAdminReadout({
 });
 assert.match(
   adminReadout.cofferBalanceLabel,
-  /25.0 gold collectable \/ 200.0 owned · 175.0 sealed pending structural recovery/,
+  /25.0 gold active \/ 200.0 church-owned · 175.0 sealed pending structural recovery/,
 );
 assert.match(adminReadout.chapelTitheLabel, /gold \/ day/);
 
@@ -815,8 +815,8 @@ const buildingReducers = readFileSync(
 );
 assert.match(
   buildingReducers,
-  /collect_chapel_coffer[\s\S]{0,1600}building_fire_state\(ctx, building_id\)[\s\S]{0,300}sealed coffer/,
-  'manual collection must not bypass the fire quarantine on chapel gold',
+  /collect_chapel_coffer[\s\S]{0,1600}Parish tithes belong to the church and cannot be transferred to the civic treasury/,
+  'manual collection must not transfer church-owned gold into the civic treasury',
 );
 
 const worldQueries = readFileSync(

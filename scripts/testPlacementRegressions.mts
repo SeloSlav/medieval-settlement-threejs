@@ -3,9 +3,12 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { intersectTerrainHeightfieldRay } from '../src/terrain/TerrainProjector.ts';
 import {
+  BuildingTerrainLayout,
   getBuildingFootprintCorners,
   getBuildingSiteClearanceSearchRadius,
+  pointWithinBuildingSiteClearance,
 } from '../src/buildings/BuildingTerrainLayout.ts';
+import { collectPlacedBuildingSources } from '../src/app/placedBuildingTerrainSync.ts';
 import {
   buildingPlacementYaw,
   resolveRoadsideBuildingPlacement,
@@ -43,6 +46,7 @@ import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import type {
   BuildingKind,
   BuildingState,
+  GameState,
   ResidenceState,
   ResourceNodeState,
 } from '../src/resources/types.ts';
@@ -432,6 +436,57 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
   assert(
     Math.abs(cross) < 1e-6,
     'the road-facing footprint border should be parallel to a diagonal road',
+  );
+
+  const mill = resolveRoadsideBuildingPlacement('lumber_mill', -2, 8, diagonalRoads);
+  const millYaw = buildingPlacementYaw('lumber_mill', mill.x, mill.z, diagonalRoads);
+  const roadFacingState = {
+    buildings: new Map([
+      ['road-facing-mill', {
+        id: 'road-facing-mill',
+        kind: 'lumber_mill',
+        x: mill.x,
+        z: mill.z,
+      }],
+    ]),
+  } as unknown as GameState;
+  const [millTerrainSource] = collectPlacedBuildingSources(
+    roadFacingState,
+    diagonalRoads,
+  );
+  assert.ok(millTerrainSource);
+  assert.ok(
+    Math.abs((millTerrainSource.yaw ?? 0) - millYaw) < 1e-6,
+    'placed terrain sources must retain the mesh yaw resolved from the live road network',
+  );
+  const [millPad] = BuildingTerrainLayout.fromBuildings(
+    [millTerrainSource],
+    () => 0,
+  ).sites;
+  assert.ok(millPad);
+  assert.ok(
+    Math.abs(millPad.rotation + millYaw) < 1e-6,
+    'the terrain pad must use the same road-facing yaw as the rendered building',
+  );
+  const cos = Math.cos(millYaw);
+  const sin = Math.sin(millYaw);
+  assert.equal(
+    pointWithinBuildingSiteClearance(
+      mill.x + 8 * cos,
+      mill.z - 8 * sin,
+      millTerrainSource,
+    ),
+    true,
+    'clearance must retain the long local axis of the road-facing building pad',
+  );
+  assert.equal(
+    pointWithinBuildingSiteClearance(
+      mill.x + 8 * sin,
+      mill.z + 8 * cos,
+      millTerrainSource,
+    ),
+    false,
+    'clearance must not rotate the short local axis back to the fallback yaw',
   );
 }
 
