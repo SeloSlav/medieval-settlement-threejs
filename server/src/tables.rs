@@ -763,6 +763,35 @@ pub struct FarmField {
     pub manure_applied: f64,
 }
 
+/// A player-drawn grape-growing parcel with one vineyard work/storage building
+/// at its centroid. The building id is the stable one-to-one parcel id.
+#[spacetimedb::table(
+    accessor = vineyard_parcel,
+    public,
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct VineyardParcel {
+    #[primary_key]
+    pub building_id: u64,
+    pub owner: Identity,
+    pub corner_ax: f64,
+    pub corner_az: f64,
+    pub corner_bx: f64,
+    pub corner_bz: f64,
+    pub corner_cx: f64,
+    pub corner_cz: f64,
+    pub corner_dx: f64,
+    pub corner_dz: f64,
+    pub area: f64,
+    pub average_slope_degrees: f64,
+    pub moisture: f64,
+    /// 0 = north-facing/shaded, 1 = strongly south-facing.
+    pub south_exposure: f64,
+    pub site_suitability: f64,
+    pub shape_efficiency: f64,
+}
+
 /// A player-drawn grazing parcel tied to a pastoral farmstead or woodland swineherd.
 /// Unlike arable fields, pannage pastures retain mature trees so mast capacity changes
 /// naturally when the surrounding woodland is felled or regrows.

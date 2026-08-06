@@ -11,5 +11,6 @@ pub mod residences;
 pub mod roads;
 pub mod simulation;
 pub mod village_admin;
+pub mod vineyards;
 pub mod world_configuration;
 pub mod world_reset;
