@@ -659,14 +659,10 @@ export class BuildingMarkers {
       return;
     }
     const network = this.getRoadNetwork?.() ?? null;
-    const busyBuildings = new Set(
-      [...gameState.deliveryTrips.values()].map((trip) => trip.buildingId),
-    );
     const assessment = assessBuildingFireSafety(building, {
       buildings: gameState.buildings.values(),
       residences: gameState.residences.values(),
       fireDisabledBuildingIds: fireDisabled,
-      busyBuildingIds: busyBuildings,
       roadPathDistance: network
         ? (ax, az, bx, bz) =>
             network.getPathfinder().roadPathDistance(ax, az, bx, bz)

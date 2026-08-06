@@ -597,9 +597,6 @@ export class BuildingTool {
           fireDisabledBuildingIds: fireDisabledBuildingIds(
             state.fireIncidents.values(),
           ),
-          busyBuildingIds: new Set(
-            [...state.deliveryTrips.values()].map((trip) => trip.buildingId),
-          ),
           roadPathDistance: roadNetwork
             ? (ax, az, bx, bz) =>
                 roadNetwork.getPathfinder().roadPathDistance(ax, az, bx, bz)
