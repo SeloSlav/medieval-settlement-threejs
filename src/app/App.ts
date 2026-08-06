@@ -300,6 +300,7 @@ export class App {
         onRoadsHydrated: (roads) => {
           this.roadNetwork?.restore(roads);
           this.sceneManager?.syncRoadNetwork(this.roadNetwork!);
+          this.buildingMarkers?.refreshRoadFacingOrientations();
           this.roadSelection?.refresh();
           this.syncToolbar();
           if (this.gameState && this.villagers && this.roadNetwork) {

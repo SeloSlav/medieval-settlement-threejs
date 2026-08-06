@@ -21,19 +21,24 @@ import {
   resolveReedLod,
 } from '../src/grass/grassLodMath.ts';
 import {
+  computeRiverWaterSkyPalette,
   disposeSharedRiverWaterMaterial,
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
   RIVER_BANK_BED_REVEAL,
+  RIVER_CLOSE_REFLECTION_DISTANCE,
   RIVER_DEEP_BACKDROP_STABILITY,
   RIVER_FLOW_HIGHLIGHT_STRENGTH,
   RIVER_FLOW_ROUGHNESS_FLOOR,
   RIVER_OPTICAL_SHORE_EXPONENT,
+  RIVER_PAINTERLY_REFLECTION_SAMPLES,
+  RIVER_REFLECTION_FRESNEL_FLOOR,
   RIVER_SKY_RETURN_STRENGTH,
   RIVER_VISUAL_SHORE_EXPONENT,
   RIVER_WATER_ATTENUATION_DISTANCE,
   RIVER_WATER_TRANSMISSION,
   setSharedRiverWaterNightAmount,
+  setSharedRiverWaterReflectionState,
 } from '../src/rivers/RiverWaterMaterial.ts';
 import {
   MAX_RIVER_WATER_NORMAL_SLOPE,
@@ -251,7 +256,7 @@ assert.equal(
   RIVER_WATER_TRANSMISSION,
   'bounded normals must retain the river transmission path',
 );
-assert.equal(material.transmission, 0.88);
+assert.equal(material.transmission, 0.72);
 assert.equal(material.thickness, 0.65);
 assert.equal(material.attenuationDistance, RIVER_WATER_ATTENUATION_DISTANCE);
 assert.equal(material.attenuationDistance, 2.6);
@@ -282,11 +287,22 @@ assert.ok(
   'broken micro-flow must remain visible without becoming broad winter halos',
 );
 assert.ok(
-  RIVER_SKY_RETURN_STRENGTH >= 0.14 && RIVER_SKY_RETURN_STRENGTH <= 0.2,
-  'angle-dependent sky return must remain legible but restrained',
+  RIVER_SKY_RETURN_STRENGTH >= 0.52 && RIVER_SKY_RETURN_STRENGTH <= 0.6,
+  'live sky reflection must remain legible without becoming an opaque mirror',
+);
+assert.ok(
+  RIVER_REFLECTION_FRESNEL_FLOOR >= 0.36 && RIVER_REFLECTION_FRESNEL_FLOOR <= 0.42,
+  'overhead water must retain sky reflection instead of reverting to riverbed colour',
+);
+assert.ok(RIVER_CLOSE_REFLECTION_DISTANCE >= 140 && RIVER_CLOSE_REFLECTION_DISTANCE <= 180);
+assert.equal(
+  RIVER_PAINTERLY_REFLECTION_SAMPLES,
+  2,
+  'nearby silhouettes must use a fixed two-tap single-pass reflection budget',
 );
 assert.equal(material.roughness, 0.3);
 assert.equal(material.specularIntensity, 0.5);
+assert.ok(material.normalNode, 'close water must carry bounded analytic ripple normals');
 assert.ok(material.roughnessNode, 'directional flow must modulate reflected highlight roughness');
 assert.ok(
   (material as typeof material & { emissiveNode?: unknown }).emissiveNode,
@@ -303,6 +319,35 @@ assert.equal(normalizeRiverWaterNightAmount(2), 1);
 assert.equal(normalizeRiverWaterNightAmount(Number.NaN), 0);
 setSharedRiverWaterNightAmount(1);
 setSharedRiverWaterNightAmount(0);
+const noonPalette = computeRiverWaterSkyPalette(70, 0);
+const duskPalette = computeRiverWaterSkyPalette(0, 0.2);
+const nightPalette = computeRiverWaterSkyPalette(-18, 1);
+assert.ok(noonPalette.zenith.b > noonPalette.zenith.r * 2.5);
+assert.ok(duskPalette.horizon.r > duskPalette.horizon.b * 1.7);
+assert.ok(nightPalette.zenith.getHex() !== noonPalette.zenith.getHex());
+const rainyNoonPalette = computeRiverWaterSkyPalette(70, 0, 0x798b91, 0.8);
+assert.ok(
+  rainyNoonPalette.zenith.getHex() !== noonPalette.zenith.getHex(),
+  'weather must tint the reflected sky palette',
+);
+setSharedRiverWaterReflectionState({
+  solarElevationDeg: 35,
+  nightAmount: 0,
+  celestialColor: 0xfff2dc,
+  celestialDirection: new THREE.Vector3(0.3, 0.8, -0.5),
+  celestialIntensity: 1,
+  weatherTint: 0x9fbccc,
+  weatherBlend: 0,
+});
+setSharedRiverWaterReflectionState({
+  solarElevationDeg: -12,
+  nightAmount: 1,
+  celestialColor: 0xb4cee8,
+  celestialDirection: new THREE.Vector3(-0.3, 0.8, 0.5),
+  celestialIntensity: 0.18,
+  weatherTint: 0x506b80,
+  weatherBlend: 0.18,
+});
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const waterMaterialSource = readFileSync(
@@ -361,6 +406,31 @@ assert.match(waterMaterialSource, /vec3\(0\.02,\s*0\.043,\s*0\.055\)/);
 assert.match(
   waterMaterialSource,
   /mix\(float\(0\.62\)[\s\S]*?depthFactor/,
+);
+assert.match(
+  waterMaterialSource,
+  /const reflectionDir = normalize\([\s\S]*?rippleNormalWorld/,
+  'sky lookup direction must follow the animated water normal',
+);
+assert.match(
+  waterMaterialSource,
+  /const closeDetail = sub\([\s\S]*?RIVER_CLOSE_REFLECTION_DISTANCE/,
+  'painterly surroundings and micro-ripples must fade outside close range',
+);
+assert.match(
+  waterMaterialSource,
+  /reflectionReach\.mul\(-1\)[\s\S]*?reflectionReach\.mul\(-1\.8\)/,
+  'screen-space reflection taps must sample upward toward the visible bank',
+);
+assert.doesNotMatch(
+  waterMaterialSource,
+  /CubeCamera|Reflector|WebGLRenderTarget|RenderTarget\(/,
+  'river reflection must not add a mirror camera or offscreen render pass',
+);
+assert.equal(
+  (waterMaterialSource.match(/viewportSharedTexture\(/g) ?? []).length,
+  RIVER_PAINTERLY_REFLECTION_SAMPLES + 1,
+  'water must retain two painterly reflection taps plus one refraction tap',
 );
 assert.equal(
   (waterMaterialSource.match(/\btexture\(/g) ?? []).length,

@@ -192,14 +192,19 @@ function buildGrassBlendNodes(
     .add(forestColor.g.mul(float(0.587) as TslNode))
     .add(forestColor.b.mul(float(0.114) as TslNode)) as TslNode;
   const forestGrain = smoothstep(
-    float(0.012) as TslNode,
-    float(0.24) as TslNode,
+    float(0.008) as TslNode,
+    float(0.12) as TslNode,
     forestLuminance,
   ) as TslNode;
-  const forestDetailColorNode = forestColor.rgb.mul(vec3(0.9, 0.84, 0.78) as TslNode) as TslNode;
+  // The atlas is already an authored sRGB albedo. Keep its decoded linear
+  // luminance intact at close range instead of applying a second brown tint.
+  const forestDetailColorNode = forestColor.rgb;
+  // Bound the high-frequency litter contrast for mip-stable views while
+  // preserving the atlas mean. The former near-black remap halved the source
+  // luminance before lighting and made the whole forest footprint a dark basin.
   const forestDetailStableColorNode = mix(
-    vec3(0.018, 0.009, 0.005) as TslNode,
-    vec3(0.12, 0.065, 0.032) as TslNode,
+    vec3(0.024, 0.015, 0.01) as TslNode,
+    vec3(0.16, 0.095, 0.055) as TslNode,
     forestGrain,
   ) as TslNode;
   const blendedColor = meadowColor.rgb
@@ -289,8 +294,8 @@ function buildGrassBlendNodes(
     .mul(float(0.62) as TslNode)
     .add(macroB.mul(float(0.38) as TslNode)) as TslNode;
   const forestOverviewColorNode = mix(
-    vec3(0.028, 0.016, 0.008) as TslNode,
-    vec3(0.072, 0.042, 0.02) as TslNode,
+    vec3(0.032, 0.02, 0.012) as TslNode,
+    vec3(0.092, 0.055, 0.03) as TslNode,
     forestOverviewVariation,
   ) as TslNode;
   const forestOverviewTexturedColorNode = mix(
@@ -624,12 +629,12 @@ function buildGrassBlendNodes(
     aoDetailStrength.mul(rainAoVisibility),
   ) as TslNode;
   const forestDetailAoNode = mix(
-    float(0.72) as TslNode,
-    float(0.98) as TslNode,
+    float(0.9) as TslNode,
+    float(0.99) as TslNode,
     forestGrain,
   ) as TslNode;
   const forestAoNode = mix(
-    float(0.86) as TslNode,
+    float(0.95) as TslNode,
     forestDetailAoNode,
     closeMaterialDetail.mul(rainAoVisibility),
   ) as TslNode;

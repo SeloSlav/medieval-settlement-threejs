@@ -377,6 +377,10 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
     'the snapped building entrance should face back toward the road',
   );
   assert(
+    Math.abs(buildingPlacementYaw('smithy', south.x, south.z, roads)) < 0.01,
+    'the entrance should face back toward the road from its opposite verge too',
+  );
+  assert(
     resolveRoadsideBuildingPlacement('well', 4, 5, roads).z > 5,
     'road-dependent utility buildings should also settle onto the road verge',
   );

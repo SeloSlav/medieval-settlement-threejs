@@ -430,6 +430,7 @@ export async function bootstrapAppSession(
     onToggle: toggleRoadTool,
     onNetworkChanged: () => {
       sceneManager.syncRoadNetwork(roadNetwork);
+      buildingMarkers.refreshRoadFacingOrientations();
       roadSelection.refresh();
       bridge.syncToolbar();
       spacetimeStore.queueRoadSync(roadNetwork.snapshot());

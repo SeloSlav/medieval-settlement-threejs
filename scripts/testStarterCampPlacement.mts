@@ -5,6 +5,7 @@ import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
 import { FOUNDERS_CAMPFIRE_NAME } from '../src/buildings/meshes/foundersCampMesh.ts';
 import { fireEffectFromRoot } from '../src/fires/FireEffect.ts';
 import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import {
   isWorldInspectionBlocked,
   isWorldResourceIconVisibilityBlocked,
@@ -301,6 +302,39 @@ assert.ok(
   campResyncArrayBufferGrowth < 128 * 1024,
   `unchanged camp resync allocated ${(campResyncArrayBufferGrowth / 1024).toFixed(1)} KiB of ArrayBuffers`,
 );
+
+const hydratingRoads = new RoadNetwork();
+const roadFacingParent = new THREE.Group();
+const roadFacingMarkers = new BuildingMarkers({
+  terrain: { getHeightAt: () => 0 } as never,
+  parent: roadFacingParent,
+  getRoadNetwork: () => hydratingRoads,
+});
+const roadsideSmithy = {
+  ...confirmedCampState,
+  id: 'road-facing-hydration-fixture',
+  kind: 'smithy',
+  x: 4,
+  z: 8,
+  constructionComplete: false,
+  constructionProgress: 0.35,
+  constructionRequiredTimber: 18,
+  constructionRequiredStone: 12,
+  constructionDeliveredTimber: 6,
+  constructionDeliveredStone: 4,
+} satisfies BuildingState;
+roadFacingMarkers.syncBuildings([roadsideSmithy]);
+hydratingRoads.addRoadPath([
+  new THREE.Vector3(-40, 0, 0),
+  new THREE.Vector3(40, 0, 0),
+]);
+roadFacingMarkers.refreshRoadFacingOrientations();
+const hydratedYaw = roadFacingMarkers.getRoadConnectionSources()[0]?.yaw;
+assert.ok(
+  hydratedYaw !== undefined && Math.abs(Math.abs(hydratedYaw) - Math.PI) < 0.01,
+  'a building created before road hydration should turn its local +Z entrance toward the road',
+);
+roadFacingMarkers.dispose();
 campMarkers.dispose();
 
 const starterCampGate = {

@@ -117,6 +117,26 @@ assert.match(ecologySource, /packedForestLitterGradient\(forestUv\.dFdx\(\)\)/);
 assert.match(ecologySource, /packedForestLitterGradient\(forestUv\.dFdy\(\)\)/);
 assert.match(
   ecologySource,
+  /const forestGrain = smoothstep\([\s\S]*?float\(0\.008\)[\s\S]*?float\(0\.12\)[\s\S]*?forestLuminance/,
+  'leaf-litter contrast must be resolved over the authored albedo luminance range',
+);
+assert.match(
+  ecologySource,
+  /const forestDetailColorNode = forestColor\.rgb;/,
+  'close leaf litter must preserve the authored albedo without a second dark tint',
+);
+assert.match(
+  ecologySource,
+  /const forestDetailStableColorNode = mix\([\s\S]*?vec3\(0\.024, 0\.015, 0\.01\)[\s\S]*?vec3\(0\.16, 0\.095, 0\.055\)/,
+  'the stable leaf-litter remap must retain the source texture mean luminance',
+);
+assert.match(
+  ecologySource,
+  /const forestOverviewColorNode = mix\([\s\S]*?vec3\(0\.032, 0\.02, 0\.012\)[\s\S]*?vec3\(0\.092, 0\.055, 0\.03\)/,
+  'strategic forest-floor colors must remain readable before scene lighting',
+);
+assert.match(
+  ecologySource,
   /const forestOverviewTexturedColorNode = mix\([\s\S]*?forestOverviewColorNode[\s\S]*?forestDetailStableColorNode[\s\S]*?float\(0\.72\)/,
   'the authored leaf-litter grain must remain visible at strategic zoom',
 );
@@ -125,7 +145,16 @@ assert.match(ecologySource, /const forestStableColorNode = mix\([\s\S]*?forestOv
 assert.match(ecologySource, /const forestBumpNode = bumpMap/);
 assert.match(ecologySource, /const forestNormalNode = normalize\([\s\S]*?forestBumpNode[\s\S]*?closeMaterialDetail\.mul\(rainNormalVisibility\)/);
 assert.match(ecologySource, /const forestRoughnessNode = mix/);
-assert.match(ecologySource, /const forestAoNode = mix/);
+assert.match(
+  ecologySource,
+  /const forestDetailAoNode = mix\([\s\S]*?float\(0\.9\)[\s\S]*?float\(0\.99\)[\s\S]*?forestGrain/,
+  'close leaf litter must retain soft AO rather than being darkened twice',
+);
+assert.match(
+  ecologySource,
+  /const forestAoNode = mix\([\s\S]*?float\(0\.95\)[\s\S]*?forestDetailAoNode/,
+  'strategic forest-floor AO must preserve ambient readability',
+);
 assert.match(ecologySource, /vec3\(0\.15, 0\.22, 0\.05\)/);
 assert.match(ecologySource, /vec3\(0\.024, 0\.045, 0\.012\)/);
 assert.match(ecologySource, /vec3\(0\.26, 0\.225, 0\.085\)/);

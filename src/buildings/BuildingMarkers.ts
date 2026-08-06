@@ -327,6 +327,49 @@ export class BuildingMarkers {
     return sources;
   }
 
+  /**
+   * Reapply the road-facing yaw after the authoritative road snapshot changes.
+   * Building rows can reach the client before that snapshot during startup, in
+   * which case their meshes are initially created with the deterministic
+   * fallback yaw. Updating every transform here keeps the authored local +Z
+   * facade (normally the door side) aimed at the road once it is available.
+   */
+  refreshRoadFacingOrientations(): void {
+    const network = this.getRoadNetwork?.() ?? null;
+    if (!network) return;
+
+    for (const [id, building] of this.buildingStates) {
+      const marker = this.buildingMeshes.get(id);
+      if (!marker) continue;
+      const yaw = buildingPlacementYaw(building.kind, building.x, building.z, network);
+      const yawDelta = Math.atan2(
+        Math.sin(yaw - marker.rotation.y),
+        Math.cos(yaw - marker.rotation.y),
+      );
+      if (Math.abs(yawDelta) <= 1e-5) continue;
+
+      marker.rotation.y = yaw;
+      this.staticBatches.updateBuilding(id, marker, marker.visible);
+      if (
+        marker.visible
+        && building.constructionComplete !== false
+        && building.kind !== 'founders_camp'
+      ) {
+        this.shadowProxyBatch.upsertBuilding(
+          id,
+          building.kind,
+          marker,
+          building.chapelTier ?? 3,
+        );
+      }
+    }
+
+    this.staticBatches.finalizeGeometryBuffers();
+    if (this.shadowProxyBatch.flush()) {
+      this.onShadowCastersChanged?.();
+    }
+  }
+
   setDestroyedBuildingIds(ids: ReadonlySet<string>): void {
     if (setsEqual(this.destroyedBuildingIds, ids)) return;
     this.destroyedBuildingIds = new Set(ids);
