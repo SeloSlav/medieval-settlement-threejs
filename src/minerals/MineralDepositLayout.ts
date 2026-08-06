@@ -193,6 +193,9 @@ function pickMineralSite(
       radiusX,
       radiusZ,
     };
+    // Iron keeps the established unconstrained bedrock distribution. Only salt
+    // needs a surface-water-specific placement preference.
+    if (formation === 'bedrock') return candidate;
     const score = mineralSitePreference(candidate, riverLayout, playableHalf)
       + rng() * 0.08;
     if (score <= bestScore) continue;
@@ -233,7 +236,7 @@ function mineralSitePreference(
   if (site.formation === 'rock_salt') {
     return estimatedWaterClearance(riverLayout, site.x, site.z) / 32;
   }
-  return Math.hypot(site.x, site.z) / Math.max(1, playableHalf) * 0.25;
+  return 0;
 }
 
 function estimatedWaterClearance(
