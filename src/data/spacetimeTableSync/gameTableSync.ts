@@ -16,6 +16,7 @@ import { syncForagingNodes } from './syncForagingNodes.ts';
 import { syncFarmFields } from './syncFarmFields.ts';
 import { syncCorpses, syncGraveyards } from './syncBurials.ts';
 import { syncLivestockHerds, syncPastures } from './syncLivestock.ts';
+import { syncVineyardParcels } from './syncVineyards.ts';
 import { syncMarketState } from './syncMarketState.ts';
 import { syncPlayerResources } from './syncPlayerResources.ts';
 import { syncQuarries } from './syncQuarries.ts';
@@ -64,6 +65,10 @@ export class GameTableSync {
     this.state.buildings = syncBuildings(db.building ? db.building.iter() : [], this.state.identityHex);
     this.state.farmFields = syncFarmFields(db.farm_field ? db.farm_field.iter() : [], this.state.identityHex);
     this.state.pastures = syncPastures(db.pasture ? db.pasture.iter() : [], this.state.identityHex);
+    this.state.vineyardParcels = syncVineyardParcels(
+      db.vineyard_parcel ? db.vineyard_parcel.iter() : [],
+      this.state.identityHex,
+    );
     this.state.graveyards = syncGraveyards(
       db.graveyard ? db.graveyard.iter() : [],
       this.state.identityHex,
@@ -318,6 +323,13 @@ export class GameTableSync {
     bindTable(db.pasture, () => {
       this.state.pastures = syncPastures(
         db.pasture ? db.pasture.iter() : [],
+        this.state.identityHex,
+      );
+    });
+
+    bindTable(db.vineyard_parcel, () => {
+      this.state.vineyardParcels = syncVineyardParcels(
+        db.vineyard_parcel ? db.vineyard_parcel.iter() : [],
         this.state.identityHex,
       );
     });

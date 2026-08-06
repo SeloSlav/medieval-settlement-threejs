@@ -9,9 +9,9 @@ import {
   type FarmFieldCorners,
 } from '../farming/farmFieldMath.ts';
 
-export const VINEYARD_MIN_AREA = 96;
+export const VINEYARD_MIN_AREA = 220;
 export const VINEYARD_MAX_AREA = 1_200;
-export const VINEYARD_MIN_EDGE = 7;
+export const VINEYARD_MIN_EDGE = 10;
 export const VINEYARD_MAX_SLOPE_DEGREES = 28;
 export const VINEYARD_REFERENCE_AREA = 220;
 

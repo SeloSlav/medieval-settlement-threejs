@@ -138,23 +138,28 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /WILDFLOWER_SLOT_CAPACITY = 8/,
-  'the streamed wildflower slot should hold the complete dense meadow patch',
+  /WILDFLOWER_SLOT_CAPACITY = 72/,
+  'the streamed wildflower slot should hold the complete individual-stem meadow patch',
 );
 assert.match(
   fieldSource,
-  /const target = rng\(\) < 0\.04 \? 0 : 6 \+ Math\.floor\(rng\(\) \* 3\)/,
-  'wildflowers should occur in most chunks at six to eight colonies',
+  /const patchCount = patchRoll < 0\.025 \? 0 : patchRoll < 0\.14 \? 2 : 3/,
+  'wildflowers should occur in most chunks as three color-organized patches',
 );
 assert.match(
   fieldSource,
-  /MIN_WILDFLOWER_SPACING_SQ = 0\.62 \* 0\.62/,
-  'wildflower colonies should gather closely enough to form dense natural patches',
+  /DENSE_WILDFLOWER_SPACING_SQ = 0\.18 \* 0\.18/,
+  'white and yellow stems should gather closely enough to form dense natural patches',
 );
 assert.match(
   fieldSource,
-  /localPlacements\.length > 0 && rng\(\) < 0\.78[\s\S]*?THREE\.MathUtils\.lerp\(0\.68, 1\.9, Math\.pow\(rng\(\), 0\.7\)\)/,
-  'most wildflower colonies should extend a nearby patch instead of scattering uniformly',
+  /variantIndex: denseVariantIndex,[\s\S]*?count: 3 \+ Math\.floor\(rng\(\) \* 4\),[\s\S]*?variantIndex: PURPLE_WILDFLOWER_INDEX/,
+  'dense white/yellow colonies should carry a smaller, more widely scattered purple cohort',
+);
+assert.match(
+  fieldSource,
+  /count: rng\(\) < 0\.68 \? 1 : 2,[\s\S]*?appendAccentCohort\(ORANGE_WILDFLOWER_INDEX, 0\.72\)[\s\S]*?appendAccentCohort\(RED_WILDFLOWER_INDEX, 0\.48\)/,
+  'orange and red accents should remain local singles or pairs',
 );
 assert.match(
   fieldSource,
@@ -277,7 +282,7 @@ function plannedGroundcoverUploadBytes(update: GroundcoverSlotUpdate): number {
   const meshSpecs = [
     { capacity: 110, itemSizes: [16, 3, 3, 3] },
     { capacity: 110, itemSizes: [16, 3, 3, 3] },
-    { capacity: 8, itemSizes: [16, 4] },
+    { capacity: 72, itemSizes: [16, 4] },
   ];
   let bytes = 0;
   for (let meshIndex = 0; meshIndex < meshSpecs.length; meshIndex++) {
@@ -297,17 +302,17 @@ function plannedGroundcoverUploadBytes(update: GroundcoverSlotUpdate): number {
 assert.equal(
   plannedGroundcoverUploadBytes({
     slotIndex: 3,
-    dirtyInstanceCounts: [110, 110, 8],
+    dirtyInstanceCounts: [110, 110, 72],
   }),
-  22_640,
-  'a first-time slot must retain the complete historical 22,640-byte upload',
+  27_760,
+  'a first-time slot must upload the complete expanded wildflower slot',
 );
 assert.equal(
   plannedGroundcoverUploadBytes({
     slotIndex: 3,
-    dirtyInstanceCounts: [70, 45, 7],
+    dirtyInstanceCounts: [70, 45, 52],
   }),
-  12_060,
+  15_660,
   'a representative recycled slot must publish only exact dirty components',
 );
 assert.deepEqual(
@@ -347,13 +352,13 @@ assert.match(
 );
 
 const recycledCountSequence = [
-  [70, 45, 7],
-  [78, 50, 8],
-  [62, 41, 6],
+  [70, 45, 52],
+  [78, 50, 61],
+  [62, 41, 46],
   [0, 0, 0],
-  [69, 44, 7],
+  [69, 44, 54],
 ] as const;
-const slotCapacities = [110, 110, 8] as const;
+const slotCapacities = [110, 110, 72] as const;
 let initialized = false;
 let previousCounts = [0, 0, 0];
 let exactUploadBytes = 0;
@@ -377,7 +382,7 @@ for (const nextCounts of recycledCountSequence) {
   previousCounts = [...nextCounts];
   initialized = true;
 }
-const fullCapacityUploadBytes = recycledCountSequence.length * 22_640;
+const fullCapacityUploadBytes = recycledCountSequence.length * 27_760;
 const fullCapacityClearWrites = recycledCountSequence.length
   * slotCapacities.reduce((sum, capacity) => sum + capacity, 0);
 assert.ok(
@@ -552,8 +557,13 @@ const stalkBlock = wildflowerSource.slice(
 );
 assert.equal(
   (stalkBlock.match(/\{ x:/g) ?? []).length,
-  5,
-  'each wildflower colony should contain five readable stems',
+  1,
+  'each wildflower instance should contain one readable stem',
+);
+assert.doesNotMatch(
+  wildflowerSource,
+  /appendLeaf/,
+  'wildflower stems should not retain the old side leaf-petal geometry',
 );
 assert.match(
   wildflowerSource,

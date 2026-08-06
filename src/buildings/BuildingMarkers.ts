@@ -27,7 +27,6 @@ import {
   assessBuildingFireSafety,
   fireCoverageColor,
   hasFireRiskPlanningOverlay,
-  type FireCoverageBand,
 } from '../fires/fireRiskPolicy.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
@@ -502,9 +501,8 @@ export class BuildingMarkers {
     z: number,
     valid: boolean,
     visible: boolean,
-    fireCoverage: FireCoverageBand | null = null,
   ): void {
-    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}|${fireCoverage ?? ''}`;
+    const signature = `${kind}|${x.toFixed(2)}|${z.toFixed(2)}|${valid ? 1 : 0}|${visible ? 1 : 0}`;
     if (signature === this.lastPreviewSignature) return;
     this.lastPreviewSignature = signature;
     if (!visible) {
@@ -521,7 +519,7 @@ export class BuildingMarkers {
       this.previewKind = kind;
       this.group.add(this.previewBuilding);
     }
-    updateBuildingPreviewAppearance(this.previewBuilding, valid, fireCoverage);
+    updateBuildingPreviewAppearance(this.previewBuilding, valid);
 
     const yaw = buildingPlacementYaw(kind, x, z, this.getRoadNetwork?.() ?? null);
     updateBuildingPreviewGeometry(

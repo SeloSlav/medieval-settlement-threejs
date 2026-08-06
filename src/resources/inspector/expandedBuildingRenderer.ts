@@ -109,6 +109,10 @@ import {
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
+import {
+  vineyardProductionMultiplier,
+  vineyardSiteFactors,
+} from '../../vineyards/vineyardSuitability.ts';
 import { environmentFor } from '../../world/seasonPolicy.ts';
 import { buildingStorageCaps } from '../resourceTotals.ts';
 import { GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS } from '../../security/frontierSecurity.ts';
@@ -1269,6 +1273,24 @@ export function renderExpandedBuildingInspector(
   const farmsteadPlanning = building.kind === 'threshing_barn'
     ? renderFarmsteadPlanning(building, context)
     : null;
+  const vineyardParcel = building.kind === 'vineyard'
+    ? context.gameState.vineyardParcels?.get(building.id) ?? null
+    : null;
+  const vineyardRows = vineyardParcel
+    ? (() => {
+        const factors = vineyardSiteFactors(
+          vineyardParcel.moisture,
+          vineyardParcel.averageSlopeDegrees,
+          vineyardParcel.southExposure,
+          building.x,
+          building.z,
+        );
+        const throughput = vineyardProductionMultiplier(vineyardParcel);
+        return `<li><span>Growing parcel</span><span>${Math.round(vineyardParcel.area)} m² · ${vineyardParcel.averageSlopeDegrees.toFixed(1)}° average slope · ${Math.round(vineyardParcel.shapeEfficiency * 100)}% row efficiency</span></li>
+          <li><span>Grape site</span><span>${Math.round(vineyardParcel.siteSuitability * 100)}% potential · ${Math.round(factors.drainage * 100)}% drainage · ${Math.round(factors.sun * 100)}% sun exposure</span></li>
+          <li><span>Harvest pace</span><span>${throughput.toFixed(2)}× grape and wine cycle throughput during September–October</span></li>`;
+      })()
+    : '';
   const buildingPolicyPanelHtml = building.kind === 'monastery'
     ? renderMonasteryPolicyPanel(context)
     : building.kind === 'threshing_barn'
@@ -1303,7 +1325,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${millPowerRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${millPowerRows}${vineyardRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),

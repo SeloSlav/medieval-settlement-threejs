@@ -1,4 +1,4 @@
-import type { BuildingKind, BuildingState, BurgageZoneState, FarmFieldState, ForagingNodeState, PastureState, ResidenceState, ResourceNodeState } from '../resources/types.ts';
+import type { BuildingKind, BuildingState, BurgageZoneState, FarmFieldState, ForagingNodeState, PastureState, ResidenceState, ResourceNodeState, VineyardParcelState } from '../resources/types.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
 import { buildingCostWithCarpenterSupport, hasRoadLinkedCarpenter } from '../economy/carpenterSupport.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
@@ -30,6 +30,7 @@ export type BuildingPlacementFailureReason =
   | 'within_residence_zone'
   | 'within_farm_field'
   | 'within_pasture'
+  | 'within_vineyard'
   | 'on_resource_deposit'
   | 'no_quarry_in_range'
   | 'requires_rich_deposit'
@@ -69,6 +70,7 @@ type BuildingPlacementContext = {
   burgageZones: Iterable<BurgageZoneState>;
   farmFields?: Iterable<FarmFieldState>;
   pastures?: Iterable<PastureState>;
+  vineyardParcels?: Iterable<VineyardParcelState>;
   quarries: Iterable<ResourceNodeState>;
   foragingNodes: Iterable<ForagingNodeState>;
   clayDepositSites?: readonly ClayDepositSite[];
@@ -190,6 +192,11 @@ export function validateBuildingPlacement(
     }
     if (parishPopulation(context.residences) < MONASTERY_MIN_PARISH_POPULATION) {
       return { ok: false, reason: 'requires_parish_population' };
+    }
+  }
+  for (const vineyard of context.vineyardParcels ?? []) {
+    if (convexPolygonsOverlap2(footprint, vineyard.corners)) {
+      return { ok: false, reason: 'within_vineyard' };
     }
   }
 

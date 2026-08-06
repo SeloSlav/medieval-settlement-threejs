@@ -1095,25 +1095,17 @@ export function createFerryLandingMesh(): THREE.Group {
 
 export function createVineyardMesh(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Vineyard terrace';
+  group.name = 'Vineyard work shelter';
   const vinePlacements: VineyardVinePlacement[] = [];
-  for (let terrace = 0; terrace < 5; terrace++) {
-    const z = -4.8 + terrace * 2.25;
-    addMesh(group, new THREE.BoxGeometry(14.5, 0.55, 1.55), earth, new THREE.Vector3(0, terrace * 0.22, z));
-    addMesh(group, new THREE.BoxGeometry(14.5, 0.42, 0.22), stoneMaterial(terrace % 2 ? 'mid' : 'mortar'), new THREE.Vector3(0, terrace * 0.22 + 0.18, z + 0.82));
-    for (let vine = 0; vine < 9; vine++) {
-      const x = -6.2 + vine * 1.55;
-      addMesh(group, new THREE.BoxGeometry(0.1, 1.65, 0.1), timberMaterial('dark'), new THREE.Vector3(x, terrace * 0.22 + 0.95, z));
-      vinePlacements.push({
-        x,
-        y: terrace * 0.22 + 0.82,
-        z,
-        fruiting: (vine + terrace) % 2 === 0,
-        seed: terrace * 11 + vine,
-      });
-    }
-    addMesh(group, new THREE.CylinderGeometry(0.025, 0.025, 12.6, 5), metalMaterial('iron'), new THREE.Vector3(0, terrace * 0.22 + 1.08, z), new THREE.Euler(0, 0, Math.PI * 0.5));
+  // The authored parcel renderer supplies the actual rows. A short sample row
+  // beside the work shelter keeps the hub readable before parcel sync arrives.
+  addMesh(group, new THREE.BoxGeometry(5.6, 0.22, 1.2), earth, new THREE.Vector3(0.4, 0.05, 3.15));
+  for (let vine = 0; vine < 4; vine++) {
+    const x = -1.8 + vine * 1.45;
+    addMesh(group, new THREE.BoxGeometry(0.1, 1.55, 0.1), timberMaterial('dark'), new THREE.Vector3(x, 0.88, 3.15));
+    vinePlacements.push({ x, y: 0.76, z: 3.15, fruiting: vine % 2 === 0, seed: 70 + vine });
   }
+  addMesh(group, new THREE.CylinderGeometry(0.025, 0.025, 5.0, 5), metalMaterial('iron'), new THREE.Vector3(0.4, 1.02, 3.15), new THREE.Euler(0, 0, Math.PI * 0.5));
   group.add(createSeedThreeVineyardVines(vinePlacements));
   const shell = addGableShell(group, { width: 4.3, depth: 3.6, stoneHeight: 0.65, wallHeight: 1.95, ridgeHeight: 1.55, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(0), centerX: -5.2, centerZ: 5.3 });
   addPlankDoor(group, -5.2, 0.68, shell.frontZ + 0.03, 0.76, 1.55);

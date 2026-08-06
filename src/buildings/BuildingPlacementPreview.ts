@@ -9,9 +9,7 @@ import type { BuildingKind } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import {
-  fireCoverageColor,
   hasFireRiskPlanningOverlay,
-  type FireCoverageBand,
 } from '../fires/fireRiskPolicy.ts';
 import { FIRE_SPREAD_RADIUS } from '../generated/gameBalance.ts';
 import { getBuildingFootprintCorners } from './BuildingTerrainLayout.ts';
@@ -29,6 +27,7 @@ const EXTENT_BORDER_LIFT = 0.165;
 const EXTENT_BORDER_WIDTH = 0.78;
 const FIRE_RISK_BORDER_LIFT = 0.175;
 const FIRE_RISK_BORDER_WIDTH = 0.62;
+const FIRE_RISK_PLANNING_COLOR = 0xd19a57;
 const PREVIEW_RENDER_ORDER = 12;
 
 export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
@@ -110,7 +109,7 @@ export function createBuildingPreviewMesh(kind: BuildingKind): THREE.Group {
     const fireRiskRing = new THREE.Mesh(
       new THREE.BufferGeometry(),
       new THREE.MeshBasicMaterial({
-        color: fireCoverageColor('uncovered'),
+        color: FIRE_RISK_PLANNING_COLOR,
         transparent: true,
         opacity: 0.8,
         depthTest: true,
@@ -209,7 +208,6 @@ export function updateBuildingPreviewGeometry(
 export function updateBuildingPreviewAppearance(
   group: THREE.Group,
   valid: boolean,
-  fireCoverage: FireCoverageBand | null = null,
 ): void {
   const color = valid ? PREVIEW_COLORS.valid : PREVIEW_COLORS.invalid;
   group.traverse((object) => {
@@ -218,9 +216,7 @@ export function updateBuildingPreviewAppearance(
     if (!(material instanceof THREE.MeshBasicMaterial)) return;
     if (object.userData.previewRole === 'fire-risk') {
       material.color.setHex(
-        valid
-          ? fireCoverageColor(fireCoverage ?? 'uncovered')
-          : PREVIEW_COLORS.invalid,
+        valid ? FIRE_RISK_PLANNING_COLOR : PREVIEW_COLORS.invalid,
       );
       material.opacity = valid ? 0.8 : 0.3;
       return;

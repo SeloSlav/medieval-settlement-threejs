@@ -12,5 +12,6 @@ export { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
 export { BurgageFencing } from '../residences/BurgageFencing.ts';
 export { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 export { PastureMarkers } from '../farming/PastureMarkers.ts';
+export { VineyardParcelMarkers } from '../vineyards/VineyardParcelMarkers.ts';
 export { LivestockVisuals } from '../farming/LivestockVisuals.ts';
 export { ResourceInspector } from '../resources/ResourceInspector.ts';

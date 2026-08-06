@@ -280,6 +280,29 @@ export async function demolishPasture(pastureId: string): Promise<void> {
   await callReducer('demolishPasture', 'demolish_pasture', { pastureId: serverId });
 }
 
+export async function placeVineyard(input: {
+  corners: Array<{ x: number; z: number }>;
+  averageSlopeDegrees: number;
+  southExposure: number;
+}): Promise<void> {
+  if (input.corners.length !== 4) {
+    throw new Error('Invalid vineyard placement.');
+  }
+  const [a, b, c, d] = input.corners;
+  await callReducer('placeVineyard', 'place_vineyard', {
+    cornerAx: a.x,
+    cornerAz: a.z,
+    cornerBx: b.x,
+    cornerBz: b.z,
+    cornerCx: c.x,
+    cornerCz: c.z,
+    cornerDx: d.x,
+    cornerDz: d.z,
+    averageSlopeDegrees: input.averageSlopeDegrees,
+    southExposure: input.southExposure,
+  });
+}
+
 export async function setLivestockSpecies(
   buildingId: string,
   species: Exclude<LivestockSpecies, 'swine'>,

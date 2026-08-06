@@ -334,7 +334,10 @@ pub fn place_building(ctx: &ReducerContext, kind: String, x: f64, z: f64) -> Res
     if kind == "remote_work_camp" {
         return Err("Plan an overnight camp from its rural worksite card.".to_string());
     }
-    place_building_internal(ctx, kind, x, z, 0)
+    if kind == "vineyard" {
+        return Err("Lay out vineyards by drawing their four-corner growing parcel.".to_string());
+    }
+    place_building_internal(ctx, kind, x, z, 0).map(|_| ())
 }
 
 #[reducer]
@@ -372,16 +375,41 @@ pub fn place_remote_work_camp(
             REMOTE_WORK_CAMP_MAX_DISTANCE as u32
         ));
     }
-    place_building_internal(ctx, "remote_work_camp".to_string(), x, z, worksite_id)
+    place_building_internal(ctx, "remote_work_camp".to_string(), x, z, worksite_id).map(|_| ())
 }
 
-fn place_building_internal(
+fn building_overlaps_vineyard(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    kind: &str,
+    x: f64,
+    z: f64,
+) -> bool {
+    let Some(def) = building_def(kind) else {
+        return false;
+    };
+    ctx.db
+        .vineyard_parcel()
+        .owner()
+        .filter(&owner)
+        .any(|vineyard| {
+            let polygon = [
+                Point2 { x: vineyard.corner_ax, z: vineyard.corner_az },
+                Point2 { x: vineyard.corner_bx, z: vineyard.corner_bz },
+                Point2 { x: vineyard.corner_cx, z: vineyard.corner_cz },
+                Point2 { x: vineyard.corner_dx, z: vineyard.corner_dz },
+            ];
+            zone_overlaps_footprint(&polygon, x, z, def.pick_radius)
+        })
+}
+
+pub(crate) fn place_building_internal(
     ctx: &ReducerContext,
     kind: String,
     x: f64,
     z: f64,
     linked_worksite_id: u64,
-) -> Result<(), String> {
+) -> Result<u64, String> {
     let def = building_def_or_err(&kind)?;
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
@@ -421,7 +449,8 @@ fn place_building_internal(
     // camp directly after the only server-side spatial conflict that can exist
     // in a fresh world: a generated physical resource deposit.
     if kind == "founders_camp" {
-        return crate::reducers::bootstrap::place_founding_camp(ctx, x, z);
+        crate::reducers::bootstrap::place_founding_camp(ctx, x, z)?;
+        return Ok(0);
     }
 
     // Surface-water and shoreline placement is validated by the placement
@@ -574,6 +603,9 @@ fn place_building_internal(
     }
     if building_overlaps_pasture(ctx, owner, &kind, x, z) {
         return Err("Cannot build inside a fenced pasture.".to_string());
+    }
+    if building_overlaps_vineyard(ctx, owner, &kind, x, z) {
+        return Err("Cannot build inside a vineyard parcel.".to_string());
     }
 
     if road_network
@@ -843,7 +875,7 @@ fn place_building_internal(
         ..config
     });
 
-    Ok(())
+    Ok(building_id)
 }
 
 #[reducer]
@@ -2440,6 +2472,15 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         .is_some()
     {
         ctx.db.livestock_herd().building_id().delete(&building_id);
+    }
+    if ctx
+        .db
+        .vineyard_parcel()
+        .building_id()
+        .find(&building_id)
+        .is_some()
+    {
+        ctx.db.vineyard_parcel().building_id().delete(&building_id);
     }
 
     let physical_reclamation = ctx

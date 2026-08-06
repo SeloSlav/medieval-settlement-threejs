@@ -9,7 +9,6 @@ import {
   GRAVEYARD_MAX_SLOPE,
   GRAVEYARD_MIN_AREA,
   GRAVEYARD_MIN_EDGE,
-  GRAVE_AREA_PER_BURIAL,
   LIVESTOCK_MIN_PASTURE_AREA,
   LIVESTOCK_MIN_PASTURE_EDGE,
   SHEEP_MAX_SLOPE_DEGREES,
@@ -25,28 +24,30 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
 import { FarmFieldPreview } from './FarmFieldMarkers.ts';
 import {
-  cropHarvestUnit,
   cropLabel,
-  cropSiteSuitability,
-  expectedFieldYield,
   fieldArea,
   fieldCentroid,
   fieldEdgeLengths,
-  fieldShapeEfficiency,
-  fieldSizeEfficiency,
-  initialFieldFertility,
   isValidFarmFieldCorners,
   sampleParcelPoints,
   sampleAverageSlopeDegrees,
   type FarmFieldCorners,
 } from './farmFieldMath.ts';
+import {
+  sampleAverageSouthExposure,
+  VINEYARD_MAX_AREA,
+  VINEYARD_MAX_SLOPE_DEGREES,
+  VINEYARD_MIN_AREA,
+  VINEYARD_MIN_EDGE,
+} from '../vineyards/vineyardSuitability.ts';
 
 const MIN_CLICK_DISTANCE = 1.5;
 const PREVIEW_VALIDATION_INTERVAL_MS = 110;
 
-export type LandParcelMode = 'field' | 'pasture' | 'graveyard';
+export type LandParcelMode = 'field' | 'pasture' | 'graveyard' | 'vineyard';
 export type FarmFieldPlacementFailureReason =
   | 'too_small'
+  | 'too_large'
   | 'edge_too_short'
   | 'invalid_shape'
   | 'too_steep'
@@ -57,11 +58,12 @@ export type FarmFieldPlacementFailureReason =
   | 'residence'
   | 'field'
   | 'pasture'
-  | 'graveyard';
+  | 'graveyard'
+  | 'vineyard';
 
 type Validation =
-  | { ok: true; corners: FarmFieldCorners; farmstead: BuildingState; slope: number; moisture: number }
-  | { ok: false; reason: FarmFieldPlacementFailureReason; corners: FarmFieldCorners | null; slope?: number; moisture?: number };
+  | { ok: true; corners: FarmFieldCorners; farmstead: BuildingState | null; slope: number; moisture: number; southExposure: number }
+  | { ok: false; reason: FarmFieldPlacementFailureReason; corners: FarmFieldCorners | null; slope?: number; moisture?: number; southExposure?: number };
 
 type FarmFieldToolOptions = {
   domElement: HTMLElement;
@@ -87,6 +89,11 @@ type FarmFieldToolOptions = {
     chapelId: string;
     corners: FarmFieldCorners;
     averageSlopeDegrees: number;
+  }) => Promise<void> | void;
+  onCommitVineyard: (input: {
+    corners: FarmFieldCorners;
+    averageSlopeDegrees: number;
+    southExposure: number;
   }) => Promise<void> | void;
   onModeChanged: () => void;
   onPlacementRejected?: (reason: FarmFieldPlacementFailureReason) => void;
@@ -142,7 +149,7 @@ export class FarmFieldTool {
     return this.mode;
   }
 
-  setMode(mode: LandParcelMode, farmsteadId: string): void {
+  setMode(mode: LandParcelMode, farmsteadId: string | null): void {
     if (this.mode !== mode || this.farmsteadId !== farmsteadId) {
       this.mode = mode;
       this.farmsteadId = farmsteadId;
@@ -192,17 +199,7 @@ export class FarmFieldTool {
     const index = FARM_CROPS.indexOf(this.crop);
     this.crop = FARM_CROPS[(index + 1) % FARM_CROPS.length];
     this.refreshPreview();
-    const moisture = this.validation.moisture;
-    const slope = this.validation.slope;
-    const center = this.validation.corners
-      ? fieldCentroid(this.validation.corners)
-      : null;
-    const recommendation = moisture == null || slope == null || center == null
-      ? 'site map updated'
-      : this.crop === 'fallow'
-        ? `${Math.round(initialFieldFertility(moisture, slope, center.x, center.z) * 100)}% predicted starting soil`
-        : `${Math.round(cropSiteSuitability(this.crop, moisture, slope, center.x, center.z) * 100)}% site potential here`;
-    this.options.onCropChanged?.(this.crop, recommendation);
+    this.options.onCropChanged?.(this.crop, 'suitability map updated');
     this.options.onModeChanged();
   }
 
@@ -211,13 +208,18 @@ export class FarmFieldTool {
       ? 'pasture'
       : this.mode === 'graveyard'
         ? 'burial ground'
-        : 'field';
+        : this.mode === 'vineyard'
+          ? 'vineyard'
+          : 'field';
     if (!this.fixedCorners && this.points.length === 0) {
       if (this.mode === 'pasture') {
         return 'Click the first pasture corner · trace four corners around the boundary';
       }
       if (this.mode === 'graveyard') {
         return 'Click the first burial-ground corner · keep the parcel beside the chapel';
+      }
+      if (this.mode === 'vineyard') {
+        return 'Click the first vineyard corner · trace four corners around the grape rows · grape suitability map visible';
       }
       return `Click the first field corner · trace four corners around the boundary · ${cropLabel(this.crop)} suitability map visible (C to change)`;
     }
@@ -238,45 +240,19 @@ export class FarmFieldTool {
     }
     const exactArea = fieldArea(this.validation.corners);
     const area = Math.round(exactArea);
-    const slope = this.validation.slope.toFixed(1);
-    const moisture = Math.round(this.validation.moisture * 100);
     const placementHint = this.fixedCorners
       ? 'hammer or Enter to place'
       : 'click to set the final corner';
     if (this.mode === 'pasture') {
-      return `${area} m² pasture · ${slope}° slope · ${moisture}% moisture · ${placementHint}`;
+      return `${area} m² pasture · ${placementHint}`;
     }
     if (this.mode === 'graveyard') {
-      return `${area} m² consecrated ground · about ${Math.floor(exactArea / GRAVE_AREA_PER_BURIAL)} graves · ${slope}° slope · ${placementHint}`;
+      return `${area} m² consecrated ground · ${placementHint}`;
     }
-    const center = fieldCentroid(this.validation.corners);
-    const startingFertility = initialFieldFertility(
-      this.validation.moisture,
-      this.validation.slope,
-      center.x,
-      center.z,
-    );
-    const sitePotential = Math.round(
-      cropSiteSuitability(
-        this.crop,
-        this.validation.moisture,
-        this.validation.slope,
-        center.x,
-        center.z,
-      ) * 100,
-    );
-    const firstHarvest = expectedFieldYield({
-      area: exactArea,
-      crop: this.crop,
-      moisture: this.validation.moisture,
-      fertility: startingFertility,
-      averageSlopeDegrees: this.validation.slope,
-      corners: this.validation.corners,
-    });
-    const yieldDetail = this.crop === 'fallow'
-      ? `${Math.round(startingFertility * 100)}% starting soil`
-      : `${sitePotential}% site · ${firstHarvest.toFixed(1)} ${cropHarvestUnit(this.crop)} first harvest`;
-    return `${cropLabel(this.crop)} · ${area} m² · ${yieldDetail} · ${Math.round(fieldSizeEfficiency(exactArea) * 100)}% size · ${Math.round(fieldShapeEfficiency(this.validation.corners) * 100)}% shape · ${slope}° slope · ${moisture}% moisture · ${placementHint}`;
+    if (this.mode === 'vineyard') {
+      return `Grapes · ${area} m² · judge the site from the suitability overlay · ${placementHint}`;
+    }
+    return `${cropLabel(this.crop)} · ${area} m² · judge the site from the suitability overlay · ${placementHint}`;
   }
 
   getBuildButtonPosition(): { clientX: number; clientY: number } | null {
@@ -301,18 +277,24 @@ export class FarmFieldTool {
     const commit = this.validation;
     const pending = this.mode === 'pasture'
       ? this.options.onCommitPasture({
-          farmsteadId: commit.farmstead.id,
+          farmsteadId: commit.farmstead!.id,
           corners: commit.corners,
           averageSlopeDegrees: commit.slope,
         })
       : this.mode === 'graveyard'
         ? this.options.onCommitGraveyard({
-            chapelId: commit.farmstead.id,
+            chapelId: commit.farmstead!.id,
             corners: commit.corners,
             averageSlopeDegrees: commit.slope,
           })
+      : this.mode === 'vineyard'
+        ? this.options.onCommitVineyard({
+            corners: commit.corners,
+            averageSlopeDegrees: commit.slope,
+            southExposure: commit.southExposure,
+          })
       : this.options.onCommit({
-          farmsteadId: commit.farmstead.id,
+          farmsteadId: commit.farmstead!.id,
           corners: commit.corners,
           crop: this.crop,
           averageSlopeDegrees: commit.slope,
@@ -528,14 +510,21 @@ export class FarmFieldTool {
       ? LIVESTOCK_MIN_PASTURE_AREA
       : this.mode === 'graveyard'
         ? GRAVEYARD_MIN_AREA
-        : FARM_MIN_FIELD_AREA;
+        : this.mode === 'vineyard'
+          ? VINEYARD_MIN_AREA
+          : FARM_MIN_FIELD_AREA;
     const minEdge = this.mode === 'pasture'
       ? LIVESTOCK_MIN_PASTURE_EDGE
       : this.mode === 'graveyard'
         ? GRAVEYARD_MIN_EDGE
-        : FARM_MIN_FIELD_EDGE;
+        : this.mode === 'vineyard'
+          ? VINEYARD_MIN_EDGE
+          : FARM_MIN_FIELD_EDGE;
     const area = fieldArea(corners);
     if (area < minArea) return { ok: false, reason: 'too_small', corners };
+    if (this.mode === 'vineyard' && area > VINEYARD_MAX_AREA) {
+      return { ok: false, reason: 'too_large', corners };
+    }
     if (fieldEdgeLengths(corners).some((edge) => edge < minEdge)) {
       return { ok: false, reason: 'edge_too_short', corners };
     }
@@ -543,38 +532,45 @@ export class FarmFieldTool {
     const slope = sampleAverageSlopeDegrees(corners, this.options.getHeightAt);
     const center = fieldCentroid(corners);
     const moisture = sampleAuthoritativeHydrologyScore(center.x, center.z);
+    const southExposure = sampleAverageSouthExposure(corners, this.options.getHeightAt);
     const state = this.options.getState();
     const farmstead = this.farmsteadId ? state.buildings.get(this.farmsteadId) ?? null : null;
-    const eligible = farmstead && (this.mode === 'pasture'
+    const eligible = this.mode === 'vineyard' || (farmstead && (this.mode === 'pasture'
       ? farmstead.kind === 'pastoral_farmstead' || farmstead.kind === 'swineherd'
       : this.mode === 'graveyard'
         ? farmstead.kind === 'chapel' && farmstead.constructionComplete !== false
-        : farmstead.kind === 'threshing_barn');
-    if (!farmstead || !eligible) return { ok: false, reason: 'no_farmstead', corners, slope, moisture };
-    const parentRange = this.mode === 'graveyard'
-      ? GRAVEYARD_MAX_DISTANCE
-      : farmstead.workRadius;
-    if (corners.some((point) =>
-      Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > parentRange
-    )) {
-      return { ok: false, reason: 'no_farmstead', corners, slope, moisture };
+        : farmstead.kind === 'threshing_barn'));
+    if (!eligible || (this.mode !== 'vineyard' && !farmstead)) {
+      return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
     }
-    if (
-      this.mode === 'graveyard'
-      && corners.every((point) =>
-        Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > GRAVEYARD_ADJACENCY_DISTANCE
-      )
-    ) {
-      return { ok: false, reason: 'no_farmstead', corners, slope, moisture };
+    if (farmstead) {
+      const parentRange = this.mode === 'graveyard'
+        ? GRAVEYARD_MAX_DISTANCE
+        : farmstead.workRadius;
+      if (corners.some((point) =>
+        Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > parentRange
+      )) {
+        return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
+      }
+      if (
+        this.mode === 'graveyard'
+        && corners.every((point) =>
+          Math.hypot(point.x - farmstead.x, point.z - farmstead.z) > GRAVEYARD_ADJACENCY_DISTANCE
+        )
+      ) {
+        return { ok: false, reason: 'no_farmstead', corners, slope, moisture, southExposure };
+      }
     }
     const maxSlope = this.mode === 'pasture'
-      ? state.livestockHerds.get(farmstead.id)?.species === 'cattle'
+      ? state.livestockHerds.get(farmstead!.id)?.species === 'cattle'
         ? CATTLE_MAX_SLOPE_DEGREES
         : SHEEP_MAX_SLOPE_DEGREES
       : this.mode === 'graveyard'
         ? GRAVEYARD_MAX_SLOPE
-        : FARM_MAX_ACCEPTED_SLOPE_DEGREES;
-    if (slope > maxSlope) return { ok: false, reason: 'too_steep', corners, slope, moisture };
+        : this.mode === 'vineyard'
+          ? VINEYARD_MAX_SLOPE_DEGREES
+          : FARM_MAX_ACCEPTED_SLOPE_DEGREES;
+    if (slope > maxSlope) return { ok: false, reason: 'too_steep', corners, slope, moisture, southExposure };
 
     const samples = sampleParcelPoints(corners);
     if (samples.some((point) => this.options.isWaterAt(point.x, point.z))) {
@@ -612,7 +608,12 @@ export class FarmFieldTool {
         return { ok: false, reason: 'graveyard', corners, slope, moisture };
       }
     }
-    return { ok: true, corners, farmstead, slope, moisture };
+    for (const vineyard of (state.vineyardParcels ?? new Map()).values()) {
+      if (convexPolygonsOverlap2(corners, vineyard.corners)) {
+        return { ok: false, reason: 'vineyard', corners, slope, moisture, southExposure };
+      }
+    }
+    return { ok: true, corners, farmstead, slope, moisture, southExposure };
   }
 
   private failureDetail(reason: FarmFieldPlacementFailureReason): string {
@@ -620,15 +621,19 @@ export class FarmFieldTool {
       ? 'Pasture'
       : this.mode === 'graveyard'
         ? 'Burial ground'
-        : 'Field';
+        : this.mode === 'vineyard'
+          ? 'Vineyard'
+          : 'Field';
     switch (reason) {
       case 'too_small':
-        return `${parcel} too small · at least ${this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_AREA : this.mode === 'graveyard' ? GRAVEYARD_MIN_AREA : FARM_MIN_FIELD_AREA} m²`;
+        return `${parcel} too small · at least ${this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_AREA : this.mode === 'graveyard' ? GRAVEYARD_MIN_AREA : this.mode === 'vineyard' ? VINEYARD_MIN_AREA : FARM_MIN_FIELD_AREA} m²`;
+      case 'too_large':
+        return `${parcel} too large · at most ${VINEYARD_MAX_AREA} m²`;
       case 'edge_too_short':
-        return `Each edge must be at least ${this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_EDGE : this.mode === 'graveyard' ? GRAVEYARD_MIN_EDGE : FARM_MIN_FIELD_EDGE} m`;
+        return `Each edge must be at least ${this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_EDGE : this.mode === 'graveyard' ? GRAVEYARD_MIN_EDGE : this.mode === 'vineyard' ? VINEYARD_MIN_EDGE : FARM_MIN_FIELD_EDGE} m`;
       case 'invalid_shape':
         return `${parcel} boundary must be a simple convex four-corner shape`;
-      case 'too_steep': return `Ground too steep for this ${this.mode === 'pasture' ? 'herd' : this.mode === 'graveyard' ? 'burial ground' : 'crop'}`;
+      case 'too_steep': return `Ground too steep for this ${this.mode === 'pasture' ? 'herd' : this.mode === 'graveyard' ? 'burial ground' : this.mode === 'vineyard' ? 'terraced vineyard' : 'crop'}`;
       case 'no_farmstead':
         return this.mode === 'pasture'
           ? 'Keep the entire pasture inside this livestock holding’s work extent'
@@ -642,6 +647,7 @@ export class FarmFieldTool {
       case 'field': return `${parcel} overlaps existing farmland`;
       case 'pasture': return `${parcel} overlaps an existing pasture`;
       case 'graveyard': return `${parcel} overlaps an existing burial ground`;
+      case 'vineyard': return `${parcel} overlaps an existing vineyard`;
     }
   }
 }

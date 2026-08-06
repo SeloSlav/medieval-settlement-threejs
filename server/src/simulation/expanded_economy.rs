@@ -2121,8 +2121,22 @@ pub fn step_vineyard(
     clock: &GameClock,
     building: Building,
 ) {
+    let production_multiplier = ctx
+        .db
+        .vineyard_parcel()
+        .building_id()
+        .find(&building.id)
+        .map(|parcel| {
+            crate::vineyard::production_multiplier(
+                parcel.area,
+                parcel.site_suitability,
+                parcel.shape_efficiency,
+            )
+        })
+        // Legacy point-placed vineyards keep their original save-compatible output.
+        .unwrap_or(1.0);
     let mut vineyard = if vineyard_is_harvesting(clock.month as u8) {
-        step_simple_producer(
+        step_simple_producer_at_rate(
             ctx,
             tick,
             clock,
@@ -2131,6 +2145,7 @@ pub fn step_vineyard(
                 (CommodityKind::Wine, VINEYARD_WINE_PER_CYCLE),
                 (CommodityKind::Grapes, VINEYARD_FOOD_PER_CYCLE),
             ],
+            production_multiplier,
         )
     } else {
         building

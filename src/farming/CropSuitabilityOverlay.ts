@@ -3,6 +3,7 @@ import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritat
 import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
 import type { FarmCrop } from '../resources/types.ts';
 import { cropSiteSuitability } from './farmFieldMath.ts';
+import { vineyardSiteSuitability } from '../vineyards/vineyardSuitability.ts';
 
 export const CROP_SUITABILITY_OVERLAY_RESOLUTION = 192;
 const OVERLAY_MESH_SEGMENTS = 96;
@@ -14,6 +15,10 @@ export type CropSuitabilityRasterOptions = {
   bounds: TerrainBounds;
   sampleMoisture: (x: number, z: number) => number;
   sampleSlopeDegrees: (x: number, z: number) => number;
+};
+
+export type VineyardSuitabilityRasterOptions = Omit<CropSuitabilityRasterOptions, 'crop'> & {
+  sampleSouthExposure: (x: number, z: number) => number;
 };
 
 export type CropSuitabilityOverlayOptions = {
@@ -29,8 +34,8 @@ export class CropSuitabilityOverlay {
   private readonly terrain: Terrain;
   private readonly material: THREE.MeshBasicMaterial;
   private readonly mesh: THREE.Mesh;
-  private readonly textures = new Map<FarmCrop, THREE.DataTexture>();
-  private crop: FarmCrop | null = null;
+  private readonly textures = new Map<FarmCrop | 'grapes', THREE.DataTexture>();
+  private crop: FarmCrop | 'grapes' | null = null;
   private visible = false;
 
   constructor(options: CropSuitabilityOverlayOptions) {
@@ -59,6 +64,18 @@ export class CropSuitabilityOverlay {
     if (!texture) {
       texture = createCropSuitabilityTexture(this.terrain, crop);
       this.textures.set(crop, texture);
+    }
+    this.material.map = texture;
+    this.material.needsUpdate = true;
+  }
+
+  setVineyard(): void {
+    if (this.crop === 'grapes') return;
+    this.crop = 'grapes';
+    let texture = this.textures.get('grapes');
+    if (!texture) {
+      texture = createVineyardSuitabilityTexture(this.terrain);
+      this.textures.set('grapes', texture);
     }
     this.material.map = texture;
     this.material.needsUpdate = true;
@@ -131,6 +148,37 @@ export function cropSuitabilityColor(
   return { ...rgb, a: Math.round(178 + clamped * 55) };
 }
 
+export function rasterizeVineyardSuitability(
+  options: VineyardSuitabilityRasterOptions,
+): Uint8Array {
+  const resolution = Math.max(2, Math.floor(options.resolution));
+  const data = new Uint8Array(resolution * resolution * 4);
+  const denominator = resolution - 1;
+  for (let row = 0; row < resolution; row += 1) {
+    const z = options.bounds.minZ
+      + (row / denominator) * (options.bounds.maxZ - options.bounds.minZ);
+    const dataRow = resolution - 1 - row;
+    for (let column = 0; column < resolution; column += 1) {
+      const x = options.bounds.minX
+        + (column / denominator) * (options.bounds.maxX - options.bounds.minX);
+      const score = vineyardSiteSuitability(
+        options.sampleMoisture(x, z),
+        options.sampleSlopeDegrees(x, z),
+        options.sampleSouthExposure(x, z),
+        x,
+        z,
+      );
+      const color = cropSuitabilityColor(score);
+      const index = (dataRow * resolution + column) * 4;
+      data[index] = color.r;
+      data[index + 1] = color.g;
+      data[index + 2] = color.b;
+      data[index + 3] = color.a;
+    }
+  }
+  return data;
+}
+
 function createCropSuitabilityTexture(
   terrain: Terrain,
   crop: FarmCrop,
@@ -150,6 +198,33 @@ function createCropSuitabilityTexture(
     THREE.UnsignedByteType,
   );
   texture.name = `${crop} field suitability`;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  texture.flipY = false;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createVineyardSuitabilityTexture(terrain: Terrain): THREE.DataTexture {
+  const data = rasterizeVineyardSuitability({
+    resolution: CROP_SUITABILITY_OVERLAY_RESOLUTION,
+    bounds: terrain.bounds,
+    sampleMoisture: sampleAuthoritativeHydrologyScore,
+    sampleSlopeDegrees: (x, z) => sampleTerrainSlopeDegrees(terrain, x, z),
+    sampleSouthExposure: (x, z) => sampleTerrainSouthExposure(terrain, x, z),
+  });
+  const texture = new THREE.DataTexture(
+    data,
+    CROP_SUITABILITY_OVERLAY_RESOLUTION,
+    CROP_SUITABILITY_OVERLAY_RESOLUTION,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType,
+  );
+  texture.name = 'grape vineyard suitability';
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
@@ -200,6 +275,17 @@ function sampleTerrainSlopeDegrees(terrain: Terrain, x: number, z: number): numb
     - terrain.getHeightAt(x, z - radius)
   ) / (radius * 2);
   return Math.atan(Math.hypot(hx, hz)) * 180 / Math.PI;
+}
+
+function sampleTerrainSouthExposure(terrain: Terrain, x: number, z: number): number {
+  const radius = 1;
+  const hx = terrain.getHeightAt(x + radius, z) - terrain.getHeightAt(x - radius, z);
+  const hz = terrain.getHeightAt(x, z + radius) - terrain.getHeightAt(x, z - radius);
+  const gradient = Math.hypot(hx, hz);
+  if (gradient <= 1e-6) return 0.5;
+  const facingSouth = 0.5 + (-hz / gradient) * 0.5;
+  const slopeWeight = Math.min(1, gradient * 0.75);
+  return 0.5 * (1 - slopeWeight) + facingSouth * slopeWeight;
 }
 
 function lerpColor(

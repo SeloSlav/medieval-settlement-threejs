@@ -61,6 +61,7 @@ import PlaceFarmFieldReducer from "./place_farm_field_reducer";
 import PlaceGraveyardReducer from "./place_graveyard_reducer";
 import PlacePastureReducer from "./place_pasture_reducer";
 import PlaceRemoteWorkCampReducer from "./place_remote_work_camp_reducer";
+import PlaceVineyardReducer from "./place_vineyard_reducer";
 import RecallIdleSeasonalLaborReducer from "./recall_idle_seasonal_labor_reducer";
 import RecallTargetIdleProcessorLaborReducer from "./recall_target_idle_processor_labor_reducer";
 import RemoveRoadEdgeReducer from "./remove_road_edge_reducer";
@@ -142,6 +143,7 @@ import SettlementSecurityRow from "./settlement_security_table";
 import SimPacingStateRow from "./sim_pacing_state_table";
 import SimTickScheduleRow from "./sim_tick_schedule_table";
 import TreeEntityRow from "./tree_entity_table";
+import VineyardParcelRow from "./vineyard_parcel_table";
 import WorldConfigRow from "./world_config_table";
 
 /** Type-only namespace exports for generated type groups. */
@@ -510,6 +512,20 @@ const tablesSchema = __schema({
       { name: 'tree_entity_tree_id_key', constraint: 'unique', columns: ['treeId'] },
     ],
   }, TreeEntityRow),
+  vineyard_parcel: __table({
+    name: 'vineyard_parcel',
+    indexes: [
+      { name: 'building_id', algorithm: 'btree', columns: [
+        'buildingId',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'vineyard_parcel_building_id_key', constraint: 'unique', columns: ['buildingId'] },
+    ],
+  }, VineyardParcelRow),
   world_config: __table({
     name: 'world_config',
     indexes: [
@@ -552,6 +568,7 @@ const reducersSchema = __reducers(
   __reducerSchema("place_graveyard", PlaceGraveyardReducer),
   __reducerSchema("place_pasture", PlacePastureReducer),
   __reducerSchema("place_remote_work_camp", PlaceRemoteWorkCampReducer),
+  __reducerSchema("place_vineyard", PlaceVineyardReducer),
   __reducerSchema("recall_idle_seasonal_labor", RecallIdleSeasonalLaborReducer),
   __reducerSchema("recall_target_idle_processor_labor", RecallTargetIdleProcessorLaborReducer),
   __reducerSchema("remove_road_edge", RemoveRoadEdgeReducer),

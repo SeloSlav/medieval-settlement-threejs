@@ -1049,8 +1049,8 @@ assert.match(
 );
 assert.match(
   buildingTool,
-  /getBuildingExtent\(kind, definition\.workRadius\)[\s\S]*Ready: \$\{extent\.label\.toLowerCase\(\)\} \$\{extent\.radius\} m/,
-  'valid strategic buildings should identify the visible extent in the live status',
+  /getBuildingExtent\(kind, definition\.workRadius\)[\s\S]*Ready: \$\{extent\.label\.toLowerCase\(\)\} shown on terrain/,
+  'valid strategic buildings should point to the visible extent without printing its data value',
 );
 assert.match(
   buildingMarkers,

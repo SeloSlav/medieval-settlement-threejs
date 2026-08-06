@@ -54,7 +54,13 @@ import {
   CROP_SUITABILITY_OVERLAY_RESOLUTION,
   cropSuitabilityColor,
   rasterizeCropSuitability,
+  rasterizeVineyardSuitability,
 } from '../src/farming/CropSuitabilityOverlay.ts';
+import {
+  sampleAverageSouthExposure,
+  vineyardProductionMultiplier,
+  vineyardSiteSuitability,
+} from '../src/vineyards/vineyardSuitability.ts';
 import {
   activeFieldHarvestYield,
   buildFarmsteadWorkPlan,
@@ -109,6 +115,24 @@ assert.ok(Math.abs(fieldCentroid(organicParcel).z - 6.2735042735) < 1e-9);
 assert.ok(fieldShapeEfficiency([...organicParcel]) < 1);
 assert.ok(fieldShapeEfficiency([...organicParcel]) > FARM_LARGE_FIELD_EFFICIENCY_FLOOR);
 assert.equal(sampleParcelPoints([...organicParcel]).length, 25);
+assert.ok(
+  vineyardSiteSuitability(0.22, 8, 1, 20, -30)
+    > vineyardSiteSuitability(0.95, 0, 0.5, 20, -30),
+  'sunny drained slopes should beat wet flat grape sites',
+);
+assert.ok(
+  vineyardProductionMultiplier({ area: 440, siteSuitability: 0.8, shapeEfficiency: 0.95 })
+    > vineyardProductionMultiplier({ area: 110, siteSuitability: 0.8, shapeEfficiency: 0.95 }),
+  'free-form vineyard area must change actual harvest capacity',
+);
+assert.ok(sampleAverageSouthExposure([...organicParcel], (_x, z) => -z) > 0.5);
+assert.equal(rasterizeVineyardSuitability({
+  resolution: 4,
+  bounds: { minX: 0, minZ: 0, maxX: 20, maxZ: 20 },
+  sampleMoisture: () => 0.35,
+  sampleSlopeDegrees: () => 8,
+  sampleSouthExposure: () => 1,
+}).length, 4 * 4 * 4);
 assert.ok(!isValidFarmFieldCorners([
   { x: 0, z: 0 },
   { x: 20, z: 0 },
@@ -769,9 +793,15 @@ const farmFieldTool = fs.readFileSync('src/farming/FarmFieldTool.ts', 'utf8');
 assert.match(farmFieldTool, /state\.buildings\.get\(this\.farmsteadId\)/, 'parcel placement must stay pinned to the selected holding');
 assert.doesNotMatch(farmFieldTool, /let distance = Number\.POSITIVE_INFINITY/, 'parcel placement must not silently choose the nearest holding');
 assert.match(farmFieldTool, /corners\.some\(\(point\)/, 'the whole parcel must stay inside the selected work extent');
-assert.match(farmFieldTool, /cropSiteSuitability/);
-assert.match(farmFieldTool, /first harvest/);
+assert.doesNotMatch(
+  farmFieldTool,
+  /cropSiteSuitability|expectedFieldYield|vineyardSiteFactors|vineyardProductionMultiplier/,
+  'parcel placement should leave exact site and harvest calculations hidden until after placement',
+);
+assert.doesNotMatch(farmFieldTool, /first harvest|% site|% drainage|% sun|× harvest/);
+assert.match(farmFieldTool, /judge the site from the suitability overlay/);
 assert.match(farmFieldTool, /suitability map visible/);
+assert.match(farmFieldTool, /onCommitVineyard/);
 assert.match(farmFieldTool, /this\.points\.length < 3/);
 assert.match(farmFieldTool, /isValidFarmFieldCorners/);
 assert.match(farmFieldTool, /sampleParcelPoints/);
@@ -788,12 +818,15 @@ assert.match(cropSuitabilityOverlay, /createDrapedOverlayGeometry/);
 assert.match(cropSuitabilityOverlay, /sampleAuthoritativeHydrologyScore/);
 assert.match(cropSuitabilityOverlay, /private readonly textures = new Map/);
 assert.match(sceneManager, /setCropSuitabilityOverlayCrop/);
-assert.match(sceneManager, /const mode = fieldCrop === null \? this\.mapOverlaySelection\.mode : 'fertility'/);
+assert.match(sceneManager, /setVineyardSuitabilityOverlayVisible/);
+assert.match(sceneManager, /placementSuitabilityActive/);
 assert.match(sceneManager, /this\.hydrologyOverlay\?\.setVisible\(mode === 'water'\)/);
 assert.match(sceneManager, /this\.windOverlay\?\.setVisible\(mode === 'wind'\)/);
 assert.match(appSource, /setCropSuitabilityOverlayCrop\(farmCrop\)/);
+assert.match(appSource, /setVineyardSuitabilityOverlayVisible\(vineyardPlacementEnabled\)/);
 assert.match(buildToolbar, /data-crop-suitability-legend/);
 assert.match(buildToolbar, /first-crop site potential/);
+assert.match(buildToolbar, /Grape suitability/);
 
 const farmsteadInspector = fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8');
 const livestockInspector = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');

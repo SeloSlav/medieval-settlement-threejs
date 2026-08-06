@@ -12,6 +12,7 @@ import {
 } from '../farming/FarmFieldTool.ts';
 import type { PastureMarkers } from '../farming/PastureMarkers.ts';
 import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
+import type { VineyardParcelMarkers } from '../vineyards/VineyardParcelMarkers.ts';
 import { BurgageTool } from '../residences/BurgageTool.ts';
 import { MAX_ZONE_DEPTH, MIN_ZONE_DEPTH } from '../residences/burgageLayout.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
@@ -131,6 +132,7 @@ export type BootstrappedSession = {
   burgageFencing: BurgageFencing;
   farmFieldMarkers: FarmFieldMarkers;
   pastureMarkers: PastureMarkers;
+  vineyardParcelMarkers: VineyardParcelMarkers;
   burialMarkers: BurialMarkers;
   livestockVisuals: LivestockVisuals;
   toolbar: BuildToolbar;
@@ -320,6 +322,7 @@ export async function bootstrapAppSession(
     BurgageFencing,
     FarmFieldMarkers,
     PastureMarkers,
+    VineyardParcelMarkers,
     LivestockVisuals,
     ResourceInspector,
   } = await settlementPresentationPromise;
@@ -580,9 +583,10 @@ export async function bootstrapAppSession(
   burgageTool.attachTo(sceneManager.previewGroup);
 
   const fieldFailureMessage = (mode: LandParcelMode, reason: FarmFieldPlacementFailureReason): string => {
-    const parcel = mode === 'pasture' ? 'pasture' : mode === 'graveyard' ? 'burial ground' : 'field';
+    const parcel = mode === 'pasture' ? 'pasture' : mode === 'graveyard' ? 'burial ground' : mode === 'vineyard' ? 'vineyard' : 'field';
     switch (reason) {
       case 'too_small': return `Draw a larger ${parcel}.`;
+      case 'too_large': return `Draw a smaller ${parcel}.`;
       case 'edge_too_short': return `Each ${parcel} edge must be longer.`;
       case 'invalid_shape': return `Trace a simple convex four-corner ${parcel} boundary.`;
       case 'too_steep': return `This ground is too steep for the ${parcel}.`;
@@ -594,6 +598,7 @@ export async function bootstrapAppSession(
       case 'field': return `${parcel} overlaps existing farmland.`;
       case 'pasture': return `This ${parcel} overlaps an existing pasture.`;
       case 'graveyard': return `This ${parcel} overlaps an existing burial ground.`;
+      case 'vineyard': return `This ${parcel} overlaps an existing vineyard.`;
     }
   };
 
@@ -620,6 +625,11 @@ export async function bootstrapAppSession(
       requireSessionReady();
       await spacetimeStore.placeGraveyard(input);
       ambientAudio.playUiSound('confirm');
+    },
+    onCommitVineyard: async (input) => {
+      requireSessionReady();
+      await spacetimeStore.placeVineyard(input);
+      ambientAudio.playUiSound('building_place');
     },
     onModeChanged: () => bridge.syncToolbar(),
     onPlacementRejected: (reason) => {
@@ -737,6 +747,26 @@ export async function bootstrapAppSession(
     onSelectBuilding: (kind: BuildingKind) => {
       if (!sessionGate.isReady()) {
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
+        return;
+      }
+      if (kind === 'vineyard') {
+        const wasEnabled = farmFieldTool.isEnabled()
+          && farmFieldTool.getMode() === 'vineyard';
+        farmFieldTool.setMode('vineyard', null);
+        if (farmFieldTool.isEnabled()) {
+          roadTool.setEnabled(false);
+          buildingTool.setMode('off');
+          burgageTool.setEnabled(false);
+          resourceInspector?.clearSelection();
+          villagerInspector?.clearSelection();
+          if (!wasEnabled) {
+            toastManager?.show(
+              'Trace four corners around the grape rows. Sunny, well-drained slopes produce the strongest harvests.',
+              { variant: 'info', durationMs: 6500 },
+            );
+          }
+        }
+        bridge.syncToolbar();
         return;
       }
       buildingTool.setMode(kind);
@@ -974,6 +1004,10 @@ export async function bootstrapAppSession(
     computeInTransitResourceTotals(gameState.deliveryTrips.values()),
     computeGoldAwaitingCollection(gameState.buildings.values()),
     computeGuardhousePayrollGold(gameState.buildings.values()),
+  );
+  const vineyardParcelMarkers = new VineyardParcelMarkers(
+    sceneManager.selectionGroup,
+    (x, z) => sceneManager.terrain.getHeightAt(x, z),
   );
   const burialMarkers = new BurialMarkers(sceneManager.selectionGroup);
   let lastLocatedResource: HudResourceKind | null = null;
@@ -1267,6 +1301,7 @@ export async function bootstrapAppSession(
     burgageFencing,
     farmFieldMarkers,
     pastureMarkers,
+    vineyardParcelMarkers,
     burialMarkers,
     livestockVisuals,
     toolbar,

@@ -46,6 +46,7 @@ import type {
   ResidenceState,
   ResourceStockpile,
   TreeEntityState,
+  VineyardParcelState,
 } from '../resources/types.ts';
 import { createEmptyStockpile } from '../resources/types.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
@@ -130,6 +131,7 @@ export type SpacetimeGameSnapshot = {
   buildings: Map<string, BuildingState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;
+  vineyardParcels: Map<string, VineyardParcelState>;
   graveyards: Map<string, GraveyardState>;
   corpses: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;
@@ -174,6 +176,7 @@ function createEmptyTableState(): GameTableSyncState {
     buildings: new Map(),
     farmFields: new Map(),
     pastures: new Map(),
+    vineyardParcels: new Map(),
     graveyards: new Map(),
     corpses: new Map(),
     livestockHerds: new Map(),
@@ -255,6 +258,7 @@ export class SpacetimeGameStore {
       buildings: this.snapshotMap(state.buildings),
       farmFields: this.snapshotMap(state.farmFields),
       pastures: this.snapshotMap(state.pastures),
+      vineyardParcels: this.snapshotMap(state.vineyardParcels),
       graveyards: this.snapshotMap(state.graveyards),
       corpses: this.snapshotMap(state.corpses),
       livestockHerds: this.snapshotMap(state.livestockHerds),
@@ -337,6 +341,7 @@ export class SpacetimeGameStore {
       buildings: snapshot.buildings,
       farmFields: snapshot.farmFields,
       pastures: snapshot.pastures,
+      vineyardParcels: snapshot.vineyardParcels,
       graveyards: snapshot.graveyards,
       corpses: snapshot.corpses,
       livestockHerds: snapshot.livestockHerds,
@@ -469,6 +474,14 @@ export class SpacetimeGameStore {
     averageSlopeDegrees: number;
   }): Promise<void> {
     return spacetimeReducers.placePasture(input);
+  }
+
+  placeVineyard(input: {
+    corners: Array<{ x: number; z: number }>;
+    averageSlopeDegrees: number;
+    southExposure: number;
+  }): Promise<void> {
+    return spacetimeReducers.placeVineyard(input);
   }
 
   demolishPasture(pastureId: string): Promise<void> {

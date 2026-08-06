@@ -10,11 +10,12 @@ import { buildingPlacementReasonToToastId, getToastMessage } from './toastMessag
 export type ToolbarStats = {
   canBuild: boolean;
   hasDraft: boolean;
-  mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'burial-grounds' | 'idle';
+  mode: BuildingKind | 'road' | 'residences' | 'farm-fields' | 'pastures' | 'burial-grounds' | 'vineyards' | 'idle';
   statusDetail?: string | null;
   placementBlocked?: boolean;
   placementReady?: boolean;
   farmCrop?: FarmCrop;
+  vineyardSuitability?: boolean;
   buildingCost?: BuildingResourceCost;
   carpenterSupported?: boolean;
   carpenterCartServiceEnabled?: boolean;
@@ -36,7 +37,8 @@ export function isConstructionToolMode(mode: ToolbarStats['mode']): boolean {
     || mode === 'residences'
     || mode === 'farm-fields'
     || mode === 'pastures'
-    || mode === 'burial-grounds';
+    || mode === 'burial-grounds'
+    || mode === 'vineyards';
 }
 
 export function isBuilderHudMode(mode: ToolbarStats['mode']): boolean {
@@ -87,6 +89,9 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
   }
   if (stats.mode === 'burial-grounds') {
     return stats.statusDetail ?? 'Draw a burial ground beside a completed chapel';
+  }
+  if (stats.mode === 'vineyards') {
+    return stats.statusDetail ?? 'Trace four corners around a free-form grape-growing parcel';
   }
   if (stats.mode !== 'road') return 'Road tool off';
   if (stats.canBuild) {

@@ -237,6 +237,19 @@ export type PastureState = {
   moisture: number;
 };
 
+export type VineyardParcelState = {
+  /** The parcel is one-to-one with, and keyed by, its vineyard building. */
+  id: string;
+  buildingId: string;
+  corners: FarmFieldState['corners'];
+  area: number;
+  averageSlopeDegrees: number;
+  moisture: number;
+  southExposure: number;
+  siteSuitability: number;
+  shapeEfficiency: number;
+};
+
 export type GraveyardState = {
   id: string;
   chapelId: string;
@@ -410,6 +423,7 @@ export type GameState = {
   buildings: Map<string, BuildingState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;
+  vineyardParcels?: Map<string, VineyardParcelState>;
   graveyards?: Map<string, GraveyardState>;
   corpses?: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;

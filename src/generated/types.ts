@@ -654,6 +654,26 @@ export const TreeEntity = __t.object("TreeEntity", {
 });
 export type TreeEntity = __Infer<typeof TreeEntity>;
 
+export const VineyardParcel = __t.object("VineyardParcel", {
+  buildingId: __t.u64(),
+  owner: __t.identity(),
+  cornerAx: __t.f64(),
+  cornerAz: __t.f64(),
+  cornerBx: __t.f64(),
+  cornerBz: __t.f64(),
+  cornerCx: __t.f64(),
+  cornerCz: __t.f64(),
+  cornerDx: __t.f64(),
+  cornerDz: __t.f64(),
+  area: __t.f64(),
+  averageSlopeDegrees: __t.f64(),
+  moisture: __t.f64(),
+  southExposure: __t.f64(),
+  siteSuitability: __t.f64(),
+  shapeEfficiency: __t.f64(),
+});
+export type VineyardParcel = __Infer<typeof VineyardParcel>;
+
 export const WorldConfig = __t.object("WorldConfig", {
   id: __t.u8(),
   seed: __t.u64(),

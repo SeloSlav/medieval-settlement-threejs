@@ -1,8 +1,8 @@
 use crate::farming::{arable_land_conditions, effective_field_moisture};
 
-pub const VINEYARD_MIN_AREA: f64 = 96.0;
+pub const VINEYARD_MIN_AREA: f64 = 220.0;
 pub const VINEYARD_MAX_AREA: f64 = 1_200.0;
-pub const VINEYARD_MIN_EDGE: f64 = 7.0;
+pub const VINEYARD_MIN_EDGE: f64 = 10.0;
 pub const VINEYARD_MAX_SLOPE_DEGREES: f64 = 28.0;
 pub const VINEYARD_REFERENCE_AREA: f64 = 220.0;
 
@@ -31,8 +31,7 @@ pub fn site_suitability(
     let flatness = 1.0 - (average_slope_degrees.max(0.0) / 7.0).clamp(0.0, 1.0);
     let wetness = ((moisture - 0.48) / 0.38).clamp(0.0, 1.0);
     let frost = 1.0 - flatness * wetness * 0.32;
-    ((soil * 0.38 + drainage * 0.30 + slope * 0.18 + sun * 0.14) * frost)
-        .clamp(0.0, 1.0)
+    ((soil * 0.38 + drainage * 0.30 + slope * 0.18 + sun * 0.14) * frost).clamp(0.0, 1.0)
 }
 
 pub fn area_efficiency(area: f64) -> f64 {
@@ -59,8 +58,9 @@ mod tests {
 
     #[test]
     fn parcel_area_changes_real_output_without_unbounded_scaling() {
-        assert!(production_multiplier(440.0, 0.75, 0.95)
-            > production_multiplier(110.0, 0.75, 0.95));
+        assert!(
+            production_multiplier(440.0, 0.75, 0.95) > production_multiplier(110.0, 0.75, 0.95)
+        );
         assert_eq!(area_efficiency(1_000_000.0), 2.6);
     }
 }

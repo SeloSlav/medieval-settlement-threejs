@@ -133,12 +133,11 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
     windWeights: [],
     indices: [],
   };
+  // One instance is one readable stem. Species-specific bouquets are authored
+  // by the world scatterer so white/yellow blooms can mass densely while the
+  // orange and red species remain isolated accents.
   const stalks = [
-    { x: -0.085, z: 0.025, height: 0.31, leanX: -0.018, leanZ: 0.008, yaw: 0.25, bloomScale: 0.92 },
-    { x: 0.035, z: -0.045, height: 0.4, leanX: 0.022, leanZ: -0.012, yaw: 2.2, bloomScale: 1.04 },
-    { x: 0.1, z: 0.06, height: 0.27, leanX: 0.015, leanZ: 0.018, yaw: 4.35, bloomScale: 0.82 },
-    { x: -0.018, z: 0.105, height: 0.35, leanX: -0.008, leanZ: 0.02, yaw: 5.45, bloomScale: 0.88 },
-    { x: 0.115, z: -0.072, height: 0.32, leanX: 0.02, leanZ: -0.014, yaw: 1.3, bloomScale: 0.86 },
+    { x: 0, z: 0, height: 0.36, leanX: 0.008, leanZ: -0.004, yaw: 0.25, bloomScale: 1 },
   ] as const;
 
   stalks.forEach((stalk, index) => {
@@ -238,17 +237,6 @@ function appendStalk(
   const stemColor = STEM_COLORS[colorIndex % STEM_COLORS.length]!;
 
   appendStemTube(buffers, root, tip, radius, stalk.yaw, stemColor);
-
-  appendLeaf(buffers, root, tip, stalk.yaw + 0.8, 0.34, 0.115, stemColor);
-  appendLeaf(
-    buffers,
-    root,
-    tip,
-    stalk.yaw + Math.PI + 0.35,
-    0.53,
-    0.09,
-    STEM_COLORS[(colorIndex + 1) % STEM_COLORS.length]!,
-  );
 }
 
 function appendStemTube(
@@ -301,62 +289,6 @@ function appendStemTube(
       const c = d + 1;
       buffers.indices.push(a, b, c, a, c, d);
     }
-  }
-}
-
-function appendLeaf(
-  buffers: WildflowerBuffers,
-  root: THREE.Vector3,
-  tip: THREE.Vector3,
-  yaw: number,
-  heightFraction: number,
-  length: number,
-  color: THREE.Color,
-): void {
-  const stemPoint = root.clone().lerp(tip, heightFraction);
-  const direction = new THREE.Vector3(
-    Math.cos(yaw),
-    0.28,
-    Math.sin(yaw),
-  ).normalize();
-  const sideDirection = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
-  const leafTip = stemPoint.clone().addScaledVector(direction, length);
-  const normal = new THREE.Vector3(0, 1, 0);
-  const leafTipWeight = Math.min(1, heightFraction + 0.12);
-  const rowFractions = [0, 0.24, 0.52, 0.79, 1] as const;
-  const rowWidths = [0, 0.58, 1, 0.62, 0] as const;
-  const halfWidth = Math.min(0.014, length * 0.12);
-  const base = buffers.positions.length / 3;
-  for (let row = 0; row < rowFractions.length; row++) {
-    const t = rowFractions[row]!;
-    const center = stemPoint.clone().lerp(leafTip, t)
-      .addScaledVector(normal, Math.sin(t * Math.PI) * 0.006);
-    const width = halfWidth * rowWidths[row]!;
-    const rowColor = color.clone().multiplyScalar(THREE.MathUtils.lerp(0.84, 1.04, t));
-    for (let column = 0; column < 3; column++) {
-      const across = column - 1;
-      const point = center.clone()
-        .addScaledVector(sideDirection, across * width)
-        .addScaledVector(normal, -Math.abs(across) * Math.sin(t * Math.PI) * 0.0018);
-      appendVertex(buffers, vertex(
-        point,
-        normal,
-        column === 1 ? rowColor.clone().multiplyScalar(1.08) : rowColor,
-        [column * 0.5, t],
-        0,
-        THREE.MathUtils.lerp(heightFraction, leafTipWeight, t),
-      ));
-    }
-  }
-  for (let row = 0; row < rowFractions.length - 1; row++) {
-    const lower = base + row * 3;
-    const upper = lower + 3;
-    buffers.indices.push(
-      lower, upper, upper + 1,
-      lower, upper + 1, lower + 1,
-      lower + 1, upper + 1, upper + 2,
-      lower + 1, upper + 2, lower + 2,
-    );
   }
 }
 

@@ -19,25 +19,8 @@ import {
 } from '../economy/carpenterSupport.ts';
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
-import {
-  assessBuildingFireSafety,
-  describePlacementFireSafety,
-  hasFireRiskPlanningOverlay,
-  type FireSafetyAssessment,
-} from '../fires/fireRiskPolicy.ts';
-import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
-import {
-  clayBankYieldAt,
-} from '../economy/clayBankPolicy.ts';
-import {
-  assessFoundingSite,
-  describeFoundingSiteAssessment,
-} from '../settlement/foundingSiteSuitability.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
-import { getActiveWorldGeneration } from '../world/worldGenerationContext.ts';
-import { windSiteThroughputMultiplier } from '../wind/windField.ts';
 import {
-  clayDepositAtCenter,
   type ClayDepositSite,
 } from '../clay/ClayDepositLayout.ts';
 import { resolveRoadsideBuildingPlacement } from './buildingPlacement.ts';
@@ -113,7 +96,6 @@ export class BuildingTool {
   private lastValidatedX = Number.NaN;
   private lastValidatedZ = Number.NaN;
   private lastPreviewValidation: BuildingPlacementResult | null = null;
-  private lastFireSafetyAssessment: FireSafetyAssessment | null = null;
   private lastValidationTime = 0;
   private validationDirty = false;
   private placementStatusDetail: string | null = null;
@@ -474,7 +456,6 @@ export class BuildingTool {
       point.z,
       validation.ok,
       true,
-      this.lastFireSafetyAssessment?.coverage ?? null,
     );
   }
 
@@ -527,7 +508,7 @@ export class BuildingTool {
     this.lastPreviewValidation = result;
     this.lastValidationTime = performance.now();
     this.validationDirty = false;
-    this.updatePlacementStatusDetail(this.mode as BuildingKind, x, z, result);
+    this.updatePlacementStatusDetail(this.mode as BuildingKind, result);
     return result;
   }
 
@@ -549,7 +530,6 @@ export class BuildingTool {
       this.lastPreviewZ,
       validation.ok,
       true,
-      this.lastFireSafetyAssessment?.coverage ?? null,
     );
   }
 
@@ -562,7 +542,6 @@ export class BuildingTool {
     this.lastValidatedX = Number.NaN;
     this.lastValidatedZ = Number.NaN;
     this.lastPreviewValidation = null;
-    this.lastFireSafetyAssessment = null;
     this.lastValidationTime = 0;
     this.validationDirty = false;
     this.placementStatusDetail = null;
@@ -573,133 +552,30 @@ export class BuildingTool {
 
   private updatePlacementStatusDetail(
     kind: BuildingKind,
-    x: number,
-    z: number,
     validation: BuildingPlacementResult,
   ): void {
     if (!validation.ok) {
-      this.lastFireSafetyAssessment = null;
       const detail = this.options.describePlacementFailure?.(
         validation.reason,
       ) ?? `Placement blocked: ${validation.reason}`;
       this.setPlacementStatusDetail(detail);
       return;
     }
-    const state = this.options.getState();
-    this.lastFireSafetyAssessment = null;
-    if (hasFireRiskPlanningOverlay(kind)) {
-      const roadNetwork = this.options.getRoadNetwork?.();
-      this.lastFireSafetyAssessment = assessBuildingFireSafety(
-        { kind, x, z },
-        {
-          buildings: state.buildings.values(),
-          residences: state.residences.values(),
-          fireDisabledBuildingIds: fireDisabledBuildingIds(
-            state.fireIncidents.values(),
-          ),
-          roadPathDistance: roadNetwork
-            ? (ax, az, bx, bz) =>
-                roadNetwork.getPathfinder().roadPathDistance(ax, az, bx, bz)
-            : undefined,
-          travelSpeedMultiplierForWell:
-            this.options.getDeliveryTravelSpeedMultiplier,
-        },
-      );
-    }
-    const fireDetail = this.lastFireSafetyAssessment
-      ? describePlacementFireSafety(this.lastFireSafetyAssessment)
-      : null;
     if (kind === 'founders_camp') {
-      const assessment = assessFoundingSite({
-        x,
-        z,
-        sampleGroundwater: sampleAuthoritativeHydrologyScore,
-        countMatureTrees: this.options.countMatureTreesInRadius,
-        quarries: state.quarries.values(),
-        foragingNodes: state.foragingNodes.values(),
-        getHeightAt: this.options.getNaturalHeightAt,
-      });
-      this.setPlacementStatusDetail(joinPlacementDetails(
-        describeFoundingSiteAssessment(assessment),
-        fireDetail,
-      ));
+      this.setPlacementStatusDetail('Ready: click to establish the camp');
       return;
     }
     const definition = getBuildingDefinition(kind);
     const extent = getBuildingExtent(kind, definition.workRadius);
-    const clayBankDetail = kind === 'clay_pit'
-      ? (() => {
-          const deposit = clayDepositAtCenter(
-            this.options.clayDepositSites,
-            x,
-            z,
-          );
-          if (!deposit) return null;
-          const resource = [...state.quarries.values()].find((node) =>
-            node.resource === 'clay'
-            && Math.hypot(node.x - x, node.z - z) <= 2.5
-          );
-          if (!resource) return null;
-          const yieldMultiplier = clayBankYieldAt(
-            x,
-            z,
-            getActiveWorldGeneration().resourceAbundance,
-          );
-          const reserve = resource.isRich
-            ? 'deep alluvial source does not exhaust'
-            : `${Math.round(resource.remaining)} clay reserve remaining`;
-          return `Ready: ${deposit.kind} clay deposit · ${reserve} · ${Math.round(yieldMultiplier * 100)}% geological clay yield before weather and iron tools`;
-        })()
-      : null;
-    const mineralMineDetail = kind === 'mine'
-      ? (() => {
-          const deposit = [...state.quarries.values()].find((node) =>
-            (node.resource === 'iron' || node.resource === 'salt')
-            && Math.hypot(node.x - x, node.z - z) <= 2.5
-          );
-          if (!deposit) return null;
-          const grade = deposit.isRich ? 'Rich' : 'Ordinary';
-          const reserve = deposit.isRich
-            ? 'deep source does not exhaust'
-            : `${Math.round(deposit.remaining)} surface reserve remaining`;
-          return `Ready: ${grade.toLowerCase()} ${deposit.resource} deposit · ${reserve}`;
-        })()
-      : null;
-    const windmillDetail = kind === 'windmill'
-      ? (() => {
-          const siteThroughput = windSiteThroughputMultiplier(
-            getActiveWorldGeneration().seed,
-            x,
-            z,
-          );
-          const grade = siteThroughput >= 1.18
-            ? 'strong'
-            : siteThroughput >= 0.95
-              ? 'good'
-              : siteThroughput >= 0.78
-                ? 'weak'
-                : 'sheltered';
-          return `Ready: ${grade} wind exposure · ${Math.round(siteThroughput * 100)}% site power before live weather and iron tools`;
-        })()
-      : null;
-    this.setPlacementStatusDetail(joinPlacementDetails(
+    this.setPlacementStatusDetail(
       kind === 'town_hall'
         ? 'Ready: population, civic buildings, and road links confirmed'
         : kind === 'guardhouse'
           ? 'Ready: completed watchtower confirmed'
-          : mineralMineDetail
-            ? mineralMineDetail
-          : windmillDetail
-            ? windmillDetail
-          : clayBankDetail
-            ? clayBankDetail
-            : extent
-              ? `Ready: ${extent.label.toLowerCase()} ${extent.radius} m`
-              : fireDetail
-                ? 'Ready: site clear'
-                : null,
-      fireDetail,
-    ));
+          : extent
+            ? `Ready: ${extent.label.toLowerCase()} shown on terrain`
+            : 'Ready: site clear',
+    );
   }
 
   private setPlacementStatusDetail(detail: string | null): void {
@@ -735,6 +611,7 @@ export class BuildingTool {
       burgageZones: state.burgageZones.values(),
       farmFields: state.farmFields.values(),
       pastures: state.pastures.values(),
+      vineyardParcels: state.vineyardParcels?.values(),
       quarries: state.quarries.values(),
       foragingNodes: state.foragingNodes.values(),
       clayDepositSites: this.options.clayDepositSites,
@@ -827,15 +704,6 @@ async function waitForPlacedBuilding(
     });
   }
   return findPlacedBuildingId(getState().buildings, beforeIds, kind, x, z);
-}
-
-function joinPlacementDetails(
-  primary: string | null,
-  secondary: string | null,
-): string | null {
-  if (!primary) return secondary;
-  if (!secondary) return primary;
-  return `${primary} | ${secondary}`;
 }
 
 export function getBuildingToolLabel(mode: BuildingToolMode): string {

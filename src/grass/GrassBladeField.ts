@@ -106,12 +106,20 @@ const ROAD_CLEAR_MARGIN = 1.05;
 const TAU = Math.PI * 2;
 const GRID_SIDE = GRASS_STREAM_CHUNK_RADIUS * 2 + 1;
 const GRASS_SLOT_CAPACITY = GRASS_TUFTS_PER_CHUNK + 14;
-const WILDFLOWER_SLOT_CAPACITY = 8;
+const WILDFLOWER_SLOT_CAPACITY = 72;
 const MAX_GRASS_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * GRASS_SLOT_CAPACITY;
 const MAX_WILDFLOWER_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * WILDFLOWER_SLOT_CAPACITY;
 const MIN_TUFT_SPACING_SQ = 0.26 * 0.26;
 const MIN_MICRO_TUFT_SPACING_SQ = 0.16 * 0.16;
-const MIN_WILDFLOWER_SPACING_SQ = 0.62 * 0.62;
+const MIN_WILDFLOWER_STEM_SPACING_SQ = 0.14 * 0.14;
+const DENSE_WILDFLOWER_SPACING_SQ = 0.18 * 0.18;
+const PURPLE_WILDFLOWER_SPACING_SQ = 0.38 * 0.38;
+const ACCENT_WILDFLOWER_SPACING_SQ = 0.2 * 0.2;
+const WHITE_WILDFLOWER_INDEX = 0;
+const PURPLE_WILDFLOWER_INDEX = 1;
+const YELLOW_WILDFLOWER_INDEX = 2;
+const ORANGE_WILDFLOWER_INDEX = 3;
+const RED_WILDFLOWER_INDEX = 4;
 /** Park culled tufts far below the world — zero-scale at origin alpha-tests into a visible orb. */
 const HIDDEN_INSTANCE_Y = -4096;
 const hiddenMatrix = new THREE.Matrix4().compose(
@@ -1056,81 +1064,142 @@ function* generateSeedThreeWildflowerChunkInstances(
   const rng = mulberry32(seed);
   const chunkMinX = chunkX * GRASS_BLADE_CHUNK_SIZE;
   const chunkMinZ = chunkZ * GRASS_BLADE_CHUNK_SIZE;
-  const margin = GRASS_BLADE_CHUNK_SIZE * 0.08;
-  // Close meadow references read as overlapping runs of blooms rather than
-  // isolated showcase plants. Six to eight five-stem colonies yields 30-40
-  // flower heads in a viable 8 m chunk while retaining occasional quiet gaps.
-  const target = rng() < 0.04 ? 0 : 6 + Math.floor(rng() * 3);
-  const localPlacements: Array<{ x: number; z: number }> = [];
-  const paletteOffset = seed % SEEDTHREE_WILDFLOWER_VARIANTS.length;
+  const patchMargin = GRASS_BLADE_CHUNK_SIZE * 0.2;
+  // Manor Lords-style meadow color is organized, not confetti-scattered:
+  // two or three dense white/yellow colonies carry each viable chunk, purple
+  // blooms range loosely through them, and orange/red accents occur only as
+  // local singles or pairs. The resulting 45-65 individual heads is visibly
+  // denser than the former 30-40-head bouquet scatter.
+  const patchRoll = rng();
+  const patchCount = patchRoll < 0.025 ? 0 : patchRoll < 0.14 ? 2 : 3;
+  const localPlacements: Array<{ x: number; z: number; variantIndex: number }> = [];
+  const cohorts: Array<{
+    centerX: number;
+    centerZ: number;
+    radius: number;
+    count: number;
+    variantIndex: number;
+    sameSpeciesSpacingSq: number;
+    radialPower: number;
+  }> = [];
   const instances: GeneratedWildflowerInstance[] = [];
 
-  for (let attempt = 0; attempt < target * 18 && localPlacements.length < target; attempt++) {
-    yield 0;
-    let x: number;
-    let z: number;
-    if (localPlacements.length > 0 && rng() < 0.78) {
-      const anchor = localPlacements[Math.floor(rng() * localPlacements.length)]!;
+  for (let patchIndex = 0; patchIndex < patchCount; patchIndex++) {
+    const centerX = chunkMinX + patchMargin
+      + rng() * (GRASS_BLADE_CHUNK_SIZE - patchMargin * 2);
+    const centerZ = chunkMinZ + patchMargin
+      + rng() * (GRASS_BLADE_CHUNK_SIZE - patchMargin * 2);
+    const denseVariantIndex = (seed + patchIndex) % 2 === 0
+      ? WHITE_WILDFLOWER_INDEX
+      : YELLOW_WILDFLOWER_INDEX;
+    cohorts.push({
+      centerX,
+      centerZ,
+      radius: THREE.MathUtils.lerp(0.5, 0.86, rng()),
+      count: 11 + Math.floor(rng() * 5),
+      variantIndex: denseVariantIndex,
+      sameSpeciesSpacingSq: DENSE_WILDFLOWER_SPACING_SQ,
+      radialPower: 0.78,
+    });
+    cohorts.push({
+      centerX,
+      centerZ,
+      radius: THREE.MathUtils.lerp(1.05, 1.72, rng()),
+      count: 3 + Math.floor(rng() * 4),
+      variantIndex: PURPLE_WILDFLOWER_INDEX,
+      sameSpeciesSpacingSq: PURPLE_WILDFLOWER_SPACING_SQ,
+      radialPower: 0.5,
+    });
+
+    const appendAccentCohort = (variantIndex: number, chance: number): void => {
+      if (rng() > chance) return;
       const angle = rng() * TAU;
-      const radius = THREE.MathUtils.lerp(0.68, 1.9, Math.pow(rng(), 0.7));
-      x = anchor.x + Math.cos(angle) * radius;
-      z = anchor.z + Math.sin(angle) * radius;
-    } else {
-      x = chunkMinX + margin + rng() * (GRASS_BLADE_CHUNK_SIZE - margin * 2);
-      z = chunkMinZ + margin + rng() * (GRASS_BLADE_CHUNK_SIZE - margin * 2);
-    }
-
-    let tooClose = false;
-    for (const placed of localPlacements) {
-      const dx = x - placed.x;
-      const dz = z - placed.z;
-      if (dx * dx + dz * dz < MIN_WILDFLOWER_SPACING_SQ) {
-        tooClose = true;
-        break;
-      }
-    }
-    if (tooClose) continue;
-    if (!isInsidePlayableExtent(x, z, extent)) continue;
-    if (isGrassPlacementBlocked(x, z, context)) continue;
-    if (isGrassNearAnyRoad(x, z, roadSpatialIndex)) continue;
-
-    const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
-    const habitatChance =
-      density < 0.1
-        ? 0.68
-        : density < 0.68
-          ? 1
-          : THREE.MathUtils.lerp(0.72, 0.28, THREE.MathUtils.smoothstep(density, 0.68, 1));
-    if (rng() > habitatChance) continue;
-
-    localPlacements.push({ x, z });
-    const rootY = terrain.getHeightAt(x, z) + 0.045;
-    const yaw = rng() * TAU;
-    const leanDirection = rng() * TAU;
-    const lean = THREE.MathUtils.lerp(0.015, 0.085, rng());
-    writeEuler.set(Math.cos(leanDirection) * lean, yaw, Math.sin(leanDirection) * lean, 'YXZ');
-    writeQuaternion.setFromEuler(writeEuler);
-    writePosition.set(x, rootY, z);
-    const placementVariant =
-      (paletteOffset + localPlacements.length - 1) % SEEDTHREE_WILDFLOWER_VARIANTS.length;
-    const variant = SEEDTHREE_WILDFLOWER_VARIANTS[placementVariant]!;
-    const heightScale =
-      THREE.MathUtils.lerp(variant.heightScale[0], variant.heightScale[1], Math.pow(rng(), 0.68))
-      * THREE.MathUtils.lerp(1, 0.9, density);
-    const widthScale = THREE.MathUtils.lerp(
-      variant.widthScale[0],
-      variant.widthScale[1],
-      rng(),
-    );
-    writeScale.set(widthScale, heightScale, widthScale);
-    writeMatrix.compose(writePosition, writeQuaternion, writeScale);
-
-    if (instances.length < maxInstances) {
-      instances.push({
-        matrix: writeMatrix.clone(),
-        anchor: [x, rootY, z, variant.atlasOffset[0]],
+      const distance = THREE.MathUtils.lerp(0.25, 1.15, rng());
+      cohorts.push({
+        centerX: centerX + Math.cos(angle) * distance,
+        centerZ: centerZ + Math.sin(angle) * distance,
+        radius: 0.14,
+        count: rng() < 0.68 ? 1 : 2,
+        variantIndex,
+        sameSpeciesSpacingSq: ACCENT_WILDFLOWER_SPACING_SQ,
+        radialPower: 1,
       });
-      yield 1;
+    };
+    appendAccentCohort(ORANGE_WILDFLOWER_INDEX, 0.72);
+    appendAccentCohort(RED_WILDFLOWER_INDEX, 0.48);
+  }
+
+  for (const cohort of cohorts) {
+    for (
+      let flowerIndex = 0;
+      flowerIndex < cohort.count && instances.length < maxInstances;
+      flowerIndex++
+    ) {
+      let placed = false;
+      for (let attempt = 0; attempt < 20 && !placed; attempt++) {
+        yield 0;
+        const angle = rng() * TAU;
+        const radius = cohort.radius * Math.pow(rng(), cohort.radialPower);
+        const x = cohort.centerX + Math.cos(angle) * radius;
+        const z = cohort.centerZ + Math.sin(angle) * radius;
+
+        let tooClose = false;
+        for (const existing of localPlacements) {
+          const dx = x - existing.x;
+          const dz = z - existing.z;
+          const distanceSq = dx * dx + dz * dz;
+          if (
+            distanceSq < MIN_WILDFLOWER_STEM_SPACING_SQ
+            || (
+              existing.variantIndex === cohort.variantIndex
+              && distanceSq < cohort.sameSpeciesSpacingSq
+            )
+          ) {
+            tooClose = true;
+            break;
+          }
+        }
+        if (tooClose) continue;
+        if (!isInsidePlayableExtent(x, z, extent)) continue;
+        if (isGrassPlacementBlocked(x, z, context)) continue;
+        if (isGrassNearAnyRoad(x, z, roadSpatialIndex)) continue;
+
+        const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
+        const habitatChance =
+          density < 0.1
+            ? 0.68
+            : density < 0.68
+              ? 1
+              : THREE.MathUtils.lerp(0.72, 0.28, THREE.MathUtils.smoothstep(density, 0.68, 1));
+        if (rng() > habitatChance) continue;
+
+        localPlacements.push({ x, z, variantIndex: cohort.variantIndex });
+        const rootY = terrain.getHeightAt(x, z) + 0.045;
+        const yaw = rng() * TAU;
+        const leanDirection = rng() * TAU;
+        const lean = THREE.MathUtils.lerp(0.015, 0.085, rng());
+        writeEuler.set(Math.cos(leanDirection) * lean, yaw, Math.sin(leanDirection) * lean, 'YXZ');
+        writeQuaternion.setFromEuler(writeEuler);
+        writePosition.set(x, rootY, z);
+        const variant = SEEDTHREE_WILDFLOWER_VARIANTS[cohort.variantIndex]!;
+        const heightScale =
+          THREE.MathUtils.lerp(variant.heightScale[0], variant.heightScale[1], Math.pow(rng(), 0.68))
+          * THREE.MathUtils.lerp(1, 0.9, density);
+        const widthScale = THREE.MathUtils.lerp(
+          variant.widthScale[0],
+          variant.widthScale[1],
+          rng(),
+        );
+        writeScale.set(widthScale, heightScale, widthScale);
+        writeMatrix.compose(writePosition, writeQuaternion, writeScale);
+
+        instances.push({
+          matrix: writeMatrix.clone(),
+          anchor: [x, rootY, z, variant.atlasOffset[0]],
+        });
+        placed = true;
+        yield 1;
+      }
     }
   }
 

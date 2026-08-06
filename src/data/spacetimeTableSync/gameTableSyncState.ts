@@ -18,6 +18,7 @@ import type {
   ResidenceState,
   ResourceStockpile,
   TreeEntityState,
+  VineyardParcelState,
 } from '../../resources/types.ts';
 import type { GameSpeed } from '../../world/gameSpeed.ts';
 import type { FireIncidentState } from '../../fires/fireIncident.ts';
@@ -51,6 +52,7 @@ export type GameTableSyncState = {
   buildings: Map<string, BuildingState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;
+  vineyardParcels: Map<string, VineyardParcelState>;
   graveyards: Map<string, GraveyardState>;
   corpses: Map<string, CorpseState>;
   livestockHerds: Map<string, LivestockHerdState>;

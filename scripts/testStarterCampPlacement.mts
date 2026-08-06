@@ -86,13 +86,13 @@ const promisingSite = assessFoundingSite({
   },
 });
 assert.equal(promisingSite.rating, 'promising');
-assert.equal(treeQueries, 1, 'the preview should make one spatial tree query');
-assert.equal(groundwaterSamples, 9, 'the preview should use one camp and eight bounded field samples');
-assert.equal(terrainSamples, 32, 'the preview should use four height probes at eight field samples');
+assert.equal(treeQueries, 1, 'the advisory model should make one spatial tree query');
+assert.equal(groundwaterSamples, 9, 'the advisory model should use one camp and eight bounded field samples');
+assert.equal(terrainSamples, 32, 'the advisory model should use four height probes at eight field samples');
 assert.match(
   describeFoundingSiteAssessment(promisingSite),
   /Founding outlook: promising[\s\S]*water 85%[\s\S]*timber 48 nearby[\s\S]*stone 80 m[\s\S]*wild food 60 m/,
-  'the preview should expose the tradeoffs behind its rating',
+  'the underlying advisory model should retain the tradeoffs behind its rating',
 );
 const promisingStatus = describeFoundingSiteAssessment(promisingSite);
 assert.equal(
@@ -103,7 +103,7 @@ assert.equal(
     statusDetail: promisingStatus,
   }),
   promisingStatus,
-  'the live founding outlook should replace the generic building-placement text',
+  'the status formatter should accept a post-placement founding outlook',
 );
 
 const demandingSite = assessFoundingSite({
@@ -139,7 +139,7 @@ assert.match(
     matureTrees: null,
   }),
   /timber survey pending/,
-  'the preview must not misreport an unloaded forest as zero timber',
+  'the advisory model must not misreport an unloaded forest as zero timber',
 );
 
 const profileStart = performance.now();
@@ -348,13 +348,13 @@ assert.match(
 const buildingReducer = read('server/src/reducers/buildings.rs');
 assert.match(
   buildingReducer,
-  /if kind == "founders_camp" \{\s*return crate::reducers::bootstrap::place_founding_camp\(ctx, x, z\);/,
+  /if kind == "founders_camp" \{\s*crate::reducers::bootstrap::place_founding_camp\(ctx, x, z\)\?;\s*return Ok\(0\);/,
   'ordinary building placement must route the founders camp to its one-time setup',
 );
-assert.ok(
-  buildingReducer.indexOf('if kind == "founders_camp" {')
-    < buildingReducer.indexOf('&& is_open_water(x, z)'),
-  'the founding camp must bypass the seed-agnostic server water proxy',
+assert.doesNotMatch(
+  buildingReducer,
+  /is_open_water\(x, z\)/,
+  'building placement must not consult the seed-agnostic server water proxy',
 );
 assert.match(
   buildingReducer,
@@ -394,11 +394,12 @@ assert.match(
   /buildingId && kind !== 'founders_camp'/,
   'the one-time founding action must not enter ordinary building undo history',
 );
-assert.match(
+assert.doesNotMatch(
   buildingTool,
-  /if \(!validation\.ok\)[\s\S]*?return;[\s\S]*?if \(kind === 'founders_camp'\)[\s\S]*?assessFoundingSite\([\s\S]*?return;/,
-  'only valid founding-camp previews should calculate advisory site quality',
+  /assessFoundingSite|describeFoundingSiteAssessment|Founding outlook/,
+  'founding-camp placement should not reveal its calculated site quality',
 );
+assert.match(buildingTool, /kind === 'founders_camp'[\s\S]*Ready: click to establish the camp/);
 assert.match(
   buildingTool,
   /onPlacementPreviewChanged\?\.\(\)/,

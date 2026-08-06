@@ -7,6 +7,7 @@ import type { BurialMarkers } from '../residences/BurialMarkers.ts';
 import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import type { PastureMarkers } from '../farming/PastureMarkers.ts';
 import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
+import type { VineyardParcelMarkers } from '../vineyards/VineyardParcelMarkers.ts';
 import type { GameState } from '../resources/types.ts';
 import type { FireEffectsRenderer } from '../fires/FireEffectsRenderer.ts';
 import type { TreeRegistry } from '../resources/TreeRegistry.ts';
@@ -18,6 +19,7 @@ export type SettlementWorldSyncTargets = {
   residenceMarkers: ResidenceMarkers | null;
   farmFieldMarkers: FarmFieldMarkers | null;
   pastureMarkers: PastureMarkers | null;
+  vineyardParcelMarkers: VineyardParcelMarkers | null;
   burialMarkers: BurialMarkers | null;
   livestockVisuals: LivestockVisuals | null;
   backyardGardenMarkers: BackyardGardenMarkers | null;
@@ -46,6 +48,10 @@ export function syncSettlementWorld(
   const pasturesChanged = !previous || !mapEntriesShareValues(
     state.pastures,
     previous.pastures,
+  );
+  const vineyardsChanged = !previous || !mapEntriesShareValues(
+    state.vineyardParcels ?? new Map(),
+    previous.vineyardParcels ?? new Map(),
   );
   const graveyards = state.graveyards ?? new Map();
   const previousGraveyards = previous?.graveyards ?? new Map();
@@ -175,6 +181,9 @@ export function syncSettlementWorld(
     targets.pastureMarkers?.syncPastures(state.pastures.values(), state.livestockHerds);
     targets.livestockVisuals?.sync(state.pastures.values(), state.livestockHerds);
   }
+  if (vineyardsChanged) {
+    targets.vineyardParcelMarkers?.sync(state.vineyardParcels?.values() ?? []);
+  }
   if (burialsChanged) {
     targets.burialMarkers?.sync(graveyards.values(), corpses.values(), getHeightAt);
   }
@@ -218,6 +227,7 @@ export function disposeSettlementWorld(
   targets.residenceMarkers?.dispose();
   targets.farmFieldMarkers?.dispose();
   targets.pastureMarkers?.dispose();
+  targets.vineyardParcelMarkers?.dispose();
   targets.burialMarkers?.dispose();
   targets.livestockVisuals?.dispose();
   targets.backyardGardenMarkers?.dispose();

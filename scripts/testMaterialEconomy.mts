@@ -1295,7 +1295,11 @@ assert.match(
 assert.match(hydrologySamplerSource, /applyWorldGroundwaterVariation/);
 assert.match(hydrologySource, /sample_world_hydrology_score/);
 assert.match(clayPitStep, /fn clay_bank_yield_multiplier_at_deposit/);
-assert.match(buildingToolSource, /geological clay yield before weather and iron tools/);
+assert.doesNotMatch(
+  buildingToolSource,
+  /geological clay yield before weather and iron tools|clay reserve remaining/,
+  'clay quality and reserve forecasts should not be exposed by the placement cursor',
+);
 assert.match(expandedInspectorSource, /Clay seam[\s\S]*Current digging pace/);
 assert.match(
   expandedInspectorSource,

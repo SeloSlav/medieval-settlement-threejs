@@ -173,6 +173,7 @@ export class BuildToolbar {
   private gameplayEnabled = true;
   private conflictEnabled = false;
   private cropSuitabilityActive = false;
+  private vineyardSuitabilityActive = false;
   private currentFarmCrop: MapOverlaySelection['crop'] = 'wheat';
   private currentGameSpeed: GameSpeed = 1;
   private lastRunningGameSpeed: GameSpeed = 1;
@@ -731,6 +732,14 @@ export class BuildToolbar {
     const selection = this.mapOverlaySelection;
     const visible = this.cropSuitabilityActive || selection.mode !== 'none';
     this.cropSuitabilityLegend.hidden = this.firstPersonActive || !visible;
+    if (this.vineyardSuitabilityActive) {
+      this.cropSuitabilityTitle.textContent = 'Grape suitability';
+      this.cropSuitabilitySubtitle.textContent = 'vineyard harvest potential';
+      this.cropSuitabilityLabels.innerHTML = '<span>Poor</span><span>Marginal</span><span>Good</span><span>Prime</span>';
+      this.cropSuitabilityDescription.textContent = 'Grapes favor sunny, well-drained slopes with lighter, reasonably deep soil. Wet flat frost pockets and heavy ground reduce real grape and wine output.';
+      this.cropSuitabilityLegend.dataset.overlay = 'fertility';
+      return;
+    }
     if (this.cropSuitabilityActive || selection.mode === 'fertility') {
       const crop = this.cropSuitabilityActive
         ? this.currentFarmCrop
@@ -780,13 +789,17 @@ export class BuildToolbar {
             ? (stats.hasDraft ? 'draft' : 'active')
             : 'idle';
     const cropSuitabilityVisible = stats.mode === 'farm-fields' && stats.farmCrop != null;
-    this.cropSuitabilityActive = cropSuitabilityVisible;
+    const vineyardSuitabilityVisible = stats.mode === 'vineyards' && stats.vineyardSuitability === true;
+    this.vineyardSuitabilityActive = vineyardSuitabilityVisible;
+    this.cropSuitabilityActive = cropSuitabilityVisible || vineyardSuitabilityVisible;
     if (stats.farmCrop != null) this.currentFarmCrop = stats.farmCrop;
-    this.overlayButton.disabled = !this.gameplayEnabled || cropSuitabilityVisible;
-    this.overlayButton.dataset.tooltip = cropSuitabilityVisible
-      ? 'Crop suitability map is active during field layout'
+    this.overlayButton.disabled = !this.gameplayEnabled || this.cropSuitabilityActive;
+    this.overlayButton.dataset.tooltip = this.cropSuitabilityActive
+      ? vineyardSuitabilityVisible
+        ? 'Grape suitability map is active during vineyard layout'
+        : 'Crop suitability map is active during field layout'
       : 'Map overlays (M)';
-    if (cropSuitabilityVisible) this.setOverlayMenuOpen(false);
+    if (this.cropSuitabilityActive) this.setOverlayMenuOpen(false);
     this.syncMapOverlayLegend();
     const statusText = describeToolbarStatus(stats);
     this.builderStatusBar.textContent = statusText;

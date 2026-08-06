@@ -12,7 +12,6 @@ import {
   buildingBaseFlammability,
   buildingFlammability,
   describePlacementFireSafety,
-  fireCoverageColor,
 } from '../src/fires/fireRiskPolicy.ts';
 import {
   FIRE_MINIMUM_BUCKET_WATER,
@@ -152,17 +151,18 @@ assert.ok(
   (fireRing.geometry.getAttribute('position') as THREE.BufferAttribute).count > 24,
   'fire spread preview must be a readable terrain-following dashed ring',
 );
-updateBuildingPreviewAppearance(preview, true, 'covered');
+updateBuildingPreviewAppearance(preview, true);
 assert.equal(
   (fireRing.material as THREE.MeshBasicMaterial).color.getHex(),
-  fireCoverageColor('covered'),
+  0xd19a57,
+  'placement should show a neutral fire-planning radius without revealing well coverage',
 );
-updateBuildingPreviewAppearance(preview, true, 'unready');
+updateBuildingPreviewAppearance(preview, true);
 assert.equal(
   (fireRing.material as THREE.MeshBasicMaterial).color.getHex(),
-  fireCoverageColor('unready'),
+  0xd19a57,
 );
-updateBuildingPreviewAppearance(preview, false, 'covered');
+updateBuildingPreviewAppearance(preview, false);
 assert.equal(
   (fireRing.material as THREE.MeshBasicMaterial).color.getHex(),
   0xff5d50,

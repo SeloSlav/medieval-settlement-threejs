@@ -185,6 +185,7 @@ export class SceneManager {
   private windOverlay: WindOverlay | null = null;
   private cropSuitabilityOverlay: CropSuitabilityOverlay | null = null;
   private cropSuitabilityCrop: FarmCrop | null = null;
+  private vineyardSuitabilityActive = false;
   private mapOverlaySelection: MapOverlaySelection = getMapOverlaySelection();
   readonly worldLayout: WorldLayout;
 
@@ -687,9 +688,16 @@ export class SceneManager {
     this.applyMapOverlayVisibility();
   }
 
+  setVineyardSuitabilityOverlayVisible(visible: boolean): void {
+    if (visible === this.vineyardSuitabilityActive) return;
+    this.vineyardSuitabilityActive = visible;
+    this.applyMapOverlayVisibility();
+  }
+
   private applyMapOverlayVisibility(): void {
     const fieldCrop = this.cropSuitabilityCrop;
-    const mode = fieldCrop === null ? this.mapOverlaySelection.mode : 'fertility';
+    const placementSuitabilityActive = fieldCrop !== null || this.vineyardSuitabilityActive;
+    const mode = placementSuitabilityActive ? 'fertility' : this.mapOverlaySelection.mode;
     const crop = fieldCrop ?? this.mapOverlaySelection.crop;
 
     if (mode === 'water' && !this.hydrologyOverlay) {
@@ -712,7 +720,11 @@ export class SceneManager {
           parent: this.scene,
         });
       }
-      this.cropSuitabilityOverlay.setCrop(crop);
+      if (this.vineyardSuitabilityActive && fieldCrop === null) {
+        this.cropSuitabilityOverlay.setVineyard();
+      } else {
+        this.cropSuitabilityOverlay.setCrop(crop);
+      }
     }
 
     this.hydrologyOverlay?.setVisible(mode === 'water');
@@ -1226,6 +1238,7 @@ export class SceneManager {
     this.cropSuitabilityOverlay?.dispose();
     this.cropSuitabilityOverlay = null;
     this.cropSuitabilityCrop = null;
+    this.vineyardSuitabilityActive = false;
     for (const visual of this.edgeVisuals.values()) disposeObject3D(visual.group);
     this.edgeVisuals.clear();
     if (this.forestManager) {

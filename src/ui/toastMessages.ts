@@ -14,6 +14,7 @@ export const TOAST_MESSAGES = {
   'building.placement.within_residence_zone': 'Cannot build inside a residence plot',
   'building.placement.within_farm_field': 'Cannot build inside cultivated farmland',
   'building.placement.within_pasture': 'Cannot build inside a fenced pasture',
+  'building.placement.within_vineyard': 'Cannot build inside a vineyard parcel',
   'building.placement.on_resource_deposit': 'Cannot build over a physical resource deposit',
   'building.placement.no_quarry_in_range': 'No quarry stone within work range',
   'building.placement.requires_rich_deposit': 'Large Quarries must be placed directly over a rich stone deposit',
@@ -123,6 +124,8 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.within_farm_field';
     case 'within_pasture':
       return 'building.placement.within_pasture';
+    case 'within_vineyard':
+      return 'building.placement.within_vineyard';
     case 'on_resource_deposit':
       return 'building.placement.on_resource_deposit';
     case 'no_quarry_in_range':

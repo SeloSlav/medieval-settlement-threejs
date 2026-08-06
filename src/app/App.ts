@@ -9,6 +9,7 @@ import type { FarmFieldMarkers } from '../farming/FarmFieldMarkers.ts';
 import { FarmFieldTool } from '../farming/FarmFieldTool.ts';
 import type { PastureMarkers } from '../farming/PastureMarkers.ts';
 import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
+import type { VineyardParcelMarkers } from '../vineyards/VineyardParcelMarkers.ts';
 import { BurgageTool, type BurgageLayoutHudState } from '../residences/BurgageTool.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import type { BurialMarkers } from '../residences/BurialMarkers.ts';
@@ -153,6 +154,7 @@ export class App {
   private burgageFencing: BurgageFencing | null = null;
   private farmFieldMarkers: FarmFieldMarkers | null = null;
   private pastureMarkers: PastureMarkers | null = null;
+  private vineyardParcelMarkers: VineyardParcelMarkers | null = null;
   private burialMarkers: BurialMarkers | null = null;
   private livestockVisuals: LivestockVisuals | null = null;
   private toolbar: BuildToolbar | null = null;
@@ -271,6 +273,7 @@ export class App {
     this.burgageFencing = session.burgageFencing;
     this.farmFieldMarkers = session.farmFieldMarkers;
     this.pastureMarkers = session.pastureMarkers;
+    this.vineyardParcelMarkers = session.vineyardParcelMarkers;
     this.burialMarkers = session.burialMarkers;
     this.livestockVisuals = session.livestockVisuals;
     this.toolbar = session.toolbar;
@@ -378,6 +381,7 @@ export class App {
         residenceMarkers: this.residenceMarkers,
         farmFieldMarkers: this.farmFieldMarkers,
         pastureMarkers: this.pastureMarkers,
+        vineyardParcelMarkers: this.vineyardParcelMarkers,
         burialMarkers: this.burialMarkers,
         livestockVisuals: this.livestockVisuals,
         backyardGardenMarkers: this.backyardGardenMarkers,
@@ -631,6 +635,7 @@ export class App {
       residenceMarkers: this.residenceMarkers,
       farmFieldMarkers: this.farmFieldMarkers,
       pastureMarkers: this.pastureMarkers,
+      vineyardParcelMarkers: this.vineyardParcelMarkers,
       burialMarkers: this.burialMarkers,
       livestockVisuals: this.livestockVisuals,
       backyardGardenMarkers: this.backyardGardenMarkers,
@@ -815,6 +820,8 @@ export class App {
     const farmFieldEnabled = this.farmFieldTool.isEnabled();
     const fieldPlacementEnabled = farmFieldEnabled
       && this.farmFieldTool.getMode() === 'field';
+    const vineyardPlacementEnabled = farmFieldEnabled
+      && this.farmFieldTool.getMode() === 'vineyard';
     const farmCrop = fieldPlacementEnabled ? this.farmFieldTool.getCrop() : null;
     const stats: ToolbarStats = {
       canBuild: farmFieldEnabled ? this.farmFieldTool.isDraftBuildable() : burgageEnabled ? this.burgageTool.isDraftBuildable() : this.roadTool.isDraftBuildable(),
@@ -824,7 +831,9 @@ export class App {
           ? 'pastures'
           : this.farmFieldTool.getMode() === 'graveyard'
             ? 'burial-grounds'
-            : 'farm-fields'
+            : this.farmFieldTool.getMode() === 'vineyard'
+              ? 'vineyards'
+              : 'farm-fields'
         : burgageEnabled
         ? 'residences'
         : this.roadTool.isEnabled()
@@ -842,6 +851,7 @@ export class App {
       placementReady: buildingMode !== 'off'
         && this.buildingTool.isPlacementReady(),
       farmCrop: farmCrop ?? undefined,
+      vineyardSuitability: vineyardPlacementEnabled,
       buildingCost: placementEconomy?.cost,
       carpenterSupported: placementEconomy?.carpenterSupported,
       carpenterCartServiceEnabled:
@@ -849,6 +859,7 @@ export class App {
       carpenterCartServiceReady: placementEconomy?.carpenterCartServiceReady,
     };
     this.sceneManager?.setCropSuitabilityOverlayCrop(farmCrop);
+    this.sceneManager?.setVineyardSuitabilityOverlayVisible(vineyardPlacementEnabled);
     this.toolbar.setStats(stats);
     this.updateBuildButtonPosition();
   }
