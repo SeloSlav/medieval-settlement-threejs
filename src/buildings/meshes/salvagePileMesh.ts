@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import {
   addMesh,
   metalMaterial,
-  sharedBuildingDetailMaterial,
   stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
@@ -63,7 +62,7 @@ function addCratedSalvage(parent: THREE.Group): void {
     segment.name = 'SalvageGoodsSegment';
     const x = -2.25 + index * 0.9;
     const z = 2.05 + (index % 2) * 0.28;
-    if (index % 3 === 0) {
+    if (index % 2 === 0) {
       addMesh(
         segment,
         new THREE.BoxGeometry(0.74, 0.65, 0.72),
@@ -71,21 +70,12 @@ function addCratedSalvage(parent: THREE.Group): void {
         new THREE.Vector3(x, 0.36, z),
         new THREE.Euler(0, index * 0.11, 0),
       );
-    } else if (index % 3 === 1) {
+    } else {
       addMesh(
         segment,
         new THREE.CylinderGeometry(0.33, 0.3, 0.82, 10),
         timberMaterial('mid'),
         new THREE.Vector3(x, 0.43, z),
-      );
-    } else {
-      addMesh(
-        segment,
-        new THREE.SphereGeometry(0.42, 10, 7),
-        sharedBuildingDetailMaterial('crop'),
-        new THREE.Vector3(x, 0.36, z),
-        undefined,
-        new THREE.Vector3(0.9, 1.15, 0.78),
       );
     }
     goods.add(segment);
@@ -137,15 +127,6 @@ function addTreasuryChest(parent: THREE.Group): void {
 export function createSalvagePileMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Physical reclamation pile';
-
-  const earth = addMesh(
-    group,
-    new THREE.CircleGeometry(5.7, 24),
-    sharedBuildingDetailMaterial('earth'),
-    new THREE.Vector3(0, 0.025, 0),
-    new THREE.Euler(-Math.PI * 0.5, 0, 0),
-  );
-  earth.name = 'Reclamation work ground';
 
   addBrokenStructure(group);
   addTimberSalvage(group);

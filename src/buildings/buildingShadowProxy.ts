@@ -147,6 +147,9 @@ export class BatchedBuildingShadowProxies {
     marker: THREE.Object3D,
     chapelTier: 1 | 2 | 3 = 3,
   ): boolean {
+    // Reclamation piles are scattered ground props. A footprint-sized box
+    // proxy turns their small contact shadows into a dark rectangular slab.
+    if (kind === 'salvage_pile') return this.remove(id);
     return this.upsert(id, buildingShadowProxySpec(kind, chapelTier), marker);
   }
 

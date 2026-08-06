@@ -42,6 +42,14 @@ const quarry = new THREE.Group();
 quarry.position.set(42, -0.6, -28);
 batch.upsertBuilding('building:quarry', 'stone_quarry', quarry);
 
+const reclamationPile = new THREE.Group();
+reclamationPile.position.set(16, 0.1, 35);
+assert.equal(
+  batch.upsertBuilding('building:reclamation-pile', 'salvage_pile', reclamationPile),
+  false,
+  'scattered reclamation props must not create a footprint-sized box shadow',
+);
+
 assert.equal(batch.flush(), true);
 const elapsedMs = performance.now() - startedAt;
 const stats = batch.getStats();

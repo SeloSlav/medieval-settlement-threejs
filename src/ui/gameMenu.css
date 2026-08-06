@@ -217,12 +217,18 @@
   min-width: 0;
   padding: 8px 28px 8px 10px;
   color: var(--ink);
+  color-scheme: dark;
   font: inherit;
   border: 1px solid var(--line);
   border-radius: 7px;
   outline: none;
   background: rgba(0, 0, 0, 0.2);
   cursor: pointer;
+}
+
+.game-menu-select select option {
+  color: #f3ead6;
+  background-color: #171a15;
 }
 
 .game-menu-select select:focus-visible {

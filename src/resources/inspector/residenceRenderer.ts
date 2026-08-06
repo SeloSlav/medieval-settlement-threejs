@@ -684,7 +684,7 @@ export function renderResidenceInspector(
     `,
     demolish: {
       visible: true,
-      label: initialConstruction ? 'Cancel cottage works' : 'Remove residence',
+      label: initialConstruction ? 'Cancel cottage works' : 'Demolish',
       hint: initialConstruction
         ? `Cancels this cottage and leaves about ${singleRefund.timber} timber, ${singleRefund.stone} stone${singleRoofTileSalvage} from material already delivered onsite. Reserved stock and incoming carts are released back to connected stores.`
         : structuralRepairProject

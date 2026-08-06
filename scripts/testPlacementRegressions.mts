@@ -29,6 +29,8 @@ import { burgageZoneTouchesWater } from '../src/residences/burgagePlacementValid
 import { BurgagePreview } from '../src/residences/BurgagePreview.ts';
 import { BurgageTool } from '../src/residences/BurgageTool.ts';
 import { backyardGardenPlacementForParcel } from '../src/residences/backyardPosition.ts';
+import { resolveCurvedFrontageLine } from '../src/residences/burgageRoadFrontage.ts';
+import { resolveRoadCenterPathForFrontage } from '../src/residences/burgageFrontagePath.ts';
 import {
   MAX_ZONE_DEPTH,
   MIN_ZONE_DEPTH,
@@ -278,6 +280,79 @@ function testOrganicBurgagePlotsAndPreviewIcons(): void {
     'a complete hovered four-corner preview must turn red before the final click when invalid',
   );
   preview.dispose();
+}
+
+function testBurgageFrontageDirectionAndRoadSideSelection(): void {
+  const roads = new RoadNetwork();
+  roads.addRoadPath([
+    new THREE.Vector3(-40, 0, 0),
+    new THREE.Vector3(40, 0, 0),
+  ]);
+
+  const tool = Object.create(BurgageTool.prototype) as BurgageTool;
+  Object.assign(tool as object, {
+    options: { roadNetwork: roads, getHeightAt: () => 0 },
+    placementStage: 0,
+    points: [],
+    frontageCenters: [],
+    frontageOffsetSide: null,
+    hoverOffsetSide: null,
+    hoverCenter: null,
+  });
+  const internals = tool as unknown as {
+    applyRoadSnap: (point: THREE.Vector3) => THREE.Vector3;
+    recordFrontageCenter: (clientX: number, clientY: number, point: THREE.Vector3) => void;
+    resolvePreviewOutline: () => { points: THREE.Vector3[] } | null;
+    frontageOffsetSide: 1 | -1 | null;
+  };
+
+  const northHover = internals.applyRoadSnap(new THREE.Vector3(12, 0, 5));
+  const southHover = internals.applyRoadSnap(new THREE.Vector3(12, 0, -5));
+  assert(northHover.z > 0 && southHover.z < 0, 'an uncommitted frontage hover must follow either road side');
+  assert.equal(
+    internals.frontageOffsetSide,
+    null,
+    'hovering the first frontage must not permanently lock a road side',
+  );
+  const southPreview = internals.resolvePreviewOutline();
+  assert(
+    southPreview?.points.every((point) => point.z < 0),
+    'the initial dotted frontage preview must render on the live cursor side',
+  );
+
+  const acceptedNorth = internals.applyRoadSnap(new THREE.Vector3(20, 0, 5));
+  internals.recordFrontageCenter(0, 0, acceptedNorth);
+  assert.notEqual(internals.frontageOffsetSide, null, 'the first accepted frontage point should lock its side');
+  const lockedSecond = internals.applyRoadSnap(new THREE.Vector3(-20, 0, -5));
+  assert(lockedSecond.z > 0, 'the second frontage point should remain on the accepted first side');
+
+  const centerPath = resolveRoadCenterPathForFrontage(
+    roads,
+    { x: 20, z: 0 },
+    { x: -20, z: 0 },
+    { x: 20, z: 0 },
+    { x: -20, z: 0 },
+  );
+  assert.ok(centerPath && centerPath.length >= 2);
+  assert(
+    Math.abs(centerPath[0].x - 20) < 0.01 && Math.abs(centerPath.at(-1)!.x + 20) < 0.01,
+    'a reverse-drawn frontage must preserve A-to-B click order',
+  );
+
+  const curved = resolveCurvedFrontageLine(
+    { x: acceptedNorth.x, z: acceptedNorth.z },
+    { x: lockedSecond.x, z: lockedSecond.z },
+    roads,
+    { x: 20, z: 0 },
+    { x: -20, z: 0 },
+    internals.frontageOffsetSide ?? 1,
+  );
+  assert(
+    Math.abs(curved[0].x - acceptedNorth.x) < 0.01
+      && Math.abs(curved.at(-1)!.x - lockedSecond.x) < 0.01,
+    'the rendered frontage must connect each accepted endpoint without crossing the plot',
+  );
+  assert(curved.every((point) => point.z > 0), 'reverse-drawn frontage must stay on its selected road side');
 }
 
 function testRoadFacingBuildingsSnapToRoadSides(): void {
@@ -773,6 +848,7 @@ testRoadFacingBuildingsSnapToRoadSides();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
 testOrganicBurgagePlotsAndPreviewIcons();
+testBurgageFrontageDirectionAndRoadSideSelection();
 testPlacementOverlaysFollowTerrainHeight();
 testPlacementPreviewShowsTerrainFollowingExtent();
 testCivicAndFrontierPlacementPrerequisites();

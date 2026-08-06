@@ -848,7 +848,7 @@ export class BurgageTool {
       return resolveHoverFrontagePreview(
         hoverCenter,
         this.options.roadNetwork,
-        this.frontageOffsetSide ?? 1,
+        this.hoverOffsetSide ?? this.frontageOffsetSide ?? 1,
         this.options.getHeightAt,
       );
     }
@@ -986,6 +986,8 @@ export class BurgageTool {
     if (this.shouldSnapToRoad()) {
       const snap = this.options.roadNetwork.findSnap(picked, SNAP_DISTANCE);
       if (!snap) {
+        this.hoverCenter = null;
+        this.hoverOffsetSide = null;
         this.options.onPickRejected?.('off_road');
         return null;
       }
