@@ -112,6 +112,7 @@ export class BurgageTool {
   private previewLayout: BurgageLayoutResult | null = null;
   private frontageCenters: THREE.Vector3[] = [];
   private frontageOffsetSide: 1 | -1 | null = null;
+  private hoverOffsetSide: 1 | -1 | null = null;
   private hoverCenter: THREE.Vector3 | null = null;
   private readonly undoStack: BurgagePlacementUndoEntry[] = [];
   private readonly redoStack: BurgagePlacementRedoEntry[] = [];
@@ -361,6 +362,7 @@ export class BurgageTool {
     this.pointerInside = false;
     this.hoverPoint = null;
     this.hoverCenter = null;
+    this.hoverOffsetSide = null;
     this.lastHoverPreviewX = Number.NaN;
     this.lastHoverPreviewZ = Number.NaN;
     this.refreshPreview();
@@ -371,8 +373,8 @@ export class BurgageTool {
     const point = this.pickPoint(clientX, clientY);
     if (point && this.shouldSkipHoverPreview(point)) return;
     this.hoverPoint = point;
-    this.refreshPreviewVisual();
     this.validationDirty = true;
+    this.refreshPreviewVisual();
     this.scheduleDeferredValidation();
   }
 
@@ -442,6 +444,14 @@ export class BurgageTool {
     }
     this.points.push(point);
     this.placementStage = this.points.length;
+    // The pointer used to remain both the newly accepted corner and the next
+    // hover corner until the mouse moved. That transient duplicate generated
+    // zero-length/overlapping plot edges and validated the wrong four points.
+    this.hoverPoint = null;
+    this.hoverCenter = null;
+    this.hoverOffsetSide = null;
+    this.lastHoverPreviewX = Number.NaN;
+    this.lastHoverPreviewZ = Number.NaN;
     if (this.placementStage === 4) {
       this.syncFrontageAndPlotCount();
     }
@@ -617,6 +627,7 @@ export class BurgageTool {
     this.points = [];
     this.frontageCenters = [];
     this.frontageOffsetSide = null;
+    this.hoverOffsetSide = null;
     this.placementStage = 0;
     this.hoverPoint = null;
     this.hoverCenter = null;
@@ -665,6 +676,7 @@ export class BurgageTool {
   }
 
   private refreshPreview(): void {
+    this.validationDirty = true;
     this.refreshPreviewVisual();
     this.runValidation(true);
   }
@@ -705,7 +717,10 @@ export class BurgageTool {
       this.lastHoverPreviewX = this.hoverPoint.x;
       this.lastHoverPreviewZ = this.hoverPoint.z;
     }
-    const previewValid = this.draftValidation.ok ?? true;
+    // A moved draft has not been checked yet; keep it neutral until validation
+    // catches up instead of painting the new geometry with the previous
+    // cursor position's red result.
+    const previewValid = this.validationDirty ? true : this.draftValidation.ok;
     const previewOutline = this.resolvePreviewOutline();
     const placedPoints = this.placementStage >= 4
       ? this.points.map((point) => point.clone())
@@ -894,6 +909,9 @@ export class BurgageTool {
   private recordFrontageCenter(_clientX: number, _clientY: number, _offsetPoint: THREE.Vector3): void {
     if (!this.hoverCenter) return;
     this.frontageCenters.push(this.hoverCenter.clone());
+    if (this.frontageOffsetSide === null && this.hoverOffsetSide !== null) {
+      this.frontageOffsetSide = this.hoverOffsetSide;
+    }
   }
 
   private canAdjustLayout(): boolean {
@@ -989,9 +1007,9 @@ export class BurgageTool {
       SNAP_DISTANCE,
       this.frontageOffsetSide,
     );
-    if (this.frontageOffsetSide === null) {
-      this.frontageOffsetSide = beside.side;
-    }
+    // Hovering may freely cross the road. Lock the selected side only when the
+    // first frontage point is actually accepted in recordFrontageCenter().
+    this.hoverOffsetSide = beside.side;
     this.hoverCenter = beside.center;
     beside.point.y = point.y;
     return beside.point;

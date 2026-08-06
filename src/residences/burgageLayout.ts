@@ -133,13 +133,13 @@ export function computeBurgageLayout(
     const rearLeft = rearSplits[i];
     const polygon = [frontLeft, frontRight, rearRight, rearLeft];
     const parcelFrontage = Math.hypot(frontRight.x - frontLeft.x, frontRight.z - frontLeft.z);
-    if (parcelFrontage < MIN_PLOT_FRONTAGE * 0.92) continue;
+    if (parcelFrontage < MIN_PLOT_FRONTAGE * 0.92) return null;
 
     const parcelDepth = Math.min(
       distancePointToSegment(frontLeft, rearLeft, rearRight),
       distancePointToSegment(frontRight, rearLeft, rearRight),
     );
-    if (parcelDepth < MIN_PARCEL_DEPTH) continue;
+    if (parcelDepth < MIN_PARCEL_DEPTH) return null;
 
     const frontMid = midpoint(frontLeft, frontRight);
     const frontDir = normalize({
@@ -153,7 +153,7 @@ export function computeBurgageLayout(
     };
     // Mesh door sits on local +Z; rotate so +Z points toward the road (-inward).
     const yaw = residenceDoorYaw(inward);
-    if (!footprintFits(houseCenter, yaw, polygon)) continue;
+    if (!footprintFits(houseCenter, yaw, polygon)) return null;
 
     const houseArea = MAIN_HOUSE_WIDTH * MAIN_HOUSE_DEPTH;
     const parcelArea = polygonArea(polygon);
@@ -178,7 +178,7 @@ export function computeBurgageLayout(
   return {
     frontageLength,
     maxPlotCount,
-    plotCount: residences.length,
+    plotCount,
     parcels,
     residences,
     totalCost: residenceZoneCostForLayout(residences.length),

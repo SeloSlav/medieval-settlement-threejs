@@ -243,13 +243,15 @@ function sliceBetweenAnchorsOnSameEdge(
   const forward = anchorA.distanceAlong <= anchorB.distanceAlong;
   const startDist = forward ? anchorA.distanceAlong : anchorB.distanceAlong;
   const endDist = forward ? anchorB.distanceAlong : anchorA.distanceAlong;
-  const startPoint = forward ? anchorA.point : anchorB.point;
-  const endPoint = forward ? anchorB.point : anchorA.point;
 
   const sliced = slicePathByDistance(anchorA.path, startDist, endDist);
   if (sliced.length < 2) return null;
-  sliced[0] = startPoint.clone();
-  sliced[sliced.length - 1] = endPoint.clone();
+  if (!forward) sliced.reverse();
+  // Frontage geometry must retain the player's A -> B click order. Returning
+  // the edge's storage order here makes a reverse-drawn frontage cross its
+  // own rear corners, which produces doubled lines and a false red preview.
+  sliced[0] = anchorA.point.clone();
+  sliced[sliced.length - 1] = anchorB.point.clone();
   return sliced;
 }
 

@@ -73,7 +73,12 @@ export function resolveCurvedFrontageLine(
     centerEnd,
   );
   if (centerPath && centerPath.length >= 2) {
-    return offsetCenterPathBesideRoad(centerPath, offsetSide, roadNetwork);
+    const preferred = offsetCenterPathBesideRoad(centerPath, offsetSide, roadNetwork);
+    const opposite = offsetCenterPathBesideRoad(centerPath, offsetSide === 1 ? -1 : 1, roadNetwork);
+    return frontageEndpointError(preferred, frontStart, frontEnd)
+      <= frontageEndpointError(opposite, frontStart, frontEnd)
+      ? preferred
+      : opposite;
   }
   return [frontStart, frontEnd];
 }
@@ -173,4 +178,20 @@ function inwardSideForCorners(corners: RectangleCorners, roadNetwork: RoadNetwor
   const toRearZ = rearMid.z - mid.z;
   const dot = inward.x * toRearX + inward.z * toRearZ;
   return dot >= 0 ? 1 : -1;
+}
+
+function frontageEndpointError(
+  frontage: readonly Point2[],
+  frontStart: Point2,
+  frontEnd: Point2,
+): number {
+  const start = frontage[0];
+  const end = frontage[frontage.length - 1];
+  if (!start || !end) return Infinity;
+  return (
+    (start.x - frontStart.x) ** 2
+    + (start.z - frontStart.z) ** 2
+    + (end.x - frontEnd.x) ** 2
+    + (end.z - frontEnd.z) ** 2
+  );
 }

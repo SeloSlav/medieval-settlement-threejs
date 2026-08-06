@@ -27,6 +27,14 @@ import {
   areDistantCanopyCardsEnabled,
   setDistantCanopyCardsEnabled,
 } from '../scene/distantCanopyCardPreference.ts';
+import {
+  FIXED_SKY_PRESETS,
+  fixedSkyPreset,
+  getSkyPresentationPreference,
+  isFixedSkyPreset,
+  setDayNightCycleDisabled,
+  setFixedSkyPreset,
+} from '../scene/skyPresentationPreference.ts';
 
 type GameMenuOptions = {
   onShadowPreferenceChange: () => void;
@@ -51,6 +59,9 @@ export class GameMenu {
   private readonly buildingShadowsCheckbox: HTMLInputElement;
   private readonly distantCanopyCardsCheckbox: HTMLInputElement;
   private readonly constellationGuidesCheckbox: HTMLInputElement;
+  private readonly dayNightCycleCheckbox: HTMLInputElement;
+  private readonly fixedSkyPresetSelect: HTMLSelectElement;
+  private readonly fixedSkyDescription: HTMLElement;
   private readonly resourceIconsCheckbox: HTMLInputElement;
   private readonly gameAudioCheckbox: HTMLInputElement;
   private readonly ambienceVolumeInput: HTMLInputElement;
@@ -106,6 +117,19 @@ export class GameMenu {
         <label class="game-menu-option">
           <input type="checkbox" data-constellation-guides-checkbox />
           <span>Constellation guides</span>
+        </label>
+        <label class="game-menu-option">
+          <input type="checkbox" data-day-night-cycle-checkbox />
+          <span>Turn off day/night cycle</span>
+        </label>
+        <label class="game-menu-select game-menu-option--nested">
+          <span>Fixed sky</span>
+          <select data-fixed-sky-preset aria-describedby="fixed-sky-description">
+            ${FIXED_SKY_PRESETS.map((preset) => (
+              `<option value="${preset.id}">${preset.label}</option>`
+            )).join('')}
+          </select>
+          <small id="fixed-sky-description" data-fixed-sky-description></small>
         </label>
         <label class="game-menu-option">
           <input type="checkbox" data-resource-icons-checkbox />
@@ -180,6 +204,9 @@ export class GameMenu {
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
     this.distantCanopyCardsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-distant-canopy-cards-checkbox]')!;
     this.constellationGuidesCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-constellation-guides-checkbox]')!;
+    this.dayNightCycleCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-day-night-cycle-checkbox]')!;
+    this.fixedSkyPresetSelect = this.backdrop.querySelector<HTMLSelectElement>('[data-fixed-sky-preset]')!;
+    this.fixedSkyDescription = this.backdrop.querySelector<HTMLElement>('[data-fixed-sky-description]')!;
     this.resourceIconsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-resource-icons-checkbox]')!;
     this.gameAudioCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-game-audio-checkbox]')!;
     this.ambienceVolumeInput = this.backdrop.querySelector<HTMLInputElement>('[data-ambience-volume]')!;
@@ -206,6 +233,7 @@ export class GameMenu {
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.distantCanopyCardsCheckbox.checked = areDistantCanopyCardsEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
+    this.syncSkyPresentationControls();
     this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
     this.musicCheckbox.checked = isMusicEnabled();
@@ -246,6 +274,15 @@ export class GameMenu {
     });
     this.constellationGuidesCheckbox.addEventListener('change', () => {
       setConstellationGuidesEnabled(this.constellationGuidesCheckbox.checked);
+    });
+    this.dayNightCycleCheckbox.addEventListener('change', () => {
+      setDayNightCycleDisabled(this.dayNightCycleCheckbox.checked);
+      this.syncSkyPresentationControls();
+    });
+    this.fixedSkyPresetSelect.addEventListener('change', () => {
+      const preset = this.fixedSkyPresetSelect.value;
+      if (isFixedSkyPreset(preset)) setFixedSkyPreset(preset);
+      this.syncSkyPresentationControls();
     });
     this.resourceIconsCheckbox.addEventListener('change', () => {
       setResourceIconsAlwaysShown(this.resourceIconsCheckbox.checked);
@@ -327,6 +364,7 @@ export class GameMenu {
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
     this.distantCanopyCardsCheckbox.checked = areDistantCanopyCardsEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
+    this.syncSkyPresentationControls();
     this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
     this.musicCheckbox.checked = isMusicEnabled();
@@ -364,6 +402,17 @@ export class GameMenu {
     this.musicCheckbox.disabled = !this.gameAudioCheckbox.checked;
     this.musicVolumeInput.disabled =
       !this.gameAudioCheckbox.checked || !this.musicCheckbox.checked;
+  }
+
+  private syncSkyPresentationControls(): void {
+    const preference = getSkyPresentationPreference();
+    const preset = fixedSkyPreset(preference.preset);
+    this.dayNightCycleCheckbox.checked = preference.cycleDisabled;
+    this.fixedSkyPresetSelect.value = preset.id;
+    this.fixedSkyPresetSelect.disabled = !preference.cycleDisabled;
+    this.fixedSkyDescription.textContent = preference.cycleDisabled
+      ? `${preset.description} Visual only — the settlement clock keeps running.`
+      : 'The sky follows the settlement clock.';
   }
 
   private syncAmbienceVolume(): void {

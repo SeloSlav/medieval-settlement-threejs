@@ -14,6 +14,11 @@ import {
   DIRECTIONAL_SHADOW_TARGET_STEP_DEGREES,
   shouldRefreshDirectionalShadow,
 } from '../src/scene/directionalShadowRefreshPolicy.ts';
+import { computeFixedSkyState } from '../src/scene/fixedSkyPresentation.ts';
+import {
+  DEFAULT_FIXED_SKY_PRESET,
+  FIXED_SKY_PRESETS,
+} from '../src/scene/skyPresentationPreference.ts';
 
 const directionDotAtDegrees = (degrees: number): number => Math.cos(
   THREE.MathUtils.degToRad(degrees),
@@ -138,6 +143,25 @@ assert.equal(
   2,
   'night readability must reuse the existing key and fill lights',
 );
+
+const fixedNoon = computeFixedSkyState('high_noon');
+const fixedDawn = computeFixedSkyState('rose_dawn');
+const fixedSunset = computeFixedSkyState('ember_sunset');
+const fixedBlueHour = computeFixedSkyState('blue_hour');
+const fixedMidnight = computeFixedSkyState('moonlit_midnight');
+assert.equal(DEFAULT_FIXED_SKY_PRESET, 'high_noon');
+assert.deepEqual(
+  FIXED_SKY_PRESETS.map((preset) => preset.id),
+  ['high_noon', 'rose_dawn', 'ember_sunset', 'blue_hour', 'moonlit_midnight'],
+);
+assert.equal(fixedNoon.skyAnimationTime, 0, 'fixed sky presets must also freeze cloud motion');
+assert.ok(fixedNoon.solarElevationDeg > 60 && fixedNoon.nightAmount === 0);
+assert.ok(fixedDawn.dawnAmount > 0.95 && fixedDawn.sunDirection.x > 0);
+assert.ok(fixedSunset.duskAmount > 0.95 && fixedSunset.sunDirection.x < 0);
+assert.ok(fixedSunset.grade.warmth > fixedDawn.grade.warmth);
+assert.ok(fixedBlueHour.nightAmount > 0.55 && fixedBlueHour.duskAmount > 0.35);
+assert.ok(fixedMidnight.nightAmount > 0.99 && fixedMidnight.duskAmount === 0);
+assert.notEqual(fixedBlueHour.siderealAngle, fixedMidnight.siderealAngle);
 
 console.log('Day/night presentation tests passed.');
 

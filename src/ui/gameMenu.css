@@ -204,6 +204,46 @@
   color: var(--muted);
 }
 
+.game-menu-select {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.8fr);
+  align-items: center;
+  gap: 7px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.game-menu-select select {
+  min-width: 0;
+  padding: 8px 28px 8px 10px;
+  color: var(--ink);
+  font: inherit;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.game-menu-select select:focus-visible {
+  border-color: rgba(215, 180, 99, 0.62);
+}
+
+.game-menu-select small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.game-menu-select:has(select:disabled) {
+  opacity: 0.55;
+}
+
+.game-menu-select select:disabled {
+  cursor: not-allowed;
+}
+
 .game-menu-volume {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -20,6 +20,12 @@ import {
 } from './visualQaConditions.ts';
 import { hasActiveRaiderThreat } from '../security/combatAgents.ts';
 import { nightLightingVisualScale } from '../economy/nightPolicy.ts';
+import { computeFixedSkyState } from '../scene/fixedSkyPresentation.ts';
+import {
+  getSkyPresentationPreference,
+  type FixedSkyPresetId,
+} from '../scene/skyPresentationPreference.ts';
+import type { DayNightLightingState } from '../world/dayNightPresentation.ts';
 
 export type SettlementPresentationTargets = {
   settlementHud: SettlementHud | null;
@@ -69,6 +75,8 @@ export class SettlementPresentationController {
   private lastStaffedChapel = false;
   private lastRaidThreatActive = false;
   private tickSchedule: SettlementSchedule | null = null;
+  private fixedSkyState: DayNightLightingState | null = null;
+  private fixedSkyPreset: FixedSkyPresetId | null = null;
   private readonly now: () => number;
   private readonly visualQaConditions: VisualQaConditions | null;
 
@@ -225,7 +233,7 @@ export class SettlementPresentationController {
   ): void {
     const lightingScale = nightLightingVisualScale(nightPolicy.lighting);
     targets.settlementHud?.setSettlementClock(schedule);
-    targets.sceneManager?.applyDayNight(schedule.dayNight);
+    targets.sceneManager?.applyDayNight(this.resolveSceneLighting(schedule));
     targets.buildingMarkers?.setFoundersCampfireNightLighting(
       schedule.dayNight.nightAmount * lightingScale,
     );
@@ -245,5 +253,16 @@ export class SettlementPresentationController {
         && schedule.staffedChapel,
     );
     targets.ambientAudio?.syncSettlementSchedule(schedule);
+  }
+
+  private resolveSceneLighting(schedule: SettlementSchedule): DayNightLightingState {
+    const preference = getSkyPresentationPreference();
+    if (!preference.cycleDisabled) return schedule.dayNight;
+
+    if (!this.fixedSkyState || this.fixedSkyPreset !== preference.preset) {
+      this.fixedSkyState = computeFixedSkyState(preference.preset, this.fixedSkyState ?? undefined);
+      this.fixedSkyPreset = preference.preset;
+    }
+    return this.fixedSkyState;
   }
 }

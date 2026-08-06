@@ -199,14 +199,14 @@ pub fn compute_burgage_layout(
 
         let parcel_frontage = distance(&front_left, &front_right);
         if parcel_frontage < MIN_PLOT_FRONTAGE * 0.92 {
-            continue;
+            return None;
         }
 
         let parcel_depth = distance_point_to_segment(&front_left, &rear_left, &rear_right).min(
             distance_point_to_segment(&front_right, &rear_left, &rear_right),
         );
         if parcel_depth < MIN_PARCEL_DEPTH {
-            continue;
+            return None;
         }
 
         let front_mid = midpoint(&front_left, &front_right);
@@ -222,7 +222,7 @@ pub fn compute_burgage_layout(
         // Mesh door sits on local +Z; rotate so +Z points toward the road (-inward).
         let yaw = (-inward.x).atan2(-inward.z);
         if !footprint_fits(&house_center, yaw, &polygon) {
-            continue;
+            return None;
         }
 
         residences.push(ResidencePlacement {
@@ -240,7 +240,7 @@ pub fn compute_burgage_layout(
     }
 
     Some(BurgageLayout {
-        plot_count: residences.len() as u32,
+        plot_count,
         residences,
     })
 }
