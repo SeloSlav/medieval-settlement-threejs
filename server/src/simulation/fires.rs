@@ -622,7 +622,6 @@ fn nearest_eligible_well_id(
         .filter(|building| {
             building.kind == "well"
                 && building.construction_complete
-                && building.assigned_labor > 0
                 && fire_response_load(building.water) > 0.0
                 && !building_has_active_trip(ctx, building.id)
                 && within_extent(building, incident.x, incident.z)

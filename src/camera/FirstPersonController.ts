@@ -81,6 +81,8 @@ export class FirstPersonController {
   private camBobRoll = 0;
   private lastEyeLine: number = fpLocomotionConstants.eyeStand;
   private footstepDistance = 0;
+  private pendingLookDeltaX = 0;
+  private pendingLookDeltaY = 0;
 
   constructor(config: FirstPersonControllerConfig) {
     this.config = config;
@@ -177,6 +179,8 @@ export class FirstPersonController {
     this.camBobRoll = 0;
     this.lastEyeLine = fpLocomotionConstants.eyeStand;
     this.footstepDistance = 0;
+    this.pendingLookDeltaX = 0;
+    this.pendingLookDeltaY = 0;
     this.config.collisionWorld?.invalidateStatic();
     this.config.collisionWorld?.prepare(this.pos.x, this.pos.z);
     this.config.collisionWorld?.resolvePlayer(
@@ -205,6 +209,8 @@ export class FirstPersonController {
     this.active = false;
     this.keys.clear();
     this.crouchToggle = false;
+    this.pendingLookDeltaX = 0;
+    this.pendingLookDeltaY = 0;
     this.exitPointerLock();
     this.showCrosshair(false);
     resetCompassHeading();
@@ -236,10 +242,17 @@ export class FirstPersonController {
     this.config.collisionWorld?.prepare(this.pos.x, this.pos.z);
     const freeLook = this.resolveFreeLook();
     if (document.pointerLockElement === this.config.domElement) {
-      stepFpLookInertia(this.lookInertia, this.look, 0, 0, dt, { freeLook });
+      const lookDeltaX = this.pendingLookDeltaX;
+      const lookDeltaY = this.pendingLookDeltaY;
+      this.pendingLookDeltaX = 0;
+      this.pendingLookDeltaY = 0;
+      stepFpLookInertia(this.lookInertia, this.look, lookDeltaX, lookDeltaY, dt, { freeLook });
       if (!freeLook && this.look.headLookYaw !== 0) {
         stepFpFreeLookRecenter(this.look, dt);
       }
+    } else {
+      this.pendingLookDeltaX = 0;
+      this.pendingLookDeltaY = 0;
     }
 
     const previousX = this.pos.x;
@@ -326,12 +339,6 @@ export class FirstPersonController {
     publishCompassHeadingFromYawRad(yaw);
   }
 
-  private applyLookFromPointer(deltaX: number, deltaY: number): void {
-    const freeLook = this.resolveFreeLook();
-    stepFpLookInertia(this.lookInertia, this.look, deltaX, deltaY, 0, { freeLook });
-    this.applyCameraTransform(this.lastEyeLine);
-  }
-
   private readonly sampleTerrainGround: WalkGroundSampler = (
     worldX,
     worldZ,
@@ -383,6 +390,8 @@ export class FirstPersonController {
   private resetTransientInputState(): void {
     this.commitFreeLookIntoBodyYaw();
     resetFpLookInertia(this.lookInertia);
+    this.pendingLookDeltaX = 0;
+    this.pendingLookDeltaY = 0;
     this.keys.clear();
   }
 
@@ -484,7 +493,11 @@ export class FirstPersonController {
     if (!this.active || this.config.isMenuOpen?.()) return;
     if (document.pointerLockElement !== this.config.domElement) return;
     if (event.movementX === 0 && event.movementY === 0) return;
-    this.applyLookFromPointer(event.movementX, event.movementY);
+    // High-polling mice can emit thousands of events per second. Accumulate
+    // raw deltas here and apply them once in update(), immediately before the
+    // frame renders, so input cannot starve animation or precipitation work.
+    this.pendingLookDeltaX += event.movementX;
+    this.pendingLookDeltaY += event.movementY;
   };
 
   private readonly onPointerLockChange = (): void => {

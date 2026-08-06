@@ -9,6 +9,7 @@ export type ClayDepositSite = {
   z: number;
   rotation: number;
   kind: 'ordinary' | 'rich';
+  formation: 'alluvial' | 'coastal' | 'inland_basin';
   radiusX: number;
   radiusZ: number;
 };
@@ -34,6 +35,8 @@ export const RICH_CLAY_DEPOSIT_RADIUS = 24;
 export const CLAY_DEPOSIT_CENTER_TOLERANCE = 2.5;
 export const CLAY_DEPOSIT_SNAP_RADIUS = 58;
 export const ORDINARY_CLAY_DEPOSIT_MAX_YIELD = 1_200;
+export const COASTAL_CLAY_DEPOSIT_MAX_YIELD = 1_000;
+export const INLAND_CLAY_DEPOSIT_MAX_YIELD = 720;
 export const RICH_CLAY_DEPOSIT_MAX_YIELD = 3_600;
 
 export function clayDepositNodeId(site: ClayDepositSite, index: number): string {
@@ -41,13 +44,21 @@ export function clayDepositNodeId(site: ClayDepositSite, index: number): string 
 }
 
 export function clayDepositLabel(site: ClayDepositSite): string {
-  return site.kind === 'rich' ? 'Rich clay deposit' : 'Clay deposit';
+  const formation = site.formation === 'coastal'
+    ? 'coastal clay deposit'
+    : site.formation === 'inland_basin'
+      ? 'inland clay deposit'
+      : 'clay deposit';
+  return site.kind === 'rich'
+    ? `Rich ${formation}`
+    : formation[0].toUpperCase() + formation.slice(1);
 }
 
 export function clayDepositMaxYield(site: ClayDepositSite): number {
-  return site.kind === 'rich'
-    ? RICH_CLAY_DEPOSIT_MAX_YIELD
-    : ORDINARY_CLAY_DEPOSIT_MAX_YIELD;
+  if (site.kind === 'rich') return RICH_CLAY_DEPOSIT_MAX_YIELD;
+  if (site.formation === 'inland_basin') return INLAND_CLAY_DEPOSIT_MAX_YIELD;
+  if (site.formation === 'coastal') return COASTAL_CLAY_DEPOSIT_MAX_YIELD;
+  return ORDINARY_CLAY_DEPOSIT_MAX_YIELD;
 }
 
 export function clayDepositAtCenter(
@@ -89,9 +100,10 @@ export function nearestClayDeposit(
 }
 
 /**
- * Deterministic alluvial deposits are generated beside rivers. Riverless maps
- * fall back to dry upland clay lenses so every world still has its promised
- * ordinary source; rich banks remain optional regional seed rolls.
+ * Deterministic clay deposits follow river alluvium or coastal sediment where
+ * surface water exists. Waterless maps use smaller finite lenses in old inland
+ * drainage basins, so ordinary clay remains locally available without making a
+ * dry map as clay-rich as a river valley. Rich deposits remain optional rolls.
  */
 export class ClayDepositLayout {
   readonly sites: readonly ClayDepositSite[];
@@ -109,14 +121,11 @@ export class ClayDepositLayout {
       ...(options.quarrySites ?? []),
       ...(options.foragingSites ?? []),
     ];
-    let candidates = collectBankCandidates(
-      options.riverLayout,
-      playableHalf,
-      seed,
-    );
-    if (candidates.length === 0) {
-      candidates = collectDryClayCandidates(options.riverLayout, playableHalf, seed);
-    }
+    const candidates = [
+      ...collectBankCandidates(options.riverLayout, playableHalf, seed),
+      ...collectCoastalClayCandidates(options.riverLayout, playableHalf, seed),
+      ...collectDryClayCandidates(options.riverLayout, playableHalf, seed),
+    ];
     const richSiteCount = Math.max(0, Math.min(1, Math.floor(options.richSiteCount ?? 1)));
     const ordinarySiteCount = Math.max(1, Math.min(4, Math.floor(options.ordinarySiteCount ?? 1)));
     const grades: ClayDepositSite['kind'][] = [
@@ -132,13 +141,15 @@ export class ClayDepositLayout {
         && hasClayBankClearance(candidate, sites)
       ) ?? rankedCandidates.find((candidate) => hasClayBankClearance(candidate, sites));
       if (!selected) continue;
+      const radii = clayDepositRadii(grade, selected.formation);
       sites.push({
         x: selected.x,
         z: selected.z,
         rotation: selected.rotation,
         kind: grade,
-        radiusX: grade === 'rich' ? RICH_BANK_RADIUS_X : ORDINARY_BANK_RADIUS_X,
-        radiusZ: grade === 'rich' ? RICH_BANK_RADIUS_Z : ORDINARY_BANK_RADIUS_Z,
+        formation: selected.formation,
+        radiusX: radii.radiusX,
+        radiusZ: radii.radiusZ,
       });
     }
 
@@ -175,6 +186,7 @@ type BankCandidate = {
   z: number;
   rotation: number;
   score: number;
+  formation: ClayDepositSite['formation'];
 };
 
 function collectBankCandidates(
@@ -214,6 +226,7 @@ function collectBankCandidates(
           x,
           z,
           rotation: Math.atan2(tangent.z, tangent.x),
+          formation: 'alluvial',
           score:
             point.halfWidth * 2.2
             - Math.abs(point.progress - 0.58) * 7
@@ -223,6 +236,41 @@ function collectBankCandidates(
     }
   });
 
+  return candidates;
+}
+
+function collectCoastalClayCandidates(
+  riverLayout: RiverLayout,
+  playableHalf: number,
+  seed: number,
+): BankCandidate[] {
+  if (riverLayout.getCoastalShoreX(0) === null) return [];
+  const candidates: BankCandidate[] = [];
+  const limit = playableHalf - PLAYABLE_EDGE_CLEARANCE;
+
+  for (let index = 0; index < 48; index++) {
+    const z = -limit + limit * 2 * hashF64(seed ^ 0x4ce1, index, 0);
+    const shoreX = riverLayout.getCoastalShoreX(z);
+    if (shoreX === null) continue;
+    const beforeX = riverLayout.getCoastalShoreX(z - 5) ?? shoreX;
+    const afterX = riverLayout.getCoastalShoreX(z + 5) ?? shoreX;
+    const tangent = normalize(afterX - beforeX, 10);
+    if (!tangent) continue;
+    const inlandOffset = 18 + hashF64(seed ^ 0x2b79, index, 1) * 7;
+    const x = shoreX + inlandOffset;
+    if (Math.abs(x) > limit || Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 42) {
+      continue;
+    }
+    if (!bankFootprintIsDry(riverLayout, x, z, tangent)) continue;
+    if (!hasNearbyWater(riverLayout, x, z)) continue;
+    candidates.push({
+      x,
+      z,
+      rotation: Math.atan2(tangent.z, tangent.x),
+      formation: 'coastal',
+      score: 13 + hashF64(seed ^ 0x75a3, index, 2) * 4 - inlandOffset * 0.05,
+    });
+  }
   return candidates;
 }
 
@@ -257,10 +305,32 @@ function collectDryClayCandidates(
       x,
       z,
       rotation: angle + Math.PI * 0.5,
-      score: hashF64(seed ^ 0x61a7, index, 2) * 4 - radius / playableHalf,
+      formation: 'inland_basin',
+      score:
+        hashF64(seed ^ 0x61a7, index, 2) * 4
+        - Math.hypot(x - riverLayout.drain.x, z - riverLayout.drain.z)
+          / playableHalf,
     });
   }
   return candidates;
+}
+
+function clayDepositRadii(
+  grade: ClayDepositSite['kind'],
+  formation: ClayDepositSite['formation'],
+): { radiusX: number; radiusZ: number } {
+  const base = grade === 'rich'
+    ? { radiusX: RICH_BANK_RADIUS_X, radiusZ: RICH_BANK_RADIUS_Z }
+    : { radiusX: ORDINARY_BANK_RADIUS_X, radiusZ: ORDINARY_BANK_RADIUS_Z };
+  const scale = formation === 'inland_basin'
+    ? 0.78
+    : formation === 'coastal'
+      ? 0.9
+      : 1;
+  return {
+    radiusX: base.radiusX * scale,
+    radiusZ: base.radiusZ * scale,
+  };
 }
 
 function bankFootprintIsDry(

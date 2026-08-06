@@ -584,8 +584,11 @@ export class ResourceInspector {
         : 'Showing surplus goods. Show total goods stored.',
     );
     this.resourceTotalsModeButton.dataset.tooltip = showingTotal
-      ? 'Showing all stored goods, including stock committed to active construction and home projects. Activate to show surplus goods.'
-      : 'Showing surplus goods: stored stock minus goods committed to active construction and home projects. Activate to show all stored goods.';
+      ? 'All stored goods, including goods committed to active construction and home projects. Activate to show surplus goods.'
+      : 'Stored goods available for use after active construction and home-project commitments are deducted. Activate to show total goods.';
+    this.resourceTotalsModeButton.dataset.tooltipTitle = showingTotal
+      ? 'Total goods'
+      : 'Surplus goods';
     this.resourceTotalsModeLabel.textContent = showingTotal ? 'Total' : 'Surplus';
     this.stockpileRoot.dataset.resourceTotalsPresentation =
       this.resourceTotalsPresentation;
@@ -1364,25 +1367,29 @@ export class ResourceInspector {
 
   private renderFoodBreakdown(): void {
     if (!this.storedTotals || !this.surplusTotals) return;
-    let activeRows = 0;
     for (const kind of FOOD_BREAKDOWN_ROW_KINDS) {
       const stored = Math.max(0, this.storedTotals[kind]);
       const transit = Math.max(0, this.inTransitTotals?.[kind] ?? 0);
       const surplus = Math.max(0, this.surplusTotals[kind]);
       const homes = Math.max(0, stored - surplus);
       const elements = this.foodBreakdownRows[kind];
-      const visible = stored + transit > 1e-6;
+      const stocked = stored + transit > 1e-6;
+      const namedFood = (FOOD_RESOURCE_KINDS as readonly string[]).includes(kind);
+      const visible = namedFood || stocked;
       elements.row.hidden = !visible;
-      if (visible) activeRows += 1;
+      elements.row.classList.toggle('is-empty', !stocked);
       elements.stored.textContent = formatTransitAmount(stored);
-      elements.transit.textContent = formatTransitAmount(transit);
+      elements.transit.hidden = transit <= 1e-6;
+      elements.transit.textContent = transit > 1e-6
+        ? `+${formatTransitAmount(transit)} cart`
+        : '';
       elements.homes.textContent = formatTransitAmount(homes);
       elements.surplus.textContent = formatTransitAmount(surplus);
     }
     const stored = Math.max(0, this.storedTotals.food);
     const transit = Math.max(0, this.inTransitTotals?.food ?? 0);
     const surplus = Math.max(0, this.surplusTotals.food);
-    this.foodBreakdownEmpty.hidden = activeRows > 0;
+    this.foodBreakdownEmpty.hidden = true;
     this.foodBreakdownTotalStored.textContent = formatTransitAmount(stored);
     this.foodBreakdownTotalTransit.textContent = formatTransitAmount(transit);
     this.foodBreakdownTotalHomes.textContent = formatTransitAmount(

@@ -254,6 +254,14 @@ assert.match(
   /fire_response_load\(building\.water\) > 0\.0[\s\S]{0,180}!building_has_active_trip\(ctx, building\.id\)/,
   'a busy nearest well must yield to a farther ready responder instead of blocking the fire call',
 );
+const nearestEligibleWellSource =
+  fireSource.match(/fn nearest_eligible_well_id[\s\S]*?\r?\n}\r?\n\r?\nfn building_flammability/)?.[0]
+  ?? '';
+assert.doesNotMatch(
+  nearestEligibleWellSource,
+  /assigned_labor/,
+  'unstaffed wells must remain eligible for fire response because a free settlement hauler carries the bucket',
+);
 assert.match(
   tripSource,
   /let load = fire_response_load\(well\.water\)[\s\S]*well\.water\s*-=\s*load/,
@@ -286,7 +294,7 @@ assert.match(
 );
 assert.match(
   wellSource,
-  /if !building_has_active_trip[\s\S]*select_fire_for_well[\s\S]*try_start_fire_response_trip[\s\S]*let fire_response_needed = fire_response_needed_for_well[\s\S]*let delivery_ready = !fire_response_needed/,
+  /if !building_has_active_trip[\s\S]*select_fire_for_well[\s\S]*try_start_fire_response_trip[\s\S]*let fire_response_needed = fire_response_needed_for_well[\s\S]*let industrial_delivery_ready = !fire_response_needed/,
   'a free well hauler must attempt fire response before household or industrial delivery work',
 );
 assert.match(

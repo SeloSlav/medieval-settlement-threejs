@@ -716,6 +716,7 @@ export class SceneManager {
     const rect = this.container.getBoundingClientRect();
     const width = Math.max(1, Math.floor(rect.width));
     const height = Math.max(1, Math.floor(rect.height));
+    this.terrainProjector.setViewportRect(rect);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     // One device pixel per CSS pixel is the quality/performance sweet spot for

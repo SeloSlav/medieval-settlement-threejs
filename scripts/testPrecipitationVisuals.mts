@@ -233,7 +233,6 @@ assert.match(
 );
 assert.match(rendererSource, /const RAIN_BASE_PARTICLES = 1_800/);
 assert.match(rendererSource, /const SNOW_BASE_PARTICLES = 1_400/);
-assert.match(rendererSource, /const VOLUME_FORWARD_BIAS_FRACTION = 0\.32/);
 assert.match(rendererSource, /const RAIN_NEAR_EXCLUSION_FRACTION = 0\.3/);
 assert.match(rendererSource, /const SNOW_NEAR_EXCLUSION_FRACTION = 0\.18/);
 assert.match(rendererSource, /const OVERVIEW_MIN_VOLUME_RADIUS = 60/);
@@ -244,9 +243,16 @@ assert.match(rendererSource, /const halfWidth = 0\.06/);
 assert.match(rendererSource, /alphaTest:\s*kind === 'rain' \? 0\.012 : 0\.035/);
 assert.match(rendererSource, /distance \* distance\) \/ 0\.028/);
 assert.match(rendererSource, /'Procedural rain streak sprite',\s*false/);
-assert.match(rendererSource, /this\.camera\.getWorldDirection\(this\.horizontalCameraForward\)/);
-assert.match(rendererSource, /this\.group\.rotation\.y = Math\.atan2/);
-assert.match(rendererSource, /BASE_VOLUME_RADIUS \* VOLUME_FORWARD_BIAS_FRACTION/);
+assert.doesNotMatch(
+  rendererSource,
+  /this\.camera\.getWorldDirection|this\.group\.rotation/,
+  'mouse-look must not rotate the complete precipitation volume',
+);
+assert.match(
+  rendererSource,
+  /forceSinglePass:\s*true/,
+  'crossed transparent precipitation cards must render in one side pass',
+);
 assert.match(rendererSource, /minimumNearDistance = BASE_VOLUME_RADIUS \* nearExclusion/);
 assert.match(rendererSource, /0xa9c3d1,\s*0\.72,\s*0\.52/);
 assert.match(rendererSource, /0xcbdde5,\s*1\.02,\s*0\.36/);
@@ -261,12 +267,12 @@ assert.match(
 assert.equal(
   (rendererSource.match(/this\.createLayer\('rain'/g) ?? []).length,
   2,
-  'rain must remain two instanced draw layers',
+  'rain must remain two baked draw layers',
 );
 assert.equal(
   (rendererSource.match(/this\.createLayer\('snow'/g) ?? []).length,
   2,
-  'snow must remain two instanced draw layers',
+  'snow must remain two baked draw layers',
 );
 assert.match(rendererSource, /depthWrite:\s*false/);
 assert.match(rendererSource, /depthTest:\s*true/);
@@ -275,6 +281,11 @@ assert.doesNotMatch(
   rendererSource,
   /position\.needsUpdate/,
   'precipitation must animate layer transforms without per-frame particle-buffer uploads',
+);
+assert.doesNotMatch(
+  rendererSource,
+  /new THREE\.InstancedMesh|instanceMatrix/,
+  'static precipitation must not repeat instance-matrix work for every card vertex',
 );
 assert.match(sceneSource, /this\.precipitation\.update\(dt,\s*cameraDistance,\s*firstPersonActive\)/);
 assert.match(sceneSource, /this\.materials\.updateWeather\(dt\)/);

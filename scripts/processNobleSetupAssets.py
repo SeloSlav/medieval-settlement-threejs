@@ -99,6 +99,10 @@ ADDITIONAL_CHARGE_ATLASES = (
     ),
 )
 
+CHARGE_INK_THRESHOLD = 18
+GRID_GUTTER_SEARCH_RATIO = 0.22
+GRID_GUTTER_BAND_RATIO = 0.008
+
 
 def prepare_portrait(source: Path, destination: Path) -> None:
     with Image.open(source) as image:
@@ -111,19 +115,65 @@ def prepare_portrait(source: Path, destination: Path) -> None:
         portrait.save(destination, "WEBP", quality=88, method=6)
 
 
+def find_charge_grid(source: Image.Image, columns: int, rows: int) -> tuple[list[int], list[int]]:
+    """Find the dark gutters between generated atlas cells.
+
+    The image generator lays the charges out in a regular grid, but the rows are
+    not always spaced at exact fractions of the canvas. Cutting at those exact
+    fractions can therefore include the top of the next row. Locate the nearby
+    low-ink gutter instead, using a short band so an incidental blank scanline
+    inside a charge is not mistaken for a cell boundary.
+    """
+    grayscale = source.convert("L")
+    pixels = grayscale.load()
+    x_ink = [0] * grayscale.width
+    y_ink = [0] * grayscale.height
+
+    for y in range(grayscale.height):
+        row_ink = 0
+        for x in range(grayscale.width):
+            if pixels[x, y] >= CHARGE_INK_THRESHOLD:
+                x_ink[x] += 1
+                row_ink += 1
+        y_ink[y] = row_ink
+
+    def gutter_cuts(projection: list[int], divisions: int) -> list[int]:
+        size = len(projection)
+        cell_size = size / divisions
+        search_radius = max(1, round(cell_size * GRID_GUTTER_SEARCH_RATIO))
+        band_radius = max(1, round(cell_size * GRID_GUTTER_BAND_RATIO))
+        cuts = [0]
+
+        for division in range(1, divisions):
+            expected = round(division * cell_size)
+            search_start = max(band_radius, expected - search_radius)
+            search_end = min(size - band_radius, expected + search_radius + 1)
+
+            def gutter_score(position: int) -> tuple[int, int, int]:
+                ink = sum(projection[position - band_radius:position + band_radius + 1])
+                return ink, abs(position - expected), position
+
+            cuts.append(min(range(search_start, search_end), key=gutter_score))
+
+        cuts.append(size)
+        return cuts
+
+    return gutter_cuts(x_ink, columns), gutter_cuts(y_ink, rows)
+
+
 def prepare_charge(
     source: Image.Image,
     index: int,
     destination: Path,
     columns: int = 4,
     rows: int = 4,
+    grid: tuple[list[int], list[int]] | None = None,
 ) -> None:
     col = index % columns
     row = index // columns
-    x0 = round(col * source.width / columns)
-    x1 = round((col + 1) * source.width / columns)
-    y0 = round(row * source.height / rows)
-    y1 = round((row + 1) * source.height / rows)
+    x_cuts, y_cuts = grid if grid is not None else find_charge_grid(source, columns, rows)
+    x0, x1 = x_cuts[col], x_cuts[col + 1]
+    y0, y1 = y_cuts[row], y_cuts[row + 1]
     cell = source.crop((x0, y0, x1, y1)).convert("L")
     cell = ImageEnhance.Contrast(cell).enhance(1.45)
     alpha = cell.point(lambda value: 0 if value < 18 else min(255, round((value - 18) * 1.18)))
@@ -156,16 +206,18 @@ def main() -> None:
         prepare_portrait(source_dir / source_name, portrait_dir / output_name)
 
     with Image.open(source_dir / CHARGE_ATLAS) as atlas:
+        grid = find_charge_grid(atlas, 4, 4)
         for index, charge in enumerate(CHARGES):
-            prepare_charge(atlas, index, charge_dir / f"{charge}.png")
+            prepare_charge(atlas, index, charge_dir / f"{charge}.png", grid=grid)
 
     additional_count = 0
     for source_name, columns, rows, charges in ADDITIONAL_CHARGE_ATLASES:
         if len(charges) != columns * rows:
             raise RuntimeError(f"{source_name} has {len(charges)} names for a {columns}x{rows} atlas")
         with Image.open(source_dir / source_name) as atlas:
+            grid = find_charge_grid(atlas, columns, rows)
             for index, charge in enumerate(charges):
-                prepare_charge(atlas, index, charge_dir / f"{charge}.png", columns, rows)
+                prepare_charge(atlas, index, charge_dir / f"{charge}.png", columns, rows, grid)
         additional_count += len(charges)
 
     print(

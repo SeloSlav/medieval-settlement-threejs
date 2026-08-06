@@ -12,9 +12,9 @@ export type RegionalResourcePlan = {
   ordinaryQuarryCount: number;
   /** Optional deep stone source, rolled from the seed and regional settings. */
   richStoneDepositCount: number;
-  /** Finite ordinary alluvial banks. At least one is present in every region. */
+  /** Finite ordinary river, coastal, or inland-basin clay. Always present. */
   ordinaryClayDepositCount: number;
-  /** Optional high-output deep alluvial source, rolled independently from stone. */
+  /** Optional high-output deep clay source, rolled independently from stone. */
   richClayDepositCount: number;
   /** Rich iron-or-salt sites rolled from the mineral budget. */
   richMineralDepositCount: number;
@@ -273,7 +273,10 @@ export function describeResourceVariety(value: number): string {
 }
 
 function rankOptionalKinds(settings: WorldGenerationSettings): ForagingNodeKind[] {
-  return [...OPTIONAL_FORAGING_KINDS].sort((a, b) =>
+  const supportedKinds = settings.terrainPreset === 'delnice_meadow'
+    ? OPTIONAL_FORAGING_KINDS.filter((kind) => kind !== 'fish')
+    : OPTIONAL_FORAGING_KINDS;
+  return [...supportedKinds].sort((a, b) =>
     regionalAffinity(settings, b) - regionalAffinity(settings, a)
   );
 }

@@ -36,6 +36,9 @@ const BERRY_EDGE_MAX = 0.48;
 const GAME_RESPAWN_CANDIDATE_TARGET = 48;
 const MIN_FORAGING_SPACING = 180;
 const FORAGING_WATER_PROBE_SPACING = 3;
+const FISH_MASK_SCAN_SPACING = 12;
+const FISH_CAMP_FOOTPRINT_RADIUS = 7;
+const FISH_MAX_SHORE_DISTANCE = 58;
 
 /**
  * Keeps the full initial herd footprint off the rendered river. The extra
@@ -214,26 +217,23 @@ function pickFishSites(
       if (point.progress < 0.18 || point.progress > 0.82) continue;
       if (Math.abs(point.x) > extent - margin || Math.abs(point.z) > extent - margin) continue;
       if (!riverLayout.isWaterAt(point.x, point.z)) continue;
+      if (!hasReachableDryFishingShore(riverLayout, point.x, point.z)) continue;
       candidates.push({ ...point, corridorIndex });
     }
   }
 
   if (candidates.length < requestedCount) {
-    const fallback = riverLayout.corridors[0]?.points ?? [];
-    const fallbackSites: ForagingSite[] = [];
-    for (let index = 0; index < requestedCount; index++) {
-      const progress = 0.25 + (index / Math.max(1, requestedCount - 1)) * 0.5;
-      const point = fallback[Math.floor(fallback.length * progress)]
-        ?? (index === requestedCount - 1 ? riverLayout.drain : { x: -36, z: -72 });
-      fallbackSites.push({
-        x: point.x,
-        z: point.z,
-        kind: 'fish',
-        isRich: index === requestedCount - 1,
-      });
+    for (const candidate of collectSurfaceWaterFishCandidates(riverLayout, extent, seed)) {
+      if (candidates.some((existing) =>
+        Math.hypot(existing.x - candidate.x, existing.z - candidate.z) < 18
+      )) continue;
+      candidates.push(candidate);
     }
-    return fallbackSites;
   }
+
+  // A fish node without actual surface water is worse than a missing optional
+  // resource: its camp can never be placed and its marker lies to the player.
+  if (candidates.length === 0) return [];
 
   const rich = candidates.reduce((best, candidate) => {
     const score = fishCandidateNoise(seed, candidate, 1)
@@ -267,6 +267,88 @@ function pickFishSites(
     })),
     { x: rich.x, z: rich.z, kind: 'fish', isRich: true },
   ];
+}
+
+function collectSurfaceWaterFishCandidates(
+  riverLayout: RiverLayout,
+  extent: number,
+  seed: number,
+): FishCandidate[] {
+  const candidates: FishCandidate[] = [];
+  const margin = Math.max(24, extent * 0.06);
+  const limit = extent - margin;
+  const offsetX = (hashF64(seed, 71, 3) - 0.5) * FISH_MASK_SCAN_SPACING;
+  const offsetZ = (hashF64(seed, 83, 5) - 0.5) * FISH_MASK_SCAN_SPACING;
+
+  for (let z = -limit + offsetZ; z <= limit; z += FISH_MASK_SCAN_SPACING) {
+    for (let x = -limit + offsetX; x <= limit; x += FISH_MASK_SCAN_SPACING) {
+      if (!riverLayout.isWaterAt(x, z)) continue;
+      if (!hasReachableDryFishingShore(riverLayout, x, z)) continue;
+      candidates.push({
+        x,
+        z,
+        progress: (z + limit) / Math.max(limit * 2, 1),
+        halfWidth: estimateWaterClearance(riverLayout, x, z),
+        channelDepth: 1,
+        corridorIndex: -1,
+      });
+    }
+  }
+
+  return candidates;
+}
+
+function estimateWaterClearance(riverLayout: RiverLayout, x: number, z: number): number {
+  let clearance = 1;
+  for (let radius = 3; radius <= 15; radius += 3) {
+    let ringIsWet = true;
+    for (let index = 0; index < 12; index++) {
+      const angle = index / 12 * Math.PI * 2;
+      if (!riverLayout.isWaterAt(
+        x + Math.cos(angle) * radius,
+        z + Math.sin(angle) * radius,
+      )) {
+        ringIsWet = false;
+        break;
+      }
+    }
+    if (!ringIsWet) break;
+    clearance = radius;
+  }
+  return clearance;
+}
+
+function hasReachableDryFishingShore(
+  riverLayout: RiverLayout,
+  shoalX: number,
+  shoalZ: number,
+): boolean {
+  for (let radius = 8; radius <= FISH_MAX_SHORE_DISTANCE; radius += 4) {
+    const samples = Math.max(32, Math.ceil(Math.PI * 2 * radius / 4));
+    for (let index = 0; index < samples; index++) {
+      const angle = index / samples * Math.PI * 2;
+      const x = shoalX + Math.cos(angle) * radius;
+      const z = shoalZ + Math.sin(angle) * radius;
+      if (isDryFishingCampFootprint(riverLayout, x, z)) return true;
+    }
+  }
+  return false;
+}
+
+function isDryFishingCampFootprint(
+  riverLayout: RiverLayout,
+  x: number,
+  z: number,
+): boolean {
+  if (riverLayout.isWaterAt(x, z)) return false;
+  for (let index = 0; index < 16; index++) {
+    const angle = index / 16 * Math.PI * 2;
+    if (riverLayout.isWaterAt(
+      x + Math.cos(angle) * FISH_CAMP_FOOTPRINT_RADIUS,
+      z + Math.sin(angle) * FISH_CAMP_FOOTPRINT_RADIUS,
+    )) return false;
+  }
+  return true;
 }
 
 function fishSpacingScore(

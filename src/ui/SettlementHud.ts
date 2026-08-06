@@ -88,7 +88,6 @@ const SETTLEMENT_HUD_HTML = `
         <span class="noble-hud__shield" data-noble-hud-shield></span>
       </div>
       <div class="noble-hud__identity">
-        <span>Lord of Gorski Kotar</span>
         <strong data-noble-hud-name></strong>
         <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" data-tooltip-title="Civic gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
           <span class="settlement-hud__label">Gold</span>
@@ -266,8 +265,8 @@ const SETTLEMENT_HUD_HTML = `
       class="settlement-hud__totals-mode"
       data-resource-totals-mode
       data-mode="surplus"
-      data-tooltip-title="Resource totals"
-      data-tooltip="Showing surplus goods: stored stock minus goods committed to active construction and home projects. Activate to show all stored goods."
+      data-tooltip-title="Surplus goods"
+      data-tooltip="Stored goods available for use after active construction and home-project commitments are deducted. Activate to show total goods."
       aria-label="Showing surplus goods. Show total goods stored."
       aria-pressed="false"
     >
@@ -309,71 +308,69 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="water">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="water" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip-title="Stored food" data-tooltip="Food in producers, granaries, markets, institutions, and homes.">
-        <span class="settlement-hud__label">Food</span>
-        <strong class="settlement-hud__value" data-stockpile="food">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
-      </div>
-    </div>
-    <section
-      id="settlement-food-breakdown"
-      class="settlement-hud__food-breakdown"
-      data-food-breakdown
-      aria-labelledby="settlement-food-breakdown-title"
-      hidden
-    >
-      <header class="settlement-hud__food-breakdown-header">
-        <div>
-          <span class="settlement-hud__food-breakdown-eyebrow">Meal supply ledger</span>
-          <h2 id="settlement-food-breakdown-title">Food by commodity</h2>
-        </div>
-        <button type="button" class="settlement-hud__food-breakdown-close" data-food-breakdown-close aria-label="Close food inventory">&times;</button>
-      </header>
-      <p class="settlement-hud__food-breakdown-copy">
-        Food is a household need, not a stored commodity. Every meal remains the product that made it.
-      </p>
-      <div class="settlement-hud__food-breakdown-table" role="table" aria-label="Food inventory by commodity">
-        <div class="settlement-hud__food-breakdown-columns" role="row">
-          <span role="columnheader">Commodity</span>
-          <span role="columnheader">Stored</span>
-          <span role="columnheader">Carts</span>
-          <span role="columnheader">Homes</span>
-          <span role="columnheader">Surplus</span>
-        </div>
-        ${FOOD_RESOURCE_KINDS.map((kind) => `
-          <div class="settlement-hud__food-breakdown-row" role="row" data-food-breakdown-row="${kind}" hidden>
-            <strong role="rowheader">${FOOD_RESOURCE_LABELS[kind]}</strong>
-            <span role="cell" data-food-breakdown-stored="${kind}">0</span>
-            <span role="cell" data-food-breakdown-transit="${kind}">0</span>
-            <span role="cell" data-food-breakdown-homes="${kind}">0</span>
-            <span role="cell" data-food-breakdown-surplus="${kind}">0</span>
+      <details class="settlement-hud__food-stores" data-food-stores>
+        <summary class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip-title="Stored food" data-tooltip="Open the detailed inventory of food commodities.">
+          <span class="settlement-hud__label">Food</span>
+          <strong class="settlement-hud__value" data-stockpile="food">0</strong>
+          <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
+        </summary>
+        <div
+          id="settlement-food-breakdown"
+          class="settlement-hud__stores-grid settlement-hud__food-grid"
+          data-food-breakdown
+          aria-label="Food stores by commodity"
+        >
+          ${FOOD_RESOURCE_KINDS.map((kind) => `
+            <div
+              class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card"
+              data-food-breakdown-row="${kind}"
+              data-food-resource="${kind}"
+              data-tooltip-title="${FOOD_RESOURCE_LABELS[kind]}"
+              data-tooltip="Stored ${FOOD_RESOURCE_LABELS[kind].toLowerCase()} across producers, distributors, carts, and household pantries."
+            >
+              <span class="settlement-hud__label">${FOOD_RESOURCE_LABELS[kind]}</span>
+              <strong class="settlement-hud__value" data-food-breakdown-stored="${kind}">0</strong>
+              <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="${kind}" hidden></span>
+              <span data-food-breakdown-homes="${kind}" hidden>0</span>
+              <span data-food-breakdown-surplus="${kind}" hidden>0</span>
+            </div>
+          `).join('')}
+          <div
+            class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card settlement-hud__food-card--legacy"
+            data-food-breakdown-row="legacyFood"
+            data-food-resource="legacyFood"
+            data-tooltip-title="Legacy mixed food"
+            data-tooltip="Compatibility stock from an older save."
+            hidden
+          >
+            <span class="settlement-hud__label">Legacy mixed food</span>
+            <strong class="settlement-hud__value" data-food-breakdown-stored="legacyFood">0</strong>
+            <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="legacyFood" hidden></span>
+            <span data-food-breakdown-homes="legacyFood" hidden>0</span>
+            <span data-food-breakdown-surplus="legacyFood" hidden>0</span>
           </div>
-        `).join('')}
-        <div class="settlement-hud__food-breakdown-row settlement-hud__food-breakdown-row--legacy" role="row" data-food-breakdown-row="legacyFood" hidden>
-          <strong role="rowheader">Legacy mixed food</strong>
-          <span role="cell" data-food-breakdown-stored="legacyFood">0</span>
-          <span role="cell" data-food-breakdown-transit="legacyFood">0</span>
-          <span role="cell" data-food-breakdown-homes="legacyFood">0</span>
-          <span role="cell" data-food-breakdown-surplus="legacyFood">0</span>
+          <div
+            class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card settlement-hud__food-card--legacy"
+            data-food-breakdown-row="legacyPreservedFood"
+            data-food-resource="legacyPreservedFood"
+            data-tooltip-title="Legacy preserved food"
+            data-tooltip="Compatibility cured stock from an older save."
+            hidden
+          >
+            <span class="settlement-hud__label">Legacy preserved food</span>
+            <strong class="settlement-hud__value" data-food-breakdown-stored="legacyPreservedFood">0</strong>
+            <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="legacyPreservedFood" hidden></span>
+            <span data-food-breakdown-homes="legacyPreservedFood" hidden>0</span>
+            <span data-food-breakdown-surplus="legacyPreservedFood" hidden>0</span>
+          </div>
+          <span data-food-breakdown-empty hidden></span>
+          <span data-food-breakdown-total-stored hidden>0</span>
+          <span data-food-breakdown-total-transit hidden>0</span>
+          <span data-food-breakdown-total-homes hidden>0</span>
+          <span data-food-breakdown-total-surplus hidden>0</span>
         </div>
-        <div class="settlement-hud__food-breakdown-row settlement-hud__food-breakdown-row--legacy" role="row" data-food-breakdown-row="legacyPreservedFood" hidden>
-          <strong role="rowheader">Legacy preserved food</strong>
-          <span role="cell" data-food-breakdown-stored="legacyPreservedFood">0</span>
-          <span role="cell" data-food-breakdown-transit="legacyPreservedFood">0</span>
-          <span role="cell" data-food-breakdown-homes="legacyPreservedFood">0</span>
-          <span role="cell" data-food-breakdown-surplus="legacyPreservedFood">0</span>
-        </div>
-        <div class="settlement-hud__food-breakdown-empty" data-food-breakdown-empty>No food is stored or moving yet.</div>
-        <div class="settlement-hud__food-breakdown-row settlement-hud__food-breakdown-row--total" role="row">
-          <strong role="rowheader">All meals</strong>
-          <span role="cell" data-food-breakdown-total-stored>0</span>
-          <span role="cell" data-food-breakdown-total-transit>0</span>
-          <span role="cell" data-food-breakdown-total-homes>0</span>
-          <span role="cell" data-food-breakdown-total-surplus>0</span>
-        </div>
-      </div>
-      <button type="button" class="settlement-hud__food-breakdown-locate" data-food-breakdown-locate>Locate food holdings</button>
-    </section>
+      </details>
+    </div>
     <details class="settlement-hud__stores" data-specialty-stores>
       <summary
         class="settlement-hud__stores-summary"
@@ -529,9 +526,7 @@ export class SettlementHud {
   private readonly approvalSupportSection: HTMLElement;
   private readonly approvalClose: HTMLButtonElement;
   private readonly foodStat: HTMLElement;
-  private readonly foodBreakdown: HTMLElement;
-  private readonly foodBreakdownClose: HTMLButtonElement;
-  private readonly foodBreakdownLocate: HTMLButtonElement;
+  private readonly foodStores: HTMLDetailsElement;
   private readonly firewoodStat: HTMLElement;
   private readonly goldStat: HTMLElement;
   private readonly polearmsStat: HTMLElement;
@@ -625,9 +620,7 @@ export class SettlementHud {
     this.approvalSupportSection = this.mustElement('[data-approval-support-section]');
     this.approvalClose = this.mustButton('[data-approval-close]');
     this.foodStat = this.mustElement('[data-resource="food"]');
-    this.foodBreakdown = this.mustElement('[data-food-breakdown]');
-    this.foodBreakdownClose = this.mustButton('[data-food-breakdown-close]');
-    this.foodBreakdownLocate = this.mustButton('[data-food-breakdown-locate]');
+    this.foodStores = this.mustDetails('[data-food-stores]');
     this.firewoodStat = this.mustElement('[data-resource="firewood"]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
     this.polearmsStat = this.mustElement('[data-resource="polearms"]');
@@ -674,8 +667,8 @@ export class SettlementHud {
     this.geologyAlert.addEventListener('click', this.onGeologyAlertClick);
     this.approvalButton.addEventListener('click', this.onApprovalToggle);
     this.approvalClose.addEventListener('click', this.onApprovalClose);
-    this.foodBreakdownClose.addEventListener('click', this.onFoodBreakdownClose);
-    this.foodBreakdownLocate.addEventListener('click', this.onFoodBreakdownLocate);
+    this.foodStores.addEventListener('toggle', this.onFoodStoresToggle);
+    this.specialtyStores.addEventListener('toggle', this.onSpecialtyStoresToggle);
     this.nobleEye.addEventListener('click', this.onNobleEyeClick);
     window.addEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);
     window.addEventListener('keydown', this.onApprovalEscape, true);
@@ -1277,20 +1270,21 @@ export class SettlementHud {
     this.activateResourceRow(event.target);
   };
 
-  private readonly onFoodBreakdownClose = (): void => {
-    this.setFoodBreakdownOpen(false);
-    this.foodStat.focus();
+  private readonly onFoodStoresToggle = (): void => {
+    const open = this.foodStores.open;
+    if (open) this.specialtyStores.open = false;
+    this.foodStat.setAttribute('aria-expanded', String(open));
+    this.foodStat.classList.toggle('is-open', open);
   };
 
-  private readonly onFoodBreakdownLocate = (event: MouseEvent): void => {
-    event.preventDefault();
-    event.stopPropagation();
-    this.onLocateResource?.('food');
+  private readonly onSpecialtyStoresToggle = (): void => {
+    if (this.specialtyStores.open) this.foodStores.open = false;
   };
 
   private readonly onResourceRowKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
-    if (!this.resourceFromTarget(event.target)) return;
+    const resource = this.resourceFromTarget(event.target);
+    if (!resource || resource === 'food') return;
     event.preventDefault();
     this.activateResourceRow(event.target);
   };
@@ -1337,9 +1331,9 @@ export class SettlementHud {
 
   private readonly onApprovalEscape = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape') return;
-    if (!this.foodBreakdown.hidden) {
+    if (this.foodStores.open) {
       event.preventDefault();
-      this.setFoodBreakdownOpen(false);
+      this.foodStores.open = false;
       this.foodStat.focus();
       return;
     }
@@ -1404,17 +1398,7 @@ export class SettlementHud {
 
   private activateResourceRow(target: EventTarget | null): void {
     const resource = this.resourceFromTarget(target);
-    if (resource === 'food') {
-      this.setFoodBreakdownOpen(this.foodBreakdown.hasAttribute('hidden'));
-      return;
-    }
-    if (resource) this.onLocateResource?.(resource);
-  }
-
-  private setFoodBreakdownOpen(open: boolean): void {
-    this.foodBreakdown.hidden = !open;
-    this.foodStat.setAttribute('aria-expanded', String(open));
-    this.foodStat.classList.toggle('is-open', open);
+    if (resource && resource !== 'food') this.onLocateResource?.(resource);
   }
 
   private resourceFromTarget(target: EventTarget | null): HudResourceKind | null {
@@ -1452,8 +1436,8 @@ export class SettlementHud {
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
     this.geologyAlert.removeEventListener('click', this.onGeologyAlertClick);
-    this.foodBreakdownClose.removeEventListener('click', this.onFoodBreakdownClose);
-    this.foodBreakdownLocate.removeEventListener('click', this.onFoodBreakdownLocate);
+    this.foodStores.removeEventListener('toggle', this.onFoodStoresToggle);
+    this.specialtyStores.removeEventListener('toggle', this.onSpecialtyStoresToggle);
     window.removeEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);
     window.removeEventListener('keydown', this.onApprovalEscape, true);
   }

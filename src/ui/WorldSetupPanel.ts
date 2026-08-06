@@ -119,7 +119,7 @@ export class WorldSetupPanel {
               <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
             </label>
             <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
-            <p class="world-setup-slider-hint">Stone, clay, iron, and salt are all physical local deposits. Every map has finite ordinary sources for all four. Rich stone and clay roll independently; iron and salt share up to one rich-mineral opportunity on small or medium maps and two on large maps, with the seed and local variety deciding which mineral receives them.</p>
+            <p class="world-setup-slider-hint">Stone, clay, iron, and salt are all physical local deposits. Every map has finite ordinary sources for all four. Clay follows river or coastal sediment where water exists; waterless maps receive smaller, leaner clay lenses in old inland basins. Coastal salt favors the dry shore shelf, waterless salt favors ancient basin evaporites, and freshwater maps expose inland rock salt away from riverbanks. Rich stone and clay roll independently; iron and salt share up to one rich-mineral opportunity on small or medium maps and two on large maps, with the seed and local variety deciding which mineral receives them.</p>
 
             <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
               <span>Local variety</span>

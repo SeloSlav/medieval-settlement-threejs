@@ -183,8 +183,11 @@ export function getBuildingFootprintCorners(
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
   const worldPoint = (localX: number, localZ: number) => ({
-    x: x + localX * cos - localZ * sin,
-    z: z + localX * sin + localZ * cos,
+    // Match THREE.Object3D.rotation.y: local +Z turns toward world +X for a
+    // positive yaw. Keeping the footprint in that convention makes its
+    // front/back borders follow the same road tangent as the rendered mesh.
+    x: x + localX * cos + localZ * sin,
+    z: z - localX * sin + localZ * cos,
   });
   return [
     worldPoint(-halfWidth, -halfDepth),
@@ -213,8 +216,8 @@ export function pointWithinBuildingSiteClearance(
   const dz = z - building.z;
   const cos = Math.cos(rotation);
   const sin = Math.sin(rotation);
-  const localX = dx * cos + dz * sin;
-  const localZ = -dx * sin + dz * cos;
+  const localX = dx * cos - dz * sin;
+  const localZ = dx * sin + dz * cos;
   const normDist = Math.hypot(localX / params.radiusX, localZ / params.radiusZ);
   const clearOuter = params.outerFade * 1.04 + clearanceRadius / Math.min(params.radiusX, params.radiusZ);
   return normDist <= clearOuter;
@@ -251,8 +254,8 @@ export function sampleBuildingFootprintPoints(
         const localX = sx * params.radiusX * params.innerFade * sampleFraction;
         const localZ = sz * params.radiusZ * params.innerFade * sampleFraction;
         points.push({
-          x: x + localX * cos - localZ * sin,
-          z: z + localX * sin + localZ * cos,
+          x: x + localX * cos + localZ * sin,
+          z: z - localX * sin + localZ * cos,
         });
       }
     }
@@ -274,7 +277,9 @@ function createBuildingPadSite(
     x: building.x,
     z: building.z,
     ...params,
-    rotation,
+    // Terrain pad sampling uses the mathematical X/Z rotation convention,
+    // while building yaw follows THREE.Object3D.rotation.y.
+    rotation: -rotation,
     platformHeight,
     shape: 'ellipse',
     maxRaise: building.kind === 'large_quarry' ? 1.5 : undefined,

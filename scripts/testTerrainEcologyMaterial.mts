@@ -115,7 +115,13 @@ assert.match(ecologySource, /attribute\('forestBlend', 'float'\)/);
 assert.match(ecologySource, /packedForestLitterUv\(forestUv\)/);
 assert.match(ecologySource, /packedForestLitterGradient\(forestUv\.dFdx\(\)\)/);
 assert.match(ecologySource, /packedForestLitterGradient\(forestUv\.dFdy\(\)\)/);
-assert.match(ecologySource, /const forestColorNode = mix\([\s\S]*?forestOverviewColorNode[\s\S]*?forestDetailColorNode[\s\S]*?closeMaterialDetail/);
+assert.match(
+  ecologySource,
+  /const forestOverviewTexturedColorNode = mix\([\s\S]*?forestOverviewColorNode[\s\S]*?forestDetailStableColorNode[\s\S]*?float\(0\.72\)/,
+  'the authored leaf-litter grain must remain visible at strategic zoom',
+);
+assert.match(ecologySource, /const forestColorNode = mix\([\s\S]*?forestOverviewTexturedColorNode[\s\S]*?forestDetailColorNode[\s\S]*?closeMaterialDetail/);
+assert.match(ecologySource, /const forestStableColorNode = mix\([\s\S]*?forestOverviewTexturedColorNode[\s\S]*?forestDetailStableColorNode[\s\S]*?closeMaterialDetail/);
 assert.match(ecologySource, /const forestBumpNode = bumpMap/);
 assert.match(ecologySource, /const forestNormalNode = normalize\([\s\S]*?forestBumpNode[\s\S]*?closeMaterialDetail\.mul\(rainNormalVisibility\)/);
 assert.match(ecologySource, /const forestRoughnessNode = mix/);

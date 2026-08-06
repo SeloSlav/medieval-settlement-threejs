@@ -47,6 +47,11 @@ export function beginMapIconFrame(
     return null;
   }
 
+  // The DOM overlay is projected before SceneManager renders. Three.js normally
+  // refreshes matrixWorldInverse during that render, which left icons using the
+  // previous frame's view matrix while middle-mouse rotation was active.
+  camera.updateMatrixWorld();
+
   const reveal = isBlocked() ? 0 : resolveResourceIconOpacity(getZoomPercent());
   const show = reveal > 0.02;
   setHiddenIfChanged(root, !show);

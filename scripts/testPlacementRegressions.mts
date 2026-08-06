@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { getBuildingSiteClearanceSearchRadius } from '../src/buildings/BuildingTerrainLayout.ts';
+import { intersectTerrainHeightfieldRay } from '../src/terrain/TerrainProjector.ts';
+import {
+  getBuildingFootprintCorners,
+  getBuildingSiteClearanceSearchRadius,
+} from '../src/buildings/BuildingTerrainLayout.ts';
 import {
   buildingPlacementYaw,
   resolveRoadsideBuildingPlacement,
@@ -323,6 +327,32 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
     resolveRoadsideBuildingPlacement('smithy', 4, 40, roads),
     { x: 4, z: 40 },
     'the roadside magnet should release distant cursor positions',
+  );
+
+  const diagonalRoads = new RoadNetwork();
+  diagonalRoads.addRoadPath([
+    new THREE.Vector3(-30, 0, -30),
+    new THREE.Vector3(30, 0, 30),
+  ]);
+  const diagonal = resolveRoadsideBuildingPlacement('smithy', -2, 8, diagonalRoads);
+  const diagonalYaw = buildingPlacementYaw(
+    'smithy',
+    diagonal.x,
+    diagonal.z,
+    diagonalRoads,
+  );
+  const diagonalCorners = getBuildingFootprintCorners(
+    'smithy',
+    diagonal.x,
+    diagonal.z,
+    diagonalYaw,
+  );
+  const borderDx = diagonalCorners[1].x - diagonalCorners[0].x;
+  const borderDz = diagonalCorners[1].z - diagonalCorners[0].z;
+  const cross = borderDx - borderDz;
+  assert(
+    Math.abs(cross) < 1e-6,
+    'the road-facing footprint border should be parallel to a diagonal road',
   );
 }
 
@@ -696,6 +726,48 @@ function testMineralMineCanOccupyItsDeposit(): void {
   );
 }
 
+function testTerrainPointerPickingUsesBoundedHeightfieldWork(): void {
+  let heightSamples = 0;
+  const terrain = {
+    size: 240,
+    resolution: 769,
+    getHeightAt: (x: number, z: number) => {
+      heightSamples += 1;
+      return 0.08 * x - 0.04 * z + 3;
+    },
+  };
+  const ray = new THREE.Ray(
+    new THREE.Vector3(38, 120, 76),
+    new THREE.Vector3(-0.22, -0.82, -0.53).normalize(),
+  );
+  const denominator = ray.direction.y
+    - 0.08 * ray.direction.x
+    + 0.04 * ray.direction.z;
+  const expectedT = (
+    0.08 * ray.origin.x
+    - 0.04 * ray.origin.z
+    + 3
+    - ray.origin.y
+  ) / denominator;
+  const expected = ray.at(expectedT, new THREE.Vector3());
+  const target = new THREE.Vector3();
+  const hit = intersectTerrainHeightfieldRay(ray, terrain, 500, target);
+  assert.equal(hit, target, 'heightfield picking should reuse its caller-owned hit vector');
+  assert.ok(hit);
+  assert.ok(hit.distanceTo(expected) < 0.002, 'heightfield picking must retain sub-centimeter placement precision');
+  assert.ok(
+    heightSamples < terrain.resolution * 2,
+    'one pointer pick must stay bounded by heightfield resolution instead of render-triangle count',
+  );
+
+  const missesTerrain = intersectTerrainHeightfieldRay(
+    new THREE.Ray(new THREE.Vector3(0, 80, 0), new THREE.Vector3(0, 1, 0)),
+    terrain,
+    500,
+  );
+  assert.equal(missesTerrain, null, 'an upward ray should not invent a terrain hit');
+}
+
 testClearanceSpatialIndexKeepsNearbyCandidates();
 testRoadFacingBuildingsSnapToRoadSides();
 testQuarryFootprintsAvoidRivers();
@@ -705,6 +777,7 @@ testPlacementOverlaysFollowTerrainHeight();
 testPlacementPreviewShowsTerrainFollowingExtent();
 testCivicAndFrontierPlacementPrerequisites();
 testMineralMineCanOccupyItsDeposit();
+testTerrainPointerPickingUsesBoundedHeightfieldWork();
 
 assert.equal(
   describeBuildingPlacementBlocker('requires_shore'),
@@ -785,6 +858,33 @@ const app = readFileSync('src/app/App.ts', 'utf8');
 const buildToolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 const buildChrome = readFileSync('src/ui/buildChrome.css', 'utf8');
 const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
+const terrainProjector = readFileSync('src/terrain/TerrainProjector.ts', 'utf8');
+const firstPersonController = readFileSync('src/camera/FirstPersonController.ts', 'utf8');
+const cameraController = readFileSync('src/camera/CameraController.ts', 'utf8');
+const roadTool = readFileSync('src/roads/RoadTool.ts', 'utf8');
+
+assert.doesNotMatch(
+  terrainProjector,
+  /intersectObject\(this\.terrain\.mesh/,
+  'pointer hover must not raycast the million-triangle render terrain',
+);
+assert.match(terrainProjector, /intersectTerrainHeightfieldRay/);
+assert.match(terrainProjector, /setViewportRect/);
+assert.match(
+  firstPersonController,
+  /pendingLookDeltaX \+= event\.movementX[\s\S]*pendingLookDeltaY \+= event\.movementY/,
+  'first-person mouse input must accumulate raw events for the next render frame',
+);
+assert.match(
+  cameraController,
+  /pendingRotateX \+= dx[\s\S]*pendingRotateY \+= dy/,
+  'orbit mouse input must accumulate raw events for the next render frame',
+);
+assert.match(
+  roadTool,
+  /if \(this\.pointerDirty\)[\s\S]*this\.processPointerHover/,
+  'road hover picking must run at most once per render frame',
+);
 
 assert.match(
   buildingReducer,

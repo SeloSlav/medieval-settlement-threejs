@@ -980,7 +980,7 @@
       "requiresBerries": false
     },
     "clay_pit": {
-      "label": "Riverbank clay pit",
+      "label": "Clay pit",
       "cost": { "timber": 24, "stone": 8 },
       "storage": { "timber": 0, "firewood": 0, "stone": 0, "clay": 180, "ironwork": 3 },
       "workRadius": 0,

@@ -863,7 +863,7 @@ export const BUILDING_DEFINITIONS = {
   },
   clay_pit: {
     kind: 'clay_pit',
-    label: "Riverbank clay pit",
+    label: "Clay pit",
     workRadius: 0,
     pickRadius: 10,
     harvestInterval: 8,

@@ -6,6 +6,11 @@ import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
 
 export type MineralDepositResource = 'iron' | 'salt';
 export type MineralDepositGrade = 'ordinary' | 'rich';
+export type MineralDepositFormation =
+  | 'bedrock'
+  | 'rock_salt'
+  | 'coastal_evaporite'
+  | 'dry_basin_evaporite';
 
 export type MineralDepositSite = {
   x: number;
@@ -13,6 +18,7 @@ export type MineralDepositSite = {
   rotation: number;
   resource: MineralDepositResource;
   grade: MineralDepositGrade;
+  formation: MineralDepositFormation;
   radiusX: number;
   radiusZ: number;
 };
@@ -49,7 +55,13 @@ export function mineralDepositMaxYield(site: MineralDepositSite): number {
 }
 
 export function mineralDepositLabel(site: MineralDepositSite): string {
-  const resource = site.resource === 'iron' ? 'Iron' : 'Salt';
+  const resource = site.resource === 'iron'
+    ? 'Iron'
+    : site.formation === 'coastal_evaporite'
+      ? 'Coastal salt'
+      : site.formation === 'dry_basin_evaporite'
+        ? 'Dry-basin salt'
+        : 'Salt';
   return `${site.grade === 'rich' ? 'Rich ' : ''}${resource} deposit`;
 }
 
@@ -154,6 +166,9 @@ function pickMineralSite(
   existing: readonly MineralDepositSite[],
   avoidSites: ReadonlyArray<{ x: number; z: number }>,
 ): MineralDepositSite | null {
+  const formation = mineralDepositFormation(entry.resource, riverLayout);
+  let best: MineralDepositSite | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
   for (let attempt = 0; attempt < 720; attempt++) {
     const radiusX = entry.grade === 'rich'
       ? lerp(22, 29, rng())
@@ -168,17 +183,74 @@ function pickMineralSite(
     if (!hasClearance(x, z, existing, MIN_DEPOSIT_SPACING)) continue;
     if (!hasClearance(x, z, avoidSites, RESOURCE_CLEARANCE)) continue;
     if (!footprintIsDry(riverLayout, x, z, radiusX, radiusZ)) continue;
-    return {
+    const candidate: MineralDepositSite = {
       x,
       z,
       rotation: rng() * Math.PI,
       resource: entry.resource,
       grade: entry.grade,
+      formation,
       radiusX,
       radiusZ,
     };
+    const score = mineralSitePreference(candidate, riverLayout, playableHalf)
+      + rng() * 0.08;
+    if (score <= bestScore) continue;
+    best = candidate;
+    bestScore = score;
   }
-  return null;
+  return best;
+}
+
+function mineralDepositFormation(
+  resource: MineralDepositResource,
+  riverLayout: RiverLayout,
+): MineralDepositFormation {
+  if (resource === 'iron') return 'bedrock';
+  if (riverLayout.getCoastalShoreX(0) !== null) return 'coastal_evaporite';
+  if (riverLayout.corridors.length === 0) return 'dry_basin_evaporite';
+  return 'rock_salt';
+}
+
+function mineralSitePreference(
+  site: MineralDepositSite,
+  riverLayout: RiverLayout,
+  playableHalf: number,
+): number {
+  if (site.formation === 'coastal_evaporite') {
+    const shoreX = riverLayout.getCoastalShoreX(site.z);
+    if (shoreX === null) return -100;
+    const inlandDistance = site.x - shoreX;
+    return 8 - Math.abs(inlandDistance - 52) / 18;
+  }
+  if (site.formation === 'dry_basin_evaporite') {
+    const basinDistance = Math.hypot(
+      site.x - riverLayout.drain.x,
+      site.z - riverLayout.drain.z,
+    );
+    return 5 - basinDistance / Math.max(1, playableHalf * 0.24);
+  }
+  if (site.formation === 'rock_salt') {
+    return estimatedWaterClearance(riverLayout, site.x, site.z) / 32;
+  }
+  return Math.hypot(site.x, site.z) / Math.max(1, playableHalf) * 0.25;
+}
+
+function estimatedWaterClearance(
+  riverLayout: RiverLayout,
+  x: number,
+  z: number,
+): number {
+  for (let radius = 24; radius <= 120; radius += 12) {
+    for (let index = 0; index < 16; index++) {
+      const angle = index / 16 * Math.PI * 2;
+      if (riverLayout.isWaterAt(
+        x + Math.cos(angle) * radius,
+        z + Math.sin(angle) * radius,
+      )) return radius;
+    }
+  }
+  return 132;
 }
 
 function footprintIsDry(

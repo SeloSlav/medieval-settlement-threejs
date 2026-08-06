@@ -12,7 +12,10 @@ import {
   type DeerMotionState,
   updateDeerMotion,
 } from '../src/foraging/DeerWildlifeBehavior.ts';
-import { createGameHerdSpawnPoints } from '../src/foraging/DeerWildlifeVisuals.ts';
+import {
+  createGameHerdSpawnPoints,
+  skeletonsUseSharedRig,
+} from '../src/foraging/DeerWildlifeVisuals.ts';
 import {
   GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_MAX_YIELD,
@@ -183,16 +186,32 @@ for (const asset of [
   );
 
   const clonedScene = cloneSkinned(gltf.scene);
-  let clonedSkinnedMesh: THREE.SkinnedMesh | null = null;
+  const clonedSkinnedMeshes: THREE.SkinnedMesh[] = [];
   clonedScene.traverse((object) => {
     const skinnedMesh = object as THREE.SkinnedMesh;
-    if (!clonedSkinnedMesh && skinnedMesh.isSkinnedMesh) clonedSkinnedMesh = skinnedMesh;
+    if (skinnedMesh.isSkinnedMesh) clonedSkinnedMeshes.push(skinnedMesh);
   });
+  const clonedSkinnedMesh = clonedSkinnedMeshes[0];
   assert.ok(clonedSkinnedMesh, `the ${asset.label} runtime clone should remain skinned`);
   assert.notEqual(
     clonedSkinnedMesh.skeleton,
     sourceSkinnedMesh.skeleton,
     `each ${asset.label} should receive an independent skeleton for animation`,
+  );
+  assert.ok(
+    clonedSkinnedMeshes.length > 1,
+    `the ${asset.label} runtime clone should retain its material layers`,
+  );
+  assert.notEqual(
+    clonedSkinnedMeshes[1]!.skeleton,
+    clonedSkinnedMesh.skeleton,
+    `SkeletonUtils should keep distinct ${asset.label} skeleton wrappers per material layer`,
+  );
+  assert.ok(
+    clonedSkinnedMeshes.every((mesh) => (
+      skeletonsUseSharedRig(mesh.skeleton, clonedSkinnedMesh.skeleton)
+    )),
+    `all cloned ${asset.label} material layers should be accepted as one shared rig`,
   );
 }
 

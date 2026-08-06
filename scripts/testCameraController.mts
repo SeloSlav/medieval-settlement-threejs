@@ -279,15 +279,25 @@ function releaseMouse(button: number): void {
 
 {
   let renderCount = 0;
-  const { domElement } = createController(() => {
+  const { controller, domElement, target } = createController(() => {
     renderCount += 1;
   }, true);
+  const targetBeforeInput = target.clone();
   requestAnimationFrame(() => {
     // This is the single continuous App render for the display frame.
     renderCount += 1;
   });
   rmbPan(domElement, 0, 0, 40, 0);
   rmbPan(domElement, 40, 0, 80, 0);
+  assert.ok(
+    target.equals(targetBeforeInput),
+    'continuous play must not mutate the camera once per raw mouse event',
+  );
+  controller.update(0.016);
+  assert.ok(
+    !target.equals(targetBeforeInput),
+    'continuous play must apply the coalesced pointer delta on the render frame',
+  );
   domElement.dispatch('wheel', wheelEvent({ deltaY: -120 }));
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   assert.equal(

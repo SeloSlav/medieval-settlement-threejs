@@ -7,7 +7,7 @@ import {
 } from './precipitationPolicy.ts';
 
 type ParticleLayer = {
-  mesh: THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   opacity: number;
   speedScale: number;
   radiusScale: number;
@@ -24,16 +24,16 @@ const OVERVIEW_VOLUME_RADIUS_SCALE = 0.78;
 const OVERVIEW_MAX_VOLUME_RADIUS = 185;
 const RAIN_BASE_PARTICLES = 1_800;
 const SNOW_BASE_PARTICLES = 1_400;
-const VOLUME_FORWARD_BIAS_FRACTION = 0.32;
 const RAIN_NEAR_EXCLUSION_FRACTION = 0.3;
 const SNOW_NEAR_EXCLUSION_FRACTION = 0.18;
 
 /**
  * Camera-local precipitation with a fixed particle budget.
  *
- * Static instanced cards are vertically tiled and the two layer transforms move
- * around the camera. That keeps rain/snow to two draw calls with no per-particle
- * CPU uploads, while depth testing still lets roofs, trees, and terrain occlude it.
+ * Static cards are baked into two vertically tiled draw layers whose transforms
+ * move around the camera. That keeps rain/snow to two draw calls with no
+ * per-particle CPU uploads or per-vertex instance-matrix work, while depth
+ * testing still lets roofs, trees, and terrain occlude it.
  */
 export class PrecipitationRenderer {
   readonly group = new THREE.Group();
@@ -44,7 +44,6 @@ export class PrecipitationRenderer {
   private readonly rainLayers: ParticleLayer[];
   private readonly snowLayers: ParticleLayer[];
   private profile: PrecipitationProfile = precipitationProfile(null);
-  private readonly horizontalCameraForward = new THREE.Vector3(0, 0, -1);
   private rainAmount = 0;
   private snowAmount = 0;
   private elapsed = 0;
@@ -110,18 +109,16 @@ export class PrecipitationRenderer {
       this.camera.position.y - precipitationFloorBelowCamera,
       this.camera.position.z,
     );
-    this.camera.getWorldDirection(this.horizontalCameraForward);
-    this.horizontalCameraForward.y = 0;
-    if (this.horizontalCameraForward.lengthSq() > 1e-6) {
-      this.horizontalCameraForward.normalize();
-      this.group.rotation.y = Math.atan2(
-        -this.horizontalCameraForward.x,
-        -this.horizontalCameraForward.z,
-      );
-    }
 
-    this.updateLayers(this.rainLayers, this.rainAmount * overviewVisibility, radius, 'rain', frameDt);
-    this.updateLayers(this.snowLayers, this.snowAmount * overviewVisibility, radius, 'snow', frameDt);
+    // Keep precipitation world-aligned. Rotating the complete instanced volume
+    // with camera yaw made every streak sweep sideways during mouse-look and
+    // dirtied all four layer transforms even when their weather was inactive.
+    if (this.rainAmount > 0.008 || targetRain > 0) {
+      this.updateLayers(this.rainLayers, this.rainAmount * overviewVisibility, radius, 'rain', frameDt);
+    }
+    if (this.snowAmount > 0.008 || targetSnow > 0) {
+      this.updateLayers(this.snowLayers, this.snowAmount * overviewVisibility, radius, 'snow', frameDt);
+    }
     this.applyVisibility();
   }
 
@@ -146,9 +143,14 @@ export class PrecipitationRenderer {
     shadowColor: number,
   ): ParticleLayer {
     const seed = kind === 'rain' ? count * 19 + 71 : count * 29 + 131;
-    const geometry = kind === 'rain'
-      ? createRainStreakGeometry()
-      : createSnowflakeGeometry();
+    const geometry = createParticleGeometry(
+      count,
+      seed,
+      kind,
+      size,
+      color,
+      shadowColor,
+    );
     const material = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       map: kind === 'rain' ? this.rainTexture : this.snowTexture,
@@ -160,21 +162,15 @@ export class PrecipitationRenderer {
       vertexColors: true,
       fog: true,
       side: THREE.DoubleSide,
+      // Crossed precipitation cards have no enclosed front/back surface. A
+      // second transparent-side pass only doubles their draw and blend work.
+      forceSinglePass: true,
       blending: THREE.NormalBlending,
     });
     material.name = kind === 'rain' ? 'Depth-tested rain streaks' : 'Soft depth-tested snowflakes';
 
-    const mesh = createParticleInstances(
-      geometry,
-      material,
-      count,
-      seed,
-      kind,
-      size,
-      color,
-      shadowColor,
-    );
-    mesh.name = kind === 'rain' ? 'Recycled instanced rain layer' : 'Recycled instanced snow layer';
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = kind === 'rain' ? 'Baked recycled rain layer' : 'Baked recycled snow layer';
     mesh.frustumCulled = false;
     mesh.renderOrder = 36;
 
@@ -226,26 +222,29 @@ export class PrecipitationRenderer {
   }
 }
 
-function createParticleInstances(
-  geometry: THREE.BufferGeometry,
-  material: THREE.MeshBasicMaterial,
+function createParticleGeometry(
   count: number,
   seed: number,
   kind: Exclude<PrecipitationKind, 'none'>,
   size: number,
   brightColor: number,
   shadowColor: number,
-): THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
-  // Two identical vertical tiles prevent a visible empty band when a layer wraps.
-  const mesh = new THREE.InstancedMesh(geometry, material, count * 2);
+): THREE.BufferGeometry {
+  const sourceGeometry = kind === 'rain'
+    ? createRainStreakGeometry()
+    : createSnowflakeGeometry();
+  const sourcePositions = sourceGeometry.getAttribute('position') as THREE.BufferAttribute;
+  const sourceUvs = sourceGeometry.getAttribute('uv') as THREE.BufferAttribute;
+  const verticesPerCard = sourcePositions.count;
+  const totalVertices = count * 2 * verticesPerCard;
+  const positions = new Float32Array(totalVertices * 3);
+  const uvs = new Float32Array(totalVertices * 2);
+  const colors = new Float32Array(totalVertices * 3);
   const bright = new THREE.Color(brightColor);
   const shadow = new THREE.Color(shadowColor);
   const rng = mulberry32(seed);
-  const matrix = new THREE.Matrix4();
-  const position = new THREE.Vector3();
-  const quaternion = new THREE.Quaternion();
-  const scale = new THREE.Vector3();
   const color = new THREE.Color();
+  let vertexOffset = 0;
 
   for (let index = 0; index < count; index += 1) {
     const nearExclusion = kind === 'rain'
@@ -253,15 +252,13 @@ function createParticleInstances(
       : SNOW_NEAR_EXCLUSION_FRACTION;
     let x = 0;
     let z = 0;
-    // The local -Z axis is rotated onto the horizontal camera look direction
-    // each frame. Biasing the disk forward preserves overview coverage, while
-    // rejecting the camera-centered near zone prevents giant foreground cards.
+    // A camera-centered disk keeps coverage stable in every look direction,
+    // while rejecting the near zone prevents giant foreground cards.
     for (let attempt = 0; attempt < 12; attempt += 1) {
       const angle = rng() * Math.PI * 2;
       const radius = Math.sqrt(rng());
       x = Math.cos(angle) * radius * BASE_VOLUME_RADIUS;
-      z = Math.sin(angle) * radius * BASE_VOLUME_RADIUS
-        - BASE_VOLUME_RADIUS * VOLUME_FORWARD_BIAS_FRACTION;
+      z = Math.sin(angle) * radius * BASE_VOLUME_RADIUS;
       if (Math.hypot(x, z) >= BASE_VOLUME_RADIUS * nearExclusion) break;
     }
     const nearDistance = Math.hypot(x, z);
@@ -281,23 +278,33 @@ function createParticleInstances(
     const scaleVariance = kind === 'rain'
       ? 0.72 + rng() * 0.58
       : 0.62 + rng() * 0.78;
-    scale.setScalar(size * scaleVariance);
+    const cardScale = size * scaleVariance;
 
-    position.set(x, y, z);
-    matrix.compose(position, quaternion, scale);
-    mesh.setMatrixAt(index, matrix);
-    mesh.setColorAt(index, color);
-
-    position.y += VOLUME_HEIGHT;
-    matrix.compose(position, quaternion, scale);
-    mesh.setMatrixAt(index + count, matrix);
-    mesh.setColorAt(index + count, color);
+    // Two identical vertical tiles prevent a visible empty band when a layer wraps.
+    for (let tile = 0; tile < 2; tile += 1) {
+      const tileY = y + tile * VOLUME_HEIGHT;
+      for (let vertex = 0; vertex < verticesPerCard; vertex += 1) {
+        const positionOffset = vertexOffset * 3;
+        const uvOffset = vertexOffset * 2;
+        positions[positionOffset] = x + sourcePositions.getX(vertex) * cardScale;
+        positions[positionOffset + 1] = tileY + sourcePositions.getY(vertex) * cardScale;
+        positions[positionOffset + 2] = z + sourcePositions.getZ(vertex) * cardScale;
+        uvs[uvOffset] = sourceUvs.getX(vertex);
+        uvs[uvOffset + 1] = sourceUvs.getY(vertex);
+        colors[positionOffset] = color.r;
+        colors[positionOffset + 1] = color.g;
+        colors[positionOffset + 2] = color.b;
+        vertexOffset += 1;
+      }
+    }
   }
 
-  mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
-  mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  return mesh;
+  sourceGeometry.dispose();
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return geometry;
 }
 
 function createRainStreakGeometry(): THREE.BufferGeometry {

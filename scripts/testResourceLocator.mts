@@ -259,6 +259,16 @@ for (const resource of HUD_RESOURCE_KINDS) {
   );
 }
 
+const polishedGameUiSource = readFileSync(
+  new URL('../src/ui/polishedGameUi.css', import.meta.url),
+  'utf8',
+);
+assert.match(
+  polishedGameUiSource,
+  /\.settlement-hud__stores:not\(\.has-stock\):not\(\.has-geology-alert\)[\s\S]*?opacity:\s*0\.48/,
+  'the combined stores icon must use the same empty opacity as zero-value resources',
+);
+
 const manyBuildings = new Map<string, BuildingState>();
 for (let index = 0; index < 100_000; index += 1) {
   const id = `building-${index}`;

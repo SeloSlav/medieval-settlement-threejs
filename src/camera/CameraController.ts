@@ -75,6 +75,10 @@ export class CameraController {
   private isRotating = false;
   private lastMouseX = 0;
   private lastMouseY = 0;
+  private pendingPanX = 0;
+  private pendingPanY = 0;
+  private pendingRotateX = 0;
+  private pendingRotateY = 0;
   private activeCursor = '';
   private viewChangeFrame = 0;
   private wheelNavigationUntilMs = 0;
@@ -145,6 +149,10 @@ export class CameraController {
     this.isPanning = false;
     this.isRotating = false;
     this.wheelNavigationUntilMs = 0;
+    this.pendingPanX = 0;
+    this.pendingPanY = 0;
+    this.pendingRotateX = 0;
+    this.pendingRotateY = 0;
     this.keys.clear();
   }
 
@@ -180,6 +188,27 @@ export class CameraController {
   update(dt: number): void {
     if (!this.inputEnabled) return;
     const scale = this.getPanScale();
+    if (this.pendingPanX !== 0 || this.pendingPanY !== 0) {
+      this.pan(
+        this.pendingPanX * RMB_PAN_MULTIPLIER * scale,
+        this.pendingPanY * RMB_PAN_MULTIPLIER * scale,
+      );
+      this.pendingPanX = 0;
+      this.pendingPanY = 0;
+    }
+    if (this.pendingRotateX !== 0 || this.pendingRotateY !== 0) {
+      this.currentYaw = this.normalizeAngle(
+        this.currentYaw - this.pendingRotateX * ROTATE_SENSITIVITY,
+      );
+      this.currentPitch = THREE.MathUtils.clamp(
+        this.currentPitch + this.pendingRotateY * PITCH_SENSITIVITY,
+        MIN_PITCH,
+        MAX_PITCH,
+      );
+      this.currentDistance = this.clampDistance(this.currentDistance);
+      this.pendingRotateX = 0;
+      this.pendingRotateY = 0;
+    }
     const panSpeed = KEY_PAN_SPEED * scale * dt;
     if (this.keys.has('w') || this.keys.has('arrowup')) this.pan(0, panSpeed);
     if (this.keys.has('s') || this.keys.has('arrowdown')) this.pan(0, -panSpeed);
@@ -232,12 +261,18 @@ export class CameraController {
         this.isPanning = false;
         return;
       }
-      const dx = (event.clientX - this.lastMouseX) * RMB_PAN_MULTIPLIER * this.getPanScale();
-      const dy = (event.clientY - this.lastMouseY) * RMB_PAN_MULTIPLIER * this.getPanScale();
+      const rawDx = event.clientX - this.lastMouseX;
+      const rawDy = event.clientY - this.lastMouseY;
       this.lastMouseX = event.clientX;
       this.lastMouseY = event.clientY;
-      this.pan(dx, dy);
-      this.commitViewChange();
+      if (this.config.continuousRenderLoop) {
+        this.pendingPanX += rawDx;
+        this.pendingPanY += rawDy;
+      } else {
+        const scale = this.getPanScale();
+        this.pan(rawDx * RMB_PAN_MULTIPLIER * scale, rawDy * RMB_PAN_MULTIPLIER * scale);
+        this.commitViewChange();
+      }
     } else if (this.isRotating) {
       if ((event.buttons & 4) === 0) {
         this.isRotating = false;
@@ -247,10 +282,15 @@ export class CameraController {
       const dy = event.clientY - this.lastMouseY;
       this.lastMouseX = event.clientX;
       this.lastMouseY = event.clientY;
-      this.currentYaw = this.normalizeAngle(this.currentYaw - dx * ROTATE_SENSITIVITY);
-      this.currentPitch = THREE.MathUtils.clamp(this.currentPitch + dy * PITCH_SENSITIVITY, MIN_PITCH, MAX_PITCH);
-      this.currentDistance = this.clampDistance(this.currentDistance);
-      this.commitViewChange();
+      if (this.config.continuousRenderLoop) {
+        this.pendingRotateX += dx;
+        this.pendingRotateY += dy;
+      } else {
+        this.currentYaw = this.normalizeAngle(this.currentYaw - dx * ROTATE_SENSITIVITY);
+        this.currentPitch = THREE.MathUtils.clamp(this.currentPitch + dy * PITCH_SENSITIVITY, MIN_PITCH, MAX_PITCH);
+        this.currentDistance = this.clampDistance(this.currentDistance);
+        this.commitViewChange();
+      }
     }
   };
 

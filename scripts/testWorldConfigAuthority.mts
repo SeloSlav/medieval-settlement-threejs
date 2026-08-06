@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import type { WorldConfig } from '../src/generated/types.ts';
 import { GameRuntime } from '../src/runtime/GameRuntime.ts';
 import {
@@ -155,6 +156,7 @@ assert.deepEqual(
 
 await testTerminalMismatchDoesNotRetryOnEverySnapshot();
 await testReducerLockBecomesTerminalMismatch();
+await testStartupAlwaysReconfirmsWorldConfiguration();
 
 console.log('world config authority tests passed');
 
@@ -299,6 +301,36 @@ async function testReducerLockBecomesTerminalMismatch(): Promise<void> {
   } finally {
     console.warn = previousWarn;
   }
+}
+
+async function testStartupAlwaysReconfirmsWorldConfiguration(): Promise<void> {
+  const storeSource = await readFile(
+    new URL('../src/data/spacetimeGameStore.ts', import.meta.url),
+    'utf8',
+  );
+  const configureMethod = storeSource.match(
+    /async configureWorld\(settings: WorldGenerationSettings\): Promise<void> \{([\s\S]*?)\n  \}/,
+  )?.[1] ?? '';
+  assert.match(
+    configureMethod,
+    /await spacetimeReducers\.configureWorld\(settings\)/,
+    'every startup must reconfirm the idempotent server world contract',
+  );
+  assert.doesNotMatch(
+    configureMethod,
+    /generationMatchesServer|server\?\.configured[\s\S]*?return/,
+    'a stale matching pre-reset row must never suppress configure_world',
+  );
+
+  const bootstrapFlowSource = await readFile(
+    new URL('../src/app/worldBootstrapFlow.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    bootstrapFlowSource,
+    /await resetWorld\(\);\s*await waitForWorldResetReplication\(\);/,
+    'new-world reload must wait until configured=false and sim_tick=0 are replicated',
+  );
 }
 
 type FakeSnapshot = {

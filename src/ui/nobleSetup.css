@@ -844,14 +844,16 @@
 
 .noble-hud {
   position: absolute;
-  top: -5px;
-  left: calc(100% + 12px);
+  top: -1px;
+  right: auto;
+  left: calc(50% + 50vw - max(14px, env(safe-area-inset-right, 0px)));
+  z-index: 6;
   display: grid;
-  grid-template-columns: 58px minmax(112px, 1fr) 36px;
+  grid-template-columns: minmax(54px, 1fr) 32px 72px;
   align-items: center;
-  gap: 8px;
-  width: 254px;
-  min-height: 62px;
+  gap: 6px;
+  width: 190px;
+  min-height: 80px;
   padding: 5px 7px 5px 5px;
   border: 1px solid rgba(222, 198, 145, 0.28);
   border-radius: 3px;
@@ -862,6 +864,7 @@
     0 18px 46px rgba(0, 0, 0, 0.38),
     inset 0 1px 0 rgba(255, 247, 220, 0.08);
   font-family: var(--ui-display, Georgia, serif);
+  transform: translateX(-100%);
 }
 
 .noble-hud::before {
@@ -874,14 +877,16 @@
 
 .noble-hud__portrait-shell {
   position: relative;
-  width: 54px;
-  height: 54px;
+  grid-column: 3;
+  grid-row: 1;
+  width: 72px;
+  height: 72px;
 }
 
 .noble-hud__portrait {
   display: block;
-  width: 54px;
-  height: 54px;
+  width: 72px;
+  height: 72px;
   object-fit: cover;
   object-position: center 18%;
   border: 1px solid rgba(225, 194, 120, 0.55);
@@ -907,25 +912,15 @@
 .heraldry-shield--hud .heraldry-shield__field { inset: 2px 2px 3px; }
 
 .noble-hud__identity {
+  grid-column: 1;
+  grid-row: 1;
   display: grid;
   align-content: center;
   min-width: 0;
 }
 
-.noble-hud__identity > span {
-  overflow: hidden;
-  color: #968d7b;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-size: 7px;
-  font-weight: 750;
-  letter-spacing: 0.11em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 .noble-hud__identity > strong {
-  margin: 1px 0 2px;
+  margin: 0 0 4px;
   overflow: hidden;
   color: #ead9b5;
   font-size: 12px;
@@ -967,6 +962,8 @@
 }
 
 .noble-hud__eye {
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
   place-items: center;
   width: 34px;
@@ -1004,23 +1001,22 @@
 
 @media (max-width: 1320px) {
   .noble-hud {
-    top: calc(100% + 7px);
-    right: 0;
-    left: auto;
-    width: 236px;
+    top: -1px;
+    right: auto;
+    width: 190px;
   }
 }
 
 @media (max-width: 760px) {
   .noble-hud {
-    top: calc(100% + 7px);
-    right: 0;
-    grid-template-columns: 46px minmax(92px, 1fr) 32px;
-    width: 210px;
-    min-height: 52px;
+    top: -1px;
+    right: auto;
+    grid-template-columns: minmax(48px, 1fr) 30px 60px;
+    width: 178px;
+    min-height: 68px;
   }
   .noble-hud__portrait-shell,
-  .noble-hud__portrait { width: 44px; height: 44px; }
+  .noble-hud__portrait { width: 60px; height: 60px; }
   .noble-hud__identity > strong { font-size: 10px; }
   .noble-hud__eye { width: 30px; height: 30px; }
 }

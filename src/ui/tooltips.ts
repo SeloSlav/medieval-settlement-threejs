@@ -11,9 +11,24 @@ export function mountTooltips(root: HTMLElement): () => void {
 
   let activeAnchor: HTMLElement | null = null;
   let showToken = 0;
+  const activeAnchorObserver = new MutationObserver(() => {
+    if (!activeAnchor) return;
+    refresh(activeAnchor);
+  });
+
+  const refresh = (anchor: HTMLElement): void => {
+    const text = anchor.dataset.tooltip?.trim();
+    if (!text) {
+      hide();
+      return;
+    }
+    renderTooltipContent(anchor, tooltip, text);
+    positionTooltip(anchor, tooltip);
+  };
 
   const hide = (): void => {
     showToken += 1;
+    activeAnchorObserver.disconnect();
     if (activeAnchor?.getAttribute('aria-describedby') === tooltip.id) {
       activeAnchor.removeAttribute('aria-describedby');
     }
@@ -32,6 +47,11 @@ export function mountTooltips(root: HTMLElement): () => void {
     }
 
     activeAnchor = anchor;
+    activeAnchorObserver.disconnect();
+    activeAnchorObserver.observe(anchor, {
+      attributes: true,
+      attributeFilter: ['data-tooltip', 'data-tooltip-title'],
+    });
     const token = showToken + 1;
     showToken = token;
     renderTooltipContent(anchor, tooltip, text);

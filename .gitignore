@@ -10,10 +10,15 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.tmp/
 tmp/
 _tmp/
 *.local
 .env.audio
+
+# Python bytecode
+__pycache__/
+*.py[cod]
 
 # Rust build artifacts
 server/target/

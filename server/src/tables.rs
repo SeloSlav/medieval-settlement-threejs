@@ -182,7 +182,7 @@ pub struct PlayerResources {
     /// Regional iron blooms and bars awaiting local smithing.
     #[default(0.0)]
     pub iron: f64,
-    /// Riverbank clay awaiting firing.
+    /// Locally dug clay awaiting firing.
     #[default(0.0)]
     pub clay: f64,
     /// Local or imported salt held for curing and trade.

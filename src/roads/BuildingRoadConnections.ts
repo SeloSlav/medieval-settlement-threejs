@@ -65,8 +65,8 @@ export function getBuildingRoadConnectionPoints(
   ] as const;
 
   return localOffsets.map((offset, index) => {
-    const x = building.x + offset.x * cos - offset.z * sin;
-    const z = building.z + offset.x * sin + offset.z * cos;
+    const x = building.x + offset.x * cos + offset.z * sin;
+    const z = building.z - offset.x * sin + offset.z * cos;
     return {
       id: `${building.id}:${index}`,
       buildingId: building.id,

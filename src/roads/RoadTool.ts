@@ -70,6 +70,7 @@ export class RoadTool {
   private validationDirty = true;
   private pointerClientX = Number.NaN;
   private pointerClientY = Number.NaN;
+  private pointerDirty = false;
   private validationScheduled = false;
   private readonly previewSampleScratch: THREE.Vector3[] = [];
   private readonly anchorScratch: THREE.Vector3[] = [];
@@ -170,6 +171,10 @@ export class RoadTool {
 
   update(dt: number): void {
     if (!this.enabled) return;
+    if (this.pointerDirty) {
+      this.pointerDirty = false;
+      this.processPointerHover(this.pointerClientX, this.pointerClientY);
+    }
     this.buildingConnections.update(dt);
     this.roadNodeSnapMarkers.update(dt);
     if (!this.hasDraft()) return;
@@ -285,7 +290,7 @@ export class RoadTool {
     this.pointerClientX = event.clientX;
     this.pointerClientY = event.clientY;
     if (!this.enabled) return;
-    this.processPointerHover(event.clientX, event.clientY);
+    this.pointerDirty = true;
   };
 
   private processPointerHover(clientX: number, clientY: number): void {

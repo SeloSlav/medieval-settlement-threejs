@@ -15,9 +15,16 @@ import type { ForagingSite } from './ForagingLayout.ts';
 import { BERRY_PATCH_RADIUS } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
 import { isForagingHarvestAvailable } from './foragingSeason.ts';
+import {
+  isBerryClumpVisible,
+  resolveBerryClumpPosition,
+} from './berryPatchPresentation.ts';
 
 type BerryClumpPlacement = {
   nodeId: string;
+  clumpIndex: number;
+  originX: number;
+  originZ: number;
   x: number;
   z: number;
   yaw: number;
@@ -140,13 +147,43 @@ export async function createBerryPatchVisuals(
     const seasonAvailable = isForagingHarvestAvailable('berries', month);
     placements.forEach((placement, index) => {
       const node = byId.get(placement.nodeId);
-      const stockRatio = node && node.maxYield > 0
-        ? THREE.MathUtils.clamp(node.remaining / node.maxYield, 0, 1)
-        : 0;
-      const visible = seasonAvailable && hash01(index * 7.31 + 21.7) < stockRatio;
-      mesh.setMatrixAt(index, visible ? raspberryMatrices[index] : hiddenMatrix);
+      if (!node) {
+        mesh.setMatrixAt(index, hiddenMatrix);
+        return;
+      }
+
+      const worldPosition = resolveBerryClumpPosition(
+        placement.originX,
+        placement.originZ,
+        placement.x,
+        placement.z,
+        node.x,
+        node.z,
+      );
+      const visible = isBerryClumpVisible(
+        placement.clumpIndex,
+        node.remaining,
+        node.maxYield,
+        seasonAvailable,
+        hash01(index * 7.31 + 21.7),
+      );
+      if (visible) {
+        const y = terrain.getHeightAt(worldPosition.x, worldPosition.z) + 0.07;
+        matrix.copy(raspberryMatrices[index]);
+        matrix.setPosition(worldPosition.x, y, worldPosition.z);
+        mesh.setMatrixAt(index, matrix);
+        attributes.anchor.setXYZ(index, worldPosition.x, y, worldPosition.z);
+      } else {
+        mesh.setMatrixAt(index, hiddenMatrix);
+      }
+    });
+    group.userData.berryPatchCenters = berrySites.map((site, index) => {
+      const nodeId = `foraging-berries-${index}`;
+      const node = byId.get(nodeId);
+      return { nodeId, x: node?.x ?? site.x, z: node?.z ?? site.z };
     });
     mesh.instanceMatrix.needsUpdate = true;
+    attributes.anchor.needsUpdate = true;
   };
 
   return {
@@ -189,6 +226,9 @@ function createBerryClumpPlacements(
 
       patch.push({
         nodeId,
+        clumpIndex: patch.length,
+        originX: site.x,
+        originZ: site.z,
         x,
         z,
         yaw: rng() * TAU,

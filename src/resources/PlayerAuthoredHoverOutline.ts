@@ -159,8 +159,8 @@ export function findPlayerAuthoredHoverPerimeter(
     );
     const cos = Math.cos(yaw);
     const sin = Math.sin(yaw);
-    const localX = dx * cos + dz * sin;
-    const localZ = -dx * sin + dz * cos;
+    const localX = dx * cos - dz * sin;
+    const localZ = dx * sin + dz * cos;
     if (Math.abs(localX) > halfWidth || Math.abs(localZ) > halfDepth) continue;
 
     const polygon = getBuildingFootprintCorners(

@@ -28,6 +28,11 @@ import {
   isGameHabitatClearOfWater,
 } from '../src/foraging/ForagingLayout.ts';
 import {
+  MIN_VISIBLE_BERRY_CLUMPS,
+  isBerryClumpVisible,
+  resolveBerryClumpPosition,
+} from '../src/foraging/berryPatchPresentation.ts';
+import {
   BERRY_PATCH_MAX_SPAWN_RADIUS,
   GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_MAX_YIELD,
@@ -346,6 +351,24 @@ assert.match(
   granary,
   /pub fn step_institutional_food_dispatch[\s\S]*?\["guardhouse", "smokehouse", "granary"\]/s,
   'wild-food producer carts should consider enabled road-linked granaries in shared institutional arbitration',
+);
+assert.equal(
+  isBerryClumpVisible(MIN_VISIBLE_BERRY_CLUMPS - 1, 0, 60, false, 0.99),
+  true,
+  'the physical berry bush patch must remain visible while dormant or depleted',
+);
+assert.equal(
+  isBerryClumpVisible(MIN_VISIBLE_BERRY_CLUMPS, 60, 60, true, 0.99),
+  true,
+);
+assert.equal(
+  isBerryClumpVisible(MIN_VISIBLE_BERRY_CLUMPS, 0, 60, true, 0),
+  false,
+);
+assert.deepEqual(
+  resolveBerryClumpPosition(10, 20, 13, 18, 110, -40),
+  { x: 113, z: -42 },
+  'berry clump offsets must follow the authoritative replicated node center',
 );
 
 const mushroomVisuals = readFileSync(

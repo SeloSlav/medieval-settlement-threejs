@@ -70,6 +70,7 @@ import {
   type WorldGenerationSettings,
   type WorldMapSize,
 } from '../src/world/worldGenerationSettings.ts';
+import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
 import { computeWorldBootstrapDataFromLayout } from '../src/world/worldBootstrapData.ts';
 
 const mapSizes: WorldMapSize[] = ['small', 'medium', 'large'];
@@ -108,6 +109,52 @@ for (const mapSize of mapSizes) {
     }
   }
 }
+
+const delniceMinerals = createWorldLayout(applyTerrainPreset(
+  worldSettings({ seed: 0x4310_4d21 }),
+  'delnice_meadow',
+));
+assert.ok(
+  delniceMinerals.mineralDepositLayout.sites
+    .filter((site) => site.resource === 'salt')
+    .every((site) => site.formation === 'dry_basin_evaporite'),
+  'waterless maps must place salt as ancient inland-basin evaporites',
+);
+
+const vinodolMinerals = createWorldLayout(applyTerrainPreset(
+  worldSettings({ seed: 0x5600_7a13 }),
+  'vinodol_coast',
+));
+const coastalSaltSites = vinodolMinerals.mineralDepositLayout.sites.filter(
+  (site) => site.resource === 'salt',
+);
+assert.ok(coastalSaltSites.length > 0);
+assert.ok(
+  coastalSaltSites.every((site) => {
+    const shoreX = vinodolMinerals.riverLayout.getCoastalShoreX(site.z);
+    return site.formation === 'coastal_evaporite'
+      && shoreX !== null
+      && site.x > shoreX
+      && site.x - shoreX <= 100;
+  }),
+  'coastal salt must occupy the dry shore shelf close to saline water',
+);
+
+const kupaMinerals = createWorldLayout(applyTerrainPreset(
+  worldSettings({ seed: 0x6b70_6c17 }),
+  'kupa_valley',
+));
+assert.ok(
+  kupaMinerals.mineralDepositLayout.sites
+    .filter((site) => site.resource === 'salt')
+    .every((site) => site.formation === 'rock_salt'),
+  'freshwater maps must use geological rock salt rather than riverbank evaporites',
+);
+assert.ok(
+  kupaMinerals.mineralDepositLayout.sites
+    .filter((site) => site.resource === 'iron')
+    .every((site) => site.formation === 'bedrock'),
+);
 
 const mineralVisualLayout = createWorldLayout(DEFAULT_WORLD_GENERATION_SETTINGS);
 const mineralVisualSystem = createMineralDepositSystem(

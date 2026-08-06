@@ -32,6 +32,7 @@ import { FISH_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
+import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
 import {
   RESOURCE_KINDS,
   createEmptyStockpile,
@@ -105,6 +106,43 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
         `${mapSize}/${hydrology} ${shoal.id} should have a reachable dry shoreline`,
       );
     }
+  }
+}
+
+const delniceLayout = createWorldLayout(applyTerrainPreset({
+  ...DEFAULT_WORLD_GENERATION_SETTINGS,
+  mapSize: 'medium',
+  resourceAbundance: 100,
+  resourceVariety: 100,
+}, 'delnice_meadow'));
+const delniceFish = WorldLayoutRegistry.fromWorldLayout(delniceLayout)
+  .definitionList
+  .filter((node) => node.kind === 'fish');
+assert.equal(delniceLayout.resourcePlan.foragingNodeCounts.fish, 0);
+assert.equal(delniceFish.length, 0, 'a region with no surface water must never advertise fish');
+
+for (const variation of [0x1, 0x52a91, 0xfffff]) {
+  const vinodolLayout = createWorldLayout(applyTerrainPreset({
+    ...DEFAULT_WORLD_GENERATION_SETTINGS,
+    seed: variation,
+    mapSize: 'medium',
+    resourceAbundance: 100,
+    resourceVariety: 100,
+  }, 'vinodol_coast'));
+  const vinodolFish = WorldLayoutRegistry.fromWorldLayout(vinodolLayout)
+    .definitionList
+    .filter((node) => node.kind === 'fish');
+  assert.equal(vinodolFish.length, vinodolLayout.resourcePlan.foragingNodeCounts.fish);
+  assert.ok(vinodolFish.length > 0, 'Vinodol should use its Adriatic frontage for fish');
+  for (const shoal of vinodolFish) {
+    assert.ok(
+      vinodolLayout.riverLayout.isWaterAt(shoal.x, shoal.z),
+      `${shoal.id} must be in Vinodol's actual sea mask`,
+    );
+    assert.ok(
+      findDryCampSite(shoal.x, shoal.z, vinodolLayout.riverLayout),
+      `${shoal.id} needs a reachable dry coastal camp site`,
+    );
   }
 }
 

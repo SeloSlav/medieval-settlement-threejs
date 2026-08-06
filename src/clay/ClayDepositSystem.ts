@@ -119,7 +119,12 @@ function createClayBankPatch(
   const group = new THREE.Group();
   const exposedStrata: THREE.Mesh[] = [];
   const gradeLabel = site.kind === 'rich' ? 'rich' : 'ordinary';
-  group.name = `Exposed ${gradeLabel} alluvial clay`;
+  const formationLabel = site.formation === 'coastal'
+    ? 'coastal'
+    : site.formation === 'inland_basin'
+      ? 'inland-basin'
+      : 'alluvial';
+  group.name = `Exposed ${gradeLabel} ${formationLabel} clay`;
 
   const strata = [
     { scale: 0.76, offset: -0.9, lift: 0.085, crown: 0.3, materialIndex: 1 },

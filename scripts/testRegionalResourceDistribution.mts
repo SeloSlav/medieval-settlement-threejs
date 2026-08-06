@@ -15,6 +15,7 @@ import {
   type WorldGenerationSettings,
   type WorldMapSize,
 } from '../src/world/worldGenerationSettings.ts';
+import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
 
 const mapSizes: WorldMapSize[] = ['small', 'medium', 'large'];
 const balancedPlans = mapSizes.map((mapSize) => createRegionalResourcePlan(settings({ mapSize })));
@@ -63,6 +64,21 @@ assert.ok(
 assert.ok(
   balancedPlans.every((plan) => plan.foragingNodeCounts.game >= 1),
   'every regional profile should retain a winter-available game habitat',
+);
+
+const delniceSettings = applyTerrainPreset(settings({
+  resourceAbundance: 100,
+  resourceVariety: 100,
+}), 'delnice_meadow');
+const delnicePlan = createRegionalResourcePlan(delniceSettings);
+assert.equal(delnicePlan.foragingNodeCounts.fish, 0);
+assert.ok(!delnicePlan.presentForagingKinds.includes('fish'));
+assert.ok(
+  delnicePlan.foragingNodeCounts.game
+    + delnicePlan.foragingNodeCounts.berries
+    + delnicePlan.foragingNodeCounts.mushrooms
+    === delnicePlan.totalForagingNodes,
+  'Delnice should reallocate its forage budget without inventing a fishery',
 );
 
 for (const mapSize of mapSizes) {

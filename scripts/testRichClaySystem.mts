@@ -9,6 +9,9 @@ import {
   clayDepositAtCenter,
   clayDepositMaxYield,
   clayDepositNodeId,
+  COASTAL_CLAY_DEPOSIT_MAX_YIELD,
+  INLAND_CLAY_DEPOSIT_MAX_YIELD,
+  ORDINARY_CLAY_DEPOSIT_MAX_YIELD,
   type ClayDepositSite,
 } from '../src/clay/ClayDepositLayout.ts';
 import { createClayDepositSystem } from '../src/clay/ClayDepositSystem.ts';
@@ -42,6 +45,7 @@ import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
   type WorldGenerationSettings,
 } from '../src/world/worldGenerationSettings.ts';
+import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
 import { syncQuarries } from '../src/data/spacetimeTableSync/syncQuarries.ts';
 import type { ForagingNode } from '../src/generated/types.ts';
 
@@ -53,6 +57,50 @@ const richClay = layout.clayDepositLayout.sites.find((site) => site.kind === 'ri
 assert.ok(richClay, 'at least one deterministic seed must roll a rich clay deposit');
 const ordinaryClay = layout.clayDepositLayout.sites.find((site) => site.kind === 'ordinary');
 assert.ok(ordinaryClay, 'every region must retain an ordinary physical clay deposit');
+assert.equal(ordinaryClay.formation, 'alluvial');
+assert.equal(
+  clayDepositMaxYield(ordinaryClay),
+  ORDINARY_CLAY_DEPOSIT_MAX_YIELD,
+  'river alluvium must retain the best ordinary clay reserve',
+);
+
+const delniceClayLayout = createWorldLayout(applyTerrainPreset(
+  { ...DEFAULT_WORLD_GENERATION_SETTINGS, seed: 0x4310_4d21 },
+  'delnice_meadow',
+));
+assert.equal(delniceClayLayout.riverLayout.corridors.length, 0);
+assert.ok(
+  delniceClayLayout.clayDepositLayout.sites.every(
+    (site) => site.formation === 'inland_basin',
+  ),
+  'a map without surface water must place clay in old inland drainage basins',
+);
+const delniceOrdinaryClay = delniceClayLayout.clayDepositLayout.sites.find(
+  (site) => site.kind === 'ordinary',
+);
+assert.ok(delniceOrdinaryClay);
+assert.equal(clayDepositMaxYield(delniceOrdinaryClay), INLAND_CLAY_DEPOSIT_MAX_YIELD);
+assert.ok(
+  delniceOrdinaryClay.radiusX < ordinaryClay.radiusX
+    && delniceOrdinaryClay.radiusZ < ordinaryClay.radiusZ,
+  'dry-map clay lenses must be physically smaller than river alluvium',
+);
+
+const vinodolClayLayout = createWorldLayout(applyTerrainPreset(
+  { ...DEFAULT_WORLD_GENERATION_SETTINGS, seed: 0x5600_7a13 },
+  'vinodol_coast',
+));
+assert.ok(
+  vinodolClayLayout.clayDepositLayout.sites.every(
+    (site) => site.formation === 'coastal',
+  ),
+  'a coastal map without rivers must use dry marine sediment rather than inland fallback sites',
+);
+const vinodolOrdinaryClay = vinodolClayLayout.clayDepositLayout.sites.find(
+  (site) => site.kind === 'ordinary',
+);
+assert.ok(vinodolOrdinaryClay);
+assert.equal(clayDepositMaxYield(vinodolOrdinaryClay), COASTAL_CLAY_DEPOSIT_MAX_YIELD);
 const clayVisualSystem = createClayDepositSystem(
   { getHeightAt: () => 0 } as Parameters<typeof createClayDepositSystem>[0],
   layout.clayDepositLayout,

@@ -383,11 +383,25 @@ function testStableMapIconProjectionCache(): number {
   assert.ok(movedCameraFrame);
   placeProjectedMapButton(button as never, 4, 6, worldPoint, movedCameraFrame);
   assert.equal(projections, 3, 'a camera matrix change must invalidate icon projection');
+  const inverseBeforeRotation = camera.matrixWorldInverse.clone();
+  camera.lookAt(12, 0, -8);
+  assert.ok(
+    camera.matrixWorldInverse.equals(inverseBeforeRotation),
+    'the test must reproduce Three.js leaving the inverse view matrix stale before render',
+  );
+  const rotatedCameraFrame = begin();
+  assert.ok(rotatedCameraFrame);
+  assert.ok(
+    !camera.matrixWorldInverse.equals(inverseBeforeRotation),
+    'map-icon projection must refresh the inverse view matrix before the render pass',
+  );
+  placeProjectedMapButton(button as never, 4, 6, worldPoint, rotatedCameraFrame);
+  assert.equal(projections, 4, 'middle-mouse-style camera rotation must invalidate icon projection');
   terrainHeight = 1.5;
   const changedTerrainFrame = begin();
   assert.ok(changedTerrainFrame);
   placeProjectedMapButton(button as never, 4, 6, worldPoint, changedTerrainFrame);
-  assert.equal(projections, 4, 'a terrain-height change must invalidate icon projection');
+  assert.equal(projections, 5, 'a terrain-height change must invalidate icon projection');
   assert.ok(elapsed < 250, `20,000 stable map-icon frames took ${elapsed.toFixed(1)} ms`);
   return elapsed;
 }

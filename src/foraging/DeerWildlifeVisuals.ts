@@ -409,12 +409,38 @@ function requireSharedModelSkeleton(
     const mesh = child as THREE.SkinnedMesh;
     if (!mesh.isSkinnedMesh) return;
     if (skeleton === null) skeleton = mesh.skeleton;
-    else if (mesh.skeleton !== skeleton) {
-      throw new Error(`The ${sex} deer layers must share one exact skeleton.`);
+    else if (!skeletonsUseSharedRig(mesh.skeleton, skeleton)) {
+      throw new Error(`The ${sex} deer layers must share one exact rig.`);
     }
   });
   if (skeleton === null) throw new Error(`The ${sex} deer model has no skinned mesh.`);
   return skeleton;
+}
+
+/**
+ * SkeletonUtils.clone creates one Skeleton wrapper per skinned material layer,
+ * even though those wrappers reference the same cloned bones and bind pose.
+ * The shadow batch only requires that exact shared rig, not wrapper identity.
+ */
+export function skeletonsUseSharedRig(
+  left: THREE.Skeleton,
+  right: THREE.Skeleton,
+): boolean {
+  if (
+    left.bones.length !== right.bones.length
+    || left.boneInverses.length !== right.boneInverses.length
+  ) {
+    return false;
+  }
+  for (let index = 0; index < left.bones.length; index += 1) {
+    if (
+      left.bones[index] !== right.bones[index]
+      || !left.boneInverses[index]!.equals(right.boneInverses[index]!)
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function createAnimatedDeerCasterBatches(
@@ -444,8 +470,8 @@ function createAnimatedDeerCasterBatches(
       const sourceSkeleton = sourceMeshes[0]?.skeleton;
       if (!sourceSkeleton) throw new Error(`The ${sex} deer source has no skeleton.`);
       for (const sourceMesh of sourceMeshes) {
-        if (sourceMesh.skeleton !== sourceSkeleton) {
-          throw new Error(`The ${sex} deer source layers must share one skeleton.`);
+        if (!skeletonsUseSharedRig(sourceMesh.skeleton, sourceSkeleton)) {
+          throw new Error(`The ${sex} deer source layers must share one rig.`);
         }
         if (Object.keys(sourceMesh.geometry.morphAttributes).length > 0) {
           throw new Error(`The ${sex}/${sourceMesh.name} caster cannot merge morph targets.`);

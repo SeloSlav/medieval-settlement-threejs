@@ -315,6 +315,55 @@
   background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
 }
 
+.settlement-hud__food-card[data-food-resource]::before {
+  width: 20px;
+  height: 20px;
+  justify-self: center;
+  content: '';
+  background-color: transparent;
+  background-image: url('/assets/ui/icons/hud-resources-foods.png');
+  background-repeat: no-repeat;
+  background-size: 400% 400%;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
+  text-shadow: none;
+}
+
+.settlement-hud__food-card[data-food-resource='bread']::before { background-position: 0 0; }
+.settlement-hud__food-card[data-food-resource='meat']::before { background-position: 33.333% 0; }
+.settlement-hud__food-card[data-food-resource='fish']::before { background-position: 66.667% 0; }
+.settlement-hud__food-card[data-food-resource='berries']::before { background-position: 100% 0; }
+.settlement-hud__food-card[data-food-resource='mushrooms']::before { background-position: 0 33.333%; }
+.settlement-hud__food-card[data-food-resource='milk']::before { background-position: 33.333% 33.333%; }
+.settlement-hud__food-card[data-food-resource='apples']::before { background-position: 66.667% 33.333%; }
+.settlement-hud__food-card[data-food-resource='cherries']::before { background-position: 100% 33.333%; }
+.settlement-hud__food-card[data-food-resource='vegetables']::before { background-position: 0 66.667%; }
+.settlement-hud__food-card[data-food-resource='eggs']::before { background-position: 33.333% 66.667%; }
+.settlement-hud__food-card[data-food-resource='grapes']::before { background-position: 66.667% 66.667%; }
+.settlement-hud__food-card[data-food-resource='porridge']::before { background-position: 100% 66.667%; }
+.settlement-hud__food-card[data-food-resource='curedMeat']::before { background-position: 0 100%; }
+.settlement-hud__food-card[data-food-resource='smokedFish']::before { background-position: 33.333% 100%; }
+.settlement-hud__food-card[data-food-resource='cheese']::before { background-position: 66.667% 100%; }
+.settlement-hud__food-card[data-food-resource='honey']::before { background-position: 100% 100%; }
+
+.settlement-hud__food-card[data-food-resource='legacyFood']::before {
+  background-image: url('/assets/ui/icons/hud-resources-core.png');
+  background-position: 50% 50%;
+  background-size: 300% 300%;
+}
+
+.settlement-hud__food-card[data-food-resource='legacyPreservedFood']::before {
+  background-image: url('/assets/ui/icons/hud-resources-goods-a.png');
+  background-position: 100% 50%;
+  background-size: 300% 300%;
+}
+
+.settlement-hud__food-card[data-food-resource]:hover::before {
+  filter:
+    drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78))
+    brightness(1.08)
+    saturate(1.06);
+}
+
 .settlement-hud__stat[data-resource]:hover::before,
 .settlement-hud__stat[data-resource]:focus-visible::before {
   filter:

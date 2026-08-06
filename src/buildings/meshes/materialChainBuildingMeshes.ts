@@ -248,7 +248,7 @@ function addFirewoodStockpile(
 
 export function createClayPitMesh(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'Riverbank clay pit';
+  group.name = 'Clay pit';
   addYardBase(group, 10.5, 8.5);
 
   const pit = addMesh(

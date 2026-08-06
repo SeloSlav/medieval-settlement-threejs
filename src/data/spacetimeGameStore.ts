@@ -61,7 +61,6 @@ import type { WorldLayout } from '../resources/WorldLayout.ts';
 import type { WorldLayoutRegistry } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import {
-  generationMatchesServer,
   type AuthoritativeWorldGeneration,
 } from '../world/worldConfigAuthority.ts';
 import { getDraftWorldGeneration } from '../world/worldGenerationContext.ts';
@@ -916,10 +915,12 @@ export class SpacetimeGameStore {
   }
 
   async configureWorld(settings: WorldGenerationSettings): Promise<void> {
-    const server = this.tableState.worldGeneration;
-    if (server?.configured && generationMatchesServer(server, settings)) {
-      return;
-    }
+    // Always reconfirm the idempotent server contract once per client
+    // bootstrap. Immediately after reset_world, an unconfirmed subscription
+    // can still expose the previous matching row while the reset transaction
+    // is settling. Skipping the reducer in that window leaves configured=false
+    // on the server and gates every simulation tick, even though placement is
+    // already available to the client.
     await spacetimeReducers.configureWorld(settings);
     const connection = getConnection();
     if (connection) {

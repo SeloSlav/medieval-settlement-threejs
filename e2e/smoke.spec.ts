@@ -73,14 +73,26 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     'aria-label',
     'Showing surplus goods. Show total goods stored.',
   );
+  await totalsMode.hover();
+  const tooltip = page.locator('#ui-tooltip');
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods');
+  await expect(tooltip.locator('.ui-tooltip__label')).toHaveCount(0);
   await totalsMode.click();
   await expect(timberHud).toHaveText(String(timberBefore));
   await expect(totalsMode).toHaveAttribute(
     'aria-label',
     'Showing total goods stored. Show surplus goods.',
   );
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Total goods');
+  await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
+    'All stored goods',
+  );
   await totalsMode.click();
   await expect(timberHud).toHaveText(String(timberBefore - REFORESTER_TIMBER_COST));
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods');
+  await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
+    'Stored goods available for use',
+  );
   await expect.poll(
     () => page.evaluate(() => window.__medievalE2e?.getBuildingCount() ?? 0),
     { timeout: SYNC_TIMEOUT_MS },

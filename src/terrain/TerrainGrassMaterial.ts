@@ -279,10 +279,12 @@ function buildGrassBlendNodes(
     .add(densePatch.mul(float(0.27) as TslNode))
     .add((sub(float(1) as TslNode, meadowPatch) as TslNode).mul(float(0.15) as TslNode)) as TslNode;
   const macro = macroA.mul(float(0.68) as TslNode).add(macroB.mul(float(0.32) as TslNode));
-  // Strategic cameras cannot resolve individual leaves. Resolve the litter to
-  // a low-frequency brown field there, then reveal the authored atlas only as
-  // the camera and pixel footprint can support it. This also keeps twig-shaped
-  // texels from aliasing into bright screen-space dashes.
+  // Strategic cameras cannot resolve individual leaf silhouettes, but the
+  // woodland ground should still read as leaf litter rather than a flat brown
+  // biome tint. Preserve a contrast-bounded version of the authored atlas at
+  // every zoom, then reveal its full color as the camera and pixel footprint
+  // can support it. The bounded overview colors keep twig-shaped texels from
+  // aliasing into bright screen-space dashes.
   const forestOverviewVariation = macroA
     .mul(float(0.62) as TslNode)
     .add(macroB.mul(float(0.38) as TslNode)) as TslNode;
@@ -291,13 +293,18 @@ function buildGrassBlendNodes(
     vec3(0.072, 0.042, 0.02) as TslNode,
     forestOverviewVariation,
   ) as TslNode;
-  const forestColorNode = mix(
+  const forestOverviewTexturedColorNode = mix(
     forestOverviewColorNode,
+    forestDetailStableColorNode,
+    float(0.72) as TslNode,
+  ) as TslNode;
+  const forestColorNode = mix(
+    forestOverviewTexturedColorNode,
     forestDetailColorNode,
     closeMaterialDetail,
   ) as TslNode;
   const forestStableColorNode = mix(
-    forestOverviewColorNode,
+    forestOverviewTexturedColorNode,
     forestDetailStableColorNode,
     closeMaterialDetail,
   ) as TslNode;
