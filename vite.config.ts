@@ -66,11 +66,11 @@ export default defineConfig(({ mode }) => {
     plugins: [explicitPublicAssetCopy(includeQaArchives)],
     optimizeDeps: {
       // Keep automatic discovery off so Vite does not crawl the game's large
-      // import graph. SpacetimeDB's safe-stable-stringify dependency is
-      // CommonJS, though, so it must be explicitly prebundled for browser ESM
-      // default-export interop.
+      // import graph. SpacetimeDB pulls in CommonJS helpers (including
+      // safe-stable-stringify and base64-js), so prebundle the SDK and its bare
+      // stringify entry for browser ESM interop.
       noDiscovery: true,
-      include: ['safe-stable-stringify'],
+      include: ['spacetimedb', 'safe-stable-stringify'],
     },
     server: {
       watch: {
