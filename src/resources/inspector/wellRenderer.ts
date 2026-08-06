@@ -51,7 +51,11 @@ export function renderWellInspector(
   const industrialConsumers = context.worldQueries.getRoadConnectedWaterConsumers(building);
   const nextIndustrialTarget = context.worldQueries.getNextIndustrialWaterTargetForWell(building);
   const nextDeliveryTarget = nextIndustrialTarget;
-  const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
+  const activeTrips = [...context.gameState.deliveryTrips.values()]
+    .filter((trip) => trip.buildingId === building.id);
+  const respondingTrips = activeTrips.filter((trip) =>
+    trip.destinationKind === 'fire' && trip.phase !== 'inbound');
+  const activeTrip = respondingTrips[0] ?? activeTrips[0] ?? null;
   const freeHaulerReady = context.populationStats.available > 0;
   const refillHydrology = Math.max(hydrology, WELL_MINIMUM_REFILL_HYDROLOGY);
   const refillPerSec = WELL_BASE_REFILL_PER_SEC
@@ -79,12 +83,20 @@ export function renderWellInspector(
       ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
       : null;
   const waterPerTrip = wellWaterPerDelivery(activeTrip?.deliveryWorkers ?? 1);
-  const tripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
-  const canDeliver = freeHaulerReady && building.water > 0 && nextIndustrialTarget != null && !activeTrip;
+  const tripRemaining = activeTrip
+    ? context.worldQueries.getDeliveryTripRemainingSeconds(activeTrip)
+    : null;
+  const canDeliver = freeHaulerReady
+    && building.water > 0
+    && nextIndustrialTarget != null
+    && activeTrips.length === 0;
 
   let statusText: string;
   let statusState: InspectorView['statusState'];
-  if (activeTrip) {
+  if (respondingTrips.length > 0) {
+    statusText = `${respondingTrips.length} bucket ${respondingTrips.length === 1 ? 'carrier' : 'carriers'} responding — ${respondingTrips.reduce((sum, trip) => sum + Math.max(0, trip.amount), 0).toFixed(1)} water committed`;
+    statusState = 'active';
+  } else if (activeTrip) {
     statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${activeTargetLabel}`;
     statusState = 'active';
   } else if (canDeliver) {
@@ -104,7 +116,11 @@ export function renderWellInspector(
     statusState = building.water > capacity * 0.2 ? 'active' : 'idle';
   }
 
-  const deliveryRow = activeTrip || nextIndustrialTarget
+  const deliveryRow = respondingTrips.length > 0
+    ? `<li><span>Emergency response</span><span>${respondingTrips.length} concurrent bucket ${respondingTrips.length === 1 ? 'carrier' : 'carriers'}</span></li>
+      <li><span>Water committed</span><span>${respondingTrips.reduce((sum, trip) => sum + Math.max(0, trip.amount), 0).toFixed(1)}</span></li>
+      <li><span>Tracked carrier</span><span>${activeTargetLabel} · ${formatTripPhaseLabel(activeTrip!.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left</span></li>`
+    : activeTrip || nextIndustrialTarget
     ? `<li><span>Next physical cart</span><span>${activeTrip ? activeTargetLabel : nextTargetLabel}</span></li>
       <li><span>Road distance</span><span>${formatDeliveryRoadDistance(deliveryDistance)}</span></li>
       <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
@@ -127,6 +143,7 @@ export function renderWellInspector(
       <li><span>Water territory</span><span>${claimedResidences.length === 0 ? 'No connected homes in range' : `${claimedResidences.length} connected home${claimedResidences.length === 1 ? '' : 's'} · nearest homes receive scarce water first`}</span></li>
       <li><span>Workshop demand</span><span>${industrialConsumers.length === 0 ? 'None' : `${industrialConsumers.filter((item) => item.kind === 'brewery').length} brewhouse · ${industrialConsumers.filter((item) => item.kind === 'bakery').length} bakery · ${industrialConsumers.filter((item) => item.kind === 'weaver').length} linen loom · ${industrialConsumers.filter((item) => item.kind === 'smithy').length} smithy · ${industrialConsumers.filter((item) => item.kind === 'potter_kiln').length} pottery`}</span></li>
       <li><span>Distribution rule</span><span>Connected homes draw abstractly from stored water · workshop priority, input policy, then buffer coverage uses physical carts</span></li>
+      <li><span>Fire priority</span><span>Reserves new water ahead of homes and workshops · every useful free hauler may depart concurrently</span></li>
       <li><span>Supplies</span><span>Homes without a last-mile cart; bakeries, brewhouses, flax-working looms, smithies, potters, and fire calls still receive visible carts</span></li>
       ${deliveryRow}
     `,

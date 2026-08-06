@@ -1425,7 +1425,8 @@ pub struct FireIncident {
     pub started_tick: u64,
     pub last_water_tick: u64,
     pub resolved_tick: u64,
-    /// Well currently dispatching a responder, or zero while unclaimed.
+    /// Well coordinating the current response, or zero while unanswered.
+    /// Several independently staffed bucket trips may share this incident.
     pub response_well_id: u64,
     /// First tick on which civilians can report and respond to the fire.
     /// Zero preserves immediate discovery for incidents from older saves.

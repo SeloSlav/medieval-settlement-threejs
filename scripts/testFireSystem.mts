@@ -8,6 +8,10 @@ import {
   FIRE_DROUGHT_RISK_MULTIPLIER,
   FIRE_EXTINGUISH_CHANCE_BASE,
   FIRE_EXTINGUISH_INTENSITY_THRESHOLD,
+  FIRE_INITIAL_INTENSITY,
+  FIRE_INTENSITY_GROWTH_PER_SECOND,
+  FIRE_INTENSITY_REDUCTION_PER_WATER,
+  FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY,
   FIRE_DAMAGE_REPAIR_COST_MULTIPLIER,
   FIRE_DESTROYED_REBUILD_COST_FRACTION,
   FIRE_MINIMUM_BUCKET_WATER,
@@ -64,6 +68,10 @@ assert.ok(FIRE_DROUGHT_RISK_MULTIPLIER > 1);
 assert.ok(FIRE_RAIN_RISK_MULTIPLIER < 1);
 assert.ok(FIRE_EXTINGUISH_CHANCE_BASE > 0);
 assert.ok(FIRE_EXTINGUISH_INTENSITY_THRESHOLD < 0.5);
+assert.equal(FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY, 0.01);
+assert.equal(FIRE_INITIAL_INTENSITY, 0.24);
+assert.equal(FIRE_INTENSITY_GROWTH_PER_SECOND, 0.008);
+assert.equal(FIRE_INTENSITY_REDUCTION_PER_WATER, 0.14);
 assert.equal(WELL_BASE_REFILL_PER_SEC, 0.7);
 assert.equal(WELL_MINIMUM_REFILL_HYDROLOGY, 0.15);
 
@@ -251,16 +259,24 @@ assert.match(
 );
 assert.match(
   fireSource,
-  /fire_response_load\(building\.water\) > 0\.0[\s\S]{0,180}!building_has_active_trip\(ctx, building\.id\)/,
-  'a busy nearest well must yield to a farther ready responder instead of blocking the fire call',
+  /response_water_needed\(ctx, incident\) > 1e-6/,
+  'dispatch must stop only when the active response wave has enough water in transit',
 );
 const nearestEligibleWellSource =
   fireSource.match(/fn nearest_eligible_well_id[\s\S]*?\r?\n}\r?\n\r?\nfn building_flammability/)?.[0]
   ?? '';
 assert.doesNotMatch(
   nearestEligibleWellSource,
-  /assigned_labor/,
-  'unstaffed wells must remain eligible for fire response because a free settlement hauler carries the bucket',
+  /assigned_labor|building_has_active_trip/,
+  'unstaffed or already-active wells must remain eligible because every emergency bucket reserves its own free hauler',
+);
+const fireTripStartSource =
+  tripSource.match(/pub fn try_start_fire_response_trip[\s\S]*?\r?\n}\r?\n\r?\n\/\/\/ Loads reserved construction stock/)?.[0]
+  ?? '';
+assert.doesNotMatch(
+  fireTripStartSource,
+  /building_has_active_trip/,
+  'an ordinary or earlier well trip must not hard-lock additional fire responders',
 );
 assert.match(
   tripSource,
@@ -294,8 +310,13 @@ assert.match(
 );
 assert.match(
   wellSource,
-  /if !building_has_active_trip[\s\S]*select_fire_for_well[\s\S]*try_start_fire_response_trip[\s\S]*let fire_response_needed = fire_response_needed_for_well[\s\S]*let industrial_delivery_ready = !fire_response_needed/,
-  'a free well hauler must attempt fire response before household or industrial delivery work',
+  /well_refill_amount[\s\S]*let fire_response_needed = fire_response_needed_for_well[\s\S]*while available_free_haulers[\s\S]*select_fire_for_well[\s\S]*try_start_fire_response_trip[\s\S]*distribute_well_water/,
+  'newly drawn water must launch every useful free-hauler response before household or industrial demand',
+);
+assert.match(
+  wellSource,
+  /if fire_response_needed[\s\S]*ctx\.db\.building\(\)\.id\(\)\.update\(well\);\s*return;/,
+  'household demand must pause so a dry emergency well can accumulate a usable bucket',
 );
 assert.match(
   rendererSource,

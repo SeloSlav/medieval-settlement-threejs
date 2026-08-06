@@ -13,19 +13,20 @@ use crate::db::*;
 use crate::economy::reconcile_building_labor;
 use crate::fire_policy::{
     accumulated_event_chance, building_base_flammability, distance_spread_factor,
-    fire_response_load, residence_flammability, step_fire, suppression_result,
-    weather_risk_multiplier,
+    fire_response_load, fire_response_water_needed, residence_flammability, step_fire,
+    suppression_result, weather_risk_multiplier,
 };
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::RoadNetwork;
 use crate::season_policy::{EnvironmentState, WeatherKind};
+use crate::simulation::delivery_trips::{DeliveryTripPhase, DELIVERY_DESTINATION_FIRE};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
-    building_has_active_trip, cancel_trips_for_residence, clear_backyard_garden_for_residence,
-    clear_residence_needs, clear_residence_project, drain_trips_for_building,
-    recover_stock_beside_building, ReclamationStock,
+    cancel_trips_for_residence, clear_backyard_garden_for_residence, clear_residence_needs,
+    clear_residence_project, drain_trips_for_building, recover_stock_beside_building,
+    ReclamationStock,
 };
 use crate::tables::{Building, FireIncident};
 
@@ -260,7 +261,7 @@ pub fn select_fire_for_well(
         .filter(|incident| {
             incident.state == FIRE_STATE_BURNING
                 && (incident.discovered_tick == 0 || incident.discovered_tick <= sim_tick)
-                && incident.response_well_id == 0
+                && response_water_needed(ctx, incident) > 1e-6
                 && within_extent(well, incident.x, incident.z)
                 && nearest_eligible_well_id(ctx, tick, network, incident) == Some(well.id)
         })
@@ -294,7 +295,6 @@ pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building, sim_
         .any(|incident| {
             incident.state == FIRE_STATE_BURNING
                 && (incident.discovered_tick == 0 || incident.discovered_tick <= sim_tick)
-                && (incident.response_well_id == 0 || incident.response_well_id == well.id)
                 && within_extent(well, incident.x, incident.z)
         })
 }
@@ -303,11 +303,13 @@ pub fn reserve_fire_response(ctx: &ReducerContext, incident_id: u64, well_id: u6
     let Some(mut incident) = ctx.db.fire_incident().id().find(&incident_id) else {
         return false;
     };
-    if incident.state != FIRE_STATE_BURNING || incident.response_well_id != 0 {
+    if incident.state != FIRE_STATE_BURNING {
         return false;
     }
-    incident.response_well_id = well_id;
-    ctx.db.fire_incident().id().update(incident);
+    if incident.response_well_id == 0 {
+        incident.response_well_id = well_id;
+        ctx.db.fire_incident().id().update(incident);
+    }
     true
 }
 
@@ -347,11 +349,11 @@ pub fn apply_fire_water(
     incident.extinguish_chance = result.extinguish_chance;
     incident.water_delivered += water;
     incident.last_water_tick = sim_tick;
-    incident.response_well_id = 0;
     if result.extinguished {
         incident.state = FIRE_STATE_EXTINGUISHED;
         incident.intensity = 0.0;
         incident.resolved_tick = sim_tick;
+        incident.response_well_id = 0;
     }
     ctx.db.fire_incident().id().update(incident);
     true
@@ -608,6 +610,44 @@ fn fire_for_target(ctx: &ReducerContext, target_kind: u8, target_id: u64) -> Opt
         .find(|incident| incident.target_kind == target_kind)
 }
 
+fn response_water_needed(ctx: &ReducerContext, incident: &FireIncident) -> f64 {
+    fire_response_water_needed(
+        incident.required_water,
+        incident.water_delivered,
+        response_water_in_transit(ctx, incident),
+    )
+}
+
+fn response_water_in_transit(ctx: &ReducerContext, incident: &FireIncident) -> f64 {
+    let matches_target = |trip: &crate::tables::DeliveryTrip| {
+        trip.destination_kind == DELIVERY_DESTINATION_FIRE
+            && trip.amount > 1e-6
+            && DeliveryTripPhase::from_u8(trip.phase) != Some(DeliveryTripPhase::Inbound)
+            && if incident.target_kind == FIRE_TARGET_BUILDING {
+                trip.target_building_id == incident.target_id
+            } else {
+                trip.residence_id == incident.target_id && trip.target_building_id == 0
+            }
+    };
+    if incident.target_kind == FIRE_TARGET_BUILDING {
+        ctx.db
+            .delivery_trip()
+            .target_building_id()
+            .filter(&incident.target_id)
+            .filter(matches_target)
+            .map(|trip| trip.amount)
+            .sum()
+    } else {
+        ctx.db
+            .delivery_trip()
+            .residence_id()
+            .filter(&incident.target_id)
+            .filter(matches_target)
+            .map(|trip| trip.amount)
+            .sum()
+    }
+}
+
 fn nearest_eligible_well_id(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -623,7 +663,6 @@ fn nearest_eligible_well_id(
             building.kind == "well"
                 && building.construction_complete
                 && fire_response_load(building.water) > 0.0
-                && !building_has_active_trip(ctx, building.id)
                 && within_extent(building, incident.x, incident.z)
         })
     {

@@ -1592,8 +1592,10 @@ pub fn try_start_residence_upgrade_supply_trip(
     true
 }
 
-/// Dispatch one visible bucket carrier from an unstaffed well. A free hauler
-/// claims the nearest ready source; fire response may leave the road for the
+/// Dispatch one visible bucket carrier from an unstaffed well. Every trip
+/// reserves its own free hauler, so a well may launch several simultaneous
+/// responders when a fire's outstanding water demand, stored water, and the
+/// settlement labor pool allow it. Fire response may leave the road for the
 /// last leg, but still uses the cached authoritative route.
 pub fn try_start_fire_response_trip(
     ctx: &ReducerContext,
@@ -1605,7 +1607,6 @@ pub fn try_start_fire_response_trip(
     if well.kind != "well"
         || available_free_haulers(ctx, well.owner) == 0
         || fire_response_load(well.water) <= 0.0
-        || building_has_active_trip(ctx, well.id)
     {
         return false;
     }

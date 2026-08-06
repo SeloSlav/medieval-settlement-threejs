@@ -1722,8 +1722,8 @@ export class ResourceInspector {
         ? 'Structural recovery is underway through the shared construction queue'
         : fire.status === 'burning'
         ? fire.responseWellId
-          ? 'A nearby well has dispatched an unassigned bucket carrier'
-          : 'No ready well and unassigned hauler can currently answer this fire'
+          ? 'A nearby well is coordinating the available bucket carriers'
+          : 'No stocked well and free hauler can currently answer this fire'
         : fire.status === 'destroyed'
           ? 'Fire out; the surviving foundations can be rebuilt'
           : 'Fire suppressed; structural repairs are required';

@@ -339,8 +339,8 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
         label: 'Well response',
         parts: [
           { text: 'A completed well with Water inside its work extent ' },
-          { text: 'claims an unassigned hauler for buckets', emphasis: 'gold' },
-          { text: '. Fire calls take priority, and the nearest short road route wins.' },
+          { text: 'claims as many useful unassigned bucket haulers as are available', emphasis: 'gold' },
+          { text: '. Fire calls reserve well water ahead of homes and industry, and the nearest short road route wins.' },
         ],
       },
       {

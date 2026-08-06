@@ -111,19 +111,12 @@ assert.match(
   describePlacementFireSafety(unready) ?? '',
   /well extent reaches here but it holds less than/,
 );
-const busy = assessBuildingFireSafety(
+const concurrentlyAvailable = assessBuildingFireSafety(
   { kind: 'smokehouse', x: 0, z: 0 },
-  {
-    buildings: [readyWell],
-    busyBuildingIds: new Set([readyWell.id]),
-  },
+  { buildings: [readyWell] },
 );
-assert.equal(busy.coverage, 'unready');
-assert.equal(busy.nearestWellReadiness, 'busy');
-assert.match(
-  describePlacementFireSafety(busy) ?? '',
-  /bucket carrier is still away/,
-);
+assert.equal(concurrentlyAvailable.coverage, 'covered');
+assert.equal(concurrentlyAvailable.nearestWellReadiness, 'ready');
 
 const uncovered = assessBuildingFireSafety(
   { kind: 'potter_kiln', x: 0, z: 0 },

@@ -18,7 +18,6 @@ export type FireRiskBand = 'fireproof' | 'low' | 'standard' | 'elevated' | 'seve
 export type FireCoverageBand = 'fireproof' | 'covered' | 'unready' | 'uncovered';
 export type FireWellReadiness =
   | 'ready'
-  | 'busy'
   | 'no_hauler'
   | 'dry';
 
@@ -53,7 +52,6 @@ type FireSafetyContext = {
   buildings: Iterable<BuildingState>;
   residences?: Iterable<ResidenceState>;
   fireDisabledBuildingIds?: ReadonlySet<string>;
-  busyBuildingIds?: ReadonlySet<string>;
   /** Current unassigned labor available to carry a bucket. Omit for layout previews. */
   freeHaulersAvailable?: number;
   roadPathDistance?: (
@@ -154,7 +152,6 @@ export function assessBuildingFireSafety(
   }
 
   const fireDisabled = context.fireDisabledBuildingIds ?? EMPTY_IDS;
-  const busyBuildings = context.busyBuildingIds ?? EMPTY_IDS;
   let bestReadyWell: WellCandidate | null = null;
   let bestUnreadyWell: WellCandidate | null = null;
   let exposedBuildingCount = 0;
@@ -183,7 +180,6 @@ export function assessBuildingFireSafety(
 
     const readiness = wellReadiness(
       building,
-      busyBuildings.has(building.id),
       context.freeHaulersAvailable == null || context.freeHaulersAvailable > 0,
     );
     const roadDistance = context.roadPathDistance?.(
@@ -278,7 +274,6 @@ export function wellReadinessLabel(readiness: FireWellReadiness | null): string 
   switch (readiness) {
     case 'dry': return `it holds less than ${FIRE_MINIMUM_BUCKET_WATER} water`;
     case 'no_hauler': return 'no unassigned hauler is available';
-    case 'busy': return 'its bucket carrier is still away';
     case 'ready': return 'it is ready';
     case null: return 'it is unavailable';
   }
@@ -286,10 +281,8 @@ export function wellReadinessLabel(readiness: FireWellReadiness | null): string 
 
 function wellReadiness(
   well: BuildingState,
-  busy: boolean,
   freeHaulerAvailable: boolean,
 ): FireWellReadiness {
-  if (busy) return 'busy';
   if (well.water + 1e-6 < FIRE_MINIMUM_BUCKET_WATER) return 'dry';
   return freeHaulerAvailable ? 'ready' : 'no_hauler';
 }

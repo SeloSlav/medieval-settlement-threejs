@@ -54,21 +54,6 @@ pub fn step_well(
     let mut well = building;
     // Compatibility for saves created while wells exposed worker slots.
     well.assigned_labor = 0;
-    ctx.db.building().id().update(well.clone());
-    if !building_has_active_trip(ctx, well.id) && available_free_haulers(ctx, well.owner) > 0 {
-        if let Some(incident) = select_fire_for_well(ctx, tick, network, &well, sim_tick) {
-            if reserve_fire_response(ctx, incident.id, well.id) {
-                if try_start_fire_response_trip(ctx, tick, network, &mut well, &incident) {
-                    return;
-                }
-                release_fire_response(ctx, incident.target_kind, incident.target_id, well.id);
-            }
-        }
-    }
-
-    let fire_response_needed = fire_response_needed_for_well(ctx, &well, sim_tick);
-    let routine_logistics_paused = labor_and_logistics_paused(ctx, tick, well.owner, clock);
-
     let hydrology = sample_hydrology_score(well.x, well.z);
     let capacity = if well.water_capacity > 0.0 {
         well.water_capacity
@@ -96,11 +81,39 @@ pub fn step_well(
         well.action_cooldown = WELL_SURGE_COOLDOWN_SEC;
     }
 
+    // Fire response gets first claim on newly drawn water. Persist the refill
+    // before selection because nearest-well eligibility reads the indexed
+    // building rows, then launch as many independently staffed bucket trips as
+    // the incident demand, stored water, and free labor pool can support.
+    ctx.db.building().id().update(well.clone());
+    let fire_response_needed = fire_response_needed_for_well(ctx, &well, sim_tick);
+    if fire_response_needed {
+        while available_free_haulers(ctx, well.owner) > 0 {
+            let Some(incident) = select_fire_for_well(ctx, tick, network, &well, sim_tick) else {
+                break;
+            };
+            if !reserve_fire_response(ctx, incident.id, well.id) {
+                break;
+            }
+            if !try_start_fire_response_trip(ctx, tick, network, &mut well, &incident) {
+                release_fire_response(ctx, incident.target_kind, incident.target_id, well.id);
+                break;
+            }
+        }
+
+        // Household and industrial draws wait until the emergency is over.
+        // In particular, a dry well now accumulates a usable partial bucket
+        // instead of having every sub-bucket refill consumed immediately.
+        ctx.db.building().id().update(well);
+        return;
+    }
+
+    let routine_logistics_paused = labor_and_logistics_paused(ctx, tick, well.owner, clock);
+
     // Domestic water has first claim without consuming cart labor. Industry
     // still requires a physical trip from the remainder.
     distribute_well_water(ctx, tick, &mut well);
-    let industrial_delivery_ready = !fire_response_needed
-        && !routine_logistics_paused
+    let industrial_delivery_ready = !routine_logistics_paused
         && well.water > 1e-9
         && available_free_haulers(ctx, well.owner) > 0
         && !building_has_active_trip(ctx, well.id);

@@ -30,6 +30,27 @@ pub fn fire_response_load(available_water: f64) -> f64 {
     }
 }
 
+/// Water still worth dispatching for the current response wave. The initial
+/// wave may claim as many free carriers as the incident's water estimate and
+/// well stock support. If that whole estimate arrives without suppressing the
+/// fire, one follow-up bucket is released at a time instead of abandoning a
+/// still-burning structure or flooding the road with unbounded surplus water.
+pub fn fire_response_water_needed(
+    required_water: f64,
+    delivered_water: f64,
+    in_transit_water: f64,
+) -> f64 {
+    let in_transit = in_transit_water.max(0.0);
+    let estimated_remaining =
+        (required_water.max(0.0) - delivered_water.max(0.0)).max(0.0);
+    let response_wave = if in_transit <= 1e-6 {
+        estimated_remaining.max(FIRE_BUCKET_WATER)
+    } else {
+        estimated_remaining
+    };
+    (response_wave - in_transit).max(0.0)
+}
+
 pub fn weather_risk_multiplier(is_raining: bool, is_drought: bool) -> f64 {
     if is_drought {
         FIRE_DROUGHT_RISK_MULTIPLIER
@@ -185,6 +206,51 @@ mod tests {
             suppression_result(first_suppression.intensity, 0.25, second_load, 0.0);
         assert!(second_suppression.intensity < first_suppression.intensity);
         assert!(second_suppression.extinguished);
+    }
+
+    #[test]
+    fn initial_response_wave_can_fill_several_bucket_carriers() {
+        assert_eq!(fire_response_water_needed(9.0, 0.0, 0.0), 9.0);
+        assert_eq!(fire_response_water_needed(9.0, 0.0, 3.0), 6.0);
+        assert_eq!(fire_response_water_needed(9.0, 0.0, 6.0), 3.0);
+        assert_eq!(fire_response_water_needed(9.0, 0.0, 9.0), 0.0);
+    }
+
+    #[test]
+    fn failed_full_response_wave_requests_a_follow_up_bucket() {
+        assert_eq!(fire_response_water_needed(9.0, 9.0, 0.0), FIRE_BUCKET_WATER);
+        assert_eq!(fire_response_water_needed(9.0, 9.0, 3.0), 0.0);
+    }
+
+    #[test]
+    fn coordinated_buckets_beat_growth_at_the_edge_of_well_range() {
+        use crate::balance_generated::{
+            FIRE_BUCKET_SPEED_MPS, FIRE_BUCKET_UNLOAD_SECONDS, FIRE_INITIAL_INTENSITY,
+        };
+
+        let first_arrival_seconds = 90.0 / FIRE_BUCKET_SPEED_MPS + FIRE_BUCKET_UNLOAD_SECONDS;
+        let at_arrival = step_fire(
+            FIRE_INITIAL_INTENSITY,
+            0.0,
+            first_arrival_seconds,
+            false,
+            false,
+        );
+        let first_bucket = suppression_result(
+            at_arrival.intensity,
+            at_arrival.damage,
+            FIRE_BUCKET_WATER,
+            1.0,
+        );
+        let second_bucket = suppression_result(
+            first_bucket.intensity,
+            at_arrival.damage,
+            FIRE_BUCKET_WATER,
+            1.0,
+        );
+
+        assert!(at_arrival.intensity < 0.55);
+        assert!(second_bucket.extinguished);
     }
 
     #[test]

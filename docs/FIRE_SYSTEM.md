@@ -33,17 +33,17 @@ and target. Reloading or reconnecting cannot reroll an outcome.
 
 | Mechanic | Normal-speed balance |
 | --- | ---: |
-| Lightning ignition | 10% settlement-wide chance per rainy game day |
-| Hearth/workshop accident | 0.15% base chance per structure per game day |
+| Lightning ignition | 1% settlement-wide chance per rainy game day |
+| Hearth/workshop accident | 0.05% base chance per structure per game day |
 | Spread radius | 26 m |
-| Full-intensity adjacent spread check | 1.2% per simulation second before modifiers |
-| Initial intensity | 28% |
-| Fair-weather intensity growth | 1.2 percentage points per second |
-| Rain damping | 0.4 percentage points per second |
-| Damage | 1.3 percentage points per intensity-second |
+| Full-intensity adjacent spread check | 0.8% per simulation second before modifiers |
+| Initial intensity | 24% |
+| Fair-weather intensity growth | 0.8 percentage points per second |
+| Rain damping | 0.6 percentage points per second |
+| Damage | 1 percentage point per intensity-second |
 
 Drought multiplies accident, spread, and intensity growth risk by `1.8`. Rain multiplies
-ignition and spread risk by `0.25` and actively damps existing fire intensity.
+accident and spread risk by `0.25` and actively damps existing fire intensity.
 
 Distance uses quadratic falloff, so close-packed buildings are much more vulnerable than
 structures near the edge of the 26 m spread radius. Stored timber, firewood, and grain
@@ -74,22 +74,26 @@ views; they add no save fields or periodic settlement scan.
 A well can respond only when all of the following are true:
 
 - it is complete;
-- at least one laborer is assigned;
 - it holds at least the 0.5-unit minimum response load (up to 3 units depart);
 - the incident lies inside its work extent;
 - it is the nearest eligible well, using road distance when connected and direct distance
   otherwise;
-- its current delivery agent has returned.
+- at least one unassigned villager remains available for each bucket trip.
 
-Fire calls take priority over household water delivery and over the normal work schedule.
+Fire calls take priority over household water delivery, industrial water carts, and the
+normal work schedule. A covered well reserves newly drawn water while a fire remains active,
+so household demand cannot repeatedly consume a dry well's sub-bucket refill before it can
+respond.
 The responder uses a road route when possible and a direct emergency route otherwise. The
 three water units are removed from the well when the carrier leaves, remain on the trip,
 and affect the incident only after the visible 2.4-second unloading/spraying phase. If the
 target no longer needs the water, the carrier returns it to the well.
 
-One well sends one bucket carrier at a time. A second bucket can depart once that carrier
-has returned. This keeps travel distance and well placement relevant instead of applying
-suppression as an invisible radius aura.
+A well may send as many bucket carriers concurrently as there are free villagers, stored
+water, and useful water remaining in the incident's response wave. The initial wave fills
+the incident's estimated water requirement. If that whole wave fails, one follow-up bucket
+is requested at a time until the fire is out. Every carrier still travels physically, so
+distance and well placement remain relevant without imposing an artificial one-hauler lock.
 
 ## Extinguishing probability
 
@@ -98,18 +102,18 @@ attempt:
 
 ```text
 effective water = bucket water × (1 − structural damage × 0.20)
-new intensity   = old intensity − effective water × 0.11
-chance          = 22%
-                + bucket water × 7%
+new intensity   = old intensity − effective water × 0.14
+chance          = 30%
+                + bucket water × 8%
                 + low-intensity bonus
                 − intensity penalty
                 − damage penalty
 ```
 
 The chance is clamped to `4%–96%`. A probability roll is only allowed once intensity is at
-or below 30%; reducing intensity to almost zero guarantees success. This means a nearby
-well can sometimes save a new fire with one bucket, while a distant response to an
-established or badly damaged fire normally requires repeated trips. The inspector shows
+or below 32%; reducing intensity to almost zero guarantees success. This means a nearby
+well will often save a new fire with one bucket, while an established or badly damaged fire
+still needs a coordinated response wave. The inspector shows
 the exact last-attempt chance, accumulated water, current intensity, damage, cause, and
 response state.
 

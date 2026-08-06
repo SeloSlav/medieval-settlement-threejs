@@ -823,7 +823,7 @@ export class SettlementHud {
       worst.extinguishChance > 0
         ? `${Math.round(worst.extinguishChance * 100)}% chance on the last bucket attempt`
         : 'Extinguishing odds improve as buckets cool the fire',
-      'A completed well in range needs stored water and an unassigned hauler to respond.',
+      'Covered wells reserve water first; every useful free hauler may carry a bucket concurrently.',
     ].join(' · ');
   }
 
