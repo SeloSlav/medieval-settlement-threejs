@@ -23,9 +23,14 @@ import {
   areResourceIconsAlwaysShown,
   setResourceIconsAlwaysShown,
 } from '../map/resourceMapIconPreference.ts';
+import {
+  areDistantCanopyCardsEnabled,
+  setDistantCanopyCardsEnabled,
+} from '../scene/distantCanopyCardPreference.ts';
 
 type GameMenuOptions = {
   onShadowPreferenceChange: () => void;
+  onDistantCanopyCardsChange?: (enabled: boolean) => void;
   onOpenChange?: (open: boolean) => void;
   onNewWorld?: () => void;
   onReplayTutorials?: () => void;
@@ -44,6 +49,7 @@ export class GameMenu {
   private readonly dialog: HTMLElement;
   private readonly treeShadowsCheckbox: HTMLInputElement;
   private readonly buildingShadowsCheckbox: HTMLInputElement;
+  private readonly distantCanopyCardsCheckbox: HTMLInputElement;
   private readonly constellationGuidesCheckbox: HTMLInputElement;
   private readonly resourceIconsCheckbox: HTMLInputElement;
   private readonly gameAudioCheckbox: HTMLInputElement;
@@ -92,6 +98,10 @@ export class GameMenu {
         <label class="game-menu-option">
           <input type="checkbox" data-building-shadows-checkbox />
           <span>Building shadows</span>
+        </label>
+        <label class="game-menu-option">
+          <input type="checkbox" data-distant-canopy-cards-checkbox />
+          <span>Distant canopy cards</span>
         </label>
         <label class="game-menu-option">
           <input type="checkbox" data-constellation-guides-checkbox />
@@ -168,6 +178,7 @@ export class GameMenu {
     this.dialog = this.backdrop.querySelector<HTMLElement>('.game-menu-dialog')!;
     this.treeShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-tree-shadows-checkbox]')!;
     this.buildingShadowsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-building-shadows-checkbox]')!;
+    this.distantCanopyCardsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-distant-canopy-cards-checkbox]')!;
     this.constellationGuidesCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-constellation-guides-checkbox]')!;
     this.resourceIconsCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-resource-icons-checkbox]')!;
     this.gameAudioCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-game-audio-checkbox]')!;
@@ -193,6 +204,7 @@ export class GameMenu {
 
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
+    this.distantCanopyCardsCheckbox.checked = areDistantCanopyCardsEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
     this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
@@ -226,6 +238,11 @@ export class GameMenu {
     this.buildingShadowsCheckbox.addEventListener('change', () => {
       setBuildingShadowsEnabled(this.buildingShadowsCheckbox.checked);
       this.onShadowPreferenceChange();
+    });
+    this.distantCanopyCardsCheckbox.addEventListener('change', () => {
+      const enabled = this.distantCanopyCardsCheckbox.checked;
+      setDistantCanopyCardsEnabled(enabled);
+      options.onDistantCanopyCardsChange?.(enabled);
     });
     this.constellationGuidesCheckbox.addEventListener('change', () => {
       setConstellationGuidesEnabled(this.constellationGuidesCheckbox.checked);
@@ -308,6 +325,7 @@ export class GameMenu {
     this.open = true;
     this.treeShadowsCheckbox.checked = areTreeShadowsEnabled();
     this.buildingShadowsCheckbox.checked = areBuildingShadowsEnabled();
+    this.distantCanopyCardsCheckbox.checked = areDistantCanopyCardsEnabled();
     this.constellationGuidesCheckbox.checked = areConstellationGuidesEnabled();
     this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();

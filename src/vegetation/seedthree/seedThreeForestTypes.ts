@@ -42,6 +42,7 @@ export type SeedThreeForestController = {
   ): boolean;
   getStructuralStats(): SeedThreeForestStructuralStats;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void;
+  setDistantCanopyCardsEnabled(enabled: boolean): void;
   setShadows(enabled: boolean): void;
   dispose(): void;
 };

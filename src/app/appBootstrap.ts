@@ -832,6 +832,9 @@ export async function bootstrapAppSession(
     onShadowPreferenceChange: () => {
       sceneManager.applyShadowPreferences();
     },
+    onDistantCanopyCardsChange: (enabled) => {
+      sceneManager.setDistantCanopyCardsEnabled(enabled);
+    },
     canOpenMenuFromKeyboard: () =>
       !firstPersonController.isActive()
       && !roadTool.isEnabled()

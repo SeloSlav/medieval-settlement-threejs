@@ -98,6 +98,7 @@ export type SeedThreeForestInstances = {
   seasonalCardMaterials: THREE.Material[];
   crownUnderlayMeshes: THREE.InstancedMesh[];
   crownUnderlayVisible: boolean;
+  distantCanopyCardsEnabled: boolean;
   deciduousFoliage: DeciduousFoliagePresentation;
   renderStats: SeedThreeForestRenderStats;
   pendingLodWork: {
@@ -711,6 +712,7 @@ export async function createSeedThreeForest(
     seasonalCardMaterials: [...seasonalCardMaterials],
     crownUnderlayMeshes,
     crownUnderlayVisible,
+    distantCanopyCardsEnabled: true,
     deciduousFoliage: {
       springFlush: 0,
       autumnColor: 0,
@@ -1315,15 +1317,27 @@ export function updateSeedThreeCrownUnderlayVisibility(
   cameraDistance: number,
   firstPersonActive: boolean,
 ): boolean {
-  const visible = shouldShowSeedThreeCrownUnderlay(
+  const presentationVisible = shouldShowSeedThreeCrownUnderlay(
     forest.crownUnderlayVisible,
     cameraDistance,
     firstPersonActive,
   );
-  if (visible === forest.crownUnderlayVisible) return false;
-  forest.crownUnderlayVisible = visible;
+  const visible = forest.distantCanopyCardsEnabled && presentationVisible;
+  const visibilityChanged = presentationVisible !== forest.crownUnderlayVisible
+    || forest.crownUnderlayMeshes.some((mesh) => mesh.visible !== visible);
+  if (!visibilityChanged) return false;
+  forest.crownUnderlayVisible = presentationVisible;
   for (const mesh of forest.crownUnderlayMeshes) mesh.visible = visible;
   return true;
+}
+
+export function setSeedThreeDistantCanopyCardsEnabled(
+  forest: SeedThreeForestInstances,
+  enabled: boolean,
+): void {
+  forest.distantCanopyCardsEnabled = enabled;
+  const visible = enabled && forest.crownUnderlayVisible;
+  for (const mesh of forest.crownUnderlayMeshes) mesh.visible = visible;
 }
 
 export function setSeedThreeForestDeciduousFoliage(
@@ -1433,6 +1447,8 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
     setDeciduousFoliage: (presentation) =>
       setSeedThreeForestDeciduousFoliage(forest, presentation),
+    setDistantCanopyCardsEnabled: (enabled) =>
+      setSeedThreeDistantCanopyCardsEnabled(forest, enabled),
     setShadows: (enabled) => setSeedThreeForestShadows(forest, enabled),
     dispose: () => disposeSeedThreeForest(forest),
   };

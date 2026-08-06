@@ -188,6 +188,10 @@ export class ForestManager {
     this.seedThreeForest?.setDeciduousFoliage(presentation);
   }
 
+  setDistantCanopyCardsEnabled(enabled: boolean): void {
+    this.seedThreeForest?.setDistantCanopyCardsEnabled(enabled);
+  }
+
   isTreeLayoutActiveForCollision(layoutIndex: number): boolean {
     return layoutIndex >= 0
       && layoutIndex < this.placements.length

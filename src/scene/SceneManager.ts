@@ -59,6 +59,7 @@ import {
 import { applyShadowPreferences as syncShadowCasters } from './applyShadowPreferences.ts';
 import { TREE_SHADOW_CAST_LAYER } from './SceneLayers.ts';
 import { subscribeShadowPreferences } from './shadowPreference.ts';
+import { areDistantCanopyCardsEnabled } from './distantCanopyCardPreference.ts';
 import { applyMaxAnisotropy, beginProgressiveStartupTextureLoad, type SceneStartupTextures } from './startupTextures.ts';
 import { HydrologyOverlay } from '../hydrology/HydrologyOverlay.ts';
 import { CropSuitabilityOverlay } from '../farming/CropSuitabilityOverlay.ts';
@@ -590,6 +591,9 @@ export class SceneManager {
 
     const [forestManager] = await Promise.all([forestPromise, worldDetailsPromise]);
     this.forestManager = forestManager;
+    this.forestManager.setDistantCanopyCardsEnabled(
+      areDistantCanopyCardsEnabled(),
+    );
     // Environment sync can precede deferred vegetation creation. Seed the new
     // forest from the retained presentation state before its first scene frame.
     if (this.environment) {
@@ -646,6 +650,10 @@ export class SceneManager {
       buildingRoot: this.selectionGroup,
     });
     this.refreshShadowMap();
+  }
+
+  setDistantCanopyCardsEnabled(enabled: boolean): void {
+    this.forestManager?.setDistantCanopyCardsEnabled(enabled);
   }
 
   invalidateStaticShadows(): void {
