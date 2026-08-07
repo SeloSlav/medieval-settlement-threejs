@@ -7,6 +7,7 @@ import {
   mix,
   normalize,
   normalViewGeometry,
+  smoothstep,
   texture,
   uv,
   vec2,
@@ -22,6 +23,7 @@ type TslNode = {
   xyz: TslNode;
   add: (value: unknown) => TslNode;
   mul: (value: unknown) => TslNode;
+  sub: (value: unknown) => TslNode;
 };
 
 const tsl = {
@@ -31,13 +33,14 @@ const tsl = {
   mix: mix as (a: unknown, b: unknown, amount: unknown) => TslNode,
   normalize: normalize as (value: unknown) => TslNode,
   normalViewGeometry: normalViewGeometry as TslNode,
+  smoothstep: smoothstep as (low: unknown, high: unknown, value: unknown) => TslNode,
   texture: texture as (map: THREE.Texture, uvNode?: unknown) => TslNode,
   uv: uv as () => TslNode,
   vec2: vec2 as (...values: unknown[]) => TslNode,
   vec4: vec4 as (...values: unknown[]) => TslNode,
 };
 
-const STEM_COLORS = [new THREE.Color(0x557340), new THREE.Color(0x66844b)] as const;
+const STEM_COLORS = [new THREE.Color(0x658b48), new THREE.Color(0x739b52)] as const;
 const FLOWER_CARD_COLOR = new THREE.Color(0xffffff);
 const WILDFLOWER_ATLAS_PATH =
   '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas-v2.png';
@@ -73,7 +76,7 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     texturePath: '/assets/textures/vegetation/wildflowers/queen-annes-lace-head.png',
     atlasOffset: [0, 0],
     heightScale: [1.2, 1.65],
-    widthScale: [1.05, 1.28],
+    widthScale: [0.92, 1.08],
   },
   {
     id: 'clusius-gentian',
@@ -135,9 +138,9 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
     windWeights: [],
     indices: [],
   };
-  // One instance is one readable stem. Species-specific bouquets are authored
-  // by the world scatterer so white/yellow blooms can mass densely while the
-  // orange and red species remain isolated accents.
+  // Every species keeps one readable central stem. Queen Anne's lace reveals
+  // the separately masked side branches below, while the other species retain
+  // their botanically simpler silhouettes.
   const stalks = [
     { x: 0, z: 0, height: 0.36, leanX: 0.008, leanZ: -0.004, yaw: 0.25, bloomScale: 1 },
   ] as const;
@@ -153,6 +156,91 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
       ),
       stalk.yaw,
       0.038 * stalk.bloomScale * headScale,
+    );
+  });
+
+  // Cow parsley / Queen Anne's lace reads as a loose spray, not a lollipop.
+  // Each side stem splits from the central stalk, changes direction once, and
+  // ends at a differently sized and tilted umbel. Uneven split heights and
+  // head elevations keep the silhouette organic at strategic-camera distance.
+  const queenAnneBranches = [
+    {
+      splitHeight: 0.105,
+      elbow: [0.042, 0.205, 0.022],
+      tip: [0.104, 0.31, 0.055],
+      yaw: 0.46,
+      headRadius: 0.021,
+    },
+    {
+      splitHeight: 0.132,
+      elbow: [-0.038, 0.235, 0.047],
+      tip: [-0.105, 0.352, 0.082],
+      yaw: 2.48,
+      headRadius: 0.024,
+    },
+    {
+      splitHeight: 0.158,
+      elbow: [0.018, 0.264, -0.055],
+      tip: [0.06, 0.388, -0.112],
+      yaw: 5.22,
+      headRadius: 0.019,
+    },
+    {
+      splitHeight: 0.185,
+      elbow: [-0.045, 0.284, -0.034],
+      tip: [-0.1, 0.408, -0.064],
+      yaw: 3.7,
+      headRadius: 0.022,
+    },
+    {
+      splitHeight: 0.215,
+      elbow: [0.055, 0.302, 0.002],
+      tip: [0.123, 0.382, 0.018],
+      yaw: 0.15,
+      headRadius: 0.02,
+    },
+  ] as const;
+
+  queenAnneBranches.forEach((branch, index) => {
+    const splitFraction = branch.splitHeight / stalks[0].height;
+    const split = new THREE.Vector3(
+      stalks[0].leanX * splitFraction,
+      branch.splitHeight,
+      stalks[0].leanZ * splitFraction,
+    );
+    const elbow = new THREE.Vector3(...branch.elbow);
+    const tip = new THREE.Vector3(...branch.tip);
+    const jointWindWeight = THREE.MathUtils.lerp(splitFraction, 1, 0.62);
+    const stemColor = STEM_COLORS[(index + 1) % STEM_COLORS.length]!;
+
+    appendStemTube(
+      buffers,
+      split,
+      elbow,
+      0.0026,
+      branch.yaw,
+      stemColor,
+      splitFraction,
+      jointWindWeight,
+      1,
+    );
+    appendStemTube(
+      buffers,
+      elbow,
+      tip,
+      0.00215,
+      branch.yaw + 0.31,
+      stemColor,
+      jointWindWeight,
+      1,
+      1,
+    );
+    appendFlowerHeadCard(
+      buffers,
+      tip,
+      branch.yaw + (index % 2 === 0 ? 0.18 : -0.13),
+      branch.headRadius * headScale,
+      1,
     );
   });
 
@@ -187,8 +275,23 @@ export function createSeedThreeWildflowerMaterial(
   material.polygonOffsetUnits = -2;
 
   const baseColor = tsl.attribute('color', 'vec3');
-  const flowerMask = tsl.attribute('flowerMask', 'float');
+  // The existing flower mask packs two binary values so the branching plant
+  // does not consume another WebGPU vertex-buffer slot: 0/1 are central
+  // stem/head and 2/3 are Queen Anne branch stem/head.
+  const packedFlowerMask = tsl.attribute('flowerMask', 'float');
+  const queenAnneBranchMask = tsl.smoothstep(
+    tsl.float(1.49),
+    tsl.float(1.51),
+    packedFlowerMask,
+  );
+  const flowerMask = packedFlowerMask.sub(queenAnneBranchMask.mul(tsl.float(2)));
   const flowerAnchor = tsl.attribute('aAnchorPos', 'vec4');
+  // Atlas cell zero is Queen Anne's lace. Deriving the instance flag from the
+  // existing anchor keeps the complete flower pipeline within WebGPU's eight
+  // vertex-buffer minimum limit.
+  const whiteUmbel = tsl.float(1).sub(
+    tsl.smoothstep(tsl.float(0.01), tsl.float(0.02), flowerAnchor.w),
+  );
   const atlasUv = tsl.uv()
     .mul(tsl.vec2(WILDFLOWER_ATLAS_CELL_SCALE[0], WILDFLOWER_ATLAS_CELL_SCALE[1]))
     .add(tsl.vec2(flowerAnchor.w, 0));
@@ -196,10 +299,13 @@ export function createSeedThreeWildflowerMaterial(
   const stemTexel = tsl.texture(stemTexture, tsl.uv());
   // Alpha stays in colorNode so the material opacity still controls the
   // close-ground LOD fade applied by GrassBladeField.
-  material.colorNode = tsl.mix(
+  const surfaceColor = tsl.mix(
     tsl.vec4(baseColor, tsl.float(1)).mul(stemTexel),
     texel,
     flowerMask,
+  );
+  material.colorNode = surfaceColor.mul(
+    tsl.mix(tsl.float(1), whiteUmbel, queenAnneBranchMask),
   );
   // A separate weight keeps every point of the head card attached to its stem
   // rather than bending the image according to its texture UV.
@@ -248,6 +354,9 @@ function appendStemTube(
   radius: number,
   yaw: number,
   color: THREE.Color,
+  windWeightStart = 0,
+  windWeightEnd = 1,
+  queenAnneBranchMask = 0,
 ): void {
   const axis = tip.clone().sub(root).normalize();
   const radialA = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw))
@@ -277,7 +386,8 @@ function appendStemTube(
         ringColor,
         [sideIndex / radialSegments, t * 3.25],
         0,
-        t,
+        THREE.MathUtils.lerp(windWeightStart, windWeightEnd, t),
+        queenAnneBranchMask,
       ));
     }
   }
@@ -299,6 +409,7 @@ function appendFlowerHeadCard(
   center: THREE.Vector3,
   yaw: number,
   radius: number,
+  queenAnneBranchMask = 0,
 ): void {
   const tiltDirection = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
   const normal = new THREE.Vector3(
@@ -320,6 +431,7 @@ function appendFlowerHeadCard(
     [0.5, 0.5],
     1,
     1,
+    queenAnneBranchMask,
   ));
   for (let index = 0; index <= segments; index++) {
     const angle = (index / segments) * Math.PI * 2;
@@ -335,6 +447,7 @@ function appendFlowerHeadCard(
       [0.5 + Math.cos(angle) * 0.5, 0.5 + Math.sin(angle) * 0.5],
       1,
       1,
+      queenAnneBranchMask,
     ));
   }
   for (let index = 0; index < segments; index++) {
@@ -388,8 +501,16 @@ function vertex(
   uv: readonly [number, number],
   flowerMask: number,
   windWeight: number,
+  queenAnneBranchMask = 0,
 ): WildflowerVertex {
-  return { position, normal, color, uv, flowerMask, windWeight };
+  return {
+    position,
+    normal,
+    color,
+    uv,
+    flowerMask: flowerMask + queenAnneBranchMask * 2,
+    windWeight,
+  };
 }
 
 function appendVertex(buffers: WildflowerBuffers, item: WildflowerVertex): void {

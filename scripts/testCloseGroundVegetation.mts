@@ -558,7 +558,31 @@ const stalkBlock = wildflowerSource.slice(
 assert.equal(
   (stalkBlock.match(/\{ x:/g) ?? []).length,
   1,
-  'each wildflower instance should contain one readable stem',
+  'every wildflower species should retain one readable central stem',
+);
+const queenAnneBranchBlock = wildflowerSource.slice(
+  wildflowerSource.indexOf('const queenAnneBranches = ['),
+  wildflowerSource.indexOf('] as const;', wildflowerSource.indexOf('const queenAnneBranches = [')),
+);
+assert.equal(
+  (queenAnneBranchBlock.match(/splitHeight:/g) ?? []).length,
+  5,
+  "Queen Anne's lace should spread into five irregular side branches",
+);
+assert.match(
+  wildflowerSource,
+  /appendStemTube\([\s\S]*?split,[\s\S]*?elbow,[\s\S]*?appendStemTube\([\s\S]*?elbow,[\s\S]*?tip/,
+  'each white-flower side branch should bend at a visible elbow instead of radiating rigidly',
+);
+assert.match(
+  wildflowerSource,
+  /const queenAnneBranchMask = tsl\.smoothstep[\s\S]*?const whiteUmbel = tsl\.float\(1\)\.sub\([\s\S]*?flowerAnchor\.w/,
+  'the branching spray must derive its white-species mask without adding GPU vertex buffers',
+);
+assert.doesNotMatch(
+  `${wildflowerSource}\n${fieldSource}`,
+  /aWhiteUmbel|setAttribute\('queenAnneBranchMask'/,
+  'branching must remain packed into existing attributes for baseline WebGPU limits',
 );
 assert.match(
   wildflowerSource,
@@ -572,8 +596,8 @@ assert.match(
 );
 assert.match(
   wildflowerSource,
-  /id: 'queen-annes-lace',[\s\S]*?queen-annes-lace-head\.png[\s\S]*?widthScale: \[1\.05, 1\.28\]/,
-  'the white meadow species should use the broad clustered umbel texture and scale',
+  /id: 'queen-annes-lace',[\s\S]*?queen-annes-lace-head\.png[\s\S]*?widthScale: \[0\.92, 1\.08\]/,
+  'the multi-headed white species should use a smaller central umbel instead of one daisy-like disk',
 );
 assert.doesNotMatch(
   wildflowerSource,
