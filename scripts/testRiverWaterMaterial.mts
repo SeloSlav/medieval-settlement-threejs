@@ -55,6 +55,13 @@ import {
   WATER_FOAM_REACH,
 } from '../src/rivers/riverWaterShoreMaps.ts';
 import {
+  LILY_CAMERA_FADE_DISTANCE,
+  LILY_CAMERA_FULL_DISTANCE,
+  LILY_SHORE_REACH_METERS,
+  lilyPadCameraOpacity,
+  lilyPadShorePresence,
+} from '../src/rivers/RiverLilyPads.ts';
+import {
   computeShoreStoneMoss,
   computeShoreStoneTint,
   computeShoreStoneVisualScale,
@@ -209,6 +216,14 @@ assert.equal(
   'transparent water must not receive opaque tree-shadow bands',
 );
 
+assert.equal(lilyPadShorePresence(0), 0);
+assert.ok(lilyPadShorePresence(1.2) > 0.98);
+assert.ok(lilyPadShorePresence(5.5) > lilyPadShorePresence(7.5));
+assert.equal(lilyPadShorePresence(LILY_SHORE_REACH_METERS), 0);
+assert.equal(lilyPadCameraOpacity(LILY_CAMERA_FADE_DISTANCE), 0);
+assert.equal(lilyPadCameraOpacity(LILY_CAMERA_FULL_DISTANCE), 1);
+assert.equal(lilyPadCameraOpacity(999, true), 1);
+
 assert.ok(computeWaterFoamBase(0.2) > computeWaterFoamBase(0.9));
 assert.ok(computeWaterFoamBase(0.9) > computeWaterFoamBase(1.6));
 assert.equal(computeWaterFoamBase(WATER_FOAM_REACH), 0);
@@ -362,6 +377,10 @@ const reedSource = readFileSync(
   `${projectRoot}src/rivers/RiverReeds.ts`,
   'utf8',
 );
+const lilyPadSource = readFileSync(
+  `${projectRoot}src/rivers/RiverLilyPads.ts`,
+  'utf8',
+);
 const shoreStoneSource = readFileSync(
   `${projectRoot}src/rivers/RiverShoreStones.ts`,
   'utf8',
@@ -375,6 +394,16 @@ assert.match(
   reedSource,
   /isReedLodVisible\(reedLod\)/,
   'runtime reeds must use the minimum readable-card reveal threshold',
+);
+assert.match(
+  reedSource,
+  /appendShallowReedFingers[\s\S]*?riverField\.isRenderedWetAt\(x, z\)/,
+  'cattails must include irregular emergent fingers inside rendered shallows',
+);
+assert.match(
+  reedSource,
+  /getStillWaterSurfaceY\([\s\S]*?- placement\.submergeMeters/,
+  'shallow cattails must root just below the water surface',
 );
 assert.equal(
   (reedSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
@@ -390,6 +419,21 @@ assert.match(
   reedSource,
   /const refreshProximity[\s\S]*?instancesHidden = false;/,
   'a visible proximity refresh must re-arm the next hidden transition',
+);
+assert.equal(
+  (lilyPadSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
+  1,
+  'all textured lily pads must stay in one instanced draw',
+);
+assert.match(
+  lilyPadSource,
+  /LILY_PAD_TEXTURE_PATH[\s\S]*?water-lily-pad\.png/,
+  'lily pads must use the authored transparent leaf texture',
+);
+assert.match(
+  lilyPadSource,
+  /valueNoise2D[\s\S]*?raftPresence[\s\S]*?shorePresence/,
+  'lily placement must combine broken rafts with a shore-distance fade',
 );
 assert.doesNotMatch(
   shoreStoneSource,

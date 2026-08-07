@@ -7,6 +7,7 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import { RiverField } from './RiverField.ts';
 import { createRiverBankMeshes } from './RiverBankMesh.ts';
 import { createRiverReeds, type RiverReedField } from './RiverReeds.ts';
+import { createRiverLilyPads, type RiverLilyPadField } from './RiverLilyPads.ts';
 import { createRiverShoreStones } from './RiverShoreStones.ts';
 import { createRiverWaterMesh, disposeSharedRiverWaterMaterial } from './RiverWaterMesh.ts';
 import {
@@ -80,6 +81,7 @@ export async function createRiverSystem(
   group.add(reedsGroup);
   let shoreStones: ReturnType<typeof createRiverShoreStones> | null = null;
   let reeds: RiverReedField | null = null;
+  let lilyPads: RiverLilyPadField | null = null;
   let detailsPromise: Promise<void> | null = null;
   let disposed = false;
   let clearance: {
@@ -99,20 +101,31 @@ export async function createRiverSystem(
         mulberry32(0x71ee1212),
       );
       const bankMeshes = createRiverBankMeshes(terrain, riverField, bankMaterial);
-      const nextReeds = await createRiverReeds(
-        terrain,
-        riverField,
-        mulberry32(0x8eed1212),
-        maxAnisotropy,
-        rendererBackend,
-      );
+      const [nextReeds, nextLilyPads] = await Promise.all([
+        createRiverReeds(
+          terrain,
+          riverField,
+          mulberry32(0x8eed1212),
+          maxAnisotropy,
+          rendererBackend,
+        ),
+        createRiverLilyPads(
+          terrain,
+          riverField,
+          mulberry32(0x11171212),
+          maxAnisotropy,
+        ),
+      ]);
       if (disposed) {
         nextReeds.dispose();
+        nextLilyPads.dispose();
         return;
       }
       shoreStones = nextShoreStones;
       reeds = nextReeds;
+      lilyPads = nextLilyPads;
       group.add(nextShoreStones.group, bankMeshes);
+      group.add(nextLilyPads.group);
       reedsGroup.add(nextReeds.group);
       if (clearance) {
         nextShoreStones.syncPlacementClearance(clearance.buildings, clearance.farmFieldPolygons);
@@ -132,6 +145,7 @@ export async function createRiverSystem(
     rockShadowMaterials.shadowCast.dispose();
     rockShadowMaterials.shadowDepth.dispose();
     reeds?.dispose();
+    lilyPads?.dispose();
   };
 
   return {
@@ -156,6 +170,7 @@ export async function createRiverSystem(
     updateCameraState: (cameraPosition, cameraTarget, cameraDistance, firstPersonActive) => {
       reedsGroup.visible = firstPersonActive === true || isReedZoomActive(cameraDistance);
       reeds?.updateCameraState(cameraPosition, cameraTarget, cameraDistance, firstPersonActive);
+      lilyPads?.updateCameraState(cameraDistance, firstPersonActive);
     },
     setNightAmount: setSharedRiverWaterNightAmount,
     setReflectionState: setSharedRiverWaterReflectionState,

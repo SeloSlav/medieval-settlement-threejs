@@ -23,6 +23,7 @@ import {
 } from '../vegetation/seedthree/seedThreeGroundCover.ts';
 import { seedThreeLeafUrl } from '../vegetation/seedthree/seedThreeTextures.ts';
 import type { RiverField } from './RiverField.ts';
+import { getStillWaterSurfaceY } from './RiverWaterLevel.ts';
 
 type ReedPlacement = {
   x: number;
@@ -34,6 +35,7 @@ type ReedPlacement = {
   hue: number;
   sat: number;
   light: number;
+  submergeMeters: number;
 };
 
 type ShoreNode = {
@@ -124,7 +126,7 @@ export async function createRiverReeds(
     attributes.anchor.setXYZ(
       index,
       placement.x,
-      terrain.getHeightAt(placement.x, placement.z) + 0.03,
+      resolveReedBaseY(placement, terrain, riverField),
       placement.z,
     );
     resolveReedScaleVector(placement, fullScale);
@@ -167,6 +169,7 @@ export async function createRiverReeds(
       composeReedMatrix(
         placement,
         terrain,
+        riverField,
         composeMatrix,
         composeQuaternion,
         composePosition,
@@ -273,6 +276,7 @@ function createReedPlacements(riverField: RiverField, rng: () => number): ReedPl
         hue: 0.24 + (rng() - 0.5) * 0.03,
         sat: 0.34 + rng() * 0.1,
         light: 0.3 + rng() * 0.07,
+        submergeMeters: 0,
       };
       placements.push(placement);
       placementIndex.add(placement);
@@ -280,6 +284,7 @@ function createReedPlacements(riverField: RiverField, rng: () => number): ReedPl
   }
 
   appendGridReedPlacements(riverField, rng, placements, placementIndex);
+  appendShallowReedFingers(riverField, rng, shoreNodes, placements, placementIndex);
   return placements;
 }
 
@@ -320,6 +325,52 @@ function appendGridReedPlacements(
         hue: 0.24 + (rng() - 0.5) * 0.03,
         sat: 0.34 + rng() * 0.1,
         light: 0.3 + rng() * 0.07,
+        submergeMeters: 0,
+      };
+      placements.push(placement);
+      placementIndex.add(placement);
+    }
+  }
+}
+
+function appendShallowReedFingers(
+  riverField: RiverField,
+  rng: () => number,
+  shoreNodes: ShoreNode[],
+  placements: ReedPlacement[],
+  placementIndex: SpatialHash2D<ReedPlacement>,
+): void {
+  for (const node of shoreNodes) {
+    if (rng() > 0.36) continue;
+
+    const tangentX = -node.outwardZ;
+    const tangentZ = node.outwardX;
+    const fingerLength = 1.4 + Math.pow(rng(), 0.7) * 4.2;
+    const clusterCount = 2 + Math.floor(rng() * 5);
+
+    for (let index = 0; index < clusterCount; index++) {
+      const inward = 0.32 + Math.pow(rng(), 0.72) * fingerLength;
+      const spread = 0.24 + inward * 0.12;
+      const along = (rng() - 0.5) * spread * 2;
+      const x = node.x + tangentX * along - node.outwardX * inward;
+      const z = node.z + tangentZ * along - node.outwardZ * inward;
+      if (!riverField.isRenderedWetAt(x, z)) continue;
+
+      const wetShore = riverField.sampleShoreDistance(x, z);
+      if (wetShore < 0.36 || wetShore > 5.7) continue;
+      if (placementIndex.hasPointWithin(x, z, 0.32 + rng() * 0.2)) continue;
+
+      const placement: ReedPlacement = {
+        x,
+        z,
+        heightMeters: resolveReedHeightMeters(wetShore, rng),
+        yaw: rng() * Math.PI * 2,
+        tiltX: (rng() - 0.5) * 0.12,
+        tiltZ: (rng() - 0.5) * 0.1,
+        hue: 0.235 + (rng() - 0.5) * 0.035,
+        sat: 0.34 + rng() * 0.12,
+        light: 0.28 + rng() * 0.08,
+        submergeMeters: 0.12 + rng() * 0.24,
       };
       placements.push(placement);
       placementIndex.add(placement);
@@ -369,6 +420,7 @@ function collectShoreNodes(riverField: RiverField): ShoreNode[] {
 function composeReedMatrix(
   placement: ReedPlacement,
   terrain: Terrain,
+  riverField: RiverField,
   matrix: THREE.Matrix4,
   quaternion: THREE.Quaternion,
   position: THREE.Vector3,
@@ -376,13 +428,28 @@ function composeReedMatrix(
   euler: THREE.Euler,
   edgeFade = 1,
 ): void {
-  const y = terrain.getHeightAt(placement.x, placement.z);
-  position.set(placement.x, y + 0.03, placement.z);
+  position.set(
+    placement.x,
+    resolveReedBaseY(placement, terrain, riverField),
+    placement.z,
+  );
   euler.set(placement.tiltX, placement.yaw, placement.tiltZ);
   quaternion.setFromEuler(euler);
   const fade = THREE.MathUtils.clamp(edgeFade, 0, 1);
   resolveReedScaleVector(placement, scaleVector, fade);
   matrix.compose(position, quaternion, scaleVector);
+}
+
+function resolveReedBaseY(
+  placement: ReedPlacement,
+  terrain: Terrain,
+  riverField: RiverField,
+): number {
+  if (placement.submergeMeters > 0) {
+    return getStillWaterSurfaceY(terrain, riverField, placement.x, placement.z)
+      - placement.submergeMeters;
+  }
+  return terrain.getHeightAt(placement.x, placement.z) + 0.03;
 }
 
 function resolveReedScaleVector(
