@@ -308,16 +308,16 @@ export function marketplaceResourceRoom(
   resource: TradeResourceKind,
 ): number {
   const storageResource = tradeStorageResource(resource);
-  const cap = BUILDING_STORAGE_CAPS.trading_post[storageResource] ?? 0;
+  const cap = (BUILDING_STORAGE_CAPS.trading_post as Partial<Record<TradeResourceKind, number>>)[storageResource] ?? 0;
   const stock = storageResource === 'food'
     ? freshFoodStock(building)
     : storageResource === 'preservedFood'
       ? preservedFoodStock(building)
-      : (building[storageResource] ?? 0);
+      : ((building as unknown as Partial<Record<TradeResourceKind, number>>)[storageResource] ?? 0);
   return Math.max(0, cap - stock);
 }
 
-function tradeStorageResource(resource: TradeResourceKind): keyof BuildingState {
+function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind {
   if (
     resource === 'food'
     || resource === 'meat'
