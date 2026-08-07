@@ -1,12 +1,15 @@
 ﻿import './style.css';
 import './ui/iconography.css';
 import { App } from './app/App.ts';
+import { installSpacetimeProtocolRecovery } from './network/spacetimeProtocolRecovery.ts';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 
 if (!root) {
   throw new Error('Missing #app root.');
 }
+
+const disposeSpacetimeProtocolRecovery = installSpacetimeProtocolRecovery();
 
 const visualPerformanceHooksPromise =
   new URLSearchParams(window.location.search).get('visualProfile') === '1'
@@ -37,5 +40,8 @@ app.start().then(async () => {
 });
 
 if (import.meta.hot) {
-  import.meta.hot.dispose(() => app.dispose());
+  import.meta.hot.dispose(() => {
+    disposeSpacetimeProtocolRecovery();
+    app.dispose();
+  });
 }

@@ -87,7 +87,6 @@ export class NobleSetupPanel {
                 <p class="noble-setup-eyebrow">Coat of Arms</p>
                 <h2 id="noble-armory-title">Heraldry of Your House</h2>
               </div>
-              <span>These colors and symbols will represent you in the game</span>
             </div>
 
             <div class="noble-setup-presets" aria-label="Coat of arms presets" data-preset-strip></div>
@@ -145,7 +144,6 @@ export class NobleSetupPanel {
         </div>
 
         <footer class="noble-setup-actions">
-          <span>Next: map size, landscape, and game mode</span>
           <button type="submit">Continue to Map Setup <i aria-hidden="true">›</i></button>
         </footer>
       </form>

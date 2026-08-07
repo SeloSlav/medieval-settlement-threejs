@@ -89,6 +89,7 @@ import {
 import { buildCrowdViewState, type CrowdViewState } from '../settlement/crowdView.ts';
 import { syncPlacedBuildingTerrain } from './placedBuildingTerrainSync.ts';
 import { SessionLifecycleController } from './SessionLifecycleController.ts';
+import { markSpacetimeProtocolHealthy } from '../network/spacetimeProtocolRecovery.ts';
 import { beginNewWorld } from './worldBootstrapFlow.ts';
 import { clearAuthoritativeWorldGeneration } from '../world/worldGenerationContext.ts';
 import {
@@ -345,7 +346,10 @@ export class App {
             () => this.sessionLifecycle?.retryConnection(),
           );
         },
-        onSessionReady: () => this.sessionLifecycle?.onReady(),
+        onSessionReady: () => {
+          markSpacetimeProtocolHealthy();
+          this.sessionLifecycle?.onReady();
+        },
       },
     );
     this.sessionLifecycle = new SessionLifecycleController({

@@ -54,6 +54,7 @@ export class SessionLifecycleController {
 
   onReady(): void {
     this.deps.sessionGate.markReady();
+    this.deps.loadingScreen?.clearErrorState();
     // App clears the overlay only after the fully populated forest frame is
     // ready, so connection completion cannot expose a half-built world.
     this.deps.loadingScreen?.setProgress({
@@ -129,6 +130,7 @@ export class SessionLifecycleController {
   retryConnection(): void {
     this.deps.sessionGate.markConnecting();
     this.clearDisconnectOverlayTimer();
+    this.deps.loadingScreen?.clearErrorState();
     if (this.deps.sessionGate.hasEverBeenReady()) {
       this.deps.connectionOverlay.show(
         'Reconnecting…',

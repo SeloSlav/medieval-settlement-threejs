@@ -298,7 +298,7 @@
 
 .noble-setup-identity {
   display: grid;
-  grid-template-rows: repeat(6, auto);
+  grid-template-rows: repeat(6, max-content);
   align-content: start;
   gap: 8px;
   border-right: 1px solid rgba(213, 190, 139, 0.18);
@@ -322,7 +322,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(106px, 0.44fr);
   align-self: start;
   gap: 10px;
-  min-height: 0;
+  min-height: auto;
 }
 
 .noble-setup-portrait-frame {
@@ -797,10 +797,29 @@
   .noble-setup-backdrop { padding: 0; }
   .noble-setup-shell { width: 100%; height: 100%; border: 0; }
   .noble-setup-heading { padding: 10px 14px; }
-  .noble-setup-layout { grid-template-columns: 1fr; overflow-y: auto; }
-  .noble-setup-identity { grid-template-rows: auto auto auto auto auto auto; border-right: 0; border-bottom: 1px solid rgba(213, 190, 139, 0.18); overflow: visible; }
-  .noble-setup-identity-showcase { grid-template-columns: minmax(0, 1fr) minmax(120px, 0.42fr); }
-  .noble-setup-armory { overflow: visible; }
+  .noble-setup-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-auto-rows: max-content;
+    align-content: start;
+    overflow-y: auto;
+  }
+  .noble-setup-identity {
+    grid-template-rows: repeat(6, max-content);
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(213, 190, 139, 0.18);
+    overflow: visible;
+  }
+  .noble-setup-identity-showcase {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.42fr);
+    min-height: auto;
+  }
+  .noble-setup-armory {
+    grid-template-rows: auto auto auto;
+    min-height: auto;
+    overflow: visible;
+  }
   .noble-setup-actions { padding: 8px 12px; }
   .noble-setup-actions > span { display: none; }
   .noble-setup-actions button { width: 100%; min-width: 0; }

@@ -1015,11 +1015,25 @@ export class SpacetimeGameStore {
     if (!connection) return;
 
     if (this.subscribedConnection !== connection) {
-      for (const table of GAME_TABLE_SUBSCRIPTIONS) {
-        connection.subscriptionBuilder().subscribe(`SELECT * FROM ${table}`);
-      }
       this.tableSync.attachHandlers(connection);
       this.subscribedConnection = connection;
+      connection.subscriptionBuilder()
+        .onApplied(() => {
+          if (this.subscribedConnection !== connection) return;
+          this.tableSync.syncAll(connection);
+        })
+        .onError((context) => {
+          if (this.subscribedConnection !== connection) return;
+          console.warn('[SpacetimeGameStore] subscription failed', context.event);
+          this.connectErrorListener?.(context.event);
+          this.emit();
+        })
+        .subscribe(GAME_TABLE_SUBSCRIPTIONS.map((table) => `SELECT * FROM ${table}`));
+      // Publish transport/identity readiness immediately. GameRuntime will now
+      // time out into an actionable error if the SDK never applies the initial
+      // cache, instead of waiting forever for a table callback.
+      this.emit();
+      return;
     }
 
     this.tableSync.syncAll(connection);

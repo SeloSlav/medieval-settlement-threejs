@@ -72,7 +72,10 @@ export class LoadingScreen {
   }
 
   setProgress(progress: LoadingProgress): void {
-    if (this.dismissed) return;
+    // Asset hydration runs independently of the authoritative session. Once a
+    // connection/bootstrap error is actionable, late texture progress must not
+    // erase its Retry controls and leave a misleading 100% loading screen.
+    if (this.dismissed || this.retryHandler !== null) return;
     this.clearErrorState();
     this.labelEl.textContent = progress.label;
     this.detailEl.textContent = progress.detail ?? '';
