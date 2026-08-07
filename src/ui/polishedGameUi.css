@@ -1654,12 +1654,25 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.construction-card__caption span {
+.construction-card__caption > span {
   color: #bca779;
   font-size: 8px;
   font-weight: 750;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.construction-card__cost {
+  min-height: 11px;
+}
+
+.construction-card__cost .resource-cost {
+  color: #cbb47f;
+  font-size: 10px;
+}
+
+.construction-card__cost .resource-cost__suffix {
+  font-size: 8px;
 }
 
 .construction-card__hotkey {

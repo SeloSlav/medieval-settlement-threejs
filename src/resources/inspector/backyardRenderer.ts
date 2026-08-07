@@ -2,7 +2,6 @@ import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
   backyardGardenLabel,
-  formatBackyardGardenCost,
   formatBackyardGardenSalvage,
   getBackyardGardenCost,
   type BackyardGardenKind,
@@ -38,6 +37,7 @@ import { environmentFor } from '../../world/seasonPolicy.ts';
 import type { BurgageZoneState, InspectableTarget } from '../types.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
+import { renderBuildingResourceCost } from '../../ui/resourceCost.ts';
 
 export function renderBackyardInspector(
   target: Extract<InspectableTarget, { kind: 'backyard' }>,
@@ -141,7 +141,7 @@ export function renderBackyardInspector(
       <li><span>Household services</span><span>${formatResidenceServiceConsequence(service)}</span></li>
       <li><span>Local market levy (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · held in the market lockbox until a free hauler carts it to the civic treasury</span></li>
       <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>
-      <li><span>Build cost</span><span>${formatBackyardGardenCost(garden.kind)}</span></li>
+      <li><span>Build cost</span><span>${renderBuildingResourceCost(getBackyardGardenCost(garden.kind))}</span></li>
     `,
     supplementalPanelHtml: `<p class="resource-inspector-note">${producesFood
       ? 'The household consumes its reserved share directly. The remainder becomes real Marketplace inventory allocated abstractly to connected homes.'
@@ -204,7 +204,7 @@ function renderEmptyBackyardPicker(
           <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
           <span class="backyard-picker-option__meta">
             <span class="backyard-picker-option__tag">${tag}</span>
-            <span class="backyard-picker-option__cost">${cost.timber}t · ${cost.stone}s</span>
+            <span class="backyard-picker-option__cost">${renderBuildingResourceCost(cost, { compact: true })}</span>
           </span>
         </button>
       </li>

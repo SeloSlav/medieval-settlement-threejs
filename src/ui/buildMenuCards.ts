@@ -1,6 +1,7 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { formatBuildingCost, getBuildingCost, residenceZoneCost } from '../resources/buildingEconomy.ts';
 import { MENU_ACTION_TO_BUILDING_KIND } from './buildMenuMapping.ts';
+import { renderBuildingResourceCost } from './resourceCost.ts';
 
 export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
@@ -147,14 +148,20 @@ export type BuildMenuHandlers = {
 export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES): string {
   return entries.map((entry) => {
     const [title, hotkey, description] = DETAILS[entry.artKey];
-    const cost = entry.artKey === 'residences'
-      ? `${formatBuildingCost(residenceZoneCost(1))} per home`
-      : formatBuildingCost(getBuildingCost(entry.artKey as BuildingKind));
-    return `<button type="button" class="construction-card" data-action="${entry.action}" data-hotkey="${hotkey}" data-tooltip="${description} · Cost: ${cost}" aria-label="${title} (${hotkey})">
+    const resourceCost = entry.artKey === 'residences'
+      ? residenceZoneCost(1)
+      : getBuildingCost(entry.artKey as BuildingKind);
+    const costSuffix = entry.artKey === 'residences' ? 'per home' : '';
+    const costText = `${formatBuildingCost(resourceCost)}${costSuffix ? ` ${costSuffix}` : ''}`;
+    const costMarkup = renderBuildingResourceCost(resourceCost, {
+      compact: true,
+      suffix: costSuffix,
+    });
+    return `<button type="button" class="construction-card" data-action="${entry.action}" data-hotkey="${hotkey}" data-tooltip="${description} · Cost: ${costText}" aria-label="${title} (${hotkey}). Cost: ${costText}">
       <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
       <span class="construction-card__hotkey" aria-hidden="true">${hotkey}</span>
-      <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span>${cost}</span></span>
-      <span class="construction-card__tooltip" role="tooltip"><span class="construction-card__tooltip-title">${title} (${hotkey})</span><span class="construction-card__tooltip-desc">${description}</span><span class="construction-card__tooltip-cost">Cost: ${cost}</span></span>
+      <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span class="construction-card__cost">${costMarkup}</span></span>
+      <span class="construction-card__tooltip" role="tooltip"><span class="construction-card__tooltip-title">${title} (${hotkey})</span><span class="construction-card__tooltip-desc">${description}</span><span class="construction-card__tooltip-cost">Cost: ${costMarkup}</span></span>
     </button>`;
   }).join('');
 }

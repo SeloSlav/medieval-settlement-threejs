@@ -56,7 +56,7 @@ import {
 } from '../fires/fireRecovery.ts';
 import type { SettlementSecurityState } from '../security/frontierSecurity.ts';
 import type { CombatAgentState } from '../security/combatAgents.ts';
-import { formatBuildingCost } from './buildingEconomy.ts';
+import { renderBuildingResourceCost } from '../ui/resourceCost.ts';
 import {
   isStorehouseCommodity,
   type StorehouseCommodity,
@@ -1751,7 +1751,7 @@ export class ResourceInspector {
         ${fire.extinguishChance > 0
           ? `<li><span>Last attempt odds</span><strong>${Math.round(fire.extinguishChance * 100)}%</strong></li>`
           : ''}
-        ${recovery && !residenceRecoveryActive ? `<li><span>${recovery.kind === 'rebuild' ? 'Rebuild' : 'Repair'} cost</span><strong>${formatBuildingCost(recovery.cost)}${recovery.carpenterSupported ? ' · carpenter-supported' : ''}</strong></li>` : ''}
+        ${recovery && !residenceRecoveryActive ? `<li><span>${recovery.kind === 'rebuild' ? 'Rebuild' : 'Repair'} cost</span><strong>${renderBuildingResourceCost(recovery.cost)}${recovery.carpenterSupported ? ' · carpenter-supported' : ''}</strong></li>` : ''}
         ${view.detailsHtml}
       `;
       if (!residenceRecoveryActive) {
@@ -1785,8 +1785,8 @@ export class ResourceInspector {
             }>${coolingSeconds > 1e-6
               ? `Cooling (${Math.ceil(coolingSeconds)}s)`
               : !canAffordRecovery
-                ? `Need ${formatBuildingCost(recovery.cost)}`
-                : `${recoveryLabel} · ${formatBuildingCost(recovery.cost)}`}</button>
+                ? `Need ${renderBuildingResourceCost(recovery.cost, { compact: true })}`
+                : `${recoveryLabel} · ${renderBuildingResourceCost(recovery.cost, { compact: true })}`}</button>
             ${recovery.carpenterSupported ? '<p class="inspector-action-panel__hint">A staffed road-linked carpenter reduces the timber requirement by 10%.</p>' : ''}
           </div>`;
       }

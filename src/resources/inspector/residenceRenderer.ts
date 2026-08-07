@@ -1,5 +1,4 @@
 import {
-  formatBuildingCost,
   residenceZoneCost,
   STONE_SALVAGE_FRACTION,
   TIMBER_SALVAGE_FRACTION,
@@ -90,6 +89,10 @@ import {
   constructionPriorityLabel,
   type ConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
+import {
+  renderBuildingResourceCost,
+  renderResourceCost,
+} from '../../ui/resourceCost.ts';
 import {
   computeSettlementProsperityPlan,
   projectTierThreeUpgrade,
@@ -679,7 +682,7 @@ export function renderResidenceInspector(
       <li><span>Church link</span><span>${community.hasChapelAccess ? 'Staffed parish on the road' : 'None on branch'}</span></li>
       <li><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>
       <li><span>Road access</span><span>${roadAccess}</span></li>
-      <li><span>Build cost</span><span>${formatBuildingCost(singleCost)}</span></li>
+      <li><span>Build cost</span><span>${renderBuildingResourceCost(singleCost)}</span></li>
       <li><span>Nearest road</span><span>${nearestRoad == null ? 'None nearby' : `${nearestRoad.toFixed(1)} m`}</span></li>
     `,
     demolish: {
@@ -725,10 +728,12 @@ function residenceUpgradeRows(
       ? `${buildingLabel(service.supplier.kind)} route${service.stocked ? '' : ' · currently empty'}`
       : 'missing'}`,
   ).join(' · ');
-  const resources = plan.resources.map(
-    (resource) =>
-      `${resource.label} ${formatUpgradeAmount(resource.available)} / ${formatUpgradeAmount(resource.required)}`,
-  ).join(' · ');
+  const resources = plan.resources.map((resource) =>
+    `<span class="resource-requirement${resource.ready ? '' : ' resource-requirement--short'}">${renderResourceCost(
+      { [resource.kind]: resource.required },
+      { compact: true },
+    )}<span class="resource-requirement__available">${formatUpgradeAmount(resource.available)} available</span></span>`,
+  ).join('');
   return `
     <li><span>Tier ${plan.nextTier} services</span><span>${services}</span></li>
     <li><span>Upgrade resources</span><span>${resources}</span></li>
@@ -877,7 +882,11 @@ function residenceRoofTileOfferPanel(blockers: string[]): string {
   const ready = blockers.length === 0;
   return `<div class="inspector-action-panel">
     <button type="button" class="inspector-action-panel__button" data-action="retrofit-residence-tile-roof" ${ready ? '' : 'disabled'}>
-      Retrofit fired-tile roof (${RESIDENCE_TILE_ROOF_TIMBER_COST} timber, ${RESIDENCE_TILE_ROOF_TILE_COST} tiles)
+      <span>Retrofit fired-tile roof</span>
+      ${renderResourceCost({
+        timber: RESIDENCE_TILE_ROOF_TIMBER_COST,
+        roofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
+      }, { compact: true })}
     </button>
     <p class="inspector-action-panel__hint">${ready
       ? 'Ready. One builder fits new battens while carts bring every tile from a real kiln or recovery pile.'

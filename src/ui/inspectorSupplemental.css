@@ -88,7 +88,37 @@
 }
 
 .backyard-picker-option__cost {
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
+}
+
+.backyard-picker-option__cost .resource-cost {
+  color: rgba(226, 199, 123, 0.96);
+  font-size: 0.82rem;
+}
+
+.resource-requirement {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-right: 10px;
+}
+
+.resource-requirement--short .resource-cost {
+  color: #e9a276;
+}
+
+.resource-requirement__available {
+  color: rgba(238, 232, 220, 0.58);
+  font-size: 0.88em;
+  white-space: nowrap;
+}
+
+.inspector-action-panel__button .resource-cost {
+  margin-left: 0.45em;
+  color: #ead49d;
 }
 
 .inspector-action-panel {

@@ -632,12 +632,20 @@
 }
 
 .construction-card__tooltip-cost {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex-wrap: wrap;
   margin-top: 2px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(196, 167, 99, 0.95);
+}
+
+.construction-card__tooltip-cost .resource-cost {
+  font-size: 12px;
 }
 
 .construction-card__art--icon {

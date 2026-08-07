@@ -315,6 +315,126 @@
   background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
 }
 
+/* Inline resource costs reuse the HUD's material artwork so construction
+ * prices never fall back to ambiguous single-letter abbreviations. */
+.resource-cost {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.28em 0.52em;
+  max-width: 100%;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-transform: none;
+  vertical-align: -0.12em;
+}
+
+.resource-cost__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  white-space: nowrap;
+}
+
+.resource-cost__icon {
+  display: inline-block;
+  width: 1.22em;
+  height: 1.22em;
+  flex: 0 0 auto;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
+}
+
+.resource-cost--compact {
+  gap: 0.22em 0.42em;
+}
+
+.resource-cost--compact .resource-cost__icon {
+  width: 1.14em;
+  height: 1.14em;
+}
+
+.resource-cost__value {
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+}
+
+.resource-cost__suffix {
+  color: currentColor;
+  font-size: 0.9em;
+  font-weight: 600;
+  letter-spacing: 0;
+  opacity: 0.82;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.resource-cost--free {
+  font-weight: 650;
+}
+
+.resource-cost__item[data-resource-cost='timber'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='stone'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='firewood'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='water'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='food'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='gold'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/hud-resources-core.png');
+  background-size: 300% 300%;
+}
+
+.resource-cost__item[data-resource-cost='timber'] .resource-cost__icon { background-position: 0 0; }
+.resource-cost__item[data-resource-cost='stone'] .resource-cost__icon { background-position: 50% 0; }
+.resource-cost__item[data-resource-cost='firewood'] .resource-cost__icon { background-position: 100% 0; }
+.resource-cost__item[data-resource-cost='water'] .resource-cost__icon { background-position: 0 50%; }
+.resource-cost__item[data-resource-cost='food'] .resource-cost__icon { background-position: 50% 50%; }
+.resource-cost__item[data-resource-cost='gold'] .resource-cost__icon { background-position: 100% 50%; }
+
+.resource-cost__item[data-resource-cost='ironwork'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/hud-resources-goods-b.png');
+  background-position: 0 100%;
+  background-size: 200% 200%;
+}
+
+.resource-cost__item[data-resource-cost='iron'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='clay'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='salt'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='charcoal'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='pottery'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='roofTiles'] .resource-cost__icon {
+  background-position: center;
+  background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='iron'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/iron.png');
+}
+
+.resource-cost__item[data-resource-cost='clay'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/clay.png');
+}
+
+.resource-cost__item[data-resource-cost='salt'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/salt.png');
+}
+
+.resource-cost__item[data-resource-cost='charcoal'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/charcoal.png');
+}
+
+.resource-cost__item[data-resource-cost='pottery'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/pottery.png');
+}
+
+.resource-cost__item[data-resource-cost='roofTiles'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
+}
+
 .settlement-hud__food-card[data-food-resource]::before {
   width: 20px;
   height: 20px;

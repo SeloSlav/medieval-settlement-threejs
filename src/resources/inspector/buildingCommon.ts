@@ -19,6 +19,7 @@ import {
 } from '../resourceTotals.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import type { InspectorLaborView } from './renderInspectableTarget.ts';
+import { renderBuildingResourceCost } from '../../ui/resourceCost.ts';
 import {
   CONSTRUCTION_MAX_BUILDERS,
   MIN_DELIVERY_TRIP_SEC,
@@ -263,7 +264,7 @@ export function buildingLaborView(
 
 export function buildingCostRows(cost: BuildingResourceCost): string {
   return `
-    <li data-inspector-secondary><span>Build cost</span><span>${formatBuildingCost(cost)}</span></li>
+    <li data-inspector-secondary><span>Build cost</span><span>${renderBuildingResourceCost(cost)}</span></li>
   `;
 }
 
