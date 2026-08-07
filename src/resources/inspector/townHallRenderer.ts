@@ -1235,9 +1235,10 @@ function specialtyExportCargoMix(
     honey: 'honey',
     wine: 'wine',
     cloth: 'cloth',
+    cheese: 'cheese',
   };
   const parts: string[] = [];
-  for (const commodity of ['ale', 'honey', 'wine', 'cloth'] as const) {
+  for (const commodity of ['ale', 'honey', 'wine', 'cloth', 'cheese'] as const) {
     const ledger = plan.commodities[commodity];
     const units = ledger.producerStock
       + ledger.inTransitToMarkets
@@ -2321,7 +2322,7 @@ export function renderTownHallInspector(
     ? ''
     : `
       <li><span>Farmhouse cheese</span><span>${livestockFodder.productiveDairyHeads.toFixed(1)} productive cattle/sheep head · ${livestockFodder.dairyPreservedFoodPerDay.toFixed(1)} preserved food / day potential · ${livestockFodder.dairySaltPerDay.toFixed(2)} salt / day</span></li>
-      <li><span>Dairy salt buffers</span><span>${livestockFodder.dairySaltStock.toFixed(2)} / ${livestockFodder.dairySaltTarget.toFixed(2)} onsite across staffed holdings${livestockFodder.dairySaltShortfall > 0.05 ? ` · short ${livestockFodder.dairySaltShortfall.toFixed(2)} across ${livestockFodder.dairySaltShortHoldings} holdings · first runway ${formatProvisionRunway(livestockFodder.firstDairySaltRunwayDays)}${livestockFodder.firstDairySaltShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstDairySaltShortBuildingId}" aria-label="Inspect first dairy salt shortfall">Inspect</button>` : ''}` : ' · working buffers covered'} · mine and market carts share salt with smokehouses; fresh dairy continues when empty</span></li>
+      <li><span>Cheese-making salt</span><span>${livestockFodder.dairySaltStock.toFixed(2)} / ${livestockFodder.dairySaltTarget.toFixed(2)} onsite across staffed holdings${livestockFodder.dairySaltShortfall > 0.05 ? ` · short ${livestockFodder.dairySaltShortfall.toFixed(2)} across ${livestockFodder.dairySaltShortHoldings} holdings · first runway ${formatProvisionRunway(livestockFodder.firstDairySaltRunwayDays)}${livestockFodder.firstDairySaltShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstDairySaltShortBuildingId}" aria-label="Inspect first cheese-making salt shortfall">Inspect</button>` : ''}` : ' · working buffers covered'} · mine and market carts share salt with smokehouses; fresh milk continues when empty</span></li>
     `;
   const livestockFodderRows = livestockFodder.holdingCount === 0
     ? '<li><span>Winter herd plan</span><span>No livestock holdings</span></li>'

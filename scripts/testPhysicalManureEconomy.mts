@@ -117,7 +117,7 @@ const townHallInspector = fs.readFileSync(
   'utf8',
 );
 assert.match(livestockInspector, /Manure output/);
-assert.match(livestockInspector, /carts serve lowest-covered road-linked crop farmsteads/);
+assert.match(livestockInspector, /spread during ploughing and restores up to/);
 assert.match(fieldInspector, /Manure spread/);
 assert.match(fieldInspector, /manure stored/);
 assert.match(townHallInspector, /Field manure/);

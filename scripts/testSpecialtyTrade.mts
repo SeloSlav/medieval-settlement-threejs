@@ -57,25 +57,27 @@ const busyMarket = makeMarket({
   honey: 5,
   wine: 2,
   cloth: 4,
+  cheese: 3,
 });
 const busyQueue = marketplaceSpecialtyQueue(busyMarket);
-assert.equal(busyQueue.units, 21);
+assert.equal(busyQueue.units, 24);
 assert.equal(busyQueue.aleUnits, 10);
 assert.equal(busyQueue.honeyUnits, 5);
 assert.equal(busyQueue.wineUnits, 2);
 assert.equal(busyQueue.clothUnits, 4);
-assert.equal(busyQueue.goldValue, 24.7);
+assert.equal(busyQueue.cheeseUnits, 3);
+assert.equal(busyQueue.goldValue, 28);
 assert.equal(
   formatMarketplaceSpecialtyQueue(busyQueue),
-  '10.0 ale · 5.0 honey · 2.0 wine · 4.0 cloth · 21.0 total · about 24.7 gold',
+  '10.0 ale · 5.0 honey · 2.0 wine · 4.0 cloth · 3.0 cheese · 24.0 total · about 28.0 gold',
 );
 assert.equal(
   formatMarketplaceSpecialtyQueue(marketplaceSpecialtyQueue(makeMarket())),
-  'Empty - awaiting ale, honey, wine, or cloth carts',
+  'Empty - awaiting ale, honey, wine, cloth, or cheese carts',
 );
 assert.equal(busyQueue.exportWorkers, 1);
 assert.equal(busyQueue.unitsPerSecond, 0.45);
-assert.ok(Math.abs((busyQueue.clearSeconds ?? 0) - 21 / 0.45) < 1e-9);
+assert.ok(Math.abs((busyQueue.clearSeconds ?? 0) - 24 / 0.45) < 1e-9);
 
 const readyQueue = marketplaceSpecialtyQueue({
   ...busyMarket,
@@ -120,6 +122,7 @@ assert.match(expandedEconomy, /CommodityKind::Wine,\s*&\["trading_post"\]/s);
 assert.match(expandedEconomy, /CommodityKind::Cloth,\s*&\["village_storehouse"\]/s);
 assert.match(expandedEconomy, /CommodityKind::Cloth,\s*&\["trading_post"\]/s);
 assert.match(marketplaceCaravan, /CommodityKind::Cloth/);
+assert.match(marketplaceCaravan, /CommodityKind::Cheese, SPECIALTY_EXPORT_GOLD_PER_CHEESE/);
 assert.match(marketplaceCaravan, /withdraw_building_commodity/);
 assert.match(marketplaceCaravan, /specialty_export_capacity/);
 assert.match(

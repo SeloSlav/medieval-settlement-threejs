@@ -60,6 +60,31 @@ assert.ok(
 assert.ok(SWINE_MATURE_TREES_PER_HEAD > 0, 'swine capacity must depend on live mature trees');
 assert.ok(BACKYARD_GARDEN_DEFINITIONS.hen_yard, 'hen yard must remain a backyard choice');
 
+const constructionSource = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
+assert.doesNotMatch(
+  constructionSource,
+  /site\.kind == "pastoral_farmstead"[\s\S]{0,500}starter_herd/,
+  'a completed pastoral holding must wait for an explicit cattle-or-sheep choice',
+);
+assert.match(
+  constructionSource,
+  /site\.kind == "swineherd"[\s\S]{0,500}SPECIES_SWINE/,
+  'the species-specific swineherd should still establish its pig herd automatically',
+);
+const livestockReducerSource = fs.readFileSync('server/src/reducers/livestock.rs', 'utf8');
+assert.match(
+  livestockReducerSource,
+  /let Some\(mut herd\) = existing_herd else \{[\s\S]*insert\(starter_herd\(building\.id, building\.owner, species\)\)/,
+  'the first explicit pastoral specialization must create the chosen starter herd',
+);
+const livestockInspectorSource = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
+assert.match(livestockInspectorSource, /Choose cattle or sheep/);
+assert.match(
+  livestockInspectorSource,
+  /data-land-parcel="pasture"[\s\S]{0,160}pastoral_farmstead'[\s\S]{0,80}!herd[\s\S]{0,40}disabled/,
+  'pasture authoring must remain locked until the pastoral species is chosen',
+);
+
 assert.deepEqual(createCattleVisualDistribution(3), ['cow', 'cow', 'cow']);
 assert.deepEqual(createCattleVisualDistribution(6), ['bull', 'cow', 'cow', 'cow', 'cow', 'cow']);
 assert.equal(

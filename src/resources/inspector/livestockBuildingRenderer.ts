@@ -4,7 +4,10 @@ import {
   isLivestockHaymakingMonth,
   isLivestockCullMonth,
   isSheepShearingMonth,
+  LIVESTOCK_MILK_USE_PRESETS,
   livestockHaymakingPresets,
+  livestockMilkAllocationPerCycle,
+  livestockMilkUsePolicy,
   livestockPolicyDefinition,
   livestockPreservationSaltRequired,
   livestockReservePresets,
@@ -22,11 +25,19 @@ import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 import { weaverFibreDeliveryPreferenceLabel } from '../../economy/weaverInputPolicy.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
+  CATTLE_AREA_PER_HEAD,
+  CATTLE_MAX_HERD,
   CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS,
   CATTLE_PLOUGH_WORK_MULTIPLIER,
+  CATTLE_STARTER_HERD,
+  FARM_MANURE_FERTILITY_BONUS,
   LIVESTOCK_HAYMAKING_START_MONTH,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
+  SHEEP_AREA_PER_HEAD,
+  SHEEP_MAX_HERD,
+  SHEEP_STARTER_HERD,
+  SHEEP_WOOL_PER_SHEARING_PER_HEAD,
 } from '../../generated/gameBalance.ts';
 import { cattleManurePerCycle } from '../../farming/manurePlanning.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
@@ -124,6 +135,18 @@ export function renderLivestockBuildingInspector(
       clock.monthDay,
     )
     : null;
+  const milkUse = livestockMilkUsePolicy(building.processorOutputTargetPercent);
+  const milkAllocation = herd && herd.species !== 'swine' && fodderPlan
+    ? livestockMilkAllocationPerCycle(
+      herd.species,
+      fodderPlan.productiveHeads,
+      building.processorOutputTargetPercent,
+      Math.min(
+        livestockSaltedOutputCapacity(building.salt ?? 0),
+        Math.max(0, (storageCaps.preservedFood ?? 0) - (building.cheese ?? 0)),
+      ),
+    )
+    : null;
   const winterReserveRelevant = month >= 9 || month <= 2;
   const winterReserveAtRisk = Boolean(
     winterReserveRelevant
@@ -211,7 +234,9 @@ export function renderLivestockBuildingInspector(
       && fodderPlan.dairySaltStock + inboundSalt <= 0.001,
   );
   const statusText = !herd
-    ? 'Awaiting herd records'
+    ? building.kind === 'pastoral_farmstead'
+      ? 'Choose cattle or sheep'
+      : 'Awaiting pig herd'
     : pastures.length === 0
       ? 'Draw a fenced pasture'
       : onsiteLabor === 0
@@ -236,7 +261,7 @@ export function renderLivestockBuildingInspector(
         : herd.health < 0.45
             ? 'Herd health is poor'
             : dairySaltEmpty
-              ? 'Cheese salt empty — fresh dairy continues'
+              ? 'Cheese salt empty — fresh milk continues'
             : herd.lastCulled > 0
               ? `Autumn slaughter — ${herd.lastCulled} surplus head culled`
               : cullSeason && projectedCull.heads > 0 && !cullHasStorage
@@ -249,27 +274,45 @@ export function renderLivestockBuildingInspector(
 
   const role = building.kind === 'swineherd'
     ? 'Forest pannage → seasonal pork for smokehouses'
+    : !herd
+      ? 'Unstocked holding → choose cattle or sheep before laying out pasture'
     : herd?.species === 'sheep'
-      ? 'Upland grazing → fresh dairy, salt-cured cheese, and annual fleece'
-      : 'Pasture → fresh dairy, salt-cured cheese, manure, and ox power';
+      ? 'Upland grazing → milk, salt-cured cheese, and annual wool'
+      : 'Pasture → milk, salt-cured cheese, manure, and ox power';
 
   const speciesControls = building.kind === 'pastoral_farmstead'
     ? `<div class="inspector-action-panel">
-        <p class="resource-inspector-note">Herd specialization — switching keeps the building and pasture, but replaces the herd with starter stock.</p>
+        <p class="resource-inspector-note">${herd
+          ? 'Herd specialization — switching keeps the building and pasture, but replaces the herd with starter stock.'
+          : 'Choose this holding’s herd before fencing pasture. The first choice establishes its starter animals.'}</p>
         <div class="resource-action-row">
-          <button type="button" class="resource-action-button" data-livestock-species="cattle" ${herd?.species === 'cattle' ? 'disabled' : ''}>Cattle</button>
-          <button type="button" class="resource-action-button" data-livestock-species="sheep" ${herd?.species === 'sheep' ? 'disabled' : ''}>Sheep</button>
+          <button type="button" class="resource-action-button" data-livestock-species="cattle" ${herd?.species === 'cattle' ? 'disabled' : ''}>Cattle · ${CATTLE_STARTER_HERD}</button>
+          <button type="button" class="resource-action-button" data-livestock-species="sheep" ${herd?.species === 'sheep' ? 'disabled' : ''}>Sheep · ${SHEEP_STARTER_HERD}</button>
         </div>
+        <p class="inspector-action-panel__hint"><strong>Cattle:</strong> ${CATTLE_AREA_PER_HEAD} m²/head, up to ${CATTLE_MAX_HERD}; stronger milk per head, physical manure, and ox support for ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} priority fields. <strong>Sheep:</strong> ${SHEEP_AREA_PER_HEAD} m²/head, up to ${SHEEP_MAX_HERD}; faster-growing upland flocks and an annual ${SHEEP_WOOL_PER_SHEARING_PER_HEAD} wool/head clip for cloth and export. A full holding has broadly comparable food potential, so the land, fertility, and textile benefits decide the trade.</p>
       </div>`
     : undefined;
+  const milkUseControls = herd && herd.species !== 'swine' && building.kind === 'pastoral_farmstead'
+    ? `<div class="inspector-action-panel">
+        <p class="resource-inspector-note">Milk use — choose after stocking. Cheese consumes the same gross milk yield one-for-one; it is durable and exportable, but needs salt and cured-store room.</p>
+        <div class="resource-action-row">
+          ${LIVESTOCK_MILK_USE_PRESETS
+            .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.value}" ${milkUse.value === preset.value ? 'disabled' : ''}>${preset.label}</button>`)
+            .join('')}
+        </div>
+        <p class="inspector-action-panel__hint">${milkUse.hint} Current cycle potential: ${milkAllocation?.freshMilk.toFixed(2) ?? '0.00'} milk + ${milkAllocation?.cheese.toFixed(2) ?? '0.00'} cheese. Missing salt or cheese room leaves that share as milk. Fresh surplus sold through a staffed granary and Marketplace builds household wealth; cheese can go to local stores first, then a Trading Post export queue.</p>
+      </div>`
+    : '';
   const pastureLabel = building.kind === 'swineherd' ? 'Fence woodland pannage' : 'Fence pasture';
   const pastureHint = building.kind === 'swineherd'
     ? 'Fence woodland for this holding. Parcel area and live mature trees determine the pigs’ capacity.'
+    : !herd
+      ? 'Choose cattle or sheep before fencing grazing land.'
     : 'Fence grazing land for this holding. Parcel area and terrain determine this herd’s capacity.';
   const pastureControls = `<div class="inspector-action-panel">
       <p class="resource-inspector-note">${pastureHint}</p>
       <div class="resource-action-row">
-        <button type="button" class="resource-action-button" data-land-parcel="pasture">${pastureLabel}</button>
+        <button type="button" class="resource-action-button" data-land-parcel="pasture" ${building.kind === 'pastoral_farmstead' && !herd ? 'disabled' : ''}>${pastureLabel}</button>
       </div>
     </div>`;
   const reserveControls = herd
@@ -327,9 +370,9 @@ export function renderLivestockBuildingInspector(
   const benefitRow = herd?.species === 'cattle'
     ? `<li><span>Ox team</span><span>Highest-priority ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} fields inside work extent · ${Math.round((1 - CATTLE_PLOUGH_WORK_MULTIPLIER) * 100)}% less ploughing</span></li>
        <li><span>Manure output</span><span>${manurePerCycle.toFixed(2)} per work cycle now · supplied heads, health, and seasonal housing govern collection</span></li>
-       <li><span>Manure yard</span><span>${Math.max(0, building.manure ?? 0).toFixed(1)} / ${storageCaps.manure ?? 0} · carts serve lowest-covered road-linked crop farmsteads after food duties</span></li>`
+       <li><span>Manure yard</span><span>${Math.max(0, building.manure ?? 0).toFixed(1)} / ${storageCaps.manure ?? 0} · carts deliver it to road-linked crop farmsteads, where it is spread during ploughing and restores up to ${Math.round(FARM_MANURE_FERTILITY_BONUS * 100)} fertility points after harvest</span></li>`
     : herd?.species === 'sheep'
-      ? '<li><span>Terrain fit</span><span>Lower input · tolerates steeper upland pasture</span></li>'
+      ? `<li><span>Sheep advantage</span><span>Steeper, drier upland pasture · faster breeding · annual ${SHEEP_WOOL_PER_SHEARING_PER_HEAD} wool/head clip feeds the weaver-to-cloth export chain</span></li>`
       : '<li><span>Seasonality</span><span>No passive pork · actual surplus culls in October–November</span></li>';
   const currentGrainBurden = !fodderPlan
     ? 'No herd'
@@ -365,7 +408,7 @@ export function renderLivestockBuildingInspector(
     : `<li><span>Cheese salt</span><span>${fodderPlan.dairySaltStock.toFixed(2)} onsite${inboundSalt > 0.001 ? ` + ${inboundSalt.toFixed(2)} inbound` : ''} / ${fodderPlan.dairySaltTarget.toFixed(2)} working target · ${fodderPlan.dairySaltPerDay.toFixed(2)} / day at current herd and staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
       <li><span>Salt logistics</span><span>${inboundSalt > 0.001
         ? `Salt cart ${formatTripPhaseLabel(inboundTrip!.phase).toLowerCase()} from ${context.worldQueries.getBuildingLabel(context.worldQueries.getBuilding(inboundTrip!.buildingId)?.kind ?? 'marketplace')}`
-        : 'Road-linked mine or marketplace carts share salt between smokehouses and pastoral holdings by work priority and runway'} · empty salt stops cured cheese, not fresh dairy or herd care</span></li>`;
+        : 'Road-linked mine or marketplace carts share salt between smokehouses and pastoral holdings by work priority and runway'} · empty salt stops farmhouse cheese, not fresh milk or herd care</span></li>`;
 
   return {
     eyebrow: 'Livestock holding',
@@ -379,10 +422,11 @@ export function renderLivestockBuildingInspector(
     detailsHtml: `
       <li><span>Role</span><span>${role}</span></li>
       <li><span>Herd</span><span>${herd ? SPECIES_LABEL[herd.species] : 'None'}</span></li>
+      ${herd?.species !== 'swine' && herd ? `<li><span>Milk use</span><span>${milkUse.label} · ${milkAllocation?.freshMilk.toFixed(2) ?? '0.00'} milk + ${milkAllocation?.cheese.toFixed(2) ?? '0.00'} cheese per current work cycle</span></li>` : ''}
       <li><span>Stocking</span><span>${capacity}</span></li>
       <li><span>Pastures</span><span>${pastures.length} · ${Math.round(pastureArea)} m² fenced</span></li>
-      <li><span>Health</span><span>${healthPercent}%</span></li>
-      <li><span>Breeding cycle</span><span>${breedingPercent}%</span></li>
+      <li><span>Health</span><span>${herd ? `${healthPercent}%` : 'Not stocked'}</span></li>
+      <li><span>Breeding cycle</span><span>${herd ? `${breedingPercent}%` : 'Not started'}</span></li>
       <li><span>Winter reserve</span><span>${herd ? `${breedingReserve} head · ${projectedCull.heads} current surplus` : 'None'}</span></li>
       <li><span>Last work cycle</span><span>${recentOutput}</span></li>
       ${dairySaltRow}
@@ -431,6 +475,6 @@ export function renderLivestockBuildingInspector(
         : buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
-    supplementalPanelHtml: `${reserveControls}${haymakingControls}${pastureControls}${speciesControls ?? ''}`,
+    supplementalPanelHtml: `${speciesControls ?? ''}${milkUseControls}${pastureControls}${reserveControls}${haymakingControls}`,
   };
 }

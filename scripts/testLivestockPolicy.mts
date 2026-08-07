@@ -8,9 +8,12 @@ import {
   isLivestockCullMonth,
   isLivestockHaymakingMonth,
   isSheepShearingMonth,
+  farmhouseCheeseSaltStagingCycles,
   livestockHaymakingPresets,
   livestockDairyPreservedOutputPerCycle,
   livestockDairySaltPerCycle,
+  livestockMilkAllocationPerCycle,
+  livestockMilkUsePolicy,
   livestockPreservationSaltRequired,
   livestockPolicyDefinition,
   livestockReservePresets,
@@ -157,6 +160,20 @@ assert.equal(
   1.2 * LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
 );
 assert.equal(livestockDairySaltPerCycle('swine', 10), 0);
+assert.equal(livestockMilkUsePolicy(25).label, 'Fresh milk');
+assert.equal(livestockMilkUsePolicy(100).label, 'Balanced');
+assert.equal(livestockMilkUsePolicy(75).label, 'Cheese first');
+assert.deepEqual(livestockMilkAllocationPerCycle('cattle', 10, 25), {
+  grossMilk: 5.4,
+  freshMilk: 5.4,
+  cheese: 0,
+});
+const cheeseFirst = livestockMilkAllocationPerCycle('cattle', 10, 75);
+assert.ok(Math.abs(cheeseFirst.freshMilk - 1.35) < 1e-9);
+assert.ok(Math.abs(cheeseFirst.cheese - 4.05) < 1e-9);
+assert.ok(Math.abs(cheeseFirst.freshMilk + cheeseFirst.cheese - 5.4) < 1e-9);
+assert.equal(farmhouseCheeseSaltStagingCycles(25), 0);
+assert.equal(farmhouseCheeseSaltStagingCycles(50), 3);
 
 const fodderBuilding = buildingFixture('building-1', 60);
 const fodderHerd = herdFixture(fodderBuilding.id);
@@ -287,6 +304,7 @@ const serverPolicy = fs.readFileSync('server/src/livestock_policy.rs', 'utf8');
 const serverSimulation = fs.readFileSync('server/src/simulation/livestock.rs', 'utf8');
 const serverReducer = fs.readFileSync('server/src/reducers/livestock.rs', 'utf8');
 const serverTables = fs.readFileSync('server/src/tables.rs', 'utf8');
+const serverDeliveryTrips = fs.readFileSync('server/src/simulation/delivery_trips.rs', 'utf8');
 const generatedHerd = fs.readFileSync('src/generated/livestock_herd_table.ts', 'utf8');
 const generatedReducer = fs.readFileSync(
   'src/generated/set_livestock_breeding_reserve_reducer.ts',
@@ -342,6 +360,10 @@ assert.match(
   /store_salted_farmstead_output[\s\S]*CommodityKind::Salt[\s\S]*LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT/,
   'farmhouse preserved output must withdraw physical salt',
 );
+assert.match(serverSimulation, /livestock_milk_allocation/);
+assert.match(serverSimulation, /gross_milk - stored_cheese/);
+assert.match(serverDeliveryTrips, /local_milk_sale[\s\S]*FOOD_SALE_GOLD_PER_UNIT/);
+assert.match(serverDeliveryTrips, /credit_settlement_household_income/);
 assert.match(
   serverSimulation,
   /unsalted_slaughter[\s\S]*CommodityKind::Meat/,
@@ -389,13 +411,16 @@ assert.match(livestockInspector, /data-livestock-haymaking-percent/);
 assert.match(livestockInspector, /Summer hay meadow/);
 assert.match(livestockInspector, /Hayloft/);
 assert.match(livestockInspector, /Cheese salt/);
-assert.match(livestockInspector, /fresh dairy continues/);
+assert.match(livestockInspector, /fresh milk continues/);
+assert.match(livestockInspector, /data-processor-output-target/);
+assert.match(livestockInspector, /LIVESTOCK_MILK_USE_PRESETS/);
+assert.match(livestockInspector, /builds household wealth/);
 assert.match(townHallInspector, /computeSettlementLivestockFodderPlan/);
 assert.match(townHallInspector, /first winter fodder shortfall/);
 assert.match(townHallInspector, /Summer hay plan/);
 assert.match(townHallInspector, /Winter hay reserve/);
-assert.match(townHallInspector, /Dairy salt buffers/);
-assert.match(townHallInspector, /first dairy salt shortfall/);
+assert.match(townHallInspector, /Cheese-making salt/);
+assert.match(townHallInspector, /first cheese-making salt shortfall/);
 assert.match(townHallInspector, /data-inspect-building/);
 
 let checksum = 0;

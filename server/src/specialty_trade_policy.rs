@@ -85,9 +85,15 @@ pub fn specialty_export_capacity(
 
 /// Rotating priority prevents a continuously supplied high-value good from
 /// starving the other specialty queues.
-pub fn specialty_export_order(sim_tick: u64) -> [usize; 4] {
-    let start = sim_tick as usize % 4;
-    [start, (start + 1) % 4, (start + 2) % 4, (start + 3) % 4]
+pub fn specialty_export_order(sim_tick: u64) -> [usize; 5] {
+    let start = sim_tick as usize % 5;
+    [
+        start,
+        (start + 1) % 5,
+        (start + 2) % 5,
+        (start + 3) % 5,
+        (start + 4) % 5,
+    ]
 }
 
 #[cfg(test)]
@@ -137,9 +143,9 @@ mod tests {
 
     #[test]
     fn specialty_priority_rotates_fairly() {
-        assert_eq!(specialty_export_order(0), [0, 1, 2, 3]);
-        assert_eq!(specialty_export_order(1), [1, 2, 3, 0]);
-        assert_eq!(specialty_export_order(3), [3, 0, 1, 2]);
+        assert_eq!(specialty_export_order(0), [0, 1, 2, 3, 4]);
+        assert_eq!(specialty_export_order(1), [1, 2, 3, 4, 0]);
+        assert_eq!(specialty_export_order(4), [4, 0, 1, 2, 3]);
     }
 
     #[test]

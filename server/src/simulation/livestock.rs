@@ -33,7 +33,8 @@ use crate::farming::{centroid, point_in_field};
 use crate::livestock_policy::{
     can_cull_one, can_store_full_sheep_clip, cattle_manure_output, effective_breeding_reserve,
     haymaking_share, is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
-    projected_winter_fodder_grain, retain_priority_candidate, sheep_fleece_output,
+    livestock_milk_allocation, projected_winter_fodder_grain, retain_priority_candidate,
+    sheep_fleece_output,
 };
 use crate::reducers::livestock::{SPECIES_CATTLE, SPECIES_SHEEP, SPECIES_SWINE};
 use crate::season_policy::{EnvironmentState, Season};
@@ -190,6 +191,14 @@ fn step_livestock_building(
                 CommodityKind::Cheese,
                 &["granary"],
             );
+            dispatch_to_building(
+                ctx,
+                tick,
+                clock,
+                &mut building,
+                CommodityKind::Cheese,
+                &["trading_post"],
+            );
         }
         // All livestock species can create cured meat when surplus animals
         // are culled; pigs must not strand that stock at the holding.
@@ -263,15 +272,27 @@ fn run_livestock_cycle(
         .clamp(0.12, 1.0);
 
     let productive_heads = heads * support_ratio * herd.health;
-    // Cattle and sheep provide recurring dairy/cheese and wool. Pigs provide
+    // Cattle and sheep provide a shared gross milk yield. The holding's milk
+    // policy chooses how much becomes fresh milk or salted cheese; cheese is a
+    // conversion, not a parallel free output. Pigs provide
     // meat only when actual surplus animals are culled below.
-    let food = productive_heads * species_food_per_cycle(herd.species);
-    let preserved = productive_heads * species_preserved_per_cycle(herd.species);
-    herd.last_food_output = deposit_building_commodity(building, CommodityKind::Milk, food);
-    // Fresh dairy remains available without imported salt. Only the portion
-    // actually salted and placed in the cured store becomes durable cheese.
-    herd.last_preserved_output =
-        store_salted_farmstead_output(building, CommodityKind::Cheese, preserved);
+    let base_milk = productive_heads * species_food_per_cycle(herd.species);
+    let base_cheese = productive_heads * species_preserved_per_cycle(herd.species);
+    let (_, desired_cheese) = livestock_milk_allocation(
+        building.processor_output_target_percent,
+        base_milk,
+        base_cheese,
+        f64::INFINITY,
+    );
+    let stored_cheese =
+        store_salted_farmstead_output(building, CommodityKind::Cheese, desired_cheese);
+    herd.last_preserved_output = stored_cheese;
+    let gross_milk = base_milk.max(0.0) + base_cheese.max(0.0);
+    herd.last_food_output = deposit_building_commodity(
+        building,
+        CommodityKind::Milk,
+        (gross_milk - stored_cheese).max(0.0),
+    );
     if herd.species == SPECIES_CATTLE {
         deposit_building_commodity(
             building,

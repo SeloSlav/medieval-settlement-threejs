@@ -1,6 +1,7 @@
 import {
   BUILDING_STORAGE_CAPS,
   SPECIALTY_EXPORT_GOLD_PER_ALE,
+  SPECIALTY_EXPORT_GOLD_PER_CHEESE,
   SPECIALTY_EXPORT_GOLD_PER_CLOTH,
   SPECIALTY_EXPORT_GOLD_PER_HONEY,
   SPECIALTY_EXPORT_GOLD_PER_WINE,
@@ -24,6 +25,7 @@ export const SPECIALTY_EXPORT_CARGO_KINDS = [
   'honey',
   'wine',
   'cloth',
+  'cheese',
 ] as const;
 
 export type SpecialtyExportCargoKind =
@@ -177,6 +179,7 @@ const SOURCE_COMMODITY_BY_KIND: Partial<
   brewery: 'ale',
   apiary: 'honey',
   vineyard: 'wine',
+  pastoral_farmstead: 'cheese',
   weaver: 'cloth',
 };
 
@@ -217,7 +220,9 @@ function marketplaceCommodityRoom(
   commodity: SpecialtyExportCargoKind,
   approaching: number,
 ): number {
-  const capacity = BUILDING_STORAGE_CAPS.trading_post[commodity] ?? 0;
+  const capacity = commodity === 'cheese'
+    ? BUILDING_STORAGE_CAPS.trading_post.preservedFood ?? 0
+    : BUILDING_STORAGE_CAPS.trading_post[commodity] ?? 0;
   return Math.max(
     0,
     capacity - buildingCommodityStock(market, commodity) - positive(approaching),
@@ -230,6 +235,7 @@ function specialtyGoldPerUnit(commodity: SpecialtyExportCargoKind): number {
     case 'honey': return SPECIALTY_EXPORT_GOLD_PER_HONEY;
     case 'wine': return SPECIALTY_EXPORT_GOLD_PER_WINE;
     case 'cloth': return SPECIALTY_EXPORT_GOLD_PER_CLOTH;
+    case 'cheese': return SPECIALTY_EXPORT_GOLD_PER_CHEESE;
   }
 }
 
@@ -253,6 +259,7 @@ function emptyCommodityMap(): Record<
     honey: emptyCommodityLedger(),
     wine: emptyCommodityLedger(),
     cloth: emptyCommodityLedger(),
+    cheese: emptyCommodityLedger(),
   };
 }
 
@@ -265,12 +272,14 @@ function emptyBranchMarketCapacity(): BranchMarketCapacity {
       honey: false,
       wine: false,
       cloth: false,
+      cheese: false,
     },
     hasFreeReceivingRoom: {
       ale: false,
       honey: false,
       wine: false,
       cloth: false,
+      cheese: false,
     },
   };
 }
@@ -407,6 +416,7 @@ export function computeSettlementSpecialtyExportPlan(input: {
           honey: 0,
           wine: 0,
           cloth: 0,
+          cheese: 0,
         },
         hasInboundSupply: false,
         projectedQueue: 0,

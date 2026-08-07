@@ -74,7 +74,11 @@ pub fn restore_private_export_proceeds(building: &mut Building, amount: f64) {
         (private_export_proceeds(building) + restored).min(building.gold.max(0.0));
 }
 
-fn distribute_legacy_private_income(
+/// Credits aggregate private producer income to occupied households, starting
+/// with the least wealthy. Workplace labor is settlement-wide rather than
+/// tied to a specific residence, so this is the deterministic attribution
+/// shared by local milk sales and legacy private exports.
+pub fn credit_settlement_household_income(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
     amount: f64,
@@ -137,7 +141,7 @@ pub fn credit_private_export_receipt(
     } else {
         let split = split_private_export_receipt(gross_receipt, rate);
         credit_treasury_gold(ctx, marketplace.owner, split.export_duty);
-        let credited = distribute_legacy_private_income(ctx, marketplace.owner, split.household_income);
+        let credited = credit_settlement_household_income(ctx, marketplace.owner, split.household_income);
         if credited + 1e-9 < split.household_income {
             credit_treasury_gold(ctx, marketplace.owner, split.household_income - credited);
         }

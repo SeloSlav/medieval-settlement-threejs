@@ -18,7 +18,7 @@ use crate::balance_generated::TradeResource;
 use crate::balance_generated::{
     market_commodity_offer, market_water_commodity_offer, marketplace_trade_offer,
     MarketplaceTradeKind, MarketplaceTradeOffer, SPECIALTY_EXPORT_GOLD_PER_ALE,
-    SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
+    SPECIALTY_EXPORT_GOLD_PER_CHEESE, SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
     SPECIALTY_EXPORT_GOLD_PER_WINE, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::constants::BUILDING_ROAD_ACCESS_DISTANCE;
@@ -806,6 +806,7 @@ pub(crate) fn settle_regional_market_export(
             CommodityKind::Honey => SPECIALTY_EXPORT_GOLD_PER_HONEY,
             CommodityKind::Wine => SPECIALTY_EXPORT_GOLD_PER_WINE,
             CommodityKind::Cloth => SPECIALTY_EXPORT_GOLD_PER_CLOTH,
+            CommodityKind::Cheese => SPECIALTY_EXPORT_GOLD_PER_CHEESE,
             _ => return Err("The specialty export contract does not match its cargo.".to_string()),
         };
         record_specialty_market_export(ctx, owner, sold_amount);

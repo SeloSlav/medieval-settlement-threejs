@@ -12,7 +12,7 @@ use crate::construction_priority::{
 };
 use crate::db::*;
 use crate::economy::{building_commodity_stock, CommodityKind};
-use crate::reducers::livestock::{starter_herd, SPECIES_CATTLE, SPECIES_SWINE};
+use crate::reducers::livestock::{starter_herd, SPECIES_SWINE};
 use crate::roads::RoadNetwork;
 use crate::simulation::delivery_trips::{
     available_free_haulers, building_has_inbound_supply_trip, construction_source_cart_busy,
@@ -270,17 +270,9 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
         // road-linked granary, avoiding a first-crop grain deadlock.
         site.grain += FARMSTEAD_STARTER_SEED_GRAIN;
         site.barley += FARMSTEAD_STARTER_BARLEY_SEED;
-    } else if site.kind == "pastoral_farmstead"
-        && ctx
-            .db
-            .livestock_herd()
-            .building_id()
-            .find(&site.id)
-            .is_none()
-    {
-        ctx.db
-            .livestock_herd()
-            .insert(starter_herd(site.id, site.owner, SPECIES_CATTLE));
+    // Pastoral farmsteads remain deliberately unstocked until the player
+    // chooses cattle or sheep in the completed holding's inspector. Woodland
+    // swineherds are species-specific buildings and still receive pigs here.
     } else if site.kind == "swineherd"
         && ctx
             .db

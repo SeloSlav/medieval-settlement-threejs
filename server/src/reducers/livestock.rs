@@ -244,15 +244,19 @@ pub fn set_livestock_species(
         .id()
         .find(&building_id)
         .ok_or_else(|| "Pastoral farmstead not found.".to_string())?;
-    if building.owner != ctx.sender() || building.kind != "pastoral_farmstead" {
-        return Err("You do not own this pastoral farmstead.".to_string());
+    if building.owner != ctx.sender()
+        || building.kind != "pastoral_farmstead"
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed pastoral farmstead.".to_string());
     }
-    let mut herd = ctx
-        .db
-        .livestock_herd()
-        .building_id()
-        .find(&building_id)
-        .ok_or_else(|| "Herd state not found.".to_string())?;
+    let existing_herd = ctx.db.livestock_herd().building_id().find(&building_id);
+    let Some(mut herd) = existing_herd else {
+        ctx.db
+            .livestock_herd()
+            .insert(starter_herd(building.id, building.owner, species));
+        return Ok(());
+    };
     if herd.species == species {
         return Ok(());
     }

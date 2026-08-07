@@ -44,7 +44,7 @@ pub use civic_receipts::{
 };
 pub use fiscal_accounting::{
     collectible_household_import_duty, credit_household_import_duty,
-    credit_private_export_receipt,
+    credit_private_export_receipt, credit_settlement_household_income,
     private_export_proceeds, record_private_export_income, restore_private_export_proceeds,
     withdraw_private_export_proceeds,
 };

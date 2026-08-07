@@ -31,11 +31,11 @@ import type {
 import {
   effectiveLivestockBreedingReserve,
   effectiveLivestockHaymakingPercent,
+  farmhouseCheeseSaltStagingCycles,
   isLivestockHaymakingMonth,
-  livestockDairyPreservedOutputPerCycle,
+  livestockMilkAllocationPerCycle,
   livestockDairySaltPerCycle,
 } from './livestockPolicy.ts';
-import { processorInputStagingCycles } from './processorOutputPolicy.ts';
 
 const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
@@ -179,13 +179,15 @@ export function projectLivestockFodderHolding(
       Math.max(0, herd.headCount),
       Math.max(0, herd.suppliedCapacity),
     ) * Math.min(1, Math.max(0, herd.health));
-  const dairyPreservedFoodPerCycle = livestockDairyPreservedOutputPerCycle(
+  const dairyPreservedFoodPerCycle = livestockMilkAllocationPerCycle(
     herd.species,
     productiveHeads,
-  );
+    building.processorOutputTargetPercent,
+  ).cheese;
   const dairySaltPerCycle = livestockDairySaltPerCycle(
     herd.species,
     productiveHeads,
+    building.processorOutputTargetPercent,
   );
   const dairySaltStock = herd.species === 'swine'
     ? 0
@@ -193,7 +195,7 @@ export function projectLivestockFodderHolding(
   const dairySaltTarget = herd.species === 'swine' || building.assignedLabor <= 0
     ? 0
     : LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE
-      * processorInputStagingCycles(building.processorOutputTargetPercent);
+      * farmhouseCheeseSaltStagingCycles(building.processorOutputTargetPercent);
   const dairySaltPerDay = dairySaltPerCycle * cyclesPerDay;
   const grainPerHead = GRAIN_PER_UNSUPPORTED_HEAD[herd.species];
   const hayPerHead = HAY_PER_UNSUPPORTED_HEAD[herd.species];

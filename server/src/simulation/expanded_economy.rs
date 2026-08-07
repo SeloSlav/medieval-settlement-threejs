@@ -63,6 +63,9 @@ use crate::hydrology::{
 use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
 };
+use crate::livestock_policy::{
+    farmhouse_cheese_salt_staging_cycles, normalize_milk_use_policy, MILK_USE_FRESH,
+};
 use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
     monastery_hospitality_use, monastery_pilgrimage_gold,
@@ -776,7 +779,7 @@ pub fn step_marketplace_material_dispatch(
                     let per_cycle =
                         directly_dispatched_processor_input_per_cycle(&building.kind, commodity);
                     let desired_stock =
-                        processor_input_target(per_cycle, building.processor_output_target_percent);
+                        processor_input_target_for_building(&building, commodity, per_cycle);
                     if desired_stock <= 1e-6
                         || stock + 1e-6 >= desired_stock
                         || building_commodity_room(&building, commodity) <= 1e-6
@@ -789,7 +792,7 @@ pub fn step_marketplace_material_dispatch(
                             building.assigned_labor,
                             stock,
                             per_cycle,
-                            building.processor_output_target_percent,
+                            processor_input_target_percent_for_building(&building, commodity),
                         ),
                         runway_cycles: processor_input_runway_cycles(stock, per_cycle),
                         building,
@@ -856,8 +859,11 @@ pub fn step_marketplace_material_dispatch(
         }
         let per_cycle =
             directly_dispatched_processor_input_per_cycle(&target.kind, candidate.commodity);
-        let desired_stock =
-            processor_input_target(per_cycle, target.processor_output_target_percent);
+        let desired_stock = processor_input_target_for_building(
+            &target,
+            candidate.commodity,
+            per_cycle,
+        );
         let source_stock = building_commodity_stock(&marketplace, candidate.commodity);
         let needed = (desired_stock - building_commodity_stock(&target, candidate.commodity))
             .max(0.0)
@@ -1208,7 +1214,7 @@ fn local_material_target_plan(
         target.assigned_labor,
         stock,
         capacity,
-        target.processor_output_target_percent,
+        processor_input_target_percent_for_building(target, commodity),
         marketplace_reserve_target,
     )?;
     let per_cycle = directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
@@ -2673,7 +2679,8 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
         return building.granary_accepts_fresh_food;
     }
     if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
-        return building_commodity_room(building, CommodityKind::Cheese) > 1e-6;
+        return normalize_milk_use_policy(building.processor_output_target_percent) != MILK_USE_FRESH
+            && building_commodity_room(building, CommodityKind::Cheese) > 1e-6;
     }
     if building.kind == "smokehouse" && processor_uses_input(&building.kind, commodity) {
         return processor_output_headroom(
@@ -3260,10 +3267,10 @@ fn dispatch_to_building_where_limited(
                     target.assigned_labor,
                     stock,
                     per_cycle,
-                    target.processor_output_target_percent,
+                    processor_input_target_percent_for_building(&target, commodity),
                 );
                 let desired_stock = if duty == ProcessorInputDispatchDuty::WorkingBuffer {
-                    processor_input_target(per_cycle, target.processor_output_target_percent)
+                    processor_input_target_for_building(&target, commodity, per_cycle)
                 } else {
                     building_commodity_cap(&target.kind, commodity)
                 };
@@ -3339,6 +3346,34 @@ fn directly_dispatched_processor_input_per_cycle(
         return 0.0;
     };
     processor_input_per_cycle_for_dispatch(target_kind, commodity)
+}
+
+fn processor_input_target_percent_for_building(
+    building: &Building,
+    commodity: CommodityKind,
+) -> u8 {
+    if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
+        if farmhouse_cheese_salt_staging_cycles(building.processor_output_target_percent) > 0.0 {
+            100
+        } else {
+            25
+        }
+    } else {
+        building.processor_output_target_percent
+    }
+}
+
+fn processor_input_target_for_building(
+    building: &Building,
+    commodity: CommodityKind,
+    per_cycle: f64,
+) -> f64 {
+    if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
+        per_cycle.max(0.0)
+            * farmhouse_cheese_salt_staging_cycles(building.processor_output_target_percent)
+    } else {
+        processor_input_target(per_cycle, building.processor_output_target_percent)
+    }
 }
 
 fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'static str> {

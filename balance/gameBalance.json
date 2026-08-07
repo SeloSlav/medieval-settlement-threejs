@@ -560,6 +560,7 @@
     "specialtyExportGoldPerAle": 1.15,
     "specialtyExportGoldPerWine": 1.6,
     "specialtyExportGoldPerCloth": 1.5,
+    "specialtyExportGoldPerCheese": 1.1,
     "ferryGoldPerDay": 2.25,
     "carpenterDeliverySpeedMultiplier": 1.18,
     "carpenterTimberCostMultiplier": 0.9,

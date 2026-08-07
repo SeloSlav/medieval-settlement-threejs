@@ -6,6 +6,7 @@ import {
   BUILDING_STORAGE_CAPS,
   MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND,
   SPECIALTY_EXPORT_GOLD_PER_ALE,
+  SPECIALTY_EXPORT_GOLD_PER_CHEESE,
   SPECIALTY_EXPORT_GOLD_PER_CLOTH,
   SPECIALTY_EXPORT_GOLD_PER_HONEY,
   SPECIALTY_EXPORT_GOLD_PER_WINE,
@@ -152,6 +153,7 @@ export type MarketplaceSpecialtyQueue = {
   honeyUnits: number;
   wineUnits: number;
   clothUnits: number;
+  cheeseUnits: number;
   units: number;
   goldValue: number;
   exportWorkers: number;
@@ -163,7 +165,7 @@ export function marketplaceSpecialtyQueue(
   building: BuildingState,
   marketRate = 1,
 ): MarketplaceSpecialtyQueue {
-  const units = building.ale + building.honey + building.wine + (building.cloth ?? 0);
+  const units = building.ale + building.honey + building.wine + (building.cloth ?? 0) + (building.cheese ?? 0);
   const unitsPerSecond = marketplaceSpecialtyExportRate(building);
   const boundedRate = Number.isFinite(marketRate) ? Math.max(0, marketRate) : 0;
   return {
@@ -171,6 +173,7 @@ export function marketplaceSpecialtyQueue(
     honeyUnits: building.honey,
     wineUnits: building.wine,
     clothUnits: building.cloth ?? 0,
+    cheeseUnits: building.cheese ?? 0,
     units,
     goldValue:
       (
@@ -178,6 +181,7 @@ export function marketplaceSpecialtyQueue(
         + building.honey * SPECIALTY_EXPORT_GOLD_PER_HONEY
         + building.wine * SPECIALTY_EXPORT_GOLD_PER_WINE
         + (building.cloth ?? 0) * SPECIALTY_EXPORT_GOLD_PER_CLOTH
+        + (building.cheese ?? 0) * SPECIALTY_EXPORT_GOLD_PER_CHEESE
       ) * boundedRate,
     exportWorkers: marketplaceSpecialtyExportWorkers(building),
     unitsPerSecond,
@@ -188,7 +192,7 @@ export function marketplaceSpecialtyQueue(
 export function formatMarketplaceSpecialtyQueue(
   queue: Pick<
     MarketplaceSpecialtyQueue,
-    'aleUnits' | 'honeyUnits' | 'wineUnits' | 'clothUnits' | 'units' | 'goldValue'
+    'aleUnits' | 'honeyUnits' | 'wineUnits' | 'clothUnits' | 'cheeseUnits' | 'units' | 'goldValue'
   >,
 ): string {
   const stored = [
@@ -196,12 +200,13 @@ export function formatMarketplaceSpecialtyQueue(
     ['honey', queue.honeyUnits],
     ['wine', queue.wineUnits],
     ['cloth', queue.clothUnits],
+    ['cheese', queue.cheeseUnits],
   ] as const;
   const readable = stored
     .filter(([, units]) => units > 1e-6)
     .map(([label, units]) => `${units.toFixed(1)} ${label}`);
   if (readable.length === 0) {
-    return 'Empty - awaiting ale, honey, wine, or cloth carts';
+    return 'Empty - awaiting ale, honey, wine, cloth, or cheese carts';
   }
   return `${readable.join(' · ')} · ${queue.units.toFixed(1)} total · about ${queue.goldValue.toFixed(1)} gold`;
 }

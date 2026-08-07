@@ -9,7 +9,7 @@ use crate::balance_generated::{
     CARPENTER_DELIVERY_SPEED_MULTIPLIER, CONSTRUCTION_DELIVERY_SPEED_MPS,
     CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_HAUL_PER_WORKER, FIRE_BUCKET_SPEED_MPS,
     FIRE_BUCKET_UNLOAD_SECONDS, HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY,
-    HOUSEHOLD_MAX_WEALTH, REMEDIES_PER_DELIVERY, REMEDY_DELIVERY_SPEED_MPS,
+    FOOD_SALE_GOLD_PER_UNIT, HOUSEHOLD_MAX_WEALTH, REMEDIES_PER_DELIVERY, REMEDY_DELIVERY_SPEED_MPS,
     REMEDY_DELIVERY_TARGET_DAYS, REMEDY_DELIVERY_UNLOAD_SEC, STOREHOUSE_HAUL_PER_WORKER,
     TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
@@ -19,10 +19,12 @@ use crate::delivery_trip_policy::{raid_cart_posture, RaidCartPosture};
 use crate::economy::{
     adriatic_trade_entry_point, available_building_labor, building_commodity_room,
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
-    credit_residence_wealth, credit_treasury_commodity, deposit_building_commodity,
+    credit_marketplace_receipt_gold, credit_residence_wealth,
+    credit_settlement_household_income, credit_treasury_commodity, deposit_building_commodity,
     deposit_residence_commodity, private_export_proceeds, record_parish_ledger,
     record_private_export_income, restore_local_civic_receipts, restore_private_export_proceeds,
-    settle_regional_market_export, withdraw_building_commodity, withdraw_coffer_in_place,
+    player_economic_activity_tax_rate, settle_regional_market_export, taxed_economic_activity,
+    town_hall_tax_collection_multiplier, withdraw_building_commodity, withdraw_coffer_in_place,
     withdraw_private_export_proceeds, CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
@@ -2471,9 +2473,32 @@ fn unload_commodity_to_building(
             .id()
             .find(&trip.building_id)
             .is_some_and(|origin| origin.kind == "chapel");
+    let local_milk_sale = commodity == CommodityKind::Milk
+        && target.kind == "marketplace"
+        && ctx
+            .db
+            .building()
+            .id()
+            .find(&trip.building_id)
+            .is_some_and(|origin| origin.kind == "granary");
     let deposited = deposit_building_commodity(&mut target, commodity, trip.amount);
     if deposited > 1e-6 {
         trip.amount = (trip.amount - deposited).max(0.0);
+        if local_milk_sale {
+            let base_activity = deposited * FOOD_SALE_GOLD_PER_UNIT;
+            let (adjusted, assessed_tax) = taxed_economic_activity(
+                base_activity,
+                player_economic_activity_tax_rate(ctx, target.owner),
+            );
+            let collected_tax =
+                assessed_tax * town_hall_tax_collection_multiplier(ctx, target.owner);
+            credit_settlement_household_income(
+                ctx,
+                target.owner,
+                (adjusted - collected_tax).max(0.0),
+            );
+            credit_marketplace_receipt_gold(ctx, &mut target, collected_tax);
+        }
         ctx.db.building().id().update(target);
         if monastery_tithe_delivery {
             if let Some(mut resources) = ctx.db.player_resources().owner().find(&trip.owner) {

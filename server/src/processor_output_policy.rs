@@ -77,7 +77,9 @@ pub fn is_extraction_output_target_kind(kind: &str) -> bool {
 }
 
 pub fn is_production_output_target_kind(kind: &str) -> bool {
-    is_processor_output_target_kind(kind) || is_extraction_output_target_kind(kind)
+    is_processor_output_target_kind(kind)
+        || is_extraction_output_target_kind(kind)
+        || kind == "pastoral_farmstead"
 }
 
 pub fn is_valid_processor_output_target_percent(percent: u8) -> bool {
@@ -209,6 +211,8 @@ mod tests {
         }
         assert!(!is_extraction_output_target_kind("hunters_hall"));
         assert!(is_production_output_target_kind("smithy"));
+        assert!(is_production_output_target_kind("pastoral_farmstead"));
+        assert!(!is_processor_output_target_kind("pastoral_farmstead"));
     }
 
     #[test]

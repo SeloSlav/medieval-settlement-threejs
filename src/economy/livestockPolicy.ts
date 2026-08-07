@@ -1,5 +1,6 @@
 import {
   CATTLE_DEFAULT_BREEDING_RESERVE,
+  CATTLE_FOOD_PER_CYCLE_PER_HEAD,
   CATTLE_MAX_HERD,
   CATTLE_MINIMUM_BREEDING_RESERVE,
   CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
@@ -13,6 +14,7 @@ import {
   LIVESTOCK_MAXIMUM_HAYMAKING_PERCENT,
   LIVESTOCK_FARMSTEAD_PRESERVATION_SALT_PER_OUTPUT,
   SHEEP_DEFAULT_BREEDING_RESERVE,
+  SHEEP_FOOD_PER_CYCLE_PER_HEAD,
   SHEEP_MAX_HERD,
   SHEEP_MINIMUM_BREEDING_RESERVE,
   SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
@@ -36,6 +38,7 @@ export type LivestockPolicyDefinition = {
   slaughterFoodPerHead: number;
   slaughterPreservedFoodPerHead: number;
   preservedFoodPerCyclePerHead: number;
+  milkPerCyclePerHead: number;
 };
 
 export type LivestockReservePreset = {
@@ -50,6 +53,15 @@ export type LivestockHaymakingPreset = {
   percent: number;
 };
 
+export const LIVESTOCK_MILK_USE_PRESETS = [
+  { value: 25, label: 'Fresh milk', hint: 'Keep the whole yield perishable and salt-free.' },
+  { value: 50, label: 'Balanced', hint: 'Keep the traditional milk and cheese split.' },
+  { value: 75, label: 'Cheese first', hint: 'Salt up to 75% of the shared yield for storage and export.' },
+] as const;
+
+export type LivestockMilkUsePolicy =
+  (typeof LIVESTOCK_MILK_USE_PRESETS)[number];
+
 const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
   cattle: {
     minimumReserve: CATTLE_MINIMUM_BREEDING_RESERVE,
@@ -58,6 +70,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     slaughterFoodPerHead: CATTLE_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: CATTLE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
     preservedFoodPerCyclePerHead: CATTLE_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
+    milkPerCyclePerHead: CATTLE_FOOD_PER_CYCLE_PER_HEAD,
   },
   sheep: {
     minimumReserve: SHEEP_MINIMUM_BREEDING_RESERVE,
@@ -66,6 +79,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     slaughterFoodPerHead: SHEEP_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: SHEEP_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
     preservedFoodPerCyclePerHead: SHEEP_PRESERVED_FOOD_PER_CYCLE_PER_HEAD,
+    milkPerCyclePerHead: SHEEP_FOOD_PER_CYCLE_PER_HEAD,
   },
   swine: {
     minimumReserve: SWINE_MINIMUM_BREEDING_RESERVE,
@@ -74,6 +88,7 @@ const POLICY_BY_SPECIES: Record<LivestockSpecies, LivestockPolicyDefinition> = {
     slaughterFoodPerHead: SWINE_SLAUGHTER_FOOD_PER_HEAD,
     slaughterPreservedFoodPerHead: SWINE_SLAUGHTER_PRESERVED_FOOD_PER_HEAD,
     preservedFoodPerCyclePerHead: 0,
+    milkPerCyclePerHead: 0,
   },
 };
 
@@ -207,11 +222,49 @@ export function livestockDairyPreservedOutputPerCycle(
     * livestockPolicyDefinition(species).preservedFoodPerCyclePerHead;
 }
 
+export function livestockMilkUsePolicy(
+  configured: number | undefined,
+): LivestockMilkUsePolicy {
+  return LIVESTOCK_MILK_USE_PRESETS.find((preset) => preset.value === configured)
+    ?? LIVESTOCK_MILK_USE_PRESETS[1];
+}
+
+export function livestockMilkAllocationPerCycle(
+  species: LivestockSpecies,
+  productiveHeads: number,
+  configured: number | undefined,
+  cheeseCapacity = Number.POSITIVE_INFINITY,
+): { grossMilk: number; freshMilk: number; cheese: number } {
+  const policy = livestockPolicyDefinition(species);
+  const productive = Math.max(0, productiveHeads);
+  const baseMilk = productive * policy.milkPerCyclePerHead;
+  const baseCheese = productive * policy.preservedFoodPerCyclePerHead;
+  const grossMilk = baseMilk + baseCheese;
+  const normalized = livestockMilkUsePolicy(configured).value;
+  const desiredCheese = normalized === 25
+    ? 0
+    : normalized === 75
+      ? grossMilk * 0.75
+      : baseCheese;
+  const boundedCapacity = Number.isFinite(cheeseCapacity)
+    ? Math.max(0, cheeseCapacity)
+    : Number.POSITIVE_INFINITY;
+  const cheese = Math.min(grossMilk, desiredCheese, boundedCapacity);
+  return { grossMilk, freshMilk: Math.max(0, grossMilk - cheese), cheese };
+}
+
+export function farmhouseCheeseSaltStagingCycles(
+  configured: number | undefined,
+): number {
+  return livestockMilkUsePolicy(configured).value === 25 ? 0 : 3;
+}
+
 export function livestockDairySaltPerCycle(
   species: LivestockSpecies,
   productiveHeads: number,
+  configured: number | undefined = 50,
 ): number {
   return livestockPreservationSaltRequired(
-    livestockDairyPreservedOutputPerCycle(species, productiveHeads),
+    livestockMilkAllocationPerCycle(species, productiveHeads, configured).cheese,
   );
 }

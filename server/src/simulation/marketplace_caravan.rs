@@ -7,6 +7,7 @@ use crate::balance_generated::{
     FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC,
     HOUSEHOLD_MAX_WEALTH, LOCAL_MARKET_TAX_CART_THRESHOLD, PRIVATE_EXPORT_INCOME_CART_LOAD,
     SPECIALTY_EXPORT_GOLD_PER_ALE,
+    SPECIALTY_EXPORT_GOLD_PER_CHEESE,
     SPECIALTY_EXPORT_GOLD_PER_CLOTH,
     SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_WINE, STOREHOUSE_HAUL_PER_WORKER,
     TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS,
@@ -331,6 +332,7 @@ pub fn step_marketplace_caravans(
                     || building.honey > 1e-6
                     || building.wine > 1e-6
                     || building.cloth > 1e-6
+                    || building.cheese > 1e-6
                     || building.pottery > 1e-6
                     || building.gold > 1e-6)))
         })
@@ -516,7 +518,8 @@ fn sell_marketplace_specialties(
         || (building.ale <= 1e-6
             && building.honey <= 1e-6
             && building.wine <= 1e-6
-            && building.cloth <= 1e-6)
+            && building.cloth <= 1e-6
+            && building.cheese <= 1e-6)
     {
         return false;
     }
@@ -561,6 +564,7 @@ fn sell_marketplace_specialties(
             CommodityKind::Honey,
             CommodityKind::Wine,
             CommodityKind::Cloth,
+            CommodityKind::Cheese,
         ];
         for index in specialty_export_order(clock.sim_tick) {
             let commodity = specialties[index];
@@ -602,6 +606,7 @@ fn sell_marketplace_specialties(
         (CommodityKind::Honey, SPECIALTY_EXPORT_GOLD_PER_HONEY),
         (CommodityKind::Wine, SPECIALTY_EXPORT_GOLD_PER_WINE),
         (CommodityKind::Cloth, SPECIALTY_EXPORT_GOLD_PER_CLOTH),
+        (CommodityKind::Cheese, SPECIALTY_EXPORT_GOLD_PER_CHEESE),
     ];
     let mut revenue = 0.0;
     let mut units_sold = 0.0;
