@@ -61,6 +61,7 @@ function residence(
     needs: [],
     abandoned: false,
     householdWealth,
+    food: 20,
   };
 }
 
@@ -412,7 +413,12 @@ assert.equal(sabbath.seasonallyActiveGardens, 1);
 assert.equal(sabbath.producingTodayGardens, 0);
 assert.equal(sabbath.currentDaySelfFood, 0);
 assert.equal(sabbath.currentDayRoutedActivity, 0);
-assert.ok(sabbath.horizonSelfFood > 0);
+assert.equal(
+  sabbath.horizonSelfFood,
+  0,
+  'a pantry already above its tier reserve should not retain forecast output',
+);
+assert.ok(sabbath.horizonMarketFood > 0);
 assert.ok(sabbath.horizonRoutedActivity > 0);
 
 const unstaffedMarket = computeSettlementBackyardEconomyPlan({
@@ -468,13 +474,13 @@ const dailyVegetable = backyardGardenEconomyPerDay(
   'vegetable_garden',
   4,
   0.2,
-  { seasonalMultiplier: 1, hasMarketAccess: true },
+  { seasonalMultiplier: 1, hasMarketAccess: true, tier: 1, currentFoodStock: 20 },
 );
 const droughtVegetable = backyardGardenEconomyPerDay(
   'vegetable_garden',
   4,
   0.2,
-  { seasonalMultiplier: 0.55, hasMarketAccess: true },
+  { seasonalMultiplier: 0.55, hasMarketAccess: true, tier: 1, currentFoodStock: 20 },
 );
 assert.ok(
   Math.abs(
