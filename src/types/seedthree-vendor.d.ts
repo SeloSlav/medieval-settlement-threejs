@@ -109,6 +109,8 @@ declare module '@seedthree/core/forest-lod.js' {
     frustumPadding?: number;
     nearDistance?: number;
     lodHysteresis?: number;
+    /** Force crowns at or above this camera-relative Y offset into overview cards. */
+    overviewElevationFloorBelowCamera?: number;
     minimumCameraMove?: number;
     minimumDirectionAngle?: number;
     minimumProjectionChange?: number;

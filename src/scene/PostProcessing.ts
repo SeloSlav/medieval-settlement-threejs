@@ -41,11 +41,26 @@ import {
   GRADE_HIGHLIGHT_DESATURATION,
   GRADE_HIGHLIGHT_ROLLOFF_END,
   GRADE_HIGHLIGHT_ROLLOFF_START,
+  GRADE_FILMIC_BLEND,
+  GRADE_FILMIC_PIVOT,
+  GRADE_FILMIC_POWER,
+  GRADE_FOLIAGE_DESATURATION,
+  GRADE_FOLIAGE_DOMINANCE_END,
+  GRADE_FOLIAGE_DOMINANCE_START,
+  GRADE_FOLIAGE_OLIVE_TINT,
+  GRADE_GRAIN_STRENGTH,
   GRADE_NIGHT_BLUE_TINT,
   GRADE_SHADOW_LIFT_END,
   GRADE_SHADOW_LIFT_EXPONENT,
   GRADE_SHADOW_LIFT_START,
   GRADE_SHADOW_LIFT_STRENGTH,
+  GRADE_SPLIT_HIGHLIGHT_END,
+  GRADE_SPLIT_HIGHLIGHT_START,
+  GRADE_SPLIT_HIGHLIGHT_STRENGTH,
+  GRADE_SPLIT_HIGHLIGHT_TINT,
+  GRADE_SPLIT_SHADOW_END,
+  GRADE_SPLIT_SHADOW_STRENGTH,
+  GRADE_SPLIT_SHADOW_TINT,
   GRADE_VIGNETTE_INNER,
   GRADE_VIGNETTE_OUTER,
   GRADE_WARMTH_TINT,
@@ -277,6 +292,9 @@ class StableSizeBloomNode extends BloomNode {
 
 type TslNode = {
   a: TslNode;
+  b: TslNode;
+  g: TslNode;
+  r: TslNode;
   rgb: TslNode;
   add(value: unknown): TslNode;
   div(value: unknown): TslNode;
@@ -344,13 +362,65 @@ function buildGradeNode(
     vec3(highlightLuma),
     highlightRolloff.mul(float(GRADE_HIGHLIGHT_DESATURATION)),
   ) as TslNode;
+  const foliageDominance = highlightManaged.g.sub(max(highlightManaged.r, highlightManaged.b));
+  const foliageMask = (smoothstep(
+    float(GRADE_FOLIAGE_DOMINANCE_START),
+    float(GRADE_FOLIAGE_DOMINANCE_END),
+    foliageDominance,
+  ) as TslNode).mul(smoothstep(float(0.035), float(0.2), highlightLuma)) as TslNode;
+  const foliageLuma = dot(highlightManaged, vec3(lr, lg, lb));
+  const foliageDesaturated = mix(
+    highlightManaged,
+    vec3(foliageLuma),
+    foliageMask.mul(float(GRADE_FOLIAGE_DESATURATION)),
+  ) as TslNode;
+  const foliageManaged = mix(
+    foliageDesaturated,
+    foliageDesaturated.mul(vec3(...GRADE_FOLIAGE_OLIVE_TINT)),
+    foliageMask,
+  ) as TslNode;
+  const splitLuma = dot(foliageManaged, vec3(lr, lg, lb)) as TslNode;
+  const shadowTone = (float(1) as TslNode).sub(smoothstep(
+    float(0.055),
+    float(GRADE_SPLIT_SHADOW_END),
+    splitLuma,
+  ));
+  const highlightTone = smoothstep(
+    float(GRADE_SPLIT_HIGHLIGHT_START),
+    float(GRADE_SPLIT_HIGHLIGHT_END),
+    splitLuma,
+  ) as TslNode;
+  const shadowToned = mix(
+    foliageManaged,
+    foliageManaged.mul(vec3(...GRADE_SPLIT_SHADOW_TINT)),
+    shadowTone.mul(float(GRADE_SPLIT_SHADOW_STRENGTH)),
+  ) as TslNode;
+  const splitToned = mix(
+    shadowToned,
+    shadowToned.mul(vec3(...GRADE_SPLIT_HIGHLIGHT_TINT)),
+    highlightTone.mul(float(GRADE_SPLIT_HIGHLIGHT_STRENGTH)),
+  ) as TslNode;
+  const filmicInput = (max(splitToned, vec3(0)) as TslNode).div(float(GRADE_FILMIC_PIVOT));
+  const filmicColor = (pow(
+    filmicInput,
+    vec3(GRADE_FILMIC_POWER),
+  ) as TslNode).mul(float(GRADE_FILMIC_PIVOT)) as TslNode;
+  const filmicManaged = mix(splitToned, filmicColor, float(GRADE_FILMIC_BLEND)) as TslNode;
+  const grainLuma = dot(filmicManaged, vec3(lr, lg, lb)) as TslNode;
+  const grainVisibility = (smoothstep(float(0.08), float(0.28), grainLuma) as TslNode)
+    .mul((float(1) as TslNode).sub(smoothstep(float(0.62), float(1), grainLuma)));
+  const grainCell = floor((uv() as TslNode).mul(screenSize));
+  const gradeGrain = (fract(
+    (sin(dot(grainCell, vec2(12.9898, 78.233))) as TslNode).mul(float(43758.5453)),
+  ) as TslNode).sub(float(0.5)).mul(float(GRADE_GRAIN_STRENGTH));
+  const textured = filmicManaged.add(vec3(gradeGrain.mul(grainVisibility)));
   const distanceFromCenter = distance(uv(), vec2(0.5));
   const edge = smoothstep(
     float(GRADE_VIGNETTE_INNER),
     float(GRADE_VIGNETTE_OUTER),
     distanceFromCenter,
   );
-  const graded = highlightManaged.mul(
+  const graded = textured.mul(
     mix(float(1), (float(1) as TslNode).sub(vignetteValue), edge),
   );
   const finalColor = naiveArtStructureEdge

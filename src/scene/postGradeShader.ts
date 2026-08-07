@@ -16,6 +16,21 @@ export const GRADE_SHADOW_LIFT_START = 0.035;
 export const GRADE_SHADOW_LIFT_END = 0.28;
 export const GRADE_SHADOW_LIFT_EXPONENT = 0.76;
 export const GRADE_SHADOW_LIFT_STRENGTH = 0.52;
+export const GRADE_FOLIAGE_DESATURATION = 0.1;
+export const GRADE_FOLIAGE_DOMINANCE_START = 0.015;
+export const GRADE_FOLIAGE_DOMINANCE_END = 0.2;
+export const GRADE_FOLIAGE_OLIVE_TINT = [1.012, 0.978, 0.965] as const;
+export const GRADE_SPLIT_SHADOW_END = 0.42;
+export const GRADE_SPLIT_SHADOW_STRENGTH = 0.035;
+export const GRADE_SPLIT_SHADOW_TINT = [0.93, 0.985, 1.035] as const;
+export const GRADE_SPLIT_HIGHLIGHT_START = 0.48;
+export const GRADE_SPLIT_HIGHLIGHT_END = 1.05;
+export const GRADE_SPLIT_HIGHLIGHT_STRENGTH = 0.065;
+export const GRADE_SPLIT_HIGHLIGHT_TINT = [1.045, 1.012, 0.94] as const;
+export const GRADE_FILMIC_PIVOT = 0.18;
+export const GRADE_FILMIC_POWER = 1.035;
+export const GRADE_FILMIC_BLEND = 0.34;
+export const GRADE_GRAIN_STRENGTH = 0.0025;
 
 export function buildGradeGlslVertexShader(): string {
   return `
@@ -34,6 +49,9 @@ export function buildGradeGlslFragmentShader(
   const [lr, lg, lb] = GRADE_LUMA_WEIGHTS;
   const [wr, wg, wb] = GRADE_WARMTH_TINT;
   const [nr, ng, nb] = GRADE_NIGHT_BLUE_TINT;
+  const [for_, fog, fob] = GRADE_FOLIAGE_OLIVE_TINT;
+  const [ssr, ssg, ssb] = GRADE_SPLIT_SHADOW_TINT;
+  const [shr, shg, shb] = GRADE_SPLIT_HIGHLIGHT_TINT;
   const naiveArtFunctions = naiveArtEnabled ? buildNaiveArtGlslFunctions() : '';
   const sourceColorInitialization = naiveArtEnabled
     ? 'vec3 sourceColor;'
@@ -58,6 +76,10 @@ export function buildGradeGlslFragmentShader(
     vec3 adjustSaturation(vec3 color, float amount) {
       float luma = dot(color, vec3(${lr}, ${lg}, ${lb}));
       return mix(vec3(luma), color, amount);
+    }
+
+    float medievalGradeNoise(vec2 pixel) {
+      return fract(sin(dot(pixel, vec2(12.9898, 78.233))) * 43758.5453);
     }
 
     ${naiveArtFunctions}
@@ -94,6 +116,46 @@ export function buildGradeGlslFragmentShader(
         vec3(highlightLuma),
         highlightRolloff * ${GRADE_HIGHLIGHT_DESATURATION}
       );
+      float foliageDominance = color.g - max(color.r, color.b);
+      float foliageMask = smoothstep(
+        ${GRADE_FOLIAGE_DOMINANCE_START},
+        ${GRADE_FOLIAGE_DOMINANCE_END},
+        foliageDominance
+      ) * smoothstep(0.035, 0.2, highlightLuma);
+      color = mix(
+        color,
+        vec3(dot(color, vec3(${lr}, ${lg}, ${lb}))),
+        foliageMask * ${GRADE_FOLIAGE_DESATURATION}
+      );
+      color = mix(color, color * vec3(${for_}, ${fog}, ${fob}), foliageMask);
+      float splitLuma = dot(color, vec3(${lr}, ${lg}, ${lb}));
+      float shadowTone = 1.0 - smoothstep(0.055, ${GRADE_SPLIT_SHADOW_END}, splitLuma);
+      float highlightTone = smoothstep(
+        ${GRADE_SPLIT_HIGHLIGHT_START},
+        ${GRADE_SPLIT_HIGHLIGHT_END},
+        splitLuma
+      );
+      color = mix(
+        color,
+        color * vec3(${ssr}, ${ssg}, ${ssb}),
+        shadowTone * ${GRADE_SPLIT_SHADOW_STRENGTH}
+      );
+      color = mix(
+        color,
+        color * vec3(${shr}, ${shg}, ${shb}),
+        highlightTone * ${GRADE_SPLIT_HIGHLIGHT_STRENGTH}
+      );
+      vec3 filmicColor = vec3(${GRADE_FILMIC_PIVOT}) * pow(
+        max(color, vec3(0.0)) / ${GRADE_FILMIC_PIVOT},
+        vec3(${GRADE_FILMIC_POWER})
+      );
+      color = mix(color, filmicColor, ${GRADE_FILMIC_BLEND});
+      float grainLuma = dot(color, vec3(${lr}, ${lg}, ${lb}));
+      float grainVisibility = smoothstep(0.08, 0.28, grainLuma)
+        * (1.0 - smoothstep(0.62, 1.0, grainLuma));
+      float grain = (medievalGradeNoise(floor(gl_FragCoord.xy)) - 0.5)
+        * ${GRADE_GRAIN_STRENGTH};
+      color += vec3(grain) * grainVisibility;
       float distanceFromCenter = distance(vUv, vec2(0.5));
       float edge = smoothstep(${GRADE_VIGNETTE_INNER}, ${GRADE_VIGNETTE_OUTER}, distanceFromCenter);
       color *= mix(1.0, 1.0 - vignette, edge);

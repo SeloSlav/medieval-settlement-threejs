@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import { float, uniform } from 'three/tsl';
+import { foliageWindPosition } from '@seedthree/core/wind.js';
 
 /** Forest foliage is diffuse/transmissive; a sun-driven glossy lobe reads as shimmer. */
 export const SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY = 0;
@@ -13,15 +14,23 @@ export type SeedThreeForestCardMotion = 'full' | 'sway' | 'static';
  */
 export const SEEDTHREE_OVERVIEW_CARD_MOTION: SeedThreeForestCardMotion = 'static';
 
+/**
+ * Forest branch cards move as rigid clusters. Per-vertex flutter changes the
+ * alpha-tested silhouette at high frequency, which aliases into black flashes
+ * as a first-person camera translates, retreats, or pitches.
+ */
+export const SEEDTHREE_NEAR_CARD_MOTION: SeedThreeForestCardMotion = 'sway';
+
+const rigidForestCardSwayPositionNode = foliageWindPosition(false);
+
 export function resolveSeedThreeForestCardMotion(
   overview: boolean,
   crownUnderlay: boolean,
 ): SeedThreeForestCardMotion {
   if (overview) return SEEDTHREE_OVERVIEW_CARD_MOTION;
-  // A crown underlay is a crossed pair. Per-plane flutter separates the pair
-  // at its shared seam, so it may sway only as one rigid crown.
-  if (crownUnderlay) return 'sway';
-  return 'full';
+  // Both crossed underlays and detailed branch cards keep coherent whole-card
+  // sway. Only the high-frequency silhouette-changing flutter is removed.
+  return crownUnderlay ? 'sway' : SEEDTHREE_NEAR_CARD_MOTION;
 }
 
 type SeedThreePositionNodeMaterial = THREE.Material & {
@@ -101,19 +110,18 @@ export function setSeedThreeOverviewBillboardFadeOpacity(opacity: number): void 
 
 /**
  * Override only the card-position node after SeedThree has built its forest
- * material. Near detail keeps the normal forest node, crown underlays reuse
- * their bake-authored rigid-sway node, and overview cards stay fixed.
+ * material. Detailed cards and crown underlays use one coherent rigid-sway
+ * node, while overview cards stay fixed.
  */
 export function applySeedThreeForestCardMotion(
   material: THREE.Material,
   motion: SeedThreeForestCardMotion,
-  sourceMaterial?: THREE.Material,
 ): THREE.Material {
   if (motion === 'full') return material;
   const target = material as SeedThreePositionNodeMaterial;
   const nextPositionNode = motion === 'static'
     ? null
-    : (sourceMaterial as SeedThreePositionNodeMaterial | undefined)?.positionNode ?? null;
+    : rigidForestCardSwayPositionNode;
   if (target.positionNode !== nextPositionNode) {
     target.positionNode = nextPositionNode;
     material.needsUpdate = true;

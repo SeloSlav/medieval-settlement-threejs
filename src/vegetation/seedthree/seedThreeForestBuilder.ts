@@ -193,6 +193,10 @@ const FOREST_LOD_OPTS = {
 };
 
 const FOREST_NEAR_DISTANCE = 108;
+// On steep maps, mountaintop trees can be physically close to the elevated orbit
+// camera even at strategic zoom. Keep their foliage-thickening overview cards
+// once their crown center rises into this camera-relative altitude band.
+const FOREST_OVERVIEW_ELEVATION_FLOOR_BELOW_CAMERA = -36;
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
 const FOREST_VISIBILITY_PADDING = 26;
 const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
@@ -319,7 +323,6 @@ function createInstancedLodSet(
         }
 
         const crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
-        const sourceMaterial = instanced.material as THREE.Material;
         const baseForestMaterial = applySeedThreeForestCardMotion(
           stabilizeSeedThreeForestCardMaterial(
             (instanced.userData.shareMaterial
@@ -335,7 +338,6 @@ function createInstancedLodSet(
             options.overviewCards === true,
             crownUnderlay,
           ),
-          sourceMaterial,
         );
         const fmat = crownUnderlay && options.overviewCards !== true
           ? createSeedThreeOverviewFadeMaterial(baseForestMaterial)
@@ -358,7 +360,12 @@ function createInstancedLodSet(
         // WebGPU shadow variant and turns into rectangular terrain shadows.
         const castsTreeSilhouette = castShadow && !crownUnderlay;
         im.castShadow = castsTreeSilhouette;
-        im.receiveShadow = true;
+        // Alpha-cutout cards self-shadow through a single-sample shadow atlas.
+        // At walking distance that hard projected cutout fights the smoother
+        // MSAA color coverage and appears as direction-dependent black flicker.
+        // Keep their terrain/building silhouette, but light the cards from the
+        // existing canopy normal, analytic occlusion, and SSS instead.
+        im.receiveShadow = false;
         im.frustumCulled = false;
         im.userData.neverCastShadow = !castsTreeSilhouette;
         im.userData.src = instanced;
@@ -846,6 +853,9 @@ export function updateSeedThreeForestCameraBudgeted(
     casterBounds,
     // Matches the directional-shadow fitter's broad-canopy horizontal margin.
     casterPadding: 14,
+    overviewElevationFloorBelowCamera: firstPersonActive
+      ? Number.NEGATIVE_INFINITY
+      : FOREST_OVERVIEW_ELEVATION_FLOOR_BELOW_CAMERA,
     ...(options.minimumCameraMove === undefined
       ? {}
       : { minimumCameraMove: options.minimumCameraMove }),

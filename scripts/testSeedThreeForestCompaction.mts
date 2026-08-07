@@ -235,44 +235,58 @@ assert.equal(overviewSet.cards[0].count, 1, 'overview card bucket should submit 
 
 updateSeedThreeLodPassInstanceCounts(nearSet, 0);
 const mainCamera = new THREE.PerspectiveCamera();
+mainCamera.layers.disable(1);
 const shadowCamera = new THREE.OrthographicCamera();
+shadowCamera.layers.enable(1);
+const invokeBeforeRender = (mesh: THREE.InstancedMesh, camera: THREE.Camera): void => {
+  mesh.onBeforeRender(
+    {} as THREE.WebGLRenderer,
+    new THREE.Scene(),
+    camera,
+    mesh.geometry,
+    mesh.material as THREE.Material,
+    null,
+  );
+};
+const invokeAfterRender = (mesh: THREE.InstancedMesh, camera: THREE.Camera): void => {
+  mesh.onAfterRender(
+    {} as THREE.WebGLRenderer,
+    new THREE.Scene(),
+    camera,
+    mesh.geometry,
+    mesh.material as THREE.Material,
+    null,
+  );
+};
+invokeBeforeRender(nearSet.branches, mainCamera);
+assert.equal(nearSet.branches.count, 0,
+  'the color camera must omit the shadow-only branch suffix');
+invokeAfterRender(nearSet.branches, mainCamera);
 assert.equal(nearSet.branches.count, 1,
-  'the stable conservative prefix must remain resident');
-nearSet.branches.onBeforeRender(
-  {} as THREE.WebGLRenderer,
-  new THREE.Scene(),
-  mainCamera,
-  nearSet.branches.geometry,
-  nearSet.branches.material as THREE.Material,
-  {} as THREE.Group,
-);
+  'the complete conservative caster prefix must be restored after color submission');
+invokeBeforeRender(nearSet.branches, shadowCamera);
 assert.equal(nearSet.branches.count, 1,
-  'a color callback must not mutate the resident prefix');
-nearSet.branches.onBeforeRender(
-  {} as THREE.WebGLRenderer,
-  new THREE.Scene(),
-  shadowCamera,
-  nearSet.branches.geometry,
-  nearSet.branches.material as THREE.Material,
-  {} as THREE.Group,
-);
-assert.equal(nearSet.branches.count, 1,
-  'a shadow callback must observe the same resident prefix');
+  'the directional shadow camera must retain every conservative caster');
+invokeAfterRender(nearSet.branches, shadowCamera);
 
 const passParitySet = makeLodSet(2);
 writeSeedThreeLodMatrices(passParitySet, slots, [0, 1]);
 updateSeedThreeLodPassInstanceCounts(passParitySet, 1);
 const branchTrianglesPerInstance = passParitySet.branches.geometry.index!.count / 3;
+invokeBeforeRender(passParitySet.branches, mainCamera);
 const colorTriangles = passParitySet.branches.count * branchTrianglesPerInstance;
+invokeAfterRender(passParitySet.branches, mainCamera);
+invokeBeforeRender(passParitySet.branches, shadowCamera);
 const shadowTriangles = passParitySet.branches.count * branchTrianglesPerInstance;
-assert.equal(colorTriangles, branchTrianglesPerInstance * 2,
-  'the color pass must retain the conservative prefix');
+invokeAfterRender(passParitySet.branches, shadowCamera);
+assert.equal(colorTriangles, branchTrianglesPerInstance,
+  'the color pass must submit exactly the view-visible tree prefix');
 assert.equal(shadowTriangles, branchTrianglesPerInstance * 2,
   'the shadow pass must preserve exact conservative triangle coverage');
 assert.equal(
-  colorTriangles,
+  colorTriangles + branchTrianglesPerInstance,
   shadowTriangles,
-  'both passes must use the same immutable instance count',
+  'the only removed color triangles must be the deterministic shadow-only suffix',
 );
 
 slots[0]!.enabled = false;
