@@ -27,7 +27,7 @@ export class WorldSetupPanel {
   private readonly resolve: (settings: WorldGenerationSettings) => void;
   private draft: WorldGenerationSettings = applyTerrainPreset(
     { ...DEFAULT_WORLD_GENERATION_SETTINGS },
-    'kupa_valley',
+    'risnjak_pass',
   );
 
   private constructor(parent: HTMLElement, resolve: (settings: WorldGenerationSettings) => void) {
@@ -285,7 +285,11 @@ export class WorldSetupPanel {
 
   private renderTerrainPresetOptions(): void {
     const grid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
-    grid.innerHTML = WORLD_TERRAIN_PRESETS.map((preset) => {
+    const displayPresets = [
+      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id === 'risnjak_pass'),
+      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id !== 'risnjak_pass'),
+    ];
+    grid.innerHTML = displayPresets.map((preset) => {
       const selected = preset.id === this.draft.terrainPreset ? ' is-selected' : '';
       const features = preset.features
         .map((feature) => `<span>${feature}</span>`)

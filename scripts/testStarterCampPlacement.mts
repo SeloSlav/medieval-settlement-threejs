@@ -397,6 +397,8 @@ assert.match(
 );
 
 const toolbar = read('src/ui/BuildToolbar.ts');
+const settlementHud = read('src/ui/SettlementHud.ts');
+const settlementHudCss = read('src/ui/settlementHud.css');
 assert.match(toolbar, />Place starter camp</);
 assert.match(toolbar, /setStarterCampRequired\(required: boolean\)/);
 assert.match(
@@ -413,6 +415,16 @@ assert.match(
   toolbar,
   /this\.constructionDock\.hidden = this\.firstPersonActive \|\| this\.starterCampRequired/,
   'the normal construction dock should be replaced until the camp exists',
+);
+assert.match(
+  settlementHud,
+  /setFirstPersonActive\(active: boolean\)[\s\S]*?this\.root\.hidden = active/,
+  'first-person mode must mark the entire settlement HUD as hidden',
+);
+assert.match(
+  settlementHudCss,
+  /\.settlement-hud\[hidden\]\s*\{\s*display:\s*none;/,
+  'the settlement HUD display rules must not override its first-person hidden state',
 );
 
 const app = read('src/app/App.ts');

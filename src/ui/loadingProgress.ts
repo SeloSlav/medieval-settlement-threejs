@@ -14,7 +14,9 @@ const PHASE_RANGES: Record<LoadingPhase, { start: number; end: number }> = {
   terrain: { start: 22, end: 62 },
   worldFeatures: { start: 62, end: 74 },
   connecting: { start: 74, end: 88 },
-  vegetation: { start: 88, end: 100 },
+  // Reserve the final 4% for the authoritative session-ready handoff. The
+  // loading cover can remain up after rendering work completes.
+  vegetation: { start: 88, end: 96 },
 };
 
 export function loadingPercentForPhase(phase: LoadingPhase, fraction: number): number {

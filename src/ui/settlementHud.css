@@ -18,6 +18,10 @@
   backdrop-filter: blur(18px) saturate(0.82);
 }
 
+.settlement-hud[hidden] {
+  display: none;
+}
+
 .settlement-hud::before {
   content: '';
   position: absolute;

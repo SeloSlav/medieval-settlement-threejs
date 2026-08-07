@@ -580,6 +580,10 @@ export class App {
     const restoreFoundersCampPrewarm = session.buildingMarkers.beginFoundersCampGpuPrewarm();
     try {
       await session.sceneManager.precompileFirstPlayableScene();
+      // Prewarm-only objects must be detached before a frame reaches the
+      // canvas. The temporary founders' camp is not an actual world entity.
+      restoreFoundersCampPrewarm();
+      restoreVillagerPrewarm();
       session.sceneManager.render(0, session.cameraController.getOrbitDistance());
       await session.sceneManager.waitForFirstPlayableGpuWork();
     } catch (error) {

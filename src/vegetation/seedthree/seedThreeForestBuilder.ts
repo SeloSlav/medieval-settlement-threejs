@@ -70,11 +70,6 @@ import {
 } from '@seedthree/core/forest-update-budget.js';
 import type { DeciduousFoliagePresentation } from '../../world/deciduousFoliagePolicy.ts';
 import { planSeedThreeForestInteractionWork } from './seedThreeForestInteraction.ts';
-import {
-  retainSeedThreeFirstPersonView,
-  sameSeedThreeForestIndexSelection,
-  type SeedThreeForestIndexSelection,
-} from './seedThreeFirstPersonForestRetention.ts';
 
 type SpeciesBucket = {
   preset: SeedThreePresetKey;
@@ -100,7 +95,6 @@ export type SeedThreeForestInstances = {
   slotByLayoutIndex: Array<{ bucketIndex: number; slotIndex: number } | null>;
   hiddenMatrix: THREE.Matrix4;
   visibilitySelector: ReturnType<typeof createForestLodSelector>;
-  effectiveCameraSelection: (SeedThreeForestIndexSelection & { revision: number }) | null;
   seasonalCardMaterials: THREE.Material[];
   crownUnderlayMeshes: THREE.InstancedMesh[];
   crownUnderlayVisible: boolean;
@@ -200,11 +194,6 @@ const FOREST_LOD_OPTS = {
 
 const FOREST_NEAR_DISTANCE = 108;
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
-// Pointer-look changes direction continuously. Retain every nearby tree in the
-// color prefix so turning cannot repack a shadow-only instance into view.
-// A 72 m walking bubble keeps turns stable without submitting the four-times
-// larger 144 m disk of off-axis close-detail foliage on every POV frame.
-const FOREST_FIRST_PERSON_VIEW_RETENTION_RADIUS = 72;
 const FOREST_VISIBILITY_PADDING = 26;
 const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
 const FOREST_CONTINUOUS_UPDATE_BUDGET_MS = 2.75;
@@ -720,7 +709,6 @@ export async function createSeedThreeForest(
     slotByLayoutIndex,
     hiddenMatrix,
     visibilitySelector,
-    effectiveCameraSelection: null,
     seasonalCardMaterials: [...seasonalCardMaterials],
     crownUnderlayMeshes,
     crownUnderlayVisible,
@@ -848,7 +836,7 @@ export function updateSeedThreeForestCameraBudgeted(
   const cameraInteractionActive = options.cameraInteractionActive === true;
   const previousCameraInteractionActive = forest.cameraInteractionActive;
   forest.cameraInteractionActive = cameraInteractionActive;
-  const rawSelection = selectForestLods(forest.visibilitySelector, camera, {
+  const selection = selectForestLods(forest.visibilitySelector, camera, {
     nearDistance: firstPersonActive
       ? FOREST_FIRST_PERSON_NEAR_DISTANCE
       : FOREST_NEAR_DISTANCE,
@@ -871,38 +859,6 @@ export function updateSeedThreeForestCameraBudgeted(
       ? {}
       : { minimumCasterBoundsChange: options.minimumCasterBoundsChange }),
   });
-  const selectedIndices = firstPersonActive
-    ? retainSeedThreeFirstPersonView(
-        rawSelection,
-        forest.visibilitySelector.items,
-        camera.position,
-        FOREST_FIRST_PERSON_VIEW_RETENTION_RADIUS,
-      )
-    : {
-        nearIndices: rawSelection.nearIndices,
-        overviewIndices: rawSelection.overviewIndices,
-        viewIndices: rawSelection.viewIndices,
-      };
-  const previousEffectiveSelection = forest.effectiveCameraSelection;
-  const effectiveSelectionChanged = !previousEffectiveSelection
-    || !sameSeedThreeForestIndexSelection(previousEffectiveSelection, selectedIndices);
-  const selectionRevision = effectiveSelectionChanged
-    ? (previousEffectiveSelection?.revision ?? 0) + 1
-    : previousEffectiveSelection.revision;
-  if (effectiveSelectionChanged) {
-    forest.effectiveCameraSelection = {
-      nearIndices: [...selectedIndices.nearIndices],
-      overviewIndices: [...selectedIndices.overviewIndices],
-      viewIndices: [...selectedIndices.viewIndices],
-      revision: selectionRevision,
-    };
-  }
-  const selection = {
-    ...rawSelection,
-    ...selectedIndices,
-    changed: effectiveSelectionChanged,
-    revision: selectionRevision,
-  };
   forest.updateTelemetry.selectorCalls += 1;
   forest.updateTelemetry.selectorEvaluations += selection.skipped ? 0 : 1;
   forest.updateTelemetry.selectorSkips += selection.skipped ? 1 : 0;
