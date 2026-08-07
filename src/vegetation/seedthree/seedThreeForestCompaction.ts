@@ -7,6 +7,7 @@ import {
   type InstanceMatrixWriteJob,
   type InstanceMatrixWriteSlicesResult,
 } from '@seedthree/core/instance-matrix-chunks.js';
+import { TREE_SHADOW_CAST_LAYER } from '../../scene/SceneLayers.ts';
 
 const DECIDUOUS_TREE_ORIGIN_Y_OFFSET = 2048;
 
@@ -258,12 +259,25 @@ function updateMeshPassInstanceCounts(
     Math.max(0, Math.floor(viewInstanceCount)),
   );
   mesh.userData.forestShadowInstanceCount = shadowInstanceCount;
-  // WebGPU snapshots draw state outside Three's per-object render callbacks.
-  // Mutating `count` in those callbacks makes color draws alternate between
-  // the view prefix and the conservative shadow suffix as the camera moves.
-  // Keep one stable prefix for both passes. Every visible tree still casts a
-  // shadow; only off-camera shadow-only instances are omitted.
-  mesh.count = mesh.userData.forestViewInstanceCount;
+  // Leave the externally observable count at the complete compacted prefix.
+  // The render hooks narrow it only for the duration of a color draw.
+  mesh.count = shadowInstanceCount;
+  if (mesh.userData.forestPassCountsInstalled) return;
+  mesh.userData.forestPassCountsInstalled = true;
+  const previousBeforeRender = mesh.onBeforeRender;
+  const previousAfterRender = mesh.onAfterRender;
+  mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+    const shadowCount = Number(mesh.userData.forestShadowInstanceCount) || 0;
+    const viewCount = Number(mesh.userData.forestViewInstanceCount) || 0;
+    mesh.count = camera.layers.isEnabled(TREE_SHADOW_CAST_LAYER)
+      ? shadowCount
+      : viewCount;
+    previousBeforeRender.call(mesh, renderer, scene, camera, geometry, material, group);
+  };
+  mesh.onAfterRender = (renderer, scene, camera, geometry, material, group) => {
+    mesh.count = Number(mesh.userData.forestShadowInstanceCount) || 0;
+    previousAfterRender.call(mesh, renderer, scene, camera, geometry, material, group);
+  };
 }
 
 function snapshotLodAttributeVersions(
