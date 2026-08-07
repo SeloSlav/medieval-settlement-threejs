@@ -40,8 +40,10 @@ const tsl = {
 const STEM_COLORS = [new THREE.Color(0x557340), new THREE.Color(0x66844b)] as const;
 const FLOWER_CARD_COLOR = new THREE.Color(0xffffff);
 const WILDFLOWER_ATLAS_PATH =
-  '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas.png';
+  '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas-v2.png';
 export const WILDFLOWER_ATLAS_CELL_SCALE = [1 / 5, 1] as const;
+/** Larger heads remain legible at the game's closest strategic-camera zoom. */
+export const SEEDTHREE_WILDFLOWER_HEAD_SCALE = 1.25;
 const STEM_TEXTURE_WIDTH = 32;
 const STEM_TEXTURE_HEIGHT = 128;
 
@@ -66,12 +68,12 @@ type WildflowerBuffers = {
 
 export const SEEDTHREE_WILDFLOWER_VARIANTS = [
   {
-    id: 'daisy-star-aster',
-    label: 'Daisy star-aster',
-    texturePath: '/assets/textures/vegetation/wildflowers/daisy-star-aster-head.png',
+    id: 'queen-annes-lace',
+    label: "Queen Anne's lace",
+    texturePath: '/assets/textures/vegetation/wildflowers/queen-annes-lace-head.png',
     atlasOffset: [0, 0],
     heightScale: [1.2, 1.65],
-    widthScale: [0.78, 1],
+    widthScale: [1.05, 1.28],
   },
   {
     id: 'clusius-gentian',

@@ -362,12 +362,12 @@ function buildGrassBlendNodes(
   const overviewDark = overviewDarkWeight.div(overviewWeightSum) as TslNode;
   const overviewDry = overviewDryWeight.div(overviewWeightSum) as TslNode;
 
-  // Linear-space target families: fresh light meadow, shaded dark grass, and
-  // a warm straw/beige dry layer. The authored albedos still supply the grain,
+  // Linear-space target families: fresh meadow green, shaded dark grass, and
+  // a restrained green-dry layer. The authored albedos still supply the grain,
   // with a stable base preventing their distant mip averages from flattening.
-  const overviewLightColor = vec3(0.15, 0.22, 0.05) as TslNode;
-  const overviewDarkColor = vec3(0.024, 0.045, 0.012) as TslNode;
-  const overviewDryColor = vec3(0.26, 0.225, 0.085) as TslNode;
+  const overviewLightColor = vec3(0.12, 0.24, 0.045) as TslNode;
+  const overviewDarkColor = vec3(0.022, 0.052, 0.01) as TslNode;
+  const overviewDryColor = vec3(0.2, 0.225, 0.065) as TslNode;
   const overviewBaseColor = overviewLightColor
     .mul(overviewLight)
     .add(overviewDarkColor.mul(overviewDark))
@@ -424,10 +424,10 @@ function buildGrassBlendNodes(
   ) as TslNode;
   const grassStableColorNode = mix(
     overviewBaseColor,
-    (vec3(0.1, 0.108, 0.04) as TslNode)
+    (vec3(0.085, 0.13, 0.035) as TslNode)
       .mul(w.x)
-      .add((vec3(0.05, 0.055, 0.029) as TslNode).mul(w.y))
-      .add((vec3(0.18, 0.17, 0.078) as TslNode).mul(w.z)),
+      .add((vec3(0.038, 0.066, 0.02) as TslNode).mul(w.y))
+      .add((vec3(0.145, 0.16, 0.055) as TslNode).mul(w.z)),
     closeMaterialDetail,
   ) as TslNode;
   const geometricNormal = attribute('normal', 'vec3') as TslNode;

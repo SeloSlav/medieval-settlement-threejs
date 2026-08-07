@@ -94,7 +94,7 @@ export type SeedThreeTuftVariant = {
 };
 
 export const CLOSE_MEADOW_TUFT_PATH =
-  '/assets/textures/vegetation/grass/close-meadow-tuft.png';
+  '/assets/textures/vegetation/grass/close-meadow-tuft-greener.png';
 
 let textureCache: SeedThreeGrassTextures | null = null;
 
@@ -146,7 +146,7 @@ export function createSeedThreeGrassMaterial(
     'SeedThree close meadow grass',
     textures,
     rendererBackend,
-    [0.24, 0.3, 0.16],
+    [0.2, 0.34, 0.14],
     0.14,
     createPinnedGrassWindPosition(),
   );
@@ -159,12 +159,12 @@ const grassTintScratch = new THREE.Color();
 
 export function sampleSeedThreeGrassTint(rng: () => number, dry = 0): THREE.Vector3 {
   const dryAmount = THREE.MathUtils.clamp(dry, 0, 1);
-  const hue = THREE.MathUtils.lerp(0.245, 0.145, dryAmount) + (rng() - 0.5) * 0.025;
-  const saturation = THREE.MathUtils.lerp(0.34, 0.24, dryAmount) + rng() * 0.025;
-  const lightness = THREE.MathUtils.lerp(0.31, 0.39, dryAmount) + (rng() - 0.5) * 0.035;
+  const hue = THREE.MathUtils.lerp(0.285, 0.205, dryAmount) + (rng() - 0.5) * 0.018;
+  const saturation = THREE.MathUtils.lerp(0.38, 0.3, dryAmount) + rng() * 0.022;
+  const lightness = THREE.MathUtils.lerp(0.3, 0.37, dryAmount) + (rng() - 0.5) * 0.032;
   grassTintScratch
     .setHSL(hue, saturation, lightness)
-    .lerp(GRASS_TINT_WHITE, 0.46);
+    .lerp(GRASS_TINT_WHITE, 0.38);
   return new THREE.Vector3(grassTintScratch.r, grassTintScratch.g, grassTintScratch.b);
 }
 

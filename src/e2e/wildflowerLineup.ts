@@ -5,6 +5,7 @@ import {
   createSeedThreeWildflowerGeometry,
   createSeedThreeWildflowerMaterial,
   loadSeedThreeWildflowerAtlas,
+  SEEDTHREE_WILDFLOWER_HEAD_SCALE,
   SEEDTHREE_WILDFLOWER_VARIANTS,
 } from '../vegetation/seedthree/seedThreeWildflowers.ts';
 
@@ -33,7 +34,7 @@ await renderer.init();
 root.prepend(renderer.domElement);
 
 const atlas = await loadSeedThreeWildflowerAtlas(renderer.getMaxAnisotropy());
-const geometry = createSeedThreeWildflowerGeometry(0.9);
+const geometry = createSeedThreeWildflowerGeometry(SEEDTHREE_WILDFLOWER_HEAD_SCALE);
 const anchorAttribute = new THREE.InstancedBufferAttribute(
   new Float32Array(SEEDTHREE_WILDFLOWER_VARIANTS.length * 4),
   4,
@@ -105,10 +106,21 @@ for (let tick = 0; tick <= 10; tick++) {
 scene.add(ruler);
 
 const camera = new THREE.PerspectiveCamera(33, 1, 0.05, 50);
-const closeUp = new URLSearchParams(window.location.search).get('view') === 'close';
+const query = new URLSearchParams(window.location.search);
+const closeUp = query.get('view') === 'close';
 if (closeUp) {
-  camera.position.set(0, 0.42, 0.82);
-  camera.lookAt(0, 0.24, 0);
+  const closeSpeciesIndex = THREE.MathUtils.clamp(
+    Number.parseInt(query.get('species') ?? '2', 10) || 0,
+    0,
+    SEEDTHREE_WILDFLOWER_VARIANTS.length - 1,
+  );
+  const closeVariant = SEEDTHREE_WILDFLOWER_VARIANTS[closeSpeciesIndex]!;
+  const closeHeadHeight = 0.36
+    * (closeVariant.heightScale[0] + closeVariant.heightScale[1])
+    * 0.5;
+  const closeX = (closeSpeciesIndex - centerOffset) * spacing;
+  camera.position.set(closeX, closeHeadHeight + 0.22, 0.42);
+  camera.lookAt(closeX, closeHeadHeight, 0);
   labels.hidden = true;
 } else {
   camera.position.set(0, 0.92, 3.4);

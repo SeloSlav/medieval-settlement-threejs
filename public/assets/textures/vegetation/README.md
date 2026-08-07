@@ -20,9 +20,9 @@ Generation prompt:
 
 ## Gorski Kotar wildflower heads
 
-The `wildflowers/` folder contains five 512×512 transparent alpha-card heads for the streamed meadow layer:
+The `wildflowers/` folder contains the transparent alpha-card heads used to build the streamed meadow atlas:
 
-- `daisy-star-aster-head.png` — white daisy star-aster (`Bellidiastrum michelii`)
+- `queen-annes-lace-head.png` — white Queen Anne's lace / wild-carrot umbel (`Daucus carota`)
 - `clusius-gentian-head.png` — blue-violet Clusius gentian (`Gentiana clusii`)
 - `grey-hawkbit-head.png` — yellow grey hawkbit (`Leontodon incanus`)
 - `bulbiferous-lily-head.png` — orange bulbiferous lily (`Lilium bulbiferum`)
@@ -30,7 +30,7 @@ The `wildflowers/` folder contains five 512×512 transparent alpha-card heads fo
 
 The Codex built-in image generator produced each species separately on a solid green chroma-key background. The installed chroma-key helper removed the background and ImageMagick resized the validated RGBA outputs to 512×512. The streamed renderer places these images on lightweight cards attached to the existing modeled stems and leaves; it no longer builds procedural petal geometry for this meadow layer.
 
-`gorski-kotar-wildflower-atlas.png` packs the five source heads into a single
+`gorski-kotar-wildflower-atlas-v2.png` packs the five runtime heads into a single
 1280×256 runtime texture (five 256px cells in one row).
 The streamed renderer selects a cell per instance, keeping the five-species
 variation in one instanced mesh, one material, and one texture binding.
@@ -41,7 +41,7 @@ Shared generation prompt:
 
 Species-specific prompt suffixes:
 
-- Daisy star-aster: one white `Bellidiastrum michelii` bloom with numerous narrow, slightly irregular white ray florets and a compact golden-yellow disk center. Avoid garden gerbera, chamomile foliage, perfect radial icons, and plastic petals.
+- Queen Anne's lace: one nearly circular, gently irregular flat umbel made from dozens of tiny white five-petal florets, grouped into visible sub-clusters around a subtle pale-green center. Keep fine lacy gaps and a bold mip-safe silhouette; avoid a daisy shape, large individual petals, yellow disk centers, bouquets, and side views.
 - Clusius gentian: one deep cobalt-to-violet-blue `Gentiana clusii` trumpet viewed straight into the flower, with five broad fused lobes, subtle darker pleats, and a small pale throat. Avoid iris, bellflower, separate flat petals, neon blue, and a green calyx.
 - Grey hawkbit: one rich golden-yellow `Leontodon incanus` composite flower with many fine strap-shaped ray florets, naturally uneven tips, and a deeper ochre center. Avoid sunflower, seed heads, orange petals, and perfect circular icons.
 - Bulbiferous lily: one natural burnt-orange `Lilium bulbiferum` cup with six broad pointed tepals, restrained dark-rust speckling, and clearly shaped central stamens. Avoid tiger-lily recurving, bouquets, extra blooms, and neon orange.

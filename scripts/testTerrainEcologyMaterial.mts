@@ -94,6 +94,11 @@ assert.match(ecologySource, /const dryGrain = smoothstep/);
 assert.match(ecologySource, /const overviewTexturedColor = mix/);
 assert.match(ecologySource, /float\(0\.88\)/);
 assert.match(ecologySource, /const grassStableColorNode = mix/);
+assert.match(
+  ecologySource,
+  /overviewLightColor = vec3\(0\.12, 0\.24, 0\.045\)[\s\S]*?overviewDarkColor = vec3\(0\.022, 0\.052, 0\.01\)[\s\S]*?overviewDryColor = vec3\(0\.2, 0\.225, 0\.065\)/,
+  'strategic terrain families should favor meadow green over the former yellow cast',
+);
 assert.match(ecologySource, /const stableColorNode = mix\([\s\S]*?forestStableColorNode[\s\S]*?forestBlend/);
 assert.match(ecologySource, /const colorNode = mix\([\s\S]*?forestColorNode[\s\S]*?forestBlend/);
 assert.doesNotMatch(
@@ -155,9 +160,9 @@ assert.match(
   /const forestAoNode = mix\([\s\S]*?float\(0\.95\)[\s\S]*?forestDetailAoNode/,
   'strategic forest-floor AO must preserve ambient readability',
 );
-assert.match(ecologySource, /vec3\(0\.15, 0\.22, 0\.05\)/);
-assert.match(ecologySource, /vec3\(0\.024, 0\.045, 0\.012\)/);
-assert.match(ecologySource, /vec3\(0\.26, 0\.225, 0\.085\)/);
+assert.match(ecologySource, /vec3\(0\.12, 0\.24, 0\.045\)/);
+assert.match(ecologySource, /vec3\(0\.022, 0\.052, 0\.01\)/);
+assert.match(ecologySource, /vec3\(0\.2, 0\.225, 0\.065\)/);
 assert.match(ecologySource, /const normalDetailStrength = mix/);
 assert.match(ecologySource, /const rainNormalVisibility = mix/);
 assert.match(source, /const weatherResolvedRoadWear = roadWear\.mul\(shoreRainVisibility\)/);

@@ -44,12 +44,12 @@ const lodSource = readFileSync(
   'utf8',
 );
 const meadowTuftPath =
-  `${projectRoot}public/assets/textures/vegetation/grass/close-meadow-tuft.png`;
+  `${projectRoot}public/assets/textures/vegetation/grass/close-meadow-tuft-greener.png`;
 
 assert.match(
   grassSource,
-  /CLOSE_MEADOW_TUFT_PATH[\s\S]*?close-meadow-tuft\.png/,
-  'close grass should use the generated Manor Lords-style meadow card',
+  /CLOSE_MEADOW_TUFT_PATH[\s\S]*?close-meadow-tuft-greener\.png/,
+  'close grass should use the greener generated meadow card',
 );
 assert.match(
   grassSource,
@@ -83,8 +83,8 @@ assert.match(
 );
 assert.match(
   grassSource,
-  /\.setHSL\(hue, saturation, lightness\)[\s\S]*?\.lerp\(GRASS_TINT_WHITE, 0\.46\)/,
-  'grass tint should stay in muted olive and straw colors rather than boosted green',
+  /MathUtils\.lerp\(0\.285, 0\.205, dryAmount\)[\s\S]*?\.setHSL\(hue, saturation, lightness\)[\s\S]*?\.lerp\(GRASS_TINT_WHITE, 0\.38\)/,
+  'grass tint should favor natural meadow green while retaining a muted dry range',
 );
 assert.match(
   sceneSource,
@@ -559,6 +559,21 @@ assert.equal(
   (stalkBlock.match(/\{ x:/g) ?? []).length,
   1,
   'each wildflower instance should contain one readable stem',
+);
+assert.match(
+  wildflowerSource,
+  /SEEDTHREE_WILDFLOWER_HEAD_SCALE = 1\.25/,
+  'wildflower heads should remain legible at maximum strategic-camera zoom',
+);
+assert.match(
+  fieldSource,
+  /createSeedThreeWildflowerGeometry\(SEEDTHREE_WILDFLOWER_HEAD_SCALE\)/,
+  'the streamed meadow should use the shared enlarged wildflower-head scale',
+);
+assert.match(
+  wildflowerSource,
+  /id: 'queen-annes-lace',[\s\S]*?queen-annes-lace-head\.png[\s\S]*?widthScale: \[1\.05, 1\.28\]/,
+  'the white meadow species should use the broad clustered umbel texture and scale',
 );
 assert.doesNotMatch(
   wildflowerSource,
