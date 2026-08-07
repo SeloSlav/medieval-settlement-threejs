@@ -68,7 +68,9 @@ const riverCloudColor = uniform(new THREE.Color(0xd6dddf)) as unknown as ColorUn
 const riverCelestialColor = uniform(new THREE.Color(0xfff2dc)) as unknown as ColorUniform;
 const riverCelestialDirection = uniform(new THREE.Vector3(0.35, 0.75, -0.56).normalize()) as unknown as VectorUniform;
 const riverCelestialIntensity = uniform(1) as ScalarUniform;
-const riverCloudReflectionStrength = uniform(0.34) as ScalarUniform;
+export const RIVER_CLOUD_REFLECTION_CLEAR = 0.07;
+export const RIVER_CLOUD_REFLECTION_MAX = 0.18;
+const riverCloudReflectionStrength = uniform(RIVER_CLOUD_REFLECTION_CLEAR) as ScalarUniform;
 const WATER_FOAM_COLOR = vec3(0.43, 0.61, 0.56) as TslNode;
 const MENISCUS_COLOR = vec3(0.46, 0.64, 0.59) as TslNode;
 const SHALLOW_WATER_TINT = vec3(0.145, 0.46, 0.44) as TslNode;
@@ -84,10 +86,10 @@ export const RIVER_VISUAL_SHORE_EXPONENT = 3.8;
 export const RIVER_OPTICAL_SHORE_EXPONENT = 2;
 export const RIVER_BANK_BED_REVEAL = 0.72;
 export const RIVER_FLOW_ROUGHNESS_FLOOR = 0.315;
-export const RIVER_FLOW_HIGHLIGHT_STRENGTH = 0.2;
-export const RIVER_SKY_RETURN_STRENGTH = 0.56;
-export const RIVER_REFLECTION_FRESNEL_FLOOR = 0.39;
-export const RIVER_CLOSE_REFLECTION_DISTANCE = 155;
+export const RIVER_FLOW_HIGHLIGHT_STRENGTH = 0.085;
+export const RIVER_SKY_RETURN_STRENGTH = 0.46;
+export const RIVER_REFLECTION_FRESNEL_FLOOR = 0.24;
+export const RIVER_CLOSE_REFLECTION_DISTANCE = 115;
 export const RIVER_PAINTERLY_REFLECTION_SAMPLES = 2;
 
 export type RiverWaterReflectionState = Readonly<{
@@ -246,13 +248,32 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   const rippleSeed = flowAlong.mul(0.16).add(frameTime.mul(0.28)).add(flowCross.mul(0.16)).sub(frameTime.mul(0.22)) as TslNode;
   const ripple = (sin(rippleSeed) as TslNode).mul(0.5).sub(0.25).mul(channelMask).mul(0.038) as TslNode;
 
-  const flowWavePrimary = sin(flowAlong.mul(0.38).sub(frameTime.mul(2.05)) as TslNode) as TslNode;
-  const flowWaveSecondary = sin(flowCross.mul(0.72).add(frameTime.mul(1.35)) as TslNode) as TslNode;
-  const flowDisplacement = flowWavePrimary
-    .mul(0.62)
-    .add(flowWaveSecondary.mul(0.38) as TslNode)
+  // Keep the broad surface continuous in world space. Building the whole wave
+  // field in each texel's flow frame made parallel bands rotate abruptly where
+  // river directions met, which read as hard chevrons from the RTS camera.
+  const surfaceWarp = (sin(
+    wx.mul(0.023).sub(wz.mul(0.019)).add(frameTime.mul(0.12)) as TslNode,
+  ) as TslNode).mul(0.72) as TslNode;
+  const surfaceWavePhaseA = wx.mul(0.31)
+    .add(wz.mul(0.19))
+    .add(surfaceWarp)
+    .sub(frameTime.mul(1.48)) as TslNode;
+  const surfaceWavePhaseB = wx.mul(-0.21)
+    .add(wz.mul(0.36))
+    .sub(surfaceWarp.mul(0.58) as TslNode)
+    .add(frameTime.mul(1.08))
+    .add(float(1.7) as TslNode) as TslNode;
+  const surfaceWaveA = sin(surfaceWavePhaseA) as TslNode;
+  const surfaceWaveB = sin(surfaceWavePhaseB) as TslNode;
+  const downstreamWave = sin(
+    flowAlong.mul(0.17).sub(frameTime.mul(0.92)).add(surfaceWarp.mul(0.3) as TslNode) as TslNode,
+  ) as TslNode;
+  const flowDisplacement = surfaceWaveA
+    .mul(0.49)
+    .add(surfaceWaveB.mul(0.39) as TslNode)
+    .add(downstreamWave.mul(0.12) as TslNode)
     .mul(depthFactor)
-    .mul(float(FLOW_WAVE_HEIGHT) as TslNode) as TslNode;
+    .mul(float(FLOW_WAVE_HEIGHT * 0.82) as TslNode) as TslNode;
 
   const positionNode = vec3(
     position.x,
@@ -279,32 +300,36 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     ) as TslNode,
   ) as TslNode;
 
-  const ribbonMeander = (sin(
-    flowAlong.mul(0.095).sub(frameTime.mul(0.58)) as TslNode,
-  ) as TslNode).mul(float(0.31) as TslNode) as TslNode;
-  const ribbonCarrierA = (sin(
-    flowCross.mul(1.85).add(ribbonMeander) as TslNode,
+  // A warped, multi-directional drift field makes small broken glints without
+  // drawing contour-parallel ribbons. Only the low-contrast pulse below follows
+  // the river, so water still suggests a current without exposing flow-map joins.
+  const driftWarpA = (sin(
+    wx.mul(0.019).add(wz.mul(0.027)).sub(frameTime.mul(0.09)) as TslNode,
+  ) as TslNode).mul(0.88) as TslNode;
+  const driftWarpB = (sin(
+    wx.mul(-0.026).add(wz.mul(0.016)).add(frameTime.mul(0.07)) as TslNode,
+  ) as TslNode).mul(0.74) as TslNode;
+  const driftA = (sin(
+    wx.mul(0.115).add(wz.mul(0.071)).add(driftWarpA).sub(frameTime.mul(0.42)) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
-  const ribbonCarrierB = (sin(
-    flowCross
-      .mul(3.45)
-      .sub(ribbonMeander.mul(float(0.72) as TslNode) as TslNode)
-      .add(flowAlong.mul(float(0.028) as TslNode) as TslNode) as TslNode,
+  const driftB = (sin(
+    wx.mul(-0.083).add(wz.mul(0.139)).add(driftWarpB).add(frameTime.mul(0.33)) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
-  const alongBreakupA = (sin(
-    flowAlong.mul(0.48).add(flowCross.mul(0.11)).sub(frameTime.mul(1.15)) as TslNode,
+  const driftC = (sin(
+    wx.mul(0.221).sub(wz.mul(0.176)).sub(driftWarpA.mul(0.41) as TslNode).sub(frameTime.mul(0.71)) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
-  const alongBreakupB = sub(float(1) as TslNode, alongBreakupA) as TslNode;
-  const ribbonCrestA = pow(ribbonCarrierA, float(5.5) as TslNode) as TslNode;
-  const ribbonCrestB = pow(ribbonCarrierB, float(7) as TslNode) as TslNode;
-  const flowStructure = ribbonCrestA
-    .mul(pow(alongBreakupA, float(1.65) as TslNode) as TslNode)
-    .mul(float(0.68) as TslNode)
-    .add(
-      ribbonCrestB
-        .mul(pow(alongBreakupB, float(1.9) as TslNode) as TslNode)
-        .mul(float(0.32) as TslNode) as TslNode,
-    ) as TslNode;
+  const driftMass = driftA.mul(0.46).add(driftB.mul(0.34)).add(driftC.mul(0.2)) as TslNode;
+  const brokenDrift = smoothstep(
+    float(0.49) as TslNode,
+    float(0.78) as TslNode,
+    driftMass,
+  ) as TslNode;
+  const downstreamPulse = (sin(
+    flowAlong.mul(0.1).sub(frameTime.mul(0.48)) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const flowStructure = brokenDrift.mul(
+    mix(float(0.84) as TslNode, float(1) as TslNode, downstreamPulse) as TslNode,
+  ) as TslNode;
   const flowShimmer = depthFactor
     .mul(flowStructure)
     .mul(float(RIVER_FLOW_HIGHLIGHT_STRENGTH) as TslNode) as TslNode;
@@ -325,33 +350,41 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   // analytic normal adds the fine ripples that make reflected shapes break into
   // painterly strokes up close without tessellation, normal maps, or another pass.
   const primarySlope = (sin(
-    flowAlong.mul(0.38).sub(frameTime.mul(2.05)).add(Math.PI * 0.5) as TslNode,
+    surfaceWavePhaseA.add(Math.PI * 0.5) as TslNode,
   ) as TslNode)
     .mul(depthFactor)
-    .mul(0.052) as TslNode;
+    .mul(0.038) as TslNode;
   const crossSlope = (sin(
-    flowCross.mul(0.72).add(frameTime.mul(1.35)).add(Math.PI * 0.5) as TslNode,
+    surfaceWavePhaseB.add(Math.PI * 0.5) as TslNode,
   ) as TslNode)
     .mul(depthFactor)
-    .mul(0.043) as TslNode;
+    .mul(0.031) as TslNode;
+  const microWarp = (sin(
+    wx.mul(0.071).sub(wz.mul(0.054)).add(frameTime.mul(0.31)) as TslNode,
+  ) as TslNode).mul(0.46) as TslNode;
   const microA = (sin(
-    flowAlong.mul(2.15).sub(frameTime.mul(3.2)).add(Math.PI * 0.5) as TslNode,
+    wx.mul(1.31).add(wz.mul(0.77)).add(microWarp).sub(frameTime.mul(2.62)).add(Math.PI * 0.5) as TslNode,
   ) as TslNode)
     .mul(closeDetail)
-    .mul(0.032) as TslNode;
+    .mul(0.014) as TslNode;
   const microB = (sin(
-    flowCross.mul(3.1).add(frameTime.mul(2.45)).add(Math.PI * 0.5) as TslNode,
+    wx.mul(-0.91).add(wz.mul(1.46)).sub(microWarp.mul(0.63) as TslNode).add(frameTime.mul(2.13)).add(Math.PI * 0.5) as TslNode,
   ) as TslNode)
     .mul(closeDetail)
-    .mul(0.024) as TslNode;
-  const rippleSlopeX = primarySlope.mul(flowDirX)
-    .add(crossSlope.mul(flowDirZ))
-    .add(microA.mul(flowDirX))
-    .add(microB.mul(flowDirZ)) as TslNode;
-  const rippleSlopeZ = primarySlope.mul(flowDirZ)
-    .sub(crossSlope.mul(flowDirX))
-    .add(microA.mul(flowDirZ))
-    .sub(microB.mul(flowDirX)) as TslNode;
+    .mul(0.012) as TslNode;
+  const currentSlope = (sin(
+    flowAlong.mul(0.19).sub(frameTime.mul(0.94)).add(Math.PI * 0.5) as TslNode,
+  ) as TslNode).mul(depthFactor).mul(0.007) as TslNode;
+  const rippleSlopeX = primarySlope.mul(0.853)
+    .sub(crossSlope.mul(0.504) as TslNode)
+    .add(microA.mul(0.862))
+    .sub(microB.mul(0.529) as TslNode)
+    .add(currentSlope.mul(flowDirX)) as TslNode;
+  const rippleSlopeZ = primarySlope.mul(0.522)
+    .add(crossSlope.mul(0.864))
+    .add(microA.mul(0.507))
+    .add(microB.mul(0.849))
+    .add(currentSlope.mul(flowDirZ)) as TslNode;
   const rippleNormalWorld = normalize(vec3(
     rippleSlopeX.mul(-1),
     float(1) as TslNode,
@@ -379,19 +412,36 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     riverSkyZenith,
     skyGradient,
   ) as TslNode;
+  // Broad warped lobes avoid the regular two-sine lattice that looked like a
+  // white grid on overhead water. The cloud tint is deliberately a small
+  // modulation of the continuous sky gradient, not a second opaque surface.
+  const cloudWarp = (sin(
+    reflectionDir.x.mul(1.6)
+      .sub(reflectionDir.z.mul(2.1))
+      .add(frameTime.mul(0.006)) as TslNode,
+  ) as TslNode).mul(0.44) as TslNode;
   const cloudPhaseA = (sin(
-    reflectionDir.x.mul(9.7)
-      .add(reflectionDir.z.mul(6.1))
-      .add(frameTime.mul(0.018)) as TslNode,
+    reflectionDir.x.mul(3.4)
+      .add(reflectionDir.z.mul(2.2))
+      .add(cloudWarp)
+      .add(frameTime.mul(0.009)) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
   const cloudPhaseB = (sin(
-    reflectionDir.x.mul(17.3)
-      .sub(reflectionDir.z.mul(12.7))
-      .sub(frameTime.mul(0.011)) as TslNode,
+    reflectionDir.x.mul(-2.5)
+      .add(reflectionDir.z.mul(4.1))
+      .sub(cloudWarp.mul(0.72) as TslNode)
+      .sub(frameTime.mul(0.007)) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
-  const cloudMass = pow(
-    cloudPhaseA.mul(0.64).add(cloudPhaseB.mul(0.36)) as TslNode,
-    float(2.35) as TslNode,
+  const cloudPhaseC = (sin(
+    reflectionDir.x.mul(4.7)
+      .sub(reflectionDir.z.mul(3.2))
+      .add(cloudWarp.mul(0.37) as TslNode)
+      .add(frameTime.mul(0.004)) as TslNode,
+  ) as TslNode).mul(0.5).add(0.5) as TslNode;
+  const cloudMass = smoothstep(
+    float(0.48) as TslNode,
+    float(0.82) as TslNode,
+    cloudPhaseA.mul(0.45).add(cloudPhaseB.mul(0.35)).add(cloudPhaseC.mul(0.2)) as TslNode,
   ) as TslNode;
   const skyReflection = mix(
     clearSkyReflection,
@@ -437,14 +487,14 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     vec3(0.2126, 0.7152, 0.0722) as TslNode,
   ) as TslNode;
   const painterlySurroundings = mix(
-    vec3(surroundingsLuma.mul(0.64)) as TslNode,
-    reflectedSurroundings.mul(0.78) as TslNode,
-    float(0.74) as TslNode,
+    vec3(surroundingsLuma.mul(0.58)) as TslNode,
+    reflectedSurroundings.mul(0.7) as TslNode,
+    float(0.68) as TslNode,
   ) as TslNode;
   const surroundingsReturn = closeDetail
-    .mul(pow(sub(float(1) as TslNode, viewDotUp) as TslNode, float(0.62) as TslNode) as TslNode)
+    .mul(pow(sub(float(1) as TslNode, viewDotUp) as TslNode, float(1.65) as TslNode) as TslNode)
     .mul(depthFactor)
-    .mul(mix(float(0.2) as TslNode, float(0.42) as TslNode, flowStructure) as TslNode) as TslNode;
+    .mul(mix(float(0.045) as TslNode, float(0.12) as TslNode, flowStructure) as TslNode) as TslNode;
   const reflectedSurface = mix(skyReflection, painterlySurroundings, surroundingsReturn) as TslNode;
   const fresnel = pow(
     sub(float(1) as TslNode, viewDotUp) as TslNode,
@@ -455,11 +505,6 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     float(RIVER_SKY_RETURN_STRENGTH) as TslNode,
     fresnel,
   ) as TslNode;
-  const reflectionNode = reflectedSurface
-    .mul(reflectionEnergy)
-    .mul(mix(float(0.62) as TslNode, float(1) as TslNode, depthFactor) as TslNode)
-    .add(celestialReturn) as TslNode;
-
   // Preserve a small photographic adaptation floor at night in addition to
   // the real palette reflection so moonless water never collapses to black.
   const nightSkyReturn = (vec3(0.02, 0.043, 0.055) as TslNode)
@@ -481,7 +526,7 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   const bodyColor = mix(tintedBody, WATER_FOAM_COLOR, foamStrength) as TslNode;
   const meniscusBody = mix(bodyColor, MENISCUS_COLOR, meniscus) as TslNode;
   const reflectedColorWeight = reflectionEnergy.mul(
-    mix(float(0.58) as TslNode, float(0.86) as TslNode, depthFactor) as TslNode,
+    mix(float(0.48) as TslNode, float(0.72) as TslNode, depthFactor) as TslNode,
   ) as TslNode;
   const colorNode = mix(meniscusBody, reflectedSurface, reflectedColorWeight) as TslNode;
   const bedColor = mix(
@@ -550,7 +595,7 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
     positionNode,
     normalNode,
     colorNode,
-    emissiveNode: reflectionNode.add(nightSkyReturn) as TslNode,
+    emissiveNode: celestialReturn.add(nightSkyReturn) as TslNode,
     opacityNode,
     backdropNode,
     backdropAlphaNode,
@@ -635,9 +680,9 @@ export function setSharedRiverWaterReflectionState(state: RiverWaterReflectionSt
     1.35,
   );
   riverCloudReflectionStrength.value = THREE.MathUtils.clamp(
-    0.3 + weatherBlend * 0.42,
-    0.3,
-    0.72,
+    RIVER_CLOUD_REFLECTION_CLEAR + weatherBlend * 0.11,
+    RIVER_CLOUD_REFLECTION_CLEAR,
+    RIVER_CLOUD_REFLECTION_MAX,
   );
   riverNightAmount.value = night;
 }

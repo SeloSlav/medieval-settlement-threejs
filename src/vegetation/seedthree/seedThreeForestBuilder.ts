@@ -323,6 +323,7 @@ function createInstancedLodSet(
         }
 
         const crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
+        const sourceMaterial = instanced.material as THREE.Material;
         const baseForestMaterial = applySeedThreeForestCardMotion(
           stabilizeSeedThreeForestCardMaterial(
             (instanced.userData.shareMaterial
@@ -338,6 +339,7 @@ function createInstancedLodSet(
             options.overviewCards === true,
             crownUnderlay,
           ),
+          sourceMaterial,
         );
         const fmat = crownUnderlay && options.overviewCards !== true
           ? createSeedThreeOverviewFadeMaterial(baseForestMaterial)
@@ -360,12 +362,7 @@ function createInstancedLodSet(
         // WebGPU shadow variant and turns into rectangular terrain shadows.
         const castsTreeSilhouette = castShadow && !crownUnderlay;
         im.castShadow = castsTreeSilhouette;
-        // Alpha-cutout cards self-shadow through a single-sample shadow atlas.
-        // At walking distance that hard projected cutout fights the smoother
-        // MSAA color coverage and appears as direction-dependent black flicker.
-        // Keep their terrain/building silhouette, but light the cards from the
-        // existing canopy normal, analytic occlusion, and SSS instead.
-        im.receiveShadow = false;
+        im.receiveShadow = true;
         im.frustumCulled = false;
         im.userData.neverCastShadow = !castsTreeSilhouette;
         im.userData.src = instanced;

@@ -33,6 +33,12 @@ import {
 } from './fp/fpLocomotion.ts';
 import type { FootstepSurface } from '../audio/audioCatalog.ts';
 
+// The strategic camera needs a long 2.6 km range, but keeping its 10 cm near
+// plane while walking wastes half of the available depth precision. A 20 cm
+// near plane remains inside the player's 22 cm collision radius while reducing
+// direction-dependent depth fighting on overlapping foliage cards.
+export const FIRST_PERSON_CAMERA_NEAR_METERS = 0.2;
+
 export type FirstPersonControllerConfig = {
   camera: THREE.PerspectiveCamera;
   domElement: HTMLElement;
@@ -74,6 +80,7 @@ export class FirstPersonController {
   private readonly walkOpts: FpLocomotionWalkOptions;
   private active = false;
   private savedFov = DEFAULT_FOV;
+  private savedNear = 0.1;
   private reticule: HTMLElement | null = null;
   private toggleRequested = false;
   private crouchToggle = false;
@@ -156,6 +163,7 @@ export class FirstPersonController {
     if (this.active) return;
     this.active = true;
     this.savedFov = this.config.camera.fov;
+    this.savedNear = this.config.camera.near;
 
     const x = spawn?.x ?? 0;
     const z = spawn?.z ?? 0;
@@ -197,6 +205,10 @@ export class FirstPersonController {
     );
 
     this.config.camera.fov = fpLocomotionConstants.cameraFovDeg;
+    this.config.camera.near = Math.max(
+      this.savedNear,
+      FIRST_PERSON_CAMERA_NEAR_METERS,
+    );
     this.config.camera.updateProjectionMatrix();
     this.config.onModeChange?.(true);
     this.requestPointerLock();
@@ -216,6 +228,7 @@ export class FirstPersonController {
     resetCompassHeading();
 
     this.config.camera.fov = this.savedFov;
+    this.config.camera.near = this.savedNear;
     this.config.camera.updateProjectionMatrix();
     this.config.camera.rotation.set(0, 0, 0);
     this.config.camera.position.set(0, 0, 0);

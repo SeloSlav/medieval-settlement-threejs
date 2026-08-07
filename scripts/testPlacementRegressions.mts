@@ -1011,6 +1011,11 @@ assert.match(
   'first-person mouse input must accumulate raw events for the next render frame',
 );
 assert.match(
+  firstPersonController,
+  /FIRST_PERSON_CAMERA_NEAR_METERS = 0\.2[\s\S]*this\.savedNear = this\.config\.camera\.near[\s\S]*this\.config\.camera\.near = Math\.max\([\s\S]*FIRST_PERSON_CAMERA_NEAR_METERS[\s\S]*this\.config\.camera\.near = this\.savedNear/,
+  'first-person mode must improve depth precision without leaking its near plane into the strategic camera',
+);
+assert.match(
   cameraController,
   /pendingRotateX \+= dx[\s\S]*pendingRotateY \+= dy/,
   'orbit mouse input must accumulate raw events for the next render frame',

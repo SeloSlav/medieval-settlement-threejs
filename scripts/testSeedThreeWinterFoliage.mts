@@ -22,7 +22,6 @@ import {
 } from '../src/vegetation/seedthree/seedThreeCanopyPresentation.ts';
 import {
   SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY,
-  SEEDTHREE_NEAR_CARD_MOTION,
   SEEDTHREE_OVERVIEW_CARD_MOTION,
   applySeedThreeForestCardMotion,
   resolveSeedThreeForestCardMotion,
@@ -78,21 +77,24 @@ assert.equal(SEEDTHREE_CROWN_UNDERLAY_SHOW_DISTANCE, 128);
 assert.equal(SEEDTHREE_CROWN_UNDERLAY_MODE, 'always');
 assert.equal(SEEDTHREE_FOREST_WIND_SPEED, 0.84);
 assert.equal(SEEDTHREE_OVERVIEW_CARD_MOTION, 'static');
-assert.equal(SEEDTHREE_NEAR_CARD_MOTION, 'sway');
 assert.equal(resolveSeedThreeForestCardMotion(true, false), 'static');
 assert.equal(resolveSeedThreeForestCardMotion(true, true), 'static');
 assert.equal(resolveSeedThreeForestCardMotion(false, true), 'sway');
-assert.equal(resolveSeedThreeForestCardMotion(false, false), 'sway');
+assert.equal(resolveSeedThreeForestCardMotion(false, false), 'full');
+const rigidSwayNode = { kind: 'rigid-sway' };
+const sourceCrownMaterial = new THREE.MeshBasicMaterial() as THREE.MeshBasicMaterial & {
+  positionNode: unknown;
+};
+sourceCrownMaterial.positionNode = rigidSwayNode;
 const forestCrownMaterial = new THREE.MeshBasicMaterial() as THREE.MeshBasicMaterial & {
   positionNode: unknown;
 };
-const incorrectFlutterNode = { kind: 'incorrect-flutter' };
-forestCrownMaterial.positionNode = incorrectFlutterNode;
-applySeedThreeForestCardMotion(forestCrownMaterial, 'sway');
-assert.notEqual(forestCrownMaterial.positionNode, incorrectFlutterNode);
-assert.ok(forestCrownMaterial.positionNode, 'sway must install the shared rigid wind node');
-applySeedThreeForestCardMotion(forestCrownMaterial, 'static');
+forestCrownMaterial.positionNode = { kind: 'incorrect-flutter' };
+applySeedThreeForestCardMotion(forestCrownMaterial, 'sway', sourceCrownMaterial);
+assert.equal(forestCrownMaterial.positionNode, rigidSwayNode);
+applySeedThreeForestCardMotion(forestCrownMaterial, 'static', sourceCrownMaterial);
 assert.equal(forestCrownMaterial.positionNode, null);
+sourceCrownMaterial.dispose();
 forestCrownMaterial.dispose();
 assert.equal(
   shouldShowSeedThreeCrownUnderlay(false, 0, true),
@@ -459,11 +461,6 @@ assert.match(
   builderSource,
   /const castsTreeSilhouette = castShadow && !crownUnderlay;[\s\S]*im\.castShadow = castsTreeSilhouette;[\s\S]*im\.userData\.neverCastShadow = !castsTreeSilhouette;/,
   'whole-crown filler quads must stay out of the shadow pass while ordinary foliage cards retain authored shadows',
-);
-assert.match(
-  builderSource,
-  /im\.castShadow = castsTreeSilhouette;[\s\S]*im\.receiveShadow = false;/,
-  'forest alpha cards must cast silhouettes without receiving unstable self-shadows',
 );
 assert.match(
   builderSource,

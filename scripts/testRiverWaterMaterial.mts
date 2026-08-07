@@ -26,6 +26,8 @@ import {
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
   RIVER_BANK_BED_REVEAL,
+  RIVER_CLOUD_REFLECTION_CLEAR,
+  RIVER_CLOUD_REFLECTION_MAX,
   RIVER_CLOSE_REFLECTION_DISTANCE,
   RIVER_DEEP_BACKDROP_STABILITY,
   RIVER_FLOW_HIGHLIGHT_STRENGTH,
@@ -282,19 +284,21 @@ assert.ok(
   'flow roughness must not turn directional crests into black winter pools',
 );
 assert.ok(
-  RIVER_FLOW_HIGHLIGHT_STRENGTH >= 0.15
-    && RIVER_FLOW_HIGHLIGHT_STRENGTH <= 0.2,
-  'broken micro-flow must remain visible without becoming broad winter halos',
+  RIVER_FLOW_HIGHLIGHT_STRENGTH >= 0.07
+    && RIVER_FLOW_HIGHLIGHT_STRENGTH <= 0.1,
+  'broken micro-flow must remain visible without becoming bright directional ribbons',
 );
 assert.ok(
-  RIVER_SKY_RETURN_STRENGTH >= 0.52 && RIVER_SKY_RETURN_STRENGTH <= 0.6,
+  RIVER_SKY_RETURN_STRENGTH >= 0.42 && RIVER_SKY_RETURN_STRENGTH <= 0.5,
   'live sky reflection must remain legible without becoming an opaque mirror',
 );
 assert.ok(
-  RIVER_REFLECTION_FRESNEL_FLOOR >= 0.36 && RIVER_REFLECTION_FRESNEL_FLOOR <= 0.42,
-  'overhead water must retain sky reflection instead of reverting to riverbed colour',
+  RIVER_REFLECTION_FRESNEL_FLOOR >= 0.2 && RIVER_REFLECTION_FRESNEL_FLOOR <= 0.28,
+  'overhead water must retain a restrained sky reflection without becoming a pale wash',
 );
-assert.ok(RIVER_CLOSE_REFLECTION_DISTANCE >= 140 && RIVER_CLOSE_REFLECTION_DISTANCE <= 180);
+assert.ok(RIVER_CLOSE_REFLECTION_DISTANCE >= 100 && RIVER_CLOSE_REFLECTION_DISTANCE <= 130);
+assert.ok(RIVER_CLOUD_REFLECTION_CLEAR <= 0.08);
+assert.ok(RIVER_CLOUD_REFLECTION_MAX <= 0.18);
 assert.equal(
   RIVER_PAINTERLY_REFLECTION_SAMPLES,
   2,
@@ -411,6 +415,26 @@ assert.match(
   waterMaterialSource,
   /const reflectionDir = normalize\([\s\S]*?rippleNormalWorld/,
   'sky lookup direction must follow the animated water normal',
+);
+assert.match(
+  waterMaterialSource,
+  /const surfaceWavePhaseA = wx[\s\S]*?const surfaceWavePhaseB = wx/,
+  'broad waves must remain continuous in world space across flow-direction joins',
+);
+assert.doesNotMatch(
+  waterMaterialSource,
+  /ribbonCarrier|ribbonCrest|flowCross\.mul\((?:1\.85|3\.45)\)/,
+  'water must not restore the flow-aligned ribbon lattice that turns at river corners',
+);
+assert.match(
+  waterMaterialSource,
+  /const cloudWarp[\s\S]*?const cloudPhaseC[\s\S]*?smoothstep\(/,
+  'cloud return must use broad warped lobes instead of a two-sine grid',
+);
+assert.doesNotMatch(
+  waterMaterialSource,
+  /reflectionDir\.x\.mul\((?:9\.7|17\.3)\)/,
+  'high-frequency periodic cloud bands must stay removed',
 );
 assert.match(
   waterMaterialSource,
