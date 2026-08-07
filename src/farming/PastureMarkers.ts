@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { LivestockHerdState, PastureState } from '../resources/types.ts';
 import type { FarmFieldCorners } from './farmFieldMath.ts';
+import { hashParcelSeed, organicParcelEdgePoints } from './organicParcelGeometry.ts';
 
 const POST_GEOMETRY = new THREE.CylinderGeometry(0.09, 0.12, 1.32, 6);
 const RAIL_GEOMETRY = new THREE.BoxGeometry(1, 0.09, 0.09);
@@ -16,26 +17,28 @@ function addFenceSpan(
   a: { x: number; z: number },
   b: { x: number; z: number },
   getHeightAt: (x: number, z: number) => number,
+  interiorTarget: { x: number; z: number },
+  seed: number,
 ): void {
-  const length = Math.hypot(b.x - a.x, b.z - a.z);
-  const count = Math.max(1, Math.ceil(length / 2.6));
-  const yaw = Math.atan2(b.z - a.z, b.x - a.x);
-  for (let i = 0; i <= count; i++) {
-    const t = i / count;
-    const x = THREE.MathUtils.lerp(a.x, b.x, t);
-    const z = THREE.MathUtils.lerp(a.z, b.z, t);
+  const points = organicParcelEdgePoints(a, b, {
+    seed,
+    spacing: 2.55,
+    amplitude: 0.34,
+    inwardTarget: interiorTarget,
+  });
+  for (let i = 0; i < points.length; i++) {
+    const { x, z } = points[i]!;
     const post = new THREE.Mesh(POST_GEOMETRY, POST_MATERIAL);
     post.position.set(x, getHeightAt(x, z) + 0.66, z);
-    post.rotation.z = i % 2 ? 0.025 : -0.018;
+    post.rotation.z = ((seed + i) & 1) === 0 ? -0.018 : 0.025;
     post.castShadow = true;
     group.add(post);
-    if (i === count) continue;
-    const nextT = (i + 1) / count;
-    const nx = THREE.MathUtils.lerp(a.x, b.x, nextT);
-    const nz = THREE.MathUtils.lerp(a.z, b.z, nextT);
+    if (i === points.length - 1) continue;
+    const { x: nx, z: nz } = points[i + 1]!;
     const segmentLength = Math.hypot(nx - x, nz - z);
     const mx = (x + nx) * 0.5;
     const mz = (z + nz) * 0.5;
+    const yaw = Math.atan2(nz - z, nx - x);
     for (const lift of [0.43, 0.91]) {
       const rail = new THREE.Mesh(RAIL_GEOMETRY, RAIL_MATERIAL);
       rail.scale.x = segmentLength * 0.96;
@@ -52,11 +55,13 @@ function addFenceEdge(
   a: { x: number; z: number },
   b: { x: number; z: number },
   getHeightAt: (x: number, z: number) => number,
+  interiorTarget: { x: number; z: number },
+  seed: number,
   openingWidth = 0,
 ): void {
   const length = Math.hypot(b.x - a.x, b.z - a.z);
   if (openingWidth <= 0 || length <= openingWidth + 1.2) {
-    addFenceSpan(group, a, b, getHeightAt);
+    addFenceSpan(group, a, b, getHeightAt, interiorTarget, seed);
     return;
   }
 
@@ -69,8 +74,8 @@ function addFenceEdge(
     x: THREE.MathUtils.lerp(a.x, b.x, 0.5 + halfOpeningT),
     z: THREE.MathUtils.lerp(a.z, b.z, 0.5 + halfOpeningT),
   };
-  addFenceSpan(group, a, openingStart, getHeightAt);
-  addFenceSpan(group, openingEnd, b, getHeightAt);
+  addFenceSpan(group, a, openingStart, getHeightAt, interiorTarget, seed ^ 0x6c8e9cf5);
+  addFenceSpan(group, openingEnd, b, getHeightAt, interiorTarget, seed ^ 0x31f29c45);
 }
 
 function pastureSurface(
@@ -138,6 +143,11 @@ export class PastureMarkers {
     this.root.clear();
     for (const pasture of list) {
       const corners = pasture.corners as FarmFieldCorners;
+      const center = corners.reduce(
+        (sum, point) => ({ x: sum.x + point.x * 0.25, z: sum.z + point.z * 0.25 }),
+        { x: 0, z: 0 },
+      );
+      const parcelSeed = hashParcelSeed(pasture.id);
       const group = new THREE.Group();
       group.name = `Pasture ${pasture.id}`;
       group.userData.pastureId = pasture.id;
@@ -148,6 +158,8 @@ export class PastureMarkers {
           corners[edge],
           corners[(edge + 1) % 4],
           this.getHeightAt,
+          center,
+          parcelSeed ^ Math.imul(edge + 1, 0x45d9f3b),
           edge === 0 ? PASTURE_GATE_WIDTH_M : 0,
         );
       }

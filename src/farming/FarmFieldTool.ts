@@ -108,6 +108,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || Boolean(element?.isContentEditable);
 }
 
+/** Shared four-corner authoring lifecycle for every player-drawn land parcel. */
 export class FarmFieldTool {
   private readonly options: FarmFieldToolOptions;
   private readonly preview: FarmFieldPreview;
@@ -213,24 +214,24 @@ export class FarmFieldTool {
           : 'field';
     if (!this.fixedCorners && this.points.length === 0) {
       if (this.mode === 'pasture') {
-        return 'Click the first pasture corner · trace four corners around the boundary';
+        return 'Click pasture corner 1/4 · shape a free-form enclosure with four independent corners';
       }
       if (this.mode === 'graveyard') {
-        return 'Click the first burial-ground corner · keep the parcel beside the chapel';
+        return 'Click burial-ground corner 1/4 · keep the free-form parcel beside the chapel';
       }
       if (this.mode === 'vineyard') {
-        return 'Click the first vineyard corner · trace four corners around the grape rows · grape suitability map visible';
+        return 'Click vineyard corner 1/4 · shape a free-form growing parcel · grape suitability map visible';
       }
-      return `Click the first field corner · trace four corners around the boundary · ${cropLabel(this.crop)} suitability map visible (C to change)`;
+      return `Click field corner 1/4 · shape a free-form growing parcel · ${cropLabel(this.crop)} suitability map visible (C to change)`;
     }
     if (!this.fixedCorners && this.points.length === 1) {
-      return `Click the second ${parcel} corner along the boundary`;
+      return `Click ${parcel} corner 2/4 along the boundary`;
     }
     if (!this.fixedCorners && this.points.length === 2) {
-      return `Click the third ${parcel} corner · continue clockwise or counter-clockwise`;
+      return `Click ${parcel} corner 3/4 · continue clockwise or counter-clockwise`;
     }
     if (!this.fixedCorners && !this.validation.corners) {
-      return `Move to shape the final ${parcel} corner`;
+      return `Move to shape ${parcel} corner 4/4 independently`;
     }
     if (!this.validation.ok) {
       const correction = this.fixedCorners
@@ -427,6 +428,7 @@ export class FarmFieldTool {
       false,
       this.mode === 'field' ? this.crop : 'fallow',
       [],
+      this.mode,
     );
   }
 
@@ -441,6 +443,7 @@ export class FarmFieldTool {
       this.validation.ok,
       this.mode === 'field' ? this.crop : 'fallow',
       this.resolveDraftPath(),
+      this.mode,
     );
   }
 
@@ -453,6 +456,7 @@ export class FarmFieldTool {
       this.validation.ok,
       this.mode === 'field' ? this.crop : 'fallow',
       this.resolveDraftPath(),
+      this.mode,
     );
   }
 
@@ -498,6 +502,7 @@ export class FarmFieldTool {
       this.validation.ok,
       this.mode === 'field' ? this.crop : 'fallow',
       this.resolveDraftPath(),
+      this.mode,
     );
   }
 
@@ -632,7 +637,7 @@ export class FarmFieldTool {
       case 'edge_too_short':
         return `Each edge must be at least ${this.mode === 'pasture' ? LIVESTOCK_MIN_PASTURE_EDGE : this.mode === 'graveyard' ? GRAVEYARD_MIN_EDGE : this.mode === 'vineyard' ? VINEYARD_MIN_EDGE : FARM_MIN_FIELD_EDGE} m`;
       case 'invalid_shape':
-        return `${parcel} boundary must be a simple convex four-corner shape`;
+        return `${parcel} boundary must be a simple convex four-corner parcel`;
       case 'too_steep': return `Ground too steep for this ${this.mode === 'pasture' ? 'herd' : this.mode === 'graveyard' ? 'burial ground' : this.mode === 'vineyard' ? 'terraced vineyard' : 'crop'}`;
       case 'no_farmstead':
         return this.mode === 'pasture'

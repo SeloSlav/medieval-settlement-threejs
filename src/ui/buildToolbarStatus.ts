@@ -79,19 +79,19 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
     return `Click terrain to place a ${label.toLowerCase()} (${formatBuildingCost(cost)})${support}${hint}`;
   }
   if (stats.mode === 'residences') {
-    return stats.statusDetail ?? 'Click along a road to start the frontage, then set depth behind it';
+    return stats.statusDetail ?? 'Set a road frontage, then shape two independent back corners';
   }
   if (stats.mode === 'farm-fields') {
-    return stats.statusDetail ?? "Draw a field inside a farmstead's work extent";
+    return stats.statusDetail ?? "Shape four free-form field corners inside a farmstead's work extent";
   }
   if (stats.mode === 'pastures') {
-    return stats.statusDetail ?? "Draw a pasture inside a livestock building's work extent";
+    return stats.statusDetail ?? "Shape a free-form fenced pasture inside a livestock holding's work extent";
   }
   if (stats.mode === 'burial-grounds') {
-    return stats.statusDetail ?? 'Draw a burial ground beside a completed chapel';
+    return stats.statusDetail ?? 'Shape four free-form burial-ground corners beside a completed chapel';
   }
   if (stats.mode === 'vineyards') {
-    return stats.statusDetail ?? 'Trace four corners around a free-form grape-growing parcel';
+    return stats.statusDetail ?? 'Shape four free-form corners around a grape-growing parcel';
   }
   if (stats.mode !== 'road') return 'Road tool off';
   if (stats.canBuild) {

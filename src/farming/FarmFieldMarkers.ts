@@ -10,6 +10,11 @@ import type { FarmCrop, FarmFieldStage, FarmFieldState } from '../resources/type
 import { disposeObject3D } from '../utils/dispose.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import { bilinearPoint, cropLabel, type FarmFieldCorners } from './farmFieldMath.ts';
+import {
+  hashParcelSeed,
+  organicParcelBoundaryPoints,
+  polylineSegments,
+} from './organicParcelGeometry.ts';
 
 const FIELD_LIFT = 0.08;
 const MIN_SURFACE_STEPS = 10;
@@ -233,12 +238,17 @@ function createFurrows(
 }
 
 function createFieldEdge(
+  fieldId: string,
   corners: FarmFieldCorners,
   getHeightAt: (x: number, z: number) => number,
 ): THREE.LineSegments {
   const points: THREE.Vector3[] = [];
-  for (let index = 0; index < corners.length; index++) {
-    for (const point of [corners[index], corners[(index + 1) % corners.length]]) {
+  const boundary = organicParcelBoundaryPoints(corners, hashParcelSeed(fieldId), {
+    spacing: 3.6,
+    amplitude: 0.22,
+  });
+  for (const segment of polylineSegments(boundary, true)) {
+    for (const point of segment) {
       points.push(new THREE.Vector3(
         point.x,
         getHeightAt(point.x, point.z) + FIELD_LIFT + 0.025,
@@ -973,7 +983,7 @@ export class FarmFieldMarkers {
       group.add(createFurrows(field, corners, this.getHeightAt));
       group.add(createSoilClods(field, corners, this.getHeightAt));
       group.add(createCropStand(field, corners, this.getHeightAt));
-      group.add(createFieldEdge(corners, this.getHeightAt));
+      group.add(createFieldEdge(field.id, corners, this.getHeightAt));
       this.root.add(group);
     }
   }
@@ -994,7 +1004,7 @@ export class FarmFieldPreview {
 
   constructor(getHeightAt: (x: number, z: number) => number) {
     this.getHeightAt = getHeightAt;
-    this.group.name = 'Terrain-hugging farmland preview';
+    this.group.name = 'Terrain-hugging land parcel preview';
     this.group.frustumCulled = false;
     this.group.visible = false;
 
@@ -1061,10 +1071,11 @@ export class FarmFieldPreview {
     valid: boolean,
     _crop: FarmCrop,
     draftPath: readonly Point2[] = [],
+    mode: 'field' | 'pasture' | 'graveyard' | 'vineyard' = 'field',
   ): void {
     if (!corners) {
       if (draftPath.length >= 2) {
-        const signature = `draft|${draftPath
+        const signature = `draft|${mode}|${draftPath
           .map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`)
           .join('|')}`;
         if (signature === this.lastSignature) return;
@@ -1095,7 +1106,7 @@ export class FarmFieldPreview {
       return;
     }
 
-    const signature = `${valid ? 1 : 0}|${corners
+    const signature = `${mode}|${valid ? 1 : 0}|${corners
       .map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`)
       .join('|')}`;
     if (signature === this.lastSignature) return;
@@ -1104,7 +1115,14 @@ export class FarmFieldPreview {
     this.fill.visible = true;
     this.border.visible = true;
 
-    const color = valid ? 0xfffdf5 : 0xff5d50;
+    const validColor = mode === 'pasture'
+      ? 0xe8f3c8
+      : mode === 'vineyard'
+        ? 0xffe0a1
+        : mode === 'graveyard'
+          ? 0xe6e1d4
+          : 0xfffdf5;
+    const color = valid ? validColor : 0xff5d50;
     for (const mesh of [this.fill, this.guides, this.border]) {
       (mesh.material as THREE.MeshBasicMaterial).color.setHex(color);
     }
@@ -1126,8 +1144,8 @@ export class FarmFieldPreview {
         width: 0.18,
         lift: 0.16,
         sampleSpacing: 0.9,
-        dashLength: 1.5,
-        gapLength: 0.82,
+        dashLength: mode === 'pasture' ? 2.1 : mode === 'vineyard' ? 1.15 : 1.5,
+        gapLength: mode === 'pasture' ? 0.45 : mode === 'vineyard' ? 0.5 : 0.82,
       },
     );
 
@@ -1144,19 +1162,24 @@ export class FarmFieldPreview {
         bilinearPoint(corners, u, 1),
       ]);
     }
-    updateTerrainRibbonGeometry(
-      this.guides.geometry,
-      guideSegments,
-      this.getHeightAt,
-      {
-        width: 0.075,
-        lift: 0.135,
-        sampleSpacing: 0.8,
-      },
-    );
-    this.guides.visible = Boolean(
-      this.guides.geometry.getAttribute('position')?.count,
-    );
+    if (mode === 'field' || mode === 'vineyard') {
+      updateTerrainRibbonGeometry(
+        this.guides.geometry,
+        guideSegments,
+        this.getHeightAt,
+        {
+          width: mode === 'vineyard' ? 0.095 : 0.075,
+          lift: 0.135,
+          sampleSpacing: 0.8,
+        },
+      );
+      this.guides.visible = Boolean(
+        this.guides.geometry.getAttribute('position')?.count,
+      );
+    } else {
+      clearOverlayGeometry(this.guides.geometry);
+      this.guides.visible = false;
+    }
   }
 
   dispose(): void {

@@ -5,6 +5,42 @@ import {
   FarmFieldPreview,
 } from '../src/farming/FarmFieldMarkers.ts';
 import type { FarmFieldState } from '../src/resources/types.ts';
+import {
+  hashParcelSeed,
+  organicParcelBoundaryPoints,
+  organicParcelEdgePoints,
+  samplePolylineAtFraction,
+} from '../src/farming/organicParcelGeometry.ts';
+
+const organicSeed = hashParcelSeed('shared-parcel-visual-test');
+const organicEdge = organicParcelEdgePoints(
+  { x: 0, z: 0 },
+  { x: 20, z: 0 },
+  { seed: organicSeed, spacing: 2.5, amplitude: 0.35, inwardTarget: { x: 10, z: 10 } },
+);
+assert.deepEqual(organicEdge[0], { x: 0, z: 0 });
+assert.deepEqual(organicEdge[organicEdge.length - 1], { x: 20, z: 0 });
+assert.ok(
+  organicEdge.slice(1, -1).some((point) => point.z > 0.05),
+  'hand-laid edges should vary inward without moving authoritative corners',
+);
+assert.deepEqual(
+  organicEdge,
+  organicParcelEdgePoints(
+    { x: 0, z: 0 },
+    { x: 20, z: 0 },
+    { seed: organicSeed, spacing: 2.5, amplitude: 0.35, inwardTarget: { x: 10, z: 10 } },
+  ),
+  'organic parcel detail must be deterministic across reconnects',
+);
+const organicBoundary = organicParcelBoundaryPoints([
+  { x: 0, z: 0 },
+  { x: 20, z: 0 },
+  { x: 20, z: 20 },
+  { x: 0, z: 20 },
+], organicSeed);
+const boundaryMidpoint = samplePolylineAtFraction(organicBoundary, 0.5);
+assert.ok(Number.isFinite(boundaryMidpoint.x) && Number.isFinite(boundaryMidpoint.z));
 
 const field: FarmFieldState = {
   id: 'visual-test-field',
@@ -108,6 +144,21 @@ preview.show([
 ], true, 'rye');
 assert.equal(previewFill.visible, true);
 assert.ok(previewFill.geometry.getAttribute('position').count > 0);
+const previewGuides = preview.group.getObjectByName('Farmland internal guides') as THREE.Mesh;
+preview.show([
+  { x: 0, z: 0 },
+  { x: 20, z: 0 },
+  { x: 18, z: 14 },
+  { x: 2, z: 12 },
+], true, 'fallow', [], 'pasture');
+assert.equal(previewGuides.visible, false, 'pasture placement should preview an enclosure, not crop rows');
+preview.show([
+  { x: 0, z: 0 },
+  { x: 20, z: 0 },
+  { x: 18, z: 14 },
+  { x: 2, z: 12 },
+], true, 'fallow', [], 'vineyard');
+assert.equal(previewGuides.visible, true, 'vineyard placement should preview the growing-row direction');
 preview.dispose();
 
 console.log('farm-field visual tests passed');

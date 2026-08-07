@@ -806,6 +806,30 @@ assert.match(farmFieldTool, /this\.points\.length < 3/);
 assert.match(farmFieldTool, /isValidFarmFieldCorners/);
 assert.match(farmFieldTool, /sampleParcelPoints/);
 assert.doesNotMatch(farmFieldTool, /rectangleFromBaseline/);
+assert.match(farmFieldTool, /four independent corners/, 'shared parcel placement should explain its free-form shape model');
+
+for (const [path, pattern, label] of [
+  ['src/farming/PastureMarkers.ts', /organicParcelEdgePoints/, 'pasture fences'],
+  ['src/farming/FarmFieldMarkers.ts', /organicParcelBoundaryPoints/, 'cultivated field banks'],
+  ['src/vineyards/VineyardParcelMarkers.ts', /organicParcelEdgePoints[\s\S]*organicParcelBoundaryPoints/, 'vineyard rows and borders'],
+] as const) {
+  assert.match(
+    fs.readFileSync(path, 'utf8'),
+    pattern,
+    `${label} should share deterministic hand-laid parcel geometry`,
+  );
+}
+const vineyardParcelMarkers = fs.readFileSync('src/vineyards/VineyardParcelMarkers.ts', 'utf8');
+assert.match(
+  vineyardParcelMarkers,
+  /createSeedThreeVineyardVines/,
+  'free-form vineyard rows should use the established cultivated-grapevine renderer',
+);
+assert.doesNotMatch(
+  vineyardParcelMarkers,
+  /VINE_GEOMETRY|Grapevine crowns/,
+  'vineyard parcels should not fall back to primitive geometric foliage',
+);
 
 const cropSuitabilityOverlay = fs.readFileSync(
   'src/farming/CropSuitabilityOverlay.ts',
