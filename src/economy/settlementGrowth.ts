@@ -6,7 +6,6 @@ import {
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
@@ -23,6 +22,7 @@ import {
 import type { GameState, ResidenceState } from '../resources/types.ts';
 import { effectiveResidenceSettleTicks } from './chapelCommunity.ts';
 import { residenceSettlementReadiness } from './residenceSettlement.ts';
+import { householdFoodPerDay } from './foodInventory.ts';
 
 export type SettlementGrowthPlan = {
   vacantSlots: number;
@@ -119,8 +119,7 @@ export function computeSettlementGrowthPlan(input: {
 
     vacantSlots += vacancies;
     candidateHomes += 1;
-    const grossFoodPerDay =
-      vacancies * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds;
+    const grossFoodPerDay = householdFoodPerDay(vacancies);
     additionalGrossFoodPerDay += grossFoodPerDay;
     if (residence.tier >= 1) {
       additionalWinterFirewoodPerDay += vacancies

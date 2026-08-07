@@ -21,9 +21,8 @@ use crate::simulation::residence_needs::{load_needs, need_stock};
 use crate::simulation::{
     building_has_regional_market_trip, delivery_stock_room, regional_market_import_route,
     regional_market_import_route_to_residence, residence_commodity_delivery_room,
-    start_external_market_import_trip,
-    start_external_market_import_trip_to_residence, try_dispatch_marketplace_caravan, GameClock,
-    MarketCaravanDispatch, SimTickContext,
+    start_external_market_import_trip, start_external_market_import_trip_to_residence,
+    try_dispatch_marketplace_caravan, GameClock, MarketCaravanDispatch, SimTickContext,
 };
 use crate::tables::{Building, Residence};
 
@@ -259,7 +258,9 @@ fn order_physical_market_import(
     if import_duty > 1e-9
         && building_commodity_room(marketplace, CommodityKind::Gold) + 1e-6 < import_duty
     {
-        return Err("Trading Post needs coffer room for the full household import duty.".to_string());
+        return Err(
+            "Trading Post needs coffer room for the full household import duty.".to_string(),
+        );
     }
 
     let named_residence = match dispatch.priority_residence_id {

@@ -216,11 +216,8 @@ fn harvest_from_node(
 
     let produced_food = extracted * food_per_resource_unit;
     let mut updated_building = building;
-    let deposited = deposit_building_commodity(
-        &mut updated_building,
-        food_commodity,
-        produced_food,
-    );
+    let deposited =
+        deposit_building_commodity(&mut updated_building, food_commodity, produced_food);
     if deposited <= 0.0 {
         return updated_building;
     }

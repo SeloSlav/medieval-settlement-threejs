@@ -41,8 +41,7 @@ pub fn fire_response_water_needed(
     in_transit_water: f64,
 ) -> f64 {
     let in_transit = in_transit_water.max(0.0);
-    let estimated_remaining =
-        (required_water.max(0.0) - delivered_water.max(0.0)).max(0.0);
+    let estimated_remaining = (required_water.max(0.0) - delivered_water.max(0.0)).max(0.0);
     let response_wave = if in_transit <= 1e-6 {
         estimated_remaining.max(FIRE_BUCKET_WATER)
     } else {

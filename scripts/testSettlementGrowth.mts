@@ -9,7 +9,6 @@ import {
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
@@ -20,6 +19,7 @@ import {
 } from '../src/generated/gameBalance.ts';
 import { recoveryStockMin } from '../src/economy/chapelCommunity.ts';
 import { computeSettlementGrowthPlan } from '../src/economy/settlementGrowth.ts';
+import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
 import {
   createDefaultNeeds,
   DEFAULT_RESIDENCE_COMMUNITY_CONTEXT,
@@ -84,7 +84,7 @@ const workdaySeconds = CALENDAR_SECONDS_PER_DAY
   / CALENDAR_HOURS_PER_DAY;
 assertNear(
   tierThreePlan.additionalGrossFoodPerDay,
-  4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds,
+  householdFoodPerDay(4),
 );
 assertNear(
   tierThreePlan.additionalWaterPerDay,

@@ -1,11 +1,9 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::{
-    CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, FOOD_CATEGORY_QUALIFYING_DAYS, RESIDENCE_FOOD_PER_PERSON_PER_SEC,
-};
+use crate::balance_generated::FOOD_CATEGORY_QUALIFYING_DAYS;
 use crate::building_defs::building_def;
 use crate::db::*;
+pub use crate::food_demand_policy::household_food_per_day;
 use crate::tables::{Building, Residence};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -706,13 +704,6 @@ pub fn residence_preserved_food_stock(residence: &Residence) -> f64 {
 
 pub fn residence_edible_food_stock(residence: &Residence) -> f64 {
     residence_fresh_food_stock(residence) + residence_preserved_food_stock(residence)
-}
-
-pub fn household_food_per_day(population: u32) -> f64 {
-    let workday_seconds = CALENDAR_SECONDS_PER_DAY
-        * CALENDAR_WORK_END_HOUR.saturating_sub(CALENDAR_WORK_START_HOUR) as f64
-        / CALENDAR_HOURS_PER_DAY.max(1) as f64;
-    population.max(1) as f64 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workday_seconds
 }
 
 pub fn food_category_qualifying_stock(population: u32) -> f64 {

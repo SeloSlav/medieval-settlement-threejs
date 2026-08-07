@@ -138,13 +138,9 @@ pub fn step_land_levies(ctx: &ReducerContext, tick: &SimTickContext, clock: &Gam
             );
             let assessment = monthly_land_levy(assessed_value, rate);
             assessed_total += assessment;
-            let Some(lockbox) = nearest_land_levy_lockbox(
-                tick,
-                owner,
-                residence.x,
-                residence.z,
-                &owner_markets,
-            ) else {
+            let Some(lockbox) =
+                nearest_land_levy_lockbox(tick, owner, residence.x, residence.z, &owner_markets)
+            else {
                 continue;
             };
             let requested = assessment * collection_multiplier;

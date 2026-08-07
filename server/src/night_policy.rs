@@ -41,10 +41,7 @@ pub fn is_continuous_night_process(kind: &str) -> bool {
 /// remain daylight work.
 pub fn is_staffed_night_work(kind: &str) -> bool {
     is_continuous_night_process(kind)
-        || matches!(
-            kind,
-            "carpenter" | "monastery" | "smithy" | "weaver"
-        )
+        || matches!(kind, "carpenter" | "monastery" | "smithy" | "weaver")
 }
 
 pub fn night_work_allowed(policy: u8, kind: &str) -> bool {

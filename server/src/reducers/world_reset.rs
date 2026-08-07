@@ -3,9 +3,9 @@ use spacetimedb::{reducer, Identity, ReducerContext};
 use crate::db::*;
 use crate::tables::{
     active_raid, corpse, farm_field, graveyard, livestock_herd, pasture, settlement_security,
-    vineyard_parcel,
-    BackyardGarden, Building, BurgageZone, CombatAgent, Corpse, DeliveryTrip, FarmField,
-    FireIncident, Graveyard, LivestockHerd, Pasture, ResidenceNeed, VineyardParcel, WorldConfig,
+    vineyard_parcel, BackyardGarden, Building, BurgageZone, CombatAgent, Corpse, DeliveryTrip,
+    FarmField, FireIncident, Graveyard, LivestockHerd, Pasture, ResidenceNeed, VineyardParcel,
+    WorldConfig,
 };
 use crate::world_entities::clear_global_world_entities;
 

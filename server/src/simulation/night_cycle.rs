@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use spacetimedb::{Identity, ReducerContext};
 
-use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, TICK_DT};
+use crate::balance_generated::{CALENDAR_SECONDS_PER_DAY, EVENING_MEAL_PER_PERSON, TICK_DT};
 use crate::db::*;
 use crate::economy::{
     debit_residence_wealth, withdraw_building_commodity, withdraw_residence_fresh_food,
@@ -20,7 +20,6 @@ use crate::simulation::residence_needs::state::{
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::tables::{Building, Residence};
 
-const EVENING_MEAL_PER_PERSON: f64 = 0.08;
 const RESTED_SETTLEMENT_PROGRESS: u32 = 2;
 
 pub fn step_night_cycle(

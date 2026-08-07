@@ -6,9 +6,9 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   HOUSEHOLD_AUTO_BUY_COOLDOWN_TICKS,
   HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
+import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
 import {
   bestAffordableHouseholdFoodQuote,
   bestAffordableHouseholdWaterQuote,
@@ -207,9 +207,7 @@ assert.equal(
 );
 
 const exactTriggerStock =
-  4
-  * RESIDENCE_FOOD_PER_PERSON_PER_SEC
-  * CALENDAR_SECONDS_PER_DAY
+  householdFoodPerDay(4)
   * HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS;
 const exactTriggerHome = home('trigger', 20);
 exactTriggerHome.needs.food.stock = exactTriggerStock;

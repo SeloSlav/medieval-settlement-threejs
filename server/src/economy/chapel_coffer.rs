@@ -297,5 +297,4 @@ mod tests {
         assert!((withdraw_coffer_in_place(&mut chapel, 40.0) - 18.0).abs() < 1e-9);
         assert!((chapel.gold - 12.0).abs() < 1e-9);
     }
-
 }

@@ -2,30 +2,32 @@ use std::collections::HashSet;
 
 use spacetimedb::ReducerContext;
 
+use crate::apiary_policy::{
+    apiary_forage_score, apiary_honey_reserve, apiary_production_multiplier,
+    next_apiary_colony_health, pollination_contribution, pollination_multiplier,
+};
 use crate::balance_generated::{
-    BackyardGardenKind, FarmCropProduce, APIARY_HONEY_PER_CYCLE,
-    APIARY_WINTER_HONEY_REQUIRED, BREWERY_ALE_PER_CYCLE,
+    BackyardGardenKind, FarmCropProduce, APIARY_HONEY_PER_CYCLE, APIARY_WINTER_HONEY_REQUIRED,
     BACKYARD_APIARY_POLLINATION_CONTRIBUTION, BACKYARD_APIARY_POLLINATION_RADIUS,
-    BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
-    BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
-    BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_FOOD_PER_CYCLE,
-    BAKERY_WATER_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
-    CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
-    FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP,
-    MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
-    MINE_TIMBER_SUPPORT_PER_CYCLE,
-    MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
-    MONASTERY_FOOD_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
-    MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
-    POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE,
-    RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
-    SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
-    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FERMENTATION_SECONDS,
-    VINEYARD_GRAPES_PER_FERMENTATION_BATCH, VINEYARD_GRAPES_PER_HARVEST_CYCLE,
-    VINEYARD_WINE_PER_FERMENTATION_BATCH,
+    BAKERY_WATER_PER_CYCLE, BREWERY_ALE_PER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
+    BREWERY_BREWING_FIREWOOD_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE,
+    BREWERY_MALTING_FIREWOOD_PER_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE,
+    BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE, CALENDAR_SECONDS_PER_DAY,
+    CHARCOAL_BURNER_CHARCOAL_PER_CYCLE, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, FARM_GROWTH_SECONDS,
+    FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, MINE_IRON_PER_CYCLE,
+    MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD,
+    MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE, MONASTERY_FOOD_PER_CYCLE,
+    MONASTERY_GRAIN_PER_CYCLE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY, MONASTERY_UNLINKED_PRODUCTIVITY,
+    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_POTTERY_PER_CYCLE,
+    POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE, RICH_MINE_THROUGHPUT_MULTIPLIER,
+    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
+    SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
+    TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    VINEYARD_FERMENTATION_SECONDS, VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
+    VINEYARD_GRAPES_PER_HARVEST_CYCLE, VINEYARD_WINE_PER_FERMENTATION_BATCH,
     WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE,
     WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
@@ -40,7 +42,8 @@ use crate::db::*;
 use crate::economy::{
     available_unreserved_building_ironwork, building_commodity_cap, building_commodity_room,
     building_commodity_stock, building_edible_food_stock, building_fresh_food_stock,
-    building_preservable_food_stock, credit_local_civic_receipts, deposit_building_commodity,
+    building_preservable_food_stock, credit_local_civic_receipts,
+    credit_settlement_household_income, deposit_building_commodity,
     first_building_edible_commodity, pending_marketplace_trade_commodity, spend_treasury_gold,
     treasury_gold, withdraw_building_commodity, withdraw_building_edible_food, CommodityKind,
     FRESH_FOOD_COMMODITIES,
@@ -60,18 +63,12 @@ use crate::frontier_economy_policy::{
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
-use crate::hydrology::{
-    clay_bank_yield_multiplier_with_richness, sample_world_hydrology_score,
-};
-use crate::apiary_policy::{
-    apiary_forage_score, apiary_honey_reserve, apiary_production_multiplier,
-    next_apiary_colony_health, pollination_contribution, pollination_multiplier,
+use crate::hydrology::{clay_bank_yield_multiplier_with_richness, sample_world_hydrology_score};
+use crate::livestock_policy::{
+    farmhouse_cheese_salt_staging_cycles, normalize_milk_use_policy, MILK_USE_FRESH,
 };
 use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
-};
-use crate::livestock_policy::{
-    farmhouse_cheese_salt_staging_cycles, normalize_milk_use_policy, MILK_USE_FRESH,
 };
 use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
@@ -105,13 +102,12 @@ use crate::supply_policy::{
     grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, local_material_dispatch_target, processor_input_dispatch_duty,
     processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
-    processor_input_target, rich_mine_support_target,
-    rich_mine_supports_ready, select_grain_dispatch_candidate,
-    select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
-    select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
-    InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
-    GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
-    INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
+    processor_input_target, rich_mine_support_target, rich_mine_supports_ready,
+    select_grain_dispatch_candidate, select_processor_input_dispatch_candidate,
+    select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
+    GranaryDispatchDuty, InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty,
+    GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS,
+    INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
@@ -220,11 +216,9 @@ pub fn step_institutional_food_dispatch(
         let Some(network) = tick.road_network(source.owner) else {
             continue;
         };
-        for target_id in tick.building_ids_for_kinds(
-            ctx,
-            source.owner,
-            &["guardhouse", "smokehouse", "granary"],
-        ) {
+        for target_id in
+            tick.building_ids_for_kinds(ctx, source.owner, &["guardhouse", "smokehouse", "granary"])
+        {
             let Some(target) = ctx.db.building().id().find(&target_id) else {
                 continue;
             };
@@ -301,11 +295,8 @@ pub fn step_institutional_food_dispatch(
         {
             continue;
         }
-        let Some((_, _, _, desired_stock)) = institutional_food_target_plan(
-            &target,
-            candidate.commodity,
-            conflict_enabled,
-        )
+        let Some((_, _, _, desired_stock)) =
+            institutional_food_target_plan(&target, candidate.commodity, conflict_enabled)
         else {
             continue;
         };
@@ -636,8 +627,8 @@ pub fn step_windmill(
         building.z,
         environment.weather,
     );
-    let throughput_multiplier = wind_throughput
-        * civilian_tool_throughput_multiplier(building.ironwork);
+    let throughput_multiplier =
+        wind_throughput * civilian_tool_throughput_multiplier(building.ironwork);
     let flour_before = building.flour;
     let mut mill = building;
     mill = step_processor_at_rate(
@@ -700,12 +691,12 @@ pub fn step_industrial_firewood_dispatch(
     }
 }
 
-/// Every free market cart arbitrates scarce iron, salt, and uncommitted pottery
-/// across every staffed workshop on its owner's road network. Work priority
-/// and remaining cycle runway decide which workshops receive the available
-/// carts, while route distance decides which market should serve an equal need.
-/// Neither market construction order nor workshop update order can reserve a
-/// need before the settlement-wide match is considered.
+/// Every free Trading Post cart arbitrates imported production inputs and civic
+/// supplies across eligible destinations on its owner's road network. Work
+/// priority and remaining cycle runway decide which destinations receive the
+/// available carts, while route distance decides which post should serve an
+/// equal need. Neither construction order nor update order can reserve a need
+/// before the settlement-wide match is considered.
 ///
 /// Regional trade, named household orders, and seed-grain recovery run before
 /// this pass and retain first claim on the same physical broker cart.
@@ -730,25 +721,38 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
-        let pottery_reserved_for_trade =
-            pending_marketplace_trade_commodity(&marketplace) == Some(CommodityKind::Pottery);
+        let reserved_for_trade = pending_marketplace_trade_commodity(&marketplace);
+        const DISPATCHABLE_INPUTS: [CommodityKind; 22] = [
+            CommodityKind::Grain,
+            CommodityKind::Flour,
+            CommodityKind::Barley,
+            CommodityKind::Malt,
+            CommodityKind::Food,
+            CommodityKind::Meat,
+            CommodityKind::Fish,
+            CommodityKind::Milk,
+            CommodityKind::Wool,
+            CommodityKind::Flax,
+            CommodityKind::Ironwork,
+            CommodityKind::Clay,
+            CommodityKind::Charcoal,
+            CommodityKind::Pottery,
+            CommodityKind::Firewood,
+            CommodityKind::Water,
+            CommodityKind::Iron,
+            CommodityKind::Salt,
+            CommodityKind::Grapes,
+            CommodityKind::Manure,
+            CommodityKind::Polearms,
+            CommodityKind::Wine,
+        ];
         candidates.extend(
             tick.building_ids_for_kinds(ctx, marketplace.owner, MARKETPLACE_MATERIAL_TARGET_KINDS)
                 .into_iter()
                 .filter_map(|target_id| ctx.db.building().id().find(&target_id))
                 .filter_map(|building| {
-                    let source_can_supply = match building.kind.as_str() {
-                        "smithy" => marketplace.iron > 1e-6,
-                        "smokehouse" => {
-                            marketplace.salt > 1e-6
-                                || (marketplace.pottery > 1e-6 && !pottery_reserved_for_trade)
-                        }
-                        "pastoral_farmstead" => marketplace.salt > 1e-6,
-                        _ => false,
-                    };
-                    if !source_can_supply
-                        || !building.construction_complete
-                        || building.assigned_labor == 0
+                    if !building.construction_complete
+                        || (building.assigned_labor == 0 && building.kind != "monastery")
                         || tick.building_disabled_by_fire(ctx, building.id)
                         || building_has_inbound_supply_trip(ctx, building.id)
                     {
@@ -761,33 +765,27 @@ pub fn step_marketplace_material_dispatch(
                         building.x,
                         building.z,
                     )
-                        .filter(|distance| distance.is_finite())
-                        .map(|distance| (building, distance))
+                    .filter(|distance| distance.is_finite())
+                    .map(|distance| (building, distance))
                 })
                 .flat_map(|(building, distance)| {
-                    let commodities = match building.kind.as_str() {
-                        "smithy" => [Some(CommodityKind::Iron), None],
-                        "smokehouse" => [Some(CommodityKind::Salt), Some(CommodityKind::Pottery)],
-                        "pastoral_farmstead" => [Some(CommodityKind::Salt), None],
-                        _ => [None, None],
-                    };
-                    commodities
+                    DISPATCHABLE_INPUTS
                         .into_iter()
-                        .flatten()
                         .map(move |commodity| (building.clone(), commodity, distance))
                 })
                 .filter_map(|(building, commodity, distance)| {
+                    let Some((per_cycle, desired_stock)) =
+                        marketplace_material_target(ctx, tick, &building, commodity)
+                    else {
+                        return None;
+                    };
                     if !processor_accepts_input(&building, commodity)
                         || building_commodity_stock(&marketplace, commodity) <= 1e-6
-                        || (commodity == CommodityKind::Pottery && pottery_reserved_for_trade)
+                        || reserved_for_trade == Some(commodity)
                     {
                         return None;
                     }
                     let stock = building_commodity_stock(&building, commodity);
-                    let per_cycle =
-                        directly_dispatched_processor_input_per_cycle(&building.kind, commodity);
-                    let desired_stock =
-                        processor_input_target_for_building(&building, commodity, per_cycle);
                     if desired_stock <= 1e-6
                         || stock + 1e-6 >= desired_stock
                         || building_commodity_room(&building, commodity) <= 1e-6
@@ -847,31 +845,28 @@ pub fn step_marketplace_material_dispatch(
         let Some(target) = ctx.db.building().id().find(&candidate.building.id) else {
             continue;
         };
-        let pottery_reserved_for_trade =
-            pending_marketplace_trade_commodity(&marketplace) == Some(CommodityKind::Pottery);
+        let reserved_for_trade = pending_marketplace_trade_commodity(&marketplace);
         if marketplace.kind != "trading_post"
             || !marketplace.construction_complete
             || marketplace.assigned_labor == 0
             || target.owner != marketplace.owner
             || !target.construction_complete
-            || target.assigned_labor == 0
+            || (target.assigned_labor == 0 && target.kind != "monastery")
             || tick.building_disabled_by_fire(ctx, marketplace.id)
             || tick.building_disabled_by_fire(ctx, target.id)
             || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
             || building_has_active_trip(ctx, marketplace.id)
             || building_has_inbound_supply_trip(ctx, target.id)
             || !processor_accepts_input(&target, candidate.commodity)
-            || (candidate.commodity == CommodityKind::Pottery && pottery_reserved_for_trade)
+            || reserved_for_trade == Some(candidate.commodity)
         {
             continue;
         }
-        let per_cycle =
-            directly_dispatched_processor_input_per_cycle(&target.kind, candidate.commodity);
-        let desired_stock = processor_input_target_for_building(
-            &target,
-            candidate.commodity,
-            per_cycle,
-        );
+        let Some((_per_cycle, desired_stock)) =
+            marketplace_material_target(ctx, tick, &target, candidate.commodity)
+        else {
+            continue;
+        };
         let source_stock = building_commodity_stock(&marketplace, candidate.commodity);
         let needed = (desired_stock - building_commodity_stock(&target, candidate.commodity))
             .max(0.0)
@@ -906,11 +901,52 @@ pub fn step_marketplace_material_dispatch(
 
 fn marketplace_material_commodity_rank(commodity: CommodityKind) -> u8 {
     match commodity {
-        CommodityKind::Iron => 0,
-        CommodityKind::Salt => 1,
-        CommodityKind::Pottery => 2,
-        _ => u8::MAX,
+        CommodityKind::Food | CommodityKind::Meat | CommodityKind::Fish | CommodityKind::Milk => 0,
+        CommodityKind::Grain
+        | CommodityKind::Flour
+        | CommodityKind::Barley
+        | CommodityKind::Malt
+        | CommodityKind::Grapes => 1,
+        CommodityKind::Firewood | CommodityKind::Water => 2,
+        CommodityKind::Iron | CommodityKind::Salt | CommodityKind::Charcoal => 3,
+        CommodityKind::Wool | CommodityKind::Flax => 4,
+        CommodityKind::Clay | CommodityKind::Pottery => 5,
+        CommodityKind::Manure | CommodityKind::Polearms => 6,
+        CommodityKind::Wine => 7,
+        CommodityKind::Ironwork => 8,
+        _ => 9,
     }
+}
+
+fn marketplace_material_target(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    target: &Building,
+    commodity: CommodityKind,
+) -> Option<(f64, f64)> {
+    if target.kind == "threshing_barn" && commodity == CommodityKind::Manure {
+        let (requirement, _) = tick.farmstead_manure_requirement_for(ctx, target.owner, target.id);
+        let desired = requirement.min(building_commodity_cap(&target.kind, commodity));
+        return (desired > 1e-6).then_some((1.0, desired));
+    }
+    if target.kind == "guardhouse" && commodity == CommodityKind::Polearms {
+        let desired = guardhouse_polearm_target(target.assigned_labor)
+            .min(building_commodity_cap(&target.kind, commodity));
+        return (desired > 1e-6).then_some((1.0, desired));
+    }
+    if target.kind == "monastery" && commodity == CommodityKind::Wine {
+        let desired =
+            (MONASTERY_FEAST_WINE * 5.0).min(building_commodity_cap(&target.kind, commodity));
+        return (desired > 1e-6).then_some((1.0, desired));
+    }
+    let per_cycle = directly_dispatched_processor_input_per_cycle(&target.kind, commodity);
+    if per_cycle <= 1e-6 {
+        return None;
+    }
+    Some((
+        per_cycle,
+        processor_input_target_for_building(target, commodity, per_cycle),
+    ))
 }
 
 /// Match local or imported raw iron, salt, clay, charcoal, ironwork, and pottery
@@ -941,6 +977,9 @@ pub fn step_local_material_dispatch(
             continue;
         };
         for &commodity in LOCAL_MATERIAL_COMMODITIES {
+            if pending_marketplace_trade_commodity(source) == Some(commodity) {
+                continue;
+            }
             let Some(target_kinds) = local_material_target_kinds(source, commodity) else {
                 continue;
             };
@@ -991,9 +1030,9 @@ pub fn step_local_material_dispatch(
                     continue;
                 }
                 let market_wares_first = pottery_households_first(source.pottery_dispatch_policy);
-                let is_primary_local_duty =
-                    (market_wares_first && candidate.building.kind == "village_storehouse")
-                        || (!market_wares_first && candidate.building.kind == "smokehouse");
+                let is_primary_local_duty = (market_wares_first
+                    && candidate.building.kind == "village_storehouse")
+                    || (!market_wares_first && candidate.building.kind == "smokehouse");
                 if is_primary_local_duty {
                     candidates.push(candidate);
                 } else {
@@ -1094,6 +1133,7 @@ fn dispatch_local_material_candidates(
             || labor_and_logistics_paused(ctx, tick, source.owner, clock)
             || building_has_active_trip(ctx, source.id)
             || building_has_inbound_supply_trip(ctx, target.id)
+            || pending_marketplace_trade_commodity(&source) == Some(commodity)
             || !processor_accepts_input(&target, commodity)
             || !extraction_accepts_maintenance_input(ctx, &target, commodity)
         {
@@ -1157,7 +1197,9 @@ fn local_material_target_kinds(
 ) -> Option<&'static [&'static str]> {
     match (source.kind.as_str(), commodity) {
         ("mine", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
-        ("mine", CommodityKind::Salt) => Some(&["smokehouse", "pastoral_farmstead", "trading_post"]),
+        ("mine", CommodityKind::Salt) => {
+            Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
+        }
         ("clay_pit", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("charcoal_burner", CommodityKind::Charcoal) => Some(&["smithy", "village_storehouse"]),
         ("smithy", CommodityKind::Ironwork) => Some(&[
@@ -1175,6 +1217,23 @@ fn local_material_target_kinds(
         ("potter_kiln", CommodityKind::Pottery) => {
             Some(&["smokehouse", "village_storehouse", "trading_post"])
         }
+        ("trading_post", CommodityKind::Iron) => Some(&["smithy"]),
+        ("trading_post", CommodityKind::Salt) => Some(&["smokehouse", "pastoral_farmstead"]),
+        ("trading_post", CommodityKind::Clay) => Some(&["potter_kiln"]),
+        ("trading_post", CommodityKind::Charcoal) => Some(&["smithy"]),
+        ("trading_post", CommodityKind::Ironwork) => Some(&[
+            "lumber_mill",
+            "woodcutters_lodge",
+            "stone_quarry",
+            "large_quarry",
+            "mine",
+            "clay_pit",
+            "threshing_barn",
+            "watermill",
+            "windmill",
+            "carpenter",
+        ]),
+        ("trading_post", CommodityKind::Pottery) => Some(&["smokehouse", "village_storehouse"]),
         ("village_storehouse", CommodityKind::Iron) if source.storehouse_accepts_iron => {
             Some(&["smithy", "trading_post"])
         }
@@ -1406,6 +1465,7 @@ pub fn step_granary(
                     CommodityKind::SmokedFish,
                     CommodityKind::CuredMeat,
                     CommodityKind::PreservedFood,
+                    CommodityKind::Honey,
                 ] {
                     dispatch_to_building(
                         ctx,
@@ -1899,8 +1959,7 @@ pub fn step_smokehouse(
     ]
     .into_iter()
     .find(|commodity| {
-        building_commodity_stock(&smokehouse, *commodity) + 1e-6
-            >= SMOKEHOUSE_FOOD_PER_CYCLE
+        building_commodity_stock(&smokehouse, *commodity) + 1e-6 >= SMOKEHOUSE_FOOD_PER_CYCLE
     });
     if let Some(input) = selected_input {
         let output = input
@@ -2149,6 +2208,17 @@ pub fn step_apiary(
         clock,
         &mut apiary,
         CommodityKind::Honey,
+        &["marketplace"],
+        transferable,
+        |_| true,
+    );
+    let transferable = (apiary.honey - reserve).max(0.0);
+    dispatch_to_building_where_limited(
+        ctx,
+        tick,
+        clock,
+        &mut apiary,
+        CommodityKind::Honey,
         &["trading_post"],
         transferable,
         |_| true,
@@ -2295,8 +2365,7 @@ fn apiary_landscape_forage_score(ctx: &ReducerContext, apiary: &Building) -> f64
                 .id()
                 .find(&parcel.building_id)
                 .filter(|vineyard| {
-                    (vineyard.x - apiary.x).powi(2) + (vineyard.z - apiary.z).powi(2)
-                        <= radius_sq
+                    (vineyard.x - apiary.x).powi(2) + (vineyard.z - apiary.z).powi(2) <= radius_sq
                 })
                 .map(|_| parcel.area.max(0.0))
         })
@@ -2336,8 +2405,8 @@ pub(crate) fn nearby_apiary_pollination_multiplier(
         })
         .map(|residence| {
             let distance = ((residence.x - x).powi(2) + (residence.z - z).powi(2)).sqrt();
-            let reach = (1.0 - distance / BACKYARD_APIARY_POLLINATION_RADIUS.max(1.0))
-                .clamp(0.0, 1.0);
+            let reach =
+                (1.0 - distance / BACKYARD_APIARY_POLLINATION_RADIUS.max(1.0)).clamp(0.0, 1.0);
             BACKYARD_APIARY_POLLINATION_CONTRIBUTION * reach
         })
         .sum();
@@ -2553,14 +2622,24 @@ pub fn step_guardhouse(
         CALENDAR_SECONDS_PER_DAY,
     );
     withdraw_building_edible_food(&mut building, upkeep.food_due * upkeep.supply_ratio);
+    let wage_paid = upkeep.wage_due * upkeep.supply_ratio;
     if physical_payroll {
-        withdraw_building_commodity(
+        let withdrawn = withdraw_building_commodity(&mut building, CommodityKind::Gold, wage_paid);
+        let credited = credit_settlement_household_income(ctx, building.owner, withdrawn);
+        // A fully capped household sector cannot absorb more private coin;
+        // keep the remainder in the company chest rather than deleting it.
+        deposit_building_commodity(
             &mut building,
             CommodityKind::Gold,
-            upkeep.wage_due * upkeep.supply_ratio,
+            (withdrawn - credited).max(0.0),
         );
     } else {
-        let _ = spend_treasury_gold(ctx, building.owner, upkeep.wage_due * upkeep.supply_ratio);
+        if spend_treasury_gold(ctx, building.owner, wage_paid).is_ok() {
+            let credited = credit_settlement_household_income(ctx, building.owner, wage_paid);
+            if credited + 1e-9 < wage_paid {
+                crate::economy::credit_treasury_gold(ctx, building.owner, wage_paid - credited);
+            }
+        }
     }
     building.action_cooldown = next_guard_readiness(
         building.action_cooldown,
@@ -2801,8 +2880,12 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
         ),
         "brewery" => matches!(
             commodity,
-            CommodityKind::Barley | CommodityKind::Water | CommodityKind::Firewood
+            CommodityKind::Barley
+                | CommodityKind::Malt
+                | CommodityKind::Water
+                | CommodityKind::Firewood
         ),
+        "vineyard" => commodity == CommodityKind::Grapes,
         "smokehouse" => {
             matches!(
                 commodity,
@@ -2837,7 +2920,8 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
         return building.granary_accepts_fresh_food;
     }
     if building.kind == "pastoral_farmstead" && commodity == CommodityKind::Salt {
-        return normalize_milk_use_policy(building.processor_output_target_percent) != MILK_USE_FRESH
+        return normalize_milk_use_policy(building.processor_output_target_percent)
+            != MILK_USE_FRESH
             && building_commodity_room(building, CommodityKind::Cheese) > 1e-6;
     }
     if building.kind == "smokehouse" && processor_uses_input(&building.kind, commodity) {
@@ -2904,12 +2988,8 @@ fn cycle_labor_if_ready_at_rate(
         if onsite_labor == 0 {
             return None;
         }
-        let productive_labor = crate::simulation::commute_adjusted_labor(
-            ctx,
-            tick,
-            building,
-            onsite_labor,
-        );
+        let productive_labor =
+            crate::simulation::commute_adjusted_labor(ctx, tick, building, onsite_labor);
         if productive_labor <= 1e-9 {
             return None;
         }
@@ -2983,8 +3063,8 @@ fn dispatch_farmstead_grain(
                     target.grain,
                     desired_stock,
                 )?;
-                local_delivery_distance(network, source.x, source.z, target.x, target.z)
-                    .map(|distance| RoutedGrainTarget {
+                local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
+                    |distance| RoutedGrainTarget {
                         runway_cycles: grain_input_runway_cycles(
                             &target.kind,
                             target.grain,
@@ -2994,7 +3074,8 @@ fn dispatch_farmstead_grain(
                         distance,
                         duty,
                         desired_stock,
-                    })
+                    },
+                )
             }),
         |candidate| candidate.duty,
         |candidate| candidate.building.construction_priority,
@@ -3098,8 +3179,8 @@ fn next_granary_grain_dispatch(
                 if desired_stock <= 1e-6 || target.grain + 1e-6 >= desired_stock {
                     return None;
                 }
-                local_delivery_distance(network, source.x, source.z, target.x, target.z)
-                    .map(|distance| RoutedGrainTarget {
+                local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
+                    |distance| RoutedGrainTarget {
                         runway_cycles: grain_input_runway_cycles(
                             &target.kind,
                             target.grain,
@@ -3109,7 +3190,8 @@ fn next_granary_grain_dispatch(
                         distance,
                         duty: GrainDispatchDuty::WorkingBuffer,
                         desired_stock,
-                    })
+                    },
+                )
             }),
         |candidate| candidate.duty,
         |candidate| candidate.building.construction_priority,
@@ -3167,12 +3249,8 @@ fn next_granary_guard_food_dispatch(
     {
         return None;
     }
-    let transferable = institutional_source_food_surplus(
-        ctx,
-        tick,
-        source,
-        building_edible_food_stock(source),
-    );
+    let transferable =
+        institutional_source_food_surplus(ctx, tick, source, building_edible_food_stock(source));
     if transferable <= 1e-6 {
         return None;
     }
@@ -3208,13 +3286,14 @@ fn next_granary_guard_food_dispatch(
                 if runway_days + 1e-9 >= GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS {
                     return None;
                 }
-                local_delivery_distance(network, source.x, source.z, target.x, target.z)
-                    .map(|distance| RoutedGuardFoodTarget {
+                local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
+                    |distance| RoutedGuardFoodTarget {
                         building: target,
                         distance,
                         runway_days,
                         desired_stock,
-                    })
+                    },
+                )
             }),
         |candidate| candidate.runway_days,
         |candidate| candidate.distance,
@@ -3232,12 +3311,8 @@ fn dispatch_granary_guard_food(
     let Some(network) = tick.road_network(source.owner) else {
         return false;
     };
-    let transferable = institutional_source_food_surplus(
-        ctx,
-        tick,
-        source,
-        building_edible_food_stock(source),
-    );
+    let transferable =
+        institutional_source_food_surplus(ctx, tick, source, building_edible_food_stock(source));
     let Some(commodity) = first_building_edible_commodity(source) else {
         return false;
     };
@@ -3307,8 +3382,8 @@ fn dispatch_polearms_to_guardhouse(
                 if desired_stock <= 1e-6 || target.polearms + 1e-6 >= desired_stock {
                     return None;
                 }
-                local_delivery_distance(network, source.x, source.z, target.x, target.z)
-                    .map(|distance| {
+                local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
+                    |distance| {
                         (
                             RoutedBuilding {
                                 building: target,
@@ -3316,7 +3391,8 @@ fn dispatch_polearms_to_guardhouse(
                             },
                             desired_stock,
                         )
-                    })
+                    },
+                )
             }),
         |candidate| candidate.0.building.guardhouse_pay_priority,
         |candidate| {
@@ -3452,15 +3528,16 @@ fn dispatch_to_building_where_limited(
                 } else {
                     processor_input_runway_cycles(stock, per_cycle)
                 };
-                local_delivery_distance(network, source.x, source.z, target.x, target.z)
-                    .map(|distance| RoutedProcessorInputTarget {
+                local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
+                    |distance| RoutedProcessorInputTarget {
                         building: target,
                         distance,
                         duty,
                         input_preference_rank,
                         runway_cycles,
                         desired_stock,
-                    })
+                    },
+                )
             }),
         |candidate| candidate.duty,
         |candidate| candidate.building.construction_priority,
@@ -3536,7 +3613,9 @@ fn processor_input_target_for_building(
 
 fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'static str> {
     match commodity {
+        CommodityKind::Grain => Some("grain"),
         CommodityKind::Barley => Some("barley"),
+        CommodityKind::Malt => Some("malt"),
         CommodityKind::Flour => Some("flour"),
         CommodityKind::Food => Some("food"),
         CommodityKind::Meat => Some("meat"),
@@ -3549,8 +3628,10 @@ fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'stat
         CommodityKind::Charcoal => Some("charcoal"),
         CommodityKind::Pottery => Some("pottery"),
         CommodityKind::Firewood => Some("firewood"),
+        CommodityKind::Water => Some("water"),
         CommodityKind::Iron => Some("iron"),
         CommodityKind::Salt => Some("salt"),
+        CommodityKind::Grapes => Some("grapes"),
         _ => None,
     }
 }
@@ -3772,8 +3853,8 @@ fn request_connected_commodity_with_source_availability(
                 if transferable <= 1e-6 {
                     return None;
                 }
-                local_delivery_distance(network, source.x, source.z, target.x, target.z)
-                    .map(|distance| {
+                local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
+                    |distance| {
                         (
                             RoutedBuilding {
                                 building: source,
@@ -3781,7 +3862,8 @@ fn request_connected_commodity_with_source_availability(
                             },
                             transferable,
                         )
-                    })
+                    },
+                )
             }),
         |candidate| candidate.0.distance,
         |candidate| candidate.0.building.id,

@@ -1,7 +1,7 @@
 use spacetimedb::ReducerContext;
 
-use crate::db::*;
 use crate::balance_generated::{backyard_garden_def, BackyardGardenKind};
+use crate::db::*;
 use crate::residence_settlement_policy::settlement_buffers_ready;
 use crate::simulation::chapel_community::{effective_settle_ticks, recovery_stock_min};
 use crate::simulation::residence_needs::state::NeedState;
@@ -15,9 +15,7 @@ pub fn step_residence_settlement(
     sabbath_observance: bool,
     needs: &[NeedState],
 ) {
-    if residence.tier == 0
-        || residence.population_capacity == 0
-    {
+    if residence.tier == 0 || residence.population_capacity == 0 {
         return;
     }
     if residence.population >= residence.population_capacity {

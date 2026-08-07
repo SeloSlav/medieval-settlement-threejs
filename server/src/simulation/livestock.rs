@@ -42,9 +42,7 @@ use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_supply_trip, onsite_building_labor,
     try_start_building_supply_trip,
 };
-use crate::simulation::expanded_economy::{
-    dispatch_to_building, request_connected_commodity,
-};
+use crate::simulation::expanded_economy::{dispatch_to_building, request_connected_commodity};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::road_logistics::local_delivery_distance;
@@ -342,10 +340,10 @@ fn run_livestock_cycle(
 
     let maximum_herd = species_max_herd(herd.species);
     let (slaughter_food, slaughter_preserved) = species_slaughter_yields(herd.species);
-    let saltable_slaughter =
-        slaughter_preserved.min(farmstead_salted_output_capacity(building).min(
-            building_commodity_room(building, CommodityKind::CuredMeat),
-        ));
+    let saltable_slaughter = slaughter_preserved.min(
+        farmstead_salted_output_capacity(building)
+            .min(building_commodity_room(building, CommodityKind::CuredMeat)),
+    );
     let unsalted_slaughter = (slaughter_preserved - saltable_slaughter).max(0.0);
     if can_cull_one(
         clock.month,
@@ -368,11 +366,8 @@ fn run_livestock_cycle(
             CommodityKind::Meat,
             slaughter_food + unsalted_slaughter,
         );
-        herd.last_preserved_output += store_salted_farmstead_output(
-            building,
-            CommodityKind::CuredMeat,
-            saltable_slaughter,
-        );
+        herd.last_preserved_output +=
+            store_salted_farmstead_output(building, CommodityKind::CuredMeat, saltable_slaughter);
     }
 }
 
@@ -391,10 +386,7 @@ fn store_salted_farmstead_output(
 ) -> f64 {
     let stored = desired_output
         .max(0.0)
-        .min(building_commodity_room(
-            building,
-            output,
-        ))
+        .min(building_commodity_room(building, output))
         .min(farmstead_salted_output_capacity(building));
     if stored <= 1e-9 {
         return 0.0;

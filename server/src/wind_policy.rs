@@ -31,14 +31,8 @@ pub fn wind_weather_throughput_multiplier(weather: WeatherKind) -> f64 {
     }
 }
 
-pub fn windmill_throughput_multiplier(
-    seed: u64,
-    x: f64,
-    z: f64,
-    weather: WeatherKind,
-) -> f64 {
-    wind_site_throughput_multiplier(seed, x, z)
-        * wind_weather_throughput_multiplier(weather)
+pub fn windmill_throughput_multiplier(seed: u64, x: f64, z: f64, weather: WeatherKind) -> f64 {
+    wind_site_throughput_multiplier(seed, x, z) * wind_weather_throughput_multiplier(weather)
 }
 
 fn value_noise(seed: u32, x: f64, z: f64) -> f64 {
@@ -60,12 +54,8 @@ fn value_noise(seed: u32, x: f64, z: f64) -> f64 {
 }
 
 fn hash_f64(seed: u32, x: i32, z: i32) -> f64 {
-    let mut hash = seed
-        .wrapping_add(x as u32)
-        .wrapping_mul(0x85eb_ca6b);
-    hash = hash
-        .wrapping_add(z as u32)
-        .wrapping_mul(0x85eb_ca6b);
+    let mut hash = seed.wrapping_add(x as u32).wrapping_mul(0x85eb_ca6b);
+    hash = hash.wrapping_add(z as u32).wrapping_mul(0x85eb_ca6b);
     hash ^= hash >> 13;
     hash = hash.wrapping_mul(0x85eb_ca6b);
     hash ^= hash >> 16;

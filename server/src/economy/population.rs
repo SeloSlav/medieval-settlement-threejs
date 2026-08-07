@@ -19,10 +19,10 @@ use crate::simulation::{
 };
 use crate::tables::Building;
 
+pub use super::population_policy::initial_construction_labor;
 use super::population_policy::{
     labor_reconciliation_updates, population_limit_blocks_labor_request, LaborAssignment,
 };
-pub use super::population_policy::initial_construction_labor;
 
 pub fn residence_population_for_parcel(parcel_frontage: f64) -> u32 {
     if parcel_frontage >= WIDE_PARCEL_FRONTAGE_MIN {

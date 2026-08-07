@@ -95,20 +95,11 @@ pub fn effective_well_hydrology(hydrology: f64) -> f64 {
     hydrology.clamp(0.0, 1.0).max(WELL_MINIMUM_REFILL_HYDROLOGY)
 }
 
-pub fn well_refill_per_second(
-    hydrology: f64,
-    weather_multiplier: f64,
-) -> f64 {
-    WELL_BASE_REFILL_PER_SEC
-        * effective_well_hydrology(hydrology)
-        * weather_multiplier.max(0.0)
+pub fn well_refill_per_second(hydrology: f64, weather_multiplier: f64) -> f64 {
+    WELL_BASE_REFILL_PER_SEC * effective_well_hydrology(hydrology) * weather_multiplier.max(0.0)
 }
 
-pub fn well_refill_amount(
-    hydrology: f64,
-    weather_multiplier: f64,
-    dt: f64,
-) -> f64 {
+pub fn well_refill_amount(hydrology: f64, weather_multiplier: f64, dt: f64) -> f64 {
     well_refill_per_second(hydrology, weather_multiplier) * dt.max(0.0)
 }
 

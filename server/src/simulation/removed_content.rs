@@ -38,11 +38,23 @@ pub fn retire_removed_buildings(ctx: &ReducerContext) {
         building.assigned_labor = 0;
         building.action_cooldown = 0.0;
         building.timber += cargo.timber
-            + if complete { 23.0 } else { building.construction_delivered_timber };
+            + if complete {
+                23.0
+            } else {
+                building.construction_delivered_timber
+            };
         building.stone += cargo.stone
-            + if complete { 9.0 } else { building.construction_delivered_stone };
+            + if complete {
+                9.0
+            } else {
+                building.construction_delivered_stone
+            };
         building.ironwork += cargo.ironwork
-            + if complete { 1.0 } else { building.construction_delivered_ironwork };
+            + if complete {
+                1.0
+            } else {
+                building.construction_delivered_ironwork
+            };
         building.gold += cargo.gold;
         building.construction_complete = true;
         building.construction_progress = 1.0;

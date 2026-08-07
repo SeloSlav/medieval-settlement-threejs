@@ -1,20 +1,21 @@
 use std::cmp::Ordering;
 
 use crate::balance_generated::{
-    BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
-    BREWERY_BREWING_FIREWOOD_PER_CYCLE,
-    BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+    BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_WATER_PER_CYCLE,
+    BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
+    BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+    BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE,
     CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP, CARPENTER_CART_SERVICE_TARGET_TRIPS,
     CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
-    CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
-    HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION, HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
-    LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES, LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE,
-    LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE, MINE_TIMBER_SUPPORT_BUFFER_CYCLES,
-    MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE,
-    POTTER_FIREWOOD_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
+    CIVILIAN_TOOL_IRONWORK_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
+    HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES,
+    LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
+    MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
+    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_WATER_PER_CYCLE,
+    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
     SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
-    WEAVER_WOOL_PER_CYCLE,
+    SMOKEHOUSE_SALT_PER_CYCLE, VINEYARD_GRAPES_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE,
+    WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -53,6 +54,7 @@ pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "smithy",
     "potter_kiln",
     "village_storehouse",
+    "trading_post",
 ];
 pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "windmill", "monastery"];
 pub const GRAIN_DISPATCH_TARGET_KINDS: &[&str] = &["watermill", "windmill", "granary", "monastery"];
@@ -63,8 +65,22 @@ pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
     "charcoal_burner",
     "potter_kiln",
 ];
-pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] =
-    &["smithy", "smokehouse", "pastoral_farmstead"];
+pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
+    "watermill",
+    "windmill",
+    "bakery",
+    "brewery",
+    "smokehouse",
+    "weaver",
+    "charcoal_burner",
+    "smithy",
+    "potter_kiln",
+    "pastoral_farmstead",
+    "monastery",
+    "vineyard",
+    "threshing_barn",
+    "guardhouse",
+];
 pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
@@ -508,12 +524,15 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
     match (target_kind, commodity) {
         (kind, "ironwork") if is_civilian_tool_site(kind) => CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
         ("bakery", "firewood") => BAKERY_FIREWOOD_PER_CYCLE,
+        ("bakery", "water") => BAKERY_WATER_PER_CYCLE,
         ("brewery", "firewood") => {
             BREWERY_MALTING_FIREWOOD_PER_CYCLE + BREWERY_BREWING_FIREWOOD_PER_CYCLE
         }
         ("smokehouse", "firewood") => SMOKEHOUSE_FIREWOOD_PER_CYCLE,
         ("charcoal_burner", "firewood") => CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
         ("potter_kiln", "firewood") => POTTER_FIREWOOD_PER_CYCLE,
+        ("watermill" | "windmill", "grain") => WATERMILL_GRAIN_PER_CYCLE,
+        ("monastery", "grain") => MONASTERY_GRAIN_PER_CYCLE,
         ("bakery", "flour") => BAKERY_FLOUR_PER_CYCLE,
         ("smokehouse", "food" | "meat" | "fish" | "milk") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -521,10 +540,16 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("pastoral_farmstead", "salt") => LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
         ("weaver", "wool") => WEAVER_WOOL_PER_CYCLE,
         ("weaver", "flax") => WEAVER_FLAX_PER_CYCLE,
+        ("weaver", "water") => WEAVER_FLAX_WATER_PER_CYCLE,
         ("brewery", "barley") => BREWERY_BARLEY_PER_MALT_CYCLE,
+        ("brewery", "malt") => BREWERY_MALT_PER_ALE_CYCLE,
+        ("brewery", "water") => BREWERY_MALTING_WATER_PER_CYCLE + BREWERY_BREWING_WATER_PER_CYCLE,
         ("potter_kiln", "clay") => POTTER_CLAY_PER_CYCLE,
+        ("potter_kiln", "water") => POTTER_WATER_PER_CYCLE,
         ("smithy", "charcoal") => SMITHY_CHARCOAL_PER_CYCLE,
         ("smithy", "iron") => SMITHY_IRON_PER_CYCLE,
+        ("smithy", "water") => SMITHY_WATER_PER_CYCLE,
+        ("vineyard", "grapes") => VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
         _ => 0.0,
     }
 }
@@ -806,17 +831,16 @@ mod tests {
         large_quarry_support_runway_cycles, large_quarry_support_target,
         large_quarry_supports_ready, local_material_dispatch_target, processor_input_dispatch_duty,
         processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
-        processor_input_target, rich_mine_support_runway_cycles,
-        rich_mine_support_target, rich_mine_supports_ready, select_grain_dispatch_candidate,
-        select_need_delivery_candidate, select_processor_input_dispatch_candidate,
-        select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
-        GranaryDispatchDuty, InstitutionalFoodDispatchDuty, NeedDeliveryCandidate,
-        ProcessorInputDispatchDuty, ALE_PRODUCER_KINDS, CLOTH_PRODUCER_KINDS,
-        FOOD_SUPPLIER_KINDS,
+        processor_input_target, rich_mine_support_runway_cycles, rich_mine_support_target,
+        rich_mine_supports_ready, select_grain_dispatch_candidate, select_need_delivery_candidate,
+        select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
+        select_supply_route_candidate, GrainDispatchDuty, GranaryDispatchDuty,
+        InstitutionalFoodDispatchDuty, NeedDeliveryCandidate, ProcessorInputDispatchDuty,
+        ALE_PRODUCER_KINDS, CLOTH_PRODUCER_KINDS, FOOD_SUPPLIER_KINDS,
         GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_INPUT_BUFFER_CYCLES,
         GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
-        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS,
-        POTTERY_PRODUCER_KINDS, PRESERVED_FOOD_PRODUCER_KINDS,
+        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_PRODUCER_KINDS,
+        PRESERVED_FOOD_PRODUCER_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -1093,7 +1117,10 @@ mod tests {
             GRAIN_DISPATCH_TARGET_KINDS,
             &["watermill", "windmill", "granary", "monastery"]
         );
-        assert_eq!(GRAIN_PROCESSOR_KINDS, &["watermill", "windmill", "monastery"]);
+        assert_eq!(
+            GRAIN_PROCESSOR_KINDS,
+            &["watermill", "windmill", "monastery"]
+        );
         assert_eq!(GRAIN_INPUT_BUFFER_CYCLES, 3.0);
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
         assert_eq!(grain_input_target("watermill", 1.0, 25), 3.0);
@@ -1124,6 +1151,7 @@ mod tests {
                 "smithy",
                 "potter_kiln",
                 "village_storehouse",
+                "trading_post",
             ],
         );
         assert_eq!(
@@ -1174,7 +1202,38 @@ mod tests {
         );
         assert_eq!(
             MARKETPLACE_MATERIAL_TARGET_KINDS,
-            &["smithy", "smokehouse", "pastoral_farmstead"],
+            &[
+                "watermill",
+                "windmill",
+                "bakery",
+                "brewery",
+                "smokehouse",
+                "weaver",
+                "charcoal_burner",
+                "smithy",
+                "potter_kiln",
+                "pastoral_farmstead",
+                "monastery",
+                "vineyard",
+                "threshing_barn",
+                "guardhouse",
+            ],
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("watermill", "grain"),
+            super::WATERMILL_GRAIN_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("bakery", "water"),
+            super::BAKERY_WATER_PER_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("brewery", "malt"),
+            super::BREWERY_MALT_PER_ALE_CYCLE,
+        );
+        assert_eq!(
+            directly_dispatched_processor_input_per_cycle("vineyard", "grapes"),
+            super::VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
         );
         assert_eq!(
             directly_dispatched_processor_input_per_cycle("smithy", "charcoal"),
@@ -1367,9 +1426,8 @@ mod tests {
             super::BAKERY_FLOUR_PER_CYCLE,
             100,
         );
-        let granary = processor_input_dispatch_duty_for_target(
-            "granary", "flour", 1, 0.0, 0.0, 100,
-        );
+        let granary =
+            processor_input_dispatch_duty_for_target("granary", "flour", 1, 0.0, 0.0, 100);
         let bakery_overflow = processor_input_dispatch_duty_for_target(
             "bakery",
             "flour",
@@ -1381,7 +1439,10 @@ mod tests {
 
         assert_eq!(bakery_buffer, ProcessorInputDispatchDuty::WorkingBuffer);
         assert_eq!(granary, ProcessorInputDispatchDuty::CentralStorage);
-        assert_eq!(bakery_overflow, ProcessorInputDispatchDuty::WorkshopOverflow);
+        assert_eq!(
+            bakery_overflow,
+            ProcessorInputDispatchDuty::WorkshopOverflow
+        );
         assert_eq!(
             compare_processor_input_dispatch_candidates(
                 bakery_buffer,
@@ -1673,10 +1734,7 @@ mod tests {
 
     #[test]
     fn food_supplier_roster_matches_existing_physical_dispatchers() {
-        assert_eq!(
-            FOOD_SUPPLIER_KINDS,
-            &["marketplace"]
-        );
+        assert_eq!(FOOD_SUPPLIER_KINDS, &["marketplace"]);
     }
 
     #[test]

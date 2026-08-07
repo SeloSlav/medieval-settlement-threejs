@@ -18,10 +18,10 @@ use crate::balance_generated::TradeResource;
 use crate::balance_generated::{
     market_commodity_offer, market_water_commodity_offer, marketplace_trade_contract_code,
     marketplace_trade_offer, marketplace_trade_offer_for_contract_code, MarketplaceTradeKind,
-    MarketplaceTradeOffer, SPECIALTY_EXPORT_GOLD_PER_ALE,
-    SPECIALTY_EXPORT_GOLD_PER_CHEESE, SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
-    SPECIALTY_EXPORT_GOLD_PER_POTTERY, SPECIALTY_EXPORT_GOLD_PER_WINE,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    MarketplaceTradeOffer, SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_CHEESE,
+    SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
+    SPECIALTY_EXPORT_GOLD_PER_POTTERY, SPECIALTY_EXPORT_GOLD_PER_WINE, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::constants::BUILDING_ROAD_ACCESS_DISTANCE;
 use crate::db::*;
@@ -63,19 +63,6 @@ pub fn execute_marketplace_trade(
     } else {
         let offer = marketplace_trade_offer(trade_id)
             .ok_or_else(|| format!("Unknown trade offer: {trade_id}"))?;
-        if offer.id == "buy_ironwork"
-            && !ctx
-                .db
-                .world_config()
-                .id()
-                .find(&0)
-                .is_some_and(|config| config.conflict_enabled)
-        {
-            return Err(
-                "Imported military ironwork is only available in contested-frontier worlds."
-                    .to_string(),
-            );
-        }
         let network = tick
             .road_network(owner)
             .ok_or_else(|| "Connect the Trading Post to a road before trading.".to_string())?;
@@ -352,7 +339,9 @@ fn validate_marketplace(
         has_road_access,
     ) {
         if building.assigned_labor == 0 {
-            return Err("Assign at least one regional trader before placing a manual trade.".to_string());
+            return Err(
+                "Assign at least one regional trader before placing a manual trade.".to_string(),
+            );
         }
         if !has_road_access {
             return Err("Connect the Trading Post to a road before trading.".to_string());
@@ -452,6 +441,7 @@ fn apply_marketplace_trade(
         None
     };
 
+    let mut physical_gold_spent = 0.0;
     match spend {
         TradeSpend::Gold(amount) => {
             let resource = trade_resource_for_buy(offer);
@@ -459,6 +449,7 @@ fn apply_marketplace_trade(
             let gold_cost = scaled_gold_cost(amount, multiplier);
             if physical_economy {
                 spend_marketplace_coffer_gold(ctx, building_id, gold_cost)?;
+                physical_gold_spent = gold_cost;
             } else {
                 spend_treasury_gold(ctx, owner, gold_cost)?;
             }
@@ -532,6 +523,7 @@ fn apply_marketplace_trade(
                     leg.amount,
                     route,
                 ) {
+                    restore_marketplace_coffer_gold(ctx, building_id, physical_gold_spent);
                     return Err(
                         "The regional caravan could not enter this Trading Post's road branch."
                             .to_string(),
@@ -727,6 +719,18 @@ fn spend_marketplace_coffer_gold(
     Ok(())
 }
 
+fn restore_marketplace_coffer_gold(ctx: &ReducerContext, marketplace_id: u64, amount: f64) {
+    if amount <= 1e-9 {
+        return;
+    }
+    let Some(mut marketplace) = ctx.db.building().id().find(&marketplace_id) else {
+        return;
+    };
+    let restored = deposit_building_commodity(&mut marketplace, CommodityKind::Gold, amount);
+    debug_assert!((restored - amount).abs() <= 1e-6);
+    ctx.db.building().id().update(marketplace);
+}
+
 /// New settlements keep foreign-trade proceeds and local market tolls in the
 /// market row until a visible cart delivers them to a civic lockbox. Legacy
 /// saves preserve their abstract treasury credit so the additive founding-site
@@ -912,12 +916,8 @@ fn stage_physical_market_resource(
         candidate_points.push((source.x, source.z));
         candidates.push((source, exportable));
     }
-    let distances = local_delivery_distances_from(
-        network,
-        marketplace.x,
-        marketplace.z,
-        &candidate_points,
-    );
+    let distances =
+        local_delivery_distances_from(network, marketplace.x, marketplace.z, &candidate_points);
     let mut accessible = 0.0;
     let mut best: Option<(Building, f64)> = None;
     for ((source, exportable), distance) in candidates.into_iter().zip(distances) {

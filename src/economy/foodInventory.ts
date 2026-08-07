@@ -4,6 +4,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
+  EVENING_MEAL_PER_PERSON,
   FOOD_CATEGORY_QUALIFYING_DAYS,
   RESIDENCE_FOOD_PER_PERSON_PER_SEC,
 } from '../generated/gameBalance.ts';
@@ -124,7 +125,8 @@ export function householdFoodPerDay(population: number): number {
   const workdaySeconds = CALENDAR_SECONDS_PER_DAY
     * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
     / CALENDAR_HOURS_PER_DAY;
-  return Math.max(0, population) * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds;
+  return Math.max(0, population)
+    * (RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds + EVENING_MEAL_PER_PERSON);
 }
 
 export function foodCategoryQualifyingStock(population: number): number {

@@ -45,6 +45,7 @@ import { environmentFor } from '../../world/seasonPolicy.ts';
 import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 import {
   STOREHOUSE_HAUL_PER_WORKER,
+  TRADE_RESOURCE_KINDS,
   type TradeResourceKind,
 } from '../../generated/gameBalance.ts';
 import {
@@ -60,17 +61,7 @@ import {
 } from '../../economy/marketplaceGoldReserve.ts';
 import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 
-const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>([
-  'timber',
-  'stone',
-  'firewood',
-  'food',
-  'grain',
-  'ironwork',
-  'iron',
-  'salt',
-  'pottery',
-]);
+const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>(TRADE_RESOURCE_KINDS);
 
 function formatRegionalDeskStatus(reachableHomes: number): string {
   if (reachableHomes <= 0) {
@@ -374,6 +365,7 @@ export function renderMarketplaceInspector(
       <li><span>Public Trading Post coffer</span><span>${proceedsCollection}</span></li>
       <li><span>Private export purse</span><span>${privateExportCash.toFixed(1)} gold awaiting free-hauler delivery to producer households</span></li>
       <li><span>Automatic specialty exports</span><span>Private household trade · ${Math.round((fiscalPolicy?.exportDutyRate ?? 0) * 100)}% export duty to the civic lockbox, remainder to households</span></li>
+      <li><span>Manual bulk imports</span><span>Public Trading Post procurement · paid from its civic coffer and exempt from household import duty</span></li>
       <li><span>Manual bulk exports</span><span>Public Trading Post trade · full proceeds enter the civic treasury and are not charged the private export duty</span></li>
       <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this Trading Post by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>

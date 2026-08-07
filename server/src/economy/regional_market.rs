@@ -3,11 +3,10 @@
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    TradeResource, CALENDAR_SECONDS_PER_DAY, MARKET_LOCAL_FOOD_DEMAND_WEIGHT,
-    MARKET_PRICE_UPDATE_INTERVAL_TICKS, RESIDENCE_FOOD_PER_PERSON_PER_SEC,
+    TradeResource, MARKET_LOCAL_FOOD_DEMAND_WEIGHT, MARKET_PRICE_UPDATE_INTERVAL_TICKS,
 };
 use crate::db::*;
-use crate::economy::CommodityKind;
+use crate::economy::{household_food_per_day, CommodityKind};
 use crate::simulation::game_clock;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
 use crate::specialty_trade_policy::SpecialtyMarketFamily;
@@ -322,12 +321,11 @@ fn local_food_demand_pressure(ctx: &ReducerContext, owner: Identity) -> f64 {
         }
         let needs = load_needs(ctx, residence.id);
         let stock = need_stock(&needs, ResidenceNeedKind::Food);
-        let use_per_sec = residence.population as f64 * RESIDENCE_FOOD_PER_PERSON_PER_SEC;
-        if use_per_sec <= 1e-9 {
+        let use_per_day = household_food_per_day(residence.population);
+        if use_per_day <= 1e-9 {
             continue;
         }
-        let runway_sec = stock / use_per_sec;
-        let runway_days = runway_sec / CALENDAR_SECONDS_PER_DAY;
+        let runway_days = stock / use_per_day;
         runway_days_sum += runway_days;
         active += 1;
     }
@@ -376,9 +374,7 @@ fn refresh_specialty_prices(state: &mut MarketState) {
         (state.drink_price_mult + state.provision_price_mult + state.wares_price_mult) / 3.0;
 }
 
-pub fn specialty_family_for_commodity(
-    commodity: CommodityKind,
-) -> Option<SpecialtyMarketFamily> {
+pub fn specialty_family_for_commodity(commodity: CommodityKind) -> Option<SpecialtyMarketFamily> {
     match commodity {
         CommodityKind::Ale | CommodityKind::Wine => Some(SpecialtyMarketFamily::Drink),
         CommodityKind::Honey | CommodityKind::Cheese => Some(SpecialtyMarketFamily::Provision),

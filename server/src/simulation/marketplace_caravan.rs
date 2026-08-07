@@ -4,13 +4,12 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     BUILDING_ROAD_ACCESS_DISTANCE, FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC,
-    FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC,
-    HOUSEHOLD_MAX_WEALTH, LOCAL_MARKET_TAX_CART_THRESHOLD, PRIVATE_EXPORT_INCOME_CART_LOAD,
-    SPECIALTY_EXPORT_GOLD_PER_ALE,
-    SPECIALTY_EXPORT_GOLD_PER_CHEESE,
-    SPECIALTY_EXPORT_GOLD_PER_CLOTH,
-    SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_POTTERY,
-    SPECIALTY_EXPORT_GOLD_PER_WINE, STOREHOUSE_HAUL_PER_WORKER,
+    FOOD_DELIVERY_SPEED_MPS, FOOD_DELIVERY_UNLOAD_SEC, HOUSEHOLD_MAX_WEALTH,
+    LOCAL_MARKET_TAX_CART_THRESHOLD, MARKET_CARAVAN_FOOD_PER_DELIVERY,
+    MARKET_CARAVAN_WATER_PER_DELIVERY, PRIVATE_EXPORT_INCOME_CART_LOAD,
+    SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_CHEESE,
+    SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
+    SPECIALTY_EXPORT_GOLD_PER_POTTERY, SPECIALTY_EXPORT_GOLD_PER_WINE, STOREHOUSE_HAUL_PER_WORKER,
     TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS,
     WATER_DELIVERY_UNLOAD_SEC,
 };
@@ -18,11 +17,10 @@ use crate::db::*;
 use crate::economy::{
     building_commodity_stock, building_edible_food_stock, building_preserved_food_stock,
     credit_private_export_receipt, mark_local_civic_receipts_dispatched,
-    marketplace_proceeds_cart_load, private_export_proceeds,
-    physical_treasury_seat, record_specialty_market_export,
-    regional_export_cart_load, treasury_gold, try_advance_pending_marketplace_trade,
-    try_execute_standing_marketplace_import, withdraw_building_commodity,
-    specialty_family_for_commodity, specialty_price_multiplier_for_commodity, CommodityKind,
+    marketplace_proceeds_cart_load, physical_treasury_seat, private_export_proceeds,
+    record_specialty_market_export, regional_export_cart_load, specialty_family_for_commodity,
+    specialty_price_multiplier_for_commodity, treasury_gold, try_advance_pending_marketplace_trade,
+    try_execute_standing_marketplace_import, withdraw_building_commodity, CommodityKind,
 };
 use crate::marketplace_procurement_policy::{
     marketplace_gold_reserve_shortfall, marketplace_gold_sweep_surplus,
@@ -38,8 +36,8 @@ use crate::simulation::delivery_trips::{
     building_has_regional_market_trip, onsite_building_labor, regional_market_export_route,
     residence_has_inbound_remedy_trip, residence_has_inbound_wealth_trip,
     start_regional_market_export_trip, try_start_building_supply_trip,
-    try_start_free_building_supply_trip, try_start_private_export_income_trip,
-    try_start_market_stall_delivery_trip, try_start_market_stall_remedy_trip,
+    try_start_free_building_supply_trip, try_start_market_stall_delivery_trip,
+    try_start_market_stall_remedy_trip, try_start_private_export_income_trip,
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
@@ -50,8 +48,8 @@ use crate::simulation::road_logistics::{
 };
 use crate::simulation::tick_context::SimTickContext;
 use crate::specialty_trade_policy::{
-    specialty_export_capacity, specialty_export_order, specialty_export_policy_allows,
-    specialty_export_workers, resolved_specialty_family_policy, SpecialtyMarketFamily,
+    resolved_specialty_family_policy, specialty_export_capacity, specialty_export_order,
+    specialty_export_policy_allows, specialty_export_workers, SpecialtyMarketFamily,
 };
 use crate::tables::{Building, Residence};
 
@@ -137,14 +135,16 @@ pub fn try_dispatch_marketplace_caravan(
             let physical_room = delivery_commodity
                 .map(|commodity| residence_commodity_delivery_room(residence, commodity));
             dispatch.exact_load_amount.map_or_else(
-                || physical_room.map_or_else(
-                    || has_delivery_stock_room(need_kind, stock),
-                    |room| room > 1e-6,
-                ),
-                |amount| physical_room
-                    .unwrap_or_else(|| delivery_stock_room(need_kind, stock))
-                    + 1e-6
-                    >= amount,
+                || {
+                    physical_room.map_or_else(
+                        || has_delivery_stock_room(need_kind, stock),
+                        |room| room > 1e-6,
+                    )
+                },
+                |amount| {
+                    physical_room.unwrap_or_else(|| delivery_stock_room(need_kind, stock)) + 1e-6
+                        >= amount
+                },
             )
         },
     )
@@ -230,9 +230,9 @@ fn marketplace_stall_workplace(
         ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
             "village_storehouse"
         }
-        ResidenceNeedKind::Water
-        | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety => return None,
+        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
+            return None
+        }
     };
     let network = tick.road_network(marketplace.owner)?;
     tick.building_ids_for_kinds(ctx, marketplace.owner, &[workplace_kind])
@@ -264,9 +264,13 @@ fn try_dispatch_marketplace_remedies(
     clock: &GameClock,
     marketplace: &mut Building,
 ) -> bool {
-    let Some((stall_workplace_id, delivery_workers)) =
+    let workplace = if marketplace.kind == "trading_post" {
+        let workers = onsite_building_labor(ctx, marketplace);
+        (workers > 0).then_some((marketplace.id, workers))
+    } else {
         marketplace_stall_workplace(ctx, tick, marketplace, ResidenceNeedKind::Cloth)
-    else {
+    };
+    let Some((stall_workplace_id, delivery_workers)) = workplace else {
         return false;
     };
     let Some(network) = tick.road_network(marketplace.owner) else {
@@ -279,12 +283,11 @@ fn try_dispatch_marketplace_remedies(
         .filter(&marketplace.owner)
         .filter(|residence| !tick.residence_disabled_by_fire(ctx, residence.id))
         .collect();
-    let Some(target) = select_residence_for_remedy_delivery(
-        network,
-        marketplace,
-        residences,
-        |residence_id| residence_has_inbound_remedy_trip(ctx, residence_id),
-    ) else {
+    let Some(target) =
+        select_residence_for_remedy_delivery(network, marketplace, residences, |residence_id| {
+            residence_has_inbound_remedy_trip(ctx, residence_id)
+        })
+    else {
         return false;
     };
     try_start_market_stall_remedy_trip(
@@ -324,23 +327,27 @@ pub fn step_marketplace_caravans(
                     || (building.kind == "trading_post"
                         && building.assigned_labor > 0
                         && (building.action_cooldown > 1e-6
-                    || building.marketplace_seed_grain_target > 0
-                    || building.marketplace_ironwork_target > 0
-                    || building.marketplace_iron_target > 0
-                    || building.marketplace_salt_target > 0
-                    || marketplace_gold_reserve_shortfall(
-                        building.gold,
-                        0.0,
-                        building.marketplace_gold_reserve_target,
-                    ) > 1e-6
-                    || building.marketplace_pending_trade_code != 0
-                    || building.ale > 1e-6
-                    || building.honey > 1e-6
-                    || building.wine > 1e-6
-                    || building.cloth > 1e-6
-                    || building.cheese > 1e-6
-                    || building.pottery > 1e-6
-                    || building.gold > 1e-6)))
+                            || building.marketplace_seed_grain_target > 0
+                            || building.marketplace_ironwork_target > 0
+                            || building.marketplace_iron_target > 0
+                            || building.marketplace_salt_target > 0
+                            || marketplace_gold_reserve_shortfall(
+                                building.gold,
+                                0.0,
+                                building.marketplace_gold_reserve_target,
+                            ) > 1e-6
+                            || building.marketplace_pending_trade_code != 0
+                            || building_edible_food_stock(building) > 1e-6
+                            || building.water > 1e-6
+                            || building.firewood > 1e-6
+                            || building.remedies > 1e-6
+                            || building.ale > 1e-6
+                            || building.honey > 1e-6
+                            || building.wine > 1e-6
+                            || building.cloth > 1e-6
+                            || building.cheese > 1e-6
+                            || building.pottery > 1e-6
+                            || building.gold > 1e-6)))
         })
         .map(|building| building.id)
         .collect();
@@ -392,8 +399,50 @@ pub fn step_marketplace_caravans(
         }
         // Routine household goods are allocated from Marketplace stock in one
         // owner-wide availability pass. No market-to-home cart departs here.
-        if !is_trading_post && building.remedies > 1e-6 {
+        if building.remedies > 1e-6 {
             changed |= try_dispatch_marketplace_remedies(ctx, tick, clock, &mut building);
+        }
+        // Public bulk provisions unload at the Trading Post, then its own
+        // staffed broker carts carry them to road-linked homes. This closes
+        // the physical import chain without pretending that cargo teleports
+        // into a Marketplace or well.
+        if is_trading_post && !building_has_active_trip(ctx, building.id) {
+            let needs = [
+                (ResidenceNeedKind::Food, MARKET_CARAVAN_FOOD_PER_DELIVERY),
+                (ResidenceNeedKind::Water, MARKET_CARAVAN_WATER_PER_DELIVERY),
+                (
+                    ResidenceNeedKind::Firewood,
+                    crate::balance_generated::MARKET_CARAVAN_FIREWOOD_PER_DELIVERY,
+                ),
+                (
+                    ResidenceNeedKind::Ale,
+                    crate::balance_generated::MARKET_CARAVAN_ALE_PER_DELIVERY,
+                ),
+                (
+                    ResidenceNeedKind::Cloth,
+                    crate::balance_generated::MARKET_CARAVAN_CLOTH_PER_DELIVERY,
+                ),
+                (
+                    ResidenceNeedKind::Pottery,
+                    crate::balance_generated::MARKET_CARAVAN_POTTERY_PER_DELIVERY,
+                ),
+            ];
+            let start = (clock.sim_tick as usize) % needs.len();
+            for offset in 0..needs.len() {
+                let (need, amount) = needs[(start + offset) % needs.len()];
+                if try_dispatch_marketplace_caravan(
+                    ctx,
+                    clock,
+                    tick,
+                    &mut building,
+                    need,
+                    amount,
+                    MarketCaravanDispatch::default(),
+                ) {
+                    changed = true;
+                    break;
+                }
+            }
         }
         // Only remedies retain a targeted household trip. Ordinary stall
         // availability does not reserve granary/storehouse workers. A staffed
@@ -407,10 +456,7 @@ pub fn step_marketplace_caravans(
         }
         let unpledged_gold = (building.gold - private_export_proceeds(&building)).max(0.0);
         let collectible_gold = if is_trading_post {
-            marketplace_gold_sweep_surplus(
-                unpledged_gold,
-                building.marketplace_gold_reserve_target,
-            )
+            marketplace_gold_sweep_surplus(unpledged_gold, building.marketplace_gold_reserve_target)
         } else if unpledged_gold + 1e-9 >= LOCAL_MARKET_TAX_CART_THRESHOLD
             || (clock.hour == 18 && clock.minute < 15)
         {
@@ -420,9 +466,7 @@ pub fn step_marketplace_caravans(
         } else {
             0.0
         };
-        if collectible_gold > 1e-6
-            && !building_has_active_trip(ctx, building.id)
-        {
+        if collectible_gold > 1e-6 && !building_has_active_trip(ctx, building.id) {
             changed |= try_dispatch_marketplace_proceeds(
                 ctx,
                 tick,
@@ -525,7 +569,8 @@ fn sell_marketplace_specialties(
             && building.honey <= 1e-6
             && building.wine <= 1e-6
             && building.cloth <= 1e-6
-            && building.cheese <= 1e-6)
+            && building.cheese <= 1e-6
+            && building.pottery <= 1e-6)
     {
         return false;
     }
@@ -651,10 +696,7 @@ fn specialty_export_policy_for(building: &Building, commodity: CommodityKind) ->
         Some(SpecialtyMarketFamily::Wares) => building.marketplace_wares_export_policy,
         None => building.marketplace_specialty_export_policy,
     };
-    resolved_specialty_family_policy(
-        family_policy,
-        building.marketplace_specialty_export_policy,
-    )
+    resolved_specialty_family_policy(family_policy, building.marketplace_specialty_export_policy)
 }
 
 fn try_dispatch_marketplace_proceeds(
@@ -695,10 +737,7 @@ fn try_dispatch_marketplace_proceeds(
         load,
     );
     if started {
-        mark_local_civic_receipts_dispatched(
-            marketplace,
-            (before - marketplace.gold).max(0.0),
-        );
+        mark_local_civic_receipts_dispatched(marketplace, (before - marketplace.gold).max(0.0));
     }
     started
 }

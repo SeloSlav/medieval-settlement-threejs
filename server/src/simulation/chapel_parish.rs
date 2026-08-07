@@ -82,15 +82,7 @@ pub fn step_chapel_parish(
             .get(&chapel.id)
             .map(Vec::as_slice)
             .unwrap_or(&[]);
-        step_one_chapel_parish(
-            ctx,
-            tick,
-            sim_tick,
-            clock,
-            chapel,
-            claimed,
-            economy_active,
-        );
+        step_one_chapel_parish(ctx, tick, sim_tick, clock, chapel, claimed, economy_active);
     }
 }
 

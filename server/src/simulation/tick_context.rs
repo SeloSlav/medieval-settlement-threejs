@@ -21,9 +21,7 @@ use crate::roads::RoadNetwork;
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::road_logistics::claim_residences_by_nearest_supplier;
-use crate::supply_policy::{
-    is_food_supplier_operational, is_well_supplier_operational,
-};
+use crate::supply_policy::{is_food_supplier_operational, is_well_supplier_operational};
 use crate::tables::{corpse, farm_field, livestock_herd, Building, Residence};
 
 #[derive(Default)]
@@ -52,8 +50,7 @@ pub struct SimTickContext {
     food_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     food_claim_counts: RefCell<HashMap<Identity, HashMap<u64, u32>>>,
     marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
-    local_marketplace_claims:
-        RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
+    local_marketplace_claims: RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     local_marketplace_deposit_claims:
         RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     active_remote_camp_by_worksite: RefCell<HashMap<(Identity, u64), bool>>,
@@ -783,7 +780,11 @@ impl SimTickContext {
         stall_need: ResidenceNeedKind,
     ) -> Option<u64> {
         let key = (owner, stall_need);
-        if !self.local_marketplace_deposit_claims.borrow().contains_key(&key) {
+        if !self
+            .local_marketplace_deposit_claims
+            .borrow()
+            .contains_key(&key)
+        {
             let claims = self.build_local_marketplace_claims_for_deposit(ctx, owner, stall_need);
             self.local_marketplace_deposit_claims
                 .borrow_mut()
@@ -911,15 +912,9 @@ impl SimTickContext {
                 building.construction_complete
                     && !self.building_disabled_by_fire(ctx, building.id)
                     && crate::simulation::delivery_cargo::building_delivery_stock(
-                        building,
-                        stall_need,
+                        building, stall_need,
                     ) > 1e-6
-                    && self.marketplace_has_stall_workers(
-                        ctx,
-                        network,
-                        building,
-                        stall_need,
-                    )
+                    && self.marketplace_has_stall_workers(ctx, network, building, stall_need)
             })
             .collect();
         let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
@@ -939,12 +934,7 @@ impl SimTickContext {
             &marketplace_refs,
             &residences,
             |marketplace, residence, _| {
-                network.road_connected(
-                    marketplace.x,
-                    marketplace.z,
-                    residence.x,
-                    residence.z,
-                )
+                network.road_connected(marketplace.x, marketplace.z, residence.x, residence.z)
             },
         )
     }
@@ -985,12 +975,7 @@ impl SimTickContext {
             &marketplace_refs,
             &residences,
             |marketplace, residence, _| {
-                network.road_connected(
-                    marketplace.x,
-                    marketplace.z,
-                    residence.x,
-                    residence.z,
-                )
+                network.road_connected(marketplace.x, marketplace.z, residence.x, residence.z)
             },
         )
     }
@@ -1136,12 +1121,12 @@ impl SimTickContext {
             return false;
         }
         let workplace_kind = match need_kind {
-            ResidenceNeedKind::Food
-            | ResidenceNeedKind::PreservedFood
-            | ResidenceNeedKind::Ale => "granary",
-            ResidenceNeedKind::Firewood
-            | ResidenceNeedKind::Cloth
-            | ResidenceNeedKind::Pottery => "village_storehouse",
+            ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
+                "granary"
+            }
+            ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
+                "village_storehouse"
+            }
             ResidenceNeedKind::Water
             | ResidenceNeedKind::Church
             | ResidenceNeedKind::FoodVariety => return false,

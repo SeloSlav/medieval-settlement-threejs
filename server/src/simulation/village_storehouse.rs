@@ -117,9 +117,7 @@ pub fn step_storehouse_market_stalls(
                     )?;
                     (needed > 1e-6).then_some((market, needed, distance))
                 })
-                .min_by(|a, b| {
-                    a.2.total_cmp(&b.2).then_with(|| a.0.id.cmp(&b.0.id))
-                });
+                .min_by(|a, b| a.2.total_cmp(&b.2).then_with(|| a.0.id.cmp(&b.0.id)));
             let Some((market, needed, _)) = target else {
                 continue;
             };

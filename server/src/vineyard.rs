@@ -1,7 +1,7 @@
-use crate::farming::{arable_land_conditions, effective_field_moisture};
 use crate::balance_generated::{
     VINEYARD_BALANCED_GRAPE_RESERVE, VINEYARD_WINE_FIRST_GRAPE_RESERVE,
 };
+use crate::farming::{arable_land_conditions, effective_field_moisture};
 
 pub const VINEYARD_MIN_AREA: f64 = 220.0;
 pub const VINEYARD_MAX_AREA: f64 = 1_200.0;
@@ -101,10 +101,15 @@ mod tests {
     fn cellar_policy_protects_table_grapes_before_fermentation() {
         assert_eq!(fermentable_grapes(100.0, VINEYARD_POLICY_TABLE_GRAPES), 0.0);
         assert_eq!(
-            fermentable_grapes(VINEYARD_BALANCED_GRAPE_RESERVE + 3.0, VINEYARD_POLICY_BALANCED),
+            fermentable_grapes(
+                VINEYARD_BALANCED_GRAPE_RESERVE + 3.0,
+                VINEYARD_POLICY_BALANCED
+            ),
             3.0
         );
-        assert!(fermentable_grapes(20.0, VINEYARD_POLICY_WINE_FIRST)
-            > fermentable_grapes(20.0, VINEYARD_POLICY_BALANCED));
+        assert!(
+            fermentable_grapes(20.0, VINEYARD_POLICY_WINE_FIRST)
+                > fermentable_grapes(20.0, VINEYARD_POLICY_BALANCED)
+        );
     }
 }

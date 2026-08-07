@@ -63,8 +63,7 @@ pub fn next_apiary_colony_health(current: f64, winter_honey_available: f64) -> f
     } else {
         (winter_honey_available.max(0.0) / APIARY_WINTER_HONEY_REQUIRED).clamp(0.0, 1.0)
     };
-    (current.clamp(0.35, 1.10)
-        + APIARY_WINTER_HEALTH_GAIN * supply_ratio
+    (current.clamp(0.35, 1.10) + APIARY_WINTER_HEALTH_GAIN * supply_ratio
         - APIARY_WINTER_HEALTH_LOSS * (1.0 - supply_ratio))
         .clamp(0.35, 1.10)
 }
@@ -84,7 +83,9 @@ pub fn pollination_contribution(distance: f64, radius: f64, colony_health: f64) 
 }
 
 pub fn pollination_multiplier(total_contribution: f64) -> f64 {
-    1.0 + total_contribution.max(0.0).min(APIARY_POLLINATION_BONUS_MAX)
+    1.0 + total_contribution
+        .max(0.0)
+        .min(APIARY_POLLINATION_BONUS_MAX)
 }
 
 #[cfg(test)]
@@ -101,16 +102,23 @@ mod tests {
 
     #[test]
     fn extraction_trades_reserve_and_health_for_current_yield() {
-        assert!(apiary_honey_reserve(APIARY_HARVEST_CONSERVATIVE)
-            > apiary_honey_reserve(APIARY_HARVEST_EXTRACTIVE));
-        assert!(apiary_yield_multiplier(APIARY_HARVEST_EXTRACTIVE)
-            > apiary_yield_multiplier(APIARY_HARVEST_CONSERVATIVE));
+        assert!(
+            apiary_honey_reserve(APIARY_HARVEST_CONSERVATIVE)
+                > apiary_honey_reserve(APIARY_HARVEST_EXTRACTIVE)
+        );
+        assert!(
+            apiary_yield_multiplier(APIARY_HARVEST_EXTRACTIVE)
+                > apiary_yield_multiplier(APIARY_HARVEST_CONSERVATIVE)
+        );
         assert!(next_apiary_colony_health(1.0, 2.0) < next_apiary_colony_health(1.0, 8.0));
     }
 
     #[test]
     fn pollination_stacks_only_to_the_global_cap() {
         assert!(pollination_contribution(0.0, 48.0, 1.0) > 0.0);
-        assert_eq!(pollination_multiplier(10.0), 1.0 + APIARY_POLLINATION_BONUS_MAX);
+        assert_eq!(
+            pollination_multiplier(10.0),
+            1.0 + APIARY_POLLINATION_BONUS_MAX
+        );
     }
 }

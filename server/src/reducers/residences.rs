@@ -18,9 +18,9 @@ use crate::db::*;
 use crate::economy::{
     available_building_labor, building_commodity_stock, credit_treasury_commodity,
     credit_treasury_stone, credit_treasury_timber, reconcile_building_labor,
-    residence_food_variety_count, residence_population_for_parcel, residence_zone_cost, spend_aggregate_stone,
-    spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber, treasury_gold,
-    CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
+    residence_food_variety_count, residence_population_for_parcel, residence_zone_cost,
+    spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber,
+    treasury_gold, CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{

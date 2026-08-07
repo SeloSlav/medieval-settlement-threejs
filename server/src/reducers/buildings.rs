@@ -1,9 +1,9 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
+use crate::apiary_policy::is_valid_apiary_harvest_policy;
 use crate::balance_generated::{
     CARPENTER_TIMBER_COST_MULTIPLIER, CONSTRUCTION_MAX_BUILDERS, TOWN_HALL_POPULATION_REQUIRED,
 };
-use crate::apiary_policy::is_valid_apiary_harvest_policy;
 use crate::building_defs::{building_def, building_def_or_err};
 use crate::burgage::{zone_overlaps_footprint, Point2};
 use crate::chapel_upgrade_policy::{chapel_upgrade_cost, normalize_chapel_tier};
@@ -17,11 +17,10 @@ use crate::db::*;
 use crate::economy::{
     assign_building_labor as set_building_labor, available_building_labor, building_commodity_cap,
     building_commodity_stock, building_cost, building_salvage_refund,
-    construction_treasury_reservation,
-    credit_treasury_commodity, credit_treasury_firewood, credit_treasury_food,
-    credit_treasury_gold, credit_treasury_stone, credit_treasury_timber, credit_treasury_water,
-    guardhouse_roster_count, guardhouse_roster_floors, initial_construction_labor,
-    spend_aggregate_ironwork, spend_aggregate_roof_tiles,
+    construction_treasury_reservation, credit_treasury_commodity, credit_treasury_firewood,
+    credit_treasury_food, credit_treasury_gold, credit_treasury_stone, credit_treasury_timber,
+    credit_treasury_water, guardhouse_roster_count, guardhouse_roster_floors,
+    initial_construction_labor, spend_aggregate_ironwork, spend_aggregate_roof_tiles,
     spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
     total_timber, CommodityKind,
 };
@@ -66,12 +65,9 @@ use crate::simulation::{
     cancel_inbound_construction_trips_for_site, clear_fire_for_target, drain_trips_for_building,
     game_clock, local_delivery_distance, owner_has_staffed_town_hall,
     preserve_in_transit_cart_labor, recall_idle_seasonal_labor_for_owner,
-    staffed_cart_workers_by_building,
-    FIRE_TARGET_BUILDING,
+    staffed_cart_workers_by_building, FIRE_TARGET_BUILDING,
 };
-use crate::specialty_trade_policy::{
-    is_valid_specialty_export_policy, SpecialtyMarketFamily,
-};
+use crate::specialty_trade_policy::{is_valid_specialty_export_policy, SpecialtyMarketFamily};
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
 };
@@ -83,8 +79,8 @@ use crate::tables::graveyard;
 use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
 };
-use crate::weaver_input_policy::is_valid_weaver_input_policy;
 use crate::vineyard::is_valid_vineyard_policy;
+use crate::weaver_input_policy::is_valid_weaver_input_policy;
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
 use crate::worksite_stall_policy::{
     is_production_labor_kind, stalled_labor_target, SpatialBuckets, RICH_DEPOSIT_CENTER_TOLERANCE,
@@ -398,10 +394,22 @@ fn building_overlaps_vineyard(
         .filter(&owner)
         .any(|vineyard| {
             let polygon = [
-                Point2 { x: vineyard.corner_ax, z: vineyard.corner_az },
-                Point2 { x: vineyard.corner_bx, z: vineyard.corner_bz },
-                Point2 { x: vineyard.corner_cx, z: vineyard.corner_cz },
-                Point2 { x: vineyard.corner_dx, z: vineyard.corner_dz },
+                Point2 {
+                    x: vineyard.corner_ax,
+                    z: vineyard.corner_az,
+                },
+                Point2 {
+                    x: vineyard.corner_bx,
+                    z: vineyard.corner_bz,
+                },
+                Point2 {
+                    x: vineyard.corner_cx,
+                    z: vineyard.corner_cz,
+                },
+                Point2 {
+                    x: vineyard.corner_dx,
+                    z: vineyard.corner_dz,
+                },
             ];
             zone_overlaps_footprint(&polygon, x, z, def.pick_radius)
         })
@@ -1163,13 +1171,12 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         .copied()
         .map(processor_input_commodity)
         .filter(|commodity| {
-            let stock_missing = if building.kind == "smokehouse"
-                && *commodity == CommodityKind::Food
-            {
-                crate::economy::building_preservable_food_stock(building) <= 1e-6
-            } else {
-                building_commodity_stock(building, *commodity) <= 1e-6
-            };
+            let stock_missing =
+                if building.kind == "smokehouse" && *commodity == CommodityKind::Food {
+                    crate::economy::building_preservable_food_stock(building) <= 1e-6
+                } else {
+                    building_commodity_stock(building, *commodity) <= 1e-6
+                };
             stock_missing
                 && !(building.kind == "brewery"
                     && *commodity == CommodityKind::Barley
@@ -1179,22 +1186,20 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
     if missing_inputs.is_empty() {
         return (false, false);
     }
-    let every_missing_input_en_route = missing_inputs
-        .iter()
-        .all(|commodity| {
-            if building.kind == "smokehouse" && *commodity == CommodityKind::Food {
-                [
-                    CommodityKind::Food,
-                    CommodityKind::Meat,
-                    CommodityKind::Fish,
-                    CommodityKind::Milk,
-                ]
-                .into_iter()
-                .any(|kind| building_has_inbound_commodity_trip(ctx, building.id, kind))
-            } else {
-                building_has_inbound_commodity_trip(ctx, building.id, *commodity)
-            }
-        });
+    let every_missing_input_en_route = missing_inputs.iter().all(|commodity| {
+        if building.kind == "smokehouse" && *commodity == CommodityKind::Food {
+            [
+                CommodityKind::Food,
+                CommodityKind::Meat,
+                CommodityKind::Fish,
+                CommodityKind::Milk,
+            ]
+            .into_iter()
+            .any(|kind| building_has_inbound_commodity_trip(ctx, building.id, kind))
+        } else {
+            building_has_inbound_commodity_trip(ctx, building.id, *commodity)
+        }
+    });
     (true, every_missing_input_en_route)
 }
 
@@ -1396,8 +1401,9 @@ pub fn recall_target_idle_processor_labor_for_owner(
                 let has_output_stock = if kind == "smokehouse" {
                     crate::economy::building_preserved_food_stock(&building) > 1e-6
                 } else {
-                    processor_output_commodity(kind)
-                        .is_some_and(|commodity| building_commodity_stock(&building, commodity) > 1e-6)
+                    processor_output_commodity(kind).is_some_and(|commodity| {
+                        building_commodity_stock(&building, commodity) > 1e-6
+                    })
                 };
                 (
                     stalled,
@@ -1474,11 +1480,9 @@ pub fn recall_target_idle_processor_labor_for_owner(
                         } else {
                             CommodityKind::Fish
                         },
-                    )
-                        || !wild_stock_source_usable(&building, node_kind, &foraging_buckets),
+                    ) || !wild_stock_source_usable(&building, node_kind, &foraging_buckets),
                     false,
-                    crate::economy::building_edible_food_stock(&building) > 1e-6
-                        || has_active_trip,
+                    crate::economy::building_edible_food_stock(&building) > 1e-6 || has_active_trip,
                 )
             }
             _ => continue,
@@ -1878,8 +1882,7 @@ pub fn set_pottery_dispatch_policy(
 ) -> Result<(), String> {
     if !is_valid_pottery_dispatch_policy(dispatch_policy) {
         return Err(
-            "Pottery dispatch policy must be Market wares first or Preservation first."
-                .to_string(),
+            "Pottery dispatch policy must be Market wares first or Preservation first.".to_string(),
         );
     }
     let owner = ctx.sender();
@@ -2299,9 +2302,7 @@ pub fn set_marketplace_specialty_export_policy(
         .id()
         .find(&building_id)
         .ok_or_else(|| "Marketplace not found.".to_string())?;
-    if building.owner != owner
-        || building.kind != "trading_post"
-        || !building.construction_complete
+    if building.owner != owner || building.kind != "trading_post" || !building.construction_complete
     {
         return Err("You do not own this completed Trading Post.".to_string());
     }
@@ -2322,8 +2323,7 @@ pub fn set_marketplace_specialty_family_export_policy(
 ) -> Result<(), String> {
     if !is_valid_specialty_export_policy(export_policy) {
         return Err(
-            "Specialty family policy must be any-rate, fair-rate, or favorable-rate."
-                .to_string(),
+            "Specialty family policy must be any-rate, fair-rate, or favorable-rate.".to_string(),
         );
     }
     let family = SpecialtyMarketFamily::from_id(family)
@@ -2335,9 +2335,7 @@ pub fn set_marketplace_specialty_family_export_policy(
         .id()
         .find(&building_id)
         .ok_or_else(|| "Trading Post not found.".to_string())?;
-    if building.owner != owner
-        || building.kind != "trading_post"
-        || !building.construction_complete
+    if building.owner != owner || building.kind != "trading_post" || !building.construction_complete
     {
         return Err("You do not own this completed Trading Post.".to_string());
     }
@@ -2775,17 +2773,38 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         (CommodityKind::Bread, building.bread + trip_cargo.bread),
         (CommodityKind::Meat, building.meat + trip_cargo.meat),
         (CommodityKind::Fish, building.fish + trip_cargo.fish),
-        (CommodityKind::Berries, building.berries + trip_cargo.berries),
-        (CommodityKind::Mushrooms, building.mushrooms + trip_cargo.mushrooms),
+        (
+            CommodityKind::Berries,
+            building.berries + trip_cargo.berries,
+        ),
+        (
+            CommodityKind::Mushrooms,
+            building.mushrooms + trip_cargo.mushrooms,
+        ),
         (CommodityKind::Milk, building.milk + trip_cargo.milk),
         (CommodityKind::Apples, building.apples + trip_cargo.apples),
-        (CommodityKind::Cherries, building.cherries + trip_cargo.cherries),
-        (CommodityKind::Vegetables, building.vegetables + trip_cargo.vegetables),
+        (
+            CommodityKind::Cherries,
+            building.cherries + trip_cargo.cherries,
+        ),
+        (
+            CommodityKind::Vegetables,
+            building.vegetables + trip_cargo.vegetables,
+        ),
         (CommodityKind::Eggs, building.eggs + trip_cargo.eggs),
         (CommodityKind::Grapes, building.grapes + trip_cargo.grapes),
-        (CommodityKind::Porridge, building.porridge + trip_cargo.porridge),
-        (CommodityKind::CuredMeat, building.cured_meat + trip_cargo.cured_meat),
-        (CommodityKind::SmokedFish, building.smoked_fish + trip_cargo.smoked_fish),
+        (
+            CommodityKind::Porridge,
+            building.porridge + trip_cargo.porridge,
+        ),
+        (
+            CommodityKind::CuredMeat,
+            building.cured_meat + trip_cargo.cured_meat,
+        ),
+        (
+            CommodityKind::SmokedFish,
+            building.smoked_fish + trip_cargo.smoked_fish,
+        ),
         (CommodityKind::Cheese, building.cheese + trip_cargo.cheese),
     ] {
         credit_treasury_commodity(ctx, owner, commodity, amount * recoverable);

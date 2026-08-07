@@ -17,7 +17,6 @@ import {
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   RESIDENCE_CLOTH_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_CAPACITY,
@@ -37,6 +36,7 @@ import {
   edibleFoodStock,
   foodCategoryQualifyingStock,
   foodVarietyCount,
+  householdFoodPerDay,
   presentFoodCategories,
   FOOD_CATEGORY_LABELS,
   preservedFoodStock,
@@ -367,9 +367,7 @@ export function renderResidenceInspector(
     * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
     * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY
     * preservedFoodDemandMultiplier;
-  const grossFoodPerDay = residence.population
-    * RESIDENCE_FOOD_PER_PERSON_PER_SEC
-    * SPECIALTY_CONSUMPTION_SECONDS_PER_DAY;
+  const grossFoodPerDay = householdFoodPerDay(residence.population);
   const physicalPreservedFood = preservedFoodStock(residence);
   const physicalFreshMeals = Math.max(
     0,

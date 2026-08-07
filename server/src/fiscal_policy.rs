@@ -5,10 +5,9 @@
 
 use crate::balance_generated::{
     EXPORT_DUTY_RATE_MAX, EXPORT_DUTY_RATE_MIN, IMPORT_DUTY_RATE_MAX, IMPORT_DUTY_RATE_MIN,
-    LAND_LEVY_AREA_MULTIPLIER_MAX, LAND_LEVY_AREA_MULTIPLIER_MIN,
-    LAND_LEVY_BACKYARD_MULTIPLIER, LAND_LEVY_RATE_MAX, LAND_LEVY_RATE_MIN,
-    LAND_LEVY_REFERENCE_PLOT_AREA, LAND_LEVY_TIER1_ASSESSED_VALUE,
-    LAND_LEVY_TIER2_ASSESSED_VALUE, LAND_LEVY_TIER3_ASSESSED_VALUE,
+    LAND_LEVY_AREA_MULTIPLIER_MAX, LAND_LEVY_AREA_MULTIPLIER_MIN, LAND_LEVY_BACKYARD_MULTIPLIER,
+    LAND_LEVY_RATE_MAX, LAND_LEVY_RATE_MIN, LAND_LEVY_REFERENCE_PLOT_AREA,
+    LAND_LEVY_TIER1_ASSESSED_VALUE, LAND_LEVY_TIER2_ASSESSED_VALUE, LAND_LEVY_TIER3_ASSESSED_VALUE,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -48,10 +47,8 @@ pub fn land_levy_assessed_value(tier: u8, plot_area: f64, has_backyard: bool) ->
         2 => LAND_LEVY_TIER2_ASSESSED_VALUE,
         _ => LAND_LEVY_TIER3_ASSESSED_VALUE,
     };
-    let area_multiplier = (plot_area.max(0.0) / LAND_LEVY_REFERENCE_PLOT_AREA.max(1.0)).clamp(
-        LAND_LEVY_AREA_MULTIPLIER_MIN,
-        LAND_LEVY_AREA_MULTIPLIER_MAX,
-    );
+    let area_multiplier = (plot_area.max(0.0) / LAND_LEVY_REFERENCE_PLOT_AREA.max(1.0))
+        .clamp(LAND_LEVY_AREA_MULTIPLIER_MIN, LAND_LEVY_AREA_MULTIPLIER_MAX);
     let backyard_multiplier = if has_backyard {
         LAND_LEVY_BACKYARD_MULTIPLIER
     } else {
@@ -81,11 +78,7 @@ mod tests {
     #[test]
     fn larger_improved_burgages_have_a_larger_land_assessment() {
         let cottage = land_levy_assessed_value(1, LAND_LEVY_REFERENCE_PLOT_AREA, false);
-        let prosperous = land_levy_assessed_value(
-            3,
-            LAND_LEVY_REFERENCE_PLOT_AREA * 1.4,
-            true,
-        );
+        let prosperous = land_levy_assessed_value(3, LAND_LEVY_REFERENCE_PLOT_AREA * 1.4, true);
         assert!(prosperous > cottage);
         assert!(monthly_land_levy(prosperous, LAND_LEVY_RATE_MAX) > 0.0);
     }

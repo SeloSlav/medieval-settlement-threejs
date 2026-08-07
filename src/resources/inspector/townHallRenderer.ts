@@ -1816,6 +1816,12 @@ export function renderTownHallInspector(
     context.gameState,
     fiscalPolicy.landLevyRate,
     collectionRate / 100,
+    (residence, marketplace) => context.worldQueries.getRoadPathDistance(
+      residence.x,
+      residence.z,
+      marketplace.x,
+      marketplace.z,
+    ) != null,
   );
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const nightPolicy = context.getNightPolicy?.() ?? DEFAULT_NIGHT_POLICY;
@@ -2452,7 +2458,7 @@ export function renderTownHallInspector(
       <li><span>Emergency purchasing power</span><span>${formatHouseholdMarketPurchasingPower(householdMarketPlan)}</span></li>
       <li><span>Emergency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
       <li><span>Local market levy assessed</span><span>${readout.taxIncomeLabel}</span></li>
-      <li><span>Land levy</span><span>${fiscalRatePercent(fiscalPolicy.landLevyRate)} annually · next monthly installment ${landLevyForecast.monthlyCollectable.toFixed(1)} collectable / ${landLevyForecast.monthlyAssessed.toFixed(1)} assessed from ${landLevyForecast.occupiedHomes} occupied homes</span></li>
+      <li><span>Land levy</span><span>${fiscalRatePercent(fiscalPolicy.landLevyRate)} annually · next monthly installment ${landLevyForecast.monthlyCollectable.toFixed(1)} collectable / ${landLevyForecast.monthlyAssessed.toFixed(1)} assessed from ${landLevyForecast.occupiedHomes} occupied homes · ${landLevyForecast.collectableHomes} linked to an operational Marketplace lockbox${landLevyForecast.unservedHomes > 0 ? ` · ${landLevyForecast.unservedHomes} unserved` : ''}</span></li>
       <li><span>Land levy ledger</span><span>${fiscalPolicy.landLevyCollectedTotal.toFixed(1)} collected / ${fiscalPolicy.landLevyAssessedTotal.toFixed(1)} assessed lifetime</span></li>
       <li><span>Household import duty</span><span>${fiscalRatePercent(fiscalPolicy.importDutyRate)} · ${fiscalPolicy.importDutyCollectedTotal.toFixed(1)} gold collected lifetime</span></li>
       <li><span>Private export duty</span><span>${fiscalRatePercent(fiscalPolicy.exportDutyRate)} · ${fiscalPolicy.exportDutyCollectedTotal.toFixed(1)} gold collected from automatic specialty exports</span></li>

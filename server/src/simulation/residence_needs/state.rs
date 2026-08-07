@@ -118,14 +118,10 @@ pub fn persist_needs(ctx: &ReducerContext, residence_id: u64, needs: &[NeedState
 
 /// Move old save pantry values out of need rows exactly once, then make the
 /// Food and PreservedFood rows derived read models over physical commodities.
-pub fn migrate_and_sync_food_inventory(
-    residence: &mut Residence,
-    needs: &mut [NeedState],
-) {
+pub fn migrate_and_sync_food_inventory(residence: &mut Residence, needs: &mut [NeedState]) {
     if !residence.food_inventory_migrated {
         residence.food += need_stock(needs, ResidenceNeedKind::Food).max(0.0);
-        residence.preserved_food +=
-            need_stock(needs, ResidenceNeedKind::PreservedFood).max(0.0);
+        residence.preserved_food += need_stock(needs, ResidenceNeedKind::PreservedFood).max(0.0);
         residence.food_inventory_migrated = true;
     }
     if let Some(food_need) = find_need_mut(needs, ResidenceNeedKind::Food) {

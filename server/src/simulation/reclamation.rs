@@ -226,21 +226,66 @@ impl ReclamationStock {
                 roof_tiles: amount,
                 ..Self::default()
             },
-            CommodityKind::Bread => Self { bread: amount, ..Self::default() },
-            CommodityKind::Meat => Self { meat: amount, ..Self::default() },
-            CommodityKind::Fish => Self { fish: amount, ..Self::default() },
-            CommodityKind::Berries => Self { berries: amount, ..Self::default() },
-            CommodityKind::Mushrooms => Self { mushrooms: amount, ..Self::default() },
-            CommodityKind::Milk => Self { milk: amount, ..Self::default() },
-            CommodityKind::Apples => Self { apples: amount, ..Self::default() },
-            CommodityKind::Cherries => Self { cherries: amount, ..Self::default() },
-            CommodityKind::Vegetables => Self { vegetables: amount, ..Self::default() },
-            CommodityKind::Eggs => Self { eggs: amount, ..Self::default() },
-            CommodityKind::Grapes => Self { grapes: amount, ..Self::default() },
-            CommodityKind::Porridge => Self { porridge: amount, ..Self::default() },
-            CommodityKind::CuredMeat => Self { cured_meat: amount, ..Self::default() },
-            CommodityKind::SmokedFish => Self { smoked_fish: amount, ..Self::default() },
-            CommodityKind::Cheese => Self { cheese: amount, ..Self::default() },
+            CommodityKind::Bread => Self {
+                bread: amount,
+                ..Self::default()
+            },
+            CommodityKind::Meat => Self {
+                meat: amount,
+                ..Self::default()
+            },
+            CommodityKind::Fish => Self {
+                fish: amount,
+                ..Self::default()
+            },
+            CommodityKind::Berries => Self {
+                berries: amount,
+                ..Self::default()
+            },
+            CommodityKind::Mushrooms => Self {
+                mushrooms: amount,
+                ..Self::default()
+            },
+            CommodityKind::Milk => Self {
+                milk: amount,
+                ..Self::default()
+            },
+            CommodityKind::Apples => Self {
+                apples: amount,
+                ..Self::default()
+            },
+            CommodityKind::Cherries => Self {
+                cherries: amount,
+                ..Self::default()
+            },
+            CommodityKind::Vegetables => Self {
+                vegetables: amount,
+                ..Self::default()
+            },
+            CommodityKind::Eggs => Self {
+                eggs: amount,
+                ..Self::default()
+            },
+            CommodityKind::Grapes => Self {
+                grapes: amount,
+                ..Self::default()
+            },
+            CommodityKind::Porridge => Self {
+                porridge: amount,
+                ..Self::default()
+            },
+            CommodityKind::CuredMeat => Self {
+                cured_meat: amount,
+                ..Self::default()
+            },
+            CommodityKind::SmokedFish => Self {
+                smoked_fish: amount,
+                ..Self::default()
+            },
+            CommodityKind::Cheese => Self {
+                cheese: amount,
+                ..Self::default()
+            },
         }
     }
 

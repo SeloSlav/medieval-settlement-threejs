@@ -14,8 +14,7 @@ use crate::balance_generated::{
 use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, credit_local_purchase_receipt,
-    debit_residence_wealth, deposit_building_commodity, withdraw_building_commodity,
-    CommodityKind,
+    debit_residence_wealth, deposit_building_commodity, withdraw_building_commodity, CommodityKind,
 };
 use crate::residence_settlement_policy::settlement_buffers_ready;
 use crate::simulation::chapel_community::recovery_stock_min;
@@ -88,12 +87,7 @@ fn basic_buffers_are_safe(ctx: &ReducerContext, residence: &Residence) -> bool {
                 ResidenceNeedKind::Food | ResidenceNeedKind::Firewood | ResidenceNeedKind::Water
             ) && need.kind.is_active_for_tier(residence.tier)
         })
-        .map(|need| {
-            (
-                need.stock,
-                recovery_stock_min(need.kind, false, false),
-            )
-        });
+        .map(|need| (need.stock, recovery_stock_min(need.kind, false, false)));
     needs
         .iter()
         .filter(|need| need.kind.is_active_for_tier(residence.tier))

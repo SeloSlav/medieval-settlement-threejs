@@ -205,11 +205,11 @@ mod tests {
     use super::{
         can_cull_one, can_store_full_sheep_clip, cattle_field_support_is_active,
         cattle_manure_collection_multiplier, cattle_manure_output, effective_breeding_reserve,
-        farmhouse_cheese_salt_staging_cycles,
-        haymaking_share, is_autumn_cull_month, is_haymaking_month, is_shearing_month,
-        livestock_cycles_per_calendar_day, livestock_milk_allocation, normalize_milk_use_policy,
-        pending_cull_heads, projected_winter_fodder_grain, retain_priority_candidate,
-        sheep_fleece_output, MILK_USE_BALANCED, MILK_USE_CHEESE_FIRST, MILK_USE_FRESH,
+        farmhouse_cheese_salt_staging_cycles, haymaking_share, is_autumn_cull_month,
+        is_haymaking_month, is_shearing_month, livestock_cycles_per_calendar_day,
+        livestock_milk_allocation, normalize_milk_use_policy, pending_cull_heads,
+        projected_winter_fodder_grain, retain_priority_candidate, sheep_fleece_output,
+        MILK_USE_BALANCED, MILK_USE_CHEESE_FIRST, MILK_USE_FRESH,
     };
     use crate::season_policy::Season;
     use std::time::Instant;
@@ -236,14 +236,12 @@ mod tests {
         assert!((balanced.0 - 4.2).abs() < 1e-9);
         assert!((balanced.1 - 1.2).abs() < 1e-9);
 
-        let cheese_first =
-            livestock_milk_allocation(MILK_USE_CHEESE_FIRST, 4.2, 1.2, 20.0);
+        let cheese_first = livestock_milk_allocation(MILK_USE_CHEESE_FIRST, 4.2, 1.2, 20.0);
         assert!((cheese_first.0 - 1.35).abs() < 1e-9);
         assert!((cheese_first.1 - 4.05).abs() < 1e-9);
         assert!((cheese_first.0 + cheese_first.1 - 5.4).abs() < 1e-9);
 
-        let salt_limited =
-            livestock_milk_allocation(MILK_USE_CHEESE_FIRST, 4.2, 1.2, 0.5);
+        let salt_limited = livestock_milk_allocation(MILK_USE_CHEESE_FIRST, 4.2, 1.2, 0.5);
         assert!((salt_limited.0 - 4.9).abs() < 1e-9);
         assert!((salt_limited.1 - 0.5).abs() < 1e-9);
     }
@@ -252,7 +250,10 @@ mod tests {
     fn fresh_milk_policy_does_not_request_cheese_salt() {
         assert_eq!(farmhouse_cheese_salt_staging_cycles(MILK_USE_FRESH), 0.0);
         assert_eq!(farmhouse_cheese_salt_staging_cycles(MILK_USE_BALANCED), 3.0);
-        assert_eq!(farmhouse_cheese_salt_staging_cycles(MILK_USE_CHEESE_FIRST), 3.0);
+        assert_eq!(
+            farmhouse_cheese_salt_staging_cycles(MILK_USE_CHEESE_FIRST),
+            3.0
+        );
         assert_eq!(farmhouse_cheese_salt_staging_cycles(100), 3.0);
     }
 

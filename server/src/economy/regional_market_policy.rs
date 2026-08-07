@@ -134,12 +134,18 @@ mod tests {
 
     #[test]
     fn specialty_families_have_distinct_seasons() {
-        assert!(specialty_seasonal_demand_target(SpecialtyMarketFamily::Drink, 12)
-            > specialty_seasonal_demand_target(SpecialtyMarketFamily::Drink, 5));
-        assert!(specialty_seasonal_demand_target(SpecialtyMarketFamily::Provision, 2)
-            > specialty_seasonal_demand_target(SpecialtyMarketFamily::Provision, 7));
-        assert!(specialty_seasonal_demand_target(SpecialtyMarketFamily::Wares, 10)
-            > specialty_seasonal_demand_target(SpecialtyMarketFamily::Wares, 7));
+        assert!(
+            specialty_seasonal_demand_target(SpecialtyMarketFamily::Drink, 12)
+                > specialty_seasonal_demand_target(SpecialtyMarketFamily::Drink, 5)
+        );
+        assert!(
+            specialty_seasonal_demand_target(SpecialtyMarketFamily::Provision, 2)
+                > specialty_seasonal_demand_target(SpecialtyMarketFamily::Provision, 7)
+        );
+        assert!(
+            specialty_seasonal_demand_target(SpecialtyMarketFamily::Wares, 10)
+                > specialty_seasonal_demand_target(SpecialtyMarketFamily::Wares, 7)
+        );
     }
 
     #[test]

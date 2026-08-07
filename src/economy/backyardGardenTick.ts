@@ -3,17 +3,13 @@ import {
   BACKYARD_FOOD_RESERVE_TIER1_DAYS,
   BACKYARD_FOOD_RESERVE_TIER2_DAYS,
   BACKYARD_FOOD_RESERVE_TIER3_DAYS,
-  CALENDAR_HOURS_PER_DAY,
-  CALENDAR_SECONDS_PER_DAY,
-  CALENDAR_WORK_END_HOUR,
-  CALENDAR_WORK_START_HOUR,
   RESIDENCE_FOOD_CAPACITY,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_CAPACITY,
   SIM_TICK_SECONDS,
   type BackyardGardenKind,
 } from '../generated/gameBalance.ts';
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
+import { householdFoodPerDay } from './foodInventory.ts';
 import { gardenMarketActivity } from './gardenMarketActivity.ts';
 
 export type BackyardGardenTickEffects = {
@@ -40,12 +36,7 @@ export function backyardFoodReserveDays(tier: number): number {
 }
 
 export function backyardFoodReserveTarget(tier: number, population: number): number {
-  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
-    * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
-    / CALENDAR_HOURS_PER_DAY;
-  const requested = Math.max(0, population)
-    * RESIDENCE_FOOD_PER_PERSON_PER_SEC
-    * workdaySeconds
+  const requested = householdFoodPerDay(population)
     * backyardFoodReserveDays(tier);
   return Math.min(
     RESIDENCE_FOOD_CAPACITY + RESIDENCE_PRESERVED_FOOD_CAPACITY,

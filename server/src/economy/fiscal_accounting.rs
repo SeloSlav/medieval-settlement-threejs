@@ -44,10 +44,7 @@ pub fn collectible_household_import_duty(
     marketplace: &Building,
     base_cost: f64,
 ) -> f64 {
-    household_import_duty(
-        base_cost,
-        player_import_duty_rate(ctx, marketplace.owner),
-    )
+    household_import_duty(base_cost, player_import_duty_rate(ctx, marketplace.owner))
 }
 
 pub fn record_import_duty(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
@@ -138,17 +135,18 @@ pub fn credit_private_export_receipt(
     let split = if physical {
         let deposited = deposit_building_commodity(marketplace, CommodityKind::Gold, gross_receipt);
         let split = split_private_export_receipt(deposited, rate);
-        marketplace.civic_receipts_gold =
-            (marketplace.civic_receipts_gold.max(0.0) + split.export_duty)
-                .min(marketplace.gold.max(0.0));
-        marketplace.private_export_proceeds_gold =
-            (private_export_proceeds(marketplace) + split.household_income)
-                .min((marketplace.gold - marketplace.civic_receipts_gold).max(0.0));
+        marketplace.civic_receipts_gold = (marketplace.civic_receipts_gold.max(0.0)
+            + split.export_duty)
+            .min(marketplace.gold.max(0.0));
+        marketplace.private_export_proceeds_gold = (private_export_proceeds(marketplace)
+            + split.household_income)
+            .min((marketplace.gold - marketplace.civic_receipts_gold).max(0.0));
         split
     } else {
         let split = split_private_export_receipt(gross_receipt, rate);
         credit_treasury_gold(ctx, marketplace.owner, split.export_duty);
-        let credited = credit_settlement_household_income(ctx, marketplace.owner, split.household_income);
+        let credited =
+            credit_settlement_household_income(ctx, marketplace.owner, split.household_income);
         if credited + 1e-9 < split.household_income {
             credit_treasury_gold(ctx, marketplace.owner, split.household_income - credited);
         }
@@ -191,15 +189,15 @@ pub fn credit_local_purchase_receipt(
         .is_some_and(|resources| resources.physical_founding_site_enabled);
 
     let split = if physical {
-        let deposited = deposit_building_commodity(trading_post, CommodityKind::Gold, gross_receipt);
+        let deposited =
+            deposit_building_commodity(trading_post, CommodityKind::Gold, gross_receipt);
         let local_tax = (deposited * rate * collection).clamp(0.0, deposited);
         let producer_income = (deposited - local_tax).max(0.0);
         trading_post.civic_receipts_gold =
-            (trading_post.civic_receipts_gold.max(0.0) + local_tax)
-                .min(trading_post.gold.max(0.0));
-        trading_post.private_export_proceeds_gold =
-            (private_export_proceeds(trading_post) + producer_income)
-                .min((trading_post.gold - trading_post.civic_receipts_gold).max(0.0));
+            (trading_post.civic_receipts_gold.max(0.0) + local_tax).min(trading_post.gold.max(0.0));
+        trading_post.private_export_proceeds_gold = (private_export_proceeds(trading_post)
+            + producer_income)
+            .min((trading_post.gold - trading_post.civic_receipts_gold).max(0.0));
         LocalPurchaseSplit {
             producer_income,
             local_tax,

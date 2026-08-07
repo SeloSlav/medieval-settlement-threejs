@@ -14,7 +14,6 @@ use crate::supply_policy::{
 use crate::tables::{Building, Residence};
 use crate::well_policy::position_within_well_service_radius;
 
-
 #[derive(Debug, Clone)]
 pub struct LocalDeliveryRoute {
     pub route: RoadPathRoute,
@@ -307,10 +306,13 @@ pub fn residence_water_runway_seconds(residence: &Residence, water_stock: f64) -
 }
 
 pub fn residence_food_runway_seconds(residence: &Residence, food_stock: f64) -> f64 {
-    residence_runway_seconds(
-        residence.abandoned,
-        residence.population,
-        food_stock,
-        crate::constants::RESIDENCE_FOOD_PER_PERSON_PER_SEC,
-    )
+    if residence.abandoned || residence.population == 0 {
+        return f64::INFINITY;
+    }
+    let daily_use = crate::economy::household_food_per_day(residence.population);
+    if daily_use <= 1e-9 {
+        f64::INFINITY
+    } else {
+        food_stock.max(0.0) / daily_use * crate::balance_generated::CALENDAR_SECONDS_PER_DAY
+    }
 }

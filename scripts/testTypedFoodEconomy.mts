@@ -45,20 +45,20 @@ assert.equal(
   3,
   'close substitutes must not inflate household variety',
 );
-assert.equal(foodCategoryQualifyingStock(1), 1.05);
-assert.equal(foodCategoryQualifyingStock(6), 6.3);
+assert.ok(Math.abs(foodCategoryQualifyingStock(1) - 1.13) < 1e-9);
+assert.ok(Math.abs(foodCategoryQualifyingStock(6) - 6.78) < 1e-9);
 assert.equal(
   foodVarietyCount({ vegetables: 1 }, 1),
   0,
   'a token amount must not qualify a category',
 );
 assert.equal(
-  foodVarietyCount({ vegetables: 1.05 }, 1),
+  foodVarietyCount({ vegetables: 1.13 }, 1),
   1,
   'vegetables must qualify as their own category once a full household-day is stocked',
 );
 assert.equal(
-  foodVarietyCount({ milk: 0.55, cheese: 0.5 }, 1),
+  foodVarietyCount({ milk: 0.63, cheese: 0.5 }, 1),
   1,
   'close substitutes may combine to qualify their one shared category',
 );

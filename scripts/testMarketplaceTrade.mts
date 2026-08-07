@@ -19,8 +19,10 @@ import {
 import {
   BUILDING_STORAGE_CAPS,
   MARKETPLACE_TRADE_OFFERS,
+  MARKETPLACE_PENDING_TRADE_IDS,
   MARKET_COMMODITIES,
   SPRING_RAIN_ROAD_SPEED_MULTIPLIER,
+  TRADE_RESOURCE_KINDS,
 } from '../src/generated/gameBalance.ts';
 import {
   computeGoldAwaitingCollection,
@@ -63,6 +65,9 @@ const buyIronwork = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_i
 const sellStone = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'sell_stone');
 const timberForStone = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'timber_for_stone');
 const buyPork = MARKET_COMMODITIES.find((commodity) => commodity.id === 'buy_pork');
+const emptyTradeAvailability = () => Object.fromEntries(
+  [...TRADE_RESOURCE_KINDS, 'gold'].map((resource) => [resource, 0]),
+);
 
 function makeBuilding(
   partial: Partial<BuildingState> & Pick<BuildingState, 'id' | 'kind' | 'x' | 'z'>,
@@ -138,6 +143,48 @@ assert.ok(sellStone, 'sell_stone offer exists');
 assert.ok(timberForStone, 'timber_for_stone offer exists');
 assert.ok(buyPork, 'buy_pork commodity exists');
 assert.equal(buyPork.resourceKind, 'curedMeat');
+for (const resource of TRADE_RESOURCE_KINDS) {
+  const buy = MARKETPLACE_TRADE_OFFERS.find(
+    (offer) => offer.kind === 'goldBuy' && offer.resource === resource,
+  );
+  const sell = MARKETPLACE_TRADE_OFFERS.find(
+    (offer) => offer.kind === 'goldSell' && offer.resource === resource,
+  );
+  assert.ok(buy, `${resource} must have a public regional import contract`);
+  assert.ok(sell, `${resource} must have a public regional export contract`);
+  assert.ok(
+    buy.goldCost / buy.amount > sell.goldYield / sell.amount,
+    `${resource} trade prices need a positive merchant spread to prevent pure buy/sell arbitrage`,
+  );
+}
+const exportUnitValue = (resource: typeof TRADE_RESOURCE_KINDS[number]): number => {
+  const offer = MARKETPLACE_TRADE_OFFERS.find(
+    (candidate) => candidate.kind === 'goldSell' && candidate.resource === resource,
+  );
+  assert.ok(offer);
+  return offer.goldYield / offer.amount;
+};
+assert.ok(
+  4 * exportUnitValue('food')
+    > 3 * exportUnitValue('flour') + 2 * exportUnitValue('water') + exportUnitValue('firewood'),
+  'baking must add export value after flour, water, and fuel opportunity costs',
+);
+assert.ok(
+  2 * exportUnitValue('charcoal') > 3 * exportUnitValue('firewood'),
+  'charcoal burning must add export value after its firewood opportunity cost',
+);
+assert.ok(
+  2 * exportUnitValue('ironwork')
+    > 2 * exportUnitValue('iron') + exportUnitValue('charcoal') + exportUnitValue('water'),
+  'smithing must add export value after ore, charcoal, and quench-water opportunity costs',
+);
+for (const offer of MARKETPLACE_TRADE_OFFERS) {
+  if (offer.kind === 'goldBuy') continue;
+  assert.ok(
+    Object.values(MARKETPLACE_PENDING_TRADE_IDS).includes(offer.id),
+    `${offer.id} must have a stable persisted physical-export contract code`,
+  );
+}
 
 const marketplaceMesh = createMarketplaceMesh();
 const marketProceedsChest = marketplaceMesh.getObjectByName('MarketProceedsChest');
@@ -179,8 +226,8 @@ assert.equal(priceMultiplierFor(DEFAULT_REGIONAL_MARKET_STATE, 'ironwork'), DEFA
 assert.equal(priceMultiplierFor(DEFAULT_REGIONAL_MARKET_STATE, 'grain'), DEFAULT_REGIONAL_MARKET_STATE.foodPriceMult);
 assert.equal(
   marketplaceTradeOffersBySection(false).goldBuy.some((offer) => offer.id === 'buy_ironwork'),
-  false,
-  'peaceful markets hide military ironwork orders',
+  true,
+  'peaceful markets must still allow ironwork imports for civilian tools and construction',
 );
 assert.equal(
   marketplaceTradeOffersBySection(true).goldBuy.some((offer) => offer.id === 'buy_ironwork'),
@@ -291,6 +338,7 @@ const availability = computeMarketplaceTradeAvailability(
   roadConnected,
 );
 assert.deepEqual(availability, {
+  ...emptyTradeAvailability(),
   timber: 42,
   stone: 30,
   gold: 30,
@@ -366,6 +414,7 @@ assert.notEqual(
 assert.deepEqual(
   computeMarketplaceTradeAvailability(physicalTradeState, marketplace, roadConnected),
   {
+    ...emptyTradeAvailability(),
     timber: 25,
     stone: 20,
     gold: 0,
@@ -444,6 +493,7 @@ const fireBlockedTradeState: GameState = {
 assert.deepEqual(
   computeMarketplaceTradeAvailability(fireBlockedTradeState, marketplace, roadConnected),
   {
+    ...emptyTradeAvailability(),
     timber: 5,
     stone: 4,
     gold: 0,
@@ -800,7 +850,7 @@ assert.match(
 );
 assert.match(marketplaceTradeSource, /try_advance_pending_marketplace_trade/);
 assert.match(marketplaceTradeSource, /credit_marketplace_receipt_gold/);
-assert.match(marketplaceTradeSource, /pending_trade_code[\s\S]*"sell_timber" => Some\(1\)/);
+assert.match(marketplaceTradeSource, /pending_trade_code[\s\S]*marketplace_trade_contract_code/);
 assert.match(marketplaceTradeSource, /MarketplaceTradeOutcome::Settled[\s\S]*clear_pending_marketplace_trade/);
 assert.match(
   marketplaceCaravanSource,
@@ -811,6 +861,16 @@ assert.match(
   marketplaceCaravanSource,
   /Routine household goods are allocated from Marketplace stock in one[\s\S]*No market-to-home cart departs here/,
   'routine household availability must stay separate from Trading Post export stock and pending regional orders',
+);
+assert.match(
+  marketplaceCaravanSource,
+  /Public bulk provisions unload at the Trading Post[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::Water/,
+  'public food and water imports must continue from the Trading Post on staffed local carts',
+);
+assert.match(
+  marketplaceCaravanSource,
+  /building\.cheese <= 1e-6[\s\S]*building\.pottery <= 1e-6/,
+  'pottery-only automatic export stock must keep the specialty desk active',
 );
 assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_proceeds/);
 assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_cash_reserve/);
@@ -864,7 +924,16 @@ assert.match(
   spacetimeReducersSource,
   /setMarketplaceGoldReserveTarget[\s\S]*set_marketplace_gold_reserve_target/,
 );
-assert.match(marketplaceTradeSource, /contested-frontier worlds/);
+assert.doesNotMatch(
+  marketplaceTradeSource,
+  /Imported military ironwork is only available/,
+  'manual ironwork imports must remain available in peaceful civilian economies',
+);
+assert.match(
+  marketplaceTradeSource,
+  /start_external_market_import_trip[\s\S]*restore_marketplace_coffer_gold/,
+  'a failed physical import departure must refund its Trading Post coffer',
+);
 assert.match(marketplaceTradeSource, /current_road_speed_multiplier/);
 assert.match(marketplaceTradeSource, /manual_trade_cooldown_seconds\(assigned_labor, road_speed_multiplier\)/);
 assert.match(

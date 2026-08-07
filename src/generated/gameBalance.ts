@@ -189,6 +189,7 @@ export const RESIDENCE_WATER_REORDER_FRACTION = 0.3333333333333333;
 export const RESIDENCE_WATER_PER_PERSON_PER_SEC = 0.012;
 export const RESIDENCE_FOOD_CAPACITY = 32;
 export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = 0.015;
+export const EVENING_MEAL_PER_PERSON = 0.08;
 export const FOOD_CATEGORY_QUALIFYING_DAYS = 1;
 export const BACKYARD_FOOD_RESERVE_TIER1_DAYS = 3;
 export const BACKYARD_FOOD_RESERVE_TIER2_DAYS = 5;
@@ -1759,7 +1760,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"buy_water","kind":"goldBuy","resource":"water","amount":10,"goldCost":8},
   {"id":"sell_water","kind":"goldSell","resource":"water","amount":10,"goldYield":4},
   {"id":"buy_food","kind":"goldBuy","resource":"food","amount":10,"goldCost":13},
-  {"id":"sell_food","kind":"goldSell","resource":"food","amount":10,"goldYield":8},
+  {"id":"sell_food","kind":"goldSell","resource":"food","amount":10,"goldYield":10},
   {"id":"buy_seed_grain","kind":"goldBuy","resource":"grain","amount":24,"goldCost":18},
   {"id":"sell_grain","kind":"goldSell","resource":"grain","amount":24,"goldYield":11},
   {"id":"buy_flour","kind":"goldBuy","resource":"flour","amount":12,"goldCost":15},
@@ -1785,7 +1786,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"buy_flax","kind":"goldBuy","resource":"flax","amount":12,"goldCost":12},
   {"id":"sell_flax","kind":"goldSell","resource":"flax","amount":12,"goldYield":7},
   {"id":"buy_ironwork","kind":"goldBuy","resource":"ironwork","amount":6,"goldCost":12},
-  {"id":"sell_ironwork","kind":"goldSell","resource":"ironwork","amount":6,"goldYield":8},
+  {"id":"sell_ironwork","kind":"goldSell","resource":"ironwork","amount":6,"goldYield":10},
   {"id":"buy_iron","kind":"goldBuy","resource":"iron","amount":12,"goldCost":16},
   {"id":"sell_iron","kind":"goldSell","resource":"iron","amount":12,"goldYield":10},
   {"id":"buy_clay","kind":"goldBuy","resource":"clay","amount":16,"goldCost":10},
@@ -1793,7 +1794,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"buy_salt","kind":"goldBuy","resource":"salt","amount":12,"goldCost":14},
   {"id":"sell_salt","kind":"goldSell","resource":"salt","amount":12,"goldYield":8},
   {"id":"buy_charcoal","kind":"goldBuy","resource":"charcoal","amount":12,"goldCost":12},
-  {"id":"sell_charcoal","kind":"goldSell","resource":"charcoal","amount":12,"goldYield":7},
+  {"id":"sell_charcoal","kind":"goldSell","resource":"charcoal","amount":12,"goldYield":10},
   {"id":"buy_pottery","kind":"goldBuy","resource":"pottery","amount":12,"goldCost":27},
   {"id":"sell_pottery","kind":"goldSell","resource":"pottery","amount":12,"goldYield":18},
   {"id":"buy_manure","kind":"goldBuy","resource":"manure","amount":20,"goldCost":6},

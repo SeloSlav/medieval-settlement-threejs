@@ -8,7 +8,6 @@ import {
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
   PRESERVED_FOOD_STORAGE_TREASURY_FACTOR,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
   SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -34,7 +33,7 @@ import {
   buildingPreservedFoodStorageFactor,
   spoilageAdjustedRunwayDays,
 } from './foodPreservation.ts';
-import { isPreservedFoodCargo, preservedFoodStock } from './foodInventory.ts';
+import { householdFoodPerDay, isPreservedFoodCargo, preservedFoodStock } from './foodInventory.ts';
 
 /**
  * A month of substitute provisions is demanding enough to make autumn
@@ -290,9 +289,7 @@ export function computeSettlementPreservationReservePlan(
     }
     const residents = Math.max(0, residence.population);
     branch.residents += residents;
-    branch.fallbackDemandPerDay += residents
-      * RESIDENCE_FOOD_PER_PERSON_PER_SEC
-      * WORKDAY_SECONDS;
+    branch.fallbackDemandPerDay += householdFoodPerDay(residents);
     branch.firstResidenceId = earlierStableId(
       branch.firstResidenceId,
       residence.id,

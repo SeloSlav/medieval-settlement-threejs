@@ -8,10 +8,10 @@ use crate::balance_generated::{
     CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP, CARPENTER_CART_SERVICE_TIMBER_PER_TRIP,
     CARPENTER_DELIVERY_SPEED_MULTIPLIER, CONSTRUCTION_DELIVERY_SPEED_MPS,
     CONSTRUCTION_DELIVERY_UNLOAD_SEC, CONSTRUCTION_HAUL_PER_WORKER, FIRE_BUCKET_SPEED_MPS,
-    FIRE_BUCKET_UNLOAD_SECONDS, HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY,
-    FOOD_SALE_GOLD_PER_UNIT, HOUSEHOLD_MAX_WEALTH, REMEDIES_PER_DELIVERY, REMEDY_DELIVERY_SPEED_MPS,
-    REMEDY_DELIVERY_TARGET_DAYS, REMEDY_DELIVERY_UNLOAD_SEC, STOREHOUSE_HAUL_PER_WORKER,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    FIRE_BUCKET_UNLOAD_SECONDS, FOOD_SALE_GOLD_PER_UNIT, HERB_REMEDY_CAPACITY,
+    HERB_TREATMENT_PER_SICK_DAY, HOUSEHOLD_MAX_WEALTH, REMEDIES_PER_DELIVERY,
+    REMEDY_DELIVERY_SPEED_MPS, REMEDY_DELIVERY_TARGET_DAYS, REMEDY_DELIVERY_UNLOAD_SEC,
+    STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 pub use crate::delivery_trip_policy::DeliveryTripPhase;
@@ -19,13 +19,13 @@ use crate::delivery_trip_policy::{raid_cart_posture, RaidCartPosture};
 use crate::economy::{
     adriatic_trade_entry_point, available_building_labor, building_commodity_room,
     building_commodity_stock, chapel_coffer_gold, chapel_monastery_tithe_due,
-    credit_marketplace_receipt_gold, credit_residence_wealth,
-    credit_settlement_household_income, credit_treasury_commodity, deposit_building_commodity,
-    deposit_residence_commodity, private_export_proceeds, record_parish_ledger,
+    credit_marketplace_receipt_gold, credit_residence_wealth, credit_settlement_household_income,
+    credit_treasury_commodity, deposit_building_commodity, deposit_residence_commodity,
+    player_economic_activity_tax_rate, private_export_proceeds, record_parish_ledger,
     record_private_export_income, restore_local_civic_receipts, restore_private_export_proceeds,
-    player_economic_activity_tax_rate, settle_regional_market_export, taxed_economic_activity,
-    town_hall_tax_collection_multiplier, withdraw_building_commodity, withdraw_coffer_in_place,
-    withdraw_private_export_proceeds, CommodityKind, ParishLedgerKind,
+    settle_regional_market_export, taxed_economic_activity, town_hall_tax_collection_multiplier,
+    withdraw_building_commodity, withdraw_coffer_in_place, withdraw_private_export_proceeds,
+    CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
 use crate::raid_agent_policy::{
@@ -376,7 +376,9 @@ pub fn onsite_building_labor(ctx: &ReducerContext, building: &Building) -> u32 {
         .delivery_trip()
         .building_id()
         .filter(&building.id)
-        .filter(|trip| trip.labor_building_id == 0 && trip.free_hauler_workers < trip.delivery_workers)
+        .filter(|trip| {
+            trip.labor_building_id == 0 && trip.free_hauler_workers < trip.delivery_workers
+        })
         .map(|trip| {
             rostered_cart_workers(
                 building.assigned_labor,
@@ -411,8 +413,7 @@ pub fn preserve_in_transit_cart_labor(
             .building_id()
             .filter(&building_id)
             .filter(|trip| {
-                trip.labor_building_id == 0
-                    && trip.free_hauler_workers < trip.delivery_workers
+                trip.labor_building_id == 0 && trip.free_hauler_workers < trip.delivery_workers
             }),
     );
     let mut remaining_roster_backing = retained_building_labor;
@@ -483,7 +484,8 @@ fn is_regional_market_trip(trip: &DeliveryTrip) -> bool {
 }
 
 pub fn building_has_regional_market_trip(ctx: &ReducerContext, marketplace_id: u64) -> bool {
-    let active_routes = ctx.db
+    let active_routes = ctx
+        .db
         .delivery_trip()
         .building_id()
         .filter(&marketplace_id)
@@ -866,11 +868,8 @@ pub fn try_start_delivery_trip(
     per_delivery_amount: f64,
 ) -> bool {
     let labor_source = household_delivery_labor_source(building);
-    let delivery_workers = delivery_workers.min(delivery_labor_available(
-        ctx,
-        building.owner,
-        labor_source,
-    ));
+    let delivery_workers =
+        delivery_workers.min(delivery_labor_available(ctx, building.owner, labor_source));
     if delivery_workers == 0
         || tick.building_disabled_by_fire(ctx, building.id)
         || building_has_active_trip(ctx, building.id)
@@ -891,17 +890,15 @@ pub fn try_start_delivery_trip(
     }
 
     let batch = per_delivery_amount * delivery_workers as f64;
-    let Some((residence_id, residence_x, residence_z, load_amount)) =
-        pick_delivery_target(
-            ctx,
-            available,
-            batch,
-            targets,
-            need_kind,
-            delivery_commodity,
-            |residence_id| !tick.residence_disabled_by_fire(ctx, residence_id),
-        )
-    else {
+    let Some((residence_id, residence_x, residence_z, load_amount)) = pick_delivery_target(
+        ctx,
+        available,
+        batch,
+        targets,
+        need_kind,
+        delivery_commodity,
+        |residence_id| !tick.residence_disabled_by_fire(ctx, residence_id),
+    ) else {
         return false;
     };
 
@@ -974,17 +971,15 @@ pub fn try_start_market_stall_delivery_trip(
         .map(|commodity| building_commodity_stock(marketplace, commodity))
         .unwrap_or_else(|| building_delivery_stock(marketplace, need_kind));
     let batch = per_delivery_amount * delivery_workers as f64;
-    let Some((residence_id, residence_x, residence_z, load_amount)) =
-        pick_delivery_target(
-            ctx,
-            available,
-            batch,
-            targets,
-            need_kind,
-            delivery_commodity,
-            |residence_id| !tick.residence_disabled_by_fire(ctx, residence_id),
-        )
-    else {
+    let Some((residence_id, residence_x, residence_z, load_amount)) = pick_delivery_target(
+        ctx,
+        available,
+        batch,
+        targets,
+        need_kind,
+        delivery_commodity,
+        |residence_id| !tick.residence_disabled_by_fire(ctx, residence_id),
+    ) else {
         return false;
     };
     let cargo_kind = delivery_commodity
@@ -1117,11 +1112,8 @@ pub fn try_start_remedy_delivery_trip(
     delivery_workers: u32,
 ) -> bool {
     let labor_source = DeliveryLaborSource::Free;
-    let delivery_workers = delivery_workers.min(delivery_labor_available(
-        ctx,
-        forager.owner,
-        labor_source,
-    ));
+    let delivery_workers =
+        delivery_workers.min(delivery_labor_available(ctx, forager.owner, labor_source));
     if forager.kind != "foragers_shed"
         || delivery_workers == 0
         || forager.owner != residence.owner
@@ -1420,11 +1412,8 @@ fn try_start_building_supply_trip_with_labor(
     needed: f64,
     labor_source: DeliveryLaborSource,
 ) -> bool {
-    let delivery_workers = delivery_workers.min(delivery_labor_available(
-        ctx,
-        origin.owner,
-        labor_source,
-    ));
+    let delivery_workers =
+        delivery_workers.min(delivery_labor_available(ctx, origin.owner, labor_source));
     if delivery_workers == 0
         || tick.building_disabled_by_fire(ctx, origin.id)
         || tick.building_disabled_by_fire(ctx, target.id)
@@ -2144,8 +2133,7 @@ fn trip_route(
             } else {
                 (target_x, target_z)
             };
-            local_delivery_route(network, building.x, building.z, x, z)
-                .map(|route| route.route)
+            local_delivery_route(network, building.x, building.z, x, z).map(|route| route.route)
         }
         DELIVERY_DESTINATION_BUILDING => {
             let target = ctx.db.building().id().find(&trip.target_building_id)?;

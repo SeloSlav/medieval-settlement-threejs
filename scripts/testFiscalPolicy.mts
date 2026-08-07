@@ -49,6 +49,35 @@ const forecast = forecastMonthlyLandLevy(state, LAND_LEVY_RATE_MAX, 1);
 assert.equal(forecast.occupiedHomes, 1);
 assert.equal(forecast.monthlyAssessed, basicValue * LAND_LEVY_RATE_MAX / 12);
 assert.equal(forecast.monthlyCollectable, 0.2, 'land levy never drives household wealth below zero');
+assert.equal(forecast.collectableHomes, 1);
+const topologyState = {
+  ...state,
+  buildings: new Map([[
+    'market-1',
+    {
+      id: 'market-1',
+      kind: 'marketplace',
+      constructionComplete: true,
+      x: 0,
+      z: 0,
+    },
+  ]]),
+  fireIncidents: new Map(),
+} as unknown as GameState;
+const disconnectedForecast = forecastMonthlyLandLevy(
+  topologyState,
+  LAND_LEVY_RATE_MAX,
+  1,
+  () => false,
+);
+assert.equal(disconnectedForecast.monthlyAssessed, forecast.monthlyAssessed);
+assert.equal(disconnectedForecast.monthlyCollectable, 0);
+assert.equal(disconnectedForecast.unservedHomes, 1);
+assert.equal(
+  forecastMonthlyLandLevy(topologyState, LAND_LEVY_RATE_MAX, 1, () => true).monthlyCollectable,
+  0.2,
+  'forecast collection must require the same operational Marketplace road branch as the server',
+);
 
 assert.equal(householdImportDuty(20, IMPORT_DUTY_RATE_MAX), 20 * IMPORT_DUTY_RATE_MAX);
 assert.equal(householdImportDuty(20, -1), 0);

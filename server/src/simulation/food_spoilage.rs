@@ -11,9 +11,8 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_fresh_food_stock, building_preserved_food_stock, building_commodity_stock,
-    withdraw_building_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
-    PRESERVED_FOOD_COMMODITIES,
+    building_commodity_stock, building_fresh_food_stock, building_preserved_food_stock,
+    withdraw_building_commodity, CommodityKind, FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
 };
 use crate::season_policy::EnvironmentState;
 use crate::tables::{Building, DeliveryTrip, PlayerResources};
@@ -105,10 +104,7 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         macro_rules! spoil_fresh {
             ($field:ident) => {
                 resources.$field = (resources.$field
-                    - resources.$field
-                        * fresh_rate
-                        * FRESH_FOOD_STORAGE_TREASURY_FACTOR
-                        * TICK_DT)
+                    - resources.$field * fresh_rate * FRESH_FOOD_STORAGE_TREASURY_FACTOR * TICK_DT)
                     .max(0.0);
             };
         }

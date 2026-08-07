@@ -4,7 +4,6 @@ import {
   HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
   HOUSEHOLD_FOOD_RESERVE_PER_CLAIM,
   RESIDENCE_FOOD_CAPACITY,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   SMOKEHOUSE_FOOD_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import { granaryFreshFoodTarget } from '../economy/granaryPolicy.ts';
@@ -35,6 +34,7 @@ import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
 import {
   edibleFoodStock,
   freshFoodStock,
+  householdFoodPerDay,
   preservableFoodStock,
   type FoodInventoryLike,
 } from '../economy/foodInventory.ts';
@@ -154,9 +154,9 @@ export function institutionalFoodSurplus(
 export function residenceFoodRunwaySeconds(residence: ResidenceState): number | null {
   if (residence.abandoned || residence.population === 0) return null;
   const stock = residenceFoodStock(residence);
-  const usePerSec = residence.population * RESIDENCE_FOOD_PER_PERSON_PER_SEC;
-  if (usePerSec <= 1e-9) return null;
-  return stock / usePerSec;
+  const usePerDay = householdFoodPerDay(residence.population);
+  if (usePerDay <= 1e-9) return null;
+  return stock / usePerDay * GAME_DAY_SECONDS;
 }
 
 export function residenceFoodRunwayDays(residence: ResidenceState): number | null {

@@ -56,12 +56,7 @@ pub fn step_well(
     let mut well = building;
     // Compatibility for saves created while wells exposed worker slots.
     well.assigned_labor = 0;
-    let hydrology = sample_world_hydrology_score(
-        well.x,
-        well.z,
-        world_seed,
-        world_hydrology,
-    );
+    let hydrology = sample_world_hydrology_score(well.x, well.z, world_seed, world_hydrology);
     let capacity = if well.water_capacity > 0.0 {
         well.water_capacity
     } else {
@@ -75,11 +70,7 @@ pub fn step_well(
     // accumulates at the baseline draw rate. Household availability is then
     // allocated abstractly; flexible haulers are reserved only for industry.
     well.water = (well.water
-        + well_refill_amount(
-            hydrology,
-            environment.well_refill_multiplier(),
-            TICK_DT,
-        ))
+        + well_refill_amount(hydrology, environment.well_refill_multiplier(), TICK_DT))
     .min(capacity);
 
     if well.action_cooldown <= 0.0 && should_surge(well.id, sim_tick, hydrology) {

@@ -82,7 +82,9 @@ pub fn recall_idle_seasonal_labor_for_owner(
                 }
             });
         let has_outbound_stock = match building.kind.as_str() {
-            "foragers_shed" => building_edible_food_stock(&building) > 1e-6 || building.remedies > 1e-6,
+            "foragers_shed" => {
+                building_edible_food_stock(&building) > 1e-6 || building.remedies > 1e-6
+            }
             "fishing_camp" => building.fish > 1e-6,
             "apiary" => building.honey > 1e-6,
             "vineyard" => building.grapes > 1e-6 || building.wine > 1e-6,

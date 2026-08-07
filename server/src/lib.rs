@@ -1,8 +1,8 @@
 //! Medieval Road System — SpacetimeDB server module.
 //! Single-player localhost: anonymous identity per browser token; resources/buildings/roads scoped by owner.
 
-mod backyard_garden_policy;
 mod apiary_policy;
+mod backyard_garden_policy;
 mod balance_generated;
 mod building_defs;
 mod burgage;
@@ -17,8 +17,9 @@ mod delivery_trip_policy;
 mod economy;
 mod farming;
 mod fire_policy;
-mod fiscal_policy;
 mod fire_recovery_policy;
+mod fiscal_policy;
+mod food_demand_policy;
 mod foraging_policy;
 mod frontier_economy_policy;
 mod granary_policy;
@@ -41,14 +42,13 @@ mod processor_output_policy;
 mod quarry_balance;
 mod raid_agent_policy;
 mod reducers;
-mod residence_settlement_policy;
 mod residence_service_policy;
+mod residence_settlement_policy;
 mod residence_upgrade_policy;
 mod resident_welfare_policy;
 mod roads;
 mod schedule;
 mod season_policy;
-mod wind_policy;
 mod seasonal_labor_policy;
 mod security_policy;
 mod simulation;
@@ -60,9 +60,10 @@ mod types;
 mod vineyard;
 mod weaver_input_policy;
 mod well_policy;
+mod wind_policy;
 mod woodcutter_policy;
-mod worksite_stall_policy;
 mod workforce_commute_policy;
+mod worksite_stall_policy;
 mod world_entities;
 mod world_gen;
 mod year_round_labor_policy;

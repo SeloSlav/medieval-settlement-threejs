@@ -1,7 +1,6 @@
 import {
   RESIDENCE_FIREWOOD_CAPACITY,
   RESIDENCE_FOOD_CAPACITY,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_CAPACITY,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
@@ -28,7 +27,7 @@ import {
   residencePotteryRunwayDays,
 } from '../logistics/specialtyLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
-import { GAME_DAY_SECONDS } from '../world/gameCalendar.ts';
+import { householdFoodPerDay } from '../economy/foodInventory.ts';
 import {
   getNeed,
   activeResidenceNeedKinds,
@@ -465,7 +464,7 @@ function activeNeedKinds(residence: ResidenceState): ResidenceNeedKind[] {
 function residenceFoodRunwayDays(residence: ResidenceState): number | null {
   if (residence.population === 0) return null;
   const stock = getNeed(residence.needs, 'food').stock;
-  const dailyUse = residence.population * RESIDENCE_FOOD_PER_PERSON_PER_SEC * GAME_DAY_SECONDS;
+  const dailyUse = householdFoodPerDay(residence.population);
   if (dailyUse <= 1e-9) return null;
   return stock / dailyUse;
 }

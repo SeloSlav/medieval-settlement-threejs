@@ -18,8 +18,8 @@ mod foraging_respawn;
 mod founding_site;
 mod game_calendar;
 mod guardhouse_payroll;
-mod household_distribution;
 mod household_discretionary_trade;
+mod household_distribution;
 mod household_market_orders;
 mod labor_schedule;
 mod landmark_access;
@@ -68,9 +68,8 @@ pub use delivery_trips::{
     step_delivery_trips, try_start_building_supply_trip, try_start_fire_response_trip,
 };
 pub use expanded_economy::{
-    step_apiary, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
-    step_bakery, step_granary, step_guardhouse,
-    step_industrial_firewood_dispatch,
+    step_apiary, step_bakery, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
+    step_granary, step_guardhouse, step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_local_material_dispatch,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_potter_kiln,
     step_seed_grain_distribution, step_smithy, step_smokehouse, step_threshing_barn, step_vineyard,
@@ -89,8 +88,8 @@ pub use foraging_respawn::step_foraging_lifecycle;
 pub use founding_site::step_founding_sites;
 pub use game_calendar::{game_clock, holiday_observance, GameClock};
 pub use guardhouse_payroll::try_dispatch_guardhouse_payroll;
-pub use household_distribution::{distribute_well_water, step_market_household_distribution};
 pub use household_discretionary_trade::step_household_discretionary_trade;
+pub use household_distribution::{distribute_well_water, step_market_household_distribution};
 pub use household_market_orders::step_household_market_orders;
 pub use labor_schedule::{labor_and_logistics_paused, production_labor_paused};
 pub use large_quarry::step_large_quarry;

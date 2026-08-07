@@ -200,6 +200,11 @@ const tablesSource = fs.readFileSync('server/src/tables.rs', 'utf8');
 const reducerSource = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
 const tradeSource = fs.readFileSync('server/src/economy/marketplace_trade.rs', 'utf8');
 const caravanSource = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
+const expandedEconomySource = fs.readFileSync(
+  'server/src/simulation/expanded_economy.rs',
+  'utf8',
+);
+const supplyPolicySource = fs.readFileSync('server/src/supply_policy.rs', 'utf8');
 const deliveryTripSource = fs.readFileSync(
   'server/src/simulation/delivery_trips.rs',
   'utf8',
@@ -302,6 +307,42 @@ assert.match(
   caravanSource,
   /marketplace_iron_target > 0[\s\S]*marketplace_salt_target > 0[\s\S]*clock\.sim_tick % 5 == building_id % 5/,
   'material targets must reuse the staggered marketplace heartbeat',
+);
+for (const commodity of [
+  'Grain', 'Flour', 'Barley', 'Malt', 'Food', 'Meat', 'Fish', 'Milk',
+  'Wool', 'Flax', 'Ironwork', 'Clay', 'Charcoal', 'Pottery', 'Firewood',
+  'Water', 'Iron', 'Salt', 'Grapes', 'Manure', 'Polearms', 'Wine',
+]) {
+  assert.match(
+    expandedEconomySource,
+    new RegExp(`CommodityKind::${commodity}`),
+    `Trading Post processor dispatch must cover imported ${commodity}`,
+  );
+}
+assert.match(
+  expandedEconomySource,
+  /pending_marketplace_trade_commodity[\s\S]*reserved_for_trade == Some\(commodity\)/,
+  'local processor carts must not consume stock pledged to a manual export',
+);
+assert.match(
+  expandedEconomySource,
+  /threshing_barn[\s\S]*CommodityKind::Manure[\s\S]*farmstead_manure_requirement_for/,
+  'imported manure must target active field requirements rather than arbitrary storage',
+);
+assert.match(
+  expandedEconomySource,
+  /guardhouse[\s\S]*CommodityKind::Polearms[\s\S]*guardhouse_polearm_target/,
+  'imported polearms must refill armed guard companies',
+);
+assert.match(
+  expandedEconomySource,
+  /monastery[\s\S]*CommodityKind::Wine[\s\S]*MONASTERY_FEAST_WINE/,
+  'imported wine must support monastery hospitality stock',
+);
+assert.match(
+  supplyPolicySource,
+  /LOCAL_MATERIAL_SOURCE_KINDS:[\s\S]*"trading_post"/,
+  'imported tool and workshop goods must participate in the ordinary local material network',
 );
 assert.match(generatedTable, /marketplaceIronTarget: __t\.u8\(\)/);
 assert.match(generatedTable, /marketplaceSaltTarget: __t\.u8\(\)/);

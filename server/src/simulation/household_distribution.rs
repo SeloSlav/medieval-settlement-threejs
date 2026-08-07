@@ -14,8 +14,8 @@ use crate::economy::{
     withdraw_building_commodity,
 };
 use crate::simulation::delivery_cargo::{
-    delivery_stock_room, residence_commodity_delivery_room, selected_food_delivery_commodity_for_residence,
-    withdraw_delivery_cargo,
+    delivery_stock_room, residence_commodity_delivery_room,
+    selected_food_delivery_commodity_for_residence, withdraw_delivery_cargo,
 };
 use crate::simulation::residence_needs::state::{migrate_and_sync_food_inventory, persist_needs};
 use crate::simulation::residence_needs::{
@@ -300,11 +300,9 @@ fn distribute_food_to_residence(
         if need_room <= 1e-9 {
             return;
         }
-        let Some(commodity) = selected_food_delivery_commodity_for_residence(
-            source,
-            &residence,
-            need_kind,
-        ) else {
+        let Some(commodity) =
+            selected_food_delivery_commodity_for_residence(source, &residence, need_kind)
+        else {
             return;
         };
         let commodity_room = residence_commodity_delivery_room(&residence, commodity);

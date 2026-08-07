@@ -144,7 +144,12 @@ export function marketplaceTradeStagingPlan(
       inbound: false,
     };
   }
-  const localStock = Math.max(0, building[cost.resource] ?? 0);
+  const localStock = Math.max(
+    0,
+    cost.resource === 'food'
+      ? building.bread ?? 0
+      : (building as unknown as Partial<Record<TradeResourceKind, number>>)[cost.resource] ?? 0,
+  );
   const missing = Math.max(0, cost.amount - localStock);
   return {
     resource: cost.resource,
@@ -405,14 +410,8 @@ export function marketplaceTradeOffersBySection(includeFrontierOffers = true): {
   const goldBuy: MarketplaceTradeOffer[] = [];
   const goldSell: MarketplaceTradeOffer[] = [];
   const barter: MarketplaceBarterOffer[] = [];
+  void includeFrontierOffers;
   for (const offer of MARKETPLACE_TRADE_OFFERS) {
-    const frontierOffer = offer.kind === 'barter'
-      ? (offer.give as TradeResourceKind) === 'ironwork'
-        || (offer.receive as TradeResourceKind) === 'ironwork'
-      : offer.resource === 'ironwork';
-    if (!includeFrontierOffers && frontierOffer) {
-      continue;
-    }
     if (offer.kind === 'goldBuy') goldBuy.push(offer);
     else if (offer.kind === 'goldSell') goldSell.push(offer);
     else barter.push(offer);

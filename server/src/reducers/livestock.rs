@@ -189,10 +189,22 @@ pub fn place_pasture(
     }
     for vineyard in ctx.db.vineyard_parcel().owner().filter(&owner) {
         let existing = [
-            Point2 { x: vineyard.corner_ax, z: vineyard.corner_az },
-            Point2 { x: vineyard.corner_bx, z: vineyard.corner_bz },
-            Point2 { x: vineyard.corner_cx, z: vineyard.corner_cz },
-            Point2 { x: vineyard.corner_dx, z: vineyard.corner_dz },
+            Point2 {
+                x: vineyard.corner_ax,
+                z: vineyard.corner_az,
+            },
+            Point2 {
+                x: vineyard.corner_bx,
+                z: vineyard.corner_bz,
+            },
+            Point2 {
+                x: vineyard.corner_cx,
+                z: vineyard.corner_cz,
+            },
+            Point2 {
+                x: vineyard.corner_dx,
+                z: vineyard.corner_dz,
+            },
         ];
         if convex_zones_overlap(&polygon, &existing) {
             return Err("Pasture overlaps an existing vineyard.".to_string());
@@ -219,12 +231,7 @@ pub fn place_pasture(
         corner_dz,
         area,
         average_slope_degrees: slope,
-        moisture: sample_world_hydrology_score(
-            center.x,
-            center.z,
-            config.seed,
-            config.hydrology,
-        ),
+        moisture: sample_world_hydrology_score(center.x, center.z, config.seed, config.hydrology),
     });
     Ok(())
 }

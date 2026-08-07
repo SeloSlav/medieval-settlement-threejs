@@ -4,8 +4,9 @@ use spacetimedb::ReducerContext;
 
 use crate::economy::{
     building_commodity_stock, building_edible_food_stock, building_preserved_food_stock,
-    food_category, residence_food_category_mask, residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building,
-    withdraw_building_commodity, withdraw_building_water, CommodityKind,
+    food_category, residence_food_category_mask, residence_fresh_food_stock,
+    residence_preserved_food_stock, withdraw_building, withdraw_building_commodity,
+    withdraw_building_water, CommodityKind,
 };
 use crate::simulation::residence_needs::{firewood, food, provisions, water};
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
@@ -189,11 +190,24 @@ pub fn selected_food_delivery_commodity(
 
     let candidates: &[CommodityKind] = match need_kind {
         ResidenceNeedKind::Food => &[
-            FRESH_ORDER[0], FRESH_ORDER[1], FRESH_ORDER[2], FRESH_ORDER[3],
-            FRESH_ORDER[4], FRESH_ORDER[5], FRESH_ORDER[6], FRESH_ORDER[7],
-            FRESH_ORDER[8], FRESH_ORDER[9], FRESH_ORDER[10], FRESH_ORDER[11],
-            FRESH_ORDER[12], PRESERVED_ORDER[0], PRESERVED_ORDER[1],
-            PRESERVED_ORDER[2], PRESERVED_ORDER[3], FRESH_ORDER[13],
+            FRESH_ORDER[0],
+            FRESH_ORDER[1],
+            FRESH_ORDER[2],
+            FRESH_ORDER[3],
+            FRESH_ORDER[4],
+            FRESH_ORDER[5],
+            FRESH_ORDER[6],
+            FRESH_ORDER[7],
+            FRESH_ORDER[8],
+            FRESH_ORDER[9],
+            FRESH_ORDER[10],
+            FRESH_ORDER[11],
+            FRESH_ORDER[12],
+            PRESERVED_ORDER[0],
+            PRESERVED_ORDER[1],
+            PRESERVED_ORDER[2],
+            PRESERVED_ORDER[3],
+            FRESH_ORDER[13],
         ],
         ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER,
         _ => return None,

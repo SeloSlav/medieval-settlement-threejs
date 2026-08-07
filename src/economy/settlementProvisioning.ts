@@ -15,7 +15,6 @@ import {
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
@@ -59,6 +58,7 @@ import {
 import {
   edibleFoodStock,
   freshFoodStock,
+  householdFoodPerDay as householdFoodDemandPerDay,
   isFreshFoodCargo,
   isPreservedFoodCargo,
   preservedFoodStock,
@@ -543,9 +543,7 @@ export function computeSettlementProvisioning(input: {
     }
     householdBufferHouseholds += 1;
     let householdBufferReady = true;
-    const grossFoodNeeded = residence.population
-      * RESIDENCE_FOOD_PER_PERSON_PER_SEC
-      * workdaySeconds;
+    const grossFoodNeeded = householdFoodDemandPerDay(residence.population);
     let preservedFoodNeeded = 0;
     let preservedFoodRotationUsed = 0;
     if (residence.tier >= 3) {

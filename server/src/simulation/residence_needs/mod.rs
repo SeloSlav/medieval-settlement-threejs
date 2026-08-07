@@ -22,9 +22,9 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::{
-    reconcile_building_labor, residence_food_variety_count, residence_fresh_food_stock, residence_preserved_food_stock,
-    withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
-    PRESERVED_FOOD_COMMODITIES,
+    reconcile_building_labor, residence_food_variety_count, residence_fresh_food_stock,
+    residence_preserved_food_stock, withdraw_residence_commodity, CommodityKind,
+    FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
 };
 use crate::preserved_food_policy::allocate_preserved_meal;
 use crate::resident_welfare_policy::{
@@ -226,17 +226,13 @@ fn consume_food_with_preserved(
 }
 
 fn spoil_residence_food_inventory(residence: &mut Residence, environment: EnvironmentState) {
-    let fresh_fraction = (
-        environment.fresh_food_spoilage_fraction_per_second()
-            * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR
-            * TICK_DT
-    )
+    let fresh_fraction = (environment.fresh_food_spoilage_fraction_per_second()
+        * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR
+        * TICK_DT)
         .clamp(0.0, 1.0);
-    let preserved_fraction = (
-        environment.preserved_food_spoilage_fraction_per_second()
-            * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
-            * TICK_DT
-    )
+    let preserved_fraction = (environment.preserved_food_spoilage_fraction_per_second()
+        * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
+        * TICK_DT)
         .clamp(0.0, 1.0);
     for commodity in FRESH_FOOD_COMMODITIES {
         let stock = crate::economy::residence_commodity_stock(residence, commodity);

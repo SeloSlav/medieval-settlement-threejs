@@ -353,6 +353,7 @@ export type GameBalance = {
     residenceWaterPerPersonPerSec: number;
     residenceFoodCapacity: number;
     residenceFoodPerPersonPerSec: number;
+    eveningMealPerPerson: number;
     foodCategoryQualifyingDays: number;
     backyardFoodReserveTier1Days: number;
     backyardFoodReserveTier2Days: number;
@@ -919,6 +920,7 @@ function generateRust(): string {
     `pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceWaterPerPersonPerSec)};`,
     `pub const RESIDENCE_FOOD_CAPACITY: f64 = ${rustF64(b.population.residenceFoodCapacity)};`,
     `pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFoodPerPersonPerSec)};`,
+    `pub const EVENING_MEAL_PER_PERSON: f64 = ${rustF64(b.population.eveningMealPerPerson)};`,
     `pub const FOOD_CATEGORY_QUALIFYING_DAYS: f64 = ${rustF64(b.population.foodCategoryQualifyingDays)};`,
     `pub const BACKYARD_FOOD_RESERVE_TIER1_DAYS: f64 = ${rustF64(b.population.backyardFoodReserveTier1Days)};`,
     `pub const BACKYARD_FOOD_RESERVE_TIER2_DAYS: f64 = ${rustF64(b.population.backyardFoodReserveTier2Days)};`,
@@ -1798,6 +1800,7 @@ function generateTypeScript(): string {
     `export const RESIDENCE_WATER_PER_PERSON_PER_SEC = ${b.population.residenceWaterPerPersonPerSec};`,
     `export const RESIDENCE_FOOD_CAPACITY = ${b.population.residenceFoodCapacity};`,
     `export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = ${b.population.residenceFoodPerPersonPerSec};`,
+    `export const EVENING_MEAL_PER_PERSON = ${b.population.eveningMealPerPerson};`,
     `export const FOOD_CATEGORY_QUALIFYING_DAYS = ${b.population.foodCategoryQualifyingDays};`,
     `export const BACKYARD_FOOD_RESERVE_TIER1_DAYS = ${b.population.backyardFoodReserveTier1Days};`,
     `export const BACKYARD_FOOD_RESERVE_TIER2_DAYS = ${b.population.backyardFoodReserveTier2Days};`,

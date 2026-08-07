@@ -17,6 +17,8 @@ import {
   LAND_LEVY_TIER3_ASSESSED_VALUE,
 } from '../generated/gameBalance.ts';
 import type { BurgageZoneState, GameState } from '../resources/types.ts';
+import type { BuildingState, ResidenceState } from '../resources/types.ts';
+import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 
 export type FiscalPolicyState = {
   landLevyRate: number;
@@ -108,12 +110,20 @@ export type LandLevyForecast = {
   monthlyAssessed: number;
   monthlyCollectable: number;
   occupiedHomes: number;
+  collectableHomes: number;
+  unservedHomes: number;
 };
+
+export type LandLevyCollectionAccess = (
+  residence: ResidenceState,
+  marketplace: BuildingState,
+) => boolean;
 
 export function forecastMonthlyLandLevy(
   state: GameState,
   annualRate: number,
   collectionMultiplier: number,
+  hasCollectionRoute?: LandLevyCollectionAccess,
 ): LandLevyForecast {
   const zones = new Map(
     [...state.burgageZones.values()].map((zone) => [
@@ -124,6 +134,14 @@ export function forecastMonthlyLandLevy(
   let monthlyAssessed = 0;
   let monthlyCollectable = 0;
   let occupiedHomes = 0;
+  let collectableHomes = 0;
+  const fireDisabled = fireDisabledBuildingIds(state.fireIncidents?.values() ?? []);
+  const lockboxes = hasCollectionRoute
+    ? [...state.buildings.values()].filter((building) =>
+        building.kind === 'marketplace'
+        && building.constructionComplete !== false
+        && !fireDisabled.has(building.id))
+    : [];
   for (const residence of state.residences.values()) {
     if (residence.population <= 0 || residence.abandoned || residence.tier <= 0) continue;
     occupiedHomes += 1;
@@ -136,12 +154,22 @@ export function forecastMonthlyLandLevy(
       * clampFiniteRate(annualRate, LAND_LEVY_RATE_MIN, LAND_LEVY_RATE_MAX)
       / 12;
     monthlyAssessed += installment;
+    if (hasCollectionRoute && !lockboxes.some((market) => hasCollectionRoute(residence, market))) {
+      continue;
+    }
+    collectableHomes += 1;
     monthlyCollectable += Math.min(
       Math.max(0, residence.householdWealth),
       installment * clampFiniteRate(collectionMultiplier, 0, 1),
     );
   }
-  return { monthlyAssessed, monthlyCollectable, occupiedHomes };
+  return {
+    monthlyAssessed,
+    monthlyCollectable,
+    occupiedHomes,
+    collectableHomes,
+    unservedHomes: occupiedHomes - collectableHomes,
+  };
 }
 
 export {

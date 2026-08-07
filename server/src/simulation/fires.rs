@@ -281,10 +281,7 @@ pub fn select_fire_for_well(
 }
 
 pub fn fire_response_needed_for_well(ctx: &ReducerContext, well: &Building, sim_tick: u64) -> bool {
-    if well.kind != "well"
-        || !well.construction_complete
-        || well.work_radius <= 0.0
-    {
+    if well.kind != "well" || !well.construction_complete || well.work_radius <= 0.0 {
         return false;
     }
 
@@ -666,14 +663,9 @@ fn nearest_eligible_well_id(
                 && within_extent(building, incident.x, incident.z)
         })
     {
-        let road_distance = local_delivery_distance(
-            network,
-            well.x,
-            well.z,
-            incident.x,
-            incident.z,
-        )
-        .unwrap_or_else(|| distance(well.x, well.z, incident.x, incident.z));
+        let road_distance =
+            local_delivery_distance(network, well.x, well.z, incident.x, incident.z)
+                .unwrap_or_else(|| distance(well.x, well.z, incident.x, incident.z));
         match best {
             None => best = Some((well.id, road_distance)),
             Some((best_id, best_distance))

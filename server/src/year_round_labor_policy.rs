@@ -164,7 +164,14 @@ mod tests {
         ] {
             assert!(!is_year_round_labor_kind(kind), "{kind}");
         }
-        for kind in ["chapel", "well", "lumber_mill", "guardhouse", "carpenter", "granary"] {
+        for kind in [
+            "chapel",
+            "well",
+            "lumber_mill",
+            "guardhouse",
+            "carpenter",
+            "granary",
+        ] {
             assert!(is_year_round_labor_kind(kind), "{kind}");
         }
     }

@@ -9,7 +9,6 @@ import {
   RESIDENCE_ALE_PER_PERSON_PER_SEC,
   RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
   RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC,
   RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
@@ -30,6 +29,7 @@ import {
   allocatePreservedMeal,
   freshFoodRunwayWithPreservedRotation,
 } from '../src/economy/preservedFoodPolicy.ts';
+import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
 import { computeResourceTotals } from '../src/resources/resourceTotals.ts';
 import type {
   BuildingState,
@@ -178,7 +178,7 @@ assert.equal(provisioning.householdBufferPotteryShortHomes, 0);
 assert.match(formatHouseholdBufferReadiness(provisioning), /0 \/ 2 homes buffered/);
 assert.ok(Math.abs(
   provisioning.householdFoodPerDay
-  - 7 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70,
+  - householdFoodPerDay(7),
 ) < 1e-9);
 assert.equal(
   provisioning.grossHouseholdFoodPerDay,
@@ -191,7 +191,7 @@ assert.equal(provisioning.grossFoodDemandPerDay, provisioning.totalFoodPerDay);
 assert.ok(Math.abs(
   provisioning.foodRunwayDays
   - provisioning.foodStock
-    / (7 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70 + provisioning.guardFoodPerDay),
+    / (householdFoodPerDay(7) + provisioning.guardFoodPerDay),
 ) < 1e-9);
 assert.ok(Math.abs(
   provisioning.winterFirewoodPerDay
@@ -434,7 +434,7 @@ assert.equal(
 const splitBranchState = emptyGameState();
 const splitHome = residence('split-home', 1, 4);
 splitHome.x = 0;
-splitHome.needs.food.stock = 4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+splitHome.needs.food.stock = householdFoodPerDay(4);
 splitHome.food = splitHome.needs.food.stock;
 splitHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
 splitHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
@@ -520,7 +520,7 @@ const curedBranchState = emptyGameState();
 const curedBranchHome = residence('cured-branch-home', 3, 5);
 curedBranchHome.x = 7;
 curedBranchHome.needs.food.stock =
-  5 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+  householdFoodPerDay(5);
 curedBranchHome.food = curedBranchHome.needs.food.stock;
 curedBranchState.residences.set(curedBranchHome.id, curedBranchHome);
 const curedBranchSmokehouse = building(
@@ -683,7 +683,7 @@ assert.ok(
 const splitFuelState = emptyGameState();
 const splitFuelHome = residence('split-fuel-home', 2, 4);
 splitFuelHome.x = 0;
-splitFuelHome.needs.food.stock = 4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+splitFuelHome.needs.food.stock = householdFoodPerDay(4);
 splitFuelHome.food = splitFuelHome.needs.food.stock;
 splitFuelHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 50;
 splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
@@ -812,7 +812,7 @@ const winterRationBuffer = computeSettlementProvisioning({
 });
 assert.equal(ordinaryRationBuffer.householdBufferPreservedFoodShortHomes, 0);
 assert.equal(winterRationBuffer.householdBufferPreservedFoodShortHomes, 1);
-const seasonalGrossFoodPerDay = 5 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+const seasonalGrossFoodPerDay = householdFoodPerDay(5);
 const ordinaryPreservedRotationPerDay =
   5 * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC * 70;
 assert.ok(Math.abs(
@@ -954,7 +954,7 @@ for (const [id, tier, population] of [
   ['prepared-3', 3, 5],
 ] as const) {
   const home = residence(id, tier, population);
-  home.needs.food.stock = population * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+  home.needs.food.stock = householdFoodPerDay(population);
   home.food = home.needs.food.stock;
   if (tier >= 1) {
     home.needs.firewood.stock = population * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170 * 1.15;
@@ -1076,7 +1076,7 @@ function householdBufferState(readyHomes: number) {
   for (let index = 0; index < 5; index += 1) {
     const home = residence(`buffer-home-${index}`, 1, 3);
     if (index < readyHomes) {
-      home.needs.food.stock = 3 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
+      home.needs.food.stock = householdFoodPerDay(3);
       home.food = home.needs.food.stock;
       home.needs.firewood.stock = 3 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
       home.needs.water.stock = 3 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;

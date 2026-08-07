@@ -103,6 +103,8 @@ pub mod quarry_balance;
 
 #[path = "../../src/foraging_policy.rs"]
 pub mod foraging_policy;
+#[path = "../../src/food_demand_policy.rs"]
+pub mod food_demand_policy;
 #[path = "../../src/harvest_reserve_policy.rs"]
 pub mod harvest_reserve_policy;
 

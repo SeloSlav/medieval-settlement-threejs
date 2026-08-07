@@ -102,9 +102,7 @@ pub fn set_fiscal_policy(
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
     require_owned_building(ctx, "town_hall", true)?;
-    if !land_levy_rate.is_finite()
-        || !import_duty_rate.is_finite()
-        || !export_duty_rate.is_finite()
+    if !land_levy_rate.is_finite() || !import_duty_rate.is_finite() || !export_duty_rate.is_finite()
     {
         return Err("Fiscal rates must be finite numbers.".to_string());
     }

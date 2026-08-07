@@ -10,7 +10,6 @@ import {
   PRESERVED_FOOD_STORAGE_CART_FACTOR,
   PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
   PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
-  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
   SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -24,6 +23,7 @@ import {
   PRESERVATION_RESERVE_DAYS,
 } from '../src/economy/settlementPreservationReserve.ts';
 import { MARKETPLACE_SALT_IMPORT_LOT } from '../src/economy/marketplaceMaterialProcurementPolicy.ts';
+import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
 import { renderPreservationReserveRows } from '../src/resources/inspector/townHallRenderer.ts';
 import {
   createEmptyStockpile,
@@ -37,8 +37,7 @@ import {
 const workdaySeconds = CALENDAR_SECONDS_PER_DAY
   * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
   / CALENDAR_HOURS_PER_DAY;
-const oneResidentFallbackPerDay = RESIDENCE_FOOD_PER_PERSON_PER_SEC
-  * workdaySeconds;
+const oneResidentFallbackPerDay = householdFoodPerDay(1);
 const reserveTarget = (
   demandPerDay: number,
   storageFactor: number,

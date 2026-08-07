@@ -186,6 +186,7 @@ pub const RESIDENCE_WATER_REORDER_FRACTION: f64 = 0.3333333333333333;
 pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = 0.012;
 pub const RESIDENCE_FOOD_CAPACITY: f64 = 32.0;
 pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = 0.015;
+pub const EVENING_MEAL_PER_PERSON: f64 = 0.08;
 pub const FOOD_CATEGORY_QUALIFYING_DAYS: f64 = 1.0;
 pub const BACKYARD_FOOD_RESERVE_TIER1_DAYS: f64 = 3.0;
 pub const BACKYARD_FOOD_RESERVE_TIER2_DAYS: f64 = 5.0;
@@ -2678,7 +2679,47 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TRADING_POST, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, WINDMILL, CARPENTER, WEAVER, VINEYARD];
+const ALL: &[BuildingDef] = &[
+    FOUNDERS_CAMP,
+    SALVAGE_PILE,
+    LUMBER_MILL,
+    REFORESTER,
+    WOODCUTTERS_LODGE,
+    STONE_QUARRY,
+    LARGE_QUARRY,
+    REMOTE_WORK_CAMP,
+    MINE,
+    CLAY_PIT,
+    CHARCOAL_BURNER,
+    SMITHY,
+    POTTER_KILN,
+    WELL,
+    HUNTERS_HALL,
+    FORAGERS_SHED,
+    FISHING_CAMP,
+    CHAPEL,
+    MARKETPLACE,
+    TRADING_POST,
+    TOWN_HALL,
+    VILLAGE_STOREHOUSE,
+    WATCHTOWER,
+    GUARDHOUSE,
+    PALISADED_REFUGE,
+    THRESHING_BARN,
+    PASTORAL_FARMSTEAD,
+    SWINEHERD,
+    MONASTERY,
+    BREWERY,
+    SMOKEHOUSE,
+    GRANARY,
+    BAKERY,
+    APIARY,
+    WATERMILL,
+    WINDMILL,
+    CARPENTER,
+    WEAVER,
+    VINEYARD,
+];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)
@@ -2818,7 +2859,16 @@ const BACKYARD_BACKYARD_APIARY: BackyardGardenDef = BackyardGardenDef {
     hidden_from_picker: false,
 };
 
-const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[BACKYARD_APPLE_ORCHARD, BACKYARD_CHERRY_ORCHARD, BACKYARD_VEGETABLE_GARDEN, BACKYARD_FLOWER_GARDEN, BACKYARD_HERB_GARDEN, BACKYARD_HEN_YARD, BACKYARD_GOAT_PEN, BACKYARD_BACKYARD_APIARY];
+const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[
+    BACKYARD_APPLE_ORCHARD,
+    BACKYARD_CHERRY_ORCHARD,
+    BACKYARD_VEGETABLE_GARDEN,
+    BACKYARD_FLOWER_GARDEN,
+    BACKYARD_HERB_GARDEN,
+    BACKYARD_HEN_YARD,
+    BACKYARD_GOAT_PEN,
+    BACKYARD_BACKYARD_APIARY,
+];
 
 pub fn backyard_garden_def(kind: BackyardGardenKind) -> &'static BackyardGardenDef {
     ALL_BACKYARD_GARDENS
@@ -2933,8 +2983,16 @@ impl TradeResource {
 
 #[derive(Clone, Copy, Debug)]
 pub enum MarketplaceTradeKind {
-    GoldBuy { resource: TradeResource, amount: f64, gold_cost: f64 },
-    GoldSell { resource: TradeResource, amount: f64, gold_yield: f64 },
+    GoldBuy {
+        resource: TradeResource,
+        amount: f64,
+        gold_cost: f64,
+    },
+    GoldSell {
+        resource: TradeResource,
+        amount: f64,
+        gold_yield: f64,
+    },
     Barter {
         give: TradeResource,
         give_amount: f64,
@@ -3035,7 +3093,7 @@ const TRADE_SELL_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     kind: MarketplaceTradeKind::GoldSell {
         resource: TradeResource::Food,
         amount: 10.0,
-        gold_yield: 8.0,
+        gold_yield: 10.0,
     },
 };
 
@@ -3269,7 +3327,7 @@ const TRADE_SELL_IRONWORK: MarketplaceTradeOffer = MarketplaceTradeOffer {
     kind: MarketplaceTradeKind::GoldSell {
         resource: TradeResource::Ironwork,
         amount: 6.0,
-        gold_yield: 8.0,
+        gold_yield: 10.0,
     },
 };
 
@@ -3341,7 +3399,7 @@ const TRADE_SELL_CHARCOAL: MarketplaceTradeOffer = MarketplaceTradeOffer {
     kind: MarketplaceTradeKind::GoldSell {
         resource: TradeResource::Charcoal,
         amount: 12.0,
-        gold_yield: 7.0,
+        gold_yield: 10.0,
     },
 };
 
@@ -3699,7 +3757,91 @@ const TRADE_TIMBER_FOR_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_BUY_WATER, TRADE_SELL_WATER, TRADE_BUY_FOOD, TRADE_SELL_FOOD, TRADE_BUY_SEED_GRAIN, TRADE_SELL_GRAIN, TRADE_BUY_FLOUR, TRADE_SELL_FLOUR, TRADE_BUY_ALE, TRADE_SELL_ALE, TRADE_BUY_PRESERVED_FOOD, TRADE_SELL_PRESERVED_FOOD, TRADE_BUY_HONEY, TRADE_SELL_HONEY, TRADE_BUY_WINE, TRADE_SELL_WINE, TRADE_BUY_POLEARMS, TRADE_SELL_POLEARMS, TRADE_BUY_WOOL, TRADE_SELL_WOOL, TRADE_BUY_CLOTH, TRADE_SELL_CLOTH, TRADE_BUY_BARLEY_SEED, TRADE_SELL_BARLEY, TRADE_BUY_MALT, TRADE_SELL_MALT, TRADE_BUY_FLAX, TRADE_SELL_FLAX, TRADE_BUY_IRONWORK, TRADE_SELL_IRONWORK, TRADE_BUY_IRON, TRADE_SELL_IRON, TRADE_BUY_CLAY, TRADE_SELL_CLAY, TRADE_BUY_SALT, TRADE_SELL_SALT, TRADE_BUY_CHARCOAL, TRADE_SELL_CHARCOAL, TRADE_BUY_POTTERY, TRADE_SELL_POTTERY, TRADE_BUY_MANURE, TRADE_SELL_MANURE, TRADE_BUY_REMEDIES, TRADE_SELL_REMEDIES, TRADE_BUY_ROOF_TILES, TRADE_SELL_ROOF_TILES, TRADE_BUY_MEAT, TRADE_SELL_MEAT, TRADE_BUY_FISH, TRADE_SELL_FISH, TRADE_BUY_BERRIES, TRADE_SELL_BERRIES, TRADE_BUY_MUSHROOMS, TRADE_SELL_MUSHROOMS, TRADE_BUY_MILK, TRADE_SELL_MILK, TRADE_BUY_APPLES, TRADE_SELL_APPLES, TRADE_BUY_CHERRIES, TRADE_SELL_CHERRIES, TRADE_BUY_VEGETABLES, TRADE_SELL_VEGETABLES, TRADE_BUY_EGGS, TRADE_SELL_EGGS, TRADE_BUY_GRAPES, TRADE_SELL_GRAPES, TRADE_BUY_PORRIDGE, TRADE_SELL_PORRIDGE, TRADE_BUY_CURED_MEAT, TRADE_SELL_CURED_MEAT, TRADE_BUY_SMOKED_FISH, TRADE_SELL_SMOKED_FISH, TRADE_BUY_CHEESE_BULK, TRADE_SELL_CHEESE, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[
+    TRADE_BUY_TIMBER,
+    TRADE_SELL_TIMBER,
+    TRADE_BUY_STONE,
+    TRADE_SELL_STONE,
+    TRADE_BUY_FIREWOOD,
+    TRADE_SELL_FIREWOOD,
+    TRADE_BUY_WATER,
+    TRADE_SELL_WATER,
+    TRADE_BUY_FOOD,
+    TRADE_SELL_FOOD,
+    TRADE_BUY_SEED_GRAIN,
+    TRADE_SELL_GRAIN,
+    TRADE_BUY_FLOUR,
+    TRADE_SELL_FLOUR,
+    TRADE_BUY_ALE,
+    TRADE_SELL_ALE,
+    TRADE_BUY_PRESERVED_FOOD,
+    TRADE_SELL_PRESERVED_FOOD,
+    TRADE_BUY_HONEY,
+    TRADE_SELL_HONEY,
+    TRADE_BUY_WINE,
+    TRADE_SELL_WINE,
+    TRADE_BUY_POLEARMS,
+    TRADE_SELL_POLEARMS,
+    TRADE_BUY_WOOL,
+    TRADE_SELL_WOOL,
+    TRADE_BUY_CLOTH,
+    TRADE_SELL_CLOTH,
+    TRADE_BUY_BARLEY_SEED,
+    TRADE_SELL_BARLEY,
+    TRADE_BUY_MALT,
+    TRADE_SELL_MALT,
+    TRADE_BUY_FLAX,
+    TRADE_SELL_FLAX,
+    TRADE_BUY_IRONWORK,
+    TRADE_SELL_IRONWORK,
+    TRADE_BUY_IRON,
+    TRADE_SELL_IRON,
+    TRADE_BUY_CLAY,
+    TRADE_SELL_CLAY,
+    TRADE_BUY_SALT,
+    TRADE_SELL_SALT,
+    TRADE_BUY_CHARCOAL,
+    TRADE_SELL_CHARCOAL,
+    TRADE_BUY_POTTERY,
+    TRADE_SELL_POTTERY,
+    TRADE_BUY_MANURE,
+    TRADE_SELL_MANURE,
+    TRADE_BUY_REMEDIES,
+    TRADE_SELL_REMEDIES,
+    TRADE_BUY_ROOF_TILES,
+    TRADE_SELL_ROOF_TILES,
+    TRADE_BUY_MEAT,
+    TRADE_SELL_MEAT,
+    TRADE_BUY_FISH,
+    TRADE_SELL_FISH,
+    TRADE_BUY_BERRIES,
+    TRADE_SELL_BERRIES,
+    TRADE_BUY_MUSHROOMS,
+    TRADE_SELL_MUSHROOMS,
+    TRADE_BUY_MILK,
+    TRADE_SELL_MILK,
+    TRADE_BUY_APPLES,
+    TRADE_SELL_APPLES,
+    TRADE_BUY_CHERRIES,
+    TRADE_SELL_CHERRIES,
+    TRADE_BUY_VEGETABLES,
+    TRADE_SELL_VEGETABLES,
+    TRADE_BUY_EGGS,
+    TRADE_SELL_EGGS,
+    TRADE_BUY_GRAPES,
+    TRADE_SELL_GRAPES,
+    TRADE_BUY_PORRIDGE,
+    TRADE_SELL_PORRIDGE,
+    TRADE_BUY_CURED_MEAT,
+    TRADE_SELL_CURED_MEAT,
+    TRADE_BUY_SMOKED_FISH,
+    TRADE_SELL_SMOKED_FISH,
+    TRADE_BUY_CHEESE_BULK,
+    TRADE_SELL_CHEESE,
+    TRADE_TIMBER_FOR_STONE,
+    TRADE_STONE_FOR_TIMBER,
+    TRADE_TIMBER_FOR_FIREWOOD,
+];
 
 pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
     ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)
@@ -3754,7 +3896,9 @@ pub fn marketplace_trade_contract_code(id: &str) -> Option<u8> {
     }
 }
 
-pub fn marketplace_trade_offer_for_contract_code(code: u8) -> Option<&'static MarketplaceTradeOffer> {
+pub fn marketplace_trade_offer_for_contract_code(
+    code: u8,
+) -> Option<&'static MarketplaceTradeOffer> {
     let id = match code {
         1 => "sell_timber",
         2 => "sell_stone",
@@ -3884,7 +4028,13 @@ const COMMODITY_BUY_CHEESE: MarketCommodityOffer = MarketCommodityOffer {
     base_gold_cost: 7.0,
 };
 
-const ALL_MARKET_COMMODITIES: &[MarketCommodityOffer] = &[COMMODITY_BUY_PORK, COMMODITY_BUY_LAMB, COMMODITY_BUY_VEAL, COMMODITY_BUY_KOBASICA, COMMODITY_BUY_CHEESE];
+const ALL_MARKET_COMMODITIES: &[MarketCommodityOffer] = &[
+    COMMODITY_BUY_PORK,
+    COMMODITY_BUY_LAMB,
+    COMMODITY_BUY_VEAL,
+    COMMODITY_BUY_KOBASICA,
+    COMMODITY_BUY_CHEESE,
+];
 
 pub fn all_market_food_commodities() -> &'static [MarketCommodityOffer] {
     ALL_MARKET_COMMODITIES
@@ -3922,12 +4072,17 @@ const WATER_COMMODITY_BUY_WATER_BARREL: MarketWaterCommodityOffer = MarketWaterC
     base_gold_cost: 8.0,
 };
 
-const ALL_MARKET_WATER_COMMODITIES: &[MarketWaterCommodityOffer] = &[WATER_COMMODITY_BUY_WATER_CASK, WATER_COMMODITY_BUY_WATER_BARREL];
+const ALL_MARKET_WATER_COMMODITIES: &[MarketWaterCommodityOffer] = &[
+    WATER_COMMODITY_BUY_WATER_CASK,
+    WATER_COMMODITY_BUY_WATER_BARREL,
+];
 
 pub fn all_market_water_commodities() -> &'static [MarketWaterCommodityOffer] {
     ALL_MARKET_WATER_COMMODITIES
 }
 
 pub fn market_water_commodity_offer(id: &str) -> Option<&'static MarketWaterCommodityOffer> {
-    ALL_MARKET_WATER_COMMODITIES.iter().find(|offer| offer.id == id)
+    ALL_MARKET_WATER_COMMODITIES
+        .iter()
+        .find(|offer| offer.id == id)
 }

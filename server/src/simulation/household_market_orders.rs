@@ -71,7 +71,9 @@ pub fn step_household_market_orders(
             .player_resources()
             .owner()
             .find(&owner)
-            .map(|resources| crate::fiscal_policy::clamp_import_duty_rate(resources.import_duty_rate))
+            .map(|resources| {
+                crate::fiscal_policy::clamp_import_duty_rate(resources.import_duty_rate)
+            })
             .unwrap_or(0.0);
 
         let residences: Vec<_> = ctx

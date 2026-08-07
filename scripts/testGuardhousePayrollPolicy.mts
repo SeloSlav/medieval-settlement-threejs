@@ -341,6 +341,11 @@ assert.match(
   /physical_payroll[\s\S]*?try_dispatch_guardhouse_payroll[\s\S]*?building\.gold[\s\S]*?CommodityKind::Gold[\s\S]*?else \{[\s\S]*?spend_treasury_gold/,
   'new saves must consume local pay chests while legacy saves retain abstract treasury compatibility',
 );
+assert.match(
+  expandedEconomy,
+  /wage_paid[\s\S]*credit_settlement_household_income[\s\S]*withdrawn - credited/,
+  'guard wages must move civic coin into household wallets and conserve any cap overflow',
+);
 const commodities = readFileSync('server/src/economy/commodities.rs', 'utf8');
 assert.match(
   commodities,

@@ -3,9 +3,7 @@ use spacetimedb::ReducerContext;
 use crate::db::*;
 use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::landmark_access::{
-    residence_chapel_tier, residence_has_monastery_coverage,
-};
+use crate::simulation::landmark_access::{residence_chapel_tier, residence_has_monastery_coverage};
 use crate::simulation::residence_needs::{load_needs, step_residence_needs};
 use crate::simulation::residence_settlement::step_residence_settlement;
 use crate::simulation::tick_context::SimTickContext;
@@ -36,8 +34,7 @@ pub fn step_residence(
         residence.decay_repair_active = false;
         ctx.db.residence().id().update(residence.clone());
     }
-    let chapel_tier =
-        residence_chapel_tier(ctx, tick, residence.owner, &residence, chapels);
+    let chapel_tier = residence_chapel_tier(ctx, tick, residence.owner, &residence, chapels);
     let has_chapel_access = chapel_tier > 0;
     let has_monastery_coverage =
         residence_has_monastery_coverage(ctx, tick, residence.owner, &residence, monasteries);

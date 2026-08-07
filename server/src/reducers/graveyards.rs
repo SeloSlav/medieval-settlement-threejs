@@ -181,10 +181,22 @@ pub fn place_graveyard(
         if convex_zones_overlap(
             &polygon,
             &[
-                Point2 { x: vineyard.corner_ax, z: vineyard.corner_az },
-                Point2 { x: vineyard.corner_bx, z: vineyard.corner_bz },
-                Point2 { x: vineyard.corner_cx, z: vineyard.corner_cz },
-                Point2 { x: vineyard.corner_dx, z: vineyard.corner_dz },
+                Point2 {
+                    x: vineyard.corner_ax,
+                    z: vineyard.corner_az,
+                },
+                Point2 {
+                    x: vineyard.corner_bx,
+                    z: vineyard.corner_bz,
+                },
+                Point2 {
+                    x: vineyard.corner_cx,
+                    z: vineyard.corner_cz,
+                },
+                Point2 {
+                    x: vineyard.corner_dx,
+                    z: vineyard.corner_dz,
+                },
             ],
         ) {
             return Err("Burial ground overlaps an existing vineyard.".to_string());
