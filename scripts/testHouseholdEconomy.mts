@@ -85,6 +85,8 @@ const residences = new Map<string, ResidenceState>([
     yaw: 0,
     population: 3,
     populationCapacity: 3,
+    tier: 1,
+    food: 20,
     settlementTicks: 0,
     needs: createDefaultNeeds(),
     abandoned: false,

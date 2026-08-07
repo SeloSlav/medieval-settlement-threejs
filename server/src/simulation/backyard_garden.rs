@@ -6,15 +6,14 @@ use crate::backyard_garden_policy::{
     BackyardGoatProduct,
 };
 use crate::balance_generated::{
-    backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY,
-    FOOD_SALE_GOLD_PER_UNIT, HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY,
-    HERB_REMEDY_SALE_GOLD_PER_UNIT, TICK_DT,
+    backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY, FOOD_SALE_GOLD_PER_UNIT,
+    HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY, HERB_REMEDY_SALE_GOLD_PER_UNIT, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
     credit_marketplace_receipt_gold, credit_residence_wealth, deposit_building_commodity,
-    deposit_residence_commodity, player_economic_activity_tax_rate, taxed_economic_activity,
-    town_hall_tax_collection_multiplier, residence_edible_food_stock, CommodityKind,
+    deposit_residence_commodity, player_economic_activity_tax_rate, residence_edible_food_stock,
+    taxed_economic_activity, town_hall_tax_collection_multiplier, CommodityKind,
 };
 use crate::residence_service_policy::service_economic_multiplier;
 use crate::season_policy::EnvironmentState;
@@ -163,14 +162,9 @@ fn step_one_garden(
 
     let mut market_remedies_sold = 0.0;
     if kind == BackyardGardenKind::HerbGarden {
-        let remedies =
-            population * HERB_REMEDIES_PER_PERSON_DAY * seasonal_multiplier * TICK_DT
-                / CALENDAR_SECONDS_PER_DAY;
-        let kept_remedies = deposit_herb_remedies(
-            ctx,
-            residence,
-            remedies,
-        );
+        let remedies = population * HERB_REMEDIES_PER_PERSON_DAY * seasonal_multiplier * TICK_DT
+            / CALENDAR_SECONDS_PER_DAY;
+        let kept_remedies = deposit_herb_remedies(ctx, residence, remedies);
         if let Some(marketplace_id) = marketplace_id {
             market_remedies_sold = deposit_market_commodity(
                 ctx,
@@ -223,7 +217,10 @@ fn deposit_herb_remedies(ctx: &ReducerContext, residence: &Residence, amount: f6
 }
 
 fn backyard_produces_food(kind: BackyardGardenKind) -> bool {
-    !matches!(kind, BackyardGardenKind::FlowerGarden | BackyardGardenKind::HerbGarden)
+    !matches!(
+        kind,
+        BackyardGardenKind::FlowerGarden | BackyardGardenKind::HerbGarden
+    )
 }
 
 fn backyard_food_commodity(
@@ -239,10 +236,12 @@ fn backyard_food_commodity(
         // A small household herd cannot specialize like a cattle dairy or
         // sheep flock. Pens alternate modest milk and meat output by household
         // and day, making both useful without eclipsing either full system.
-        BackyardGardenKind::GoatPen => Some(match backyard_goat_product(total_days, residence_id) {
-            BackyardGoatProduct::Milk => CommodityKind::Milk,
-            BackyardGoatProduct::Meat => CommodityKind::Meat,
-        }),
+        BackyardGardenKind::GoatPen => {
+            Some(match backyard_goat_product(total_days, residence_id) {
+                BackyardGoatProduct::Milk => CommodityKind::Milk,
+                BackyardGoatProduct::Meat => CommodityKind::Meat,
+            })
+        }
         BackyardGardenKind::BackyardApiary => Some(CommodityKind::Honey),
         BackyardGardenKind::FlowerGarden | BackyardGardenKind::HerbGarden => None,
     }

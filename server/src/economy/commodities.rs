@@ -2,8 +2,7 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
-    CALENDAR_WORK_START_HOUR, FOOD_CATEGORY_QUALIFYING_DAYS,
-    RESIDENCE_FOOD_PER_PERSON_PER_SEC,
+    CALENDAR_WORK_START_HOUR, FOOD_CATEGORY_QUALIFYING_DAYS, RESIDENCE_FOOD_PER_PERSON_PER_SEC,
 };
 use crate::building_defs::building_def;
 use crate::db::*;
@@ -296,7 +295,11 @@ impl CommodityKind {
     /// preserves established balance while identity becomes physical; this is
     /// the single extension point for later nutritional differentiation.
     pub fn meal_value(self) -> f64 {
-        if self.is_edible() { 1.0 } else { 0.0 }
+        if self.is_edible() {
+            1.0
+        } else {
+            0.0
+        }
     }
 
     pub fn preservation_output(self) -> Option<Self> {
@@ -308,7 +311,6 @@ impl CommodityKind {
             _ => None,
         }
     }
-
 }
 
 pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64 {
@@ -717,10 +719,7 @@ pub fn food_category_qualifying_stock(population: u32) -> f64 {
     household_food_per_day(population) * FOOD_CATEGORY_QUALIFYING_DAYS.max(0.0)
 }
 
-pub fn residence_food_category_stock(
-    residence: &Residence,
-    category: FoodCategory,
-) -> f64 {
+pub fn residence_food_category_stock(residence: &Residence, category: FoodCategory) -> f64 {
     EDIBLE_COMMODITIES
         .into_iter()
         .filter(|commodity| food_category(*commodity) == Some(category))
@@ -855,8 +854,8 @@ mod tests {
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
         for id in 0_u8..=41 {
-            let commodity = CommodityKind::from_u8(id)
-                .unwrap_or_else(|| panic!("missing commodity id {id}"));
+            let commodity =
+                CommodityKind::from_u8(id).unwrap_or_else(|| panic!("missing commodity id {id}"));
             assert_eq!(commodity.as_u8(), id);
         }
         assert_eq!(CommodityKind::from_u8(42), None);
@@ -886,9 +885,18 @@ mod tests {
 
     #[test]
     fn vegetables_remain_an_independent_food_category() {
-        assert_eq!(food_category(CommodityKind::Vegetables), Some(FoodCategory::Vegetables));
-        assert_ne!(food_category(CommodityKind::Vegetables), food_category(CommodityKind::Apples));
-        assert_eq!(food_category(CommodityKind::Milk), food_category(CommodityKind::Cheese));
+        assert_eq!(
+            food_category(CommodityKind::Vegetables),
+            Some(FoodCategory::Vegetables)
+        );
+        assert_ne!(
+            food_category(CommodityKind::Vegetables),
+            food_category(CommodityKind::Apples)
+        );
+        assert_eq!(
+            food_category(CommodityKind::Milk),
+            food_category(CommodityKind::Cheese)
+        );
     }
 
     #[test]
