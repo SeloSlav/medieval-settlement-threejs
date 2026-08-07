@@ -15,10 +15,6 @@ type WebGPUDeviceLike = {
   readonly queue?: {
     onSubmittedWorkDone?: () => Promise<void>;
   };
-  readonly lost?: Promise<{
-    reason?: unknown;
-    message?: unknown;
-  }>;
 };
 
 type WebGPUAdapterLike = {
@@ -109,7 +105,6 @@ const RENDERER_OPTIONS = {
   powerPreference: 'high-performance' as const,
 };
 const WEBGPU_STARTUP_TIMEOUT_MS = 2500;
-const WEBGPU_DEVICE_LOSS_RECOVERY_KEY = 'medieval-road-system:webgpu-device-lost';
 
 export async function createPreferredRenderer(
   dependencies: RendererBackendDependencies = defaultRendererBackendDependencies(),
@@ -133,7 +128,6 @@ export async function createPreferredRenderer(
       );
 
       if (isNativeWebGPU(renderer)) {
-        armWebGPUDeviceLossRecovery(webGPU.device);
         return {
           adapterEvidence: webGPU.adapterEvidence,
           kind: 'webgpu',
@@ -190,7 +184,7 @@ export async function createPreferredRenderer(
 }
 
 function defaultRendererBackendDependencies(): RendererBackendDependencies {
-  const gpu = typeof navigator === 'undefined' || shouldRecoverWithWebGL()
+  const gpu = typeof navigator === 'undefined'
     ? null
     : (navigator as NavigatorWithWebGPU).gpu ?? null;
   return {
@@ -199,37 +193,6 @@ function defaultRendererBackendDependencies(): RendererBackendDependencies {
     waitForStartup: (promise, label) =>
       withTimeout(promise, WEBGPU_STARTUP_TIMEOUT_MS, label),
   };
-}
-
-function shouldRecoverWithWebGL(): boolean {
-  if (typeof sessionStorage === 'undefined') return false;
-  try {
-    const recover = sessionStorage.getItem(WEBGPU_DEVICE_LOSS_RECOVERY_KEY) === '1';
-    if (recover) {
-      console.warn('The WebGPU device was lost; using WebGL 2 for the rest of this tab.');
-    }
-    return recover;
-  } catch {
-    return false;
-  }
-}
-
-function armWebGPUDeviceLossRecovery(device: unknown): void {
-  const lost = (device as WebGPUDeviceLike | null)?.lost;
-  if (!lost || typeof lost.then !== 'function') return;
-  void lost.then((info) => {
-    if (info?.reason === 'destroyed') return;
-    console.error('WebGPU device lost; reloading with the WebGL 2 fallback.', info);
-    try {
-      sessionStorage.setItem(WEBGPU_DEVICE_LOSS_RECOVERY_KEY, '1');
-    } catch {
-      // Reload still gives the browser and driver a chance to recover even if
-      // storage is unavailable, though it cannot force the fallback backend.
-    }
-    if (typeof location !== 'undefined') location.reload();
-  }).catch((error) => {
-    console.error('Unable to observe WebGPU device-loss recovery.', error);
-  });
 }
 
 async function waitForNativeWebGPUSubmittedWork(

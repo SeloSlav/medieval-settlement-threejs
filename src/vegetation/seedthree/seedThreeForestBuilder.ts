@@ -202,7 +202,9 @@ const FOREST_NEAR_DISTANCE = 108;
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
 // Pointer-look changes direction continuously. Retain every nearby tree in the
 // color prefix so turning cannot repack a shadow-only instance into view.
-const FOREST_FIRST_PERSON_VIEW_RETENTION_RADIUS = 144;
+// A 72 m walking bubble keeps turns stable without submitting the four-times
+// larger 144 m disk of off-axis close-detail foliage on every POV frame.
+const FOREST_FIRST_PERSON_VIEW_RETENTION_RADIUS = 72;
 const FOREST_VISIBILITY_PADDING = 26;
 const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
 const FOREST_CONTINUOUS_UPDATE_BUDGET_MS = 2.75;

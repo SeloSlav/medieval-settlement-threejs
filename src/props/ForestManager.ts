@@ -131,6 +131,8 @@ export class ForestManager {
   private treeGrowthProgress = new Map<number, number>();
   private collisionVersion = 0;
   private undergrowthVisible = true;
+  private treeShadowsEnabled = true;
+  private firstPersonActive = false;
 
   constructor(
     root: THREE.Group,
@@ -320,22 +322,27 @@ export class ForestManager {
   }
 
   setTreeShadowsEnabled(enabled: boolean): void {
-    this.seedThreeForest?.setShadows(enabled);
-    this.trunkMesh.castShadow = enabled;
-    this.coniferShadowMesh.castShadow = enabled;
-    this.broadleafShadowMesh.castShadow = enabled;
-    this.stumpMesh.castShadow = enabled;
-    this.harvestStumpMesh.castShadow = enabled;
+    this.treeShadowsEnabled = enabled;
+    this.applyTreeShadowVisibility(enabled && !this.firstPersonActive);
+  }
+
+  private applyTreeShadowVisibility(visible: boolean): void {
+    this.seedThreeForest?.setShadows(visible);
+    this.trunkMesh.castShadow = visible;
+    this.coniferShadowMesh.castShadow = visible;
+    this.broadleafShadowMesh.castShadow = visible;
+    this.stumpMesh.castShadow = visible;
+    this.harvestStumpMesh.castShadow = visible;
     if (this.undergrowth) {
-      this.undergrowth.bushShadowMesh.castShadow = enabled;
-      this.undergrowth.fernShadowMesh.castShadow = enabled;
-      this.undergrowth.juniperShadowMesh.castShadow = enabled;
+      this.undergrowth.bushShadowMesh.castShadow = visible;
+      this.undergrowth.fernShadowMesh.castShadow = visible;
+      this.undergrowth.juniperShadowMesh.castShadow = visible;
     }
     this.group.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
       if (mesh.name.toLowerCase().includes('shadow')) {
-        mesh.castShadow = enabled;
+        mesh.castShadow = visible;
       }
     });
   }
@@ -348,6 +355,13 @@ export class ForestManager {
     cameraInteractionActive = false,
     deltaSeconds = 1 / 60,
   ): void {
+    if (firstPersonActive !== this.firstPersonActive) {
+      this.firstPersonActive = firstPersonActive;
+      // The close-range color forest already supplies dense depth cues. Avoid
+      // submitting its conservative 2048 px shadow-caster suffix on WebGPU:
+      // that transition can exceed Windows' D3D12 watchdog budget.
+      this.applyTreeShadowVisibility(this.treeShadowsEnabled && !firstPersonActive);
+    }
     this.seedThreeForest?.updateCamera(
       camera,
       cameraDistance,
