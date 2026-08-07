@@ -33,7 +33,7 @@ export function inspectorDetailIcon(
   if (/(timber|firewood|wood|log)/.test(normalized)) return '\u2571';
   if (/(labor|worker|staff|builder|crew)/.test(normalized)) return '\u2692';
   if (/(stone|quarry|rock)/.test(normalized)) return '\u25C6';
-  if (/(water|river|well|ferry)/.test(normalized)) return '\u224B';
+  if (/(water|river|well)/.test(normalized)) return '\u224B';
   if (/(food|grain|flour|ale|honey|wine|crop|yield|field|fertility)/.test(normalized)) return '\u2767';
   if (/(house|resident|population|shelter|home|vacant)/.test(normalized)) return '\u2302';
   if (/(road|cart|route|delivery|haul)/.test(normalized)) return '\u21C4';

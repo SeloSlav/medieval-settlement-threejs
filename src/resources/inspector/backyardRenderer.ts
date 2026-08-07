@@ -134,7 +134,7 @@ export function renderBackyardInspector(
       ${garden.kind === 'herb_garden'
         ? '<li><span>Herb sharing</span><span>Household remedies fill first; surplus remedies enter the goods stall for sick homes</span></li>'
         : garden.kind === 'flower_garden'
-          ? '<li><span>Flower sales</span><span>Discretionary local trade; flowers are not a survival need</span></li>'
+          ? '<li><span>Flower effect</span><span>Pollinator forage and settlement attraction; flowers create no saleable commodity or passive gold</span></li>'
           : ''}
       <li><span>Marketplace link</span><span>${hasMarketAccess ? `${stallLabel} connected` : `None — needs a Marketplace and staffed ${producesFood ? 'Granary' : 'Storehouse'}`}</span></li>
       <li><span>Local trade value today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · selling paused' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>

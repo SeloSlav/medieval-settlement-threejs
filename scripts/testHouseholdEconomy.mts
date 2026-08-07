@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   CHAPEL_BASE_ATTENDANCE_CHANCE,
   CHAPEL_COMMUNITY_ATTENDANCE_BONUS,
@@ -132,5 +133,52 @@ assert.ok(savings > 0);
 
 assert.equal(totalChapelCofferGold([{ kind: 'chapel', gold: 40 } as never, { kind: 'well', gold: 5 } as never]), 40);
 assert.equal(CHAPEL_COFFER_CAPACITY, 500);
+
+const discretionaryTrade = readFileSync(
+  new URL('../server/src/simulation/household_discretionary_trade.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  discretionaryTrade,
+  /clock\.hour != 18[\s\S]*last_discretionary_market_day != day_marker/,
+  'optional purchases must be limited to one evening market call per household and day',
+);
+assert.match(
+  discretionaryTrade,
+  /HOUSEHOLD_DISCRETIONARY_MIN_TIER[\s\S]*HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE/,
+  'only comfortable households with savings above the protected reserve may shop',
+);
+assert.match(
+  discretionaryTrade,
+  /basic_buffers_are_safe[\s\S]*settlement_buffers_ready/,
+  'food, fuel, water, and active-need buffers must be safe before optional spending',
+);
+for (const commodity of ['Ale', 'Wine', 'Honey', 'Cheese', 'Cloth', 'Pottery']) {
+  assert.match(discretionaryTrade, new RegExp(`CommodityKind::${commodity}`));
+}
+const withdrawIndex = discretionaryTrade.indexOf('withdraw_building_commodity');
+const debitIndex = discretionaryTrade.indexOf('debit_residence_wealth(ctx, residence');
+const receiptIndex = discretionaryTrade.indexOf('credit_local_purchase_receipt(ctx, trading_post');
+assert.ok(withdrawIndex >= 0 && withdrawIndex < debitIndex && debitIndex < receiptIndex);
+assert.match(
+  discretionaryTrade,
+  /updated\.last_discretionary_market_day = day_marker/,
+  'a completed purchase must close that household market call for the day',
+);
+
+const fiscalAccounting = readFileSync(
+  new URL('../server/src/economy/fiscal_accounting.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  fiscalAccounting,
+  /credit_local_purchase_receipt[\s\S]*producer_income[\s\S]*local_tax/,
+  'local purchases must split conserved payment into producer proceeds and collectible tax',
+);
+assert.match(
+  fiscalAccounting,
+  /local_discretionary_spend_total \+= split\.producer_income \+ split\.local_tax[\s\S]*local_producer_income_total \+= split\.producer_income/,
+  'the economy ledger must report both gross local spending and producer income',
+);
 
 console.log('household economy tests passed');

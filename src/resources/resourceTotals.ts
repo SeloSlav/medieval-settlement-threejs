@@ -528,7 +528,7 @@ export function computeInTransitResourceTotals(
 }
 
 /**
- * Market proceeds, local tolls, ferry fares, and monastery visitor gifts are
+ * Market proceeds, local tolls, and monastery visitor gifts are
  * physically owned but remain unavailable until their cart reaches a civic
  * lockbox.
  */

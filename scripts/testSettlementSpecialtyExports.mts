@@ -366,6 +366,41 @@ assert.equal(held.blockedMarketQueueUnits, 21);
 assert.equal(held.firstAttentionBuildingId, roadlessMarket.id);
 assert.equal(held.firstAttentionKind, 'market-road');
 
+const familyPolicyMarket = building('family-policy-market', 'trading_post', 0, {
+  assignedLabor: 1,
+  ale: 2,
+  pottery: 3,
+  marketplaceDrinkExportPolicy: 2,
+  marketplaceProvisionExportPolicy: 0,
+  marketplaceWaresExportPolicy: 0,
+});
+const familyPolicyPlan = computeSettlementSpecialtyExportPlan({
+  state: {
+    buildings: new Map([[familyPolicyMarket.id, familyPolicyMarket]]),
+    deliveryTrips: new Map(),
+  },
+  marketRates: { drink: 1, provision: 1, wares: 1.2 },
+  roadComponentFor: () => 1,
+});
+assert.deepEqual(familyPolicyPlan.marketRates, {
+  drink: 1,
+  provision: 1,
+  wares: 1.2,
+});
+assert.equal(familyPolicyPlan.activeBrokerMarkets, 1);
+assert.equal(familyPolicyPlan.activeMarketQueueUnits, 3);
+assert.equal(familyPolicyPlan.policyHeldMarketQueueUnits, 2);
+assert.equal(familyPolicyPlan.blockedMarketQueueUnits, 2);
+assert.equal(familyPolicyPlan.commodities.ale.projectedMarketQueue, 2);
+assert.equal(familyPolicyPlan.commodities.pottery.projectedMarketQueue, 3);
+assert.ok(
+  Math.abs(
+    familyPolicyPlan.commodities.pottery.projectedMarketValue
+      - 3 * 1.35 * 1.2,
+  ) < 1e-9,
+  'wares must use their own regional rate even while the drink family is held',
+);
+
 const burningMarket = building('burning-market', 'trading_post', 0, {
   assignedLabor: 1,
   ale: 2,

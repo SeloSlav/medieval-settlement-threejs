@@ -190,6 +190,30 @@ assert.ok(
     < serverSimulation.indexOf('let Some(labor) = cycle_labor_if_ready_at_rate'),
   'seasonal output room must be checked before consuming a completed work cycle',
 );
+assert.match(
+  serverSimulation,
+  /clock\.month == 12[\s\S]*withdraw_building_commodity\(&mut building, CommodityKind::Honey, winter_honey\)[\s\S]*next_apiary_colony_health[\s\S]*apiary_last_winter_year = clock\.year/,
+  'apiaries must consume physical winter honey once per year and persist the colony-health result',
+);
+assert.match(
+  serverSimulation,
+  /apiary_honey_reserve[\s\S]*dispatch_monastery_hospitality_limited[\s\S]*dispatch_to_building_where_limited/,
+  'the selected hive reserve must be protected from hospitality and export dispatch',
+);
+assert.match(
+  serverSimulation,
+  /advance_vineyard_fermentation[\s\S]*fermentable_grapes[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Grapes[\s\S]*vineyard_fermentation_progress \+= TICK_DT \* onsite_labor as f64[\s\S]*deposit_building_commodity\([\s\S]*CommodityKind::Wine/,
+  'vineyards must stage real grapes, accumulate staffed work, and only then deposit wine',
+);
+
+const expandedInspector = readFileSync(
+  new URL('../src/resources/inspector/expandedBuildingRenderer.ts', import.meta.url),
+  'utf8',
+);
+assert.match(expandedInspector, /data-apiary-harvest-policy=/);
+assert.match(expandedInspector, /data-vineyard-production-policy=/);
+assert.match(expandedInspector, /Forage landscape/);
+assert.match(expandedInspector, /worker-seconds remain/);
 
 const perfBuilding = building('apiary');
 const started = performance.now();

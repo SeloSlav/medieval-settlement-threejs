@@ -386,7 +386,7 @@ pub struct Building {
     pub storehouse_accepts_stone: bool,
     #[default(true)]
     pub storehouse_accepts_firewood: bool,
-    /// Physical coin held by civic, religious, trade, ferry, and guard buildings.
+    /// Physical coin held by civic, religious, trade, and guard buildings.
     #[default(0.0)]
     pub gold: f64,
     /// False while this row is a construction site rather than an operating building.
@@ -1216,8 +1216,8 @@ pub struct MarketState {
     pub last_price_tick: u64,
     /// Flavor bulletin for the marketplace UI.
     pub bulletin: String,
-    /// Shared regional rate for physically hauled ale, honey, wine, and cloth.
-    /// Appended fields retain neutral defaults for existing market rows.
+    /// Legacy aggregate specialty rate retained to migrate and summarize older
+    /// market rows. New trade decisions use the independent family rates below.
     #[default(1.0)]
     pub specialty_price_mult: f64,
     #[default(0.5)]

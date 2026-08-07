@@ -236,7 +236,7 @@ assert.match(
 assert.match(
   server,
   /step_institutional_food_dispatch[\s\S]*?INSTITUTIONAL_FOOD_SOURCE_KINDS[\s\S]*?&\["guardhouse", "smokehouse", "granary"\]/,
-  'apiary and vineyard food must enter staffed storage or institutional supply instead of going directly to homes',
+  'apiary honey and vineyard wine must enter staffed storage or institutional supply instead of going directly to homes',
 );
 assert.match(
   server,
