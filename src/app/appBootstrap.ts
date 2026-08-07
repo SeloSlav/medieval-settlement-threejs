@@ -1210,7 +1210,7 @@ export async function bootstrapAppSession(
       return { x: target.x, z: target.z, yaw: cameraController.getYaw() };
     },
     isMenuOpen: () => toolbar.isGameMenuOpen(),
-    isSessionReady: () => sessionGate.isReady() && isSettlementFounded(),
+    isSessionReady: () => sessionGate.isReady(),
     onModeChange: (active) => {
       cameraController.setInputEnabled(
         !active
@@ -1232,13 +1232,6 @@ export async function bootstrapAppSession(
   toolbar.setFirstPersonToggle(() => {
     if (!sessionGate.isReady()) {
       toastManager?.show('Wait for the world to connect before entering first-person view.', {
-        variant: 'info',
-        durationMs: 3200,
-      });
-      return;
-    }
-    if (!isSettlementFounded()) {
-      toastManager?.show('Place your founding camp first.', {
         variant: 'info',
         durationMs: 3200,
       });

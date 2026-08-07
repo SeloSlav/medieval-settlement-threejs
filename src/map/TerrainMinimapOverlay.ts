@@ -1,6 +1,5 @@
 import type { GameState } from '../resources/types.ts';
 import type { WorldMapMarker, WorldMapMarkerKind } from './worldMapMarkers.ts';
-import { isWorldMapForagingMarkerVisible } from './worldMapMarkers.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { TerrainBounds } from '../terrain/Terrain.ts';
 import { createTerrainMinimapImage } from './createTerrainMinimapImage.ts';
@@ -162,7 +161,9 @@ export class TerrainMinimapOverlay {
     const state = this.options.getGameState();
     const foragingNodes = state.foragingNodes;
     for (const entry of this.layoutMarkerEntries) {
-      entry.hidden = !isWorldMapForagingMarkerVisible(entry.marker, foragingNodes);
+      // Live rows refine positions and reserve state, but valid generated
+      // resources must remain visible while those rows are still hydrating.
+      entry.hidden = false;
       const geologicalNode = geologicalNodeForMapMarker(
         entry.marker,
         state.quarries,

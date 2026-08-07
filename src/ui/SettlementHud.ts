@@ -680,6 +680,7 @@ export class SettlementHud {
   }
 
   setFirstPersonActive(active: boolean): void {
+    this.root.hidden = active;
     this.nobleEye.classList.toggle('is-active', active);
     this.nobleEye.setAttribute('aria-pressed', String(active));
     this.nobleEye.setAttribute(
