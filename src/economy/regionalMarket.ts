@@ -60,16 +60,48 @@ export function priceMultiplierFor(
       return state.timberPriceMult;
     case 'stone':
     case 'ironwork':
+    case 'polearms':
     case 'iron':
+    case 'clay':
+    case 'roofTiles':
       return state.stonePriceMult;
     case 'firewood':
+    case 'water':
+    case 'charcoal':
       return state.firewoodPriceMult;
     case 'food':
     case 'grain':
+    case 'flour':
     case 'barley':
+    case 'malt':
+    case 'flax':
     case 'salt':
+    case 'meat':
+    case 'fish':
+    case 'berries':
+    case 'mushrooms':
+    case 'milk':
+    case 'apples':
+    case 'cherries':
+    case 'vegetables':
+    case 'eggs':
+    case 'grapes':
+    case 'porridge':
       return state.foodPriceMult;
+    case 'ale':
+    case 'wine':
+      return state.drinkPriceMult;
+    case 'preservedFood':
+    case 'honey':
+    case 'curedMeat':
+    case 'smokedFish':
+    case 'cheese':
+      return state.provisionPriceMult;
+    case 'wool':
+    case 'cloth':
     case 'pottery':
+    case 'manure':
+    case 'remedies':
       return state.waresPriceMult;
     default: {
       const unhandled: never = resource;

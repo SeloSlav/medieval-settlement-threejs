@@ -10,7 +10,9 @@ import {
   RESIDENCE_SETTLE_TICKS,
   SIM_TICK_SECONDS,
   STARTING_POPULATION,
+  TRADE_RESOURCE_KINDS,
   type StorageCaps,
+  type TradeResourceKind,
 } from '../generated/gameBalance.ts';
 import type { MarketplaceTradeAvailability } from '../economy/marketplaceTrade.ts';
 import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
@@ -612,19 +614,12 @@ export function computeMarketplaceTradeAvailability(
 ): MarketplaceTradeAvailability {
   const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
   const includeLegacyLedger = state.physicalFoundingSiteEnabled !== true;
+  const availability = Object.fromEntries(
+    [...TRADE_RESOURCE_KINDS, 'gold'].map((resource) => [resource, 0]),
+  ) as MarketplaceTradeAvailability;
   let allBuildingTimber = 0;
   let allBuildingStone = 0;
   let allBuildingIronwork = 0;
-  let accessibleTimber = 0;
-  let accessibleStone = 0;
-  let accessibleFirewood = 0;
-  let accessibleFood = 0;
-  let accessibleGrain = 0;
-  let accessibleBarley = 0;
-  let accessibleIronwork = 0;
-  let accessibleIron = 0;
-  let accessibleSalt = 0;
-  let accessiblePottery = 0;
   let reservedBuildingTimber = 0;
   let reservedBuildingStone = 0;
   let reservedBuildingIronwork = 0;
@@ -662,18 +657,13 @@ export function computeMarketplaceTradeAvailability(
     const connected = building.id === marketplace.id
       || roadConnected(marketplace.x, marketplace.z, building.x, building.z);
     if (!connected) continue;
-    accessibleTimber += building.timber;
-    accessibleStone += building.stone;
-    accessibleFirewood += building.firewood;
-    accessibleFood += building.bread ?? 0;
-    accessibleGrain += building.kind === 'granary'
-      ? granaryExportableGrain(building.grain, building.granaryGrainReserve ?? 0)
-      : building.grain;
-    accessibleBarley += building.barley ?? 0;
-    accessibleIronwork += building.ironwork ?? 0;
-    accessibleIron += building.iron ?? 0;
-    accessibleSalt += building.salt ?? 0;
-    accessiblePottery += building.pottery ?? 0;
+    for (const resource of TRADE_RESOURCE_KINDS) {
+      let stock = tradeResourceBuildingStock(building, resource);
+      if (resource === 'grain' && building.kind === 'granary') {
+        stock = granaryExportableGrain(stock, building.granaryGrainReserve ?? 0);
+      }
+      availability[resource] += Math.max(0, stock);
+    }
   }
 
   for (const residence of state.residences?.values() ?? []) {
@@ -700,29 +690,41 @@ export function computeMarketplaceTradeAvailability(
   const ledgerStone = includeLegacyLedger
     ? Math.max(0, state.stockpile.stone - reservedTreasuryStone)
     : 0;
-  return {
-    timber:
-      ledgerTimber + Math.min(accessibleTimber, unreservedBuildingTimber),
-    stone:
-      ledgerStone + Math.min(accessibleStone, unreservedBuildingStone),
-    gold: includeLegacyLedger
-      ? computeResourceTotals(state).gold
-      : Math.max(0, marketplace.gold),
-    firewood: (includeLegacyLedger ? state.stockpile.firewood : 0) + accessibleFirewood,
-    food: (includeLegacyLedger ? state.stockpile.bread : 0) + accessibleFood,
-    grain: (includeLegacyLedger ? state.stockpile.grain : 0) + accessibleGrain,
-    barley: (includeLegacyLedger ? (state.stockpile.barley ?? 0) : 0) + accessibleBarley,
-    ironwork: (includeLegacyLedger
-      ? Math.max(
-          0,
-          (state.stockpile.ironwork ?? 0) - reservedTreasuryIronwork,
-        )
-      : 0)
-      + Math.min(accessibleIronwork, unreservedBuildingIronwork),
-    iron: (includeLegacyLedger ? (state.stockpile.iron ?? 0) : 0) + accessibleIron,
-    salt: (includeLegacyLedger ? (state.stockpile.salt ?? 0) : 0) + accessibleSalt,
-    pottery: (includeLegacyLedger ? (state.stockpile.pottery ?? 0) : 0) + accessiblePottery,
-  };
+  availability.timber = ledgerTimber + Math.min(availability.timber, unreservedBuildingTimber);
+  availability.stone = ledgerStone + Math.min(availability.stone, unreservedBuildingStone);
+  availability.ironwork = (includeLegacyLedger
+    ? Math.max(0, (state.stockpile.ironwork ?? 0) - reservedTreasuryIronwork)
+    : 0) + Math.min(availability.ironwork, unreservedBuildingIronwork);
+  if (includeLegacyLedger) {
+    for (const resource of TRADE_RESOURCE_KINDS) {
+      if (resource === 'timber' || resource === 'stone' || resource === 'ironwork') continue;
+      availability[resource] += tradeResourceLedgerStock(state, resource);
+    }
+  }
+  availability.gold = includeLegacyLedger
+    ? computeResourceTotals(state).gold
+    : Math.max(0, marketplace.gold);
+  return availability;
+}
+
+function tradeResourceBuildingStock(
+  building: BuildingState,
+  resource: TradeResourceKind,
+): number {
+  if (resource === 'food') return building.bread ?? 0;
+  return (building as unknown as Partial<Record<TradeResourceKind, number>>)[resource] ?? 0;
+}
+
+function tradeResourceLedgerStock(
+  state: GameState,
+  resource: TradeResourceKind,
+): number {
+  if (resource === 'food') return Math.max(0, state.stockpile.bread ?? 0);
+  if (resource === 'manure' || resource === 'remedies') return 0;
+  return Math.max(
+    0,
+    (state.stockpile as unknown as Partial<Record<TradeResourceKind, number>>)[resource] ?? 0,
+  );
 }
 
 export function computePopulationStats(state: GameState): PopulationStats {

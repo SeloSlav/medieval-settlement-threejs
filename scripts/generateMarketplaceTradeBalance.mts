@@ -1,30 +1,38 @@
+export const MARKETPLACE_TRADE_RESOURCES = [
+  'timber', 'stone', 'firewood', 'water', 'food', 'grain', 'flour', 'ale',
+  'preservedFood', 'honey', 'wine', 'ironwork', 'polearms', 'wool', 'cloth',
+  'barley', 'malt', 'flax', 'iron', 'clay', 'salt', 'charcoal', 'pottery',
+  'manure', 'remedies', 'roofTiles', 'meat', 'fish', 'berries', 'mushrooms',
+  'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes', 'porridge',
+  'curedMeat', 'smokedFish', 'cheese',
+] as const;
+
+export type MarketplaceTradeResource = (typeof MARKETPLACE_TRADE_RESOURCES)[number];
+
 export type MarketplaceBarterOffer = {
   id: string;
   kind: 'barter';
-  give: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
+  give: MarketplaceTradeResource;
   giveAmount: number;
-  receive: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
+  receive: MarketplaceTradeResource;
   receiveAmount: number;
 };
 
 export type MarketplaceTradeBalance = {
   bulkTradeCooldownSeconds: number;
-  resourceSpendScopes: Record<
-    'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery',
-    'marketAccessible' | 'treasury'
-  >;
+  resourceSpendScopes: Record<MarketplaceTradeResource, 'marketAccessible' | 'treasury'>;
   offers: Array<
     | {
         id: string;
         kind: 'goldBuy';
-        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
+        resource: MarketplaceTradeResource;
         amount: number;
         goldCost: number;
       }
     | {
         id: string;
         kind: 'goldSell';
-        resource: 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
+        resource: MarketplaceTradeResource;
         amount: number;
         goldYield: number;
       }
@@ -44,24 +52,38 @@ function rustTradeResourceSlug(resource: string): string {
   return resource.charAt(0).toUpperCase() + resource.slice(1);
 }
 
+const LEGACY_PENDING_TRADE_CODES: Readonly<Record<string, number>> = {
+  sell_timber: 1,
+  sell_stone: 2,
+  sell_firewood: 3,
+  sell_food: 4,
+  timber_for_stone: 5,
+  stone_for_timber: 6,
+  timber_for_firewood: 7,
+  sell_pottery: 8,
+};
+
+function pendingTradeCodes(offers: MarketplaceTradeBalance['offers']): Map<string, number> {
+  const codes = new Map(Object.entries(LEGACY_PENDING_TRADE_CODES));
+  let nextCode = 9;
+  for (const offer of offers) {
+    if (offer.kind === 'goldBuy' || codes.has(offer.id)) continue;
+    codes.set(offer.id, nextCode++);
+  }
+  if (nextCode > 256) throw new Error('Marketplace export contract codes exceed u8 capacity.');
+  return codes;
+}
+
 export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrade): string[] {
   const trade = balance.marketplaceTrade;
   const offers = trade.offers;
+  const contractCodes = pendingTradeCodes(offers);
   const lines: string[] = [
     `pub const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS: f64 = ${rustF64(trade.bulkTradeCooldownSeconds)};`,
     '',
     '#[derive(Clone, Copy, Debug, PartialEq, Eq)]',
     'pub enum TradeResource {',
-    '    Timber,',
-    '    Stone,',
-    '    Firewood,',
-    '    Food,',
-    '    Grain,',
-    '    Barley,',
-    '    Ironwork,',
-    '    Iron,',
-    '    Salt,',
-    '    Pottery,',
+    ...MARKETPLACE_TRADE_RESOURCES.map((resource) => `    ${rustTradeResourceSlug(resource)},`),
     '}',
     '',
     '#[derive(Clone, Copy, Debug, PartialEq, Eq)]',
@@ -147,6 +169,21 @@ export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrad
     '    ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)',
     '}',
     '',
+    'pub fn marketplace_trade_contract_code(id: &str) -> Option<u8> {',
+    '    match id {',
+    ...Array.from(contractCodes, ([id, code]) => `        "${id}" => Some(${code}),`),
+    '        _ => None,',
+    '    }',
+    '}',
+    '',
+    'pub fn marketplace_trade_offer_for_contract_code(code: u8) -> Option<&\'static MarketplaceTradeOffer> {',
+    '    let id = match code {',
+    ...Array.from(contractCodes, ([id, code]) => `        ${code} => "${id}",`),
+    '        _ => return None,',
+    '    };',
+    '    marketplace_trade_offer(id)',
+    '}',
+    '',
   );
 
   return lines;
@@ -155,10 +192,11 @@ export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrad
 export function generateMarketplaceTradeTypeScript(balance: BalanceWithMarketplaceTrade): string[] {
   const trade = balance.marketplaceTrade;
   const offers = trade.offers;
+  const contractCodes = pendingTradeCodes(offers);
   const lines: string[] = [
     `export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = ${trade.bulkTradeCooldownSeconds};`,
     '',
-    "export const TRADE_RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'food', 'grain', 'barley', 'ironwork', 'iron', 'salt', 'pottery'] as const;",
+    `export const TRADE_RESOURCE_KINDS = ${JSON.stringify(MARKETPLACE_TRADE_RESOURCES)} as const;`,
     'export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];',
     '',
     "export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';",
@@ -210,6 +248,8 @@ export function generateMarketplaceTradeTypeScript(balance: BalanceWithMarketpla
     '] as const satisfies readonly MarketplaceTradeOffer[];',
     '',
     "export type MarketplaceTradeOfferId = (typeof MARKETPLACE_TRADE_OFFERS)[number]['id'];",
+    '',
+    `export const MARKETPLACE_PENDING_TRADE_IDS = ${JSON.stringify(Object.fromEntries(Array.from(contractCodes, ([id, code]) => [code, id])))} as const;`,
     '',
   );
 

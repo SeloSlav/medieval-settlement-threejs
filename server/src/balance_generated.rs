@@ -1708,7 +1708,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_flour: 0.0,
     storage_ale: 140.0,
     storage_preserved_food: 120.0,
-    storage_honey: 0.0,
+    storage_honey: 48.0,
     storage_wine: 0.0,
     storage_wool: 0.0,
     storage_cloth: 120.0,
@@ -1750,25 +1750,25 @@ const TRADING_POST: BuildingDef = BuildingDef {
     storage_food: 160.0,
     storage_grain: 120.0,
     storage_barley: 120.0,
-    storage_malt: 0.0,
-    storage_flax: 0.0,
-    storage_flour: 0.0,
+    storage_malt: 120.0,
+    storage_flax: 120.0,
+    storage_flour: 120.0,
     storage_ale: 180.0,
     storage_preserved_food: 120.0,
     storage_honey: 140.0,
     storage_wine: 160.0,
-    storage_wool: 0.0,
+    storage_wool: 120.0,
     storage_cloth: 160.0,
     storage_ironwork: 96.0,
-    storage_polearms: 0.0,
+    storage_polearms: 48.0,
     storage_iron: 96.0,
-    storage_clay: 0.0,
+    storage_clay: 120.0,
     storage_salt: 120.0,
-    storage_charcoal: 0.0,
+    storage_charcoal: 120.0,
     storage_pottery: 144.0,
-    storage_roof_tiles: 0.0,
-    storage_manure: 0.0,
-    storage_remedies: 0.0,
+    storage_roof_tiles: 120.0,
+    storage_manure: 160.0,
+    storage_remedies: 72.0,
     accepts_labor: true,
     max_labor: 5,
     work_radius: 0.0,
@@ -2319,7 +2319,7 @@ const GRANARY: BuildingDef = BuildingDef {
     storage_flour: 260.0,
     storage_ale: 180.0,
     storage_preserved_food: 180.0,
-    storage_honey: 0.0,
+    storage_honey: 96.0,
     storage_wine: 0.0,
     storage_wool: 0.0,
     storage_cloth: 0.0,
@@ -2838,13 +2838,43 @@ pub enum TradeResource {
     Timber,
     Stone,
     Firewood,
+    Water,
     Food,
     Grain,
-    Barley,
+    Flour,
+    Ale,
+    PreservedFood,
+    Honey,
+    Wine,
     Ironwork,
+    Polearms,
+    Wool,
+    Cloth,
+    Barley,
+    Malt,
+    Flax,
     Iron,
+    Clay,
     Salt,
+    Charcoal,
     Pottery,
+    Manure,
+    Remedies,
+    RoofTiles,
+    Meat,
+    Fish,
+    Berries,
+    Mushrooms,
+    Milk,
+    Apples,
+    Cherries,
+    Vegetables,
+    Eggs,
+    Grapes,
+    Porridge,
+    CuredMeat,
+    SmokedFish,
+    Cheese,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2860,13 +2890,43 @@ impl TradeResource {
             Self::Timber => TradeResourceSpendScope::MarketAccessible,
             Self::Stone => TradeResourceSpendScope::MarketAccessible,
             Self::Firewood => TradeResourceSpendScope::MarketAccessible,
+            Self::Water => TradeResourceSpendScope::MarketAccessible,
             Self::Food => TradeResourceSpendScope::MarketAccessible,
             Self::Grain => TradeResourceSpendScope::MarketAccessible,
+            Self::Flour => TradeResourceSpendScope::MarketAccessible,
+            Self::Ale => TradeResourceSpendScope::MarketAccessible,
+            Self::PreservedFood => TradeResourceSpendScope::MarketAccessible,
+            Self::Honey => TradeResourceSpendScope::MarketAccessible,
+            Self::Wine => TradeResourceSpendScope::MarketAccessible,
+            Self::Polearms => TradeResourceSpendScope::MarketAccessible,
+            Self::Wool => TradeResourceSpendScope::MarketAccessible,
+            Self::Cloth => TradeResourceSpendScope::MarketAccessible,
             Self::Barley => TradeResourceSpendScope::MarketAccessible,
+            Self::Malt => TradeResourceSpendScope::MarketAccessible,
+            Self::Flax => TradeResourceSpendScope::MarketAccessible,
             Self::Ironwork => TradeResourceSpendScope::MarketAccessible,
             Self::Iron => TradeResourceSpendScope::MarketAccessible,
+            Self::Clay => TradeResourceSpendScope::MarketAccessible,
             Self::Salt => TradeResourceSpendScope::MarketAccessible,
+            Self::Charcoal => TradeResourceSpendScope::MarketAccessible,
             Self::Pottery => TradeResourceSpendScope::MarketAccessible,
+            Self::Manure => TradeResourceSpendScope::MarketAccessible,
+            Self::Remedies => TradeResourceSpendScope::MarketAccessible,
+            Self::RoofTiles => TradeResourceSpendScope::MarketAccessible,
+            Self::Meat => TradeResourceSpendScope::MarketAccessible,
+            Self::Fish => TradeResourceSpendScope::MarketAccessible,
+            Self::Berries => TradeResourceSpendScope::MarketAccessible,
+            Self::Mushrooms => TradeResourceSpendScope::MarketAccessible,
+            Self::Milk => TradeResourceSpendScope::MarketAccessible,
+            Self::Apples => TradeResourceSpendScope::MarketAccessible,
+            Self::Cherries => TradeResourceSpendScope::MarketAccessible,
+            Self::Vegetables => TradeResourceSpendScope::MarketAccessible,
+            Self::Eggs => TradeResourceSpendScope::MarketAccessible,
+            Self::Grapes => TradeResourceSpendScope::MarketAccessible,
+            Self::Porridge => TradeResourceSpendScope::MarketAccessible,
+            Self::CuredMeat => TradeResourceSpendScope::MarketAccessible,
+            Self::SmokedFish => TradeResourceSpendScope::MarketAccessible,
+            Self::Cheese => TradeResourceSpendScope::MarketAccessible,
         }
     }
 }
@@ -2943,6 +3003,33 @@ const TRADE_SELL_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
+const TRADE_BUY_WATER: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_water",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Water,
+        amount: 10.0,
+        gold_cost: 8.0,
+    },
+};
+
+const TRADE_SELL_WATER: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_water",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Water,
+        amount: 10.0,
+        gold_yield: 4.0,
+    },
+};
+
+const TRADE_BUY_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_food",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Food,
+        amount: 10.0,
+        gold_cost: 13.0,
+    },
+};
+
 const TRADE_SELL_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "sell_food",
     kind: MarketplaceTradeKind::GoldSell {
@@ -2961,12 +3048,210 @@ const TRADE_BUY_SEED_GRAIN: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
+const TRADE_SELL_GRAIN: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_grain",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Grain,
+        amount: 24.0,
+        gold_yield: 11.0,
+    },
+};
+
+const TRADE_BUY_FLOUR: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_flour",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Flour,
+        amount: 12.0,
+        gold_cost: 15.0,
+    },
+};
+
+const TRADE_SELL_FLOUR: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_flour",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Flour,
+        amount: 12.0,
+        gold_yield: 9.0,
+    },
+};
+
+const TRADE_BUY_ALE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_ale",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Ale,
+        amount: 12.0,
+        gold_cost: 18.0,
+    },
+};
+
+const TRADE_SELL_ALE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_ale",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Ale,
+        amount: 12.0,
+        gold_yield: 11.0,
+    },
+};
+
+const TRADE_BUY_PRESERVED_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_preserved_food",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::PreservedFood,
+        amount: 10.0,
+        gold_cost: 18.0,
+    },
+};
+
+const TRADE_SELL_PRESERVED_FOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_preserved_food",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::PreservedFood,
+        amount: 10.0,
+        gold_yield: 12.0,
+    },
+};
+
+const TRADE_BUY_HONEY: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_honey",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Honey,
+        amount: 8.0,
+        gold_cost: 20.0,
+    },
+};
+
+const TRADE_SELL_HONEY: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_honey",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Honey,
+        amount: 8.0,
+        gold_yield: 13.0,
+    },
+};
+
+const TRADE_BUY_WINE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_wine",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Wine,
+        amount: 8.0,
+        gold_cost: 26.0,
+    },
+};
+
+const TRADE_SELL_WINE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_wine",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Wine,
+        amount: 8.0,
+        gold_yield: 17.0,
+    },
+};
+
+const TRADE_BUY_POLEARMS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_polearms",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Polearms,
+        amount: 4.0,
+        gold_cost: 24.0,
+    },
+};
+
+const TRADE_SELL_POLEARMS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_polearms",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Polearms,
+        amount: 4.0,
+        gold_yield: 16.0,
+    },
+};
+
+const TRADE_BUY_WOOL: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_wool",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Wool,
+        amount: 12.0,
+        gold_cost: 14.0,
+    },
+};
+
+const TRADE_SELL_WOOL: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_wool",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Wool,
+        amount: 12.0,
+        gold_yield: 9.0,
+    },
+};
+
+const TRADE_BUY_CLOTH: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_cloth",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Cloth,
+        amount: 8.0,
+        gold_cost: 22.0,
+    },
+};
+
+const TRADE_SELL_CLOTH: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_cloth",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Cloth,
+        amount: 8.0,
+        gold_yield: 15.0,
+    },
+};
+
 const TRADE_BUY_BARLEY_SEED: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "buy_barley_seed",
     kind: MarketplaceTradeKind::GoldBuy {
         resource: TradeResource::Barley,
         amount: 24.0,
         gold_cost: 15.0,
+    },
+};
+
+const TRADE_SELL_BARLEY: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_barley",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Barley,
+        amount: 24.0,
+        gold_yield: 9.0,
+    },
+};
+
+const TRADE_BUY_MALT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_malt",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Malt,
+        amount: 12.0,
+        gold_cost: 14.0,
+    },
+};
+
+const TRADE_SELL_MALT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_malt",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Malt,
+        amount: 12.0,
+        gold_yield: 9.0,
+    },
+};
+
+const TRADE_BUY_FLAX: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_flax",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Flax,
+        amount: 12.0,
+        gold_cost: 12.0,
+    },
+};
+
+const TRADE_SELL_FLAX: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_flax",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Flax,
+        amount: 12.0,
+        gold_yield: 7.0,
     },
 };
 
@@ -2979,12 +3264,48 @@ const TRADE_BUY_IRONWORK: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
+const TRADE_SELL_IRONWORK: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_ironwork",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Ironwork,
+        amount: 6.0,
+        gold_yield: 8.0,
+    },
+};
+
 const TRADE_BUY_IRON: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "buy_iron",
     kind: MarketplaceTradeKind::GoldBuy {
         resource: TradeResource::Iron,
         amount: 12.0,
         gold_cost: 16.0,
+    },
+};
+
+const TRADE_SELL_IRON: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_iron",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Iron,
+        amount: 12.0,
+        gold_yield: 10.0,
+    },
+};
+
+const TRADE_BUY_CLAY: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_clay",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Clay,
+        amount: 16.0,
+        gold_cost: 10.0,
+    },
+};
+
+const TRADE_SELL_CLAY: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_clay",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Clay,
+        amount: 16.0,
+        gold_yield: 6.0,
     },
 };
 
@@ -2997,12 +3318,354 @@ const TRADE_BUY_SALT: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
+const TRADE_SELL_SALT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_salt",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Salt,
+        amount: 12.0,
+        gold_yield: 8.0,
+    },
+};
+
+const TRADE_BUY_CHARCOAL: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_charcoal",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Charcoal,
+        amount: 12.0,
+        gold_cost: 12.0,
+    },
+};
+
+const TRADE_SELL_CHARCOAL: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_charcoal",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Charcoal,
+        amount: 12.0,
+        gold_yield: 7.0,
+    },
+};
+
+const TRADE_BUY_POTTERY: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_pottery",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Pottery,
+        amount: 12.0,
+        gold_cost: 27.0,
+    },
+};
+
 const TRADE_SELL_POTTERY: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "sell_pottery",
     kind: MarketplaceTradeKind::GoldSell {
         resource: TradeResource::Pottery,
         amount: 12.0,
         gold_yield: 18.0,
+    },
+};
+
+const TRADE_BUY_MANURE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_manure",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Manure,
+        amount: 20.0,
+        gold_cost: 6.0,
+    },
+};
+
+const TRADE_SELL_MANURE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_manure",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Manure,
+        amount: 20.0,
+        gold_yield: 3.0,
+    },
+};
+
+const TRADE_BUY_REMEDIES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_remedies",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Remedies,
+        amount: 6.0,
+        gold_cost: 18.0,
+    },
+};
+
+const TRADE_SELL_REMEDIES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_remedies",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Remedies,
+        amount: 6.0,
+        gold_yield: 12.0,
+    },
+};
+
+const TRADE_BUY_ROOF_TILES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_roof_tiles",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::RoofTiles,
+        amount: 12.0,
+        gold_cost: 20.0,
+    },
+};
+
+const TRADE_SELL_ROOF_TILES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_roof_tiles",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::RoofTiles,
+        amount: 12.0,
+        gold_yield: 13.0,
+    },
+};
+
+const TRADE_BUY_MEAT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_meat",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Meat,
+        amount: 8.0,
+        gold_cost: 18.0,
+    },
+};
+
+const TRADE_SELL_MEAT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_meat",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Meat,
+        amount: 8.0,
+        gold_yield: 11.0,
+    },
+};
+
+const TRADE_BUY_FISH: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_fish",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Fish,
+        amount: 8.0,
+        gold_cost: 14.0,
+    },
+};
+
+const TRADE_SELL_FISH: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_fish",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Fish,
+        amount: 8.0,
+        gold_yield: 9.0,
+    },
+};
+
+const TRADE_BUY_BERRIES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_berries",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Berries,
+        amount: 8.0,
+        gold_cost: 10.0,
+    },
+};
+
+const TRADE_SELL_BERRIES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_berries",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Berries,
+        amount: 8.0,
+        gold_yield: 6.0,
+    },
+};
+
+const TRADE_BUY_MUSHROOMS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_mushrooms",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Mushrooms,
+        amount: 8.0,
+        gold_cost: 12.0,
+    },
+};
+
+const TRADE_SELL_MUSHROOMS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_mushrooms",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Mushrooms,
+        amount: 8.0,
+        gold_yield: 7.0,
+    },
+};
+
+const TRADE_BUY_MILK: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_milk",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Milk,
+        amount: 8.0,
+        gold_cost: 10.0,
+    },
+};
+
+const TRADE_SELL_MILK: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_milk",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Milk,
+        amount: 8.0,
+        gold_yield: 6.0,
+    },
+};
+
+const TRADE_BUY_APPLES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_apples",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Apples,
+        amount: 10.0,
+        gold_cost: 12.0,
+    },
+};
+
+const TRADE_SELL_APPLES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_apples",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Apples,
+        amount: 10.0,
+        gold_yield: 7.0,
+    },
+};
+
+const TRADE_BUY_CHERRIES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_cherries",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Cherries,
+        amount: 10.0,
+        gold_cost: 14.0,
+    },
+};
+
+const TRADE_SELL_CHERRIES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_cherries",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Cherries,
+        amount: 10.0,
+        gold_yield: 8.0,
+    },
+};
+
+const TRADE_BUY_VEGETABLES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_vegetables",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Vegetables,
+        amount: 10.0,
+        gold_cost: 11.0,
+    },
+};
+
+const TRADE_SELL_VEGETABLES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_vegetables",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Vegetables,
+        amount: 10.0,
+        gold_yield: 7.0,
+    },
+};
+
+const TRADE_BUY_EGGS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_eggs",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Eggs,
+        amount: 8.0,
+        gold_cost: 12.0,
+    },
+};
+
+const TRADE_SELL_EGGS: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_eggs",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Eggs,
+        amount: 8.0,
+        gold_yield: 7.0,
+    },
+};
+
+const TRADE_BUY_GRAPES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_grapes",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Grapes,
+        amount: 10.0,
+        gold_cost: 14.0,
+    },
+};
+
+const TRADE_SELL_GRAPES: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_grapes",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Grapes,
+        amount: 10.0,
+        gold_yield: 8.0,
+    },
+};
+
+const TRADE_BUY_PORRIDGE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_porridge",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Porridge,
+        amount: 10.0,
+        gold_cost: 10.0,
+    },
+};
+
+const TRADE_SELL_PORRIDGE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_porridge",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Porridge,
+        amount: 10.0,
+        gold_yield: 6.0,
+    },
+};
+
+const TRADE_BUY_CURED_MEAT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_cured_meat",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::CuredMeat,
+        amount: 8.0,
+        gold_cost: 22.0,
+    },
+};
+
+const TRADE_SELL_CURED_MEAT: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_cured_meat",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::CuredMeat,
+        amount: 8.0,
+        gold_yield: 14.0,
+    },
+};
+
+const TRADE_BUY_SMOKED_FISH: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_smoked_fish",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::SmokedFish,
+        amount: 8.0,
+        gold_cost: 20.0,
+    },
+};
+
+const TRADE_SELL_SMOKED_FISH: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_smoked_fish",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::SmokedFish,
+        amount: 8.0,
+        gold_yield: 13.0,
+    },
+};
+
+const TRADE_BUY_CHEESE_BULK: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "buy_cheese_bulk",
+    kind: MarketplaceTradeKind::GoldBuy {
+        resource: TradeResource::Cheese,
+        amount: 8.0,
+        gold_cost: 20.0,
+    },
+};
+
+const TRADE_SELL_CHEESE: MarketplaceTradeOffer = MarketplaceTradeOffer {
+    id: "sell_cheese",
+    kind: MarketplaceTradeKind::GoldSell {
+        resource: TradeResource::Cheese,
+        amount: 8.0,
+        gold_yield: 13.0,
     },
 };
 
@@ -3036,10 +3699,109 @@ const TRADE_TIMBER_FOR_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_SELL_FOOD, TRADE_BUY_SEED_GRAIN, TRADE_BUY_BARLEY_SEED, TRADE_BUY_IRONWORK, TRADE_BUY_IRON, TRADE_BUY_SALT, TRADE_SELL_POTTERY, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_BUY_WATER, TRADE_SELL_WATER, TRADE_BUY_FOOD, TRADE_SELL_FOOD, TRADE_BUY_SEED_GRAIN, TRADE_SELL_GRAIN, TRADE_BUY_FLOUR, TRADE_SELL_FLOUR, TRADE_BUY_ALE, TRADE_SELL_ALE, TRADE_BUY_PRESERVED_FOOD, TRADE_SELL_PRESERVED_FOOD, TRADE_BUY_HONEY, TRADE_SELL_HONEY, TRADE_BUY_WINE, TRADE_SELL_WINE, TRADE_BUY_POLEARMS, TRADE_SELL_POLEARMS, TRADE_BUY_WOOL, TRADE_SELL_WOOL, TRADE_BUY_CLOTH, TRADE_SELL_CLOTH, TRADE_BUY_BARLEY_SEED, TRADE_SELL_BARLEY, TRADE_BUY_MALT, TRADE_SELL_MALT, TRADE_BUY_FLAX, TRADE_SELL_FLAX, TRADE_BUY_IRONWORK, TRADE_SELL_IRONWORK, TRADE_BUY_IRON, TRADE_SELL_IRON, TRADE_BUY_CLAY, TRADE_SELL_CLAY, TRADE_BUY_SALT, TRADE_SELL_SALT, TRADE_BUY_CHARCOAL, TRADE_SELL_CHARCOAL, TRADE_BUY_POTTERY, TRADE_SELL_POTTERY, TRADE_BUY_MANURE, TRADE_SELL_MANURE, TRADE_BUY_REMEDIES, TRADE_SELL_REMEDIES, TRADE_BUY_ROOF_TILES, TRADE_SELL_ROOF_TILES, TRADE_BUY_MEAT, TRADE_SELL_MEAT, TRADE_BUY_FISH, TRADE_SELL_FISH, TRADE_BUY_BERRIES, TRADE_SELL_BERRIES, TRADE_BUY_MUSHROOMS, TRADE_SELL_MUSHROOMS, TRADE_BUY_MILK, TRADE_SELL_MILK, TRADE_BUY_APPLES, TRADE_SELL_APPLES, TRADE_BUY_CHERRIES, TRADE_SELL_CHERRIES, TRADE_BUY_VEGETABLES, TRADE_SELL_VEGETABLES, TRADE_BUY_EGGS, TRADE_SELL_EGGS, TRADE_BUY_GRAPES, TRADE_SELL_GRAPES, TRADE_BUY_PORRIDGE, TRADE_SELL_PORRIDGE, TRADE_BUY_CURED_MEAT, TRADE_SELL_CURED_MEAT, TRADE_BUY_SMOKED_FISH, TRADE_SELL_SMOKED_FISH, TRADE_BUY_CHEESE_BULK, TRADE_SELL_CHEESE, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
 
 pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
     ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)
+}
+
+pub fn marketplace_trade_contract_code(id: &str) -> Option<u8> {
+    match id {
+        "sell_timber" => Some(1),
+        "sell_stone" => Some(2),
+        "sell_firewood" => Some(3),
+        "sell_food" => Some(4),
+        "timber_for_stone" => Some(5),
+        "stone_for_timber" => Some(6),
+        "timber_for_firewood" => Some(7),
+        "sell_pottery" => Some(8),
+        "sell_water" => Some(9),
+        "sell_grain" => Some(10),
+        "sell_flour" => Some(11),
+        "sell_ale" => Some(12),
+        "sell_preserved_food" => Some(13),
+        "sell_honey" => Some(14),
+        "sell_wine" => Some(15),
+        "sell_polearms" => Some(16),
+        "sell_wool" => Some(17),
+        "sell_cloth" => Some(18),
+        "sell_barley" => Some(19),
+        "sell_malt" => Some(20),
+        "sell_flax" => Some(21),
+        "sell_ironwork" => Some(22),
+        "sell_iron" => Some(23),
+        "sell_clay" => Some(24),
+        "sell_salt" => Some(25),
+        "sell_charcoal" => Some(26),
+        "sell_manure" => Some(27),
+        "sell_remedies" => Some(28),
+        "sell_roof_tiles" => Some(29),
+        "sell_meat" => Some(30),
+        "sell_fish" => Some(31),
+        "sell_berries" => Some(32),
+        "sell_mushrooms" => Some(33),
+        "sell_milk" => Some(34),
+        "sell_apples" => Some(35),
+        "sell_cherries" => Some(36),
+        "sell_vegetables" => Some(37),
+        "sell_eggs" => Some(38),
+        "sell_grapes" => Some(39),
+        "sell_porridge" => Some(40),
+        "sell_cured_meat" => Some(41),
+        "sell_smoked_fish" => Some(42),
+        "sell_cheese" => Some(43),
+        _ => None,
+    }
+}
+
+pub fn marketplace_trade_offer_for_contract_code(code: u8) -> Option<&'static MarketplaceTradeOffer> {
+    let id = match code {
+        1 => "sell_timber",
+        2 => "sell_stone",
+        3 => "sell_firewood",
+        4 => "sell_food",
+        5 => "timber_for_stone",
+        6 => "stone_for_timber",
+        7 => "timber_for_firewood",
+        8 => "sell_pottery",
+        9 => "sell_water",
+        10 => "sell_grain",
+        11 => "sell_flour",
+        12 => "sell_ale",
+        13 => "sell_preserved_food",
+        14 => "sell_honey",
+        15 => "sell_wine",
+        16 => "sell_polearms",
+        17 => "sell_wool",
+        18 => "sell_cloth",
+        19 => "sell_barley",
+        20 => "sell_malt",
+        21 => "sell_flax",
+        22 => "sell_ironwork",
+        23 => "sell_iron",
+        24 => "sell_clay",
+        25 => "sell_salt",
+        26 => "sell_charcoal",
+        27 => "sell_manure",
+        28 => "sell_remedies",
+        29 => "sell_roof_tiles",
+        30 => "sell_meat",
+        31 => "sell_fish",
+        32 => "sell_berries",
+        33 => "sell_mushrooms",
+        34 => "sell_milk",
+        35 => "sell_apples",
+        36 => "sell_cherries",
+        37 => "sell_vegetables",
+        38 => "sell_eggs",
+        39 => "sell_grapes",
+        40 => "sell_porridge",
+        41 => "sell_cured_meat",
+        42 => "sell_smoked_fish",
+        43 => "sell_cheese",
+        _ => return None,
+    };
+    marketplace_trade_offer(id)
 }
 
 pub const MARKET_PRICE_UPDATE_INTERVAL_TICKS: u64 = 150;

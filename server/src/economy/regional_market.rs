@@ -50,18 +50,44 @@ pub fn ensure_market_state(ctx: &ReducerContext, owner: Identity) {
 pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64 {
     match resource {
         TradeResource::Timber => state.timber_price_mult,
-        TradeResource::Stone => state.stone_price_mult,
-        TradeResource::Firewood => state.firewood_price_mult,
-        TradeResource::Food => state.food_price_mult,
-        // Seed grain follows the regional food-crop market without widening
-        // the persisted market-state schema.
-        TradeResource::Grain => state.food_price_mult,
-        TradeResource::Barley => state.food_price_mult,
-        // Imported spearheads and fittings follow the regional mineral market.
-        TradeResource::Ironwork => state.stone_price_mult,
-        TradeResource::Iron => state.stone_price_mult,
-        TradeResource::Salt => state.food_price_mult,
-        TradeResource::Pottery => state.wares_price_mult,
+        TradeResource::Stone
+        | TradeResource::Ironwork
+        | TradeResource::Polearms
+        | TradeResource::Iron
+        | TradeResource::Clay
+        | TradeResource::RoofTiles => state.stone_price_mult,
+        TradeResource::Firewood | TradeResource::Water | TradeResource::Charcoal => {
+            state.firewood_price_mult
+        }
+        TradeResource::Food
+        | TradeResource::Grain
+        | TradeResource::Flour
+        | TradeResource::Barley
+        | TradeResource::Malt
+        | TradeResource::Flax
+        | TradeResource::Salt
+        | TradeResource::Meat
+        | TradeResource::Fish
+        | TradeResource::Berries
+        | TradeResource::Mushrooms
+        | TradeResource::Milk
+        | TradeResource::Apples
+        | TradeResource::Cherries
+        | TradeResource::Vegetables
+        | TradeResource::Eggs
+        | TradeResource::Grapes
+        | TradeResource::Porridge => state.food_price_mult,
+        TradeResource::Ale | TradeResource::Wine => state.drink_price_mult,
+        TradeResource::PreservedFood
+        | TradeResource::Honey
+        | TradeResource::CuredMeat
+        | TradeResource::SmokedFish
+        | TradeResource::Cheese => state.provision_price_mult,
+        TradeResource::Wool
+        | TradeResource::Cloth
+        | TradeResource::Pottery
+        | TradeResource::Manure
+        | TradeResource::Remedies => state.wares_price_mult,
     }
 }
 
@@ -155,39 +181,57 @@ pub fn record_market_trade(
             state.regional_timber_supply =
                 adjust_supply_index(state.regional_timber_supply, direction, amount);
         }
-        TradeResource::Stone => {
+        TradeResource::Stone
+        | TradeResource::Ironwork
+        | TradeResource::Polearms
+        | TradeResource::Iron
+        | TradeResource::Clay
+        | TradeResource::RoofTiles => {
             state.regional_stone_supply =
                 adjust_supply_index(state.regional_stone_supply, direction, amount);
         }
-        TradeResource::Firewood => {
+        TradeResource::Firewood | TradeResource::Water | TradeResource::Charcoal => {
             state.regional_firewood_demand =
                 adjust_demand_index(state.regional_firewood_demand, direction, amount);
         }
-        TradeResource::Food => {
+        TradeResource::Food
+        | TradeResource::Grain
+        | TradeResource::Flour
+        | TradeResource::Barley
+        | TradeResource::Malt
+        | TradeResource::Flax
+        | TradeResource::Salt
+        | TradeResource::Meat
+        | TradeResource::Fish
+        | TradeResource::Berries
+        | TradeResource::Mushrooms
+        | TradeResource::Milk
+        | TradeResource::Apples
+        | TradeResource::Cherries
+        | TradeResource::Vegetables
+        | TradeResource::Eggs
+        | TradeResource::Grapes
+        | TradeResource::Porridge => {
             state.regional_food_supply =
                 adjust_supply_index(state.regional_food_supply, direction, amount);
         }
-        TradeResource::Grain => {
-            state.regional_food_supply =
-                adjust_supply_index(state.regional_food_supply, direction, amount);
+        TradeResource::Ale | TradeResource::Wine => {
+            state.regional_drink_demand =
+                adjust_demand_index(state.regional_drink_demand, direction, amount);
         }
-        TradeResource::Barley => {
-            state.regional_food_supply =
-                adjust_supply_index(state.regional_food_supply, direction, amount);
+        TradeResource::PreservedFood
+        | TradeResource::Honey
+        | TradeResource::CuredMeat
+        | TradeResource::SmokedFish
+        | TradeResource::Cheese => {
+            state.regional_provision_demand =
+                adjust_demand_index(state.regional_provision_demand, direction, amount);
         }
-        TradeResource::Ironwork => {
-            state.regional_stone_supply =
-                adjust_supply_index(state.regional_stone_supply, direction, amount);
-        }
-        TradeResource::Iron => {
-            state.regional_stone_supply =
-                adjust_supply_index(state.regional_stone_supply, direction, amount);
-        }
-        TradeResource::Salt => {
-            state.regional_food_supply =
-                adjust_supply_index(state.regional_food_supply, direction, amount);
-        }
-        TradeResource::Pottery => {
+        TradeResource::Wool
+        | TradeResource::Cloth
+        | TradeResource::Pottery
+        | TradeResource::Manure
+        | TradeResource::Remedies => {
             state.regional_wares_demand =
                 adjust_demand_index(state.regional_wares_demand, direction, amount);
         }

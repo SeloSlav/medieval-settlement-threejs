@@ -1,6 +1,7 @@
 import {
   BUILDING_STORAGE_CAPS,
   MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS,
+  MARKETPLACE_PENDING_TRADE_IDS,
   MARKETPLACE_TRADE_OFFERS,
   TRADE_RESOURCE_SPEND_SCOPES,
   type MarketplaceBarterOffer,
@@ -25,30 +26,47 @@ import { freshFoodStock, preservedFoodStock } from './foodInventory.ts';
 
 export type MarketplaceTradeAvailability = Record<TradeResourceKind | 'gold', number>;
 
-// Stable save codes mirror the authoritative server mapping. They are
-// intentionally independent of balance-file presentation order.
-const PENDING_TRADE_IDS: Record<number, string> = {
-  1: 'sell_timber',
-  2: 'sell_stone',
-  3: 'sell_firewood',
-  4: 'sell_food',
-  5: 'timber_for_stone',
-  6: 'stone_for_timber',
-  7: 'timber_for_firewood',
-  8: 'sell_pottery',
-};
-
 const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   timber: 'Timber',
   stone: 'Stone',
   firewood: 'Firewood',
+  water: 'Water',
   food: 'Bread',
   grain: 'Grain',
+  flour: 'Flour',
+  ale: 'Ale',
+  preservedFood: 'Preserved food',
+  honey: 'Honey',
+  wine: 'Wine',
+  polearms: 'Polearms',
+  wool: 'Wool',
+  cloth: 'Cloth',
   barley: 'Barley',
+  malt: 'Malt',
+  flax: 'Flax',
   ironwork: 'Ironwork',
   iron: 'Iron',
+  clay: 'Clay',
   salt: 'Salt',
+  charcoal: 'Charcoal',
   pottery: 'Pottery',
+  manure: 'Manure',
+  remedies: 'Remedies',
+  roofTiles: 'Roof tiles',
+  meat: 'Meat',
+  fish: 'Fish',
+  berries: 'Berries',
+  mushrooms: 'Mushrooms',
+  milk: 'Milk',
+  apples: 'Apples',
+  cherries: 'Cherries',
+  vegetables: 'Vegetables',
+  eggs: 'Eggs',
+  grapes: 'Grapes',
+  porridge: 'Porridge',
+  curedMeat: 'Cured meat',
+  smokedFish: 'Smoked fish',
+  cheese: 'Cheese',
   gold: 'Gold',
 };
 
@@ -88,7 +106,9 @@ export function marketplaceTradeOfferCost(
 export function marketplacePendingTradeOffer(
   code: number | undefined,
 ): MarketplaceTradeOffer | null {
-  const tradeId = PENDING_TRADE_IDS[Math.floor(code ?? 0)];
+  const tradeId = MARKETPLACE_PENDING_TRADE_IDS[
+    String(Math.floor(code ?? 0)) as keyof typeof MARKETPLACE_PENDING_TRADE_IDS
+  ];
   if (!tradeId) return null;
   return MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === tradeId) ?? null;
 }
@@ -287,11 +307,38 @@ export function marketplaceResourceRoom(
   building: BuildingState,
   resource: TradeResourceKind,
 ): number {
-  const cap = BUILDING_STORAGE_CAPS.trading_post[resource] ?? 0;
-  const stock = resource === 'food'
+  const storageResource = tradeStorageResource(resource);
+  const cap = BUILDING_STORAGE_CAPS.trading_post[storageResource] ?? 0;
+  const stock = storageResource === 'food'
     ? freshFoodStock(building)
-    : (building[resource] ?? 0);
+    : storageResource === 'preservedFood'
+      ? preservedFoodStock(building)
+      : (building[storageResource] ?? 0);
   return Math.max(0, cap - stock);
+}
+
+function tradeStorageResource(resource: TradeResourceKind): keyof BuildingState {
+  if (
+    resource === 'food'
+    || resource === 'meat'
+    || resource === 'fish'
+    || resource === 'berries'
+    || resource === 'mushrooms'
+    || resource === 'milk'
+    || resource === 'apples'
+    || resource === 'cherries'
+    || resource === 'vegetables'
+    || resource === 'eggs'
+    || resource === 'grapes'
+    || resource === 'porridge'
+  ) return 'food';
+  if (
+    resource === 'preservedFood'
+    || resource === 'curedMeat'
+    || resource === 'smokedFish'
+    || resource === 'cheese'
+  ) return 'preservedFood';
+  return resource;
 }
 
 export function marketplaceTradeOfferReceive(

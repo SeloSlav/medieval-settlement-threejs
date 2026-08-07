@@ -16,8 +16,9 @@ use super::storage::{
 };
 use crate::balance_generated::TradeResource;
 use crate::balance_generated::{
-    market_commodity_offer, market_water_commodity_offer, marketplace_trade_offer,
-    MarketplaceTradeKind, MarketplaceTradeOffer, SPECIALTY_EXPORT_GOLD_PER_ALE,
+    market_commodity_offer, market_water_commodity_offer, marketplace_trade_contract_code,
+    marketplace_trade_offer, marketplace_trade_offer_for_contract_code, MarketplaceTradeKind,
+    MarketplaceTradeOffer, SPECIALTY_EXPORT_GOLD_PER_ALE,
     SPECIALTY_EXPORT_GOLD_PER_CHEESE, SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
     SPECIALTY_EXPORT_GOLD_PER_POTTERY, SPECIALTY_EXPORT_GOLD_PER_WINE,
     TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
@@ -411,32 +412,11 @@ enum MarketplaceTradeOutcome {
 // Once written to a save they must continue to identify the same order even if
 // its presentation order changes later.
 fn pending_trade_code(trade_id: &str) -> Option<u8> {
-    match trade_id {
-        "sell_timber" => Some(1),
-        "sell_stone" => Some(2),
-        "sell_firewood" => Some(3),
-        "sell_food" => Some(4),
-        "timber_for_stone" => Some(5),
-        "stone_for_timber" => Some(6),
-        "timber_for_firewood" => Some(7),
-        "sell_pottery" => Some(8),
-        _ => None,
-    }
+    marketplace_trade_contract_code(trade_id)
 }
 
 fn pending_trade_offer(code: u8) -> Option<&'static MarketplaceTradeOffer> {
-    let trade_id = match code {
-        1 => "sell_timber",
-        2 => "sell_stone",
-        3 => "sell_firewood",
-        4 => "sell_food",
-        5 => "timber_for_stone",
-        6 => "stone_for_timber",
-        7 => "timber_for_firewood",
-        8 => "sell_pottery",
-        _ => return None,
-    };
-    marketplace_trade_offer(trade_id)
+    marketplace_trade_offer_for_contract_code(code)
 }
 
 fn apply_marketplace_trade(
@@ -908,14 +888,7 @@ fn stage_physical_market_resource(
     let unreserved_budget = match resource {
         TradeResource::Timber => available_unreserved_building_timber(ctx, owner),
         TradeResource::Stone => available_unreserved_building_stone(ctx, owner),
-        TradeResource::Firewood
-        | TradeResource::Food
-        | TradeResource::Grain
-        | TradeResource::Barley
-        | TradeResource::Ironwork
-        | TradeResource::Iron
-        | TradeResource::Salt
-        | TradeResource::Pottery => f64::INFINITY,
+        _ => f64::INFINITY,
     };
     let remote_budget = (unreserved_budget - local_stock).max(0.0);
     let mut candidates = Vec::new();
@@ -1051,15 +1024,45 @@ fn trade_commodity(resource: TradeResource) -> CommodityKind {
         TradeResource::Timber => CommodityKind::Timber,
         TradeResource::Stone => CommodityKind::Stone,
         TradeResource::Firewood => CommodityKind::Firewood,
+        TradeResource::Water => CommodityKind::Water,
         // Regional "food" contracts are represented physically as imported
         // bread; the broad trade category remains only for pricing/history.
         TradeResource::Food => CommodityKind::Bread,
         TradeResource::Grain => CommodityKind::Grain,
+        TradeResource::Flour => CommodityKind::Flour,
+        TradeResource::Ale => CommodityKind::Ale,
+        TradeResource::PreservedFood => CommodityKind::PreservedFood,
+        TradeResource::Honey => CommodityKind::Honey,
+        TradeResource::Wine => CommodityKind::Wine,
+        TradeResource::Polearms => CommodityKind::Polearms,
+        TradeResource::Wool => CommodityKind::Wool,
+        TradeResource::Cloth => CommodityKind::Cloth,
         TradeResource::Barley => CommodityKind::Barley,
+        TradeResource::Malt => CommodityKind::Malt,
+        TradeResource::Flax => CommodityKind::Flax,
         TradeResource::Ironwork => CommodityKind::Ironwork,
         TradeResource::Iron => CommodityKind::Iron,
+        TradeResource::Clay => CommodityKind::Clay,
         TradeResource::Salt => CommodityKind::Salt,
+        TradeResource::Charcoal => CommodityKind::Charcoal,
         TradeResource::Pottery => CommodityKind::Pottery,
+        TradeResource::Manure => CommodityKind::Manure,
+        TradeResource::Remedies => CommodityKind::Remedies,
+        TradeResource::RoofTiles => CommodityKind::RoofTiles,
+        TradeResource::Meat => CommodityKind::Meat,
+        TradeResource::Fish => CommodityKind::Fish,
+        TradeResource::Berries => CommodityKind::Berries,
+        TradeResource::Mushrooms => CommodityKind::Mushrooms,
+        TradeResource::Milk => CommodityKind::Milk,
+        TradeResource::Apples => CommodityKind::Apples,
+        TradeResource::Cherries => CommodityKind::Cherries,
+        TradeResource::Vegetables => CommodityKind::Vegetables,
+        TradeResource::Eggs => CommodityKind::Eggs,
+        TradeResource::Grapes => CommodityKind::Grapes,
+        TradeResource::Porridge => CommodityKind::Porridge,
+        TradeResource::CuredMeat => CommodityKind::CuredMeat,
+        TradeResource::SmokedFish => CommodityKind::SmokedFish,
+        TradeResource::Cheese => CommodityKind::Cheese,
     }
 }
 
@@ -1068,13 +1071,43 @@ fn trade_resource_name(resource: TradeResource) -> &'static str {
         TradeResource::Timber => "timber",
         TradeResource::Stone => "stone",
         TradeResource::Firewood => "firewood",
+        TradeResource::Water => "water",
         TradeResource::Food => "bread",
         TradeResource::Grain => "grain",
+        TradeResource::Flour => "flour",
+        TradeResource::Ale => "ale",
+        TradeResource::PreservedFood => "preserved food",
+        TradeResource::Honey => "honey",
+        TradeResource::Wine => "wine",
+        TradeResource::Polearms => "polearms",
+        TradeResource::Wool => "wool",
+        TradeResource::Cloth => "cloth",
         TradeResource::Barley => "barley",
+        TradeResource::Malt => "malt",
+        TradeResource::Flax => "flax",
         TradeResource::Ironwork => "ironwork",
         TradeResource::Iron => "iron",
+        TradeResource::Clay => "clay",
         TradeResource::Salt => "salt",
+        TradeResource::Charcoal => "charcoal",
         TradeResource::Pottery => "pottery",
+        TradeResource::Manure => "manure",
+        TradeResource::Remedies => "remedies",
+        TradeResource::RoofTiles => "roof tiles",
+        TradeResource::Meat => "meat",
+        TradeResource::Fish => "fish",
+        TradeResource::Berries => "berries",
+        TradeResource::Mushrooms => "mushrooms",
+        TradeResource::Milk => "milk",
+        TradeResource::Apples => "apples",
+        TradeResource::Cherries => "cherries",
+        TradeResource::Vegetables => "vegetables",
+        TradeResource::Eggs => "eggs",
+        TradeResource::Grapes => "grapes",
+        TradeResource::Porridge => "porridge",
+        TradeResource::CuredMeat => "cured meat",
+        TradeResource::SmokedFish => "smoked fish",
+        TradeResource::Cheese => "cheese",
     }
 }
 
@@ -1139,14 +1172,7 @@ fn spend_market_accessible_resource(
         TradeResource::Stone => {
             connected_stock.min(available_unreserved_building_stone(ctx, owner))
         }
-        TradeResource::Firewood
-        | TradeResource::Food
-        | TradeResource::Grain
-        | TradeResource::Barley
-        | TradeResource::Ironwork
-        | TradeResource::Iron
-        | TradeResource::Salt
-        | TradeResource::Pottery => connected_stock,
+        _ => connected_stock,
     };
     if treasury_available + building_budget + 1e-6 < amount {
         let shortfall = amount - treasury_available - building_budget;
@@ -1231,65 +1257,54 @@ fn treasury_trade_stock(
     owner: spacetimedb::Identity,
     resource: TradeResource,
 ) -> f64 {
+    if resource == TradeResource::Timber {
+        return available_unreserved_treasury_timber(ctx, owner);
+    }
+    if resource == TradeResource::Stone {
+        return available_unreserved_treasury_stone(ctx, owner);
+    }
+    let Some(row) = ctx.db.player_resources().owner().find(&owner) else {
+        return 0.0;
+    };
     match resource {
-        TradeResource::Timber => available_unreserved_treasury_timber(ctx, owner),
-        TradeResource::Stone => available_unreserved_treasury_stone(ctx, owner),
-        TradeResource::Firewood => ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|row| row.firewood)
-            .unwrap_or(0.0),
-        TradeResource::Food => ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|row| row.bread)
-            .unwrap_or(0.0),
-        TradeResource::Grain => ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|row| row.grain)
-            .unwrap_or(0.0),
-        TradeResource::Barley => ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|row| row.barley)
-            .unwrap_or(0.0),
-        TradeResource::Ironwork => ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|row| row.ironwork)
-            .unwrap_or(0.0),
-        TradeResource::Iron => ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|row| row.iron)
-            .unwrap_or(0.0),
-        TradeResource::Salt => ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|row| row.salt)
-            .unwrap_or(0.0),
-        TradeResource::Pottery => ctx
-            .db
-            .player_resources()
-            .owner()
-            .find(&owner)
-            .map(|row| row.pottery)
-            .unwrap_or(0.0),
+        TradeResource::Timber | TradeResource::Stone => unreachable!(),
+        TradeResource::Firewood => row.firewood,
+        TradeResource::Water => row.water,
+        TradeResource::Food => row.bread,
+        TradeResource::Grain => row.grain,
+        TradeResource::Flour => row.flour,
+        TradeResource::Ale => row.ale,
+        TradeResource::PreservedFood => row.preserved_food,
+        TradeResource::Honey => row.honey,
+        TradeResource::Wine => row.wine,
+        TradeResource::Ironwork => row.ironwork,
+        TradeResource::Polearms => row.polearms,
+        TradeResource::Wool => row.wool,
+        TradeResource::Cloth => row.cloth,
+        TradeResource::Barley => row.barley,
+        TradeResource::Malt => row.malt,
+        TradeResource::Flax => row.flax,
+        TradeResource::Iron => row.iron,
+        TradeResource::Clay => row.clay,
+        TradeResource::Salt => row.salt,
+        TradeResource::Charcoal => row.charcoal,
+        TradeResource::Pottery => row.pottery,
+        TradeResource::Manure | TradeResource::Remedies => 0.0,
+        TradeResource::RoofTiles => row.roof_tiles,
+        TradeResource::Meat => row.meat,
+        TradeResource::Fish => row.fish,
+        TradeResource::Berries => row.berries,
+        TradeResource::Mushrooms => row.mushrooms,
+        TradeResource::Milk => row.milk,
+        TradeResource::Apples => row.apples,
+        TradeResource::Cherries => row.cherries,
+        TradeResource::Vegetables => row.vegetables,
+        TradeResource::Eggs => row.eggs,
+        TradeResource::Grapes => row.grapes,
+        TradeResource::Porridge => row.porridge,
+        TradeResource::CuredMeat => row.cured_meat,
+        TradeResource::SmokedFish => row.smoked_fish,
+        TradeResource::Cheese => row.cheese,
     }
 }
 
@@ -1316,13 +1331,44 @@ fn withdraw_treasury_trade_stock(
         TradeResource::Timber => treasury.timber -= amount,
         TradeResource::Stone => treasury.stone -= amount,
         TradeResource::Firewood => treasury.firewood -= amount,
+        TradeResource::Water => treasury.water -= amount,
         TradeResource::Food => treasury.bread -= amount,
         TradeResource::Grain => treasury.grain -= amount,
+        TradeResource::Flour => treasury.flour -= amount,
+        TradeResource::Ale => treasury.ale -= amount,
+        TradeResource::PreservedFood => treasury.preserved_food -= amount,
+        TradeResource::Honey => treasury.honey -= amount,
+        TradeResource::Wine => treasury.wine -= amount,
+        TradeResource::Polearms => treasury.polearms -= amount,
+        TradeResource::Wool => treasury.wool -= amount,
+        TradeResource::Cloth => treasury.cloth -= amount,
         TradeResource::Barley => treasury.barley -= amount,
+        TradeResource::Malt => treasury.malt -= amount,
+        TradeResource::Flax => treasury.flax -= amount,
         TradeResource::Ironwork => treasury.ironwork -= amount,
         TradeResource::Iron => treasury.iron -= amount,
+        TradeResource::Clay => treasury.clay -= amount,
         TradeResource::Salt => treasury.salt -= amount,
+        TradeResource::Charcoal => treasury.charcoal -= amount,
         TradeResource::Pottery => treasury.pottery -= amount,
+        TradeResource::Manure | TradeResource::Remedies => {
+            return Err("This commodity exists only in physical building stores.".to_string())
+        }
+        TradeResource::RoofTiles => treasury.roof_tiles -= amount,
+        TradeResource::Meat => treasury.meat -= amount,
+        TradeResource::Fish => treasury.fish -= amount,
+        TradeResource::Berries => treasury.berries -= amount,
+        TradeResource::Mushrooms => treasury.mushrooms -= amount,
+        TradeResource::Milk => treasury.milk -= amount,
+        TradeResource::Apples => treasury.apples -= amount,
+        TradeResource::Cherries => treasury.cherries -= amount,
+        TradeResource::Vegetables => treasury.vegetables -= amount,
+        TradeResource::Eggs => treasury.eggs -= amount,
+        TradeResource::Grapes => treasury.grapes -= amount,
+        TradeResource::Porridge => treasury.porridge -= amount,
+        TradeResource::CuredMeat => treasury.cured_meat -= amount,
+        TradeResource::SmokedFish => treasury.smoked_fish -= amount,
+        TradeResource::Cheese => treasury.cheese -= amount,
     }
     ctx.db.player_resources().owner().update(treasury);
     Ok(())
