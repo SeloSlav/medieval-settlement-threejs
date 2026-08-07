@@ -35,6 +35,9 @@ import {
   NAMED_FOOD_KINDS,
   NAMED_FOOD_LABELS,
   edibleFoodStock,
+  foodVarietyCount,
+  presentFoodCategories,
+  FOOD_CATEGORY_LABELS,
   preservedFoodStock,
 } from '../../economy/foodInventory.ts';
 import {
@@ -225,6 +228,7 @@ export function renderResidenceInspector(
     context.worldQueries.getServingFirewoodSupplierForResidence(residence);
   const servingWell = context.worldQueries.getServingWellForResidence(residence);
   const servingFoodSupplier = context.worldQueries.getServingFoodSupplierForResidence(residence);
+  const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
   const servingPreservedFoodSupplier = residence.tier >= 2
     ? context.worldQueries.getServingPreservedFoodSupplierForResidence(residence)
     : null;
@@ -311,6 +315,17 @@ export function renderResidenceInspector(
         supplier: potteryUpgradeSupplier,
         stocked: servingPotterySupplier != null,
       },
+      church: {
+        supplier: servingChapel,
+        stocked: servingChapel != null,
+        ready: servingChapel != null
+          && (residence.tier === 2 ? (servingChapel.chapelTier ?? 1) >= 2 : true),
+      },
+      foodVariety: {
+        supplier: null,
+        stocked: foodVarietyCount(residence) > 0,
+        ready: foodVarietyCount(residence) >= (residence.tier === 2 ? 3 : 2),
+      },
       },
       {
         fireDisabled,
@@ -338,7 +353,6 @@ export function renderResidenceInspector(
         prosperityRoadKey,
       )
     : null;
-  const servingChapel = context.worldQueries.getServingChapelForResidence(residence);
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
   const currentClock = gameClock(context.gameState.tick);
   const environment = environmentFor(
@@ -432,7 +446,7 @@ export function renderResidenceInspector(
   const firewoodRunwayLabel = runwayDays == null
     ? '—'
     : formatFirewoodRunwayDays(runwayDays);
-  const waterRunwayDays = residence.tier >= 2 ? residenceWaterRunwayDays(residence) : null;
+  const waterRunwayDays = residence.tier > 0 ? residenceWaterRunwayDays(residence) : null;
   const waterRunwayLabel = waterRunwayDays == null
     ? '—'
     : formatWaterRunwayDays(waterRunwayDays);
@@ -464,7 +478,7 @@ export function renderResidenceInspector(
   const aleRunwayLabel = aleRunwayDays == null
     ? '—'
     : formatSpecialtyRunwayDays(aleRunwayDays);
-  const clothRunwayDays = residence.tier >= 3 ? residenceClothRunwayDays(residence) : null;
+  const clothRunwayDays = residence.tier >= 2 ? residenceClothRunwayDays(residence) : null;
   const clothRunwayLabel = clothRunwayDays == null
     ? '—'
     : formatSpecialtyRunwayDays(clothRunwayDays);
@@ -516,7 +530,11 @@ export function renderResidenceInspector(
           ? 'household textiles'
           : kind === 'pottery'
             ? 'household pottery'
-          : kind
+          : kind === 'foodVariety'
+            ? 'food variety'
+            : kind === 'church'
+              ? 'church access'
+              : kind
     )
     .join(', ');
   const displayedNeedsLabel = structuralRepairProject
@@ -666,12 +684,13 @@ export function renderResidenceInspector(
         : ''}
       ${residence.tier > 0 ? `<li><span>Fresh pantry</span><span>${householdFreshMeals.toFixed(1)} / ${RESIDENCE_FOOD_CAPACITY}</span></li>` : ''}
       ${residence.tier > 0 ? householdFoodContentsRow(residence) : ''}
+      ${residence.tier > 0 ? householdFoodVarietyRow(residence) : ''}
       ${residence.tier > 0 ? `<li><span>${residence.tier >= 3 ? 'Fresh-food runway' : 'Food runway'}</span><span>${foodRunwayLabel}${residence.tier >= 3 ? ' with finite household preserved stock' : ''}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Next daily meal</span><span>${mealAllocation.freshUsed.toFixed(2)} fresh + ${preservedMealUse.toFixed(2)} preserved${mealAllocation.preservedFallbackUsed > 1e-6 ? ` (${mealAllocation.preservedFallbackUsed.toFixed(2)} emergency fallback)` : ''}${mealAllocation.unmet > 1e-6 ? ` &middot; ${mealAllocation.unmet.toFixed(2)} unmet` : ''} &middot; ${grossFoodPerDay.toFixed(2)} total demand</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Hearth-fuel stock</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Heating runway</span><span>${firewoodRunwayLabel}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Water runway</span><span>${waterRunwayLabel}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Water runway</span><span>${waterRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved pantry</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
         householdPreservedFood
@@ -682,18 +701,18 @@ export function renderResidenceInspector(
       ${residence.tier >= 3 ? `<li><span>Preserved food runway</span><span>${preservedFoodRunwayLabel} at current rotation &middot; remaining stores cover fresh-food shortages</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale runway</span><span>${aleRunwayLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Textile runway</span><span>${clothRunwayLabel}</span></li>` : ''}
+      ${residence.tier >= 2 ? `<li><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY}</span></li>` : ''}
+      ${residence.tier >= 2 ? `<li><span>Textile runway</span><span>${clothRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Household pottery</span><span>${Math.round(getNeedStock(residence.needs, 'pottery'))} / ${RESIDENCE_POTTERY_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Pottery replacement</span><span>${potteryRunwayLabel} · slow breakage of cooking and storage vessels</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Serving food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Heating supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale supplier</span><span>${aleSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 2 ? `<li><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Pottery supplier</span><span>${potterySupplierLabel}</span></li>` : ''}
-      <li><span>Church link</span><span>${community.hasChapelAccess ? 'Staffed parish on the road' : 'None on branch'}</span></li>
+      <li><span>Church link</span><span>${community.hasChapelAccess ? `Staffed tier-${community.chapelTier ?? 1} parish on the road${residence.tier >= 3 && (community.chapelTier ?? 1) < 2 ? ' · stone church required' : ''}` : 'None on branch'}</span></li>
       <li><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>
       <li><span>Road access</span><span>${roadAccess}</span></li>
       <li><span>Build cost</span><span>${renderBuildingResourceCost(singleCost)}</span></li>
@@ -952,6 +971,13 @@ function householdFoodContentsRow(residence: ResidenceState): string {
     contents.push(`Legacy preserved food ${residence.preservedFood!.toFixed(1)}`);
   }
   return `<li><span>Pantry contents</span><span>${contents.length > 0 ? contents.join(' · ') : 'Empty'}</span></li>`;
+}
+
+function householdFoodVarietyRow(residence: ResidenceState): string {
+  const categories = presentFoodCategories(residence);
+  const required = residence.tier >= 3 ? 3 : residence.tier >= 2 ? 2 : 1;
+  const labels = categories.map((category) => FOOD_CATEGORY_LABELS[category]);
+  return `<li><span>Food variety</span><span>${categories.length} / ${required} categories${labels.length ? ` · ${labels.join(', ')}` : ' · none supplied'} · close substitutes count once</span></li>`;
 }
 
 function formatUpgradeAmount(value: number): string {

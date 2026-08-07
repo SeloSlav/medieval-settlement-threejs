@@ -400,6 +400,8 @@ pub const APIARY_EXTRACTIVE_YIELD_MULTIPLIER: f64 = 1.25;
 pub const APIARY_WINTER_HEALTH_GAIN: f64 = 0.12;
 pub const APIARY_WINTER_HEALTH_LOSS: f64 = 0.45;
 pub const APIARY_POLLINATION_BONUS_MAX: f64 = 0.15;
+pub const BACKYARD_APIARY_POLLINATION_RADIUS: f64 = 45.0;
+pub const BACKYARD_APIARY_POLLINATION_CONTRIBUTION: f64 = 0.035;
 pub const VINEYARD_GRAPES_PER_HARVEST_CYCLE: f64 = 4.0;
 pub const VINEYARD_GRAPES_PER_FERMENTATION_BATCH: f64 = 3.0;
 pub const VINEYARD_WINE_PER_FERMENTATION_BATCH: f64 = 3.0;
@@ -2691,6 +2693,8 @@ pub enum BackyardGardenKind {
     FlowerGarden = 4,
     HerbGarden = 5,
     HenYard = 6,
+    GoatPen = 7,
+    BackyardApiary = 8,
 }
 
 impl BackyardGardenKind {
@@ -2702,6 +2706,8 @@ impl BackyardGardenKind {
             4 => Some(Self::FlowerGarden),
             5 => Some(Self::HerbGarden),
             6 => Some(Self::HenYard),
+            7 => Some(Self::GoatPen),
+            8 => Some(Self::BackyardApiary),
             _ => None,
         }
     }
@@ -2718,6 +2724,7 @@ pub struct BackyardGardenDef {
     pub food_self_share: f64,
     pub food_per_person_per_sec: f64,
     pub settlement_attraction_multiplier: f64,
+    pub hidden_from_picker: bool,
 }
 
 const BACKYARD_APPLE_ORCHARD: BackyardGardenDef = BackyardGardenDef {
@@ -2729,6 +2736,7 @@ const BACKYARD_APPLE_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     food_self_share: 0.55,
     food_per_person_per_sec: 0.009,
     settlement_attraction_multiplier: 1.0,
+    hidden_from_picker: false,
 };
 
 const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
@@ -2740,6 +2748,7 @@ const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     food_self_share: 0.5,
     food_per_person_per_sec: 0.008,
     settlement_attraction_multiplier: 1.0,
+    hidden_from_picker: true,
 };
 
 const BACKYARD_VEGETABLE_GARDEN: BackyardGardenDef = BackyardGardenDef {
@@ -2751,6 +2760,7 @@ const BACKYARD_VEGETABLE_GARDEN: BackyardGardenDef = BackyardGardenDef {
     food_self_share: 0.65,
     food_per_person_per_sec: 0.012,
     settlement_attraction_multiplier: 1.0,
+    hidden_from_picker: false,
 };
 
 const BACKYARD_FLOWER_GARDEN: BackyardGardenDef = BackyardGardenDef {
@@ -2762,6 +2772,7 @@ const BACKYARD_FLOWER_GARDEN: BackyardGardenDef = BackyardGardenDef {
     food_self_share: 0.0,
     food_per_person_per_sec: 0.0,
     settlement_attraction_multiplier: 0.88,
+    hidden_from_picker: false,
 };
 
 const BACKYARD_HERB_GARDEN: BackyardGardenDef = BackyardGardenDef {
@@ -2773,6 +2784,7 @@ const BACKYARD_HERB_GARDEN: BackyardGardenDef = BackyardGardenDef {
     food_self_share: 0.0,
     food_per_person_per_sec: 0.0,
     settlement_attraction_multiplier: 1.0,
+    hidden_from_picker: false,
 };
 
 const BACKYARD_HEN_YARD: BackyardGardenDef = BackyardGardenDef {
@@ -2784,9 +2796,34 @@ const BACKYARD_HEN_YARD: BackyardGardenDef = BackyardGardenDef {
     food_self_share: 0.82,
     food_per_person_per_sec: 0.0105,
     settlement_attraction_multiplier: 1.0,
+    hidden_from_picker: false,
 };
 
-const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[BACKYARD_APPLE_ORCHARD, BACKYARD_CHERRY_ORCHARD, BACKYARD_VEGETABLE_GARDEN, BACKYARD_FLOWER_GARDEN, BACKYARD_HERB_GARDEN, BACKYARD_HEN_YARD];
+const BACKYARD_GOAT_PEN: BackyardGardenDef = BackyardGardenDef {
+    kind: BackyardGardenKind::GoatPen,
+    slug: "goat_pen",
+    label: "Goat pen",
+    cost_timber: 8.0,
+    cost_stone: 2.0,
+    food_self_share: 0.72,
+    food_per_person_per_sec: 0.0055,
+    settlement_attraction_multiplier: 0.97,
+    hidden_from_picker: false,
+};
+
+const BACKYARD_BACKYARD_APIARY: BackyardGardenDef = BackyardGardenDef {
+    kind: BackyardGardenKind::BackyardApiary,
+    slug: "backyard_apiary",
+    label: "Backyard apiary",
+    cost_timber: 7.0,
+    cost_stone: 1.0,
+    food_self_share: 0.68,
+    food_per_person_per_sec: 0.003,
+    settlement_attraction_multiplier: 1.03,
+    hidden_from_picker: false,
+};
+
+const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[BACKYARD_APPLE_ORCHARD, BACKYARD_CHERRY_ORCHARD, BACKYARD_VEGETABLE_GARDEN, BACKYARD_FLOWER_GARDEN, BACKYARD_HERB_GARDEN, BACKYARD_HEN_YARD, BACKYARD_GOAT_PEN, BACKYARD_BACKYARD_APIARY];
 
 pub fn backyard_garden_def(kind: BackyardGardenKind) -> &'static BackyardGardenDef {
     ALL_BACKYARD_GARDENS

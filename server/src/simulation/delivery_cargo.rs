@@ -4,7 +4,7 @@ use spacetimedb::ReducerContext;
 
 use crate::economy::{
     building_commodity_stock, building_edible_food_stock, building_preserved_food_stock,
-    residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building,
+    food_category, residence_food_category_mask, residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building,
     withdraw_building_commodity, withdraw_building_water, CommodityKind,
 };
 use crate::simulation::residence_needs::{firewood, food, provisions, water};
@@ -115,6 +115,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Pottery => building.pottery,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
     }
 }
 
@@ -152,6 +153,7 @@ pub fn withdraw_delivery_cargo(
         ResidenceNeedKind::Pottery => {
             withdraw_building_commodity(building, CommodityKind::Pottery, amount)
         }
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
     }
 }
 
@@ -202,6 +204,47 @@ pub fn selected_food_delivery_commodity(
         .find(|commodity| building_commodity_stock(building, *commodity) > 1e-6)
 }
 
+/// Prefer a food category that the destination pantry does not yet contain,
+/// then fall back to the normal perishability order. This makes market variety
+/// a physical allocation result instead of a global-stock checkbox.
+pub fn selected_food_delivery_commodity_for_residence(
+    building: &Building,
+    residence: &crate::tables::Residence,
+    need_kind: ResidenceNeedKind,
+) -> Option<CommodityKind> {
+    if need_kind != ResidenceNeedKind::Food {
+        return selected_food_delivery_commodity(building, need_kind);
+    }
+    const ORDER: [CommodityKind; 18] = [
+        CommodityKind::Meat,
+        CommodityKind::Fish,
+        CommodityKind::Milk,
+        CommodityKind::Mushrooms,
+        CommodityKind::Berries,
+        CommodityKind::Grapes,
+        CommodityKind::Cherries,
+        CommodityKind::Apples,
+        CommodityKind::Vegetables,
+        CommodityKind::Eggs,
+        CommodityKind::Porridge,
+        CommodityKind::Bread,
+        CommodityKind::Food,
+        CommodityKind::Cheese,
+        CommodityKind::SmokedFish,
+        CommodityKind::CuredMeat,
+        CommodityKind::PreservedFood,
+        CommodityKind::Honey,
+    ];
+    let present = residence_food_category_mask(residence);
+    ORDER
+        .into_iter()
+        .find(|commodity| {
+            building_commodity_stock(building, *commodity) > 1e-6
+                && food_category(*commodity).is_some_and(|category| present & category.bit() == 0)
+        })
+        .or_else(|| selected_food_delivery_commodity(building, need_kind))
+}
+
 pub fn delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> f64 {
     match kind {
         ResidenceNeedKind::Firewood => (firewood::stock_capacity() - stock).max(0.0),
@@ -211,6 +254,7 @@ pub fn delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> f64 {
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => (provisions::stock_capacity(kind) - stock).max(0.0),
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 0.0,
     }
 }
 
@@ -223,6 +267,7 @@ pub fn has_delivery_stock_room(kind: ResidenceNeedKind, stock: f64) -> bool {
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => stock + 1e-6 < provisions::stock_capacity(kind),
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => false,
     }
 }
 

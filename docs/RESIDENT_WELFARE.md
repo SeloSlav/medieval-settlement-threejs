@@ -6,15 +6,21 @@ housing capacity.
 
 ## Needs and household satisfaction
 
-- Food, water, and winter firewood are survival needs. Every occupied cottage
-  needs a hearth. Marketplace firewood is used first, with charcoal accepted
-  as a household fallback after smithy buffers are supplied. Food shortage
-  advances through hungry, malnourished, and starving stages. Water and cold
-  exposure increase illness risk.
+- Every occupied tier-1 cottage requires one food category, road-linked well
+  water, firewood, and access to a staffed church. Marketplace firewood is used
+  first, with charcoal accepted as a household fallback after smithy buffers
+  are supplied. Food shortage advances through hungry, malnourished, and
+  starving stages. Water and cold exposure increase illness risk.
+- Tier 2 continues those needs and adds cloth plus a second food category.
+  Tier 3 requires three food categories, preserved food, ale, pottery, and a
+  tier-2 stone church while retaining the lower-tier obligations.
+- Food variety counts categories rather than labels in the pantry: grains,
+  vegetables, fruits, animal produce, meats, fish, foraged foods, and honey.
+  Apples and legacy cherries therefore do not count twice, nor do milk, eggs,
+  and cheese. Market delivery planning prefers a category the destination home
+  is missing.
 - Preserved food is an emergency substitute for fresh food. It is not consumed
   as an unavoidable second daily meal.
-- Ale, cloth, pottery, and a maintained preserved-food reserve are prosperity
-  needs at higher residence tiers.
 - No need shortage removes residents through migration or abandons a home.
   Supplying food again reduces hunger and heals malnutrition gradually.
 

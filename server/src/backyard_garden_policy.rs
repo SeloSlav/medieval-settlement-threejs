@@ -1,6 +1,20 @@
 use crate::balance_generated::BackyardGardenKind;
 use crate::season_policy::{EnvironmentState, Season, WeatherKind};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BackyardGoatProduct {
+    Milk,
+    Meat,
+}
+
+pub fn backyard_goat_product(total_days: u64, residence_id: u64) -> BackyardGoatProduct {
+    if (total_days + residence_id) % 2 == 0 {
+        BackyardGoatProduct::Milk
+    } else {
+        BackyardGoatProduct::Meat
+    }
+}
+
 /// Calendar- and weather-bound output shared by household food and market
 /// activity. Orchards concentrate their annual crop into September; poultry
 /// remains productive through winter; drought cuts exposed annual plants.
@@ -29,16 +43,22 @@ pub fn backyard_garden_seasonal_multiplier(
             Season::Autumn => 0.35,
             Season::Winter => 0.0,
         },
-        HenYard => {
+        HenYard | GoatPen => {
             if environment.season == Season::Winter {
                 0.75
             } else {
                 1.0
             }
         }
+        BackyardApiary => match environment.season {
+            Season::Spring => 0.8,
+            Season::Summer => 1.0,
+            Season::Autumn => 0.4,
+            Season::Winter => 0.0,
+        },
     };
     if environment.weather == WeatherKind::Drought
-        && !matches!(kind, HenYard | AppleOrchard | CherryOrchard)
+        && !matches!(kind, HenYard | GoatPen | AppleOrchard | CherryOrchard)
     {
         base * 0.55
     } else {
@@ -134,5 +154,12 @@ mod tests {
             ),
             1.0,
         );
+    }
+
+    #[test]
+    fn goat_pens_alternate_products_by_household_and_day() {
+        assert_eq!(backyard_goat_product(10, 4), BackyardGoatProduct::Milk);
+        assert_eq!(backyard_goat_product(11, 4), BackyardGoatProduct::Meat);
+        assert_eq!(backyard_goat_product(10, 5), BackyardGoatProduct::Meat);
     }
 }

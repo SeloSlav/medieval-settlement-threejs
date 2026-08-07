@@ -375,13 +375,13 @@ const residence = (tier: 1 | 2 | 3): ResidenceState => ({
   tier, settlementTicks: 0, needs: createDefaultNeeds(), abandoned: false, householdWealth: 0,
 });
 const supply = { servingLodgeId: 'lodge', servingWellId: 'well', servingFoodSupplierId: 'food' };
-assert.deepEqual(activeResidenceNeedKinds(1), ['firewood', 'food']);
-assert.deepEqual(activeResidenceNeedKinds(2), ['firewood', 'water', 'food']);
+assert.deepEqual(activeResidenceNeedKinds(1), ['food', 'firewood', 'water', 'church']);
+assert.deepEqual(activeResidenceNeedKinds(2), ['food', 'firewood', 'water', 'church', 'foodVariety', 'cloth']);
 assert.deepEqual(
   activeResidenceNeedKinds(3),
-  ['firewood', 'water', 'food', 'preservedFood', 'ale', 'cloth', 'pottery'],
+  ['food', 'firewood', 'water', 'church', 'foodVariety', 'cloth', 'preservedFood', 'ale', 'pottery'],
 );
-assert.equal(evaluateResidenceNeedRecovery(residence(1), supply).length, 2);
+assert.equal(evaluateResidenceNeedRecovery(residence(1), supply).length, 3);
 assert.equal(evaluateResidenceNeedRecovery(residence(2), supply).length, 3);
 assert.equal(
   evaluateResidenceNeedRecovery(residence(3), supply).length,

@@ -125,6 +125,49 @@ pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 18] = [
     CommodityKind::Honey,
 ];
 
+/// Food need categories deliberately group close substitutes. Three visual
+/// crops in a vegetable plot remain one variety; apples and legacy cherries
+/// are both fruit; milk, eggs, and cheese are all animal produce.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[repr(u8)]
+pub enum FoodCategory {
+    Grains = 0,
+    Vegetables = 1,
+    Fruits = 2,
+    AnimalProduce = 3,
+    Meats = 4,
+    Fishes = 5,
+    Foraged = 6,
+    Honey = 7,
+}
+
+impl FoodCategory {
+    pub fn bit(self) -> u8 {
+        1 << self as u8
+    }
+}
+
+pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
+    match kind {
+        CommodityKind::Food
+        | CommodityKind::Bread
+        | CommodityKind::Porridge
+        | CommodityKind::PreservedFood => Some(FoodCategory::Grains),
+        CommodityKind::Vegetables => Some(FoodCategory::Vegetables),
+        CommodityKind::Apples | CommodityKind::Cherries | CommodityKind::Grapes => {
+            Some(FoodCategory::Fruits)
+        }
+        CommodityKind::Milk | CommodityKind::Eggs | CommodityKind::Cheese => {
+            Some(FoodCategory::AnimalProduce)
+        }
+        CommodityKind::Meat | CommodityKind::CuredMeat => Some(FoodCategory::Meats),
+        CommodityKind::Fish | CommodityKind::SmokedFish => Some(FoodCategory::Fishes),
+        CommodityKind::Berries | CommodityKind::Mushrooms => Some(FoodCategory::Foraged),
+        CommodityKind::Honey => Some(FoodCategory::Honey),
+        _ => None,
+    }
+}
+
 impl CommodityKind {
     pub fn as_u8(self) -> u8 {
         match self {
@@ -645,6 +688,20 @@ pub fn residence_preserved_food_stock(residence: &Residence) -> f64 {
 
 pub fn residence_edible_food_stock(residence: &Residence) -> f64 {
     residence_fresh_food_stock(residence) + residence_preserved_food_stock(residence)
+}
+
+pub fn residence_food_category_mask(residence: &Residence) -> u8 {
+    EDIBLE_COMMODITIES.into_iter().fold(0_u8, |mask, commodity| {
+        if residence_commodity_stock(residence, commodity) > 1e-6 {
+            mask | food_category(commodity).map_or(0, FoodCategory::bit)
+        } else {
+            mask
+        }
+    })
+}
+
+pub fn residence_food_variety_count(residence: &Residence) -> u8 {
+    residence_food_category_mask(residence).count_ones() as u8
 }
 
 pub fn withdraw_residence_commodity(

@@ -34,6 +34,7 @@ export function buildResidenceCommunityContext(
   const sabbathObservance = servingChapel != null && parishPolicy.sabbathObservanceEnabled;
   return {
     hasChapelAccess: servingChapel != null,
+    chapelTier: servingChapel?.chapelTier ?? 0,
     hasMonasteryCoverage,
     sabbathObservance,
   };

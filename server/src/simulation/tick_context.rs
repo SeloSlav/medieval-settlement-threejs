@@ -54,6 +54,8 @@ pub struct SimTickContext {
     marketplace_claims: RefCell<HashMap<Identity, HashMap<u64, u64>>>,
     local_marketplace_claims:
         RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
+    local_marketplace_deposit_claims:
+        RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     active_remote_camp_by_worksite: RefCell<HashMap<(Identity, u64), bool>>,
     waiting_corpse_index: RefCell<Option<HashMap<Identity, CorpseSpatialIndex>>>,
     farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>,
@@ -97,6 +99,7 @@ impl SimTickContext {
             food_claim_counts: RefCell::new(HashMap::new()),
             marketplace_claims: RefCell::new(HashMap::new()),
             local_marketplace_claims: RefCell::new(HashMap::new()),
+            local_marketplace_deposit_claims: RefCell::new(HashMap::new()),
             active_remote_camp_by_worksite: RefCell::new(HashMap::new()),
             waiting_corpse_index: RefCell::new(None),
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
@@ -770,6 +773,29 @@ impl SimTickContext {
             .copied()
     }
 
+    /// Producer-side market claim. Unlike consumer availability, an empty
+    /// staffed stall is a valid destination so the first garden can seed it.
+    pub fn local_marketplace_for_residence_deposit(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        residence_id: u64,
+        stall_need: ResidenceNeedKind,
+    ) -> Option<u64> {
+        let key = (owner, stall_need);
+        if !self.local_marketplace_deposit_claims.borrow().contains_key(&key) {
+            let claims = self.build_local_marketplace_claims_for_deposit(ctx, owner, stall_need);
+            self.local_marketplace_deposit_claims
+                .borrow_mut()
+                .insert(key, claims);
+        }
+        self.local_marketplace_deposit_claims
+            .borrow()
+            .get(&key)
+            .and_then(|claims| claims.get(&residence_id))
+            .copied()
+    }
+
     /// Returns how many households depend on a routine food supplier. Granary
     /// surplus intake uses this cached inverse count to protect local market
     /// availability without rescanning all homes for every candidate source.
@@ -894,6 +920,52 @@ impl SimTickContext {
                         building,
                         stall_need,
                     )
+            })
+            .collect();
+        let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
+        let residences: Vec<Residence> = ctx
+            .db
+            .residence()
+            .owner()
+            .filter(&owner)
+            .filter(|residence| {
+                !residence.abandoned
+                    && residence.population > 0
+                    && !self.residence_disabled_by_fire(ctx, residence.id)
+            })
+            .collect();
+        claim_residences_by_nearest_supplier(
+            network,
+            &marketplace_refs,
+            &residences,
+            |marketplace, residence, _| {
+                network.road_connected(
+                    marketplace.x,
+                    marketplace.z,
+                    residence.x,
+                    residence.z,
+                )
+            },
+        )
+    }
+
+    fn build_local_marketplace_claims_for_deposit(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+        stall_need: ResidenceNeedKind,
+    ) -> HashMap<u64, u64> {
+        let Some(network) = self.road_network(owner) else {
+            return HashMap::new();
+        };
+        let marketplaces: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["marketplace"])
+            .into_iter()
+            .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+            .filter(|building| {
+                building.construction_complete
+                    && !self.building_disabled_by_fire(ctx, building.id)
+                    && self.marketplace_has_stall_workers(ctx, network, building, stall_need)
             })
             .collect();
         let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
@@ -1070,7 +1142,9 @@ impl SimTickContext {
             ResidenceNeedKind::Firewood
             | ResidenceNeedKind::Cloth
             | ResidenceNeedKind::Pottery => "village_storehouse",
-            ResidenceNeedKind::Water => return false,
+            ResidenceNeedKind::Water
+            | ResidenceNeedKind::Church
+            | ResidenceNeedKind::FoodVariety => return false,
         };
         self.building_ids_for_kinds(ctx, marketplace.owner, &[workplace_kind])
             .into_iter()

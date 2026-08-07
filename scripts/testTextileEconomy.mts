@@ -834,8 +834,8 @@ assert.match(commodities, /Self::Cloth => 14/);
 assert.match(commodities, /Self::Flax => 18/);
 assert.match(
   residenceNeedState,
-  /missing_cloth[\s\S]*legacy_tier >= 3[\s\S]*RESIDENCE_CLOTH_CAPACITY/,
-  'only legacy tier-3 homes should receive the one-time textile transition buffer',
+  /missing_progression_rows && legacy_tier >= 2[\s\S]*RESIDENCE_CLOTH_CAPACITY/,
+  'established tier-2+ homes should receive the one-time textile transition buffer when progression rows migrate',
 );
 assert.match(
   buildingReducers,

@@ -70,6 +70,7 @@ type BackyardGardenBalance = {
   foodSelfShare: number;
   foodPerPersonPerSec: number;
   settlementAttractionMultiplier: number;
+  hiddenFromPicker?: boolean;
 };
 
 type FarmCropBalance = {
@@ -571,6 +572,8 @@ export type GameBalance = {
     apiaryWinterHealthGain: number;
     apiaryWinterHealthLoss: number;
     apiaryPollinationBonusMax: number;
+    backyardApiaryPollinationRadius: number;
+    backyardApiaryPollinationContribution: number;
     vineyardGrapesPerHarvestCycle: number;
     vineyardGrapesPerFermentationBatch: number;
     vineyardWinePerFermentationBatch: number;
@@ -1127,6 +1130,8 @@ function generateRust(): string {
     `pub const APIARY_WINTER_HEALTH_GAIN: f64 = ${rustF64(b.production.apiaryWinterHealthGain)};`,
     `pub const APIARY_WINTER_HEALTH_LOSS: f64 = ${rustF64(b.production.apiaryWinterHealthLoss)};`,
     `pub const APIARY_POLLINATION_BONUS_MAX: f64 = ${rustF64(b.production.apiaryPollinationBonusMax)};`,
+    `pub const BACKYARD_APIARY_POLLINATION_RADIUS: f64 = ${rustF64(b.production.backyardApiaryPollinationRadius)};`,
+    `pub const BACKYARD_APIARY_POLLINATION_CONTRIBUTION: f64 = ${rustF64(b.production.backyardApiaryPollinationContribution)};`,
     `pub const VINEYARD_GRAPES_PER_HARVEST_CYCLE: f64 = ${rustF64(b.production.vineyardGrapesPerHarvestCycle)};`,
     `pub const VINEYARD_GRAPES_PER_FERMENTATION_BATCH: f64 = ${rustF64(b.production.vineyardGrapesPerFermentationBatch)};`,
     `pub const VINEYARD_WINE_PER_FERMENTATION_BATCH: f64 = ${rustF64(b.production.vineyardWinePerFermentationBatch)};`,
@@ -1544,6 +1549,7 @@ function generateRust(): string {
   lines.push('    pub food_self_share: f64,');
   lines.push('    pub food_per_person_per_sec: f64,');
   lines.push('    pub settlement_attraction_multiplier: f64,');
+  lines.push('    pub hidden_from_picker: bool,');
   lines.push('}');
   lines.push('');
 
@@ -1561,6 +1567,7 @@ function generateRust(): string {
     lines.push(`    food_self_share: ${rustF64(def.foodSelfShare)},`);
     lines.push(`    food_per_person_per_sec: ${rustF64(def.foodPerPersonPerSec)},`);
     lines.push(`    settlement_attraction_multiplier: ${rustF64(def.settlementAttractionMultiplier)},`);
+    lines.push(`    hidden_from_picker: ${def.hiddenFromPicker === true},`);
     lines.push('};');
     lines.push('');
   }
@@ -1999,6 +2006,8 @@ function generateTypeScript(): string {
     `export const APIARY_WINTER_HEALTH_GAIN = ${b.production.apiaryWinterHealthGain};`,
     `export const APIARY_WINTER_HEALTH_LOSS = ${b.production.apiaryWinterHealthLoss};`,
     `export const APIARY_POLLINATION_BONUS_MAX = ${b.production.apiaryPollinationBonusMax};`,
+    `export const BACKYARD_APIARY_POLLINATION_RADIUS = ${b.production.backyardApiaryPollinationRadius};`,
+    `export const BACKYARD_APIARY_POLLINATION_CONTRIBUTION = ${b.production.backyardApiaryPollinationContribution};`,
     `export const VINEYARD_GRAPES_PER_HARVEST_CYCLE = ${b.production.vineyardGrapesPerHarvestCycle};`,
     `export const VINEYARD_GRAPES_PER_FERMENTATION_BATCH = ${b.production.vineyardGrapesPerFermentationBatch};`,
     `export const VINEYARD_WINE_PER_FERMENTATION_BATCH = ${b.production.vineyardWinePerFermentationBatch};`,
@@ -2322,6 +2331,7 @@ function generateTypeScript(): string {
   lines.push('  foodSelfShare: number;');
   lines.push('  foodPerPersonPerSec: number;');
   lines.push('  settlementAttractionMultiplier: number;');
+  lines.push('  hiddenFromPicker: boolean;');
   lines.push('};');
   lines.push('');
   lines.push('export const BACKYARD_GARDEN_DEFINITIONS = {');
@@ -2332,6 +2342,7 @@ function generateTypeScript(): string {
     lines.push(`    foodSelfShare: ${def.foodSelfShare},`);
     lines.push(`    foodPerPersonPerSec: ${def.foodPerPersonPerSec},`);
     lines.push(`    settlementAttractionMultiplier: ${def.settlementAttractionMultiplier},`);
+    lines.push(`    hiddenFromPicker: ${def.hiddenFromPicker === true},`);
     lines.push('  },');
   }
   lines.push('} as const satisfies Record<BackyardGardenKind, BackyardGardenDefinition>;');

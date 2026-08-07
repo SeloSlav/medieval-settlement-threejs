@@ -175,6 +175,24 @@ function evaluateNeedRecovery(
         threshold,
         supplyAvailable: supply.servingPotterySupplierId != null,
       };
+    case 'church':
+      return {
+        kind,
+        label: 'Church access',
+        ready: need.stock >= threshold,
+        stock: need.stock,
+        threshold,
+        supplyAvailable: community.hasChapelAccess,
+      };
+    case 'foodVariety':
+      return {
+        kind,
+        label: 'Food variety',
+        ready: need.stock >= threshold,
+        stock: need.stock,
+        threshold,
+        supplyAvailable: need.stock > 0,
+      };
     default: {
       const unhandled: never = kind;
       return unhandled;
@@ -373,6 +391,24 @@ function describeActiveNeed(
       }
       return null;
     }
+    case 'church': {
+      const requiredTier = residence.tier >= 3 ? 2 : 1;
+      return getNeed(residence.needs, kind).stock + 1e-6 < requiredTier
+        ? {
+            label: residence.tier >= 3
+              ? 'Church insufficient — Tier 3 needs a stone church'
+              : 'No staffed church access on this road branch',
+            state: 'warning',
+          }
+        : null;
+    }
+    case 'foodVariety': {
+      const target = residence.tier >= 3 ? 3 : 2;
+      const count = Math.floor(getNeed(residence.needs, kind).stock + 1e-6);
+      return count < target
+        ? { label: `Food variety low — ${count}/${target} categories supplied`, state: 'warning' }
+        : null;
+    }
     default: {
       const unhandled: never = kind;
       return unhandled;
@@ -396,6 +432,10 @@ function needLabel(kind: ResidenceNeedKind): string {
       return 'Household textiles';
     case 'pottery':
       return 'Household pottery';
+    case 'church':
+      return 'Church access';
+    case 'foodVariety':
+      return 'Food variety';
     default: {
       const unhandled: never = kind;
       return unhandled;

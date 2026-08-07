@@ -44,7 +44,13 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
     let missing_pottery = !needs
         .iter()
         .any(|need| need.kind == ResidenceNeedKind::Pottery);
-    let legacy_tier = if missing_cloth || missing_pottery {
+    let missing_progression_rows = !needs
+        .iter()
+        .any(|need| need.kind == ResidenceNeedKind::Church)
+        || !needs
+            .iter()
+            .any(|need| need.kind == ResidenceNeedKind::FoodVariety);
+    let legacy_tier = if missing_cloth || missing_pottery || missing_progression_rows {
         ctx.db
             .residence()
             .id()
@@ -54,13 +60,21 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
     } else {
         1
     };
+    if missing_progression_rows && legacy_tier >= 2 {
+        if let Some(cloth) = needs
+            .iter_mut()
+            .find(|need| need.kind == ResidenceNeedKind::Cloth)
+        {
+            cloth.stock = cloth.stock.max(RESIDENCE_CLOTH_CAPACITY);
+        }
+    }
     for kind in ResidenceNeedKind::ALL {
         if !needs.iter().any(|need| need.kind == kind) {
             let mut initial = NeedState::initial(kind);
-            // Only established tier-3 homes from pre-textile saves receive a
+            // Established tier-2+ homes from before textiles became a level-2
             // transition buffer. New residences already have a zero-stock
             // cloth row, so this does not create free exportable production.
-            if kind == ResidenceNeedKind::Cloth && legacy_tier >= 3 {
+            if kind == ResidenceNeedKind::Cloth && legacy_tier >= 2 {
                 initial.stock = RESIDENCE_CLOTH_CAPACITY;
             }
             // Established prosperous homes receive one transition cupboard of

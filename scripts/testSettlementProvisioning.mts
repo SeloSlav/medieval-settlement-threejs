@@ -170,10 +170,10 @@ assert.equal(provisioning.householdBufferReadyHouseholds, 0);
 assert.equal(provisioning.householdBufferCoverage, 0);
 assert.equal(provisioning.householdBufferFoodShortHomes, 2);
 assert.equal(provisioning.householdBufferFirewoodShortHomes, 2);
-assert.equal(provisioning.householdBufferWaterShortHomes, 1);
+assert.equal(provisioning.householdBufferWaterShortHomes, 2);
 assert.equal(provisioning.householdBufferPreservedFoodShortHomes, 0);
 assert.equal(provisioning.householdBufferAleShortHomes, 0);
-assert.equal(provisioning.householdBufferClothShortHomes, 0);
+assert.equal(provisioning.householdBufferClothShortHomes, 1);
 assert.equal(provisioning.householdBufferPotteryShortHomes, 0);
 assert.match(formatHouseholdBufferReadiness(provisioning), /0 \/ 2 homes buffered/);
 assert.ok(Math.abs(
@@ -208,7 +208,8 @@ assert.equal(provisioning.sabbathHouseholds, 2);
 assert.equal(provisioning.sabbathReadyHouseholds, 0);
 assert.equal(provisioning.sabbathFoodShortHomes, 2);
 assert.equal(provisioning.sabbathFirewoodShortHomes, 2);
-assert.equal(provisioning.sabbathWaterShortHomes, 1);
+assert.equal(provisioning.sabbathWaterShortHomes, 2);
+assert.equal(provisioning.sabbathClothShortHomes, 1);
 assert.equal(provisioning.roadBranches, null, 'legacy callers may omit road topology');
 assert.match(formatSabbathReadiness(provisioning), /0 \/ 2 homes stocked/);
 assert.equal(settlementProvisionLevel(provisioning, 10), 'critical');
@@ -436,6 +437,7 @@ splitHome.x = 0;
 splitHome.needs.food.stock = 4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
 splitHome.food = splitHome.needs.food.stock;
 splitHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
+splitHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
 splitBranchState.residences.set(splitHome.id, splitHome);
 const remoteGranary = building('remote-granary', 'granary', 2, 0);
 remoteGranary.x = 100;
@@ -685,6 +687,7 @@ splitFuelHome.needs.food.stock = 4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
 splitFuelHome.food = splitFuelHome.needs.food.stock;
 splitFuelHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 50;
 splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
+splitFuelHome.needs.cloth.stock = 4 * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
 splitFuelState.residences.set(splitFuelHome.id, splitFuelHome);
 const localGranary = building('local-granary', 'granary', 2, 0);
 localGranary.x = 0;
@@ -956,8 +959,11 @@ for (const [id, tier, population] of [
   if (tier >= 1) {
     home.needs.firewood.stock = population * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170 * 1.15;
   }
-  if (tier >= 2) {
+  if (tier >= 1) {
     home.needs.water.stock = population * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
+  }
+  if (tier >= 2) {
+    home.needs.cloth.stock = population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
   }
   if (tier >= 3) {
     home.needs.preservedFood.stock = population
@@ -965,7 +971,6 @@ for (const [id, tier, population] of [
       * 70;
     home.preservedFood = home.needs.preservedFood.stock;
     home.needs.ale.stock = population * RESIDENCE_ALE_PER_PERSON_PER_SEC * 70;
-    home.needs.cloth.stock = population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
     home.needs.pottery.stock = population
       * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
       * 70;
@@ -1074,6 +1079,7 @@ function householdBufferState(readyHomes: number) {
       home.needs.food.stock = 3 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
       home.food = home.needs.food.stock;
       home.needs.firewood.stock = 3 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
+      home.needs.water.stock = 3 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
     }
     state.residences.set(home.id, home);
   }

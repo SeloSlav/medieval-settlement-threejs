@@ -47,6 +47,8 @@ pub fn recovery_stock_min(
         ResidenceNeedKind::Ale => 3.0,
         ResidenceNeedKind::Cloth => 2.0,
         ResidenceNeedKind::Pottery => 2.0,
+        ResidenceNeedKind::Church => 1.0,
+        ResidenceNeedKind::FoodVariety => 2.0,
     };
 
     let mut threshold = base;

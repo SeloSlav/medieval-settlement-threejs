@@ -22,7 +22,7 @@ pub use commodities::{
     building_edible_food_stock, building_fresh_food_stock, building_preservable_food_stock,
     building_preserved_food_stock, credit_treasury_commodity, deposit_building_commodity,
     deposit_residence_commodity, first_building_edible_commodity, residence_commodity_stock,
-    residence_edible_food_stock,
+    food_category, residence_edible_food_stock, residence_food_category_mask, residence_food_variety_count,
     residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building_commodity,
     withdraw_building_edible_food, withdraw_residence_commodity, withdraw_residence_fresh_food,
     withdraw_residence_preserved_food, CommodityKind, FRESH_FOOD_COMMODITIES,

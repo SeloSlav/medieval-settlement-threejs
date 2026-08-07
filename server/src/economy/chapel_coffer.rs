@@ -241,6 +241,16 @@ mod tests {
             cured_meat: 0.0,
             smoked_fish: 0.0,
             cheese: 0.0,
+            vineyard_production_policy: 1,
+            vineyard_fermenting_grapes: 0.0,
+            vineyard_fermentation_progress: 0.0,
+            apiary_harvest_policy: 1,
+            apiary_colony_health: 1.0,
+            apiary_last_winter_year: 0,
+            apiary_forage_score: 0.75,
+            marketplace_drink_export_policy: 255,
+            marketplace_provision_export_policy: 255,
+            marketplace_wares_export_policy: 255,
         }
     }
 

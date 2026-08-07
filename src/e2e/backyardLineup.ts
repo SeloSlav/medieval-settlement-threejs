@@ -12,6 +12,13 @@ import {
   loadBackyardChickenSource,
   removeBackyardChickenFallbacks,
 } from '../residences/backyardChickenAssets.ts';
+import {
+  createBackyardGoatModel,
+  disposeBackyardGoatModel,
+  disposeBackyardGoatSource,
+  loadBackyardGoatSource,
+  removeBackyardGoatFallbacks,
+} from '../residences/backyardGoatAssets.ts';
 import { mulberry32 } from '../utils/random.ts';
 import { loadBackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
 
@@ -48,6 +55,12 @@ const chickenSource = focusFlower || focusVegetable || focusHerb
     console.warn('[Backyard lineup] Could not load the Quaternius chicken pack.', error);
     return null;
   });
+const goatSource = focusFlower || focusVegetable || focusHerb || focusHen
+  ? null
+  : await loadBackyardGoatSource().catch((error: unknown) => {
+    console.warn('[Backyard lineup] Could not load the sheep-derived CC0 goat source.', error);
+    return null;
+  });
 if (plants) windStrength.value = 0.85;
 const allSpecs = [
   { kind: 'apple_orchard', label: 'Apple orchard' },
@@ -56,6 +69,8 @@ const allSpecs = [
   { kind: 'flower_garden', label: 'Flower garden' },
   { kind: 'herb_garden', label: 'Herb garden' },
   { kind: 'hen_yard', label: 'Hen yard' },
+  { kind: 'goat_pen', label: 'Goat pen' },
+  { kind: 'backyard_apiary', label: 'Backyard apiary' },
 ] as const;
 const specs = focusFlower
   ? allSpecs.slice(3)
@@ -68,7 +83,7 @@ const specs = focusFlower
         : allSpecs;
 labels.style.gridTemplateColumns = focusSingle
   ? '1fr'
-  : 'repeat(3, minmax(0, 1fr))';
+  : 'repeat(4, minmax(0, 1fr))';
 labels.style.gridTemplateRows = focusSingle
   ? '1fr'
   : 'repeat(2, minmax(0, 1fr))';
@@ -92,8 +107,8 @@ const gardens = specs.map((spec, index) => {
   if (focusSingle) {
     garden.position.x = 0;
   } else {
-    garden.position.x = (index % 3 - 1) * 7.2;
-    garden.position.z = (Math.floor(index / 3) - 0.5) * 6.4;
+    garden.position.x = (index % 4 - 1.5) * 7.2;
+    garden.position.z = (Math.floor(index / 4) - 0.5) * 6.4;
   }
   if (focusFlower) {
     const cottageFlower = garden.children.find((child) => child.name.startsWith('Swaying cottage flower'));
@@ -132,6 +147,26 @@ const gardens = specs.map((spec, index) => {
     }
     garden.userData.usesQuaterniusChickenPack = true;
   }
+  if (spec.kind === 'goat_pen' && goatSource) {
+    removeBackyardGoatFallbacks(garden);
+    for (let goatIndex = 0; goatIndex < 3; goatIndex++) {
+      const random = mulberry32(8171 ^ Math.imul(goatIndex + 1, 0x27d4eb2d));
+      const model = createBackyardGoatModel(goatSource, 0.86 * THREE.MathUtils.lerp(0.9, 1.08, random()));
+      const root = new THREE.Group();
+      root.name = 'Rigged lineup goat';
+      root.position.set(THREE.MathUtils.lerp(-1.1, 1.8, random()), 0, THREE.MathUtils.lerp(-0.4, 1.5, random()));
+      root.rotation.y = random() * Math.PI * 2;
+      root.add(model);
+      garden.add(root);
+      const mixer = new THREE.AnimationMixer(model);
+      const graze = mixer.clipAction(goatIndex === 0 ? goatSource.idle : goatSource.graze, model);
+      graze.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      graze.play();
+      chickenMixers.push(mixer);
+      garden.userData.goatModels = [...(garden.userData.goatModels ?? []), model];
+    }
+    garden.userData.usesQuaterniusFarmPackGoatDerivative = true;
+  }
   scene.add(garden);
 
   const cell = document.createElement('div');
@@ -166,7 +201,7 @@ if (focusFlower) {
   camera.position.set(5.4, 3.7, 7.2);
   camera.lookAt(0, 0.65, 0.05);
 } else {
-  camera.position.set(0, 12.2, 21.8);
+  camera.position.set(0, 13.4, 27.5);
   camera.lookAt(0, 1.25, 0);
 }
 
@@ -198,6 +233,10 @@ window.addEventListener('beforeunload', () => {
   running = false;
   for (const mixer of chickenMixers) mixer.stopAllAction();
   for (const garden of gardens) disposeBackyardGardenMesh(garden);
+  for (const garden of gardens) {
+    for (const model of garden.userData.goatModels ?? []) disposeBackyardGoatModel(model);
+  }
   if (chickenSource) disposeBackyardChickenSource(chickenSource.scene);
+  if (goatSource) disposeBackyardGoatSource(goatSource.scene);
   renderer.dispose();
 });

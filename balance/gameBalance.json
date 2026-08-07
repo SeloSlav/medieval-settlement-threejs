@@ -561,6 +561,8 @@
     "apiaryWinterHealthGain": 0.12,
     "apiaryWinterHealthLoss": 0.45,
     "apiaryPollinationBonusMax": 0.15,
+    "backyardApiaryPollinationRadius": 45,
+    "backyardApiaryPollinationContribution": 0.035,
     "vineyardGrapesPerHarvestCycle": 4,
     "vineyardGrapesPerFermentationBatch": 3,
     "vineyardWinePerFermentationBatch": 3,
@@ -1612,7 +1614,8 @@
       "cost": { "timber": 9, "stone": 3 },
       "foodSelfShare": 0.5,
       "foodPerPersonPerSec": 0.008,
-      "settlementAttractionMultiplier": 1
+      "settlementAttractionMultiplier": 1,
+      "hiddenFromPicker": true
     },
     "vegetable_garden": {
       "label": "Vegetable garden",
@@ -1641,6 +1644,20 @@
       "foodSelfShare": 0.82,
       "foodPerPersonPerSec": 0.0105,
       "settlementAttractionMultiplier": 1
+    },
+    "goat_pen": {
+      "label": "Goat pen",
+      "cost": { "timber": 8, "stone": 2 },
+      "foodSelfShare": 0.72,
+      "foodPerPersonPerSec": 0.0055,
+      "settlementAttractionMultiplier": 0.97
+    },
+    "backyard_apiary": {
+      "label": "Backyard apiary",
+      "cost": { "timber": 7, "stone": 1 },
+      "foodSelfShare": 0.68,
+      "foodPerPersonPerSec": 0.003,
+      "settlementAttractionMultiplier": 1.03
     }
   }
 }

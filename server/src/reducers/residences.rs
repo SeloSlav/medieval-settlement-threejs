@@ -18,7 +18,7 @@ use crate::db::*;
 use crate::economy::{
     available_building_labor, building_commodity_stock, credit_treasury_commodity,
     credit_treasury_stone, credit_treasury_timber, reconcile_building_labor,
-    residence_population_for_parcel, residence_zone_cost, spend_aggregate_stone,
+    residence_food_variety_count, residence_population_for_parcel, residence_zone_cost, spend_aggregate_stone,
     spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber, treasury_gold,
     CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
@@ -56,6 +56,9 @@ enum ResidenceUpgradeService {
     Marketplace,
     GranaryStalls,
     StorehouseStalls,
+    Church,
+    StoneChurch,
+    FoodVariety(u8),
 }
 
 #[reducer]
@@ -394,6 +397,9 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             &[
                 ResidenceUpgradeService::Firewood,
                 ResidenceUpgradeService::Water,
+                ResidenceUpgradeService::Church,
+                ResidenceUpgradeService::FoodVariety(2),
+                ResidenceUpgradeService::Cloth,
                 ResidenceUpgradeService::Marketplace,
                 ResidenceUpgradeService::StorehouseStalls,
             ],
@@ -408,6 +414,8 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
                 ResidenceUpgradeService::Ale,
                 ResidenceUpgradeService::Cloth,
                 ResidenceUpgradeService::Pottery,
+                ResidenceUpgradeService::StoneChurch,
+                ResidenceUpgradeService::FoodVariety(3),
                 ResidenceUpgradeService::Marketplace,
                 ResidenceUpgradeService::GranaryStalls,
                 ResidenceUpgradeService::StorehouseStalls,
@@ -418,9 +426,9 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
 
     if !has_connected_services(ctx, &residence, required_services) {
         return Err(if next_tier == 2 {
-            "Tier 2 requires a staffed woodcutter and storehouse, a road-linked Marketplace for fuel stalls, and a completed well in service range.".to_string()
+            "Tier 2 requires fuel and well supply, a staffed road-linked church, two food categories, household cloth, and staffed market stalls.".to_string()
         } else {
-            "Tier 3 requires a Marketplace with staffed granary and storehouse stalls plus preserved-food, ale, cloth, and pottery production.".to_string()
+            "Tier 3 requires three food categories, a stone church, and a Marketplace with preserved food, ale, cloth, and pottery supply.".to_string()
         });
     }
     let physical_economy = ctx
@@ -710,6 +718,9 @@ fn has_connected_services(
     });
 
     required_services.iter().all(|service| {
+        if let ResidenceUpgradeService::FoodVariety(required) = service {
+            return residence_food_variety_count(residence) >= *required;
+        }
         buildings.iter().any(|building| {
             let Some(distance) =
                 local_delivery_distance(&network, building.x, building.z, residence.x, residence.z)
@@ -791,6 +802,18 @@ fn has_connected_services(
                         && building.construction_complete
                         && building.assigned_labor > 0
                 }
+                ResidenceUpgradeService::Church => {
+                    building.kind == "chapel"
+                        && building.construction_complete
+                        && building.assigned_labor > 0
+                }
+                ResidenceUpgradeService::StoneChurch => {
+                    building.kind == "chapel"
+                        && building.construction_complete
+                        && building.assigned_labor > 0
+                        && building.chapel_tier >= 2
+                }
+                ResidenceUpgradeService::FoodVariety(_) => false,
             }
         })
     })

@@ -5,23 +5,27 @@ export type ResidenceNeedKind =
   | 'ale'
   | 'preservedFood'
   | 'cloth'
-  | 'pottery';
+  | 'pottery'
+  | 'church'
+  | 'foodVariety';
 
 export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
+  'food',
   'firewood',
   'water',
-  'food',
+  'church',
+  'foodVariety',
+  'cloth',
   'preservedFood',
   'ale',
-  'cloth',
   'pottery',
 ];
 
 export function activeResidenceNeedKinds(tier: 0 | 1 | 2 | 3): ResidenceNeedKind[] {
   if (tier === 0) return [];
   return RESIDENCE_NEED_KINDS.filter((kind) => {
-    if (kind === 'food' || kind === 'firewood') return true;
-    if (kind === 'water') return tier >= 2;
+    if (kind === 'food' || kind === 'firewood' || kind === 'water' || kind === 'church') return true;
+    if (kind === 'foodVariety' || kind === 'cloth') return tier >= 2;
     return tier >= 3;
   });
 }
@@ -36,6 +40,8 @@ export const RESIDENCE_NEED_KIND_IDS: Record<ResidenceNeedKind, number> = {
   // Must mirror CommodityKind::Pottery because delivery_trip.cargo_kind is
   // shared by household and building-bound carts.
   pottery: 23,
+  church: 42,
+  foodVariety: 43,
 };
 
 export type ResidenceNeedRecord = {
@@ -59,6 +65,7 @@ export type ResidenceCommunityContext = {
   hasChapelAccess: boolean;
   hasMonasteryCoverage: boolean;
   sabbathObservance: boolean;
+  chapelTier?: number;
 };
 
 export const DEFAULT_RESIDENCE_COMMUNITY_CONTEXT: ResidenceCommunityContext = {
@@ -89,7 +96,9 @@ export function createDefaultNeeds(): ResidenceNeedsState {
     ale: { stock: 0, deficitTicks: 0 },
     preservedFood: { stock: 0, deficitTicks: 0 },
     cloth: { stock: 0, deficitTicks: 0 },
-    pottery: { stock: 0, deficitTicks: 0 },
+  pottery: { stock: 0, deficitTicks: 0 },
+    church: { stock: 0, deficitTicks: 0 },
+    foodVariety: { stock: 0, deficitTicks: 0 },
   };
 }
 
@@ -109,6 +118,10 @@ export function needKindFromId(id: number): ResidenceNeedKind | null {
       return 'cloth';
     case RESIDENCE_NEED_KIND_IDS.pottery:
       return 'pottery';
+    case RESIDENCE_NEED_KIND_IDS.church:
+      return 'church';
+    case RESIDENCE_NEED_KIND_IDS.foodVariety:
+      return 'foodVariety';
     default:
       return null;
   }

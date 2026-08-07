@@ -122,6 +122,10 @@ function recoveryStockBase(kind: ResidenceNeedKind): number {
       return 2;
     case 'pottery':
       return 2;
+    case 'church':
+      return 1;
+    case 'foodVariety':
+      return 2;
     default: {
       const unhandled: never = kind;
       return unhandled;

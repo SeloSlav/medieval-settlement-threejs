@@ -351,7 +351,7 @@ export function computeSettlementHouseholdMarketPlan(
   for (const residence of occupiedResidences) {
     totalHouseholdWealth += Math.max(0, residence.householdWealth);
     const foodRunwayDays = residenceFoodRunwayDays(residence) ?? Infinity;
-    const waterRunwayDays = residence.tier >= 2
+    const waterRunwayDays = residence.tier >= 1
       ? residenceWaterRunwayDays(residence) ?? Infinity
       : null;
     const foodCritical = foodRunwayDays <= HOUSEHOLD_AUTO_BUY_RUNWAY_DAYS;

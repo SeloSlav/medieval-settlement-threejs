@@ -18,14 +18,15 @@ const noParish: ResidenceCommunityContext = {
 const vacant = residence(1, 0);
 const vacantReadiness = residenceSettlementReadiness(vacant, noParish);
 assert.equal(vacantReadiness.firstArrival, true);
-assert.equal(vacantReadiness.ready, true, 'the first settler must establish the food and hearth delivery claims');
+assert.equal(vacantReadiness.ready, true, 'the first settler must establish the food, hearth, and water delivery claims');
 
 const tierOne = residence(1, 1);
 const hungryReadiness = residenceSettlementReadiness(tierOne, noParish);
 assert.equal(hungryReadiness.ready, false);
-assert.deepEqual(hungryReadiness.waitingOn.map((buffer) => buffer.kind), ['firewood', 'food']);
+assert.deepEqual(hungryReadiness.waitingOn.map((buffer) => buffer.kind), ['food', 'firewood', 'water']);
 stockToThreshold(tierOne, 'firewood', noParish);
 stockToThreshold(tierOne, 'food', noParish);
+stockToThreshold(tierOne, 'water', noParish);
 assert.equal(residenceSettlementReadiness(tierOne, noParish).ready, true);
 
 const tierTwo = residence(2, 3);

@@ -180,7 +180,7 @@ const PROCESS: Record<string, string> = {
   vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
   monastery: 'Tithes + named meal stores + hospitality goods -> charity, feasts, and pilgrimages',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
-  weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-3 Marketplace stalls, then Trading Post export',
+  weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
 };
 
 const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
@@ -687,7 +687,7 @@ function renderLogisticsRows(
          <li><span>Physical cured route</span><span>${building.kind === 'smokehouse' ? 'Smokehouse → staffed Granary → Marketplace stall' : 'Granary → Marketplace stall'} · no routine home cart</span></li>`
       : '';
   const textileTerritoryRows = building.kind === 'weaver'
-    ? `<li><span>Textile territory</span><span>Connected tier-3 homes draw cloth from stocked Marketplace goods stalls</span></li>
+    ? `<li><span>Textile territory</span><span>Connected tier-2+ homes draw cloth from stocked Marketplace goods stalls</span></li>
        <li><span>Physical cloth route</span><span>Weaver → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
     : '';
   const hospitalityRoutingRows = building.kind === 'apiary' || building.kind === 'vineyard'

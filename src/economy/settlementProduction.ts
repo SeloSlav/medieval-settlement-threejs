@@ -2438,6 +2438,7 @@ export function computeSettlementProductionCapacity(
   const millCyclesForBread = matchedFlourPerDay / WATERMILL_FLOUR_PER_CYCLE;
 
   let tierThreeResidents = 0;
+  let textileResidents = 0;
   let fireDisabledTierThreeHomes = 0;
   let fireDisabledTierThreeResidents = 0;
   let fireDisabledTierThreeHousingCapacity = 0;
@@ -2445,16 +2446,20 @@ export function computeSettlementProductionCapacity(
     state.fireIncidents.values(),
   );
   for (const residence of state.residences.values()) {
-    if (!residence.abandoned && residence.tier >= 3) {
-      if (fireDisabledResidences.has(residence.id)) {
+    if (residence.abandoned || residence.tier < 2) continue;
+    if (fireDisabledResidences.has(residence.id)) {
+      if (residence.tier >= 3) {
         fireDisabledTierThreeHomes += 1;
         fireDisabledTierThreeResidents += Math.max(0, residence.population);
         fireDisabledTierThreeHousingCapacity += Math.max(
           0,
           residence.populationCapacity,
         );
-        continue;
       }
+      continue;
+    }
+    textileResidents += residence.population;
+    if (residence.tier >= 3) {
       tierThreeResidents += residence.population;
       const materialBranch = industrialMaterialBranchByKey(
         industrialMaterialBranches,
@@ -2595,7 +2600,7 @@ export function computeSettlementProductionCapacity(
     currentPreservedFoodDemandMultiplier:
       normalizedPreservedFoodDemandMultiplier,
     clothDemandPerDay:
-      tierThreeResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      textileResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     potteryOutputPerDay: industrialMaterials.potteryOutputPerDay,
     potteryDemandPerDay:
       tierThreeResidents * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,

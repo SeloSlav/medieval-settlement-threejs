@@ -27,6 +27,13 @@ Assets and source pages:
   "Chicken" by Quaternius
   https://poly.pizza/m/ineV9pU5VL
 
+The backyard goat visual reuses `quaternius-sheep.glb` from the same CC0 Farm
+Animal Pack. The game creates the goat variant at runtime with a leaner scale,
+goat-colored material clones, and procedural horns and beard while retaining
+the source rig and animations. The published Farm Animal Pack does not include
+a separate goat file; this derivative keeps the requested pack provenance and
+CC0 terms without importing a differently licensed model.
+
 Collection pages:
 
 - Farm Animal Pack: https://quaternius.com/packs/farmanimal.html

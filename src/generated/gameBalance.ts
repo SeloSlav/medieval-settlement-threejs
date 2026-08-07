@@ -402,6 +402,8 @@ export const APIARY_EXTRACTIVE_YIELD_MULTIPLIER = 1.25;
 export const APIARY_WINTER_HEALTH_GAIN = 0.12;
 export const APIARY_WINTER_HEALTH_LOSS = 0.45;
 export const APIARY_POLLINATION_BONUS_MAX = 0.15;
+export const BACKYARD_APIARY_POLLINATION_RADIUS = 45;
+export const BACKYARD_APIARY_POLLINATION_CONTRIBUTION = 0.035;
 export const VINEYARD_GRAPES_PER_HARVEST_CYCLE = 4;
 export const VINEYARD_GRAPES_PER_FERMENTATION_BATCH = 3;
 export const VINEYARD_WINE_PER_FERMENTATION_BATCH = 3;
@@ -1582,7 +1584,7 @@ export const BUILDING_STORAGE_CAPS = {
   vineyard: { timber: 0, firewood: 0, stone: 0, food: 40, wine: 180 },
 } as const satisfies Record<BuildingKind, StorageCaps>;
 
-export const BACKYARD_GARDEN_KINDS = ["apple_orchard","cherry_orchard","vegetable_garden","flower_garden","herb_garden","hen_yard"] as const;
+export const BACKYARD_GARDEN_KINDS = ["apple_orchard","cherry_orchard","vegetable_garden","flower_garden","herb_garden","hen_yard","goat_pen","backyard_apiary"] as const;
 export type BackyardGardenKind = (typeof BACKYARD_GARDEN_KINDS)[number];
 
 export type BackyardGardenDefinition = {
@@ -1591,6 +1593,7 @@ export type BackyardGardenDefinition = {
   foodSelfShare: number;
   foodPerPersonPerSec: number;
   settlementAttractionMultiplier: number;
+  hiddenFromPicker: boolean;
 };
 
 export const BACKYARD_GARDEN_DEFINITIONS = {
@@ -1600,6 +1603,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodSelfShare: 0.55,
     foodPerPersonPerSec: 0.009,
     settlementAttractionMultiplier: 1,
+    hiddenFromPicker: false,
   },
   cherry_orchard: {
     kind: 'cherry_orchard',
@@ -1607,6 +1611,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodSelfShare: 0.5,
     foodPerPersonPerSec: 0.008,
     settlementAttractionMultiplier: 1,
+    hiddenFromPicker: true,
   },
   vegetable_garden: {
     kind: 'vegetable_garden',
@@ -1614,6 +1619,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodSelfShare: 0.65,
     foodPerPersonPerSec: 0.012,
     settlementAttractionMultiplier: 1,
+    hiddenFromPicker: false,
   },
   flower_garden: {
     kind: 'flower_garden',
@@ -1621,6 +1627,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodSelfShare: 0,
     foodPerPersonPerSec: 0,
     settlementAttractionMultiplier: 0.88,
+    hiddenFromPicker: false,
   },
   herb_garden: {
     kind: 'herb_garden',
@@ -1628,6 +1635,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodSelfShare: 0,
     foodPerPersonPerSec: 0,
     settlementAttractionMultiplier: 1,
+    hiddenFromPicker: false,
   },
   hen_yard: {
     kind: 'hen_yard',
@@ -1635,6 +1643,23 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodSelfShare: 0.82,
     foodPerPersonPerSec: 0.0105,
     settlementAttractionMultiplier: 1,
+    hiddenFromPicker: false,
+  },
+  goat_pen: {
+    kind: 'goat_pen',
+    label: "Goat pen",
+    foodSelfShare: 0.72,
+    foodPerPersonPerSec: 0.0055,
+    settlementAttractionMultiplier: 0.97,
+    hiddenFromPicker: false,
+  },
+  backyard_apiary: {
+    kind: 'backyard_apiary',
+    label: "Backyard apiary",
+    foodSelfShare: 0.68,
+    foodPerPersonPerSec: 0.003,
+    settlementAttractionMultiplier: 1.03,
+    hiddenFromPicker: false,
   },
 } as const satisfies Record<BackyardGardenKind, BackyardGardenDefinition>;
 
@@ -1645,6 +1670,8 @@ export const BACKYARD_GARDEN_COSTS = {
   flower_garden: { timber: 4, stone: 1 },
   herb_garden: { timber: 4, stone: 2 },
   hen_yard: { timber: 6, stone: 1 },
+  goat_pen: { timber: 8, stone: 2 },
+  backyard_apiary: { timber: 7, stone: 1 },
 } as const satisfies Record<BackyardGardenKind, BuildingResourceCost>;
 
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;

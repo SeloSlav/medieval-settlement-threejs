@@ -49,11 +49,22 @@ export function backyardGardenSeasonalMultiplier(
             : 0;
       break;
     case 'hen_yard':
+    case 'goat_pen':
       base = environment.season === 'winter' ? 0.75 : 1;
+      break;
+    case 'backyard_apiary':
+      base = environment.season === 'spring'
+        ? 0.8
+        : environment.season === 'summer'
+          ? 1
+          : environment.season === 'autumn'
+            ? 0.4
+            : 0;
       break;
   }
   return environment.weather === 'drought'
     && kind !== 'hen_yard'
+    && kind !== 'goat_pen'
     && kind !== 'apple_orchard'
     && kind !== 'cherry_orchard'
     ? base * 0.55
@@ -79,6 +90,14 @@ export function backyardGardenSeasonStatus(
     label = environment.season === 'winter'
       ? 'Winter laying - 75% of warm-season output'
       : 'Year-round laying - full output';
+  } else if (kind === 'goat_pen') {
+    label = environment.season === 'winter'
+      ? 'Winter fodder limits the alternating milk and meat yield to 75%'
+      : 'Alternates milk and meat each day';
+  } else if (kind === 'backyard_apiary') {
+    label = multiplier <= 1e-9
+      ? 'Hives are dormant for winter'
+      : `Small-hive honey flow - ${Math.round(multiplier * 100)}% of summer output`;
   } else if (multiplier <= 1e-9) {
     label = 'Dormant for winter - output resumes in spring';
   } else if (environment.weather === 'drought') {

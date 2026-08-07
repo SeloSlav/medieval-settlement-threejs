@@ -90,6 +90,7 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::Ale => building.ale,
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Pottery => building.pottery,
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => return false,
     };
     if stock <= 1e-6
         || (building.kind == "trading_post" && building_has_active_trip(ctx, building.id))
@@ -179,6 +180,7 @@ pub fn try_dispatch_marketplace_caravan(
         ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
             (TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC)
         }
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => return false,
     };
 
     if building.kind == "marketplace" {
@@ -228,7 +230,9 @@ fn marketplace_stall_workplace(
         ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
             "village_storehouse"
         }
-        ResidenceNeedKind::Water => return None,
+        ResidenceNeedKind::Water
+        | ResidenceNeedKind::Church
+        | ResidenceNeedKind::FoodVariety => return None,
     };
     let network = tick.road_network(marketplace.owner)?;
     tick.building_ids_for_kinds(ctx, marketplace.owner, &[workplace_kind])

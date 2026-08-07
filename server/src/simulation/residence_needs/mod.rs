@@ -22,7 +22,7 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::{
-    reconcile_building_labor, residence_fresh_food_stock, residence_preserved_food_stock,
+    reconcile_building_labor, residence_food_variety_count, residence_fresh_food_stock, residence_preserved_food_stock,
     withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
     PRESERVED_FOOD_COMMODITIES,
 };
@@ -43,7 +43,7 @@ pub fn step_residence_needs(
     tick: &SimTickContext,
     mut residence: Residence,
     mut needs: Vec<NeedState>,
-    _has_chapel_access: bool,
+    chapel_tier: u8,
     _has_monastery_coverage: bool,
     clock: &GameClock,
     environment: EnvironmentState,
@@ -58,6 +58,7 @@ pub fn step_residence_needs(
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
     spoil_residence_food_inventory(&mut residence, environment);
     migrate_and_sync_food_inventory(&mut residence, &mut needs);
+    let food_variety_count = residence_food_variety_count(&residence);
 
     let cold_weather = environment.season == Season::Winter;
     let mut food_unmet = false;
@@ -88,7 +89,23 @@ pub fn step_residence_needs(
         let Some(need) = find_need_mut(&mut needs, kind) else {
             continue;
         };
-        let outcome = if kind == ResidenceNeedKind::PreservedFood {
+        let outcome = if kind == ResidenceNeedKind::Church {
+            let required_tier = if residence.tier >= 3 { 2 } else { 1 };
+            need.stock = f64::from(chapel_tier);
+            if chapel_tier >= required_tier {
+                ConsumeResult::Met(*need)
+            } else {
+                ConsumeResult::Unmet
+            }
+        } else if kind == ResidenceNeedKind::FoodVariety {
+            let required_variety = if residence.tier >= 3 { 3 } else { 2 };
+            need.stock = f64::from(food_variety_count);
+            if food_variety_count >= required_variety {
+                ConsumeResult::Met(*need)
+            } else {
+                ConsumeResult::Unmet
+            }
+        } else if kind == ResidenceNeedKind::PreservedFood {
             // The meal allocator already rotated the seasonal ration without
             // adding a second calorie demand. Any remainder is the household's
             // status stock and emergency fallback.
@@ -530,6 +547,7 @@ fn consume_need(
             provisions::ConsumeOutcome::Met(updated) => ConsumeResult::Met(updated),
             provisions::ConsumeOutcome::Unmet => ConsumeResult::Unmet,
         },
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => ConsumeResult::Unmet,
     }
 }
 
@@ -542,6 +560,7 @@ fn on_unmet_need(kind: ResidenceNeedKind, need: &NeedState) -> NeedState {
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => provisions::on_unmet(need),
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => *need,
     }
 }
 
@@ -554,6 +573,7 @@ fn apply_delivery_for_kind(kind: ResidenceNeedKind, need: &NeedState, delivered:
         | ResidenceNeedKind::PreservedFood
         | ResidenceNeedKind::Cloth
         | ResidenceNeedKind::Pottery => provisions::apply_delivery(need, delivered),
+        ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => *need,
     }
 }
 

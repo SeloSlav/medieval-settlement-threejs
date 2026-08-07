@@ -8,6 +8,14 @@ import {
   type BackyardChickenSource,
 } from './backyardChickenAssets.ts';
 import {
+  createBackyardGoatModel,
+  disposeBackyardGoatModel,
+  disposeBackyardGoatSource,
+  loadBackyardGoatSource,
+  removeBackyardGoatFallbacks,
+  type BackyardGoatSource,
+} from './backyardGoatAssets.ts';
+import {
   animateBackyardGardenMesh,
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
@@ -35,6 +43,17 @@ type ChickenVisual = {
   random: () => number;
 };
 
+type GoatVisual = {
+  root: THREE.Group;
+  model: THREE.Group;
+  mixer: THREE.AnimationMixer;
+  idle: THREE.AnimationAction;
+  graze: THREE.AnimationAction;
+  grazing: boolean;
+  timer: number;
+  random: () => number;
+};
+
 type GardenSyncInput = {
   residences: Iterable<ResidenceState>;
   zones: Iterable<BurgageZoneState>;
@@ -56,8 +75,10 @@ export class BackyardGardenMarkers {
   private readonly root = new THREE.Group();
   private readonly meshes = new Map<string, THREE.Group>();
   private readonly chickens = new Map<string, ChickenVisual[]>();
+  private readonly goats = new Map<string, GoatVisual[]>();
   private plants: BackyardPlantCatalog | null = null;
   private chickenSource: BackyardChickenSource | null = null;
+  private goatSource: BackyardGoatSource | null = null;
   private latestInput: ReplayableGardenSyncInput | null = null;
   private animationElapsedSeconds = 0;
   private disposed = false;
@@ -77,6 +98,20 @@ export class BackyardGardenMarkers {
       },
       (error: unknown) => {
         console.warn('[Livestock] Animated hen-yard asset failed to load; retaining procedural birds.', error);
+      },
+    );
+
+    void loadBackyardGoatSource().then(
+      (source) => {
+        if (this.disposed) {
+          disposeBackyardGoatSource(source.scene);
+          return;
+        }
+        this.goatSource = source;
+        if (this.latestInput) this.syncReplayable(this.latestInput, true);
+      },
+      (error: unknown) => {
+        console.warn('[Livestock] Sheep-derived CC0 goat visual failed to load; retaining procedural goats.', error);
       },
     );
 
@@ -131,10 +166,12 @@ export class BackyardGardenMarkers {
         placement.depth.toFixed(2),
         this.plants ? 'seedthree' : 'vegetation-pending',
         this.chickenSource ? 'animated-hens' : 'fallback-hens',
+        this.goatSource ? 'animated-goats' : 'fallback-goats',
       ].join(':');
       if (force || !marker || marker.userData.visualKey !== visualKey) {
         if (marker) {
           this.disposeChickens(residence.id);
+          this.disposeGoats(residence.id);
           this.root.remove(marker);
           disposeBackyardGardenMesh(marker);
         }
@@ -156,6 +193,15 @@ export class BackyardGardenMarkers {
             hashStringSeed(residence.id),
           );
         }
+        if (garden.kind === 'goat_pen' && this.goatSource) {
+          this.attachAnimatedGoats(
+            residence.id,
+            marker,
+            placement.width,
+            placement.depth,
+            hashStringSeed(residence.id),
+          );
+        }
       }
 
       const y = input.getHeightAt(placement.x, placement.z);
@@ -167,6 +213,7 @@ export class BackyardGardenMarkers {
       if (nextIds.has(id)) continue;
       this.root.remove(marker);
       this.disposeChickens(id);
+      this.disposeGoats(id);
       disposeBackyardGardenMesh(marker);
       this.meshes.delete(id);
     }
@@ -217,6 +264,25 @@ export class BackyardGardenMarkers {
         }
         chicken.root.position.set(chicken.x, 0, chicken.z);
         chicken.mixer.update(dt);
+      }
+    }
+    for (const [residenceId, visuals] of this.goats) {
+      const marker = this.meshes.get(residenceId);
+      if (!marker) continue;
+      const visible = isWithinCrowdView(marker.position.x, marker.position.z, view);
+      for (const goat of visuals) {
+        goat.root.visible = visible;
+        if (!visible) continue;
+        goat.timer -= dt;
+        if (goat.timer <= 0) {
+          const next = goat.grazing ? goat.idle : goat.graze;
+          const previous = goat.grazing ? goat.graze : goat.idle;
+          previous.fadeOut(0.25);
+          next.reset().fadeIn(0.25).play();
+          goat.grazing = !goat.grazing;
+          goat.timer = 2.5 + goat.random() * 6;
+        }
+        goat.mixer.update(dt);
       }
     }
   }
@@ -286,16 +352,69 @@ export class BackyardGardenMarkers {
     this.chickens.delete(residenceId);
   }
 
+  private attachAnimatedGoats(
+    residenceId: string,
+    marker: THREE.Group,
+    width: number,
+    depth: number,
+    seed: number,
+  ): void {
+    if (!this.goatSource) return;
+    removeBackyardGoatFallbacks(marker);
+    const visuals: GoatVisual[] = [];
+    for (let index = 0; index < 3; index++) {
+      const random = mulberry32(seed ^ Math.imul(index + 1, 0x27d4eb2d));
+      const model = createBackyardGoatModel(
+        this.goatSource,
+        0.86 * THREE.MathUtils.lerp(0.9, 1.08, random()),
+      );
+      const root = new THREE.Group();
+      root.name = 'Rigged backyard goat';
+      root.position.set(
+        THREE.MathUtils.lerp(-width * 0.18, width * 0.32, random()),
+        0,
+        THREE.MathUtils.lerp(-depth * 0.08, depth * 0.3, random()),
+      );
+      root.rotation.y = random() * Math.PI * 2;
+      root.add(model);
+      marker.add(root);
+      const mixer = new THREE.AnimationMixer(model);
+      const idle = mixer.clipAction(this.goatSource.idle, model);
+      const graze = mixer.clipAction(this.goatSource.graze, model);
+      idle.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      graze.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+      const grazing = index !== 0;
+      (grazing ? graze : idle).play();
+      visuals.push({ root, model, mixer, idle, graze, grazing, timer: 2 + random() * 5, random });
+    }
+    this.goats.set(residenceId, visuals);
+  }
+
+  private disposeGoats(residenceId: string): void {
+    const visuals = this.goats.get(residenceId);
+    if (!visuals) return;
+    for (const goat of visuals) {
+      goat.mixer.stopAllAction();
+      goat.mixer.uncacheRoot(goat.model);
+      goat.root.removeFromParent();
+      disposeBackyardGoatModel(goat.model);
+    }
+    this.goats.delete(residenceId);
+  }
+
   dispose(): void {
     this.disposed = true;
     this.latestInput = null;
     for (const id of this.chickens.keys()) this.disposeChickens(id);
+    for (const id of this.goats.keys()) this.disposeGoats(id);
     for (const marker of this.meshes.values()) {
       disposeBackyardGardenMesh(marker);
     }
     this.meshes.clear();
     if (this.chickenSource) disposeBackyardChickenSource(this.chickenSource.scene);
     this.chickenSource = null;
+    if (this.goatSource) disposeBackyardGoatSource(this.goatSource.scene);
+    this.goatSource = null;
     this.root.removeFromParent();
   }
 }

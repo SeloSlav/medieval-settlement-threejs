@@ -8,6 +8,7 @@ import {
   disposeBackyardGardenMesh,
 } from '../src/residences/backyardGardenMesh.ts';
 import type { BackyardGardenKind } from '../src/generated/gameBalance.ts';
+import { BACKYARD_GARDEN_PICKER_KINDS } from '../src/residences/backyardGarden.ts';
 import { BACKYARD_PLANT_SPECIES } from '../src/vegetation/seedthree/backyardPlantPresets.ts';
 
 const kinds: BackyardGardenKind[] = [
@@ -17,6 +18,8 @@ const kinds: BackyardGardenKind[] = [
   'flower_garden',
   'herb_garden',
   'hen_yard',
+  'goat_pen',
+  'backyard_apiary',
 ];
 
 const signatures: Record<BackyardGardenKind, string> = {
@@ -26,6 +29,8 @@ const signatures: Record<BackyardGardenKind, string> = {
   flower_garden: 'RoseBush:',
   herb_garden: 'HerbDryingRack',
   hen_yard: 'HenCoopDoor',
+  goat_pen: 'GoatShelter',
+  backyard_apiary: 'BackyardBeeSkep',
 };
 
 const terrainBackedKinds = new Set<BackyardGardenKind>([
@@ -33,7 +38,13 @@ const terrainBackedKinds = new Set<BackyardGardenKind>([
   'cherry_orchard',
   'flower_garden',
   'hen_yard',
+  'goat_pen',
+  'backyard_apiary',
 ]);
+
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('cherry_orchard'), false);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('goat_pen'), true);
+assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('backyard_apiary'), true);
 
 for (const kind of kinds) {
   const width = 6.2;
@@ -62,6 +73,12 @@ for (const kind of kinds) {
       fenceNames,
       ['Hen yard enclosure fence'],
       'hen yards should retain their functional animal enclosure',
+    );
+  } else if (kind === 'goat_pen') {
+    assert.deepEqual(
+      fenceNames,
+      ['Goat pen enclosure fence'],
+      'goat pens should retain their functional animal enclosure',
     );
   } else {
     assert.deepEqual(

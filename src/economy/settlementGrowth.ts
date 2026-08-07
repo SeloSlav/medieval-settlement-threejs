@@ -56,6 +56,8 @@ const EMPTY_WAITING_COUNTS = (): Record<ResidenceNeedKind, number> => ({
   ale: 0,
   cloth: 0,
   pottery: 0,
+  church: 0,
+  foodVariety: 0,
 });
 
 export function computeSettlementGrowthPlan(input: {
@@ -126,8 +128,11 @@ export function computeSettlementGrowthPlan(input: {
         * CALENDAR_SECONDS_PER_DAY
         * WINTER_FIREWOOD_DEMAND_MULTIPLIER;
     }
-    if (residence.tier >= 2) {
+    if (residence.tier >= 1) {
       additionalWaterPerDay += vacancies * RESIDENCE_WATER_PER_PERSON_PER_SEC * workdaySeconds;
+    }
+    if (residence.tier >= 2) {
+      additionalClothPerDay += vacancies * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
     }
     if (residence.tier >= 3) {
       const preservedFoodPerDay = vacancies
@@ -140,7 +145,6 @@ export function computeSettlementGrowthPlan(input: {
         grossFoodPerDay - preservedFoodPerDay,
       );
       additionalAlePerDay += vacancies * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
-      additionalClothPerDay += vacancies * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
       additionalPotteryPerDay += vacancies
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
         * workdaySeconds;

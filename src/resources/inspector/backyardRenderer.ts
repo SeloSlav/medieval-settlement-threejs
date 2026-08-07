@@ -1,7 +1,9 @@
 import {
   BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
+  BACKYARD_GARDEN_PICKER_KINDS,
   backyardGardenLabel,
+  backyardGardenProductSummary,
   formatBackyardGardenSalvage,
   getBackyardGardenCost,
   type BackyardGardenKind,
@@ -126,6 +128,7 @@ export function renderBackyardInspector(
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.population}</span></li>
       <li><span>Seasonal output</span><span>${season.label}${sabbathPaused ? ' · paused today by parish policy' : ''}</span></li>
+      <li><span>Product</span><span>${backyardGardenProductSummary(garden.kind)}</span></li>
       ${producesFood
         ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `${Math.round(def.foodSelfShare * 100)}% reserved for this home` : '100% kept without a staffed stall'})</span></li>
            <li><span>Shared market food today</span><span>${economy.marketFoodPerDay.toFixed(1)}${hasMarketAccess ? ' pooled for other households' : ' — household keeps the full crop without a stall'}</span></li>
@@ -135,7 +138,11 @@ export function renderBackyardInspector(
         ? '<li><span>Herb sharing</span><span>Household remedies fill first; surplus remedies enter the goods stall for sick homes</span></li>'
         : garden.kind === 'flower_garden'
           ? '<li><span>Flower effect</span><span>Pollinator forage and settlement attraction; flowers create no saleable commodity or passive gold</span></li>'
-          : ''}
+          : garden.kind === 'goat_pen'
+            ? '<li><span>Trade-off</span><span>Uses no pasture, but alternates one low milk/meat stream; produces no wool, plough power, or collectable field manure</span></li>'
+            : garden.kind === 'backyard_apiary'
+              ? '<li><span>Trade-off</span><span>Seasonal honey and a minor local pollination contribution; much less output and reach than a staffed forest apiary</span></li>'
+              : ''}
       <li><span>Marketplace link</span><span>${hasMarketAccess ? `${stallLabel} connected` : `None — needs a Marketplace and staffed ${producesFood ? 'Granary' : 'Storehouse'}`}</span></li>
       <li><span>Local trade value today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · selling paused' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>
       <li><span>Household services</span><span>${formatResidenceServiceConsequence(service)}</span></li>
@@ -177,7 +184,7 @@ function renderEmptyBackyardPicker(
           && Math.hypot(building.x - placement.x, building.z - placement.z) <= 3,
       ) ?? null
     : null;
-  const options = BACKYARD_GARDEN_KINDS.map((kind) => {
+  const options = BACKYARD_GARDEN_PICKER_KINDS.map((kind) => {
     const def = BACKYARD_GARDEN_DEFINITIONS[kind];
     const tag = def.foodPerPersonPerSec > 0 ? 'Food' : 'Market';
     const cost = getBackyardGardenCost(kind);
@@ -203,7 +210,7 @@ function renderEmptyBackyardPicker(
         >
           <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
           <span class="backyard-picker-option__meta">
-            <span class="backyard-picker-option__tag">${tag}</span>
+            <span class="backyard-picker-option__tag">${tag} · ${backyardGardenProductSummary(kind)}</span>
             <span class="backyard-picker-option__cost">${renderBuildingResourceCost(cost, { compact: true })}</span>
           </span>
         </button>

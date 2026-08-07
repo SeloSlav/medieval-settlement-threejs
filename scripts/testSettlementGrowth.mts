@@ -54,6 +54,12 @@ assert.equal(
 );
 stockToThreshold(hungry, 'firewood');
 assert.equal(
+  computeSettlementGrowthPlan({ state: stateWith(hungry) }).waitingOnHomes.water,
+  1,
+  'a basic cottage must not grow while its water buffer is empty',
+);
+stockToThreshold(hungry, 'water');
+assert.equal(
   computeSettlementGrowthPlan({ state: stateWith(hungry) }).progressingHomes,
   1,
 );

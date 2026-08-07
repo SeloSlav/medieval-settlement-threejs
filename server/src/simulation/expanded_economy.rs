@@ -5,6 +5,7 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     BackyardGardenKind, FarmCropProduce, APIARY_HONEY_PER_CYCLE,
     APIARY_WINTER_HONEY_REQUIRED, BREWERY_ALE_PER_CYCLE,
+    BACKYARD_APIARY_POLLINATION_CONTRIBUTION, BACKYARD_APIARY_POLLINATION_RADIUS,
     BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
     BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
@@ -2311,7 +2312,7 @@ pub(crate) fn nearby_apiary_pollination_multiplier(
     x: f64,
     z: f64,
 ) -> f64 {
-    let contribution = tick
+    let full_apiary_contribution: f64 = tick
         .building_ids_for_kinds(ctx, owner, &["apiary"])
         .into_iter()
         .filter_map(|building_id| ctx.db.building().id().find(&building_id))
@@ -2323,7 +2324,24 @@ pub(crate) fn nearby_apiary_pollination_multiplier(
             pollination_contribution(distance, apiary.work_radius, apiary.apiary_colony_health)
         })
         .sum();
-    pollination_multiplier(contribution)
+    let backyard_contribution: f64 = ctx
+        .db
+        .backyard_garden()
+        .owner()
+        .filter(&owner)
+        .filter(|garden| garden.kind == BackyardGardenKind::BackyardApiary as u8)
+        .filter_map(|garden| ctx.db.residence().id().find(&garden.residence_id))
+        .filter(|residence| {
+            residence.population > 0 && !tick.residence_disabled_by_fire(ctx, residence.id)
+        })
+        .map(|residence| {
+            let distance = ((residence.x - x).powi(2) + (residence.z - z).powi(2)).sqrt();
+            let reach = (1.0 - distance / BACKYARD_APIARY_POLLINATION_RADIUS.max(1.0))
+                .clamp(0.0, 1.0);
+            BACKYARD_APIARY_POLLINATION_CONTRIBUTION * reach
+        })
+        .sum();
+    pollination_multiplier(full_apiary_contribution + backyard_contribution)
 }
 
 pub fn step_monastery(

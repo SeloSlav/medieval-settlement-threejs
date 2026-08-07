@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   NAMED_FOOD_KINDS,
+  foodCategory,
+  foodVarietyCount,
   edibleFoodStock,
   freshFoodStock,
   preservableFoodStock,
@@ -32,6 +34,16 @@ assert.equal(preservableFoodStock(pantry), 6);
 assert.equal(preservedFoodStock(pantry), 21);
 assert.equal(edibleFoodStock(pantry), 45);
 assert.equal(NAMED_FOOD_KINDS.length, 16);
+assert.equal(foodCategory('apples'), 'fruits');
+assert.equal(foodCategory('cherries'), 'fruits');
+assert.equal(foodCategory('vegetables'), 'vegetables');
+assert.equal(foodCategory('milk'), 'animalProduce');
+assert.equal(foodCategory('cheese'), 'animalProduce');
+assert.equal(
+  foodVarietyCount({ apples: 2, cherries: 2, vegetables: 3, milk: 1, cheese: 1 }),
+  3,
+  'close substitutes must not inflate household variety',
+);
 assert.deepEqual(
   Object.fromEntries(MARKET_COMMODITIES.map((offer) => [offer.id, offer.resourceKind])),
   {

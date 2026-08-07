@@ -20,14 +20,15 @@ pub fn find_serving_chapel<'a>(
         .find(|chapel| chapel.id == chapel_id && chapel.owner == owner && is_chapel_staffed(chapel))
 }
 
-pub fn residence_has_chapel_access(
+pub fn residence_chapel_tier(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     owner: Identity,
     residence: &Residence,
     chapels: &[Building],
-) -> bool {
-    find_serving_chapel(ctx, tick, owner, residence, chapels).is_some()
+) -> u8 {
+    find_serving_chapel(ctx, tick, owner, residence, chapels)
+        .map_or(0, |chapel| chapel.chapel_tier.max(1))
 }
 
 pub fn monastery_linked_to_chapel(

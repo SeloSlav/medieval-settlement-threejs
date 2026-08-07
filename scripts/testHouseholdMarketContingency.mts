@@ -87,7 +87,10 @@ function home(
     populationCapacity: 5,
     tier: 1,
     settlementTicks: 0,
-    needs: createDefaultNeeds(),
+    needs: {
+      ...createDefaultNeeds(),
+      water: { stock: 1_000, deficitTicks: 0 },
+    },
     abandoned: false,
     householdWealth: 20,
     lastHouseholdMarketTick: 0,
@@ -379,7 +382,7 @@ const householdFull = computeSettlementHouseholdMarketPlan({
 assert.equal(householdFull.householdStorageBlockedHomes, 1);
 
 const waterFallbackHome = home('water-fallback', 20, {
-  tier: 2,
+  tier: 1,
 });
 waterFallbackHome.needs.food.stock = 0;
 waterFallbackHome.needs.water.stock = 0;

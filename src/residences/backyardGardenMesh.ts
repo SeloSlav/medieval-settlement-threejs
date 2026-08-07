@@ -233,6 +233,9 @@ const MATERIALS = {
     side: THREE.DoubleSide,
   }),
   terracotta: new THREE.MeshStandardMaterial({ color: 0x9b4c36, roughness: 0.88 }),
+  straw: new THREE.MeshStandardMaterial({ color: 0xb28a49, roughness: 0.96 }),
+  goat: new THREE.MeshStandardMaterial({ color: 0x9b8062, roughness: 0.92 }),
+  goatDark: new THREE.MeshStandardMaterial({ color: 0x4a382c, roughness: 0.94 }),
   water: sharedBuildingDetailMaterial('water'),
 } as const;
 
@@ -1081,6 +1084,57 @@ function addHenYard(group: THREE.Group, width: number, depth: number, seed: numb
   }
 }
 
+function addGoatPen(group: THREE.Group, width: number, depth: number, seed: number): void {
+  const rng = mulberry32(seed ^ 0x60a7);
+  const shelterWidth = Math.min(2.6, width * 0.45);
+  addMesh(group, new THREE.BoxGeometry(shelterWidth, 1.25, Math.min(1.8, depth * 0.34)), MATERIALS.timber, -width * 0.24, 0.68, -depth * 0.28, undefined, undefined, 'GoatShelter');
+  addMesh(group, new THREE.ConeGeometry(shelterWidth * 0.72, 0.72, 4), MATERIALS.darkTimber, -width * 0.24, 1.62, -depth * 0.28, new THREE.Euler(0, Math.PI * 0.25, 0));
+  addMesh(group, new THREE.BoxGeometry(1.25, 0.22, 0.42), MATERIALS.darkTimber, width * 0.22, 0.23, -depth * 0.24, undefined, undefined, 'GoatTrough');
+  for (const x of [-width * 0.47, width * 0.47]) {
+    for (const z of [-depth * 0.43, depth * 0.43]) {
+      addMesh(group, new THREE.CylinderGeometry(0.055, 0.075, 1.12, 6), MATERIALS.darkTimber, x, 0.56, z);
+    }
+  }
+  for (const z of [-depth * 0.43, depth * 0.43]) {
+    for (const y of [0.42, 0.82]) addMesh(group, new THREE.BoxGeometry(width * 0.94, 0.065, 0.065), MATERIALS.wicker, 0, y, z, undefined, undefined, y === 0.42 && z < 0 ? 'Goat pen enclosure fence' : undefined);
+  }
+  for (const x of [-width * 0.47, width * 0.47]) {
+    for (const y of [0.42, 0.82]) addMesh(group, new THREE.BoxGeometry(0.065, 0.065, depth * 0.86), MATERIALS.wicker, x, y, 0);
+  }
+  for (let index = 0; index < 3; index++) {
+    const goat = new THREE.Group();
+    goat.name = 'GoatFallback';
+    addMesh(goat, new THREE.SphereGeometry(0.34, 8, 6), MATERIALS.goat, 0, 0.55, 0, undefined, new THREE.Vector3(1.35, 0.8, 0.72));
+    addMesh(goat, new THREE.SphereGeometry(0.2, 8, 6), MATERIALS.goatDark, 0.42, 0.72, 0, undefined, new THREE.Vector3(0.85, 1.05, 0.78));
+    for (const z of [-0.16, 0.16]) {
+      addMesh(goat, new THREE.CylinderGeometry(0.035, 0.045, 0.48, 5), MATERIALS.goatDark, -0.18, 0.26, z);
+      addMesh(goat, new THREE.CylinderGeometry(0.035, 0.045, 0.48, 5), MATERIALS.goatDark, 0.2, 0.26, z);
+    }
+    goat.position.set((rng() - 0.25) * width * 0.55, 0, (rng() - 0.1) * depth * 0.5);
+    goat.rotation.y = rng() * Math.PI * 2;
+    group.add(goat);
+  }
+}
+
+function addBackyardApiary(group: THREE.Group, width: number, depth: number, seed: number): void {
+  const rng = mulberry32(seed ^ 0xbeef5);
+  addMesh(group, new THREE.BoxGeometry(width * 0.78, 0.16, 0.62), MATERIALS.darkTimber, 0, 0.34, -depth * 0.05, undefined, undefined, 'ApiaryBench');
+  for (let index = 0; index < 3; index++) {
+    const x = (index - 1) * Math.min(1.35, width * 0.23);
+    addMesh(group, new THREE.CylinderGeometry(0.34, 0.45, 0.72, 12), MATERIALS.straw, x, 0.78, -depth * 0.05, undefined, undefined, 'BackyardBeeSkep');
+    addMesh(group, new THREE.SphereGeometry(0.34, 12, 7, 0, Math.PI * 2, 0, Math.PI * 0.52), MATERIALS.straw, x, 1.12, -depth * 0.05);
+    addMesh(group, new THREE.CircleGeometry(0.075, 10), MATERIALS.darkSoil, x, 0.72, -depth * 0.405, new THREE.Euler(0, 0, 0));
+  }
+  for (let index = 0; index < 16; index++) {
+    const flower = new THREE.Group();
+    flower.position.set((rng() - 0.5) * width * 0.78, 0.04, depth * (0.18 + rng() * 0.22));
+    addMesh(flower, new THREE.CylinderGeometry(0.005, 0.007, 0.28, 5), MATERIALS.flowerStem, 0, 0.14, 0);
+    addMesh(flower, new THREE.SphereGeometry(0.045, 8, 5), FLOWER_MATERIALS[index % FLOWER_MATERIALS.length]!, 0, 0.3, 0, undefined, new THREE.Vector3(1, 0.45, 1));
+    group.add(flower);
+  }
+  group.userData.backyardApiaryPollination = 'minor';
+}
+
 export function createBackyardGardenMesh(
   kind: BackyardGardenKind,
   options: BackyardGardenMeshOptions = {},
@@ -1113,6 +1167,12 @@ export function createBackyardGardenMesh(
       break;
     case 'hen_yard':
       addHenYard(group, width, depth, seed);
+      break;
+    case 'goat_pen':
+      addGoatPen(group, width, depth, seed);
+      break;
+    case 'backyard_apiary':
+      addBackyardApiary(group, width, depth, seed);
       break;
     default: {
       const unreachable: never = kind;

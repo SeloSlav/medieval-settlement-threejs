@@ -69,6 +69,61 @@ export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
 
 export type FoodInventoryLike = Partial<Record<FoodInventoryKind, number>>;
 
+export const FOOD_CATEGORY_LABELS = {
+  grains: 'Grains',
+  vegetables: 'Vegetables',
+  fruits: 'Fruit',
+  animalProduce: 'Animal produce',
+  meats: 'Meat',
+  fishes: 'Fish',
+  foraged: 'Foraged food',
+  honey: 'Honey',
+} as const;
+export type FoodCategory = keyof typeof FOOD_CATEGORY_LABELS;
+
+export function foodCategory(kind: FoodInventoryKind): FoodCategory {
+  switch (kind) {
+    case 'food':
+    case 'bread':
+    case 'porridge':
+    case 'preservedFood':
+      return 'grains';
+    case 'vegetables':
+      return 'vegetables';
+    case 'apples':
+    case 'cherries':
+    case 'grapes':
+      return 'fruits';
+    case 'milk':
+    case 'eggs':
+    case 'cheese':
+      return 'animalProduce';
+    case 'meat':
+    case 'curedMeat':
+      return 'meats';
+    case 'fish':
+    case 'smokedFish':
+      return 'fishes';
+    case 'berries':
+    case 'mushrooms':
+      return 'foraged';
+    case 'honey':
+      return 'honey';
+  }
+}
+
+export function presentFoodCategories(inventory: FoodInventoryLike): FoodCategory[] {
+  const categories = new Set<FoodCategory>();
+  for (const kind of [...FRESH_FOOD_KINDS, ...PRESERVED_FOOD_KINDS, 'honey'] as const) {
+    if (finiteFood(inventory[kind]) > 1e-6) categories.add(foodCategory(kind));
+  }
+  return [...categories];
+}
+
+export function foodVarietyCount(inventory: FoodInventoryLike): number {
+  return presentFoodCategories(inventory).length;
+}
+
 function finiteFood(value: number | undefined): number {
   return Number.isFinite(value) ? Math.max(0, value ?? 0) : 0;
 }

@@ -619,7 +619,7 @@ export function computeSettlementProvisioning(input: {
         householdBufferReady = false;
       }
     }
-    if (residence.tier >= 2) {
+    if (residence.tier >= 1) {
       const waterNeeded = residence.population
         * RESIDENCE_WATER_PER_PERSON_PER_SEC
         * workdaySeconds;
@@ -628,12 +628,18 @@ export function computeSettlementProvisioning(input: {
         householdBufferReady = false;
       }
     }
+    if (residence.tier >= 2) {
+      const clothNeeded = residence.population
+        * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
+        * workdaySeconds;
+      if (getNeedStock(residence.needs, 'cloth') + 1e-6 < clothNeeded) {
+        householdBufferClothShortHomes += 1;
+        householdBufferReady = false;
+      }
+    }
     if (residence.tier >= 3) {
       const aleNeeded = residence.population
         * RESIDENCE_ALE_PER_PERSON_PER_SEC
-        * workdaySeconds;
-      const clothNeeded = residence.population
-        * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
         * workdaySeconds;
       const potteryNeeded = residence.population
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
@@ -644,10 +650,6 @@ export function computeSettlementProvisioning(input: {
       }
       if (getNeedStock(residence.needs, 'ale') + 1e-6 < aleNeeded) {
         householdBufferAleShortHomes += 1;
-        householdBufferReady = false;
-      }
-      if (getNeedStock(residence.needs, 'cloth') + 1e-6 < clothNeeded) {
-        householdBufferClothShortHomes += 1;
         householdBufferReady = false;
       }
       if (getNeedStock(residence.needs, 'pottery') + 1e-6 < potteryNeeded) {
@@ -673,7 +675,7 @@ export function computeSettlementProvisioning(input: {
         sabbathReady = false;
       }
     }
-    if (residence.tier >= 2) {
+    if (residence.tier >= 1) {
       const waterNeeded = residence.population
         * RESIDENCE_WATER_PER_PERSON_PER_SEC
         * workdaySeconds;
@@ -681,12 +683,17 @@ export function computeSettlementProvisioning(input: {
         sabbathWaterShortHomes += 1;
       }
     }
+    if (residence.tier >= 2) {
+      const clothNeeded = residence.population
+        * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
+        * workdaySeconds;
+      if (getNeedStock(residence.needs, 'cloth') + 1e-6 < clothNeeded) {
+        sabbathClothShortHomes += 1;
+      }
+    }
     if (residence.tier >= 3) {
       const aleNeeded = residence.population
         * RESIDENCE_ALE_PER_PERSON_PER_SEC
-        * workdaySeconds;
-      const clothNeeded = residence.population
-        * RESIDENCE_CLOTH_PER_PERSON_PER_SEC
         * workdaySeconds;
       const potteryNeeded = residence.population
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
@@ -696,9 +703,6 @@ export function computeSettlementProvisioning(input: {
       }
       if (getNeedStock(residence.needs, 'ale') + 1e-6 < aleNeeded) {
         sabbathAleShortHomes += 1;
-      }
-      if (getNeedStock(residence.needs, 'cloth') + 1e-6 < clothNeeded) {
-        sabbathClothShortHomes += 1;
       }
       if (getNeedStock(residence.needs, 'pottery') + 1e-6 < potteryNeeded) {
         sabbathPotteryShortHomes += 1;

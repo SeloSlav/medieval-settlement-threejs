@@ -26,11 +26,14 @@ export type ResidenceUpgradeServiceKind =
   | 'preservedFood'
   | 'ale'
   | 'cloth'
-  | 'pottery';
+  | 'pottery'
+  | 'church'
+  | 'foodVariety';
 
 export type ResidenceUpgradeServiceInput = {
   supplier: BuildingState | null;
   stocked: boolean;
+  ready?: boolean;
 };
 
 export type ResidenceUpgradeServices = Record<
@@ -120,8 +123,8 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       timber: RESIDENCE_TIER2_TIMBER_COST,
       stone: RESIDENCE_TIER2_STONE_COST,
       gold: RESIDENCE_TIER2_GOLD_COST,
-      serviceKinds: ['firewood', 'water'],
-      addedNeeds: 'Adds firewood and water needs',
+      serviceKinds: ['firewood', 'water', 'church', 'foodVariety', 'cloth'],
+      addedNeeds: 'Adds a second food category and household textiles',
     };
   }
   if (tier === 2) {
@@ -131,8 +134,8 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       timber: RESIDENCE_TIER3_TIMBER_COST,
       stone: RESIDENCE_TIER3_STONE_COST,
       gold: RESIDENCE_TIER3_GOLD_COST,
-      serviceKinds: ['preservedFood', 'ale', 'cloth', 'pottery'],
-      addedNeeds: 'Adds preserved food, ale, household textiles, and pottery',
+      serviceKinds: ['preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
+      addedNeeds: 'Adds a third food category, ale, preserved food, pottery, and a stone-church standard',
     };
   }
   return null;
@@ -145,6 +148,8 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   ale: 'Ale',
   cloth: 'Cloth',
   pottery: 'Pottery',
+  church: 'Church access',
+  foodVariety: 'Food variety',
 };
 
 export function evaluateResidenceUpgrade(
@@ -160,10 +165,14 @@ export function evaluateResidenceUpgrade(
     const input = serviceInputs[kind];
     return {
       kind,
-      label: SERVICE_LABELS[kind],
+      label: kind === 'church' && definition.nextTier === 3
+        ? 'Stone church'
+        : kind === 'foodVariety'
+          ? `${definition.nextTier === 3 ? 3 : 2} food categories`
+          : SERVICE_LABELS[kind],
       supplier: input.supplier,
       stocked: input.stocked,
-      ready: input.supplier != null,
+      ready: input.ready ?? input.supplier != null,
     };
   });
   const physicalEconomy = context.physicalEconomy === true;
