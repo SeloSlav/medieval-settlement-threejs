@@ -48,6 +48,19 @@ function fixedRandom(values: number[]): () => number {
 }
 
 {
+  const fullyBlockedHerd = createGameHerdSpawnPoints(
+    { x: 0, z: 0, kind: 'game' },
+    fixedRandom([0.25, 0.5, 0.75]),
+    () => true,
+  );
+  assert.deepEqual(
+    fullyBlockedHerd,
+    [],
+    'fallback deer placement must never override physical-deposit blocking',
+  );
+}
+
+{
   assert.deepEqual(herdSexCounts(0), { doeCount: 0, stagCount: 0 });
   assert.deepEqual(herdSexCounts(1), { doeCount: 1, stagCount: 0 });
   assert.deepEqual(herdSexCounts(2), { doeCount: 1, stagCount: 1 });

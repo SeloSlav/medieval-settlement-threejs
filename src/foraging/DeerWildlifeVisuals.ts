@@ -372,20 +372,22 @@ export function createGameHerdSpawnPoints(
     points.push({ x, z });
   }
 
-  // Keep the visual actor pool equal to the authoritative habitat capacity.
-  // This deterministic spiral is only needed when water/quarry blocking rejects
-  // too many random placements.
+  // Try a deterministic spiral when random placement could not fill the herd.
+  // These candidates must obey the same blocker: preserving the actor count is
+  // less important than never materializing wildlife inside a physical deposit.
   const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-  while (points.length < herdSize) {
-    const index = points.length;
+  let fallbackIndex = 0;
+  while (points.length < herdSize && fallbackIndex < herdSize * 60) {
+    const index = fallbackIndex++;
     const radius = index === 0
       ? 2.5
       : Math.min(spawnRadius, 3 + Math.sqrt(index) * 3.35);
     const angle = index * goldenAngle;
-    points.push({
-      x: site.x + Math.sin(angle) * radius,
-      z: site.z + Math.cos(angle) * radius,
-    });
+    const x = site.x + Math.sin(angle) * radius;
+    const z = site.z + Math.cos(angle) * radius;
+    if (isBlockedAt?.(x, z)) continue;
+    if (points.some((point) => Math.hypot(point.x - x, point.z - z) < 2.7)) continue;
+    points.push({ x, z });
   }
   return points;
 }
