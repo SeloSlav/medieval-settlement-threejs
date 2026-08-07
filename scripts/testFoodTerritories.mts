@@ -216,7 +216,7 @@ const foodClaimsSource = tickContext.slice(
 );
 assert.match(
   foodClaimsSource,
-  /is_food_supplier_operational\([\s\S]*?marketplace_has_stall_workers\([\s\S]*?ResidenceNeedKind::Food[\s\S]*?fn marketplace_has_stall_workers[\s\S]*?marketplace\.kind != "marketplace"[\s\S]*?ResidenceNeedKind::Food[\s\S]*?=> "granary"/,
+  /is_food_supplier_operational\([\s\S]*?marketplace_has_stall_workers\([\s\S]*?ResidenceNeedKind::Food[\s\S]*?fn marketplace_has_stall_workers[\s\S]*?marketplace\.kind != "marketplace"[\s\S]*?ResidenceNeedKind::Food[\s\S]*?=>\s*(?:\{\s*)?"granary"/,
   'authoritative food claims must require a Marketplace backed by granary stall workers',
 );
 assert.match(

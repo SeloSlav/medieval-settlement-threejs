@@ -1116,12 +1116,13 @@ assert.match(
 );
 assert.match(
   marketplaceMaterialDispatchStep,
-  /"smithy"[\s\S]*CommodityKind::Iron[\s\S]*"smokehouse"[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Pottery[\s\S]*"pastoral_farmstead"[\s\S]*CommodityKind::Salt/,
+  /DISPATCHABLE_INPUTS[\s\S]*CommodityKind::Grain[\s\S]*CommodityKind::Iron[\s\S]*CommodityKind::Salt[\s\S]*CommodityKind::Manure[\s\S]*CommodityKind::Polearms[\s\S]*CommodityKind::Wine/,
+  'the Trading Post must route imported provisions, workshop inputs, and civic supplies',
 );
 assert.match(
   marketplaceMaterialDispatchStep,
-  /pending_marketplace_trade_commodity\(&marketplace\) == Some\(CommodityKind::Pottery\)/,
-  'an active pottery export must reserve its physically staged vessels',
+  /pending_marketplace_trade_commodity\(&marketplace\)[\s\S]*reserved_for_trade == Some\(candidate\.commodity\)/,
+  'an active manual export must reserve its physically staged commodity',
 );
 assert.doesNotMatch(
   smokehouseStep,

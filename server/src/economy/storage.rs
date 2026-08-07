@@ -386,6 +386,12 @@ pub fn credit_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, 
     }
 }
 
+/// Return coin that was withdrawn for a payment but could not be accepted by
+/// its recipient. This is a refund to the original public purse, not income.
+pub fn restore_treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
+    credit_treasury_gold(ctx, owner, amount);
+}
+
 pub fn treasury_gold(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
     let resources = ctx.db.player_resources().owner().find(&owner);
     let ledger_gold = resources

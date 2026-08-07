@@ -44,9 +44,9 @@ use crate::economy::{
     building_commodity_stock, building_edible_food_stock, building_fresh_food_stock,
     building_preservable_food_stock, credit_local_civic_receipts,
     credit_settlement_household_income, deposit_building_commodity,
-    first_building_edible_commodity, pending_marketplace_trade_commodity, spend_treasury_gold,
-    treasury_gold, withdraw_building_commodity, withdraw_building_edible_food, CommodityKind,
-    FRESH_FOOD_COMMODITIES,
+    first_building_edible_commodity, pending_marketplace_trade_commodity, restore_treasury_gold,
+    spend_treasury_gold, treasury_gold, withdraw_building_commodity, withdraw_building_edible_food,
+    CommodityKind, FRESH_FOOD_COMMODITIES,
 };
 use crate::farming::{
     advance_crop_rotation, centroid, crop_growth_allowed, crop_produce, expected_grain_yield,
@@ -2637,7 +2637,7 @@ pub fn step_guardhouse(
         if spend_treasury_gold(ctx, building.owner, wage_paid).is_ok() {
             let credited = credit_settlement_household_income(ctx, building.owner, wage_paid);
             if credited + 1e-9 < wage_paid {
-                crate::economy::credit_treasury_gold(ctx, building.owner, wage_paid - credited);
+                restore_treasury_gold(ctx, building.owner, wage_paid - credited);
             }
         }
     }

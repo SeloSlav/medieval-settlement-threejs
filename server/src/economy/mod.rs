@@ -85,8 +85,8 @@ pub use storage::{
     construction_treasury_reservation_excluding_building, credit_treasury_firewood,
     credit_treasury_food, credit_treasury_gold, credit_treasury_stone, credit_treasury_timber,
     credit_treasury_water, deposit_building, deposit_building_water, residence_firewood_capacity,
-    residence_food_capacity, residence_water_capacity, spend_treasury_gold, total_ironwork,
-    total_roof_tiles, total_stone, total_timber, treasury_gold, withdraw_building,
+    residence_food_capacity, residence_water_capacity, restore_treasury_gold, spend_treasury_gold,
+    total_ironwork, total_roof_tiles, total_stone, total_timber, treasury_gold, withdraw_building,
     withdraw_building_water,
 };
 pub use village_economy::{
