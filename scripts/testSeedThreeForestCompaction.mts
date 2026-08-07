@@ -38,8 +38,13 @@ assert.deepEqual(
 );
 assert.deepEqual(
   planSeedThreeForestInteractionWork(false, true, false),
+  { deferCoveredWork: true, discardCoveredWork: false, completeImmediately: false },
+  'an uncovered moving view must retain stable foliage buffers until navigation settles',
+);
+assert.deepEqual(
+  planSeedThreeForestInteractionWork(true, false, false),
   { deferCoveredWork: false, discardCoveredWork: false, completeImmediately: true },
-  'an uncovered moving view must be filled immediately instead of showing a gap',
+  'an uncovered view must refresh immediately once navigation settles',
 );
 
 const retainedFirstPersonView = retainSeedThreeFirstPersonView(

@@ -7,11 +7,11 @@ export type SeedThreeForestInteractionWorkPlan = {
 /**
  * Keep keyboard- and pointer-driven camera movement visually coherent. A
  * resident selection already carries a padded visible prefix, so it can remain
- * on screen while the camera moves. Once navigation ends, discard a redundant
- * covered selection instead of rewriting the same visible trees into a
- * different packed order. If movement escapes that prefix, complete the
- * replacement immediately so the newly exposed view never waits on background
- * buffer work.
+ * on screen while the camera moves. Never rewrite live foliage instance
+ * buffers during navigation: even an immediate replacement can be observed by
+ * the renderer between matrix uploads and presents as flashing leaves. Once
+ * navigation ends, discard a redundant covered selection or complete an
+ * uncovered replacement before the next moving frame.
  */
 export function planSeedThreeForestInteractionWork(
   previousInteractionActive: boolean,
@@ -19,11 +19,11 @@ export function planSeedThreeForestInteractionWork(
   residentSelectionCoversDesiredView: boolean,
 ): SeedThreeForestInteractionWorkPlan {
   return {
-    deferCoveredWork: interactionActive && residentSelectionCoversDesiredView,
+    deferCoveredWork: interactionActive,
     discardCoveredWork:
       previousInteractionActive
       && !interactionActive
       && residentSelectionCoversDesiredView,
-    completeImmediately: !residentSelectionCoversDesiredView,
+    completeImmediately: !interactionActive && !residentSelectionCoversDesiredView,
   };
 }
