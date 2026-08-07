@@ -1610,7 +1610,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
     ?? processorOutputCommodity(building.kind);
   const stagingCycles = processorInputStagingCycles(percent);
   const stagingLabel = `${stagingCycles} input ${stagingCycles === 1 ? 'cycle' : 'cycles'}`;
-  const label = output === 'preservedFood' ? 'preserved food' : output;
+  const label = output === 'preservedFood' ? 'preserved staples' : output;
   const stock = Math.max(0, building[output] ?? 0);
   const target = processorOutputTargetForBuilding(building) ?? 0;
   const headroom = processorOutputHeadroom(building) ?? 0;

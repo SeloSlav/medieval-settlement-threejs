@@ -8,12 +8,23 @@ assert.equal(withoutMarket.economicActivity, 0, 'no taxable activity without mar
 
 const withMarket = computeBackyardGardenTickEffects('apple_orchard', 3, true);
 assert.ok(withMarket.selfFood > 0, 'self-food should still deposit with marketplace access');
-assert.ok(withMarket.marketFood > 0, 'surplus should enter the shared food pool');
-assert.ok(withMarket.economicActivity > 0, 'surplus sales should generate activity with marketplace access');
-assert.ok(
-  withoutMarket.selfFood > withMarket.selfFood,
-  'without a granary-run stall the household should keep the full edible crop',
+assert.equal(withMarket.marketFood, 0, 'an empty pantry must fill its reserve before selling');
+assert.equal(withMarket.economicActivity, 0, 'reserve-filling output is not a sale');
+assert.equal(withMarket.selfFood, withoutMarket.selfFood);
+
+const stockedWithMarket = computeBackyardGardenTickEffects(
+  'apple_orchard',
+  3,
+  true,
+  undefined,
+  1,
+  0,
+  1,
+  20,
 );
+assert.equal(stockedWithMarket.selfFood, 0, 'a filled tier-one reserve needs no additional output');
+assert.ok(stockedWithMarket.marketFood > 0, 'food above the reserve should enter the shared pool');
+assert.ok(stockedWithMarket.economicActivity > 0, 'physical surplus sales should generate activity');
 
 const flowerWithoutMarket = computeBackyardGardenTickEffects('flower_garden', 3, false);
 assert.equal(flowerWithoutMarket.selfFood, 0);

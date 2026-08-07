@@ -101,7 +101,7 @@ function buildingFoodStorageRows(
     const label = kind === 'food'
       ? 'Legacy mixed food'
       : kind === 'preservedFood'
-        ? 'Legacy preserved food'
+        ? 'Legacy preserved staples'
         : NAMED_FOOD_LABELS[kind];
     rows.push(`<li><span>&nbsp;&nbsp;${label}</span><span>${amount.toFixed(1)}</span></li>`);
   }

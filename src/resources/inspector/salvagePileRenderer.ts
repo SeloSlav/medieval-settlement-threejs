@@ -26,7 +26,7 @@ const STOCK_ROWS: Array<[
   ['Grain', (building) => building.grain],
   ['Flour', (building) => building.flour],
   ['Ale', (building) => building.ale],
-  ['Legacy preserved food', (building) => building.preservedFood],
+  ['Legacy preserved staples', (building) => building.preservedFood],
   ...NAMED_FOOD_KINDS.map((kind) => [
     NAMED_FOOD_LABELS[kind],
     (building: BuildingState) => building[kind] ?? 0,

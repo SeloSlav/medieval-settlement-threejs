@@ -233,7 +233,7 @@ assert.deepEqual(
 );
 
 assert.equal(resourceDisplayLabel('gold'), 'Civic gold');
-assert.equal(resourceDisplayLabel('preservedFood'), 'Preserved food');
+assert.equal(resourceDisplayLabel('preservedFood'), 'Preserved staples');
 assert.equal(formatLocatedResourceAmount(12), '12');
 assert.equal(formatLocatedResourceAmount(12.25), '12.3');
 

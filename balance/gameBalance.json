@@ -343,6 +343,10 @@
     "residenceWaterPerPersonPerSec": 0.012,
     "residenceFoodCapacity": 32,
     "residenceFoodPerPersonPerSec": 0.015,
+    "foodCategoryQualifyingDays": 1,
+    "backyardFoodReserveTier1Days": 3,
+    "backyardFoodReserveTier2Days": 5,
+    "backyardFoodReserveTier3Days": 7,
     "residenceTier1Capacity": 3,
     "residenceTier2Capacity": 6,
     "residenceTier3Capacity": 10,
@@ -1605,14 +1609,12 @@
     "apple_orchard": {
       "label": "Apple orchard",
       "cost": { "timber": 10, "stone": 4 },
-      "foodSelfShare": 0.55,
       "foodPerPersonPerSec": 0.009,
       "settlementAttractionMultiplier": 1
     },
     "cherry_orchard": {
       "label": "Cherry orchard",
       "cost": { "timber": 9, "stone": 3 },
-      "foodSelfShare": 0.5,
       "foodPerPersonPerSec": 0.008,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true
@@ -1620,42 +1622,36 @@
     "vegetable_garden": {
       "label": "Vegetable garden",
       "cost": { "timber": 5, "stone": 2 },
-      "foodSelfShare": 0.65,
       "foodPerPersonPerSec": 0.012,
       "settlementAttractionMultiplier": 1
     },
     "flower_garden": {
       "label": "Flower garden",
       "cost": { "timber": 4, "stone": 1 },
-      "foodSelfShare": 0,
       "foodPerPersonPerSec": 0,
       "settlementAttractionMultiplier": 0.88
     },
     "herb_garden": {
       "label": "Herb garden",
       "cost": { "timber": 4, "stone": 2 },
-      "foodSelfShare": 0,
       "foodPerPersonPerSec": 0,
       "settlementAttractionMultiplier": 1
     },
     "hen_yard": {
       "label": "Hen yard",
       "cost": { "timber": 6, "stone": 1 },
-      "foodSelfShare": 0.82,
       "foodPerPersonPerSec": 0.0105,
       "settlementAttractionMultiplier": 1
     },
     "goat_pen": {
       "label": "Goat pen",
       "cost": { "timber": 8, "stone": 2 },
-      "foodSelfShare": 0.72,
       "foodPerPersonPerSec": 0.0055,
       "settlementAttractionMultiplier": 0.97
     },
     "backyard_apiary": {
       "label": "Backyard apiary",
       "cost": { "timber": 7, "stone": 1 },
-      "foodSelfShare": 0.68,
       "foodPerPersonPerSec": 0.003,
       "settlementAttractionMultiplier": 1.03
     }

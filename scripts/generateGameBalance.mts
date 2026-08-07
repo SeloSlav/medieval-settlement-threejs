@@ -67,7 +67,6 @@ type BuildingBalance = {
 type BackyardGardenBalance = {
   label: string;
   cost: { timber: number; stone: number };
-  foodSelfShare: number;
   foodPerPersonPerSec: number;
   settlementAttractionMultiplier: number;
   hiddenFromPicker?: boolean;
@@ -354,6 +353,10 @@ export type GameBalance = {
     residenceWaterPerPersonPerSec: number;
     residenceFoodCapacity: number;
     residenceFoodPerPersonPerSec: number;
+    foodCategoryQualifyingDays: number;
+    backyardFoodReserveTier1Days: number;
+    backyardFoodReserveTier2Days: number;
+    backyardFoodReserveTier3Days: number;
     residenceTier1Capacity: number;
     residenceTier2Capacity: number;
     residenceTier3Capacity: number;
@@ -916,6 +919,10 @@ function generateRust(): string {
     `pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceWaterPerPersonPerSec)};`,
     `pub const RESIDENCE_FOOD_CAPACITY: f64 = ${rustF64(b.population.residenceFoodCapacity)};`,
     `pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFoodPerPersonPerSec)};`,
+    `pub const FOOD_CATEGORY_QUALIFYING_DAYS: f64 = ${rustF64(b.population.foodCategoryQualifyingDays)};`,
+    `pub const BACKYARD_FOOD_RESERVE_TIER1_DAYS: f64 = ${rustF64(b.population.backyardFoodReserveTier1Days)};`,
+    `pub const BACKYARD_FOOD_RESERVE_TIER2_DAYS: f64 = ${rustF64(b.population.backyardFoodReserveTier2Days)};`,
+    `pub const BACKYARD_FOOD_RESERVE_TIER3_DAYS: f64 = ${rustF64(b.population.backyardFoodReserveTier3Days)};`,
     `pub const RESIDENCE_TIER1_CAPACITY: u32 = ${b.population.residenceTier1Capacity};`,
     `pub const RESIDENCE_TIER2_CAPACITY: u32 = ${b.population.residenceTier2Capacity};`,
     `pub const RESIDENCE_TIER3_CAPACITY: u32 = ${b.population.residenceTier3Capacity};`,
@@ -1546,7 +1553,6 @@ function generateRust(): string {
   lines.push('    pub label: &\'static str,');
   lines.push('    pub cost_timber: f64,');
   lines.push('    pub cost_stone: f64,');
-  lines.push('    pub food_self_share: f64,');
   lines.push('    pub food_per_person_per_sec: f64,');
   lines.push('    pub settlement_attraction_multiplier: f64,');
   lines.push('    pub hidden_from_picker: bool,');
@@ -1564,7 +1570,6 @@ function generateRust(): string {
     lines.push(`    label: ${JSON.stringify(def.label)},`);
     lines.push(`    cost_timber: ${rustF64(def.cost.timber)},`);
     lines.push(`    cost_stone: ${rustF64(def.cost.stone)},`);
-    lines.push(`    food_self_share: ${rustF64(def.foodSelfShare)},`);
     lines.push(`    food_per_person_per_sec: ${rustF64(def.foodPerPersonPerSec)},`);
     lines.push(`    settlement_attraction_multiplier: ${rustF64(def.settlementAttractionMultiplier)},`);
     lines.push(`    hidden_from_picker: ${def.hiddenFromPicker === true},`);
@@ -1793,6 +1798,10 @@ function generateTypeScript(): string {
     `export const RESIDENCE_WATER_PER_PERSON_PER_SEC = ${b.population.residenceWaterPerPersonPerSec};`,
     `export const RESIDENCE_FOOD_CAPACITY = ${b.population.residenceFoodCapacity};`,
     `export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = ${b.population.residenceFoodPerPersonPerSec};`,
+    `export const FOOD_CATEGORY_QUALIFYING_DAYS = ${b.population.foodCategoryQualifyingDays};`,
+    `export const BACKYARD_FOOD_RESERVE_TIER1_DAYS = ${b.population.backyardFoodReserveTier1Days};`,
+    `export const BACKYARD_FOOD_RESERVE_TIER2_DAYS = ${b.population.backyardFoodReserveTier2Days};`,
+    `export const BACKYARD_FOOD_RESERVE_TIER3_DAYS = ${b.population.backyardFoodReserveTier3Days};`,
     `export const RESIDENCE_TIER1_CAPACITY = ${b.population.residenceTier1Capacity};`,
     `export const RESIDENCE_TIER2_CAPACITY = ${b.population.residenceTier2Capacity};`,
     `export const RESIDENCE_TIER3_CAPACITY = ${b.population.residenceTier3Capacity};`,
@@ -2328,7 +2337,6 @@ function generateTypeScript(): string {
   lines.push('export type BackyardGardenDefinition = {');
   lines.push('  kind: BackyardGardenKind;');
   lines.push('  label: string;');
-  lines.push('  foodSelfShare: number;');
   lines.push('  foodPerPersonPerSec: number;');
   lines.push('  settlementAttractionMultiplier: number;');
   lines.push('  hiddenFromPicker: boolean;');
@@ -2339,7 +2347,6 @@ function generateTypeScript(): string {
     lines.push(`  ${kind}: {`);
     lines.push(`    kind: '${kind}',`);
     lines.push(`    label: ${JSON.stringify(def.label)},`);
-    lines.push(`    foodSelfShare: ${def.foodSelfShare},`);
     lines.push(`    foodPerPersonPerSec: ${def.foodPerPersonPerSec},`);
     lines.push(`    settlementAttractionMultiplier: ${def.settlementAttractionMultiplier},`);
     lines.push(`    hiddenFromPicker: ${def.hiddenFromPicker === true},`);

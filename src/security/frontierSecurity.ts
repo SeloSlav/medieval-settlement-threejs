@@ -1309,7 +1309,7 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['malt', 'malt', 1],
   ['flour', 'flour', 1],
   ['ale', 'ale', 1],
-  ['preservedFood', 'preserved food', 1],
+  ['preservedFood', 'preserved staples', 1],
   ['honey', 'honey', 1],
   ['wine', 'wine', 1],
   ['wool', 'wool', 1],
@@ -1415,7 +1415,7 @@ function deliveryTripRaidSummary(trip: DeliveryTripState | undefined): string {
 
 function deliveryCargoLabel(kind: DeliveryCargoKind): string {
   switch (kind) {
-    case 'preservedFood': return 'preserved food';
+    case 'preservedFood': return 'preserved staples';
     case 'curedMeat': return 'cured meat';
     case 'smokedFish': return 'smoked fish';
     default: return kind;

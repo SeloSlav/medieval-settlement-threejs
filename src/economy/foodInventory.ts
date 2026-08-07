@@ -1,4 +1,12 @@
 import type { DeliveryCargoKind } from '../logistics/deliveryTrips.ts';
+import {
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
+  FOOD_CATEGORY_QUALIFYING_DAYS,
+  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
+} from '../generated/gameBalance.ts';
 
 export const FRESH_FOOD_KINDS = [
   'food',
@@ -112,16 +120,41 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
   }
 }
 
-export function presentFoodCategories(inventory: FoodInventoryLike): FoodCategory[] {
-  const categories = new Set<FoodCategory>();
-  for (const kind of [...FRESH_FOOD_KINDS, ...PRESERVED_FOOD_KINDS, 'honey'] as const) {
-    if (finiteFood(inventory[kind]) > 1e-6) categories.add(foodCategory(kind));
-  }
-  return [...categories];
+export function householdFoodPerDay(population: number): number {
+  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
+    * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+    / CALENDAR_HOURS_PER_DAY;
+  return Math.max(0, population) * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds;
 }
 
-export function foodVarietyCount(inventory: FoodInventoryLike): number {
-  return presentFoodCategories(inventory).length;
+export function foodCategoryQualifyingStock(population: number): number {
+  return householdFoodPerDay(population) * FOOD_CATEGORY_QUALIFYING_DAYS;
+}
+
+export function foodCategoryStocks(
+  inventory: FoodInventoryLike,
+): Record<FoodCategory, number> {
+  const stocks = Object.fromEntries(
+    Object.keys(FOOD_CATEGORY_LABELS).map((category) => [category, 0]),
+  ) as Record<FoodCategory, number>;
+  for (const kind of [...FRESH_FOOD_KINDS, ...PRESERVED_FOOD_KINDS, 'honey'] as const) {
+    stocks[foodCategory(kind)] += finiteFood(inventory[kind]);
+  }
+  return stocks;
+}
+
+export function presentFoodCategories(
+  inventory: FoodInventoryLike,
+  population: number,
+): FoodCategory[] {
+  const minimum = foodCategoryQualifyingStock(population);
+  return (Object.entries(foodCategoryStocks(inventory)) as [FoodCategory, number][])
+    .filter(([, stock]) => stock + 1e-6 >= minimum)
+    .map(([category]) => category);
+}
+
+export function foodVarietyCount(inventory: FoodInventoryLike, population: number): number {
+  return presentFoodCategories(inventory, population).length;
 }
 
 function finiteFood(value: number | undefined): number {

@@ -246,7 +246,7 @@ function stockAmount(building: BuildingState, key: StockKey): number {
 }
 
 function stockLabel(key: StockKey): string {
-  return key === 'preservedFood' ? 'preserved food' : key;
+  return key === 'preservedFood' ? 'preserved staples' : key;
 }
 
 function isExtractionOutputCommodity(

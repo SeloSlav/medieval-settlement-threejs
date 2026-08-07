@@ -73,7 +73,7 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
     case 'ale':
       return `${Math.round(amount)} ale`;
     case 'preservedFood':
-      return `${Math.round(amount)} preserved food`;
+      return `${Math.round(amount)} preserved staples`;
     case 'curedMeat':
       return `${Math.round(amount)} cured meat`;
     case 'smokedFish':

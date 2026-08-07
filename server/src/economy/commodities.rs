@@ -1,5 +1,10 @@
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::{
+    CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY, CALENDAR_WORK_END_HOUR,
+    CALENDAR_WORK_START_HOUR, FOOD_CATEGORY_QUALIFYING_DAYS,
+    RESIDENCE_FOOD_PER_PERSON_PER_SEC,
+};
 use crate::building_defs::building_def;
 use crate::db::*;
 use crate::tables::{Building, Residence};
@@ -142,6 +147,17 @@ pub enum FoodCategory {
 }
 
 impl FoodCategory {
+    pub const ALL: [Self; 8] = [
+        Self::Grains,
+        Self::Vegetables,
+        Self::Fruits,
+        Self::AnimalProduce,
+        Self::Meats,
+        Self::Fishes,
+        Self::Foraged,
+        Self::Honey,
+    ];
+
     pub fn bit(self) -> u8 {
         1 << self as u8
     }
@@ -690,10 +706,35 @@ pub fn residence_edible_food_stock(residence: &Residence) -> f64 {
     residence_fresh_food_stock(residence) + residence_preserved_food_stock(residence)
 }
 
+pub fn household_food_per_day(population: u32) -> f64 {
+    let workday_seconds = CALENDAR_SECONDS_PER_DAY
+        * CALENDAR_WORK_END_HOUR.saturating_sub(CALENDAR_WORK_START_HOUR) as f64
+        / CALENDAR_HOURS_PER_DAY.max(1) as f64;
+    population.max(1) as f64 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workday_seconds
+}
+
+pub fn food_category_qualifying_stock(population: u32) -> f64 {
+    household_food_per_day(population) * FOOD_CATEGORY_QUALIFYING_DAYS.max(0.0)
+}
+
+pub fn residence_food_category_stock(
+    residence: &Residence,
+    category: FoodCategory,
+) -> f64 {
+    EDIBLE_COMMODITIES
+        .into_iter()
+        .filter(|commodity| food_category(*commodity) == Some(category))
+        .map(|commodity| {
+            residence_commodity_stock(residence, commodity).max(0.0) * commodity.meal_value()
+        })
+        .sum()
+}
+
 pub fn residence_food_category_mask(residence: &Residence) -> u8 {
-    EDIBLE_COMMODITIES.into_iter().fold(0_u8, |mask, commodity| {
-        if residence_commodity_stock(residence, commodity) > 1e-6 {
-            mask | food_category(commodity).map_or(0, FoodCategory::bit)
+    let qualifying_stock = food_category_qualifying_stock(residence.population);
+    FoodCategory::ALL.into_iter().fold(0_u8, |mask, category| {
+        if residence_food_category_stock(residence, category) + 1e-6 >= qualifying_stock {
+            mask | category.bit()
         } else {
             mask
         }
@@ -809,7 +850,7 @@ pub fn deposit_residence_commodity(
 
 #[cfg(test)]
 mod tests {
-    use super::CommodityKind;
+    use super::{food_category, food_category_qualifying_stock, CommodityKind, FoodCategory};
 
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
@@ -841,5 +882,18 @@ mod tests {
         assert!(CommodityKind::Honey.is_edible());
         assert_eq!(CommodityKind::Bread.meal_value(), 1.0);
         assert_eq!(CommodityKind::Flour.meal_value(), 0.0);
+    }
+
+    #[test]
+    fn vegetables_remain_an_independent_food_category() {
+        assert_eq!(food_category(CommodityKind::Vegetables), Some(FoodCategory::Vegetables));
+        assert_ne!(food_category(CommodityKind::Vegetables), food_category(CommodityKind::Apples));
+        assert_eq!(food_category(CommodityKind::Milk), food_category(CommodityKind::Cheese));
+    }
+
+    #[test]
+    fn a_category_needs_one_household_day_of_meals() {
+        assert!((food_category_qualifying_stock(1) - 1.05).abs() < 1e-9);
+        assert!((food_category_qualifying_stock(6) - 6.3).abs() < 1e-9);
     }
 }

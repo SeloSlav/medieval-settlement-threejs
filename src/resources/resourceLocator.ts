@@ -33,7 +33,7 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   flax: 'Flax fibre',
   flour: 'Flour',
   ale: 'Ale',
-  preservedFood: 'Preserved food',
+  preservedFood: 'Preserved staples',
   honey: 'Honey',
   wine: 'Wine',
   wool: 'Wool',
@@ -230,7 +230,7 @@ function buildingResourceHolding(
       amount: preservedFoodStock(building),
       detail: building.constructionComplete === false
         ? 'preserved provisions held at this construction site'
-        : 'preserved food commodities stored on site',
+        : 'preserved staples stored on site',
     };
   }
   if (resource !== 'gold') {

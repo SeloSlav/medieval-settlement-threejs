@@ -189,6 +189,10 @@ export const RESIDENCE_WATER_REORDER_FRACTION = 0.3333333333333333;
 export const RESIDENCE_WATER_PER_PERSON_PER_SEC = 0.012;
 export const RESIDENCE_FOOD_CAPACITY = 32;
 export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = 0.015;
+export const FOOD_CATEGORY_QUALIFYING_DAYS = 1;
+export const BACKYARD_FOOD_RESERVE_TIER1_DAYS = 3;
+export const BACKYARD_FOOD_RESERVE_TIER2_DAYS = 5;
+export const BACKYARD_FOOD_RESERVE_TIER3_DAYS = 7;
 export const RESIDENCE_TIER1_CAPACITY = 3;
 export const RESIDENCE_TIER2_CAPACITY = 6;
 export const RESIDENCE_TIER3_CAPACITY = 10;
@@ -1590,7 +1594,6 @@ export type BackyardGardenKind = (typeof BACKYARD_GARDEN_KINDS)[number];
 export type BackyardGardenDefinition = {
   kind: BackyardGardenKind;
   label: string;
-  foodSelfShare: number;
   foodPerPersonPerSec: number;
   settlementAttractionMultiplier: number;
   hiddenFromPicker: boolean;
@@ -1600,7 +1603,6 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   apple_orchard: {
     kind: 'apple_orchard',
     label: "Apple orchard",
-    foodSelfShare: 0.55,
     foodPerPersonPerSec: 0.009,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
@@ -1608,7 +1610,6 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   cherry_orchard: {
     kind: 'cherry_orchard',
     label: "Cherry orchard",
-    foodSelfShare: 0.5,
     foodPerPersonPerSec: 0.008,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
@@ -1616,7 +1617,6 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   vegetable_garden: {
     kind: 'vegetable_garden',
     label: "Vegetable garden",
-    foodSelfShare: 0.65,
     foodPerPersonPerSec: 0.012,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
@@ -1624,7 +1624,6 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   flower_garden: {
     kind: 'flower_garden',
     label: "Flower garden",
-    foodSelfShare: 0,
     foodPerPersonPerSec: 0,
     settlementAttractionMultiplier: 0.88,
     hiddenFromPicker: false,
@@ -1632,7 +1631,6 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   herb_garden: {
     kind: 'herb_garden',
     label: "Herb garden",
-    foodSelfShare: 0,
     foodPerPersonPerSec: 0,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
@@ -1640,7 +1638,6 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   hen_yard: {
     kind: 'hen_yard',
     label: "Hen yard",
-    foodSelfShare: 0.82,
     foodPerPersonPerSec: 0.0105,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
@@ -1648,7 +1645,6 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   goat_pen: {
     kind: 'goat_pen',
     label: "Goat pen",
-    foodSelfShare: 0.72,
     foodPerPersonPerSec: 0.0055,
     settlementAttractionMultiplier: 0.97,
     hiddenFromPicker: false,
@@ -1656,7 +1652,6 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   backyard_apiary: {
     kind: 'backyard_apiary',
     label: "Backyard apiary",
-    foodSelfShare: 0.68,
     foodPerPersonPerSec: 0.003,
     settlementAttractionMultiplier: 1.03,
     hiddenFromPicker: false,

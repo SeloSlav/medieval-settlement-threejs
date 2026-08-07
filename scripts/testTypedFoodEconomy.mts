@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import {
   NAMED_FOOD_KINDS,
   foodCategory,
+  foodCategoryQualifyingStock,
   foodVarietyCount,
   edibleFoodStock,
   freshFoodStock,
@@ -40,9 +41,26 @@ assert.equal(foodCategory('vegetables'), 'vegetables');
 assert.equal(foodCategory('milk'), 'animalProduce');
 assert.equal(foodCategory('cheese'), 'animalProduce');
 assert.equal(
-  foodVarietyCount({ apples: 2, cherries: 2, vegetables: 3, milk: 1, cheese: 1 }),
+  foodVarietyCount({ apples: 2, cherries: 2, vegetables: 3, milk: 1, cheese: 1 }, 1),
   3,
   'close substitutes must not inflate household variety',
+);
+assert.equal(foodCategoryQualifyingStock(1), 1.05);
+assert.equal(foodCategoryQualifyingStock(6), 6.3);
+assert.equal(
+  foodVarietyCount({ vegetables: 1 }, 1),
+  0,
+  'a token amount must not qualify a category',
+);
+assert.equal(
+  foodVarietyCount({ vegetables: 1.05 }, 1),
+  1,
+  'vegetables must qualify as their own category once a full household-day is stocked',
+);
+assert.equal(
+  foodVarietyCount({ milk: 0.55, cheese: 0.5 }, 1),
+  1,
+  'close substitutes may combine to qualify their one shared category',
 );
 assert.deepEqual(
   Object.fromEntries(MARKET_COMMODITIES.map((offer) => [offer.id, offer.resourceKind])),

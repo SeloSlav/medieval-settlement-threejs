@@ -2,7 +2,8 @@ use spacetimedb::ReducerContext;
 use std::collections::HashMap;
 
 use crate::backyard_garden_policy::{
-    backyard_garden_seasonal_multiplier, backyard_goat_product, BackyardGoatProduct,
+    allocate_backyard_food, backyard_garden_seasonal_multiplier, backyard_goat_product,
+    BackyardGoatProduct,
 };
 use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY,
@@ -13,7 +14,7 @@ use crate::db::*;
 use crate::economy::{
     credit_marketplace_receipt_gold, credit_residence_wealth, deposit_building_commodity,
     deposit_residence_commodity, player_economic_activity_tax_rate, taxed_economic_activity,
-    town_hall_tax_collection_multiplier, CommodityKind,
+    town_hall_tax_collection_multiplier, residence_edible_food_stock, CommodityKind,
 };
 use crate::residence_service_policy::service_economic_multiplier;
 use crate::season_policy::EnvironmentState;
@@ -133,20 +134,26 @@ fn step_one_garden(
             * seasonal_multiplier
             * pollination_multiplier
             * TICK_DT;
-        let self_share = if marketplace_id.is_some() {
-            def.food_self_share.clamp(0.0, 1.0)
-        } else {
-            1.0
-        };
-        let self_food = total_food * self_share;
+        let allocation = allocate_backyard_food(
+            total_food,
+            marketplace_id.is_some(),
+            residence.tier,
+            residence.population,
+            residence_edible_food_stock(residence),
+        );
         let commodity = backyard_food_commodity(kind, clock.total_days, residence.id);
-        if self_food > 1e-9 {
-            if let Some(commodity) = commodity {
-                deposit_self_food(ctx, residence.id, commodity, self_food);
-            }
-        }
+        let kept_food = if allocation.self_food > 1e-9 {
+            commodity
+                .map(|commodity| {
+                    deposit_self_food(ctx, residence.id, commodity, allocation.self_food)
+                })
+                .unwrap_or(0.0)
+        } else {
+            0.0
+        };
         if let (Some(marketplace_id), Some(commodity)) = (marketplace_id, commodity) {
-            let market_food = (total_food - self_food).max(0.0);
+            // If the relevant home store is full, offer that physical overflow too.
+            let market_food = (total_food - kept_food).max(0.0);
             if market_food > 1e-9 {
                 market_food_sold =
                     deposit_market_commodity(ctx, marketplace_id, commodity, market_food);

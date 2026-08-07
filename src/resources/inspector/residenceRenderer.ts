@@ -35,6 +35,7 @@ import {
   NAMED_FOOD_KINDS,
   NAMED_FOOD_LABELS,
   edibleFoodStock,
+  foodCategoryQualifyingStock,
   foodVarietyCount,
   presentFoodCategories,
   FOOD_CATEGORY_LABELS,
@@ -323,8 +324,8 @@ export function renderResidenceInspector(
       },
       foodVariety: {
         supplier: null,
-        stocked: foodVarietyCount(residence) > 0,
-        ready: foodVarietyCount(residence) >= (residence.tier === 2 ? 3 : 2),
+        stocked: foodVarietyCount(residence, residence.population) > 0,
+        ready: foodVarietyCount(residence, residence.population) >= (residence.tier === 2 ? 3 : 2),
       },
       },
       {
@@ -968,16 +969,17 @@ function householdFoodContentsRow(residence: ResidenceState): string {
     contents.push(`Legacy mixed food ${residence.food!.toFixed(1)}`);
   }
   if ((residence.preservedFood ?? 0) > 1e-6) {
-    contents.push(`Legacy preserved food ${residence.preservedFood!.toFixed(1)}`);
+    contents.push(`Legacy preserved staples ${residence.preservedFood!.toFixed(1)}`);
   }
   return `<li><span>Pantry contents</span><span>${contents.length > 0 ? contents.join(' · ') : 'Empty'}</span></li>`;
 }
 
 function householdFoodVarietyRow(residence: ResidenceState): string {
-  const categories = presentFoodCategories(residence);
+  const categories = presentFoodCategories(residence, residence.population);
   const required = residence.tier >= 3 ? 3 : residence.tier >= 2 ? 2 : 1;
   const labels = categories.map((category) => FOOD_CATEGORY_LABELS[category]);
-  return `<li><span>Food variety</span><span>${categories.length} / ${required} categories${labels.length ? ` · ${labels.join(', ')}` : ' · none supplied'} · close substitutes count once</span></li>`;
+  const qualifyingStock = foodCategoryQualifyingStock(residence.population);
+  return `<li><span>Food variety</span><span>${categories.length} / ${required} categories${labels.length ? ` · ${labels.join(', ')}` : ' · none supplied'} · ${qualifyingStock.toFixed(1)} units per category required</span></li>`;
 }
 
 function formatUpgradeAmount(value: number): string {

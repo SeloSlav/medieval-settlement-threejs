@@ -353,11 +353,11 @@ const SETTLEMENT_HUD_HTML = `
             class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card settlement-hud__food-card--legacy"
             data-food-breakdown-row="legacyPreservedFood"
             data-food-resource="legacyPreservedFood"
-            data-tooltip-title="Legacy preserved food"
+            data-tooltip-title="Legacy preserved staples"
             data-tooltip="Compatibility cured stock from an older save."
             hidden
           >
-            <span class="settlement-hud__label">Legacy preserved food</span>
+            <span class="settlement-hud__label">Legacy preserved staples</span>
             <strong class="settlement-hud__value" data-food-breakdown-stored="legacyPreservedFood">0</strong>
             <span class="settlement-hud__sub settlement-hud__sub--transit" data-food-breakdown-transit="legacyPreservedFood" hidden></span>
             <span data-food-breakdown-homes="legacyPreservedFood" hidden>0</span>

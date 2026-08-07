@@ -8,7 +8,6 @@ import {
   HERB_REMEDY_SALE_GOLD_PER_UNIT,
 } from '../src/generated/gameBalance.ts';
 import { gardenMarketActivity, SECONDS_PER_DAY } from '../src/economy/gardenMarketActivity.ts';
-import { BACKYARD_GARDEN_DEFINITIONS } from '../src/generated/gameBalance.ts';
 import {
   clampEconomicActivityTaxRate,
   economicActivityProductivityMultiplier,
@@ -53,24 +52,23 @@ assert.ok(lowTax.adjusted > baseActivity);
 const highTax = taxedEconomicActivity(baseActivity, ECONOMIC_ACTIVITY_TAX_RATE_MAX);
 assert.ok(highTax.adjusted < baseActivity);
 
-const appleDef = BACKYARD_GARDEN_DEFINITIONS.apple_orchard;
-const dayActivity = gardenMarketActivity(appleDef, 3, SECONDS_PER_DAY);
+const dayActivity = gardenMarketActivity(3 * SECONDS_PER_DAY);
 assert.ok(dayActivity > 0);
-const tickActivity = gardenMarketActivity(appleDef, 3, 0.2);
+const tickActivity = gardenMarketActivity(3 * 0.2);
 assert.ok(Math.abs(dayActivity / tickActivity - SECONDS_PER_DAY / 0.2) < 1e-6);
 
 assert.equal(
-  gardenMarketActivity(BACKYARD_GARDEN_DEFINITIONS.flower_garden, 3, SECONDS_PER_DAY),
+  gardenMarketActivity(0),
   0,
   'flowers improve settlement attraction but do not mint passive income',
 );
 assert.equal(
-  gardenMarketActivity(BACKYARD_GARDEN_DEFINITIONS.herb_garden, 3, SECONDS_PER_DAY),
+  gardenMarketActivity(0),
   0,
   'herbs earn nothing until real remedies overflow into a staffed market',
 );
 assert.equal(
-  gardenMarketActivity(BACKYARD_GARDEN_DEFINITIONS.herb_garden, 3, SECONDS_PER_DAY, 2),
+  gardenMarketActivity(0, 2),
   2 * HERB_REMEDY_SALE_GOLD_PER_UNIT,
 );
 

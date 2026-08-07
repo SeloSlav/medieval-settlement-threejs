@@ -175,7 +175,7 @@ function inputLabel(commodity: ProcessorInputCommodity): string {
 
 function outputLabel(kind: ProcessorOutputTargetKind): string {
   const output = processorOutputCommodity(kind);
-  return output === 'preservedFood' ? 'preserved food' : output;
+  return output === 'preservedFood' ? 'preserved staples' : output;
 }
 
 function hasHigherAttention(

@@ -12,6 +12,8 @@ import { totalChapelCofferGold } from '../resources/chapelCoffer.ts';
 import { payableChapelTithePerDay } from './householdWealth.ts';
 import { chapelTitheMultiplier } from './chapelUpgrade.ts';
 import { gardenMarketActivity } from './gardenMarketActivity.ts';
+import { allocateBackyardFood } from './backyardGardenTick.ts';
+import { edibleFoodStock } from './foodInventory.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
 import { residenceServiceState } from './residenceSatisfaction.ts';
 
@@ -38,6 +40,8 @@ export function backyardGardenEconomyPerDay(
     taxCollectionMultiplier?: number;
     serviceMultiplier?: number;
     remedyUnitsSold?: number;
+    tier?: number;
+    currentFoodStock?: number;
   } = {},
 ): BackyardGardenEconomyPerDay {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
@@ -46,13 +50,20 @@ export function backyardGardenEconomyPerDay(
     ? Math.max(0, requestedSeasonalMultiplier)
     : 0;
   const marketLinked = options.hasMarketAccess ?? true;
+  const totalFood = def.foodPerPersonPerSec
+    * Math.max(0, population)
+    * BACKYARD_WORKDAY_SECONDS
+    * seasonalMultiplier;
+  const { selfFood, marketFood } = allocateBackyardFood(
+    totalFood,
+    marketLinked,
+    options.tier ?? 1,
+    population,
+    options.currentFoodStock ?? 0,
+  );
   const baseActivity = marketLinked
-    ? gardenMarketActivity(def, population, BACKYARD_WORKDAY_SECONDS)
-      * seasonalMultiplier
-      + gardenMarketActivity(
-        def,
-        0,
-        0,
+    ? gardenMarketActivity(
+        marketFood,
         kind === 'herb_garden' ? options.remedyUnitsSold ?? 0 : 0,
       )
     : 0;
@@ -69,18 +80,6 @@ export function backyardGardenEconomyPerDay(
     ? Math.max(0, requestedCollectionMultiplier)
     : 0;
   const tax = assessedTax * Math.min(1, collectionMultiplier);
-  const totalFood = def.foodPerPersonPerSec
-    * Math.max(0, population)
-    * BACKYARD_WORKDAY_SECONDS
-    * seasonalMultiplier;
-  // Without a staffed food stall the household keeps its full edible crop.
-  // With one, the configured share stays in its pantry and the remainder is
-  // offered to other households through the physical Marketplace pool.
-  const selfShare = marketLinked
-    ? Math.max(0, Math.min(1, def.foodSelfShare))
-    : 1;
-  const selfFood = totalFood * selfShare;
-  const marketFood = marketLinked ? Math.max(0, totalFood - selfFood) : 0;
   return {
     activity: adjusted,
     assessedTax,
@@ -91,11 +90,18 @@ export function backyardGardenEconomyPerDay(
   };
 }
 
-export function backyardGardenActivityPerDay(kind: BackyardGardenKind, population: number): number {
+export function backyardGardenActivityPerDay(
+  kind: BackyardGardenKind,
+  population: number,
+  tier = 1,
+  currentFoodStock = 0,
+): number {
+  const def = BACKYARD_GARDEN_DEFINITIONS[kind];
+  const totalFood = def.foodPerPersonPerSec
+    * Math.max(0, population)
+    * BACKYARD_WORKDAY_SECONDS;
   return gardenMarketActivity(
-    BACKYARD_GARDEN_DEFINITIONS[kind],
-    population,
-    BACKYARD_WORKDAY_SECONDS,
+    allocateBackyardFood(totalFood, true, tier, population, currentFoodStock).marketFood,
   );
 }
 
@@ -123,7 +129,12 @@ export function estimateVillageGdpPerDay(
   for (const garden of gardens) {
     const residence = getResidence(garden.residenceId);
     if (!residence || residence.population <= 0) continue;
-    total += backyardGardenActivityPerDay(garden.kind, residence.population)
+    total += backyardGardenActivityPerDay(
+      garden.kind,
+      residence.population,
+      residence.tier,
+      edibleFoodStock(residence),
+    )
       * residenceServiceState(residence).economicMultiplier;
   }
   return total;
@@ -185,7 +196,11 @@ export function estimateVillageHouseholdSavingsPerDay(
       garden.kind,
       residence.population,
       taxRate,
-      { serviceMultiplier: residenceServiceState(residence).economicMultiplier },
+      {
+        serviceMultiplier: residenceServiceState(residence).economicMultiplier,
+        tier: residence.tier,
+        currentFoodStock: edibleFoodStock(residence),
+      },
     ).net;
   }
 

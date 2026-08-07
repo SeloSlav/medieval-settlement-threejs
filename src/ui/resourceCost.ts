@@ -65,7 +65,7 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   malt: 'malt',
   flour: 'flour',
   ale: 'ale',
-  preservedFood: 'preserved food',
+  preservedFood: 'preserved staples',
   honey: 'honey',
   wine: 'wine',
   wool: 'wool',

@@ -1,6 +1,15 @@
 import {
   BACKYARD_GARDEN_DEFINITIONS,
-  FOOD_SALE_GOLD_PER_UNIT,
+  BACKYARD_FOOD_RESERVE_TIER1_DAYS,
+  BACKYARD_FOOD_RESERVE_TIER2_DAYS,
+  BACKYARD_FOOD_RESERVE_TIER3_DAYS,
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
+  RESIDENCE_FOOD_CAPACITY,
+  RESIDENCE_FOOD_PER_PERSON_PER_SEC,
+  RESIDENCE_PRESERVED_FOOD_CAPACITY,
   SIM_TICK_SECONDS,
   type BackyardGardenKind,
 } from '../generated/gameBalance.ts';
@@ -18,6 +27,48 @@ export type BackyardGardenSeasonStatus = {
   active: boolean;
   label: string;
 };
+
+export type BackyardFoodAllocation = {
+  selfFood: number;
+  marketFood: number;
+};
+
+export function backyardFoodReserveDays(tier: number): number {
+  if (tier >= 3) return BACKYARD_FOOD_RESERVE_TIER3_DAYS;
+  if (tier >= 2) return BACKYARD_FOOD_RESERVE_TIER2_DAYS;
+  return BACKYARD_FOOD_RESERVE_TIER1_DAYS;
+}
+
+export function backyardFoodReserveTarget(tier: number, population: number): number {
+  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
+    * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+    / CALENDAR_HOURS_PER_DAY;
+  const requested = Math.max(0, population)
+    * RESIDENCE_FOOD_PER_PERSON_PER_SEC
+    * workdaySeconds
+    * backyardFoodReserveDays(tier);
+  return Math.min(
+    RESIDENCE_FOOD_CAPACITY + RESIDENCE_PRESERVED_FOOD_CAPACITY,
+    requested,
+  );
+}
+
+export function allocateBackyardFood(
+  totalFood: number,
+  hasMarketAccess: boolean,
+  tier: number,
+  population: number,
+  currentFoodStock: number,
+): BackyardFoodAllocation {
+  const total = Number.isFinite(totalFood) ? Math.max(0, totalFood) : 0;
+  if (!hasMarketAccess) return { selfFood: total, marketFood: 0 };
+  const reserveGap = Math.max(
+    0,
+    backyardFoodReserveTarget(tier, population) - Math.max(0, currentFoodStock),
+  );
+  const selfFood = Math.min(total, reserveGap);
+  return { selfFood, marketFood: Math.max(0, total - selfFood) };
+}
 
 /** Mirrors `server/src/backyard_garden_policy.rs`. */
 export function backyardGardenSeasonalMultiplier(
@@ -119,6 +170,8 @@ export function computeBackyardGardenTickEffects(
   seconds = SIM_TICK_SECONDS,
   seasonalMultiplier = 1,
   remedyUnitsSold = 0,
+  tier = 1,
+  currentFoodStock = 0,
 ): BackyardGardenTickEffects {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
   const pop = Math.max(0, population);
@@ -130,33 +183,21 @@ export function computeBackyardGardenTickEffects(
   let marketFood = 0;
   if (def.foodPerPersonPerSec > 0) {
     const totalFood = def.foodPerPersonPerSec * pop * seconds * outputMultiplier;
-    const selfShare = hasMarketAccess
-      ? Math.max(0, Math.min(1, def.foodSelfShare))
-      : 1;
-    selfFood = totalFood * selfShare;
-    marketFood = hasMarketAccess ? Math.max(0, totalFood - selfFood) : 0;
+    ({ selfFood, marketFood } = allocateBackyardFood(
+      totalFood,
+      hasMarketAccess,
+      tier,
+      pop,
+      currentFoodStock,
+    ));
   }
 
   const economicActivity = hasMarketAccess
-    ? gardenMarketActivity(def, pop, seconds) * outputMultiplier
-      + gardenMarketActivity(
-        def,
-        0,
-        0,
+    ? gardenMarketActivity(
+        marketFood,
         kind === 'herb_garden' ? remedyUnitsSold : 0,
       )
     : 0;
 
   return { selfFood, marketFood, economicActivity };
-}
-
-export function foodSaleGoldFromSelfShare(
-  foodPerPersonPerSec: number,
-  foodSelfShare: number,
-  population: number,
-  seconds: number,
-): number {
-  const totalFood = foodPerPersonPerSec * population * seconds;
-  const soldFood = totalFood * (1 - foodSelfShare);
-  return soldFood * FOOD_SALE_GOLD_PER_UNIT;
 }

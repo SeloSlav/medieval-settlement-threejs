@@ -17,8 +17,11 @@ import {
   TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 } from '../../generated/gameBalance.ts';
 import {
+  backyardFoodReserveDays,
+  backyardFoodReserveTarget,
   backyardGardenSeasonStatus,
 } from '../../economy/backyardGardenTick.ts';
+import { edibleFoodStock } from '../../economy/foodInventory.ts';
 import {
   residenceBackyardProject,
   type ResidenceBackyardProject,
@@ -29,7 +32,6 @@ import {
 } from '../../logistics/constructionPriority.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
 import { backyardGardenPlacement } from '../../residences/backyardPosition.ts';
-import { getNeedStock } from '../../residences/residenceNeeds.ts';
 import {
   formatResidenceServiceConsequence,
   residenceServiceState,
@@ -53,7 +55,7 @@ export function renderBackyardInspector(
 
   const def = BACKYARD_GARDEN_DEFINITIONS[garden.kind];
   const producesFood = def.foodPerPersonPerSec > 0;
-  const foodStock = Math.round(getNeedStock(residence.needs, 'food'));
+  const foodStock = edibleFoodStock(residence);
   const taxRate = context.getEconomicActivityTaxRate?.() ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
   const hasMarketAccess = context.worldQueries.isResidenceConnectedToMarketplace(
     residence,
@@ -94,6 +96,8 @@ export function renderBackyardInspector(
       seasonalMultiplier,
       taxCollectionMultiplier,
       serviceMultiplier: service.economicMultiplier,
+      tier: residence.tier,
+      currentFoodStock: foodStock,
     },
   );
   const stallLabel = producesFood
@@ -118,6 +122,8 @@ export function renderBackyardInspector(
   const taxLabel = economy.assessedTaxPerDay > economy.taxPerDay + 0.05
     ? `~${economy.taxPerDay.toFixed(1)} levied at market of ${economy.assessedTaxPerDay.toFixed(1)} assessed`
     : `~${economy.taxPerDay.toFixed(1)} gold`;
+  const reserveDays = backyardFoodReserveDays(residence.tier);
+  const reserveTarget = backyardFoodReserveTarget(residence.tier, residence.population);
 
   return {
     eyebrow: 'Backyard',
@@ -130,9 +136,9 @@ export function renderBackyardInspector(
       <li><span>Seasonal output</span><span>${season.label}${sabbathPaused ? ' · paused today by parish policy' : ''}</span></li>
       <li><span>Product</span><span>${backyardGardenProductSummary(garden.kind)}</span></li>
       ${producesFood
-        ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `${Math.round(def.foodSelfShare * 100)}% reserved for this home` : '100% kept without a staffed stall'})</span></li>
+        ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>
            <li><span>Shared market food today</span><span>${economy.marketFoodPerDay.toFixed(1)}${hasMarketAccess ? ' pooled for other households' : ' — household keeps the full crop without a stall'}</span></li>
-           <li><span>Household food stock</span><span>${foodStock}</span></li>`
+           <li><span>Household food reserve</span><span>${foodStock.toFixed(1)} / ${reserveTarget.toFixed(1)}</span></li>`
         : ''}
       ${garden.kind === 'herb_garden'
         ? '<li><span>Herb sharing</span><span>Household remedies fill first; surplus remedies enter the goods stall for sick homes</span></li>'
@@ -151,7 +157,7 @@ export function renderBackyardInspector(
       <li><span>Build cost</span><span>${renderBuildingResourceCost(getBackyardGardenCost(garden.kind))}</span></li>
     `,
     supplementalPanelHtml: `<p class="resource-inspector-note">${producesFood
-      ? 'The household consumes its reserved share directly. The remainder becomes real Marketplace inventory allocated abstractly to connected homes.'
+      ? `The household keeps edible output until its ${reserveDays}-day reserve is filled. Only physical overflow becomes Marketplace inventory for other connected homes.`
       : 'Routine local purchases are aggregated: the seller gains household wealth and one local market levy is assessed. Parish tithes remain a separate later household payment.'}</p>`,
     demolish: {
       visible: true,
