@@ -280,6 +280,14 @@ export async function createGrassBladeField(
     wildflowers: true,
     anchorAttr: wildflowerAnchorAttr,
   });
+  // The streamed buffers are sparse: committing a later grid slot raises the
+  // mesh draw count across any earlier, still-unwritten slots. Three.js
+  // initializes those matrices to all zeroes, which collapses every unused
+  // grass card into a dense black clump at the world origin. Park the complete
+  // buffers below the terrain before the first slot is made visible.
+  for (const entry of streamMeshes) {
+    clearSlotRange(entry.mesh, 0, entry.mesh.instanceMatrix.count);
+  }
   displayMaterials = [grassMaterial, wildflowerMaterial];
   disposeResources = () => {
     for (const entry of streamMeshes) entry.mesh.geometry.dispose();
