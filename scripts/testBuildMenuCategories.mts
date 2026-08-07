@@ -13,7 +13,7 @@ import {
 
 assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
   'residences', 'well', 'chapel', 'monastery', 'marketplace', 'trading_post', 'town_hall',
-  'village_storehouse', 'granary', 'ferry_landing',
+  'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
   'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'clay_pit',
@@ -42,6 +42,11 @@ for (const [name, entries] of [
 
 const allActions = BUILD_MENU_ENTRIES.map((entry) => entry.action);
 assert.equal(new Set(allActions).size, allActions.length, 'each build action must belong to exactly one menu');
+assert.equal(
+  BUILD_MENU_ENTRIES.some((entry) => entry.artKey.includes('ferry')),
+  false,
+  'the removed ferry must not remain in any build category',
+);
 
 const toolbarSource = fs.readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 for (const [action, hotkey] of [

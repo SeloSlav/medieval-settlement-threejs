@@ -19,6 +19,7 @@ mod founding_site;
 mod game_calendar;
 mod guardhouse_payroll;
 mod household_distribution;
+mod household_discretionary_trade;
 mod household_market_orders;
 mod labor_schedule;
 mod landmark_access;
@@ -32,6 +33,7 @@ mod production_labor_steward;
 mod raid_agents;
 mod reclamation;
 mod reforester;
+mod removed_content;
 mod residence_lifecycle;
 pub mod residence_needs;
 mod residence_settlement;
@@ -67,7 +69,7 @@ pub use delivery_trips::{
 };
 pub use expanded_economy::{
     step_apiary, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
-    step_bakery, step_ferry_landing, step_granary, step_guardhouse,
+    step_bakery, step_granary, step_guardhouse,
     step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_local_material_dispatch,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_potter_kiln,
@@ -85,10 +87,10 @@ pub use food_spoilage::step_fresh_food_spoilage;
 pub use food_supplier::{step_fishing_camp, step_foragers_shed, step_hunters_hall};
 pub use foraging_respawn::step_foraging_lifecycle;
 pub use founding_site::step_founding_sites;
-pub use game_calendar::game_clock;
-pub use game_calendar::GameClock;
+pub use game_calendar::{game_clock, holiday_observance, GameClock};
 pub use guardhouse_payroll::try_dispatch_guardhouse_payroll;
 pub use household_distribution::{distribute_well_water, step_market_household_distribution};
+pub use household_discretionary_trade::step_household_discretionary_trade;
 pub use household_market_orders::step_household_market_orders;
 pub use labor_schedule::{labor_and_logistics_paused, production_labor_paused};
 pub use large_quarry::step_large_quarry;
@@ -109,6 +111,7 @@ pub use reclamation::{
     step_reclamation_piles, ReclamationStock,
 };
 pub use reforester::step_reforester;
+pub use removed_content::retire_removed_buildings;
 pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};
 pub(crate) use residence_upgrades::clear_residence_project;

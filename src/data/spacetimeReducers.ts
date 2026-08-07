@@ -822,6 +822,48 @@ export async function marketplaceTrade(buildingId: string, tradeId: string): Pro
   });
 }
 
+export async function setMarketplaceSpecialtyFamilyExportPolicy(
+  buildingId: string,
+  family: number,
+  exportPolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid Trading Post id.');
+  await callReducer(
+    'setMarketplaceSpecialtyFamilyExportPolicy',
+    'set_marketplace_specialty_family_export_policy',
+    {
+      buildingId: serverId,
+      family: Math.max(0, Math.min(2, Math.floor(family))),
+      exportPolicy: Math.max(0, Math.min(2, Math.floor(exportPolicy))),
+    },
+  );
+}
+
+export async function setVineyardProductionPolicy(
+  buildingId: string,
+  productionPolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid vineyard id.');
+  await callReducer('setVineyardProductionPolicy', 'set_vineyard_production_policy', {
+    buildingId: serverId,
+    productionPolicy: Math.max(0, Math.min(2, Math.floor(productionPolicy))),
+  });
+}
+
+export async function setApiaryHarvestPolicy(
+  buildingId: string,
+  harvestPolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid apiary id.');
+  await callReducer('setApiaryHarvestPolicy', 'set_apiary_harvest_policy', {
+    buildingId: serverId,
+    harvestPolicy: Math.max(0, Math.min(2, Math.floor(harvestPolicy))),
+  });
+}
+
 export async function cancelMarketplaceTradeOrder(buildingId: string): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
   if (serverId === null) {

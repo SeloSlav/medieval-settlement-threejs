@@ -4,8 +4,12 @@
 use std::collections::HashMap;
 
 use crate::balance_generated::{
-    CALENDAR_SECONDS_PER_DAY, HUNGER_WARNING_DAYS, MALNUTRITION_DAYS, MALNUTRITION_RECOVERY_DAYS,
-    STARVATION_DEATH_INTERVAL_DAYS, STARVATION_DEATH_START_DAYS, TICK_DT,
+    CALENDAR_SECONDS_PER_DAY, COLD_EXPOSURE_DEATH_CHANCE_PER_PERSON_DAY,
+    COLD_EXPOSURE_DEATH_MAX_CHANCE_PER_PERSON_DAY, COLD_EXPOSURE_DEATH_RISK_RAMP_DAYS,
+    COLD_EXPOSURE_DEATH_START_DAYS, HUNGER_WARNING_DAYS, MALNUTRITION_DAYS,
+    MALNUTRITION_RECOVERY_DAYS, STARVATION_DEATH_CHANCE_PER_PERSON_DAY,
+    STARVATION_DEATH_MAX_CHANCE_PER_PERSON_DAY, STARVATION_DEATH_RISK_RAMP_DAYS,
+    STARVATION_DEATH_START_DAYS, TICK_DT,
 };
 
 pub const HEALTH_STAGE_WELL: u8 = 0;
@@ -41,20 +45,49 @@ pub fn malnutrition_target(hunger_ticks: u32) -> f64 {
     .clamp(0.0, 1.0)
 }
 
-pub fn starvation_death_due(hunger_ticks: u32, last_death_hunger_ticks: u32) -> bool {
-    let first = ticks_for_days(STARVATION_DEATH_START_DAYS);
-    if hunger_stage(hunger_ticks) != HEALTH_STAGE_STARVING {
-        return false;
-    }
-    let interval = ticks_for_days(STARVATION_DEATH_INTERVAL_DAYS).max(1);
-    if last_death_hunger_ticks < first {
-        return true;
-    }
-    hunger_ticks.saturating_sub(last_death_hunger_ticks) >= interval
+pub fn starvation_death_chance(population: u32, hunger_ticks: u32) -> f64 {
+    shortage_death_chance(
+        population,
+        hunger_ticks,
+        STARVATION_DEATH_START_DAYS,
+        STARVATION_DEATH_CHANCE_PER_PERSON_DAY,
+        STARVATION_DEATH_MAX_CHANCE_PER_PERSON_DAY,
+        STARVATION_DEATH_RISK_RAMP_DAYS,
+    )
 }
 
-pub fn starvation_episode_resolved(hunger_ticks: u32) -> bool {
-    hunger_stage(hunger_ticks) != HEALTH_STAGE_STARVING
+pub fn cold_exposure_death_chance(population: u32, cold_exposure_ticks: u32) -> f64 {
+    shortage_death_chance(
+        population,
+        cold_exposure_ticks,
+        COLD_EXPOSURE_DEATH_START_DAYS,
+        COLD_EXPOSURE_DEATH_CHANCE_PER_PERSON_DAY,
+        COLD_EXPOSURE_DEATH_MAX_CHANCE_PER_PERSON_DAY,
+        COLD_EXPOSURE_DEATH_RISK_RAMP_DAYS,
+    )
+}
+
+/// Converts a per-person daily hazard into a simulation-step household chance.
+/// The grace period and gradual risk ramp keep short logistics failures
+/// survivable while making prolonged total shortages increasingly lethal.
+fn shortage_death_chance(
+    population: u32,
+    exposure_ticks: u32,
+    start_days: f64,
+    initial_chance_per_person_day: f64,
+    max_chance_per_person_day: f64,
+    risk_ramp_days: f64,
+) -> f64 {
+    if population == 0 || exposure_ticks < ticks_for_days(start_days) {
+        return 0.0;
+    }
+    let exposure_days = f64::from(exposure_ticks) * TICK_DT / CALENDAR_SECONDS_PER_DAY;
+    let severity = ((exposure_days - start_days) / risk_ramp_days.max(TICK_DT)).clamp(0.0, 1.0);
+    let daily_per_person = (initial_chance_per_person_day
+        + (max_chance_per_person_day - initial_chance_per_person_day) * severity)
+        .clamp(0.0, 1.0);
+    let person_tick_exposure = population as f64 * TICK_DT / CALENDAR_SECONDS_PER_DAY;
+    (1.0 - (1.0 - daily_per_person).powf(person_tick_exposure)).clamp(0.0, 1.0)
 }
 
 pub fn next_service_deficit_ticks(
@@ -185,7 +218,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hunger_advances_through_reversible_stages_before_death() {
+    fn hunger_advances_through_reversible_stages_before_mortality_risk() {
         assert_eq!(hunger_stage(0), HEALTH_STAGE_WELL);
         assert_eq!(
             hunger_stage(ticks_for_days(HUNGER_WARNING_DAYS)),
@@ -197,14 +230,23 @@ mod tests {
         );
         let fatal = ticks_for_days(STARVATION_DEATH_START_DAYS);
         assert_eq!(hunger_stage(fatal), HEALTH_STAGE_STARVING);
-        assert!(starvation_death_due(fatal, 0));
-        assert!(!starvation_death_due(fatal + 1, fatal));
-        assert!(starvation_death_due(
-            fatal + ticks_for_days(STARVATION_DEATH_INTERVAL_DAYS),
-            fatal
-        ));
-        assert!(!starvation_episode_resolved(fatal));
-        assert!(starvation_episode_resolved(fatal - 1));
+        assert_eq!(starvation_death_chance(3, fatal - 1), 0.0);
+        assert!(starvation_death_chance(3, fatal) > 0.0);
+        assert!(
+            starvation_death_chance(3, fatal + ticks_for_days(STARVATION_DEATH_RISK_RAMP_DAYS))
+                > starvation_death_chance(3, fatal)
+        );
+    }
+
+    #[test]
+    fn winter_exposure_has_a_multi_day_grace_period_and_population_scaled_risk() {
+        let first_risk = ticks_for_days(COLD_EXPOSURE_DEATH_START_DAYS);
+        assert_eq!(cold_exposure_death_chance(4, first_risk - 1), 0.0);
+        assert!(cold_exposure_death_chance(4, first_risk) > 0.0);
+        assert!(
+            cold_exposure_death_chance(4, first_risk) > cold_exposure_death_chance(1, first_risk)
+        );
+        assert!(cold_exposure_death_chance(4, first_risk) < 1.0);
     }
 
     #[test]

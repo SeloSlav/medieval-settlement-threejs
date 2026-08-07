@@ -99,4 +99,6 @@ export default __t.row({
   importDutyCollectedTotal: __t.f64().name("import_duty_collected_total"),
   exportDutyCollectedTotal: __t.f64().name("export_duty_collected_total"),
   privateExportIncomeTotal: __t.f64().name("private_export_income_total"),
+  localDiscretionarySpendTotal: __t.f64().name("local_discretionary_spend_total"),
+  localProducerIncomeTotal: __t.f64().name("local_producer_income_total"),
 });

@@ -9,15 +9,17 @@ use crate::simulation::{
     step_brewery,
     step_burials, step_carpenter, step_chapel_parish, step_chapels, step_charcoal_burner,
     step_clay_pit, step_construction_labor_stewards, step_construction_sites, step_delivery_trips,
-    step_ferry_landing, step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
+    step_fires, step_fishing_camp, step_foragers_shed, step_foraging_lifecycle,
     step_founding_sites, step_fresh_food_spoilage, step_granary, step_guardhouse,
-    step_household_market_orders, step_hunters_hall, step_industrial_firewood_dispatch,
+    step_household_discretionary_trade, step_household_market_orders, step_hunters_hall,
+    step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_large_quarry, step_live_raids,
     step_land_levies, step_local_material_dispatch, step_lumber_mill,
     step_market_household_distribution, step_marketplace_caravans,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_night_cycle,
     step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
     step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
+    retire_removed_buildings,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls,
     step_swineherd, step_threshing_barn, step_village_storehouse_overflow_collection,
@@ -35,6 +37,7 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     if !config.configured {
         return;
     }
+    retire_removed_buildings(ctx);
     // Pause is a hard gameplay boundary: no clock, economy, migration,
     // movement, combat, delivery, weather, or fire state may mutate.
     if config.game_speed == 0 {
@@ -74,18 +77,19 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
 
     let heartbeat_sim_seconds = TICK_DT * speed as f64 * f64::from(BASE_SPEED_NUMERATOR)
         / f64::from(BASE_SPEED_DENOMINATOR);
+    let heartbeat_clock = crate::simulation::game_clock(config.sim_tick);
+    let holiday_protected = crate::simulation::holiday_observance(&heartbeat_clock).is_some();
     // Delivery speeds are expressed in world metres per simulation second.
     // Advance them on every scheduler heartbeat using the same authoritative
     // rate as the calendar and economy.
-    if has_delivery_trips {
-        let delivery_clock = crate::simulation::game_clock(config.sim_tick);
+    if has_delivery_trips && !holiday_protected {
         let delivery_tick = SimTickContext::with_road_networks(
             shared_road_networks
                 .as_ref()
                 .expect("delivery trips require road networks")
                 .clone(),
         );
-        step_delivery_trips(ctx, &delivery_tick, &delivery_clock, heartbeat_sim_seconds);
+        step_delivery_trips(ctx, &delivery_tick, &heartbeat_clock, heartbeat_sim_seconds);
         // A cancelled or over-capacity return can leave a compatibility-row
         // remainder. Materialize it in this same transaction so construction
         // can never reserve an invisible balance between scheduler heartbeats.
@@ -94,14 +98,16 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     // Live people and carts share the same wall-clock movement cadence. Raid
     // agents therefore advance on every scheduler heartbeat at the selected
     // speed instead of waiting for sparse economy/calendar substeps.
-    step_live_raids(
-        ctx,
-        config.sim_tick,
-        config.seed,
-        config.conflict_enabled,
-        heartbeat_sim_seconds,
-        shared_road_networks.as_ref(),
-    );
+    if !holiday_protected {
+        step_live_raids(
+            ctx,
+            config.sim_tick,
+            config.seed,
+            config.conflict_enabled,
+            heartbeat_sim_seconds,
+            shared_road_networks.as_ref(),
+        );
+    }
     if ctx.db.sim_pacing_state().id().find(&0).is_some() {
         ctx.db.sim_pacing_state().id().update(SimPacingState {
             id: 0,
@@ -151,6 +157,13 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .map(|config| config.sim_tick)
         .unwrap_or(0);
     let clock = crate::simulation::game_clock(sim_tick);
+    // Named holy days advance the calendar and presentation clock only. This
+    // one boundary guarantees a true rest period: no production, carts,
+    // consumption, spoilage, upkeep, illness, fire, raids, or other adverse
+    // state can accrue because the settlement has stopped work to observe it.
+    if crate::simulation::holiday_observance(&clock).is_some() {
+        return;
+    }
     let previous_clock = crate::simulation::game_clock(sim_tick.saturating_sub(1));
     step_night_cycle(ctx, &previous_clock, &clock, world_seed);
     let environment = crate::season_policy::environment_for(world_seed, world_hydrology, &clock);
@@ -265,7 +278,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             | crate::building_defs::BuildingSimKind::Windmill
             | crate::building_defs::BuildingSimKind::Carpenter
             | crate::building_defs::BuildingSimKind::Weaver
-            | crate::building_defs::BuildingSimKind::FerryLanding
             | crate::building_defs::BuildingSimKind::Vineyard
             | crate::building_defs::BuildingSimKind::PastoralFarmstead
             | crate::building_defs::BuildingSimKind::Swineherd => {
@@ -297,6 +309,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         }
     }
 
+    step_household_discretionary_trade(ctx, &tick, &clock);
     step_marketplace_caravans(ctx, &clock, &tick, environment);
     step_seed_grain_distribution(ctx, &tick, &clock);
     let material_marketplaces = trading_post_ids
@@ -429,9 +442,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             }
             crate::building_defs::BuildingSimKind::Weaver => {
                 step_weaver(ctx, &tick, &clock, building)
-            }
-            crate::building_defs::BuildingSimKind::FerryLanding => {
-                step_ferry_landing(ctx, &tick, &clock, building)
             }
             crate::building_defs::BuildingSimKind::Vineyard => {
                 step_vineyard(ctx, &tick, &clock, building)

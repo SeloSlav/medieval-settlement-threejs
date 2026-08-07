@@ -61,7 +61,6 @@ import {
   REMOTE_WORK_CAMPFIRE_NAME,
 } from './remoteWorkCamp.ts';
 import { disposeFireEffect } from '../fires/FireEffect.ts';
-import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import {
   createConstructionSiteMesh,
 } from './ConstructionSiteMesh.ts';
@@ -1029,17 +1028,6 @@ function syncBuildingVisualState(
         chest,
         'MonasteryGoldSegment',
         building.gold,
-        LOCAL_RECEIPT_VISUAL_CAPACITY,
-      );
-    }
-  }
-  if (building.kind === 'ferry_landing') {
-    const chest = marker.getObjectByName('FerryFareChest');
-    if (chest instanceof THREE.Group) {
-      syncStockpileSegments(
-        chest,
-        'FerryReceiptSegment',
-        localCivicReceiptGold(building),
         LOCAL_RECEIPT_VISUAL_CAPACITY,
       );
     }

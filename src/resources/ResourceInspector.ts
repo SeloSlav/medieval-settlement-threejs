@@ -234,6 +234,19 @@ type ResourceInspectorOptions = {
     buildingId: string,
     exportPolicy: number,
   ) => void | Promise<void>;
+  onSetMarketplaceSpecialtyFamilyExportPolicy?: (
+    buildingId: string,
+    family: number,
+    exportPolicy: number,
+  ) => void | Promise<void>;
+  onSetVineyardProductionPolicy?: (
+    buildingId: string,
+    productionPolicy: number,
+  ) => void | Promise<void>;
+  onSetApiaryHarvestPolicy?: (
+    buildingId: string,
+    harvestPolicy: number,
+  ) => void | Promise<void>;
   onSetHarvestReservePercent?: (
     buildingId: string,
     reservePercent: number,
@@ -973,12 +986,56 @@ export class ResourceInspector {
         return;
       }
       const exportPolicyValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-marketplace-specialty-family-policy]')
+        ?.dataset.marketplaceSpecialtyFamilyPolicy;
+      const exportFamilyValue = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-marketplace-specialty-family-policy]')
+        ?.dataset.marketplaceSpecialtyFamily;
+      if (exportPolicyValue != null && exportFamilyValue != null) {
+        void this.options.onSetMarketplaceSpecialtyFamilyExportPolicy?.(
+          this.selectedTarget.building.id,
+          Number(exportFamilyValue),
+          Number(exportPolicyValue),
+        );
+        return;
+      }
+      const legacyExportPolicyValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-marketplace-specialty-export-policy]')
         ?.dataset.marketplaceSpecialtyExportPolicy;
-      if (exportPolicyValue != null) {
+      if (legacyExportPolicyValue != null) {
         void this.options.onSetMarketplaceSpecialtyExportPolicy?.(
           this.selectedTarget.building.id,
-          Number(exportPolicyValue),
+          Number(legacyExportPolicyValue),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'vineyard'
+    ) {
+      const value = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-vineyard-production-policy]')
+        ?.dataset.vineyardProductionPolicy;
+      if (value != null) {
+        void this.options.onSetVineyardProductionPolicy?.(
+          this.selectedTarget.building.id,
+          Number(value),
+        );
+        return;
+      }
+    }
+    if (
+      this.selectedTarget?.kind === 'building'
+      && this.selectedTarget.building.kind === 'apiary'
+    ) {
+      const value = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-apiary-harvest-policy]')
+        ?.dataset.apiaryHarvestPolicy;
+      if (value != null) {
+        void this.options.onSetApiaryHarvestPolicy?.(
+          this.selectedTarget.building.id,
+          Number(value),
         );
         return;
       }
@@ -2040,7 +2097,6 @@ const BUILDING_INSPECTOR_ART: Partial<Record<string, string>> = {
   brewery: 'brewery.webp',
   carpenter: 'carpenter.webp',
   chapel: 'chapel.webp',
-  ferry_landing: 'ferry-landing.webp',
   fishing_camp: 'fishing-camp.webp',
   foragers_shed: 'foragers-hut.webp',
   founders_camp: 'residence.webp',
@@ -2144,7 +2200,7 @@ function inspectablePresentation(target: InspectableTarget): InspectorPresentati
   return {
     kind: 'water',
     symbol: '\u224B',
-    image: '/assets/ui/build-menu/cards/ferry-landing.webp',
+    image: '/assets/ui/build-menu/cards/fishing-camp.webp',
   };
 }
 

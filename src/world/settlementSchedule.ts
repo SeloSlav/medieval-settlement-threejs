@@ -10,6 +10,10 @@ import {
   laborPauseLabel,
   type GameClock,
 } from './gameCalendar.ts';
+import {
+  holidayObservanceForClock,
+  type HolidayObservance,
+} from './holidayCalendar.ts';
 
 export type SettlementSchedule = {
   clock: GameClock;
@@ -18,6 +22,7 @@ export type SettlementSchedule = {
   dayNight: ReturnType<typeof computeDayNightState>;
   sabbathObservance: boolean;
   staffedChapel: boolean;
+  holiday: HolidayObservance | null;
 };
 
 export function deriveSettlementScheduleFromClock(
@@ -31,6 +36,7 @@ export function deriveSettlementScheduleFromClock(
     ?? DEFAULT_PARISH_POLICY.sabbathObservanceEnabled;
   const staffedChapel = staffedChapelOverride
     ?? (gameState ? playerHasStaffedChapel(gameState.buildings.values()) : false);
+  const holiday = holidayObservanceForClock(clock);
   const laborPaused = isLaborPaused(clock, sabbathObservance, staffedChapel);
   const pauseLabel = laborPauseLabel(clock, sabbathObservance, staffedChapel);
   if (target) {
@@ -40,6 +46,7 @@ export function deriveSettlementScheduleFromClock(
     computeDayNightState(clock, laborPaused, target.dayNight);
     target.sabbathObservance = sabbathObservance;
     target.staffedChapel = staffedChapel;
+    target.holiday = holiday;
     return target;
   }
   return {
@@ -49,6 +56,7 @@ export function deriveSettlementScheduleFromClock(
     dayNight: computeDayNightState(clock, laborPaused),
     sabbathObservance,
     staffedChapel,
+    holiday,
   };
 }
 

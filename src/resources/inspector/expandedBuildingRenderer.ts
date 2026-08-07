@@ -6,9 +6,10 @@ import {
   CARPENTER_IRONWORK_PER_POLEARM,
   CARPENTER_TIMBER_COST_MULTIPLIER,
   CARPENTER_TIMBER_PER_POLEARM,
+  APIARY_POLLINATION_BONUS_MAX,
+  APIARY_WINTER_HONEY_REQUIRED,
   FOOD_DELIVERY_SPEED_MPS,
   FOOD_DELIVERY_UNLOAD_SEC,
-  FERRY_GOLD_PER_DAY,
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
   GRAIN_TRANSFER_PER_TRIP,
   MONASTERY_CHARITY_FOOD_PER_DELIVERY,
@@ -24,6 +25,9 @@ import {
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
   TEXTILE_TRANSFER_PER_TRIP,
+  VINEYARD_FERMENTATION_SECONDS,
+  VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
+  VINEYARD_WINE_PER_FERMENTATION_BATCH,
 } from '../../generated/gameBalance.ts';
 import {
   CARPENTER_CART_SERVICE_TARGET_PRESETS,
@@ -151,6 +155,13 @@ import {
   clayBankYieldGrade,
 } from '../../economy/clayBankPolicy.ts';
 import { renderExtractionStockTargetPanel } from './extractionStockTargetRenderer.ts';
+import { renderResourceCost } from '../../ui/resourceCost.ts';
+import {
+  APIARY_HARVEST_POLICIES,
+  VINEYARD_PRODUCTION_POLICIES,
+  apiaryHarvestPolicy,
+  vineyardProductionPolicy,
+} from '../../economy/specialtyTrade.ts';
 
 const PROCESS: Record<string, string> = {
   mine: 'A local iron or salt deposit + labor → raw material for linked local processing',
@@ -165,12 +176,11 @@ const PROCESS: Record<string, string> = {
   bakery: 'Flour + hauled water + firewood + baker labor -> bread for Marketplace stalls and institutions',
   brewery: 'Barley + water + firewood → malt → ale',
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
-  apiary: 'April-September forest forage -> honey for meals, monastery hospitality, or export',
-  vineyard: 'September-October harvest -> grapes for meals or wine for hospitality and export',
+  apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
+  vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
   monastery: 'Tithes + named meal stores + hospitality goods -> charity, feasts, and pilgrimages',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-3 Marketplace stalls, then Trading Post export',
-  ferry_landing: 'River crossing → fares held at the landing → civic collection',
 };
 
 const OUTBOUND_SUPPLY_KINDS = new Set<BuildingKind>([
@@ -858,21 +868,12 @@ function renderCivicReceiptRows(
       case 'no-road':
         return `${plan.heldGold.toFixed(1)} gold ready · connect this source to ${targetLabel} by road`;
       case 'ready':
-        return `${plan.heldGold.toFixed(1)} gold ready for one handcart to ${targetLabel}${route} · ${
-          building.kind === 'monastery'
-            ? 'needs a free villager'
-            : 'uses one ferry worker'
-        }`;
+        return `${plan.heldGold.toFixed(1)} gold ready for one handcart to ${targetLabel}${route} · needs a free villager`;
       case 'accumulating':
         return `${plan.heldGold.toFixed(1)} / ${plan.dispatchThreshold.toFixed(1)} gold toward the next daily collection batch`;
     }
   })();
-  const sourceLabel = building.kind === 'monastery' ? 'Civic visitor gifts' : 'Fare receipts';
-  const incomeRow = building.kind === 'ferry_landing'
-    ? `<li><span>Fare income</span><span>${FERRY_GOLD_PER_DAY.toFixed(2)} gold/day per onsite ferryman while marketplace-linked · one ferryman leaves the crossing with each cart</span></li>`
-    : '';
-  return `${incomeRow}
-      <li><span>${sourceLabel}</span><span>${plan.heldGold.toFixed(1)} gold secured at this source${plan.inTransitGold > 0.05 ? ` · ${plan.inTransitGold.toFixed(1)} already moving` : ''}</span></li>
+  return `<li><span>Civic visitor gifts</span><span>${plan.heldGold.toFixed(1)} gold secured at this source${plan.inTransitGold > 0.05 ? ` · ${plan.inTransitGold.toFixed(1)} already moving` : ''}</span></li>
       <li><span>Civic collection</span><span>${collection}</span></li>`;
 }
 
@@ -1088,7 +1089,7 @@ export function renderExpandedBuildingInspector(
       <li><span>Wine runway</span><span>${formatHospitalityRunway(hospitality.wineRunwayDays)} daily surplus · ${MONASTERY_FEAST_WINE} feast wine protected</span></li>
       <li><span>Next feast</span><span>${nextFeast ? formatNextMonasteryFeast(nextFeast) : 'No observance scheduled'}</span></li>
       <li><span>Feast pantry</span><span>${feastReadiness ? formatMonasteryFeastReadiness(feastReadiness) : 'Unavailable'} · one complete batch protected from routine use</span></li>
-      <li><span>Annual hospitality</span><span>${hospitality.feastFoodPerYear.toFixed(0)} feast food + ${hospitality.feastAlePerYear.toFixed(0)} feast ale + ${hospitality.honeyPerYear.toFixed(0)} honey + ${hospitality.winePerYear.toFixed(0)} wine</span></li>
+      <li><span>Annual hospitality cost</span><span>${renderResourceCost({ food: hospitality.feastFoodPerYear, ale: hospitality.feastAlePerYear, honey: hospitality.honeyPerYear, wine: hospitality.winePerYear }, { compact: true, suffix: '/year' })}</span></li>
       <li><span>Pilgrimage income</span><span>${hospitality.pilgrimageGoldPerDay.toFixed(2)} gold/day at current stores · requires church and market road link · visitor gifts accrue here before collection</span></li>`
     : '';
   const monasteryTreasuryRows = building.kind === 'monastery'
@@ -1104,13 +1105,11 @@ export function renderExpandedBuildingInspector(
         return `<li><span>Monastery purse</span><span>${building.gold.toFixed(1)} gold secured here${incomingTithe > 0.05 ? ` · ${incomingTithe.toFixed(1)} tithe incoming by handcart` : ''}</span></li>`;
       })()
     : '';
-  const civicReceiptRows = building.kind === 'monastery' || building.kind === 'ferry_landing'
+  const civicReceiptRows = building.kind === 'monastery'
     ? renderCivicReceiptRows(
         building,
         context,
-        building.kind === 'monastery'
-          ? hospitality?.pilgrimageGoldPerDay ?? MONASTERY_PILGRIMAGE_GOLD_PER_DAY
-          : FERRY_GOLD_PER_DAY,
+        hospitality?.pilgrimageGoldPerDay ?? MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
       )
     : '';
   const granaryGrainDispatch = building.kind === 'granary'
@@ -1246,11 +1245,22 @@ export function renderExpandedBuildingInspector(
       ? buildingStorageCaps(building.kind).honey ?? 0
       : buildingStorageCaps(building.kind).food ?? 0
     : 0;
-  const routineFreshFoodSurplus = routineFreshFoodSource
+  const routinePolicyReserve = building.kind === 'apiary'
+    ? apiaryHarvestPolicy(building.apiaryHarvestPolicy).reserve
+    : building.kind === 'vineyard'
+      ? vineyardProductionPolicy(building.vineyardProductionPolicy).reserve
+      : 0;
+  const routineGenericSurplus = routineFreshFoodSource
     ? institutionalFoodSurplus(
         edibleFoodStock(building),
         routineFreshFoodClaims,
         routineFreshFoodCapacity,
+      )
+    : 0;
+  const routineFreshFoodSurplus = routineFreshFoodSource
+    ? Math.min(
+        routineGenericSurplus,
+        Math.max(0, edibleFoodStock(building) - routinePolicyReserve),
       )
     : 0;
   const routineFreshFoodDispatch = routineFreshFoodSource
@@ -1276,19 +1286,45 @@ export function renderExpandedBuildingInspector(
   const vineyardParcel = building.kind === 'vineyard'
     ? context.gameState.vineyardParcels?.get(building.id) ?? null
     : null;
-  const vineyardRows = vineyardParcel
+  const vineyardRows = building.kind === 'vineyard'
     ? (() => {
-        const factors = vineyardSiteFactors(
-          vineyardParcel.moisture,
-          vineyardParcel.averageSlopeDegrees,
-          vineyardParcel.southExposure,
-          building.x,
-          building.z,
-        );
-        const throughput = vineyardProductionMultiplier(vineyardParcel);
-        return `<li><span>Growing parcel</span><span>${Math.round(vineyardParcel.area)} m² · ${vineyardParcel.averageSlopeDegrees.toFixed(1)}° average slope · ${Math.round(vineyardParcel.shapeEfficiency * 100)}% row efficiency</span></li>
-          <li><span>Grape site</span><span>${Math.round(vineyardParcel.siteSuitability * 100)}% potential · ${Math.round(factors.drainage * 100)}% drainage · ${Math.round(factors.sun * 100)}% sun exposure</span></li>
-          <li><span>Harvest pace</span><span>${throughput.toFixed(2)}× grape and wine cycle throughput during September–October</span></li>`;
+        const policy = vineyardProductionPolicy(building.vineyardProductionPolicy);
+        const progress = Math.max(0, building.vineyardFermentationProgress ?? 0);
+        const fermenting = Math.max(0, building.vineyardFermentingGrapes ?? 0);
+        const cellarProgress = fermenting > 1e-6
+          ? `${Math.min(100, progress / VINEYARD_FERMENTATION_SECONDS * 100).toFixed(0)}% · ${Math.max(0, VINEYARD_FERMENTATION_SECONDS - progress).toFixed(0)} worker-seconds remain`
+          : 'Idle · awaiting one complete grape batch above the selected table reserve';
+        const parcelRows = vineyardParcel ? (() => {
+          const factors = vineyardSiteFactors(
+            vineyardParcel.moisture,
+            vineyardParcel.averageSlopeDegrees,
+            vineyardParcel.southExposure,
+            building.x,
+            building.z,
+          );
+          const throughput = vineyardProductionMultiplier(vineyardParcel);
+          return `<li><span>Growing parcel</span><span>${Math.round(vineyardParcel.area)} m² · ${vineyardParcel.averageSlopeDegrees.toFixed(1)}° average slope · ${Math.round(vineyardParcel.shapeEfficiency * 100)}% row efficiency</span></li>
+            <li><span>Grape site</span><span>${Math.round(vineyardParcel.siteSuitability * 100)}% potential · ${Math.round(factors.drainage * 100)}% drainage · ${Math.round(factors.sun * 100)}% sun exposure</span></li>
+            <li><span>Harvest pace</span><span>${throughput.toFixed(2)}× grape harvest during September–October</span></li>`;
+        })() : '<li><span>Growing parcel</span><span>None drawn · use the vineyard layout action to place rows</span></li>';
+        const reserve = Number.isFinite(policy.reserve)
+          ? `${policy.reserve.toFixed(0)} table grapes protected`
+          : 'All grapes protected for the table';
+        return `${parcelRows}
+          <li><span>Grape allocation</span><span>${policy.label} · ${reserve}</span></li>
+          <li><span>Cellar batch</span><span>${VINEYARD_GRAPES_PER_FERMENTATION_BATCH} grapes → ${VINEYARD_WINE_PER_FERMENTATION_BATCH} wine over ${VINEYARD_FERMENTATION_SECONDS} worker-seconds</span></li>
+          <li><span>Fermentation</span><span>${fermenting.toFixed(1)} grapes staged · ${cellarProgress}</span></li>`;
+      })()
+    : '';
+  const apiaryRows = building.kind === 'apiary'
+    ? (() => {
+        const policy = apiaryHarvestPolicy(building.apiaryHarvestPolicy);
+        const forage = Math.max(0, building.apiaryForageScore ?? 0.55);
+        const health = Math.max(0, building.apiaryColonyHealth ?? 1);
+        return `<li><span>Harvest policy</span><span>${policy.label} · ${policy.reserve.toFixed(0)} honey protected · ${Math.round(policy.yieldMultiplier * 100)}% harvest pace</span></li>
+          <li><span>Forage landscape</span><span>${Math.round(forage * 100)}% · mature woodland, orchards, flower gardens, and vineyard rows inside bee range</span></li>
+          <li><span>Colony health</span><span>${Math.round(health * 100)}% · winter check needs ${APIARY_WINTER_HONEY_REQUIRED} honey</span></li>
+          <li><span>Pollination</span><span>Healthy nearby hives can raise orchard and vineyard output by up to ${Math.round(APIARY_POLLINATION_BONUS_MAX * 100)}%</span></li>`;
       })()
     : '';
   const buildingPolicyPanelHtml = building.kind === 'monastery'
@@ -1299,7 +1335,11 @@ export function renderExpandedBuildingInspector(
         ? renderGranaryPolicyPanel(building)
         : building.kind === 'carpenter'
           ? renderCarpenterPolicyPanel(building, context.conflictEnabled === true)
-          : undefined;
+          : building.kind === 'apiary'
+            ? renderApiaryHarvestPolicyPanel(building)
+            : building.kind === 'vineyard'
+              ? renderVineyardProductionPolicyPanel(building)
+              : undefined;
   const processorPolicyPanelHtml = renderProcessorOutputTargetPanel(building);
   const extractionPolicyPanelHtml = building.kind === 'clay_pit'
     ? renderExtractionStockTargetPanel(building, 'clay')
@@ -1312,11 +1352,11 @@ export function renderExpandedBuildingInspector(
   const carpenterSupportRows = building.kind === 'carpenter'
     ? `<li><span>Construction timber</span><span>${Math.round((1 - CARPENTER_TIMBER_COST_MULTIPLIER) * 100)}% less at road-linked sites</span></li>
       <li><span>Cart travel</span><span>${Math.round((CARPENTER_DELIVERY_SPEED_MULTIPLIER - 1) * 100)}% faster from linked origins while a repair kit is available · base speed otherwise</span></li>
-      <li><span>Repair kit</span><span>${CARPENTER_CART_SERVICE_TIMBER_PER_TRIP.toFixed(2)} timber + ${CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP.toFixed(2)} ironwork consumed per accelerated departure</span></li>
+      <li><span>Repair kit cost</span><span>${renderResourceCost({ timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, ironwork: CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP }, { compact: true, suffix: 'per accelerated departure' })}</span></li>
       <li><span>Service buffer</span><span>${building.timber.toFixed(1)} / ${carpenterServiceTimberTarget.toFixed(1)} protected timber · ${(building.ironwork ?? 0).toFixed(2)} / ${carpenterServiceIronworkTarget.toFixed(2)} protected ironwork · ${carpenterServiceTrips} / ${carpenterServiceTargetTrips} departures ready</span></li>
       <li><span>Support state</span><span>${building.assignedLabor > 0 ? 'Skilled construction active across this road network' : 'Inactive — requires at least 1 craftsperson'}</span></li>
       ${armory ? `<li><span>Armory reserve</span><span>${armory.reserve <= 0 ? `${armory.stock.toFixed(0)} stored · production paused` : `${armory.stock.toFixed(0)} / ${armory.reserve} polearms`}</span></li>
-      <li><span>Inputs to target</span><span>${armory.shortfall <= 0 ? 'Reserve stocked' : `${armory.timberToTarget.toFixed(0)} timber · ${armory.ironworkToTarget.toFixed(0)} smith-forged ironwork`}</span></li>
+      <li><span>Inputs to target</span><span>${armory.shortfall <= 0 ? 'Reserve stocked' : renderResourceCost({ timber: armory.timberToTarget, ironwork: armory.ironworkToTarget }, { compact: true })}</span></li>
       <li><span>Company issue</span><span>One polearm per assigned guard · surplus remains here</span></li>` : ''}`
     : '';
   const frontierStockVisible = building.kind !== 'carpenter' || context.conflictEnabled === true;
@@ -1325,7 +1365,7 @@ export function renderExpandedBuildingInspector(
     title: definition.label,
     statusText: carpenterStatus?.statusText ?? seasonalProcessorStatus?.statusText ?? processorStatus?.statusText ?? farmsteadPlanning?.statusText ?? (fallbackActive ? 'Operating' : 'Awaiting workers'),
     statusState: carpenterStatus?.statusState ?? seasonalProcessorStatus?.statusState ?? processorStatus?.statusState ?? farmsteadPlanning?.statusState ?? (fallbackActive ? 'active' : 'warning'),
-    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch</span><span>${CARPENTER_TIMBER_PER_POLEARM} timber + ${CARPENTER_IRONWORK_PER_POLEARM} smith-forged ironwork → 1 polearm</span></li>` : ''}${granaryRows}${grainProcessorRows}${millPowerRows}${vineyardRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
+    detailsHtml: `<li><span>Role</span><span>${role}</span></li>${carpenterSupportRows}${building.kind === 'carpenter' && context.conflictEnabled ? `<li><span>Polearm batch cost</span><span>${renderResourceCost({ timber: CARPENTER_TIMBER_PER_POLEARM, ironwork: CARPENTER_IRONWORK_PER_POLEARM }, { compact: true, suffix: 'for 1 polearm' })}</span></li>` : ''}${granaryRows}${grainProcessorRows}${millPowerRows}${apiaryRows}${vineyardRows}${clayBankRows}${charcoalClampRows}${institutionalFoodRows}${monasteryHospitalityRows}${monasteryTreasuryRows}${civicReceiptRows}${farmsteadPlanning?.rows ?? ''}${processorStatus?.waterDetailHtml ?? ''}${civilianToolRows(building, context.worldQueries)}${preservedStorageRows}${buildingStorageRows(building, building.kind, frontierStockVisible)}${buildingRoadAccessRow(context.worldQueries, building)}${buildingExtentRow(building.kind)}${logisticsRows}`,
     demolish: { visible: true, hint: buildingDemolishHint(building.kind) },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     ...(supplementalPanelHtml ? { supplementalPanelHtml } : {}),
@@ -1556,7 +1596,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
       <div class="resource-action-row">${GRANARY_GRAIN_RESERVE_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-granary-grain-reserve="${preset.reserve}" ${grainReserve === preset.reserve ? 'disabled' : ''}>${preset.label} · ${preset.reserve}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">A staffed granary collects fresh stock above local market reserves until its selected target. Sources with no dependent market branch can release their whole surplus. When perishable collection is enabled, cured provisions use separate capacity; disabling it stops new cured intake but assigned granary haulers may still stock Marketplace stalls from goods already here. Baking happens only at a staffed bakery.</p>
+      <p class="inspector-action-panel__hint">A staffed granary collects fresh stock above local market reserves until its selected target. Sources with no dependent market branch can release their whole surplus. Cured provisions retain best in their smokehouse loft; granary cured storage is still safer than leaving fresh goods exposed. When perishable collection is enabled, cured provisions use separate capacity; disabling it stops new cured intake but assigned granary haulers may still stock Marketplace stalls from goods already here. Baking happens only at a staffed bakery.</p>
     </div>
   `;
 }
@@ -1640,7 +1680,7 @@ function renderCarpenterPolicyPanel(
         .join('')}</div>
       <p class="inspector-action-panel__hint">${serviceTarget <= 0
         ? 'Conserve fittings keeps the road-linked construction timber discount but stops repair-kit procurement and the cart-speed bonus. Existing timber and ironwork become available to construction and weapon crafting.'
-        : `This shop protects ${serviceTimberTarget.toFixed(1)} timber + ${serviceIronworkTarget.toFixed(2)} ironwork for ${serviceTarget} departures. Every accelerated departure consumes ${CARPENTER_CART_SERVICE_TIMBER_PER_TRIP.toFixed(2)} timber + ${CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP.toFixed(2)} ironwork; lowering the target immediately releases surplus stock.`}</p>
+        : `This shop protects ${renderResourceCost({ timber: serviceTimberTarget, ironwork: serviceIronworkTarget }, { compact: true, suffix: `for ${serviceTarget} departures` })}. Every accelerated departure consumes ${renderResourceCost({ timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, ironwork: CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP }, { compact: true })}; lowering the target immediately releases surplus stock.`}</p>
       ${conflictEnabled ? `
         <p class="resource-inspector-note">Finished polearm reserve — weapon crafting uses only timber and ironwork above the selected cart-service buffer.</p>
         <div class="resource-action-row">${CARPENTER_POLEARM_RESERVE_PRESETS
@@ -1663,13 +1703,49 @@ function renderFarmsteadFieldPanel(): string {
   `;
 }
 
+function renderApiaryHarvestPolicyPanel(building: BuildingState): string {
+  const selected = apiaryHarvestPolicy(building.apiaryHarvestPolicy);
+  return `
+    <div class="inspector-action-panel">
+      <p class="resource-inspector-note">Honey harvest · choose how much winter food the beekeepers protect and how aggressively they work the hives.</p>
+      <div class="resource-action-row">${APIARY_HARVEST_POLICIES
+        .map((policy) => `<button type="button" class="resource-action-button" data-apiary-harvest-policy="${policy.value}" title="${policy.hint}" ${selected.value === policy.value ? 'disabled' : ''}>${policy.label} · ${policy.reserve} reserve · ${Math.round(policy.yieldMultiplier * 100)}%</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">The reserve is protected from household, monastery, and export carts. In winter the colony consumes up to ${APIARY_WINTER_HONEY_REQUIRED} honey; a shortfall damages next season's colony health. Forage and health multiply the selected harvest pace, while nearby healthy hives provide bounded pollination.</p>
+    </div>
+  `;
+}
+
+function renderVineyardProductionPolicyPanel(building: BuildingState): string {
+  const selected = vineyardProductionPolicy(building.vineyardProductionPolicy);
+  return `
+    <div class="inspector-action-panel">
+      <p class="resource-inspector-note">Grape allocation · the harvest always enters storage as real grapes. The selected reserve is protected before any new cellar batch begins.</p>
+      <div class="resource-action-row">${VINEYARD_PRODUCTION_POLICIES
+        .map((policy) => `<button type="button" class="resource-action-button" data-vineyard-production-policy="${policy.value}" title="${policy.hint}" ${selected.value === policy.value ? 'disabled' : ''}>${policy.label}${Number.isFinite(policy.reserve) ? ` · ${policy.reserve} reserve` : ''}</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">A staffed cellar withdraws ${VINEYARD_GRAPES_PER_FERMENTATION_BATCH} grapes above the reserve, works for ${VINEYARD_FERMENTATION_SECONDS} seconds, then deposits ${VINEYARD_WINE_PER_FERMENTATION_BATCH} wine if storage has room. Changing policy never converts grapes or wine instantly.</p>
+    </div>
+  `;
+}
+
 function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
   const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
+  const feastBatchCost = renderResourceCost({
+    food: MONASTERY_FEAST_FOOD,
+    ale: MONASTERY_FEAST_ALE,
+    honey: MONASTERY_FEAST_HONEY,
+    wine: MONASTERY_FEAST_WINE,
+  }, { compact: true, suffix: 'per feast' });
+  const dailyHospitalityCost = renderResourceCost({
+    honey: MONASTERY_HOSPITALITY_HONEY_PER_DAY,
+    wine: MONASTERY_HOSPITALITY_WINE_PER_DAY,
+  }, { compact: true, suffix: '/day' });
   return `
     <div class="inspector-action-panel">
       <p class="inspector-action-panel__hint">The monastery decides how much parish tithe supports alms and whether apiaries and vineyards provision hospitality before exporting their surplus.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
-      <p class="inspector-action-panel__hint">Enabled monasteries protect one complete ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_ALE} ale + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine batch. Breweries refill only the ale shortfall; charity and daily hospitality use only stock above the floor. On each observance, covered households walk here by road and consume the complete batch onsite: immediate food and ale deficits are relieved, but no provisions appear in home pantries. Daily hospitality consumes ${MONASTERY_HOSPITALITY_HONEY_PER_DAY.toFixed(1)} honey and ${MONASTERY_HOSPITALITY_WINE_PER_DAY.toFixed(1)} wine, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Disable this to release the protected batch into household supply and export.</p>
+      <p class="inspector-action-panel__hint">Enabled monasteries protect ${feastBatchCost}. Breweries refill only the ale shortfall; charity and daily hospitality use only stock above the floor. On each observance, covered households walk here by road and consume the complete batch onsite: immediate food and ale deficits are relieved, but no provisions appear in home pantries. Daily hospitality consumes ${dailyHospitalityCost}, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Disable this to release the protected batch into household supply and export.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
       <div class="city-admin-panel__range-hints"><span>Church keeps all</span><span>Monastery-led</span></div>

@@ -73,7 +73,7 @@ assert.equal(
 );
 assert.equal(
   formatMarketplaceSpecialtyQueue(marketplaceSpecialtyQueue(makeMarket())),
-  'Empty - awaiting ale, honey, wine, cloth, or cheese carts',
+  'Empty - awaiting ale, honey, wine, cloth, cheese, or pottery carts',
 );
 assert.equal(busyQueue.exportWorkers, 1);
 assert.equal(busyQueue.unitsPerSecond, 0.45);

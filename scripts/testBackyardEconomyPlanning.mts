@@ -458,7 +458,11 @@ const goodsStall = computeSettlementBackyardEconomyPlan({
 assert.equal(goodsStall.goodsStallMarketplaces, 1);
 assert.equal(goodsStall.foodStallMarketplaces, 0);
 assert.equal(goodsStall.marketLinkedGardens, 1);
-assert.ok(goodsStall.currentDayRoutedActivity > 0);
+assert.equal(
+  goodsStall.currentDayRoutedActivity,
+  0,
+  'flower gardens support attraction and bee forage instead of passive taxable sales',
+);
 
 const dailyVegetable = backyardGardenEconomyPerDay(
   'vegetable_garden',

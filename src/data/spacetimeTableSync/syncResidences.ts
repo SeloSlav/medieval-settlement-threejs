@@ -107,6 +107,7 @@ export function syncResidences(
       abandoned: false,
       householdWealth: Number(row.householdWealth ?? 0),
       lastHouseholdMarketTick: Number(row.lastHouseholdMarketTick ?? 0),
+      lastDiscretionaryMarketDay: Number(row.lastDiscretionaryMarketDay ?? 0),
       upgradeTargetTier: Math.max(
         0,
         Math.min(3, Number(upgradeRow.upgradeTargetTier ?? 0)),

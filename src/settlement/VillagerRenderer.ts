@@ -32,6 +32,7 @@ import {
 } from '../economy/nightPolicy.ts';
 import { polylineLengthXZ, samplePolylineXZ, type PointXZ } from '../utils/pathGeometry.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
+import type { HolidayObservance } from '../world/holidayCalendar.ts';
 import {
   WorkerActivityAudio,
   type WorkerActivitySoundSource,
@@ -125,6 +126,10 @@ import {
   CHAPEL_GATHERING_AMBIENT_CYCLE_SECONDS,
   planChapelGatheringBehaviors,
 } from './chapelGatheringBehaviors.ts';
+import {
+  holidayBackyardPosition,
+  holidayChapelActivity as holidayChapelActivityFor,
+} from './holidayCelebration.ts';
 import {
   palisadedRefugeGateInside,
   palisadedRefugeGateOutside,
@@ -379,6 +384,7 @@ export class VillagerRenderer {
   private clock: GameClock | null = null;
   private laborPaused = false;
   private sabbathPausedToday = false;
+  private holidayObservance: HolidayObservance | null = null;
   private lastScheduleElapsedSeconds: number | null = null;
   private lastRoutineClockTotalDays = Number.NaN;
   private lastRoutineClockHour = Number.NaN;
@@ -394,6 +400,7 @@ export class VillagerRenderer {
   private lastRoutineNightCurfew = Number.NaN;
   private lastRoutineMonasteryFeastsEnabled: boolean | null = null;
   private lastRoutineSabbathPausedToday: boolean | null = null;
+  private lastRoutineHolidaySignature = '';
   private commuteEstimateNetwork: RoadNetwork | null = null;
   private commuteEstimateTopologyRevision = -1;
   private readonly workerCommuteEstimateCache = new Map<
@@ -424,6 +431,7 @@ export class VillagerRenderer {
     nightPolicy: NightPolicyState = DEFAULT_NIGHT_POLICY,
     monasteryFeastsEnabled = true,
     sabbathPausedToday = false,
+    holidayObservance: HolidayObservance | null = null,
   ): void {
     const scheduleElapsed = clockElapsedSeconds(clock);
     const scheduleRewound = this.lastScheduleElapsedSeconds != null
@@ -439,6 +447,10 @@ export class VillagerRenderer {
         agent.workArrivalElapsedSeconds = null;
       }
     }
+    const holidaySignature = holidayObservance
+      ? `${holidayObservance.historicalYear}:${holidayObservance.id}`
+      : '';
+    const restDayPausedToday = sabbathPausedToday || holidayObservance !== null;
     const fullRoutinePass = scheduleRewound
       || this.lastRoutineClockTotalDays !== clock.totalDays
       || this.lastRoutineClockHour !== clock.hour
@@ -453,7 +465,8 @@ export class VillagerRenderer {
       || this.lastRoutineNightWork !== nightPolicy.work
       || this.lastRoutineNightCurfew !== nightPolicy.curfew
       || this.lastRoutineMonasteryFeastsEnabled !== monasteryFeastsEnabled
-      || this.lastRoutineSabbathPausedToday !== sabbathPausedToday;
+      || this.lastRoutineSabbathPausedToday !== restDayPausedToday
+      || this.lastRoutineHolidaySignature !== holidaySignature;
     this.lastRoutineClockTotalDays = clock.totalDays;
     this.lastRoutineClockHour = clock.hour;
     this.lastRoutineClockMinute = clock.minute;
@@ -467,13 +480,15 @@ export class VillagerRenderer {
     this.lastRoutineNightWork = nightPolicy.work;
     this.lastRoutineNightCurfew = nightPolicy.curfew;
     this.lastRoutineMonasteryFeastsEnabled = monasteryFeastsEnabled;
-    this.lastRoutineSabbathPausedToday = sabbathPausedToday;
+    this.lastRoutineSabbathPausedToday = restDayPausedToday;
+    this.lastRoutineHolidaySignature = holidaySignature;
     this.lastScheduleElapsedSeconds = scheduleElapsed;
     this.clock = clock;
     this.laborPaused = laborPaused;
     this.nightPolicy = nightPolicy;
     this.monasteryFeastsEnabled = monasteryFeastsEnabled;
-    this.sabbathPausedToday = sabbathPausedToday;
+    this.sabbathPausedToday = restDayPausedToday;
+    this.holidayObservance = holidayObservance;
     let changed = false;
     for (const agent of this.agents.values()) {
       // Residents and founders only observe minute-resolution home, mass, and
@@ -1411,6 +1426,7 @@ export class VillagerRenderer {
             upgradeWorkplaceLabel.toLocaleLowerCase(),
             workplaceFireDisabled,
             residenceFireDisabled,
+            this.holidayObservance,
           ),
       activityState: onDuty ? 'active' : 'ready',
       workplaceLabel: 'Workplace',
@@ -1941,7 +1957,7 @@ export class VillagerRenderer {
         if (agent.routinePhase === 'work' && agent.role === 'worker') {
           this.tryBeginWorkerWalk(agent);
         } else if (agent.routinePhase === 'home_outdoors') {
-          if (agent.role === 'resident') {
+          if (agent.role === 'resident' && !this.holidayObservance) {
             const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
             if (residence) this.tryBeginWalk(agent, residence);
           } else {
@@ -2425,6 +2441,14 @@ export class VillagerRenderer {
     const shouldAttendMass = isSundayMassTime(
       this.clock,
       chapel != null,
+    ) || Boolean(
+      chapel
+      && this.holidayObservance
+      && holidayChapelActivityFor(
+        this.clock,
+        this.holidayObservance,
+        agent.personIdentity,
+      ),
     );
 
     if (shouldAttendMass && chapel) {
@@ -2535,6 +2559,7 @@ export class VillagerRenderer {
     ) {
       return false;
     }
+    if (this.holidayObservance) return false;
     if (
       this.isNightWatchDuty(agent, workplace)
       || (
@@ -3379,11 +3404,31 @@ export class VillagerRenderer {
     agent: VillagerAgent,
     homeState: HouseholdHomeState,
   ): boolean {
-    if (agent.routinePhase === homeState) return false;
+    const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
+    const backyard = residence
+      && homeState === 'home_outdoors'
+      && this.holidayObservance
+      ? holidayBackyardPosition(residence, agent.personIdentity)
+      : null;
+    if (
+      agent.routinePhase === homeState
+      && !backyard
+    ) return false;
+    if (
+      agent.routinePhase === homeState
+      && backyard
+      && agent.pathPurpose === null
+      && Math.hypot(agent.x - backyard.x, agent.z - backyard.z) < 0.1
+    ) return false;
     this.clearPath(agent);
     agent.routinePhase = homeState;
-    const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
-    if (residence) this.placeIdle(agent, residence);
+    if (residence && backyard) {
+      agent.x = backyard.x;
+      agent.z = backyard.z;
+      agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+      agent.yaw = backyard.yaw;
+      agent.idleDirty = false;
+    } else if (residence) this.placeIdle(agent, residence);
     else if (this.foundingCamp) this.placeFounderIdle(agent, this.foundingCamp);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
     return true;
@@ -4152,6 +4197,7 @@ function describeVillagerActivity(
   residenceWorksLabel = 'household improvement works',
   workplaceFireDisabled = false,
   residenceFireDisabled = false,
+  holiday: HolidayObservance | null = null,
 ): string {
   const workplaceLabel = workplace
     ? isResidenceUpgradeWorkplaceId(workplace.id)
@@ -4169,17 +4215,25 @@ function describeVillagerActivity(
         ? `Evacuating from the fire at ${workplaceLabel}`
         : 'Walking home';
     case 'going_to_mass':
-      return 'Walking to Sunday mass';
+      return holiday
+        ? `Walking to the ${holiday.label} gathering`
+        : 'Walking to Sunday mass';
     case 'at_mass':
       if (agent.ambientBehavior === 'talk') {
-        return 'Mingling with the Sunday congregation';
+        return holiday
+          ? `Celebrating ${holiday.label} with the congregation`
+          : 'Mingling with the Sunday congregation';
       }
       if (agent.ambientBehavior === 'wander') {
-        return 'Circulating through the Sunday congregation';
+        return holiday
+          ? `Joining the ${holiday.label} procession and congregation`
+          : 'Circulating through the Sunday congregation';
       }
-      return 'Attending Sunday mass';
+      return holiday ? `Observing ${holiday.label} at church` : 'Attending Sunday mass';
     case 'returning_from_mass':
-      return 'Walking home from Sunday mass';
+      return holiday
+        ? `Walking home from the ${holiday.label} gathering`
+        : 'Walking home from Sunday mass';
     case 'going_to_feast':
       return 'Walking by road to the monastery feast';
     case 'at_feast':
@@ -4283,7 +4337,11 @@ function describeVillagerActivity(
       if (agent.role === 'worker' && workplaceFireDisabled) {
         return `Waiting near home — ${workplaceLabel} is closed by fire`;
       }
+      if (holiday && agent.role !== 'founder') {
+        return `Celebrating ${holiday.label} with the household in the backyard`;
+      }
       if (agent.role === 'founder') {
+        if (holiday) return `Celebrating ${holiday.label} at the founders' camp`;
         switch (agent.ambientBehavior) {
           case 'wander': return "Walking around the founders' camp";
           case 'sit': return 'Sitting on the camp bench';

@@ -29,7 +29,6 @@ import {
   createBakeryMesh,
   createBreweryMesh,
   createCarpenterMesh,
-  createFerryLandingMesh,
   createGranaryMesh,
   createMonasteryMesh,
   createSmokehouseMesh,
@@ -112,7 +111,6 @@ export function createBuildingMesh(kind: BuildingKind, chapelTier: 1 | 2 | 3 = 3
     case 'windmill': return createWindmillMesh();
     case 'carpenter': return createCarpenterMesh();
     case 'weaver': return createWeaverMesh();
-    case 'ferry_landing': return createFerryLandingMesh();
     case 'vineyard': return createVineyardMesh();
     case 'pastoral_farmstead': return createPastoralFarmsteadMesh();
     case 'swineherd': return createSwineherdMesh();

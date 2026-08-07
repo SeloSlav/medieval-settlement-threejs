@@ -20,8 +20,8 @@ export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
 export function activeResidenceNeedKinds(tier: 0 | 1 | 2 | 3): ResidenceNeedKind[] {
   if (tier === 0) return [];
   return RESIDENCE_NEED_KINDS.filter((kind) => {
-    if (kind === 'food') return true;
-    if (kind === 'firewood' || kind === 'water') return tier >= 2;
+    if (kind === 'food' || kind === 'firewood') return true;
+    if (kind === 'water') return tier >= 2;
     return tier >= 3;
   });
 }

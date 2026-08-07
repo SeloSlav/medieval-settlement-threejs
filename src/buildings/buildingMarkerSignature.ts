@@ -4,7 +4,6 @@ import {
 } from '../generated/gameBalance.ts';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import type { BuildingState, LivestockHerdState } from '../resources/types.ts';
-import { localCivicReceiptGold } from '../economy/civicReceipts.ts';
 import { constructionVisualSignature } from './ConstructionSiteMesh.ts';
 import {
   MARKET_RECEIPT_VISUAL_CAPACITY,
@@ -147,13 +146,10 @@ export function buildingMarkerSignatures(
         : '';
       const localReceiptState = (
         building.kind === 'monastery'
-        || building.kind === 'ferry_landing'
       )
         && building.constructionComplete !== false
         ? `:local-gold:${stockpileVisualLevel(
-          building.kind === 'monastery'
-            ? building.gold
-            : localCivicReceiptGold(building),
+          building.gold,
           LOCAL_RECEIPT_VISUAL_CAPACITY,
           LOCAL_RECEIPT_VISUAL_SEGMENTS,
         )}`

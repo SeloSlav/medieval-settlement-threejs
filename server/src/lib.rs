@@ -2,6 +2,7 @@
 //! Single-player localhost: anonymous identity per browser token; resources/buildings/roads scoped by owner.
 
 mod backyard_garden_policy;
+mod apiary_policy;
 mod balance_generated;
 mod building_defs;
 mod burgage;
@@ -22,6 +23,7 @@ mod foraging_policy;
 mod frontier_economy_policy;
 mod granary_policy;
 mod harvest_reserve_policy;
+mod holiday_calendar;
 mod hydrology;
 mod hydrology_grid_generated;
 mod labor_steward_policy;

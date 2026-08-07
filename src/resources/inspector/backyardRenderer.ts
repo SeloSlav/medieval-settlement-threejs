@@ -190,7 +190,7 @@ function renderEmptyBackyardPicker(
         ? 'Haul away the reclaimed timber and stone from this backyard first.'
       : affordable
         ? ''
-        : `Need ${cost.timber} timber and ${cost.stone} stone (you have ${Math.floor(totals.timber)} timber, ${Math.floor(totals.stone)} stone).`;
+        : `Need ${renderBuildingResourceCost(cost, { compact: true })} (available ${Math.floor(totals.timber)} timber, ${Math.floor(totals.stone)} stone).`;
     return `
       <li class="backyard-picker-row">
         <button

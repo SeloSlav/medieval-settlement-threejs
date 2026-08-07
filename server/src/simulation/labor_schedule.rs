@@ -1,7 +1,9 @@
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::db::*;
-use crate::simulation::game_calendar::{household_consumption_paused, GameClock};
+use crate::simulation::game_calendar::{
+    holiday_observance, household_consumption_paused, GameClock,
+};
 use crate::simulation::SimTickContext;
 use crate::tables::Building;
 
@@ -36,6 +38,10 @@ pub fn labor_and_logistics_paused(
     owner: Identity,
     clock: &GameClock,
 ) -> bool {
+    if holiday_observance(clock).is_some() {
+        return true;
+    }
+
     if tick.owner_has_active_raider_threat(ctx, owner) {
         return true;
     }
@@ -63,7 +69,7 @@ pub fn is_consumption_paused(_ctx: &ReducerContext, _owner: Identity, clock: &Ga
 
 /// Parish wages, upkeep, and local alms accrue during the workday.
 pub fn is_parish_economy_paused(clock: &GameClock) -> bool {
-    !is_work_hours(clock)
+    !is_work_hours(clock) || holiday_observance(clock).is_some()
 }
 
 /// Chapel tithes pause outside work hours and on Sunday sabbath.
@@ -109,6 +115,9 @@ pub fn production_labor_paused(
     building: &Building,
     clock: &GameClock,
 ) -> bool {
+    if holiday_observance(clock).is_some() {
+        return true;
+    }
     if clock.is_work_hours {
         return labor_and_logistics_paused(ctx, tick, building.owner, clock);
     }

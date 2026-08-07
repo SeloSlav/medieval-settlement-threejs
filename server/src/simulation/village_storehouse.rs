@@ -71,6 +71,13 @@ pub fn step_storehouse_market_stalls(
                 STOREHOUSE_FIREWOOD_PER_DELIVERY,
             ),
             (
+                CommodityKind::Charcoal,
+                storehouse.charcoal,
+                FIREWOOD_DELIVERY_SPEED_MPS,
+                FIREWOOD_DELIVERY_UNLOAD_SEC,
+                STOREHOUSE_FIREWOOD_PER_DELIVERY,
+            ),
+            (
                 CommodityKind::Cloth,
                 storehouse.cloth,
                 TIMBER_DELIVERY_SPEED_MPS,

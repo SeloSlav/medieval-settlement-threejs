@@ -11,6 +11,7 @@ import {
   CALENDAR_WORK_START_HOUR,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
+import { holidayObservanceForClock } from './holidayCalendar.ts';
 
 export const WEEKDAY_NAMES = [
   'Sunday',
@@ -137,6 +138,9 @@ export function isLaborPaused(
   sabbathObservanceEnabled: boolean,
   staffedChapel: boolean,
 ): boolean {
+  if (holidayObservanceForClock(clock)) {
+    return true;
+  }
   if (!clock.isWorkHours) {
     return true;
   }
@@ -151,6 +155,10 @@ export function laborPauseLabel(
   sabbathObservanceEnabled: boolean,
   staffedChapel: boolean,
 ): string | null {
+  const holiday = holidayObservanceForClock(clock);
+  if (holiday) {
+    return holiday.label;
+  }
   if (!clock.isWorkHours) {
     return 'Night hours';
   }

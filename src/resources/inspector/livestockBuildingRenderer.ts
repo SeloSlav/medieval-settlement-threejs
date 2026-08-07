@@ -67,6 +67,7 @@ import {
   buildingRoadAccessRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import { renderResourceAmount } from '../../ui/resourceCost.ts';
 
 const SPECIES_LABEL = {
   cattle: 'Cattle',
@@ -324,7 +325,7 @@ export function renderLivestockBuildingInspector(
             .join('')}
         </div>
         <p class="inspector-action-panel__hint">${projectedCull.heads > 0
-          ? `${projectedCull.heads} surplus head currently project ${projectedCull.food.toFixed(0)} fresh food${projectedCull.preservedFood > 0 ? ` + up to ${projectedCull.preservedFood.toFixed(0)} cured provisions using ${livestockPreservationSaltRequired(projectedCull.preservedFood).toFixed(2)} salt` : ''}. Slaughter pauses unless the holding can store a whole animal’s actual yield; any unsalted cured share enters the fresh store instead.`
+          ? `${projectedCull.heads} surplus head currently project ${projectedCull.food.toFixed(0)} fresh food${projectedCull.preservedFood > 0 ? ` + up to ${projectedCull.preservedFood.toFixed(0)} cured provisions using ${renderResourceAmount('salt', livestockPreservationSaltRequired(projectedCull.preservedFood), { compact: true })}` : ''}. Slaughter pauses unless the holding can store a whole animal’s actual yield; any unsalted cured share enters the fresh store instead.`
           : `No current surplus. The holding will keep up to ${breedingReserve} head through winter.`}</p>
       </div>`
     : '';
@@ -380,7 +381,7 @@ export function renderLivestockBuildingInspector(
       ? 'No work cycles while unstaffed'
       : fodderPlan.currentGrainPerDay <= 0.01
         ? 'Pasture covers the current herd'
-        : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} unsupported head · ${environment.season === 'winter' && fodderPlan.hayStock > 0 ? `hay feeds first, then ` : ''}${fodderPlan.currentGrainPerDay.toFixed(1)} grain / day · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored`;
+        : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} unsupported head · ${environment.season === 'winter' && fodderPlan.hayStock > 0 ? 'hay feeds first, then ' : ''}${renderResourceAmount('grain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day' })} · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored`;
   const winterHerdPlan = !fodderPlan
     ? 'No herd'
     : `${fodderPlan.projectedHeadCount} head after planned culls · ${fodderPlan.winterPastureCapacity.toFixed(1)} pasture-supported · ${fodderPlan.winterUnsupportedHeads.toFixed(1)} need stored fodder`;
@@ -401,11 +402,11 @@ export function renderLivestockBuildingInspector(
         : `${fodderPlan.winterReserveStock.toFixed(1)} / ${fodderPlan.winterReserveTarget.toFixed(1)} onsite after hay · ${formatProvisionRunway(fodderPlan.winterCombinedRunwayDays)} combined coverage`;
   const winterResupplyRow = fodderPlan
     && fodderPlan.winterGrainNeed > fodderPlan.winterReserveTarget + 0.05
-    ? `<li><span>Winter resupply</span><span>Full store covers ${formatProvisionRunway(fodderPlan.storageRunwayDays)} · ${fodderPlan.winterGrainNeed.toFixed(1)} grain needed for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days</span></li>`
+    ? `<li><span>Winter resupply</span><span>Full store covers ${formatProvisionRunway(fodderPlan.storageRunwayDays)} · ${renderResourceAmount('grain', fodderPlan.winterGrainNeed, { compact: true, suffix: `for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })}</span></li>`
     : '';
   const dairySaltRow = building.kind !== 'pastoral_farmstead' || !fodderPlan
     ? ''
-    : `<li><span>Cheese salt</span><span>${fodderPlan.dairySaltStock.toFixed(2)} onsite${inboundSalt > 0.001 ? ` + ${inboundSalt.toFixed(2)} inbound` : ''} / ${fodderPlan.dairySaltTarget.toFixed(2)} working target · ${fodderPlan.dairySaltPerDay.toFixed(2)} / day at current herd and staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
+    : `<li><span>Cheese salt</span><span>${fodderPlan.dairySaltStock.toFixed(2)} onsite${inboundSalt > 0.001 ? ` + ${inboundSalt.toFixed(2)} inbound` : ''} / ${fodderPlan.dairySaltTarget.toFixed(2)} working target · ${renderResourceAmount('salt', fodderPlan.dairySaltPerDay, { compact: true, suffix: '/day' })} at current herd and staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
       <li><span>Salt logistics</span><span>${inboundSalt > 0.001
         ? `Salt cart ${formatTripPhaseLabel(inboundTrip!.phase).toLowerCase()} from ${context.worldQueries.getBuildingLabel(context.worldQueries.getBuilding(inboundTrip!.buildingId)?.kind ?? 'marketplace')}`
         : 'Road-linked mine or marketplace carts share salt between smokehouses and pastoral holdings by work priority and runway'} · empty salt stops farmhouse cheese, not fresh milk or herd care</span></li>`;

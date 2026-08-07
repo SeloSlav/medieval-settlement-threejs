@@ -146,17 +146,6 @@
       "sha256": "ad33fe906001270a4171da5ef6196a2c72576b140f3d04eb140441d9a167fcda"
     },
     {
-      "id": "building-ferry-landing",
-      "output": "public/sounds/buildings/ferry_landing.mp3",
-      "generatedAt": "2026-08-04T10:06:03.461Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "26",
-      "byteLength": 41839,
-      "sha256": "6bf4ef3d6381c7525422a97d212b7d572929a7b68cd3c118626f66b42096b805"
-    },
-    {
       "id": "building-fishing-camp",
       "output": "public/sounds/buildings/fishing_camp.mp3",
       "generatedAt": "2026-08-04T10:05:13.660Z",

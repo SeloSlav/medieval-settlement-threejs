@@ -27,6 +27,8 @@ export type FiscalPolicyState = {
   importDutyCollectedTotal: number;
   exportDutyCollectedTotal: number;
   privateExportIncomeTotal: number;
+  localDiscretionarySpendTotal: number;
+  localProducerIncomeTotal: number;
 };
 
 export const DEFAULT_FISCAL_POLICY: FiscalPolicyState = {
@@ -38,6 +40,8 @@ export const DEFAULT_FISCAL_POLICY: FiscalPolicyState = {
   importDutyCollectedTotal: 0,
   exportDutyCollectedTotal: 0,
   privateExportIncomeTotal: 0,
+  localDiscretionarySpendTotal: 0,
+  localProducerIncomeTotal: 0,
 };
 
 function clampFiniteRate(value: number, min: number, max: number): number {

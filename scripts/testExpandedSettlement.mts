@@ -45,7 +45,7 @@ import { describeToolbarStatus } from '../src/ui/buildToolbarStatus.ts';
 
 const expanded = [
   'threshing_barn', 'monastery', 'brewery', 'smokehouse', 'granary',
-  'apiary', 'watermill', 'windmill', 'carpenter', 'ferry_landing', 'vineyard',
+  'apiary', 'watermill', 'windmill', 'carpenter', 'vineyard',
 ] as const;
 for (const kind of expanded) {
   assert.ok(BUILDING_KINDS.includes(kind), `${kind} must remain a generated buildable kind`);
@@ -53,7 +53,7 @@ for (const kind of expanded) {
 }
 assert.equal(BUILDING_DEFINITIONS.watermill.requiresWaterShore, true);
 assert.equal(BUILDING_DEFINITIONS.windmill.requiresWaterShore, false);
-assert.equal(BUILDING_DEFINITIONS.ferry_landing.requiresWaterShore, true);
+assert.equal(BUILDING_KINDS.some((kind) => kind.includes('ferry')), false);
 assert.equal(BUILDING_DEFINITIONS.monastery.acceptsLabor, false);
 assert.equal(BUILDING_DEFINITIONS.monastery.requiresHillside, true);
 assert.equal(BUILDING_DEFINITIONS.monastery.workRadius, 0);
@@ -70,7 +70,7 @@ assert.deepEqual(
   getBuildingExtent('apiary', BUILDING_DEFINITIONS.apiary.workRadius),
   { type: 'work', label: 'Bee forage extent', radius: 48 },
 );
-for (const kind of ['brewery', 'smokehouse', 'granary', 'watermill', 'windmill', 'carpenter', 'ferry_landing'] as const) {
+for (const kind of ['brewery', 'smokehouse', 'granary', 'watermill', 'windmill', 'carpenter'] as const) {
   assert.equal(BUILDING_DEFINITIONS[kind].workRadius, 0, `${kind} has no spatial work extent`);
   assert.equal(getBuildingExtent(kind, BUILDING_DEFINITIONS[kind].workRadius), null, `${kind} must not render an extent ring`);
 }
@@ -375,13 +375,13 @@ const residence = (tier: 1 | 2 | 3): ResidenceState => ({
   tier, settlementTicks: 0, needs: createDefaultNeeds(), abandoned: false, householdWealth: 0,
 });
 const supply = { servingLodgeId: 'lodge', servingWellId: 'well', servingFoodSupplierId: 'food' };
-assert.deepEqual(activeResidenceNeedKinds(1), ['food']);
+assert.deepEqual(activeResidenceNeedKinds(1), ['firewood', 'food']);
 assert.deepEqual(activeResidenceNeedKinds(2), ['firewood', 'water', 'food']);
 assert.deepEqual(
   activeResidenceNeedKinds(3),
   ['firewood', 'water', 'food', 'preservedFood', 'ale', 'cloth', 'pottery'],
 );
-assert.equal(evaluateResidenceNeedRecovery(residence(1), supply).length, 1);
+assert.equal(evaluateResidenceNeedRecovery(residence(1), supply).length, 2);
 assert.equal(evaluateResidenceNeedRecovery(residence(2), supply).length, 3);
 assert.equal(
   evaluateResidenceNeedRecovery(residence(3), supply).length,

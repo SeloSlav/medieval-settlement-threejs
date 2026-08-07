@@ -109,7 +109,7 @@ fn complete_night_for_owner(
         let mut current = residence.clone();
         let mut needs = load_needs(ctx, residence.id);
         migrate_and_sync_food_inventory(&mut current, &mut needs);
-        let warm = residence.tier < 2
+        let warm = residence.tier < 1
             || (need_stock(&needs, ResidenceNeedKind::Firewood) > 1e-6
                 && needs
                     .iter()

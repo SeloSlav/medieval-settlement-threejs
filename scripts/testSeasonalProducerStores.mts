@@ -4,11 +4,10 @@ import { performance } from 'node:perf_hooks';
 import * as THREE from 'three';
 import {
   seasonalStockpileVisualSignature,
-  APIARY_FOOD_VISUAL_SEGMENTS,
   APIARY_HONEY_VISUAL_SEGMENTS,
   THRESHING_GRAIN_VISUAL_SEGMENTS,
   THRESHING_FLAX_VISUAL_SEGMENTS,
-  VINEYARD_FOOD_VISUAL_SEGMENTS,
+  VINEYARD_GRAPE_VISUAL_SEGMENTS,
   VINEYARD_WINE_VISUAL_SEGMENTS,
   syncSeasonalStockpileVisuals,
 } from '../src/buildings/seasonalStockpileVisuals.ts';
@@ -17,11 +16,9 @@ import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import { seasonalProducerOutputBlocker } from '../src/economy/specialtyTrade.ts';
 import {
-  APIARY_FOOD_PER_CYCLE,
   APIARY_HONEY_PER_CYCLE,
   BUILDING_STORAGE_CAPS,
-  VINEYARD_FOOD_PER_CYCLE,
-  VINEYARD_WINE_PER_CYCLE,
+  VINEYARD_GRAPES_PER_HARVEST_CYCLE,
 } from '../src/generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../src/resources/types.ts';
 
@@ -46,21 +43,15 @@ const stockGroups = [
   ],
   [
     'apiary',
-    'ApiaryFoodStockpile',
-    'ApiaryFoodSegment',
-    APIARY_FOOD_VISUAL_SEGMENTS,
-  ],
-  [
-    'apiary',
     'ApiaryHoneyStockpile',
     'ApiaryHoneySegment',
     APIARY_HONEY_VISUAL_SEGMENTS,
   ],
   [
     'vineyard',
-    'VineyardFoodStockpile',
-    'VineyardFoodSegment',
-    VINEYARD_FOOD_VISUAL_SEGMENTS,
+    'VineyardGrapeStockpile',
+    'VineyardGrapeSegment',
+    VINEYARD_GRAPE_VISUAL_SEGMENTS,
   ],
   [
     'vineyard',
@@ -105,7 +96,6 @@ syncSeasonalStockpileVisuals(
   apiaryMarker,
   building('apiary', { honey: 47 }),
 );
-assertVisibleSegments(apiaryMarker, 'ApiaryFoodStockpile', 'ApiaryFoodSegment', 0);
 assertVisibleSegments(apiaryMarker, 'ApiaryHoneyStockpile', 'ApiaryHoneySegment', 2);
 
 const pastoralMarker = createBuildingMesh('pastoral_farmstead');
@@ -130,17 +120,16 @@ syncSeasonalStockpileVisuals(
   vineyardMarker,
   building('vineyard', { grapes: 1, wine: 91 }),
 );
-assertVisibleSegments(vineyardMarker, 'VineyardFoodStockpile', 'VineyardFoodSegment', 1);
+assertVisibleSegments(vineyardMarker, 'VineyardGrapeStockpile', 'VineyardGrapeSegment', 1);
 assertVisibleSegments(vineyardMarker, 'VineyardWineStockpile', 'VineyardWineSegment', 2);
 syncSeasonalStockpileVisuals(vineyardMarker, building('vineyard'));
-assertVisibleSegments(vineyardMarker, 'VineyardFoodStockpile', 'VineyardFoodSegment', 0);
+assertVisibleSegments(vineyardMarker, 'VineyardGrapeStockpile', 'VineyardGrapeSegment', 0);
 assertVisibleSegments(vineyardMarker, 'VineyardWineStockpile', 'VineyardWineSegment', 0);
 
 assert.equal(
   seasonalProducerOutputBlocker(building('apiary', {
     honey: BUILDING_STORAGE_CAPS.apiary.honey
-      - APIARY_HONEY_PER_CYCLE
-      - APIARY_FOOD_PER_CYCLE,
+      - APIARY_HONEY_PER_CYCLE,
   })),
   null,
   'an exact whole apiary batch must fit',
@@ -148,7 +137,6 @@ assert.equal(
 const honeyBlocked = seasonalProducerOutputBlocker(building('apiary', {
   honey: BUILDING_STORAGE_CAPS.apiary.honey
     - APIARY_HONEY_PER_CYCLE
-    - APIARY_FOOD_PER_CYCLE
     + 0.1,
 }));
 assert.equal(honeyBlocked?.commodity, 'honey');
@@ -156,17 +144,19 @@ assert.ok(Math.abs((honeyBlocked?.missingRoom ?? 0) - 0.1) < 1e-9);
 
 assert.equal(
   seasonalProducerOutputBlocker(building('vineyard', {
-    wine: BUILDING_STORAGE_CAPS.vineyard.wine - VINEYARD_WINE_PER_CYCLE,
-    grapes: BUILDING_STORAGE_CAPS.vineyard.food - VINEYARD_FOOD_PER_CYCLE,
+    wine: BUILDING_STORAGE_CAPS.vineyard.wine,
+    grapes: BUILDING_STORAGE_CAPS.vineyard.food - VINEYARD_GRAPES_PER_HARVEST_CYCLE,
   })),
   null,
-  'an exact whole vineyard batch must fit',
+  'harvest backpressure depends on a whole grape batch, not future cellar output',
 );
 assert.equal(
   seasonalProducerOutputBlocker(building('vineyard', {
-    wine: BUILDING_STORAGE_CAPS.vineyard.wine - VINEYARD_WINE_PER_CYCLE + 0.1,
+    grapes: BUILDING_STORAGE_CAPS.vineyard.food
+      - VINEYARD_GRAPES_PER_HARVEST_CYCLE
+      + 0.1,
   }))?.commodity,
-  'wine',
+  'grapes',
 );
 
 const firstHoneyBand = building('apiary', { honey: 1 });
@@ -192,8 +182,8 @@ const serverSimulation = readFileSync(
 );
 assert.match(
   serverSimulation,
-  /else \{\s*producer_output_batch_fits\(outputs\.iter\(\)\.map/,
-  'seasonal co-products must retain their indivisible physical-capacity check',
+  /producer_output_batch_fits\(outputs\.iter\(\)\.map/,
+  'seasonal harvests must retain their indivisible physical-capacity check',
 );
 assert.ok(
   serverSimulation.indexOf('if !output_ready')

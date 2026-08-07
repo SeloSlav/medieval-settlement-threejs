@@ -279,15 +279,15 @@ assert.equal(
 );
 assert.match(
   wellInspector,
-  /Connected homes draw abstractly from stored water · workshop priority, input policy, then buffer coverage uses physical carts/,
+  /Connected homes draw directly from storage\. Workshops receive physical cart deliveries according to their input policy and buffer\./,
 );
 assert.match(wellInspector, /staffingPriorityLabel/);
 assert.match(wellInspector, /weaverFibreDeliveryPreferenceLabel/);
 assert.match(wellInspector, /industrialWaterTarget/);
 assert.match(wellInspector, /staged water/);
-assert.match(wellInspector, /still receive visible carts/);
-assert.match(wellInspector, /flax-working looms/);
-assert.match(wellInspector, /smithies/);
+assert.match(wellInspector, /Workshops receive physical cart deliveries/);
+assert.match(wellInspector, /\['weaver',[\s\S]*item\.kind === 'weaver'/);
+assert.match(wellInspector, /\['smithy',[\s\S]*item\.kind === 'smithy'/);
 assert.match(
   worldQueries,
   /candidate\.kind === 'weaver' && \(candidate\.flax \?\? 0\) <= 1e-6/,

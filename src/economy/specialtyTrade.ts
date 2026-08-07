@@ -1,6 +1,11 @@
 import {
-  APIARY_FOOD_PER_CYCLE,
   APIARY_HONEY_PER_CYCLE,
+  APIARY_BALANCED_HONEY_RESERVE,
+  APIARY_BALANCED_YIELD_MULTIPLIER,
+  APIARY_CONSERVATIVE_HONEY_RESERVE,
+  APIARY_CONSERVATIVE_YIELD_MULTIPLIER,
+  APIARY_EXTRACTIVE_HONEY_RESERVE,
+  APIARY_EXTRACTIVE_YIELD_MULTIPLIER,
   APIARY_SEASON_END_MONTH,
   APIARY_SEASON_START_MONTH,
   BUILDING_STORAGE_CAPS,
@@ -9,11 +14,13 @@ import {
   SPECIALTY_EXPORT_GOLD_PER_CHEESE,
   SPECIALTY_EXPORT_GOLD_PER_CLOTH,
   SPECIALTY_EXPORT_GOLD_PER_HONEY,
+  SPECIALTY_EXPORT_GOLD_PER_POTTERY,
   SPECIALTY_EXPORT_GOLD_PER_WINE,
-  VINEYARD_FOOD_PER_CYCLE,
+  VINEYARD_GRAPES_PER_HARVEST_CYCLE,
+  VINEYARD_BALANCED_GRAPE_RESERVE,
+  VINEYARD_WINE_FIRST_GRAPE_RESERVE,
   VINEYARD_HARVEST_END_MONTH,
   VINEYARD_HARVEST_START_MONTH,
-  VINEYARD_WINE_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import { MONTH_NAMES } from '../world/gameCalendar.ts';
@@ -91,8 +98,90 @@ export function specialtySeasonStatus(
   return null;
 }
 
+export type SpecialtyMarketFamily = 'drink' | 'provision' | 'wares';
+
+export const SPECIALTY_MARKET_FAMILIES = [
+  { id: 0, kind: 'drink', label: 'Drinks', goods: 'ale and wine' },
+  { id: 1, kind: 'provision', label: 'Provisions', goods: 'honey and cheese' },
+  { id: 2, kind: 'wares', label: 'Wares', goods: 'cloth and pottery' },
+] as const;
+
+export const APIARY_HARVEST_POLICIES = [
+  {
+    value: 0,
+    label: 'Conservative',
+    reserve: APIARY_CONSERVATIVE_HONEY_RESERVE,
+    yieldMultiplier: APIARY_CONSERVATIVE_YIELD_MULTIPLIER,
+    hint: 'Protect winter stores and colony health at the cost of current harvest.',
+  },
+  {
+    value: 1,
+    label: 'Balanced',
+    reserve: APIARY_BALANCED_HONEY_RESERVE,
+    yieldMultiplier: APIARY_BALANCED_YIELD_MULTIPLIER,
+    hint: 'Keep a normal winter reserve while taking a full seasonal harvest.',
+  },
+  {
+    value: 2,
+    label: 'Extractive',
+    reserve: APIARY_EXTRACTIVE_HONEY_RESERVE,
+    yieldMultiplier: APIARY_EXTRACTIVE_YIELD_MULTIPLIER,
+    hint: 'Take more honey now; a weak winter store can damage next year’s colony.',
+  },
+] as const;
+
+export const VINEYARD_PRODUCTION_POLICIES = [
+  {
+    value: 0,
+    label: 'Table grapes',
+    reserve: Number.POSITIVE_INFINITY,
+    hint: 'Keep every grape edible; do not begin new fermentation batches.',
+  },
+  {
+    value: 1,
+    label: 'Balanced',
+    reserve: VINEYARD_BALANCED_GRAPE_RESERVE,
+    hint: 'Protect a table-grape reserve, then ferment the surplus.',
+  },
+  {
+    value: 2,
+    label: 'Wine first',
+    reserve: VINEYARD_WINE_FIRST_GRAPE_RESERVE,
+    hint: 'Protect only a small table reserve and send most grapes to the cellar.',
+  },
+] as const;
+
+export function apiaryHarvestPolicy(value: number | undefined) {
+  return APIARY_HARVEST_POLICIES.find((policy) => policy.value === value)
+    ?? APIARY_HARVEST_POLICIES[1];
+}
+
+export function vineyardProductionPolicy(value: number | undefined) {
+  return VINEYARD_PRODUCTION_POLICIES.find((policy) => policy.value === value)
+    ?? VINEYARD_PRODUCTION_POLICIES[1];
+}
+
+export type SpecialtyFamilyRates = Record<SpecialtyMarketFamily, number>;
+
+export function specialtyFamilyForCommodity(
+  commodity: 'ale' | 'wine' | 'honey' | 'cheese' | 'cloth' | 'pottery',
+): SpecialtyMarketFamily {
+  if (commodity === 'ale' || commodity === 'wine') return 'drink';
+  if (commodity === 'honey' || commodity === 'cheese') return 'provision';
+  return 'wares';
+}
+
+export function resolvedSpecialtyFamilyPolicy(
+  familyPolicy: number | undefined,
+  legacyPolicy: number | undefined,
+): number {
+  return familyPolicy === 255 || familyPolicy == null
+    ? marketplaceSpecialtyExportPolicy(legacyPolicy).value
+    : marketplaceSpecialtyExportPolicy(familyPolicy).value;
+}
+
 export type SeasonalProducerOutputBlocker = {
-  commodity: 'honey' | 'wine' | 'grapes';
+  commodity: 'honey' | 'grapes';
   label: string;
   stock: number;
   capacity: number;
@@ -106,12 +195,11 @@ export function seasonalProducerOutputBlocker(
 ): SeasonalProducerOutputBlocker | null {
   const outputs = building.kind === 'apiary'
     ? [
-        ['honey', 'Honey', building.honey, BUILDING_STORAGE_CAPS.apiary.honey, APIARY_HONEY_PER_CYCLE + APIARY_FOOD_PER_CYCLE],
+        ['honey', 'Honey', building.honey, BUILDING_STORAGE_CAPS.apiary.honey, APIARY_HONEY_PER_CYCLE],
       ] as const
     : building.kind === 'vineyard'
       ? [
-          ['wine', 'Wine', building.wine, BUILDING_STORAGE_CAPS.vineyard.wine, VINEYARD_WINE_PER_CYCLE],
-          ['grapes', 'Grapes', building.grapes ?? 0, BUILDING_STORAGE_CAPS.vineyard.food, VINEYARD_FOOD_PER_CYCLE],
+          ['grapes', 'Grapes', building.grapes ?? 0, BUILDING_STORAGE_CAPS.vineyard.food, VINEYARD_GRAPES_PER_HARVEST_CYCLE],
         ] as const
       : null;
   if (!outputs) return null;
@@ -154,6 +242,7 @@ export type MarketplaceSpecialtyQueue = {
   wineUnits: number;
   clothUnits: number;
   cheeseUnits: number;
+  potteryUnits: number;
   units: number;
   goldValue: number;
   exportWorkers: number;
@@ -163,26 +252,30 @@ export type MarketplaceSpecialtyQueue = {
 
 export function marketplaceSpecialtyQueue(
   building: BuildingState,
-  marketRate = 1,
+  marketRate: number | SpecialtyFamilyRates = 1,
 ): MarketplaceSpecialtyQueue {
-  const units = building.ale + building.honey + building.wine + (building.cloth ?? 0) + (building.cheese ?? 0);
+  const units = building.ale + building.honey + building.wine + (building.cloth ?? 0)
+    + (building.cheese ?? 0) + (building.pottery ?? 0);
   const unitsPerSecond = marketplaceSpecialtyExportRate(building);
-  const boundedRate = Number.isFinite(marketRate) ? Math.max(0, marketRate) : 0;
+  const rateFor = (family: SpecialtyMarketFamily): number => {
+    const raw = typeof marketRate === 'number' ? marketRate : marketRate[family];
+    return Number.isFinite(raw) ? Math.max(0, raw) : 0;
+  };
   return {
     aleUnits: building.ale,
     honeyUnits: building.honey,
     wineUnits: building.wine,
     clothUnits: building.cloth ?? 0,
     cheeseUnits: building.cheese ?? 0,
+    potteryUnits: building.pottery ?? 0,
     units,
     goldValue:
-      (
-        building.ale * SPECIALTY_EXPORT_GOLD_PER_ALE
-        + building.honey * SPECIALTY_EXPORT_GOLD_PER_HONEY
-        + building.wine * SPECIALTY_EXPORT_GOLD_PER_WINE
-        + (building.cloth ?? 0) * SPECIALTY_EXPORT_GOLD_PER_CLOTH
-        + (building.cheese ?? 0) * SPECIALTY_EXPORT_GOLD_PER_CHEESE
-      ) * boundedRate,
+      (building.ale * SPECIALTY_EXPORT_GOLD_PER_ALE
+        + building.wine * SPECIALTY_EXPORT_GOLD_PER_WINE) * rateFor('drink')
+      + (building.honey * SPECIALTY_EXPORT_GOLD_PER_HONEY
+        + (building.cheese ?? 0) * SPECIALTY_EXPORT_GOLD_PER_CHEESE) * rateFor('provision')
+      + ((building.cloth ?? 0) * SPECIALTY_EXPORT_GOLD_PER_CLOTH
+        + (building.pottery ?? 0) * SPECIALTY_EXPORT_GOLD_PER_POTTERY) * rateFor('wares'),
     exportWorkers: marketplaceSpecialtyExportWorkers(building),
     unitsPerSecond,
     clearSeconds: units > 1e-6 && unitsPerSecond > 1e-6 ? units / unitsPerSecond : null,
@@ -192,7 +285,7 @@ export function marketplaceSpecialtyQueue(
 export function formatMarketplaceSpecialtyQueue(
   queue: Pick<
     MarketplaceSpecialtyQueue,
-    'aleUnits' | 'honeyUnits' | 'wineUnits' | 'clothUnits' | 'cheeseUnits' | 'units' | 'goldValue'
+    'aleUnits' | 'honeyUnits' | 'wineUnits' | 'clothUnits' | 'cheeseUnits' | 'potteryUnits' | 'units' | 'goldValue'
   >,
 ): string {
   const stored = [
@@ -201,12 +294,13 @@ export function formatMarketplaceSpecialtyQueue(
     ['wine', queue.wineUnits],
     ['cloth', queue.clothUnits],
     ['cheese', queue.cheeseUnits],
+    ['pottery', queue.potteryUnits],
   ] as const;
   const readable = stored
     .filter(([, units]) => units > 1e-6)
     .map(([label, units]) => `${units.toFixed(1)} ${label}`);
   if (readable.length === 0) {
-    return 'Empty - awaiting ale, honey, wine, cloth, or cheese carts';
+    return 'Empty - awaiting ale, honey, wine, cloth, cheese, or pottery carts';
   }
   return `${readable.join(' · ')} · ${queue.units.toFixed(1)} total · about ${queue.goldValue.toFixed(1)} gold`;
 }

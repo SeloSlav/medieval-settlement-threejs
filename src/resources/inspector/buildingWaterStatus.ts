@@ -1,5 +1,6 @@
 import type { BuildingState } from '../types.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
+import { renderResourceAmount } from '../../ui/resourceCost.ts';
 
 export type WellWaterAssessment = {
   required: number;
@@ -56,7 +57,7 @@ export function formatWellWaterDetailRows(
     return noneLabel ? `<li><span>Water use</span><span>${noneLabel}</span></li>` : '';
   }
   const inboundLabel = assessment.inboundWater ? ' · cart inbound' : '';
-  return `<li><span>Supplying wells</span><span>${assessment.wellSummary}</span></li><li><span>Stored water</span><span>${assessment.storedWater.toFixed(1)} / ${assessment.required} needed${inboundLabel}</span></li><li><span>Water per cycle</span><span>${assessment.required}</span></li>`;
+  return `<li><span>Supplying wells</span><span>${assessment.wellSummary}</span></li><li><span>Stored water</span><span>${assessment.storedWater.toFixed(1)} / ${assessment.required} needed${inboundLabel}</span></li><li><span>Water per cycle</span><span>${renderResourceAmount('water', assessment.required, { compact: true })}</span></li>`;
 }
 
 export function wellWaterStatusIssue(assessment: WellWaterAssessment | null): string | null {

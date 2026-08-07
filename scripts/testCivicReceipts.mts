@@ -7,13 +7,12 @@ import {
   findPreferredCivicTreasurySeat,
   localCivicReceiptGold,
 } from '../src/economy/civicReceipts.ts';
-import { FERRY_GOLD_PER_DAY } from '../src/generated/gameBalance.ts';
+import { MONASTERY_PILGRIMAGE_GOLD_PER_DAY } from '../src/generated/gameBalance.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { computeGoldAwaitingCollection } from '../src/resources/resourceTotals.ts';
 import type { BuildingState } from '../src/resources/types.ts';
 import { buildingMarkerCollectionSignature } from '../src/buildings/buildingMarkerSignature.ts';
 import {
-  createFerryLandingMesh,
   createMonasteryMesh,
   LOCAL_RECEIPT_VISUAL_SEGMENTS,
 } from '../src/buildings/meshes/expandedBuildingMeshes.ts';
@@ -58,7 +57,7 @@ function building(
 function goldTrip(partial: Partial<DeliveryTripState> = {}): DeliveryTripState {
   return {
     id: 'trip-1',
-    buildingId: 'ferry',
+    buildingId: 'monastery',
     residenceId: null,
     destinationKind: 'building',
     targetBuildingId: 'hall',
@@ -80,15 +79,6 @@ function goldTrip(partial: Partial<DeliveryTripState> = {}): DeliveryTripState {
   };
 }
 
-const ferry = building({
-  id: 'ferry',
-  kind: 'ferry_landing',
-  x: 10,
-  z: 0,
-  assignedLabor: 2,
-  gold: 3,
-  civicReceiptsGold: 3,
-});
 const monastery = building({
   id: 'monastery',
   kind: 'monastery',
@@ -133,79 +123,78 @@ assert.equal(
 const roadDistance = () => 90;
 assert.equal(
   civicReceiptCollectionPlan({
-    source: { ...ferry, gold: 1, civicReceiptsGold: 1 },
-    buildings: [ferry, foundingCamp],
+    source: { ...monastery, gold: 1, civicReceiptsGold: 1 },
+    buildings: [monastery, foundingCamp],
     trips: [],
     physicalEconomy: true,
-    dispatchThreshold: FERRY_GOLD_PER_DAY,
+    dispatchThreshold: MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     getRoadPathDistance: roadDistance,
   }).status,
   'accumulating',
 );
 assert.equal(
   civicReceiptCollectionPlan({
-    source: ferry,
-    buildings: [ferry, townHall],
+    source: monastery,
+    buildings: [monastery, townHall],
     trips: [],
     physicalEconomy: true,
-    dispatchThreshold: FERRY_GOLD_PER_DAY,
+    dispatchThreshold: MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     getRoadPathDistance: () => null,
   }).status,
   'no-road',
 );
 assert.equal(
   civicReceiptCollectionPlan({
-    source: ferry,
-    buildings: [ferry, townHall],
+    source: monastery,
+    buildings: [monastery, townHall],
     trips: [],
     physicalEconomy: true,
-    dispatchThreshold: FERRY_GOLD_PER_DAY,
+    dispatchThreshold: MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     getRoadPathDistance: roadDistance,
   }).status,
   'ready',
 );
 const moving = civicReceiptCollectionPlan({
-  source: ferry,
-  buildings: [ferry, townHall],
+  source: monastery,
+  buildings: [monastery, townHall],
   trips: [goldTrip()],
   physicalEconomy: true,
-  dispatchThreshold: FERRY_GOLD_PER_DAY,
+  dispatchThreshold: MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
   getRoadPathDistance: roadDistance,
 });
 assert.equal(moving.status, 'en-route');
 assert.equal(moving.inTransitGold, 2.25);
 assert.equal(
   civicReceiptCollectionPlan({
-    source: ferry,
-    buildings: [ferry],
+    source: monastery,
+    buildings: [monastery],
     trips: [],
     physicalEconomy: true,
-    dispatchThreshold: FERRY_GOLD_PER_DAY,
+    dispatchThreshold: MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     getRoadPathDistance: roadDistance,
   }).status,
   'no-treasury',
 );
 assert.equal(
   civicReceiptCollectionPlan({
-    source: ferry,
-    buildings: [ferry, townHall],
+    source: monastery,
+    buildings: [monastery, townHall],
     trips: [],
     physicalEconomy: false,
-    dispatchThreshold: FERRY_GOLD_PER_DAY,
+    dispatchThreshold: MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     getRoadPathDistance: roadDistance,
   }).status,
   'legacy',
 );
 
 assert.equal(
-  computeGoldAwaitingCollection([market, monastery, ferry, townHall]),
-  20,
+  computeGoldAwaitingCollection([market, monastery, townHall]),
+  17,
   'the HUD must include market receipts plus only the civic subset of local purses',
 );
 
 for (const [mesh, containerName, segmentName] of [
   [createMonasteryMesh(), 'MonasteryTreasuryChest', 'MonasteryGoldSegment'],
-  [createFerryLandingMesh(), 'FerryFareChest', 'FerryReceiptSegment'],
 ] as const) {
   const container = mesh.getObjectByName(containerName);
   assert.ok(container);
@@ -216,11 +205,6 @@ for (const [mesh, containerName, segmentName] of [
   assert.equal(container.visible, false);
 }
 
-assert.notEqual(
-  buildingMarkerCollectionSignature(new Map([[ferry.id, { ...ferry, gold: 2, civicReceiptsGold: 2 }]])),
-  buildingMarkerCollectionSignature(new Map([[ferry.id, { ...ferry, gold: 12, civicReceiptsGold: 12 }]])),
-  'fare lockboxes should visibly grow and decline in bounded steps',
-);
 assert.notEqual(
   buildingMarkerCollectionSignature(new Map([[monastery.id, { ...monastery, gold: 2 }]])),
   buildingMarkerCollectionSignature(new Map([[monastery.id, { ...monastery, gold: 12 }]])),
@@ -237,6 +221,7 @@ const inspector = readFileSync(
   'src/resources/inspector/expandedBuildingRenderer.ts',
   'utf8',
 );
+const removedContent = readFileSync('server/src/simulation/removed_content.rs', 'utf8');
 
 assert.doesNotMatch(
   expandedServer,
@@ -245,13 +230,14 @@ assert.doesNotMatch(
 );
 assert.match(
   expandedServer,
-  /step_monastery[\s\S]*credit_local_civic_receipts[\s\S]*try_dispatch_local_civic_receipts[\s\S]*step_ferry_landing/,
+  /step_monastery[\s\S]*credit_local_civic_receipts[\s\S]*try_dispatch_local_civic_receipts[\s\S]*step_carpenter/,
 );
-assert.match(
+assert.doesNotMatch(
   expandedServer,
-  /step_ferry_landing[\s\S]*onsite_building_labor[\s\S]*credit_local_civic_receipts[\s\S]*try_dispatch_local_civic_receipts/,
-  'a ferry cart must remove a real ferryman from onsite income production',
+  /step_ferry_landing/,
+  'removed ferry gameplay must not remain in the active economy loop',
 );
+assert.match(removedContent, /ferry_landing[\s\S]*salvage_pile/);
 assert.match(receiptServer, /available_free_haulers/);
 assert.match(receiptServer, /physical_treasury_seat/);
 assert.match(receiptServer, /try_start_building_supply_trip/);
@@ -268,24 +254,24 @@ assert.match(
   /#\[default\(0\.0\)\]\s+pub civic_receipts_gold: f64/,
   'the schema addition must default safely for existing saves',
 );
-assert.match(inspector, /Fare income/);
+assert.doesNotMatch(inspector, /Fare income/);
 assert.match(inspector, /Civic visitor gifts/);
 assert.match(inspector, /Civic collection/);
 
-const perfBuildings = [ferry, townHall];
+const perfBuildings = [monastery, townHall];
 const started = performance.now();
 let checksum = 0;
 for (let index = 0; index < 100_000; index += 1) {
   checksum += civicReceiptCollectionPlan({
     source: {
-      ...ferry,
+      ...monastery,
       gold: index % 30,
       civicReceiptsGold: index % 30,
     },
     buildings: perfBuildings,
     trips: [],
     physicalEconomy: true,
-    dispatchThreshold: FERRY_GOLD_PER_DAY,
+    dispatchThreshold: MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     getRoadPathDistance: roadDistance,
   }).heldGold;
 }

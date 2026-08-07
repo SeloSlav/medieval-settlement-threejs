@@ -40,6 +40,7 @@ import {
   WOODCUTTER_TIMBER_RESERVE_PRESETS,
 } from '../../economy/woodcutterPolicy.ts';
 import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
+import { renderResourceCost } from '../../ui/resourceCost.ts';
 
 export function renderWoodcuttersLodgeInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -185,6 +186,7 @@ export function renderWoodcuttersLodgeInspector(
       <li><span>Household route</span><span>${residenceSummary}</span></li>
       <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
       <li><span>Process interval</span><span>${definition.harvestInterval}s</span></li>
+      <li><span>Inputs per cycle</span><span>${renderResourceCost({ timber: timberPerCycle }, { compact: true })}</span></li>
       <li><span>Output per cycle</span><span>${processOutputLabel}</span></li>
       <li><span>Construction timber floor</span><span>${Math.round(timberReserve)}</span></li>
       <li><span>Unreserved building timber</span><span>${Math.floor(availableUnreservedTimber)} total · ${Math.floor(timberAboveReserve)} above floor</span></li>

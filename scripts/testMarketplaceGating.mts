@@ -21,6 +21,25 @@ assert.equal(flowerWithoutMarket.marketFood, 0);
 assert.equal(flowerWithoutMarket.economicActivity, 0);
 
 const flowerWithMarket = computeBackyardGardenTickEffects('flower_garden', 3, true);
-assert.ok(flowerWithMarket.economicActivity > 0);
+assert.equal(
+  flowerWithMarket.economicActivity,
+  0,
+  'flowers improve settlement attraction and apiary forage but do not create passive market coin',
+);
+
+const herbWithoutOverflow = computeBackyardGardenTickEffects('herb_garden', 3, true);
+assert.equal(herbWithoutOverflow.economicActivity, 0);
+const herbWithMarketRemedies = computeBackyardGardenTickEffects(
+  'herb_garden',
+  3,
+  true,
+  undefined,
+  1,
+  0.5,
+);
+assert.ok(
+  herbWithMarketRemedies.economicActivity > 0,
+  'only remedy units actually deposited at a staffed market create herb income',
+);
 
 console.log('marketplace gating tests passed');

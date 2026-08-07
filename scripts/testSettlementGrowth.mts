@@ -48,6 +48,12 @@ assert.equal(hungryPlan.waitingOnHomes.food, 1);
 assert.equal(hungryPlan.firstPausedResidenceId, hungry.id);
 stockToThreshold(hungry, 'food');
 assert.equal(
+  computeSettlementGrowthPlan({ state: stateWith(hungry) }).waitingOnHomes.firewood,
+  1,
+  'a basic cottage must not grow while its hearth is empty',
+);
+stockToThreshold(hungry, 'firewood');
+assert.equal(
   computeSettlementGrowthPlan({ state: stateWith(hungry) }).progressingHomes,
   1,
 );

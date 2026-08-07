@@ -88,7 +88,6 @@ const OCCUPATIONS: Record<BuildingKind, string> = {
   windmill: 'Miller',
   carpenter: 'Carpenter',
   weaver: 'Weaver',
-  ferry_landing: 'Ferryman',
   vineyard: 'Vintner',
 };
 

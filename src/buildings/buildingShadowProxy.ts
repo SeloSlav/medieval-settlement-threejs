@@ -44,7 +44,6 @@ const BUILDING_SHADOW_HEIGHT: Record<BuildingKind, number> = {
   windmill: 13.8,
   carpenter: 5.8,
   weaver: 5.7,
-  ferry_landing: 4.8,
   vineyard: 4.2,
   pastoral_farmstead: 6.4,
   swineherd: 4.7,
@@ -376,7 +375,6 @@ function buildingShadowProxySpec(
     case 'windmill':
     case 'carpenter':
     case 'weaver':
-    case 'ferry_landing':
     case 'vineyard':
     case 'pastoral_farmstead':
     case 'swineherd':

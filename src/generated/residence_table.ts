@@ -75,4 +75,5 @@ export default __t.row({
   smokedFish: __t.f64().name("smoked_fish"),
   cheese: __t.f64(),
   foodInventoryMigrated: __t.bool().name("food_inventory_migrated"),
+  lastDiscretionaryMarketDay: __t.u64().name("last_discretionary_market_day"),
 });

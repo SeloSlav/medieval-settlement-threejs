@@ -142,6 +142,16 @@ export const Building = __t.object("Building", {
   smokedFish: __t.f64(),
   cheese: __t.f64(),
   privateExportProceedsGold: __t.f64(),
+  vineyardProductionPolicy: __t.u8(),
+  vineyardFermentingGrapes: __t.f64(),
+  vineyardFermentationProgress: __t.f64(),
+  apiaryHarvestPolicy: __t.u8(),
+  apiaryColonyHealth: __t.f64(),
+  apiaryLastWinterYear: __t.u32(),
+  apiaryForageScore: __t.f64(),
+  marketplaceDrinkExportPolicy: __t.u8(),
+  marketplaceProvisionExportPolicy: __t.u8(),
+  marketplaceWaresExportPolicy: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -374,6 +384,12 @@ export const MarketState = __t.object("MarketState", {
   bulletin: __t.string(),
   specialtyPriceMult: __t.f64(),
   regionalSpecialtyDemand: __t.f64(),
+  drinkPriceMult: __t.f64(),
+  provisionPriceMult: __t.f64(),
+  waresPriceMult: __t.f64(),
+  regionalDrinkDemand: __t.f64(),
+  regionalProvisionDemand: __t.f64(),
+  regionalWaresDemand: __t.f64(),
 });
 export type MarketState = __Infer<typeof MarketState>;
 
@@ -484,6 +500,8 @@ export const PlayerResources = __t.object("PlayerResources", {
   importDutyCollectedTotal: __t.f64(),
   exportDutyCollectedTotal: __t.f64(),
   privateExportIncomeTotal: __t.f64(),
+  localDiscretionarySpendTotal: __t.f64(),
+  localProducerIncomeTotal: __t.f64(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 
@@ -580,6 +598,7 @@ export const Residence = __t.object("Residence", {
   smokedFish: __t.f64(),
   cheese: __t.f64(),
   foodInventoryMigrated: __t.bool(),
+  lastDiscretionaryMarketDay: __t.u64(),
 });
 export type Residence = __Infer<typeof Residence>;
 

@@ -122,7 +122,6 @@ export function renderBuildingInspector(
     case 'potter_kiln':
     case 'carpenter':
     case 'weaver':
-    case 'ferry_landing':
     case 'vineyard':
       return withStaffingPriority(renderExpandedBuildingInspector(target, context), building);
     case 'pastoral_farmstead':

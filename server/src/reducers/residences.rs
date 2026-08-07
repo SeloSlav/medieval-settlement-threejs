@@ -312,6 +312,7 @@ pub fn place_burgage_zone(
             smoked_fish: 0.0,
             cheese: 0.0,
             food_inventory_migrated: true,
+            last_discretionary_market_day: 0,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {

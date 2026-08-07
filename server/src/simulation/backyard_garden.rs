@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use crate::backyard_garden_policy::backyard_garden_seasonal_multiplier;
 use crate::balance_generated::{
     backyard_garden_def, BackyardGardenKind, CALENDAR_SECONDS_PER_DAY,
-    FOOD_SALE_GOLD_PER_UNIT, HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY, TICK_DT,
+    FOOD_SALE_GOLD_PER_UNIT, HERB_REMEDIES_PER_PERSON_DAY, HERB_REMEDY_CAPACITY,
+    HERB_REMEDY_SALE_GOLD_PER_UNIT, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
@@ -66,6 +67,7 @@ pub fn step_backyard_gardens(
             });
         let toll = step_one_garden(
             ctx,
+            tick,
             kind,
             &residence,
             marketplace_id,
@@ -94,6 +96,7 @@ pub fn step_backyard_gardens(
 
 fn step_one_garden(
     ctx: &ReducerContext,
+    tick: &SimTickContext,
     kind: BackyardGardenKind,
     residence: &Residence,
     marketplace_id: Option<u64>,
@@ -109,9 +112,25 @@ fn step_one_garden(
         return 0.0;
     }
 
+    let pollination_multiplier = match kind {
+        BackyardGardenKind::AppleOrchard | BackyardGardenKind::CherryOrchard => {
+            crate::simulation::expanded_economy::nearby_apiary_pollination_multiplier(
+                ctx,
+                tick,
+                residence.owner,
+                residence.x,
+                residence.z,
+            )
+        }
+        _ => 1.0,
+    };
     let mut market_food_sold = 0.0;
     if def.food_per_person_per_sec > 1e-9 {
-        let total_food = def.food_per_person_per_sec * population * seasonal_multiplier * TICK_DT;
+        let total_food = def.food_per_person_per_sec
+            * population
+            * seasonal_multiplier
+            * pollination_multiplier
+            * TICK_DT;
         let self_share = if marketplace_id.is_some() {
             def.food_self_share.clamp(0.0, 1.0)
         } else {
@@ -133,6 +152,7 @@ fn step_one_garden(
         }
     }
 
+    let mut market_remedies_sold = 0.0;
     if kind == BackyardGardenKind::HerbGarden {
         let remedies =
             population * HERB_REMEDIES_PER_PERSON_DAY * seasonal_multiplier * TICK_DT
@@ -143,7 +163,7 @@ fn step_one_garden(
             remedies,
         );
         if let Some(marketplace_id) = marketplace_id {
-            deposit_market_commodity(
+            market_remedies_sold = deposit_market_commodity(
                 ctx,
                 marketplace_id,
                 CommodityKind::Remedies,
@@ -163,10 +183,9 @@ fn step_one_garden(
         .max()
         .unwrap_or(0);
     let satisfaction_multiplier = service_economic_multiplier(max_service_deficit);
-    let economic_activity = (
-        def.gold_per_person_per_sec * population * TICK_DT * seasonal_multiplier
-            + market_food_sold * FOOD_SALE_GOLD_PER_UNIT
-    ) * satisfaction_multiplier;
+    let economic_activity = (market_food_sold * FOOD_SALE_GOLD_PER_UNIT
+        + market_remedies_sold * HERB_REMEDY_SALE_GOLD_PER_UNIT)
+        * satisfaction_multiplier;
     if economic_activity <= 1e-9 {
         return 0.0;
     }

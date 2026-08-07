@@ -296,6 +296,13 @@ pub struct PlayerResources {
     pub export_duty_collected_total: f64,
     #[default(0.0)]
     pub private_export_income_total: f64,
+    /// Household coin spent on optional market goods. This is conserved local
+    /// circulation, distinct from regional exports that introduce new coin.
+    #[default(0.0)]
+    pub local_discretionary_spend_total: f64,
+    /// Net local producer proceeds created by those optional purchases.
+    #[default(0.0)]
+    pub local_producer_income_total: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -690,6 +697,35 @@ pub struct Building {
     /// `civic_receipts_gold` is the protected public subset.
     #[default(0.0)]
     pub private_export_proceeds_gold: f64,
+    /// Vineyard cellar allocation: 0 table grapes, 1 balanced, 2 wine first.
+    #[default(1u8)]
+    pub vineyard_production_policy: u8,
+    /// Grapes physically committed to the current sealed fermentation batch.
+    #[default(0.0)]
+    pub vineyard_fermenting_grapes: f64,
+    /// Worked cellar seconds accumulated toward the current wine batch.
+    #[default(0.0)]
+    pub vineyard_fermentation_progress: f64,
+    /// Apiary extraction choice: 0 conservative, 1 balanced, 2 extractive.
+    #[default(1u8)]
+    pub apiary_harvest_policy: u8,
+    /// Persistent colony strength after overwintering, normally 0.35-1.10.
+    #[default(1.0)]
+    pub apiary_colony_health: f64,
+    /// Last calendar year whose December winter stores were consumed.
+    #[default(0u32)]
+    pub apiary_last_winter_year: u32,
+    /// Last authoritative bounded forage score, replicated for planning UI.
+    #[default(0.75)]
+    pub apiary_forage_score: f64,
+    /// Family price floors. 255 migrates an established post by falling back
+    /// to its former shared specialty policy until the player changes it.
+    #[default(255u8)]
+    pub marketplace_drink_export_policy: u8,
+    #[default(255u8)]
+    pub marketplace_provision_export_policy: u8,
+    #[default(255u8)]
+    pub marketplace_wares_export_policy: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).
@@ -1022,8 +1058,8 @@ pub struct Residence {
     /// 0 sound, 1 neglected, 2 dilapidated, 3 ruin.
     #[default(0u8)]
     pub condition: u8,
-    /// Hunger duration at the most recent starvation death, preventing a
-    /// whole household from dying in a single simulation step.
+    /// Legacy deterministic-starvation cooldown retained for additive save
+    /// compatibility. Current mortality uses per-step population risk.
     #[default(0u32)]
     pub last_starvation_death_hunger_ticks: u32,
     /// Vacant-home restoration reuses the physical household project ledger
@@ -1088,6 +1124,10 @@ pub struct Residence {
     /// physical mixed-provision fields exactly once.
     #[default(false)]
     pub food_inventory_migrated: bool,
+    /// Last calendar day on which this household bought one optional market
+    /// good. Essentials remain outside the purse economy.
+    #[default(0u64)]
+    pub last_discretionary_market_day: u64,
 }
 
 #[spacetimedb::table(
@@ -1123,7 +1163,7 @@ pub struct Corpse {
     pub id: u64,
     pub owner: Identity,
     pub residence_id: u64,
-    /// 0 starvation/exposure, 1 illness.
+    /// 0 starvation, 1 illness, 2 winter exposure.
     pub cause: u8,
     /// 0 awaiting collection, 1 empty cart outbound, 2 body inbound.
     pub state: u8,
@@ -1182,6 +1222,20 @@ pub struct MarketState {
     pub specialty_price_mult: f64,
     #[default(0.5)]
     pub regional_specialty_demand: f64,
+    /// Independent specialty families. The shared fields above remain only as
+    /// an additive migration/readout average for established saves.
+    #[default(1.0)]
+    pub drink_price_mult: f64,
+    #[default(1.0)]
+    pub provision_price_mult: f64,
+    #[default(1.0)]
+    pub wares_price_mult: f64,
+    #[default(0.5)]
+    pub regional_drink_demand: f64,
+    #[default(0.5)]
+    pub regional_provision_demand: f64,
+    #[default(0.5)]
+    pub regional_wares_demand: f64,
 }
 
 /// Per-settlement frontier pressure. Peaceful worlds keep this row at zero.

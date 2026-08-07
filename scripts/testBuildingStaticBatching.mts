@@ -94,7 +94,6 @@ const denseKinds = [
   'carpenter',
   'apiary',
   'watermill',
-  'ferry_landing',
   'stone_quarry',
   'smokehouse',
 ] as const;

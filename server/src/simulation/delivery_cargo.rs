@@ -108,7 +108,7 @@ impl DeliveryCargoTotals {
 
 pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> f64 {
     match kind {
-        ResidenceNeedKind::Firewood => building.firewood,
+        ResidenceNeedKind::Firewood => building.firewood + building.charcoal,
         ResidenceNeedKind::Water => building.water,
         ResidenceNeedKind::Food => building_edible_food_stock(building),
         ResidenceNeedKind::Ale => building.ale,
@@ -127,7 +127,12 @@ pub fn withdraw_delivery_cargo(
         ResidenceNeedKind::Firewood => {
             let (_, firewood_withdrawn, _, updated) = withdraw_building(building, 0.0, amount, 0.0);
             *building = updated;
-            firewood_withdrawn
+            let charcoal_withdrawn = withdraw_building_commodity(
+                building,
+                CommodityKind::Charcoal,
+                (amount - firewood_withdrawn).max(0.0),
+            );
+            firewood_withdrawn + charcoal_withdrawn
         }
         ResidenceNeedKind::Water => {
             let (withdrawn, updated) = withdraw_building_water(building, amount);

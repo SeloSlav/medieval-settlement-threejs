@@ -104,6 +104,23 @@
   font-weight: 600;
 }
 
+.marketplace-trade-option__cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: rgba(218, 190, 126, 0.92);
+  font-size: 0.76rem;
+  font-weight: 650;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.marketplace-trade-option__cost .resource-cost {
+  color: #e2c77b;
+  font-size: 0.88rem;
+}
+
 .marketplace-trade-option__hint {
   font-size: 0.78rem;
   color: rgba(238, 232, 220, 0.55);

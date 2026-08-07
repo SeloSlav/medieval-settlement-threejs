@@ -20,6 +20,8 @@ import {
   formatMarketplaceSpecialtyQueue,
   marketplaceSpecialtyExportPlan,
   marketplaceSpecialtyQueue,
+  resolvedSpecialtyFamilyPolicy,
+  type SpecialtyMarketFamily,
 } from '../../economy/specialtyTrade.ts';
 import { marketplaceSeedCoveragePlan } from '../../economy/marketplaceSeedCoverage.ts';
 import {
@@ -223,20 +225,57 @@ export function renderMarketplaceInspector(
     : traderCount <= 0
       ? `${routeCondition} · assign a regional trader to open a route`
       : `${routeCondition} · ${traderCount} concurrent route slot${traderCount === 1 ? '' : 's'} · next desk settlement in ${manualTrade.nextCooldownSeconds?.toFixed(1)}s`;
-  const specialtyPlan = marketplaceSpecialtyExportPlan(
-    building,
-    marketState.specialtyPriceMult,
+  const specialtyRates = {
+    drink: marketState.drinkPriceMult,
+    provision: marketState.provisionPriceMult,
+    wares: marketState.waresPriceMult,
+  };
+  const specialtyFamilies = ([
+    {
+      kind: 'drink',
+      label: 'drinks',
+      stock: building.ale + building.wine,
+      policy: building.marketplaceDrinkExportPolicy,
+    },
+    {
+      kind: 'provision',
+      label: 'provisions',
+      stock: building.honey + (building.cheese ?? 0),
+      policy: building.marketplaceProvisionExportPolicy,
+    },
+    {
+      kind: 'wares',
+      label: 'wares',
+      stock: (building.cloth ?? 0) + (building.pottery ?? 0),
+      policy: building.marketplaceWaresExportPolicy,
+    },
+  ] as const).map((family) => {
+    const policyValue = resolvedSpecialtyFamilyPolicy(
+      family.policy,
+      building.marketplaceSpecialtyExportPolicy,
+    );
+    return {
+      ...family,
+      plan: marketplaceSpecialtyExportPlan(
+        { marketplaceSpecialtyExportPolicy: policyValue },
+        specialtyRates[family.kind],
+      ),
+    };
+  });
+  const activeSpecialtyFamily = specialtyFamilies.find((family) =>
+    family.stock > 1e-6 && family.plan.saleAllowed
+  ) ?? null;
+  const heldSpecialtyFamilies = specialtyFamilies.filter((family) =>
+    family.stock > 1e-6 && !family.plan.saleAllowed
   );
-  const specialtyQueue = marketplaceSpecialtyQueue(building, marketState.specialtyPriceMult);
+  const specialtyQueue = marketplaceSpecialtyQueue(building, specialtyRates);
   const specialtyQueueLabel = formatMarketplaceSpecialtyQueue(specialtyQueue);
-  const specialtyExportActive = specialtyQueue.units > 1e-6
-    && specialtyPlan.saleAllowed
+  const specialtyExportActive = activeSpecialtyFamily != null
     && hasRoadAccess
     && !marketFireDisabled
     && specialtyQueue.exportWorkers > 0
     && !regionalRoutesFull;
-  const specialtyExportHeld = specialtyQueue.units > 1e-6
-    && !specialtyPlan.saleAllowed
+  const specialtyExportHeld = heldSpecialtyFamilies.length > 0
     && !marketFireDisabled;
   const specialtyDesk = formatSpecialtyExportDesk(
     marketFireDisabled,
@@ -244,7 +283,7 @@ export function renderMarketplaceInspector(
     building.assignedLabor,
     building.actionCooldown,
     specialtyQueue,
-    specialtyPlan,
+    specialtyFamilies,
     regionalExportTrip,
     physicalEconomy,
   );
@@ -297,10 +336,10 @@ export function renderMarketplaceInspector(
         ? `Staging bulk order · ${pendingStaging?.localStock.toFixed(0)} / ${pendingStaging?.required.toFixed(0)} at Trading Post`
       : specialtyExportActive
         ? physicalEconomy
-          ? `Preparing next specialty merchant load at ${Math.round(specialtyPlan.marketRate * 100)}%`
-          : `Trading specialty exports at ${Math.round(specialtyPlan.marketRate * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
+          ? `Preparing ${activeSpecialtyFamily?.label} merchant load at ${Math.round((activeSpecialtyFamily?.plan.marketRate ?? 1) * 100)}%`
+          : `Trading ${activeSpecialtyFamily?.label} at ${Math.round((activeSpecialtyFamily?.plan.marketRate ?? 1) * 100)}% - ${specialtyQueue.unitsPerSecond.toFixed(2)} units/s`
         : specialtyExportHeld
-          ? `Holding specialty exports - regional rate ${Math.round(specialtyPlan.marketRate * 100)}%`
+          ? `Holding ${heldSpecialtyFamilies.map((family) => family.label).join(' and ')} below selected regional floors`
           : manualTrade.ready
             ? formatRegionalDeskStatus(connectedHomes)
             : manualTrade.label,
@@ -492,7 +531,12 @@ function formatSpecialtyExportDesk(
   assignedLabor: number,
   actionCooldown: number,
   queue: ReturnType<typeof marketplaceSpecialtyQueue>,
-  plan: ReturnType<typeof marketplaceSpecialtyExportPlan>,
+  families: ReadonlyArray<{
+    kind: SpecialtyMarketFamily;
+    label: string;
+    stock: number;
+    plan: ReturnType<typeof marketplaceSpecialtyExportPlan>;
+  }>,
   regionalExportTrip: DeliveryTripState | null,
   physicalEconomy: boolean,
 ): string {
@@ -500,9 +544,17 @@ function formatSpecialtyExportDesk(
   if (regionalExportTrip) {
     return `Regional merchant ${formatTripPhaseLabel(regionalExportTrip.phase).toLowerCase()} - another trader may open the next free route slot`;
   }
-  if (queue.units <= 1e-6) return 'Ready - awaiting ale, honey, wine, or cloth hauls';
-  if (!plan.saleAllowed) {
-    return `Holding - ${Math.round(plan.marketRate * 100)}% regional rate below ${Math.round(plan.policy.minRate * 100)}% floor`;
+  if (queue.units <= 1e-6) {
+    return 'Ready - awaiting ale, wine, honey, cheese, cloth, or pottery hauls';
+  }
+  const eligible = families.filter((family) =>
+    family.stock > 1e-6 && family.plan.saleAllowed
+  );
+  const held = families.filter((family) =>
+    family.stock > 1e-6 && !family.plan.saleAllowed
+  );
+  if (eligible.length === 0) {
+    return `Holding - ${held.map((family) => `${family.label} ${Math.round(family.plan.marketRate * 100)}% below ${Math.round(family.plan.policy.minRate * 100)}% floor`).join(' · ')}`;
   }
   if (!hasRoadAccess) return 'Stalled - connect this Trading Post to a road';
   if (assignedLabor <= 0) return 'Stalled - assign at least one regional trader';
@@ -512,10 +564,7 @@ function formatSpecialtyExportDesk(
       : 'Stalled - no regional-trader capacity';
   }
   if (physicalEconomy) {
-    return `${queue.exportWorkers} regional trader${queue.exportWorkers === 1 ? '' : 's'} ready - one live merchant load per open route slot; route length controls throughput`;
+    return `${queue.exportWorkers} regional trader${queue.exportWorkers === 1 ? '' : 's'} ready for ${eligible.map((family) => family.label).join(', ')}${held.length > 0 ? ` · holding ${held.map((family) => family.label).join(', ')}` : ''} - one live merchant load per open route slot`;
   }
-  const clearTime = queue.clearSeconds == null
-    ? ''
-    : ` - clears in about ${queue.clearSeconds.toFixed(1)}s`;
-  return `${queue.exportWorkers} regional trader${queue.exportWorkers === 1 ? '' : 's'} - ${queue.unitsPerSecond.toFixed(2)} units/s at ${Math.round(plan.marketRate * 100)}%${clearTime}`;
+  return `${queue.exportWorkers} regional trader${queue.exportWorkers === 1 ? '' : 's'} - ${queue.unitsPerSecond.toFixed(2)} units/s · ${eligible.map((family) => `${family.label} ${Math.round(family.plan.marketRate * 100)}%`).join(' · ')}${held.length > 0 ? ` · holding ${held.map((family) => family.label).join(', ')}` : ''}`;
 }

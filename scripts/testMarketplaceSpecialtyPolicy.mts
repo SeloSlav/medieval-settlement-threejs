@@ -105,15 +105,23 @@ const heldPanel = renderMarketplaceTradePanel(
   {
     ...DEFAULT_REGIONAL_MARKET_STATE,
     specialtyPriceMult: 1.04,
+    drinkPriceMult: 1.04,
+    provisionPriceMult: 1.04,
+    waresPriceMult: 1.04,
     regionalSpecialtyDemand: 0.536,
   },
   { ready: true, label: 'Trade desk ready', reason: null },
 );
-assert.match(heldPanel, /Specialty export policy/);
-assert.match(heldPanel, /data-marketplace-specialty-export-policy="2"[^>]*disabled/);
-assert.match(heldPanel, /Holding 21\.0 units/);
-assert.match(heldPanel, /current rate 104% is 1 point below this floor/);
-assert.match(heldPanel, /Specialties \+4% market/);
+assert.match(heldPanel, /Specialty export desks/);
+assert.equal(
+  heldPanel.match(/data-marketplace-specialty-family-policy="2"[^>]*disabled/g)?.length,
+  3,
+  'legacy shared policy must migrate into all three independently editable family desks',
+);
+assert.match(heldPanel, /Drinks[\s\S]*12\.0 units held/);
+assert.match(heldPanel, /Provisions[\s\S]*5\.0 units held/);
+assert.match(heldPanel, /Wares[\s\S]*4\.0 units held/);
+assert.match(heldPanel, /Drinks \+4% market[\s\S]*Provisions \+4% market[\s\S]*Wares \+4% market/);
 
 const tablesSource = readFileSync('server/src/tables.rs', 'utf8');
 const policySource = readFileSync('server/src/specialty_trade_policy.rs', 'utf8');
@@ -139,6 +147,11 @@ assert.match(
 );
 assert.match(tablesSource, /#\[default\(1\.0\)\]\s+pub specialty_price_mult: f64/);
 assert.match(tablesSource, /#\[default\(0\.5\)\]\s+pub regional_specialty_demand: f64/);
+assert.match(tablesSource, /#\[default\(255u8\)\]\s+pub marketplace_drink_export_policy: u8/);
+assert.match(tablesSource, /#\[default\(255u8\)\]\s+pub marketplace_provision_export_policy: u8/);
+assert.match(tablesSource, /#\[default\(255u8\)\]\s+pub marketplace_wares_export_policy: u8/);
+assert.match(tablesSource, /#\[default\(1\.0\)\]\s+pub drink_price_mult: f64/);
+assert.match(tablesSource, /#\[default\(0\.5\)\]\s+pub regional_drink_demand: f64/);
 assert.match(policySource, /SPECIALTY_EXPORT_FAIR_RATE_MIN: f64 = 0\.98/);
 assert.match(policySource, /SPECIALTY_EXPORT_FAVORABLE_RATE_MIN: f64 = 1\.05/);
 assert.match(
@@ -152,13 +165,16 @@ const continuousMarketUpdate = marketSource.slice(
 );
 assert.match(continuousMarketUpdate, /adjust_demand_index/);
 assert.match(continuousMarketUpdate, /MarketTradeDirection::Export/);
-assert.match(continuousMarketUpdate, /specialty_price_multiplier/);
+assert.match(continuousMarketUpdate, /refresh_specialty_prices/);
 assert.doesNotMatch(
   continuousMarketUpdate,
   /local_food_demand_pressure/,
   'continuous specialty sales must not rescan every household',
 );
-assert.match(marketSource, /drift_index\(state\.regional_specialty_demand/);
+assert.match(marketSource, /drift_specialty_index\([\s\S]*state\.regional_drink_demand/);
+assert.match(continuousMarketUpdate, /SpecialtyMarketFamily::Drink/);
+assert.match(continuousMarketUpdate, /SpecialtyMarketFamily::Provision/);
+assert.match(continuousMarketUpdate, /SpecialtyMarketFamily::Wares/);
 
 const specialtySale = caravanSource.slice(
   caravanSource.indexOf('fn sell_marketplace_specialties'),
@@ -167,9 +183,10 @@ assert.match(specialtySale, /specialty_export_policy_allows/);
 assert.match(specialtySale, /gold_per_unit \* market_rate/);
 assert.match(specialtySale, /record_specialty_market_export/);
 
-assert.match(rendererSource, /data-marketplace-specialty-export-policy/);
-assert.match(rendererSource, /Selling deepens regional supply and lowers the next rate/);
+assert.match(rendererSource, /data-marketplace-specialty-family-policy/);
+assert.match(rendererSource, /Each family has its own seasonal regional demand and price/);
 assert.match(inspectorSource, /onSetMarketplaceSpecialtyExportPolicy/);
+assert.match(inspectorSource, /onSetMarketplaceSpecialtyFamilyExportPolicy/);
 assert.match(generatedBuilding, /marketplaceSpecialtyExportPolicy/);
 assert.match(generatedMarket, /specialtyPriceMult/);
 assert.match(generatedMarket, /regionalSpecialtyDemand/);

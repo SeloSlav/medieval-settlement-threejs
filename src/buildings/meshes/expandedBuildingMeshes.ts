@@ -40,10 +40,9 @@ import {
   CARPENTER_TIMBER_VISUAL_SEGMENTS,
 } from '../armoryStockpileVisuals.ts';
 import {
-  APIARY_FOOD_VISUAL_SEGMENTS,
   APIARY_HONEY_VISUAL_SEGMENTS,
   THRESHING_GRAIN_VISUAL_SEGMENTS,
-  VINEYARD_FOOD_VISUAL_SEGMENTS,
+  VINEYARD_GRAPE_VISUAL_SEGMENTS,
   VINEYARD_WINE_VISUAL_SEGMENTS,
 } from '../seasonalStockpileVisuals.ts';
 import {
@@ -685,17 +684,6 @@ export function createApiaryMesh(): THREE.Group {
   addMesh(group, new THREE.CylinderGeometry(0.08, 0.16, 0.48, 8), metalMaterial('iron'), new THREE.Vector3(3.15, 0.96, 2.75));
   addSegmentedStockProps(
     group,
-    'ApiaryFoodStockpile',
-    'ApiaryFoodSegment',
-    ([
-      [-0.2, 0, 3.0, 0.9],
-      [0.65, 0, 3.12, 0.76],
-    ] as const)
-      .slice(0, APIARY_FOOD_VISUAL_SEGMENTS),
-    (segment, scale) => addProduceBasket(segment, scale, crop),
-  );
-  addSegmentedStockProps(
-    group,
     'ApiaryHoneyStockpile',
     'ApiaryHoneySegment',
     ([
@@ -1062,37 +1050,6 @@ export function createWeaverMesh(): THREE.Group {
   return group;
 }
 
-export function createFerryLandingMesh(): THREE.Group {
-  const group = new THREE.Group();
-  group.name = 'Ferry landing';
-  const shell = addGableShell(group, { width: 5.2, depth: 4.2, stoneHeight: 0.42, wallHeight: 2.05, ridgeHeight: 1.75, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial(), centerX: -3.5 });
-  addPlankDoor(group, -3.5, 0.45, shell.frontZ + 0.03, 0.8, 1.62);
-  addSmallWindow(group, -2.15, 1.42, shell.frontZ + 0.03, 0.58, 0.68);
-  for (let z = 2.7; z <= 11.5; z += 1.2) {
-    addMesh(group, new THREE.BoxGeometry(4.1, 0.18, 0.95), timberMaterial(z % 2 > 1 ? 'mid' : 'weathered'), new THREE.Vector3(0, 0.58, z));
-    for (const x of [-1.75, 1.75]) addMesh(group, new THREE.BoxGeometry(0.18, 1.45, 0.18), timberMaterial('dark'), new THREE.Vector3(x, 0.28, z));
-  }
-  const boat = new THREE.Shape(); boat.moveTo(-2.6, 0); boat.lineTo(-1.9, -0.65); boat.lineTo(1.9, -0.65); boat.lineTo(2.6, 0); boat.lineTo(1.8, 0.65); boat.lineTo(-1.8, 0.65); boat.closePath();
-  const hull = new THREE.ExtrudeGeometry(boat, { depth: 0.55, bevelEnabled: false }); hull.rotateX(Math.PI * 0.5);
-  addMesh(group, hull, timberMaterial('dark'), new THREE.Vector3(4.1, 0.55, 8.8));
-  for (const [x, z] of [[-2.35, 2.7], [2.35, 2.7], [-2.35, 11.5], [2.35, 11.5]] as const) {
-    addMesh(group, new THREE.CylinderGeometry(0.18, 0.22, 2.3, 8), timberMaterial('dark'), new THREE.Vector3(x, 1.0, z));
-    addMesh(group, new THREE.TorusGeometry(0.29, 0.045, 6, 12), timberMaterial('light'), new THREE.Vector3(x, 1.45, z), new THREE.Euler(Math.PI * 0.5, 0, 0));
-  }
-  addBarrel(group, -1.85, 1.5, 0.72);
-  addReceiptLockboxes(
-    group,
-    'FerryFareChest',
-    'FerryReceiptSegment',
-    [
-      [0, 0.18, 1.62],
-      [-0.67, 0.1, 1.58],
-      [0.67, 0.1, 1.58],
-    ],
-  );
-  return group;
-}
-
 export function createVineyardMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Vineyard work shelter';
@@ -1112,13 +1069,13 @@ export function createVineyardMesh(): THREE.Group {
   addMesh(group, new THREE.SphereGeometry(0.65, 7, 5), leaf, new THREE.Vector3(5.7, 1.0, 5.0));
   addSegmentedStockProps(
     group,
-    'VineyardFoodStockpile',
-    'VineyardFoodSegment',
+    'VineyardGrapeStockpile',
+    'VineyardGrapeSegment',
     ([
       [0.25, 0, 5.08, 0.92],
       [1.08, 0, 5.24, 0.76],
     ] as const)
-      .slice(0, VINEYARD_FOOD_VISUAL_SEGMENTS),
+      .slice(0, VINEYARD_GRAPE_VISUAL_SEGMENTS),
     (segment, scale) => addProduceBasket(segment, scale, hiveRed),
   );
   addSegmentedStockProps(

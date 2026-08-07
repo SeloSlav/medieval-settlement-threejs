@@ -7,12 +7,16 @@ use crate::balance_generated::{
     MARKET_PRICE_UPDATE_INTERVAL_TICKS, RESIDENCE_FOOD_PER_PERSON_PER_SEC,
 };
 use crate::db::*;
+use crate::economy::CommodityKind;
+use crate::simulation::game_clock;
 use crate::simulation::residence_needs::{load_needs, need_stock, ResidenceNeedKind};
+use crate::specialty_trade_policy::SpecialtyMarketFamily;
 use crate::tables::MarketState;
 
 use super::regional_market_policy::{
-    adjust_demand_index, adjust_supply_index, drift_market_index, market_price_multiplier,
-    specialty_price_multiplier, MarketTradeDirection,
+    adjust_demand_index, adjust_supply_index, drift_market_index, drift_market_index_toward,
+    market_price_multiplier, specialty_price_multiplier, specialty_seasonal_demand_target,
+    MarketTradeDirection,
 };
 
 pub fn ensure_market_state(ctx: &ReducerContext, owner: Identity) {
@@ -34,6 +38,12 @@ pub fn ensure_market_state(ctx: &ReducerContext, owner: Identity) {
         bulletin: "Caravans from Kvarner and Lika report steady trade.".to_string(),
         specialty_price_mult: 1.0,
         regional_specialty_demand: 0.5,
+        drink_price_mult: 1.0,
+        provision_price_mult: 1.0,
+        wares_price_mult: 1.0,
+        regional_drink_demand: 0.5,
+        regional_provision_demand: 0.5,
+        regional_wares_demand: 0.5,
     });
 }
 
@@ -51,7 +61,7 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         TradeResource::Ironwork => state.stone_price_mult,
         TradeResource::Iron => state.stone_price_mult,
         TradeResource::Salt => state.food_price_mult,
-        TradeResource::Pottery => state.specialty_price_mult,
+        TradeResource::Pottery => state.wares_price_mult,
     }
 }
 
@@ -100,8 +110,25 @@ fn update_market_state(
         drift_index(state.regional_firewood_demand, seed.wrapping_add(3));
     state.regional_food_demand = drift_index(state.regional_food_demand, seed.wrapping_add(4));
     state.regional_food_supply = drift_index(state.regional_food_supply, seed.wrapping_add(5));
-    state.regional_specialty_demand =
-        drift_index(state.regional_specialty_demand, seed.wrapping_add(6));
+    let month = game_clock(sim_tick).month;
+    state.regional_drink_demand = drift_specialty_index(
+        state.regional_drink_demand,
+        SpecialtyMarketFamily::Drink,
+        month,
+        seed.wrapping_add(6),
+    );
+    state.regional_provision_demand = drift_specialty_index(
+        state.regional_provision_demand,
+        SpecialtyMarketFamily::Provision,
+        month,
+        seed.wrapping_add(7),
+    );
+    state.regional_wares_demand = drift_specialty_index(
+        state.regional_wares_demand,
+        SpecialtyMarketFamily::Wares,
+        month,
+        seed.wrapping_add(8),
+    );
 
     refresh_market_prices(ctx, owner, state);
     state.last_price_tick = sim_tick;
@@ -161,8 +188,8 @@ pub fn record_market_trade(
                 adjust_supply_index(state.regional_food_supply, direction, amount);
         }
         TradeResource::Pottery => {
-            state.regional_specialty_demand =
-                adjust_demand_index(state.regional_specialty_demand, direction, amount);
+            state.regional_wares_demand =
+                adjust_demand_index(state.regional_wares_demand, direction, amount);
         }
     }
 
@@ -173,7 +200,12 @@ pub fn record_market_trade(
 /// Specialty exports are continuous and may occur every simulation substep.
 /// Refresh only their independent rate here; the ordinary price heartbeat
 /// performs the more expensive household food-pressure scan.
-pub fn record_specialty_market_export(ctx: &ReducerContext, owner: Identity, amount: f64) {
+pub fn record_specialty_market_export(
+    ctx: &ReducerContext,
+    owner: Identity,
+    commodity: CommodityKind,
+    amount: f64,
+) {
     if amount <= 1e-9 {
         return;
     }
@@ -182,12 +214,33 @@ pub fn record_specialty_market_export(ctx: &ReducerContext, owner: Identity, amo
     let Some(mut state) = ctx.db.market_state().owner().find(&owner) else {
         return;
     };
-    state.regional_specialty_demand = adjust_demand_index(
-        state.regional_specialty_demand,
-        MarketTradeDirection::Export,
-        amount,
-    );
-    state.specialty_price_mult = specialty_price_multiplier(state.regional_specialty_demand);
+    let Some(family) = specialty_family_for_commodity(commodity) else {
+        return;
+    };
+    match family {
+        SpecialtyMarketFamily::Drink => {
+            state.regional_drink_demand = adjust_demand_index(
+                state.regional_drink_demand,
+                MarketTradeDirection::Export,
+                amount,
+            );
+        }
+        SpecialtyMarketFamily::Provision => {
+            state.regional_provision_demand = adjust_demand_index(
+                state.regional_provision_demand,
+                MarketTradeDirection::Export,
+                amount,
+            );
+        }
+        SpecialtyMarketFamily::Wares => {
+            state.regional_wares_demand = adjust_demand_index(
+                state.regional_wares_demand,
+                MarketTradeDirection::Export,
+                amount,
+            );
+        }
+    }
+    refresh_specialty_prices(&mut state);
     state.bulletin = compose_bulletin(&state);
     ctx.db.market_state().owner().update(state);
 }
@@ -210,7 +263,7 @@ fn refresh_market_prices(ctx: &ReducerContext, owner: Identity, state: &mut Mark
         + local_food_pressure * MARKET_LOCAL_FOOD_DEMAND_WEIGHT)
         .clamp(0.0, 1.0);
     state.food_price_mult = market_price_multiplier(state.regional_food_supply, food_demand);
-    state.specialty_price_mult = specialty_price_multiplier(state.regional_specialty_demand);
+    refresh_specialty_prices(state);
 
     state.bulletin = compose_bulletin(state);
 }
@@ -254,6 +307,53 @@ fn drift_index(current: f64, seed: u64) -> f64 {
     drift_market_index(current, hash_to_unit(seed))
 }
 
+fn drift_specialty_index(
+    current: f64,
+    family: SpecialtyMarketFamily,
+    month: u32,
+    seed: u64,
+) -> f64 {
+    drift_market_index_toward(
+        current,
+        specialty_seasonal_demand_target(family, month),
+        hash_to_unit(seed),
+    )
+}
+
+fn refresh_specialty_prices(state: &mut MarketState) {
+    state.drink_price_mult = specialty_price_multiplier(state.regional_drink_demand);
+    state.provision_price_mult = specialty_price_multiplier(state.regional_provision_demand);
+    state.wares_price_mult = specialty_price_multiplier(state.regional_wares_demand);
+    state.regional_specialty_demand = (state.regional_drink_demand
+        + state.regional_provision_demand
+        + state.regional_wares_demand)
+        / 3.0;
+    state.specialty_price_mult =
+        (state.drink_price_mult + state.provision_price_mult + state.wares_price_mult) / 3.0;
+}
+
+pub fn specialty_family_for_commodity(
+    commodity: CommodityKind,
+) -> Option<SpecialtyMarketFamily> {
+    match commodity {
+        CommodityKind::Ale | CommodityKind::Wine => Some(SpecialtyMarketFamily::Drink),
+        CommodityKind::Honey | CommodityKind::Cheese => Some(SpecialtyMarketFamily::Provision),
+        CommodityKind::Cloth | CommodityKind::Pottery => Some(SpecialtyMarketFamily::Wares),
+        _ => None,
+    }
+}
+
+pub fn specialty_price_multiplier_for_commodity(
+    state: &MarketState,
+    commodity: CommodityKind,
+) -> Option<f64> {
+    match specialty_family_for_commodity(commodity)? {
+        SpecialtyMarketFamily::Drink => Some(state.drink_price_mult),
+        SpecialtyMarketFamily::Provision => Some(state.provision_price_mult),
+        SpecialtyMarketFamily::Wares => Some(state.wares_price_mult),
+    }
+}
+
 fn compose_bulletin(state: &MarketState) -> String {
     if state.food_price_mult >= 1.18 {
         return "Lamb and veal scarce in the highlands — provender prices are up.".to_string();
@@ -261,11 +361,20 @@ fn compose_bulletin(state: &MarketState) -> String {
     if state.food_price_mult <= 0.88 {
         return "A surplus harvest reached Kvarner — food imports are cheap this week.".to_string();
     }
-    if state.specialty_price_mult >= 1.05 {
-        return "Vinodol traders are seeking drink, honey, and woven cloth.".to_string();
+    if state.drink_price_mult >= 1.05 {
+        return "Feast season is lifting demand for ale and wine.".to_string();
     }
-    if state.specialty_price_mult <= 0.9 {
-        return "Regional buyers are well supplied with drink, honey, and cloth.".to_string();
+    if state.provision_price_mult >= 1.05 {
+        return "Highland households are stocking honey and cheese.".to_string();
+    }
+    if state.wares_price_mult >= 1.05 {
+        return "Regional buyers are seeking cloth and finished pottery.".to_string();
+    }
+    if state.drink_price_mult <= 0.9
+        && state.provision_price_mult <= 0.9
+        && state.wares_price_mult <= 0.9
+    {
+        return "Regional buyers are well supplied across all specialty stalls.".to_string();
     }
     if state.timber_price_mult >= 1.15 {
         return "Timber merchants from Lika are paying well for oak.".to_string();

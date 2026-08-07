@@ -10,6 +10,36 @@ pub const SPECIALTY_EXPORT_POLICY_FAVORABLE_RATE: u8 = 2;
 
 pub const SPECIALTY_EXPORT_FAIR_RATE_MIN: f64 = 0.98;
 pub const SPECIALTY_EXPORT_FAVORABLE_RATE_MIN: f64 = 1.05;
+pub const SPECIALTY_EXPORT_POLICY_INHERIT_LEGACY: u8 = 255;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum SpecialtyMarketFamily {
+    Drink = 0,
+    Provision = 1,
+    Wares = 2,
+}
+
+impl SpecialtyMarketFamily {
+    pub fn from_id(id: u8) -> Option<Self> {
+        match id {
+            0 => Some(Self::Drink),
+            1 => Some(Self::Provision),
+            2 => Some(Self::Wares),
+            _ => None,
+        }
+    }
+}
+
+pub fn resolved_specialty_family_policy(family_policy: u8, legacy_policy: u8) -> u8 {
+    if family_policy == SPECIALTY_EXPORT_POLICY_INHERIT_LEGACY {
+        legacy_policy
+    } else if is_valid_specialty_export_policy(family_policy) {
+        family_policy
+    } else {
+        SPECIALTY_EXPORT_POLICY_ANY_RATE
+    }
+}
 
 pub fn is_valid_specialty_export_policy(policy: u8) -> bool {
     matches!(
@@ -85,14 +115,15 @@ pub fn specialty_export_capacity(
 
 /// Rotating priority prevents a continuously supplied high-value good from
 /// starving the other specialty queues.
-pub fn specialty_export_order(sim_tick: u64) -> [usize; 5] {
-    let start = sim_tick as usize % 5;
+pub fn specialty_export_order(sim_tick: u64) -> [usize; 6] {
+    let start = sim_tick as usize % 6;
     [
         start,
-        (start + 1) % 5,
-        (start + 2) % 5,
-        (start + 3) % 5,
-        (start + 4) % 5,
+        (start + 1) % 6,
+        (start + 2) % 6,
+        (start + 3) % 6,
+        (start + 4) % 6,
+        (start + 5) % 6,
     ]
 }
 
@@ -143,9 +174,9 @@ mod tests {
 
     #[test]
     fn specialty_priority_rotates_fairly() {
-        assert_eq!(specialty_export_order(0), [0, 1, 2, 3, 4]);
-        assert_eq!(specialty_export_order(1), [1, 2, 3, 4, 0]);
-        assert_eq!(specialty_export_order(4), [4, 0, 1, 2, 3]);
+        assert_eq!(specialty_export_order(0), [0, 1, 2, 3, 4, 5]);
+        assert_eq!(specialty_export_order(1), [1, 2, 3, 4, 5, 0]);
+        assert_eq!(specialty_export_order(5), [5, 0, 1, 2, 3, 4]);
     }
 
     #[test]
@@ -173,5 +204,23 @@ mod tests {
         // Corrupt or pre-release policy values fail open so a marketplace
         // cannot become permanently blocked; the reducer still rejects them.
         assert!(specialty_export_policy_allows(3, 0.78));
+    }
+
+    #[test]
+    fn established_markets_can_inherit_then_split_family_policies() {
+        assert_eq!(
+            resolved_specialty_family_policy(
+                SPECIALTY_EXPORT_POLICY_INHERIT_LEGACY,
+                SPECIALTY_EXPORT_POLICY_FAVORABLE_RATE,
+            ),
+            SPECIALTY_EXPORT_POLICY_FAVORABLE_RATE
+        );
+        assert_eq!(
+            resolved_specialty_family_policy(
+                SPECIALTY_EXPORT_POLICY_FAIR_RATE,
+                SPECIALTY_EXPORT_POLICY_ANY_RATE,
+            ),
+            SPECIALTY_EXPORT_POLICY_FAIR_RATE
+        );
     }
 }

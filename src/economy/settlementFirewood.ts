@@ -168,7 +168,7 @@ export function computeSettlementFirewoodPlan(
       quarantinedStock += stock;
       continue;
     }
-    if (residence.abandoned || residence.population <= 0 || residence.tier < 2) {
+    if (residence.abandoned || residence.population <= 0 || residence.tier < 1) {
       continue;
     }
     const branch = ensureBranch(residence, 'residence');
@@ -188,7 +188,10 @@ export function computeSettlementFirewoodPlan(
   }
 
   for (const building of state.buildings.values()) {
-    const stock = finiteStock(building.firewood);
+    const stock = finiteStock(building.firewood)
+      + (building.kind === 'marketplace' || building.kind === 'village_storehouse'
+        ? finiteStock(building.charcoal)
+        : 0);
     if (fireDisabledBuildings.has(building.id)) {
       quarantinedStock += stock;
       continue;

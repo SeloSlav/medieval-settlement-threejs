@@ -315,8 +315,8 @@
   background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
 }
 
-/* Inline resource costs reuse the HUD's material artwork so construction
- * prices never fall back to ambiguous single-letter abbreviations. */
+/* Inline resource costs reuse the HUD's artwork so construction, trade,
+ * upkeep, and production prices never fall back to text abbreviations. */
 .resource-cost {
   display: inline-flex;
   align-items: center;
@@ -401,6 +401,40 @@
   background-size: 200% 200%;
 }
 
+.resource-cost__item[data-resource-cost='grain'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='barley'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='malt'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='flour'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='ale'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='preservedFood'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='honey'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='wine'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='wool'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/hud-resources-goods-a.png');
+  background-size: 300% 300%;
+}
+
+.resource-cost__item[data-resource-cost='grain'] .resource-cost__icon { background-position: 0 0; }
+.resource-cost__item[data-resource-cost='barley'] .resource-cost__icon { background-position: 50% 0; }
+.resource-cost__item[data-resource-cost='malt'] .resource-cost__icon { background-position: 100% 0; }
+.resource-cost__item[data-resource-cost='flour'] .resource-cost__icon { background-position: 0 50%; }
+.resource-cost__item[data-resource-cost='ale'] .resource-cost__icon { background-position: 50% 50%; }
+.resource-cost__item[data-resource-cost='preservedFood'] .resource-cost__icon { background-position: 100% 50%; }
+.resource-cost__item[data-resource-cost='honey'] .resource-cost__icon { background-position: 0 100%; }
+.resource-cost__item[data-resource-cost='wine'] .resource-cost__icon { background-position: 50% 100%; }
+.resource-cost__item[data-resource-cost='wool'] .resource-cost__icon { background-position: 100% 100%; }
+
+.resource-cost__item[data-resource-cost='flax'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='cloth'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='polearms'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/hud-resources-goods-b.png');
+  background-size: 200% 200%;
+}
+
+.resource-cost__item[data-resource-cost='flax'] .resource-cost__icon { background-position: 0 0; }
+.resource-cost__item[data-resource-cost='cloth'] .resource-cost__icon { background-position: 100% 0; }
+.resource-cost__item[data-resource-cost='polearms'] .resource-cost__icon { background-position: 100% 100%; }
+
 .resource-cost__item[data-resource-cost='iron'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='clay'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='salt'] .resource-cost__icon,
@@ -434,6 +468,41 @@
 .resource-cost__item[data-resource-cost='roofTiles'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
 }
+
+.resource-cost__item[data-resource-cost='bread'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='meat'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='fish'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='berries'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='mushrooms'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='milk'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='apples'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='cherries'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='vegetables'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='eggs'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='grapes'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='porridge'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='curedMeat'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='smokedFish'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='cheese'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/hud-resources-foods.png');
+  background-size: 400% 400%;
+}
+
+.resource-cost__item[data-resource-cost='bread'] .resource-cost__icon { background-position: 0 0; }
+.resource-cost__item[data-resource-cost='meat'] .resource-cost__icon { background-position: 33.333% 0; }
+.resource-cost__item[data-resource-cost='fish'] .resource-cost__icon { background-position: 66.667% 0; }
+.resource-cost__item[data-resource-cost='berries'] .resource-cost__icon { background-position: 100% 0; }
+.resource-cost__item[data-resource-cost='mushrooms'] .resource-cost__icon { background-position: 0 33.333%; }
+.resource-cost__item[data-resource-cost='milk'] .resource-cost__icon { background-position: 33.333% 33.333%; }
+.resource-cost__item[data-resource-cost='apples'] .resource-cost__icon { background-position: 66.667% 33.333%; }
+.resource-cost__item[data-resource-cost='cherries'] .resource-cost__icon { background-position: 100% 33.333%; }
+.resource-cost__item[data-resource-cost='vegetables'] .resource-cost__icon { background-position: 0 66.667%; }
+.resource-cost__item[data-resource-cost='eggs'] .resource-cost__icon { background-position: 33.333% 66.667%; }
+.resource-cost__item[data-resource-cost='grapes'] .resource-cost__icon { background-position: 66.667% 66.667%; }
+.resource-cost__item[data-resource-cost='porridge'] .resource-cost__icon { background-position: 100% 66.667%; }
+.resource-cost__item[data-resource-cost='curedMeat'] .resource-cost__icon { background-position: 0 100%; }
+.resource-cost__item[data-resource-cost='smokedFish'] .resource-cost__icon { background-position: 33.333% 100%; }
+.resource-cost__item[data-resource-cost='cheese'] .resource-cost__icon { background-position: 66.667% 100%; }
 
 .settlement-hud__food-card[data-food-resource]::before {
   width: 20px;

@@ -480,6 +480,9 @@ export function computeSettlementProvisioning(input: {
   let fireQuarantinedFoodStock = 0;
   let fireQuarantinedFirewoodStock = 0;
   let fireQuarantinedPreservedFoodStock = 0;
+  let householdCharcoalStock = state.physicalFoundingSiteEnabled === true
+    ? 0
+    : finiteStock(state.stockpile.charcoal);
   // ResourceTotals exposes unreserved food, while residence pantries are
   // deliberately protected household stock. Provisioning still needs the
   // gross physical amount before subtracting any fire quarantine.
@@ -535,7 +538,7 @@ export function computeSettlementProvisioning(input: {
     }
     if (residence.abandoned || residence.population <= 0) continue;
     foodConsumers += residence.population;
-    if (residence.tier >= 2) {
+    if (residence.tier >= 1) {
       heatedResidents += residence.population;
     }
     householdBufferHouseholds += 1;
@@ -596,7 +599,7 @@ export function computeSettlementProvisioning(input: {
       householdBufferFoodShortHomes += 1;
       householdBufferReady = false;
     }
-    if (residence.tier >= 2) {
+    if (residence.tier >= 1) {
       const firewoodNeeded = residence.population
         * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
         * nightlyNoDeliverySeconds
@@ -611,13 +614,15 @@ export function computeSettlementProvisioning(input: {
           getNeedStock(residence.needs, 'firewood'),
         );
       }
-      const waterNeeded = residence.population
-        * RESIDENCE_WATER_PER_PERSON_PER_SEC
-        * workdaySeconds;
       if (getNeedStock(residence.needs, 'firewood') + 1e-6 < firewoodNeeded) {
         householdBufferFirewoodShortHomes += 1;
         householdBufferReady = false;
       }
+    }
+    if (residence.tier >= 2) {
+      const waterNeeded = residence.population
+        * RESIDENCE_WATER_PER_PERSON_PER_SEC
+        * workdaySeconds;
       if (getNeedStock(residence.needs, 'water') + 1e-6 < waterNeeded) {
         householdBufferWaterShortHomes += 1;
         householdBufferReady = false;
@@ -658,18 +663,20 @@ export function computeSettlementProvisioning(input: {
     if (householdEdibleStock + 1e-6 < grossFoodNeeded) {
       sabbathFoodShortHomes += 1;
     }
-    if (residence.tier >= 2) {
+    if (residence.tier >= 1) {
       const sabbathFirewoodNeeded = residence.population
         * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
         * sabbathFirewoodBufferSeconds
         * Math.max(0, currentFirewoodDemandMultiplier);
-      const waterNeeded = residence.population
-        * RESIDENCE_WATER_PER_PERSON_PER_SEC
-        * workdaySeconds;
       if (getNeedStock(residence.needs, 'firewood') + 1e-6 < sabbathFirewoodNeeded) {
         sabbathFirewoodShortHomes += 1;
         sabbathReady = false;
       }
+    }
+    if (residence.tier >= 2) {
+      const waterNeeded = residence.population
+        * RESIDENCE_WATER_PER_PERSON_PER_SEC
+        * workdaySeconds;
       if (getNeedStock(residence.needs, 'water') + 1e-6 < waterNeeded) {
         sabbathWaterShortHomes += 1;
       }
@@ -707,13 +714,19 @@ export function computeSettlementProvisioning(input: {
   let guardProvisionRunwayDays = Number.POSITIVE_INFINITY;
   for (const building of state.buildings.values()) {
     const fireDisabled = fireDisabledBuildings.has(building.id);
+    const householdCharcoal = building.kind === 'marketplace'
+      || building.kind === 'village_storehouse'
+      ? finiteStock(building.charcoal)
+      : 0;
+    householdCharcoalStock += householdCharcoal;
     const operationalPreservedFoodSupplier =
       !fireDisabled
       && PRESERVED_FOOD_SUPPLIER_KINDS.includes(building.kind)
       && isOperationalSpecialtySupplier(building)
       && marketHasStallWorkforce(building, 'food');
     if (fireDisabled) {
-      fireQuarantinedFirewoodStock += finiteStock(building.firewood);
+      fireQuarantinedFirewoodStock += finiteStock(building.firewood)
+        + householdCharcoal;
       fireQuarantinedFoodStock += edibleFoodStock(building);
       fireQuarantinedPreservedFoodStock += preservedFoodStock(building);
     }
@@ -754,7 +767,8 @@ export function computeSettlementProvisioning(input: {
           roadComponentFor,
         );
         branch.hasFirewoodSupplyRoute = true;
-        branch.firewoodStock += finiteStock(building.firewood);
+        branch.firewoodStock += finiteStock(building.firewood)
+          + finiteStock(building.charcoal);
       }
       if (
         operationalPreservedFoodSupplier
@@ -856,6 +870,7 @@ export function computeSettlementProvisioning(input: {
           !isFreshFoodCargo(trip.cargoKind)
           && trip.cargoKind !== 'honey'
           && trip.cargoKind !== 'firewood'
+          && trip.cargoKind !== 'charcoal'
           && !isPreservedFoodCargo(trip.cargoKind)
         )
       ) {
@@ -891,7 +906,7 @@ export function computeSettlementProvisioning(input: {
             )
           )
           || (
-            trip.cargoKind === 'firewood'
+            (trip.cargoKind === 'firewood' || trip.cargoKind === 'charcoal')
             && !isOperationalFirewoodSupplier(targetBuilding)
           )
           || (
@@ -920,7 +935,7 @@ export function computeSettlementProvisioning(input: {
           trip.amount,
           FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR,
         );
-      } else if (trip.cargoKind === 'firewood') {
+      } else if (trip.cargoKind === 'firewood' || trip.cargoKind === 'charcoal') {
         branch.firewoodStock += finiteStock(trip.amount);
       } else {
         addBranchPreservedFoodStock(
@@ -965,9 +980,10 @@ export function computeSettlementProvisioning(input: {
   const usableFreshFoodSpoilageFractionPerDay = usableFreshFoodStock > 1e-9
     ? foodPreservation.spoilagePerDay / usableFreshFoodStock
     : 0;
+  const householdHeatingStock = totals.firewood + householdCharcoalStock;
   const usableFirewoodStock = Math.max(
     0,
-    totals.firewood - fireQuarantinedFirewoodStock,
+    householdHeatingStock - fireQuarantinedFirewoodStock,
   );
   const currentFirewoodPerDay = heatedResidents
     * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
@@ -1019,7 +1035,7 @@ export function computeSettlementProvisioning(input: {
     foodStock,
     usableFoodStock,
     fireQuarantinedFoodStock,
-    firewoodStock: totals.firewood,
+    firewoodStock: householdHeatingStock,
     usableFirewoodStock,
     fireQuarantinedFirewoodStock,
     grossHouseholdFoodPerDay,

@@ -69,7 +69,7 @@ type BackyardGardenBalance = {
   cost: { timber: number; stone: number };
   foodSelfShare: number;
   foodPerPersonPerSec: number;
-  goldPerPersonPerSec: number;
+  settlementAttractionMultiplier: number;
 };
 
 type FarmCropBalance = {
@@ -269,6 +269,9 @@ export type GameBalance = {
   economy: {
     startingTimber: number;
     startingStone: number;
+    startingFirewood: number;
+    startingBread: number;
+    startingIronwork: number;
     startingGold: number;
     stoneSalvageFraction: number;
     timberSalvageFraction: number;
@@ -292,6 +295,11 @@ export type GameBalance = {
     residenceTileRoofSalvageFraction: number;
     residenceTileRoofFlammabilityMultiplier: number;
     householdMaxWealth: number;
+    householdDiscretionaryWealthReserve: number;
+    householdDiscretionaryBudgetPerPersonDay: number;
+    householdDiscretionaryUnitsPerPersonDay: number;
+    householdDiscretionaryMinTier: number;
+    householdLocalPotteryGoldPerUnit: number;
     townHallPopulationRequired: number;
     townHallUnstaffedTaxCollectionMultiplier: number;
     localMarketTaxCartThreshold: number;
@@ -363,7 +371,9 @@ export type GameBalance = {
     hungerWarningDays: number;
     malnutritionDays: number;
     starvationDeathStartDays: number;
-    starvationDeathIntervalDays: number;
+    starvationDeathChancePerPersonDay: number;
+    starvationDeathMaxChancePerPersonDay: number;
+    starvationDeathRiskRampDays: number;
     malnutritionRecoveryDays: number;
     residenceServiceWarningDays: number;
     residenceUpgradeServiceBlockDays: number;
@@ -373,6 +383,11 @@ export type GameBalance = {
     malnutritionIllnessMultiplier: number;
     unsafeWaterIllnessMultiplier: number;
     coldExposureIllnessMultiplier: number;
+    coldExposureWarningDays: number;
+    coldExposureDeathStartDays: number;
+    coldExposureDeathChancePerPersonDay: number;
+    coldExposureDeathMaxChancePerPersonDay: number;
+    coldExposureDeathRiskRampDays: number;
     corpseDiseaseRadius: number;
     corpseIllnessMultiplier: number;
     illnessRecoveryDays: number;
@@ -544,11 +559,24 @@ export type GameBalance = {
     potterPotteryPerCycle: number;
     potterRoofTilesPerCycle: number;
     apiaryHoneyPerCycle: number;
-    apiaryFoodPerCycle: number;
     apiarySeasonStartMonth: number;
     apiarySeasonEndMonth: number;
-    vineyardWinePerCycle: number;
-    vineyardFoodPerCycle: number;
+    apiaryWinterHoneyRequired: number;
+    apiaryConservativeHoneyReserve: number;
+    apiaryBalancedHoneyReserve: number;
+    apiaryExtractiveHoneyReserve: number;
+    apiaryConservativeYieldMultiplier: number;
+    apiaryBalancedYieldMultiplier: number;
+    apiaryExtractiveYieldMultiplier: number;
+    apiaryWinterHealthGain: number;
+    apiaryWinterHealthLoss: number;
+    apiaryPollinationBonusMax: number;
+    vineyardGrapesPerHarvestCycle: number;
+    vineyardGrapesPerFermentationBatch: number;
+    vineyardWinePerFermentationBatch: number;
+    vineyardFermentationSeconds: number;
+    vineyardBalancedGrapeReserve: number;
+    vineyardWineFirstGrapeReserve: number;
     vineyardHarvestStartMonth: number;
     vineyardHarvestEndMonth: number;
     marketSpecialtyExportPerBrokerPerSecond: number;
@@ -571,7 +599,8 @@ export type GameBalance = {
     specialtyExportGoldPerWine: number;
     specialtyExportGoldPerCloth: number;
     specialtyExportGoldPerCheese: number;
-    ferryGoldPerDay: number;
+    specialtyExportGoldPerPottery: number;
+    herbRemedySaleGoldPerUnit: number;
     carpenterDeliverySpeedMultiplier: number;
     carpenterTimberCostMultiplier: number;
     carpenterCartServiceTimberPerTrip: number;
@@ -684,7 +713,6 @@ const simKindByKind: Record<string, string | null> = {
   windmill: 'Windmill',
   carpenter: 'Carpenter',
   weaver: 'Weaver',
-  ferry_landing: 'FerryLanding',
   vineyard: 'Vineyard',
   pastoral_farmstead: 'PastoralFarmstead',
   swineherd: 'Swineherd',
@@ -802,6 +830,9 @@ function generateRust(): string {
     '',
     `pub const STARTING_TIMBER: f64 = ${rustF64(b.economy.startingTimber)};`,
     `pub const STARTING_STONE: f64 = ${rustF64(b.economy.startingStone)};`,
+    `pub const STARTING_FIREWOOD: f64 = ${rustF64(b.economy.startingFirewood)};`,
+    `pub const STARTING_BREAD: f64 = ${rustF64(b.economy.startingBread)};`,
+    `pub const STARTING_IRONWORK: f64 = ${rustF64(b.economy.startingIronwork)};`,
     `pub const STARTING_GOLD: f64 = ${rustF64(b.economy.startingGold)};`,
     `pub const STONE_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.stoneSalvageFraction)};`,
     `pub const TIMBER_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.timberSalvageFraction)};`,
@@ -826,6 +857,11 @@ function generateRust(): string {
     `pub const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.residenceTileRoofSalvageFraction)};`,
     `pub const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER: f64 = ${rustF64(b.economy.residenceTileRoofFlammabilityMultiplier)};`,
     `pub const HOUSEHOLD_MAX_WEALTH: f64 = ${rustF64(b.economy.householdMaxWealth)};`,
+    `pub const HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE: f64 = ${rustF64(b.economy.householdDiscretionaryWealthReserve)};`,
+    `pub const HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY: f64 = ${rustF64(b.economy.householdDiscretionaryBudgetPerPersonDay)};`,
+    `pub const HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY: f64 = ${rustF64(b.economy.householdDiscretionaryUnitsPerPersonDay)};`,
+    `pub const HOUSEHOLD_DISCRETIONARY_MIN_TIER: u8 = ${b.economy.householdDiscretionaryMinTier};`,
+    `pub const HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT: f64 = ${rustF64(b.economy.householdLocalPotteryGoldPerUnit)};`,
     `pub const TOWN_HALL_POPULATION_REQUIRED: u32 = ${b.economy.townHallPopulationRequired};`,
     `pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = ${rustF64(b.economy.townHallUnstaffedTaxCollectionMultiplier)};`,
     `pub const LOCAL_MARKET_TAX_CART_THRESHOLD: f64 = ${rustF64(b.economy.localMarketTaxCartThreshold)};`,
@@ -895,7 +931,9 @@ function generateRust(): string {
     `pub const HUNGER_WARNING_DAYS: f64 = ${rustF64(b.population.hungerWarningDays)};`,
     `pub const MALNUTRITION_DAYS: f64 = ${rustF64(b.population.malnutritionDays)};`,
     `pub const STARVATION_DEATH_START_DAYS: f64 = ${rustF64(b.population.starvationDeathStartDays)};`,
-    `pub const STARVATION_DEATH_INTERVAL_DAYS: f64 = ${rustF64(b.population.starvationDeathIntervalDays)};`,
+    `pub const STARVATION_DEATH_CHANCE_PER_PERSON_DAY: f64 = ${rustF64(b.population.starvationDeathChancePerPersonDay)};`,
+    `pub const STARVATION_DEATH_MAX_CHANCE_PER_PERSON_DAY: f64 = ${rustF64(b.population.starvationDeathMaxChancePerPersonDay)};`,
+    `pub const STARVATION_DEATH_RISK_RAMP_DAYS: f64 = ${rustF64(b.population.starvationDeathRiskRampDays)};`,
     `pub const MALNUTRITION_RECOVERY_DAYS: f64 = ${rustF64(b.population.malnutritionRecoveryDays)};`,
     `pub const RESIDENCE_SERVICE_WARNING_DAYS: f64 = ${rustF64(b.population.residenceServiceWarningDays)};`,
     `pub const RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS: f64 = ${rustF64(b.population.residenceUpgradeServiceBlockDays)};`,
@@ -905,6 +943,11 @@ function generateRust(): string {
     `pub const MALNUTRITION_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.malnutritionIllnessMultiplier)};`,
     `pub const UNSAFE_WATER_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.unsafeWaterIllnessMultiplier)};`,
     `pub const COLD_EXPOSURE_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.coldExposureIllnessMultiplier)};`,
+    `pub const COLD_EXPOSURE_WARNING_DAYS: f64 = ${rustF64(b.population.coldExposureWarningDays)};`,
+    `pub const COLD_EXPOSURE_DEATH_START_DAYS: f64 = ${rustF64(b.population.coldExposureDeathStartDays)};`,
+    `pub const COLD_EXPOSURE_DEATH_CHANCE_PER_PERSON_DAY: f64 = ${rustF64(b.population.coldExposureDeathChancePerPersonDay)};`,
+    `pub const COLD_EXPOSURE_DEATH_MAX_CHANCE_PER_PERSON_DAY: f64 = ${rustF64(b.population.coldExposureDeathMaxChancePerPersonDay)};`,
+    `pub const COLD_EXPOSURE_DEATH_RISK_RAMP_DAYS: f64 = ${rustF64(b.population.coldExposureDeathRiskRampDays)};`,
     `pub const CORPSE_DISEASE_RADIUS: f64 = ${rustF64(b.population.corpseDiseaseRadius)};`,
     `pub const CORPSE_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.corpseIllnessMultiplier)};`,
     `pub const ILLNESS_RECOVERY_DAYS: f64 = ${rustF64(b.population.illnessRecoveryDays)};`,
@@ -1072,11 +1115,24 @@ function generateRust(): string {
     `pub const POTTER_POTTERY_PER_CYCLE: f64 = ${rustF64(b.production.potterPotteryPerCycle)};`,
     `pub const POTTER_ROOF_TILES_PER_CYCLE: f64 = ${rustF64(b.production.potterRoofTilesPerCycle)};`,
     `pub const APIARY_HONEY_PER_CYCLE: f64 = ${rustF64(b.production.apiaryHoneyPerCycle)};`,
-    `pub const APIARY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.apiaryFoodPerCycle)};`,
     `pub const APIARY_SEASON_START_MONTH: u8 = ${b.production.apiarySeasonStartMonth};`,
     `pub const APIARY_SEASON_END_MONTH: u8 = ${b.production.apiarySeasonEndMonth};`,
-    `pub const VINEYARD_WINE_PER_CYCLE: f64 = ${rustF64(b.production.vineyardWinePerCycle)};`,
-    `pub const VINEYARD_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.vineyardFoodPerCycle)};`,
+    `pub const APIARY_WINTER_HONEY_REQUIRED: f64 = ${rustF64(b.production.apiaryWinterHoneyRequired)};`,
+    `pub const APIARY_CONSERVATIVE_HONEY_RESERVE: f64 = ${rustF64(b.production.apiaryConservativeHoneyReserve)};`,
+    `pub const APIARY_BALANCED_HONEY_RESERVE: f64 = ${rustF64(b.production.apiaryBalancedHoneyReserve)};`,
+    `pub const APIARY_EXTRACTIVE_HONEY_RESERVE: f64 = ${rustF64(b.production.apiaryExtractiveHoneyReserve)};`,
+    `pub const APIARY_CONSERVATIVE_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.apiaryConservativeYieldMultiplier)};`,
+    `pub const APIARY_BALANCED_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.apiaryBalancedYieldMultiplier)};`,
+    `pub const APIARY_EXTRACTIVE_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.apiaryExtractiveYieldMultiplier)};`,
+    `pub const APIARY_WINTER_HEALTH_GAIN: f64 = ${rustF64(b.production.apiaryWinterHealthGain)};`,
+    `pub const APIARY_WINTER_HEALTH_LOSS: f64 = ${rustF64(b.production.apiaryWinterHealthLoss)};`,
+    `pub const APIARY_POLLINATION_BONUS_MAX: f64 = ${rustF64(b.production.apiaryPollinationBonusMax)};`,
+    `pub const VINEYARD_GRAPES_PER_HARVEST_CYCLE: f64 = ${rustF64(b.production.vineyardGrapesPerHarvestCycle)};`,
+    `pub const VINEYARD_GRAPES_PER_FERMENTATION_BATCH: f64 = ${rustF64(b.production.vineyardGrapesPerFermentationBatch)};`,
+    `pub const VINEYARD_WINE_PER_FERMENTATION_BATCH: f64 = ${rustF64(b.production.vineyardWinePerFermentationBatch)};`,
+    `pub const VINEYARD_FERMENTATION_SECONDS: f64 = ${rustF64(b.production.vineyardFermentationSeconds)};`,
+    `pub const VINEYARD_BALANCED_GRAPE_RESERVE: f64 = ${rustF64(b.production.vineyardBalancedGrapeReserve)};`,
+    `pub const VINEYARD_WINE_FIRST_GRAPE_RESERVE: f64 = ${rustF64(b.production.vineyardWineFirstGrapeReserve)};`,
     `pub const VINEYARD_HARVEST_START_MONTH: u8 = ${b.production.vineyardHarvestStartMonth};`,
     `pub const VINEYARD_HARVEST_END_MONTH: u8 = ${b.production.vineyardHarvestEndMonth};`,
     `pub const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND: f64 = ${rustF64(b.production.marketSpecialtyExportPerBrokerPerSecond)};`,
@@ -1099,7 +1155,8 @@ function generateRust(): string {
     `pub const SPECIALTY_EXPORT_GOLD_PER_WINE: f64 = ${rustF64(b.production.specialtyExportGoldPerWine)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_CLOTH: f64 = ${rustF64(b.production.specialtyExportGoldPerCloth)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_CHEESE: f64 = ${rustF64(b.production.specialtyExportGoldPerCheese)};`,
-    `pub const FERRY_GOLD_PER_DAY: f64 = ${rustF64(b.production.ferryGoldPerDay)};`,
+    `pub const SPECIALTY_EXPORT_GOLD_PER_POTTERY: f64 = ${rustF64(b.production.specialtyExportGoldPerPottery)};`,
+    `pub const HERB_REMEDY_SALE_GOLD_PER_UNIT: f64 = ${rustF64(b.production.herbRemedySaleGoldPerUnit)};`,
     `pub const CARPENTER_DELIVERY_SPEED_MULTIPLIER: f64 = ${rustF64(b.production.carpenterDeliverySpeedMultiplier)};`,
     `pub const CARPENTER_TIMBER_COST_MULTIPLIER: f64 = ${rustF64(b.production.carpenterTimberCostMultiplier)};`,
     `pub const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP: f64 = ${rustF64(b.production.carpenterCartServiceTimberPerTrip)};`,
@@ -1329,7 +1386,6 @@ function generateRust(): string {
   lines.push('    Carpenter,');
   lines.push('    Weaver,');
   lines.push('    Guardhouse,');
-  lines.push('    FerryLanding,');
   lines.push('    Vineyard,');
   lines.push('    PastoralFarmstead,');
   lines.push('    Swineherd,');
@@ -1487,7 +1543,7 @@ function generateRust(): string {
   lines.push('    pub cost_stone: f64,');
   lines.push('    pub food_self_share: f64,');
   lines.push('    pub food_per_person_per_sec: f64,');
-  lines.push('    pub gold_per_person_per_sec: f64,');
+  lines.push('    pub settlement_attraction_multiplier: f64,');
   lines.push('}');
   lines.push('');
 
@@ -1504,7 +1560,7 @@ function generateRust(): string {
     lines.push(`    cost_stone: ${rustF64(def.cost.stone)},`);
     lines.push(`    food_self_share: ${rustF64(def.foodSelfShare)},`);
     lines.push(`    food_per_person_per_sec: ${rustF64(def.foodPerPersonPerSec)},`);
-    lines.push(`    gold_per_person_per_sec: ${rustF64(def.goldPerPersonPerSec)},`);
+    lines.push(`    settlement_attraction_multiplier: ${rustF64(def.settlementAttractionMultiplier)},`);
     lines.push('};');
     lines.push('');
   }
@@ -1647,6 +1703,9 @@ function generateTypeScript(): string {
     '',
     `export const STARTING_TIMBER = ${b.economy.startingTimber};`,
     `export const STARTING_STONE = ${b.economy.startingStone};`,
+    `export const STARTING_FIREWOOD = ${b.economy.startingFirewood};`,
+    `export const STARTING_BREAD = ${b.economy.startingBread};`,
+    `export const STARTING_IRONWORK = ${b.economy.startingIronwork};`,
     `export const STARTING_GOLD = ${b.economy.startingGold};`,
     `export const STONE_SALVAGE_FRACTION = ${b.economy.stoneSalvageFraction};`,
     `export const TIMBER_SALVAGE_FRACTION = ${b.economy.timberSalvageFraction};`,
@@ -1671,6 +1730,11 @@ function generateTypeScript(): string {
     `export const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION = ${b.economy.residenceTileRoofSalvageFraction};`,
     `export const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER = ${b.economy.residenceTileRoofFlammabilityMultiplier};`,
     `export const HOUSEHOLD_MAX_WEALTH = ${b.economy.householdMaxWealth};`,
+    `export const HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE = ${b.economy.householdDiscretionaryWealthReserve};`,
+    `export const HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY = ${b.economy.householdDiscretionaryBudgetPerPersonDay};`,
+    `export const HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY = ${b.economy.householdDiscretionaryUnitsPerPersonDay};`,
+    `export const HOUSEHOLD_DISCRETIONARY_MIN_TIER = ${b.economy.householdDiscretionaryMinTier};`,
+    `export const HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT = ${b.economy.householdLocalPotteryGoldPerUnit};`,
     `export const TOWN_HALL_POPULATION_REQUIRED = ${b.economy.townHallPopulationRequired};`,
     `export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = ${b.economy.townHallUnstaffedTaxCollectionMultiplier};`,
     `export const LOCAL_MARKET_TAX_CART_THRESHOLD = ${b.economy.localMarketTaxCartThreshold};`,
@@ -1740,7 +1804,9 @@ function generateTypeScript(): string {
     `export const HUNGER_WARNING_DAYS = ${b.population.hungerWarningDays};`,
     `export const MALNUTRITION_DAYS = ${b.population.malnutritionDays};`,
     `export const STARVATION_DEATH_START_DAYS = ${b.population.starvationDeathStartDays};`,
-    `export const STARVATION_DEATH_INTERVAL_DAYS = ${b.population.starvationDeathIntervalDays};`,
+    `export const STARVATION_DEATH_CHANCE_PER_PERSON_DAY = ${b.population.starvationDeathChancePerPersonDay};`,
+    `export const STARVATION_DEATH_MAX_CHANCE_PER_PERSON_DAY = ${b.population.starvationDeathMaxChancePerPersonDay};`,
+    `export const STARVATION_DEATH_RISK_RAMP_DAYS = ${b.population.starvationDeathRiskRampDays};`,
     `export const MALNUTRITION_RECOVERY_DAYS = ${b.population.malnutritionRecoveryDays};`,
     `export const RESIDENCE_SERVICE_WARNING_DAYS = ${b.population.residenceServiceWarningDays};`,
     `export const RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS = ${b.population.residenceUpgradeServiceBlockDays};`,
@@ -1750,6 +1816,11 @@ function generateTypeScript(): string {
     `export const MALNUTRITION_ILLNESS_MULTIPLIER = ${b.population.malnutritionIllnessMultiplier};`,
     `export const UNSAFE_WATER_ILLNESS_MULTIPLIER = ${b.population.unsafeWaterIllnessMultiplier};`,
     `export const COLD_EXPOSURE_ILLNESS_MULTIPLIER = ${b.population.coldExposureIllnessMultiplier};`,
+    `export const COLD_EXPOSURE_WARNING_DAYS = ${b.population.coldExposureWarningDays};`,
+    `export const COLD_EXPOSURE_DEATH_START_DAYS = ${b.population.coldExposureDeathStartDays};`,
+    `export const COLD_EXPOSURE_DEATH_CHANCE_PER_PERSON_DAY = ${b.population.coldExposureDeathChancePerPersonDay};`,
+    `export const COLD_EXPOSURE_DEATH_MAX_CHANCE_PER_PERSON_DAY = ${b.population.coldExposureDeathMaxChancePerPersonDay};`,
+    `export const COLD_EXPOSURE_DEATH_RISK_RAMP_DAYS = ${b.population.coldExposureDeathRiskRampDays};`,
     `export const CORPSE_DISEASE_RADIUS = ${b.population.corpseDiseaseRadius};`,
     `export const CORPSE_ILLNESS_MULTIPLIER = ${b.population.corpseIllnessMultiplier};`,
     `export const ILLNESS_RECOVERY_DAYS = ${b.population.illnessRecoveryDays};`,
@@ -1916,11 +1987,24 @@ function generateTypeScript(): string {
     `export const POTTER_POTTERY_PER_CYCLE = ${b.production.potterPotteryPerCycle};`,
     `export const POTTER_ROOF_TILES_PER_CYCLE = ${b.production.potterRoofTilesPerCycle};`,
     `export const APIARY_HONEY_PER_CYCLE = ${b.production.apiaryHoneyPerCycle};`,
-    `export const APIARY_FOOD_PER_CYCLE = ${b.production.apiaryFoodPerCycle};`,
     `export const APIARY_SEASON_START_MONTH = ${b.production.apiarySeasonStartMonth};`,
     `export const APIARY_SEASON_END_MONTH = ${b.production.apiarySeasonEndMonth};`,
-    `export const VINEYARD_WINE_PER_CYCLE = ${b.production.vineyardWinePerCycle};`,
-    `export const VINEYARD_FOOD_PER_CYCLE = ${b.production.vineyardFoodPerCycle};`,
+    `export const APIARY_WINTER_HONEY_REQUIRED = ${b.production.apiaryWinterHoneyRequired};`,
+    `export const APIARY_CONSERVATIVE_HONEY_RESERVE = ${b.production.apiaryConservativeHoneyReserve};`,
+    `export const APIARY_BALANCED_HONEY_RESERVE = ${b.production.apiaryBalancedHoneyReserve};`,
+    `export const APIARY_EXTRACTIVE_HONEY_RESERVE = ${b.production.apiaryExtractiveHoneyReserve};`,
+    `export const APIARY_CONSERVATIVE_YIELD_MULTIPLIER = ${b.production.apiaryConservativeYieldMultiplier};`,
+    `export const APIARY_BALANCED_YIELD_MULTIPLIER = ${b.production.apiaryBalancedYieldMultiplier};`,
+    `export const APIARY_EXTRACTIVE_YIELD_MULTIPLIER = ${b.production.apiaryExtractiveYieldMultiplier};`,
+    `export const APIARY_WINTER_HEALTH_GAIN = ${b.production.apiaryWinterHealthGain};`,
+    `export const APIARY_WINTER_HEALTH_LOSS = ${b.production.apiaryWinterHealthLoss};`,
+    `export const APIARY_POLLINATION_BONUS_MAX = ${b.production.apiaryPollinationBonusMax};`,
+    `export const VINEYARD_GRAPES_PER_HARVEST_CYCLE = ${b.production.vineyardGrapesPerHarvestCycle};`,
+    `export const VINEYARD_GRAPES_PER_FERMENTATION_BATCH = ${b.production.vineyardGrapesPerFermentationBatch};`,
+    `export const VINEYARD_WINE_PER_FERMENTATION_BATCH = ${b.production.vineyardWinePerFermentationBatch};`,
+    `export const VINEYARD_FERMENTATION_SECONDS = ${b.production.vineyardFermentationSeconds};`,
+    `export const VINEYARD_BALANCED_GRAPE_RESERVE = ${b.production.vineyardBalancedGrapeReserve};`,
+    `export const VINEYARD_WINE_FIRST_GRAPE_RESERVE = ${b.production.vineyardWineFirstGrapeReserve};`,
     `export const VINEYARD_HARVEST_START_MONTH = ${b.production.vineyardHarvestStartMonth};`,
     `export const VINEYARD_HARVEST_END_MONTH = ${b.production.vineyardHarvestEndMonth};`,
     `export const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND = ${b.production.marketSpecialtyExportPerBrokerPerSecond};`,
@@ -1943,7 +2027,8 @@ function generateTypeScript(): string {
     `export const SPECIALTY_EXPORT_GOLD_PER_WINE = ${b.production.specialtyExportGoldPerWine};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_CLOTH = ${b.production.specialtyExportGoldPerCloth};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_CHEESE = ${b.production.specialtyExportGoldPerCheese};`,
-    `export const FERRY_GOLD_PER_DAY = ${b.production.ferryGoldPerDay};`,
+    `export const SPECIALTY_EXPORT_GOLD_PER_POTTERY = ${b.production.specialtyExportGoldPerPottery};`,
+    `export const HERB_REMEDY_SALE_GOLD_PER_UNIT = ${b.production.herbRemedySaleGoldPerUnit};`,
     `export const CARPENTER_DELIVERY_SPEED_MULTIPLIER = ${b.production.carpenterDeliverySpeedMultiplier};`,
     `export const CARPENTER_TIMBER_COST_MULTIPLIER = ${b.production.carpenterTimberCostMultiplier};`,
     `export const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP = ${b.production.carpenterCartServiceTimberPerTrip};`,
@@ -2236,7 +2321,7 @@ function generateTypeScript(): string {
   lines.push('  label: string;');
   lines.push('  foodSelfShare: number;');
   lines.push('  foodPerPersonPerSec: number;');
-  lines.push('  goldPerPersonPerSec: number;');
+  lines.push('  settlementAttractionMultiplier: number;');
   lines.push('};');
   lines.push('');
   lines.push('export const BACKYARD_GARDEN_DEFINITIONS = {');
@@ -2246,7 +2331,7 @@ function generateTypeScript(): string {
     lines.push(`    label: ${JSON.stringify(def.label)},`);
     lines.push(`    foodSelfShare: ${def.foodSelfShare},`);
     lines.push(`    foodPerPersonPerSec: ${def.foodPerPersonPerSec},`);
-    lines.push(`    goldPerPersonPerSec: ${def.goldPerPersonPerSec},`);
+    lines.push(`    settlementAttractionMultiplier: ${def.settlementAttractionMultiplier},`);
     lines.push('  },');
   }
   lines.push('} as const satisfies Record<BackyardGardenKind, BackyardGardenDefinition>;');

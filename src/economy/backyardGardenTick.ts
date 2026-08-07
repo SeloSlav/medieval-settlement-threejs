@@ -99,6 +99,7 @@ export function computeBackyardGardenTickEffects(
   hasMarketAccess: boolean,
   seconds = SIM_TICK_SECONDS,
   seasonalMultiplier = 1,
+  remedyUnitsSold = 0,
 ): BackyardGardenTickEffects {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
   const pop = Math.max(0, population);
@@ -119,6 +120,12 @@ export function computeBackyardGardenTickEffects(
 
   const economicActivity = hasMarketAccess
     ? gardenMarketActivity(def, pop, seconds) * outputMultiplier
+      + gardenMarketActivity(
+        def,
+        0,
+        0,
+        kind === 'herb_garden' ? remedyUnitsSold : 0,
+      )
     : 0;
 
   return { selfFood, marketFood, economicActivity };

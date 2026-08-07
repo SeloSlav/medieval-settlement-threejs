@@ -9,6 +9,7 @@ import {
   describeCommodityOffer,
   describeMarketplaceTradeOfferForMarket,
   describeWaterCommodityOffer,
+  commodityOfferCost,
   formatTradeAvailabilitySummary,
   MARKET_COMMODITIES,
   MARKET_WATER_COMMODITIES,
@@ -16,6 +17,7 @@ import {
   marketplaceTradeOfferCost,
   marketplaceTradeStagingPlan,
   marketplaceTradeOffersBySection,
+  waterCommodityOfferCost,
 } from '../../economy/marketplaceTrade.ts';
 import type {
   MarketplaceManualTradeStatus,
@@ -57,8 +59,11 @@ import type {
 } from '../../generated/gameBalance.ts';
 import {
   MARKETPLACE_SPECIALTY_EXPORT_POLICIES,
-  marketplaceSpecialtyExportPlan,
+  SPECIALTY_MARKET_FAMILIES,
+  marketplaceSpecialtyExportPolicy,
   marketplaceSpecialtyQueue,
+  resolvedSpecialtyFamilyPolicy,
+  specialtyExportPolicyAllows,
 } from '../../economy/specialtyTrade.ts';
 import {
   MARKETPLACE_GOLD_RESERVE_TARGETS,
@@ -66,6 +71,7 @@ import {
   marketplaceGoldReserveTarget,
   marketplaceGoldSweepSurplus,
 } from '../../economy/marketplaceGoldReserve.ts';
+import { renderResourceAmount } from '../../ui/resourceCost.ts';
 
 export function renderMarketplaceTradePanel(
   building: BuildingState,
@@ -124,6 +130,8 @@ export function renderMarketplaceTradePanel(
     const civilianToolBoundary = 'resource' in offer && offer.resource === 'ironwork'
       ? ' · finished imports serve market, carpenter, construction, and military demand; civilian tool racks accept only smithy-cart refills'
       : '';
+    const cost = marketplaceTradeOfferCost(offer, marketState);
+    const costMarkup = renderResourceAmount(cost.resource, cost.amount, { compact: true });
     return `
       <li class="marketplace-trade-row">
         <button
@@ -135,6 +143,7 @@ export function renderMarketplaceTradePanel(
           ${disabled}
         >
           <span class="marketplace-trade-option__title">${actionTitle}</span>
+          <span class="marketplace-trade-option__cost"><span>Cost</span>${costMarkup}</span>
           <span class="marketplace-trade-option__hint">${hint}${civilianToolBoundary}</span>
         </button>
       </li>`;
@@ -158,6 +167,7 @@ export function renderMarketplaceTradePanel(
                 ? 'live merchant cart to this Trading Post, then local delivery'
                 : 'delivered to homes'
             }${priceTag ? ` · ${priceTag}` : ''}`);
+    const cost = commodityOfferCost(commodity, marketState);
     return `
       <li class="marketplace-trade-row">
         <button
@@ -169,6 +179,7 @@ export function renderMarketplaceTradePanel(
           ${disabled}
         >
           <span class="marketplace-trade-option__title">${describeCommodityOffer(commodity, marketState)}</span>
+          <span class="marketplace-trade-option__cost"><span>Cost</span>${renderResourceAmount(cost.resource, cost.amount, { compact: true })}</span>
           <span class="marketplace-trade-option__hint">${hint}</span>
         </button>
       </li>`;
@@ -192,6 +203,7 @@ export function renderMarketplaceTradePanel(
                 ? 'live regional cart to this Trading Post, then local delivery'
                 : 'delivered to homes'
             }${priceTag ? ` · ${priceTag}` : ''}`);
+    const cost = waterCommodityOfferCost(commodity, marketState);
     return `
       <li class="marketplace-trade-row">
         <button
@@ -203,6 +215,7 @@ export function renderMarketplaceTradePanel(
           ${disabled}
         >
           <span class="marketplace-trade-option__title">${describeWaterCommodityOffer(commodity, marketState)}</span>
+          <span class="marketplace-trade-option__cost"><span>Cost</span>${renderResourceAmount(cost.resource, cost.amount, { compact: true })}</span>
           <span class="marketplace-trade-option__hint">${hint}</span>
         </button>
       </li>`;
@@ -357,27 +370,49 @@ function renderSpecialtyExportPolicy(
   building: BuildingState,
   marketState: RegionalMarketState,
 ): string {
-  const plan = marketplaceSpecialtyExportPlan(building, marketState.specialtyPriceMult);
-  const queue = marketplaceSpecialtyQueue(building, marketState.specialtyPriceMult);
-  const currentRate = `${Math.round(plan.marketRate * 100)}%`;
-  const rateShortfallPoints = Math.max(1, Math.ceil(plan.rateShortfall * 100 - 1e-6));
-  let status: string;
-  if (queue.units <= 1e-6) {
-    status = `Regional rate ${currentRate} · awaiting hauled ale, honey, wine, or cloth.`;
-  } else if (!plan.saleAllowed) {
-    status = `Holding ${queue.units.toFixed(1)} units · current rate ${currentRate} is ${rateShortfallPoints} point${rateShortfallPoints === 1 ? '' : 's'} below this floor.`;
-  } else {
-    status = `${queue.units.toFixed(1)} units eligible at ${currentRate} · worth about ${queue.goldValue.toFixed(1)} gold if sold at the current rate.`;
-  }
+  const rates = {
+    drink: marketState.drinkPriceMult,
+    provision: marketState.provisionPriceMult,
+    wares: marketState.waresPriceMult,
+  };
+  const queue = marketplaceSpecialtyQueue(building, rates);
+  const familyPolicyValue = (family: 'drink' | 'provision' | 'wares'): number => {
+    const raw = family === 'drink'
+      ? building.marketplaceDrinkExportPolicy
+      : family === 'provision'
+        ? building.marketplaceProvisionExportPolicy
+        : building.marketplaceWaresExportPolicy;
+    return resolvedSpecialtyFamilyPolicy(raw, building.marketplaceSpecialtyExportPolicy);
+  };
+  const familyStock = (family: 'drink' | 'provision' | 'wares'): number => {
+    if (family === 'drink') return building.ale + building.wine;
+    if (family === 'provision') return building.honey + (building.cheese ?? 0);
+    return (building.cloth ?? 0) + (building.pottery ?? 0);
+  };
+  const familyRows = SPECIALTY_MARKET_FAMILIES.map((family) => {
+    const rate = rates[family.kind];
+    const policy = marketplaceSpecialtyExportPolicy(familyPolicyValue(family.kind));
+    const stock = familyStock(family.kind);
+    const allowed = specialtyExportPolicyAllows(policy.value, rate);
+    const status = stock <= 1e-6
+      ? `No ${family.goods} staged · regional rate ${Math.round(rate * 100)}%.`
+      : allowed
+        ? `${stock.toFixed(1)} units eligible at ${Math.round(rate * 100)}%.`
+        : `${stock.toFixed(1)} units held · ${Math.max(1, Math.ceil((policy.minRate - rate) * 100))} points below the selected floor.`;
+    return `<div class="inspector-action-panel">
+      <p class="resource-inspector-note"><strong>${family.label}</strong> · ${family.goods} · ${status}</p>
+      <div class="resource-action-row">${MARKETPLACE_SPECIALTY_EXPORT_POLICIES
+        .map((candidate) => `<button type="button" class="resource-action-button" data-marketplace-specialty-family="${family.id}" data-marketplace-specialty-family-policy="${candidate.value}" title="${candidate.hint}" ${candidate.value === policy.value ? 'disabled' : ''}>${candidate.label}</button>`)
+        .join('')}</div>
+    </div>`;
+  }).join('');
 
   return `
     <section class="marketplace-trade-section" aria-label="Specialty export policy">
-      <h3 class="marketplace-trade-section__title">Specialty export policy</h3>
-      <p class="resource-inspector-note">Ale, honey, wine, and cloth must arrive here by physical cart. Selling deepens regional supply and lowers the next rate; holding can recover price but may fill this Trading Post and back up its producer routes.</p>
-      <div class="resource-action-row">${MARKETPLACE_SPECIALTY_EXPORT_POLICIES
-        .map((policy) => `<button type="button" class="resource-action-button" data-marketplace-specialty-export-policy="${policy.value}" title="${policy.hint}" ${policy.value === plan.policy.value ? 'disabled' : ''}>${policy.label}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">${status}</p>
+      <h3 class="marketplace-trade-section__title">Specialty export desks</h3>
+      <p class="resource-inspector-note">Each family has its own seasonal regional demand and price. Goods must arrive by physical cart; exporting one family depresses only that family, while comfortable local households may buy small amounts before the evening caravan departs.</p>
+      ${familyRows}
+      <p class="inspector-action-panel__hint">${queue.units.toFixed(1)} total units · about ${queue.goldValue.toFixed(1)} gold at current family rates.</p>
     </section>`;
 }
 

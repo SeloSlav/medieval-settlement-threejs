@@ -3,6 +3,7 @@ use spacetimedb::{reducer, ReducerContext, Table};
 use crate::balance_generated::{
     CARPENTER_TIMBER_COST_MULTIPLIER, CONSTRUCTION_MAX_BUILDERS, TOWN_HALL_POPULATION_REQUIRED,
 };
+use crate::apiary_policy::is_valid_apiary_harvest_policy;
 use crate::building_defs::{building_def, building_def_or_err};
 use crate::burgage::{zone_overlaps_footprint, Point2};
 use crate::chapel_upgrade_policy::{chapel_upgrade_cost, normalize_chapel_tier};
@@ -68,7 +69,9 @@ use crate::simulation::{
     staffed_cart_workers_by_building,
     FIRE_TARGET_BUILDING,
 };
-use crate::specialty_trade_policy::is_valid_specialty_export_policy;
+use crate::specialty_trade_policy::{
+    is_valid_specialty_export_policy, SpecialtyMarketFamily,
+};
 use crate::storehouse_policy::{
     is_valid_storehouse_stock_target_percent, STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
 };
@@ -81,6 +84,7 @@ use crate::tables::{
     farm_field, livestock_herd, pasture, Building, ForagingNode, Quarry, WorldConfig,
 };
 use crate::weaver_input_policy::is_valid_weaver_input_policy;
+use crate::vineyard::is_valid_vineyard_policy;
 use crate::woodcutter_policy::normalize_woodcutter_timber_reserve;
 use crate::worksite_stall_policy::{
     is_production_labor_kind, stalled_labor_target, SpatialBuckets, RICH_DEPOSIT_CENTER_TOLERANCE,
@@ -831,6 +835,16 @@ pub(crate) fn place_building_internal(
         chapel_monastery_tithe_due: 0.0,
         civic_receipts_gold: 0.0,
         private_export_proceeds_gold: 0.0,
+        vineyard_production_policy: 1,
+        vineyard_fermenting_grapes: 0.0,
+        vineyard_fermentation_progress: 0.0,
+        apiary_harvest_policy: 1,
+        apiary_colony_health: 1.0,
+        apiary_last_winter_year: 0,
+        apiary_forage_score: 0.75,
+        marketplace_drink_export_policy: 255,
+        marketplace_provision_export_policy: 255,
+        marketplace_wares_export_policy: 255,
         barley: 0.0,
         malt: 0.0,
         flax: 0.0,
@@ -2285,11 +2299,103 @@ pub fn set_marketplace_specialty_export_policy(
         .id()
         .find(&building_id)
         .ok_or_else(|| "Marketplace not found.".to_string())?;
-    if building.owner != owner || building.kind != "marketplace" || !building.construction_complete
+    if building.owner != owner
+        || building.kind != "trading_post"
+        || !building.construction_complete
     {
-        return Err("You do not own this completed marketplace.".to_string());
+        return Err("You do not own this completed Trading Post.".to_string());
     }
     building.marketplace_specialty_export_policy = export_policy;
+    building.marketplace_drink_export_policy = export_policy;
+    building.marketplace_provision_export_policy = export_policy;
+    building.marketplace_wares_export_policy = export_policy;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_marketplace_specialty_family_export_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    family: u8,
+    export_policy: u8,
+) -> Result<(), String> {
+    if !is_valid_specialty_export_policy(export_policy) {
+        return Err(
+            "Specialty family policy must be any-rate, fair-rate, or favorable-rate."
+                .to_string(),
+        );
+    }
+    let family = SpecialtyMarketFamily::from_id(family)
+        .ok_or_else(|| "Specialty family must be drinks, provisions, or wares.".to_string())?;
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Trading Post not found.".to_string())?;
+    if building.owner != owner
+        || building.kind != "trading_post"
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed Trading Post.".to_string());
+    }
+    match family {
+        SpecialtyMarketFamily::Drink => building.marketplace_drink_export_policy = export_policy,
+        SpecialtyMarketFamily::Provision => {
+            building.marketplace_provision_export_policy = export_policy
+        }
+        SpecialtyMarketFamily::Wares => building.marketplace_wares_export_policy = export_policy,
+    }
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_vineyard_production_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    production_policy: u8,
+) -> Result<(), String> {
+    if !is_valid_vineyard_policy(production_policy) {
+        return Err("Vineyard policy must be Table grapes, Balanced, or Wine first.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Vineyard not found.".to_string())?;
+    if building.owner != owner || building.kind != "vineyard" || !building.construction_complete {
+        return Err("You do not own this completed vineyard.".to_string());
+    }
+    building.vineyard_production_policy = production_policy;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_apiary_harvest_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    harvest_policy: u8,
+) -> Result<(), String> {
+    if !is_valid_apiary_harvest_policy(harvest_policy) {
+        return Err("Apiary policy must be Conservative, Balanced, or Extractive.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Apiary not found.".to_string())?;
+    if building.owner != owner || building.kind != "apiary" || !building.construction_complete {
+        return Err("You do not own this completed apiary.".to_string());
+    }
+    building.apiary_harvest_policy = harvest_policy;
     ctx.db.building().id().update(building);
     Ok(())
 }

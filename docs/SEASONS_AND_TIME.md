@@ -13,8 +13,9 @@ The calendar is deliberately fictional and fixed:
 - A new world begins on 1 March, Year 1 at 08:00 so the first session opens after
   dawn, near the beginning of spring and the workday.
 - Labor normally works from 06:00 to 20:00. A staffed chapel can make Sunday a
-  sabbath. Household heating continues at night and on sabbaths even while other
-  household consumption and labor are paused.
+  sabbath. Sunday still consumes ordinary household provisions, so it must be
+  supplied in advance. Named holy days use the separate protected-rest contract
+  below.
 - Work hours and Sabbath observance block new ordinary-cart departures. A cart
   that already departed remains a committed crew and completes its delivery,
   unloading, and return home across the boundary instead of camping on the road.
@@ -35,6 +36,58 @@ The calendar is deliberately fictional and fixed:
   swineherds have built-in crew lodging; barns, apiaries, vineyards, processors,
   civic sites, and urban jobs retain the daily household commute. Inspectors report
   the measured journey, effective workday cost, lodging rule, and linked project.
+
+### 1550s Gorski Kotar holy-day schedule
+
+This is a schedule system, not a second calendar UI. It adapts a Latin-Christian
+1550s observance cycle to the game's rational 30-day months. Game Year 1 uses the
+Julian computus for 1550, Years 2–10 use 1551–1559, and Year 11 repeats that
+ten-year historical cycle. A real feast falling on a day 31 is folded onto day 30;
+relative Easter feasts keep their proper spacing.
+
+| Date or rule | Protected observance | Length | Visible custom |
+| --- | --- | ---: | --- |
+| 1 January | Circumcision of the Lord | 1 day | Church and household visiting |
+| 6 January | Epiphany | 1 day | Church and procession |
+| 2 February | Candlemas | 1 day | Church and procession |
+| Easter −48 to −47 | Shrovetide | 2 days | Congregating and carnival visiting |
+| 25 March | Annunciation | 1 day | Church and household rest |
+| Easter −2 to +1 | Good Friday through Easter Monday | 4 days | Church, congregation, and household feasting |
+| 23 April | Jurjevo / St George | 1 day | Church, field procession, evening bonfire gathering |
+| Easter +39 | Ascension | 1 day | Church and procession |
+| Easter +49 to +50 | Pentecost and Whit Monday | 2 days | Church, congregation, and household visiting |
+| Easter +60 | Corpus Christi | 1 day | Church and procession |
+| 24 June | Ivanje / St John | 1 day | Church, wreath custom, evening bonfire gathering |
+| 29 June | Sts Peter and Paul | 1 day | Church and household rest |
+| 15 August | Assumption of Mary | 1 day | Church and procession |
+| 8 September | Nativity of Mary | 1 day | Church and household rest |
+| 29 September | Michaelmas | 1 day | Church and household rest |
+| 1 November | All Saints | 1 day | Church and household visiting |
+| 11 November | Martinje / St Martin | 1 day | Parish fair and congregation |
+| 6 December | St Nicholas | 1 day | Church and household visiting |
+| 24–26 December | Christmas Eve through St Stephen | 3 days | Church, household feasting, and visiting |
+
+Every named observance is mandatory and does not depend on the optional Sunday
+policy or on having a staffed chapel. The calendar advances, but authoritative
+production and every potentially adverse simulation mutation are frozen: carts,
+construction, household consumption, heating, spoilage, wages, upkeep, taxes,
+illness, fires, raids, and similar penalties neither progress nor accumulate.
+Workers at remote camps return to their permanent households. With a staffed,
+road-connected chapel, deterministic cohorts physically walk to morning services
+and later processions, fairs, or bonfire gatherings; the remaining agents stand
+behind their houses in stable backyard groups. Founders celebrate around their camp.
+Emergency refuge behavior still has presentation priority if an already-active
+threat is visible when an observance begins.
+
+The historical basis is deliberately transparent rather than pretending that one
+complete 1550 village calendar survives. Research on Gorski Kotar describes the
+annual cycle as following the church calendar with patron-day dances, games, and
+social gatherings; local continuity specifically records Jurjevo processions and
+bonfires and Ivanje wreath customs. The work prohibition follows the period's
+church-holiday tradition. Sources: [Gorski Kotar annual customs study](https://hrcak.srce.hr/file/264086),
+[Jurjevo in Lič](https://gorskikotar.hr/en/jurjevo-u-licu/),
+[Ivanje wreath tradition in Delnice](https://rgk.hr/etno-udruga-prepelinc-delnice-odrzala-je-17-etno-smotru-ivajnske-kresnice-pred-hiso-racki/),
+and [Roman-canonical feast-day work rules](https://hrcak.srce.hr/file/455439).
 
 | Speed | Day | Month | Season | Year |
 | --- | ---: | ---: | ---: | ---: |
@@ -513,24 +566,29 @@ linear in holdings, active textile branches, buildings, homes, and moving
 carts.
 
 Specialty exports now have their own physical road-branch account. Completed
-breweries, apiaries, vineyards, and weavers contribute the ale, honey, wine, or
-cloth still in their stores; local household deliveries and enabled monastery
-hospitality remain ahead of export in the authoritative dispatch order. The
-ledger matches those producers with completed marketplaces on the same cached
-road component, subtracts specialty cargo already approaching each market from
+breweries, apiaries, vineyards, pastoral holdings, weavers, and pottery kilns
+contribute ale, wine, honey, cheese, cloth, or pottery still in their stores;
+local household, preservation, and enabled monastery duties remain ahead of
+export in the authoritative dispatch order. Apiaries additionally protect the
+selected winter honey floor, and vineyards can export only wine that has
+finished its staffed fermentation cycle. The ledger matches those producers
+with completed Trading Posts on the same cached road component, subtracts
+specialty cargo already approaching each post from
 that commodity's remaining storage room, and respects the one inbound-supply
 cart gate shared by the real dispatch code. It therefore distinguishes cargo
 that is ready to haul from cargo waiting for producer labor, a returning source
-cart, an occupied receiving slot, market storage, fire recovery, or a road
-connection. An unstaffed market can still receive cargo, matching the server,
+cart, an occupied receiving slot, post storage, fire recovery, or a road
+connection. An unstaffed Trading Post can still receive cargo, matching the server,
 but that choice creates visible backpressure instead of implied income.
 
-The second half of the account follows the broker desk. Market stock and loaded
-inbound carts form its projected queue. A desk clears that queue only when the
-market is complete, staffed, safe, on a road, above its selected regional-price
-floor, and has a broker not occupied by a manual transaction. The Town Hall
-shows free-broker throughput, the slowest active queue, every blocked or
-price-held quantity, and a direct link to the largest high-priority failure.
+The second half of the account follows the broker desk. Trading Post stock and loaded
+inbound carts form its projected queue. Drinks, provisions, and wares have
+independent seasonal demand, current prices, and Any/Fair/Favorable floors, so
+one family can move while another is held. A desk clears eligible stock only
+when the post is complete, staffed, safe, on a road, and has a broker not
+occupied by a manual transaction. The Town Hall shows all three rates,
+free-broker throughput, the slowest active queue, every blocked or price-held
+quantity, and a direct link to the largest high-priority failure.
 Road reconnection and labor reassignment change the forecast immediately. The
 reduction adds no save fields or simulation-tick scans, performs no shortest
 path solves, and remains linear in buildings, active carts, and road branches.

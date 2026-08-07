@@ -147,6 +147,9 @@ function buildingStateFromRow(
     marketplaceSaltTarget: row.marketplaceSaltTarget,
     marketplaceGoldReserveTarget: row.marketplaceGoldReserveTarget,
     marketplaceSpecialtyExportPolicy: row.marketplaceSpecialtyExportPolicy,
+    marketplaceDrinkExportPolicy: row.marketplaceDrinkExportPolicy,
+    marketplaceProvisionExportPolicy: row.marketplaceProvisionExportPolicy,
+    marketplaceWaresExportPolicy: row.marketplaceWaresExportPolicy,
     marketplaceSeedGrainTarget: row.marketplaceSeedGrainTarget,
     marketplacePendingTradeCode: row.marketplacePendingTradeCode,
     foundingShelterActive: row.foundingShelterActive,
@@ -159,5 +162,12 @@ function buildingStateFromRow(
     chapelTier: Math.max(1, Math.min(3, Number(materialRow.chapelTier ?? 3))) as 1 | 2 | 3,
     civicReceiptsGold: row.civicReceiptsGold,
     privateExportProceedsGold: row.privateExportProceedsGold,
+    vineyardProductionPolicy: row.vineyardProductionPolicy,
+    vineyardFermentingGrapes: row.vineyardFermentingGrapes,
+    vineyardFermentationProgress: row.vineyardFermentationProgress,
+    apiaryHarvestPolicy: row.apiaryHarvestPolicy,
+    apiaryColonyHealth: row.apiaryColonyHealth,
+    apiaryLastWinterYear: row.apiaryLastWinterYear,
+    apiaryForageScore: row.apiaryForageScore,
   };
 }

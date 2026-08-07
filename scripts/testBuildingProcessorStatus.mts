@@ -439,7 +439,7 @@ const fullVineyardFood = makeBuilding({
 });
 assert.equal(
   getBuildingProcessorStatus(fullVineyardFood, noWellQueries, { month: 9 })?.statusText,
-  'Seasonal work waiting - grapes store needs 1.0 more room',
+  'Seasonal work waiting - grapes store needs 4.0 more room',
 );
 
 console.log('building processor status tests passed');

@@ -76,7 +76,6 @@ const WORKSITE_BUILDING_KINDS = new Set<BuildingKind>([
   'windmill',
   'carpenter',
   'weaver',
-  'ferry_landing',
   'vineyard',
 ]);
 

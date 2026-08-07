@@ -6,6 +6,7 @@ import { formatBuildingCost, getBuildingCost } from '../resources/buildingEconom
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { buildingPlacementReasonToToastId, getToastMessage } from './toastMessages.ts';
+import { renderBuildingResourceCost } from './resourceCost.ts';
 
 export type ToolbarStats = {
   canBuild: boolean;
@@ -101,4 +102,36 @@ export function describeToolbarStatus(stats: ToolbarStats): string {
     return 'Road · L-click add point · R-click undo · Esc cancel';
   }
   return 'Road · L-click start · Alt + L-click remove segment · Esc cancel';
+}
+
+export function renderToolbarStatus(stats: ToolbarStats): string {
+  if (!isBuildingToolMode(stats.mode)) {
+    return escapeHtml(describeToolbarStatus(stats));
+  }
+
+  const cost = stats.buildingCost ?? getBuildingCost(stats.mode);
+  const costMarkup = renderBuildingResourceCost(cost, { compact: true });
+  if (stats.statusDetail) {
+    const hasMaterialCost = cost.timber > 0 || cost.stone > 0 || (cost.ironwork ?? 0) > 0;
+    return `${escapeHtml(stats.statusDetail)}${hasMaterialCost ? ` <span aria-hidden="true">|</span> Cost ${costMarkup}` : ''}`;
+  }
+
+  const hint = PLACEMENT_STATUS_HINTS[stats.mode] ?? '';
+  const label = getBuildingDefinition(stats.mode).label;
+  const support = stats.carpenterSupported
+    ? stats.carpenterCartServiceReady
+      ? ' — carpenter-supported: 10% less timber; stocked wheelwright gives road carts +18% speed'
+      : stats.carpenterCartServiceEnabled
+        ? ' — carpenter-supported: 10% less timber; cart speed awaits repair timber and ironwork'
+        : ' — carpenter-supported: 10% less timber; cart service disabled to conserve fittings'
+    : '';
+  return `Click terrain to place a ${escapeHtml(label.toLowerCase())} (${costMarkup})${escapeHtml(support)}${escapeHtml(hint)}`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }

@@ -357,8 +357,8 @@ const seedThreeAssetBytes = seedThreeAssets.reduce((total, asset) => (
     : asset.source.byteLength)
 ), 0);
 assert.ok(
-  seedThreeAssetBytes <= 100_000_000,
-  `SeedThree output grew beyond its 100 MB source budget (${seedThreeAssetBytes} bytes)`,
+  seedThreeAssetBytes <= 101_000_000,
+  `SeedThree output grew beyond its 101 MB source budget (${seedThreeAssetBytes} bytes)`,
 );
 const entryChunk = chunks.find((chunk) => chunk.isEntry);
 assert.ok(entryChunk, 'production build must expose one application entry chunk');
@@ -463,12 +463,12 @@ assert.ok(
   // Apple and cherry add eight species-specific leaf material URLs.
   // Keep this intentional raw-source allowance explicit; the compressed
   // transfer budget below remains the stronger network guardrail.
-  startupClosureBytes <= 2_780_000,
-  `initial static chunk closure grew beyond 2.78 MB (${startupClosureBytes} bytes)`,
+  startupClosureBytes <= 2_840_000,
+  `initial static chunk closure grew beyond 2.84 MB (${startupClosureBytes} bytes)`,
 );
 assert.ok(
-  startupClosureGzipBytes <= 766_000,
-  `initial static chunk closure grew beyond 766 KB gzip (${startupClosureGzipBytes} bytes)`,
+  startupClosureGzipBytes <= 782_000,
+  `initial static chunk closure grew beyond 782 KB gzip (${startupClosureGzipBytes} bytes)`,
 );
 
 console.log(

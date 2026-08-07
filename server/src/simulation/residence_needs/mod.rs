@@ -15,7 +15,7 @@ use crate::balance_generated::{
     ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY, ILLNESS_RECOVERY_DAYS, MALNUTRITION_ILLNESS_MULTIPLIER,
     PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR, TICK_DT, UNSAFE_WATER_ILLNESS_MULTIPLIER,
 };
-use crate::season_policy::EnvironmentState;
+use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_consumption_paused;
 use spacetimedb::ReducerContext;
@@ -28,8 +28,8 @@ use crate::economy::{
 };
 use crate::preserved_food_policy::allocate_preserved_meal;
 use crate::resident_welfare_policy::{
-    deterministic_unit, next_malnutrition, next_service_deficit_ticks, starvation_death_due,
-    starvation_episode_resolved, ticks_for_days,
+    cold_exposure_death_chance, deterministic_unit, next_malnutrition, next_service_deficit_ticks,
+    starvation_death_chance, ticks_for_days,
 };
 use crate::simulation::residence_needs::state::{
     delete_needs, find_need_mut, init_needs, migrate_and_sync_food_inventory, persist_needs,
@@ -59,7 +59,7 @@ pub fn step_residence_needs(
     spoil_residence_food_inventory(&mut residence, environment);
     migrate_and_sync_food_inventory(&mut residence, &mut needs);
 
-    let cold_weather = environment.firewood_demand_multiplier() > 1.0 + 1e-9;
+    let cold_weather = environment.season == Season::Winter;
     let mut food_unmet = false;
     let mut water_unmet = false;
     let mut cold_unmet = false;
@@ -107,7 +107,15 @@ pub fn step_residence_needs(
             }
             ConsumeResult::Unmet => {
                 *need = on_unmet_need(kind, need);
-                need.deficit_ticks = need.deficit_ticks.saturating_add(1);
+                // Firewood deficit time doubles as the consecutive winter
+                // exposure clock. Autumn stockpiling pressure still affects
+                // service, but cannot pre-age a household into an immediate
+                // death roll on the first winter morning.
+                if kind == ResidenceNeedKind::Firewood && !cold_weather {
+                    need.deficit_ticks = 0;
+                } else {
+                    need.deficit_ticks = need.deficit_ticks.saturating_add(1);
+                }
                 service_unmet = true;
                 if kind == ResidenceNeedKind::Water {
                     water_unmet = true;
@@ -118,6 +126,14 @@ pub fn step_residence_needs(
             }
         }
     }
+    let cold_exposure_ticks = if cold_weather {
+        needs
+            .iter()
+            .find(|need| need.kind == ResidenceNeedKind::Firewood)
+            .map_or(0, |need| need.deficit_ticks)
+    } else {
+        0
+    };
 
     let previous_effective_workers = residence
         .population
@@ -129,6 +145,7 @@ pub fn step_residence_needs(
         food_unmet,
         water_unmet,
         cold_unmet,
+        cold_exposure_ticks,
         general_consumption_paused,
         world_seed,
         sim_tick,
@@ -265,6 +282,7 @@ fn update_health(
     food_unmet: bool,
     water_unmet: bool,
     cold_unmet: bool,
+    cold_exposure_ticks: u32,
     consumption_paused: bool,
     world_seed: u64,
     sim_tick: u64,
@@ -282,10 +300,6 @@ fn update_health(
         food_unmet,
         consumption_paused,
     );
-
-    if starvation_episode_resolved(residence.hunger_ticks) {
-        residence.last_starvation_death_hunger_ticks = 0;
-    }
 
     let nearby_corpses = tick.nearby_waiting_corpses(
         ctx,
@@ -350,15 +364,20 @@ fn update_health(
     }
 
     let mut death_cause = None;
-    if food_unmet
-        && residence.population > 0
-        && starvation_death_due(
-            residence.hunger_ticks,
-            residence.last_starvation_death_hunger_ticks,
-        )
-    {
-        residence.last_starvation_death_hunger_ticks = residence.hunger_ticks;
+    let starvation_chance = if food_unmet {
+        starvation_death_chance(residence.population, residence.hunger_ticks)
+    } else {
+        0.0
+    };
+    let exposure_chance = if cold_unmet {
+        cold_exposure_death_chance(residence.population, cold_exposure_ticks)
+    } else {
+        0.0
+    };
+    if deterministic_unit(world_seed, sim_tick, residence.id, 0x57A2) < starvation_chance {
         death_cause = Some(0);
+    } else if deterministic_unit(world_seed, sim_tick, residence.id, 0xC01D) < exposure_chance {
+        death_cause = Some(2);
     } else if residence.sick_population > 0 {
         let mortality_chance = (ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY
             * residence.sick_population as f64

@@ -37,6 +37,7 @@ import type {
   ResidenceState,
 } from '../src/resources/types.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
+import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 
 const serverCalendar = readFileSync(
   new URL('../server/src/simulation/game_calendar.rs', import.meta.url),
@@ -158,7 +159,7 @@ const provisioning = computeSettlementProvisioning({
 });
 
 assert.equal(provisioning.foodConsumers, 7);
-assert.equal(provisioning.heatedResidents, 4);
+assert.equal(provisioning.heatedResidents, 7);
 assert.equal(provisioning.assignedGuards, 3);
 assert.equal(provisioning.armedGuards, 2, 'each ready guard must have one whole polearm');
 assert.equal(provisioning.unarmedGuards, 1);
@@ -168,7 +169,7 @@ assert.equal(provisioning.householdBufferHouseholds, 2);
 assert.equal(provisioning.householdBufferReadyHouseholds, 0);
 assert.equal(provisioning.householdBufferCoverage, 0);
 assert.equal(provisioning.householdBufferFoodShortHomes, 2);
-assert.equal(provisioning.householdBufferFirewoodShortHomes, 1);
+assert.equal(provisioning.householdBufferFirewoodShortHomes, 2);
 assert.equal(provisioning.householdBufferWaterShortHomes, 1);
 assert.equal(provisioning.householdBufferPreservedFoodShortHomes, 0);
 assert.equal(provisioning.householdBufferAleShortHomes, 0);
@@ -194,28 +195,70 @@ assert.ok(Math.abs(
 ) < 1e-9);
 assert.ok(Math.abs(
   provisioning.winterFirewoodPerDay
-  - 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 120 * WINTER_FIREWOOD_DEMAND_MULTIPLIER,
+  - 7 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 120 * WINTER_FIREWOOD_DEMAND_MULTIPLIER,
 ) < 1e-9);
 assert.ok(
-  Math.abs(provisioning.winterFirewoodRunwayDays - 15) < 1e-9,
-  `expected 15 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
+  Math.abs(provisioning.winterFirewoodRunwayDays - 60 / 7) < 1e-9,
+  `expected 60/7 winter firewood days, received ${provisioning.winterFirewoodRunwayDays}`,
 );
-assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 1 / 6) < 1e-9);
+assert.ok(Math.abs(provisioning.winterFirewoodCoverage - 2 / 21) < 1e-9);
 assert.equal(provisioning.guardWagePerDay, 2 * GUARDHOUSE_WAGE_PER_GUARD_PER_DAY);
 assert.ok(Math.abs(provisioning.guardWageRunwayDays - 10) < 1e-9);
 assert.equal(provisioning.sabbathHouseholds, 2);
 assert.equal(provisioning.sabbathReadyHouseholds, 0);
 assert.equal(provisioning.sabbathFoodShortHomes, 2);
-assert.equal(provisioning.sabbathFirewoodShortHomes, 1);
+assert.equal(provisioning.sabbathFirewoodShortHomes, 2);
 assert.equal(provisioning.sabbathWaterShortHomes, 1);
 assert.equal(provisioning.roadBranches, null, 'legacy callers may omit road topology');
 assert.match(formatSabbathReadiness(provisioning), /0 \/ 2 homes stocked/);
 assert.equal(settlementProvisionLevel(provisioning, 10), 'critical');
 assert.equal(shouldShowProvisioning(provisioning, 10), true);
-assert.equal(formatProvisionDays(provisioning.winterFirewoodRunwayDays), '15d');
+assert.equal(formatProvisionDays(provisioning.winterFirewoodRunwayDays), '8.6d');
 assert.equal(WINTER_RESERVE_DAYS, 90);
 assert.equal(HOUSEHOLD_BUFFER_WARNING_COVERAGE, 0.8);
 assert.equal(HOUSEHOLD_BUFFER_CRITICAL_COVERAGE, 0.5);
+
+const charcoalHeatState = emptyGameState();
+const charcoalHeatHome = residence('charcoal-heat-home', 1, 1);
+charcoalHeatState.residences.set(charcoalHeatHome.id, charcoalHeatHome);
+const charcoalForge = building('charcoal-forge', 'smithy', 1, 0);
+charcoalForge.charcoal = 500;
+charcoalHeatState.buildings.set(charcoalForge.id, charcoalForge);
+const charcoalStorehouse = building('charcoal-storehouse', 'village_storehouse', 1, 0);
+charcoalStorehouse.charcoal = 20;
+charcoalHeatState.buildings.set(charcoalStorehouse.id, charcoalStorehouse);
+const charcoalMarket = building('charcoal-market', 'marketplace', 0, 0);
+charcoalMarket.charcoal = 40;
+charcoalHeatState.buildings.set(charcoalMarket.id, charcoalMarket);
+charcoalHeatState.deliveryTrips.set('charcoal-market-cart', {
+  id: 'charcoal-market-cart',
+  buildingId: charcoalStorehouse.id,
+  residenceId: null,
+  destinationKind: 'building',
+  targetBuildingId: charcoalMarket.id,
+  cargoKind: 'charcoal',
+  amount: 5,
+  phase: 'outbound',
+} as DeliveryTripState);
+const charcoalHeat = computeSettlementProvisioning({
+  state: charcoalHeatState,
+  totals: computeResourceTotals(charcoalHeatState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+  roadComponentFor: () => 'charcoal-heated',
+});
+assert.equal(
+  charcoalHeat.firewoodStock,
+  60,
+  'only charcoal staged in household distribution stores should count as aggregate heating fuel',
+);
+assert.equal(charcoalHeat.usableFirewoodStock, 60);
+assert.equal(
+  charcoalHeat.roadBranches?.physicalFirewoodStock,
+  45,
+  'market charcoal and an inbound charcoal cart must count as branch heating fuel',
+);
 
 const physicalPayrollState = emptyGameState();
 physicalPayrollState.stockpile.gold = 7;
@@ -330,7 +373,7 @@ const displaced = computeSettlementProvisioning({
   roadComponentFor: () => 'village',
 });
 assert.equal(displaced.foodConsumers, 4);
-assert.equal(displaced.heatedResidents, 0);
+assert.equal(displaced.heatedResidents, 4);
 assert.equal(displaced.displacedHouseholds, 1);
 assert.equal(displaced.displacedResidents, 4);
 assert.equal(displaced.householdBufferHouseholds, 1);
@@ -392,13 +435,18 @@ const splitHome = residence('split-home', 1, 4);
 splitHome.x = 0;
 splitHome.needs.food.stock = 4 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
 splitHome.food = splitHome.needs.food.stock;
+splitHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
 splitBranchState.residences.set(splitHome.id, splitHome);
 const remoteGranary = building('remote-granary', 'granary', 2, 0);
 remoteGranary.x = 100;
 splitBranchState.buildings.set(remoteGranary.id, remoteGranary);
-const remoteFoodMarket = building('remote-food-market', 'marketplace', 0, 0);
+const remoteGoodsStorehouse = building('remote-goods-storehouse', 'village_storehouse', 1, 0);
+remoteGoodsStorehouse.x = 100;
+splitBranchState.buildings.set(remoteGoodsStorehouse.id, remoteGoodsStorehouse);
+const remoteFoodMarket = building('remote-food-market', 'marketplace', 1, 0);
 remoteFoodMarket.x = 100;
 remoteFoodMarket.food = 300;
+remoteFoodMarket.firewood = 2_000;
 splitBranchState.buildings.set(remoteFoodMarket.id, remoteFoodMarket);
 const splitBranches = computeSettlementProvisioning({
   state: splitBranchState,
@@ -905,8 +953,10 @@ for (const [id, tier, population] of [
   const home = residence(id, tier, population);
   home.needs.food.stock = population * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
   home.food = home.needs.food.stock;
-  if (tier >= 2) {
+  if (tier >= 1) {
     home.needs.firewood.stock = population * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170 * 1.15;
+  }
+  if (tier >= 2) {
     home.needs.water.stock = population * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
   }
   if (tier >= 3) {
@@ -1017,11 +1067,13 @@ function residence(id: string, tier: number, population: number): ResidenceState
 function householdBufferState(readyHomes: number) {
   const state = emptyGameState();
   state.stockpile.food = 500;
+  state.stockpile.firewood = 5_000;
   for (let index = 0; index < 5; index += 1) {
     const home = residence(`buffer-home-${index}`, 1, 3);
     if (index < readyHomes) {
       home.needs.food.stock = 3 * RESIDENCE_FOOD_PER_PERSON_PER_SEC * 70;
       home.food = home.needs.food.stock;
+      home.needs.firewood.stock = 3 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 170;
     }
     state.residences.set(home.id, home);
   }

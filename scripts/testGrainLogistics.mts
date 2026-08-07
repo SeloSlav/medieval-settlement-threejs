@@ -669,7 +669,7 @@ assert.match(
   'authoritative brewing must physically malt barley before making ale',
 );
 
-const monasteryStep = functionSection('step_monastery', 'step_ferry_landing');
+const monasteryStep = functionSection('step_monastery', 'step_carpenter');
 assert.doesNotMatch(monasteryStep, /request_connected_commodity/);
 assert.match(monasteryStep, /step_autonomous_processor/);
 

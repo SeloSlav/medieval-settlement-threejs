@@ -19,7 +19,7 @@ import {
 } from '../resourceTotals.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import type { InspectorLaborView } from './renderInspectableTarget.ts';
-import { renderBuildingResourceCost } from '../../ui/resourceCost.ts';
+import { renderBuildingResourceCost, renderResourceAmount } from '../../ui/resourceCost.ts';
 import {
   CONSTRUCTION_MAX_BUILDERS,
   MIN_DELIVERY_TRIP_SEC,
@@ -120,11 +120,14 @@ export function civilianToolRows(
   const runway = isFarmstead
     ? `${farmToolWorkerDayRunway(plan.ironwork).toFixed(1)} active worker-days onsite`
     : `${plan.runwayCycles.toFixed(1)} cycles onsite`;
+  const wearAmount = isFarmstead
+    ? FARM_TOOL_IRONWORK_PER_WORKER_DAY
+    : CIVILIAN_TOOL_IRONWORK_PER_CYCLE;
   const wear = isFarmstead
-    ? `${FARM_TOOL_IRONWORK_PER_WORKER_DAY} ironwork per completed worker-day · wear follows actual field progress`
+    ? `${renderResourceAmount('ironwork', wearAmount, { compact: true, suffix: 'per completed worker-day' })} · wear follows actual field progress`
     : isGrainMill
-      ? `${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed milling cycle · dressing hammers, gudgeons, and fittings share the smithy buffer`
-      : `${CIVILIAN_TOOL_IRONWORK_PER_CYCLE} ironwork per completed cycle · partial batches wear tools in proportion to real output`;
+      ? `${renderResourceAmount('ironwork', wearAmount, { compact: true, suffix: 'per completed milling cycle' })} · dressing hammers, gudgeons, and fittings share the smithy buffer`
+      : `${renderResourceAmount('ironwork', wearAmount, { compact: true, suffix: 'per completed cycle' })} · partial batches wear tools in proportion to real output`;
   const toolLabel = isGrainMill ? 'Mill dressing' : 'Work tools';
   const maintainedLabel = isGrainMill
     ? `Stone faces dressed and iron fittings sound · +${bonus}% throughput · ${runway}`
@@ -136,7 +139,7 @@ export function civilianToolRows(
     ? `${(plan.refillAmount / FARM_TOOL_IRONWORK_PER_WORKER_DAY).toFixed(0)} active worker-days`
     : `${(plan.refillAmount / CIVILIAN_TOOL_IRONWORK_PER_CYCLE).toFixed(0)} cycles`;
   const refillRule = plan.reorderDue
-    ? `${plan.refillAmount.toFixed(2)} ironwork requested · refill to ${plan.refillTarget.toFixed(2)} (${refillWork})`
+    ? `${renderResourceAmount('ironwork', plan.refillAmount, { compact: true, suffix: 'requested' })} · refill to ${plan.refillTarget.toFixed(2)} (${refillWork})`
     : `reorders below ${plan.reorderStock.toFixed(2)} · next cart refills to ${plan.refillTarget.toFixed(2)}`;
   const inbound = worldQueries && typeof worldQueries.getInboundSupplyTrip === 'function'
     ? worldQueries.getInboundSupplyTrip(building)

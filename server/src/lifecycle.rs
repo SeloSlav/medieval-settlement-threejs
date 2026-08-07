@@ -1,6 +1,9 @@
 use spacetimedb::{reducer, Identity, ReducerContext, ScheduleAt, TimeDuration};
 
-use crate::balance_generated::{CHAPEL_COFFER_RESERVE_DEFAULT, ECONOMIC_ACTIVITY_TAX_RATE};
+use crate::balance_generated::{
+    CHAPEL_COFFER_RESERVE_DEFAULT, ECONOMIC_ACTIVITY_TAX_RATE, STARTING_BREAD, STARTING_FIREWOOD,
+    STARTING_IRONWORK,
+};
 use crate::constants::TICK_MICROS;
 use crate::db::*;
 use crate::economy::{
@@ -106,7 +109,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         owner,
         timber: STARTING_TIMBER,
         stone: STARTING_STONE,
-        firewood: 0.0,
+        firewood: STARTING_FIREWOOD,
         water: 0.0,
         gold: STARTING_GOLD,
         food: 0.0,
@@ -116,7 +119,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         preserved_food: 0.0,
         honey: 0.0,
         wine: 0.0,
-        ironwork: 0.0,
+        ironwork: STARTING_IRONWORK,
         polearms: 0.0,
         wool: 0.0,
         cloth: 0.0,
@@ -155,6 +158,8 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         night_curfew_policy: 1,
         last_night_report_day: 0,
         last_night_households: 0,
+        local_discretionary_spend_total: 0.0,
+        local_producer_income_total: 0.0,
         last_night_well_rested_households: 0,
         last_night_cold_households: 0,
         last_night_social_households: 0,
@@ -168,7 +173,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         night_community_cohesion: 0.5,
         night_labor_fatigue: 0.0,
         roof_tiles: 0.0,
-        bread: 0.0,
+        bread: STARTING_BREAD,
         meat: 0.0,
         fish: 0.0,
         berries: 0.0,

@@ -66,6 +66,10 @@ import {
   weaverInputPolicyLabel,
   weaverUsesFlax,
 } from '../../economy/weaverInputPolicy.ts';
+import {
+  renderResourceCost,
+  type ResourceCostAmounts,
+} from '../../ui/resourceCost.ts';
 
 export type BuildingProcessorContext = {
   matureTrees?: number;
@@ -289,10 +293,21 @@ function formatInputCycleCoverage(cycles: number): string {
   return `${rounded} ${Math.abs(cycles - 1) < 0.05 ? 'cycle' : 'cycles'}`;
 }
 
+function processorInputCost(inputs: readonly InputRequirement[]): ResourceCostAmounts {
+  const amounts: ResourceCostAmounts = {};
+  for (const input of inputs) {
+    amounts[input.key] = (amounts[input.key] ?? 0) + input.required;
+  }
+  return amounts;
+}
+
 function formatProcessorInputBufferRow(
   building: BuildingState,
   profile: ProcessorProfile,
 ): string {
+  const inputCostRow = profile.inputs.length > 0
+    ? `<li><span>Inputs per cycle</span><span>${renderResourceCost(processorInputCost(profile.inputs), { compact: true })}</span></li>`
+    : '';
   let limitingCycles = Number.POSITIVE_INFINITY;
   let limitingInput = '';
   for (const input of profile.inputs) {
@@ -309,7 +324,7 @@ function formatProcessorInputBufferRow(
       limitingInput = 'water';
     }
   }
-  if (!limitingInput) return '';
+  if (!limitingInput) return inputCostRow;
   const stagingCycles = isProcessorOutputTargetKind(building.kind)
     ? processorInputStagingCycles(building.processorOutputTargetPercent)
     : null;
@@ -318,7 +333,7 @@ function formatProcessorInputBufferRow(
         stagingCycles === 1 ? 'cycle' : 'cycles'
       } staged`
     : formatInputCycleCoverage(limitingCycles);
-  const inputRow = `<li><span>On-site input buffer</span><span>${inputCoverage} · ${limitingInput} limits</span></li>`;
+  const inputRow = `${inputCostRow}<li><span>On-site input buffer</span><span>${inputCoverage} · ${limitingInput} limits</span></li>`;
   if (!profile.output || profile.outputPerCycle <= 1e-9) return inputRow;
   const extractionTarget = isExtractionOutputTargetKind(building.kind)
     && isExtractionOutputCommodity(profile.output)
@@ -482,6 +497,7 @@ function getBreweryStatus(
   const outputRoomCycles = (processorOutputHeadroom(building) ?? 0)
     / BREWERY_ALE_PER_CYCLE;
   const processRows = `
+    <li><span>Inputs per current step</span><span>${renderResourceCost(processorInputCost(inputs), { compact: true })}</span></li>
     <li><span>Current brewing step</span><span>${shouldMalt ? 'Floor-malting barley' : 'Brewing malt into ale'} · ${formatInputCycleCoverage(limitingCycles)} · ${limitingInput} limits</span></li>
     <li><span>Malt working buffer</span><span>${malt.toFixed(1)} / ${maltTarget.toFixed(1)} staged · ${BREWERY_MALT_PER_CYCLE.toFixed(1)} malt per malting cycle</span></li>
     <li><span>Ale output room</span><span>${formatInputCycleCoverage(outputRoomCycles)} · ale before ${outputLimit.toFixed(0)} target</span></li>
@@ -566,6 +582,7 @@ function getWeaverStatus(
     usesFlax ? undefined : 'None - wool preparation is a dry process',
   );
   const detailHtml = waterRows + `
+    <li><span>Inputs per cycle</span><span>${renderResourceCost(processorInputCost([input]), { compact: true })}</span></li>
     <li><span>Input policy</span><span>${weaverInputPolicyLabel(building.weaverInputPolicy)} · ready alternate fibre remains a fallback</span></li>
     <li><span>Selected textile route</span><span>${usesFlax ? 'Flax + hauled water' : 'Annual sheep fleece'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
     <li><span>${usesFlax ? 'Flax' : 'Wool'} working stock</span><span>${stockAmount(building, input.key).toFixed(1)} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
@@ -673,12 +690,13 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
   const linked = worldQueries.isMonasteryLinkedToChapel(building);
   const productivity = linked ? 1 : MONASTERY_UNLINKED_PRODUCTIVITY;
   const grainNeeded = MONASTERY_GRAIN_PER_CYCLE * productivity;
+  const inputCostRow = `<li><span>Inputs per cycle</span><span>${renderResourceCost({ grain: grainNeeded }, { compact: true })}</span></li>`;
 
   if (!linked) {
     return {
       statusText: 'Reduced output — link to a staffed church by road',
       statusState: 'warning',
-      waterDetailHtml: '',
+      waterDetailHtml: inputCostRow,
     };
   }
 
@@ -686,7 +704,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
     return {
       statusText: 'Storage full — charity hauls paused',
       statusState: 'idle',
-      waterDetailHtml: '',
+      waterDetailHtml: inputCostRow,
     };
   }
 
@@ -694,7 +712,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
     return {
       statusText: `Waiting for grain — needs ${grainNeeded.toFixed(1)} per cycle; farmstead or granary deliveries may supply`,
       statusState: 'warning',
-      waterDetailHtml: '',
+      waterDetailHtml: inputCostRow,
     };
   }
 
@@ -703,45 +721,14 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
     return {
       statusText: 'Serving parish — connect marketplace by road for pilgrim income',
       statusState: 'active',
-      waterDetailHtml: '',
+      waterDetailHtml: inputCostRow,
     };
   }
 
   return {
     statusText: 'Serving parish — charity, feasts, and pilgrimages',
     statusState: 'active',
-    waterDetailHtml: '',
-  };
-}
-
-function getFerryStatus(
-  building: BuildingState,
-  worldQueries: WorldQueries,
-  onsiteLabor: number,
-): BuildingProcessorStatus {
-  if (onsiteLabor === 0) {
-    return {
-      statusText: building.assignedLabor > 0
-        ? 'Crossing paused - the full roster is away with its cart'
-        : 'Idle - assign workers to operate the ferry',
-      statusState: 'idle',
-      waterDetailHtml: '',
-    };
-  }
-
-  const hasMarketplace = worldQueries.hasRoadPathToBuildingKind(building.x, building.z, 'marketplace');
-  if (!hasMarketplace) {
-    return {
-      statusText: 'Idle — needs a road link to the marketplace',
-      statusState: 'warning',
-      waterDetailHtml: '',
-    };
-  }
-
-  return {
-    statusText: 'Operating river crossing — regional trade income',
-    statusState: 'active',
-    waterDetailHtml: '',
+    waterDetailHtml: inputCostRow,
   };
 }
 
@@ -790,8 +777,6 @@ export function getBuildingProcessorStatus(
       return getLumberMillStatus(building, worldQueries, context.matureTrees ?? 0, onsiteLabor);
     case 'monastery':
       return getMonasteryStatus(building, worldQueries);
-    case 'ferry_landing':
-      return getFerryStatus(building, worldQueries, onsiteLabor);
     case 'threshing_barn':
       return getSimpleLaborStatus(
         building,

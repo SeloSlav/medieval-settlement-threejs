@@ -225,12 +225,12 @@ assert.deepEqual(
 );
 assert.match(
   server,
-  /step_apiary[\s\S]*?dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Honey[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Honey[\s\S]*?&\["trading_post"\]/,
-  'apiaries must reserve monastery hospitality before exporting honey through the Trading Post',
+  /step_apiary[\s\S]*?dispatch_monastery_hospitality_limited\([\s\S]*?CommodityKind::Honey[\s\S]*?dispatch_to_building_where_limited\([\s\S]*?CommodityKind::Honey[\s\S]*?&\["trading_post"\]/,
+  'apiaries must protect their harvest-policy reserve, provision monastery hospitality, then export only the remainder',
 );
 assert.match(
   server,
-  /step_vineyard[\s\S]*?dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Wine[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Wine[\s\S]*?&\["trading_post"\]/,
+  /step_vineyard[\s\S]*?advance_vineyard_fermentation[\s\S]*?dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Wine[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Wine[\s\S]*?&\["trading_post"\]/,
   'vineyards must reserve monastery hospitality before exporting wine through the Trading Post',
 );
 assert.match(

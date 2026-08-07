@@ -26,6 +26,8 @@ import {
   RESIDENCE_TILE_ROOF_TILE_COST,
   RESIDENCE_TILE_ROOF_TIMBER_COST,
   STARVATION_DEATH_START_DAYS,
+  COLD_EXPOSURE_WARNING_DAYS,
+  COLD_EXPOSURE_DEATH_START_DAYS,
   HERB_TREATMENT_PER_SICK_DAY,
 } from '../../generated/gameBalance.ts';
 import { formatPreservedFoodLoss } from '../../economy/foodPreservation.ts';
@@ -109,6 +111,7 @@ import {
   RESIDENCE_FIREWOOD_CAPACITY,
   activeResidenceNeedKinds,
   residenceNeedsStatus,
+  getNeed,
   getNeedStock,
 } from '../../residences/residenceNeeds.ts';
 import type { BuildingState, InspectableTarget, ResidenceState } from '../types.ts';
@@ -425,7 +428,7 @@ export function renderResidenceInspector(
     servingClothSupplierId: servingClothSupplier?.id ?? null,
     servingPotterySupplierId: servingPotterySupplier?.id ?? null,
   }, community);
-  const runwayDays = residence.tier >= 2 ? residenceFirewoodRunwayDays(residence) : null;
+  const runwayDays = residence.tier > 0 ? residenceFirewoodRunwayDays(residence) : null;
   const firewoodRunwayLabel = runwayDays == null
     ? '—'
     : formatFirewoodRunwayDays(runwayDays);
@@ -522,16 +525,26 @@ export function renderResidenceInspector(
     ? 'None until the cottage is complete'
     : activeNeedsLabel;
   const hungerDays = (residence.hungerTicks ?? 0) * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY;
+  const coldExposureDays = environment.season === 'winter'
+    ? getNeed(residence.needs, 'firewood').deficitTicks
+      * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY
+    : 0;
   const healthLabel = hungerDays >= STARVATION_DEATH_START_DAYS
     ? `Starving · ${hungerDays.toFixed(1)} days without enough food`
-    : hungerDays >= MALNUTRITION_DAYS
-      ? `Malnourished · ${hungerDays.toFixed(1)} shortage days`
-      : hungerDays >= HUNGER_WARNING_DAYS
-        ? `Hungry · ${hungerDays.toFixed(1)} shortage days`
-        : (residence.sickPopulation ?? 0) > 0
-          ? `${residence.sickPopulation} sick`
-          : 'Well';
-  const healthWarning = hungerDays >= HUNGER_WARNING_DAYS || (residence.sickPopulation ?? 0) > 0;
+    : coldExposureDays >= COLD_EXPOSURE_DEATH_START_DAYS
+      ? `Freezing · ${coldExposureDays.toFixed(1)} consecutive winter days without heat`
+      : hungerDays >= MALNUTRITION_DAYS
+        ? `Malnourished · ${hungerDays.toFixed(1)} shortage days`
+        : coldExposureDays >= COLD_EXPOSURE_WARNING_DAYS
+          ? `Cold-exposed · ${coldExposureDays.toFixed(1)} winter days without heat`
+          : hungerDays >= HUNGER_WARNING_DAYS
+            ? `Hungry · ${hungerDays.toFixed(1)} shortage days`
+            : (residence.sickPopulation ?? 0) > 0
+              ? `${residence.sickPopulation} sick`
+              : 'Well';
+  const healthWarning = hungerDays >= HUNGER_WARNING_DAYS
+    || coldExposureDays >= COLD_EXPOSURE_WARNING_DAYS
+    || (residence.sickPopulation ?? 0) > 0;
   const remedyDailyDemand = (residence.sickPopulation ?? 0) * HERB_TREATMENT_PER_SICK_DAY;
   const remedyCoverageDays = remedyDailyDemand > 1e-9
     ? (residence.remedyStock ?? 0) / remedyDailyDemand
@@ -607,6 +620,7 @@ export function renderResidenceInspector(
       <li><span>Population</span><span>${initialConstruction ? `0 / ${capacity} · founders remain at camp` : `${residence.population} / ${capacity}`}</span></li>
       <li><span>Health</span><span>${healthLabel}</span></li>
       <li><span>Malnutrition</span><span>${Math.round((residence.malnutrition ?? 0) * 100)}%</span></li>
+      ${environment.season === 'winter' && residence.tier > 0 ? `<li><span>Cold exposure</span><span>${coldExposureDays > 0 ? `${coldExposureDays.toFixed(1)} consecutive unheated days · mortality risk begins after ${COLD_EXPOSURE_DEATH_START_DAYS} days` : 'Heated · no current exposure'}</span></li>` : ''}
       <li><span>Unable to work</span><span>${residence.sickPopulation ?? 0} sick resident${(residence.sickPopulation ?? 0) === 1 ? '' : 's'}</span></li>
       <li><span>Herbal remedies</span><span>${remedySupplyLabel} · treatment speeds recovery and reduces mortality</span></li>
       <li><span>Deaths</span><span>${residence.deathsTotal ?? 0} total · ${householdCorpses.length} unburied or in transit</span></li>
@@ -654,8 +668,8 @@ export function renderResidenceInspector(
       ${residence.tier > 0 ? householdFoodContentsRow(residence) : ''}
       ${residence.tier > 0 ? `<li><span>${residence.tier >= 3 ? 'Fresh-food runway' : 'Food runway'}</span><span>${foodRunwayLabel}${residence.tier >= 3 ? ' with finite household preserved stock' : ''}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Next daily meal</span><span>${mealAllocation.freshUsed.toFixed(2)} fresh + ${preservedMealUse.toFixed(2)} preserved${mealAllocation.preservedFallbackUsed > 1e-6 ? ` (${mealAllocation.preservedFallbackUsed.toFixed(2)} emergency fallback)` : ''}${mealAllocation.unmet > 1e-6 ? ` &middot; ${mealAllocation.unmet.toFixed(2)} unmet` : ''} &middot; ${grossFoodPerDay.toFixed(2)} total demand</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Firewood stock</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Firewood runway</span><span>${firewoodRunwayLabel}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Hearth-fuel stock</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Heating runway</span><span>${firewoodRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Water runway</span><span>${waterRunwayLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved pantry</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY}</span></li>` : ''}
@@ -673,7 +687,7 @@ export function renderResidenceInspector(
       ${residence.tier >= 3 ? `<li><span>Household pottery</span><span>${Math.round(getNeedStock(residence.needs, 'pottery'))} / ${RESIDENCE_POTTERY_CAPACITY}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Pottery replacement</span><span>${potteryRunwayLabel} · slow breakage of cooking and storage vessels</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Serving food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Firewood supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Heating supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 2 ? `<li><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Preserved food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li><span>Ale supplier</span><span>${aleSupplierLabel}</span></li>` : ''}

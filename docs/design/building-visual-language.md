@@ -115,7 +115,6 @@ Do not build close details until the first two levels work.
 | Forest apiary | Modest yellow hut beside ordered hive rows | Ochre limewash, shingles, painted hive boxes | Hive stands and small work hut |
 | Grain watermill | Riverside stone house with a dominant wheel | Limestone, limewash, red tile, oak | Full-height wheel and axle |
 | Carpenter & wheelwright | Workshop with a deep side working bay | Timber, stone plinth, red tile | Lean-to, wheels, work yard |
-| Ferry landing | Small ferryman's hut and a long timber jetty | Weathered timber, stone, red tile | Pier piles, planks, ferry boat |
 | Vineyard terrace | Broad stepped stone-banked agricultural parcel | Earth, limestone, dark vine posts | Terraces, vine rows, vintner shelter |
 
 ## Residence variants

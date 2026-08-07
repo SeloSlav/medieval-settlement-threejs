@@ -9,7 +9,12 @@ const balance = JSON.parse(read('balance/gameBalance.json')).population as Recor
 
 assert.ok(balance.hungerWarningDays < balance.malnutritionDays);
 assert.ok(balance.malnutritionDays < balance.starvationDeathStartDays);
-assert.ok(balance.starvationDeathIntervalDays > 0);
+assert.ok(balance.starvationDeathChancePerPersonDay > 0);
+assert.ok(balance.starvationDeathMaxChancePerPersonDay > balance.starvationDeathChancePerPersonDay);
+assert.ok(balance.starvationDeathRiskRampDays > 0);
+assert.ok(balance.coldExposureWarningDays < balance.coldExposureDeathStartDays);
+assert.ok(balance.coldExposureDeathChancePerPersonDay > 0);
+assert.ok(balance.coldExposureDeathMaxChancePerPersonDay > balance.coldExposureDeathChancePerPersonDay);
 assert.ok(balance.residenceServiceWarningDays < balance.residenceUpgradeServiceBlockDays);
 assert.ok(balance.residenceUpgradeServiceBlockDays < balance.residenceServiceMaxPenaltyDays);
 assert.ok(balance.residenceServiceMinEconomicMultiplier > 0);
@@ -36,7 +41,8 @@ for (const token of [
 const needs = read('server/src/simulation/residence_needs/mod.rs');
 for (const token of [
   'consume_food_with_preserved',
-  'starvation_death_due',
+  'starvation_death_chance',
+  'cold_exposure_death_chance',
   'insert_corpse',
   'HERB_MORTALITY_MULTIPLIER',
   'CORPSE_DISEASE_RADIUS',
@@ -44,6 +50,8 @@ for (const token of [
   'next_malnutrition',
   'nearby_waiting_corpses',
   'if food_unmet',
+  'environment.season == Season::Winter',
+  'death_cause = Some(2)',
 ]) {
   assert.ok(needs.includes(token), `missing authoritative welfare behavior: ${token}`);
 }

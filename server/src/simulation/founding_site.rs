@@ -113,10 +113,10 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
             }
         }
 
-        if !site.founding_shelter_active
-            && !building_has_active_trip(ctx, site.id)
+        let starter_supplies_only = site.founding_shelter_active;
+        if !building_has_active_trip(ctx, site.id)
             && available_free_haulers(ctx, site.owner) > 0
-            && try_start_stockyard_relocation(ctx, tick, clock, &mut site)
+            && try_start_stockyard_relocation(ctx, tick, clock, &mut site, starter_supplies_only)
         {
             site_changed = true;
         }
@@ -142,21 +142,31 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
     }
 }
 
-/// Once the founders have permanent homes, one free villager at a time moves
-/// uncommitted material out of the temporary yard. Storehouse filters and
-/// collection ceilings remain meaningful: clearing the camp is a logistics
-/// decision, not an inventory teleport.
+/// While the shelter is occupied, one free villager may move its starter bread,
+/// firewood, and ironwork into the permanent distribution and tool-maintenance
+/// chains. Once every founder has a home, the same route clears all uncommitted
+/// stock. Storehouse filters and collection ceilings remain meaningful: this
+/// is physical logistics, not an inventory teleport.
 fn try_start_stockyard_relocation(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
     site: &mut Building,
+    starter_supplies_only: bool,
 ) -> bool {
     let Some(network) = tick.road_network(site.owner) else {
         return false;
     };
 
     for commodity in FOUNDING_RELOCATION_COMMODITIES {
+        if starter_supplies_only
+            && !matches!(
+                commodity,
+                CommodityKind::Firewood | CommodityKind::Bread | CommodityKind::Ironwork
+            )
+        {
+            continue;
+        }
         let relocatable = relocatable_stock(ctx, site, commodity);
         if relocatable <= EPSILON {
             continue;

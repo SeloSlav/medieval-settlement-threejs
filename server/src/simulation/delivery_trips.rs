@@ -2856,9 +2856,7 @@ fn return_commodity_to_building(
     } else {
         deposit_building_commodity(&mut building, commodity, amount)
     };
-    if commodity == CommodityKind::Gold
-        && matches!(building.kind.as_str(), "monastery" | "ferry_landing")
-    {
+    if commodity == CommodityKind::Gold && building.kind == "monastery" {
         restore_local_civic_receipts(&mut building, deposited);
     }
     if commodity == CommodityKind::Gold

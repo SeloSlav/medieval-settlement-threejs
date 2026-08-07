@@ -479,12 +479,6 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.88,
             outer_fade: 1.32,
         },
-        "ferry_landing" => BuildingPadParams {
-            radius_x: 6.8,
-            radius_z: 8.5,
-            inner_fade: 0.84,
-            outer_fade: 1.25,
-        },
         "vineyard" => BuildingPadParams {
             radius_x: 8.0,
             radius_z: 6.8,

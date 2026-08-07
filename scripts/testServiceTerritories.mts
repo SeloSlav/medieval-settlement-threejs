@@ -198,7 +198,7 @@ assert.match(storehouseInspector, /Duty priority/);
 assert.match(storehouseInspector, /Fuel territory/);
 assert.match(storehouseInspector, /winter-night fuel floor/);
 const residenceInspector = fs.readFileSync('src/resources/inspector/residenceRenderer.ts', 'utf8');
-assert.match(residenceInspector, /Firewood supplier/);
+assert.match(residenceInspector, /Heating supplier/);
 assert.match(residenceInspector, /staffed goods stall/);
 const tickContext = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
 assert.match(tickContext, /water_claims: RefCell/);

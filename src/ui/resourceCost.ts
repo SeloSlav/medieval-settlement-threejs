@@ -14,6 +14,33 @@ export const RESOURCE_COST_KINDS = [
   'firewood',
   'water',
   'food',
+  'grain',
+  'barley',
+  'malt',
+  'flour',
+  'ale',
+  'preservedFood',
+  'honey',
+  'wine',
+  'wool',
+  'flax',
+  'cloth',
+  'polearms',
+  'bread',
+  'meat',
+  'fish',
+  'berries',
+  'mushrooms',
+  'milk',
+  'apples',
+  'cherries',
+  'vegetables',
+  'eggs',
+  'grapes',
+  'porridge',
+  'curedMeat',
+  'smokedFish',
+  'cheese',
 ] as const;
 
 export type ResourceCostKind = (typeof RESOURCE_COST_KINDS)[number];
@@ -33,6 +60,33 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   firewood: 'firewood',
   water: 'water',
   food: 'food',
+  grain: 'grain',
+  barley: 'barley',
+  malt: 'malt',
+  flour: 'flour',
+  ale: 'ale',
+  preservedFood: 'preserved food',
+  honey: 'honey',
+  wine: 'wine',
+  wool: 'wool',
+  flax: 'flax',
+  cloth: 'cloth',
+  polearms: 'polearms',
+  bread: 'bread',
+  meat: 'meat',
+  fish: 'fish',
+  berries: 'berries',
+  mushrooms: 'mushrooms',
+  milk: 'milk',
+  apples: 'apples',
+  cherries: 'cherries',
+  vegetables: 'vegetables',
+  eggs: 'eggs',
+  grapes: 'grapes',
+  porridge: 'porridge',
+  curedMeat: 'cured meat',
+  smokedFish: 'smoked fish',
+  cheese: 'cheese',
 };
 
 export type ResourceCostMarkupOptions = {
@@ -57,10 +111,18 @@ export function renderBuildingResourceCost(
   return renderResourceCost(buildingResourceCostAmounts(cost), options);
 }
 
+export function renderResourceAmount(
+  kind: ResourceCostKind,
+  amount: number,
+  options: ResourceCostMarkupOptions = {},
+): string {
+  return renderResourceCost({ [kind]: amount }, options);
+}
+
 /**
- * Renders a numeric construction cost with the same semantic material icons
- * used by the settlement HUD. The full resource names remain available to
- * assistive technology and native hover hints.
+ * Renders a numeric resource cost with the same semantic icons used by the
+ * settlement HUD. Full resource names remain available to assistive
+ * technology and native hover hints.
  */
 export function renderResourceCost(
   amounts: ResourceCostAmounts,

@@ -6,15 +6,24 @@ housing capacity.
 
 ## Needs and household satisfaction
 
-- Food, water, and winter firewood are survival needs. Food shortage advances
-  through hungry, malnourished, and starving stages. Water and cold exposure
-  increase illness risk.
+- Food, water, and winter firewood are survival needs. Every occupied cottage
+  needs a hearth. Marketplace firewood is used first, with charcoal accepted
+  as a household fallback after smithy buffers are supplied. Food shortage
+  advances through hungry, malnourished, and starving stages. Water and cold
+  exposure increase illness risk.
 - Preserved food is an emergency substitute for fresh food. It is not consumed
   as an unavoidable second daily meal.
 - Ale, cloth, pottery, and a maintained preserved-food reserve are prosperity
   needs at higher residence tiers.
 - No need shortage removes residents through migration or abandons a home.
   Supplying food again reduces hunger and heals malnutrition gradually.
+
+Mortality is probabilistic rather than scheduled. Starvation risk begins after
+14 accumulated unfed days and rises over the following 21 shortage days. A
+household that remains completely unheated in winter receives a three-day grace
+period before exposure deaths become possible; that risk rises over the next
+seven consecutive cold days. Restoring food or winter heat stops the respective
+death rolls, and non-winter firewood deficits never pre-age the cold clock.
 
 Every continuously unmet active need contributes to one household service timer.
 The default balance deliberately stages its consequences:

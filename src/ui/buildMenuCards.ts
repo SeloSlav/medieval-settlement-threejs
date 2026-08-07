@@ -7,7 +7,7 @@ export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
   | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'smokehouse'
-  | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter' | 'ferry-landing' | 'vineyard'
+  | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter' | 'vineyard'
   | 'weaver'
   | 'pastoral-farmstead' | 'swineherd'
   | 'town-hall' | 'village-storehouse'
@@ -46,7 +46,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   bakery: '/assets/ui/build-menu/cards/bakery.webp',
   apiary: '/assets/ui/build-menu/cards/apiary.webp', watermill: '/assets/ui/build-menu/cards/watermill.webp',
   windmill: '/assets/ui/build-menu/cards/windmill.webp',
-  carpenter: '/assets/ui/build-menu/cards/carpenter.webp', ferry_landing: '/assets/ui/build-menu/cards/ferry-landing.webp',
+  carpenter: '/assets/ui/build-menu/cards/carpenter.webp',
   weaver: '/assets/ui/build-menu/cards/weaver.webp',
   vineyard: '/assets/ui/build-menu/cards/vineyard.webp',
   pastoral_farmstead: '/assets/ui/build-menu/cards/pastoral-farmstead.webp',
@@ -65,7 +65,6 @@ const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, descripti
   watchtower: ['Frontier watchtower', 'W', 'Staffed hill tower warns nearby homes and stores, reducing losses when raiders cross the frontier.'],
   guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms. Polearms need smith-forged ironwork, with costly imports as a fallback. Requires a completed watchtower.'],
   palisaded_refuge: ['Palisaded refuge', 'R', 'Warned households within rally reach carry people and family coin into a timber-and-earth enclosure. Requires a completed guardhouse and watch coverage.'],
-  ferry_landing: ['Ferry landing', 'J', 'A staffed river crossing and modest source of trade income. Must touch open water.'],
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
   stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
   large_quarry: ['Large Quarry', 'G', 'Build directly over rich stone. The non-depleting shaft needs a road and consumes prepared timber chamber supports delivered from a lumber mill or village storehouse.'],
@@ -106,7 +105,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
 
 /** Housing, services, institutions, trade, transport, and shared storage. */
 export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'), entry('ferry_landing'),
+  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
 ];
 
 /** Sites whose crews gather raw resources from the landscape. */

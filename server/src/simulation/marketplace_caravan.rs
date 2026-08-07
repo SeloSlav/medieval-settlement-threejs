@@ -9,7 +9,8 @@ use crate::balance_generated::{
     SPECIALTY_EXPORT_GOLD_PER_ALE,
     SPECIALTY_EXPORT_GOLD_PER_CHEESE,
     SPECIALTY_EXPORT_GOLD_PER_CLOTH,
-    SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_WINE, STOREHOUSE_HAUL_PER_WORKER,
+    SPECIALTY_EXPORT_GOLD_PER_HONEY, SPECIALTY_EXPORT_GOLD_PER_POTTERY,
+    SPECIALTY_EXPORT_GOLD_PER_WINE, STOREHOUSE_HAUL_PER_WORKER,
     TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS,
     WATER_DELIVERY_UNLOAD_SEC,
 };
@@ -20,7 +21,8 @@ use crate::economy::{
     marketplace_proceeds_cart_load, private_export_proceeds,
     physical_treasury_seat, record_specialty_market_export,
     regional_export_cart_load, treasury_gold, try_advance_pending_marketplace_trade,
-    try_execute_standing_marketplace_import, withdraw_building_commodity, CommodityKind,
+    try_execute_standing_marketplace_import, withdraw_building_commodity,
+    specialty_family_for_commodity, specialty_price_multiplier_for_commodity, CommodityKind,
 };
 use crate::marketplace_procurement_policy::{
     marketplace_gold_reserve_shortfall, marketplace_gold_sweep_surplus,
@@ -49,7 +51,7 @@ use crate::simulation::road_logistics::{
 use crate::simulation::tick_context::SimTickContext;
 use crate::specialty_trade_policy::{
     specialty_export_capacity, specialty_export_order, specialty_export_policy_allows,
-    specialty_export_workers,
+    specialty_export_workers, resolved_specialty_family_policy, SpecialtyMarketFamily,
 };
 use crate::tables::{Building, Residence};
 
@@ -523,16 +525,12 @@ fn sell_marketplace_specialties(
     {
         return false;
     }
-    let market_rate = ctx
+    let market = ctx
         .db
         .market_state()
         .owner()
         .find(&building.owner)
-        .map(|state| state.specialty_price_mult)
-        .unwrap_or(1.0);
-    if !specialty_export_policy_allows(building.marketplace_specialty_export_policy, market_rate) {
-        return false;
-    }
+        .map(|state| state);
     let Some(network) = tick.road_network(building.owner) else {
         return false;
     };
@@ -565,9 +563,18 @@ fn sell_marketplace_specialties(
             CommodityKind::Wine,
             CommodityKind::Cloth,
             CommodityKind::Cheese,
+            CommodityKind::Pottery,
         ];
         for index in specialty_export_order(clock.sim_tick) {
             let commodity = specialties[index];
+            let market_rate = market
+                .as_ref()
+                .and_then(|state| specialty_price_multiplier_for_commodity(state, commodity))
+                .unwrap_or(1.0);
+            let policy = specialty_export_policy_for(building, commodity);
+            if !specialty_export_policy_allows(policy, market_rate) {
+                continue;
+            }
             let available = building_commodity_stock(building, commodity);
             let load = regional_export_cart_load(available);
             if load <= 1e-6 {
@@ -607,23 +614,43 @@ fn sell_marketplace_specialties(
         (CommodityKind::Wine, SPECIALTY_EXPORT_GOLD_PER_WINE),
         (CommodityKind::Cloth, SPECIALTY_EXPORT_GOLD_PER_CLOTH),
         (CommodityKind::Cheese, SPECIALTY_EXPORT_GOLD_PER_CHEESE),
+        (CommodityKind::Pottery, SPECIALTY_EXPORT_GOLD_PER_POTTERY),
     ];
     let mut revenue = 0.0;
-    let mut units_sold = 0.0;
     for index in specialty_export_order(clock.sim_tick) {
         let (commodity, gold_per_unit) = specialties[index];
+        let market_rate = market
+            .as_ref()
+            .and_then(|state| specialty_price_multiplier_for_commodity(state, commodity))
+            .unwrap_or(1.0);
+        let policy = specialty_export_policy_for(building, commodity);
+        if !specialty_export_policy_allows(policy, market_rate) {
+            continue;
+        }
         let available = building_commodity_stock(building, commodity);
         let sold = withdraw_building_commodity(building, commodity, available.min(remaining));
         revenue += sold * gold_per_unit * market_rate;
-        units_sold += sold;
+        record_specialty_market_export(ctx, building.owner, commodity, sold);
         remaining -= sold;
         if remaining <= 1e-6 {
             break;
         }
     }
     credit_private_export_receipt(ctx, building, revenue);
-    record_specialty_market_export(ctx, building.owner, units_sold);
     revenue > 1e-6
+}
+
+fn specialty_export_policy_for(building: &Building, commodity: CommodityKind) -> u8 {
+    let family_policy = match specialty_family_for_commodity(commodity) {
+        Some(SpecialtyMarketFamily::Drink) => building.marketplace_drink_export_policy,
+        Some(SpecialtyMarketFamily::Provision) => building.marketplace_provision_export_policy,
+        Some(SpecialtyMarketFamily::Wares) => building.marketplace_wares_export_policy,
+        None => building.marketplace_specialty_export_policy,
+    };
+    resolved_specialty_family_policy(
+        family_policy,
+        building.marketplace_specialty_export_policy,
+    )
 }
 
 fn try_dispatch_marketplace_proceeds(

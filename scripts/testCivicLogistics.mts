@@ -101,7 +101,7 @@ assert.match(processors, /"village_storehouse"/, 'storehouse firewood must suppo
 
 const inspector = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 assert.match(inspector, /data-policy-tax-rate/);
-assert.match(inspector, /data-policy-chapel-reserve/);
+assert.match(inspector, /data-policy-chapel-sabbath/);
 assert.match(inspector, /data-policy-monastery-tithe/);
 assert.match(inspector, /data-storehouse-accepts-timber/);
 const bootstrap = fs.readFileSync('src/app/appBootstrap.ts', 'utf8');

@@ -124,6 +124,13 @@ export type InspectorSpacetimeActions = {
     buildingId: string,
     exportPolicy: number,
   ) => Promise<void>;
+  onSetMarketplaceSpecialtyFamilyExportPolicy: (
+    buildingId: string,
+    family: number,
+    exportPolicy: number,
+  ) => Promise<void>;
+  onSetVineyardProductionPolicy: (buildingId: string, productionPolicy: number) => Promise<void>;
+  onSetApiaryHarvestPolicy: (buildingId: string, harvestPolicy: number) => Promise<void>;
   onSetHarvestReservePercent: (buildingId: string, reservePercent: number) => Promise<void>;
 };
 
@@ -731,6 +738,30 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setMarketplaceSpecialtyExportPolicy(buildingId, exportPolicy),
         'Could not update the Trading Post specialty export policy.',
+      );
+    },
+    onSetMarketplaceSpecialtyFamilyExportPolicy: async (buildingId, family, exportPolicy) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMarketplaceSpecialtyFamilyExportPolicy(buildingId, family, exportPolicy),
+        'Could not update this Trading Post export family.',
+      );
+    },
+    onSetVineyardProductionPolicy: async (buildingId, productionPolicy) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setVineyardProductionPolicy(buildingId, productionPolicy),
+        'Could not update the vineyard grape allocation.',
+      );
+    },
+    onSetApiaryHarvestPolicy: async (buildingId, harvestPolicy) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setApiaryHarvestPolicy(buildingId, harvestPolicy),
+        'Could not update the apiary harvest policy.',
       );
     },
     onSetHarvestReservePercent: async (buildingId, reservePercent) => {

@@ -173,6 +173,12 @@ export type BuildingState = {
   marketplaceSaltTarget?: number;
   marketplaceGoldReserveTarget?: number;
   marketplaceSpecialtyExportPolicy?: number;
+  /** Independent Trading Post policy for ale and wine. */
+  marketplaceDrinkExportPolicy?: number;
+  /** Independent Trading Post policy for honey and cheese. */
+  marketplaceProvisionExportPolicy?: number;
+  /** Independent Trading Post policy for cloth and pottery. */
+  marketplaceWaresExportPolicy?: number;
   marketplaceSeedGrainTarget?: number;
   marketplacePendingTradeCode?: number;
   foundingShelterActive?: boolean;
@@ -187,6 +193,15 @@ export type BuildingState = {
   civicReceiptsGold?: number;
   /** Private automatic-export proceeds awaiting distribution to producer households. */
   privateExportProceedsGold?: number;
+  /** 0 table grapes, 1 balanced cellar, 2 wine first. */
+  vineyardProductionPolicy?: number;
+  vineyardFermentingGrapes?: number;
+  vineyardFermentationProgress?: number;
+  /** 0 conservative, 1 balanced, 2 extractive. */
+  apiaryHarvestPolicy?: number;
+  apiaryColonyHealth?: number;
+  apiaryLastWinterYear?: number;
+  apiaryForageScore?: number;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {
@@ -346,6 +361,8 @@ export type ResidenceState = {
   householdWealth: number;
   /** Last successful household-funded market dispatch; absent in older fixtures/saves. */
   lastHouseholdMarketTick?: number;
+  /** Day marker for the latest safe optional purchase. */
+  lastDiscretionaryMarketDay?: number;
   /** Target tier while physical household improvement works are active. */
   upgradeTargetTier?: 0 | 1 | 2 | 3;
   upgradeProgress?: number;

@@ -140,6 +140,9 @@
   "economy": {
     "startingTimber": 160,
     "startingStone": 140,
+    "startingFirewood": 160,
+    "startingBread": 160,
+    "startingIronwork": 9000,
     "startingGold": 0,
     "stoneSalvageFraction": 0.92,
     "timberSalvageFraction": 0.7,
@@ -164,6 +167,11 @@
     "residenceTileRoofSalvageFraction": 0.6,
     "residenceTileRoofFlammabilityMultiplier": 0.55,
     "householdMaxWealth": 200,
+    "householdDiscretionaryWealthReserve": 24,
+    "householdDiscretionaryBudgetPerPersonDay": 0.2,
+    "householdDiscretionaryUnitsPerPersonDay": 0.12,
+    "householdDiscretionaryMinTier": 2,
+    "householdLocalPotteryGoldPerUnit": 0.9,
     "townHallPopulationRequired": 24,
     "townHallUnstaffedTaxCollectionMultiplier": 0.6,
     "localMarketTaxCartThreshold": 1,
@@ -352,8 +360,10 @@
     "residencePotteryPerPersonPerSec": 0.001,
     "hungerWarningDays": 2,
     "malnutritionDays": 5,
-    "starvationDeathStartDays": 10,
-    "starvationDeathIntervalDays": 3,
+    "starvationDeathStartDays": 14,
+    "starvationDeathChancePerPersonDay": 0.005,
+    "starvationDeathMaxChancePerPersonDay": 0.03,
+    "starvationDeathRiskRampDays": 21,
     "malnutritionRecoveryDays": 8,
     "residenceServiceWarningDays": 3,
     "residenceUpgradeServiceBlockDays": 6,
@@ -363,6 +373,11 @@
     "malnutritionIllnessMultiplier": 4,
     "unsafeWaterIllnessMultiplier": 2.5,
     "coldExposureIllnessMultiplier": 2,
+    "coldExposureWarningDays": 1,
+    "coldExposureDeathStartDays": 3,
+    "coldExposureDeathChancePerPersonDay": 0.008,
+    "coldExposureDeathMaxChancePerPersonDay": 0.05,
+    "coldExposureDeathRiskRampDays": 7,
     "corpseDiseaseRadius": 30,
     "corpseIllnessMultiplier": 0.6,
     "illnessRecoveryDays": 7,
@@ -533,12 +548,25 @@
     "potterWaterPerCycle": 1,
     "potterPotteryPerCycle": 3,
     "potterRoofTilesPerCycle": 4,
-    "apiaryHoneyPerCycle": 2,
-    "apiaryFoodPerCycle": 1,
+    "apiaryHoneyPerCycle": 3,
     "apiarySeasonStartMonth": 4,
     "apiarySeasonEndMonth": 9,
-    "vineyardWinePerCycle": 3,
-    "vineyardFoodPerCycle": 1,
+    "apiaryWinterHoneyRequired": 8,
+    "apiaryConservativeHoneyReserve": 12,
+    "apiaryBalancedHoneyReserve": 8,
+    "apiaryExtractiveHoneyReserve": 2,
+    "apiaryConservativeYieldMultiplier": 0.75,
+    "apiaryBalancedYieldMultiplier": 1,
+    "apiaryExtractiveYieldMultiplier": 1.25,
+    "apiaryWinterHealthGain": 0.12,
+    "apiaryWinterHealthLoss": 0.45,
+    "apiaryPollinationBonusMax": 0.15,
+    "vineyardGrapesPerHarvestCycle": 4,
+    "vineyardGrapesPerFermentationBatch": 3,
+    "vineyardWinePerFermentationBatch": 3,
+    "vineyardFermentationSeconds": 60,
+    "vineyardBalancedGrapeReserve": 12,
+    "vineyardWineFirstGrapeReserve": 2,
     "vineyardHarvestStartMonth": 9,
     "vineyardHarvestEndMonth": 10,
     "marketSpecialtyExportPerBrokerPerSecond": 0.45,
@@ -561,7 +589,8 @@
     "specialtyExportGoldPerWine": 1.6,
     "specialtyExportGoldPerCloth": 1.5,
     "specialtyExportGoldPerCheese": 1.1,
-    "ferryGoldPerDay": 2.25,
+    "specialtyExportGoldPerPottery": 1.35,
+    "herbRemedySaleGoldPerUnit": 2,
     "carpenterDeliverySpeedMultiplier": 1.18,
     "carpenterTimberCostMultiplier": 0.9,
     "carpenterCartServiceTimberPerTrip": 0.2,
@@ -822,7 +851,7 @@
         "preservedFood": 120,
         "honey": 80,
         "wine": 80,
-        "ironwork": 80,
+        "ironwork": 9000,
         "polearms": 80,
         "iron": 80,
         "clay": 80,
@@ -1177,7 +1206,7 @@
     "marketplace": {
       "label": "Marketplace",
       "cost": { "timber": 32, "stone": 26 },
-      "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 0, "barley": 0, "ale": 140, "honey": 0, "wine": 0, "cloth": 120, "ironwork": 0, "iron": 0, "salt": 0, "pottery": 96, "remedies": 48 },
+      "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 0, "barley": 0, "ale": 140, "honey": 0, "wine": 0, "cloth": 120, "ironwork": 0, "iron": 0, "salt": 0, "charcoal": 80, "pottery": 96, "remedies": 48 },
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 0,
@@ -1237,6 +1266,7 @@
         "iron": 180,
         "clay": 180,
         "salt": 144,
+        "charcoal": 280,
         "cloth": 180,
         "pottery": 180
       },
@@ -1549,24 +1579,6 @@
       "requiresWaterShore": false,
       "requiresHillside": false
     },
-    "ferry_landing": {
-      "label": "Ferry landing",
-      "cost": { "timber": 46, "stone": 18, "ironwork": 2 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 0 },
-      "workRadius": 0,
-      "pickRadius": 9,
-      "harvestInterval": 0,
-      "regrowRatePerSecond": 0,
-      "maxLabor": 2,
-      "acceptsLabor": true,
-      "requiresRoad": true,
-      "facesRoad": true,
-      "requiresMatureTrees": false,
-      "requiresQuarryStone": false,
-      "requiresGame": false,
-      "requiresBerries": false,
-      "requiresWaterShore": true
-    },
     "vineyard": {
       "label": "Vineyard terrace",
       "cost": { "timber": 26, "stone": 18 },
@@ -1593,42 +1605,42 @@
       "cost": { "timber": 10, "stone": 4 },
       "foodSelfShare": 0.55,
       "foodPerPersonPerSec": 0.009,
-      "goldPerPersonPerSec": 0
+      "settlementAttractionMultiplier": 1
     },
     "cherry_orchard": {
       "label": "Cherry orchard",
       "cost": { "timber": 9, "stone": 3 },
       "foodSelfShare": 0.5,
       "foodPerPersonPerSec": 0.008,
-      "goldPerPersonPerSec": 0
+      "settlementAttractionMultiplier": 1
     },
     "vegetable_garden": {
       "label": "Vegetable garden",
       "cost": { "timber": 5, "stone": 2 },
       "foodSelfShare": 0.65,
       "foodPerPersonPerSec": 0.012,
-      "goldPerPersonPerSec": 0
+      "settlementAttractionMultiplier": 1
     },
     "flower_garden": {
       "label": "Flower garden",
       "cost": { "timber": 4, "stone": 1 },
       "foodSelfShare": 0,
       "foodPerPersonPerSec": 0,
-      "goldPerPersonPerSec": 0.018
+      "settlementAttractionMultiplier": 0.88
     },
     "herb_garden": {
       "label": "Herb garden",
       "cost": { "timber": 4, "stone": 2 },
       "foodSelfShare": 0,
       "foodPerPersonPerSec": 0,
-      "goldPerPersonPerSec": 0.015
+      "settlementAttractionMultiplier": 1
     },
     "hen_yard": {
       "label": "Hen yard",
       "cost": { "timber": 6, "stone": 1 },
       "foodSelfShare": 0.82,
       "foodPerPersonPerSec": 0.0105,
-      "goldPerPersonPerSec": 0
+      "settlementAttractionMultiplier": 1
     }
   }
 }

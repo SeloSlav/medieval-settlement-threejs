@@ -240,6 +240,7 @@ import {
   buildingRoadAccessRow,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import { renderResourceAmount, renderResourceCost } from '../../ui/resourceCost.ts';
 
 export function renderSettlementWelfareRows(welfare: SettlementWelfare): string {
   const welfareInspectButton = welfare.firstAttentionResidenceId === null
@@ -430,7 +431,7 @@ function formatIronImportPlan(
     : plan.ironImportCofferGold / importGoldPerDay;
   const imports = plan.ironImportDemandPerDay <= 0.05
     ? 'no standing iron draw at current local supply and viable forge capacity'
-    : `${plan.ironImportDemandPerDay.toFixed(1)} raw iron/day requires about ${importLotsPerDay.toFixed(2)} twelve-unit Adriatic lots/day and ${importGoldPerDay.toFixed(1)} gold/day at today&rsquo;s first-lot rate${
+    : `${plan.ironImportDemandPerDay.toFixed(1)} raw iron/day requires about ${importLotsPerDay.toFixed(2)} twelve-unit Adriatic lots/day and ${renderResourceAmount('gold', importGoldPerDay, { compact: true, suffix: '/day' })} at today&rsquo;s first-lot rate${
         cofferRunway === null
           ? ''
           : ` &middot; current selected-market coffers cover about ${cofferRunway.toFixed(1)} days before fresh receipts`
@@ -472,7 +473,7 @@ function formatGeologicalResourcePlan(
       || plan.resource === 'salt')
     && plan.richDeposits > 0
   )
-    ? ` &middot; deep workings need ${plan.deepSupportTimberPerDay.toFixed(1)} timber / day &middot; ${plan.deepSupportRunwayCycles.toFixed(1)} aggregate onsite + inbound support cycles${
+    ? ` &middot; deep workings need ${renderResourceAmount('timber', plan.deepSupportTimberPerDay, { compact: true, suffix: '/day' })} &middot; ${plan.deepSupportRunwayCycles.toFixed(1)} aggregate onsite + inbound support cycles${
         plan.deepSourcesAwaitingSupports > 0
           ? ` &middot; ${plan.deepSourcesAwaitingSupports} staffed ${
               plan.deepSourcesAwaitingSupports === 1 ? 'shaft awaits' : 'shafts await'
@@ -1236,9 +1237,10 @@ function specialtyExportCargoMix(
     wine: 'wine',
     cloth: 'cloth',
     cheese: 'cheese',
+    pottery: 'pottery',
   };
   const parts: string[] = [];
-  for (const commodity of ['ale', 'honey', 'wine', 'cloth', 'cheese'] as const) {
+  for (const commodity of ['ale', 'honey', 'wine', 'cloth', 'cheese', 'pottery'] as const) {
     const ledger = plan.commodities[commodity];
     const units = ledger.producerStock
       + ledger.inTransitToMarkets
@@ -1325,9 +1327,10 @@ export function renderSettlementSpecialtyExportRows(
   const brokerThroughput = physicalEconomy
     ? `${plan.exportWorkers} free regional ${plan.exportWorkers === 1 ? 'trader prepares' : 'traders prepare'} discrete loads; each trader opens one concurrent Trading Post route and road length controls throughput`
     : `${plan.exportWorkers} free regional ${plan.exportWorkers === 1 ? 'trader' : 'traders'} clear ${plan.exportRatePerSecond.toFixed(2)} units/s`;
+  const familyRates = `drinks ${Math.round(plan.marketRates.drink * 100)}% · provisions ${Math.round(plan.marketRates.provision * 100)}% · wares ${Math.round(plan.marketRates.wares * 100)}%`;
   const brokerState = physicalEconomy
-    ? `${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets ready at the current ${Math.round(plan.marketRate * 100)}% regional rate`
-    : `${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets actively selling at the current ${Math.round(plan.marketRate * 100)}% regional rate`;
+    ? `${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets ready · ${familyRates}`
+    : `${plan.activeBrokerMarkets} / ${plan.completedMarkets} completed markets actively selling · ${familyRates}`;
 
   return `
     <li><span>Specialty pipeline</span><span>${plan.producerStock.toFixed(1)} at completed producers &middot; ${plan.dispatchReadyProducerStock.toFixed(1)} at sources with labor, a free cart, receiving room, and a market route; household and monastery dispatch still goes first &middot; ${plan.inTransitToMarkets.toFixed(1)} approaching markets &middot; ${plan.marketQueueUnits.toFixed(1)} already at market &middot; ${specialtyExportCargoMix(plan)}</span></li>
@@ -1696,7 +1699,7 @@ export function renderPreservationReserveRows(
 
   return `
     <li><span>${plan.targetDays}-day winter fallback</span><span>${plan.roadMatchedStock.toFixed(1)} / ${plan.targetStock.toFixed(1)} preserved food road-matched for ${plan.tierThreeResidents} prosperous residents &middot; ${plan.preparedBranches} / ${plan.targetBranches} branches ready${plan.roadMatchedShortfall > 0.05 ? ` &middot; short ${plan.roadMatchedShortfall.toFixed(1)}` : ''}${storedDetail ? ` &middot; ${storedDetail}` : ''}${residenceInspect}</span></li>
-    <li><span>Reserve completion</span><span>${completion} &middot; the shortfall requires ${plan.freshFoodRequired.toFixed(1)} fresh food + ${plan.firewoodRequired.toFixed(1)} firewood + ${plan.saltRequired.toFixed(1)} salt + ${plan.potteryRequired.toFixed(1)} pottery${buildingInspect}</span></li>
+    <li><span>Reserve completion</span><span>${completion} &middot; the shortfall requires ${renderResourceCost({ food: plan.freshFoodRequired, firewood: plan.firewoodRequired, salt: plan.saltRequired, pottery: plan.potteryRequired }, { compact: true })}${buildingInspect}</span></li>
     <li><span>Salt supply</span><span>${(plan.saltStock + plan.saltInTransit).toFixed(1)} stored or inbound &middot; ${localSalt} &middot; ${saltImports} &middot; ${saltWarnings}${plan.saltImportLots > 0 ? ` &middot; repeated imports can tighten the regional rate${marketInspect}` : ''}</span></li>
     <li><span>Preserving vessels</span><span>${Math.max(0, plan.potteryRequired - plan.potteryShortfall).toFixed(1)} road-matched toward reserve inputs &middot; ${potteryStatus} &middot; kiln cart priorities decide whether smokehouses or household breakage receive the next load</span></li>
   `;
@@ -2254,7 +2257,11 @@ export function renderTownHallInspector(
     : `<li><span>Parish structural outages</span><span>${parishReliefPlan.fireDisabledChapels} fire-disabled + ${parishReliefPlan.reconstructingChapels} reconstructing ${parishReliefPlan.fireDisabledChapels + parishReliefPlan.reconstructingChapels === 1 ? 'church' : 'churches'} + ${parishReliefPlan.fireDisabledHomes} ${parishReliefPlan.fireDisabledHomes === 1 ? 'home' : 'homes'} outside parish finance · ${parishReliefPlan.structurallyQuarantinedCofferGold.toFixed(1)} coffer gold sealed until structural recovery${parishFireInspectButton}</span></li>`;
   const specialtyExportPlan = computeSettlementSpecialtyExportPlan({
     state: context.gameState,
-    marketRate: marketState.specialtyPriceMult,
+    marketRates: {
+      drink: marketState.drinkPriceMult,
+      provision: marketState.provisionPriceMult,
+      wares: marketState.waresPriceMult,
+    },
     roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
       ? (candidate) => context.worldQueries.getRoadComponentId(
           candidate.x,
@@ -2332,7 +2339,7 @@ export function renderTownHallInspector(
       ${livestockDairyRows}
       <li><span>Winter hay reserve</span><span>${livestockFodder.hayStock.toFixed(1)} stored · ${livestockFodder.projectedHayStock.toFixed(1)} projected at winter / ${livestockFodder.winterHayNeed.toFixed(1)} needed${livestockFodder.winterHayShortfall > 0.05 ? ` · short ${livestockFodder.winterHayShortfall.toFixed(1)} before grain` : ''}</span></li>
       <li><span>Winter fodder grain</span><span>${livestockFodder.winterReserveStock.toFixed(1)} / ${livestockFodder.winterReserveTarget.toFixed(1)} onsite after hay${livestockFodder.winterReserveShortfall > 0.05 ? ` · short ${livestockFodder.winterReserveShortfall.toFixed(1)} across ${livestockFodder.shortHoldings} holdings · first combined coverage ${formatProvisionRunway(livestockFodder.firstRunwayDays)}${livestockFodder.firstShortBuildingId ? ` <button type="button" class="inspector-jump-button" data-inspect-building="${livestockFodder.firstShortBuildingId}" aria-label="Inspect first winter fodder shortfall">Inspect</button>` : ''}` : ' · stocked to holding targets'}</span></li>
-      <li><span>Winter fodder logistics</span><span>${livestockFodder.winterGrainNeed.toFixed(1)} emergency grain after projected hay for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days · ${livestockFodder.winterGrainPerDay.toFixed(1)} / day after hay runs out${livestockFodder.capacityLimitedHoldings > 0 ? ` · ${livestockFodder.capacityLimitedHoldings} holdings need winter resupply even when full` : ''}</span></li>
+      <li><span>Winter fodder logistics</span><span>${renderResourceAmount('grain', livestockFodder.winterGrainNeed, { compact: true, suffix: `after projected hay for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })} · ${renderResourceAmount('grain', livestockFodder.winterGrainPerDay, { compact: true, suffix: '/day after hay runs out' })}${livestockFodder.capacityLimitedHoldings > 0 ? ` · ${livestockFodder.capacityLimitedHoldings} holdings need winter resupply even when full` : ''}</span></li>
     `;
   const linkedMonasteries = [...context.gameState.buildings.values()].filter(
     (candidate) =>
@@ -2378,8 +2385,8 @@ export function renderTownHallInspector(
   const monasteryHospitalityRow = linkedMonasteries.length === 0
     ? '<li><span>Monastery hospitality</span><span>No chapel-and-market-linked monastery</span></li>'
     : monasteryPolicy.feastsEnabled
-      ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} supplied above protected feast floors · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day before handcart collection · annual target ${hospitalityHoneyPerYear.toFixed(0)} honey + ${hospitalityWinePerYear.toFixed(0)} wine</span></li>
-        <li><span>Next feast reserve</span><span>${formatNextMonasteryFeast(nextFeast)} · ${feastReadyMonasteries} / ${linkedMonasteries.length} protected pantries ready · annual batches require ${feastFoodPerYear.toFixed(0)} food + ${feastAlePerYear.toFixed(0)} ale settlement-wide</span></li>`
+      ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} supplied above protected feast floors · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day before handcart collection · annual target ${renderResourceCost({ honey: hospitalityHoneyPerYear, wine: hospitalityWinePerYear }, { compact: true })}</span></li>
+        <li><span>Next feast reserve</span><span>${formatNextMonasteryFeast(nextFeast)} · ${feastReadyMonasteries} / ${linkedMonasteries.length} protected pantries ready · annual batches require ${renderResourceCost({ food: feastFoodPerYear, ale: feastAlePerYear }, { compact: true, suffix: 'settlement-wide' })}</span></li>`
       : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline pilgrimage gold/day before handcart collection · feast stock released to household supply or export</span></li>`;
   const inboundTreasuryGold = Array.from(context.gameState.deliveryTrips.values())
     .filter(
@@ -2450,6 +2457,8 @@ export function renderTownHallInspector(
       <li><span>Household import duty</span><span>${fiscalRatePercent(fiscalPolicy.importDutyRate)} · ${fiscalPolicy.importDutyCollectedTotal.toFixed(1)} gold collected lifetime</span></li>
       <li><span>Private export duty</span><span>${fiscalRatePercent(fiscalPolicy.exportDutyRate)} · ${fiscalPolicy.exportDutyCollectedTotal.toFixed(1)} gold collected from automatic specialty exports</span></li>
       <li><span>Private export income</span><span>${fiscalPolicy.privateExportIncomeTotal.toFixed(1)} gold delivered to producer households lifetime</span></li>
+      <li><span>Local optional spending</span><span>${fiscalPolicy.localDiscretionarySpendTotal.toFixed(1)} gold recirculated from comfortable household savings</span></li>
+      <li><span>Local producer income</span><span>${fiscalPolicy.localProducerIncomeTotal.toFixed(1)} gold earned after local market tax</span></li>
       <li><span>Collection capacity</span><span>${collectionRate}%${staffedTownHallAvailable ? '' : ' without a staffed clerk'}</span></li>
       <li><span>Church tithe</span><span>${readout.chapelTitheLabel}</span></li>
       <li><span>Parish expenses</span><span>${readout.parishExpenseLabel}</span></li>
@@ -2470,7 +2479,7 @@ export function renderTownHallInspector(
       <li><span>Protected hearth stock</span><span>${firewoodPlan.protectedHouseholdStock.toFixed(1)} / ${firewoodPlan.protectedHouseholdTarget.toFixed(1)} in cupboards &middot; ${firewoodPlan.householdsBelowProtectedStock} ${firewoodPlan.householdsBelowProtectedStock === 1 ? 'home' : 'homes'} below the ${RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS}-winter-day floor &middot; those homes preempt industrial fuel carts</span></li>
       <li><span>Fuel competition</span><span>${firewoodPlan.winterHouseholdDemandPerDay.toFixed(1)} winter hearths + ${firewoodPlan.industrialDemandPerDay.toFixed(1)} installed hot-work capacity = ${firewoodPlan.totalDemandPerDay.toFixed(1)} firewood/day &middot; staffed lodges sustain ${firewoodPlan.lodgeOutputCapacityPerDay.toFixed(1)}/day from ${firewoodPlan.lodgeTimberDrawPerDay.toFixed(1)} timber/day &middot; ${firewoodPlan.dailyMargin >= 0 ? '+' : ''}${firewoodPlan.dailyMargin.toFixed(1)}/day</span></li>
       <li><span>Fuel road branches</span><span>${firewoodPlan.distributors} staffed distributors across ${firewoodPlan.activeBranches} consuming branches &middot; ${firewoodPlan.flowDeficitBranches} production-short &middot; ${firewoodPlan.unservedBranches} without a distributor &middot; weakest combined runway ${formatProvisionRunway(firewoodPlan.worstBranchRunwayDays)}${firewoodInspectButton}</span></li>
-      <li><span>Winter firewood</span><span>${Math.round(provisioning.usableFirewoodStock)} usable / ${Math.round(provisioning.firewoodStock)} owned · ${Math.ceil(provisioning.winterFirewoodNeed)} needed · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
+      <li><span>Winter heating fuel</span><span>${Math.round(provisioning.usableFirewoodStock)} usable / ${Math.round(provisioning.firewoodStock)} owned · ${Math.ceil(provisioning.winterFirewoodNeed)} needed · ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} of ${WINTER_RESERVE_DAYS}</span></li>
       ${provisioning.fireQuarantinedFirewoodStock > 0.05 ? `<li><span>Fire-quarantined fuel</span><span>${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood inaccessible until the damaged store or home recovers</span></li>` : ''}
       ${provisioning.sabbathObserved ? `<li><span>Sunday household stores</span><span>${formatSabbathReadiness(provisioning)}</span></li>` : ''}
       <li><span>Processing basis</span><span>${processingWeek}</span></li>
@@ -2494,9 +2503,9 @@ export function renderTownHallInspector(
       <li><span>Salt geology</span><span>${formatGeologicalResourcePlan(geology.salt, production.preservationSaltPerDay + livestockFodder.dairySaltPerDay, 'preservation')}</span></li>
       <li><span>Charcoal-clamp conditions</span><span>${Math.round(production.charcoalBurnerThroughputMultiplier * 100)}% current ${environment.weather} burn pace &middot; damp or frozen billets slow the shared forge-fuel bottleneck; drought dries the charge but also maximizes clamp fire danger</span></li>
       <li><span>Material-chain roads</span><span>${formatIndustrialRoads(industrialMaterials)}</span></li>
-      <li><span>Pottery chain</span><span>${industrialMaterials.potteryOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.potterInstalledOutputPerDay.toFixed(1)} installed pottery per day &middot; ${industrialMaterials.potteryCoveredDemandPerDay.toFixed(1)} / ${industrialMaterials.potteryDemandPerDay.toFixed(1)} household + smokehouse demand covered &middot; ${industrialMaterials.potteryExportSurplusPerDay.toFixed(1)} exportable and ${industrialMaterials.potteryStrandedPerDay.toFixed(1)} stranded surplus &middot; consumes ${industrialMaterials.potterClayPerDay.toFixed(1)} / ${industrialMaterials.clayOutputPerDay.toFixed(1)} sustainable clay capacity once downstream carts reopen held yards + ${industrialMaterials.potterFirewoodPerDay.toFixed(1)} firewood + ${industrialMaterials.potterWaterPerDay.toFixed(1)} puddling water/day from staffed same-branch wells</span></li>
+      <li><span>Pottery chain</span><span>${industrialMaterials.potteryOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.potterInstalledOutputPerDay.toFixed(1)} installed pottery per day &middot; ${industrialMaterials.potteryCoveredDemandPerDay.toFixed(1)} / ${industrialMaterials.potteryDemandPerDay.toFixed(1)} household + smokehouse demand covered &middot; ${industrialMaterials.potteryExportSurplusPerDay.toFixed(1)} exportable and ${industrialMaterials.potteryStrandedPerDay.toFixed(1)} stranded surplus &middot; consumes ${renderResourceCost({ clay: industrialMaterials.potterClayPerDay, firewood: industrialMaterials.potterFirewoodPerDay, water: industrialMaterials.potterWaterPerDay }, { compact: true, suffix: '/day' })} against ${industrialMaterials.clayOutputPerDay.toFixed(1)} sustainable clay capacity once downstream carts reopen held yards</span></li>
       <li><span>Roof-tile firing</span><span>${industrialMaterials.roofTilesOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.potterInstalledRoofTilesPerDay.toFixed(1)} installed tiles per day &middot; each kiln assigned to tiles stops supplying market and smokehouse pottery until its firing policy changes</span></li>
-      <li><span>Ironwork chain</span><span>${industrialMaterials.ironworkOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.smithyInstalledIronworkPerDay.toFixed(1)} installed ironwork per day &middot; integrated bloomery-smithies reduce or reheat ${industrialMaterials.smithyIronPerDay.toFixed(1)} local ore / imported iron charge with ${industrialMaterials.smithyCharcoalPerDay.toFixed(1)} / ${industrialMaterials.charcoalOutputPerDay.toFixed(1)} charcoal capacity, then finish it with ${industrialMaterials.smithyWaterPerDay.toFixed(1)} quench water from staffed same-branch wells &middot; charcoal yards consume ${industrialMaterials.charcoalFirewoodPerDay.toFixed(1)} firewood/day</span></li>
+      <li><span>Ironwork chain</span><span>integrated bloomery-smithies reduce or reheat local ore / imported iron charge &middot; ${industrialMaterials.ironworkOutputPerDay.toFixed(1)} road-supplied / ${industrialMaterials.smithyInstalledIronworkPerDay.toFixed(1)} installed ironwork per day &middot; smithy inputs ${renderResourceCost({ iron: industrialMaterials.smithyIronPerDay, charcoal: industrialMaterials.smithyCharcoalPerDay, water: industrialMaterials.smithyWaterPerDay }, { compact: true, suffix: '/day' })} against ${industrialMaterials.charcoalOutputPerDay.toFixed(1)} charcoal capacity &middot; charcoal yards consume ${renderResourceAmount('firewood', industrialMaterials.charcoalFirewoodPerDay, { compact: true, suffix: '/day' })}</span></li>
       <li><span>Raw iron supply</span><span>${formatIronImportPlan(
         industrialMaterials,
         marketplaceTradeOfferCost(
@@ -2504,14 +2513,14 @@ export function renderTownHallInspector(
           marketState,
         ).amount,
       )}</span></li>
-      <li><span>Civilian tool upkeep</span><span>${industrialMaterials.toolMaintainedSites} / ${industrialMaterials.toolEligibleSites} active racks currently equipped &middot; expected maintained uptime ${Math.round(industrialMaterials.sustainableToolUptime * 100)}% (${industrialMaterials.sustainableToolIronworkPerDay.toFixed(2)} / ${industrialMaterials.fullToolIronworkPerDay.toFixed(2)} ironwork/day of runnable demand after commute, cart absences, geology, weather, inputs, and yard stalls) &middot; road-cart ceiling ${industrialMaterials.toolDeliveryCapacityPerDay.toFixed(2)}/day, ${industrialMaterials.toolCartWorkerDaysPerDay.toFixed(2)} smith worker-days spent hauling, ${industrialMaterials.toolUnreachableSites} unreachable sites &middot; racks reorder below ${(CIVILIAN_TOOL_IRONWORK_PER_CYCLE * CIVILIAN_TOOL_REORDER_CYCLES).toFixed(2)} and take about ${industrialMaterials.toolRefillLoad.toFixed(2)} per ordinary refill &middot; target-held sites wear nothing until work resumes &middot; post-haul smithy surplus before carpentry ${industrialMaterials.ironworkSurplusAfterToolUpkeep.toFixed(2)}${toolDeliveryInspect}${unmaintainedToolInspect}</span></li>
+      <li><span>Civilian tool upkeep</span><span>${industrialMaterials.toolMaintainedSites} / ${industrialMaterials.toolEligibleSites} active racks currently equipped &middot; expected maintained uptime ${Math.round(industrialMaterials.sustainableToolUptime * 100)}% (${renderResourceAmount('ironwork', industrialMaterials.sustainableToolIronworkPerDay, { compact: true })} / ${renderResourceAmount('ironwork', industrialMaterials.fullToolIronworkPerDay, { compact: true, suffix: '/day runnable demand' })} after commute, cart absences, geology, weather, inputs, and yard stalls) &middot; road-cart ceiling ${industrialMaterials.toolDeliveryCapacityPerDay.toFixed(2)}/day, ${industrialMaterials.toolCartWorkerDaysPerDay.toFixed(2)} smith worker-days spent hauling, ${industrialMaterials.toolUnreachableSites} unreachable sites &middot; racks reorder below ${(CIVILIAN_TOOL_IRONWORK_PER_CYCLE * CIVILIAN_TOOL_REORDER_CYCLES).toFixed(2)} and take about ${industrialMaterials.toolRefillLoad.toFixed(2)} per ordinary refill &middot; target-held sites wear nothing until work resumes &middot; post-haul smithy surplus before carpentry ${industrialMaterials.ironworkSurplusAfterToolUpkeep.toFixed(2)}${toolDeliveryInspect}${unmaintainedToolInspect}</span></li>
       <li><span>Mill / bakery balance</span><span>${production.flourOutputPerDay.toFixed(1)} flour made / ${production.bakeryFlourCapacityPerDay.toFixed(1)} bakery intake · ${flourBalance}</span></li>
       <li><span>Grain-chain roads</span><span>${formatGrainChainRoads(production.grainChainRoads)}</span></li>
-      <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} fresh food / day vs ${provisioning.totalFoodPerDay.toFixed(1)} current fresh demand after ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)} cured-ration displacement · gross meals remain ${provisioning.grossFoodDemandPerDay.toFixed(1)} / day · needs ${production.breadGrainPerDay.toFixed(1)} grain + ${production.breadWaterPerDay.toFixed(1)} water + ${production.breadFirewoodPerDay.toFixed(1)} firewood</span></li>
-      <li><span>Ale capacity</span><span>${production.aleOutputPerDay.toFixed(1)} / day vs ${production.aleDemandPerDay.toFixed(1)} tier-3 demand · two workshop cycles per batch · needs ${production.aleBarleyPerDay.toFixed(1)} barley + ${production.aleWaterPerDay.toFixed(1)} water + ${production.aleFirewoodPerDay.toFixed(1)} firewood</span></li>
-      <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day installed · ${production.currentPreservedFoodDemandPerDay.toFixed(1)} / day current ${environment.season} ration at ${production.currentPreservedFoodDemandMultiplier.toFixed(2)}&times; · ${production.preservedFoodDemandPerDay.toFixed(1)} / day winter design peak · rotated rations displace the same fresh-food calories · full crews need ${production.preservationFreshFoodPerDay.toFixed(1)} fresh food + ${production.preservationFirewoodPerDay.toFixed(1)} firewood + ${production.preservationSaltPerDay.toFixed(1)} salt + ${production.preservationPotteryPerDay.toFixed(1)} pottery</span></li>
+      <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} fresh food / day vs ${provisioning.totalFoodPerDay.toFixed(1)} current fresh demand after ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)} cured-ration displacement · gross meals remain ${provisioning.grossFoodDemandPerDay.toFixed(1)} / day · needs ${renderResourceCost({ grain: production.breadGrainPerDay, water: production.breadWaterPerDay, firewood: production.breadFirewoodPerDay }, { compact: true, suffix: '/day' })}</span></li>
+      <li><span>Ale capacity</span><span>${production.aleOutputPerDay.toFixed(1)} / day vs ${production.aleDemandPerDay.toFixed(1)} tier-3 demand · two workshop cycles per batch · needs ${renderResourceCost({ barley: production.aleBarleyPerDay, water: production.aleWaterPerDay, firewood: production.aleFirewoodPerDay }, { compact: true, suffix: '/day' })}</span></li>
+      <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day installed · ${production.currentPreservedFoodDemandPerDay.toFixed(1)} / day current ${environment.season} ration at ${production.currentPreservedFoodDemandMultiplier.toFixed(2)}&times; · ${production.preservedFoodDemandPerDay.toFixed(1)} / day winter design peak · rotated rations displace the same fresh-food calories · full crews need ${renderResourceCost({ food: production.preservationFreshFoodPerDay, firewood: production.preservationFirewoodPerDay, salt: production.preservationSaltPerDay, pottery: production.preservationPotteryPerDay }, { compact: true, suffix: '/day' })}</span></li>
       ${preservationReserveRows}
-      <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-3 demand · choose ${production.clothWoolPerDay.toFixed(1)} wool, or ${production.clothFlaxPerDay.toFixed(1)} flax + ${production.clothFlaxWaterPerDay.toFixed(1)} hauled water</span></li>
+      <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-3 demand · choose ${renderResourceAmount('wool', production.clothWoolPerDay, { compact: true, suffix: '/day' })}, or ${renderResourceCost({ flax: production.clothFlaxPerDay, water: production.clothFlaxWaterPerDay }, { compact: true, suffix: '/day' })}</span></li>
       <li><span>Household pottery</span><span>${production.potteryOutputPerDay.toFixed(1)} / day road-local clay-backed kiln output vs ${production.potteryDemandPerDay.toFixed(1)} tier-3 breakage replacement · homes share each kiln's physical cart with smokehouses and export</span></li>
       <li><span>Prosperity throughput</span><span>${formatProsperityCapacity(prosperity)}</span></li>
       <li><span>Prosperity roads</span><span>${formatProsperityRoads(prosperity.roadPlan)}</span></li>

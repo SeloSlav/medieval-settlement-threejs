@@ -120,6 +120,7 @@ const lodge = building('10', 'woodcutters_lodge', {
 const storehouse = building('11', 'village_storehouse', {
   assignedLabor: 1,
   firewood: 10,
+  charcoal: 6,
   storehouseAcceptsFirewood: true,
 });
 const inactiveLodge = building('12', 'woodcutters_lodge', {
@@ -178,7 +179,7 @@ assert.equal(plan.householdStock, 10);
 assert.equal(plan.protectedHouseholdStock, 10);
 assert.ok(Math.abs(plan.protectedHouseholdTarget - 14.4) < 1e-9);
 assert.equal(plan.householdsBelowProtectedStock, 2);
-assert.equal(plan.distributorStock, 28);
+assert.equal(plan.distributorStock, 34);
 assert.equal(plan.industrialStock, 3);
 assert.equal(plan.firewoodInTransit, 2);
 assert.equal(plan.inactiveStock, 5);
@@ -267,6 +268,10 @@ const storehouseSimulation = readFileSync(
   new URL('../server/src/simulation/village_storehouse.rs', import.meta.url),
   'utf8',
 );
+const deliveryCargoSimulation = readFileSync(
+  new URL('../server/src/simulation/delivery_cargo.rs', import.meta.url),
+  'utf8',
+);
 assert.match(
   expandedSimulation,
   /pub fn step_industrial_firewood_dispatch[\s\S]*dispatch_to_building_where[\s\S]*INDUSTRIAL_FIREWOOD_TARGET_KINDS/,
@@ -295,6 +300,21 @@ assert.match(
   storehouseSimulation,
   /pub fn step_storehouse_market_stalls[\s\S]*CommodityKind::Firewood[\s\S]*&\["marketplace"\]/,
   'staffed storehouse workers must stock Marketplace fuel stalls before surplus fuel serves industry',
+);
+assert.match(
+  storehouseSimulation,
+  /pub fn step_storehouse_market_stalls[\s\S]*CommodityKind::Charcoal[\s\S]*&\["marketplace"\]/,
+  'staffed storehouse workers must also stock Marketplace stalls with household charcoal',
+);
+assert.match(
+  deliveryCargoSimulation,
+  /ResidenceNeedKind::Firewood => building\.firewood \+ building\.charcoal[\s\S]*CommodityKind::Charcoal/,
+  'household heat deliveries must burn firewood first and then accept charcoal as fallback fuel',
+);
+assert.match(
+  expandedSimulation,
+  /\("charcoal_burner", CommodityKind::Charcoal\)[\s\S]*Some\(&\["smithy", "village_storehouse"\]\)/,
+  'charcoal yards must refill smithies first while exposing surplus fuel to household distribution',
 );
 const householdDispatchIndex = authoritativeLoop.indexOf(
   'step_storehouse_market_stalls(',

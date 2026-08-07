@@ -4,6 +4,7 @@ import {
   SPECIALTY_EXPORT_GOLD_PER_CHEESE,
   SPECIALTY_EXPORT_GOLD_PER_CLOTH,
   SPECIALTY_EXPORT_GOLD_PER_HONEY,
+  SPECIALTY_EXPORT_GOLD_PER_POTTERY,
   SPECIALTY_EXPORT_GOLD_PER_WINE,
 } from '../generated/gameBalance.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
@@ -13,7 +14,11 @@ import type { BuildingKind, BuildingState, GameState } from '../resources/types.
 import {
   marketplaceSpecialtyExportRate,
   marketplaceSpecialtyExportWorkers,
+  resolvedSpecialtyFamilyPolicy,
+  specialtyFamilyForCommodity,
   specialtyExportPolicyAllows,
+  type SpecialtyFamilyRates,
+  type SpecialtyMarketFamily,
 } from './specialtyTrade.ts';
 import {
   productionRoadBranchKey,
@@ -26,6 +31,7 @@ export const SPECIALTY_EXPORT_CARGO_KINDS = [
   'wine',
   'cloth',
   'cheese',
+  'pottery',
 ] as const;
 
 export type SpecialtyExportCargoKind =
@@ -97,6 +103,7 @@ export type SettlementSpecialtyExportRoadPlan = {
 
 export type SettlementSpecialtyExportPlan = {
   marketRate: number;
+  marketRates: SpecialtyFamilyRates;
   producers: number;
   staffedProducers: number;
   markets: number;
@@ -181,6 +188,7 @@ const SOURCE_COMMODITY_BY_KIND: Partial<
   vineyard: 'wine',
   pastoral_farmstead: 'cheese',
   weaver: 'cloth',
+  potter_kiln: 'pottery',
 };
 
 const ATTENTION_PRIORITY: Record<SpecialtyExportAttentionKind, number> = {
@@ -236,6 +244,7 @@ function specialtyGoldPerUnit(commodity: SpecialtyExportCargoKind): number {
     case 'wine': return SPECIALTY_EXPORT_GOLD_PER_WINE;
     case 'cloth': return SPECIALTY_EXPORT_GOLD_PER_CLOTH;
     case 'cheese': return SPECIALTY_EXPORT_GOLD_PER_CHEESE;
+    case 'pottery': return SPECIALTY_EXPORT_GOLD_PER_POTTERY;
   }
 }
 
@@ -260,6 +269,7 @@ function emptyCommodityMap(): Record<
     wine: emptyCommodityLedger(),
     cloth: emptyCommodityLedger(),
     cheese: emptyCommodityLedger(),
+    pottery: emptyCommodityLedger(),
   };
 }
 
@@ -273,6 +283,7 @@ function emptyBranchMarketCapacity(): BranchMarketCapacity {
       wine: false,
       cloth: false,
       cheese: false,
+      pottery: false,
     },
     hasFreeReceivingRoom: {
       ale: false,
@@ -280,6 +291,7 @@ function emptyBranchMarketCapacity(): BranchMarketCapacity {
       wine: false,
       cloth: false,
       cheese: false,
+      pottery: false,
     },
   };
 }
@@ -351,6 +363,21 @@ function shouldReplaceAttention(
   return compareStableEntityIds(candidate.buildingId, current.buildingId) < 0;
 }
 
+function marketplaceFamilyPolicy(
+  building: BuildingState,
+  family: SpecialtyMarketFamily,
+): number {
+  const familyPolicy = family === 'drink'
+    ? building.marketplaceDrinkExportPolicy
+    : family === 'provision'
+      ? building.marketplaceProvisionExportPolicy
+      : building.marketplaceWaresExportPolicy;
+  return resolvedSpecialtyFamilyPolicy(
+    familyPolicy,
+    building.marketplaceSpecialtyExportPolicy,
+  );
+}
+
 /**
  * Inspector-time specialty export ledger for the physical producer -> market
  * -> regional-sale chain already simulated by the server.
@@ -362,12 +389,21 @@ function shouldReplaceAttention(
 export function computeSettlementSpecialtyExportPlan(input: {
   state: Pick<GameState, 'buildings' | 'deliveryTrips'>
     & Partial<Pick<GameState, 'fireIncidents'>>;
-  marketRate: number;
+  marketRate?: number;
+  marketRates?: SpecialtyFamilyRates;
   roadComponentFor?: ProductionRoadComponentResolver;
 }): SettlementSpecialtyExportPlan {
-  const marketRate = Number.isFinite(input.marketRate)
-    ? Math.max(0, input.marketRate)
+  const legacyRate = Number.isFinite(input.marketRate)
+    ? Math.max(0, input.marketRate ?? 0)
     : 0;
+  const marketRates: SpecialtyFamilyRates = input.marketRates
+    ? {
+        drink: positive(input.marketRates.drink),
+        provision: positive(input.marketRates.provision),
+        wares: positive(input.marketRates.wares),
+      }
+    : { drink: legacyRate, provision: legacyRate, wares: legacyRate };
+  const marketRate = (marketRates.drink + marketRates.provision + marketRates.wares) / 3;
   const branches = new Map<string, MutableRoadBranch>();
   const markets = new Map<string, MarketRecord>();
   const producers: ProducerRecord[] = [];
@@ -417,6 +453,7 @@ export function computeSettlementSpecialtyExportPlan(input: {
           wine: 0,
           cloth: 0,
           cheese: 0,
+          pottery: 0,
         },
         hasInboundSupply: false,
         projectedQueue: 0,
@@ -500,16 +537,32 @@ export function computeSettlementSpecialtyExportPlan(input: {
     const projectedQueue = queue + inbound;
     const workers = marketplaceSpecialtyExportWorkers(building);
     const rate = marketplaceSpecialtyExportRate(building);
-    const policyAllows = specialtyExportPolicyAllows(
-      building.marketplaceSpecialtyExportPolicy,
-      marketRate,
+    const familyAllows = (family: SpecialtyMarketFamily): boolean =>
+      specialtyExportPolicyAllows(
+        marketplaceFamilyPolicy(building, family),
+        marketRates[family],
+      );
+    const eligibleProjectedQueue = SPECIALTY_EXPORT_CARGO_KINDS.reduce(
+      (sum, commodity) => {
+        const family = specialtyFamilyForCommodity(commodity);
+        return sum + (familyAllows(family)
+          ? buildingCommodityStock(building, commodity)
+            + market.inboundByCommodity[commodity]
+          : 0);
+      },
+      0,
     );
+    const heldProjectedQueue = Math.max(0, projectedQueue - eligibleProjectedQueue);
+    const anyFamilyAllows = (['drink', 'provision', 'wares'] as const)
+      .some(familyAllows);
     const fireBlocked = fireDisabled.has(building.id);
     const operational = complete
       && market.roadLinked
       && building.assignedLabor > 0
       && !fireBlocked;
-    const active = operational && policyAllows && workers > 0;
+    const active = operational
+      && workers > 0
+      && (projectedQueue <= 1e-9 ? anyFamilyAllows : eligibleProjectedQueue > 1e-9);
 
     market.projectedQueue = projectedQueue;
     market.operational = operational;
@@ -560,9 +613,9 @@ export function computeSettlementSpecialtyExportPlan(input: {
       exportRatePerSecond += rate;
       branch.exportWorkers += workers;
       branch.exportRatePerSecond += rate;
-      activeMarketQueueUnits += projectedQueue;
-      if (projectedQueue > 1e-9 && rate > 1e-9) {
-        const clearSeconds = projectedQueue / rate;
+      activeMarketQueueUnits += eligibleProjectedQueue;
+      if (eligibleProjectedQueue > 1e-9 && rate > 1e-9) {
+        const clearSeconds = eligibleProjectedQueue / rate;
         if (
           slowestActiveMarketClearSeconds === null
           || clearSeconds > slowestActiveMarketClearSeconds + 1e-9
@@ -597,29 +650,37 @@ export function computeSettlementSpecialtyExportPlan(input: {
       commodities[commodity].projectedMarketQueue += onsite + approaching;
       commodities[commodity].projectedMarketValue += (
         onsite + approaching
-      ) * specialtyGoldPerUnit(commodity) * marketRate;
+      ) * specialtyGoldPerUnit(commodity)
+        * marketRates[specialtyFamilyForCommodity(commodity)];
     }
 
-    if (projectedQueue <= 1e-9 || active) continue;
-    branch.blockedMarketQueueUnits += projectedQueue;
+    if (projectedQueue <= 1e-9) continue;
+    const blockedQueue = active ? heldProjectedQueue : projectedQueue;
+    if (blockedQueue <= 1e-9) continue;
+    branch.blockedMarketQueueUnits += blockedQueue;
+    if (active) {
+      policyHeldMarketQueueUnits += blockedQueue;
+      recordAttention('market-policy', building.id, blockedQueue);
+      continue;
+    }
     if (!complete) {
-      constructionBlockedMarketQueueUnits += projectedQueue;
-      recordAttention('market-construction', building.id, projectedQueue);
+      constructionBlockedMarketQueueUnits += blockedQueue;
+      recordAttention('market-construction', building.id, blockedQueue);
     } else if (!market.roadLinked) {
-      roadBlockedMarketQueueUnits += projectedQueue;
-      recordAttention('market-road', building.id, projectedQueue);
+      roadBlockedMarketQueueUnits += blockedQueue;
+      recordAttention('market-road', building.id, blockedQueue);
     } else if (fireBlocked) {
-      fireBlockedMarketQueueUnits += projectedQueue;
-      recordAttention('market-fire', building.id, projectedQueue);
+      fireBlockedMarketQueueUnits += blockedQueue;
+      recordAttention('market-fire', building.id, blockedQueue);
     } else if (building.assignedLabor <= 0) {
-      laborBlockedMarketQueueUnits += projectedQueue;
-      recordAttention('market-labor', building.id, projectedQueue);
-    } else if (!policyAllows) {
-      policyHeldMarketQueueUnits += projectedQueue;
-      recordAttention('market-policy', building.id, projectedQueue);
+      laborBlockedMarketQueueUnits += blockedQueue;
+      recordAttention('market-labor', building.id, blockedQueue);
+    } else if (eligibleProjectedQueue <= 1e-9) {
+      policyHeldMarketQueueUnits += blockedQueue;
+      recordAttention('market-policy', building.id, blockedQueue);
     } else {
-      manualTradeBlockedMarketQueueUnits += projectedQueue;
-      recordAttention('market-manual-trade', building.id, projectedQueue);
+      manualTradeBlockedMarketQueueUnits += blockedQueue;
+      recordAttention('market-manual-trade', building.id, blockedQueue);
     }
   }
 
@@ -742,6 +803,7 @@ export function computeSettlementSpecialtyExportPlan(input: {
 
   return {
     marketRate,
+    marketRates,
     producers: producerCount,
     staffedProducers: staffedProducerCount,
     markets: marketCount,

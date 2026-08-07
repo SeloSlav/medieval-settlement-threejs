@@ -3,15 +3,15 @@ use std::collections::HashSet;
 use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
-    FarmCropProduce, APIARY_FOOD_PER_CYCLE, APIARY_HONEY_PER_CYCLE, BREWERY_ALE_PER_CYCLE,
+    BackyardGardenKind, FarmCropProduce, APIARY_HONEY_PER_CYCLE,
+    APIARY_WINTER_HONEY_REQUIRED, BREWERY_ALE_PER_CYCLE,
     BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
     BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
     BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_FOOD_PER_CYCLE,
     BAKERY_WATER_PER_CYCLE, CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE,
-    FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, FERRY_GOLD_PER_DAY,
-    GRAIN_TRANSFER_PER_TRIP,
+    FARM_GROWTH_SECONDS, FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP,
     MINE_IRON_PER_CYCLE, MINE_SALT_PER_CYCLE,
     MINE_TIMBER_SUPPORT_PER_CYCLE,
     MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD, MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE,
@@ -22,7 +22,9 @@ use crate::balance_generated::{
     SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
     SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     SMOKEHOUSE_SALT_PER_CYCLE, TEXTILE_TRANSFER_PER_TRIP, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FOOD_PER_CYCLE, VINEYARD_WINE_PER_CYCLE,
+    TIMBER_DELIVERY_UNLOAD_SEC, VINEYARD_FERMENTATION_SECONDS,
+    VINEYARD_GRAPES_PER_FERMENTATION_BATCH, VINEYARD_GRAPES_PER_HARVEST_CYCLE,
+    VINEYARD_WINE_PER_FERMENTATION_BATCH,
     WATERMILL_FLOUR_PER_CYCLE, WATERMILL_GRAIN_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE,
     WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
@@ -59,6 +61,10 @@ use crate::frontier_economy_policy::{
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
 use crate::hydrology::{
     clay_bank_yield_multiplier_with_richness, sample_world_hydrology_score,
+};
+use crate::apiary_policy::{
+    apiary_forage_score, apiary_honey_reserve, apiary_production_multiplier,
+    next_apiary_colony_health, pollination_contribution, pollination_multiplier,
 };
 use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
@@ -108,6 +114,7 @@ use crate::supply_policy::{
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
+use crate::vineyard::{fermentable_grapes, vineyard_grape_reserve};
 use crate::weaver_input_policy::{weaver_fibre_delivery_preference_rank, weaver_uses_flax};
 
 struct RoutedBuilding {
@@ -1151,7 +1158,7 @@ fn local_material_target_kinds(
         ("mine", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
         ("mine", CommodityKind::Salt) => Some(&["smokehouse", "pastoral_farmstead", "trading_post"]),
         ("clay_pit", CommodityKind::Clay) => Some(&["potter_kiln"]),
-        ("charcoal_burner", CommodityKind::Charcoal) => Some(&["smithy"]),
+        ("charcoal_burner", CommodityKind::Charcoal) => Some(&["smithy", "village_storehouse"]),
         ("smithy", CommodityKind::Ironwork) => Some(&[
             "lumber_mill",
             "woodcutters_lodge",
@@ -2093,30 +2100,57 @@ pub fn step_apiary(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
-    building: Building,
+    mut building: Building,
 ) {
+    let forage_score = apiary_landscape_forage_score(ctx, &building);
+    building.apiary_forage_score = forage_score;
+    building.apiary_colony_health = building.apiary_colony_health.clamp(0.35, 1.10);
+
+    if clock.month == 12 && building.apiary_last_winter_year != clock.year {
+        let winter_honey = building.honey.min(APIARY_WINTER_HONEY_REQUIRED).max(0.0);
+        withdraw_building_commodity(&mut building, CommodityKind::Honey, winter_honey);
+        building.apiary_colony_health =
+            next_apiary_colony_health(building.apiary_colony_health, winter_honey);
+        building.apiary_last_winter_year = clock.year;
+    }
+
+    let production_rate = apiary_production_multiplier(
+        building.apiary_harvest_policy,
+        forage_score,
+        building.apiary_colony_health,
+    );
     let mut apiary = if apiary_is_active(clock.month as u8) {
-        step_simple_producer(
+        step_simple_producer_at_rate(
             ctx,
             tick,
             clock,
             building,
-            &[(
-                CommodityKind::Honey,
-                APIARY_HONEY_PER_CYCLE + APIARY_FOOD_PER_CYCLE,
-            )],
+            &[(CommodityKind::Honey, APIARY_HONEY_PER_CYCLE)],
+            production_rate,
         )
     } else {
         building
     };
-    dispatch_monastery_hospitality(ctx, tick, clock, &mut apiary, CommodityKind::Honey);
-    dispatch_to_building(
+    let reserve = apiary_honey_reserve(apiary.apiary_harvest_policy);
+    let transferable = (apiary.honey - reserve).max(0.0);
+    dispatch_monastery_hospitality_limited(
+        ctx,
+        tick,
+        clock,
+        &mut apiary,
+        CommodityKind::Honey,
+        transferable,
+    );
+    let transferable = (apiary.honey - reserve).max(0.0);
+    dispatch_to_building_where_limited(
         ctx,
         tick,
         clock,
         &mut apiary,
         CommodityKind::Honey,
         &["trading_post"],
+        transferable,
+        |_| true,
     );
     ctx.db.building().id().update(apiary);
 }
@@ -2140,22 +2174,21 @@ pub fn step_vineyard(
             )
         })
         // Legacy point-placed vineyards keep their original save-compatible output.
-        .unwrap_or(1.0);
+        .unwrap_or(1.0)
+        * nearby_apiary_pollination_multiplier(ctx, tick, building.owner, building.x, building.z);
     let mut vineyard = if vineyard_is_harvesting(clock.month as u8) {
         step_simple_producer_at_rate(
             ctx,
             tick,
             clock,
             building,
-            &[
-                (CommodityKind::Wine, VINEYARD_WINE_PER_CYCLE),
-                (CommodityKind::Grapes, VINEYARD_FOOD_PER_CYCLE),
-            ],
+            &[(CommodityKind::Grapes, VINEYARD_GRAPES_PER_HARVEST_CYCLE)],
             production_multiplier,
         )
     } else {
         building
     };
+    advance_vineyard_fermentation(ctx, tick, clock, &mut vineyard);
     dispatch_monastery_hospitality(ctx, tick, clock, &mut vineyard, CommodityKind::Wine);
     dispatch_to_building(
         ctx,
@@ -2166,6 +2199,131 @@ pub fn step_vineyard(
         &["trading_post"],
     );
     ctx.db.building().id().update(vineyard);
+}
+
+fn advance_vineyard_fermentation(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    vineyard: &mut Building,
+) {
+    let onsite_labor = onsite_building_labor(ctx, vineyard);
+    if onsite_labor == 0 || labor_and_logistics_paused(ctx, tick, vineyard.owner, clock) {
+        return;
+    }
+
+    if vineyard.vineyard_fermenting_grapes <= 1e-9 {
+        let available = fermentable_grapes(vineyard.grapes, vineyard.vineyard_production_policy);
+        if available + 1e-6 < VINEYARD_GRAPES_PER_FERMENTATION_BATCH
+            || building_commodity_room(vineyard, CommodityKind::Wine) + 1e-6
+                < VINEYARD_WINE_PER_FERMENTATION_BATCH
+        {
+            vineyard.vineyard_fermentation_progress = 0.0;
+            return;
+        }
+        let staged = withdraw_building_commodity(
+            vineyard,
+            CommodityKind::Grapes,
+            VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
+        );
+        if staged + 1e-6 < VINEYARD_GRAPES_PER_FERMENTATION_BATCH {
+            deposit_building_commodity(vineyard, CommodityKind::Grapes, staged);
+            return;
+        }
+        vineyard.vineyard_fermenting_grapes = staged;
+        vineyard.vineyard_fermentation_progress = 0.0;
+    }
+
+    vineyard.vineyard_fermentation_progress += TICK_DT * onsite_labor as f64;
+    if vineyard.vineyard_fermentation_progress + 1e-6 < VINEYARD_FERMENTATION_SECONDS
+        || building_commodity_room(vineyard, CommodityKind::Wine) + 1e-6
+            < VINEYARD_WINE_PER_FERMENTATION_BATCH
+    {
+        return;
+    }
+
+    deposit_building_commodity(
+        vineyard,
+        CommodityKind::Wine,
+        VINEYARD_WINE_PER_FERMENTATION_BATCH,
+    );
+    vineyard.vineyard_fermenting_grapes = 0.0;
+    vineyard.vineyard_fermentation_progress = 0.0;
+}
+
+fn apiary_landscape_forage_score(ctx: &ReducerContext, apiary: &Building) -> f64 {
+    let radius_sq = apiary.work_radius.max(1.0).powi(2);
+    let mature_trees = ctx
+        .db
+        .tree_entity()
+        .iter()
+        .filter(|tree| {
+            tree.phase == "mature"
+                && (tree.x - apiary.x).powi(2) + (tree.z - apiary.z).powi(2) <= radius_sq
+        })
+        .count() as u32;
+
+    let mut orchards = 0u32;
+    let mut flower_gardens = 0u32;
+    for garden in ctx.db.backyard_garden().owner().filter(&apiary.owner) {
+        let Some(residence) = ctx.db.residence().id().find(&garden.residence_id) else {
+            continue;
+        };
+        if (residence.x - apiary.x).powi(2) + (residence.z - apiary.z).powi(2) > radius_sq {
+            continue;
+        }
+        match BackyardGardenKind::from_id(garden.kind) {
+            Some(BackyardGardenKind::AppleOrchard | BackyardGardenKind::CherryOrchard) => {
+                orchards += 1
+            }
+            Some(BackyardGardenKind::FlowerGarden | BackyardGardenKind::HerbGarden) => {
+                flower_gardens += 1
+            }
+            _ => {}
+        }
+    }
+
+    let vineyard_area = ctx
+        .db
+        .vineyard_parcel()
+        .owner()
+        .filter(&apiary.owner)
+        .filter_map(|parcel| {
+            ctx.db
+                .building()
+                .id()
+                .find(&parcel.building_id)
+                .filter(|vineyard| {
+                    (vineyard.x - apiary.x).powi(2) + (vineyard.z - apiary.z).powi(2)
+                        <= radius_sq
+                })
+                .map(|_| parcel.area.max(0.0))
+        })
+        .sum();
+
+    apiary_forage_score(mature_trees, orchards, flower_gardens, vineyard_area)
+}
+
+pub(crate) fn nearby_apiary_pollination_multiplier(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    owner: spacetimedb::Identity,
+    x: f64,
+    z: f64,
+) -> f64 {
+    let contribution = tick
+        .building_ids_for_kinds(ctx, owner, &["apiary"])
+        .into_iter()
+        .filter_map(|building_id| ctx.db.building().id().find(&building_id))
+        .filter(|apiary| {
+            apiary.construction_complete && !tick.building_disabled_by_fire(ctx, apiary.id)
+        })
+        .map(|apiary| {
+            let distance = ((apiary.x - x).powi(2) + (apiary.z - z).powi(2)).sqrt();
+            pollination_contribution(distance, apiary.work_radius, apiary.apiary_colony_health)
+        })
+        .sum();
+    pollination_multiplier(contribution)
 }
 
 pub fn step_monastery(
@@ -2238,24 +2396,6 @@ pub fn step_monastery(
     }
     try_dispatch_local_civic_receipts(ctx, tick, clock, &mut monastery, receipt_daily_income);
     ctx.db.building().id().update(monastery);
-}
-
-pub fn step_ferry_landing(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    mut building: Building,
-) {
-    let onsite_labor = onsite_building_labor(ctx, &building);
-    if !labor_and_logistics_paused(ctx, tick, building.owner, clock)
-        && onsite_labor > 0
-        && owner_has_connected_marketplace(ctx, tick, &building)
-    {
-        let gold = FERRY_GOLD_PER_DAY * onsite_labor as f64 * TICK_DT / CALENDAR_SECONDS_PER_DAY;
-        credit_local_civic_receipts(ctx, &mut building, gold);
-    }
-    try_dispatch_local_civic_receipts(ctx, tick, clock, &mut building, FERRY_GOLD_PER_DAY);
-    ctx.db.building().id().update(building);
 }
 
 fn frontier_economy_enabled(ctx: &ReducerContext) -> bool {
@@ -3418,6 +3558,29 @@ fn dispatch_monastery_hospitality(
     );
 }
 
+fn dispatch_monastery_hospitality_limited(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    source: &mut Building,
+    commodity: CommodityKind,
+    transferable_limit: f64,
+) {
+    if !tick.monastery_hospitality_enabled(ctx, source.owner) {
+        return;
+    }
+    dispatch_to_building_where_limited(
+        ctx,
+        tick,
+        clock,
+        source,
+        commodity,
+        &["monastery"],
+        transferable_limit,
+        |target| monastery_has_parish_link(ctx, tick, target),
+    );
+}
+
 fn dispatch_monastery_feast_ale(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -3536,11 +3699,19 @@ fn institutional_source_food_surplus(
     stock: f64,
 ) -> f64 {
     let claimed_households = tick.food_claim_count_for_supplier(ctx, source.owner, source.id);
-    institutional_food_surplus(
+    let generic_surplus = institutional_food_surplus(
         stock,
         claimed_households,
         building_commodity_cap(&source.kind, CommodityKind::Food),
-    )
+    );
+    let policy_surplus = match source.kind.as_str() {
+        "apiary" => (source.honey - apiary_honey_reserve(source.apiary_harvest_policy)).max(0.0),
+        "vineyard" => {
+            (source.grapes - vineyard_grape_reserve(source.vineyard_production_policy)).max(0.0)
+        }
+        _ => generic_surplus,
+    };
+    generic_surplus.min(policy_surplus)
 }
 
 fn request_connected_commodity_with_source_availability(

@@ -25,4 +25,10 @@ export default __t.row({
   bulletin: __t.string(),
   specialtyPriceMult: __t.f64().name("specialty_price_mult"),
   regionalSpecialtyDemand: __t.f64().name("regional_specialty_demand"),
+  drinkPriceMult: __t.f64().name("drink_price_mult"),
+  provisionPriceMult: __t.f64().name("provision_price_mult"),
+  waresPriceMult: __t.f64().name("wares_price_mult"),
+  regionalDrinkDemand: __t.f64().name("regional_drink_demand"),
+  regionalProvisionDemand: __t.f64().name("regional_provision_demand"),
+  regionalWaresDemand: __t.f64().name("regional_wares_demand"),
 });

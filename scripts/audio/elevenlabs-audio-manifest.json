@@ -692,16 +692,6 @@
       "promptInfluence": 0.89
     },
     {
-      "id": "building-ferry-landing",
-      "group": "building-foley",
-      "kind": "sound-effect",
-      "output": "public/sounds/buildings/ferry_landing.mp3",
-      "prompt": "Short quiet medieval ferry-landing Foley: a mooring rope tightens around a wooden bollard, the small boat hull creaks once, and calm river water laps gently, no voices, no birds, no music",
-      "durationSeconds": 2.6,
-      "loop": false,
-      "promptInfluence": 0.87
-    },
-    {
       "id": "building-vineyard",
       "group": "building-foley",
       "kind": "sound-effect",

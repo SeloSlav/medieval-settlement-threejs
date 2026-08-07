@@ -3,7 +3,6 @@ import type { InspectableTarget } from '../types.ts';
 import {
   buildChapelInspectorEconomyView,
   formatChapelCommunityBoosts,
-  formatChapelExpenseLabel,
 } from '../../economy/economyInspectorViews.ts';
 import { isChapelStaffed } from '../../logistics/landmarkAccess.ts';
 import {
@@ -34,6 +33,7 @@ import {
   buildingLaborView,
   buildingRoadAccessRow,
 } from './buildingCommon.ts';
+import { renderResourceAmount, renderResourceCost } from '../../ui/resourceCost.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 
 function formatLinkedHomeStatus(
@@ -118,17 +118,22 @@ export function renderChapelInspector(
     : upgrade == null
       ? null
       : resources.timber + 1e-6 < upgrade.timber
-        ? `Need ${Math.ceil(upgrade.timber - resources.timber)} more timber.`
+        ? `Need ${renderResourceAmount('timber', Math.ceil(upgrade.timber - resources.timber), { compact: true })} more.`
         : resources.stone + 1e-6 < upgrade.stone
-          ? `Need ${Math.ceil(upgrade.stone - resources.stone)} more stone.`
+          ? `Need ${renderResourceAmount('stone', Math.ceil(upgrade.stone - resources.stone), { compact: true })} more.`
           : resources.ironwork + 1e-6 < upgrade.ironwork
-            ? `Need ${Math.ceil(upgrade.ironwork - resources.ironwork)} more ironwork.`
+            ? `Need ${renderResourceAmount('ironwork', Math.ceil(upgrade.ironwork - resources.ironwork), { compact: true })} more.`
             : resources.roofTiles + 1e-6 < upgrade.roofTiles
-              ? `Need ${Math.ceil(upgrade.roofTiles - resources.roofTiles)} more fired roof tiles.`
+              ? `Need ${renderResourceAmount('roofTiles', Math.ceil(upgrade.roofTiles - resources.roofTiles), { compact: true })} more.`
               : null;
   const upgradeCostLabel = upgrade == null
     ? ''
-    : `${upgrade.timber} timber + ${upgrade.stone} stone + ${upgrade.ironwork} ironwork + ${upgrade.roofTiles} fired roof tiles`;
+    : renderResourceCost({
+        timber: upgrade.timber,
+        stone: upgrade.stone,
+        ironwork: upgrade.ironwork,
+        roofTiles: upgrade.roofTiles,
+      }, { compact: true });
   const { settlementBoost } = formatChapelCommunityBoosts();
   const economy = buildChapelInspectorEconomyView(
     building,
@@ -136,6 +141,11 @@ export function renderChapelInspector(
     cofferCapacity,
     parishPolicy.sabbathObservanceEnabled,
   );
+  const parishExpenseLabel = suspendedByFire
+    ? 'Paused · no wages, upkeep, charity, or monastery remittance leaves the sealed coffer'
+    : staffed
+      ? `${renderResourceAmount('gold', economy.expense.total, { compact: true, suffix: '/day total' })} · salary ${renderResourceAmount('gold', economy.expense.salary, { compact: true })} · upkeep ${renderResourceAmount('gold', economy.expense.upkeep, { compact: true })} · charity ${renderResourceAmount('gold', economy.expense.charity, { compact: true })}${economy.expense.cofferLimited ? ' · coffer-limited' : ''}`
+      : `${renderResourceAmount('gold', economy.expense.upkeep, { compact: true, suffix: '/day upkeep' })}${economy.expense.cofferLimited ? ' · coffer-limited' : ''}`;
   const monasteryPurse = Math.min(
     Math.max(0, building.chapelMonasteryTitheDue ?? 0),
     Math.max(0, building.gold),
@@ -161,7 +171,7 @@ export function renderChapelInspector(
       ${upgrade == null
         ? '<p class="inspector-action-panel__hint">The large stone church is fully upgraded.</p>'
         : `<button type="button" class="inspector-action-panel__button" data-action="upgrade-chapel"${upgradeBlocker ? ' disabled' : ''}>
-            Upgrade to tier ${upgrade.targetTier} (${upgradeCostLabel})
+            <span>Upgrade to tier ${upgrade.targetTier}</span>${upgradeCostLabel}
           </button>
           <p class="inspector-action-panel__hint">${upgradeBlocker ?? 'Rebuild the church in place; the final footprint was reserved when the wooden church was laid out.'}</p>`}
       <p class="inspector-action-panel__hint">${suspendedByFire
@@ -169,7 +179,7 @@ export function renderChapelInspector(
         : 'Parish tithes belong to the church. They fund clergy, upkeep, alms, poor relief, and pledged monastery support; they cannot be transferred to the civic treasury.'}</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-chapel-sabbath ${parishPolicy.sabbathObservanceEnabled ? 'checked' : ''} /><span>Observe Sunday Sabbath</span></label>
       <p class="inspector-action-panel__hint">Sabbath pauses work and carts for +${Math.round(CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS * 100)}% attendance and +${Math.round(CHAPEL_SABBATH_OBSERVANCE_SETTLEMENT_BONUS * 100)}% settlement speed. Households still consume delivered provisions, so stock them before Saturday night.</p>
-      <p class="inspector-action-panel__hint">Keep at least ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold after wages and upkeep. In physical-economy settlements, one day of alms leaves as a visible purse carried by a free villager; long or blocked roads and church-cart contention delay it. Monday poor relief may spend up to ${CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH} gold per dispatch.</p>
+      <p class="inspector-action-panel__hint">Keep at least ${renderResourceAmount('gold', CHAPEL_CHARITY_MIN_COFFER_GOLD, { compact: true })} after wages and upkeep. In physical-economy settlements, one day of alms leaves as a visible purse carried by a free villager; long or blocked roads and church-cart contention delay it. Monday poor relief may spend up to ${renderResourceAmount('gold', CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH, { compact: true, suffix: 'per dispatch' })}.</p>
       <button type="button" class="inspector-action-panel__button" data-land-parcel="graveyard"${building.constructionComplete === false || suspendedByFire ? ' disabled' : ''}>
         Lay adjacent burial ground
       </button>
@@ -205,7 +215,7 @@ export function renderChapelInspector(
       <li><span>Parish handcart</span><span>${activeGoldTrip ? `${activeGoldTrip.amount.toFixed(1)} gold · ${activeGoldTrip.phase}` : 'None'}</span></li>
       <li><span>Parish territory</span><span>${parishRelief == null ? `${connectedHomes} road-linked homes` : formatChapelParishTerritory(parishRelief)}</span></li>
       <li><span>Tithe yield</span><span>${staffed ? economy.titheLabel : '—'}</span></li>
-      <li><span>Parish expenses</span><span>${suspendedByFire ? 'Paused · no wages, upkeep, charity, or monastery remittance leaves the sealed coffer' : formatChapelExpenseLabel(economy.expense, staffed)}</span></li>
+      <li><span>Parish expenses</span><span>${parishExpenseLabel}</span></li>
       ${parishRelief == null ? '' : `<li><span>Daily alms purse</span><span>${formatChapelDailyAlms(parishRelief)}</span></li>`}
       ${parishRelief == null ? '' : `<li><span>Monday poor relief</span><span>${formatChapelPoorRelief(parishRelief)}${reliefInspectButton}</span></li>`}
       <li><span>Attendance</span><span>${staffed ? economy.attendanceLabel : '—'}</span></li>

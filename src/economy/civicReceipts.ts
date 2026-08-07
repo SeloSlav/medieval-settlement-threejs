@@ -2,7 +2,7 @@ import type { DeliveryTripState } from '../logistics/deliveryTrips.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingState } from '../resources/types.ts';
 
-export const LOCAL_CIVIC_RECEIPT_SOURCE_KINDS = ['monastery', 'ferry_landing'] as const;
+export const LOCAL_CIVIC_RECEIPT_SOURCE_KINDS = ['monastery'] as const;
 
 export type CivicReceiptCollectionStatus =
   | 'legacy'
@@ -23,7 +23,7 @@ export type CivicReceiptCollectionPlan = {
 };
 
 export function localCivicReceiptGold(building: BuildingState): number {
-  if (building.kind !== 'monastery' && building.kind !== 'ferry_landing') {
+  if (building.kind !== 'monastery') {
     return 0;
   }
   const marked = Number.isFinite(building.civicReceiptsGold)

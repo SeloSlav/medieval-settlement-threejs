@@ -21,9 +21,15 @@ export type RegionalMarketState = {
   firewoodPriceMult: number;
   foodPriceMult: number;
   specialtyPriceMult: number;
+  drinkPriceMult: number;
+  provisionPriceMult: number;
+  waresPriceMult: number;
   regionalFoodDemand: number;
   regionalFoodSupply: number;
   regionalSpecialtyDemand: number;
+  regionalDrinkDemand: number;
+  regionalProvisionDemand: number;
+  regionalWaresDemand: number;
   bulletin: string;
 };
 
@@ -33,9 +39,15 @@ export const DEFAULT_REGIONAL_MARKET_STATE: RegionalMarketState = {
   firewoodPriceMult: 1,
   foodPriceMult: 1,
   specialtyPriceMult: 1,
+  drinkPriceMult: 1,
+  provisionPriceMult: 1,
+  waresPriceMult: 1,
   regionalFoodDemand: 0.5,
   regionalFoodSupply: 0.5,
   regionalSpecialtyDemand: 0.5,
+  regionalDrinkDemand: 0.5,
+  regionalProvisionDemand: 0.5,
+  regionalWaresDemand: 0.5,
   bulletin: 'Caravans from Kvarner and the nearby highlands report steady trade.',
 };
 
@@ -58,7 +70,7 @@ export function priceMultiplierFor(
     case 'salt':
       return state.foodPriceMult;
     case 'pottery':
-      return state.specialtyPriceMult;
+      return state.waresPriceMult;
     default: {
       const unhandled: never = resource;
       return unhandled;
@@ -117,8 +129,10 @@ export function formatRegionalRateSummary(state: RegionalMarketState): string {
       return `${label} ${signal}`;
     })
     .join(' · ');
-  const specialtySignal = formatPriceMultiplier(state.specialtyPriceMult) ?? 'steady';
-  return `${bulkRates} · Specialties ${specialtySignal}`;
+  const drink = formatPriceMultiplier(state.drinkPriceMult) ?? 'steady';
+  const provisions = formatPriceMultiplier(state.provisionPriceMult) ?? 'steady';
+  const wares = formatPriceMultiplier(state.waresPriceMult) ?? 'steady';
+  return `${bulkRates} · Drinks ${drink} · Provisions ${provisions} · Wares ${wares}`;
 }
 
 export function specialtyPriceMultiplier(demand: number): number {

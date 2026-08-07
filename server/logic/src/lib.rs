@@ -7,6 +7,9 @@ pub mod balance_generated;
 #[path = "../../src/backyard_garden_policy.rs"]
 pub mod backyard_garden_policy;
 
+#[path = "../../src/apiary_policy.rs"]
+pub mod apiary_policy;
+
 #[path = "../../src/chapel_parish_policy.rs"]
 pub mod chapel_parish_policy;
 
@@ -31,6 +34,9 @@ pub mod roads {
 
 #[path = "../../src/hydrology_grid_generated.rs"]
 pub mod hydrology_grid_generated;
+
+#[path = "../../src/holiday_calendar.rs"]
+pub mod holiday_calendar;
 
 #[path = "../../src/economy/marketplace_trade_policy.rs"]
 pub mod marketplace_trade_policy;

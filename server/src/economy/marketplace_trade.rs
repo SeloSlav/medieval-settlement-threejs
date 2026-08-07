@@ -7,7 +7,7 @@ use super::marketplace_trade_policy::{
 };
 use super::regional_market::{
     ensure_market_state, price_multiplier_for, record_market_trade, record_specialty_market_export,
-    scaled_gold_cost, scaled_gold_yield,
+    scaled_gold_cost, scaled_gold_yield, specialty_price_multiplier_for_commodity,
 };
 use super::regional_market_policy::MarketTradeDirection;
 use super::storage::{
@@ -19,7 +19,8 @@ use crate::balance_generated::{
     market_commodity_offer, market_water_commodity_offer, marketplace_trade_offer,
     MarketplaceTradeKind, MarketplaceTradeOffer, SPECIALTY_EXPORT_GOLD_PER_ALE,
     SPECIALTY_EXPORT_GOLD_PER_CHEESE, SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
-    SPECIALTY_EXPORT_GOLD_PER_WINE, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    SPECIALTY_EXPORT_GOLD_PER_POTTERY, SPECIALTY_EXPORT_GOLD_PER_WINE,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::constants::BUILDING_ROAD_ACCESS_DISTANCE;
 use crate::db::*;
@@ -807,12 +808,15 @@ pub(crate) fn settle_regional_market_export(
             CommodityKind::Wine => SPECIALTY_EXPORT_GOLD_PER_WINE,
             CommodityKind::Cloth => SPECIALTY_EXPORT_GOLD_PER_CLOTH,
             CommodityKind::Cheese => SPECIALTY_EXPORT_GOLD_PER_CHEESE,
+            CommodityKind::Pottery => SPECIALTY_EXPORT_GOLD_PER_POTTERY,
             _ => return Err("The specialty export contract does not match its cargo.".to_string()),
         };
-        record_specialty_market_export(ctx, owner, sold_amount);
+        let market_rate = specialty_price_multiplier_for_commodity(&market, sold_commodity)
+            .ok_or_else(|| "The specialty cargo has no regional market family.".to_string())?;
+        record_specialty_market_export(ctx, owner, sold_commodity, sold_amount);
         return Ok((
             CommodityKind::Gold,
-            sold_amount * gold_per_unit * market.specialty_price_mult.max(0.0),
+            sold_amount * gold_per_unit * market_rate.max(0.0),
         ));
     }
 

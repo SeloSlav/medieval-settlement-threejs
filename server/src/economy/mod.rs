@@ -44,7 +44,8 @@ pub use civic_receipts::{
 };
 pub use fiscal_accounting::{
     collectible_household_import_duty, credit_household_import_duty,
-    credit_private_export_receipt, credit_settlement_household_income,
+    credit_local_purchase_receipt, credit_private_export_receipt,
+    credit_settlement_household_income,
     private_export_proceeds, record_private_export_income, restore_private_export_proceeds,
     withdraw_private_export_proceeds,
 };
@@ -71,7 +72,10 @@ pub use population::{
     guardhouse_roster_floors, initial_construction_labor, reconcile_building_labor,
     residence_population_for_parcel,
 };
-pub(crate) use regional_market::record_specialty_market_export;
+pub(crate) use regional_market::{
+    record_specialty_market_export, specialty_family_for_commodity,
+    specialty_price_multiplier_for_commodity,
+};
 pub use regional_market::{ensure_market_state, scaled_gold_cost, step_regional_markets};
 pub(crate) use storage::physical_treasury_seat;
 pub(crate) use storage::{

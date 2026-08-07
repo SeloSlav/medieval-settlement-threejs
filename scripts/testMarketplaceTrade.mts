@@ -211,7 +211,7 @@ assert.equal(
     timberPriceMult: 1.12,
     foodPriceMult: 0.91,
   }),
-  'Timber +12% market · Stone steady · Iron steady · Firewood steady · Food & seed grain -9% market · Salt -9% market · Specialties steady',
+  'Timber +12% market · Stone steady · Iron steady · Firewood steady · Food & seed grain -9% market · Salt -9% market · Drinks steady · Provisions steady · Wares steady',
 );
 assert.match(formatMarketDepthHint(), /each 10-unit trade/i);
 assert.match(formatMarketDepthHint(), /4 points/);
@@ -809,8 +809,8 @@ assert.match(
 );
 assert.match(
   marketplaceCaravanSource,
-  /pending_commodity != Some\(CommodityKind::Firewood\)[\s\S]*pending_commodity != Some\(CommodityKind::Food\)/,
-  'routine household caravans must not consume stock committed to a pending export',
+  /Routine household goods are allocated from Marketplace stock in one[\s\S]*No market-to-home cart departs here/,
+  'routine household availability must stay separate from Trading Post export stock and pending regional orders',
 );
 assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_proceeds/);
 assert.match(marketplaceCaravanSource, /try_dispatch_marketplace_cash_reserve/);

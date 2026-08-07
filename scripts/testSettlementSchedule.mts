@@ -9,6 +9,15 @@ import {
 } from '../src/generated/gameBalance.ts';
 import { gameClock, gameClockAtElapsedSeconds, isLaborPaused, laborPauseLabel } from '../src/world/gameCalendar.ts';
 import {
+  historicalHolidayYear,
+  holidayObservanceForClock,
+  julianEasterDate,
+} from '../src/world/holidayCalendar.ts';
+import {
+  holidayBackyardPosition,
+  holidayChapelActivity,
+} from '../src/settlement/holidayCelebration.ts';
+import {
   deriveSettlementSchedule,
   deriveSettlementScheduleFromClock,
   expectLaborPausedLikeServer,
@@ -61,6 +70,54 @@ assert.equal(expectLaborPausedLikeServer(sundayClock, true, true), true);
 
 assert.equal(isLaborPaused(sundayClock, true, false), false);
 assert.equal(expectLaborPausedLikeServer(sundayClock, true, false), false);
+
+assert.deepEqual(julianEasterDate(1550), { month: 4, day: 6 });
+assert.deepEqual(julianEasterDate(1551), { month: 3, day: 29 });
+assert.equal(historicalHolidayYear(1), 1550);
+assert.equal(historicalHolidayYear(10), 1559);
+assert.equal(historicalHolidayYear(11), 1550);
+
+const jurjevoClock = {
+  ...workClock,
+  month: 4,
+  monthDay: 23,
+  year: 1,
+  isSunday: false,
+};
+const jurjevo = holidayObservanceForClock(jurjevoClock);
+assert.ok(jurjevo);
+assert.equal(jurjevo.id, 'jurjevo');
+assert.equal(jurjevo.historicalYear, 1550);
+assert.equal(isLaborPaused(jurjevoClock, false, false), true);
+assert.equal(laborPauseLabel(jurjevoClock, false, false), 'Jurjevo · St George');
+
+const easter1550 = holidayObservanceForClock({ month: 4, monthDay: 6, year: 1 });
+assert.equal(easter1550?.id, 'easter');
+assert.equal(easter1550?.periodLength, 4);
+assert.equal(
+  holidayObservanceForClock({ month: 3, monthDay: 29, year: 2 })?.id,
+  'easter',
+);
+assert.equal(
+  holidayObservanceForClock({ month: 12, monthDay: 25, year: 1 })?.periodDay,
+  2,
+);
+assert.equal(holidayObservanceForClock({ month: 4, monthDay: 26, year: 1 }), null);
+
+const chapelCohorts = Array.from({ length: 100 }, (_, index) =>
+  holidayChapelActivity(
+    { hour: 17, minute: 0 },
+    jurjevo,
+    `villager:${index}`,
+  )
+);
+assert.ok(chapelCohorts.some((activity) => activity === 'congregation'));
+assert.ok(chapelCohorts.some((activity) => activity === null));
+const backyard = holidayBackyardPosition(
+  { x: 10, z: 20, yaw: 0 },
+  'villager:backyard',
+);
+assert.ok(backyard.z < 16, 'holiday household positions should sit behind the main house');
 
 const schedule = deriveSettlementSchedule(
   { simTick: nightTick, parishPolicy: DEFAULT_PARISH_POLICY },
@@ -118,6 +175,15 @@ const staffedSunday = deriveSettlementSchedule(
 );
 assert.equal(staffedSunday.laborPaused, true);
 assert.equal(staffedSunday.staffedChapel, true);
+
+const holidaySchedule = deriveSettlementScheduleFromClock(
+  jurjevoClock,
+  { ...DEFAULT_PARISH_POLICY, sabbathObservanceEnabled: false },
+  null,
+);
+assert.equal(holidaySchedule.laborPaused, true);
+assert.equal(holidaySchedule.holiday?.id, 'jurjevo');
+assert.equal(holidaySchedule.laborPauseLabel, 'Jurjevo · St George');
 
 const elapsedAtWork = workMorningTick * SIM_TICK_SECONDS;
 const interpolatedWork = deriveInterpolatedSettlementSchedule(
@@ -476,6 +542,10 @@ const constructionSource = readFileSync(
   new URL('../server/src/simulation/construction.rs', import.meta.url),
   'utf8',
 );
+const simulationSource = readFileSync(
+  new URL('../server/src/reducers/simulation.rs', import.meta.url),
+  'utf8',
+);
 assert.match(
   tickContextSource,
   /sabbath_observance_by_owner:\s*RefCell<HashMap<Identity,\s*bool>>/,
@@ -505,6 +575,21 @@ assert.match(
   constructionSource,
   /site\.kind == "chapel"[\s\S]*?tick\.invalidate_staffed_chapel\(site\.owner\)/,
   'chapel completion should invalidate derived schedule state for later phases',
+);
+assert.match(
+  simulationSource,
+  /holiday_observance\(&clock\)\.is_some\(\)[\s\S]*?return;/,
+  'the authoritative substep should freeze all production and penalty state on named holy days',
+);
+assert.match(
+  simulationSource,
+  /if !holiday_protected \{[\s\S]*?step_live_raids/,
+  'holiday protection should also stop wall-clock combat damage while the calendar advances',
+);
+assert.match(
+  simulationSource,
+  /if has_delivery_trips && !holiday_protected/,
+  'already-departed carts should physically freeze instead of consuming protected holiday time',
 );
 
 console.log('settlement schedule tests passed');

@@ -26,6 +26,7 @@ import {
 } from '../src/roads/roadTravel.ts';
 import { computeDayNightState } from '../src/world/dayNightPresentation.ts';
 import type { GameClock } from '../src/world/gameCalendar.ts';
+import { holidayObservanceForClock } from '../src/world/holidayCalendar.ts';
 import type { GameSpeed } from '../src/world/gameSpeed.ts';
 import { SIM_REALTIME_RATE } from '../src/generated/gameBalance.ts';
 import type { FireIncidentState } from '../src/fires/fireIncident.ts';
@@ -403,6 +404,35 @@ assert.equal(worker.pathPurpose, 'return_from_mass');
 for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
 assert.equal(worker.routinePhase, 'work');
 assert.notEqual(worker.pathPurpose, 'return_from_mass');
+
+const jurjevoClock = {
+  ...fullClock(12),
+  month: 4,
+  monthDay: 23,
+  year: 1,
+};
+const jurjevo = holidayObservanceForClock(jurjevoClock);
+assert.ok(jurjevo);
+villagers.setSchedule(
+  jurjevoClock,
+  true,
+  DEFAULT_NIGHT_POLICY,
+  true,
+  false,
+  jurjevo,
+);
+assert.equal(worker.routinePhase, 'returning_home');
+assert.equal(worker.pathPurpose, 'return_home');
+for (let step = 0; step < realtimeTickBudget(1200); step++) villagers.tick(0.05);
+assert.equal(worker.routinePhase, 'home_outdoors');
+assert.ok(
+  worker.z < home.z - 3.5,
+  'an off-duty holiday worker should settle physically behind the house in the backyard',
+);
+assert.match(
+  villagers.inspectVillager(worker.personIdentity)?.activity ?? '',
+  /Celebrating Jurjevo.*backyard/,
+);
 
 villagers.setSchedule({
   ...fullClock(12),

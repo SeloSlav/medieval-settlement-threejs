@@ -30,8 +30,8 @@ import { toolbarModeToMenuAction } from './buildMenuMapping.ts';
 import type { PlacementBuildMenuAction } from './buildMenuCards.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import {
-  describeToolbarStatus,
   isBuilderHudMode,
+  renderToolbarStatus,
   type ToolbarStats,
 } from './buildToolbarStatus.ts';
 import { SettlementHud } from './SettlementHud.ts';
@@ -801,8 +801,7 @@ export class BuildToolbar {
       : 'Map overlays (M)';
     if (this.cropSuitabilityActive) this.setOverlayMenuOpen(false);
     this.syncMapOverlayLegend();
-    const statusText = describeToolbarStatus(stats);
-    this.builderStatusBar.textContent = statusText;
+    this.builderStatusBar.innerHTML = renderToolbarStatus(stats);
     this.builderStatusBar.hidden = this.firstPersonActive || !isBuilderHudMode(stats.mode);
     this.builderStatusBar.dataset.state = statusState;
   }

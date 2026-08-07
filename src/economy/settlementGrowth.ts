@@ -120,12 +120,14 @@ export function computeSettlementGrowthPlan(input: {
     const grossFoodPerDay =
       vacancies * RESIDENCE_FOOD_PER_PERSON_PER_SEC * workdaySeconds;
     additionalGrossFoodPerDay += grossFoodPerDay;
-    if (residence.tier >= 2) {
-      additionalWaterPerDay += vacancies * RESIDENCE_WATER_PER_PERSON_PER_SEC * workdaySeconds;
+    if (residence.tier >= 1) {
       additionalWinterFirewoodPerDay += vacancies
         * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
         * CALENDAR_SECONDS_PER_DAY
         * WINTER_FIREWOOD_DEMAND_MULTIPLIER;
+    }
+    if (residence.tier >= 2) {
+      additionalWaterPerDay += vacancies * RESIDENCE_WATER_PER_PERSON_PER_SEC * workdaySeconds;
     }
     if (residence.tier >= 3) {
       const preservedFoodPerDay = vacancies

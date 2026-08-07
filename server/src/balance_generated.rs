@@ -103,6 +103,9 @@ pub const FIRE_DESTROYED_REBUILD_COST_FRACTION: f64 = 0.7;
 
 pub const STARTING_TIMBER: f64 = 160.0;
 pub const STARTING_STONE: f64 = 140.0;
+pub const STARTING_FIREWOOD: f64 = 160.0;
+pub const STARTING_BREAD: f64 = 160.0;
+pub const STARTING_IRONWORK: f64 = 9000.0;
 pub const STARTING_GOLD: f64 = 0.0;
 pub const STONE_SALVAGE_FRACTION: f64 = 0.92;
 pub const TIMBER_SALVAGE_FRACTION: f64 = 0.7;
@@ -127,6 +130,11 @@ pub const RESIDENCE_TILE_ROOF_TILE_COST: f64 = 36.0;
 pub const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION: f64 = 0.6;
 pub const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER: f64 = 0.55;
 pub const HOUSEHOLD_MAX_WEALTH: f64 = 200.0;
+pub const HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE: f64 = 24.0;
+pub const HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY: f64 = 0.2;
+pub const HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY: f64 = 0.12;
+pub const HOUSEHOLD_DISCRETIONARY_MIN_TIER: u8 = 2;
+pub const HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT: f64 = 0.9;
 pub const TOWN_HALL_POPULATION_REQUIRED: u32 = 24;
 pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = 0.6;
 pub const LOCAL_MARKET_TAX_CART_THRESHOLD: f64 = 1.0;
@@ -195,8 +203,10 @@ pub const RESIDENCE_POTTERY_CAPACITY: f64 = 6.0;
 pub const RESIDENCE_POTTERY_PER_PERSON_PER_SEC: f64 = 0.001;
 pub const HUNGER_WARNING_DAYS: f64 = 2.0;
 pub const MALNUTRITION_DAYS: f64 = 5.0;
-pub const STARVATION_DEATH_START_DAYS: f64 = 10.0;
-pub const STARVATION_DEATH_INTERVAL_DAYS: f64 = 3.0;
+pub const STARVATION_DEATH_START_DAYS: f64 = 14.0;
+pub const STARVATION_DEATH_CHANCE_PER_PERSON_DAY: f64 = 0.005;
+pub const STARVATION_DEATH_MAX_CHANCE_PER_PERSON_DAY: f64 = 0.03;
+pub const STARVATION_DEATH_RISK_RAMP_DAYS: f64 = 21.0;
 pub const MALNUTRITION_RECOVERY_DAYS: f64 = 8.0;
 pub const RESIDENCE_SERVICE_WARNING_DAYS: f64 = 3.0;
 pub const RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS: f64 = 6.0;
@@ -206,6 +216,11 @@ pub const BASE_ILLNESS_CHANCE_PER_PERSON_DAY: f64 = 0.0015;
 pub const MALNUTRITION_ILLNESS_MULTIPLIER: f64 = 4.0;
 pub const UNSAFE_WATER_ILLNESS_MULTIPLIER: f64 = 2.5;
 pub const COLD_EXPOSURE_ILLNESS_MULTIPLIER: f64 = 2.0;
+pub const COLD_EXPOSURE_WARNING_DAYS: f64 = 1.0;
+pub const COLD_EXPOSURE_DEATH_START_DAYS: f64 = 3.0;
+pub const COLD_EXPOSURE_DEATH_CHANCE_PER_PERSON_DAY: f64 = 0.008;
+pub const COLD_EXPOSURE_DEATH_MAX_CHANCE_PER_PERSON_DAY: f64 = 0.05;
+pub const COLD_EXPOSURE_DEATH_RISK_RAMP_DAYS: f64 = 7.0;
 pub const CORPSE_DISEASE_RADIUS: f64 = 30.0;
 pub const CORPSE_ILLNESS_MULTIPLIER: f64 = 0.6;
 pub const ILLNESS_RECOVERY_DAYS: f64 = 7.0;
@@ -372,12 +387,25 @@ pub const POTTER_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const POTTER_WATER_PER_CYCLE: f64 = 1.0;
 pub const POTTER_POTTERY_PER_CYCLE: f64 = 3.0;
 pub const POTTER_ROOF_TILES_PER_CYCLE: f64 = 4.0;
-pub const APIARY_HONEY_PER_CYCLE: f64 = 2.0;
-pub const APIARY_FOOD_PER_CYCLE: f64 = 1.0;
+pub const APIARY_HONEY_PER_CYCLE: f64 = 3.0;
 pub const APIARY_SEASON_START_MONTH: u8 = 4;
 pub const APIARY_SEASON_END_MONTH: u8 = 9;
-pub const VINEYARD_WINE_PER_CYCLE: f64 = 3.0;
-pub const VINEYARD_FOOD_PER_CYCLE: f64 = 1.0;
+pub const APIARY_WINTER_HONEY_REQUIRED: f64 = 8.0;
+pub const APIARY_CONSERVATIVE_HONEY_RESERVE: f64 = 12.0;
+pub const APIARY_BALANCED_HONEY_RESERVE: f64 = 8.0;
+pub const APIARY_EXTRACTIVE_HONEY_RESERVE: f64 = 2.0;
+pub const APIARY_CONSERVATIVE_YIELD_MULTIPLIER: f64 = 0.75;
+pub const APIARY_BALANCED_YIELD_MULTIPLIER: f64 = 1.0;
+pub const APIARY_EXTRACTIVE_YIELD_MULTIPLIER: f64 = 1.25;
+pub const APIARY_WINTER_HEALTH_GAIN: f64 = 0.12;
+pub const APIARY_WINTER_HEALTH_LOSS: f64 = 0.45;
+pub const APIARY_POLLINATION_BONUS_MAX: f64 = 0.15;
+pub const VINEYARD_GRAPES_PER_HARVEST_CYCLE: f64 = 4.0;
+pub const VINEYARD_GRAPES_PER_FERMENTATION_BATCH: f64 = 3.0;
+pub const VINEYARD_WINE_PER_FERMENTATION_BATCH: f64 = 3.0;
+pub const VINEYARD_FERMENTATION_SECONDS: f64 = 60.0;
+pub const VINEYARD_BALANCED_GRAPE_RESERVE: f64 = 12.0;
+pub const VINEYARD_WINE_FIRST_GRAPE_RESERVE: f64 = 2.0;
 pub const VINEYARD_HARVEST_START_MONTH: u8 = 9;
 pub const VINEYARD_HARVEST_END_MONTH: u8 = 10;
 pub const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND: f64 = 0.45;
@@ -400,7 +428,8 @@ pub const SPECIALTY_EXPORT_GOLD_PER_ALE: f64 = 1.15;
 pub const SPECIALTY_EXPORT_GOLD_PER_WINE: f64 = 1.6;
 pub const SPECIALTY_EXPORT_GOLD_PER_CLOTH: f64 = 1.5;
 pub const SPECIALTY_EXPORT_GOLD_PER_CHEESE: f64 = 1.1;
-pub const FERRY_GOLD_PER_DAY: f64 = 2.25;
+pub const SPECIALTY_EXPORT_GOLD_PER_POTTERY: f64 = 1.35;
+pub const HERB_REMEDY_SALE_GOLD_PER_UNIT: f64 = 2.0;
 pub const CARPENTER_DELIVERY_SPEED_MULTIPLIER: f64 = 1.18;
 pub const CARPENTER_TIMBER_COST_MULTIPLIER: f64 = 0.9;
 pub const CARPENTER_CART_SERVICE_TIMBER_PER_TRIP: f64 = 0.2;
@@ -756,7 +785,6 @@ pub enum BuildingSimKind {
     Carpenter,
     Weaver,
     Guardhouse,
-    FerryLanding,
     Vineyard,
     PastoralFarmstead,
     Swineherd,
@@ -832,7 +860,7 @@ const FOUNDERS_CAMP: BuildingDef = BuildingDef {
     storage_wine: 80.0,
     storage_wool: 120.0,
     storage_cloth: 80.0,
-    storage_ironwork: 80.0,
+    storage_ironwork: 9000.0,
     storage_polearms: 80.0,
     storage_iron: 80.0,
     storage_clay: 80.0,
@@ -1683,7 +1711,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_iron: 0.0,
     storage_clay: 0.0,
     storage_salt: 0.0,
-    storage_charcoal: 0.0,
+    storage_charcoal: 80.0,
     storage_pottery: 96.0,
     storage_roof_tiles: 0.0,
     storage_manure: 0.0,
@@ -1824,7 +1852,7 @@ const VILLAGE_STOREHOUSE: BuildingDef = BuildingDef {
     storage_iron: 180.0,
     storage_clay: 180.0,
     storage_salt: 144.0,
-    storage_charcoal: 0.0,
+    storage_charcoal: 280.0,
     storage_pottery: 180.0,
     storage_roof_tiles: 0.0,
     storage_manure: 0.0,
@@ -2597,53 +2625,6 @@ const WEAVER: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Weaver),
 };
 
-const FERRY_LANDING: BuildingDef = BuildingDef {
-    kind: "ferry_landing",
-    cost_timber: 46.0,
-    cost_stone: 18.0,
-    cost_ironwork: 2.0,
-    storage_timber: 0.0,
-    storage_firewood: 0.0,
-    storage_stone: 0.0,
-    storage_water: 0.0,
-    storage_food: 0.0,
-    storage_grain: 0.0,
-    storage_barley: 0.0,
-    storage_malt: 0.0,
-    storage_flax: 0.0,
-    storage_flour: 0.0,
-    storage_ale: 0.0,
-    storage_preserved_food: 0.0,
-    storage_honey: 0.0,
-    storage_wine: 0.0,
-    storage_wool: 0.0,
-    storage_cloth: 0.0,
-    storage_ironwork: 0.0,
-    storage_polearms: 0.0,
-    storage_iron: 0.0,
-    storage_clay: 0.0,
-    storage_salt: 0.0,
-    storage_charcoal: 0.0,
-    storage_pottery: 0.0,
-    storage_roof_tiles: 0.0,
-    storage_manure: 0.0,
-    storage_remedies: 0.0,
-    accepts_labor: true,
-    max_labor: 2,
-    work_radius: 0.0,
-    action_interval: 0.0,
-    pick_radius: 9.0,
-    requires_road: true,
-    requires_mature_trees: false,
-    requires_quarry_stone: false,
-    requires_game: false,
-    requires_berries: false,
-    requires_fish: false,
-    requires_water_shore: true,
-    requires_hillside: false,
-    sim_kind: Some(BuildingSimKind::FerryLanding),
-};
-
 const VINEYARD: BuildingDef = BuildingDef {
     kind: "vineyard",
     cost_timber: 26.0,
@@ -2691,7 +2672,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TRADING_POST, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, WINDMILL, CARPENTER, WEAVER, FERRY_LANDING, VINEYARD];
+const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TRADING_POST, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, WINDMILL, CARPENTER, WEAVER, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)
@@ -2736,7 +2717,7 @@ pub struct BackyardGardenDef {
     pub cost_stone: f64,
     pub food_self_share: f64,
     pub food_per_person_per_sec: f64,
-    pub gold_per_person_per_sec: f64,
+    pub settlement_attraction_multiplier: f64,
 }
 
 const BACKYARD_APPLE_ORCHARD: BackyardGardenDef = BackyardGardenDef {
@@ -2747,7 +2728,7 @@ const BACKYARD_APPLE_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 4.0,
     food_self_share: 0.55,
     food_per_person_per_sec: 0.009,
-    gold_per_person_per_sec: 0.0,
+    settlement_attraction_multiplier: 1.0,
 };
 
 const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
@@ -2758,7 +2739,7 @@ const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 3.0,
     food_self_share: 0.5,
     food_per_person_per_sec: 0.008,
-    gold_per_person_per_sec: 0.0,
+    settlement_attraction_multiplier: 1.0,
 };
 
 const BACKYARD_VEGETABLE_GARDEN: BackyardGardenDef = BackyardGardenDef {
@@ -2769,7 +2750,7 @@ const BACKYARD_VEGETABLE_GARDEN: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 2.0,
     food_self_share: 0.65,
     food_per_person_per_sec: 0.012,
-    gold_per_person_per_sec: 0.0,
+    settlement_attraction_multiplier: 1.0,
 };
 
 const BACKYARD_FLOWER_GARDEN: BackyardGardenDef = BackyardGardenDef {
@@ -2780,7 +2761,7 @@ const BACKYARD_FLOWER_GARDEN: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 1.0,
     food_self_share: 0.0,
     food_per_person_per_sec: 0.0,
-    gold_per_person_per_sec: 0.018,
+    settlement_attraction_multiplier: 0.88,
 };
 
 const BACKYARD_HERB_GARDEN: BackyardGardenDef = BackyardGardenDef {
@@ -2791,7 +2772,7 @@ const BACKYARD_HERB_GARDEN: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 2.0,
     food_self_share: 0.0,
     food_per_person_per_sec: 0.0,
-    gold_per_person_per_sec: 0.015,
+    settlement_attraction_multiplier: 1.0,
 };
 
 const BACKYARD_HEN_YARD: BackyardGardenDef = BackyardGardenDef {
@@ -2802,7 +2783,7 @@ const BACKYARD_HEN_YARD: BackyardGardenDef = BackyardGardenDef {
     cost_stone: 1.0,
     food_self_share: 0.82,
     food_per_person_per_sec: 0.0105,
-    gold_per_person_per_sec: 0.0,
+    settlement_attraction_multiplier: 1.0,
 };
 
 const ALL_BACKYARD_GARDENS: &[BackyardGardenDef] = &[BACKYARD_APPLE_ORCHARD, BACKYARD_CHERRY_ORCHARD, BACKYARD_VEGETABLE_GARDEN, BACKYARD_FLOWER_GARDEN, BACKYARD_HERB_GARDEN, BACKYARD_HEN_YARD];

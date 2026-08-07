@@ -4,6 +4,7 @@ use crate::balance_generated::{
     CALENDAR_START_MONTH, CALENDAR_SUNDAY_WEEKDAY, CALENDAR_WORK_END_HOUR,
     CALENDAR_WORK_START_HOUR, TICK_DT,
 };
+use crate::holiday_calendar::{holiday_for_date, HolidayObservance};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GameClock {
@@ -23,10 +24,15 @@ pub fn sim_elapsed_seconds(sim_tick: u64) -> f64 {
     sim_tick as f64 * TICK_DT
 }
 
-/// Household meals and water use follow the established daytime cadence, but
-/// do not stop merely because Sunday labor and logistics are suspended.
+pub fn holiday_observance(clock: &GameClock) -> Option<HolidayObservance> {
+    holiday_for_date(clock.month, clock.month_day, clock.year)
+}
+
+/// Ordinary nights retain their established consumption cadence. Named holy
+/// days are protected rest periods: provisions, heating, health, and every
+/// other household penalty are frozen together with production.
 pub fn household_consumption_paused(clock: &GameClock) -> bool {
-    !clock.is_work_hours
+    !clock.is_work_hours || holiday_observance(clock).is_some()
 }
 
 pub fn game_clock(sim_tick: u64) -> GameClock {
@@ -108,5 +114,22 @@ mod tests {
 
         let night_tick = (CALENDAR_SECONDS_PER_DAY / 2.0 / TICK_DT) as u64;
         assert!(household_consumption_paused(&game_clock(night_tick)));
+    }
+
+    #[test]
+    fn named_holy_days_pause_household_consumption() {
+        let day_ticks = (CALENDAR_SECONDS_PER_DAY / TICK_DT) as u64;
+        // A new game begins 1 March 1550; 55 rational days later is 26 April,
+        // a later ordinary workday after the four Paschal holy days.
+        let easter = game_clock(day_ticks * 35);
+        assert_eq!((easter.month, easter.month_day), (4, 6));
+        assert_eq!(
+            holiday_observance(&easter).map(|day| day.id),
+            Some("easter")
+        );
+        assert!(household_consumption_paused(&easter));
+
+        let ordinary = game_clock(day_ticks * 55);
+        assert!(holiday_observance(&ordinary).is_none());
     }
 }

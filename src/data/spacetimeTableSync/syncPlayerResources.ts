@@ -92,6 +92,8 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       importDutyCollectedTotal: row.importDutyCollectedTotal ?? 0,
       exportDutyCollectedTotal: row.exportDutyCollectedTotal ?? 0,
       privateExportIncomeTotal: row.privateExportIncomeTotal ?? 0,
+      localDiscretionarySpendTotal: row.localDiscretionarySpendTotal ?? 0,
+      localProducerIncomeTotal: row.localProducerIncomeTotal ?? 0,
     };
     state.seasonalLaborStewardEnabled = row.seasonalLaborStewardEnabled
       ?? DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;

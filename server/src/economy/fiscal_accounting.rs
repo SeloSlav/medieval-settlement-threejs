@@ -11,8 +11,15 @@ use crate::tables::Building;
 
 use super::{
     credit_local_civic_receipts, credit_residence_wealth, credit_treasury_gold,
-    deposit_building_commodity, CommodityKind,
+    deposit_building_commodity, player_economic_activity_tax_rate,
+    town_hall_tax_collection_multiplier, CommodityKind,
 };
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct LocalPurchaseSplit {
+    pub producer_income: f64,
+    pub local_tax: f64,
+}
 
 pub fn player_import_duty_rate(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
     ctx.db
@@ -156,6 +163,64 @@ pub fn credit_private_export_receipt(
         if !physical {
             resources.private_export_income_total += split.household_income;
         }
+        ctx.db.player_resources().owner().update(resources);
+    }
+    split
+}
+
+/// Settle a real discretionary purchase made from Trading Post stock. The
+/// household's payment is conserved: collectible local sales tax becomes a
+/// protected civic receipt and the remainder becomes protected producer
+/// income, later carried to the least-wealthy occupied homes.
+pub fn credit_local_purchase_receipt(
+    ctx: &ReducerContext,
+    trading_post: &mut Building,
+    gross_receipt: f64,
+) -> LocalPurchaseSplit {
+    if gross_receipt <= 1e-9 || trading_post.kind != "trading_post" {
+        return LocalPurchaseSplit::default();
+    }
+    let owner = trading_post.owner;
+    let rate = player_economic_activity_tax_rate(ctx, owner);
+    let collection = town_hall_tax_collection_multiplier(ctx, owner).clamp(0.0, 1.0);
+    let physical = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+
+    let split = if physical {
+        let deposited = deposit_building_commodity(trading_post, CommodityKind::Gold, gross_receipt);
+        let local_tax = (deposited * rate * collection).clamp(0.0, deposited);
+        let producer_income = (deposited - local_tax).max(0.0);
+        trading_post.civic_receipts_gold =
+            (trading_post.civic_receipts_gold.max(0.0) + local_tax)
+                .min(trading_post.gold.max(0.0));
+        trading_post.private_export_proceeds_gold =
+            (private_export_proceeds(trading_post) + producer_income)
+                .min((trading_post.gold - trading_post.civic_receipts_gold).max(0.0));
+        LocalPurchaseSplit {
+            producer_income,
+            local_tax,
+        }
+    } else {
+        let local_tax = (gross_receipt * rate * collection).clamp(0.0, gross_receipt);
+        let producer_income = (gross_receipt - local_tax).max(0.0);
+        credit_treasury_gold(ctx, owner, local_tax);
+        let credited = credit_settlement_household_income(ctx, owner, producer_income);
+        if credited + 1e-9 < producer_income {
+            credit_treasury_gold(ctx, owner, producer_income - credited);
+        }
+        LocalPurchaseSplit {
+            producer_income,
+            local_tax,
+        }
+    };
+
+    if let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) {
+        resources.local_discretionary_spend_total += split.producer_income + split.local_tax;
+        resources.local_producer_income_total += split.producer_income;
         ctx.db.player_resources().owner().update(resources);
     }
     split

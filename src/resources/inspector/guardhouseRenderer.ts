@@ -50,6 +50,7 @@ import {
   buildingStorageRows,
 } from './buildingCommon.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
+import { renderResourceCost } from '../../ui/resourceCost.ts';
 
 export function renderGuardhouseInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -278,7 +279,7 @@ export function renderGuardhouseInspector(
       <li><span>Cross-country reserve</span><span>${emergencyReady.toFixed(1)} effective direct response if no usable bell-and-road route exists; these agents deploy physically but are not credited to a specific watch-district forecast</span></li>
       <li><span>Settlement defense</span><span>${settlementReady.toFixed(1)}${guardRequirement > 0 ? ` / ${guardRequirement.toFixed(1)} required` : ''}</span></li>
       <li><span>Projected raid</span><span>${settlement ? formatFrontierForecast(settlement, context.enemyPressure) : 'Awaiting frontier reports'}</span></li>
-      <li><span>Daily upkeep</span><span>${dailyFood.toFixed(1)} food · ${dailyWages.toFixed(1)} gold</span></li>
+      <li><span>Daily upkeep</span><span>${renderResourceCost({ food: dailyFood, gold: dailyWages }, { compact: true })}</span></li>
       <li><span>Food endurance</span><span>${edibleFoodStock(building).toFixed(1)} named meals on site · ${formatProvisionRunway(foodRunwayDays)}</span></li>
       <li><span>Ration policy</span><span>${guardhouseFoodReserveLabel(foodReserve)} · ${foodReserve} food per armed guard</span></li>
       <li><span>Company priority</span><span>${guardhousePayPriorityLabel(companyPriority)} · scarce polearms, routine provisions, and wages</span></li>

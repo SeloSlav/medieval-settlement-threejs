@@ -37,6 +37,7 @@ export function backyardGardenEconomyPerDay(
     hasMarketAccess?: boolean;
     taxCollectionMultiplier?: number;
     serviceMultiplier?: number;
+    remedyUnitsSold?: number;
   } = {},
 ): BackyardGardenEconomyPerDay {
   const def = BACKYARD_GARDEN_DEFINITIONS[kind];
@@ -48,6 +49,12 @@ export function backyardGardenEconomyPerDay(
   const baseActivity = marketLinked
     ? gardenMarketActivity(def, population, BACKYARD_WORKDAY_SECONDS)
       * seasonalMultiplier
+      + gardenMarketActivity(
+        def,
+        0,
+        0,
+        kind === 'herb_garden' ? options.remedyUnitsSold ?? 0 : 0,
+      )
     : 0;
   const requestedServiceMultiplier = options.serviceMultiplier ?? 1;
   const serviceMultiplier = Number.isFinite(requestedServiceMultiplier)

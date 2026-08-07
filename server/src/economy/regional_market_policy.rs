@@ -2,6 +2,7 @@ use crate::balance_generated::{
     MARKET_PRICE_MULTIPLIER_MAX, MARKET_PRICE_MULTIPLIER_MIN, MARKET_REGIONAL_INDEX_DRIFT,
     MARKET_REGIONAL_INDEX_MEAN_REVERSION, MARKET_TRADE_IMPACT_PER_TEN_UNITS,
 };
+use crate::specialty_trade_policy::SpecialtyMarketFamily;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MarketTradeDirection {
@@ -14,6 +15,39 @@ pub fn drift_market_index(current: f64, random_unit: f64) -> f64 {
     let noise = (random_unit.clamp(0.0, 1.0) - 0.5) * 2.0 * MARKET_REGIONAL_INDEX_DRIFT;
     let recovery = (0.5 - current) * MARKET_REGIONAL_INDEX_MEAN_REVERSION;
     (current + recovery + noise).clamp(0.05, 0.95)
+}
+
+pub fn drift_market_index_toward(current: f64, target: f64, random_unit: f64) -> f64 {
+    let current = current.clamp(0.05, 0.95);
+    let target = target.clamp(0.05, 0.95);
+    let noise = (random_unit.clamp(0.0, 1.0) - 0.5) * 2.0 * MARKET_REGIONAL_INDEX_DRIFT;
+    let recovery = (target - current) * MARKET_REGIONAL_INDEX_MEAN_REVERSION;
+    (current + recovery + noise).clamp(0.05, 0.95)
+}
+
+/// Neighboring demand follows readable seasonal rhythms without becoming a
+/// fixed calendar exploit: random drift still moves each family around these
+/// centers, while exports push only the family actually sold.
+pub fn specialty_seasonal_demand_target(family: SpecialtyMarketFamily, month: u32) -> f64 {
+    match family {
+        SpecialtyMarketFamily::Drink => match month {
+            9 | 10 => 0.62,
+            11 | 12 | 1 => 0.70,
+            4 | 5 => 0.44,
+            _ => 0.52,
+        },
+        SpecialtyMarketFamily::Provision => match month {
+            12 | 1 | 2 | 3 => 0.70,
+            9 | 10 | 11 => 0.60,
+            6 | 7 | 8 => 0.43,
+            _ => 0.52,
+        },
+        SpecialtyMarketFamily::Wares => match month {
+            2 | 3 | 4 | 9 | 10 | 11 => 0.63,
+            6 | 7 => 0.44,
+            _ => 0.53,
+        },
+    }
 }
 
 pub fn trade_impact(amount: f64) -> f64 {
@@ -96,6 +130,16 @@ mod tests {
     fn regional_drift_recovers_extreme_indices_toward_normal() {
         assert!(drift_market_index(0.9, 0.5) < 0.9);
         assert!(drift_market_index(0.1, 0.5) > 0.1);
+    }
+
+    #[test]
+    fn specialty_families_have_distinct_seasons() {
+        assert!(specialty_seasonal_demand_target(SpecialtyMarketFamily::Drink, 12)
+            > specialty_seasonal_demand_target(SpecialtyMarketFamily::Drink, 5));
+        assert!(specialty_seasonal_demand_target(SpecialtyMarketFamily::Provision, 2)
+            > specialty_seasonal_demand_target(SpecialtyMarketFamily::Provision, 7));
+        assert!(specialty_seasonal_demand_target(SpecialtyMarketFamily::Wares, 10)
+            > specialty_seasonal_demand_target(SpecialtyMarketFamily::Wares, 7));
     }
 
     #[test]

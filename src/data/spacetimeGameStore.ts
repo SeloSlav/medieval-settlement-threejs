@@ -686,6 +686,26 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setMarketplaceSpecialtyExportPolicy(buildingId, exportPolicy);
   }
 
+  setMarketplaceSpecialtyFamilyExportPolicy(
+    buildingId: string,
+    family: number,
+    exportPolicy: number,
+  ): Promise<void> {
+    return spacetimeReducers.setMarketplaceSpecialtyFamilyExportPolicy(
+      buildingId,
+      family,
+      exportPolicy,
+    );
+  }
+
+  setVineyardProductionPolicy(buildingId: string, productionPolicy: number): Promise<void> {
+    return spacetimeReducers.setVineyardProductionPolicy(buildingId, productionPolicy);
+  }
+
+  setApiaryHarvestPolicy(buildingId: string, harvestPolicy: number): Promise<void> {
+    return spacetimeReducers.setApiaryHarvestPolicy(buildingId, harvestPolicy);
+  }
+
   setHarvestReservePercent(buildingId: string, reservePercent: number): Promise<void> {
     return spacetimeReducers.setHarvestReservePercent(buildingId, reservePercent);
   }
