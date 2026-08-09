@@ -1,12 +1,12 @@
 /** Matches CameraController default orbit distance at 100% zoom. */
 export const BASELINE_CAMERA_DISTANCE = 88;
 
-/** SeedThree grass and wildflowers reach full strength here. */
+/** SeedThree grass, wildflowers, cattails, and lily pads reach full strength here. */
 export const CLOSE_GROUND_FULL_ZOOM_PERCENT = 400;
 
 /**
  * Close vegetation starts fading in above 200% and reaches full strength at
- * 400%. Grass and wildflowers consume this shared gate.
+ * 400%. Grass, wildflowers, cattails, and lily pads consume this shared gate.
  */
 export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 200;
 
@@ -19,16 +19,13 @@ export const MAP_ICON_FADE_START_ZOOM_PERCENT = 45;
 /** Brown soil is fully active only at a much closer, ground-level zoom. */
 export const DIRT_REVEAL_ZOOM_PERCENT = 650;
 
-/**
- * Brown soil begins shortly after SeedThree groundcover reaches full opacity.
- * This keeps the meadow intact until the authored grass is visually complete.
- */
-export const DIRT_FADE_START_ZOOM_PERCENT = 425;
+/** Brown soil starts its gradual handoff alongside close ground vegetation. */
+export const DIRT_FADE_START_ZOOM_PERCENT = CLOSE_GROUND_FADE_START_ZOOM_PERCENT;
 
 /** Pow easing on the zoom gate (< 1 = detail ramps in gradually across the fade band). */
 export const DIRT_BLEND_EASE = 0.72;
 
-/** Orbit distances matching the 425% / 650% brown-soil zoom band. */
+/** Orbit distances matching the 200% / 650% brown-soil zoom band. */
 export const TERRAIN_DIRT_CLOSE_DISTANCE =
   BASELINE_CAMERA_DISTANCE / (DIRT_REVEAL_ZOOM_PERCENT / 100);
 
@@ -51,7 +48,7 @@ export const DIRT_PROXIMITY_INNER_SQ = DIRT_PROXIMITY_INNER * DIRT_PROXIMITY_INN
 
 export const DIRT_PROXIMITY_OUTER_SQ = DIRT_PROXIMITY_OUTER * DIRT_PROXIMITY_OUTER;
 
-/** SeedThree grass and wildflowers share the close-ground zoom band. */
+/** SeedThree grass, wildflowers, cattails, and lily pads share this zoom band. */
 export const GRASS_BLADE_REVEAL = {
   close: CLOSE_GROUND_FULL_DISTANCE,
   far: CLOSE_GROUND_FADE_START_DISTANCE,
@@ -86,13 +83,13 @@ export function grassStreamNearRadius(firstPersonActive: boolean): number {
 /** Soft falloff band at the outer edge of the grass patch (world units). */
 export const GRASS_EDGE_FADE_BAND = 24;
 
-/** Brown-soil transition: 0 at 425% zoom, 1 at 650%. */
+/** Brown-soil transition: 0 at 200% zoom, 1 at 650%. */
 export function dirtZoomGate(cameraDistance: number): number {
   const t = smoothstep(TERRAIN_DIRT_CLOSE_DISTANCE, TERRAIN_DIRT_FAR_DISTANCE, cameraDistance);
   return Math.pow(1 - t, DIRT_BLEND_EASE);
 }
 
-/** SeedThree grass and wildflower transition: 0 at 200% zoom, 1 at 400%. */
+/** Close-ground vegetation transition: 0 at 200% zoom, 1 at 400%. */
 export function closeGroundVegetationGate(cameraDistance: number): number {
   const t = smoothstep(
     CLOSE_GROUND_FULL_DISTANCE,
@@ -134,6 +131,24 @@ export function grassBladeLodOpacity(grassLod: number): number {
   return Math.pow(remapped, GRASS_BLADE_LOD_OPACITY_POWER);
 }
 
+/** Cattail cards use the exact same reveal curve as ground grass blades. */
+export function reedRevealOpacity(cameraDistance: number): number {
+  return grassBladeLodOpacity(grassBladeRevealOpacity(cameraDistance));
+}
+
+export function resolveReedLod(cameraDistance: number, firstPersonActive: boolean): number {
+  if (firstPersonActive) return 1;
+  return reedRevealOpacity(cameraDistance);
+}
+
+export function reedLodOpacity(reedLod: number): number {
+  return Math.max(0, Math.min(1, reedLod));
+}
+
+export function isReedLodVisible(reedLod: number): boolean {
+  return reedLod > 0;
+}
+
 /** First-person mode always uses full close grass/dirt LOD around the player. */
 export function resolveCloseGroundLod(
   cameraDistance: number,
@@ -150,6 +165,10 @@ export function resolveCloseGroundLod(
 
 export function isGrassBladeZoomActive(cameraDistance: number): boolean {
   return grassBladeLodOpacity(grassBladeRevealOpacity(cameraDistance)) > 0;
+}
+
+export function isReedZoomActive(cameraDistance: number): boolean {
+  return isReedLodVisible(reedRevealOpacity(cameraDistance));
 }
 
 /** 0 above 50% zoom → 1 at 45% zoom and below. */

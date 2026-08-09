@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import {
+  grassBladeLodOpacity,
+  grassBladeRevealOpacity,
+} from '../grass/grassLodMath.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { loadBitmapTexture } from '../utils/textureLoad.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
@@ -60,9 +64,9 @@ export async function createRiverLilyPads(
     side: THREE.DoubleSide,
     vertexColors: true,
     transparent: true,
-    opacity: LILY_PEAK_OPACITY,
+    opacity: 0,
     alphaTest: 0.01,
-    depthWrite: true,
+    depthWrite: false,
   });
 
   const capacity = Math.max(placements.length, 1);
@@ -73,7 +77,7 @@ export async function createRiverLilyPads(
   mesh.frustumCulled = false;
   mesh.renderOrder = 2.4;
   mesh.count = placements.length;
-  mesh.visible = placements.length > 0;
+  mesh.visible = false;
 
   placements.forEach((placement, index) => {
     const y = getStillWaterSurfaceY(terrain, riverField, placement.x, placement.z);
@@ -96,9 +100,25 @@ export async function createRiverLilyPads(
   group.name = 'River lily pads';
   group.add(mesh);
 
+  let lastOpacity = Number.NaN;
   return {
     group,
-    updateCameraState: () => {},
+    updateCameraState(cameraDistance, firstPersonActive = false) {
+      const reveal = firstPersonActive
+        ? 1
+        : grassBladeLodOpacity(grassBladeRevealOpacity(cameraDistance));
+      const opacity = reveal * LILY_PEAK_OPACITY;
+      if (!Number.isFinite(lastOpacity) || Math.abs(lastOpacity - opacity) > 0.006) {
+        lastOpacity = opacity;
+        material.opacity = opacity;
+        const depthWrite = opacity >= LILY_PEAK_OPACITY - 0.006;
+        if (material.depthWrite !== depthWrite) {
+          material.depthWrite = depthWrite;
+          material.needsUpdate = true;
+        }
+      }
+      mesh.visible = opacity > 0.004 && placements.length > 0;
+    },
     dispose() {
       geometry.dispose();
       material.dispose();

@@ -18,6 +18,7 @@ import {
 import type { RockObstacle } from '../utils/pathGeometry.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import { isReedZoomActive } from '../grass/grassLodMath.ts';
 
 function createPropShadowMaterials(): {
   shadowCast: THREE.MeshStandardMaterial;
@@ -76,7 +77,7 @@ export async function createRiverSystem(
   const rockShadowMaterials = createPropShadowMaterials();
   const waterController = createRiverWaterMesh(group, terrain, riverField);
   const reedsGroup = new THREE.Group();
-  reedsGroup.name = 'Persistent river reeds';
+  reedsGroup.name = 'Progressive river reeds';
   group.add(reedsGroup);
   let shoreStones: ReturnType<typeof createRiverShoreStones> | null = null;
   let reeds: RiverReedField | null = null;
@@ -167,6 +168,7 @@ export async function createRiverSystem(
     isBlockedAt: (x, z) => riverField.isBlockedForProps(x, z),
     isGrassBlockedAt: (x, z) => riverField.isGrassBlockedAt(x, z),
     updateCameraState: (cameraPosition, cameraTarget, cameraDistance, firstPersonActive) => {
+      reedsGroup.visible = firstPersonActive === true || isReedZoomActive(cameraDistance);
       reeds?.updateCameraState(cameraPosition, cameraTarget, cameraDistance, firstPersonActive);
       lilyPads?.updateCameraState(cameraDistance, firstPersonActive);
     },
