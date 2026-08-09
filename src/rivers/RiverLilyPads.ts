@@ -118,14 +118,6 @@ export function lilyPadShorePresence(shoreDistanceMeters: number): number {
   return edgeFade * channelFade;
 }
 
-export function lilyPadCameraOpacity(
-  cameraDistance: number,
-  firstPersonActive = false,
-): number {
-  if (firstPersonActive) return 1;
-  return Number.isFinite(cameraDistance) && cameraDistance >= 0 ? 1 : 0;
-}
-
 function createLilyPadPlacements(
   riverField: RiverField,
   rng: () => number,

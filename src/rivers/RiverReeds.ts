@@ -6,9 +6,7 @@ import {
   createCattailGeometry,
   sampleCattailHeightMeters,
 } from '@seedthree/core/cattails.js';
-import {
-  type RendererBackendKind,
-} from '../scene/RendererBackend.ts';
+import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import {
   addSeedThreeGroundCoverInstanceAttributes,
@@ -110,7 +108,7 @@ export async function createRiverReeds(
     attributes.anchor.setXYZ(
       index,
       placement.x,
-      resolveReedBaseY(placement, terrain, riverField),
+      resolveReedBaseY(placement, terrain),
       placement.z,
     );
     resolveReedScaleVector(placement, fullScale);
@@ -346,7 +344,7 @@ function composeReedMatrix(
 ): void {
   position.set(
     placement.x,
-    resolveReedBaseY(placement, terrain, riverField),
+    resolveReedBaseY(placement, terrain),
     placement.z,
   );
   euler.set(placement.tiltX, placement.yaw, placement.tiltZ);
@@ -358,7 +356,6 @@ function composeReedMatrix(
 function resolveReedBaseY(
   placement: ReedPlacement,
   terrain: Terrain,
-  riverField: RiverField,
 ): number {
   return terrain.getHeightAt(placement.x, placement.z) + 0.03;
 }

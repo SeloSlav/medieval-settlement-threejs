@@ -94,7 +94,7 @@ assert.match(
 assert.match(
   lodSource,
   /CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 200/,
-  'grass, wildflowers, and cattails should begin fading in at 200% zoom',
+  'grass and wildflowers should begin fading in at 200% zoom',
 );
 assert.match(
   lodSource,
@@ -130,11 +130,6 @@ assert.doesNotMatch(
   fieldSource,
   /gridIndex\(localX, localZ\)/,
   'camera-local grid positions must not determine persistent grass slot identity',
-);
-assert.match(
-  lodSource,
-  /REED_LOD_VISIBILITY_THRESHOLD = 0/,
-  'cattails should activate at the same fade boundary',
 );
 assert.match(
   fieldSource,

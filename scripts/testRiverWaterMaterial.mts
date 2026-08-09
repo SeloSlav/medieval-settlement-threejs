@@ -14,11 +14,6 @@ import {
   grassBladeRevealOpacity,
   GRASS_BLADE_LOD_VISIBILITY_THRESHOLD,
   isGrassBladeZoomActive,
-  isReedLodVisible,
-  REED_LOD_OPACITY_POWER,
-  REED_LOD_VISIBILITY_THRESHOLD,
-  reedLodOpacity,
-  resolveReedLod,
 } from '../src/grass/grassLodMath.ts';
 import {
   computeRiverWaterSkyPalette,
@@ -63,10 +58,7 @@ import {
   waterSurfaceProfileForPreset,
 } from '../src/rivers/WaterSurfaceProfile.ts';
 import {
-  LILY_CAMERA_FADE_DISTANCE,
-  LILY_CAMERA_FULL_DISTANCE,
   LILY_SHORE_REACH_METERS,
-  lilyPadCameraOpacity,
   lilyPadShorePresence,
 } from '../src/rivers/RiverLilyPads.ts';
 import {
@@ -76,35 +68,6 @@ import {
   computeShoreStoneVisualVariation,
 } from '../src/rivers/riverShoreStoneAppearance.ts';
 
-assert.equal(REED_LOD_OPACITY_POWER, 2);
-assert.equal(
-  REED_LOD_VISIBILITY_THRESHOLD,
-  0,
-  'cattails should begin their opacity fade immediately above the 200% boundary',
-);
-assert.equal(reedLodOpacity(-1), 0);
-assert.equal(reedLodOpacity(0), 0);
-assert.equal(reedLodOpacity(0.5), 0.25);
-assert.equal(reedLodOpacity(1), 1);
-assert.equal(reedLodOpacity(2), 1);
-assert.equal(
-  resolveReedLod(999, true),
-  1,
-  'first-person reeds must retain full close-detail LOD',
-);
-assert.equal(isReedLodVisible(REED_LOD_VISIBILITY_THRESHOLD - 0.001), false);
-assert.equal(isReedLodVisible(REED_LOD_VISIBILITY_THRESHOLD), false);
-assert.equal(isReedLodVisible(REED_LOD_VISIBILITY_THRESHOLD + 0.001), true);
-const overviewReedLod = resolveReedLod(42, false);
-assert.ok(
-  reedLodOpacity(overviewReedLod) < overviewReedLod,
-  'partial orbit LOD must fade more aggressively than the old linear card opacity',
-);
-assert.equal(
-  isReedLodVisible(overviewReedLod),
-  true,
-  'cattails must share the vegetation fade once the orbit passes 200%',
-);
 assert.equal(grassBladeLodOpacity(-1), 0);
 assert.equal(grassBladeLodOpacity(GRASS_BLADE_LOD_VISIBILITY_THRESHOLD), 0);
 assert.equal(grassBladeLodOpacity(1), 1);
@@ -228,9 +191,6 @@ assert.equal(lilyPadShorePresence(0), 0);
 assert.ok(lilyPadShorePresence(1.2) > 0.98);
 assert.ok(lilyPadShorePresence(5.5) > lilyPadShorePresence(7.5));
 assert.equal(lilyPadShorePresence(LILY_SHORE_REACH_METERS), 0);
-assert.equal(lilyPadCameraOpacity(LILY_CAMERA_FADE_DISTANCE), 0);
-assert.equal(lilyPadCameraOpacity(LILY_CAMERA_FULL_DISTANCE), 1);
-assert.equal(lilyPadCameraOpacity(999, true), 1);
 
 assert.ok(computeWaterFoamBase(0.2) > computeWaterFoamBase(0.9));
 assert.ok(computeWaterFoamBase(0.9) > computeWaterFoamBase(1.6));
@@ -408,13 +368,18 @@ const shoreStoneSource = readFileSync(
 );
 assert.match(
   reedSource,
-  /reedLodOpacity\(reedLod\)\s*\*\s*REED_PEAK_OPACITY/,
-  'runtime reeds must use the anti-aliasing opacity curve',
+  /material\.opacity\s*=\s*REED_PEAK_OPACITY/,
+  'cattails must retain readable opacity at every camera zoom',
 );
 assert.match(
   reedSource,
-  /isReedLodVisible\(reedLod\)/,
-  'runtime reeds must use the minimum readable-card reveal threshold',
+  /mesh\.visible\s*=\s*placements\.length\s*>\s*0/,
+  'cattails must remain submitted at every camera zoom',
+);
+assert.doesNotMatch(
+  reedSource,
+  /resolveReedLod|grassEdgeFadeFromFocusDistance|hiddenMatrix/,
+  'persistent cattails must not be camera-LOD or focus-radius culled',
 );
 assert.match(
   reedSource,
@@ -423,23 +388,18 @@ assert.match(
 );
 assert.match(
   reedSource,
-  /getStillWaterSurfaceY\([\s\S]*?- placement\.submergeMeters/,
-  'shallow cattails must root just below the water surface',
+  /getStillWaterSurfaceY\(terrain, riverField, x, z\)\s*-\s*terrain\.getHeightAt\(x, z\)/,
+  'submerged cattail height must compensate for the local water depth',
+);
+assert.match(
+  reedSource,
+  /function resolveReedBaseY[\s\S]*?terrain\.getHeightAt\(placement\.x, placement\.z\)\s*\+\s*0\.03/,
+  'all cattails, including submerged specimens, must root on terrain',
 );
 assert.equal(
   (reedSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
   1,
-  'reed LOD must retain the existing single instanced draw',
-);
-assert.match(
-  reedSource,
-  /let instancesHidden = false;[\s\S]*?if \(instancesHidden\) return;[\s\S]*?instancesHidden = true;/,
-  'settled hidden reeds must not rewrite and republish identical matrices every frame',
-);
-assert.match(
-  reedSource,
-  /const refreshProximity[\s\S]*?instancesHidden = false;/,
-  'a visible proximity refresh must re-arm the next hidden transition',
+  'persistent reeds must retain the existing single instanced draw',
 );
 assert.equal(
   (lilyPadSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
@@ -455,6 +415,16 @@ assert.match(
   lilyPadSource,
   /valueNoise2D[\s\S]*?raftPresence[\s\S]*?shorePresence/,
   'lily placement must combine broken rafts with a shore-distance fade',
+);
+assert.match(
+  lilyPadSource,
+  /opacity:\s*LILY_PEAK_OPACITY[\s\S]*?mesh\.visible\s*=\s*placements\.length\s*>\s*0/,
+  'lily pads must retain their full presentation at every camera zoom',
+);
+assert.doesNotMatch(
+  lilyPadSource,
+  /LILY_CAMERA_(?:FULL|FADE)_DISTANCE|cameraDistance[\s\S]*?material\.opacity/,
+  'lily pads must not use a camera-distance fade',
 );
 assert.doesNotMatch(
   shoreStoneSource,
