@@ -118,7 +118,6 @@ export async function createRiverReeds(
     composeReedMatrix(
       placement,
       terrain,
-      riverField,
       composeMatrix,
       composeQuaternion,
       composePosition,
@@ -335,7 +334,6 @@ function collectShoreNodes(riverField: RiverField): ShoreNode[] {
 function composeReedMatrix(
   placement: ReedPlacement,
   terrain: Terrain,
-  riverField: RiverField,
   matrix: THREE.Matrix4,
   quaternion: THREE.Quaternion,
   position: THREE.Vector3,

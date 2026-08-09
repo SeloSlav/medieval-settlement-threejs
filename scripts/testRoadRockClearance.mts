@@ -23,7 +23,7 @@ const network = {
 verifyForestRockClearance();
 verifySharedRoadRockClearance();
 verifyRoadPlacementHasNoDecorationBlocker();
-verifyRoadPlacementHasNoSlopeRestriction();
+verifyRoadPlacementSlopeRestriction();
 
 console.log('Road decorative-rock clearance tests passed.');
 
@@ -80,14 +80,22 @@ function verifyRoadPlacementHasNoDecorationBlocker(): void {
   );
 }
 
-function verifyRoadPlacementHasNoSlopeRestriction(): void {
+function verifyRoadPlacementSlopeRestriction(): void {
+  assert.deepEqual(
+    validateRoadPlacement([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 4.5, 10),
+    ], 3.5),
+    { ok: true },
+    'roads at the 45% maximum grade should remain buildable',
+  );
   assert.deepEqual(
     validateRoadPlacement([
       new THREE.Vector3(0, 0, 0),
       new THREE.Vector3(0, 100, 10),
     ], 3.5),
-    { ok: true },
-    'roads should be buildable regardless of terrain slope',
+    { ok: false, reason: 'too_steep' },
+    'roads above the 45% maximum grade should be rejected',
   );
 }
 
