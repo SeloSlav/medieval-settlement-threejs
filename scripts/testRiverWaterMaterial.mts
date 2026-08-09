@@ -150,7 +150,7 @@ assert.equal(
 assert.equal(
   dirtZoomGate(BASELINE_CAMERA_DISTANCE / (DIRT_FADE_START_ZOOM_PERCENT / 100)),
   0,
-  'brown soil must be absent at its delayed transition boundary',
+  'brown soil must be absent exactly at the shared transition boundary',
 );
 assert.ok(
   dirtZoomGate(BASELINE_CAMERA_DISTANCE / (CLOSE_GROUND_FULL_ZOOM_PERCENT / 100)) > 0,
