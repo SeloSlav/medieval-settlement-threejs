@@ -25,6 +25,7 @@ import {
   disposeSharedRiverWaterMaterial,
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
+  OPEN_WATER_SPECTRAL_BAND_COUNT,
   RIVER_BANK_BED_REVEAL,
   RIVER_CLOUD_REFLECTION_CLEAR,
   RIVER_CLOUD_REFLECTION_MAX,
@@ -50,10 +51,17 @@ import {
 import {
   computeWaterFeatherAlpha,
   computeWaterFoamBase,
+  encodeWaterFlowDirection,
   type RiverWaterShoreMaps,
   WATER_ALPHA_FEATHER_IN,
   WATER_FOAM_REACH,
 } from '../src/rivers/riverWaterShoreMaps.ts';
+import {
+  COASTAL_WATER_PROFILE,
+  INLAND_WATER_PROFILE,
+  RIVER_WATER_PROFILE,
+  waterSurfaceProfileForPreset,
+} from '../src/rivers/WaterSurfaceProfile.ts';
 import {
   LILY_CAMERA_FADE_DISTANCE,
   LILY_CAMERA_FULL_DISTANCE,
@@ -232,6 +240,19 @@ assert.equal(computeWaterFoamBase(2.5), 0);
 assert.ok(WATER_ALPHA_FEATHER_IN <= 0.5);
 assert.ok(computeWaterFeatherAlpha(-0.6) < computeWaterFeatherAlpha(0.2));
 assert.ok(computeWaterFeatherAlpha(0.2) < computeWaterFeatherAlpha(0.96));
+assert.deepEqual(
+  encodeWaterFlowDirection(null),
+  [128, 128],
+  'still water must encode a neutral flow vector so the shader can select open-water motion',
+);
+assert.deepEqual(encodeWaterFlowDirection({ dx: 1, dz: 0 }), [255, 128]);
+assert.equal(waterSurfaceProfileForPreset('vinodol_coast'), COASTAL_WATER_PROFILE);
+assert.equal(waterSurfaceProfileForPreset('kupa_valley'), RIVER_WATER_PROFILE);
+assert.equal(waterSurfaceProfileForPreset('custom'), INLAND_WATER_PROFILE);
+assert.equal(OPEN_WATER_SPECTRAL_BAND_COUNT, 5);
+assert.ok(COASTAL_WATER_PROFILE.openWaterWaveScale > INLAND_WATER_PROFILE.openWaterWaveScale);
+assert.ok(COASTAL_WATER_PROFILE.attenuationDistance > RIVER_WATER_PROFILE.attenuationDistance);
+assert.ok(INLAND_WATER_PROFILE.standingWaveRatio > COASTAL_WATER_PROFILE.standingWaveRatio);
 
 const stoneVisualA = computeShoreStoneVisualScale(12, -8);
 const stoneVisualB = computeShoreStoneVisualScale(25, 17);
@@ -505,6 +526,25 @@ assert.equal(
   1,
   'night water-edge lift must not add texture samples',
 );
+assert.match(
+  waterMaterialSource,
+  /OPEN_WATER_SPECTRUM[\s\S]*?buildOpenWaterSpectrum/,
+  'open bodies must retain the deterministic multi-band wave spectrum',
+);
+assert.match(
+  waterMaterialSource,
+  /shoreBreakBand[\s\S]*?shoreBreakSet[\s\S]*?openWaterFoam/,
+  'coastal water must retain its depth-band shore break and crest foam',
+);
+
+disposeSharedRiverWaterMaterial();
+const coastalMaterial = getSharedRiverWaterMaterial(shoreMaps, COASTAL_WATER_PROFILE);
+assert.equal(coastalMaterial.name, 'CoastalWaterMaterial');
+assert.equal(coastalMaterial.transmission, COASTAL_WATER_PROFILE.transmission);
+assert.equal(coastalMaterial.attenuationDistance, COASTAL_WATER_PROFILE.attenuationDistance);
+assert.equal(coastalMaterial.roughness, COASTAL_WATER_PROFILE.roughness);
+assert.ok(coastalMaterial.positionNode, 'coastal profile must displace the water mesh');
+assert.ok(coastalMaterial.normalNode, 'coastal profile must shade its spectral wave slopes');
 
 disposeSharedRiverWaterMaterial();
 shoreTexture.dispose();

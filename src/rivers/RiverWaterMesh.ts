@@ -15,6 +15,7 @@ import {
   createRiverWaterShoreMaps,
   disposeRiverWaterShoreMaps,
 } from './riverWaterShoreMaps.ts';
+import { waterSurfaceProfileForPreset } from './WaterSurfaceProfile.ts';
 
 const RIVER_WATER_DEPTH = 1.05;
 const RIVER_CENTER_DEPTH_BOOST = 0.2;
@@ -474,9 +475,16 @@ export function createRiverWaterMesh(
     simDeltaAttr.needsUpdate = true;
   };
 
-  const mesh = new THREE.Mesh(geometry, getSharedRiverWaterMaterial(shoreMaps));
-  mesh.name = 'River water surface';
+  const waterProfile = waterSurfaceProfileForPreset(riverField.layout.terrainPreset);
+  const mesh = new THREE.Mesh(
+    geometry,
+    getSharedRiverWaterMaterial(shoreMaps, waterProfile),
+  );
+  mesh.name = waterProfile.id === 'coastal'
+    ? 'Coastal sea surface'
+    : 'River water surface';
   mesh.userData.water = true;
+  mesh.userData.waterSurfaceProfile = waterProfile.id;
   mesh.raycast = () => {};
   // Opaque tree-shadow silhouettes read as disconnected black bands on a
   // translucent surface, especially under the lower rain/winter sun. The

@@ -32,8 +32,20 @@ export function computeWaterFoamBase(foamSigned: number): number {
     : 1 - smoothstep(-0.24, 0.1, foamSigned);
 }
 
-function encodeFlowComponent(value: number): number {
+export function encodeFlowComponent(value: number): number {
   return Math.round(Math.max(0, Math.min(255, (value * 0.5 + 0.5) * 255)));
+}
+
+export function encodeWaterFlowDirection(
+  flow: Readonly<{ dx: number; dz: number }> | null,
+): readonly [number, number] {
+  // The neutral encoding is meaningful: the material uses vector magnitude to
+  // distinguish still/open water from a river current. Its shader supplies the
+  // fallback direction only after making that classification.
+  return [
+    encodeFlowComponent(flow?.dx ?? 0),
+    encodeFlowComponent(flow?.dz ?? 0),
+  ];
 }
 
 export function createRiverWaterShoreMaps(riverField: RiverField): RiverWaterShoreMaps {
@@ -51,13 +63,12 @@ export function createRiverWaterShoreMaps(riverField: RiverField): RiverWaterSho
       const feather = computeWaterFeatherAlpha(foamSigned);
       const foamBase = Math.min(1, computeWaterFoamBase(foamSigned));
       const flow = layout.sampleFlowDirection(wx, wz);
-      const flowDx = flow?.dx ?? 0;
-      const flowDz = flow?.dz ?? -1;
+      const [flowX, flowZ] = encodeWaterFlowDirection(flow);
       const offset = i * 4;
       data[offset] = Math.round(feather * 255);
       data[offset + 1] = Math.round(foamBase * 255);
-      data[offset + 2] = encodeFlowComponent(flowDx);
-      data[offset + 3] = encodeFlowComponent(flowDz);
+      data[offset + 2] = flowX;
+      data[offset + 3] = flowZ;
     }
   }
 
