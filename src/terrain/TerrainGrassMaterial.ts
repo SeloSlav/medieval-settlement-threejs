@@ -1131,9 +1131,8 @@ export function createTerrainGrassMaterialWithRiverShore(
     quarryPad,
     resolvedWeather,
   );
-  // Brown soil uses its own delayed 425-650% handoff. SeedThree groundcover is
-  // already visually complete when this layer becomes readable, so strategic
-  // and mid-close views retain the authored meadow surface.
+  // Brown soil uses a broad 200-650% handoff. It first becomes readable with
+  // SeedThree groundcover, then gradually takes over toward ground level.
   const dirtSurfaceAmount = dirtAmount;
   const meadowWeight = sub(float(1) as TslNode, dirtSurfaceAmount) as TslNode;
   const shoreUndercoat = terrainColorShoreBlend.mul(float(0.58) as TslNode);

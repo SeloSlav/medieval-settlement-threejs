@@ -12,7 +12,7 @@ export {
 
 let lastDirtZoomGate = Number.NaN;
 
-/** CPU-side brown-soil zoom gate (425–650%) written to a terrain vertex attribute. */
+/** CPU-side brown-soil zoom gate (200–650%) written to a terrain vertex attribute. */
 export function updateTerrainZoomBlend(
   terrain: Terrain,
   cameraDistance: number,

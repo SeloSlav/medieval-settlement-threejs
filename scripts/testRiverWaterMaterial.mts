@@ -14,6 +14,9 @@ import {
   grassBladeRevealOpacity,
   GRASS_BLADE_LOD_VISIBILITY_THRESHOLD,
   isGrassBladeZoomActive,
+  isReedLodVisible,
+  reedLodOpacity,
+  resolveReedLod,
 } from '../src/grass/grassLodMath.ts';
 import {
   computeRiverWaterSkyPalette,
@@ -85,13 +88,15 @@ assert.ok(
 assert.equal(
   isGrassBladeZoomActive(42),
   true,
-  'normal close-orbit grass must be visible before brown soil begins blending',
+  'normal close-orbit grass must be visible as brown soil begins blending',
 );
-assert.equal(
-  dirtZoomGate(42),
-  0,
-  'brown soil must remain hidden at the beginning of the SeedThree grass transition',
+assert.ok(
+  dirtZoomGate(42) > 0 && dirtZoomGate(42) < 0.1,
+  'brown soil must begin subtly alongside the SeedThree grass transition',
 );
+assert.equal(resolveReedLod(42, false), grassBladeLodOpacity(overviewGrassLod));
+assert.equal(reedLodOpacity(resolveReedLod(42, false)), grassBladeLodOpacity(overviewGrassLod));
+assert.equal(isReedLodVisible(resolveReedLod(42, false)), true);
 assert.equal(
   CLOSE_GROUND_FADE_START_ZOOM_PERCENT,
   200,
@@ -126,10 +131,9 @@ assert.ok(
   normalCloseGroundLod > 0.05 && normalCloseGroundLod < 0.09,
   '210% orbit view must be at the subtle beginning of the vegetation handoff',
 );
-assert.equal(
-  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1),
-  0,
-  '210% orbit view must retain meadow ground beneath the emerging SeedThree grass',
+assert.ok(
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / 2.1) > 0,
+  '210% orbit view must begin revealing dirt with the emerging SeedThree grass',
 );
 assert.equal(
   grassBladeRevealOpacity(
@@ -140,18 +144,17 @@ assert.equal(
 );
 assert.equal(
   DIRT_FADE_START_ZOOM_PERCENT,
-  425,
-  'brown soil may begin only after SeedThree grass reaches full opacity',
+  CLOSE_GROUND_FADE_START_ZOOM_PERCENT,
+  'brown soil and SeedThree grass must begin at the same zoom boundary',
 );
 assert.equal(
   dirtZoomGate(BASELINE_CAMERA_DISTANCE / (DIRT_FADE_START_ZOOM_PERCENT / 100)),
   0,
   'brown soil must be absent at its delayed transition boundary',
 );
-assert.equal(
-  dirtZoomGate(BASELINE_CAMERA_DISTANCE / (CLOSE_GROUND_FULL_ZOOM_PERCENT / 100)),
-  0,
-  'brown soil must remain absent when SeedThree grass first reaches full opacity',
+assert.ok(
+  dirtZoomGate(BASELINE_CAMERA_DISTANCE / (CLOSE_GROUND_FULL_ZOOM_PERCENT / 100)) > 0,
+  'brown soil must be partially visible when SeedThree grass reaches full opacity',
 );
 assert.equal(
   DIRT_REVEAL_ZOOM_PERCENT,
@@ -368,18 +371,18 @@ const shoreStoneSource = readFileSync(
 );
 assert.match(
   reedSource,
-  /material\.opacity\s*=\s*REED_PEAK_OPACITY/,
-  'cattails must retain readable opacity at every camera zoom',
+  /reedLodOpacity\(reedLod\)\s*\*\s*REED_PEAK_OPACITY/,
+  'cattails must use the shared ground-blade opacity handoff',
 );
 assert.match(
   reedSource,
-  /mesh\.visible\s*=\s*placements\.length\s*>\s*0/,
-  'cattails must remain submitted at every camera zoom',
+  /isReedLodVisible\(reedLod\)/,
+  'cattails must stop submitting outside the close-ground zoom band',
 );
-assert.doesNotMatch(
+assert.match(
   reedSource,
-  /resolveReedLod|grassEdgeFadeFromFocusDistance|hiddenMatrix/,
-  'persistent cattails must not be camera-LOD or focus-radius culled',
+  /grassEdgeFadeFromFocusDistance[\s\S]*?hiddenMatrix/,
+  'visible cattails must retain the bounded grass-focus radius',
 );
 assert.match(
   reedSource,
@@ -399,7 +402,7 @@ assert.match(
 assert.equal(
   (reedSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
   1,
-  'persistent reeds must retain the existing single instanced draw',
+  'reed LOD must retain the existing single instanced draw',
 );
 assert.equal(
   (lilyPadSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
@@ -418,13 +421,13 @@ assert.match(
 );
 assert.match(
   lilyPadSource,
-  /opacity:\s*LILY_PEAK_OPACITY[\s\S]*?mesh\.visible\s*=\s*placements\.length\s*>\s*0/,
-  'lily pads must retain their full presentation at every camera zoom',
+  /grassBladeLodOpacity\(grassBladeRevealOpacity\(cameraDistance\)\)/,
+  'lily pads must use the same close-ground reveal curve as grass blades',
 );
-assert.doesNotMatch(
+assert.match(
   lilyPadSource,
-  /LILY_CAMERA_(?:FULL|FADE)_DISTANCE|cameraDistance[\s\S]*?material\.opacity/,
-  'lily pads must not use a camera-distance fade',
+  /mesh\.visible\s*=\s*opacity\s*>\s*0\.004\s*&&\s*placements\.length\s*>\s*0/,
+  'lily pads must stop submitting outside the close-ground zoom band',
 );
 assert.doesNotMatch(
   shoreStoneSource,

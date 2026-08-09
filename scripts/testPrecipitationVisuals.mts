@@ -226,10 +226,10 @@ assert.match(
   /renderer\.shadowMap\.type\s*=\s*THREE\.PCFSoftShadowMap/,
   'tree shadows must retain the original soft PCF filtering',
 );
-assert.doesNotMatch(
+assert.match(
   riverSystemSource,
-  /reedsGroup\.visible\s*=|isReedZoomActive/,
-  'weather updates must leave the persistent river cattail group visible at every zoom',
+  /reedsGroup\.visible\s*=\s*firstPersonActive\s*===\s*true\s*\|\|\s*isReedZoomActive\(cameraDistance\)/,
+  'the parent reed group must enforce close-or-first-person LOD',
 );
 assert.match(rendererSource, /const RAIN_BASE_PARTICLES = 1_800/);
 assert.match(rendererSource, /const SNOW_BASE_PARTICLES = 1_400/);

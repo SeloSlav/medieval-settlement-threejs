@@ -98,8 +98,8 @@ assert.match(
 );
 assert.match(
   lodSource,
-  /DIRT_FADE_START_ZOOM_PERCENT = 425/,
-  'brown soil should wait until the SeedThree groundcover is visually complete',
+  /DIRT_FADE_START_ZOOM_PERCENT = CLOSE_GROUND_FADE_START_ZOOM_PERCENT/,
+  'brown soil should begin fading in with SeedThree groundcover',
 );
 assert.match(
   lodSource,
