@@ -3,7 +3,6 @@ import type { BuildingPlacementFailureReason } from '../buildings/BuildingPlacem
 import type { BurgagePlacementFailureReason } from '../residences/burgagePlacementValidation.ts';
 
 export const TOAST_MESSAGES = {
-  'road.placement.too_steep': 'The slope is too steep for a road',
   'road.placement.too_short': 'Road segment is too short — add another point',
   'building.placement.water': 'Cannot build on water',
   'building.placement.requires_shore': 'This building must be placed beside open water',
@@ -60,8 +59,6 @@ export function getToastMessage(id: ToastMessageId): string {
 
 export function roadPlacementReasonToToastId(reason: RoadPlacementFailureReason): ToastMessageId | null {
   switch (reason) {
-    case 'too_steep':
-      return 'road.placement.too_steep';
     case 'too_short':
       return 'road.placement.too_short';
     default: {

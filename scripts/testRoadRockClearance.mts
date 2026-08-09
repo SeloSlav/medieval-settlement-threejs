@@ -23,6 +23,7 @@ const network = {
 verifyForestRockClearance();
 verifySharedRoadRockClearance();
 verifyRoadPlacementHasNoDecorationBlocker();
+verifyRoadPlacementHasNoSlopeRestriction();
 
 console.log('Road decorative-rock clearance tests passed.');
 
@@ -76,6 +77,17 @@ function verifyRoadPlacementHasNoDecorationBlocker(): void {
     ], 3.5),
     { ok: true },
     'flat roads should not need scene-obstacle validation before decorative rocks are cleared',
+  );
+}
+
+function verifyRoadPlacementHasNoSlopeRestriction(): void {
+  assert.deepEqual(
+    validateRoadPlacement([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 100, 10),
+    ], 3.5),
+    { ok: true },
+    'roads should be buildable regardless of terrain slope',
   );
 }
 
