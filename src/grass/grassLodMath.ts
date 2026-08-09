@@ -1,12 +1,12 @@
 /** Matches CameraController default orbit distance at 100% zoom. */
 export const BASELINE_CAMERA_DISTANCE = 88;
 
-/** SeedThree grass, wildflowers, and reeds reach full strength here. */
+/** SeedThree grass and wildflowers reach full strength here. */
 export const CLOSE_GROUND_FULL_ZOOM_PERCENT = 400;
 
 /**
  * Close vegetation starts fading in above 200% and reaches full strength at
- * 400%. Grass, wildflowers, and cattails all consume this same gate.
+ * 400%. Grass and wildflowers consume this shared gate.
  */
 export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 200;
 
@@ -51,7 +51,7 @@ export const DIRT_PROXIMITY_INNER_SQ = DIRT_PROXIMITY_INNER * DIRT_PROXIMITY_INN
 
 export const DIRT_PROXIMITY_OUTER_SQ = DIRT_PROXIMITY_OUTER * DIRT_PROXIMITY_OUTER;
 
-/** SeedThree grass, wildflowers, and cattails share the close-ground zoom band. */
+/** SeedThree grass and wildflowers share the close-ground zoom band. */
 export const GRASS_BLADE_REVEAL = {
   close: CLOSE_GROUND_FULL_DISTANCE,
   far: CLOSE_GROUND_FADE_START_DISTANCE,
@@ -92,7 +92,7 @@ export function dirtZoomGate(cameraDistance: number): number {
   return Math.pow(1 - t, DIRT_BLEND_EASE);
 }
 
-/** SeedThree vegetation transition: 0 at 200% zoom, 1 at 400%. */
+/** SeedThree grass and wildflower transition: 0 at 200% zoom, 1 at 400%. */
 export function closeGroundVegetationGate(cameraDistance: number): number {
   const t = smoothstep(
     CLOSE_GROUND_FULL_DISTANCE,
@@ -101,14 +101,6 @@ export function closeGroundVegetationGate(cameraDistance: number): number {
   );
   return Math.pow(1 - t, DIRT_BLEND_EASE);
 }
-
-/**
- * Cattails enter with the other close vegetation immediately above 200%.
- * Their steeper opacity curve keeps the alpha-tested cards subtle at the
- * beginning of the shared transition.
- */
-export const REED_LOD_VISIBILITY_THRESHOLD = 0;
-export const REED_LOD_OPACITY_POWER = 2;
 
 /**
  * SeedThree grass blades use the wider close-vegetation transition. The eased
@@ -142,24 +134,6 @@ export function grassBladeLodOpacity(grassLod: number): number {
   return Math.pow(remapped, GRASS_BLADE_LOD_OPACITY_POWER);
 }
 
-export function reedRevealOpacity(cameraDistance: number): number {
-  return closeGroundVegetationGate(cameraDistance);
-}
-
-export function resolveReedLod(cameraDistance: number, firstPersonActive: boolean): number {
-  if (firstPersonActive) return 1;
-  return reedRevealOpacity(cameraDistance);
-}
-
-export function reedLodOpacity(reedLod: number): number {
-  const clampedLod = Math.max(0, Math.min(1, reedLod));
-  return Math.pow(clampedLod, REED_LOD_OPACITY_POWER);
-}
-
-export function isReedLodVisible(reedLod: number): boolean {
-  return reedLod > REED_LOD_VISIBILITY_THRESHOLD;
-}
-
 /** First-person mode always uses full close grass/dirt LOD around the player. */
 export function resolveCloseGroundLod(
   cameraDistance: number,
@@ -176,10 +150,6 @@ export function resolveCloseGroundLod(
 
 export function isGrassBladeZoomActive(cameraDistance: number): boolean {
   return grassBladeLodOpacity(grassBladeRevealOpacity(cameraDistance)) > 0;
-}
-
-export function isReedZoomActive(cameraDistance: number): boolean {
-  return isReedLodVisible(reedRevealOpacity(cameraDistance));
 }
 
 /** 0 above 50% zoom → 1 at 45% zoom and below. */

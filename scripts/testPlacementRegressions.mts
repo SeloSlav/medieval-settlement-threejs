@@ -1025,6 +1025,16 @@ assert.match(
   /if \(this\.pointerDirty\)[\s\S]*this\.processPointerHover/,
   'road hover picking must run at most once per render frame',
 );
+assert.match(
+  roadTool,
+  /const rejectionReason = this\.getInvalidClickReason\(\);[\s\S]{0,220}onPlacementRejected\?\.\(\{ reason: rejectionReason, action: 'click' \}\);[\s\S]{0,80}return;/,
+  'an invalid road point should be rejected without ending the placement session',
+);
+assert.doesNotMatch(
+  roadTool,
+  /if \(rejectionReason\) \{[\s\S]{0,160}setEnabled\(false\)/,
+  'road placement failures must leave the road tool active for the player to cancel',
+);
 
 assert.match(
   buildingReducer,

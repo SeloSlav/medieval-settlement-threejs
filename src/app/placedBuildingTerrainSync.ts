@@ -146,10 +146,7 @@ export function syncPlacedBuildingTerrain(options: {
 
   if (forceMeshUpdate) {
     updateTerrainBuildingPads(sceneManager.terrain, hasPlacedPads ? placedLayout : null);
-    buildingMarkers?.syncBuildings(
-      gameState?.buildings.values() ?? [],
-      gameState?.livestockHerds,
-    );
+    buildingMarkers?.refreshTerrainHeights();
     if (gameState) {
       onSignatureUpdate?.(getPlacedTerrainSignature(gameState));
     }

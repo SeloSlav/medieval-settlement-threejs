@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { BASELINE_CAMERA_DISTANCE } from '../grass/grassLodMath.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { loadBitmapTexture } from '../utils/textureLoad.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
@@ -28,8 +27,6 @@ export const LILY_PAD_TEXTURE_PATH = '/assets/textures/vegetation/aquatic/water-
 export const LILY_SHORE_FADE_IN_METERS = 0.82;
 export const LILY_SHORE_FADE_OUT_START_METERS = 4.8;
 export const LILY_SHORE_REACH_METERS = 8.2;
-export const LILY_CAMERA_FULL_DISTANCE = BASELINE_CAMERA_DISTANCE / 2;
-export const LILY_CAMERA_FADE_DISTANCE = BASELINE_CAMERA_DISTANCE;
 
 const TAU = Math.PI * 2;
 const LILY_PEAK_OPACITY = 0.94;
@@ -63,11 +60,9 @@ export async function createRiverLilyPads(
     side: THREE.DoubleSide,
     vertexColors: true,
     transparent: true,
-    opacity: 0,
-    // Keep the cutout threshold below the camera-opacity ramp so the whole
-    // leaf dissolves in instead of shrinking inward from its silhouette.
+    opacity: LILY_PEAK_OPACITY,
     alphaTest: 0.01,
-    depthWrite: false,
+    depthWrite: true,
   });
 
   const capacity = Math.max(placements.length, 1);
@@ -78,7 +73,7 @@ export async function createRiverLilyPads(
   mesh.frustumCulled = false;
   mesh.renderOrder = 2.4;
   mesh.count = placements.length;
-  mesh.visible = false;
+  mesh.visible = placements.length > 0;
 
   placements.forEach((placement, index) => {
     const y = getStillWaterSurfaceY(terrain, riverField, placement.x, placement.z);
@@ -101,22 +96,9 @@ export async function createRiverLilyPads(
   group.name = 'River lily pads';
   group.add(mesh);
 
-  let lastOpacity = Number.NaN;
   return {
     group,
-    updateCameraState(cameraDistance, firstPersonActive = false) {
-      const opacity = lilyPadCameraOpacity(cameraDistance, firstPersonActive) * LILY_PEAK_OPACITY;
-      if (!Number.isFinite(lastOpacity) || Math.abs(lastOpacity - opacity) > 0.006) {
-        lastOpacity = opacity;
-        material.opacity = opacity;
-        const depthWrite = opacity >= LILY_PEAK_OPACITY - 0.006;
-        if (material.depthWrite !== depthWrite) {
-          material.depthWrite = depthWrite;
-          material.needsUpdate = true;
-        }
-      }
-      mesh.visible = opacity > 0.004 && placements.length > 0;
-    },
+    updateCameraState: () => {},
     dispose() {
       geometry.dispose();
       material.dispose();
@@ -141,13 +123,7 @@ export function lilyPadCameraOpacity(
   firstPersonActive = false,
 ): number {
   if (firstPersonActive) return 1;
-  if (!Number.isFinite(cameraDistance)) return 0;
-  const proximity = 1 - smoothstep(
-    LILY_CAMERA_FULL_DISTANCE,
-    LILY_CAMERA_FADE_DISTANCE,
-    cameraDistance,
-  );
-  return Math.pow(proximity, 1.2);
+  return Number.isFinite(cameraDistance) && cameraDistance >= 0 ? 1 : 0;
 }
 
 function createLilyPadPlacements(

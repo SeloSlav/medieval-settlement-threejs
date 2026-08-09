@@ -223,8 +223,8 @@ export class SpacetimeSnapshotApplier {
         syncPlacedBuildingTerrain({
           sceneManager: deps.sceneManager,
           gameState: state,
-          // Terrain pads are rebuilt before this second marker sync so newly
-          // placed buildings and nearby residence changes use the final height.
+          // Terrain pads are rebuilt before marker elevations are refreshed so
+          // newly placed buildings use the final platform height.
           buildingMarkers: deps.buildingMarkers,
           forceMeshUpdate: true,
           onSignatureUpdate: (signature) => {

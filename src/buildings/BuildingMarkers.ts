@@ -327,6 +327,43 @@ export class BuildingMarkers {
   }
 
   /**
+   * Rebase every rendered building after the terrain heightfield changes.
+   * Building-state identity is deliberately ignored here: adding a terrain
+   * pad changes the correct Y transform without changing the authoritative
+   * building row that created the marker.
+   */
+  refreshTerrainHeights(): void {
+    let moved = false;
+    for (const [id, building] of this.buildingStates) {
+      const marker = this.buildingMeshes.get(id);
+      if (!marker) continue;
+      const y = this.terrain.getHeightAt(building.x, building.z);
+      if (Math.abs(marker.position.y - y) <= 1e-6) continue;
+
+      marker.position.y = y;
+      moved = true;
+      this.staticBatches.updateBuilding(id, marker, marker.visible);
+      if (
+        marker.visible
+        && building.constructionComplete !== false
+        && building.kind !== 'founders_camp'
+      ) {
+        this.shadowProxyBatch.upsertBuilding(
+          id,
+          building.kind,
+          marker,
+          building.chapelTier ?? 3,
+        );
+      }
+    }
+
+    if (!moved) return;
+    this.staticBatches.finalizeGeometryBuffers();
+    this.shadowProxyBatch.flush();
+    this.onShadowCastersChanged?.();
+  }
+
+  /**
    * Reapply the road-facing yaw after the authoritative road snapshot changes.
    * Building rows can reach the client before that snapshot during startup, in
    * which case their meshes are initially created with the deterministic

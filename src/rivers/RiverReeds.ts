@@ -7,12 +7,8 @@ import {
   sampleCattailHeightMeters,
 } from '@seedthree/core/cattails.js';
 import {
-  grassEdgeFadeFromFocusDistance,
-  isReedLodVisible,
-  reedLodOpacity,
-  resolveReedLod,
-} from '../grass/grassLodMath.ts';
-import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+  type RendererBackendKind,
+} from '../scene/RendererBackend.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import {
   addSeedThreeGroundCoverInstanceAttributes,
@@ -35,7 +31,6 @@ type ReedPlacement = {
   hue: number;
   sat: number;
   light: number;
-  submergeMeters: number;
 };
 
 type ShoreNode = {
@@ -56,7 +51,6 @@ export type RiverReedField = {
   dispose: () => void;
 };
 
-const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
 const composeMatrix = new THREE.Matrix4();
 const composeQuaternion = new THREE.Quaternion();
 const composePosition = new THREE.Vector3();
@@ -75,7 +69,7 @@ export async function createRiverReeds(
   maxAnisotropy: number,
   rendererBackend: RendererBackendKind,
 ): Promise<RiverReedField> {
-  const placements = createReedPlacements(riverField, rng);
+  const placements = createReedPlacements(terrain, riverField, rng);
   const textures = await loadSeedThreeGroundCoverTextures({
     albedo: seedThreeLeafUrl(CATTAIL_TEXTURE_FILES.albedo)
       ?? '/assets/textures/vegetation/cattail_reed_card.png',
@@ -92,9 +86,9 @@ export async function createRiverReeds(
     0.22,
   );
   material.transparent = true;
-  material.opacity = 0;
+  material.opacity = REED_PEAK_OPACITY;
   material.alphaTest = 0.32;
-  material.depthWrite = true;
+  material.depthWrite = false;
   const capacity = Math.max(placements.length, 1);
   const attributes = addSeedThreeGroundCoverInstanceAttributes(geometry, capacity);
 
@@ -104,18 +98,8 @@ export async function createRiverReeds(
   mesh.receiveShadow = true;
   mesh.frustumCulled = false;
   mesh.renderOrder = 12;
-  mesh.visible = false;
+  mesh.visible = placements.length > 0;
   mesh.count = placements.length;
-
-  let instancesHidden = false;
-  const hideAllInstances = (): void => {
-    if (instancesHidden) return;
-    for (let index = 0; index < placements.length; index++) {
-      mesh.setMatrixAt(index, hiddenMatrix);
-    }
-    if (placements.length > 0) mesh.instanceMatrix.needsUpdate = true;
-    instancesHidden = true;
-  };
 
   const fullScale = new THREE.Vector3();
   const wind = new THREE.Vector3();
@@ -133,13 +117,23 @@ export async function createRiverReeds(
     seedThreeGroundCoverWindVector(placement.yaw, fullScale, wind);
     attributes.wind.setXYZ(index, wind.x, wind.y, wind.z);
     mesh.setColorAt(index, composeColor);
+    composeReedMatrix(
+      placement,
+      terrain,
+      riverField,
+      composeMatrix,
+      composeQuaternion,
+      composePosition,
+      composeScale,
+      composeEuler,
+    );
+    mesh.setMatrixAt(index, composeMatrix);
   });
-
-  hideAllInstances();
 
   attributes.tint.needsUpdate = true;
   attributes.anchor.needsUpdate = true;
   attributes.wind.needsUpdate = true;
+  mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
   const group = new THREE.Group();
@@ -147,94 +141,9 @@ export async function createRiverReeds(
   group.renderOrder = 12;
   group.add(mesh);
 
-  let lastMaterialOpacity = Number.NaN;
-  let lastFocusX = Number.NaN;
-  let lastFocusZ = Number.NaN;
-  let wasReedVisible = false;
-
-  const refreshProximity = (focusX: number, focusZ: number): void => {
-    if (placements.length === 0) return;
-
-    instancesHidden = false;
-    let matrixDirty = false;
-    placements.forEach((placement, index) => {
-      const focusDist = Math.hypot(placement.x - focusX, placement.z - focusZ);
-      const edgeFade = grassEdgeFadeFromFocusDistance(focusDist);
-      if (edgeFade <= 0.02) {
-        mesh.setMatrixAt(index, hiddenMatrix);
-        matrixDirty = true;
-        return;
-      }
-
-      composeReedMatrix(
-        placement,
-        terrain,
-        riverField,
-        composeMatrix,
-        composeQuaternion,
-        composePosition,
-        composeScale,
-        composeEuler,
-        edgeFade,
-      );
-      mesh.setMatrixAt(index, composeMatrix);
-      matrixDirty = true;
-    });
-
-    if (matrixDirty) {
-      mesh.instanceMatrix.needsUpdate = true;
-    }
-  };
-
   return {
     group,
-    updateCameraState(
-      cameraPosition: THREE.Vector3,
-      cameraTarget: THREE.Vector3,
-      cameraDistance: number,
-      firstPersonActive = false,
-    ) {
-      const reedLod = resolveReedLod(cameraDistance, firstPersonActive);
-      const reedOpacity = reedLodOpacity(reedLod) * REED_PEAK_OPACITY;
-      const reedZoomVisible = isReedLodVisible(reedLod) && placements.length > 0;
-
-      if (!Number.isFinite(lastMaterialOpacity) || Math.abs(reedOpacity - lastMaterialOpacity) > 0.008) {
-        lastMaterialOpacity = reedOpacity;
-        material.opacity = reedOpacity;
-        const useTransparency = reedOpacity < 0.995;
-        if (material.transparent !== useTransparency) {
-          material.transparent = useTransparency;
-          material.depthWrite = !useTransparency;
-          material.needsUpdate = true;
-        }
-      }
-
-      mesh.visible = reedZoomVisible;
-      if (!reedZoomVisible) {
-        wasReedVisible = false;
-        lastFocusX = Number.NaN;
-        lastFocusZ = Number.NaN;
-        hideAllInstances();
-        return;
-      }
-
-      const focusX = firstPersonActive ? cameraPosition.x : cameraTarget.x;
-      const focusZ = firstPersonActive ? cameraPosition.z : cameraTarget.z;
-      const becameVisible = !wasReedVisible;
-      wasReedVisible = true;
-
-      const focusMoved =
-        becameVisible ||
-        !Number.isFinite(lastFocusX) ||
-        Math.hypot(focusX - lastFocusX, focusZ - lastFocusZ) >=
-          (firstPersonActive ? 3.25 : 1.25);
-
-      if (focusMoved) {
-        refreshProximity(focusX, focusZ);
-        lastFocusX = focusX;
-        lastFocusZ = focusZ;
-      }
-    },
+    updateCameraState: () => {},
     dispose: () => {
       geometry.dispose();
       material.dispose();
@@ -243,7 +152,11 @@ export async function createRiverReeds(
   };
 }
 
-function createReedPlacements(riverField: RiverField, rng: () => number): ReedPlacement[] {
+function createReedPlacements(
+  terrain: Terrain,
+  riverField: RiverField,
+  rng: () => number,
+): ReedPlacement[] {
   const placements: ReedPlacement[] = [];
   const placementIndex = new SpatialHash2D<ReedPlacement>(0.6);
   const shoreNodes = collectShoreNodes(riverField);
@@ -276,7 +189,6 @@ function createReedPlacements(riverField: RiverField, rng: () => number): ReedPl
         hue: 0.24 + (rng() - 0.5) * 0.03,
         sat: 0.34 + rng() * 0.1,
         light: 0.3 + rng() * 0.07,
-        submergeMeters: 0,
       };
       placements.push(placement);
       placementIndex.add(placement);
@@ -284,7 +196,7 @@ function createReedPlacements(riverField: RiverField, rng: () => number): ReedPl
   }
 
   appendGridReedPlacements(riverField, rng, placements, placementIndex);
-  appendShallowReedFingers(riverField, rng, shoreNodes, placements, placementIndex);
+  appendShallowReedFingers(terrain, riverField, rng, shoreNodes, placements, placementIndex);
   return placements;
 }
 
@@ -325,7 +237,6 @@ function appendGridReedPlacements(
         hue: 0.24 + (rng() - 0.5) * 0.03,
         sat: 0.34 + rng() * 0.1,
         light: 0.3 + rng() * 0.07,
-        submergeMeters: 0,
       };
       placements.push(placement);
       placementIndex.add(placement);
@@ -334,6 +245,7 @@ function appendGridReedPlacements(
 }
 
 function appendShallowReedFingers(
+  terrain: Terrain,
   riverField: RiverField,
   rng: () => number,
   shoreNodes: ShoreNode[],
@@ -360,17 +272,22 @@ function appendShallowReedFingers(
       if (wetShore < 0.36 || wetShore > 5.7) continue;
       if (placementIndex.hasPointWithin(x, z, 0.32 + rng() * 0.2)) continue;
 
+      const waterDepthMeters = Math.max(
+        0,
+        getStillWaterSurfaceY(terrain, riverField, x, z) - terrain.getHeightAt(x, z),
+      );
       const placement: ReedPlacement = {
         x,
         z,
-        heightMeters: resolveReedHeightMeters(wetShore, rng),
+        // These specimens are rooted on the riverbed. Add the local water
+        // depth so their above-water silhouette remains as tall as a bank reed.
+        heightMeters: resolveReedHeightMeters(wetShore, rng) + waterDepthMeters,
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.12,
         tiltZ: (rng() - 0.5) * 0.1,
         hue: 0.235 + (rng() - 0.5) * 0.035,
         sat: 0.34 + rng() * 0.12,
         light: 0.28 + rng() * 0.08,
-        submergeMeters: 0.12 + rng() * 0.24,
       };
       placements.push(placement);
       placementIndex.add(placement);
@@ -426,7 +343,6 @@ function composeReedMatrix(
   position: THREE.Vector3,
   scaleVector: THREE.Vector3,
   euler: THREE.Euler,
-  edgeFade = 1,
 ): void {
   position.set(
     placement.x,
@@ -435,8 +351,7 @@ function composeReedMatrix(
   );
   euler.set(placement.tiltX, placement.yaw, placement.tiltZ);
   quaternion.setFromEuler(euler);
-  const fade = THREE.MathUtils.clamp(edgeFade, 0, 1);
-  resolveReedScaleVector(placement, scaleVector, fade);
+  resolveReedScaleVector(placement, scaleVector);
   matrix.compose(position, quaternion, scaleVector);
 }
 
@@ -445,24 +360,19 @@ function resolveReedBaseY(
   terrain: Terrain,
   riverField: RiverField,
 ): number {
-  if (placement.submergeMeters > 0) {
-    return getStillWaterSurfaceY(terrain, riverField, placement.x, placement.z)
-      - placement.submergeMeters;
-  }
   return terrain.getHeightAt(placement.x, placement.z) + 0.03;
 }
 
 function resolveReedScaleVector(
   placement: ReedPlacement,
   scaleVector: THREE.Vector3,
-  fade = 1,
 ): THREE.Vector3 {
   const width = THREE.MathUtils.clamp(
     0.5 + placement.heightMeters * 0.14,
     0.6,
     0.94,
-  ) * fade;
-  const height = (placement.heightMeters / CATTAIL_CARD_REFERENCE_HEIGHT) * fade;
+  );
+  const height = placement.heightMeters / CATTAIL_CARD_REFERENCE_HEIGHT;
   return scaleVector.set(width, height, width);
 }
 

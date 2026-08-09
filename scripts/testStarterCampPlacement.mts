@@ -161,9 +161,10 @@ assert.ok(
   `10,000 bounded founding-site assessments took ${profileElapsed.toFixed(1)} ms`,
 );
 
+let campTerrainHeight = 0;
 const markerParent = new THREE.Group();
 const campMarkers = new BuildingMarkers({
-  terrain: { getHeightAt: () => 0 } as never,
+  terrain: { getHeightAt: () => campTerrainHeight } as never,
   parent: markerParent,
 });
 campMarkers.prewarmFoundersCampPlacement();
@@ -248,6 +249,13 @@ assert.equal(
   'complete:founders_camp',
   'the adopted camp should receive the same visual signature as a directly synchronized camp',
 );
+campTerrainHeight = 4.25;
+campMarkers.refreshTerrainHeights();
+assert.equal(
+  confirmedCamp?.position.y,
+  campTerrainHeight,
+  'terrain-pad elevation changes should lift the confirmed founding camp onto the platform',
+);
 const confirmedCampfire = confirmedCamp?.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
 assert.ok(
   confirmedCampfire instanceof THREE.Group,
@@ -304,9 +312,10 @@ assert.ok(
 );
 
 const hydratingRoads = new RoadNetwork();
+let roadsideTerrainHeight = 0;
 const roadFacingParent = new THREE.Group();
 const roadFacingMarkers = new BuildingMarkers({
-  terrain: { getHeightAt: () => 0 } as never,
+  terrain: { getHeightAt: () => roadsideTerrainHeight } as never,
   parent: roadFacingParent,
   getRoadNetwork: () => hydratingRoads,
 });
@@ -324,6 +333,15 @@ const roadsideSmithy = {
   constructionDeliveredStone: 4,
 } satisfies BuildingState;
 roadFacingMarkers.syncBuildings([roadsideSmithy]);
+const roadsideMarker = roadFacingParent.getObjectByName('Construction site');
+assert.ok(roadsideMarker, 'the roadside construction marker should be rendered');
+roadsideTerrainHeight = 3.5;
+roadFacingMarkers.refreshTerrainHeights();
+assert.equal(
+  roadsideMarker.position.y,
+  roadsideTerrainHeight,
+  'terrain-pad elevation changes should also rebase non-camp building markers',
+);
 hydratingRoads.addRoadPath([
   new THREE.Vector3(-40, 0, 0),
   new THREE.Vector3(40, 0, 0),
@@ -458,6 +476,12 @@ assert.match(
 );
 
 const buildingMarkers = read('src/buildings/BuildingMarkers.ts');
+const placedTerrainSync = read('src/app/placedBuildingTerrainSync.ts');
+assert.match(
+  placedTerrainSync,
+  /updateTerrainBuildingPads\([\s\S]*?buildingMarkers\?\.refreshTerrainHeights\(\)/,
+  'placed terrain pads must rebase building markers after changing the heightfield',
+);
 assert.match(
   buildingMarkers,
   /prewarmFoundersCampPlacement\(\)[\s\S]*?createBuildingMesh\('founders_camp'\)/,

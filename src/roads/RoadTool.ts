@@ -35,7 +35,7 @@ export type RoadDeleteRequest = {
 
 export type RoadPlacementRejectedEvent = {
   reason: RoadPlacementFailureReason;
-  action: 'exit' | 'commit';
+  action: 'click' | 'commit';
 };
 
 export class RoadTool {
@@ -273,10 +273,9 @@ export class RoadTool {
     this.roadNodeSnapMarkers.setCursor(hit);
     event.preventDefault();
     event.stopPropagation();
-    const exitReason = this.getInvalidClickExitReason();
-    if (exitReason) {
-      this.setEnabled(false);
-      this.options.onPlacementRejected?.({ reason: exitReason, action: 'exit' });
+    const rejectionReason = this.getInvalidClickReason();
+    if (rejectionReason) {
+      this.options.onPlacementRejected?.({ reason: rejectionReason, action: 'click' });
       return;
     }
     this.options.onDeleteRequested(null);
@@ -622,7 +621,7 @@ export class RoadTool {
     return null;
   }
 
-  private getInvalidClickExitReason(): RoadPlacementFailureReason | null {
+  private getInvalidClickReason(): RoadPlacementFailureReason | null {
     const hover = this.getUsableHoverPoint();
     if (!hover || !this.hasDraft()) return null;
     const path = this.buildPathFromAnchors(

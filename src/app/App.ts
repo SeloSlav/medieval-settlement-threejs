@@ -799,8 +799,8 @@ export class App {
       buildingMarkers: this.buildingMarkers,
       forceMeshUpdate: true,
     });
-    // Terrain sync intentionally replays authoritative markers. Restore the
-    // presentation-only fallback afterwards when visual QA has no server camp.
+    // Terrain sync rebases authoritative markers. Restore the presentation-only
+    // fallback afterwards when visual QA has no server camp.
     this.syncVisualQaFoundersCampFixture();
     if (this.snapshotApplierDeps) {
       syncSettlementWorld(this.snapshotApplierDeps.settlementWorld, presentationState);
