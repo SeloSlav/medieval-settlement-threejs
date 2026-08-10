@@ -399,6 +399,21 @@ assert.match(
   /function resolveReedBaseY[\s\S]*?terrain\.getHeightAt\(placement\.x, placement\.z\)\s*\+\s*0\.03/,
   'all cattails, including submerged specimens, must root on terrain',
 );
+assert.match(
+  reedSource,
+  /createCattailGeometry\(\{[\s\S]*?width:\s*REED_CARD_WIDTH,[\s\S]*?baseSpread:\s*REED_CARD_BASE_SPREAD/,
+  'cattail cards must use the broader established-clump geometry',
+);
+assert.match(
+  reedSource,
+  /mesh\.renderOrder\s*=\s*REED_RENDER_ORDER/,
+  'cattails must render before the transparent water film so submerged stems remain visibly underwater',
+);
+assert.match(
+  reedSource,
+  /0\.72\s*\+\s*rng\(\)\s*\*\s*0\.38/,
+  'bank cattail clumps must keep loose spacing within broad stands',
+);
 assert.equal(
   (reedSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
   1,

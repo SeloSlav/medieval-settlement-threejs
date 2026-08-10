@@ -66,6 +66,16 @@ const composeColor = new THREE.Color();
 const REED_PEAK_OPACITY = 0.9;
 const REED_SHORE_MIN = 0.55;
 const REED_SHORE_MAX = 4.8;
+/**
+ * The authored texture is a compact tuft. A broader card fan makes each
+ * instance read as a loose, established cattail clump instead of a small
+ * ornamental grass plug.
+ */
+const REED_CARD_QUADS = 5;
+const REED_CARD_WIDTH = 0.94;
+const REED_CARD_BASE_SPREAD = 0.26;
+/** Draw just before the transparent water film so submerged stems are veiled by water. */
+const REED_RENDER_ORDER = 1.2;
 
 export async function createRiverReeds(
   terrain: Terrain,
@@ -82,7 +92,11 @@ export async function createRiverReeds(
     roughness: seedThreeLeafUrl(CATTAIL_TEXTURE_FILES.roughness),
     translucency: seedThreeLeafUrl(CATTAIL_TEXTURE_FILES.translucency),
   }, maxAnisotropy);
-  const geometry = createCattailGeometry();
+  const geometry = createCattailGeometry({
+    quads: REED_CARD_QUADS,
+    width: REED_CARD_WIDTH,
+    baseSpread: REED_CARD_BASE_SPREAD,
+  });
   const material = createSeedThreeGroundCoverMaterial(
     'SeedThree cattail reeds',
     textures,
@@ -102,7 +116,7 @@ export async function createRiverReeds(
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   mesh.frustumCulled = false;
-  mesh.renderOrder = 12;
+  mesh.renderOrder = REED_RENDER_ORDER;
   mesh.visible = false;
   mesh.count = placements.length;
 
@@ -143,7 +157,7 @@ export async function createRiverReeds(
 
   const group = new THREE.Group();
   group.name = 'River reeds';
-  group.renderOrder = 12;
+  group.renderOrder = REED_RENDER_ORDER;
   group.add(mesh);
 
   let lastMaterialOpacity = Number.NaN;
@@ -244,25 +258,27 @@ function createReedPlacements(
   rng: () => number,
 ): ReedPlacement[] {
   const placements: ReedPlacement[] = [];
-  const placementIndex = new SpatialHash2D<ReedPlacement>(0.6);
+  const placementIndex = new SpatialHash2D<ReedPlacement>(1.2);
   const shoreNodes = collectShoreNodes(riverField);
 
   for (const node of shoreNodes) {
-    if (rng() > 0.82) continue;
+    // Seed broad, irregular stands with deliberate gaps instead of tracing
+    // the entire shoreline with a tight dotted line.
+    if (rng() > 0.48) continue;
 
     const tangentX = -node.outwardZ;
     const tangentZ = node.outwardX;
-    const clusterCount = 2 + Math.floor(rng() * 4);
+    const clusterCount = 2 + Math.floor(rng() * 5);
 
     for (let i = 0; i < clusterCount; i++) {
-      const along = (rng() - 0.5) * 2.4;
-      const outward = 0.15 + rng() * 1.35;
+      const along = (rng() - 0.5) * 6.8;
+      const outward = 0.18 + Math.pow(rng(), 0.82) * 2.35;
       const px = node.x + tangentX * along + node.outwardX * outward;
       const pz = node.z + tangentZ * along + node.outwardZ * outward;
 
       if (riverField.isRenderedWetAt(px, pz)) continue;
       if (!riverField.isGrassBlockedAt(px, pz)) continue;
-      if (placementIndex.hasPointWithin(px, pz, 0.34 + rng() * 0.22)) continue;
+      if (placementIndex.hasPointWithin(px, pz, 0.72 + rng() * 0.38)) continue;
 
       const shore = riverField.sampleShoreDistance(px, pz);
       const placement = {
@@ -309,9 +325,9 @@ function appendGridReedPlacements(
       if (riverField.isRenderedWetAt(x, z)) continue;
       if (!riverField.isGrassBlockedAt(x, z)) continue;
 
-      const chance = THREE.MathUtils.clamp(0.42 + (1 - shore / 4.8) * 0.38, 0.2, 0.9);
+      const chance = THREE.MathUtils.clamp(0.22 + (1 - shore / 4.8) * 0.32, 0.18, 0.56);
       if (rng() > chance) continue;
-      if (placementIndex.hasPointWithin(x, z, 0.38 + rng() * 0.24)) continue;
+      if (placementIndex.hasPointWithin(x, z, 0.76 + rng() * 0.42)) continue;
 
       const placement = {
         x,
@@ -339,16 +355,16 @@ function appendShallowReedFingers(
   placementIndex: SpatialHash2D<ReedPlacement>,
 ): void {
   for (const node of shoreNodes) {
-    if (rng() > 0.36) continue;
+    if (rng() > 0.5) continue;
 
     const tangentX = -node.outwardZ;
     const tangentZ = node.outwardX;
-    const fingerLength = 1.4 + Math.pow(rng(), 0.7) * 4.2;
-    const clusterCount = 2 + Math.floor(rng() * 5);
+    const fingerLength = 1.8 + Math.pow(rng(), 0.7) * 5.2;
+    const clusterCount = 3 + Math.floor(rng() * 6);
 
     for (let index = 0; index < clusterCount; index++) {
       const inward = 0.32 + Math.pow(rng(), 0.72) * fingerLength;
-      const spread = 0.24 + inward * 0.12;
+      const spread = 0.5 + inward * 0.24;
       const along = (rng() - 0.5) * spread * 2;
       const x = node.x + tangentX * along - node.outwardX * inward;
       const z = node.z + tangentZ * along - node.outwardZ * inward;
@@ -356,7 +372,7 @@ function appendShallowReedFingers(
 
       const wetShore = riverField.sampleShoreDistance(x, z);
       if (wetShore < 0.36 || wetShore > 5.7) continue;
-      if (placementIndex.hasPointWithin(x, z, 0.32 + rng() * 0.2)) continue;
+      if (placementIndex.hasPointWithin(x, z, 0.7 + rng() * 0.4)) continue;
 
       const waterDepthMeters = Math.max(
         0,
@@ -455,9 +471,9 @@ function resolveReedScaleVector(
   fade = 1,
 ): THREE.Vector3 {
   const width = THREE.MathUtils.clamp(
-    0.5 + placement.heightMeters * 0.14,
-    0.6,
-    0.94,
+    0.78 + placement.heightMeters * 0.2,
+    0.92,
+    1.42,
   ) * fade;
   const height = (placement.heightMeters / CATTAIL_CARD_REFERENCE_HEIGHT) * fade;
   return scaleVector.set(width, height, width);

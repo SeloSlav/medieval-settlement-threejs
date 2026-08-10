@@ -919,12 +919,24 @@ function buildLayeredDirtGroundNodes(
     ) as TslNode,
   ) as TslNode;
   const mineralSoil = mix(broadColor.rgb, detailColor.rgb, detailWeight) as TslNode;
-  const brownSoil = mineralSoil.mul(vec3(0.64, 0.52, 0.39) as TslNode);
-  const warmPebbles = pebbleColor.rgb.mul(vec3(0.56, 0.44, 0.32) as TslNode);
-  const colorNode = mix(
-    brownSoil,
-    warmPebbles,
+  const layeredSoil = mix(
+    mineralSoil,
+    pebbleColor.rgb,
     float(0.18) as TslNode,
+  ) as TslNode;
+  const soilLuminance = layeredSoil.r
+    .mul(float(0.299) as TslNode)
+    .add(layeredSoil.g.mul(float(0.587) as TslNode))
+    .add(layeredSoil.b.mul(float(0.114) as TslNode)) as TslNode;
+  // Match the supplied cool grey-brown dirt reference (#786b61 average)
+  // without flattening the authored stones, clods, or granular contrast.
+  const greyBrownSoil = mix(
+    layeredSoil,
+    vec3(soilLuminance, soilLuminance, soilLuminance) as TslNode,
+    float(0.72) as TslNode,
+  ) as TslNode;
+  const colorNode = greyBrownSoil.mul(
+    vec3(1.244, 1.121, 1.041) as TslNode,
   ) as TslNode;
 
   const bumpHeight = broadHeight

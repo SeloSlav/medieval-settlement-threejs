@@ -242,7 +242,9 @@ assert.match(source, /const detailUv = grassUv\.mul\(float\(6\.4\)/);
 assert.match(source, /const pebbleUv = grassUv\.mul\(float\(3\.35\)/);
 assert.match(source, /const bumpHeight = broadHeight/);
 assert.match(source, /bumpMap\(\s*bumpHeight/);
-assert.match(source, /vec3\(0\.64, 0\.52, 0\.39\)/);
+assert.match(source, /const greyBrownSoil = mix/);
+assert.match(source, /float\(0\.72\)/);
+assert.match(source, /vec3\(1\.244, 1\.121, 1\.041\)/);
 assert.match(
   source,
   /const dirtSurfaceAmount = dirtAmount/,

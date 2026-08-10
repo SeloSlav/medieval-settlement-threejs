@@ -31,6 +31,11 @@ type TslScalarUniform = TslNode & {
   value: number;
 };
 
+// Calibrated against the supplied #786b61 grey-brown dirt reference after
+// the road's low-frequency tint is applied.
+const ROAD_DIRT_REFERENCE_TINT: [number, number, number] = [1.297, 1.206, 1.197];
+const ROAD_DIRT_EDGE_REFERENCE_TINT: [number, number, number] = [1.326, 1.2, 1.153];
+
 export type RoadWeatherUniforms = {
   wetness: TslScalarUniform;
   frost: TslScalarUniform;
@@ -188,7 +193,7 @@ export function createRoadCoreMaterial(
 
   const rutMask = buildRoadRutMask(dirtTextures);
   const dirtColor = applyRoadRutColor(
-    buildRoadColorNode(dirtTextures, 0.72, [0.9, 0.9, 0.88]),
+    buildRoadColorNode(dirtTextures, 0.72, ROAD_DIRT_REFERENCE_TINT),
     rutMask,
   );
   if (bridgeTextures) {
@@ -247,7 +252,7 @@ export function createRoadEdgeMaterial(
   material.polygonOffset = true;
   material.polygonOffsetFactor = -3;
   material.polygonOffsetUnits = -8;
-  const edgeColor = buildRoadColorNode(textures, 0.78, [0.92, 0.91, 0.89]);
+  const edgeColor = buildRoadColorNode(textures, 0.78, ROAD_DIRT_EDGE_REFERENCE_TINT);
   material.colorNode = applyRoadWeatherColor(edgeColor, weather, 1.12);
   const edgeRoughness = (texture(textures.roughness, uv() as TslNode) as TslNode).r;
   material.roughnessNode = applyRoadWeatherRoughness(edgeRoughness, weather);

@@ -309,6 +309,16 @@ assert.match(roadMaterialSource, /weather\.wetness/);
 assert.match(roadMaterialSource, /weather\.frost/);
 assert.match(roadMaterialSource, /applyRoadWeatherRoughness/);
 assert.match(
+  roadMaterialSource,
+  /ROAD_DIRT_REFERENCE_TINT[^=]*= \[1\.297, 1\.206, 1\.197\]/,
+  'dry road dirt must retain the supplied light grey-brown reference palette',
+);
+assert.match(
+  roadMaterialSource,
+  /ROAD_DIRT_EDGE_REFERENCE_TINT[^=]*= \[1\.326, 1\.2, 1\.153\]/,
+  'road shoulders must match the core grey-brown dirt palette',
+);
+assert.match(
   roadEdgeMaterialSource,
   /let opacity\s*=\s*buildBankOpacityNode\(textures\)/,
   'road-edge alpha masking must remain on its existing opacity-node path',
