@@ -5,6 +5,23 @@ import {
   computeViewShadowBounds,
   intersectTerrainBounds,
 } from '../src/scene/fitDirectionalShadow.ts';
+import { shouldRefreshFirstPersonDirectionalShadow } from '../src/scene/directionalShadowRefreshPolicy.ts';
+
+assert.equal(
+  shouldRefreshFirstPersonDirectionalShadow(true, true),
+  true,
+  'active first-person navigation must refresh animated foliage shadows',
+);
+assert.equal(
+  shouldRefreshFirstPersonDirectionalShadow(true, false),
+  false,
+  'a settled first-person camera should retain the ordinary shadow cadence',
+);
+assert.equal(
+  shouldRefreshFirstPersonDirectionalShadow(false, true),
+  false,
+  'overview navigation should retain the paced shadow refresh policy',
+);
 
 const camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 2600);
 const target = new THREE.Vector3(81, 0, -37);

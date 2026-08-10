@@ -27,3 +27,15 @@ export function shouldRefreshDirectionalShadow(
   return clampedDot < TARGET_STEP_DOT
     && elapsedSinceRefreshMs >= DIRECTIONAL_SHADOW_MIN_REFRESH_INTERVAL_MS;
 }
+
+/**
+ * Animated first-person foliage must not sample a stale manual shadow atlas
+ * while the camera is moving. Screen-space lateral/backward motion makes the
+ * mismatch especially visible because leaf cards move across old silhouettes.
+ */
+export function shouldRefreshFirstPersonDirectionalShadow(
+  firstPersonActive: boolean,
+  cameraInteractionActive: boolean,
+): boolean {
+  return firstPersonActive && cameraInteractionActive;
+}

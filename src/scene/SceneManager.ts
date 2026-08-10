@@ -95,7 +95,10 @@ import { precipitationProfile } from '../weather/precipitationPolicy.ts';
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import { markStartupCheckpoint } from '../app/startupDiagnostics.ts';
 import { setWorldAnimationTime } from './worldAnimationTime.ts';
-import { shouldRefreshDirectionalShadow } from './directionalShadowRefreshPolicy.ts';
+import {
+  shouldRefreshDirectionalShadow,
+  shouldRefreshFirstPersonDirectionalShadow,
+} from './directionalShadowRefreshPolicy.ts';
 import {
   beginRendererFrame,
   configureRendererFrameStats,
@@ -860,7 +863,12 @@ export class SceneManager {
     this.mushroomPatchVisuals?.updateCameraState(cameraDistance, firstPersonActive);
     this.renderFrame++;
     const shadowRefreshNowMs = performance.now();
-    if (this.shouldRefreshShadowMap(cameraDistance, shadowRefreshNowMs, viewFocus)) {
+    const shadowCameraNeedsRefit = this.shouldRefitShadowMap(
+      cameraDistance,
+      shadowRefreshNowMs,
+      viewFocus,
+    );
+    if (shadowCameraNeedsRefit) {
       fitDirectionalLightShadow(this.sunLight, {
         bounds: shadowBounds,
         sunOffsetDir: this.shadowKeyDirection,
@@ -870,6 +878,14 @@ export class SceneManager {
       this.lastShadowDistance = cameraDistance;
       this.lastShadowKeyDirection.copy(this.shadowKeyDirection);
       this.lastDirectionalShadowRefreshMs = shadowRefreshNowMs;
+    }
+    if (
+      shadowCameraNeedsRefit
+      || shouldRefreshFirstPersonDirectionalShadow(
+        firstPersonActive,
+        cameraInteractionActive,
+      )
+    ) {
       this.refreshShadowMap();
     }
     if (import.meta.env.VITE_E2E_TEST === '1') {
@@ -898,7 +914,7 @@ export class SceneManager {
     );
   }
 
-  private shouldRefreshShadowMap(
+  private shouldRefitShadowMap(
     cameraDistance: number,
     nowMs: number,
     viewFocus: THREE.Vector3,
@@ -909,9 +925,9 @@ export class SceneManager {
       nowMs - this.lastDirectionalShadowRefreshMs,
     )) return true;
     // The fitted bounds carry 24% overscan, so the shadow camera can trail a
-    // moving view briefly without exposing an unshadowed edge. Redrawing the
-    // 2048px forest/building atlas every other frame caused avoidable frame
-    // spikes during pans and zooms.
+    // moving view briefly without exposing an unshadowed edge. First-person
+    // motion refreshes the atlas separately without needlessly refitting this
+    // projection on every frame.
     const interval = this.buildInteractionActive ? 8 : 5;
     if (this.renderFrame % interval !== 0) return false;
     const dx = viewFocus.x - this.lastShadowTargetX;
