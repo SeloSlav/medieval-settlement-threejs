@@ -613,7 +613,9 @@ export class SceneManager {
     if (GRASS_BLADES_ENABLED) {
       this.grassField = await grassFieldPromise;
       if (this.grassField) this.scene.add(this.grassField.group);
-      // Draw reeds after grass so shoreline cattails stay visible at ground level.
+      // Keep reeds at the scene root; their explicit render order lets the
+      // water film veil submerged stems while the grass-blocked shore band
+      // prevents competing ground blades around their rooted bases.
       this.scene.attach(this.riverSystem.reedsGroup);
     }
 

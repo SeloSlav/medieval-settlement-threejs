@@ -411,6 +411,11 @@ assert.match(
 );
 assert.match(
   reedSource,
+  /material\.depthWrite\s*=\s*useDepthWrite/,
+  'visible cattail cutouts must populate depth so the water film only veils their submerged stems',
+);
+assert.match(
+  reedSource,
   /0\.72\s*\+\s*rng\(\)\s*\*\s*0\.38/,
   'bank cattail clumps must keep loose spacing within broad stands',
 );

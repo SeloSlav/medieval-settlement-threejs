@@ -76,6 +76,12 @@ const REED_CARD_WIDTH = 0.94;
 const REED_CARD_BASE_SPREAD = 0.26;
 /** Draw just before the transparent water film so submerged stems are veiled by water. */
 const REED_RENDER_ORDER = 1.2;
+/**
+ * Once the cutout is substantially visible, let it populate the depth buffer.
+ * Water can then cover bed-level stems while failing depth against leaves and
+ * seed heads that have genuinely emerged above the surface.
+ */
+const REED_DEPTH_WRITE_MIN_OPACITY = 0.45;
 
 export async function createRiverReeds(
   terrain: Terrain,
@@ -212,9 +218,13 @@ export async function createRiverReeds(
         lastMaterialOpacity = reedOpacity;
         material.opacity = reedOpacity;
         const useTransparency = reedOpacity < 0.995;
-        if (material.transparent !== useTransparency) {
+        const useDepthWrite = reedOpacity >= REED_DEPTH_WRITE_MIN_OPACITY;
+        if (
+          material.transparent !== useTransparency
+          || material.depthWrite !== useDepthWrite
+        ) {
           material.transparent = useTransparency;
-          material.depthWrite = !useTransparency;
+          material.depthWrite = useDepthWrite;
           material.needsUpdate = true;
         }
       }
