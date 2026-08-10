@@ -30,6 +30,16 @@ export type SeedThreeInstancedLodSet = {
   cards: Array<THREE.InstancedMesh & { userData: Record<string, unknown> }>;
 };
 
+export type SeedThreeResidentBucketSelection = {
+  nearSlotIndices: readonly number[];
+  overviewSlotIndices: readonly number[];
+};
+
+export type SeedThreeLayoutSlotMapping = {
+  bucketIndex: number;
+  slotIndex: number;
+};
+
 type PassPartitionedInstancedMesh = THREE.InstancedMesh & {
   userData: Record<string, unknown> & {
     forestPassCountsInstalled?: boolean;
@@ -144,12 +154,10 @@ export function writeSeedThreeLodMatrices(
 }
 
 /**
- * Keep the conservative view + shadow-caster compaction as one GPU buffer, but
- * submit only its view-visible prefix to the color camera. The directional
- * shadow camera has TREE_SHADOW_CAST_LAYER enabled and continues to submit the
- * complete conservative caster prefix. No placement, LOD, material, or shadow
- * coverage changes; this only prevents shadow-only instances from leaking into
- * color/post scene passes through the aggregate frustum-disabled mesh.
+ * Keep one immutable conservative instance count for color and shadow passes.
+ * WebGPU can snapshot instance state outside Three's per-object callbacks, so
+ * changing this count between passes is unsafe. The selector already bounds
+ * the resident set; the GPU clips individual off-screen instances.
  */
 export function updateSeedThreeLodPassInstanceCounts(
   lodSet: SeedThreeInstancedLodSet,
@@ -178,21 +186,6 @@ export function enabledSeedThreeTreeCountInPrefix(
   return count;
 }
 
-export function partitionSeedThreeSelectionByView(
-  selectedIndices: readonly number[],
-  viewIndices: ReadonlySet<number>,
-): { orderedIndices: number[]; viewCount: number } {
-  const orderedIndices: number[] = [];
-  for (const index of selectedIndices) {
-    if (viewIndices.has(index)) orderedIndices.push(index);
-  }
-  const viewCount = orderedIndices.length;
-  for (const index of selectedIndices) {
-    if (!viewIndices.has(index)) orderedIndices.push(index);
-  }
-  return { orderedIndices, viewCount };
-}
-
 export function partitionSeedThreeSelectionByStaticLod(
   selection: {
     nearIndices: readonly number[];
@@ -210,41 +203,59 @@ export function partitionSeedThreeSelectionByStaticLod(
   // SeedThree's selector owns only conservative inclusion. Its near/overview
   // arrays are distance classifications, while this app's visual identity is
   // authored once per placement through forceOverview. Re-form the exact
-  // selected union, partition view-visible trees ahead of shadow-only casters,
-  // then restore every retained tree to that immutable authored LOD.
-  const selectedIndices = [
+  // selected union in layout order, then restore every retained tree to that
+  // immutable authored LOD. Camera-frustum membership must not affect packing:
+  // lateral/backward motion otherwise promotes an already-resident shadow
+  // caster to the front and rewrites the live WebGPU instance buffer.
+  const selectedIndices = [...new Set([
     ...selection.nearIndices,
     ...selection.overviewIndices,
-  ].sort((left, right) => left - right);
-  const partition = partitionSeedThreeSelectionByView(
-    selectedIndices,
-    new Set(selection.viewIndices),
-  );
+  ])].sort((left, right) => left - right);
   const nearIndices: number[] = [];
   const overviewIndices: number[] = [];
-  let nearViewCount = 0;
-  let overviewViewCount = 0;
-  for (let index = 0; index < partition.orderedIndices.length; index += 1) {
-    const layoutIndex = partition.orderedIndices[index]!;
-    const viewVisible = index < partition.viewCount;
+  for (const layoutIndex of selectedIndices) {
     if (forceOverview(layoutIndex)) {
       overviewIndices.push(layoutIndex);
-      if (viewVisible) overviewViewCount += 1;
       if (includeForcedOverviewInNear) {
         nearIndices.push(layoutIndex);
-        if (viewVisible) nearViewCount += 1;
       }
     } else {
       nearIndices.push(layoutIndex);
-      if (viewVisible) nearViewCount += 1;
     }
   }
   return {
     nearIndices,
     overviewIndices,
-    nearViewCount,
-    overviewViewCount,
+    // The current WebGPU path deliberately uses the same conservative resident
+    // prefix for color and shadow passes. Report the complete stable prefixes
+    // so coverage checks do not schedule a redundant frustum-only repack.
+    nearViewCount: nearIndices.length,
+    overviewViewCount: overviewIndices.length,
   };
+}
+
+/**
+ * Test actual view identities against the complete conservative resident set.
+ * A tree already packed for the shadow envelope also covers the color view in
+ * the immutable-count WebGPU path, regardless of its position in the buffer.
+ */
+export function seedThreeResidentSelectionCoversView(
+  residentBuckets: readonly SeedThreeResidentBucketSelection[],
+  slotByLayoutIndex: readonly (SeedThreeLayoutSlotMapping | null)[],
+  desiredViewLayoutIndices: readonly number[],
+): boolean {
+  const residentSlotsByBucket = residentBuckets.map((bucket) => new Set([
+    ...bucket.nearSlotIndices,
+    ...bucket.overviewSlotIndices,
+  ]));
+  for (const layoutIndex of desiredViewLayoutIndices) {
+    const mapping = slotByLayoutIndex[layoutIndex];
+    if (!mapping) continue;
+    if (!residentSlotsByBucket[mapping.bucketIndex]?.has(mapping.slotIndex)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function updateMeshPassInstanceCounts(

@@ -4,9 +4,9 @@ import {
   createSeedThreeBucketMatrixWriteJob,
   enabledSeedThreeTreeCountInPrefix,
   partitionSeedThreeSelectionByStaticLod,
-  partitionSeedThreeSelectionByView,
   runSeedThreeBucketMatrixWriteChunk,
   runSeedThreeBucketMatrixWriteSlices,
+  seedThreeResidentSelectionCoversView,
   updateSeedThreeLodPassInstanceCounts,
   writeSeedThreeLodMatrices,
   type SeedThreeTreeSlot,
@@ -175,20 +175,6 @@ assert.deepEqual(
   'non-affine source matrices must retain the exact generic Matrix4 result',
 );
 
-const passPartition = partitionSeedThreeSelectionByView(
-  [0, 1, 2, 3, 4],
-  new Set([1, 3]),
-);
-assert.deepEqual(passPartition, {
-  orderedIndices: [1, 3, 0, 2, 4],
-  viewCount: 2,
-}, 'view-visible trees must form a stable prefix ahead of shadow-only casters');
-assert.deepEqual(
-  [...passPartition.orderedIndices].sort((a, b) => a - b),
-  [0, 1, 2, 3, 4],
-  'pass partitioning must preserve the exact conservative selected set',
-);
-
 const staticOverviewIndices = new Set([1, 4]);
 const staticLodFromFirstDistanceClassification = partitionSeedThreeSelectionByStaticLod(
   {
@@ -206,17 +192,30 @@ const staticLodFromOppositeDistanceClassification = partitionSeedThreeSelectionB
   },
   (layoutIndex) => staticOverviewIndices.has(layoutIndex),
 );
+const staticLodFromOppositeView = partitionSeedThreeSelectionByStaticLod(
+  {
+    nearIndices: [0, 1, 2],
+    overviewIndices: [3, 4],
+    viewIndices: [0, 3],
+  },
+  (layoutIndex) => staticOverviewIndices.has(layoutIndex),
+);
 assert.deepEqual(
   staticLodFromFirstDistanceClassification,
   staticLodFromOppositeDistanceClassification,
   'camera-distance classifications must not alter any retained tree static LOD identity',
 );
+assert.deepEqual(
+  staticLodFromFirstDistanceClassification,
+  staticLodFromOppositeView,
+  'camera direction must not reorder an already-resident color/shadow instance buffer',
+);
 assert.deepEqual(staticLodFromFirstDistanceClassification, {
-  nearIndices: [2, 0, 3],
+  nearIndices: [0, 2, 3],
   overviewIndices: [1, 4],
-  nearViewCount: 1,
+  nearViewCount: 3,
   overviewViewCount: 2,
-}, 'static LOD partitioning must retain the exact selected union and view prefixes');
+}, 'static LOD partitioning must retain stable conservative resident prefixes');
 assert.deepEqual(
   [
     ...staticLodFromFirstDistanceClassification.nearIndices,
@@ -224,6 +223,35 @@ assert.deepEqual(
   ].sort((left, right) => left - right),
   [0, 1, 2, 3, 4],
   'static LOD restoration must neither add nor remove selected trees',
+);
+
+const residentBuckets = [{
+  nearSlotIndices: [0, 1],
+  overviewSlotIndices: [2],
+}];
+const residentLayoutMappings = [
+  { bucketIndex: 0, slotIndex: 0 },
+  { bucketIndex: 0, slotIndex: 1 },
+  { bucketIndex: 0, slotIndex: 2 },
+  { bucketIndex: 0, slotIndex: 3 },
+];
+assert.equal(
+  seedThreeResidentSelectionCoversView(
+    residentBuckets,
+    residentLayoutMappings,
+    [2],
+  ),
+  true,
+  'a tree already resident for shadows must cover the color view without a repack',
+);
+assert.equal(
+  seedThreeResidentSelectionCoversView(
+    residentBuckets,
+    residentLayoutMappings,
+    [3],
+  ),
+  false,
+  'a genuinely uncovered view tree must still request a resident-buffer update',
 );
 
 writeSeedThreeLodMatrices(nearSet, slots, [0]);

@@ -40,6 +40,7 @@ import {
   enabledSeedThreeTreeCountInPrefix,
   partitionSeedThreeSelectionByStaticLod,
   runSeedThreeBucketMatrixWriteSlices,
+  seedThreeResidentSelectionCoversView,
   updateSeedThreeLodPassInstanceCounts,
   writeSeedThreeLodMatrices,
   type SeedThreeBucketMatrixWriteJob,
@@ -898,7 +899,11 @@ export function updateSeedThreeForestCameraBudgeted(
     // the resident prefix still completes immediately to preserve coverage.
     const protectVisibleCoverage = options.immediateWhenViewUncovered === true;
     const residentSelectionCoversDesiredView =
-      currentForestResidentSelectionsCoverDesiredView(forest, work.desired);
+      seedThreeResidentSelectionCoversView(
+        forest.buckets,
+        forest.slotByLayoutIndex,
+        selection.viewIndices,
+      );
     const interactionWork = planSeedThreeForestInteractionWork(
       previousCameraInteractionActive,
       cameraInteractionActive,
@@ -1186,58 +1191,12 @@ function reconcileCountOnlyPassPartitions(
     ) {
       continue;
     }
-    // The packed transform order is already correct. Only the boundary between
-    // the color-visible prefix and its shadow-only suffix moved, so publishing
-    // the two scalar draw counts is sufficient and schedules no GPU upload.
+    // The packed transform order is already correct. A scalar resident-count
+    // change can be published without scheduling a GPU buffer upload.
     bucket.nearViewSlotCount = next.nearViewSlotCount;
     bucket.overviewViewSlotCount = next.overviewViewSlotCount;
     updateBucketPassInstanceCounts(bucket);
   }
-}
-
-function currentForestResidentSelectionsCoverDesiredView(
-  forest: SeedThreeForestInstances,
-  desired: readonly PassPartitionedBucketSelection[],
-): boolean {
-  for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
-    const bucket = forest.buckets[bucketIndex]!;
-    const next = desired[bucketIndex]!;
-    if (!sortedPrefixContains(
-      bucket.nearSlotIndices,
-      bucket.nearViewSlotCount,
-      next.near,
-      next.nearViewSlotCount,
-    )) return false;
-    if (!sortedPrefixContains(
-      bucket.overviewSlotIndices,
-      bucket.overviewViewSlotCount,
-      next.overview,
-      next.overviewViewSlotCount,
-    )) return false;
-  }
-  return true;
-}
-
-function sortedPrefixContains(
-  available: readonly number[],
-  availableLength: number,
-  required: readonly number[],
-  requiredLength: number,
-): boolean {
-  const availableEnd = Math.min(available.length, Math.max(0, availableLength));
-  const requiredEnd = Math.min(required.length, Math.max(0, requiredLength));
-  let availableIndex = 0;
-  for (let requiredIndex = 0; requiredIndex < requiredEnd; requiredIndex += 1) {
-    const requiredValue = required[requiredIndex]!;
-    while (availableIndex < availableEnd && available[availableIndex]! < requiredValue) {
-      availableIndex += 1;
-    }
-    if (availableIndex >= availableEnd || available[availableIndex] !== requiredValue) {
-      return false;
-    }
-    availableIndex += 1;
-  }
-  return true;
 }
 
 function createSeedThreeUpdateTelemetry(): SeedThreeForestUpdateTelemetry {
