@@ -103,9 +103,14 @@ export function createRegionalResourcePlan(
     : adjustedVariety >= 20
       ? 3
       : 2;
+  const requiredKinds: ForagingNodeKind[] = settings.terrainPreset === 'delnice_meadow'
+    ? ['game', 'fish']
+    : ['game'];
   const presentForagingKinds: ForagingNodeKind[] = [
-    'game',
-    ...rankOptionalKinds(settings).slice(0, varietyKindCount - 1),
+    ...requiredKinds,
+    ...rankOptionalKinds(settings)
+      .filter((kind) => !requiredKinds.includes(kind))
+      .slice(0, Math.max(0, varietyKindCount - requiredKinds.length)),
   ];
 
   const abundanceAdjustment = Math.round((abundance - 50) / 30);
@@ -273,10 +278,7 @@ export function describeResourceVariety(value: number): string {
 }
 
 function rankOptionalKinds(settings: WorldGenerationSettings): ForagingNodeKind[] {
-  const supportedKinds = settings.terrainPreset === 'delnice_meadow'
-    ? OPTIONAL_FORAGING_KINDS.filter((kind) => kind !== 'fish')
-    : OPTIONAL_FORAGING_KINDS;
-  return [...supportedKinds].sort((a, b) =>
+  return [...OPTIONAL_FORAGING_KINDS].sort((a, b) =>
     regionalAffinity(settings, b) - regionalAffinity(settings, a)
   );
 }

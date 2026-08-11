@@ -25,6 +25,10 @@ declare module 'three/webgpu' {
     toneMappingExposure: number;
 
     constructor(parameters?: WebGPURendererParameters);
+    compute(
+      nodes: ComputeNode | ComputeNode[],
+      dispatchSize?: number | number[],
+    ): Promise<void> | undefined;
     dispose(): void;
     getMaxAnisotropy(): number;
     getPixelRatio(): number;
@@ -33,6 +37,19 @@ declare module 'three/webgpu' {
     setClearColor(color: THREE.ColorRepresentation, alpha?: number): void;
     setPixelRatio(value?: number): void;
     setSize(width: number, height: number, updateStyle?: boolean): void;
+  }
+
+  export type ComputeNode = {
+    readonly isComputeNode: true;
+    dispose(): void;
+    setName(name: string): ComputeNode;
+  };
+
+  export class StorageTexture extends THREE.Texture {
+    readonly isStorageTexture: true;
+    mipmapsAutoUpdate: boolean;
+    constructor(width?: number, height?: number);
+    setSize(width: number, height: number): void;
   }
 
   export class NodeMaterial extends THREE.Material {

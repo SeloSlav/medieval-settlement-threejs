@@ -109,17 +109,32 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
   }
 }
 
-const delniceLayout = createWorldLayout(applyTerrainPreset({
-  ...DEFAULT_WORLD_GENERATION_SETTINGS,
-  mapSize: 'medium',
-  resourceAbundance: 100,
-  resourceVariety: 100,
-}, 'delnice_meadow'));
-const delniceFish = WorldLayoutRegistry.fromWorldLayout(delniceLayout)
-  .definitionList
-  .filter((node) => node.kind === 'fish');
-assert.equal(delniceLayout.resourcePlan.foragingNodeCounts.fish, 0);
-assert.equal(delniceFish.length, 0, 'a region with no surface water must never advertise fish');
+for (const variation of [0x1, 0x52a91, 0xfffff]) {
+  const delniceLayout = createWorldLayout(applyTerrainPreset({
+    ...DEFAULT_WORLD_GENERATION_SETTINGS,
+    seed: variation,
+    mapSize: 'medium',
+    resourceAbundance: 100,
+    resourceVariety: 100,
+  }, 'delnice_meadow'));
+  const delniceFish = WorldLayoutRegistry.fromWorldLayout(delniceLayout)
+    .definitionList
+    .filter((node) => node.kind === 'fish');
+  assert.ok(delniceLayout.resourcePlan.foragingNodeCounts.fish >= 1);
+  assert.equal(delniceFish.length, delniceLayout.resourcePlan.foragingNodeCounts.fish);
+  assert.ok(
+    delniceFish.every((shoal) =>
+      delniceLayout.riverLayout.isInlandWaterAt(shoal.x, shoal.z)
+    ),
+    'Delnice fish must live in its inland pond rather than an absent river',
+  );
+  assert.ok(
+    delniceFish.every((shoal) =>
+      findDryCampSite(shoal.x, shoal.z, delniceLayout.riverLayout)
+    ),
+    'Delnice pond fisheries need reachable dry camp sites',
+  );
+}
 
 for (const variation of [0x1, 0x52a91, 0xfffff]) {
   const vinodolLayout = createWorldLayout(applyTerrainPreset({

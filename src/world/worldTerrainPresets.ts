@@ -57,8 +57,8 @@ export const WORLD_TERRAIN_PRESETS: readonly WorldTerrainPresetDefinition[] = [
     name: 'Delnice',
     region: 'Delnice · Gorski Kotar',
     description:
-      'A broad, level upland meadow with no river, enclosed by forested mountain ridges along every border.',
-    features: ['Open meadow floor', 'No surface water', 'Mountain ring'],
+      'A broad, level upland meadow with a spring-fed woodland pond and forested mountain ridges along every border.',
+    features: ['Open meadow floor', 'Spring-fed fish pond', 'Mountain ring'],
     topography: 76,
     hydrology: 0,
     forestDensity: 30,

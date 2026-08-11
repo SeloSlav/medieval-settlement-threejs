@@ -24,6 +24,7 @@ export type ForagingSite = {
 export type ForagingLayoutOptions = {
   forestCores: ForestCore[];
   riverLayout: RiverLayout;
+  wildlifeDepositFootprints?: ReadonlyArray<{ x: number; z: number; radius: number }>;
   playableHalf?: number;
   seed?: number;
   nodeCounts?: Partial<Record<ForagingNodeKind, number>>;
@@ -45,6 +46,8 @@ const FISH_MAX_SHORE_DISTANCE = 58;
  * padding covers the river field's shoreline dilation beyond the layout mask.
  */
 export const GAME_HABITAT_WATER_CLEARANCE = gamePatchSpawnRadius(true) + 6;
+/** Full rich-herd reach plus a quiet buffer beyond a physical deposit edge. */
+export const GAME_HABITAT_DEPOSIT_CLEARANCE = gamePatchSpawnRadius(true) + 14;
 /** Keeps every visible raspberry clump beyond the rendered shoreline. */
 export const BERRY_PATCH_WATER_CLEARANCE = BERRY_PATCH_MAX_SPAWN_RADIUS + 6;
 
@@ -63,11 +66,22 @@ export class ForagingLayout {
     this.gameRespawnCandidates = gameRespawnCandidates;
   }
 
+  withGameRespawnCandidates(
+    predicate: (candidate: { x: number; z: number }) => boolean,
+  ): ForagingLayout {
+    return new ForagingLayout(
+      this.seed,
+      this.sites,
+      this.gameRespawnCandidates.filter(predicate),
+    );
+  }
+
   static create(options: ForagingLayoutOptions): ForagingLayout {
     const seed = options.seed ?? 0x8f3c21a7;
     const playableHalf = options.playableHalf ?? 410;
     const extent = playableHalf;
     const forestCores = options.forestCores;
+    const wildlifeDeposits = options.wildlifeDepositFootprints ?? [];
     const rng = mulberry32(seed);
     const nodeCounts = normalizeNodeCounts(options.nodeCounts);
     const desiredGameCandidateCount = Math.max(
@@ -84,20 +98,20 @@ export class ForagingLayout {
     );
     const gameRespawnCandidates = denseForestCandidates.filter((candidate) =>
       isGameHabitatClearOfWater(options.riverLayout, candidate.x, candidate.z)
+      && isGameHabitatClearOfDeposits(wildlifeDeposits, candidate.x, candidate.z)
     );
     if (gameRespawnCandidates.length < nodeCounts.game) {
-      for (const candidate of createFallbackGameCandidates(extent, options.riverLayout)) {
+      for (const candidate of createFallbackGameCandidates(
+        extent,
+        options.riverLayout,
+        wildlifeDeposits,
+      )) {
         if (gameRespawnCandidates.length >= nodeCounts.game) break;
         if (!hasMinimumDistance(gameRespawnCandidates, candidate.x, candidate.z, 85)) continue;
         gameRespawnCandidates.push(candidate);
       }
     }
-    const gameSiteCandidates = [
-      ...denseForestCandidates,
-      ...gameRespawnCandidates.filter((candidate) =>
-        !denseForestCandidates.some((dense) => dense.x === candidate.x && dense.z === candidate.z)
-      ),
-    ];
+    const gameSiteCandidates = [...gameRespawnCandidates];
 
     const sites: ForagingSite[] = [];
     for (let gameIndex = 0; gameIndex < nodeCounts.game; gameIndex++) {
@@ -107,6 +121,7 @@ export class ForagingLayout {
         extent,
         forestCores,
         options.riverLayout,
+        wildlifeDeposits,
         gameSiteCandidates,
         sites,
       );
@@ -410,6 +425,7 @@ function pickGameSite(
   extent: number,
   forestCores: ForestCore[],
   riverLayout: RiverLayout,
+  wildlifeDeposits: ReadonlyArray<{ x: number; z: number; radius: number }>,
   denseCandidates: Array<{ x: number; z: number }>,
   existing: ForagingSite[],
 ): ForagingSite | null {
@@ -420,6 +436,7 @@ function pickGameSite(
   for (const candidate of shuffled) {
     if (!hasMinimumDistance(existing, candidate.x, candidate.z, MIN_FORAGING_SPACING)) continue;
     if (!isGameHabitatClearOfWater(riverLayout, candidate.x, candidate.z)) continue;
+    if (!isGameHabitatClearOfDeposits(wildlifeDeposits, candidate.x, candidate.z)) continue;
     return { x: candidate.x, z: candidate.z, kind: 'game' };
   }
 
@@ -429,6 +446,7 @@ function pickGameSite(
     const z = (rng() * 2 - 1) * (extent - margin);
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 36) continue;
     if (!isGameHabitatClearOfWater(riverLayout, x, z)) continue;
+    if (!isGameHabitatClearOfDeposits(wildlifeDeposits, x, z)) continue;
     const density = forestDensityAt(x, z, forestCores, extent, extent * (1080 / 820));
     if (density < DENSE_FOREST_MIN) continue;
     if (!hasMinimumDistance(existing, x, z, MIN_FORAGING_SPACING)) continue;
@@ -436,7 +454,10 @@ function pickGameSite(
   }
 
   const fallback = denseCandidates
-    .filter((candidate) => isGameHabitatClearOfWater(riverLayout, candidate.x, candidate.z))
+    .filter((candidate) =>
+      isGameHabitatClearOfWater(riverLayout, candidate.x, candidate.z)
+      && isGameHabitatClearOfDeposits(wildlifeDeposits, candidate.x, candidate.z)
+    )
     .reduce<{ x: number; z: number } | null>(
       (best, candidate) => {
         if (!best) return candidate;
@@ -601,6 +622,7 @@ function createFallbackDenseCandidates(
 function createFallbackGameCandidates(
   extent: number,
   riverLayout: RiverLayout,
+  wildlifeDeposits: ReadonlyArray<{ x: number; z: number; radius: number }>,
 ): Array<{ x: number; z: number }> {
   const candidates: Array<{ x: number; z: number }> = [];
   const limit = extent - GAME_HABITAT_WATER_CLEARANCE;
@@ -610,6 +632,7 @@ function createFallbackGameCandidates(
       if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 36) continue;
       if (!hasMinimumDistance(candidates, x, z, 85)) continue;
       if (!isGameHabitatClearOfWater(riverLayout, x, z)) continue;
+      if (!isGameHabitatClearOfDeposits(wildlifeDeposits, x, z)) continue;
       candidates.push({ x, z });
     }
   }
@@ -623,6 +646,17 @@ export function isGameHabitatClearOfWater(
   clearance = GAME_HABITAT_WATER_CLEARANCE,
 ): boolean {
   return isForagingFootprintClearOfWater(riverLayout, x, z, clearance);
+}
+
+export function isGameHabitatClearOfDeposits(
+  deposits: ReadonlyArray<{ x: number; z: number; radius: number }>,
+  x: number,
+  z: number,
+  clearance = GAME_HABITAT_DEPOSIT_CLEARANCE,
+): boolean {
+  return deposits.every((deposit) =>
+    Math.hypot(x - deposit.x, z - deposit.z) > deposit.radius + clearance
+  );
 }
 
 export function isBerryPatchClearOfWater(

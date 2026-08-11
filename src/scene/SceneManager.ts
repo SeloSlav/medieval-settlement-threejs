@@ -428,6 +428,7 @@ export class SceneManager {
       startupTextures.riverRock,
       backend.maxAnisotropy,
       backend.kind,
+      backend.renderer,
     );
     const quarrySystem = createQuarrySystem(terrain, quarryLayout, startupTextures.riverRock);
     const clayDepositSystem = createClayDepositSystem(terrain, clayDepositLayout);

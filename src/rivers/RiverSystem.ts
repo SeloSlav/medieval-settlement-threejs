@@ -17,7 +17,7 @@ import {
 } from './RiverWaterMaterial.ts';
 import type { RockObstacle } from '../utils/pathGeometry.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
-import type { RendererBackendKind } from '../scene/RendererBackend.ts';
+import type { RendererBackendKind, SupportedRenderer } from '../scene/RendererBackend.ts';
 import { isReedZoomActive } from '../grass/grassLodMath.ts';
 
 function createPropShadowMaterials(): {
@@ -69,13 +69,20 @@ export async function createRiverSystem(
   rockTextures: MossyRockTextureSet,
   maxAnisotropy: number,
   rendererBackend: RendererBackendKind,
+  renderer: SupportedRenderer,
 ): Promise<RiverSystem> {
   const group = new THREE.Group();
   group.name = 'River system';
 
   const rockMaterial = createRiverRockMaterial(rockTextures);
   const rockShadowMaterials = createPropShadowMaterials();
-  const waterController = createRiverWaterMesh(group, terrain, riverField);
+  const waterController = createRiverWaterMesh(
+    group,
+    terrain,
+    riverField,
+    renderer,
+    rendererBackend,
+  );
   const reedsGroup = new THREE.Group();
   reedsGroup.name = 'Progressive river reeds';
   group.add(reedsGroup);

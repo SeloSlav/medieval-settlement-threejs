@@ -71,14 +71,12 @@ const delniceSettings = applyTerrainPreset(settings({
   resourceVariety: 100,
 }), 'delnice_meadow');
 const delnicePlan = createRegionalResourcePlan(delniceSettings);
-assert.equal(delnicePlan.foragingNodeCounts.fish, 0);
-assert.ok(!delnicePlan.presentForagingKinds.includes('fish'));
+assert.ok(delnicePlan.foragingNodeCounts.fish >= 1);
+assert.ok(delnicePlan.presentForagingKinds.includes('fish'));
 assert.ok(
-  delnicePlan.foragingNodeCounts.game
-    + delnicePlan.foragingNodeCounts.berries
-    + delnicePlan.foragingNodeCounts.mushrooms
-    === delnicePlan.totalForagingNodes,
-  'Delnice should reallocate its forage budget without inventing a fishery',
+  Object.values(delnicePlan.foragingNodeCounts)
+    .reduce((sum, count) => sum + count, 0) === delnicePlan.totalForagingNodes,
+  'Delnice should include its pond fishery inside the regional forage budget',
 );
 
 for (const mapSize of mapSizes) {

@@ -23,8 +23,10 @@ import {
 } from '../src/foraging/harvestReservePolicy.ts';
 import {
   BERRY_PATCH_WATER_CLEARANCE,
+  GAME_HABITAT_DEPOSIT_CLEARANCE,
   GAME_HABITAT_WATER_CLEARANCE,
   isBerryPatchClearOfWater,
+  isGameHabitatClearOfDeposits,
   isGameHabitatClearOfWater,
 } from '../src/foraging/ForagingLayout.ts';
 import {
@@ -42,6 +44,7 @@ import {
 import { forestDensityAt } from '../src/props/forestField.ts';
 import { MUSHROOM_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
+import { createPhysicalDepositFootprints } from '../src/resources/physicalDepositProtection.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
 import { computeWorldBootstrapDataHeadless } from '../src/world/worldBootstrapData.ts';
 import { RiverField } from '../src/rivers/RiverField.ts';
@@ -56,6 +59,7 @@ import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
   resolveWorldDimensions,
 } from '../src/world/worldGenerationSettings.ts';
+import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
 import {
   collectWorkerTargets,
   pickWorkerWalkPlan,
@@ -153,6 +157,17 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
 const layout = createWorldLayout();
 assertGameHabitatsStayDry(layout, 'default map');
 assertBerryPatchesStayDry(layout, 'default map');
+for (const preset of ['kupa_valley', 'risnjak_pass', 'delnice_meadow', 'vinodol_coast'] as const) {
+  assertGameHabitatsStayDry(
+    createWorldLayout(applyTerrainPreset({
+      ...DEFAULT_WORLD_GENERATION_SETTINGS,
+      seed: 0x52a91,
+      resourceAbundance: 100,
+      resourceVariety: 100,
+    }, preset)),
+    `${preset} preset`,
+  );
+}
 const registry = WorldLayoutRegistry.fromWorldLayout(layout);
 const gameDefinitions = registry.definitionList.filter((node) => node.kind === 'game');
 assert.deepEqual(gameDefinitions.map((node) => node.id), ['foraging-game-0', 'foraging-game-1']);
@@ -424,6 +439,7 @@ function assertGameHabitatsStayDry(
     layout: worldLayout.riverLayout,
   });
   const habitats = worldLayout.foragingLayout.sites.filter((site) => site.kind === 'game');
+  const deposits = createPhysicalDepositFootprints(worldLayout);
 
   for (const habitat of habitats) {
     assert.equal(
@@ -435,6 +451,11 @@ function assertGameHabitatsStayDry(
       ),
       true,
       `${label} ${habitat.isRich ? 'large' : 'standard'} game habitat should clear the river`,
+    );
+    assert.equal(
+      isGameHabitatClearOfDeposits(deposits, habitat.x, habitat.z),
+      true,
+      `${label} game habitat should clear stone, clay, iron, and salt deposits by ${GAME_HABITAT_DEPOSIT_CLEARANCE} m beyond their protected edges`,
     );
     const spawnRadius = gamePatchSpawnRadius(habitat.isRich === true);
     for (let radius = 0; radius <= spawnRadius; radius += 2) {
@@ -461,6 +482,12 @@ function assertGameHabitatsStayDry(
       isGameHabitatClearOfWater(worldLayout.riverLayout, candidate.x, candidate.z)
     ),
     `${label} migration candidates should also clear the river`,
+  );
+  assert.ok(
+    worldLayout.foragingLayout.gameRespawnCandidates.every((candidate) =>
+      isGameHabitatClearOfDeposits(deposits, candidate.x, candidate.z)
+    ),
+    `${label} migration candidates should also clear every physical deposit`,
   );
 }
 

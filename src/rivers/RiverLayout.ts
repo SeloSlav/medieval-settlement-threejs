@@ -14,6 +14,18 @@ export type RiverCorridor = {
   points: RiverPoint[];
 };
 
+export type InlandWaterBodyKind = 'pond' | 'lake';
+
+export type InlandWaterBody = {
+  x: number;
+  z: number;
+  radiusX: number;
+  radiusZ: number;
+  rotation: number;
+  depth: number;
+  kind: InlandWaterBodyKind;
+};
+
 export type RiverLayoutOptions = {
   bounds: TerrainBounds;
   seed?: number;
@@ -29,10 +41,12 @@ export type SerializedRiverLayout = {
   drain: { x: number; z: number };
   terrainPreset?: WorldTerrainPreset;
   corridors: RiverCorridor[];
+  inlandWaterBodies?: InlandWaterBody[];
 };
 
 const TAU = Math.PI * 2;
 const CONFLUENCE_LAKE_RADIUS = 54;
+const GENERATION_TO_TERRAIN_RATIO = 820 / 1080;
 const SEGMENT_CELL_SIZE = 32;
 
 type IndexedRiverSegment = {
@@ -42,6 +56,7 @@ type IndexedRiverSegment = {
 
 export class RiverLayout {
   readonly corridors: RiverCorridor[];
+  readonly inlandWaterBodies: readonly InlandWaterBody[];
   readonly drain: { x: number; z: number };
   readonly seed: number;
   readonly terrainPreset: WorldTerrainPreset;
@@ -53,12 +68,14 @@ export class RiverLayout {
     seed: number,
     drain: { x: number; z: number },
     corridors: RiverCorridor[],
+    inlandWaterBodies: InlandWaterBody[],
     terrainPreset: WorldTerrainPreset = 'custom',
   ) {
     this.bounds = bounds;
     this.seed = seed;
     this.drain = drain;
     this.corridors = corridors;
+    this.inlandWaterBodies = inlandWaterBodies;
     this.terrainPreset = terrainPreset;
     this.segmentCells = buildRiverSegmentCells(corridors);
   }
@@ -79,6 +96,7 @@ export class RiverLayout {
         seed,
         mouth ? { x: mouth.x, z: mouth.z } : drain,
         [corridor],
+        [],
         terrainPreset,
       );
     }
@@ -88,11 +106,18 @@ export class RiverLayout {
         x: coastalShoreX(bounds, seed, (bounds.minZ + bounds.maxZ) * 0.5),
         z: (bounds.minZ + bounds.maxZ) * 0.5,
       };
-      return new RiverLayout(bounds, seed, coastalDrain, [], terrainPreset);
+      return new RiverLayout(bounds, seed, coastalDrain, [], [], terrainPreset);
     }
 
     if (terrainPreset === 'delnice_meadow') {
-      return new RiverLayout(bounds, seed, drain, [], terrainPreset);
+      return new RiverLayout(
+        bounds,
+        seed,
+        drain,
+        [],
+        [buildDelnicePond(bounds, seed)],
+        terrainPreset,
+      );
     }
 
     const corridors: RiverCorridor[] = [];
@@ -120,7 +145,14 @@ export class RiverLayout {
       }
     }
 
-    return new RiverLayout(bounds, seed, drain, corridors, terrainPreset);
+    return new RiverLayout(
+      bounds,
+      seed,
+      drain,
+      corridors,
+      [buildConfluenceLake(drain)],
+      terrainPreset,
+    );
   }
 
   static fromSerialized(data: SerializedRiverLayout): RiverLayout {
@@ -129,6 +161,12 @@ export class RiverLayout {
       data.seed,
       data.drain,
       data.corridors,
+      data.inlandWaterBodies ?? defaultInlandWaterBodies(
+        data.bounds,
+        data.seed,
+        data.drain,
+        data.terrainPreset ?? 'custom',
+      ),
       data.terrainPreset ?? 'custom',
     );
   }
@@ -140,28 +178,23 @@ export class RiverLayout {
       drain: this.drain,
       terrainPreset: this.terrainPreset,
       corridors: this.corridors,
+      inlandWaterBodies: [...this.inlandWaterBodies],
     };
   }
 
   getValleyDepression(x: number, z: number): number {
-    if (this.terrainPreset === 'delnice_meadow') return 0;
-    const lake = this.terrainPreset === 'kupa_valley' || this.terrainPreset === 'vinodol_coast'
-      ? { mask: 0, depth: 0 }
-      : sampleConfluenceLake(x, z, this.drain, this.seed);
+    const inlandWater = this.sampleInlandWater(x, z);
     const hit = this.sampleCorridor(x, z);
     const corridorDepth = hit
       ? (1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.95, hit.distance)) *
         hit.channelDepth *
         (1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.95, hit.distance))
       : 0;
-    return Math.max(lake.depth, corridorDepth);
+    return Math.max(inlandWater.depth, corridorDepth);
   }
 
   sampleRiverMask(x: number, z: number): number {
-    if (this.terrainPreset === 'delnice_meadow') return 0;
-    const lake = this.terrainPreset === 'kupa_valley' || this.terrainPreset === 'vinodol_coast'
-      ? { mask: 0, depth: 0 }
-      : sampleConfluenceLake(x, z, this.drain, this.seed);
+    const inlandWater = this.sampleInlandWater(x, z);
     const hit = this.sampleCorridor(x, z);
     const corridorMask = hit
       ? 1 - smoothstep(hit.halfWidth * 0.28, hit.halfWidth * 0.72, hit.distance)
@@ -169,7 +202,15 @@ export class RiverLayout {
     const coastMask = this.terrainPreset === 'vinodol_coast'
       ? sampleCoastalSea(x, z, this.bounds, this.seed)
       : 0;
-    return Math.max(lake.mask, corridorMask, coastMask);
+    return Math.max(inlandWater.mask, corridorMask, coastMask);
+  }
+
+  sampleInlandWaterMask(x: number, z: number): number {
+    return this.sampleInlandWater(x, z).mask;
+  }
+
+  isInlandWaterAt(x: number, z: number): boolean {
+    return this.sampleInlandWaterMask(x, z) >= 0.48;
   }
 
   getCoastalShoreX(z: number): number | null {
@@ -255,6 +296,22 @@ export class RiverLayout {
       channelDepth: bestDepth,
       progress: bestProgress,
     };
+  }
+
+  private sampleInlandWater(x: number, z: number): { mask: number; depth: number } {
+    let mask = 0;
+    let depth = 0;
+    for (let index = 0; index < this.inlandWaterBodies.length; index++) {
+      const sample = sampleInlandWaterBody(
+        x,
+        z,
+        this.inlandWaterBodies[index],
+        index === 0 ? this.seed : this.seed ^ Math.imul(index, 0x45d9f3b),
+      );
+      mask = Math.max(mask, sample.mask);
+      depth = Math.max(depth, sample.depth);
+    }
+    return { mask, depth };
   }
 
   private segmentsAt(x: number, z: number): ReadonlyArray<IndexedRiverSegment> {
@@ -444,22 +501,76 @@ function resampleByDistance(
   return out;
 }
 
-function sampleConfluenceLake(
+function buildConfluenceLake(
+  drain: { x: number; z: number },
+): InlandWaterBody {
+  return {
+    x: drain.x,
+    z: drain.z,
+    radiusX: CONFLUENCE_LAKE_RADIUS,
+    radiusZ: CONFLUENCE_LAKE_RADIUS,
+    rotation: 0,
+    depth: 4.1,
+    kind: 'lake',
+  };
+}
+
+function buildDelnicePond(bounds: TerrainBounds, seed: number): InlandWaterBody {
+  const terrainHalf = Math.min(
+    bounds.maxX - bounds.minX,
+    bounds.maxZ - bounds.minZ,
+  ) * 0.5;
+  const generationHalf = terrainHalf * GENERATION_TO_TERRAIN_RATIO;
+  const angle = hashF64(seed ^ 0x4310, 7, 13) * TAU;
+  const distance = generationHalf * (0.62 + hashF64(seed ^ 0x2d71, 5, 11) * 0.06);
+  const baseRadius = Math.max(32, Math.min(46, generationHalf * 0.105));
+  return {
+    x: Math.cos(angle) * distance,
+    z: Math.sin(angle) * distance,
+    radiusX: baseRadius * (1.08 + hashF64(seed ^ 0x4a91, 3, 17) * 0.18),
+    radiusZ: baseRadius * (0.78 + hashF64(seed ^ 0x37c5, 9, 19) * 0.16),
+    rotation: hashF64(seed ^ 0x6e21, 11, 23) * Math.PI,
+    depth: 3.2 + hashF64(seed ^ 0x51a7, 13, 29) * 0.9,
+    kind: 'pond',
+  };
+}
+
+function defaultInlandWaterBodies(
+  bounds: TerrainBounds,
+  seed: number,
+  drain: { x: number; z: number },
+  terrainPreset: WorldTerrainPreset,
+): InlandWaterBody[] {
+  if (terrainPreset === 'delnice_meadow') return [buildDelnicePond(bounds, seed)];
+  if (terrainPreset === 'kupa_valley' || terrainPreset === 'vinodol_coast') return [];
+  return [buildConfluenceLake(drain)];
+}
+
+function sampleInlandWaterBody(
   x: number,
   z: number,
-  drain: { x: number; z: number },
+  body: InlandWaterBody,
   seed: number,
 ): { mask: number; depth: number } {
-  const dx = x - drain.x;
-  const dz = z - drain.z;
-  const dist = Math.hypot(dx, dz);
+  const dx = x - body.x;
+  const dz = z - body.z;
+  const cos = Math.cos(body.rotation);
+  const sin = Math.sin(body.rotation);
+  const localX = dx * cos + dz * sin;
+  const localZ = -dx * sin + dz * cos;
+  const normalizedDistance = Math.hypot(
+    localX / Math.max(1, body.radiusX),
+    localZ / Math.max(1, body.radiusZ),
+  );
+  const meanRadius = Math.sqrt(body.radiusX * body.radiusZ);
   const shoreNoise =
     (valueNoise2D(x * 0.045 + seed * 0.001, z * 0.045 - 6.8, seed) - 0.5) * 9 +
     (valueNoise2D(x * 0.11 - 3.2, z * 0.11 + 8.1, seed ^ 0x33) - 0.5) * 4;
-  const radius = CONFLUENCE_LAKE_RADIUS + shoreNoise;
-  if (dist > radius * 1.05) return { mask: 0, depth: 0 };
-  const mask = 1 - smoothstep(radius * 0.2, radius, dist);
-  const depth = (1 - smoothstep(radius * 0.15, radius, dist)) * 4.1;
+  const shoreScale = Math.max(0.2, 1 + shoreNoise / Math.max(1, meanRadius));
+  const distance = normalizedDistance / shoreScale;
+  if (distance > 1.05) return { mask: 0, depth: 0 };
+  const mask = 1 - smoothstep(0.2, 1, distance);
+  const depth = (1 - smoothstep(0.15, 1, distance)) * body.depth;
   return { mask, depth };
 }
 

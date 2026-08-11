@@ -1,4 +1,7 @@
-import type { ForagingSite } from '../foraging/ForagingLayout.ts';
+import {
+  GAME_HABITAT_DEPOSIT_CLEARANCE,
+  type ForagingSite,
+} from '../foraging/ForagingLayout.ts';
 import type { QuarrySite } from '../quarries/QuarryLayout.ts';
 import { hashF64 } from '../rivers/riverHash.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
@@ -138,8 +141,12 @@ export class ClayDepositLayout {
     for (const grade of grades) {
       const selected = rankedCandidates.find((candidate) =>
         hasResourceClearance(candidate, avoidSites)
+        && hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
         && hasClayBankClearance(candidate, sites)
-      ) ?? rankedCandidates.find((candidate) => hasClayBankClearance(candidate, sites));
+      ) ?? rankedCandidates.find((candidate) =>
+        hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
+        && hasClayBankClearance(candidate, sites)
+      );
       if (!selected) continue;
       const radii = clayDepositRadii(grade, selected.formation);
       sites.push({
@@ -381,6 +388,21 @@ function hasClayBankClearance(
   return sites.every((site) =>
     Math.hypot(candidate.x - site.x, candidate.z - site.z) >= MIN_CLAY_BANK_SPACING
   );
+}
+
+function hasGameHabitatClearance(
+  candidate: BankCandidate,
+  grade: ClayDepositSite['kind'],
+  foragingSites: readonly ForagingSite[],
+): boolean {
+  const radii = clayDepositRadii(grade, candidate.formation);
+  const protectedRadius = Math.max(radii.radiusX, radii.radiusZ) + 4;
+  return foragingSites
+    .filter((site) => site.kind === 'game')
+    .every((site) =>
+      Math.hypot(candidate.x - site.x, candidate.z - site.z)
+        > protectedRadius + GAME_HABITAT_DEPOSIT_CLEARANCE
+    );
 }
 
 function sampleEllipticalBlend(

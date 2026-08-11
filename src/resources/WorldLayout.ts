@@ -1,6 +1,9 @@
 import { fullTerrainBounds } from '../terrain/terrainBounds.ts';
 import { RiverLayout } from '../rivers/RiverLayout.ts';
-import { ForagingLayout } from '../foraging/ForagingLayout.ts';
+import {
+  ForagingLayout,
+  isGameHabitatClearOfDeposits,
+} from '../foraging/ForagingLayout.ts';
 import { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import { ClayDepositLayout } from '../clay/ClayDepositLayout.ts';
 import { MineralDepositLayout } from '../minerals/MineralDepositLayout.ts';
@@ -21,6 +24,11 @@ import {
   type WorldGenerationSettings,
 } from '../world/worldGenerationSettings.ts';
 import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../world/worldGenerationSettings.ts';
+import {
+  ORDINARY_STONE_DEPOSIT_PROTECTION_RADIUS,
+  RICH_STONE_DEPOSIT_PROTECTION_RADIUS,
+  createPhysicalDepositFootprints,
+} from './physicalDepositProtection.ts';
 import {
   createRegionalResourcePlan,
   type RegionalResourcePlan,
@@ -72,9 +80,16 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
   const densityScale = forestDensityScale(normalizedSettings.forestDensity);
   const spawnConfig = createForestSpawnConfig(dims.generationSize, dims.terrainSize, densityScale);
   const forestCores = createForestCores(mulberry32(forestSeed), spawnConfig);
-  const foragingLayout = ForagingLayout.create({
+  let foragingLayout = ForagingLayout.create({
     forestCores,
     riverLayout,
+    wildlifeDepositFootprints: quarryLayout.sites.map((site) => ({
+      x: site.x,
+      z: site.z,
+      radius: site.kind === 'large'
+        ? RICH_STONE_DEPOSIT_PROTECTION_RADIUS
+        : ORDINARY_STONE_DEPOSIT_PROTECTION_RADIUS,
+    })),
     playableHalf: dims.generationHalf,
     seed: normalizedSettings.seed ^ 0x4f0d21,
     nodeCounts: resourcePlan.foragingNodeCounts,
@@ -100,6 +115,14 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     mapSize: normalizedSettings.mapSize,
     resourceVariety: normalizedSettings.resourceVariety,
   });
+  const physicalDeposits = createPhysicalDepositFootprints({
+    quarryLayout,
+    clayDepositLayout,
+    mineralDepositLayout,
+  });
+  foragingLayout = foragingLayout.withGameRespawnCandidates((candidate) =>
+    isGameHabitatClearOfDeposits(physicalDeposits, candidate.x, candidate.z)
+  );
   return {
     settings: normalizedSettings,
     seed: normalizedSettings.seed,

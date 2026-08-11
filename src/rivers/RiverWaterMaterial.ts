@@ -3,11 +3,15 @@ import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import {
   abs,
   attribute,
+  cameraFar,
+  cameraNear,
   cameraPosition,
   cameraViewMatrix,
   distance,
   dot,
+  exp,
   float,
+  linearDepth,
   max,
   min,
   mix,
@@ -25,6 +29,7 @@ import {
   vec2,
   vec3,
   vec4,
+  viewportDepthTexture,
   viewportSafeUV,
   viewportSharedTexture,
 } from 'three/tsl';
@@ -34,6 +39,10 @@ import {
   RIVER_WATER_PROFILE,
   type WaterSurfaceProfile,
 } from './WaterSurfaceProfile.ts';
+import {
+  SPECTRAL_WATER_CASCADE_COUNT,
+  type SpectralWaterBinding,
+} from './SpectralWaterSimulation.ts';
 
 type TslNode = {
   add(value: TslNode | number): TslNode;
@@ -95,8 +104,8 @@ export const RIVER_OPTICAL_SHORE_EXPONENT = 2;
 export const RIVER_BANK_BED_REVEAL = 0.72;
 export const RIVER_FLOW_ROUGHNESS_FLOOR = 0.315;
 export const RIVER_FLOW_HIGHLIGHT_STRENGTH = 0.085;
-export const RIVER_SKY_RETURN_STRENGTH = 0.46;
-export const RIVER_REFLECTION_FRESNEL_FLOOR = 0.24;
+export const RIVER_SKY_RETURN_STRENGTH = 0.92;
+export const RIVER_REFLECTION_FRESNEL_FLOOR = 0.02;
 export const RIVER_CLOSE_REFLECTION_DISTANCE = 115;
 export const RIVER_PAINTERLY_REFLECTION_SAMPLES = 2;
 
@@ -234,13 +243,18 @@ const OPEN_WATER_SPECTRUM: readonly SpectralWave[] = [
   { directionX: 0.643, directionZ: 0.766, wavelength: 2.6, amplitude: 0.007, phase: 5.2, displacesMesh: false },
 ] as const;
 
-export const OPEN_WATER_SPECTRAL_BAND_COUNT = OPEN_WATER_SPECTRUM.length;
+export const OPEN_WATER_SPECTRAL_BAND_COUNT = SPECTRAL_WATER_CASCADE_COUNT;
+export const OPEN_WATER_ANALYTIC_FALLBACK_BAND_COUNT = OPEN_WATER_SPECTRUM.length;
 
 type SpectralWaveNodes = Readonly<{
+  displacementX: TslNode;
   displacement: TslNode;
+  displacementZ: TslNode;
   slopeX: TslNode;
   slopeZ: TslNode;
   crestSignal: TslNode;
+  compression: TslNode;
+  persistentFoam: TslNode;
 }>;
 
 function buildOpenWaterSpectrum(
@@ -294,16 +308,135 @@ function buildOpenWaterSpectrum(
   }
 
   return {
+    displacementX: float(0) as TslNode,
     displacement,
+    displacementZ: float(0) as TslNode,
     slopeX,
     slopeZ,
     crestSignal: crest.div(amplitudeSum).mul(0.5).add(0.5) as TslNode,
+    compression: float(0) as TslNode,
+    persistentFoam: float(0) as TslNode,
+  };
+}
+
+function buildGpuSpectralWater(
+  wx: TslNode,
+  wz: TslNode,
+  worldPos: TslNode,
+  spectralWater: SpectralWaterBinding,
+): SpectralWaveNodes {
+  const viewDistance = distance(cameraPosition as TslNode, worldPos) as TslNode;
+  const heightGap = max(
+    float(0.5) as TslNode,
+    abs((cameraPosition as TslNode).y.sub(worldPos.y) as TslNode) as TslNode,
+  ) as TslNode;
+  // The same distance-squared footprint gates vertex displacement, resolved
+  // slopes and foam. This is the reference system's critical anti-aliasing
+  // rule for strategic and first-person cameras sharing one water surface.
+  const pixelFootprint = viewDistance.mul(viewDistance).mul(0.001).div(heightGap) as TslNode;
+  const keepWindows: readonly (readonly [number, number])[] = [
+    [2.5, 5.5],
+    [0.35, 1.2],
+    [0.1, 0.4],
+  ];
+
+  let displacementX = float(0) as TslNode;
+  let displacementY = float(0) as TslNode;
+  let displacementZ = float(0) as TslNode;
+  let slopeX = float(0) as TslNode;
+  let slopeZ = float(0) as TslNode;
+  let horizontalX = float(0) as TslNode;
+  let horizontalZ = float(0) as TslNode;
+  let compression = float(0) as TslNode;
+  let persistentFoam = float(0) as TslNode;
+
+  for (const [index, cascade] of spectralWater.cascades.entries()) {
+    const uv = vec2(
+      wx.div(cascade.config.lengthScale).add(0.5),
+      wz.div(cascade.config.lengthScale).add(0.5),
+    ) as TslNode;
+    const field0 = texture(cascade.field0, uv) as TslNode;
+    const field1 = texture(cascade.field1, uv) as TslNode;
+    const foam0 = texture(cascade.foam0, uv) as TslNode;
+    const foam1 = texture(cascade.foam1, uv) as TslNode;
+    const [keepStart, keepEnd] = keepWindows[index] ?? keepWindows[keepWindows.length - 1];
+    const keep = sub(
+      float(1) as TslNode,
+      smoothstep(
+        float(keepStart) as TslNode,
+        float(keepEnd) as TslNode,
+        pixelFootprint,
+      ) as TslNode,
+    ) as TslNode;
+    const choppiness = float(cascade.config.choppiness) as TslNode;
+    const crossDerivative = field0.a.mul(choppiness).mul(keep) as TslNode;
+    const cascadeHorizontalX = field1.b.mul(choppiness).mul(keep) as TslNode;
+    const cascadeHorizontalZ = field1.a.mul(choppiness).mul(keep) as TslNode;
+    const jacobian = (float(1) as TslNode)
+      .add(cascadeHorizontalX)
+      .mul((float(1) as TslNode).add(cascadeHorizontalZ))
+      .sub(crossDerivative.mul(crossDerivative)) as TslNode;
+    const cascadeCompression = max(
+      float(0) as TslNode,
+      sub(float(1) as TslNode, jacobian) as TslNode,
+    ) as TslNode;
+
+    if (cascade.config.displacesMesh) {
+      displacementX = displacementX.add(field0.r.mul(choppiness).mul(keep)) as TslNode;
+      displacementY = displacementY.add(field0.b.mul(keep)) as TslNode;
+      displacementZ = displacementZ.add(field0.g.mul(choppiness).mul(keep)) as TslNode;
+    }
+    slopeX = slopeX.add(field1.r.mul(keep)) as TslNode;
+    slopeZ = slopeZ.add(field1.g.mul(keep)) as TslNode;
+    horizontalX = horizontalX.add(cascadeHorizontalX) as TslNode;
+    horizontalZ = horizontalZ.add(cascadeHorizontalZ) as TslNode;
+    compression = compression.add(cascadeCompression) as TslNode;
+    persistentFoam = max(
+      persistentFoam,
+      mix(foam0.r, foam1.r, spectralWater.foamPing as unknown as TslNode) as TslNode,
+    ) as TslNode;
+  }
+
+  const foldDenominatorX = max(
+    float(0.22) as TslNode,
+    (float(1) as TslNode).add(horizontalX),
+  ) as TslNode;
+  const foldDenominatorZ = max(
+    float(0.22) as TslNode,
+    (float(1) as TslNode).add(horizontalZ),
+  ) as TslNode;
+  const crestSignal = min(
+    float(1) as TslNode,
+    max(
+      smoothstep(
+        float(0.08) as TslNode,
+        float(0.62) as TslNode,
+        compression,
+      ) as TslNode,
+      smoothstep(
+        float(0.18) as TslNode,
+        float(0.72) as TslNode,
+        displacementY,
+      ) as TslNode,
+    ) as TslNode,
+  ) as TslNode;
+
+  return {
+    displacementX,
+    displacement: displacementY,
+    displacementZ,
+    slopeX: slopeX.div(foldDenominatorX) as TslNode,
+    slopeZ: slopeZ.div(foldDenominatorZ) as TslNode,
+    crestSignal,
+    compression,
+    persistentFoam,
   };
 }
 
 function buildRiverWaterShaderNodes(
   shoreMaps: RiverWaterShoreMaps,
   profile: WaterSurfaceProfile,
+  spectralWater: SpectralWaterBinding | null,
 ) {
   const simDeltaAttr = attribute('simDelta', 'float') as TslNode;
   const position = positionLocal as TslNode;
@@ -338,12 +471,9 @@ function buildRiverWaterShaderNodes(
   const openWaterPresence = sub(float(1) as TslNode, flowPresence) as TslNode;
   const openWaterWaveStrength = openWaterPresence
     .mul(float(profile.openWaterWaveScale) as TslNode) as TslNode;
-  const openWaterSpectrum = buildOpenWaterSpectrum(
-    wx,
-    wz,
-    frameTime,
-    profile.standingWaveRatio,
-  );
+  const openWaterSpectrum = spectralWater
+    ? buildGpuSpectralWater(wx, wz, worldPos, spectralWater)
+    : buildOpenWaterSpectrum(wx, wz, frameTime, profile.standingWaveRatio);
   const waveSetPhase = (sin(
     frameTime.mul(0.21).sub(wx.mul(0.003)).add(wz.mul(0.006)) as TslNode,
   ) as TslNode).mul(0.5).add(0.5) as TslNode;
@@ -355,10 +485,25 @@ function buildRiverWaterShaderNodes(
   // Fade spectral displacement through the final shallow band; the existing
   // shoreline lap reaches the clipped edge without opening terrain cracks.
   const openWaterInterior = pow(depthFactor, float(0.38) as TslNode) as TslNode;
+  const waveEnvelope = spectralWater ? float(1) as TslNode : waveSetEnvelope;
   const openWaterDisplacement = openWaterSpectrum.displacement
     .mul(openWaterWaveStrength)
     .mul(openWaterInterior)
-    .mul(waveSetEnvelope) as TslNode;
+    .mul(waveEnvelope) as TslNode;
+  const horizontalWaterDisplacement = pow(
+    openWaterInterior,
+    float(1.65) as TslNode,
+  ) as TslNode;
+  const openWaterDisplacementX = openWaterSpectrum.displacementX
+    .mul(openWaterWaveStrength)
+    .mul(horizontalWaterDisplacement)
+    .mul(waveEnvelope)
+    .mul(0.72) as TslNode;
+  const openWaterDisplacementZ = openWaterSpectrum.displacementZ
+    .mul(openWaterWaveStrength)
+    .mul(horizontalWaterDisplacement)
+    .mul(waveEnvelope)
+    .mul(0.72) as TslNode;
 
   const lapA = sin(
     frameTime.mul(2.35).add(flowAlong.mul(0.34)).add(flowCross.mul(0.12)) as TslNode,
@@ -410,7 +555,7 @@ function buildRiverWaterShaderNodes(
     .mul(float(FLOW_WAVE_HEIGHT * 0.82) as TslNode) as TslNode;
 
   const positionNode = vec3(
-    position.x,
+    position.x.add(openWaterDisplacementX),
     position.y.add(
       simDeltaAttr
         .add(lap)
@@ -418,7 +563,7 @@ function buildRiverWaterShaderNodes(
         .add(flowDisplacement)
         .add(openWaterDisplacement),
     ),
-    position.z,
+    position.z.add(openWaterDisplacementZ),
   ) as TslNode;
 
   const foamNoise = (sin(flowAlong.mul(0.41).add(flowCross.mul(0.73)).add(frameTime.mul(0.44)) as TslNode) as TslNode)
@@ -526,9 +671,12 @@ function buildRiverWaterShaderNodes(
     .add(microA.mul(0.507))
     .add(microB.mul(0.849))
     .add(currentSlope.mul(flowDirZ)) as TslNode;
+  const openWaterNormalEnvelope = spectralWater
+    ? float(1) as TslNode
+    : mix(float(0.74) as TslNode, float(1) as TslNode, waveSetPhase) as TslNode;
   const openWaterNormalStrength = openWaterWaveStrength
     .mul(openWaterInterior)
-    .mul(mix(float(0.74) as TslNode, float(1) as TslNode, waveSetPhase) as TslNode) as TslNode;
+    .mul(openWaterNormalEnvelope) as TslNode;
   const rippleSlopeX = riverRippleSlopeX
     .mul(flowPresence)
     .add(openWaterSpectrum.slopeX.mul(openWaterNormalStrength)) as TslNode;
@@ -564,10 +712,11 @@ function buildRiverWaterShaderNodes(
     float(1) as TslNode,
     shallowFactor.mul(depthFactor).mul(float(4.8) as TslNode) as TslNode,
   ) as TslNode;
+  const shoreBreakDriver = spectralWater ? openWaterSpectrum.crestSignal : waveSetPhase;
   const shoreBreakSet = smoothstep(
     float(0.34) as TslNode,
     float(0.78) as TslNode,
-    waveSetPhase,
+    shoreBreakDriver,
   ) as TslNode;
   // Whitecaps need a different field from wave height. Without this breakup,
   // the largest spectral band draws map-wide parallel ribbons from the RTS
@@ -598,10 +747,18 @@ function buildRiverWaterShaderNodes(
     float(0.74) as TslNode,
     crestBreakupA.mul(0.46).add(crestBreakupB.mul(0.34)).add(crestBreakupC.mul(0.2)) as TslNode,
   ) as TslNode;
-  const openWaterFoam = openWaterCrest
+  const transientCrestFoam = openWaterCrest
     .mul(crestBreakup)
     .mul(depthFactor)
-    .mul(0.17)
+    .mul(0.17) as TslNode;
+  const persistentCompressionFoam = openWaterSpectrum.persistentFoam
+    .mul(crestBreakup.mul(0.56).add(0.44) as TslNode)
+    .mul(depthFactor)
+    .mul(0.48) as TslNode;
+  const openWaterFoam = (max(
+    transientCrestFoam,
+    persistentCompressionFoam,
+  ) as TslNode)
     .add(
       shoreBreakBand
         .mul(shoreBreakSet)
@@ -705,14 +862,50 @@ function buildRiverWaterShaderNodes(
     .mul(depthFactor)
     .mul(mix(float(0.045) as TslNode, float(0.12) as TslNode, flowStructure) as TslNode) as TslNode;
   const reflectedSurface = mix(skyReflection, painterlySurroundings, surroundingsReturn) as TslNode;
-  const fresnel = pow(
-    sub(float(1) as TslNode, viewDotUp) as TslNode,
-    float(3.4) as TslNode,
+  // Exact unpolarised air-to-water Fresnel. The former artistic power curve
+  // reflected roughly twelve times too much sky at normal incidence and was
+  // the main source of the pale plastic film over deep water.
+  const incidentCosine = max(
+    float(0.001) as TslNode,
+    dot(viewDir, rippleNormalWorld) as TslNode,
   ) as TslNode;
-  const reflectionEnergy = mix(
-    float(RIVER_REFLECTION_FRESNEL_FLOOR) as TslNode,
+  const eta = 1 / 1.333;
+  const sinTransmittedSquared = (sub(
+    float(1) as TslNode,
+    incidentCosine.mul(incidentCosine),
+  ) as TslNode).mul(eta * eta) as TslNode;
+  const transmittedCosine = pow(
+    max(
+      float(0) as TslNode,
+      sub(float(1) as TslNode, sinTransmittedSquared) as TslNode,
+    ) as TslNode,
+    float(0.5) as TslNode,
+  ) as TslNode;
+  const parallelFresnel = incidentCosine
+    .sub(transmittedCosine.mul(1.333) as TslNode)
+    .div(
+      max(
+        float(0.0001) as TslNode,
+        incidentCosine.add(transmittedCosine.mul(1.333) as TslNode),
+      ) as TslNode,
+    ) as TslNode;
+  const perpendicularFresnel = transmittedCosine
+    .sub(incidentCosine.mul(1.333) as TslNode)
+    .div(
+      max(
+        float(0.0001) as TslNode,
+        transmittedCosine.add(incidentCosine.mul(1.333) as TslNode),
+      ) as TslNode,
+    ) as TslNode;
+  const dielectricFresnel = parallelFresnel.mul(parallelFresnel)
+    .add(perpendicularFresnel.mul(perpendicularFresnel) as TslNode)
+    .mul(0.5) as TslNode;
+  const reflectionEnergy = min(
     float(RIVER_SKY_RETURN_STRENGTH) as TslNode,
-    fresnel,
+    max(
+      float(RIVER_REFLECTION_FRESNEL_FLOOR) as TslNode,
+      dielectricFresnel,
+    ) as TslNode,
   ) as TslNode;
   // Preserve a small photographic adaptation floor at night in addition to
   // the real palette reflection so moonless water never collapses to black.
@@ -771,12 +964,6 @@ function buildRiverWaterShaderNodes(
     SEA_DEEP_WATER_TINT,
     seaTintWeight,
   ) as TslNode;
-  const stableBackdropColor = mix(
-    stableDeepWaterTint,
-    bedColor,
-    bankBedReveal.mul(float(RIVER_DEEP_BACKDROP_STABILITY) as TslNode) as TslNode,
-  ) as TslNode;
-
   const flowWobble = sin(flowAlong.mul(0.52).sub(frameTime.mul(2.35)) as TslNode) as TslNode;
   const crossWobble = sin(flowCross.mul(0.41).add(frameTime.mul(1.65)) as TslNode) as TslNode;
   const refractFlow = vec2(flowWobble.mul(flowDirX), flowWobble.mul(flowDirZ)) as TslNode;
@@ -787,28 +974,52 @@ function buildRiverWaterShaderNodes(
     .add(refractCross.mul(depthFactor.mul(float(0.009) as TslNode) as TslNode) as TslNode) as TslNode;
   const refractUv = viewportSafeUV((screenUV as TslNode).add(refractOffset) as TslNode) as TslNode;
   const sceneBehind = (viewportSharedTexture(refractUv) as TslNode).rgb as TslNode;
-  const shallowBackdropStability = shallowFactor
-    .mul(pow(viewDotUp, float(0.72) as TslNode) as TslNode)
-    .mul(float(0.86) as TslNode) as TslNode;
-  const backdropStability = min(
-    float(1) as TslNode,
-    shallowBackdropStability.add(
-      depthFactor.mul(float(RIVER_DEEP_BACKDROP_STABILITY) as TslNode) as TslNode,
+  const sceneLinearDepth = linearDepth(viewportDepthTexture(refractUv)) as TslNode;
+  const waterLinearDepth = linearDepth() as TslNode;
+  const sceneThicknessMeters = max(
+    float(0) as TslNode,
+    sceneLinearDepth
+      .sub(waterLinearDepth)
+      .mul((cameraFar as TslNode).sub(cameraNear as TslNode)) as TslNode,
+  ) as TslNode;
+  const fallbackThickness = mix(
+    float(0.16) as TslNode,
+    float(profile.id === 'coastal' ? 8.5 : profile.id === 'inland' ? 3.8 : 1.6) as TslNode,
+    opticalDepthFactor,
+  ) as TslNode;
+  // A valid scene-depth difference owns thickness. The fallback only covers
+  // clear-colour and horizon samples where no opaque bottom was captured.
+  const opticalThickness = min(
+    float(profile.id === 'coastal' ? 18 : 6) as TslNode,
+    max(sceneThicknessMeters, fallbackThickness.mul(0.18) as TslNode) as TslNode,
+  ) as TslNode;
+  const absorptionR = -Math.log(Math.max(0.001, profile.attenuationColor[0]))
+    / profile.attenuationDistance;
+  const absorptionG = -Math.log(Math.max(0.001, profile.attenuationColor[1]))
+    / profile.attenuationDistance;
+  const absorptionB = -Math.log(Math.max(0.001, profile.attenuationColor[2]))
+    / profile.attenuationDistance;
+  const transmittance = exp(
+    vec3(
+      opticalThickness.mul(-absorptionR),
+      opticalThickness.mul(-absorptionG),
+      opticalThickness.mul(-absorptionB),
     ) as TslNode,
   ) as TslNode;
-  const backdropNode = mix(sceneBehind, stableBackdropColor, backdropStability) as TslNode;
-  const backdropAlphaNode = mix(
-    float(0.72) as TslNode,
-    float(0.88) as TslNode,
-    opticalShallowFactor.mul(pow(viewDotUp, float(0.65) as TslNode) as TslNode) as TslNode,
+  const absorbedScene = sceneBehind.mul(transmittance).add(
+    stableDeepWaterTint.mul(sub(float(1) as TslNode, transmittance) as TslNode) as TslNode,
   ) as TslNode;
+  const shallowBedReturn = bankBedReveal
+    .mul(pow(viewDotUp, float(0.72) as TslNode) as TslNode)
+    .mul(0.72) as TslNode;
+  const backdropNode = mix(absorbedScene, bedColor, shallowBedReturn) as TslNode;
+  const transmittedEnergy = sub(float(1) as TslNode, reflectionEnergy) as TslNode;
+  const backdropAlphaNode = transmittedEnergy
+    .mul(float(profile.transmission) as TslNode)
+    .mul(sub(float(1) as TslNode, foamStrength.mul(0.62) as TslNode) as TslNode)
+    .mul(mix(float(0.78) as TslNode, float(1) as TslNode, opticalShallowFactor) as TslNode) as TslNode;
 
-  const riverThicknessNode = mix(float(0.05) as TslNode, float(0.78) as TslNode, opticalDepthFactor) as TslNode;
-  const thicknessNode = mix(
-    riverThicknessNode,
-    float(1.42) as TslNode,
-    seaTintWeight.mul(opticalDepthFactor) as TslNode,
-  ) as TslNode;
+  const thicknessNode = opticalThickness;
   const riverSpecularIntensity = mix(
     float(0.24) as TslNode,
     float(0.5) as TslNode,
@@ -860,20 +1071,23 @@ function buildRiverWaterShaderNodes(
 let sharedWaterMaterial: MeshPhysicalNodeMaterial | null = null;
 let sharedShoreMaps: RiverWaterShoreMaps | null = null;
 let sharedWaterProfile: WaterSurfaceProfile | null = null;
+let sharedSpectralWater: SpectralWaterBinding | null = null;
 
 export function getSharedRiverWaterMaterial(
   shoreMaps: RiverWaterShoreMaps,
   profile: WaterSurfaceProfile = RIVER_WATER_PROFILE,
+  spectralWater: SpectralWaterBinding | null = null,
 ): MeshPhysicalNodeMaterial {
   if (
     sharedWaterMaterial
     && sharedShoreMaps === shoreMaps
     && sharedWaterProfile?.id === profile.id
+    && sharedSpectralWater === spectralWater
   ) return sharedWaterMaterial;
 
   disposeSharedRiverWaterMaterial();
 
-  const nodes = buildRiverWaterShaderNodes(shoreMaps, profile);
+  const nodes = buildRiverWaterShaderNodes(shoreMaps, profile, spectralWater);
   const material = new MeshPhysicalNodeMaterial();
   material.name = profile.id === 'coastal'
     ? 'CoastalWaterMaterial'
@@ -884,11 +1098,17 @@ export function getSharedRiverWaterMaterial(
   material.roughness = profile.roughness;
   material.metalness = 0;
   material.ior = 1.33;
-  material.transmission = profile.transmission;
+  // The material owns refraction, scene-depth thickness, Beer-Lambert
+  // absorption and Fresnel explicitly through backdropNode. Enabling the
+  // stock physical transmission path here would capture and attenuate the
+  // scene a second time.
+  material.transmission = 0;
   material.thickness = profile.id === 'coastal' ? 1.2 : 0.65;
   material.attenuationDistance = profile.attenuationDistance;
   material.attenuationColor = new THREE.Color(...profile.attenuationColor);
   material.specularIntensity = profile.specularIntensity;
+  material.userData.waterTransmission = profile.transmission;
+  material.userData.spectralCascadeCount = spectralWater?.cascades.length ?? 0;
   material.depthWrite = false;
   material.depthTest = true;
   material.side = THREE.FrontSide;
@@ -908,6 +1128,7 @@ export function getSharedRiverWaterMaterial(
   sharedWaterMaterial = material;
   sharedShoreMaps = shoreMaps;
   sharedWaterProfile = profile;
+  sharedSpectralWater = spectralWater;
   return sharedWaterMaterial;
 }
 
@@ -955,4 +1176,5 @@ export function disposeSharedRiverWaterMaterial(): void {
   sharedWaterMaterial = null;
   sharedShoreMaps = null;
   sharedWaterProfile = null;
+  sharedSpectralWater = null;
 }

@@ -1,4 +1,7 @@
-import type { ForagingSite } from '../foraging/ForagingLayout.ts';
+import {
+  GAME_HABITAT_DEPOSIT_CLEARANCE,
+  type ForagingSite,
+} from '../foraging/ForagingLayout.ts';
 import type { QuarrySite } from '../quarries/QuarryLayout.ts';
 import { CENTRAL_CLEARING_RADIUS, mulberry32 } from '../props/forestField.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
@@ -101,6 +104,7 @@ export class MineralDepositLayout {
         entry,
         sites,
         avoidSites,
+        options.foragingSites ?? [],
       );
       if (site) sites.push(site);
     }
@@ -165,6 +169,7 @@ function pickMineralSite(
   entry: MineralDepositRosterEntry,
   existing: readonly MineralDepositSite[],
   avoidSites: ReadonlyArray<{ x: number; z: number }>,
+  foragingSites: readonly ForagingSite[],
 ): MineralDepositSite | null {
   const formation = mineralDepositFormation(entry.resource, riverLayout);
   let best: MineralDepositSite | null = null;
@@ -193,16 +198,30 @@ function pickMineralSite(
       radiusX,
       radiusZ,
     };
+    const scoreNoise = formation === 'bedrock' ? 0 : rng() * 0.08;
+    if (!hasGameHabitatClearance(candidate, foragingSites)) continue;
     // Iron keeps the established unconstrained bedrock distribution. Only salt
     // needs a surface-water-specific placement preference.
     if (formation === 'bedrock') return candidate;
-    const score = mineralSitePreference(candidate, riverLayout, playableHalf)
-      + rng() * 0.08;
+    const score = mineralSitePreference(candidate, riverLayout, playableHalf) + scoreNoise;
     if (score <= bestScore) continue;
     best = candidate;
     bestScore = score;
   }
   return best;
+}
+
+function hasGameHabitatClearance(
+  candidate: MineralDepositSite,
+  foragingSites: readonly ForagingSite[],
+): boolean {
+  const protectedRadius = Math.max(candidate.radiusX, candidate.radiusZ) + 4;
+  return foragingSites
+    .filter((site) => site.kind === 'game')
+    .every((site) =>
+      Math.hypot(candidate.x - site.x, candidate.z - site.z)
+        > protectedRadius + GAME_HABITAT_DEPOSIT_CLEARANCE
+    );
 }
 
 function mineralDepositFormation(

@@ -1,6 +1,29 @@
 declare module 'three/tsl' {
   import type * as THREE from 'three';
 
+  type ComputeNode = import('three/webgpu').ComputeNode;
+
+  export const Fn: (
+    callback: (...params: any[]) => any,
+  ) => ((...params: any[]) => {
+    compute(count: number, workgroupSize?: number[]): ComputeNode;
+  });
+  export const int: (value: any) => any;
+  export const cameraFar: any;
+  export const cameraNear: any;
+  export const ivec2: (x: any, y?: any) => any;
+  export const instanceIndex: any;
+  export const round: (value: any) => any;
+  export const smoothstep: (edge0: any, edge1: any, value: any) => any;
+  export const textureLoad: (texture: THREE.Texture, coord: any) => any;
+  export const textureStore: (
+    texture: import('three/webgpu').StorageTexture,
+    coord: any,
+    value: any,
+  ) => { toWriteOnly(): any };
+  export const linearDepth: (value?: any) => any;
+  export const viewportDepthTexture: (uv?: any) => any;
+
   export const abs: (value: unknown) => unknown;
   export const cameraPosition: unknown;
   export const cameraViewMatrix: unknown;

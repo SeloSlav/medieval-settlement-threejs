@@ -23,6 +23,7 @@ import {
   disposeSharedRiverWaterMaterial,
   getSharedRiverWaterMaterial,
   normalizeRiverWaterNightAmount,
+  OPEN_WATER_ANALYTIC_FALLBACK_BAND_COUNT,
   OPEN_WATER_SPECTRAL_BAND_COUNT,
   RIVER_BANK_BED_REVEAL,
   RIVER_CLOUD_REFLECTION_CLEAR,
@@ -60,6 +61,13 @@ import {
   RIVER_WATER_PROFILE,
   waterSurfaceProfileForPreset,
 } from '../src/rivers/WaterSurfaceProfile.ts';
+import {
+  buildSpectralCascadeData,
+  SPECTRAL_WATER_CASCADES,
+  SPECTRAL_WATER_CASCADE_COUNT,
+  SPECTRAL_WATER_RESOLUTION,
+  validateSpectralIfft,
+} from '../src/rivers/SpectralWaterSimulation.ts';
 import {
   LILY_SHORE_REACH_METERS,
   lilyPadShorePresence,
@@ -212,7 +220,31 @@ assert.deepEqual(encodeWaterFlowDirection({ dx: 1, dz: 0 }), [255, 128]);
 assert.equal(waterSurfaceProfileForPreset('vinodol_coast'), COASTAL_WATER_PROFILE);
 assert.equal(waterSurfaceProfileForPreset('kupa_valley'), RIVER_WATER_PROFILE);
 assert.equal(waterSurfaceProfileForPreset('custom'), INLAND_WATER_PROFILE);
-assert.equal(OPEN_WATER_SPECTRAL_BAND_COUNT, 5);
+assert.equal(OPEN_WATER_SPECTRAL_BAND_COUNT, 3);
+assert.equal(OPEN_WATER_SPECTRAL_BAND_COUNT, SPECTRAL_WATER_CASCADE_COUNT);
+assert.equal(OPEN_WATER_ANALYTIC_FALLBACK_BAND_COUNT, 5);
+assert.equal(SPECTRAL_WATER_RESOLUTION, 128);
+for (let index = 1; index < SPECTRAL_WATER_CASCADES.length; index++) {
+  assert.equal(
+    SPECTRAL_WATER_CASCADES[index - 1].cutoffHigh,
+    SPECTRAL_WATER_CASCADES[index].cutoffLow,
+    'adjacent spectral cascades must have one exact, non-overlapping handoff',
+  );
+}
+const spectralDataA = buildSpectralCascadeData(16, SPECTRAL_WATER_CASCADES[0]);
+const spectralDataB = buildSpectralCascadeData(16, SPECTRAL_WATER_CASCADES[0]);
+assert.deepEqual(
+  spectralDataA.initialSpectrum,
+  spectralDataB.initialSpectrum,
+  'spectral Gaussian seeds must be deterministic',
+);
+assert.deepEqual(spectralDataA.waveData, spectralDataB.waveData);
+const ifftValidation = validateSpectralIfft(8);
+assert.ok(ifftValidation.dcMaxError < 1e-5, 'centered DC IFFT must resolve to a constant field');
+assert.ok(
+  ifftValidation.frequencyMaxError < 1e-5,
+  'centered one-bin IFFT must resolve to the expected complex sinusoid',
+);
 assert.ok(COASTAL_WATER_PROFILE.openWaterWaveScale > INLAND_WATER_PROFILE.openWaterWaveScale);
 assert.ok(COASTAL_WATER_PROFILE.attenuationDistance > RIVER_WATER_PROFILE.attenuationDistance);
 assert.ok(INLAND_WATER_PROFILE.standingWaveRatio > COASTAL_WATER_PROFILE.standingWaveRatio);
@@ -254,10 +286,12 @@ const material = getSharedRiverWaterMaterial(shoreMaps);
 
 assert.equal(
   material.transmission,
-  RIVER_WATER_TRANSMISSION,
-  'bounded normals must retain the river transmission path',
+  0,
+  'custom depth-aware refraction must not be double-counted by stock physical transmission',
 );
-assert.equal(material.transmission, 0.72);
+assert.equal(material.userData.waterTransmission, RIVER_WATER_TRANSMISSION);
+assert.equal(material.userData.waterTransmission, 0.72);
+assert.equal(material.userData.spectralCascadeCount, 0);
 assert.equal(material.thickness, 0.65);
 assert.equal(material.attenuationDistance, RIVER_WATER_ATTENUATION_DISTANCE);
 assert.equal(material.attenuationDistance, 2.6);
@@ -287,13 +321,10 @@ assert.ok(
     && RIVER_FLOW_HIGHLIGHT_STRENGTH <= 0.1,
   'broken micro-flow must remain visible without becoming bright directional ribbons',
 );
+assert.ok(RIVER_SKY_RETURN_STRENGTH >= 0.9 && RIVER_SKY_RETURN_STRENGTH <= 0.94);
 assert.ok(
-  RIVER_SKY_RETURN_STRENGTH >= 0.42 && RIVER_SKY_RETURN_STRENGTH <= 0.5,
-  'live sky reflection must remain legible without becoming an opaque mirror',
-);
-assert.ok(
-  RIVER_REFLECTION_FRESNEL_FLOOR >= 0.2 && RIVER_REFLECTION_FRESNEL_FLOOR <= 0.28,
-  'overhead water must retain a restrained sky reflection without becoming a pale wash',
+  RIVER_REFLECTION_FRESNEL_FLOOR >= 0.019 && RIVER_REFLECTION_FRESNEL_FLOOR <= 0.022,
+  'normal-incidence reflection must match the physical air-water Fresnel floor',
 );
 assert.ok(RIVER_CLOSE_REFLECTION_DISTANCE >= 100 && RIVER_CLOSE_REFLECTION_DISTANCE <= 130);
 assert.ok(RIVER_CLOUD_REFLECTION_CLEAR <= 0.08);
@@ -441,6 +472,11 @@ assert.match(
 );
 assert.match(
   lilyPadSource,
+  /riverField\.layout\.isInlandWaterAt\(x, z\)/,
+  'lily pads must be restricted to ponds and lakes, never river channels or the sea',
+);
+assert.match(
+  lilyPadSource,
   /grassBladeLodOpacity\(grassBladeRevealOpacity\(cameraDistance\)\)/,
   'lily pads must use the same close-ground reveal curve as grass blades',
 );
@@ -516,13 +552,23 @@ assert.equal(
 );
 assert.equal(
   (waterMaterialSource.match(/\btexture\(/g) ?? []).length,
-  1,
-  'night water-edge lift must not add texture samples',
+  5,
+  'material source must contain one shore sample plus the four spectral field/history samples',
 );
 assert.match(
   waterMaterialSource,
-  /OPEN_WATER_SPECTRUM[\s\S]*?buildOpenWaterSpectrum/,
-  'open bodies must retain the deterministic multi-band wave spectrum',
+  /buildGpuSpectralWater[\s\S]*?pixelFootprint[\s\S]*?persistentFoam/,
+  'native WebGPU open water must sample footprint-filtered spectral fields and foam history',
+);
+assert.match(
+  waterMaterialSource,
+  /incidentCosine[\s\S]*?parallelFresnel[\s\S]*?perpendicularFresnel/,
+  'reflection/transmission energy must use exact dielectric Fresnel',
+);
+assert.match(
+  waterMaterialSource,
+  /viewportDepthTexture\(refractUv\)[\s\S]*?absorptionR[\s\S]*?transmittance/,
+  'refraction must derive thickness from scene depth and apply Beer-Lambert absorption',
 );
 assert.match(
   waterMaterialSource,
@@ -533,7 +579,8 @@ assert.match(
 disposeSharedRiverWaterMaterial();
 const coastalMaterial = getSharedRiverWaterMaterial(shoreMaps, COASTAL_WATER_PROFILE);
 assert.equal(coastalMaterial.name, 'CoastalWaterMaterial');
-assert.equal(coastalMaterial.transmission, COASTAL_WATER_PROFILE.transmission);
+assert.equal(coastalMaterial.transmission, 0);
+assert.equal(coastalMaterial.userData.waterTransmission, COASTAL_WATER_PROFILE.transmission);
 assert.equal(coastalMaterial.attenuationDistance, COASTAL_WATER_PROFILE.attenuationDistance);
 assert.equal(coastalMaterial.roughness, COASTAL_WATER_PROFILE.roughness);
 assert.ok(coastalMaterial.positionNode, 'coastal profile must displace the water mesh');

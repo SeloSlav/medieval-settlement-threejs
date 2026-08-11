@@ -56,7 +56,7 @@ export async function createRiverLilyPads(
   const geometry = new THREE.PlaneGeometry(1, 1);
   geometry.rotateX(-Math.PI / 2);
   const material = new THREE.MeshStandardMaterial({
-    name: 'Textured river lily pads',
+    name: 'Textured pond and lake lily pads',
     map: texture,
     color: 0xffffff,
     roughness: 0.86,
@@ -71,7 +71,7 @@ export async function createRiverLilyPads(
 
   const capacity = Math.max(placements.length, 1);
   const mesh = new THREE.InstancedMesh(geometry, material, capacity);
-  mesh.name = 'Textured river lily-pad rafts';
+  mesh.name = 'Textured pond and lake lily-pad rafts';
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   mesh.frustumCulled = false;
@@ -97,7 +97,7 @@ export async function createRiverLilyPads(
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
   const group = new THREE.Group();
-  group.name = 'River lily pads';
+  group.name = 'Pond and lake lily pads';
   group.add(mesh);
 
   let lastOpacity = Number.NaN;
@@ -156,6 +156,7 @@ function createLilyPadPlacements(
       const x = wx + (rng() - 0.5) * stepX * 0.82;
       const z = wz + (rng() - 0.5) * stepZ * 0.82;
       if (!riverField.isRenderedWetAt(x, z)) continue;
+      if (!riverField.layout.isInlandWaterAt(x, z)) continue;
 
       const shore = riverField.sampleShoreDistance(x, z);
       const shorePresence = lilyPadShorePresence(shore);

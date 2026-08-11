@@ -124,10 +124,16 @@ assert.ok(risnjak.layout.riverLayout.corridors.length >= 3, 'Risnjak Pass needs 
 const delnice = preparePreset('delnice_meadow', 0x5d2_74b1);
 const delniceDimensions = resolveWorldDimensions(delnice.settings.mapSize);
 assert.equal(delnice.layout.riverLayout.corridors.length, 0, 'Delnice must not generate rivers.');
-assert.equal(
-  sampleWaterShare(delnice.layout.riverLayout, delniceDimensions.playableHalf, 81),
-  0,
-  'Delnice must have no surface water anywhere on the map.',
+assert.equal(delnice.layout.riverLayout.inlandWaterBodies.length, 1);
+assert.equal(delnice.layout.riverLayout.inlandWaterBodies[0]?.kind, 'pond');
+const delniceWaterShare = sampleWaterShare(
+  delnice.layout.riverLayout,
+  delniceDimensions.playableHalf,
+  161,
+);
+assert.ok(
+  delniceWaterShare > 0 && delniceWaterShare < 0.01,
+  `Delnice should have one small inland pond, got ${(delniceWaterShare * 100).toFixed(2)}% water.`,
 );
 assert.ok(
   delnice.layout.clayDepositLayout.sites.length >= 1,
