@@ -27,6 +27,26 @@ export type SeedThreeForestStructuralStats = {
   };
 };
 
+export type SeedThreeForestSubmissionStats = {
+  draws: number;
+  triangles: number;
+  instances: number;
+};
+
+/** One-shot profiler evidence; never sampled by the production frame loop. */
+export type SeedThreeForestProfileBreakdown = {
+  paddedColorTrees: number;
+  criticalColorTrees: number;
+  residentColor: SeedThreeForestSubmissionStats;
+  submittedColor: SeedThreeForestSubmissionStats;
+  criticalProjectedColor: SeedThreeForestSubmissionStats;
+  submittedPasses: {
+    near: SeedThreeForestSubmissionStats;
+    crownUnderlay: SeedThreeForestSubmissionStats;
+    overview: SeedThreeForestSubmissionStats;
+  };
+};
+
 /** Runtime adapter so ForestManager never statically imports SeedThree (Node-safe). */
 export type SeedThreeForestController = {
   hideTree(layoutIndex: number): void;
@@ -41,6 +61,7 @@ export type SeedThreeForestController = {
     deltaSeconds?: number,
   ): boolean;
   getStructuralStats(): SeedThreeForestStructuralStats;
+  getProfileBreakdown(): SeedThreeForestProfileBreakdown;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void;
   setDistantCanopyCardsEnabled(enabled: boolean): void;
   setShadows(enabled: boolean): void;

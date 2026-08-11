@@ -6,6 +6,7 @@ import type {
   SupportedRenderer,
 } from '../scene/RendererBackend.ts';
 import type { GrassStreamTelemetry } from '../grass/GrassBladeField.ts';
+import type { SeedThreeForestProfileBreakdown } from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import {
   createVisualGpuTimestampProfiler,
   type VisualGpuFrameTiming,
@@ -47,7 +48,10 @@ type RuntimeSceneManager = {
     group: THREE.Group;
     getStreamTelemetry(target?: GrassStreamTelemetry): GrassStreamTelemetry;
   } | null;
-  forestManager: { group: THREE.Group } | null;
+  forestManager: {
+    group: THREE.Group;
+    getSeedThreeProfileBreakdown(): SeedThreeForestProfileBreakdown | null;
+  } | null;
   getRendererAdapterEvidence(): RendererAdapterEvidence;
   getVisualGpuFrameTiming?(frameTimestampMs: number): VisualGpuFrameTiming;
   getVisualGpuTimingEvidence?(): VisualGpuTimingEvidence;
@@ -1389,6 +1393,10 @@ export function installVisualPerformanceHooksIfRequested(
       return;
     }
     for (const subsystem of requestedDisabled) setEnabled(subsystem, false);
+    const forestProfile = manager.forestManager.getSeedThreeProfileBreakdown();
+    if (forestProfile) {
+      profileDataset.visualProfileForestStructural = JSON.stringify(forestProfile);
+    }
     profileDataset.visualProfileStatus = 'settling';
     collectorSettleTimeout = window.setTimeout(() => {
       collectorSettleTimeout = null;

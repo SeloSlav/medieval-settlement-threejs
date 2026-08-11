@@ -19,7 +19,10 @@ import {
 } from './RoadStumps.ts';
 import type { TreePhase } from '../resources/types.ts';
 import type { SeedThreeForestController } from '../vegetation/seedthree/seedThreeForestTypes.ts';
-import type { SeedThreeForestStructuralStats } from '../vegetation/seedthree/seedThreeForestTypes.ts';
+import type {
+  SeedThreeForestProfileBreakdown,
+  SeedThreeForestStructuralStats,
+} from '../vegetation/seedthree/seedThreeForestTypes.ts';
 import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
 import { GRASS_BLADE_REVEAL } from '../grass/grassLodMath.ts';
@@ -368,6 +371,10 @@ export class ForestManager {
 
   getSeedThreeStructuralStats(): SeedThreeForestStructuralStats | null {
     return this.seedThreeForest?.getStructuralStats() ?? null;
+  }
+
+  getSeedThreeProfileBreakdown(): SeedThreeForestProfileBreakdown | null {
+    return this.seedThreeForest?.getProfileBreakdown() ?? null;
   }
 
   syncRoadClearance(network: RoadNetwork | null): void {

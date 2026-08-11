@@ -492,6 +492,16 @@ assert.match(
   /springLeaf[\s\S]*autumnPalette[\s\S]*surfaceColor = mix\([\s\S]*springFlush[\s\S]*surfaceColor = mix\(surfaceColor, autumnLeaf, leafMask\.mul\(autumnColor\)\)/,
   'deciduous leaf pixels must receive gradual spring and species-specific autumn color',
 );
+assert.equal(
+  forkSource.match(/texture\(dtMap\)/g)?.length,
+  1,
+  'seasonal leaf classification and SSS must share one exact transmission texture sample',
+);
+assert.match(
+  forkSource,
+  /const transmission = dtMap \? texture\(dtMap\)\.r : null;[\s\S]*transmission\.smoothstep[\s\S]*thicknessColorNode = \(transmission \?\? uniform\(1\)\)/,
+  'the shared transmission texel must feed both seasonal retention and authored SSS',
+);
 assert.match(
   builderSource,
   /findLodLevel\(prototype, 'LOD3'\)[\s\S]*?\?\? findLodLevel\(prototype, 'LOD4'\)/,

@@ -34,7 +34,12 @@ import {
   preloadSeedThreeBranchCardCache,
   type SeedThreeBranchCardStartupTiming,
 } from './seedThreeBranchCards.ts';
-import type { SeedThreeForestController } from './seedThreeForestTypes.ts';
+import type {
+  SeedThreeForestController,
+  SeedThreeForestProfileBreakdown,
+  SeedThreeForestStructuralStats,
+  SeedThreeForestSubmissionStats,
+} from './seedThreeForestTypes.ts';
 import {
   createSeedThreeBucketMatrixWriteJob,
   createSeedThreeExactShadowLodSet,
@@ -1302,24 +1307,9 @@ function createSeedThreeUpdateTelemetry(): SeedThreeForestUpdateTelemetry {
   };
 }
 
-export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstances): {
-  draws: number;
-  triangles: number;
-  instances: number;
-  trees: SeedThreeForestRenderStats;
-  ecology: {
-    counts: {
-      anchors: number;
-      saplings: number;
-      understory: number;
-      deadwood: number;
-      litter: number;
-    };
-    draws: number;
-    instances: number;
-    triangles: number;
-  };
-} {
+export function getSeedThreeForestStructuralStats(
+  forest: SeedThreeForestInstances,
+): SeedThreeForestStructuralStats {
   let draws = 0;
   let triangles = 0;
   let instances = 0;
@@ -1355,6 +1345,126 @@ export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstanc
       triangles: 0,
     },
   };
+}
+
+export function getSeedThreeForestProfileBreakdown(
+  forest: SeedThreeForestInstances,
+): SeedThreeForestProfileBreakdown {
+  const residentColor = emptySubmissionStats();
+  const submittedColor = emptySubmissionStats();
+  const criticalProjectedColor = emptySubmissionStats();
+  const submittedPasses = {
+    near: emptySubmissionStats(),
+    crownUnderlay: emptySubmissionStats(),
+    overview: emptySubmissionStats(),
+  };
+  const criticalNearByBucket = new Uint32Array(forest.buckets.length);
+  const criticalOverviewByBucket = new Uint32Array(forest.buckets.length);
+  let criticalColorTrees = 0;
+  for (const layoutIndex of forest.visibilitySelector.criticalViewIndices) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (!mapping) continue;
+    const slot = forest.buckets[mapping.bucketIndex]?.slots[mapping.slotIndex];
+    if (!slot?.enabled || slot.visibilityParent?.enabled === false) continue;
+    criticalColorTrees += 1;
+    criticalNearByBucket[mapping.bucketIndex] += 1;
+    if (slot.forceOverview) criticalOverviewByBucket[mapping.bucketIndex] += 1;
+  }
+  let paddedColorTrees = 0;
+  for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
+    const bucket = forest.buckets[bucketIndex]!;
+    paddedColorTrees += enabledSeedThreeTreeCount(
+      bucket.slots,
+      bucket.nearViewSlotIndices,
+    );
+    for (const mesh of lodSetMeshes(bucket.nearSet)) {
+      accumulateSubmission(residentColor, mesh, mesh.count);
+      const pass = mesh.userData.crownUnderlay === true
+        ? submittedPasses.crownUnderlay
+        : submittedPasses.near;
+      if (seedThreeMeshIsSubmitted(mesh, forest.group)) {
+        accumulateSubmission(submittedColor, mesh, mesh.count);
+        accumulateSubmission(pass, mesh, mesh.count);
+        accumulateSubmission(
+          criticalProjectedColor,
+          mesh,
+          criticalNearByBucket[bucketIndex]! * seedThreeInstancesPerTree(mesh),
+        );
+      }
+    }
+    for (const mesh of lodSetMeshes(bucket.overviewSet)) {
+      accumulateSubmission(residentColor, mesh, mesh.count);
+      if (!seedThreeMeshIsSubmitted(mesh, forest.group)) continue;
+      accumulateSubmission(submittedColor, mesh, mesh.count);
+      accumulateSubmission(submittedPasses.overview, mesh, mesh.count);
+      accumulateSubmission(
+        criticalProjectedColor,
+        mesh,
+        criticalOverviewByBucket[bucketIndex]! * seedThreeInstancesPerTree(mesh),
+      );
+    }
+  }
+  return {
+    paddedColorTrees,
+    criticalColorTrees,
+    residentColor,
+    submittedColor,
+    criticalProjectedColor,
+    submittedPasses,
+  };
+}
+
+function emptySubmissionStats(): SeedThreeForestSubmissionStats {
+  return { draws: 0, triangles: 0, instances: 0 };
+}
+
+function lodSetMeshes(lodSet: InstancedLodSet): THREE.InstancedMesh[] {
+  return [
+    ...(lodSet.branches ? [lodSet.branches] : []),
+    ...lodSet.cards,
+  ];
+}
+
+function seedThreeInstancesPerTree(mesh: THREE.InstancedMesh): number {
+  return Math.max(1, Number(mesh.userData.k) || 1);
+}
+
+function seedThreeMeshIsSubmitted(
+  mesh: THREE.InstancedMesh,
+  forestGroup: THREE.Group,
+): boolean {
+  if (mesh.count <= 0) return false;
+  for (let object: THREE.Object3D | null = mesh; object; object = object.parent) {
+    if (!object.visible) return false;
+    if (object === forestGroup) return true;
+  }
+  return false;
+}
+
+function accumulateSubmission(
+  target: SeedThreeForestSubmissionStats,
+  mesh: THREE.InstancedMesh,
+  instanceCount: number,
+): void {
+  if (instanceCount <= 0) return;
+  const geometryTriangles = mesh.geometry.index
+    ? mesh.geometry.index.count / 3
+    : mesh.geometry.attributes.position.count / 3;
+  target.draws += 1;
+  target.instances += instanceCount;
+  target.triangles += Math.round(geometryTriangles * instanceCount);
+}
+
+function enabledSeedThreeTreeCount(
+  slots: readonly TreeSlot[],
+  selectedSlotIndices: readonly number[],
+): number {
+  let count = 0;
+  for (const slotIndex of selectedSlotIndices) {
+    const slot = slots[slotIndex];
+    if (slot?.enabled && slot.visibilityParent?.enabled !== false) count += 1;
+  }
+  return count;
 }
 
 export function setSeedThreeForestShadows(forest: SeedThreeForestInstances, enabled: boolean): void {
@@ -1498,6 +1608,7 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
       return fadeChanged || selectionChanged;
     },
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
+    getProfileBreakdown: () => getSeedThreeForestProfileBreakdown(forest),
     setDeciduousFoliage: (presentation) =>
       setSeedThreeForestDeciduousFoliage(forest, presentation),
     setDistantCanopyCardsEnabled: (enabled) =>

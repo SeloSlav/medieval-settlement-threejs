@@ -126,6 +126,7 @@ declare module '@seedthree/core/forest-lod.js' {
   export type ForestLodSelector = {
     readonly items: readonly ForestLodItem[];
     readonly revision: number;
+    readonly criticalViewIndices: readonly number[];
     readonly telemetry: {
       calls: number;
       evaluations: number;

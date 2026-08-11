@@ -2242,6 +2242,11 @@ assert.match(
 );
 assert.match(
   hookSource,
+  /const forestProfile = manager\.forestManager\.getSeedThreeProfileBreakdown\(\);[\s\S]*profileDataset\.visualProfileForestStructural = JSON\.stringify\(forestProfile\);[\s\S]*collectorSettleTimeout = window\.setTimeout/,
+  'forest structural evidence must publish once before collection, never inside the judged frame loop',
+);
+assert.match(
+  hookSource,
   /const disposeProfile = \(\): void => \{[\s\S]*?clearTimeout\(deferredScenePollTimeout\)[\s\S]*?manager\.postProcessor\.render = initial\.postRender;[\s\S]*?setVisualFrameProfiler\?\.\(null\)[\s\S]*?delete profileWindow\.__visualPerf;/,
   'disposing the real App profiler must cancel pending work and restore every runtime monkey patch',
 );
