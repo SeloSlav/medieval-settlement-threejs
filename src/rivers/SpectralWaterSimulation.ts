@@ -569,6 +569,7 @@ export class SpectralWaterSimulation {
   private readonly timeNode = uniform(0);
   private readonly dtNode = uniform(1 / 60);
   private readonly foamPingNode = uniform(0);
+  private readonly twiddleTexture: THREE.DataTexture;
   private readonly runtimes: CascadeRuntime[];
   private readonly evolutionBatch: ComputeNode[];
   private readonly fftBatches: ComputeNode[][];
@@ -585,6 +586,7 @@ export class SpectralWaterSimulation {
     const logSize = SPECTRAL_WATER_LOG_SIZE;
     const twiddleTexture = createDataTexture(buildStockhamTwiddle(size), size, logSize);
     twiddleTexture.name = 'Spectral water Stockham twiddle table';
+    this.twiddleTexture = twiddleTexture;
     const runtimes: CascadeRuntime[] = [];
 
     for (const [cascadeIndex, config] of SPECTRAL_WATER_CASCADES
@@ -733,6 +735,7 @@ export class SpectralWaterSimulation {
       runtime.binding.foam0.dispose();
       runtime.binding.foam1.dispose();
     }
+    this.twiddleTexture.dispose();
   }
 }
 
