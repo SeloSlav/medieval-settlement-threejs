@@ -7,6 +7,7 @@ import {
   type InstanceMatrixWriteJob,
   type InstanceMatrixWriteSlicesResult,
 } from '@seedthree/core/instance-matrix-chunks.js';
+import { TREE_SHADOW_CAST_LAYER } from '../../scene/SceneLayers.ts';
 
 const DECIDUOUS_TREE_ORIGIN_Y_OFFSET = 2048;
 
@@ -30,9 +31,104 @@ export type SeedThreeInstancedLodSet = {
   cards: Array<THREE.InstancedMesh & { userData: Record<string, unknown> }>;
 };
 
+/** Keep color and shadow draw state immutable across WebGPU render passes. */
+export function configureSeedThreeForestPassMesh(
+  mesh: THREE.InstancedMesh,
+  pass: 'color' | 'shadow',
+  castsTreeSilhouette: boolean,
+): void {
+  const shadowOnly = pass === 'shadow';
+  mesh.castShadow = shadowOnly && castsTreeSilhouette;
+  mesh.receiveShadow = !shadowOnly;
+  mesh.userData.neverCastShadow = !castsTreeSilhouette || !shadowOnly;
+  mesh.userData.seedThreeShadowOnly = shadowOnly;
+  if (shadowOnly) mesh.layers.set(TREE_SHADOW_CAST_LAYER);
+  else mesh.layers.disable(TREE_SHADOW_CAST_LAYER);
+}
+
+/**
+ * Clone only attributes whose packed value can differ between the color and
+ * shadow selections. Static vertex geometry is shared. `aThickness` drives
+ * both SSS and flutter phase, so it begins as a byte-identical clone and color
+ * compaction copies its canonical shadow-union rank to keep silhouettes exact.
+ */
+export function createSeedThreeExactShadowLodSet(
+  colorSet: SeedThreeInstancedLodSet,
+  debugName: string,
+): SeedThreeInstancedLodSet {
+  const shadowSet: SeedThreeInstancedLodSet = { branches: null, cards: [] };
+  if (colorSet.branches) {
+    const source = colorSet.branches;
+    const geometry = cloneForestGeometryForIndependentPacking(
+      source.geometry,
+      ['aWindVec', 'aAnchorPos'],
+    );
+    const mesh = new THREE.InstancedMesh(
+      geometry,
+      source.material,
+      source.instanceMatrix.count,
+    );
+    mesh.name = `${debugName} branches`;
+    mesh.frustumCulled = false;
+    configureSeedThreeForestPassMesh(mesh, 'shadow', true);
+    shadowSet.branches = mesh;
+  }
+  for (const source of colorSet.cards) {
+    if (source.userData.crownUnderlay === true) continue;
+    const geometry = cloneForestGeometryForIndependentPacking(
+      source.geometry,
+      ['aThickness', 'aTreeOrigin', 'aWindVec', 'aAnchorPos'],
+    );
+    const mesh = new THREE.InstancedMesh(
+      geometry,
+      source.material,
+      source.instanceMatrix.count,
+    ) as THREE.InstancedMesh & { userData: Record<string, unknown> };
+    mesh.name = `${debugName} cards`;
+    mesh.frustumCulled = false;
+    mesh.userData.src = source.userData.src;
+    mesh.userData.k = source.userData.k;
+    mesh.userData.srcMatrices = source.userData.srcMatrices;
+    mesh.userData.weights = source.userData.weights;
+    mesh.userData.crownUnderlay = false;
+    mesh.userData.seedThreeColorSource = source;
+    configureSeedThreeForestPassMesh(mesh, 'shadow', true);
+    shadowSet.cards.push(mesh);
+  }
+  return shadowSet;
+}
+
+function cloneForestGeometryForIndependentPacking(
+  source: THREE.BufferGeometry,
+  mutableAttributeNames: readonly string[],
+): THREE.BufferGeometry {
+  const mutable = new Set(mutableAttributeNames);
+  const geometry = new THREE.BufferGeometry();
+  geometry.name = source.name;
+  geometry.userData = { ...source.userData, forestClone: true };
+  if (source.index) geometry.setIndex(source.index);
+  for (const [name, attribute] of Object.entries(source.attributes)) {
+    geometry.setAttribute(
+      name,
+      mutable.has(name)
+        ? attribute.clone()
+        : attribute,
+    );
+  }
+  for (const group of source.groups) {
+    geometry.addGroup(group.start, group.count, group.materialIndex);
+  }
+  geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+  geometry.boundingBox = source.boundingBox?.clone() ?? null;
+  geometry.boundingSphere = source.boundingSphere?.clone() ?? null;
+  return geometry;
+}
+
 export type SeedThreeResidentBucketSelection = {
   nearSlotIndices: readonly number[];
   overviewSlotIndices: readonly number[];
+  nearViewSlotIndices?: readonly number[];
+  overviewViewSlotIndices?: readonly number[];
 };
 
 export type SeedThreeLayoutSlotMapping = {
@@ -52,6 +148,15 @@ export type SeedThreeBucketMatrixWriteJob = {
   readonly core: InstanceMatrixWriteJob;
   readonly nearSet: SeedThreeInstancedLodSet;
   readonly overviewSet: SeedThreeInstancedLodSet;
+  readonly shadowSet: SeedThreeInstancedLodSet | null;
+  readonly slots: readonly SeedThreeTreeSlot[];
+  readonly nearViewSlotIndices: readonly number[];
+  readonly overviewViewSlotIndices: readonly number[];
+  readonly nearResidentSlotIndices: readonly number[];
+  readonly overviewResidentSlotIndices: readonly number[];
+  readonly writeColor: boolean;
+  readonly writeShadow: boolean;
+  readonly realignColorAttributes: boolean;
   readonly attributeVersions: Map<THREE.BufferAttribute, number>;
   completed: boolean;
   uploadRangesPublished: boolean;
@@ -74,10 +179,21 @@ export function createSeedThreeBucketMatrixWriteJob(
   slots: SeedThreeTreeSlot[],
   nearSlotIndices: readonly number[],
   overviewSlotIndices: readonly number[],
+  shadow?: {
+    lodSet: SeedThreeInstancedLodSet;
+    selectedSlotIndices: readonly number[];
+    overviewSelectedSlotIndices?: readonly number[];
+    writeColor?: boolean;
+    writeShadow?: boolean;
+    realignColorAttributes?: boolean;
+  },
 ): SeedThreeBucketMatrixWriteJob {
+  const writeColor = shadow?.writeColor !== false;
+  const writeShadow = shadow !== undefined && shadow.writeShadow !== false;
+  const realignColorAttributes = shadow?.realignColorAttributes ?? writeColor;
   const core = createInstanceMatrixWriteJob(
-    nearSet,
-    overviewSet,
+    writeColor ? nearSet : EMPTY_LOD_SET,
+    writeColor ? overviewSet : EMPTY_LOD_SET,
     slots,
     nearSlotIndices,
     overviewSlotIndices,
@@ -93,13 +209,31 @@ export function createSeedThreeBucketMatrixWriteJob(
           ? DECIDUOUS_TREE_ORIGIN_Y_OFFSET
           : 0)
       ),
+      additionalSelections: shadow && writeShadow ? [{
+        lodSet: shadow.lodSet,
+        selectedSlotIndices: shadow.selectedSlotIndices,
+      }] : [],
     },
   );
   return {
     core,
     nearSet,
     overviewSet,
-    attributeVersions: snapshotLodAttributeVersions(nearSet, overviewSet),
+    shadowSet: shadow?.lodSet ?? null,
+    slots,
+    nearViewSlotIndices: nearSlotIndices,
+    overviewViewSlotIndices: overviewSlotIndices,
+    nearResidentSlotIndices: shadow?.selectedSlotIndices ?? nearSlotIndices,
+    overviewResidentSlotIndices:
+      shadow?.overviewSelectedSlotIndices ?? overviewSlotIndices,
+    writeColor,
+    writeShadow,
+    realignColorAttributes,
+    attributeVersions: snapshotLodAttributeVersions(
+      writeColor ? nearSet : EMPTY_LOD_SET,
+      writeColor ? overviewSet : EMPTY_LOD_SET,
+      writeShadow ? shadow?.lodSet : undefined,
+    ),
     completed: core.completed,
     uploadRangesPublished: false,
   };
@@ -197,6 +331,8 @@ export function partitionSeedThreeSelectionByStaticLod(
 ): {
   nearIndices: number[];
   overviewIndices: number[];
+  nearViewIndices: number[];
+  overviewViewIndices: number[];
   nearViewCount: number;
   overviewViewCount: number;
 } {
@@ -207,30 +343,42 @@ export function partitionSeedThreeSelectionByStaticLod(
   // immutable authored LOD. Camera-frustum membership must not affect packing:
   // lateral/backward motion otherwise promotes an already-resident shadow
   // caster to the front and rewrites the live WebGPU instance buffer.
-  const selectedIndices = [...new Set([
-    ...selection.nearIndices,
-    ...selection.overviewIndices,
-  ])].sort((left, right) => left - right);
+  const selectedIndices = mergeSortedUniqueIndices(
+    selection.nearIndices,
+    selection.overviewIndices,
+  );
   const nearIndices: number[] = [];
   const overviewIndices: number[] = [];
+  const nearViewIndices: number[] = [];
+  const overviewViewIndices: number[] = [];
+  let viewCursor = 0;
   for (const layoutIndex of selectedIndices) {
+    while (
+      viewCursor < selection.viewIndices.length
+      && selection.viewIndices[viewCursor]! < layoutIndex
+    ) {
+      viewCursor += 1;
+    }
+    const inView = selection.viewIndices[viewCursor] === layoutIndex;
     if (forceOverview(layoutIndex)) {
       overviewIndices.push(layoutIndex);
+      if (inView) overviewViewIndices.push(layoutIndex);
       if (includeForcedOverviewInNear) {
         nearIndices.push(layoutIndex);
+        if (inView) nearViewIndices.push(layoutIndex);
       }
     } else {
       nearIndices.push(layoutIndex);
+      if (inView) nearViewIndices.push(layoutIndex);
     }
   }
   return {
     nearIndices,
     overviewIndices,
-    // The current WebGPU path deliberately uses the same conservative resident
-    // prefix for color and shadow passes. Report the complete stable prefixes
-    // so coverage checks do not schedule a redundant frustum-only repack.
-    nearViewCount: nearIndices.length,
-    overviewViewCount: overviewIndices.length,
+    nearViewIndices,
+    overviewViewIndices,
+    nearViewCount: nearViewIndices.length,
+    overviewViewCount: overviewViewIndices.length,
   };
 }
 
@@ -244,18 +392,75 @@ export function seedThreeResidentSelectionCoversView(
   slotByLayoutIndex: readonly (SeedThreeLayoutSlotMapping | null)[],
   desiredViewLayoutIndices: readonly number[],
 ): boolean {
-  const residentSlotsByBucket = residentBuckets.map((bucket) => new Set([
-    ...bucket.nearSlotIndices,
-    ...bucket.overviewSlotIndices,
-  ]));
   for (const layoutIndex of desiredViewLayoutIndices) {
     const mapping = slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
-    if (!residentSlotsByBucket[mapping.bucketIndex]?.has(mapping.slotIndex)) {
+    const bucket = residentBuckets[mapping.bucketIndex];
+    if (
+      !bucket
+      || (!sortedIndicesInclude(bucket.nearSlotIndices, mapping.slotIndex)
+        && !sortedIndicesInclude(bucket.overviewSlotIndices, mapping.slotIndex))
+    ) {
       return false;
     }
   }
   return true;
+}
+
+/**
+ * Test a view against the stable color-only buffers rather than the wider
+ * directional-shadow resident union. The color buffers carry the selector's
+ * padded guard envelope, so this is also the no-pop gate for camera motion.
+ */
+export function seedThreeColorSelectionCoversView(
+  residentBuckets: readonly SeedThreeResidentBucketSelection[],
+  slotByLayoutIndex: readonly (SeedThreeLayoutSlotMapping | null)[],
+  desiredViewLayoutIndices: readonly number[],
+): boolean {
+  for (const layoutIndex of desiredViewLayoutIndices) {
+    const mapping = slotByLayoutIndex[layoutIndex];
+    if (!mapping) continue;
+    const bucket = residentBuckets[mapping.bucketIndex];
+    if (
+      !bucket
+      || (!sortedIndicesInclude(bucket.nearViewSlotIndices ?? [], mapping.slotIndex)
+        && !sortedIndicesInclude(bucket.overviewViewSlotIndices ?? [], mapping.slotIndex))
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function mergeSortedUniqueIndices(
+  left: readonly number[],
+  right: readonly number[],
+): number[] {
+  const merged: number[] = [];
+  let leftIndex = 0;
+  let rightIndex = 0;
+  while (leftIndex < left.length || rightIndex < right.length) {
+    const leftValue = left[leftIndex] ?? Number.POSITIVE_INFINITY;
+    const rightValue = right[rightIndex] ?? Number.POSITIVE_INFINITY;
+    const value = Math.min(leftValue, rightValue);
+    if (merged[merged.length - 1] !== value) merged.push(value);
+    if (leftValue === value) leftIndex += 1;
+    if (rightValue === value) rightIndex += 1;
+  }
+  return merged;
+}
+
+function sortedIndicesInclude(indices: readonly number[], value: number): boolean {
+  let low = 0;
+  let high = indices.length - 1;
+  while (low <= high) {
+    const middle = (low + high) >>> 1;
+    const candidate = indices[middle]!;
+    if (candidate === value) return true;
+    if (candidate < value) low = middle + 1;
+    else high = middle - 1;
+  }
+  return false;
 }
 
 function updateMeshPassInstanceCounts(
@@ -280,10 +485,14 @@ function updateMeshPassInstanceCounts(
 function snapshotLodAttributeVersions(
   nearSet: SeedThreeInstancedLodSet,
   overviewSet: SeedThreeInstancedLodSet,
+  shadowSet?: SeedThreeInstancedLodSet,
 ): Map<THREE.BufferAttribute, number> {
   const versions = new Map<THREE.BufferAttribute, number>();
   forEachLodAttribute(nearSet, (attribute) => versions.set(attribute, attribute.version));
   forEachLodAttribute(overviewSet, (attribute) => versions.set(attribute, attribute.version));
+  if (shadowSet) {
+    forEachLodAttribute(shadowSet, (attribute) => versions.set(attribute, attribute.version));
+  }
   return versions;
 }
 
@@ -297,9 +506,104 @@ function snapshotLodAttributeVersions(
  */
 function publishExactLodUploadRanges(job: SeedThreeBucketMatrixWriteJob): void {
   if (job.uploadRangesPublished) return;
-  publishLodSetUploadRanges(job.nearSet, job.attributeVersions);
-  publishLodSetUploadRanges(job.overviewSet, job.attributeVersions);
+  if (job.realignColorAttributes) alignColorCardInstanceAttributes(job);
+  if (job.writeColor) {
+    publishLodSetUploadRanges(job.nearSet, job.attributeVersions);
+    publishLodSetUploadRanges(job.overviewSet, job.attributeVersions);
+  }
+  if (job.shadowSet && job.writeShadow) {
+    publishLodSetUploadRanges(job.shadowSet, job.attributeVersions);
+  }
   job.uploadRangesPublished = true;
+}
+
+function alignColorCardInstanceAttributes(job: SeedThreeBucketMatrixWriteJob): void {
+  alignLodCardInstanceAttributes(
+    job.nearSet,
+    job.shadowSet,
+    job.slots,
+    job.nearViewSlotIndices,
+    job.nearResidentSlotIndices,
+  );
+  alignLodCardInstanceAttributes(
+    job.overviewSet,
+    null,
+    job.slots,
+    job.overviewViewSlotIndices,
+    job.overviewResidentSlotIndices,
+  );
+}
+
+function alignLodCardInstanceAttributes(
+  lodSet: SeedThreeInstancedLodSet,
+  canonicalLodSet: SeedThreeInstancedLodSet | null,
+  slots: readonly SeedThreeTreeSlot[],
+  viewSlotIndices: readonly number[],
+  residentSlotIndices: readonly number[],
+): void {
+  if (lodSet.cards.length === 0) return;
+  const residentRankBySlot = new Int32Array(slots.length);
+  residentRankBySlot.fill(-1);
+  let residentRank = 0;
+  for (const slotIndex of residentSlotIndices) {
+    const slot = slots[slotIndex];
+    if (!slot || !slotIsVisible(slot)) continue;
+    residentRankBySlot[slotIndex] = residentRank++;
+  }
+  for (const mesh of lodSet.cards) {
+    const cardsPerTree = Math.max(0, Number(mesh.userData.k) || 0);
+    if (cardsPerTree === 0) continue;
+    const targetAttribute = mesh.geometry.getAttribute('aThickness');
+    if (!(targetAttribute as THREE.InstancedBufferAttribute | undefined)?.isInstancedBufferAttribute) {
+      continue;
+    }
+    const target = targetAttribute as THREE.InstancedBufferAttribute;
+    const shadowSource = canonicalLodSet?.cards.find(
+      (candidate) => candidate.userData.seedThreeColorSource === mesh,
+    );
+    const source = shadowSource
+      ? shadowSource.geometry.getAttribute('aThickness')
+      : canonicalCardThickness(mesh);
+    if (!source) continue;
+    let viewRank = 0;
+    for (const slotIndex of viewSlotIndices) {
+      const slot = slots[slotIndex];
+      if (!slot || !slotIsVisible(slot)) continue;
+      const sourceTreeRank = residentRankBySlot[slotIndex];
+      if (sourceTreeRank < 0) {
+        throw new Error(`Color forest slot ${slotIndex} is absent from its resident union.`);
+      }
+      const sourceOffset = sourceTreeRank * cardsPerTree;
+      const targetOffset = viewRank * cardsPerTree;
+      for (let cardIndex = 0; cardIndex < cardsPerTree; cardIndex += 1) {
+        target.array[targetOffset + cardIndex] = source.array[sourceOffset + cardIndex]!;
+      }
+      viewRank++;
+    }
+    target.clearUpdateRanges();
+    if (viewRank > 0) {
+      target.addUpdateRange(0, viewRank * cardsPerTree);
+      target.needsUpdate = true;
+    }
+  }
+}
+
+function canonicalCardThickness(
+  mesh: THREE.InstancedMesh & { userData: Record<string, unknown> },
+): THREE.InstancedBufferAttribute | null {
+  const cached = mesh.userData.seedThreeCanonicalThickness;
+  if (cached instanceof THREE.InstancedBufferAttribute) return cached;
+  const thickness = mesh.geometry.getAttribute('aThickness');
+  if (!(thickness as THREE.InstancedBufferAttribute | undefined)?.isInstancedBufferAttribute) {
+    return null;
+  }
+  const canonical = thickness.clone() as THREE.InstancedBufferAttribute;
+  mesh.userData.seedThreeCanonicalThickness = canonical;
+  return canonical;
+}
+
+function slotIsVisible(slot: SeedThreeTreeSlot): boolean {
+  return slot.enabled && slot.visibilityParent?.enabled !== false;
 }
 
 function publishLodSetUploadRanges(

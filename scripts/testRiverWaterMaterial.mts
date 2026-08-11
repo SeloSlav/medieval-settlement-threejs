@@ -63,9 +63,12 @@ import {
 } from '../src/rivers/WaterSurfaceProfile.ts';
 import {
   buildSpectralCascadeData,
+  SPECTRAL_WATER_COMPUTE_SUBMISSIONS_PER_FRAME,
   SPECTRAL_WATER_CASCADES,
   SPECTRAL_WATER_CASCADE_COUNT,
+  SPECTRAL_WATER_DISPATCHES_PER_FRAME,
   SPECTRAL_WATER_RESOLUTION,
+  SpectralWaterSimulation,
   validateSpectralIfft,
 } from '../src/rivers/SpectralWaterSimulation.ts';
 import {
@@ -224,6 +227,8 @@ assert.equal(OPEN_WATER_SPECTRAL_BAND_COUNT, 3);
 assert.equal(OPEN_WATER_SPECTRAL_BAND_COUNT, SPECTRAL_WATER_CASCADE_COUNT);
 assert.equal(OPEN_WATER_ANALYTIC_FALLBACK_BAND_COUNT, 5);
 assert.equal(SPECTRAL_WATER_RESOLUTION, 128);
+assert.equal(SPECTRAL_WATER_DISPATCHES_PER_FRAME, 16);
+assert.equal(SPECTRAL_WATER_COMPUTE_SUBMISSIONS_PER_FRAME, 1);
 for (let index = 1; index < SPECTRAL_WATER_CASCADES.length; index++) {
   assert.equal(
     SPECTRAL_WATER_CASCADES[index - 1].cutoffHigh,
@@ -248,6 +253,48 @@ assert.ok(
 assert.ok(COASTAL_WATER_PROFILE.openWaterWaveScale > INLAND_WATER_PROFILE.openWaterWaveScale);
 assert.ok(COASTAL_WATER_PROFILE.attenuationDistance > RIVER_WATER_PROFILE.attenuationDistance);
 assert.ok(INLAND_WATER_PROFILE.standingWaveRatio > COASTAL_WATER_PROFILE.standingWaveRatio);
+
+const computeCalls: unknown[][] = [];
+const spectralSimulation = new SpectralWaterSimulation({
+  compute: (nodes: unknown[]) => computeCalls.push(nodes),
+} as never, 'inland');
+const foamPing = spectralSimulation.binding.foamPing as unknown as { value: number };
+assert.equal(foamPing.value, 0);
+spectralSimulation.update(1, 1 / 60);
+assert.equal(
+  computeCalls.length,
+  SPECTRAL_WATER_COMPUTE_SUBMISSIONS_PER_FRAME,
+  'one frame must record the exact spectral dependency chain in one compute pass',
+);
+assert.equal(
+  computeCalls[0].length,
+  SPECTRAL_WATER_DISPATCHES_PER_FRAME * spectralSimulation.binding.cascades.length,
+  'batching must preserve every per-cascade evolution, IFFT, and foam dispatch',
+);
+assert.equal(foamPing.value, 1);
+spectralSimulation.update(2, 1 / 60);
+assert.equal(computeCalls.length, 2);
+assert.equal(foamPing.value, 0);
+const foamDispatchCount = spectralSimulation.binding.cascades.length;
+const stableDispatchCount = computeCalls[0].length - foamDispatchCount;
+for (let index = 0; index < stableDispatchCount; index++) {
+  assert.equal(
+    computeCalls[0][index],
+    computeCalls[1][index],
+    'evolution and Stockham dispatch identities must keep exact stage-major order',
+  );
+}
+for (let index = stableDispatchCount; index < computeCalls[0].length; index++) {
+  assert.notEqual(
+    computeCalls[0][index],
+    computeCalls[1][index],
+    'successive frames must select the opposite prebuilt foam-history writer',
+  );
+}
+spectralSimulation.update(3, 1 / 60);
+assert.equal(computeCalls[2], computeCalls[0], 'ping/pong command arrays must be reused without allocation');
+assert.equal(foamPing.value, 1);
+spectralSimulation.dispose();
 
 const stoneVisualA = computeShoreStoneVisualScale(12, -8);
 const stoneVisualB = computeShoreStoneVisualScale(25, 17);
@@ -553,7 +600,7 @@ assert.equal(
 assert.equal(
   (waterMaterialSource.match(/\btexture\(/g) ?? []).length,
   5,
-  'material source must contain one shore sample plus the four spectral field/history samples',
+  'material source must retain stable shore, field, and ping/pong foam bindings',
 );
 assert.match(
   waterMaterialSource,

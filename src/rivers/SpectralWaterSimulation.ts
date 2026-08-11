@@ -112,6 +112,13 @@ export type SpectralWaterBinding = Readonly<{
   foamPing: ReturnType<typeof uniform>;
 }>;
 
+/**
+ * Evolution, fourteen Stockham stages, and foam remain distinct ordered GPU
+ * dispatches, but WebGPU can record those dependencies in one compute pass.
+ */
+export const SPECTRAL_WATER_DISPATCHES_PER_FRAME = 2 * SPECTRAL_WATER_LOG_SIZE + 2;
+export const SPECTRAL_WATER_COMPUTE_SUBMISSIONS_PER_FRAME = 1;
+
 type CascadeRuntime = {
   binding: SpectralCascadeBinding;
   initialTexture: THREE.DataTexture;
@@ -571,8 +578,7 @@ export class SpectralWaterSimulation {
   private readonly foamPingNode = uniform(0);
   private readonly twiddleTexture: THREE.DataTexture;
   private readonly runtimes: CascadeRuntime[];
-  private readonly evolutionBatch: ComputeNode[];
-  private readonly fftBatches: ComputeNode[][];
+  private readonly frameBatches: readonly [readonly ComputeNode[], readonly ComputeNode[]];
   private foamPing = 0;
   private disposed = false;
 
@@ -690,9 +696,22 @@ export class SpectralWaterSimulation {
     }
 
     this.runtimes = runtimes;
-    this.evolutionBatch = runtimes.map((runtime) => runtime.evolutionNode);
-    this.fftBatches = Array.from({ length: logSize * 2 }, (_, stage) =>
+    const evolutionBatch = runtimes.map((runtime) => runtime.evolutionNode);
+    const fftBatches = Array.from({ length: logSize * 2 }, (_, stage) =>
       runtimes.map((runtime) => runtime.fftNodes[stage]));
+    const orderedDispatches = fftBatches.flat();
+    this.frameBatches = [
+      [
+        ...evolutionBatch,
+        ...orderedDispatches,
+        ...runtimes.map((runtime) => runtime.foamNodes[0]),
+      ],
+      [
+        ...evolutionBatch,
+        ...orderedDispatches,
+        ...runtimes.map((runtime) => runtime.foamNodes[1]),
+      ],
+    ];
     this.binding = {
       resolution: size,
       cascades: runtimes.map((runtime) => runtime.binding),
@@ -709,12 +728,10 @@ export class SpectralWaterSimulation {
       1 / 20,
     );
 
-    // Independent cascades share one command pass per stage. Stage boundaries
-    // remain explicit so every IFFT read observes the preceding writes.
-    this.renderer.compute(this.evolutionBatch);
-    for (const batch of this.fftBatches) this.renderer.compute(batch);
-    const foamBatch = this.runtimes.map((runtime) => runtime.foamNodes[this.foamPing]);
-    this.renderer.compute(foamBatch);
+    // Dispatch boundaries preserve the exact evolution -> Stockham -> foam
+    // dependency chain. Recording them in one compute pass removes fifteen
+    // command encoders/submissions without changing any shader or workload.
+    this.renderer.compute(this.frameBatches[this.foamPing] as ComputeNode[]);
     this.foamPing = 1 - this.foamPing;
     this.foamPingNode.value = this.foamPing;
   }

@@ -37,11 +37,12 @@ import {
 import type { SeedThreeForestController } from './seedThreeForestTypes.ts';
 import {
   createSeedThreeBucketMatrixWriteJob,
-  enabledSeedThreeTreeCountInPrefix,
+  createSeedThreeExactShadowLodSet,
+  configureSeedThreeForestPassMesh,
   partitionSeedThreeSelectionByStaticLod,
   runSeedThreeBucketMatrixWriteSlices,
+  seedThreeColorSelectionCoversView,
   seedThreeResidentSelectionCoversView,
-  updateSeedThreeLodPassInstanceCounts,
   writeSeedThreeLodMatrices,
   type SeedThreeBucketMatrixWriteJob,
   type SeedThreeInstancedLodSet as InstancedLodSet,
@@ -76,14 +77,19 @@ type SpeciesBucket = {
   preset: SeedThreePresetKey;
   slots: TreeSlot[];
   nearSet: InstancedLodSet;
+  nearShadowSet: InstancedLodSet;
   overviewSet: InstancedLodSet;
   nearSlotIndices: number[];
   overviewSlotIndices: number[];
+  nearViewSlotIndices: number[];
+  overviewViewSlotIndices: number[];
   nearViewSlotCount: number;
   overviewViewSlotCount: number;
 };
 
 type PassPartitionedBucketSelection = SeedThreeBucketSelection & {
+  viewNear: readonly number[];
+  viewOverview: readonly number[];
   nearViewSlotCount: number;
   overviewViewSlotCount: number;
 };
@@ -197,7 +203,6 @@ const FOREST_NEAR_DISTANCE = 108;
 // On steep maps, mountaintop trees can be physically close to the elevated orbit
 // camera even at strategic zoom. Keep their foliage-thickening overview cards
 // once their crown center rises into this camera-relative altitude band.
-const FOREST_OVERVIEW_ELEVATION_FLOOR_BELOW_CAMERA = -36;
 const FOREST_FIRST_PERSON_NEAR_DISTANCE = 132;
 const FOREST_VISIBILITY_PADDING = 26;
 const FOREST_UPDATE_BOOKKEEPING_HEADROOM_MS = 0.35;
@@ -282,9 +287,11 @@ function createInstancedLodSet(
       }
       const im = new THREE.InstancedMesh(geo, material, groupCount);
       im.name = `${debugName} branches`;
-      im.castShadow = castShadow;
-      im.receiveShadow = true;
-      im.userData.neverCastShadow = !castShadow;
+      configureSeedThreeForestPassMesh(
+        im,
+        'color',
+        castShadow,
+      );
       // SeedThree performs conservative per-tree culling and compacts the live
       // instances; the aggregate mesh bound is intentionally not consulted.
       im.frustumCulled = false;
@@ -293,6 +300,7 @@ function createInstancedLodSet(
       for (const cardsMesh of (child as THREE.Group).children) {
         const instanced = cardsMesh as THREE.InstancedMesh;
         if (!instanced.isInstancedMesh) continue;
+        const crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
         const cardsPerTree = instanced.count;
         const total = cardsPerTree * groupCount;
         const geo = instanced.geometry.clone();
@@ -323,7 +331,6 @@ function createInstancedLodSet(
           geo.setAttribute(name, new THREE.InstancedBufferAttribute(arr, instancedAttr.itemSize));
         }
 
-        const crownUnderlay = instanced.geometry.userData.crownUnderlay === true;
         const sourceMaterial = instanced.material as THREE.Material;
         const baseForestMaterial = applySeedThreeForestCardMotion(
           stabilizeSeedThreeForestCardMaterial(
@@ -362,10 +369,12 @@ function createInstancedLodSet(
         // color silhouette, but their baked alpha is not preserved by the
         // WebGPU shadow variant and turns into rectangular terrain shadows.
         const castsTreeSilhouette = castShadow && !crownUnderlay;
-        im.castShadow = castsTreeSilhouette;
-        im.receiveShadow = true;
+        configureSeedThreeForestPassMesh(
+          im,
+          'color',
+          castsTreeSilhouette,
+        );
         im.frustumCulled = false;
-        im.userData.neverCastShadow = !castsTreeSilhouette;
         im.userData.src = instanced;
         im.userData.k = cardsPerTree;
         im.userData.crownUnderlay = crownUnderlay;
@@ -412,12 +421,17 @@ function createSpeciesBucket(
     rng,
     `${presetKey} near LOD2`,
     {
+      castShadow: false,
       seasonalDeciduous,
       seasonalCardMaterials,
       autumnColor,
       crownUnderlayMeshes,
       ownedOverviewFadeMaterials,
     },
+  );
+  const nearShadowSet = createSeedThreeExactShadowLodSet(
+    nearSet,
+    `${presetKey} exact shadow LOD2`,
   );
   const overviewSet = createInstancedLodSet(
     overviewLevel,
@@ -441,16 +455,18 @@ function createSpeciesBucket(
   const nearSlotIndices = slots.map((_, index) => index);
   const overviewSlotIndices = slots.flatMap((slot, index) => slot.forceOverview ? [index] : []);
   writeSeedThreeLodMatrices(nearSet, slots, nearSlotIndices);
+  writeSeedThreeLodMatrices(nearShadowSet, slots, nearSlotIndices);
   writeSeedThreeLodMatrices(overviewSet, slots, overviewSlotIndices);
-  updateSeedThreeLodPassInstanceCounts(nearSet, nearSlotIndices.length);
-  updateSeedThreeLodPassInstanceCounts(overviewSet, overviewSlotIndices.length);
   return {
     preset: presetKey,
     slots,
     nearSet,
+    nearShadowSet,
     overviewSet,
     nearSlotIndices,
     overviewSlotIndices,
+    nearViewSlotIndices: [...nearSlotIndices],
+    overviewViewSlotIndices: [...overviewSlotIndices],
     nearViewSlotCount: nearSlotIndices.length,
     overviewViewSlotCount: overviewSlotIndices.length,
   };
@@ -659,6 +675,8 @@ export async function createSeedThreeForest(
       if (cardMesh.userData.crownUnderlay === true) overviewBillboardGroup.add(cardMesh);
       else group.add(cardMesh);
     }
+    if (bucket.nearShadowSet.branches) group.add(bucket.nearShadowSet.branches);
+    for (const cardMesh of bucket.nearShadowSet.cards) group.add(cardMesh);
     if (bucket.overviewSet.branches) overviewBillboardGroup.add(bucket.overviewSet.branches);
     for (const cardMesh of bucket.overviewSet.cards) overviewBillboardGroup.add(cardMesh);
   }
@@ -759,9 +777,22 @@ export function setSeedThreeTreeVisible(
 export function commitSeedThreeForestMatrices(forest: SeedThreeForestInstances): void {
   if (forest.visibilityDirty === false) return;
   for (const bucket of forest.buckets) {
-    writeSeedThreeLodMatrices(bucket.nearSet, bucket.slots, bucket.nearSlotIndices);
-    writeSeedThreeLodMatrices(bucket.overviewSet, bucket.slots, bucket.overviewSlotIndices);
-    updateBucketPassInstanceCounts(bucket);
+    const job = createSeedThreeBucketMatrixWriteJob(
+      bucket.nearSet,
+      bucket.overviewSet,
+      bucket.slots,
+      bucket.nearViewSlotIndices,
+      bucket.overviewViewSlotIndices,
+      {
+        lodSet: bucket.nearShadowSet,
+        selectedSlotIndices: bucket.nearSlotIndices,
+        overviewSelectedSlotIndices: bucket.overviewSlotIndices,
+      },
+    );
+    runSeedThreeBucketMatrixWriteSlices(job, {
+      deadlineMs: Number.POSITIVE_INFINITY,
+      maxMatrixWritesPerChunk: Number.POSITIVE_INFINITY,
+    });
   }
   forest.pendingLodWork = null;
   forest.visibilityDirty = false;
@@ -777,11 +808,11 @@ function refreshSeedThreeRenderStats(forest: SeedThreeForestInstances): void {
       (count, slot) => count + (slot.enabled ? 1 : 0),
       0,
     );
-    nearTrees += bucket.nearSlotIndices.reduce(
+    nearTrees += bucket.nearViewSlotIndices.reduce(
       (count, slotIndex) => count + (bucket.slots[slotIndex]?.enabled ? 1 : 0),
       0,
     );
-    overviewTrees += bucket.overviewSlotIndices.reduce(
+    overviewTrees += bucket.overviewViewSlotIndices.reduce(
       (count, slotIndex) => count + (bucket.slots[slotIndex]?.enabled ? 1 : 0),
       0,
     );
@@ -851,9 +882,6 @@ export function updateSeedThreeForestCameraBudgeted(
     casterBounds,
     // Matches the directional-shadow fitter's broad-canopy horizontal margin.
     casterPadding: 14,
-    overviewElevationFloorBelowCamera: firstPersonActive
-      ? Number.NEGATIVE_INFINITY
-      : FOREST_OVERVIEW_ELEVATION_FLOOR_BELOW_CAMERA,
     ...(options.minimumCameraMove === undefined
       ? {}
       : { minimumCameraMove: options.minimumCameraMove }),
@@ -898,19 +926,32 @@ export function updateSeedThreeForestCameraBudgeted(
     // of flashing a new instance order into the same view. Movement that escapes
     // the resident prefix still completes immediately to preserve coverage.
     const protectVisibleCoverage = options.immediateWhenViewUncovered === true;
-    const residentSelectionCoversDesiredView =
+    const residentColorGuardCoversCriticalView =
+      seedThreeColorSelectionCoversView(
+        forest.buckets,
+        forest.slotByLayoutIndex,
+        selection.criticalViewIndices,
+      );
+    const residentShadowCoversDesiredUnion =
       seedThreeResidentSelectionCoversView(
         forest.buckets,
         forest.slotByLayoutIndex,
-        selection.viewIndices,
+        selection.nearIndices,
+      )
+      && seedThreeResidentSelectionCoversView(
+        forest.buckets,
+        forest.slotByLayoutIndex,
+        selection.overviewIndices,
       );
+    const residentPassesCoverRequiredWork =
+      residentColorGuardCoversCriticalView && residentShadowCoversDesiredUnion;
     const interactionWork = planSeedThreeForestInteractionWork(
       previousCameraInteractionActive,
       cameraInteractionActive,
-      residentSelectionCoversDesiredView,
+      residentPassesCoverRequiredWork,
     );
     const requiresImmediateCoverage = protectVisibleCoverage
-      && !residentSelectionCoversDesiredView;
+      && !residentPassesCoverRequiredWork;
     const deferCoveredInteractionWork = protectVisibleCoverage
       && interactionWork.deferCoveredWork;
     const discardCoveredInteractionWork = protectVisibleCoverage
@@ -927,9 +968,6 @@ export function updateSeedThreeForestCameraBudgeted(
       work.activeBucketJob = null;
       forest.pendingLodWork = null;
       stopReason = 'resident-retained';
-    }
-    if (!deferCoveredInteractionWork && !discardCoveredInteractionWork) {
-      reconcileCountOnlyPassPartitions(forest, work.desired);
     }
     const maxUpdateDurationMs = completeInteractionWorkImmediately
       ? Number.POSITIVE_INFINITY
@@ -948,6 +986,8 @@ export function updateSeedThreeForestCameraBudgeted(
     const currentSelections = forest.buckets.map((bucket) => ({
       near: bucket.nearSlotIndices,
       overview: bucket.overviewSlotIndices,
+      viewNear: bucket.nearViewSlotIndices,
+      viewOverview: bucket.overviewViewSlotIndices,
       nearViewSlotCount: bucket.nearViewSlotCount,
       overviewViewSlotCount: bucket.overviewViewSlotCount,
     }));
@@ -985,11 +1025,37 @@ export function updateSeedThreeForestCameraBudgeted(
                 || work.activeBucketJob.bucketIndex !== bucketIndex
                 || !sameBucketSelection(work.activeBucketJob.desired, desired)
               ) {
+                const writeColor = !sameIndices(
+                  bucket.nearViewSlotIndices,
+                  desired.viewNear,
+                ) || !sameIndices(
+                  bucket.overviewViewSlotIndices,
+                  desired.viewOverview,
+                );
+                const writeShadow = !sameIndices(
+                  bucket.nearSlotIndices,
+                  desired.near,
+                );
+                const realignColorAttributes = writeColor
+                  || !sameVisiblePackedRanks(
+                    bucket.slots,
+                    bucket.nearSlotIndices,
+                    desired.near,
+                    desired.viewNear,
+                  )
+                  || !sameVisiblePackedRanks(
+                    bucket.slots,
+                    bucket.overviewSlotIndices,
+                    desired.overview,
+                    desired.viewOverview,
+                  );
                 work.activeBucketJob = {
                   bucketIndex,
                   desired: {
                     near: [...desired.near],
                     overview: [...desired.overview],
+                    viewNear: [...desired.viewNear],
+                    viewOverview: [...desired.viewOverview],
                     nearViewSlotCount: desired.nearViewSlotCount,
                     overviewViewSlotCount: desired.overviewViewSlotCount,
                   },
@@ -997,13 +1063,23 @@ export function updateSeedThreeForestCameraBudgeted(
                     bucket.nearSet,
                     bucket.overviewSet,
                     bucket.slots,
-                    desired.near,
-                    desired.overview,
+                    desired.viewNear,
+                    desired.viewOverview,
+                    {
+                      lodSet: bucket.nearShadowSet,
+                      selectedSlotIndices: desired.near,
+                      overviewSelectedSlotIndices: desired.overview,
+                      writeColor,
+                      writeShadow,
+                      realignColorAttributes,
+                    },
                   ),
                 };
               }
+              const activeBucketJob = work.activeBucketJob;
+              if (!activeBucketJob) return false;
               const result = runSeedThreeBucketMatrixWriteSlices(
-                work.activeBucketJob.job,
+                activeBucketJob.job,
                 {
                   deadlineMs: context.deadlineMs,
                   minimumChunkHeadroomMs: Number.isFinite(context.remainingMs)
@@ -1022,9 +1098,10 @@ export function updateSeedThreeForestCameraBudgeted(
               if (!result.completed) return false;
               bucket.nearSlotIndices = [...desired.near];
               bucket.overviewSlotIndices = [...desired.overview];
+              bucket.nearViewSlotIndices = [...desired.viewNear];
+              bucket.overviewViewSlotIndices = [...desired.viewOverview];
               bucket.nearViewSlotCount = desired.nearViewSlotCount;
               bucket.overviewViewSlotCount = desired.overviewViewSlotCount;
-              updateBucketPassInstanceCounts(bucket);
               work.activeBucketJob = null;
               return true;
             },
@@ -1096,6 +1173,8 @@ function sameBucketSelection(
 ): boolean {
   return sameIndices(left.near, right.near)
     && sameIndices(left.overview, right.overview)
+    && sameIndices(left.viewNear, right.viewNear)
+    && sameIndices(left.viewOverview, right.viewOverview)
     && left.nearViewSlotCount === right.nearViewSlotCount
     && left.overviewViewSlotCount === right.overviewViewSlotCount;
 }
@@ -1104,6 +1183,48 @@ function sameIndices(left: readonly number[], right: readonly number[]): boolean
   if (left.length !== right.length) return false;
   for (let index = 0; index < left.length; index += 1) {
     if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
+function sameVisiblePackedRanks(
+  slots: readonly TreeSlot[],
+  previousResident: readonly number[],
+  nextResident: readonly number[],
+  visibleSelection: readonly number[],
+): boolean {
+  let previousCursor = 0;
+  let nextCursor = 0;
+  let previousRank = 0;
+  let nextRank = 0;
+  for (const visibleSlotIndex of visibleSelection) {
+    const visibleSlot = slots[visibleSlotIndex];
+    if (!visibleSlot?.enabled || visibleSlot.visibilityParent?.enabled === false) continue;
+    while (
+      previousCursor < previousResident.length
+      && previousResident[previousCursor]! < visibleSlotIndex
+    ) {
+      const slot = slots[previousResident[previousCursor]!]!;
+      if (slot.enabled && slot.visibilityParent?.enabled !== false) previousRank += 1;
+      previousCursor += 1;
+    }
+    while (
+      nextCursor < nextResident.length
+      && nextResident[nextCursor]! < visibleSlotIndex
+    ) {
+      const slot = slots[nextResident[nextCursor]!]!;
+      if (slot.enabled && slot.visibilityParent?.enabled !== false) nextRank += 1;
+      nextCursor += 1;
+    }
+    if (
+      previousResident[previousCursor] !== visibleSlotIndex
+      || nextResident[nextCursor] !== visibleSlotIndex
+      || previousRank !== nextRank
+    ) return false;
+    previousCursor += 1;
+    nextCursor += 1;
+    previousRank += 1;
+    nextRank += 1;
   }
   return true;
 }
@@ -1119,6 +1240,8 @@ function selectionsByBucket(
   const desired = forest.buckets.map(() => ({
     near: [] as number[],
     overview: [] as number[],
+    viewNear: [] as number[],
+    viewOverview: [] as number[],
     nearViewSlotCount: 0,
     overviewViewSlotCount: 0,
   }));
@@ -1132,71 +1255,31 @@ function selectionsByBucket(
     },
     true,
   );
-  for (let index = 0; index < staticLodPartition.nearIndices.length; index += 1) {
-    const layoutIndex = staticLodPartition.nearIndices[index]!;
+  for (const layoutIndex of staticLodPartition.nearIndices) {
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
-    const bucket = desired[mapping.bucketIndex];
-    bucket?.near.push(mapping.slotIndex);
-    if (bucket && index < staticLodPartition.nearViewCount) {
-      bucket.nearViewSlotCount += 1;
-    }
+    desired[mapping.bucketIndex]?.near.push(mapping.slotIndex);
   }
-  for (let index = 0; index < staticLodPartition.overviewIndices.length; index += 1) {
-    const layoutIndex = staticLodPartition.overviewIndices[index]!;
+  for (const layoutIndex of staticLodPartition.overviewIndices) {
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
-    const bucket = desired[mapping.bucketIndex];
-    bucket?.overview.push(mapping.slotIndex);
-    if (bucket && index < staticLodPartition.overviewViewCount) {
-      bucket.overviewViewSlotCount += 1;
-    }
+    desired[mapping.bucketIndex]?.overview.push(mapping.slotIndex);
+  }
+  for (const layoutIndex of staticLodPartition.nearViewIndices) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (!mapping) continue;
+    desired[mapping.bucketIndex]?.viewNear.push(mapping.slotIndex);
+  }
+  for (const layoutIndex of staticLodPartition.overviewViewIndices) {
+    const mapping = forest.slotByLayoutIndex[layoutIndex];
+    if (!mapping) continue;
+    desired[mapping.bucketIndex]?.viewOverview.push(mapping.slotIndex);
+  }
+  for (const bucket of desired) {
+    bucket.nearViewSlotCount = bucket.viewNear.length;
+    bucket.overviewViewSlotCount = bucket.viewOverview.length;
   }
   return desired;
-}
-
-function updateBucketPassInstanceCounts(bucket: SpeciesBucket): void {
-  updateSeedThreeLodPassInstanceCounts(
-    bucket.nearSet,
-    enabledSeedThreeTreeCountInPrefix(
-      bucket.slots,
-      bucket.nearSlotIndices,
-      bucket.nearViewSlotCount,
-    ),
-  );
-  updateSeedThreeLodPassInstanceCounts(
-    bucket.overviewSet,
-    enabledSeedThreeTreeCountInPrefix(
-      bucket.slots,
-      bucket.overviewSlotIndices,
-      bucket.overviewViewSlotCount,
-    ),
-  );
-}
-
-function reconcileCountOnlyPassPartitions(
-  forest: SeedThreeForestInstances,
-  desired: readonly PassPartitionedBucketSelection[],
-): void {
-  for (let bucketIndex = 0; bucketIndex < forest.buckets.length; bucketIndex += 1) {
-    const bucket = forest.buckets[bucketIndex]!;
-    const next = desired[bucketIndex]!;
-    if (
-      !sameIndices(bucket.nearSlotIndices, next.near)
-      || !sameIndices(bucket.overviewSlotIndices, next.overview)
-      || (
-        bucket.nearViewSlotCount === next.nearViewSlotCount
-        && bucket.overviewViewSlotCount === next.overviewViewSlotCount
-      )
-    ) {
-      continue;
-    }
-    // The packed transform order is already correct. A scalar resident-count
-    // change can be published without scheduling a GPU buffer upload.
-    bucket.nearViewSlotCount = next.nearViewSlotCount;
-    bucket.overviewViewSlotCount = next.overviewViewSlotCount;
-    updateBucketPassInstanceCounts(bucket);
-  }
 }
 
 function createSeedThreeUpdateTelemetry(): SeedThreeForestUpdateTelemetry {
@@ -1242,7 +1325,11 @@ export function getSeedThreeForestStructuralStats(forest: SeedThreeForestInstanc
   let instances = 0;
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.InstancedMesh;
-    if (!mesh.isInstancedMesh || mesh.count <= 0) return;
+    if (
+      !mesh.isInstancedMesh
+      || mesh.count <= 0
+      || mesh.userData.seedThreeShadowOnly === true
+    ) return;
     draws++;
     instances += mesh.count;
     const geometryTriangles = mesh.geometry.index

@@ -41,6 +41,12 @@ function createSolver(nx: number, ny: number): VirtualPipesWater2D {
   const topology = createVirtualPipesWetTopology(nx, ny, new Uint8Array(nx * ny).fill(1));
 
   assert.equal(topology.cells.length / 5, nx * ny);
+  assert.equal(topology.boundaryFlags.length, nx * ny);
+  assert.equal(
+    topology.boundaryFlags.reduce((count, flag) => count + Number(flag === 0), 0),
+    (nx - 2) * (ny - 2),
+    'only the outer ring should pay dry-edge sentinel checks in an all-wet grid',
+  );
   assert.equal(topology.horizontalEdges.length / 3, (nx - 1) * ny);
   assert.equal(topology.verticalEdges.length / 3, nx * (ny - 1));
 
@@ -72,6 +78,8 @@ function createSolver(nx: number, ny: number): VirtualPipesWater2D {
   }
   const topology = createVirtualPipesWetTopology(nx, ny, mask);
   assert.equal(topology.cells.length / 5, 10);
+  assert.equal(topology.boundaryFlags.length, 10);
+  assert.ok(topology.boundaryFlags.some((flag) => flag !== 0));
   assert.equal(topology.horizontalEdges.length / 3, 6);
   assert.equal(topology.verticalEdges.length / 3, 4);
 

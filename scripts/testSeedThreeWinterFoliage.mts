@@ -458,9 +458,19 @@ assert.match(
   'camera updates must gate only tagged crown-underlay draws without rewriting forest matrices',
 );
 assert.match(
-  builderSource,
-  /const castsTreeSilhouette = castShadow && !crownUnderlay;[\s\S]*im\.castShadow = castsTreeSilhouette;[\s\S]*im\.userData\.neverCastShadow = !castsTreeSilhouette;/,
+  compactionSource,
+  /if \(source\.userData\.crownUnderlay === true\) continue;[\s\S]*source\.material[\s\S]*configureSeedThreeForestPassMesh\(mesh, 'shadow', true\)/,
   'whole-crown filler quads must stay out of the shadow pass while ordinary foliage cards retain authored shadows',
+);
+assert.match(
+  compactionSource,
+  /aThickness[\s\S]*mutable\.has\(name\)[\s\S]*attribute\.clone\(\)[\s\S]*alignColorCardInstanceAttributes/,
+  'shadow cards must clone flutter/alpha attributes and realign color by shadow-union identity',
+);
+assert.match(
+  builderSource,
+  /seasonalCardMaterials\?\.add\(fmat as THREE\.Material\)[\s\S]*createSeedThreeExactShadowLodSet\(\s*nearSet/,
+  'seasonal color and shadow cards must share one registered material/uniform graph',
 );
 assert.match(
   builderSource,

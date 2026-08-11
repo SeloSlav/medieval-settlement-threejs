@@ -6,24 +6,20 @@ export type SeedThreeForestInteractionWorkPlan = {
 
 /**
  * Keep keyboard- and pointer-driven camera movement visually coherent. A
- * resident selection already carries a padded visible prefix, so it can remain
- * on screen while the camera moves. Once navigation ends, discard a redundant
- * covered selection instead of rewriting the same visible trees into a
- * different packed order. If movement escapes that prefix, complete the
- * replacement immediately so the newly exposed view never waits on background
- * buffer work.
+ * color selection already carries a padded visible guard, so it can remain on
+ * screen while the camera moves. Once navigation ends, retain the newest guard
+ * work and converge it under the normal frame budget. If movement escapes the
+ * guard, complete the replacement immediately so the newly exposed view never
+ * waits on background buffer work.
  */
 export function planSeedThreeForestInteractionWork(
-  previousInteractionActive: boolean,
+  _previousInteractionActive: boolean,
   interactionActive: boolean,
   residentSelectionCoversDesiredView: boolean,
 ): SeedThreeForestInteractionWorkPlan {
   return {
     deferCoveredWork: interactionActive && residentSelectionCoversDesiredView,
-    discardCoveredWork:
-      previousInteractionActive
-      && !interactionActive
-      && residentSelectionCoversDesiredView,
+    discardCoveredWork: false,
     completeImmediately: !residentSelectionCoversDesiredView,
   };
 }

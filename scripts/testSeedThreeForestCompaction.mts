@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
   createSeedThreeBucketMatrixWriteJob,
+  createSeedThreeExactShadowLodSet,
+  configureSeedThreeForestPassMesh,
   enabledSeedThreeTreeCountInPrefix,
   partitionSeedThreeSelectionByStaticLod,
   runSeedThreeBucketMatrixWriteChunk,
   runSeedThreeBucketMatrixWriteSlices,
+  seedThreeColorSelectionCoversView,
   seedThreeResidentSelectionCoversView,
-  updateSeedThreeLodPassInstanceCounts,
   writeSeedThreeLodMatrices,
   type SeedThreeTreeSlot,
 } from '../src/vegetation/seedthree/seedThreeForestCompaction.ts';
@@ -16,10 +18,16 @@ import { planSeedThreeForestInteractionWork } from '../src/vegetation/seedthree/
 import {
   planForestBucketUpdates,
 } from '../vendor/seedthree/src/core/forest-update-budget.js';
+import {
+  createForestLodSelector,
+  selectForestLods,
+} from '../vendor/seedthree/src/core/forest-lod.js';
 
 type SeedThreeBucketSelection = {
   near: readonly number[];
   overview: readonly number[];
+  viewNear?: readonly number[];
+  viewOverview?: readonly number[];
 };
 
 assert.deepEqual(
@@ -29,8 +37,8 @@ assert.deepEqual(
 );
 assert.deepEqual(
   planSeedThreeForestInteractionWork(true, false, true),
-  { deferCoveredWork: false, discardCoveredWork: true, completeImmediately: false },
-  'navigation release should discard a redundant covered forest repack',
+  { deferCoveredWork: false, discardCoveredWork: false, completeImmediately: false },
+  'navigation release should refill the padded color guard under the frame budget',
 );
 assert.deepEqual(
   planSeedThreeForestInteractionWork(false, true, false),
@@ -102,6 +110,66 @@ function makeLodSet(capacity: number) {
   return { branches, cards: [cards] };
 }
 
+const exactColorSource = makeLodSet(2);
+exactColorSource.cards[0].geometry.setAttribute(
+  'aPeriodicCardValue',
+  new THREE.InstancedBufferAttribute(new Float32Array([0.625, 0.625]), 1),
+);
+const exactThickness = exactColorSource.cards[0].geometry.getAttribute(
+  'aThickness',
+) as THREE.InstancedBufferAttribute;
+exactThickness.setX(0, 0.4375);
+exactThickness.setX(1, 0.8125);
+const underlayGeometry = exactColorSource.cards[0].geometry.clone();
+underlayGeometry.userData.crownUnderlay = true;
+const underlay = new THREE.InstancedMesh(
+  underlayGeometry,
+  exactColorSource.cards[0].material,
+  2,
+) as THREE.InstancedMesh & { userData: Record<string, unknown> };
+underlay.userData = {
+  ...exactColorSource.cards[0].userData,
+  crownUnderlay: true,
+};
+exactColorSource.cards.push(underlay);
+const exactShadowClone = createSeedThreeExactShadowLodSet(
+  exactColorSource,
+  'test exact shadow',
+);
+assert.equal(exactShadowClone.cards.length, 1,
+  'non-casting crown underlays must not allocate a shadow-only mesh');
+const exactShadowThickness = exactShadowClone.cards[0].geometry.getAttribute(
+  'aThickness',
+) as THREE.InstancedBufferAttribute;
+assert.notEqual(exactShadowThickness, exactThickness,
+  'color and shadow need independent packed thickness buffers');
+assert.equal(
+  exactShadowClone.cards[0].geometry.getAttribute('aPeriodicCardValue'),
+  exactColorSource.cards[0].geometry.getAttribute('aPeriodicCardValue'),
+  'tree-periodic immutable card attributes should remain shared',
+);
+assert.deepEqual(
+  Array.from(exactShadowThickness.array),
+  Array.from(exactThickness.array),
+  'independent thickness buffers must begin byte-identical',
+);
+assert.equal(
+  exactShadowClone.cards[0].material,
+  exactColorSource.cards[0].material,
+  'color and shadow cards must share the exact animated alpha/material graph',
+);
+for (const attributeName of ['aTreeOrigin', 'aWindVec', 'aAnchorPos']) {
+  const colorAttribute = exactColorSource.cards[0].geometry.getAttribute(attributeName);
+  const shadowAttribute = exactShadowClone.cards[0].geometry.getAttribute(attributeName);
+  assert.notEqual(shadowAttribute, colorAttribute,
+    `${attributeName} must own an independent packed buffer`);
+  assert.deepEqual(
+    Array.from(shadowAttribute.array),
+    Array.from(colorAttribute.array),
+    `${attributeName} must begin byte-identical before independent compaction`,
+  );
+}
+
 const nearSet = makeLodSet(2);
 const overviewSet = makeLodSet(2);
 const slot = (layoutIndex: number, x: number): SeedThreeTreeSlot => ({
@@ -113,6 +181,119 @@ const slot = (layoutIndex: number, x: number): SeedThreeTreeSlot => ({
   enabled: true,
 });
 const slots = [slot(0, 10), slot(1, 20)];
+
+const exactParityJob = createSeedThreeBucketMatrixWriteJob(
+  exactColorSource,
+  { branches: null, cards: [] },
+  slots,
+  [0],
+  [],
+  { lodSet: exactShadowClone, selectedSlotIndices: [0] },
+);
+runSeedThreeBucketMatrixWriteSlices(exactParityJob, {
+  deadlineMs: Number.POSITIVE_INFINITY,
+  maxMatrixWritesPerChunk: Number.POSITIVE_INFINITY,
+});
+assert.deepEqual(
+  Array.from(exactShadowClone.cards[0].instanceMatrix.array.slice(0, 16)),
+  Array.from(exactColorSource.cards[0].instanceMatrix.array.slice(0, 16)),
+  'matching color/shadow identities must publish byte-identical animated card transforms',
+);
+for (const attributeName of ['aTreeOrigin', 'aWindVec', 'aAnchorPos']) {
+  assert.deepEqual(
+    Array.from(exactShadowClone.cards[0].geometry.getAttribute(attributeName).array.slice(0, 3)),
+    Array.from(exactColorSource.cards[0].geometry.getAttribute(attributeName).array.slice(0, 3)),
+    `${attributeName} must keep the shadow silhouette welded to color foliage`,
+  );
+}
+
+const offViewBeforeVisibleJob = createSeedThreeBucketMatrixWriteJob(
+  exactColorSource,
+  { branches: null, cards: [] },
+  slots,
+  [1],
+  [],
+  {
+    lodSet: exactShadowClone,
+    selectedSlotIndices: [0, 1],
+    overviewSelectedSlotIndices: [],
+  },
+);
+const exactThicknessVersionBeforeIdentityRemap = exactThickness.version;
+runSeedThreeBucketMatrixWriteSlices(offViewBeforeVisibleJob, {
+  deadlineMs: Number.POSITIVE_INFINITY,
+  maxMatrixWritesPerChunk: Number.POSITIVE_INFINITY,
+});
+assert.equal(exactThickness.getX(0), 0.8125,
+  'a visible tree compacted to color index zero must inherit its union-rank flutter phase');
+assert.equal(exactShadowThickness.getX(1), 0.8125,
+  'the same tree at shadow index one must retain the identical flutter phase');
+assert.equal(
+  exactThickness.version,
+  exactThicknessVersionBeforeIdentityRemap + 1,
+  'canonical thickness remapping must publish exactly one attribute version',
+);
+assert.deepEqual(
+  exactThickness.updateRanges,
+  [{ start: 0, count: 1 }],
+  'canonical thickness remapping must upload only the exact packed prefix',
+);
+assert.deepEqual(
+  Array.from(exactColorSource.cards[0].instanceMatrix.array.slice(0, 16)),
+  Array.from(exactShadowClone.cards[0].instanceMatrix.array.slice(16, 32)),
+  'off-view predecessors must not desynchronize the visible color/shadow transform',
+);
+for (const attributeName of ['aTreeOrigin', 'aWindVec', 'aAnchorPos']) {
+  assert.deepEqual(
+    Array.from(exactColorSource.cards[0].geometry.getAttribute(attributeName).array.slice(0, 3)),
+    Array.from(exactShadowClone.cards[0].geometry.getAttribute(attributeName).array.slice(3, 6)),
+    `${attributeName} must match by tree identity rather than packed destination index`,
+  );
+}
+
+const exactThicknessVersionBeforeEmptyView = exactThickness.version;
+const emptyColorJob = createSeedThreeBucketMatrixWriteJob(
+  exactColorSource,
+  { branches: null, cards: [] },
+  slots,
+  [],
+  [],
+  {
+    lodSet: exactShadowClone,
+    selectedSlotIndices: [0, 1],
+    overviewSelectedSlotIndices: [],
+    writeShadow: false,
+  },
+);
+runSeedThreeBucketMatrixWriteSlices(emptyColorJob, {
+  deadlineMs: Number.POSITIVE_INFINITY,
+  maxMatrixWritesPerChunk: Number.POSITIVE_INFINITY,
+});
+assert.equal(
+  exactThickness.version,
+  exactThicknessVersionBeforeEmptyView,
+  'an empty color selection must not bump or upload canonical thickness',
+);
+
+const noPolicyChurnCamera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
+noPolicyChurnCamera.position.set(0, 8, 80);
+noPolicyChurnCamera.lookAt(0, 8, 0);
+noPolicyChurnCamera.updateMatrixWorld(true);
+const noPolicyChurnSelector = createForestLodSelector([
+  { x: 0, y: 8, z: 0, radius: 6 },
+], { minimumCameraMove: 1000 });
+const noPolicyChurnInitial = selectForestLods(noPolicyChurnSelector, noPolicyChurnCamera, {
+  force: true,
+});
+const noPolicyChurnRepeat = selectForestLods(
+  noPolicyChurnSelector,
+  noPolicyChurnCamera,
+  { overviewElevationFloorBelowCamera: -36 } as never,
+);
+assert.equal(noPolicyChurnRepeat.skipped, true,
+  'removed camera-elevation classification must not invalidate selector policy');
+assert.equal(noPolicyChurnRepeat.revision, noPolicyChurnInitial.revision,
+  'camera-elevation policy changes must not schedule an identical static-LOD repack');
 
 const affineParitySet = makeLodSet(1);
 const affineSlot: SeedThreeTreeSlot = {
@@ -206,16 +387,32 @@ assert.deepEqual(
   'camera-distance classifications must not alter any retained tree static LOD identity',
 );
 assert.deepEqual(
-  staticLodFromFirstDistanceClassification,
-  staticLodFromOppositeView,
-  'camera direction must not reorder an already-resident color/shadow instance buffer',
+  {
+    near: staticLodFromFirstDistanceClassification.nearIndices,
+    overview: staticLodFromFirstDistanceClassification.overviewIndices,
+  },
+  {
+    near: staticLodFromOppositeView.nearIndices,
+    overview: staticLodFromOppositeView.overviewIndices,
+  },
+  'camera direction must not reorder the exact shadow-resident union',
 );
 assert.deepEqual(staticLodFromFirstDistanceClassification, {
   nearIndices: [0, 2, 3],
   overviewIndices: [1, 4],
-  nearViewCount: 3,
+  nearViewIndices: [2],
+  overviewViewIndices: [1, 4],
+  nearViewCount: 1,
   overviewViewCount: 2,
-}, 'static LOD partitioning must retain stable conservative resident prefixes');
+}, 'static LOD partitioning must separate the padded color guard from shadow residents');
+assert.deepEqual(
+  {
+    nearView: staticLodFromOppositeView.nearViewIndices,
+    overviewView: staticLodFromOppositeView.overviewViewIndices,
+  },
+  { nearView: [0, 3], overviewView: [] },
+  'camera direction should update only the color guard identities',
+);
 assert.deepEqual(
   [
     ...staticLodFromFirstDistanceClassification.nearIndices,
@@ -228,6 +425,8 @@ assert.deepEqual(
 const residentBuckets = [{
   nearSlotIndices: [0, 1],
   overviewSlotIndices: [2],
+  nearViewSlotIndices: [0],
+  overviewViewSlotIndices: [2],
 }];
 const residentLayoutMappings = [
   { bucketIndex: 0, slotIndex: 0 },
@@ -243,6 +442,24 @@ assert.equal(
   ),
   true,
   'a tree already resident for shadows must cover the color view without a repack',
+);
+assert.equal(
+  seedThreeColorSelectionCoversView(
+    residentBuckets,
+    residentLayoutMappings,
+    [2],
+  ),
+  true,
+  'the color guard should cover explicitly packed overview identities',
+);
+assert.equal(
+  seedThreeColorSelectionCoversView(
+    residentBuckets,
+    residentLayoutMappings,
+    [1],
+  ),
+  false,
+  'a shadow-only resident must not be mistaken for color coverage',
 );
 assert.equal(
   seedThreeResidentSelectionCoversView(
@@ -261,47 +478,71 @@ assert.equal(nearSet.cards[0].count, 1, 'near card bucket should submit one tree
 assert.equal(overviewSet.branches.count, 1, 'overview bucket should submit one tree');
 assert.equal(overviewSet.cards[0].count, 1, 'overview card bucket should submit one tree');
 
-updateSeedThreeLodPassInstanceCounts(nearSet, 0);
 const mainCamera = new THREE.PerspectiveCamera();
 const shadowCamera = new THREE.OrthographicCamera();
-assert.equal(nearSet.branches.count, 1,
-  'the stable conservative prefix must remain resident');
-nearSet.branches.onBeforeRender(
+const passColorSet = makeLodSet(2);
+const passShadowSet = makeLodSet(2);
+configureSeedThreeForestPassMesh(passColorSet.branches, 'color', true);
+configureSeedThreeForestPassMesh(passColorSet.cards[0], 'color', true);
+configureSeedThreeForestPassMesh(passShadowSet.branches, 'shadow', true);
+configureSeedThreeForestPassMesh(passShadowSet.cards[0], 'shadow', true);
+const passJob = createSeedThreeBucketMatrixWriteJob(
+  passColorSet,
+  makeLodSet(2),
+  slots,
+  [0],
+  [],
+  { lodSet: passShadowSet, selectedSlotIndices: [0, 1] },
+);
+runSeedThreeBucketMatrixWriteSlices(passJob, {
+  deadlineMs: Number.POSITIVE_INFINITY,
+  maxMatrixWritesPerChunk: Number.POSITIVE_INFINITY,
+});
+assert.equal(passColorSet.branches.count, 1,
+  'the color mesh must submit only its padded view guard');
+assert.equal(passShadowSet.branches.count, 2,
+  'the shadow mesh must retain the complete exact caster union');
+assert.equal(passColorSet.branches.castShadow, false,
+  'the color mesh must never enter the shadow pass');
+assert.equal(passColorSet.branches.receiveShadow, true,
+  'the color mesh must retain authored received lighting');
+assert.equal(passShadowSet.branches.castShadow, true,
+  'the shadow-only mesh must preserve exact tree casting');
+assert.equal(passShadowSet.branches.receiveShadow, false,
+  'the shadow-only mesh must not compile unused received-lighting work');
+assert.equal(passColorSet.branches.layers.isEnabled(1), false,
+  'the main-camera tree mesh must remain off the shadow-only layer');
+assert.equal(passShadowSet.branches.layers.mask, 1 << 1,
+  'the exact caster must be isolated on the directional-shadow layer');
+passColorSet.branches.onBeforeRender(
   {} as THREE.WebGLRenderer,
   new THREE.Scene(),
   mainCamera,
-  nearSet.branches.geometry,
-  nearSet.branches.material as THREE.Material,
+  passColorSet.branches.geometry,
+  passColorSet.branches.material as THREE.Material,
   {} as THREE.Group,
 );
-assert.equal(nearSet.branches.count, 1,
-  'a color callback must not mutate the resident prefix');
-nearSet.branches.onBeforeRender(
+passShadowSet.branches.onBeforeRender(
   {} as THREE.WebGLRenderer,
   new THREE.Scene(),
   shadowCamera,
-  nearSet.branches.geometry,
-  nearSet.branches.material as THREE.Material,
+  passShadowSet.branches.geometry,
+  passShadowSet.branches.material as THREE.Material,
   {} as THREE.Group,
 );
-assert.equal(nearSet.branches.count, 1,
-  'a shadow callback must observe the same resident prefix');
-
-const passParitySet = makeLodSet(2);
-writeSeedThreeLodMatrices(passParitySet, slots, [0, 1]);
-updateSeedThreeLodPassInstanceCounts(passParitySet, 1);
-const branchTrianglesPerInstance = passParitySet.branches.geometry.index!.count / 3;
-const colorTriangles = passParitySet.branches.count * branchTrianglesPerInstance;
-const shadowTriangles = passParitySet.branches.count * branchTrianglesPerInstance;
-assert.equal(colorTriangles, branchTrianglesPerInstance * 2,
-  'the color pass must retain the conservative prefix');
+assert.equal(passColorSet.branches.count, 1,
+  'render callbacks must never mutate the stable color count');
+assert.equal(passShadowSet.branches.count, 2,
+  'render callbacks must never mutate the stable shadow count');
+const branchTrianglesPerInstance = passColorSet.branches.geometry.index!.count / 3;
+const colorTriangles = passColorSet.branches.count * branchTrianglesPerInstance;
+const shadowTriangles = passShadowSet.branches.count * branchTrianglesPerInstance;
+assert.equal(colorTriangles, branchTrianglesPerInstance,
+  'the color pass must submit exactly the padded view guard');
 assert.equal(shadowTriangles, branchTrianglesPerInstance * 2,
   'the shadow pass must preserve exact conservative triangle coverage');
-assert.equal(
-  colorTriangles,
-  shadowTriangles,
-  'both passes must use the same immutable instance count',
-);
+assert.equal(shadowTriangles - colorTriangles, branchTrianglesPerInstance,
+  'only the shadow-only off-camera suffix may leave the foliage-lighting pass');
 
 slots[0]!.enabled = false;
 assert.equal(
@@ -321,14 +562,17 @@ assert.equal(activeDraws(), 4,
 
 const chunkNearSet = makeLodSet(2);
 const chunkOverviewSet = makeLodSet(2);
+const chunkShadowSet = makeLodSet(2);
 writeSeedThreeLodMatrices(chunkNearSet, slots, [0]);
 writeSeedThreeLodMatrices(chunkOverviewSet, slots, [1]);
+writeSeedThreeLodMatrices(chunkShadowSet, slots, [1]);
 const chunkedJob = createSeedThreeBucketMatrixWriteJob(
   chunkNearSet,
   chunkOverviewSet,
   slots,
   [0, 1],
   [],
+  { lodSet: chunkShadowSet, selectedSlotIndices: [0, 1] },
 );
 const firstChunk = runSeedThreeBucketMatrixWriteChunk(chunkedJob, {
   deadlineMs: Number.POSITIVE_INFINITY,
@@ -346,6 +590,11 @@ assert.equal(
   1,
   'near and overview meshes must commit atomically at bucket completion',
 );
+assert.equal(
+  chunkShadowSet.branches.count,
+  1,
+  'color and shadow objects must keep their previous coherent counts until atomic completion',
+);
 let chunkCalls = 1;
 while (!chunkedJob.completed && chunkCalls < 16) {
   runSeedThreeBucketMatrixWriteChunk(chunkedJob, {
@@ -360,6 +609,8 @@ assert.equal(chunkNearSet.branches.count, 2);
 assert.equal(chunkNearSet.cards[0].count, 2);
 assert.equal(chunkOverviewSet.branches.count, 0);
 assert.equal(chunkOverviewSet.cards[0].count, 0);
+assert.equal(chunkShadowSet.branches.count, 2);
+assert.equal(chunkShadowSet.cards[0].count, 2);
 
 const multiSliceSlots = Array.from(
   { length: 129 },
@@ -445,6 +696,16 @@ assert.deepEqual(
   planForestBucketUpdates(frozenSelection, frozenSelection, [], 1),
   { uploadBucketIndices: [], pendingBucketIndices: [] },
   'a frozen deterministic camera must schedule no forest buffer work',
+);
+assert.deepEqual(
+  planForestBucketUpdates(
+    [{ near: [0, 1], overview: [], viewNear: [0], viewOverview: [] }],
+    [{ near: [0, 1], overview: [], viewNear: [1], viewOverview: [] }],
+    [],
+    1,
+  ),
+  { uploadBucketIndices: [0], pendingBucketIndices: [] },
+  'a changed color guard must compact even when the exact shadow union is unchanged',
 );
 
 const activeSelection: SeedThreeBucketSelection[] = frozenSelection.map(
@@ -538,11 +799,15 @@ for (const set of [
   overviewSet,
   chunkNearSet,
   chunkOverviewSet,
+  chunkShadowSet,
   multiSliceNearSet,
   multiSliceOverviewSet,
-  passParitySet,
+  passColorSet,
+  passShadowSet,
   affineParitySet,
   genericParitySet,
+  exactColorSource,
+  exactShadowClone,
 ]) {
   set.branches.geometry.dispose();
   (set.branches.material as THREE.Material).dispose();

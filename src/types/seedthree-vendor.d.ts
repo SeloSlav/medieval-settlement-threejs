@@ -109,8 +109,6 @@ declare module '@seedthree/core/forest-lod.js' {
     frustumPadding?: number;
     nearDistance?: number;
     lodHysteresis?: number;
-    /** Force crowns at or above this camera-relative Y offset into overview cards. */
-    overviewElevationFloorBelowCamera?: number;
     minimumCameraMove?: number;
     minimumDirectionAngle?: number;
     minimumProjectionChange?: number;
@@ -151,6 +149,8 @@ declare module '@seedthree/core/forest-lod.js' {
     overviewIndices: number[];
     /** Trees intersecting the padded camera frustum, excluding shadow-only casters. */
     viewIndices: number[];
+    /** Trees intersecting the actual camera frustum without the padded guard envelope. */
+    criticalViewIndices: number[];
     visibleCount: number;
     culledCount: number;
     changed: boolean;
@@ -264,6 +264,8 @@ declare module '@seedthree/core/forest-update-budget.js' {
   export type SeedThreeBucketSelection = {
     near: readonly number[];
     overview: readonly number[];
+    viewNear?: readonly number[];
+    viewOverview?: readonly number[];
   };
 
   export function planForestBucketUpdates(
@@ -364,6 +366,10 @@ declare module '@seedthree/core/instance-matrix-chunks.js' {
       isSlotVisible?: (slot: TSlot) => boolean;
       resolveTreeOriginY?: (slot: TSlot) => number;
       windXZInitializedZero?: boolean;
+      additionalSelections?: Array<{
+        lodSet: InstanceMatrixLodSet;
+        selectedSlotIndices: readonly number[];
+      }>;
     },
   ): InstanceMatrixWriteJob;
 

@@ -28,6 +28,8 @@ export type VirtualPipesWetTopology = {
   horizontalEdges: Uint32Array;
   verticalEdges: Uint32Array;
   cells: Uint32Array;
+  /** One byte per wet cell; zero means all four edge indices are valid. */
+  boundaryFlags: Uint8Array;
 };
 
 export type BilinearGridSample = {
@@ -58,6 +60,7 @@ export function createVirtualPipesWetTopology(
   const horizontalEdges: number[] = [];
   const verticalEdges: number[] = [];
   const cells: number[] = [];
+  const boundaryFlags: number[] = [];
 
   for (let y = 0; y < ny; y++) {
     const rowCell = y * nx;
@@ -67,20 +70,18 @@ export function createVirtualPipesWetTopology(
     for (let x = 0; x < nx; x++) {
       const cell = rowCell + x;
       if (wetMask[cell] === 0) continue;
-      cells.push(
-        cell,
-        x > 0 && wetMask[cell - 1] > 0
-          ? rowFlowX + x
-          : NO_FLOW_EDGE,
-        x + 1 < nx && wetMask[cell + 1] > 0
-          ? rowFlowX + x + 1
-          : NO_FLOW_EDGE,
-        y > 0 && wetMask[cell - nx] > 0
-          ? rowFlowY + x
-          : NO_FLOW_EDGE,
-        y + 1 < ny && wetMask[cell + nx] > 0
-          ? nextRowFlowY + x
-          : NO_FLOW_EDGE,
+      const left = x > 0 && wetMask[cell - 1] > 0 ? rowFlowX + x : NO_FLOW_EDGE;
+      const right = x + 1 < nx && wetMask[cell + 1] > 0 ? rowFlowX + x + 1 : NO_FLOW_EDGE;
+      const bottom = y > 0 && wetMask[cell - nx] > 0 ? rowFlowY + x : NO_FLOW_EDGE;
+      const top = y + 1 < ny && wetMask[cell + nx] > 0 ? nextRowFlowY + x : NO_FLOW_EDGE;
+      cells.push(cell, left, right, bottom, top);
+      boundaryFlags.push(
+        left === NO_FLOW_EDGE
+          || right === NO_FLOW_EDGE
+          || bottom === NO_FLOW_EDGE
+          || top === NO_FLOW_EDGE
+          ? 1
+          : 0,
       );
     }
   }
@@ -114,6 +115,7 @@ export function createVirtualPipesWetTopology(
     horizontalEdges: Uint32Array.from(horizontalEdges),
     verticalEdges: Uint32Array.from(verticalEdges),
     cells: Uint32Array.from(cells),
+    boundaryFlags: Uint8Array.from(boundaryFlags),
   };
 }
 
@@ -325,6 +327,7 @@ export class VirtualPipesWater2D {
     const rdy = g * dt / dy;
     const invCell = dt / (dx * dy);
     const frictionFactor = Math.pow(Math.max(0, Math.min(1, 1 - friction)), dt);
+    const viscosityFactor = 3 * dt * viscosity;
 
     const terr = this.terrain;
     const depth = this.depth;
@@ -333,6 +336,7 @@ export class VirtualPipesWater2D {
     const horizontalEdges = topology.horizontalEdges;
     const verticalEdges = topology.verticalEdges;
     const cells = topology.cells;
+    const boundaryFlags = topology.boundaryFlags;
 
     for (let p = 0; p < horizontalEdges.length; p += 3) {
       const edge = horizontalEdges[p];
@@ -341,6 +345,15 @@ export class VirtualPipesWater2D {
       const leftSurface = terr[left] + depth[left];
       const rightSurface = terr[right] + depth[right];
       flowX[edge] = flowX[edge] * frictionFactor + (leftSurface - rightSurface) * rdx;
+      if (viscosityFactor > 0) {
+        // Preserve the Float32 store/read boundary from the former second
+        // traversal so the numerical result is bit-identical.
+        const q = flowX[edge];
+        const upstream = q > 0 ? left : right;
+        let height = depth[upstream];
+        height *= height;
+        if (height > 0) flowX[edge] *= height / (height + viscosityFactor);
+      }
     }
 
     for (let p = 0; p < verticalEdges.length; p += 3) {
@@ -350,38 +363,26 @@ export class VirtualPipesWater2D {
       const bottomSurface = terr[bottom] + depth[bottom];
       const topSurface = terr[top] + depth[top];
       flowY[edge] = flowY[edge] * frictionFactor + (bottomSurface - topSurface) * rdy;
-    }
-
-    if (viscosity > 0) {
-      const nu = 3 * dt * viscosity;
-      for (let p = 0; p < horizontalEdges.length; p += 3) {
-        const edge = horizontalEdges[p];
-        const q = flowX[edge];
-        const upstream = q > 0 ? horizontalEdges[p + 1] : horizontalEdges[p + 2];
-        let height = depth[upstream];
-        height *= height;
-        if (height > 0) flowX[edge] *= height / (height + nu);
-      }
-      for (let p = 0; p < verticalEdges.length; p += 3) {
-        const edge = verticalEdges[p];
+      if (viscosityFactor > 0) {
         const q = flowY[edge];
-        const upstream = q > 0 ? verticalEdges[p + 1] : verticalEdges[p + 2];
+        const upstream = q > 0 ? bottom : top;
         let height = depth[upstream];
         height *= height;
-        if (height > 0) flowY[edge] *= height / (height + nu);
+        if (height > 0) flowY[edge] *= height / (height + viscosityFactor);
       }
     }
 
-    for (let p = 0; p < cells.length; p += 5) {
+    for (let p = 0, cellIndex = 0; p < cells.length; p += 5, cellIndex++) {
       const cell = cells[p];
       const leftEdge = cells[p + 1];
       const rightEdge = cells[p + 2];
       const bottomEdge = cells[p + 3];
       const topEdge = cells[p + 4];
-      const leftFlow = leftEdge === NO_FLOW_EDGE ? 0 : flowX[leftEdge];
-      const rightFlow = rightEdge === NO_FLOW_EDGE ? 0 : flowX[rightEdge];
-      const bottomFlow = bottomEdge === NO_FLOW_EDGE ? 0 : flowY[bottomEdge];
-      const topFlow = topEdge === NO_FLOW_EDGE ? 0 : flowY[topEdge];
+      const isBoundary = boundaryFlags[cellIndex] !== 0;
+      const leftFlow = isBoundary && leftEdge === NO_FLOW_EDGE ? 0 : flowX[leftEdge];
+      const rightFlow = isBoundary && rightEdge === NO_FLOW_EDGE ? 0 : flowX[rightEdge];
+      const bottomFlow = isBoundary && bottomEdge === NO_FLOW_EDGE ? 0 : flowY[bottomEdge];
+      const topFlow = isBoundary && topEdge === NO_FLOW_EDGE ? 0 : flowY[topEdge];
       let totalOut = 0;
       if (leftFlow < 0) totalOut += -leftFlow;
       if (bottomFlow < 0) totalOut += -bottomFlow;
@@ -397,17 +398,19 @@ export class VirtualPipesWater2D {
       if (topFlow > 0) flowY[topEdge] *= scale;
     }
 
-    for (let p = 0; p < cells.length; p += 5) {
+    for (let p = 0, cellIndex = 0; p < cells.length; p += 5, cellIndex++) {
       const cell = cells[p];
       const leftEdge = cells[p + 1];
       const rightEdge = cells[p + 2];
       const bottomEdge = cells[p + 3];
       const topEdge = cells[p + 4];
-      const delta =
-        (leftEdge === NO_FLOW_EDGE ? 0 : flowX[leftEdge]) +
-        (bottomEdge === NO_FLOW_EDGE ? 0 : flowY[bottomEdge]) -
-        (rightEdge === NO_FLOW_EDGE ? 0 : flowX[rightEdge]) -
-        (topEdge === NO_FLOW_EDGE ? 0 : flowY[topEdge]);
+      const isBoundary = boundaryFlags[cellIndex] !== 0;
+      const delta = isBoundary
+        ? (leftEdge === NO_FLOW_EDGE ? 0 : flowX[leftEdge])
+          + (bottomEdge === NO_FLOW_EDGE ? 0 : flowY[bottomEdge])
+          - (rightEdge === NO_FLOW_EDGE ? 0 : flowX[rightEdge])
+          - (topEdge === NO_FLOW_EDGE ? 0 : flowY[topEdge])
+        : flowX[leftEdge] + flowY[bottomEdge] - flowX[rightEdge] - flowY[topEdge];
       depth[cell] += delta * invCell;
     }
   }
