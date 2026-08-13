@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
-import type { RendererBackendKind, SupportedRenderer } from '../scene/RendererBackend.ts';
 import type { RiverField } from './RiverField.ts';
 import {
   createBilinearGridSample,
@@ -17,11 +16,6 @@ import {
   disposeRiverWaterShoreMaps,
 } from './riverWaterShoreMaps.ts';
 import { waterSurfaceProfileForPreset } from './WaterSurfaceProfile.ts';
-import {
-  createSpectralWaterSimulation,
-  type SpectralWaterSimulation,
-} from './SpectralWaterSimulation.ts';
-import type { WebGPURenderer } from 'three/webgpu';
 
 const RIVER_WATER_DEPTH = 1.05;
 const RIVER_CENTER_DEPTH_BOOST = 0.2;
@@ -192,8 +186,6 @@ export function createRiverWaterMesh(
   group: THREE.Group,
   terrain: Terrain,
   riverField: RiverField,
-  renderer: SupportedRenderer,
-  rendererBackend: RendererBackendKind,
 ): RiverWaterController | null {
   const nx = riverField.resolution;
   const nz = riverField.resolution;
@@ -484,12 +476,9 @@ export function createRiverWaterMesh(
   };
 
   const waterProfile = waterSurfaceProfileForPreset(riverField.layout.terrainPreset);
-  const spectralSimulation: SpectralWaterSimulation | null = rendererBackend === 'webgpu'
-    ? createSpectralWaterSimulation(renderer as WebGPURenderer, waterProfile.id)
-    : null;
   const mesh = new THREE.Mesh(
     geometry,
-    getSharedRiverWaterMaterial(shoreMaps, waterProfile, spectralSimulation?.binding ?? null),
+    getSharedRiverWaterMaterial(shoreMaps),
   );
   mesh.name = waterProfile.id === 'coastal'
     ? 'Coastal sea surface'
@@ -519,15 +508,12 @@ export function createRiverWaterMesh(
     disposed = true;
     if (mesh.parent === group) group.remove(mesh);
     geometry.dispose();
-    spectralSimulation?.dispose();
     disposeRiverWaterShoreMaps(shoreMaps);
     disposeSharedRiverWaterMaterial();
   };
 
-  const tick = (dt: number, timeSec = 0) => {
+  const tick = (dt: number, _timeSec = 0) => {
     if (disposed) return;
-
-    spectralSimulation?.update(timeSec, dt);
 
     cpuAccum += Math.min(0.1, Math.max(0, dt));
     if (cpuAccum < WATER_CPU_UPDATE_INTERVAL_SEC) return;

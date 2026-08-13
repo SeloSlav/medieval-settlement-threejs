@@ -428,7 +428,6 @@ export class SceneManager {
       startupTextures.riverRock,
       backend.maxAnisotropy,
       backend.kind,
-      backend.renderer,
     );
     const quarrySystem = createQuarrySystem(terrain, quarryLayout, startupTextures.riverRock);
     const clayDepositSystem = createClayDepositSystem(terrain, clayDepositLayout);
@@ -1027,17 +1026,6 @@ export class SceneManager {
         0.001,
       );
     }
-    this.riverSystem.setReflectionState({
-      solarElevationDeg: state.solarElevationDeg,
-      nightAmount: state.nightAmount,
-      celestialColor: this.sunLight.color,
-      celestialDirection: this.shadowKeyDirection,
-      // Normalize the live key into a bounded reflection contribution. This
-      // follows weather dimming and switches continuously from sun to moon.
-      celestialIntensity: THREE.MathUtils.clamp(this.sunLight.intensity / 4.2, 0.08, 1.2),
-      weatherTint: weather.fogTint,
-      weatherBlend: atmosphericBlend,
-    });
     this.dayNightGrade.saturation =
       state.grade.saturation * weather.saturationMultiplier;
     this.dayNightGrade.contrast =

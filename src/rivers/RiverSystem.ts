@@ -10,14 +10,10 @@ import { createRiverReeds, type RiverReedField } from './RiverReeds.ts';
 import { createRiverLilyPads, type RiverLilyPadField } from './RiverLilyPads.ts';
 import { createRiverShoreStones } from './RiverShoreStones.ts';
 import { createRiverWaterMesh, disposeSharedRiverWaterMaterial } from './RiverWaterMesh.ts';
-import {
-  setSharedRiverWaterNightAmount,
-  setSharedRiverWaterReflectionState,
-  type RiverWaterReflectionState,
-} from './RiverWaterMaterial.ts';
+import { setSharedRiverWaterNightAmount } from './RiverWaterMaterial.ts';
 import type { RockObstacle } from '../utils/pathGeometry.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
-import type { RendererBackendKind, SupportedRenderer } from '../scene/RendererBackend.ts';
+import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import { isReedZoomActive } from '../grass/grassLodMath.ts';
 
 function createPropShadowMaterials(): {
@@ -57,7 +53,6 @@ export type RiverSystem = {
     firstPersonActive?: boolean,
   ) => void;
   setNightAmount: (nightAmount: number) => void;
-  setReflectionState: (state: RiverWaterReflectionState) => void;
   tick: (dt: number, timeSec: number) => void;
   dispose: () => void;
 };
@@ -69,20 +64,13 @@ export async function createRiverSystem(
   rockTextures: MossyRockTextureSet,
   maxAnisotropy: number,
   rendererBackend: RendererBackendKind,
-  renderer: SupportedRenderer,
 ): Promise<RiverSystem> {
   const group = new THREE.Group();
   group.name = 'River system';
 
   const rockMaterial = createRiverRockMaterial(rockTextures);
   const rockShadowMaterials = createPropShadowMaterials();
-  const waterController = createRiverWaterMesh(
-    group,
-    terrain,
-    riverField,
-    renderer,
-    rendererBackend,
-  );
+  const waterController = createRiverWaterMesh(group, terrain, riverField);
   const reedsGroup = new THREE.Group();
   reedsGroup.name = 'Progressive river reeds';
   group.add(reedsGroup);
@@ -180,7 +168,6 @@ export async function createRiverSystem(
       lilyPads?.updateCameraState(cameraDistance, firstPersonActive);
     },
     setNightAmount: setSharedRiverWaterNightAmount,
-    setReflectionState: setSharedRiverWaterReflectionState,
     tick: (dt, timeSec) => waterController?.tick(dt, timeSec),
     dispose: () => {
       disposed = true;
