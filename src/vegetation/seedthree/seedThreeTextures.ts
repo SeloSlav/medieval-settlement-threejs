@@ -23,6 +23,15 @@ const leafModules = import.meta.glob(
   },
 ) as Record<string, string>;
 
+const fruitModules = import.meta.glob(
+  '../../../vendor/seedthree/assets/fruits/{apple,cherry_pair,raspberry_cluster}.glb',
+  {
+    eager: true,
+    query: '?url',
+    import: 'default',
+  },
+) as Record<string, string>;
+
 function byBasename(modules: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [path, url] of Object.entries(modules)) {
@@ -33,6 +42,7 @@ function byBasename(modules: Record<string, string>): Record<string, string> {
 
 const barkUrls = byBasename(barkModules);
 const leafUrls = byBasename(leafModules);
+const fruitUrls = byBasename(fruitModules);
 
 export function seedThreeBarkUrl(name: string): string | undefined {
   return barkUrls[name];
@@ -40,4 +50,8 @@ export function seedThreeBarkUrl(name: string): string | undefined {
 
 export function seedThreeLeafUrl(name: string): string | undefined {
   return leafUrls[name];
+}
+
+export function seedThreeFruitUrl(name: string): string | undefined {
+  return fruitUrls[name];
 }

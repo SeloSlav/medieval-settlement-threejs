@@ -1,11 +1,25 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { buildTree } from '@seedthree/core/tree.js';
 import { WIND_DIR } from '@seedthree/core/wind.js';
 import { loadSeedThreeSpeciesAssets } from './seedThreeAssets.ts';
+import { seedThreeFruitUrl } from './seedThreeTextures.ts';
 import { BACKYARD_PLANT_SPECIES, type BackyardPlantKind } from './backyardPlantPresets.ts';
+
+export type OrchardFruitKind = 'apple' | 'cherry';
 
 export type BackyardPlantCatalog = {
   clone(kind: BackyardPlantKind, variant: number): THREE.LOD;
+  createFruitInstances(
+    kind: OrchardFruitKind,
+    positions: ReadonlyArray<THREE.Vector3>,
+    variant: number,
+  ): THREE.InstancedMesh;
+};
+
+type FruitPrototype = {
+  geometry: THREE.BufferGeometry;
+  material: THREE.Material;
 };
 
 const VARIANT_COUNT: Record<BackyardPlantKind, number> = {
@@ -26,6 +40,7 @@ const GARDEN_LOD_OPTIONS = {
 };
 
 let catalogPromise: Promise<BackyardPlantCatalog> | null = null;
+const fruitLoader = new GLTFLoader();
 
 function markSharedPrototypeGeometry(root: THREE.Object3D): void {
   root.traverse((object) => {
@@ -73,6 +88,7 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
   if (catalogPromise) return catalogPromise;
 
   catalogPromise = (async () => {
+    const fruitPrototypes = await loadFruitPrototypes();
     const prototypes = new Map<BackyardPlantKind, THREE.LOD[]>();
     for (const kind of ['apple', 'cherry', 'rose'] as const) {
       const species = BACKYARD_PLANT_SPECIES[kind];
@@ -103,6 +119,35 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
         markSharedPrototypeGeometry(clone);
         return clone;
       },
+      createFruitInstances(
+        kind: OrchardFruitKind,
+        positions: ReadonlyArray<THREE.Vector3>,
+        variant: number,
+      ): THREE.InstancedMesh {
+        const prototype = fruitPrototypes[kind];
+        const mesh = new THREE.InstancedMesh(prototype.geometry, prototype.material, positions.length);
+        mesh.name = kind === 'apple' ? 'SeedThree apple GLB fruit' : 'SeedThree cherry-pair GLB fruit';
+        mesh.userData.fruitModel = kind === 'apple' ? 'apple.glb' : 'cherry_pair.glb';
+        mesh.userData.fruitCount = positions.length;
+        mesh.castShadow = false;
+        mesh.receiveShadow = true;
+        const matrix = new THREE.Matrix4();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        for (let index = 0; index < positions.length; index++) {
+          const yaw = hash01(index * 9.17 + variant * 3.11) * Math.PI * 2;
+          const tilt = (hash01(index * 4.73 + variant * 7.07) - 0.5) * 0.24;
+          quaternion.setFromEuler(new THREE.Euler(tilt, yaw, tilt * 0.35, 'YXZ'));
+          const baseScale = kind === 'apple' ? 1.14 : 1.0;
+          const variedScale = baseScale * THREE.MathUtils.lerp(0.9, 1.12, hash01(index * 6.19 + 2.7));
+          scale.setScalar(variedScale);
+          matrix.compose(positions[index]!, quaternion, scale);
+          mesh.setMatrixAt(index, matrix);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.computeBoundingSphere();
+        return mesh;
+      },
     };
   })().catch((error) => {
     catalogPromise = null;
@@ -110,4 +155,48 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
   });
 
   return catalogPromise;
+}
+
+async function loadFruitPrototypes(): Promise<Record<OrchardFruitKind, FruitPrototype>> {
+  const [apple, cherry] = await Promise.all([
+    loadFruitPrototype('apple.glb'),
+    loadFruitPrototype('cherry_pair.glb'),
+  ]);
+  return { apple, cherry };
+}
+
+async function loadFruitPrototype(fileName: string): Promise<FruitPrototype> {
+  const url = seedThreeFruitUrl(fileName);
+  if (!url) throw new Error(`Missing SeedThree fruit asset: ${fileName}`);
+  const gltf = await fruitLoader.loadAsync(url);
+  gltf.scene.updateMatrixWorld(true);
+  const sourceMeshes: THREE.Mesh[] = [];
+  gltf.scene.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh) sourceMeshes.push(mesh);
+  });
+  if (sourceMeshes.length !== 1) {
+    throw new Error(`SeedThree fruit ${fileName} must contain one baked mesh (found ${sourceMeshes.length})`);
+  }
+  const source = sourceMeshes[0]!;
+  const geometry = source.geometry.clone().applyMatrix4(source.matrixWorld);
+  geometry.computeBoundingBox();
+  const center = geometry.boundingBox!.getCenter(new THREE.Vector3());
+  geometry.translate(-center.x, -center.y, -center.z);
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  geometry.userData.backyardSharedGeometry = true;
+  const sourceMaterial = Array.isArray(source.material) ? source.material[0]! : source.material;
+  const material = sourceMaterial.clone();
+  if (material instanceof THREE.MeshStandardMaterial) {
+    material.roughness = Math.max(0.72, material.roughness);
+    material.metalness = 0;
+  }
+  material.name = `SeedThree baked ${fileName} material`;
+  return { geometry, material };
+}
+
+function hash01(value: number): number {
+  const hash = Math.sin(value * 12.9898) * 43758.5453;
+  return hash - Math.floor(hash);
 }
