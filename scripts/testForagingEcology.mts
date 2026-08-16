@@ -398,11 +398,19 @@ const berryVisuals = readFileSync(
   `${projectRoot}src/foraging/BerryPatchVisuals.ts`,
   'utf8',
 );
-assert.match(berryVisuals, /raspberry_patch_albedo\.png/);
-assert.match(berryVisuals, /raspberryMatrices/);
-assert.doesNotMatch(berryVisuals, /createHarvestableBerryGeometry|appendBerryIcosahedron|Bright red harvestable/);
+assert.match(berryVisuals, /createGorskiShrubPrototype\('raspberry'/);
+assert.match(berryVisuals, /raspberry_cluster\.glb/);
+assert.match(berryVisuals, /new THREE\.InstancedMesh/);
+assert.doesNotMatch(
+  berryVisuals,
+  /raspberry_patch_albedo\.png|createSeedThreeCardClumpGeometry|appendBerryIcosahedron/,
+  'harvestable raspberry resources must use generated cane geometry and real GLB fruit, not whole-bush cards',
+);
 assert.ok(existsSync(
-  `${projectRoot}public/assets/textures/vegetation/raspberry_patch_albedo.png`,
+  `${projectRoot}vendor/seedthree/assets/fruits/raspberry_cluster.glb`,
+));
+assert.ok(existsSync(
+  `${projectRoot}vendor/seedthree/assets/leaves/raspberry_spray_albedo.png`,
 ));
 
 const undergrowthVisuals = readFileSync(
@@ -413,6 +421,12 @@ assert.match(
   undergrowthVisuals,
   /juniper_scrub_albedo\.png/,
   'ordinary juniper undergrowth must keep its original texture',
+);
+assert.match(undergrowthVisuals, /createGorskiShrubPrototype/);
+assert.doesNotMatch(
+  undergrowthVisuals,
+  /createCardClumpGeometry/,
+  'bilberry and juniper undergrowth must not regress to crossed card clumps',
 );
 
 const deerVisuals = readFileSync(

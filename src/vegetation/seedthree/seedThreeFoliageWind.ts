@@ -61,3 +61,28 @@ export function createRootedFoliageWindPosition(ampScale = 0.16): TslNode {
     local.z.add(windLocal.z.mul(bend)),
   );
 }
+
+/**
+ * Full procedural shrub wind. The prototype baker writes aRootWeight from the
+ * plant's ground contact to its crown, so wood and spray groups share one
+ * coherent rooted bend even after the SeedThree foliage instances are baked.
+ */
+export function createRootedGeometryWindPosition(ampScale = 0.08): TslNode {
+  const local = tsl.positionLocal;
+  const rootWeight = tsl.attribute('aRootWeight', 'float');
+  const amp = tsl.windStrength.mul(ampScale);
+  const anchorWorld = tsl.attribute('aAnchorPos', 'vec3');
+  const gust = swayAt(anchorWorld, 2).mul(amp);
+  const jitterT = tsl.time
+    .mul(tsl.windSpeed)
+    .mul(2.7)
+    .add(anchorWorld.z.mul(1.7))
+    .add(anchorWorld.x.mul(1.3));
+  const bend = gust.add(tsl.sin(jitterT).mul(amp).mul(0.12)).mul(rootWeight);
+  const windLocal = tsl.attribute('aWindVec', 'vec3');
+  return tsl.vec3(
+    local.x.add(windLocal.x.mul(bend)),
+    local.y,
+    local.z.add(windLocal.z.mul(bend)),
+  );
+}

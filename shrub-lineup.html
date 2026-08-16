@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gorski Kotar Shrub Lineup</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #171c15; }
+      body { display: grid; grid-template-rows: 68px 1fr; }
+      header {
+        display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 28px;
+        border-bottom: 1px solid rgba(224, 207, 162, .26); color: #eee9dd;
+        background: linear-gradient(180deg, #293024, #1d231a);
+      }
+      h1 { margin: 0; font: 600 24px/1 Georgia, serif; }
+      header p { margin: 0; color: #bfc6b2; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
+      header a { color: #e9cb78; text-decoration: none; }
+      main { position: relative; min-height: 0; }
+      canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      #labels { position: absolute; inset: auto 0 18px; display: grid; grid-template-columns: repeat(4, 1fr); pointer-events: none; }
+      .label { margin: 0 18px; padding: 7px 10px; border: 1px solid rgba(24, 29, 21, .5); border-radius: 3px; background: rgba(25, 31, 22, .82); color: #f0eadc; text-align: center; font: 15px Georgia, serif; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Gorski Kotar Shrub Lineup</h1>
+      <p><a href="?view=near">Near</a> · <a href="?view=design">Design</a> · <a href="?view=far">Far</a></p>
+    </header>
+    <main id="lineup-root">
+      <div id="labels" aria-hidden="true">
+        <div class="label">Bilberry · Vaccinium myrtillus</div>
+        <div class="label">Fern understorey</div>
+        <div class="label">Common juniper · J. communis</div>
+        <div class="label">Raspberry · Rubus idaeus + GLB fruit</div>
+      </div>
+    </main>
+    <script type="module" src="/src/e2e/shrubLineup.ts"></script>
+  </body>
+</html>

@@ -14,6 +14,9 @@ const hamletFixtureEntry = fileURLToPath(
 const buildingLineupEntry = fileURLToPath(
   new URL('./building-lineup.html', import.meta.url),
 );
+const shrubLineupEntry = fileURLToPath(
+  new URL('./shrub-lineup.html', import.meta.url),
+);
 const publicRoot = fileURLToPath(new URL('./public', import.meta.url));
 
 function vendorChunk(id: string): string | undefined {
@@ -60,6 +63,9 @@ export default defineConfig(({ mode }) => {
   }
   if (mode === 'e2e' && existsSync(buildingLineupEntry)) {
     buildInputs['building-lineup'] = buildingLineupEntry;
+  }
+  if (mode === 'e2e' && existsSync(shrubLineupEntry)) {
+    buildInputs['shrub-lineup'] = shrubLineupEntry;
   }
 
   return {

@@ -104,8 +104,10 @@ const overlappingLods = partitionSeedThreeSelectionByStaticLod(
   true,
 );
 assert.deepEqual(overlappingLods, {
-  nearIndices: [1, 2, 0, 3],
+  nearIndices: [0, 1, 2, 3],
   overviewIndices: [2, 3],
+  nearViewIndices: [1, 2],
+  overviewViewIndices: [2],
   nearViewCount: 2,
   overviewViewCount: 1,
 }, 'forced overview trees must keep their real near LOD resident under the fading quads');

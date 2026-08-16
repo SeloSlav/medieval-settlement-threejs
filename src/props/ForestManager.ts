@@ -8,7 +8,12 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { collectRoadRemovedRockIndices } from '../roads/roadRockClearance.ts';
 import { distancePointToPolylineXZ, type RockObstacle } from '../utils/pathGeometry.ts';
 import { distancePointToPolygon2 } from '../utils/polygonGeometry.ts';
-import type { UndergrowthInstances, UndergrowthKind, UndergrowthPlacement } from './ForestUndergrowth.ts';
+import {
+  markUndergrowthMatricesUpdated,
+  undergrowthBucketForPlacement,
+  type UndergrowthInstances,
+  type UndergrowthPlacement,
+} from './ForestUndergrowth.ts';
 import {
   computeRoadStumpPlacements,
   createRoadStumpMesh,
@@ -330,9 +335,11 @@ export class ForestManager {
     this.stumpMesh.castShadow = enabled;
     this.harvestStumpMesh.castShadow = enabled;
     if (this.undergrowth) {
-      this.undergrowth.bushShadowMesh.castShadow = enabled;
-      this.undergrowth.fernShadowMesh.castShadow = enabled;
-      this.undergrowth.juniperShadowMesh.castShadow = enabled;
+      for (const kind of ['bush', 'fern', 'juniper'] as const) {
+        for (const bucket of this.undergrowth.buckets[kind]) {
+          bucket.shadowMesh.castShadow = enabled;
+        }
+      }
     }
     this.group.traverse((object) => {
       const mesh = object as THREE.Mesh;
@@ -563,21 +570,14 @@ export class ForestManager {
       const shouldRemove = nextRemoved.has(index);
       if (shouldRemove === this.removedUndergrowth.has(index)) continue;
       const placement = this.undergrowthPlacements[index];
-      const mesh = undergrowthMeshFor(this.undergrowth, placement.kind);
-      const shadowMesh = undergrowthShadowMeshFor(this.undergrowth, placement.kind);
-      const matrices = undergrowthMatricesFor(this.undergrowth, placement.kind);
-      const matrix = shouldRemove ? this.hiddenMatrix : matrices[placement.meshIndex];
-      mesh.setMatrixAt(placement.meshIndex, matrix);
-      shadowMesh.setMatrixAt(placement.meshIndex, matrix);
+      const bucket = undergrowthBucketForPlacement(this.undergrowth, placement);
+      const matrix = shouldRemove ? this.hiddenMatrix : bucket.matrices[placement.meshIndex];
+      bucket.mesh.setMatrixAt(placement.meshIndex, matrix);
+      bucket.shadowMesh.setMatrixAt(placement.meshIndex, matrix);
     }
 
     this.removedUndergrowth = nextRemoved;
-    this.undergrowth.bushMesh.instanceMatrix.needsUpdate = true;
-    this.undergrowth.fernMesh.instanceMatrix.needsUpdate = true;
-    this.undergrowth.juniperMesh.instanceMatrix.needsUpdate = true;
-    this.undergrowth.bushShadowMesh.instanceMatrix.needsUpdate = true;
-    this.undergrowth.fernShadowMesh.instanceMatrix.needsUpdate = true;
-    this.undergrowth.juniperShadowMesh.instanceMatrix.needsUpdate = true;
+    markUndergrowthMatricesUpdated(this.undergrowth);
   }
 
   private syncPlacementRockClearance(
@@ -757,51 +757,6 @@ function treeWithinBuildingPad(placement: TreePlacement, building: BuildingTerra
 function treeWithinBurgageParcel(placement: TreePlacement, polygon: Point2[]): boolean {
   const distance = distancePointToPolygon2({ x: placement.x, z: placement.z }, polygon);
   return distance <= treeCanopyRadius(placement) + BUILDING_CLEAR_MARGIN;
-}
-
-function undergrowthMeshFor(instances: UndergrowthInstances, kind: UndergrowthKind): THREE.InstancedMesh {
-  switch (kind) {
-    case 'bush':
-      return instances.bushMesh;
-    case 'fern':
-      return instances.fernMesh;
-    case 'juniper':
-      return instances.juniperMesh;
-    default: {
-      const exhaustive: never = kind;
-      return exhaustive;
-    }
-  }
-}
-
-function undergrowthShadowMeshFor(instances: UndergrowthInstances, kind: UndergrowthKind): THREE.InstancedMesh {
-  switch (kind) {
-    case 'bush':
-      return instances.bushShadowMesh;
-    case 'fern':
-      return instances.fernShadowMesh;
-    case 'juniper':
-      return instances.juniperShadowMesh;
-    default: {
-      const exhaustive: never = kind;
-      return exhaustive;
-    }
-  }
-}
-
-function undergrowthMatricesFor(instances: UndergrowthInstances, kind: UndergrowthKind): THREE.Matrix4[] {
-  switch (kind) {
-    case 'bush':
-      return instances.bushMatrices;
-    case 'fern':
-      return instances.fernMatrices;
-    case 'juniper':
-      return instances.juniperMatrices;
-    default: {
-      const exhaustive: never = kind;
-      return exhaustive;
-    }
-  }
 }
 
 function removedIndexSetsEqual(a: Set<number>, b: Set<number>): boolean {

@@ -45,17 +45,20 @@ const focusFlower = view === 'flower-close';
 const focusVegetable = view === 'vegetable-close';
 const focusHerb = view === 'herb-close';
 const focusHen = view === 'hen-close';
-const focusSingle = focusFlower || focusVegetable || focusHerb || focusHen;
+const focusApple = view === 'apple-close';
+const focusCherry = view === 'cherry-close';
+const focusOrchard = focusApple || focusCherry;
+const focusSingle = focusFlower || focusVegetable || focusHerb || focusHen || focusOrchard;
 const plants = focusVegetable || focusHerb || focusHen
   ? null
   : await loadBackyardPlantCatalog(renderer.getMaxAnisotropy());
-const chickenSource = focusFlower || focusVegetable || focusHerb
+const chickenSource = focusFlower || focusVegetable || focusHerb || focusOrchard
   ? null
   : await loadBackyardChickenSource().catch((error: unknown) => {
     console.warn('[Backyard lineup] Could not load the Quaternius chicken pack.', error);
     return null;
   });
-const goatSource = focusFlower || focusVegetable || focusHerb || focusHen
+const goatSource = focusFlower || focusVegetable || focusHerb || focusHen || focusOrchard
   ? null
   : await loadBackyardGoatSource().catch((error: unknown) => {
     console.warn('[Backyard lineup] Could not load the sheep-derived CC0 goat source.', error);
@@ -74,6 +77,10 @@ const allSpecs = [
 ] as const;
 const specs = focusFlower
   ? allSpecs.slice(3)
+  : focusApple
+    ? allSpecs.slice(0, 1)
+    : focusCherry
+      ? allSpecs.slice(1, 2)
   : focusVegetable
     ? allSpecs.slice(2, 3)
     : focusHerb
@@ -200,6 +207,9 @@ if (focusFlower) {
 } else if (focusHen) {
   camera.position.set(5.4, 3.7, 7.2);
   camera.lookAt(0, 0.65, 0.05);
+} else if (focusOrchard) {
+  camera.position.set(5.8, 4.6, 7.8);
+  camera.lookAt(0, 1.85, 0);
 } else {
   camera.position.set(0, 13.4, 27.5);
   camera.lookAt(0, 1.25, 0);

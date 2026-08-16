@@ -588,12 +588,10 @@ function addFruitClusters(
   plantKind: 'apple' | 'cherry',
   variant: number,
   seed: number,
+  plants: BackyardPlantCatalog,
 ): void {
   const rng = mulberry32(seed ^ 0x9e3779b9);
-  const material = plantKind === 'apple'
-    ? (variant % 3 === 2 ? MATERIALS.appleGold : MATERIALS.apple)
-    : MATERIALS.cherry;
-  const clusterCount = plantKind === 'apple' ? 10 : 22;
+  const clusterCount = plantKind === 'apple' ? 10 : 13;
   const positions: THREE.Vector3[] = [];
 
   for (let cluster = 0; cluster < clusterCount; cluster++) {
@@ -606,32 +604,9 @@ function addFruitClusters(
       Math.sin(angle) * radius,
     );
     positions.push(center);
-    if (plantKind === 'cherry') {
-      positions.push(center.clone().add(new THREE.Vector3(0.048, -0.055, 0.022)));
-      if (cluster % 3 === 0) {
-        positions.push(center.clone().add(new THREE.Vector3(-0.04, -0.085, -0.032)));
-      }
-    }
   }
 
-  const fruitRadius = plantKind === 'apple' ? 0.09 : 0.036;
-  const geometry = new THREE.IcosahedronGeometry(fruitRadius, 1);
-  const fruit = new THREE.InstancedMesh(geometry, material, positions.length);
-  fruit.name = plantKind === 'apple' ? 'Apple fruit' : 'Cherry fruit clusters';
-  fruit.userData.fruitRadius = fruitRadius;
-  fruit.userData.fruitCount = positions.length;
-  fruit.receiveShadow = true;
-  fruit.castShadow = false;
-  const matrix = new THREE.Matrix4();
-  const rotation = new THREE.Quaternion();
-  const scale = new THREE.Vector3(1, 1, 1);
-  for (let index = 0; index < positions.length; index++) {
-    matrix.compose(positions[index]!, rotation, scale);
-    fruit.setMatrixAt(index, matrix);
-  }
-  fruit.instanceMatrix.needsUpdate = true;
-  fruit.computeBoundingSphere();
-  anchor.add(fruit);
+  anchor.add(plants.createFruitInstances(plantKind, positions, variant));
 }
 
 function addFruitTree(
@@ -654,7 +629,7 @@ function addFruitTree(
   // authored non-vegetation props stay visible until the real tree is ready.
   if (!plants) return;
   anchor.add(plants.clone(plantKind, variant));
-  addFruitClusters(anchor, plantKind, variant, seed);
+  addFruitClusters(anchor, plantKind, variant, seed, plants);
 }
 
 function addOrchard(

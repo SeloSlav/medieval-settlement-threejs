@@ -375,6 +375,31 @@ assert.match(
   /normalizeBackyardPlantFoliageWind\(group\)/,
   'cultivated SeedThree prototypes must normalize r185 foliage wind before cloning',
 );
+for (const fruitFile of ['apple.glb', 'cherry_pair.glb']) {
+  assert.ok(
+    existsSync(join(process.cwd(), 'vendor/seedthree/assets/fruits', fruitFile)),
+    `SkyeShark's exact ${fruitFile} orchard asset should be packaged`,
+  );
+  assert.match(
+    backyardAssetSource,
+    new RegExp(fruitFile.replace('.', '\\.')),
+    `the orchard catalog should load ${fruitFile}`,
+  );
+}
+assert.match(
+  backyardGardenSource,
+  /plants\.createFruitInstances\(plantKind, positions, variant\)/,
+  'orchard trees should instance SkyeShark fruit GLBs at their authored clusters',
+);
+const fruitClusterSource = backyardGardenSource.slice(
+  backyardGardenSource.indexOf('function addFruitClusters'),
+  backyardGardenSource.indexOf('function addFruitTree'),
+);
+assert.doesNotMatch(
+  fruitClusterSource,
+  /IcosahedronGeometry|SphereGeometry/,
+  'fruit attached to orchard trees must not regress to primitive geometry',
+);
 assert.match(
   backyardAssetSource,
   /WIND_DIR\.x \* weight[\s\S]*WIND_DIR\.z \* weight/,

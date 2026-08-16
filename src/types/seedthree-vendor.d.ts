@@ -25,6 +25,14 @@ declare module '@seedthree/core/leaf-cards.js' {
     tintNode: unknown;
     tintAmount: unknown;
   };
+
+  export function buildFoliage(
+    stems: unknown[],
+    foliage: Record<string, unknown>,
+    rng: unknown,
+    material: THREE.Material,
+    centerUniform?: { value: THREE.Vector3 } | null,
+  ): THREE.InstancedMesh | null;
 }
 
 declare module '@seedthree/core/branch-cards.js' {
@@ -259,6 +267,24 @@ declare module '@seedthree/core/forest-edge-band.js' {
     assignments: ForestEdgeBandAssignment[];
     stats: ForestEdgeBandStats;
   };
+
+}
+
+declare module '@seedthree/core/dichotomous.js' {
+  import type * as THREE from 'three';
+  export function generateDichotomous(
+    params: Record<string, unknown>,
+    rng: unknown,
+  ): {
+    stems: unknown[];
+    terminalStems: unknown[];
+    geometry: THREE.BufferGeometry;
+  };
+  export function buildMergedMesh(
+    stems: unknown[],
+    params: Record<string, unknown>,
+    targetGeometry?: THREE.BufferGeometry | null,
+  ): THREE.BufferGeometry;
 }
 
 declare module '@seedthree/core/forest-update-budget.js' {
@@ -568,6 +594,7 @@ declare module '@seedthree/core/rng.js' {
     constructor(seed: string | number);
     next(): number;
     range(min: number, max: number): number;
+    vary(base: number, spread: number): number;
   }
 }
 
@@ -577,7 +604,7 @@ declare module '@seedthree/core/wind.js' {
   export const windStrength: { value: number };
   export const windSpeed: { value: number };
   export const WIND_DIR: THREE.Vector3;
-  export function foliageWindPosition(withFlutter?: boolean): unknown;
+  export function foliageWindPosition(withFlutter?: boolean, flutterScale?: number): unknown;
   export function grassWindPosition(bladeHeight?: number): unknown;
   export function groundCoverWindPosition(amount?: number): unknown;
 }
@@ -695,6 +722,18 @@ declare module '@seedthree/species/apple.js' {
 
 declare module '@seedthree/species/cherry.js' {
   export const cherry: Record<string, unknown>;
+}
+
+declare module '@seedthree/species/bilberry.js' {
+  export const bilberry: Record<string, unknown>;
+}
+
+declare module '@seedthree/species/common-juniper.js' {
+  export const commonJuniper: Record<string, unknown>;
+}
+
+declare module '@seedthree/species/raspberry.js' {
+  export const raspberry: Record<string, unknown>;
 }
 
 declare module '@seedthree/species/index.js' {

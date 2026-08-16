@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
-import { MeshSSSNodeMaterial } from 'three/webgpu';
+import { MeshSSSNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 import {
   attribute,
   cameraViewMatrix,
@@ -16,17 +16,18 @@ import {
   vec4,
 } from 'three/tsl';
 import { windSpeed, windStrength, WIND_DIR } from '@seedthree/core/wind.js';
-import { createRootedFoliageWindPosition } from '../vegetation/seedthree/seedThreeFoliageWind.ts';
+import { createRootedGeometryWindPosition } from '../vegetation/seedthree/seedThreeFoliageWind.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { applyFoliageDoubleSideNormals } from '../scene/foliageDoubleSideNormals.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
-import { seedThreeLeafUrl } from '../vegetation/seedthree/seedThreeTextures.ts';
+import { seedThreeBarkUrl, seedThreeLeafUrl } from '../vegetation/seedthree/seedThreeTextures.ts';
+import { sampleBilberryBushScale } from '../vegetation/bilberryBushVisual.ts';
 import {
-  BILBERRY_BUSH_CARD_SPEC,
-  BILBERRY_BUSH_WIDTH_FACTOR,
-  sampleBilberryBushScale,
-} from '../vegetation/bilberryBushVisual.ts';
+  createGorskiShrubPrototype,
+  GORSKI_SHRUB_VARIANT_COUNT,
+  type GorskiShrubPrototype,
+} from '../vegetation/seedthree/gorskiShrubPrototypes.ts';
 import {
   CENTRAL_CLEARING_RADIUS,
   type ForestCore,
@@ -80,6 +81,7 @@ export type UndergrowthPlacement = {
   kind: UndergrowthKind;
   scale: number;
   yaw: number;
+  prototypeIndex: number;
   meshIndex: number;
 };
 
@@ -97,10 +99,13 @@ type UndergrowthTextureFiles = {
   translucency: string;
 };
 
+type UndergrowthMaterialPair = [branch: THREE.Material, foliage: THREE.Material];
+
 export type UndergrowthMaterials = {
-  bush: THREE.Material;
-  fern: THREE.Material;
-  juniper: THREE.Material;
+  bush: UndergrowthMaterialPair;
+  fern: UndergrowthMaterialPair;
+  juniper: UndergrowthMaterialPair;
+  prototypes: Record<UndergrowthKind, GorskiShrubPrototype[]>;
   shadowCast: THREE.MeshStandardMaterial;
   bushShadowDepth: THREE.MeshDepthMaterial;
   fernShadowDepth: THREE.MeshDepthMaterial;
@@ -110,19 +115,11 @@ export type UndergrowthMaterials = {
 
 export type UndergrowthInstances = {
   group: THREE.Group;
-  bushMesh: THREE.InstancedMesh;
-  fernMesh: THREE.InstancedMesh;
-  juniperMesh: THREE.InstancedMesh;
-  bushShadowMesh: THREE.InstancedMesh;
-  fernShadowMesh: THREE.InstancedMesh;
-  juniperShadowMesh: THREE.InstancedMesh;
   placements: UndergrowthPlacement[];
-  bushMatrices: THREE.Matrix4[];
-  fernMatrices: THREE.Matrix4[];
-  juniperMatrices: THREE.Matrix4[];
+  buckets: Record<UndergrowthKind, UndergrowthBucket[]>;
 };
 
-type UndergrowthBucket = {
+export type UndergrowthBucket = {
   placements: UndergrowthPlacement[];
   mesh: THREE.InstancedMesh;
   shadowMesh: THREE.InstancedMesh;
@@ -153,11 +150,11 @@ const CARD_FILES: Record<UndergrowthKind, UndergrowthTextureFiles> = {
   },
 };
 
-const CARD_GEOMETRY = {
-  bush: BILBERRY_BUSH_CARD_SPEC,
-  fern: { quads: 8, width: 0.62, tiltMin: 0.38, tiltSpan: 0.42, heightMin: 0.82, heightSpan: 0.34, baseSpread: 0.08 },
-  juniper: { quads: 6, width: 0.88, tiltMin: 0.18, tiltSpan: 0.48, heightMin: 0.72, heightSpan: 0.42, baseSpread: 0.1 },
-} satisfies Record<UndergrowthKind, CardGeometrySpec>;
+const BRANCH_FILES: Record<UndergrowthKind, Omit<UndergrowthTextureFiles, 'translucency'>> = {
+  bush: { albedo: 'creosote_branch_albedo.png', normal: 'creosote_branch_normal.png', roughness: 'creosote_branch_roughness.png' },
+  fern: { albedo: 'creosote_branch_albedo.png', normal: 'creosote_branch_normal.png', roughness: 'creosote_branch_roughness.png' },
+  juniper: { albedo: 'sagebrush_branch_albedo.png', normal: 'sagebrush_branch_normal.png', roughness: 'sagebrush_branch_roughness.png' },
+};
 
 const loader = new THREE.TextureLoader();
 
@@ -166,18 +163,42 @@ export async function createUndergrowthMaterials(
   rendererBackend: RendererBackendKind | undefined,
   _sharedTextures: THREE.Texture[],
 ): Promise<UndergrowthMaterials> {
-  const [bushTextures, fernTextures, juniperTextures] = await Promise.all([
+  const [bushTextures, fernTextures, juniperTextures, bushBranch, fernBranch, juniperBranch] = await Promise.all([
     loadUndergrowthTextures(CARD_FILES.bush, maxAnisotropy),
     loadUndergrowthTextures(CARD_FILES.fern, maxAnisotropy),
     loadUndergrowthTextures(CARD_FILES.juniper, maxAnisotropy),
+    loadBranchTextures(BRANCH_FILES.bush, maxAnisotropy),
+    loadBranchTextures(BRANCH_FILES.fern, maxAnisotropy),
+    loadBranchTextures(BRANCH_FILES.juniper, maxAnisotropy),
   ]);
   const useNodeMaterials = rendererBackend === 'webgpu';
-  const textures = collectTextures(bushTextures, fernTextures, juniperTextures);
+  const textures = collectTextures(
+    bushTextures, fernTextures, juniperTextures,
+    bushBranch, fernBranch, juniperBranch,
+  );
+  const prototypes = Object.fromEntries(
+    (['bush', 'fern', 'juniper'] as const).map((kind) => [
+      kind,
+      Array.from({ length: GORSKI_SHRUB_VARIANT_COUNT }, (_, variant) => (
+        createGorskiShrubPrototype(kind, variant)
+      )),
+    ]),
+  ) as Record<UndergrowthKind, GorskiShrubPrototype[]>;
 
   return {
-    bush: createUndergrowthCardMaterial('SeedThree bilberry undergrowth', bushTextures, useNodeMaterials, [0.3, 0.44, 0.16]),
-    fern: createUndergrowthCardMaterial('SeedThree fern undergrowth', fernTextures, useNodeMaterials, [0.26, 0.5, 0.18]),
-    juniper: createUndergrowthCardMaterial('SeedThree juniper undergrowth', juniperTextures, useNodeMaterials, [0.22, 0.36, 0.14]),
+    bush: [
+      createUndergrowthBranchMaterial('SeedThree bilberry woody stems', bushBranch, useNodeMaterials),
+      createUndergrowthCardMaterial('SeedThree bilberry sprays', bushTextures, useNodeMaterials, [0.3, 0.44, 0.16]),
+    ],
+    fern: [
+      createUndergrowthBranchMaterial('SeedThree fern rachises', fernBranch, useNodeMaterials),
+      createUndergrowthCardMaterial('SeedThree curved fern fronds', fernTextures, useNodeMaterials, [0.26, 0.5, 0.18]),
+    ],
+    juniper: [
+      createUndergrowthBranchMaterial('SeedThree common juniper stems', juniperBranch, useNodeMaterials),
+      createUndergrowthCardMaterial('SeedThree common juniper sprays', juniperTextures, useNodeMaterials, [0.22, 0.36, 0.14]),
+    ],
+    prototypes,
     shadowCast: new THREE.MeshStandardMaterial({
       transparent: true,
       opacity: 0,
@@ -231,6 +252,7 @@ export function createUndergrowthPlacements(
       kind,
       scale: sampleUndergrowthScale(kind, density, rng),
       yaw: rng() * TAU,
+      prototypeIndex: Math.floor(rng() * GORSKI_SHRUB_VARIANT_COUNT),
       meshIndex: -1,
     };
     placements.push(placement);
@@ -249,52 +271,49 @@ export function buildUndergrowthInstances(
   const group = new THREE.Group();
   group.name = 'SeedThree temperate undergrowth';
 
-  const bushPlacements = placements.filter((p) => p.kind === 'bush');
-  const fernPlacements = placements.filter((p) => p.kind === 'fern');
-  const juniperPlacements = placements.filter((p) => p.kind === 'juniper');
-
-  const bush = createUndergrowthBucket('bush', bushPlacements, materials.bush, materials.shadowCast, materials.bushShadowDepth);
-  const fern = createUndergrowthBucket('fern', fernPlacements, materials.fern, materials.shadowCast, materials.fernShadowDepth);
-  const juniper = createUndergrowthBucket('juniper', juniperPlacements, materials.juniper, materials.shadowCast, materials.juniperShadowDepth);
-
-  placeUndergrowthBucket(bush, terrain, rng);
-  placeUndergrowthBucket(fern, terrain, rng);
-  placeUndergrowthBucket(juniper, terrain, rng);
-
-  group.add(
-    bush.mesh,
-    fern.mesh,
-    juniper.mesh,
-    bush.shadowMesh,
-    fern.shadowMesh,
-    juniper.shadowMesh,
-  );
+  const buckets = Object.fromEntries(
+    (['bush', 'fern', 'juniper'] as const).map((kind) => {
+      const shadowDepth = kind === 'bush'
+        ? materials.bushShadowDepth
+        : kind === 'fern'
+          ? materials.fernShadowDepth
+          : materials.juniperShadowDepth;
+      const variants = materials.prototypes[kind].map((prototype, prototypeIndex) => {
+        const variantPlacements = placements.filter(
+          (placement) => placement.kind === kind && placement.prototypeIndex === prototypeIndex,
+        );
+        const bucket = createUndergrowthBucket(
+          kind,
+          prototypeIndex,
+          prototype,
+          variantPlacements,
+          materials[kind],
+          materials.shadowCast,
+          shadowDepth,
+        );
+        placeUndergrowthBucket(bucket, terrain, rng);
+        group.add(bucket.mesh, bucket.shadowMesh);
+        return bucket;
+      });
+      return [kind, variants];
+    }),
+  ) as Record<UndergrowthKind, UndergrowthBucket[]>;
 
   return {
     group,
-    bushMesh: bush.mesh,
-    fernMesh: fern.mesh,
-    juniperMesh: juniper.mesh,
-    bushShadowMesh: bush.shadowMesh,
-    fernShadowMesh: fern.shadowMesh,
-    juniperShadowMesh: juniper.shadowMesh,
     placements,
-    bushMatrices: bush.matrices,
-    fernMatrices: fern.matrices,
-    juniperMatrices: juniper.matrices,
+    buckets,
   };
 }
 
 export function disposeUndergrowthInstances(instances: UndergrowthInstances, materials: UndergrowthMaterials): void {
-  instances.bushMesh.geometry.dispose();
-  instances.fernMesh.geometry.dispose();
-  instances.juniperMesh.geometry.dispose();
-  instances.bushShadowMesh.geometry.dispose();
-  instances.fernShadowMesh.geometry.dispose();
-  instances.juniperShadowMesh.geometry.dispose();
-  materials.bush.dispose();
-  materials.fern.dispose();
-  materials.juniper.dispose();
+  for (const kind of ['bush', 'fern', 'juniper'] as const) {
+    for (const bucket of instances.buckets[kind]) {
+      bucket.mesh.geometry.dispose();
+      bucket.shadowMesh.geometry.dispose();
+    }
+    for (const material of materials[kind]) material.dispose();
+  }
   materials.shadowCast.dispose();
   materials.bushShadowDepth.dispose();
   materials.fernShadowDepth.dispose();
@@ -304,13 +323,15 @@ export function disposeUndergrowthInstances(instances: UndergrowthInstances, mat
 
 function createUndergrowthBucket(
   kind: UndergrowthKind,
+  prototypeIndex: number,
+  prototype: GorskiShrubPrototype,
   placements: UndergrowthPlacement[],
-  material: THREE.Material,
+  material: UndergrowthMaterialPair,
   shadowCast: THREE.MeshStandardMaterial,
   shadowDepth: THREE.MeshDepthMaterial,
 ): UndergrowthBucket {
   const capacity = Math.max(placements.length, 1);
-  const geometry = createCardClumpGeometry(CARD_GEOMETRY[kind]);
+  const geometry = prototype.geometry;
   const tintAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   const anchorAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   const windVecAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
@@ -319,7 +340,9 @@ function createUndergrowthBucket(
   geometry.setAttribute('aWindVec', windVecAttr);
 
   const mesh = new THREE.InstancedMesh(geometry, material, capacity);
-  mesh.name = `SeedThree ${kind} undergrowth cards`;
+  mesh.name = `SeedThree real ${kind} prototype ${prototypeIndex + 1}`;
+  mesh.userData.prototypeTriangleCount = prototype.triangleCount;
+  mesh.userData.seedThreeGenerator = geometry.userData.seedThreeGenerator;
   mesh.count = placements.length;
   mesh.castShadow = false;
   mesh.receiveShadow = true;
@@ -331,7 +354,7 @@ function createUndergrowthBucket(
     shadowCast,
     shadowDepth,
     capacity,
-    `SeedThree ${kind} undergrowth shadows`,
+    `SeedThree ${kind} prototype ${prototypeIndex + 1} shadows`,
   );
   shadowMesh.count = placements.length;
 
@@ -377,6 +400,26 @@ function placeUndergrowthBucket(bucket: UndergrowthBucket, terrain: Terrain, rng
   if (bucket.mesh.instanceColor) bucket.mesh.instanceColor.needsUpdate = true;
 }
 
+export function undergrowthBucketForPlacement(
+  instances: UndergrowthInstances,
+  placement: UndergrowthPlacement,
+): UndergrowthBucket {
+  const bucket = instances.buckets[placement.kind][placement.prototypeIndex];
+  if (!bucket) {
+    throw new Error(`Missing ${placement.kind} undergrowth prototype ${placement.prototypeIndex}`);
+  }
+  return bucket;
+}
+
+export function markUndergrowthMatricesUpdated(instances: UndergrowthInstances): void {
+  for (const kind of ['bush', 'fern', 'juniper'] as const) {
+    for (const bucket of instances.buckets[kind]) {
+      bucket.mesh.instanceMatrix.needsUpdate = true;
+      bucket.shadowMesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+}
+
 function createShadowInstancedMesh(
   geometry: THREE.BufferGeometry,
   shadowCast: THREE.MeshStandardMaterial,
@@ -420,8 +463,8 @@ function composeUndergrowthMatrix(
   const widthFactor = placement.kind === 'fern'
     ? 1.15
     : placement.kind === 'juniper'
-      ? 1.35
-      : BILBERRY_BUSH_WIDTH_FACTOR;
+      ? 1.12
+      : 1.0;
   const widthScale = placement.scale * widthFactor * THREE.MathUtils.lerp(0.9, 1.14, rng());
   const heightScale = placement.scale * THREE.MathUtils.lerp(0.92, 1.14, rng());
   scaleVector.set(widthScale, heightScale, widthScale);
@@ -528,11 +571,41 @@ function createUndergrowthCardMaterial(
   material.thicknessPowerNode = tsl.uniform(5.0);
   material.thicknessScaleNode = tsl.uniform(1.5);
   material.colorNode = tsl.texture(textures.albedo).mul(tsl.vec4(tsl.attribute('aTint', 'vec3'), tsl.float(1)));
-  material.positionNode = createRootedFoliageWindPosition(0.16);
+  material.positionNode = createRootedGeometryWindPosition(0.1);
 
   const upView = tsl.cameraViewMatrix.mul(tsl.vec4(0, 1, 0, 0)).xyz;
   const relief = textures.normal ? tsl.normalMap(tsl.texture(textures.normal)).sub(tsl.normalView) : null;
   material.normalNode = relief ? tsl.normalize(upView.add(relief.mul(0.4))) : tsl.normalize(upView);
+  return material;
+}
+
+function createUndergrowthBranchMaterial(
+  name: string,
+  textures: UndergrowthTextureSet,
+  useNodeMaterial: boolean,
+): THREE.Material {
+  if (!useNodeMaterial) {
+    const material = new THREE.MeshStandardMaterial({
+      name,
+      map: textures.albedo,
+      normalMap: textures.normal,
+      roughnessMap: textures.roughness,
+      roughness: 0.94,
+      metalness: 0,
+    });
+    material.normalScale.set(0.36, 0.36);
+    return material;
+  }
+  const material = new MeshStandardNodeMaterial() as unknown as THREE.MeshStandardMaterial & {
+    positionNode: unknown;
+  };
+  material.name = name;
+  material.map = textures.albedo;
+  material.normalMap = textures.normal;
+  material.roughnessMap = textures.roughness;
+  material.roughness = textures.roughness ? 1 : 0.94;
+  material.metalness = 0;
+  material.positionNode = createRootedGeometryWindPosition(0.075) as never;
   return material;
 }
 
@@ -543,67 +616,6 @@ function undergrowthWindVecForYaw(yaw: number, scale: THREE.Vector3, out = windV
   if (scale.y !== 0) out.y /= scale.y;
   if (scale.z !== 0) out.z /= scale.z;
   return out;
-}
-
-type CardGeometrySpec = {
-  quads: number;
-  width: number;
-  tiltMin: number;
-  tiltSpan: number;
-  heightMin: number;
-  heightSpan: number;
-  baseSpread: number;
-};
-
-function createCardClumpGeometry(spec: CardGeometrySpec): THREE.BufferGeometry {
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  let base = 0;
-
-  for (let quad = 0; quad < spec.quads; quad++) {
-    const azimuth = (quad / spec.quads) * TAU + (hash01(quad + 1.7) - 0.5) * 0.95;
-    const tilt = spec.tiltMin + hash01(quad + 7.1) * spec.tiltSpan;
-    const height = spec.heightMin + hash01(quad + 3.3) * spec.heightSpan;
-    const width = spec.width * (0.76 + hash01(quad + 11.4) * 0.52);
-    const offset = spec.baseSpread * hash01(quad + 5.2);
-    const ca = Math.cos(azimuth);
-    const sa = Math.sin(azimuth);
-    const cx = ca * offset;
-    const cz = sa * offset;
-    const upX = Math.sin(tilt) * ca;
-    const upY = Math.cos(tilt);
-    const upZ = Math.sin(tilt) * sa;
-    const rightX = -sa;
-    const rightZ = ca;
-
-    for (const [localX, localY] of [
-      [-0.5 * width, 0],
-      [0.5 * width, 0],
-      [0.5 * width, 1],
-      [-0.5 * width, 1],
-    ] as const) {
-      positions.push(
-        cx + rightX * localX + upX * localY * height,
-        upY * localY * height,
-        cz + rightZ * localX + upZ * localY * height,
-      );
-      normals.push(0, 1, 0);
-      uvs.push(localX / width + 0.5, localY);
-    }
-
-    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    base += 4;
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  geometry.computeBoundingSphere();
-  return geometry;
 }
 
 function createUndergrowthShadowGeometry(kind: UndergrowthKind): THREE.BufferGeometry {
@@ -641,6 +653,18 @@ async function loadUndergrowthTextures(files: UndergrowthTextureFiles, maxAnisot
   return { albedo, normal, roughness, translucency };
 }
 
+async function loadBranchTextures(
+  files: Omit<UndergrowthTextureFiles, 'translucency'>,
+  maxAnisotropy: number,
+): Promise<UndergrowthTextureSet> {
+  const [albedo, normal, roughness] = await Promise.all([
+    loadRequiredBarkTexture(files.albedo, true, maxAnisotropy),
+    loadOptionalBarkTexture(files.normal, false, maxAnisotropy),
+    loadOptionalBarkTexture(files.roughness, false, maxAnisotropy),
+  ]);
+  return { albedo, normal, roughness, translucency: null };
+}
+
 async function loadRequiredLeafTexture(name: string, srgb: boolean, maxAnisotropy: number): Promise<THREE.Texture> {
   const texture = await loadOptionalLeafTexture(name, srgb, maxAnisotropy);
   if (!texture) throw new Error(`SeedThree undergrowth texture missing (${name})`);
@@ -658,6 +682,23 @@ async function loadOptionalLeafTexture(name: string, srgb: boolean, maxAnisotrop
   return texture;
 }
 
+async function loadRequiredBarkTexture(name: string, srgb: boolean, maxAnisotropy: number): Promise<THREE.Texture> {
+  const texture = await loadOptionalBarkTexture(name, srgb, maxAnisotropy);
+  if (!texture) throw new Error(`SeedThree undergrowth bark texture missing (${name})`);
+  return texture;
+}
+
+async function loadOptionalBarkTexture(name: string, srgb: boolean, maxAnisotropy: number): Promise<THREE.Texture | null> {
+  const url = seedThreeBarkUrl(name);
+  if (!url) return null;
+  const texture = await loader.loadAsync(url);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  texture.anisotropy = Math.max(1, Math.min(16, maxAnisotropy));
+  return texture;
+}
+
 function collectTextures(...sets: UndergrowthTextureSet[]): THREE.Texture[] {
   const textures: THREE.Texture[] = [];
   for (const set of sets) {
@@ -667,11 +708,6 @@ function collectTextures(...sets: UndergrowthTextureSet[]): THREE.Texture[] {
     if (set.translucency) textures.push(set.translucency);
   }
   return textures;
-}
-
-function hash01(seed: number): number {
-  const value = Math.sin(seed * 12.9898) * 43758.5453;
-  return value - Math.floor(value);
 }
 
 function rngRange(rng: () => number, min: number, max: number): number {
