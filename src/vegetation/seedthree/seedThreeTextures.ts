@@ -2,7 +2,7 @@
 // backyard models. A directory-wide eager glob made every unused SeedThree
 // biome texture part of the production payload.
 const barkModules = import.meta.glob(
-  '../../../vendor/seedthree/assets/bark/{american_beech,white_oak,red_maple,sweetgum,douglas_fir,loblolly,pine,apple_bark,cherry_bark}_{albedo,normal,roughness}.png',
+  '../../../vendor/seedthree/assets/bark/{american_beech,white_oak,red_maple,sweetgum,douglas_fir,loblolly,pine,apple_bark,cherry_bark,creosote_branch,blackbrush_branch,sagebrush_branch}_{albedo,normal,roughness}.png',
   {
     eager: true,
     query: '?url',
@@ -14,6 +14,7 @@ const leafModules = import.meta.glob(
   [
     '../../../vendor/seedthree/assets/leaves/{american_beech_single,white_oak_single,red_maple_single,sweetgum_single,douglas_fir_needle,loblolly_needle,pine_needle,apple_single,cherry_single}_{albedo,normal,roughness,translucency}.png',
     '../../../vendor/seedthree/assets/leaves/{bilberry,fern,juniper_scrub}_{albedo,normal,roughness,translucency}.png',
+    '../../../vendor/seedthree/assets/leaves/raspberry_spray_albedo.png',
     '../../../vendor/seedthree/assets/leaves/cattail_reed_card{,_normal,_roughness,_translucency}.png',
   ],
   {
