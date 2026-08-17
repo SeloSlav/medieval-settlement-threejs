@@ -828,6 +828,12 @@ assert.match(farmFieldTool, /expectedFieldYield\(draftField\)/, 'field placement
 assert.match(farmFieldTool, /m² \(\$\{hectares/, 'field placement should show area in square metres and hectares');
 assert.match(farmFieldTool, /buildFarmsteadWorkPlan/, 'field placement should forecast the selected holding’s seasonal labor capacity');
 assert.match(farmFieldTool, /worker-days/, 'field placement should label its farm labor forecast');
+assert.match(farmFieldTool, /farm \$\{plan\.activeFields\} active fields/, 'the preview should count every parcel attached to the holding');
+assert.match(
+  farmFieldTool,
+  /Promise\.resolve\(pending\)\.then\(\(\) => \{[\s\S]*?this\.clearDraft\(\);[\s\S]*?this\.options\.onModeChanged\(\);/,
+  'placing one field should clear only its draft so the same farmstead can draw another',
+);
 assert.match(farmFieldTool, /suitability map visible/);
 assert.match(farmFieldTool, /onCommitVineyard/);
 assert.match(farmFieldTool, /this\.points\.length < 3/);

@@ -331,7 +331,7 @@ export class FarmFieldTool {
       : `${expectedFieldYield(draftField).toFixed(1)} ${cropHarvestUnit(this.crop)}`;
     const cycleWorkerDays = fieldWorkerDays(fullFieldCycleWork(draftField, farmstead));
     const sowingSeason = FARM_CROP_DEFINITIONS[this.crop].workSeason;
-    return `${cropLabel(this.crop)} · ${areaDetail} · ${produceDetail} · field ${cycleWorkerDays.toFixed(1)} base worker-days/year · farm ${sowingSeason} ${sowingPlan.requiredWorkerDays.toFixed(1)}/${sowingPlan.availableWorkerDays.toFixed(1)}, harvest ${plan.harvest.requiredWorkerDays.toFixed(1)}/${plan.harvest.availableWorkerDays.toFixed(1)} worker-days · ${placementHint}`;
+    return `${cropLabel(this.crop)} · ${areaDetail} · ${produceDetail} · field ${cycleWorkerDays.toFixed(1)} base worker-days/year · farm ${plan.activeFields} active fields: ${sowingSeason} ${sowingPlan.requiredWorkerDays.toFixed(1)}/${sowingPlan.availableWorkerDays.toFixed(1)}, harvest ${plan.harvest.requiredWorkerDays.toFixed(1)}/${plan.harvest.availableWorkerDays.toFixed(1)} worker-days · ${placementHint}`;
   }
 
   getBuildButtonPosition(): { clientX: number; clientY: number } | null {
