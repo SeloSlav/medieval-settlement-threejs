@@ -91,11 +91,22 @@ export async function createBerryPatchVisuals(
   const rng = mulberry32(seed ^ 0xb3e771);
   const placements = createBerryClumpPlacements(berrySites, rng, isBlockedAt);
   const { geometry: fruitGeometry, material: fruitMaterial } = await loadRaspberryFruit();
-  const [branchAlbedo, branchNormal, branchRoughness, foliageAlbedo] = await Promise.all([
-    loadRequiredTexture(seedThreeBarkUrl('blackbrush_branch_albedo.png'), true, maxAnisotropy),
-    loadOptionalTexture(seedThreeBarkUrl('blackbrush_branch_normal.png'), false, maxAnisotropy),
-    loadOptionalTexture(seedThreeBarkUrl('blackbrush_branch_roughness.png'), false, maxAnisotropy),
+  const [
+    branchAlbedo,
+    branchNormal,
+    branchRoughness,
+    foliageAlbedo,
+    foliageNormal,
+    foliageRoughness,
+    foliageTranslucency,
+  ] = await Promise.all([
+    loadRequiredTexture(seedThreeBarkUrl('raspberry_cane_albedo.png'), true, maxAnisotropy),
+    loadOptionalTexture(seedThreeBarkUrl('raspberry_cane_normal.png'), false, maxAnisotropy),
+    loadOptionalTexture(seedThreeBarkUrl('raspberry_cane_roughness.png'), false, maxAnisotropy),
     loadRequiredTexture(seedThreeLeafUrl('raspberry_spray_albedo.png'), true, maxAnisotropy),
+    loadOptionalTexture(seedThreeLeafUrl('raspberry_spray_normal.png'), false, maxAnisotropy),
+    loadOptionalTexture(seedThreeLeafUrl('raspberry_spray_roughness.png'), false, maxAnisotropy),
+    loadOptionalTexture(seedThreeLeafUrl('raspberry_spray_translucency.png'), false, maxAnisotropy),
   ]);
   const materials: RaspberryMaterialSet = {
     branch: new THREE.MeshStandardMaterial({
@@ -109,18 +120,28 @@ export async function createBerryPatchVisuals(
     foliage: new THREE.MeshStandardMaterial({
       name: 'Generated Rubus idaeus leaf sprays',
       map: foliageAlbedo,
-      roughness: 0.9,
+      normalMap: foliageNormal,
+      roughnessMap: foliageRoughness,
+      roughness: foliageRoughness ? 1 : 0.9,
       metalness: 0,
       alphaTest: 0.38,
       side: THREE.DoubleSide,
       transparent: false,
     }),
     fruit: fruitMaterial,
-    textures: [branchAlbedo, foliageAlbedo, ...[branchNormal, branchRoughness].filter(
+    textures: [branchAlbedo, foliageAlbedo, ...[
+      branchNormal,
+      branchRoughness,
+      foliageNormal,
+      foliageRoughness,
+      foliageTranslucency,
+    ].filter(
       (texture): texture is THREE.Texture => Boolean(texture),
     )],
   };
   materials.foliage.forceSinglePass = true;
+  materials.foliage.normalScale.set(0.45, 0.45);
+  materials.foliage.userData.translucencyMap = foliageTranslucency;
 
   const prototypes = Array.from({ length: GORSKI_SHRUB_VARIANT_COUNT }, (_, variant) => {
     const prototype = createGorskiShrubPrototype('raspberry', variant);

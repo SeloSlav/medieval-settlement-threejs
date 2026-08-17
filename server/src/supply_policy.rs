@@ -10,7 +10,8 @@ use crate::balance_generated::{
     CIVILIAN_TOOL_IRONWORK_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
     HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES,
     LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
-    MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_GRAIN_PER_CYCLE,
+    MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE,
+    MONASTERY_OAT_GRAIN_PER_CYCLE,
     POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_WATER_PER_CYCLE,
     SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
     SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -186,7 +187,7 @@ pub fn grain_input_target(
 ) -> f64 {
     let per_cycle = match kind {
         "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
-        "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
+        "monastery" => MONASTERY_OAT_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
     let staging_cycles = if matches!(kind, "watermill" | "windmill") {
@@ -200,7 +201,7 @@ pub fn grain_input_target(
 pub fn grain_input_runway_cycles(kind: &str, stock: f64, productivity: f64) -> f64 {
     let per_cycle = match kind {
         "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
-        "monastery" => MONASTERY_GRAIN_PER_CYCLE * productivity.max(0.0),
+        "monastery" => MONASTERY_OAT_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
     if per_cycle <= 1e-6 {
@@ -532,7 +533,7 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("charcoal_burner", "firewood") => CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
         ("potter_kiln", "firewood") => POTTER_FIREWOOD_PER_CYCLE,
         ("watermill" | "windmill", "grain") => WATERMILL_GRAIN_PER_CYCLE,
-        ("monastery", "grain") => MONASTERY_GRAIN_PER_CYCLE,
+        ("monastery", "oatGrain") => MONASTERY_OAT_GRAIN_PER_CYCLE,
         ("bakery", "flour") => BAKERY_FLOUR_PER_CYCLE,
         ("smokehouse", "food" | "meat" | "fish" | "milk") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,

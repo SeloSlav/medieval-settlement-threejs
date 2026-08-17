@@ -785,8 +785,6 @@ pub(crate) fn place_building_internal(
         stone: 0.0,
         water: 0.0,
         food: 0.0,
-        grain: 0.0,
-        flour: 0.0,
         ale: 0.0,
         preserved_food: 0.0,
         honey: 0.0,
@@ -876,7 +874,6 @@ pub(crate) fn place_building_internal(
         linked_worksite_id,
         commute_efficiency: 1.0,
         chapel_tier,
-        bread: 0.0,
         meat: 0.0,
         fish: 0.0,
         berries: 0.0,
@@ -891,6 +888,19 @@ pub(crate) fn place_building_internal(
         cured_meat: 0.0,
         smoked_fish: 0.0,
         cheese: 0.0,
+        rye_sheaves: 0.0,
+        oat_sheaves: 0.0,
+        barley_sheaves: 0.0,
+        maslin_sheaves: 0.0,
+        rye_grain: 0.0,
+        oat_grain: 0.0,
+        maslin_grain: 0.0,
+        rye_flour: 0.0,
+        oat_flour: 0.0,
+        maslin_flour: 0.0,
+        rye_bread: 0.0,
+        oat_bread: 0.0,
+        maslin_bread: 0.0,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1092,10 +1102,10 @@ pub fn call_up_active_seasonal_labor(ctx: &ReducerContext) -> Result<(), String>
 
 fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
     if kind == "bakery" {
-        return Some(CommodityKind::Bread);
+        return Some(CommodityKind::RyeBread);
     }
     match processor_output_kind(kind)? {
-        ProcessorOutputKind::Flour => Some(CommodityKind::Flour),
+        ProcessorOutputKind::Flour => Some(CommodityKind::RyeFlour),
         ProcessorOutputKind::Food => Some(CommodityKind::Food),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
         ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
@@ -1130,8 +1140,8 @@ fn processor_output_room(building: &Building) -> Option<f64> {
 
 fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
     match kind {
-        ProcessorInputKind::Grain => CommodityKind::Grain,
-        ProcessorInputKind::Flour => CommodityKind::Flour,
+        ProcessorInputKind::Grain => CommodityKind::RyeGrain,
+        ProcessorInputKind::Flour => CommodityKind::RyeFlour,
         ProcessorInputKind::Water => CommodityKind::Water,
         ProcessorInputKind::Firewood => CommodityKind::Firewood,
         ProcessorInputKind::Barley => CommodityKind::Barley,
@@ -2621,8 +2631,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             stone: refund.stone + building.stone * recoverable,
             water: building.water * recoverable,
             food: building.food * recoverable,
-            grain: building.grain * recoverable,
-            flour: building.flour * recoverable,
             ale: building.ale * recoverable,
             preserved_food: building.preserved_food * recoverable,
             honey: building.honey * recoverable,
@@ -2634,7 +2642,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             barley: building.barley * recoverable,
             malt: building.malt * recoverable,
             flax: building.flax * recoverable,
-            bread: building.bread * recoverable,
             meat: building.meat * recoverable,
             fish: building.fish * recoverable,
             berries: building.berries * recoverable,
@@ -2649,6 +2656,19 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             cured_meat: building.cured_meat * recoverable,
             smoked_fish: building.smoked_fish * recoverable,
             cheese: building.cheese * recoverable,
+            rye_sheaves: building.rye_sheaves * recoverable,
+            oat_sheaves: building.oat_sheaves * recoverable,
+            barley_sheaves: building.barley_sheaves * recoverable,
+            maslin_sheaves: building.maslin_sheaves * recoverable,
+            rye_grain: building.rye_grain * recoverable,
+            oat_grain: building.oat_grain * recoverable,
+            maslin_grain: building.maslin_grain * recoverable,
+            rye_flour: building.rye_flour * recoverable,
+            oat_flour: building.oat_flour * recoverable,
+            maslin_flour: building.maslin_flour * recoverable,
+            rye_bread: building.rye_bread * recoverable,
+            oat_bread: building.oat_bread * recoverable,
+            maslin_bread: building.maslin_bread * recoverable,
             gold: building.gold * recoverable,
             water_capacity: 0.0,
             assigned_labor: 0,
@@ -2707,18 +2727,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     );
     credit_treasury_food(ctx, owner, (building.food + trip_cargo.food) * recoverable);
     credit_treasury_gold(ctx, owner, building.gold * recoverable);
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Grain,
-        (building.grain + trip_cargo.grain) * recoverable,
-    );
-    credit_treasury_commodity(
-        ctx,
-        owner,
-        CommodityKind::Flour,
-        (building.flour + trip_cargo.flour) * recoverable,
-    );
     credit_treasury_commodity(
         ctx,
         owner,
@@ -2786,7 +2794,40 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         (building.flax + trip_cargo.flax) * recoverable,
     );
     for (commodity, amount) in [
-        (CommodityKind::Bread, building.bread + trip_cargo.bread),
+        (
+            CommodityKind::RyeSheaves,
+            building.rye_sheaves + trip_cargo.rye_sheaves,
+        ),
+        (
+            CommodityKind::OatSheaves,
+            building.oat_sheaves + trip_cargo.oat_sheaves,
+        ),
+        (
+            CommodityKind::BarleySheaves,
+            building.barley_sheaves + trip_cargo.barley_sheaves,
+        ),
+        (
+            CommodityKind::MaslinSheaves,
+            building.maslin_sheaves + trip_cargo.maslin_sheaves,
+        ),
+        (CommodityKind::RyeGrain, building.rye_grain + trip_cargo.rye_grain),
+        (CommodityKind::OatGrain, building.oat_grain + trip_cargo.oat_grain),
+        (
+            CommodityKind::MaslinGrain,
+            building.maslin_grain + trip_cargo.maslin_grain,
+        ),
+        (CommodityKind::RyeFlour, building.rye_flour + trip_cargo.rye_flour),
+        (CommodityKind::OatFlour, building.oat_flour + trip_cargo.oat_flour),
+        (
+            CommodityKind::MaslinFlour,
+            building.maslin_flour + trip_cargo.maslin_flour,
+        ),
+        (CommodityKind::RyeBread, building.rye_bread + trip_cargo.rye_bread),
+        (CommodityKind::OatBread, building.oat_bread + trip_cargo.oat_bread),
+        (
+            CommodityKind::MaslinBread,
+            building.maslin_bread + trip_cargo.maslin_bread,
+        ),
         (CommodityKind::Meat, building.meat + trip_cargo.meat),
         (CommodityKind::Fish, building.fish + trip_cargo.fish),
         (

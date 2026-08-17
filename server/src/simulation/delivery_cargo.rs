@@ -18,8 +18,6 @@ pub struct DeliveryCargoTotals {
     pub firewood: f64,
     pub water: f64,
     pub food: f64,
-    pub grain: f64,
-    pub flour: f64,
     pub ale: f64,
     pub preserved_food: f64,
     pub honey: f64,
@@ -41,7 +39,6 @@ pub struct DeliveryCargoTotals {
     pub manure: f64,
     pub remedies: f64,
     pub roof_tiles: f64,
-    pub bread: f64,
     pub meat: f64,
     pub fish: f64,
     pub berries: f64,
@@ -56,6 +53,19 @@ pub struct DeliveryCargoTotals {
     pub cured_meat: f64,
     pub smoked_fish: f64,
     pub cheese: f64,
+    pub rye_sheaves: f64,
+    pub oat_sheaves: f64,
+    pub barley_sheaves: f64,
+    pub maslin_sheaves: f64,
+    pub rye_grain: f64,
+    pub oat_grain: f64,
+    pub maslin_grain: f64,
+    pub rye_flour: f64,
+    pub oat_flour: f64,
+    pub maslin_flour: f64,
+    pub rye_bread: f64,
+    pub oat_bread: f64,
+    pub maslin_bread: f64,
 }
 
 impl DeliveryCargoTotals {
@@ -65,8 +75,6 @@ impl DeliveryCargoTotals {
             CommodityKind::Firewood => self.firewood += amount,
             CommodityKind::Water => self.water += amount,
             CommodityKind::Food => self.food += amount,
-            CommodityKind::Grain => self.grain += amount,
-            CommodityKind::Flour => self.flour += amount,
             CommodityKind::Ale => self.ale += amount,
             CommodityKind::PreservedFood => self.preserved_food += amount,
             CommodityKind::Honey => self.honey += amount,
@@ -88,7 +96,6 @@ impl DeliveryCargoTotals {
             CommodityKind::Manure => self.manure += amount,
             CommodityKind::Remedies => self.remedies += amount,
             CommodityKind::RoofTiles => self.roof_tiles += amount,
-            CommodityKind::Bread => self.bread += amount,
             CommodityKind::Meat => self.meat += amount,
             CommodityKind::Fish => self.fish += amount,
             CommodityKind::Berries => self.berries += amount,
@@ -103,6 +110,19 @@ impl DeliveryCargoTotals {
             CommodityKind::CuredMeat => self.cured_meat += amount,
             CommodityKind::SmokedFish => self.smoked_fish += amount,
             CommodityKind::Cheese => self.cheese += amount,
+            CommodityKind::RyeSheaves => self.rye_sheaves += amount,
+            CommodityKind::OatSheaves => self.oat_sheaves += amount,
+            CommodityKind::BarleySheaves => self.barley_sheaves += amount,
+            CommodityKind::MaslinSheaves => self.maslin_sheaves += amount,
+            CommodityKind::RyeGrain => self.rye_grain += amount,
+            CommodityKind::OatGrain => self.oat_grain += amount,
+            CommodityKind::MaslinGrain => self.maslin_grain += amount,
+            CommodityKind::RyeFlour => self.rye_flour += amount,
+            CommodityKind::OatFlour => self.oat_flour += amount,
+            CommodityKind::MaslinFlour => self.maslin_flour += amount,
+            CommodityKind::RyeBread => self.rye_bread += amount,
+            CommodityKind::OatBread => self.oat_bread += amount,
+            CommodityKind::MaslinBread => self.maslin_bread += amount,
         }
     }
 }
@@ -165,7 +185,7 @@ pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 14] = [
+    const FRESH_ORDER: [CommodityKind; 16] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -177,7 +197,9 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::Vegetables,
         CommodityKind::Eggs,
         CommodityKind::Porridge,
-        CommodityKind::Bread,
+        CommodityKind::RyeBread,
+        CommodityKind::OatBread,
+        CommodityKind::MaslinBread,
         CommodityKind::Food,
         CommodityKind::Honey,
     ];
@@ -229,7 +251,7 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 18] = [
+    const ORDER: [CommodityKind; 20] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -241,7 +263,9 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::Vegetables,
         CommodityKind::Eggs,
         CommodityKind::Porridge,
-        CommodityKind::Bread,
+        CommodityKind::RyeBread,
+        CommodityKind::OatBread,
+        CommodityKind::MaslinBread,
         CommodityKind::Food,
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,

@@ -225,8 +225,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         stone: resources.stone.max(0.0),
         water: resources.water.max(0.0),
         food: resources.food.max(0.0),
-        grain: resources.grain.max(0.0),
-        flour: resources.flour.max(0.0),
         ale: resources.ale.max(0.0),
         preserved_food: resources.preserved_food.max(0.0),
         honey: resources.honey.max(0.0),
@@ -317,7 +315,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         linked_worksite_id: 0,
         commute_efficiency: 1.0,
         chapel_tier: 0,
-        bread: resources.bread.max(0.0),
         meat: resources.meat.max(0.0),
         fish: resources.fish.max(0.0),
         berries: resources.berries.max(0.0),
@@ -332,6 +329,19 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         cured_meat: resources.cured_meat.max(0.0),
         smoked_fish: resources.smoked_fish.max(0.0),
         cheese: resources.cheese.max(0.0),
+        rye_sheaves: resources.rye_sheaves.max(0.0),
+        oat_sheaves: resources.oat_sheaves.max(0.0),
+        barley_sheaves: resources.barley_sheaves.max(0.0),
+        maslin_sheaves: resources.maslin_sheaves.max(0.0),
+        rye_grain: resources.rye_grain.max(0.0),
+        oat_grain: resources.oat_grain.max(0.0),
+        maslin_grain: resources.maslin_grain.max(0.0),
+        rye_flour: resources.rye_flour.max(0.0),
+        oat_flour: resources.oat_flour.max(0.0),
+        maslin_flour: resources.maslin_flour.max(0.0),
+        rye_bread: resources.rye_bread.max(0.0),
+        oat_bread: resources.oat_bread.max(0.0),
+        maslin_bread: resources.maslin_bread.max(0.0),
     });
 
     resources.timber = 0.0;
@@ -339,8 +349,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.stone = 0.0;
     resources.water = 0.0;
     resources.food = 0.0;
-    resources.grain = 0.0;
-    resources.flour = 0.0;
     resources.ale = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
@@ -359,7 +367,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.barley = 0.0;
     resources.malt = 0.0;
     resources.flax = 0.0;
-    resources.bread = 0.0;
     resources.meat = 0.0;
     resources.fish = 0.0;
     resources.berries = 0.0;
@@ -373,6 +380,19 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.porridge = 0.0;
     resources.cured_meat = 0.0;
     resources.smoked_fish = 0.0;
+    resources.rye_sheaves = 0.0;
+    resources.oat_sheaves = 0.0;
+    resources.barley_sheaves = 0.0;
+    resources.maslin_sheaves = 0.0;
+    resources.rye_grain = 0.0;
+    resources.oat_grain = 0.0;
+    resources.maslin_grain = 0.0;
+    resources.rye_flour = 0.0;
+    resources.oat_flour = 0.0;
+    resources.maslin_flour = 0.0;
+    resources.rye_bread = 0.0;
+    resources.oat_bread = 0.0;
+    resources.maslin_bread = 0.0;
     resources.cheese = 0.0;
     resources.physical_founding_site_enabled = true;
     resources.legacy_unhoused_population_bonus_enabled = false;

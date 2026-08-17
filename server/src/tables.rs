@@ -63,10 +63,6 @@ pub struct PlayerResources {
     #[default(0.0)]
     pub food: f64,
     #[default(0.0)]
-    pub grain: f64,
-    #[default(0.0)]
-    pub flour: f64,
-    #[default(0.0)]
     pub ale: f64,
     #[default(0.0)]
     pub preserved_food: f64,
@@ -248,8 +244,6 @@ pub struct PlayerResources {
     /// legacy mixed stores so existing saves migrate additively without
     /// fabricating a composition that can no longer be recovered.
     #[default(0.0)]
-    pub bread: f64,
-    #[default(0.0)]
     pub meat: f64,
     #[default(0.0)]
     pub fish: f64,
@@ -303,6 +297,34 @@ pub struct PlayerResources {
     /// Net local producer proceeds created by those optional purchases.
     #[default(0.0)]
     pub local_producer_income_total: f64,
+    /// Crop-typed arable goods. Crop identity is preserved from harvest
+    /// through household consumption.
+    #[default(0.0)]
+    pub rye_sheaves: f64,
+    #[default(0.0)]
+    pub oat_sheaves: f64,
+    #[default(0.0)]
+    pub barley_sheaves: f64,
+    #[default(0.0)]
+    pub maslin_sheaves: f64,
+    #[default(0.0)]
+    pub rye_grain: f64,
+    #[default(0.0)]
+    pub oat_grain: f64,
+    #[default(0.0)]
+    pub maslin_grain: f64,
+    #[default(0.0)]
+    pub rye_flour: f64,
+    #[default(0.0)]
+    pub oat_flour: f64,
+    #[default(0.0)]
+    pub maslin_flour: f64,
+    #[default(0.0)]
+    pub rye_bread: f64,
+    #[default(0.0)]
+    pub oat_bread: f64,
+    #[default(0.0)]
+    pub maslin_bread: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -362,10 +384,6 @@ pub struct Building {
     pub stone: f64,
     pub water: f64,
     pub food: f64,
-    #[default(0.0)]
-    pub grain: f64,
-    #[default(0.0)]
-    pub flour: f64,
     #[default(0.0)]
     pub ale: f64,
     #[default(0.0)]
@@ -663,8 +681,6 @@ pub struct Building {
     /// preserved capacity according to commodity metadata; the legacy `food`
     /// columns remain readable mixed-provision stores for old saves.
     #[default(0.0)]
-    pub bread: f64,
-    #[default(0.0)]
     pub meat: f64,
     #[default(0.0)]
     pub fish: f64,
@@ -726,6 +742,33 @@ pub struct Building {
     pub marketplace_provision_export_policy: u8,
     #[default(255u8)]
     pub marketplace_wares_export_policy: u8,
+    /// Physical crop-typed arable inventory.
+    #[default(0.0)]
+    pub rye_sheaves: f64,
+    #[default(0.0)]
+    pub oat_sheaves: f64,
+    #[default(0.0)]
+    pub barley_sheaves: f64,
+    #[default(0.0)]
+    pub maslin_sheaves: f64,
+    #[default(0.0)]
+    pub rye_grain: f64,
+    #[default(0.0)]
+    pub oat_grain: f64,
+    #[default(0.0)]
+    pub maslin_grain: f64,
+    #[default(0.0)]
+    pub rye_flour: f64,
+    #[default(0.0)]
+    pub oat_flour: f64,
+    #[default(0.0)]
+    pub maslin_flour: f64,
+    #[default(0.0)]
+    pub rye_bread: f64,
+    #[default(0.0)]
+    pub oat_bread: f64,
+    #[default(0.0)]
+    pub maslin_bread: f64,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).
@@ -1090,8 +1133,6 @@ pub struct Residence {
     #[default(0.0)]
     pub honey: f64,
     #[default(0.0)]
-    pub bread: f64,
-    #[default(0.0)]
     pub meat: f64,
     #[default(0.0)]
     pub fish: f64,
@@ -1128,6 +1169,14 @@ pub struct Residence {
     /// good. Essentials remain outside the purse economy.
     #[default(0u64)]
     pub last_discretionary_market_day: u64,
+    /// Typed loaves keep their crop identity through household delivery and
+    /// consumption.
+    #[default(0.0)]
+    pub rye_bread: f64,
+    #[default(0.0)]
+    pub oat_bread: f64,
+    #[default(0.0)]
+    pub maslin_bread: f64,
 }
 
 #[spacetimedb::table(

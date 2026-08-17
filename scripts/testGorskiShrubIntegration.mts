@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
+import { bilberry } from '../vendor/seedthree/src/species/bilberry.js';
+import { commonHornbeamHedge } from '../vendor/seedthree/src/species/common-hornbeam-hedge.js';
+import { commonJuniper } from '../vendor/seedthree/src/species/common-juniper.js';
+import { raspberry } from '../vendor/seedthree/src/species/raspberry.js';
 import {
   GORSKI_SHRUB_VARIANT_COUNT,
   JUNIPER_BERRY_ANCHOR_LIMIT,
@@ -13,7 +17,7 @@ import {
 import { MAX_RASPBERRIES_PER_CLUMP } from '../src/foraging/berryPatchPresentation.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
-const kinds: GorskiShrubKind[] = ['bush', 'fern', 'juniper', 'raspberry'];
+const kinds: GorskiShrubKind[] = ['bush', 'fern', 'juniper', 'raspberry', 'field-hornbeam'];
 const limits: Record<GorskiShrubKind, {
   triangles: [number, number];
   width: [number, number];
@@ -23,6 +27,7 @@ const limits: Record<GorskiShrubKind, {
   fern: { triangles: [120, 180], width: [0.8, 1.35], height: [0.5, 0.9] },
   juniper: { triangles: [6_000, 12_000], width: [1.7, 2.5], height: [1.2, 1.8] },
   raspberry: { triangles: [4_500, 7_500], width: [1.2, 1.7], height: [0.85, 1.2] },
+  'field-hornbeam': { triangles: [4_500, 5_200], width: [1.1, 1.5], height: [0.8, 0.95] },
 };
 
 const startedAt = performance.now();
@@ -36,7 +41,7 @@ assert.deepEqual(
 );
 assert.ok(
   generationMs < 5_000,
-  `two complete 12-prototype seed sweeps should stay below the startup safety budget (took ${generationMs.toFixed(1)} ms)`,
+  `two complete 15-prototype seed sweeps should stay below the startup safety budget (took ${generationMs.toFixed(1)} ms)`,
 );
 
 assertGlb('apple.glb', 1_000_000);
@@ -91,6 +96,30 @@ assert.equal(
   'the raspberry spray must retain an RGBA alpha channel for cutout foliage',
 );
 
+const shrubTextureContracts = [
+  { name: 'bilberry', preset: bilberry, foliageBase: 'bilberry' },
+  { name: 'common juniper', preset: commonJuniper, foliageBase: 'juniper_scrub' },
+  { name: 'raspberry', preset: raspberry, foliageBase: 'raspberry_spray' },
+  { name: 'field hornbeam', preset: commonHornbeamHedge, foliageBase: 'hornbeam_hedge_spray' },
+] as const;
+const albedoOwners = new Map<string, string>();
+for (const contract of shrubTextureContracts) {
+  const barkBase = String(contract.preset.bark).replace(/_albedo\.png$/, '');
+  assertTextureSet(contract.name, 'bark', barkBase, ['albedo', 'normal', 'roughness']);
+  assertTextureSet(
+    contract.name,
+    'leaves',
+    contract.foliageBase,
+    ['albedo', 'normal', 'roughness', 'translucency'],
+  );
+}
+assertTextureSet('fern', 'leaves', 'fern', ['albedo', 'normal', 'roughness', 'translucency']);
+assert.equal(
+  existsSync(`${projectRoot}vendor/seedthree/assets/bark/fern_branch_albedo.png`),
+  false,
+  'fern must keep its rachis in its own foliage card instead of borrowing woody bark',
+);
+
 const berryVisuals = readFileSync(`${projectRoot}src/foraging/BerryPatchVisuals.ts`, 'utf8');
 assert.match(berryVisuals, /createGorskiShrubPrototype\('raspberry'/);
 assert.match(berryVisuals, /raspberry_cluster\.glb/);
@@ -116,6 +145,11 @@ assert.match(undergrowthVisuals, /MAX_JUNIPER_BERRIES_PER_SHRUB = 20/);
 assert.match(shrubPrototypesSource, /selectFoliageSurfaceAnchors/);
 assert.match(undergrowthVisuals, /Instanced ripe common-juniper berry cones/);
 assert.doesNotMatch(undergrowthVisuals, /createCardClumpGeometry/);
+assert.doesNotMatch(
+  `${undergrowthVisuals}\n${berryVisuals}`,
+  /creosote_branch_|sagebrush_branch_|blackbrush_branch_|american_beech_(?:single_)?/,
+  'Gorski shrubs must not reuse unrelated desert-shrub or beech texture sets',
+);
 
 console.log(
   `Gorski shrub integration tests passed (${generationMs.toFixed(1)} ms deterministic seed sweep)`,
@@ -195,6 +229,27 @@ function prototypeSignatures(): Record<string, string> {
     }
   }
   return signatures;
+}
+
+function assertTextureSet(
+  owner: string,
+  folder: 'bark' | 'leaves',
+  base: string,
+  maps: ReadonlyArray<'albedo' | 'normal' | 'roughness' | 'translucency'>,
+): void {
+  for (const map of maps) {
+    const path = `${projectRoot}vendor/seedthree/assets/${folder}/${base}_${map}.png`;
+    assert.ok(existsSync(path), `${owner} must provide its own ${map} texture (${base}_${map}.png)`);
+    if (map !== 'albedo') continue;
+    const hash = createHash('sha256').update(readFileSync(path)).digest('hex');
+    const existingOwner = albedoOwners.get(hash);
+    assert.equal(
+      existingOwner,
+      undefined,
+      `${owner} must not reuse ${existingOwner ?? 'another species'}'s ${folder} albedo bytes`,
+    );
+    albedoOwners.set(hash, `${owner} ${folder}`);
+  }
 }
 
 function geometryHash(geometry: THREE.BufferGeometry): string {

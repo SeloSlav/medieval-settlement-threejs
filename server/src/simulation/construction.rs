@@ -268,7 +268,10 @@ fn complete_site(ctx: &ReducerContext, site: &mut Building) {
         // A newly established holding arrives with enough seed for roughly one
         // efficient field. Later expansion must come from its own harvest or a
         // road-linked granary, avoiding a first-crop grain deadlock.
-        site.grain += FARMSTEAD_STARTER_SEED_GRAIN;
+        site.rye_grain += FARMSTEAD_STARTER_SEED_GRAIN;
+        site.oat_grain += FARMSTEAD_STARTER_SEED_GRAIN;
+        site.maslin_grain += FARMSTEAD_STARTER_SEED_GRAIN;
+        site.flax += FARMSTEAD_STARTER_SEED_GRAIN;
         site.barley += FARMSTEAD_STARTER_BARLEY_SEED;
     // Pastoral farmsteads remain deliberately unstocked until the player
     // chooses cattle or sheep in the completed holding's inspector. Woodland

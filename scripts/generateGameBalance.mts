@@ -515,13 +515,19 @@ export type GameBalance = {
     millWaterPerHarvest: number;
     grainPerFieldCycle: number;
     grainTransferPerTrip: number;
+    threshingSheavesPerCycle: number;
+    threshingGrainPerCycle: number;
     watermillGrainPerCycle: number;
     watermillWaterPerCycle: number;
-    watermillFlourPerCycle: number;
+    watermillRyeFlourPerCycle: number;
+    watermillOatFlourPerCycle: number;
+    watermillMaslinFlourPerCycle: number;
     bakeryFlourPerCycle: number;
     bakeryWaterPerCycle: number;
     bakeryFirewoodPerCycle: number;
-    bakeryFoodPerCycle: number;
+    bakeryRyeBreadPerCycle: number;
+    bakeryOatBreadPerCycle: number;
+    bakeryMaslinBreadPerCycle: number;
     householdFoodReservePerClaim: number;
     householdFoodReserveCapacityFraction: number;
     breweryBarleyPerMaltCycle: number;
@@ -588,7 +594,7 @@ export type GameBalance = {
     vineyardHarvestStartMonth: number;
     vineyardHarvestEndMonth: number;
     marketSpecialtyExportPerBrokerPerSecond: number;
-    monasteryGrainPerCycle: number;
+    monasteryOatGrainPerCycle: number;
     monasteryFoodPerCycle: number;
     monasteryPilgrimageGoldPerDay: number;
     monasteryHospitalityBonusGoldPerDay: number;
@@ -1079,13 +1085,19 @@ function generateRust(): string {
     `pub const MILL_WATER_PER_HARVEST: f64 = ${rustF64(b.production.millWaterPerHarvest)};`,
     `pub const GRAIN_PER_FIELD_CYCLE: f64 = ${rustF64(b.production.grainPerFieldCycle)};`,
     `pub const GRAIN_TRANSFER_PER_TRIP: f64 = ${rustF64(b.production.grainTransferPerTrip)};`,
+    `pub const THRESHING_SHEAVES_PER_CYCLE: f64 = ${rustF64(b.production.threshingSheavesPerCycle)};`,
+    `pub const THRESHING_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.threshingGrainPerCycle)};`,
     `pub const WATERMILL_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.watermillGrainPerCycle)};`,
     `pub const WATERMILL_WATER_PER_CYCLE: f64 = ${rustF64(b.production.watermillWaterPerCycle)};`,
-    `pub const WATERMILL_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.watermillFlourPerCycle)};`,
+    `pub const WATERMILL_RYE_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.watermillRyeFlourPerCycle)};`,
+    `pub const WATERMILL_OAT_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.watermillOatFlourPerCycle)};`,
+    `pub const WATERMILL_MASLIN_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.watermillMaslinFlourPerCycle)};`,
     `pub const BAKERY_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.bakeryFlourPerCycle)};`,
     `pub const BAKERY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.bakeryWaterPerCycle)};`,
     `pub const BAKERY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryFirewoodPerCycle)};`,
-    `pub const BAKERY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryFoodPerCycle)};`,
+    `pub const BAKERY_RYE_BREAD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryRyeBreadPerCycle)};`,
+    `pub const BAKERY_OAT_BREAD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryOatBreadPerCycle)};`,
+    `pub const BAKERY_MASLIN_BREAD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryMaslinBreadPerCycle)};`,
     `pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = ${rustF64(b.production.householdFoodReservePerClaim)};`,
     `pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = ${rustF64(b.production.householdFoodReserveCapacityFraction)};`,
     `pub const BREWERY_BARLEY_PER_MALT_CYCLE: f64 = ${rustF64(b.production.breweryBarleyPerMaltCycle)};`,
@@ -1152,7 +1164,7 @@ function generateRust(): string {
     `pub const VINEYARD_HARVEST_START_MONTH: u8 = ${b.production.vineyardHarvestStartMonth};`,
     `pub const VINEYARD_HARVEST_END_MONTH: u8 = ${b.production.vineyardHarvestEndMonth};`,
     `pub const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND: f64 = ${rustF64(b.production.marketSpecialtyExportPerBrokerPerSecond)};`,
-    `pub const MONASTERY_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.monasteryGrainPerCycle)};`,
+    `pub const MONASTERY_OAT_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.monasteryOatGrainPerCycle)};`,
     `pub const MONASTERY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.monasteryFoodPerCycle)};`,
     `pub const MONASTERY_PILGRIMAGE_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryPilgrimageGoldPerDay)};`,
     `pub const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityBonusGoldPerDay)};`,
@@ -1959,13 +1971,19 @@ function generateTypeScript(): string {
     `export const MILL_WATER_PER_HARVEST = ${b.production.millWaterPerHarvest};`,
     `export const GRAIN_PER_FIELD_CYCLE = ${b.production.grainPerFieldCycle};`,
     `export const GRAIN_TRANSFER_PER_TRIP = ${b.production.grainTransferPerTrip};`,
+    `export const THRESHING_SHEAVES_PER_CYCLE = ${b.production.threshingSheavesPerCycle};`,
+    `export const THRESHING_GRAIN_PER_CYCLE = ${b.production.threshingGrainPerCycle};`,
     `export const WATERMILL_GRAIN_PER_CYCLE = ${b.production.watermillGrainPerCycle};`,
     `export const WATERMILL_WATER_PER_CYCLE = ${b.production.watermillWaterPerCycle};`,
-    `export const WATERMILL_FLOUR_PER_CYCLE = ${b.production.watermillFlourPerCycle};`,
+    `export const WATERMILL_RYE_FLOUR_PER_CYCLE = ${b.production.watermillRyeFlourPerCycle};`,
+    `export const WATERMILL_OAT_FLOUR_PER_CYCLE = ${b.production.watermillOatFlourPerCycle};`,
+    `export const WATERMILL_MASLIN_FLOUR_PER_CYCLE = ${b.production.watermillMaslinFlourPerCycle};`,
     `export const BAKERY_FLOUR_PER_CYCLE = ${b.production.bakeryFlourPerCycle};`,
     `export const BAKERY_WATER_PER_CYCLE = ${b.production.bakeryWaterPerCycle};`,
     `export const BAKERY_FIREWOOD_PER_CYCLE = ${b.production.bakeryFirewoodPerCycle};`,
-    `export const BAKERY_FOOD_PER_CYCLE = ${b.production.bakeryFoodPerCycle};`,
+    `export const BAKERY_RYE_BREAD_PER_CYCLE = ${b.production.bakeryRyeBreadPerCycle};`,
+    `export const BAKERY_OAT_BREAD_PER_CYCLE = ${b.production.bakeryOatBreadPerCycle};`,
+    `export const BAKERY_MASLIN_BREAD_PER_CYCLE = ${b.production.bakeryMaslinBreadPerCycle};`,
     `export const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM = ${b.production.householdFoodReservePerClaim};`,
     `export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = ${b.production.householdFoodReserveCapacityFraction};`,
     `export const BREWERY_BARLEY_PER_MALT_CYCLE = ${b.production.breweryBarleyPerMaltCycle};`,
@@ -2032,7 +2050,7 @@ function generateTypeScript(): string {
     `export const VINEYARD_HARVEST_START_MONTH = ${b.production.vineyardHarvestStartMonth};`,
     `export const VINEYARD_HARVEST_END_MONTH = ${b.production.vineyardHarvestEndMonth};`,
     `export const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND = ${b.production.marketSpecialtyExportPerBrokerPerSecond};`,
-    `export const MONASTERY_GRAIN_PER_CYCLE = ${b.production.monasteryGrainPerCycle};`,
+    `export const MONASTERY_OAT_GRAIN_PER_CYCLE = ${b.production.monasteryOatGrainPerCycle};`,
     `export const MONASTERY_FOOD_PER_CYCLE = ${b.production.monasteryFoodPerCycle};`,
     `export const MONASTERY_PILGRIMAGE_GOLD_PER_DAY = ${b.production.monasteryPilgrimageGoldPerDay};`,
     `export const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY = ${b.production.monasteryHospitalityBonusGoldPerDay};`,

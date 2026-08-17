@@ -299,7 +299,6 @@ pub fn place_burgage_zone(
             food: 0.0,
             preserved_food: 0.0,
             honey: 0.0,
-            bread: 0.0,
             meat: 0.0,
             fish: 0.0,
             berries: 0.0,
@@ -316,6 +315,9 @@ pub fn place_burgage_zone(
             cheese: 0.0,
             food_inventory_migrated: true,
             last_discretionary_market_day: 0,
+            rye_bread: 0.0,
+            oat_bread: 0.0,
+            maslin_bread: 0.0,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {

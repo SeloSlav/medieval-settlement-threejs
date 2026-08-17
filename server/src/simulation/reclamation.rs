@@ -23,16 +23,26 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 42] = [
+const RECOVERY_ORDER: [CommodityKind; 52] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
-    CommodityKind::Grain,
+    CommodityKind::RyeSheaves,
+    CommodityKind::OatSheaves,
+    CommodityKind::BarleySheaves,
+    CommodityKind::MaslinSheaves,
+    CommodityKind::RyeGrain,
+    CommodityKind::OatGrain,
+    CommodityKind::MaslinGrain,
     CommodityKind::Barley,
     CommodityKind::Malt,
-    CommodityKind::Flour,
+    CommodityKind::RyeFlour,
+    CommodityKind::OatFlour,
+    CommodityKind::MaslinFlour,
     CommodityKind::PreservedFood,
-    CommodityKind::Bread,
+    CommodityKind::RyeBread,
+    CommodityKind::OatBread,
+    CommodityKind::MaslinBread,
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Berries,
@@ -75,8 +85,6 @@ pub struct ReclamationStock {
     pub stone: f64,
     pub water: f64,
     pub food: f64,
-    pub grain: f64,
-    pub flour: f64,
     pub ale: f64,
     pub preserved_food: f64,
     pub honey: f64,
@@ -97,7 +105,6 @@ pub struct ReclamationStock {
     pub manure: f64,
     pub remedies: f64,
     pub roof_tiles: f64,
-    pub bread: f64,
     pub meat: f64,
     pub fish: f64,
     pub berries: f64,
@@ -112,6 +119,19 @@ pub struct ReclamationStock {
     pub cured_meat: f64,
     pub smoked_fish: f64,
     pub cheese: f64,
+    pub rye_sheaves: f64,
+    pub oat_sheaves: f64,
+    pub barley_sheaves: f64,
+    pub maslin_sheaves: f64,
+    pub rye_grain: f64,
+    pub oat_grain: f64,
+    pub maslin_grain: f64,
+    pub rye_flour: f64,
+    pub oat_flour: f64,
+    pub maslin_flour: f64,
+    pub rye_bread: f64,
+    pub oat_bread: f64,
+    pub maslin_bread: f64,
 }
 
 impl ReclamationStock {
@@ -136,14 +156,6 @@ impl ReclamationStock {
             },
             CommodityKind::Food => Self {
                 food: amount,
-                ..Self::default()
-            },
-            CommodityKind::Grain => Self {
-                grain: amount,
-                ..Self::default()
-            },
-            CommodityKind::Flour => Self {
-                flour: amount,
                 ..Self::default()
             },
             CommodityKind::Ale => Self {
@@ -226,10 +238,6 @@ impl ReclamationStock {
                 roof_tiles: amount,
                 ..Self::default()
             },
-            CommodityKind::Bread => Self {
-                bread: amount,
-                ..Self::default()
-            },
             CommodityKind::Meat => Self {
                 meat: amount,
                 ..Self::default()
@@ -286,6 +294,19 @@ impl ReclamationStock {
                 cheese: amount,
                 ..Self::default()
             },
+            CommodityKind::RyeSheaves => Self { rye_sheaves: amount, ..Self::default() },
+            CommodityKind::OatSheaves => Self { oat_sheaves: amount, ..Self::default() },
+            CommodityKind::BarleySheaves => Self { barley_sheaves: amount, ..Self::default() },
+            CommodityKind::MaslinSheaves => Self { maslin_sheaves: amount, ..Self::default() },
+            CommodityKind::RyeGrain => Self { rye_grain: amount, ..Self::default() },
+            CommodityKind::OatGrain => Self { oat_grain: amount, ..Self::default() },
+            CommodityKind::MaslinGrain => Self { maslin_grain: amount, ..Self::default() },
+            CommodityKind::RyeFlour => Self { rye_flour: amount, ..Self::default() },
+            CommodityKind::OatFlour => Self { oat_flour: amount, ..Self::default() },
+            CommodityKind::MaslinFlour => Self { maslin_flour: amount, ..Self::default() },
+            CommodityKind::RyeBread => Self { rye_bread: amount, ..Self::default() },
+            CommodityKind::OatBread => Self { oat_bread: amount, ..Self::default() },
+            CommodityKind::MaslinBread => Self { maslin_bread: amount, ..Self::default() },
         }
     }
 
@@ -302,8 +323,6 @@ impl ReclamationStock {
             stone: resources.stone.max(0.0),
             water: resources.water.max(0.0),
             food: resources.food.max(0.0),
-            grain: resources.grain.max(0.0),
-            flour: resources.flour.max(0.0),
             ale: resources.ale.max(0.0),
             preserved_food: resources.preserved_food.max(0.0),
             honey: resources.honey.max(0.0),
@@ -324,7 +343,6 @@ impl ReclamationStock {
             manure: 0.0,
             remedies: 0.0,
             roof_tiles: resources.roof_tiles.max(0.0),
-            bread: resources.bread.max(0.0),
             meat: resources.meat.max(0.0),
             fish: resources.fish.max(0.0),
             berries: resources.berries.max(0.0),
@@ -339,6 +357,19 @@ impl ReclamationStock {
             cured_meat: resources.cured_meat.max(0.0),
             smoked_fish: resources.smoked_fish.max(0.0),
             cheese: resources.cheese.max(0.0),
+            rye_sheaves: resources.rye_sheaves.max(0.0),
+            oat_sheaves: resources.oat_sheaves.max(0.0),
+            barley_sheaves: resources.barley_sheaves.max(0.0),
+            maslin_sheaves: resources.maslin_sheaves.max(0.0),
+            rye_grain: resources.rye_grain.max(0.0),
+            oat_grain: resources.oat_grain.max(0.0),
+            maslin_grain: resources.maslin_grain.max(0.0),
+            rye_flour: resources.rye_flour.max(0.0),
+            oat_flour: resources.oat_flour.max(0.0),
+            maslin_flour: resources.maslin_flour.max(0.0),
+            rye_bread: resources.rye_bread.max(0.0),
+            oat_bread: resources.oat_bread.max(0.0),
+            maslin_bread: resources.maslin_bread.max(0.0),
         }
     }
 
@@ -349,8 +380,6 @@ impl ReclamationStock {
             CommodityKind::Stone => self.stone,
             CommodityKind::Water => self.water,
             CommodityKind::Food => self.food,
-            CommodityKind::Grain => self.grain,
-            CommodityKind::Flour => self.flour,
             CommodityKind::Ale => self.ale,
             CommodityKind::PreservedFood => self.preserved_food,
             CommodityKind::Honey => self.honey,
@@ -371,7 +400,6 @@ impl ReclamationStock {
             CommodityKind::Manure => self.manure,
             CommodityKind::Remedies => self.remedies,
             CommodityKind::RoofTiles => self.roof_tiles,
-            CommodityKind::Bread => self.bread,
             CommodityKind::Meat => self.meat,
             CommodityKind::Fish => self.fish,
             CommodityKind::Berries => self.berries,
@@ -386,6 +414,19 @@ impl ReclamationStock {
             CommodityKind::CuredMeat => self.cured_meat,
             CommodityKind::SmokedFish => self.smoked_fish,
             CommodityKind::Cheese => self.cheese,
+            CommodityKind::RyeSheaves => self.rye_sheaves,
+            CommodityKind::OatSheaves => self.oat_sheaves,
+            CommodityKind::BarleySheaves => self.barley_sheaves,
+            CommodityKind::MaslinSheaves => self.maslin_sheaves,
+            CommodityKind::RyeGrain => self.rye_grain,
+            CommodityKind::OatGrain => self.oat_grain,
+            CommodityKind::MaslinGrain => self.maslin_grain,
+            CommodityKind::RyeFlour => self.rye_flour,
+            CommodityKind::OatFlour => self.oat_flour,
+            CommodityKind::MaslinFlour => self.maslin_flour,
+            CommodityKind::RyeBread => self.rye_bread,
+            CommodityKind::OatBread => self.oat_bread,
+            CommodityKind::MaslinBread => self.maslin_bread,
         }
     }
 
@@ -395,8 +436,6 @@ impl ReclamationStock {
         building.stone += self.stone;
         building.water += self.water;
         building.food += self.food;
-        building.grain += self.grain;
-        building.flour += self.flour;
         building.ale += self.ale;
         building.preserved_food += self.preserved_food;
         building.honey += self.honey;
@@ -417,7 +456,6 @@ impl ReclamationStock {
         building.manure += self.manure;
         building.remedies += self.remedies;
         building.roof_tiles += self.roof_tiles;
-        building.bread += self.bread;
         building.meat += self.meat;
         building.fish += self.fish;
         building.berries += self.berries;
@@ -432,6 +470,19 @@ impl ReclamationStock {
         building.cured_meat += self.cured_meat;
         building.smoked_fish += self.smoked_fish;
         building.cheese += self.cheese;
+        building.rye_sheaves += self.rye_sheaves;
+        building.oat_sheaves += self.oat_sheaves;
+        building.barley_sheaves += self.barley_sheaves;
+        building.maslin_sheaves += self.maslin_sheaves;
+        building.rye_grain += self.rye_grain;
+        building.oat_grain += self.oat_grain;
+        building.maslin_grain += self.maslin_grain;
+        building.rye_flour += self.rye_flour;
+        building.oat_flour += self.oat_flour;
+        building.maslin_flour += self.maslin_flour;
+        building.rye_bread += self.rye_bread;
+        building.oat_bread += self.oat_bread;
+        building.maslin_bread += self.maslin_bread;
     }
 }
 
@@ -441,8 +492,6 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.stone = 0.0;
     resources.water = 0.0;
     resources.food = 0.0;
-    resources.grain = 0.0;
-    resources.flour = 0.0;
     resources.ale = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
@@ -461,7 +510,6 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.charcoal = 0.0;
     resources.pottery = 0.0;
     resources.roof_tiles = 0.0;
-    resources.bread = 0.0;
     resources.meat = 0.0;
     resources.fish = 0.0;
     resources.berries = 0.0;
@@ -473,6 +521,19 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.eggs = 0.0;
     resources.grapes = 0.0;
     resources.porridge = 0.0;
+    resources.rye_sheaves = 0.0;
+    resources.oat_sheaves = 0.0;
+    resources.barley_sheaves = 0.0;
+    resources.maslin_sheaves = 0.0;
+    resources.rye_grain = 0.0;
+    resources.oat_grain = 0.0;
+    resources.maslin_grain = 0.0;
+    resources.rye_flour = 0.0;
+    resources.oat_flour = 0.0;
+    resources.maslin_flour = 0.0;
+    resources.rye_bread = 0.0;
+    resources.oat_bread = 0.0;
+    resources.maslin_bread = 0.0;
     resources.cured_meat = 0.0;
     resources.smoked_fish = 0.0;
     resources.cheese = 0.0;

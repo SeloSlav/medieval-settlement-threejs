@@ -178,8 +178,8 @@ const CARD_FILES: Record<UndergrowthKind, UndergrowthTextureFiles> = {
 };
 
 const BRANCH_FILES: Record<Exclude<UndergrowthKind, 'fern'>, Omit<UndergrowthTextureFiles, 'translucency'>> = {
-  bush: { albedo: 'creosote_branch_albedo.png', normal: 'creosote_branch_normal.png', roughness: 'creosote_branch_roughness.png' },
-  juniper: { albedo: 'sagebrush_branch_albedo.png', normal: 'sagebrush_branch_normal.png', roughness: 'sagebrush_branch_roughness.png' },
+  bush: { albedo: 'bilberry_branch_albedo.png', normal: 'bilberry_branch_normal.png', roughness: 'bilberry_branch_roughness.png' },
+  juniper: { albedo: 'common_juniper_branch_albedo.png', normal: 'common_juniper_branch_normal.png', roughness: 'common_juniper_branch_roughness.png' },
 };
 
 const loader = new THREE.TextureLoader();
@@ -252,15 +252,15 @@ export async function createFieldPerimeterShrubCatalog(
 ): Promise<FieldPerimeterShrubCatalog> {
   const [bushTextures, bushBranch] = await Promise.all([
     loadUndergrowthTextures({
-      albedo: 'american_beech_single_albedo.png',
-      normal: 'american_beech_single_normal.png',
-      roughness: 'american_beech_single_roughness.png',
-      translucency: 'american_beech_single_translucency.png',
+      albedo: 'hornbeam_hedge_spray_albedo.png',
+      normal: 'hornbeam_hedge_spray_normal.png',
+      roughness: 'hornbeam_hedge_spray_roughness.png',
+      translucency: 'hornbeam_hedge_spray_translucency.png',
     }, maxAnisotropy),
     loadBranchTextures({
-      albedo: 'american_beech_albedo.png',
-      normal: 'american_beech_normal.png',
-      roughness: 'american_beech_roughness.png',
+      albedo: 'hornbeam_hedge_branch_albedo.png',
+      normal: 'hornbeam_hedge_branch_normal.png',
+      roughness: 'hornbeam_hedge_branch_roughness.png',
     }, maxAnisotropy),
   ]);
   const textures = collectTextures(bushTextures, bushBranch);
@@ -277,9 +277,9 @@ export async function createFieldPerimeterShrubCatalog(
     // the live WebGPU path owns its normals through the TSL material above.
     foliageMaterial.onBeforeCompile = () => undefined;
     foliageMaterial.customProgramCacheKey = () => 'field-hornbeam-standard-double-sided-v1';
-    foliageMaterial.emissive.setHex(0x334824);
+    foliageMaterial.emissive.setHex(0x829b69);
     foliageMaterial.emissiveMap = bushTextures.albedo;
-    foliageMaterial.emissiveIntensity = 0.72;
+    foliageMaterial.emissiveIntensity = 0.85;
     foliageMaterial.needsUpdate = true;
   }
   const branchMaterial = createUndergrowthBranchMaterial(
@@ -288,7 +288,7 @@ export async function createFieldPerimeterShrubCatalog(
     rendererBackend === 'webgpu',
   );
   if ('color' in branchMaterial && branchMaterial.color instanceof THREE.Color) {
-    branchMaterial.color.setHex(0x735f49);
+    branchMaterial.color.setHex(0xc9c3b5);
   }
   const materials: UndergrowthMaterialPair = [
     branchMaterial,
