@@ -508,7 +508,7 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   waterMaterialSource,
   /SEA_SHALLOW_WATER_TINT|SEA_DEEP_WATER_TINT|seaTintWeight/,
-  'river, lake, and sea water must share the original green translucent palette',
+  'river, lake, and sea water must share one bounded-water palette',
 );
 assert.doesNotMatch(
   waterMaterialSource,
@@ -613,7 +613,7 @@ benchmarkMaterial.dispose();
 
 console.log(
   'River water material tests passed: bounded continuous normals and '
-    + 'the restored green high-transmission refraction path remain active. '
+    + 'the legible controlled-transmission refraction path remains active. '
     + `Hidden-reed benchmark: ${oldElapsedMs.toFixed(1)}ms/${oldHiddenUploadBytes.toLocaleString()} bytes `
     + `-> ${optimizedElapsedMs.toFixed(1)}ms/${optimizedHiddenUploadBytes.toLocaleString()} bytes.`,
 );
