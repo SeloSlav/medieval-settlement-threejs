@@ -71,6 +71,8 @@ import {
   getNoble,
 } from './nobleProfile.ts';
 
+const STORES_POINTER_LEAVE_GRACE_MS = 180;
+
 function gameSpeedTimingLabel(speed: GameSpeed): string {
   if (speed === 0) return 'Freezes the calendar, economy, and world simulation';
   const realSeconds = CALENDAR_SECONDS_PER_DAY / (SIM_REALTIME_RATE * speed);
@@ -586,6 +588,8 @@ export class SettlementHud {
   private approvalTrendExpiresAt = 0;
   private approvalPointerInside = false;
   private approvalCloseTimer: number | null = null;
+  private foodStoresCloseTimer: number | null = null;
+  private specialtyStoresCloseTimer: number | null = null;
   private displayedClockDate: string | null = null;
   private displayedClockTime: string | null = null;
   private displayedClockDetail: string | null = null;
@@ -1307,14 +1311,20 @@ export class SettlementHud {
   };
 
   private readonly onFoodStoresPointerEnter = (): void => {
+    this.cancelFoodStoresClose();
     this.foodStores.open = true;
   };
 
   private readonly onFoodStoresPointerLeave = (): void => {
-    this.foodStores.open = false;
+    this.cancelFoodStoresClose();
+    this.foodStoresCloseTimer = window.setTimeout(() => {
+      this.foodStoresCloseTimer = null;
+      this.foodStores.open = false;
+    }, STORES_POINTER_LEAVE_GRACE_MS);
   };
 
   private readonly onFoodStoresFocusIn = (): void => {
+    this.cancelFoodStoresClose();
     this.foodStores.open = true;
   };
 
@@ -1333,14 +1343,20 @@ export class SettlementHud {
   };
 
   private readonly onSpecialtyStoresPointerEnter = (): void => {
+    this.cancelSpecialtyStoresClose();
     this.specialtyStores.open = true;
   };
 
   private readonly onSpecialtyStoresPointerLeave = (): void => {
-    this.specialtyStores.open = false;
+    this.cancelSpecialtyStoresClose();
+    this.specialtyStoresCloseTimer = window.setTimeout(() => {
+      this.specialtyStoresCloseTimer = null;
+      this.specialtyStores.open = false;
+    }, STORES_POINTER_LEAVE_GRACE_MS);
   };
 
   private readonly onSpecialtyStoresFocusIn = (): void => {
+    this.cancelSpecialtyStoresClose();
     this.specialtyStores.open = true;
   };
 
@@ -1426,6 +1442,18 @@ export class SettlementHud {
     if (this.approvalCloseTimer === null) return;
     window.clearTimeout(this.approvalCloseTimer);
     this.approvalCloseTimer = null;
+  }
+
+  private cancelFoodStoresClose(): void {
+    if (this.foodStoresCloseTimer === null) return;
+    window.clearTimeout(this.foodStoresCloseTimer);
+    this.foodStoresCloseTimer = null;
+  }
+
+  private cancelSpecialtyStoresClose(): void {
+    if (this.specialtyStoresCloseTimer === null) return;
+    window.clearTimeout(this.specialtyStoresCloseTimer);
+    this.specialtyStoresCloseTimer = null;
   }
 
   private readonly onApprovalEscape = (event: KeyboardEvent): void => {
@@ -1533,6 +1561,8 @@ export class SettlementHud {
 
   dispose(): void {
     this.cancelApprovalClose();
+    this.cancelFoodStoresClose();
+    this.cancelSpecialtyStoresClose();
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
     this.geologyAlert.removeEventListener('click', this.onGeologyAlertClick);

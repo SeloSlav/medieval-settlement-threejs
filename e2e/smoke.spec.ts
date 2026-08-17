@@ -122,6 +122,19 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await foodSummary.hover();
   await expect(foodStores).toHaveAttribute('open', '');
   await expect(page.locator('#ui-tooltip')).toBeHidden();
+  const foodGrid = foodStores.locator('[data-food-breakdown]');
+  const foodSummaryBox = await foodSummary.boundingBox();
+  const foodGridBox = await foodGrid.boundingBox();
+  expect(foodSummaryBox).not.toBeNull();
+  expect(foodGridBox).not.toBeNull();
+  await page.mouse.move(
+    Math.min(foodSummaryBox!.x + foodSummaryBox!.width / 2, foodGridBox!.x + foodGridBox!.width - 1),
+    (foodSummaryBox!.y + foodSummaryBox!.height + foodGridBox!.y) / 2,
+  );
+  await page.waitForTimeout(250);
+  await expect(foodStores).toHaveAttribute('open', '');
+  await page.locator('[data-food-resource="ryeBread"]').hover();
+  await expect(page.locator('#ui-tooltip .ui-tooltip__title')).toHaveText('Rye bread');
   await timberHud.hover();
   await expect(foodStores).not.toHaveAttribute('open', '');
   await totalsMode.hover();
@@ -129,7 +142,22 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods (default)');
   await expect(tooltip.locator('.ui-tooltip__label')).toHaveCount(0);
   const specialtyStores = page.locator('[data-specialty-stores]');
-  await specialtyStores.locator('> summary').hover();
+  const specialtySummary = specialtyStores.locator('> summary');
+  await specialtySummary.hover();
+  await expect(specialtyStores).toHaveAttribute('open', '');
+  const specialtyGrid = specialtyStores.locator('> .settlement-hud__stores-grid');
+  const specialtySummaryBox = await specialtySummary.boundingBox();
+  const specialtyGridBox = await specialtyGrid.boundingBox();
+  expect(specialtySummaryBox).not.toBeNull();
+  expect(specialtyGridBox).not.toBeNull();
+  await page.mouse.move(
+    Math.min(
+      specialtySummaryBox!.x + specialtySummaryBox!.width / 2,
+      specialtyGridBox!.x + specialtyGridBox!.width - 1,
+    ),
+    (specialtySummaryBox!.y + specialtySummaryBox!.height + specialtyGridBox!.y) / 2,
+  );
+  await page.waitForTimeout(250);
   await expect(specialtyStores).toHaveAttribute('open', '');
   const ironworkValue = page.locator('[data-stockpile="ironwork"]');
   await expect(ironworkValue).toHaveText('9000');

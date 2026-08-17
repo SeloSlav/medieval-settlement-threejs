@@ -640,6 +640,17 @@ select:focus-visible {
   backdrop-filter: blur(18px);
 }
 
+/* The panel floats below its trigger. Keep the visual breathing room inside
+ * the menu's hit area so a real pointer can cross it without closing the menu. */
+.settlement-hud__stores-grid::before {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 9px;
+  content: '';
+}
+
 .settlement-hud__stores-grid .settlement-hud__stat {
   min-height: 44px;
   border: 1px solid rgba(226, 202, 147, 0.08);
