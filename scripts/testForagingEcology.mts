@@ -25,16 +25,25 @@ import {
   BERRY_PATCH_WATER_CLEARANCE,
   GAME_HABITAT_DEPOSIT_CLEARANCE,
   GAME_HABITAT_WATER_CLEARANCE,
+  MUSHROOM_FOREST_MIN,
+  MUSHROOM_PATCH_WATER_CLEARANCE,
   isBerryPatchClearOfWater,
   isGameHabitatClearOfDeposits,
   isGameHabitatClearOfWater,
+  isMushroomPatchClearOfWater,
 } from '../src/foraging/ForagingLayout.ts';
 import {
+  BERRY_THICKET_MAX_SPACING,
+  BERRY_THICKET_MIN_SPACING,
   MAX_RASPBERRIES_PER_CLUMP,
   MIN_VISIBLE_BERRY_CLUMPS,
   ORDINARY_BERRY_CLUMPS,
+  ORDINARY_BERRY_THICKET_RADIUS_SCALE,
   RICH_BERRY_CLUMPS,
+  RICH_BERRY_THICKET_RADIUS_SCALE,
+  RASPBERRY_CANE_HEIGHT_MULTIPLIER,
   berryClumpTargetCount,
+  berryThicketRadiusScale,
   isBerryClumpVisible,
   isBerryFruitVisible,
   resolveBerryClumpPosition,
@@ -43,6 +52,7 @@ import {
   BERRY_PATCH_MAX_YIELD,
   BERRY_PATCH_MAX_SPAWN_RADIUS,
   GAME_PATCH_MAX_YIELD,
+  MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
   RICH_BERRY_PATCH_MAX_YIELD,
   RICH_BERRY_PATCH_PICK_RADIUS,
   RICH_GAME_PATCH_MAX_YIELD,
@@ -138,6 +148,7 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
   }
   assertGameHabitatsStayDry(layout, `${mapSize} map`);
   assertBerryPatchesStayDry(layout, `${mapSize} map`);
+  assertMushroomPatchesStayInDryDeepForest(layout, `${mapSize} map`);
   assert.equal(mushrooms.length, layout.resourcePlan.foragingNodeCounts.mushrooms);
   assert.equal(berries.length, layout.resourcePlan.foragingNodeCounts.berries);
   assert.ok(mushrooms.length > 0, 'complete regions should retain mushrooms');
@@ -171,16 +182,16 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
 const layout = createWorldLayout();
 assertGameHabitatsStayDry(layout, 'default map');
 assertBerryPatchesStayDry(layout, 'default map');
+assertMushroomPatchesStayInDryDeepForest(layout, 'default map');
 for (const preset of ['kupa_valley', 'risnjak_pass', 'delnice_meadow', 'vinodol_coast'] as const) {
-  assertGameHabitatsStayDry(
-    createWorldLayout(applyTerrainPreset({
+  const presetLayout = createWorldLayout(applyTerrainPreset({
       ...DEFAULT_WORLD_GENERATION_SETTINGS,
       seed: 0x52a91,
       resourceAbundance: 100,
       resourceVariety: 100,
-    }, preset)),
-    `${preset} preset`,
-  );
+    }, preset));
+  assertGameHabitatsStayDry(presetLayout, `${preset} preset`);
+  assertMushroomPatchesStayInDryDeepForest(presetLayout, `${preset} preset`);
 }
 const registry = WorldLayoutRegistry.fromWorldLayout(layout);
 const gameDefinitions = registry.definitionList.filter((node) => node.kind === 'game');
@@ -407,6 +418,12 @@ assert.equal(
 assert.equal(berryClumpTargetCount(false), ORDINARY_BERRY_CLUMPS);
 assert.equal(berryClumpTargetCount(true), RICH_BERRY_CLUMPS);
 assert.equal(MAX_RASPBERRIES_PER_CLUMP, 5);
+assert.equal(RASPBERRY_CANE_HEIGHT_MULTIPLIER, 1.9);
+assert.equal(ORDINARY_BERRY_THICKET_RADIUS_SCALE, 0.5);
+assert.equal(RICH_BERRY_THICKET_RADIUS_SCALE, 0.58);
+assert.equal(berryThicketRadiusScale(false), ORDINARY_BERRY_THICKET_RADIUS_SCALE);
+assert.equal(berryThicketRadiusScale(true), RICH_BERRY_THICKET_RADIUS_SCALE);
+assert.ok(BERRY_THICKET_MIN_SPACING < BERRY_THICKET_MAX_SPACING);
 assert.equal(isBerryFruitVisible(0, 60, true, 0), false);
 assert.equal(isBerryFruitVisible(60, 60, true, 0.99), true);
 assert.equal(isBerryFruitVisible(30, 60, true, 0.8), false);
@@ -435,6 +452,8 @@ assert.match(berryVisuals, /raspberry_cluster\.glb/);
 assert.match(berryVisuals, /new THREE\.InstancedMesh/);
 assert.match(berryVisuals, /fruitMesh\.count = visibleFruitCount/);
 assert.match(berryVisuals, /targetDiameterM = \[0\.017, 0\.022\]/);
+assert.match(berryVisuals, /RASPBERRY_CANE_HEIGHT_MULTIPLIER/);
+assert.match(berryVisuals, /berryThicketRadiusScale/);
 assert.doesNotMatch(
   berryVisuals,
   /raspberry_patch_albedo\.png|createSeedThreeCardClumpGeometry|appendBerryIcosahedron/,
@@ -571,6 +590,54 @@ function assertBerryPatchesStayDry(
           ),
           false,
           `${label} berry patch footprint should stay on dry land`,
+        );
+      }
+    }
+  }
+}
+
+function assertMushroomPatchesStayInDryDeepForest(
+  worldLayout: ReturnType<typeof createWorldLayout>,
+  label: string,
+): void {
+  const dimensions = resolveWorldDimensions(worldLayout.settings.mapSize);
+  const riverField = RiverField.fromLayout({
+    bounds: Terrain.fullBounds(dimensions.terrainSize),
+    layout: worldLayout.riverLayout,
+  });
+  const patches = worldLayout.foragingLayout.sites.filter((site) => site.kind === 'mushrooms');
+
+  for (const patch of patches) {
+    assert.ok(
+      forestDensityAt(
+        patch.x,
+        patch.z,
+        worldLayout.forestCores,
+        dimensions.playableHalf,
+        dimensions.terrainSize,
+      ) >= MUSHROOM_FOREST_MIN,
+      `${label} mushroom patch should remain in deep forest`,
+    );
+    assert.equal(
+      isMushroomPatchClearOfWater(
+        worldLayout.riverLayout,
+        patch.x,
+        patch.z,
+        MUSHROOM_PATCH_WATER_CLEARANCE,
+      ),
+      true,
+      `${label} mushroom patch should clear the river`,
+    );
+    for (let radius = 0; radius <= MUSHROOM_PATCH_MAX_SPAWN_RADIUS; radius += 1) {
+      for (let angleIndex = 0; angleIndex < 24; angleIndex++) {
+        const angle = angleIndex * Math.PI * 2 / 24;
+        assert.equal(
+          riverField.isRenderedWetAt(
+            patch.x + Math.sin(angle) * radius,
+            patch.z + Math.cos(angle) * radius,
+          ),
+          false,
+          `${label} mushroom patch footprint should stay on dry land`,
         );
       }
     }

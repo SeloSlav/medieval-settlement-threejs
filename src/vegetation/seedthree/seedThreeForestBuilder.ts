@@ -56,6 +56,7 @@ import {
 import {
   applySeedThreeForestCardMotion,
   applySeedThreeOverviewBillboardFade,
+  applySeedThreeWholeCardDormancy,
   createSeedThreeOverviewBarkFadeMaterial,
   createSeedThreeOverviewFadeMaterial,
   resolveSeedThreeForestCardMotion,
@@ -355,12 +356,18 @@ function createInstancedLodSet(
           sourceMaterial,
         );
         const fmat = crownUnderlay && options.overviewCards !== true
-          ? createSeedThreeOverviewFadeMaterial(baseForestMaterial)
+          ? createSeedThreeOverviewFadeMaterial(
+              baseForestMaterial,
+              options.seasonalDeciduous === true,
+            )
           : baseForestMaterial;
         if (crownUnderlay && options.overviewCards !== true) {
           options.ownedOverviewFadeMaterials?.add(fmat);
         }
         if (options.overviewCards === true) {
+          if (options.seasonalDeciduous) {
+            applySeedThreeWholeCardDormancy(fmat);
+          }
           applySeedThreeOverviewBillboardFade(fmat);
         }
         if (options.seasonalDeciduous) {

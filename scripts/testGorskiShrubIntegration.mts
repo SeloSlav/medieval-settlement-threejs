@@ -60,6 +60,8 @@ assert.match(berryVisuals, /raspberry_cluster\.glb/);
 assert.match(berryVisuals, /Depleting real raspberry fruit instances/);
 assert.match(berryVisuals, /fruitMesh\.count = visibleFruitCount/);
 assert.match(berryVisuals, /targetDiameterM = \[0\.017, 0\.022\]/);
+assert.match(berryVisuals, /RASPBERRY_CANE_HEIGHT_MULTIPLIER/);
+assert.match(berryVisuals, /berryThicketRadiusScale/);
 assert.doesNotMatch(berryVisuals, /bakeRaspberryFruitIntoPrototype/);
 assert.doesNotMatch(berryVisuals, /raspberry_patch_albedo\.png|createSeedThreeCardClumpGeometry/);
 

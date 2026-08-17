@@ -4,6 +4,7 @@ import type { ForagingNodeState } from '../resources/types.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ForagingSite } from './ForagingLayout.ts';
 import { isForagingHarvestAvailable } from './foragingSeason.ts';
+import { MUSHROOM_PATCH_MAX_SPAWN_RADIUS } from './foragingYields.ts';
 
 export type MushroomPatchVisuals = {
   group: THREE.Group;
@@ -24,7 +25,6 @@ type MushroomPlacement = {
 
 const TAU = Math.PI * 2;
 const MUSHROOMS_PER_PATCH = 26;
-const PATCH_RADIUS = 7.2;
 const CLOSE_WORLD_MAX_CAMERA_DISTANCE = 155;
 
 /** Close-zoom, low-poly mushrooms for persistent deep-forest resource beds. */
@@ -153,7 +153,7 @@ function createPlacements(
     let attempts = 0;
     while (patch.length < MUSHROOMS_PER_PATCH && attempts < MUSHROOMS_PER_PATCH * 24) {
       attempts++;
-      const radius = Math.sqrt(random()) * PATCH_RADIUS;
+      const radius = Math.sqrt(random()) * MUSHROOM_PATCH_MAX_SPAWN_RADIUS;
       const angle = random() * TAU;
       const x = site.x + Math.cos(angle) * radius;
       const z = site.z + Math.sin(angle) * radius * 0.82;

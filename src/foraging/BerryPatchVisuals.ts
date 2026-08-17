@@ -18,8 +18,12 @@ import { BERRY_PATCH_RADIUS } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
 import { isForagingHarvestAvailable } from './foragingSeason.ts';
 import {
+  BERRY_THICKET_MAX_SPACING,
+  BERRY_THICKET_MIN_SPACING,
   MAX_RASPBERRIES_PER_CLUMP,
+  RASPBERRY_CANE_HEIGHT_MULTIPLIER,
   berryClumpTargetCount,
+  berryThicketRadiusScale,
   isBerryClumpVisible,
   isBerryFruitVisible,
   resolveBerryClumpPosition,
@@ -160,8 +164,10 @@ export async function createBerryPatchVisuals(
         Math.sin(leanDirection) * lean * 0.7,
         'YXZ',
       ));
-      const width = placement.scale * THREE.MathUtils.lerp(1.0, 1.22, rng());
-      const height = placement.scale * THREE.MathUtils.lerp(0.9, 1.08, rng());
+      const width = placement.scale * THREE.MathUtils.lerp(1.0, 1.18, rng());
+      const height = placement.scale
+        * THREE.MathUtils.lerp(0.9, 1.08, rng())
+        * RASPBERRY_CANE_HEIGHT_MULTIPLIER;
       scale.set(width, height, width);
       matrix.compose(position, quaternion, scale);
       mesh.setMatrixAt(meshIndex, matrix);
@@ -196,6 +202,11 @@ export async function createBerryPatchVisuals(
   group.userData.seedThreeShrubSystem = true;
   group.userData.raspberryFruitModel = 'raspberry_cluster.glb';
   group.userData.raspberryFruitCapacity = fruitPlacements.length;
+  group.userData.raspberryClumpCount = placements.length;
+  group.userData.raspberryCaneHeightMultiplier = RASPBERRY_CANE_HEIGHT_MULTIPLIER;
+  group.userData.berryThicketRadiusScales = berrySites.map(
+    (site) => berryThicketRadiusScale(site.isRich === true),
+  );
   group.add(...meshes, fruitMesh);
 
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -438,17 +449,26 @@ function createBerryClumpPlacements(
   const placements: BerryClumpPlacement[] = [];
   sites.forEach((site, index) => {
     const nodeId = `foraging-berries-${index}`;
-    const targetCount = berryClumpTargetCount(site.isRich === true);
+    const isRich = site.isRich === true;
+    const targetCount = berryClumpTargetCount(isRich);
+    const radiusScale = berryThicketRadiusScale(isRich);
     const patch: BerryClumpPlacement[] = [];
     let attempts = 0;
-    while (patch.length < targetCount && attempts < targetCount * 18) {
+    while (patch.length < targetCount && attempts < targetCount * 24) {
       attempts++;
-      const radius = patch.length === 0 ? 0 : Math.sqrt(rng()) * BERRY_PATCH_RADIUS;
+      const radius = patch.length === 0
+        ? 0
+        : Math.pow(rng(), 0.68) * BERRY_PATCH_RADIUS * radiusScale;
       const angle = rng() * TAU;
       const x = site.x + Math.cos(angle) * radius * THREE.MathUtils.lerp(0.72, 1, rng());
       const z = site.z + Math.sin(angle) * radius * THREE.MathUtils.lerp(0.78, 1.08, rng());
       if (isBlockedAt?.(x, z)) continue;
-      if (!hasMinimumClumpDistance(patch, x, z, 1.25 + rng() * 0.65)) continue;
+      if (!hasMinimumClumpDistance(
+        patch,
+        x,
+        z,
+        THREE.MathUtils.lerp(BERRY_THICKET_MIN_SPACING, BERRY_THICKET_MAX_SPACING, rng()),
+      )) continue;
       patch.push({
         nodeId,
         clumpIndex: patch.length,

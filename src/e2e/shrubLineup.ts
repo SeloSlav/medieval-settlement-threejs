@@ -140,6 +140,12 @@ document.body.dataset.visibleRaspberryFruit = String(
 document.body.dataset.raspberryFruitCapacity = String(
   berries.group.userData.raspberryFruitCapacity ?? 0,
 );
+document.body.dataset.raspberryClumpCount = String(
+  berries.group.userData.raspberryClumpCount ?? 0,
+);
+document.body.dataset.raspberryCaneHeightMultiplier = String(
+  berries.group.userData.raspberryCaneHeightMultiplier ?? 0,
+);
 document.body.dataset.ordinaryTriangles = String(
   Object.values(materials.prototypes).flat().reduce((sum, prototype) => sum + prototype.triangleCount, 0),
 );

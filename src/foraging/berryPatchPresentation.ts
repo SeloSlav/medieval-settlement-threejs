@@ -2,9 +2,20 @@ export const MIN_VISIBLE_BERRY_CLUMPS = 4;
 export const ORDINARY_BERRY_CLUMPS = 16;
 export const RICH_BERRY_CLUMPS = 24;
 export const MAX_RASPBERRIES_PER_CLUMP = 5;
+/** Mature canes read as a waist-to-head-height thicket rather than ground scrub. */
+export const RASPBERRY_CANE_HEIGHT_MULTIPLIER = 1.9;
+/** Preserve instance budgets while concentrating them into a continuous thicket. */
+export const ORDINARY_BERRY_THICKET_RADIUS_SCALE = 0.5;
+export const RICH_BERRY_THICKET_RADIUS_SCALE = 0.58;
+export const BERRY_THICKET_MIN_SPACING = 0.65;
+export const BERRY_THICKET_MAX_SPACING = 1.0;
 
 export function berryClumpTargetCount(isRich: boolean): number {
   return isRich ? RICH_BERRY_CLUMPS : ORDINARY_BERRY_CLUMPS;
+}
+
+export function berryThicketRadiusScale(isRich: boolean): number {
+  return isRich ? RICH_BERRY_THICKET_RADIUS_SCALE : ORDINARY_BERRY_THICKET_RADIUS_SCALE;
 }
 
 /** Fruit depletes continuously even while the persistent woody canes remain. */

@@ -9,6 +9,7 @@ import { hashF64 } from '../rivers/riverHash.ts';
 import type { RiverLayout, RiverPoint } from '../rivers/RiverLayout.ts';
 import {
   BERRY_PATCH_MAX_SPAWN_RADIUS,
+  MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
   gamePatchSpawnRadius,
 } from './foragingYields.ts';
 
@@ -31,7 +32,7 @@ export type ForagingLayoutOptions = {
 };
 
 const DENSE_FOREST_MIN = 0.55;
-const MUSHROOM_FOREST_MIN = 0.68;
+export const MUSHROOM_FOREST_MIN = 0.68;
 const BERRY_EDGE_MIN = 0.28;
 const BERRY_EDGE_MAX = 0.48;
 const GAME_RESPAWN_CANDIDATE_TARGET = 48;
@@ -50,6 +51,8 @@ export const GAME_HABITAT_WATER_CLEARANCE = gamePatchSpawnRadius(true) + 6;
 export const GAME_HABITAT_DEPOSIT_CLEARANCE = gamePatchSpawnRadius(true) + 14;
 /** Keeps every visible raspberry clump beyond the rendered shoreline. */
 export const BERRY_PATCH_WATER_CLEARANCE = BERRY_PATCH_MAX_SPAWN_RADIUS + 6;
+/** Keeps every visible mushroom in its deep-forest bed beyond the rendered shoreline. */
+export const MUSHROOM_PATCH_WATER_CLEARANCE = MUSHROOM_PATCH_MAX_SPAWN_RADIUS + 6;
 
 export class ForagingLayout {
   readonly sites: ForagingSite[];
@@ -148,6 +151,7 @@ export class ForagingLayout {
         seed ^ (0x6d21 + i * 0x3137),
         extent,
         forestCores,
+        options.riverLayout,
         denseForestCandidates,
         sites,
       );
@@ -183,14 +187,25 @@ function pickMushroomSite(
   seed: number,
   extent: number,
   forestCores: ForestCore[],
+  riverLayout: RiverLayout,
   denseCandidates: ReadonlyArray<{ x: number; z: number }>,
   existing: ReadonlyArray<ForagingSite>,
 ): ForagingSite | null {
   const terrainExtent = extent * (1080 / 820);
-  const sufficientlySpaced = denseCandidates.filter((candidate) =>
+  const validCandidates = denseCandidates.filter((candidate) =>
+    forestDensityAt(
+      candidate.x,
+      candidate.z,
+      forestCores,
+      extent,
+      terrainExtent,
+    ) >= MUSHROOM_FOREST_MIN
+    && isMushroomPatchClearOfWater(riverLayout, candidate.x, candidate.z)
+  );
+  const sufficientlySpaced = validCandidates.filter((candidate) =>
     hasMinimumDistance(existing, candidate.x, candidate.z, 118)
   );
-  const pool = sufficientlySpaced.length > 0 ? sufficientlySpaced : denseCandidates;
+  const pool = sufficientlySpaced.length > 0 ? sufficientlySpaced : validCandidates;
   let best: { x: number; z: number } | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
@@ -203,7 +218,6 @@ function pickMushroomSite(
       extent,
       terrainExtent,
     );
-    if (density < MUSHROOM_FOREST_MIN && sufficientlySpaced.length > 0) continue;
     const edgeDistance = Math.min(extent - Math.abs(candidate.x), extent - Math.abs(candidate.z));
     const score = density * 100
       + Math.min(edgeDistance, 90) * 0.08
@@ -666,6 +680,15 @@ export function isBerryPatchClearOfWater(
   x: number,
   z: number,
   clearance = BERRY_PATCH_WATER_CLEARANCE,
+): boolean {
+  return isForagingFootprintClearOfWater(riverLayout, x, z, clearance);
+}
+
+export function isMushroomPatchClearOfWater(
+  riverLayout: RiverLayout,
+  x: number,
+  z: number,
+  clearance = MUSHROOM_PATCH_WATER_CLEARANCE,
 ): boolean {
   return isForagingFootprintClearOfWater(riverLayout, x, z, clearance);
 }

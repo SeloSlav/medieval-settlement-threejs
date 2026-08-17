@@ -10,8 +10,8 @@ export function sampleBilberryBushScale(density: number, rng: () => number): num
 }
 
 export function sampleBerryPatchClumpScale(rng: () => number): number {
-  // The previous range scaled a complete crossed-card clump. The real
-  // SeedThree Rubus skeleton is already life-sized, so keep mature canes in
-  // the roughly 0.8–1.5 m range before the small per-instance height jitter.
+  // Base variation for the real SeedThree Rubus skeleton. BerryPatchVisuals
+  // applies its authored thicket-height multiplier independently so the
+  // cluster footprint and the fruit's real-world diameter remain stable.
   return THREE.MathUtils.lerp(0.78, 1.18, Math.pow(rng(), 0.72));
 }

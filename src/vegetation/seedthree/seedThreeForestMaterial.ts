@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
-import { float, uniform } from 'three/tsl';
+import * as TSL from 'three/tsl';
+import { attribute, float, texture, uniform } from 'three/tsl';
 
 /** Forest foliage is diffuse/transmissive; a sun-driven glossy lobe reads as shimmer. */
 export const SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY = 0;
@@ -30,10 +31,27 @@ type SeedThreePositionNodeMaterial = THREE.Material & {
 
 type TslNode = {
   mul(value: unknown): TslNode;
+  sub(value: unknown): TslNode;
 };
+
+type TslVectorNode = {
+  a: TslNode;
+  y: TslNode;
+};
+
+// @types/three 0.185 omits step from the three/tsl barrel even though the
+// runtime build exports it. Keep the compatibility cast local to this module.
+const tslStep = (TSL as unknown as {
+  step(edge: unknown, value: unknown): TslNode;
+}).step;
 
 type SeedThreeOpacityNodeMaterial = THREE.Material & {
   opacityNode?: TslNode | null;
+};
+
+type SeedThreeFoliageNodeMaterial = SeedThreeOpacityNodeMaterial & {
+  map?: THREE.Texture | null;
+  thicknessColorNode?: TslNode | null;
 };
 
 const overviewBillboardFadeOpacity = uniform(0) as { value: number } & TslNode;
@@ -59,9 +77,35 @@ export function applySeedThreeOverviewBillboardFade(
   return material;
 }
 
+/** Remove the complete strategic foliage-volume card on dormant deciduous instances. */
+export function applySeedThreeWholeCardDormancy(
+  material: THREE.Material,
+): THREE.Material {
+  if (material.userData.seedThreeWholeCardDormancy === true) return material;
+  const dormancy = material.userData.forestSeasonalDormancy as TslNode | undefined;
+  if (!dormancy) return material;
+  // aTreeOrigin.y packs the deciduous bit at +2048. The 1024 threshold matches
+  // the forest compaction and SeedThree card shader without adding an attribute.
+  const packedTreeOrigin = attribute('aTreeOrigin', 'vec3') as unknown as TslVectorNode;
+  const deciduousInstance = tslStep(float(1024), packedTreeOrigin.y);
+  const retain = (float(1) as TslNode).sub(deciduousInstance.mul(dormancy));
+  const target = material as SeedThreeFoliageNodeMaterial;
+  const cardAlpha = target.map
+    ? (texture(target.map) as unknown as TslVectorNode).a
+    : float(1) as TslNode;
+  target.opacityNode = cardAlpha.mul(retain);
+  if (target.thicknessColorNode) {
+    target.thicknessColorNode = target.thicknessColorNode.mul(retain);
+  }
+  material.userData.seedThreeWholeCardDormancy = true;
+  material.needsUpdate = true;
+  return material;
+}
+
 /** Clone a cached forest material so fading overview geometry cannot fade near trees. */
 export function createSeedThreeOverviewFadeMaterial(
   source: THREE.Material,
+  wholeCardDormancy = false,
 ): THREE.Material {
   const material = source.clone();
   // NodeMaterial.clone() omits these standard texture/node properties in the
@@ -86,7 +130,20 @@ export function createSeedThreeOverviewFadeMaterial(
     const value = Reflect.get(source, property);
     if (value !== undefined) Reflect.set(material, property, value);
   }
+  // Material.clone() copies userData by value, but the restored node graph above
+  // still reads the source material's live seasonal uniforms. Restore those
+  // handles by reference so calendar updates reach the graph actually rendered
+  // by crown-underlay clones.
+  for (const property of [
+    'forestSeasonalSpringFlush',
+    'forestSeasonalAutumnColor',
+    'forestSeasonalDormancy',
+  ]) {
+    const value = source.userData[property];
+    if (value !== undefined) material.userData[property] = value;
+  }
   material.userData.seedThreeOwnedOverviewFadeMaterial = true;
+  if (wholeCardDormancy) applySeedThreeWholeCardDormancy(material);
   return applySeedThreeOverviewBillboardFade(material);
 }
 

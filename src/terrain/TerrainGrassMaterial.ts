@@ -29,6 +29,7 @@ import type { TextureSet } from '../roads/RoadTextureLoader.ts';
 import type { TerrainBlendTextureSet } from '../roads/RoadTextureLoader.ts';
 
 type TslNode = {
+  abs(): TslNode;
   add(value: TslNode): TslNode;
   dFdx(): TslNode;
   dFdy(): TslNode;
@@ -81,6 +82,17 @@ export function terrainShoreRainVisibility(wetness: number): number {
   return 1 - t * t * (3 - 2 * t);
 }
 
+/**
+ * Maps an unbounded terrain coordinate onto a continuous mirrored unit tile.
+ * Packed atlas regions cannot rely on the texture sampler's wrap mode in V,
+ * because the sampler would cross into a neighbouring material region.
+ */
+export function mirroredTerrainAtlasCoordinate(value: number): number {
+  const half = value * 0.5;
+  const halfFraction = half - Math.floor(half);
+  return 1 - Math.abs(halfFraction * 2 - 1);
+}
+
 function resolveTerrainWeather(
   weather?: RoadWeatherUniforms,
 ): RoadWeatherUniforms {
@@ -91,8 +103,23 @@ function resolveTerrainWeather(
   };
 }
 
+function mirroredTerrainAtlasUv(sourceUv: TslNode): TslNode {
+  // Manual fract-only wrapping creates a jump from one image edge to the
+  // other at every integer UV. The authored snow and litter are not edge-
+  // matched, so that jump appeared as evenly spaced dashed seams across the
+  // terrain. A triangle-wave fold meets each repeated tile at the same image
+  // edge and preserves continuity while keeping packed V samples isolated.
+  return sub(
+    float(1) as TslNode,
+    (fract(sourceUv.mul(float(0.5) as TslNode)) as TslNode)
+      .mul(float(2) as TslNode)
+      .sub(float(1) as TslNode)
+      .abs(),
+  ) as TslNode;
+}
+
 function packedDrySnowUv(grassUv: TslNode, snow: boolean): TslNode {
-  const tileUv = fract(grassUv) as TslNode;
+  const tileUv = mirroredTerrainAtlasUv(grassUv);
   // Texture.flipY maps the image rows to forest, snow, then dry from low to
   // high V. Small gutters keep neighbouring materials out of generated mips.
   return vec2(
@@ -104,7 +131,7 @@ function packedDrySnowUv(grassUv: TslNode, snow: boolean): TslNode {
 }
 
 function packedForestLitterUv(forestUv: TslNode): TslNode {
-  const tileUv = fract(forestUv) as TslNode;
+  const tileUv = mirroredTerrainAtlasUv(forestUv);
   // Keep a full-mip safety border inside the leaf third of the packed atlas.
   // Without this inset, distant litter samples can pull pale snow texels into
   // the tile and turn its repeated wrap seams into straight white dashes.

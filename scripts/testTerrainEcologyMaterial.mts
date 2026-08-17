@@ -18,6 +18,7 @@ import {
   TERRAIN_SNOW_REVEAL_RANGE,
   TERRAIN_SNOW_REVEAL_WIDTH,
   TERRAIN_SNOW_TEXTURE_WEIGHT,
+  mirroredTerrainAtlasCoordinate,
   stableTerrainBlendWeight,
   terrainShoreRainVisibility,
 } from '../src/terrain/TerrainGrassMaterial.ts';
@@ -215,6 +216,29 @@ assert.equal(
   27,
   'layered close soil, packed snow/leaf atlas and reused albedo coverage samples must retain a bounded texture budget',
 );
+assert.match(source, /function mirroredTerrainAtlasUv/);
+assert.match(source, /const tileUv = mirroredTerrainAtlasUv\(grassUv\)/);
+assert.match(source, /const tileUv = mirroredTerrainAtlasUv\(forestUv\)/);
+assert.doesNotMatch(
+  source,
+  /const tileUv = fract\(/,
+  'packed terrain atlas tiles must not jump directly between unmatched image edges',
+);
+assert.deepEqual(
+  [-1, -0.5, 0, 0.5, 1, 1.5, 2].map(mirroredTerrainAtlasCoordinate),
+  [1, 0.5, 0, 0.5, 1, 0.5, 0],
+  'packed terrain atlas coordinates must alternate direction across each tile',
+);
+for (let boundary = -4; boundary <= 4; boundary += 1) {
+  const epsilon = 1e-7;
+  assert.ok(
+    Math.abs(
+      mirroredTerrainAtlasCoordinate(boundary - epsilon)
+      - mirroredTerrainAtlasCoordinate(boundary + epsilon),
+    ) < epsilon * 3,
+    `packed terrain atlas sampling must remain continuous across UV boundary ${boundary}`,
+  );
+}
 assert.equal(
   (source.match(/\bsin\(/g) ?? []).length,
   0,

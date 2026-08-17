@@ -24,6 +24,7 @@ import {
   SEEDTHREE_FOREST_CARD_SPECULAR_INTENSITY,
   SEEDTHREE_OVERVIEW_CARD_MOTION,
   applySeedThreeForestCardMotion,
+  createSeedThreeOverviewFadeMaterial,
   resolveSeedThreeForestCardMotion,
   stabilizeSeedThreeForestCardMaterial,
 } from '../src/vegetation/seedthree/seedThreeForestMaterial.ts';
@@ -327,8 +328,25 @@ assert.notEqual(
   seasonalForestMaterial,
   'seasonal and standard forest twins must not alias when they share a source card material',
 );
+const seasonalOverviewFadeMaterial = createSeedThreeOverviewFadeMaterial(
+  seasonalForestMaterial,
+  true,
+);
+assert.equal(
+  seasonalOverviewFadeMaterial.userData.forestSeasonalDormancy,
+  seasonalForestMaterial.userData.forestSeasonalDormancy,
+  'overview fade clones must keep the live dormancy uniform used by their restored opacity graph',
+);
+assert.equal(seasonalOverviewFadeMaterial.userData.seedThreeWholeCardDormancy, true);
 assert.equal(setForestCardDormancy(standardForestMaterial, 1), false);
 assert.equal(setForestCardDormancy(seasonalForestMaterial, 1), true);
+assert.equal(setForestCardSeason(seasonalOverviewFadeMaterial, {
+  springFlush: 0,
+  autumnColor: 1,
+  dormancy: 0.75,
+}), true);
+assert.equal(seasonalForestMaterial.userData.forestSeasonalDormancy.value, 0.75);
+seasonalOverviewFadeMaterial.dispose();
 standardForestMaterial.dispose();
 seasonalForestMaterial.dispose();
 sourceMaterial.dispose();
@@ -353,6 +371,10 @@ const cardCacheSource = readFileSync(
 );
 const builderSource = readFileSync(
   join(root, 'src/vegetation/seedthree/seedThreeForestBuilder.ts'),
+  'utf8',
+);
+const forestMaterialSource = readFileSync(
+  join(root, 'src/vegetation/seedthree/seedThreeForestMaterial.ts'),
   'utf8',
 );
 const compactionSource = readFileSync(
@@ -421,6 +443,16 @@ assert.match(
   forkSource,
   /cacheKey = `\$\{opts\.seasonalDeciduous \? 'seasonal' : 'standard'\}:\$\{tintKey\}:\$\{autumnKey\}:\$\{opts\.toneVariation \?\? 0\}`[\s\S]*?variants\.get\(cacheKey\)/,
   'the Seloslav fork must isolate seasonal and standard material cache variants',
+);
+assert.match(
+  forestMaterialSource,
+  /applySeedThreeWholeCardDormancy[\s\S]*tslStep\(float\(1024\), packedTreeOrigin\.y\)[\s\S]*opacityNode = cardAlpha\.mul\(retain\)/,
+  'strategic foliage-volume cards must drop completely for each packed dormant deciduous instance',
+);
+assert.match(
+  builderSource,
+  /createSeedThreeOverviewFadeMaterial\(\s*baseForestMaterial,\s*options\.seasonalDeciduous === true[\s\S]*options\.overviewCards === true[\s\S]*applySeedThreeWholeCardDormancy\(fmat\)/,
+  'both crown underlays and zoomed-out overview cards must use whole-card dormancy',
 );
 assert.match(
   forkSource,

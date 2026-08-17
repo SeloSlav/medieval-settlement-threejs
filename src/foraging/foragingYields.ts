@@ -21,6 +21,8 @@ export const BERRY_PATCH_RADIUS = 9.6;
 /** Furthest a clump can reach after the patch's slight axis variation. */
 export const BERRY_PATCH_MAX_SPAWN_RADIUS = BERRY_PATCH_RADIUS * 1.08;
 export const MUSHROOM_PATCH_PICK_RADIUS = 24;
+/** Furthest a visible mushroom can spawn from its deep-forest resource node. */
+export const MUSHROOM_PATCH_MAX_SPAWN_RADIUS = 7.2;
 export const FISH_SHOAL_PICK_RADIUS = 24;
 
 export function gamePatchMaxYield(isRich = false): number {
