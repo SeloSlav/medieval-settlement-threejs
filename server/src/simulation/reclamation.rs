@@ -654,8 +654,6 @@ pub fn insert_reclamation_pile(
         stone: stock.stone.max(0.0),
         water: stock.water.max(0.0),
         food: stock.food.max(0.0),
-        grain: stock.grain.max(0.0),
-        flour: stock.flour.max(0.0),
         ale: stock.ale.max(0.0),
         preserved_food: stock.preserved_food.max(0.0),
         honey: stock.honey.max(0.0),
@@ -754,7 +752,6 @@ pub fn insert_reclamation_pile(
         linked_worksite_id: 0,
         commute_efficiency: 1.0,
         chapel_tier: 0,
-        bread: stock.bread.max(0.0),
         meat: stock.meat.max(0.0),
         fish: stock.fish.max(0.0),
         berries: stock.berries.max(0.0),
@@ -769,6 +766,19 @@ pub fn insert_reclamation_pile(
         cured_meat: stock.cured_meat.max(0.0),
         smoked_fish: stock.smoked_fish.max(0.0),
         cheese: stock.cheese.max(0.0),
+        rye_sheaves: stock.rye_sheaves.max(0.0),
+        oat_sheaves: stock.oat_sheaves.max(0.0),
+        barley_sheaves: stock.barley_sheaves.max(0.0),
+        maslin_sheaves: stock.maslin_sheaves.max(0.0),
+        rye_grain: stock.rye_grain.max(0.0),
+        oat_grain: stock.oat_grain.max(0.0),
+        maslin_grain: stock.maslin_grain.max(0.0),
+        rye_flour: stock.rye_flour.max(0.0),
+        oat_flour: stock.oat_flour.max(0.0),
+        maslin_flour: stock.maslin_flour.max(0.0),
+        rye_bread: stock.rye_bread.max(0.0),
+        oat_bread: stock.oat_bread.max(0.0),
+        maslin_bread: stock.maslin_bread.max(0.0),
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
@@ -1104,7 +1114,9 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             _ => Some(3),
         },
         CommodityKind::Food
-        | CommodityKind::Bread
+        | CommodityKind::RyeBread
+        | CommodityKind::OatBread
+        | CommodityKind::MaslinBread
         | CommodityKind::Meat
         | CommodityKind::Fish
         | CommodityKind::Berries
@@ -1119,9 +1131,17 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         | CommodityKind::CuredMeat
         | CommodityKind::SmokedFish
         | CommodityKind::Cheese
-        | CommodityKind::Grain
+        | CommodityKind::RyeSheaves
+        | CommodityKind::OatSheaves
+        | CommodityKind::BarleySheaves
+        | CommodityKind::MaslinSheaves
+        | CommodityKind::RyeGrain
+        | CommodityKind::OatGrain
+        | CommodityKind::MaslinGrain
         | CommodityKind::Barley
-        | CommodityKind::Flour
+        | CommodityKind::RyeFlour
+        | CommodityKind::OatFlour
+        | CommodityKind::MaslinFlour
         | CommodityKind::PreservedFood => match kind {
             "granary" => Some(0),
             "brewery" if commodity == CommodityKind::Barley => Some(0),

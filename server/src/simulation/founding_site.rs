@@ -22,15 +22,23 @@ use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
-const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 33] = [
+const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 43] = [
     CommodityKind::Timber,
     CommodityKind::Stone,
     CommodityKind::Firewood,
     CommodityKind::Food,
-    CommodityKind::Grain,
+    CommodityKind::RyeSheaves,
+    CommodityKind::OatSheaves,
+    CommodityKind::BarleySheaves,
+    CommodityKind::MaslinSheaves,
+    CommodityKind::RyeGrain,
+    CommodityKind::OatGrain,
+    CommodityKind::MaslinGrain,
     CommodityKind::Barley,
     CommodityKind::Malt,
-    CommodityKind::Flour,
+    CommodityKind::RyeFlour,
+    CommodityKind::OatFlour,
+    CommodityKind::MaslinFlour,
     CommodityKind::PreservedFood,
     CommodityKind::Ale,
     CommodityKind::Honey,
@@ -41,7 +49,9 @@ const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 33] = [
     CommodityKind::Ironwork,
     CommodityKind::Polearms,
     CommodityKind::Water,
-    CommodityKind::Bread,
+    CommodityKind::RyeBread,
+    CommodityKind::OatBread,
+    CommodityKind::MaslinBread,
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Berries,
@@ -163,7 +173,11 @@ fn try_start_stockyard_relocation(
         if starter_supplies_only
             && !matches!(
                 commodity,
-                CommodityKind::Firewood | CommodityKind::Bread | CommodityKind::Ironwork
+                CommodityKind::Firewood
+                    | CommodityKind::RyeBread
+                    | CommodityKind::OatBread
+                    | CommodityKind::MaslinBread
+                    | CommodityKind::Ironwork
             )
         {
             continue;
@@ -243,7 +257,10 @@ fn founding_destination_room(candidate: &Building, commodity: CommodityKind) -> 
 }
 
 fn founding_destination_priority(commodity: CommodityKind, kind: &str) -> Option<u8> {
-    if commodity == CommodityKind::Bread {
+    if matches!(
+        commodity,
+        CommodityKind::RyeBread | CommodityKind::OatBread | CommodityKind::MaslinBread
+    ) {
         return (kind == "granary").then_some(0);
     }
     reclamation_destination_priority(commodity, kind)
@@ -344,8 +361,16 @@ fn has_portable_stock(building: &Building) -> bool {
         building.stone,
         building.water,
         building.food,
-        building.grain,
-        building.flour,
+        building.rye_sheaves,
+        building.oat_sheaves,
+        building.barley_sheaves,
+        building.maslin_sheaves,
+        building.rye_grain,
+        building.oat_grain,
+        building.maslin_grain,
+        building.rye_flour,
+        building.oat_flour,
+        building.maslin_flour,
         building.ale,
         building.preserved_food,
         building.honey,
@@ -358,7 +383,9 @@ fn has_portable_stock(building: &Building) -> bool {
         building.barley,
         building.malt,
         building.flax,
-        building.bread,
+        building.rye_bread,
+        building.oat_bread,
+        building.maslin_bread,
         building.meat,
         building.fish,
         building.berries,

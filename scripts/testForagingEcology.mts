@@ -467,6 +467,15 @@ const undergrowthVisuals = readFileSync(
   `${projectRoot}src/props/ForestUndergrowth.ts`,
   'utf8',
 );
+assert.match(undergrowthVisuals, /bilberry_berry\.glb/);
+assert.match(undergrowthVisuals, /Instanced ripe Vaccinium myrtillus bilberries/);
+assert.ok(existsSync(
+  `${projectRoot}vendor/seedthree/assets/fruits/bilberry_berry.glb`,
+));
+assert.match(undergrowthVisuals, /juniper_berry\.glb/);
+assert.ok(existsSync(
+  `${projectRoot}vendor/seedthree/assets/fruits/juniper_berry.glb`,
+));
 assert.match(
   undergrowthVisuals,
   /juniper_scrub_albedo\.png/,

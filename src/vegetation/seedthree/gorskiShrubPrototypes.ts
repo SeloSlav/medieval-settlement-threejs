@@ -33,6 +33,7 @@ type SeedThreeStem = {
 };
 
 export const GORSKI_SHRUB_VARIANT_COUNT = 3;
+export const BILBERRY_FRUIT_ANCHOR_LIMIT = 14;
 export const JUNIPER_BERRY_ANCHOR_LIMIT = 20;
 export const RASPBERRY_FRUIT_ANCHOR_LIMIT = 10;
 
@@ -106,12 +107,14 @@ export function createGorskiShrubPrototype(
   geometry.userData.gorskiShrubVariant = variant;
   geometry.userData.seedThreeGenerator = 'dichotomous/sprayClusters';
 
-  const fruitAnchors = kind === 'juniper'
-    ? selectFoliageSurfaceAnchors(terminalFoliage, JUNIPER_BERRY_ANCHOR_LIMIT)
-    : selectFruitAnchors(
-      generated.terminalStems,
-      kind === 'raspberry' ? RASPBERRY_FRUIT_ANCHOR_LIMIT : 0,
-    );
+  const fruitAnchors = kind === 'bush'
+    ? selectFoliageSurfaceAnchors(terminalFoliage, BILBERRY_FRUIT_ANCHOR_LIMIT, 0.18, 0.0045)
+    : kind === 'juniper'
+      ? selectFoliageSurfaceAnchors(terminalFoliage, JUNIPER_BERRY_ANCHOR_LIMIT)
+      : selectFruitAnchors(
+        generated.terminalStems,
+        kind === 'raspberry' ? RASPBERRY_FRUIT_ANCHOR_LIMIT : 0,
+      );
 
   terminalFoliage?.geometry.dispose();
   parentFoliage?.geometry.dispose();
@@ -185,6 +188,8 @@ function selectFruitAnchors(
 function selectFoliageSurfaceAnchors(
   foliage: THREE.InstancedMesh | null,
   limit: number,
+  minimumHeight = 0.42,
+  minimumSeparationSq = 0.012,
 ): THREE.Vector3[] {
   if (!foliage || limit <= 0) return [];
   const matrix = new THREE.Matrix4();
@@ -203,8 +208,8 @@ function selectFoliageSurfaceAnchors(
   ));
   const anchors: THREE.Vector3[] = [];
   for (const point of candidates) {
-    if (point.y < 0.42) continue;
-    if (anchors.some((anchor) => anchor.distanceToSquared(point) < 0.012)) continue;
+    if (point.y < minimumHeight) continue;
+    if (anchors.some((anchor) => anchor.distanceToSquared(point) < minimumSeparationSq)) continue;
     anchors.push(point);
     if (anchors.length >= limit) break;
   }

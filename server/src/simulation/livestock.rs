@@ -131,7 +131,7 @@ fn step_livestock_building(
                 grain_per_head,
                 cycles_per_day,
             )
-            .min(building_commodity_cap(&building.kind, CommodityKind::Grain))
+            .min(building_commodity_cap(&building.kind, CommodityKind::OatGrain))
         } else {
             0.0
         };
@@ -142,7 +142,7 @@ fn step_livestock_building(
                 tick,
                 clock,
                 &building,
-                CommodityKind::Grain,
+                CommodityKind::OatGrain,
                 &["threshing_barn", "granary"],
                 desired_grain,
             );
@@ -254,13 +254,34 @@ fn run_livestock_cycle(
     }
     let grain_unsupported = (unsupported - hay_supplement).max(0.0);
     let grain_per_head = species_grain_per_unsupported_head(herd.species);
-    let supplement = if grain_per_head > 0.0 {
-        (building.grain / grain_per_head).min(grain_unsupported)
+    let feed_head_capacity = if grain_per_head > 0.0 {
+        (building.oat_grain * 1.25 + building.rye_grain + building.maslin_grain * 0.9)
+            / grain_per_head
     } else {
         0.0
     };
+    let supplement = feed_head_capacity.min(grain_unsupported);
     if supplement > 0.0 {
-        withdraw_building_commodity(building, CommodityKind::Grain, supplement * grain_per_head);
+        let mut feed_value_needed = supplement * grain_per_head;
+        let oats_used = withdraw_building_commodity(
+            building,
+            CommodityKind::OatGrain,
+            feed_value_needed / 1.25,
+        );
+        feed_value_needed = (feed_value_needed - oats_used * 1.25).max(0.0);
+        let rye_used = withdraw_building_commodity(
+            building,
+            CommodityKind::RyeGrain,
+            feed_value_needed,
+        );
+        feed_value_needed = (feed_value_needed - rye_used).max(0.0);
+        if feed_value_needed > 1e-9 {
+            withdraw_building_commodity(
+                building,
+                CommodityKind::MaslinGrain,
+                feed_value_needed / 0.9,
+            );
+        }
     }
     herd.supplied_capacity = (herd.pasture_capacity + hay_supplement + supplement).min(heads);
     let support_ratio = (herd.supplied_capacity / heads).clamp(0.0, 1.0);

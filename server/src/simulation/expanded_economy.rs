@@ -159,6 +159,7 @@ struct LocalMaterialDispatchCandidate {
 
 struct RoutedGrainTarget {
     building: Building,
+    commodity: CommodityKind,
     distance: f64,
     duty: GrainDispatchDuty,
     runway_cycles: f64,
@@ -861,9 +862,13 @@ pub fn step_marketplace_material_dispatch(
             continue;
         };
         let reserved_for_trade = pending_marketplace_trade_commodity(&marketplace);
-        const DISPATCHABLE_INPUTS: [CommodityKind; 22] = [
-            CommodityKind::Grain,
-            CommodityKind::Flour,
+        const DISPATCHABLE_INPUTS: [CommodityKind; 26] = [
+            CommodityKind::RyeGrain,
+            CommodityKind::OatGrain,
+            CommodityKind::MaslinGrain,
+            CommodityKind::RyeFlour,
+            CommodityKind::OatFlour,
+            CommodityKind::MaslinFlour,
             CommodityKind::Barley,
             CommodityKind::Malt,
             CommodityKind::Food,
@@ -1041,8 +1046,12 @@ pub fn step_marketplace_material_dispatch(
 fn marketplace_material_commodity_rank(commodity: CommodityKind) -> u8 {
     match commodity {
         CommodityKind::Food | CommodityKind::Meat | CommodityKind::Fish | CommodityKind::Milk => 0,
-        CommodityKind::Grain
-        | CommodityKind::Flour
+        CommodityKind::RyeGrain
+        | CommodityKind::OatGrain
+        | CommodityKind::MaslinGrain
+        | CommodityKind::RyeFlour
+        | CommodityKind::OatFlour
+        | CommodityKind::MaslinFlour
         | CommodityKind::Barley
         | CommodityKind::Malt
         | CommodityKind::Grapes => 1,
@@ -1559,14 +1568,13 @@ pub fn step_granary(
     }
     // Once urgent milling grain and military provisions are covered, granary
     // keepers replenish the workshops that consume centralized farm goods.
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut granary,
-        CommodityKind::Flour,
-        &["bakery"],
-    );
+    for flour in [
+        CommodityKind::RyeFlour,
+        CommodityKind::OatFlour,
+        CommodityKind::MaslinFlour,
+    ] {
+        dispatch_to_building(ctx, tick, clock, &mut granary, flour, &["bakery"]);
+    }
     dispatch_to_building(
         ctx,
         tick,
@@ -1598,7 +1606,9 @@ pub fn step_granary(
                     CommodityKind::Vegetables,
                     CommodityKind::Eggs,
                     CommodityKind::Porridge,
-                    CommodityKind::Bread,
+                    CommodityKind::RyeBread,
+                    CommodityKind::OatBread,
+                    CommodityKind::MaslinBread,
                     CommodityKind::Food,
                     CommodityKind::Cheese,
                     CommodityKind::SmokedFish,
@@ -3007,10 +3017,10 @@ fn process_batch(
 
 fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
     if kind == "bakery" {
-        return Some(CommodityKind::Bread);
+        return Some(CommodityKind::RyeBread);
     }
     match processor_output_kind(kind)? {
-        ProcessorOutputKind::Flour => Some(CommodityKind::Flour),
+        ProcessorOutputKind::Flour => Some(CommodityKind::RyeFlour),
         ProcessorOutputKind::Food => Some(CommodityKind::Food),
         ProcessorOutputKind::Ale => Some(CommodityKind::Ale),
         ProcessorOutputKind::PreservedFood => Some(CommodityKind::PreservedFood),
@@ -3062,10 +3072,17 @@ fn extraction_accepts_maintenance_input(
 
 fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
     match kind {
-        "watermill" | "windmill" => commodity == CommodityKind::Grain,
+        "watermill" | "windmill" => matches!(
+            commodity,
+            CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
+        ),
         "bakery" => matches!(
             commodity,
-            CommodityKind::Flour | CommodityKind::Water | CommodityKind::Firewood
+            CommodityKind::RyeFlour
+                | CommodityKind::OatFlour
+                | CommodityKind::MaslinFlour
+                | CommodityKind::Water
+                | CommodityKind::Firewood
         ),
         "brewery" => matches!(
             commodity,
@@ -3279,27 +3296,35 @@ fn next_granary_grain_dispatch(
     clock: &GameClock,
     source: &Building,
 ) -> Option<RoutedGrainTarget> {
+    let grains = [
+        CommodityKind::RyeGrain,
+        CommodityKind::OatGrain,
+        CommodityKind::MaslinGrain,
+    ];
     if source.kind != "granary"
         || source.assigned_labor <= 1
         || labor_and_logistics_paused(ctx, tick, source.owner, clock)
         || building_has_active_trip(ctx, source.id)
-        || granary_exportable_grain(source.grain, source.granary_grain_reserve) <= 1e-6
+        || grains
+            .into_iter()
+            .all(|grain| granary_typed_grain_surplus(source, grain) <= 1e-6)
     {
         return None;
     }
     let network = tick.road_network(source.owner)?;
-    select_grain_dispatch_candidate(
+    let candidates = grains.into_iter().flat_map(|commodity| {
         tick.building_ids_for_kinds(ctx, source.owner, GRAIN_PROCESSOR_KINDS)
             .into_iter()
-            .filter_map(|target_id| ctx.db.building().id().find(&target_id))
-            .filter_map(|target| {
+            .filter_map(move |target_id| ctx.db.building().id().find(&target_id))
+            .filter_map(move |target| {
                 if target.id == source.id
                     || !target.construction_complete
                     || tick.building_disabled_by_fire(ctx, target.id)
                     || !GRAIN_PROCESSOR_KINDS.contains(&target.kind.as_str())
                     || (target.kind != "monastery" && target.assigned_labor == 0)
-                    || !processor_accepts_input(&target, CommodityKind::Grain)
+                    || !processor_accepts_input(&target, commodity)
                     || building_has_inbound_supply_trip(ctx, target.id)
+                    || granary_typed_grain_surplus(source, commodity) <= 1e-6
                 {
                     return None;
                 }
@@ -3315,29 +3340,44 @@ fn next_granary_grain_dispatch(
                     productivity,
                     target.processor_output_target_percent,
                 );
-                if desired_stock <= 1e-6 || target.grain + 1e-6 >= desired_stock {
+                let target_stock = building_commodity_stock(&target, commodity);
+                if desired_stock <= 1e-6 || target_stock + 1e-6 >= desired_stock {
                     return None;
                 }
                 local_delivery_distance(network, source.x, source.z, target.x, target.z).map(
                     |distance| RoutedGrainTarget {
                         runway_cycles: grain_input_runway_cycles(
                             &target.kind,
-                            target.grain,
+                            target_stock,
                             productivity,
                         ),
                         building: target,
+                        commodity,
                         distance,
                         duty: GrainDispatchDuty::WorkingBuffer,
                         desired_stock,
                     },
                 )
-            }),
+            })
+    });
+    select_grain_dispatch_candidate(
+        candidates,
         |candidate| candidate.duty,
         |candidate| candidate.building.construction_priority,
         |candidate| candidate.runway_cycles,
         |candidate| candidate.distance,
         |candidate| candidate.building.id,
     )
+}
+
+fn granary_typed_grain_surplus(source: &Building, commodity: CommodityKind) -> f64 {
+    let stock = building_commodity_stock(source, commodity).max(0.0);
+    let total = source.rye_grain.max(0.0)
+        + source.oat_grain.max(0.0)
+        + source.maslin_grain.max(0.0);
+    let protected_from_this =
+        (source.granary_grain_reserve.max(0.0) - (total - stock)).max(0.0);
+    (stock - protected_from_this).max(0.0)
 }
 
 fn dispatch_granary_grain(
@@ -3350,8 +3390,9 @@ fn dispatch_granary_grain(
     let Some(network) = tick.road_network(source.owner) else {
         return false;
     };
-    let transferable = granary_exportable_grain(source.grain, source.granary_grain_reserve);
-    let needed = (dispatch.desired_stock - dispatch.building.grain)
+    let transferable = granary_typed_grain_surplus(source, dispatch.commodity);
+    let needed = (dispatch.desired_stock
+        - building_commodity_stock(&dispatch.building, dispatch.commodity))
         .max(0.0)
         .min(transferable);
     try_start_building_supply_trip(
@@ -3362,7 +3403,7 @@ fn dispatch_granary_grain(
         source,
         &dispatch.building,
         1,
-        CommodityKind::Grain,
+        dispatch.commodity,
         TIMBER_DELIVERY_SPEED_MPS,
         TIMBER_DELIVERY_UNLOAD_SEC,
         GRAIN_TRANSFER_PER_TRIP,
@@ -3752,10 +3793,14 @@ fn processor_input_target_for_building(
 
 fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'static str> {
     match commodity {
-        CommodityKind::Grain => Some("grain"),
+        CommodityKind::RyeGrain => Some("ryeGrain"),
+        CommodityKind::OatGrain => Some("oatGrain"),
+        CommodityKind::MaslinGrain => Some("maslinGrain"),
         CommodityKind::Barley => Some("barley"),
         CommodityKind::Malt => Some("malt"),
-        CommodityKind::Flour => Some("flour"),
+        CommodityKind::RyeFlour => Some("ryeFlour"),
+        CommodityKind::OatFlour => Some("oatFlour"),
+        CommodityKind::MaslinFlour => Some("maslinFlour"),
         CommodityKind::Food => Some("food"),
         CommodityKind::Meat => Some("meat"),
         CommodityKind::Fish => Some("fish"),
@@ -3918,14 +3963,28 @@ fn connected_source_surplus(
     commodity: CommodityKind,
     stock: f64,
 ) -> f64 {
-    if commodity == CommodityKind::Grain && source.kind == "threshing_barn" {
+    if matches!(
+        commodity,
+        CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
+    ) && source.kind == "threshing_barn"
+    {
+        let fields: Vec<FarmField> = ctx
+            .db
+            .farm_field()
+            .farmstead_id()
+            .filter(&source.id)
+            .collect();
         return farmstead_exportable_grain(
             stock,
-            tick.farmstead_seed_reserve_for(ctx, source.owner, source.id),
+            farmstead_seed_grain_remaining(&fields).for_commodity(commodity),
         );
     }
-    if commodity == CommodityKind::Grain && source.kind == "granary" {
-        return granary_exportable_grain(stock, source.granary_grain_reserve);
+    if matches!(
+        commodity,
+        CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
+    ) && source.kind == "granary"
+    {
+        return granary_typed_grain_surplus(source, commodity);
     }
     stock
 }

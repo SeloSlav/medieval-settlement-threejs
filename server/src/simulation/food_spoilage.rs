@@ -119,7 +119,9 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
             };
         }
         spoil_fresh!(food);
-        spoil_fresh!(bread);
+        spoil_fresh!(rye_bread);
+        spoil_fresh!(oat_bread);
+        spoil_fresh!(maslin_bread);
         spoil_fresh!(meat);
         spoil_fresh!(fish);
         spoil_fresh!(berries);

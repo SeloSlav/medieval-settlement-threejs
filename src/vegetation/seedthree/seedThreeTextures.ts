@@ -24,7 +24,7 @@ const leafModules = import.meta.glob(
 ) as Record<string, string>;
 
 const fruitModules = import.meta.glob(
-  '../../../vendor/seedthree/assets/fruits/{apple,cherry_pair,juniper_berry,raspberry_cluster}.glb',
+  '../../../vendor/seedthree/assets/fruits/{apple,cherry_pair,bilberry_berry,juniper_berry,raspberry_cluster}.glb',
   {
     eager: true,
     query: '?url',

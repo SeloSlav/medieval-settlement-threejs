@@ -162,6 +162,15 @@ document.body.dataset.raspberryClumpCount = String(
 document.body.dataset.raspberryCaneHeightMultiplier = String(
   berries.group.userData.raspberryCaneHeightMultiplier ?? 0,
 );
+document.body.dataset.bilberryFruitModel = String(
+  undergrowth.group.userData.bilberryFruitModel ?? '',
+);
+document.body.dataset.bilberryFruitInstances = String(
+  undergrowth.group.userData.bilberryFruitInstances ?? 0,
+);
+document.body.dataset.bilberryBearingShrubs = String(
+  undergrowth.group.userData.bilberryBearingShrubs ?? 0,
+);
 document.body.dataset.juniperBerryModel = String(
   undergrowth.group.userData.juniperBerryModel ?? '',
 );

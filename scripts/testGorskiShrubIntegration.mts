@@ -8,6 +8,7 @@ import { commonHornbeamHedge } from '../vendor/seedthree/src/species/common-horn
 import { commonJuniper } from '../vendor/seedthree/src/species/common-juniper.js';
 import { raspberry } from '../vendor/seedthree/src/species/raspberry.js';
 import {
+  BILBERRY_FRUIT_ANCHOR_LIMIT,
   GORSKI_SHRUB_VARIANT_COUNT,
   JUNIPER_BERRY_ANCHOR_LIMIT,
   RASPBERRY_FRUIT_ANCHOR_LIMIT,
@@ -46,6 +47,7 @@ assert.ok(
 
 assertGlb('apple.glb', 1_000_000);
 assertGlb('cherry_pair.glb', 1_000_000);
+assertGlb('bilberry_berry.glb', 70_000);
 assertGlb('juniper_berry.glb', 30_000);
 assertGlb('raspberry_cluster.glb', 50_000);
 
@@ -138,8 +140,13 @@ const shrubPrototypesSource = readFileSync(
 );
 assert.match(undergrowthVisuals, /GORSKI_SHRUB_VARIANT_COUNT/);
 assert.match(undergrowthVisuals, /new THREE\.InstancedMesh/);
+assert.match(undergrowthVisuals, /bilberry_berry\.glb/);
+assert.match(undergrowthVisuals, /targetDiameterM: \[0\.006, 0\.0095\]/);
+assert.match(undergrowthVisuals, /MIN_BILBERRIES_PER_SHRUB = 8/);
+assert.match(undergrowthVisuals, /MAX_BILBERRIES_PER_SHRUB = 14/);
+assert.match(undergrowthVisuals, /Instanced ripe Vaccinium myrtillus bilberries/);
 assert.match(undergrowthVisuals, /juniper_berry\.glb/);
-assert.match(undergrowthVisuals, /targetDiameterM = \[0\.0065, 0\.009\]/);
+assert.match(undergrowthVisuals, /targetDiameterM: \[0\.0065, 0\.009\]/);
 assert.match(undergrowthVisuals, /MIN_JUNIPER_BERRIES_PER_SHRUB = 16/);
 assert.match(undergrowthVisuals, /MAX_JUNIPER_BERRIES_PER_SHRUB = 20/);
 assert.match(shrubPrototypesSource, /selectFoliageSurfaceAnchors/);
@@ -209,6 +216,12 @@ function prototypeSignatures(): Record<string, string> {
         assert.ok(
           prototype.fruitAnchors.length <= RASPBERRY_FRUIT_ANCHOR_LIMIT,
           `raspberry variant ${variant} exceeded its authored fruit-anchor budget`,
+        );
+      } else if (kind === 'bush') {
+        assert.equal(
+          prototype.fruitAnchors.length,
+          BILBERRY_FRUIT_ANCHOR_LIMIT,
+          `bilberry variant ${variant} must expose its full fruit-anchor budget`,
         );
       } else if (kind === 'juniper') {
         assert.equal(

@@ -74,6 +74,8 @@ const tsl = {
 };
 
 const TAU = Math.PI * 2;
+const MIN_BILBERRIES_PER_SHRUB = 8;
+const MAX_BILBERRIES_PER_SHRUB = 14;
 const MIN_JUNIPER_BERRIES_PER_SHRUB = 16;
 const MAX_JUNIPER_BERRIES_PER_SHRUB = 20;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -117,6 +119,7 @@ export type UndergrowthMaterials = {
   bush: UndergrowthMaterialPair;
   fern: [foliage: THREE.Material];
   juniper: UndergrowthMaterialPair;
+  bilberryBerry: UndergrowthFruitAsset;
   juniperBerry: UndergrowthFruitAsset;
   prototypes: Record<UndergrowthKind, GorskiShrubPrototype[]>;
   shadowCast: THREE.MeshStandardMaterial;
@@ -143,6 +146,7 @@ export type UndergrowthInstances = {
   group: THREE.Group;
   placements: UndergrowthPlacement[];
   buckets: Record<UndergrowthKind, UndergrowthBucket[]>;
+  bilberryBerries: THREE.InstancedMesh;
   juniperBerries: THREE.InstancedMesh;
 };
 
@@ -196,6 +200,7 @@ export async function createUndergrowthMaterials(
     juniperTextures,
     bushBranch,
     juniperBranch,
+    bilberryBerry,
     juniperBerry,
   ] = await Promise.all([
     loadUndergrowthTextures(CARD_FILES.bush, maxAnisotropy),
@@ -203,6 +208,7 @@ export async function createUndergrowthMaterials(
     loadUndergrowthTextures(CARD_FILES.juniper, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.bush, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.juniper, maxAnisotropy),
+    loadBilberryBerry(),
     loadJuniperBerry(),
   ]);
   const useNodeMaterials = rendererBackend === 'webgpu';
@@ -231,6 +237,7 @@ export async function createUndergrowthMaterials(
       createUndergrowthBranchMaterial('SeedThree common juniper stems', juniperBranch, useNodeMaterials),
       createUndergrowthCardMaterial('SeedThree common juniper needle-only sprays', juniperTextures, useNodeMaterials, [0.22, 0.36, 0.14]),
     ],
+    bilberryBerry,
     juniperBerry,
     prototypes,
     shadowCast: new THREE.MeshStandardMaterial({
@@ -401,13 +408,22 @@ export function buildUndergrowthInstances(
     }),
   ) as Record<UndergrowthKind, UndergrowthBucket[]>;
 
+  const bilberryBerries = createBilberryInstances(
+    placements,
+    buckets.bush,
+    materials.prototypes.bush,
+    materials.bilberryBerry,
+  );
   const juniperBerries = createJuniperBerryInstances(
     placements,
     buckets.juniper,
     materials.prototypes.juniper,
     materials.juniperBerry,
   );
-  group.add(juniperBerries);
+  group.add(bilberryBerries, juniperBerries);
+  group.userData.bilberryFruitModel = 'bilberry_berry.glb';
+  group.userData.bilberryFruitInstances = bilberryBerries.count;
+  group.userData.bilberryBearingShrubs = bilberryBerries.userData.bearingShrubCount;
   group.userData.juniperBerryModel = 'juniper_berry.glb';
   group.userData.juniperBerryInstances = juniperBerries.count;
   group.userData.juniperBearingShrubs = juniperBerries.userData.bearingShrubCount;
@@ -416,6 +432,7 @@ export function buildUndergrowthInstances(
     group,
     placements,
     buckets,
+    bilberryBerries,
     juniperBerries,
   };
 }
@@ -432,9 +449,29 @@ export function disposeUndergrowthInstances(instances: UndergrowthInstances, mat
   materials.bushShadowDepth.dispose();
   materials.fernShadowDepth.dispose();
   materials.juniperShadowDepth.dispose();
+  instances.bilberryBerries.geometry.dispose();
   instances.juniperBerries.geometry.dispose();
+  materials.bilberryBerry.material.dispose();
   materials.juniperBerry.material.dispose();
   materials.textures.forEach((texture) => texture.dispose());
+}
+
+function createBilberryInstances(
+  placements: ReadonlyArray<UndergrowthPlacement>,
+  buckets: ReadonlyArray<UndergrowthBucket>,
+  prototypes: ReadonlyArray<GorskiShrubPrototype>,
+  asset: UndergrowthFruitAsset,
+): THREE.InstancedMesh {
+  return createUndergrowthFruitInstances(placements, buckets, prototypes, asset, {
+    kind: 'bush',
+    minPerShrub: MIN_BILBERRIES_PER_SHRUB,
+    maxPerShrub: MAX_BILBERRIES_PER_SHRUB,
+    meshName: 'Instanced ripe Vaccinium myrtillus bilberries',
+    modelName: 'bilberry_berry.glb',
+    targetDiameterM: [0.006, 0.0095],
+    bearingPolicy: 'all visual bilberry shrubs',
+    seedOffset: 17.9,
+  });
 }
 
 function createJuniperBerryInstances(
@@ -443,17 +480,47 @@ function createJuniperBerryInstances(
   prototypes: ReadonlyArray<GorskiShrubPrototype>,
   asset: UndergrowthFruitAsset,
 ): THREE.InstancedMesh {
+  return createUndergrowthFruitInstances(placements, buckets, prototypes, asset, {
+    kind: 'juniper',
+    minPerShrub: MIN_JUNIPER_BERRIES_PER_SHRUB,
+    maxPerShrub: MAX_JUNIPER_BERRIES_PER_SHRUB,
+    meshName: 'Instanced ripe common-juniper berry cones',
+    modelName: 'juniper_berry.glb',
+    targetDiameterM: [0.0065, 0.009],
+    bearingPolicy: 'all visual common-juniper shrubs',
+    seedOffset: 1.5,
+  });
+}
+
+type UndergrowthFruitInstanceOptions = {
+  kind: Exclude<UndergrowthKind, 'fern'>;
+  minPerShrub: number;
+  maxPerShrub: number;
+  meshName: string;
+  modelName: string;
+  targetDiameterM: readonly [number, number];
+  bearingPolicy: string;
+  seedOffset: number;
+};
+
+function createUndergrowthFruitInstances(
+  placements: ReadonlyArray<UndergrowthPlacement>,
+  buckets: ReadonlyArray<UndergrowthBucket>,
+  prototypes: ReadonlyArray<GorskiShrubPrototype>,
+  asset: UndergrowthFruitAsset,
+  options: UndergrowthFruitInstanceOptions,
+): THREE.InstancedMesh {
   asset.geometry.computeBoundingBox();
   const fruitSize = asset.geometry.boundingBox!.getSize(new THREE.Vector3());
   const sourceDiameter = Math.max(fruitSize.x, fruitSize.z, 0.001);
-  const junipers = placements.filter((placement) => placement.kind === 'juniper');
-  const capacity = Math.max(junipers.length * MAX_JUNIPER_BERRIES_PER_SHRUB, 1);
+  const shrubs = placements.filter((placement) => placement.kind === options.kind);
+  const capacity = Math.max(shrubs.length * options.maxPerShrub, 1);
   const mesh = new THREE.InstancedMesh(asset.geometry, asset.material, capacity);
-  mesh.name = 'Instanced ripe common-juniper berry cones';
-  mesh.userData.fruitModel = 'juniper_berry.glb';
+  mesh.name = options.meshName;
+  mesh.userData.fruitModel = options.modelName;
   mesh.userData.sourceDiameterM = sourceDiameter;
-  mesh.userData.targetDiameterM = [0.0065, 0.009];
-  mesh.userData.bearingPolicy = 'all visual common-juniper shrubs';
+  mesh.userData.targetDiameterM = [...options.targetDiameterM];
+  mesh.userData.bearingPolicy = options.bearingPolicy;
   mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
   mesh.castShadow = false;
   mesh.receiveShadow = true;
@@ -466,16 +533,16 @@ function createJuniperBerryInstances(
   let fruitCount = 0;
   let bearingShrubCount = 0;
 
-  for (const placement of junipers) {
+  for (const placement of shrubs) {
     const bucket = buckets[placement.prototypeIndex];
     const shrubMatrix = bucket?.matrices[placement.meshIndex];
     if (!shrubMatrix) continue;
     const densityNoise = undergrowthHash01(
-      placement.x * 3.17 + placement.z * 5.83 + placement.prototypeIndex * 11.7 + 1.5,
+      placement.x * 3.17 + placement.z * 5.83 + placement.prototypeIndex * 11.7 + options.seedOffset,
     );
     const fruitLimit = Math.round(THREE.MathUtils.lerp(
-      MIN_JUNIPER_BERRIES_PER_SHRUB,
-      MAX_JUNIPER_BERRIES_PER_SHRUB,
+      options.minPerShrub,
+      options.maxPerShrub,
       densityNoise,
     ));
     const anchors = prototypes[placement.prototypeIndex]!.fruitAnchors
@@ -493,8 +560,8 @@ function createJuniperBerryInstances(
         'YXZ',
       ));
       const targetDiameter = THREE.MathUtils.lerp(
-        0.0065,
-        0.009,
+        options.targetDiameterM[0],
+        options.targetDiameterM[1],
         undergrowthHash01(seed + 8.3),
       );
       fruitScale.setScalar(targetDiameter / sourceDiameter);
@@ -834,9 +901,20 @@ function createUndergrowthShadowGeometry(kind: UndergrowthKind): THREE.BufferGeo
   return geometry;
 }
 
+async function loadBilberryBerry(): Promise<UndergrowthFruitAsset> {
+  return loadUndergrowthFruit('bilberry_berry.glb', 'bilberry');
+}
+
 async function loadJuniperBerry(): Promise<UndergrowthFruitAsset> {
-  const url = seedThreeFruitUrl('juniper_berry.glb');
-  if (!url) throw new Error('Missing SeedThree common-juniper berry GLB');
+  return loadUndergrowthFruit('juniper_berry.glb', 'common-juniper berry');
+}
+
+async function loadUndergrowthFruit(
+  fileName: string,
+  label: string,
+): Promise<UndergrowthFruitAsset> {
+  const url = seedThreeFruitUrl(fileName);
+  if (!url) throw new Error(`Missing SeedThree ${label} GLB (${fileName})`);
   const gltf = await gltfLoader.loadAsync(url);
   gltf.scene.updateMatrixWorld(true);
   const meshes: THREE.Mesh[] = [];
@@ -845,7 +923,7 @@ async function loadJuniperBerry(): Promise<UndergrowthFruitAsset> {
     if (mesh.isMesh) meshes.push(mesh);
   });
   if (meshes.length !== 1) {
-    throw new Error(`juniper_berry.glb must contain one mesh (found ${meshes.length})`);
+    throw new Error(`${fileName} must contain one mesh (found ${meshes.length})`);
   }
   const source = meshes[0]!;
   const geometry = source.geometry.clone().applyMatrix4(source.matrixWorld);
@@ -860,7 +938,7 @@ async function loadJuniperBerry(): Promise<UndergrowthFruitAsset> {
   geometry.computeBoundingSphere();
   const sourceMaterial = Array.isArray(source.material) ? source.material[0]! : source.material;
   const material = sourceMaterial.clone();
-  material.name = 'Generated juniper_berry.glb material';
+  material.name = `Generated ${fileName} material`;
   source.geometry.dispose();
   sourceMaterial.dispose();
   return { geometry, material };

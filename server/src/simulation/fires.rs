@@ -687,7 +687,17 @@ fn building_flammability(building: &Building) -> f64 {
     }
     let stored_fuel = building.firewood
         + building.timber * 0.35
-        + (building.grain + building.barley + building.malt + building.flax) * 0.08;
+        + (building.rye_sheaves
+            + building.oat_sheaves
+            + building.barley_sheaves
+            + building.maslin_sheaves
+            + building.rye_grain
+            + building.oat_grain
+            + building.maslin_grain
+            + building.barley
+            + building.malt
+            + building.flax)
+            * 0.08;
     base * (1.0 + (stored_fuel / 160.0).clamp(0.0, 0.75))
 }
 
@@ -712,11 +722,9 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.stone = 0.0;
             building.water = 0.0;
             building.food = 0.0;
-            building.grain = 0.0;
             building.barley = 0.0;
             building.malt = 0.0;
             building.flax = 0.0;
-            building.flour = 0.0;
             building.ale = 0.0;
             building.preserved_food = 0.0;
             building.honey = 0.0;
@@ -733,7 +741,6 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.pottery = 0.0;
             building.manure = 0.0;
             building.remedies = 0.0;
-            building.bread = 0.0;
             building.meat = 0.0;
             building.fish = 0.0;
             building.berries = 0.0;
@@ -748,6 +755,19 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.cured_meat = 0.0;
             building.smoked_fish = 0.0;
             building.cheese = 0.0;
+            building.rye_sheaves = 0.0;
+            building.oat_sheaves = 0.0;
+            building.barley_sheaves = 0.0;
+            building.maslin_sheaves = 0.0;
+            building.rye_grain = 0.0;
+            building.oat_grain = 0.0;
+            building.maslin_grain = 0.0;
+            building.rye_flour = 0.0;
+            building.oat_flour = 0.0;
+            building.maslin_flour = 0.0;
+            building.rye_bread = 0.0;
+            building.oat_bread = 0.0;
+            building.maslin_bread = 0.0;
             building.gold = 0.0;
             building.civic_receipts_gold = 0.0;
             building.private_export_proceeds_gold = 0.0;
@@ -765,7 +785,6 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             residence.food = 0.0;
             residence.preserved_food = 0.0;
             residence.honey = 0.0;
-            residence.bread = 0.0;
             residence.meat = 0.0;
             residence.fish = 0.0;
             residence.berries = 0.0;
@@ -780,6 +799,9 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             residence.cured_meat = 0.0;
             residence.smoked_fish = 0.0;
             residence.cheese = 0.0;
+            residence.rye_bread = 0.0;
+            residence.oat_bread = 0.0;
+            residence.maslin_bread = 0.0;
             residence.food_inventory_migrated = true;
             residence.population = 0;
             // The structure is fire-disabled until rebuilt, but its housing
