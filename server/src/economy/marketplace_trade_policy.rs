@@ -190,7 +190,7 @@ mod tests {
         assert_eq!(
             trade_receive(offer),
             TradeReceive::Resource(TradeLeg {
-                resource: TradeResource::Grain,
+                resource: TradeResource::RyeGrain,
                 amount: 24.0,
             })
         );

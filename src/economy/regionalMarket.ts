@@ -70,8 +70,15 @@ export function priceMultiplierFor(
     case 'charcoal':
       return state.firewoodPriceMult;
     case 'food':
-    case 'grain':
-    case 'flour':
+    case 'ryeGrain':
+    case 'oatGrain':
+    case 'maslinGrain':
+    case 'ryeFlour':
+    case 'oatFlour':
+    case 'maslinFlour':
+    case 'ryeBread':
+    case 'oatBread':
+    case 'maslinBread':
     case 'barley':
     case 'malt':
     case 'flax':

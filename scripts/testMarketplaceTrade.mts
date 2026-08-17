@@ -60,7 +60,7 @@ import {
 } from '../src/economy/marketplaceGoldReserve.ts';
 
 const buyTimber = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_timber');
-const buySeedGrain = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_seed_grain');
+const buyRyeGrain = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_rye_grain');
 const buyIronwork = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'buy_ironwork');
 const sellStone = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'sell_stone');
 const timberForStone = MARKETPLACE_TRADE_OFFERS.find((offer) => offer.id === 'timber_for_stone');
@@ -80,8 +80,15 @@ function makeBuilding(
     stone: 0,
     water: 0,
     food: 0,
-    grain: 0,
-    flour: 0,
+    ryeGrain: 0,
+    oatGrain: 0,
+    maslinGrain: 0,
+    ryeFlour: 0,
+    oatFlour: 0,
+    maslinFlour: 0,
+    ryeBread: 0,
+    oatBread: 0,
+    maslinBread: 0,
     ale: 0,
     preservedFood: 0,
     honey: 0,
@@ -117,7 +124,7 @@ function makeState(buildings: BuildingState[]): GameState {
       timber: 20,
       stone: 12,
       firewood: 2,
-      bread: 1,
+      ryeBread: 1,
       gold: 30,
     },
     quarries: new Map(),
@@ -137,7 +144,7 @@ function makeState(buildings: BuildingState[]): GameState {
 }
 
 assert.ok(buyTimber, 'buy_timber offer exists');
-assert.ok(buySeedGrain, 'buy_seed_grain offer exists');
+assert.ok(buyRyeGrain, 'buy_rye_grain offer exists');
 assert.ok(buyIronwork, 'buy_ironwork offer exists');
 assert.ok(sellStone, 'sell_stone offer exists');
 assert.ok(timberForStone, 'timber_for_stone offer exists');
@@ -165,8 +172,8 @@ const exportUnitValue = (resource: typeof TRADE_RESOURCE_KINDS[number]): number 
   return offer.goldYield / offer.amount;
 };
 assert.ok(
-  4 * exportUnitValue('food')
-    > 3 * exportUnitValue('flour') + 2 * exportUnitValue('water') + exportUnitValue('firewood'),
+  4 * exportUnitValue('ryeBread')
+    > 3 * exportUnitValue('ryeFlour') + 2 * exportUnitValue('water') + exportUnitValue('firewood'),
   'baking must add export value after flour, water, and fuel opportunity costs',
 );
 assert.ok(
@@ -215,15 +222,15 @@ for (const [groupName, segmentPrefix] of [
 }
 
 assert.equal(describeMarketplaceTradeOffer(buyTimber), 'Buy 10 timber for 16 gold');
-assert.equal(describeMarketplaceTradeOffer(buySeedGrain), 'Import 24 seed grain for 18 gold');
+assert.equal(describeMarketplaceTradeOffer(buyRyeGrain), 'Buy 24 rye grain for 16 gold');
 assert.equal(describeMarketplaceTradeOffer(buyIronwork), 'Buy 6 ironwork for 12 gold');
 assert.equal(marketplaceTradeOfferCost(buyTimber).resource, 'gold');
 assert.equal(tradeResourceSpendScope('timber'), 'marketAccessible');
 assert.equal(tradeResourceSpendScope('food'), 'marketAccessible');
-assert.equal(tradeResourceSpendScope('grain'), 'marketAccessible');
+assert.equal(tradeResourceSpendScope('ryeGrain'), 'marketAccessible');
 assert.equal(tradeResourceSpendScope('ironwork'), 'marketAccessible');
 assert.equal(priceMultiplierFor(DEFAULT_REGIONAL_MARKET_STATE, 'ironwork'), DEFAULT_REGIONAL_MARKET_STATE.stonePriceMult);
-assert.equal(priceMultiplierFor(DEFAULT_REGIONAL_MARKET_STATE, 'grain'), DEFAULT_REGIONAL_MARKET_STATE.foodPriceMult);
+assert.equal(priceMultiplierFor(DEFAULT_REGIONAL_MARKET_STATE, 'ryeGrain'), DEFAULT_REGIONAL_MARKET_STATE.foodPriceMult);
 assert.equal(
   marketplaceTradeOffersBySection(false).goldBuy.some((offer) => offer.id === 'buy_ironwork'),
   true,
@@ -235,18 +242,18 @@ assert.equal(
   'frontier markets expose military ironwork orders',
 );
 
-assert.equal(canAffordMarketplaceTrade({ timber: 0, stone: 0, gold: 16, firewood: 0, food: 0, grain: 0, ironwork: 0 }, buyTimber), true);
-assert.equal(canAffordMarketplaceTrade({ timber: 0, stone: 0, gold: 10, firewood: 0, food: 0, grain: 0, ironwork: 0 }, buyTimber), false);
+assert.equal(canAffordMarketplaceTrade({ timber: 0, stone: 0, gold: 16, firewood: 0, food: 0, ryeGrain: 0, ironwork: 0 }, buyTimber), true);
+assert.equal(canAffordMarketplaceTrade({ timber: 0, stone: 0, gold: 10, firewood: 0, food: 0, ryeGrain: 0, ironwork: 0 }, buyTimber), false);
 
-assert.equal(canAffordMarketplaceTrade({ timber: 0, stone: 10, gold: 0, firewood: 0, food: 0, grain: 0, ironwork: 0 }, sellStone), true);
-assert.equal(canAffordMarketplaceTrade({ timber: 0, stone: 5, gold: 0, firewood: 0, food: 0, grain: 0, ironwork: 0 }, sellStone), false);
+assert.equal(canAffordMarketplaceTrade({ timber: 0, stone: 10, gold: 0, firewood: 0, food: 0, ryeGrain: 0, ironwork: 0 }, sellStone), true);
+assert.equal(canAffordMarketplaceTrade({ timber: 0, stone: 5, gold: 0, firewood: 0, food: 0, ryeGrain: 0, ironwork: 0 }, sellStone), false);
 
-assert.equal(canAffordMarketplaceTrade({ timber: 25, stone: 0, gold: 0, firewood: 0, food: 0, grain: 0, ironwork: 0 }, timberForStone), true);
-assert.equal(canAffordMarketplaceTrade({ timber: 20, stone: 0, gold: 0, firewood: 0, food: 0, grain: 0, ironwork: 0 }, timberForStone), false);
+assert.equal(canAffordMarketplaceTrade({ timber: 25, stone: 0, gold: 0, firewood: 0, food: 0, ryeGrain: 0, ironwork: 0 }, timberForStone), true);
+assert.equal(canAffordMarketplaceTrade({ timber: 20, stone: 0, gold: 0, firewood: 0, food: 0, ryeGrain: 0, ironwork: 0 }, timberForStone), false);
 
-assert.equal(canAffordCommodityTrade({ timber: 0, stone: 0, gold: 10, firewood: 0, food: 0, grain: 0, ironwork: 0 }, buyPork!), true);
+assert.equal(canAffordCommodityTrade({ timber: 0, stone: 0, gold: 10, firewood: 0, food: 0, ryeGrain: 0, ironwork: 0 }, buyPork!), true);
 assert.equal(
-  canAffordCommodityTrade({ timber: 0, stone: 0, gold: 9, firewood: 0, food: 0, grain: 0, ironwork: 0 }, buyPork!),
+  canAffordCommodityTrade({ timber: 0, stone: 0, gold: 9, firewood: 0, food: 0, ryeGrain: 0, ironwork: 0 }, buyPork!),
   false,
 );
 
@@ -264,7 +271,7 @@ assert.match(formatMarketDepthHint(), /each 10-unit trade/i);
 assert.match(formatMarketDepthHint(), /4 points/);
 
 assert.match(
-  formatTradeAvailabilitySummary({ timber: 12, stone: 8, gold: 3.5, firewood: 40, food: 6, grain: 24, ironwork: 0 }),
+  formatTradeAvailabilitySummary({ timber: 12, stone: 8, gold: 3.5, firewood: 40, food: 6, ryeGrain: 24, ironwork: 0 }),
   /Timber 12/,
 );
 const marketplace = makeBuilding({
@@ -275,8 +282,8 @@ const marketplace = makeBuilding({
   timber: 5,
   stone: 4,
   firewood: 3,
-  bread: 2,
-  grain: 24,
+  ryeBread: 2,
+  ryeGrain: 24,
   ironwork: 5,
 });
 const connectedStore = makeBuilding({
@@ -287,8 +294,8 @@ const connectedStore = makeBuilding({
   timber: 20,
   stone: 16,
   firewood: 12,
-  bread: 8,
-  grain: 6,
+  ryeBread: 8,
+  ryeGrain: 6,
   ironwork: 4,
 });
 const connectedGranary = makeBuilding({
@@ -296,7 +303,7 @@ const connectedGranary = makeBuilding({
   kind: 'granary',
   x: 12,
   z: 0,
-  grain: 150,
+  ryeGrain: 150,
   granaryGrainReserve: 120,
 });
 const disconnectedStore = makeBuilding({
@@ -308,7 +315,7 @@ const disconnectedStore = makeBuilding({
   stone: 40,
   firewood: 50,
   food: 40,
-  grain: 50,
+  ryeGrain: 50,
   ironwork: 40,
 });
 const constructionSite = makeBuilding({
@@ -343,8 +350,9 @@ assert.deepEqual(availability, {
   stone: 30,
   gold: 30,
   firewood: 17,
-  food: 11,
-  grain: 60,
+  food: 0,
+  ryeBread: 11,
+  ryeGrain: 60,
   barley: 0,
   ironwork: 9,
   iron: 0,
@@ -419,8 +427,9 @@ assert.deepEqual(
     stone: 20,
     gold: 0,
     firewood: 15,
-    food: 10,
-    grain: 60,
+    food: 0,
+    ryeBread: 10,
+    ryeGrain: 60,
     barley: 0,
     ironwork: 9,
     iron: 0,
@@ -498,8 +507,9 @@ assert.deepEqual(
     stone: 4,
     gold: 0,
     firewood: 3,
-    food: 2,
-    grain: 54,
+    food: 0,
+    ryeBread: 2,
+    ryeGrain: 54,
     barley: 0,
     ironwork: 5,
     iron: 0,
@@ -650,8 +660,8 @@ assert.equal(canReceiveMarketplaceTrade({ ...marketplace, timber: BUILDING_STORA
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, timber: BUILDING_STORAGE_CAPS.trading_post.timber - 9 }, buyTimber), false);
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ironwork: BUILDING_STORAGE_CAPS.trading_post.ironwork - 6 }, buyIronwork), true);
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ironwork: BUILDING_STORAGE_CAPS.trading_post.ironwork - 5 }, buyIronwork), false);
-assert.equal(canReceiveMarketplaceTrade({ ...marketplace, grain: BUILDING_STORAGE_CAPS.trading_post.grain - 24 }, buySeedGrain), true);
-assert.equal(canReceiveMarketplaceTrade({ ...marketplace, grain: BUILDING_STORAGE_CAPS.trading_post.grain - 23 }, buySeedGrain), false);
+assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ryeGrain: BUILDING_STORAGE_CAPS.trading_post.grain - 24 }, buyRyeGrain), true);
+assert.equal(canReceiveMarketplaceTrade({ ...marketplace, ryeGrain: BUILDING_STORAGE_CAPS.trading_post.grain - 23 }, buyRyeGrain), false);
 assert.equal(canReceiveMarketplaceTrade({ ...marketplace, stone: 60 }, sellStone), true);
 assert.equal(canReceiveCommodityTrade({ ...marketplace, curedMeat: BUILDING_STORAGE_CAPS.trading_post.preservedFood - 8 }, buyPork!), true);
 assert.equal(canReceiveCommodityTrade({ ...marketplace, curedMeat: BUILDING_STORAGE_CAPS.trading_post.preservedFood - 7 }, buyPork!), false);
@@ -664,7 +674,7 @@ const manyBuildings = Array.from({ length: 10_000 }, (_, index) => makeBuilding(
   timber: 1,
   stone: 1,
   firewood: 1,
-  bread: 1,
+  ryeBread: 1,
 }));
 const largeState = makeState([marketplace, ...manyBuildings]);
 const started = performance.now();

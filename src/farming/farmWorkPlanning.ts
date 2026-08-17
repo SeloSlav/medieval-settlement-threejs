@@ -8,7 +8,6 @@ import {
   CALENDAR_WORK_START_HOUR,
   FARM_CROP_DEFINITIONS,
   FARM_EARLY_HARVEST_MINIMUM_GROWTH,
-  FARM_EARLY_HARVEST_MONTH,
   FARM_EARLY_HARVEST_RIPENESS_FACTOR,
   FARM_HARVEST_WORK_PER_SQUARE_METER,
   FARM_PLOUGH_WORK_PER_SQUARE_METER,
@@ -34,6 +33,7 @@ import {
   farmToolsMaintained,
   farmToolIronworkForWork,
 } from '../economy/civilianToolPolicy.ts';
+import { breadGrainStock } from '../economy/cropGoods.ts';
 
 export type SeasonalWorkPlan = {
   requiredWork: number;
@@ -255,8 +255,10 @@ export function farmsteadExportableGrain(
 export function fieldStageAllowed(field: FarmFieldState, month: number): boolean {
   const crop = FARM_CROP_DEFINITIONS[field.crop];
   if (field.stage === 'harvesting') {
-    return month === crop.growthEndMonth
-      || month === crop.growthEndMonth % CALENDAR_MONTHS_PER_YEAR + 1;
+    const earlyMonth = crop.harvestMonth <= 1
+      ? CALENDAR_MONTHS_PER_YEAR
+      : crop.harvestMonth - 1;
+    return month === earlyMonth || month === crop.harvestMonth;
   }
   if (field.stage === 'growing') {
     return month >= crop.growthStartMonth && month <= crop.growthEndMonth;
@@ -290,11 +292,13 @@ export function earlyHarvestAvailability(
   if (FARM_CROP_DEFINITIONS[field.crop].produce === 'none') {
     return { available: false, yieldMultiplier, reason: 'Worked fallow has no crop to harvest.' };
   }
-  if (month !== FARM_EARLY_HARVEST_MONTH) {
+  const harvestMonth = FARM_CROP_DEFINITIONS[field.crop].harvestMonth;
+  const earlyMonth = harvestMonth <= 1 ? CALENDAR_MONTHS_PER_YEAR : harvestMonth - 1;
+  if (month !== earlyMonth) {
     return {
       available: false,
       yieldMultiplier,
-      reason: 'Early harvest opens in August.',
+      reason: `Early harvest opens in month ${earlyMonth}.`,
     };
   }
   if (field.stageProgress < FARM_EARLY_HARVEST_MINIMUM_GROWTH) {
@@ -333,8 +337,7 @@ export function daysUntilCropHarvestWindow(
   >,
   crop: FarmCrop,
 ): number {
-  const harvestMonth = FARM_CROP_DEFINITIONS[crop].growthEndMonth
-    % CALENDAR_MONTHS_PER_YEAR + 1;
+  const harvestMonth = FARM_CROP_DEFINITIONS[crop].harvestMonth;
   if (clock.month === harvestMonth) return 0;
 
   const currentHour = clock.preciseHour ?? clock.hour;
@@ -432,7 +435,7 @@ function farmWorkWindows(
   sabbathObserved: boolean,
 ): FarmWorkWindows {
   return {
-    harvest: productiveSecondsInWindow(clock, 9, 9, sabbathObserved),
+    harvest: productiveSecondsInWindow(clock, 8, 9, sabbathObserved),
     spring: productiveSecondsInWindow(clock, 3, 4, sabbathObserved),
     autumn: productiveSecondsInWindow(clock, 10, 11, sabbathObserved),
   };
@@ -836,7 +839,7 @@ export function buildSettlementFarmPlan(
     const operational = farmstead?.kind === 'threshing_barn'
       && farmstead.constructionComplete !== false;
     const workers = operational ? Math.max(0, farmstead.assignedLabor) : 0;
-    const grain = operational ? Math.max(0, farmstead.grain) : 0;
+    const grain = operational ? breadGrainStock(farmstead) : 0;
     const barley = operational ? Math.max(0, farmstead.barley ?? 0) : 0;
     if (workers > 0) total.staffedHoldings += 1;
     if (!operational) total.orphanedFields += fields.length;

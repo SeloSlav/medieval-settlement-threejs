@@ -54,7 +54,8 @@ use crate::economy::{
 };
 use crate::farming::{
     advance_crop_rotation, centroid, crop_growth_allowed, crop_produce, expected_grain_yield,
-    farmstead_exportable_grain, fertility_after_harvest, field_manure_fertility_bonus,
+    crop_harvest_month, farmstead_exportable_grain, fertility_after_harvest,
+    field_manure_fertility_bonus, month_after,
     field_manure_required, field_seed_crop, field_seed_grain_remaining, field_work_allowed,
     seed_grain_required, shape_efficiency, sowing_window_missed, work_required, CROP_BARLEY,
     CROP_FALLOW, CROP_FLAX, CROP_OATS, CROP_RYE, CROP_WHEAT, STAGE_GROWING,
@@ -1716,12 +1717,14 @@ fn step_farmstead_fields(
             .clamp(0.0, 1.0);
     }
 
-    // Seasonal boundaries are authoritative. A partial sowing dies at winter,
-    // immature crops fail in September, and uncollected harvest is lost in October.
+    // Seasonal boundaries are authoritative. Each crop opens and closes its
+    // own harvest window, so hardy rye and spring barley no longer create the
+    // same September labor spike as oats and maslin.
     for field in &mut fields {
+        let harvest_month = crop_harvest_month(field.crop);
         if sowing_window_missed(field.stage, field.crop, clock.month) {
             fail_field_cycle(field);
-        } else if clock.month == 9 && field.stage == STAGE_GROWING {
+        } else if clock.month == harvest_month && field.stage == STAGE_GROWING {
             if field.crop == CROP_FALLOW {
                 if field.stage_progress >= 0.75 {
                     finish_field_cycle(field, 0.0);
@@ -1736,7 +1739,7 @@ fn step_farmstead_fields(
             } else {
                 fail_field_cycle(field);
             }
-        } else if clock.month == 10 && field.stage == STAGE_HARVESTING {
+        } else if clock.month == month_after(harvest_month) && field.stage == STAGE_HARVESTING {
             finish_field_cycle(field, field.current_yield);
         }
     }

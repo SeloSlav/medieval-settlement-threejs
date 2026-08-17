@@ -381,7 +381,7 @@ export function renderLivestockBuildingInspector(
       ? 'No work cycles while unstaffed'
       : fodderPlan.currentGrainPerDay <= 0.01
         ? 'Pasture covers the current herd'
-        : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} unsupported head · ${environment.season === 'winter' && fodderPlan.hayStock > 0 ? 'hay feeds first, then ' : ''}${renderResourceAmount('grain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day' })} · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored`;
+        : `${fodderPlan.currentUnsupportedHeads.toFixed(1)} unsupported head · ${environment.season === 'winter' && fodderPlan.hayStock > 0 ? 'hay feeds first, then ' : ''}${renderResourceAmount('oatGrain', fodderPlan.currentGrainPerDay, { compact: true, suffix: '/day' })} · ${formatProvisionRunway(fodderPlan.currentGrainRunwayDays)} stored`;
   const winterHerdPlan = !fodderPlan
     ? 'No herd'
     : `${fodderPlan.projectedHeadCount} head after planned culls · ${fodderPlan.winterPastureCapacity.toFixed(1)} pasture-supported · ${fodderPlan.winterUnsupportedHeads.toFixed(1)} need stored fodder`;
@@ -402,7 +402,7 @@ export function renderLivestockBuildingInspector(
         : `${fodderPlan.winterReserveStock.toFixed(1)} / ${fodderPlan.winterReserveTarget.toFixed(1)} onsite after hay · ${formatProvisionRunway(fodderPlan.winterCombinedRunwayDays)} combined coverage`;
   const winterResupplyRow = fodderPlan
     && fodderPlan.winterGrainNeed > fodderPlan.winterReserveTarget + 0.05
-    ? `<li><span>Winter resupply</span><span>Full store covers ${formatProvisionRunway(fodderPlan.storageRunwayDays)} · ${renderResourceAmount('grain', fodderPlan.winterGrainNeed, { compact: true, suffix: `for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })}</span></li>`
+    ? `<li><span>Winter resupply</span><span>Full store covers ${formatProvisionRunway(fodderPlan.storageRunwayDays)} · ${renderResourceAmount('oatGrain', fodderPlan.winterGrainNeed, { compact: true, suffix: `for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })}</span></li>`
     : '';
   const dairySaltRow = building.kind !== 'pastoral_farmstead' || !fodderPlan
     ? ''
@@ -431,7 +431,7 @@ export function renderLivestockBuildingInspector(
       <li><span>Winter reserve</span><span>${herd ? `${breedingReserve} head · ${projectedCull.heads} current surplus` : 'None'}</span></li>
       <li><span>Last work cycle</span><span>${recentOutput}</span></li>
       ${dairySaltRow}
-      <li><span>Fallback grain</span><span>${building.grain.toFixed(1)} stored</span></li>
+      <li><span>Preferred fallback</span><span>${Math.max(0, building.oatGrain ?? 0).toFixed(1)} oat grain stored</span></li>
       <li><span>Current grain burden</span><span>${currentGrainBurden}</span></li>
       <li><span>Summer hay meadow</span><span>${haymakingPlan}</span></li>
       <li><span>Hayloft</span><span>${fodderPlan ? `${fodderPlan.hayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY}` : 'No herd'}</span></li>

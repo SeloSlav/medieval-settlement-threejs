@@ -91,6 +91,7 @@ type FarmCropBalance = {
   workEndMonth: number;
   growthStartMonth: number;
   growthEndMonth: number;
+  harvestMonth: number;
   calendarLabel: string;
 };
 
@@ -126,7 +127,11 @@ type LivestockSpeciesBalance = {
   matureTreesPerHead?: number;
 };
 
-type TradeResource = 'timber' | 'stone' | 'firewood' | 'food' | 'grain' | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
+type TradeResource = 'timber' | 'stone' | 'firewood' | 'food'
+  | 'ryeGrain' | 'oatGrain' | 'maslinGrain'
+  | 'ryeFlour' | 'oatFlour' | 'maslinFlour'
+  | 'ryeBread' | 'oatBread' | 'maslinBread'
+  | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
 
 type MarketplaceGoldBuyOffer = {
   id: string;
@@ -1337,6 +1342,7 @@ function generateRust(): string {
   lines.push('    pub work_end_month: u8,');
   lines.push('    pub growth_start_month: u8,');
   lines.push('    pub growth_end_month: u8,');
+  lines.push('    pub harvest_month: u8,');
   lines.push('    pub calendar_label: &\'static str,');
   lines.push('}');
   lines.push('');
@@ -1371,6 +1377,7 @@ function generateRust(): string {
     lines.push(`    work_end_month: ${crop.workEndMonth},`);
     lines.push(`    growth_start_month: ${crop.growthStartMonth},`);
     lines.push(`    growth_end_month: ${crop.growthEndMonth},`);
+    lines.push(`    harvest_month: ${crop.harvestMonth},`);
     lines.push(`    calendar_label: ${JSON.stringify(crop.calendarLabel)},`);
     lines.push('};');
     lines.push('');
@@ -2127,6 +2134,7 @@ function generateTypeScript(): string {
     '  workEndMonth: number;',
     '  growthStartMonth: number;',
     '  growthEndMonth: number;',
+    '  harvestMonth: number;',
     '  calendarLabel: string;',
     '};',
     `export const FARM_CROP_DEFINITIONS = ${JSON.stringify(farmCropDefinitions, null, 2)} as const satisfies Record<FarmCropKind, FarmCropDefinition>;`,

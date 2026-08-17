@@ -52,9 +52,10 @@ import {
 import { granaryExportableGrain } from '../economy/granaryPolicy.ts';
 import { marketplacePendingTradeOffer } from '../economy/marketplaceTrade.ts';
 import {
-  farmsteadExportableGrain,
+  fieldSeedGrainRemaining,
   farmsteadSeedBarleyRequired,
 } from '../farming/farmWorkPlanning.ts';
+import { BREAD_GRAIN_KINDS, breadGrainStock, type BreadGrainKind } from '../economy/cropGoods.ts';
 import {
   foodSupplierDeliveryTripSeconds,
   INSTITUTIONAL_FOOD_SOURCE_KINDS,
@@ -1095,12 +1096,30 @@ export class WorldQueries {
     const state = this.getGameState();
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     if (fireDisabled.has(farmstead.id)) return null;
-    const exportableGrain = farmsteadExportableGrain(
-      farmstead.grain,
-      [...state.farmFields.values()]
-        .filter((field) => field.farmsteadId === farmstead.id),
-    );
-    if (exportableGrain <= 1e-6) return null;
+    const fields = [...state.farmFields.values()]
+      .filter((field) => field.farmsteadId === farmstead.id);
+    const seedReserve: Record<BreadGrainKind, number> = {
+      ryeGrain: 0,
+      oatGrain: 0,
+      maslinGrain: 0,
+    };
+    for (const field of fields) {
+      const crop = field.stage === 'ploughing' || field.stage === 'sowing'
+        ? field.crop
+        : field.nextCrop;
+      const commodity = crop === 'rye'
+        ? 'ryeGrain'
+        : crop === 'oats'
+          ? 'oatGrain'
+          : crop === 'wheat'
+            ? 'maslinGrain'
+            : null;
+      if (commodity) seedReserve[commodity] += fieldSeedGrainRemaining(field);
+    }
+    const commodity = BREAD_GRAIN_KINDS
+      .map((kind) => ({ kind, surplus: Math.max(0, (farmstead[kind] ?? 0) - seedReserve[kind]) }))
+      .sort((left, right) => right.surplus - left.surplus)[0];
+    if (!commodity || commodity.surplus <= 1e-6) return null;
     const network = this.getRoadNetwork();
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
@@ -1127,7 +1146,8 @@ export class WorldQueries {
         ? MONASTERY_UNLINKED_PRODUCTIVITY
         : 1,
       (target) => inboundTargets.has(target.id),
-      (target) => processorAcceptsInput(target, 'grain'),
+      (target) => processorAcceptsInput(target, commodity.kind),
+      commodity.kind,
     );
   }
 
@@ -1209,7 +1229,7 @@ export class WorldQueries {
       granary.kind !== 'granary'
       || granary.constructionComplete === false
       || granary.assignedLabor <= 0
-      || granaryExportableGrain(granary.grain, granary.granaryGrainReserve ?? 0) <= 1e-6
+      || granaryExportableGrain(breadGrainStock(granary), granary.granaryGrainReserve ?? 0) <= 1e-6
     ) {
       return null;
     }
@@ -1217,6 +1237,10 @@ export class WorldQueries {
     const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
     if (fireDisabled.has(granary.id)) return null;
     const network = this.getRoadNetwork();
+    const commodity = BREAD_GRAIN_KINDS
+      .map((kind) => ({ kind, stock: granary[kind] ?? 0 }))
+      .sort((left, right) => right.stock - left.stock)[0];
+    if (!commodity || commodity.stock <= 1e-6) return null;
     const inboundTargets = new Set<string>();
     for (const trip of state.deliveryTrips.values()) {
       if (
@@ -1242,7 +1266,8 @@ export class WorldQueries {
         ? MONASTERY_UNLINKED_PRODUCTIVITY
         : 1,
       (target) => inboundTargets.has(target.id),
-      (target) => processorAcceptsInput(target, 'grain'),
+      (target) => processorAcceptsInput(target, commodity.kind),
+      commodity.kind,
     );
   }
 

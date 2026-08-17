@@ -410,23 +410,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn starter_bread_waits_for_a_granary() {
-        assert_eq!(
-            founding_destination_priority(CommodityKind::Bread, "granary"),
-            Some(0),
-        );
-        for kind in [
-            "foragers_shed",
-            "hunters_hall",
-            "fishing_camp",
-            "marketplace",
-            "bakery",
+    fn starter_breads_wait_for_a_granary() {
+        for bread in [
+            CommodityKind::RyeBread,
+            CommodityKind::OatBread,
+            CommodityKind::MaslinBread,
         ] {
             assert_eq!(
-                founding_destination_priority(CommodityKind::Bread, kind),
-                None,
-                "starter bread must not relocate into {kind}",
+                founding_destination_priority(bread, "granary"),
+                Some(0),
             );
+            for kind in [
+                "foragers_shed",
+                "hunters_hall",
+                "fishing_camp",
+                "marketplace",
+                "bakery",
+            ] {
+                assert_eq!(
+                    founding_destination_priority(bread, kind),
+                    None,
+                    "starter bread must not relocate into {kind}",
+                );
+            }
         }
     }
 }

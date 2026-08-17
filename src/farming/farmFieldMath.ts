@@ -316,6 +316,12 @@ export function cropProduce(crop: FarmCrop): FarmCropProduce {
 }
 
 export function cropHarvestUnit(crop: FarmCrop): string {
-  const produce = cropProduce(crop);
-  return produce === 'fibre' ? 'flax fibre' : produce === 'grain' ? 'grain' : 'fertility';
+  switch (crop) {
+    case 'rye': return 'rye sheaves';
+    case 'oats': return 'oat sheaves';
+    case 'barley': return 'barley sheaves';
+    case 'wheat': return 'maslin sheaves';
+    case 'flax': return 'flax fibre';
+    case 'fallow': return 'fertility';
+  }
 }

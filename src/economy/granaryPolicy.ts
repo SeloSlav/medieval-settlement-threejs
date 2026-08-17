@@ -1,6 +1,7 @@
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingState, GameState } from '../resources/types.ts';
+import { breadGrainStock } from './cropGoods.ts';
 
 export const GRANARY_GRAIN_RESERVE_MIN = 0;
 export const GRANARY_GRAIN_RESERVE_MAX = BUILDING_STORAGE_CAPS.granary.grain ?? 420;
@@ -106,7 +107,7 @@ export function computeSettlementGranaryReserve(
       continue;
     }
     granaries += 1;
-    const stock = Math.max(0, building.grain);
+    const stock = breadGrainStock(building);
     const reserve = normalizeGranaryGrainReserve(building.granaryGrainReserve ?? 0);
     grainStored += stock;
     reserveTarget += reserve;
@@ -140,11 +141,12 @@ export function computeSettlementGranaryReserve(
 
 export function granaryReserveLabel(building: Pick<
   BuildingState,
-  'grain' | 'granaryGrainReserve'
+  | 'ryeGrain' | 'oatGrain' | 'maslinGrain' | 'granaryGrainReserve'
 >): string {
   const reserve = normalizeGranaryGrainReserve(building.granaryGrainReserve ?? 0);
-  const protectedStock = granaryProtectedGrain(building.grain, reserve);
-  const exportable = granaryExportableGrain(building.grain, reserve);
+  const stock = breadGrainStock(building);
+  const protectedStock = granaryProtectedGrain(stock, reserve);
+  const exportable = granaryExportableGrain(stock, reserve);
   if (reserve <= 1e-6) {
     return `${exportable.toFixed(1)} grain releasable · no protected floor`;
   }

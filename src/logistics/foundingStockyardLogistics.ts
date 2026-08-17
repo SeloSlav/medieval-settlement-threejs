@@ -69,10 +69,18 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'stone',
   'firewood',
   'food',
-  'grain',
+  'ryeSheaves',
+  'oatSheaves',
+  'barleySheaves',
+  'maslinSheaves',
+  'ryeGrain',
+  'oatGrain',
+  'maslinGrain',
   'barley',
   'malt',
-  'flour',
+  'ryeFlour',
+  'oatFlour',
+  'maslinFlour',
   'preservedFood',
   'ale',
   'honey',
@@ -83,7 +91,9 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'ironwork',
   'polearms',
   'water',
-  'bread',
+  'ryeBread',
+  'oatBread',
+  'maslinBread',
   'meat',
   'fish',
   'berries',
@@ -144,14 +154,23 @@ function commodityCapacity(
   building: BuildingState,
   commodity: FoundingRelocationCommodity,
 ): number {
-  const capacities = BUILDING_STORAGE_CAPS[building.kind] as Partial<
-    Record<FoundingRelocationCommodity, number>
+  const capacities = BUILDING_STORAGE_CAPS[building.kind] as Record<
+    string,
+    number | undefined
   >;
   const capacityKind = isFreshFoodCargo(commodity)
     ? 'food'
     : isPreservedFoodCargo(commodity)
       ? 'preservedFood'
-      : commodity;
+      : commodity === 'ryeSheaves' || commodity === 'oatSheaves'
+        || commodity === 'barleySheaves' || commodity === 'maslinSheaves'
+        || commodity === 'ryeGrain' || commodity === 'oatGrain'
+        || commodity === 'maslinGrain'
+        ? 'grain'
+        : commodity === 'ryeFlour' || commodity === 'oatFlour'
+          || commodity === 'maslinFlour'
+          ? 'flour'
+          : commodity;
   return finiteStock(capacities[capacityKind]);
 }
 
@@ -182,15 +201,25 @@ function foundingDestinationPriority(
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
-    case 'grain':
+    case 'ryeSheaves':
+    case 'oatSheaves':
+    case 'barleySheaves':
+    case 'maslinSheaves':
+    case 'ryeGrain':
+    case 'oatGrain':
+    case 'maslinGrain':
     case 'barley':
-    case 'flour':
+    case 'ryeFlour':
+    case 'oatFlour':
+    case 'maslinFlour':
     case 'preservedFood':
       if (building.kind === 'granary') return 0;
       if (commodity === 'barley' && building.kind === 'brewery') return 0;
       if (building.kind === 'marketplace') return 1;
       return 3;
-    case 'bread':
+    case 'ryeBread':
+    case 'oatBread':
+    case 'maslinBread':
       return building.kind === 'granary' ? 0 : null;
     case 'malt':
       return building.kind === 'brewery' ? 0 : 3;

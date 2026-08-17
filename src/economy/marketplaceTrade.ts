@@ -23,6 +23,7 @@ import {
 import type { MarketCommodityOffer, MarketWaterCommodityOffer } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
 import { freshFoodStock, preservedFoodStock } from './foodInventory.ts';
+import { breadGrainStock, flourStock } from './cropGoods.ts';
 
 export type MarketplaceTradeAvailability = Record<TradeResourceKind | 'gold', number>;
 
@@ -31,9 +32,16 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   stone: 'Stone',
   firewood: 'Firewood',
   water: 'Water',
-  food: 'Bread',
-  grain: 'Grain',
-  flour: 'Flour',
+  food: 'Mixed provisions',
+  ryeGrain: 'Rye grain',
+  oatGrain: 'Oat grain',
+  maslinGrain: 'Maslin grain',
+  ryeFlour: 'Rye flour',
+  oatFlour: 'Oat flour',
+  maslinFlour: 'Maslin flour',
+  ryeBread: 'Rye bread',
+  oatBread: 'Oat bread',
+  maslinBread: 'Maslin bread',
   ale: 'Ale',
   preservedFood: 'Preserved food',
   honey: 'Honey',
@@ -146,9 +154,7 @@ export function marketplaceTradeStagingPlan(
   }
   const localStock = Math.max(
     0,
-    cost.resource === 'food'
-      ? building.bread ?? 0
-      : (building as unknown as Partial<Record<TradeResourceKind, number>>)[cost.resource] ?? 0,
+    (building as unknown as Partial<Record<TradeResourceKind, number>>)[cost.resource] ?? 0,
   );
   const missing = Math.max(0, cost.amount - localStock);
   return {
@@ -313,16 +319,20 @@ export function marketplaceResourceRoom(
   resource: TradeResourceKind,
 ): number {
   const storageResource = tradeStorageResource(resource);
-  const cap = (BUILDING_STORAGE_CAPS.trading_post as Partial<Record<TradeResourceKind, number>>)[storageResource] ?? 0;
+  const cap = (BUILDING_STORAGE_CAPS.trading_post as Record<string, number | undefined>)[storageResource] ?? 0;
   const stock = storageResource === 'food'
     ? freshFoodStock(building)
     : storageResource === 'preservedFood'
       ? preservedFoodStock(building)
-      : ((building as unknown as Partial<Record<TradeResourceKind, number>>)[storageResource] ?? 0);
+      : storageResource === 'grain'
+        ? breadGrainStock(building)
+        : storageResource === 'flour'
+          ? flourStock(building)
+          : ((building as unknown as Partial<Record<TradeResourceKind, number>>)[storageResource] ?? 0);
   return Math.max(0, cap - stock);
 }
 
-function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind {
+function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind | 'grain' | 'flour' {
   if (
     resource === 'food'
     || resource === 'meat'
@@ -336,6 +346,9 @@ function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind {
     || resource === 'eggs'
     || resource === 'grapes'
     || resource === 'porridge'
+    || resource === 'ryeBread'
+    || resource === 'oatBread'
+    || resource === 'maslinBread'
   ) return 'food';
   if (
     resource === 'preservedFood'
@@ -343,6 +356,12 @@ function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind {
     || resource === 'smokedFish'
     || resource === 'cheese'
   ) return 'preservedFood';
+  if (resource === 'ryeGrain' || resource === 'oatGrain' || resource === 'maslinGrain') {
+    return 'grain';
+  }
+  if (resource === 'ryeFlour' || resource === 'oatFlour' || resource === 'maslinFlour') {
+    return 'flour';
+  }
   return resource;
 }
 

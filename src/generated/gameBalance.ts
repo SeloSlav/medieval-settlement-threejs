@@ -502,6 +502,7 @@ export type FarmCropDefinition = {
   workEndMonth: number;
   growthStartMonth: number;
   growthEndMonth: number;
+  harvestMonth: number;
   calendarLabel: string;
 };
 export const FARM_CROP_DEFINITIONS = {
@@ -511,8 +512,8 @@ export const FARM_CROP_DEFINITIONS = {
     "label": "Rye",
     "produce": "grain",
     "workSeason": "autumn",
-    "seedGrainPerSquareMeter": 0.012,
-    "yieldMultiplier": 0.96,
+    "seedGrainPerSquareMeter": 0.011,
+    "yieldMultiplier": 0.92,
     "moistureIdeal": 0.26,
     "moistureTolerance": 0.6,
     "soilTextureIdeal": 0.18,
@@ -524,8 +525,9 @@ export const FARM_CROP_DEFINITIONS = {
     "workStartMonth": 10,
     "workEndMonth": 11,
     "growthStartMonth": 3,
-    "growthEndMonth": 8,
-    "calendarLabel": "Winter rye · till/sow Oct–Nov · grow Mar–Aug · harvest September"
+    "growthEndMonth": 7,
+    "harvestMonth": 8,
+    "calendarLabel": "Winter rye · low seed demand · hardy on poor ground · harvest August"
   },
   "oats": {
     "kind": "oats",
@@ -547,7 +549,8 @@ export const FARM_CROP_DEFINITIONS = {
     "workEndMonth": 4,
     "growthStartMonth": 4,
     "growthEndMonth": 8,
-    "calendarLabel": "Spring oats · till/sow Mar–Apr · grow Apr–Aug · harvest September"
+    "harvestMonth": 9,
+    "calendarLabel": "Spring oats · thrives on cool wet ground · harvest September · premium fodder and porridge"
   },
   "fallow": {
     "kind": "fallow",
@@ -569,6 +572,7 @@ export const FARM_CROP_DEFINITIONS = {
     "workEndMonth": 11,
     "growthStartMonth": 3,
     "growthEndMonth": 8,
+    "harvestMonth": 9,
     "calendarLabel": "Worked fallow · plough Oct–Nov · recover Mar–Aug"
   },
   "barley": {
@@ -578,7 +582,7 @@ export const FARM_CROP_DEFINITIONS = {
     "produce": "barley",
     "workSeason": "spring",
     "seedGrainPerSquareMeter": 0.013,
-    "yieldMultiplier": 0.91,
+    "yieldMultiplier": 0.93,
     "moistureIdeal": 0.38,
     "moistureTolerance": 0.42,
     "soilTextureIdeal": 0.4,
@@ -590,8 +594,9 @@ export const FARM_CROP_DEFINITIONS = {
     "workStartMonth": 3,
     "workEndMonth": 4,
     "growthStartMonth": 4,
-    "growthEndMonth": 8,
-    "calendarLabel": "Spring barley · till/sow Mar–Apr · grow Apr–Aug · harvest September"
+    "growthEndMonth": 7,
+    "harvestMonth": 8,
+    "calendarLabel": "Spring barley · well-drained loam · harvest August · malt and ale crop"
   },
   "flax": {
     "kind": "flax",
@@ -612,8 +617,9 @@ export const FARM_CROP_DEFINITIONS = {
     "workStartMonth": 3,
     "workEndMonth": 4,
     "growthStartMonth": 4,
-    "growthEndMonth": 8,
-    "calendarLabel": "Fibre flax · till/sow Mar–Apr · grow Apr–Aug · pull in September"
+    "growthEndMonth": 7,
+    "harvestMonth": 8,
+    "calendarLabel": "Fibre flax · demanding fertile damp loam · pull August · linen alternative to wool"
   },
   "wheat": {
     "kind": "wheat",
@@ -621,12 +627,12 @@ export const FARM_CROP_DEFINITIONS = {
     "label": "Wheat–rye maslin",
     "produce": "grain",
     "workSeason": "autumn",
-    "seedGrainPerSquareMeter": 0.014,
-    "yieldMultiplier": 1.08,
+    "seedGrainPerSquareMeter": 0.015,
+    "yieldMultiplier": 1.04,
     "moistureIdeal": 0.46,
-    "moistureTolerance": 0.36,
+    "moistureTolerance": 0.5,
     "soilTextureIdeal": 0.52,
-    "soilTextureTolerance": 0.28,
+    "soilTextureTolerance": 0.4,
     "soilDepthDemand": 0.9,
     "slopePenaltyMultiplier": 1.05,
     "sitePreference": "deep, fertile, well-drained loam",
@@ -635,7 +641,8 @@ export const FARM_CROP_DEFINITIONS = {
     "workEndMonth": 11,
     "growthStartMonth": 3,
     "growthEndMonth": 8,
-    "calendarLabel": "Wheat–rye maslin · till/sow Oct–Nov · grow Mar–Aug · harvest September"
+    "harvestMonth": 9,
+    "calendarLabel": "Wheat–rye maslin · high seed and fertility demand · stable September bread crop"
   }
 } as const satisfies Record<FarmCropKind, FarmCropDefinition>;
 
@@ -1679,7 +1686,7 @@ export const BACKYARD_GARDEN_COSTS = {
 
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;
 
-export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","food","grain","flour","ale","preservedFood","honey","wine","ironwork","polearms","wool","cloth","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","cherries","vegetables","eggs","grapes","porridge","curedMeat","smokedFish","cheese"] as const;
+export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","food","ryeGrain","oatGrain","maslinGrain","ryeFlour","oatFlour","maslinFlour","ryeBread","oatBread","maslinBread","ale","preservedFood","honey","wine","ironwork","polearms","wool","cloth","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","cherries","vegetables","eggs","grapes","porridge","curedMeat","smokedFish","cheese"] as const;
 export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];
 
 export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';
@@ -1690,8 +1697,15 @@ export const TRADE_RESOURCE_SPEND_SCOPES = {
   firewood: 'marketAccessible',
   water: 'marketAccessible',
   food: 'marketAccessible',
-  grain: 'marketAccessible',
-  flour: 'marketAccessible',
+  ryeGrain: 'marketAccessible',
+  oatGrain: 'marketAccessible',
+  maslinGrain: 'marketAccessible',
+  ryeFlour: 'marketAccessible',
+  oatFlour: 'marketAccessible',
+  maslinFlour: 'marketAccessible',
+  ryeBread: 'marketAccessible',
+  oatBread: 'marketAccessible',
+  maslinBread: 'marketAccessible',
   ale: 'marketAccessible',
   preservedFood: 'marketAccessible',
   honey: 'marketAccessible',
@@ -1768,10 +1782,24 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"sell_water","kind":"goldSell","resource":"water","amount":10,"goldYield":4},
   {"id":"buy_food","kind":"goldBuy","resource":"food","amount":10,"goldCost":13},
   {"id":"sell_food","kind":"goldSell","resource":"food","amount":10,"goldYield":10},
-  {"id":"buy_seed_grain","kind":"goldBuy","resource":"grain","amount":24,"goldCost":18},
-  {"id":"sell_grain","kind":"goldSell","resource":"grain","amount":24,"goldYield":11},
-  {"id":"buy_flour","kind":"goldBuy","resource":"flour","amount":12,"goldCost":15},
-  {"id":"sell_flour","kind":"goldSell","resource":"flour","amount":12,"goldYield":9},
+  {"id":"buy_rye_grain","kind":"goldBuy","resource":"ryeGrain","amount":24,"goldCost":16},
+  {"id":"sell_rye_grain","kind":"goldSell","resource":"ryeGrain","amount":24,"goldYield":9},
+  {"id":"buy_oat_grain","kind":"goldBuy","resource":"oatGrain","amount":24,"goldCost":18},
+  {"id":"sell_oat_grain","kind":"goldSell","resource":"oatGrain","amount":24,"goldYield":11},
+  {"id":"buy_maslin_grain","kind":"goldBuy","resource":"maslinGrain","amount":24,"goldCost":20},
+  {"id":"sell_maslin_grain","kind":"goldSell","resource":"maslinGrain","amount":24,"goldYield":12},
+  {"id":"buy_rye_flour","kind":"goldBuy","resource":"ryeFlour","amount":12,"goldCost":14},
+  {"id":"sell_rye_flour","kind":"goldSell","resource":"ryeFlour","amount":12,"goldYield":8},
+  {"id":"buy_oat_flour","kind":"goldBuy","resource":"oatFlour","amount":12,"goldCost":15},
+  {"id":"sell_oat_flour","kind":"goldSell","resource":"oatFlour","amount":12,"goldYield":9},
+  {"id":"buy_maslin_flour","kind":"goldBuy","resource":"maslinFlour","amount":12,"goldCost":17},
+  {"id":"sell_maslin_flour","kind":"goldSell","resource":"maslinFlour","amount":12,"goldYield":10},
+  {"id":"buy_rye_bread","kind":"goldBuy","resource":"ryeBread","amount":10,"goldCost":16},
+  {"id":"sell_rye_bread","kind":"goldSell","resource":"ryeBread","amount":10,"goldYield":10},
+  {"id":"buy_oat_bread","kind":"goldBuy","resource":"oatBread","amount":10,"goldCost":17},
+  {"id":"sell_oat_bread","kind":"goldSell","resource":"oatBread","amount":10,"goldYield":10},
+  {"id":"buy_maslin_bread","kind":"goldBuy","resource":"maslinBread","amount":10,"goldCost":19},
+  {"id":"sell_maslin_bread","kind":"goldSell","resource":"maslinBread","amount":10,"goldYield":12},
   {"id":"buy_ale","kind":"goldBuy","resource":"ale","amount":12,"goldCost":18},
   {"id":"sell_ale","kind":"goldSell","resource":"ale","amount":12,"goldYield":11},
   {"id":"buy_preserved_food","kind":"goldBuy","resource":"preservedFood","amount":10,"goldCost":18},
@@ -1845,7 +1873,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
 
 export type MarketplaceTradeOfferId = (typeof MARKETPLACE_TRADE_OFFERS)[number]['id'];
 
-export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","4":"sell_food","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_grain","11":"sell_flour","12":"sell_ale","13":"sell_preserved_food","14":"sell_honey","15":"sell_wine","16":"sell_polearms","17":"sell_wool","18":"sell_cloth","19":"sell_barley","20":"sell_malt","21":"sell_flax","22":"sell_ironwork","23":"sell_iron","24":"sell_clay","25":"sell_salt","26":"sell_charcoal","27":"sell_manure","28":"sell_remedies","29":"sell_roof_tiles","30":"sell_meat","31":"sell_fish","32":"sell_berries","33":"sell_mushrooms","34":"sell_milk","35":"sell_apples","36":"sell_cherries","37":"sell_vegetables","38":"sell_eggs","39":"sell_grapes","40":"sell_porridge","41":"sell_cured_meat","42":"sell_smoked_fish","43":"sell_cheese"} as const;
+export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","4":"sell_food","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_oat_flour","15":"sell_maslin_flour","16":"sell_rye_bread","17":"sell_oat_bread","18":"sell_maslin_bread","19":"sell_ale","20":"sell_preserved_food","21":"sell_honey","22":"sell_wine","23":"sell_polearms","24":"sell_wool","25":"sell_cloth","26":"sell_barley","27":"sell_malt","28":"sell_flax","29":"sell_ironwork","30":"sell_iron","31":"sell_clay","32":"sell_salt","33":"sell_charcoal","34":"sell_manure","35":"sell_remedies","36":"sell_roof_tiles","37":"sell_meat","38":"sell_fish","39":"sell_berries","40":"sell_mushrooms","41":"sell_milk","42":"sell_apples","43":"sell_cherries","44":"sell_vegetables","45":"sell_eggs","46":"sell_grapes","47":"sell_porridge","48":"sell_cured_meat","49":"sell_smoked_fish","50":"sell_cheese"} as const;
 
 export const MARKET_PRICE_UPDATE_INTERVAL_TICKS = 150;
 export const MARKET_PRICE_MULTIPLIER_MIN = 0.78;

@@ -285,10 +285,14 @@ const TOTAL_RESOURCE_TOOLTIPS: Partial<Record<HudResourceKind, string>> = {
 };
 
 const SPECIALTY_HUD_RESOURCE_KINDS = [
-  'grain',
+  'ryeGrain',
+  'oatGrain',
+  'maslinGrain',
   'barley',
   'malt',
-  'flour',
+  'ryeFlour',
+  'oatFlour',
+  'maslinFlour',
   'ale',
   'preservedFood',
   'honey',
@@ -483,10 +487,14 @@ export class ResourceInspector {
       water: this.mustElement(options.uiRoot, '[data-stockpile="water"]'),
       food: this.mustElement(options.uiRoot, '[data-stockpile="food"]'),
       gold: this.mustElement(options.uiRoot, '[data-stockpile="gold"]'),
-      grain: this.mustElement(options.uiRoot, '[data-stockpile="grain"]'),
+      ryeGrain: this.mustElement(options.uiRoot, '[data-stockpile="ryeGrain"]'),
+      oatGrain: this.mustElement(options.uiRoot, '[data-stockpile="oatGrain"]'),
+      maslinGrain: this.mustElement(options.uiRoot, '[data-stockpile="maslinGrain"]'),
       barley: this.mustElement(options.uiRoot, '[data-stockpile="barley"]'),
       malt: this.mustElement(options.uiRoot, '[data-stockpile="malt"]'),
-      flour: this.mustElement(options.uiRoot, '[data-stockpile="flour"]'),
+      ryeFlour: this.mustElement(options.uiRoot, '[data-stockpile="ryeFlour"]'),
+      oatFlour: this.mustElement(options.uiRoot, '[data-stockpile="oatFlour"]'),
+      maslinFlour: this.mustElement(options.uiRoot, '[data-stockpile="maslinFlour"]'),
       ale: this.mustElement(options.uiRoot, '[data-stockpile="ale"]'),
       preservedFood: this.mustElement(options.uiRoot, '[data-stockpile="preservedFood"]'),
       honey: this.mustElement(options.uiRoot, '[data-stockpile="honey"]'),
@@ -1359,10 +1367,14 @@ export class ResourceInspector {
     this.stockpileValues.water.textContent = Math.round(totals.water).toString();
     this.stockpileValues.food.textContent = Math.round(totals.food).toString();
     this.stockpileValues.gold.textContent = totals.gold.toFixed(1);
-    this.stockpileValues.grain.textContent = Math.round(totals.grain).toString();
+    this.stockpileValues.ryeGrain.textContent = Math.round(totals.ryeGrain).toString();
+    this.stockpileValues.oatGrain.textContent = Math.round(totals.oatGrain).toString();
+    this.stockpileValues.maslinGrain.textContent = Math.round(totals.maslinGrain).toString();
     this.stockpileValues.barley.textContent = Math.round(totals.barley).toString();
     this.stockpileValues.malt.textContent = Math.round(totals.malt).toString();
-    this.stockpileValues.flour.textContent = Math.round(totals.flour).toString();
+    this.stockpileValues.ryeFlour.textContent = Math.round(totals.ryeFlour).toString();
+    this.stockpileValues.oatFlour.textContent = Math.round(totals.oatFlour).toString();
+    this.stockpileValues.maslinFlour.textContent = Math.round(totals.maslinFlour).toString();
     this.stockpileValues.ale.textContent = Math.round(totals.ale).toString();
     this.stockpileValues.preservedFood.textContent = Math.round(totals.preservedFood).toString();
     this.stockpileValues.honey.textContent = Math.round(totals.honey).toString();

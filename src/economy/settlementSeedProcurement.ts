@@ -11,6 +11,7 @@ import {
 } from './marketplaceSeedPolicy.ts';
 import { marketplaceGoldReserveTarget } from './marketplaceGoldReserve.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
+import { breadGrainStock } from './cropGoods.ts';
 
 export type SettlementSeedProcurementAttention =
   | 'construction'
@@ -162,7 +163,11 @@ function inboundSeedByHolding(
       trip.phase === 'inbound'
       || trip.destinationKind !== 'building'
       || trip.targetBuildingId === null
-      || trip.cargoKind !== 'grain'
+      || !(
+        trip.cargoKind === 'ryeGrain'
+        || trip.cargoKind === 'oatGrain'
+        || trip.cargoKind === 'maslinGrain'
+      )
       || trip.amount <= 1e-9
     ) {
       continue;
@@ -233,7 +238,7 @@ function seedRoadDemand(input: SettlementSeedProcurementInput): {
       continue;
     }
 
-    const onsite = positiveFinite(farmstead.grain);
+    const onsite = breadGrainStock(farmstead);
     const preInboundGap = Math.max(0, required - onsite);
     preInboundShortfall += preInboundGap;
     const approaching = positiveFinite(inbound.get(buildingId));
@@ -456,7 +461,7 @@ export function computeSettlementSeedProcurementPlan(
   for (const building of input.state.buildings.values()) {
     const completed = building.constructionComplete !== false;
     if (building.kind === 'granary' && completed) {
-      const grain = positiveFinite(building.grain);
+      const grain = breadGrainStock(building);
       currentGranaryStock += grain;
       if (roadDemand.branches && input.roadComponentFor) {
         seedRoadBranch(
@@ -472,7 +477,7 @@ export function computeSettlementSeedProcurementPlan(
     }
     if (building.kind !== 'marketplace') continue;
     marketplaces += 1;
-    const currentStock = completed ? positiveFinite(building.grain) : 0;
+    const currentStock = completed ? positiveFinite(building.ryeGrain) : 0;
     currentMarketStock += currentStock;
     let branch: MutableSeedRoadBranch | null = null;
     if (roadDemand.branches && input.roadComponentFor) {

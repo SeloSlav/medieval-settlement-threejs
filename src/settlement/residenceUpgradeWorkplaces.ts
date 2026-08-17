@@ -44,8 +44,6 @@ export function residenceUpgradeWorkplaces(
       stone: 0,
       water: 0,
       food: 0,
-      grain: 0,
-      flour: 0,
       ale: 0,
       preservedFood: 0,
       honey: 0,

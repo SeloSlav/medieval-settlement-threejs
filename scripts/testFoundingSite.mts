@@ -445,8 +445,12 @@ physicalStock.buildings.set('camp', {
   stone: 30,
   water: 0,
   food: 0,
-  grain: 0,
-  flour: 0,
+  ryeGrain: 0,
+  oatGrain: 0,
+  maslinGrain: 0,
+  ryeFlour: 0,
+  oatFlour: 0,
+  maslinFlour: 0,
   ale: 0,
   preservedFood: 0,
   honey: 0,
@@ -561,10 +565,18 @@ assert.deepEqual(
     'stone',
     'firewood',
     'food',
-    'grain',
+    'ryeSheaves',
+    'oatSheaves',
+    'barleySheaves',
+    'maslinSheaves',
+    'ryeGrain',
+    'oatGrain',
+    'maslinGrain',
     'barley',
     'malt',
-    'flour',
+    'ryeFlour',
+    'oatFlour',
+    'maslinFlour',
     'preservedFood',
     'ale',
     'honey',
@@ -575,7 +587,9 @@ assert.deepEqual(
     'ironwork',
     'polearms',
     'water',
-    'bread',
+    'ryeBread',
+    'oatBread',
+    'maslinBread',
     'meat',
     'fish',
     'berries',
@@ -601,8 +615,19 @@ const emptyClearedCamp = {
   firewood: 0,
   water: 0,
   food: 0,
-  grain: 0,
-  flour: 0,
+  ryeSheaves: 0,
+  oatSheaves: 0,
+  barleySheaves: 0,
+  maslinSheaves: 0,
+  ryeGrain: 0,
+  oatGrain: 0,
+  maslinGrain: 0,
+  ryeFlour: 0,
+  oatFlour: 0,
+  maslinFlour: 0,
+  ryeBread: 0,
+  oatBread: 0,
+  maslinBread: 0,
   ale: 0,
   preservedFood: 0,
   honey: 0,
@@ -614,8 +639,13 @@ const emptyClearedCamp = {
 } satisfies BuildingState;
 const permanentStorageCases = [
   ['food', 'granary'],
-  ['grain', 'granary'],
-  ['flour', 'granary'],
+  ['ryeSheaves', 'granary'],
+  ['ryeGrain', 'granary'],
+  ['oatGrain', 'granary'],
+  ['maslinGrain', 'granary'],
+  ['ryeFlour', 'granary'],
+  ['oatFlour', 'granary'],
+  ['maslinFlour', 'granary'],
   ['preservedFood', 'granary'],
   ['ale', 'granary'],
   ['honey', 'trading_post'],
@@ -658,11 +688,22 @@ for (const [commodity, destinationKind] of permanentStorageCases) {
   assert.equal(plan.blocker, 'ready', `${commodity} should be physically recoverable`);
   assert.equal(plan.commodity, commodity);
   assert.equal(plan.targetBuildingId, destination.id);
+  const capacityCommodity = commodity === 'ryeSheaves'
+      || commodity === 'oatSheaves'
+      || commodity === 'barleySheaves'
+      || commodity === 'maslinSheaves'
+      || commodity === 'ryeGrain'
+      || commodity === 'oatGrain'
+      || commodity === 'maslinGrain'
+    ? 'grain'
+    : commodity === 'ryeFlour'
+        || commodity === 'oatFlour'
+        || commodity === 'maslinFlour'
+      ? 'flour'
+      : commodity;
   const destinationCapacity = (
-    BUILDING_STORAGE_CAPS[destinationKind] as Partial<
-      Record<FoundingRelocationCommodity, number>
-    >
-  )[commodity] ?? 0;
+    BUILDING_STORAGE_CAPS[destinationKind] as Record<string, number | undefined>
+  )[capacityCommodity] ?? 0;
   assert.equal(plan.targetRoom, Math.min(17, destinationCapacity));
 }
 
@@ -703,7 +744,7 @@ assert.equal(
 
 const breadCamp = {
   ...emptyClearedCamp,
-  bread: 17,
+  ryeBread: 17,
 } satisfies BuildingState;
 const foragersShed = {
   ...nearStorehouse,
@@ -729,7 +770,7 @@ assert.deepEqual(
     commodity: breadWithoutGranary.commodity,
     targetBuildingId: breadWithoutGranary.targetBuildingId,
   },
-  { blocker: 'no-storage', commodity: 'bread', targetBuildingId: null },
+  { blocker: 'no-storage', commodity: 'ryeBread', targetBuildingId: null },
   'starter bread must remain at the camp when only producer food storage exists',
 );
 
@@ -753,7 +794,7 @@ const breadWithGranary = planFoundingStockyardRelocation({
   roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
 });
 assert.equal(breadWithGranary.blocker, 'ready');
-assert.equal(breadWithGranary.commodity, 'bread');
+assert.equal(breadWithGranary.commodity, 'ryeBread');
 assert.equal(
   breadWithGranary.targetBuildingId,
   breadGranary.id,
@@ -927,15 +968,23 @@ assert.match(foundingLifecycle, /building_has_inbound_supply_trip/);
 assert.match(foundingLifecycle, /relocatable_stock/);
 assert.match(
   foundingLifecycle,
-  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*33\]/,
+  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*43\]/,
   'all portable non-gold commodities must participate in founding-yard clearance',
 );
 for (const variant of [
   'Food',
-  'Grain',
+  'RyeSheaves',
+  'OatSheaves',
+  'BarleySheaves',
+  'MaslinSheaves',
+  'RyeGrain',
+  'OatGrain',
+  'MaslinGrain',
   'Barley',
   'Malt',
-  'Flour',
+  'RyeFlour',
+  'OatFlour',
+  'MaslinFlour',
   'PreservedFood',
   'Ale',
   'Honey',
@@ -945,7 +994,9 @@ for (const variant of [
   'Ironwork',
   'Polearms',
   'Water',
-  'Bread',
+  'RyeBread',
+  'OatBread',
+  'MaslinBread',
   'Meat',
   'Fish',
   'Berries',
@@ -979,7 +1030,7 @@ assert.match(
 );
 assert.match(
   foundingLifecycle,
-  /commodity == CommodityKind::Bread[\s\S]*kind == "granary"/,
+  /CommodityKind::RyeBread \| CommodityKind::OatBread \| CommodityKind::MaslinBread[\s\S]*kind == "granary"/,
   'the authoritative founding route must keep starter bread out of producer food storage',
 );
 assert.doesNotMatch(

@@ -987,9 +987,13 @@ mod tests {
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
         for id in 0_u8..=54 {
-            let commodity =
-                CommodityKind::from_u8(id).unwrap_or_else(|| panic!("missing commodity id {id}"));
-            assert_eq!(commodity.as_u8(), id);
+            if matches!(id, 4 | 5 | 27) {
+                assert_eq!(CommodityKind::from_u8(id), None);
+            } else {
+                let commodity = CommodityKind::from_u8(id)
+                    .unwrap_or_else(|| panic!("missing commodity id {id}"));
+                assert_eq!(commodity.as_u8(), id);
+            }
         }
         assert_eq!(CommodityKind::from_u8(55), None);
     }
@@ -1008,12 +1012,18 @@ mod tests {
             CommodityKind::Milk.preservation_output(),
             Some(CommodityKind::Cheese),
         );
-        assert_eq!(CommodityKind::Bread.preservation_output(), None);
-        assert!(CommodityKind::Bread.is_fresh_food());
+        assert_eq!(CommodityKind::RyeBread.preservation_output(), None);
+        assert!(CommodityKind::RyeBread.is_fresh_food());
+        assert!(CommodityKind::OatBread.is_fresh_food());
+        assert!(CommodityKind::MaslinBread.is_fresh_food());
         assert!(CommodityKind::CuredMeat.is_preserved_food());
         assert!(CommodityKind::Honey.is_edible());
-        assert_eq!(CommodityKind::Bread.meal_value(), 1.0);
-        assert_eq!(CommodityKind::Flour.meal_value(), 0.0);
+        assert_eq!(CommodityKind::RyeBread.meal_value(), 1.0);
+        assert_eq!(CommodityKind::OatBread.meal_value(), 1.0);
+        assert_eq!(CommodityKind::MaslinBread.meal_value(), 1.0);
+        assert_eq!(CommodityKind::RyeFlour.meal_value(), 0.0);
+        assert_eq!(CommodityKind::OatFlour.meal_value(), 0.0);
+        assert_eq!(CommodityKind::MaslinFlour.meal_value(), 0.0);
     }
 
     #[test]

@@ -677,8 +677,19 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         timber: building.timber,
         firewood: building.firewood,
         food: building.food,
-        grain: building.grain,
-        flour: building.flour,
+        rye_sheaves: building.rye_sheaves,
+        oat_sheaves: building.oat_sheaves,
+        barley_sheaves: building.barley_sheaves,
+        maslin_sheaves: building.maslin_sheaves,
+        rye_grain: building.rye_grain,
+        oat_grain: building.oat_grain,
+        maslin_grain: building.maslin_grain,
+        rye_flour: building.rye_flour,
+        oat_flour: building.oat_flour,
+        maslin_flour: building.maslin_flour,
+        rye_bread: building.rye_bread,
+        oat_bread: building.oat_bread,
+        maslin_bread: building.maslin_bread,
         ale: building.ale,
         preserved_food: building.preserved_food,
         honey: building.honey,
@@ -697,7 +708,6 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         charcoal: building.charcoal,
         pottery: building.pottery,
         remedies: building.remedies,
-        bread: building.bread,
         meat: building.meat,
         fish: building.fish,
         berries: building.berries,
@@ -872,7 +882,9 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Timber) => stores.timber = amount,
         Some(CommodityKind::Firewood) => stores.firewood = amount,
         Some(CommodityKind::Food) => stores.food = amount,
-        Some(CommodityKind::Bread) => stores.bread = amount,
+        Some(CommodityKind::RyeBread) => stores.rye_bread = amount,
+        Some(CommodityKind::OatBread) => stores.oat_bread = amount,
+        Some(CommodityKind::MaslinBread) => stores.maslin_bread = amount,
         Some(CommodityKind::Meat) => stores.meat = amount,
         Some(CommodityKind::Fish) => stores.fish = amount,
         Some(CommodityKind::Berries) => stores.berries = amount,
@@ -884,8 +896,16 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Eggs) => stores.eggs = amount,
         Some(CommodityKind::Grapes) => stores.grapes = amount,
         Some(CommodityKind::Porridge) => stores.porridge = amount,
-        Some(CommodityKind::Grain) => stores.grain = amount,
-        Some(CommodityKind::Flour) => stores.flour = amount,
+        Some(CommodityKind::RyeSheaves) => stores.rye_sheaves = amount,
+        Some(CommodityKind::OatSheaves) => stores.oat_sheaves = amount,
+        Some(CommodityKind::BarleySheaves) => stores.barley_sheaves = amount,
+        Some(CommodityKind::MaslinSheaves) => stores.maslin_sheaves = amount,
+        Some(CommodityKind::RyeGrain) => stores.rye_grain = amount,
+        Some(CommodityKind::OatGrain) => stores.oat_grain = amount,
+        Some(CommodityKind::MaslinGrain) => stores.maslin_grain = amount,
+        Some(CommodityKind::RyeFlour) => stores.rye_flour = amount,
+        Some(CommodityKind::OatFlour) => stores.oat_flour = amount,
+        Some(CommodityKind::MaslinFlour) => stores.maslin_flour = amount,
         Some(CommodityKind::Ale) => stores.ale = amount,
         Some(CommodityKind::PreservedFood) => stores.preserved_food = amount,
         Some(CommodityKind::CuredMeat) => stores.cured_meat = amount,
@@ -925,7 +945,9 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Timber) => stores.timber,
         Some(CommodityKind::Firewood) => stores.firewood,
         Some(CommodityKind::Food) => stores.food,
-        Some(CommodityKind::Bread) => stores.bread,
+        Some(CommodityKind::RyeBread) => stores.rye_bread,
+        Some(CommodityKind::OatBread) => stores.oat_bread,
+        Some(CommodityKind::MaslinBread) => stores.maslin_bread,
         Some(CommodityKind::Meat) => stores.meat,
         Some(CommodityKind::Fish) => stores.fish,
         Some(CommodityKind::Berries) => stores.berries,
@@ -937,8 +959,16 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Eggs) => stores.eggs,
         Some(CommodityKind::Grapes) => stores.grapes,
         Some(CommodityKind::Porridge) => stores.porridge,
-        Some(CommodityKind::Grain) => stores.grain,
-        Some(CommodityKind::Flour) => stores.flour,
+        Some(CommodityKind::RyeSheaves) => stores.rye_sheaves,
+        Some(CommodityKind::OatSheaves) => stores.oat_sheaves,
+        Some(CommodityKind::BarleySheaves) => stores.barley_sheaves,
+        Some(CommodityKind::MaslinSheaves) => stores.maslin_sheaves,
+        Some(CommodityKind::RyeGrain) => stores.rye_grain,
+        Some(CommodityKind::OatGrain) => stores.oat_grain,
+        Some(CommodityKind::MaslinGrain) => stores.maslin_grain,
+        Some(CommodityKind::RyeFlour) => stores.rye_flour,
+        Some(CommodityKind::OatFlour) => stores.oat_flour,
+        Some(CommodityKind::MaslinFlour) => stores.maslin_flour,
         Some(CommodityKind::Ale) => stores.ale,
         Some(CommodityKind::PreservedFood) => stores.preserved_food,
         Some(CommodityKind::CuredMeat) => stores.cured_meat,
@@ -989,8 +1019,19 @@ fn treasury_portable_stores(
         timber: raidable_treasury_timber(treasury.timber, reserved_timber),
         firewood: treasury.firewood,
         food: treasury.food,
-        grain: treasury.grain,
-        flour: treasury.flour,
+        rye_sheaves: treasury.rye_sheaves,
+        oat_sheaves: treasury.oat_sheaves,
+        barley_sheaves: treasury.barley_sheaves,
+        maslin_sheaves: treasury.maslin_sheaves,
+        rye_grain: treasury.rye_grain,
+        oat_grain: treasury.oat_grain,
+        maslin_grain: treasury.maslin_grain,
+        rye_flour: treasury.rye_flour,
+        oat_flour: treasury.oat_flour,
+        maslin_flour: treasury.maslin_flour,
+        rye_bread: treasury.rye_bread,
+        oat_bread: treasury.oat_bread,
+        maslin_bread: treasury.maslin_bread,
         ale: treasury.ale,
         preserved_food: treasury.preserved_food,
         honey: treasury.honey,
@@ -1009,7 +1050,6 @@ fn treasury_portable_stores(
         charcoal: treasury.charcoal,
         pottery: treasury.pottery,
         remedies: 0.0,
-        bread: treasury.bread,
         meat: treasury.meat,
         fish: treasury.fish,
         berries: treasury.berries,
@@ -1082,8 +1122,19 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.timber = stores.timber;
     building.firewood = stores.firewood;
     building.food = stores.food;
-    building.grain = stores.grain;
-    building.flour = stores.flour;
+    building.rye_sheaves = stores.rye_sheaves;
+    building.oat_sheaves = stores.oat_sheaves;
+    building.barley_sheaves = stores.barley_sheaves;
+    building.maslin_sheaves = stores.maslin_sheaves;
+    building.rye_grain = stores.rye_grain;
+    building.oat_grain = stores.oat_grain;
+    building.maslin_grain = stores.maslin_grain;
+    building.rye_flour = stores.rye_flour;
+    building.oat_flour = stores.oat_flour;
+    building.maslin_flour = stores.maslin_flour;
+    building.rye_bread = stores.rye_bread;
+    building.oat_bread = stores.oat_bread;
+    building.maslin_bread = stores.maslin_bread;
     building.ale = stores.ale;
     building.preserved_food = stores.preserved_food;
     building.honey = stores.honey;
@@ -1102,7 +1153,6 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.charcoal = stores.charcoal;
     building.pottery = stores.pottery;
     building.remedies = stores.remedies;
-    building.bread = stores.bread;
     building.meat = stores.meat;
     building.fish = stores.fish;
     building.berries = stores.berries;
@@ -1142,8 +1192,19 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(timber);
     subtract_loss!(firewood);
     subtract_loss!(food);
-    subtract_loss!(grain);
-    subtract_loss!(flour);
+    subtract_loss!(rye_sheaves);
+    subtract_loss!(oat_sheaves);
+    subtract_loss!(barley_sheaves);
+    subtract_loss!(maslin_sheaves);
+    subtract_loss!(rye_grain);
+    subtract_loss!(oat_grain);
+    subtract_loss!(maslin_grain);
+    subtract_loss!(rye_flour);
+    subtract_loss!(oat_flour);
+    subtract_loss!(maslin_flour);
+    subtract_loss!(rye_bread);
+    subtract_loss!(oat_bread);
+    subtract_loss!(maslin_bread);
     subtract_loss!(ale);
     subtract_loss!(preserved_food);
     subtract_loss!(honey);
@@ -1161,7 +1222,6 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(salt);
     subtract_loss!(charcoal);
     subtract_loss!(pottery);
-    subtract_loss!(bread);
     subtract_loss!(meat);
     subtract_loss!(fish);
     subtract_loss!(berries);

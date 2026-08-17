@@ -23,7 +23,9 @@ import {
   CLAY_PIT_CLAY_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
   BAKERY_FLOUR_PER_CYCLE,
-  BAKERY_FOOD_PER_CYCLE,
+  BAKERY_RYE_BREAD_PER_CYCLE,
+  BAKERY_OAT_BREAD_PER_CYCLE,
+  BAKERY_MASLIN_BREAD_PER_CYCLE,
   BAKERY_WATER_PER_CYCLE,
   POTTER_CLAY_PER_CYCLE,
   POTTER_FIREWOOD_PER_CYCLE,
@@ -46,7 +48,9 @@ import {
   SMITHY_WATER_PER_CYCLE,
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
-  WATERMILL_FLOUR_PER_CYCLE,
+  WATERMILL_RYE_FLOUR_PER_CYCLE,
+  WATERMILL_OAT_FLOUR_PER_CYCLE,
+  WATERMILL_MASLIN_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
   WEAVER_FLAX_PER_CYCLE,
@@ -77,6 +81,13 @@ import {
   normalizeProcessorOutputTargetPercent,
   processorOutputTargetForBuilding,
 } from './processorOutputPolicy.ts';
+import {
+  BREAD_GRAIN_KINDS,
+  FLOUR_KINDS,
+  breadGrainStock,
+  breadStock,
+  flourStock,
+} from './cropGoods.ts';
 import {
   normalizePotterFiringPolicy,
   POTTER_FIRE_ROOF_TILES,
@@ -363,7 +374,9 @@ type ProcessorOverview = Pick<
 type GrainChainBranch = {
   millWorkers: number;
   millEffectiveWorkers: number;
+  millFlourRateWork: number;
   bakeryWorkers: number;
+  bakeryBreadRateWork: number;
   firstMillId: string | null;
   firstBakeryId: string | null;
 };
@@ -552,17 +565,22 @@ function recordGrainRoadActivity(
   const branch = branches.get(key) ?? {
     millWorkers: 0,
     millEffectiveWorkers: 0,
+    millFlourRateWork: 0,
     bakeryWorkers: 0,
+    bakeryBreadRateWork: 0,
     firstMillId: null,
     firstBakeryId: null,
   };
   if (role === 'mill') {
+    const effectiveWork = building.assignedLabor * Math.max(0, throughputMultiplier);
     branch.millWorkers += building.assignedLabor;
-    branch.millEffectiveWorkers += building.assignedLabor
-      * Math.max(0, throughputMultiplier);
+    branch.millEffectiveWorkers += effectiveWork;
+    branch.millFlourRateWork += effectiveWork * selectedMillFlourRate(building);
     branch.firstMillId = earlierStableId(branch.firstMillId, building.id);
   } else {
     branch.bakeryWorkers += building.assignedLabor;
+    branch.bakeryBreadRateWork += building.assignedLabor
+      * selectedBakeryBreadRate(building);
     branch.firstBakeryId = earlierStableId(branch.firstBakeryId, building.id);
   }
   branches.set(key, branch);
@@ -696,6 +714,39 @@ function buildingInputRunway(
   );
 }
 
+function groupedBuildingInputRunway(
+  deliveries: TimedInputDeliveries,
+  building: BuildingState,
+  commodities: readonly DeliveryCargoKind[],
+  stock: number,
+  dailyDemand: number,
+): InputRunway {
+  const incoming = commodities
+    .flatMap((commodity) => deliveries.get(building.id)?.get(commodity) ?? [])
+    .sort((left, right) => left.arrivalSeconds - right.arrivalSeconds);
+  return inputRunway(stock, dailyDemand, incoming);
+}
+
+function selectedMillFlourRate(building: BuildingState): number {
+  const stocks = [building.ryeGrain ?? 0, building.oatGrain ?? 0, building.maslinGrain ?? 0];
+  const selected = stocks.indexOf(Math.max(...stocks));
+  return selected === 1
+    ? WATERMILL_OAT_FLOUR_PER_CYCLE
+    : selected === 2
+      ? WATERMILL_MASLIN_FLOUR_PER_CYCLE
+      : WATERMILL_RYE_FLOUR_PER_CYCLE;
+}
+
+function selectedBakeryBreadRate(building: BuildingState): number {
+  const stocks = [building.ryeFlour ?? 0, building.oatFlour ?? 0, building.maslinFlour ?? 0];
+  const selected = stocks.indexOf(Math.max(...stocks));
+  return selected === 1
+    ? BAKERY_OAT_BREAD_PER_CYCLE
+    : selected === 2
+      ? BAKERY_MASLIN_BREAD_PER_CYCLE
+      : BAKERY_RYE_BREAD_PER_CYCLE;
+}
+
 function stockTargetHasRoom(
   building: BuildingState,
   commodity: 'timber' | 'firewood' | 'stone' | 'iron' | 'salt' | 'clay' | 'flour',
@@ -717,7 +768,10 @@ function stockTargetHasRoom(
     : null;
   const target = extractionTarget
     ?? (policyTarget == null ? capacity : Math.min(capacity, policyTarget));
-  return Math.max(0, Number(building[commodity] ?? 0)) + 1e-6 < target;
+  const stock = commodity === 'flour'
+    ? flourStock(building)
+    : Math.max(0, Number(building[commodity] ?? 0));
+  return stock + 1e-6 < target;
 }
 
 function centeredDepositExists(
@@ -771,7 +825,7 @@ function civilianToolSiteCanWork(
     case 'watermill':
     case 'windmill':
       return stockTargetHasRoom(building, 'flour')
-        && building.grain + 1e-6 >= WATERMILL_GRAIN_PER_CYCLE;
+        && breadGrainStock(building) + 1e-6 >= WATERMILL_GRAIN_PER_CYCLE;
     case 'threshing_barn':
       return true;
     default:
@@ -1028,10 +1082,11 @@ function completedProcessorOverview(
         );
         millInputBuffer = updateFirstToStop(
           millInputBuffer,
-          buildingInputRunway(
+          groupedBuildingInputRunway(
             deliveries,
             building,
-            'grain',
+            BREAD_GRAIN_KINDS,
+            breadGrainStock(building),
             cycles * WATERMILL_GRAIN_PER_CYCLE,
           ),
           'grain',
@@ -1040,10 +1095,10 @@ function completedProcessorOverview(
         millOutputRoom = updateFirstToFill(
           millOutputRoom,
           outputRoomDays(
-            building.flour,
+            flourStock(building),
             processorOutputTargetForBuilding(building)
               ?? (BUILDING_STORAGE_CAPS[building.kind].flour ?? 0),
-            cycles * WATERMILL_FLOUR_PER_CYCLE,
+            cycles * selectedMillFlourRate(building),
           ),
           building.id,
           normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
@@ -1059,10 +1114,11 @@ function completedProcessorOverview(
           componentFor,
         );
         const cycles = bakeryCyclesPerWorker * onsiteLabor;
-        let runway = buildingInputRunway(
+        let runway = groupedBuildingInputRunway(
           deliveries,
           building,
-          'flour',
+          FLOUR_KINDS,
+          flourStock(building),
           cycles * BAKERY_FLOUR_PER_CYCLE,
         );
         let limitingInput: ProcessorInput = 'flour';
@@ -1095,10 +1151,10 @@ function completedProcessorOverview(
         bakeryOutputRoom = updateFirstToFill(
           bakeryOutputRoom,
           outputRoomDays(
-            building.bread ?? 0,
+            breadStock(building),
             processorOutputTargetForBuilding(building)
               ?? (BUILDING_STORAGE_CAPS.bakery.food ?? 0),
-            cycles * BAKERY_FOOD_PER_CYCLE,
+            cycles * selectedBakeryBreadRate(building),
           ),
           building.id,
           normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
@@ -2207,9 +2263,13 @@ function grainChainRoadPlan(
   hypotheticalFoodPerDay: number,
 ): GrainChainRoadPlan & {
   matchedFoodPerDay: number;
+  matchedBakeryCyclesPerDay: number;
+  matchedMillCyclesPerDay: number;
   grainRoadBranches: ReadonlyMap<string, ProductionGrainRoadBranch>;
 } {
   let matchedFoodPerDay = 0;
+  let matchedBakeryCyclesPerDay = 0;
+  let matchedMillCyclesPerDay = 0;
   let activeBranches = 0;
   let matchedBranches = 0;
   let millOnlyBranches = 0;
@@ -2229,14 +2289,22 @@ function grainChainRoadPlan(
       branch.bakeryWorkers,
       sabbathObserved,
     );
-    const millFlourPerDay = millCycles * WATERMILL_FLOUR_PER_CYCLE;
+    const millFlourRate = branch.millEffectiveWorkers > 1e-9
+      ? branch.millFlourRateWork / branch.millEffectiveWorkers
+      : WATERMILL_RYE_FLOUR_PER_CYCLE;
+    const bakeryBreadRate = branch.bakeryWorkers > 0
+      ? branch.bakeryBreadRateWork / branch.bakeryWorkers
+      : BAKERY_RYE_BREAD_PER_CYCLE;
+    const millFlourPerDay = millCycles * millFlourRate;
     const bakeryFlourPerDay = bakeryCycles * BAKERY_FLOUR_PER_CYCLE;
     const matchedFlourPerDay = Math.min(millFlourPerDay, bakeryFlourPerDay);
+    matchedBakeryCyclesPerDay += matchedFlourPerDay / BAKERY_FLOUR_PER_CYCLE;
+    matchedMillCyclesPerDay += matchedFlourPerDay / millFlourRate;
     matchedFoodPerDay += matchedFlourPerDay
-      * BAKERY_FOOD_PER_CYCLE
+      * bakeryBreadRate
       / BAKERY_FLOUR_PER_CYCLE;
     const breadGrainPerDay = matchedFlourPerDay
-      / WATERMILL_FLOUR_PER_CYCLE
+      / millFlourRate
       * WATERMILL_GRAIN_PER_CYCLE;
     const firstProcessorId = breadGrainPerDay > 1e-9
       ? branch.firstMillId
@@ -2260,7 +2328,7 @@ function grainChainRoadPlan(
     }
 
     const imbalance = Math.abs(millFlourPerDay - bakeryFlourPerDay)
-      * BAKERY_FOOD_PER_CYCLE
+      * bakeryBreadRate
       / BAKERY_FLOUR_PER_CYCLE;
     const candidateId = millFlourPerDay > bakeryFlourPerDay
       ? branch.firstMillId
@@ -2298,6 +2366,8 @@ function grainChainRoadPlan(
       ? firstImbalancedBuildingId
       : null,
     matchedFoodPerDay,
+    matchedBakeryCyclesPerDay,
+    matchedMillCyclesPerDay,
     grainRoadBranches,
   };
 }
@@ -2357,7 +2427,6 @@ export function computeSettlementProductionCapacity(
     fireDisabledProcessorWorkers,
     firstFireDisabledProcessorId,
     millWorkers,
-    millEffectiveWorkers,
     bakeryWorkers,
     breweryWorkers,
     smokehouseWorkers,
@@ -2403,12 +2472,6 @@ export function computeSettlementProductionCapacity(
     normalizedResourceAbundance,
     calendarMonth,
   );
-  const millCycles = cyclesPerCalendarDay(
-    'watermill',
-    millEffectiveWorkers,
-    sabbathObserved,
-  );
-  const bakeryCycles = cyclesPerCalendarDay('bakery', bakeryWorkers, sabbathObserved);
   const breweryCycles = cyclesPerCalendarDay('brewery', breweryWorkers, sabbathObserved);
   const breweryAleCycles = breweryCycles / 2;
   const smokehouseCycles = cyclesPerCalendarDay(
@@ -2418,14 +2481,41 @@ export function computeSettlementProductionCapacity(
   );
   const weaverCycles = cyclesPerCalendarDay('weaver', weaverWorkers, sabbathObserved);
 
-  const flourOutputPerDay = millCycles * WATERMILL_FLOUR_PER_CYCLE;
-  const bakeryFlourCapacityPerDay = bakeryCycles * BAKERY_FLOUR_PER_CYCLE;
+  let flourOutputPerDay = 0;
+  let bakeryFlourCapacityPerDay = 0;
+  let bakeryBreadCapacityPerDay = 0;
+  for (const branch of grainChainBranches.values()) {
+    const branchMillCycles = cyclesPerCalendarDay(
+      'watermill',
+      branch.millEffectiveWorkers,
+      sabbathObserved,
+    );
+    const branchBakeryCycles = cyclesPerCalendarDay(
+      'bakery',
+      branch.bakeryWorkers,
+      sabbathObserved,
+    );
+    const millRate = branch.millEffectiveWorkers > 1e-9
+      ? branch.millFlourRateWork / branch.millEffectiveWorkers
+      : WATERMILL_RYE_FLOUR_PER_CYCLE;
+    const bakeryRate = branch.bakeryWorkers > 0
+      ? branch.bakeryBreadRateWork / branch.bakeryWorkers
+      : BAKERY_RYE_BREAD_PER_CYCLE;
+    flourOutputPerDay += branchMillCycles * millRate;
+    bakeryFlourCapacityPerDay += branchBakeryCycles * BAKERY_FLOUR_PER_CYCLE;
+    bakeryBreadCapacityPerDay += branchBakeryCycles * bakeryRate;
+  }
+  const breadPerFlour = bakeryFlourCapacityPerDay > 1e-9
+    ? bakeryBreadCapacityPerDay / bakeryFlourCapacityPerDay
+    : BAKERY_RYE_BREAD_PER_CYCLE / BAKERY_FLOUR_PER_CYCLE;
   const hypotheticalBreadFoodPerDay = Math.min(
-    bakeryCycles * BAKERY_FOOD_PER_CYCLE,
-    flourOutputPerDay * BAKERY_FOOD_PER_CYCLE / BAKERY_FLOUR_PER_CYCLE,
+    bakeryBreadCapacityPerDay,
+    flourOutputPerDay * breadPerFlour,
   );
   const {
     matchedFoodPerDay: breadFoodCapacityPerDay,
+    matchedBakeryCyclesPerDay: breadCyclesPerDay,
+    matchedMillCyclesPerDay: millCyclesForBread,
     grainRoadBranches,
     ...grainChainRoads
   } = grainChainRoadPlan(
@@ -2433,10 +2523,6 @@ export function computeSettlementProductionCapacity(
     sabbathObserved,
     hypotheticalBreadFoodPerDay,
   );
-  const breadCyclesPerDay = breadFoodCapacityPerDay / BAKERY_FOOD_PER_CYCLE;
-  const matchedFlourPerDay = breadCyclesPerDay * BAKERY_FLOUR_PER_CYCLE;
-  const millCyclesForBread = matchedFlourPerDay / WATERMILL_FLOUR_PER_CYCLE;
-
   let tierThreeResidents = 0;
   let textileResidents = 0;
   let fireDisabledTierThreeHomes = 0;

@@ -15,15 +15,15 @@ export type MarketplaceSeedGrainTarget = (typeof MARKETPLACE_SEED_GRAIN_TARGETS)
 
 type SeedGrainImportOffer = Extract<
   (typeof MARKETPLACE_TRADE_OFFERS)[number],
-  { id: 'buy_seed_grain' }
+  { id: 'buy_rye_grain' }
 >;
 
 function seedGrainImportOffer(): SeedGrainImportOffer {
   const offer = MARKETPLACE_TRADE_OFFERS.find(
-    (candidate) => candidate.id === 'buy_seed_grain',
+    (candidate) => candidate.id === 'buy_rye_grain',
   );
-  if (!offer || offer.kind !== 'goldBuy' || offer.resource !== 'grain') {
-    throw new Error('Generated balance is missing the seed-grain import offer.');
+  if (!offer || offer.kind !== 'goldBuy' || offer.resource !== 'ryeGrain') {
+    throw new Error('Generated balance is missing the rye-seed import offer.');
   }
   return offer;
 }
@@ -50,10 +50,10 @@ export type MarketplaceSeedGrainProcurementPlan = {
 };
 
 export function marketplaceSeedGrainProcurementPlan(
-  building: Pick<BuildingState, 'grain' | 'marketplaceSeedGrainTarget'>,
+  building: Pick<BuildingState, 'ryeGrain' | 'marketplaceSeedGrainTarget'>,
 ): MarketplaceSeedGrainProcurementPlan {
   const target = normalizeMarketplaceSeedGrainTarget(building.marketplaceSeedGrainTarget);
-  const stock = Math.max(0, building.grain ?? 0);
+  const stock = Math.max(0, building.ryeGrain ?? 0);
   const ordersToTarget = target <= 0
     ? 0
     : Math.floor(Math.max(0, target - stock) / MARKETPLACE_SEED_GRAIN_IMPORT_LOT);
@@ -75,7 +75,7 @@ export type MarketplaceStandingOrder =
 export function nextMarketplaceStandingOrder(
   building: Pick<
     BuildingState,
-    | 'grain'
+    | 'ryeGrain'
     | 'ironwork'
     | 'iron'
     | 'salt'

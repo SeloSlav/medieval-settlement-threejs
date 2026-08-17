@@ -59,8 +59,15 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
             state.firewood_price_mult
         }
         TradeResource::Food
-        | TradeResource::Grain
-        | TradeResource::Flour
+        | TradeResource::RyeGrain
+        | TradeResource::OatGrain
+        | TradeResource::MaslinGrain
+        | TradeResource::RyeFlour
+        | TradeResource::OatFlour
+        | TradeResource::MaslinFlour
+        | TradeResource::RyeBread
+        | TradeResource::OatBread
+        | TradeResource::MaslinBread
         | TradeResource::Barley
         | TradeResource::Malt
         | TradeResource::Flax
@@ -194,8 +201,15 @@ pub fn record_market_trade(
                 adjust_demand_index(state.regional_firewood_demand, direction, amount);
         }
         TradeResource::Food
-        | TradeResource::Grain
-        | TradeResource::Flour
+        | TradeResource::RyeGrain
+        | TradeResource::OatGrain
+        | TradeResource::MaslinGrain
+        | TradeResource::RyeFlour
+        | TradeResource::OatFlour
+        | TradeResource::MaslinFlour
+        | TradeResource::RyeBread
+        | TradeResource::OatBread
+        | TradeResource::MaslinBread
         | TradeResource::Barley
         | TradeResource::Malt
         | TradeResource::Flax

@@ -59,7 +59,6 @@ export default __t.row({
   food: __t.f64(),
   preservedFood: __t.f64().name("preserved_food"),
   honey: __t.f64(),
-  bread: __t.f64(),
   meat: __t.f64(),
   fish: __t.f64(),
   berries: __t.f64(),
@@ -76,4 +75,7 @@ export default __t.row({
   cheese: __t.f64(),
   foodInventoryMigrated: __t.bool().name("food_inventory_migrated"),
   lastDiscretionaryMarketDay: __t.u64().name("last_discretionary_market_day"),
+  ryeBread: __t.f64().name("rye_bread"),
+  oatBread: __t.f64().name("oat_bread"),
+  maslinBread: __t.f64().name("maslin_bread"),
 });

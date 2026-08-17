@@ -32,10 +32,17 @@ function makeBuilding(partial: Partial<BuildingState> & Pick<BuildingState, 'id'
     stone: 0,
     water: 0,
     food: 0,
-    grain: 0,
+    ryeGrain: 0,
+    oatGrain: 0,
+    maslinGrain: 0,
     barley: 0,
     malt: 0,
-    flour: 0,
+    ryeFlour: 0,
+    oatFlour: 0,
+    maslinFlour: 0,
+    ryeBread: 0,
+    oatBread: 0,
+    maslinBread: 0,
     ale: 0,
     preservedFood: 0,
     honey: 0,
@@ -103,7 +110,7 @@ const readyBakery = makeBuilding({
   x: 0,
   z: 0,
   assignedLabor: 2,
-  flour: 3,
+  ryeFlour: 3,
   firewood: 1,
   water: 2,
 });
@@ -133,7 +140,7 @@ assert.equal(
 
 assert.equal(
   getBuildingProcessorStatus(readyBakery, readyQueries)?.statusText,
-  'Baking bread',
+  'Baking rye bread',
 );
 assert.equal(
   getBuildingProcessorStatus(readyBakery, readyQueries)?.statusState,
@@ -141,11 +148,11 @@ assert.equal(
 );
 assert.match(
   getBuildingProcessorStatus(readyBakery, readyQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · flour limits/,
+  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 3 cycles staged · rye flour limits/,
 );
 assert.match(
   getBuildingProcessorStatus(readyBakery, readyQueries)?.waterDetailHtml ?? '',
-  /Output room<\/span><span>25 cycles · food before 100 target/,
+  /Output room<\/span><span>25 cycles · rye bread before 100 target/,
 );
 
 const smithy = makeBuilding({
@@ -349,13 +356,13 @@ const leanBakery = makeBuilding({
   z: 0,
   assignedLabor: 2,
   processorOutputTargetPercent: 25,
-  flour: 3,
+  ryeFlour: 3,
   firewood: 1,
   water: 2,
 });
 assert.match(
   getBuildingProcessorStatus(leanBakery, readyQueries)?.waterDetailHtml ?? '',
-  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 1 cycle staged · flour limits/,
+  /On-site input buffer<\/span><span>1\.0 cycle on site \/ 1 cycle staged · rye flour limits/,
   'the inspector should expose the selected input staging depth, not only output capacity',
 );
 

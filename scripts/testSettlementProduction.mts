@@ -34,11 +34,11 @@ import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
 
 const state = emptyGameState();
 const mill = building('mill', 'watermill', 1);
-mill.grain = 60;
-mill.flour = 180;
+mill.ryeGrain = 60;
+mill.ryeFlour = 180;
 state.buildings.set(mill.id, mill);
 const bakery = building('bakery', 'bakery', 1);
-bakery.flour = 84;
+bakery.ryeFlour = 84;
 bakery.water = 56;
 bakery.firewood = 42;
 bakery.food = 0;
@@ -117,7 +117,7 @@ approx(fullWeek.weaverOutputRoom?.days ?? -1, 1.5);
 
 const maintainedMillState = emptyGameState();
 const maintainedMill = building('maintained-mill', 'watermill', 1);
-maintainedMill.grain = 180;
+maintainedMill.ryeGrain = 180;
 maintainedMill.ironwork = 0.75;
 maintainedMillState.buildings.set(maintainedMill.id, maintainedMill);
 const maintainedMillCapacity = computeSettlementProductionCapacity(
@@ -577,7 +577,7 @@ const dormantFarmMaterials = computeSettlementProductionCapacity(
   1,
   1,
   1,
-  9,
+  8,
 ).industrialMaterials;
 assert.equal(
   dormantFarmMaterials.toolEligibleSites,
@@ -952,11 +952,11 @@ assert.equal(grainChainBalanceLabel(inactive), 'No staffed mill or bakery');
 
 const distributedState = emptyGameState();
 const stockedMill = building('stocked-mill', 'watermill', 1);
-stockedMill.grain = 300;
+stockedMill.ryeGrain = 300;
 distributedState.buildings.set(stockedMill.id, stockedMill);
 const starvedMill = building('starved-mill', 'watermill', 1);
-starvedMill.grain = 3;
-starvedMill.flour = 256;
+starvedMill.ryeGrain = 3;
+starvedMill.ryeFlour = 256;
 distributedState.buildings.set(starvedMill.id, starvedMill);
 const distributed = computeSettlementProductionCapacity(distributedState, false);
 assert.ok(distributed.millInputBuffer);
@@ -1000,7 +1000,7 @@ assert.equal(processorBottleneckBuildingId(null, null), null);
 
 const suppliedState = emptyGameState();
 const suppliedMill = building('supplied-mill', 'watermill', 1);
-suppliedMill.grain = 3;
+suppliedMill.ryeGrain = 3;
 suppliedState.buildings.set(suppliedMill.id, suppliedMill);
 const timelyGrain = deliveryTrip('timely-grain', suppliedMill.id, 30, 'outbound');
 timelyGrain.pathDistance = 5;
@@ -1022,7 +1022,7 @@ assert.equal(suppliedProduction.millInputBuffer.deliveryGap, false);
 
 const lateState = emptyGameState();
 const lateMill = building('late-mill', 'watermill', 1);
-lateMill.grain = 3;
+lateMill.ryeGrain = 3;
 lateState.buildings.set(lateMill.id, lateMill);
 const lateGrain = deliveryTrip('late-grain', lateMill.id, 30, 'outbound');
 lateGrain.pathDistance = 100;
@@ -1041,8 +1041,8 @@ assert.equal(lateProduction.millInputBuffer.nextDeliverySeconds, 101);
 
 const targetedState = emptyGameState();
 const targetedMill = building('targeted-mill', 'watermill', 1);
-targetedMill.grain = 30;
-targetedMill.flour = 45;
+targetedMill.ryeGrain = 30;
+targetedMill.ryeFlour = 45;
 targetedMill.processorOutputTargetPercent = 25;
 targetedState.buildings.set(targetedMill.id, targetedMill);
 const targetedProduction = computeSettlementProductionCapacity(targetedState, false);
@@ -1130,7 +1130,7 @@ const september = gameClockAtElapsedSeconds(
 const farmState = emptyGameState();
 const shortFarm = building('short-farm', 'threshing_barn', 1);
 const stockedFarm = building('stocked-farm', 'threshing_barn', 6);
-stockedFarm.grain = 100;
+stockedFarm.ryeGrain = 100;
 stockedFarm.ironwork = 0.5;
 farmState.buildings.set(shortFarm.id, shortFarm);
 farmState.buildings.set(stockedFarm.id, stockedFarm);
@@ -1191,25 +1191,25 @@ assert.ok(farmPlan.rotation.plannedHarvest > 0);
 assert.equal(farmPlan.rotation.weakestFieldId, 'short-field');
 
 const grainState = emptyGameState();
-grainState.stockpile.grain = 10;
+grainState.stockpile.ryeGrain = 10;
 const seedFarm = building('seed-farm', 'threshing_barn', 1);
-seedFarm.grain = 4;
+seedFarm.ryeGrain = 4;
 grainState.buildings.set(seedFarm.id, seedFarm);
 const fodderHolding = building('fodder-holding', 'pastoral_farmstead', 1);
-fodderHolding.grain = 3;
+fodderHolding.oatGrain = 3;
 grainState.buildings.set(fodderHolding.id, fodderHolding);
 const reserveGranary = building('reserve-granary', 'granary', 1);
-reserveGranary.grain = 10;
+reserveGranary.ryeGrain = 10;
 grainState.buildings.set(reserveGranary.id, reserveGranary);
 const grainMill = building('grain-mill', 'watermill', 1);
-grainMill.grain = 5;
+grainMill.ryeGrain = 5;
 grainMill.constructionPriority = 3;
 grainState.buildings.set(grainMill.id, grainMill);
 const linkedMonastery = building('linked-monastery', 'monastery', 0);
-linkedMonastery.grain = 2;
+linkedMonastery.oatGrain = 2;
 grainState.buildings.set(linkedMonastery.id, linkedMonastery);
 const unlinkedMonastery = building('unlinked-monastery', 'monastery', 0);
-unlinkedMonastery.grain = 1;
+unlinkedMonastery.oatGrain = 1;
 grainState.buildings.set(unlinkedMonastery.id, unlinkedMonastery);
 const lowPriorityMill = building('low-priority-mill', 'watermill', 1);
 lowPriorityMill.constructionPriority = 1;
@@ -1325,7 +1325,7 @@ roadBakery.x = 0;
 roadGrainState.buildings.set(roadBakery.id, roadBakery);
 const roadBreadGranary = building('road-bread-granary', 'granary', 1);
 roadBreadGranary.x = 0;
-roadBreadGranary.grain = 30;
+roadBreadGranary.ryeGrain = 30;
 roadBreadGranary.granaryGrainReserve = 20;
 roadGrainState.buildings.set(roadBreadGranary.id, roadBreadGranary);
 const roadMonastery = building('road-grain-monastery', 'monastery', 0);
@@ -1333,7 +1333,7 @@ roadMonastery.x = 100;
 roadGrainState.buildings.set(roadMonastery.id, roadMonastery);
 const remoteFarm = building('road-grain-farm', 'threshing_barn', 1);
 remoteFarm.x = 200;
-remoteFarm.grain = 100;
+remoteFarm.ryeGrain = 100;
 roadGrainState.buildings.set(remoteFarm.id, remoteFarm);
 const roadGrainComponent = (candidate: Pick<BuildingState, 'x'>) =>
   candidate.x < 50 ? 'bread' : candidate.x < 150 ? 'monastery' : 'remote';
@@ -1414,7 +1414,7 @@ isolatedAbbey.x = 0;
 abbeyRoadState.buildings.set(isolatedAbbey.id, isolatedAbbey);
 const abbeyRemoteFarm = building('abbey-remote-farm', 'threshing_barn', 1);
 abbeyRemoteFarm.x = 100;
-abbeyRemoteFarm.grain = 40;
+abbeyRemoteFarm.ryeGrain = 40;
 abbeyRoadState.buildings.set(abbeyRemoteFarm.id, abbeyRemoteFarm);
 const abbeyComponent = (candidate: Pick<BuildingState, 'x'>) =>
   candidate.x < 50 ? 'abbey' : 'remote';
@@ -1468,7 +1468,7 @@ readySeedMarket.marketplaceSeedGrainTarget = 48;
 seedProcurementState.buildings.set(readySeedMarket.id, readySeedMarket);
 const filledSeedMarket = building('seed-market-10', 'marketplace', 1);
 filledSeedMarket.marketplaceSeedGrainTarget = 48;
-filledSeedMarket.grain = 25;
+filledSeedMarket.ryeGrain = 25;
 seedProcurementState.buildings.set(filledSeedMarket.id, filledSeedMarket);
 const unstaffedSeedMarket = building('seed-market-1', 'marketplace', 0);
 unstaffedSeedMarket.marketplaceSeedGrainTarget = 24;
@@ -1612,7 +1612,7 @@ assert.equal(reserveCompetitionPlan.affordableLotsAtCurrentRate, 1);
 const frontierQueueMarket = building('frontier-seed-market', 'marketplace', 1);
 frontierQueueMarket.marketplaceSeedGrainTarget = 96;
 frontierQueueMarket.marketplaceIronworkTarget = 12;
-frontierQueueMarket.grain = 48;
+frontierQueueMarket.ryeGrain = 48;
 frontierQueueMarket.ironwork = 0;
 const frontierQueueState = emptyGameState();
 frontierQueueState.buildings.set(frontierQueueMarket.id, frontierQueueMarket);
@@ -1654,7 +1654,7 @@ assert.equal(fireSeedProcurement.firstAttentionKind, 'fire');
 
 const physicalSeedState = emptyGameState();
 const stockedManualMarket = building('stocked-market', 'marketplace', 1);
-stockedManualMarket.grain = 24;
+stockedManualMarket.ryeGrain = 24;
 physicalSeedState.buildings.set(stockedManualMarket.id, stockedManualMarket);
 const physicalSeedProcurement = computeSettlementSeedProcurementPlan({
   state: physicalSeedState,
@@ -1680,16 +1680,16 @@ westSeedFarm.x = 100;
 seedRoadState.buildings.set(westSeedFarm.id, westSeedFarm);
 const eastSeedMarket = building('east-seed-market', 'marketplace', 1);
 eastSeedMarket.x = 0;
-eastSeedMarket.grain = 10;
+eastSeedMarket.ryeGrain = 10;
 eastSeedMarket.marketplaceSeedGrainTarget = 48;
 seedRoadState.buildings.set(eastSeedMarket.id, eastSeedMarket);
 const remoteSeedMarket = building('remote-seed-market', 'marketplace', 1);
 remoteSeedMarket.x = 200;
-remoteSeedMarket.grain = 100;
+remoteSeedMarket.ryeGrain = 100;
 seedRoadState.buildings.set(remoteSeedMarket.id, remoteSeedMarket);
 const eastSeedGranary = building('east-seed-granary', 'granary', 0);
 eastSeedGranary.x = 0;
-eastSeedGranary.grain = 10;
+eastSeedGranary.ryeGrain = 10;
 seedRoadState.buildings.set(eastSeedGranary.id, eastSeedGranary);
 seedRoadState.deliveryTrips.set(
   'west-seed-cart',
@@ -1769,7 +1769,7 @@ const granarySeedState = emptyGameState();
 const granarySeedFarm = building('granary-seed-farm', 'threshing_barn', 1);
 granarySeedState.buildings.set(granarySeedFarm.id, granarySeedFarm);
 const seedOnlyGranary = building('seed-only-granary', 'granary', 0);
-seedOnlyGranary.grain = 12;
+seedOnlyGranary.ryeGrain = 12;
 granarySeedState.buildings.set(seedOnlyGranary.id, seedOnlyGranary);
 const granarySeedProcurement = computeSettlementSeedProcurementPlan({
   state: granarySeedState,
@@ -2017,7 +2017,7 @@ const farmToolLedger = computeSettlementProductionCapacity(
   1,
   1,
   1,
-  9,
+  8,
 ).industrialMaterials;
 const farmToolLedgerElapsedMs = performance.now() - farmToolLedgerStarted;
 assert.equal(farmToolLedger.toolEligibleSites, 1);
@@ -2031,7 +2031,7 @@ const procurementPerfState = emptyGameState();
 for (let index = 0; index < 100_000; index += 1) {
   const market = building(`seed-market-${index}`, 'marketplace', index % 5 === 0 ? 0 : 1);
   market.marketplaceSeedGrainTarget = index % 2 === 0 ? 48 : 0;
-  market.grain = index % 3 === 0 ? 24 : 0;
+  market.ryeGrain = index % 3 === 0 ? 24 : 0;
   procurementPerfState.buildings.set(market.id, market);
 }
 const procurementPerfStarted = performance.now();
@@ -2059,11 +2059,11 @@ for (let index = 0; index < 100_000; index += 1) {
   candidate.x = Math.floor(index / 500);
   candidate.assignedLabor = 1;
   if (index % 2 === 0) {
-    candidate.grain = 24;
+    candidate.ryeGrain = 24;
     candidate.marketplaceSeedGrainTarget = 48;
   } else {
     candidate.kind = 'threshing_barn';
-    candidate.grain = 0;
+    candidate.ryeGrain = 0;
     seedTopologyRequirements.set(candidate.id, 24);
   }
 }
@@ -2113,8 +2113,8 @@ assert.match(townHallInspector, /unavailable until branches connect/);
 assert.match(townHallInspector, /Inspect most imbalanced grain-chain branch/);
 assert.match(townHallInspector, /Bread capacity/);
 assert.match(townHallInspector, /bakery intake/);
-assert.match(townHallInspector, /September grain/);
-assert.match(townHallInspector, /September barley/);
+assert.match(townHallInspector, /August–September grain/);
+assert.match(townHallInspector, /August barley/);
 assert.match(townHallInspector, /Seed on holdings/);
 assert.match(townHallInspector, /Spring crop labor/);
 assert.match(townHallInspector, /Ox-supported fields/);
@@ -2226,8 +2226,15 @@ function building(
     stone: 0,
     water: 0,
     food: 0,
-    grain: 0,
-    flour: 0,
+    ryeGrain: 0,
+    oatGrain: 0,
+    maslinGrain: 0,
+    ryeFlour: 0,
+    oatFlour: 0,
+    maslinFlour: 0,
+    ryeBread: 0,
+    oatBread: 0,
+    maslinBread: 0,
     ale: 0,
     preservedFood: 0,
     honey: 0,
@@ -2310,7 +2317,7 @@ function deliveryTrip(
     residenceId: null,
     destinationKind: 'building',
     targetBuildingId,
-    cargoKind: 'grain',
+    cargoKind: 'ryeGrain',
     amount,
     phase,
     x: 0,

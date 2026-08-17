@@ -44,8 +44,12 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} fish`;
     case 'food':
       return `${Math.round(amount)} food`;
-    case 'bread':
-      return `${Math.round(amount)} bread`;
+    case 'ryeBread':
+      return `${Math.round(amount)} rye bread`;
+    case 'oatBread':
+      return `${Math.round(amount)} oat bread`;
+    case 'maslinBread':
+      return `${Math.round(amount)} maslin bread`;
     case 'meat':
       return `${Math.round(amount)} meat`;
     case 'milk':
@@ -62,14 +66,30 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} grapes`;
     case 'porridge':
       return `${Math.round(amount)} porridge`;
-    case 'grain':
-      return `${Math.round(amount)} grain`;
+    case 'ryeSheaves':
+      return `${Math.round(amount)} rye sheaves`;
+    case 'oatSheaves':
+      return `${Math.round(amount)} oat sheaves`;
+    case 'barleySheaves':
+      return `${Math.round(amount)} barley sheaves`;
+    case 'maslinSheaves':
+      return `${Math.round(amount)} maslin sheaves`;
+    case 'ryeGrain':
+      return `${Math.round(amount)} rye grain`;
+    case 'oatGrain':
+      return `${Math.round(amount)} oat grain`;
+    case 'maslinGrain':
+      return `${Math.round(amount)} maslin grain`;
     case 'barley':
       return `${Math.round(amount)} barley`;
     case 'malt':
       return `${Math.round(amount)} malt`;
-    case 'flour':
-      return `${Math.round(amount)} flour`;
+    case 'ryeFlour':
+      return `${Math.round(amount)} rye flour`;
+    case 'oatFlour':
+      return `${Math.round(amount)} oat flour`;
+    case 'maslinFlour':
+      return `${Math.round(amount)} maslin flour`;
     case 'ale':
       return `${Math.round(amount)} ale`;
     case 'preservedFood':

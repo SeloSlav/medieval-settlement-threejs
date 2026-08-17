@@ -11,7 +11,9 @@ import {
 
 export const FRESH_FOOD_KINDS = [
   'food',
-  'bread',
+  'ryeBread',
+  'oatBread',
+  'maslinBread',
   'meat',
   'fish',
   'berries',
@@ -33,7 +35,9 @@ export const PRESERVED_FOOD_KINDS = [
 ] as const;
 
 export const NAMED_FOOD_KINDS = [
-  'bread',
+  'ryeBread',
+  'oatBread',
+  'maslinBread',
   'meat',
   'fish',
   'berries',
@@ -58,7 +62,9 @@ export type FoodInventoryKind =
   | 'honey';
 
 export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
-  bread: 'Bread',
+  ryeBread: 'Rye bread',
+  oatBread: 'Oat bread',
+  maslinBread: 'Maslin bread',
   meat: 'Meat',
   fish: 'Fish',
   berries: 'Berries',
@@ -93,7 +99,9 @@ export type FoodCategory = keyof typeof FOOD_CATEGORY_LABELS;
 export function foodCategory(kind: FoodInventoryKind): FoodCategory {
   switch (kind) {
     case 'food':
-    case 'bread':
+    case 'ryeBread':
+    case 'oatBread':
+    case 'maslinBread':
     case 'porridge':
     case 'preservedFood':
       return 'grains';

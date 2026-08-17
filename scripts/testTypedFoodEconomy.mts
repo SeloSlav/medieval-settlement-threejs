@@ -20,7 +20,7 @@ import { computeInTransitResourceTotals } from '../src/resources/resourceTotals.
 import { MARKET_COMMODITIES } from '../src/generated/gameBalance.ts';
 
 const pantry = {
-  bread: 4,
+  ryeBread: 4,
   meat: 3,
   fish: 2,
   milk: 1,
@@ -34,7 +34,7 @@ assert.equal(freshFoodStock(pantry), 15);
 assert.equal(preservableFoodStock(pantry), 6);
 assert.equal(preservedFoodStock(pantry), 21);
 assert.equal(edibleFoodStock(pantry), 45);
-assert.equal(NAMED_FOOD_KINDS.length, 16);
+assert.equal(NAMED_FOOD_KINDS.length, 18);
 assert.equal(foodCategory('apples'), 'fruits');
 assert.equal(foodCategory('cherries'), 'fruits');
 assert.equal(foodCategory('vegetables'), 'vegetables');
@@ -74,7 +74,6 @@ assert.deepEqual(
 );
 
 const typedCargoKinds = [
-  'bread',
   'meat',
   'fish',
   'berries',
@@ -91,9 +90,19 @@ const typedCargoKinds = [
   'cheese',
 ] as const;
 for (let index = 0; index < typedCargoKinds.length; index += 1) {
-  const id = 27 + index;
+  const id = 28 + index;
   const kind = typedCargoKinds[index];
   assert.equal(cargoKindFromId(id), kind, `cargo id ${id} must remain ${kind}`);
+  assert.notEqual(cargoKindLabel(kind), 'Food');
+}
+assert.equal(cargoKindFromId(27), null, 'removed generic bread id remains vacant');
+for (const [id, kind] of [
+  [42, 'ryeSheaves'], [43, 'oatSheaves'], [44, 'barleySheaves'], [45, 'maslinSheaves'],
+  [46, 'ryeGrain'], [47, 'oatGrain'], [48, 'maslinGrain'],
+  [49, 'ryeFlour'], [50, 'oatFlour'], [51, 'maslinFlour'],
+  [52, 'ryeBread'], [53, 'oatBread'], [54, 'maslinBread'],
+] as const) {
+  assert.equal(cargoKindFromId(id), kind);
   assert.notEqual(cargoKindLabel(kind), 'Food');
 }
 
@@ -123,12 +132,12 @@ const trip = (
   routePolylineJson: '[]',
 });
 const transit = computeInTransitResourceTotals([
-  trip('bread', 'bread', 10),
+  trip('rye-bread', 'ryeBread', 10),
   trip('meat', 'meat', 4),
   trip('cheese', 'cheese', 3),
   trip('honey', 'honey', 2),
 ]);
-assert.equal(transit.bread, 10);
+assert.equal(transit.ryeBread, 10);
 assert.equal(transit.meat, 4);
 assert.equal(transit.cheese, 3);
 assert.equal(transit.preservedFood, 3);
@@ -156,7 +165,9 @@ const nightCycleSource = readFileSync(
   'server/src/simulation/night_cycle.rs',
   'utf8',
 );
-assert.match(economySource, /CommodityKind::Bread, BAKERY_FOOD_PER_CYCLE/);
+assert.match(economySource, /CommodityKind::RyeBread/);
+assert.match(economySource, /CommodityKind::OatBread/);
+assert.match(economySource, /CommodityKind::MaslinBread/);
 assert.match(economySource, /kind == "smokehouse" && commodity\.is_preserved_food\(\)/);
 assert.match(marketplaceOrdersSource, /"meat" => Ok\(CommodityKind::Meat\)/);
 assert.match(marketplaceOrdersSource, /"curedMeat" => Ok\(CommodityKind::CuredMeat\)/);

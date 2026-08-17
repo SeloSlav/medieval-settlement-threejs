@@ -513,10 +513,18 @@ type PortableRaidStoresLike = {
   timber: number;
   firewood: number;
   food: number;
-  grain: number;
+  ryeSheaves?: number;
+  oatSheaves?: number;
+  barleySheaves?: number;
+  maslinSheaves?: number;
+  ryeGrain?: number;
+  oatGrain?: number;
+  maslinGrain?: number;
   barley?: number;
   malt?: number;
-  flour: number;
+  ryeFlour?: number;
+  oatFlour?: number;
+  maslinFlour?: number;
   ale: number;
   preservedFood: number;
   honey: number;
@@ -532,7 +540,9 @@ type PortableRaidStoresLike = {
   charcoal?: number;
   pottery?: number;
   remedies?: number;
-  bread?: number;
+  ryeBread?: number;
+  oatBread?: number;
+  maslinBread?: number;
   meat?: number;
   fish?: number;
   berries?: number;
@@ -1263,10 +1273,18 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
   return positivePortableAmount(stores.timber)
     + positivePortableAmount(stores.firewood)
     + positivePortableAmount(stores.food)
-    + positivePortableAmount(stores.grain)
+    + positivePortableAmount(stores.ryeSheaves)
+    + positivePortableAmount(stores.oatSheaves)
+    + positivePortableAmount(stores.barleySheaves)
+    + positivePortableAmount(stores.maslinSheaves)
+    + positivePortableAmount(stores.ryeGrain)
+    + positivePortableAmount(stores.oatGrain)
+    + positivePortableAmount(stores.maslinGrain)
     + positivePortableAmount(stores.barley)
     + positivePortableAmount(stores.malt)
-    + positivePortableAmount(stores.flour)
+    + positivePortableAmount(stores.ryeFlour)
+    + positivePortableAmount(stores.oatFlour)
+    + positivePortableAmount(stores.maslinFlour)
     + positivePortableAmount(stores.ale)
     + positivePortableAmount(stores.preservedFood)
     + positivePortableAmount(stores.honey)
@@ -1282,7 +1300,9 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.charcoal)
     + positivePortableAmount(stores.pottery) * 1.25
     + positivePortableAmount(stores.remedies) * 1.25
-    + positivePortableAmount(stores.bread)
+    + positivePortableAmount(stores.ryeBread)
+    + positivePortableAmount(stores.oatBread)
+    + positivePortableAmount(stores.maslinBread)
     + positivePortableAmount(stores.meat)
     + positivePortableAmount(stores.fish)
     + positivePortableAmount(stores.berries)
@@ -1304,10 +1324,18 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['timber', 'timber', 1],
   ['firewood', 'firewood', 1],
   ['food', 'food', 1],
-  ['grain', 'grain', 1],
+  ['ryeSheaves', 'rye sheaves', 1],
+  ['oatSheaves', 'oat sheaves', 1],
+  ['barleySheaves', 'barley sheaves', 1],
+  ['maslinSheaves', 'maslin sheaves', 1],
+  ['ryeGrain', 'rye grain', 1],
+  ['oatGrain', 'oat grain', 1],
+  ['maslinGrain', 'maslin grain', 1],
   ['barley', 'barley', 1],
   ['malt', 'malt', 1],
-  ['flour', 'flour', 1],
+  ['ryeFlour', 'rye flour', 1],
+  ['oatFlour', 'oat flour', 1],
+  ['maslinFlour', 'maslin flour', 1],
   ['ale', 'ale', 1],
   ['preservedFood', 'preserved staples', 1],
   ['honey', 'honey', 1],
@@ -1323,7 +1351,9 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['charcoal', 'charcoal', 1],
   ['pottery', 'pottery', 1.25],
   ['remedies', 'dried remedies', 1.25],
-  ['bread', 'bread', 1],
+  ['ryeBread', 'rye bread', 1],
+  ['oatBread', 'oat bread', 1],
+  ['maslinBread', 'maslin bread', 1],
   ['meat', 'meat', 1],
   ['fish', 'fish', 1],
   ['berries', 'berries', 1],
@@ -1364,10 +1394,18 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   timber: 1,
   firewood: 1,
   food: 1,
-  grain: 1,
+  ryeSheaves: 1,
+  oatSheaves: 1,
+  barleySheaves: 1,
+  maslinSheaves: 1,
+  ryeGrain: 1,
+  oatGrain: 1,
+  maslinGrain: 1,
   barley: 1,
   malt: 1,
-  flour: 1,
+  ryeFlour: 1,
+  oatFlour: 1,
+  maslinFlour: 1,
   ale: 1,
   preservedFood: 1,
   honey: 1,
@@ -1384,7 +1422,9 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   charcoal: 1,
   pottery: 1.25,
   remedies: 1.25,
-  bread: 1,
+  ryeBread: 1,
+  oatBread: 1,
+  maslinBread: 1,
   meat: 1,
   fish: 1,
   berries: 1,

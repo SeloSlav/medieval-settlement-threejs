@@ -5,7 +5,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
-  MONASTERY_GRAIN_PER_CYCLE,
+  MONASTERY_OAT_GRAIN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
@@ -29,6 +29,7 @@ import {
   STAFFING_PRIORITY_NORMAL,
   type StaffingPriority,
 } from './staffingPriority.ts';
+import { breadGrainStock } from './cropGoods.ts';
 
 export const GRAIN_PLAN_DAYS_PER_YEAR =
   CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
@@ -285,7 +286,11 @@ function grainTransit(
     granaryReserve: 0,
   };
   for (const trip of state.deliveryTrips.values()) {
-    if (trip.cargoKind !== 'grain') continue;
+    if (
+      trip.cargoKind !== 'ryeGrain'
+      && trip.cargoKind !== 'oatGrain'
+      && trip.cargoKind !== 'maslinGrain'
+    ) continue;
     const amount = positiveFinite(trip.amount);
     transit.total += amount;
     if (
@@ -331,7 +336,7 @@ export function computeSettlementGrainPlan(
   let totalStock = (
     input.state.physicalFoundingSiteEnabled === true
       ? 0
-      : positiveFinite(input.state.stockpile.grain)
+      : breadGrainStock(input.state.stockpile)
   ) + transit.total;
   let monasteryGrainPerDay = 0;
   const processorPriorityCounts: Record<StaffingPriority, number> = {
@@ -342,7 +347,7 @@ export function computeSettlementGrainPlan(
   const workShare = input.sabbathObserved ? 6 / 7 : 1;
 
   for (const building of input.state.buildings.values()) {
-    const buildingGrain = positiveFinite(building.grain);
+    const buildingGrain = breadGrainStock(building);
     const completed = building.constructionComplete !== false;
     totalStock += buildingGrain;
     if (roadBranches && input.roadComponentFor && completed) {
@@ -396,7 +401,7 @@ export function computeSettlementGrainPlan(
     );
     const monasteryDailyDemand = MONASTERY_CYCLES_PER_WORKDAY
       * workShare
-      * MONASTERY_GRAIN_PER_CYCLE
+      * MONASTERY_OAT_GRAIN_PER_CYCLE
       * productivity;
     monasteryGrainPerDay += monasteryDailyDemand;
     if (roadBranches && input.roadComponentFor && monasteryDailyDemand > 1e-9) {

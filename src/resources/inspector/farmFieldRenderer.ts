@@ -45,6 +45,26 @@ import {
   farmToolThroughputMultiplier,
   farmToolWorkerDayRunway,
 } from '../../economy/civilianToolPolicy.ts';
+import { breadGrainStock } from '../../economy/cropGoods.ts';
+
+const MONTH_LABELS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const;
+
+function fieldSeedStock(
+  farmstead: NonNullable<Extract<InspectableTarget, { kind: 'farm-field' }>['farmstead']>,
+  crop: FarmCrop,
+): number {
+  switch (crop) {
+    case 'rye': return farmstead.ryeGrain ?? 0;
+    case 'oats': return farmstead.oatGrain ?? 0;
+    case 'barley': return farmstead.barley ?? 0;
+    case 'flax': return farmstead.flax ?? 0;
+    case 'wheat': return farmstead.maslinGrain ?? 0;
+    case 'fallow': return Number.POSITIVE_INFINITY;
+  }
+}
 
 const STAGE_LABEL = {
   ploughing: 'Ploughing',
@@ -133,10 +153,13 @@ export function renderFarmFieldInspector(
   const seasonalWindow = cropCalendarLabel(field.crop);
   const stageAllowed = fieldStageAllowed(field, month);
   const seedRemaining = fieldSeedGrainRemaining(field);
+  const seedCrop = field.stage === 'ploughing' || field.stage === 'sowing'
+    ? field.crop
+    : field.nextCrop;
   const seedBlocked = field.stage === 'sowing'
     && stageAllowed
     && seedRemaining > 1e-6
-    && (farmstead?.grain ?? 0) <= 1e-6;
+    && (!farmstead || fieldSeedStock(farmstead, seedCrop) <= 1e-6);
   const statusText = !farmstead
     ? 'Orphaned — farmstead missing'
     : field.priority === 0
@@ -154,8 +177,8 @@ export function renderFarmFieldInspector(
               : `${STAGE_LABEL[field.stage]} · ${stageProgress}%`;
 
   const harvestWindowDays = daysUntilCropHarvestWindow(clock, field.crop);
-  const harvestMonth = FARM_CROP_DEFINITIONS[field.crop].growthEndMonth % 12 + 1;
-  const harvestMonthLabel = harvestMonth === 9 ? 'September' : `month ${harvestMonth}`;
+  const harvestMonth = FARM_CROP_DEFINITIONS[field.crop].harvestMonth;
+  const harvestMonthLabel = MONTH_LABELS[harvestMonth - 1] ?? `month ${harvestMonth}`;
   const harvestTiming = field.stage === 'harvesting'
     ? crewDays == null
       ? 'Harvest underway · assign an onsite crew to finish'
@@ -188,7 +211,7 @@ export function renderFarmFieldInspector(
     ? `<div class="inspector-action-panel">
         <p class="resource-inspector-note">Early harvest — ${!farmstead || farmstead.constructionComplete === false
           ? 'finish the farmstead before ordering the cut.'
-          : earlyHarvest.reason} Waiting until September keeps 100% yield.</p>
+          : earlyHarvest.reason} Waiting until ${harvestMonthLabel} keeps 100% yield.</p>
         <div class="resource-action-row">
           <button type="button" class="resource-action-button" data-field-early-harvest ${!earlyHarvest.available || !farmstead?.constructionComplete ? 'disabled' : ''}>Begin early harvest · ${(expectedYield * earlyHarvest.yieldMultiplier).toFixed(1)} ${cropHarvestUnit(field.crop)} · ${Math.round(earlyHarvest.yieldMultiplier * 100)}%</button>
         </div>
@@ -212,7 +235,7 @@ export function renderFarmFieldInspector(
         ? `Active from nearby cattle · ${Math.round((1 - cattleSupport.ploughWorkMultiplier) * 100)}% less ploughing`
         : 'None · requires a top-two priority slot and healthy, supplied cattle within range'}</span></li>
       <li><span>Manure spread</span><span>${manureApplied.toFixed(1)} / ${manureRequired.toFixed(1)} this cycle · +${(manureBonus * 100).toFixed(1)} soil${field.stage === 'ploughing' ? ` · ${Math.max(0, farmstead?.manure ?? 0).toFixed(1)} waiting at farmstead` : ''}</span></li>
-      <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(farmstead.grain)} grain · ${Math.round(farmstead.manure ?? 0)} manure stored` : 'Missing'}</span></li>
+      <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${breadGrainStock(farmstead).toFixed(1)} bread grain (${(farmstead.ryeGrain ?? 0).toFixed(1)} rye / ${(farmstead.oatGrain ?? 0).toFixed(1)} oats / ${(farmstead.maslinGrain ?? 0).toFixed(1)} maslin) · ${Math.round(farmstead.manure ?? 0)} manure stored` : 'Missing'}</span></li>
       <li><span>Field tools</span><span>${toolThroughputMultiplier > 1 ? `Maintained · ${Math.round((toolThroughputMultiplier - 1) * 100)}% faster field work` : 'Baseline hand tools · farmstead needs smith-forged ironwork for faster work'}</span></li>
       <li><span>Land fit</span><span>${environmentalFit}% for ${cropLabel(field.crop).toLowerCase()} · ${soilFit}% soil / ${moistureFit}% moisture</span></li>
       <li><span>Water</span><span>${Math.round(field.moisture * 100)}% groundwater · ${Math.round(effectiveMoisture * 100)}% after soil retention</span></li>

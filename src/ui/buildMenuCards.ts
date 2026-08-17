@@ -74,7 +74,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   residences: ['Residence', 'H', 'Builds road-fronted homes that can grow through three tiers.'],
   well: ['Well', 'E', 'Supplies road-linked homes with water.', flow([], ['water'])],
   chapel: ['Church', 'C', 'Collects tithes and supports nearby households.'],
-  monastery: ['Pauline monastery', 'O', 'Turns grain, honey, and wine into charity and pilgrim income.', flow(['grain', 'honey', 'wine'], ['gold'])],
+  monastery: ['Pauline monastery', 'O', 'Turns oats, honey, and wine into charity and pilgrim income.', flow(['oatGrain', 'honey', 'wine'], ['gold'])],
   marketplace: ['Marketplace', 'P', 'Lets households exchange food and goods while collecting local taxes.'],
   trading_post: ['Trading Post', 'X', 'Imports and exports goods through worker-run trade routes.'],
   town_hall: ['Town Hall', 'T', 'Governs taxation and unlocks the settlement economic ledger.'],
@@ -95,11 +95,11 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   hunters_hall: ["Hunter's hall", 'K', 'Hunts nearby game to produce meat.', flow([], ['meat'])],
   foragers_shed: ["Forager's shed", 'Y', 'Gathers berries, mushrooms, and medicinal remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
   fishing_camp: ['Fishing camp', 'Z', 'Catches fish from nearby waters; stocks recover in spring.', flow([], ['fish'])],
-  threshing_barn: ['Farmstead', 'T', 'Grows and stores grain, barley, and flax from attached fields.', flow([], ['grain', 'barley', 'flax'])],
-  watermill: ['Grain watermill', 'M', 'Grinds grain into flour with seasonal river power; it stops when the mill race freezes.', flow(['grain'], ['flour'])],
-  windmill: ['Grain windmill', 'I', 'Grinds grain into flour wherever wind is strong, including through winter.', flow(['grain'], ['flour'])],
+  threshing_barn: ['Farmstead', 'T', 'Harvests and threshes distinct rye, oat, barley, maslin, and flax crops.', flow([], ['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'flax'])],
+  watermill: ['Grain watermill', 'M', 'Grinds rye, oats, or maslin into matching flour with seasonal river power.', flow(['ryeGrain', 'oatGrain', 'maslinGrain'], ['ryeFlour', 'oatFlour', 'maslinFlour'])],
+  windmill: ['Grain windmill', 'I', 'Grinds rye, oats, or maslin into matching flour wherever wind is strong.', flow(['ryeGrain', 'oatGrain', 'maslinGrain'], ['ryeFlour', 'oatFlour', 'maslinFlour'])],
   granary: ['Village granary', 'N', 'Collects and distributes food; it does not process it.'],
-  bakery: ['Village bakery', 'B', 'Turns flour, water, and firewood into bread.', flow(['flour', 'water', 'firewood'], ['bread'])],
+  bakery: ['Village bakery', 'B', 'Bakes rye, oat, or maslin flour into matching bread.', flow(['ryeFlour', 'oatFlour', 'maslinFlour', 'water', 'firewood'], ['ryeBread', 'oatBread', 'maslinBread'])],
   brewery: ['Brewhouse', 'A', 'Turns barley, water, and firewood into ale.', flow(['barley', 'water', 'firewood'], ['ale'])],
   smokehouse: ['Smokehouse', 'Q', 'Uses firewood, salt, and pottery to preserve fresh food.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
   apiary: ['Forest apiary', 'A', 'Produces honey during the warm season.', flow([], ['honey'])],
@@ -107,7 +107,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   weaver: ["Weaver's workshop", 'V', 'Turns wool or flax into cloth; flax also needs water.', flow(['wool', 'flax', 'water'], ['cloth'])],
   vineyard: ['Vineyard terrace', 'V', 'Produces grapes and wine on suitable hillsides.', flow([], ['grapes', 'wine'])],
   pastoral_farmstead: ['Pastoral farmstead', 'D', 'Raises cattle or sheep for milk, wool, manure, and meat.', flow([], ['milk', 'wool', 'manure', 'meat'])],
-  swineherd: ['Woodland swineherd', 'X', 'Raises pigs on woodland mast or grain to produce meat.', flow(['grain'], ['meat'])],
+  swineherd: ['Woodland swineherd', 'X', 'Raises pigs on woodland mast or oat-grain fallback to produce meat.', flow(['oatGrain'], ['meat'])],
 };
 
 const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>

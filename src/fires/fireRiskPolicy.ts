@@ -42,7 +42,13 @@ type FireTarget = {
   z: number;
   timber?: number;
   firewood?: number;
-  grain?: number;
+  ryeSheaves?: number;
+  oatSheaves?: number;
+  barleySheaves?: number;
+  maslinSheaves?: number;
+  ryeGrain?: number;
+  oatGrain?: number;
+  maslinGrain?: number;
   barley?: number;
   malt?: number;
   flax?: number;
@@ -93,7 +99,13 @@ export function storedFuelMultiplier(target: FireTarget): number {
   const storedFuel = Math.max(0, target.firewood ?? 0)
     + Math.max(0, target.timber ?? 0) * 0.35
     + (
-      Math.max(0, target.grain ?? 0)
+      Math.max(0, target.ryeSheaves ?? 0)
+      + Math.max(0, target.oatSheaves ?? 0)
+      + Math.max(0, target.barleySheaves ?? 0)
+      + Math.max(0, target.maslinSheaves ?? 0)
+      + Math.max(0, target.ryeGrain ?? 0)
+      + Math.max(0, target.oatGrain ?? 0)
+      + Math.max(0, target.maslinGrain ?? 0)
       + Math.max(0, target.barley ?? 0)
       + Math.max(0, target.malt ?? 0)
       + Math.max(0, target.flax ?? 0)

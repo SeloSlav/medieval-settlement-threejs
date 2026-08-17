@@ -28,7 +28,9 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'firewood':
       return 'a Village Storehouse with intake enabled';
     case 'food':
-    case 'bread':
+    case 'ryeBread':
+    case 'oatBread':
+    case 'maslinBread':
     case 'meat':
     case 'fish':
     case 'berries':
@@ -43,9 +45,17 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':
-    case 'grain':
+    case 'ryeSheaves':
+    case 'oatSheaves':
+    case 'barleySheaves':
+    case 'maslinSheaves':
+    case 'ryeGrain':
+    case 'oatGrain':
+    case 'maslinGrain':
     case 'barley':
-    case 'flour':
+    case 'ryeFlour':
+    case 'oatFlour':
+    case 'maslinFlour':
     case 'preservedFood':
       return 'a Granary or another compatible provision store';
     case 'malt':

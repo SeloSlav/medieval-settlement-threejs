@@ -1,6 +1,7 @@
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
 import { preservedFoodStock } from './foodInventory.ts';
+import { breadStock, flourStock } from './cropGoods.ts';
 import {
   normalizePotterFiringPolicy,
   POTTER_FIRE_ROOF_TILES,
@@ -45,9 +46,13 @@ export type ProcessorOutputCommodity =
 export type ExtractionOutputCommodity = 'stone' | 'iron' | 'salt' | 'clay';
 
 export type ProcessorInputCommodity =
-  | 'grain'
+  | 'ryeGrain'
+  | 'oatGrain'
+  | 'maslinGrain'
   | 'barley'
-  | 'flour'
+  | 'ryeFlour'
+  | 'oatFlour'
+  | 'maslinFlour'
   | 'water'
   | 'firewood'
   | 'food'
@@ -127,9 +132,9 @@ const INPUTS_BY_KIND: Record<
   ProcessorOutputTargetKind,
   readonly ProcessorInputCommodity[]
 > = {
-  watermill: ['grain'],
-  windmill: ['grain'],
-  bakery: ['flour', 'water', 'firewood'],
+  watermill: ['ryeGrain', 'oatGrain', 'maslinGrain'],
+  windmill: ['ryeGrain', 'oatGrain', 'maslinGrain'],
+  bakery: ['ryeFlour', 'oatFlour', 'maslinFlour', 'water', 'firewood'],
   brewery: ['barley', 'water', 'firewood'],
   smokehouse: ['food', 'firewood', 'salt', 'pottery'],
   weaver: ['wool', 'flax', 'water'],
@@ -235,20 +240,18 @@ export function processorOutputTargetForBuilding(
 }
 
 export function processorOutputHeadroom(
-  building: Pick<
-    BuildingState,
-    'kind'
-      | 'processorOutputTargetPercent'
-      | 'potterFiringPolicy'
-      | ProcessorOutputCommodity
-  >,
+  building: BuildingState,
 ): number | null {
   const output = processorOutputCommodityForBuilding(building);
   if (!output) return null;
   const target = processorOutputTargetForBuilding(building) ?? 0;
   const stock = building.kind === 'smokehouse'
     ? preservedFoodStock(building)
-    : Math.max(0, building[output] ?? 0);
+    : output === 'flour'
+      ? flourStock(building)
+      : output === 'bread'
+        ? breadStock(building)
+        : Math.max(0, building[output] ?? 0);
   return Math.max(0, target - stock);
 }
 
@@ -318,10 +321,7 @@ export function extractionAcceptsMaintenance(
 }
 
 export function processorNeedsInputs(
-  building: Pick<
-    BuildingState,
-    'kind' | 'processorOutputTargetPercent' | ProcessorOutputCommodity
-  >,
+  building: BuildingState,
 ): boolean {
   const headroom = processorOutputHeadroom(building);
   return headroom == null || headroom > 1e-6;
@@ -336,10 +336,7 @@ export function processorUsesInput(
 }
 
 export function processorAcceptsInput(
-  building: Pick<
-    BuildingState,
-    'kind' | 'processorOutputTargetPercent' | ProcessorOutputCommodity
-  >,
+  building: BuildingState,
   commodity: ProcessorInputCommodity,
 ): boolean {
   if (building.kind === 'pastoral_farmstead' && commodity === 'salt') {

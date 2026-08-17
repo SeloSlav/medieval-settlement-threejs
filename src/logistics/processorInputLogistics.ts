@@ -46,7 +46,9 @@ export const PROCESSOR_INPUT_BUFFER_CYCLES = 3;
 export type DirectProcessorInputCommodity =
   | 'barley'
   | 'firewood'
-  | 'flour'
+  | 'ryeFlour'
+  | 'oatFlour'
+  | 'maslinFlour'
   | 'food'
   | 'preservedFood'
   | 'wool'
@@ -75,7 +77,9 @@ type ProcessorInputDestinationLike = Pick<
   | 'marketplaceSaltTarget'
   | 'granaryAcceptsFreshFood'
   | 'weaverInputPolicy'
-  | 'flour'
+  | 'ryeFlour'
+  | 'oatFlour'
+  | 'maslinFlour'
   | 'food'
   | 'preservedFood'
   | 'wool'
@@ -112,7 +116,9 @@ const TARGET_KINDS: Record<
     'charcoal_burner',
     'potter_kiln',
   ],
-  flour: ['bakery', 'granary'],
+  ryeFlour: ['bakery', 'granary'],
+  oatFlour: ['bakery', 'granary'],
+  maslinFlour: ['bakery', 'granary'],
   food: ['smokehouse'],
   preservedFood: ['granary'],
   wool: ['weaver'],
@@ -160,7 +166,9 @@ export function directlyDispatchedProcessorInputPerCycle(
         default:
           return 0;
       }
-    case 'flour':
+    case 'ryeFlour':
+    case 'oatFlour':
+    case 'maslinFlour':
       return targetKind === 'bakery' ? BAKERY_FLOUR_PER_CYCLE : 0;
     case 'food':
       return SMOKEHOUSE_FOOD_PER_CYCLE;
@@ -252,8 +260,11 @@ export function selectDirectProcessorInputTarget<
       continue;
     }
     const stock = processorInputCommodityStock(target, commodity);
+    const capacityKey = commodity === 'ryeFlour' || commodity === 'oatFlour' || commodity === 'maslinFlour'
+      ? 'flour'
+      : commodity;
     const capacity = (BUILDING_STORAGE_CAPS[target.kind] as Record<string, number | undefined>)[
-      commodity
+      capacityKey
     ] ?? 0;
     if (stock + 1e-6 >= capacity) continue;
     const routeDistance = routeDistanceFor(target);
@@ -273,7 +284,11 @@ export function selectDirectProcessorInputTarget<
     );
     const toolRack = commodity === 'ironwork' && isCivilianToolSite(target.kind);
     if (toolRack && !civilianToolRefillDue(stock, capacity)) continue;
-    const centralFlourStorage = commodity === 'flour' && target.kind === 'granary';
+    const centralFlourStorage = (
+      commodity === 'ryeFlour'
+      || commodity === 'oatFlour'
+      || commodity === 'maslinFlour'
+    ) && target.kind === 'granary';
     const duty: ProcessorInputDispatchDuty = toolRack
       ? target.assignedLabor > 0
         ? 'working-buffer'
@@ -329,6 +344,9 @@ export function processorInputCommodityStock(
 ): number {
   if (commodity === 'food') return preservableFoodStock(inventory);
   if (commodity === 'preservedFood') return preservedFoodStock(inventory);
+  if (commodity === 'ryeFlour' || commodity === 'oatFlour' || commodity === 'maslinFlour') {
+    return Math.max(0, Number(inventory[commodity] ?? 0));
+  }
   return Math.max(0, Number(inventory[commodity] ?? 0));
 }
 
@@ -707,10 +725,12 @@ function directMaterialCommodityRank(
     case 'ironwork': return 5;
     case 'barley': return 6;
     case 'firewood': return 7;
-    case 'flour': return 8;
-    case 'food': return 9;
-    case 'preservedFood': return 10;
-    case 'wool': return 11;
-    case 'flax': return 12;
+    case 'ryeFlour': return 8;
+    case 'oatFlour': return 9;
+    case 'maslinFlour': return 10;
+    case 'food': return 11;
+    case 'preservedFood': return 12;
+    case 'wool': return 13;
+    case 'flax': return 14;
   }
 }

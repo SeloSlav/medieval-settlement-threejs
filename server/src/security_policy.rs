@@ -246,8 +246,19 @@ pub struct RaidPortableStores {
     pub timber: f64,
     pub firewood: f64,
     pub food: f64,
-    pub grain: f64,
-    pub flour: f64,
+    pub rye_sheaves: f64,
+    pub oat_sheaves: f64,
+    pub barley_sheaves: f64,
+    pub maslin_sheaves: f64,
+    pub rye_grain: f64,
+    pub oat_grain: f64,
+    pub maslin_grain: f64,
+    pub rye_flour: f64,
+    pub oat_flour: f64,
+    pub maslin_flour: f64,
+    pub rye_bread: f64,
+    pub oat_bread: f64,
+    pub maslin_bread: f64,
     pub ale: f64,
     pub preserved_food: f64,
     pub honey: f64,
@@ -266,7 +277,6 @@ pub struct RaidPortableStores {
     pub charcoal: f64,
     pub pottery: f64,
     pub remedies: f64,
-    pub bread: f64,
     pub meat: f64,
     pub fish: f64,
     pub berries: f64,
@@ -295,8 +305,19 @@ impl RaidPortableStores {
         positive_store(self.timber)
             + positive_store(self.firewood)
             + positive_store(self.food)
-            + positive_store(self.grain)
-            + positive_store(self.flour)
+            + positive_store(self.rye_sheaves)
+            + positive_store(self.oat_sheaves)
+            + positive_store(self.barley_sheaves)
+            + positive_store(self.maslin_sheaves)
+            + positive_store(self.rye_grain)
+            + positive_store(self.oat_grain)
+            + positive_store(self.maslin_grain)
+            + positive_store(self.rye_flour)
+            + positive_store(self.oat_flour)
+            + positive_store(self.maslin_flour)
+            + positive_store(self.rye_bread)
+            + positive_store(self.oat_bread)
+            + positive_store(self.maslin_bread)
             + positive_store(self.ale)
             + positive_store(self.preserved_food)
             + positive_store(self.honey)
@@ -315,7 +336,6 @@ impl RaidPortableStores {
             + positive_store(self.charcoal)
             + positive_store(self.pottery) * 1.25
             + positive_store(self.remedies) * 1.25
-            + positive_store(self.bread)
             + positive_store(self.meat)
             + positive_store(self.fish)
             + positive_store(self.berries)
@@ -336,8 +356,19 @@ impl RaidPortableStores {
         positive_store(self.timber)
             + positive_store(self.firewood)
             + positive_store(self.food)
-            + positive_store(self.grain)
-            + positive_store(self.flour)
+            + positive_store(self.rye_sheaves)
+            + positive_store(self.oat_sheaves)
+            + positive_store(self.barley_sheaves)
+            + positive_store(self.maslin_sheaves)
+            + positive_store(self.rye_grain)
+            + positive_store(self.oat_grain)
+            + positive_store(self.maslin_grain)
+            + positive_store(self.rye_flour)
+            + positive_store(self.oat_flour)
+            + positive_store(self.maslin_flour)
+            + positive_store(self.rye_bread)
+            + positive_store(self.oat_bread)
+            + positive_store(self.maslin_bread)
             + positive_store(self.ale)
             + positive_store(self.preserved_food)
             + positive_store(self.honey)
@@ -355,7 +386,6 @@ impl RaidPortableStores {
             + positive_store(self.charcoal)
             + positive_store(self.pottery)
             + positive_store(self.remedies)
-            + positive_store(self.bread)
             + positive_store(self.meat)
             + positive_store(self.fish)
             + positive_store(self.berries)
@@ -392,8 +422,19 @@ impl RaidPortableStores {
         plunder_good!(timber);
         plunder_good!(firewood);
         plunder_good!(food);
-        plunder_good!(grain);
-        plunder_good!(flour);
+        plunder_good!(rye_sheaves);
+        plunder_good!(oat_sheaves);
+        plunder_good!(barley_sheaves);
+        plunder_good!(maslin_sheaves);
+        plunder_good!(rye_grain);
+        plunder_good!(oat_grain);
+        plunder_good!(maslin_grain);
+        plunder_good!(rye_flour);
+        plunder_good!(oat_flour);
+        plunder_good!(maslin_flour);
+        plunder_good!(rye_bread);
+        plunder_good!(oat_bread);
+        plunder_good!(maslin_bread);
         plunder_good!(ale);
         plunder_good!(preserved_food);
         plunder_good!(honey);
@@ -411,7 +452,6 @@ impl RaidPortableStores {
         plunder_good!(charcoal);
         plunder_good!(pottery);
         plunder_good!(remedies);
-        plunder_good!(bread);
         plunder_good!(meat);
         plunder_good!(fish);
         plunder_good!(berries);
@@ -446,8 +486,19 @@ impl RaidPortableStores {
             timber: removed!(timber),
             firewood: removed!(firewood),
             food: removed!(food),
-            grain: removed!(grain),
-            flour: removed!(flour),
+            rye_sheaves: removed!(rye_sheaves),
+            oat_sheaves: removed!(oat_sheaves),
+            barley_sheaves: removed!(barley_sheaves),
+            maslin_sheaves: removed!(maslin_sheaves),
+            rye_grain: removed!(rye_grain),
+            oat_grain: removed!(oat_grain),
+            maslin_grain: removed!(maslin_grain),
+            rye_flour: removed!(rye_flour),
+            oat_flour: removed!(oat_flour),
+            maslin_flour: removed!(maslin_flour),
+            rye_bread: removed!(rye_bread),
+            oat_bread: removed!(oat_bread),
+            maslin_bread: removed!(maslin_bread),
             ale: removed!(ale),
             preserved_food: removed!(preserved_food),
             honey: removed!(honey),
@@ -466,7 +517,6 @@ impl RaidPortableStores {
             charcoal: removed!(charcoal),
             pottery: removed!(pottery),
             remedies: removed!(remedies),
-            bread: removed!(bread),
             meat: removed!(meat),
             fish: removed!(fish),
             berries: removed!(berries),

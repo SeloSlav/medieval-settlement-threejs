@@ -7,6 +7,7 @@ import {
   NAMED_FOOD_KINDS,
   NAMED_FOOD_LABELS,
 } from '../../economy/foodInventory.ts';
+import { BREAD_GRAIN_KINDS, FLOUR_KINDS, GRAIN_SHEAF_KINDS } from '../../economy/cropGoods.ts';
 import {
   hiddenDemolish,
   hiddenLabor,
@@ -23,8 +24,9 @@ const STOCK_ROWS: Array<[
   ['Firewood', (building) => building.firewood],
   ['Water', (building) => building.water],
   ['Legacy mixed food', (building) => building.food],
-  ['Grain', (building) => building.grain],
-  ['Flour', (building) => building.flour],
+  ...GRAIN_SHEAF_KINDS.map((kind) => [cargoKindLabel(kind), (building: BuildingState) => building[kind] ?? 0] as [string, (building: BuildingState) => number]),
+  ...BREAD_GRAIN_KINDS.map((kind) => [cargoKindLabel(kind), (building: BuildingState) => building[kind] ?? 0] as [string, (building: BuildingState) => number]),
+  ...FLOUR_KINDS.map((kind) => [cargoKindLabel(kind), (building: BuildingState) => building[kind] ?? 0] as [string, (building: BuildingState) => number]),
   ['Ale', (building) => building.ale],
   ['Legacy preserved staples', (building) => building.preservedFood],
   ...NAMED_FOOD_KINDS.map((kind) => [

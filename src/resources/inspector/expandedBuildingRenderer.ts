@@ -57,6 +57,7 @@ import { getBuildingProcessorStatus } from './buildingProcessorStatus.ts';
 import { renderInboundSupplyRow, renderOutboundDeliveryRows, type DeliveryStatusContext } from './deliveryStatusRows.ts';
 import {
   onsiteBuildingLabor,
+  type DeliveryCargoKind,
   type DeliveryTripState,
 } from '../../logistics/deliveryTrips.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
@@ -162,6 +163,32 @@ import {
   apiaryHarvestPolicy,
   vineyardProductionPolicy,
 } from '../../economy/specialtyTrade.ts';
+import {
+  BREAD_GRAIN_KINDS,
+  FLOUR_KINDS,
+  breadGrainBulkStock,
+  breadGrainStock,
+  breadStock,
+  flourStock,
+  type BreadGrainKind,
+  type FlourKind,
+} from '../../economy/cropGoods.ts';
+
+function isBreadGrainKind(kind: DeliveryCargoKind | undefined): kind is BreadGrainKind {
+  return kind != null && (BREAD_GRAIN_KINDS as readonly DeliveryCargoKind[]).includes(kind);
+}
+
+function dominantFlourKind(building: BuildingState): FlourKind {
+  return FLOUR_KINDS.reduce((best, kind) =>
+    (building[kind] ?? 0) > (building[best] ?? 0) ? kind : best,
+  );
+}
+
+function dominantBreadGrainKind(building: BuildingState): BreadGrainKind {
+  return BREAD_GRAIN_KINDS.reduce((best, kind) =>
+    (building[kind] ?? 0) > (building[best] ?? 0) ? kind : best,
+  );
+}
 
 const PROCESS: Record<string, string> = {
   mine: 'A local iron or salt deposit + labor → raw material for linked local processing',
@@ -212,23 +239,23 @@ function buildingHasOutboundStock(
 ): boolean {
   switch (building.kind) {
     case 'threshing_barn':
-      return building.grain > protectedSeedGrain + 1e-6
+      return breadGrainStock(building) > protectedSeedGrain + 1e-6
         || (building.barley ?? 0) > 1e-6
         || (building.flax ?? 0) > 1e-6;
     case 'watermill':
     case 'windmill':
-      return building.flour > 0;
+      return flourStock(building) > 0;
     case 'granary':
       return edibleFoodStock(building) > 0
-        || building.flour > 0
+        || flourStock(building) > 0
         || (building.barley ?? 0) > 0
         || (building.flax ?? 0) > 0
         || granaryExportableGrain(
-          building.grain,
+          breadGrainStock(building),
           building.granaryGrainReserve ?? 0,
         ) > 1e-6;
     case 'bakery':
-      return (building.bread ?? 0) > 0;
+      return breadStock(building) > 0;
     case 'brewery':
       return (building.barley ?? 0) > 0
         || (building.malt ?? 0) > 0
@@ -377,7 +404,7 @@ function outboundTripTarget(
   if (building.kind === 'watermill' || building.kind === 'windmill') {
     return context.worldQueries.getNextDirectProcessorInputDispatch(
       building,
-      'flour',
+      dominantFlourKind(building),
     )?.target ?? null;
   }
   if (building.kind === 'brewery') {
@@ -584,12 +611,15 @@ function renderLogisticsRows(
     && seedPlan?.nextDispatchAmount != null
     && seedPlan.nextDispatchAmount > 0.05;
   const activeSeedCollection = building.kind === 'granary'
-    && activeTrip?.cargoKind === 'grain'
+    && isBreadGrainKind(activeTrip?.cargoKind)
     && activeTrip.targetBuildingId != null
     && context.gameState.buildings.get(activeTrip.targetBuildingId)?.kind === 'threshing_barn';
   const seedHaulUsesHoldingCrew = seedDispatchReady || activeSeedCollection;
-  const flourDispatch = building.kind === 'watermill' || building.kind === 'windmill'
-    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'flour')
+  const flourCommodity = building.kind === 'watermill' || building.kind === 'windmill'
+    ? dominantFlourKind(building)
+    : null;
+  const flourDispatch = flourCommodity
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, flourCommodity)
     : null;
   const ironworkDispatch = building.kind === 'smithy'
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'ironwork')
@@ -638,7 +668,7 @@ function renderLogisticsRows(
         : `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · active loom buffers covered · nearest overflow route`
       : flourDispatch
       ? flourDispatch.duty === 'working-buffer'
-        ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${flourDispatch.target.flour.toFixed(1)} / ${flourDispatch.desiredStock.toFixed(1)} flour · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
+        ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${Math.max(0, flourCommodity ? flourDispatch.target[flourCommodity] ?? 0 : 0).toFixed(1)} / ${flourDispatch.desiredStock.toFixed(1)} ${flourCommodity?.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
         : flourDispatch.duty === 'central-storage'
           ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · central flour reserve after active bakery buffers · shortest road`
           : `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · emergency overflow because no granary can receive flour · shortest road`
@@ -825,7 +855,7 @@ function formatGranarySeedCart(
   const distance = plan.nextDispatchDistance === null
     ? ''
     : ` &middot; ${plan.nextDispatchDistance.toFixed(0)} m road`;
-  if (building.grain <= 0.05 || plan.nextDispatchAmount <= 0.05) {
+  if (breadGrainStock(building) <= 0.05 || plan.nextDispatchAmount <= 0.05) {
     return `Awaiting physical grain &middot; next holding ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance} ${inspect}`;
   }
   const collection = building.assignedLabor <= 0
@@ -1147,7 +1177,7 @@ export function renderExpandedBuildingInspector(
     : '';
   const granaryExportableStock = building.kind === 'granary'
     ? granaryExportableGrain(
-        building.grain,
+        breadGrainStock(building),
         building.granaryGrainReserve ?? 0,
       )
     : 0;
@@ -1162,7 +1192,7 @@ export function renderExpandedBuildingInspector(
     : 0;
   const granaryGrainDispatchLabel = building.kind === 'granary'
     ? granaryGrainDispatch
-      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${staffingPriorityLabel(granaryGrainDispatch.workPriority)} priority · ${granaryGrainDispatch.target.grain.toFixed(1)} / ${granaryGrainDispatch.desiredStock.toFixed(1)} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
+      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${staffingPriorityLabel(granaryGrainDispatch.workPriority)} priority · ${Math.max(0, granaryGrainDispatch.target[granaryGrainDispatch.commodity] ?? 0).toFixed(1)} / ${granaryGrainDispatch.desiredStock.toFixed(1)} ${granaryGrainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
           granaryGrainDispatch.runwayCycles < GRAIN_CRITICAL_RUNWAY_CYCLES
             ? ' · critical, preempts food cart'
             : ' · after available food duty'
@@ -1170,7 +1200,7 @@ export function renderExpandedBuildingInspector(
       : building.assignedLabor <= 0
         ? 'Waiting for an assigned granary hauler'
         : granaryExportableStock <= 1e-6
-          ? building.grain > 1e-6
+          ? breadGrainStock(building) > 1e-6
             ? 'Strategic floor holds current grain'
             : 'No exportable grain'
           : 'No staffed road-linked processor below buffer'
@@ -1216,17 +1246,21 @@ export function renderExpandedBuildingInspector(
       <li><span>Household priority</span><span>Protect one market-allocation batch per claimed home · capped at 50% source storage</span></li>
       <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(freshFoodStock(building) * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
     : '';
+  const processorGrainKind = building.kind === 'monastery'
+    ? 'oatGrain'
+    : dominantBreadGrainKind(building);
+  const processorGrainStock = Math.max(0, building[processorGrainKind] ?? 0);
   const grainProcessorRows = building.kind === 'watermill'
     || building.kind === 'windmill'
     || building.kind === 'monastery'
     ? `<li><span>Grain working buffer</span><span>${formatGrainWorkingBuffer(
-        building.grain,
+        processorGrainStock,
         building.kind,
         building.kind === 'monastery' && !context.worldQueries.isMonasteryLinkedToChapel(building)
           ? MONASTERY_UNLINKED_PRODUCTIVITY
           : 1,
         building.processorOutputTargetPercent,
-      )}</span></li>`
+      )} · ${processorGrainKind.replace(/([A-Z])/g, ' $1').toLowerCase()}</span></li>`
     : '';
   const millPowerRows = building.kind === 'watermill'
     ? `<li><span>River power</span><span>${Math.round(environment.watermillThroughputMultiplier * 100)}% throughput · ${environment.weather === 'rain'
@@ -1416,7 +1450,8 @@ function renderFarmsteadPlanning(
     Math.max(0, building.ironwork ?? 0) + inboundIronwork,
   );
   const storageCaps = buildingStorageCaps(building.kind);
-  const grainRoom = Math.max(0, (storageCaps.grain ?? 0) - building.grain);
+  const onsiteSeedGrain = breadGrainStock(building);
+  const grainRoom = Math.max(0, (storageCaps.grain ?? 0) - breadGrainBulkStock(building));
   const barley = Math.max(0, building.barley ?? 0);
   const barleyRoom = Math.max(0, (storageCaps.barley ?? 0) - barley);
   const fibreRoom = Math.max(0, (storageCaps.flax ?? 0) - (building.flax ?? 0));
@@ -1427,7 +1462,7 @@ function renderFarmsteadPlanning(
   const seasonalRisk = plan.harvest.shortfallWorkerDays > 0.05
     || plan.spring.shortfallWorkerDays > 0.05
     || plan.autumn.shortfallWorkerDays > 0.05;
-  const inboundSeed = inboundSupply?.cargoKind === 'grain'
+  const inboundSeed = isBreadGrainKind(inboundSupply?.cargoKind)
     ? Math.max(0, inboundSupply.amount)
     : 0;
   const inboundBarleySeed = inboundSupply?.cargoKind === 'barley'
@@ -1436,14 +1471,14 @@ function renderFarmsteadPlanning(
   const inboundManure = inboundSupply?.cargoKind === 'manure'
     ? Math.max(0, inboundSupply.amount)
     : 0;
-  const onsiteSeedShortfall = Math.max(0, plan.seedGrainRequired - building.grain);
+  const onsiteSeedShortfall = Math.max(0, plan.seedGrainRequired - onsiteSeedGrain);
   const onsiteBarleySeedShortfall = Math.max(
     0,
     plan.seedBarleyRequired - barley,
   );
   const seedShortfall = Math.max(
     0,
-    plan.seedGrainRequired - building.grain - inboundSeed,
+    plan.seedGrainRequired - onsiteSeedGrain - inboundSeed,
   );
   const barleySeedShortfall = Math.max(
     0,
@@ -1454,17 +1489,17 @@ function renderFarmsteadPlanning(
     plan.manureApplied + Math.max(0, building.manure ?? 0) + inboundManure,
   );
   const manureShortfall = Math.max(0, plan.manureRequired - manureCovered);
-  const exportableGrain = Math.max(0, building.grain - plan.seedGrainRequired);
+  const exportableGrain = Math.max(0, onsiteSeedGrain - plan.seedGrainRequired);
   const exportableBarley = Math.max(0, barley - plan.seedBarleyRequired);
   const grainDispatch = context.worldQueries.getNextFarmGrainDispatch(building);
   const grainRoutingLabel = grainDispatch == null
     ? exportableGrain > 1e-6
       ? 'No eligible grain capacity'
-      : building.grain > 1e-6 && plan.seedGrainRequired > 1e-6
+      : onsiteSeedGrain > 1e-6 && plan.seedGrainRequired > 1e-6
         ? 'Held for linked fields'
         : 'No grain awaiting haul'
     : grainDispatch.duty === 'working-buffer'
-      ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · ${staffingPriorityLabel(grainDispatch.workPriority)} priority · ${grainDispatch.target.grain.toFixed(1)} / ${grainDispatch.desiredStock.toFixed(1)} working buffer`
+      ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · ${staffingPriorityLabel(grainDispatch.workPriority)} priority · ${Math.max(0, grainDispatch.target[grainDispatch.commodity] ?? 0).toFixed(1)} / ${grainDispatch.desiredStock.toFixed(1)} ${grainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} working buffer`
       : grainDispatch.duty === 'granary-reserve'
         ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · central reserve`
         : `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · emergency overflow`;
@@ -1498,17 +1533,17 @@ function renderFarmsteadPlanning(
     <li><span>Linked fields</span><span>${plan.activeFields} active${plan.pausedFields > 0 ? ` · ${plan.pausedFields} paused` : ''}</span></li>
     <li><span>Ox-supported fields</span><span>${plan.cattleSupportedFields} / ${plan.activeFields} active · labor forecast includes faster ploughing</span></li>
     ${rotationRows}
-    <li><span>September labor</span><span>${formatSeasonalWork(plan.harvest)}</span></li>
+    <li><span>August–September labor</span><span>${formatSeasonalWork(plan.harvest)}</span></li>
     <li><span>Spring crop labor</span><span>${formatSeasonalWork(plan.spring)}</span></li>
     <li><span>Autumn crop labor</span><span>${formatSeasonalWork(plan.autumn)}</span></li>
-    <li><span>Seed grain</span><span>${Math.min(building.grain, plan.seedGrainRequired).toFixed(1)} onsite${inboundSeed > 0.05 ? ` + ${inboundSeed.toFixed(1)} inbound` : ''} / ${plan.seedGrainRequired.toFixed(1)} protected${seedShortfall > 0.05 ? ` · still short ${seedShortfall.toFixed(1)}` : ''}</span></li>
+    <li><span>Seed grain</span><span>${Math.min(onsiteSeedGrain, plan.seedGrainRequired).toFixed(1)} onsite${inboundSeed > 0.05 ? ` + ${inboundSeed.toFixed(1)} inbound` : ''} / ${plan.seedGrainRequired.toFixed(1)} protected${seedShortfall > 0.05 ? ` · still short ${seedShortfall.toFixed(1)}` : ''}</span></li>
     <li><span>Barley seed</span><span>${Math.min(barley, plan.seedBarleyRequired).toFixed(1)} onsite${inboundBarleySeed > 0.05 ? ` + ${inboundBarleySeed.toFixed(1)} inbound` : ''} / ${plan.seedBarleyRequired.toFixed(1)} protected${barleySeedShortfall > 0.05 ? ` · still short ${barleySeedShortfall.toFixed(1)}` : ''}</span></li>
     <li><span>Field manure</span><span>${plan.manureApplied.toFixed(1)} spread + ${Math.max(0, building.manure ?? 0).toFixed(1)} onsite${inboundManure > 0.05 ? ` + ${inboundManure.toFixed(1)} inbound` : ''} / ${plan.manureRequired.toFixed(1)} cycle coverage${manureShortfall > 0.05 ? ` · short ${manureShortfall.toFixed(1)}` : ' · covered'}</span></li>
     <li><span>Manure allocation</span><span>Consumed only during ploughing · urgent fields claim the shared farmyard pile first</span></li>
     <li><span>Seasonal tool reserve</span><span>${(Math.max(0, building.ironwork ?? 0) + inboundIronwork).toFixed(2)} onsite / inbound · ${plan.toolIronworkReserveTarget.toFixed(2)} target for ${plan.toolIronworkRequired.toFixed(2)} planned wear</span></li>
     <li><span>Exportable grain</span><span>${exportableGrain.toFixed(1)} after sowing reserve</span></li>
     <li><span>Exportable barley</span><span>${exportableBarley.toFixed(1)} after sowing reserve</span></li>
-    <li><span>${clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} bread grain · ${plan.expectedBarleyHarvest.toFixed(1)} barley</span></li>
+    <li><span>${clock.month === 8 || clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} rye/oat/maslin sheaves · ${plan.expectedBarleyHarvest.toFixed(1)} barley sheaves</span></li>
     <li><span>Flax fibre potential</span><span>${plan.expectedFibreHarvest.toFixed(1)} fibre</span></li>
     <li><span>Harvest storage</span><span>${grainRoom.toFixed(1)} onsite room${haulingRequired ? ' · road hauling required' : ' · fits onsite'}</span></li>
     <li><span>Barley storage</span><span>${barleyRoom.toFixed(1)} onsite room${barleyHaulingRequired ? ' · brewery / granary hauling required' : ' · fits onsite'}</span></li>
@@ -1568,7 +1603,7 @@ function renderFarmsteadPlanning(
   if (seasonalRisk) {
     return { rows, statusText: 'Season at risk — add labor or pause low-priority fields', statusState: 'warning' };
   }
-  if ((haulingRequired || barleyHaulingRequired || fibreHaulingRequired) && clock.month === 9) {
+  if ((haulingRequired || barleyHaulingRequired || fibreHaulingRequired) && (clock.month === 8 || clock.month === 9)) {
     return { rows, statusText: 'Harvest needs continuous grain, barley, or fibre hauling', statusState: 'warning' };
   }
   return { rows, statusText: 'Farm calendar on plan', statusState: 'active' };
@@ -1617,7 +1652,11 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
   const stagingCycles = processorInputStagingCycles(percent);
   const stagingLabel = `${stagingCycles} input ${stagingCycles === 1 ? 'cycle' : 'cycles'}`;
   const label = output === 'preservedFood' ? 'preserved staples' : output;
-  const stock = Math.max(0, building[output] ?? 0);
+  const stock = output === 'flour'
+    ? flourStock(building)
+    : output === 'bread'
+      ? breadStock(building)
+      : Math.max(0, building[output] ?? 0);
   const target = processorOutputTargetForBuilding(building) ?? 0;
   const headroom = processorOutputHeadroom(building) ?? 0;
   const pressure = headroom > 0.05

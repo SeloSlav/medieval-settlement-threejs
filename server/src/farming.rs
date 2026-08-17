@@ -2,7 +2,7 @@ use crate::balance_generated::{
     farm_crop_def, FarmCropDef, FarmCropProduce, FARM_BASE_GRAIN_PER_SQUARE_METER,
     FARM_CROP_BARLEY_ID, FARM_CROP_FALLOW_ID, FARM_CROP_FLAX_ID, FARM_CROP_OATS_ID,
     FARM_CROP_RYE, FARM_CROP_RYE_ID, FARM_CROP_WHEAT_ID, FARM_EARLY_HARVEST_MINIMUM_GROWTH,
-    FARM_EARLY_HARVEST_MONTH, FARM_EARLY_HARVEST_RIPENESS_FACTOR,
+    FARM_EARLY_HARVEST_RIPENESS_FACTOR,
     FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_LARGE_FIELD_EFFICIENCY_EXPONENT,
     FARM_LARGE_FIELD_EFFICIENCY_FLOOR, FARM_MANURE_FERTILITY_BONUS, FARM_MANURE_PER_SQUARE_METER,
     FARM_OPTIMAL_FIELD_AREA, FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_SLOPE_PENALTY_PER_DEGREE,
@@ -48,6 +48,18 @@ pub fn advance_crop_rotation(crop: u8, next_crop: u8, following_crop: u8) -> (u8
 
 pub fn crop_produce(crop: u8) -> FarmCropProduce {
     crop_definition(crop).produce
+}
+
+pub fn crop_harvest_month(crop: u8) -> u32 {
+    u32::from(crop_definition(crop).harvest_month)
+}
+
+pub fn month_before(month: u32) -> u32 {
+    if month <= 1 { 12 } else { month - 1 }
+}
+
+pub fn month_after(month: u32) -> u32 {
+    month % 12 + 1
 }
 
 pub fn corners_from_values(values: [f64; 8]) -> ZoneCorners {
@@ -362,8 +374,8 @@ pub fn field_work_allowed(stage: u8, crop: u8, month: u32) -> bool {
     let definition = crop_definition(crop);
     match stage {
         STAGE_HARVESTING => {
-            month == u32::from(definition.growth_end_month)
-                || month == u32::from(definition.growth_end_month % 12 + 1)
+            month == month_before(u32::from(definition.harvest_month))
+                || month == u32::from(definition.harvest_month)
         }
         STAGE_PLOUGHING | STAGE_SOWING => {
             month >= u32::from(definition.work_start_month)
@@ -380,7 +392,7 @@ pub fn early_harvest_yield_multiplier(growth_progress: f64) -> f64 {
 pub fn early_harvest_available(stage: u8, crop: u8, month: u32, growth_progress: f64) -> bool {
     stage == STAGE_GROWING
         && crop_produce(crop) != FarmCropProduce::None
-        && month == FARM_EARLY_HARVEST_MONTH
+        && month == month_before(crop_harvest_month(crop))
         && growth_progress >= FARM_EARLY_HARVEST_MINIMUM_GROWTH
 }
 
@@ -614,36 +626,41 @@ mod tests {
 
     #[test]
     fn early_harvest_trades_ripeness_for_an_extra_work_month() {
+        let rye_early_month = month_before(crop_harvest_month(CROP_RYE));
         assert!(!early_harvest_available(
             STAGE_GROWING,
             CROP_RYE,
-            FARM_EARLY_HARVEST_MONTH - 1,
+            month_before(rye_early_month),
             0.9,
         ));
         assert!(!early_harvest_available(
             STAGE_GROWING,
             CROP_RYE,
-            FARM_EARLY_HARVEST_MONTH,
+            rye_early_month,
             FARM_EARLY_HARVEST_MINIMUM_GROWTH - 0.01,
         ));
         assert!(!early_harvest_available(
             STAGE_GROWING,
             CROP_FALLOW,
-            FARM_EARLY_HARVEST_MONTH,
+            rye_early_month,
             1.0,
         ));
         assert!(early_harvest_available(
             STAGE_GROWING,
             CROP_RYE,
-            FARM_EARLY_HARVEST_MONTH,
+            rye_early_month,
             FARM_EARLY_HARVEST_MINIMUM_GROWTH,
         ));
         assert!(field_work_allowed(
             STAGE_HARVESTING,
             CROP_RYE,
-            FARM_EARLY_HARVEST_MONTH,
+            rye_early_month,
         ));
-        assert!(field_work_allowed(STAGE_HARVESTING, CROP_RYE, 9));
+        assert!(field_work_allowed(
+            STAGE_HARVESTING,
+            CROP_RYE,
+            crop_harvest_month(CROP_RYE),
+        ));
 
         let minimum_yield = early_harvest_yield_multiplier(FARM_EARLY_HARVEST_MINIMUM_GROWTH);
         assert!(

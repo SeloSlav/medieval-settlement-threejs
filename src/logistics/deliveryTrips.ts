@@ -13,8 +13,6 @@ export const DELIVERY_CARGO_KINDS = [
   'water',
   'food',
   'timber',
-  'grain',
-  'flour',
   'ale',
   'preservedFood',
   'honey',
@@ -36,7 +34,6 @@ export const DELIVERY_CARGO_KINDS = [
   'manure',
   'remedies',
   'roofTiles',
-  'bread',
   'meat',
   'fish',
   'berries',
@@ -51,6 +48,19 @@ export const DELIVERY_CARGO_KINDS = [
   'curedMeat',
   'smokedFish',
   'cheese',
+  'ryeSheaves',
+  'oatSheaves',
+  'barleySheaves',
+  'maslinSheaves',
+  'ryeGrain',
+  'oatGrain',
+  'maslinGrain',
+  'ryeFlour',
+  'oatFlour',
+  'maslinFlour',
+  'ryeBread',
+  'oatBread',
+  'maslinBread',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
 
@@ -219,10 +229,6 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'food';
     case 3:
       return 'timber';
-    case 4:
-      return 'grain';
-    case 5:
-      return 'flour';
     case 6:
       return 'ale';
     case 7:
@@ -265,8 +271,6 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'remedies';
     case 26:
       return 'roofTiles';
-    case 27:
-      return 'bread';
     case 28:
       return 'meat';
     case 29:
@@ -295,6 +299,32 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'smokedFish';
     case 41:
       return 'cheese';
+    case 42:
+      return 'ryeSheaves';
+    case 43:
+      return 'oatSheaves';
+    case 44:
+      return 'barleySheaves';
+    case 45:
+      return 'maslinSheaves';
+    case 46:
+      return 'ryeGrain';
+    case 47:
+      return 'oatGrain';
+    case 48:
+      return 'maslinGrain';
+    case 49:
+      return 'ryeFlour';
+    case 50:
+      return 'oatFlour';
+    case 51:
+      return 'maslinFlour';
+    case 52:
+      return 'ryeBread';
+    case 53:
+      return 'oatBread';
+    case 54:
+      return 'maslinBread';
     default:
       return null;
   }
@@ -340,20 +370,40 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Mixed provisions (legacy)';
     case 'timber':
       return 'Timber';
-    case 'grain':
-      return 'Grain';
+    case 'ryeSheaves':
+      return 'Rye sheaves';
+    case 'oatSheaves':
+      return 'Oat sheaves';
+    case 'barleySheaves':
+      return 'Barley sheaves';
+    case 'maslinSheaves':
+      return 'Maslin sheaves';
+    case 'ryeGrain':
+      return 'Rye grain';
+    case 'oatGrain':
+      return 'Oat grain';
+    case 'maslinGrain':
+      return 'Maslin grain';
     case 'barley':
       return 'Barley';
     case 'malt':
       return 'Malt';
-    case 'flour':
-      return 'Flour';
+    case 'ryeFlour':
+      return 'Rye flour';
+    case 'oatFlour':
+      return 'Oat flour';
+    case 'maslinFlour':
+      return 'Maslin flour';
     case 'ale':
       return 'Ale';
     case 'preservedFood':
       return 'Mixed preserved provisions (legacy)';
-    case 'bread':
-      return 'Bread';
+    case 'ryeBread':
+      return 'Rye bread';
+    case 'oatBread':
+      return 'Oat bread';
+    case 'maslinBread':
+      return 'Maslin bread';
     case 'meat':
       return 'Meat';
     case 'fish':
@@ -783,7 +833,9 @@ export function cargoColor(kind: DeliveryCargoKind): number {
     case 'water':
       return 0x3f8fd6;
     case 'food':
-    case 'bread':
+    case 'ryeBread':
+    case 'oatBread':
+    case 'maslinBread':
     case 'meat':
     case 'fish':
     case 'berries':
@@ -798,13 +850,21 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0x5f9f4a;
     case 'timber':
       return 0x8a684c;
-    case 'grain':
+    case 'ryeSheaves':
+    case 'oatSheaves':
+    case 'barleySheaves':
+    case 'maslinSheaves':
+    case 'ryeGrain':
+    case 'oatGrain':
+    case 'maslinGrain':
       return 0xc9a227;
     case 'barley':
       return 0xb99232;
     case 'malt':
       return 0x9d7335;
-    case 'flour':
+    case 'ryeFlour':
+    case 'oatFlour':
+    case 'maslinFlour':
       return 0xe8dcc8;
     case 'ale':
       return 0xb8860b;

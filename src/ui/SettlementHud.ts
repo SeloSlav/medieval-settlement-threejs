@@ -399,10 +399,20 @@ const SETTLEMENT_HUD_HTML = `
         ></button>
       </summary>
       <div class="settlement-hud__stores-grid" aria-label="Specialty stores">
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="grain" data-tooltip="Grain stored at physical holdings, granaries, markets, processors, and institutions. Loaded carts are shown separately.">
-        <span class="settlement-hud__label">Grain</span>
-        <strong class="settlement-hud__value" data-stockpile="grain">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="grain" hidden></span>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeGrain" data-tooltip="Threshed rye grain. Hardy, cheap seed and the quickest flour output; loaded carts are shown separately.">
+        <span class="settlement-hud__label">Rye grain</span>
+        <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Threshed oat grain. Preferred livestock fodder and monastery porridge grain; loaded carts are shown separately.">
+        <span class="settlement-hud__label">Oat grain</span>
+        <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinGrain" data-tooltip="Threshed wheat–rye maslin grain. Costly to sow but dependable and valuable for bread; loaded carts are shown separately.">
+        <span class="settlement-hud__label">Maslin grain</span>
+        <strong class="settlement-hud__value" data-stockpile="maslinGrain">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinGrain" hidden></span>
       </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="barley" data-tooltip="Brewing barley stored at physical farmsteads, granaries, markets, and brewhouses. Barley seed remains protected at its holding; loaded carts are shown separately.">
         <span class="settlement-hud__label">Barley</span>
@@ -414,10 +424,20 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="malt">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="malt" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flour" data-tooltip="Flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
-        <span class="settlement-hud__label">Flour</span>
-        <strong class="settlement-hud__value" data-stockpile="flour">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flour" hidden></span>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeFlour" data-tooltip="Rye flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
+        <span class="settlement-hud__label">Rye flour</span>
+        <strong class="settlement-hud__value" data-stockpile="ryeFlour">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeFlour" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatFlour" data-tooltip="Oat flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
+        <span class="settlement-hud__label">Oat flour</span>
+        <strong class="settlement-hud__value" data-stockpile="oatFlour">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatFlour" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinFlour" data-tooltip="Maslin flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
+        <span class="settlement-hud__label">Maslin flour</span>
+        <strong class="settlement-hud__value" data-stockpile="maslinFlour">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinFlour" hidden></span>
       </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Ale stored at physical breweries, markets, monasteries, and prosperous homes. Loaded carts are shown separately.">
         <span class="settlement-hud__label">Ale</span>

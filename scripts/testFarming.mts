@@ -6,7 +6,6 @@ import {
   FARM_CROP_DEFINITIONS,
   FARM_CROP_KINDS,
   FARM_EARLY_HARVEST_MINIMUM_GROWTH,
-  FARM_EARLY_HARVEST_MONTH,
   FARM_EARLY_HARVEST_RIPENESS_FACTOR,
   FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
   FARM_MIN_FIELD_AREA,
@@ -105,13 +104,13 @@ assert.equal(sampleAuthoritativeHydrologyScore(10_000, 10_000), 0);
 
 const openingClock = gameClockAtElapsedSeconds(0);
 assert.ok(
-  Math.abs(daysUntilCropHarvestWindow(openingClock, 'rye') - (180 - 8 / 24)) < 1e-9,
-  'the field forecast should count from the current time to the September window',
+  Math.abs(daysUntilCropHarvestWindow(openingClock, 'rye') - (150 - 8 / 24)) < 1e-9,
+  'the field forecast should count from the current time to rye’s August window',
 );
 const septemberClock = gameClockAtElapsedSeconds(180 * CALENDAR_SECONDS_PER_DAY);
 assert.equal(daysUntilCropHarvestWindow(septemberClock, 'oats'), 0);
 const octoberClock = gameClockAtElapsedSeconds(210 * CALENDAR_SECONDS_PER_DAY);
-assert.ok(daysUntilCropHarvestWindow(octoberClock, 'barley') > 329);
+assert.ok(daysUntilCropHarvestWindow(octoberClock, 'barley') > 299);
 
 const organicParcel = [
   { x: 0, z: 0 },
@@ -426,11 +425,11 @@ assert.equal(fieldStageAllowed({ ...planningField, crop: 'rye', stage: 'sowing' 
 assert.equal(fieldStageAllowed({ ...planningField, crop: 'rye', stage: 'sowing' }, 3), false);
 assert.equal(fieldStageAllowed({ ...planningField, crop: 'oats', stage: 'sowing' }, 3), true);
 assert.equal(fieldStageAllowed({ ...planningField, crop: 'oats', stage: 'sowing' }, 10), false);
+assert.equal(fieldStageAllowed({ ...planningField, stage: 'harvesting' }, 7), true);
 assert.equal(fieldStageAllowed({ ...planningField, stage: 'harvesting' }, 8), true);
-assert.equal(fieldStageAllowed({ ...planningField, stage: 'harvesting' }, 9), true);
-assert.equal(fieldStageAllowed({ ...planningField, stage: 'harvesting' }, 10), false);
-assert.match(cropCalendarLabel('rye'), /Oct–Nov/);
-assert.match(cropCalendarLabel('oats'), /Mar–Apr/);
+assert.equal(fieldStageAllowed({ ...planningField, stage: 'harvesting' }, 9), false);
+assert.match(cropCalendarLabel('rye'), /harvest August/);
+assert.match(cropCalendarLabel('oats'), /harvest September/);
 
 const earlyHarvestField = {
   ...planningField,
@@ -438,22 +437,23 @@ const earlyHarvestField = {
   stageProgress: FARM_EARLY_HARVEST_MINIMUM_GROWTH,
   currentYield: 0,
 };
+const ryeEarlyHarvestMonth = FARM_CROP_DEFINITIONS.rye.harvestMonth - 1;
 assert.equal(
-  earlyHarvestAvailability(earlyHarvestField, FARM_EARLY_HARVEST_MONTH).available,
+  earlyHarvestAvailability(earlyHarvestField, ryeEarlyHarvestMonth).available,
   true,
 );
-assert.equal(earlyHarvestAvailability(earlyHarvestField, 7).available, false);
+assert.equal(earlyHarvestAvailability(earlyHarvestField, ryeEarlyHarvestMonth - 1).available, false);
 assert.equal(
   earlyHarvestAvailability(
     { ...earlyHarvestField, stageProgress: FARM_EARLY_HARVEST_MINIMUM_GROWTH - 0.01 },
-    FARM_EARLY_HARVEST_MONTH,
+    ryeEarlyHarvestMonth,
   ).available,
   false,
 );
 assert.equal(
   earlyHarvestAvailability(
     { ...earlyHarvestField, crop: 'fallow' },
-    FARM_EARLY_HARVEST_MONTH,
+    ryeEarlyHarvestMonth,
   ).available,
   false,
 );
@@ -890,7 +890,7 @@ assert.match(farmsteadInspector, /data-inspect-field=/);
 assert.match(townHallInspector, /Year 3 rotation/);
 assert.match(townHallInspector, /Cyclic coverage/);
 assert.match(farmFieldInspector, /data-field-early-harvest/);
-assert.match(farmFieldInspector, /Waiting until September keeps 100% yield/);
+assert.match(farmFieldInspector, /Waiting until \$\{harvestMonthLabel\} keeps 100% yield/);
 assert.match(farmFieldInspector, /Days until harvest/);
 assert.match(farmFieldInspector, /Projected yield/);
 
@@ -913,7 +913,11 @@ assert.match(
 );
 assert.match(farmSimulation, /seed_grain_required\(field\.area, field\.crop\)/);
 assert.match(farmSimulation, /withdraw_building_commodity\(farmstead, seed_commodity, seed_used\)/);
-assert.match(farmSimulation, /field\.crop == CROP_BARLEY[\s\S]*CommodityKind::Barley/);
+assert.match(
+  farmSimulation,
+  /fn crop_seed_commodity[\s\S]*CROP_RYE => CommodityKind::RyeGrain[\s\S]*CROP_OATS => CommodityKind::OatGrain[\s\S]*CROP_BARLEY => CommodityKind::Barley[\s\S]*CROP_FLAX => CommodityKind::Flax[\s\S]*CROP_WHEAT => CommodityKind::MaslinGrain/,
+  'each field must consume its own exact seed commodity',
+);
 assert.match(farmSimulation, /crop_growth_allowed\(field\.crop, clock\.month\)/);
 assert.match(farmSimulation, /field_work_allowed\(field\.stage, field\.crop, clock\.month\)/);
 assert.match(
@@ -937,7 +941,9 @@ assert.match(
   'seed distribution may draw through a granary floor but only for the selected holding claim',
 );
 const constructionSimulation = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
-assert.match(constructionSimulation, /site\.grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
+assert.match(constructionSimulation, /site\.rye_grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
+assert.match(constructionSimulation, /site\.oat_grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
+assert.match(constructionSimulation, /site\.maslin_grain \+= FARMSTEAD_STARTER_SEED_GRAIN/);
 assert.match(constructionSimulation, /site\.barley \+= FARMSTEAD_STARTER_BARLEY_SEED/);
 const farmFieldReducers = fs.readFileSync('server/src/reducers/farm_fields.rs', 'utf8');
 assert.match(

@@ -1,6 +1,6 @@
 import {
   BUILDING_STORAGE_CAPS,
-  MONASTERY_GRAIN_PER_CYCLE,
+  MONASTERY_OAT_GRAIN_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
@@ -10,6 +10,7 @@ import {
 } from '../economy/staffingPriority.ts';
 import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
+import { breadGrainStock, type BreadGrainKind } from '../economy/cropGoods.ts';
 
 export const GRAIN_DISPATCH_SOURCE_KINDS = ['threshing_barn', 'granary'] as const;
 export const GRAIN_PROCESSOR_KINDS = ['watermill', 'windmill', 'monastery'] as const;
@@ -35,7 +36,9 @@ type GrainDestinationLike = Pick<
   BuildingState,
   | 'id'
   | 'kind'
-  | 'grain'
+  | 'ryeGrain'
+  | 'oatGrain'
+  | 'maslinGrain'
   | 'assignedLabor'
   | 'constructionComplete'
   | 'constructionPriority'
@@ -44,6 +47,7 @@ type GrainDestinationLike = Pick<
 
 export type RoutedGrainDestination<T extends GrainDestinationLike> = {
   target: T;
+  commodity: BreadGrainKind;
   duty: GrainDispatchDuty;
   desiredStock: number;
   runwayCycles: number;
@@ -57,7 +61,7 @@ function grainInputPerCycle(
 ): number {
   return kind === 'watermill' || kind === 'windmill'
     ? WATERMILL_GRAIN_PER_CYCLE
-    : MONASTERY_GRAIN_PER_CYCLE * Math.max(0, productivity);
+    : MONASTERY_OAT_GRAIN_PER_CYCLE * Math.max(0, productivity);
 }
 
 /** Mirrors the authoritative stock-policy working buffer for grain processors. */
@@ -86,16 +90,18 @@ export function grainInputRunwayCycles(
 export function grainDispatchDuty(
   target: GrainDestinationLike,
   productivity = 1,
+  commodity: BreadGrainKind = 'ryeGrain',
 ): GrainDispatchDuty | null {
   if (target.kind === 'granary') return 'granary-reserve';
   if (!(GRAIN_PROCESSOR_KINDS as readonly BuildingKind[]).includes(target.kind)) return null;
+  if (target.kind === 'monastery' && commodity !== 'oatGrain') return null;
   const desiredStock = grainInputTarget(
     target.kind as GrainProcessorKind,
     productivity,
     target.processorOutputTargetPercent,
   );
   const operational = target.kind === 'monastery' || target.assignedLabor > 0;
-  return operational && target.grain + 1e-6 < desiredStock
+  return operational && (target[commodity] ?? 0) + 1e-6 < desiredStock
     ? 'working-buffer'
     : 'workshop-overflow';
 }
@@ -118,6 +124,7 @@ export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
   productivityFor: (target: T) => number = () => 1,
   hasInboundSupply: (target: T) => boolean = () => false,
   acceptsGrain: (target: T) => boolean = () => true,
+  commodity: BreadGrainKind = 'ryeGrain',
 ): RoutedGrainDestination<T> | null {
   let best: RoutedGrainDestination<T> | null = null;
   for (const target of targets) {
@@ -129,10 +136,11 @@ export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
       || !acceptsGrain(target)
     ) continue;
     const capacity = (BUILDING_STORAGE_CAPS[target.kind] as { grain?: number }).grain ?? 0;
-    if (target.grain + 1e-6 >= capacity) continue;
+    const stock = target[commodity] ?? 0;
+    if (breadGrainStock(target) + 1e-6 >= capacity) continue;
 
     const productivity = productivityFor(target);
-    const duty = grainDispatchDuty(target, productivity);
+    const duty = grainDispatchDuty(target, productivity, commodity);
     if (!duty) continue;
     const desiredStock = target.kind === 'granary'
       ? capacity
@@ -143,11 +151,12 @@ export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
         );
     const runwayCycles = target.kind === 'granary'
       ? Infinity
-      : grainInputRunwayCycles(target.kind as GrainProcessorKind, target.grain, productivity);
+      : grainInputRunwayCycles(target.kind as GrainProcessorKind, stock, productivity);
     const routeDistance = routeDistanceFor(target);
     if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
     const candidate = {
       target,
+      commodity,
       duty,
       desiredStock,
       runwayCycles,
@@ -203,6 +212,7 @@ export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
   productivityFor: (target: T) => number = () => 1,
   hasInboundSupply: (target: T) => boolean = () => false,
   acceptsGrain: (target: T) => boolean = () => true,
+  commodity: BreadGrainKind = 'ryeGrain',
 ): RoutedGrainDestination<T> | null {
   let best: RoutedGrainDestination<T> | null = null;
   for (const target of targets) {
@@ -213,6 +223,7 @@ export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
       || (target.kind !== 'monastery' && target.assignedLabor <= 0)
       || hasInboundSupply(target)
       || !acceptsGrain(target)
+      || (target.kind === 'monastery' && commodity !== 'oatGrain')
     ) continue;
     const kind = target.kind as GrainProcessorKind;
     const productivity = productivityFor(target);
@@ -221,14 +232,16 @@ export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
       productivity,
       target.processorOutputTargetPercent,
     );
-    if (desiredStock <= 1e-6 || target.grain + 1e-6 >= desiredStock) continue;
+    const stock = target[commodity] ?? 0;
+    if (desiredStock <= 1e-6 || stock + 1e-6 >= desiredStock) continue;
     const routeDistance = routeDistanceFor(target);
     if (routeDistance == null || !Number.isFinite(routeDistance)) continue;
     const candidate: RoutedGrainDestination<T> = {
       target,
+      commodity,
       duty: 'working-buffer',
       desiredStock,
-      runwayCycles: grainInputRunwayCycles(kind, target.grain, productivity),
+      runwayCycles: grainInputRunwayCycles(kind, stock, productivity),
       routeDistance,
       workPriority: normalizeStaffingPriority(target.constructionPriority),
     };

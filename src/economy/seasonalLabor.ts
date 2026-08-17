@@ -10,6 +10,7 @@ import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import type { BuildingKind, BuildingState, FarmFieldState, GameState } from '../resources/types.ts';
 import { apiaryIsActive, vineyardIsHarvesting } from './specialtyTrade.ts';
 import { edibleFoodStock } from './foodInventory.ts';
+import { breadGrainStock, grainSheafStock } from './cropGoods.ts';
 import {
   normalizeStaffingPriority,
   STAFFING_PRIORITY_HIGH,
@@ -139,7 +140,8 @@ function hasOutboundSeasonalStock(
     case 'vineyard':
       return (building.grapes ?? 0) > 1e-6 || building.wine > 1e-6;
     case 'threshing_barn':
-      return farmsteadExportableGrain(building.grain, fields) > 1e-6;
+      return farmsteadExportableGrain(breadGrainStock(building), fields) > 1e-6
+        || grainSheafStock(building) > 1e-6;
     default:
       return false;
   }

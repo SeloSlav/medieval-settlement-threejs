@@ -23,16 +23,16 @@ import type {
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 
 assert.deepEqual(MARKETPLACE_SEED_GRAIN_TARGETS, [0, 24, 48, 72, 96]);
-assert.equal(MARKETPLACE_SEED_GRAIN_IMPORT_OFFER.id, 'buy_seed_grain');
+assert.equal(MARKETPLACE_SEED_GRAIN_IMPORT_OFFER.id, 'buy_rye_grain');
 assert.equal(MARKETPLACE_SEED_GRAIN_IMPORT_LOT, 24);
-assert.equal(MARKETPLACE_SEED_GRAIN_IMPORT_OFFER.goldCost, 18);
+assert.equal(MARKETPLACE_SEED_GRAIN_IMPORT_OFFER.goldCost, 16);
 assert.equal(normalizeMarketplaceSeedGrainTarget(undefined), 0);
 assert.equal(normalizeMarketplaceSeedGrainTarget(71), 48);
 assert.equal(normalizeMarketplaceSeedGrainTarget(255), 96);
 
 assert.deepEqual(
   marketplaceSeedGrainProcurementPlan({
-    grain: 0,
+    ryeGrain: 0,
     marketplaceSeedGrainTarget: undefined,
   }),
   {
@@ -44,7 +44,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   marketplaceSeedGrainProcurementPlan({
-    grain: 0,
+    ryeGrain: 0,
     marketplaceSeedGrainTarget: 48,
   }),
   {
@@ -56,7 +56,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   marketplaceSeedGrainProcurementPlan({
-    grain: 25,
+    ryeGrain: 25,
     marketplaceSeedGrainTarget: 48,
   }),
   {
@@ -70,7 +70,7 @@ assert.deepEqual(
 
 assert.equal(
   nextMarketplaceStandingOrder({
-    grain: 0,
+    ryeGrain: 0,
     marketplaceSeedGrainTarget: 48,
     ironwork: 0,
     marketplaceIronworkTarget: 12,
@@ -80,7 +80,7 @@ assert.equal(
 );
 assert.equal(
   nextMarketplaceStandingOrder({
-    grain: 0,
+    ryeGrain: 0,
     marketplaceSeedGrainTarget: 48,
     ironwork: 0,
     marketplaceIronworkTarget: 12,
@@ -90,7 +90,7 @@ assert.equal(
 );
 assert.equal(
   nextMarketplaceStandingOrder({
-    grain: 24,
+    ryeGrain: 24,
     marketplaceSeedGrainTarget: 72,
     ironwork: 0,
     marketplaceIronworkTarget: 12,
@@ -99,7 +99,7 @@ assert.equal(
 );
 assert.equal(
   nextMarketplaceStandingOrder({
-    grain: 0,
+    ryeGrain: 0,
     marketplaceSeedGrainTarget: 72,
     ironwork: 6,
     marketplaceIronworkTarget: 12,
@@ -118,8 +118,12 @@ const marketplace = {
   stone: 0,
   water: 0,
   food: 0,
-  grain: 0,
-  flour: 0,
+  ryeGrain: 0,
+  oatGrain: 0,
+  maslinGrain: 0,
+  ryeFlour: 0,
+  oatFlour: 0,
+  maslinFlour: 0,
   ale: 0,
   preservedFood: 0,
   honey: 0,
@@ -134,7 +138,7 @@ const tradeAvailability = {
   stone: 0,
   firewood: 0,
   food: 0,
-  grain: 0,
+  ryeGrain: 0,
   ironwork: 0,
   gold: 100,
 };
@@ -148,7 +152,7 @@ const peacefulPanel = renderMarketplaceTradePanel(
 );
 assert.match(peacefulPanel, /Seed-grain procurement/);
 assert.match(peacefulPanel, /data-marketplace-seed-grain-target="48" disabled/);
-assert.match(peacefulPanel, /Next 24-unit seed lot ready for 18 gold; 2 lots remain/);
+assert.match(peacefulPanel, /Next 24-unit seed lot ready for 16 gold; 2 lots remain/);
 assert.doesNotMatch(peacefulPanel, /Frontier ironwork procurement/);
 
 const frontierPanel = renderMarketplaceTradePanel(
@@ -205,7 +209,7 @@ const staffedHolding = {
   x: 30,
   z: 0,
   assignedLabor: 2,
-  grain: 0,
+  ryeGrain: 0,
 } as BuildingState;
 const unstaffedHolding = {
   ...marketplace,
@@ -214,7 +218,7 @@ const unstaffedHolding = {
   x: 20,
   z: 0,
   assignedLabor: 0,
-  grain: 4,
+  oatGrain: 4,
 } as BuildingState;
 const inboundSeed = {
   id: 'delivery:1',
@@ -222,7 +226,7 @@ const inboundSeed = {
   residenceId: null,
   destinationKind: 'building',
   targetBuildingId: staffedHolding.id,
-  cargoKind: 'grain',
+  cargoKind: 'ryeGrain',
   amount: 6,
   phase: 'outbound',
   x: 0,
@@ -261,16 +265,16 @@ assert.equal(coverage.staffedShortHoldings, 1);
 assert.equal(coverage.laborBlockedHoldings, 1);
 assert.equal(coverage.inboundBlockedHoldings, 1);
 assert.equal(coverage.sourceBusy, true);
-assert.equal(coverage.seedRequired, 38);
+assert.equal(coverage.seedRequired, 36);
 assert.equal(coverage.seedCovered, 10);
-assert.equal(coverage.seedShortfall, 28);
-assert.equal(coverage.dispatchableShortfall, 18);
+assert.equal(coverage.seedShortfall, 26);
+assert.equal(coverage.dispatchableShortfall, 16);
 assert.equal(coverage.laborBlockedShortfall, 10);
 assert.equal(coverage.inboundGrain, 6);
 assert.equal(coverage.marketOutboundGrain, 6);
 assert.equal(coverage.plannedImportLots, 2);
 assert.equal(coverage.plannedImportGrain, 48);
-assert.equal(coverage.potentialCoverage, 18);
+assert.equal(coverage.potentialCoverage, 16);
 assert.equal(coverage.uncoveredDispatchableShortfall, 0);
 assert.equal(coverage.firstShortBuildingId, staffedHolding.id);
 assert.equal(coverage.nextDispatchBuildingId, null);
@@ -284,14 +288,14 @@ const coveredPanel = renderMarketplaceTradePanel(
   false,
   coverage,
 );
-assert.match(coveredPanel, /10\.0 \/ 38\.0 grain covered/);
+assert.match(coveredPanel, /10\.0 \/ 36\.0 grain covered/);
 assert.match(coveredPanel, /6\.0 already inbound \(6\.0 from this market\)/);
 assert.match(coveredPanel, /10\.0 grain across 1 holding cannot move until farm labor is assigned/);
 assert.match(coveredPanel, /overlapping sources will not duplicate the haul/);
 assert.match(coveredPanel, /already has a cart away; seed priority is recalculated/);
 assert.match(coveredPanel, new RegExp(`data-inspect-building="${staffedHolding.id}"`));
 
-const stockedMarketplace = { ...marketplace, grain: 12 };
+const stockedMarketplace = { ...marketplace, ryeGrain: 12 };
 const readyCoverage = marketplaceSeedCoveragePlan(
   stockedMarketplace,
   {
@@ -310,8 +314,8 @@ assert.equal(readyCoverage.inboundBlockedHoldings, 0);
 assert.equal(readyCoverage.nextDispatchBuildingId, staffedHolding.id);
 assert.equal(readyCoverage.nextDispatchDistance, 30);
 assert.equal(readyCoverage.nextDispatchStock, 0);
-assert.equal(readyCoverage.nextDispatchRequired, 24);
-assert.equal(readyCoverage.nextDispatchShortfall, 24);
+assert.equal(readyCoverage.nextDispatchRequired, 22);
+assert.equal(readyCoverage.nextDispatchShortfall, 22);
 assert.equal(readyCoverage.nextDispatchAmount, 6);
 const readyCoveragePanel = renderMarketplaceTradePanel(
   stockedMarketplace,
@@ -322,7 +326,7 @@ const readyCoveragePanel = renderMarketplaceTradePanel(
   readyCoverage,
 );
 assert.match(readyCoveragePanel, /Next seed cart: 6\.0 grain to the least-covered eligible holding/);
-assert.match(readyCoveragePanel, /0\.0 \/ 24\.0 onsite/);
+assert.match(readyCoveragePanel, /0\.0 \/ 22\.0 onsite/);
 assert.match(readyCoveragePanel, /over 30 m of road/);
 
 const overlappingInbound = { ...inboundSeed, buildingId: 'building:other-source' };
@@ -408,7 +412,7 @@ const standingImportSource = tradeSource.slice(
 for (const contract of [
   'next_standing_marketplace_import',
   'StandingMarketplaceImport::SeedGrain',
-  '"buy_seed_grain"',
+  '"buy_rye_grain"',
   'MARKETPLACE_SEED_GRAIN_IMPORT_LOT',
   'apply_marketplace_trade',
   'start_manual_trade_cooldown',
@@ -468,7 +472,7 @@ const performanceStarted = performance.now();
 let orders = 0;
 for (let index = 0; index < 100_000; index += 1) {
   const building = {
-    grain: index % 97,
+    ryeGrain: index % 97,
     marketplaceSeedGrainTarget: 96,
     ironwork: index % 49,
     marketplaceIronworkTarget: 48,
@@ -492,7 +496,7 @@ for (let index = 0; index < 100_000; index += 1) {
     kind: 'threshing_barn',
     x: index % 500,
     z: Math.floor(index / 500),
-    grain: index % 3,
+    ryeGrain: index % 3,
     assignedLabor: index % 5 === 0 ? 0 : 2,
     constructionComplete: true,
   } as BuildingState);

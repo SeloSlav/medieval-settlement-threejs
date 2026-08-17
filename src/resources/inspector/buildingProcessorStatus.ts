@@ -12,10 +12,12 @@ import {
   CLAY_PIT_CLAY_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
   BAKERY_FLOUR_PER_CYCLE,
-  BAKERY_FOOD_PER_CYCLE,
+  BAKERY_RYE_BREAD_PER_CYCLE,
+  BAKERY_OAT_BREAD_PER_CYCLE,
+  BAKERY_MASLIN_BREAD_PER_CYCLE,
   BAKERY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
-  MONASTERY_GRAIN_PER_CYCLE,
+  MONASTERY_OAT_GRAIN_PER_CYCLE,
   MONASTERY_UNLINKED_PRODUCTIVITY,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
@@ -30,7 +32,9 @@ import {
   POTTER_FIREWOOD_PER_CYCLE,
   POTTER_POTTERY_PER_CYCLE,
   POTTER_WATER_PER_CYCLE,
-  WATERMILL_FLOUR_PER_CYCLE,
+  WATERMILL_RYE_FLOUR_PER_CYCLE,
+  WATERMILL_OAT_FLOUR_PER_CYCLE,
+  WATERMILL_MASLIN_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
   WEAVER_FLAX_PER_CYCLE,
@@ -88,10 +92,17 @@ type StockKey =
   | 'stone'
   | 'water'
   | 'food'
-  | 'grain'
+  | 'ryeGrain'
+  | 'oatGrain'
+  | 'maslinGrain'
   | 'barley'
   | 'malt'
-  | 'flour'
+  | 'ryeFlour'
+  | 'oatFlour'
+  | 'maslinFlour'
+  | 'ryeBread'
+  | 'oatBread'
+  | 'maslinBread'
   | 'ale'
   | 'preservedFood'
   | 'wool'
@@ -126,11 +137,11 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     requiresLabor: true,
     waterPerCycle: BAKERY_WATER_PER_CYCLE,
     inputs: [
-      { key: 'flour', label: 'flour', required: BAKERY_FLOUR_PER_CYCLE, deliveryHint: 'mill or granary deliveries may supply' },
+      { key: 'ryeFlour', label: 'rye flour', required: BAKERY_FLOUR_PER_CYCLE, deliveryHint: 'mill or granary deliveries may supply' },
       { key: 'firewood', label: 'firewood', required: BAKERY_FIREWOOD_PER_CYCLE, deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway' },
     ],
-    output: 'food',
-    outputPerCycle: BAKERY_FOOD_PER_CYCLE,
+    output: 'ryeBread',
+    outputPerCycle: BAKERY_RYE_BREAD_PER_CYCLE,
     operatingLabel: 'Baking bread',
     idleNoWorkersLabel: 'Idle — assign bakers to make bread',
   },
@@ -152,10 +163,10 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     requiresLabor: true,
     waterPerCycle: 0,
     inputs: [
-      { key: 'grain', label: 'grain', required: WATERMILL_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
+      { key: 'ryeGrain', label: 'rye grain', required: WATERMILL_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
     ],
-    output: 'flour',
-    outputPerCycle: WATERMILL_FLOUR_PER_CYCLE,
+    output: 'ryeFlour',
+    outputPerCycle: WATERMILL_RYE_FLOUR_PER_CYCLE,
     operatingLabel: 'Milling grain into flour',
     idleNoWorkersLabel: 'Idle — assign workers to run the mill',
   },
@@ -172,10 +183,10 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
     requiresLabor: true,
     waterPerCycle: 0,
     inputs: [
-      { key: 'grain', label: 'grain', required: WATERMILL_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
+      { key: 'ryeGrain', label: 'rye grain', required: WATERMILL_GRAIN_PER_CYCLE, deliveryHint: 'farmstead or granary deliveries may supply' },
     ],
-    output: 'flour',
-    outputPerCycle: WATERMILL_FLOUR_PER_CYCLE,
+    output: 'ryeFlour',
+    outputPerCycle: WATERMILL_RYE_FLOUR_PER_CYCLE,
     operatingLabel: 'Wind-milling grain into flour',
     idleNoWorkersLabel: 'Idle — assign workers to run the windmill',
   },
@@ -241,12 +252,80 @@ const PROCESSOR_PROFILES: Partial<Record<BuildingKind, ProcessorProfile>> = {
   },
 };
 
+function selectedCerealProfile(building: BuildingState): ProcessorProfile | null {
+  if (building.kind === 'watermill' || building.kind === 'windmill') {
+    const recipes = [
+      { input: 'ryeGrain', output: 'ryeFlour', label: 'rye grain', rate: WATERMILL_RYE_FLOUR_PER_CYCLE },
+      { input: 'oatGrain', output: 'oatFlour', label: 'oat grain', rate: WATERMILL_OAT_FLOUR_PER_CYCLE },
+      { input: 'maslinGrain', output: 'maslinFlour', label: 'maslin grain', rate: WATERMILL_MASLIN_FLOUR_PER_CYCLE },
+    ] as const;
+    const selected = recipes.reduce((best, recipe) =>
+      stockAmount(building, recipe.input) > stockAmount(building, best.input)
+        ? recipe
+        : best,
+    );
+    return {
+      requiresLabor: true,
+      waterPerCycle: 0,
+      inputs: [{
+        key: selected.input,
+        label: selected.label,
+        required: WATERMILL_GRAIN_PER_CYCLE,
+        deliveryHint: 'farmstead or granary deliveries may supply this exact crop',
+      }],
+      output: selected.output,
+      outputPerCycle: selected.rate,
+      operatingLabel: building.kind === 'watermill'
+        ? `Milling ${selected.label} into ${stockLabel(selected.output)}`
+        : `Wind-milling ${selected.label} into ${stockLabel(selected.output)}`,
+      idleNoWorkersLabel: building.kind === 'watermill'
+        ? 'Idle — assign workers to run the mill'
+        : 'Idle — assign workers to run the windmill',
+    };
+  }
+  if (building.kind === 'bakery') {
+    const recipes = [
+      { input: 'ryeFlour', output: 'ryeBread', label: 'rye flour', rate: BAKERY_RYE_BREAD_PER_CYCLE },
+      { input: 'oatFlour', output: 'oatBread', label: 'oat flour', rate: BAKERY_OAT_BREAD_PER_CYCLE },
+      { input: 'maslinFlour', output: 'maslinBread', label: 'maslin flour', rate: BAKERY_MASLIN_BREAD_PER_CYCLE },
+    ] as const;
+    const selected = recipes.reduce((best, recipe) =>
+      stockAmount(building, recipe.input) > stockAmount(building, best.input)
+        ? recipe
+        : best,
+    );
+    return {
+      requiresLabor: true,
+      waterPerCycle: BAKERY_WATER_PER_CYCLE,
+      inputs: [
+        { key: selected.input, label: selected.label, required: BAKERY_FLOUR_PER_CYCLE, deliveryHint: 'mill or granary deliveries may supply this exact flour' },
+        { key: 'firewood', label: 'firewood', required: BAKERY_FIREWOOD_PER_CYCLE, deliveryHint: 'household-cleared lodge/storehouse surplus follows work priority and lowest runway' },
+      ],
+      output: selected.output,
+      outputPerCycle: selected.rate,
+      operatingLabel: `Baking ${stockLabel(selected.output)}`,
+      idleNoWorkersLabel: 'Idle — assign bakers to make bread',
+    };
+  }
+  return null;
+}
+
 function stockAmount(building: BuildingState, key: StockKey): number {
   return building[key] ?? 0;
 }
 
 function stockLabel(key: StockKey): string {
-  return key === 'preservedFood' ? 'preserved staples' : key;
+  if (key === 'preservedFood') return 'preserved staples';
+  return key.replace(/([A-Z])/g, ' $1').toLowerCase();
+}
+
+function storageCapacity(kind: BuildingKind, key: StockKey): number {
+  const capacityKey = key === 'ryeFlour' || key === 'oatFlour' || key === 'maslinFlour'
+    ? 'flour'
+    : key === 'ryeBread' || key === 'oatBread' || key === 'maslinBread'
+      ? 'food'
+      : key;
+  return (buildingStorageCaps(kind) as Record<string, number | undefined>)[capacityKey] ?? 0;
 }
 
 function isExtractionOutputCommodity(
@@ -269,7 +348,7 @@ function isOutputAtLimit(
         ?? Number.POSITIVE_INFINITY
     ) <= 0.001;
   }
-  const cap = buildingStorageCaps(kind)[output];
+  const cap = storageCapacity(kind, output);
   return cap != null
     && cap > 0
     && stockAmount(building, output) >= cap - 0.001;
@@ -345,7 +424,7 @@ function formatProcessorInputBufferRow(
     : null;
   const outputLimit = processorOutputTargetForBuilding(building)
     ?? extractionTarget
-    ?? (buildingStorageCaps(building.kind)[profile.output] ?? 0);
+    ?? storageCapacity(building.kind, profile.output);
   const outputRoom = isProcessorOutputTargetKind(building.kind)
     ? (processorOutputHeadroom(building) ?? 0)
     : isExtractionOutputTargetKind(building.kind)
@@ -689,8 +768,8 @@ function getLumberMillStatus(
 function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries): BuildingProcessorStatus {
   const linked = worldQueries.isMonasteryLinkedToChapel(building);
   const productivity = linked ? 1 : MONASTERY_UNLINKED_PRODUCTIVITY;
-  const grainNeeded = MONASTERY_GRAIN_PER_CYCLE * productivity;
-  const inputCostRow = `<li><span>Inputs per cycle</span><span>${renderResourceCost({ grain: grainNeeded }, { compact: true })}</span></li>`;
+  const grainNeeded = MONASTERY_OAT_GRAIN_PER_CYCLE * productivity;
+  const inputCostRow = `<li><span>Inputs per cycle</span><span>${renderResourceCost({ oatGrain: grainNeeded }, { compact: true })}</span></li>`;
 
   if (!linked) {
     return {
@@ -708,9 +787,9 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
     };
   }
 
-  if (building.grain + 1e-6 < grainNeeded) {
+  if ((building.oatGrain ?? 0) + 1e-6 < grainNeeded) {
     return {
-      statusText: `Waiting for grain — needs ${grainNeeded.toFixed(1)} per cycle; farmstead or granary deliveries may supply`,
+      statusText: `Waiting for oats — needs ${grainNeeded.toFixed(1)} oat grain per cycle for porridge`,
       statusState: 'warning',
       waterDetailHtml: inputCostRow,
     };
@@ -766,7 +845,7 @@ export function getBuildingProcessorStatus(
   if (building.kind === 'weaver') {
     return getWeaverStatus(building, worldQueries, onsiteLabor);
   }
-  const profile = PROCESSOR_PROFILES[building.kind];
+  const profile = selectedCerealProfile(building) ?? PROCESSOR_PROFILES[building.kind];
   if (profile) {
     const waterAssessment = assessWellWaterSupply(building, worldQueries, profile.waterPerCycle);
     return buildProcessorStatus(building, profile, waterAssessment, onsiteLabor);

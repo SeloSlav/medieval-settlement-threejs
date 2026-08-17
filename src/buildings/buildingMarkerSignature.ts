@@ -3,6 +3,7 @@ import {
   LIVESTOCK_HAY_STORAGE_CAPACITY,
 } from '../generated/gameBalance.ts';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
+import { breadGrainStock, flourStock, grainSheafStock } from '../economy/cropGoods.ts';
 import type { BuildingState, LivestockHerdState } from '../resources/types.ts';
 import { constructionVisualSignature } from './ConstructionSiteMesh.ts';
 import {
@@ -96,10 +97,11 @@ export function buildingMarkerSignatures(
       const salvageGoods = building.firewood
         + building.water
         + edibleFoodStock(building)
-        + building.grain
+        + breadGrainStock(building)
+        + grainSheafStock(building)
         + (building.barley ?? 0)
         + (building.malt ?? 0)
-        + building.flour
+        + flourStock(building)
         + building.ale
         + building.wine
         + (building.ironwork ?? 0)

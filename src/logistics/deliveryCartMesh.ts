@@ -108,7 +108,9 @@ function addCargo(
       addWaterLoad(group);
       break;
     case 'food':
-    case 'bread':
+    case 'ryeBread':
+    case 'oatBread':
+    case 'maslinBread':
     case 'meat':
     case 'fish':
     case 'berries':
@@ -122,12 +124,20 @@ function addCargo(
     case 'porridge':
       addFoodLoad(group);
       break;
-    case 'grain':
+    case 'ryeSheaves':
+    case 'oatSheaves':
+    case 'barleySheaves':
+    case 'maslinSheaves':
+    case 'ryeGrain':
+    case 'oatGrain':
+    case 'maslinGrain':
     case 'barley':
     case 'malt':
       addGrainLoad(group);
       break;
-    case 'flour':
+    case 'ryeFlour':
+    case 'oatFlour':
+    case 'maslinFlour':
       addFlourLoad(group);
       break;
     case 'ale':

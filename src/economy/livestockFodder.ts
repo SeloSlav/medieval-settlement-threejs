@@ -258,7 +258,7 @@ export function projectLivestockFodderHolding(
   const winterReserveTarget = Math.min(winterGrainNeed, grainCapacity);
   const winterReserveStock = Math.min(
     winterReserveTarget,
-    Math.max(0, building.grain),
+    Math.max(0, building.oatGrain ?? 0),
   );
 
   return {
@@ -275,7 +275,7 @@ export function projectLivestockFodderHolding(
     currentUnsupportedHeads,
     currentGrainPerDay,
     currentGrainRunwayDays: currentGrainPerDay > 1e-9
-      ? Math.max(0, building.grain) / currentGrainPerDay
+      ? Math.max(0, building.oatGrain ?? 0) / currentGrainPerDay
       : Number.POSITIVE_INFINITY,
     winterPastureCapacity,
     winterUnsupportedHeads,
@@ -289,14 +289,14 @@ export function projectLivestockFodderHolding(
     winterGrainPerDay,
     winterGrainNeed,
     winterGrainRunwayDays: winterGrainPerDay > 1e-9
-      ? Math.max(0, building.grain) / winterGrainPerDay
+      ? Math.max(0, building.oatGrain ?? 0) / winterGrainPerDay
       : Number.POSITIVE_INFINITY,
     winterCombinedRunwayDays: winterGrainPerDay > 1e-9
       ? (
         hayPerHead > 1e-9
           ? winterHayAvailable / (winterUnsupportedHeads * hayPerHead * cyclesPerDay)
           : 0
-      ) + Math.max(0, building.grain) / winterGrainPerDay
+      ) + Math.max(0, building.oatGrain ?? 0) / winterGrainPerDay
       : Number.POSITIVE_INFINITY,
     winterReserveTarget,
     winterReserveStock,

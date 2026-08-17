@@ -37,12 +37,18 @@ function processor(
     kind,
     x: 0,
     z: 0,
-    grain: 0,
+    ryeGrain: 0,
+    oatGrain: 0,
+    maslinGrain: 0,
     barley: 0,
     malt: 0,
-    flour: 0,
+    ryeFlour: 0,
+    oatFlour: 0,
+    maslinFlour: 0,
     food: 0,
-    bread: 0,
+    ryeBread: 0,
+    oatBread: 0,
+    maslinBread: 0,
     ale: 0,
     preservedFood: 0,
     cloth: 0,
@@ -178,22 +184,25 @@ assert.deepEqual(
 
 const mill = processor('mill', 'watermill', 25);
 assert.equal(processorOutputTargetForBuilding(mill), 65);
-mill.flour = 62;
+mill.ryeFlour = 62;
 assert.equal(processorOutputHeadroom(mill), 3);
 assert.equal(processorNeedsInputs(mill), true);
-assert.equal(processorAcceptsInput(mill, 'grain'), true);
+assert.equal(processorAcceptsInput(mill, 'ryeGrain'), true);
 const windmill = processor('windmill', 'windmill', 25);
 assert.equal(processorOutputTargetForBuilding(windmill), 65);
-assert.deepEqual(processorInputCommodities('windmill'), ['grain']);
-mill.flour = 65;
+assert.deepEqual(
+  processorInputCommodities('windmill'),
+  ['ryeGrain', 'oatGrain', 'maslinGrain'],
+);
+mill.ryeFlour = 65;
 assert.equal(processorOutputHeadroom(mill), 0);
 assert.equal(processorNeedsInputs(mill), false);
-assert.equal(processorAcceptsInput(mill, 'grain'), false);
+assert.equal(processorAcceptsInput(mill, 'ryeGrain'), false);
 
 const bakery = processor('bakery', 'bakery', 25);
-bakery.bread = processorOutputTargetForBuilding(bakery) ?? 0;
+bakery.ryeBread = processorOutputTargetForBuilding(bakery) ?? 0;
 assert.equal(
-  processorAcceptsInput(bakery, 'flour'),
+  processorAcceptsInput(bakery, 'ryeFlour'),
   false,
   'bakery flour should stop at the finished-food target',
 );
@@ -217,9 +226,9 @@ const smokehouse = processor('smokehouse', 'smokehouse', 25);
 smokehouse.preservedFood = processorOutputTargetForBuilding(smokehouse) ?? 0;
 assert.equal(processorAcceptsInput(smokehouse, 'food'), false);
 assert.equal(processorAcceptsInput(smokehouse, 'firewood'), false);
-assert.equal(processorAcceptsInput(smokehouse, 'grain'), true);
+assert.equal(processorAcceptsInput(smokehouse, 'ryeGrain'), true);
 assert.equal(
-  processorAcceptsInput(processor('monastery', 'monastery', 25), 'grain'),
+  processorAcceptsInput(processor('monastery', 'monastery', 25), 'oatGrain'),
   true,
   'autonomous monastery hospitality remains outside staffed workshop policy',
 );
@@ -343,7 +352,7 @@ assert.match(
 );
 assert.match(
   economy,
-  /processor_accepts_input\(&target, CommodityKind::Grain\)/,
+  /processor_accepts_input\(&target, commodity\)/,
 );
 assert.match(economy, /!processor_accepts_input\(&target, commodity\)/);
 assert.match(economy, /!processor_accepts_input\(target, commodity\)/);

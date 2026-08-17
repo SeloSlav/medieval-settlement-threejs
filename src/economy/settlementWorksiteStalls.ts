@@ -29,6 +29,7 @@ import {
 import { largeQuarrySupportsReady } from './largeQuarrySupportPolicy.ts';
 import { richMineSupportsReady } from './mineSupportPolicy.ts';
 import { freshFoodStock } from './foodInventory.ts';
+import { breadStock, flourStock } from './cropGoods.ts';
 import {
   normalizeStaffingPriority,
   type StaffingPriority,
@@ -226,7 +227,10 @@ export function isProductionLaborKind(
 
 function outputStock(building: BuildingState): number {
   if (isProcessorOutputTargetKind(building.kind)) {
-    return Math.max(0, building[processorOutputCommodity(building.kind)] ?? 0);
+    const output = processorOutputCommodity(building.kind);
+    if (output === 'flour') return flourStock(building);
+    if (output === 'bread') return breadStock(building);
+    return Math.max(0, building[output] ?? 0);
   }
   if (building.kind === 'hunters_hall' || building.kind === 'fishing_camp') {
     return building.kind === 'hunters_hall'

@@ -11,6 +11,7 @@ import {
   MARKETPLACE_SEED_GRAIN_IMPORT_LOT,
   marketplaceSeedGrainProcurementPlan,
 } from './marketplaceSeedPolicy.ts';
+import { breadGrainStock } from './cropGoods.ts';
 
 export type MarketplaceSeedCoveragePlan = {
   sourceBusy: boolean;
@@ -84,7 +85,11 @@ function inboundGrainByHolding(
       trip.phase === 'inbound'
       || trip.destinationKind !== 'building'
       || trip.targetBuildingId == null
-      || trip.cargoKind !== 'grain'
+      || !(
+        trip.cargoKind === 'ryeGrain'
+        || trip.cargoKind === 'oatGrain'
+        || trip.cargoKind === 'maslinGrain'
+      )
       || trip.amount <= 1e-6
     ) {
       continue;
@@ -123,7 +128,8 @@ function compareSeedCandidates(left: SeedCandidate, right: SeedCandidate): numbe
 export function seedGrainSourceCoveragePlan(
   source: Pick<
     BuildingState,
-    'id' | 'kind' | 'grain' | 'assignedLabor' | 'constructionComplete'
+    | 'id' | 'kind' | 'ryeGrain' | 'oatGrain' | 'maslinGrain'
+    | 'assignedLabor' | 'constructionComplete'
   >,
   state: Pick<GameState, 'buildings' | 'farmFields' | 'deliveryTrips'>
     & Partial<Pick<GameState, 'fireIncidents'>>,
@@ -186,7 +192,7 @@ export function seedGrainSourceCoveragePlan(
     const staffed = farmstead.assignedLabor > 0;
     const fireBlocked = fireDisabled.has(farmstead.id);
     if (staffed) staffedHoldings += 1;
-    const onsite = Math.max(0, farmstead.grain);
+    const onsite = breadGrainStock(farmstead);
     const inboundStock = Math.max(0, demand.inbound);
     const available = onsite + inboundStock;
     inboundGrain += Math.max(0, demand.inbound);
@@ -245,7 +251,7 @@ export function seedGrainSourceCoveragePlan(
     }
   }
 
-  const sourceStock = Math.max(0, source.grain);
+  const sourceStock = breadGrainStock(source);
   const sourceOperational = source.constructionComplete !== false
     && !fireDisabled.has(source.id)
     && (source.kind !== 'trading_post' || source.assignedLabor > 0);
@@ -275,8 +281,8 @@ export function seedGrainSourceCoveragePlan(
     nextDispatchDistance: nextDispatch?.distance ?? null,
     nextDispatchRequired: nextDispatch == null
       ? 0
-      : nextDispatch.shortfall + Math.max(0, nextDispatch.building.grain),
-    nextDispatchStock: Math.max(0, nextDispatch?.building.grain ?? 0),
+      : nextDispatch.shortfall + breadGrainStock(nextDispatch.building),
+    nextDispatchStock: nextDispatch ? breadGrainStock(nextDispatch.building) : 0,
     nextDispatchShortfall: nextDispatch?.shortfall ?? 0,
     nextDispatchAmount: nextDispatch == null || !sourceOperational || inbound.sourceBusy
       ? 0
@@ -293,7 +299,9 @@ export function marketplaceSeedCoveragePlan(
     BuildingState,
     | 'id'
     | 'kind'
-    | 'grain'
+    | 'ryeGrain'
+    | 'oatGrain'
+    | 'maslinGrain'
     | 'assignedLabor'
     | 'constructionComplete'
     | 'marketplaceSeedGrainTarget'
@@ -311,7 +319,7 @@ export function marketplaceSeedCoveragePlan(
     routeDistance,
   );
   const procurement = marketplaceSeedGrainProcurementPlan(market);
-  const currentMarketStock = Math.max(0, market.grain);
+  const currentMarketStock = Math.max(0, market.ryeGrain ?? 0);
   const plannedImportLots = procurement.ordersToTarget;
   const plannedImportGrain = plannedImportLots * MARKETPLACE_SEED_GRAIN_IMPORT_LOT;
   const potentialCoverage = Math.min(

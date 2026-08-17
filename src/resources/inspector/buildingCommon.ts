@@ -47,6 +47,7 @@ import {
   freshFoodStock,
   preservedFoodStock,
 } from '../../economy/foodInventory.ts';
+import { breadGrainBulkStock, flourStock } from '../../economy/cropGoods.ts';
 
 export function buildingStorageRows(
   building: BuildingState,
@@ -60,10 +61,15 @@ export function buildingStorageRows(
     caps.stone > 0 ? `<li><span>Stone stored</span><span>${Math.round(building.stone)} / ${caps.stone}</span></li>` : '',
     caps.water != null && caps.water > 0 ? `<li><span>Water stored</span><span>${Math.round(building.water)} / ${caps.water}</span></li>` : '',
     buildingFoodStorageRows(building, caps.food ?? 0, false),
-    caps.grain != null && caps.grain > 0 ? `<li><span>Grain stored</span><span>${Math.round(building.grain)} / ${caps.grain}</span></li>` : '',
-    caps.barley != null && caps.barley > 0 ? `<li><span>Barley stored</span><span>${Math.round(building.barley ?? 0)} / ${caps.barley}</span></li>` : '',
+    caps.grain != null && caps.grain > 0 ? `<li><span>Bread-grain bay</span><span>${breadGrainBulkStock(building).toFixed(1)} / ${caps.grain}</span></li>
+      <li><span>&nbsp;&nbsp;Rye sheaves / grain</span><span>${(building.ryeSheaves ?? 0).toFixed(1)} / ${(building.ryeGrain ?? 0).toFixed(1)}</span></li>
+      <li><span>&nbsp;&nbsp;Oat sheaves / grain</span><span>${(building.oatSheaves ?? 0).toFixed(1)} / ${(building.oatGrain ?? 0).toFixed(1)}</span></li>
+      <li><span>&nbsp;&nbsp;Maslin sheaves / grain</span><span>${(building.maslinSheaves ?? 0).toFixed(1)} / ${(building.maslinGrain ?? 0).toFixed(1)}</span></li>` : '',
+    caps.barley != null && caps.barley > 0 ? `<li><span>Barley bay</span><span>${((building.barleySheaves ?? 0) + (building.barley ?? 0)).toFixed(1)} / ${caps.barley}</span></li>
+      <li><span>&nbsp;&nbsp;Sheaves / threshed grain</span><span>${(building.barleySheaves ?? 0).toFixed(1)} / ${(building.barley ?? 0).toFixed(1)}</span></li>` : '',
     caps.malt != null && caps.malt > 0 ? `<li><span>Malt stored</span><span>${Math.round(building.malt ?? 0)} / ${caps.malt}</span></li>` : '',
-    caps.flour != null && caps.flour > 0 ? `<li><span>Flour stored</span><span>${Math.round(building.flour)} / ${caps.flour}</span></li>` : '',
+    caps.flour != null && caps.flour > 0 ? `<li><span>Flour room</span><span>${flourStock(building).toFixed(1)} / ${caps.flour}</span></li>
+      <li><span>&nbsp;&nbsp;Rye / oat / maslin</span><span>${(building.ryeFlour ?? 0).toFixed(1)} / ${(building.oatFlour ?? 0).toFixed(1)} / ${(building.maslinFlour ?? 0).toFixed(1)}</span></li>` : '',
     caps.ale != null && caps.ale > 0 ? `<li><span>Ale stored</span><span>${Math.round(building.ale)} / ${caps.ale}</span></li>` : '',
     buildingFoodStorageRows(building, caps.preservedFood ?? 0, true),
     caps.honey != null && caps.honey > 0 ? `<li><span>Honey stored</span><span>${Math.round(building.honey)} / ${caps.honey}</span></li>` : '',

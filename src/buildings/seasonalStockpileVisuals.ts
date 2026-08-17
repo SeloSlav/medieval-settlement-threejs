@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type { BuildingState } from '../resources/types.ts';
+import { breadGrainStock, grainSheafStock } from '../economy/cropGoods.ts';
 import {
   PASTORAL_SALT_VISUAL_SEGMENTS,
   stockpileVisualLevel,
@@ -22,7 +23,7 @@ export function seasonalStockpileVisualSignature(building: BuildingState): strin
   switch (building.kind) {
     case 'threshing_barn':
       return `:seasonal-store:${stockpileVisualLevel(
-        building.grain + (building.barley ?? 0),
+        grainSheafStock(building) + breadGrainStock(building) + (building.barley ?? 0),
         BUILDING_STORAGE_CAPS.threshing_barn.grain
           + (BUILDING_STORAGE_CAPS.threshing_barn.barley ?? 0),
         THRESHING_GRAIN_VISUAL_SEGMENTS,
@@ -82,7 +83,7 @@ export function syncSeasonalStockpileVisuals(
         marker,
         'ThreshingGrainStockpile',
         'ThreshingGrainSegment',
-        building.grain + (building.barley ?? 0),
+        grainSheafStock(building) + breadGrainStock(building) + (building.barley ?? 0),
         BUILDING_STORAGE_CAPS.threshing_barn.grain
           + (BUILDING_STORAGE_CAPS.threshing_barn.barley ?? 0),
       );
