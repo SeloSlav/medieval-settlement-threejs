@@ -30,16 +30,25 @@ import {
   isGameHabitatClearOfWater,
 } from '../src/foraging/ForagingLayout.ts';
 import {
+  MAX_RASPBERRIES_PER_CLUMP,
   MIN_VISIBLE_BERRY_CLUMPS,
+  ORDINARY_BERRY_CLUMPS,
+  RICH_BERRY_CLUMPS,
+  berryClumpTargetCount,
   isBerryClumpVisible,
+  isBerryFruitVisible,
   resolveBerryClumpPosition,
 } from '../src/foraging/berryPatchPresentation.ts';
 import {
+  BERRY_PATCH_MAX_YIELD,
   BERRY_PATCH_MAX_SPAWN_RADIUS,
   GAME_PATCH_MAX_YIELD,
+  RICH_BERRY_PATCH_MAX_YIELD,
+  RICH_BERRY_PATCH_PICK_RADIUS,
   RICH_GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_PICK_RADIUS,
   gamePatchSpawnRadius,
+  isRichForagingCapacity,
 } from '../src/foraging/foragingYields.ts';
 import { forestDensityAt } from '../src/props/forestField.ts';
 import { MUSHROOM_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
@@ -133,6 +142,11 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
   assert.equal(berries.length, layout.resourcePlan.foragingNodeCounts.berries);
   assert.ok(mushrooms.length > 0, 'complete regions should retain mushrooms');
   assert.ok(berries.length > 0, 'complete regions should retain berries');
+  assert.equal(
+    berries.filter((site) => site.isRich).length,
+    1,
+    `${mapSize} maps should have one rich raspberry thicket`,
+  );
 
   const mushroomDensity = average(mushrooms.map((site) => forestDensityAt(
     site.x,
@@ -178,6 +192,16 @@ assert.deepEqual(
 assert.equal(gameDefinitions[1].label, 'Large game habitat');
 assert.equal(gameDefinitions[1].pickRadius, RICH_GAME_PATCH_PICK_RADIUS);
 assert.ok(gameDefinitions[1].pickRadius > gameDefinitions[0].pickRadius);
+const berryDefinitions = registry.definitionList.filter((node) => node.kind === 'berries');
+assert.deepEqual(
+  berryDefinitions.map((node) => node.maxYield),
+  [BERRY_PATCH_MAX_YIELD, RICH_BERRY_PATCH_MAX_YIELD],
+);
+assert.equal(berryDefinitions[1].label, 'Rich raspberry thicket');
+assert.equal(berryDefinitions[1].pickRadius, RICH_BERRY_PATCH_PICK_RADIUS);
+assert.equal(berryDefinitions[1].isRich, true);
+assert.equal(isRichForagingCapacity('berries', BERRY_PATCH_MAX_YIELD), false);
+assert.equal(isRichForagingCapacity('berries', RICH_BERRY_PATCH_MAX_YIELD), true);
 const mushroomDefinitions = registry.definitionList.filter((node) => node.kind === 'mushrooms');
 assert.equal(mushroomDefinitions.length, layout.resourcePlan.foragingNodeCounts.mushrooms);
 assert.ok(mushroomDefinitions.every((node) => node.resource === 'mushrooms'));
@@ -380,6 +404,14 @@ assert.equal(
   isBerryClumpVisible(MIN_VISIBLE_BERRY_CLUMPS, 0, 60, true, 0),
   false,
 );
+assert.equal(berryClumpTargetCount(false), ORDINARY_BERRY_CLUMPS);
+assert.equal(berryClumpTargetCount(true), RICH_BERRY_CLUMPS);
+assert.equal(MAX_RASPBERRIES_PER_CLUMP, 5);
+assert.equal(isBerryFruitVisible(0, 60, true, 0), false);
+assert.equal(isBerryFruitVisible(60, 60, true, 0.99), true);
+assert.equal(isBerryFruitVisible(30, 60, true, 0.8), false);
+assert.equal(isBerryFruitVisible(30, 60, true, 0.7), true);
+assert.equal(isBerryFruitVisible(60, 60, false, 0), false);
 assert.deepEqual(
   resolveBerryClumpPosition(10, 20, 13, 18, 110, -40),
   { x: 113, z: -42 },
@@ -401,6 +433,8 @@ const berryVisuals = readFileSync(
 assert.match(berryVisuals, /createGorskiShrubPrototype\('raspberry'/);
 assert.match(berryVisuals, /raspberry_cluster\.glb/);
 assert.match(berryVisuals, /new THREE\.InstancedMesh/);
+assert.match(berryVisuals, /fruitMesh\.count = visibleFruitCount/);
+assert.match(berryVisuals, /targetDiameterM = \[0\.017, 0\.022\]/);
 assert.doesNotMatch(
   berryVisuals,
   /raspberry_patch_albedo\.png|createSeedThreeCardClumpGeometry|appendBerryIcosahedron/,

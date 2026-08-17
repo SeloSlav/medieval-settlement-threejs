@@ -7,13 +7,13 @@ use crate::balance_generated::{
 use crate::building_defs::building_def;
 use crate::constants::{
     BERRIES_PER_HARVEST, FISH_PER_HARVEST, GAME_ANIMALS_PER_HARVEST, GAME_PER_HARVEST,
-    MUSHROOMS_PER_HARVEST, RICH_FISH_YIELD_MULTIPLIER, TICK_DT,
+    MUSHROOMS_PER_HARVEST, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, deposit_building_commodity, CommodityKind,
 };
-use crate::foraging_policy::harvest_available;
+use crate::foraging_policy::{harvest_available, harvest_yield_multiplier};
 use crate::harvest_reserve_policy::harvestable_wild_stock;
 use crate::simulation::delivery_supplier::delivery_work_ready;
 use crate::simulation::delivery_trips::{
@@ -190,11 +190,7 @@ fn harvest_from_node(
     }
 
     let labor = workers as f64;
-    let richness_multiplier = if node.node_kind == "fish" && node.max_yield >= 200.0 {
-        RICH_FISH_YIELD_MULTIPLIER
-    } else {
-        1.0
-    };
+    let richness_multiplier = harvest_yield_multiplier(&node.node_kind, node.max_yield);
     let requested = resource_units_per_harvest * richness_multiplier * labor;
     let max_resource_for_room = food_room / food_per_resource_unit.max(1e-9);
     let available = harvestable_wild_stock(

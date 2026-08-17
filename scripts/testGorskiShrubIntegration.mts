@@ -57,7 +57,10 @@ assert.equal(
 const berryVisuals = readFileSync(`${projectRoot}src/foraging/BerryPatchVisuals.ts`, 'utf8');
 assert.match(berryVisuals, /createGorskiShrubPrototype\('raspberry'/);
 assert.match(berryVisuals, /raspberry_cluster\.glb/);
-assert.match(berryVisuals, /toNonIndexed\(\)/);
+assert.match(berryVisuals, /Depleting real raspberry fruit instances/);
+assert.match(berryVisuals, /fruitMesh\.count = visibleFruitCount/);
+assert.match(berryVisuals, /targetDiameterM = \[0\.017, 0\.022\]/);
+assert.doesNotMatch(berryVisuals, /bakeRaspberryFruitIntoPrototype/);
 assert.doesNotMatch(berryVisuals, /raspberry_patch_albedo\.png|createSeedThreeCardClumpGeometry/);
 
 const undergrowthVisuals = readFileSync(`${projectRoot}src/props/ForestUndergrowth.ts`, 'utf8');

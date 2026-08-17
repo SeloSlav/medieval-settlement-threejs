@@ -62,13 +62,29 @@ export function renderForagingInspector(
       <li><span>Capacity</span><span>${Math.round(state.maxYield)}</span></li>
       <li><span>Season</span><span>${capitalize(season)}${available ? '' : ' — unavailable'}</span></li>
       <li><span>Recovery</span><span>${lifecycle}</span></li>
-      ${state.kind === 'fish' ? `<li><span>Shoal</span><span>${state.isRich ? 'Rich population (1.75× catch)' : 'Small population'}</span></li>` : ''}
+      ${richnessDetail(state.kind, state.isRich === true)}
       <li><span>Harvest radius</span><span>${definition.pickRadius} m</span></li>
       <li><span>Location</span><span>${Math.round(state.x)}, ${Math.round(state.z)}</span></li>
     `,
     demolish: hiddenDemolish(),
     labor: hiddenLabor(),
   };
+}
+
+function richnessDetail(
+  kind: 'game' | 'berries' | 'mushrooms' | 'fish',
+  isRich: boolean,
+): string {
+  if (kind === 'fish') {
+    return `<li><span>Shoal</span><span>${isRich ? 'Rich population (1.75× catch)' : 'Small population'}</span></li>`;
+  }
+  if (kind === 'berries') {
+    return `<li><span>Thicket</span><span>${isRich ? 'Rich growth (1.5× harvest)' : 'Ordinary growth'}</span></li>`;
+  }
+  if (kind === 'game') {
+    return `<li><span>Habitat</span><span>${isRich ? 'Rich carrying capacity' : 'Ordinary carrying capacity'}</span></li>`;
+  }
+  return '';
 }
 
 function formatStock(

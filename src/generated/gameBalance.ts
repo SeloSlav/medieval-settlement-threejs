@@ -328,6 +328,7 @@ export const REMEDIES_PER_DELIVERY = 3;
 export const REMEDY_DELIVERY_TARGET_DAYS = 10;
 export const FISH_PER_HARVEST = 3.5;
 export const RICH_FISH_YIELD_MULTIPLIER = 1.75;
+export const RICH_BERRY_YIELD_MULTIPLIER = 1.5;
 export const FOOD_PER_DELIVERY = 6;
 export const BERRIES_REGROW_PER_DAY = 18;
 export const MUSHROOMS_REGROW_PER_DAY = 12;

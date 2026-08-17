@@ -496,6 +496,7 @@ export type GameBalance = {
     remedyDeliveryTargetDays: number;
     fishPerHarvest: number;
     richFishYieldMultiplier: number;
+    richBerryYieldMultiplier: number;
     foodPerDelivery: number;
     berriesRegrowPerDay: number;
     mushroomsRegrowPerDay: number;
@@ -1059,6 +1060,7 @@ function generateRust(): string {
     `pub const REMEDY_DELIVERY_TARGET_DAYS: f64 = ${rustF64(b.production.remedyDeliveryTargetDays)};`,
     `pub const FISH_PER_HARVEST: f64 = ${rustF64(b.production.fishPerHarvest)};`,
     `pub const RICH_FISH_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.richFishYieldMultiplier)};`,
+    `pub const RICH_BERRY_YIELD_MULTIPLIER: f64 = ${rustF64(b.production.richBerryYieldMultiplier)};`,
     `pub const FOOD_PER_DELIVERY: f64 = ${rustF64(b.production.foodPerDelivery)};`,
     `pub const BERRIES_REGROW_PER_DAY: f64 = ${rustF64(b.production.berriesRegrowPerDay)};`,
     `pub const MUSHROOMS_REGROW_PER_DAY: f64 = ${rustF64(b.production.mushroomsRegrowPerDay)};`,
@@ -1939,6 +1941,7 @@ function generateTypeScript(): string {
     `export const REMEDY_DELIVERY_TARGET_DAYS = ${b.production.remedyDeliveryTargetDays};`,
     `export const FISH_PER_HARVEST = ${b.production.fishPerHarvest};`,
     `export const RICH_FISH_YIELD_MULTIPLIER = ${b.production.richFishYieldMultiplier};`,
+    `export const RICH_BERRY_YIELD_MULTIPLIER = ${b.production.richBerryYieldMultiplier};`,
     `export const FOOD_PER_DELIVERY = ${b.production.foodPerDelivery};`,
     `export const BERRIES_REGROW_PER_DAY = ${b.production.berriesRegrowPerDay};`,
     `export const MUSHROOMS_REGROW_PER_DAY = ${b.production.mushroomsRegrowPerDay};`,

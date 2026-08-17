@@ -583,6 +583,7 @@
     "remedyDeliveryTargetDays": 10,
     "fishPerHarvest": 3.5,
     "richFishYieldMultiplier": 1.75,
+    "richBerryYieldMultiplier": 1.5,
     "foodPerDelivery": 6,
     "berriesRegrowPerDay": 18,
     "mushroomsRegrowPerDay": 12,

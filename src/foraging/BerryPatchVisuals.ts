@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import { mulberry32 } from '../props/forestField.ts';
@@ -19,7 +18,10 @@ import { BERRY_PATCH_RADIUS } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
 import { isForagingHarvestAvailable } from './foragingSeason.ts';
 import {
+  MAX_RASPBERRIES_PER_CLUMP,
+  berryClumpTargetCount,
   isBerryClumpVisible,
+  isBerryFruitVisible,
   resolveBerryClumpPosition,
 } from './berryPatchPresentation.ts';
 
@@ -37,6 +39,18 @@ type BerryClumpPlacement = {
   matrix: THREE.Matrix4 | null;
 };
 
+type BerryFruitPlacement = {
+  nodeId: string;
+  clumpIndex: number;
+  fruitIndex: number;
+  clump: BerryClumpPlacement;
+  matrix: THREE.Matrix4;
+  offsetX: number;
+  offsetZ: number;
+  heightAboveGround: number;
+  visibilityNoise: number;
+};
+
 type RaspberryMaterialSet = {
   branch: THREE.MeshStandardMaterial;
   foliage: THREE.MeshStandardMaterial;
@@ -52,14 +66,14 @@ export type BerryPatchVisuals = {
 };
 
 const TAU = Math.PI * 2;
-const CLUMPS_PER_PATCH = 22;
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 
 /**
  * Turns authoritative berry sites into instanced Rubus idaeus cane shrubs.
- * The skeleton/spray grammar is SeedThree's upstream shrub path; the generated
- * raspberry GLB is baked into each reusable prototype at terminal anchors.
+ * The skeleton/spray grammar is SeedThree's upstream shrub path. Raspberry
+ * fruit uses one compacted instance buffer so individual berries disappear as
+ * authoritative stock falls without multiplying draw calls.
  */
 export async function createBerryPatchVisuals(
   terrain: Terrain,
@@ -106,27 +120,23 @@ export async function createBerryPatchVisuals(
 
   const prototypes = Array.from({ length: GORSKI_SHRUB_VARIANT_COUNT }, (_, variant) => {
     const prototype = createGorskiShrubPrototype('raspberry', variant);
-    const geometry = bakeRaspberryFruitIntoPrototype(prototype.geometry, prototype.fruitAnchors, fruitGeometry);
-    prototype.geometry.dispose();
-    geometry.userData.prototypeTriangleCount = triangleCount(geometry);
-    geometry.userData.fruitModel = 'raspberry_cluster.glb';
-    return geometry;
+    prototype.geometry.userData.prototypeTriangleCount = prototype.triangleCount;
+    return prototype;
   });
-  fruitGeometry.dispose();
 
-  const meshes = prototypes.map((geometry, prototypeIndex) => {
+  const meshes = prototypes.map((prototype, prototypeIndex) => {
     const variantPlacements = placements.filter(
       (placement) => placement.prototypeIndex === prototypeIndex,
     );
     const capacity = Math.max(variantPlacements.length, 1);
     const mesh = new THREE.InstancedMesh(
-      geometry,
-      [materials.branch, materials.foliage, materials.fruit],
+      prototype.geometry,
+      [materials.branch, materials.foliage],
       capacity,
     );
     mesh.name = `SeedThree real raspberry prototype ${prototypeIndex + 1}`;
     mesh.userData.fruitModel = 'raspberry_cluster.glb';
-    mesh.userData.prototypeTriangleCount = geometry.userData.prototypeTriangleCount;
+    mesh.userData.prototypeTriangleCount = prototype.triangleCount;
     mesh.count = variantPlacements.length;
     mesh.castShadow = false;
     mesh.receiveShadow = true;
@@ -168,6 +178,14 @@ export async function createBerryPatchVisuals(
     return mesh;
   });
 
+  const { mesh: fruitMesh, placements: fruitPlacements } = createRaspberryFruitInstances(
+    terrain,
+    placements,
+    prototypes,
+    fruitGeometry,
+    materials.fruit,
+  );
+
   const group = new THREE.Group();
   group.name = 'Harvestable real raspberry resource patches';
   group.userData.berryPatchCenters = berrySites.map((site, index) => ({
@@ -177,13 +195,16 @@ export async function createBerryPatchVisuals(
   }));
   group.userData.seedThreeShrubSystem = true;
   group.userData.raspberryFruitModel = 'raspberry_cluster.glb';
-  group.add(...meshes);
+  group.userData.raspberryFruitCapacity = fruitPlacements.length;
+  group.add(...meshes, fruitMesh);
 
   const hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
   const workingMatrix = new THREE.Matrix4();
+  const workingFruitMatrix = new THREE.Matrix4();
   const sync = (nodes: Iterable<ForagingNodeState>, month: number): void => {
     const byId = new Map(Array.from(nodes, (node) => [node.nodeId, node] as const));
     const seasonAvailable = isForagingHarvestAvailable('berries', month);
+    const visibleClumps = new Set<BerryClumpPlacement>();
     placements.forEach((placement, index) => {
       const mesh = meshes[placement.prototypeIndex]!;
       const node = byId.get(placement.nodeId);
@@ -210,6 +231,7 @@ export async function createBerryPatchVisuals(
         mesh.setMatrixAt(placement.meshIndex, hiddenMatrix);
         return;
       }
+      visibleClumps.add(placement);
       workingMatrix.copy(placement.matrix);
       workingMatrix.setPosition(
         worldPosition.x,
@@ -219,6 +241,44 @@ export async function createBerryPatchVisuals(
       mesh.setMatrixAt(placement.meshIndex, workingMatrix);
     });
     for (const mesh of meshes) mesh.instanceMatrix.needsUpdate = true;
+
+    let visibleFruitCount = 0;
+    for (const fruit of fruitPlacements) {
+      const node = byId.get(fruit.nodeId);
+      if (
+        !node
+        || !visibleClumps.has(fruit.clump)
+        || !isBerryFruitVisible(
+          node.remaining,
+          node.maxYield,
+          seasonAvailable,
+          fruit.visibilityNoise,
+        )
+      ) {
+        continue;
+      }
+      const clumpPosition = resolveBerryClumpPosition(
+        fruit.clump.originX,
+        fruit.clump.originZ,
+        fruit.clump.x,
+        fruit.clump.z,
+        node.x,
+        node.z,
+      );
+      const fruitX = clumpPosition.x + fruit.offsetX;
+      const fruitZ = clumpPosition.z + fruit.offsetZ;
+      workingFruitMatrix.copy(fruit.matrix);
+      workingFruitMatrix.setPosition(
+        fruitX,
+        terrain.getHeightAt(clumpPosition.x, clumpPosition.z) + 0.045 + fruit.heightAboveGround,
+        fruitZ,
+      );
+      fruitMesh.setMatrixAt(visibleFruitCount, workingFruitMatrix);
+      visibleFruitCount++;
+    }
+    fruitMesh.count = visibleFruitCount;
+    fruitMesh.instanceMatrix.needsUpdate = true;
+    group.userData.visibleRaspberryFruit = visibleFruitCount;
     group.userData.berryPatchCenters = berrySites.map((site, index) => {
       const nodeId = `foraging-berries-${index}`;
       const node = byId.get(nodeId);
@@ -232,6 +292,7 @@ export async function createBerryPatchVisuals(
     sync,
     dispose: () => {
       for (const mesh of meshes) mesh.geometry.dispose();
+      fruitMesh.geometry.dispose();
       materials.branch.dispose();
       materials.foliage.dispose();
       materials.fruit.dispose();
@@ -268,72 +329,76 @@ async function loadRaspberryFruit(): Promise<{ geometry: THREE.BufferGeometry; m
   return { geometry, material };
 }
 
-function bakeRaspberryFruitIntoPrototype(
-  prototype: THREE.BufferGeometry,
-  anchors: ReadonlyArray<THREE.Vector3>,
+function createRaspberryFruitInstances(
+  terrain: Terrain,
+  clumps: ReadonlyArray<BerryClumpPlacement>,
+  prototypes: ReadonlyArray<ReturnType<typeof createGorskiShrubPrototype>>,
   fruitGeometry: THREE.BufferGeometry,
-): THREE.BufferGeometry {
-  const clonedBase = prototype.clone();
-  const base = clonedBase.index ? clonedBase.toNonIndexed() : clonedBase;
-  if (base !== clonedBase) clonedBase.dispose();
-  ensureMergeAttributes(base, false);
-  const fruitPieces = anchors.slice(0, 4).map((anchor, index) => {
-    const clonedPiece = fruitGeometry.clone();
-    const piece = clonedPiece.index ? clonedPiece.toNonIndexed() : clonedPiece;
-    if (piece !== clonedPiece) clonedPiece.dispose();
-    const quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-      (hash01(index * 3.1 + 0.7) - 0.5) * 0.2,
-      hash01(index * 8.3 + 1.7) * TAU,
-      0,
-    ));
-    const scale = THREE.MathUtils.lerp(0.94, 1.14, hash01(index * 5.7 + 4.2));
-    piece.applyMatrix4(new THREE.Matrix4().compose(
-      anchor,
-      quaternion,
-      new THREE.Vector3(scale, scale, scale),
-    ));
-    ensureMergeAttributes(piece, true);
-    return piece;
-  });
-  const fruit = mergeGeometries(fruitPieces, false);
-  for (const piece of fruitPieces) piece.dispose();
-  if (!fruit) {
-    base.dispose();
-    throw new Error('Unable to bake raspberry fruit geometry');
-  }
-  const baseCount = base.index?.count ?? base.getAttribute('position').count;
-  const fruitCount = fruit.index?.count ?? fruit.getAttribute('position').count;
-  const geometry = mergeGeometries([base, fruit], false);
-  if (!geometry) {
-    base.dispose();
-    fruit.dispose();
-    throw new Error('Unable to merge raspberry shrub and fruit');
-  }
-  geometry.clearGroups();
-  for (const group of base.groups) geometry.addGroup(group.start, group.count, group.materialIndex);
-  geometry.addGroup(baseCount, fruitCount, 2);
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
-  base.dispose();
-  fruit.dispose();
-  return geometry;
-}
+  fruitMaterial: THREE.Material,
+): { mesh: THREE.InstancedMesh; placements: BerryFruitPlacement[] } {
+  fruitGeometry.computeBoundingBox();
+  const fruitSize = fruitGeometry.boundingBox!.getSize(new THREE.Vector3());
+  const sourceDiameter = Math.max(fruitSize.x, fruitSize.z, 0.001);
+  const capacity = Math.max(clumps.length * MAX_RASPBERRIES_PER_CLUMP, 1);
+  const mesh = new THREE.InstancedMesh(fruitGeometry, fruitMaterial, capacity);
+  mesh.name = 'Depleting real raspberry fruit instances';
+  mesh.userData.fruitModel = 'raspberry_cluster.glb';
+  mesh.userData.sourceDiameterM = sourceDiameter;
+  mesh.userData.targetDiameterM = [0.017, 0.022];
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.count = 0;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
 
-function ensureMergeAttributes(geometry: THREE.BufferGeometry, fruit: boolean): void {
-  const count = geometry.getAttribute('position').count;
-  if (!geometry.getAttribute('uv')) {
-    geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(count * 2), 2));
+  const placements: BerryFruitPlacement[] = [];
+  const clumpPosition = new THREE.Vector3();
+  const clumpQuaternion = new THREE.Quaternion();
+  const clumpScale = new THREE.Vector3();
+  const fruitPosition = new THREE.Vector3();
+  const fruitQuaternion = new THREE.Quaternion();
+  const fruitScale = new THREE.Vector3();
+  const fruitMatrix = new THREE.Matrix4();
+
+  for (const clump of clumps) {
+    if (!clump.matrix) continue;
+    clump.matrix.decompose(clumpPosition, clumpQuaternion, clumpScale);
+    const anchors = prototypes[clump.prototypeIndex]!.fruitAnchors
+      .slice(0, MAX_RASPBERRIES_PER_CLUMP);
+    for (let fruitIndex = 0; fruitIndex < anchors.length; fruitIndex++) {
+      const globalIndex = placements.length;
+      fruitPosition.copy(anchors[fruitIndex]!).applyMatrix4(clump.matrix);
+      fruitQuaternion.copy(clumpQuaternion).multiply(
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(
+          (hash01(globalIndex * 3.1 + 0.7) - 0.5) * 0.18,
+          hash01(globalIndex * 8.3 + 1.7) * TAU,
+          (hash01(globalIndex * 6.7 + 5.2) - 0.5) * 0.12,
+          'YXZ',
+        )),
+      );
+      const targetDiameter = THREE.MathUtils.lerp(
+        0.017,
+        0.022,
+        hash01(globalIndex * 5.7 + 4.2),
+      );
+      fruitScale.setScalar(targetDiameter / sourceDiameter);
+      fruitMatrix.compose(fruitPosition, fruitQuaternion, fruitScale);
+      const groundY = terrain.getHeightAt(clump.x, clump.z) + 0.045;
+      placements.push({
+        nodeId: clump.nodeId,
+        clumpIndex: clump.clumpIndex,
+        fruitIndex,
+        clump,
+        matrix: fruitMatrix.clone(),
+        offsetX: fruitPosition.x - clump.x,
+        offsetZ: fruitPosition.z - clump.z,
+        heightAboveGround: fruitPosition.y - groundY,
+        visibilityNoise: hash01(globalIndex * 11.73 + 9.1),
+      });
+    }
   }
-  if (!geometry.getAttribute('color')) {
-    const colors = new Float32Array(count * 3);
-    colors.fill(1);
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  }
-  if (!geometry.getAttribute('aRootWeight')) {
-    const weights = new Float32Array(count);
-    weights.fill(fruit ? 0.85 : 0);
-    geometry.setAttribute('aRootWeight', new THREE.BufferAttribute(weights, 1));
-  }
+  mesh.userData.capacity = placements.length;
+  return { mesh, placements };
 }
 
 async function loadRequiredTexture(
@@ -360,10 +425,6 @@ async function loadOptionalTexture(
   return texture;
 }
 
-function triangleCount(geometry: THREE.BufferGeometry): number {
-  return (geometry.index?.count ?? geometry.getAttribute('position').count) / 3;
-}
-
 function hash01(seed: number): number {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);
@@ -377,9 +438,10 @@ function createBerryClumpPlacements(
   const placements: BerryClumpPlacement[] = [];
   sites.forEach((site, index) => {
     const nodeId = `foraging-berries-${index}`;
+    const targetCount = berryClumpTargetCount(site.isRich === true);
     const patch: BerryClumpPlacement[] = [];
     let attempts = 0;
-    while (patch.length < CLUMPS_PER_PATCH && attempts < CLUMPS_PER_PATCH * 18) {
+    while (patch.length < targetCount && attempts < targetCount * 18) {
       attempts++;
       const radius = patch.length === 0 ? 0 : Math.sqrt(rng()) * BERRY_PATCH_RADIUS;
       const angle = rng() * TAU;

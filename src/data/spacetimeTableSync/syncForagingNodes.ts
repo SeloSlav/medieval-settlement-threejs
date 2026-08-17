@@ -1,5 +1,5 @@
 import type { ForagingNode } from '../../generated/types.ts';
-import { GAME_PATCH_MAX_YIELD } from '../../foraging/foragingYields.ts';
+import { isRichForagingCapacity } from '../../foraging/foragingYields.ts';
 import type { ForagingNodeState } from '../../resources/types.ts';
 
 export function syncForagingNodes(rows: Iterable<ForagingNode>): Map<string, ForagingNodeState> {
@@ -23,8 +23,7 @@ export function syncForagingNodes(rows: Iterable<ForagingNode>): Map<string, For
       maxYield: row.maxYield,
       x: row.x,
       z: row.z,
-      isRich: (kind === 'fish' && row.maxYield >= 200)
-        || (kind === 'game' && row.maxYield > GAME_PATCH_MAX_YIELD),
+      isRich: isRichForagingCapacity(kind, row.maxYield),
     });
   }
   return foragingNodes;

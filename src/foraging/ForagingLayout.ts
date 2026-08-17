@@ -139,7 +139,9 @@ export class ForagingLayout {
         options.riverLayout,
         sites,
       );
-      if (berrySite) sites.push(berrySite);
+      if (berrySite) {
+        sites.push({ ...berrySite, isRich: i === nodeCounts.berries - 1 });
+      }
     }
     for (let i = 0; i < nodeCounts.mushrooms; i++) {
       const mushroomSite = pickMushroomSite(

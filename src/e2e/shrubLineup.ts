@@ -9,6 +9,8 @@ import {
   type UndergrowthPlacement,
 } from '../props/ForestUndergrowth.ts';
 import { createBerryPatchVisuals } from '../foraging/BerryPatchVisuals.ts';
+import { berryPatchMaxYield } from '../foraging/foragingYields.ts';
+import type { ForagingNodeState } from '../resources/types.ts';
 import { mulberry32 } from '../utils/random.ts';
 
 declare global {
@@ -19,6 +21,10 @@ declare global {
 
 const root = document.querySelector<HTMLElement>('#lineup-root');
 if (!root) throw new Error('Shrub lineup host is missing.');
+const query = new URLSearchParams(window.location.search);
+const isRichBerryPatch = query.get('rich') === '1';
+const requestedStock = Number(query.get('stock') ?? '1');
+const stockRatio = THREE.MathUtils.clamp(Number.isFinite(requestedStock) ? requestedStock : 1, 0, 1);
 
 const renderer = new WebGPURenderer({ antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.35));
@@ -67,12 +73,24 @@ scene.add(undergrowth.group);
 
 const berries = await createBerryPatchVisuals(
   terrain,
-  [{ kind: 'berries', x: 8, z: 0 }],
+  [{ kind: 'berries', x: 8, z: 0, isRich: isRichBerryPatch }],
   renderer.getMaxAnisotropy(),
   'webgpu',
   0x72617370,
 );
 scene.add(berries.group);
+const berryCapacity = berryPatchMaxYield(isRichBerryPatch);
+const berryNode: ForagingNodeState = {
+  nodeId: 'foraging-berries-0',
+  kind: 'berries',
+  resource: 'berries',
+  remaining: berryCapacity * stockRatio,
+  maxYield: berryCapacity,
+  x: 8,
+  z: 0,
+  isRich: isRichBerryPatch,
+};
+berries.sync([berryNode], 7);
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(30, 12),
@@ -83,7 +101,7 @@ ground.position.y = -0.035;
 scene.add(ground);
 
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 100);
-const view = new URLSearchParams(window.location.search).get('view') ?? 'design';
+const view = query.get('view') ?? 'design';
 if (view === 'near') {
   camera.position.set(11.2, 2.7, 6.3);
   camera.lookAt(8, 1.0, 0);
@@ -114,6 +132,14 @@ await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 window.__SHRUB_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';
 document.body.dataset.view = view;
+document.body.dataset.berryRich = String(isRichBerryPatch);
+document.body.dataset.berryStockRatio = stockRatio.toFixed(2);
+document.body.dataset.visibleRaspberryFruit = String(
+  berries.group.userData.visibleRaspberryFruit ?? 0,
+);
+document.body.dataset.raspberryFruitCapacity = String(
+  berries.group.userData.raspberryFruitCapacity ?? 0,
+);
 document.body.dataset.ordinaryTriangles = String(
   Object.values(materials.prototypes).flat().reduce((sum, prototype) => sum + prototype.triangleCount, 0),
 );

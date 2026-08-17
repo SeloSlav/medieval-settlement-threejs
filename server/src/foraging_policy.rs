@@ -1,7 +1,11 @@
 use crate::balance_generated::{
     BERRIES_REGROW_PER_DAY, CALENDAR_SECONDS_PER_DAY, FISH_REPRODUCTION_RATE_PER_DAY,
     GAME_MIN_BREEDING_POPULATION, GAME_REPRODUCTION_RATE_PER_DAY, MUSHROOMS_REGROW_PER_DAY,
+    RICH_BERRY_YIELD_MULTIPLIER, RICH_FISH_YIELD_MULTIPLIER,
 };
+
+const ORDINARY_BERRY_CAPACITY: f64 = 60.0;
+const ORDINARY_FISH_CAPACITY: f64 = 120.0;
 
 pub fn is_spring(month: u32) -> bool {
     matches!(month, 3..=5)
@@ -27,6 +31,14 @@ pub fn harvest_available(node_kind: &str, month: u32) -> bool {
 /// otherwise the server validates buildings against invisible, stale patches.
 pub fn preserves_runtime_location_during_bootstrap(node_kind: &str) -> bool {
     node_kind == "game"
+}
+
+pub fn harvest_yield_multiplier(node_kind: &str, max_yield: f64) -> f64 {
+    match node_kind {
+        "berries" if max_yield > ORDINARY_BERRY_CAPACITY => RICH_BERRY_YIELD_MULTIPLIER,
+        "fish" if max_yield > ORDINARY_FISH_CAPACITY => RICH_FISH_YIELD_MULTIPLIER,
+        _ => 1.0,
+    }
 }
 
 pub fn population_growth_per_second(
@@ -98,6 +110,15 @@ mod tests {
         assert!(population_growth_per_second("fish", 10.0, 120.0, 4) > 0.0);
         assert_eq!(population_growth_per_second("fish", 10.0, 120.0, 7), 0.0);
         assert_eq!(population_growth_per_second("fish", 0.0, 120.0, 4), 0.0);
+    }
+
+    #[test]
+    fn rich_food_nodes_apply_their_harvest_multiplier() {
+        assert_eq!(harvest_yield_multiplier("berries", 60.0), 1.0);
+        assert_eq!(harvest_yield_multiplier("berries", 100.0), 1.5);
+        assert_eq!(harvest_yield_multiplier("fish", 120.0), 1.0);
+        assert_eq!(harvest_yield_multiplier("fish", 240.0), 1.75);
+        assert_eq!(harvest_yield_multiplier("game", 20.0), 1.0);
     }
 
     #[test]

@@ -3,10 +3,10 @@ import type { QuarrySite } from '../quarries/QuarryLayout.ts';
 import type { BuildingKind, ResourceNodeDefinition } from './types.ts';
 import { foragingPickRadius } from '../foraging/foragingYields.ts';
 import {
-  BERRY_PATCH_MAX_YIELD,
   FISH_SHOAL_MAX_YIELD,
   MUSHROOM_PATCH_MAX_YIELD,
   RICH_FISH_SHOAL_MAX_YIELD,
+  berryPatchMaxYield,
   gamePatchMaxYield,
 } from '../foraging/foragingYields.ts';
 import { quarryMaxYield, quarryPickRadius } from './yields.ts';
@@ -193,6 +193,9 @@ function foragingDefinition(site: ForagingSite, nodeIndex = 0): ResourceNodeDefi
   const isMushroom = site.kind === 'mushrooms';
   const isFish = site.kind === 'fish';
   const isRichFish = isFish && site.isRich === true;
+  const isBerry = site.kind === 'berries';
+  const isRichBerry = isBerry && site.isRich === true;
+  const isRich = isRichGame || isRichFish || isRichBerry;
   return {
     id: isGame
       ? `foraging-game-${nodeIndex}`
@@ -211,7 +214,7 @@ function foragingDefinition(site: ForagingSite, nodeIndex = 0): ResourceNodeDefi
         ? 'Deep-forest mushroom bed'
         : isFish
           ? (isRichFish ? 'Rich fishing shoal' : 'Fishing shoal')
-          : 'Berry patch',
+          : (isRichBerry ? 'Rich raspberry thicket' : 'Raspberry patch'),
     maxYield: isGame
       ? gamePatchMaxYield(isRichGame)
       : isMushroom
@@ -220,9 +223,9 @@ function foragingDefinition(site: ForagingSite, nodeIndex = 0): ResourceNodeDefi
         ? RICH_FISH_SHOAL_MAX_YIELD
         : isFish
           ? FISH_SHOAL_MAX_YIELD
-          : BERRY_PATCH_MAX_YIELD,
-    pickRadius: foragingPickRadius(site.kind, isRichGame || isRichFish),
-    isRich: isRichGame || isRichFish,
+          : berryPatchMaxYield(isRichBerry),
+    pickRadius: foragingPickRadius(site.kind, isRich),
+    isRich,
   };
 }
 
