@@ -23,12 +23,16 @@ import {
 } from '../vegetation/seedthree/seedThreeGroundCover.ts';
 import { seedThreeLeafUrl } from '../vegetation/seedthree/seedThreeTextures.ts';
 import type { RiverField } from './RiverField.ts';
+import {
+  ensureCattailEmergenceHeightMeters,
+} from './RiverReedHeight.ts';
 import { getStillWaterSurfaceY } from './RiverWaterLevel.ts';
 
 type ReedPlacement = {
   x: number;
   z: number;
   heightMeters: number;
+  waterDepthMeters: number;
   yaw: number;
   tiltX: number;
   tiltZ: number;
@@ -66,6 +70,10 @@ const composeColor = new THREE.Color();
 const REED_PEAK_OPACITY = 0.9;
 const REED_SHORE_MIN = 0.55;
 const REED_SHORE_MAX = 4.8;
+/** Keep emergent stands in water deep enough to visibly cross the cards. */
+const REED_MIN_WATER_DEPTH = 0.28;
+/** Avoid populating deep channel/sea water where cattails would not establish. */
+const REED_MAX_WATER_DEPTH = 1.45;
 /**
  * The authored texture is a compact tuft. A broader card fan makes each
  * instance read as a loose, established cattail clump instead of a small
@@ -125,6 +133,19 @@ export async function createRiverReeds(
   mesh.renderOrder = REED_RENDER_ORDER;
   mesh.visible = false;
   mesh.count = placements.length;
+  const waterlineFractions = placements.map((placement) => (
+    placement.waterDepthMeters / Math.max(placement.heightMeters, 0.001)
+  ));
+  mesh.userData.cattailHabitat = {
+    total: placements.length,
+    submerged: placements.filter((placement) => placement.waterDepthMeters > 0).length,
+    minWaterlineFraction: waterlineFractions.length > 0
+      ? Math.min(...waterlineFractions)
+      : 0,
+    maxWaterlineFraction: waterlineFractions.length > 0
+      ? Math.max(...waterlineFractions)
+      : 0,
+  };
 
   let instancesHidden = false;
   const hideAllInstances = (): void => {
@@ -278,23 +299,26 @@ function createReedPlacements(
 
     const tangentX = -node.outwardZ;
     const tangentZ = node.outwardX;
-    const clusterCount = 2 + Math.floor(rng() * 5);
+    const clusterCount = 3 + Math.floor(rng() * 6);
 
     for (let i = 0; i < clusterCount; i++) {
       const along = (rng() - 0.5) * 6.8;
-      const outward = 0.18 + Math.pow(rng(), 0.82) * 2.35;
-      const px = node.x + tangentX * along + node.outwardX * outward;
-      const pz = node.z + tangentZ * along + node.outwardZ * outward;
+      const inward = 0.55 + Math.pow(rng(), 0.82) * 3.65;
+      const px = node.x + tangentX * along - node.outwardX * inward;
+      const pz = node.z + tangentZ * along - node.outwardZ * inward;
 
-      if (riverField.isRenderedWetAt(px, pz)) continue;
-      if (!riverField.isGrassBlockedAt(px, pz)) continue;
+      if (!riverField.isRenderedWetAt(px, pz)) continue;
       if (placementIndex.hasPointWithin(px, pz, 0.72 + rng() * 0.38)) continue;
 
       const shore = riverField.sampleShoreDistance(px, pz);
+      if (shore < REED_SHORE_MIN || shore > REED_SHORE_MAX) continue;
+      const waterDepthMeters = resolveReedWaterDepthMeters(terrain, riverField, px, pz);
+      if (!isCattailWaterDepth(waterDepthMeters)) continue;
       const placement = {
         x: px,
         z: pz,
-        heightMeters: resolveReedHeightMeters(shore, rng),
+        heightMeters: resolveSubmergedReedHeightMeters(shore, waterDepthMeters, rng),
+        waterDepthMeters,
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.14,
         tiltZ: (rng() - 0.5) * 0.12,
@@ -307,12 +331,13 @@ function createReedPlacements(
     }
   }
 
-  appendGridReedPlacements(riverField, rng, placements, placementIndex);
+  appendGridReedPlacements(terrain, riverField, rng, placements, placementIndex);
   appendShallowReedFingers(terrain, riverField, rng, shoreNodes, placements, placementIndex);
   return placements;
 }
 
 function appendGridReedPlacements(
+  terrain: Terrain,
   riverField: RiverField,
   rng: () => number,
   placements: ReedPlacement[],
@@ -323,7 +348,7 @@ function appendGridReedPlacements(
   for (let gridZ = 0; gridZ < resolution; gridZ++) {
     for (let gridX = 0; gridX < resolution; gridX++) {
       const i = gridZ * resolution + gridX;
-      if (riverField.riverMask[i] >= 0.48) continue;
+      if (!riverField.isRenderedWetAtGrid(gridX, gridZ)) continue;
 
       const shore = riverField.shoreDistance[i];
       if (shore < 0.55 || shore > 4.8) continue;
@@ -332,17 +357,19 @@ function appendGridReedPlacements(
       const wz = startZ + gridZ * stepZ;
       const x = wx + (rng() - 0.5) * stepX * 0.62;
       const z = wz + (rng() - 0.5) * stepZ * 0.62;
-      if (riverField.isRenderedWetAt(x, z)) continue;
-      if (!riverField.isGrassBlockedAt(x, z)) continue;
+      if (!riverField.isRenderedWetAt(x, z)) continue;
 
       const chance = THREE.MathUtils.clamp(0.22 + (1 - shore / 4.8) * 0.32, 0.18, 0.56);
       if (rng() > chance) continue;
       if (placementIndex.hasPointWithin(x, z, 0.76 + rng() * 0.42)) continue;
+      const waterDepthMeters = resolveReedWaterDepthMeters(terrain, riverField, x, z);
+      if (!isCattailWaterDepth(waterDepthMeters)) continue;
 
       const placement = {
         x,
         z,
-        heightMeters: resolveReedHeightMeters(shore, rng),
+        heightMeters: resolveSubmergedReedHeightMeters(shore, waterDepthMeters, rng),
+        waterDepthMeters,
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.12,
         tiltZ: (rng() - 0.5) * 0.1,
@@ -384,16 +411,13 @@ function appendShallowReedFingers(
       if (wetShore < 0.36 || wetShore > 5.7) continue;
       if (placementIndex.hasPointWithin(x, z, 0.7 + rng() * 0.4)) continue;
 
-      const waterDepthMeters = Math.max(
-        0,
-        getStillWaterSurfaceY(terrain, riverField, x, z) - terrain.getHeightAt(x, z),
-      );
+      const waterDepthMeters = resolveReedWaterDepthMeters(terrain, riverField, x, z);
+      if (!isCattailWaterDepth(waterDepthMeters)) continue;
       const placement: ReedPlacement = {
         x,
         z,
-        // These specimens are rooted on the riverbed. Add the local water
-        // depth so their above-water silhouette remains as tall as a bank reed.
-        heightMeters: resolveReedHeightMeters(wetShore, rng) + waterDepthMeters,
+        heightMeters: resolveSubmergedReedHeightMeters(wetShore, waterDepthMeters, rng),
+        waterDepthMeters,
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.12,
         tiltZ: (rng() - 0.5) * 0.1,
@@ -473,6 +497,34 @@ function resolveReedBaseY(
   terrain: Terrain,
 ): number {
   return terrain.getHeightAt(placement.x, placement.z) + 0.03;
+}
+
+function resolveReedWaterDepthMeters(
+  terrain: Terrain,
+  riverField: RiverField,
+  x: number,
+  z: number,
+): number {
+  return Math.max(
+    0,
+    getStillWaterSurfaceY(terrain, riverField, x, z) - terrain.getHeightAt(x, z),
+  );
+}
+
+function isCattailWaterDepth(waterDepthMeters: number): boolean {
+  return waterDepthMeters >= REED_MIN_WATER_DEPTH
+    && waterDepthMeters <= REED_MAX_WATER_DEPTH;
+}
+
+function resolveSubmergedReedHeightMeters(
+  shore: number,
+  waterDepthMeters: number,
+  rng: () => number,
+): number {
+  return ensureCattailEmergenceHeightMeters(
+    resolveReedHeightMeters(shore, rng),
+    waterDepthMeters,
+  );
 }
 
 function resolveReedScaleVector(

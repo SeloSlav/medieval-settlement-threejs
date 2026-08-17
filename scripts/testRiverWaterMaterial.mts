@@ -34,6 +34,10 @@ import {
   setSharedRiverWaterNightAmount,
 } from '../src/rivers/RiverWaterMaterial.ts';
 import {
+  ensureCattailEmergenceHeightMeters,
+  REED_MAX_WATERLINE_FRACTION,
+} from '../src/rivers/RiverReedHeight.ts';
+import {
   MAX_RIVER_WATER_NORMAL_SLOPE,
   RIVER_WATER_RECEIVES_SHADOWS,
   writeBoundedRiverWaterNormal,
@@ -407,13 +411,13 @@ assert.match(
 );
 assert.match(
   reedSource,
-  /appendShallowReedFingers[\s\S]*?riverField\.isRenderedWetAt\(x, z\)/,
-  'cattails must include irregular emergent fingers inside rendered shallows',
+  /const inward[\s\S]*?- node\.outwardX \* inward[\s\S]*?- node\.outwardZ \* inward/,
+  'primary cattail stands must grow inward from the shoreline into rendered shallows',
 );
 assert.match(
   reedSource,
-  /getStillWaterSurfaceY\(terrain, riverField, x, z\)\s*-\s*terrain\.getHeightAt\(x, z\)/,
-  'submerged cattail height must compensate for the local water depth',
+  /if \(!riverField\.isRenderedWetAt\(px, pz\)\) continue/,
+  'primary cattail stands must reject dry-bank placements',
 );
 assert.match(
   reedSource,
@@ -434,6 +438,20 @@ assert.match(
   reedSource,
   /material\.depthWrite\s*=\s*useDepthWrite/,
   'visible cattail cutouts must populate depth so the water film only veils their submerged stems',
+);
+assert.equal(
+  ensureCattailEmergenceHeightMeters(2.1, 1.05),
+  2.1,
+  'a mature cattail should retain its sampled physical height',
+);
+const raisedYoungCattail = ensureCattailEmergenceHeightMeters(0.8, 1.05);
+assert.ok(
+  raisedYoungCattail > 1.05,
+  'a short cattail must retain an emergent crown above the waterline',
+);
+assert.ok(
+  1.05 / raisedYoungCattail <= REED_MAX_WATERLINE_FRACTION + 1e-9,
+  'the waterline must not swallow more than the authored fraction of a cattail card',
 );
 assert.match(
   reedSource,

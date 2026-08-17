@@ -6,6 +6,10 @@ import {
   CATTAIL_HEIGHT_PROFILE,
   sampleCattailHeightMeters,
 } from '../vendor/seedthree/src/core/cattails.js';
+import {
+  ensureCattailEmergenceHeightMeters,
+  REED_MAX_WATERLINE_FRACTION,
+} from '../src/rivers/RiverReedHeight.ts';
 
 function sequenceRandom(...values: number[]): () => number {
   let index = 0;
@@ -38,7 +42,10 @@ assert.ok(
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const riverReedSource = readFileSync(`${projectRoot}src/rivers/RiverReeds.ts`, 'utf8');
-assert.match(riverReedSource, /heightMeters:\s*resolveReedHeightMeters\(shore,\s*rng\)/);
+assert.match(
+  riverReedSource,
+  /heightMeters:\s*resolveSubmergedReedHeightMeters\(shore,\s*waterDepthMeters,\s*rng\)/,
+);
 assert.match(riverReedSource, /sampleCattailHeightMeters\(1\s*-\s*shoreT,\s*rng\)/);
 assert.match(
   riverReedSource,
@@ -48,6 +55,11 @@ assert.doesNotMatch(
   riverReedSource,
   /REED_HEIGHT_MULTIPLIER/,
   'river cattails must use physical SeedThree height cohorts, not an ambiguous app multiplier',
+);
+const shallowWaterHeight = ensureCattailEmergenceHeightMeters(matureHeight, 1.05);
+assert.ok(
+  1.05 / shallowWaterHeight <= REED_MAX_WATERLINE_FRACTION + 1e-9,
+  'a riverbed-rooted cattail must retain a visible crown above the local waterline',
 );
 
 console.log(
