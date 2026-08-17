@@ -112,6 +112,7 @@ export type SeedThreeForestInstances = {
   crownUnderlayMeshes: THREE.InstancedMesh[];
   crownUnderlayVisible: boolean;
   distantCanopyCardsEnabled: boolean;
+  shadowsEnabled: boolean;
   deciduousFoliage: DeciduousFoliagePresentation;
   renderStats: SeedThreeForestRenderStats;
   pendingLodWork: {
@@ -748,6 +749,7 @@ export async function createSeedThreeForest(
     crownUnderlayMeshes,
     crownUnderlayVisible,
     distantCanopyCardsEnabled: true,
+    shadowsEnabled: true,
     deciduousFoliage: {
       springFlush: 0,
       autumnColor: 0,
@@ -856,7 +858,7 @@ export function updateSeedThreeForestCamera(
       maxBucketCompactions: Number.POSITIVE_INFINITY,
       maxUpdateDurationMs: FOREST_CONTINUOUS_UPDATE_BUDGET_MS,
       maxMatrixWritesPerChunk: FOREST_MATRIX_WRITES_PER_CHUNK,
-      immediateWhenViewUncovered: true,
+      stabilizeDuringInteraction: true,
       cameraInteractionActive,
     },
   );
@@ -876,7 +878,7 @@ export function updateSeedThreeForestCameraBudgeted(
     minimumDirectionAngle?: number;
     minimumProjectionChange?: number;
     minimumCasterBoundsChange?: number;
-    immediateWhenViewUncovered?: boolean;
+    stabilizeDuringInteraction?: boolean;
     cameraInteractionActive?: boolean;
   },
 ): SeedThreeForestBudgetedUpdateResult {
@@ -891,7 +893,7 @@ export function updateSeedThreeForestCameraBudgeted(
     frustumPadding: firstPersonActive
       ? FOREST_VISIBILITY_PADDING + 8
       : FOREST_VISIBILITY_PADDING,
-    casterBounds,
+    casterBounds: forest.shadowsEnabled ? casterBounds : undefined,
     // Matches the directional-shadow fitter's broad-canopy horizontal margin.
     casterPadding: 14,
     ...(options.minimumCameraMove === undefined
@@ -933,18 +935,17 @@ export function updateSeedThreeForestCameraBudgeted(
   let coverageImmediate = false;
   let stopReason = work ? 'chunk-limit' : 'converged';
   if (work) {
-    // A covered resident visible prefix can stay unchanged throughout camera
-    // navigation. Releasing the controls discards that redundant repack instead
-    // of flashing a new instance order into the same view. Movement that escapes
-    // the resident prefix still completes immediately to preserve coverage.
-    const protectVisibleCoverage = options.immediateWhenViewUncovered === true;
+    // Keep the resident visible prefix immutable throughout camera navigation.
+    // On release, discard a redundant repack inside its guard or stream escaped
+    // coverage through the normal bounded update budget.
+    const stabilizeInteractionBuffers = options.stabilizeDuringInteraction === true;
     const residentColorGuardCoversCriticalView =
       seedThreeColorSelectionCoversView(
         forest.buckets,
         forest.slotByLayoutIndex,
         selection.criticalViewIndices,
       );
-    const residentShadowCoversDesiredUnion =
+    const residentShadowCoversDesiredUnion = !forest.shadowsEnabled || (
       seedThreeResidentSelectionCoversView(
         forest.buckets,
         forest.slotByLayoutIndex,
@@ -954,27 +955,29 @@ export function updateSeedThreeForestCameraBudgeted(
         forest.buckets,
         forest.slotByLayoutIndex,
         selection.overviewIndices,
-      );
+      )
+    );
     const residentPassesCoverRequiredWork =
-      residentColorGuardCoversCriticalView && residentShadowCoversDesiredUnion;
+      residentColorGuardCoversCriticalView
+      // Directional-shadow overscan may trail while the camera is moving; it
+      // must never force a color-buffer repack into an interaction frame.
+      && (cameraInteractionActive || residentShadowCoversDesiredUnion);
     const interactionWork = planSeedThreeForestInteractionWork(
       previousCameraInteractionActive,
       cameraInteractionActive,
       residentPassesCoverRequiredWork,
     );
-    const requiresImmediateCoverage = protectVisibleCoverage
-      && !residentPassesCoverRequiredWork;
-    const deferCoveredInteractionWork = protectVisibleCoverage
-      && interactionWork.deferCoveredWork;
-    const discardCoveredInteractionWork = protectVisibleCoverage
+    const deferInteractionWork = stabilizeInteractionBuffers
+      && interactionWork.deferWork;
+    const discardCoveredInteractionWork = stabilizeInteractionBuffers
       && interactionWork.discardCoveredWork;
     // Publish the first camera-sized resident set atomically before the forest
     // reaches a render pass. Otherwise a wheel event can correctly retain the
     // oversized startup buffers and leave every off-screen transition tree
     // submitted for the rest of the session.
     const completeInteractionWorkImmediately = initialSelection
-      || (protectVisibleCoverage && interactionWork.completeImmediately);
-    coverageImmediate = requiresImmediateCoverage || initialSelection;
+      || (stabilizeInteractionBuffers && interactionWork.completeImmediately);
+    coverageImmediate = initialSelection || interactionWork.completeImmediately;
     if (discardCoveredInteractionWork) {
       work.pendingBucketIndices.length = 0;
       work.activeBucketJob = null;
@@ -983,7 +986,7 @@ export function updateSeedThreeForestCameraBudgeted(
     }
     const maxUpdateDurationMs = completeInteractionWorkImmediately
       ? Number.POSITIVE_INFINITY
-      : deferCoveredInteractionWork || discardCoveredInteractionWork
+      : deferInteractionWork || discardCoveredInteractionWork
       ? 0
       : Number.isFinite(options.maxUpdateDurationMs)
       ? Math.max(0, options.maxUpdateDurationMs!)
@@ -1019,7 +1022,7 @@ export function updateSeedThreeForestCameraBudgeted(
           {
             maxDurationMs: availableWorkMs,
             minimumChunkHeadroomMs: Number.isFinite(availableWorkMs) ? 0.12 : 0,
-            maxChunks: deferCoveredInteractionWork || discardCoveredInteractionWork
+            maxChunks: deferInteractionWork || discardCoveredInteractionWork
               ? 0
               : Number.isFinite(maxUpdateDurationMs)
               ? 1
@@ -1044,7 +1047,7 @@ export function updateSeedThreeForestCameraBudgeted(
                   bucket.overviewViewSlotIndices,
                   desired.viewOverview,
                 );
-                const writeShadow = !sameIndices(
+                const writeShadow = forest.shadowsEnabled && !sameIndices(
                   bucket.nearSlotIndices,
                   desired.near,
                 );
@@ -1122,7 +1125,7 @@ export function updateSeedThreeForestCameraBudgeted(
     bucketCompactions = chunk.completedBucketIndices.length;
     stopReason = discardCoveredInteractionWork
       ? 'resident-retained'
-      : deferCoveredInteractionWork
+      : deferInteractionWork
       ? 'interaction-deferred'
       : chunk.stopReason;
     if (chunk.stopReason === 'chunk-limit' && matrixSliceBudgetStop) {
@@ -1475,6 +1478,7 @@ function enabledSeedThreeTreeCount(
 }
 
 export function setSeedThreeForestShadows(forest: SeedThreeForestInstances, enabled: boolean): void {
+  forest.shadowsEnabled = enabled;
   forest.group.traverse((object: THREE.Object3D) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;

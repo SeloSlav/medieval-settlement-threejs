@@ -50,6 +50,7 @@ import {
 } from './hamletUnderCanopyGround.ts';
 import {
   createSeedThreeForest,
+  getSeedThreeForestProfileBreakdown,
   getSeedThreeForestStructuralStats,
   setSeedThreeForestShadows,
   updateSeedThreeForestCamera,
@@ -1166,7 +1167,11 @@ const hamletVisualPerformanceApp = {
     previewGroup,
     terrain: { mesh: terrain },
     grassField,
-    forestManager: { group: forest.group },
+    forestManager: {
+      group: forest.group,
+      getSeedThreeProfileBreakdown: () =>
+        getSeedThreeForestProfileBreakdown(forest),
+    },
     getRendererAdapterEvidence: () => ({
       ...rendererBackend.adapterEvidence,
       limitations: [...rendererBackend.adapterEvidence.limitations],
@@ -2023,6 +2028,7 @@ function stepBudgetedForestUpdate(
         HAMLET_FOREST_ROUTE_WORK_BUDGET.maxUpdateDurationMs,
       maxMatrixWritesPerChunk:
         HAMLET_FOREST_ROUTE_WORK_BUDGET.maxMatrixWritesPerChunk,
+      stabilizeDuringInteraction: true,
       minimumCameraMove:
         HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumCameraMoveMeters,
       minimumDirectionAngle: THREE.MathUtils.degToRad(
@@ -2032,6 +2038,7 @@ function stepBudgetedForestUpdate(
         HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumProjectionChange,
       minimumCasterBoundsChange:
         HAMLET_FOREST_ROUTE_WORK_BUDGET.minimumCasterBoundsChangeMeters,
+      cameraInteractionActive: routeElapsedMs !== undefined,
     },
   );
   recordForestRouteWork(distanceMeters, result, routeElapsedMs);

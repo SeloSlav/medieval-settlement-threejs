@@ -125,6 +125,7 @@ select:focus-visible {
 }
 
 .settlement-hud__approval-shell {
+  --approval-panel-left: -192px;
   align-self: stretch;
   min-width: 0;
 }
@@ -199,7 +200,6 @@ select:focus-visible {
 
 .settlement-hud__approval-panel {
   top: calc(100% + 10px);
-  left: -192px;
   right: auto;
 }
 
@@ -2143,8 +2143,8 @@ select:focus-visible {
     grid-template-columns: repeat(6, 62px);
   }
 
-  .settlement-hud__approval-panel {
-    left: -182px;
+  .settlement-hud__approval-shell {
+    --approval-panel-left: -182px;
   }
 
   .settlement-hud__body > .settlement-hud__stat:nth-child(n + 7),
@@ -2174,6 +2174,10 @@ select:focus-visible {
     inset: 14px;
     width: auto;
     max-height: calc(100vh - 28px);
+  }
+
+  .settlement-hud.has-approval-open .settlement-hud__approval-shell::after {
+    display: none;
   }
 
   .settlement-hud__stores-summary {

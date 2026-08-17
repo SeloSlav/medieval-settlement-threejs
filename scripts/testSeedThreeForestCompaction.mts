@@ -32,18 +32,23 @@ type SeedThreeBucketSelection = {
 
 assert.deepEqual(
   planSeedThreeForestInteractionWork(false, true, true),
-  { deferCoveredWork: true, discardCoveredWork: false, completeImmediately: false },
+  { deferWork: true, discardCoveredWork: false, completeImmediately: false },
   'covered forest compaction should remain stable while camera navigation is active',
 );
 assert.deepEqual(
   planSeedThreeForestInteractionWork(true, false, true),
-  { deferCoveredWork: false, discardCoveredWork: false, completeImmediately: false },
-  'navigation release should refill the padded color guard under the frame budget',
+  { deferWork: false, discardCoveredWork: true, completeImmediately: false },
+  'navigation release should discard a redundant repack inside the resident guard',
 );
 assert.deepEqual(
   planSeedThreeForestInteractionWork(false, true, false),
-  { deferCoveredWork: false, discardCoveredWork: false, completeImmediately: true },
-  'an uncovered moving view must be filled immediately instead of showing a gap',
+  { deferWork: true, discardCoveredWork: false, completeImmediately: false },
+  'an uncovered moving view must defer atomic GPU uploads until navigation ends',
+);
+assert.deepEqual(
+  planSeedThreeForestInteractionWork(true, false, false),
+  { deferWork: false, discardCoveredWork: false, completeImmediately: false },
+  'a view that escaped the resident guard should refill under the normal frame budget',
 );
 
 const alphaCutoutMaterial = new THREE.MeshBasicMaterial({ alphaTest: 0.35 });

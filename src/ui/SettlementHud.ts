@@ -187,8 +187,7 @@ const SETTLEMENT_HUD_HTML = `
         class="settlement-hud__approval-panel"
         data-approval-panel
         data-tier="unavailable"
-        role="dialog"
-        aria-modal="false"
+        role="region"
         aria-labelledby="settlement-approval-title"
         hidden
       >
@@ -197,12 +196,6 @@ const SETTLEMENT_HUD_HTML = `
             <span class="settlement-hud__approval-eyebrow">Settlement standing</span>
             <h2 id="settlement-approval-title">Approval</h2>
           </div>
-          <button
-            type="button"
-            class="settlement-hud__approval-close"
-            data-approval-close
-            aria-label="Close approval details"
-          >&times;</button>
         </header>
         <div class="settlement-hud__approval-reading">
           <strong data-approval-panel-score>--</strong>
@@ -526,10 +519,8 @@ export class SettlementHud {
   private readonly approvalSupport: HTMLElement;
   private readonly approvalConcernsSection: HTMLElement;
   private readonly approvalSupportSection: HTMLElement;
-  private readonly approvalClose: HTMLButtonElement;
   private readonly foodStat: HTMLElement;
   private readonly foodStores: HTMLDetailsElement;
-  private readonly firewoodStat: HTMLElement;
   private readonly goldStat: HTMLElement;
   private readonly polearmsStat: HTMLElement;
   private readonly specialtyStores: HTMLDetailsElement;
@@ -557,6 +548,8 @@ export class SettlementHud {
   private lastApprovalScore: number | null = null;
   private lastApprovalTrend: 'rising' | 'falling' | 'steady' = 'steady';
   private approvalTrendExpiresAt = 0;
+  private approvalPointerInside = false;
+  private approvalCloseTimer: number | null = null;
   private displayedClockDate: string | null = null;
   private displayedClockTime: string | null = null;
   private displayedClockDetail: string | null = null;
@@ -620,10 +613,8 @@ export class SettlementHud {
     this.approvalSupport = this.mustElement('[data-approval-support]');
     this.approvalConcernsSection = this.mustElement('[data-approval-concerns-section]');
     this.approvalSupportSection = this.mustElement('[data-approval-support-section]');
-    this.approvalClose = this.mustButton('[data-approval-close]');
     this.foodStat = this.mustElement('[data-resource="food"]');
     this.foodStores = this.mustDetails('[data-food-stores]');
-    this.firewoodStat = this.mustElement('[data-resource="firewood"]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
     this.polearmsStat = this.mustElement('[data-resource="polearms"]');
     this.specialtyStores = this.mustDetails('[data-specialty-stores]');
@@ -667,12 +658,15 @@ export class SettlementHud {
     this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
     this.securityAlert.addEventListener('click', this.onSecurityAlertClick);
     this.geologyAlert.addEventListener('click', this.onGeologyAlertClick);
-    this.approvalButton.addEventListener('click', this.onApprovalToggle);
-    this.approvalClose.addEventListener('click', this.onApprovalClose);
+    this.approvalButton.addEventListener('click', this.onApprovalOpen);
+    this.approvalButton.addEventListener('focus', this.onApprovalOpen);
+    this.approvalButton.addEventListener('blur', this.onApprovalBlur);
+    this.approvalShell.addEventListener('pointerenter', this.onApprovalPointerEnter);
+    this.approvalShell.addEventListener('pointermove', this.onApprovalPointerMove);
+    this.approvalShell.addEventListener('pointerleave', this.onApprovalPointerLeave);
     this.foodStores.addEventListener('toggle', this.onFoodStoresToggle);
     this.specialtyStores.addEventListener('toggle', this.onSpecialtyStoresToggle);
     this.nobleEye.addEventListener('click', this.onNobleEyeClick);
-    window.addEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);
     window.addEventListener('keydown', this.onApprovalEscape, true);
   }
 
@@ -1028,24 +1022,6 @@ export class SettlementHud {
       'Guard food and household buffers use local stores. Fresh-food runways consume finite cured stock only at the current seasonal rotation, then return to gross meal demand when that reserve is exhausted. Headline runways use settlement-wide fire-accessible stock; road-branch runways count only household stocks, dispatch-capable stores, and cargo already arriving at a usable destination on that branch. Both assume no new production.',
     ].join(' · ');
 
-    this.foodStat.dataset.tooltip = [
-      `${provisioning.foodStock.toFixed(1)} food is stored; ${provisioning.usableFoodStock.toFixed(1)} is accessible.`,
-      provisioning.fireQuarantinedFoodStock > 0.05
-        ? `Fire damage quarantines ${provisioning.fireQuarantinedFoodStock.toFixed(1)} food.`
-        : null,
-      provisioning.totalFoodPerDay > 0.05
-        ? `Fresh-food runway is ${formatProvisionRunway(provisioning.foodRunwayDays)}. Loaded carts appear below the stored total.`
-        : 'No current food demand. Loaded carts appear below the stored total.',
-    ].filter(Boolean).join(' ');
-    this.firewoodStat.dataset.tooltip = [
-      `${provisioning.firewoodStock.toFixed(1)} firewood is stored; ${provisioning.usableFirewoodStock.toFixed(1)} is accessible.`,
-      provisioning.fireQuarantinedFirewoodStock > 0.05
-        ? `Fire damage quarantines ${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood.`
-        : null,
-      provisioning.heatedResidents > 0
-        ? `Runway is ${formatProvisionRunway(provisioning.currentFirewoodRunwayDays)} now and ${formatProvisionRunway(provisioning.winterFirewoodRunwayDays)} in winter.`
-        : 'No current household firewood demand.',
-    ].filter(Boolean).join(' ');
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
       ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
       : 'Spendable gold in settlement lockboxes and the Town Hall treasury.';
@@ -1087,11 +1063,8 @@ export class SettlementHud {
     this.approvalTrend.dataset.trend = this.lastApprovalTrend;
     this.approvalButton.setAttribute(
       'aria-label',
-      `Approval ${approval.score} percent, ${approval.label}, ${trendCopy.label}. Open approval details.`,
+      `Approval ${approval.score} percent, ${approval.label}, ${trendCopy.label}. Hover or focus for details.`,
     );
-    this.approvalButton.dataset.tooltip =
-      `${approval.summary} Approval is ${trendCopy.label}. Activate for factors and current settlement effects.`;
-    this.approvalButton.dataset.tooltipTitle = `Approval · ${approval.score}% ${approval.label}`;
 
     renderTextList(this.approvalEffects, approval.effects);
     const concerns = approval.factors
@@ -1317,20 +1290,43 @@ export class SettlementHud {
     this.refreshSecurityAttentionControl();
   };
 
-  private readonly onApprovalToggle = (): void => {
-    this.setApprovalOpen(this.approvalPanel.hasAttribute('hidden'));
+  private readonly onApprovalOpen = (): void => {
+    this.cancelApprovalClose();
+    this.setApprovalOpen(true);
   };
 
-  private readonly onApprovalClose = (): void => {
-    this.setApprovalOpen(false);
-    this.approvalButton.focus();
+  private readonly onApprovalBlur = (): void => {
+    if (!this.approvalPointerInside) {
+      this.cancelApprovalClose();
+      this.setApprovalOpen(false);
+    }
   };
 
-  private readonly onApprovalOutsidePointerDown = (event: PointerEvent): void => {
-    if (this.approvalPanel.hidden) return;
-    if (event.target instanceof Node && this.approvalShell.contains(event.target)) return;
-    this.setApprovalOpen(false);
+  private readonly onApprovalPointerEnter = (): void => {
+    this.approvalPointerInside = true;
+    this.cancelApprovalClose();
+    this.setApprovalOpen(true);
   };
+
+  private readonly onApprovalPointerMove = (): void => {
+    this.approvalPointerInside = true;
+    this.cancelApprovalClose();
+  };
+
+  private readonly onApprovalPointerLeave = (): void => {
+    this.approvalPointerInside = false;
+    this.cancelApprovalClose();
+    this.approvalCloseTimer = window.setTimeout(() => {
+      this.approvalCloseTimer = null;
+      if (!this.approvalPointerInside) this.setApprovalOpen(false);
+    }, 100);
+  };
+
+  private cancelApprovalClose(): void {
+    if (this.approvalCloseTimer === null) return;
+    window.clearTimeout(this.approvalCloseTimer);
+    this.approvalCloseTimer = null;
+  }
 
   private readonly onApprovalEscape = (event: KeyboardEvent): void => {
     if (event.key !== 'Escape') return;
@@ -1436,12 +1432,18 @@ export class SettlementHud {
   }
 
   dispose(): void {
+    this.cancelApprovalClose();
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
     this.geologyAlert.removeEventListener('click', this.onGeologyAlertClick);
+    this.approvalButton.removeEventListener('click', this.onApprovalOpen);
+    this.approvalButton.removeEventListener('focus', this.onApprovalOpen);
+    this.approvalButton.removeEventListener('blur', this.onApprovalBlur);
+    this.approvalShell.removeEventListener('pointerenter', this.onApprovalPointerEnter);
+    this.approvalShell.removeEventListener('pointermove', this.onApprovalPointerMove);
+    this.approvalShell.removeEventListener('pointerleave', this.onApprovalPointerLeave);
     this.foodStores.removeEventListener('toggle', this.onFoodStoresToggle);
     this.specialtyStores.removeEventListener('toggle', this.onSpecialtyStoresToggle);
-    window.removeEventListener('pointerdown', this.onApprovalOutsidePointerDown, true);
     window.removeEventListener('keydown', this.onApprovalEscape, true);
   }
 }
