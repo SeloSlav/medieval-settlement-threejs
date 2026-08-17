@@ -1616,8 +1616,7 @@ select:focus-visible {
 
 .construction-menu {
   width: min(1030px, calc(100vw - 34px));
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: hidden;
   padding: 8px;
   border: 1px solid rgba(222, 193, 132, 0.24);
   border-radius: 3px;
@@ -1625,6 +1624,29 @@ select:focus-visible {
     linear-gradient(180deg, rgba(39, 39, 31, 0.96), rgba(14, 17, 14, 0.94));
   box-shadow: 0 24px 66px rgba(0, 0, 0, 0.46);
   backdrop-filter: blur(18px);
+}
+
+.construction-menu__viewport {
+  padding-block: 4px;
+  padding-inline: 48px;
+}
+
+.construction-menu__scroll {
+  width: 42px;
+  height: 82px;
+  border-radius: 4px;
+  background:
+    linear-gradient(180deg, rgba(142, 108, 48, 0.98), rgba(67, 53, 29, 0.98));
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.58),
+    inset 0 1px rgba(255, 244, 211, 0.16);
+}
+
+.construction-menu__scroll--previous { left: 9px; }
+.construction-menu__scroll--next { right: 9px; }
+
+.construction-menu__scroll:disabled {
+  opacity: 0.56;
 }
 
 .construction-menu__cards {

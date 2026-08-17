@@ -308,6 +308,7 @@
 }
 
 .construction-menu {
+  position: relative;
   width: max-content;
   max-width: calc(100vw - 28px);
   padding: 0;
@@ -317,6 +318,66 @@
 .construction-menu[hidden],
 [data-ui-root].is-first-person .construction-menu {
   display: none;
+}
+
+.construction-menu__viewport {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-inline: 46px;
+  pointer-events: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.construction-menu__viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.construction-menu__scroll {
+  position: absolute;
+  top: 50%;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 72px;
+  padding: 0;
+  color: #f3deb0;
+  border: 1px solid rgba(235, 204, 127, 0.72);
+  border-radius: 7px;
+  background: rgba(20, 23, 18, 0.94);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.48);
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.construction-menu__scroll--previous { left: 7px; }
+.construction-menu__scroll--next { right: 7px; }
+
+.construction-menu__scroll span {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 43px;
+  line-height: 0.7;
+  transform: translateY(-2px);
+}
+
+.construction-menu__scroll:hover,
+.construction-menu__scroll:focus-visible {
+  color: #fff7e6;
+  border-color: #f0d07e;
+  background: rgba(111, 84, 38, 0.98);
+  outline: 2px solid rgba(245, 215, 140, 0.42);
+  outline-offset: 2px;
+}
+
+.construction-menu__scroll:disabled {
+  color: rgba(196, 184, 158, 0.48);
+  border-color: rgba(222, 193, 132, 0.2);
+  background: rgba(20, 23, 18, 0.72);
+  box-shadow: none;
+  cursor: default;
 }
 
 .map-overlay-menu {

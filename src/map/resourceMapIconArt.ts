@@ -3,13 +3,7 @@ import type { ResourceNodeKind } from '../resources/types.ts';
 export type WorldResourceIconKind = ResourceNodeKind | 'clay' | 'iron' | 'salt';
 
 function resourceIconMarkup(kind: WorldResourceIconKind): string {
-  return `
-    <span class="map-resource-icon-glyph map-resource-icon-glyph--${kind}" aria-hidden="true"></span>
-    <svg class="rich-resource-crown" viewBox="0 0 44 26" aria-hidden="true" focusable="false">
-      <path class="rich-resource-crown__body" d="M5 22l2.5-9 7.5 6 7-12 7 12 7.5-6 2.5 9c-8.5-4.8-25.5-4.8-34 0Z"></path>
-      <path class="rich-resource-crown__rim" d="M6 21.5c8-4 24-4 32 0"></path>
-    </svg>
-  `;
+  return `<span class="map-resource-icon-glyph map-resource-icon-glyph--${kind}" aria-hidden="true"></span>`;
 }
 
 export const QUARRY_ICON_HTML = resourceIconMarkup('quarry');

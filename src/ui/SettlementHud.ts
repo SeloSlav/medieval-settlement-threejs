@@ -344,7 +344,7 @@ const SETTLEMENT_HUD_HTML = `
               data-food-breakdown-row="${kind}"
               data-food-resource="${kind}"
               data-tooltip-title="${FOOD_RESOURCE_LABELS[kind]}"
-              data-tooltip="Stored ${FOOD_RESOURCE_LABELS[kind].toLowerCase()} across producers, distributors, carts, and household pantries."
+              data-tooltip="Available for household meals."
             >
               <span class="settlement-hud__label">${FOOD_RESOURCE_LABELS[kind]}</span>
               <strong class="settlement-hud__value" data-food-breakdown-stored="${kind}">0</strong>
@@ -409,117 +409,117 @@ const SETTLEMENT_HUD_HTML = `
         <strong>Provisions</strong>
         <span data-specialty-stores-mode-label>Available surplus</span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeGrain" data-tooltip="Threshed rye grain. Hardy, cheap seed and the quickest flour output; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeGrain" data-tooltip="Grain for rye flour and bread.">
         <span class="settlement-hud__label">Rye grain</span>
         <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Threshed oat grain. Preferred livestock fodder and monastery porridge grain; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Grain for oat flour, porridge, and animal feed.">
         <span class="settlement-hud__label">Oat grain</span>
         <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinGrain" data-tooltip="Threshed wheat–rye maslin grain. Costly to sow but dependable and valuable for bread; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinGrain" data-tooltip="Mixed wheat–rye grain for maslin flour and bread.">
         <span class="settlement-hud__label">Maslin grain</span>
         <strong class="settlement-hud__value" data-stockpile="maslinGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinGrain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="barley" data-tooltip="Brewing barley stored at physical farmsteads, granaries, markets, and brewhouses. Barley seed remains protected at its holding; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="barley" data-tooltip="Grain used to make malt and ale.">
         <span class="settlement-hud__label">Barley</span>
         <strong class="settlement-hud__value" data-stockpile="barley">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="barley" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="malt" data-tooltip="Kiln-dried malt held physically at brewhouses between malting and brewing cycles.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="malt" data-tooltip="Processed barley used to brew ale.">
         <span class="settlement-hud__label">Malt</span>
         <strong class="settlement-hud__value" data-stockpile="malt">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="malt" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeFlour" data-tooltip="Rye flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeFlour" data-tooltip="Flour used to bake rye bread.">
         <span class="settlement-hud__label">Rye flour</span>
         <strong class="settlement-hud__value" data-stockpile="ryeFlour">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeFlour" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatFlour" data-tooltip="Oat flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatFlour" data-tooltip="Flour used to bake oat bread.">
         <span class="settlement-hud__label">Oat flour</span>
         <strong class="settlement-hud__value" data-stockpile="oatFlour">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatFlour" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinFlour" data-tooltip="Maslin flour stored at physical mills, granaries, markets, and bakeries. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinFlour" data-tooltip="Flour used to bake maslin bread.">
         <span class="settlement-hud__label">Maslin flour</span>
         <strong class="settlement-hud__value" data-stockpile="maslinFlour">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinFlour" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Ale stored at physical breweries, markets, monasteries, and prosperous homes. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Drink for prosperous households and monasteries.">
         <span class="settlement-hud__label">Ale</span>
         <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Cured provisions stored at physical smokehouses, granaries, markets, institutions, and prosperous homes. They age slowly rather than lasting forever: smokehouses preserve them best, granaries next, while cupboards and loaded carts lose quality faster. Prosperous households rotate them through the same meal, using less in summer and most in winter; remaining stock substitutes when fresh food fails.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Long-lasting food for winter and shortages.">
         <span class="settlement-hud__label">Preserved</span>
         <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="preservedFood" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Honey stored at physical apiaries, markets, and monastery hospitality stores. Enabled monasteries consume it before producers export surplus; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="honey" data-tooltip="Food for households and monastery hospitality.">
         <span class="settlement-hud__label">Honey</span>
         <strong class="settlement-hud__value" data-stockpile="honey">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="honey" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Wine stored at physical vineyards, markets, and monastery hospitality stores. Enabled monasteries consume it before producers export surplus; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wine" data-tooltip="Drink for prosperous households and monastery hospitality.">
         <span class="settlement-hud__label">Wine</span>
         <strong class="settlement-hud__value" data-stockpile="wine">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wine" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Unspun fleece stored at physical pastoral holdings and weavers. Sheep are shorn once each year in early summer; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="wool" data-tooltip="Sheep fleece used by weavers to make cloth.">
         <span class="settlement-hud__label">Wool</span>
         <strong class="settlement-hud__value" data-stockpile="wool">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="wool" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Harvested flax fibre stored at physical farmsteads and weavers. Weavers need hauled water to prepare flax before weaving; loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="flax" data-tooltip="Plant fibre used by weavers to make cloth.">
         <span class="settlement-hud__label">Flax</span>
         <strong class="settlement-hud__value" data-stockpile="flax">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="flax" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Woven cloth stored at physical weavers, prosperous homes, and markets awaiting export. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cloth" data-tooltip="Woven fabric used by households and for trade.">
         <span class="settlement-hud__label">Cloth</span>
         <strong class="settlement-hud__value" data-stockpile="cloth">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cloth" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Iron ore and bars held at mines, Trading Posts, and smithies. Every region has finite physical iron seams; rich seed rolls allow non-exhausting deep mining, while staffed Trading Post imports cover shortages. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="iron" data-tooltip="Metal used by smithies to make ironwork.">
         <span class="settlement-hud__label">Iron</span>
         <strong class="settlement-hud__value" data-stockpile="iron">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="iron" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="clay" data-tooltip="Wet clay stored at riverbank pits and pottery yards. Ordinary physical banks are finite; rich seed rolls expose faster deep alluvium that does not exhaust. Loaded handcarts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="clay" data-tooltip="Raw material used to make pottery and roof tiles.">
         <span class="settlement-hud__label">Clay</span>
         <strong class="settlement-hud__value" data-stockpile="clay">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="clay" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Salt held at mines, Trading Posts, smokehouses, and pastoral holdings. Every region has finite physical salt deposits; rich seed rolls allow non-exhausting deep mining, while staffed Trading Post imports cover shortages. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="salt" data-tooltip="Mineral used to cure meat and preserve food.">
         <span class="settlement-hud__label">Salt</span>
         <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="charcoal" data-tooltip="Charcoal stored at burners' yards and smithies. Burning it consumes the same firewood households need for winter heat, so expansion without fuel reserves can become dangerous. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="charcoal" data-tooltip="Fuel used by smithies.">
         <span class="settlement-hud__label">Charcoal</span>
         <strong class="settlement-hud__value" data-stockpile="charcoal">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="charcoal" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels stored at pottery yards, markets, smokehouses, and prosperous homes. Kilns need river clay, firewood, and puddling water physically carted from a staffed same-branch well; each kiln can put household breakage or smokehouse packing first, while export remains last. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels used by households and smokehouses.">
         <span class="settlement-hud__label">Pottery</span>
         <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="pottery" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="roofTiles" data-tooltip="Fired roof tiles stacked at pottery yards or committed to a prosperous house. A kiln must divert clay, firewood, water, labor, and cart time from vessel production; each residence receives and consumes its own physical load.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="roofTiles" data-tooltip="Durable roofing used to upgrade prosperous homes.">
         <span class="settlement-hud__label">Roof tiles</span>
         <strong class="settlement-hud__value" data-stockpile="roofTiles">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="roofTiles" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Smith-forged heads, nails, hinges, and fittings stored at smithies, markets, carpenter workshops, and maintained lumber, stone, and clay worksites. Smithies require ore, charcoal, and quench water physically carted from a completed well by an unassigned hauler. A smithy handcart first restores staffed tool buffers by priority and shortest road; each maintained production cycle wears 0.25 ironwork for 20% faster output. Loaded carts are shown separately.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ironwork" data-tooltip="Tools and fittings used for construction and faster production.">
         <span class="settlement-hud__label">Ironwork</span>
         <strong class="settlement-hud__value" data-stockpile="ironwork">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ironwork" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Polearms stored at physical carpenter workshops and guardhouses. One is required for each paid guard; loaded weapon carts are shown separately." hidden>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="polearms" data-tooltip="Weapons required to equip guards." hidden>
         <span class="settlement-hud__label">Polearms</span>
         <strong class="settlement-hud__value" data-stockpile="polearms">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="polearms" hidden></span>

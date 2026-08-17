@@ -101,6 +101,7 @@ export class BuildToolbar {
   private readonly cropSuitabilityLabels: HTMLElement;
   private readonly cropSuitabilityDescription: HTMLElement;
   private readonly builderStatusBar: HTMLElement;
+  private readonly buildMenuScrollCleanups: Array<() => void> = [];
   private readonly root: HTMLElement;
   private readonly compassHud: CompassHud;
   private gameMenu: GameMenu | null = null;
@@ -340,33 +341,53 @@ export class BuildToolbar {
         </label>
 
         <section class="construction-menu" id="civic-build-menu" data-build-menu="civic" hidden aria-label="Civic menu">
-          <div class="construction-menu__cards">
-            ${renderBuildMenuCards(CIVIC_BUILD_MENU_ENTRIES)}
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--previous" data-build-menu-scroll="previous" aria-label="Scroll civic buildings left" disabled><span aria-hidden="true">&#8249;</span></button>
+          <div class="construction-menu__viewport" data-build-menu-viewport>
+            <div class="construction-menu__cards">
+              ${renderBuildMenuCards(CIVIC_BUILD_MENU_ENTRIES)}
+            </div>
           </div>
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--next" data-build-menu-scroll="next" aria-label="Scroll civic buildings right"><span aria-hidden="true">&#8250;</span></button>
         </section>
 
         <section class="construction-menu" id="gathering-build-menu" data-build-menu="gathering" hidden aria-label="Gathering menu">
-          <div class="construction-menu__cards">
-            ${renderBuildMenuCards(GATHERING_BUILD_MENU_ENTRIES)}
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--previous" data-build-menu-scroll="previous" aria-label="Scroll gathering buildings left" disabled><span aria-hidden="true">&#8249;</span></button>
+          <div class="construction-menu__viewport" data-build-menu-viewport>
+            <div class="construction-menu__cards">
+              ${renderBuildMenuCards(GATHERING_BUILD_MENU_ENTRIES)}
+            </div>
           </div>
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--next" data-build-menu-scroll="next" aria-label="Scroll gathering buildings right"><span aria-hidden="true">&#8250;</span></button>
         </section>
 
         <section class="construction-menu" id="agriculture-build-menu" data-build-menu="agriculture" hidden aria-label="Agriculture menu">
-          <div class="construction-menu__cards">
-            ${renderBuildMenuCards(AGRICULTURE_BUILD_MENU_ENTRIES)}
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--previous" data-build-menu-scroll="previous" aria-label="Scroll agriculture buildings left" disabled><span aria-hidden="true">&#8249;</span></button>
+          <div class="construction-menu__viewport" data-build-menu-viewport>
+            <div class="construction-menu__cards">
+              ${renderBuildMenuCards(AGRICULTURE_BUILD_MENU_ENTRIES)}
+            </div>
           </div>
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--next" data-build-menu-scroll="next" aria-label="Scroll agriculture buildings right"><span aria-hidden="true">&#8250;</span></button>
         </section>
 
         <section class="construction-menu" id="industry-build-menu" data-build-menu="industry" hidden aria-label="Industry menu">
-          <div class="construction-menu__cards">
-            ${renderBuildMenuCards(INDUSTRY_BUILD_MENU_ENTRIES)}
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--previous" data-build-menu-scroll="previous" aria-label="Scroll industry buildings left" disabled><span aria-hidden="true">&#8249;</span></button>
+          <div class="construction-menu__viewport" data-build-menu-viewport>
+            <div class="construction-menu__cards">
+              ${renderBuildMenuCards(INDUSTRY_BUILD_MENU_ENTRIES)}
+            </div>
           </div>
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--next" data-build-menu-scroll="next" aria-label="Scroll industry buildings right"><span aria-hidden="true">&#8250;</span></button>
         </section>
 
         <section class="construction-menu" id="military-build-menu" data-build-menu="military" hidden aria-label="Military menu">
-          <div class="construction-menu__cards">
-            ${renderBuildMenuCards(MILITARY_BUILD_MENU_ENTRIES)}
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--previous" data-build-menu-scroll="previous" aria-label="Scroll defense buildings left" disabled><span aria-hidden="true">&#8249;</span></button>
+          <div class="construction-menu__viewport" data-build-menu-viewport>
+            <div class="construction-menu__cards">
+              ${renderBuildMenuCards(MILITARY_BUILD_MENU_ENTRIES)}
+            </div>
           </div>
+          <button type="button" class="construction-menu__scroll construction-menu__scroll--next" data-build-menu-scroll="next" aria-label="Scroll defense buildings right"><span aria-hidden="true">&#8250;</span></button>
         </section>
 
         <section class="map-overlay-menu" id="map-overlay-menu" data-overlay-menu hidden aria-label="Map overlays">
@@ -642,6 +663,11 @@ export class BuildToolbar {
     this.bindBuildMenuClicks(this.agricultureBuildMenu, () => this.setAgricultureBuildMenuOpen(false));
     this.bindBuildMenuClicks(this.industryBuildMenu, () => this.setIndustryBuildMenuOpen(false));
     this.bindBuildMenuClicks(this.militaryBuildMenu, () => this.setMilitaryBuildMenuOpen(false));
+    this.bindBuildMenuScroll(this.civicBuildMenu);
+    this.bindBuildMenuScroll(this.gatheringBuildMenu);
+    this.bindBuildMenuScroll(this.agricultureBuildMenu);
+    this.bindBuildMenuScroll(this.industryBuildMenu);
+    this.bindBuildMenuScroll(this.militaryBuildMenu);
     this.roadSnapToggle.addEventListener('change', () => {
       handlers.onSetRoadSnap?.(this.roadSnapToggle.checked);
     });
@@ -973,6 +999,8 @@ export class BuildToolbar {
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('mousedown', this.onBuildMenuOutsideMouseDown, true);
     window.removeEventListener('pointerdown', this.onDeleteOutsidePointerDown, true);
+    for (const cleanup of this.buildMenuScrollCleanups) cleanup();
+    this.buildMenuScrollCleanups.length = 0;
     this.gameMenu?.dispose();
     this.settlementHud.dispose();
     this.compassHud.dispose();
@@ -1207,6 +1235,42 @@ export class BuildToolbar {
     });
     menu.addEventListener('mousedown', (event) => event.stopPropagation());
     menu.addEventListener('click', (event) => event.stopPropagation());
+  }
+
+  private bindBuildMenuScroll(menu: HTMLElement): void {
+    const viewport = this.mustElement(menu, '[data-build-menu-viewport]');
+    const previous = this.mustButton(menu, '[data-build-menu-scroll="previous"]');
+    const next = this.mustButton(menu, '[data-build-menu-scroll="next"]');
+    const cards = this.mustElement(menu, '.construction-menu__cards');
+
+    const syncButtons = (): void => {
+      const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      const canScroll = maxScroll > 1;
+      menu.classList.toggle('is-scrollable', canScroll);
+      previous.disabled = !canScroll || viewport.scrollLeft <= 1;
+      next.disabled = !canScroll || viewport.scrollLeft >= maxScroll - 1;
+    };
+    const scrollByPage = (direction: -1 | 1): void => {
+      const pageWidth = Math.max(280, viewport.clientWidth - 120);
+      viewport.scrollBy({ left: direction * pageWidth, behavior: 'smooth' });
+    };
+    const onPrevious = (): void => scrollByPage(-1);
+    const onNext = (): void => scrollByPage(1);
+
+    previous.addEventListener('click', onPrevious);
+    next.addEventListener('click', onNext);
+    viewport.addEventListener('scroll', syncButtons, { passive: true });
+    const resizeObserver = new ResizeObserver(syncButtons);
+    resizeObserver.observe(viewport);
+    resizeObserver.observe(cards);
+    requestAnimationFrame(syncButtons);
+
+    this.buildMenuScrollCleanups.push(() => {
+      previous.removeEventListener('click', onPrevious);
+      next.removeEventListener('click', onNext);
+      viewport.removeEventListener('scroll', syncButtons);
+      resizeObserver.disconnect();
+    });
   }
 
   private mustButton(root: HTMLElement, selector: string): HTMLButtonElement {
