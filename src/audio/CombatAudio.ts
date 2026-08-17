@@ -2,7 +2,10 @@ import {
   COMBAT_AUDIO_CLIPS,
   type AudioClipDefinition,
 } from './audioCatalog.ts';
-import { isGameAudioEnabled } from './audioPreferences.ts';
+import {
+  getSoundEffectsVolume,
+  isGameAudioEnabled,
+} from './audioPreferences.ts';
 import type { CombatAgentFaction, CombatAgentStatus } from '../security/combatAgents.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
 
@@ -365,7 +368,9 @@ export class CombatAudio {
     audio.pause();
     audio.currentTime = 0;
     audio.src = clip.path;
-    audio.volume = clamp01((clip.volume ?? 1) * gain);
+    audio.volume = clamp01(
+      (clip.volume ?? 1) * gain * getSoundEffectsVolume(),
+    );
     audio.playbackRate = baseRate
       + deterministicIndex(`${key}:pitch`, 7) * rateStep;
     void audio.play().catch(() => undefined);

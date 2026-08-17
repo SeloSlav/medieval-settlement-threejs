@@ -303,6 +303,8 @@ export class BuildToolbar {
       onSetGameSpeed?: (speed: GameSpeed) => void;
       onAudioEnabledChange?: (enabled: boolean) => void;
       onAmbienceVolumeChange?: (volume: number) => void;
+      onForestWindEnabledChange?: (enabled: boolean) => void;
+      onSoundEffectsVolumeChange?: (volume: number) => void;
       onMusicEnabledChange?: (enabled: boolean) => void;
       onMusicVolumeChange?: (volume: number) => void;
     },
@@ -501,6 +503,8 @@ export class BuildToolbar {
       onGrantCheatResources: handlers.onGrantCheatResources,
       onAudioEnabledChange: handlers.onAudioEnabledChange,
       onAmbienceVolumeChange: handlers.onAmbienceVolumeChange,
+      onForestWindEnabledChange: handlers.onForestWindEnabledChange,
+      onSoundEffectsVolumeChange: handlers.onSoundEffectsVolumeChange,
       onMusicEnabledChange: handlers.onMusicEnabledChange,
       onMusicVolumeChange: handlers.onMusicVolumeChange,
       showButton: false,

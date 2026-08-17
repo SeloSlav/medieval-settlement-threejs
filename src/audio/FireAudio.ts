@@ -49,6 +49,7 @@ export class FireAudio {
   private targetVolume = 0;
   private loading = false;
   private enabled = true;
+  private volume = 1;
   private playPending = false;
   private lastLoadAttemptAtMs = Number.NEGATIVE_INFINITY;
   private lastPlayAttemptAtMs = Number.NEGATIVE_INFINITY;
@@ -84,7 +85,7 @@ export class FireAudio {
           this.config.getOrbitDistance(),
         )
       : 0;
-    this.targetVolume = gain * (FIRE_CRACKLE_CLIP.volume ?? 1);
+    this.targetVolume = gain * (FIRE_CRACKLE_CLIP.volume ?? 1) * this.volume;
     const nowMs = performance.now();
     if (this.targetVolume > 0) this.ensureLoaded(nowMs);
     this.currentVolume = moveToward(
@@ -112,6 +113,10 @@ export class FireAudio {
       this.audio.pause();
       this.audio.volume = 0;
     }
+  }
+
+  setVolume(volume: number): void {
+    this.volume = clamp01(volume);
   }
 
   dispose(): void {

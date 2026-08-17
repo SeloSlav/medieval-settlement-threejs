@@ -869,6 +869,12 @@ export async function bootstrapAppSession(
     onAmbienceVolumeChange: (volume) => {
       ambientAudio.setAmbienceVolume(volume);
     },
+    onForestWindEnabledChange: (enabled) => {
+      ambientAudio.setForestWindEnabled(enabled);
+    },
+    onSoundEffectsVolumeChange: (volume) => {
+      ambientAudio.setSoundEffectsVolume(volume);
+    },
     onMusicEnabledChange: (enabled) => {
       ambientAudio.setMusicEnabled(enabled);
     },

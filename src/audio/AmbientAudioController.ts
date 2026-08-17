@@ -39,6 +39,8 @@ import type { FootstepSurface } from './audioCatalog.ts';
 import {
   getAmbienceVolume,
   getMusicVolume,
+  getSoundEffectsVolume,
+  isForestWindEnabled,
   isGameAudioEnabled,
   isMusicEnabled,
 } from './audioPreferences.ts';
@@ -105,6 +107,7 @@ export class AmbientAudioController {
   private season: Season = 'summer';
   private weather: WeatherKind = 'fair';
   private enabled = true;
+  private forestWindEnabled = false;
   private musicEnabled = true;
   private running = false;
   private unlocked = false;
@@ -130,11 +133,11 @@ export class AmbientAudioController {
     config.unlockElement.addEventListener('pointerdown', this.onUnlock, { capture: true });
     window.addEventListener('keydown', this.onUnlock, { capture: true });
     this.musicEnabled = isMusicEnabled();
+    this.forestWindEnabled = isForestWindEnabled();
     this.audio.setVolume(getAmbienceVolume());
     this.forestWind.setVolume(getAmbienceVolume());
     this.riverAudio.setVolume(getAmbienceVolume());
-    this.buildingAudio.setVolume(getAmbienceVolume());
-    this.worldFoley.setVolume(getAmbienceVolume());
+    this.setSoundEffectsVolume(getSoundEffectsVolume());
     this.soundtrack.setVolume(getMusicVolume());
     this.setEnabled(isGameAudioEnabled());
   }
@@ -253,7 +256,7 @@ export class AmbientAudioController {
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     this.audio.setEnabled(enabled);
-    this.forestWind.setEnabled(enabled);
+    this.forestWind.setEnabled(enabled && this.forestWindEnabled);
     this.riverAudio.setEnabled(enabled);
     this.fireAudio.setEnabled(enabled);
     this.buildingAudio.setEnabled(enabled);
@@ -273,6 +276,11 @@ export class AmbientAudioController {
     this.soundtrack.setEnabled(this.enabled && enabled);
   }
 
+  setForestWindEnabled(enabled: boolean): void {
+    this.forestWindEnabled = enabled;
+    this.forestWind.setEnabled(this.enabled && enabled);
+  }
+
   setMusicVolume(volume: number): void {
     this.soundtrack.setVolume(volume);
   }
@@ -281,8 +289,14 @@ export class AmbientAudioController {
     this.audio.setVolume(volume);
     this.forestWind.setVolume(volume);
     this.riverAudio.setVolume(volume);
+  }
+
+  setSoundEffectsVolume(volume: number): void {
     this.buildingAudio.setVolume(volume);
     this.worldFoley.setVolume(volume);
+    this.fireAudio.setVolume(volume);
+    this.chapelBell.setVolume(volume);
+    this.uiAudio.setVolume(volume);
   }
 
   playUiSound(id: UiSoundId): void {

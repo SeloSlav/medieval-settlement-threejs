@@ -65,6 +65,7 @@ import {
 import {
   DEFAULT_AMBIENCE_VOLUME,
   DEFAULT_MUSIC_VOLUME,
+  DEFAULT_SOUND_EFFECTS_VOLUME,
 } from '../src/audio/audioPreferences.ts';
 import { riverAudioGain } from '../src/audio/RiverAudio.ts';
 import {
@@ -200,6 +201,10 @@ async function main(): Promise<void> {
   invariant(
     DEFAULT_AMBIENCE_VOLUME >= 0.7 && DEFAULT_AMBIENCE_VOLUME <= 0.9,
     'Default ambience should support rather than mask the score',
+  );
+  invariant(
+    DEFAULT_SOUND_EFFECTS_VOLUME >= 0.7 && DEFAULT_SOUND_EFFECTS_VOLUME <= 0.9,
+    'Default sound effects should remain clear without overpowering the score',
   );
   invariant(
     riverAudioGain(0) === 0

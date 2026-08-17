@@ -82,7 +82,9 @@ cost.
   Strategic views hear it only while zoomed into measured living canopy;
   first-person view retains a faint open-ground breeze and reaches full level
   under trees. Felling and site clearance reduce the sampled canopy mix, and
-  the layer follows the normal ambience volume, master mute, and score ducking.
+  the layer follows the normal ambience volume, master mute, score ducking,
+  and its own persisted **Forest wind sounds** Settings toggle. The toggle is
+  off by default, making the SeedThree bed explicitly opt-in.
 - Four non-looping instrumental tracks are chosen by settlement context,
   season, and time of day. Silence between tracks keeps the score from
   fatiguing the player. Active cues gently duck ambience to 86%, with a slower
@@ -93,14 +95,15 @@ cost.
   to the instrumental score when a music cue is active.
 - Close workers retain small pooled one-shot effects so large settlements do
   not create an audio element per villager.
-- The Settings menu persists a master Game audio switch, independent Ambience
-  and Music volume sliders, and a Background music switch. Defaults are 80%
-  ambience and 75% music. The Ambience slider scales both the environmental
-  beds and positional river loop. The master switch also mutes worker, farm,
-  fire, river, ambience, chapel, and UI layers. The four score cues are
-  normalized against browser-decoded source RMS, and the combined
-  rain/village bed is regression-checked against their default effective
-  level.
+- The Settings menu persists a master Game audio switch; independent Ambience,
+  Sound effects, and Music volume sliders; the Forest wind sounds toggle; and
+  a Background music switch. Defaults are 80% ambience, 80% sound effects, and
+  75% music. Ambience scales environmental beds and positional river audio.
+  Sound effects scales worker impacts, footsteps and other world Foley,
+  building activity, combat, fires, chapel bells, and UI feedback. The master
+  switch still mutes every layer. The four score cues are normalized against
+  browser-decoded source RMS, and the combined rain/village bed is
+  regression-checked against their default effective level.
 
 The `ambient-extra`, `worker-foley`, and `ui` groups drive active fire
 incidents, visible worker activities, and placement feedback respectively.

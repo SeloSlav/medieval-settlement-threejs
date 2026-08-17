@@ -3,7 +3,10 @@ import {
   type WorkerActivitySoundKind,
 } from './audioCatalog.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
-import { isGameAudioEnabled } from './audioPreferences.ts';
+import {
+  getSoundEffectsVolume,
+  isGameAudioEnabled,
+} from './audioPreferences.ts';
 
 export const WORKER_SOUND_MAX_ZOOM_DISTANCE = 32;
 export const WORKER_SOUND_FULL_VOLUME_DISTANCE = 12;
@@ -198,7 +201,10 @@ export class WorkerActivityAudio {
     audio.pause();
     audio.currentTime = 0;
     audio.src = clip.path;
-    audio.volume = Math.min(1, Math.max(0, (clip.volume ?? 1) * gain));
+    audio.volume = Math.min(
+      1,
+      Math.max(0, (clip.volume ?? 1) * gain * getSoundEffectsVolume()),
+    );
     audio.playbackRate = 0.96 + deterministicIndex(
       `${source.id}:pitch:${schedule.sequence}`,
       7,

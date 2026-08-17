@@ -631,6 +631,11 @@ assert.match(
 );
 assert.match(
   wildflowerSource,
+  /LILY_THROAT_AXIS_V_OFFSET = -0\.28[\s\S]*?const throatCenter = frame\.surfaceCenter[\s\S]*?const root = throatCenter\.clone\(\)/,
+  'lily filaments should emerge from the dark texture throat instead of the card center',
+);
+assert.match(
+  wildflowerSource,
   /Red campion:[\s\S]*?const campionCymes = \[[\s\S]*?tips: \[[\s\S]*?cyme\.tips\.forEach/,
   'red campion should fork into an open terminal cyme above opposite leaf pairs',
 );

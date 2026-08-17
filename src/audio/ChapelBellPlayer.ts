@@ -79,6 +79,7 @@ export class ChapelBellPlayer {
   private activeRingStartedAtMinute: number | null = null;
   private currentVolume = 0;
   private loadGeneration = 0;
+  private volume = 1;
 
   tick(params: ChapelBellTick): void {
     if (!params.enabled) return;
@@ -125,6 +126,10 @@ export class ChapelBellPlayer {
 
   dispose(): void {
     this.stop();
+  }
+
+  setVolume(volume: number): void {
+    this.volume = Math.max(0, Math.min(1, volume));
   }
 
   private play(calendarMinute: number): void {
@@ -196,7 +201,10 @@ export class ChapelBellPlayer {
     }
     const targetVolume = Math.max(
       0,
-      Math.min(1, (CHURCH_BELL_CLIP.volume ?? 1) * spatialGain * endGain),
+      Math.min(
+        1,
+        (CHURCH_BELL_CLIP.volume ?? 1) * spatialGain * endGain * this.volume,
+      ),
     );
     const rate = targetVolume >= this.currentVolume
       ? CHAPEL_BELL_FADE_IN_PER_SECOND

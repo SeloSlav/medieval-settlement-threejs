@@ -12,12 +12,16 @@ import { GameControlsModal } from './GameControlsModal.ts';
 import {
   getAmbienceVolume,
   getMusicVolume,
+  getSoundEffectsVolume,
+  isForestWindEnabled,
   isGameAudioEnabled,
   isMusicEnabled,
   setAmbienceVolume,
+  setForestWindEnabled,
   setGameAudioEnabled,
   setMusicEnabled,
   setMusicVolume,
+  setSoundEffectsVolume,
 } from '../audio/audioPreferences.ts';
 import {
   areResourceIconsAlwaysShown,
@@ -45,6 +49,8 @@ type GameMenuOptions = {
   onGrantCheatResources?: (amount: number) => Promise<void>;
   onAudioEnabledChange?: (enabled: boolean) => void;
   onAmbienceVolumeChange?: (volume: number) => void;
+  onForestWindEnabledChange?: (enabled: boolean) => void;
+  onSoundEffectsVolumeChange?: (volume: number) => void;
   onMusicEnabledChange?: (enabled: boolean) => void;
   onMusicVolumeChange?: (volume: number) => void;
   showButton?: boolean;
@@ -66,6 +72,9 @@ export class GameMenu {
   private readonly gameAudioCheckbox: HTMLInputElement;
   private readonly ambienceVolumeInput: HTMLInputElement;
   private readonly ambienceVolumeValue: HTMLOutputElement;
+  private readonly forestWindCheckbox: HTMLInputElement;
+  private readonly soundEffectsVolumeInput: HTMLInputElement;
+  private readonly soundEffectsVolumeValue: HTMLOutputElement;
   private readonly musicCheckbox: HTMLInputElement;
   private readonly musicVolumeInput: HTMLInputElement;
   private readonly musicVolumeValue: HTMLOutputElement;
@@ -152,6 +161,22 @@ export class GameMenu {
           />
         </label>
         <label class="game-menu-option game-menu-option--nested">
+          <input type="checkbox" data-forest-wind-checkbox />
+          <span>Forest wind sounds</span>
+        </label>
+        <label class="game-menu-volume game-menu-option--nested">
+          <span>Sound effects volume</span>
+          <output class="game-menu-volume__value" data-sound-effects-volume-value></output>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            aria-label="Sound effects volume"
+            data-sound-effects-volume
+          />
+        </label>
+        <label class="game-menu-option game-menu-option--nested">
           <input type="checkbox" data-music-checkbox />
           <span>Background music</span>
         </label>
@@ -211,6 +236,9 @@ export class GameMenu {
     this.gameAudioCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-game-audio-checkbox]')!;
     this.ambienceVolumeInput = this.backdrop.querySelector<HTMLInputElement>('[data-ambience-volume]')!;
     this.ambienceVolumeValue = this.backdrop.querySelector<HTMLOutputElement>('[data-ambience-volume-value]')!;
+    this.forestWindCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-forest-wind-checkbox]')!;
+    this.soundEffectsVolumeInput = this.backdrop.querySelector<HTMLInputElement>('[data-sound-effects-volume]')!;
+    this.soundEffectsVolumeValue = this.backdrop.querySelector<HTMLOutputElement>('[data-sound-effects-volume-value]')!;
     this.musicCheckbox = this.backdrop.querySelector<HTMLInputElement>('[data-music-checkbox]')!;
     this.musicVolumeInput = this.backdrop.querySelector<HTMLInputElement>('[data-music-volume]')!;
     this.musicVolumeValue = this.backdrop.querySelector<HTMLOutputElement>('[data-music-volume-value]')!;
@@ -236,8 +264,10 @@ export class GameMenu {
     this.syncSkyPresentationControls();
     this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
+    this.forestWindCheckbox.checked = isForestWindEnabled();
     this.musicCheckbox.checked = isMusicEnabled();
     this.syncAmbienceVolume();
+    this.syncSoundEffectsVolume();
     this.syncMusicVolume();
     this.syncAudioControls();
     this.menuButton.addEventListener('click', () => this.toggle());
@@ -297,6 +327,17 @@ export class GameMenu {
       setAmbienceVolume(volume);
       this.syncAmbienceVolume();
       options.onAmbienceVolumeChange?.(volume);
+    });
+    this.forestWindCheckbox.addEventListener('change', () => {
+      const enabled = this.forestWindCheckbox.checked;
+      setForestWindEnabled(enabled);
+      options.onForestWindEnabledChange?.(enabled);
+    });
+    this.soundEffectsVolumeInput.addEventListener('input', () => {
+      const volume = Number(this.soundEffectsVolumeInput.value) / 100;
+      setSoundEffectsVolume(volume);
+      this.syncSoundEffectsVolume();
+      options.onSoundEffectsVolumeChange?.(volume);
     });
     this.musicCheckbox.addEventListener('change', () => {
       setMusicEnabled(this.musicCheckbox.checked);
@@ -367,8 +408,10 @@ export class GameMenu {
     this.syncSkyPresentationControls();
     this.resourceIconsCheckbox.checked = areResourceIconsAlwaysShown();
     this.gameAudioCheckbox.checked = isGameAudioEnabled();
+    this.forestWindCheckbox.checked = isForestWindEnabled();
     this.musicCheckbox.checked = isMusicEnabled();
     this.syncAmbienceVolume();
+    this.syncSoundEffectsVolume();
     this.syncMusicVolume();
     this.syncAudioControls();
     this.backdrop.hidden = false;
@@ -399,6 +442,8 @@ export class GameMenu {
 
   private syncAudioControls(): void {
     this.ambienceVolumeInput.disabled = !this.gameAudioCheckbox.checked;
+    this.forestWindCheckbox.disabled = !this.gameAudioCheckbox.checked;
+    this.soundEffectsVolumeInput.disabled = !this.gameAudioCheckbox.checked;
     this.musicCheckbox.disabled = !this.gameAudioCheckbox.checked;
     this.musicVolumeInput.disabled =
       !this.gameAudioCheckbox.checked || !this.musicCheckbox.checked;
@@ -427,6 +472,13 @@ export class GameMenu {
     this.musicVolumeInput.value = String(percent);
     this.musicVolumeValue.value = `${percent}%`;
     this.musicVolumeValue.textContent = `${percent}%`;
+  }
+
+  private syncSoundEffectsVolume(): void {
+    const percent = Math.round(getSoundEffectsVolume() * 100);
+    this.soundEffectsVolumeInput.value = String(percent);
+    this.soundEffectsVolumeValue.value = `${percent}%`;
+    this.soundEffectsVolumeValue.textContent = `${percent}%`;
   }
 
   private async grantCheatResources(

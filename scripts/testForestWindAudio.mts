@@ -57,4 +57,34 @@ assert.ok(
   'forest wind must remain subtle and fade out more slowly than it fades in',
 );
 
+const preferenceStorage = new Map<string, string>();
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem: (key: string) => preferenceStorage.get(key) ?? null,
+    setItem: (key: string, value: string) => preferenceStorage.set(key, value),
+  },
+});
+const preferences = await import('../src/audio/audioPreferences.ts');
+assert.equal(preferences.isForestWindEnabled(), false, 'forest wind must be opt-in by default');
+preferences.setForestWindEnabled(true);
+assert.equal(preferences.isForestWindEnabled(), true, 'forest wind preference must update immediately');
+assert.equal(
+  preferenceStorage.get('medieval-road-system:forest-wind-enabled'),
+  '1',
+  'forest wind preference must persist independently from master ambience',
+);
+assert.equal(
+  preferences.getSoundEffectsVolume(),
+  preferences.DEFAULT_SOUND_EFFECTS_VOLUME,
+  'sound effects must begin at their documented default mix',
+);
+preferences.setSoundEffectsVolume(0.35);
+assert.equal(preferences.getSoundEffectsVolume(), 0.35, 'sound effects volume must update immediately');
+assert.equal(
+  preferenceStorage.get('medieval-road-system:sound-effects-volume'),
+  '0.35',
+  'sound effects volume must persist independently from ambience',
+);
+
 console.log('test:forest-wind-audio passed');

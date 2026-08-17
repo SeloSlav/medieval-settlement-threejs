@@ -2,16 +2,25 @@ const GAME_AUDIO_ENABLED_KEY = 'medieval-road-system:audio-enabled';
 const MUSIC_ENABLED_KEY = 'medieval-road-system:music-enabled';
 const MUSIC_VOLUME_KEY = 'medieval-road-system:music-volume';
 const AMBIENCE_VOLUME_KEY = 'medieval-road-system:ambience-volume';
+const FOREST_WIND_ENABLED_KEY = 'medieval-road-system:forest-wind-enabled';
+const SOUND_EFFECTS_VOLUME_KEY = 'medieval-road-system:sound-effects-volume';
 
 /** New players begin above the old restrained score mix while retaining headroom. */
 export const DEFAULT_MUSIC_VOLUME = 0.75;
 /** Leaves the environmental bed present without masking the instrumental score. */
 export const DEFAULT_AMBIENCE_VOLUME = 0.8;
+/** Physical world and UI feedback remain clear without sitting above the score. */
+export const DEFAULT_SOUND_EFFECTS_VOLUME = 0.8;
 
 let gameAudioEnabled = readBooleanPreference(GAME_AUDIO_ENABLED_KEY, true);
 let musicEnabled = readBooleanPreference(MUSIC_ENABLED_KEY, true);
 let musicVolume = readNumberPreference(MUSIC_VOLUME_KEY, DEFAULT_MUSIC_VOLUME);
 let ambienceVolume = readNumberPreference(AMBIENCE_VOLUME_KEY, DEFAULT_AMBIENCE_VOLUME);
+let forestWindEnabled = readBooleanPreference(FOREST_WIND_ENABLED_KEY, false);
+let soundEffectsVolume = readNumberPreference(
+  SOUND_EFFECTS_VOLUME_KEY,
+  DEFAULT_SOUND_EFFECTS_VOLUME,
+);
 
 export function isGameAudioEnabled(): boolean {
   return gameAudioEnabled;
@@ -47,6 +56,26 @@ export function getAmbienceVolume(): number {
 export function setAmbienceVolume(volume: number): void {
   ambienceVolume = clamp01(Number.isFinite(volume) ? volume : DEFAULT_AMBIENCE_VOLUME);
   persistNumberPreference(AMBIENCE_VOLUME_KEY, ambienceVolume);
+}
+
+export function isForestWindEnabled(): boolean {
+  return forestWindEnabled;
+}
+
+export function setForestWindEnabled(enabled: boolean): void {
+  forestWindEnabled = enabled;
+  persistBooleanPreference(FOREST_WIND_ENABLED_KEY, enabled);
+}
+
+export function getSoundEffectsVolume(): number {
+  return soundEffectsVolume;
+}
+
+export function setSoundEffectsVolume(volume: number): void {
+  soundEffectsVolume = clamp01(
+    Number.isFinite(volume) ? volume : DEFAULT_SOUND_EFFECTS_VOLUME,
+  );
+  persistNumberPreference(SOUND_EFFECTS_VOLUME_KEY, soundEffectsVolume);
 }
 
 function readBooleanPreference(key: string, fallback: boolean): boolean {

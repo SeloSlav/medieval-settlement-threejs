@@ -9,6 +9,7 @@ const UI_AUDIO_POOL_SIZE = 4;
 export class UiAudio {
   private readonly pool: HTMLAudioElement[] = [];
   private enabled = true;
+  private volume = 1;
 
   play(id: UiSoundId): void {
     if (!this.enabled || typeof Audio === 'undefined') return;
@@ -24,7 +25,7 @@ export class UiAudio {
     audio.pause();
     audio.currentTime = 0;
     audio.src = clip.path;
-    audio.volume = Math.max(0, Math.min(1, clip.volume ?? 1));
+    audio.volume = Math.max(0, Math.min(1, (clip.volume ?? 1) * this.volume));
     void audio.play().catch(() => undefined);
   }
 
@@ -35,6 +36,10 @@ export class UiAudio {
       audio.pause();
       audio.currentTime = 0;
     }
+  }
+
+  setVolume(volume: number): void {
+    this.volume = Math.max(0, Math.min(1, volume));
   }
 
   dispose(): void {

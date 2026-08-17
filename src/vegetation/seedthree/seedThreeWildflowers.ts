@@ -49,6 +49,9 @@ const WILDFLOWER_ATLAS_PATH =
 export const WILDFLOWER_ATLAS_CELL_SCALE = [1 / 5, 1 / 2] as const;
 /** Larger heads remain legible at the game's closest strategic-camera zoom. */
 export const SEEDTHREE_WILDFLOWER_HEAD_SCALE = 1.25;
+// The regenerated lily's darkest throat pixel is at source UV (0.50, 0.63).
+// Runtime V is flipped, placing the pit 0.28 radii below the card center.
+const LILY_THROAT_AXIS_V_OFFSET = -0.28;
 const STEM_TEXTURE_WIDTH = 32;
 const STEM_TEXTURE_HEIGHT = 128;
 
@@ -916,6 +919,10 @@ function appendLilyReproductiveOrgans(
   const styleColor = new THREE.Color(0xf2ad55);
   const stigmaColor = new THREE.Color(0xb76536);
   const filamentRadius = Math.max(0.00025, flowerRadius * 0.0068);
+  const throatCenter = frame.surfaceCenter.clone().addScaledVector(
+    frame.axisV,
+    flowerRadius * LILY_THROAT_AXIS_V_OFFSET,
+  );
 
   for (let index = 0; index < 6; index++) {
     const angle = (index / 6) * Math.PI * 2 + 0.17;
@@ -924,13 +931,13 @@ function appendLilyReproductiveOrgans(
     const tangent = frame.axisU.clone().multiplyScalar(-Math.sin(angle))
       .addScaledVector(frame.axisV, Math.cos(angle));
     const reach = flowerRadius * (0.31 + (index % 2) * 0.035);
-    const root = frame.surfaceCenter.clone()
-      .addScaledVector(radial, flowerRadius * 0.055)
-      .addScaledVector(frame.normal, flowerRadius * 0.025);
-    const elbow = frame.surfaceCenter.clone()
+    const root = throatCenter.clone()
+      .addScaledVector(radial, flowerRadius * 0.012)
+      .addScaledVector(frame.normal, flowerRadius * 0.018);
+    const elbow = throatCenter.clone()
       .addScaledVector(radial, reach * 0.48)
       .addScaledVector(frame.normal, flowerRadius * (0.09 + (index % 3) * 0.014));
-    const tip = frame.surfaceCenter.clone()
+    const tip = throatCenter.clone()
       .addScaledVector(radial, reach)
       .addScaledVector(frame.normal, flowerRadius * (0.15 + (index % 2) * 0.025));
     appendPolylineTube(
@@ -953,12 +960,12 @@ function appendLilyReproductiveOrgans(
     );
   }
 
-  const styleRoot = frame.surfaceCenter.clone()
-    .addScaledVector(frame.normal, flowerRadius * 0.035);
-  const styleElbow = frame.surfaceCenter.clone()
+  const styleRoot = throatCenter.clone()
+    .addScaledVector(frame.normal, flowerRadius * 0.022);
+  const styleElbow = throatCenter.clone()
     .addScaledVector(frame.axisU, flowerRadius * 0.024)
     .addScaledVector(frame.normal, flowerRadius * 0.13);
-  const styleTip = frame.surfaceCenter.clone()
+  const styleTip = throatCenter.clone()
     .addScaledVector(frame.axisU, flowerRadius * 0.052)
     .addScaledVector(frame.normal, flowerRadius * 0.24);
   appendPolylineTube(
