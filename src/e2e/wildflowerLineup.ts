@@ -155,7 +155,9 @@ geometry.computeBoundingBox();
 const flowerMask = geometry.getAttribute('flowerMask');
 let flowerVertexCount = 0;
 for (let index = 0; index < flowerMask.count; index++) {
-  if (flowerMask.getX(index) > 0.5) flowerVertexCount += 1;
+  // The low bit is the surface kind; higher packed bands select which species
+  // may reveal the vertex without consuming another WebGPU attribute.
+  if (Math.round(flowerMask.getX(index)) % 2 === 1) flowerVertexCount += 1;
 }
 const baseHeightM = geometry.boundingBox?.max.y ?? 0;
 window.__WILDFLOWER_LINEUP_METRICS__ = {

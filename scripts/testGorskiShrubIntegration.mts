@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import {
   GORSKI_SHRUB_VARIANT_COUNT,
+  JUNIPER_BERRY_ANCHOR_LIMIT,
   RASPBERRY_FRUIT_ANCHOR_LIMIT,
   createGorskiShrubPrototype,
   type GorskiShrubKind,
@@ -40,7 +41,22 @@ assert.ok(
 
 assertGlb('apple.glb', 1_000_000);
 assertGlb('cherry_pair.glb', 1_000_000);
+assertGlb('juniper_berry.glb', 30_000);
 assertGlb('raspberry_cluster.glb', 50_000);
+
+const juniperAlbedo = readFileSync(
+  `${projectRoot}vendor/seedthree/assets/leaves/juniper_scrub_albedo.png`,
+);
+assert.deepEqual(
+  [...juniperAlbedo.subarray(0, 8)],
+  [137, 80, 78, 71, 13, 10, 26, 10],
+  'the foliage-only juniper spray must remain a PNG',
+);
+assert.equal(
+  juniperAlbedo[25],
+  6,
+  'the foliage-only juniper spray must retain an RGBA alpha channel',
+);
 
 const raspberrySpray = readFileSync(
   `${projectRoot}vendor/seedthree/assets/leaves/raspberry_spray_albedo.png`,
@@ -70,6 +86,10 @@ assert.doesNotMatch(berryVisuals, /raspberry_patch_albedo\.png|createSeedThreeCa
 const undergrowthVisuals = readFileSync(`${projectRoot}src/props/ForestUndergrowth.ts`, 'utf8');
 assert.match(undergrowthVisuals, /GORSKI_SHRUB_VARIANT_COUNT/);
 assert.match(undergrowthVisuals, /new THREE\.InstancedMesh/);
+assert.match(undergrowthVisuals, /juniper_berry\.glb/);
+assert.match(undergrowthVisuals, /targetDiameterM = \[0\.0065, 0\.009\]/);
+assert.match(undergrowthVisuals, /JUNIPER_FEMALE_FRUIT_CHANCE/);
+assert.match(undergrowthVisuals, /Instanced ripe common-juniper berry cones/);
 assert.doesNotMatch(undergrowthVisuals, /createCardClumpGeometry/);
 
 console.log(
@@ -130,6 +150,12 @@ function prototypeSignatures(): Record<string, string> {
         assert.ok(
           prototype.fruitAnchors.length <= RASPBERRY_FRUIT_ANCHOR_LIMIT,
           `raspberry variant ${variant} exceeded its authored fruit-anchor budget`,
+        );
+      } else if (kind === 'juniper') {
+        assert.equal(
+          prototype.fruitAnchors.length,
+          JUNIPER_BERRY_ANCHOR_LIMIT,
+          `juniper variant ${variant} must expose its full berry-cone anchor budget`,
         );
       } else {
         assert.equal(prototype.fruitAnchors.length, 0);

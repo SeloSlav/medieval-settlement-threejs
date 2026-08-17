@@ -83,7 +83,9 @@ export const SEEDTHREE_WILDFLOWER_VARIANTS = [
     label: 'Clusius gentian',
     texturePath: '/assets/textures/vegetation/wildflowers/clusius-gentian-head.png',
     atlasOffset: [1 / 5, 0],
-    heightScale: [1.05, 1.4],
+    // Still exaggerated enough for the strategic camera, but visibly shorter
+    // than the meadow flowers as a naturally near-stemless alpine gentian.
+    heightScale: [0.58, 0.78],
     widthScale: [0.64, 0.82],
   },
   {
@@ -139,25 +141,31 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
     indices: [],
   };
   // Every species keeps one readable central stem. Queen Anne's lace reveals
-  // the separately masked side branches below, while the other species retain
-  // their botanically simpler silhouettes.
+  // the separately masked side branches below, while species-specific foliage
+  // and inflorescences are packed into the same flowerMask attribute.
   const stalks = [
     { x: 0, z: 0, height: 0.36, leanX: 0.008, leanZ: -0.004, yaw: 0.25, bloomScale: 1 },
   ] as const;
 
   stalks.forEach((stalk, index) => {
     appendStalk(buffers, stalk, index);
-    appendFlowerHeadCard(
-      buffers,
-      new THREE.Vector3(
-        stalk.x + stalk.leanX,
-        stalk.height,
-        stalk.z + stalk.leanZ,
-      ),
-      stalk.yaw,
-      0.038 * stalk.bloomScale * headScale,
-    );
   });
+
+  const centralTip = new THREE.Vector3(
+    stalks[0].x + stalks[0].leanX,
+    stalks[0].height,
+    stalks[0].z + stalks[0].leanZ,
+  );
+
+  // Preserve the authored white umbel exactly; only its packed visibility band
+  // differs now that every non-white species owns a botanical silhouette.
+  appendFlowerHeadCard(
+    buffers,
+    centralTip,
+    stalks[0].yaw,
+    0.038 * stalks[0].bloomScale * headScale,
+    1,
+  );
 
   // Cow parsley / Queen Anne's lace reads as a loose spray, not a lollipop.
   // Each side stem splits from the central stalk, changes direction once, and
@@ -244,6 +252,251 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
     );
   });
 
+  // Clusius gentian: one large terminal trumpet over a stiff basal rosette,
+  // with only two small, decussate stem-leaf pairs. The stem remains simple.
+  appendFlowerHeadCard(buffers, centralTip, 0.18, 0.038 * headScale, 2, 0.08);
+  const gentianLeafColor = new THREE.Color(0x587642);
+  const gentianRosette = [
+    { yaw: 0.08, length: 0.082, width: 0.021, lift: 0.012 },
+    { yaw: 1.02, length: 0.069, width: 0.019, lift: 0.009 },
+    { yaw: 2.04, length: 0.088, width: 0.022, lift: 0.014 },
+    { yaw: 3.08, length: 0.073, width: 0.02, lift: 0.01 },
+    { yaw: 4.16, length: 0.078, width: 0.021, lift: 0.013 },
+    { yaw: 5.26, length: 0.066, width: 0.018, lift: 0.008 },
+  ] as const;
+  gentianRosette.forEach((leaf) => {
+    appendFoliageBlade(
+      buffers,
+      new THREE.Vector3(0, 0.004, 0),
+      new THREE.Vector3(
+        Math.cos(leaf.yaw) * leaf.length,
+        leaf.lift,
+        Math.sin(leaf.yaw) * leaf.length,
+      ),
+      leaf.width,
+      gentianLeafColor,
+      2,
+      'lanceolate',
+    );
+  });
+  [
+    { height: 0.115, yaw: 0.34, length: 0.037, width: 0.0095 },
+    { height: 0.205, yaw: 1.91, length: 0.03, width: 0.0075 },
+  ].forEach((pair) => {
+    for (const side of [0, Math.PI]) {
+      const yaw = pair.yaw + side;
+      const root = pointAlongCentralStalk(stalks[0], pair.height);
+      appendFoliageBlade(
+        buffers,
+        root,
+        root.clone().add(new THREE.Vector3(
+          Math.cos(yaw) * pair.length,
+          pair.length * 0.42,
+          Math.sin(yaw) * pair.length,
+        )),
+        pair.width,
+        gentianLeafColor,
+        2,
+        'lanceolate',
+        pair.height / stalks[0].height,
+      );
+    }
+  });
+
+  // Grey hawkbit: a solitary, leafless scape over a low hoary, lobed rosette.
+  appendFlowerHeadCard(buffers, centralTip, 0.52, 0.029 * headScale, 3, 0.16);
+  const hawkbitLeafColor = new THREE.Color(0x788767);
+  [0.18, 0.92, 1.68, 2.49, 3.2, 4.02, 4.78, 5.57].forEach((yaw, index) => {
+    const length = 0.082 + (index % 3) * 0.012;
+    appendFoliageBlade(
+      buffers,
+      new THREE.Vector3(0, 0.004 + (index % 2) * 0.001, 0),
+      new THREE.Vector3(
+        Math.cos(yaw) * length,
+        0.009 + (index % 2) * 0.004,
+        Math.sin(yaw) * length,
+      ),
+      0.015 + (index % 2) * 0.002,
+      hawkbitLeafColor,
+      3,
+      'lobed',
+    );
+  });
+
+  // Bulbiferous lily: a stout leafy axis with a loose spiral of lanceolate
+  // leaves and short upper pedicels carrying an upright three-flower cluster.
+  appendFlowerHeadCard(buffers, centralTip, 0.66, 0.044 * headScale, 4, 0.34);
+  const lilyLeafColor = new THREE.Color(0x4f7c3c);
+  [
+    { height: 0.052, yaw: 0.15, length: 0.07, width: 0.009 },
+    { height: 0.086, yaw: 2.48, length: 0.083, width: 0.011 },
+    { height: 0.122, yaw: 4.72, length: 0.075, width: 0.01 },
+    { height: 0.158, yaw: 0.83, length: 0.088, width: 0.0115 },
+    { height: 0.194, yaw: 3.17, length: 0.079, width: 0.01 },
+    { height: 0.23, yaw: 5.38, length: 0.068, width: 0.009 },
+    { height: 0.263, yaw: 1.48, length: 0.059, width: 0.008 },
+    { height: 0.292, yaw: 3.83, length: 0.05, width: 0.007 },
+  ].forEach((leaf) => {
+    const root = pointAlongCentralStalk(stalks[0], leaf.height);
+    appendFoliageBlade(
+      buffers,
+      root,
+      root.clone().add(new THREE.Vector3(
+        Math.cos(leaf.yaw) * leaf.length,
+        leaf.length * 0.18,
+        Math.sin(leaf.yaw) * leaf.length,
+      )),
+      leaf.width,
+      lilyLeafColor,
+      4,
+      'lanceolate',
+      leaf.height / stalks[0].height,
+    );
+  });
+  const lilyPedicels = [
+    {
+      splitHeight: 0.242,
+      elbow: [0.026, 0.29, 0.015],
+      tip: [0.061, 0.352, 0.027],
+      yaw: 0.38,
+      headRadius: 0.037,
+    },
+    {
+      splitHeight: 0.268,
+      elbow: [-0.026, 0.31, -0.019],
+      tip: [-0.056, 0.371, -0.041],
+      yaw: 3.8,
+      headRadius: 0.035,
+    },
+  ] as const;
+  lilyPedicels.forEach((branch, index) => {
+    const split = pointAlongCentralStalk(stalks[0], branch.splitHeight);
+    const elbow = new THREE.Vector3(...branch.elbow);
+    const tip = new THREE.Vector3(...branch.tip);
+    const splitWeight = branch.splitHeight / stalks[0].height;
+    const elbowWeight = THREE.MathUtils.lerp(splitWeight, 1, 0.58);
+    appendStemTube(
+      buffers,
+      split,
+      elbow,
+      0.0028,
+      branch.yaw,
+      STEM_COLORS[index % STEM_COLORS.length]!,
+      splitWeight,
+      elbowWeight,
+      4,
+    );
+    appendStemTube(
+      buffers,
+      elbow,
+      tip,
+      0.00225,
+      branch.yaw + 0.24,
+      STEM_COLORS[index % STEM_COLORS.length]!,
+      elbowWeight,
+      1,
+      4,
+    );
+    appendFlowerHeadCard(
+      buffers,
+      tip,
+      branch.yaw,
+      branch.headRadius * headScale,
+      4,
+      0.46,
+    );
+  });
+
+  // Red campion: opposite decussate leaves below an open, forked terminal
+  // cyme. Each primary branch divides again instead of radiating from one hub.
+  appendFlowerHeadCard(buffers, centralTip, 0.28, 0.017 * headScale, 5, 0.24);
+  const campionLeafColor = new THREE.Color(0x537a43);
+  [
+    { height: 0.064, yaw: 0.22, length: 0.061, width: 0.016 },
+    { height: 0.124, yaw: 1.79, length: 0.056, width: 0.015 },
+    { height: 0.184, yaw: 0.26, length: 0.049, width: 0.013 },
+    { height: 0.241, yaw: 1.84, length: 0.04, width: 0.011 },
+  ].forEach((pair) => {
+    for (const side of [0, Math.PI]) {
+      const yaw = pair.yaw + side;
+      const root = pointAlongCentralStalk(stalks[0], pair.height);
+      appendFoliageBlade(
+        buffers,
+        root,
+        root.clone().add(new THREE.Vector3(
+          Math.cos(yaw) * pair.length,
+          pair.length * 0.32,
+          Math.sin(yaw) * pair.length,
+        )),
+        pair.width,
+        campionLeafColor,
+        5,
+        'ovate',
+        pair.height / stalks[0].height,
+      );
+    }
+  });
+  const campionCymes = [
+    {
+      splitHeight: 0.185,
+      elbow: [0.042, 0.27, 0.02],
+      tips: [
+        [0.085, 0.345, 0.041],
+        [0.025, 0.36, 0.071],
+      ],
+      yaw: 0.42,
+    },
+    {
+      splitHeight: 0.215,
+      elbow: [-0.046, 0.291, -0.018],
+      tips: [
+        [-0.089, 0.367, -0.052],
+        [-0.052, 0.345, 0.046],
+      ],
+      yaw: 3.54,
+    },
+  ] as const;
+  campionCymes.forEach((cyme, cymeIndex) => {
+    const split = pointAlongCentralStalk(stalks[0], cyme.splitHeight);
+    const elbow = new THREE.Vector3(...cyme.elbow);
+    const splitWeight = cyme.splitHeight / stalks[0].height;
+    const elbowWeight = THREE.MathUtils.lerp(splitWeight, 1, 0.5);
+    const stemColor = STEM_COLORS[(cymeIndex + 1) % STEM_COLORS.length]!;
+    appendStemTube(
+      buffers,
+      split,
+      elbow,
+      0.00245,
+      cyme.yaw,
+      stemColor,
+      splitWeight,
+      elbowWeight,
+      5,
+    );
+    cyme.tips.forEach((tipTuple, tipIndex) => {
+      const tip = new THREE.Vector3(...tipTuple);
+      appendStemTube(
+        buffers,
+        elbow,
+        tip,
+        0.00185,
+        cyme.yaw + (tipIndex === 0 ? -0.3 : 0.34),
+        stemColor,
+        elbowWeight,
+        1,
+        5,
+      );
+      appendFlowerHeadCard(
+        buffers,
+        tip,
+        cyme.yaw + tipIndex * 0.5,
+        (0.015 + tipIndex * 0.0015) * headScale,
+        5,
+        0.3,
+      );
+    });
+  });
+
   const geometry = new THREE.BufferGeometry();
   geometry.setIndex(buffers.indices);
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(buffers.positions, 3));
@@ -275,16 +528,57 @@ export function createSeedThreeWildflowerMaterial(
   material.polygonOffsetUnits = -2;
 
   const baseColor = tsl.attribute('color', 'vec3');
-  // The existing flower mask packs two binary values so the branching plant
-  // does not consume another WebGPU vertex-buffer slot: 0/1 are central
-  // stem/head and 2/3 are Queen Anne branch stem/head.
+  // The flower mask packs surface kind in its low bit (stem/foliage = 0,
+  // flower = 1) and a two-value structural band above it. This keeps all five
+  // botanical silhouettes in one geometry without another WebGPU buffer.
   const packedFlowerMask = tsl.attribute('flowerMask', 'float');
   const queenAnneBranchMask = tsl.smoothstep(
     tsl.float(1.49),
     tsl.float(1.51),
     packedFlowerMask,
+  ).sub(tsl.smoothstep(
+    tsl.float(3.49),
+    tsl.float(3.51),
+    packedFlowerMask,
+  ));
+  const gentianStructureMask = tsl.smoothstep(
+    tsl.float(3.49),
+    tsl.float(3.51),
+    packedFlowerMask,
+  ).sub(tsl.smoothstep(
+    tsl.float(5.49),
+    tsl.float(5.51),
+    packedFlowerMask,
+  ));
+  const hawkbitStructureMask = tsl.smoothstep(
+    tsl.float(5.49),
+    tsl.float(5.51),
+    packedFlowerMask,
+  ).sub(tsl.smoothstep(
+    tsl.float(7.49),
+    tsl.float(7.51),
+    packedFlowerMask,
+  ));
+  const lilyStructureMask = tsl.smoothstep(
+    tsl.float(7.49),
+    tsl.float(7.51),
+    packedFlowerMask,
+  ).sub(tsl.smoothstep(
+    tsl.float(9.49),
+    tsl.float(9.51),
+    packedFlowerMask,
+  ));
+  const campionStructureMask = tsl.smoothstep(
+    tsl.float(9.49),
+    tsl.float(9.51),
+    packedFlowerMask,
   );
-  const flowerMask = packedFlowerMask.sub(queenAnneBranchMask.mul(tsl.float(2)));
+  const flowerMask = packedFlowerMask
+    .sub(queenAnneBranchMask.mul(tsl.float(2)))
+    .sub(gentianStructureMask.mul(tsl.float(4)))
+    .sub(hawkbitStructureMask.mul(tsl.float(6)))
+    .sub(lilyStructureMask.mul(tsl.float(8)))
+    .sub(campionStructureMask.mul(tsl.float(10)));
   const flowerAnchor = tsl.attribute('aAnchorPos', 'vec4');
   // Atlas cell zero is Queen Anne's lace. Deriving the instance flag from the
   // existing anchor keeps the complete flower pipeline within WebGPU's eight
@@ -292,6 +586,24 @@ export function createSeedThreeWildflowerMaterial(
   const whiteUmbel = tsl.float(1).sub(
     tsl.smoothstep(tsl.float(0.01), tsl.float(0.02), flowerAnchor.w),
   );
+  const gentianOrLater = tsl.smoothstep(tsl.float(0.09), tsl.float(0.11), flowerAnchor.w);
+  const hawkbitOrLater = tsl.smoothstep(tsl.float(0.29), tsl.float(0.31), flowerAnchor.w);
+  const lilyOrLater = tsl.smoothstep(tsl.float(0.49), tsl.float(0.51), flowerAnchor.w);
+  const campionOnly = tsl.smoothstep(tsl.float(0.69), tsl.float(0.71), flowerAnchor.w);
+  const gentianOnly = gentianOrLater.sub(hawkbitOrLater);
+  const hawkbitOnly = hawkbitOrLater.sub(lilyOrLater);
+  const lilyOnly = lilyOrLater.sub(campionOnly);
+  const sharedStructureMask = tsl.float(1).sub(tsl.smoothstep(
+    tsl.float(1.49),
+    tsl.float(1.51),
+    packedFlowerMask,
+  ));
+  const structureVisibility = sharedStructureMask
+    .add(queenAnneBranchMask.mul(whiteUmbel))
+    .add(gentianStructureMask.mul(gentianOnly))
+    .add(hawkbitStructureMask.mul(hawkbitOnly))
+    .add(lilyStructureMask.mul(lilyOnly))
+    .add(campionStructureMask.mul(campionOnly));
   const atlasUv = tsl.uv()
     .mul(tsl.vec2(WILDFLOWER_ATLAS_CELL_SCALE[0], WILDFLOWER_ATLAS_CELL_SCALE[1]))
     .add(tsl.vec2(flowerAnchor.w, 0));
@@ -304,9 +616,7 @@ export function createSeedThreeWildflowerMaterial(
     texel,
     flowerMask,
   );
-  material.colorNode = surfaceColor.mul(
-    tsl.mix(tsl.float(1), whiteUmbel, queenAnneBranchMask),
-  );
+  material.colorNode = surfaceColor.mul(structureVisibility);
   // A separate weight keeps every point of the head card attached to its stem
   // rather than bending the image according to its texture UV.
   material.positionNode = createPinnedGrassWindPosition('windWeight', 'vec4');
@@ -321,6 +631,77 @@ export function disposeSeedThreeWildflowerTextureCache(): void {
   stemTextureCache?.dispose();
   textureCache = null;
   stemTextureCache = null;
+}
+
+function pointAlongCentralStalk(
+  stalk: {
+    x: number;
+    z: number;
+    height: number;
+    leanX: number;
+    leanZ: number;
+  },
+  height: number,
+): THREE.Vector3 {
+  const fraction = THREE.MathUtils.clamp(height / stalk.height, 0, 1);
+  return new THREE.Vector3(
+    stalk.x + stalk.leanX * fraction,
+    height,
+    stalk.z + stalk.leanZ * fraction,
+  );
+}
+
+function appendFoliageBlade(
+  buffers: WildflowerBuffers,
+  root: THREE.Vector3,
+  tip: THREE.Vector3,
+  halfWidth: number,
+  color: THREE.Color,
+  structureMask: number,
+  profile: 'lanceolate' | 'lobed' | 'ovate',
+  windWeightStart = 0,
+): void {
+  const axis = tip.clone().sub(root).normalize();
+  const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), axis);
+  if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+  side.normalize();
+  const normal = new THREE.Vector3().crossVectors(axis, side).normalize();
+  if (normal.y < 0) normal.negate();
+
+  const fractions = profile === 'lobed'
+    ? [0, 0.13, 0.27, 0.41, 0.56, 0.71, 0.85, 1]
+    : [0, 0.18, 0.38, 0.6, 0.8, 1];
+  const widths = profile === 'lobed'
+    ? [0.08, 0.7, 0.38, 1, 0.44, 0.78, 0.32, 0.03]
+    : profile === 'ovate'
+      ? [0.08, 0.58, 0.94, 1, 0.62, 0.04]
+      : [0.08, 0.55, 0.92, 1, 0.62, 0.03];
+  const base = buffers.positions.length / 3;
+
+  fractions.forEach((fraction, row) => {
+    const center = root.clone().lerp(tip, fraction)
+      .addScaledVector(normal, Math.sin(Math.PI * fraction) * halfWidth * 0.12);
+    const windWeight = THREE.MathUtils.lerp(windWeightStart, 1, fraction);
+    for (const sideSign of [-1, 1]) {
+      appendVertex(buffers, vertex(
+        center.clone().addScaledVector(side, halfWidth * widths[row]! * sideSign),
+        normal,
+        color,
+        [sideSign < 0 ? 0 : 1, fraction * 2.2],
+        0,
+        windWeight,
+        structureMask,
+      ));
+    }
+  });
+
+  for (let row = 0; row < fractions.length - 1; row++) {
+    const a = base + row * 2;
+    const b = a + 1;
+    const c = a + 2;
+    const d = a + 3;
+    buffers.indices.push(a, b, c, b, d, c);
+  }
 }
 
 function appendStalk(
@@ -409,13 +790,14 @@ function appendFlowerHeadCard(
   center: THREE.Vector3,
   yaw: number,
   radius: number,
-  queenAnneBranchMask = 0,
+  structureMask = 0,
+  tilt = 0.24,
 ): void {
   const tiltDirection = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
   const normal = new THREE.Vector3(
-    tiltDirection.x * 0.24,
+    tiltDirection.x * tilt,
     0.95,
-    tiltDirection.z * 0.24,
+    tiltDirection.z * tilt,
   ).normalize();
   const axisU = new THREE.Vector3(-Math.sin(yaw), 0, Math.cos(yaw)).normalize();
   const axisV = new THREE.Vector3().crossVectors(normal, axisU).normalize();
@@ -431,7 +813,7 @@ function appendFlowerHeadCard(
     [0.5, 0.5],
     1,
     1,
-    queenAnneBranchMask,
+    structureMask,
   ));
   for (let index = 0; index <= segments; index++) {
     const angle = (index / segments) * Math.PI * 2;
@@ -447,7 +829,7 @@ function appendFlowerHeadCard(
       [0.5 + Math.cos(angle) * 0.5, 0.5 + Math.sin(angle) * 0.5],
       1,
       1,
-      queenAnneBranchMask,
+      structureMask,
     ));
   }
   for (let index = 0; index < segments; index++) {
@@ -501,14 +883,14 @@ function vertex(
   uv: readonly [number, number],
   flowerMask: number,
   windWeight: number,
-  queenAnneBranchMask = 0,
+  structureMask = 0,
 ): WildflowerVertex {
   return {
     position,
     normal,
     color,
     uv,
-    flowerMask: flowerMask + queenAnneBranchMask * 2,
+    flowerMask: flowerMask + structureMask * 2,
     windWeight,
   };
 }

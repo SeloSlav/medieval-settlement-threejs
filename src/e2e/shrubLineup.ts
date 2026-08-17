@@ -107,6 +107,12 @@ if (view === 'near') {
   if (focus === 'fern') {
     camera.position.set(-2.6, 1.55, 4.2);
     camera.lookAt(-2.6, 0.48, 0);
+  } else if (focus === 'juniper-detail') {
+    camera.position.set(2.7, 1.2, 2.15);
+    camera.lookAt(2.7, 0.72, 0);
+  } else if (focus === 'juniper') {
+    camera.position.set(2.7, 1.75, 4.6);
+    camera.lookAt(2.7, 0.72, 0);
   } else {
     camera.position.set(11.2, 2.7, 6.3);
     camera.lookAt(8, 1.0, 0);
@@ -152,6 +158,15 @@ document.body.dataset.raspberryClumpCount = String(
 );
 document.body.dataset.raspberryCaneHeightMultiplier = String(
   berries.group.userData.raspberryCaneHeightMultiplier ?? 0,
+);
+document.body.dataset.juniperBerryModel = String(
+  undergrowth.group.userData.juniperBerryModel ?? '',
+);
+document.body.dataset.juniperBerryInstances = String(
+  undergrowth.group.userData.juniperBerryInstances ?? 0,
+);
+document.body.dataset.juniperBearingShrubs = String(
+  undergrowth.group.userData.juniperBearingShrubs ?? 0,
 );
 document.body.dataset.ordinaryTriangles = String(
   Object.values(materials.prototypes).flat().reduce((sum, prototype) => sum + prototype.triangleCount, 0),

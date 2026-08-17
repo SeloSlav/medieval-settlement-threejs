@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
 import { MeshSSSNodeMaterial, MeshStandardNodeMaterial } from 'three/webgpu';
 import {
@@ -21,7 +22,11 @@ import type { Terrain } from '../terrain/Terrain.ts';
 import { applyFoliageDoubleSideNormals } from '../scene/foliageDoubleSideNormals.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
 import type { RendererBackendKind } from '../scene/RendererBackend.ts';
-import { seedThreeBarkUrl, seedThreeLeafUrl } from '../vegetation/seedthree/seedThreeTextures.ts';
+import {
+  seedThreeBarkUrl,
+  seedThreeFruitUrl,
+  seedThreeLeafUrl,
+} from '../vegetation/seedthree/seedThreeTextures.ts';
 import { sampleBilberryBushScale } from '../vegetation/bilberryBushVisual.ts';
 import {
   createGorskiShrubPrototype,
@@ -69,6 +74,8 @@ const tsl = {
 };
 
 const TAU = Math.PI * 2;
+const JUNIPER_FEMALE_FRUIT_CHANCE = 0.58;
+const MAX_JUNIPER_BERRIES_PER_SHRUB = 12;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const windQuat = new THREE.Quaternion();
 const windVecScratch = new THREE.Vector3();
@@ -101,10 +108,16 @@ type UndergrowthTextureFiles = {
 
 type UndergrowthMaterialPair = [branch: THREE.Material, foliage: THREE.Material];
 
+type UndergrowthFruitAsset = {
+  geometry: THREE.BufferGeometry;
+  material: THREE.Material;
+};
+
 export type UndergrowthMaterials = {
   bush: UndergrowthMaterialPair;
   fern: [foliage: THREE.Material];
   juniper: UndergrowthMaterialPair;
+  juniperBerry: UndergrowthFruitAsset;
   prototypes: Record<UndergrowthKind, GorskiShrubPrototype[]>;
   shadowCast: THREE.MeshStandardMaterial;
   bushShadowDepth: THREE.MeshDepthMaterial;
@@ -117,6 +130,7 @@ export type UndergrowthInstances = {
   group: THREE.Group;
   placements: UndergrowthPlacement[];
   buckets: Record<UndergrowthKind, UndergrowthBucket[]>;
+  juniperBerries: THREE.InstancedMesh;
 };
 
 export type UndergrowthBucket = {
@@ -156,18 +170,27 @@ const BRANCH_FILES: Record<Exclude<UndergrowthKind, 'fern'>, Omit<UndergrowthTex
 };
 
 const loader = new THREE.TextureLoader();
+const gltfLoader = new GLTFLoader();
 
 export async function createUndergrowthMaterials(
   maxAnisotropy: number,
   rendererBackend: RendererBackendKind | undefined,
   _sharedTextures: THREE.Texture[],
 ): Promise<UndergrowthMaterials> {
-  const [bushTextures, fernTextures, juniperTextures, bushBranch, juniperBranch] = await Promise.all([
+  const [
+    bushTextures,
+    fernTextures,
+    juniperTextures,
+    bushBranch,
+    juniperBranch,
+    juniperBerry,
+  ] = await Promise.all([
     loadUndergrowthTextures(CARD_FILES.bush, maxAnisotropy),
     loadUndergrowthTextures(CARD_FILES.fern, maxAnisotropy),
     loadUndergrowthTextures(CARD_FILES.juniper, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.bush, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.juniper, maxAnisotropy),
+    loadJuniperBerry(),
   ]);
   const useNodeMaterials = rendererBackend === 'webgpu';
   const textures = collectTextures(
@@ -193,8 +216,9 @@ export async function createUndergrowthMaterials(
     ],
     juniper: [
       createUndergrowthBranchMaterial('SeedThree common juniper stems', juniperBranch, useNodeMaterials),
-      createUndergrowthCardMaterial('SeedThree common juniper sprays', juniperTextures, useNodeMaterials, [0.22, 0.36, 0.14]),
+      createUndergrowthCardMaterial('SeedThree common juniper needle-only sprays', juniperTextures, useNodeMaterials, [0.22, 0.36, 0.14]),
     ],
+    juniperBerry,
     prototypes,
     shadowCast: new THREE.MeshStandardMaterial({
       transparent: true,
@@ -296,10 +320,22 @@ export function buildUndergrowthInstances(
     }),
   ) as Record<UndergrowthKind, UndergrowthBucket[]>;
 
+  const juniperBerries = createJuniperBerryInstances(
+    placements,
+    buckets.juniper,
+    materials.prototypes.juniper,
+    materials.juniperBerry,
+  );
+  group.add(juniperBerries);
+  group.userData.juniperBerryModel = 'juniper_berry.glb';
+  group.userData.juniperBerryInstances = juniperBerries.count;
+  group.userData.juniperBearingShrubs = juniperBerries.userData.bearingShrubCount;
+
   return {
     group,
     placements,
     buckets,
+    juniperBerries,
   };
 }
 
@@ -315,7 +351,79 @@ export function disposeUndergrowthInstances(instances: UndergrowthInstances, mat
   materials.bushShadowDepth.dispose();
   materials.fernShadowDepth.dispose();
   materials.juniperShadowDepth.dispose();
+  instances.juniperBerries.geometry.dispose();
+  materials.juniperBerry.material.dispose();
   materials.textures.forEach((texture) => texture.dispose());
+}
+
+function createJuniperBerryInstances(
+  placements: ReadonlyArray<UndergrowthPlacement>,
+  buckets: ReadonlyArray<UndergrowthBucket>,
+  prototypes: ReadonlyArray<GorskiShrubPrototype>,
+  asset: UndergrowthFruitAsset,
+): THREE.InstancedMesh {
+  asset.geometry.computeBoundingBox();
+  const fruitSize = asset.geometry.boundingBox!.getSize(new THREE.Vector3());
+  const sourceDiameter = Math.max(fruitSize.x, fruitSize.z, 0.001);
+  const junipers = placements.filter((placement) => placement.kind === 'juniper');
+  const capacity = Math.max(junipers.length * MAX_JUNIPER_BERRIES_PER_SHRUB, 1);
+  const mesh = new THREE.InstancedMesh(asset.geometry, asset.material, capacity);
+  mesh.name = 'Instanced ripe common-juniper berry cones';
+  mesh.userData.fruitModel = 'juniper_berry.glb';
+  mesh.userData.sourceDiameterM = sourceDiameter;
+  mesh.userData.targetDiameterM = [0.0065, 0.009];
+  mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+
+  const fruitPosition = new THREE.Vector3();
+  const fruitQuaternion = new THREE.Quaternion();
+  const fruitScale = new THREE.Vector3();
+  const fruitMatrix = new THREE.Matrix4();
+  let fruitCount = 0;
+  let bearingShrubCount = 0;
+
+  for (const placement of junipers) {
+    const sexNoise = undergrowthHash01(
+      placement.x * 3.17 + placement.z * 5.83 + placement.prototypeIndex * 11.7 + 1.5,
+    );
+    if (sexNoise > JUNIPER_FEMALE_FRUIT_CHANCE) continue;
+    const bucket = buckets[placement.prototypeIndex];
+    const shrubMatrix = bucket?.matrices[placement.meshIndex];
+    if (!shrubMatrix) continue;
+    const anchors = prototypes[placement.prototypeIndex]!.fruitAnchors
+      .slice(0, MAX_JUNIPER_BERRIES_PER_SHRUB);
+    if (anchors.length === 0) continue;
+    bearingShrubCount++;
+
+    for (let fruitIndex = 0; fruitIndex < anchors.length; fruitIndex++) {
+      const seed = fruitCount * 7.13 + fruitIndex * 3.71 + placement.x * 0.19;
+      fruitPosition.copy(anchors[fruitIndex]!).applyMatrix4(shrubMatrix);
+      fruitQuaternion.setFromEuler(new THREE.Euler(
+        (undergrowthHash01(seed + 0.8) - 0.5) * 0.18,
+        undergrowthHash01(seed + 2.7) * TAU,
+        (undergrowthHash01(seed + 5.1) - 0.5) * 0.18,
+        'YXZ',
+      ));
+      const targetDiameter = THREE.MathUtils.lerp(
+        0.0065,
+        0.009,
+        undergrowthHash01(seed + 8.3),
+      );
+      fruitScale.setScalar(targetDiameter / sourceDiameter);
+      fruitMatrix.compose(fruitPosition, fruitQuaternion, fruitScale);
+      mesh.setMatrixAt(fruitCount, fruitMatrix);
+      fruitCount++;
+    }
+  }
+
+  mesh.count = fruitCount;
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.userData.capacity = capacity;
+  mesh.userData.bearingShrubCount = bearingShrubCount;
+  mesh.computeBoundingSphere();
+  return mesh;
 }
 
 function createUndergrowthBucket(
@@ -640,6 +748,38 @@ function createUndergrowthShadowGeometry(kind: UndergrowthKind): THREE.BufferGeo
   return geometry;
 }
 
+async function loadJuniperBerry(): Promise<UndergrowthFruitAsset> {
+  const url = seedThreeFruitUrl('juniper_berry.glb');
+  if (!url) throw new Error('Missing SeedThree common-juniper berry GLB');
+  const gltf = await gltfLoader.loadAsync(url);
+  gltf.scene.updateMatrixWorld(true);
+  const meshes: THREE.Mesh[] = [];
+  gltf.scene.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh) meshes.push(mesh);
+  });
+  if (meshes.length !== 1) {
+    throw new Error(`juniper_berry.glb must contain one mesh (found ${meshes.length})`);
+  }
+  const source = meshes[0]!;
+  const geometry = source.geometry.clone().applyMatrix4(source.matrixWorld);
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox!;
+  geometry.translate(
+    -(box.min.x + box.max.x) * 0.5,
+    -box.max.y,
+    -(box.min.z + box.max.z) * 0.5,
+  );
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  const sourceMaterial = Array.isArray(source.material) ? source.material[0]! : source.material;
+  const material = sourceMaterial.clone();
+  material.name = 'Generated juniper_berry.glb material';
+  source.geometry.dispose();
+  sourceMaterial.dispose();
+  return { geometry, material };
+}
+
 async function loadUndergrowthTextures(files: UndergrowthTextureFiles, maxAnisotropy: number): Promise<UndergrowthTextureSet> {
   const [albedo, normal, roughness, translucency] = await Promise.all([
     loadRequiredLeafTexture(files.albedo, true, maxAnisotropy),
@@ -709,4 +849,9 @@ function collectTextures(...sets: UndergrowthTextureSet[]): THREE.Texture[] {
 
 function rngRange(rng: () => number, min: number, max: number): number {
   return THREE.MathUtils.lerp(min, max, rng());
+}
+
+function undergrowthHash01(seed: number): number {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
 }

@@ -601,13 +601,38 @@ assert.doesNotMatch(
 );
 assert.match(
   wildflowerSource,
-  /heightScale: \[1\.05, 1\.4\]/,
-  'the shortest species should still reach the close grass layer',
+  /id: 'clusius-gentian',[\s\S]*?heightScale: \[0\.58, 0\.78\]/,
+  'the naturally short gentian should remain distinctly lower than the meadow flowers',
 );
 assert.match(
   wildflowerSource,
   /heightScale: \[1\.35, 1\.95\]/,
   'the tallest species should remain below a metre at the authored base height',
+);
+assert.match(
+  wildflowerSource,
+  /Clusius gentian:[\s\S]*?const gentianRosette = \[[\s\S]*?appendFoliageBlade[\s\S]*?'lanceolate'/,
+  'Clusius gentian should carry a basal rosette around its single unbranched flower stem',
+);
+assert.match(
+  wildflowerSource,
+  /Grey hawkbit:[\s\S]*?\[0\.18, 0\.92, 1\.68, 2\.49, 3\.2, 4\.02, 4\.78, 5\.57\][\s\S]*?'lobed'/,
+  'grey hawkbit should carry a low lobed rosette beneath its leafless scape',
+);
+assert.match(
+  wildflowerSource,
+  /Bulbiferous lily:[\s\S]*?const lilyPedicels = \[[\s\S]*?splitHeight:[\s\S]*?appendFlowerHeadCard/,
+  'bulbiferous lily should carry short upper pedicels above its spiral stem leaves',
+);
+assert.match(
+  wildflowerSource,
+  /Red campion:[\s\S]*?const campionCymes = \[[\s\S]*?tips: \[[\s\S]*?cyme\.tips\.forEach/,
+  'red campion should fork into an open terminal cyme above opposite leaf pairs',
+);
+assert.match(
+  wildflowerSource,
+  /const structureVisibility = sharedStructureMask[\s\S]*?gentianStructureMask[\s\S]*?hawkbitStructureMask[\s\S]*?lilyStructureMask[\s\S]*?campionStructureMask/,
+  'species silhouettes should stay packed in the existing flower mask instead of adding instance buffers',
 );
 
 const meadowTuft = readFileSync(meadowTuftPath);
