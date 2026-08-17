@@ -74,7 +74,7 @@ export function polygonOverlapsPhysicalDeposit(
   );
 }
 
-function polygonOverlapsCircle(
+export function polygonOverlapsCircle(
   polygon: readonly Point2[],
   centerX: number,
   centerZ: number,

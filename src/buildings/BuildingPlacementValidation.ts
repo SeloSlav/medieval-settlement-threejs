@@ -7,8 +7,11 @@ import {
   TOWN_HALL_POPULATION_REQUIRED,
 } from '../generated/gameBalance.ts';
 import { hasStaffedChapel, MONASTERY_MIN_PARISH_POPULATION, parishPopulation } from '../logistics/specialtyLogistics.ts';
-import { sampleBuildingFootprintHeights } from './BuildingTerrainLayout.ts';
-import { sampleBuildingFootprintPoints } from './BuildingTerrainLayout.ts';
+import {
+  getBuildingFootprintCorners,
+  sampleBuildingFootprintHeights,
+  sampleBuildingFootprintPoints,
+} from './BuildingTerrainLayout.ts';
 import { buildingFootprintPolygon, buildingOverlapsResidenceZone } from '../placement/placementConflicts.ts';
 import { convexPolygonsOverlap2 } from '../utils/polygonGeometry.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -16,9 +19,18 @@ import { isOnRoadSurface } from '../roads/roadConnectivity.ts';
 import { getBuildingExtent } from './buildingExtents.ts';
 import {
   clayDepositAtCenter,
-  nearestClayDeposit,
   type ClayDepositSite,
 } from '../clay/ClayDepositLayout.ts';
+import {
+  BERRY_PATCH_MAX_SPAWN_RADIUS,
+  MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
+} from '../foraging/foragingYields.ts';
+import { berryThicketRadiusScale } from '../foraging/berryPatchPresentation.ts';
+import {
+  polygonOverlapsCircle,
+  RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS,
+} from '../resources/physicalDepositProtection.ts';
+import { buildingPlacementYaw } from './buildingPlacement.ts';
 
 export type BuildingPlacementFailureReason =
   | 'water'
@@ -60,10 +72,6 @@ export type BuildingPlacementResult =
   | { ok: false; reason: BuildingPlacementFailureReason };
 
 const MAX_FOOTPRINT_HEIGHT_DELTA = 9.5;
-const FORAGER_RESOURCE_CLICK_SNAP_RADIUS = 22;
-const FORAGER_RESOURCE_BUILDING_OFFSETS = [13, 21, 31, 39] as const;
-const FORAGER_RESOURCE_ANGLE_STEPS = 12;
-
 type BuildingPlacementContext = {
   buildings: Iterable<BuildingState>;
   residences: Iterable<ResidenceState>;
@@ -94,6 +102,7 @@ export function validateBuildingPlacement(
   // checks cannot accidentally see an exhausted collection.
   const buildings = [...context.buildings];
   const quarries = [...context.quarries];
+  const foragingNodes = [...context.foragingNodes];
   const onClaySite = kind === 'clay_pit'
     && clayDepositAtCenter(context.clayDepositSites ?? [], x, z) !== null;
   const onClayDeposit = onClaySite
@@ -141,6 +150,16 @@ export function validateBuildingPlacement(
 
   if (context.roadNetwork && buildingFootprintOverlapsRoadSurface(kind, x, z, context.roadNetwork)) {
     return { ok: false, reason: 'on_road' };
+  }
+
+  if (buildingFootprintOverlapsStaticForagingResource(
+    kind,
+    x,
+    z,
+    foragingNodes,
+    context.roadNetwork,
+  )) {
+    return { ok: false, reason: 'on_resource_deposit' };
   }
 
   if (
@@ -256,7 +275,7 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'requires_clay_deposit' };
   }
 
-  if (kind === 'hunters_hall' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'game', context.foragingNodes)) {
+  if (kind === 'hunters_hall' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'game', foragingNodes)) {
     return { ok: false, reason: 'no_game_in_range' };
   }
 
@@ -267,13 +286,13 @@ export function validateBuildingPlacement(
       z,
       getBuildingDefinition(kind).workRadius,
       ['berries', 'mushrooms'],
-      context.foragingNodes,
+      foragingNodes,
     )
   ) {
     return { ok: false, reason: 'no_berries_in_range' };
   }
 
-  if (kind === 'fishing_camp' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'fish', context.foragingNodes)) {
+  if (kind === 'fishing_camp' && !hasForagingInRadius(x, z, getBuildingDefinition(kind).workRadius, 'fish', foragingNodes)) {
     return { ok: false, reason: 'no_fish_in_range' };
   }
 
@@ -329,45 +348,28 @@ function hasCompletedBuilding(
   return false;
 }
 
-const RICH_QUARRY_SNAP_RADIUS = 58;
-const RICH_QUARRY_CENTER_TOLERANCE = 2.5;
+const RESOURCE_CENTER_TOLERANCE = 2.5;
 
 export function resolveBuildingPlacementPoint(
   kind: BuildingKind,
   x: number,
   z: number,
   quarries: Iterable<ResourceNodeState>,
-  clayDepositSites: readonly ClayDepositSite[] = [],
 ): { x: number; z: number } {
-  if (kind === 'clay_pit') {
-    const clayNodes = [...quarries].filter((node) =>
-      node.resource === 'clay'
-      && (node.isRich === true || node.remaining > 0)
-    );
-    const deposit = nearestClayDeposit(
-      clayDepositSites.filter((site) =>
-        hasUsableClayDepositAtCenter(site.x, site.z, clayNodes)
-      ),
-      x,
-      z,
-    );
-    return deposit ? { x: deposit.x, z: deposit.z } : { x, z };
-  }
-  if (kind !== 'large_quarry' && kind !== 'mine') return { x, z };
+  if (kind !== 'mine') return { x, z };
   let nearest: ResourceNodeState | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const quarry of quarries) {
-    const eligible = kind === 'large_quarry'
-      ? quarry.resource === 'stone' && quarry.isRich
-      : (quarry.resource === 'iron' || quarry.resource === 'salt')
-        && (quarry.isRich || quarry.remaining > 0);
-    if (!eligible) continue;
-    const distance = Math.hypot(quarry.x - x, quarry.z - z);
-    if (distance > RICH_QUARRY_SNAP_RADIUS || distance >= nearestDistance) continue;
-    nearest = quarry;
+  for (const deposit of quarries) {
+    if (deposit.resource !== 'iron' && deposit.resource !== 'salt') continue;
+    const distance = Math.hypot(deposit.x - x, deposit.z - z);
+    if (distance >= nearestDistance) continue;
+    nearest = deposit;
     nearestDistance = distance;
   }
-  return nearest ? { x: nearest.x, z: nearest.z } : { x, z };
+  return nearest?.isRich === true
+    && nearestDistance <= RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS
+    ? { x: nearest.x, z: nearest.z }
+    : { x, z };
 }
 
 function hasUsableClayDepositAtCenter(
@@ -378,53 +380,11 @@ function hasUsableClayDepositAtCenter(
   for (const deposit of deposits) {
     if (deposit.resource !== 'clay') continue;
     if (deposit.isRich !== true && deposit.remaining <= 0) continue;
-    if (Math.hypot(deposit.x - x, deposit.z - z) <= RICH_QUARRY_CENTER_TOLERANCE) {
+    if (Math.hypot(deposit.x - x, deposit.z - z) <= RESOURCE_CENTER_TOLERANCE) {
       return true;
     }
   }
   return false;
-}
-
-/**
- * Clicking a dense berry or mushroom bed is an intuitive request to place its
- * hut nearby, not directly on top of the resource. Return a ring of candidate
- * sites for BuildingTool to validate against terrain and existing structures.
- */
-export function foragerPlacementCandidates(
-  x: number,
-  z: number,
-  nodes: Iterable<ForagingNodeState>,
-): Array<{ x: number; z: number }> {
-  let nearest: ForagingNodeState | null = null;
-  let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const node of nodes) {
-    if (node.kind !== 'berries' && node.kind !== 'mushrooms') continue;
-    const distance = Math.hypot(node.x - x, node.z - z);
-    if (
-      distance > FORAGER_RESOURCE_CLICK_SNAP_RADIUS
-      || distance >= nearestDistance
-    ) continue;
-    nearest = node;
-    nearestDistance = distance;
-  }
-  if (!nearest) return [];
-
-  const preferredAngle = Math.atan2(x - nearest.x, z - nearest.z);
-  const candidates: Array<{ x: number; z: number }> = [];
-  for (const radius of FORAGER_RESOURCE_BUILDING_OFFSETS) {
-    for (let step = 0; step < FORAGER_RESOURCE_ANGLE_STEPS; step++) {
-      const alternatingStep = step === 0
-        ? 0
-        : Math.ceil(step / 2) * (step % 2 === 0 ? -1 : 1);
-      const angle = preferredAngle
-        + alternatingStep * Math.PI * 2 / FORAGER_RESOURCE_ANGLE_STEPS;
-      candidates.push({
-        x: nearest.x + Math.sin(angle) * radius,
-        z: nearest.z + Math.cos(angle) * radius,
-      });
-    }
-  }
-  return candidates;
 }
 
 function hasRichQuarryAtCenter(
@@ -434,7 +394,7 @@ function hasRichQuarryAtCenter(
 ): boolean {
   for (const quarry of quarries) {
     if (quarry.resource !== 'stone' || !quarry.isRich) continue;
-    if (Math.hypot(quarry.x - x, quarry.z - z) <= RICH_QUARRY_CENTER_TOLERANCE) {
+    if (Math.hypot(quarry.x - x, quarry.z - z) <= RESOURCE_CENTER_TOLERANCE) {
       return true;
     }
   }
@@ -454,7 +414,7 @@ function hasMineralDepositAtCenter(
       continue;
     }
     if (!deposit.isRich && deposit.remaining <= 0) continue;
-    if (Math.hypot(deposit.x - x, deposit.z - z) <= RICH_QUARRY_CENTER_TOLERANCE) {
+    if (Math.hypot(deposit.x - x, deposit.z - z) <= RESOURCE_CENTER_TOLERANCE) {
       return true;
     }
   }
@@ -597,6 +557,27 @@ export function buildingFootprintOverlapsRoadSurface(
 ): boolean {
   for (const point of sampleBuildingFootprintPoints(kind, x, z, roadNetwork)) {
     if (isOnRoadSurface(point.x, point.z, roadNetwork)) return true;
+  }
+  return false;
+}
+
+function buildingFootprintOverlapsStaticForagingResource(
+  kind: BuildingKind,
+  x: number,
+  z: number,
+  nodes: Iterable<ForagingNodeState>,
+  roadNetwork?: RoadNetwork | null,
+): boolean {
+  const yaw = buildingPlacementYaw(kind, x, z, roadNetwork);
+  const footprint = getBuildingFootprintCorners(kind, x, z, yaw);
+  for (const node of nodes) {
+    const radius = node.kind === 'berries'
+      ? BERRY_PATCH_MAX_SPAWN_RADIUS * berryThicketRadiusScale(node.isRich === true)
+      : node.kind === 'mushrooms'
+        ? MUSHROOM_PATCH_MAX_SPAWN_RADIUS
+        : 0;
+    if (radius <= 0) continue;
+    if (polygonOverlapsCircle(footprint, node.x, node.z, radius)) return true;
   }
   return false;
 }

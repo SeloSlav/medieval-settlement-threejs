@@ -335,10 +335,9 @@ assert.deepEqual(
     richClay.x + 24,
     richClay.z - 12,
     clayNodes,
-    layout.clayDepositLayout.sites,
   ),
-  { x: richClay.x, z: richClay.z },
-  'clicking near a marked bank must snap the Clay Pit to its authoritative center',
+  { x: richClay.x + 24, z: richClay.z - 12 },
+  'Clay Pit placement should remain exactly where the player points',
 );
 
 const placementContext = {

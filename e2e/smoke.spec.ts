@@ -5,6 +5,44 @@ const REFORESTER_TIMBER_COST = 35;
 const STARTUP_TIMEOUT_MS = 90_000;
 const SYNC_TIMEOUT_MS = 45_000;
 
+test('keeps four-digit specialty values inside their HUD cells', async ({ page }) => {
+  await page.setContent(`
+    <div class="settlement-hud">
+      <div
+        class="settlement-hud__stores-grid"
+        style="position: static; grid-template-columns: 62px; width: max-content"
+      >
+        <div
+          class="settlement-hud__stat settlement-hud__stat--store"
+          data-resource="ironwork"
+        >
+          <strong class="settlement-hud__value" data-stockpile="ironwork">9000</strong>
+        </div>
+      </div>
+    </div>
+  `);
+  await page.addStyleTag({ path: 'src/ui/settlementHud.css' });
+  await page.addStyleTag({ path: 'src/ui/polishedGameUi.css' });
+  await page.addStyleTag({ path: 'src/ui/iconography.css' });
+
+  const ironworkValue = page.locator('[data-stockpile="ironwork"]');
+  await expect(ironworkValue).toHaveText('9000');
+  await expect.poll(() => ironworkValue.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      clipped: element.scrollWidth > element.clientWidth,
+      overflowX: style.overflowX,
+      textOverflow: style.textOverflow,
+      whiteSpace: style.whiteSpace,
+    };
+  })).toEqual({
+    clipped: true,
+    overflowX: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  });
+});
+
 test('connects, places a reforester, and updates settlement HUD timber', async ({ page }) => {
   await page.goto('/?new');
 
@@ -75,8 +113,21 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   );
   await totalsMode.hover();
   const tooltip = page.locator('#ui-tooltip');
-  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods');
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods (default)');
   await expect(tooltip.locator('.ui-tooltip__label')).toHaveCount(0);
+  await page.locator('[data-specialty-stores] > summary').click();
+  const ironworkValue = page.locator('[data-stockpile="ironwork"]');
+  await expect(ironworkValue).toHaveText('9000');
+  await ironworkValue.hover();
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Ironwork');
+  await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
+    'Available surplus: 9,000 ironwork.',
+  );
+  const ironworkTooltipParagraphs = tooltip.locator('.ui-tooltip__paragraph');
+  await expect(ironworkTooltipParagraphs).toHaveCount(2);
+  await expect(
+    ironworkTooltipParagraphs.last().locator('.ui-tooltip__label'),
+  ).toHaveText('Available surplus:');
   await totalsMode.click();
   await expect(timberHud).toHaveText(String(timberBefore));
   await expect(totalsMode).toHaveAttribute(
@@ -87,9 +138,17 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
     'All stored goods',
   );
+  await ironworkValue.hover();
+  await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
+    'Total stored: 9,000 ironwork.',
+  );
+  await expect(ironworkTooltipParagraphs).toHaveCount(2);
+  await expect(
+    ironworkTooltipParagraphs.last().locator('.ui-tooltip__label'),
+  ).toHaveText('Total stored:');
   await totalsMode.click();
   await expect(timberHud).toHaveText(String(timberBefore - REFORESTER_TIMBER_COST));
-  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods');
+  await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods (default)');
   await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
     'Stored goods available for use',
   );

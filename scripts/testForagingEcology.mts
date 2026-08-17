@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import {
-  foragerPlacementCandidates,
-  validateBuildingPlacement,
-} from '../src/buildings/BuildingPlacementValidation.ts';
+import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import {
   GAME_MIN_BREEDING_POPULATION,
   MUSHROOMS_PER_HARVEST,
@@ -228,21 +225,21 @@ const mushroomStates: ForagingNodeState[] = mushroomDefinitions.map((node) => ({
   z: node.z,
 }));
 const firstMushroom = mushroomStates[0];
-const snappedForagerSites = foragerPlacementCandidates(
-  firstMushroom.x,
-  firstMushroom.z,
-  mushroomStates,
-);
-assert.ok(snappedForagerSites.length >= 24, 'clicking mushrooms should offer nearby hut sites');
-assert.ok(
-  snappedForagerSites.every((site) => {
-    const distance = Math.hypot(
-      site.x - firstMushroom.x,
-      site.z - firstMushroom.z,
-    );
-    return distance > 8 && distance < 48;
+assert.deepEqual(
+  validateBuildingPlacement('foragers_shed', firstMushroom.x, firstMushroom.z, {
+    buildings: [] as BuildingState[],
+    residences: [] as ResidenceState[],
+    burgageZones: [],
+    farmFields: [],
+    pastures: [],
+    quarries: [],
+    foragingNodes: mushroomStates,
+    stockpile: { timber: 10_000, stone: 10_000 },
+    isWaterAt: () => false,
+    getNaturalHeightAt: () => 0,
   }),
-  'forager snap candidates should preserve the patch while staying inside work range',
+  { ok: false, reason: 'on_resource_deposit' },
+  'the player-chosen shed footprint must not cover the mushroom bed',
 );
 assert.deepEqual(
   validateBuildingPlacement('foragers_shed', firstMushroom.x + 12, firstMushroom.z, {

@@ -23,6 +23,7 @@ import {
 import {
   buildingFootprintOverlapsRoadSurface,
   chooseRoadClearBuildingPlacement,
+  resolveBuildingPlacementPoint,
   validateBuildingPlacement,
 } from '../src/buildings/BuildingPlacementValidation.ts';
 import { buildingExtentColor } from '../src/buildings/buildingExtents.ts';
@@ -395,7 +396,7 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
   );
   assert(
     resolveRoadsideBuildingPlacement('foragers_shed', 4, 5, roads).z > 5,
-    'resource-click buildings should still honor the shared road-snap toggle',
+    'gathering buildings should still honor the separate road-snap toggle',
   );
   const reclamationPile = resolveRoadsideBuildingPlacement('salvage_pile', 13, 6, roads);
   assert(
@@ -879,6 +880,33 @@ function testMineralMineCanOccupyItsDeposit(): void {
     z: -18,
     isRich: false,
   };
+  const richIronDeposit: ResourceNodeState = {
+    ...ironDeposit,
+    nodeId: 'deposit-iron-rich-0',
+    x: 120,
+    z: 35,
+    isRich: true,
+  };
+  assert.deepEqual(
+    resolveBuildingPlacementPoint(
+      'mine',
+      richIronDeposit.x + 18,
+      richIronDeposit.z - 9,
+      [ironDeposit, richIronDeposit],
+    ),
+    { x: richIronDeposit.x, z: richIronDeposit.z },
+    'a rich deep mine should snap to the resource center',
+  );
+  assert.deepEqual(
+    resolveBuildingPlacementPoint(
+      'mine',
+      ironDeposit.x + 18,
+      ironDeposit.z - 9,
+      [ironDeposit, richIronDeposit],
+    ),
+    { x: ironDeposit.x + 18, z: ironDeposit.z - 9 },
+    'an ordinary surface mine should remain where the player points',
+  );
   const baseContext = {
     buildings: [],
     residences: [],

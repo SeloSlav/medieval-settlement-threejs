@@ -268,7 +268,7 @@ const SETTLEMENT_HUD_HTML = `
       class="settlement-hud__totals-mode"
       data-resource-totals-mode
       data-mode="surplus"
-      data-tooltip-title="Surplus goods"
+      data-tooltip-title="Surplus goods (default)"
       data-tooltip="Stored goods available for use after active construction and home-project commitments are deducted. Activate to show total goods."
       aria-label="Showing surplus goods. Show total goods stored."
       aria-pressed="false"

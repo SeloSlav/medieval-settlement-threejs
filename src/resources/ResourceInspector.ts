@@ -284,6 +284,28 @@ const TOTAL_RESOURCE_TOOLTIPS: Partial<Record<HudResourceKind, string>> = {
   gold: 'All civic gold secured in the founders’ lockbox, reclamation chests, or Town Hall treasury, including coin committed to active home projects. Market working cash, company pay chests, and moving lockboxes remain separate.',
 };
 
+const SPECIALTY_HUD_RESOURCE_KINDS = [
+  'grain',
+  'barley',
+  'malt',
+  'flour',
+  'ale',
+  'preservedFood',
+  'honey',
+  'wine',
+  'wool',
+  'flax',
+  'cloth',
+  'ironwork',
+  'polearms',
+  'iron',
+  'clay',
+  'salt',
+  'charcoal',
+  'pottery',
+  'roofTiles',
+] as const satisfies readonly HudResourceKind[];
+
 export class ResourceInspector {
   private readonly options: ResourceInspectorOptions;
   private readonly panel: HTMLElement;
@@ -601,7 +623,7 @@ export class ResourceInspector {
       : 'Stored goods available for use after active construction and home-project commitments are deducted. Activate to show total goods.';
     this.resourceTotalsModeButton.dataset.tooltipTitle = showingTotal
       ? 'Total goods'
-      : 'Surplus goods';
+      : 'Surplus goods (default)';
     this.resourceTotalsModeLabel.textContent = showingTotal ? 'Total' : 'Surplus';
     this.stockpileRoot.dataset.resourceTotalsPresentation =
       this.resourceTotalsPresentation;
@@ -1354,6 +1376,7 @@ export class ResourceInspector {
     this.stockpileValues.charcoal.textContent = Math.round(totals.charcoal).toString();
     this.stockpileValues.pottery.textContent = Math.round(totals.pottery).toString();
     this.stockpileValues.roofTiles.textContent = Math.round(totals.roofTiles).toString();
+    this.renderSpecialtyResourceTooltips(totals);
     this.renderFoodBreakdown();
     for (const resource of HUD_RESOURCE_KINDS) {
       const transit = this.stockpileTransitValues[resource];
@@ -1377,28 +1400,7 @@ export class ResourceInspector {
       );
       transit.textContent = details.join(' · ');
     }
-    const specialtyResources = [
-      'grain',
-      'barley',
-      'malt',
-      'flour',
-      'ale',
-      'preservedFood',
-      'honey',
-      'wine',
-      'wool',
-      'flax',
-      'cloth',
-      'ironwork',
-      'polearms',
-      'iron',
-      'clay',
-      'salt',
-      'charcoal',
-      'pottery',
-      'roofTiles',
-    ] as const;
-    const stockedSpecialties = specialtyResources.filter((resource) =>
+    const stockedSpecialties = SPECIALTY_HUD_RESOURCE_KINDS.filter((resource) =>
       totals[resource] > 1e-6 || (this.inTransitTotals?.[resource] ?? 0) > 1e-6);
     const specialtyStore = this.stockpileRoot.querySelector<HTMLElement>(
       '[data-specialty-stores]',
@@ -1419,6 +1421,27 @@ export class ResourceInspector {
         : `${stockedSpecialties.length} ${stockedSpecialties.length === 1 ? 'stock' : 'stocks'} active`;
       specialtyStoreSummary.dataset.tooltip = `${storeDescription}. Open specialty stores and provisions.`;
       specialtyStoreSummary.setAttribute('aria-label', `Stores and provisions, ${storeDescription.toLowerCase()}`);
+    }
+  }
+
+  private renderSpecialtyResourceTooltips(totals: ResourceTotals): void {
+    const showingTotal = this.resourceTotalsPresentation === 'total';
+    for (const resource of SPECIALTY_HUD_RESOURCE_KINDS) {
+      const stat = this.stockpileValues[resource]
+        .closest<HTMLElement>('.settlement-hud__stat');
+      if (!stat) continue;
+      const baseTooltip = showingTotal
+        ? TOTAL_RESOURCE_TOOLTIPS[resource]
+          ?? this.surplusResourceTooltips.get(resource)
+        : this.surplusResourceTooltips.get(resource);
+      const resourceLabel = stat.dataset.tooltipTitle?.trim()
+        || resource;
+      const amount = Math.round(Math.max(0, totals[resource]))
+        .toLocaleString('en-US');
+      stat.dataset.tooltip = [
+        baseTooltip,
+        `${showingTotal ? 'Total stored' : 'Available surplus'}: ${amount} ${resourceLabel.toLowerCase()}.`,
+      ].filter(Boolean).join('\n\n');
     }
   }
 

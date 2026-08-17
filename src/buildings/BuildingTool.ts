@@ -5,9 +5,7 @@ import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { BuildingPlacementFailureReason, BuildingPlacementResult } from './BuildingPlacementValidation.ts';
 import {
-  buildingFootprintOverlapsRoadSurface,
   chooseRoadClearBuildingPlacement,
-  foragerPlacementCandidates,
   resolveBuildingPlacementPoint,
   validateBuildingPlacement,
 } from './BuildingPlacementValidation.ts';
@@ -286,7 +284,7 @@ export class BuildingTool {
       return;
     }
 
-    const resolved = this.resolvePoint(this.mode as BuildingKind, point.x, point.z, false);
+    const resolved = this.resolvePoint(this.mode as BuildingKind, point.x, point.z);
     const dx = resolved.x - this.lastPreviewX;
     const dz = resolved.z - this.lastPreviewZ;
     if (Number.isFinite(this.lastPreviewX) && Math.hypot(dx, dz) < this.previewMoveThreshold) {
@@ -311,7 +309,7 @@ export class BuildingTool {
     const point = this.options.terrainProjector.pick(event.clientX, event.clientY);
     if (!point) return;
 
-    const resolved = this.resolvePoint(this.mode, point.x, point.z, true);
+    const resolved = this.resolvePoint(this.mode, point.x, point.z);
     const validation = this.validate(this.mode, resolved.x, resolved.z);
     if (!validation.ok) {
       event.preventDefault();
@@ -442,7 +440,7 @@ export class BuildingTool {
       return;
     }
 
-    const resolved = this.resolvePoint(this.mode, point.x, point.z, false);
+    const resolved = this.resolvePoint(this.mode, point.x, point.z);
     this.refreshPreviewAt(new THREE.Vector3(resolved.x, point.y, resolved.z));
   }
 
@@ -631,7 +629,6 @@ export class BuildingTool {
     kind: BuildingKind,
     x: number,
     z: number,
-    validateCandidates: boolean,
   ): { x: number; z: number } {
     const state = this.options.getState();
     const resolved = resolveBuildingPlacementPoint(
@@ -639,53 +636,18 @@ export class BuildingTool {
       x,
       z,
       state.quarries.values(),
-      this.options.clayDepositSites,
     );
     const roadNetwork = this.roadSnapEnabled ? this.options.getRoadNetwork?.() : null;
-    if (kind !== 'foragers_shed') {
-      const roadsideCandidates = resolveRoadsideBuildingPlacementCandidates(
-        kind,
-        resolved.x,
-        resolved.z,
-        roadNetwork,
-      );
-      return roadNetwork
-        ? chooseRoadClearBuildingPlacement(kind, roadsideCandidates, roadNetwork)
-          ?? roadsideCandidates[0]
-        : roadsideCandidates[0];
-    }
-
-    const candidates = foragerPlacementCandidates(
-      x,
-      z,
-      state.foragingNodes.values(),
+    const roadsideCandidates = resolveRoadsideBuildingPlacementCandidates(
+      kind,
+      resolved.x,
+      resolved.z,
+      roadNetwork,
     );
-    for (const candidate of candidates) {
-      const roadsideCandidates = resolveRoadsideBuildingPlacementCandidates(
-        kind,
-        candidate.x,
-        candidate.z,
-        roadNetwork,
-      );
-      const clearCandidates = roadNetwork
-        ? roadsideCandidates.filter((roadsideCandidate) =>
-          !buildingFootprintOverlapsRoadSurface(
-            kind,
-            roadsideCandidate.x,
-            roadsideCandidate.z,
-            roadNetwork,
-          )
-        )
-        : roadsideCandidates;
-      for (const clearCandidate of clearCandidates) {
-        if (!validateCandidates) return clearCandidate;
-        const validation = this.validate(kind, clearCandidate.x, clearCandidate.z);
-        if (validation.ok || validation.reason === 'insufficient_resources') {
-          return clearCandidate;
-        }
-      }
-    }
-    return resolved;
+    return roadNetwork
+      ? chooseRoadClearBuildingPlacement(kind, roadsideCandidates, roadNetwork)
+        ?? roadsideCandidates[0]
+      : roadsideCandidates[0];
   }
 
   private clearPreview(): void {

@@ -473,12 +473,15 @@
 
 .settlement-hud__clock-time {
   grid-column: 1;
+  width: 58px;
+  min-width: 58px;
   font-size: 20px;
   font-family: Georgia, 'Times New Roman', serif;
   font-weight: 700;
   line-height: 0.98;
   color: #aec589;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
   letter-spacing: -0.025em;
   text-shadow: 0 1px 8px rgba(118, 154, 80, 0.18);
 }
@@ -1159,9 +1162,15 @@
 }
 
 .settlement-hud__stat--store .settlement-hud__value {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   color: #c8ad75;
   font-size: 13px;
   opacity: 0.9;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settlement-hud__stat.is-empty .settlement-hud__label {

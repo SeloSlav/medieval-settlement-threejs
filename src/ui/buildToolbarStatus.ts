@@ -53,7 +53,7 @@ const PLACEMENT_STATUS_HINTS: Partial<Record<BuildingKind, string>> = {
   village_storehouse: ' — road-linked haulers collect producer overflow',
   well: ' — use the water map for best spots',
   hunters_hall: ' — click near a game trail',
-  foragers_shed: ' — click a berry or mushroom patch; the hut will find clear ground within its 48 m range',
+  foragers_shed: ' — place within 48 m of berries or mushrooms without covering the patch',
   chapel: ' — place near a road',
   marketplace: ' — place near a road',
 };

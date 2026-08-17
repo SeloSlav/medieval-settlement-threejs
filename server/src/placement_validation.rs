@@ -13,6 +13,9 @@ const ORDINARY_MINERAL_DEPOSIT_PROTECTION_RADIUS: f64 = 23.0;
 const RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS: f64 = 32.0;
 const ORDINARY_CLAY_DEPOSIT_PROTECTION_RADIUS: f64 = 16.0;
 const RICH_CLAY_DEPOSIT_PROTECTION_RADIUS: f64 = 21.0;
+const ORDINARY_BERRY_PATCH_PROTECTION_RADIUS: f64 = 5.184;
+const RICH_BERRY_PATCH_PROTECTION_RADIUS: f64 = 6.013_44;
+const MUSHROOM_PATCH_PROTECTION_RADIUS: f64 = 7.2;
 const FOOTPRINT_SAMPLE_FRACTIONS: [f64; 3] = [0.0, 0.55, 0.82];
 const OPEN_WATER_THRESHOLD: f64 = 0.999;
 const MAX_ROAD_FRONTAGE_DISTANCE: f64 = 16.0;
@@ -158,6 +161,9 @@ pub fn is_on_resource_deposit(ctx: &ReducerContext, x: f64, z: f64) -> bool {
         )
     }) || ctx.db.foraging_node().iter().any(|deposit| {
         clay_deposit_protection_radius(&deposit.node_id, &deposit.node_kind)
+            .or_else(|| {
+                static_foraging_resource_protection_radius(&deposit.node_kind, deposit.max_yield)
+            })
             .is_some_and(|radius| point_overlaps_circle(x, z, deposit.x, deposit.z, radius))
     })
 }
@@ -200,6 +206,15 @@ fn clay_deposit_protection_radius(node_id: &str, node_kind: &str) -> Option<f64>
     } else {
         ORDINARY_CLAY_DEPOSIT_PROTECTION_RADIUS
     })
+}
+
+fn static_foraging_resource_protection_radius(node_kind: &str, max_yield: f64) -> Option<f64> {
+    match node_kind {
+        "berries" if max_yield > 60.0 => Some(RICH_BERRY_PATCH_PROTECTION_RADIUS),
+        "berries" => Some(ORDINARY_BERRY_PATCH_PROTECTION_RADIUS),
+        "mushrooms" => Some(MUSHROOM_PATCH_PROTECTION_RADIUS),
+        _ => None,
+    }
 }
 
 fn point_overlaps_circle(x: f64, z: f64, center_x: f64, center_z: f64, radius: f64) -> bool {
@@ -503,7 +518,7 @@ fn building_placement_yaw(x: f64, z: f64) -> f64 {
 mod tests {
     use super::{
         building_site_contains_point, clay_deposit_protection_radius, polygon_overlaps_circle,
-        quarry_deposit_protection_radius,
+        quarry_deposit_protection_radius, static_foraging_resource_protection_radius,
     };
     use crate::burgage::Point2;
 
@@ -546,6 +561,18 @@ mod tests {
         assert_eq!(
             clay_deposit_protection_radius("foraging-game-0", "game"),
             None
+        );
+        assert_eq!(
+            static_foraging_resource_protection_radius("berries", 60.0),
+            Some(5.184)
+        );
+        assert_eq!(
+            static_foraging_resource_protection_radius("berries", 100.0),
+            Some(6.013_44)
+        );
+        assert_eq!(
+            static_foraging_resource_protection_radius("mushrooms", 42.0),
+            Some(7.2)
         );
     }
 

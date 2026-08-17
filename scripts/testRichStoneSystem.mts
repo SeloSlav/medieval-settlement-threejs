@@ -60,8 +60,8 @@ const ordinary = quarryStates.find((quarry) => !quarry.isRich)!;
 
 assert.deepEqual(
   resolveBuildingPlacementPoint('large_quarry', rich.x + 24, rich.z - 12, quarryStates),
-  { x: rich.x, z: rich.z },
-  'Large Quarry placement should snap to the rich source center',
+  { x: rich.x + 24, z: rich.z - 12 },
+  'Large Quarry placement should remain exactly where the player points',
 );
 assert.deepEqual(
   resolveBuildingPlacementPoint('large_quarry', ordinary.x, ordinary.z, quarryStates),
