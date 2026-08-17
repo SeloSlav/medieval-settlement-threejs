@@ -12,6 +12,7 @@ import {
   FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE,
   FARM_FIELD_SETUP_WORK_PER_STAGE,
   FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
+  FARM_SHARED_LABOR_MIN_PRIORITY,
   FARM_HARVEST_WORK_PER_SQUARE_METER,
   FARM_PLOUGH_WORK_PER_SQUARE_METER,
   FARM_SOW_WORK_PER_SQUARE_METER,
@@ -175,6 +176,7 @@ const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
 const WORK_PER_WORKER_DAY = FARM_WORK_METERS_PER_WORKER_PER_SEC * WORKDAY_SECONDS;
 
 type FieldWorkFarmstead = Pick<BuildingState, 'x' | 'z'>;
+type FieldLaborFarmstead = Pick<BuildingState, 'id' | 'x' | 'z' | 'workRadius'>;
 
 type FieldWorkMetrics = {
   areaWorkFactor: number;
@@ -192,6 +194,16 @@ export function fieldFarmsteadDistance(
   if (!farmstead) return 0;
   const center = fieldCentroid(field.corners);
   return Math.hypot(center.x - farmstead.x, center.z - farmstead.z);
+}
+
+export function fieldAcceptsFarmsteadLabor(
+  field: Pick<FarmFieldState, 'farmsteadId' | 'priority' | 'corners'>,
+  farmstead: FieldLaborFarmstead,
+): boolean {
+  if (field.priority <= 0) return false;
+  if (field.farmsteadId === farmstead.id) return true;
+  return field.priority >= FARM_SHARED_LABOR_MIN_PRIORITY
+    && fieldFarmsteadDistance(field, farmstead) <= Math.max(0, farmstead.workRadius);
 }
 
 function fieldWorkMetrics(

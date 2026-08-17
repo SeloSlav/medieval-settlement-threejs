@@ -344,10 +344,7 @@ impl CommodityKind {
     }
 
     pub fn is_flour_bulk(self) -> bool {
-        matches!(
-            self,
-            Self::RyeFlour | Self::OatFlour | Self::MaslinFlour
-        )
+        matches!(self, Self::RyeFlour | Self::OatFlour | Self::MaslinFlour)
     }
 
     /// Ready-to-eat meal equivalents. Keeping the initial conversion at 1:1
@@ -536,9 +533,7 @@ pub fn barley_bulk_stock(building: &Building) -> f64 {
 }
 
 pub fn flour_bulk_stock(building: &Building) -> f64 {
-    building.rye_flour.max(0.0)
-        + building.oat_flour.max(0.0)
-        + building.maslin_flour.max(0.0)
+    building.rye_flour.max(0.0) + building.oat_flour.max(0.0) + building.maslin_flour.max(0.0)
 }
 
 pub fn building_fresh_food_stock(building: &Building) -> f64 {

@@ -11,12 +11,12 @@ use crate::balance_generated::{
     HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES,
     LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
     MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE,
-    MONASTERY_OAT_GRAIN_PER_CYCLE,
-    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_WATER_PER_CYCLE,
-    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
-    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, VINEYARD_GRAPES_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    MONASTERY_OAT_GRAIN_PER_CYCLE, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
+    POTTER_WATER_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE,
+    SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE,
+    SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
+    VINEYARD_GRAPES_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
+    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -596,9 +596,7 @@ pub fn processor_input_dispatch_duty_for_target(
     per_cycle: f64,
     processor_output_target_percent: u8,
 ) -> ProcessorInputDispatchDuty {
-    if target_kind == "granary"
-        && matches!(commodity, "ryeFlour" | "oatFlour" | "maslinFlour")
-    {
+    if target_kind == "granary" && matches!(commodity, "ryeFlour" | "oatFlour" | "maslinFlour") {
         ProcessorInputDispatchDuty::CentralStorage
     } else {
         processor_input_dispatch_duty(
