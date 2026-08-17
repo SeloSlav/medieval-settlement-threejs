@@ -9,6 +9,12 @@ import {
   storehouseAcceptsCommodity,
   storehouseFilteredCollectionHeadroom,
 } from '../economy/storehousePolicy.ts';
+import {
+  freshFoodStock,
+  isFreshFoodCargo,
+  isPreservedFoodCargo,
+  preservedFoodStock,
+} from '../economy/foodInventory.ts';
 import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import type {
   DeliveryCargoKind,
@@ -141,7 +147,12 @@ function commodityCapacity(
   const capacities = BUILDING_STORAGE_CAPS[building.kind] as Partial<
     Record<FoundingRelocationCommodity, number>
   >;
-  return finiteStock(capacities[commodity]);
+  const capacityKind = isFreshFoodCargo(commodity)
+    ? 'food'
+    : isPreservedFoodCargo(commodity)
+      ? 'preservedFood'
+      : commodity;
+  return finiteStock(capacities[capacityKind]);
 }
 
 function foundingDestinationPriority(
@@ -157,7 +168,6 @@ function foundingDestinationPriority(
     case 'firewood':
       return null;
     case 'food':
-    case 'bread':
     case 'meat':
     case 'fish':
     case 'berries':
@@ -180,6 +190,8 @@ function foundingDestinationPriority(
       if (commodity === 'barley' && building.kind === 'brewery') return 0;
       if (building.kind === 'marketplace') return 1;
       return 3;
+    case 'bread':
+      return building.kind === 'granary' ? 0 : null;
     case 'malt':
       return building.kind === 'brewery' ? 0 : 3;
     case 'ale':
@@ -258,10 +270,12 @@ function foundingDestinationRoom(
   ) {
     return 0;
   }
-  return Math.max(0, commodityCapacity(building, commodity) - materialStock(
-    building,
-    commodity,
-  ));
+  const occupied = isFreshFoodCargo(commodity)
+    ? freshFoodStock(building)
+    : isPreservedFoodCargo(commodity)
+      ? preservedFoodStock(building)
+      : materialStock(building, commodity);
+  return Math.max(0, commodityCapacity(building, commodity) - occupied);
 }
 
 function compareStableBuildingIds(a: string, b: string): number {

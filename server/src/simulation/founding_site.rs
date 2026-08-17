@@ -142,11 +142,12 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
     }
 }
 
-/// While the shelter is occupied, one free villager may move its starter bread,
-/// firewood, and ironwork into the permanent distribution and tool-maintenance
-/// chains. Once every founder has a home, the same route clears all uncommitted
-/// stock. Storehouse filters and collection ceilings remain meaningful: this
-/// is physical logistics, not an inventory teleport.
+/// While the shelter is occupied, one free villager may move its starter
+/// firewood and ironwork into permanent distribution and tool-maintenance
+/// chains. Bread waits at the camp for a granary. Once every founder has a
+/// home, the same route clears all other uncommitted stock. Storehouse filters
+/// and collection ceilings remain meaningful: this is physical logistics, not
+/// an inventory teleport.
 fn try_start_stockyard_relocation(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -236,9 +237,16 @@ fn founding_destination_room(candidate: &Building, commodity: CommodityKind) -> 
     if matches!(candidate.kind.as_str(), "founders_camp" | "salvage_pile") {
         return None;
     }
-    let priority = reclamation_destination_priority(commodity, &candidate.kind)?;
+    let priority = founding_destination_priority(commodity, &candidate.kind)?;
     let room = building_commodity_room(candidate, commodity);
     (room > EPSILON).then_some((priority, room))
+}
+
+fn founding_destination_priority(commodity: CommodityKind, kind: &str) -> Option<u8> {
+    if commodity == CommodityKind::Bread {
+        return (kind == "granary").then_some(0);
+    }
+    reclamation_destination_priority(commodity, kind)
 }
 
 fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: CommodityKind) -> f64 {
@@ -368,4 +376,30 @@ fn has_portable_stock(building: &Building) -> bool {
     ]
     .into_iter()
     .any(|amount| amount > EPSILON)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn starter_bread_waits_for_a_granary() {
+        assert_eq!(
+            founding_destination_priority(CommodityKind::Bread, "granary"),
+            Some(0),
+        );
+        for kind in [
+            "foragers_shed",
+            "hunters_hall",
+            "fishing_camp",
+            "marketplace",
+            "bakery",
+        ] {
+            assert_eq!(
+                founding_destination_priority(CommodityKind::Bread, kind),
+                None,
+                "starter bread must not relocate into {kind}",
+            );
+        }
+    }
 }

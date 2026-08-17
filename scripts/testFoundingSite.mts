@@ -701,6 +701,66 @@ assert.equal(
   'dedicated provision storage must outrank a closer marketplace before road distance breaks ties',
 );
 
+const breadCamp = {
+  ...emptyClearedCamp,
+  bread: 17,
+} satisfies BuildingState;
+const foragersShed = {
+  ...nearStorehouse,
+  id: 'foragers-bread-fallback',
+  kind: 'foragers_shed',
+  x: 10,
+} satisfies BuildingState;
+const breadWithoutGranary = planFoundingStockyardRelocation({
+  state: {
+    ...relocationState,
+    buildings: new Map([
+      [breadCamp.id, breadCamp],
+      [foragersShed.id, foragersShed],
+    ]),
+  },
+  camp: breadCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.deepEqual(
+  {
+    blocker: breadWithoutGranary.blocker,
+    commodity: breadWithoutGranary.commodity,
+    targetBuildingId: breadWithoutGranary.targetBuildingId,
+  },
+  { blocker: 'no-storage', commodity: 'bread', targetBuildingId: null },
+  'starter bread must remain at the camp when only producer food storage exists',
+);
+
+const breadGranary = {
+  ...nearStorehouse,
+  id: 'bread-granary',
+  kind: 'granary',
+  x: 70,
+} satisfies BuildingState;
+const breadWithGranary = planFoundingStockyardRelocation({
+  state: {
+    ...relocationState,
+    buildings: new Map([
+      [breadCamp.id, breadCamp],
+      [foragersShed.id, foragersShed],
+      [breadGranary.id, breadGranary],
+    ]),
+  },
+  camp: breadCamp,
+  availableLabor: 1,
+  roadPathDistance: (ax, _az, bx) => Math.abs(bx - ax),
+});
+assert.equal(breadWithGranary.blocker, 'ready');
+assert.equal(breadWithGranary.commodity, 'bread');
+assert.equal(
+  breadWithGranary.targetBuildingId,
+  breadGranary.id,
+  'starter bread may leave the camp only for completed granary storage',
+);
+assert.equal(breadWithGranary.targetRoom, 17);
+
 const strandedClothCamp = {
   ...emptyClearedCamp,
   cloth: 12,
@@ -909,8 +969,18 @@ for (const variant of [
 }
 assert.match(
   foundingLifecycle,
-  /reclamation_destination_priority\(commodity,\s*&candidate\.kind\)/,
-  'founding clearance and demolition recovery must share compatible-store priorities',
+  /founding_destination_priority\(commodity,\s*&candidate\.kind\)/,
+  'founding clearance must apply its own intake restriction before selecting storage',
+);
+assert.match(
+  foundingLifecycle,
+  /fn founding_destination_priority[\s\S]*reclamation_destination_priority\(commodity, kind\)/,
+  'non-bread founding clearance must continue sharing demolition-compatible priorities',
+);
+assert.match(
+  foundingLifecycle,
+  /commodity == CommodityKind::Bread[\s\S]*kind == "granary"/,
+  'the authoritative founding route must keep starter bread out of producer food storage',
 );
 assert.doesNotMatch(
   foundingLifecycle,
