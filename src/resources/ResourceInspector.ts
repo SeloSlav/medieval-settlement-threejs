@@ -339,6 +339,8 @@ export class ResourceInspector {
   private readonly foodBreakdownTotalSurplus: HTMLElement;
   private readonly resourceTotalsModeButton: HTMLButtonElement;
   private readonly resourceTotalsModeLabel: HTMLElement;
+  private readonly foodStoresModeLabel: HTMLElement;
+  private readonly specialtyStoresModeLabel: HTMLElement;
   private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
@@ -480,6 +482,14 @@ export class ResourceInspector {
     this.resourceTotalsModeLabel = this.mustElement(
       options.uiRoot,
       '[data-resource-totals-mode-label]',
+    );
+    this.foodStoresModeLabel = this.mustElement(
+      options.uiRoot,
+      '[data-food-stores-mode-label]',
+    );
+    this.specialtyStoresModeLabel = this.mustElement(
+      options.uiRoot,
+      '[data-specialty-stores-mode-label]',
     );
     this.stockpileValues = {
       timber: this.mustElement(options.uiRoot, '[data-stockpile="timber"]'),
@@ -632,6 +642,9 @@ export class ResourceInspector {
       ? 'Total goods'
       : 'Surplus goods (default)';
     this.resourceTotalsModeLabel.textContent = showingTotal ? 'Total' : 'Surplus';
+    const panelModeLabel = showingTotal ? 'Total stored' : 'Available surplus';
+    this.foodStoresModeLabel.textContent = panelModeLabel;
+    this.specialtyStoresModeLabel.textContent = panelModeLabel;
     this.stockpileRoot.dataset.resourceTotalsPresentation =
       this.resourceTotalsPresentation;
 

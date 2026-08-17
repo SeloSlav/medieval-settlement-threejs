@@ -132,6 +132,10 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const foodSummary = foodStores.locator('> summary');
   await foodSummary.hover();
   await expect(foodStores).toHaveAttribute('open', '');
+  await expect(foodStores.getByRole('heading', { name: 'Food stores' })).toBeVisible();
+  await expect(foodStores.locator('[data-food-stores-mode-label]')).toHaveText(
+    'Available surplus',
+  );
   await expect(page.locator('#ui-tooltip')).toBeHidden();
   const foodGrid = foodStores.locator('[data-food-breakdown]');
   const foodSummaryBox = await foodSummary.boundingBox();
@@ -159,6 +163,10 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   const specialtySummary = specialtyStores.locator('> summary');
   await specialtySummary.hover();
   await expect(specialtyStores).toHaveAttribute('open', '');
+  await expect(specialtyStores.getByRole('heading', { name: 'Provisions' })).toBeVisible();
+  await expect(specialtyStores.locator('[data-specialty-stores-mode-label]')).toHaveText(
+    'Available surplus',
+  );
   const specialtyGrid = specialtyStores.locator('> .settlement-hud__stores-grid');
   const specialtySummaryBox = await specialtySummary.boundingBox();
   const specialtyGridBox = await specialtyGrid.boundingBox();
@@ -190,6 +198,9 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Total goods');
   await expect(tooltip.locator('.ui-tooltip__body')).toContainText(
     'All stored goods',
+  );
+  await expect(specialtyStores.locator('[data-specialty-stores-mode-label]')).toHaveText(
+    'Total stored',
   );
   await ironworkValue.hover();
   await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');

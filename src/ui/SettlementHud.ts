@@ -334,6 +334,10 @@ const SETTLEMENT_HUD_HTML = `
           data-food-breakdown
           aria-label="Food stores by commodity"
         >
+          <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
+            <strong>Food stores</strong>
+            <span data-food-stores-mode-label>Available surplus</span>
+          </div>
           ${FOOD_RESOURCE_KINDS.map((kind) => `
             <div
               class="settlement-hud__stat settlement-hud__stat--store settlement-hud__food-card"
@@ -400,7 +404,11 @@ const SETTLEMENT_HUD_HTML = `
           hidden
         ></button>
       </summary>
-      <div class="settlement-hud__stores-grid" aria-label="Specialty stores">
+      <div class="settlement-hud__stores-grid" aria-label="Provisions">
+      <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
+        <strong>Provisions</strong>
+        <span data-specialty-stores-mode-label>Available surplus</span>
+      </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ryeGrain" data-tooltip="Threshed rye grain. Hardy, cheap seed and the quickest flour output; loaded carts are shown separately.">
         <span class="settlement-hud__label">Rye grain</span>
         <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
