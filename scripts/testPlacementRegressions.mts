@@ -626,7 +626,7 @@ function testPlacementPreviewShowsTerrainFollowingExtent(): void {
   const preview = createBuildingPreviewMesh('threshing_barn');
   const extent = preview.getObjectByName('Building placement extent');
   assert.ok(extent instanceof THREE.Mesh);
-  assert.equal(extent.userData.extentRadius, 150);
+  assert.equal(extent.userData.extentRadius, 250);
   assert.equal(extent.userData.extentLabel, 'Field work extent');
 
   updateBuildingPreviewGeometry(preview, 'threshing_barn', 35, -48, 0.42, heightAt);

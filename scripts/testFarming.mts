@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
+  BUILDING_DEFINITIONS,
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   FARM_CROP_DEFINITIONS,
@@ -340,6 +341,8 @@ assert.ok(
 assert.equal(FARM_CROP_DEFINITIONS.flax.produce, 'fibre');
 assert.equal(FARM_CROP_DEFINITIONS.barley.produce, 'barley');
 assert.equal(FARM_CROP_DEFINITIONS.wheat.workSeason, 'autumn');
+assert.equal(BUILDING_DEFINITIONS.threshing_barn.workRadius, 250);
+assert.equal(BUILDING_DEFINITIONS.threshing_barn.maxLabor, 8);
 assert.ok(
   FARMSTEAD_STARTER_SEED_GRAIN >= seedGrainRequired(REPRESENTATIVE_FIELD_AREA, 'oats'),
   'a new holding should be able to sow one representative oats field',

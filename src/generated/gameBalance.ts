@@ -1254,11 +1254,11 @@ export const BUILDING_DEFINITIONS = {
   threshing_barn: {
     kind: 'threshing_barn',
     label: "Farmstead and threshing barn",
-    workRadius: 150,
+    workRadius: 250,
     pickRadius: 9,
     harvestInterval: 6,
     regrowRatePerSecond: 0,
-    maxLabor: 6,
+    maxLabor: 8,
     acceptsLabor: true,
     requiresRoad: true,
     facesRoad: true,

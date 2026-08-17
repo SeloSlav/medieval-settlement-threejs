@@ -131,9 +131,9 @@ callupState.farmFields.set('spring-oats', field('spring-oats', normalFarm.id, 'p
 const callupPlan = computeSettlementSeasonalCallupPlan(callupState, 3, 3);
 assert.equal(callupPlan.activeSites, 3);
 assert.equal(callupPlan.understaffedSites, 3);
-assert.equal(callupPlan.openPosts, 11);
+assert.equal(callupPlan.openPosts, 13);
 assert.equal(callupPlan.callupWorkers, 3);
-assert.equal(callupPlan.remainingOpenPosts, 8);
+assert.equal(callupPlan.remainingOpenPosts, 10);
 assert.equal(callupPlan.firstUnderstaffedBuildingId, highForager.id);
 assert.deepEqual(
   callupPlan.assignments.map((assignment) => [

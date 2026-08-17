@@ -60,7 +60,7 @@ assert.equal(BUILDING_DEFINITIONS.monastery.workRadius, 0);
 assert.equal(MONASTERY_COVERAGE_RADIUS, 520);
 assert.deepEqual(
   getBuildingExtent('threshing_barn', BUILDING_DEFINITIONS.threshing_barn.workRadius),
-  { type: 'work', label: 'Field work extent', radius: 150 },
+  { type: 'work', label: 'Field work extent', radius: 250 },
 );
 assert.deepEqual(
   getBuildingExtent('monastery', BUILDING_DEFINITIONS.monastery.workRadius),
