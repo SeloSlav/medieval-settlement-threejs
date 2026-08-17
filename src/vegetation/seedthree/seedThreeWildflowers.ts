@@ -20,7 +20,9 @@ type TslNode = {
   a: TslNode;
   rgb: TslNode;
   w: TslNode;
+  x: TslNode;
   xyz: TslNode;
+  y: TslNode;
   add: (value: unknown) => TslNode;
   mul: (value: unknown) => TslNode;
   sub: (value: unknown) => TslNode;
@@ -44,7 +46,7 @@ const STEM_COLORS = [new THREE.Color(0x658b48), new THREE.Color(0x739b52)] as co
 const FLOWER_CARD_COLOR = new THREE.Color(0xffffff);
 const WILDFLOWER_ATLAS_PATH =
   '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas-v2.png';
-export const WILDFLOWER_ATLAS_CELL_SCALE = [1 / 5, 1] as const;
+export const WILDFLOWER_ATLAS_CELL_SCALE = [1 / 5, 1 / 2] as const;
 /** Larger heads remain legible at the game's closest strategic-camera zoom. */
 export const SEEDTHREE_WILDFLOWER_HEAD_SCALE = 1.25;
 const STEM_TEXTURE_WIDTH = 32;
@@ -67,6 +69,13 @@ type WildflowerBuffers = {
   flowerMasks: number[];
   windWeights: number[];
   indices: number[];
+};
+
+type FlowerFrame = {
+  surfaceCenter: THREE.Vector3;
+  normal: THREE.Vector3;
+  axisU: THREE.Vector3;
+  axisV: THREE.Vector3;
 };
 
 export const SEEDTHREE_WILDFLOWER_VARIANTS = [
@@ -325,7 +334,16 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
 
   // Bulbiferous lily: a stout leafy axis with a loose spiral of lanceolate
   // leaves and short upper pedicels carrying an upright three-flower cluster.
-  appendFlowerHeadCard(buffers, centralTip, 0.66, 0.044 * headScale, 4, 0.34);
+  const centralLilyRadius = 0.044 * headScale;
+  const centralLilyFrame = appendFlowerHeadCard(
+    buffers,
+    centralTip,
+    0.66,
+    centralLilyRadius,
+    4,
+    0.34,
+  );
+  appendLilyReproductiveOrgans(buffers, centralLilyFrame, centralLilyRadius, 4);
   const lilyLeafColor = new THREE.Color(0x4f7c3c);
   [
     { height: 0.052, yaw: 0.15, length: 0.07, width: 0.009 },
@@ -397,14 +415,16 @@ export function createSeedThreeWildflowerGeometry(headScale: number): THREE.Buff
       1,
       4,
     );
-    appendFlowerHeadCard(
+    const headRadius = branch.headRadius * headScale;
+    const lilyFrame = appendFlowerHeadCard(
       buffers,
       tip,
       branch.yaw,
-      branch.headRadius * headScale,
+      headRadius,
       4,
       0.46,
     );
+    appendLilyReproductiveOrgans(buffers, lilyFrame, headRadius, 4);
   });
 
   // Red campion: opposite decussate leaves below an open, forked terminal
@@ -604,15 +624,35 @@ export function createSeedThreeWildflowerMaterial(
     .add(hawkbitStructureMask.mul(hawkbitOnly))
     .add(lilyStructureMask.mul(lilyOnly))
     .add(campionStructureMask.mul(campionOnly));
-  const atlasUv = tsl.uv()
+  const geometryUv = tsl.uv();
+  const atlasUv = geometryUv
     .mul(tsl.vec2(WILDFLOWER_ATLAS_CELL_SCALE[0], WILDFLOWER_ATLAS_CELL_SCALE[1]))
-    .add(tsl.vec2(flowerAnchor.w, 0));
+    .add(tsl.vec2(flowerAnchor.w, WILDFLOWER_ATLAS_CELL_SCALE[1]));
   const texel = tsl.texture(texture, atlasUv);
-  const stemTexel = tsl.texture(stemTexture, tsl.uv());
+  const stemTexel = tsl.texture(stemTexture, geometryUv);
+  // Foliage stores a negative V coordinate so it can share the stem/foliage
+  // surface bit while sampling the species-matched leaf in the atlas's lower
+  // row. Stems retain their procedural fibers and flower heads use the top row.
+  const foliageMask = tsl.float(1).sub(tsl.smoothstep(
+    tsl.float(-0.0005),
+    tsl.float(0),
+    geometryUv.y,
+  )).mul(tsl.float(1).sub(flowerMask));
+  const leafAtlasUv = tsl.vec2(
+    geometryUv.x.mul(tsl.float(WILDFLOWER_ATLAS_CELL_SCALE[0])).add(flowerAnchor.w),
+    tsl.float(0).sub(geometryUv.y)
+      .mul(tsl.float(WILDFLOWER_ATLAS_CELL_SCALE[1])),
+  );
+  const leafTexel = tsl.texture(texture, leafAtlasUv);
+  const stemAndLeafColor = tsl.mix(
+    tsl.vec4(baseColor, tsl.float(1)).mul(stemTexel),
+    leafTexel,
+    foliageMask,
+  );
   // Alpha stays in colorNode so the material opacity still controls the
   // close-ground LOD fade applied by GrassBladeField.
   const surfaceColor = tsl.mix(
-    tsl.vec4(baseColor, tsl.float(1)).mul(stemTexel),
+    stemAndLeafColor,
     texel,
     flowerMask,
   );
@@ -687,7 +727,7 @@ function appendFoliageBlade(
         center.clone().addScaledVector(side, halfWidth * widths[row]! * sideSign),
         normal,
         color,
-        [sideSign < 0 ? 0 : 1, fraction * 2.2],
+        [sideSign < 0 ? 0 : 1, -0.001 - fraction],
         0,
         windWeight,
         structureMask,
@@ -785,6 +825,168 @@ function appendStemTube(
   }
 }
 
+function appendPolylineTube(
+  buffers: WildflowerBuffers,
+  points: readonly THREE.Vector3[],
+  radii: readonly number[],
+  preferredRadial: THREE.Vector3,
+  color: THREE.Color,
+  structureMask: number,
+  radialSegments = 5,
+): void {
+  const base = buffers.positions.length / 3;
+  let transportedRadial = preferredRadial.clone();
+
+  points.forEach((point, ring) => {
+    const previous = points[Math.max(0, ring - 1)]!;
+    const next = points[Math.min(points.length - 1, ring + 1)]!;
+    const tangent = next.clone().sub(previous).normalize();
+    transportedRadial.addScaledVector(tangent, -transportedRadial.dot(tangent));
+    if (transportedRadial.lengthSq() < 1e-8) {
+      transportedRadial.crossVectors(tangent, new THREE.Vector3(0, 1, 0));
+      if (transportedRadial.lengthSq() < 1e-8) transportedRadial.set(1, 0, 0);
+    }
+    transportedRadial.normalize();
+    const radialB = new THREE.Vector3().crossVectors(tangent, transportedRadial).normalize();
+
+    for (let sideIndex = 0; sideIndex < radialSegments; sideIndex++) {
+      const angle = (sideIndex / radialSegments) * Math.PI * 2;
+      const radial = transportedRadial.clone().multiplyScalar(Math.cos(angle))
+        .addScaledVector(radialB, Math.sin(angle));
+      appendVertex(buffers, vertex(
+        point.clone().addScaledVector(radial, radii[ring]!),
+        radial,
+        color,
+        [sideIndex / radialSegments, ring / Math.max(points.length - 1, 1)],
+        0,
+        1,
+        structureMask,
+      ));
+    }
+  });
+
+  for (let ring = 0; ring < points.length - 1; ring++) {
+    for (let sideIndex = 0; sideIndex < radialSegments; sideIndex++) {
+      const nextSide = (sideIndex + 1) % radialSegments;
+      const a = base + ring * radialSegments + sideIndex;
+      const b = base + ring * radialSegments + nextSide;
+      const c = base + (ring + 1) * radialSegments + nextSide;
+      const d = base + (ring + 1) * radialSegments + sideIndex;
+      buffers.indices.push(a, b, c, a, c, d);
+    }
+  }
+}
+
+function appendSpindle(
+  buffers: WildflowerBuffers,
+  center: THREE.Vector3,
+  axis: THREE.Vector3,
+  length: number,
+  radius: number,
+  frameRadial: THREE.Vector3,
+  color: THREE.Color,
+  structureMask: number,
+): void {
+  const direction = axis.clone().normalize();
+  const half = direction.clone().multiplyScalar(length * 0.5);
+  const points = [
+    center.clone().sub(half),
+    center.clone().addScaledVector(direction, -length * 0.18),
+    center.clone().addScaledVector(direction, length * 0.18),
+    center.clone().add(half),
+  ];
+  appendPolylineTube(
+    buffers,
+    points,
+    [radius * 0.12, radius, radius, radius * 0.12],
+    frameRadial,
+    color,
+    structureMask,
+  );
+}
+
+function appendLilyReproductiveOrgans(
+  buffers: WildflowerBuffers,
+  frame: FlowerFrame,
+  flowerRadius: number,
+  structureMask: number,
+): void {
+  const filamentColor = new THREE.Color(0xd98a3f);
+  const antherColor = new THREE.Color(0x71341f);
+  const styleColor = new THREE.Color(0xf2ad55);
+  const stigmaColor = new THREE.Color(0xb76536);
+  const filamentRadius = Math.max(0.00025, flowerRadius * 0.0068);
+
+  for (let index = 0; index < 6; index++) {
+    const angle = (index / 6) * Math.PI * 2 + 0.17;
+    const radial = frame.axisU.clone().multiplyScalar(Math.cos(angle))
+      .addScaledVector(frame.axisV, Math.sin(angle));
+    const tangent = frame.axisU.clone().multiplyScalar(-Math.sin(angle))
+      .addScaledVector(frame.axisV, Math.cos(angle));
+    const reach = flowerRadius * (0.31 + (index % 2) * 0.035);
+    const root = frame.surfaceCenter.clone()
+      .addScaledVector(radial, flowerRadius * 0.055)
+      .addScaledVector(frame.normal, flowerRadius * 0.025);
+    const elbow = frame.surfaceCenter.clone()
+      .addScaledVector(radial, reach * 0.48)
+      .addScaledVector(frame.normal, flowerRadius * (0.09 + (index % 3) * 0.014));
+    const tip = frame.surfaceCenter.clone()
+      .addScaledVector(radial, reach)
+      .addScaledVector(frame.normal, flowerRadius * (0.15 + (index % 2) * 0.025));
+    appendPolylineTube(
+      buffers,
+      [root, elbow, tip],
+      [filamentRadius, filamentRadius * 0.84, filamentRadius * 0.62],
+      tangent,
+      filamentColor,
+      structureMask,
+    );
+    appendSpindle(
+      buffers,
+      tip.clone().addScaledVector(frame.normal, flowerRadius * 0.01),
+      tangent,
+      flowerRadius * 0.092,
+      flowerRadius * 0.019,
+      frame.normal,
+      antherColor,
+      structureMask,
+    );
+  }
+
+  const styleRoot = frame.surfaceCenter.clone()
+    .addScaledVector(frame.normal, flowerRadius * 0.035);
+  const styleElbow = frame.surfaceCenter.clone()
+    .addScaledVector(frame.axisU, flowerRadius * 0.024)
+    .addScaledVector(frame.normal, flowerRadius * 0.13);
+  const styleTip = frame.surfaceCenter.clone()
+    .addScaledVector(frame.axisU, flowerRadius * 0.052)
+    .addScaledVector(frame.normal, flowerRadius * 0.24);
+  appendPolylineTube(
+    buffers,
+    [styleRoot, styleElbow, styleTip],
+    [filamentRadius * 1.18, filamentRadius, filamentRadius * 0.78],
+    frame.axisV,
+    styleColor,
+    structureMask,
+    6,
+  );
+  for (let lobe = 0; lobe < 3; lobe++) {
+    const angle = (lobe / 3) * Math.PI * 2;
+    const axis = frame.axisU.clone().multiplyScalar(Math.cos(angle))
+      .addScaledVector(frame.axisV, Math.sin(angle));
+    appendSpindle(
+      buffers,
+      styleTip.clone().addScaledVector(axis, flowerRadius * 0.015),
+      axis,
+      flowerRadius * 0.043,
+      flowerRadius * 0.013,
+      frame.normal,
+      stigmaColor,
+      structureMask,
+    );
+  }
+}
+
 function appendFlowerHeadCard(
   buffers: WildflowerBuffers,
   center: THREE.Vector3,
@@ -792,7 +994,7 @@ function appendFlowerHeadCard(
   radius: number,
   structureMask = 0,
   tilt = 0.24,
-): void {
+): FlowerFrame {
   const tiltDirection = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
   const normal = new THREE.Vector3(
     tiltDirection.x * tilt,
@@ -835,6 +1037,12 @@ function appendFlowerHeadCard(
   for (let index = 0; index < segments; index++) {
     buffers.indices.push(base, base + index + 1, base + index + 2);
   }
+  return {
+    surfaceCenter: liftedCenter.clone().addScaledVector(normal, 0.0045),
+    normal,
+    axisU,
+    axisV,
+  };
 }
 
 function createStemSurfaceTexture(): THREE.DataTexture {

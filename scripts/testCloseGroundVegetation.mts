@@ -626,6 +626,11 @@ assert.match(
 );
 assert.match(
   wildflowerSource,
+  /appendLilyReproductiveOrgans\([\s\S]*?for \(let index = 0; index < 6; index\+\+\)[\s\S]*?appendSpindle/,
+  'bulbiferous lily reproductive organs should be modeled per head instead of baked into its corolla',
+);
+assert.match(
+  wildflowerSource,
   /Red campion:[\s\S]*?const campionCymes = \[[\s\S]*?tips: \[[\s\S]*?cyme\.tips\.forEach/,
   'red campion should fork into an open terminal cyme above opposite leaf pairs',
 );
@@ -633,6 +638,21 @@ assert.match(
   wildflowerSource,
   /const structureVisibility = sharedStructureMask[\s\S]*?gentianStructureMask[\s\S]*?hawkbitStructureMask[\s\S]*?lilyStructureMask[\s\S]*?campionStructureMask/,
   'species silhouettes should stay packed in the existing flower mask instead of adding instance buffers',
+);
+assert.match(
+  wildflowerSource,
+  /WILDFLOWER_ATLAS_CELL_SCALE = \[1 \/ 5, 1 \/ 2\]/,
+  'the wildflower atlas should reserve a second row for real species leaf textures',
+);
+assert.match(
+  wildflowerSource,
+  /const leafAtlasUv = tsl\.vec2[\s\S]*?const leafTexel = tsl\.texture\(texture, leafAtlasUv\)/,
+  'the material should sample species-matched leaf cutouts from the existing atlas binding',
+);
+assert.match(
+  wildflowerSource,
+  /\[sideSign < 0 \? 0 : 1, -0\.001 - fraction\]/,
+  'foliage UVs should carry the lower-row routing flag without adding a vertex attribute',
 );
 
 const meadowTuft = readFileSync(meadowTuftPath);

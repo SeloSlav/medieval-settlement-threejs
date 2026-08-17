@@ -74,8 +74,8 @@ const tsl = {
 };
 
 const TAU = Math.PI * 2;
-const JUNIPER_FEMALE_FRUIT_CHANCE = 0.58;
-const MAX_JUNIPER_BERRIES_PER_SHRUB = 12;
+const MIN_JUNIPER_BERRIES_PER_SHRUB = 16;
+const MAX_JUNIPER_BERRIES_PER_SHRUB = 20;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const windQuat = new THREE.Quaternion();
 const windVecScratch = new THREE.Vector3();
@@ -372,6 +372,7 @@ function createJuniperBerryInstances(
   mesh.userData.fruitModel = 'juniper_berry.glb';
   mesh.userData.sourceDiameterM = sourceDiameter;
   mesh.userData.targetDiameterM = [0.0065, 0.009];
+  mesh.userData.bearingPolicy = 'all visual common-juniper shrubs';
   mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
   mesh.castShadow = false;
   mesh.receiveShadow = true;
@@ -385,15 +386,19 @@ function createJuniperBerryInstances(
   let bearingShrubCount = 0;
 
   for (const placement of junipers) {
-    const sexNoise = undergrowthHash01(
-      placement.x * 3.17 + placement.z * 5.83 + placement.prototypeIndex * 11.7 + 1.5,
-    );
-    if (sexNoise > JUNIPER_FEMALE_FRUIT_CHANCE) continue;
     const bucket = buckets[placement.prototypeIndex];
     const shrubMatrix = bucket?.matrices[placement.meshIndex];
     if (!shrubMatrix) continue;
+    const densityNoise = undergrowthHash01(
+      placement.x * 3.17 + placement.z * 5.83 + placement.prototypeIndex * 11.7 + 1.5,
+    );
+    const fruitLimit = Math.round(THREE.MathUtils.lerp(
+      MIN_JUNIPER_BERRIES_PER_SHRUB,
+      MAX_JUNIPER_BERRIES_PER_SHRUB,
+      densityNoise,
+    ));
     const anchors = prototypes[placement.prototypeIndex]!.fruitAnchors
-      .slice(0, MAX_JUNIPER_BERRIES_PER_SHRUB);
+      .slice(0, fruitLimit);
     if (anchors.length === 0) continue;
     bearingShrubCount++;
 

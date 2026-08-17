@@ -42,10 +42,14 @@ import {
   isGameAudioEnabled,
   isMusicEnabled,
 } from './audioPreferences.ts';
+import { ForestWindAudio } from './ForestWindAudio.ts';
+import { forestWindTargetMix } from './forestWindRules.ts';
 
 export type AmbientAudioControllerConfig = {
   getCameraTarget: () => { x: number; z: number };
   getOrbitDistance: () => number;
+  isFirstPersonActive: () => boolean;
+  getForestCanopyCover: (x: number, z: number) => number;
   getBuildings: () => ReadonlyMap<string, BuildingState>;
   getBurgageZones: () => Iterable<BurgageZoneState>;
   getResidences: () => ReadonlyMap<string, ResidenceState>;
@@ -65,6 +69,7 @@ export type AmbientAudioControllerConfig = {
 
 export class AmbientAudioController {
   private readonly audio = new AmbientAudio();
+  private readonly forestWind = new ForestWindAudio();
   private readonly chapelBell = new ChapelBellPlayer();
   private readonly riverAudio: RiverAudio;
   private readonly soundtrack = new SoundtrackAudio();
@@ -126,6 +131,7 @@ export class AmbientAudioController {
     window.addEventListener('keydown', this.onUnlock, { capture: true });
     this.musicEnabled = isMusicEnabled();
     this.audio.setVolume(getAmbienceVolume());
+    this.forestWind.setVolume(getAmbienceVolume());
     this.riverAudio.setVolume(getAmbienceVolume());
     this.buildingAudio.setVolume(getAmbienceVolume());
     this.worldFoley.setVolume(getAmbienceVolume());
@@ -178,10 +184,12 @@ export class AmbientAudioController {
     if (nowMs - this.lastAmbientEvalAtMs >= 100) {
       this.lastAmbientEvalAtMs = nowMs;
       this.refreshSettlementZones();
+      const listener = this.config.getCameraTarget();
+      const orbitDistance = this.config.getOrbitDistance();
       const ambient = evaluateAmbientRules({
         settlementZones: this.settlementZones,
-        cameraTarget: this.config.getCameraTarget(),
-        orbitDistance: this.config.getOrbitDistance(),
+        cameraTarget: listener,
+        orbitDistance,
         previous: this.ambientRuleState,
         isNight: schedule?.dayNight.isNight ?? false,
       });
@@ -195,6 +203,11 @@ export class AmbientAudioController {
           ambient.state.overviewActive,
         ),
       });
+      this.forestWind.setTargetMix(forestWindTargetMix({
+        canopyCover: this.config.getForestCanopyCover(listener.x, listener.z),
+        orbitDistance,
+        firstPersonActive: this.config.isFirstPersonActive(),
+      }));
       this.soundtrack.syncContext({
         isNight: schedule?.dayNight.isNight ?? false,
         season: this.season,
@@ -202,8 +215,11 @@ export class AmbientAudioController {
       });
     }
     this.soundtrack.tick(dtSeconds);
-    this.audio.setScoreActive(this.soundtrack.isAudible());
+    const scoreActive = this.soundtrack.isAudible();
+    this.audio.setScoreActive(scoreActive);
+    this.forestWind.setScoreActive(scoreActive);
     this.audio.tick(dtSeconds);
+    this.forestWind.tick(dtSeconds);
     this.riverAudio.tick(dtSeconds);
     this.fireAudio.tick(dtSeconds);
     const listener = this.config.getCameraTarget();
@@ -237,6 +253,7 @@ export class AmbientAudioController {
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     this.audio.setEnabled(enabled);
+    this.forestWind.setEnabled(enabled);
     this.riverAudio.setEnabled(enabled);
     this.fireAudio.setEnabled(enabled);
     this.buildingAudio.setEnabled(enabled);
@@ -262,6 +279,7 @@ export class AmbientAudioController {
 
   setAmbienceVolume(volume: number): void {
     this.audio.setVolume(volume);
+    this.forestWind.setVolume(volume);
     this.riverAudio.setVolume(volume);
     this.buildingAudio.setVolume(volume);
     this.worldFoley.setVolume(volume);
@@ -279,6 +297,7 @@ export class AmbientAudioController {
     this.config.unlockElement.removeEventListener('pointerdown', this.onUnlock, { capture: true });
     window.removeEventListener('keydown', this.onUnlock, { capture: true });
     this.audio.dispose();
+    this.forestWind.dispose();
     this.chapelBell.dispose();
     this.riverAudio.dispose();
     this.fireAudio.dispose();

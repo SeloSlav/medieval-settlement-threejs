@@ -46,6 +46,17 @@ import {
   AMBIENT_SCORE_DUCK_GAIN,
 } from '../src/audio/AmbientAudio.ts';
 import {
+  FOREST_WIND_CLIP_VOLUME,
+  FOREST_WIND_FADE_IN_SECONDS,
+  FOREST_WIND_FADE_OUT_SECONDS,
+  SEEDTHREE_TEMPERATE_WIND_URL,
+} from '../src/audio/ForestWindAudio.ts';
+import {
+  FOREST_WIND_FIRST_PERSON_FLOOR,
+  FOREST_WIND_SILENT_RTS_DISTANCE,
+  forestWindTargetMix,
+} from '../src/audio/forestWindRules.ts';
+import {
   evaluateAmbientRules,
   OVERVIEW_ENTER_DISTANCE,
   OVERVIEW_EXIT_DISTANCE,
@@ -112,6 +123,8 @@ const EXPECTED_FARM_SONG_SHA256 =
   '4c7639f2abcbdad954db703744a0866b3e81afa4d2f27d6bd51907819e26f1c5';
 const EXPECTED_SELO_OVERVIEW_WIND_SHA256 =
   '388cdc56f19ea6d106af8d46c78b5d6bfa3cb6ea860542998f3190129a2d8305';
+const EXPECTED_SEEDTHREE_TEMPERATE_WIND_SHA256 =
+  'abb8b3d6bd7988734b148bfda5135b740a54d4fe516ce1d71ee07e0cb3642328';
 
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -167,6 +180,16 @@ async function assertMp3(filename: string): Promise<void> {
   const isId3 = bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33;
   const isMpegFrame = bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0;
   invariant(isId3 || isMpegFrame, `Audio file does not have an MP3 header: ${filename}`);
+}
+
+async function assertWav(filename: string): Promise<void> {
+  const bytes = await readFile(filename);
+  invariant(bytes.byteLength >= 1000, `Audio file is implausibly small: ${filename}`);
+  invariant(
+    bytes.toString('ascii', 0, 4) === 'RIFF'
+    && bytes.toString('ascii', 8, 12) === 'WAVE',
+    `Audio file does not have a WAV header: ${filename}`,
+  );
 }
 
 async function main(): Promise<void> {
@@ -226,6 +249,37 @@ async function main(): Promise<void> {
   invariant(
     selectAmbientWeatherLayer(true, true) === null,
     'Overview zoom should remove rain from the wind-only ambience mix',
+  );
+  invariant(
+    forestWindTargetMix({
+      canopyCover: 1,
+      orbitDistance: FOREST_WIND_SILENT_RTS_DISTANCE,
+      firstPersonActive: false,
+    }) === 0,
+    'SeedThree forest wind must stay out of ordinary strategic views',
+  );
+  invariant(
+    forestWindTargetMix({ canopyCover: 0, orbitDistance: 12, firstPersonActive: false }) === 0
+    && forestWindTargetMix({ canopyCover: 1, orbitDistance: 12, firstPersonActive: false }) === 1,
+    'Close RTS wind must require measured nearby canopy',
+  );
+  invariant(
+    forestWindTargetMix({ canopyCover: 0, orbitDistance: 240, firstPersonActive: true })
+      === FOREST_WIND_FIRST_PERSON_FLOOR
+    && forestWindTargetMix({ canopyCover: 1, orbitDistance: 240, firstPersonActive: true }) === 1,
+    'First person must retain a faint breeze that rises to full level under canopy',
+  );
+  invariant(
+    FOREST_WIND_CLIP_VOLUME <= 0.05
+    && FOREST_WIND_FADE_IN_SECONDS >= 2
+    && FOREST_WIND_FADE_OUT_SECONDS > FOREST_WIND_FADE_IN_SECONDS,
+    'SeedThree forest wind must remain subtle and release more slowly than it enters',
+  );
+  const seedThreeWindPath = fileURLToPath(SEEDTHREE_TEMPERATE_WIND_URL);
+  await assertWav(seedThreeWindPath);
+  invariant(
+    await sha256(seedThreeWindPath) === EXPECTED_SEEDTHREE_TEMPERATE_WIND_SHA256,
+    'The SeedThree temperate wind loop does not match its vendored source hash',
   );
 
   const manifest = JSON.parse(

@@ -298,6 +298,11 @@ const seedThreeBarkBases = [
   'apple_bark',
   'cherry_bark',
 ] as const;
+const seedThreeShrubBranchBases = [
+  'blackbrush_branch',
+  'creosote_branch',
+  'sagebrush_branch',
+] as const;
 const seedThreeForestLeafBases = [
   'american_beech_single',
   'white_oak_single',
@@ -320,12 +325,16 @@ const seedThreeExpectedOriginalFiles = new Set<string>([
   ...seedThreeBarkBases.flatMap((base) => (
     ['albedo', 'normal', 'roughness'] as const
   ).map((channel) => `vendor/seedthree/assets/bark/${base}_${channel}.png`)),
+  ...seedThreeShrubBranchBases.flatMap((base) => (
+    ['albedo', 'normal', 'roughness'] as const
+  ).map((channel) => `vendor/seedthree/assets/bark/${base}_${channel}.png`)),
   ...[...seedThreeForestLeafBases, ...seedThreeBackyardLeafBases, ...seedThreeUndergrowthBases].flatMap((base) => (
     ['albedo', 'normal', 'roughness', 'translucency'] as const
   ).map((channel) => `vendor/seedthree/assets/leaves/${base}_${channel}.png`)),
   ...['', '_normal', '_roughness', '_translucency'].map((suffix) => (
     `vendor/seedthree/assets/leaves/cattail_reed_card${suffix}.png`
   )),
+  'vendor/seedthree/assets/leaves/raspberry_spray_albedo.png',
 ]);
 const seedThreeAssets = assets.filter((asset) => (
   asset.originalFileNames.some((originalFileName) => {
@@ -348,8 +357,8 @@ assert.deepEqual(
   'production builds must contain exactly the SeedThree textures used at runtime',
 );
 assert.ok(
-  seedThreeAssets.length <= 79,
-  `SeedThree output grew beyond 79 emitted assets (${seedThreeAssets.length})`,
+  seedThreeAssets.length <= 89,
+  `SeedThree output grew beyond 89 emitted assets (${seedThreeAssets.length})`,
 );
 const seedThreeAssetBytes = seedThreeAssets.reduce((total, asset) => (
   total + (typeof asset.source === 'string'
@@ -357,8 +366,8 @@ const seedThreeAssetBytes = seedThreeAssets.reduce((total, asset) => (
     : asset.source.byteLength)
 ), 0);
 assert.ok(
-  seedThreeAssetBytes <= 101_000_000,
-  `SeedThree output grew beyond its 101 MB source budget (${seedThreeAssetBytes} bytes)`,
+  seedThreeAssetBytes <= 122_000_000,
+  `SeedThree output grew beyond its 122 MB source budget (${seedThreeAssetBytes} bytes)`,
 );
 const entryChunk = chunks.find((chunk) => chunk.isEntry);
 assert.ok(entryChunk, 'production build must expose one application entry chunk');
@@ -461,14 +470,15 @@ assert.ok(
   // grass/dirt edge handoff. The Eanpa facade adds the historical-sky state
   // bridge while the much larger engine and legacy fallback remain deferred.
   // Apple and cherry add eight species-specific leaf material URLs.
+  // Instanced raspberry and juniper fruit add their loader and placement path.
   // Keep this intentional raw-source allowance explicit; the compressed
   // transfer budget below remains the stronger network guardrail.
-  startupClosureBytes <= 2_840_000,
-  `initial static chunk closure grew beyond 2.84 MB (${startupClosureBytes} bytes)`,
+  startupClosureBytes <= 2_880_000,
+  `initial static chunk closure grew beyond 2.88 MB (${startupClosureBytes} bytes)`,
 );
 assert.ok(
-  startupClosureGzipBytes <= 782_000,
-  `initial static chunk closure grew beyond 782 KB gzip (${startupClosureGzipBytes} bytes)`,
+  startupClosureGzipBytes <= 800_000,
+  `initial static chunk closure grew beyond 800 KB gzip (${startupClosureGzipBytes} bytes)`,
 );
 
 console.log(

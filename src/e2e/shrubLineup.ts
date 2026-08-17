@@ -104,7 +104,10 @@ scene.add(ground);
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 100);
 const view = query.get('view') ?? 'design';
 if (view === 'near') {
-  if (focus === 'fern') {
+  if (focus === 'bilberry') {
+    camera.position.set(-7.2, 1.2, 2.05);
+    camera.lookAt(-7.2, 0.55, 0);
+  } else if (focus === 'fern') {
     camera.position.set(-2.6, 1.55, 4.2);
     camera.lookAt(-2.6, 0.48, 0);
   } else if (focus === 'juniper-detail') {

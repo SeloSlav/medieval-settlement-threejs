@@ -46,8 +46,10 @@ function foundersCampSlots(
     z: camp.z - sinYaw * x + cosYaw * z,
   });
   const fire = world(FOUNDERS_CAMPFIRE_POSITION.x, FOUNDERS_CAMPFIRE_POSITION.z);
-  const conversationA = world(-0.35, -2.05);
-  const conversationB = world(1.25, -2.0);
+  // Keep the conversation in the clear strip between the preparation table
+  // and the fire. Their old z positions ran through the tabletop footprint.
+  const conversationA = world(-0.35, -1.35);
+  const conversationB = world(1.25, -1.35);
   const conversation: AmbientBehaviorSlot[] = [
     {
       id: 'conversation-left',

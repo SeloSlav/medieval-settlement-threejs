@@ -78,6 +78,11 @@ cost.
   it. A broad zoom hysteresis band prevents wheel movement near the boundary
   from repeatedly switching beds, and role-specific 3.5–6.5 second envelopes
   smooth base, village, weather, and overview transitions.
+- SeedThree's gapless temperate WAV is a separate close-detail forest bed.
+  Strategic views hear it only while zoomed into measured living canopy;
+  first-person view retains a faint open-ground breeze and reaches full level
+  under trees. Felling and site clearance reduce the sampled canopy mix, and
+  the layer follows the normal ambience volume, master mute, and score ducking.
 - Four non-looping instrumental tracks are chosen by settlement context,
   season, and time of day. Silence between tracks keeps the score from
   fatiguing the player. Active cues gently duck ambience to 86%, with a slower

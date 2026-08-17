@@ -31,6 +31,7 @@ import type {
 import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 import { PlacementClearanceSpatialIndex } from '../placement/PlacementClearanceSpatialIndex.ts';
 import { GRASS_BLADE_REVEAL } from '../grass/grassLodMath.ts';
+import { FOREST_WIND_SAMPLE_RADIUS } from '../audio/forestWindRules.ts';
 
 const ROAD_CLEAR_MARGIN = 1.35;
 const BUILDING_CLEAR_MARGIN = 1.35;
@@ -186,6 +187,39 @@ export class ForestManager {
       layoutIndex,
       ...placement,
     }));
+  }
+
+  /**
+   * Measures living canopy around the audio listener without allocating. The
+   * radial weighting distinguishes a real stand from one isolated roadside
+   * tree, and authoritative felling/clearance immediately affects the result.
+   */
+  sampleAudioCanopyCover(
+    x: number,
+    z: number,
+    radius = FOREST_WIND_SAMPLE_RADIUS,
+  ): number {
+    if (radius <= 0) return 0;
+    const radiusSquared = radius * radius;
+    let weightedCanopy = 0;
+    for (let layoutIndex = 0; layoutIndex < this.placements.length; layoutIndex++) {
+      if (
+        this.removedTrees.has(layoutIndex)
+        || this.missingTreeEntities.has(layoutIndex)
+        || (this.treePhases.get(layoutIndex) ?? 'mature') !== 'mature'
+      ) {
+        continue;
+      }
+      const placement = this.placements[layoutIndex];
+      const dx = placement.x - x;
+      const dz = placement.z - z;
+      const distanceSquared = dx * dx + dz * dz;
+      if (distanceSquared >= radiusSquared) continue;
+      const radial = 1 - Math.sqrt(distanceSquared) / radius;
+      weightedCanopy += radial * radial;
+      if (weightedCanopy >= 6) return 1;
+    }
+    return Math.min(1, weightedCanopy / 6);
   }
 
   get rockPlacements(): ReadonlyArray<RockObstacle> {

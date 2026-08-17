@@ -143,6 +143,22 @@ const benchGeometry = (benchMesh as THREE.Mesh).geometry as THREE.BoxGeometry;
 const stumpTopGeometry = (stumpTopMesh as THREE.Mesh).geometry as THREE.CylinderGeometry;
 assert.ok(
   Math.abs(
+    FOUNDERS_CAMP_BENCH_SEAT.destination.z
+      - FOUNDERS_CAMP_BENCH_SEAT.supportPosition.z,
+  ) > benchGeometry.parameters.depth / 2,
+  'the bench occupant root must remain in front of the plank footprint',
+);
+assert.ok(
+  Math.hypot(
+    FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.destination.x
+      - FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.x,
+    FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.destination.z
+      - FOUNDERS_CAMP_FIRESIDE_STUMP_SEAT.supportPosition.z,
+  ) > stumpTopGeometry.parameters.radiusBottom,
+  'the stump occupant root must remain in front of the stump footprint',
+);
+assert.ok(
+  Math.abs(
     benchMesh.position.y
       + benchGeometry.parameters.height / 2
       - FOUNDERS_CAMP_SEAT_SURFACE_HEIGHT,
@@ -160,6 +176,19 @@ assert.ok(
 campMesh.position.set(camp.x, 0, camp.z);
 campMesh.rotation.y = campYaw;
 campMesh.updateMatrixWorld(true);
+const preparationBoard = campMesh.getObjectByName('Camp cook preparation board');
+assert.ok(preparationBoard, 'the camp conversation must account for the preparation table');
+const preparationGeometry = (preparationBoard as THREE.Mesh).geometry as THREE.BoxGeometry;
+for (const talker of conversation) {
+  const tableLocal = preparationBoard.worldToLocal(
+    new THREE.Vector3(talker.destination.x, preparationBoard.position.y, talker.destination.z),
+  );
+  assert.ok(
+    Math.abs(tableLocal.x) > preparationGeometry.parameters.width / 2 + 0.2
+      || Math.abs(tableLocal.z) > preparationGeometry.parameters.depth / 2 + 0.2,
+    'camp conversations must leave body clearance around the preparation table',
+  );
+}
 const benchSupportWorld = benchMesh.getWorldPosition(new THREE.Vector3());
 const expectedBenchSupportWorld = campWorld(FOUNDERS_CAMP_BENCH_SEAT.supportPosition);
 assert.ok(

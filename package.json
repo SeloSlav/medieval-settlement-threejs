@@ -95,6 +95,7 @@
     "test:seasons": "node --experimental-strip-types scripts/testSeasonSimulation.mts",
     "test:weather-visuals": "node --experimental-strip-types scripts/testPrecipitationVisuals.mts",
     "test:wind-field": "npx tsx scripts/testWindField.mts",
+    "test:forest-wind-audio": "node --experimental-strip-types scripts/testForestWindAudio.mts",
     "test:day-night": "node --experimental-strip-types scripts/testDayNightPresentation.mts",
     "test:naive-art-post": "node --experimental-strip-types scripts/testNaiveArtPostEffect.mts",
     "test:post-processing-pipeline": "node --experimental-strip-types scripts/testPostProcessingPipeline.mts",

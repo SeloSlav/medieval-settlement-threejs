@@ -44,6 +44,25 @@ assertGlb('cherry_pair.glb', 1_000_000);
 assertGlb('juniper_berry.glb', 30_000);
 assertGlb('raspberry_cluster.glb', 50_000);
 
+const bilberryAlbedo = readFileSync(
+  `${projectRoot}vendor/seedthree/assets/leaves/bilberry_albedo.png`,
+);
+assert.deepEqual(
+  [...bilberryAlbedo.subarray(0, 8)],
+  [137, 80, 78, 71, 13, 10, 26, 10],
+  'the fruit-free bilberry spray must remain a PNG',
+);
+assert.equal(
+  bilberryAlbedo[25],
+  6,
+  'the fruit-free bilberry spray must retain an RGBA alpha channel',
+);
+assert.notEqual(
+  createHash('sha256').update(bilberryAlbedo).digest('hex'),
+  '3a991937b1a259832edddf08eeade1bd85da3031e551f71c5bba974403a7dd8f',
+  'the retired bilberry card with baked-in fruit must not be restored',
+);
+
 const juniperAlbedo = readFileSync(
   `${projectRoot}vendor/seedthree/assets/leaves/juniper_scrub_albedo.png`,
 );
@@ -84,11 +103,17 @@ assert.doesNotMatch(berryVisuals, /bakeRaspberryFruitIntoPrototype/);
 assert.doesNotMatch(berryVisuals, /raspberry_patch_albedo\.png|createSeedThreeCardClumpGeometry/);
 
 const undergrowthVisuals = readFileSync(`${projectRoot}src/props/ForestUndergrowth.ts`, 'utf8');
+const shrubPrototypesSource = readFileSync(
+  `${projectRoot}src/vegetation/seedthree/gorskiShrubPrototypes.ts`,
+  'utf8',
+);
 assert.match(undergrowthVisuals, /GORSKI_SHRUB_VARIANT_COUNT/);
 assert.match(undergrowthVisuals, /new THREE\.InstancedMesh/);
 assert.match(undergrowthVisuals, /juniper_berry\.glb/);
 assert.match(undergrowthVisuals, /targetDiameterM = \[0\.0065, 0\.009\]/);
-assert.match(undergrowthVisuals, /JUNIPER_FEMALE_FRUIT_CHANCE/);
+assert.match(undergrowthVisuals, /MIN_JUNIPER_BERRIES_PER_SHRUB = 16/);
+assert.match(undergrowthVisuals, /MAX_JUNIPER_BERRIES_PER_SHRUB = 20/);
+assert.match(shrubPrototypesSource, /selectFoliageSurfaceAnchors/);
 assert.match(undergrowthVisuals, /Instanced ripe common-juniper berry cones/);
 assert.doesNotMatch(undergrowthVisuals, /createCardClumpGeometry/);
 

@@ -32,7 +32,7 @@ type SeedThreeStem = {
 };
 
 export const GORSKI_SHRUB_VARIANT_COUNT = 3;
-export const JUNIPER_BERRY_ANCHOR_LIMIT = 16;
+export const JUNIPER_BERRY_ANCHOR_LIMIT = 20;
 export const RASPBERRY_FRUIT_ANCHOR_LIMIT = 10;
 
 const PRESETS = {
@@ -104,20 +104,18 @@ export function createGorskiShrubPrototype(
   geometry.userData.gorskiShrubVariant = variant;
   geometry.userData.seedThreeGenerator = 'dichotomous/sprayClusters';
 
+  const fruitAnchors = kind === 'juniper'
+    ? selectFoliageSurfaceAnchors(terminalFoliage, JUNIPER_BERRY_ANCHOR_LIMIT)
+    : selectFruitAnchors(
+      generated.terminalStems,
+      kind === 'raspberry' ? RASPBERRY_FRUIT_ANCHOR_LIMIT : 0,
+    );
+
   terminalFoliage?.geometry.dispose();
   parentFoliage?.geometry.dispose();
   foliageMaterial.dispose();
   branchGeometry.dispose();
   foliageGeometry.dispose();
-
-  const fruitAnchors = selectFruitAnchors(
-    generated.terminalStems,
-    kind === 'raspberry'
-      ? RASPBERRY_FRUIT_ANCHOR_LIMIT
-      : kind === 'juniper'
-        ? JUNIPER_BERRY_ANCHOR_LIMIT
-        : 0,
-  );
   return {
     geometry,
     fruitAnchors,
@@ -177,6 +175,35 @@ function selectFruitAnchors(
     if (point.y < 0.42) continue;
     if (anchors.some((anchor) => anchor.distanceToSquared(point) < 0.035)) continue;
     anchors.push(point.add(new THREE.Vector3(0, -0.035, 0)));
+    if (anchors.length >= limit) break;
+  }
+  return anchors;
+}
+
+function selectFoliageSurfaceAnchors(
+  foliage: THREE.InstancedMesh | null,
+  limit: number,
+): THREE.Vector3[] {
+  if (!foliage || limit <= 0) return [];
+  const matrix = new THREE.Matrix4();
+  const candidates: THREE.Vector3[] = [];
+  for (let index = 0; index < foliage.count; index++) {
+    foliage.getMatrixAt(index, matrix);
+    const across = ((((index * 17) % 7) / 6) - 0.5) * 0.46;
+    const along = 0.2 + ((index * 5) % 4) * 0.13;
+    const face = index % 2 === 0 ? 0.04 : -0.04;
+    candidates.push(new THREE.Vector3(across, along, face).applyMatrix4(matrix));
+  }
+  candidates.sort((left, right) => (
+    right.y + Math.hypot(right.x, right.z) * 0.22
+  ) - (
+    left.y + Math.hypot(left.x, left.z) * 0.22
+  ));
+  const anchors: THREE.Vector3[] = [];
+  for (const point of candidates) {
+    if (point.y < 0.42) continue;
+    if (anchors.some((anchor) => anchor.distanceToSquared(point) < 0.012)) continue;
+    anchors.push(point);
     if (anchors.length >= limit) break;
   }
   return anchors;

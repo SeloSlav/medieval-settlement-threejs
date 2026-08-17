@@ -689,6 +689,10 @@ function testChapelSnapshotIdentityCache(): void {
       setScoreActive: () => undefined,
       tick: () => undefined,
     },
+    forestWind: {
+      setScoreActive: () => undefined,
+      tick: () => undefined,
+    },
     chapelBell: {
       tick: (params: { chapels: Array<{ x: number }> }) => {
         observedChapelX.push(params.chapels[0]?.x ?? Number.NaN);
@@ -718,6 +722,8 @@ function testChapelSnapshotIdentityCache(): void {
       getCombatAgents: () => new Map(),
       getCameraTarget: () => ({ x: 0, z: 0 }),
       getOrbitDistance: () => 40,
+      isFirstPersonActive: () => false,
+      getForestCanopyCover: () => 0,
     },
     chapelPositions,
     chapelTick: {

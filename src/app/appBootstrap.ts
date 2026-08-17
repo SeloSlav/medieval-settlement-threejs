@@ -276,11 +276,19 @@ export async function bootstrapAppSession(
     audioParent: sceneManager.scene,
     riverLayout: sceneManager.riverField.layout,
     getRiverWaterSurfaceY: sceneManager.getBridgeSamplingContext().getWaterSurfaceY,
-    getCameraTarget: () => sceneManager.cameraTarget,
+    getCameraTarget: () => (
+      firstPersonController?.isActive()
+        ? sceneManager.camera.position
+        : sceneManager.cameraTarget
+    ),
     getOrbitDistance: () => {
       if (firstPersonController?.isActive()) return 12;
       return cameraController?.getOrbitDistance() ?? 240;
     },
+    isFirstPersonActive: () => firstPersonController?.isActive() ?? false,
+    getForestCanopyCover: (x, z) => (
+      sceneManager.getForestManager()?.sampleAudioCanopyCover(x, z) ?? 0
+    ),
     getBuildings: () => liveContext.gameState.buildings,
     getBurgageZones: () => liveContext.gameState.burgageZones.values(),
     getResidences: () => liveContext.gameState.residences,
