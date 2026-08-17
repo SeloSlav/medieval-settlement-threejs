@@ -291,7 +291,7 @@ Food is physical and keeps its identity throughout the economy: bakeries make br
 - Terrain-following locomotion with sprint, jump, crouch toggle, and head-bob camera motion.
 - Free-look while holding `Alt` — look around without turning the body; view recenters on release.
 - Scrolling compass HUD with cardinal and intercardinal labels while walking.
-- Seamless handoff between RTS orbit camera and walk mode via `~` (backtick).
+- RTS terrain-pin placement and a confirmed handoff into walk mode via `~` (backtick); press `~` again to return to the orbit camera.
 - Walk locomotion samples road deck height so you can traverse built roads and bridges on foot.
 
 ### Landscape & environment
@@ -383,6 +383,7 @@ Food is physical and keeps its identity throughout the economy: bakeries make br
 | Rotate camera | Middle-click drag or `Q` / `E` |
 | Zoom camera | Mouse wheel |
 | Choose / toggle walk mode | Backtick (`~`); in RTS, click terrain and confirm the placement pin |
+| Cancel walk placement | Right-click or click **Cancel** |
 | Move (walk mode) | `WASD` or arrow keys |
 | Sprint | `Shift` |
 | Jump | `Space` |

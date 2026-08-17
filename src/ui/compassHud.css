@@ -49,10 +49,6 @@
   stroke-linecap: round;
 }
 
-.fp-placement-cursor.is-locked {
-  color: #f0b54a;
-}
-
 .fp-placement-panel {
   position: fixed;
   left: 50%;

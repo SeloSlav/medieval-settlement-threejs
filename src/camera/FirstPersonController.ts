@@ -168,6 +168,10 @@ export class FirstPersonController {
     return this.placement?.isActive() ?? false;
   }
 
+  hasLockedPlacement(): boolean {
+    return this.placement?.hasLockedSelection() ?? false;
+  }
+
   isInteractionActive(): boolean {
     return this.active || this.isPlacementActive();
   }
@@ -496,7 +500,11 @@ export class FirstPersonController {
   }
 
   private requestPointerLock(): void {
-    void this.config.domElement.requestPointerLock();
+    if (document.pointerLockElement === this.config.domElement) return;
+    void this.config.domElement.requestPointerLock().catch(() => {
+      // Some browsers reject keyboard-triggered reacquisition. The next canvas
+      // click is still an explicit retry and first-person remains active.
+    });
   }
 
   private exitPointerLock(): void {
@@ -613,6 +621,11 @@ export class FirstPersonController {
   };
 
   private readonly onContextMenu = (event: Event): void => {
+    if (this.isPlacementActive()) {
+      event.preventDefault();
+      this.endPlacement();
+      return;
+    }
     if (!this.active) return;
     event.preventDefault();
   };

@@ -75,6 +75,10 @@ export class FirstPersonPlacement {
     return this.active;
   }
 
+  hasLockedSelection(): boolean {
+    return this.active && this.hasSelection;
+  }
+
   begin(): void {
     if (this.active) return;
     this.active = true;
@@ -82,7 +86,6 @@ export class FirstPersonPlacement {
     this.marker.visible = false;
     this.panel.hidden = false;
     this.cursor.hidden = false;
-    this.cursor.classList.remove('is-locked');
     this.confirmButton.disabled = true;
     this.status.textContent = 'Move over the land, then click to place your marker.';
   }
@@ -98,9 +101,13 @@ export class FirstPersonPlacement {
 
   handlePointerMove(event: PointerEvent): void {
     if (!this.active || this.config.isInputBlocked?.()) return;
+    if (this.hasSelection) {
+      this.cursor.hidden = true;
+      return;
+    }
+    this.cursor.hidden = false;
     this.cursor.style.left = `${event.clientX}px`;
     this.cursor.style.top = `${event.clientY}px`;
-    if (this.hasSelection) return;
     const hit = this.config.pickGround(event.clientX, event.clientY);
     if (hit) {
       this.hoverPoint.copy(hit);
@@ -119,7 +126,7 @@ export class FirstPersonPlacement {
     this.selectedPoint.copy(hit);
     this.hasSelection = true;
     this.setMarkerPoint(hit, true);
-    this.cursor.classList.add('is-locked');
+    this.cursor.hidden = true;
     this.confirmButton.disabled = false;
     this.status.textContent = 'Starting point selected. Click elsewhere to move it, or confirm.';
     return true;

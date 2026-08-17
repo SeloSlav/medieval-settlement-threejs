@@ -254,6 +254,14 @@
   color: var(--accent);
 }
 
+.fp-mode-panel.is-selecting {
+  border-color: rgba(240, 181, 74, 0.58);
+}
+
+.fp-mode-panel.is-selecting strong {
+  color: #f0b54a;
+}
+
 @media (max-width: 720px) {
   .hud-right-stack {
     top: 10px;

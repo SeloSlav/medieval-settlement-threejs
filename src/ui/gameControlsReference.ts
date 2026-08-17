@@ -43,6 +43,7 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
       { action: 'Zoom', keys: 'Scroll wheel' },
       { action: 'World map', keys: 'Hold G' },
       { action: 'Choose walk starting point', keys: '~' },
+      { action: 'Cancel walk placement', keys: 'Right-click / Cancel' },
     ],
   },
   {

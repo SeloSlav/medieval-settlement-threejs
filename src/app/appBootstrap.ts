@@ -377,7 +377,9 @@ export async function bootstrapAppSession(
     bounds: sceneManager.terrain.bounds,
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getCursorOverride: () => {
-      if (firstPersonController?.isPlacementActive()) return 'none';
+      if (firstPersonController?.isPlacementActive()) {
+        return firstPersonController.hasLockedPlacement() ? 'default' : 'none';
+      }
       if (firstPersonController?.isActive()) return 'default';
       return burgageTool?.getCursor()
         ?? farmFieldTool?.getCursor()
