@@ -44,6 +44,7 @@ import {
   createSeedThreeBucketMatrixWriteJob,
   createSeedThreeExactShadowLodSet,
   createSeedThreeStableColorSlotSelection,
+  createSeedThreeStableRtsShadowSlotSelection,
   configureSeedThreeForestPassMesh,
   partitionSeedThreeSelectionByStaticLod,
   runSeedThreeBucketMatrixWriteSlices,
@@ -924,7 +925,7 @@ export function updateSeedThreeForestCameraBudgeted(
   }
   if (selection.changed) {
     forest.updateTelemetry.selectionChanges += 1;
-    const desired = selectionsByBucket(forest, selection);
+    const desired = selectionsByBucket(forest, selection, firstPersonActive);
     forest.pendingLodWork = {
       desired,
       pendingBucketIndices: forest.pendingLodWork?.pendingBucketIndices ?? [],
@@ -978,10 +979,9 @@ export function updateSeedThreeForestCameraBudgeted(
       && interactionWork.deferWork;
     const discardCoveredInteractionWork = stabilizeInteractionBuffers
       && interactionWork.discardCoveredWork;
-    // Publish the first camera-sized resident set atomically before the forest
-    // reaches a render pass. Otherwise a wheel event can correctly retain the
-    // oversized startup buffers and leave every off-screen transition tree
-    // submitted for the rest of the session.
+    // Publish the first resolved resident set atomically before the forest
+    // reaches a render pass. First-person can begin with a spatial set, while
+    // RTS intentionally retains its complete stable caster residency.
     const completeInteractionWorkImmediately = initialSelection
       || (stabilizeInteractionBuffers && interactionWork.completeImmediately);
     coverageImmediate = initialSelection || interactionWork.completeImmediately;
@@ -1058,7 +1058,8 @@ export function updateSeedThreeForestCameraBudgeted(
                   bucket.nearSlotIndices,
                   desired.near,
                 );
-                // Camera updates may repack only the dedicated shadow set.
+                // First-person camera updates may repack only the dedicated
+                // shadow set. RTS uses stable caster identities.
                 // Stable color attributes are realigned only if gameplay
                 // visibility genuinely changes their own packed identities.
                 const realignColorAttributes = writeColor;
@@ -1209,21 +1210,29 @@ function selectionsByBucket(
     overviewIndices: readonly number[];
     viewIndices: readonly number[];
   },
+  firstPersonActive: boolean,
 ): PassPartitionedBucketSelection[] {
   const desired = forest.buckets.map((bucket) => {
     // Color trees are a stable world layer. Keeping every LOD2 instance
     // resident prevents camera pans, turns, zooms, and first-person movement
     // from changing the live color-buffer identities.
     const color = createSeedThreeStableColorSlotSelection(bucket.slots);
+    const rtsShadow = createSeedThreeStableRtsShadowSlotSelection(bucket.slots);
     return {
-      near: [] as number[],
-      overview: [] as number[],
+      // Strategic views keep the same committed tree caster identities across
+      // every pan and zoom. Replacing this packed list after navigation made
+      // the cached atlas visibly rebuild the entire forest shadow field.
+      // First-person retains the smaller spatial set where its continuous
+      // refresh policy already provides stable close shadow motion.
+      near: firstPersonActive ? [] : rtsShadow.near,
+      overview: firstPersonActive ? [] : rtsShadow.overview,
       viewNear: color.near,
       viewOverview: color.overview,
       nearViewSlotCount: color.near.length,
       overviewViewSlotCount: color.overview.length,
     };
   });
+  if (!firstPersonActive) return desired;
   const staticLodPartition = partitionSeedThreeSelectionByStaticLod(
     selection,
     (layoutIndex) => {

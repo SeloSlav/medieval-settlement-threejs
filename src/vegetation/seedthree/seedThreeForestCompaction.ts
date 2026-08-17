@@ -136,7 +136,7 @@ export type SeedThreeLayoutSlotMapping = {
   slotIndex: number;
 };
 
-/** Camera-independent color identities; only the shadow set is spatially culled. */
+/** Camera-independent color identities for the world-resident LOD2 layer. */
 export function createSeedThreeStableColorSlotSelection(
   slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview'>[],
 ): { near: number[]; overview: number[] } {
@@ -144,6 +144,13 @@ export function createSeedThreeStableColorSlotSelection(
   const overview = slots.flatMap((slot, slotIndex) =>
     slot.forceOverview ? [slotIndex] : []);
   return { near, overview };
+}
+
+/** Camera-independent caster identities used by the strategic shadow atlas. */
+export function createSeedThreeStableRtsShadowSlotSelection(
+  slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview'>[],
+): { near: number[]; overview: number[] } {
+  return createSeedThreeStableColorSlotSelection(slots);
 }
 
 type PassPartitionedInstancedMesh = THREE.InstancedMesh & {

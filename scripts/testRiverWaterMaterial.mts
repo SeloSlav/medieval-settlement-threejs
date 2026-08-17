@@ -321,12 +321,12 @@ const material = getSharedRiverWaterMaterial(shoreMaps);
 assert.equal(
   material.transmission,
   RIVER_WATER_TRANSMISSION,
-  'the restored water film must use the original high-transmission physical path',
+  'the water film must retain controlled physical transmission',
 );
-assert.equal(material.transmission, 0.88);
+assert.equal(material.transmission, 0.7);
 assert.equal(material.thickness, 0.65);
 assert.equal(material.attenuationDistance, RIVER_WATER_ATTENUATION_DISTANCE);
-assert.equal(material.attenuationDistance, 2.6);
+assert.equal(material.attenuationDistance, 1.9);
 assert.equal(
   RIVER_DEEP_BACKDROP_STABILITY,
   1,
@@ -533,7 +533,17 @@ assert.equal(
 assert.match(
   waterMaterialSource,
   /material\.transmission = RIVER_WATER_TRANSMISSION/,
-  'the original high-transmission physical path must remain enabled',
+  'the controlled-transmission physical path must remain enabled',
+);
+assert.match(
+  waterMaterialSource,
+  /const skyReturn = \(float\(0\.055\)/,
+  'strategic top-down views need a nonzero surface return so water cannot read as meadow',
+);
+assert.match(
+  waterMaterialSource,
+  /mix\(float\(0\.46\)[\s\S]*?float\(0\.68\)[\s\S]*?opticalDepthFactor/,
+  'the water volume must retain enough body opacity to separate it from terrain',
 );
 assert.match(
   waterMaterialSource,
@@ -544,8 +554,8 @@ assert.match(
 disposeSharedRiverWaterMaterial();
 const restoredMaterial = getSharedRiverWaterMaterial(shoreMaps);
 assert.equal(restoredMaterial.name, 'RiverWaterMaterial');
-assert.equal(restoredMaterial.transmission, 0.88);
-assert.equal(restoredMaterial.attenuationDistance, 2.6);
+assert.equal(restoredMaterial.transmission, 0.7);
+assert.equal(restoredMaterial.attenuationDistance, 1.9);
 assert.equal(restoredMaterial.roughness, 0.3);
 assert.ok(restoredMaterial.positionNode, 'the restored material must keep animated river motion');
 

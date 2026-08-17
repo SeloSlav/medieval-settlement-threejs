@@ -50,14 +50,14 @@ type ScalarUniform = TslNode & {
 const riverNightAmount = uniform(0) as ScalarUniform;
 const WATER_FOAM_COLOR = vec3(0.43, 0.61, 0.56) as TslNode;
 const MENISCUS_COLOR = vec3(0.46, 0.64, 0.59) as TslNode;
-const SHALLOW_WATER_TINT = vec3(0.145, 0.46, 0.44) as TslNode;
-const DEEP_WATER_TINT = vec3(0.055, 0.165, 0.14) as TslNode;
-const DEEP_WATER_LIGHT_TINT = vec3(0.085, 0.225, 0.195) as TslNode;
+const SHALLOW_WATER_TINT = vec3(0.07, 0.29, 0.32) as TslNode;
+const DEEP_WATER_TINT = vec3(0.025, 0.095, 0.115) as TslNode;
+const DEEP_WATER_LIGHT_TINT = vec3(0.045, 0.16, 0.19) as TslNode;
 const SHORE_LAP_MAX = 0.11;
 const SHORE_FOAM_MAX = 0.16;
 const FLOW_WAVE_HEIGHT = 0.048;
-export const RIVER_WATER_TRANSMISSION = 0.88;
-export const RIVER_WATER_ATTENUATION_DISTANCE = 2.6;
+export const RIVER_WATER_TRANSMISSION = 0.7;
+export const RIVER_WATER_ATTENUATION_DISTANCE = 1.9;
 export const RIVER_DEEP_BACKDROP_STABILITY = 1;
 export const RIVER_VISUAL_SHORE_EXPONENT = 3.8;
 export const RIVER_OPTICAL_SHORE_EXPONENT = 2;
@@ -231,10 +231,15 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   const tintedBody = mix(waterTint, flowHighlight, flowShimmer) as TslNode;
   const bodyColor = mix(tintedBody, WATER_FOAM_COLOR, foamStrength) as TslNode;
   const meniscusBody = mix(bodyColor, MENISCUS_COLOR, meniscus) as TslNode;
-  const skyReturn = (pow(
-    sub(float(1) as TslNode, viewDotUp) as TslNode,
-    float(0.95) as TslNode,
-  ) as TslNode).mul(float(RIVER_SKY_RETURN_STRENGTH) as TslNode) as TslNode;
+  // Keep a restrained normal-incidence sky signal. Pure Fresnel falloff made
+  // strategic top-down views show almost only the green terrain backdrop, so
+  // a valid river channel could read as a strip of meadow beneath fish icons.
+  const skyReturn = (float(0.055) as TslNode).add(
+    (pow(
+      sub(float(1) as TslNode, viewDotUp) as TslNode,
+      float(0.95) as TslNode,
+    ) as TslNode).mul(float(RIVER_SKY_RETURN_STRENGTH - 0.055) as TslNode) as TslNode,
+  ) as TslNode;
   const surfaceReturn = min(
     float(0.22) as TslNode,
     skyReturn.add(flowStructure.mul(float(0.05) as TslNode) as TslNode) as TslNode,
@@ -276,8 +281,8 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   ) as TslNode;
   const backdropNode = mix(sceneBehind, stableBackdropColor, backdropStability) as TslNode;
   const backdropAlphaNode = mix(
-    float(0.38) as TslNode,
-    float(0.82) as TslNode,
+    float(0.5) as TslNode,
+    float(0.86) as TslNode,
     opticalShallowFactor.mul(pow(viewDotUp, float(0.65) as TslNode) as TslNode) as TslNode,
   ) as TslNode;
 
@@ -298,12 +303,12 @@ function buildRiverWaterShaderNodes(shoreMaps: RiverWaterShoreMaps) {
   ) as TslNode;
 
   const animatedFeather = pow(featherSample, float(0.92) as TslNode) as TslNode;
-  const volumeOpacity = mix(float(0.36) as TslNode, float(0.56) as TslNode, opticalDepthFactor) as TslNode;
+  const volumeOpacity = mix(float(0.46) as TslNode, float(0.68) as TslNode, opticalDepthFactor) as TslNode;
   const surfaceFilm = opticalShallowFactor
-    .mul(float(0.12) as TslNode)
-    .add(opticalDepthFactor.mul(float(0.06) as TslNode) as TslNode) as TslNode;
+    .mul(float(0.15) as TslNode)
+    .add(opticalDepthFactor.mul(float(0.09) as TslNode) as TslNode) as TslNode;
   const opacityNode = animatedFeather.mul(
-    min(float(0.72) as TslNode, volumeOpacity.add(surfaceFilm) as TslNode) as TslNode,
+    min(float(0.82) as TslNode, volumeOpacity.add(surfaceFilm) as TslNode) as TslNode,
   ) as TslNode;
 
   return {

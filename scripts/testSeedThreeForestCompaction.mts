@@ -4,6 +4,7 @@ import {
   createSeedThreeBucketMatrixWriteJob,
   createSeedThreeExactShadowLodSet,
   createSeedThreeStableColorSlotSelection,
+  createSeedThreeStableRtsShadowSlotSelection,
   configureSeedThreeForestPassMesh,
   enabledSeedThreeTreeCountInPrefix,
   partitionSeedThreeSelectionByStaticLod,
@@ -196,6 +197,15 @@ assert.deepEqual(
   ]),
   { near: [0, 1, 2], overview: [1] },
   'camera-independent color selection must retain every tree and preserve authored overview cards',
+);
+assert.deepEqual(
+  createSeedThreeStableRtsShadowSlotSelection([
+    {},
+    { forceOverview: true },
+    {},
+  ]),
+  { near: [0, 1, 2], overview: [1] },
+  'strategic shadow residency must be independent of camera selection',
 );
 
 const exactParityJob = createSeedThreeBucketMatrixWriteJob(

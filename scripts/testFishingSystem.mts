@@ -31,7 +31,12 @@ import { claimResidencesForFoodSuppliers } from '../src/logistics/roadLogistics.
 import { FISH_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
-import { DEFAULT_WORLD_GENERATION_SETTINGS } from '../src/world/worldGenerationSettings.ts';
+import { RiverField } from '../src/rivers/RiverField.ts';
+import { fullTerrainBounds } from '../src/terrain/terrainBounds.ts';
+import {
+  DEFAULT_WORLD_GENERATION_SETTINGS,
+  resolveWorldDimensions,
+} from '../src/world/worldGenerationSettings.ts';
 import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
 import {
   RESOURCE_KINDS,
@@ -62,6 +67,41 @@ assert.ok(
   fish.find((node) => node.isRich)!.maxYield
     > fish.find((node) => !node.isRich)!.maxYield,
   'rich shoal should advertise the larger yield class',
+);
+
+// Regression for the Risnjak world reported as a "shoal on land". The node
+// is a river fishery, so keep its authoritative coordinate inside the exact
+// rendered-water topology used by visuals and building placement.
+const reportedSettings = {
+  ...DEFAULT_WORLD_GENERATION_SETTINGS,
+  seed: 1_901_735_437,
+  mapSize: 'medium' as const,
+  topography: 92,
+  hydrology: 46,
+  forestDensity: 84,
+  resourceAbundance: 50,
+  resourceVariety: 50,
+};
+const reportedLayout = createWorldLayout(reportedSettings);
+const reportedDimensions = resolveWorldDimensions(reportedSettings.mapSize);
+const reportedRiverField = RiverField.fromLayout({
+  bounds: fullTerrainBounds(reportedDimensions.terrainSize),
+  layout: reportedLayout.riverLayout,
+});
+const reportedRichShoal = reportedLayout.foragingLayout.sites.find(
+  (site) => site.kind === 'fish' && site.isRich === true,
+);
+assert.ok(reportedRichShoal, 'the reported Risnjak world must retain its rich shoal');
+assert.equal(reportedLayout.settings.terrainPreset, 'risnjak_pass');
+assert.equal(
+  reportedRiverField.isRenderedWetAt(reportedRichShoal.x, reportedRichShoal.z),
+  true,
+  'the reported rich shoal must remain inside final rendered river water',
+);
+assert.equal(
+  reportedLayout.riverLayout.isInlandWaterAt(reportedRichShoal.x, reportedRichShoal.z),
+  false,
+  'the reported rich shoal belongs to a river, not a hidden pond or lake',
 );
 
 assert.ok(RESOURCE_KINDS.includes('fish'));
