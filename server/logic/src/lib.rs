@@ -120,6 +120,9 @@ pub mod burgage;
 #[path = "../../src/farming.rs"]
 pub mod farming;
 
+#[path = "../../src/farm_work_policy.rs"]
+pub mod farm_work_policy;
+
 #[path = "../../src/vineyard.rs"]
 pub mod vineyard;
 

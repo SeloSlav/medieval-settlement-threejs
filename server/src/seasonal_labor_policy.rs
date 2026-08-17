@@ -33,14 +33,14 @@ pub fn is_seasonal_labor_kind(kind: &str) -> bool {
 pub fn seasonal_production_active(
     kind: &str,
     month: u32,
-    farm_field_work_active: bool,
+    farmstead_work_active: bool,
 ) -> Option<bool> {
     match kind {
         "foragers_shed" => {
             Some(harvest_available("berries", month) || harvest_available("mushrooms", month))
         }
         "fishing_camp" => Some(harvest_available("fish", month)),
-        "threshing_barn" => Some(farm_field_work_active),
+        "threshing_barn" => Some(farmstead_work_active),
         "apiary" => Some(apiary_is_active(month as u8)),
         "watermill" => Some(!matches!(month, 12 | 1 | 2)),
         "vineyard" => Some(vineyard_is_harvesting(month as u8)),
@@ -55,9 +55,9 @@ pub fn seasonal_labor_target(
     month: u32,
     assigned_labor: u32,
     _has_dispatch_duty: bool,
-    farm_field_work_active: bool,
+    farmstead_work_active: bool,
 ) -> Option<u32> {
-    let active = seasonal_production_active(kind, month, farm_field_work_active)?;
+    let active = seasonal_production_active(kind, month, farmstead_work_active)?;
     if active {
         return Some(assigned_labor);
     }

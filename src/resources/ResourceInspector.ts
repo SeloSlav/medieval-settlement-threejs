@@ -258,6 +258,7 @@ type ResourceInspectorOptions = {
     crop: FarmCrop | null,
   ) => void | Promise<void>;
   onSetFarmFieldPriority?: (fieldId: string, priority: number) => void | Promise<void>;
+  onSetThreshingPriority?: (buildingId: string, priority: number) => void | Promise<void>;
   onStartFarmFieldEarlyHarvest?: (fieldId: string) => void | Promise<void>;
   onDemolishPasture?: (pastureId: string) => void | Promise<void>;
   onDemolishGraveyard?: (graveyardId: string) => void | Promise<void>;
@@ -813,6 +814,16 @@ export class ResourceInspector {
     }
     if (this.selectedTarget?.kind === 'building') {
       const building = this.selectedTarget.building;
+      const threshingPriority = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-threshing-priority]')
+        ?.dataset.threshingPriority;
+      if (threshingPriority != null && building.kind === 'threshing_barn') {
+        void this.options.onSetThreshingPriority?.(
+          building.id,
+          Number(threshingPriority),
+        );
+        return;
+      }
       if ((event.target as HTMLElement).closest('[data-begin-remote-work-camp]')) {
         this.options.onBeginRemoteWorkCampPlacement?.(building.id);
         return;

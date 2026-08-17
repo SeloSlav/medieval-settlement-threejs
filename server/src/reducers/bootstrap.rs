@@ -342,6 +342,7 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         rye_bread: resources.rye_bread.max(0.0),
         oat_bread: resources.oat_bread.max(0.0),
         maslin_bread: resources.maslin_bread.max(0.0),
+        threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
     });
 
     resources.timber = 0.0;

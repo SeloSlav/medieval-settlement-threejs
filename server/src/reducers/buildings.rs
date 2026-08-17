@@ -30,6 +30,7 @@ use crate::frontier_economy_policy::{
     is_valid_guardhouse_pay_priority, CARPENTER_POLEARM_RESERVE_DEFAULT,
     GUARDHOUSE_FOOD_RESERVE_STANDARD, GUARDHOUSE_PAY_PRIORITY_NORMAL,
 };
+use crate::farm_work_policy::is_valid_threshing_priority;
 use crate::granary_policy::{
     is_valid_granary_fresh_food_target_percent, normalize_granary_grain_reserve,
     GRANARY_FRESH_FOOD_TARGET_DEFAULT_PERCENT,
@@ -901,6 +902,7 @@ pub(crate) fn place_building_internal(
         rye_bread: 0.0,
         oat_bread: 0.0,
         maslin_bread: 0.0,
+        threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1872,6 +1874,33 @@ pub fn set_processor_output_target(
         return Err("You do not own this completed production site.".to_string());
     }
     building.processor_output_target_percent = target_percent;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_threshing_priority(
+    ctx: &ReducerContext,
+    building_id: u64,
+    priority: u8,
+) -> Result<(), String> {
+    if !is_valid_threshing_priority(priority) {
+        return Err("Threshing priority must be Low, Auto, or High.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Farmstead not found.".to_string())?;
+    if building.owner != owner
+        || building.kind != "threshing_barn"
+        || !building.construction_complete
+    {
+        return Err("You do not own this completed farmstead.".to_string());
+    }
+    building.threshing_priority = priority;
     ctx.db.building().id().update(building);
     Ok(())
 }

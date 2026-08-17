@@ -769,6 +769,10 @@ pub struct Building {
     pub oat_bread: f64,
     #[default(0.0)]
     pub maslin_bread: f64,
+    /// Farmstead work focus: 1 = fields first, 2 = demand-aware automatic,
+    /// 3 = threshing before every non-harvest field job.
+    #[default(2u8)]
+    pub threshing_priority: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

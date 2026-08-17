@@ -114,6 +114,24 @@ assert.equal(
   'spring oats should keep their active field crew',
 );
 
+const winterThreshingState = emptyGameState();
+const winterThreshingFarm = building('winter-threshing', 'threshing_barn', 4);
+winterThreshingFarm.ryeSheaves = 12;
+winterThreshingState.buildings.set(winterThreshingFarm.id, winterThreshingFarm);
+assert.equal(
+  computeSettlementSeasonalLaborPlan(winterThreshingState, 1).reclaimableWorkers,
+  0,
+  'stored sheaves should keep the winter threshing crew active',
+);
+winterThreshingFarm.assignedLabor = 0;
+const winterThreshingCallup = computeSettlementSeasonalCallupPlan(
+  winterThreshingState,
+  1,
+  2,
+);
+assert.equal(winterThreshingCallup.callupWorkers, 2);
+assert.equal(winterThreshingCallup.assignments[0]?.buildingId, winterThreshingFarm.id);
+
 const callupState = emptyGameState();
 const highForager = building('10', 'foragers_shed', 0);
 highForager.constructionPriority = 3;

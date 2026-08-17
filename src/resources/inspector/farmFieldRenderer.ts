@@ -227,7 +227,7 @@ export function renderFarmFieldInspector(
       </div>
     </div>`;
   const priorityControls = `<div class="inspector-action-panel">
-      <p class="resource-inspector-note">Field-work priority — each farm handles its own active fields; High and Urgent also enter every nearby farmstead crew’s queue. Priority, seasonal urgency, linked-field ties, then field age decide the order.</p>
+      <p class="resource-inspector-note">Field-work priority — each farm handles its own active fields; High and Urgent also enter every nearby farmstead crew’s queue. A ready harvest always comes first; other jobs use priority, stage urgency, linked-field ties, then field age. Each farmstead also inserts its own threshing job into this shared queue.</p>
       <div class="resource-action-row">${[0, 1, 2, 3].map((priority) => `<button type="button" class="resource-action-button" data-field-priority="${priority}" ${priority === field.priority ? 'disabled' : ''}>${PRIORITY_LABEL[priority]}</button>`).join('')}</div>
     </div>`;
   const earlyHarvestControls = field.stage === 'growing' && cropProduce(field.crop) !== 'none'
@@ -254,7 +254,7 @@ export function renderFarmFieldInspector(
       <li><span>Three-year rotation</span><span>${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(thirdCrop)}${cyclicRotation ? ` → ${cropLabel(field.crop)}` : ' · Year 3 repeats until scheduled'}</span></li>
       <li><span>Crop calendar</span><span>${cropCalendarLabel(field.crop)}</span></li>
       <li><span>Priority</span><span>${PRIORITY_LABEL[field.priority] ?? 'Normal'}</span></li>
-      <li><span>Available field crews</span><span>${availableFieldLabor} workers across ${eligibleFarmsteads.length} farmstead${eligibleFarmsteads.length === 1 ? '' : 's'}${assistingFarmsteads.length > 0 ? ` · ${assistingFarmsteads.length} neighboring crew${assistingFarmsteads.length === 1 ? '' : 's'} may assist` : field.priority < 2 ? ' · set High or Urgent to request nearby help' : ' · no neighboring farmstead in range'}</span></li>
+      <li><span>Available field crews</span><span>${availableFieldLabor} workers across ${eligibleFarmsteads.length} farmstead${eligibleFarmsteads.length === 1 ? '' : 's'}${assistingFarmsteads.length > 0 ? ` · ${assistingFarmsteads.length} neighboring crew${assistingFarmsteads.length === 1 ? '' : 's'} may assist` : field.priority < 2 ? ' · set High or Urgent to request nearby help' : ' · no neighboring farmstead in range'} · higher queued field or threshing work may claim them first</span></li>
       <li><span>Ox support</span><span>${cattleSupport
         ? `Active from nearby cattle · ${Math.round((1 - cattleSupport.ploughWorkMultiplier) * 100)}% less ploughing`
         : 'None · requires a top-two priority slot and healthy, supplied cattle within range'}</span></li>
@@ -275,7 +275,7 @@ export function renderFarmFieldInspector(
       <li><span>Next-crop potential</span><span>${cropProduce(field.nextCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${plannedYield.toFixed(1)} ${cropHarvestUnit(field.nextCrop)} at current moisture · ${plannedSeed.toFixed(1)} seed`}</span></li>
       <li><span>Year 3 potential</span><span>${cropProduce(thirdCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${yearThreeYield.toFixed(1)} ${cropHarvestUnit(thirdCrop)} at current moisture · ${yearThreeSeed.toFixed(1)} seed`}</span></li>
       <li><span>Protected seed</span><span>${seedRemaining <= 1e-6 ? 'None' : `${seedRemaining.toFixed(1)} grain · ${field.stage === 'ploughing' || field.stage === 'sowing' ? cropLabel(field.crop) : cropLabel(field.nextCrop)}`}</span></li>
-      ${field.stage === 'growing' ? '' : `<li><span>Work remaining</span><span>${remainingWorkerDays.toFixed(1)} worker-days${crewDays == null ? ' · assign a crew' : ` · ${crewDays.toFixed(1)} days for this crew`}</span></li>`}
+      ${field.stage === 'growing' ? '' : `<li><span>Work remaining</span><span>${remainingWorkerDays.toFixed(1)} worker-days${crewDays == null ? ' · assign a crew' : ` · about ${crewDays.toFixed(1)} days once this job reaches the front of the shared queue`}</span></li>`}
       ${field.stage === 'harvesting' ? `<li><span>Brought in</span><span>${field.currentYield.toFixed(1)} / ${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)}</span></li>` : ''}
       <li><span>Last harvest</span><span>${field.harvestCount === 0 ? 'None yet' : `${field.lastYield.toFixed(1)} yield units · ${field.harvestCount} total`}</span></li>
     `,

@@ -68,6 +68,9 @@ use crate::frontier_economy_policy::{
     CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
+use crate::farm_work_policy::{
+    field_task_rank, threshing_preempts_fields,
+};
 use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
 use crate::hydrology::{clay_bank_yield_multiplier_with_richness, sample_world_hydrology_score};
 use crate::livestock_policy::{
@@ -433,7 +436,7 @@ pub fn step_threshing_barn(
         .collect();
     let work_allowed = !labor_and_logistics_paused(ctx, tick, building.owner, clock);
     let onsite_labor = onsite_building_labor(ctx, &building);
-    let seed_reserves = step_farmstead_fields(
+    let farm_work = step_farmstead_fields(
         ctx,
         tick,
         &mut building,
@@ -447,15 +450,22 @@ pub fn step_threshing_barn(
         ctx,
         building.owner,
         building.id,
-        seed_reserves.bread_grain_total(),
+        farm_work.seed_reserves.bread_grain_total(),
     );
     tick.set_farmstead_barley_seed_reserve(
         ctx,
         building.owner,
         building.id,
-        seed_reserves.barley,
+        farm_work.seed_reserves.barley,
     );
-    building = step_farmstead_threshing(ctx, tick, clock, building);
+    building = step_farmstead_threshing(
+        ctx,
+        tick,
+        clock,
+        building,
+        farm_work.seed_reserves,
+        farm_work.threshing_labor,
+    );
     if !labor_and_logistics_paused(ctx, tick, building.owner, clock) {
         dispatch_to_building(
             ctx,
@@ -465,8 +475,8 @@ pub fn step_threshing_barn(
             CommodityKind::Flax,
             &["weaver", "granary"],
         );
-        dispatch_farmstead_typed_grain(ctx, tick, clock, &mut building, seed_reserves);
-        dispatch_farmstead_barley(ctx, tick, clock, &mut building, seed_reserves.barley);
+        dispatch_farmstead_typed_grain(ctx, tick, clock, &mut building, farm_work.seed_reserves);
+        dispatch_farmstead_barley(ctx, tick, clock, &mut building, farm_work.seed_reserves.barley);
     }
     ctx.db.building().id().update(building);
 }
@@ -603,7 +613,12 @@ fn step_farmstead_threshing(
     tick: &SimTickContext,
     clock: &GameClock,
     building: Building,
+    seed_reserves: FarmSeedReserves,
+    threshing_labor: u32,
 ) -> Building {
+    if threshing_labor == 0 {
+        return building;
+    }
     let mut recipes = [
         (CommodityKind::RyeSheaves, CommodityKind::RyeGrain),
         (CommodityKind::OatSheaves, CommodityKind::OatGrain),
@@ -611,9 +626,23 @@ fn step_farmstead_threshing(
         (CommodityKind::MaslinSheaves, CommodityKind::MaslinGrain),
     ];
     recipes.sort_by(|(left_input, _), (right_input, _)| {
-        building_commodity_stock(&building, *right_input)
-            .partial_cmp(&building_commodity_stock(&building, *left_input))
-            .unwrap_or(std::cmp::Ordering::Equal)
+        let score = |input: CommodityKind, output: CommodityKind| {
+            let stock = building_commodity_stock(&building, output);
+            let reserve = seed_reserves.for_commodity(output);
+            (
+                (stock + 1e-6 < reserve) as u8,
+                (farmstead_exportable_grain(stock, reserve) + 1e-6 < GRAIN_TRANSFER_PER_TRIP)
+                    as u8,
+                building_commodity_stock(&building, input),
+            )
+        };
+        let left = score(*left_input, crop_grain_for_sheaves(*left_input));
+        let right = score(*right_input, crop_grain_for_sheaves(*right_input));
+        right
+            .0
+            .cmp(&left.0)
+            .then_with(|| right.1.cmp(&left.1))
+            .then_with(|| right.2.total_cmp(&left.2))
     });
     let Some((sheaves, grain)) = recipes.into_iter().find(|(input, output)| {
         building_commodity_stock(&building, *input) > 1e-6
@@ -621,14 +650,58 @@ fn step_farmstead_threshing(
     }) else {
         return building;
     };
-    step_processor(
+    step_processor_with_labor(
         ctx,
         tick,
         clock,
         building,
         &[(sheaves, THRESHING_SHEAVES_PER_CYCLE)],
         &[(grain, THRESHING_GRAIN_PER_CYCLE)],
+        threshing_labor,
     )
+}
+
+fn crop_grain_for_sheaves(sheaves: CommodityKind) -> CommodityKind {
+    match sheaves {
+        CommodityKind::RyeSheaves => CommodityKind::RyeGrain,
+        CommodityKind::OatSheaves => CommodityKind::OatGrain,
+        CommodityKind::BarleySheaves => CommodityKind::Barley,
+        CommodityKind::MaslinSheaves => CommodityKind::MaslinGrain,
+        _ => CommodityKind::RyeGrain,
+    }
+}
+
+fn threshing_work_available(building: &Building) -> bool {
+    [
+        CommodityKind::RyeSheaves,
+        CommodityKind::OatSheaves,
+        CommodityKind::BarleySheaves,
+        CommodityKind::MaslinSheaves,
+    ]
+    .into_iter()
+    .any(|sheaves| {
+        building_commodity_stock(building, sheaves) > 1e-6
+            && building_commodity_room(building, crop_grain_for_sheaves(sheaves)) > 1e-6
+    })
+}
+
+fn threshing_work_demanded(building: &Building, seed_reserves: FarmSeedReserves) -> bool {
+    [
+        CommodityKind::RyeSheaves,
+        CommodityKind::OatSheaves,
+        CommodityKind::BarleySheaves,
+        CommodityKind::MaslinSheaves,
+    ]
+    .into_iter()
+    .any(|sheaves| {
+        let grain = crop_grain_for_sheaves(sheaves);
+        let stock = building_commodity_stock(building, grain);
+        let reserve = seed_reserves.for_commodity(grain);
+        building_commodity_stock(building, sheaves) > 1e-6
+            && building_commodity_room(building, grain) > 1e-6
+            && (stock + 1e-6 < reserve
+                || farmstead_exportable_grain(stock, reserve) + 1e-6 < GRAIN_TRANSFER_PER_TRIP)
+    })
 }
 
 pub fn step_watermill(
@@ -1805,6 +1878,28 @@ fn apply_farm_field_work(
     spent
 }
 
+fn field_work_is_ready(field: &FarmField, resource_farmstead: &Building) -> bool {
+    match field.stage {
+        STAGE_SOWING => {
+            building_commodity_stock(resource_farmstead, crop_seed_commodity(field.crop)) > 1e-6
+        }
+        STAGE_HARVESTING => crop_sheaf_commodity(field.crop)
+            .is_some_and(|commodity| building_commodity_room(resource_farmstead, commodity) > 1e-6)
+            || field.crop == CROP_BARLEY
+                && building_commodity_room(resource_farmstead, CommodityKind::BarleySheaves)
+                    > 1e-6
+            || field.crop == CROP_FLAX
+                && building_commodity_room(resource_farmstead, CommodityKind::Flax) > 1e-6,
+        _ => true,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct FarmsteadWorkResult {
+    seed_reserves: FarmSeedReserves,
+    threshing_labor: u32,
+}
+
 fn step_farmstead_fields(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1814,7 +1909,7 @@ fn step_farmstead_fields(
     work_allowed: bool,
     onsite_labor: u32,
     mut fields: Vec<FarmField>,
-) -> FarmSeedReserves {
+) -> FarmsteadWorkResult {
     // Rain and drought persistently change soil moisture, which later affects yield.
     for field in &mut fields {
         let moisture_change_per_day = match environment.weather {
@@ -1906,16 +2001,65 @@ fn step_farmstead_fields(
         })
         .collect();
 
+    let initial_linked_fields: Vec<FarmField> = work_fields
+        .iter()
+        .filter(|field| field.farmstead_id == worker_farmstead_id)
+        .cloned()
+        .collect();
+    let initial_seed_reserves = farmstead_seed_grain_remaining(&initial_linked_fields);
+    let mut highest_ready_field_rank = 0_u8;
+    for field in &work_fields {
+        if field.stage == STAGE_GROWING
+            || field.priority == 0
+            || !field_work_allowed(field.stage, field.crop, clock.month)
+        {
+            continue;
+        }
+        let ready = if field.farmstead_id == worker_farmstead_id {
+            field_work_is_ready(field, farmstead)
+        } else {
+            ctx.db
+                .building()
+                .id()
+                .find(&field.farmstead_id)
+                .is_some_and(|resource_farmstead| {
+                    field_work_is_ready(field, &resource_farmstead)
+                })
+        };
+        if ready {
+            highest_ready_field_rank = highest_ready_field_rank.max(field_task_rank(
+                field.priority,
+                field.stage == STAGE_HARVESTING,
+            ));
+        }
+    }
+    let threshing_available = threshing_work_available(farmstead);
+    let threshing_demanded = threshing_work_demanded(farmstead, initial_seed_reserves);
+    let threshing_labor = if work_allowed
+        && onsite_labor > 0
+        && threshing_available
+        && threshing_preempts_fields(
+            farmstead.threshing_priority,
+            threshing_demanded,
+            highest_ready_field_rank,
+        )
+    {
+        onsite_labor
+    } else {
+        0
+    };
+
     let farm_tools_ready = farm_tools_maintained(farmstead.ironwork);
     let farm_tool_throughput = farm_tool_throughput_multiplier(farmstead.ironwork);
-    let mut work_budget = if work_allowed {
+    let mut work_budget = if work_allowed && threshing_labor == 0 {
         onsite_labor as f64 * FARM_WORK_METERS_PER_WORKER_PER_SEC * TICK_DT * farm_tool_throughput
     } else {
         0.0
     };
     work_fields.sort_by(|a, b| {
-        b.priority
-            .cmp(&a.priority)
+        field_task_rank(b.priority, b.stage == STAGE_HARVESTING)
+            .cmp(&field_task_rank(a.priority, a.stage == STAGE_HARVESTING))
+            .then_with(|| b.priority.cmp(&a.priority))
             .then_with(|| stage_urgency(b.stage).cmp(&stage_urgency(a.stage)))
             .then_with(|| {
                 let a_is_linked = a.farmstead_id == worker_farmstead_id;
@@ -1984,7 +2128,10 @@ fn step_farmstead_fields(
     for field in work_fields {
         ctx.db.farm_field().id().update(field);
     }
-    seed_reserves
+    FarmsteadWorkResult {
+        seed_reserves,
+        threshing_labor,
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -3020,6 +3167,41 @@ fn step_processor(
     outputs: &[(CommodityKind, f64)],
 ) -> Building {
     step_processor_at_rate(ctx, tick, clock, building, inputs, outputs, 1.0)
+}
+
+fn step_processor_with_labor(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    mut building: Building,
+    inputs: &[(CommodityKind, f64)],
+    outputs: &[(CommodityKind, f64)],
+    assigned_labor: u32,
+) -> Building {
+    if assigned_labor == 0
+        || crate::simulation::production_labor_paused(ctx, tick, &building, clock)
+    {
+        return building;
+    }
+    let productive_labor =
+        crate::simulation::commute_adjusted_labor(ctx, tick, &building, assigned_labor);
+    if productive_labor <= 1e-9 {
+        return building;
+    }
+    building.action_cooldown = (building.action_cooldown - TICK_DT).max(0.0);
+    if building.action_cooldown > 1e-6 {
+        return building;
+    }
+    let output_target_percent = building.processor_output_target_percent;
+    process_batch(
+        &mut building,
+        inputs,
+        outputs,
+        1.0,
+        Some(output_target_percent),
+    );
+    reset_cycle(&mut building, productive_labor);
+    building
 }
 
 fn step_processor_at_rate(

@@ -158,6 +158,8 @@ export type BuildingState = {
   storehouseClayTargetPercent?: number;
   storehouseSaltTargetPercent?: number;
   processorOutputTargetPercent?: number;
+  /** 1 fields first, 2 demand-aware automatic, 3 thresh before non-harvest fieldwork. */
+  threshingPriority?: number;
   /** 0 auto, 1 wool first, 2 flax first; meaningful only for weavers. */
   weaverInputPolicy?: number;
   /** 0 storehouse market wares first, 1 preservation vessels first; potter kilns only. */

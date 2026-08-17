@@ -107,6 +107,11 @@ import {
   farmsteadSeedGrainRequired,
   type SeasonalWorkPlan,
 } from '../../farming/farmWorkPlanning.ts';
+import {
+  normalizeThreshingPriority,
+  THRESHING_PRIORITY_PRESETS,
+  threshingPriorityLabel,
+} from '../../farming/threshingPriority.ts';
 import { cropLabel } from '../../farming/farmFieldMath.ts';
 import {
   seedGrainSourceCoveragePlan,
@@ -171,6 +176,7 @@ import {
   breadGrainStock,
   breadStock,
   flourStock,
+  grainSheafStock,
   type BreadGrainKind,
   type FlourKind,
 } from '../../economy/cropGoods.ts';
@@ -1371,7 +1377,7 @@ export function renderExpandedBuildingInspector(
   const buildingPolicyPanelHtml = building.kind === 'monastery'
     ? renderMonasteryPolicyPanel(context)
     : building.kind === 'threshing_barn'
-      ? renderFarmsteadFieldPanel()
+      ? renderFarmsteadFieldPanel(building)
       : building.kind === 'granary'
         ? renderGranaryPolicyPanel(building)
         : building.kind === 'carpenter'
@@ -1458,6 +1464,8 @@ function renderFarmsteadPlanning(
   );
   const storageCaps = buildingStorageCaps(building.kind);
   const onsiteSeedGrain = breadGrainStock(building);
+  const threshingBacklog = grainSheafStock(building);
+  const threshingPriority = normalizeThreshingPriority(building.threshingPriority);
   const grainRoom = Math.max(0, (storageCaps.grain ?? 0) - breadGrainBulkStock(building));
   const barley = Math.max(0, building.barley ?? 0);
   const barleyRoom = Math.max(0, (storageCaps.barley ?? 0) - barley);
@@ -1538,6 +1546,8 @@ function renderFarmsteadPlanning(
     `;
   const rows = `
     <li><span>Linked fields</span><span>${plan.activeFields} active${plan.pausedFields > 0 ? ` · ${plan.pausedFields} paused` : ''}</span></li>
+    <li><span>Threshing queue</span><span>${threshingBacklog.toFixed(1)} sheaves waiting · ${threshingPriorityLabel(threshingPriority)}</span></li>
+    <li><span>Shared farm labor</span><span>One ${onsiteLabor}-worker budget · harvesting always first · field and threshing work never double-count the crew</span></li>
     <li><span>Crew-sharing queue</span><span>${sharedPriorityFields.length > 0 ? `${sharedPriorityFields.length} nearby High/Urgent field${sharedPriorityFields.length === 1 ? '' : 's'} may claim this crew ahead of lower-priority linked work` : 'No neighboring High/Urgent fields requesting help'} · seed, manure, and harvest remain at each field’s linked farm</span></li>
     <li><span>Ox-supported fields</span><span>${plan.cattleSupportedFields} / ${plan.activeFields} active · labor forecast includes faster ploughing</span></li>
     ${rotationRows}
@@ -1561,8 +1571,23 @@ function renderFarmsteadPlanning(
     <li><span>Grain policy</span><span>Linked-field seed · processor work priority · lowest cycle runway · granary · overflow</span></li>
   `;
 
+  if (onsiteLabor <= 0 && threshingBacklog > 1e-6) {
+    return {
+      rows,
+      statusText: building.assignedLabor > 0
+        ? 'Threshing paused — the farm crew is away with its cart'
+        : 'Sheaves waiting — assign a farm crew',
+      statusState: 'warning',
+    };
+  }
+  if (fields.length === 0 && threshingBacklog > 1e-6) {
+    return { rows, statusText: 'Threshing stored sheaves', statusState: 'active' };
+  }
   if (fields.length === 0) {
     return { rows, statusText: 'No fields laid out', statusState: 'idle' };
+  }
+  if (plan.activeFields === 0 && threshingBacklog > 1e-6) {
+    return { rows, statusText: 'Fields paused — threshing stored sheaves', statusState: 'active' };
   }
   if (plan.activeFields === 0) {
     return { rows, statusText: 'All linked fields are paused', statusState: 'idle' };
@@ -1745,10 +1770,16 @@ function renderCarpenterPolicyPanel(
   `;
 }
 
-function renderFarmsteadFieldPanel(): string {
+function renderFarmsteadFieldPanel(building: BuildingState): string {
+  const threshingPriority = normalizeThreshingPriority(building.threshingPriority);
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Lay out cultivated land for this farmstead. Its crew will exclusively plough, sow, tend, and harvest the linked fields.</p>
+      <p class="resource-inspector-note">Threshing priority — the same onsite crew works fields and converts stored sheaves into typed grain. A ready harvest always pre-empts threshing.</p>
+      <div class="resource-action-row">${THRESHING_PRIORITY_PRESETS
+        .map((preset) => `<button type="button" class="resource-action-button" data-threshing-priority="${preset.priority}" title="${preset.hint}" ${threshingPriority === preset.priority ? 'disabled' : ''}>${preset.label}</button>`)
+        .join('')}</div>
+      <p class="inspector-action-panel__hint">Automatic restores linked-field seed and one dispatch load after High/Urgent fieldwork but before Normal fieldwork. Fields first leaves threshing until field jobs are quiet; Thresh first pre-empts every non-harvest field job.</p>
+      <p class="inspector-action-panel__hint">Lay out cultivated land for this farmstead. Linked fields always enter its queue; nearby High/Urgent fields may also request this crew when they fall inside its work radius.</p>
       <div class="resource-action-row">
         <button type="button" class="resource-action-button" data-land-parcel="field">Lay out farm field</button>
       </div>

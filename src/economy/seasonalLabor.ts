@@ -84,7 +84,7 @@ export function isSeasonalLaborKind(kind: BuildingKind): kind is SeasonalLaborKi
 export function seasonalProductionActive(
   kind: BuildingKind,
   month: number,
-  farmFieldWorkActive = false,
+  farmsteadWorkActive = false,
 ): boolean | null {
   switch (kind) {
     case 'foragers_shed':
@@ -93,7 +93,7 @@ export function seasonalProductionActive(
     case 'fishing_camp':
       return isForagingHarvestAvailable('fish', month);
     case 'threshing_barn':
-      return farmFieldWorkActive;
+      return farmsteadWorkActive;
     case 'apiary':
       return apiaryIsActive(month);
     case 'watermill':
@@ -110,9 +110,9 @@ export function seasonalLaborTarget(
   month: number,
   assignedLabor: number,
   _hasDispatchDuty: boolean,
-  farmFieldWorkActive = false,
+  farmsteadWorkActive = false,
 ): number | null {
-  const active = seasonalProductionActive(kind, month, farmFieldWorkActive);
+  const active = seasonalProductionActive(kind, month, farmsteadWorkActive);
   if (active === null) return null;
   const assigned = Math.max(0, Math.floor(assignedLabor));
   if (active) return assigned;
@@ -124,6 +124,15 @@ function farmFieldWorkActive(fields: readonly FarmFieldState[], month: number): 
     field.priority > 0
     && fieldStageAllowed(field, month)
     && currentFieldWorkRemaining(field) > 1e-9);
+}
+
+function farmsteadWorkActive(
+  building: BuildingState,
+  fields: readonly FarmFieldState[],
+  month: number,
+): boolean {
+  return farmFieldWorkActive(fields, month)
+    || (building.kind === 'threshing_barn' && grainSheafStock(building) > 1e-6);
 }
 
 function hasOutboundSeasonalStock(
@@ -207,9 +216,9 @@ export function computeSettlementSeasonalLaborPlan(
       continue;
     }
     const fields = fieldsByFarmstead.get(building.id) ?? [];
-    const fieldWorkActive = building.kind === 'threshing_barn'
-      && farmFieldWorkActive(fields, month);
-    if (seasonalProductionActive(building.kind, month, fieldWorkActive) !== false) {
+    const activeFarmWork = building.kind === 'threshing_barn'
+      && farmsteadWorkActive(building, fields, month);
+    if (seasonalProductionActive(building.kind, month, activeFarmWork) !== false) {
       continue;
     }
     dormantSites += 1;
@@ -220,7 +229,7 @@ export function computeSettlementSeasonalLaborPlan(
       month,
       building.assignedLabor,
       hasDispatchDuty,
-      fieldWorkActive,
+      activeFarmWork,
     );
     if (targetLabor === null || targetLabor >= building.assignedLabor) continue;
 
@@ -285,9 +294,9 @@ export function computeSettlementSeasonalCallupPlan(
       continue;
     }
     const fields = fieldsByFarmstead.get(building.id) ?? [];
-    const fieldWorkActive = building.kind === 'threshing_barn'
-      && farmFieldWorkActive(fields, month);
-    if (seasonalProductionActive(building.kind, month, fieldWorkActive) !== true) {
+    const activeFarmWork = building.kind === 'threshing_barn'
+      && farmsteadWorkActive(building, fields, month);
+    if (seasonalProductionActive(building.kind, month, activeFarmWork) !== true) {
       continue;
     }
     activeSites += 1;

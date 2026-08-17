@@ -134,6 +134,7 @@ function buildingStateFromRow(
     storehouseClayTargetPercent: row.storehouseClayTargetPercent,
     storehouseSaltTargetPercent: row.storehouseSaltTargetPercent,
     processorOutputTargetPercent: row.processorOutputTargetPercent,
+    threshingPriority: row.threshingPriority,
     weaverInputPolicy: row.weaverInputPolicy,
     potteryDispatchPolicy: row.potteryDispatchPolicy,
     potterFiringPolicy: Number(materialRow.potterFiringPolicy ?? 0),

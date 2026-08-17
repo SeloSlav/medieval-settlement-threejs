@@ -237,6 +237,7 @@ mod tests {
             rye_bread: 0.0,
             oat_bread: 0.0,
             maslin_bread: 0.0,
+            threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
             meat: 0.0,
             fish: 0.0,
             berries: 0.0,

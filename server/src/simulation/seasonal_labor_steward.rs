@@ -65,6 +65,13 @@ pub fn recall_idle_seasonal_labor_for_owner(
                 && field.stage_progress < 1.0 - 1e-9
                 && field_work_allowed(field.stage, field.crop, month)
         });
+        let farmstead_work_active = farm_field_work_active
+            || building.kind == "threshing_barn"
+                && building.rye_sheaves
+                    + building.oat_sheaves
+                    + building.barley_sheaves
+                    + building.maslin_sheaves
+                    > 1e-6;
         let (seed_grain_required, barley_seed_required) =
             fields.iter().fold((0.0, 0.0), |(grain, barley), field| {
                 let reserve = field_seed_grain_remaining(
@@ -111,7 +118,7 @@ pub fn recall_idle_seasonal_labor_for_owner(
             month,
             building.assigned_labor,
             has_dispatch_duty,
-            farm_field_work_active,
+            farmstead_work_active,
         ) else {
             continue;
         };
@@ -175,7 +182,14 @@ fn call_up_active_seasonal_labor_for_owner_with_reserve(
                         && field.stage_progress < 1.0 - 1e-9
                         && field_work_allowed(field.stage, field.crop, month)
                 });
-        if seasonal_production_active(&building.kind, month, farm_field_work_active) != Some(true) {
+        let farmstead_work_active = farm_field_work_active
+            || building.kind == "threshing_barn"
+                && building.rye_sheaves
+                    + building.oat_sheaves
+                    + building.barley_sheaves
+                    + building.maslin_sheaves
+                    > 1e-6;
+        if seasonal_production_active(&building.kind, month, farmstead_work_active) != Some(true) {
             continue;
         }
         candidates.push(SeasonalCallupCandidate {

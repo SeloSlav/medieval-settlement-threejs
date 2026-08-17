@@ -162,6 +162,7 @@ export const Building = __t.object("Building", {
   ryeBread: __t.f64(),
   oatBread: __t.f64(),
   maslinBread: __t.f64(),
+  threshingPriority: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 

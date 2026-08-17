@@ -494,6 +494,18 @@ export async function setProcessorOutputTarget(
   });
 }
 
+export async function setThreshingPriority(
+  buildingId: string,
+  priority: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid farmstead id.');
+  await callReducer('setThreshingPriority', 'set_threshing_priority', {
+    buildingId: serverId,
+    priority: Math.max(1, Math.min(3, Math.floor(priority))),
+  });
+}
+
 export async function setNightPolicies(
   watch: NightPolicyCode,
   gathering: NightPolicyCode,

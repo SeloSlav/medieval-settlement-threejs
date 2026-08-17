@@ -78,6 +78,14 @@ import {
   seedGrainRequired,
   yearThreeCrop,
 } from '../src/farming/farmWorkPlanning.ts';
+import {
+  fieldTaskRank,
+  normalizeThreshingPriority,
+  THRESHING_PRIORITY_AUTO,
+  THRESHING_PRIORITY_HIGH,
+  THRESHING_PRIORITY_LOW,
+  threshingTaskRank,
+} from '../src/farming/threshingPriority.ts';
 import { gameClockAtElapsedSeconds } from '../src/world/gameCalendar.ts';
 import type {
   BuildingState,
@@ -335,6 +343,24 @@ assert.ok(!fieldAcceptsFarmsteadLabor(
   { ...sharedLaborField, priority: FARM_SHARED_LABOR_MIN_PRIORITY - 1 },
   neighboringLaborFarm,
 ));
+assert.equal(normalizeThreshingPriority(undefined), THRESHING_PRIORITY_AUTO);
+assert.ok(
+  fieldTaskRank(1, true) > threshingTaskRank(THRESHING_PRIORITY_HIGH, true),
+  'a ready harvest must outrank even high-priority threshing',
+);
+assert.ok(
+  threshingTaskRank(THRESHING_PRIORITY_HIGH, false) > fieldTaskRank(3, false),
+  'high threshing focus must pre-empt non-harvest fieldwork',
+);
+assert.ok(
+  threshingTaskRank(THRESHING_PRIORITY_AUTO, true) < fieldTaskRank(2, false)
+    && threshingTaskRank(THRESHING_PRIORITY_AUTO, true) > fieldTaskRank(1, false),
+  'automatic demand must sit between high and normal fieldwork',
+);
+assert.ok(
+  threshingTaskRank(THRESHING_PRIORITY_LOW, true) < fieldTaskRank(1, false),
+  'fields-first threshing must wait behind normal fieldwork',
+);
 assert.equal(MILL_WATER_PER_HARVEST, 0, 'lumber should not consume well water');
 assert.equal(WATERMILL_WATER_PER_CYCLE, 0, 'a river-powered mill should not consume well water');
 assert.ok(BAKERY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
@@ -920,6 +946,8 @@ assert.match(farmFieldInspector, /High and Urgent also enter every nearby farmst
 assert.match(farmFieldInspector, /Available field crews/);
 assert.match(farmsteadInspector, /Ox-supported fields/);
 assert.match(farmsteadInspector, /Crew-sharing queue/);
+assert.match(farmsteadInspector, /data-threshing-priority/);
+assert.match(farmsteadInspector, /field and threshing work never double-count the crew/);
 assert.match(farmFieldInspector, /Current-cycle soil/);
 assert.match(farmFieldInspector, /Three-year rotation/);
 assert.match(farmFieldInspector, /Year 3 soil/);
@@ -943,6 +971,10 @@ assert.match(farmFieldInspector, /Parcel boundary/);
 assert.doesNotMatch(farmFieldInspector, /Size efficiency/);
 
 const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
+const generatedBuilding = fs.readFileSync('src/generated/building_table.ts', 'utf8');
+const generatedReducers = fs.readFileSync('src/generated/index.ts', 'utf8');
+assert.match(generatedBuilding, /threshingPriority:\s*__t\.u8\(\)/);
+assert.match(generatedReducers, /set_threshing_priority/);
 assert.match(farmSimulation, /field\.current_yield \+= deposited/, 'harvest accounting must track grain actually stored');
 assert.match(
   farmSimulation,
@@ -955,6 +987,9 @@ assert.match(
   'ploughing progress must physically withdraw and spread manure from the crop farmstead',
 );
 assert.match(farmSimulation, /field_accepts_farmstead_labor/);
+assert.match(farmSimulation, /threshing_preempts_fields/);
+assert.match(farmSimulation, /work_allowed && threshing_labor == 0/);
+assert.match(farmSimulation, /step_processor_with_labor/);
 assert.match(
   farmSimulation,
   /resource_farmstead[\s\S]*CommodityKind::Manure[\s\S]*resource_farmstead[\s\S]*seed_commodity[\s\S]*deposit_building_commodity\(resource_farmstead/,

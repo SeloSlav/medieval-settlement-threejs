@@ -39,6 +39,7 @@ export type InspectorSpacetimeActions = {
   onSetFarmFieldCrop: (fieldId: string, crop: FarmCrop) => Promise<void>;
   onSetFarmFieldFollowingCrop: (fieldId: string, crop: FarmCrop | null) => Promise<void>;
   onSetFarmFieldPriority: (fieldId: string, priority: number) => Promise<void>;
+  onSetThreshingPriority: (buildingId: string, priority: number) => Promise<void>;
   onStartFarmFieldEarlyHarvest: (fieldId: string) => Promise<void>;
   onDemolishPasture: (pastureId: string) => Promise<void>;
   onSetLivestockSpecies: (buildingId: string, species: Exclude<LivestockSpecies, 'swine'>) => Promise<void>;
@@ -391,6 +392,14 @@ export function createInspectorSpacetimeActions(
       const store = requireReady();
       if (!store) return;
       await runReducer(() => store.setFarmFieldPriority(fieldId, priority), 'Could not change field priority.');
+    },
+    onSetThreshingPriority: async (buildingId, priority) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setThreshingPriority(buildingId, priority),
+        'Could not change threshing priority.',
+      );
     },
     onStartFarmFieldEarlyHarvest: async (fieldId) => {
       const store = requireReady();

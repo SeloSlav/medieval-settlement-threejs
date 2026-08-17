@@ -601,6 +601,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setProcessorOutputTarget(buildingId, targetPercent);
   }
 
+  setThreshingPriority(buildingId: string, priority: number): Promise<void> {
+    return spacetimeReducers.setThreshingPriority(buildingId, priority);
+  }
+
   setWeaverInputPolicy(
     buildingId: string,
     inputPolicy: number,

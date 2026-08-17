@@ -16,6 +16,7 @@ mod db;
 mod delivery_trip_policy;
 mod economy;
 mod farming;
+mod farm_work_policy;
 mod fire_policy;
 mod fire_recovery_policy;
 mod fiscal_policy;
