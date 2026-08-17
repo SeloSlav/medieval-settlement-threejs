@@ -48,6 +48,7 @@ import {
   farmToolWorkerDayRunway,
 } from '../../economy/civilianToolPolicy.ts';
 import { breadGrainStock } from '../../economy/cropGoods.ts';
+import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
 
 const MONTH_LABELS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -134,10 +135,12 @@ export function renderFarmFieldInspector(
   const onsiteLabor = farmstead
     ? onsiteBuildingLabor(farmstead, context.worldQueries.getActiveDeliveryTrip(farmstead))
     : 0;
+  const disabledFarmsteads = fireDisabledBuildingIds(context.gameState.fireIncidents.values());
   const eligibleFarmsteads = [...context.gameState.buildings.values()]
     .filter((building) => (
       building.kind === 'threshing_barn'
       && building.constructionComplete !== false
+      && !disabledFarmsteads.has(building.id)
       && fieldAcceptsFarmsteadLabor(field, building)
     ));
   const assistingFarmsteads = eligibleFarmsteads

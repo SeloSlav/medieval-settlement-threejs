@@ -2810,38 +2810,20 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             CommodityKind::MaslinSheaves,
             building.maslin_sheaves + trip_cargo.maslin_sheaves,
         ),
-        (
-            CommodityKind::RyeGrain,
-            building.rye_grain + trip_cargo.rye_grain,
-        ),
-        (
-            CommodityKind::OatGrain,
-            building.oat_grain + trip_cargo.oat_grain,
-        ),
+        (CommodityKind::RyeGrain, building.rye_grain + trip_cargo.rye_grain),
+        (CommodityKind::OatGrain, building.oat_grain + trip_cargo.oat_grain),
         (
             CommodityKind::MaslinGrain,
             building.maslin_grain + trip_cargo.maslin_grain,
         ),
-        (
-            CommodityKind::RyeFlour,
-            building.rye_flour + trip_cargo.rye_flour,
-        ),
-        (
-            CommodityKind::OatFlour,
-            building.oat_flour + trip_cargo.oat_flour,
-        ),
+        (CommodityKind::RyeFlour, building.rye_flour + trip_cargo.rye_flour),
+        (CommodityKind::OatFlour, building.oat_flour + trip_cargo.oat_flour),
         (
             CommodityKind::MaslinFlour,
             building.maslin_flour + trip_cargo.maslin_flour,
         ),
-        (
-            CommodityKind::RyeBread,
-            building.rye_bread + trip_cargo.rye_bread,
-        ),
-        (
-            CommodityKind::OatBread,
-            building.oat_bread + trip_cargo.oat_bread,
-        ),
+        (CommodityKind::RyeBread, building.rye_bread + trip_cargo.rye_bread),
+        (CommodityKind::OatBread, building.oat_bread + trip_cargo.oat_bread),
         (
             CommodityKind::MaslinBread,
             building.maslin_bread + trip_cargo.maslin_bread,

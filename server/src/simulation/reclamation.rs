@@ -294,58 +294,19 @@ impl ReclamationStock {
                 cheese: amount,
                 ..Self::default()
             },
-            CommodityKind::RyeSheaves => Self {
-                rye_sheaves: amount,
-                ..Self::default()
-            },
-            CommodityKind::OatSheaves => Self {
-                oat_sheaves: amount,
-                ..Self::default()
-            },
-            CommodityKind::BarleySheaves => Self {
-                barley_sheaves: amount,
-                ..Self::default()
-            },
-            CommodityKind::MaslinSheaves => Self {
-                maslin_sheaves: amount,
-                ..Self::default()
-            },
-            CommodityKind::RyeGrain => Self {
-                rye_grain: amount,
-                ..Self::default()
-            },
-            CommodityKind::OatGrain => Self {
-                oat_grain: amount,
-                ..Self::default()
-            },
-            CommodityKind::MaslinGrain => Self {
-                maslin_grain: amount,
-                ..Self::default()
-            },
-            CommodityKind::RyeFlour => Self {
-                rye_flour: amount,
-                ..Self::default()
-            },
-            CommodityKind::OatFlour => Self {
-                oat_flour: amount,
-                ..Self::default()
-            },
-            CommodityKind::MaslinFlour => Self {
-                maslin_flour: amount,
-                ..Self::default()
-            },
-            CommodityKind::RyeBread => Self {
-                rye_bread: amount,
-                ..Self::default()
-            },
-            CommodityKind::OatBread => Self {
-                oat_bread: amount,
-                ..Self::default()
-            },
-            CommodityKind::MaslinBread => Self {
-                maslin_bread: amount,
-                ..Self::default()
-            },
+            CommodityKind::RyeSheaves => Self { rye_sheaves: amount, ..Self::default() },
+            CommodityKind::OatSheaves => Self { oat_sheaves: amount, ..Self::default() },
+            CommodityKind::BarleySheaves => Self { barley_sheaves: amount, ..Self::default() },
+            CommodityKind::MaslinSheaves => Self { maslin_sheaves: amount, ..Self::default() },
+            CommodityKind::RyeGrain => Self { rye_grain: amount, ..Self::default() },
+            CommodityKind::OatGrain => Self { oat_grain: amount, ..Self::default() },
+            CommodityKind::MaslinGrain => Self { maslin_grain: amount, ..Self::default() },
+            CommodityKind::RyeFlour => Self { rye_flour: amount, ..Self::default() },
+            CommodityKind::OatFlour => Self { oat_flour: amount, ..Self::default() },
+            CommodityKind::MaslinFlour => Self { maslin_flour: amount, ..Self::default() },
+            CommodityKind::RyeBread => Self { rye_bread: amount, ..Self::default() },
+            CommodityKind::OatBread => Self { oat_bread: amount, ..Self::default() },
+            CommodityKind::MaslinBread => Self { maslin_bread: amount, ..Self::default() },
         }
     }
 

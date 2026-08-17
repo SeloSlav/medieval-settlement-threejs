@@ -951,7 +951,7 @@ assert.match(
 );
 assert.match(
   farmSimulation,
-  /withdraw_building_commodity\(resource_farmstead, CommodityKind::Manure, manure_needed\)[\s\S]*field\.manure_applied \+= manure_spread/,
+  /withdraw_building_commodity\([\s\S]*?resource_farmstead,[\s\S]*?CommodityKind::Manure,[\s\S]*?manure_needed,[\s\S]*?\)[\s\S]*?field\.manure_applied \+= manure_spread/,
   'ploughing progress must physically withdraw and spread manure from the crop farmstead',
 );
 assert.match(farmSimulation, /field_accepts_farmstead_labor/);

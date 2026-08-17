@@ -159,71 +159,19 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
         amount,
     );
     resources.cheese = top_up_ledger(resources.cheese, physical.map_or(0.0, |s| s.cheese), amount);
-    resources.rye_sheaves = top_up_ledger(
-        resources.rye_sheaves,
-        physical.map_or(0.0, |s| s.rye_sheaves),
-        amount,
-    );
-    resources.oat_sheaves = top_up_ledger(
-        resources.oat_sheaves,
-        physical.map_or(0.0, |s| s.oat_sheaves),
-        amount,
-    );
-    resources.barley_sheaves = top_up_ledger(
-        resources.barley_sheaves,
-        physical.map_or(0.0, |s| s.barley_sheaves),
-        amount,
-    );
-    resources.maslin_sheaves = top_up_ledger(
-        resources.maslin_sheaves,
-        physical.map_or(0.0, |s| s.maslin_sheaves),
-        amount,
-    );
-    resources.rye_grain = top_up_ledger(
-        resources.rye_grain,
-        physical.map_or(0.0, |s| s.rye_grain),
-        amount,
-    );
-    resources.oat_grain = top_up_ledger(
-        resources.oat_grain,
-        physical.map_or(0.0, |s| s.oat_grain),
-        amount,
-    );
-    resources.maslin_grain = top_up_ledger(
-        resources.maslin_grain,
-        physical.map_or(0.0, |s| s.maslin_grain),
-        amount,
-    );
-    resources.rye_flour = top_up_ledger(
-        resources.rye_flour,
-        physical.map_or(0.0, |s| s.rye_flour),
-        amount,
-    );
-    resources.oat_flour = top_up_ledger(
-        resources.oat_flour,
-        physical.map_or(0.0, |s| s.oat_flour),
-        amount,
-    );
-    resources.maslin_flour = top_up_ledger(
-        resources.maslin_flour,
-        physical.map_or(0.0, |s| s.maslin_flour),
-        amount,
-    );
-    resources.rye_bread = top_up_ledger(
-        resources.rye_bread,
-        physical.map_or(0.0, |s| s.rye_bread),
-        amount,
-    );
-    resources.oat_bread = top_up_ledger(
-        resources.oat_bread,
-        physical.map_or(0.0, |s| s.oat_bread),
-        amount,
-    );
-    resources.maslin_bread = top_up_ledger(
-        resources.maslin_bread,
-        physical.map_or(0.0, |s| s.maslin_bread),
-        amount,
-    );
+    resources.rye_sheaves = top_up_ledger(resources.rye_sheaves, physical.map_or(0.0, |s| s.rye_sheaves), amount);
+    resources.oat_sheaves = top_up_ledger(resources.oat_sheaves, physical.map_or(0.0, |s| s.oat_sheaves), amount);
+    resources.barley_sheaves = top_up_ledger(resources.barley_sheaves, physical.map_or(0.0, |s| s.barley_sheaves), amount);
+    resources.maslin_sheaves = top_up_ledger(resources.maslin_sheaves, physical.map_or(0.0, |s| s.maslin_sheaves), amount);
+    resources.rye_grain = top_up_ledger(resources.rye_grain, physical.map_or(0.0, |s| s.rye_grain), amount);
+    resources.oat_grain = top_up_ledger(resources.oat_grain, physical.map_or(0.0, |s| s.oat_grain), amount);
+    resources.maslin_grain = top_up_ledger(resources.maslin_grain, physical.map_or(0.0, |s| s.maslin_grain), amount);
+    resources.rye_flour = top_up_ledger(resources.rye_flour, physical.map_or(0.0, |s| s.rye_flour), amount);
+    resources.oat_flour = top_up_ledger(resources.oat_flour, physical.map_or(0.0, |s| s.oat_flour), amount);
+    resources.maslin_flour = top_up_ledger(resources.maslin_flour, physical.map_or(0.0, |s| s.maslin_flour), amount);
+    resources.rye_bread = top_up_ledger(resources.rye_bread, physical.map_or(0.0, |s| s.rye_bread), amount);
+    resources.oat_bread = top_up_ledger(resources.oat_bread, physical.map_or(0.0, |s| s.oat_bread), amount);
+    resources.maslin_bread = top_up_ledger(resources.maslin_bread, physical.map_or(0.0, |s| s.maslin_bread), amount);
     ctx.db.player_resources().owner().update(resources);
     materialize_physical_resource_ledger(ctx, owner)?;
     Ok(())

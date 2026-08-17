@@ -1258,8 +1258,7 @@ fn market_exportable_building_stock(building: &Building, resource: TradeResource
         crate::economy::building_commodity_stock(building, trade_commodity(resource)).max(0.0);
     match resource {
         TradeResource::RyeGrain | TradeResource::OatGrain | TradeResource::MaslinGrain
-            if building.kind == "granary" =>
-        {
+            if building.kind == "granary" => {
             granary_exportable_grain(stock, building.granary_grain_reserve)
         }
         _ => stock,

@@ -416,7 +416,10 @@ mod tests {
             CommodityKind::OatBread,
             CommodityKind::MaslinBread,
         ] {
-            assert_eq!(founding_destination_priority(bread, "granary"), Some(0),);
+            assert_eq!(
+                founding_destination_priority(bread, "granary"),
+                Some(0),
+            );
             for kind in [
                 "foragers_shed",
                 "hunters_hall",

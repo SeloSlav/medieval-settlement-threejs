@@ -62,16 +62,16 @@ pub mod simulation {
 
 #[path = "../../src/labor_steward_policy.rs"]
 pub mod labor_steward_policy;
+#[path = "../../src/workforce_commute_policy.rs"]
+pub mod workforce_commute_policy;
 #[path = "../../src/season_policy.rs"]
 pub mod season_policy;
+#[path = "../../src/wind_policy.rs"]
+pub mod wind_policy;
 #[path = "../../src/seasonal_labor_policy.rs"]
 pub mod seasonal_labor_policy;
 #[path = "../../src/security_policy.rs"]
 pub mod security_policy;
-#[path = "../../src/wind_policy.rs"]
-pub mod wind_policy;
-#[path = "../../src/workforce_commute_policy.rs"]
-pub mod workforce_commute_policy;
 
 #[path = "../../src/raid_agent_policy.rs"]
 pub mod raid_agent_policy;
@@ -100,10 +100,11 @@ pub mod processor_labor_policy;
 #[path = "../../src/quarry_balance.rs"]
 pub mod quarry_balance;
 
-#[path = "../../src/food_demand_policy.rs"]
-pub mod food_demand_policy;
+
 #[path = "../../src/foraging_policy.rs"]
 pub mod foraging_policy;
+#[path = "../../src/food_demand_policy.rs"]
+pub mod food_demand_policy;
 #[path = "../../src/harvest_reserve_policy.rs"]
 pub mod harvest_reserve_policy;
 

@@ -1,12 +1,13 @@
 use crate::balance_generated::{
     farm_crop_def, FarmCropDef, FarmCropProduce, FARM_BASE_GRAIN_PER_SQUARE_METER,
-    FARM_CROP_BARLEY_ID, FARM_CROP_FALLOW_ID, FARM_CROP_FLAX_ID, FARM_CROP_OATS_ID, FARM_CROP_RYE,
-    FARM_CROP_RYE_ID, FARM_CROP_WHEAT_ID, FARM_EARLY_HARVEST_MINIMUM_GROWTH,
+    FARM_CROP_BARLEY_ID, FARM_CROP_FALLOW_ID, FARM_CROP_FLAX_ID, FARM_CROP_OATS_ID,
+    FARM_CROP_RYE, FARM_CROP_RYE_ID, FARM_CROP_WHEAT_ID, FARM_EARLY_HARVEST_MINIMUM_GROWTH,
     FARM_EARLY_HARVEST_RIPENESS_FACTOR, FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE,
     FARM_FIELD_SETUP_WORK_PER_STAGE, FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
-    FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_MANURE_FERTILITY_BONUS, FARM_MANURE_PER_SQUARE_METER,
-    FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_SHARED_LABOR_MIN_PRIORITY,
-    FARM_SLOPE_PENALTY_PER_DEGREE, FARM_SOW_WORK_PER_SQUARE_METER,
+    FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_MANURE_FERTILITY_BONUS,
+    FARM_MANURE_PER_SQUARE_METER, FARM_PLOUGH_WORK_PER_SQUARE_METER,
+    FARM_SHARED_LABOR_MIN_PRIORITY, FARM_SLOPE_PENALTY_PER_DEGREE,
+    FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
 
@@ -55,11 +56,7 @@ pub fn crop_harvest_month(crop: u8) -> u32 {
 }
 
 pub fn month_before(month: u32) -> u32 {
-    if month <= 1 {
-        12
-    } else {
-        month - 1
-    }
+    if month <= 1 { 12 } else { month - 1 }
 }
 
 pub fn month_after(month: u32) -> u32 {
@@ -512,7 +509,8 @@ mod tests {
         let large_work = work_required(STAGE_HARVESTING, large_area, 1.0, large_perimeter, 30.0);
         assert!(large_work < small_work * 2.0);
         assert!(
-            work_required(STAGE_HARVESTING, small_area, 1.0, small_perimeter, 120.0) > small_work
+            work_required(STAGE_HARVESTING, small_area, 1.0, small_perimeter, 120.0)
+                > small_work
         );
     }
 
