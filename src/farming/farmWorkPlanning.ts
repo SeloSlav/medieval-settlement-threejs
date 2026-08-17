@@ -9,6 +9,9 @@ import {
   FARM_CROP_DEFINITIONS,
   FARM_EARLY_HARVEST_MINIMUM_GROWTH,
   FARM_EARLY_HARVEST_RIPENESS_FACTOR,
+  FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE,
+  FARM_FIELD_SETUP_WORK_PER_STAGE,
+  FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
   FARM_HARVEST_WORK_PER_SQUARE_METER,
   FARM_PLOUGH_WORK_PER_SQUARE_METER,
   FARM_SOW_WORK_PER_SQUARE_METER,
@@ -16,14 +19,25 @@ import {
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   FARM_WORK_METERS_PER_WORKER_PER_SEC,
 } from '../generated/gameBalance.ts';
-import { FARM_CROPS, type FarmCrop, type FarmFieldState, type GameState } from '../resources/types.ts';
+import {
+  FARM_CROPS,
+  type BuildingState,
+  type FarmCrop,
+  type FarmFieldState,
+  type GameState,
+} from '../resources/types.ts';
 import type { GameClock } from '../world/gameCalendar.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
 import {
   computeCattleFieldSupport,
   type CattleFieldSupport,
 } from './cattleFieldSupport.ts';
-import { expectedFieldYield, fieldShapeEfficiency } from './farmFieldMath.ts';
+import {
+  expectedFieldYield,
+  fieldCentroid,
+  fieldEdgeLengths,
+  fieldShapeEfficiency,
+} from './farmFieldMath.ts';
 import {
   fieldManureFertilityBonus,
   fieldManureApplied,
@@ -160,13 +174,74 @@ const WORKDAY_SECONDS = CALENDAR_SECONDS_PER_DAY
   / CALENDAR_HOURS_PER_DAY;
 const WORK_PER_WORKER_DAY = FARM_WORK_METERS_PER_WORKER_PER_SEC * WORKDAY_SECONDS;
 
-function fullStageWork(field: FarmFieldState, workPerSquareMeter: number): number {
-  return field.area * workPerSquareMeter / fieldShapeEfficiency(field.corners);
+type FieldWorkFarmstead = Pick<BuildingState, 'x' | 'z'>;
+
+type FieldWorkMetrics = {
+  areaWorkFactor: number;
+  stageOverhead: number;
+};
+
+export function fieldPerimeter(field: Pick<FarmFieldState, 'corners'>): number {
+  return fieldEdgeLengths(field.corners).reduce((sum, edge) => sum + edge, 0);
 }
 
-export function currentFieldWorkRemaining(
+export function fieldFarmsteadDistance(
+  field: Pick<FarmFieldState, 'corners'>,
+  farmstead?: FieldWorkFarmstead | null,
+): number {
+  if (!farmstead) return 0;
+  const center = fieldCentroid(field.corners);
+  return Math.hypot(center.x - farmstead.x, center.z - farmstead.z);
+}
+
+function fieldWorkMetrics(
+  field: Pick<FarmFieldState, 'area' | 'corners'>,
+  farmstead?: FieldWorkFarmstead | null,
+): FieldWorkMetrics {
+  return {
+    areaWorkFactor: field.area / fieldShapeEfficiency(field.corners),
+    stageOverhead: FARM_FIELD_SETUP_WORK_PER_STAGE
+      + fieldPerimeter(field) * FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE
+      + fieldFarmsteadDistance(field, farmstead) * FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
+  };
+}
+
+function fieldStageWorkFromMetrics(
+  metrics: FieldWorkMetrics,
+  workPerSquareMeter: number,
+): number {
+  if (workPerSquareMeter <= 0) return 0;
+  return metrics.areaWorkFactor * workPerSquareMeter + metrics.stageOverhead;
+}
+
+export function fieldStageWork(
+  field: Pick<FarmFieldState, 'area' | 'corners'>,
+  workPerSquareMeter: number,
+  farmstead?: FieldWorkFarmstead | null,
+): number {
+  return fieldStageWorkFromMetrics(fieldWorkMetrics(field, farmstead), workPerSquareMeter);
+}
+
+export function fullFieldCycleWork(
+  field: Pick<FarmFieldState, 'area' | 'corners' | 'crop'>,
+  farmstead?: FieldWorkFarmstead | null,
+): number {
+  const metrics = fieldWorkMetrics(field, farmstead);
+  const sowing = field.crop === 'fallow'
+    ? 0
+    : fieldStageWorkFromMetrics(metrics, FARM_SOW_WORK_PER_SQUARE_METER);
+  const harvest = field.crop === 'fallow'
+    ? 0
+    : fieldStageWorkFromMetrics(metrics, FARM_HARVEST_WORK_PER_SQUARE_METER);
+  return fieldStageWorkFromMetrics(metrics, FARM_PLOUGH_WORK_PER_SQUARE_METER)
+    + sowing
+    + harvest;
+}
+
+function currentFieldWorkRemainingWithMetrics(
   field: FarmFieldState,
-  ploughWorkMultiplier = 1,
+  ploughWorkMultiplier: number,
+  metrics: FieldWorkMetrics,
 ): number {
   const rate = field.stage === 'ploughing'
     ? FARM_PLOUGH_WORK_PER_SQUARE_METER
@@ -178,9 +253,21 @@ export function currentFieldWorkRemaining(
   const supportMultiplier = field.stage === 'ploughing'
     ? Math.max(0, ploughWorkMultiplier)
     : 1;
-  return fullStageWork(field, rate)
+  return fieldStageWorkFromMetrics(metrics, rate)
     * supportMultiplier
     * Math.max(0, 1 - field.stageProgress);
+}
+
+export function currentFieldWorkRemaining(
+  field: FarmFieldState,
+  ploughWorkMultiplier = 1,
+  farmstead?: FieldWorkFarmstead | null,
+): number {
+  return currentFieldWorkRemainingWithMetrics(
+    field,
+    ploughWorkMultiplier,
+    fieldWorkMetrics(field, farmstead),
+  );
 }
 
 export function fieldWorkerDays(work: number): number {
@@ -418,16 +505,26 @@ function plannedFieldWorkCrop(field: FarmFieldState): FarmCrop {
 function remainingTillageAndSowingWork(
   field: FarmFieldState,
   support: CattleFieldSupport | undefined,
+  metrics: FieldWorkMetrics,
 ): number {
   const crop = plannedFieldWorkCrop(field);
-  if (field.stage === 'sowing') return currentFieldWorkRemaining(field);
-  if (field.stage === 'ploughing') {
-    return currentFieldWorkRemaining(field, support?.ploughWorkMultiplier)
-      + (crop === 'fallow' ? 0 : fullStageWork(field, FARM_SOW_WORK_PER_SQUARE_METER));
+  if (field.stage === 'sowing') {
+    return currentFieldWorkRemainingWithMetrics(field, 1, metrics);
   }
-  return fullStageWork(field, FARM_PLOUGH_WORK_PER_SQUARE_METER)
+  if (field.stage === 'ploughing') {
+    return currentFieldWorkRemainingWithMetrics(
+      field,
+      support?.ploughWorkMultiplier ?? 1,
+      metrics,
+    ) + (crop === 'fallow'
+      ? 0
+      : fieldStageWorkFromMetrics(metrics, FARM_SOW_WORK_PER_SQUARE_METER));
+  }
+  return fieldStageWorkFromMetrics(metrics, FARM_PLOUGH_WORK_PER_SQUARE_METER)
     * (support?.ploughWorkMultiplier ?? 1)
-    + (crop === 'fallow' ? 0 : fullStageWork(field, FARM_SOW_WORK_PER_SQUARE_METER));
+    + (crop === 'fallow'
+      ? 0
+      : fieldStageWorkFromMetrics(metrics, FARM_SOW_WORK_PER_SQUARE_METER));
 }
 
 function farmWorkWindows(
@@ -447,6 +544,7 @@ function buildFarmsteadWorkPlanWithWindows(
   windows: FarmWorkWindows,
   cattleSupport: ReadonlyMap<string, CattleFieldSupport>,
   toolIronworkAvailable = 0,
+  farmstead?: FieldWorkFarmstead | null,
 ): FarmsteadWorkPlan {
   let activeFields = 0;
   let pausedFields = 0;
@@ -474,6 +572,7 @@ function buildFarmsteadWorkPlanWithWindows(
     }
     activeFields += 1;
     const support = cattleSupport.get(field.id);
+    const workMetrics = fieldWorkMetrics(field, farmstead);
     if (support) cattleSupportedFields += 1;
     const area = Math.max(0, field.area);
     const currentFertility = Math.max(0.2, Math.min(1, field.fertility));
@@ -581,11 +680,11 @@ function buildFarmsteadWorkPlanWithWindows(
       else if (currentProduce === 'barley') expectedBarleyHarvest += remainingYield;
       else expectedFibreHarvest += remainingYield;
       harvestWork += field.stage === 'harvesting'
-        ? currentFieldWorkRemaining(field)
-        : fullStageWork(field, FARM_HARVEST_WORK_PER_SQUARE_METER);
+        ? currentFieldWorkRemainingWithMetrics(field, 1, workMetrics)
+        : fieldStageWorkFromMetrics(workMetrics, FARM_HARVEST_WORK_PER_SQUARE_METER);
     }
 
-    const scheduledWork = remainingTillageAndSowingWork(field, support);
+    const scheduledWork = remainingTillageAndSowingWork(field, support, workMetrics);
     if (FARM_CROP_DEFINITIONS[plannedFieldWorkCrop(field)].workSeason === 'spring') {
       springWork += scheduledWork;
     } else {
@@ -653,6 +752,7 @@ export function buildFarmsteadWorkPlan(
   sabbathObserved: boolean,
   cattleSupport: ReadonlyMap<string, CattleFieldSupport> = new Map(),
   toolIronworkAvailable = 0,
+  farmstead?: FieldWorkFarmstead | null,
 ): FarmsteadWorkPlan {
   return buildFarmsteadWorkPlanWithWindows(
     fields,
@@ -660,6 +760,7 @@ export function buildFarmsteadWorkPlan(
     farmWorkWindows(clock, sabbathObserved),
     cattleSupport,
     toolIronworkAvailable,
+    farmstead,
   );
 }
 
@@ -854,6 +955,7 @@ export function buildSettlementFarmPlan(
       windows,
       cattleSupport,
       onsiteIronwork + inboundIronwork,
+      farmstead,
     );
     total.activeFields += plan.activeFields;
     total.pausedFields += plan.pausedFields;

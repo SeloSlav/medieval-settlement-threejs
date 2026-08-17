@@ -734,9 +734,9 @@
   },
   "farming": {
     "minFieldArea": 48,
-    "optimalFieldArea": 1600,
-    "largeFieldEfficiencyExponent": 0.22,
-    "largeFieldEfficiencyFloor": 0.6,
+    "fieldSetupWorkPerStage": 120,
+    "fieldBoundaryWorkPerMeterPerStage": 0.75,
+    "fieldTravelWorkPerMeterPerStage": 1.25,
     "minFieldEdge": 6,
     "workMetersPerWorkerPerSec": 20,
     "farmToolIronworkPerWorkerDay": 0.05,

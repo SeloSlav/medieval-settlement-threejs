@@ -631,9 +631,9 @@ export type GameBalance = {
   };
   farming: {
     minFieldArea: number;
-    optimalFieldArea: number;
-    largeFieldEfficiencyExponent: number;
-    largeFieldEfficiencyFloor: number;
+    fieldSetupWorkPerStage: number;
+    fieldBoundaryWorkPerMeterPerStage: number;
+    fieldTravelWorkPerMeterPerStage: number;
     minFieldEdge: number;
     workMetersPerWorkerPerSec: number;
     farmToolIronworkPerWorkerDay: number;
@@ -1200,9 +1200,9 @@ function generateRust(): string {
     `pub const STOREHOUSE_FIREWOOD_PER_DELIVERY: f64 = ${rustF64(b.production.storehouseFirewoodPerDelivery)};`,
     '',
     `pub const FARM_MIN_FIELD_AREA: f64 = ${rustF64(b.farming.minFieldArea)};`,
-    `pub const FARM_OPTIMAL_FIELD_AREA: f64 = ${rustF64(b.farming.optimalFieldArea)};`,
-    `pub const FARM_LARGE_FIELD_EFFICIENCY_EXPONENT: f64 = ${rustF64(b.farming.largeFieldEfficiencyExponent)};`,
-    `pub const FARM_LARGE_FIELD_EFFICIENCY_FLOOR: f64 = ${rustF64(b.farming.largeFieldEfficiencyFloor)};`,
+    `pub const FARM_FIELD_SETUP_WORK_PER_STAGE: f64 = ${rustF64(b.farming.fieldSetupWorkPerStage)};`,
+    `pub const FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE: f64 = ${rustF64(b.farming.fieldBoundaryWorkPerMeterPerStage)};`,
+    `pub const FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE: f64 = ${rustF64(b.farming.fieldTravelWorkPerMeterPerStage)};`,
     `pub const FARM_MIN_FIELD_EDGE: f64 = ${rustF64(b.farming.minFieldEdge)};`,
     `pub const FARM_WORK_METERS_PER_WORKER_PER_SEC: f64 = ${rustF64(b.farming.workMetersPerWorkerPerSec)};`,
     `pub const FARM_TOOL_IRONWORK_PER_WORKER_DAY: f64 = ${rustF64(b.farming.farmToolIronworkPerWorkerDay)};`,
@@ -2088,9 +2088,9 @@ function generateTypeScript(): string {
     `export const STOREHOUSE_FIREWOOD_PER_DELIVERY = ${b.production.storehouseFirewoodPerDelivery};`,
     '',
     `export const FARM_MIN_FIELD_AREA = ${b.farming.minFieldArea};`,
-    `export const FARM_OPTIMAL_FIELD_AREA = ${b.farming.optimalFieldArea};`,
-    `export const FARM_LARGE_FIELD_EFFICIENCY_EXPONENT = ${b.farming.largeFieldEfficiencyExponent};`,
-    `export const FARM_LARGE_FIELD_EFFICIENCY_FLOOR = ${b.farming.largeFieldEfficiencyFloor};`,
+    `export const FARM_FIELD_SETUP_WORK_PER_STAGE = ${b.farming.fieldSetupWorkPerStage};`,
+    `export const FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE = ${b.farming.fieldBoundaryWorkPerMeterPerStage};`,
+    `export const FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE = ${b.farming.fieldTravelWorkPerMeterPerStage};`,
     `export const FARM_MIN_FIELD_EDGE = ${b.farming.minFieldEdge};`,
     `export const FARM_WORK_METERS_PER_WORKER_PER_SEC = ${b.farming.workMetersPerWorkerPerSec};`,
     `export const FARM_TOOL_IRONWORK_PER_WORKER_DAY = ${b.farming.farmToolIronworkPerWorkerDay};`,

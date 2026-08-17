@@ -1448,6 +1448,7 @@ function renderFarmsteadPlanning(
     sabbathObserved,
     cattleSupport,
     Math.max(0, building.ironwork ?? 0) + inboundIronwork,
+    building,
   );
   const storageCaps = buildingStorageCaps(building.kind);
   const onsiteSeedGrain = breadGrainStock(building);

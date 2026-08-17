@@ -1,9 +1,6 @@
 import {
   FARM_BASE_GRAIN_PER_SQUARE_METER,
   FARM_CROP_DEFINITIONS,
-  FARM_LARGE_FIELD_EFFICIENCY_EXPONENT,
-  FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
-  FARM_OPTIMAL_FIELD_AREA,
   FARM_SLOPE_PENALTY_PER_DEGREE,
   type FarmCropDefinition,
   type FarmCropProduce,
@@ -116,12 +113,6 @@ export function sampleParcelPoints(
     }
   }
   return points;
-}
-
-export function fieldSizeEfficiency(area: number): number {
-  if (area <= FARM_OPTIMAL_FIELD_AREA) return 1;
-  const efficiency = (FARM_OPTIMAL_FIELD_AREA / Math.max(area, 1)) ** FARM_LARGE_FIELD_EFFICIENCY_EXPONENT;
-  return Math.max(FARM_LARGE_FIELD_EFFICIENCY_FLOOR, Math.min(1, efficiency));
 }
 
 export type ArableLandConditions = {
@@ -268,8 +259,7 @@ export function expectedFieldYield(field: Pick<FarmFieldState, 'area' | 'crop' |
     * cropEnvironmentalSuitability(field.crop, field.moisture, center.x, center.z)
     * Math.max(0.2, Math.min(1, field.fertility))
     * cropSlopeSuitability(field.crop, field.averageSlopeDegrees)
-    * fieldShapeEfficiency(field.corners)
-    * fieldSizeEfficiency(field.area);
+    * fieldShapeEfficiency(field.corners);
 }
 
 function clamp01(value: number): number {

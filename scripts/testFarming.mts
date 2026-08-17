@@ -7,10 +7,8 @@ import {
   FARM_CROP_KINDS,
   FARM_EARLY_HARVEST_MINIMUM_GROWTH,
   FARM_EARLY_HARVEST_RIPENESS_FACTOR,
-  FARM_LARGE_FIELD_EFFICIENCY_FLOOR,
   FARM_MIN_FIELD_AREA,
   FARM_MIN_FIELD_EDGE,
-  FARM_OPTIMAL_FIELD_AREA,
   FARMSTEAD_STARTER_SEED_GRAIN,
   FARMSTEAD_STARTER_BARLEY_SEED,
   BAKERY_FIREWOOD_PER_CYCLE,
@@ -39,7 +37,6 @@ import {
   fieldCentroid,
   fieldEdgeLengths,
   fieldShapeEfficiency,
-  fieldSizeEfficiency,
   cropEnvironmentalSuitability,
   cropSiteSuitability,
   initialFieldFertility,
@@ -70,6 +67,7 @@ import {
   earlyHarvestYieldMultiplier,
   farmsteadExportableGrain,
   farmsteadSeedGrainRequired,
+  fullFieldCycleWork,
   fieldSeedGrainRemaining,
   fieldStageAllowed,
   projectedCropFertility,
@@ -123,7 +121,7 @@ assert.equal(fieldArea([...organicParcel]), 234);
 assert.ok(Math.abs(fieldCentroid(organicParcel).x - 10.2564102564) < 1e-9);
 assert.ok(Math.abs(fieldCentroid(organicParcel).z - 6.2735042735) < 1e-9);
 assert.ok(fieldShapeEfficiency([...organicParcel]) < 1);
-assert.ok(fieldShapeEfficiency([...organicParcel]) > FARM_LARGE_FIELD_EFFICIENCY_FLOOR);
+assert.ok(fieldShapeEfficiency([...organicParcel]) > 0.6);
 assert.equal(sampleParcelPoints([...organicParcel]).length, 25);
 assert.ok(
   vineyardSiteSuitability(0.22, 8, 1, 20, -30)
@@ -263,43 +261,62 @@ assert.ok(goodYield > poorYield * 3, 'hydrology, fertility, and slope should mat
 assert.equal(expectedFieldYield({ area: 400, crop: 'fallow', moisture: 0.5, fertility: 0.5, averageSlopeDegrees: 0, corners: rectangle }), 0);
 
 assert.ok(FARM_MIN_FIELD_AREA >= FARM_MIN_FIELD_EDGE ** 2);
-assert.ok(FARM_OPTIMAL_FIELD_AREA >= 20 * FARM_MIN_FIELD_AREA);
-assert.equal(fieldSizeEfficiency(FARM_OPTIMAL_FIELD_AREA), 1);
-assert.ok(fieldSizeEfficiency(FARM_OPTIMAL_FIELD_AREA * 2) < 1);
-assert.ok(fieldSizeEfficiency(FARM_OPTIMAL_FIELD_AREA * 2) > FARM_LARGE_FIELD_EFFICIENCY_FLOOR);
-assert.equal(fieldSizeEfficiency(FARM_OPTIMAL_FIELD_AREA * 1e12), FARM_LARGE_FIELD_EFFICIENCY_FLOOR);
-
-const optimalSide = Math.sqrt(FARM_OPTIMAL_FIELD_AREA);
-const optimalRectangle = rectangleFromBaseline(
-  { x: 0, z: 0 },
-  { x: optimalSide, z: 0 },
-  { x: 0, z: optimalSide },
-);
-const largeSide = Math.sqrt(FARM_OPTIMAL_FIELD_AREA * 2);
-const largeRectangle = rectangleFromBaseline(
-  { x: 0, z: 0 },
-  { x: largeSide, z: 0 },
-  { x: 0, z: largeSide },
-);
-assert.ok(optimalRectangle && largeRectangle);
-const optimalYield = expectedFieldYield({
-  area: FARM_OPTIMAL_FIELD_AREA,
+const REPRESENTATIVE_FIELD_AREA = 1_600;
+const representativeSide = Math.sqrt(REPRESENTATIVE_FIELD_AREA);
+const representativeRectangle = [
+  { x: -representativeSide / 2, z: -representativeSide / 2 },
+  { x: representativeSide / 2, z: -representativeSide / 2 },
+  { x: representativeSide / 2, z: representativeSide / 2 },
+  { x: -representativeSide / 2, z: representativeSide / 2 },
+] as FarmFieldState['corners'];
+const largeArea = REPRESENTATIVE_FIELD_AREA * 2;
+const largeSide = Math.sqrt(largeArea);
+const largeRectangle = [
+  { x: -largeSide / 2, z: -largeSide / 2 },
+  { x: largeSide / 2, z: -largeSide / 2 },
+  { x: largeSide / 2, z: largeSide / 2 },
+  { x: -largeSide / 2, z: largeSide / 2 },
+] as FarmFieldState['corners'];
+const representativeYield = expectedFieldYield({
+  area: REPRESENTATIVE_FIELD_AREA,
   crop: 'rye',
   moisture: 0.38,
   fertility: 1,
   averageSlopeDegrees: 0,
-  corners: optimalRectangle,
+  corners: representativeRectangle,
 });
 const largeYield = expectedFieldYield({
-  area: FARM_OPTIMAL_FIELD_AREA * 2,
+  area: largeArea,
   crop: 'rye',
   moisture: 0.38,
   fertility: 1,
   averageSlopeDegrees: 0,
   corners: largeRectangle,
 });
-assert.ok(largeYield > optimalYield, 'oversized fields should remain useful and produce more total grain');
-assert.ok(largeYield / (FARM_OPTIMAL_FIELD_AREA * 2) < optimalYield / FARM_OPTIMAL_FIELD_AREA, 'oversized fields should yield less grain per square metre');
+assert.ok(
+  Math.abs(largeYield - representativeYield * 2) < 1e-9,
+  'field yield should scale with area instead of crossing a hidden size penalty',
+);
+const representativeWorkField = {
+  area: REPRESENTATIVE_FIELD_AREA,
+  corners: representativeRectangle,
+  crop: 'rye' as const,
+};
+const largeWorkField = {
+  area: largeArea,
+  corners: largeRectangle,
+  crop: 'rye' as const,
+};
+assert.ok(
+  fullFieldCycleWork(largeWorkField, { x: 0, z: 0 })
+    < fullFieldCycleWork(representativeWorkField, { x: 0, z: 0 }) * 2,
+  'one large parcel should avoid the repeated setup and boundary work of two small parcels',
+);
+assert.ok(
+  fullFieldCycleWork(representativeWorkField, { x: 100, z: 0 })
+    > fullFieldCycleWork(representativeWorkField, { x: 0, z: 0 }),
+  'fields farther from their farmstead should cost more labor each cycle',
+);
 assert.equal(MILL_WATER_PER_HARVEST, 0, 'lumber should not consume well water');
 assert.equal(WATERMILL_WATER_PER_CYCLE, 0, 'a river-powered mill should not consume well water');
 assert.ok(BAKERY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
@@ -324,13 +341,13 @@ assert.equal(FARM_CROP_DEFINITIONS.flax.produce, 'fibre');
 assert.equal(FARM_CROP_DEFINITIONS.barley.produce, 'barley');
 assert.equal(FARM_CROP_DEFINITIONS.wheat.workSeason, 'autumn');
 assert.ok(
-  FARMSTEAD_STARTER_SEED_GRAIN >= seedGrainRequired(FARM_OPTIMAL_FIELD_AREA, 'oats'),
-  'a new holding should be able to sow one efficient oats field',
+  FARMSTEAD_STARTER_SEED_GRAIN >= seedGrainRequired(REPRESENTATIVE_FIELD_AREA, 'oats'),
+  'a new holding should be able to sow one representative oats field',
 );
 assert.ok(
   FARMSTEAD_STARTER_BARLEY_SEED
-    >= seedGrainRequired(FARM_OPTIMAL_FIELD_AREA, 'barley'),
-  'a new holding should be able to sow one efficient barley field',
+    >= seedGrainRequired(REPRESENTATIVE_FIELD_AREA, 'barley'),
+  'a new holding should be able to sow one representative barley field',
 );
 
 const planningField: FarmFieldState = {
@@ -804,13 +821,13 @@ const farmFieldTool = fs.readFileSync('src/farming/FarmFieldTool.ts', 'utf8');
 assert.match(farmFieldTool, /state\.buildings\.get\(this\.farmsteadId\)/, 'parcel placement must stay pinned to the selected holding');
 assert.doesNotMatch(farmFieldTool, /let distance = Number\.POSITIVE_INFINITY/, 'parcel placement must not silently choose the nearest holding');
 assert.match(farmFieldTool, /corners\.some\(\(point\)/, 'the whole parcel must stay inside the selected work extent');
-assert.doesNotMatch(
-  farmFieldTool,
-  /cropSiteSuitability|expectedFieldYield|vineyardSiteFactors|vineyardProductionMultiplier/,
-  'parcel placement should leave exact site and harvest calculations hidden until after placement',
-);
+assert.doesNotMatch(farmFieldTool, /cropSiteSuitability|vineyardSiteFactors|vineyardProductionMultiplier/);
 assert.doesNotMatch(farmFieldTool, /first harvest|% site|% drainage|% sun|× harvest/);
 assert.match(farmFieldTool, /judge the site from the suitability overlay/);
+assert.match(farmFieldTool, /expectedFieldYield\(draftField\)/, 'field placement should forecast exact harvest units');
+assert.match(farmFieldTool, /m² \(\$\{hectares/, 'field placement should show area in square metres and hectares');
+assert.match(farmFieldTool, /buildFarmsteadWorkPlan/, 'field placement should forecast the selected holding’s seasonal labor capacity');
+assert.match(farmFieldTool, /worker-days/, 'field placement should label its farm labor forecast');
 assert.match(farmFieldTool, /suitability map visible/);
 assert.match(farmFieldTool, /onCommitVineyard/);
 assert.match(farmFieldTool, /this\.points\.length < 3/);
@@ -893,6 +910,9 @@ assert.match(farmFieldInspector, /data-field-early-harvest/);
 assert.match(farmFieldInspector, /Waiting until \$\{harvestMonthLabel\} keeps 100% yield/);
 assert.match(farmFieldInspector, /Days until harvest/);
 assert.match(farmFieldInspector, /Projected yield/);
+assert.match(farmFieldInspector, /Farmstead distance/);
+assert.match(farmFieldInspector, /Parcel boundary/);
+assert.doesNotMatch(farmFieldInspector, /Size efficiency/);
 
 const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(farmSimulation, /field\.current_yield \+= deposited/, 'harvest accounting must track grain actually stored');

@@ -80,6 +80,7 @@ import { BuildToolbar } from '../ui/BuildToolbar.ts';
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT } from '../economy/villageEconomy.ts';
 import { DEFAULT_PARISH_POLICY } from '../economy/chapelParish.ts';
+import { settlementHasStaffedChapel } from '../logistics/landmarkAccess.ts';
 import { DEFAULT_MONASTERY_POLICY } from '../economy/monasteryPolicy.ts';
 import { beginNewWorld, resolveWorldGenerationSettings } from './worldBootstrapFlow.ts';
 import { LoadingScreen } from '../ui/LoadingScreen.ts';
@@ -662,6 +663,11 @@ export async function bootstrapAppSession(
     onCropChanged: (crop, recommendation) => toastManager?.show(
       `${crop[0].toUpperCase()}${crop.slice(1)} selected · ${recommendation}.`,
       { variant: 'info', durationMs: 2400 },
+    ),
+    isSabbathObserved: () => Boolean(
+      (spacetimeStore.snapshot.parishPolicy ?? DEFAULT_PARISH_POLICY)
+        .sabbathObservanceEnabled
+      && settlementHasStaffedChapel(liveContext.gameState),
     ),
     isBlocked: () => isFarmFieldPlacementBlocked(placementGate),
   });

@@ -2,11 +2,11 @@ use crate::balance_generated::{
     farm_crop_def, FarmCropDef, FarmCropProduce, FARM_BASE_GRAIN_PER_SQUARE_METER,
     FARM_CROP_BARLEY_ID, FARM_CROP_FALLOW_ID, FARM_CROP_FLAX_ID, FARM_CROP_OATS_ID,
     FARM_CROP_RYE, FARM_CROP_RYE_ID, FARM_CROP_WHEAT_ID, FARM_EARLY_HARVEST_MINIMUM_GROWTH,
-    FARM_EARLY_HARVEST_RIPENESS_FACTOR,
-    FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_LARGE_FIELD_EFFICIENCY_EXPONENT,
-    FARM_LARGE_FIELD_EFFICIENCY_FLOOR, FARM_MANURE_FERTILITY_BONUS, FARM_MANURE_PER_SQUARE_METER,
-    FARM_OPTIMAL_FIELD_AREA, FARM_PLOUGH_WORK_PER_SQUARE_METER, FARM_SLOPE_PENALTY_PER_DEGREE,
-    FARM_SOW_WORK_PER_SQUARE_METER,
+    FARM_EARLY_HARVEST_RIPENESS_FACTOR, FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE,
+    FARM_FIELD_SETUP_WORK_PER_STAGE, FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
+    FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_MANURE_FERTILITY_BONUS,
+    FARM_MANURE_PER_SQUARE_METER, FARM_PLOUGH_WORK_PER_SQUARE_METER,
+    FARM_SLOPE_PENALTY_PER_DEGREE, FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
 
@@ -175,15 +175,6 @@ fn bilinear_point(corners: &ZoneCorners, u: f64, v: f64) -> Point2 {
     }
 }
 
-pub fn field_size_efficiency(area: f64) -> f64 {
-    if area <= FARM_OPTIMAL_FIELD_AREA {
-        return 1.0;
-    }
-    (FARM_OPTIMAL_FIELD_AREA / area.max(1.0))
-        .powf(FARM_LARGE_FIELD_EFFICIENCY_EXPONENT)
-        .clamp(FARM_LARGE_FIELD_EFFICIENCY_FLOOR, 1.0)
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct ArableLandConditions {
     /// 0 = light/gravelly soil, 1 = heavy/clay-rich soil.
@@ -309,17 +300,28 @@ pub fn expected_grain_yield(
             x,
             z,
         )
-        * field_size_efficiency(area)
 }
 
-pub fn work_required(stage: u8, area: f64, shape: f64) -> f64 {
+pub fn work_required(
+    stage: u8,
+    area: f64,
+    shape: f64,
+    perimeter: f64,
+    farmstead_distance: f64,
+) -> f64 {
     let per_square_meter = match stage {
         STAGE_PLOUGHING => FARM_PLOUGH_WORK_PER_SQUARE_METER,
         STAGE_SOWING => FARM_SOW_WORK_PER_SQUARE_METER,
         STAGE_HARVESTING => FARM_HARVEST_WORK_PER_SQUARE_METER,
         _ => 0.0,
     };
+    if per_square_meter <= 0.0 {
+        return 0.0;
+    }
     area.max(1.0) * per_square_meter / shape.clamp(0.72, 1.0)
+        + FARM_FIELD_SETUP_WORK_PER_STAGE
+        + perimeter.max(0.0) * FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE
+        + farmstead_distance.max(0.0) * FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE
 }
 
 pub fn crop_seed_grain_per_square_meter(crop: u8) -> f64 {
@@ -463,18 +465,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn oversized_fields_have_soft_diminishing_returns() {
-        assert_eq!(field_size_efficiency(FARM_OPTIMAL_FIELD_AREA), 1.0);
-        let large_efficiency = field_size_efficiency(FARM_OPTIMAL_FIELD_AREA * 2.0);
-        assert!(large_efficiency < 1.0);
-        assert!(large_efficiency > FARM_LARGE_FIELD_EFFICIENCY_FLOOR);
-        assert_eq!(
-            field_size_efficiency(FARM_OPTIMAL_FIELD_AREA * 1e12),
-            FARM_LARGE_FIELD_EFFICIENCY_FLOOR
-        );
-
-        let optimal_yield = expected_grain_yield(
-            FARM_OPTIMAL_FIELD_AREA,
+    fn field_size_is_an_operational_tradeoff_instead_of_a_yield_cliff() {
+        let small_area = 1_600.0;
+        let small_yield = expected_grain_yield(
+            small_area,
             CROP_RYE,
             crop_definition(CROP_RYE).moisture_ideal,
             1.0,
@@ -483,8 +477,9 @@ mod tests {
             0.0,
             0.0,
         );
+        let large_area = small_area * 2.0;
         let large_yield = expected_grain_yield(
-            FARM_OPTIMAL_FIELD_AREA * 2.0,
+            large_area,
             CROP_RYE,
             crop_definition(CROP_RYE).moisture_ideal,
             1.0,
@@ -493,8 +488,17 @@ mod tests {
             0.0,
             0.0,
         );
-        assert!(large_yield > optimal_yield);
-        assert!(large_yield / 2.0 < optimal_yield);
+        assert!((large_yield - small_yield * 2.0).abs() < 1e-9);
+
+        let small_perimeter = small_area.sqrt() * 4.0;
+        let large_perimeter = large_area.sqrt() * 4.0;
+        let small_work = work_required(STAGE_HARVESTING, small_area, 1.0, small_perimeter, 30.0);
+        let large_work = work_required(STAGE_HARVESTING, large_area, 1.0, large_perimeter, 30.0);
+        assert!(large_work < small_work * 2.0);
+        assert!(
+            work_required(STAGE_HARVESTING, small_area, 1.0, small_perimeter, 120.0)
+                > small_work
+        );
     }
 
     #[test]

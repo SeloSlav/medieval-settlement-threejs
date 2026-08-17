@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   CATTLE_MAX_SLOPE_DEGREES,
+  FARM_CROP_DEFINITIONS,
   FARM_MAX_ACCEPTED_SLOPE_DEGREES,
   FARM_MIN_FIELD_AREA,
   FARM_MIN_FIELD_EDGE,
@@ -16,6 +17,7 @@ import {
 import { sampleAuthoritativeHydrologyScore } from '../hydrology/sampleAuthoritativeHydrology.ts';
 import { buildingFootprintPolygonFromState, burgageZonePolygon } from '../placement/placementConflicts.ts';
 import { FARM_CROPS, type BuildingState, type FarmCrop, type GameState } from '../resources/types.ts';
+import type { FarmFieldState } from '../resources/types.ts';
 import {
   polygonOverlapsPhysicalDeposit,
   type PhysicalDepositFootprint,
@@ -24,15 +26,30 @@ import type { TerrainProjector } from '../terrain/TerrainProjector.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
 import { FarmFieldPreview } from './FarmFieldMarkers.ts';
 import {
+  cropHarvestUnit,
   cropLabel,
+  cropProduce,
+  expectedFieldYield,
   fieldArea,
   fieldCentroid,
   fieldEdgeLengths,
+  initialFieldFertility,
   isValidFarmFieldCorners,
   sampleParcelPoints,
   sampleAverageSlopeDegrees,
   type FarmFieldCorners,
 } from './farmFieldMath.ts';
+import { computeCattleFieldSupport } from './cattleFieldSupport.ts';
+import {
+  buildFarmsteadWorkPlan,
+  fieldWorkerDays,
+  fullFieldCycleWork,
+} from './farmWorkPlanning.ts';
+import {
+  findActiveTripForBuilding,
+  onsiteBuildingLabor,
+} from '../logistics/deliveryTrips.ts';
+import { gameClock } from '../world/gameCalendar.ts';
 import {
   sampleAverageSouthExposure,
   VINEYARD_MAX_AREA,
@@ -99,6 +116,7 @@ type FarmFieldToolOptions = {
   onPlacementRejected?: (reason: FarmFieldPlacementFailureReason) => void;
   onPlacementFailed?: (message: string) => void;
   onCropChanged?: (crop: FarmCrop, recommendation: string) => void;
+  isSabbathObserved?: () => boolean;
   isBlocked: () => boolean;
 };
 
@@ -253,7 +271,67 @@ export class FarmFieldTool {
     if (this.mode === 'vineyard') {
       return `Grapes · ${area} m² · judge the site from the suitability overlay · ${placementHint}`;
     }
-    return `${cropLabel(this.crop)} · ${area} m² · judge the site from the suitability overlay · ${placementHint}`;
+    const farmstead = this.validation.farmstead!;
+    const center = fieldCentroid(this.validation.corners);
+    const draftField: FarmFieldState = {
+      id: 'farm-field:zzzz-preview',
+      farmsteadId: farmstead.id,
+      corners: this.validation.corners,
+      area: exactArea,
+      averageSlopeDegrees: this.validation.slope,
+      moisture: this.validation.moisture,
+      fertility: initialFieldFertility(
+        this.validation.moisture,
+        this.validation.slope,
+        center.x,
+        center.z,
+      ),
+      crop: this.crop,
+      nextCrop: this.crop,
+      followingCrop: null,
+      stage: 'ploughing',
+      stageProgress: 0,
+      priority: 1,
+      harvestCount: 0,
+      lastYield: 0,
+      currentYield: 0,
+      harvestYieldMultiplier: 1,
+      manureApplied: 0,
+    };
+    const state = this.options.getState();
+    const holdingFields = [...state.farmFields.values()]
+      .filter((field) => field.farmsteadId === farmstead.id);
+    const previewFields = new Map(state.farmFields);
+    previewFields.set(draftField.id, draftField);
+    const cattleSupport = computeCattleFieldSupport({
+      buildings: state.buildings,
+      farmFields: previewFields,
+      livestockHerds: state.livestockHerds,
+    });
+    const onsiteLabor = onsiteBuildingLabor(
+      farmstead,
+      findActiveTripForBuilding(state.deliveryTrips.values(), farmstead.id),
+    );
+    const plan = buildFarmsteadWorkPlan(
+      [...holdingFields, draftField],
+      onsiteLabor,
+      gameClock(state.tick),
+      this.options.isSabbathObserved?.() ?? false,
+      cattleSupport,
+      farmstead.ironwork ?? 0,
+      farmstead,
+    );
+    const sowingPlan = FARM_CROP_DEFINITIONS[this.crop].workSeason === 'spring'
+      ? plan.spring
+      : plan.autumn;
+    const hectares = exactArea / 10_000;
+    const areaDetail = `${area.toLocaleString()} m² (${hectares.toFixed(hectares < 0.1 ? 3 : 2)} ha)`;
+    const produceDetail = cropProduce(this.crop) === 'none'
+      ? 'soil-restoring fallow'
+      : `${expectedFieldYield(draftField).toFixed(1)} ${cropHarvestUnit(this.crop)}`;
+    const cycleWorkerDays = fieldWorkerDays(fullFieldCycleWork(draftField, farmstead));
+    const sowingSeason = FARM_CROP_DEFINITIONS[this.crop].workSeason;
+    return `${cropLabel(this.crop)} · ${areaDetail} · ${produceDetail} · field ${cycleWorkerDays.toFixed(1)} base worker-days/year · farm ${sowingSeason} ${sowingPlan.requiredWorkerDays.toFixed(1)}/${sowingPlan.availableWorkerDays.toFixed(1)}, harvest ${plan.harvest.requiredWorkerDays.toFixed(1)}/${plan.harvest.availableWorkerDays.toFixed(1)} worker-days · ${placementHint}`;
   }
 
   getBuildButtonPosition(): { clientX: number; clientY: number } | null {

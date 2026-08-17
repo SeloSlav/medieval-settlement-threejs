@@ -1,7 +1,6 @@
 import {
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
   FARM_CROP_DEFINITIONS,
-  FARM_OPTIMAL_FIELD_AREA,
 } from '../../generated/gameBalance.ts';
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
 import {
@@ -14,7 +13,6 @@ import {
   expectedFieldYield,
   fieldCentroid,
   fieldShapeEfficiency,
-  fieldSizeEfficiency,
   moistureSuitability,
 } from '../../farming/farmFieldMath.ts';
 import {
@@ -23,9 +21,12 @@ import {
   currentFieldWorkRemaining,
   daysUntilCropHarvestWindow,
   earlyHarvestAvailability,
+  fieldFarmsteadDistance,
+  fieldPerimeter,
   fieldSeedGrainRemaining,
   fieldStageAllowed,
   fieldWorkerDays,
+  fullFieldCycleWork,
   projectedCropFertility,
   projectedFieldFertility,
   seedGrainRequired,
@@ -91,7 +92,6 @@ export function renderFarmFieldInspector(
   const stageProgress = Math.max(0, Math.min(100, Math.round(field.stageProgress * 100)));
   const expectedYield = activeFieldHarvestYield(field);
   const shape = Math.round(fieldShapeEfficiency(field.corners) * 100);
-  const sizeEfficiency = Math.round(fieldSizeEfficiency(field.area) * 100);
   const center = fieldCentroid(field.corners);
   const effectiveMoisture = effectiveFieldMoisture(field.moisture, center.x, center.z);
   const moistureFit = Math.round(moistureSuitability(field.crop, effectiveMoisture) * 100);
@@ -125,8 +125,11 @@ export function renderFarmFieldInspector(
   const yearThreeSeed = seedGrainRequired(field.area, thirdCrop);
   const cyclicRotation = field.followingCrop != null;
   const remainingWorkerDays = fieldWorkerDays(
-    currentFieldWorkRemaining(field, cattleSupport?.ploughWorkMultiplier),
+    currentFieldWorkRemaining(field, cattleSupport?.ploughWorkMultiplier, farmstead),
   );
+  const cycleWorkerDays = fieldWorkerDays(fullFieldCycleWork(field, farmstead));
+  const farmsteadDistance = fieldFarmsteadDistance(field, farmstead);
+  const perimeter = fieldPerimeter(field);
   const onsiteLabor = farmstead
     ? onsiteBuildingLabor(farmstead, context.worldQueries.getActiveDeliveryTrip(farmstead))
     : 0;
@@ -224,7 +227,7 @@ export function renderFarmFieldInspector(
     statusText,
     statusState: seedBlocked ? 'warning' : active || field.stage === 'growing' ? 'active' : 'idle',
     detailsHtml: `
-      <li><span>Area</span><span>${Math.round(field.area)} m²</span></li>
+      <li><span>Area</span><span>${Math.round(field.area).toLocaleString()} m² · ${(field.area / 10_000).toFixed(field.area < 1_000 ? 3 : 2)} ha</span></li>
       <li><span>Stage</span><span>${STAGE_LABEL[field.stage]} · ${stageProgress}%</span></li>
       <li><span>${cropProduce(field.crop) === 'none' ? 'Days until rest complete' : 'Days until harvest'}</span><span>${harvestTiming}</span></li>
       <li><span>Projected yield</span><span>${yieldForecast}</span></li>
@@ -244,7 +247,9 @@ export function renderFarmFieldInspector(
       <li><span>Year 3 soil</span><span>${Math.round(plannedFertility * 100)}% → ${Math.round(yearThreeFertility * 100)}% after ${cropLabel(thirdCrop).toLowerCase()} · future manure excluded</span></li>
       <li><span>Average slope</span><span>${field.averageSlopeDegrees.toFixed(1)}°</span></li>
       <li><span>Shape efficiency</span><span>${shape}%</span></li>
-      <li><span>Size efficiency</span><span>${sizeEfficiency}% · full through ${FARM_OPTIMAL_FIELD_AREA.toLocaleString()} m²</span></li>
+      <li><span>Farmstead distance</span><span>${farmstead ? `${farmsteadDistance.toFixed(0)} m · travel adds work each field stage` : 'Unknown · farmstead missing'}</span></li>
+      <li><span>Parcel boundary</span><span>${perimeter.toFixed(0)} m · separate parcels repeat setup and turning work</span></li>
+      <li><span>Full-cycle labor</span><span>${cycleWorkerDays.toFixed(1)} base worker-days · tools and oxen can reduce elapsed time</span></li>
       ${earlyHarvestLocked ? `<li><span>Harvest decision</span><span>Early cut · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% of normal yield locked</span></li>` : ''}
       <li><span>Next-crop potential</span><span>${cropProduce(field.nextCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${plannedYield.toFixed(1)} ${cropHarvestUnit(field.nextCrop)} at current moisture · ${plannedSeed.toFixed(1)} seed`}</span></li>
       <li><span>Year 3 potential</span><span>${cropProduce(thirdCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${yearThreeYield.toFixed(1)} ${cropHarvestUnit(thirdCrop)} at current moisture · ${yearThreeSeed.toFixed(1)} seed`}</span></li>

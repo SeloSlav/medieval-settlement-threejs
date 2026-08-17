@@ -1781,8 +1781,18 @@ fn step_farmstead_fields(
         let corners = field_corners(field);
         let field_center = centroid(&corners);
         let shape = shape_efficiency(&corners);
+        let perimeter: f64 = crate::farming::edge_lengths(&corners).iter().sum();
+        let farmstead_distance =
+            ((field_center.x - farmstead.x).powi(2) + (field_center.z - farmstead.z).powi(2))
+                .sqrt();
         let plough_multiplier = cattle_support.get(&field.id).copied().unwrap_or(1.0);
-        let required = (work_required(field.stage, field.area, shape)
+        let required = (work_required(
+            field.stage,
+            field.area,
+            shape,
+            perimeter,
+            farmstead_distance,
+        )
             * if field.stage == STAGE_PLOUGHING {
                 plough_multiplier
             } else {
