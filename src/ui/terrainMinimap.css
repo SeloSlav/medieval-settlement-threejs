@@ -117,11 +117,30 @@
     0 0 0 2px rgba(214, 118, 43, 0.28);
 }
 
-.terrain-minimap__marker--resource.terrain-minimap__marker--deep {
+.terrain-minimap__marker--resource.terrain-minimap__marker--deep,
+.terrain-minimap__marker--resource.resource-node-marker--rich {
   border-color: rgba(117, 172, 142, 0.96);
   box-shadow:
     0 2px 6px rgba(0, 0, 0, 0.5),
     0 0 0 2px rgba(91, 145, 116, 0.24);
+}
+
+.terrain-minimap__marker--resource.resource-node-marker--rich::after {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
+  content: '\221E';
+  border: 1px solid rgba(31, 24, 14, 0.78);
+  border-radius: 999px;
+  color: #fff4d4;
+  background: #496c58;
+  font: 800 7px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.42);
+  pointer-events: none;
 }
 
 .terrain-minimap__marker--building {

@@ -62,7 +62,9 @@
 }
 
 .quarry-map-icon.quarry-map-icon--deep,
-.foraging-map-icon.foraging-map-icon--deep {
+.foraging-map-icon.foraging-map-icon--deep,
+.quarry-map-icon.resource-node-marker--rich,
+.foraging-map-icon.resource-node-marker--rich {
   border-color: rgba(117, 172, 142, 0.94);
   box-shadow:
     0 8px 22px var(--shadow),
@@ -74,7 +76,9 @@
 .quarry-map-icon--depleted::after,
 .foraging-map-icon--low::after,
 .foraging-map-icon--deep::after,
-.foraging-map-icon--depleted::after {
+.foraging-map-icon--depleted::after,
+.quarry-map-icon.resource-node-marker--rich::after,
+.foraging-map-icon.resource-node-marker--rich::after {
   position: absolute;
   top: -5px;
   right: -5px;
@@ -97,7 +101,9 @@
 }
 
 .quarry-map-icon--deep::after,
-.foraging-map-icon--deep::after {
+.foraging-map-icon--deep::after,
+.quarry-map-icon.resource-node-marker--rich::after,
+.foraging-map-icon.resource-node-marker--rich::after {
   content: '\221E';
   background: #496c58;
 }

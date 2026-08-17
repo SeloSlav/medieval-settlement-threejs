@@ -168,8 +168,8 @@
 
 /* Keep the infinity reserve badge on the lower rim so it stays clear of the
  * larger resource glyph. */
-.resource-node-marker--rich.quarry-map-icon--deep::after,
-.resource-node-marker--rich.foraging-map-icon--deep::after {
+.resource-node-marker--rich.quarry-map-icon::after,
+.resource-node-marker--rich.foraging-map-icon::after {
   top: auto;
   bottom: -5px;
 }

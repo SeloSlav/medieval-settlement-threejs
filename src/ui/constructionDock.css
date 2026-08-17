@@ -334,6 +334,10 @@
   display: none;
 }
 
+.construction-menu:not(.is-scrollable) .construction-menu__viewport {
+  padding-inline: 0;
+}
+
 .construction-menu__scroll {
   position: absolute;
   top: 50%;
@@ -378,6 +382,10 @@
   background: rgba(20, 23, 18, 0.72);
   box-shadow: none;
   cursor: default;
+}
+
+.construction-menu:not(.is-scrollable) .construction-menu__scroll {
+  visibility: hidden;
 }
 
 .map-overlay-menu {
