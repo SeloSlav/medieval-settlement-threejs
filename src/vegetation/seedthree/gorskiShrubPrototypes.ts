@@ -6,8 +6,9 @@ import { Rng } from '@seedthree/core/rng.js';
 import { bilberry } from '@seedthree/species/bilberry.js';
 import { commonJuniper } from '@seedthree/species/common-juniper.js';
 import { raspberry } from '@seedthree/species/raspberry.js';
+import { fieldHornbeamHedge } from './fieldHornbeamHedgePreset.ts';
 
-export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry';
+export type GorskiShrubKind = 'bush' | 'fern' | 'juniper' | 'raspberry' | 'field-hornbeam';
 
 export type GorskiShrubPrototype = {
   geometry: THREE.BufferGeometry;
@@ -39,6 +40,7 @@ const PRESETS = {
   bush: bilberry as SeedThreeShrubPreset,
   juniper: commonJuniper as SeedThreeShrubPreset,
   raspberry: raspberry as SeedThreeShrubPreset,
+  'field-hornbeam': fieldHornbeamHedge as SeedThreeShrubPreset,
 } as const;
 
 export function createGorskiShrubPrototype(

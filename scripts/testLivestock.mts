@@ -20,6 +20,11 @@ import {
   cattleManurePerCycle,
 } from '../src/farming/manurePlanning.ts';
 import {
+  currentPastureHeadCapacity,
+  neutralPastureHeadCapacity,
+  pastureAreaHeadCapacity,
+} from '../src/farming/pastureCapacity.ts';
+import {
   BACKYARD_GARDEN_DEFINITIONS,
   BUILDING_STORAGE_CAPS,
   BUILDING_DEFINITIONS,
@@ -60,6 +65,45 @@ assert.ok(
 assert.ok(SWINE_MATURE_TREES_PER_HEAD > 0, 'swine capacity must depend on live mature trees');
 assert.ok(BACKYARD_GARDEN_DEFINITIONS.hen_yard, 'hen yard must remain a backyard choice');
 
+const lowerPasture = {
+  id: 'pasture-1',
+  farmsteadId: 'building-1',
+  corners: [
+    { x: 0, z: 0 },
+    { x: 20, z: 0 },
+    { x: 20, z: 20 },
+    { x: 0, z: 20 },
+  ],
+  area: 400,
+  averageSlopeDegrees: 4,
+  moisture: 0.58,
+} as const;
+const upperPasture = {
+  ...lowerPasture,
+  id: 'pasture-2',
+  averageSlopeDegrees: 18,
+  moisture: 0.36,
+};
+assert.ok((neutralPastureHeadCapacity(lowerPasture, 'cattle') ?? 0) > 0);
+assert.ok(
+  (neutralPastureHeadCapacity(upperPasture, 'sheep') ?? 0)
+    > (neutralPastureHeadCapacity(upperPasture, 'cattle') ?? 0),
+  'upland parcels should communicate their stronger sheep carrying capacity',
+);
+assert.equal(neutralPastureHeadCapacity(lowerPasture, 'swine'), null);
+assert.ok(pastureAreaHeadCapacity(lowerPasture, 'swine') > 0);
+const currentHoldingHerd = { species: 'cattle', pastureCapacity: 3 } as const;
+const attributedCapacity = [lowerPasture, upperPasture]
+  .reduce(
+    (sum, pasture) => sum + (currentPastureHeadCapacity(
+      pasture,
+      [lowerPasture, upperPasture],
+      currentHoldingHerd,
+    ) ?? 0),
+    0,
+  );
+assert.ok(Math.abs(attributedCapacity - currentHoldingHerd.pastureCapacity) < 1e-9);
+
 const constructionSource = fs.readFileSync('server/src/simulation/construction.rs', 'utf8');
 assert.doesNotMatch(
   constructionSource,
@@ -78,7 +122,11 @@ assert.match(
   'the first explicit pastoral specialization must create the chosen starter herd',
 );
 const livestockInspectorSource = fs.readFileSync('src/resources/inspector/livestockBuildingRenderer.ts', 'utf8');
+const pastureInspectorSource = fs.readFileSync('src/resources/inspector/pastureRenderer.ts', 'utf8');
 assert.match(livestockInspectorSource, /Choose cattle or sheep/);
+assert.match(pastureInspectorSource, /This parcel supports/);
+assert.match(pastureInspectorSource, /Production rhythm/);
+assert.match(pastureInspectorSource, /Linked holding's last cycle/);
 assert.match(
   livestockInspectorSource,
   /data-land-parcel="pasture"[\s\S]{0,160}pastoral_farmstead'[\s\S]{0,80}!herd[\s\S]{0,40}disabled/,

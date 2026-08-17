@@ -38,6 +38,7 @@ import {
   workplaceYardPosition,
   YARD_WORK_ACTIVITY,
 } from '../src/settlement/workerPaths.ts';
+import { workerToolVisibleInMode } from '../src/settlement/SettlementCrowdRenderer.ts';
 import { WORKER_TOOL_URLS } from '../src/settlement/workerTools.ts';
 import {
   WATCHTOWER_GALLERY_RAIL_CENTER_Y,
@@ -456,6 +457,23 @@ const fieldPlan = Array.from({ length: 32 }, (_, seed) =>
   )
 ).find((plan) => plan?.activity === 'tend');
 assert.ok(fieldPlan, 'farmhands should perform field work instead of only visiting fields');
+
+const sowingField = { ...field, id: 'field-sowing', stage: 'sowing' as const };
+const sowingPlan = Array.from({ length: 32 }, (_, seed) =>
+  pickWorkerWalkPlan(
+    farmstead,
+    0,
+    collectWorkerTargets(farmstead, { ...targetInputs, farmFields: [sowingField] }),
+    seed,
+  )
+).find((plan) => plan?.activity === 'sow');
+assert.ok(sowingPlan, 'sowing fields should route farmhands into the broadcast-seed action');
+assert.equal(sowingPlan.target?.fieldStage, 'sowing');
+assert.equal(
+  workerToolVisibleInMode('hoe', 'sow'),
+  false,
+  'the hoe must be hidden while both hands perform the sowing gesture',
+);
 
 for (const kind of ['pastoral_farmstead', 'swineherd'] as const) {
   const workplace = building(`pasture-${kind}`, kind, 0, 0, 1, 120);

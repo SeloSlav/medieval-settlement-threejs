@@ -679,6 +679,11 @@ export async function bootstrapAppSession(
   const farmFieldMarkers = new FarmFieldMarkers(
     sceneManager.selectionGroup,
     (x, z) => sceneManager.terrain.getHeightAt(x, z),
+    {
+      maxAnisotropy: sceneManager.textureAnisotropy,
+      rendererBackend: sceneManager.rendererBackend,
+      useSeedThreePerimeterShrubs: true,
+    },
   );
   const pastureMarkers = new PastureMarkers(
     sceneManager.selectionGroup,

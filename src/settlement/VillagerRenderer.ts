@@ -1684,7 +1684,10 @@ export class VillagerRenderer {
       renderAgents.push(renderAgent);
       if (audioDt > 0) {
         this.pushWorkerSoundSource(renderAgent, workplace);
-        if (agent.mode === 'tend' && workplace?.kind === 'threshing_barn') {
+        if (
+          (agent.mode === 'tend' || agent.mode === 'sow')
+          && workplace?.kind === 'threshing_barn'
+        ) {
           this.pushFarmSongSource(renderAgent);
         }
       }
@@ -1923,6 +1926,7 @@ export class VillagerRenderer {
       || agent.mode === 'mine'
       || agent.mode === 'gather'
       || agent.mode === 'plant'
+      || agent.mode === 'sow'
       || agent.mode === 'fish'
       || agent.mode === 'tend'
       || agent.mode === 'build'
@@ -4280,6 +4284,7 @@ function describeVillagerActivity(
           ? `Cutting wet river clay at ${workplaceLabel}`
           : `Planting saplings near ${workplaceLabel}`;
       }
+      if (agent.mode === 'sow') return `Broadcast sowing seed for ${workplaceLabel}`;
       if (agent.mode === 'fish') return `Fishing near ${workplaceLabel}`;
       if (agent.mode === 'gather') {
         if (workplace?.kind === 'hunters_hall') return `Checking game near ${workplaceLabel}`;

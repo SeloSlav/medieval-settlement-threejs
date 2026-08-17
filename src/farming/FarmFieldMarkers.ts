@@ -7,14 +7,17 @@ import {
   type TerrainOverlaySegment,
 } from '../placement/TerrainOverlayGeometry.ts';
 import type { FarmCrop, FarmFieldStage, FarmFieldState } from '../resources/types.ts';
+import type { RendererBackendKind } from '../scene/RendererBackend.ts';
 import { disposeObject3D } from '../utils/dispose.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import { bilinearPoint, cropLabel, type FarmFieldCorners } from './farmFieldMath.ts';
+import { createFieldPerimeterShrubGroup } from './FarmFieldPerimeterShrubs.ts';
 import {
   hashParcelSeed,
   organicParcelBoundaryPoints,
   polylineSegments,
 } from './organicParcelGeometry.ts';
+import type { FieldPerimeterShrubCatalog } from '../props/ForestUndergrowth.ts';
 
 const FIELD_LIFT = 0.08;
 const MIN_SURFACE_STEPS = 10;
@@ -941,6 +944,10 @@ function createCropStand(
 function disposeObject(root: THREE.Object3D): void {
   root.traverse((object) => {
     const renderable = object as THREE.Mesh;
+    if (renderable.userData.fieldPerimeterSharedResource) {
+      (renderable as THREE.InstancedMesh).dispose?.();
+      return;
+    }
     renderable.geometry?.dispose();
     const materials = Array.isArray(renderable.material) ? renderable.material : renderable.material ? [renderable.material] : [];
     for (const material of materials) material.dispose();
@@ -948,22 +955,59 @@ function disposeObject(root: THREE.Object3D): void {
   root.clear();
 }
 
+export type FarmFieldMarkerOptions = {
+  maxAnisotropy?: number;
+  rendererBackend?: RendererBackendKind;
+  useSeedThreePerimeterShrubs?: boolean;
+};
+
 export class FarmFieldMarkers {
   private readonly root = new THREE.Group();
   private lastSignature = '';
   private readonly getHeightAt: (x: number, z: number) => number;
+  private latestFields: FarmFieldState[] = [];
+  private perimeterShrubs: FieldPerimeterShrubCatalog | null = null;
+  private perimeterReady: Promise<void> = Promise.resolve();
+  private disposed = false;
 
   constructor(
     parent: THREE.Group,
     getHeightAt: (x: number, z: number) => number,
+    options: FarmFieldMarkerOptions = {},
   ) {
     this.getHeightAt = getHeightAt;
     this.root.name = 'Farm fields';
     parent.add(this.root);
+
+    if (options.useSeedThreePerimeterShrubs) {
+      this.perimeterReady = import('../props/ForestUndergrowth.ts').then(
+        ({ createFieldPerimeterShrubCatalog }) => createFieldPerimeterShrubCatalog(
+          options.maxAnisotropy ?? 4,
+          options.rendererBackend,
+        ),
+      ).then(
+        (catalog) => {
+          if (this.disposed) {
+            catalog.dispose();
+            return;
+          }
+          this.perimeterShrubs = catalog;
+          this.lastSignature = '';
+          this.syncFields(this.latestFields);
+        },
+        (error: unknown) => {
+          console.warn(
+            '[SeedThree] field-perimeter shrub assets failed to load; the field edge will remain unplanted.',
+            error,
+          );
+        },
+      );
+    }
   }
 
   syncFields(fields: Iterable<FarmFieldState>): void {
     const list = [...fields];
+    this.latestFields = list;
     const signature = list.map((field) => [
       field.id,
       field.crop,
@@ -986,10 +1030,24 @@ export class FarmFieldMarkers {
       group.add(createFieldEdge(field.id, corners, this.getHeightAt));
       this.root.add(group);
     }
+    if (this.perimeterShrubs && list.length > 0) {
+      this.root.add(createFieldPerimeterShrubGroup(
+        list,
+        this.getHeightAt,
+        this.perimeterShrubs,
+      ));
+    }
+  }
+
+  whenPerimeterReady(): Promise<void> {
+    return this.perimeterReady;
   }
 
   dispose(): void {
+    this.disposed = true;
     disposeObject(this.root);
+    this.perimeterShrubs?.dispose();
+    this.perimeterShrubs = null;
     this.root.removeFromParent();
   }
 }

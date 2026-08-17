@@ -1,4 +1,9 @@
 import type { InspectableTarget } from '../types.ts';
+import {
+  currentPastureHeadCapacity,
+  neutralPastureHeadCapacity,
+  pastureAreaHeadCapacity,
+} from '../../farming/pastureCapacity.ts';
 import type { InspectorRenderContext, InspectorView } from './renderInspectableTarget.ts';
 import { hiddenLabor } from './renderInspectableTarget.ts';
 
@@ -10,10 +15,32 @@ const SPECIES_LABEL = {
 
 export function renderPastureInspector(
   target: Extract<InspectableTarget, { kind: 'pasture' }>,
-  _context: InspectorRenderContext,
+  context: InspectorRenderContext,
 ): InspectorView {
   const { pasture, farmstead, herd } = target;
   const title = herd ? SPECIES_LABEL[herd.species] : 'Fenced pasture';
+  const holdingPastures = farmstead
+    ? context.worldQueries.getPasturesForBuilding(farmstead.id)
+    : [];
+  const neutralCapacity = herd
+    ? neutralPastureHeadCapacity(pasture, herd.species)
+    : null;
+  const currentCapacity = herd
+    ? currentPastureHeadCapacity(pasture, holdingPastures, herd)
+    : null;
+  const parcelCapacity = !herd
+    ? 'Choose a herd to calculate carrying capacity'
+    : herd.species === 'swine'
+      ? `${pastureAreaHeadCapacity(pasture, herd.species).toFixed(1)} head by area · actual pannage also depends on mature trees`
+      : `${currentCapacity?.toFixed(1) ?? '0.0'} ${herd.species} now · ${neutralCapacity?.toFixed(1) ?? '0.0'} in neutral conditions`;
+  const productionRhythm = !herd
+    ? 'No herd linked'
+    : herd.species === 'swine'
+      ? 'Woodland mast supports the herd · pork comes from surplus culls in October–November, not a parcel harvest'
+      : 'Grazing supports continuous dairy and breeding · hay is cut June–August at the linked holding';
+  const recentOutput = herd
+    ? `${herd.lastFoodOutput.toFixed(2)} fresh food · ${herd.lastPreservedOutput.toFixed(2)} preserved${herd.lastHayOutput > 0 ? ` · ${herd.lastHayOutput.toFixed(2)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
+    : 'None';
   return {
     eyebrow: 'Functional work parcel',
     title,
@@ -29,7 +56,10 @@ export function renderPastureInspector(
       <li><span>Average slope</span><span>${pasture.averageSlopeDegrees.toFixed(1)}°</span></li>
       <li><span>Moisture</span><span>${Math.round(pasture.moisture * 100)}%</span></li>
       <li><span>Herd</span><span>${herd ? `${herd.headCount} ${herd.species}` : 'None'}</span></li>
-      <li><span>Holding capacity</span><span>${herd ? `${herd.pastureCapacity} pasture · ${herd.suppliedCapacity} supplied` : 'Not calculated'}</span></li>
+      <li><span>This parcel supports</span><span>${parcelCapacity}</span></li>
+      <li><span>Holding capacity</span><span>${herd ? `${herd.pastureCapacity.toFixed(1)} pasture · ${herd.suppliedCapacity.toFixed(1)} supplied` : 'Not calculated'}</span></li>
+      <li><span>Production rhythm</span><span>${productionRhythm}</span></li>
+      <li><span>Linked holding's last cycle</span><span>${recentOutput}</span></li>
     `,
     demolish: {
       visible: true,

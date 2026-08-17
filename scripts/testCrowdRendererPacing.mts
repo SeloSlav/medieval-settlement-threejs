@@ -20,6 +20,7 @@ const WORK_MODES = new Set<VillagerRenderMode>([
   'mine',
   'gather',
   'plant',
+  'sow',
   'fish',
   'tend',
   'build',
@@ -78,6 +79,7 @@ const modes: VillagerRenderMode[] = [
   'mine',
   'gather',
   'plant',
+  'sow',
   'fish',
   'tend',
   'build',
@@ -200,7 +202,7 @@ const animationRoot = new THREE.Object3D();
 const animationMixer = new THREE.AnimationMixer(animationRoot);
 const actionModes: VillagerRenderMode[] = [
   'idle', 'walk', 'sit', 'rest', 'talk', 'chop', 'mine',
-  'gather', 'plant', 'fish', 'tend', 'build', 'fight',
+  'gather', 'plant', 'sow', 'fish', 'tend', 'build', 'fight',
 ];
 const pooledActions = Object.fromEntries(actionModes.map((mode) => [
   mode,

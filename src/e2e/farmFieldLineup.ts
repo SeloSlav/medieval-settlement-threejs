@@ -13,6 +13,8 @@ declare global {
       oatPanicles: number;
       flaxBlossoms: number;
       maslinHeads: number;
+      hedgeShrubs: number;
+      hedgeDrawCalls: number;
       drawCalls: number;
       triangles: number;
     };
@@ -149,8 +151,13 @@ const fields: FarmFieldState[] = cropView
 const fieldRoot = new THREE.Group();
 fieldRoot.name = 'Farm field visual QA';
 scene.add(fieldRoot);
-const fieldMarkers = new FarmFieldMarkers(fieldRoot, getHeightAt);
+const fieldMarkers = new FarmFieldMarkers(fieldRoot, getHeightAt, {
+  maxAnisotropy: 8,
+  rendererBackend: 'webgl',
+  useSeedThreePerimeterShrubs: true,
+});
 fieldMarkers.syncFields(fields);
+await fieldMarkers.whenPerimeterReady();
 
 const ridgeMaterial = new THREE.MeshStandardMaterial({
   color: 0x42513a,
@@ -189,6 +196,7 @@ scene.add(sun);
 const camera = new THREE.PerspectiveCamera(47, 1, 0.1, 230);
 const overview = params.get('view') === 'overview';
 const detail = params.get('view') === 'detail';
+const hedge = params.get('view') === 'hedge';
 if (cropView) {
   camera.position.set(35, 48, -57);
   camera.lookAt(0, 0.6, 4);
@@ -198,6 +206,9 @@ if (cropView) {
 } else if (detail) {
   camera.position.set(4, 2.45, -6);
   camera.lookAt(0, 0.8, 5.5);
+} else if (hedge) {
+  camera.position.set(-8, 2.15, -34);
+  camera.lookAt(-8, 0.65, -24.5);
 } else {
   camera.position.set(8, 5.2, -38);
   camera.lookAt(-3, 1.3, 6);
@@ -223,6 +234,8 @@ let barleyHeads = 0;
 let oatPanicles = 0;
 let flaxBlossoms = 0;
 let maslinHeads = 0;
+let hedgeShrubs = 0;
+let hedgeDrawCalls = 0;
 scene.traverse((object) => {
   if (!(object instanceof THREE.InstancedMesh)) return;
   if (object.name.startsWith('Standing ')) standingTufts += object.count;
@@ -232,6 +245,10 @@ scene.traverse((object) => {
   if (object.name === 'Oat drooping panicles') oatPanicles += object.count;
   if (object.name === 'Flax blue blossoms') flaxBlossoms += object.count;
   if (object.name === 'Wheat–rye maslin heads') maslinHeads += object.count;
+  if (object.name.startsWith('SeedThree field-perimeter hornbeam hedge shrubs')) {
+    hedgeShrubs += object.count;
+    hedgeDrawCalls += Array.isArray(object.material) ? object.material.length : 1;
+  }
 });
 window.__FARM_FIELD_LINEUP_METRICS__ = {
   standingTufts,
@@ -241,6 +258,8 @@ window.__FARM_FIELD_LINEUP_METRICS__ = {
   oatPanicles,
   flaxBlossoms,
   maslinHeads,
+  hedgeShrubs,
+  hedgeDrawCalls,
   drawCalls: renderer.info.render.calls,
   triangles: renderer.info.render.triangles,
 };

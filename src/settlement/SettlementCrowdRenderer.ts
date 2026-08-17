@@ -54,6 +54,7 @@ export type VillagerRenderMode =
   | 'mine'
   | 'gather'
   | 'plant'
+  | 'sow'
   | 'fish'
   | 'tend'
   | 'build'
@@ -537,6 +538,7 @@ export class SettlementCrowdRenderer {
       mine: mixer.clipAction(source.clips.mine, model),
       gather: mixer.clipAction(source.clips.gather, model),
       plant: mixer.clipAction(source.clips.plant, model),
+      sow: mixer.clipAction(source.clips.sow, model),
       fish: mixer.clipAction(source.clips.fish, model),
       tend: mixer.clipAction(source.clips.tend, model),
       build: mixer.clipAction(source.clips.build, model),
@@ -912,6 +914,7 @@ function configureActionSpeeds(
   actions.mine.setEffectiveTimeScale(0.9);
   actions.gather.setEffectiveTimeScale(0.92);
   actions.plant.setEffectiveTimeScale(0.78);
+  actions.sow.setEffectiveTimeScale(0.94);
   actions.fish.setEffectiveTimeScale(0.82);
   actions.tend.setEffectiveTimeScale(0.9);
   actions.build.setEffectiveTimeScale(1.08);
@@ -1009,6 +1012,7 @@ async function loadVillagerSource(
   const fight = swing.clone();
   fight.name = `${swing.name}:combat-fight`;
   const gather = createGatherAnimationClip(gltf.scene);
+  const sow = createSowAnimationClip(gltf.scene);
   const fish = createFishingAnimationClip(gltf.scene);
   const tend = createTendAnimationClip(gltf.scene);
   return {
@@ -1026,6 +1030,7 @@ async function loadVillagerSource(
       mine,
       gather,
       plant,
+      sow,
       fish,
       tend,
       build,
@@ -1182,6 +1187,62 @@ function createGatherAnimationClip(scene: THREE.Object3D): THREE.AnimationClip {
 }
 
 /**
+ * A semantic sowing cycle: the worker crouches to take a handful of seed,
+ * rises with the left arm held like a pouch, then broadcasts it in a broad
+ * right-handed sweep. The final keyframe returns every joint to the source
+ * pose so transitions back to walking or hoe work do not retain a twist.
+ */
+function createSowAnimationClip(scene: THREE.Object3D): THREE.AnimationClip {
+  const times = [0, 0.28, 0.64, 0.92, 1.18, 1.42, 1.7, 2.02, 2.3, 2.62, 2.92, 3.2];
+  const bend = [0, 0.2, 0.7, 0.58, 0.24, 0.08, 0.02, 0.06, 0.16, 0.52, 0.22, 0];
+  const twist = [0, 0.02, 0.06, 0.02, -0.16, -0.36, 0.24, 0.12, -0.12, 0.03, 0.04, 0];
+  const cast = [0, 0.04, 0.12, 0.2, -0.15, -0.56, 0.82, 0.26, -0.3, -0.08, 0.14, 0];
+  const rightPitch = [0, 0.12, 0.54, 0.42, 0.26, 0.5, 0.86, 0.4, 0.32, 0.5, 0.2, 0];
+  const rightElbow = [0, 0.18, 0.7, 0.62, 0.46, 0.8, 0.16, 0.32, 0.58, 0.72, 0.28, 0];
+  const leftPitch = [0, 0.14, 0.52, 0.6, 0.48, 0.42, 0.32, 0.44, 0.54, 0.6, 0.26, 0];
+  const cradle = [0, -0.04, -0.12, -0.2, -0.32, -0.3, -0.24, -0.3, -0.28, -0.18, -0.08, 0];
+  const tracks: THREE.KeyframeTrack[] = [];
+
+  const addRotation = (
+    boneName: string,
+    rotationAt: (index: number) => readonly [number, number, number],
+  ): void => {
+    const bone = scene.getObjectByName(boneName);
+    if (!bone) return;
+    const values: number[] = [];
+    for (let index = 0; index < times.length; index++) {
+      const [x, y, z] = rotationAt(index);
+      const offset = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(x, y, z, 'XYZ'),
+      );
+      const pose = bone.quaternion.clone().multiply(offset).normalize();
+      values.push(pose.x, pose.y, pose.z, pose.w);
+    }
+    tracks.push(new THREE.QuaternionKeyframeTrack(
+      `${boneName}.quaternion`,
+      times,
+      values,
+    ));
+  };
+
+  addRotation('Hips', (index) => [bend[index]! * 0.18, twist[index]! * 0.16, 0]);
+  addRotation('Abdomen', (index) => [bend[index]! * 0.62, twist[index]! * 0.36, 0]);
+  addRotation('Torso', (index) => [bend[index]! * 0.44, twist[index]! * 0.58, -twist[index]! * 0.12]);
+  addRotation('Neck', (index) => [-bend[index]! * 0.24, -twist[index]! * 0.24, 0]);
+  addRotation('UpperLegL', (index) => [-bend[index]! * 0.3, 0, 0]);
+  addRotation('UpperLegR', (index) => [-bend[index]! * 0.3, 0, 0]);
+  addRotation('LowerLegL', (index) => [bend[index]! * 0.4, 0, 0]);
+  addRotation('LowerLegR', (index) => [bend[index]! * 0.4, 0, 0]);
+  addRotation('UpperArmL', (index) => [leftPitch[index]!, 0, cradle[index]!]);
+  addRotation('LowerArmL', (index) => [leftPitch[index]! * 0.82, 0, cradle[index]! * 0.34]);
+  addRotation('UpperArmR', (index) => [rightPitch[index]!, 0, cast[index]!]);
+  addRotation('LowerArmR', (index) => [rightElbow[index]!, 0, cast[index]! * 0.2]);
+  addRotation('PalmR', (index) => [0, cast[index]! * 0.34, cast[index]! * 0.12]);
+
+  return new THREE.AnimationClip('Worker_Sow', 3.2, tracks).optimize();
+}
+
+/**
  * A quiet standing reach-and-check loop for processors, herders, beekeepers,
  * well keepers, and millers. It deliberately avoids a generic weapon swing:
  * these jobs read as tending equipment or handling stock in the yard.
@@ -1278,11 +1339,12 @@ function createFishingAnimationClip(scene: THREE.Object3D): THREE.AnimationClip 
 
 function isWorkMode(
   mode: VillagerRenderMode,
-): mode is 'chop' | 'mine' | 'gather' | 'plant' | 'fish' | 'tend' | 'build' | 'fight' {
+): mode is 'chop' | 'mine' | 'gather' | 'plant' | 'sow' | 'fish' | 'tend' | 'build' | 'fight' {
   return mode === 'chop'
     || mode === 'mine'
     || mode === 'gather'
     || mode === 'plant'
+    || mode === 'sow'
     || mode === 'fish'
     || mode === 'tend'
     || mode === 'build'
@@ -1293,6 +1355,9 @@ export function workerToolVisibleInMode(
   kind: WorkerToolKind,
   mode: VillagerRenderMode,
 ): boolean {
+  // Broadcast sowing needs two empty hands; the farm's hoe must not turn the
+  // seed-casting gesture back into a generic tool swing.
+  if (mode === 'sow') return false;
   if (kind === 'spear') {
     return mode === 'idle'
       || mode === 'walk'

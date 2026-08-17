@@ -95,6 +95,8 @@ export type WorkerTargetKind =
 export type WorkerTarget = PointXZ & {
   id: string;
   kind: WorkerTargetKind;
+  /** Retains the authoritative field phase so presentation can pick a specific action. */
+  fieldStage?: FarmFieldState['stage'];
 };
 
 export type WorkerActivityKind =
@@ -102,6 +104,7 @@ export type WorkerActivityKind =
   | 'mine'
   | 'gather'
   | 'plant'
+  | 'sow'
   | 'fish'
   | 'tend'
   | 'build';
@@ -499,7 +502,12 @@ export function collectWorkerTargets(
     for (const field of inputs.farmFields) {
       if (field.farmsteadId !== building.id || field.priority <= 0) continue;
       const center = polygonCenter(field.corners);
-      targets.push({ id: field.id, kind: 'field', ...center });
+      targets.push({
+        id: field.id,
+        kind: 'field',
+        fieldStage: field.stage,
+        ...center,
+      });
     }
   }
   if (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd') {
@@ -702,7 +710,9 @@ function workerActivityFor(
     && (target.kind === 'berries' || target.kind === 'mushrooms')
   ) return 'gather';
   if (building.kind === 'fishing_camp' && target.kind === 'fish') return 'fish';
-  if (building.kind === 'threshing_barn' && target.kind === 'field') return 'tend';
+  if (building.kind === 'threshing_barn' && target.kind === 'field') {
+    return target.fieldStage === 'sowing' ? 'sow' : 'tend';
+  }
   if (
     (building.kind === 'pastoral_farmstead' || building.kind === 'swineherd')
     && target.kind === 'pasture'

@@ -11,6 +11,15 @@ import {
   organicParcelEdgePoints,
   samplePolylineAtFraction,
 } from '../src/farming/organicParcelGeometry.ts';
+import {
+  createFieldPerimeterShrubPlacements,
+  FIELD_PERIMETER_SHRUB_INSET_METERS,
+} from '../src/farming/FarmFieldPerimeterShrubs.ts';
+import {
+  distancePointToSegment2,
+  isPointInPolygon2,
+} from '../src/utils/polygonGeometry.ts';
+import { createGorskiShrubPrototype } from '../src/vegetation/seedthree/gorskiShrubPrototypes.ts';
 
 const organicSeed = hashParcelSeed('shared-parcel-visual-test');
 const organicEdge = organicParcelEdgePoints(
@@ -66,6 +75,31 @@ const field: FarmFieldState = {
 };
 
 const visualRoot = new THREE.Group();
+const hornbeamPrototype = createGorskiShrubPrototype('field-hornbeam', 0);
+assert.equal(hornbeamPrototype.fruitAnchors.length, 0, 'the agricultural hornbeam hedge must not create berry or fruit anchors');
+assert.equal(hornbeamPrototype.geometry.userData.gorskiShrubKind, 'field-hornbeam');
+hornbeamPrototype.geometry.dispose();
+const hedgePlacements = createFieldPerimeterShrubPlacements([field]);
+assert.ok(hedgePlacements.length >= 24, 'a placed field needs a legible hornbeam hedge around its perimeter');
+assert.deepEqual(
+  hedgePlacements,
+  createFieldPerimeterShrubPlacements([field]),
+  'field hedge placement must be deterministic across reconnects',
+);
+for (const placement of hedgePlacements) {
+  assert.ok(
+    isPointInPolygon2(placement, field.corners),
+    'hornbeam hedge roots must stay inside the grass/wildflower exclusion polygon',
+  );
+  const boundaryDistance = Math.min(...field.corners.map((start, index) => (
+    distancePointToSegment2(placement, start, field.corners[(index + 1) % field.corners.length]!)
+  )));
+  assert.ok(
+    boundaryDistance >= FIELD_PERIMETER_SHRUB_INSET_METERS[0] * 0.7
+      && boundaryDistance <= FIELD_PERIMETER_SHRUB_INSET_METERS[1] + 0.28,
+    `hornbeam roots should occupy the narrow band before meadow groundcover (got ${boundaryDistance.toFixed(2)} m)`,
+  );
+}
 const fieldMarkers = new FarmFieldMarkers(visualRoot, () => 0);
 fieldMarkers.syncFields([field]);
 const standingCereal = visualRoot.getObjectByName('Standing cereal stalks');

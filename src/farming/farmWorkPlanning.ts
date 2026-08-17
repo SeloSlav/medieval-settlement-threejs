@@ -322,6 +322,32 @@ export function cropCalendarLabel(crop: FarmCrop): string {
   return FARM_CROP_DEFINITIONS[crop].calendarLabel;
 }
 
+/**
+ * Calendar time until this crop's normal harvest month opens. Once that month
+ * is underway the window is reported as open rather than wrapping to next year.
+ */
+export function daysUntilCropHarvestWindow(
+  clock: Pick<
+    GameClock,
+    'month' | 'monthDay' | 'hour' | 'preciseHour' | 'preciseCalendarDay'
+  >,
+  crop: FarmCrop,
+): number {
+  const harvestMonth = FARM_CROP_DEFINITIONS[crop].growthEndMonth
+    % CALENDAR_MONTHS_PER_YEAR + 1;
+  if (clock.month === harvestMonth) return 0;
+
+  const currentHour = clock.preciseHour ?? clock.hour;
+  const currentDayOfYear = clock.preciseCalendarDay
+    ?? (clock.month - 1) * CALENDAR_DAYS_PER_MONTH
+      + Math.max(0, clock.monthDay - 1)
+      + currentHour / CALENDAR_HOURS_PER_DAY;
+  const harvestDayOfYear = (harvestMonth - 1) * CALENDAR_DAYS_PER_MONTH;
+  const daysPerYear = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
+  const delta = harvestDayOfYear - currentDayOfYear;
+  return Math.max(0, delta >= 0 ? delta : delta + daysPerYear);
+}
+
 function productiveSecondsInWindow(
   clock: GameClock,
   startMonth: number,

@@ -66,6 +66,7 @@ import {
   buildFarmsteadWorkPlan,
   cropCalendarLabel,
   currentFieldWorkRemaining,
+  daysUntilCropHarvestWindow,
   earlyHarvestAvailability,
   earlyHarvestYieldMultiplier,
   farmsteadExportableGrain,
@@ -101,6 +102,16 @@ assert.equal(fieldShapeEfficiency(rectangle), 1);
 assert.equal(sampleAverageSlopeDegrees(rectangle, () => 10), 0);
 assert.ok(sampleAuthoritativeHydrologyScore(0, 0) >= 0 && sampleAuthoritativeHydrologyScore(0, 0) <= 1);
 assert.equal(sampleAuthoritativeHydrologyScore(10_000, 10_000), 0);
+
+const openingClock = gameClockAtElapsedSeconds(0);
+assert.ok(
+  Math.abs(daysUntilCropHarvestWindow(openingClock, 'rye') - (180 - 8 / 24)) < 1e-9,
+  'the field forecast should count from the current time to the September window',
+);
+const septemberClock = gameClockAtElapsedSeconds(180 * CALENDAR_SECONDS_PER_DAY);
+assert.equal(daysUntilCropHarvestWindow(septemberClock, 'oats'), 0);
+const octoberClock = gameClockAtElapsedSeconds(210 * CALENDAR_SECONDS_PER_DAY);
+assert.ok(daysUntilCropHarvestWindow(octoberClock, 'barley') > 329);
 
 const organicParcel = [
   { x: 0, z: 0 },
@@ -880,6 +891,8 @@ assert.match(townHallInspector, /Year 3 rotation/);
 assert.match(townHallInspector, /Cyclic coverage/);
 assert.match(farmFieldInspector, /data-field-early-harvest/);
 assert.match(farmFieldInspector, /Waiting until September keeps 100% yield/);
+assert.match(farmFieldInspector, /Days until harvest/);
+assert.match(farmFieldInspector, /Projected yield/);
 
 const farmSimulation = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(farmSimulation, /field\.current_yield \+= deposited/, 'harvest accounting must track grain actually stored');

@@ -1,5 +1,6 @@
 import {
   CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER,
+  FARM_CROP_DEFINITIONS,
   FARM_OPTIMAL_FIELD_AREA,
 } from '../../generated/gameBalance.ts';
 import { computeCattleFieldSupport } from '../../farming/cattleFieldSupport.ts';
@@ -20,6 +21,7 @@ import {
   activeFieldHarvestYield,
   cropCalendarLabel,
   currentFieldWorkRemaining,
+  daysUntilCropHarvestWindow,
   earlyHarvestAvailability,
   fieldSeedGrainRemaining,
   fieldStageAllowed,
@@ -123,7 +125,8 @@ export function renderFarmFieldInspector(
     ? adjustedRemainingWorkerDays / onsiteLabor
     : null;
   const active = Boolean(farmstead && onsiteLabor > 0 && field.priority > 0);
-  const month = gameClock(context.gameState.tick).month;
+  const clock = gameClock(context.gameState.tick);
+  const month = clock.month;
   const earlyHarvest = earlyHarvestAvailability(field, month);
   const earlyHarvestLocked = field.stage === 'harvesting'
     && (field.harvestYieldMultiplier ?? 1) < 1 - 1e-6;
@@ -149,6 +152,24 @@ export function renderFarmFieldInspector(
             : earlyHarvestLocked
               ? `Early harvest · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% yield locked · ${stageProgress}% gathered`
               : `${STAGE_LABEL[field.stage]} · ${stageProgress}%`;
+
+  const harvestWindowDays = daysUntilCropHarvestWindow(clock, field.crop);
+  const harvestMonth = FARM_CROP_DEFINITIONS[field.crop].growthEndMonth % 12 + 1;
+  const harvestMonthLabel = harvestMonth === 9 ? 'September' : `month ${harvestMonth}`;
+  const harvestTiming = field.stage === 'harvesting'
+    ? crewDays == null
+      ? 'Harvest underway · assign an onsite crew to finish'
+      : crewDays <= 0.05
+        ? 'Completing now'
+        : `About ${crewDays.toFixed(crewDays < 10 ? 1 : 0)} working days remaining at current crew`
+    : harvestWindowDays <= 1e-6
+      ? `${harvestMonthLabel} window open now`
+      : `${Math.ceil(harvestWindowDays)} calendar days until the ${harvestMonthLabel} window${field.stage === 'growing' ? '' : ' · fieldwork must finish in season'}`;
+  const yieldForecast = cropProduce(field.crop) === 'none'
+    ? '0 produce · restores soil fertility'
+    : field.stage === 'harvesting'
+      ? `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)} total · ${Math.max(0, expectedYield - field.currentYield).toFixed(1)} remaining`
+      : `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)} projected`;
 
   const cropControls = `<div class="inspector-action-panel">
       <p class="resource-inspector-note">Year 2 crop — schedule the next cycle without changing the crop already in the ground.</p>
@@ -182,6 +203,8 @@ export function renderFarmFieldInspector(
     detailsHtml: `
       <li><span>Area</span><span>${Math.round(field.area)} m²</span></li>
       <li><span>Stage</span><span>${STAGE_LABEL[field.stage]} · ${stageProgress}%</span></li>
+      <li><span>${cropProduce(field.crop) === 'none' ? 'Days until rest complete' : 'Days until harvest'}</span><span>${harvestTiming}</span></li>
+      <li><span>Projected yield</span><span>${yieldForecast}</span></li>
       <li><span>Three-year rotation</span><span>${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(thirdCrop)}${cyclicRotation ? ` → ${cropLabel(field.crop)}` : ' · Year 3 repeats until scheduled'}</span></li>
       <li><span>Crop calendar</span><span>${cropCalendarLabel(field.crop)}</span></li>
       <li><span>Priority</span><span>${PRIORITY_LABEL[field.priority] ?? 'Normal'}</span></li>
@@ -199,7 +222,6 @@ export function renderFarmFieldInspector(
       <li><span>Average slope</span><span>${field.averageSlopeDegrees.toFixed(1)}°</span></li>
       <li><span>Shape efficiency</span><span>${shape}%</span></li>
       <li><span>Size efficiency</span><span>${sizeEfficiency}% · full through ${FARM_OPTIMAL_FIELD_AREA.toLocaleString()} m²</span></li>
-      <li><span>Expected harvest</span><span>${cropProduce(field.crop) === 'none' ? 'Restores fertility' : `${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)}`}</span></li>
       ${earlyHarvestLocked ? `<li><span>Harvest decision</span><span>Early cut · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% of normal yield locked</span></li>` : ''}
       <li><span>Next-crop potential</span><span>${cropProduce(field.nextCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${plannedYield.toFixed(1)} ${cropHarvestUnit(field.nextCrop)} at current moisture · ${plannedSeed.toFixed(1)} seed`}</span></li>
       <li><span>Year 3 potential</span><span>${cropProduce(thirdCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${yearThreeYield.toFixed(1)} ${cropHarvestUnit(thirdCrop)} at current moisture · ${yearThreeSeed.toFixed(1)} seed`}</span></li>

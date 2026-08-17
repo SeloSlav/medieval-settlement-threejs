@@ -106,7 +106,7 @@ type UndergrowthTextureFiles = {
   translucency: string;
 };
 
-type UndergrowthMaterialPair = [branch: THREE.Material, foliage: THREE.Material];
+export type UndergrowthMaterialPair = [branch: THREE.Material, foliage: THREE.Material];
 
 type UndergrowthFruitAsset = {
   geometry: THREE.BufferGeometry;
@@ -124,6 +124,19 @@ export type UndergrowthMaterials = {
   fernShadowDepth: THREE.MeshDepthMaterial;
   juniperShadowDepth: THREE.MeshDepthMaterial;
   textures: THREE.Texture[];
+};
+
+/**
+ * A small, independently owned slice of the undergrowth catalog for authored
+ * field-edge planting. It keeps farm markers on the same SeedThree geometry,
+ * texture, and wind path as the forest floor without loading fern, juniper,
+ * shadow-proxy, or berry resources that the field perimeter never uses.
+ */
+export type FieldPerimeterShrubCatalog = {
+  materials: UndergrowthMaterialPair;
+  prototypes: GorskiShrubPrototype[];
+  textures: THREE.Texture[];
+  dispose: () => void;
 };
 
 export type UndergrowthInstances = {
@@ -230,6 +243,74 @@ export async function createUndergrowthMaterials(
     fernShadowDepth: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
     juniperShadowDepth: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
     textures,
+  };
+}
+
+export async function createFieldPerimeterShrubCatalog(
+  maxAnisotropy: number,
+  rendererBackend: RendererBackendKind | undefined,
+): Promise<FieldPerimeterShrubCatalog> {
+  const [bushTextures, bushBranch] = await Promise.all([
+    loadUndergrowthTextures({
+      albedo: 'american_beech_single_albedo.png',
+      normal: 'american_beech_single_normal.png',
+      roughness: 'american_beech_single_roughness.png',
+      translucency: 'american_beech_single_translucency.png',
+    }, maxAnisotropy),
+    loadBranchTextures({
+      albedo: 'american_beech_albedo.png',
+      normal: 'american_beech_normal.png',
+      roughness: 'american_beech_roughness.png',
+    }, maxAnisotropy),
+  ]);
+  const textures = collectTextures(bushTextures, bushBranch);
+  const foliageMaterial = createUndergrowthCardMaterial(
+    'SeedThree field-hedge hornbeam leaves',
+    bushTextures,
+    rendererBackend === 'webgpu',
+    [0.3, 0.44, 0.16],
+  );
+  if (rendererBackend !== 'webgpu' && foliageMaterial instanceof THREE.MeshStandardMaterial) {
+    // The forest's legacy double-side patch intentionally preserves card-face
+    // normals, but this low hedge is viewed from both sides and needs the
+    // stock r185 back-face normal flip. Reset the patch for the WebGL QA path;
+    // the live WebGPU path owns its normals through the TSL material above.
+    foliageMaterial.onBeforeCompile = () => undefined;
+    foliageMaterial.customProgramCacheKey = () => 'field-hornbeam-standard-double-sided-v1';
+    foliageMaterial.emissive.setHex(0x334824);
+    foliageMaterial.emissiveMap = bushTextures.albedo;
+    foliageMaterial.emissiveIntensity = 0.72;
+    foliageMaterial.needsUpdate = true;
+  }
+  const branchMaterial = createUndergrowthBranchMaterial(
+    'SeedThree field-hedge hornbeam stems',
+    bushBranch,
+    rendererBackend === 'webgpu',
+  );
+  if ('color' in branchMaterial && branchMaterial.color instanceof THREE.Color) {
+    branchMaterial.color.setHex(0x735f49);
+  }
+  const materials: UndergrowthMaterialPair = [
+    branchMaterial,
+    foliageMaterial,
+  ];
+  const prototypes = Array.from(
+    { length: GORSKI_SHRUB_VARIANT_COUNT },
+    (_, variant) => createGorskiShrubPrototype('field-hornbeam', variant),
+  );
+  let disposed = false;
+
+  return {
+    materials,
+    prototypes,
+    textures,
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      for (const material of materials) material.dispose();
+      for (const prototype of prototypes) prototype.geometry.dispose();
+      for (const texture of textures) texture.dispose();
+    },
   };
 }
 
@@ -719,7 +800,7 @@ function createUndergrowthBranchMaterial(
   return material;
 }
 
-function undergrowthWindVecForYaw(yaw: number, scale: THREE.Vector3, out = windVecScratch): THREE.Vector3 {
+export function undergrowthWindVecForYaw(yaw: number, scale: THREE.Vector3, out = windVecScratch): THREE.Vector3 {
   windQuat.setFromAxisAngle(Y_AXIS, -yaw);
   out.copy(WIND_DIR).applyQuaternion(windQuat);
   if (scale.x !== 0) out.x /= scale.x;
