@@ -65,7 +65,7 @@ select:focus-visible {
   right: auto;
   left: 50%;
   width: auto;
-  max-width: calc(100vw - 104px);
+  max-width: calc(100vw - 64px);
   transform: translateX(-50%);
 }
 
@@ -82,7 +82,7 @@ select:focus-visible {
   grid-template-columns: 192px 78px 42px minmax(0, 1fr) 48px;
   align-items: stretch;
   gap: 0;
-  width: min(930px, calc(100vw - 64px));
+  width: min(1002px, calc(100vw - 64px));
   min-height: 52px;
   padding: 4px 6px;
   overflow: visible;
@@ -391,7 +391,7 @@ select:focus-visible {
 
 .settlement-hud__body {
   display: grid;
-  grid-template-columns: repeat(9, 62px);
+  grid-template-columns: repeat(9, 70px);
   align-content: stretch;
   gap: 0;
   min-width: 0;
@@ -400,13 +400,13 @@ select:focus-visible {
 .settlement-hud__stat {
   position: relative;
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 18px minmax(0, 1fr);
   grid-template-rows: 1fr;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
   min-height: 100%;
-  padding: 4px 5px;
+  padding: 4px;
   border-left: 1px solid rgba(216, 191, 134, 0.09);
   cursor: help;
   transition: background 130ms ease, opacity 130ms ease;
@@ -630,7 +630,7 @@ select:focus-visible {
   right: -8px;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(5, 62px);
+  grid-template-columns: repeat(5, 70px);
   gap: 1px;
   padding: 7px;
   border: 1px solid var(--ui-edge);
@@ -652,7 +652,7 @@ select:focus-visible {
 }
 
 .settlement-hud__food-grid {
-  grid-template-columns: repeat(4, 62px);
+  grid-template-columns: repeat(4, 70px);
 }
 
 .settlement-hud__food-grid .settlement-hud__food-card {
@@ -1954,6 +1954,11 @@ select:focus-visible {
   line-height: 1.5;
 }
 
+.ui-tooltip.has-amount {
+  min-width: min(250px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
+}
+
 /* Trade, household extensions, and map surfaces ------------------------- */
 
 .backyard-picker-list,
@@ -2136,11 +2141,11 @@ select:focus-visible {
 @media (max-width: 1080px) {
   .settlement-hud {
     grid-template-columns: 182px 76px 40px minmax(0, 1fr) 44px;
-    width: min(726px, calc(100vw - 70px));
+    width: min(780px, calc(100vw - 70px));
   }
 
   .settlement-hud__body {
-    grid-template-columns: repeat(6, 62px);
+    grid-template-columns: repeat(6, 70px);
   }
 
   .settlement-hud__approval-shell {

@@ -125,7 +125,6 @@ type AggregateBatchHarness = {
   animated: Map<string, { skeleton: THREE.Skeleton }>;
   animatedPool: Map<string, unknown[]>;
   idlePooledVisualCount: number;
-  proxyLayers: unknown[];
   animatedBatches: Record<'man' | 'woman', AggregateRuntimeBatch> | null;
   fallbackBody: DisposableLayer;
   fallbackLegs: DisposableLayer;
@@ -451,7 +450,6 @@ const makeDisposableLayer = (): DisposableLayer => {
 aggregateHarness.animated.clear();
 aggregateHarness.animatedPool = new Map();
 aggregateHarness.idlePooledVisualCount = 0;
-aggregateHarness.proxyLayers = [];
 aggregateHarness.fallbackBody = makeDisposableLayer();
 aggregateHarness.fallbackLegs = makeDisposableLayer();
 aggregateHarness.fallbackHead = makeDisposableLayer();

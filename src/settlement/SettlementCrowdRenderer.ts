@@ -73,26 +73,6 @@ type VillagerSource = {
   clips: Record<VillagerRenderMode, THREE.AnimationClip>;
 };
 
-type ProxyLayer = {
-  variant: VillagerModelVariant;
-  mesh: THREE.InstancedMesh;
-  material: THREE.MeshStandardMaterial;
-  materialName: string;
-  modelMatrix: THREE.Matrix4;
-};
-
-type ProxyTransformCache = {
-  agents: CrowdRenderAgent[];
-  matrices: THREE.Matrix4[];
-  initialized: Uint8Array;
-  x: Float64Array;
-  y: Float64Array;
-  z: Float64Array;
-  yaw: Float64Array;
-  dirty: Uint8Array;
-  modelMatrix: THREE.Matrix4 | null;
-};
-
 type AnimatedVillager = {
   id: string;
   variant: VillagerModelVariant;
@@ -175,16 +155,15 @@ export function seatedVillagerContactHeight(
 }
 
 /**
- * Renders close villagers with their authored skeletal animations and all other
- * visible villagers as instanced, bind-pose copies of the same low-poly models.
+ * Renders close villagers with their authored skeletal animations. Villagers
+ * outside the close presentation range are culled instead of being replaced by
+ * a low-detail bind-pose proxy.
  */
 export class SettlementCrowdRenderer {
   readonly ready: Promise<boolean>;
   private readonly group = new THREE.Group();
   private readonly animatedGroup = new THREE.Group();
-  private readonly proxyGroup = new THREE.Group();
   private readonly matrix = new THREE.Matrix4();
-  private readonly agentMatrix = new THREE.Matrix4();
   private readonly position = new THREE.Vector3();
   private readonly quaternion = new THREE.Quaternion();
   private readonly euler = new THREE.Euler();
@@ -199,28 +178,17 @@ export class SettlementCrowdRenderer {
   private readonly visibleAgents: CrowdRenderAgent[] = [];
   private readonly animatedCandidates: CrowdRenderAgent[] = [];
   private readonly animatedIds = new Set<string>();
-  private readonly proxyTransformCaches: Record<
-    VillagerModelVariant,
-    ProxyTransformCache
-  > = {
-    man: createProxyTransformCache(),
-    woman: createProxyTransformCache(),
-  };
-  private readonly proxyColorDirty = new Uint8Array(MAX_INSTANCES);
   private sources: Record<VillagerModelVariant, VillagerSource> | null = null;
   private toolSources: WorkerToolSources | null = null;
-  private proxyLayers: ProxyLayer[] = [];
   private animatedBatches: Record<VillagerModelVariant, AnimatedVariantBatch> | null = null;
   private readonly latestAgents: CrowdRenderAgent[] = [];
   private lastView: CrowdViewState | undefined;
-  private elapsed = 0;
   private disposed = false;
 
   constructor(options: SettlementCrowdRendererOptions) {
     this.group.name = 'Villagers';
     this.animatedGroup.name = 'Animated Quaternius villagers';
-    this.proxyGroup.name = 'Instanced Quaternius villager LOD';
-    this.group.add(this.proxyGroup, this.animatedGroup);
+    this.group.add(this.animatedGroup);
     options.parent.add(this.group);
 
     this.fallbackBody = this.createFallbackLayer('Villager loading body', BODY_GEOMETRY);
@@ -243,7 +211,6 @@ export class SettlementCrowdRenderer {
     }
     this.lastView = view;
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
-    this.elapsed += dt;
 
     const visibleAgents = this.visibleAgents;
     visibleAgents.length = 0;
@@ -253,16 +220,15 @@ export class SettlementCrowdRenderer {
       }
     }
 
+    const animatedIds = this.pickAnimatedIds(visibleAgents, view);
     if (!this.sources) {
-      this.updateFallback(visibleAgents);
+      this.updateFallback(visibleAgents, animatedIds);
       return;
     }
 
     this.clearFallback();
-    const animatedIds = this.pickAnimatedIds(visibleAgents, view);
     this.syncAnimatedVillagers(visibleAgents, animatedIds, dt);
     this.updateAnimatedBatches(visibleAgents, animatedIds);
-    this.updateProxyLayers(visibleAgents, animatedIds);
   }
 
   beginFirstPlayableGpuPrewarm(): () => void {
@@ -304,12 +270,6 @@ export class SettlementCrowdRenderer {
     }
     this.animatedPool.clear();
     this.idlePooledVisualCount = 0;
-
-    for (const layer of this.proxyLayers) {
-      layer.material.dispose();
-      layer.mesh.removeFromParent();
-    }
-    this.proxyLayers = [];
 
     if (this.animatedBatches) {
       for (const batch of Object.values(this.animatedBatches)) {
@@ -355,10 +315,6 @@ export class SettlementCrowdRenderer {
       }
       this.sources = { man, woman };
       this.toolSources = tools;
-      this.proxyLayers = [
-        ...this.createProxyLayers('man', man),
-        ...this.createProxyLayers('woman', woman),
-      ];
       this.animatedBatches = {
         man: this.createAnimatedBatch('man', man),
         woman: this.createAnimatedBatch('woman', woman),
@@ -391,12 +347,16 @@ export class SettlementCrowdRenderer {
     return { mesh, geometry, material };
   }
 
-  private updateFallback(agents: readonly CrowdRenderAgent[]): void {
+  private updateFallback(
+    agents: readonly CrowdRenderAgent[],
+    renderedIds: ReadonlySet<string>,
+  ): void {
     let count = 0;
     let bodyColorsDirty = false;
     let legColorsDirty = false;
     let headColorsDirty = false;
     for (const agent of agents) {
+      if (!renderedIds.has(agent.id)) continue;
       if (count >= MAX_INSTANCES) break;
       bodyColorsDirty = this.writeFallbackInstance(
         this.fallbackBody.mesh,
@@ -858,166 +818,6 @@ export class SettlementCrowdRenderer {
     }
   }
 
-  private createProxyLayers(
-    variant: VillagerModelVariant,
-    source: VillagerSource,
-  ): ProxyLayer[] {
-    const layers: ProxyLayer[] = [];
-    const modelScale = source.targetHeight / source.sourceHeight;
-    source.scene.updateMatrixWorld(true);
-
-    source.scene.traverse((object) => {
-      const sourceMesh = object as THREE.SkinnedMesh;
-      if (!sourceMesh.isSkinnedMesh) return;
-      const sourceMaterial = Array.isArray(sourceMesh.material)
-        ? sourceMesh.material[0]
-        : sourceMesh.material;
-      const material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 0.9,
-        metalness: 0,
-      });
-      const mesh = new THREE.InstancedMesh(
-        sourceMesh.geometry,
-        material,
-        MAX_INSTANCES,
-      );
-      mesh.name = `${variant} villager LOD: ${sourceMaterial?.name ?? sourceMesh.name}`;
-      mesh.count = 0;
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      mesh.frustumCulled = false;
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.proxyGroup.add(mesh);
-
-      const modelMatrix = new THREE.Matrix4()
-        .makeTranslation(0, -source.bounds.min.y * modelScale + 0.012, 0)
-        .multiply(new THREE.Matrix4().makeScale(modelScale, modelScale, modelScale))
-        .multiply(sourceMesh.matrixWorld);
-      const transformCache = this.proxyTransformCaches[variant];
-      if (transformCache.modelMatrix === null) {
-        transformCache.modelMatrix = modelMatrix.clone();
-      } else if (!matrixElementsEqual(transformCache.modelMatrix, modelMatrix)) {
-        throw new Error(
-          `${variant} villager layers no longer share one exact proxy transform`,
-        );
-      }
-      layers.push({
-        variant,
-        mesh,
-        material,
-        materialName: sourceMaterial?.name ?? sourceMesh.name,
-        modelMatrix,
-      });
-    });
-
-    return layers;
-  }
-
-  private updateProxyLayers(
-    agents: readonly CrowdRenderAgent[],
-    animatedIds: ReadonlySet<string>,
-  ): void {
-    const manCache = this.proxyTransformCaches.man;
-    const womanCache = this.proxyTransformCaches.woman;
-    manCache.agents.length = 0;
-    womanCache.agents.length = 0;
-    for (const agent of agents) {
-      if (animatedIds.has(agent.id)) continue;
-      this.proxyTransformCaches[agent.variant].agents.push(agent);
-    }
-    this.updateProxyTransformCache(manCache);
-    this.updateProxyTransformCache(womanCache);
-
-    for (const layer of this.proxyLayers) {
-      const cache = this.proxyTransformCaches[layer.variant];
-      const count = Math.min(cache.agents.length, MAX_INSTANCES);
-      const instanceMatrixArray = layer.mesh.instanceMatrix.array;
-      this.proxyColorDirty.fill(0, 0, count);
-      for (let index = 0; index < count; index++) {
-        const agent = cache.agents[index]!;
-        if (cache.dirty[index]) {
-          cache.matrices[index]!.toArray(instanceMatrixArray, index * 16);
-        }
-        this.color.setHex(resolvePartColor(layer.materialName, agent));
-        this.proxyColorDirty[index] = writeInstanceColorIfChanged(
-          layer.mesh,
-          index,
-          this.color,
-        ) ? 1 : 0;
-      }
-      layer.mesh.count = count;
-      publishDirtyInstanceAttribute(
-        layer.mesh.instanceMatrix,
-        cache.dirty,
-        count,
-      );
-      if (layer.mesh.instanceColor) {
-        publishDirtyInstanceAttribute(
-          layer.mesh.instanceColor,
-          this.proxyColorDirty,
-          count,
-        );
-      }
-    }
-  }
-
-  private updateProxyTransformCache(cache: ProxyTransformCache): void {
-    const count = Math.min(cache.agents.length, MAX_INSTANCES);
-    const modelMatrix = cache.modelMatrix;
-    if (!modelMatrix && count > 0) {
-      throw new Error('Villager proxy transform cache is missing its source matrix');
-    }
-    cache.dirty.fill(0, 0, count);
-    for (let index = 0; index < count; index++) {
-      const agent = cache.agents[index]!;
-      const walkCadence = Math.max(
-        0.65,
-        agent.movementSpeed / NOMINAL_WALK_SPEED,
-      );
-      const phase = this.elapsed * 7.5 * walkCadence
-        + (agent.appearanceSeed % 1024) * 0.07;
-      const y = agent.y + (agent.mode === 'walk' ? Math.sin(phase) * 0.018 : 0);
-      const yaw = agent.yaw + MODEL_YAW_OFFSET;
-      if (
-        cache.initialized[index]
-        && cache.x[index] === agent.x
-        && cache.y[index] === y
-        && cache.z[index] === agent.z
-        && cache.yaw[index] === yaw
-      ) continue;
-      cache.initialized[index] = 1;
-      cache.x[index] = agent.x;
-      cache.y[index] = y;
-      cache.z[index] = agent.z;
-      cache.yaw[index] = yaw;
-      cache.dirty[index] = 1;
-      this.position.set(agent.x, y, agent.z);
-      this.euler.set(0, yaw, 0);
-      this.quaternion.setFromEuler(this.euler);
-      this.agentMatrix.compose(this.position, this.quaternion, this.scale);
-      let matrix = cache.matrices[index];
-      if (!matrix) {
-        matrix = new THREE.Matrix4();
-        cache.matrices[index] = matrix;
-      }
-      matrix.multiplyMatrices(this.agentMatrix, modelMatrix!);
-    }
-  }
-}
-
-function createProxyTransformCache(): ProxyTransformCache {
-  return {
-    agents: [],
-    matrices: [],
-    initialized: new Uint8Array(MAX_INSTANCES),
-    x: new Float64Array(MAX_INSTANCES),
-    y: new Float64Array(MAX_INSTANCES),
-    z: new Float64Array(MAX_INSTANCES),
-    yaw: new Float64Array(MAX_INSTANCES),
-    dirty: new Uint8Array(MAX_INSTANCES),
-    modelMatrix: null,
-  };
 }
 
 function createReplicatedSkinnedGeometry(
@@ -1175,35 +975,6 @@ function publishInstanceAttributePrefix(
   if (instanceCount <= 0) return;
   attribute.addUpdateRange(0, instanceCount * attribute.itemSize);
   attribute.needsUpdate = true;
-}
-
-function publishDirtyInstanceAttribute(
-  attribute: THREE.InstancedBufferAttribute,
-  dirty: Uint8Array,
-  instanceCount: number,
-): void {
-  attribute.clearUpdateRanges();
-  let runStart = -1;
-  for (let index = 0; index <= instanceCount; index++) {
-    if (index < instanceCount && dirty[index]) {
-      if (runStart < 0) runStart = index;
-      continue;
-    }
-    if (runStart < 0) continue;
-    attribute.addUpdateRange(
-      runStart * attribute.itemSize,
-      (index - runStart) * attribute.itemSize,
-    );
-    runStart = -1;
-  }
-  if (attribute.updateRanges.length > 0) attribute.needsUpdate = true;
-}
-
-function matrixElementsEqual(a: THREE.Matrix4, b: THREE.Matrix4): boolean {
-  for (let index = 0; index < 16; index++) {
-    if (a.elements[index] !== b.elements[index]) return false;
-  }
-  return true;
 }
 
 async function loadVillagerSource(

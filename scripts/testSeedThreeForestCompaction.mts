@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import {
   createSeedThreeBucketMatrixWriteJob,
   createSeedThreeExactShadowLodSet,
+  createSeedThreeStableColorSlotSelection,
   configureSeedThreeForestPassMesh,
   enabledSeedThreeTreeCountInPrefix,
   partitionSeedThreeSelectionByStaticLod,
@@ -187,6 +188,16 @@ const slot = (layoutIndex: number, x: number): SeedThreeTreeSlot => ({
 });
 const slots = [slot(0, 10), slot(1, 20)];
 
+assert.deepEqual(
+  createSeedThreeStableColorSlotSelection([
+    {},
+    { forceOverview: true },
+    {},
+  ]),
+  { near: [0, 1, 2], overview: [1] },
+  'camera-independent color selection must retain every tree and preserve authored overview cards',
+);
+
 const exactParityJob = createSeedThreeBucketMatrixWriteJob(
   exactColorSource,
   { branches: null, cards: [] },
@@ -278,6 +289,42 @@ assert.equal(
   exactThickness.version,
   exactThicknessVersionBeforeEmptyView,
   'an empty color selection must not bump or upload canonical thickness',
+);
+
+const stableColorSource = makeLodSet(3);
+const stableColorThickness = stableColorSource.cards[0].geometry.getAttribute(
+  'aThickness',
+) as THREE.InstancedBufferAttribute;
+stableColorThickness.setX(0, 0.2);
+stableColorThickness.setX(1, 0.5);
+stableColorThickness.setX(2, 0.9);
+stableColorSource.cards[0].userData.seedThreeCanonicalThickness =
+  stableColorThickness.clone();
+const stableShadowSubset = createSeedThreeExactShadowLodSet(
+  stableColorSource,
+  'stable color shadow subset',
+);
+const stableColorSlots = [slot(0, 10), slot(1, 20), slot(2, 30)];
+const stableColorJob = createSeedThreeBucketMatrixWriteJob(
+  stableColorSource,
+  { branches: null, cards: [] },
+  stableColorSlots,
+  [0, 1, 2],
+  [],
+  {
+    lodSet: stableShadowSubset,
+    selectedSlotIndices: [1],
+    overviewSelectedSlotIndices: [],
+  },
+);
+runSeedThreeBucketMatrixWriteSlices(stableColorJob, {
+  deadlineMs: Number.POSITIVE_INFINITY,
+  maxMatrixWritesPerChunk: Number.POSITIVE_INFINITY,
+});
+assert.deepEqual(
+  Array.from(stableColorThickness.array.slice(0, 3)),
+  [Math.fround(0.2), Math.fround(0.5), Math.fround(0.9)],
+  'full color residency must keep canonical leaf attributes when the shadow selector retains only a subset',
 );
 
 const noPolicyChurnCamera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);

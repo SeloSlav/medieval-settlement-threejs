@@ -304,7 +304,7 @@ const SETTLEMENT_HUD_HTML = `
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="water" hidden></span>
       </div>
       <details class="settlement-hud__food-stores" data-food-stores>
-        <summary class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food" data-tooltip-title="Stored food" data-tooltip="Open the detailed inventory of food commodities.">
+        <summary class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food">
           <span class="settlement-hud__label">Food</span>
           <strong class="settlement-hud__value" data-stockpile="food">0</strong>
           <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
@@ -370,8 +370,6 @@ const SETTLEMENT_HUD_HTML = `
       <summary
         class="settlement-hud__stores-summary"
         aria-label="Stores and provisions, no specialty stock"
-        data-tooltip-title="Stores and provisions"
-        data-tooltip="Open the detailed inventory of specialty goods."
       >
         <span class="settlement-hud__stores-label">Stores</span>
         <strong class="settlement-hud__stores-status" data-specialty-stores-status>0</strong>
@@ -524,6 +522,7 @@ export class SettlementHud {
   private readonly goldStat: HTMLElement;
   private readonly polearmsStat: HTMLElement;
   private readonly specialtyStores: HTMLDetailsElement;
+  private readonly specialtyStoresSummary: HTMLElement;
   private readonly specialtyStoresStatus: HTMLElement;
   private readonly geologyAlert: HTMLButtonElement;
   private readonly geologyResourceRows: Record<
@@ -618,6 +617,9 @@ export class SettlementHud {
     this.goldStat = this.mustElement('[data-resource="gold"]');
     this.polearmsStat = this.mustElement('[data-resource="polearms"]');
     this.specialtyStores = this.mustDetails('[data-specialty-stores]');
+    this.specialtyStoresSummary = this.mustElement(
+      '[data-specialty-stores] > .settlement-hud__stores-summary',
+    );
     this.specialtyStoresStatus = this.mustElement('[data-specialty-stores-status]');
     this.geologyAlert = this.mustButton('[data-geology-alert]');
     this.geologyResourceRows = {
@@ -652,8 +654,9 @@ export class SettlementHud {
     }
     this.foodStat.setAttribute('aria-controls', 'settlement-food-breakdown');
     this.foodStat.setAttribute('aria-expanded', 'false');
-    this.foodStat.setAttribute('aria-label', 'Food: open commodity breakdown');
-    this.foodStat.dataset.tooltip = 'Open the physical meal ledger by commodity, including household pantries and carts.';
+    this.foodStat.setAttribute('aria-label', 'Food: hover or focus to show commodity breakdown');
+    delete this.foodStat.dataset.tooltipTitle;
+    delete this.foodStat.dataset.tooltip;
     this.panel.addEventListener('click', this.onResourceRowClick);
     this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
     this.securityAlert.addEventListener('click', this.onSecurityAlertClick);
@@ -665,7 +668,20 @@ export class SettlementHud {
     this.approvalShell.addEventListener('pointermove', this.onApprovalPointerMove);
     this.approvalShell.addEventListener('pointerleave', this.onApprovalPointerLeave);
     this.foodStores.addEventListener('toggle', this.onFoodStoresToggle);
+    this.foodStores.addEventListener('pointerenter', this.onFoodStoresPointerEnter);
+    this.foodStores.addEventListener('pointerleave', this.onFoodStoresPointerLeave);
+    this.foodStores.addEventListener('focusin', this.onFoodStoresFocusIn);
+    this.foodStores.addEventListener('focusout', this.onFoodStoresFocusOut);
+    this.foodStat.addEventListener('click', this.onFoodStoresSummaryClick);
     this.specialtyStores.addEventListener('toggle', this.onSpecialtyStoresToggle);
+    this.specialtyStores.addEventListener('pointerenter', this.onSpecialtyStoresPointerEnter);
+    this.specialtyStores.addEventListener('pointerleave', this.onSpecialtyStoresPointerLeave);
+    this.specialtyStores.addEventListener('focusin', this.onSpecialtyStoresFocusIn);
+    this.specialtyStores.addEventListener('focusout', this.onSpecialtyStoresFocusOut);
+    this.specialtyStoresSummary.addEventListener(
+      'click',
+      this.onSpecialtyStoresSummaryClick,
+    );
     this.nobleEye.addEventListener('click', this.onNobleEyeClick);
     window.addEventListener('keydown', this.onApprovalEscape, true);
   }
@@ -1253,8 +1269,55 @@ export class SettlementHud {
     this.foodStat.classList.toggle('is-open', open);
   };
 
+  private readonly onFoodStoresPointerEnter = (): void => {
+    this.foodStores.open = true;
+  };
+
+  private readonly onFoodStoresPointerLeave = (): void => {
+    this.foodStores.open = false;
+  };
+
+  private readonly onFoodStoresFocusIn = (): void => {
+    this.foodStores.open = true;
+  };
+
+  private readonly onFoodStoresFocusOut = (event: FocusEvent): void => {
+    if (event.relatedTarget instanceof Node && this.foodStores.contains(event.relatedTarget)) return;
+    this.foodStores.open = false;
+  };
+
+  private readonly onFoodStoresSummaryClick = (event: MouseEvent): void => {
+    event.preventDefault();
+    this.foodStores.open = true;
+  };
+
   private readonly onSpecialtyStoresToggle = (): void => {
     if (this.specialtyStores.open) this.foodStores.open = false;
+  };
+
+  private readonly onSpecialtyStoresPointerEnter = (): void => {
+    this.specialtyStores.open = true;
+  };
+
+  private readonly onSpecialtyStoresPointerLeave = (): void => {
+    this.specialtyStores.open = false;
+  };
+
+  private readonly onSpecialtyStoresFocusIn = (): void => {
+    this.specialtyStores.open = true;
+  };
+
+  private readonly onSpecialtyStoresFocusOut = (event: FocusEvent): void => {
+    if (
+      event.relatedTarget instanceof Node
+      && this.specialtyStores.contains(event.relatedTarget)
+    ) return;
+    this.specialtyStores.open = false;
+  };
+
+  private readonly onSpecialtyStoresSummaryClick = (event: MouseEvent): void => {
+    event.preventDefault();
+    this.specialtyStores.open = true;
   };
 
   private readonly onResourceRowKeyDown = (event: KeyboardEvent): void => {
@@ -1443,7 +1506,26 @@ export class SettlementHud {
     this.approvalShell.removeEventListener('pointermove', this.onApprovalPointerMove);
     this.approvalShell.removeEventListener('pointerleave', this.onApprovalPointerLeave);
     this.foodStores.removeEventListener('toggle', this.onFoodStoresToggle);
+    this.foodStores.removeEventListener('pointerenter', this.onFoodStoresPointerEnter);
+    this.foodStores.removeEventListener('pointerleave', this.onFoodStoresPointerLeave);
+    this.foodStores.removeEventListener('focusin', this.onFoodStoresFocusIn);
+    this.foodStores.removeEventListener('focusout', this.onFoodStoresFocusOut);
+    this.foodStat.removeEventListener('click', this.onFoodStoresSummaryClick);
     this.specialtyStores.removeEventListener('toggle', this.onSpecialtyStoresToggle);
+    this.specialtyStores.removeEventListener(
+      'pointerenter',
+      this.onSpecialtyStoresPointerEnter,
+    );
+    this.specialtyStores.removeEventListener(
+      'pointerleave',
+      this.onSpecialtyStoresPointerLeave,
+    );
+    this.specialtyStores.removeEventListener('focusin', this.onSpecialtyStoresFocusIn);
+    this.specialtyStores.removeEventListener('focusout', this.onSpecialtyStoresFocusOut);
+    this.specialtyStoresSummary.removeEventListener(
+      'click',
+      this.onSpecialtyStoresSummaryClick,
+    );
     window.removeEventListener('keydown', this.onApprovalEscape, true);
   }
 }

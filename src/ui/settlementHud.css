@@ -1317,6 +1317,34 @@
   line-height: 1.25;
 }
 
+.ui-tooltip.has-amount {
+  min-width: min(240px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
+}
+
+.ui-tooltip__amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 7px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(226, 199, 139, 0.18);
+}
+
+.ui-tooltip__amount-label {
+  color: #b8ad98;
+  font-size: 0.9em;
+}
+
+.ui-tooltip__amount-value {
+  color: #f1dfb4;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.16em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .ui-tooltip__body {
   display: grid;
   gap: 7px;

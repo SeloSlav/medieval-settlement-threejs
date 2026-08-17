@@ -43,6 +43,7 @@ import type {
 import {
   createSeedThreeBucketMatrixWriteJob,
   createSeedThreeExactShadowLodSet,
+  createSeedThreeStableColorSlotSelection,
   configureSeedThreeForestPassMesh,
   partitionSeedThreeSelectionByStaticLod,
   runSeedThreeBucketMatrixWriteSlices,
@@ -299,8 +300,8 @@ function createInstancedLodSet(
         'color',
         castShadow,
       );
-      // SeedThree performs conservative per-tree culling and compacts the live
-      // instances; the aggregate mesh bound is intentionally not consulted.
+      // The color forest stays fully resident. The aggregate mesh bound is
+      // intentionally not consulted; the GPU clips off-screen instances.
       im.frustumCulled = false;
       lodSet.branches = im;
     } else if ((child as THREE.Group).isGroup) {
@@ -377,6 +378,11 @@ function createInstancedLodSet(
         const im = new THREE.InstancedMesh(geo, fmat as THREE.Material, total) as THREE.InstancedMesh & {
           userData: Record<string, unknown>;
         };
+        // Preserve the authored per-slot values before any gameplay visibility
+        // compaction. Camera selection never owns color attributes.
+        im.userData.seedThreeCanonicalThickness = geo
+          .getAttribute('aThickness')
+          .clone();
         im.name = `${debugName} cards`;
         // Crown underlays are large crossed canopy-fill quads. They improve the
         // color silhouette, but their baked alpha is not preserved by the
@@ -1051,19 +1057,10 @@ export function updateSeedThreeForestCameraBudgeted(
                   bucket.nearSlotIndices,
                   desired.near,
                 );
-                const realignColorAttributes = writeColor
-                  || !sameVisiblePackedRanks(
-                    bucket.slots,
-                    bucket.nearSlotIndices,
-                    desired.near,
-                    desired.viewNear,
-                  )
-                  || !sameVisiblePackedRanks(
-                    bucket.slots,
-                    bucket.overviewSlotIndices,
-                    desired.overview,
-                    desired.viewOverview,
-                  );
+                // Camera updates may repack only the dedicated shadow set.
+                // Stable color attributes are realigned only if gameplay
+                // visibility genuinely changes their own packed identities.
+                const realignColorAttributes = writeColor;
                 work.activeBucketJob = {
                   bucketIndex,
                   desired: {
@@ -1202,48 +1199,6 @@ function sameIndices(left: readonly number[], right: readonly number[]): boolean
   return true;
 }
 
-function sameVisiblePackedRanks(
-  slots: readonly TreeSlot[],
-  previousResident: readonly number[],
-  nextResident: readonly number[],
-  visibleSelection: readonly number[],
-): boolean {
-  let previousCursor = 0;
-  let nextCursor = 0;
-  let previousRank = 0;
-  let nextRank = 0;
-  for (const visibleSlotIndex of visibleSelection) {
-    const visibleSlot = slots[visibleSlotIndex];
-    if (!visibleSlot?.enabled || visibleSlot.visibilityParent?.enabled === false) continue;
-    while (
-      previousCursor < previousResident.length
-      && previousResident[previousCursor]! < visibleSlotIndex
-    ) {
-      const slot = slots[previousResident[previousCursor]!]!;
-      if (slot.enabled && slot.visibilityParent?.enabled !== false) previousRank += 1;
-      previousCursor += 1;
-    }
-    while (
-      nextCursor < nextResident.length
-      && nextResident[nextCursor]! < visibleSlotIndex
-    ) {
-      const slot = slots[nextResident[nextCursor]!]!;
-      if (slot.enabled && slot.visibilityParent?.enabled !== false) nextRank += 1;
-      nextCursor += 1;
-    }
-    if (
-      previousResident[previousCursor] !== visibleSlotIndex
-      || nextResident[nextCursor] !== visibleSlotIndex
-      || previousRank !== nextRank
-    ) return false;
-    previousCursor += 1;
-    nextCursor += 1;
-    previousRank += 1;
-    nextRank += 1;
-  }
-  return true;
-}
-
 function selectionsByBucket(
   forest: SeedThreeForestInstances,
   selection: {
@@ -1252,14 +1207,20 @@ function selectionsByBucket(
     viewIndices: readonly number[];
   },
 ): PassPartitionedBucketSelection[] {
-  const desired = forest.buckets.map(() => ({
-    near: [] as number[],
-    overview: [] as number[],
-    viewNear: [] as number[],
-    viewOverview: [] as number[],
-    nearViewSlotCount: 0,
-    overviewViewSlotCount: 0,
-  }));
+  const desired = forest.buckets.map((bucket) => {
+    // Color trees are a stable world layer. Keeping every LOD2 instance
+    // resident prevents camera pans, turns, zooms, and first-person movement
+    // from changing the live color-buffer identities.
+    const color = createSeedThreeStableColorSlotSelection(bucket.slots);
+    return {
+      near: [] as number[],
+      overview: [] as number[],
+      viewNear: color.near,
+      viewOverview: color.overview,
+      nearViewSlotCount: color.near.length,
+      overviewViewSlotCount: color.overview.length,
+    };
+  });
   const staticLodPartition = partitionSeedThreeSelectionByStaticLod(
     selection,
     (layoutIndex) => {
@@ -1279,20 +1240,6 @@ function selectionsByBucket(
     const mapping = forest.slotByLayoutIndex[layoutIndex];
     if (!mapping) continue;
     desired[mapping.bucketIndex]?.overview.push(mapping.slotIndex);
-  }
-  for (const layoutIndex of staticLodPartition.nearViewIndices) {
-    const mapping = forest.slotByLayoutIndex[layoutIndex];
-    if (!mapping) continue;
-    desired[mapping.bucketIndex]?.viewNear.push(mapping.slotIndex);
-  }
-  for (const layoutIndex of staticLodPartition.overviewViewIndices) {
-    const mapping = forest.slotByLayoutIndex[layoutIndex];
-    if (!mapping) continue;
-    desired[mapping.bucketIndex]?.viewOverview.push(mapping.slotIndex);
-  }
-  for (const bucket of desired) {
-    bucket.nearViewSlotCount = bucket.viewNear.length;
-    bucket.overviewViewSlotCount = bucket.viewOverview.length;
   }
   return desired;
 }
@@ -1600,9 +1547,8 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
       cameraInteractionActive,
       deltaSeconds = 1 / 60,
     ) => {
-      // The selector retains a 26 m screen-space world envelope plus the full
-      // fitted directional-shadow caster envelope. Every far-card slot keeps a
-      // real LOD2 tree resident beneath it, so zoom changes only opacity.
+      // Color LOD2 trees remain resident across the whole world. The selector
+      // now scopes only exact shadow casters; zoom changes only card opacity.
       const fadeChanged = updateSeedThreeForestOverviewBillboardFade(
         forest,
         cameraDistance,

@@ -62,7 +62,12 @@ export function mountTooltips(root: HTMLElement): () => void {
     activeAnchorObserver.disconnect();
     activeAnchorObserver.observe(anchor, {
       attributes: true,
-      attributeFilter: ['data-tooltip', 'data-tooltip-title'],
+      attributeFilter: [
+        'data-tooltip',
+        'data-tooltip-title',
+        'data-tooltip-amount',
+        'data-tooltip-amount-label',
+      ],
     });
     const token = showToken + 1;
     showToken = token;
@@ -153,6 +158,23 @@ function renderTooltipContent(
     titleElement.className = 'ui-tooltip__title';
     titleElement.textContent = title;
     fragment.appendChild(titleElement);
+  }
+
+  const amountText = anchor.dataset.tooltipAmount?.trim() ?? '';
+  tooltip.classList.toggle('has-amount', amountText.length > 0);
+  if (amountText) {
+    const amountRow = document.createElement('div');
+    amountRow.className = 'ui-tooltip__amount';
+
+    const amountLabel = document.createElement('span');
+    amountLabel.className = 'ui-tooltip__amount-label';
+    amountLabel.textContent = anchor.dataset.tooltipAmountLabel?.trim() || 'Current amount';
+
+    const amountValue = document.createElement('strong');
+    amountValue.className = 'ui-tooltip__amount-value';
+    amountValue.textContent = amountText;
+    amountRow.append(amountLabel, amountValue);
+    fragment.appendChild(amountRow);
   }
 
   const bodyElement = document.createElement('div');

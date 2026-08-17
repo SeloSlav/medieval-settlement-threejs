@@ -40,40 +40,6 @@ type RenderAgentCacheHarness = {
   renderAgentFor(id: string): CrowdRenderAgent;
 };
 
-type ProxyUploadHarness = {
-  proxyLayers: Array<{
-    variant: 'man' | 'woman';
-    mesh: THREE.InstancedMesh;
-    material: THREE.MeshStandardMaterial;
-    materialName: string;
-    modelMatrix: THREE.Matrix4;
-  }>;
-  elapsed: number;
-  position: THREE.Vector3;
-  quaternion: THREE.Quaternion;
-  euler: THREE.Euler;
-  color: THREE.Color;
-  scale: THREE.Vector3;
-  matrix: THREE.Matrix4;
-  agentMatrix: THREE.Matrix4;
-  proxyTransformCaches: Record<'man' | 'woman', {
-    agents: CrowdRenderAgent[];
-    matrices: THREE.Matrix4[];
-    initialized: Uint8Array;
-    x: Float64Array;
-    y: Float64Array;
-    z: Float64Array;
-    yaw: Float64Array;
-    dirty: Uint8Array;
-    modelMatrix: THREE.Matrix4 | null;
-  }>;
-  proxyColorDirty: Uint8Array;
-  updateProxyLayers(
-    agents: readonly CrowdRenderAgent[],
-    animatedIds: ReadonlySet<string>,
-  ): void;
-};
-
 function createSelectionHarness(): SelectionHarness {
   const harness = Object.create(SettlementCrowdRenderer.prototype) as SelectionHarness;
   harness.animatedCandidates = [];
@@ -230,81 +196,6 @@ for (let frame = 0; frame < 1_000; frame++) {
 }
 assert.equal(renderCache.renderAgentsById.size, firstAgents.length);
 
-const proxyHarness = Object.create(
-  SettlementCrowdRenderer.prototype,
-) as ProxyUploadHarness;
-const proxyGeometry = new THREE.BoxGeometry(1, 1, 1);
-const proxyMaterial = new THREE.MeshStandardMaterial();
-const proxyMesh = new THREE.InstancedMesh(proxyGeometry, proxyMaterial, 1024);
-proxyHarness.proxyLayers = [{
-  variant: 'man',
-  mesh: proxyMesh,
-  material: proxyMaterial,
-  materialName: 'shirt',
-  modelMatrix: new THREE.Matrix4(),
-}];
-proxyHarness.elapsed = 4.25;
-proxyHarness.position = new THREE.Vector3();
-proxyHarness.quaternion = new THREE.Quaternion();
-proxyHarness.euler = new THREE.Euler();
-proxyHarness.color = new THREE.Color();
-proxyHarness.scale = new THREE.Vector3(1, 1, 1);
-proxyHarness.matrix = new THREE.Matrix4();
-proxyHarness.agentMatrix = new THREE.Matrix4();
-const createProxyCache = () => ({
-  agents: [] as CrowdRenderAgent[],
-  matrices: [] as THREE.Matrix4[],
-  initialized: new Uint8Array(1024),
-  x: new Float64Array(1024),
-  y: new Float64Array(1024),
-  z: new Float64Array(1024),
-  yaw: new Float64Array(1024),
-  dirty: new Uint8Array(1024),
-  modelMatrix: new THREE.Matrix4(),
-});
-proxyHarness.proxyTransformCaches = {
-  man: createProxyCache(),
-  woman: createProxyCache(),
-};
-proxyHarness.proxyColorDirty = new Uint8Array(1024);
-const proxyAgents = agents.filter((agent) => agent.variant === 'man').slice(0, 128);
-proxyHarness.updateProxyLayers(proxyAgents, new Set());
-assert.equal(proxyMesh.count, proxyAgents.length);
-assert.deepEqual(
-  proxyMesh.instanceMatrix.updateRanges,
-  [{ start: 0, count: proxyAgents.length * 16 }],
-  'matrix publication should cover only the exact drawn prefix',
-);
-assert(proxyMesh.instanceColor);
-assert.deepEqual(
-  proxyMesh.instanceColor.updateRanges,
-  [{ start: 0, count: proxyAgents.length * 3 }],
-  'the initial color publication should cover only the drawn prefix',
-);
-const firstColorVersion = proxyMesh.instanceColor.version;
-const firstMatrixVersion = proxyMesh.instanceMatrix.version;
-proxyMesh.instanceMatrix.clearUpdateRanges();
-proxyMesh.instanceColor.clearUpdateRanges();
-proxyHarness.updateProxyLayers(proxyAgents, new Set());
-assert.equal(
-  proxyMesh.instanceMatrix.version,
-  firstMatrixVersion,
-  'stationary proxy transforms must not republish the instance matrix buffer',
-);
-assert.deepEqual(proxyMesh.instanceMatrix.updateRanges, []);
-assert.equal(
-  proxyMesh.instanceColor.version,
-  firstColorVersion,
-  'identical clothing colors must not republish the instance color buffer',
-);
-assert.deepEqual(proxyMesh.instanceColor.updateRanges, []);
-const oldUploadBytes = 1024 * (16 + 3) * Float32Array.BYTES_PER_ELEMENT;
-const initialPrefixUploadBytes = proxyAgents.length * 16 * Float32Array.BYTES_PER_ELEMENT;
-assert.equal(oldUploadBytes, 77_824);
-assert.equal(initialPrefixUploadBytes, 8_192);
-proxyGeometry.dispose();
-proxyMaterial.dispose();
-
 const animationRoot = new THREE.Object3D();
 const animationMixer = new THREE.AnimationMixer(animationRoot);
 const actionModes: VillagerRenderMode[] = [
@@ -404,8 +295,9 @@ assert.match(source, /if \(pooledVisual\) this\.resetPooledVillager\(visual, age
 assert.match(source, /this\.idlePooledVisualCount >= MAX_ANIMATED_VILLAGERS/);
 assert.match(
   source,
-  /this\.syncAnimatedVillagers\(visibleAgents, animatedIds, dt\);\s*this\.updateAnimatedBatches\(visibleAgents, animatedIds\);\s*this\.updateProxyLayers\(visibleAgents, animatedIds\);/,
+  /this\.syncAnimatedVillagers\(visibleAgents, animatedIds, dt\);\s*this\.updateAnimatedBatches\(visibleAgents, animatedIds\);/,
 );
+assert.doesNotMatch(source, /createProxyLayers|updateProxyLayers|villager LOD/i);
 assert.match(source, /mesh\.visible = false;\s*mesh\.castShadow = false;/);
 assert.match(source, /mesh\.castShadow = true;\s*mesh\.receiveShadow = false;/);
 assert.match(source, /material\.vertexColors = true;/);
@@ -413,6 +305,5 @@ assert.doesNotMatch(source, /mergeGeometries/);
 
 console.log(
   `Crowd renderer pacing tests passed (${iterations.toLocaleString()} selections in ${elapsedMs.toFixed(1)}ms; `
-    + `initial 128-instance prefix upload ${oldUploadBytes.toLocaleString()} -> `
-    + `${initialPrefixUploadBytes.toLocaleString()} bytes/layer; stationary upload 0 bytes/layer).`,
+    + 'agents outside the animated range are culled).',
 );

@@ -136,6 +136,16 @@ export type SeedThreeLayoutSlotMapping = {
   slotIndex: number;
 };
 
+/** Camera-independent color identities; only the shadow set is spatially culled. */
+export function createSeedThreeStableColorSlotSelection(
+  slots: readonly Pick<SeedThreeTreeSlot, 'forceOverview'>[],
+): { near: number[]; overview: number[] } {
+  const near = slots.map((_, slotIndex) => slotIndex);
+  const overview = slots.flatMap((slot, slotIndex) =>
+    slot.forceOverview ? [slotIndex] : []);
+  return { near, overview };
+}
+
 type PassPartitionedInstancedMesh = THREE.InstancedMesh & {
   userData: Record<string, unknown> & {
     forestPassCountsInstalled?: boolean;
@@ -408,9 +418,9 @@ export function seedThreeResidentSelectionCoversView(
 }
 
 /**
- * Test a view against the stable color-only buffers rather than the wider
- * directional-shadow resident union. The color buffers carry the selector's
- * padded guard envelope, so this is also the no-pop gate for camera motion.
+ * Test a view against the stable color-only buffers rather than the narrower
+ * directional-shadow resident union. The color buffers carry the full forest,
+ * so camera motion can never expose an unpacked tree identity.
  */
 export function seedThreeColorSelectionCoversView(
   residentBuckets: readonly SeedThreeResidentBucketSelection[],
@@ -518,9 +528,12 @@ function publishExactLodUploadRanges(job: SeedThreeBucketMatrixWriteJob): void {
 }
 
 function alignColorCardInstanceAttributes(job: SeedThreeBucketMatrixWriteJob): void {
+  const shadowContainsEveryNearColorSlot = job.shadowSet !== null
+    && job.nearViewSlotIndices.every((slotIndex) =>
+      sortedIndicesInclude(job.nearResidentSlotIndices, slotIndex));
   alignLodCardInstanceAttributes(
     job.nearSet,
-    job.shadowSet,
+    shadowContainsEveryNearColorSlot ? job.shadowSet : null,
     job.slots,
     job.nearViewSlotIndices,
     job.nearResidentSlotIndices,
@@ -542,14 +555,9 @@ function alignLodCardInstanceAttributes(
   residentSlotIndices: readonly number[],
 ): void {
   if (lodSet.cards.length === 0) return;
-  const residentRankBySlot = new Int32Array(slots.length);
-  residentRankBySlot.fill(-1);
-  let residentRank = 0;
-  for (const slotIndex of residentSlotIndices) {
-    const slot = slots[slotIndex];
-    if (!slot || !slotIsVisible(slot)) continue;
-    residentRankBySlot[slotIndex] = residentRank++;
-  }
+  const residentRankBySlot = canonicalLodSet
+    ? buildVisibleRankBySlot(slots, residentSlotIndices)
+    : null;
   for (const mesh of lodSet.cards) {
     const cardsPerTree = Math.max(0, Number(mesh.userData.k) || 0);
     if (cardsPerTree === 0) continue;
@@ -569,8 +577,10 @@ function alignLodCardInstanceAttributes(
     for (const slotIndex of viewSlotIndices) {
       const slot = slots[slotIndex];
       if (!slot || !slotIsVisible(slot)) continue;
-      const sourceTreeRank = residentRankBySlot[slotIndex];
-      if (sourceTreeRank < 0) {
+      const sourceTreeRank = residentRankBySlot
+        ? residentRankBySlot[slotIndex]
+        : slotIndex;
+      if (sourceTreeRank === undefined || sourceTreeRank < 0) {
         throw new Error(`Color forest slot ${slotIndex} is absent from its resident union.`);
       }
       const sourceOffset = sourceTreeRank * cardsPerTree;
@@ -586,6 +596,21 @@ function alignLodCardInstanceAttributes(
       target.needsUpdate = true;
     }
   }
+}
+
+function buildVisibleRankBySlot(
+  slots: readonly SeedThreeTreeSlot[],
+  residentSlotIndices: readonly number[],
+): Int32Array {
+  const residentRankBySlot = new Int32Array(slots.length);
+  residentRankBySlot.fill(-1);
+  let residentRank = 0;
+  for (const slotIndex of residentSlotIndices) {
+    const slot = slots[slotIndex];
+    if (!slot || !slotIsVisible(slot)) continue;
+    residentRankBySlot[slotIndex] = residentRank++;
+  }
+  return residentRankBySlot;
 }
 
 function canonicalCardThickness(

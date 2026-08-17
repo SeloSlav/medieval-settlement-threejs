@@ -1332,6 +1332,13 @@ export class ResourceInspector {
     this.populationValue.textContent = population.total.toString();
     this.housingValue.textContent = Math.max(0, population.total - population.housed).toString();
     this.laborValue.textContent = population.available.toString();
+    this.setHudTooltipAmount(this.populationValue, population.total, 'Current population');
+    this.setHudTooltipAmount(
+      this.housingValue,
+      Math.max(0, population.total - population.housed),
+      'Homeless residents',
+    );
+    this.setHudTooltipAmount(this.laborValue, population.available, 'Workers available');
     const laborSub = this.stockpileRoot.querySelector<HTMLElement>('[data-stockpile="labor-sub"]');
     if (laborSub) {
       laborSub.textContent = population.assigned > 0
@@ -1371,7 +1378,12 @@ export class ResourceInspector {
     this.stockpileValues.charcoal.textContent = Math.round(totals.charcoal).toString();
     this.stockpileValues.pottery.textContent = Math.round(totals.pottery).toString();
     this.stockpileValues.roofTiles.textContent = Math.round(totals.roofTiles).toString();
-    this.renderSpecialtyResourceTooltips(totals);
+    const amountLabel = this.resourceTotalsPresentation === 'total'
+      ? 'Total stored'
+      : 'Available surplus';
+    for (const resource of HUD_RESOURCE_KINDS) {
+      this.setHudTooltipAmount(this.stockpileValues[resource], totals[resource], amountLabel);
+    }
     this.renderFoodBreakdown();
     for (const resource of HUD_RESOURCE_KINDS) {
       const transit = this.stockpileTransitValues[resource];
@@ -1414,29 +1426,9 @@ export class ResourceInspector {
       const storeDescription = stockedSpecialties.length === 0
         ? 'No specialty stock'
         : `${stockedSpecialties.length} ${stockedSpecialties.length === 1 ? 'stock' : 'stocks'} active`;
-      specialtyStoreSummary.dataset.tooltip = `${storeDescription}. Open specialty stores and provisions.`;
+      delete specialtyStoreSummary.dataset.tooltipTitle;
+      delete specialtyStoreSummary.dataset.tooltip;
       specialtyStoreSummary.setAttribute('aria-label', `Stores and provisions, ${storeDescription.toLowerCase()}`);
-    }
-  }
-
-  private renderSpecialtyResourceTooltips(totals: ResourceTotals): void {
-    const showingTotal = this.resourceTotalsPresentation === 'total';
-    for (const resource of SPECIALTY_HUD_RESOURCE_KINDS) {
-      const stat = this.stockpileValues[resource]
-        .closest<HTMLElement>('.settlement-hud__stat');
-      if (!stat) continue;
-      const baseTooltip = showingTotal
-        ? TOTAL_RESOURCE_TOOLTIPS[resource]
-          ?? this.surplusResourceTooltips.get(resource)
-        : this.surplusResourceTooltips.get(resource);
-      const resourceLabel = stat.dataset.tooltipTitle?.trim()
-        || resource;
-      const amount = Math.round(Math.max(0, totals[resource]))
-        .toLocaleString('en-US');
-      stat.dataset.tooltip = [
-        baseTooltip,
-        `${showingTotal ? 'Total stored' : 'Available surplus'}: ${amount} ${resourceLabel.toLowerCase()}.`,
-      ].filter(Boolean).join('\n\n');
     }
   }
 
@@ -1454,6 +1446,8 @@ export class ResourceInspector {
       elements.row.hidden = !visible;
       elements.row.classList.toggle('is-empty', !stocked);
       elements.stored.textContent = formatTransitAmount(stored);
+      elements.row.dataset.tooltipAmount = formatTransitAmount(stored);
+      elements.row.dataset.tooltipAmountLabel = 'Total stored';
       elements.transit.hidden = transit <= 1e-6;
       elements.transit.textContent = transit > 1e-6
         ? `+${formatTransitAmount(transit)} cart`
@@ -1471,6 +1465,17 @@ export class ResourceInspector {
       Math.max(0, stored - surplus),
     );
     this.foodBreakdownTotalSurplus.textContent = formatTransitAmount(surplus);
+  }
+
+  private setHudTooltipAmount(
+    valueElement: HTMLElement,
+    amount: number,
+    label: string,
+  ): void {
+    const stat = valueElement.closest<HTMLElement>('.settlement-hud__stat');
+    if (!stat) return;
+    stat.dataset.tooltipAmount = formatTransitAmount(Math.max(0, amount));
+    stat.dataset.tooltipAmountLabel = label;
   }
 
   selectQuarry(quarryId: string): void {
