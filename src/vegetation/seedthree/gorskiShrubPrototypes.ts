@@ -32,6 +32,8 @@ type SeedThreeStem = {
 };
 
 export const GORSKI_SHRUB_VARIANT_COUNT = 3;
+export const JUNIPER_BERRY_ANCHOR_LIMIT = 16;
+export const RASPBERRY_FRUIT_ANCHOR_LIMIT = 10;
 
 const PRESETS = {
   bush: bilberry as SeedThreeShrubPreset,
@@ -108,7 +110,14 @@ export function createGorskiShrubPrototype(
   branchGeometry.dispose();
   foliageGeometry.dispose();
 
-  const fruitAnchors = selectFruitAnchors(generated.terminalStems, kind === 'raspberry' ? 7 : 0);
+  const fruitAnchors = selectFruitAnchors(
+    generated.terminalStems,
+    kind === 'raspberry'
+      ? RASPBERRY_FRUIT_ANCHOR_LIMIT
+      : kind === 'juniper'
+        ? JUNIPER_BERRY_ANCHOR_LIMIT
+        : 0,
+  );
   return {
     geometry,
     fruitAnchors,

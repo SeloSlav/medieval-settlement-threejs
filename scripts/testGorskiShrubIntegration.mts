@@ -5,9 +5,11 @@ import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import {
   GORSKI_SHRUB_VARIANT_COUNT,
+  RASPBERRY_FRUIT_ANCHOR_LIMIT,
   createGorskiShrubPrototype,
   type GorskiShrubKind,
 } from '../src/vegetation/seedthree/gorskiShrubPrototypes.ts';
+import { MAX_RASPBERRIES_PER_CLUMP } from '../src/foraging/berryPatchPresentation.ts';
 
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const kinds: GorskiShrubKind[] = ['bush', 'fern', 'juniper', 'raspberry'];
@@ -122,13 +124,22 @@ function prototypeSignatures(): Record<string, string> {
       );
       if (kind === 'raspberry') {
         assert.ok(
-          prototype.fruitAnchors.length >= 4,
-          `raspberry variant ${variant} must expose enough terminal fruit anchors`,
+          prototype.fruitAnchors.length >= MAX_RASPBERRIES_PER_CLUMP,
+          `raspberry variant ${variant} must expose all ${MAX_RASPBERRIES_PER_CLUMP} visible fruit anchors`,
+        );
+        assert.ok(
+          prototype.fruitAnchors.length <= RASPBERRY_FRUIT_ANCHOR_LIMIT,
+          `raspberry variant ${variant} exceeded its authored fruit-anchor budget`,
         );
       } else {
         assert.equal(prototype.fruitAnchors.length, 0);
       }
-      signatures[`${kind}:${variant}`] = geometryHash(geometry);
+      signatures[`${kind}:${variant}`] = [
+        geometryHash(geometry),
+        prototype.fruitAnchors
+          .map((anchor) => anchor.toArray().map((value) => value.toFixed(6)).join(','))
+          .join(';'),
+      ].join(':');
       geometry.dispose();
     }
   }

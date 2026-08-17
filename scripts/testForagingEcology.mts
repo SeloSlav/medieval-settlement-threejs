@@ -414,7 +414,7 @@ assert.equal(
 );
 assert.equal(berryClumpTargetCount(false), ORDINARY_BERRY_CLUMPS);
 assert.equal(berryClumpTargetCount(true), RICH_BERRY_CLUMPS);
-assert.equal(MAX_RASPBERRIES_PER_CLUMP, 5);
+assert.equal(MAX_RASPBERRIES_PER_CLUMP, 8);
 assert.equal(RASPBERRY_CANE_HEIGHT_MULTIPLIER, 1.9);
 assert.equal(ORDINARY_BERRY_THICKET_RADIUS_SCALE, 0.5);
 assert.equal(RICH_BERRY_THICKET_RADIUS_SCALE, 0.58);

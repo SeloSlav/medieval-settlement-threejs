@@ -1,7 +1,7 @@
 export const MIN_VISIBLE_BERRY_CLUMPS = 4;
 export const ORDINARY_BERRY_CLUMPS = 16;
 export const RICH_BERRY_CLUMPS = 24;
-export const MAX_RASPBERRIES_PER_CLUMP = 5;
+export const MAX_RASPBERRIES_PER_CLUMP = 8;
 /** Mature canes read as a waist-to-head-height thicket rather than ground scrub. */
 export const RASPBERRY_CANE_HEIGHT_MULTIPLIER = 1.9;
 /** Preserve instance budgets while concentrating them into a continuous thicket. */
