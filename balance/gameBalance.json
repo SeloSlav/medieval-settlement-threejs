@@ -737,6 +737,7 @@
     "fieldSetupWorkPerStage": 120,
     "fieldBoundaryWorkPerMeterPerStage": 0.75,
     "fieldTravelWorkPerMeterPerStage": 1.25,
+    "sharedLaborMinPriority": 2,
     "minFieldEdge": 6,
     "workMetersPerWorkerPerSec": 20,
     "farmToolIronworkPerWorkerDay": 0.05,

@@ -634,6 +634,7 @@ export type GameBalance = {
     fieldSetupWorkPerStage: number;
     fieldBoundaryWorkPerMeterPerStage: number;
     fieldTravelWorkPerMeterPerStage: number;
+    sharedLaborMinPriority: number;
     minFieldEdge: number;
     workMetersPerWorkerPerSec: number;
     farmToolIronworkPerWorkerDay: number;
@@ -1203,6 +1204,7 @@ function generateRust(): string {
     `pub const FARM_FIELD_SETUP_WORK_PER_STAGE: f64 = ${rustF64(b.farming.fieldSetupWorkPerStage)};`,
     `pub const FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE: f64 = ${rustF64(b.farming.fieldBoundaryWorkPerMeterPerStage)};`,
     `pub const FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE: f64 = ${rustF64(b.farming.fieldTravelWorkPerMeterPerStage)};`,
+    `pub const FARM_SHARED_LABOR_MIN_PRIORITY: u8 = ${b.farming.sharedLaborMinPriority};`,
     `pub const FARM_MIN_FIELD_EDGE: f64 = ${rustF64(b.farming.minFieldEdge)};`,
     `pub const FARM_WORK_METERS_PER_WORKER_PER_SEC: f64 = ${rustF64(b.farming.workMetersPerWorkerPerSec)};`,
     `pub const FARM_TOOL_IRONWORK_PER_WORKER_DAY: f64 = ${rustF64(b.farming.farmToolIronworkPerWorkerDay)};`,
@@ -2091,6 +2093,7 @@ function generateTypeScript(): string {
     `export const FARM_FIELD_SETUP_WORK_PER_STAGE = ${b.farming.fieldSetupWorkPerStage};`,
     `export const FARM_FIELD_BOUNDARY_WORK_PER_METER_PER_STAGE = ${b.farming.fieldBoundaryWorkPerMeterPerStage};`,
     `export const FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE = ${b.farming.fieldTravelWorkPerMeterPerStage};`,
+    `export const FARM_SHARED_LABOR_MIN_PRIORITY = ${b.farming.sharedLaborMinPriority};`,
     `export const FARM_MIN_FIELD_EDGE = ${b.farming.minFieldEdge};`,
     `export const FARM_WORK_METERS_PER_WORKER_PER_SEC = ${b.farming.workMetersPerWorkerPerSec};`,
     `export const FARM_TOOL_IRONWORK_PER_WORKER_DAY = ${b.farming.farmToolIronworkPerWorkerDay};`,

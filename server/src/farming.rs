@@ -6,7 +6,8 @@ use crate::balance_generated::{
     FARM_FIELD_SETUP_WORK_PER_STAGE, FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE,
     FARM_HARVEST_WORK_PER_SQUARE_METER, FARM_MANURE_FERTILITY_BONUS,
     FARM_MANURE_PER_SQUARE_METER, FARM_PLOUGH_WORK_PER_SQUARE_METER,
-    FARM_SLOPE_PENALTY_PER_DEGREE, FARM_SOW_WORK_PER_SQUARE_METER,
+    FARM_SHARED_LABOR_MIN_PRIORITY, FARM_SLOPE_PENALTY_PER_DEGREE,
+    FARM_SOW_WORK_PER_SQUARE_METER,
 };
 use crate::burgage::{Point2, ZoneCorners};
 
@@ -324,6 +325,18 @@ pub fn work_required(
         + farmstead_distance.max(0.0) * FARM_FIELD_TRAVEL_WORK_PER_METER_PER_STAGE
 }
 
+pub fn field_accepts_farmstead_labor(
+    priority: u8,
+    linked_to_farmstead: bool,
+    farmstead_distance: f64,
+    work_radius: f64,
+) -> bool {
+    priority > 0
+        && (linked_to_farmstead
+            || (priority >= FARM_SHARED_LABOR_MIN_PRIORITY
+                && farmstead_distance <= work_radius.max(0.0)))
+}
+
 pub fn crop_seed_grain_per_square_meter(crop: u8) -> f64 {
     crop_definition(crop).seed_grain_per_square_meter
 }
@@ -499,6 +512,16 @@ mod tests {
             work_required(STAGE_HARVESTING, small_area, 1.0, small_perimeter, 120.0)
                 > small_work
         );
+    }
+
+    #[test]
+    fn high_priority_fields_accept_nearby_farmstead_labor() {
+        assert!(field_accepts_farmstead_labor(1, true, 400.0, 250.0));
+        assert!(!field_accepts_farmstead_labor(0, true, 10.0, 250.0));
+        assert!(!field_accepts_farmstead_labor(1, false, 10.0, 250.0));
+        assert!(field_accepts_farmstead_labor(2, false, 250.0, 250.0));
+        assert!(field_accepts_farmstead_labor(3, false, 100.0, 250.0));
+        assert!(!field_accepts_farmstead_labor(2, false, 250.1, 250.0));
     }
 
     #[test]

@@ -55,7 +55,7 @@ use crate::economy::{
 use crate::farming::{
     advance_crop_rotation, centroid, crop_growth_allowed, crop_produce, expected_grain_yield,
     crop_harvest_month, farmstead_exportable_grain, fertility_after_harvest,
-    field_manure_fertility_bonus, month_after,
+    field_accepts_farmstead_labor, field_manure_fertility_bonus, month_after,
     field_manure_required, field_seed_crop, field_seed_grain_remaining, field_work_allowed,
     seed_grain_required, shape_efficiency, sowing_window_missed, work_required, CROP_BARLEY,
     CROP_FALLOW, CROP_FLAX, CROP_OATS, CROP_RYE, CROP_WHEAT, STAGE_GROWING,
@@ -1687,6 +1687,124 @@ pub fn step_bakery(
     ctx.db.building().id().update(bakery);
 }
 
+fn apply_farm_field_work(
+    field: &mut FarmField,
+    resource_farmstead: &mut Building,
+    worker_x: f64,
+    worker_z: f64,
+    plough_multiplier: f64,
+    available_work: f64,
+) -> f64 {
+    let corners = field_corners(field);
+    let field_center = centroid(&corners);
+    let shape = shape_efficiency(&corners);
+    let perimeter: f64 = crate::farming::edge_lengths(&corners).iter().sum();
+    let worker_distance =
+        ((field_center.x - worker_x).powi(2) + (field_center.z - worker_z).powi(2)).sqrt();
+    let required = (work_required(
+        field.stage,
+        field.area,
+        shape,
+        perimeter,
+        worker_distance,
+    ) * if field.stage == STAGE_PLOUGHING {
+        plough_multiplier
+    } else {
+        1.0
+    })
+    .max(1e-6);
+    let remaining = required * (1.0_f64 - field.stage_progress).max(0.0_f64);
+    let expected_harvest = if field.stage == STAGE_HARVESTING {
+        Some(
+            expected_grain_yield(
+                field.area,
+                field.crop,
+                field.moisture,
+                field.fertility,
+                field.average_slope_degrees,
+                shape,
+                field_center.x,
+                field_center.z,
+            ) * field.harvest_yield_multiplier.clamp(0.0, 1.0),
+        )
+    } else {
+        None
+    };
+    let harvest_commodity = match crop_produce(field.crop) {
+        FarmCropProduce::Grain => crop_sheaf_commodity(field.crop),
+        FarmCropProduce::Barley => Some(CommodityKind::BarleySheaves),
+        FarmCropProduce::Fibre => Some(CommodityKind::Flax),
+        FarmCropProduce::None => None,
+    };
+    let mut spent = available_work.min(remaining);
+    if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
+        if expected > 1e-9 {
+            let storage_limited_work =
+                required * building_commodity_room(resource_farmstead, commodity) / expected;
+            spent = spent.min(storage_limited_work);
+        }
+    }
+    let seed_required = if field.stage == STAGE_SOWING {
+        seed_grain_required(field.area, field.crop)
+    } else {
+        0.0
+    };
+    let seed_commodity = crop_seed_commodity(field.crop);
+    if seed_required > 1e-9 {
+        let seed_limited_work = required
+            * building_commodity_stock(resource_farmstead, seed_commodity).max(0.0)
+            / seed_required;
+        spent = spent.min(seed_limited_work);
+    }
+    if spent <= 1e-9 {
+        return 0.0;
+    }
+
+    let previous_progress = field.stage_progress;
+    field.stage_progress = (field.stage_progress + spent / required).min(1.0);
+    if field.stage == STAGE_PLOUGHING {
+        let manure_needed =
+            field_manure_required(field.area) * (field.stage_progress - previous_progress);
+        let manure_spread = withdraw_building_commodity(
+            resource_farmstead,
+            CommodityKind::Manure,
+            manure_needed,
+        );
+        field.manure_applied += manure_spread;
+    }
+    if seed_required > 1e-9 {
+        let seed_used =
+            seed_required * (field.stage_progress - previous_progress).clamp(0.0, 1.0);
+        withdraw_building_commodity(resource_farmstead, seed_commodity, seed_used);
+    }
+    if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
+        let harvested = expected * (field.stage_progress - previous_progress).max(0.0);
+        let deposited = deposit_building_commodity(resource_farmstead, commodity, harvested);
+        field.current_yield += deposited;
+    }
+    if field.stage_progress >= 1.0 - 1e-9 {
+        match field.stage {
+            STAGE_PLOUGHING => {
+                field.stage = if field.crop == CROP_FALLOW {
+                    STAGE_GROWING
+                } else {
+                    STAGE_SOWING
+                };
+                field.stage_progress = 0.0;
+            }
+            STAGE_SOWING => {
+                field.stage = STAGE_GROWING;
+                field.stage_progress = 0.0;
+            }
+            STAGE_HARVESTING => {
+                finish_field_cycle(field, expected_harvest.unwrap_or_default());
+            }
+            _ => {}
+        }
+    }
+    spent
+}
+
 fn step_farmstead_fields(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -1697,14 +1815,6 @@ fn step_farmstead_fields(
     onsite_labor: u32,
     mut fields: Vec<FarmField>,
 ) -> FarmSeedReserves {
-    let cattle_support: std::collections::HashMap<u64, f64> = fields
-        .iter()
-        .filter_map(|field| {
-            tick.cattle_field_support_for(ctx, farmstead.owner, field.id)
-                .map(|support| (field.id, support))
-        })
-        .collect();
-
     // Rain and drought persistently change soil moisture, which later affects yield.
     for field in &mut fields {
         let moisture_change_per_day = match environment.weather {
@@ -1756,6 +1866,46 @@ fn step_farmstead_fields(
         .min(1.0);
     }
 
+    // A linked holding always works its own active parcels. High and urgent
+    // parcels additionally enter every nearby farmstead's queue, allowing
+    // several crews to converge while seed, manure, and harvest storage remain
+    // owned by the field's linked farmstead.
+    let worker_farmstead_id = farmstead.id;
+    let mut work_fields = fields;
+    for candidate in ctx.db.farm_field().owner().filter(&farmstead.owner) {
+        if candidate.farmstead_id == worker_farmstead_id {
+            continue;
+        }
+        let center = centroid(&field_corners(&candidate));
+        let distance = ((center.x - farmstead.x).powi(2) + (center.z - farmstead.z).powi(2)).sqrt();
+        if !field_accepts_farmstead_labor(
+            candidate.priority,
+            false,
+            distance,
+            farmstead.work_radius,
+        ) {
+            continue;
+        }
+        let Some(resource_farmstead) = ctx.db.building().id().find(&candidate.farmstead_id) else {
+            continue;
+        };
+        if resource_farmstead.owner != farmstead.owner
+            || resource_farmstead.kind != "threshing_barn"
+            || !resource_farmstead.construction_complete
+            || tick.building_disabled_by_fire(ctx, resource_farmstead.id)
+        {
+            continue;
+        }
+        work_fields.push(candidate);
+    }
+    let cattle_support: std::collections::HashMap<u64, f64> = work_fields
+        .iter()
+        .filter_map(|field| {
+            tick.cattle_field_support_for(ctx, farmstead.owner, field.id)
+                .map(|support| (field.id, support))
+        })
+        .collect();
+
     let farm_tools_ready = farm_tools_maintained(farmstead.ironwork);
     let farm_tool_throughput = farm_tool_throughput_multiplier(farmstead.ironwork);
     let mut work_budget = if work_allowed {
@@ -1763,14 +1913,19 @@ fn step_farmstead_fields(
     } else {
         0.0
     };
-    fields.sort_by(|a, b| {
+    work_fields.sort_by(|a, b| {
         b.priority
             .cmp(&a.priority)
             .then_with(|| stage_urgency(b.stage).cmp(&stage_urgency(a.stage)))
+            .then_with(|| {
+                let a_is_linked = a.farmstead_id == worker_farmstead_id;
+                let b_is_linked = b.farmstead_id == worker_farmstead_id;
+                b_is_linked.cmp(&a_is_linked)
+            })
             .then_with(|| a.id.cmp(&b.id))
     });
 
-    for field in &mut fields {
+    for field in &mut work_fields {
         if work_budget <= 1e-9
             || field.stage == STAGE_GROWING
             || field.priority == 0
@@ -1778,75 +1933,38 @@ fn step_farmstead_fields(
         {
             continue;
         }
-        let corners = field_corners(field);
-        let field_center = centroid(&corners);
-        let shape = shape_efficiency(&corners);
-        let perimeter: f64 = crate::farming::edge_lengths(&corners).iter().sum();
-        let farmstead_distance =
-            ((field_center.x - farmstead.x).powi(2) + (field_center.z - farmstead.z).powi(2))
-                .sqrt();
         let plough_multiplier = cattle_support.get(&field.id).copied().unwrap_or(1.0);
-        let required = (work_required(
-            field.stage,
-            field.area,
-            shape,
-            perimeter,
-            farmstead_distance,
-        )
-            * if field.stage == STAGE_PLOUGHING {
-                plough_multiplier
-            } else {
-                1.0
-            })
-        .max(1e-6);
-        let remaining = required * (1.0_f64 - field.stage_progress).max(0.0_f64);
-        let expected_harvest = if field.stage == STAGE_HARVESTING {
-            Some(
-                expected_grain_yield(
-                    field.area,
-                    field.crop,
-                    field.moisture,
-                    field.fertility,
-                    field.average_slope_degrees,
-                    shape,
-                    field_center.x,
-                    field_center.z,
-                ) * field.harvest_yield_multiplier.clamp(0.0, 1.0),
+        let spent = if field.farmstead_id == worker_farmstead_id {
+            apply_farm_field_work(
+                field,
+                farmstead,
+                farmstead.x,
+                farmstead.z,
+                plough_multiplier,
+                work_budget,
             )
         } else {
-            None
-        };
-        let harvest_commodity = match crop_produce(field.crop) {
-            FarmCropProduce::Grain => crop_sheaf_commodity(field.crop),
-            FarmCropProduce::Barley => Some(CommodityKind::BarleySheaves),
-            FarmCropProduce::Fibre => Some(CommodityKind::Flax),
-            FarmCropProduce::None => None,
-        };
-        let mut spent = work_budget.min(remaining);
-        if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
-            if expected > 1e-9 {
-                let storage_limited_work =
-                    required * building_commodity_room(farmstead, commodity) / expected;
-                spent = spent.min(storage_limited_work);
+            let Some(mut resource_farmstead) =
+                ctx.db.building().id().find(&field.farmstead_id)
+            else {
+                continue;
+            };
+            let spent = apply_farm_field_work(
+                field,
+                &mut resource_farmstead,
+                farmstead.x,
+                farmstead.z,
+                plough_multiplier,
+                work_budget,
+            );
+            if spent > 1e-9 {
+                ctx.db.building().id().update(resource_farmstead);
             }
-        }
-        let seed_required = if field.stage == STAGE_SOWING {
-            seed_grain_required(field.area, field.crop)
-        } else {
-            0.0
+            spent
         };
-        let seed_commodity = crop_seed_commodity(field.crop);
-        if seed_required > 1e-9 {
-            let seed_limited_work = required
-                * building_commodity_stock(farmstead, seed_commodity).max(0.0)
-                / seed_required;
-            spent = spent.min(seed_limited_work);
-        }
         if spent <= 1e-9 {
             continue;
         }
-        let previous_progress = field.stage_progress;
-        field.stage_progress = (field.stage_progress + spent / required).min(1.0);
         work_budget -= spent;
         if farm_tools_ready {
             withdraw_building_commodity(
@@ -1855,48 +1973,15 @@ fn step_farmstead_fields(
                 farm_tool_ironwork_for_work(spent),
             );
         }
-        if field.stage == STAGE_PLOUGHING {
-            let manure_needed =
-                field_manure_required(field.area) * (field.stage_progress - previous_progress);
-            let manure_spread =
-                withdraw_building_commodity(farmstead, CommodityKind::Manure, manure_needed);
-            field.manure_applied += manure_spread;
-        }
-        if seed_required > 1e-9 {
-            let seed_used =
-                seed_required * (field.stage_progress - previous_progress).clamp(0.0, 1.0);
-            withdraw_building_commodity(farmstead, seed_commodity, seed_used);
-        }
-        if let (Some(expected), Some(commodity)) = (expected_harvest, harvest_commodity) {
-            let harvested = expected * (field.stage_progress - previous_progress).max(0.0);
-            let deposited = deposit_building_commodity(farmstead, commodity, harvested);
-            field.current_yield += deposited;
-        }
-        if field.stage_progress < 1.0 - 1e-9 {
-            continue;
-        }
-        match field.stage {
-            STAGE_PLOUGHING => {
-                field.stage = if field.crop == CROP_FALLOW {
-                    STAGE_GROWING
-                } else {
-                    STAGE_SOWING
-                };
-                field.stage_progress = 0.0;
-            }
-            STAGE_SOWING => {
-                field.stage = STAGE_GROWING;
-                field.stage_progress = 0.0;
-            }
-            STAGE_HARVESTING => {
-                finish_field_cycle(field, expected_harvest.unwrap_or_default());
-            }
-            _ => {}
-        }
     }
 
-    let seed_reserves = farmstead_seed_grain_remaining(&fields);
-    for field in fields {
+    let linked_fields: Vec<FarmField> = work_fields
+        .iter()
+        .filter(|field| field.farmstead_id == worker_farmstead_id)
+        .cloned()
+        .collect();
+    let seed_reserves = farmstead_seed_grain_remaining(&linked_fields);
+    for field in work_fields {
         ctx.db.farm_field().id().update(field);
     }
     seed_reserves
