@@ -103,7 +103,7 @@ type UndergrowthMaterialPair = [branch: THREE.Material, foliage: THREE.Material]
 
 export type UndergrowthMaterials = {
   bush: UndergrowthMaterialPair;
-  fern: UndergrowthMaterialPair;
+  fern: [foliage: THREE.Material];
   juniper: UndergrowthMaterialPair;
   prototypes: Record<UndergrowthKind, GorskiShrubPrototype[]>;
   shadowCast: THREE.MeshStandardMaterial;
@@ -150,9 +150,8 @@ const CARD_FILES: Record<UndergrowthKind, UndergrowthTextureFiles> = {
   },
 };
 
-const BRANCH_FILES: Record<UndergrowthKind, Omit<UndergrowthTextureFiles, 'translucency'>> = {
+const BRANCH_FILES: Record<Exclude<UndergrowthKind, 'fern'>, Omit<UndergrowthTextureFiles, 'translucency'>> = {
   bush: { albedo: 'creosote_branch_albedo.png', normal: 'creosote_branch_normal.png', roughness: 'creosote_branch_roughness.png' },
-  fern: { albedo: 'creosote_branch_albedo.png', normal: 'creosote_branch_normal.png', roughness: 'creosote_branch_roughness.png' },
   juniper: { albedo: 'sagebrush_branch_albedo.png', normal: 'sagebrush_branch_normal.png', roughness: 'sagebrush_branch_roughness.png' },
 };
 
@@ -163,18 +162,17 @@ export async function createUndergrowthMaterials(
   rendererBackend: RendererBackendKind | undefined,
   _sharedTextures: THREE.Texture[],
 ): Promise<UndergrowthMaterials> {
-  const [bushTextures, fernTextures, juniperTextures, bushBranch, fernBranch, juniperBranch] = await Promise.all([
+  const [bushTextures, fernTextures, juniperTextures, bushBranch, juniperBranch] = await Promise.all([
     loadUndergrowthTextures(CARD_FILES.bush, maxAnisotropy),
     loadUndergrowthTextures(CARD_FILES.fern, maxAnisotropy),
     loadUndergrowthTextures(CARD_FILES.juniper, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.bush, maxAnisotropy),
-    loadBranchTextures(BRANCH_FILES.fern, maxAnisotropy),
     loadBranchTextures(BRANCH_FILES.juniper, maxAnisotropy),
   ]);
   const useNodeMaterials = rendererBackend === 'webgpu';
   const textures = collectTextures(
     bushTextures, fernTextures, juniperTextures,
-    bushBranch, fernBranch, juniperBranch,
+    bushBranch, juniperBranch,
   );
   const prototypes = Object.fromEntries(
     (['bush', 'fern', 'juniper'] as const).map((kind) => [
@@ -191,7 +189,6 @@ export async function createUndergrowthMaterials(
       createUndergrowthCardMaterial('SeedThree bilberry sprays', bushTextures, useNodeMaterials, [0.3, 0.44, 0.16]),
     ],
     fern: [
-      createUndergrowthBranchMaterial('SeedThree fern rachises', fernBranch, useNodeMaterials),
       createUndergrowthCardMaterial('SeedThree curved fern fronds', fernTextures, useNodeMaterials, [0.26, 0.5, 0.18]),
     ],
     juniper: [
@@ -326,7 +323,7 @@ function createUndergrowthBucket(
   prototypeIndex: number,
   prototype: GorskiShrubPrototype,
   placements: UndergrowthPlacement[],
-  material: UndergrowthMaterialPair,
+  material: THREE.Material[],
   shadowCast: THREE.MeshStandardMaterial,
   shadowDepth: THREE.MeshDepthMaterial,
 ): UndergrowthBucket {

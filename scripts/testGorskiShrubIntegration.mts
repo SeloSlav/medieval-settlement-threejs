@@ -17,7 +17,7 @@ const limits: Record<GorskiShrubKind, {
   height: [number, number];
 }> = {
   bush: { triangles: [3_000, 6_500], width: [0.8, 1.2], height: [0.5, 0.8] },
-  fern: { triangles: [400, 1_200], width: [0.8, 1.35], height: [0.5, 0.9] },
+  fern: { triangles: [120, 180], width: [0.8, 1.35], height: [0.5, 0.9] },
   juniper: { triangles: [6_000, 12_000], width: [1.7, 2.5], height: [1.2, 1.8] },
   raspberry: { triangles: [4_500, 7_500], width: [1.2, 1.7], height: [0.85, 1.2] },
 };
@@ -97,11 +97,25 @@ function prototypeSignatures(): Record<string, string> {
         size.y >= limitsForKind.height[0] && size.y <= limitsForKind.height[1],
         `${kind} variant ${variant} height ${size.y.toFixed(2)} m is outside its botanical envelope`,
       );
-      assert.equal(
-        geometry.groups.length,
-        2,
-        `${kind} variant ${variant} must retain separate wood/stem and foliage material groups`,
-      );
+      if (kind === 'fern') {
+        assert.equal(
+          geometry.groups.length,
+          1,
+          `fern variant ${variant} must render as a single frond-card group without duplicate stem geometry`,
+        );
+        assert.equal(geometry.groups[0]?.materialIndex, 0);
+        assert.equal(
+          geometry.userData.fernRachisStrategy,
+          'foliage-card-owned',
+          `fern variant ${variant} must keep its green rachis inside the alpha-cutout frond silhouette`,
+        );
+      } else {
+        assert.equal(
+          geometry.groups.length,
+          2,
+          `${kind} variant ${variant} must retain separate wood/stem and foliage material groups`,
+        );
+      }
       assert.ok(
         geometry.getAttribute('aRootWeight'),
         `${kind} variant ${variant} must carry rooted wind weights`,

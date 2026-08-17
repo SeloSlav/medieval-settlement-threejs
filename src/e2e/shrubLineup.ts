@@ -23,6 +23,7 @@ const root = document.querySelector<HTMLElement>('#lineup-root');
 if (!root) throw new Error('Shrub lineup host is missing.');
 const query = new URLSearchParams(window.location.search);
 const isRichBerryPatch = query.get('rich') === '1';
+const focus = query.get('focus') ?? 'berries';
 const requestedStock = Number(query.get('stock') ?? '1');
 const stockRatio = THREE.MathUtils.clamp(Number.isFinite(requestedStock) ? requestedStock : 1, 0, 1);
 
@@ -103,8 +104,13 @@ scene.add(ground);
 const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 100);
 const view = query.get('view') ?? 'design';
 if (view === 'near') {
-  camera.position.set(11.2, 2.7, 6.3);
-  camera.lookAt(8, 1.0, 0);
+  if (focus === 'fern') {
+    camera.position.set(-2.6, 1.55, 4.2);
+    camera.lookAt(-2.6, 0.48, 0);
+  } else {
+    camera.position.set(11.2, 2.7, 6.3);
+    camera.lookAt(8, 1.0, 0);
+  }
 } else if (view === 'far') {
   camera.position.set(0, 14.5, 31);
   camera.lookAt(0.5, 0.75, 0);
@@ -132,6 +138,7 @@ await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 window.__SHRUB_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';
 document.body.dataset.view = view;
+document.body.dataset.focus = focus;
 document.body.dataset.berryRich = String(isRichBerryPatch);
 document.body.dataset.berryStockRatio = stockRatio.toFixed(2);
 document.body.dataset.visibleRaspberryFruit = String(

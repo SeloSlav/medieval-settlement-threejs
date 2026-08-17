@@ -175,7 +175,6 @@ function selectFruitAnchors(
 
 function createFernPrototype(variant: number): GorskiShrubPrototype {
   const rng = new Rng(`gorski:fern:${Math.abs(variant) % GORSKI_SHRUB_VARIANT_COUNT}`);
-  const stems: THREE.BufferGeometry[] = [];
   const fronds: THREE.BufferGeometry[] = [];
   const frondCount = 9 + (variant % 3);
   for (let index = 0; index < frondCount; index++) {
@@ -188,23 +187,23 @@ function createFernPrototype(variant: number): GorskiShrubPrototype {
     const control1 = start.clone().lerp(end, 0.33).add(new THREE.Vector3(0, rise * 0.35, 0));
     const control2 = start.clone().lerp(end, 0.72).add(new THREE.Vector3(0, rise * 0.18, 0));
     const curve = new THREE.CubicBezierCurve3(start, control1, control2, end);
-    stems.push(new THREE.TubeGeometry(curve, 6, 0.006, 5, false));
     fronds.push(createCurvedFrondRibbon(curve, length * rng.range(0.22, 0.31)));
   }
-  const stemGeometry = mergeGeometries(stems, false);
-  const frondGeometry = mergeGeometries(fronds, false);
-  for (const geometry of [...stems, ...fronds]) geometry.dispose();
-  if (!stemGeometry || !frondGeometry) throw new Error('Unable to build Gorski fern prototype');
-  const geometry = mergeGeometries([stemGeometry, frondGeometry], true);
-  stemGeometry.dispose();
-  frondGeometry.dispose();
-  if (!geometry) throw new Error('Unable to merge Gorski fern prototype');
+  const geometry = mergeGeometries(fronds, false);
+  for (const frond of fronds) frond.dispose();
+  if (!geometry) throw new Error('Unable to build Gorski fern prototype');
+  // The fern albedo already carries a narrow, green rachis beneath the pinnae.
+  // A second bark-textured tube made the same stem read as a thick black branch
+  // and could protrude from the alpha-cutout leaf silhouette at the frond tip.
+  geometry.clearGroups();
+  geometry.addGroup(0, geometry.index?.count ?? geometry.getAttribute('position').count, 0);
   addRootWeightAttribute(geometry);
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   geometry.userData.gorskiShrubKind = 'fern';
   geometry.userData.gorskiShrubVariant = variant;
-  geometry.userData.seedThreeGenerator = 'curved-radial-fronds';
+  geometry.userData.seedThreeGenerator = 'curved-radial-card-fronds';
+  geometry.userData.fernRachisStrategy = 'foliage-card-owned';
   return { geometry, fruitAnchors: [], triangleCount: triangleCount(geometry) };
 }
 
