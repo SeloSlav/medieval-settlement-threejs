@@ -21,12 +21,14 @@ function pseudoRandomYaw(x: number, z: number): number {
  */
 function buildingUsesRoadsideSnap(kind: BuildingKind): boolean {
   const definition = getBuildingDefinition(kind);
-  return definition.requiresRoad
+  return (definition.requiresRoad || kind === 'foragers_shed')
     && !definition.requiresWaterShore
     && kind !== 'large_quarry'
     && kind !== 'mine'
     && kind !== 'clay_pit';
 }
+
+export type RoadsideBuildingPlacement = { x: number; z: number };
 
 /** Mesh doors face local +Z; rotate so +Z points toward the nearest road. */
 export function buildingPlacementYaw(
@@ -59,13 +61,27 @@ export function resolveRoadsideBuildingPlacement(
   x: number,
   z: number,
   roadNetwork?: RoadNetwork | null,
-): { x: number; z: number } {
+): RoadsideBuildingPlacement {
+  return resolveRoadsideBuildingPlacementCandidates(kind, x, z, roadNetwork)[0];
+}
+
+/**
+ * Return both road verges in cursor-preferred order. Callers with placement
+ * context can reject a verge that still intersects a curve or nearby branch
+ * and fall through to the other side without losing the player's side choice.
+ */
+export function resolveRoadsideBuildingPlacementCandidates(
+  kind: BuildingKind,
+  x: number,
+  z: number,
+  roadNetwork?: RoadNetwork | null,
+): RoadsideBuildingPlacement[] {
   const definition = getBuildingDefinition(kind);
   if (
     !roadNetwork
     || !buildingUsesRoadsideSnap(kind)
   ) {
-    return { x, z };
+    return [{ x, z }];
   }
 
   const footprintDepth = definition.pickRadius * ROADSIDE_FOOTPRINT_SCALE;
@@ -116,16 +132,16 @@ export function resolveRoadsideBuildingPlacement(
     }
   }
 
-  if (!nearest) return { x, z };
+  if (!nearest) return [{ x, z }];
 
   const signedSide = (x - nearest.x) * nearest.normalX
     + (z - nearest.z) * nearest.normalZ;
-  const side = Math.abs(signedSide) > 1e-4
+  const preferredSide = Math.abs(signedSide) > 1e-4
     ? Math.sign(signedSide)
     : pseudoRandomYaw(nearest.x, nearest.z) < Math.PI ? 1 : -1;
   const setback = nearest.halfWidth + footprintDepth + ROADSIDE_CLEARANCE;
-  return {
+  return [preferredSide, -preferredSide].map((side) => ({
     x: nearest.x + nearest.normalX * setback * side,
     z: nearest.z + nearest.normalZ * setback * side,
-  };
+  }));
 }

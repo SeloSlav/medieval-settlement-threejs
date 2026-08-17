@@ -19,7 +19,7 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
     title: 'Simulation speed',
     entries: GAME_SPEEDS.map((speed) => ({
       action: speed === 0 ? gameSpeedLabel(speed) : `${gameSpeedLabel(speed)} (${speed}×)`,
-      keys: hotkeyForGameSpeed(speed) ?? '',
+      keys: hotkeyForGameSpeed(speed) ?? 'Click ⏸',
     })),
   },
   {

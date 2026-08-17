@@ -175,8 +175,6 @@ export class BuildToolbar {
   private cropSuitabilityActive = false;
   private vineyardSuitabilityActive = false;
   private currentFarmCrop: MapOverlaySelection['crop'] = 'wheat';
-  private currentGameSpeed: GameSpeed = 1;
-  private lastRunningGameSpeed: GameSpeed = 1;
   private readonly requestGameSpeed: (speed: GameSpeed) => void;
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target) || this.isGameMenuOpen()) return;
@@ -185,12 +183,7 @@ export class BuildToolbar {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
 
     const key = event.key.toLowerCase();
-    const speed = resolveGameSpeedHotkey(
-      key,
-      this.currentGameSpeed,
-      this.lastRunningGameSpeed,
-      this.firstPersonActive,
-    );
+    const speed = resolveGameSpeedHotkey(key);
     if (speed !== null) {
       event.preventDefault();
       event.stopPropagation();
@@ -1158,8 +1151,6 @@ export class BuildToolbar {
     environment: EnvironmentState,
     outlook?: NextDayEnvironmentOutlook,
   ): void {
-    this.currentGameSpeed = speed;
-    if (speed !== 0) this.lastRunningGameSpeed = speed;
     this.settlementHud.setSimulationState(speed, environment, outlook);
   }
 

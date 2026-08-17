@@ -212,8 +212,8 @@ const inspectorView = withBuildingFireSafety(
     },
   } as unknown as InspectorRenderContext,
 );
-assert.match(inspectorView.detailsHtml, /Fire risk[\s\S]*Severe/);
-assert.match(inspectorView.detailsHtml, /Fire response[\s\S]*Ready[\s\S]*~\d+s/);
+assert.match(inspectorView.detailsHtml, /Fire safety[\s\S]*Severe[\s\S]*Ready[\s\S]*~\d+s/);
+assert.doesNotMatch(inspectorView.detailsHtml, />Fire response</);
 assert.match(inspectorView.detailsHtml, /Spread exposure[\s\S]*1 home nearby/);
 assert.match(inspectorView.detailsHtml, /data-inspect-building="10"/);
 

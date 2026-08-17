@@ -5,6 +5,8 @@ import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { BuildingPlacementFailureReason, BuildingPlacementResult } from './BuildingPlacementValidation.ts';
 import {
+  buildingFootprintOverlapsRoadSurface,
+  chooseRoadClearBuildingPlacement,
   foragerPlacementCandidates,
   resolveBuildingPlacementPoint,
   validateBuildingPlacement,
@@ -23,7 +25,7 @@ import { getBuildingExtent } from './buildingExtents.ts';
 import {
   type ClayDepositSite,
 } from '../clay/ClayDepositLayout.ts';
-import { resolveRoadsideBuildingPlacement } from './buildingPlacement.ts';
+import { resolveRoadsideBuildingPlacementCandidates } from './buildingPlacement.ts';
 import {
   linkedRemoteWorkCamp,
   REMOTE_WORK_CAMP_MAX_DISTANCE,
@@ -639,13 +641,18 @@ export class BuildingTool {
       state.quarries.values(),
       this.options.clayDepositSites,
     );
+    const roadNetwork = this.roadSnapEnabled ? this.options.getRoadNetwork?.() : null;
     if (kind !== 'foragers_shed') {
-      return resolveRoadsideBuildingPlacement(
+      const roadsideCandidates = resolveRoadsideBuildingPlacementCandidates(
         kind,
         resolved.x,
         resolved.z,
-        this.roadSnapEnabled ? this.options.getRoadNetwork?.() : null,
+        roadNetwork,
       );
+      return roadNetwork
+        ? chooseRoadClearBuildingPlacement(kind, roadsideCandidates, roadNetwork)
+          ?? roadsideCandidates[0]
+        : roadsideCandidates[0];
     }
 
     const candidates = foragerPlacementCandidates(
@@ -653,14 +660,29 @@ export class BuildingTool {
       z,
       state.foragingNodes.values(),
     );
-    if (!validateCandidates) {
-      return candidates[0] ?? resolved;
-    }
-
     for (const candidate of candidates) {
-      const validation = this.validate(kind, candidate.x, candidate.z);
-      if (validation.ok || validation.reason === 'insufficient_resources') {
-        return candidate;
+      const roadsideCandidates = resolveRoadsideBuildingPlacementCandidates(
+        kind,
+        candidate.x,
+        candidate.z,
+        roadNetwork,
+      );
+      const clearCandidates = roadNetwork
+        ? roadsideCandidates.filter((roadsideCandidate) =>
+          !buildingFootprintOverlapsRoadSurface(
+            kind,
+            roadsideCandidate.x,
+            roadsideCandidate.z,
+            roadNetwork,
+          )
+        )
+        : roadsideCandidates;
+      for (const clearCandidate of clearCandidates) {
+        if (!validateCandidates) return clearCandidate;
+        const validation = this.validate(kind, clearCandidate.x, clearCandidate.z);
+        if (validation.ok || validation.reason === 'insufficient_resources') {
+          return clearCandidate;
+        }
       }
     }
     return resolved;

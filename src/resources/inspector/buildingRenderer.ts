@@ -32,6 +32,7 @@ import {
   withWorksiteLodging,
 } from './remoteWorkCampRenderer.ts';
 import { fireForTarget } from '../../fires/fireIncident.ts';
+import { withBuildingLocalStorage } from './buildingLocalStorageRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -134,7 +135,10 @@ export function renderBuildingInspector(
     }
   })();
   return withBuildingFireSafety(
-    withWorksiteLodging(view, building, context),
+    withBuildingLocalStorage(
+      withWorksiteLodging(view, building, context),
+      building,
+    ),
     building,
     context,
   );

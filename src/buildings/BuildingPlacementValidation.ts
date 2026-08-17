@@ -589,7 +589,7 @@ function hasAnyForagingInRadius(
   return false;
 }
 
-function buildingFootprintOverlapsRoadSurface(
+export function buildingFootprintOverlapsRoadSurface(
   kind: BuildingKind,
   x: number,
   z: number,
@@ -599,4 +599,15 @@ function buildingFootprintOverlapsRoadSurface(
     if (isOnRoadSurface(point.x, point.z, roadNetwork)) return true;
   }
   return false;
+}
+
+/** Pick the first cursor-ordered verge whose complete footprint clears roads. */
+export function chooseRoadClearBuildingPlacement(
+  kind: BuildingKind,
+  candidates: ReadonlyArray<{ x: number; z: number }>,
+  roadNetwork: RoadNetwork,
+): { x: number; z: number } | null {
+  return candidates.find((candidate) =>
+    !buildingFootprintOverlapsRoadSurface(kind, candidate.x, candidate.z, roadNetwork)
+  ) ?? null;
 }

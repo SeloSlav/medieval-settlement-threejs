@@ -1352,6 +1352,46 @@
   font-weight: 750;
 }
 
+.ui-tooltip__resource-inventory {
+  display: grid;
+  gap: 4px;
+  min-width: 184px;
+  max-height: min(360px, 55vh);
+  margin: 0;
+  padding: 7px 0 0;
+  overflow-y: auto;
+  border-top: 1px solid rgba(226, 199, 139, 0.18);
+  list-style: none;
+}
+
+.ui-tooltip__resource-inventory > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 22px;
+  padding: 0;
+}
+
+.ui-tooltip__resource-inventory > li::before {
+  content: none;
+}
+
+.ui-tooltip__resource-inventory .resource-cost__icon {
+  width: 18px;
+  height: 18px;
+}
+
+.ui-tooltip__resource-name {
+  color: #ddd2bd;
+  text-transform: capitalize;
+}
+
+.ui-tooltip__resource-amount {
+  color: #f1dfb4;
+  font-variant-numeric: tabular-nums;
+}
+
 .ui-tooltip.is-visible {
   opacity: 1;
   transform: translateY(0);

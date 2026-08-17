@@ -102,8 +102,8 @@ modes receive four or eight times that budget. They accelerate movement,
 labor, construction, production, deliveries, consumption, regrowth, reproduction,
 weather damage, and the calendar together.
 
-Controls are in the settlement clock. `Space` pauses, while `1`, `2`, and `3` select
-1×, 4×, and 8×. Pause is a hard server and presentation boundary: the clock, economy,
+Controls are in the settlement clock. Click the pause button to stop the simulation;
+`1`, `2`, and `3` select 1×, 4×, and 8×. Pause is a hard server and presentation boundary: the clock, economy,
 agents, deliveries, combat, wildlife, weather, fires, and world animation stop while
 camera and UI controls remain available. Speed is server authoritative and global to
 the world. In the current shared-world model, any connected player can change it;

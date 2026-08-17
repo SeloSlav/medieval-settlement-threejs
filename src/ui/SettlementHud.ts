@@ -141,21 +141,24 @@ const SETTLEMENT_HUD_HTML = `
         <span data-welfare-detail>Awaiting parish reports</span>
       </div>
       <div class="settlement-hud__speed" role="group" aria-label="Simulation speed">
-        ${GAME_SPEEDS.map((speed) => `
+        ${GAME_SPEEDS.map((speed) => {
+          const hotkey = hotkeyForGameSpeed(speed);
+          return `
           <button
             type="button"
             class="settlement-hud__speed-button${speed === 0 ? ' settlement-hud__speed-button--pause' : ''}"
             data-game-speed="${speed}"
             data-tooltip-title="${gameSpeedLabel(speed)}"
-            data-tooltip="${gameSpeedTimingLabel(speed)} · Key: ${hotkeyForGameSpeed(speed)}"
+            data-tooltip="${gameSpeedTimingLabel(speed)}${hotkey ? ` · Key: ${hotkey}` : ''}"
             aria-label="${speed === 0 ? 'Pause simulation' : `Set simulation speed to ${speed} times`}"
-            aria-keyshortcuts="${hotkeyForGameSpeed(speed)}"
+            ${hotkey ? `aria-keyshortcuts="${hotkey}"` : ''}
             aria-pressed="${speed === 1}"
           >
             <span class="settlement-hud__speed-name">${gameSpeedLabel(speed)}</span>
             <span class="settlement-hud__speed-value">${speed === 0 ? '&#x23F8;' : `${speed}×`}</span>
           </button>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </div>
     <div class="settlement-hud__approval-shell" data-approval-shell>

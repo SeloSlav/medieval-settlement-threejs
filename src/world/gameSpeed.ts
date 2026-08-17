@@ -2,30 +2,19 @@ export const GAME_SPEEDS = [0, 1, 4, 8] as const;
 export type GameSpeed = (typeof GAME_SPEEDS)[number];
 export const PLAYER_GAME_SPEEDS = [1, 4, 8] as const satisfies readonly GameSpeed[];
 export const PLAYER_GAME_SPEED_HOTKEYS = ['1', '2', '3'] as const;
-export const PAUSE_GAME_SPEED_HOTKEY = ' ' as const;
 
 export function gameSpeedForHotkey(key: string): GameSpeed | null {
-  if (key === PAUSE_GAME_SPEED_HOTKEY) return 0;
   const index = PLAYER_GAME_SPEED_HOTKEYS.indexOf(
     key as (typeof PLAYER_GAME_SPEED_HOTKEYS)[number],
   );
   return index >= 0 ? PLAYER_GAME_SPEEDS[index] : null;
 }
 
-export function resolveGameSpeedHotkey(
-  key: string,
-  currentSpeed: GameSpeed,
-  lastRunningSpeed: GameSpeed,
-  firstPersonActive: boolean,
-): GameSpeed | null {
-  const requestedSpeed = gameSpeedForHotkey(key);
-  if (requestedSpeed !== 0) return requestedSpeed;
-  if (firstPersonActive) return null;
-  return currentSpeed === 0 ? lastRunningSpeed : 0;
+export function resolveGameSpeedHotkey(key: string): GameSpeed | null {
+  return gameSpeedForHotkey(key);
 }
 
 export function hotkeyForGameSpeed(speed: GameSpeed): string | null {
-  if (speed === 0) return 'Space';
   const index = PLAYER_GAME_SPEEDS.indexOf(
     speed as (typeof PLAYER_GAME_SPEEDS)[number],
   );

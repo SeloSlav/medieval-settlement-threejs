@@ -1,5 +1,17 @@
+import {
+  formatResourceCostAmount,
+  isResourceCostKind,
+  resourceCostLabel,
+  type ResourceCostKind,
+} from './resourceCost.ts';
+
 const VIEWPORT_MARGIN = 12;
 const TOOLTIP_GAP = 8;
+
+type TooltipResourceItem = {
+  kind: ResourceCostKind;
+  amount: number;
+};
 
 export function mountTooltips(root: HTMLElement): () => void {
   const tooltip = document.createElement('div');
@@ -173,8 +185,58 @@ function renderTooltipContent(
     bodyElement.appendChild(paragraph);
   }
 
+  const resourceItems = readTooltipResourceItems(anchor);
+  if (resourceItems.length > 0) {
+    const list = document.createElement('ul');
+    list.className = 'ui-tooltip__resource-inventory';
+    for (const item of resourceItems) {
+      const listItem = document.createElement('li');
+      const identity = document.createElement('span');
+      identity.className = 'resource-cost__item';
+      identity.dataset.resourceCost = item.kind;
+
+      const icon = document.createElement('span');
+      icon.className = 'resource-cost__icon';
+      icon.setAttribute('aria-hidden', 'true');
+      const name = document.createElement('span');
+      name.className = 'ui-tooltip__resource-name';
+      name.textContent = resourceCostLabel(item.kind);
+      identity.append(icon, name);
+
+      const amount = document.createElement('strong');
+      amount.className = 'ui-tooltip__resource-amount';
+      amount.textContent = formatResourceCostAmount(item.amount);
+      listItem.append(identity, amount);
+      list.appendChild(listItem);
+    }
+    bodyElement.appendChild(list);
+  }
+
   fragment.appendChild(bodyElement);
   tooltip.replaceChildren(fragment);
+}
+
+function readTooltipResourceItems(anchor: HTMLElement): TooltipResourceItem[] {
+  const source = anchor.dataset.tooltipResources;
+  if (!source) return [];
+  try {
+    const decoded: unknown = JSON.parse(decodeURIComponent(source));
+    if (!Array.isArray(decoded)) return [];
+    return decoded.flatMap((candidate) => {
+      if (candidate == null || typeof candidate !== 'object') return [];
+      const kind = 'kind' in candidate ? candidate.kind : null;
+      const amount = 'amount' in candidate ? candidate.amount : null;
+      return typeof kind === 'string'
+        && isResourceCostKind(kind)
+        && typeof amount === 'number'
+        && Number.isFinite(amount)
+        && amount > 1e-6
+        ? [{ kind, amount }]
+        : [];
+    });
+  } catch {
+    return [];
+  }
 }
 
 function appendTooltipText(parent: HTMLElement, text: string): void {

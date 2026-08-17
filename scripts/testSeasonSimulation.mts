@@ -129,26 +129,23 @@ assert.ok(
 assert.deepEqual(GAME_SPEEDS, [0, 1, 4, 8]);
 assert.deepEqual(PLAYER_GAME_SPEEDS, [1, 4, 8]);
 assert.deepEqual(PLAYER_GAME_SPEED_HOTKEYS, ['1', '2', '3']);
-assert.equal(gameSpeedForHotkey(' '), 0);
+assert.equal(gameSpeedForHotkey(' '), null);
 assert.equal(gameSpeedForHotkey('1'), 1);
 assert.equal(gameSpeedForHotkey('2'), 4);
 assert.equal(gameSpeedForHotkey('3'), 8);
 assert.equal(gameSpeedForHotkey('4'), null);
 assert.equal(gameSpeedForHotkey('0'), null);
 assert.equal(gameSpeedForHotkey('5'), null);
-assert.equal(resolveGameSpeedHotkey(' ', 4, 4, false), 0);
-assert.equal(resolveGameSpeedHotkey(' ', 0, 4, false), 4);
-assert.equal(resolveGameSpeedHotkey(' ', 4, 4, true), null);
-assert.equal(resolveGameSpeedHotkey(' ', 0, 4, true), null);
-assert.equal(resolveGameSpeedHotkey('2', 0, 4, true), 4);
-assert.equal(hotkeyForGameSpeed(0), 'Space');
+assert.equal(resolveGameSpeedHotkey(' '), null);
+assert.equal(resolveGameSpeedHotkey('2'), 4);
+assert.equal(hotkeyForGameSpeed(0), null);
 assert.equal(hotkeyForGameSpeed(1), '1');
 assert.equal(hotkeyForGameSpeed(4), '2');
 assert.equal(hotkeyForGameSpeed(8), '3');
 assert.deepEqual(
   GAME_CONTROL_SECTIONS.find((section) => section.title === 'Simulation speed')?.entries,
   [
-    { action: 'Pause', keys: 'Space' },
+    { action: 'Pause', keys: 'Click ⏸' },
     { action: 'Normal (1×)', keys: '1' },
     { action: 'Fast (4×)', keys: '2' },
     { action: 'Fastest (8×)', keys: '3' },

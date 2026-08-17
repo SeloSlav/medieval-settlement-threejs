@@ -448,6 +448,14 @@ const watermillInspector = fs.readFileSync(
 );
 assert.match(watermillInspector, /River power/);
 assert.match(watermillInspector, /stockpile before frost and drought/);
+const resourceInspector = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
+assert.match(resourceInspector, /row\.dataset\.tooltipTitle = label/);
+assert.match(resourceInspector, /row\.dataset\.tooltip = detail/);
+assert.doesNotMatch(
+  resourceInspector,
+  /row\.title = detail/,
+  'full-ledger help must use the immediate styled tooltip instead of a delayed native title',
+);
 const buildingMarkers = fs.readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
 assert.match(buildingMarkers, /watermillThroughputMultiplier/);
 assert.match(buildingMarkers, /wheel\.rotation\.x/);

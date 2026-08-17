@@ -93,6 +93,14 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   cheese: 'cheese',
 };
 
+export function isResourceCostKind(value: string): value is ResourceCostKind {
+  return (RESOURCE_COST_KINDS as readonly string[]).includes(value);
+}
+
+export function resourceCostLabel(kind: ResourceCostKind): string {
+  return RESOURCE_COST_LABELS[kind];
+}
+
 export type ResourceCostMarkupOptions = {
   compact?: boolean;
   suffix?: string;
@@ -160,7 +168,7 @@ export function renderResourceCost(
   return `<span class="${classes}" role="img" aria-label="${escapeHtml(accessibleLabel)}">${items}${visibleSuffix}</span>`;
 }
 
-function formatResourceCostAmount(amount: number): string {
+export function formatResourceCostAmount(amount: number): string {
   if (Number.isInteger(amount)) return amount.toString();
   return (Math.round(amount * 100) / 100).toString();
 }

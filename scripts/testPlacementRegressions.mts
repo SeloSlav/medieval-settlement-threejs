@@ -12,6 +12,7 @@ import { collectPlacedBuildingSources } from '../src/app/placedBuildingTerrainSy
 import {
   buildingPlacementYaw,
   resolveRoadsideBuildingPlacement,
+  resolveRoadsideBuildingPlacementCandidates,
 } from '../src/buildings/buildingPlacement.ts';
 import {
   createBuildingPreviewMesh,
@@ -19,7 +20,11 @@ import {
   updateBuildingPreviewAppearance,
   updateBuildingPreviewGeometry,
 } from '../src/buildings/BuildingPlacementPreview.ts';
-import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
+import {
+  buildingFootprintOverlapsRoadSurface,
+  chooseRoadClearBuildingPlacement,
+  validateBuildingPlacement,
+} from '../src/buildings/BuildingPlacementValidation.ts';
 import { buildingExtentColor } from '../src/buildings/buildingExtents.ts';
 import { PlacementClearanceSpatialIndex } from '../src/placement/PlacementClearanceSpatialIndex.ts';
 import {
@@ -388,6 +393,10 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
     resolveRoadsideBuildingPlacement('well', 4, 5, roads).z > 5,
     'road-dependent utility buildings should also settle onto the road verge',
   );
+  assert(
+    resolveRoadsideBuildingPlacement('foragers_shed', 4, 5, roads).z > 5,
+    'resource-click buildings should still honor the shared road-snap toggle',
+  );
   const reclamationPile = resolveRoadsideBuildingPlacement('salvage_pile', 13, 6, roads);
   assert(
     Math.abs(Math.abs(
@@ -410,6 +419,43 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
     resolveRoadsideBuildingPlacement('smithy', 4, 40, roads),
     { x: 4, z: 40 },
     'the roadside magnet should release distant cursor positions',
+  );
+
+  const parallelRoads = new RoadNetwork();
+  parallelRoads.addRoadPath([
+    new THREE.Vector3(-40, 0, 0),
+    new THREE.Vector3(40, 0, 0),
+  ]);
+  parallelRoads.addRoadPath([
+    new THREE.Vector3(-40, 0, 8.15),
+    new THREE.Vector3(40, 0, 8.15),
+  ]);
+  const vergeCandidates = resolveRoadsideBuildingPlacementCandidates(
+    'smithy',
+    0,
+    1,
+    parallelRoads,
+  );
+  assert.equal(vergeCandidates.length, 2, 'road snapping should expose both verge choices');
+  assert(
+    buildingFootprintOverlapsRoadSurface(
+      'smithy',
+      vergeCandidates[0].x,
+      vergeCandidates[0].z,
+      parallelRoads,
+    ),
+    'the cursor-preferred verge may be blocked by a nearby road branch',
+  );
+  const clearVerge = chooseRoadClearBuildingPlacement(
+    'smithy',
+    vergeCandidates,
+    parallelRoads,
+  );
+  assert.ok(clearVerge && clearVerge.z < 0, 'an obstructed preferred verge should fall across the road');
+  assert.equal(
+    buildingFootprintOverlapsRoadSurface('smithy', clearVerge.x, clearVerge.z, parallelRoads),
+    false,
+    'the selected fallback verge must clear every road surface',
   );
 
   const diagonalRoads = new RoadNetwork();

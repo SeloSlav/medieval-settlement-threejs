@@ -2218,7 +2218,9 @@ function decorateInspectorRow(row: HTMLElement, label: string, value: string): v
   row.prepend(icon);
   const detail = row.dataset.inspectorDetail?.trim();
   if (detail) {
-    row.title = detail;
+    row.removeAttribute('title');
+    row.dataset.tooltipTitle = label;
+    row.dataset.tooltip = detail;
     row.setAttribute('aria-label', `${label}: ${value}. ${detail}`);
   }
   if (state) {

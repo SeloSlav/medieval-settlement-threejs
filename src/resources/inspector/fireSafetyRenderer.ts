@@ -39,7 +39,7 @@ export function withBuildingFireSafety(
     return {
       ...view,
       detailsHtml: `${view.detailsHtml}
-        <li><span>Fire risk</span><span>Fire-safe</span></li>`,
+        <li data-inspector-primary data-inspector-detail="This structure cannot ignite, so fire-response well coverage is not required."><span>Fire safety</span><span>Fire-safe · no well required</span></li>`,
     };
   }
 
@@ -72,15 +72,12 @@ export function withBuildingFireSafety(
         assessment.exposedHouseholdCount === 1 ? 'home' : 'homes'
       } nearby`;
   const exposureHelp = `Occupied structures within the ${FIRE_SPREAD_RADIUS} m fire-spread radius.`;
-  const responsePlacement = assessment.coverage === 'covered'
-    ? ' data-inspector-secondary'
-    : '';
+  const safetyHelp = `${riskHelp} Fire response shows the nearest usable well's distance and estimated time to first bucket.`;
 
   return {
     ...view,
     detailsHtml: `${view.detailsHtml}
-      <li data-inspector-detail="${riskHelp}"><span>Fire risk</span><span>${riskDetail}</span></li>
-      <li${responsePlacement} data-inspector-detail="Distance and estimated time for the first bucket from the nearest usable well."><span>Fire response</span><span>${responseDetail}</span></li>
-      <li data-inspector-detail="${exposureHelp}"><span>Spread exposure</span><span>${exposureDetail}</span></li>`,
+      <li data-inspector-primary data-inspector-detail="${safetyHelp}"><span>Fire safety</span><span>${riskDetail} · ${responseDetail}</span></li>
+      <li data-inspector-secondary data-inspector-detail="${exposureHelp}"><span>Spread exposure</span><span>${exposureDetail}</span></li>`,
   };
 }

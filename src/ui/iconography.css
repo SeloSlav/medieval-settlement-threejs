@@ -469,6 +469,20 @@
   background-image: url('/assets/ui/icons/materials/roof-tiles.svg');
 }
 
+.resource-cost__item[data-resource-cost='manure'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='remedies'] .resource-cost__icon {
+  background-position: center;
+  background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='manure'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/manure.svg');
+}
+
+.resource-cost__item[data-resource-cost='remedies'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/materials/remedies.svg');
+}
+
 .resource-cost__item[data-resource-cost='bread'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='meat'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='fish'] .resource-cost__icon,
