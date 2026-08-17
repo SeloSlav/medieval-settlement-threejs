@@ -71,6 +71,11 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   });
   const starterCamp = page.getByRole('button', { name: /Place starter camp/ });
   await expect(starterCamp).toBeVisible({ timeout: SYNC_TIMEOUT_MS });
+  const foundingPopulationStats = page.locator('[data-founding-population-stat]');
+  await expect(foundingPopulationStats).toHaveCount(3);
+  for (const stat of await foundingPopulationStats.all()) {
+    await expect(stat).toBeHidden();
+  }
   const welcomeTutorial = page.getByRole('dialog', { name: 'Begin Your Settlement' });
   await expect(welcomeTutorial).toBeVisible({ timeout: SYNC_TIMEOUT_MS });
   await welcomeTutorial.getByRole('button', { name: 'Got it' }).click();
@@ -87,6 +92,9 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     { timeout: SYNC_TIMEOUT_MS },
   ).toBeGreaterThanOrEqual(1);
   await expect(starterCamp).toBeHidden({ timeout: SYNC_TIMEOUT_MS });
+  for (const stat of await foundingPopulationStats.all()) {
+    await expect(stat).toBeVisible();
+  }
   const startup = await page.evaluate(() => window.__medievalRoadStartup);
   expect(startup?.settlementPresentationReadyMs).toBeGreaterThan(0);
   expect(startup?.firstPlayableMs).toBeGreaterThanOrEqual(

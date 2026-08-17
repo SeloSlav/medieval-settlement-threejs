@@ -967,6 +967,7 @@ export class BuildToolbar {
     this.tutorialsButton.hidden = this.firstPersonActive;
     this.starterCampButton.hidden = this.firstPersonActive || !this.starterCampRequired;
     this.constructionDock.hidden = this.firstPersonActive || this.starterCampRequired;
+    this.settlementHud.setPopulationStatsVisible(!this.starterCampRequired);
   }
 
   dispose(): void {
