@@ -160,6 +160,19 @@
   transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
+.quarry-map-icon.resource-node-marker--rich,
+.foraging-map-icon.resource-node-marker--rich {
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+}
+
+.quarry-map-icon--large.resource-node-marker--rich {
+  width: 50px;
+  height: 50px;
+  margin: -25px 0 0 -25px;
+}
+
 .foraging-map-icon--berries {
   border-color: rgba(176, 92, 118, 0.58);
 }

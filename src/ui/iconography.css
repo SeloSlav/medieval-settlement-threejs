@@ -157,13 +157,13 @@
 /* Rich nodes use a larger resource glyph while their green frame and reserve
  * badge carry the non-depleting state. */
 .resource-node-marker--rich .map-resource-icon-glyph {
-  width: 32px;
-  height: 32px;
+  width: 35px;
+  height: 35px;
 }
 
 .resource-node-marker--rich.quarry-map-icon--large .map-resource-icon-glyph {
-  width: 37px;
-  height: 37px;
+  width: 41px;
+  height: 41px;
 }
 
 /* Keep the infinity reserve badge on the lower rim so it stays clear of the
@@ -210,13 +210,13 @@
 }
 
 .terrain-minimap__marker--resource.resource-node-marker--rich .map-resource-icon-glyph {
-  width: 21px;
-  height: 21px;
+  width: 22px;
+  height: 22px;
 }
 
 .terrain-minimap__marker--large.resource-node-marker--rich .map-resource-icon-glyph {
-  width: 25px;
-  height: 25px;
+  width: 26px;
+  height: 26px;
 }
 
 /* Settlement HUD atlases. The existing ::before slot remains the semantic
@@ -297,6 +297,40 @@
 .settlement-hud__stat[data-resource='honey']::before { background-position: 0 100%; }
 .settlement-hud__stat[data-resource='wine']::before { background-position: 50% 100%; }
 .settlement-hud__stat[data-resource='wool']::before { background-position: 100% 100%; }
+
+.settlement-hud__stat[data-resource='ryeGrain']::before,
+.settlement-hud__stat[data-resource='oatGrain']::before,
+.settlement-hud__stat[data-resource='maslinGrain']::before,
+.settlement-hud__stat[data-resource='ryeFlour']::before,
+.settlement-hud__stat[data-resource='oatFlour']::before,
+.settlement-hud__stat[data-resource='maslinFlour']::before {
+  background-position: center;
+  background-size: contain;
+}
+
+.settlement-hud__stat[data-resource='ryeGrain']::before {
+  background-image: url('/assets/ui/icons/provisions/rye-grain.png');
+}
+
+.settlement-hud__stat[data-resource='oatGrain']::before {
+  background-image: url('/assets/ui/icons/provisions/oat-grain.png');
+}
+
+.settlement-hud__stat[data-resource='maslinGrain']::before {
+  background-image: url('/assets/ui/icons/provisions/maslin-grain.png');
+}
+
+.settlement-hud__stat[data-resource='ryeFlour']::before {
+  background-image: url('/assets/ui/icons/provisions/rye-flour.png');
+}
+
+.settlement-hud__stat[data-resource='oatFlour']::before {
+  background-image: url('/assets/ui/icons/provisions/oat-flour.png');
+}
+
+.settlement-hud__stat[data-resource='maslinFlour']::before {
+  background-image: url('/assets/ui/icons/provisions/maslin-flour.png');
+}
 
 .settlement-hud__stat[data-resource='flax']::before,
 .settlement-hud__stat[data-resource='cloth']::before,
@@ -453,6 +487,40 @@
 .resource-cost__item[data-resource-cost='honey'] .resource-cost__icon { background-position: 0 100%; }
 .resource-cost__item[data-resource-cost='wine'] .resource-cost__icon { background-position: 50% 100%; }
 .resource-cost__item[data-resource-cost='wool'] .resource-cost__icon { background-position: 100% 100%; }
+
+.resource-cost__item[data-resource-cost='ryeGrain'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='oatGrain'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='maslinGrain'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='ryeFlour'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='oatFlour'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='maslinFlour'] .resource-cost__icon {
+  background-position: center;
+  background-size: contain;
+}
+
+.resource-cost__item[data-resource-cost='ryeGrain'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/rye-grain.png');
+}
+
+.resource-cost__item[data-resource-cost='oatGrain'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/oat-grain.png');
+}
+
+.resource-cost__item[data-resource-cost='maslinGrain'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/maslin-grain.png');
+}
+
+.resource-cost__item[data-resource-cost='ryeFlour'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/rye-flour.png');
+}
+
+.resource-cost__item[data-resource-cost='oatFlour'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/oat-flour.png');
+}
+
+.resource-cost__item[data-resource-cost='maslinFlour'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/maslin-flour.png');
+}
 
 .resource-cost__item[data-resource-cost='flax'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='cloth'] .resource-cost__icon,

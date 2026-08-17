@@ -125,6 +125,16 @@
     0 0 0 2px rgba(91, 145, 116, 0.24);
 }
 
+.terrain-minimap__marker--resource.resource-node-marker--rich {
+  width: 26px;
+  height: 26px;
+}
+
+.terrain-minimap__marker--large.resource-node-marker--rich {
+  width: 30px;
+  height: 30px;
+}
+
 .terrain-minimap__marker--resource.resource-node-marker--rich::after {
   position: absolute;
   right: -5px;
