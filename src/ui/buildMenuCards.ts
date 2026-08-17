@@ -1,7 +1,7 @@
 import type { BuildingKind } from '../generated/gameBalance.ts';
 import { formatBuildingCost, getBuildingCost, residenceZoneCost } from '../resources/buildingEconomy.ts';
 import { MENU_ACTION_TO_BUILDING_KIND } from './buildMenuMapping.ts';
-import { renderBuildingResourceCost } from './resourceCost.ts';
+import { renderBuildingResourceCost, type ResourceCostKind } from './resourceCost.ts';
 
 export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
@@ -53,44 +53,61 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   swineherd: '/assets/ui/build-menu/cards/swineherd.webp',
 };
 
-const DETAILS: Record<PlacementArtKey, [title: string, hotkey: string, description: string]> = {
-  residences: ['Residence', 'H', 'Lay out homesteads along a road; homes can grow through three distinct tiers.'],
-  well: ['Well', 'E', 'Draws groundwater and dispatches it to road-linked homes.'],
-  chapel: ['Church', 'C', 'A staffed parish church collects tithes and supports nearby households.'],
-  monastery: ['Pauline monastery', 'O', 'A hillside parish institution turning grain, optional honey-and-wine hospitality, and tithes into charity and pilgrim income.'],
-  marketplace: ['Marketplace', 'P', 'Local household exchange: granary workers run food stalls, storehouse workers run goods stalls, and free haulers collect the tax lockbox. Regional trade belongs at the Trading Post.'],
-  trading_post: ['Trading Post', 'X', 'Employs up to five regional traders. Each worker opens capacity for one concurrent import or export route.'],
-  town_hall: ['Town Hall', 'T', 'Physical seat of settlement government, taxation, and the economic ledger. Requires a church, marketplace, and 24 people.'],
-  village_storehouse: ['Village storehouse', 'S', 'Hauls surplus timber, stone, and firewood from producers into shared construction stock. Never stores food.'],
-  watchtower: ['Frontier watchtower', 'W', 'Staffed hill tower warns nearby homes and stores, reducing losses when raiders cross the frontier.'],
-  guardhouse: ['Frontier guardhouse', 'G', 'Paid guards consume labor, provisions, wages, and carpenter-made polearms. Polearms need smith-forged ironwork, with costly imports as a fallback. Requires a completed watchtower.'],
-  palisaded_refuge: ['Palisaded refuge', 'R', 'Warned households within rally reach carry people and family coin into a timber-and-earth enclosure. Requires a completed guardhouse and watch coverage.'],
-  lumber_mill: ['Lumber mill', 'L', 'Fells mature trees and stockpiles construction timber.'],
-  stone_quarry: ["Stonecutter's camp", 'S', 'Cuts stone from rock outcrops inside its working range.'],
-  large_quarry: ['Large Quarry', 'G', 'Build directly over rich stone. The non-depleting shaft needs a road and consumes prepared timber chamber supports delivered from a lumber mill or village storehouse.'],
-  mine: ['Mineral mine', 'N', 'Build directly over an iron or salt deposit. Ordinary surface seams are finite and need no upkeep timber. Rich deep workings are faster and inexhaustible, but consume road-hauled shaft supports; smith-forged picks and hammer heads raise output but wear each cycle.'],
-  clay_pit: ['Clay pit', 'C', 'Works a generated riverbank, coastal, or inland-basin clay deposit. Dry-map lenses are smaller and leaner; rich seed rolls expose faster deep clay that does not exhaust.'],
-  charcoal_burner: ["Charcoal burner's yard", 'U', 'Burns household firewood in covered clamps, trading winter security for forge fuel. Severe fire risk: isolate it or keep a ready well in range.'],
-  smithy: ['Forest bloomery & smithy', 'Y', 'Reduces locally mined ore or reheats imported blooms and bars with charcoal, then forges them with carted quench water into tools, construction fittings, and frontier weapon heads. The compact hot-work yard carries elevated fire risk.'],
-  potter_kiln: ["Potter's kiln", 'P', 'Puddles river clay with carted well water, then spends firewood and labor firing either household/preserving vessels or costly roof tiles for prosperous homes. Choosing tiles interrupts new vessel output; elevated fire risk rewards well coverage and spacing.'],
-  reforester: ['Reforester', 'F', 'Restores harvested woodland with native saplings.'],
-  woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood and supplies connected homes. Smith-forged replacement axes raise output but wear each cycle.'],
-  hunters_hall: ["Hunter's hall", 'K', 'Hunts game for meat and delivers it along the road network.'],
-  foragers_shed: ["Forager's shed", 'Y', 'Gathers berries and mushrooms, dries medicinal herbs, and carts urgent treatment to sick homes.'],
-  fishing_camp: ['Fishing camp', 'Z', 'Lands fish from a finite river population that reproduces in spring; overfishing can cause extinction.'],
-  threshing_barn: ['Farmstead', 'T', 'Road-linked labor hub that ploughs, sows, tends, harvests, and stores crops. Smith-maintained ploughshares, hoes, sickles, and scythes shorten seasonal labor peaks.'],
-  watermill: ['Grain watermill', 'M', 'Uses seasonal river power to grind grain into flour. Smith-dressed millstones and maintained iron fittings raise output; spring rain speeds it, drought slows it, and the frozen mill race shuts it down all winter. Must touch open water.'],
-  windmill: ['Grain windmill', 'I', 'Uses upland wind to grind grain into flour without needing a river, including through winter. Maximum capacity requires strong local wind exposure. Smith-dressed millstones and maintained iron fittings raise output. Requires a road but no water frontage.'],
-  granary: ['Village granary', 'N', 'Food-only logistics hub for wild foods, farm crops, flour, and cured provisions. Assigned keepers collect and distribute goods by handcart; it never bakes.'],
-  bakery: ['Village bakery', 'B', 'Assigned bakers turn flour, carted well-water, and firewood into bread. Delivery carts always use unassigned haulers.'],
-  brewery: ['Brewhouse', 'A', 'Boils grain and water over firewood into ale for prosperous households and export.'],
-  smokehouse: ['Smokehouse', 'Q', 'Uses firewood, salt, and pottery to cure meat, smoke fish, or turn milk into cheese without losing the original food identity. Severe fire risk makes isolation and well coverage important.'],
-  apiary: ['Forest apiary', 'A', 'Produces seasonal honey. Hospitality-enabled monasteries take honey before market export.'],
-  carpenter: ['Carpenter & wheelwright', 'R', 'Staff its road-linked workshop to cut site timber needs by 10%. Prepared timber and smith-forged ironwork service connected carts for 18% faster departures; each accelerated trip consumes a small repair kit.'],
-  weaver: ["Weaver's workshop", 'V', 'Turns sheep wool and field-grown flax fibre into household textiles, then exports the surplus.'],
-  vineyard: ['Vineyard terrace', 'V', 'An autumn hillside harvest yields grapes and wine for monastery hospitality or high-value export.'],
-  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Choose cattle or sheep after construction, then draw fenced pasture. Cattle need more gentle pasture but provide stronger milk per head, manure fertility, and nearby ox power. Sheep fit more animals on steep, dry uplands and provide an annual wool clip for cloth. Then choose fresh milk, balanced, or cheese-first production; salt turns milk into durable, exportable cheese.'],
-  swineherd: ['Woodland swineherd', 'X', 'Raises pigs on mature woodland mast for meat and cured meat. Felling its pannage trees forces inefficient grain feeding and reduces output.'],
+type BuildCardResourceFlow = readonly [
+  inputs: readonly ResourceCostKind[],
+  outputs: readonly ResourceCostKind[],
+];
+
+type BuildCardDetail = readonly [
+  title: string,
+  hotkey: string,
+  description: string,
+  resourceFlow?: BuildCardResourceFlow,
+];
+
+const flow = (
+  inputs: readonly ResourceCostKind[],
+  outputs: readonly ResourceCostKind[],
+): BuildCardResourceFlow => [inputs, outputs];
+
+const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
+  residences: ['Residence', 'H', 'Builds road-fronted homes that can grow through three tiers.'],
+  well: ['Well', 'E', 'Supplies road-linked homes with water.', flow([], ['water'])],
+  chapel: ['Church', 'C', 'Collects tithes and supports nearby households.'],
+  monastery: ['Pauline monastery', 'O', 'Turns grain, honey, and wine into charity and pilgrim income.', flow(['grain', 'honey', 'wine'], ['gold'])],
+  marketplace: ['Marketplace', 'P', 'Lets households exchange food and goods while collecting local taxes.'],
+  trading_post: ['Trading Post', 'X', 'Imports and exports goods through worker-run trade routes.'],
+  town_hall: ['Town Hall', 'T', 'Governs taxation and unlocks the settlement economic ledger.'],
+  village_storehouse: ['Village storehouse', 'S', 'Collects and distributes shared timber, stone, and firewood.'],
+  watchtower: ['Frontier watchtower', 'W', 'Warns nearby homes and stores before raids.'],
+  guardhouse: ['Frontier guardhouse', 'G', 'Employs armed guards to defend the frontier; requires a completed watchtower.'],
+  palisaded_refuge: ['Palisaded refuge', 'R', 'Shelters warned households and their gold during raids; requires a completed guardhouse.'],
+  lumber_mill: ['Lumber mill', 'L', 'Fells mature trees to produce construction timber.', flow([], ['timber'])],
+  stone_quarry: ["Stonecutter's camp", 'S', 'Extracts stone from nearby rock outcrops.', flow([], ['stone'])],
+  large_quarry: ['Large Quarry', 'G', 'Extracts unlimited stone from rich deposits using timber shaft supports.', flow(['timber'], ['stone'])],
+  mine: ['Mineral mine', 'N', 'Extracts iron or salt from marked mineral deposits.', flow([], ['iron', 'salt'])],
+  clay_pit: ['Clay pit', 'C', 'Extracts clay from marked deposits.', flow([], ['clay'])],
+  charcoal_burner: ["Charcoal burner's yard", 'U', 'Turns firewood into charcoal for smithies.', flow(['firewood'], ['charcoal'])],
+  smithy: ['Forest bloomery & smithy', 'Y', 'Turns iron, charcoal, and water into ironwork for tools, fittings, and weapons.', flow(['iron', 'charcoal', 'water'], ['ironwork'])],
+  potter_kiln: ["Potter's kiln", 'P', 'Turns clay, water, and firewood into pottery or roof tiles.', flow(['clay', 'water', 'firewood'], ['pottery', 'roofTiles'])],
+  reforester: ['Reforester', 'F', 'Replants harvested woodland with native trees.'],
+  woodcutters_lodge: ["Woodcutter's lodge", 'W', 'Splits timber into firewood for nearby homes.', flow(['timber'], ['firewood'])],
+  hunters_hall: ["Hunter's hall", 'K', 'Hunts nearby game to produce meat.', flow([], ['meat'])],
+  foragers_shed: ["Forager's shed", 'Y', 'Gathers berries, mushrooms, and medicinal remedies.', flow([], ['berries', 'mushrooms', 'remedies'])],
+  fishing_camp: ['Fishing camp', 'Z', 'Catches fish from nearby waters; stocks recover in spring.', flow([], ['fish'])],
+  threshing_barn: ['Farmstead', 'T', 'Grows and stores grain, barley, and flax from attached fields.', flow([], ['grain', 'barley', 'flax'])],
+  watermill: ['Grain watermill', 'M', 'Grinds grain into flour with seasonal river power; it stops when the mill race freezes.', flow(['grain'], ['flour'])],
+  windmill: ['Grain windmill', 'I', 'Grinds grain into flour wherever wind is strong, including through winter.', flow(['grain'], ['flour'])],
+  granary: ['Village granary', 'N', 'Collects and distributes food; it does not process it.'],
+  bakery: ['Village bakery', 'B', 'Turns flour, water, and firewood into bread.', flow(['flour', 'water', 'firewood'], ['bread'])],
+  brewery: ['Brewhouse', 'A', 'Turns barley, water, and firewood into ale.', flow(['barley', 'water', 'firewood'], ['ale'])],
+  smokehouse: ['Smokehouse', 'Q', 'Uses firewood, salt, and pottery to preserve fresh food.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
+  apiary: ['Forest apiary', 'A', 'Produces honey during the warm season.', flow([], ['honey'])],
+  carpenter: ['Carpenter & wheelwright', 'R', 'Uses timber and ironwork to reduce building costs and speed delivery carts.'],
+  weaver: ["Weaver's workshop", 'V', 'Turns wool or flax into cloth; flax also needs water.', flow(['wool', 'flax', 'water'], ['cloth'])],
+  vineyard: ['Vineyard terrace', 'V', 'Produces grapes and wine on suitable hillsides.', flow([], ['grapes', 'wine'])],
+  pastoral_farmstead: ['Pastoral farmstead', 'D', 'Raises cattle or sheep for milk, wool, manure, and meat.', flow([], ['milk', 'wool', 'manure', 'meat'])],
+  swineherd: ['Woodland swineherd', 'X', 'Raises pigs on woodland mast or grain to produce meat.', flow(['grain'], ['meat'])],
 };
 
 const action = (kind: PlayerPlaceableBuildingKind): PlacementBuildMenuAction =>
@@ -146,7 +163,7 @@ export type BuildMenuHandlers = {
 
 export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_MENU_ENTRIES): string {
   return entries.map((entry) => {
-    const [title, hotkey, description] = DETAILS[entry.artKey];
+    const [title, hotkey, description, resourceFlow] = DETAILS[entry.artKey];
     const resourceCost = entry.artKey === 'residences'
       ? residenceZoneCost(1)
       : getBuildingCost(entry.artKey as BuildingKind);
@@ -156,7 +173,10 @@ export function renderBuildMenuCards(entries: readonly BuildMenuEntry[] = BUILD_
       compact: true,
       suffix: costSuffix,
     });
-    return `<button type="button" class="construction-card" data-action="${entry.action}" data-hotkey="${hotkey}" data-tooltip="${description} · Cost: ${costText}" aria-label="${title} (${hotkey}). Cost: ${costText}">
+    const flowAttribute = resourceFlow
+      ? ` data-tooltip-flow="${encodeURIComponent(JSON.stringify({ inputs: resourceFlow[0], outputs: resourceFlow[1] }))}"`
+      : '';
+    return `<button type="button" class="construction-card" data-action="${entry.action}" data-hotkey="${hotkey}" data-tooltip-title="${title} (${hotkey})" data-tooltip="${description}"${flowAttribute} aria-label="${title} (${hotkey}). ${description} Cost: ${costText}">
       <img class="construction-card__art" data-src="${BUILD_CARD_ART[entry.artKey]}" alt="" width="320" height="480" loading="lazy" decoding="async" draggable="false" />
       <span class="construction-card__hotkey" aria-hidden="true">${hotkey}</span>
       <span class="construction-card__caption" aria-hidden="true"><strong>${title}</strong><span class="construction-card__cost">${costMarkup}</span></span>
