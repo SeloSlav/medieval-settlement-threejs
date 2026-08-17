@@ -103,6 +103,7 @@ import {
 } from '../../economy/carpenterArmoryPolicy.ts';
 import {
   buildFarmsteadWorkPlan,
+  fieldAcceptsFarmsteadLabor,
   farmsteadSeedGrainRequired,
   type SeasonalWorkPlan,
 } from '../../farming/farmWorkPlanning.ts';
@@ -1427,6 +1428,11 @@ function renderFarmsteadPlanning(
   const clock = gameClock(context.gameState.tick);
   const fields = [...context.gameState.farmFields.values()]
     .filter((field) => field.farmsteadId === building.id);
+  const sharedPriorityFields = [...context.gameState.farmFields.values()]
+    .filter((field) => (
+      field.farmsteadId !== building.id
+      && fieldAcceptsFarmsteadLabor(field, building)
+    ));
   const parish = context.getParishPolicy?.();
   const sabbathObserved = Boolean(
     parish?.sabbathObservanceEnabled
@@ -1532,6 +1538,7 @@ function renderFarmsteadPlanning(
     `;
   const rows = `
     <li><span>Linked fields</span><span>${plan.activeFields} active${plan.pausedFields > 0 ? ` · ${plan.pausedFields} paused` : ''}</span></li>
+    <li><span>Crew-sharing queue</span><span>${sharedPriorityFields.length > 0 ? `${sharedPriorityFields.length} nearby High/Urgent field${sharedPriorityFields.length === 1 ? '' : 's'} may claim this crew ahead of lower-priority linked work` : 'No neighboring High/Urgent fields requesting help'} · seed, manure, and harvest remain at each field’s linked farm</span></li>
     <li><span>Ox-supported fields</span><span>${plan.cattleSupportedFields} / ${plan.activeFields} active · labor forecast includes faster ploughing</span></li>
     ${rotationRows}
     <li><span>August–September labor</span><span>${formatSeasonalWork(plan.harvest)}</span></li>

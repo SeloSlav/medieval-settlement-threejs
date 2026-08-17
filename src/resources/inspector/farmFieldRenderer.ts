@@ -21,6 +21,7 @@ import {
   currentFieldWorkRemaining,
   daysUntilCropHarvestWindow,
   earlyHarvestAvailability,
+  fieldAcceptsFarmsteadLabor,
   fieldFarmsteadDistance,
   fieldPerimeter,
   fieldSeedGrainRemaining,
@@ -133,6 +134,20 @@ export function renderFarmFieldInspector(
   const onsiteLabor = farmstead
     ? onsiteBuildingLabor(farmstead, context.worldQueries.getActiveDeliveryTrip(farmstead))
     : 0;
+  const eligibleFarmsteads = [...context.gameState.buildings.values()]
+    .filter((building) => (
+      building.kind === 'threshing_barn'
+      && building.constructionComplete !== false
+      && fieldAcceptsFarmsteadLabor(field, building)
+    ));
+  const assistingFarmsteads = eligibleFarmsteads
+    .filter((building) => building.id !== field.farmsteadId);
+  const availableFieldLabor = eligibleFarmsteads.reduce((sum, building) => (
+    sum + onsiteBuildingLabor(
+      building,
+      context.worldQueries.getActiveDeliveryTrip(building),
+    )
+  ), 0);
   const toolThroughputMultiplier = farmToolThroughputMultiplier(
     farmstead?.ironwork ?? 0,
   );
@@ -144,10 +159,10 @@ export function renderFarmFieldInspector(
     / CIVILIAN_TOOL_THROUGHPUT_MULTIPLIER
     + remainingWorkerDays
     - toolCoveredWorkerDays;
-  const crewDays = farmstead && onsiteLabor > 0
-    ? adjustedRemainingWorkerDays / onsiteLabor
+  const crewDays = farmstead && availableFieldLabor > 0
+    ? adjustedRemainingWorkerDays / availableFieldLabor
     : null;
-  const active = Boolean(farmstead && onsiteLabor > 0 && field.priority > 0);
+  const active = Boolean(farmstead && availableFieldLabor > 0 && field.priority > 0);
   const clock = gameClock(context.gameState.tick);
   const month = clock.month;
   const earlyHarvest = earlyHarvestAvailability(field, month);
@@ -169,10 +184,12 @@ export function renderFarmFieldInspector(
       ? 'Paused by priority'
       : !stageAllowed
         ? `${STAGE_LABEL[field.stage]} waiting · ${seasonalWindow}`
-        : onsiteLabor === 0 && field.stage !== 'growing'
-          ? farmstead.assignedLabor > 0
-            ? 'Field work paused - the farm crew is away with its cart'
-            : 'Waiting for farmstead workers'
+        : availableFieldLabor === 0 && field.stage !== 'growing'
+          ? eligibleFarmsteads.some((building) => building.assignedLabor > 0)
+            ? 'Field work paused - eligible farm crews are away with carts'
+            : field.priority >= 2
+              ? 'Waiting for workers at this or a nearby farmstead'
+              : 'Waiting for workers at the linked farmstead'
           : seedBlocked
             ? `Sowing halted · ${seedRemaining.toFixed(1)} seed grain still needed`
             : earlyHarvestLocked
@@ -207,7 +224,7 @@ export function renderFarmFieldInspector(
       </div>
     </div>`;
   const priorityControls = `<div class="inspector-action-panel">
-      <p class="resource-inspector-note">Farmstead work priority — decides which nearby fields receive the limited ox team and which ploughing parcel claims scarce onsite manure first. Ties favor the older field.</p>
+      <p class="resource-inspector-note">Field-work priority — each farm handles its own active fields; High and Urgent also enter every nearby farmstead crew’s queue. Priority, seasonal urgency, linked-field ties, then field age decide the order.</p>
       <div class="resource-action-row">${[0, 1, 2, 3].map((priority) => `<button type="button" class="resource-action-button" data-field-priority="${priority}" ${priority === field.priority ? 'disabled' : ''}>${PRIORITY_LABEL[priority]}</button>`).join('')}</div>
     </div>`;
   const earlyHarvestControls = field.stage === 'growing' && cropProduce(field.crop) !== 'none'
@@ -234,6 +251,7 @@ export function renderFarmFieldInspector(
       <li><span>Three-year rotation</span><span>${cropLabel(field.crop)} → ${cropLabel(field.nextCrop)} → ${cropLabel(thirdCrop)}${cyclicRotation ? ` → ${cropLabel(field.crop)}` : ' · Year 3 repeats until scheduled'}</span></li>
       <li><span>Crop calendar</span><span>${cropCalendarLabel(field.crop)}</span></li>
       <li><span>Priority</span><span>${PRIORITY_LABEL[field.priority] ?? 'Normal'}</span></li>
+      <li><span>Available field crews</span><span>${availableFieldLabor} workers across ${eligibleFarmsteads.length} farmstead${eligibleFarmsteads.length === 1 ? '' : 's'}${assistingFarmsteads.length > 0 ? ` · ${assistingFarmsteads.length} neighboring crew${assistingFarmsteads.length === 1 ? '' : 's'} may assist` : field.priority < 2 ? ' · set High or Urgent to request nearby help' : ' · no neighboring farmstead in range'}</span></li>
       <li><span>Ox support</span><span>${cattleSupport
         ? `Active from nearby cattle · ${Math.round((1 - cattleSupport.ploughWorkMultiplier) * 100)}% less ploughing`
         : 'None · requires a top-two priority slot and healthy, supplied cattle within range'}</span></li>

@@ -10,6 +10,7 @@ import {
   FARM_EARLY_HARVEST_RIPENESS_FACTOR,
   FARM_MIN_FIELD_AREA,
   FARM_MIN_FIELD_EDGE,
+  FARM_SHARED_LABOR_MIN_PRIORITY,
   FARMSTEAD_STARTER_SEED_GRAIN,
   FARMSTEAD_STARTER_BARLEY_SEED,
   BAKERY_FIREWOOD_PER_CYCLE,
@@ -68,6 +69,7 @@ import {
   earlyHarvestYieldMultiplier,
   farmsteadExportableGrain,
   farmsteadSeedGrainRequired,
+  fieldAcceptsFarmsteadLabor,
   fullFieldCycleWork,
   fieldSeedGrainRemaining,
   fieldStageAllowed,
@@ -318,6 +320,21 @@ assert.ok(
     > fullFieldCycleWork(representativeWorkField, { x: 0, z: 0 }),
   'fields farther from their farmstead should cost more labor each cycle',
 );
+const linkedLaborFarm = { id: 'farm-a', x: 0, z: 0, workRadius: 250 };
+const neighboringLaborFarm = { id: 'farm-b', x: 100, z: 0, workRadius: 250 };
+const distantLaborFarm = { id: 'farm-c', x: 300, z: 0, workRadius: 100 };
+const sharedLaborField = {
+  farmsteadId: linkedLaborFarm.id,
+  priority: FARM_SHARED_LABOR_MIN_PRIORITY,
+  corners: representativeRectangle,
+};
+assert.ok(fieldAcceptsFarmsteadLabor(sharedLaborField, linkedLaborFarm));
+assert.ok(fieldAcceptsFarmsteadLabor(sharedLaborField, neighboringLaborFarm));
+assert.ok(!fieldAcceptsFarmsteadLabor(sharedLaborField, distantLaborFarm));
+assert.ok(!fieldAcceptsFarmsteadLabor(
+  { ...sharedLaborField, priority: FARM_SHARED_LABOR_MIN_PRIORITY - 1 },
+  neighboringLaborFarm,
+));
 assert.equal(MILL_WATER_PER_HARVEST, 0, 'lumber should not consume well water');
 assert.equal(WATERMILL_WATER_PER_CYCLE, 0, 'a river-powered mill should not consume well water');
 assert.ok(BAKERY_WATER_PER_CYCLE > 0, 'bakery production should consume well water');
@@ -899,8 +916,10 @@ const townHallInspector = fs.readFileSync('src/resources/inspector/townHallRende
 assert.match(farmsteadInspector, /data-land-parcel="field"/, 'farmsteads need a contextual field-layout action');
 assert.match(livestockInspector, /data-land-parcel="pasture"/, 'livestock holdings need a contextual pasture action');
 assert.match(farmFieldInspector, /Ox support/);
-assert.match(farmFieldInspector, /priority.*limited ox team/i);
+assert.match(farmFieldInspector, /High and Urgent also enter every nearby farmstead crew’s queue/);
+assert.match(farmFieldInspector, /Available field crews/);
 assert.match(farmsteadInspector, /Ox-supported fields/);
+assert.match(farmsteadInspector, /Crew-sharing queue/);
 assert.match(farmFieldInspector, /Current-cycle soil/);
 assert.match(farmFieldInspector, /Three-year rotation/);
 assert.match(farmFieldInspector, /Year 3 soil/);
@@ -932,8 +951,14 @@ assert.match(
 );
 assert.match(
   farmSimulation,
-  /field\.stage == STAGE_PLOUGHING[\s\S]*withdraw_building_commodity\(farmstead, CommodityKind::Manure, manure_needed\)[\s\S]*field\.manure_applied \+= manure_spread/,
+  /withdraw_building_commodity\(resource_farmstead, CommodityKind::Manure, manure_needed\)[\s\S]*field\.manure_applied \+= manure_spread/,
   'ploughing progress must physically withdraw and spread manure from the crop farmstead',
+);
+assert.match(farmSimulation, /field_accepts_farmstead_labor/);
+assert.match(
+  farmSimulation,
+  /resource_farmstead[\s\S]*CommodityKind::Manure[\s\S]*resource_farmstead[\s\S]*seed_commodity[\s\S]*deposit_building_commodity\(resource_farmstead/,
+  'assisting crews must consume and deposit field resources at the linked farmstead',
 );
 assert.match(
   farmSimulation,
@@ -941,7 +966,7 @@ assert.match(
   'cycle settlement must convert actual spread coverage into the soil bonus',
 );
 assert.match(farmSimulation, /seed_grain_required\(field\.area, field\.crop\)/);
-assert.match(farmSimulation, /withdraw_building_commodity\(farmstead, seed_commodity, seed_used\)/);
+assert.match(farmSimulation, /withdraw_building_commodity\(resource_farmstead, seed_commodity, seed_used\)/);
 assert.match(
   farmSimulation,
   /fn crop_seed_commodity[\s\S]*CROP_RYE => CommodityKind::RyeGrain[\s\S]*CROP_OATS => CommodityKind::OatGrain[\s\S]*CROP_BARLEY => CommodityKind::Barley[\s\S]*CROP_FLAX => CommodityKind::Flax[\s\S]*CROP_WHEAT => CommodityKind::MaslinGrain/,
