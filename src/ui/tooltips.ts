@@ -13,6 +13,11 @@ type TooltipResourceItem = {
   amount: number;
 };
 
+type TooltipResourceFlow = {
+  inputs: ResourceCostKind[];
+  outputs: ResourceCostKind[];
+};
+
 export function mountTooltips(root: HTMLElement): () => void {
   const tooltip = document.createElement('div');
   tooltip.className = 'ui-tooltip';
@@ -67,6 +72,7 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-title',
         'data-tooltip-amount',
         'data-tooltip-amount-label',
+        'data-tooltip-flow',
       ],
     });
     const token = showToken + 1;
@@ -207,23 +213,42 @@ function renderTooltipContent(
     bodyElement.appendChild(paragraph);
   }
 
+  const resourceFlow = readTooltipResourceFlow(anchor);
+  if (resourceFlow) {
+    const flowRow = document.createElement('div');
+    flowRow.className = 'ui-tooltip__resource-flow';
+
+    if (resourceFlow.inputs.length > 0) {
+      const inputGroup = document.createElement('span');
+      inputGroup.className = 'ui-tooltip__resource-flow-group';
+      for (const kind of resourceFlow.inputs) {
+        inputGroup.appendChild(createTooltipResourceIdentity(kind));
+      }
+      flowRow.appendChild(inputGroup);
+
+      const arrow = document.createElement('span');
+      arrow.className = 'ui-tooltip__resource-flow-arrow';
+      arrow.setAttribute('aria-hidden', 'true');
+      arrow.textContent = '\u2192';
+      flowRow.appendChild(arrow);
+    }
+
+    const outputGroup = document.createElement('span');
+    outputGroup.className = 'ui-tooltip__resource-flow-group ui-tooltip__resource-flow-group--output';
+    for (const kind of resourceFlow.outputs) {
+      outputGroup.appendChild(createTooltipResourceIdentity(kind));
+    }
+    flowRow.appendChild(outputGroup);
+    bodyElement.appendChild(flowRow);
+  }
+
   const resourceItems = readTooltipResourceItems(anchor);
   if (resourceItems.length > 0) {
     const list = document.createElement('ul');
     list.className = 'ui-tooltip__resource-inventory';
     for (const item of resourceItems) {
       const listItem = document.createElement('li');
-      const identity = document.createElement('span');
-      identity.className = 'resource-cost__item';
-      identity.dataset.resourceCost = item.kind;
-
-      const icon = document.createElement('span');
-      icon.className = 'resource-cost__icon';
-      icon.setAttribute('aria-hidden', 'true');
-      const name = document.createElement('span');
-      name.className = 'ui-tooltip__resource-name';
-      name.textContent = resourceCostLabel(item.kind);
-      identity.append(icon, name);
+      const identity = createTooltipResourceIdentity(item.kind);
 
       const amount = document.createElement('strong');
       amount.className = 'ui-tooltip__resource-amount';
@@ -236,6 +261,47 @@ function renderTooltipContent(
 
   fragment.appendChild(bodyElement);
   tooltip.replaceChildren(fragment);
+}
+
+function readTooltipResourceFlow(anchor: HTMLElement): TooltipResourceFlow | null {
+  const source = anchor.dataset.tooltipFlow;
+  if (!source) return null;
+  try {
+    const decoded: unknown = JSON.parse(decodeURIComponent(source));
+    if (decoded == null || typeof decoded !== 'object') return null;
+    const inputs = 'inputs' in decoded
+      ? readTooltipResourceKinds(decoded.inputs)
+      : [];
+    const outputs = 'outputs' in decoded
+      ? readTooltipResourceKinds(decoded.outputs)
+      : [];
+    return outputs.length > 0 ? { inputs, outputs } : null;
+  } catch {
+    return null;
+  }
+}
+
+function readTooltipResourceKinds(value: unknown): ResourceCostKind[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (candidate): candidate is ResourceCostKind =>
+      typeof candidate === 'string' && isResourceCostKind(candidate),
+  );
+}
+
+function createTooltipResourceIdentity(kind: ResourceCostKind): HTMLSpanElement {
+  const identity = document.createElement('span');
+  identity.className = 'resource-cost__item';
+  identity.dataset.resourceCost = kind;
+
+  const icon = document.createElement('span');
+  icon.className = 'resource-cost__icon';
+  icon.setAttribute('aria-hidden', 'true');
+  const name = document.createElement('span');
+  name.className = 'ui-tooltip__resource-name';
+  name.textContent = resourceCostLabel(kind);
+  identity.append(icon, name);
+  return identity;
 }
 
 function readTooltipResourceItems(anchor: HTMLElement): TooltipResourceItem[] {

@@ -48,6 +48,22 @@ assert.equal(
   'the removed ferry must not remain in any build category',
 );
 
+const renderedCards = renderBuildMenuCards();
+const descriptions = [...renderedCards.matchAll(/data-tooltip="([^"]+)"/g)]
+  .map((match) => match[1]);
+assert.equal(descriptions.length, BUILD_MENU_ENTRIES.length, 'every build card needs one short description');
+for (const description of descriptions) {
+  const sentenceCount = description.split(/[.!?]+(?:\s|$)/).filter(Boolean).length;
+  const wordCount = description.trim().split(/\s+/).length;
+  assert.ok(sentenceCount <= 2, `build-card copy must stay within two sentences: ${description}`);
+  assert.ok(wordCount <= 18, `build-card copy must stay quickly scannable: ${description}`);
+  assert.doesNotMatch(description, /\bcost:/i, 'construction cost must not be repeated in tooltip prose');
+}
+assert.ok(
+  [...renderedCards.matchAll(/data-tooltip-flow="([^"]+)"/g)].length >= 20,
+  'resource-producing build cards should expose compact icon flows',
+);
+
 const toolbarSource = fs.readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 for (const [action, hotkey] of [
   ['civic-build-menu', 'B'],

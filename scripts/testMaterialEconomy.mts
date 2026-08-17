@@ -1016,14 +1016,21 @@ assert.ok(
 const renderedCards = renderBuildMenuCards();
 assert.match(
   renderedCards,
-  /Forest bloomery & smithy[\s\S]*locally mined ore[\s\S]*imported blooms and bars[\s\S]*carted quench water/i,
-  'the build card must reveal the integrated ore-reduction and forging chain before placement',
+  /Forest bloomery & smithy[\s\S]*Turns iron, charcoal, and water into ironwork/i,
+  'the smithy build card must explain its production chain in one short sentence',
 );
 assert.match(
   renderedCards,
-  /potter[\s\S]*carted well water/i,
-  'the build card must reveal the clay-puddling water dependency before placement',
+  /Potter's kiln[\s\S]*Turns clay, water, and firewood into pottery or roof tiles/i,
+  'the potter build card must explain its production chain in one short sentence',
 );
+const smithyCard = renderedCards.match(/<button[^>]*data-action="smithy"[^>]*>/)?.[0] ?? '';
+const smithyFlow = smithyCard.match(/data-tooltip-flow="([^"]+)"/)?.[1];
+assert.ok(smithyFlow, 'the smithy card must expose an icon flow');
+assert.deepEqual(JSON.parse(decodeURIComponent(smithyFlow)), {
+  inputs: ['iron', 'charcoal', 'water'],
+  outputs: ['ironwork'],
+});
 for (const slug of ['clay-pit', 'charcoal-burner', 'smithy-bloomery', 'potter-kiln']) {
   assert.match(renderedCards, new RegExp(`/assets/ui/build-menu/cards/${slug}\\.webp`));
   assert.ok(

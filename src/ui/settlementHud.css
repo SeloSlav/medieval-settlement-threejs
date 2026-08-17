@@ -1380,6 +1380,50 @@
   font-weight: 750;
 }
 
+.ui-tooltip__resource-flow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(226, 199, 139, 0.18);
+}
+
+.ui-tooltip__resource-flow-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.ui-tooltip__resource-flow .resource-cost__item {
+  gap: 3px;
+  padding: 2px 5px 2px 3px;
+  border: 1px solid rgba(226, 199, 139, 0.12);
+  border-radius: 3px;
+  background: rgba(226, 199, 139, 0.045);
+}
+
+.ui-tooltip__resource-flow-group--output .resource-cost__item {
+  border-color: rgba(214, 178, 91, 0.3);
+  background: rgba(184, 139, 48, 0.11);
+}
+
+.ui-tooltip__resource-flow .resource-cost__icon {
+  width: 17px;
+  height: 17px;
+}
+
+.ui-tooltip__resource-flow .ui-tooltip__resource-name {
+  font-size: 10px;
+}
+
+.ui-tooltip__resource-flow-arrow {
+  flex: 0 0 auto;
+  color: #d3b56d;
+  font-size: 16px;
+  line-height: 1;
+}
+
 .ui-tooltip__resource-inventory {
   display: grid;
   gap: 4px;
