@@ -82,7 +82,7 @@ select:focus-visible {
   grid-template-columns: 192px 78px 42px minmax(0, 1fr) 48px;
   align-items: stretch;
   gap: 0;
-  width: min(1002px, calc(100vw - 64px));
+  width: min(932px, calc(100vw - 64px));
   min-height: 52px;
   padding: 4px 6px;
   overflow: visible;
@@ -391,7 +391,7 @@ select:focus-visible {
 
 .settlement-hud__body {
   display: grid;
-  grid-template-columns: repeat(9, 70px);
+  grid-template-columns: repeat(8, 70px);
   align-content: stretch;
   gap: 0;
   min-width: 0;

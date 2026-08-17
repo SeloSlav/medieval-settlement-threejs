@@ -853,12 +853,14 @@
 
 /* In-game noble profile ----------------------------------------------- */
 
-.settlement-hud {
-  width: min(868px, calc(100vw - 64px));
-}
+@media (min-width: 1081px) {
+  .settlement-hud {
+    width: min(932px, calc(100vw - 64px));
+  }
 
-.settlement-hud__body {
-  grid-template-columns: repeat(8, 62px);
+  .settlement-hud__body {
+    grid-template-columns: repeat(8, 70px);
+  }
 }
 
 .noble-hud {
