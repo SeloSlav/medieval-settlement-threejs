@@ -39,3 +39,21 @@ export function shouldRefreshFirstPersonDirectionalShadow(
 ): boolean {
   return firstPersonActive && cameraInteractionActive;
 }
+
+/**
+ * The shadow atlas is manually cached, so a completed caster-buffer upload is
+ * as authoritative an invalidation as moving/refitting the shadow camera.
+ */
+export function shouldRefreshDirectionalShadowAtlas(
+  shadowCameraNeedsRefit: boolean,
+  forestShadowCastersChanged: boolean,
+  firstPersonActive: boolean,
+  cameraInteractionActive: boolean,
+): boolean {
+  return shadowCameraNeedsRefit
+    || forestShadowCastersChanged
+    || shouldRefreshFirstPersonDirectionalShadow(
+      firstPersonActive,
+      cameraInteractionActive,
+    );
+}

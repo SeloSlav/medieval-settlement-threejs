@@ -97,7 +97,7 @@ import { markStartupCheckpoint } from '../app/startupDiagnostics.ts';
 import { setWorldAnimationTime } from './worldAnimationTime.ts';
 import {
   shouldRefreshDirectionalShadow,
-  shouldRefreshFirstPersonDirectionalShadow,
+  shouldRefreshDirectionalShadowAtlas,
 } from './directionalShadowRefreshPolicy.ts';
 import {
   beginRendererFrame,
@@ -827,14 +827,14 @@ export class SceneManager {
       cameraDistance,
       firstPersonActive,
     );
-    this.forestManager?.updateCameraState(
+    const forestShadowCastersChanged = this.forestManager?.updateCameraState(
       this.camera,
       cameraDistance,
       firstPersonActive,
       shadowBounds,
       cameraInteractionActive,
       dt,
-    );
+    ) ?? false;
     this.riverSystem.updateCameraState(
       this.camera.position,
       this.cameraTarget,
@@ -879,13 +879,12 @@ export class SceneManager {
       this.lastShadowKeyDirection.copy(this.shadowKeyDirection);
       this.lastDirectionalShadowRefreshMs = shadowRefreshNowMs;
     }
-    if (
-      shadowCameraNeedsRefit
-      || shouldRefreshFirstPersonDirectionalShadow(
-        firstPersonActive,
-        cameraInteractionActive,
-      )
-    ) {
+    if (shouldRefreshDirectionalShadowAtlas(
+      shadowCameraNeedsRefit,
+      forestShadowCastersChanged,
+      firstPersonActive,
+      cameraInteractionActive,
+    )) {
       this.refreshShadowMap();
     }
     if (import.meta.env.VITE_E2E_TEST === '1') {

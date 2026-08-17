@@ -152,6 +152,7 @@ export type SeedThreeForestUpdateTelemetry = {
 
 export type SeedThreeForestBudgetedUpdateResult = {
   selectionChanged: boolean;
+  shadowCastersChanged: boolean;
   selectorSkipped: boolean;
   triggerReasons: readonly string[];
   bucketCompactions: number;
@@ -854,8 +855,8 @@ export function updateSeedThreeForestCamera(
   firstPersonActive: boolean,
   casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
   cameraInteractionActive = false,
-): boolean {
-  const result = updateSeedThreeForestCameraBudgeted(
+): SeedThreeForestBudgetedUpdateResult {
+  return updateSeedThreeForestCameraBudgeted(
     forest,
     camera,
     firstPersonActive,
@@ -868,7 +869,6 @@ export function updateSeedThreeForestCamera(
       cameraInteractionActive,
     },
   );
-  return result.selectionChanged || result.bucketCompactions > 0;
 }
 
 export function updateSeedThreeForestCameraBudgeted(
@@ -935,6 +935,7 @@ export function updateSeedThreeForestCameraBudgeted(
   const work = forest.pendingLodWork;
   const initialSelection = selection.triggerReasons.includes('initial');
   let bucketCompactions = 0;
+  let shadowCastersChanged = false;
   let matrixWrites = 0;
   let workChunks = 0;
   let matrixSliceBudgetStop: 'time-limit' | 'headroom-limit' | null = null;
@@ -1108,6 +1109,7 @@ export function updateSeedThreeForestCameraBudgeted(
                 ? result.stopReason
                 : null;
               if (!result.completed) return false;
+              shadowCastersChanged ||= activeBucketJob.job.writeShadow;
               bucket.nearSlotIndices = [...desired.near];
               bucket.overviewSlotIndices = [...desired.overview];
               bucket.nearViewSlotIndices = [...desired.viewNear];
@@ -1168,6 +1170,7 @@ export function updateSeedThreeForestCameraBudgeted(
   );
   return {
     selectionChanged: selection.changed,
+    shadowCastersChanged,
     selectorSkipped: selection.skipped,
     triggerReasons: [...selection.triggerReasons],
     bucketCompactions,
@@ -1555,14 +1558,19 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
         firstPersonActive,
         deltaSeconds,
       );
-      const selectionChanged = updateSeedThreeForestCamera(
+      const cameraUpdate = updateSeedThreeForestCamera(
         forest,
         camera,
         firstPersonActive,
         casterBounds,
         cameraInteractionActive,
       );
-      return fadeChanged || selectionChanged;
+      return {
+        presentationChanged: fadeChanged
+          || cameraUpdate.selectionChanged
+          || cameraUpdate.bucketCompactions > 0,
+        shadowCastersChanged: cameraUpdate.shadowCastersChanged,
+      };
     },
     getStructuralStats: () => getSeedThreeForestStructuralStats(forest),
     getProfileBreakdown: () => getSeedThreeForestProfileBreakdown(forest),

@@ -5,7 +5,10 @@ import {
   computeViewShadowBounds,
   intersectTerrainBounds,
 } from '../src/scene/fitDirectionalShadow.ts';
-import { shouldRefreshFirstPersonDirectionalShadow } from '../src/scene/directionalShadowRefreshPolicy.ts';
+import {
+  shouldRefreshDirectionalShadowAtlas,
+  shouldRefreshFirstPersonDirectionalShadow,
+} from '../src/scene/directionalShadowRefreshPolicy.ts';
 
 assert.equal(
   shouldRefreshFirstPersonDirectionalShadow(true, true),
@@ -21,6 +24,16 @@ assert.equal(
   shouldRefreshFirstPersonDirectionalShadow(false, true),
   false,
   'overview navigation should retain the paced shadow refresh policy',
+);
+assert.equal(
+  shouldRefreshDirectionalShadowAtlas(false, true, false, false),
+  true,
+  'completed forest caster uploads must invalidate the cached atlas while settled',
+);
+assert.equal(
+  shouldRefreshDirectionalShadowAtlas(false, false, false, false),
+  false,
+  'a settled unchanged overview should retain the cached atlas',
 );
 
 const camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 2600);

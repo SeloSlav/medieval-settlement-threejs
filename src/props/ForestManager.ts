@@ -357,23 +357,24 @@ export class ForestManager {
     casterBounds: TerrainBounds,
     cameraInteractionActive = false,
     deltaSeconds = 1 / 60,
-  ): void {
-    this.seedThreeForest?.updateCamera(
+  ): boolean {
+    const shadowCastersChanged = this.seedThreeForest?.updateCamera(
       camera,
       cameraDistance,
       firstPersonActive,
       casterBounds,
       cameraInteractionActive,
       deltaSeconds,
-    );
-    if (!this.undergrowth) return;
+    ).shadowCastersChanged ?? false;
+    if (!this.undergrowth) return shadowCastersChanged;
     const threshold = this.undergrowthVisible
       ? UNDERGROWTH_HIDE_DISTANCE
       : UNDERGROWTH_SHOW_DISTANCE;
     const visible = firstPersonActive || cameraDistance <= threshold;
-    if (visible === this.undergrowthVisible) return;
+    if (visible === this.undergrowthVisible) return shadowCastersChanged;
     this.undergrowthVisible = visible;
     this.undergrowth.group.visible = visible;
+    return shadowCastersChanged;
   }
 
   getSeedThreeStructuralStats(): SeedThreeForestStructuralStats | null {

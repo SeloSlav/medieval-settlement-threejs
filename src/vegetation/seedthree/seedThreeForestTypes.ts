@@ -47,6 +47,11 @@ export type SeedThreeForestProfileBreakdown = {
   };
 };
 
+export type SeedThreeForestCameraUpdateResult = {
+  presentationChanged: boolean;
+  shadowCastersChanged: boolean;
+};
+
 /** Runtime adapter so ForestManager never statically imports SeedThree (Node-safe). */
 export type SeedThreeForestController = {
   hideTree(layoutIndex: number): void;
@@ -59,7 +64,7 @@ export type SeedThreeForestController = {
     casterBounds: { minX: number; maxX: number; minZ: number; maxZ: number },
     cameraInteractionActive?: boolean,
     deltaSeconds?: number,
-  ): boolean;
+  ): SeedThreeForestCameraUpdateResult;
   getStructuralStats(): SeedThreeForestStructuralStats;
   getProfileBreakdown(): SeedThreeForestProfileBreakdown;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void;
