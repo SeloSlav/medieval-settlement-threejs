@@ -129,7 +129,7 @@ assert.match(
 );
 assert.match(
   expandedEconomySimulation,
-  /mill\.flour - flour_before\) \/ WATERMILL_FLOUR_PER_CYCLE/,
+  /\(flour_after - flour_before\) \/ output_per_cycle/,
   'partial watermill batches must wear dressing tools in proportion to actual flour',
 );
 assert.match(
@@ -144,7 +144,7 @@ assert.match(
 );
 assert.match(
   expandedEconomySimulation,
-  /step_watermill[\s\S]*watermill_throughput_multiplier\(\)[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*mill\.flour > flour_before[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
+  /step_watermill[\s\S]*watermill_throughput_multiplier\(\)[\s\S]*civilian_tool_throughput_multiplier\(building\.ironwork\)[\s\S]*flour_after > flour_before[\s\S]*CommodityKind::Ironwork[\s\S]*CIVILIAN_TOOL_IRONWORK_PER_CYCLE/,
   'watermill output must combine river power with maintained dressing and wear ironwork only after a completed batch',
 );
 assert.match(
