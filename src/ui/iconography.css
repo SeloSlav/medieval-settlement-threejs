@@ -160,7 +160,7 @@
 .rich-resource-crown {
   position: absolute;
   z-index: 2;
-  top: -9px;
+  top: -11px;
   left: 50%;
   display: block;
   width: 34px;
@@ -195,7 +195,7 @@
 }
 
 .quarry-map-icon--large > .rich-resource-crown {
-  top: -11px;
+  top: -13px;
   width: 39px;
   height: 23px;
 }
@@ -239,13 +239,13 @@
 }
 
 .terrain-minimap__marker--resource > .rich-resource-crown {
-  top: -6px;
+  top: -7px;
   width: 21px;
   height: 13px;
 }
 
 .terrain-minimap__marker--large > .rich-resource-crown {
-  top: -7px;
+  top: -8px;
   width: 25px;
   height: 15px;
 }

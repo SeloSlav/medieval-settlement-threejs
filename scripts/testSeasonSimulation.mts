@@ -308,6 +308,11 @@ assert.equal(
   WINTER_WATERMILL_THROUGHPUT_MULTIPLIER,
 );
 assert.equal(
+  winterEnvironment.watermillThroughputMultiplier,
+  0,
+  'frozen mill races must fully stop watermills for winter',
+);
+assert.equal(
   winterEnvironment.clayPitThroughputMultiplier,
   CLAY_PIT_FROST_THROUGHPUT_MULTIPLIER,
 );
@@ -316,7 +321,8 @@ assert.equal(
   WINTER_CHARCOAL_BURNER_THROUGHPUT_MULTIPLIER,
 );
 assert.match(describeEnvironment(winterEnvironment).detail, /carts travel 28% slower/i);
-assert.match(describeEnvironment(winterEnvironment).detail, /flour throughput to 45%/i);
+assert.match(describeEnvironment(winterEnvironment).detail, /watermills stop/i);
+assert.match(describeEnvironment(winterEnvironment).detail, /windmill preserves winter milling/i);
 assert.match(describeEnvironment(winterEnvironment).detail, /halve cured-food aging/i);
 assert.match(describeEnvironment(winterEnvironment).detail, /charcoal tending falls to 80%/i);
 
@@ -325,7 +331,7 @@ const winterOutlookDescription = describeNextDayEnvironmentOutlook(
   environmentFor(12345, 50, lastAutumnDay),
   nextDayEnvironmentOutlook(12345, 50, lastAutumnDay),
 );
-assert.match(winterOutlookDescription, /watermill power 45%/i);
+assert.match(winterOutlookDescription, /watermills stop/i);
 assert.match(winterOutlookDescription, /clay digging 35%/i);
 assert.match(winterOutlookDescription, /charcoal burning 80%/i);
 

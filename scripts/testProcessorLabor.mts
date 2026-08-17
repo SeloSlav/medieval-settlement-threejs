@@ -384,6 +384,15 @@ assert.equal(
   'the output-capped brewery crew must not be immediately rehired',
 );
 
+const winterStewardPlan = computeSettlementProductionStewardPlan(stewardState, 1, 3);
+assert.equal(
+  winterStewardPlan.callup.assignments.some(
+    (assignment) => assignment.buildingId === suppliedStewardMill.id,
+  ),
+  false,
+  'the production steward must not call workers back to a winter-frozen watermill',
+);
+
 const reservedStewardPlan = computeSettlementProductionStewardPlan(
   stewardState,
   6,

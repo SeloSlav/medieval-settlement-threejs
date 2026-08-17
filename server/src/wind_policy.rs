@@ -101,8 +101,11 @@ mod tests {
         let fair = windmill_throughput_multiplier(7, 12.0, -34.0, WeatherKind::Fair);
         let rain = windmill_throughput_multiplier(7, 12.0, -34.0, WeatherKind::Rain);
         let drought = windmill_throughput_multiplier(7, 12.0, -34.0, WeatherKind::Drought);
+        let frost = windmill_throughput_multiplier(7, 12.0, -34.0, WeatherKind::Frost);
         assert!(rain > fair);
+        assert!(frost > fair);
         assert!(fair > drought);
         assert!(drought > 0.0);
+        assert!(frost > 0.0);
     }
 }

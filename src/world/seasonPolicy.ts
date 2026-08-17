@@ -273,7 +273,9 @@ export function describeNextDayEnvironmentOutlook(
     pressures.push(`pasture ${Math.round(next.pastureCapacityMultiplier * 100)}%`);
   }
   if (Math.abs(next.watermillThroughputMultiplier - 1) > 1e-6) {
-    pressures.push(`watermill power ${Math.round(next.watermillThroughputMultiplier * 100)}%`);
+    pressures.push(next.watermillThroughputMultiplier <= 1e-6
+      ? 'watermills stop'
+      : `watermill power ${Math.round(next.watermillThroughputMultiplier * 100)}%`);
   }
   if (Math.abs(next.clayPitThroughputMultiplier - 1) > 1e-6) {
     pressures.push(`clay digging ${Math.round(next.clayPitThroughputMultiplier * 100)}%`);
@@ -322,7 +324,7 @@ export function describeEnvironment(environment: EnvironmentState): {
     const snowCover = Math.round(environment.snowCoverage * 100);
     return {
       title: 'Winter frost',
-      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, and sheep shearing stop; release those crews to logging, construction, hunting, or processing the autumn crop. Higher-tier homes burn twice their normal firewood, while cold stores halve cured-food aging. Pasture is scarce, iced mill races hold flour throughput to ${Math.round(environment.watermillThroughputMultiplier * 100)}%, frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, and snowbound charcoal tending falls to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%. Stockpiled autumn clay and charcoal can keep sheltered kilns and forges working.${roadDetail}`,
+      detail: `Settled snow cover is ${snowCover}% and changes through the winter. Berries, mushrooms, fishing, field work, sheep shearing, and watermills stop; release those crews to logging, construction, hunting, wind milling, or baking stockpiled flour. Higher-tier homes burn twice their normal firewood, while cold stores halve cured-food aging. Pasture is scarce, frozen mill races stop water-powered flour production entirely, frozen clay banks limit digging to ${Math.round(environment.clayPitThroughputMultiplier * 100)}%, and snowbound charcoal tending falls to ${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}%. A well-exposed windmill preserves winter milling capacity, while stockpiled autumn flour, clay, and charcoal keep sheltered processors working.${roadDetail}`,
       symbol: '❄',
     };
   }

@@ -1023,12 +1023,18 @@ export function renderExpandedBuildingInspector(
       <li><span>Seasonal tradeoff</span><span>Drought carbonizes faster but carries the yard's highest fire danger · spring rain and winter frost favor advance charcoal reserves</span></li>`
     : '';
   const seasonalProcessorStatus = building.kind === 'watermill'
+    && environment.weather === 'frost'
+    ? {
+        statusText: 'Frozen mill race · shut down until spring',
+        statusState: 'idle' as const,
+      }
+    : building.kind === 'watermill'
     && processorStatus?.statusState === 'active'
     && Math.abs(environment.watermillThroughputMultiplier - 1) > 1e-6
     ? {
         statusText: environment.watermillThroughputMultiplier > 1
           ? `Strong spring flow · ${Math.round(environment.watermillThroughputMultiplier * 100)}% river power before millstone condition`
-          : `${environment.weather === 'frost' ? 'Iced mill race' : 'Low stream flow'} · ${Math.round(environment.watermillThroughputMultiplier * 100)}% river power before millstone condition`,
+          : `Low stream flow · ${Math.round(environment.watermillThroughputMultiplier * 100)}% river power before millstone condition`,
         statusState: environment.watermillThroughputMultiplier > 1
           ? 'active' as const
           : 'warning' as const,
@@ -1228,9 +1234,9 @@ export function renderExpandedBuildingInspector(
         : environment.weather === 'drought'
           ? 'low summer stream'
           : environment.weather === 'frost'
-            ? 'ice and debris slow the race'
+            ? 'frozen mill race stops the wheel'
             : 'normal flow'}</span></li>
-      <li><span>Seasonal planning</span><span>Flour capacity follows live river power · stockpile before frost and drought</span></li>`
+      <li><span>Seasonal planning</span><span>Shuts down all winter · stockpile flour or build a windmill on well-exposed ground for winter milling</span></li>`
     : building.kind === 'windmill'
       ? `<li><span>Wind exposure</span><span>${Math.round(windSiteThroughput * 100)}% site power × ${Math.round(windWeatherThroughput * 100)}% ${environment.weather} wind = ${Math.round(windmillThroughput * 100)}% current throughput</span></li>
         <li><span>Site role</span><span>River-independent flour processor · use the wind overlay to find stronger ground, then connect grain and bakeries by road</span></li>`

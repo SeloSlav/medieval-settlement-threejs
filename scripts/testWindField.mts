@@ -19,6 +19,10 @@ assert.ok(windSiteThroughputMultiplier(seed, 0, 0) > windSiteThroughputMultiplie
 assert.ok(windWeatherThroughputMultiplier('rain') > windWeatherThroughputMultiplier('fair'));
 assert.ok(windWeatherThroughputMultiplier('drought') < windWeatherThroughputMultiplier('fair'));
 assert.ok(
+  windWeatherThroughputMultiplier('frost') > 0,
+  'windmills must retain winter power while watermills are frozen',
+);
+assert.ok(
   Math.abs(windmillThroughputMultiplier(seed, 120, -80, 'rain') - 1.1252371915362764) < 1e-12,
 );
 

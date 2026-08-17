@@ -12,6 +12,7 @@ import {
   STAFFING_PRIORITY_LOW,
   type StaffingPriority,
 } from './staffingPriority.ts';
+import { seasonalProductionActive } from './seasonalLabor.ts';
 import {
   applyWorksiteStallRecall,
   computeSettlementOperationalProductionReadiness,
@@ -148,11 +149,13 @@ export function computeSettlementProcessorLaborCallupPlan(
 export function computeSettlementOperationalProcessorLaborCallupPlan(
   state: OperationalProductionLaborState,
   availableLabor: number,
+  month?: number,
 ): SettlementProcessorLaborCallupPlan {
   return computeProcessorLaborCallupPlanWithReadiness(
     state,
     availableLabor,
     computeSettlementOperationalProductionReadiness(state),
+    month,
   );
 }
 
@@ -160,6 +163,7 @@ function computeProcessorLaborCallupPlanWithReadiness(
   state: Pick<GameState, 'buildings'>,
   availableLabor: number,
   readiness: SettlementProductionReadiness,
+  month?: number,
 ): SettlementProcessorLaborCallupPlan {
   type Candidate = ProcessorLaborCallupAssignment & { maxLabor: number };
   const priorityBuckets: Candidate[][] = [[], [], []];
@@ -170,6 +174,10 @@ function computeProcessorLaborCallupPlanWithReadiness(
     if (
       building.constructionComplete === false
       || !readiness.readyBuildingIds.has(building.id)
+      || (
+        month !== undefined
+        && seasonalProductionActive(building.kind, month) === false
+      )
     ) {
       continue;
     }
@@ -255,6 +263,7 @@ export function computeSettlementProductionStewardPlan(
   const callup = computeSettlementOperationalProcessorLaborCallupPlan(
     { ...state, buildings: projectedBuildings },
     Math.max(0, availableAfterRecall - safeLaborReserve),
+    month,
   );
   const calledWorkers = callup.callupWorkers;
   return {

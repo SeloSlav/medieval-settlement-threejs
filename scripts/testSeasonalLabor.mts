@@ -35,6 +35,9 @@ assert.equal(seasonalProductionActive('vineyard', 9), true);
 assert.equal(seasonalProductionActive('vineyard', 11), false);
 assert.equal(seasonalProductionActive('fishing_camp', 1), false);
 assert.equal(seasonalProductionActive('fishing_camp', 3), true);
+assert.equal(seasonalProductionActive('watermill', 1), false);
+assert.equal(seasonalProductionActive('watermill', 12), false);
+assert.equal(seasonalProductionActive('watermill', 3), true);
 assert.equal(seasonalProductionActive('granary', 1), null);
 assert.equal(seasonalLaborTarget('apiary', 1, 3, true), 0);
 assert.equal(seasonalLaborTarget('apiary', 1, 3, false), 0);
@@ -66,16 +69,17 @@ vineyard.wine = 5;
 const farmstead = building('5', 'threshing_barn', 4);
 const cartApiary = building('6', 'apiary', 1);
 const granary = building('7', 'granary', 3);
-for (const site of [forager, fishing, apiary, vineyard, farmstead, cartApiary, granary]) {
+const watermill = building('8', 'watermill', 2);
+for (const site of [forager, fishing, apiary, vineyard, farmstead, cartApiary, granary, watermill]) {
   winterState.buildings.set(site.id, site);
 }
 winterState.farmFields.set('field', field('field', farmstead.id, 'growing', 'rye'));
 winterState.deliveryTrips.set('cart', trip('cart', cartApiary.id));
 
 const winterPlan = computeSettlementSeasonalLaborPlan(winterState, 1);
-assert.equal(winterPlan.dormantSites, 6);
-assert.equal(winterPlan.reclaimableSites, 6);
-assert.equal(winterPlan.reclaimableWorkers, 13);
+assert.equal(winterPlan.dormantSites, 7);
+assert.equal(winterPlan.reclaimableSites, 7);
+assert.equal(winterPlan.reclaimableWorkers, 15);
 assert.equal(winterPlan.retainedHaulers, 0);
 assert.equal(winterPlan.firstReclaimableBuildingId, forager.id);
 assert.deepEqual(
@@ -87,6 +91,7 @@ assert.deepEqual(
     [vineyard.id, 0],
     [farmstead.id, 0],
     [cartApiary.id, 0],
+    [watermill.id, 0],
   ],
 );
 
@@ -95,6 +100,7 @@ assert.equal(recalled.get(forager.id)?.assignedLabor, 0);
 assert.equal(recalled.get(fishing.id)?.assignedLabor, 0);
 assert.equal(recalled.get(vineyard.id)?.assignedLabor, 0);
 assert.equal(recalled.get(cartApiary.id)?.assignedLabor, 0);
+assert.equal(recalled.get(watermill.id)?.assignedLabor, 0);
 assert.equal(recalled.get(granary.id)?.assignedLabor, 3);
 assert.equal(winterState.buildings.get(forager.id)?.assignedLabor, 2);
 

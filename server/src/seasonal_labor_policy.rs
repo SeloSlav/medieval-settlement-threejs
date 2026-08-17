@@ -24,7 +24,7 @@ fn normalize_staffing_priority(priority: u8) -> u8 {
 pub fn is_seasonal_labor_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "foragers_shed" | "fishing_camp" | "threshing_barn" | "apiary" | "vineyard"
+        "foragers_shed" | "fishing_camp" | "threshing_barn" | "apiary" | "watermill" | "vineyard"
     )
 }
 
@@ -42,6 +42,7 @@ pub fn seasonal_production_active(
         "fishing_camp" => Some(harvest_available("fish", month)),
         "threshing_barn" => Some(farm_field_work_active),
         "apiary" => Some(apiary_is_active(month as u8)),
+        "watermill" => Some(!matches!(month, 12 | 1 | 2)),
         "vineyard" => Some(vineyard_is_harvesting(month as u8)),
         _ => None,
     }
@@ -147,6 +148,22 @@ mod tests {
         );
         assert_eq!(
             seasonal_production_active("fishing_camp", 3, false),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn watermill_crews_stop_for_winter_and_return_in_spring() {
+        assert_eq!(
+            seasonal_production_active("watermill", 1, false),
+            Some(false)
+        );
+        assert_eq!(
+            seasonal_production_active("watermill", 12, false),
+            Some(false)
+        );
+        assert_eq!(
+            seasonal_production_active("watermill", 3, false),
             Some(true)
         );
     }

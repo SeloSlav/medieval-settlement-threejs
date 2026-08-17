@@ -22,6 +22,7 @@ export const SEASONAL_LABOR_KINDS = [
   'fishing_camp',
   'threshing_barn',
   'apiary',
+  'watermill',
   'vineyard',
 ] as const satisfies readonly BuildingKind[];
 
@@ -94,6 +95,8 @@ export function seasonalProductionActive(
       return farmFieldWorkActive;
     case 'apiary':
       return apiaryIsActive(month);
+    case 'watermill':
+      return month < 12 && month > 2;
     case 'vineyard':
       return vineyardIsHarvesting(month);
     default:

@@ -447,7 +447,8 @@ const watermillInspector = fs.readFileSync(
   'utf8',
 );
 assert.match(watermillInspector, /River power/);
-assert.match(watermillInspector, /stockpile before frost and drought/);
+assert.match(watermillInspector, /Shuts down all winter/);
+assert.match(watermillInspector, /windmill on well-exposed ground/);
 const resourceInspector = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 assert.match(resourceInspector, /row\.dataset\.tooltipTitle = label/);
 assert.match(resourceInspector, /row\.dataset\.tooltip = detail/);

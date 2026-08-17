@@ -166,10 +166,9 @@ impl EnvironmentState {
         }
     }
 
-    /// Mountain streams offer strong spring power, lose head during drought,
-    /// and keep turning under frost only after millers clear ice and debris.
-    /// The wheel never becomes a binary seasonal shutdown, preserving useful
-    /// winter labor while making flour reserves and duplicate mills valuable.
+    /// Mountain streams offer strong spring power and lose head during drought.
+    /// Winter frost locks the mill race completely, making flour reserves or a
+    /// well-exposed windmill necessary for year-round milling.
     pub fn watermill_throughput_multiplier(self) -> f64 {
         match self.weather {
             WeatherKind::Rain => SPRING_RAIN_WATERMILL_THROUGHPUT_MULTIPLIER,
@@ -366,7 +365,7 @@ mod tests {
         assert!(
             frost.watermill_throughput_multiplier() < drought.watermill_throughput_multiplier()
         );
-        assert!(frost.watermill_throughput_multiplier() > 0.0);
+        assert_eq!(frost.watermill_throughput_multiplier(), 0.0);
     }
 
     #[test]

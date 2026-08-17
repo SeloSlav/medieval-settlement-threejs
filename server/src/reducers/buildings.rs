@@ -59,6 +59,7 @@ use crate::processor_output_policy::{
     PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
 };
 use crate::roads::load_owner_road_network;
+use crate::seasonal_labor_policy::seasonal_production_active;
 use crate::simulation::{
     building_fire_state, building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, call_up_active_seasonal_labor_for_owner,
@@ -1540,6 +1541,18 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
         return 0;
     }
     let (quarry_buckets, foraging_buckets) = worksite_source_buckets(ctx);
+    let month = if require_operational_inputs {
+        let sim_tick = ctx
+            .db
+            .world_config()
+            .id()
+            .find(&0)
+            .map(|config| config.sim_tick)
+            .unwrap_or(0);
+        Some(game_clock(sim_tick).month)
+    } else {
+        None
+    };
     let mut candidates = Vec::new();
     for building in ctx.db.building().owner().filter(&owner).filter(|building| {
         building.construction_complete && building_fire_state(ctx, building.id).is_none()
@@ -1552,6 +1565,9 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
         }
         if !is_production_labor_kind(&building.kind)
             || !production_site_ready(&building, &quarry_buckets, &foraging_buckets)
+            || month.is_some_and(|month| {
+                seasonal_production_active(&building.kind, month, false) == Some(false)
+            })
         {
             continue;
         }

@@ -381,8 +381,28 @@ assert.equal(
     ...starterCampGate,
     isStarterCampPlacementActive: () => false,
   }),
-  true,
-  'ordinary building placement should retain the existing marker decluttering behavior',
+  false,
+  'resource markers should remain visible during ordinary building placement',
+);
+assert.equal(
+  isWorldResourceIconVisibilityBlocked({
+    ...starterCampGate,
+    isBuildingToolEnabled: () => false,
+    isStarterCampPlacementActive: () => false,
+    isBurgageToolEnabled: () => true,
+  }),
+  false,
+  'resource markers should remain visible during burgage placement',
+);
+assert.equal(
+  isWorldResourceIconVisibilityBlocked({
+    ...starterCampGate,
+    isBuildingToolEnabled: () => false,
+    isStarterCampPlacementActive: () => false,
+    isFarmFieldToolEnabled: () => true,
+  }),
+  false,
+  'resource markers should remain visible during farm-field placement',
 );
 
 const bootstrapReducer = read('server/src/reducers/bootstrap.rs');

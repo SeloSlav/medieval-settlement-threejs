@@ -49,7 +49,7 @@
     "winterBreedingMultiplier": 0.6,
     "autumnRoadSpeedMultiplier": 0.9,
     "winterRoadSpeedMultiplier": 0.72,
-    "winterWatermillThroughputMultiplier": 0.45,
+    "winterWatermillThroughputMultiplier": 0,
     "winterCharcoalBurnerThroughputMultiplier": 0.8,
     "freshFoodSpoilageSpringPerDay": 0.004,
     "freshFoodSpoilageSummerPerDay": 0.008,

@@ -767,10 +767,10 @@ const frostWeek = computeSettlementProductionCapacity(
   state,
   false,
   undefined,
-  0.45,
+  0,
 );
-assert.equal(frostWeek.watermillThroughputMultiplier, 0.45);
-approx(frostWeek.flourOutputPerDay, fullWeek.flourOutputPerDay * 0.45);
+assert.equal(frostWeek.watermillThroughputMultiplier, 0);
+assert.equal(frostWeek.flourOutputPerDay, 0);
 approx(
   frostWeek.bakeryFlourCapacityPerDay,
   fullWeek.bakeryFlourCapacityPerDay,
@@ -778,16 +778,10 @@ approx(
 );
 approx(
   frostWeek.breadFoodCapacityPerDay,
-  fullWeek.breadFoodCapacityPerDay * 0.45,
+  0,
 );
-approx(
-  frostWeek.millInputBuffer?.days ?? -1,
-  (fullWeek.millInputBuffer?.days ?? -1) / 0.45,
-);
-approx(
-  frostWeek.millOutputRoom?.days ?? -1,
-  (fullWeek.millOutputRoom?.days ?? -1) / 0.45,
-);
+assert.equal(frostWeek.millInputBuffer?.days, Number.POSITIVE_INFINITY);
+assert.equal(frostWeek.millOutputRoom?.days, Number.POSITIVE_INFINITY);
 assert.equal(fullWeek.millInputBuffer.buildingId, mill.id);
 assert.equal(fullWeek.millOutputRoom?.buildingId, mill.id);
 assert.equal(fullWeek.tierThreeResidents, 10);
