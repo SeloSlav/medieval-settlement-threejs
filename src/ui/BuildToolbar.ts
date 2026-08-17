@@ -105,6 +105,7 @@ export class BuildToolbar {
   private readonly compassHud: CompassHud;
   private gameMenu: GameMenu | null = null;
   private firstPersonActive = false;
+  private firstPersonPlacementActive = false;
   private starterCampRequired = false;
   private civicBuildMenuOpen = false;
   private gatheringBuildMenuOpen = false;
@@ -947,6 +948,15 @@ export class BuildToolbar {
       this.builderStatusBar.hidden = true;
     }
     this.syncMapOverlayLegend();
+  }
+
+  setFirstPersonPlacementMode(active: boolean): void {
+    if (this.firstPersonPlacementActive === active) return;
+    this.firstPersonPlacementActive = active;
+    this.root.classList.toggle('is-first-person-placement', active);
+    this.fpModePanel.classList.toggle('is-selecting', active);
+    const label = this.fpModePanel.querySelector<HTMLElement>('.fps-stat span');
+    if (label) label.textContent = active ? 'Choose start' : 'Walk';
   }
 
   setFirstPersonToggle(handler: (() => void) | null): void {

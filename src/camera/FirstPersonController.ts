@@ -32,6 +32,12 @@ import {
   type WalkGroundSampler,
 } from './fp/fpLocomotion.ts';
 import type { FootstepSurface } from '../audio/audioCatalog.ts';
+import { FirstPersonPlacement } from './FirstPersonPlacement.ts';
+import {
+  createFpLandingSoundState,
+  resetFpLandingSoundState,
+  stepFpLandingSound,
+} from './fp/fpLandingSound.ts';
 
 // The strategic camera needs a long 2.6 km range, but keeping its 10 cm near
 // plane while walking wastes half of the available depth precision. A 20 cm
@@ -47,6 +53,9 @@ export type FirstPersonControllerConfig = {
   getRoadDeckY?: (x: number, z: number) => number | null;
   collisionWorld?: FpCollisionWorld;
   getOrbitSpawn?: () => FirstPersonSpawn;
+  placementParent?: THREE.Object3D;
+  pickPlacementGround?: (clientX: number, clientY: number) => THREE.Vector3 | null;
+  onPlacementChange?: (active: boolean) => void;
   onModeChange?: (active: boolean) => void;
   getFootstepSurface?: (x: number, y: number, z: number) => FootstepSurface;
   onFootstep?: (surface: FootstepSurface) => void;
@@ -68,6 +77,7 @@ export class FirstPersonController {
   private readonly look: FpLookAngleState = { bodyYaw: 0, pitch: 0, headLookYaw: 0 };
   private readonly lookInertia = createFpLookInertiaState();
   private readonly loco: FpLocomotionState = createFpLocomotionState();
+  private readonly landingSound = createFpLandingSoundState();
   private readonly input: FpLocomotionInput = {
     forward: false,
     backward: false,
@@ -82,7 +92,7 @@ export class FirstPersonController {
   private savedFov = DEFAULT_FOV;
   private savedNear = 0.1;
   private reticule: HTMLElement | null = null;
-  private toggleRequested = false;
+  private readonly placement: FirstPersonPlacement | null;
   private crouchToggle = false;
   private camBobY = 0;
   private camBobRoll = 0;
@@ -93,6 +103,26 @@ export class FirstPersonController {
 
   constructor(config: FirstPersonControllerConfig) {
     this.config = config;
+    this.placement = config.placementParent && config.pickPlacementGround
+      ? new FirstPersonPlacement({
+          camera: config.camera,
+          domElement: config.domElement,
+          parent: config.placementParent,
+          pickGround: config.pickPlacementGround,
+          isInputBlocked: () => config.isMenuOpen?.() ?? false,
+          onConfirm: (point) => {
+            const orbitSpawn = config.getOrbitSpawn?.();
+            this.endPlacement();
+            this.activate({
+              x: point.x,
+              z: point.z,
+              yaw: orbitSpawn?.yaw ?? 0,
+              pitch: orbitSpawn?.pitch,
+            });
+          },
+          onCancel: () => this.endPlacement(),
+        })
+      : null;
     this.walkOpts = {
       sampleWalkGroundTopY: this.sampleTerrainGround,
       resolveBodyCollisions: (position, previousX, previousZ, state, bodyHeight) => {
@@ -125,12 +155,21 @@ export class FirstPersonController {
     document.addEventListener('visibilitychange', this.onVisibilityChange);
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    config.domElement.addEventListener('pointermove', this.onPlacementPointerMove);
     config.domElement.addEventListener('click', this.onCanvasClick);
     config.domElement.addEventListener('contextmenu', this.onContextMenu);
   }
 
   isActive(): boolean {
     return this.active;
+  }
+
+  isPlacementActive(): boolean {
+    return this.placement?.isActive() ?? false;
+  }
+
+  isInteractionActive(): boolean {
+    return this.active || this.isPlacementActive();
   }
 
   isCrouching(): boolean {
@@ -156,7 +195,21 @@ export class FirstPersonController {
 
   toggle(spawn?: FirstPersonSpawn): void {
     if (this.active) this.deactivate();
-    else this.activate(spawn ?? this.config.getOrbitSpawn?.());
+    else if (this.isPlacementActive()) this.endPlacement();
+    else if (spawn || !this.placement) this.activate(spawn ?? this.config.getOrbitSpawn?.());
+    else this.beginPlacement();
+  }
+
+  beginPlacement(): void {
+    if (this.active || this.isPlacementActive() || !this.placement) return;
+    this.placement.begin();
+    this.config.onPlacementChange?.(true);
+  }
+
+  endPlacement(): void {
+    if (!this.isPlacementActive()) return;
+    this.placement?.end();
+    this.config.onPlacementChange?.(false);
   }
 
   activate(spawn?: FirstPersonSpawn): void {
@@ -187,6 +240,7 @@ export class FirstPersonController {
     this.camBobRoll = 0;
     this.lastEyeLine = fpLocomotionConstants.eyeStand;
     this.footstepDistance = 0;
+    resetFpLandingSoundState(this.landingSound);
     this.pendingLookDeltaX = 0;
     this.pendingLookDeltaY = 0;
     this.config.collisionWorld?.invalidateStatic();
@@ -221,6 +275,7 @@ export class FirstPersonController {
     this.active = false;
     this.keys.clear();
     this.crouchToggle = false;
+    resetFpLandingSoundState(this.landingSound);
     this.pendingLookDeltaX = 0;
     this.pendingLookDeltaY = 0;
     this.exitPointerLock();
@@ -270,6 +325,7 @@ export class FirstPersonController {
 
     const previousX = this.pos.x;
     const previousZ = this.pos.z;
+    const jumpStarted = this.loco.grounded && this.loco.jumpQueued;
     const eyeLine = stepFpLocomotion(
       this.loco,
       this.pos,
@@ -283,7 +339,17 @@ export class FirstPersonController {
 
     const horizontalSpeed = Math.hypot(this.loco.velocity.x, this.loco.velocity.z);
     const moving = this.input.forward || this.input.backward || this.input.left || this.input.right;
-    if (this.loco.grounded && moving && horizontalSpeed > 0.12) {
+    const playedLandingSound = stepFpLandingSound(
+      this.landingSound,
+      jumpStarted,
+      this.loco.grounded,
+      dt,
+    );
+    if (playedLandingSound) {
+      this.footstepDistance = 0;
+      this.playFootstep();
+    }
+    if (!playedLandingSound && this.loco.grounded && moving && horizontalSpeed > 0.12) {
       this.footstepDistance += Math.hypot(
         this.pos.x - previousX,
         this.pos.z - previousZ,
@@ -293,12 +359,7 @@ export class FirstPersonController {
         : this.input.sprint ? 2.4 : 0.95;
       while (this.footstepDistance >= stride) {
         this.footstepDistance -= stride;
-        const surface = this.config.getFootstepSurface?.(
-          this.pos.x,
-          this.pos.y,
-          this.pos.z,
-        ) ?? 'grass';
-        this.config.onFootstep?.(surface);
+        this.playFootstep();
       }
     } else if (!moving) {
       this.footstepDistance = Math.min(this.footstepDistance, 0.2);
@@ -327,7 +388,22 @@ export class FirstPersonController {
     this.syncReticuleVisibility();
   }
 
+  updatePlacement(): void {
+    this.placement?.update();
+  }
+
+  onMenuOpenChange(open: boolean): void {
+    if (!this.active) return;
+    this.resetTransientInputState();
+    if (open) {
+      this.exitPointerLock();
+    } else {
+      this.requestPointerLock();
+    }
+  }
+
   dispose(): void {
+    this.endPlacement();
     this.deactivate();
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('keyup', this.onKeyUp);
@@ -335,10 +411,12 @@ export class FirstPersonController {
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
     document.removeEventListener('mousemove', this.onMouseMove);
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
+    this.config.domElement.removeEventListener('pointermove', this.onPlacementPointerMove);
     this.config.domElement.removeEventListener('click', this.onCanvasClick);
     this.config.domElement.removeEventListener('contextmenu', this.onContextMenu);
     this.reticule?.remove();
     this.reticule = null;
+    this.placement?.dispose();
   }
 
   private applyCameraTransform(eyeLine: number): void {
@@ -350,6 +428,15 @@ export class FirstPersonController {
     camera.rotation.x = this.look.pitch;
     camera.rotation.z = this.camBobRoll;
     publishCompassHeadingFromYawRad(yaw);
+  }
+
+  private playFootstep(): void {
+    const surface = this.config.getFootstepSurface?.(
+      this.pos.x,
+      this.pos.y,
+      this.pos.z,
+    ) ?? 'grass';
+    this.config.onFootstep?.(surface);
   }
 
   private readonly sampleTerrainGround: WalkGroundSampler = (
@@ -463,7 +550,6 @@ export class FirstPersonController {
       if (!this.config.isSessionReady?.()) return;
       event.preventDefault();
       event.stopPropagation();
-      this.toggleRequested = true;
       this.toggle();
       return;
     }
@@ -476,13 +562,6 @@ export class FirstPersonController {
     }
 
     this.keys.add(event.code);
-
-    if (event.code === 'Escape') {
-      if (this.config.isMenuOpen?.()) return;
-      event.preventDefault();
-      this.deactivate();
-      return;
-    }
 
     if (event.code === 'Space' && !event.repeat) {
       event.preventDefault();
@@ -516,16 +595,18 @@ export class FirstPersonController {
   private readonly onPointerLockChange = (): void => {
     this.syncReticuleVisibility();
     if (!this.active) return;
-    if (document.pointerLockElement === this.config.domElement) return;
-    if (this.toggleRequested) {
-      this.toggleRequested = false;
-      return;
+    if (document.pointerLockElement !== this.config.domElement) {
+      this.resetTransientInputState();
     }
-    this.deactivate();
   };
 
-  private readonly onCanvasClick = (): void => {
-    if (!this.active) return;
+  private readonly onPlacementPointerMove = (event: PointerEvent): void => {
+    this.placement?.handlePointerMove(event);
+  };
+
+  private readonly onCanvasClick = (event: MouseEvent): void => {
+    if (this.placement?.handleCanvasClick(event)) return;
+    if (!this.active || this.config.isMenuOpen?.()) return;
     if (document.pointerLockElement !== this.config.domElement) {
       this.requestPointerLock();
     }

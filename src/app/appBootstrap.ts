@@ -377,6 +377,7 @@ export async function bootstrapAppSession(
     bounds: sceneManager.terrain.bounds,
     getHeightAt: (x, z) => sceneManager.terrain.getHeightAt(x, z),
     getCursorOverride: () => {
+      if (firstPersonController?.isPlacementActive()) return 'none';
       if (firstPersonController?.isActive()) return 'default';
       return burgageTool?.getCursor()
         ?? farmFieldTool?.getCursor()
@@ -857,6 +858,7 @@ export async function bootstrapAppSession(
       });
     },
     onMenuOpenChange: (open) => {
+      firstPersonController.onMenuOpenChange(open);
       cameraController.setInputEnabled(
         !open
         && !firstPersonController.isActive()
@@ -888,8 +890,7 @@ export async function bootstrapAppSession(
       sceneManager.setDistantCanopyCardsEnabled(enabled);
     },
     canOpenMenuFromKeyboard: () =>
-      !firstPersonController.isActive()
-      && !roadTool.isEnabled()
+      !roadTool.isEnabled()
       && !buildingTool.isEnabled()
       && !burgageTool.isEnabled()
       && !farmFieldTool.isEnabled()
@@ -1219,12 +1220,25 @@ export async function bootstrapAppSession(
     },
     onFootstep: (surface) => ambientAudio.playFootstep(surface),
     collisionWorld: firstPersonCollisionWorld,
+    placementParent: sceneManager.scene,
+    pickPlacementGround: (clientX, clientY) => (
+      sceneManager.terrainProjector.pick(clientX, clientY)
+    ),
     getOrbitSpawn: () => {
       const target = cameraController.getTargetPosition();
       return { x: target.x, z: target.z, yaw: cameraController.getYaw() };
     },
     isMenuOpen: () => toolbar.isGameMenuOpen(),
     isSessionReady: () => sessionGate.isReady(),
+    onPlacementChange: (active) => {
+      toolbar.setFirstPersonPlacementMode(active);
+      if (active) {
+        if (roadTool.isEnabled()) roadTool.setEnabled(false);
+        if (buildingTool.isEnabled()) buildingTool.setMode('off');
+        if (burgageTool.isEnabled()) burgageTool.setEnabled(false);
+        if (farmFieldTool.isEnabled()) farmFieldTool.setEnabled(false);
+      }
+    },
     onModeChange: (active) => {
       cameraController.setInputEnabled(
         !active
@@ -1261,7 +1275,7 @@ export async function bootstrapAppSession(
   );
   placementGate.isBurgageToolEnabled = () => burgageTool.isEnabled();
   placementGate.isFarmFieldToolEnabled = () => farmFieldTool.isEnabled();
-  placementGate.isFirstPersonActive = () => firstPersonController.isActive();
+  placementGate.isFirstPersonActive = () => firstPersonController.isInteractionActive();
   placementGate.isMenuOpen = () => toolbar.isGameMenuOpen();
 
   const worldMapUi = createWorldMapUi({

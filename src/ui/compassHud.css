@@ -14,6 +14,118 @@
   display: none;
 }
 
+.fp-placement-cursor {
+  position: fixed;
+  z-index: 30;
+  width: 30px;
+  height: 38px;
+  transform: translate(-50%, -88%);
+  color: #eadba9;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.75));
+  pointer-events: none;
+}
+
+.fp-placement-cursor[hidden] {
+  display: none;
+}
+
+.fp-placement-cursor svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.fp-placement-cursor path:first-child {
+  fill: rgba(40, 34, 24, 0.9);
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.fp-placement-cursor circle,
+.fp-placement-cursor path:last-child {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.fp-placement-cursor.is-locked {
+  color: #f0b54a;
+}
+
+.fp-placement-panel {
+  position: fixed;
+  left: 50%;
+  bottom: max(88px, calc(env(safe-area-inset-bottom, 0px) + 72px));
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: min(620px, calc(100vw - 32px));
+  box-sizing: border-box;
+  transform: translateX(-50%);
+  padding: 13px 14px 13px 17px;
+  border: 1px solid rgba(226, 202, 144, 0.5);
+  border-radius: 8px;
+  background: rgba(27, 24, 19, 0.94);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.48);
+  color: var(--ink);
+  backdrop-filter: blur(10px);
+}
+
+.fp-placement-panel[hidden] {
+  display: none;
+}
+
+.fp-placement-panel__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  flex: 1;
+}
+
+.fp-placement-panel__copy strong {
+  color: #f0d99f;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.fp-placement-panel__copy span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.fp-placement-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.fp-placement-panel button {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fp-placement-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+@media (max-width: 620px) {
+  .fp-placement-panel {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .fp-placement-panel__actions {
+    justify-content: flex-end;
+  }
+}
+
 .compass-hud {
   position: fixed;
   left: 50%;

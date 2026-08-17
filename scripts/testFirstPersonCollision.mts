@@ -8,6 +8,12 @@ import {
   FP_WALK_STEP_UP_MARGIN,
   stepFpLocomotion,
 } from '../src/camera/fp/fpLocomotion.ts';
+import {
+  createFpLandingSoundState,
+  FP_LANDING_SOUND_COOLDOWN_SEC,
+  resetFpLandingSoundState,
+  stepFpLandingSound,
+} from '../src/camera/fp/fpLandingSound.ts';
 import type { RoadEdge } from '../src/roads/RoadEdge.ts';
 import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
@@ -19,6 +25,26 @@ import { createFoundersCampMesh } from '../src/buildings/meshes/foundersCampMesh
 
 const root = new THREE.Group();
 root.name = 'Backyard gardens';
+
+{
+  const landing = createFpLandingSoundState();
+  assert.equal(stepFpLandingSound(landing, true, false, 1 / 60), false);
+  assert.equal(stepFpLandingSound(landing, false, false, 1 / 60), false);
+  assert.equal(stepFpLandingSound(landing, false, true, 1 / 60), true);
+  assert.equal(
+    stepFpLandingSound(landing, false, true, 1 / 60),
+    false,
+    'a landing should emit only one footstep',
+  );
+  assert.ok(landing.cooldownSec <= FP_LANDING_SOUND_COOLDOWN_SEC);
+
+  resetFpLandingSoundState(landing);
+  assert.equal(
+    stepFpLandingSound(landing, false, true, 1 / 60),
+    false,
+    'ordinary grounded movement should not sound like a jump landing',
+  );
+}
 
 const wall = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 4));
 wall.position.set(0, 1, 0);

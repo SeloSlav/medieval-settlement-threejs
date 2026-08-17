@@ -287,7 +287,7 @@ Food is physical and keeps its identity throughout the economy: bakeries make br
 
 ### Exploration
 
-- First-person walk mode with pointer-lock mouse look, spawned from the current orbit camera position.
+- First-person walk mode with pointer-lock mouse look, entered through an RTS terrain-pin placement and explicit confirmation step.
 - Terrain-following locomotion with sprint, jump, crouch toggle, and head-bob camera motion.
 - Free-look while holding `Alt` — look around without turning the body; view recenters on release.
 - Scrolling compass HUD with cardinal and intercardinal labels while walking.
@@ -382,14 +382,14 @@ Food is physical and keeps its identity throughout the economy: bakeries make br
 | Pan camera | Right-click drag, `WASD`, or arrow keys |
 | Rotate camera | Middle-click drag or `Q` / `E` |
 | Zoom camera | Mouse wheel |
-| Toggle walk mode | Backtick (`~`) |
+| Choose / toggle walk mode | Backtick (`~`); in RTS, click terrain and confirm the placement pin |
 | Move (walk mode) | `WASD` or arrow keys |
 | Sprint | `Shift` |
 | Jump | `Space` |
 | Crouch toggle | `C` |
 | Free look (walk mode) | Hold `Alt` |
-| Exit walk mode | `Escape` (walk mode) |
-| Open game menu | Click the menu button (top-left) or `Escape` (RTS mode) |
+| Exit walk mode | Backtick (`~`) |
+| Open game menu | Click the menu button (top-left) or `Escape` (RTS or walk mode) |
 | Start a new world | Game menu → **New world…** (resets the server database when connected; always clears local settings and player identity) |
 
 ## Production build

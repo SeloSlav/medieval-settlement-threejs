@@ -54,7 +54,7 @@ type GameMenuOptions = {
   onMusicEnabledChange?: (enabled: boolean) => void;
   onMusicVolumeChange?: (volume: number) => void;
   showButton?: boolean;
-  /** When false, Escape will not open the menu (e.g. first-person walk mode). */
+  /** When false, Escape will not open the menu while another modal/tool owns it. */
   canOpenFromKeyboard?: () => boolean;
 };
 

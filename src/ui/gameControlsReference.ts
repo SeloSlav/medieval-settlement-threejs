@@ -42,7 +42,7 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
       { action: 'Rotate view', keys: 'Middle-drag / Q E' },
       { action: 'Zoom', keys: 'Scroll wheel' },
       { action: 'World map', keys: 'Hold G' },
-      { action: 'Walk mode', keys: '~' },
+      { action: 'Choose walk starting point', keys: '~' },
     ],
   },
   {
@@ -67,8 +67,8 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
       { action: 'Crouch', keys: 'C' },
       { action: 'Free look', keys: 'Alt' },
       { action: 'Toggle walk mode', keys: '~' },
+      { action: 'Settings', keys: 'Esc' },
       { action: 'World map', keys: 'Hold G' },
-      { action: 'Exit walk mode', keys: 'Esc' },
     ],
   },
   {

@@ -730,6 +730,7 @@ export class App {
       );
     } else {
       this.cameraController?.update(dt);
+      this.firstPersonController?.updatePlacement();
       this.toolbar?.setFirstPersonMode(false);
       this.toolbar?.setZoomPercent(this.cameraController?.getZoomPercent() ?? 100);
       this.roadTool?.update(dt);
