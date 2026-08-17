@@ -365,11 +365,17 @@ assert.ok(
     && laborHudIndex < populationHudIndex
     && populationHudIndex < housingHudIndex
     && housingHudIndex < timberHudIndex,
-  'the HUD should lead with free workers, total population, and residents housed',
+  'the HUD should lead with free workers, total population, and homeless residents',
 );
 assert.match(settlementHud, /data-tooltip-title="Workers free to assign"/);
 assert.match(settlementHud, /data-tooltip-title="Total population"/);
-assert.match(settlementHud, /data-tooltip-title="Residents housed"/);
+assert.match(settlementHud, /data-tooltip-title="Homeless residents"/);
+assert.match(settlementHud, /data-stockpile="housing">0<\/strong>/);
+assert.doesNotMatch(settlementHud, /data-stockpile="housing-sub"/);
+assert.match(
+  resourceInspector,
+  /Math\.max\(0, population\.total - population\.housed\)\.toString\(\)/,
+);
 assert.match(settlementHud, /data-stockpile-transit="timber"/);
 assert.match(settlementHud, /Loaded carts are shown separately/);
 assert.match(resourceInspector, /closest<HTMLElement>\('\[data-inspect-delivery-trip\]'\)/);

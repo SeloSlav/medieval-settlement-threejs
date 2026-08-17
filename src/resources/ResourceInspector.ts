@@ -337,7 +337,6 @@ export class ResourceInspector {
   private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
   private readonly populationValue: HTMLElement;
   private readonly housingValue: HTMLElement;
-  private readonly housingSub: HTMLElement;
   private readonly laborValue: HTMLElement;
   private readonly demolishSection: HTMLElement;
   private readonly demolishButton: HTMLButtonElement;
@@ -535,7 +534,6 @@ export class ResourceInspector {
     this.foodBreakdownTotalSurplus = this.mustElement(options.uiRoot, '[data-food-breakdown-total-surplus]');
     this.populationValue = this.mustElement(options.uiRoot, '[data-stockpile="population"]');
     this.housingValue = this.mustElement(options.uiRoot, '[data-stockpile="housing"]');
-    this.housingSub = this.mustElement(options.uiRoot, '[data-stockpile="housing-sub"]');
     this.laborValue = this.mustElement(options.uiRoot, '[data-stockpile="labor"]');
     this.demolishSection = this.mustElement(options.uiRoot, '[data-inspector-actions]');
     this.demolishButton = this.mustButton(options.uiRoot, '[data-action="demolish-primary"]');
@@ -1332,10 +1330,7 @@ export class ResourceInspector {
     this.guardhousePayrollGold = guardhousePayrollGold;
     this.renderHudResourceTotals();
     this.populationValue.textContent = population.total.toString();
-    this.housingValue.textContent = `${population.housed}/${population.housingCapacity}`;
-    this.housingSub.textContent = population.vacant === 1
-      ? '1 vacant'
-      : `${population.vacant} vacant`;
+    this.housingValue.textContent = Math.max(0, population.total - population.housed).toString();
     this.laborValue.textContent = population.available.toString();
     const laborSub = this.stockpileRoot.querySelector<HTMLElement>('[data-stockpile="labor-sub"]');
     if (laborSub) {

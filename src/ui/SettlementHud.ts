@@ -286,10 +286,9 @@ const SETTLEMENT_HUD_HTML = `
         <span class="settlement-hud__label">Population</span>
         <strong class="settlement-hud__value" data-stockpile="population">0</strong>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-tooltip-title="Residents housed" data-tooltip="Residents living in homes compared with total housing capacity.">
-        <span class="settlement-hud__label">Housing</span>
-        <strong class="settlement-hud__value" data-stockpile="housing">0/0</strong>
-        <span class="settlement-hud__sub" data-stockpile="housing-sub">0 vacant</span>
+      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-tooltip-title="Homeless residents" data-tooltip="Townsfolk who do not currently have a home.">
+        <span class="settlement-hud__label">Homeless residents</span>
+        <strong class="settlement-hud__value" data-stockpile="housing">0</strong>
       </div>
       <div class="settlement-hud__stat" tabindex="0" data-resource="timber" data-tooltip-title="Stored timber" data-tooltip="Unreserved timber in yards, mills, and depots.">
         <span class="settlement-hud__label">Timber</span>
