@@ -8,9 +8,7 @@ import { commonHornbeamHedge } from '../vendor/seedthree/src/species/common-horn
 import { commonJuniper } from '../vendor/seedthree/src/species/common-juniper.js';
 import { raspberry } from '../vendor/seedthree/src/species/raspberry.js';
 import {
-  BILBERRY_FRUIT_ANCHOR_LIMIT,
   GORSKI_SHRUB_VARIANT_COUNT,
-  JUNIPER_BERRY_ANCHOR_LIMIT,
   RASPBERRY_FRUIT_ANCHOR_LIMIT,
   createGorskiShrubPrototype,
   type GorskiShrubKind,
@@ -47,8 +45,6 @@ assert.ok(
 
 assertGlb('apple.glb', 1_000_000);
 assertGlb('cherry_pair.glb', 1_000_000);
-assertGlb('bilberry_berry.glb', 70_000);
-assertGlb('juniper_berry.glb', 30_000);
 assertGlb('raspberry_cluster.glb', 50_000);
 
 const bilberryAlbedo = readFileSync(
@@ -138,19 +134,17 @@ const shrubPrototypesSource = readFileSync(
   `${projectRoot}src/vegetation/seedthree/gorskiShrubPrototypes.ts`,
   'utf8',
 );
+const seedThreeTexturesSource = readFileSync(
+  `${projectRoot}src/vegetation/seedthree/seedThreeTextures.ts`,
+  'utf8',
+);
 assert.match(undergrowthVisuals, /GORSKI_SHRUB_VARIANT_COUNT/);
 assert.match(undergrowthVisuals, /new THREE\.InstancedMesh/);
-assert.match(undergrowthVisuals, /bilberry_berry\.glb/);
-assert.match(undergrowthVisuals, /targetDiameterM: \[0\.006, 0\.0095\]/);
-assert.match(undergrowthVisuals, /MIN_BILBERRIES_PER_SHRUB = 8/);
-assert.match(undergrowthVisuals, /MAX_BILBERRIES_PER_SHRUB = 14/);
-assert.match(undergrowthVisuals, /Instanced ripe Vaccinium myrtillus bilberries/);
-assert.match(undergrowthVisuals, /juniper_berry\.glb/);
-assert.match(undergrowthVisuals, /targetDiameterM: \[0\.0065, 0\.009\]/);
-assert.match(undergrowthVisuals, /MIN_JUNIPER_BERRIES_PER_SHRUB = 16/);
-assert.match(undergrowthVisuals, /MAX_JUNIPER_BERRIES_PER_SHRUB = 20/);
-assert.match(shrubPrototypesSource, /selectFoliageSurfaceAnchors/);
-assert.match(undergrowthVisuals, /Instanced ripe common-juniper berry cones/);
+assert.doesNotMatch(
+  `${undergrowthVisuals}\n${shrubPrototypesSource}\n${seedThreeTexturesSource}`,
+  /bilberry_berry\.glb|juniper_berry\.glb|selectFoliageSurfaceAnchors|createUndergrowthFruitInstances/,
+  'ordinary bilberry and juniper shrubs must not load, anchor, or render berry GLBs',
+);
 assert.doesNotMatch(undergrowthVisuals, /createCardClumpGeometry/);
 assert.doesNotMatch(
   `${undergrowthVisuals}\n${berryVisuals}`,
@@ -217,20 +211,12 @@ function prototypeSignatures(): Record<string, string> {
           prototype.fruitAnchors.length <= RASPBERRY_FRUIT_ANCHOR_LIMIT,
           `raspberry variant ${variant} exceeded its authored fruit-anchor budget`,
         );
-      } else if (kind === 'bush') {
-        assert.equal(
-          prototype.fruitAnchors.length,
-          BILBERRY_FRUIT_ANCHOR_LIMIT,
-          `bilberry variant ${variant} must expose its full fruit-anchor budget`,
-        );
-      } else if (kind === 'juniper') {
-        assert.equal(
-          prototype.fruitAnchors.length,
-          JUNIPER_BERRY_ANCHOR_LIMIT,
-          `juniper variant ${variant} must expose its full berry-cone anchor budget`,
-        );
       } else {
-        assert.equal(prototype.fruitAnchors.length, 0);
+        assert.equal(
+          prototype.fruitAnchors.length,
+          0,
+          `${kind} variant ${variant} must not allocate unused fruit anchors`,
+        );
       }
       signatures[`${kind}:${variant}`] = [
         geometryHash(geometry),

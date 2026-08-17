@@ -66,8 +66,8 @@ const composePosition = new THREE.Vector3();
 const composeScale = new THREE.Vector3();
 const composeEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const composeColor = new THREE.Color();
-/** Caps peak reed opacity so shoreline tufts stay muted against meadow grass. */
-const REED_PEAK_OPACITY = 0.9;
+/** Full close-up opacity is required for a stable alpha-hashed cutout. */
+const REED_PEAK_OPACITY = 1;
 const REED_SHORE_MIN = 0.55;
 const REED_SHORE_MAX = 4.8;
 /** Keep emergent stands in water deep enough to visibly cross the cards. */
@@ -82,14 +82,16 @@ const REED_MAX_WATER_DEPTH = 1.45;
 const REED_CARD_QUADS = 5;
 const REED_CARD_WIDTH = 0.94;
 const REED_CARD_BASE_SPREAD = 0.26;
-/** Draw just before the transparent water film so submerged stems are veiled by water. */
+/** Stable ordering within the opaque cutout list; water renders in the later transmission pass. */
 const REED_RENDER_ORDER = 1.2;
 /**
- * Once the cutout is substantially visible, let it populate the depth buffer.
- * Water can then cover bed-level stems while failing depth against leaves and
- * seed heads that have genuinely emerged above the surface.
+ * Cattails cannot use transparent blending: transmissive water is rendered in
+ * its own pass before the transparent list, regardless of renderOrder. Keeping
+ * the cards alpha-hashed and depth-writing puts them in the opaque pass first.
+ * The later water surface then passes depth over bed-level stems and fails
+ * against leaves and seed heads that have genuinely emerged above it.
  */
-const REED_DEPTH_WRITE_MIN_OPACITY = 0.45;
+const REED_USES_OPAQUE_CUTOUT_PASS = true;
 
 export async function createRiverReeds(
   terrain: Terrain,
@@ -118,9 +120,10 @@ export async function createRiverReeds(
     [0.28, 0.42, 0.13],
     0.22,
   );
-  material.transparent = true;
+  material.transparent = false;
   material.opacity = 0;
   material.alphaTest = 0.32;
+  material.alphaHash = REED_USES_OPAQUE_CUTOUT_PASS;
   material.depthWrite = true;
   const capacity = Math.max(placements.length, 1);
   const attributes = addSeedThreeGroundCoverInstanceAttributes(geometry, capacity);
@@ -238,16 +241,6 @@ export async function createRiverReeds(
       if (!Number.isFinite(lastMaterialOpacity) || Math.abs(reedOpacity - lastMaterialOpacity) > 0.008) {
         lastMaterialOpacity = reedOpacity;
         material.opacity = reedOpacity;
-        const useTransparency = reedOpacity < 0.995;
-        const useDepthWrite = reedOpacity >= REED_DEPTH_WRITE_MIN_OPACITY;
-        if (
-          material.transparent !== useTransparency
-          || material.depthWrite !== useDepthWrite
-        ) {
-          material.transparent = useTransparency;
-          material.depthWrite = useDepthWrite;
-          material.needsUpdate = true;
-        }
       }
 
       mesh.visible = reedZoomVisible;

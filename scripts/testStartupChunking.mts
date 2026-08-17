@@ -470,7 +470,7 @@ assert.ok(
   // grass/dirt edge handoff. The Eanpa facade adds the historical-sky state
   // bridge while the much larger engine and legacy fallback remain deferred.
   // Apple and cherry add eight species-specific leaf material URLs.
-  // Instanced raspberry and juniper fruit add their loader and placement path.
+  // Harvestable raspberry fruit adds its loader and placement path.
   // Keep this intentional raw-source allowance explicit; the compressed
   // transfer budget below remains the stronger network guardrail.
   startupClosureBytes <= 2_880_000,

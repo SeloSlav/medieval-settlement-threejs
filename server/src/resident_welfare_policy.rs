@@ -6,32 +6,15 @@ use std::collections::HashMap;
 use crate::balance_generated::{
     CALENDAR_SECONDS_PER_DAY, COLD_EXPOSURE_DEATH_CHANCE_PER_PERSON_DAY,
     COLD_EXPOSURE_DEATH_MAX_CHANCE_PER_PERSON_DAY, COLD_EXPOSURE_DEATH_RISK_RAMP_DAYS,
-    COLD_EXPOSURE_DEATH_START_DAYS, HUNGER_WARNING_DAYS, MALNUTRITION_DAYS,
+    COLD_EXPOSURE_DEATH_START_DAYS, MALNUTRITION_DAYS,
     MALNUTRITION_RECOVERY_DAYS, STARVATION_DEATH_CHANCE_PER_PERSON_DAY,
     STARVATION_DEATH_MAX_CHANCE_PER_PERSON_DAY, STARVATION_DEATH_RISK_RAMP_DAYS,
     STARVATION_DEATH_START_DAYS, TICK_DT,
 };
 
-pub const HEALTH_STAGE_WELL: u8 = 0;
-pub const HEALTH_STAGE_HUNGRY: u8 = 1;
-pub const HEALTH_STAGE_MALNOURISHED: u8 = 2;
-pub const HEALTH_STAGE_STARVING: u8 = 3;
-
 pub fn ticks_for_days(days: f64) -> u32 {
     ((days.max(0.0) * CALENDAR_SECONDS_PER_DAY / TICK_DT).round() as u64).min(u64::from(u32::MAX))
         as u32
-}
-
-pub fn hunger_stage(hunger_ticks: u32) -> u8 {
-    if hunger_ticks >= ticks_for_days(STARVATION_DEATH_START_DAYS) {
-        HEALTH_STAGE_STARVING
-    } else if hunger_ticks >= ticks_for_days(MALNUTRITION_DAYS) {
-        HEALTH_STAGE_MALNOURISHED
-    } else if hunger_ticks >= ticks_for_days(HUNGER_WARNING_DAYS) {
-        HEALTH_STAGE_HUNGRY
-    } else {
-        HEALTH_STAGE_WELL
-    }
 }
 
 pub fn malnutrition_target(hunger_ticks: u32) -> f64 {
@@ -218,18 +201,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hunger_advances_through_reversible_stages_before_mortality_risk() {
-        assert_eq!(hunger_stage(0), HEALTH_STAGE_WELL);
-        assert_eq!(
-            hunger_stage(ticks_for_days(HUNGER_WARNING_DAYS)),
-            HEALTH_STAGE_HUNGRY
-        );
-        assert_eq!(
-            hunger_stage(ticks_for_days(MALNUTRITION_DAYS)),
-            HEALTH_STAGE_MALNOURISHED
-        );
+    fn starvation_mortality_starts_after_a_grace_period_and_then_ramps() {
         let fatal = ticks_for_days(STARVATION_DEATH_START_DAYS);
-        assert_eq!(hunger_stage(fatal), HEALTH_STAGE_STARVING);
         assert_eq!(starvation_death_chance(3, fatal - 1), 0.0);
         assert!(starvation_death_chance(3, fatal) > 0.0);
         assert!(

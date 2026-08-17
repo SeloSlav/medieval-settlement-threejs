@@ -71,7 +71,7 @@ use crate::frontier_economy_policy::{
 use crate::farm_work_policy::{
     field_task_rank, threshing_preempts_fields,
 };
-use crate::granary_policy::{granary_exportable_grain, granary_fresh_food_target};
+use crate::granary_policy::granary_fresh_food_target;
 use crate::hydrology::{clay_bank_yield_multiplier_with_richness, sample_world_hydrology_score};
 use crate::livestock_policy::{
     farmhouse_cheese_salt_staging_cycles, normalize_milk_use_policy, MILK_USE_FRESH,
@@ -108,14 +108,14 @@ use crate::supply_policy::{
     carpenter_cart_service_ironwork_target, carpenter_cart_service_timber_target,
     compare_institutional_food_dispatch_candidates, compare_processor_input_dispatch_candidates,
     directly_dispatched_processor_input_per_cycle as processor_input_per_cycle_for_dispatch,
-    grain_dispatch_duty, grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
+    grain_input_runway_cycles, grain_input_target, granary_dispatch_order,
     institutional_food_surplus, local_material_dispatch_target, processor_input_dispatch_duty,
     processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
     processor_input_target, rich_mine_support_target, rich_mine_supports_ready,
     select_grain_dispatch_candidate, select_processor_input_dispatch_candidate,
-    select_seed_grain_delivery_candidate, select_supply_route_candidate, GrainDispatchDuty,
-    GranaryDispatchDuty, InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty,
-    GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_DISPATCH_TARGET_KINDS, GRAIN_PROCESSOR_KINDS,
+    select_seed_grain_delivery_candidate, select_supply_route_candidate, GranaryDispatchDuty,
+    InstitutionalFoodDispatchDuty, ProcessorInputDispatchDuty, GRAIN_CRITICAL_RUNWAY_CYCLES,
+    GRAIN_PROCESSOR_KINDS,
     INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
@@ -165,7 +165,6 @@ struct RoutedGrainTarget {
     building: Building,
     commodity: CommodityKind,
     distance: f64,
-    duty: GrainDispatchDuty,
     runway_cycles: f64,
     desired_stock: f64,
 }
@@ -446,17 +445,13 @@ pub fn step_threshing_barn(
         onsite_labor,
         fields,
     );
-    tick.set_farmstead_seed_reserve(
+    tick.set_farmstead_seed_reserves(
         ctx,
         building.owner,
         building.id,
-        farm_work.seed_reserves.bread_grain_total(),
-    );
-    tick.set_farmstead_barley_seed_reserve(
-        ctx,
-        building.owner,
-        building.id,
-        farm_work.seed_reserves.barley,
+        farm_work.seed_reserves.rye,
+        farm_work.seed_reserves.oats,
+        farm_work.seed_reserves.maslin,
     );
     building = step_farmstead_threshing(
         ctx,
@@ -2144,10 +2139,6 @@ struct FarmSeedReserves {
 }
 
 impl FarmSeedReserves {
-    fn bread_grain_total(self) -> f64 {
-        self.rye + self.oats + self.maslin + self.flax
-    }
-
     fn for_commodity(self, commodity: CommodityKind) -> f64 {
         match commodity {
             CommodityKind::RyeGrain => self.rye,
@@ -3094,16 +3085,6 @@ pub fn step_guardhouse(
     ctx.db.building().id().update(building);
 }
 
-fn step_simple_producer(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    clock: &GameClock,
-    building: Building,
-    outputs: &[(CommodityKind, f64)],
-) -> Building {
-    step_simple_producer_at_rate(ctx, tick, clock, building, outputs, 1.0)
-}
-
 fn step_simple_producer_at_rate(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -3634,7 +3615,6 @@ fn next_granary_grain_dispatch(
                         building: target,
                         commodity,
                         distance,
-                        duty: GrainDispatchDuty::WorkingBuffer,
                         desired_stock,
                     },
                 )
@@ -3642,7 +3622,6 @@ fn next_granary_grain_dispatch(
     });
     select_grain_dispatch_candidate(
         candidates,
-        |candidate| candidate.duty,
         |candidate| candidate.building.construction_priority,
         |candidate| candidate.runway_cycles,
         |candidate| candidate.distance,
@@ -4248,15 +4227,9 @@ fn connected_source_surplus(
         CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
     ) && source.kind == "threshing_barn"
     {
-        let fields: Vec<FarmField> = ctx
-            .db
-            .farm_field()
-            .farmstead_id()
-            .filter(&source.id)
-            .collect();
         return farmstead_exportable_grain(
             stock,
-            farmstead_seed_grain_remaining(&fields).for_commodity(commodity),
+            tick.farmstead_seed_reserve_for(ctx, source.owner, source.id, commodity),
         );
     }
     if matches!(

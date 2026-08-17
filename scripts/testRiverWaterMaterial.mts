@@ -436,8 +436,13 @@ assert.match(
 );
 assert.match(
   reedSource,
-  /material\.depthWrite\s*=\s*useDepthWrite/,
-  'visible cattail cutouts must populate depth so the water film only veils their submerged stems',
+  /material\.transparent\s*=\s*false[\s\S]*?material\.alphaHash\s*=\s*REED_USES_OPAQUE_CUTOUT_PASS[\s\S]*?material\.depthWrite\s*=\s*true/,
+  'cattails must render as alpha-hashed depth-writing cutouts before the transmissive water pass',
+);
+assert.doesNotMatch(
+  reedSource,
+  /material\.transparent\s*=\s*useTransparency/,
+  'cattail LOD must not move the cards back into the post-water transparent pass',
 );
 assert.equal(
   ensureCattailEmergenceHeightMeters(2.1, 1.05),
