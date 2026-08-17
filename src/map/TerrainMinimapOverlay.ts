@@ -173,6 +173,10 @@ export class TerrainMinimapOverlay {
         ? describeGeologicalMapMarker(entry.marker, geologicalNode)
         : null;
       entry.element.classList.toggle(
+        'resource-node-marker--rich',
+        node?.isRich === true,
+      );
+      entry.element.classList.toggle(
         'terrain-minimap__marker--depleted',
         geologicalPresentation?.level === 'depleted'
           || Boolean(

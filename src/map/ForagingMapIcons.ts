@@ -103,6 +103,11 @@ export class ForagingMapIcons {
       const node = marker.kind === 'clay'
         ? geologicalNodeForMapMarker(marker, geologicalNodes)
         : nodes.get(marker.id);
+      toggleClassIfChanged(
+        button,
+        'resource-node-marker--rich',
+        node?.isRich === true,
+      );
       let geologicalPresentation: ReturnType<typeof describeGeologicalMapMarker> | null = null;
       const geologicalPresentationChanged = marker.kind === 'clay'
         && (

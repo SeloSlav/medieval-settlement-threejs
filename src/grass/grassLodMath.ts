@@ -63,11 +63,15 @@ export const GRASS_BLADE_NEAR_RADIUS_FIRST_PERSON = 46;
 /** Spatial chunk size for streamed grass batches (larger = fewer pan hitches). */
 export const GRASS_BLADE_CHUNK_SIZE = 8;
 
-/** Target tufts scattered per chunk (organic placement, not a rigid grid). */
-export const GRASS_TUFTS_PER_CHUNK = 96;
+/**
+ * Target full-size tufts scattered per chunk. Together with the 70% micro
+ * underfill in GrassBladeField this resolves to roughly 2.35x the former
+ * close-meadow population without changing the streamed radius.
+ */
+export const GRASS_TUFTS_PER_CHUNK = 192;
 
 /** Extra scatter attempts budget per chunk. */
-export const GRASS_TUFT_SCATTER_ATTEMPTS = GRASS_TUFTS_PER_CHUNK + 56;
+export const GRASS_TUFT_SCATTER_ATTEMPTS = Math.ceil(GRASS_TUFTS_PER_CHUNK * 1.8);
 
 /** Blade stalks in each tuft mesh (shared geometry). */
 export const GRASS_BLADES_PER_TUFT = 9;

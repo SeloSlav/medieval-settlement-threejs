@@ -106,13 +106,13 @@ export type GrassStreamTelemetry = {
 const ROAD_CLEAR_MARGIN = 1.05;
 const TAU = Math.PI * 2;
 const GRID_SIDE = GRASS_STREAM_CHUNK_RADIUS * 2 + 1;
-const GRASS_SLOT_CAPACITY = GRASS_TUFTS_PER_CHUNK + 14;
-const WILDFLOWER_SLOT_CAPACITY = 72;
+const GRASS_SLOT_CAPACITY = 240;
+const WILDFLOWER_SLOT_CAPACITY = 144;
 const MAX_GRASS_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * GRASS_SLOT_CAPACITY;
 const MAX_WILDFLOWER_STREAM_INSTANCES = GRID_SIDE * GRID_SIDE * WILDFLOWER_SLOT_CAPACITY;
-const MIN_TUFT_SPACING_SQ = 0.26 * 0.26;
-const MIN_MICRO_TUFT_SPACING_SQ = 0.16 * 0.16;
-const MIN_WILDFLOWER_STEM_SPACING_SQ = 0.14 * 0.14;
+const MIN_TUFT_SPACING_SQ = 0.2 * 0.2;
+const MIN_MICRO_TUFT_SPACING_SQ = 0.12 * 0.12;
+const MIN_WILDFLOWER_STEM_SPACING_SQ = 0.13 * 0.13;
 const DENSE_WILDFLOWER_SPACING_SQ = 0.18 * 0.18;
 const PURPLE_WILDFLOWER_SPACING_SQ = 0.38 * 0.38;
 const ACCENT_WILDFLOWER_SPACING_SQ = 0.2 * 0.2;
@@ -978,7 +978,10 @@ function* generateSeedThreeChunkInstances(
 
     let x: number;
     let z: number;
-    if (localPlacements.length > 0 && rng() < 0.58) {
+    // Keep a little local affinity, but let most tufts fill the complete
+    // chunk. The former 58% clustering bias made broad bare-soil corridors
+    // even when the total tuft budget was healthy.
+    if (localPlacements.length > 0 && rng() < 0.34) {
       const anchor = localPlacements[Math.floor(rng() * localPlacements.length)]!;
       const clusterRadius = micro ? 0.18 + rng() * 0.48 : 0.35 + rng() * 0.95;
       const angle = rng() * TAU;
@@ -1027,7 +1030,7 @@ function* generateSeedThreeChunkInstances(
       entry.variant.tall;
     const widthScale = (
       height
-      * THREE.MathUtils.lerp(micro ? 0.55 : 0.7, micro ? 0.82 : 1.05, rng())
+      * THREE.MathUtils.lerp(micro ? 0.6 : 0.75, micro ? 0.86 : 1.1, rng())
     ) / entry.variant.tall;
 
     const rootY = heightAt(x, z) + 0.04;
@@ -1046,7 +1049,11 @@ function* generateSeedThreeChunkInstances(
     yield tryPlaceTuft(false) ? 1 : 0;
   }
 
-  const microTarget = Math.floor(tuftTarget * 0.42);
+  // Fine underfill closes the remaining gaps between the taller silhouettes.
+  // 192 full tufts plus this cohort is approximately 2.35x the previous
+  // 96 + 42% close-meadow population, with the extra density concentrated in
+  // short silhouettes that close soil gaps without making the field too tall.
+  const microTarget = Math.floor(tuftTarget * 0.7);
   for (
     let attempt = 0;
     attempt < GRASS_TUFT_SCATTER_ATTEMPTS && microPlacementCount < microTarget;
@@ -1073,14 +1080,15 @@ function* generateSeedThreeWildflowerChunkInstances(
   const rng = mulberry32(seed);
   const chunkMinX = chunkX * GRASS_BLADE_CHUNK_SIZE;
   const chunkMinZ = chunkZ * GRASS_BLADE_CHUNK_SIZE;
-  const patchMargin = GRASS_BLADE_CHUNK_SIZE * 0.2;
-  // Manor Lords-style meadow color is organized, not confetti-scattered:
-  // two or three dense white/yellow colonies carry each viable chunk, purple
-  // blooms range loosely through them, and orange/red accents occur only as
-  // local singles or pairs. The resulting 45-65 individual heads is visibly
-  // denser than the former 30-40-head bouquet scatter.
+  const patchMargin = GRASS_BLADE_CHUNK_SIZE * 0.075;
+  const patchCellSpan = (GRASS_BLADE_CHUNK_SIZE - patchMargin * 2) * 0.5;
+  // Manor Lords-style meadow color is organized rather than confetti-scattered.
+  // Three or four quadrant-stratified colonies prevent accidental patch
+  // overlap and spread the doubled flower population across the whole chunk;
+  // white/yellow still lead, purple ranges through them, and warm accents stay
+  // as readable singles or pairs.
   const patchRoll = rng();
-  const patchCount = patchRoll < 0.025 ? 0 : patchRoll < 0.14 ? 2 : 3;
+  const patchCount = patchRoll < 0.01 ? 0 : patchRoll < 0.38 ? 3 : 4;
   const localPlacements: Array<{ x: number; z: number; variantIndex: number }> = [];
   const cohorts: Array<{
     centerX: number;
@@ -1092,20 +1100,24 @@ function* generateSeedThreeWildflowerChunkInstances(
     radialPower: number;
   }> = [];
   const instances: GeneratedWildflowerInstance[] = [];
+  const patchCellOffset = seed & 3;
 
   for (let patchIndex = 0; patchIndex < patchCount; patchIndex++) {
+    const patchCell = (patchIndex + patchCellOffset) & 3;
+    const cellX = patchCell & 1;
+    const cellZ = patchCell >> 1;
     const centerX = chunkMinX + patchMargin
-      + rng() * (GRASS_BLADE_CHUNK_SIZE - patchMargin * 2);
+      + (cellX + THREE.MathUtils.lerp(0.18, 0.82, rng())) * patchCellSpan;
     const centerZ = chunkMinZ + patchMargin
-      + rng() * (GRASS_BLADE_CHUNK_SIZE - patchMargin * 2);
+      + (cellZ + THREE.MathUtils.lerp(0.18, 0.82, rng())) * patchCellSpan;
     const denseVariantIndex = (seed + patchIndex) % 2 === 0
       ? WHITE_WILDFLOWER_INDEX
       : YELLOW_WILDFLOWER_INDEX;
     cohorts.push({
       centerX,
       centerZ,
-      radius: THREE.MathUtils.lerp(0.5, 0.86, rng()),
-      count: 11 + Math.floor(rng() * 5),
+      radius: THREE.MathUtils.lerp(0.58, 0.96, rng()),
+      count: 18 + Math.floor(rng() * 7),
       variantIndex: denseVariantIndex,
       sameSpeciesSpacingSq: DENSE_WILDFLOWER_SPACING_SQ,
       radialPower: 0.78,
@@ -1113,8 +1125,8 @@ function* generateSeedThreeWildflowerChunkInstances(
     cohorts.push({
       centerX,
       centerZ,
-      radius: THREE.MathUtils.lerp(1.05, 1.72, rng()),
-      count: 3 + Math.floor(rng() * 4),
+      radius: THREE.MathUtils.lerp(1.08, 1.78, rng()),
+      count: 5 + Math.floor(rng() * 4),
       variantIndex: PURPLE_WILDFLOWER_INDEX,
       sameSpeciesSpacingSq: PURPLE_WILDFLOWER_SPACING_SQ,
       radialPower: 0.5,
@@ -1134,8 +1146,8 @@ function* generateSeedThreeWildflowerChunkInstances(
         radialPower: 1,
       });
     };
-    appendAccentCohort(ORANGE_WILDFLOWER_INDEX, 0.72);
-    appendAccentCohort(RED_WILDFLOWER_INDEX, 0.48);
+    appendAccentCohort(ORANGE_WILDFLOWER_INDEX, 0.82);
+    appendAccentCohort(RED_WILDFLOWER_INDEX, 0.58);
   }
 
   for (const cohort of cohorts) {
@@ -1176,7 +1188,7 @@ function* generateSeedThreeWildflowerChunkInstances(
         const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
         const habitatChance =
           density < 0.1
-            ? 0.68
+            ? 0.86
             : density < 0.68
               ? 1
               : THREE.MathUtils.lerp(0.72, 0.28, THREE.MathUtils.smoothstep(density, 0.68, 1));

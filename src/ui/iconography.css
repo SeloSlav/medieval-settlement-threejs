@@ -154,6 +154,60 @@
     inset 0 -3px 7px rgba(74, 48, 19, 0.24);
 }
 
+/* A low, muted coronet follows the marker's upper arc. Its parchment-brass
+ * fill and hairline edge reuse the icon frame palette, keeping richness part
+ * of the marker rather than reading as a separate badge. */
+.rich-resource-crown {
+  position: absolute;
+  z-index: 2;
+  top: -9px;
+  left: 50%;
+  display: block;
+  width: 34px;
+  height: 20px;
+  overflow: visible;
+  opacity: 0;
+  visibility: hidden;
+  filter: drop-shadow(0 1px 1px rgba(45, 29, 11, 0.42));
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.rich-resource-crown__body {
+  fill: #b89558;
+  stroke: rgba(73, 50, 23, 0.84);
+  stroke-linejoin: round;
+  stroke-width: 0.9px;
+  vector-effect: non-scaling-stroke;
+}
+
+.rich-resource-crown__rim {
+  fill: none;
+  stroke: rgba(241, 215, 154, 0.82);
+  stroke-linecap: round;
+  stroke-width: 0.75px;
+  vector-effect: non-scaling-stroke;
+}
+
+.resource-node-marker--rich > .rich-resource-crown {
+  opacity: 1;
+  visibility: visible;
+}
+
+.quarry-map-icon--large > .rich-resource-crown {
+  top: -11px;
+  width: 39px;
+  height: 23px;
+}
+
+/* Rich geological markers also carry the infinity reserve badge. Keep that
+ * badge on the lower rim so it does not cover the crown. */
+.resource-node-marker--rich.quarry-map-icon--deep::after,
+.resource-node-marker--rich.foraging-map-icon--deep::after {
+  top: auto;
+  bottom: -5px;
+}
+
 .quarry-map-icon--large .map-resource-icon-glyph {
   width: 32px;
   height: 32px;
@@ -182,6 +236,18 @@
 .terrain-minimap__marker--resource .map-resource-icon-glyph {
   width: 17px;
   height: 17px;
+}
+
+.terrain-minimap__marker--resource > .rich-resource-crown {
+  top: -6px;
+  width: 21px;
+  height: 13px;
+}
+
+.terrain-minimap__marker--large > .rich-resource-crown {
+  top: -7px;
+  width: 25px;
+  height: 15px;
 }
 
 .terrain-minimap__marker--large .map-resource-icon-glyph {

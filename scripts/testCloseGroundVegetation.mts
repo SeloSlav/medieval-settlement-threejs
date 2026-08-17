@@ -133,13 +133,33 @@ assert.doesNotMatch(
 );
 assert.match(
   fieldSource,
-  /WILDFLOWER_SLOT_CAPACITY = 72/,
-  'the streamed wildflower slot should hold the complete individual-stem meadow patch',
+  /GRASS_SLOT_CAPACITY = 240/,
+  'the streamed grass slots should hold the doubled full and micro tuft population',
+);
+assert.match(
+  lodSource,
+  /GRASS_TUFTS_PER_CHUNK = 192/,
+  'close grass should target 192 full tufts per 8x8 metre chunk',
 );
 assert.match(
   fieldSource,
-  /const patchCount = patchRoll < 0\.025 \? 0 : patchRoll < 0\.14 \? 2 : 3/,
-  'wildflowers should occur in most chunks as three color-organized patches',
+  /rng\(\) < 0\.34[\s\S]*?microTarget = Math\.floor\(tuftTarget \* 0\.7\)/,
+  'the denser meadow should fill gaps with a lower clustering bias and a larger micro underfill',
+);
+assert.match(
+  fieldSource,
+  /WILDFLOWER_SLOT_CAPACITY = 144/,
+  'the streamed wildflower slot should hold the doubled individual-stem meadow population',
+);
+assert.match(
+  fieldSource,
+  /const patchCount = patchRoll < 0\.01 \? 0 : patchRoll < 0\.38 \? 3 : 4/,
+  'wildflowers should occur in almost every chunk as three or four color-organized patches',
+);
+assert.match(
+  fieldSource,
+  /patchCellOffset[\s\S]*?patchCell = \(patchIndex \+ patchCellOffset\) & 3/,
+  'wildflower patch centers should be stratified across chunk quadrants',
 );
 assert.match(
   fieldSource,
@@ -148,12 +168,12 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /variantIndex: denseVariantIndex,[\s\S]*?count: 3 \+ Math\.floor\(rng\(\) \* 4\),[\s\S]*?variantIndex: PURPLE_WILDFLOWER_INDEX/,
+  /count: 18 \+ Math\.floor\(rng\(\) \* 7\),[\s\S]*?variantIndex: denseVariantIndex,[\s\S]*?count: 5 \+ Math\.floor\(rng\(\) \* 4\),[\s\S]*?variantIndex: PURPLE_WILDFLOWER_INDEX/,
   'dense white/yellow colonies should carry a smaller, more widely scattered purple cohort',
 );
 assert.match(
   fieldSource,
-  /count: rng\(\) < 0\.68 \? 1 : 2,[\s\S]*?appendAccentCohort\(ORANGE_WILDFLOWER_INDEX, 0\.72\)[\s\S]*?appendAccentCohort\(RED_WILDFLOWER_INDEX, 0\.48\)/,
+  /count: rng\(\) < 0\.68 \? 1 : 2,[\s\S]*?appendAccentCohort\(ORANGE_WILDFLOWER_INDEX, 0\.82\)[\s\S]*?appendAccentCohort\(RED_WILDFLOWER_INDEX, 0\.58\)/,
   'orange and red accents should remain local singles or pairs',
 );
 assert.match(
@@ -275,9 +295,9 @@ assert.deepEqual(
 
 function plannedGroundcoverUploadBytes(update: GroundcoverSlotUpdate): number {
   const meshSpecs = [
-    { capacity: 110, itemSizes: [16, 3, 3, 3] },
-    { capacity: 110, itemSizes: [16, 3, 3, 3] },
-    { capacity: 72, itemSizes: [16, 4] },
+    { capacity: 240, itemSizes: [16, 3, 3, 3] },
+    { capacity: 240, itemSizes: [16, 3, 3, 3] },
+    { capacity: 144, itemSizes: [16, 4] },
   ];
   let bytes = 0;
   for (let meshIndex = 0; meshIndex < meshSpecs.length; meshIndex++) {
@@ -297,9 +317,9 @@ function plannedGroundcoverUploadBytes(update: GroundcoverSlotUpdate): number {
 assert.equal(
   plannedGroundcoverUploadBytes({
     slotIndex: 3,
-    dirtyInstanceCounts: [110, 110, 72],
+    dirtyInstanceCounts: [240, 240, 144],
   }),
-  27_760,
+  59_520,
   'a first-time slot must upload the complete expanded wildflower slot',
 );
 assert.equal(
@@ -317,13 +337,13 @@ assert.deepEqual(
       { slotIndex: 4, dirtyInstanceCounts: [55] },
     ],
     0,
-    110,
+    240,
     16,
   ),
   {
     ranges: [
-      { start: 5_280, count: 1_024 },
-      { start: 7_040, count: 880 },
+      { start: 11_520, count: 1_024 },
+      { start: 15_360, count: 880 },
     ],
     componentCount: 1_904,
     byteCount: 7_616,
@@ -334,7 +354,7 @@ assert.deepEqual(
   planGroundcoverAttributeUpdateRanges(
     [{ slotIndex: 3, dirtyInstanceCounts: [0] }],
     0,
-    110,
+    240,
     16,
   ),
   { ranges: [], componentCount: 0, byteCount: 0 },
@@ -353,7 +373,7 @@ const recycledCountSequence = [
   [0, 0, 0],
   [69, 44, 54],
 ] as const;
-const slotCapacities = [110, 110, 72] as const;
+const slotCapacities = [240, 240, 144] as const;
 let initialized = false;
 let previousCounts = [0, 0, 0];
 let exactUploadBytes = 0;
@@ -377,7 +397,7 @@ for (const nextCounts of recycledCountSequence) {
   previousCounts = [...nextCounts];
   initialized = true;
 }
-const fullCapacityUploadBytes = recycledCountSequence.length * 27_760;
+const fullCapacityUploadBytes = recycledCountSequence.length * 59_520;
 const fullCapacityClearWrites = recycledCountSequence.length
   * slotCapacities.reduce((sum, capacity) => sum + capacity, 0);
 assert.ok(
@@ -581,7 +601,7 @@ assert.doesNotMatch(
 );
 assert.match(
   wildflowerSource,
-  /SEEDTHREE_WILDFLOWER_HEAD_SCALE = 1\.25/,
+  /SEEDTHREE_WILDFLOWER_HEAD_SCALE = 1\.5/,
   'wildflower heads should remain legible at maximum strategic-camera zoom',
 );
 assert.match(

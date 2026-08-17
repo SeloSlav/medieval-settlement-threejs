@@ -95,6 +95,11 @@ export class QuarryMapIcons {
         || entry.presentationIsRich !== node?.isRich
       ) {
         const presentation = describeGeologicalMapMarker(marker, node);
+        toggleClassIfChanged(
+          button,
+          'resource-node-marker--rich',
+          node?.isRich === true,
+        );
         setDatasetIfChanged(button, 'tooltip', presentation.label);
         setDatasetIfChanged(button, 'reserveLevel', presentation.level);
         setAttributeIfChanged(button, 'aria-label', presentation.label);

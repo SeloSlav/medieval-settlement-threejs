@@ -89,8 +89,25 @@ const SETTLEMENT_HUD_HTML = `
       </div>
       <div class="noble-hud__identity">
         <strong data-noble-hud-name></strong>
-        <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" data-tooltip-title="Civic gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
-          <span class="settlement-hud__label">Gold</span>
+        <div class="settlement-hud__stat settlement-hud__stat--gold noble-hud__gold" tabindex="0" data-resource="gold" data-tooltip-title="Treasury gold" data-tooltip="Spendable gold in settlement lockboxes and the Town Hall treasury.">
+          <svg class="noble-hud__gold-icon" viewBox="0 0 34 28" aria-hidden="true">
+            <g class="noble-hud__coin-stack noble-hud__coin-stack--short">
+              <ellipse cx="7" cy="20" rx="5" ry="2.2" />
+              <path d="M2 16.5v3.5c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2v-3.5" />
+              <ellipse cx="7" cy="16.5" rx="5" ry="2.2" />
+            </g>
+            <g class="noble-hud__coin-stack">
+              <path d="M12 7.5V21c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2V7.5" />
+              <ellipse cx="17" cy="7.5" rx="5" ry="2.2" />
+              <path d="M12 12c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2M12 16.5c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2" />
+            </g>
+            <g class="noble-hud__coin-stack noble-hud__coin-stack--short">
+              <ellipse cx="27" cy="17" rx="5" ry="2.2" />
+              <path d="M22 13.5V17c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2v-3.5" />
+              <ellipse cx="27" cy="13.5" rx="5" ry="2.2" />
+            </g>
+          </svg>
+          <span class="settlement-hud__label">Treasury</span>
           <strong class="settlement-hud__value" data-stockpile="gold">0</strong>
           <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="gold" hidden></span>
         </div>

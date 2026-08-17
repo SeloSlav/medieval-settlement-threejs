@@ -47,8 +47,8 @@ const FLOWER_CARD_COLOR = new THREE.Color(0xffffff);
 const WILDFLOWER_ATLAS_PATH =
   '/assets/textures/vegetation/wildflowers/gorski-kotar-wildflower-atlas-v2.png';
 export const WILDFLOWER_ATLAS_CELL_SCALE = [1 / 5, 1 / 2] as const;
-/** Larger heads remain legible at the game's closest strategic-camera zoom. */
-export const SEEDTHREE_WILDFLOWER_HEAD_SCALE = 1.25;
+/** Larger heads remain legible among the denser grass at maximum strategic zoom. */
+export const SEEDTHREE_WILDFLOWER_HEAD_SCALE = 1.5;
 // The regenerated lily's darkest throat pixel is at source UV (0.50, 0.63).
 // Runtime V is flipped, placing the pit 0.28 radii below the card center.
 const LILY_THROAT_AXIS_V_OFFSET = -0.28;
