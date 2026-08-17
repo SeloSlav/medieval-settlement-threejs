@@ -1037,6 +1037,7 @@ export async function bootstrapAppSession(
     computeResourceTotals(gameState),
     computeStoredResourceTotals(gameState),
     computePopulationStats(gameState),
+    gameState.physicalFoundingSiteEnabled === true,
     computeInTransitResourceTotals(gameState.deliveryTrips.values()),
     computeGoldAwaitingCollection(gameState.buildings.values()),
     computeGuardhousePayrollGold(gameState.buildings.values()),

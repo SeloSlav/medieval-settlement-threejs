@@ -1406,6 +1406,7 @@ export class App {
       computeResourceTotals(presentationState),
       computeStoredResourceTotals(presentationState),
       computePopulationStats(presentationState),
+      presentationState.physicalFoundingSiteEnabled === true,
       computeInTransitResourceTotals(this.gameState.deliveryTrips.values()),
       computeGoldAwaitingCollection(presentationState.buildings.values()),
       computeGuardhousePayrollGold(presentationState.buildings.values()),

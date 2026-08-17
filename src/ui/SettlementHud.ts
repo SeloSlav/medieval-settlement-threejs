@@ -289,16 +289,16 @@ const SETTLEMENT_HUD_HTML = `
       <span class="settlement-hud__totals-mode-label" data-resource-totals-mode-label>Surplus</span>
     </button>
     <div class="settlement-hud__body">
-      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-founding-population-stat data-tooltip-title="Workers free to assign" data-tooltip="People currently available for a new work assignment." hidden>
+      <div class="settlement-hud__stat" tabindex="0" data-resource="labor" data-tooltip-title="Workers free to assign" data-tooltip="People currently available for a new work assignment.">
         <span class="settlement-hud__label">Labor</span>
         <strong class="settlement-hud__value" data-stockpile="labor">0</strong>
         <span class="settlement-hud__sub" data-stockpile="labor-sub">available</span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-founding-population-stat data-tooltip-title="Total population" data-tooltip="All townsfolk currently living in the settlement." hidden>
+      <div class="settlement-hud__stat" tabindex="0" data-resource="population" data-tooltip-title="Total population" data-tooltip="All townsfolk currently living in the settlement.">
         <span class="settlement-hud__label">Population</span>
         <strong class="settlement-hud__value" data-stockpile="population">0</strong>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-founding-population-stat data-tooltip-title="Homeless residents" data-tooltip="Townsfolk who do not currently have a home." hidden>
+      <div class="settlement-hud__stat" tabindex="0" data-resource="housing" data-tooltip-title="Homeless residents" data-tooltip="Townsfolk who do not currently have a home.">
         <span class="settlement-hud__label">Homeless residents</span>
         <strong class="settlement-hud__value" data-stockpile="housing">0</strong>
       </div>
@@ -569,7 +569,6 @@ export class SettlementHud {
     HTMLElement
   >;
   private readonly speedButtons: HTMLButtonElement[];
-  private readonly foundingPopulationStats: HTMLElement[];
   private readonly fpsValue: HTMLElement;
   private readonly zoomValue: HTMLElement;
   private readonly nobleEye: HTMLButtonElement;
@@ -671,12 +670,6 @@ export class SettlementHud {
       salt: this.mustElement('[data-resource="salt"]'),
     };
     this.speedButtons = [...this.panel.querySelectorAll<HTMLButtonElement>('[data-game-speed]')];
-    this.foundingPopulationStats = [
-      ...this.panel.querySelectorAll<HTMLElement>('[data-founding-population-stat]'),
-    ];
-    if (this.foundingPopulationStats.length !== 3) {
-      throw new Error('SettlementHud must contain three founding population stats.');
-    }
     for (const button of this.speedButtons) {
       button.addEventListener('click', () => {
         const speed = Number(button.dataset.gameSpeed) as GameSpeed;
@@ -1257,12 +1250,6 @@ export class SettlementHud {
 
   setConflictEnabled(enabled: boolean): void {
     this.polearmsStat.hidden = !enabled;
-  }
-
-  setPopulationStatsVisible(visible: boolean): void {
-    for (const stat of this.foundingPopulationStats) {
-      stat.hidden = !visible;
-    }
   }
 
   setSettlementClock(schedule: SettlementSchedule): void {

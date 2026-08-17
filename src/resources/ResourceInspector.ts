@@ -1337,6 +1337,7 @@ export class ResourceInspector {
     surplusTotals: ResourceTotals,
     storedTotals: ResourceTotals,
     population: PopulationStats,
+    starterCampCreated: boolean,
     inTransit?: ResourceTotals,
     goldAwaitingCollection = 0,
     guardhousePayrollGold = 0,
@@ -1348,19 +1349,24 @@ export class ResourceInspector {
     this.goldAwaitingCollection = goldAwaitingCollection;
     this.guardhousePayrollGold = guardhousePayrollGold;
     this.renderHudResourceTotals();
-    this.populationValue.textContent = population.total.toString();
-    this.housingValue.textContent = Math.max(0, population.total - population.housed).toString();
-    this.laborValue.textContent = population.available.toString();
-    this.setHudTooltipAmount(this.populationValue, population.total, 'Current population');
+    const displayedPopulation = starterCampCreated ? population.total : 0;
+    const displayedHomeless = starterCampCreated
+      ? Math.max(0, population.total - population.housed)
+      : 0;
+    const displayedLabor = starterCampCreated ? population.available : 0;
+    this.populationValue.textContent = displayedPopulation.toString();
+    this.housingValue.textContent = displayedHomeless.toString();
+    this.laborValue.textContent = displayedLabor.toString();
+    this.setHudTooltipAmount(this.populationValue, displayedPopulation, 'Current population');
     this.setHudTooltipAmount(
       this.housingValue,
-      Math.max(0, population.total - population.housed),
+      displayedHomeless,
       'Homeless residents',
     );
-    this.setHudTooltipAmount(this.laborValue, population.available, 'Workers available');
+    this.setHudTooltipAmount(this.laborValue, displayedLabor, 'Workers available');
     const laborSub = this.stockpileRoot.querySelector<HTMLElement>('[data-stockpile="labor-sub"]');
     if (laborSub) {
-      laborSub.textContent = population.assigned > 0
+      laborSub.textContent = starterCampCreated && population.assigned > 0
         ? `${population.assigned} assigned`
         : 'available';
     }
@@ -1457,10 +1463,13 @@ export class ResourceInspector {
 
   private renderFoodBreakdown(): void {
     if (!this.storedTotals || !this.surplusTotals) return;
+    const showingTotal = this.resourceTotalsPresentation === 'total';
+    const amountLabel = showingTotal ? 'Total stored' : 'Available surplus';
     for (const kind of FOOD_BREAKDOWN_ROW_KINDS) {
       const stored = Math.max(0, this.storedTotals[kind]);
       const transit = Math.max(0, this.inTransitTotals?.[kind] ?? 0);
       const surplus = Math.max(0, this.surplusTotals[kind]);
+      const displayed = showingTotal ? stored : surplus;
       const homes = Math.max(0, stored - surplus);
       const elements = this.foodBreakdownRows[kind];
       const stocked = stored + transit > 1e-6;
@@ -1468,9 +1477,9 @@ export class ResourceInspector {
       const visible = namedFood || stocked;
       elements.row.hidden = !visible;
       elements.row.classList.toggle('is-empty', !stocked);
-      elements.stored.textContent = formatTransitAmount(stored);
-      elements.row.dataset.tooltipAmount = formatTransitAmount(stored);
-      elements.row.dataset.tooltipAmountLabel = 'Total stored';
+      elements.stored.textContent = formatTransitAmount(displayed);
+      elements.row.dataset.tooltipAmount = formatTransitAmount(displayed);
+      elements.row.dataset.tooltipAmountLabel = amountLabel;
       elements.transit.hidden = transit <= 1e-6;
       elements.transit.textContent = transit > 1e-6
         ? `+${formatTransitAmount(transit)} cart`

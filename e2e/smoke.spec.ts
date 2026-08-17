@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const STARTING_TIMBER = 160;
 const REFORESTER_TIMBER_COST = 35;
+const STARTING_POPULATION = 10;
 const STARTUP_TIMEOUT_MS = 90_000;
 const SYNC_TIMEOUT_MS = 45_000;
 
@@ -71,10 +72,12 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   });
   const starterCamp = page.getByRole('button', { name: /Place starter camp/ });
   await expect(starterCamp).toBeVisible({ timeout: SYNC_TIMEOUT_MS });
-  const foundingPopulationStats = page.locator('[data-founding-population-stat]');
-  await expect(foundingPopulationStats).toHaveCount(3);
-  for (const stat of await foundingPopulationStats.all()) {
-    await expect(stat).toBeHidden();
+  const foundingPopulationValues = page.locator(
+    '[data-stockpile="labor"], [data-stockpile="population"], [data-stockpile="housing"]',
+  );
+  await expect(foundingPopulationValues).toHaveCount(3);
+  for (const value of await foundingPopulationValues.all()) {
+    await expect(value).toHaveText('0');
   }
   const welcomeTutorial = page.getByRole('dialog', { name: 'Begin Your Settlement' });
   await expect(welcomeTutorial).toBeVisible({ timeout: SYNC_TIMEOUT_MS });
@@ -92,8 +95,8 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
     { timeout: SYNC_TIMEOUT_MS },
   ).toBeGreaterThanOrEqual(1);
   await expect(starterCamp).toBeHidden({ timeout: SYNC_TIMEOUT_MS });
-  for (const stat of await foundingPopulationStats.all()) {
-    await expect(stat).toBeVisible();
+  for (const value of await foundingPopulationValues.all()) {
+    await expect(value).toHaveText(String(STARTING_POPULATION));
   }
   const startup = await page.evaluate(() => window.__medievalRoadStartup);
   expect(startup?.settlementPresentationReadyMs).toBeGreaterThan(0);
@@ -143,6 +146,9 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(foodStores).toHaveAttribute('open', '');
   await page.locator('[data-food-resource="ryeBread"]').hover();
   await expect(page.locator('#ui-tooltip .ui-tooltip__title')).toHaveText('Rye bread');
+  await expect(page.locator('#ui-tooltip .ui-tooltip__amount-label')).toHaveText(
+    'Available surplus',
+  );
   await timberHud.hover();
   await expect(foodStores).not.toHaveAttribute('open', '');
   await totalsMode.hover();
@@ -189,6 +195,9 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');
   await expect(tooltip.locator('.ui-tooltip__amount-value')).toHaveText('9,000');
   await expect(ironworkTooltipParagraphs).toHaveCount(1);
+  await foodSummary.hover();
+  await page.locator('[data-food-resource="ryeBread"]').hover();
+  await expect(tooltip.locator('.ui-tooltip__amount-label')).toHaveText('Total stored');
   await totalsMode.click();
   await expect(timberHud).toHaveText(String(timberBefore - REFORESTER_TIMBER_COST));
   await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods (default)');
