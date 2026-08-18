@@ -45,8 +45,12 @@ almostEqual(
 );
 const extremeLayout = BuildingTerrainLayout.fromSettlement([], [residence], (x) => x * 2);
 assert.ok(
-  extremeLayout.getPlatformRaise(0, 0, 0) <= 2.4,
+  extremeLayout.getPlatformRaise(0, 0, 0) <= 6,
   'legacy residences on extreme slopes should not create unbounded earthen platforms',
+);
+assert.ok(
+  extremeLayout.getPlatformRaise(0, 0, 0) > 2.4,
+  'residence earthworks should now accommodate slopes beyond the former strict cap',
 );
 
 const bays = sampleTerrainFenceBays(

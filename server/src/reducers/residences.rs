@@ -8,8 +8,8 @@ use crate::balance_generated::{
     RESIDENCE_TILE_ROOF_TILE_COST, RESIDENCE_TILE_ROOF_TIMBER_COST, RESIDENCE_TIMBER_COST,
 };
 use crate::burgage::{
-    compute_burgage_layout, convex_zones_overlap, max_zone_depth, measure_zone_depth,
-    measure_zone_side_depths, min_zone_depth, zone_corners_polygon, ZoneCorners,
+    compute_burgage_layout, convex_zones_overlap, measure_zone_depth, min_zone_depth,
+    residence_depth_cost_units, zone_corners_polygon, ZoneCorners,
 };
 use crate::construction_priority::{
     is_valid_construction_priority, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_NORMAL,
@@ -19,8 +19,9 @@ use crate::economy::{
     available_building_labor, building_commodity_stock, credit_treasury_commodity,
     credit_treasury_stone, credit_treasury_timber, reconcile_building_labor,
     residence_food_variety_count, residence_population_for_parcel, residence_zone_cost,
-    spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber,
-    treasury_gold, CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
+    residence_zone_cost_for_units, spend_aggregate_stone, spend_aggregate_timber,
+    spend_treasury_gold, total_stone, total_timber, treasury_gold, CommodityKind, ResourceAmount,
+    STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
@@ -165,18 +166,20 @@ pub fn place_burgage_zone(
     }
 
     let zone_depth = measure_zone_depth(&corners, frontage_edge);
-    let side_depths = measure_zone_side_depths(&corners, frontage_edge);
     if zone_depth + 1e-6 < min_zone_depth() {
         return Err("Plot is too shallow — pull the back edge farther from the road.".to_string());
-    }
-    if side_depths.0.max(side_depths.1) > max_zone_depth() + 0.05 {
-        return Err("Plot is too deep — shorten the backyard behind the road.".to_string());
     }
 
     let layout = compute_burgage_layout(&corners, frontage_edge, plot_count)
         .ok_or_else(|| "Could not fit residences in this zone.".to_string())?;
 
-    let cost = residence_zone_cost(layout.plot_count);
+    let residence_cost_units: Vec<f64> = layout
+        .residences
+        .iter()
+        .map(|residence| residence_depth_cost_units(residence.backyard_depth))
+        .collect();
+    let total_cost_units = residence_cost_units.iter().sum::<f64>();
+    let cost = residence_zone_cost_for_units(total_cost_units);
     if total_timber(ctx, owner) + 1e-6 < cost.timber {
         return Err(format!(
             "Not enough timber (need {} timber).",
@@ -229,8 +232,22 @@ pub fn place_burgage_zone(
         .max()
         .ok_or_else(|| "Failed to resolve residence zone id.".to_string())?;
 
-    for residence in layout.residences {
+    for (residence, residence_cost_units) in layout
+        .residences
+        .into_iter()
+        .zip(residence_cost_units.into_iter())
+    {
         let population_capacity = residence_population_for_parcel(residence.parcel_frontage);
+        let required_timber = if physical_economy {
+            cost.timber * residence_cost_units / total_cost_units
+        } else {
+            0.0
+        };
+        let required_stone = if physical_economy {
+            cost.stone * residence_cost_units / total_cost_units
+        } else {
+            0.0
+        };
         let inserted = ctx.db.residence().insert(Residence {
             id: 0,
             zone_id,
@@ -251,30 +268,14 @@ pub fn place_burgage_zone(
             last_household_market_tick: 0,
             upgrade_target_tier: if physical_economy { 1 } else { 0 },
             upgrade_progress: 0.0,
-            upgrade_required_timber: if physical_economy {
-                RESIDENCE_TIMBER_COST
-            } else {
-                0.0
-            },
-            upgrade_required_stone: if physical_economy {
-                RESIDENCE_STONE_COST
-            } else {
-                0.0
-            },
+            upgrade_required_timber: required_timber,
+            upgrade_required_stone: required_stone,
             upgrade_required_gold: 0.0,
             upgrade_delivered_timber: 0.0,
             upgrade_delivered_stone: 0.0,
             upgrade_delivered_gold: 0.0,
-            upgrade_reserved_timber: if physical_economy {
-                RESIDENCE_TIMBER_COST
-            } else {
-                0.0
-            },
-            upgrade_reserved_stone: if physical_economy {
-                RESIDENCE_STONE_COST
-            } else {
-                0.0
-            },
+            upgrade_reserved_timber: required_timber,
+            upgrade_reserved_stone: required_stone,
             upgrade_reserved_gold: 0.0,
             upgrade_assigned_labor: 0,
             upgrade_priority: crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL,
@@ -326,14 +327,14 @@ pub fn place_burgage_zone(
                 network,
                 &inserted,
                 CommodityKind::Timber,
-                RESIDENCE_TIMBER_COST,
+                required_timber,
             )?;
             ensure_upgrade_source_route(
                 ctx,
                 network,
                 &inserted,
                 CommodityKind::Stone,
-                RESIDENCE_STONE_COST,
+                required_stone,
             )?;
         }
     }

@@ -881,7 +881,7 @@ export class SettlementHud {
     this.fireAlert.dataset.tooltip = [
       `Worst fire: ${Math.round(worst.intensity * 100)}% intensity`,
       `${Math.round(worst.damage * 100)}% damage`,
-      `${worst.waterDelivered.toFixed(1)} / ${worst.requiredWater.toFixed(1)} water delivered`,
+      `${Math.round(worst.waterDelivered)} / ${Math.round(worst.requiredWater)} water delivered`,
       worst.extinguishChance > 0
         ? `${Math.round(worst.extinguishChance * 100)}% chance on the last bucket attempt`
         : 'Extinguishing odds improve as buckets cool the fire',
@@ -1064,7 +1064,7 @@ export class SettlementHud {
         ? `${provisioning.armedGuards} / ${provisioning.assignedGuards} assigned guards are armed; ${provisioning.unarmedGuards} still need polearms.`
         : 'No paid guard company is currently assigned.',
       provisioning.armedGuards > 0
-        ? `Guardhouses hold ${provisioning.guardFoodStock.toFixed(1)} food; the first local company runs short in ${formatProvisionRunway(provisioning.guardProvisionRunwayDays)}. Wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day (${formatProvisionRunway(provisioning.guardWageRunwayDays)}).`
+        ? `Guardhouses hold ${Math.round(provisioning.guardFoodStock)} food; the first local company runs short in ${formatProvisionRunway(provisioning.guardProvisionRunwayDays)}. Wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day (${formatProvisionRunway(provisioning.guardWageRunwayDays)}).`
         : 'No armed guard upkeep is currently due.',
       provisioning.heatedResidents > 0
         ? `A full winter needs about ${Math.ceil(provisioning.winterFirewoodNeed)} firewood at the current heated population.`
@@ -1074,13 +1074,13 @@ export class SettlementHud {
         : 'No occupied household is currently fire-disabled.',
       provisioning.fireQuarantinedFoodStock > 0.05
         || provisioning.fireQuarantinedFirewoodStock > 0.05
-        ? `Fire quarantine makes ${provisioning.fireQuarantinedFoodStock.toFixed(1)} food and ${provisioning.fireQuarantinedFirewoodStock.toFixed(1)} firewood temporarily inaccessible. Food in damaged buildings continues to spoil.`
+        ? `Fire quarantine makes ${Math.round(provisioning.fireQuarantinedFoodStock)} food and ${Math.round(provisioning.fireQuarantinedFirewoodStock)} firewood temporarily inaccessible. Food in damaged buildings continues to spoil.`
         : 'No provisions are currently quarantined by structural fire damage.',
       `Fresh-food spoilage is currently ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}; cured stores age by ${formatPreservedFoodLoss(provisioning.preservedFoodSpoilagePerDay)} among usable household and distributor stock.`,
       `Local delivery buffer: ${formatHouseholdBufferReadiness(provisioning)}. Food, water, and provisions cover one workday; firewood covers the nightly no-cart interval.`,
       provisioning.roadBranches === null
         ? 'Road-branch provisioning is unavailable.'
-        : `Road-branch audit: ${provisioning.roadBranches.foodSuppliedBranches} / ${provisioning.roadBranches.activeBranches} occupied branches have a stocked fresh-food route; ${provisioning.roadBranches.physicalFoodStock.toFixed(1)} fresh and ${provisioning.roadBranches.physicalPreservedFoodStock.toFixed(1)} cured provisions give the weakest branch ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)} of fresh-food runway. ${provisioning.roadBranches.heatedBranches > 0 ? `${provisioning.roadBranches.firewoodSuppliedBranches} / ${provisioning.roadBranches.heatedBranches} heated branches have a fuel distributor; the weakest holds ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at winter demand.` : 'No occupied home currently needs household fuel.'}`,
+        : `Road-branch audit: ${provisioning.roadBranches.foodSuppliedBranches} / ${provisioning.roadBranches.activeBranches} occupied branches have a stocked fresh-food route; ${Math.round(provisioning.roadBranches.physicalFoodStock)} fresh and ${Math.round(provisioning.roadBranches.physicalPreservedFoodStock)} cured provisions give the weakest branch ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)} of fresh-food runway. ${provisioning.roadBranches.heatedBranches > 0 ? `${provisioning.roadBranches.firewoodSuppliedBranches} / ${provisioning.roadBranches.heatedBranches} heated branches have a fuel distributor; the weakest holds ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at winter demand.` : 'No occupied home currently needs household fuel.'}`,
       provisioning.sabbathObserved
         ? `Sunday readiness: ${formatSabbathReadiness(provisioning)}. Labor and carts rest, but households keep consuming delivered provisions.`
         : 'Sunday labor follows the normal schedule.',
@@ -1226,7 +1226,7 @@ export class SettlementHud {
     this.welfareAlert.dataset.tooltip = [
       `${welfare.stableResidents} / ${welfare.activeResidents} residents live in households without a current health or service warning.`,
       welfare.sickResidents > 0
-        ? `${welfare.sickResidents} residents cannot work while ill. The settlement holds ${welfare.householdRemedyStock.toFixed(1)} remedies in homes, ${welfare.preparedRemedyStock.toFixed(1)} at sheds, and ${welfare.remediesInTransit.toFixed(1)} on carts against ${welfare.remedyDemandPerDay.toFixed(2)} per day; ${welfare.untreatedSickHouseholds} sick homes are not yet supplied for a full day.`
+        ? `${welfare.sickResidents} residents cannot work while ill. The settlement holds ${Math.round(welfare.householdRemedyStock)} remedies in homes, ${Math.round(welfare.preparedRemedyStock)} at sheds, and ${Math.round(welfare.remediesInTransit)} on carts against ${welfare.remedyDemandPerDay.toFixed(2)} per day; ${welfare.untreatedSickHouseholds} sick homes are not yet supplied for a full day.`
         : 'No resident is currently unable to work through illness.',
       welfare.uncollectedBodiesAtHomes > 0
         ? `${welfare.uncollectedBodiesAtHomes} bodies still remain at homes and add local disease pressure. ${welfare.outboundEmptyCarts} empty burial carts are outbound and ${welfare.loadedBurialCarts} loaded carts are returning.`

@@ -5,7 +5,6 @@ import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
 import { RoadNetwork, type RoadNetworkSnapshot } from '../src/roads/RoadNetwork.ts';
 import { RoadNodeSnapMarkers } from '../src/roads/RoadNodeSnapMarkers.ts';
 import {
-  ROAD_CAP_OVERLAP,
   ROAD_END_TRIM,
   ROAD_JUNCTION_REACH,
   roadTerminalTrimDistance,
@@ -137,16 +136,11 @@ assert(
 );
 
 const deadEndPatches = patches.children.filter((child) => child.name.startsWith('Road endpoint '));
-assert.equal(deadEndPatches.length, 2, 'only the two true dead ends should receive terminal caps');
-for (const group of deadEndPatches as THREE.Group[]) {
-  assert.equal(group.children.length, 2);
-  for (const mesh of group.children as THREE.Mesh[]) {
-    const normals = mesh.geometry.getAttribute('normal');
-    for (let index = 0; index < normals.count; index++) {
-      assert(normals.getY(index) > 0.99, 'terminal cap triangles should face upward');
-    }
-  }
-}
+assert.equal(
+  deadEndPatches.length,
+  0,
+  'dead-end caps should be part of the edge fabric instead of detached junction patches',
+);
 
 const terminalRoad = new RoadNetwork();
 terminalRoad.addRoadPath([point(0, 0), point(20, 0)]);
@@ -166,20 +160,92 @@ for (let index = 1; index < terminalPath.length; index++) {
 }
 const capMouthDistance = terminalEdge.width * ROAD_END_TRIM;
 assert.equal(
-  capMouthDistance - terminalPath[0].x,
-  terminalEdge.width * ROAD_CAP_OVERLAP,
-  'the cap mouth should overlap the trimmed ribbon by the configured amount',
+  terminalPath[0].x,
+  capMouthDistance,
+  'the ribbon should terminate exactly on the shared cap diameter',
 );
 
-const terminalPatches = new RoadJunctionBuilder(flatTerrain as never, materials as never).build(terminalRoad);
-const startCap = terminalPatches.getObjectByName('Road endpoint n1') as THREE.Group | undefined;
-assert(startCap);
-const startBlend = startCap.children[0] as THREE.Mesh;
-const startBlendUvs = startBlend.geometry.getAttribute('uv');
-const arcVertexCount = 23;
-const outerRingStart = arcVertexCount * 3;
-for (let index = outerRingStart; index < outerRingStart + arcVertexCount; index++) {
-  assert.equal(startBlendUvs.getX(index), 0, 'the terminal feather must reach zero opacity at its outer arc');
+const terminalEdgeGroup = new RoadMeshBuilder(
+  flatTerrain as never,
+  materials as never,
+).buildEdge(terminalEdge, terminalRoad);
+const terminalCore = terminalEdgeGroup.getObjectByName(`Road core ${terminalEdge.id}`) as THREE.Mesh | undefined;
+const terminalBlend = terminalEdgeGroup.getObjectByName(`Road edge blend ${terminalEdge.id}`) as THREE.Mesh | undefined;
+assert(terminalCore && terminalBlend);
+const terminalSampleCount = terminalEdge.sampledPath.length - 2;
+assert(
+  terminalCore.geometry.getAttribute('position').count > terminalSampleCount * 2,
+  'the opaque dead-end arcs should be compiled into the road core geometry',
+);
+assert(
+  terminalBlend.geometry.getAttribute('position').count > terminalSampleCount * 6,
+  'the feathered dead-end arcs should be compiled into the shoulder geometry',
+);
+
+const coreIndex = terminalCore.geometry.index;
+const blendIndex = terminalBlend.geometry.index;
+assert(coreIndex && blendIndex);
+const coreCapIndices = Array.from(
+  coreIndex.array.slice((terminalSampleCount - 1) * 6),
+);
+for (const seamVertex of [0, 1, terminalSampleCount * 2 - 2, terminalSampleCount * 2 - 1]) {
+  assert(
+    coreCapIndices.includes(seamVertex),
+    'each opaque cap diameter must reuse the corresponding terminal ribbon vertex',
+  );
+}
+const blendCapIndices = Array.from(
+  blendIndex.array.slice((terminalSampleCount - 1) * 24),
+);
+for (const seamVertex of [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  terminalSampleCount * 6 - 6,
+  terminalSampleCount * 6 - 5,
+  terminalSampleCount * 6 - 4,
+  terminalSampleCount * 6 - 3,
+  terminalSampleCount * 6 - 2,
+  terminalSampleCount * 6 - 1,
+]) {
+  assert(
+    blendCapIndices.includes(seamVertex),
+    'each feather ring must reuse the corresponding terminal shoulder vertex',
+  );
+}
+
+const terminalCoreUvs = terminalCore.geometry.getAttribute('uv');
+const coreRibbonVertexCount = terminalSampleCount * 2;
+let hasStartCapTextureContinuation = false;
+let hasEndCapTextureContinuation = false;
+const renderedTerminalLength = terminalPath[terminalPath.length - 1].x - terminalPath[0].x;
+for (let index = coreRibbonVertexCount; index < terminalCoreUvs.count; index++) {
+  hasStartCapTextureContinuation ||= terminalCoreUvs.getY(index) < 0;
+  hasEndCapTextureContinuation ||= terminalCoreUvs.getY(index) > renderedTerminalLength / 5.8;
+}
+assert(hasStartCapTextureContinuation, 'the start cap texture must continue before the ribbon UV origin');
+assert(hasEndCapTextureContinuation, 'the end cap texture must continue beyond the ribbon UV terminus');
+
+const blendUvs = terminalBlend.geometry.getAttribute('uv');
+assert.deepEqual(
+  Array.from({ length: 6 }, (_, index) => Number(blendUvs.getX(index).toFixed(2))),
+  [0, 0.42, 1, 1, 0.42, 0],
+  'the terminal shoulder cross-section must retain its lateral feather instead of collapsing to zero',
+);
+let outerCapVertices = 0;
+for (let index = terminalSampleCount * 6; index < blendUvs.count; index++) {
+  if (blendUvs.getX(index) === 0) outerCapVertices += 1;
+}
+assert(outerCapVertices > 0, 'the integrated terminal feather must still reach true zero opacity');
+
+for (const mesh of [terminalCore, terminalBlend]) {
+  const normals = mesh.geometry.getAttribute('normal');
+  for (let index = 0; index < normals.count; index++) {
+    assert(normals.getY(index) > 0.99, 'integrated terminal cap triangles should face upward');
+  }
 }
 
 const bridgeContext = {

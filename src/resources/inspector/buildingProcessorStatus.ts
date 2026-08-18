@@ -578,7 +578,7 @@ function getBreweryStatus(
   const processRows = `
     <li><span>Inputs per current step</span><span>${renderResourceCost(processorInputCost(inputs), { compact: true })}</span></li>
     <li><span>Current brewing step</span><span>${shouldMalt ? 'Floor-malting barley' : 'Brewing malt into ale'} · ${formatInputCycleCoverage(limitingCycles)} · ${limitingInput} limits</span></li>
-    <li><span>Malt working buffer</span><span>${malt.toFixed(1)} / ${maltTarget.toFixed(1)} staged · ${BREWERY_MALT_PER_CYCLE.toFixed(1)} malt per malting cycle</span></li>
+    <li><span>Malt working buffer</span><span>${Math.round(malt)} / ${Math.ceil(maltTarget)} staged · ${BREWERY_MALT_PER_CYCLE.toFixed(1)} malt per malting cycle</span></li>
     <li><span>Ale output room</span><span>${formatInputCycleCoverage(outputRoomCycles)} · ale before ${outputLimit.toFixed(0)} target</span></li>
     <li><span>Process design</span><span>One malting cycle + one brewing cycle per ale batch</span></li>
   `;
@@ -664,8 +664,8 @@ function getWeaverStatus(
     <li><span>Inputs per cycle</span><span>${renderResourceCost(processorInputCost([input]), { compact: true })}</span></li>
     <li><span>Input policy</span><span>${weaverInputPolicyLabel(building.weaverInputPolicy)} · ready alternate fibre remains a fallback</span></li>
     <li><span>Selected textile route</span><span>${usesFlax ? 'Flax + hauled water' : 'Annual sheep fleece'} · ${formatInputCycleCoverage(routeCycles)}</span></li>
-    <li><span>${usesFlax ? 'Flax' : 'Wool'} working stock</span><span>${stockAmount(building, input.key).toFixed(1)} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
-    <li><span>Alternative input</span><span>${usesFlax ? `${Math.max(0, building.wool ?? 0).toFixed(1)} wool` : `${Math.max(0, building.flax ?? 0).toFixed(1)} flax + ${Math.max(0, building.water).toFixed(1)} water`} onsite</span></li>
+    <li><span>${usesFlax ? 'Flax' : 'Wool'} working stock</span><span>${Math.round(stockAmount(building, input.key))} onsite · ${input.required.toFixed(1)} per cycle · ${input.hint}</span></li>
+    <li><span>Alternative input</span><span>${usesFlax ? `${Math.round(Math.max(0, building.wool ?? 0))} wool` : `${Math.round(Math.max(0, building.flax ?? 0))} flax + ${Math.round(Math.max(0, building.water))} water`} onsite</span></li>
     <li><span>Cloth yield</span><span>${WEAVER_CLOTH_PER_CYCLE.toFixed(1)} per completed cycle</span></li>
   `;
   const outputAtLimit = isOutputAtLimit(building, 'weaver', 'cloth');

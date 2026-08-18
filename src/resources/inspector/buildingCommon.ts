@@ -61,15 +61,15 @@ export function buildingStorageRows(
     caps.stone > 0 ? `<li><span>Stone stored</span><span>${Math.round(building.stone)} / ${caps.stone}</span></li>` : '',
     caps.water != null && caps.water > 0 ? `<li><span>Water stored</span><span>${Math.round(building.water)} / ${caps.water}</span></li>` : '',
     buildingFoodStorageRows(building, caps.food ?? 0, false),
-    caps.grain != null && caps.grain > 0 ? `<li><span>Bread-grain bay</span><span>${breadGrainBulkStock(building).toFixed(1)} / ${caps.grain}</span></li>
-      <li><span>&nbsp;&nbsp;Rye sheaves / grain</span><span>${(building.ryeSheaves ?? 0).toFixed(1)} / ${(building.ryeGrain ?? 0).toFixed(1)}</span></li>
-      <li><span>&nbsp;&nbsp;Oat sheaves / grain</span><span>${(building.oatSheaves ?? 0).toFixed(1)} / ${(building.oatGrain ?? 0).toFixed(1)}</span></li>
-      <li><span>&nbsp;&nbsp;Maslin sheaves / grain</span><span>${(building.maslinSheaves ?? 0).toFixed(1)} / ${(building.maslinGrain ?? 0).toFixed(1)}</span></li>` : '',
-    caps.barley != null && caps.barley > 0 ? `<li><span>Barley bay</span><span>${((building.barleySheaves ?? 0) + (building.barley ?? 0)).toFixed(1)} / ${caps.barley}</span></li>
-      <li><span>&nbsp;&nbsp;Sheaves / threshed grain</span><span>${(building.barleySheaves ?? 0).toFixed(1)} / ${(building.barley ?? 0).toFixed(1)}</span></li>` : '',
+    caps.grain != null && caps.grain > 0 ? `<li><span>Bread-grain bay</span><span>${Math.round(breadGrainBulkStock(building))} / ${caps.grain}</span></li>
+      <li><span>&nbsp;&nbsp;Rye sheaves / grain</span><span>${Math.round(building.ryeSheaves ?? 0)} / ${Math.round(building.ryeGrain ?? 0)}</span></li>
+      <li><span>&nbsp;&nbsp;Oat sheaves / grain</span><span>${Math.round(building.oatSheaves ?? 0)} / ${Math.round(building.oatGrain ?? 0)}</span></li>
+      <li><span>&nbsp;&nbsp;Maslin sheaves / grain</span><span>${Math.round(building.maslinSheaves ?? 0)} / ${Math.round(building.maslinGrain ?? 0)}</span></li>` : '',
+    caps.barley != null && caps.barley > 0 ? `<li><span>Barley bay</span><span>${Math.round((building.barleySheaves ?? 0) + (building.barley ?? 0))} / ${caps.barley}</span></li>
+      <li><span>&nbsp;&nbsp;Sheaves / threshed grain</span><span>${Math.round(building.barleySheaves ?? 0)} / ${Math.round(building.barley ?? 0)}</span></li>` : '',
     caps.malt != null && caps.malt > 0 ? `<li><span>Malt stored</span><span>${Math.round(building.malt ?? 0)} / ${caps.malt}</span></li>` : '',
-    caps.flour != null && caps.flour > 0 ? `<li><span>Flour room</span><span>${flourStock(building).toFixed(1)} / ${caps.flour}</span></li>
-      <li><span>&nbsp;&nbsp;Rye / oat / maslin</span><span>${(building.ryeFlour ?? 0).toFixed(1)} / ${(building.oatFlour ?? 0).toFixed(1)} / ${(building.maslinFlour ?? 0).toFixed(1)}</span></li>` : '',
+    caps.flour != null && caps.flour > 0 ? `<li><span>Flour room</span><span>${Math.round(flourStock(building))} / ${caps.flour}</span></li>
+      <li><span>&nbsp;&nbsp;Rye / oat / maslin</span><span>${Math.round(building.ryeFlour ?? 0)} / ${Math.round(building.oatFlour ?? 0)} / ${Math.round(building.maslinFlour ?? 0)}</span></li>` : '',
     caps.ale != null && caps.ale > 0 ? `<li><span>Ale stored</span><span>${Math.round(building.ale)} / ${caps.ale}</span></li>` : '',
     buildingFoodStorageRows(building, caps.preservedFood ?? 0, true),
     caps.honey != null && caps.honey > 0 ? `<li><span>Honey stored</span><span>${Math.round(building.honey)} / ${caps.honey}</span></li>` : '',
@@ -109,7 +109,7 @@ function buildingFoodStorageRows(
       : kind === 'preservedFood'
         ? 'Legacy preserved staples'
         : NAMED_FOOD_LABELS[kind];
-    rows.push(`<li><span>&nbsp;&nbsp;${label}</span><span>${amount.toFixed(1)}</span></li>`);
+    rows.push(`<li><span>&nbsp;&nbsp;${label}</span><span>${Math.round(amount)}</span></li>`);
   }
   return rows.join('');
 }
@@ -163,7 +163,7 @@ export function civilianToolRows(
     const remainingSeconds = typeof worldQueries.getDeliveryTripRemainingSeconds === 'function'
       ? worldQueries.getDeliveryTripRemainingSeconds(inboundIronwork)
       : MIN_DELIVERY_TRIP_SEC;
-    supplyRoute = `${inboundIronwork.amount.toFixed(2)} ironwork inbound · ${remainingSeconds.toFixed(0)}s ETA`;
+    supplyRoute = `${Math.round(inboundIronwork.amount)} ironwork inbound · ${remainingSeconds.toFixed(0)}s ETA`;
   } else if (smithy && worldQueries) {
     const distance = typeof worldQueries.getLocalDeliveryDistance === 'function'
       ? worldQueries.getLocalDeliveryDistance(

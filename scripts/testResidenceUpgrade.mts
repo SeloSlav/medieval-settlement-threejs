@@ -514,8 +514,8 @@ assert.match(
 );
 assert.match(
   residenceReducer,
-  /RESIDENCE_TIMBER_COST[\s\S]*RESIDENCE_STONE_COST[\s\S]*ensure_upgrade_source_route/,
-  'founding cottage material must remain reserved at reachable physical sources',
+  /upgrade_required_timber: required_timber[\s\S]*upgrade_reserved_timber: required_timber[\s\S]*ensure_upgrade_source_route\([\s\S]*CommodityKind::Timber,[\s\S]*required_timber[\s\S]*CommodityKind::Stone,[\s\S]*required_stone/,
+  'each depth-scaled founding cottage cost must remain reserved at reachable physical sources',
 );
 assert.match(residenceReducer, /upgrade_reserved_timber = timber/);
 assert.match(residenceReducer, /upgrade_delivered_gold = household_contribution/);

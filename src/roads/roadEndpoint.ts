@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { RoadEdge } from './RoadEdge.ts';
 
 export const ROAD_END_TRIM = 0.5;
-export const ROAD_CAP_OVERLAP = 0.14;
 /** Length of each road arm covered by a shared node patch, as a width multiplier. */
 export const ROAD_JUNCTION_REACH = 0.74;
 export type RoadEdgeEnd = 'start' | 'end';
@@ -41,7 +40,10 @@ export function exteriorDirectionAtEdgeEnd(edge: RoadEdge, end: RoadEdgeEnd): TH
 }
 
 export function roadTerminalTrimDistance(width: number): number {
-  return width * Math.max(0, ROAD_END_TRIM - ROAD_CAP_OVERLAP);
+  // Endpoint caps now share the ribbon's terminal vertices instead of living
+  // in a separately triangulated overlap. Trim to the cap diameter so the
+  // shared seam sits at the node-facing edge of the road fabric.
+  return width * ROAD_END_TRIM;
 }
 
 export function trimPathAtEndpoint(

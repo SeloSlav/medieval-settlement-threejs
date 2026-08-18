@@ -138,7 +138,7 @@ export function renderBackyardInspector(
       ${producesFood
         ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>
            <li><span>Shared market food today</span><span>${economy.marketFoodPerDay.toFixed(1)}${hasMarketAccess ? ' pooled for other households' : ' — household keeps the full crop without a stall'}</span></li>
-           <li><span>Household food reserve</span><span>${foodStock.toFixed(1)} / ${reserveTarget.toFixed(1)}</span></li>`
+           <li><span>Household food reserve</span><span>${Math.round(foodStock)} / ${Math.ceil(reserveTarget)}</span></li>`
         : ''}
       ${garden.kind === 'herb_garden'
         ? '<li><span>Herb sharing</span><span>Household remedies fill first; surplus remedies enter the goods stall for sick homes</span></li>'

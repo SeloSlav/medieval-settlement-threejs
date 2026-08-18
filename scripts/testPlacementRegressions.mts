@@ -34,15 +34,18 @@ import {
   updateTerrainRibbonGeometry,
 } from '../src/placement/TerrainOverlayGeometry.ts';
 import { QuarryLayout, quarrySiteOverlapsRiver } from '../src/quarries/QuarryLayout.ts';
-import { burgageZoneTouchesWater } from '../src/residences/burgagePlacementValidation.ts';
+import {
+  burgageZoneTouchesWater,
+  validateBurgagePlacement,
+} from '../src/residences/burgagePlacementValidation.ts';
 import { BurgagePreview } from '../src/residences/BurgagePreview.ts';
 import { BurgageTool } from '../src/residences/BurgageTool.ts';
 import { backyardGardenPlacementForParcel } from '../src/residences/backyardPosition.ts';
 import { resolveCurvedFrontageLine } from '../src/residences/burgageRoadFrontage.ts';
 import { resolveRoadCenterPathForFrontage } from '../src/residences/burgageFrontagePath.ts';
 import {
-  MAX_ZONE_DEPTH,
   MIN_ZONE_DEPTH,
+  STANDARD_ZONE_DEPTH,
   cornersFromPoints,
   measureZoneSideDepths,
   resolveBurgageLayout,
@@ -228,12 +231,31 @@ function testOrganicBurgagePlotsAndPreviewIcons(): void {
   const deepCorners = cornersFromPoints([
     { x: 0, z: 0 },
     { x: 24, z: 0 },
-    { x: 24, z: Math.min(18, MAX_ZONE_DEPTH) },
-    { x: 0, z: Math.min(18, MAX_ZONE_DEPTH) },
+    { x: 24, z: 18 },
+    { x: 0, z: 18 },
   ]);
   assert.ok(deepCorners);
   const deepLayout = resolveBurgageLayout(deepCorners, 0, 3);
   assert.ok(deepLayout && deepLayout.residences.length === 3);
+
+  const unlimitedDepthCorners = cornersFromPoints([
+    { x: 0, z: 0 },
+    { x: 24, z: 0 },
+    { x: 24, z: 50 },
+    { x: 0, z: 50 },
+  ]);
+  assert.ok(unlimitedDepthCorners);
+  const unlimitedDepthLayout = resolveBurgageLayout(unlimitedDepthCorners, 0, 3);
+  assert.ok(
+    unlimitedDepthLayout && unlimitedDepthLayout.residences.length === 3,
+    'residence depth beyond the standard pricing threshold must remain buildable',
+  );
+  assert.ok(50 > STANDARD_ZONE_DEPTH * 2);
+  assert.ok(
+    unlimitedDepthLayout.depthCostMultiplier > 10,
+    'extreme plot depth should carry a prohibitive quadratic site-work premium',
+  );
+  assert.ok(unlimitedDepthLayout.totalCost.timber > deepLayout.totalCost.timber * 10);
 
   const preview = new BurgagePreview();
   const shallowPreviewCorners = [
@@ -290,6 +312,50 @@ function testOrganicBurgagePlotsAndPreviewIcons(): void {
     'a complete hovered four-corner preview must turn red before the final click when invalid',
   );
   preview.dispose();
+}
+
+function testBurgageTerrainRulesAreLotFriendly(): void {
+  const roads = new RoadNetwork();
+  roads.addRoadPath([
+    new THREE.Vector3(-10, 0, 0),
+    new THREE.Vector3(34, 0, 0),
+  ]);
+  const corners = [
+    new THREE.Vector3(0, 0, 2),
+    new THREE.Vector3(24, 0, 2),
+    new THREE.Vector3(24, 0, 20),
+    new THREE.Vector3(0, 0, 20),
+  ];
+  const validation = validateBurgagePlacement({
+    corners,
+    frontageEdge: 0,
+    plotCount: 3,
+    stockpile: { timber: 10_000, stone: 10_000 },
+    existingZones: [],
+    existingBuildings: [],
+    roadNetwork: roads,
+    isWaterAt: () => false,
+    getNaturalHeightAt: (x) => x * 0.5,
+  });
+  assert.equal(
+    validation.ok,
+    true,
+    'a steep overall lot should pass when each actual cottage footprint can be leveled',
+  );
+
+  const draftTool = Object.create(BurgageTool.prototype) as BurgageTool;
+  Object.assign(draftTool as object, {
+    placementStage: 2,
+    points: corners.slice(0, 2),
+    options: { roadNetwork: roads, getHeightAt: () => 0 },
+  });
+  const corrected = (draftTool as unknown as {
+    constrainBackPointToMinimumDepth: (point: THREE.Vector3) => THREE.Vector3;
+  }).constrainBackPointToMinimumDepth(new THREE.Vector3(24, 0, 5));
+  assert.ok(
+    corrected.z >= 2 + MIN_ZONE_DEPTH - 1e-6,
+    'a shallow rear click should auto-expand to cottage depth instead of becoming an error',
+  );
 }
 
 function testBurgageFrontageDirectionAndRoadSideSelection(): void {
@@ -980,6 +1046,7 @@ testClearanceSpatialIndexKeepsNearbyCandidates();
 testRoadFacingBuildingsSnapToRoadSides();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
+testBurgageTerrainRulesAreLotFriendly();
 testOrganicBurgagePlotsAndPreviewIcons();
 testBurgageFrontageDirectionAndRoadSideSelection();
 testPlacementOverlaysFollowTerrainHeight();

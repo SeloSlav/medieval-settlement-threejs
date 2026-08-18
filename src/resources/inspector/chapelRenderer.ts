@@ -155,12 +155,12 @@ export function renderChapelInspector(
   const activeGoldTarget = activeGoldTrip?.targetBuildingId == null
     ? null
     : context.gameState.buildings.get(activeGoldTrip.targetBuildingId) ?? null;
-  const cofferLabel = `${economy.cofferGold.toFixed(1)} / ${economy.cofferCapacity} gold${economy.cofferFull ? ' · full — new parish tithes wait for cart capacity' : ''}${suspendedByFire ? ' · sealed until structural recovery' : ''}`;
+  const cofferLabel = `${Math.round(economy.cofferGold)} / ${Math.round(economy.cofferCapacity)} gold${economy.cofferFull ? ' · full — new parish tithes wait for cart capacity' : ''}${suspendedByFire ? ' · sealed until structural recovery' : ''}`;
   const monasteryPurseLabel = monasteryPurse <= 0.05
     ? 'No pledged gold waiting'
-    : `${monasteryPurse.toFixed(1)} gold sealed for a linked monastery${
+    : `${Math.round(monasteryPurse)} gold sealed for a linked monastery${
         activeGoldTarget?.kind === 'monastery' && activeGoldTrip
-          ? ` · ${activeGoldTrip.amount.toFixed(1)} travelling`
+          ? ` · ${Math.round(activeGoldTrip.amount)} travelling`
           : ''
       }`;
   const reliefInspectButton = parishRelief?.targetResidenceId == null
@@ -212,7 +212,7 @@ export function renderChapelInspector(
       <li><span>Priest</span><span>${suspendedByFire ? 'Displaced · parish work suspended' : staffed ? 'Serving the parish' : 'Unstaffed — benefits inactive'}</span></li>
       <li><span>Coffer</span><span>${cofferLabel}</span></li>
       <li><span>Monastery purse</span><span>${monasteryPurseLabel}</span></li>
-      <li><span>Parish handcart</span><span>${activeGoldTrip ? `${activeGoldTrip.amount.toFixed(1)} gold · ${activeGoldTrip.phase}` : 'None'}</span></li>
+      <li><span>Parish handcart</span><span>${activeGoldTrip ? `${Math.round(activeGoldTrip.amount)} gold · ${activeGoldTrip.phase}` : 'None'}</span></li>
       <li><span>Parish territory</span><span>${parishRelief == null ? `${connectedHomes} road-linked homes` : formatChapelParishTerritory(parishRelief)}</span></li>
       <li><span>Tithe yield</span><span>${staffed ? economy.titheLabel : '—'}</span></li>
       <li><span>Parish expenses</span><span>${parishExpenseLabel}</span></li>

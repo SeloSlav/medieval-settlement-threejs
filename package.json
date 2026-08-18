@@ -58,6 +58,7 @@
     "test:physical-armory-stores": "npx tsx scripts/testPhysicalArmoryStores.mts",
     "test:physical-manure-economy": "npx tsx scripts/testPhysicalManureEconomy.mts",
     "test:resource-locator": "npx tsx scripts/testResourceLocator.mts",
+    "test:whole-resource-units": "npx tsx scripts/testWholeResourceUnits.mts",
     "test:seasonal-producer-stores": "npx tsx scripts/testSeasonalProducerStores.mts",
     "test:physical-marketplace-specialties": "npx tsx scripts/testPhysicalMarketplaceSpecialties.mts",
     "test:material-economy": "npx tsx scripts/testMaterialEconomy.mts",

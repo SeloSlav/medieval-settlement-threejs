@@ -144,9 +144,13 @@ pub fn backyard_garden_salvage_refund(
 }
 
 pub fn residence_zone_cost(residence_count: u32) -> ResourceAmount {
+    residence_zone_cost_for_units(residence_count as f64)
+}
+
+pub fn residence_zone_cost_for_units(cost_units: f64) -> ResourceAmount {
     ResourceAmount {
-        timber: RESIDENCE_TIMBER_COST * residence_count as f64,
-        stone: RESIDENCE_STONE_COST * residence_count as f64,
+        timber: (RESIDENCE_TIMBER_COST * cost_units.max(0.0)).ceil(),
+        stone: (RESIDENCE_STONE_COST * cost_units.max(0.0)).ceil(),
         ironwork: 0.0,
     }
 }

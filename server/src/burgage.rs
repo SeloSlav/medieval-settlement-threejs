@@ -35,9 +35,9 @@ const MAIN_HOUSE_DEPTH: f64 = 7.4;
 const HOUSE_REAR_CLEARANCE: f64 = 0.5;
 const MIN_PARCEL_DEPTH: f64 = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + HOUSE_REAR_CLEARANCE;
 const MIN_ZONE_DEPTH: f64 = MIN_PARCEL_DEPTH;
-const MAX_BACKYARD_DEPTH: f64 = 12.0;
+const STANDARD_BACKYARD_DEPTH: f64 = 12.0;
+const DEEP_PLOT_SURCHARGE_SCALE: f64 = 8.0;
 const MIN_BACKYARD_EXTENSION_DEPTH: f64 = 1.5;
-const MAX_ZONE_DEPTH: f64 = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + MAX_BACKYARD_DEPTH;
 const ZONE_BOUNDARY_EPSILON: f64 = 0.12;
 
 pub fn suggest_plot_count(frontage_length: f64) -> u32 {
@@ -89,12 +89,15 @@ pub fn measure_zone_side_depths(corners: &ZoneCorners, frontage_edge: u8) -> (f6
     )
 }
 
-pub fn max_zone_depth() -> f64 {
-    MAX_ZONE_DEPTH
-}
-
 pub fn min_zone_depth() -> f64 {
     MIN_ZONE_DEPTH
+}
+
+/// One ordinary cottage-cost unit through the standard backyard depth, then a
+/// quadratic site-work premium. This mirrors the client placement preview.
+pub fn residence_depth_cost_units(backyard_depth: f64) -> f64 {
+    let excess_depth = (backyard_depth - STANDARD_BACKYARD_DEPTH).max(0.0);
+    1.0 + (excess_depth / DEEP_PLOT_SURCHARGE_SCALE).powi(2)
 }
 
 pub fn min_backyard_extension_depth() -> f64 {
@@ -457,7 +460,10 @@ fn convex_polygons_overlap(a: &[Point2], b: &[Point2], boundary_epsilon: f64) ->
 
 #[cfg(test)]
 mod tests {
-    use super::{backyard_center, HOUSE_SETBACK, MAIN_HOUSE_DEPTH};
+    use super::{
+        backyard_center, compute_burgage_layout, residence_depth_cost_units, Point2, ZoneCorners,
+        HOUSE_SETBACK, MAIN_HOUSE_DEPTH,
+    };
 
     #[test]
     fn backyard_center_tracks_the_house_rear_axis() {
@@ -472,5 +478,24 @@ mod tests {
         let east_facing = backyard_center(20.0, 30.0, std::f64::consts::FRAC_PI_2, zone_depth);
         assert!((east_facing.x - (20.0 - expected_offset)).abs() < 1e-9);
         assert!((east_facing.z - 30.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn deep_plots_remain_valid_and_scale_site_work_quadratically() {
+        let corners = ZoneCorners {
+            a: Point2 { x: 0.0, z: 0.0 },
+            b: Point2 { x: 24.0, z: 0.0 },
+            c: Point2 { x: 24.0, z: 50.0 },
+            d: Point2 { x: 0.0, z: 50.0 },
+        };
+        let layout = compute_burgage_layout(&corners, 0, 3)
+            .expect("a deep plot should still produce residences");
+        assert_eq!(layout.residences.len(), 3);
+        assert!(layout
+            .residences
+            .iter()
+            .all(|residence| residence_depth_cost_units(residence.backyard_depth) > 10.0));
+        assert!((residence_depth_cost_units(20.0) - 2.0).abs() < 1e-9);
+        assert!((residence_depth_cost_units(28.0) - 5.0).abs() < 1e-9);
     }
 }
