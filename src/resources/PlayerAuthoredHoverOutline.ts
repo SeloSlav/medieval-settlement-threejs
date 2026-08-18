@@ -16,6 +16,7 @@ import type { GameState } from './types.ts';
 
 type PlayerAuthoredHoverOutlineOptions = {
   domElement: HTMLElement;
+  camera: THREE.PerspectiveCamera;
   terrainProjector: TerrainProjector;
   parent: THREE.Group;
   getState: () => GameState;
@@ -29,17 +30,18 @@ type HoverPerimeter = {
   polygon: readonly Point2[];
 };
 
-const OUTLINE_WIDTH = 0.72;
-const OUTLINE_DASH_LENGTH = 0.82;
-const OUTLINE_GAP_LENGTH = 0.62;
+const OUTLINE_WIDTH_PX = 4.5;
+const OUTLINE_DASH_LENGTH_PX = 12;
+const OUTLINE_GAP_LENGTH_PX = 9;
 const OUTLINE_LIFT = 0.24;
-const BUILDING_OUTLINE_WIDTH = 0.3;
 const BUILDING_OUTLINE_LIFT = 0.08;
 const OUTLINE_RENDER_ORDER = 100;
+const SCALE_CHANGE_THRESHOLD = 0.015;
 
 /**
  * Shows one high-contrast, terrain-following perimeter for the authored object
- * beneath the pointer. Mesh ribbons keep the border thick on WebGL and WebGPU.
+ * beneath the pointer. The world-space ribbon is rebuilt as the camera moves so
+ * its thickness and dash rhythm remain visually constant at every zoom level.
  */
 export class PlayerAuthoredHoverOutline {
   private readonly options: PlayerAuthoredHoverOutlineOptions;
@@ -55,10 +57,15 @@ export class PlayerAuthoredHoverOutline {
     polygonOffsetUnits: -2,
   });
   private readonly mesh = new THREE.Mesh(this.geometry, this.material);
+  private readonly perimeterCenter = new THREE.Vector3();
+  private readonly viewCenter = new THREE.Vector3();
+  private currentPerimeter: HoverPerimeter | null = null;
   private currentKey = '';
+  private lastWorldUnitsPerPixel = Number.NaN;
   private pointerX = 0;
   private pointerY = 0;
   private pendingFrame = 0;
+  private cameraFrame = 0;
 
   constructor(options: PlayerAuthoredHoverOutlineOptions) {
     this.options = options;
@@ -79,6 +86,7 @@ export class PlayerAuthoredHoverOutline {
     this.options.domElement.removeEventListener('pointerleave', this.onPointerLeave);
     window.removeEventListener('blur', this.onPointerLeave);
     if (this.pendingFrame !== 0) cancelAnimationFrame(this.pendingFrame);
+    if (this.cameraFrame !== 0) cancelAnimationFrame(this.cameraFrame);
     this.options.parent.remove(this.mesh);
     this.geometry.dispose();
     this.material.dispose();
@@ -121,28 +129,89 @@ export class PlayerAuthoredHoverOutline {
       this.hide();
       return;
     }
-    if (perimeter.key === this.currentKey) return;
+    if (perimeter.key === this.currentKey) {
+      this.ensureCameraTracking();
+      return;
+    }
     const isBuilding = perimeter.key.startsWith('building:');
     this.material.depthTest = isBuilding;
+    this.currentPerimeter = perimeter;
+    this.currentKey = perimeter.key;
+    this.lastWorldUnitsPerPixel = Number.NaN;
+    this.updateGeometryForCamera(true);
+    this.mesh.visible = true;
+    this.ensureCameraTracking();
+  };
 
+  private readonly updateFromCamera = (): void => {
+    this.cameraFrame = 0;
+    if (!this.mesh.visible || !this.currentPerimeter) return;
+    this.updateGeometryForCamera(false);
+    this.ensureCameraTracking();
+  };
+
+  private ensureCameraTracking(): void {
+    if (this.cameraFrame !== 0 || !this.mesh.visible) return;
+    this.cameraFrame = requestAnimationFrame(this.updateFromCamera);
+  }
+
+  private updateGeometryForCamera(force: boolean): void {
+    const perimeter = this.currentPerimeter;
+    if (!perimeter) return;
+
+    let centerX = 0;
+    let centerZ = 0;
+    for (const point of perimeter.polygon) {
+      centerX += point.x;
+      centerZ += point.z;
+    }
+    centerX /= Math.max(1, perimeter.polygon.length);
+    centerZ /= Math.max(1, perimeter.polygon.length);
+    this.perimeterCenter.set(
+      centerX,
+      this.options.getHeightAt(centerX, centerZ),
+      centerZ,
+    );
+
+    const camera = this.options.camera;
+    camera.updateMatrixWorld();
+    this.viewCenter.copy(this.perimeterCenter).applyMatrix4(camera.matrixWorldInverse);
+    const viewDepth = Math.max(camera.near, -this.viewCenter.z);
+    const viewportHeight = Math.max(1, this.options.domElement.clientHeight);
+    const worldUnitsPerPixel = (
+      2 * viewDepth * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5)
+    ) / viewportHeight;
+    if (
+      !force
+      && Number.isFinite(this.lastWorldUnitsPerPixel)
+      && Math.abs(worldUnitsPerPixel - this.lastWorldUnitsPerPixel)
+        <= this.lastWorldUnitsPerPixel * SCALE_CHANGE_THRESHOLD
+    ) return;
+
+    this.lastWorldUnitsPerPixel = worldUnitsPerPixel;
+    const dashLength = worldUnitsPerPixel * OUTLINE_DASH_LENGTH_PX;
     updateTerrainRibbonGeometry(
       this.geometry,
       polygonSegments(perimeter.polygon),
       this.options.getHeightAt,
       {
-        width: isBuilding ? BUILDING_OUTLINE_WIDTH : OUTLINE_WIDTH,
-        lift: isBuilding ? BUILDING_OUTLINE_LIFT : OUTLINE_LIFT,
-        sampleSpacing: 0.7,
-        dashLength: OUTLINE_DASH_LENGTH,
-        gapLength: OUTLINE_GAP_LENGTH,
+        width: worldUnitsPerPixel * OUTLINE_WIDTH_PX,
+        lift: perimeter.key.startsWith('building:')
+          ? BUILDING_OUTLINE_LIFT
+          : OUTLINE_LIFT,
+        sampleSpacing: Math.max(0.1, dashLength * 0.25),
+        dashLength,
+        gapLength: worldUnitsPerPixel * OUTLINE_GAP_LENGTH_PX,
       },
     );
-    this.currentKey = perimeter.key;
-    this.mesh.visible = true;
-  };
+  }
 
   private hide(): void {
+    if (this.cameraFrame !== 0) cancelAnimationFrame(this.cameraFrame);
+    this.cameraFrame = 0;
+    this.currentPerimeter = null;
     this.currentKey = '';
+    this.lastWorldUnitsPerPixel = Number.NaN;
     this.mesh.visible = false;
   }
 }

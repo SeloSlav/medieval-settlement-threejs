@@ -307,6 +307,14 @@ export class App {
             buildingMarkers: this.buildingMarkers,
             forceMeshUpdate: true,
           });
+          const hydratedState = this.gameState;
+          if (hydratedState) {
+            this.burgageFencing?.syncZones(
+              hydratedState.burgageZones.values(),
+              hydratedState.residences.values(),
+              (x, z) => this.sceneManager?.terrain.getHeightAt(x, z) ?? 0,
+            );
+          }
           this.buildingMarkers?.refreshRoadFacingOrientations();
           if (this.sceneManager && this.buildingMarkers) {
             this.sceneManager.syncBuildingAccessRoads(

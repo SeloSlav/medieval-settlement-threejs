@@ -48,6 +48,11 @@ for (const seed of seeds) {
     undefined,
     'tier-one cottages must keep the front-window wall clear of freestanding props',
   );
+  assert.equal(
+    residence.getObjectByName('UpgradeCoinLockbox'),
+    undefined,
+    'residence works must not stage an isolated wooden lockbox in the backyard',
+  );
   assertResidenceFrontWallHasNoYardDetail(residence);
   assertResidenceYardHasNoChoppingBlock(residence);
   assertSideWindowClearance(residence, 1);

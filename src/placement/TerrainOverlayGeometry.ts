@@ -117,8 +117,8 @@ export function updateTerrainRibbonGeometry(
     const visibleRanges: Array<readonly [number, number]> = [];
 
     if (dashed) {
-      const dashLength = Math.max(0.25, options.dashLength!);
-      const gapLength = Math.max(0.15, options.gapLength!);
+      const dashLength = Math.max(0.04, options.dashLength!);
+      const gapLength = Math.max(0.03, options.gapLength!);
       const stride = dashLength + gapLength;
       for (let cursor = gapLength * 0.5; cursor < length; cursor += stride) {
         visibleRanges.push([cursor, Math.min(length, cursor + dashLength)]);
@@ -129,7 +129,7 @@ export function updateTerrainRibbonGeometry(
 
     for (const [rangeStart, rangeEnd] of visibleRanges) {
       const visibleLength = rangeEnd - rangeStart;
-      if (visibleLength <= 0.08) continue;
+      if (visibleLength <= 0.01) continue;
       const pieceCount = Math.max(1, Math.ceil(visibleLength / sampleSpacing));
 
       for (let piece = 0; piece < pieceCount; piece += 1) {

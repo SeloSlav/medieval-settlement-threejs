@@ -1739,12 +1739,6 @@ select:focus-visible {
   display: none;
 }
 
-[data-ui-root]:has(.resource-inspector-panel:not([hidden])) .hud-bottom-center,
-[data-ui-root]:has(.villager-inspector-panel:not([hidden])) .hud-bottom-center {
-  left: calc(50% + 195px);
-  max-width: calc(100vw - 420px);
-}
-
 /* Full-screen menus ------------------------------------------------------ */
 
 .game-menu-backdrop,
@@ -2306,9 +2300,7 @@ select:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .hud-bottom-center,
-  [data-ui-root]:has(.resource-inspector-panel:not([hidden])) .hud-bottom-center,
-  [data-ui-root]:has(.villager-inspector-panel:not([hidden])) .hud-bottom-center {
+  .hud-bottom-center {
     right: 8px;
     left: 8px;
     max-width: none;

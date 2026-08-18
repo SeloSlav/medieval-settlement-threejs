@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { BuildingTerrainLayout } from '../src/buildings/BuildingTerrainLayout.ts';
 import {
   resolveResidenceFrontageGateway,
@@ -74,6 +75,7 @@ for (let index = 0; index < bays.length; index++) {
 }
 
 testResidenceGatewaysStayOnFrontage();
+testRoadHydrationResyncsTerrainFollowingFences();
 
 almostEqual(
   residenceFootprintHeightDelta(
@@ -139,6 +141,27 @@ function testRegionalTerrainNormalsMatchFullRecompute(): void {
   assert.ok(
     maximumError === 0,
     `regional terrain normals must match a full smooth-heightfield recompute, including its boundary (max error ${maximumError})`,
+  );
+}
+
+function testRoadHydrationResyncsTerrainFollowingFences(): void {
+  const appSource = readFileSync(new URL('../src/app/App.ts', import.meta.url), 'utf8');
+  const callbackStart = appSource.indexOf('onRoadsHydrated: (roads) => {');
+  const callbackEnd = appSource.indexOf('onConnectError:', callbackStart);
+  assert.ok(callbackStart >= 0 && callbackEnd > callbackStart, 'road hydration callback must exist');
+
+  const callback = appSource.slice(callbackStart, callbackEnd);
+  const terrainSync = callback.indexOf('syncPlacedBuildingTerrain({');
+  const fenceSync = callback.indexOf('this.burgageFencing?.syncZones(');
+  assert.ok(terrainSync >= 0, 'road hydration must reapply placed-building terrain');
+  assert.ok(
+    fenceSync > terrainSync,
+    'road hydration must resync terrain-following burgage fencing after terrain is reapplied',
+  );
+  assert.match(
+    callback.slice(fenceSync),
+    /hydratedState\.burgageZones\.values\(\)[\s\S]*hydratedState\.residences\.values\(\)[\s\S]*terrain\.getHeightAt/,
+    'the refresh resync must rebuild saved plot fences at final terrain heights',
   );
 }
 

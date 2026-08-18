@@ -1240,21 +1240,6 @@ function addResidenceUpgradeWorks(
       ).name = 'Delivered fired roof tile';
     }
   }
-  const lockbox = new THREE.Group();
-  lockbox.name = 'UpgradeCoinLockbox';
-  works.add(lockbox);
-  addMesh(
-    lockbox,
-    new THREE.BoxGeometry(0.48, 0.32, 0.34),
-    timberMaterial('dark'),
-    new THREE.Vector3(halfWidth - 0.1, 0.16, pileZ + 0.72),
-  );
-  addMesh(
-    lockbox,
-    new THREE.BoxGeometry(0.12, 0.16, 0.05),
-    sharedBuildingDetailMaterial('brass'),
-    new THREE.Vector3(halfWidth - 0.1, 0.22, pileZ + 0.9),
-  );
 }
 
 export function createResidenceMesh(
@@ -2364,10 +2349,6 @@ export function syncResidenceUpgradeWorks(
   syncUpgradeMaterialSegments(works, 'UpgradeTimberSegment:', timberFill);
   syncUpgradeMaterialSegments(works, 'UpgradeStoneSegment:', stoneFill);
   syncUpgradeMaterialSegments(works, 'UpgradeRoofTileSegment:', roofTileFill);
-  const lockbox = works.getObjectByName('UpgradeCoinLockbox');
-  if (lockbox) {
-    lockbox.visible = (residence.upgradeDeliveredGold ?? 0) > 0.05 && progress < 0.999;
-  }
 }
 
 function syncUpgradeMaterialSegments(
