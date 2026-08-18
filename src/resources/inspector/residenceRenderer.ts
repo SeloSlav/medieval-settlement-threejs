@@ -567,10 +567,10 @@ export function renderResidenceInspector(
     ? (residence.remedyStock ?? 0) / remedyDailyDemand
     : Number.POSITIVE_INFINITY;
   const remedySupplyLabel = remedyDelivery
-    ? `${(residence.remedyStock ?? 0).toFixed(1)} at home · ${remedyDelivery.amount.toFixed(1)} incoming on a physical care cart`
+    ? `${Math.round(residence.remedyStock ?? 0)} at home · ${Math.round(remedyDelivery.amount)} incoming on a physical care cart`
     : remedyDailyDemand > 1e-9
-      ? `${(residence.remedyStock ?? 0).toFixed(1)} at home · ${remedyCoverageDays.toFixed(1)} treatment days`
-      : `${(residence.remedyStock ?? 0).toFixed(1)} at home · no current treatment demand`;
+      ? `${Math.round(residence.remedyStock ?? 0)} at home · ${remedyCoverageDays.toFixed(1)} treatment days`
+      : `${Math.round(residence.remedyStock ?? 0)} at home · no current treatment demand`;
   const service = residenceServiceState(residence);
   const roofRetrofitBlockers = [
     ...(context.gameState.physicalFoundingSiteEnabled === true

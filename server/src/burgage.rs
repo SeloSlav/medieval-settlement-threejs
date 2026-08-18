@@ -58,37 +58,6 @@ pub fn measure_zone_depth(corners: &ZoneCorners, frontage_edge: u8) -> f64 {
     ))
 }
 
-pub fn measure_zone_side_depths(corners: &ZoneCorners, frontage_edge: u8) -> (f64, f64) {
-    if frontage_edge > 3 {
-        return (0.0, 0.0);
-    }
-    let (front_start, front_end) = zone_edge(corners, frontage_edge);
-    let rear_edge = (frontage_edge + 2) % 4;
-    let (rear_end, rear_start) = zone_edge(corners, rear_edge);
-    let front_dx = front_end.x - front_start.x;
-    let front_dz = front_end.z - front_start.z;
-    let front_length = (front_dx * front_dx + front_dz * front_dz).sqrt();
-    if front_length <= 1e-6 {
-        return (0.0, 0.0);
-    }
-
-    let mut normal = Point2 {
-        x: -front_dz / front_length,
-        z: front_dx / front_length,
-    };
-    let front_mid = midpoint(&front_start, &front_end);
-    let rear_mid = midpoint(&rear_start, &rear_end);
-    if (rear_mid.x - front_mid.x) * normal.x + (rear_mid.z - front_mid.z) * normal.z < 0.0 {
-        normal.x = -normal.x;
-        normal.z = -normal.z;
-    }
-
-    (
-        (rear_start.x - front_start.x) * normal.x + (rear_start.z - front_start.z) * normal.z,
-        (rear_end.x - front_end.x) * normal.x + (rear_end.z - front_end.z) * normal.z,
-    )
-}
-
 pub fn min_zone_depth() -> f64 {
     MIN_ZONE_DEPTH
 }

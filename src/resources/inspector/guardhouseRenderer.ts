@@ -280,14 +280,14 @@ export function renderGuardhouseInspector(
       <li><span>Settlement defense</span><span>${settlementReady.toFixed(1)}${guardRequirement > 0 ? ` / ${guardRequirement.toFixed(1)} required` : ''}</span></li>
       <li><span>Projected raid</span><span>${settlement ? formatFrontierForecast(settlement, context.enemyPressure) : 'Awaiting frontier reports'}</span></li>
       <li><span>Daily upkeep</span><span>${renderResourceCost({ food: dailyFood, gold: dailyWages }, { compact: true })}</span></li>
-      <li><span>Food endurance</span><span>${edibleFoodStock(building).toFixed(1)} named meals on site · ${formatProvisionRunway(foodRunwayDays)}</span></li>
+      <li><span>Food endurance</span><span>${Math.round(edibleFoodStock(building))} named meals on site · ${formatProvisionRunway(foodRunwayDays)}</span></li>
       <li><span>Ration policy</span><span>${guardhouseFoodReserveLabel(foodReserve)} · ${foodReserve} food per armed guard</span></li>
       <li><span>Company priority</span><span>${guardhousePayPriorityLabel(companyPriority)} · scarce polearms, routine provisions, and wages</span></li>
-      <li><span>Next-day wages</span><span>${suspendedByFire ? 'Suspended during fire recovery' : payroll ? `${payroll.fundedGold.toFixed(1)} / ${payroll.dailyWage.toFixed(1)} funded · claim ${payroll.claimPosition} of ${payroll.companyCount}` : armed > 0 ? 'Awaiting payroll forecast' : 'No armed guards to pay'}</span></li>
-      <li><span>Pay chest</span><span>${payrollLogistics.onsiteGold.toFixed(1)} / ${payrollLogistics.targetGold.toFixed(1)} gold · ${formatProvisionRunway(payrollLogistics.onsiteRunwayDays)} on site</span></li>
+      <li><span>Next-day wages</span><span>${suspendedByFire ? 'Suspended during fire recovery' : payroll ? `${Math.round(payroll.fundedGold)} / ${Math.ceil(payroll.dailyWage)} funded · claim ${payroll.claimPosition} of ${payroll.companyCount}` : armed > 0 ? 'Awaiting payroll forecast' : 'No armed guards to pay'}</span></li>
+      <li><span>Pay chest</span><span>${Math.round(payrollLogistics.onsiteGold)} / ${Math.ceil(payrollLogistics.targetGold)} gold · ${formatProvisionRunway(payrollLogistics.onsiteRunwayDays)} on site</span></li>
       <li><span>Payroll route</span><span>${payrollLogisticsFeedback(payrollLogistics, context)}</span></li>
-      <li><span>Treasury wages</span><span>${context.resourceTotals.gold.toFixed(1)} spendable gold across all company claims</span></li>
-      <li><span>Provision target</span><span>${suspendedByFire ? 'Suspended until fire recovery' : armed > 0 ? `${foodTarget.toFixed(1)} food · ${formatProvisionRunway(targetRunwayDays)} when full · below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days becomes an emergency claim` : 'None until polearms arm the company'}</span></li>
+      <li><span>Treasury wages</span><span>${Math.round(context.resourceTotals.gold)} spendable gold across all company claims</span></li>
+      <li><span>Provision target</span><span>${suspendedByFire ? 'Suspended until fire recovery' : armed > 0 ? `${Math.ceil(foodTarget)} food · ${formatProvisionRunway(targetRunwayDays)} when full · below ${GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS} days becomes an emergency claim` : 'None until polearms arm the company'}</span></li>
       <li><span>Provision priority</span><span>Household reserves stay local · emergencies beat smokehouse batches · routine company reserves beat granary intake</span></li>
       <li><span>Supply chain</span><span>Food by road · polearms from a staffed carpenter · pay lockboxes from a civic treasury · ironwork imported at a staffed market</span></li>
       ${buildingStorageRows(building, building.kind)}
@@ -470,9 +470,9 @@ function payrollLogisticsFeedback(
     case 'stocked':
       return `Local chest above ${GUARDHOUSE_PAYROLL_REORDER_DAYS}-day reorder · next refill to ${GUARDHOUSE_PAYROLL_TARGET_DAYS} days`;
     case 'en-route':
-      return `${plan.inTransitGold.toFixed(1)} gold from ${sourceLabel}${route}${inspectTrip}`;
+      return `${Math.round(plan.inTransitGold)} gold from ${sourceLabel}${route}${inspectTrip}`;
     case 'ready':
-      return `${plan.cartLoad.toFixed(1)} gold ready at ${sourceLabel}${route}`;
+      return `${Math.round(plan.cartLoad)} gold ready at ${sourceLabel}${route}`;
     default:
       return `${payrollLogisticsStatus(plan.status)}${route}`;
   }

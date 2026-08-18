@@ -363,7 +363,7 @@ export function renderMarketplaceInspector(
       <li><span>Specialty queue</span><span>${specialtyQueueLabel}</span></li>
       <li><span>Specialty export desk</span><span>${specialtyDesk}</span></li>
       <li><span>Public Trading Post coffer</span><span>${proceedsCollection}</span></li>
-      <li><span>Private export purse</span><span>${privateExportCash.toFixed(1)} gold awaiting free-hauler delivery to producer households</span></li>
+      <li><span>Private export purse</span><span>${Math.round(privateExportCash)} gold awaiting free-hauler delivery to producer households</span></li>
       <li><span>Automatic specialty exports</span><span>Private household trade · ${Math.round((fiscalPolicy?.exportDutyRate ?? 0) * 100)}% export duty to the civic lockbox, remainder to households</span></li>
       <li><span>Manual bulk imports</span><span>Public Trading Post procurement · paid from its civic coffer and exempt from household import duty</span></li>
       <li><span>Manual bulk exports</span><span>Public Trading Post trade · full proceeds enter the civic treasury and are not charged the private export duty</span></li>
@@ -410,13 +410,13 @@ function formatRegionalImportTrip(
   if (isRegionalExportTrip(trip)) {
     if (trip.phase === 'inbound') {
       return trip.amount > 1e-6
-        ? `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} returning from the regional exchange${clearsIn}`
+        ? `${Math.round(trip.amount)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} returning from the regional exchange${clearsIn}`
         : `Empty merchant cart returning after a lost export load${clearsIn}`;
     }
     if (trip.phase === 'unloading') {
-      return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} exchanging at the regional route${clearsIn}`;
+      return `${Math.round(trip.amount)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} exchanging at the regional route${clearsIn}`;
     }
-    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically outbound to the regional exchange${clearsIn}`;
+    return `${Math.round(trip.amount)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically outbound to the regional exchange${clearsIn}`;
   }
   if (trip.phase === 'inbound') {
     return `Merchant cart returning to the Adriatic-facing map edge${clearsIn}`;
@@ -428,14 +428,14 @@ function formatRegionalImportTrip(
     : null;
   if (trip.phase === 'unloading') {
     if (household) {
-      return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading at ${household}${clearsIn}`;
+      return `${Math.round(trip.amount)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading at ${household}${clearsIn}`;
     }
-    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading into Trading Post storage${clearsIn}`;
+    return `${Math.round(trip.amount)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} unloading into Trading Post storage${clearsIn}`;
   }
   if (household) {
-    return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound through this Trading Post to ${household}${clearsIn}`;
+    return `${Math.round(trip.amount)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound through this Trading Post to ${household}${clearsIn}`;
   }
-  return `${trip.amount.toFixed(1)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound from the Adriatic-facing map edge${clearsIn}`;
+  return `${Math.round(trip.amount)} ${cargoKindLabel(trip.cargoKind).toLowerCase()} physically inbound from the Adriatic-facing map edge${clearsIn}`;
 }
 
 function marketplaceTreasurySeatPriority(building: BuildingState): number {
@@ -463,13 +463,13 @@ function formatMarketplaceProceedsCollection(options: {
     options.activeTrip?.cargoKind === 'gold'
     && options.activeTrip.amount > 1e-6
   ) {
-    return `${options.activeTrip.amount.toFixed(1)} gold traveling to ${
+    return `${Math.round(options.activeTrip.amount)} gold traveling to ${
       options.treasurySeatLabel ?? 'the civic lockbox'
     } - unavailable until unloading`;
   }
   if (options.inboundCashTrip && options.inboundCashTrip.amount > 1e-6) {
-    return `${options.market.gold.toFixed(1)} gold held + ${
-      options.inboundCashTrip.amount.toFixed(1)
+    return `${Math.round(options.market.gold)} gold held + ${
+      Math.round(options.inboundCashTrip.amount)
     } inbound from ${options.treasurySeatLabel ?? 'the civic treasury'}`;
   }
   const privateExportCash = Math.min(
@@ -480,13 +480,13 @@ function formatMarketplaceProceedsCollection(options: {
   const target = marketplaceGoldReserveTarget(options.market);
   const shortfall = marketplaceGoldReserveShortfall(held, 0, target);
   const surplus = marketplaceGoldSweepSurplus(held, target);
-  const lockbox = `${held.toFixed(1)} public gold in the visible coffer`;
+  const lockbox = `${Math.round(held)} public gold in the visible coffer`;
   if (options.marketFireDisabled) {
     return `${lockbox} - sealed until fire recovery`;
   }
   if (shortfall > 1e-6) {
     if (options.market.assignedLabor <= 0) {
-      return `${lockbox} - staff the Trading Post and leave a free hauler to request ${shortfall.toFixed(1)} reserve gold`;
+      return `${lockbox} - staff the Trading Post and leave a free hauler to request ${Math.ceil(shortfall)} reserve gold`;
     }
     if (!options.treasurySeat) {
       return `${lockbox} - reserve awaits a founding or Town Hall treasury chest`;
@@ -494,14 +494,14 @@ function formatMarketplaceProceedsCollection(options: {
     if (!options.treasuryRouteAvailable) {
       return `${lockbox} - connect this Trading Post to ${options.treasurySeatLabel}`;
     }
-    return `${held.toFixed(1)} / ${target} working gold - ${shortfall.toFixed(1)} awaits a free treasury handcart`;
+    return `${Math.round(held)} / ${Math.ceil(target)} working gold - ${Math.ceil(shortfall)} awaits a free treasury handcart`;
   }
   if (surplus <= 1e-6) {
     return target <= 0
       ? 'Empty coffer - imports wait for local receipts'
-      : `${held.toFixed(1)} / ${target} working gold ready for imports`;
+      : `${Math.round(held)} / ${Math.ceil(target)} working gold ready for imports`;
   }
-  const sweepable = `${surplus.toFixed(1)} surplus of ${held.toFixed(1)} coffer gold`;
+  const sweepable = `${Math.round(surplus)} surplus of ${Math.round(held)} coffer gold`;
   if (options.market.assignedLabor <= 0) {
     return `${sweepable} - the post is closed; assign a trader before public trade resumes`;
   }

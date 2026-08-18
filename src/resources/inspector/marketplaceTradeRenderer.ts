@@ -299,13 +299,13 @@ function renderMarketplaceGoldReserve(building: BuildingState): string {
   if (target <= 0) {
     status = held <= 1e-6
       ? 'Receipts only — no treasury refill; imports wait for locally earned coin.'
-      : `${held.toFixed(1)} gold held — all is eligible for the next treasury sweep.`;
+      : `${Math.round(held)} gold held — all is eligible for the next treasury sweep.`;
   } else if (shortfall > 1e-6) {
-    status = `${held.toFixed(1)} / ${target} gold held — ${shortfall.toFixed(1)} awaits a free treasury handcart.`;
+    status = `${Math.round(held)} / ${Math.ceil(target)} gold held — ${Math.ceil(shortfall)} awaits a free treasury handcart.`;
   } else if (surplus > 1e-6) {
-    status = `${target} gold reserved for imports — ${surplus.toFixed(1)} surplus awaits a regional-trader cart to the treasury.`;
+    status = `${Math.ceil(target)} gold reserved for imports — ${Math.round(surplus)} surplus awaits a regional-trader cart to the treasury.`;
   } else {
-    status = `${held.toFixed(1)} / ${target} gold held — working cash ready for imports.`;
+    status = `${Math.round(held)} / ${Math.ceil(target)} gold held — working cash ready for imports.`;
   }
   return `
     <section class="marketplace-trade-section" aria-label="Trading Post cash reserve">
@@ -397,8 +397,8 @@ function renderSpecialtyExportPolicy(
     const status = stock <= 1e-6
       ? `No ${family.goods} staged · regional rate ${Math.round(rate * 100)}%.`
       : allowed
-        ? `${stock.toFixed(1)} units eligible at ${Math.round(rate * 100)}%.`
-        : `${stock.toFixed(1)} units held · ${Math.max(1, Math.ceil((policy.minRate - rate) * 100))} points below the selected floor.`;
+        ? `${Math.round(stock)} units eligible at ${Math.round(rate * 100)}%.`
+        : `${Math.round(stock)} units held · ${Math.max(1, Math.ceil((policy.minRate - rate) * 100))} points below the selected floor.`;
     return `<div class="inspector-action-panel">
       <p class="resource-inspector-note"><strong>${family.label}</strong> · ${family.goods} · ${status}</p>
       <div class="resource-action-row">${MARKETPLACE_SPECIALTY_EXPORT_POLICIES
@@ -412,7 +412,7 @@ function renderSpecialtyExportPolicy(
       <h3 class="marketplace-trade-section__title">Specialty export desks</h3>
       <p class="resource-inspector-note">Each family has its own seasonal regional demand and price. Goods must arrive by physical cart; exporting one family depresses only that family, while comfortable local households may buy small amounts before the evening caravan departs.</p>
       ${familyRows}
-      <p class="inspector-action-panel__hint">${queue.units.toFixed(1)} total units · about ${queue.goldValue.toFixed(1)} gold at current family rates.</p>
+      <p class="inspector-action-panel__hint">${Math.round(queue.units)} total units · about ${queue.goldValue.toFixed(1)} gold at current family rates.</p>
     </section>`;
 }
 
@@ -431,7 +431,7 @@ function renderIronworkProcurementPolicy(
   if (plan.target <= 0) {
     status = 'Manual-only — regional traders place no automatic ironwork orders.';
   } else if (!plan.nextOrderDue) {
-    status = `Holding ${plan.stock.toFixed(1)} / ${plan.target} ironwork; the next six-unit lot waits until it fits without overshooting.`;
+    status = `Holding ${Math.round(plan.stock)} / ${Math.ceil(plan.target)} ironwork; the next six-unit lot waits until it fits without overshooting.`;
   } else if (nextStandingOrder && nextStandingOrder !== 'ironwork') {
     status = `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} ironwork lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
@@ -470,7 +470,7 @@ function renderSeedGrainProcurementPolicy(
   if (plan.target <= 0) {
     status = 'Manual-only — regional traders place no automatic seed-grain orders.';
   } else if (!plan.nextOrderDue) {
-    status = `Holding ${plan.stock.toFixed(1)} / ${plan.target} grain; the next 24-unit lot waits until it fits without overshooting.`;
+    status = `Holding ${Math.round(plan.stock)} / ${Math.ceil(plan.target)} grain; the next 24-unit lot waits until it fits without overshooting.`;
   } else if (nextStandingOrder && nextStandingOrder !== 'seedGrain') {
     status = `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
   } else if (availability.gold + 1e-6 < nextCost) {
@@ -562,7 +562,7 @@ function formatMaterialProcurementStatus(
     return `No central reserve — mine carts serve workshops directly and regional traders place no automatic ${resource} orders.`;
   }
   if (!plan.nextOrderDue) {
-    return `Holding ${plan.stock.toFixed(1)} / ${plan.target} ${resource}; local mine carts may fill the remainder, while the next twelve-unit import waits until it fits without overshooting.`;
+    return `Holding ${Math.round(plan.stock)} / ${Math.ceil(plan.target)} ${resource}; local mine carts may fill the remainder, while the next twelve-unit import waits until it fits without overshooting.`;
   }
   if (nextStandingOrder && nextStandingOrder !== resource) {
     return `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} ${resource} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
@@ -591,28 +591,28 @@ function renderSeedCoverage(coverage?: MarketplaceSeedCoveragePlan): string {
     return '<p class="inspector-action-panel__hint">Reachable field demand — no active field seed claims on this market’s road branch.</p>';
   }
   const transit = coverage.inboundGrain > 0.05
-    ? ` · ${coverage.inboundGrain.toFixed(1)} already inbound${coverage.marketOutboundGrain > 0.05 ? ` (${coverage.marketOutboundGrain.toFixed(1)} from this market)` : ''}`
+    ? ` · ${Math.round(coverage.inboundGrain)} already inbound${coverage.marketOutboundGrain > 0.05 ? ` (${Math.round(coverage.marketOutboundGrain)} from this market)` : ''}`
     : '';
   const firstExposed = coverage.firstShortBuildingId == null
     ? ''
-    : ` First exposed: ${coverage.firstShortfall.toFixed(1)} grain short <button type="button" class="inspector-jump-button" data-inspect-building="${coverage.firstShortBuildingId}" aria-label="Inspect first road-linked seed shortfall">Inspect holding</button>.`;
+    : ` First exposed: ${Math.ceil(coverage.firstShortfall)} grain short <button type="button" class="inspector-jump-button" data-inspect-building="${coverage.firstShortBuildingId}" aria-label="Inspect first road-linked seed shortfall">Inspect holding</button>.`;
   const laborBlock = coverage.laborBlockedHoldings > 0
-    ? ` ${coverage.laborBlockedShortfall.toFixed(1)} grain across ${coverage.laborBlockedHoldings} holding${coverage.laborBlockedHoldings === 1 ? '' : 's'} cannot move until farm labor is assigned.`
+    ? ` ${Math.ceil(coverage.laborBlockedShortfall)} grain across ${coverage.laborBlockedHoldings} holding${coverage.laborBlockedHoldings === 1 ? '' : 's'} cannot move until farm labor is assigned.`
     : '';
   const fireBlock = coverage.fireBlockedHoldings > 0
-    ? ` ${coverage.fireBlockedShortfall.toFixed(1)} grain is held behind ${coverage.fireBlockedHoldings} fire-disabled holding${coverage.fireBlockedHoldings === 1 ? '' : 's'}.`
+    ? ` ${Math.ceil(coverage.fireBlockedShortfall)} grain is held behind ${coverage.fireBlockedHoldings} fire-disabled holding${coverage.fireBlockedHoldings === 1 ? '' : 's'}.`
     : '';
   const inboundBlock = coverage.inboundBlockedHoldings > 0
     ? ` ${coverage.inboundBlockedHoldings} holding${coverage.inboundBlockedHoldings === 1 ? '' : 's'} already ${coverage.inboundBlockedHoldings === 1 ? 'has' : 'have'} a grain cart inbound, so overlapping sources will not duplicate the haul.`
     : '';
   const nextCart = renderNextMarketplaceSeedCart(coverage);
   if (coverage.seedShortfall <= 0.05) {
-    return `<p class="inspector-action-panel__hint">Reachable field demand — ${coverage.seedCovered.toFixed(1)} / ${coverage.seedRequired.toFixed(1)} grain covered across ${coverage.connectedHoldings} holding${coverage.connectedHoldings === 1 ? '' : 's'}${transit}. Current field plans need no additional market seed.</p>`;
+    return `<p class="inspector-action-panel__hint">Reachable field demand — ${Math.round(coverage.seedCovered)} / ${Math.ceil(coverage.seedRequired)} grain covered across ${coverage.connectedHoldings} holding${coverage.connectedHoldings === 1 ? '' : 's'}${transit}. Current field plans need no additional market seed.</p>`;
   }
   const planned = coverage.plannedImportLots > 0
     ? `${coverage.plannedImportGrain.toFixed(0)} grain in ${coverage.plannedImportLots} currently due lot${coverage.plannedImportLots === 1 ? '' : 's'}`
     : 'no lot currently due';
-  return `<p class="inspector-action-panel__hint">Reachable field demand — ${coverage.seedCovered.toFixed(1)} / ${coverage.seedRequired.toFixed(1)} grain covered${transit}; ${coverage.seedShortfall.toFixed(1)} remains short across ${coverage.shortHoldings} holding${coverage.shortHoldings === 1 ? '' : 's'}. This market holds ${coverage.currentMarketStock.toFixed(1)} and has ${planned}, enough to cover up to ${coverage.potentialCoverage.toFixed(1)} of the staffed shortfall${coverage.uncoveredDispatchableShortfall > 0.05 ? ` · ${coverage.uncoveredDispatchableShortfall.toFixed(1)} would remain` : ''}.${laborBlock}${fireBlock}${inboundBlock}${firstExposed} ${nextCart} Reachability is shared with other granaries or markets on the same road component.</p>`;
+  return `<p class="inspector-action-panel__hint">Reachable field demand — ${Math.round(coverage.seedCovered)} / ${Math.ceil(coverage.seedRequired)} grain covered${transit}; ${Math.ceil(coverage.seedShortfall)} remains short across ${coverage.shortHoldings} holding${coverage.shortHoldings === 1 ? '' : 's'}. This market holds ${Math.round(coverage.currentMarketStock)} and has ${planned}, enough to cover up to ${Math.floor(coverage.potentialCoverage)} of the staffed shortfall${coverage.uncoveredDispatchableShortfall > 0.05 ? ` · ${Math.ceil(coverage.uncoveredDispatchableShortfall)} would remain` : ''}.${laborBlock}${fireBlock}${inboundBlock}${firstExposed} ${nextCart} Reachability is shared with other granaries or markets on the same road component.</p>`;
 }
 
 function renderNextMarketplaceSeedCart(
@@ -634,7 +634,7 @@ function renderNextMarketplaceSeedCart(
     : ` over ${coverage.nextDispatchDistance.toFixed(0)} m of road`;
   const inspect = `<button type="button" class="inspector-jump-button" data-inspect-building="${coverage.nextDispatchBuildingId}" aria-label="Inspect next seed-cart holding">Inspect next holding</button>`;
   if (coverage.nextDispatchAmount <= 0.05) {
-    return `Next eligible destination once physical seed is available: ${coverage.nextDispatchStock.toFixed(1)} / ${coverage.nextDispatchRequired.toFixed(1)} onsite${distance}. ${inspect}`;
+    return `Next eligible destination once physical seed is available: ${Math.round(coverage.nextDispatchStock)} / ${Math.ceil(coverage.nextDispatchRequired)} onsite${distance}. ${inspect}`;
   }
-  return `Next seed cart: ${coverage.nextDispatchAmount.toFixed(1)} grain to the least-covered eligible holding (${coverage.nextDispatchStock.toFixed(1)} / ${coverage.nextDispatchRequired.toFixed(1)} onsite)${distance}. ${inspect}`;
+  return `Next seed cart: ${Math.round(coverage.nextDispatchAmount)} grain to the least-covered eligible holding (${Math.round(coverage.nextDispatchStock)} / ${Math.ceil(coverage.nextDispatchRequired)} onsite)${distance}. ${inspect}`;
 }

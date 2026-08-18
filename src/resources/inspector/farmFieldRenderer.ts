@@ -194,7 +194,7 @@ export function renderFarmFieldInspector(
               ? 'Waiting for workers at this or a nearby farmstead'
               : 'Waiting for workers at the linked farmstead'
           : seedBlocked
-            ? `Sowing halted · ${seedRemaining.toFixed(1)} seed grain still needed`
+            ? `Sowing halted · ${Math.ceil(seedRemaining)} seed grain still needed`
             : earlyHarvestLocked
               ? `Early harvest · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% yield locked · ${stageProgress}% gathered`
               : `${STAGE_LABEL[field.stage]} · ${stageProgress}%`;
@@ -258,8 +258,8 @@ export function renderFarmFieldInspector(
       <li><span>Ox support</span><span>${cattleSupport
         ? `Active from nearby cattle · ${Math.round((1 - cattleSupport.ploughWorkMultiplier) * 100)}% less ploughing`
         : 'None · requires a top-two priority slot and healthy, supplied cattle within range'}</span></li>
-      <li><span>Manure spread</span><span>${manureApplied.toFixed(1)} / ${manureRequired.toFixed(1)} this cycle · +${(manureBonus * 100).toFixed(1)} soil${field.stage === 'ploughing' ? ` · ${Math.max(0, farmstead?.manure ?? 0).toFixed(1)} waiting at farmstead` : ''}</span></li>
-      <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${breadGrainStock(farmstead).toFixed(1)} bread grain (${(farmstead.ryeGrain ?? 0).toFixed(1)} rye / ${(farmstead.oatGrain ?? 0).toFixed(1)} oats / ${(farmstead.maslinGrain ?? 0).toFixed(1)} maslin) · ${Math.round(farmstead.manure ?? 0)} manure stored` : 'Missing'}</span></li>
+      <li><span>Manure spread</span><span>${Math.round(manureApplied)} / ${Math.ceil(manureRequired)} this cycle · +${(manureBonus * 100).toFixed(1)} soil${field.stage === 'ploughing' ? ` · ${Math.round(Math.max(0, farmstead?.manure ?? 0))} waiting at farmstead` : ''}</span></li>
+      <li><span>Farmstead</span><span>${farmstead ? `${onsiteLabor} on site / ${farmstead.assignedLabor} assigned · ${Math.round(breadGrainStock(farmstead))} bread grain (${Math.round(farmstead.ryeGrain ?? 0)} rye / ${Math.round(farmstead.oatGrain ?? 0)} oats / ${Math.round(farmstead.maslinGrain ?? 0)} maslin) · ${Math.round(farmstead.manure ?? 0)} manure stored` : 'Missing'}</span></li>
       <li><span>Field tools</span><span>${toolThroughputMultiplier > 1 ? `Maintained · ${Math.round((toolThroughputMultiplier - 1) * 100)}% faster field work` : 'Baseline hand tools · farmstead needs smith-forged ironwork for faster work'}</span></li>
       <li><span>Land fit</span><span>${environmentalFit}% for ${cropLabel(field.crop).toLowerCase()} · ${soilFit}% soil / ${moistureFit}% moisture</span></li>
       <li><span>Water</span><span>${Math.round(field.moisture * 100)}% groundwater · ${Math.round(effectiveMoisture * 100)}% after soil retention</span></li>
@@ -274,10 +274,10 @@ export function renderFarmFieldInspector(
       ${earlyHarvestLocked ? `<li><span>Harvest decision</span><span>Early cut · ${Math.round((field.harvestYieldMultiplier ?? 1) * 100)}% of normal yield locked</span></li>` : ''}
       <li><span>Next-crop potential</span><span>${cropProduce(field.nextCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${plannedYield.toFixed(1)} ${cropHarvestUnit(field.nextCrop)} at current moisture · ${plannedSeed.toFixed(1)} seed`}</span></li>
       <li><span>Year 3 potential</span><span>${cropProduce(thirdCrop) === 'none' ? 'Worked fallow · restores soil without seed' : `${yearThreeYield.toFixed(1)} ${cropHarvestUnit(thirdCrop)} at current moisture · ${yearThreeSeed.toFixed(1)} seed`}</span></li>
-      <li><span>Protected seed</span><span>${seedRemaining <= 1e-6 ? 'None' : `${seedRemaining.toFixed(1)} grain · ${field.stage === 'ploughing' || field.stage === 'sowing' ? cropLabel(field.crop) : cropLabel(field.nextCrop)}`}</span></li>
+      <li><span>Protected seed</span><span>${seedRemaining <= 1e-6 ? 'None' : `${Math.ceil(seedRemaining)} grain · ${field.stage === 'ploughing' || field.stage === 'sowing' ? cropLabel(field.crop) : cropLabel(field.nextCrop)}`}</span></li>
       ${field.stage === 'growing' ? '' : `<li><span>Work remaining</span><span>${remainingWorkerDays.toFixed(1)} worker-days${crewDays == null ? ' · assign a crew' : ` · about ${crewDays.toFixed(1)} days once this job reaches the front of the shared queue`}</span></li>`}
-      ${field.stage === 'harvesting' ? `<li><span>Brought in</span><span>${field.currentYield.toFixed(1)} / ${expectedYield.toFixed(1)} ${cropHarvestUnit(field.crop)}</span></li>` : ''}
-      <li><span>Last harvest</span><span>${field.harvestCount === 0 ? 'None yet' : `${field.lastYield.toFixed(1)} yield units · ${field.harvestCount} total`}</span></li>
+      ${field.stage === 'harvesting' ? `<li><span>Brought in</span><span>${Math.round(field.currentYield)} / ${Math.floor(expectedYield)} ${cropHarvestUnit(field.crop)}</span></li>` : ''}
+      <li><span>Last harvest</span><span>${field.harvestCount === 0 ? 'None yet' : `${Math.round(field.lastYield)} yield units · ${field.harvestCount} total`}</span></li>
     `,
     demolish: { visible: true, label: 'Remove field', hint: 'Clears the field boundary. Worked land is not refunded.' },
     labor: hiddenLabor(),
