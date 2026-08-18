@@ -510,6 +510,7 @@ const expectedWorkplaces = [
   'brewery',
   'smokehouse',
   'granary',
+  'village_storehouse',
   'bakery',
   'apiary',
   'watermill',
@@ -666,6 +667,14 @@ assert.match(lodgingInspectorSource, /restoring the worksite\\'s full productive
 assert.doesNotMatch(lodgingInspectorSource, /Â/, 'inspector copy must not contain mojibake');
 assert.match(villagerRendererSource, /scanFromWatchtower/);
 assert.match(villagerRendererSource, /resolveAgentY/);
+assert.match(villagerRendererSource, /buildMarketplaceStallDuties/);
+assert.match(villagerRendererSource, /marketplaceStallWorkerApproach/);
+assert.match(villagerRendererSource, /Minding the \$\{marketStallLabel/);
+assert.match(
+  villagerRendererSource,
+  /beginPreparedJourney\(agent, path, 'commute_to_work'\)/,
+  'market sellers should visibly follow the authored entrance path to their counter',
+);
 assert.match(villagerRendererSource, /Keeping watch from the frontier gallery/);
 assert.match(villagerRendererSource, /Cutting wet river clay/);
 assert.match(villagerRendererSource, /Sealing and venting the clamp/);

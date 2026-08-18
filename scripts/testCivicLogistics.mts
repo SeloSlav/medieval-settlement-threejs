@@ -6,7 +6,15 @@ import { getBuildingExtent } from '../src/buildings/buildingExtents.ts';
 import {
   assignMarketplaceStallRoster,
   assignMarketplaceStalls,
+  indexMarketplaceStallWorkers,
 } from '../src/economy/marketStallAssignments.ts';
+import {
+  MARKETPLACE_STALL_DISPLAY_NEEDS,
+  MARKETPLACE_STALL_WORKER_ANCHOR_NAME,
+  marketStallDisplayName,
+  marketplaceStallWorkerApproach,
+  marketplaceStallWorkerPosition,
+} from '../src/buildings/marketplaceStallLayout.ts';
 import {
   BUILDING_DEFINITIONS,
   BUILDING_KINDS,
@@ -75,12 +83,40 @@ for (const kind of ['town_hall', 'village_storehouse'] as const) {
 const marketplaceModel = createBuildingMesh('marketplace');
 let foodStallTables = 0;
 let goodsStallTables = 0;
+let workerAnchors = 0;
+let counterDisplays = 0;
 marketplaceModel.traverse((object) => {
   if (object.name.startsWith('MarketFoodStall')) foodStallTables += 1;
   if (object.name.startsWith('MarketGoodsStall')) goodsStallTables += 1;
+  if (object.name === MARKETPLACE_STALL_WORKER_ANCHOR_NAME) workerAnchors += 1;
+  if (object.name.startsWith('MarketStallDisplay:')) {
+    counterDisplays += 1;
+    assert.equal(object.visible, false, 'counter goods should wait for an active category');
+  }
 });
 assert.equal(foodStallTables, MARKETPLACE_FOOD_STALL_SLOTS);
 assert.equal(goodsStallTables, MARKETPLACE_GOODS_STALL_SLOTS);
+assert.equal(workerAnchors, MARKETPLACE_FOOD_STALL_SLOTS + MARKETPLACE_GOODS_STALL_SLOTS);
+assert.equal(
+  counterDisplays,
+  MARKETPLACE_FOOD_STALL_SLOTS * MARKETPLACE_STALL_DISPLAY_NEEDS.food.length
+    + MARKETPLACE_GOODS_STALL_SLOTS * MARKETPLACE_STALL_DISPLAY_NEEDS.goods.length,
+  'every physical table should own compatible representative-goods modules',
+);
+for (const group of ['food', 'goods'] as const) {
+  const prefix = group === 'food' ? 'MarketFoodStall' : 'MarketGoodsStall';
+  const count = group === 'food' ? MARKETPLACE_FOOD_STALL_SLOTS : MARKETPLACE_GOODS_STALL_SLOTS;
+  for (let index = 0; index < count; index += 1) {
+    const table = marketplaceModel.getObjectByName(`${prefix}${index}`);
+    assert.ok(table?.getObjectByName(MARKETPLACE_STALL_WORKER_ANCHOR_NAME));
+    for (const needKind of MARKETPLACE_STALL_DISPLAY_NEEDS[group]) {
+      assert.ok(
+        table?.getObjectByName(marketStallDisplayName(needKind)),
+        `${prefix}${index} should own a ${needKind} counter display`,
+      );
+    }
+  }
+}
 
 const stallTestBuilding = (
   id: string,
@@ -147,6 +183,41 @@ assert.deepEqual(
   ],
   'each depot laborer should open one stocked category at the nearest Marketplace only',
 );
+assert.deepEqual(
+  indexMarketplaceStallWorkers(assignMarketplaceStallRoster(
+    [nearMarket, farMarket, stockedGranary, stockedStorehouse],
+    (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
+  )).map((worker) => [
+    worker.workplaceId,
+    worker.workplaceSlotIndex,
+    worker.group,
+    worker.marketplaceSlotIndex,
+  ]),
+  [
+    ['30', 0, 'food', 0],
+    ['30', 1, 'food', 1],
+    ['40', 0, 'goods', 0],
+  ],
+  'the same stable depot labor slots should own the same physical counters',
+);
+assert.deepEqual(
+  marketplaceStallWorkerPosition(nearMarket, 0, 'food', 0),
+  { x: 7.65, z: -1.68, yaw: 0 },
+  'a food seller should stand behind the counter facing the center aisle',
+);
+assert.deepEqual(
+  marketplaceStallWorkerApproach(nearMarket, 0, 'food', 1),
+  {
+    outside: { x: 10.74, z: -3.38 },
+    inside: { x: 10.74, z: -2.28 },
+  },
+  'the middle seller should enter around the center timber post before reaching the counter',
+);
+const rotatedGoodsSeller = marketplaceStallWorkerPosition(nearMarket, Math.PI * 0.5, 'goods', 2);
+assert.ok(rotatedGoodsSeller);
+assert.ok(Math.abs(rotatedGoodsSeller.x - 11.88) < 1e-9);
+assert.ok(Math.abs(rotatedGoodsSeller.z + 2.35) < 1e-9);
+assert.ok(Math.abs(rotatedGoodsSeller.yaw + Math.PI * 0.5) < 1e-9);
 const oneWorkerRoster = assignMarketplaceStalls(
   [nearMarket, farMarket, { ...stockedGranary, assignedLabor: 1 }],
   (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),

@@ -21,6 +21,17 @@ import type {
   TreeLayoutEntry,
 } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
+import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import {
+  marketplaceStallWorkerApproach,
+  marketplaceStallWorkerPosition,
+} from '../buildings/marketplaceStallLayout.ts';
+import {
+  assignMarketplaceStallRoster,
+  indexMarketplaceStallWorkers,
+  marketStallLabel,
+  type MarketStallNeed,
+} from '../economy/marketStallAssignments.ts';
 import {
   householdMemberHomeState,
   type HouseholdHomeState,
@@ -248,6 +259,36 @@ type CombatAgentVisual = {
   yaw: number;
 };
 
+type MarketStallDuty = PointXZ & {
+  yaw: number;
+  marketplaceId: string;
+  needKind: MarketStallNeed | null;
+  approachOutside: PointXZ;
+  approachInside: PointXZ;
+};
+
+function workerSlotKey(workplaceId: string, workplaceSlot: number): string {
+  return `${workplaceId}:${workplaceSlot}`;
+}
+
+function sameDutyPosition(
+  left: MarketStallDuty | undefined,
+  right: MarketStallDuty | undefined,
+): boolean {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  return left.marketplaceId === right.marketplaceId
+    && left.needKind === right.needKind
+    && Math.abs(left.x - right.x) <= 1e-5
+    && Math.abs(left.z - right.z) <= 1e-5
+    && Math.abs(Math.atan2(
+      Math.sin(left.yaw - right.yaw),
+      Math.cos(left.yaw - right.yaw),
+    )) <= 1e-5
+    && Math.abs(left.approachOutside.x - right.approachOutside.x) <= 1e-5
+    && Math.abs(left.approachOutside.z - right.approachOutside.z) <= 1e-5;
+}
+
 type VillagerAgent = {
   id: string;
   personIdentity: string;
@@ -355,6 +396,7 @@ export class VillagerRenderer {
   private readonly combatAudioSourceWorkspace = createCombatAudioSourceWorkspace();
   private residences = new Map<string, ResidenceState>();
   private buildings = new Map<string, BuildingState>();
+  private marketStallDutyByWorker = new Map<string, MarketStallDuty>();
   private workerTargets = new Map<string, WorkerTarget[]>();
   private foundingCamp: BuildingState | null = null;
   private campAmbientAssignments = new Map<string, AmbientBehaviorAssignment>();
@@ -638,6 +680,7 @@ export class VillagerRenderer {
     const previousResidences = this.residences;
     const previousBuildings = this.buildings;
     const previousFoundingCamp = this.foundingCamp;
+    const previousMarketStallDuties = this.marketStallDutyByWorker;
     const residences = [...options.residences];
     const physicalBuildings = [...options.buildings];
     const buildings = [
@@ -670,6 +713,10 @@ export class VillagerRenderer {
       this.commuteEstimateTopologyRevision = topologyRevision;
     }
     this.roadNetwork = options.roadNetwork;
+    this.marketStallDutyByWorker = this.buildMarketplaceStallDuties(
+      physicalBuildings,
+      disabledBuildingIds,
+    );
     this.massChapels = operationalMassChapels(
       physicalBuildings,
       disabledBuildingIds,
@@ -939,7 +986,7 @@ export class VillagerRenderer {
       let agent = this.agents.get(assignment.id);
       if (!agent) {
         const colors = pickVillagerColors(appearanceSeed);
-        const yard = workplaceYardPosition(building, assignment.slotIndex);
+        const yard = this.workerDutyPosition(building, assignment.slotIndex);
         agent = {
           id: assignment.id,
           personIdentity: assignment.personIdentity,
@@ -1017,6 +1064,10 @@ export class VillagerRenderer {
           || !previousBuilding
           || previousBuilding.x !== building.x
           || previousBuilding.z !== building.z
+          || !sameDutyPosition(
+            previousMarketStallDuties.get(workerSlotKey(building.id, assignment.slotIndex)),
+            this.marketStallDutyByWorker.get(workerSlotKey(building.id, assignment.slotIndex)),
+          )
         ) {
           agent.idleDirty = true;
         }
@@ -1301,7 +1352,7 @@ export class VillagerRenderer {
           ? this.foundingCampRestPosition(agent, this.foundingCamp)
           : null;
       if (!origin) continue;
-      const destination = workplaceYardPosition(workplace, agent.workplaceSlot);
+      const destination = this.workerDutyPosition(workplace, agent.workplaceSlot);
       const path = pickWorkerCommutePath(origin, destination, this.roadNetwork);
       if (!path) continue;
       const distance = polylineLengthXZ(path);
@@ -1428,6 +1479,7 @@ export class VillagerRenderer {
             workplaceFireDisabled,
             residenceFireDisabled,
             this.holidayObservance,
+            this.marketStallDutyForAgent(agent),
           ),
       activityState: onDuty ? 'active' : 'ready',
       workplaceLabel: 'Workplace',
@@ -1482,7 +1534,7 @@ export class VillagerRenderer {
     ) {
       const destination = agent.routinePhase === 'work'
         ? this.workerRestDestination(agent, workplace)
-        : workplaceYardPosition(workplace, agent.workplaceSlot);
+        : this.workerDutyPosition(workplace, agent.workplaceSlot);
       const commute = destination
         ? pickWorkerCommutePath(
             { x: agent.x, z: agent.z },
@@ -2165,6 +2217,12 @@ export class VillagerRenderer {
     if (!building) return;
     if (building.kind === 'watchtower' && building.constructionComplete !== false) {
       this.scanFromWatchtower(agent, building);
+      return;
+    }
+    if (this.marketStallDutyForAgent(agent)) {
+      this.placeWorkerIdle(agent, building);
+      agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.45;
+      agent.pathSeed = (agent.pathSeed * 1_664_525) ^ 0x165667b1;
       return;
     }
     const targets = this.workerTargets.get(building.id) ?? [];
@@ -2889,7 +2947,7 @@ export class VillagerRenderer {
     const workplaceAvailable = workplace
       && !this.fireDisabledBuildingIds.has(workplace.id);
     const destination = workplaceAvailable
-      ? workplaceYardPosition(workplace, agent.workplaceSlot)
+      ? this.workerDutyPosition(workplace, agent.workplaceSlot)
       : residence
         ? residenceDoorPosition(residence)
         : this.foundingCamp
@@ -3176,6 +3234,31 @@ export class VillagerRenderer {
       return true;
     }
 
+    const duty = this.marketStallDutyForAgent(agent);
+    if (duty) {
+      const roadDeparture = pickWorkerCommutePath(
+        duty.approachOutside,
+        destination,
+        this.roadNetwork,
+      ) ?? [duty.approachOutside, destination];
+      const routedDeparture = this.routePath(roadDeparture);
+      if (!routedDeparture) return false;
+      const path = joinPolylines(
+        [
+          { x: agent.x, z: agent.z },
+          duty.approachInside,
+          duty.approachOutside,
+        ],
+        routedDeparture,
+      );
+      if (!this.beginPreparedJourney(agent, path, 'return_home')) {
+        this.completeWorkerReturnHome(agent);
+        return true;
+      }
+      agent.routinePhase = 'returning_home';
+      return true;
+    }
+
     const path = pickWorkerCommutePath(
       { x: agent.x, z: agent.z },
       destination,
@@ -3252,7 +3335,29 @@ export class VillagerRenderer {
     const building = agent.workplaceId ? this.buildings.get(agent.workplaceId) : null;
     if (!building || this.fireDisabledBuildingIds.has(building.id)) return false;
 
-    const destination = workplaceYardPosition(building, agent.workplaceSlot);
+    const duty = this.marketStallDutyForAgent(agent);
+    if (duty) {
+      const start = { x: agent.x, z: agent.z };
+      const roadApproach = pickWorkerCommutePath(
+        start,
+        duty.approachOutside,
+        this.roadNetwork,
+      ) ?? [start, duty.approachOutside];
+      const routedApproach = this.routePath(roadApproach);
+      if (!routedApproach) return false;
+      const path = joinPolylines(
+        joinPolylines(routedApproach, [duty.approachOutside, duty.approachInside]),
+        [duty.approachInside, { x: duty.x, z: duty.z }],
+      );
+      if (!this.beginPreparedJourney(agent, path, 'commute_to_work')) {
+        this.completeWorkerCommuteToWork(agent);
+        return true;
+      }
+      agent.routinePhase = 'commuting_to_work';
+      return true;
+    }
+
+    const destination = this.workerDutyPosition(building, agent.workplaceSlot);
     const path = pickWorkerCommutePath(
       { x: agent.x, z: agent.z },
       destination,
@@ -3281,6 +3386,70 @@ export class VillagerRenderer {
       : null;
     this.placeWorkerIdle(agent, building);
     agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.45;
+  }
+
+  private buildMarketplaceStallDuties(
+    buildings: readonly BuildingState[],
+    disabledBuildingIds: ReadonlySet<string>,
+  ): Map<string, MarketStallDuty> {
+    const duties = new Map<string, MarketStallDuty>();
+    if (!this.roadNetwork) return duties;
+    const roster = assignMarketplaceStallRoster(
+      buildings,
+      (ax, az, bx, bz) =>
+        this.roadNetwork?.getPathfinder().roadPathDistance(ax, az, bx, bz) ?? null,
+      disabledBuildingIds,
+    );
+    for (const assignment of indexMarketplaceStallWorkers(roster)) {
+      const marketplace = this.buildings.get(assignment.marketplaceId);
+      if (!marketplace) continue;
+      const buildingYaw = buildingPlacementYaw(
+        marketplace.kind,
+        marketplace.x,
+        marketplace.z,
+        this.roadNetwork,
+      );
+      const position = marketplaceStallWorkerPosition(
+        marketplace,
+        buildingYaw,
+        assignment.group,
+        assignment.marketplaceSlotIndex,
+      );
+      const approach = marketplaceStallWorkerApproach(
+        marketplace,
+        buildingYaw,
+        assignment.group,
+        assignment.marketplaceSlotIndex,
+      );
+      if (!position || !approach) continue;
+      duties.set(
+        workerSlotKey(assignment.workplaceId, assignment.workplaceSlotIndex),
+        {
+          ...position,
+          marketplaceId: assignment.marketplaceId,
+          needKind: assignment.needKind,
+          approachOutside: approach.outside,
+          approachInside: approach.inside,
+        },
+      );
+    }
+    return duties;
+  }
+
+  private marketStallDutyForAgent(agent: VillagerAgent): MarketStallDuty | null {
+    if (!agent.workplaceId || agent.workplaceSlot < 0) return null;
+    return this.marketStallDutyByWorker.get(
+      workerSlotKey(agent.workplaceId, agent.workplaceSlot),
+    ) ?? null;
+  }
+
+  private workerDutyPosition(
+    workplace: BuildingState,
+    workplaceSlot: number,
+  ): PointXZ & { yaw: number } {
+    return this.marketStallDutyByWorker.get(
+      workerSlotKey(workplace.id, workplaceSlot),
+    ) ?? workplaceYardPosition(workplace, workplaceSlot);
   }
 
   private workerRestDestination(
@@ -3338,7 +3507,7 @@ export class VillagerRenderer {
       ? this.workerRestDestination(agent, workplace)
       : this.workerPermanentHomeDestination(agent);
     if (!origin) return 0;
-    const destination = workplaceYardPosition(workplace, agent.workplaceSlot);
+    const destination = this.workerDutyPosition(workplace, agent.workplaceSlot);
     const key = [
       workplace.id,
       workplace.x,
@@ -4008,7 +4177,7 @@ export class VillagerRenderer {
       agent.yaw = lookout.yaw;
       return;
     }
-    const yard = workplaceYardPosition(building, agent.workplaceSlot);
+    const yard = this.workerDutyPosition(building, agent.workplaceSlot);
     agent.x = yard.x;
     agent.z = yard.z;
     agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
@@ -4203,6 +4372,7 @@ function describeVillagerActivity(
   workplaceFireDisabled = false,
   residenceFireDisabled = false,
   holiday: HolidayObservance | null = null,
+  marketStallDuty: MarketStallDuty | null = null,
 ): string {
   const workplaceLabel = workplace
     ? isResidenceUpgradeWorkplaceId(workplace.id)
@@ -4212,8 +4382,9 @@ function describeVillagerActivity(
 
   switch (agent.routinePhase) {
     case 'commuting_to_work':
-      return workplaceFireDisabled
-        ? `Turning back from the fire at ${workplaceLabel}`
+      if (workplaceFireDisabled) return `Turning back from the fire at ${workplaceLabel}`;
+      return marketStallDuty
+        ? 'Walking to the Marketplace stall'
         : `Walking to ${workplaceLabel}`;
     case 'returning_home':
       return workplaceFireDisabled
@@ -4268,6 +4439,11 @@ function describeVillagerActivity(
     case 'work':
       if (workplaceFireDisabled) {
         return `Leaving ${workplaceLabel} — the site is closed by fire`;
+      }
+      if (marketStallDuty) {
+        return marketStallDuty.needKind
+          ? `Minding the ${marketStallLabel(marketStallDuty.needKind).toLocaleLowerCase()} stall at the Marketplace`
+          : 'Preparing an empty stall at the Marketplace';
       }
       if (workplace?.kind === 'watchtower') {
         return 'Keeping watch from the frontier gallery';

@@ -23,6 +23,13 @@ import {
 } from '../marketplaceSpecialtyStockpileVisuals.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
 import { addBarrel, addCrate } from './buildingMeshKit.ts';
+import {
+  MARKETPLACE_STALL_DISPLAY_NEEDS,
+  MARKETPLACE_STALL_WORKER_ANCHOR_NAME,
+  marketStallDisplayName,
+  marketplaceStallLayout,
+} from '../marketplaceStallLayout.ts';
+import type { MarketStallGroup, MarketStallNeed } from '../../economy/marketStallAssignments.ts';
 
 export const MARKET_STAGING_VISUAL_SEGMENTS = 5;
 export const MARKET_RECEIPT_VISUAL_SEGMENTS = 3;
@@ -32,15 +39,16 @@ export const MARKET_RECEIPT_VISUAL_CAPACITY =
 function addMarketTable(
   group: THREE.Group,
   name: string,
-  x: number,
-  z: number,
-  rotation = 0,
+  stallGroup: MarketStallGroup,
+  slotIndex: number,
 ): void {
+  const layout = marketplaceStallLayout(stallGroup, slotIndex);
+  if (!layout) return;
   const table = new THREE.Group();
   table.name = name;
   table.visible = false;
-  table.position.set(x, 0, z);
-  table.rotation.y = rotation;
+  table.position.set(layout.x, 0, layout.z);
+  table.rotation.y = layout.rotation;
   addMesh(
     table,
     new THREE.BoxGeometry(2.0, 0.16, 0.86),
@@ -57,7 +65,93 @@ function addMarketTable(
       );
     }
   }
+  const workerAnchor = new THREE.Object3D();
+  workerAnchor.name = MARKETPLACE_STALL_WORKER_ANCHOR_NAME;
+  workerAnchor.position.set(0, 0.02, -0.86);
+  workerAnchor.userData.marketStallWorkerAnchor = true;
+  table.add(workerAnchor);
+  for (const needKind of MARKETPLACE_STALL_DISPLAY_NEEDS[stallGroup]) {
+    addMarketStallDisplay(table, needKind);
+  }
   group.add(table);
+}
+
+function addMarketStallDisplay(
+  table: THREE.Group,
+  needKind: MarketStallNeed,
+): void {
+  const display = new THREE.Group();
+  display.name = marketStallDisplayName(needKind);
+  display.visible = false;
+  display.position.y = 1.07;
+  display.userData.marketNeedKind = needKind;
+
+  if (needKind === 'food') {
+    const crate = new THREE.Group();
+    crate.position.set(-0.32, 0, 0);
+    addCrate(crate, 0, 0, 0.48);
+    display.add(crate);
+    const produceColors = ['orange', 'yellow', 'lightOrange'] as const;
+    for (let index = 0; index < 5; index += 1) {
+      addMesh(
+        display,
+        new THREE.SphereGeometry(0.1, 7, 5),
+        residenceFacadeMaterial(produceColors[index % produceColors.length]),
+        new THREE.Vector3(-0.54 + index * 0.12, 0.34 + (index % 2) * 0.06, -0.04),
+      );
+    }
+  } else if (needKind === 'preservedFood') {
+    for (const [index, x] of [-0.34, 0, 0.34].entries()) {
+      const jar = new THREE.Group();
+      jar.position.x = x;
+      addMarketPottery(jar, index === 1 ? 0.82 : 0.68, index);
+      addMesh(
+        jar,
+        new THREE.CylinderGeometry(0.09, 0.11, 0.06, 8),
+        timberMaterial('dark'),
+        new THREE.Vector3(0, index === 1 ? 0.39 : 0.33, 0),
+      );
+      display.add(jar);
+    }
+  } else if (needKind === 'ale') {
+    const cask = new THREE.Group();
+    cask.position.set(-0.24, 0, 0);
+    addBarrel(cask, 0, 0, 0.46);
+    display.add(cask);
+    for (const x of [0.2, 0.43]) {
+      addMesh(
+        display,
+        new THREE.CylinderGeometry(0.11, 0.09, 0.2, 8),
+        timberMaterial('light'),
+        new THREE.Vector3(x, 0.1, 0),
+      );
+    }
+  } else if (needKind === 'firewood') {
+    for (let index = 0; index < 4; index += 1) {
+      addMesh(
+        display,
+        new THREE.CylinderGeometry(0.09, 0.11, 0.62, 7),
+        timberMaterial(index % 2 === 0 ? 'weathered' : 'mid'),
+        new THREE.Vector3(-0.42 + index * 0.28, 0.12 + (index % 2) * 0.1, 0),
+        new THREE.Euler(0, 0, Math.PI * 0.5),
+      );
+    }
+  } else if (needKind === 'cloth') {
+    for (const [index, x] of [-0.34, 0.34].entries()) {
+      const folded = new THREE.Group();
+      folded.position.x = x;
+      addFoldedCloth(folded, 0.68, index);
+      display.add(folded);
+    }
+  } else {
+    for (const [index, x] of [-0.42, 0, 0.42].entries()) {
+      const pottery = new THREE.Group();
+      pottery.position.x = x;
+      addMarketPottery(pottery, index === 1 ? 0.82 : 0.66, index);
+      display.add(pottery);
+    }
+  }
+  table.add(display);
 }
 
 type MarketStockPlacement = readonly [
@@ -485,13 +579,12 @@ export function createMarketplaceMesh(): THREE.Group {
     );
   }
 
-  const stallXPositions = [-2.35, 0, 2.35] as const;
-  stallXPositions.slice(0, MARKETPLACE_FOOD_STALL_SLOTS).forEach((x, index) => {
-    addMarketTable(group, `MarketFoodStall${index}`, x, -0.82);
-  });
-  stallXPositions.slice(0, MARKETPLACE_GOODS_STALL_SLOTS).forEach((x, index) => {
-    addMarketTable(group, `MarketGoodsStall${index}`, x, 1.02, Math.PI);
-  });
+  for (let index = 0; index < MARKETPLACE_FOOD_STALL_SLOTS; index += 1) {
+    addMarketTable(group, `MarketFoodStall${index}`, 'food', index);
+  }
+  for (let index = 0; index < MARKETPLACE_GOODS_STALL_SLOTS; index += 1) {
+    addMarketTable(group, `MarketGoodsStall${index}`, 'goods', index);
+  }
   addMarketSpecialtyStalls(group);
   addMarketStagingStock(group);
   addMarketProceedsChest(group);

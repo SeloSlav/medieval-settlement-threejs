@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { breadGrainStock, flourStock, grainSheafStock } from '../economy/cropGoods.ts';
-import { assignMarketplaceStallRoster } from '../economy/marketStallAssignments.ts';
+import {
+  assignMarketplaceStallRoster,
+  indexMarketplaceStallWorkers,
+  type IndexedMarketStallWorkerAssignment,
+} from '../economy/marketStallAssignments.ts';
 import {
   BUILDING_STORAGE_CAPS,
   FIRE_SPREAD_RADIUS,
@@ -38,6 +42,10 @@ import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { updateTerrainCircleRibbonGeometry } from '../placement/TerrainOverlayGeometry.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
+import {
+  MARKETPLACE_STALL_DISPLAY_NEEDS,
+  marketStallDisplayName,
+} from './marketplaceStallLayout.ts';
 import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
 import {
   BatchedBuildingShadowProxies,
@@ -272,6 +280,7 @@ export class BuildingMarkers {
         (ax, az, bx, bz) => network.getPathfinder().roadPathDistance(ax, az, bx, bz),
       )
       : { stalls: [], workers: [] };
+    const indexedWorkers = indexMarketplaceStallWorkers(roster);
     for (const marketplace of this.buildingStates.values()) {
       if (
         marketplace.kind !== 'marketplace'
@@ -288,10 +297,10 @@ export class BuildingMarkers {
       const goodsAssignments = marketAssignments.filter(
         (assignment) => assignment.group === 'goods',
       );
-      const foodWorkers = roster.workers.filter(
+      const foodWorkers = indexedWorkers.filter(
         (worker) => worker.marketplaceId === marketplace.id && worker.group === 'food',
       );
-      const goodsWorkers = roster.workers.filter(
+      const goodsWorkers = indexedWorkers.filter(
         (worker) => worker.marketplaceId === marketplace.id && worker.group === 'goods',
       );
       const marker = this.buildingMeshes.get(marketplace.id);
@@ -299,19 +308,19 @@ export class BuildingMarkers {
       for (let index = 0; index < MARKETPLACE_FOOD_STALL_SLOTS; index += 1) {
         const foodStall = marker.getObjectByName(`MarketFoodStall${index}`);
         if (foodStall) {
-          const worker = foodWorkers[index];
-          foodStall.visible = worker != null;
-          foodStall.userData.marketNeedKind = worker?.needKind ?? undefined;
-          foodStall.userData.marketWorkplaceId = worker?.workplaceId;
+          const worker = foodWorkers.find(
+            (candidate) => candidate.marketplaceSlotIndex === index,
+          );
+          this.syncMarketplaceTable(foodStall, worker, 'food');
         }
       }
       for (let index = 0; index < MARKETPLACE_GOODS_STALL_SLOTS; index += 1) {
         const goodsStall = marker.getObjectByName(`MarketGoodsStall${index}`);
         if (goodsStall) {
-          const worker = goodsWorkers[index];
-          goodsStall.visible = worker != null;
-          goodsStall.userData.marketNeedKind = worker?.needKind ?? undefined;
-          goodsStall.userData.marketWorkplaceId = worker?.workplaceId;
+          const worker = goodsWorkers.find(
+            (candidate) => candidate.marketplaceSlotIndex === index,
+          );
+          this.syncMarketplaceTable(goodsStall, worker, 'goods');
         }
       }
       marker.userData.marketFoodStalls = foodAssignments.length;
@@ -319,6 +328,21 @@ export class BuildingMarkers {
       marker.userData.marketFoodWorkers = foodWorkers.length;
       marker.userData.marketGoodsWorkers = goodsWorkers.length;
       marker.userData.marketStallAssignments = marketAssignments;
+    }
+  }
+
+  private syncMarketplaceTable(
+    table: THREE.Object3D,
+    worker: IndexedMarketStallWorkerAssignment | undefined,
+    group: 'food' | 'goods',
+  ): void {
+    table.visible = worker != null;
+    table.userData.marketNeedKind = worker?.needKind ?? undefined;
+    table.userData.marketWorkplaceId = worker?.workplaceId;
+    table.userData.marketWorkplaceSlotIndex = worker?.workplaceSlotIndex;
+    for (const needKind of MARKETPLACE_STALL_DISPLAY_NEEDS[group]) {
+      const display = table.getObjectByName(marketStallDisplayName(needKind));
+      if (display) display.visible = worker?.needKind === needKind;
     }
   }
 

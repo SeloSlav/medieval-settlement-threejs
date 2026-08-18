@@ -45,6 +45,11 @@ export type MarketplaceStallRoster = {
   workers: MarketStallWorkerAssignment[];
 };
 
+export type IndexedMarketStallWorkerAssignment = MarketStallWorkerAssignment & {
+  marketplaceSlotIndex: number;
+  workplaceSlotIndex: number;
+};
+
 type StallCandidate = MarketStallAssignment & {
   distance: number;
   sourceHasStock: boolean;
@@ -148,6 +153,30 @@ export function assignMarketplaceStallRoster(
   assignments.sort(compareRosterEntries);
   workers.sort(compareRosterEntries);
   return { stalls: assignments, workers };
+}
+
+/**
+ * Give each deterministic roster entry both of its physical identities: the
+ * Marketplace table it occupies and the source depot labor slot that walks
+ * there. Presentation uses these indexes for stable counter props and agents.
+ */
+export function indexMarketplaceStallWorkers(
+  roster: MarketplaceStallRoster,
+): IndexedMarketStallWorkerAssignment[] {
+  const nextMarketplaceSlot = new Map<string, number>();
+  const nextWorkplaceSlot = new Map<string, number>();
+  return roster.workers.map((worker) => {
+    const marketKey = `${worker.marketplaceId}:${worker.group}`;
+    const marketplaceSlotIndex = nextMarketplaceSlot.get(marketKey) ?? 0;
+    const workplaceSlotIndex = nextWorkplaceSlot.get(worker.workplaceId) ?? 0;
+    nextMarketplaceSlot.set(marketKey, marketplaceSlotIndex + 1);
+    nextWorkplaceSlot.set(worker.workplaceId, workplaceSlotIndex + 1);
+    return {
+      ...worker,
+      marketplaceSlotIndex,
+      workplaceSlotIndex,
+    };
+  });
 }
 
 function assignGroup(
