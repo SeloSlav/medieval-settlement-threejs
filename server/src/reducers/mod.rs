@@ -10,6 +10,7 @@ pub mod marketplace_trade;
 pub mod residences;
 pub mod roads;
 pub mod simulation;
+pub mod trading_post_trade;
 pub mod village_admin;
 pub mod vineyards;
 pub mod world_configuration;

@@ -58,6 +58,7 @@ mod simulation;
 mod specialty_trade_policy;
 mod storehouse_policy;
 mod supply_policy;
+mod trading_post_policy;
 mod tables;
 mod types;
 mod vineyard;

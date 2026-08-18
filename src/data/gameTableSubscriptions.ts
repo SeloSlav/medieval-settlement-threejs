@@ -2,6 +2,7 @@ export const GAME_TABLE_SUBSCRIPTIONS = [
   'world_config',
   'player_resources',
   'market_state',
+  'trading_post_trade_rule',
   'quarry',
   'foraging_node',
   'tree_entity',

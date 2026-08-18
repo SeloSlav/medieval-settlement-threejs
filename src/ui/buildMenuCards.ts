@@ -76,7 +76,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   chapel: ['Church', 'C', 'Collects tithes and supports nearby households.'],
   monastery: ['Pauline monastery', 'O', 'Turns oats, honey, and wine into charity and pilgrim income.', flow(['oatGrain', 'honey', 'wine'], ['gold'])],
   marketplace: ['Marketplace', 'P', 'Lets households exchange food and goods while collecting local taxes.'],
-  trading_post: ['Trading Post', 'X', 'Imports and exports goods through worker-run trade routes.'],
+  trading_post: ['Trading Post', 'X', 'Sets monthly import and export rules while local haulers stage surplus goods.'],
   town_hall: ['Town Hall', 'T', 'Governs taxation and unlocks the settlement economic ledger.'],
   village_storehouse: ['Village storehouse', 'S', 'Collects and distributes shared timber, stone, and firewood.'],
   watchtower: ['Frontier watchtower', 'W', 'Warns nearby homes and stores before raids.'],

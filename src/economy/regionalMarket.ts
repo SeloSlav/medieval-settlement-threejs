@@ -70,6 +70,10 @@ export function priceMultiplierFor(
     case 'charcoal':
       return state.firewoodPriceMult;
     case 'food':
+    case 'ryeSheaves':
+    case 'oatSheaves':
+    case 'barleySheaves':
+    case 'maslinSheaves':
     case 'ryeGrain':
     case 'oatGrain':
     case 'maslinGrain':

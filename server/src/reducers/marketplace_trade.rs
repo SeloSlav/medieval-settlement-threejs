@@ -1,8 +1,6 @@
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::db::*;
-use crate::economy::execute_marketplace_trade;
-use crate::lifecycle::ensure_player_resources;
 
 #[reducer]
 pub fn marketplace_trade(
@@ -11,7 +9,6 @@ pub fn marketplace_trade(
     trade_id: String,
 ) -> Result<(), String> {
     let owner = ctx.sender();
-    ensure_player_resources(ctx, owner);
 
     let building = ctx
         .db
@@ -28,9 +25,8 @@ pub fn marketplace_trade(
         return Err("Only Trading Posts can broker regional trade.".to_string());
     }
 
-    execute_marketplace_trade(ctx, owner, building_id, trade_id.trim())?;
-
-    Ok(())
+    let _ = trade_id;
+    Err("Immediate regional trade has been retired. Set this commodity's monthly Import or Export rule at the Trading Post instead.".to_string())
 }
 
 #[reducer]

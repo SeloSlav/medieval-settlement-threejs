@@ -128,8 +128,12 @@ type ResourceInspectorOptions = {
   onCallUpTargetReadyProcessorLabor?: () => void | Promise<void>;
   onBalanceYearRoundLabor?: () => void | Promise<void>;
   onSetConstructionPriority?: (buildingId: string, priority: number) => void | Promise<void>;
-  onMarketplaceTrade?: (buildingId: string, tradeId: string) => void | Promise<void>;
-  onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
+  onSetTradingPostTradeRule?: (
+    buildingId: string,
+    commodityKind: number,
+    mode: number,
+    targetSurplus: number,
+  ) => void | Promise<void>;
   onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
   onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
   onSetPantrySafeguardPolicy?: (policy: PantrySafeguardPolicyCode) => void | Promise<void>;
@@ -361,6 +365,7 @@ export class ResourceInspector {
   private readonly demolishHint: HTMLElement;
   private readonly demolishSecondaryHint: HTMLElement;
   private readonly laborSection: HTMLElement;
+  private readonly laborLabel: HTMLElement;
   private readonly laborCount: HTMLElement;
   private readonly laborHint: HTMLElement;
   private readonly laborDecrease: HTMLButtonElement;
@@ -441,7 +446,7 @@ export class ResourceInspector {
           </section>
           <section class="resource-inspector-labor" data-inspector-labor hidden aria-label="Labor assignment">
             <div class="resource-inspector-labor-row">
-              <span class="resource-inspector-labor-label"><span aria-hidden="true">⚒</span> Workforce</span>
+              <span class="resource-inspector-labor-label"><span aria-hidden="true">⚒</span> <span data-inspector-labor-label>Workforce</span></span>
               <div class="resource-inspector-labor-controls">
                 <button type="button" class="resource-inspector-labor-button" data-action="labor-decrease" aria-label="Decrease labor">−</button>
                 <strong data-inspector-labor-count>0</strong>
@@ -579,6 +584,7 @@ export class ResourceInspector {
     this.demolishHint = this.mustElement(options.uiRoot, '[data-demolish-hint]');
     this.demolishSecondaryHint = this.mustElement(options.uiRoot, '[data-demolish-secondary-hint]');
     this.laborSection = this.mustElement(options.uiRoot, '[data-inspector-labor]');
+    this.laborLabel = this.mustElement(options.uiRoot, '[data-inspector-labor-label]');
     this.laborCount = this.mustElement(options.uiRoot, '[data-inspector-labor-count]');
     this.laborHint = this.mustElement(options.uiRoot, '[data-inspector-labor-hint]');
     this.laborDecrease = this.mustButton(options.uiRoot, '[data-action="labor-decrease"]');
@@ -594,6 +600,7 @@ export class ResourceInspector {
     this.panel.addEventListener('click', this.onPanelClick);
     this.supplementalPanelSection.addEventListener('input', this.onSupplementalInput);
     this.supplementalPanelSection.addEventListener('change', this.onSupplementalChange);
+    this.supplementalPanelSection.addEventListener('keydown', this.onSupplementalKeyDown);
     this.demolishButton.addEventListener('click', this.onDemolishPrimaryClick);
     this.demolishSecondaryButton.addEventListener('click', this.onDemolishSecondaryClick);
     this.laborDecrease.addEventListener('click', this.onLaborDecrease);
@@ -997,6 +1004,46 @@ export class ResourceInspector {
       this.selectedTarget?.kind === 'building'
       && this.selectedTarget.building.kind === 'trading_post'
     ) {
+      const tradeModeButton = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-trade-rule-mode]');
+      if (tradeModeButton) {
+        const row = tradeModeButton.closest<HTMLElement>('[data-trade-rule-row]');
+        const commodityKind = Number(tradeModeButton.dataset.commodityKind);
+        const mode = Number(tradeModeButton.dataset.tradeRuleMode);
+        const rawTargetSurplus = Number(
+          row?.querySelector<HTMLInputElement>('[data-trade-surplus-input]')?.value ?? 0,
+        );
+        const targetSurplus = Number.isFinite(rawTargetSurplus)
+          ? Math.max(0, Math.min(9_999, Math.round(rawTargetSurplus)))
+          : 0;
+        void this.options.onSetTradingPostTradeRule?.(
+          this.selectedTarget.building.id,
+          commodityKind,
+          mode,
+          targetSurplus,
+        );
+        return;
+      }
+      const surplusButton = (event.target as HTMLElement)
+        .closest<HTMLElement>('[data-trade-surplus-delta]');
+      if (surplusButton) {
+        const row = surplusButton.closest<HTMLElement>('[data-trade-rule-row]');
+        const input = row?.querySelector<HTMLInputElement>('[data-trade-surplus-input]');
+        if (!row || !input) return;
+        const current = Number(input.value);
+        const delta = Number(surplusButton.dataset.tradeSurplusDelta);
+        const value = Math.max(0, Math.min(9_999, Math.round(
+          (Number.isFinite(current) ? current : 0) + (Number.isFinite(delta) ? delta : 0),
+        )));
+        input.value = String(value);
+        void this.options.onSetTradingPostTradeRule?.(
+          this.selectedTarget.building.id,
+          Number(input.dataset.commodityKind),
+          Number(row.dataset.tradeMode ?? 0),
+          value,
+        );
+        return;
+      }
       const targetValue = (event.target as HTMLElement)
         .closest<HTMLElement>('[data-marketplace-ironwork-target]')
         ?.dataset.marketplaceIronworkTarget;
@@ -1213,8 +1260,6 @@ export class ResourceInspector {
     }
     handleSupplementalPanelClick(this.selectedTarget, event.target as HTMLElement, {
       onPlaceBackyardGarden: this.options.onPlaceBackyardGarden,
-      onMarketplaceTrade: this.options.onMarketplaceTrade,
-      onCancelMarketplaceTradeOrder: this.options.onCancelMarketplaceTradeOrder,
       onUpgradeChapel: this.options.onUpgradeChapel,
       onUpgradeResidence: this.options.onUpgradeResidence,
       onRetrofitResidenceTileRoof: this.options.onRetrofitResidenceTileRoof,
@@ -1252,6 +1297,22 @@ export class ResourceInspector {
     const input = event.target as HTMLInputElement;
     if (this.selectedTarget?.kind !== 'building') return;
     const building = this.selectedTarget.building;
+
+    if (building.kind === 'trading_post' && input.matches('[data-trade-surplus-input]')) {
+      const row = input.closest<HTMLElement>('[data-trade-rule-row]');
+      const rawTargetSurplus = Number(input.value);
+      const targetSurplus = Number.isFinite(rawTargetSurplus)
+        ? Math.max(0, Math.min(9_999, Math.round(rawTargetSurplus)))
+        : 0;
+      input.value = String(targetSurplus);
+      void this.options.onSetTradingPostTradeRule?.(
+        building.id,
+        Number(input.dataset.commodityKind),
+        Number(row?.dataset.tradeMode ?? 0),
+        targetSurplus,
+      );
+      return;
+    }
 
     if (building.kind === 'town_hall' && input.matches('[data-policy-tax-rate]')) {
       void this.options.onSetEconomicActivityTaxRate?.(Number(input.value) / 100);
@@ -1350,6 +1411,14 @@ export class ResourceInspector {
       const householdsFirst = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-granary-households-first]')?.checked ?? false;
       void this.options.onSetGranaryPolicy?.(building.id, acceptsFreshFood, householdsFirst);
     }
+  };
+
+  private readonly onSupplementalKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Enter') return;
+    const input = event.target as HTMLInputElement;
+    if (!input.matches('[data-trade-surplus-input]')) return;
+    event.preventDefault();
+    input.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
   private readonly onLaborDecrease = (): void => {
@@ -1643,6 +1712,7 @@ export class ResourceInspector {
     this.panel.removeEventListener('click', this.onPanelClick);
     this.supplementalPanelSection.removeEventListener('input', this.onSupplementalInput);
     this.supplementalPanelSection.removeEventListener('change', this.onSupplementalChange);
+    this.supplementalPanelSection.removeEventListener('keydown', this.onSupplementalKeyDown);
     this.laborDecrease.removeEventListener('click', this.onLaborDecrease);
     this.laborIncrease.removeEventListener('click', this.onLaborIncrease);
     this.serviceCoverageButton.removeEventListener(
@@ -1743,6 +1813,10 @@ export class ResourceInspector {
   private renderTarget(target: InspectableTarget): void {
     const identity = inspectableIdentity(target);
     const preservePolicyState = this.renderedIdentity === identity;
+    const tradingPostScrollTop = preservePolicyState
+      ? this.supplementalPanelSection
+          .querySelector<HTMLElement>('[data-trading-post-scroll]')?.scrollTop ?? 0
+      : 0;
     const openPolicyIndices = new Set(
       preservePolicyState
         ? Array.from(
@@ -1975,6 +2049,7 @@ export class ResourceInspector {
 
     this.laborSection.hidden = !view.labor.visible;
     if (view.labor.visible) {
+      this.laborLabel.textContent = view.labor.label ?? 'Workforce';
       this.laborCount.textContent = view.labor.count.toString();
       this.laborHint.textContent = view.labor.hint;
       this.laborDecrease.disabled = view.labor.decreaseDisabled;
@@ -1985,6 +2060,9 @@ export class ResourceInspector {
       this.supplementalPanelSection.hidden = false;
       this.supplementalPanelSection.innerHTML = view.supplementalPanelHtml;
       this.organizeSupplementalPanel(openPolicyIndices, preservePolicyState);
+      const tradingPostScroll = this.supplementalPanelSection
+        .querySelector<HTMLElement>('[data-trading-post-scroll]');
+      if (tradingPostScroll) tradingPostScroll.scrollTop = tradingPostScrollTop;
     } else {
       this.supplementalPanelSection.hidden = true;
       this.supplementalPanelSection.innerHTML = '';

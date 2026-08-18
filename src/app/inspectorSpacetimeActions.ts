@@ -33,8 +33,12 @@ export type InspectorSpacetimeActions = {
   onCallUpTargetReadyProcessorLabor: () => Promise<void>;
   onBalanceYearRoundLabor: () => Promise<void>;
   onSetConstructionPriority: (buildingId: string, priority: number) => Promise<void>;
-  onMarketplaceTrade: (buildingId: string, tradeId: string) => Promise<void>;
-  onCancelMarketplaceTradeOrder: (buildingId: string) => Promise<void>;
+  onSetTradingPostTradeRule: (
+    buildingId: string,
+    commodityKind: number,
+    mode: number,
+    targetSurplus: number,
+  ) => Promise<void>;
   onUpgradeChapel: (buildingId: string) => Promise<void>;
   onDemolishFarmField: (fieldId: string) => Promise<void>;
   onSetFarmFieldCrop: (fieldId: string, crop: FarmCrop) => Promise<void>;
@@ -347,23 +351,13 @@ export function createInspectorSpacetimeActions(
         'Could not change construction priority.',
       );
     },
-    onMarketplaceTrade: async (buildingId, tradeId) => {
+    onSetTradingPostTradeRule: async (buildingId, commodityKind, mode, targetSurplus) => {
       const store = requireReady();
       if (!store) return;
       await runReducer(
-        () => store.marketplaceTrade(buildingId, tradeId),
-        'Trading Post trade failed.',
+        () => store.setTradingPostTradeRule(buildingId, commodityKind, mode, targetSurplus),
+        'Could not update the monthly trade rule.',
       );
-    },
-    onCancelMarketplaceTradeOrder: async (buildingId) => {
-      const store = requireReady();
-      if (!store) return;
-      await runReducer(async () => {
-        await store.cancelMarketplaceTradeOrder(buildingId);
-        toastManager.show(
-          'Bulk order canceled. Any dispatched cart will still unload its physical cargo here.',
-        );
-      }, 'Could not cancel the Trading Post order.');
     },
     onDemolishFarmField: async (fieldId) => {
       const store = requireReady();

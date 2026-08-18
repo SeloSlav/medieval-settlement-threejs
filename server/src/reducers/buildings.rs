@@ -2601,6 +2601,18 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
     };
     let recoverable = if fire_damaged { 0.0 } else { 1.0 };
 
+    if building.kind == "trading_post" {
+        for rule in ctx
+            .db
+            .trading_post_trade_rule()
+            .building_id()
+            .filter(&building_id)
+            .collect::<Vec<_>>()
+        {
+            ctx.db.trading_post_trade_rule().id().delete(&rule.id);
+        }
+    }
+
     if building.kind == "watchtower" {
         let assigned_guardhouses = ctx
             .db

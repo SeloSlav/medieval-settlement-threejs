@@ -1,0 +1,380 @@
+//! Manor-Lords-style Trading Post: local carts stage exports continuously,
+//! while the regional leg settles abstractly once per calendar month.
+
+use spacetimedb::{Identity, ReducerContext};
+
+use crate::balance_generated::{
+    marketplace_trade_offer_for_resource, MarketplaceTradeKind, BUILDING_ROAD_ACCESS_DISTANCE,
+    STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+};
+use crate::db::*;
+use crate::economy::{
+    assign_building_labor,
+    available_unreserved_building_ironwork, available_unreserved_building_roof_tiles,
+    available_unreserved_building_stone, available_unreserved_building_timber,
+    building_commodity_room, building_commodity_stock, credit_treasury_gold,
+    deposit_building_commodity, ensure_market_state, price_multiplier_for, record_market_trade,
+    spend_treasury_gold, trade_resource_for_commodity, treasury_gold, withdraw_building_commodity,
+    CommodityKind, MarketTradeDirection,
+};
+use crate::granary_policy::granary_exportable_grain;
+use crate::simulation::delivery_trips::{
+    building_has_active_trip, building_has_inbound_commodity_trip, onsite_building_labor,
+    try_start_building_supply_trip,
+};
+use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
+use crate::tables::{Building, TradingPostTradeRule};
+use crate::trading_post_policy::{
+    absolute_calendar_month, affordable_import_units, exportable_surplus, import_deficit,
+    trade_gold, TRADE_MODE_EXPORT, TRADE_MODE_IMPORT,
+};
+
+pub fn trading_post_exports_commodity(
+    ctx: &ReducerContext,
+    building_id: u64,
+    commodity: CommodityKind,
+) -> bool {
+    let id = format!("{}:{}", building_id, commodity.as_u8());
+    ctx.db
+        .trading_post_trade_rule()
+        .id()
+        .find(&id)
+        .is_some_and(|rule| rule.mode == TRADE_MODE_EXPORT)
+}
+
+pub fn step_trading_post_trade(ctx: &ReducerContext, tick: &SimTickContext, clock: &GameClock) {
+    let mut post_ids: Vec<u64> = ctx
+        .db
+        .building()
+        .iter()
+        .filter(|building| building.kind == "trading_post")
+        .map(|building| building.id)
+        .collect();
+    post_ids.sort_unstable();
+    let current_month = absolute_calendar_month(clock.total_days);
+
+    for post_id in post_ids {
+        let Some(mut post) = ctx.db.building().id().find(&post_id) else {
+            continue;
+        };
+        // Older saves could retain the former five-worker broker roster.
+        // Release surplus workers once, preserving any in-transit cart crew.
+        if post.assigned_labor > 2
+            && assign_building_labor(ctx, post.owner, post.id, 2).is_ok()
+        {
+            post.assigned_labor = 2;
+        }
+        if !trading_post_operational(ctx, tick, clock, &post) {
+            continue;
+        }
+        settle_due_rules(ctx, &post, current_month);
+        if clock.sim_tick % 5 == post.id % 5 {
+            stage_one_export(ctx, tick, clock, &post);
+        }
+    }
+}
+
+fn trading_post_operational(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    post: &Building,
+) -> bool {
+    if !post.construction_complete
+        || onsite_building_labor(ctx, post) == 0
+        || tick.building_disabled_by_fire(ctx, post.id)
+        || labor_and_logistics_paused(ctx, tick, post.owner, clock)
+    {
+        return false;
+    }
+    tick.road_network(post.owner).is_some_and(|network| {
+        network.nearest_distance(post.x, post.z) <= BUILDING_ROAD_ACCESS_DISTANCE
+    })
+}
+
+fn settle_due_rules(ctx: &ReducerContext, post: &Building, current_month: u64) {
+    let mut rules: Vec<TradingPostTradeRule> = ctx
+        .db
+        .trading_post_trade_rule()
+        .building_id()
+        .filter(&post.id)
+        .filter(|rule| rule.last_settled_month < current_month)
+        .collect();
+    rules.sort_by_key(|rule| rule.commodity_kind);
+    for mut rule in rules {
+        let Some(commodity) = CommodityKind::from_u8(rule.commodity_kind) else {
+            rule.last_settled_month = current_month;
+            ctx.db.trading_post_trade_rule().id().update(rule);
+            continue;
+        };
+        let (amount, gold) = match rule.mode {
+            TRADE_MODE_EXPORT => settle_export(ctx, post.id, post.owner, commodity),
+            TRADE_MODE_IMPORT => {
+                settle_import(ctx, post.id, post.owner, commodity, rule.target_surplus)
+            }
+            _ => (0.0, 0.0),
+        };
+        rule.last_settled_month = current_month;
+        rule.last_trade_amount = amount;
+        rule.last_trade_gold = gold;
+        ctx.db.trading_post_trade_rule().id().update(rule);
+    }
+}
+
+fn settle_export(
+    ctx: &ReducerContext,
+    post_id: u64,
+    owner: Identity,
+    commodity: CommodityKind,
+) -> (f64, f64) {
+    let Some(resource) = trade_resource_for_commodity(commodity) else {
+        return (0.0, 0.0);
+    };
+    let Some(offer) = marketplace_trade_offer_for_resource(resource, false) else {
+        return (0.0, 0.0);
+    };
+    let MarketplaceTradeKind::GoldSell {
+        amount: lot_amount,
+        gold_yield,
+        ..
+    } = offer.kind
+    else {
+        return (0.0, 0.0);
+    };
+    let Some(mut post) = ctx.db.building().id().find(&post_id) else {
+        return (0.0, 0.0);
+    };
+    let units = building_commodity_stock(&post, commodity).floor().max(0.0);
+    if units <= 1e-6 || lot_amount <= 1e-9 {
+        return (0.0, 0.0);
+    }
+    let multiplier = current_price_multiplier(ctx, owner, resource);
+    let sold = withdraw_building_commodity(&mut post, commodity, units);
+    if sold <= 1e-6 {
+        return (0.0, 0.0);
+    }
+    let revenue = trade_gold(sold, gold_yield / lot_amount * multiplier);
+    ctx.db.building().id().update(post);
+    credit_treasury_gold(ctx, owner, revenue);
+    record_market_trade(ctx, owner, resource, MarketTradeDirection::Export, sold);
+    (sold, revenue)
+}
+
+fn settle_import(
+    ctx: &ReducerContext,
+    post_id: u64,
+    owner: Identity,
+    commodity: CommodityKind,
+    target_surplus: f64,
+) -> (f64, f64) {
+    let Some(resource) = trade_resource_for_commodity(commodity) else {
+        return (0.0, 0.0);
+    };
+    let Some(offer) = marketplace_trade_offer_for_resource(resource, true) else {
+        return (0.0, 0.0);
+    };
+    let MarketplaceTradeKind::GoldBuy {
+        amount: lot_amount,
+        gold_cost,
+        ..
+    } = offer.kind
+    else {
+        return (0.0, 0.0);
+    };
+    let Some(mut post) = ctx.db.building().id().find(&post_id) else {
+        return (0.0, 0.0);
+    };
+    if lot_amount <= 1e-9 {
+        return (0.0, 0.0);
+    }
+    let public_stock = owner_public_stock(ctx, owner, commodity);
+    let deficit = import_deficit(public_stock, target_surplus);
+    let multiplier = current_price_multiplier(ctx, owner, resource);
+    let unit_price = gold_cost / lot_amount * multiplier;
+    let units = affordable_import_units(
+        deficit,
+        building_commodity_room(&post, commodity),
+        treasury_gold(ctx, owner),
+        unit_price,
+    );
+    if units <= 1e-6 {
+        return (0.0, 0.0);
+    }
+    let expense = trade_gold(units, unit_price);
+    if spend_treasury_gold(ctx, owner, expense).is_err() {
+        return (0.0, 0.0);
+    }
+    let imported = deposit_building_commodity(&mut post, commodity, units);
+    if imported <= 1e-6 {
+        credit_treasury_gold(ctx, owner, expense);
+        return (0.0, 0.0);
+    }
+    let actual_expense = trade_gold(imported, unit_price);
+    if actual_expense + 1e-6 < expense {
+        credit_treasury_gold(ctx, owner, expense - actual_expense);
+    }
+    ctx.db.building().id().update(post);
+    record_market_trade(ctx, owner, resource, MarketTradeDirection::Import, imported);
+    (imported, -actual_expense)
+}
+
+fn current_price_multiplier(
+    ctx: &ReducerContext,
+    owner: Identity,
+    resource: crate::balance_generated::TradeResource,
+) -> f64 {
+    ensure_market_state(ctx, owner);
+    ctx.db
+        .market_state()
+        .owner()
+        .find(&owner)
+        .map(|state| price_multiplier_for(&state, resource))
+        .unwrap_or(1.0)
+}
+
+fn stage_one_export(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    post: &Building,
+) -> bool {
+    if building_has_active_trip(ctx, post.id) {
+        return false;
+    }
+    let Some(network) = tick.road_network(post.owner) else {
+        return false;
+    };
+    let workers = onsite_building_labor(ctx, post).min(2);
+    if workers == 0 {
+        return false;
+    }
+    let mut rules: Vec<TradingPostTradeRule> = ctx
+        .db
+        .trading_post_trade_rule()
+        .building_id()
+        .filter(&post.id)
+        .filter(|rule| rule.mode == TRADE_MODE_EXPORT)
+        .collect();
+    rules.sort_by_key(|rule| rule.commodity_kind);
+    if rules.is_empty() {
+        return false;
+    }
+    let start = (clock.sim_tick as usize / 5) % rules.len();
+    for offset in 0..rules.len() {
+        let rule = &rules[(start + offset) % rules.len()];
+        let Some(commodity) = CommodityKind::from_u8(rule.commodity_kind) else {
+            continue;
+        };
+        if building_commodity_room(post, commodity) <= 1e-6
+            || building_has_inbound_commodity_trip(ctx, post.id, commodity)
+        {
+            continue;
+        }
+        let available = protected_outside_stock(ctx, post.owner, commodity);
+        let needed = exportable_surplus(available, rule.target_surplus)
+            .min(building_commodity_room(post, commodity));
+        if needed <= 1e-6 {
+            continue;
+        }
+        let mut candidates: Vec<(Building, f64)> = ctx
+            .db
+            .building()
+            .owner()
+            .filter(&post.owner)
+            .filter(|source| {
+                source.id != post.id
+                    && source.kind != "trading_post"
+                    && source.construction_complete
+                    && !tick.building_disabled_by_fire(ctx, source.id)
+                    && !building_has_active_trip(ctx, source.id)
+                    && source_exportable_stock(source, commodity) > 1e-6
+            })
+            .filter_map(|source| {
+                let distance = crate::simulation::local_delivery_distance(
+                    network, source.x, source.z, post.x, post.z,
+                )?;
+                Some((source, distance))
+            })
+            .collect();
+        candidates.sort_by(|left, right| {
+            left.1
+                .total_cmp(&right.1)
+                .then_with(|| left.0.id.cmp(&right.0.id))
+        });
+        for (mut source, _) in candidates {
+            let source_available = source_exportable_stock(&source, commodity).min(needed);
+            if try_start_building_supply_trip(
+                ctx,
+                tick,
+                clock,
+                network,
+                &mut source,
+                post,
+                workers,
+                commodity,
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                STOREHOUSE_HAUL_PER_WORKER,
+                source_available,
+            ) {
+                ctx.db.building().id().update(source);
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn owner_public_stock(ctx: &ReducerContext, owner: Identity, commodity: CommodityKind) -> f64 {
+    ctx.db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.construction_complete)
+        .map(|building| building_commodity_stock(&building, commodity).max(0.0))
+        .sum()
+}
+
+fn protected_outside_stock(ctx: &ReducerContext, owner: Identity, commodity: CommodityKind) -> f64 {
+    let all_raw: f64 = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.construction_complete)
+        .map(|building| building_commodity_stock(&building, commodity).max(0.0))
+        .sum();
+    let outside: f64 = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|building| building.construction_complete && building.kind != "trading_post")
+        .map(|building| source_exportable_stock(&building, commodity))
+        .sum();
+    let available_all = match commodity {
+        CommodityKind::Timber => available_unreserved_building_timber(ctx, owner),
+        CommodityKind::Stone => available_unreserved_building_stone(ctx, owner),
+        CommodityKind::Ironwork => available_unreserved_building_ironwork(ctx, owner),
+        CommodityKind::RoofTiles => available_unreserved_building_roof_tiles(ctx, owner),
+        _ => all_raw,
+    };
+    let reserved = (all_raw - available_all).max(0.0);
+    (outside - reserved).max(0.0)
+}
+
+fn source_exportable_stock(building: &Building, commodity: CommodityKind) -> f64 {
+    let stock = building_commodity_stock(building, commodity).max(0.0);
+    match commodity {
+        CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
+            if building.kind == "granary" =>
+        {
+            let total = building.rye_grain.max(0.0)
+                + building.oat_grain.max(0.0)
+                + building.maslin_grain.max(0.0);
+            let protected = (building.granary_grain_reserve.max(0.0) - (total - stock)).max(0.0);
+            granary_exportable_grain(stock, protected)
+        }
+        _ => stock,
+    }
+}

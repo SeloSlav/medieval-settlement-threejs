@@ -8,6 +8,7 @@ export const MARKETPLACE_TRADE_RESOURCES = [
   'manure', 'remedies', 'roofTiles', 'meat', 'fish', 'berries', 'mushrooms',
   'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes', 'porridge',
   'curedMeat', 'smokedFish', 'cheese',
+  'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves',
 ] as const;
 
 export type MarketplaceTradeResource = (typeof MARKETPLACE_TRADE_RESOURCES)[number];
@@ -170,6 +171,14 @@ export function generateMarketplaceTradeRust(balance: BalanceWithMarketplaceTrad
     '',
     'pub fn marketplace_trade_offer(id: &str) -> Option<&\'static MarketplaceTradeOffer> {',
     '    ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)',
+    '}',
+    '',
+    'pub fn marketplace_trade_offer_for_resource(resource: TradeResource, importing: bool) -> Option<&\'static MarketplaceTradeOffer> {',
+    '    ALL_MARKETPLACE_TRADES.iter().find(|offer| match offer.kind {',
+    '        MarketplaceTradeKind::GoldBuy { resource: offered, .. } => importing && offered == resource,',
+    '        MarketplaceTradeKind::GoldSell { resource: offered, .. } => !importing && offered == resource,',
+    '        MarketplaceTradeKind::Barter { .. } => false,',
+    '    })',
     '}',
     '',
     'pub fn marketplace_trade_contract_code(id: &str) -> Option<u8> {',

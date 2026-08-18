@@ -59,6 +59,10 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
             state.firewood_price_mult
         }
         TradeResource::Food
+        | TradeResource::RyeSheaves
+        | TradeResource::OatSheaves
+        | TradeResource::BarleySheaves
+        | TradeResource::MaslinSheaves
         | TradeResource::RyeGrain
         | TradeResource::OatGrain
         | TradeResource::MaslinGrain
@@ -201,6 +205,10 @@ pub fn record_market_trade(
                 adjust_demand_index(state.regional_firewood_demand, direction, amount);
         }
         TradeResource::Food
+        | TradeResource::RyeSheaves
+        | TradeResource::OatSheaves
+        | TradeResource::BarleySheaves
+        | TradeResource::MaslinSheaves
         | TradeResource::RyeGrain
         | TradeResource::OatGrain
         | TradeResource::MaslinGrain

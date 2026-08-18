@@ -48,8 +48,8 @@ use crate::economy::{
     building_commodity_stock, building_edible_food_stock, building_fresh_food_stock,
     building_preservable_food_stock, credit_local_civic_receipts,
     credit_settlement_household_income, deposit_building_commodity,
-    first_building_edible_commodity, flour_bulk_stock, pending_marketplace_trade_commodity,
-    restore_treasury_gold, spend_treasury_gold, treasury_gold, withdraw_building_commodity,
+    first_building_edible_commodity, flour_bulk_stock, restore_treasury_gold,
+    spend_treasury_gold, treasury_gold, withdraw_building_commodity,
     withdraw_building_edible_food, CommodityKind, FRESH_FOOD_COMMODITIES,
 };
 use crate::farm_work_policy::{field_task_rank, threshing_preempts_fields};
@@ -101,6 +101,7 @@ use crate::simulation::landmark_access::monastery_linked_to_chapel;
 use crate::simulation::residence_needs::{apply_need_consumed_at_source, ResidenceNeedKind};
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
+use crate::simulation::trading_post_exports_commodity;
 use crate::simulation::{try_dispatch_guardhouse_payroll, try_dispatch_local_civic_receipts};
 use crate::specialty_trade_policy::{
     apiary_is_active, producer_output_batch_fits, vineyard_is_harvesting,
@@ -933,7 +934,6 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
-        let reserved_for_trade = pending_marketplace_trade_commodity(&marketplace);
         const DISPATCHABLE_INPUTS: [CommodityKind; 26] = [
             CommodityKind::RyeGrain,
             CommodityKind::OatGrain,
@@ -997,7 +997,7 @@ pub fn step_marketplace_material_dispatch(
                     };
                     if !processor_accepts_input(&building, commodity)
                         || building_commodity_stock(&marketplace, commodity) <= 1e-6
-                        || reserved_for_trade == Some(commodity)
+                        || trading_post_exports_commodity(ctx, marketplace.id, commodity)
                     {
                         return None;
                     }
@@ -1061,7 +1061,6 @@ pub fn step_marketplace_material_dispatch(
         let Some(target) = ctx.db.building().id().find(&candidate.building.id) else {
             continue;
         };
-        let reserved_for_trade = pending_marketplace_trade_commodity(&marketplace);
         if marketplace.kind != "trading_post"
             || !marketplace.construction_complete
             || marketplace.assigned_labor == 0
@@ -1074,7 +1073,7 @@ pub fn step_marketplace_material_dispatch(
             || building_has_active_trip(ctx, marketplace.id)
             || building_has_inbound_supply_trip(ctx, target.id)
             || !processor_accepts_input(&target, candidate.commodity)
-            || reserved_for_trade == Some(candidate.commodity)
+            || trading_post_exports_commodity(ctx, marketplace.id, candidate.commodity)
         {
             continue;
         }
@@ -1208,7 +1207,9 @@ pub fn step_local_material_dispatch(
             continue;
         };
         for &commodity in LOCAL_MATERIAL_COMMODITIES {
-            if pending_marketplace_trade_commodity(source) == Some(commodity) {
+            if source.kind == "trading_post"
+                && trading_post_exports_commodity(ctx, source.id, commodity)
+            {
                 continue;
             }
             let Some(target_kinds) = local_material_target_kinds(source, commodity) else {
@@ -1222,6 +1223,7 @@ pub fn step_local_material_dispatch(
                     continue;
                 };
                 if target.id == source.id
+                    || target.kind == "trading_post"
                     || !target.construction_complete
                     || tick.building_disabled_by_fire(ctx, target.id)
                     || !processor_accepts_input(&target, commodity)
@@ -1370,7 +1372,9 @@ fn dispatch_local_material_candidates(
             || labor_and_logistics_paused(ctx, tick, source.owner, clock)
             || building_has_active_trip(ctx, source.id)
             || building_has_inbound_supply_trip(ctx, target.id)
-            || pending_marketplace_trade_commodity(&source) == Some(commodity)
+            || (source.kind == "trading_post"
+                && trading_post_exports_commodity(ctx, source.id, commodity))
+            || target.kind == "trading_post"
             || !processor_accepts_input(&target, commodity)
             || !extraction_accepts_maintenance_input(ctx, &target, commodity)
         {

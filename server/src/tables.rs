@@ -793,6 +793,32 @@ pub struct Building {
     pub storehouse_charcoal_target_percent: u8,
 }
 
+/// One persistent import/export instruction for one Trading Post commodity.
+/// The commodity code is the stable `CommodityKind` code; mode is
+/// 0 = no trade, 1 = import to target, 2 = export above target.
+#[spacetimedb::table(
+    accessor = trading_post_trade_rule,
+    public,
+    index(accessor = building_id, btree(columns = [building_id])),
+    index(accessor = owner, btree(columns = [owner]))
+)]
+#[derive(Clone)]
+pub struct TradingPostTradeRule {
+    #[primary_key]
+    pub id: String,
+    pub owner: Identity,
+    pub building_id: u64,
+    pub commodity_kind: u8,
+    pub mode: u8,
+    pub target_surplus: f64,
+    /// Absolute rational-calendar month last considered by settlement.
+    pub last_settled_month: u64,
+    /// Positive units imported or exported in the most recent settlement.
+    pub last_trade_amount: f64,
+    /// Positive for export income, negative for import expense.
+    pub last_trade_gold: f64,
+}
+
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).
 /// Corners are stored clockwise and describe an oriented rectangle authored by the field tool.
 #[spacetimedb::table(

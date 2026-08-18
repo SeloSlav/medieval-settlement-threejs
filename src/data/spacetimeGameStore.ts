@@ -112,6 +112,7 @@ import {
   DEFAULT_PANTRY_SAFEGUARD_POLICY,
   type PantrySafeguardPolicyCode,
 } from '../economy/pantrySafeguardPolicy.ts';
+import type { TradingPostTradeRuleState } from '../economy/tradingPostTrade.ts';
 
 export type SpacetimeGameSnapshot = {
   connected: boolean;
@@ -130,6 +131,7 @@ export type SpacetimeGameSnapshot = {
   monasteryPolicy: MonasteryPolicyState;
   nightPolicy: NightPolicyState;
   marketState: RegionalMarketState;
+  tradingPostTradeRules: Map<string, TradingPostTradeRuleState>;
   quarries: Map<string, ResourceNodeState>;
   foragingNodes: Map<string, ForagingNodeState>;
   trees: Map<string, TreeEntityState>;
@@ -176,6 +178,7 @@ function createEmptyTableState(): GameTableSyncState {
     monasteryPolicy: { ...DEFAULT_MONASTERY_POLICY },
     nightPolicy: { ...DEFAULT_NIGHT_POLICY },
     marketState: { ...DEFAULT_REGIONAL_MARKET_STATE },
+    tradingPostTradeRules: new Map(),
     quarries: new Map(),
     foragingNodes: new Map(),
     trees: new Map(),
@@ -259,6 +262,7 @@ export class SpacetimeGameStore {
       monasteryPolicy: this.snapshotRecord(state.monasteryPolicy),
       nightPolicy: this.snapshotRecord(state.nightPolicy),
       marketState: this.snapshotRecord(state.marketState),
+      tradingPostTradeRules: this.snapshotMap(state.tradingPostTradeRules),
       quarries: this.snapshotMap(state.quarries),
       foragingNodes: this.snapshotMap(state.foragingNodes),
       trees: this.snapshotMap(state.trees),
@@ -346,6 +350,7 @@ export class SpacetimeGameStore {
       foragingNodes: snapshot.foragingNodes,
       trees: snapshot.trees,
       buildings: snapshot.buildings,
+      tradingPostTradeRules: snapshot.tradingPostTradeRules,
       farmFields: snapshot.farmFields,
       pastures: snapshot.pastures,
       vineyardParcels: snapshot.vineyardParcels,
@@ -944,12 +949,18 @@ export class SpacetimeGameStore {
     }
   }
 
-  marketplaceTrade(buildingId: string, tradeId: string): Promise<void> {
-    return spacetimeReducers.marketplaceTrade(buildingId, tradeId);
-  }
-
-  cancelMarketplaceTradeOrder(buildingId: string): Promise<void> {
-    return spacetimeReducers.cancelMarketplaceTradeOrder(buildingId);
+  setTradingPostTradeRule(
+    buildingId: string,
+    commodityKind: number,
+    mode: number,
+    targetSurplus: number,
+  ): Promise<void> {
+    return spacetimeReducers.setTradingPostTradeRule(
+      buildingId,
+      commodityKind,
+      mode,
+      targetSurplus,
+    );
   }
 
   upgradeChapel(buildingId: string): Promise<void> {

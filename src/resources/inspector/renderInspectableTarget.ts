@@ -24,6 +24,7 @@ import { renderPastureInspector } from './pastureRenderer.ts';
 
 export type InspectorLaborView = {
   visible: boolean;
+  label?: string;
   count: number;
   hint: string;
   decreaseDisabled: boolean;

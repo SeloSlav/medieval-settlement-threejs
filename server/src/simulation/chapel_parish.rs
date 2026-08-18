@@ -1,25 +1,21 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::all_market_food_commodities;
 use crate::balance_generated::{
     CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_CHARITY_MIN_COFFER_GOLD,
     CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
     CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, HOUSEHOLD_MAX_WEALTH, TICK_DT,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
+    MARKET_CARAVAN_FOOD_PER_DELIVERY, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::chapel_parish_policy::{
     chapel_alms_dispatch_amount, chapel_alms_dispatch_interval_seconds,
     chapel_daily_gold_per_work_tick, chapel_poor_relief_due,
 };
 use crate::db::*;
-use crate::economy::{
-    best_affordable_food_commodity, ensure_market_state, market_food_commodity_kind,
-    order_food_commodity, scaled_gold_cost, MarketGoldPayer,
-};
+use crate::economy::building_edible_food_stock;
 use crate::economy::{chapel_coffer_gold, credit_residence_wealth, withdraw_coffer_in_place};
 use crate::economy::{record_parish_ledger, ParishLedgerKind};
 use crate::residence_service_policy::service_shortage_warns;
-use crate::simulation::delivery_cargo::residence_commodity_delivery_room;
 use crate::simulation::delivery_trips::try_start_residence_wealth_trip;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_parish_economy_paused;
@@ -250,25 +246,13 @@ fn try_chapel_poor_relief(
                 && building.assigned_labor > 0
                 && building.owner == chapel.owner
                 && !tick.building_disabled_by_fire(ctx, building.id)
+                && building_edible_food_stock(building) > 1e-6
         })
         .collect();
 
     if marketplaces.is_empty() {
         return 0.0;
     }
-
-    ensure_market_state(ctx, chapel.owner);
-    let Some(market) = ctx.db.market_state().owner().find(&chapel.owner) else {
-        return 0.0;
-    };
-
-    let Some(commodity) = best_affordable_food_commodity(
-        all_market_food_commodities(),
-        budget,
-        market.food_price_mult,
-    ) else {
-        return 0.0;
-    };
 
     let parish_residences: Vec<Residence> = residences
         .iter()
@@ -301,19 +285,11 @@ fn try_chapel_poor_relief(
 
     let mut target: Option<&Residence> = None;
     let mut lowest_food = f64::INFINITY;
-    let Ok(physical_commodity) = market_food_commodity_kind(commodity) else {
-        return 0.0;
-    };
     for residence in &parish_residences {
         if !market_claims.contains_key(&residence.id) {
             continue;
         }
         let food_stock = need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Food);
-        if residence_commodity_delivery_room(residence, physical_commodity) + 1e-6
-            < commodity.food_amount
-        {
-            continue;
-        }
         if food_stock + 1e-6 < lowest_food
             || ((food_stock - lowest_food).abs() <= 1e-6
                 && target.is_none_or(|current| residence.id < current.id))
@@ -329,34 +305,34 @@ fn try_chapel_poor_relief(
     let Some(marketplace_id) = market_claims.get(&residence.id).copied() else {
         return 0.0;
     };
-    let Some(marketplace) = marketplaces
-        .iter()
-        .find(|marketplace| marketplace.id == marketplace_id)
+    let Some(mut marketplace) = ctx.db.building().id().find(&marketplace_id)
     else {
         return 0.0;
     };
-
-    let gold_cost = scaled_gold_cost(commodity.base_gold_cost, market.food_price_mult);
+    let relief_amount = budget
+        .floor()
+        .min(MARKET_CARAVAN_FOOD_PER_DELIVERY)
+        .min(building_edible_food_stock(&marketplace))
+        .floor();
+    if relief_amount <= 1e-6 {
+        return 0.0;
+    }
     let dispatch = MarketCaravanDispatch {
         include_abandoned: false,
         priority_residence_id: Some(residence.id),
-        exact_load_amount: Some(commodity.food_amount),
+        exact_load_amount: Some(relief_amount),
     };
-
-    if order_food_commodity(
+    if crate::simulation::try_dispatch_marketplace_caravan(
         ctx,
-        tick,
         clock,
-        marketplace.id,
-        chapel.owner,
-        commodity,
-        gold_cost,
-        MarketGoldPayer::Relief,
-        Some(residence),
+        tick,
+        &mut marketplace,
+        ResidenceNeedKind::Food,
+        MARKET_CARAVAN_FOOD_PER_DELIVERY,
         dispatch,
-    ) == Ok(true)
-    {
-        gold_cost
+    ) {
+        ctx.db.building().id().update(marketplace);
+        relief_amount
     } else {
         0.0
     }

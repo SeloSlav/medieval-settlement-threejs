@@ -1,640 +1,144 @@
-import type { BuildingState } from '../types.ts';
-import {
-  canAffordCommodityTrade,
-  canAffordMarketplaceTrade,
-  canAffordWaterCommodityTrade,
-  canReceiveCommodityTrade,
-  canReceiveMarketplaceTrade,
-  canReceiveWaterCommodityTrade,
-  describeCommodityOffer,
-  describeMarketplaceTradeOfferForMarket,
-  describeWaterCommodityOffer,
-  commodityOfferCost,
-  formatTradeAvailabilitySummary,
-  MARKET_COMMODITIES,
-  MARKET_WATER_COMMODITIES,
-  marketplacePendingTradeOffer,
-  marketplaceTradeOfferCost,
-  marketplaceTradeStagingPlan,
-  marketplaceTradeOffersBySection,
-  waterCommodityOfferCost,
-} from '../../economy/marketplaceTrade.ts';
-import type {
-  MarketplaceManualTradeStatus,
-  MarketplaceTradeAvailability,
-} from '../../economy/marketplaceTrade.ts';
 import type { RegionalMarketState } from '../../economy/regionalMarket.ts';
 import {
-  formatMarketDepthHint,
-  formatPriceMultiplier,
-  formatRegionalRateSummary,
-  priceMultiplierFor,
-} from '../../economy/regionalMarket.ts';
+  buildingTradeStock,
+  settlementTradeStock,
+  tradingPostRule,
+  tradingPostUnitPrices,
+  TRADE_MODE_EXPORT,
+  TRADE_MODE_IMPORT,
+  TRADE_MODE_NONE,
+  TRADE_RESOURCE_COMMODITY_CODES,
+  TRADE_RESOURCE_LABELS,
+  TRADING_POST_TRADE_CATEGORIES,
+  type TradingPostTradeMode,
+} from '../../economy/tradingPostTrade.ts';
 import {
-  MARKETPLACE_IRONWORK_IMPORT_OFFER,
-  MARKETPLACE_IRONWORK_TARGETS,
-  marketplaceIronworkProcurementPlan,
-} from '../../economy/marketplaceIronworkPolicy.ts';
-import {
-  MARKETPLACE_IRON_IMPORT_OFFER,
-  MARKETPLACE_IRON_TARGETS,
-  MARKETPLACE_SALT_IMPORT_OFFER,
-  MARKETPLACE_SALT_TARGETS,
-  marketplaceIronProcurementPlan,
-  marketplaceSaltProcurementPlan,
-} from '../../economy/marketplaceMaterialProcurementPolicy.ts';
-import {
-  MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
-  MARKETPLACE_SEED_GRAIN_TARGETS,
-  marketplaceSeedGrainProcurementPlan,
-  nextMarketplaceStandingOrder,
-  type MarketplaceStandingOrder,
-} from '../../economy/marketplaceSeedPolicy.ts';
-import type {
-  MarketplaceSeedCoveragePlan,
-} from '../../economy/marketplaceSeedCoverage.ts';
-import type {
-  MarketplaceTradeOffer,
-  TradeResourceKind,
+  CALENDAR_DAYS_PER_MONTH,
+  STOREHOUSE_HAUL_PER_WORKER,
+  type TradeResourceKind,
 } from '../../generated/gameBalance.ts';
-import {
-  MARKETPLACE_SPECIALTY_EXPORT_POLICIES,
-  SPECIALTY_MARKET_FAMILIES,
-  marketplaceSpecialtyExportPolicy,
-  marketplaceSpecialtyQueue,
-  resolvedSpecialtyFamilyPolicy,
-  specialtyExportPolicyAllows,
-} from '../../economy/specialtyTrade.ts';
-import {
-  MARKETPLACE_GOLD_RESERVE_TARGETS,
-  marketplaceGoldReserveShortfall,
-  marketplaceGoldReserveTarget,
-  marketplaceGoldSweepSurplus,
-} from '../../economy/marketplaceGoldReserve.ts';
-import { renderResourceAmount } from '../../ui/resourceCost.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
+import type { BuildingState, GameState } from '../types.ts';
 
 export function renderMarketplaceTradePanel(
   building: BuildingState,
-  availability: MarketplaceTradeAvailability,
+  gameState: GameState,
   marketState: RegionalMarketState,
-  manualTrade: MarketplaceManualTradeStatus,
-  conflictEnabled = false,
-  seedCoverage?: MarketplaceSeedCoveragePlan,
-  physicalEconomy = false,
-  inboundBulkResources: ReadonlySet<TradeResourceKind> = new Set(),
 ): string {
-  const sections = marketplaceTradeOffersBySection(conflictEnabled);
-  const ironworkProcurement = marketplaceIronworkProcurementPlan(building);
-  const seedGrainProcurement = marketplaceSeedGrainProcurementPlan(building);
-  const ironProcurement = marketplaceIronProcurementPlan(building);
-  const saltProcurement = marketplaceSaltProcurementPlan(building);
-  const nextStandingOrder = nextMarketplaceStandingOrder(building, conflictEnabled);
-  const pendingOffer = marketplacePendingTradeOffer(building.marketplacePendingTradeCode);
-  const nextTurnaround = manualTrade.nextCooldownSeconds == null
-    ? 'Each regional trader opens one concurrent route slot and shortens trade-desk turnaround.'
-    : `Each regional trader opens one concurrent route slot and shortens trade-desk turnaround; current road conditions make the next settlement ${manualTrade.nextCooldownSeconds.toFixed(1)}s.`;
-  const renderOffer = (offer: (typeof sections.goldBuy)[number]) => {
-    const affordable = canAffordMarketplaceTrade(availability, offer, marketState);
-    const hasRoom = canReceiveMarketplaceTrade(building, offer);
-    const staging = marketplaceTradeStagingPlan(
-      building,
-      offer,
-      physicalEconomy,
-      inboundBulkResources,
-    );
-    const enabled = manualTrade.ready && affordable && hasRoom && !staging.inbound;
-    const disabled = enabled ? '' : ' disabled aria-disabled="true"';
-    const priceTag =
-      offer.kind === 'goldBuy' || offer.kind === 'goldSell'
-        ? formatPriceMultiplier(priceMultiplierFor(marketState, offer.resource))
-        : null;
-    const marketHint =
-      offer.kind === 'goldBuy' || offer.kind === 'goldSell'
-        ? priceTag ?? 'Regional caravan rates'
-        : 'Direct barter — no gold involved';
-    const actionTitle = staging.requiresStaging && staging.resource
-      ? `Order ${staging.missing.toFixed(0)} ${staging.resource} staged at this Trading Post`
-      : describeMarketplaceTradeOfferForMarket(offer, marketState);
-    const hint = manualTrade.reason
-      ?? (!affordable
-        ? offer.kind === 'goldBuy' && physicalEconomy
-          ? 'Not enough Trading Post coffer gold'
-          : 'Not enough trade-accessible stock'
-        : !hasRoom
-          ? 'Trading Post storage lacks room for the full shipment'
-          : staging.inbound && staging.resource
-            ? `${staging.resource} staging cart inbound · merchant departs after the full lot arrives`
-            : staging.requiresStaging && staging.resource
-              ? `${staging.localStock.toFixed(0)} / ${staging.required.toFixed(0)} at the Trading Post · one order dispatches follow-up source carts`
-              : marketHint);
-    const civilianToolBoundary = 'resource' in offer && offer.resource === 'ironwork'
-      ? ' · finished imports serve market, carpenter, construction, and military demand; civilian tool racks accept only smithy-cart refills'
-      : '';
-    const cost = marketplaceTradeOfferCost(offer, marketState);
-    const costMarkup = renderResourceAmount(cost.resource, cost.amount, { compact: true });
-    return `
-      <li class="marketplace-trade-row">
-        <button
-          type="button"
-          class="marketplace-trade-option"
-          data-inspector-action="marketplace-trade"
-          data-trade-id="${offer.id}"
-          data-building-id="${building.id}"
-          ${disabled}
-        >
-          <span class="marketplace-trade-option__title">${actionTitle}</span>
-          <span class="marketplace-trade-option__cost"><span>Cost</span>${costMarkup}</span>
-          <span class="marketplace-trade-option__hint">${hint}${civilianToolBoundary}</span>
-        </button>
-      </li>`;
-  };
-
-  const renderFoodCommodity = (commodity: (typeof MARKET_COMMODITIES)[number]) => {
-    const affordable = canAffordCommodityTrade(availability, commodity, marketState);
-    const hasRoom = canReceiveCommodityTrade(building, commodity);
-    const enabled = manualTrade.ready && affordable && hasRoom;
-    const disabled = enabled ? '' : ' disabled aria-disabled="true"';
-    const priceTag = formatPriceMultiplier(marketState.foodPriceMult);
-    const hint = manualTrade.reason
-      ?? (!affordable
-        ? physicalEconomy
-          ? 'Not enough Trading Post coffer gold'
-          : 'Not enough treasury gold'
-        : !hasRoom
-          ? 'Trading Post needs room for the full order'
-          : `${commodity.origin} · ${
-              physicalEconomy
-                ? 'live merchant cart to this Trading Post, then local delivery'
-                : 'delivered to homes'
-            }${priceTag ? ` · ${priceTag}` : ''}`);
-    const cost = commodityOfferCost(commodity, marketState);
-    return `
-      <li class="marketplace-trade-row">
-        <button
-          type="button"
-          class="marketplace-trade-option marketplace-trade-option--provender"
-          data-inspector-action="marketplace-trade"
-          data-trade-id="${commodity.id}"
-          data-building-id="${building.id}"
-          ${disabled}
-        >
-          <span class="marketplace-trade-option__title">${describeCommodityOffer(commodity, marketState)}</span>
-          <span class="marketplace-trade-option__cost"><span>Cost</span>${renderResourceAmount(cost.resource, cost.amount, { compact: true })}</span>
-          <span class="marketplace-trade-option__hint">${hint}</span>
-        </button>
-      </li>`;
-  };
-
-  const renderWaterCommodity = (commodity: (typeof MARKET_WATER_COMMODITIES)[number]) => {
-    const affordable = canAffordWaterCommodityTrade(availability, commodity, marketState);
-    const hasRoom = canReceiveWaterCommodityTrade(building, commodity);
-    const enabled = manualTrade.ready && affordable && hasRoom;
-    const disabled = enabled ? '' : ' disabled aria-disabled="true"';
-    const priceTag = formatPriceMultiplier(marketState.firewoodPriceMult);
-    const hint = manualTrade.reason
-      ?? (!affordable
-        ? physicalEconomy
-          ? 'Not enough Trading Post coffer gold'
-          : 'Not enough treasury gold'
-        : !hasRoom
-          ? 'Trading Post needs room for the full order'
-          : `${commodity.origin} · ${
-              physicalEconomy
-                ? 'live regional cart to this Trading Post, then local delivery'
-                : 'delivered to homes'
-            }${priceTag ? ` · ${priceTag}` : ''}`);
-    const cost = waterCommodityOfferCost(commodity, marketState);
-    return `
-      <li class="marketplace-trade-row">
-        <button
-          type="button"
-          class="marketplace-trade-option marketplace-trade-option--water"
-          data-inspector-action="marketplace-trade"
-          data-trade-id="${commodity.id}"
-          data-building-id="${building.id}"
-          ${disabled}
-        >
-          <span class="marketplace-trade-option__title">${describeWaterCommodityOffer(commodity, marketState)}</span>
-          <span class="marketplace-trade-option__cost"><span>Cost</span>${renderResourceAmount(cost.resource, cost.amount, { compact: true })}</span>
-          <span class="marketplace-trade-option__hint">${hint}</span>
-        </button>
-      </li>`;
-  };
+  const clock = gameClock(gameState.tick);
+  const daysUntilSettlement = CALENDAR_DAYS_PER_MONTH - clock.monthDay + 1;
+  const rules = gameState.tradingPostTradeRules;
+  const activeRules = Array.from(rules?.values() ?? [])
+    .filter((rule) => rule.buildingId === building.id && rule.mode !== TRADE_MODE_NONE);
+  const stagedUnits = activeRules
+    .filter((rule) => rule.mode === TRADE_MODE_EXPORT)
+    .reduce((total, rule) => total + buildingTradeStock(building, rule.commodity), 0);
+  const haulers = Math.max(0, Math.min(2, Math.floor(building.assignedLabor)));
 
   return `
-    <div class="marketplace-trade-panel">
-      <p class="marketplace-trade-bulletin">${marketState.bulletin}</p>
-      <p class="marketplace-trade-intro">${physicalEconomy
-        ? 'Bulk exports use only goods physically staged at this Trading Post by visible source carts. Once a full lot arrives, one live merchant carries it to the regional map edge, exchanges only what survives the road, and returns with raid-vulnerable coin or barter cargo before the receipt enters Trading Post storage. Imports spend only coin physically held in this Trading Post coffer; free haulers replenish its chosen reserve from the civic treasury, while regional traders return only surplus receipts. Construction, household, and residence-upgrade reserves remain protected.'
-        : 'Legacy saves may export treasury stock and goods in road-linked building stores directly; household provisions remain protected.'} Every non-currency commodity produced by the settlement has both a public bulk import and export contract. Ale, cloth, honey, wine, cheese, and pottery can also use the private automatic specialty desk after local reserves. Every paid import is carried from the map edge. Household goods unload here, then a staffed broker carries a useful batch to a connected Marketplace; imported water can replenish a connected well. Homes draw only through the daily Marketplace issue or automatic well coverage, so regional trade never creates routine door-to-door supply carts. Raw materials and wares remain physically available for local collection. Public contracts are civic treasury trade and therefore tax-neutral; Town Hall customs apply only to private household imports and automatic private exports.</p>
-      <p class="marketplace-trade-depth">${manualTrade.label}. ${nextTurnaround}</p>
-      ${pendingOffer
-        ? renderPendingMarketplaceOrder(
-            building,
-            pendingOffer,
-            marketState,
-            manualTrade,
-            physicalEconomy,
-            inboundBulkResources,
-          )
-        : ''}
-      <p class="marketplace-trade-rates" aria-label="Current regional rates">${formatRegionalRateSummary(marketState)}</p>
-      <p class="marketplace-trade-depth">${formatMarketDepthHint()}</p>
-      <p class="marketplace-trade-stock">${formatTradeAvailabilitySummary(availability)}</p>
-      ${physicalEconomy ? renderMarketplaceGoldReserve(building) : ''}
-      <section class="marketplace-trade-section" aria-label="Provender">
-        <h3 class="marketplace-trade-section__title">Provender — regional market</h3>
-        <ul class="marketplace-trade-list">${MARKET_COMMODITIES.map(renderFoodCommodity).join('')}</ul>
-      </section>
-      <section class="marketplace-trade-section" aria-label="Water imports">
-        <h3 class="marketplace-trade-section__title">Water imports</h3>
-        <ul class="marketplace-trade-list">${MARKET_WATER_COMMODITIES.map(renderWaterCommodity).join('')}</ul>
-      </section>
-      ${renderSeedGrainProcurementPolicy(
-        seedGrainProcurement,
-        availability,
-        marketState,
-        manualTrade,
-        nextStandingOrder,
-        conflictEnabled,
-        seedCoverage,
-      )}
-      ${renderMaterialProcurementPolicy(
-        ironProcurement,
-        saltProcurement,
-        availability,
-        marketState,
-        manualTrade,
-        nextStandingOrder,
-      )}
-      ${conflictEnabled ? renderIronworkProcurementPolicy(
-        ironworkProcurement,
-        availability,
-        marketState,
-        manualTrade,
-        nextStandingOrder,
-      ) : ''}
-      ${renderSpecialtyExportPolicy(building, marketState)}
-      <section class="marketplace-trade-section" aria-label="Buy with gold">
-        <h3 class="marketplace-trade-section__title">Buy bulk goods</h3>
-        <ul class="marketplace-trade-list">${sections.goldBuy.map(renderOffer).join('')}</ul>
-      </section>
-      <section class="marketplace-trade-section" aria-label="Sell for gold">
-        <h3 class="marketplace-trade-section__title">Sell for gold</h3>
-        <ul class="marketplace-trade-list">${sections.goldSell.map(renderOffer).join('')}</ul>
-      </section>
-      <section class="marketplace-trade-section" aria-label="Barter">
-        <h3 class="marketplace-trade-section__title">Barter</h3>
-        <ul class="marketplace-trade-list">${sections.barter.map(renderOffer).join('')}</ul>
-      </section>
+    <div class="trading-post-ledger">
+      <header class="trading-post-ledger__header">
+        <div>
+          <p class="trading-post-ledger__eyebrow">Monthly trade ledger</p>
+          <h3>Import and export rules</h3>
+        </div>
+        <span class="trading-post-ledger__settlement">${daysUntilSettlement === 1
+          ? 'Settlement today'
+          : `${daysUntilSettlement} days to settlement`}</span>
+      </header>
+      <p class="trading-post-ledger__intro">Set one desired settlement surplus for every commodity. Export haulers continuously stage only stock above that floor in this Trading Post; all staged exports are sold at month end. Imports arrive directly into this store at month end and buy only enough to reach the floor, limited by storage and civic gold. The regional exchange is abstract—only local collection and distribution use visible haulers.</p>
+      <div class="trading-post-ledger__summary">
+        <span><strong>${activeRules.length}</strong> active rules</span>
+        <span><strong>${Math.floor(stagedUnits)}</strong> export units staged</span>
+        <span><strong>${haulers}/2</strong> cart haulers</span>
+        <span><strong>${haulers * STOREHOUSE_HAUL_PER_WORKER}</strong> units per collection cart</span>
+      </div>
+      <div class="trading-post-ledger__scroll" data-trading-post-scroll>
+        ${TRADING_POST_TRADE_CATEGORIES.map((category) => `
+          <section class="trading-post-ledger__section">
+            <h4>${category.label}</h4>
+            <div class="trading-post-ledger__rows">
+              ${category.resources.map((resource) => renderCommodityRow(
+                building,
+                gameState,
+                marketState,
+                resource,
+              )).join('')}
+            </div>
+          </section>`).join('')}
+      </div>
     </div>`;
 }
 
-function renderMarketplaceGoldReserve(building: BuildingState): string {
-  const target = marketplaceGoldReserveTarget(building);
-  const held = Math.max(0, building.gold);
-  const shortfall = marketplaceGoldReserveShortfall(held, 0, target);
-  const surplus = marketplaceGoldSweepSurplus(held, target);
-  let status: string;
-  if (target <= 0) {
-    status = held <= 1e-6
-      ? 'Receipts only — no treasury refill; imports wait for locally earned coin.'
-      : `${Math.round(held)} gold held — all is eligible for the next treasury sweep.`;
-  } else if (shortfall > 1e-6) {
-    status = `${Math.round(held)} / ${Math.ceil(target)} gold held — ${Math.ceil(shortfall)} awaits a free treasury handcart.`;
-  } else if (surplus > 1e-6) {
-    status = `${Math.ceil(target)} gold reserved for imports — ${Math.round(surplus)} surplus awaits a regional-trader cart to the treasury.`;
-  } else {
-    status = `${Math.round(held)} / ${Math.ceil(target)} gold held — working cash ready for imports.`;
-  }
-  return `
-    <section class="marketplace-trade-section" aria-label="Trading Post cash reserve">
-      <h3 class="marketplace-trade-section__title">Trading Post cash reserve</h3>
-      <p class="resource-inspector-note">Choose how much civic coin to keep physically at this Trading Post. Treasury-to-post handcarts consume one free hauler and road time; a larger reserve supports costly or repeated imports but leaves less gold available for wages and residence improvements.</p>
-      <div class="resource-action-row">${MARKETPLACE_GOLD_RESERVE_TARGETS
-        .map((reserveTarget) => `<button type="button" class="resource-action-button" data-marketplace-gold-reserve-target="${reserveTarget}" ${reserveTarget === target ? 'disabled' : ''}>${reserveTarget === 0 ? 'Receipts only' : `Keep ${reserveTarget}`}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">${status}</p>
-    </section>`;
-}
-
-function renderPendingMarketplaceOrder(
+function renderCommodityRow(
   building: BuildingState,
-  offer: MarketplaceTradeOffer,
+  gameState: GameState,
   marketState: RegionalMarketState,
-  manualTrade: MarketplaceManualTradeStatus,
-  physicalEconomy: boolean,
-  inboundBulkResources: ReadonlySet<TradeResourceKind>,
+  resource: TradeResourceKind,
 ): string {
-  const staging = marketplaceTradeStagingPlan(
-    building,
-    offer,
-    physicalEconomy,
-    inboundBulkResources,
-  );
-  const progress = staging.required > 1e-6
-    ? Math.max(0, Math.min(100, (staging.localStock / staging.required) * 100))
-    : 100;
-  let status: string;
-  if (staging.missing <= 1e-6) {
-    status = building.actionCooldown > 1e-6
-      ? `Full lot staged · merchant dispatch opens in about ${building.actionCooldown.toFixed(1)}s`
-      : 'Full lot staged · regional merchant departure queued';
-  } else if (staging.inbound && staging.resource) {
-    status = `${staging.resource} cart inbound · ${staging.localStock.toFixed(0)} of ${staging.required.toFixed(0)} physically staged`;
-  } else if (manualTrade.label !== 'Bulk order staging') {
-    status = `${manualTrade.label} · ${staging.localStock.toFixed(0)} of ${staging.required.toFixed(0)} physically staged`;
-  } else {
-    status = `Awaiting a free road-linked ${staging.resource ?? 'supply'} cart · ${staging.localStock.toFixed(0)} of ${staging.required.toFixed(0)} staged`;
-  }
-
+  const rule = tradingPostRule(gameState.tradingPostTradeRules, building.id, resource);
+  const mode = rule?.mode ?? TRADE_MODE_NONE;
+  const target = Math.max(0, Math.round(rule?.targetSurplus ?? 0));
+  const outsideStock = settlementTradeStock(gameState, resource, false);
+  const postStock = buildingTradeStock(building, resource);
+  const prices = tradingPostUnitPrices(resource, marketState);
+  const lastResult = formatLastResult(rule?.lastTradeAmount ?? 0, rule?.lastTradeGold ?? 0);
+  const status = mode === TRADE_MODE_EXPORT
+    ? `${Math.max(0, Math.floor(outsideStock - target))} currently eligible · ${Math.floor(postStock)} staged`
+    : mode === TRADE_MODE_IMPORT
+      ? `${Math.max(0, Math.floor(target - outsideStock - postStock))} unit monthly deficit`
+      : 'No monthly trade';
   return `
-    <section class="marketplace-trade-section marketplace-trade-section--pending" aria-label="Active bulk order">
-      <h3 class="marketplace-trade-section__title">Active bulk order</h3>
-      <p class="marketplace-trade-stock"><strong>${describeMarketplaceTradeOfferForMarket(offer, marketState)}</strong></p>
-      <p class="marketplace-trade-depth">${status}</p>
-      <p class="marketplace-trade-depth" role="progressbar" aria-label="Physical staging progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}">${Math.round(progress)}% staged · final receipt follows the rate and surviving load at the regional exchange</p>
-      <button
-        type="button"
-        class="marketplace-trade-option"
-        data-inspector-action="cancel-marketplace-trade-order"
-        data-building-id="${building.id}"
-      >
-        <span class="marketplace-trade-option__title">Cancel bulk order</span>
-        <span class="marketplace-trade-option__hint">Already-dispatched carts still unload here; staged goods remain physical Trading Post stock.</span>
-      </button>
-    </section>`;
+    <article class="trading-post-ledger__row${mode === TRADE_MODE_NONE ? '' : ' is-active'}"
+      data-trade-rule-row data-trade-mode="${mode}">
+      <div class="trading-post-ledger__commodity">
+        <strong>${TRADE_RESOURCE_LABELS[resource]}</strong>
+        <span>Settlement ${Math.floor(outsideStock)} · Post ${Math.floor(postStock)}</span>
+      </div>
+      <div class="trading-post-ledger__rates" title="Current regional unit prices">
+        <span>Buy ${formatGold(prices.importGold)}</span>
+        <span>Sell ${formatGold(prices.exportGold)}</span>
+      </div>
+      <div class="trading-post-ledger__modes" role="group" aria-label="${TRADE_RESOURCE_LABELS[resource]} trade mode">
+        ${renderModeButton(resource, TRADE_MODE_NONE, mode, 'Off')}
+        ${renderModeButton(resource, TRADE_MODE_IMPORT, mode, 'Import')}
+        ${renderModeButton(resource, TRADE_MODE_EXPORT, mode, 'Export')}
+      </div>
+      <div class="trading-post-ledger__target">
+        <span>Desired surplus</span>
+        <div class="trading-post-ledger__stepper">
+          <button type="button" data-trade-surplus-delta="-1" aria-label="Reduce ${TRADE_RESOURCE_LABELS[resource]} surplus">&#x2039;</button>
+          <input type="number" min="0" max="9999" step="1" inputmode="numeric"
+            value="${target}" data-trade-surplus-input
+            data-commodity-kind="${TRADE_RESOURCE_COMMODITY_CODES[resource]}"
+            aria-label="Desired ${TRADE_RESOURCE_LABELS[resource]} surplus">
+          <button type="button" data-trade-surplus-delta="1" aria-label="Increase ${TRADE_RESOURCE_LABELS[resource]} surplus">&#x203A;</button>
+        </div>
+      </div>
+      <p class="trading-post-ledger__status">${status}${lastResult ? ` · ${lastResult}` : ''}</p>
+    </article>`;
 }
 
-function renderSpecialtyExportPolicy(
-  building: BuildingState,
-  marketState: RegionalMarketState,
+function renderModeButton(
+  resource: TradeResourceKind,
+  value: TradingPostTradeMode,
+  selected: TradingPostTradeMode,
+  label: string,
 ): string {
-  const rates = {
-    drink: marketState.drinkPriceMult,
-    provision: marketState.provisionPriceMult,
-    wares: marketState.waresPriceMult,
-  };
-  const queue = marketplaceSpecialtyQueue(building, rates);
-  const familyPolicyValue = (family: 'drink' | 'provision' | 'wares'): number => {
-    const raw = family === 'drink'
-      ? building.marketplaceDrinkExportPolicy
-      : family === 'provision'
-        ? building.marketplaceProvisionExportPolicy
-        : building.marketplaceWaresExportPolicy;
-    return resolvedSpecialtyFamilyPolicy(raw, building.marketplaceSpecialtyExportPolicy);
-  };
-  const familyStock = (family: 'drink' | 'provision' | 'wares'): number => {
-    if (family === 'drink') return building.ale + building.wine;
-    if (family === 'provision') return building.honey + (building.cheese ?? 0);
-    return (building.cloth ?? 0) + (building.pottery ?? 0);
-  };
-  const familyRows = SPECIALTY_MARKET_FAMILIES.map((family) => {
-    const rate = rates[family.kind];
-    const policy = marketplaceSpecialtyExportPolicy(familyPolicyValue(family.kind));
-    const stock = familyStock(family.kind);
-    const allowed = specialtyExportPolicyAllows(policy.value, rate);
-    const status = stock <= 1e-6
-      ? `No ${family.goods} staged · regional rate ${Math.round(rate * 100)}%.`
-      : allowed
-        ? `${Math.round(stock)} units eligible at ${Math.round(rate * 100)}%.`
-        : `${Math.round(stock)} units held · ${Math.max(1, Math.ceil((policy.minRate - rate) * 100))} points below the selected floor.`;
-    return `<div class="inspector-action-panel">
-      <p class="resource-inspector-note"><strong>${family.label}</strong> · ${family.goods} · ${status}</p>
-      <div class="resource-action-row">${MARKETPLACE_SPECIALTY_EXPORT_POLICIES
-        .map((candidate) => `<button type="button" class="resource-action-button" data-marketplace-specialty-family="${family.id}" data-marketplace-specialty-family-policy="${candidate.value}" title="${candidate.hint}" ${candidate.value === policy.value ? 'disabled' : ''}>${candidate.label}</button>`)
-        .join('')}</div>
-    </div>`;
-  }).join('');
-
-  return `
-    <section class="marketplace-trade-section" aria-label="Specialty export policy">
-      <h3 class="marketplace-trade-section__title">Specialty export desks</h3>
-      <p class="resource-inspector-note">Each family has its own seasonal regional demand and price. Goods must arrive by physical cart; exporting one family depresses only that family, while comfortable local households may buy small amounts before the evening caravan departs.</p>
-      ${familyRows}
-      <p class="inspector-action-panel__hint">${Math.round(queue.units)} total units · about ${queue.goldValue.toFixed(1)} gold at current family rates.</p>
-    </section>`;
+  return `<button type="button" data-trade-rule-mode="${value}"
+    data-commodity-kind="${TRADE_RESOURCE_COMMODITY_CODES[resource]}"
+    class="${selected === value ? 'is-selected' : ''}"
+    aria-pressed="${selected === value}">${label}</button>`;
 }
 
-function renderIronworkProcurementPolicy(
-  plan: ReturnType<typeof marketplaceIronworkProcurementPlan>,
-  availability: MarketplaceTradeAvailability,
-  marketState: RegionalMarketState,
-  manualTrade: MarketplaceManualTradeStatus,
-  nextStandingOrder: MarketplaceStandingOrder,
-): string {
-  const nextCost = marketplaceTradeOfferCost(
-    MARKETPLACE_IRONWORK_IMPORT_OFFER,
-    marketState,
-  ).amount;
-  let status: string;
-  if (plan.target <= 0) {
-    status = 'Manual-only — regional traders place no automatic ironwork orders.';
-  } else if (!plan.nextOrderDue) {
-    status = `Holding ${Math.round(plan.stock)} / ${Math.ceil(plan.target)} ironwork; the next six-unit lot waits until it fits without overshooting.`;
-  } else if (nextStandingOrder && nextStandingOrder !== 'ironwork') {
-    status = `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} ironwork lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-  } else if (availability.gold + 1e-6 < nextCost) {
-    status = `Waiting for ${nextCost.toFixed(0)} Trading Post coffer gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-  } else if (!manualTrade.ready) {
-    status = `Waiting — ${manualTrade.label.toLowerCase()}.`;
-  } else {
-    status = `Next six-unit lot ready for ${nextCost.toFixed(0)} gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-  }
-
-  return `
-    <section class="marketplace-trade-section" aria-label="Frontier ironwork procurement">
-      <h3 class="marketplace-trade-section__title">Frontier ironwork procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this Trading Post buys one six-unit lot whenever its local ironwork falls far enough below target. Orders use the shared standing-order queue, physically held Trading Post coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes Trading Post stock only after unloading; a full post leaves the cart waiting visibly at its loading bay, and carpenters must still collect the fittings by road. Imported finished fittings serve carpentry, construction, and armament demand but do not refill civilian tool racks; those require locally forged stock carried by a smithy cart. The most depleted selected reserve goes first.</p>
-      <div class="resource-action-row">${MARKETPLACE_IRONWORK_TARGETS
-        .map((target) => `<button type="button" class="resource-action-button" data-marketplace-ironwork-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">${status}</p>
-    </section>`;
+function formatGold(value: number): string {
+  if (value >= 10) return `${value.toFixed(1)}g`;
+  return `${value.toFixed(2)}g`;
 }
 
-function renderSeedGrainProcurementPolicy(
-  plan: ReturnType<typeof marketplaceSeedGrainProcurementPlan>,
-  availability: MarketplaceTradeAvailability,
-  marketState: RegionalMarketState,
-  manualTrade: MarketplaceManualTradeStatus,
-  nextStandingOrder: MarketplaceStandingOrder,
-  conflictEnabled: boolean,
-  coverage?: MarketplaceSeedCoveragePlan,
-): string {
-  const nextCost = marketplaceTradeOfferCost(
-    MARKETPLACE_SEED_GRAIN_IMPORT_OFFER,
-    marketState,
-  ).amount;
-  let status: string;
-  if (plan.target <= 0) {
-    status = 'Manual-only — regional traders place no automatic seed-grain orders.';
-  } else if (!plan.nextOrderDue) {
-    status = `Holding ${Math.round(plan.stock)} / ${Math.ceil(plan.target)} grain; the next 24-unit lot waits until it fits without overshooting.`;
-  } else if (nextStandingOrder && nextStandingOrder !== 'seedGrain') {
-    status = `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-  } else if (availability.gold + 1e-6 < nextCost) {
-    status = `Waiting for ${nextCost.toFixed(0)} Trading Post coffer gold; ${plan.ordersToTarget} seed lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-  } else if (!manualTrade.ready) {
-    status = `Waiting — ${manualTrade.label.toLowerCase()}.`;
-  } else {
-    status = `Next 24-unit seed lot ready for ${nextCost.toFixed(0)} gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-  }
-
-  const sharedQueue = conflictEnabled
-    ? ' Seed grain, salt, raw iron, and frontier ironwork share this trader queue; the most depleted selected target goes first.'
-    : ' Seed grain, salt, and raw iron share this trader queue; the most depleted selected target goes first.';
-  const coverageHtml = renderSeedCoverage(coverage);
-  return `
-    <section class="marketplace-trade-section" aria-label="Seed-grain procurement">
-      <h3 class="marketplace-trade-section__title">Seed-grain procurement</h3>
-      <p class="resource-inspector-note">Standing stock target — this Trading Post buys one 24-unit grain lot whenever its local stock falls far enough below target. Orders use regional-trader time, physically held Trading Post coffer gold, and current regional rates. Each paid lot enters on a live map-edge merchant cart and becomes Trading Post stock only after unloading.${sharedQueue} Imported grain remains reserved for road-linked, staffed farmsteads with uncovered field seed; each free Trading Post or granary cart serves the least-covered holding first, then the shorter road; mills and breweries continue drawing from holdings and granaries.</p>
-      <div class="resource-action-row">${MARKETPLACE_SEED_GRAIN_TARGETS
-        .map((target) => `<button type="button" class="resource-action-button" data-marketplace-seed-grain-target="${target}" ${target === plan.target ? 'disabled' : ''}>${target === 0 ? 'Manual only' : `Keep ${target}`}</button>`)
-        .join('')}</div>
-      <p class="inspector-action-panel__hint">${status}</p>
-      ${coverageHtml}
-    </section>`;
-}
-
-function renderMaterialProcurementPolicy(
-  ironPlan: ReturnType<typeof marketplaceIronProcurementPlan>,
-  saltPlan: ReturnType<typeof marketplaceSaltProcurementPlan>,
-  availability: MarketplaceTradeAvailability,
-  marketState: RegionalMarketState,
-  manualTrade: MarketplaceManualTradeStatus,
-  nextStandingOrder: MarketplaceStandingOrder,
-): string {
-  const renderTargetButtons = (
-    resource: 'iron' | 'salt',
-    targets: readonly number[],
-    selected: number,
-  ) => targets
-    .map((target) => `<button type="button" class="resource-action-button" data-marketplace-${resource}-target="${target}" ${target === selected ? 'disabled' : ''}>${target === 0 ? 'No reserve' : `Keep ${target}`}</button>`)
-    .join('');
-
-  return `
-    <section class="marketplace-trade-section" aria-label="Workshop input procurement">
-      <h3 class="marketplace-trade-section__title">Workshop input reserves</h3>
-      <p class="resource-inspector-note">Set a physical reserve for local mine output and regional fallback. Mine carts restore staffed workshop buffers first, then carry surplus iron or salt to a staffed road-linked Trading Post up to the selected level. Adriatic merchant carts buy only the remaining whole-lot shortfall, consuming trader time, coffer gold, and the current regional rate before their cargo becomes usable on arrival. Free Trading Post carts then stage iron, salt, and uncommitted pottery at staffed smithies, smokehouses, and pastoral holdings; paid household orders and seed recovery retain first claim, then cycle runway, road length, and stable order decide the next production site and supplying post. Pastoral salt turns part of the shared milk yield into farmhouse cheese and preserves part of autumn slaughter; fresh milk and herd care continue when it runs out. Pottery promised to an active export order stays at the Trading Post. All standing imports share one queue and the most depleted selected reserve goes first.</p>
-      <h4 class="marketplace-trade-section__title">Iron reserve for smithing</h4>
-      <div class="resource-action-row">${renderTargetButtons(
-        'iron',
-        MARKETPLACE_IRON_TARGETS,
-        ironPlan.target,
-      )}</div>
-      <p class="inspector-action-panel__hint">${formatMaterialProcurementStatus(
-        'iron',
-        ironPlan,
-        marketplaceTradeOfferCost(MARKETPLACE_IRON_IMPORT_OFFER, marketState).amount,
-        availability,
-        manualTrade,
-        nextStandingOrder,
-      )}</p>
-      <h4 class="marketplace-trade-section__title">Salt reserve</h4>
-      <div class="resource-action-row">${renderTargetButtons(
-        'salt',
-        MARKETPLACE_SALT_TARGETS,
-        saltPlan.target,
-      )}</div>
-      <p class="inspector-action-panel__hint">${formatMaterialProcurementStatus(
-        'salt',
-        saltPlan,
-        marketplaceTradeOfferCost(MARKETPLACE_SALT_IMPORT_OFFER, marketState).amount,
-        availability,
-        manualTrade,
-        nextStandingOrder,
-      )}</p>
-    </section>`;
-}
-
-function formatMaterialProcurementStatus(
-  resource: 'iron' | 'salt',
-  plan:
-    | ReturnType<typeof marketplaceIronProcurementPlan>
-    | ReturnType<typeof marketplaceSaltProcurementPlan>,
-  nextCost: number,
-  availability: MarketplaceTradeAvailability,
-  manualTrade: MarketplaceManualTradeStatus,
-  nextStandingOrder: MarketplaceStandingOrder,
-): string {
-  if (plan.target <= 0) {
-    return `No central reserve — mine carts serve workshops directly and regional traders place no automatic ${resource} orders.`;
-  }
-  if (!plan.nextOrderDue) {
-    return `Holding ${Math.round(plan.stock)} / ${Math.ceil(plan.target)} ${resource}; local mine carts may fill the remainder, while the next twelve-unit import waits until it fits without overshooting.`;
-  }
-  if (nextStandingOrder && nextStandingOrder !== resource) {
-    return `Queued behind the more depleted ${standingOrderLabel(nextStandingOrder)}; ${plan.ordersToTarget} ${resource} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-  }
-  if (availability.gold + 1e-6 < nextCost) {
-    return `Waiting for ${nextCost.toFixed(0)} market-coffer gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-  }
-  if (!manualTrade.ready) {
-    return `Waiting — ${manualTrade.label.toLowerCase()}.`;
-  }
-  return `Next twelve-unit lot ready for ${nextCost.toFixed(0)} gold; ${plan.ordersToTarget} lot${plan.ordersToTarget === 1 ? '' : 's'} remain at current stock.`;
-}
-
-function standingOrderLabel(order: Exclude<MarketplaceStandingOrder, null>): string {
-  switch (order) {
-    case 'seedGrain': return 'seed-grain reserve';
-    case 'salt': return 'salt reserve';
-    case 'iron': return 'raw-iron reserve';
-    case 'ironwork': return 'frontier ironwork reserve';
-  }
-}
-
-function renderSeedCoverage(coverage?: MarketplaceSeedCoveragePlan): string {
-  if (!coverage) return '';
-  if (coverage.connectedHoldings <= 0) {
-    return '<p class="inspector-action-panel__hint">Reachable field demand — no active field seed claims on this market’s road branch.</p>';
-  }
-  const transit = coverage.inboundGrain > 0.05
-    ? ` · ${Math.round(coverage.inboundGrain)} already inbound${coverage.marketOutboundGrain > 0.05 ? ` (${Math.round(coverage.marketOutboundGrain)} from this market)` : ''}`
-    : '';
-  const firstExposed = coverage.firstShortBuildingId == null
-    ? ''
-    : ` First exposed: ${Math.ceil(coverage.firstShortfall)} grain short <button type="button" class="inspector-jump-button" data-inspect-building="${coverage.firstShortBuildingId}" aria-label="Inspect first road-linked seed shortfall">Inspect holding</button>.`;
-  const laborBlock = coverage.laborBlockedHoldings > 0
-    ? ` ${Math.ceil(coverage.laborBlockedShortfall)} grain across ${coverage.laborBlockedHoldings} holding${coverage.laborBlockedHoldings === 1 ? '' : 's'} cannot move until farm labor is assigned.`
-    : '';
-  const fireBlock = coverage.fireBlockedHoldings > 0
-    ? ` ${Math.ceil(coverage.fireBlockedShortfall)} grain is held behind ${coverage.fireBlockedHoldings} fire-disabled holding${coverage.fireBlockedHoldings === 1 ? '' : 's'}.`
-    : '';
-  const inboundBlock = coverage.inboundBlockedHoldings > 0
-    ? ` ${coverage.inboundBlockedHoldings} holding${coverage.inboundBlockedHoldings === 1 ? '' : 's'} already ${coverage.inboundBlockedHoldings === 1 ? 'has' : 'have'} a grain cart inbound, so overlapping sources will not duplicate the haul.`
-    : '';
-  const nextCart = renderNextMarketplaceSeedCart(coverage);
-  if (coverage.seedShortfall <= 0.05) {
-    return `<p class="inspector-action-panel__hint">Reachable field demand — ${Math.round(coverage.seedCovered)} / ${Math.ceil(coverage.seedRequired)} grain covered across ${coverage.connectedHoldings} holding${coverage.connectedHoldings === 1 ? '' : 's'}${transit}. Current field plans need no additional market seed.</p>`;
-  }
-  const planned = coverage.plannedImportLots > 0
-    ? `${coverage.plannedImportGrain.toFixed(0)} grain in ${coverage.plannedImportLots} currently due lot${coverage.plannedImportLots === 1 ? '' : 's'}`
-    : 'no lot currently due';
-  return `<p class="inspector-action-panel__hint">Reachable field demand — ${Math.round(coverage.seedCovered)} / ${Math.ceil(coverage.seedRequired)} grain covered${transit}; ${Math.ceil(coverage.seedShortfall)} remains short across ${coverage.shortHoldings} holding${coverage.shortHoldings === 1 ? '' : 's'}. This market holds ${Math.round(coverage.currentMarketStock)} and has ${planned}, enough to cover up to ${Math.floor(coverage.potentialCoverage)} of the staffed shortfall${coverage.uncoveredDispatchableShortfall > 0.05 ? ` · ${Math.ceil(coverage.uncoveredDispatchableShortfall)} would remain` : ''}.${laborBlock}${fireBlock}${inboundBlock}${firstExposed} ${nextCart} Reachability is shared with other granaries or markets on the same road component.</p>`;
-}
-
-function renderNextMarketplaceSeedCart(
-  coverage: MarketplaceSeedCoveragePlan,
-): string {
-  if (!coverage.sourceOperational) {
-    return 'Next seed cart is blocked until this market is complete, staffed, and safe.';
-  }
-  if (coverage.sourceBusy) {
-    return 'This market already has a cart away; seed priority is recalculated when it returns.';
-  }
-  if (coverage.nextDispatchBuildingId === null) {
-    return coverage.inboundBlockedHoldings > 0
-      ? 'No duplicate seed cart launches while the exposed staffed holdings wait for inbound grain.'
-      : 'No staffed, safe, road-reachable holding is currently eligible for another seed cart.';
-  }
-  const distance = coverage.nextDispatchDistance === null
-    ? ''
-    : ` over ${coverage.nextDispatchDistance.toFixed(0)} m of road`;
-  const inspect = `<button type="button" class="inspector-jump-button" data-inspect-building="${coverage.nextDispatchBuildingId}" aria-label="Inspect next seed-cart holding">Inspect next holding</button>`;
-  if (coverage.nextDispatchAmount <= 0.05) {
-    return `Next eligible destination once physical seed is available: ${Math.round(coverage.nextDispatchStock)} / ${Math.ceil(coverage.nextDispatchRequired)} onsite${distance}. ${inspect}`;
-  }
-  return `Next seed cart: ${Math.round(coverage.nextDispatchAmount)} grain to the least-covered eligible holding (${Math.round(coverage.nextDispatchStock)} / ${Math.ceil(coverage.nextDispatchRequired)} onsite)${distance}. ${inspect}`;
+function formatLastResult(amount: number, gold: number): string {
+  if (amount <= 1e-6) return '';
+  return gold >= 0
+    ? `last sold ${Math.floor(amount)} for ${gold.toFixed(1)}g`
+    : `last bought ${Math.floor(amount)} for ${Math.abs(gold).toFixed(1)}g`;
 }

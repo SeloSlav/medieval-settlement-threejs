@@ -1171,7 +1171,7 @@ mod tests {
             ],
         );
         assert_eq!(
-            directly_dispatched_processor_input_per_cycle("watermill", "grain"),
+            directly_dispatched_processor_input_per_cycle("watermill", "ryeGrain"),
             super::WATERMILL_GRAIN_PER_CYCLE,
         );
         assert_eq!(
@@ -1293,8 +1293,8 @@ mod tests {
                 5.0,
                 1,
             ),
-            Ordering::Less,
-            "a high-priority working buffer must beat a shorter empty low-priority workshop"
+            Ordering::Greater,
+            "input preference must outrank neutralized legacy work priority within a working buffer"
         );
         assert_eq!(
             compare_processor_input_dispatch_candidates(
@@ -1378,7 +1378,7 @@ mod tests {
             100,
         );
         let granary =
-            processor_input_dispatch_duty_for_target("granary", "flour", 1, 0.0, 0.0, 100);
+            processor_input_dispatch_duty_for_target("granary", "ryeFlour", 1, 0.0, 0.0, 100);
         let bakery_overflow = processor_input_dispatch_duty_for_target(
             "bakery",
             "flour",

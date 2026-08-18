@@ -43,6 +43,7 @@ mod settlement_security;
 pub mod spatial;
 mod stone_quarry;
 mod tick_context;
+mod trading_post_trade;
 mod village_storehouse;
 mod well;
 mod woodcutters_lodge;
@@ -122,6 +123,7 @@ pub use seasonal_labor_steward::{
 pub use settlement_security::{ensure_settlement_security, step_settlement_security};
 pub use stone_quarry::step_stone_quarry;
 pub use tick_context::{SharedRoadNetworks, SimTickContext};
+pub use trading_post_trade::{step_trading_post_trade, trading_post_exports_commodity};
 pub use village_storehouse::{
     step_storehouse_market_stalls, step_village_storehouse_overflow_collection,
 };

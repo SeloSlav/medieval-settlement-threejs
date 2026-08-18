@@ -28,6 +28,7 @@ import type { ActiveRaidState } from '../../security/activeRaid.ts';
 import type { NightPolicyState } from '../../economy/nightPolicy.ts';
 import type { FiscalPolicyState } from '../../economy/fiscalPolicy.ts';
 import type { PantrySafeguardPolicyCode } from '../../economy/pantrySafeguardPolicy.ts';
+import type { TradingPostTradeRuleState } from '../../economy/tradingPostTrade.ts';
 
 export type GameTableSyncState = {
   identityHex: string | null;
@@ -48,6 +49,7 @@ export type GameTableSyncState = {
   monasteryPolicy: MonasteryPolicyState;
   nightPolicy: NightPolicyState;
   marketState: RegionalMarketState;
+  tradingPostTradeRules: Map<string, TradingPostTradeRuleState>;
   quarries: Map<string, ResourceNodeState>;
   foragingNodes: Map<string, ForagingNodeState>;
   trees: Map<string, TreeEntityState>;

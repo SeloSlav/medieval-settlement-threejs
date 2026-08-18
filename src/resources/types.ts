@@ -456,6 +456,7 @@ export type GameState = {
   foragingNodes: Map<string, ForagingNodeState>;
   trees: Map<string, TreeEntityState>;
   buildings: Map<string, BuildingState>;
+  tradingPostTradeRules?: Map<string, import('../economy/tradingPostTrade.ts').TradingPostTradeRuleState>;
   farmFields: Map<string, FarmFieldState>;
   pastures: Map<string, PastureState>;
   vineyardParcels?: Map<string, VineyardParcelState>;

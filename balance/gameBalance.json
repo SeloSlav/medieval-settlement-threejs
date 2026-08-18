@@ -259,7 +259,11 @@
         "porridge": "marketAccessible",
         "curedMeat": "marketAccessible",
         "smokedFish": "marketAccessible",
-        "cheese": "marketAccessible"
+        "cheese": "marketAccessible",
+        "ryeSheaves": "marketAccessible",
+        "oatSheaves": "marketAccessible",
+        "barleySheaves": "marketAccessible",
+        "maslinSheaves": "marketAccessible"
     },
     "offers": [
       { "id": "buy_timber", "kind": "goldBuy", "resource": "timber", "amount": 10, "goldCost": 16 },
@@ -356,6 +360,14 @@
       { "id": "sell_smoked_fish", "kind": "goldSell", "resource": "smokedFish", "amount": 8, "goldYield": 13 },
       { "id": "buy_cheese_bulk", "kind": "goldBuy", "resource": "cheese", "amount": 8, "goldCost": 20 },
       { "id": "sell_cheese", "kind": "goldSell", "resource": "cheese", "amount": 8, "goldYield": 13 },
+      { "id": "buy_rye_sheaves", "kind": "goldBuy", "resource": "ryeSheaves", "amount": 24, "goldCost": 12 },
+      { "id": "sell_rye_sheaves", "kind": "goldSell", "resource": "ryeSheaves", "amount": 24, "goldYield": 6 },
+      { "id": "buy_oat_sheaves", "kind": "goldBuy", "resource": "oatSheaves", "amount": 24, "goldCost": 13 },
+      { "id": "sell_oat_sheaves", "kind": "goldSell", "resource": "oatSheaves", "amount": 24, "goldYield": 7 },
+      { "id": "buy_barley_sheaves", "kind": "goldBuy", "resource": "barleySheaves", "amount": 24, "goldCost": 12 },
+      { "id": "sell_barley_sheaves", "kind": "goldSell", "resource": "barleySheaves", "amount": 24, "goldYield": 6 },
+      { "id": "buy_maslin_sheaves", "kind": "goldBuy", "resource": "maslinSheaves", "amount": 24, "goldCost": 14 },
+      { "id": "sell_maslin_sheaves", "kind": "goldSell", "resource": "maslinSheaves", "amount": 24, "goldYield": 8 },
       { "id": "timber_for_stone", "kind": "barter", "give": "timber", "giveAmount": 25, "receive": "stone", "receiveAmount": 10 },
       { "id": "stone_for_timber", "kind": "barter", "give": "stone", "giveAmount": 10, "receive": "timber", "receiveAmount": 20 },
       { "id": "timber_for_firewood", "kind": "barter", "give": "timber", "giveAmount": 10, "receive": "firewood", "receiveAmount": 18 }
@@ -1371,7 +1383,7 @@
       "pickRadius": 10,
       "harvestInterval": 0,
       "regrowRatePerSecond": 0,
-      "maxLabor": 5,
+      "maxLabor": 2,
       "acceptsLabor": true,
       "requiresRoad": true,
       "facesRoad": true,

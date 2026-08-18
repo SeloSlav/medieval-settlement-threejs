@@ -15,6 +15,7 @@ mod population_policy;
 mod regional_market;
 mod regional_market_policy;
 mod storage;
+mod trade_resources;
 mod village_economy;
 
 pub use commodities::{
@@ -63,6 +64,7 @@ pub(crate) use marketplace_trade::{
 pub(crate) use marketplace_trade_policy::{
     marketplace_proceeds_cart_load, regional_export_cart_load,
 };
+pub(crate) use regional_market_policy::MarketTradeDirection;
 pub use parish_accounting::{
     clamp_chapel_coffer_reserve_gold, record_parish_ledger, ParishLedgerKind,
 };
@@ -71,14 +73,18 @@ pub use population::{
     guardhouse_roster_floors, initial_construction_labor, reconcile_building_labor,
     residence_population_for_parcel,
 };
-pub use regional_market::{ensure_market_state, scaled_gold_cost, step_regional_markets};
+pub use regional_market::{
+    ensure_market_state, price_multiplier_for, record_market_trade, scaled_gold_cost,
+    step_regional_markets,
+};
 pub(crate) use regional_market::{
     record_specialty_market_export, specialty_family_for_commodity,
     specialty_price_multiplier_for_commodity,
 };
 pub(crate) use storage::physical_treasury_seat;
 pub(crate) use storage::{
-    available_unreserved_building_ironwork, available_unreserved_building_timber,
+    available_unreserved_building_ironwork, available_unreserved_building_roof_tiles,
+    available_unreserved_building_stone, available_unreserved_building_timber,
 };
 pub use storage::{
     building_storage_caps, building_water_storage_cap, construction_treasury_reservation,
@@ -89,6 +95,7 @@ pub use storage::{
     total_ironwork, total_roof_tiles, total_stone, total_timber, treasury_gold, withdraw_building,
     withdraw_building_water,
 };
+pub use trade_resources::{commodity_for_trade_resource, trade_resource_for_commodity};
 pub use village_economy::{
     clamp_economic_activity_tax_rate, player_economic_activity_tax_rate, taxed_economic_activity,
     town_hall_tax_collection_multiplier,

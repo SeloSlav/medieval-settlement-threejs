@@ -84,6 +84,7 @@ import SetSeasonalLaborStewardReducer from "../set_seasonal_labor_steward_reduce
 import SetStorehousePolicyReducer from "../set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "../set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "../set_threshing_priority_reducer";
+import SetTradingPostTradeRuleReducer from "../set_trading_post_trade_rule_reducer";
 import SetVineyardProductionPolicyReducer from "../set_vineyard_production_policy_reducer";
 import SetWeaverInputPolicyReducer from "../set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "../set_woodcutter_timber_reserve_reducer";
@@ -171,6 +172,7 @@ export type SetSeasonalLaborStewardParams = __Infer<typeof SetSeasonalLaborStewa
 export type SetStorehousePolicyParams = __Infer<typeof SetStorehousePolicyReducer>;
 export type SetStorehouseStockTargetParams = __Infer<typeof SetStorehouseStockTargetReducer>;
 export type SetThreshingPriorityParams = __Infer<typeof SetThreshingPriorityReducer>;
+export type SetTradingPostTradeRuleParams = __Infer<typeof SetTradingPostTradeRuleReducer>;
 export type SetVineyardProductionPolicyParams = __Infer<typeof SetVineyardProductionPolicyReducer>;
 export type SetWeaverInputPolicyParams = __Infer<typeof SetWeaverInputPolicyReducer>;
 export type SetWoodcutterTimberReserveParams = __Infer<typeof SetWoodcutterTimberReserveReducer>;

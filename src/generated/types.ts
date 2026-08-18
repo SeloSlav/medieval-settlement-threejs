@@ -680,6 +680,19 @@ export const SimTickSchedule = __t.object("SimTickSchedule", {
 });
 export type SimTickSchedule = __Infer<typeof SimTickSchedule>;
 
+export const TradingPostTradeRule = __t.object("TradingPostTradeRule", {
+  id: __t.string(),
+  owner: __t.identity(),
+  buildingId: __t.u64(),
+  commodityKind: __t.u8(),
+  mode: __t.u8(),
+  targetSurplus: __t.f64(),
+  lastSettledMonth: __t.u64(),
+  lastTradeAmount: __t.f64(),
+  lastTradeGold: __t.f64(),
+});
+export type TradingPostTradeRule = __Infer<typeof TradingPostTradeRule>;
+
 export const TreeBootstrap = __t.object("TreeBootstrap", {
   treeId: __t.string(),
   layoutIndex: __t.u32(),

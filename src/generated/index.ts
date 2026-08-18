@@ -111,6 +111,7 @@ import SetSeasonalLaborStewardReducer from "./set_seasonal_labor_steward_reducer
 import SetStorehousePolicyReducer from "./set_storehouse_policy_reducer";
 import SetStorehouseStockTargetReducer from "./set_storehouse_stock_target_reducer";
 import SetThreshingPriorityReducer from "./set_threshing_priority_reducer";
+import SetTradingPostTradeRuleReducer from "./set_trading_post_trade_rule_reducer";
 import SetVineyardProductionPolicyReducer from "./set_vineyard_production_policy_reducer";
 import SetWeaverInputPolicyReducer from "./set_weaver_input_policy_reducer";
 import SetWoodcutterTimberReserveReducer from "./set_woodcutter_timber_reserve_reducer";
@@ -147,6 +148,7 @@ import RoadNetworkStateRow from "./road_network_state_table";
 import SettlementSecurityRow from "./settlement_security_table";
 import SimPacingStateRow from "./sim_pacing_state_table";
 import SimTickScheduleRow from "./sim_tick_schedule_table";
+import TradingPostTradeRuleRow from "./trading_post_trade_rule_table";
 import TreeEntityRow from "./tree_entity_table";
 import VineyardParcelRow from "./vineyard_parcel_table";
 import WorldConfigRow from "./world_config_table";
@@ -506,6 +508,23 @@ const tablesSchema = __schema({
       { name: 'sim_tick_schedule_schedule_id_key', constraint: 'unique', columns: ['scheduleId'] },
     ],
   }, SimTickScheduleRow),
+  trading_post_trade_rule: __table({
+    name: 'trading_post_trade_rule',
+    indexes: [
+      { name: 'building_id', algorithm: 'btree', columns: [
+        'buildingId',
+      ] },
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { name: 'owner', algorithm: 'btree', columns: [
+        'owner',
+      ] },
+    ],
+    constraints: [
+      { name: 'trading_post_trade_rule_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TradingPostTradeRuleRow),
   tree_entity: __table({
     name: 'tree_entity',
     indexes: [
@@ -623,6 +642,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_storehouse_policy", SetStorehousePolicyReducer),
   __reducerSchema("set_storehouse_stock_target", SetStorehouseStockTargetReducer),
   __reducerSchema("set_threshing_priority", SetThreshingPriorityReducer),
+  __reducerSchema("set_trading_post_trade_rule", SetTradingPostTradeRuleReducer),
   __reducerSchema("set_vineyard_production_policy", SetVineyardProductionPolicyReducer),
   __reducerSchema("set_weaver_input_policy", SetWeaverInputPolicyReducer),
   __reducerSchema("set_woodcutter_timber_reserve", SetWoodcutterTimberReserveReducer),

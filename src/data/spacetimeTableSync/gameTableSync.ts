@@ -25,6 +25,7 @@ import { syncRoadNetwork } from './syncRoadNetwork.ts';
 import { syncSettlementSecurity } from './syncSettlementSecurity.ts';
 import { removeTreeRow, syncTrees, upsertTreeRow } from './syncTrees.ts';
 import { syncWorldConfig } from './syncWorldConfig.ts';
+import { syncTradingPostTradeRules } from './syncTradingPostTradeRules.ts';
 
 type TableHandle = {
   onInsert: (cb: () => void) => void;
@@ -52,6 +53,10 @@ export class GameTableSync {
     syncWorldConfig(db.world_config ? db.world_config.iter() : [], this.state);
     syncPlayerResources(db.player_resources ? db.player_resources.iter() : [], this.state);
     syncMarketState(db.market_state ? db.market_state.iter() : [], this.state);
+    this.state.tradingPostTradeRules = syncTradingPostTradeRules(
+      db.trading_post_trade_rule ? db.trading_post_trade_rule.iter() : [],
+      this.state.identityHex,
+    );
     syncSettlementSecurity(
       db.settlement_security ? db.settlement_security.iter() : [],
       this.state,
@@ -221,6 +226,13 @@ export class GameTableSync {
     bindTable(db.market_state, () => {
       syncMarketState(db.market_state ? db.market_state.iter() : [], this.state);
     }, false);
+
+    bindTable(db.trading_post_trade_rule, () => {
+      this.state.tradingPostTradeRules = syncTradingPostTradeRules(
+        db.trading_post_trade_rule ? db.trading_post_trade_rule.iter() : [],
+        this.state.identityHex,
+      );
+    });
 
     bindTable(db.settlement_security, () => {
       syncSettlementSecurity(

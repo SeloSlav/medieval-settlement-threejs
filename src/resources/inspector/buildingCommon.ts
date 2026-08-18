@@ -250,6 +250,8 @@ export function buildingLaborView(
   const buildingCap = building.constructionComplete !== false
     ? buildingMaxLabor(building.kind)
     : CONSTRUCTION_MAX_BUILDERS;
+  const dedicatedCartHaulers = building.constructionComplete !== false
+    && (building.kind === 'village_storehouse' || building.kind === 'trading_post');
   const activeTrip = worldQueries?.getActiveDeliveryTrip?.(building) ?? null;
   const cartWorkers = Math.max(0, activeTrip?.deliveryWorkers ?? 0);
   const reservedOutsideRoster = Math.max(0, activeTrip?.freeHaulerWorkers ?? 0);
@@ -262,9 +264,10 @@ export function buildingLaborView(
       : ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart and already reserved outside this roster.`;
   return {
     visible: true,
+    label: dedicatedCartHaulers ? 'Cart haulers' : 'Workforce',
     count: building.assignedLabor,
     hint: building.constructionComplete !== false
-      ? `${building.assignedLabor}/${buildingCap} workers here · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
+      ? `${building.assignedLabor}/${buildingCap} ${dedicatedCartHaulers ? 'dedicated cart haulers' : 'workers here'} · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
       : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available. Builders construct; unassigned workers fetch every reserved material cart from the best reachable source.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,

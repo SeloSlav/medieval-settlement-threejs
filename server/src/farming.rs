@@ -704,12 +704,12 @@ mod tests {
 
     #[test]
     fn seed_reserve_tracks_crop_progress_and_field_priority() {
-        assert!((seed_grain_required(1_600.0, CROP_RYE) - 19.2).abs() < 1e-9);
+        assert!((seed_grain_required(1_600.0, CROP_RYE) - 17.6).abs() < 1e-9);
         assert!((seed_grain_required(1_600.0, CROP_OATS) - 22.4).abs() < 1e-9);
         assert_eq!(seed_grain_required(1_600.0, CROP_FALLOW), 0.0);
         assert!(
             (field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_SOWING, 0.25, 1,)
-                - 14.4)
+                - 13.2)
                 .abs()
                 < 1e-9
         );
@@ -723,8 +723,8 @@ mod tests {
             field_seed_grain_remaining(1_600.0, CROP_RYE, CROP_OATS, STAGE_GROWING, 0.5, 0,),
             0.0
         );
-        assert!((farmstead_exportable_grain(30.0, 19.2) - 10.8).abs() < 1e-9);
-        assert_eq!(farmstead_exportable_grain(10.0, 19.2), 0.0);
+        assert!((farmstead_exportable_grain(30.0, 17.6) - 12.4).abs() < 1e-9);
+        assert_eq!(farmstead_exportable_grain(10.0, 17.6), 0.0);
         assert_eq!(
             field_seed_crop(CROP_BARLEY, CROP_RYE, STAGE_SOWING),
             CROP_BARLEY

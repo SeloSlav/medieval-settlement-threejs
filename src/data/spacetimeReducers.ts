@@ -831,14 +831,19 @@ export async function setConstructionPriority(
   });
 }
 
-export async function marketplaceTrade(buildingId: string, tradeId: string): Promise<void> {
+export async function setTradingPostTradeRule(
+  buildingId: string,
+  commodityKind: number,
+  mode: number,
+  targetSurplus: number,
+): Promise<void> {
   const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) {
-    throw new Error('Invalid building id.');
-  }
-  await callReducer('marketplaceTrade', 'marketplace_trade', {
+  if (serverId === null) throw new Error('Invalid Trading Post id.');
+  await callReducer('setTradingPostTradeRule', 'set_trading_post_trade_rule', {
     buildingId: serverId,
-    tradeId,
+    commodityKind,
+    mode,
+    targetSurplus,
   });
 }
 
@@ -882,18 +887,6 @@ export async function setApiaryHarvestPolicy(
     buildingId: serverId,
     harvestPolicy: Math.max(0, Math.min(2, Math.floor(harvestPolicy))),
   });
-}
-
-export async function cancelMarketplaceTradeOrder(buildingId: string): Promise<void> {
-  const serverId = parseBuildingServerId(buildingId);
-  if (serverId === null) {
-    throw new Error('Invalid Trading Post id.');
-  }
-  await callReducer(
-    'cancelMarketplaceTradeOrder',
-    'cancel_marketplace_trade_order',
-    { buildingId: serverId },
-  );
 }
 
 export async function upgradeChapel(buildingId: string): Promise<void> {

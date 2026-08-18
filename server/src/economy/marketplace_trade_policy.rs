@@ -184,9 +184,9 @@ mod tests {
     }
 
     #[test]
-    fn buy_seed_grain_restarts_one_efficient_field() {
-        let offer = marketplace_trade_offer("buy_seed_grain").expect("buy_seed_grain");
-        assert_eq!(trade_spend(offer), TradeSpend::Gold(18.0));
+    fn buy_rye_grain_restarts_one_efficient_field() {
+        let offer = marketplace_trade_offer("buy_rye_grain").expect("buy_rye_grain");
+        assert_eq!(trade_spend(offer), TradeSpend::Gold(16.0));
         assert_eq!(
             trade_receive(offer),
             TradeReceive::Resource(TradeLeg {

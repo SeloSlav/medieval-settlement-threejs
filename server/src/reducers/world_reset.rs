@@ -19,6 +19,15 @@ pub fn reset_world(ctx: &ReducerContext) -> Result<(), String> {
 }
 
 fn clear_owner_settlement(ctx: &ReducerContext, owner: Identity) {
+    for rule in ctx
+        .db
+        .trading_post_trade_rule()
+        .owner()
+        .filter(&owner)
+        .collect::<Vec<_>>()
+    {
+        ctx.db.trading_post_trade_rule().id().delete(&rule.id);
+    }
     for vineyard in ctx
         .db
         .vineyard_parcel()
