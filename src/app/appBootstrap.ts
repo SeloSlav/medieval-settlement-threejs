@@ -14,7 +14,6 @@ import type { PastureMarkers } from '../farming/PastureMarkers.ts';
 import type { LivestockVisuals } from '../farming/LivestockVisuals.ts';
 import type { VineyardParcelMarkers } from '../vineyards/VineyardParcelMarkers.ts';
 import { BurgageTool } from '../residences/BurgageTool.ts';
-import { MAX_ZONE_DEPTH, MIN_ZONE_DEPTH } from '../residences/burgageLayout.ts';
 import type { ResidenceMarkers } from '../residences/ResidenceMarkers.ts';
 import { BurialMarkers } from '../residences/BurialMarkers.ts';
 import type { BackyardGardenMarkers } from '../residences/BackyardGardenMarkers.ts';
@@ -587,13 +586,6 @@ export async function bootstrapAppSession(
       }
       if (reason === 'off_road') {
         toastManager?.show('Click beside a road for the frontage edge.', { variant: 'info', durationMs: 2400 });
-        return;
-      }
-      if (reason === 'invalid_depth') {
-        toastManager?.show(
-          `Set depth between ~${Math.round(MIN_ZONE_DEPTH)}m and ~${Math.round(MAX_ZONE_DEPTH)}m behind the road.`,
-          { variant: 'info', durationMs: 2600 },
-        );
         return;
       }
       toastManager?.show('Move farther from the last corner.', { variant: 'info', durationMs: 2200 });

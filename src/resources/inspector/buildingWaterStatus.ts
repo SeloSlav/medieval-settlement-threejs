@@ -57,7 +57,7 @@ export function formatWellWaterDetailRows(
     return noneLabel ? `<li><span>Water use</span><span>${noneLabel}</span></li>` : '';
   }
   const inboundLabel = assessment.inboundWater ? ' · cart inbound' : '';
-  return `<li><span>Supplying wells</span><span>${assessment.wellSummary}</span></li><li><span>Stored water</span><span>${assessment.storedWater.toFixed(1)} / ${assessment.required} needed${inboundLabel}</span></li><li><span>Water per cycle</span><span>${renderResourceAmount('water', assessment.required, { compact: true })}</span></li>`;
+  return `<li><span>Supplying wells</span><span>${assessment.wellSummary}</span></li><li><span>Stored water</span><span>${Math.round(assessment.storedWater)} / ${Math.round(assessment.required)} needed${inboundLabel}</span></li><li><span>Water per cycle</span><span>${renderResourceAmount('water', assessment.required, { compact: true })}</span></li>`;
 }
 
 export function wellWaterStatusIssue(assessment: WellWaterAssessment | null): string | null {
@@ -69,10 +69,10 @@ export function wellWaterStatusIssue(assessment: WellWaterAssessment | null): st
     return null;
   }
   if (assessment.inboundWater) {
-    return `Water cart inbound — ${assessment.storedWater.toFixed(1)} / ${assessment.required} stored`;
+    return `Water cart inbound — ${Math.round(assessment.storedWater)} / ${Math.round(assessment.required)} stored`;
   }
   if (assessment.wellsWithWater > 0) {
-    return `Waiting for well cart — ${assessment.storedWater.toFixed(1)} / ${assessment.required} stored`;
+    return `Waiting for well cart — ${Math.round(assessment.storedWater)} / ${Math.round(assessment.required)} stored`;
   }
   return `Waiting for water — all linked wells are dry (${assessment.required} needed)`;
 }

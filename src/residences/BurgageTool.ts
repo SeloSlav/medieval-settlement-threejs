@@ -4,7 +4,7 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BurgageZoneState, GameState } from '../resources/types.ts';
 import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import type { BurgageFrontageEdge, BurgageLayoutResult } from './burgageLayout.ts';
-import { cornersFromPoints, getZoneEdge, MAX_ZONE_DEPTH, MIN_ZONE_DEPTH, resolveBurgageLayout, suggestPlotCount } from './burgageLayout.ts';
+import { cornersFromPoints, getZoneEdge, MIN_ZONE_DEPTH, resolveBurgageLayout, STANDARD_ZONE_DEPTH, suggestPlotCount } from './burgageLayout.ts';
 import {
   inwardNormalForFrontage,
   measureRawDepthFromBackPoint,
@@ -83,7 +83,7 @@ type BurgageToolOptions = {
   onPlacementFailed?: (message: string) => void;
   onUndoFailed?: (message: string) => void;
   onRedoFailed?: (message: string) => void;
-  onPickRejected?: (reason: 'missed_terrain' | 'too_close' | 'off_road' | 'invalid_depth') => void;
+  onPickRejected?: (reason: 'missed_terrain' | 'too_close' | 'off_road') => void;
   isBlocked: () => boolean;
 };
 
@@ -196,12 +196,12 @@ export class BurgageTool {
         if (depth < MIN_ZONE_DEPTH - 0.05) {
           return `First back corner is too shallow — pull farther from the road (~${Math.round(MIN_ZONE_DEPTH)}m min)`;
         }
-        if (depth > MAX_ZONE_DEPTH + 0.05) {
-          return `First back corner is too deep — move closer to the road (~${Math.round(MAX_ZONE_DEPTH)}m max)`;
-        }
-        return `Click to set the first back corner (point 3/4 · ~${Math.round(depth)}m deep)`;
+        const deepCostHint = depth > STANDARD_ZONE_DEPTH + 0.05
+          ? ' · higher site-work cost'
+          : '';
+        return `Click to set the first back corner (point 3/4 · ~${Math.round(depth)}m deep${deepCostHint})`;
       }
-      return `Click the first back corner (${Math.round(MIN_ZONE_DEPTH)}–${Math.round(MAX_ZONE_DEPTH)}m from the road)`;
+      return `Click the first back corner (at least ~${Math.round(MIN_ZONE_DEPTH)}m from the road)`;
     }
     if (this.placementStage === 3) {
       const depth = this.getPreviewDepthMeters();
@@ -209,19 +209,23 @@ export class BurgageTool {
         if (depth < MIN_ZONE_DEPTH - 0.05) {
           return `Second back corner is too shallow — pull farther from the road (~${Math.round(MIN_ZONE_DEPTH)}m min)`;
         }
-        if (depth > MAX_ZONE_DEPTH + 0.05) {
-          return `Second back corner is too deep — move closer to the road (~${Math.round(MAX_ZONE_DEPTH)}m max)`;
-        }
-        return `Click to set the independent back corner (point 4/4 · ~${Math.round(depth)}m deep)`;
+        const deepCostHint = depth > STANDARD_ZONE_DEPTH + 0.05
+          ? ' · higher site-work cost'
+          : '';
+        return `Click to set the independent back corner (point 4/4 · ~${Math.round(depth)}m deep${deepCostHint})`;
       }
       return 'Click the other back corner to shape the angled rear boundary';
     }
     const validation = this.draftValidation;
     if (!validation.ok) {
       if (validation.reason === 'too_small') return `Plot too shallow — pull the back edge farther from the road (~${Math.round(MIN_ZONE_DEPTH)}m min)`;
-      if (validation.reason === 'too_deep') return `Plot too deep — shorten the backyard (max ~${Math.round(MAX_ZONE_DEPTH)}m)`;
       if (validation.reason === 'no_fit') return 'Too many plots for this frontage — press − to reduce plot count';
-      if (validation.reason === 'insufficient_resources') return 'Not enough timber or stone in available stores';
+      if (validation.reason === 'insufficient_resources') {
+        const cost = this.previewLayout?.totalCost;
+        return cost
+          ? `Need ${cost.timber} timber and ${cost.stone} stone — shorten deep plots or gather materials`
+          : 'Not enough timber or stone in available stores';
+      }
       if (validation.reason === 'no_road_frontage') return 'Frontage must face a connected road';
       if (validation.reason === 'overlaps_existing') return 'Overlaps an existing residence zone — adjust shape or plot count';
       if (validation.reason === 'overlaps_building') return 'Overlaps a building — choose a different spot';
@@ -234,7 +238,10 @@ export class BurgageTool {
     const frontageHint = frontageOptions > 1
       ? ` · frontage ${frontageEdgeLabel(this.frontageEdge)} (F to rotate)`
       : '';
-    return `${count} cottage ${count === 1 ? 'worksite' : 'worksites'} queued — ${cost.timber} timber, ${cost.stone} stone reserved${frontageHint} · hammer or Enter to place`;
+    const depthCostHint = validation.layout.depthCostMultiplier > 1.001
+      ? ` · deep-lot site works ×${validation.layout.depthCostMultiplier.toFixed(1)}`
+      : '';
+    return `${count} cottage ${count === 1 ? 'worksite' : 'worksites'} queued — ${cost.timber} timber, ${cost.stone} stone reserved${depthCostHint}${frontageHint} · hammer or Enter to place`;
   }
 
   getLayoutHudState(target?: BurgageLayoutHudState): BurgageLayoutHudState | null {
@@ -578,9 +585,6 @@ export class BurgageTool {
 
   private rejectCommit(reason: BurgagePlacementFailureReason): void {
     this.options.onPlacementRejected?.(reason);
-    if (reason === 'insufficient_resources') {
-      this.setEnabled(false);
-    }
   }
 
   private undoLastStep(): void {
@@ -995,7 +999,27 @@ export class BurgageTool {
       return new THREE.Vector3(point.x, point.y, point.z);
     }
     this.hoverCenter = null;
-    return new THREE.Vector3(picked.x, picked.y, picked.z);
+    return this.constrainBackPointToMinimumDepth(
+      new THREE.Vector3(picked.x, picked.y, picked.z),
+    );
+  }
+
+  private constrainBackPointToMinimumDepth(point: THREE.Vector3): THREE.Vector3 {
+    if ((this.placementStage !== 2 && this.placementStage !== 3) || this.points.length < 2) {
+      return point;
+    }
+    const frontStart = this.points[0];
+    const frontEnd = this.points[1];
+    const inward = inwardNormalForFrontage(frontStart, frontEnd, this.options.roadNetwork);
+    const anchor = this.placementStage === 3 ? frontStart : frontEnd;
+    const depth = measureRawDepthFromBackPoint(anchor, point, inward);
+    if (depth >= MIN_ZONE_DEPTH) return point;
+
+    const correction = MIN_ZONE_DEPTH - depth;
+    point.x += inward.x * correction;
+    point.z += inward.z * correction;
+    point.y = this.options.getHeightAt(point.x, point.z);
+    return point;
   }
 
   private shouldSnapToRoad(): boolean {

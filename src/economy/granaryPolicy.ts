@@ -148,7 +148,7 @@ export function granaryReserveLabel(building: Pick<
   const protectedStock = granaryProtectedGrain(stock, reserve);
   const exportable = granaryExportableGrain(stock, reserve);
   if (reserve <= 1e-6) {
-    return `${exportable.toFixed(1)} grain releasable · no protected floor`;
+    return `${Math.round(exportable)} grain releasable · no protected floor`;
   }
-  return `${protectedStock.toFixed(1)} / ${reserve.toFixed(0)} protected · ${exportable.toFixed(1)} releasable`;
+  return `${Math.round(protectedStock)} / ${Math.round(reserve)} protected · ${Math.round(exportable)} releasable`;
 }

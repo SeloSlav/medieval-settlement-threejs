@@ -64,7 +64,7 @@ export function renderWellInspector(
     ? ` · ${weaverFibreDeliveryPreferenceLabel(nextIndustrialTarget.weaverInputPolicy, 'flax')}`
     : '';
   const nextTargetLabel = nextIndustrialTarget
-      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} · ${staffingPriorityLabel(normalizeStaffingPriority(nextIndustrialTarget.constructionPriority))} priority${industrialPreferenceLabel} (${nextIndustrialTarget.water.toFixed(1)} / ${industrialWaterTarget(nextIndustrialTarget.kind, nextIndustrialTarget.processorOutputTargetPercent).toFixed(1)} staged water)`
+      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} · ${staffingPriorityLabel(normalizeStaffingPriority(nextIndustrialTarget.constructionPriority))} priority${industrialPreferenceLabel} (${Math.round(nextIndustrialTarget.water)} / ${Math.round(industrialWaterTarget(nextIndustrialTarget.kind, nextIndustrialTarget.processorOutputTargetPercent))} staged water)`
       : 'No workshop needs a water cart';
   const activeTargetLabel = formatTripDestinationLabel(
     activeTrip,
@@ -94,7 +94,7 @@ export function renderWellInspector(
   let statusText: string;
   let statusState: InspectorView['statusState'];
   if (respondingTrips.length > 0) {
-    statusText = `${respondingTrips.length} bucket ${respondingTrips.length === 1 ? 'carrier' : 'carriers'} responding — ${respondingTrips.reduce((sum, trip) => sum + Math.max(0, trip.amount), 0).toFixed(1)} water committed`;
+    statusText = `${respondingTrips.length} bucket ${respondingTrips.length === 1 ? 'carrier' : 'carriers'} responding — ${Math.round(respondingTrips.reduce((sum, trip) => sum + Math.max(0, trip.amount), 0))} water committed`;
     statusState = 'active';
   } else if (activeTrip) {
     statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${activeTargetLabel}`;
@@ -118,7 +118,7 @@ export function renderWellInspector(
 
   const deliveryRow = respondingTrips.length > 0
     ? `<li><span>Emergency response</span><span>${respondingTrips.length} concurrent bucket ${respondingTrips.length === 1 ? 'carrier' : 'carriers'}</span></li>
-      <li><span>Water committed</span><span>${respondingTrips.reduce((sum, trip) => sum + Math.max(0, trip.amount), 0).toFixed(1)}</span></li>
+      <li><span>Water committed</span><span>${Math.round(respondingTrips.reduce((sum, trip) => sum + Math.max(0, trip.amount), 0))}</span></li>
       <li><span>Tracked carrier</span><span>${activeTargetLabel} · ${formatTripPhaseLabel(activeTrip!.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left</span></li>`
     : activeTrip || nextIndustrialTarget
     ? `<li><span>Next physical cart</span><span>${activeTrip ? activeTargetLabel : nextTargetLabel}</span></li>

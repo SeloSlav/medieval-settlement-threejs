@@ -104,7 +104,7 @@ export function payableChapelTithePerDay(
 }
 
 export function formatHouseholdWealth(wealth: number): string {
-  return `${wealth.toFixed(1)} / ${HOUSEHOLD_MAX_WEALTH} gold`;
+  return `${Math.round(wealth)} / ${HOUSEHOLD_MAX_WEALTH} gold`;
 }
 
 export function householdNetIncomePerDay(baseActivity: number, taxRate: number): number {

@@ -279,5 +279,5 @@ export function formatGrainWorkingBuffer(
   processorOutputTargetPercent: number | undefined = 100,
 ): string {
   const target = grainInputTarget(kind, productivity, processorOutputTargetPercent);
-  return `${stock.toFixed(1)} / ${target.toFixed(1)} · farmstead or granary supply`;
+  return `${Math.round(stock)} / ${Math.round(target)} · farmstead or granary supply`;
 }
