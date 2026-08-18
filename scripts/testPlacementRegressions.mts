@@ -1364,6 +1364,11 @@ assert.match(
   /burgage_zone_overlaps_buildings\([\s\S]{0,260}building\(\)\.owner\(\)\.filter\(&owner\)/,
 );
 assert.match(
+  placementValidation,
+  /zone_overlaps_building_footprint\([\s\S]*road_aware_building_placement_yaw[\s\S]*pad\.radius_x \* pad\.inner_fade \* BUILDING_FOOTPRINT_SCALE/,
+  'authoritative residence conflicts must use the rotated visible building footprint instead of the broad pick-radius square',
+);
+assert.match(
   residenceReducer,
   /burgage_zone\(\)\.owner\(\)\.filter\(&owner\)[\s\S]*burgage_zone_overlaps_buildings\(ctx, owner, &corners\)[\s\S]*farm_field\(\)\.owner\(\)\.filter\(&owner\)/,
 );
