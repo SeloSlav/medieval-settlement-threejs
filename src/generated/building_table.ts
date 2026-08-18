@@ -141,4 +141,6 @@ export default __t.row({
   maslinBread: __t.f64().name("maslin_bread"),
   threshingPriority: __t.u8().name("threshing_priority"),
   fireRepairActive: __t.bool().name("fire_repair_active"),
+  storehouseAcceptsCharcoal: __t.bool().name("storehouse_accepts_charcoal"),
+  storehouseCharcoalTargetPercent: __t.u8().name("storehouse_charcoal_target_percent"),
 });

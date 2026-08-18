@@ -152,6 +152,7 @@ function emptyStorehouseNetwork(): StorehouseNetworkPlan {
       timber: emptyCommodity(),
       stone: emptyCommodity(),
       firewood: emptyCommodity(),
+      charcoal: emptyCommodity(),
       iron: emptyCommodity(),
       clay: emptyCommodity(),
       salt: emptyCommodity(),

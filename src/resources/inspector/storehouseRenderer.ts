@@ -34,11 +34,20 @@ export function renderStorehouseInspector(
   const { building } = target;
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const inboundTrip = context.worldQueries.getInboundSupplyTrip(building);
-  const industrialDispatch = building.storehouseAcceptsFirewood
+  const charcoalDispatch = building.assignedLabor > 0
+    && (building.charcoal ?? 0) > 1e-6
+    ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'charcoal')
+    : null;
+  const firewoodDispatch = building.storehouseAcceptsFirewood
     && building.assignedLabor > 0
     && building.firewood > 1e-6
     ? context.worldQueries.getNextDirectProcessorInputDispatch(building, 'firewood')
     : null;
+  const industrialDispatch = charcoalDispatch
+    ? { commodity: 'charcoal' as const, dispatch: charcoalDispatch }
+    : firewoodDispatch
+      ? { commodity: 'firewood' as const, dispatch: firewoodDispatch }
+      : null;
   const materialDispatch = (['iron', 'clay', 'salt'] as const)
     .filter((commodity) =>
       storehouseAcceptsCommodity(building, commodity)
@@ -57,14 +66,16 @@ export function renderStorehouseInspector(
   const activeTripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
   const deliveringHouseholdFuel = activeTrip?.cargoKind === 'firewood'
     && activeTrip.residenceId != null;
-  const deliveringIndustrialFuel = activeTrip?.cargoKind === 'firewood'
+  const deliveringIndustrialFuel = (
+    activeTrip?.cargoKind === 'firewood' || activeTrip?.cargoKind === 'charcoal'
+  )
     && activeTrip.destinationKind === 'building'
     && activeTrip.targetBuildingId != null;
   const activeIndustrialTarget = deliveringIndustrialFuel
     ? context.worldQueries.getBuilding(activeTrip!.targetBuildingId!)
     : null;
   const industrialFuelDuty = industrialDispatch
-    ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
+    ? `${storehouseCommodityLabel(industrialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(industrialDispatch.dispatch.target.kind)} · ${industrialDispatch.dispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.dispatch.routeDistance)}`
     : activeIndustrialTarget
       ? `Cart committed to ${context.worldQueries.getBuildingLabel(activeIndustrialTarget.kind)}`
       : building.firewood <= 1e-6
@@ -102,9 +113,9 @@ export function renderStorehouseInspector(
             : accepted.length === 0
               ? ['All acceptance filters disabled', 'idle'] as const
               : building.storehouseAcceptsFirewood && building.firewood > 0
-                ? ['Ready to stock Marketplace goods stalls before industrial fuel duty', 'ok'] as const
+                ? ['Ready to maintain the combined Marketplace fuel reserve', 'ok'] as const
                 : industrialDispatch
-                  ? [`Marketplace duty clear · ${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} is next for surplus fuel`, 'ok'] as const
+                  ? [`Marketplace duty clear · ${context.worldQueries.getBuildingLabel(industrialDispatch.dispatch.target.kind)} is next for ${industrialDispatch.commodity}`, 'ok'] as const
                   : materialDispatch
                     ? [`Ready to supply ${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)}`, 'ok'] as const
                     : collectionHeadroom <= 0.05
@@ -120,11 +131,11 @@ export function renderStorehouseInspector(
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Communal reserve, Marketplace goods-stall supply, construction logistics, and raw-material buffering</span></li>
-      <li><span>Duty priority</span><span>Stock Marketplace firewood to cover household winter-night fuel floors first; urgent workshop buffers next; incoming producer overflow last</span></li>
+      <li><span>Duty priority</span><span>Refill active smithies from below 3 to 6 charcoal cycles; maintain a 21-day population- and season-scaled combined Marketplace fuel reserve; serve other hot workshops; collect overflow last</span></li>
       <li><span>Fuel territory</span><span>Handled by staffed Marketplace stalls across their connected road branch · scarce fuel goes to nearest homes first</span></li>
       <li><span>Next fuel delivery</span><span>Marketplace stall or urgent workshop · never a routine home cart</span></li>
       <li><span>Last mile</span><span>Abstract from stocked goods stalls · no worker reserved</span></li>
-      <li><span>Market load</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} firewood per replenishment cart` : 'Paused · no haulers'}</span></li>
+      <li><span>Market load</span><span>${fuelWorkers > 0 ? `Up to ${fuelPerTrip} physical fuel units per replenishment cart` : 'Paused · no haulers'}</span></li>
       <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
       <li><span>Raw-material duty</span><span>${materialDispatch ? `${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)} · ${materialDispatch.dispatch!.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(materialDispatch.dispatch!.routeDistance)}` : 'No staffed workshop currently requests stored iron, clay, or salt'}</span></li>
       <li><span>Collection trigger</span><span>Producer stock above ${Math.round(STOREHOUSE_OVERFLOW_THRESHOLD * 100)}%</span></li>
@@ -133,7 +144,7 @@ export function renderStorehouseInspector(
       <li><span>Accepted cargo</span><span>${accepted.join(', ') || 'None'}</span></li>
       <li><span>Collection ceilings</span><span>${collectionTargets}</span></li>
       <li><span>Food policy</span><span>Never accepted — granaries remain specialized</span></li>
-      <li><span>Market role</span><span>Stocks firewood, cloth, and pottery at local goods stalls · no food or regional trade</span></li>
+      <li><span>Market role</span><span>Stocks firewood and 2×-value charcoal into one household fuel reserve, plus cloth and pottery · no food or regional trade</span></li>
       <li><span>Hauling</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} · ${formatCooldown(activeTripRemaining ?? Infinity)} left` : inboundTrip ? 'Producer cart inbound' : 'Awaiting duty'}</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
@@ -141,10 +152,11 @@ export function renderStorehouseInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Storage works without staff. Assigned haulers first replenish Marketplace stalls; those stalls allocate firewood to connected homes instantly, filling the nearest shortages first without a last-mile cart. Haulers then restore the most urgent staffed workshop buffer from stored iron, clay, salt, or surplus fuel before collecting fresh producer overflow.</p>
+        <p class="inspector-action-panel__hint">Stored goods remain safe without staff. Assigned haulers route stored charcoal to urgent smithies first, then maintain demand-based Marketplace fuel, other workshop inputs, and producer overflow. Household collection is automatic; there is no emergency top-up button.</p>
         ${acceptanceToggle('timber', 'Timber', building.storehouseAcceptsTimber)}
         ${acceptanceToggle('stone', 'Stone', building.storehouseAcceptsStone)}
         ${acceptanceToggle('firewood', 'Firewood', building.storehouseAcceptsFirewood)}
+        ${acceptanceToggle('charcoal', 'Charcoal', building.storehouseAcceptsCharcoal !== false)}
         ${acceptanceToggle('iron', 'Iron', building.storehouseAcceptsIron !== false)}
         ${acceptanceToggle('clay', 'Clay', building.storehouseAcceptsClay !== false)}
         ${acceptanceToggle('salt', 'Salt', building.storehouseAcceptsSalt !== false)}
@@ -188,6 +200,7 @@ function storehouseCommodityLabel(commodity: StorehouseCommodity): string {
     case 'timber': return 'Timber';
     case 'stone': return 'Stone';
     case 'firewood': return 'Firewood';
+    case 'charcoal': return 'Charcoal';
     case 'iron': return 'Iron';
     case 'clay': return 'Clay';
     case 'salt': return 'Salt';

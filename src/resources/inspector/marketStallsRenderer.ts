@@ -1,6 +1,12 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
-import type { InspectableTarget } from '../types.ts';
+import type { BuildingState, InspectableTarget } from '../types.ts';
 import { freshFoodStock, preservedFoodStock } from '../../economy/foodInventory.ts';
+import {
+  combinedFuelEquivalent,
+  fuelRunwayDays,
+  householdFuelDemandPerDay,
+  marketplaceFuelReserveTarget,
+} from '../../economy/fuelReservePolicy.ts';
 import {
   buildingCostRows,
   buildingDemolishHint,
@@ -12,8 +18,17 @@ import {
   type InspectorRenderContext,
   type InspectorView,
 } from './renderInspectableTarget.ts';
-import { fireDisabledBuildingIds } from '../../fires/fireIncident.ts';
-import { LOCAL_MARKET_TAX_CART_THRESHOLD } from '../../generated/gameBalance.ts';
+import {
+  fireDisabledBuildingIds,
+  fireDisabledResidenceIds,
+} from '../../fires/fireIncident.ts';
+import {
+  BUILDING_STORAGE_CAPS,
+  LOCAL_MARKET_TAX_CART_THRESHOLD,
+  MARKETPLACE_FUEL_RESERVE_DAYS,
+} from '../../generated/gameBalance.ts';
+import { gameClock } from '../../world/gameCalendar.ts';
+import { environmentFor } from '../../world/seasonPolicy.ts';
 
 export function renderMarketStallsInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -21,6 +36,9 @@ export function renderMarketStallsInspector(
 ): InspectorView {
   const { building } = target;
   const fireDisabled = fireDisabledBuildingIds(context.gameState.fireIncidents.values());
+  const residenceFireDisabled = fireDisabledResidenceIds(
+    context.gameState.fireIncidents.values(),
+  );
   const connected = [...context.gameState.buildings.values()].filter((candidate) =>
     candidate.constructionComplete !== false
     && candidate.assignedLabor > 0
@@ -40,12 +58,63 @@ export function renderMarketStallsInspector(
     .filter((candidate) => candidate.kind === 'village_storehouse')
     .reduce((sum, candidate) => sum + candidate.assignedLabor, 0);
   const totalStalls = foodStalls + goodsStalls;
+  const fuelMarkets = [...context.gameState.buildings.values()]
+    .filter((candidate) =>
+      candidate.kind === 'marketplace'
+      && candidate.constructionComplete !== false
+      && !fireDisabled.has(candidate.id)
+      && hasStaffedGoodsStall(candidate, context, fireDisabled)
+    );
+  let coveredPopulation = 0;
+  for (const residence of context.gameState.residences.values()) {
+    if (
+      residence.abandoned
+      || residence.population <= 0
+      || residenceFireDisabled.has(residence.id)
+    ) {
+      continue;
+    }
+    const claimedMarket = fuelMarkets
+      .flatMap((market) => {
+        const distance = context.worldQueries.getRoadPathDistance(
+          residence.x,
+          residence.z,
+          market.x,
+          market.z,
+        );
+        return distance == null ? [] : [{ market, distance }];
+      })
+      .sort((left, right) =>
+        left.distance - right.distance || left.market.id.localeCompare(right.market.id)
+      )[0]?.market;
+    if (claimedMarket?.id === building.id) coveredPopulation += residence.population;
+  }
+  const environment = environmentFor(
+    context.gameState.seed,
+    context.worldHydrology,
+    gameClock(context.gameState.tick),
+  );
+  const fuelEquivalent = combinedFuelEquivalent(
+    building.firewood,
+    building.charcoal ?? 0,
+  );
+  const fuelDemandPerDay = householdFuelDemandPerDay(
+    coveredPopulation,
+    environment.firewoodDemandMultiplier,
+  );
+  const fuelTarget = marketplaceFuelReserveTarget(
+    coveredPopulation,
+    environment.firewoodDemandMultiplier,
+    BUILDING_STORAGE_CAPS.marketplace.firewood ?? 0,
+    BUILDING_STORAGE_CAPS.marketplace.charcoal ?? 0,
+  );
+  const fuelRunway = fuelRunwayDays(fuelEquivalent, fuelDemandPerDay);
   const activeTrip = context.worldQueries.getActiveDeliveryTrip(building);
   const stockedNeeds = [
     freshFoodStock(building) + Math.max(0, building.honey),
     preservedFoodStock(building),
     building.ale,
-    building.firewood,
+    fuelEquivalent,
     building.cloth,
     building.pottery,
     building.remedies,
@@ -73,10 +142,12 @@ export function renderMarketStallsInspector(
       ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
       <li><span>Purpose</span><span>Shared local household exchange — it has no employees of its own</span></li>
       <li><span>Food stalls</span><span>${foodStalls} from staffed Granaries · pooled backyard and stored food, cured provisions, and ale</span></li>
-      <li><span>Goods stalls</span><span>${goodsStalls} from staffed Village Storehouses · firewood, cloth, pottery, and shared herb remedies</span></li>
-      <li><span>Distribution</span><span>Connected homes collect a seven-day pantry issue once per week · homes below one day receive a two-day emergency top-up · scarce stock is shared one household-day at a time · no routine household cart</span></li>
+      <li><span>Goods stalls</span><span>${goodsStalls} from staffed Village Storehouses · firewood, charcoal, cloth, pottery, and shared herb remedies</span></li>
+      <li><span>Fuel reserve</span><span>${building.firewood.toFixed(0)} firewood + ${(building.charcoal ?? 0).toFixed(0)} charcoal = ${fuelEquivalent.toFixed(0)} fuel-equivalents / ${fuelTarget.toFixed(0)} target · ${formatFuelRunway(fuelRunway, coveredPopulation)}</span></li>
+      <li><span>Fuel demand</span><span>${coveredPopulation} covered residents · ${fuelDemandPerDay.toFixed(1)} equivalents/day in ${environment.season} · ${MARKETPLACE_FUEL_RESERVE_DAYS}-day seasonal runway target</span></li>
+      <li><span>Distribution</span><span>Connected homes collect a seven-day pantry issue once per week · an automatic Town Hall pantry safeguard can cover critical shortfalls according to policy · scarce stock is shared one household-day at a time · no routine household cart or manual top-up</span></li>
       <li><span>Founding exception</span><span>One free camp hauler can stage starter bread and firewood here before permanent depots exist</span></li>
-      <li><span>Capacity rule</span><span>Assigned granary and storehouse workers replenish stalls long-term without leaving on last-mile household trips</span></li>
+      <li><span>Capacity rule</span><span>Fuel stops at the covered population's seasonal runway target, counting charcoal at 2× value; extra market buildings do not create extra demand</span></li>
       <li><span>Backyard exchange</span><span>Edible surplus becomes physical stall stock for abstract household allocation; herb remedies retain targeted care carts</span></li>
       <li><span>Local tax lockbox</span><span>${Math.round(heldTax)} gold held${taxCartActive ? ' · collection cart active' : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD ? ' · waiting for a free hauler to the civic treasury' : heldTax > 1e-6 ? ` · batching toward ${Math.ceil(LOCAL_MARKET_TAX_CART_THRESHOLD)} gold or the evening sweep` : ''}</span></li>
       <li><span>Water</span><span>Supplied independently from unstaffed wells</span></li>
@@ -88,4 +159,28 @@ export function renderMarketStallsInspector(
     },
     labor: hiddenLabor(),
   };
+}
+
+function hasStaffedGoodsStall(
+  market: BuildingState,
+  context: InspectorRenderContext,
+  fireDisabled: ReadonlySet<string>,
+): boolean {
+  return [...context.gameState.buildings.values()].some((candidate) =>
+    candidate.kind === 'village_storehouse'
+    && candidate.constructionComplete !== false
+    && candidate.assignedLabor > 0
+    && !fireDisabled.has(candidate.id)
+    && context.worldQueries.getRoadPathDistance(
+      candidate.x,
+      candidate.z,
+      market.x,
+      market.z,
+    ) != null
+  );
+}
+
+function formatFuelRunway(days: number, population: number): string {
+  if (population <= 0 || !Number.isFinite(days)) return 'no covered household demand';
+  return `${days.toFixed(1)} days (${(days / 30).toFixed(1)} months)`;
 }

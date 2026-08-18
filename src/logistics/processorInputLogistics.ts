@@ -23,6 +23,7 @@ import {
   civilianToolRefillDue,
   isCivilianToolSite,
 } from '../economy/civilianToolPolicy.ts';
+import { smithyCharcoalRefillTarget } from '../economy/fuelReservePolicy.ts';
 import {
   normalizeStaffingPriority,
   type StaffingPriority,
@@ -32,6 +33,7 @@ import {
   normalizeMarketplaceSaltTarget,
 } from '../economy/marketplaceMaterialProcurementPolicy.ts';
 import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
+import { storehouseStockTarget } from '../economy/storehousePolicy.ts';
 import { weaverFibreDeliveryPreferenceRank } from '../economy/weaverInputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
@@ -75,6 +77,8 @@ type ProcessorInputDestinationLike = Pick<
   | 'processorOutputTargetPercent'
   | 'marketplaceIronTarget'
   | 'marketplaceSaltTarget'
+  | 'storehouseAcceptsCharcoal'
+  | 'storehouseCharcoalTargetPercent'
   | 'granaryAcceptsFreshFood'
   | 'weaverInputPolicy'
   | 'ryeFlour'
@@ -138,7 +142,7 @@ const TARGET_KINDS: Record<
   iron: ['smithy', 'trading_post'],
   clay: ['potter_kiln'],
   salt: ['smokehouse', 'pastoral_farmstead', 'trading_post'],
-  charcoal: ['smithy'],
+  charcoal: ['smithy', 'village_storehouse'],
   pottery: ['smokehouse', 'village_storehouse', 'trading_post'],
 };
 
@@ -193,7 +197,7 @@ export function directlyDispatchedProcessorInputPerCycle(
           ? SMOKEHOUSE_SALT_PER_CYCLE
           : 0;
     case 'charcoal':
-      return SMITHY_CHARCOAL_PER_CYCLE;
+      return targetKind === 'smithy' ? SMITHY_CHARCOAL_PER_CYCLE : 0;
     case 'pottery':
       return targetKind === 'smokehouse'
         ? SMOKEHOUSE_POTTERY_PER_CYCLE
@@ -248,7 +252,8 @@ export function selectDirectProcessorInputTarget<
       || !TARGET_KINDS[commodity].includes(target.kind)
       || target.constructionComplete === false
       || (target.kind === 'granary' && target.assignedLabor <= 0)
-      || ((commodity === 'firewood' || marketplaceMaterial) && target.assignedLabor <= 0)
+      || ((commodity === 'firewood' || commodity === 'charcoal' || marketplaceMaterial)
+        && target.assignedLabor <= 0)
       || hasInboundSupply(target)
       || !acceptsInput(target)
       || (
@@ -278,10 +283,28 @@ export function selectDirectProcessorInputTarget<
           : null
       : null;
     const perCycle = directlyDispatchedProcessorInputPerCycle(target.kind, commodity);
-    const workingTarget = processorInputTarget(
+    let workingTarget = processorInputTarget(
       perCycle,
       target.processorOutputTargetPercent,
     );
+    const smithyCharcoalTarget = commodity === 'charcoal' && target.kind === 'smithy'
+      ? smithyCharcoalRefillTarget(stock)
+      : null;
+    if (commodity === 'charcoal' && target.kind === 'smithy') {
+      if (smithyCharcoalTarget == null) continue;
+      workingTarget = Math.min(capacity, smithyCharcoalTarget);
+    }
+    const storehouseCharcoalTarget = commodity === 'charcoal'
+      && target.kind === 'village_storehouse'
+      ? target.storehouseAcceptsCharcoal === false
+        ? null
+        : storehouseStockTarget(capacity, target.storehouseCharcoalTargetPercent ?? 25)
+      : null;
+    if (commodity === 'charcoal' && target.kind === 'village_storehouse') {
+      if (storehouseCharcoalTarget == null || stock + 1e-6 >= storehouseCharcoalTarget) {
+        continue;
+      }
+    }
     const toolRack = commodity === 'ironwork' && isCivilianToolSite(target.kind);
     if (toolRack && !civilianToolRefillDue(stock, capacity)) continue;
     const centralFlourStorage = (
@@ -289,7 +312,9 @@ export function selectDirectProcessorInputTarget<
       || commodity === 'oatFlour'
       || commodity === 'maslinFlour'
     ) && target.kind === 'granary';
-    const duty: ProcessorInputDispatchDuty = toolRack
+    const duty: ProcessorInputDispatchDuty = storehouseCharcoalTarget != null
+      ? 'workshop-overflow'
+      : toolRack
       ? target.assignedLabor > 0
         ? 'working-buffer'
         : 'workshop-overflow'
@@ -311,7 +336,9 @@ export function selectDirectProcessorInputTarget<
     ) {
       continue;
     }
-    const desiredStock = toolRack
+    const desiredStock = storehouseCharcoalTarget != null
+      ? storehouseCharcoalTarget
+      : toolRack
       ? capacity
       : marketplaceReserveTarget != null
       ? Math.min(capacity, marketplaceReserveTarget)
@@ -323,7 +350,9 @@ export function selectDirectProcessorInputTarget<
       target,
       duty,
       desiredStock,
-      runwayCycles: processorInputRunwayCycles(stock, perCycle),
+      runwayCycles: storehouseCharcoalTarget != null
+        ? stock / Math.max(storehouseCharcoalTarget, 1e-9)
+        : processorInputRunwayCycles(stock, perCycle),
       routeDistance,
       workPriority: normalizeStaffingPriority(target.constructionPriority),
       inputPreferenceRank: target.kind === 'weaver'
@@ -420,11 +449,14 @@ export function localMaterialInputCommodities(
     case 'smithy': return ['ironwork'];
     case 'potter_kiln': return ['pottery'];
     case 'village_storehouse':
-      return (['iron', 'clay', 'salt'] as const)
-        .filter((commodity) =>
-          (source?.[commodity] ?? 0) > 1e-6
-          && source?.[storehouseAcceptsField(commodity)] !== false
-        );
+      return [
+        ...((source?.charcoal ?? 0) > 1e-6 ? ['charcoal'] as const : []),
+        ...((['iron', 'clay', 'salt'] as const)
+          .filter((commodity) =>
+            (source?.[commodity] ?? 0) > 1e-6
+            && source?.[storehouseAcceptsField(commodity)] !== false
+          )),
+      ];
     default: return [];
   }
 }
@@ -629,6 +661,13 @@ function assignProcessorInputOffers<
 
   for (const { source, commodity } of offers) {
     for (const target of materialTargets) {
+      if (
+        commodity === 'charcoal'
+        && target.kind === 'village_storehouse'
+        && (!('kind' in source) || source.kind !== 'charcoal_burner')
+      ) {
+        continue;
+      }
       const candidate = selectDirectProcessorInputTarget(
         [target],
         source.id,

@@ -164,6 +164,8 @@ export const Building = __t.object("Building", {
   maslinBread: __t.f64(),
   threshingPriority: __t.u8(),
   fireRepairActive: __t.bool(),
+  storehouseAcceptsCharcoal: __t.bool(),
+  storehouseCharcoalTargetPercent: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 
