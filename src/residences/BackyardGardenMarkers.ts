@@ -206,7 +206,7 @@ export class BackyardGardenMarkers {
 
       const y = input.getHeightAt(placement.x, placement.z);
       marker.position.set(placement.x, y, placement.z);
-      marker.rotation.y = residence.yaw;
+      marker.rotation.y = placement.yaw;
     }
 
     for (const [id, marker] of this.meshes) {

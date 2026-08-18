@@ -508,7 +508,7 @@ export class BurgagePreview {
           ? backyardGardenPlacementForParcel(residence, parcel)
           : null;
         if (backyard && backyardIconCount < MAX_PREVIEW_ICONS) {
-          this.iconQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), residence.yaw);
+          this.iconQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), backyard.yaw);
           this.iconMatrix.compose(
             new THREE.Vector3(
               backyard.x,

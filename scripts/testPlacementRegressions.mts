@@ -47,7 +47,10 @@ import {
 } from '../src/residences/burgagePlacementValidation.ts';
 import { BurgagePreview } from '../src/residences/BurgagePreview.ts';
 import { BurgageTool } from '../src/residences/BurgageTool.ts';
-import { backyardGardenPlacementForParcel } from '../src/residences/backyardPosition.ts';
+import {
+  backyardGardenClearancePolygon,
+  backyardGardenPlacementForParcel,
+} from '../src/residences/backyardPosition.ts';
 import { resolveCurvedFrontageLine } from '../src/residences/burgageRoadFrontage.ts';
 import { resolveRoadCenterPathForFrontage } from '../src/residences/burgageFrontagePath.ts';
 import {
@@ -57,6 +60,7 @@ import {
   measureZoneSideDepths,
   resolveBurgageLayout,
 } from '../src/residences/burgageLayout.ts';
+import { isPointInPolygon2 } from '../src/utils/polygonGeometry.ts';
 import { RiverLayout } from '../src/rivers/RiverLayout.ts';
 import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import type {
@@ -214,6 +218,40 @@ function testOrganicBurgagePlotsAndPreviewIcons(): void {
     angledLayout.parcels.at(-1)?.polygon[2].z,
     'parcel subdivision must follow the angled rear boundary instead of rebuilding a rectangle',
   );
+  for (const residence of angledLayout.residences) {
+    const parcel = angledLayout.parcels.find((entry) => entry.index === residence.parcelIndex);
+    assert.ok(parcel);
+    const frontageLength = Math.hypot(
+      parcel.frontRight.x - parcel.frontLeft.x,
+      parcel.frontRight.z - parcel.frontLeft.z,
+    );
+    const frontageDirection = {
+      x: (parcel.frontRight.x - parcel.frontLeft.x) / frontageLength,
+      z: (parcel.frontRight.z - parcel.frontLeft.z) / frontageLength,
+    };
+    const houseRight = { x: Math.cos(residence.yaw), z: -Math.sin(residence.yaw) };
+    assert.ok(
+      Math.abs(frontageDirection.x * houseRight.x + frontageDirection.z * houseRight.z) > 0.999999,
+      'the house, not a skewed side or rear fence, must author the parcel alignment',
+    );
+
+    const backyard = backyardGardenPlacementForParcel(residence, parcel);
+    if (!backyard) continue;
+    assert.equal(backyard.yaw, residence.yaw, 'every backyard extension must inherit the house yaw');
+    assert.ok(
+      Math.abs(
+        (backyard.x - residence.x) * houseRight.x
+        + (backyard.z - residence.z) * houseRight.z
+      ) < 1e-6,
+      'every backyard extension must retain the house centerline even when its fence is skewed',
+    );
+    for (const corner of backyardGardenClearancePolygon(backyard, 0)) {
+      assert.ok(
+        isPointInPolygon2(corner, parcel.polygon),
+        'a house-aligned backyard footprint must remain inside its skewed parcel',
+      );
+    }
+  }
 
   const shallowDepth = MIN_ZONE_DEPTH + 0.2;
   const shallowCorners = cornersFromPoints([
@@ -263,6 +301,19 @@ function testOrganicBurgagePlotsAndPreviewIcons(): void {
     'extreme plot depth should carry a prohibitive quadratic site-work premium',
   );
   assert.ok(unlimitedDepthLayout.totalCost.timber > deepLayout.totalCost.timber * 10);
+  const unlimitedGarden = backyardGardenPlacementForParcel(
+    unlimitedDepthLayout.residences[0],
+    unlimitedDepthLayout.parcels[0],
+  );
+  assert.ok(unlimitedGarden);
+  assert.ok(
+    unlimitedGarden.depth > 35,
+    'garden beds must use the deep backyard instead of stopping at the former generic depth cap',
+  );
+  assert.ok(
+    unlimitedGarden.width > 6.8,
+    'garden beds must use nearly the full parcel frontage while retaining fence clearance',
+  );
 
   const preview = new BurgagePreview();
   const shallowPreviewCorners = [

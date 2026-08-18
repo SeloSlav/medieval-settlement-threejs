@@ -54,8 +54,7 @@ assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('goat_pen'), true);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('backyard_apiary'), true);
 
 const quarterTurnClearance = backyardGardenClearancePolygon(
-  { x: 10, z: -4, width: 6, depth: 4 },
-  Math.PI * 0.5,
+  { x: 10, z: -4, width: 6, depth: 4, yaw: Math.PI * 0.5 },
   0,
 );
 for (const [actual, expected] of [
@@ -71,8 +70,7 @@ assert.ok(
   'garden clearance should keep wind-bent grass and wildflower heads outside the complete plot',
 );
 const expandedGardenClearance = backyardGardenClearancePolygon(
-  { x: 10, z: -4, width: 6, depth: 4 },
-  0,
+  { x: 10, z: -4, width: 6, depth: 4, yaw: 0 },
 );
 assert.ok(
   Math.min(...expandedGardenClearance.map((point) => point.x)) <= 6.5
@@ -260,10 +258,42 @@ assert.ok(
 );
 assert.equal(herbRacks.length, 2, 'herb gardens should read as having two drying racks');
 assert.ok(
-  herbRacks.every((rack) => rack.userData.detachedFromBeds === true && rack.position.x > 3.1),
-  'the two drying racks should sit detached along the side of the planting beds',
+  herbRacks.every((rack) => (
+    rack.userData.detachedFromBeds === true
+    && rack.position.x > 2.4
+    && rack.position.x < 3.1
+  )),
+  'the two drying racks should sit detached in a side aisle without exceeding the garden footprint',
 );
 disposeBackyardGardenMesh(herbDetail);
+
+const fullBackyardVegetables = createBackyardGardenMesh('vegetable_garden', {
+  width: 6.9,
+  depth: 10.8,
+  seed: 4271,
+});
+assert.deepEqual(
+  fullBackyardVegetables.userData.footprint,
+  { width: 6.9, depth: 10.8 },
+  'garden meshes must retain a parcel-fitted footprint beyond the former generic size caps',
+);
+disposeBackyardGardenMesh(fullBackyardVegetables);
+
+const extremeBackyardVegetables = createBackyardGardenMesh('vegetable_garden', {
+  width: 30,
+  depth: 40,
+  seed: 4271,
+});
+let extremeCropCount = 0;
+extremeBackyardVegetables.traverse((object) => {
+  if (/^(Cabbage|Carrot|Turnip) plant$/.test(object.name)) extremeCropCount += 1;
+});
+assert.deepEqual(extremeBackyardVegetables.userData.footprint, { width: 30, depth: 40 });
+assert.ok(
+  extremeCropCount > 0 && extremeCropCount <= 3 * 8 * 24,
+  'unusually large plots should fill their footprint without unbounded crop-detail growth',
+);
+disposeBackyardGardenMesh(extremeBackyardVegetables);
 
 const appleDetail = createBackyardGardenMesh('apple_orchard', { width: 6.2, depth: 5.4, seed: 4271 });
 const cherryDetail = createBackyardGardenMesh('cherry_orchard', { width: 6.2, depth: 5.4, seed: 4271 });

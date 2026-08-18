@@ -11,10 +11,16 @@ import {
   type FarmFieldCorners,
 } from '../farming/farmFieldMath.ts';
 import { BurgagePreview } from '../residences/BurgagePreview.ts';
+import { BurgageFencing } from '../residences/BurgageFencing.ts';
+import { createBackyardGardenMesh } from '../residences/backyardGardenMesh.ts';
+import { backyardGardenPlacementForParcel } from '../residences/backyardPosition.ts';
+import { createResidenceMesh } from '../residences/ResidenceMarkers.ts';
 import {
   cornersFromPoints,
   resolveBurgageLayout,
 } from '../residences/burgageLayout.ts';
+import type { BackyardGardenKind } from '../generated/gameBalance.ts';
+import type { BurgageZoneState } from '../resources/types.ts';
 
 declare global {
   interface Window {
@@ -30,7 +36,9 @@ declare global {
 const placementRoot = document.querySelector<HTMLElement>('#placement-root');
 if (!placementRoot) throw new Error('Placement lineup host is missing.');
 const root: HTMLElement = placementRoot;
-const requestedBuilding = new URLSearchParams(window.location.search).get('building');
+const lineupParams = new URLSearchParams(window.location.search);
+const alignmentView = lineupParams.get('view') === 'residence-alignment';
+const requestedBuilding = lineupParams.get('building');
 const buildingKind: BuildingKind = requestedBuilding
   && BUILDING_KINDS.includes(requestedBuilding as BuildingKind)
   ? requestedBuilding as BuildingKind
@@ -55,6 +63,7 @@ scene.background = new THREE.Color(0x85927c);
 scene.fog = new THREE.Fog(0x85927c, 78, 155);
 
 function getHeightAt(x: number, z: number): number {
+  if (alignmentView) return 0;
   return Math.sin(x * 0.105) * 1.05
     + Math.cos(z * 0.13) * 0.72
     + Math.sin((x + z) * 0.055) * 0.58;
@@ -82,7 +91,7 @@ terrain.receiveShadow = true;
 terrain.userData.terrain = true;
 scene.add(terrain);
 
-const roadGeometry = new THREE.PlaneGeometry(25, 4.8, 36, 4);
+const roadGeometry = new THREE.PlaneGeometry(alignmentView ? 38 : 25, 4.8, 36, 4);
 roadGeometry.rotateX(-Math.PI * 0.5);
 const roadPositions = roadGeometry.getAttribute('position') as THREE.BufferAttribute;
 for (let index = 0; index < roadPositions.count; index += 1) {
@@ -103,6 +112,7 @@ scene.add(road);
 
 const buildingPreview = createBuildingPreviewMesh(buildingKind);
 scene.add(buildingPreview);
+buildingPreview.visible = !alignmentView;
 let buildingX = -31;
 let buildingZ = 1;
 updateBuildingPreviewGeometry(
@@ -114,12 +124,10 @@ updateBuildingPreviewGeometry(
   getHeightAt,
 );
 
-const burgageCorners = [
-  new THREE.Vector3(-11, getHeightAt(-11, -8.4), -8.4),
-  new THREE.Vector3(11, getHeightAt(11, -8.4), -8.4),
-  new THREE.Vector3(11, getHeightAt(11, 10), 10),
-  new THREE.Vector3(-11, getHeightAt(-11, 10), 10),
-];
+const burgageCorners = (alignmentView
+  ? [[-15, -8.4], [15, -8.4], [18, 21], [-17, 14]]
+  : [[-11, -8.4], [11, -8.4], [11, 10], [-11, 10]])
+  .map(([x, z]) => new THREE.Vector3(x!, getHeightAt(x!, z!), z!));
 const burgageZoneCorners = cornersFromPoints(
   burgageCorners.map((point) => ({ x: point.x, z: point.z })),
 );
@@ -142,6 +150,53 @@ burgagePreview.update(
   burgageCorners,
   null,
 );
+burgagePreview.group.visible = !alignmentView;
+
+if (alignmentView && burgageZoneCorners && burgageLayout) {
+  const residenceRoot = new THREE.Group();
+  residenceRoot.name = 'House-authored backyard alignment comparison';
+  scene.add(residenceRoot);
+
+  const zone: BurgageZoneState = {
+    id: 'alignment-zone',
+    cornerA: burgageZoneCorners.a,
+    cornerB: burgageZoneCorners.b,
+    cornerC: burgageZoneCorners.c,
+    cornerD: burgageZoneCorners.d,
+    frontageEdge: 0,
+    plotCount: burgageLayout.plotCount,
+  };
+  const residences = burgageLayout.residences.map((placement, index) => ({
+    id: `alignment-residence-${index}`,
+    zoneId: zone.id,
+    ...placement,
+  }));
+  const gardenKinds: BackyardGardenKind[] = [
+    'herb_garden',
+    'vegetable_garden',
+    'flower_garden',
+  ];
+  for (const [index, residence] of residences.entries()) {
+    const house = createResidenceMesh(0x1550 + index * 97, 1);
+    house.position.set(residence.x, getHeightAt(residence.x, residence.z), residence.z);
+    house.rotation.y = residence.yaw;
+    residenceRoot.add(house);
+
+    const parcel = burgageLayout.parcels[index]!;
+    const placement = backyardGardenPlacementForParcel(residence, parcel);
+    if (!placement) continue;
+    const garden = createBackyardGardenMesh(gardenKinds[index]!, {
+      width: placement.width,
+      depth: placement.depth,
+      seed: 4271 + index * 101,
+    });
+    garden.position.set(placement.x, getHeightAt(placement.x, placement.z), placement.z);
+    garden.rotation.y = placement.yaw;
+    residenceRoot.add(garden);
+  }
+  const fencing = new BurgageFencing(residenceRoot);
+  fencing.syncZones([zone], residences, getHeightAt);
+}
 
 const fieldCorners: FarmFieldCorners = [
   { x: 23, z: -9 },
@@ -152,6 +207,7 @@ const fieldCorners: FarmFieldCorners = [
 const fieldPreview = new FarmFieldPreview(getHeightAt);
 scene.add(fieldPreview.group);
 fieldPreview.show(fieldCorners, true, 'rye');
+fieldPreview.group.visible = !alignmentView;
 
 scene.add(new THREE.HemisphereLight(0xe4ebe0, 0x3f392d, 2.15));
 const sun = new THREE.DirectionalLight(0xffefd0, 3.4);
@@ -165,8 +221,13 @@ sun.shadow.camera.bottom = -45;
 scene.add(sun);
 
 const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 220);
-camera.position.set(13, 51, 63);
-camera.lookAt(7, 0, 0);
+if (alignmentView) {
+  camera.position.set(0, 43, 38);
+  camera.lookAt(0, 0, 6);
+} else {
+  camera.position.set(13, 51, 63);
+  camera.lookAt(7, 0, 0);
+}
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -181,6 +242,7 @@ renderer.domElement.dataset.lastUpdateMs = '0';
 renderer.domElement.dataset.worstUpdateMs = '0';
 
 renderer.domElement.addEventListener('pointermove', (event) => {
+  if (alignmentView) return;
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.set(
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -262,8 +324,24 @@ function render(): void {
 render();
 await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 render();
+if (alignmentView) {
+  const renderLoadedAlignmentAssets = (): void => {
+    render();
+    requestAnimationFrame(renderLoadedAlignmentAssets);
+  };
+  requestAnimationFrame(renderLoadedAlignmentAssets);
+}
 window.__PLACEMENT_LINEUP_READY__ = true;
 document.body.dataset.ready = 'true';
 document.body.dataset.buildingKind = buildingKind;
-document.querySelector<HTMLElement>('.label')!.textContent = `${buildingDefinition.label} footprint`;
+if (alignmentView) {
+  document.querySelector('h1')!.textContent = 'Residence Alignment Visual QA';
+  document.querySelector('header p')!.textContent = 'Frontage-first houses · house-aligned extensions · skew-safe fencing';
+  const labels = document.querySelectorAll<HTMLElement>('.label');
+  labels[0]!.textContent = 'Herb garden';
+  labels[1]!.textContent = 'Vegetable garden';
+  labels[2]!.textContent = 'Flower garden';
+} else {
+  document.querySelector<HTMLElement>('.label')!.textContent = `${buildingDefinition.label} footprint`;
+}
 window.addEventListener('resize', render);

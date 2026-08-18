@@ -17,6 +17,10 @@ export type BackyardGardenMeshOptions = {
 };
 
 const FLOWER_STEM_MAP_SIZE = 64;
+const MAX_GARDEN_GRID_COLUMNS = 8;
+const MAX_GARDEN_GRID_ROWS = 24;
+const MAX_FLOWER_GARDEN_STEMS = 160;
+const MAX_GARDEN_STEPPING_STONES = 48;
 
 function createFlowerStemMaps(): {
   albedo: THREE.DataTexture;
@@ -597,7 +601,10 @@ function addSteppingStones(
   collidable = true,
 ): void {
   const rng = mulberry32(seed ^ 0x51a77e);
-  const count = Math.max(2, Math.floor(Math.abs(z1 - z0) / 0.75));
+  const count = Math.min(
+    MAX_GARDEN_STEPPING_STONES,
+    Math.max(2, Math.floor(Math.abs(z1 - z0) / 0.75)),
+  );
   for (let i = 0; i <= count; i++) {
     const t = i / count;
     const stone = addMesh(
@@ -881,14 +888,22 @@ function addVegetableGarden(group: THREE.Group, width: number, depth: number, se
     cropGroup.name = cropRows[bed]!.name;
     group.add(cropGroup);
     const spacing = cropRows[bed]!.spacing;
-    const cols = Math.max(2, Math.floor(bedWidth / spacing));
-    const rows = Math.max(2, Math.floor(bedDepth / spacing));
+    const naturalCols = Math.max(2, Math.floor(bedWidth / spacing));
+    const naturalRows = Math.max(2, Math.floor(bedDepth / spacing));
+    const cols = Math.min(MAX_GARDEN_GRID_COLUMNS, naturalCols);
+    const rows = Math.min(MAX_GARDEN_GRID_ROWS, naturalRows);
+    const columnSpan = naturalCols > cols
+      ? Math.max(spacing, bedWidth - 0.5)
+      : (cols - 1) * spacing;
+    const rowSpan = naturalRows > rows
+      ? Math.max(spacing, bedDepth - 0.5)
+      : (rows - 1) * spacing;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         cropRows[bed]!.add(
           cropGroup,
-          x - ((cols - 1) * spacing) * 0.5 + col * spacing,
-          bedZ - ((rows - 1) * spacing) * 0.5 + row * spacing,
+          x - columnSpan * 0.5 + col * columnSpan / Math.max(1, cols - 1),
+          bedZ - rowSpan * 0.5 + row * rowSpan / Math.max(1, rows - 1),
           seed + bed * 101 + row * 17 + col,
         );
       }
@@ -966,7 +981,11 @@ function addFlowerGarden(
     addRoseShrub(group, side * width * 0.28, (row - 0.5) * Math.min(1.75, depth * 0.35), i, seed + i * 311, plants);
   }
   const rng = mulberry32(seed ^ 0xaf413);
-  for (let i = 0; i < Math.max(12, Math.floor(width * depth * 0.7)); i++) {
+  const flowerCount = Math.min(
+    MAX_FLOWER_GARDEN_STEMS,
+    Math.max(12, Math.floor(width * depth * 0.7)),
+  );
+  for (let i = 0; i < flowerCount; i++) {
     const side = i % 2 ? 1 : -1;
     const x = side * (width * 0.16 + rng() * width * 0.26);
     const z = (rng() - 0.5) * depth * 0.72;
@@ -1116,19 +1135,36 @@ function addDryingRack(
 function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: number): void {
   const plotDepth = Math.max(1.1, depth - 0.65);
   const plotZ = 0;
-  const plotW = (width - 0.85) * 0.5;
+  const rackAisleWidth = Math.min(1.15, Math.max(0.9, width * 0.16));
+  const bedAreaWidth = width - rackAisleWidth;
+  const bedAreaX = -rackAisleWidth * 0.5;
+  const plotW = (bedAreaWidth - 0.75) * 0.5;
   for (let side = 0; side < 2; side++) {
-    const x = (side ? 1 : -1) * (plotW * 0.5 + 0.18);
+    const x = bedAreaX + (side ? 1 : -1) * (plotW * 0.5 + 0.18);
     addSoilBed(group, x, plotZ, plotW, plotDepth);
-    const cols = Math.max(2, Math.floor(plotW / 0.65));
-    const rows = Math.max(2, Math.floor(plotDepth / 0.72));
+    const naturalCols = Math.max(2, Math.floor(plotW / 0.65));
+    const naturalRows = Math.max(2, Math.floor(plotDepth / 0.72));
+    const cols = Math.min(MAX_GARDEN_GRID_COLUMNS, naturalCols);
+    const rows = Math.min(MAX_GARDEN_GRID_ROWS, naturalRows);
+    const columnSpan = naturalCols > cols
+      ? Math.max(0.58, plotW - 0.5)
+      : (cols - 1) * 0.58;
+    const rowSpan = naturalRows > rows
+      ? Math.max(0.66, plotDepth - 0.5)
+      : (rows - 1) * 0.66;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        addHerbClump(group, x - ((cols - 1) * 0.58) * 0.5 + col * 0.58, plotZ - ((rows - 1) * 0.66) * 0.5 + row * 0.66, (side + row + col) % 3, seed + side * 101 + row * 13 + col);
+        addHerbClump(
+          group,
+          x - columnSpan * 0.5 + col * columnSpan / Math.max(1, cols - 1),
+          plotZ - rowSpan * 0.5 + row * rowSpan / Math.max(1, rows - 1),
+          (side + row + col) % 3,
+          seed + side * 101 + row * 13 + col,
+        );
       }
     }
   }
-  const rackX = width * 0.5 + 0.42;
+  const rackX = width * 0.5 - rackAisleWidth * 0.5;
   addDryingRack(group, rackX, -depth * 0.17, 1);
   addDryingRack(group, rackX, depth * 0.17, 2);
 }
@@ -1231,8 +1267,8 @@ export function createBackyardGardenMesh(
   kind: BackyardGardenKind,
   options: BackyardGardenMeshOptions = {},
 ): THREE.Group {
-  const width = THREE.MathUtils.clamp(options.width ?? 5.4, 3.8, 7.2);
-  const depth = THREE.MathUtils.clamp(options.depth ?? 4.6, 1.8, 8.2);
+  const width = Math.max(3.8, options.width ?? 5.4);
+  const depth = Math.max(1.8, options.depth ?? 4.6);
   const seed = options.seed ?? 1;
   const plants = options.plants ?? null;
   const group = new THREE.Group();
