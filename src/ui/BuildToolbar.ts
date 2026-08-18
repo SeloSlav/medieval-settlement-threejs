@@ -1256,9 +1256,27 @@ export class BuildToolbar {
     };
     const onPrevious = (): void => scrollByPage(-1);
     const onNext = (): void => scrollByPage(1);
+    const onWheel = (event: WheelEvent): void => {
+      const dominantDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX)
+        ? event.deltaY
+        : event.deltaX;
+      if (dominantDelta === 0) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const deltaScale = event.deltaMode === 1
+        ? 16
+        : event.deltaMode === 2
+          ? viewport.clientWidth
+          : 1;
+      viewport.scrollLeft += dominantDelta * deltaScale;
+      syncButtons();
+    };
 
     previous.addEventListener('click', onPrevious);
     next.addEventListener('click', onNext);
+    viewport.addEventListener('wheel', onWheel, { passive: false });
     viewport.addEventListener('scroll', syncButtons, { passive: true });
     const resizeObserver = new ResizeObserver(syncButtons);
     resizeObserver.observe(viewport);
@@ -1268,6 +1286,7 @@ export class BuildToolbar {
     this.buildMenuScrollCleanups.push(() => {
       previous.removeEventListener('click', onPrevious);
       next.removeEventListener('click', onNext);
+      viewport.removeEventListener('wheel', onWheel);
       viewport.removeEventListener('scroll', syncButtons);
       resizeObserver.disconnect();
     });
