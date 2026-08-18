@@ -31,12 +31,7 @@ import {
   type SettlementSecurityState,
 } from '../security/frontierSecurity.ts';
 import {
-  formatProvisionDays,
   formatProvisionRunway,
-  HOUSEHOLD_BUFFER_WARNING_COVERAGE,
-  settlementProvisionLevel,
-  shouldShowProvisioning,
-  WINTER_RESERVE_DAYS,
   type SettlementProvisioning,
 } from '../economy/settlementProvisioning.ts';
 import type {
@@ -144,10 +139,6 @@ const SETTLEMENT_HUD_HTML = `
         <strong data-security-label>Frontier watch</strong>
         <span data-security-detail>Awaiting reports</span>
       </button>
-      <div class="settlement-hud__provision-alert" data-provision-alert hidden>
-        <strong data-provision-label>Winter stores</strong>
-        <span data-provision-detail>Awaiting household ledgers</span>
-      </div>
       <div class="settlement-hud__welfare-alert" data-welfare-alert hidden>
         <strong data-welfare-label>Household welfare</strong>
         <span data-welfare-detail>Awaiting parish reports</span>
@@ -535,9 +526,6 @@ export class SettlementHud {
   private readonly securityAlert: HTMLButtonElement;
   private readonly securityLabel: HTMLElement;
   private readonly securityDetail: HTMLElement;
-  private readonly provisionAlert: HTMLElement;
-  private readonly provisionLabel: HTMLElement;
-  private readonly provisionDetail: HTMLElement;
   private readonly welfareAlert: HTMLElement;
   private readonly welfareLabel: HTMLElement;
   private readonly welfareDetail: HTMLElement;
@@ -632,9 +620,6 @@ export class SettlementHud {
     this.securityAlert = this.mustButton('[data-security-alert]');
     this.securityLabel = this.mustElement('[data-security-label]');
     this.securityDetail = this.mustElement('[data-security-detail]');
-    this.provisionAlert = this.mustElement('[data-provision-alert]');
-    this.provisionLabel = this.mustElement('[data-provision-label]');
-    this.provisionDetail = this.mustElement('[data-provision-detail]');
     this.welfareAlert = this.mustElement('[data-welfare-alert]');
     this.welfareLabel = this.mustElement('[data-welfare-label]');
     this.welfareDetail = this.mustElement('[data-welfare-detail]');
@@ -964,55 +949,8 @@ export class SettlementHud {
     ].filter(Boolean).join(' · ');
   }
 
-  setProvisioningState(provisioning: SettlementProvisioning, month: number): void {
+  setProvisioningState(provisioning: SettlementProvisioning, _month: number): void {
     this.setWelfareState(provisioning);
-    const level = settlementProvisionLevel(provisioning, month);
-    const show = shouldShowProvisioning(provisioning, month);
-    const winterRelevant = month >= 9 || month <= 2;
-    const sabbathShort = provisioning.sabbathObserved
-      && provisioning.sabbathReadyHouseholds < provisioning.sabbathHouseholds;
-    const householdBuffersShort = provisioning.householdBufferHouseholds > 0
-      && provisioning.householdBufferCoverage < HOUSEHOLD_BUFFER_WARNING_COVERAGE;
-    this.provisionAlert.hidden = !show;
-    this.provisionAlert.dataset.level = level;
-    this.panel.classList.toggle('has-provision-warning', level === 'watch');
-    this.panel.classList.toggle('has-provision-critical', level === 'critical');
-
-    this.provisionLabel.textContent = level === 'critical'
-      ? '⚠ Provision shortage'
-      : sabbathShort
-        ? 'Sunday stores'
-        : householdBuffersShort
-          ? 'Household buffers'
-          : winterRelevant
-            ? '❄ Winter stores'
-            : '⚖ Provision watch';
-    this.provisionDetail.textContent = [
-      `food ${formatProvisionDays(provisioning.foodRunwayDays)}`,
-      provisioning.heatedResidents > 0
-        ? `winter fuel ${formatProvisionDays(provisioning.winterFirewoodRunwayDays)} / ${WINTER_RESERVE_DAYS}d`
-        : null,
-      provisioning.householdBufferHouseholds > 0
-        ? `homes ${provisioning.householdBufferReadyHouseholds}/${provisioning.householdBufferHouseholds}`
-        : null,
-      provisioning.assignedGuards > 0
-        ? `arms ${provisioning.armedGuards}/${provisioning.assignedGuards}`
-        : null,
-      provisioning.armedGuards > 0
-        ? `guard food ${formatProvisionDays(provisioning.guardProvisionRunwayDays)}`
-        : null,
-      provisioning.armedGuards > 0
-        ? `wages ${formatProvisionDays(provisioning.guardWageRunwayDays)}`
-        : null,
-      provisioning.sabbathObserved
-        ? `Sunday ${provisioning.sabbathReadyHouseholds}/${provisioning.sabbathHouseholds} homes`
-        : null,
-      provisioning.fireQuarantinedFoodStock > 0.05
-        || provisioning.fireQuarantinedFirewoodStock > 0.05
-        ? `fire quarantine ${provisioning.fireQuarantinedFoodStock.toFixed(0)} food/${provisioning.fireQuarantinedFirewoodStock.toFixed(0)} fuel`
-        : null,
-    ].filter(Boolean).join(' · ');
-
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
       ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
       : 'Spendable gold in settlement lockboxes and the Town Hall treasury.';
@@ -1169,13 +1107,9 @@ export class SettlementHud {
   }
 
   clearProvisioningState(): void {
-    this.provisionAlert.hidden = true;
-    this.provisionAlert.dataset.level = 'none';
     this.welfareAlert.hidden = true;
     this.welfareAlert.dataset.level = 'none';
     this.panel.classList.remove(
-      'has-provision-warning',
-      'has-provision-critical',
       'has-welfare-warning',
       'has-welfare-critical',
     );

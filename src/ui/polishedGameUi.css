@@ -676,8 +676,7 @@ select:focus-visible {
 }
 
 .settlement-hud__fire-alert,
-.settlement-hud__security-alert,
-.settlement-hud__provision-alert {
+.settlement-hud__security-alert {
   position: absolute;
   top: calc(100% + 9px);
   z-index: 2;
@@ -693,11 +692,9 @@ select:focus-visible {
 
 .settlement-hud__fire-alert { left: 0; }
 .settlement-hud__security-alert { left: calc(33.333% + 3px); }
-.settlement-hud__provision-alert { right: 0; }
 
 .settlement-hud__fire-alert::before,
-.settlement-hud__security-alert::before,
-.settlement-hud__provision-alert::before {
+.settlement-hud__security-alert::before {
   position: absolute;
   top: 10px;
   left: 11px;
@@ -709,7 +706,6 @@ select:focus-visible {
 
 .settlement-hud__fire-alert::before { color: #ef9c6d; }
 .settlement-hud__security-alert::before { content: '\2726'; }
-.settlement-hud__provision-alert::before { content: '\2767'; color: #b7d092; }
 
 /* Inspector shell -------------------------------------------------------- */
 

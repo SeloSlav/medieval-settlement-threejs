@@ -108,18 +108,10 @@ assert.match(
   /residence_disabled_by_fire\(ctx, residence\.id\)[\s\S]*continue;/,
   'fire-disabled residences must be excluded from authoritative household consumption',
 );
-assert.match(settlementHud, /Sunday stores/);
-assert.match(settlementHud, /Household buffers/);
-assert.match(settlementHud, /guard food/);
 assert.doesNotMatch(
   settlementHud,
-  /provisionAlert\.dataset\.tooltip/,
-  'the compact provisioning alert must not open a diagnostic tooltip',
-);
-assert.doesNotMatch(
-  settlementHud,
-  /Isolated branch|Road-branch stores|weakest branch|branch fuel/,
-  'road connectivity must not appear in the provisioning alert',
+  /data-provision-alert|provisionAlert|provisionLabel|provisionDetail/,
+  'the provisioning banner must not be mounted in the settlement HUD',
 );
 assert.match(chapelInspector, /stock them before Saturday night/);
 assert.match(guardhouseInspector, /Food endurance/);
