@@ -97,6 +97,12 @@ const KITCHEN_HERB_TEXTURE_PATHS = {
   sage: '/assets/textures/vegetation/kitchen_herbs/sage_clump.png',
 } as const;
 
+const HERB_GARDEN_SOIL_TEXTURE_PATHS = {
+  albedo: '/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
+  normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
+  roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
+} as const;
+
 function loadKitchenCropTexture(path: string, name: string): THREE.Texture | null {
   if (typeof document === 'undefined') return null;
   const texture = new THREE.TextureLoader().load(path);
@@ -121,8 +127,49 @@ const KITCHEN_HERB_TEXTURES = {
   sage: loadKitchenCropTexture(KITCHEN_HERB_TEXTURE_PATHS.sage, 'Generated sage clump cutout'),
 } as const;
 
+const HERB_GARDEN_SOIL_TEXTURES = {
+  albedo: loadKitchenCropTexture(
+    HERB_GARDEN_SOIL_TEXTURE_PATHS.albedo,
+    'Existing dark garden-soil albedo',
+  ),
+  normal: loadKitchenCropTexture(
+    HERB_GARDEN_SOIL_TEXTURE_PATHS.normal,
+    'Existing dark garden-soil normal',
+  ),
+  roughness: loadKitchenCropTexture(
+    HERB_GARDEN_SOIL_TEXTURE_PATHS.roughness,
+    'Existing dark garden-soil roughness',
+  ),
+} as const;
+
+for (const texture of Object.values(HERB_GARDEN_SOIL_TEXTURES)) {
+  if (!texture) continue;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 8;
+}
+if (HERB_GARDEN_SOIL_TEXTURES.normal) {
+  HERB_GARDEN_SOIL_TEXTURES.normal.colorSpace = THREE.NoColorSpace;
+}
+if (HERB_GARDEN_SOIL_TEXTURES.roughness) {
+  HERB_GARDEN_SOIL_TEXTURES.roughness.colorSpace = THREE.NoColorSpace;
+}
+
 const MATERIALS = {
   soil: new THREE.MeshStandardMaterial({ color: 0x4b3828, roughness: 0.97 }),
+  herbSoil: new THREE.MeshStandardMaterial({
+    name: 'Textured dark herb-garden soil',
+    color: 0x8b7765,
+    map: HERB_GARDEN_SOIL_TEXTURES.albedo,
+    normalMap: HERB_GARDEN_SOIL_TEXTURES.normal,
+    normalScale: new THREE.Vector2(0.38, 0.38),
+    roughnessMap: HERB_GARDEN_SOIL_TEXTURES.roughness,
+    roughness: 1,
+    metalness: 0,
+  }),
   darkSoil: new THREE.MeshStandardMaterial({ color: 0x35271d, roughness: 0.98 }),
   path: new THREE.MeshStandardMaterial({ color: 0x8a795f, roughness: 0.98 }),
   timber: sharedBuildingMaterial('timberMid'),
@@ -239,6 +286,9 @@ const MATERIALS = {
   water: sharedBuildingDetailMaterial('water'),
   collisionProxy: new THREE.MeshBasicMaterial({ visible: false }),
 } as const;
+
+MATERIALS.herbSoil.userData.metricUvMeters = 2.2;
+MATERIALS.herbSoil.userData.pbrTexturePaths = HERB_GARDEN_SOIL_TEXTURE_PATHS;
 
 const FLOWER_MATERIALS = [
   new THREE.MeshStandardMaterial({ color: 0xb83f55, roughness: 0.78 }),
@@ -531,8 +581,20 @@ function addSoilBed(
   width: number,
   depth: number,
   bordered = true,
+  soilMaterial: THREE.Material = MATERIALS.soil,
+  soilName = 'Garden soil bed',
 ): void {
-  addMesh(group, new THREE.BoxGeometry(width, 0.1, depth), MATERIALS.soil, x, 0.05, z);
+  addMesh(
+    group,
+    new THREE.BoxGeometry(width, 0.1, depth),
+    soilMaterial,
+    x,
+    0.05,
+    z,
+    undefined,
+    undefined,
+    soilName,
+  );
   if (!bordered) return;
   const rail = 0.11;
   addMesh(group, new THREE.BoxGeometry(width + 0.18, 0.18, rail), MATERIALS.timber, x, 0.1, z - depth * 0.5);
@@ -1035,11 +1097,43 @@ function addHerbClump(group: THREE.Group, x: number, z: number, kind: number, se
   registerBackyardSway(group, clump, seed * 0.0013, 0.006, 0.025);
 }
 
-function addDryingRack(group: THREE.Group, x: number, z: number): void {
+function addDryingRack(
+  group: THREE.Group,
+  x: number,
+  z: number,
+  index: number,
+): void {
+  const rack = new THREE.Group();
+  rack.name = `HerbDryingRack:${index}`;
+  rack.position.set(x, 0, z);
+  rack.rotation.y = Math.PI * 0.5;
+  rack.userData.detachedFromBeds = true;
+  group.add(rack);
+
   for (const dx of [-0.55, 0.55]) {
-    addMesh(group, new THREE.CylinderGeometry(0.035, 0.05, 1.2, 6), MATERIALS.darkTimber, x + dx, 0.6, z);
+    addMesh(
+      rack,
+      new THREE.CylinderGeometry(0.035, 0.05, 1.2, 6),
+      MATERIALS.darkTimber,
+      dx,
+      0.6,
+      0,
+      undefined,
+      undefined,
+      'Herb drying rack post',
+    );
   }
-  addMesh(group, new THREE.CylinderGeometry(0.035, 0.035, 1.25, 6), MATERIALS.darkTimber, x, 1.16, z, new THREE.Euler(0, 0, Math.PI * 0.5), undefined, 'HerbDryingRack');
+  addMesh(
+    rack,
+    new THREE.CylinderGeometry(0.035, 0.035, 1.25, 6),
+    MATERIALS.darkTimber,
+    0,
+    1.16,
+    0,
+    new THREE.Euler(0, 0, Math.PI * 0.5),
+    undefined,
+    'Herb drying rack crossbar',
+  );
   const bundleMaterials = [
     MATERIALS.parsleyCard,
     MATERIALS.rosemaryCard,
@@ -1053,21 +1147,28 @@ function addDryingRack(group: THREE.Group, x: number, z: number): void {
       bundleMaterials[i % bundleMaterials.length]!,
       'Textured hanging herb bundle',
     );
-    bundle.position.set(x + dx, 1.12, z);
+    bundle.position.set(dx, 1.12, 0);
     bundle.rotation.set(0, (i % 2 ? 1 : -1) * 0.12, Math.PI);
-    group.add(bundle);
+    rack.add(bundle);
   }
 }
 
 function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: number): void {
-  addMesh(group, new THREE.BoxGeometry(width, 0.04, depth), MATERIALS.path, 0, 0.02, 0);
-  const rackSpace = depth > 3.7 ? 1.15 : 0;
-  const plotDepth = Math.max(1.1, depth - 0.65 - rackSpace);
-  const plotZ = rackSpace > 0 ? -rackSpace * 0.35 : 0;
+  const plotDepth = Math.max(1.1, depth - 0.65);
+  const plotZ = 0;
   const plotW = (width - 0.85) * 0.5;
   for (let side = 0; side < 2; side++) {
     const x = (side ? 1 : -1) * (plotW * 0.5 + 0.18);
-    addSoilBed(group, x, plotZ, plotW, plotDepth);
+    addSoilBed(
+      group,
+      x,
+      plotZ,
+      plotW,
+      plotDepth,
+      true,
+      MATERIALS.herbSoil,
+      'Textured herb-garden soil bed',
+    );
     const cols = Math.max(2, Math.floor(plotW / 0.65));
     const rows = Math.max(2, Math.floor(plotDepth / 0.72));
     for (let row = 0; row < rows; row++) {
@@ -1076,7 +1177,9 @@ function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: n
       }
     }
   }
-  if (rackSpace > 0) addDryingRack(group, 0, depth * 0.36);
+  const rackX = width * 0.5 + 0.42;
+  addDryingRack(group, rackX, -depth * 0.17, 1);
+  addDryingRack(group, rackX, depth * 0.17, 2);
 }
 
 function addHenYard(group: THREE.Group, width: number, depth: number, seed: number): void {

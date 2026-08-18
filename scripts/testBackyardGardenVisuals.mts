@@ -39,6 +39,7 @@ const terrainBackedKinds = new Set<BackyardGardenKind>([
   'apple_orchard',
   'cherry_orchard',
   'flower_garden',
+  'herb_garden',
   'hen_yard',
   'goat_pen',
   'backyard_apiary',
@@ -191,8 +192,12 @@ const herbDetail = createBackyardGardenMesh('herb_garden', {
   seed: 4271,
 });
 const herbNames: string[] = [];
+const herbRacks: THREE.Group[] = [];
+const herbSoilBeds: THREE.Mesh[] = [];
 herbDetail.traverse((object) => {
   if (object.name) herbNames.push(object.name);
+  if (object.name.startsWith('HerbDryingRack:')) herbRacks.push(object as THREE.Group);
+  if (object.name === 'Textured herb-garden soil bed') herbSoilBeds.push(object as THREE.Mesh);
 });
 for (const herb of ['parsley', 'rosemary', 'sage']) {
   assert.ok(
@@ -205,9 +210,24 @@ for (const herb of ['parsley', 'rosemary', 'sage']) {
   );
 }
 assert.ok(
-  herbNames.filter((name) => name === 'Textured hanging herb bundle').length === 4,
-  'the drying rack should use textured herb bundles instead of primitive cones',
+  herbNames.filter((name) => name === 'Textured hanging herb bundle').length === 8,
+  'both drying racks should use textured herb bundles instead of primitive cones',
 );
+assert.equal(herbRacks.length, 2, 'herb gardens should read as having two drying racks');
+assert.ok(
+  herbRacks.every((rack) => rack.userData.detachedFromBeds === true && rack.position.x > 3.1),
+  'the two drying racks should sit detached along the side of the planting beds',
+);
+assert.equal(herbSoilBeds.length, 2, 'herb gardens should expose two textured soil beds');
+for (const bed of herbSoilBeds) {
+  const material = bed.material as THREE.MeshStandardMaterial;
+  assert.equal(material.name, 'Textured dark herb-garden soil');
+  assert.deepEqual(material.userData.pbrTexturePaths, {
+    albedo: '/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
+    normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
+    roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
+  });
+}
 disposeBackyardGardenMesh(herbDetail);
 
 const appleDetail = createBackyardGardenMesh('apple_orchard', { width: 6.2, depth: 5.4, seed: 4271 });
