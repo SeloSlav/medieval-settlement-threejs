@@ -54,5 +54,5 @@ Write-Host "[GEN] Regenerating client bindings..." -ForegroundColor Yellow
 Assert-LastExit "Generate TypeScript bindings"
 
 Write-Host "[SUCCESS] Local deployment complete! Database: city-builder" -ForegroundColor Green
-Write-Host "[INFO] Run 'npm run dev' from project root to test" -ForegroundColor Cyan
+Write-Host "[INFO] Run 'pnpm run dev' from project root to test" -ForegroundColor Cyan
 Write-Host "[INFO] Database was updated (not wiped)" -ForegroundColor Blue

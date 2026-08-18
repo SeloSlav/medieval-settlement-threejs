@@ -21,26 +21,24 @@ This is the shortest way to start the complete game on Windows. You need [Node.j
 
 ```powershell
 git submodule update --init --recursive
-npm install
+corepack enable
+pnpm install
 rustup target add wasm32-unknown-unknown
 ```
 
-2. Start the local database in its own PowerShell window and leave that window open:
+2. The first time you run the game, start the database and client together, leave them running, then publish the backend from a second PowerShell window:
 
 ```powershell
-spacetime start
+pnpm run dev
 ```
-
-3. Open a second PowerShell window in the project folder. The first time you run the game, publish its backend and then start the web app:
 
 ```powershell
-npm run deploy:local
-npm run dev
+pnpm run deploy:local
 ```
 
-4. Open the address printed by Vite, normally [http://localhost:5173/](http://localhost:5173/).
+3. Open [http://localhost:5173/](http://localhost:5173/).
 
-The backend is now running at `http://localhost:3000` and the game is running at `http://localhost:5173`. On later visits, start `spacetime start` and `npm run dev` again. You only need to rerun `npm run deploy:local` after backend, schema, or balance changes.
+`pnpm run dev` starts SpacetimeDB at `http://localhost:3000` and the Vite client at `http://localhost:5173`, then stops both processes it started when you press Ctrl+C. If SpacetimeDB is already running, the command reuses it and leaves it running on shutdown. `npm run dev` works the same way. On later visits, this single command is all you need. Rerun `pnpm run deploy:local` only after backend, schema, or balance changes.
 
 A real-time Three.js sandbox for growing a **medieval settlement** on a procedural 3D landscape. On a fresh game, choose map size, topography, hydrology, forest density, regional resource abundance and variety, and world seed before generation begins. Draw dirt road networks across rolling hills, pine forests, and winding rivers — wooden bridges and graded ramps appear automatically when a path crosses water. Place production buildings to harvest timber, stone, game, berries, and fish; connect wells and depots along those roads; then lay out residence zones so settlers move in over time. Homes need firewood, water, and food: physical haulers stock Marketplace stalls while wells refill from local groundwater, then connected homes receive those provisions through abstract availability instead of a cart visiting every door. Staffed Granaries and Village Storehouses still move real stock into the market. Plant backyard gardens for household consumption, cross-household exchange, savings, and a physically collected local tax; use a separate staffed Trading Post for regional imports and exports. A [SpacetimeDB](https://spacetimedb.com/) Rust module runs the authoritative economy simulation; the client renders replicated state in real time.
 
@@ -590,13 +588,13 @@ git submodule update --init --recursive
 
 ## Development Notes
 
-- Road editing works offline; buildings, residences, and economy require a running SpacetimeDB server (`spacetime start` + `npm run deploy:local`).
+- Road editing works offline; buildings, residences, and economy require a running SpacetimeDB server (`pnpm run dev` + `pnpm run deploy:local`).
 - `npm run build` runs TypeScript first, then Vite's production build.
 - `npm run deploy:local` regenerates world bootstrap data and game-balance constants, publishes the Rust module, and refreshes `src/generated/` bindings — run this after any server schema, reducer, or balance change.
 - `npm run generate:game-balance` regenerates `server/src/balance_generated.rs` and `src/generated/gameBalance.ts` from `balance/gameBalance.json`.
 - `npm run test` / `npm run test:ci` run the TypeScript contract-test suite (`scripts/run-all-tests.mts`).
 - `cargo test` in `server/logic/` runs host-side Rust unit tests for pure simulation/economy logic. The WASM module crate itself cannot link native `cargo test` binaries.
-- `npm run test:e2e` / `npm run smoketest` run the Playwright smoke path: connect to SpacetimeDB, open the build menu, place a reforester, and assert the settlement HUD timber drops. Requires `spacetime start`, a published `city-builder` database (`npm run deploy:local`), and Playwright Chromium (`npx playwright install chromium`).
+- `pnpm run test:e2e` / `pnpm run smoketest` run the Playwright smoke path: connect to SpacetimeDB, open the build menu, place a reforester, and assert the settlement HUD timber drops. Requires a running database (`pnpm run dev` or `pnpm run dev:db`), a published `city-builder` database (`pnpm run deploy:local`), and Playwright Chromium (`pnpm exec playwright install chromium`).
 - GitHub Actions CI runs contract tests, client build, `cargo check`, `cargo test`, and the browser smoke job against a local SpacetimeDB instance.
 - `npm run test:lodge-logistics` runs a standalone script validating firewood delivery routing logic.
 - `npm run test:fishing` validates fish world placement, dry-land camp placement, storage, residence food claims, icon treatment, finite population harvesting, protected-stock caps, spring reproduction, winter freeze, extinction, population-scaled school visuals, and the rigged swimming/flop animation asset.

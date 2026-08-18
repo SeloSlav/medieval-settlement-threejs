@@ -3,8 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.19.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently --kill-others --names spacetimedb,client --prefix-colors magenta,cyan \"node scripts/startSpacetimeDB.mjs\" \"vite --host 127.0.0.1 --port 5173 --strictPort\"",
+    "dev:db": "node scripts/startSpacetimeDB.mjs",
+    "dev:client": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc && vite build",
     "build:e2e": "tsc && vite build --mode e2e",
     "build:visual-gauntlet": "tsc && vite build --mode visual-gauntlet",
@@ -196,6 +199,7 @@
   "devDependencies": {
     "@playwright/test": "^1.55.0",
     "@types/three": "^0.185.1",
+    "concurrently": "^9.2.1",
     "tsx": "^4.20.3",
     "typescript": "^7.0.2",
     "vite": "^8.1.4"
