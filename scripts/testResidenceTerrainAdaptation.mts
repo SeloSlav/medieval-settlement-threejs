@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as THREE from 'three';
 import { BuildingTerrainLayout } from '../src/buildings/BuildingTerrainLayout.ts';
 import {
+  BurgageFencing,
   resolveResidenceFrontageGateway,
   sampleTerrainFenceBays,
 } from '../src/residences/BurgageFencing.ts';
@@ -75,6 +77,7 @@ for (let index = 0; index < bays.length; index++) {
 }
 
 testResidenceGatewaysStayOnFrontage();
+testReloadedResidenceFencesHaveRenderableInstances();
 testRoadHydrationResyncsTerrainFollowingFences();
 
 almostEqual(
@@ -163,6 +166,50 @@ function testRoadHydrationResyncsTerrainFollowingFences(): void {
     /hydratedState\.burgageZones\.values\(\)[\s\S]*hydratedState\.residences\.values\(\)[\s\S]*terrain\.getHeightAt/,
     'the refresh resync must rebuild saved plot fences at final terrain heights',
   );
+}
+
+function testReloadedResidenceFencesHaveRenderableInstances(): void {
+  const parent = new THREE.Group();
+  const fencing = new BurgageFencing(parent);
+  fencing.syncZones(
+    [{
+      id: 'saved-zone',
+      cornerA: { x: -12, z: -12 },
+      cornerB: { x: 12, z: -12 },
+      cornerC: { x: 12, z: 12 },
+      cornerD: { x: -12, z: 12 },
+      frontageEdge: 0,
+      plotCount: 2,
+    }],
+    [
+      { id: 'saved-residence-0', zoneId: 'saved-zone', parcelIndex: 0, x: -6, z: -5, yaw: 0 },
+      { id: 'saved-residence-1', zoneId: 'saved-zone', parcelIndex: 1, x: 6, z: -5, yaw: 0 },
+    ],
+    (x, z) => x * 0.03 + z * 0.02,
+  );
+
+  const root = parent.getObjectByName('Burgage fencing');
+  assert.ok(root, 'saved residence fencing should be attached after reconstruction');
+  const posts = root.getObjectByName('Fence posts') as THREE.InstancedMesh;
+  const rails = root.getObjectByName('Fence rails') as THREE.InstancedMesh;
+  const gates = root.getObjectByName('Frontage gate frames') as THREE.InstancedMesh;
+
+  assert.ok(posts.count > 0, 'saved residences must reconstruct perimeter posts');
+  assert.ok(rails.count > 0, 'saved residences must reconstruct perimeter rails');
+  assert.equal(gates.count, 6, 'two saved residences must reconstruct two three-timber gates');
+  for (const mesh of [posts, rails, gates]) {
+    assert.ok(
+      mesh.geometry.hasAttribute('color'),
+      `${mesh.name} must supply the vertex-color attribute required by its timber material`,
+    );
+    assert.equal(
+      mesh.geometry.getAttribute('color').count,
+      mesh.geometry.getAttribute('position').count,
+      `${mesh.name} vertex colors must cover every geometry vertex`,
+    );
+  }
+
+  fencing.dispose();
 }
 
 function testResidenceGatewaysStayOnFrontage(): void {

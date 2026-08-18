@@ -31,10 +31,18 @@ const GATE_POST_HEIGHT = 1.84;
 const GATE_POST_BURY_DEPTH = 0.22;
 const GATE_POST_WIDTH = 0.19;
 const GATE_LINTEL_HEIGHT = 1.62;
-const GATE_PEAK_HEIGHT = 2.08;
 const GATE_BEAM_WIDTH = 0.15;
 const GATE_BEAM_HEIGHT = 0.13;
 const LOCAL_RAIL_AXIS = new THREE.Vector3(0, 0, 1);
+
+function createFenceBoxGeometry(): THREE.BoxGeometry {
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const position = geometry.getAttribute('position');
+  const colors = new Float32Array(position.count * 3);
+  colors.fill(1);
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return geometry;
+}
 
 type FenceSegment = readonly [Point2, Point2];
 type FenceGateway = ResolvedParcelFenceOpening;
@@ -227,7 +235,7 @@ export class BurgageFencing {
     this.root.frustumCulled = false;
 
     this.posts = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 1, 1),
+      createFenceBoxGeometry(),
       this.postMaterial,
       MAX_POSTS,
     );
@@ -238,7 +246,7 @@ export class BurgageFencing {
     this.posts.receiveShadow = false;
 
     this.rails = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 1, 1),
+      createFenceBoxGeometry(),
       this.railMaterial,
       MAX_RAILS,
     );
@@ -249,11 +257,11 @@ export class BurgageFencing {
     this.rails.receiveShadow = false;
 
     this.gateTimbers = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(1, 1, 1),
+      createFenceBoxGeometry(),
       this.gateMaterial,
       MAX_GATE_TIMBERS,
     );
-    this.gateTimbers.name = 'Frontage gate arches';
+    this.gateTimbers.name = 'Frontage gate frames';
     this.gateTimbers.count = 0;
     this.gateTimbers.frustumCulled = false;
     this.gateTimbers.castShadow = false;
@@ -342,7 +350,7 @@ export class BurgageFencing {
 
     let gateTimberCount = 0;
     for (const gateway of terrainGateways) {
-      if (gateTimberCount + 5 > MAX_GATE_TIMBERS) break;
+      if (gateTimberCount + 3 > MAX_GATE_TIMBERS) break;
 
       gateTimberCount = this.setGatePost(
         gateTimberCount,
@@ -355,14 +363,6 @@ export class BurgageFencing {
         gateway.endGroundHeight,
       );
 
-      const averageGroundHeight = (
-        gateway.startGroundHeight + gateway.endGroundHeight
-      ) * 0.5;
-      const peak = new THREE.Vector3(
-        gateway.center.x,
-        averageGroundHeight + TERRAIN_LIFT + GATE_PEAK_HEIGHT,
-        gateway.center.z,
-      );
       const lintelStart = new THREE.Vector3(
         gateway.start.x,
         gateway.startGroundHeight + TERRAIN_LIFT + GATE_LINTEL_HEIGHT,
@@ -374,8 +374,6 @@ export class BurgageFencing {
         gateway.end.z,
       );
       gateTimberCount = this.setGateBeam(gateTimberCount, lintelStart, lintelEnd);
-      gateTimberCount = this.setGateBeam(gateTimberCount, lintelStart, peak);
-      gateTimberCount = this.setGateBeam(gateTimberCount, peak, lintelEnd);
     }
 
     this.posts.count = postCount;

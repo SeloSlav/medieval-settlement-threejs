@@ -1112,10 +1112,6 @@ export function settlementProvisionLevel(
   const winterRelevant = month >= 9 || month <= 2;
   if (
     provisioning.foodRunwayDays < PROVISION_CRITICAL_DAYS
-    || (
-      provisioning.roadBranches !== null
-      && provisioning.roadBranches.worstFoodRunwayDays < PROVISION_CRITICAL_DAYS
-    )
     || provisioning.guardProvisionRunwayDays < PROVISION_CRITICAL_DAYS
     || provisioning.guardWageRunwayDays < PROVISION_CRITICAL_DAYS
     || (
@@ -1124,27 +1120,13 @@ export function settlementProvisionLevel(
     )
     || (
       winterRelevant
-      && (
-        provisioning.winterFirewoodRunwayDays < PROVISION_CRITICAL_DAYS
-        || (
-          provisioning.roadBranches !== null
-          && provisioning.roadBranches.worstWinterFirewoodRunwayDays
-            < PROVISION_CRITICAL_DAYS
-        )
-      )
+      && provisioning.winterFirewoodRunwayDays < PROVISION_CRITICAL_DAYS
     )
   ) {
     return 'critical';
   }
   if (
     provisioning.foodRunwayDays < PROVISION_WARNING_DAYS
-    || (
-      provisioning.roadBranches !== null
-      && (
-        provisioning.roadBranches.worstFoodRunwayDays < PROVISION_WARNING_DAYS
-        || provisioning.roadBranches.foodUnservedBranches > 0
-      )
-    )
     || provisioning.guardProvisionRunwayDays < PROVISION_WARNING_DAYS
     || provisioning.guardWageRunwayDays < PROVISION_WARNING_DAYS
     || provisioning.unarmedGuards > 0
@@ -1154,17 +1136,7 @@ export function settlementProvisionLevel(
     )
     || (
       winterRelevant
-      && (
-        provisioning.winterFirewoodRunwayDays < WINTER_RESERVE_DAYS
-        || (
-          provisioning.roadBranches !== null
-          && (
-            provisioning.roadBranches.worstWinterFirewoodRunwayDays
-              < WINTER_RESERVE_DAYS
-            || provisioning.roadBranches.firewoodUnservedBranches > 0
-          )
-        )
-      )
+      && provisioning.winterFirewoodRunwayDays < WINTER_RESERVE_DAYS
     )
     || (
       provisioning.sabbathObserved

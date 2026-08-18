@@ -31,21 +31,14 @@ import {
   type SettlementSecurityState,
 } from '../security/frontierSecurity.ts';
 import {
-  formatHouseholdBufferReadiness,
   formatProvisionDays,
   formatProvisionRunway,
-  formatSabbathReadiness,
   HOUSEHOLD_BUFFER_WARNING_COVERAGE,
-  PROVISION_CRITICAL_DAYS,
   settlementProvisionLevel,
   shouldShowProvisioning,
   WINTER_RESERVE_DAYS,
   type SettlementProvisioning,
 } from '../economy/settlementProvisioning.ts';
-import {
-  formatFreshFoodLoss,
-  formatPreservedFoodLoss,
-} from '../economy/foodPreservation.ts';
 import type {
   SettlementApproval,
   SettlementApprovalFactor,
@@ -980,43 +973,20 @@ export class SettlementHud {
       && provisioning.sabbathReadyHouseholds < provisioning.sabbathHouseholds;
     const householdBuffersShort = provisioning.householdBufferHouseholds > 0
       && provisioning.householdBufferCoverage < HOUSEHOLD_BUFFER_WARNING_COVERAGE;
-    const roadFoodCritical = provisioning.roadBranches !== null
-      && provisioning.roadBranches.worstFoodRunwayDays < PROVISION_CRITICAL_DAYS;
-    const roadFuelCritical = winterRelevant
-      && provisioning.roadBranches !== null
-      && provisioning.roadBranches.worstWinterFirewoodRunwayDays
-        < PROVISION_CRITICAL_DAYS;
-    const roadBranchShort = roadFoodCritical
-      || roadFuelCritical
-      || (
-        provisioning.roadBranches !== null
-        && (
-          provisioning.roadBranches.foodWarningBranches > 0
-          || (
-            winterRelevant
-            && provisioning.roadBranches.winterFirewoodWarningBranches > 0
-          )
-        )
-      );
     this.provisionAlert.hidden = !show;
     this.provisionAlert.dataset.level = level;
     this.panel.classList.toggle('has-provision-warning', level === 'watch');
     this.panel.classList.toggle('has-provision-critical', level === 'critical');
 
     this.provisionLabel.textContent = level === 'critical'
-      ? roadFoodCritical || roadFuelCritical
-        ? '⚠ Isolated branch'
-        : '⚠ Provision shortage'
+      ? '⚠ Provision shortage'
       : sabbathShort
         ? 'Sunday stores'
         : householdBuffersShort
           ? 'Household buffers'
-          : roadBranchShort
-            ? 'Road-branch stores'
-            : winterRelevant
-              ? '❄ Winter stores'
-              : '⚖ Provision watch';
-    this.provisionAlert.dataset.tooltipTitle = this.provisionLabel.textContent;
+          : winterRelevant
+            ? '❄ Winter stores'
+            : '⚖ Provision watch';
     this.provisionDetail.textContent = [
       `food ${formatProvisionDays(provisioning.foodRunwayDays)}`,
       provisioning.heatedResidents > 0
@@ -1024,21 +994,6 @@ export class SettlementHud {
         : null,
       provisioning.householdBufferHouseholds > 0
         ? `homes ${provisioning.householdBufferReadyHouseholds}/${provisioning.householdBufferHouseholds}`
-        : null,
-      provisioning.roadBranches !== null
-        && (
-          provisioning.roadBranches.foodWarningBranches > 0
-          || provisioning.roadBranches.foodUnservedBranches > 0
-        )
-        ? `weakest branch food ${formatProvisionDays(provisioning.roadBranches.worstFoodRunwayDays)}`
-        : null,
-      winterRelevant
-        && provisioning.roadBranches !== null
-        && (
-          provisioning.roadBranches.winterFirewoodWarningBranches > 0
-          || provisioning.roadBranches.firewoodUnservedBranches > 0
-        )
-        ? `branch fuel ${formatProvisionDays(provisioning.roadBranches.worstWinterFirewoodRunwayDays)}`
         : null,
       provisioning.assignedGuards > 0
         ? `arms ${provisioning.armedGuards}/${provisioning.assignedGuards}`
@@ -1057,35 +1012,6 @@ export class SettlementHud {
         ? `fire quarantine ${provisioning.fireQuarantinedFoodStock.toFixed(0)} food/${provisioning.fireQuarantinedFirewoodStock.toFixed(0)} fuel`
         : null,
     ].filter(Boolean).join(' · ');
-
-    this.provisionAlert.dataset.tooltip = [
-      `${provisioning.foodConsumers} housed residents require ${provisioning.grossHouseholdFoodPerDay.toFixed(1)} meal-equivalent units per day; household cured rations currently displace ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)}, leaving ${provisioning.householdFoodPerDay.toFixed(1)} fresh-food demand.`,
-      provisioning.assignedGuards > 0
-        ? `${provisioning.armedGuards} / ${provisioning.assignedGuards} assigned guards are armed; ${provisioning.unarmedGuards} still need polearms.`
-        : 'No paid guard company is currently assigned.',
-      provisioning.armedGuards > 0
-        ? `Guardhouses hold ${Math.round(provisioning.guardFoodStock)} food; the first local company runs short in ${formatProvisionRunway(provisioning.guardProvisionRunwayDays)}. Wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day (${formatProvisionRunway(provisioning.guardWageRunwayDays)}).`
-        : 'No armed guard upkeep is currently due.',
-      provisioning.heatedResidents > 0
-        ? `A full winter needs about ${Math.ceil(provisioning.winterFirewoodNeed)} firewood at the current heated population.`
-        : 'Tier-one households do not yet require household firewood.',
-      provisioning.displacedHouseholds > 0
-        ? `${provisioning.displacedResidents} residents in ${provisioning.displacedHouseholds} fire-disabled homes are excluded from demand and household-buffer forecasts until recovery.`
-        : 'No occupied household is currently fire-disabled.',
-      provisioning.fireQuarantinedFoodStock > 0.05
-        || provisioning.fireQuarantinedFirewoodStock > 0.05
-        ? `Fire quarantine makes ${Math.round(provisioning.fireQuarantinedFoodStock)} food and ${Math.round(provisioning.fireQuarantinedFirewoodStock)} firewood temporarily inaccessible. Food in damaged buildings continues to spoil.`
-        : 'No provisions are currently quarantined by structural fire damage.',
-      `Fresh-food spoilage is currently ${formatFreshFoodLoss(provisioning.foodSpoilagePerDay)}; cured stores age by ${formatPreservedFoodLoss(provisioning.preservedFoodSpoilagePerDay)} among usable household and distributor stock.`,
-      `Local delivery buffer: ${formatHouseholdBufferReadiness(provisioning)}. Food, water, and provisions cover one workday; firewood covers the nightly no-cart interval.`,
-      provisioning.roadBranches === null
-        ? 'Road-branch provisioning is unavailable.'
-        : `Road-branch audit: ${provisioning.roadBranches.foodSuppliedBranches} / ${provisioning.roadBranches.activeBranches} occupied branches have a stocked fresh-food route; ${Math.round(provisioning.roadBranches.physicalFoodStock)} fresh and ${Math.round(provisioning.roadBranches.physicalPreservedFoodStock)} cured provisions give the weakest branch ${formatProvisionRunway(provisioning.roadBranches.worstFoodRunwayDays)} of fresh-food runway. ${provisioning.roadBranches.heatedBranches > 0 ? `${provisioning.roadBranches.firewoodSuppliedBranches} / ${provisioning.roadBranches.heatedBranches} heated branches have a fuel distributor; the weakest holds ${formatProvisionRunway(provisioning.roadBranches.worstWinterFirewoodRunwayDays)} at winter demand.` : 'No occupied home currently needs household fuel.'}`,
-      provisioning.sabbathObserved
-        ? `Sunday readiness: ${formatSabbathReadiness(provisioning)}. Labor and carts rest, but households keep consuming delivered provisions.`
-        : 'Sunday labor follows the normal schedule.',
-      'Guard food and household buffers use local stores. Fresh-food runways consume finite cured stock only at the current seasonal rotation, then return to gross meal demand when that reserve is exhausted. Headline runways use settlement-wide fire-accessible stock; road-branch runways count only household stocks, dispatch-capable stores, and cargo already arriving at a usable destination on that branch. Both assume no new production.',
-    ].join(' · ');
 
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
       ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`

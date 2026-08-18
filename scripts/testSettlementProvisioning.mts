@@ -110,13 +110,17 @@ assert.match(
 );
 assert.match(settlementHud, /Sunday stores/);
 assert.match(settlementHud, /Household buffers/);
-assert.match(settlementHud, /Local delivery buffer/);
-assert.match(settlementHud, /Road-branch audit/);
-assert.match(settlementHud, /weakest branch/);
-assert.match(settlementHud, /gross meal demand/);
-assert.match(settlementHud, /finite cured stock/);
 assert.match(settlementHud, /guard food/);
-assert.match(settlementHud, /first local company/);
+assert.doesNotMatch(
+  settlementHud,
+  /provisionAlert\.dataset\.tooltip/,
+  'the compact provisioning alert must not open a diagnostic tooltip',
+);
+assert.doesNotMatch(
+  settlementHud,
+  /Isolated branch|Road-branch stores|weakest branch|branch fuel/,
+  'road connectivity must not appear in the provisioning alert',
+);
 assert.match(chapelInspector, /stock them before Saturday night/);
 assert.match(guardhouseInspector, /Food endurance/);
 assert.match(guardhouseInspector, /PROVISION_WARNING_DAYS/);
@@ -471,8 +475,8 @@ assert.ok((splitBranches.roadBranches?.worstFoodRunwayDays ?? 99) <= 1.01);
 assert.equal(splitBranches.roadBranches?.firstExposedResidenceId, splitHome.id);
 assert.equal(
   settlementProvisionLevel(splitBranches, 7),
-  'critical',
-  'one day of local food must not be hidden by stock on another road component',
+  'ready',
+  'an isolated plot must not trigger the provisioning alert',
 );
 
 splitBranchState.deliveryTrips.set('split-food-cart', {
@@ -514,7 +518,7 @@ assert.equal(
   1,
   'one approaching load must count as stock without promising a repeatable route',
 );
-assert.equal(settlementProvisionLevel(splitWithArrival, 7), 'watch');
+assert.equal(settlementProvisionLevel(splitWithArrival, 7), 'ready');
 
 const curedBranchState = emptyGameState();
 const curedBranchHome = residence('cured-branch-home', 3, 5);
@@ -720,8 +724,8 @@ assert.equal(splitFuel.roadBranches?.firewoodUnservedHouseholds, 1);
 assert.ok((splitFuel.roadBranches?.worstWinterFirewoodRunwayDays ?? 99) < 1);
 assert.equal(
   settlementProvisionLevel(splitFuel, 10),
-  'critical',
-  'a remote fuel depot must not satisfy an isolated heated neighborhood',
+  'ready',
+  'an isolated heated plot must not trigger the provisioning alert',
 );
 
 const reconnectedFuel = computeSettlementProvisioning({
