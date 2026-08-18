@@ -20,6 +20,7 @@ import {
 import { isBuildingDetailShadowCaster } from '../src/buildings/buildingShadowProxy.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
+  FOUNDING_IRONWORK_VISUAL_SEGMENTS,
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
   stockpileVisualLevel,
@@ -58,6 +59,7 @@ import {
   STARTING_POPULATION,
 } from '../src/generated/gameBalance.ts';
 import { resolveWorldDimensions } from '../src/world/worldGenerationSettings.ts';
+import { BuildingMarkers } from '../src/buildings/BuildingMarkers.ts';
 
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), 'utf8');
@@ -78,11 +80,13 @@ assert.equal(mesh.name, "Founders' camp and open stockyard");
 const shelters = mesh.getObjectByName('FoundingShelters');
 const timber = mesh.getObjectByName('FoundingTimberStockpile');
 const stone = mesh.getObjectByName('FoundingStoneStockpile');
+const ironwork = mesh.getObjectByName('FoundingIronworkStockpile');
 const chest = mesh.getObjectByName('FoundingTreasuryChest');
 const campfire = mesh.getObjectByName(FOUNDERS_CAMPFIRE_NAME);
 assert.ok(shelters instanceof THREE.Group);
 assert.ok(timber instanceof THREE.Group);
 assert.ok(stone instanceof THREE.Group);
+assert.ok(ironwork instanceof THREE.Group);
 assert.ok(chest instanceof THREE.Group);
 assert.ok(campfire instanceof THREE.Group);
 const winterAccumulation: THREE.Object3D[] = [];
@@ -327,6 +331,11 @@ assert.deepEqual(
 assert.equal(
   stone.children.filter((child) => child.name === 'FoundingStoneSegment').length,
   FOUNDING_STONE_VISUAL_SEGMENTS,
+);
+assert.equal(
+  ironwork.children.filter((child) => child.name === 'FoundingIronworkSegment').length,
+  FOUNDING_IRONWORK_VISUAL_SEGMENTS,
+  'the persistent founding stockyard must model its large ironwork reserve',
 );
 assert.equal(
   stockpileVisualLevel(1, BUILDING_STORAGE_CAPS.founders_camp.timber, FOUNDING_TIMBER_VISUAL_SEGMENTS),
@@ -746,6 +755,46 @@ const breadCamp = {
   ...emptyClearedCamp,
   ryeBread: 17,
 } satisfies BuildingState;
+const remainingStores = {
+  ...clearedCamp,
+  timber: 0,
+  stone: 0,
+  ironwork: 8_973,
+  gold: 1_896,
+} satisfies BuildingState;
+const remainingStoresParent = new THREE.Group();
+const remainingStoresMarkers = new BuildingMarkers({
+  terrain: { getHeightAt: () => 0 } as never,
+  parent: remainingStoresParent,
+});
+remainingStoresMarkers.syncBuildings([remainingStores]);
+const remainingStoresMesh = remainingStoresParent.getObjectByName(
+  "Founders' camp and open stockyard",
+);
+assert.ok(remainingStoresMesh instanceof THREE.Group);
+assert.equal(
+  remainingStoresMesh.getObjectByName('FoundingShelters')?.visible,
+  false,
+  'rehousing the founders must remove only the lived-in shelter subtree',
+);
+assert.equal(
+  remainingStoresMesh.getObjectByName('FoundingTreasuryChest')?.visible,
+  true,
+  'gold left in a cleared founding stockyard must retain a visible lockbox',
+);
+const remainingIronwork = remainingStoresMesh.getObjectByName(
+  'FoundingIronworkStockpile',
+);
+assert.ok(remainingIronwork instanceof THREE.Group);
+assert.equal(remainingIronwork.visible, true);
+assert.equal(
+  remainingIronwork.children.filter(
+    (child) => child.name === 'FoundingIronworkSegment' && child.visible,
+  ).length,
+  FOUNDING_IRONWORK_VISUAL_SEGMENTS,
+  'near-capacity ironwork must remain visibly stored after the tents are struck',
+);
+remainingStoresMarkers.dispose();
 const foragersShed = {
   ...nearStorehouse,
   id: 'foragers-bread-fallback',

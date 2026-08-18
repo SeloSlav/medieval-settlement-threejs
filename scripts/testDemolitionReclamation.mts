@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { buildingUsesCompletedMesh } from '../src/buildings/buildingVisualState.ts';
 import {
   SALVAGE_GOODS_VISUAL_SEGMENTS,
   SALVAGE_STONE_VISUAL_SEGMENTS,
@@ -44,6 +45,15 @@ assert.equal(
   }),
   4,
   'reclaimed structural material should share the central-stock source class',
+);
+assert.equal(
+  buildingUsesCompletedMesh({
+    kind: 'salvage_pile',
+    constructionComplete: false,
+    fireRepairActive: false,
+  }),
+  true,
+  'a reclamation pile must never fall back to the scaffolded construction mesh',
 );
 
 const pile = createBuildingMesh('salvage_pile');

@@ -22,6 +22,7 @@ import {
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
+  FOUNDING_IRONWORK_VISUAL_SEGMENTS,
   HAYLOFT_VISUAL_SEGMENTS,
   CLOTH_STOCKPILE_VISUAL_SEGMENTS,
   FLAX_STOCKPILE_VISUAL_SEGMENTS,
@@ -84,6 +85,12 @@ export function buildingMarkerSignatures(
             building.stone,
             BUILDING_STORAGE_CAPS.founders_camp.stone,
             FOUNDING_STONE_VISUAL_SEGMENTS,
+          )
+        }:${
+          stockpileVisualLevel(
+            building.ironwork ?? 0,
+            BUILDING_STORAGE_CAPS.founders_camp.ironwork ?? 0,
+            FOUNDING_IRONWORK_VISUAL_SEGMENTS,
           )
         }:${building.gold > 1e-6 ? 1 : 0}`
         : '';

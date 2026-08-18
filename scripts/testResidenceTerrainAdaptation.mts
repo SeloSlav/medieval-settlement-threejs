@@ -79,6 +79,7 @@ for (let index = 0; index < bays.length; index++) {
 testResidenceGatewaysStayOnFrontage();
 testReloadedResidenceFencesHaveRenderableInstances();
 testRoadHydrationResyncsTerrainFollowingFences();
+testForestCompletionForcesFenceInstanceUpload();
 
 almostEqual(
   residenceFootprintHeightDelta(
@@ -168,24 +169,41 @@ function testRoadHydrationResyncsTerrainFollowingFences(): void {
   );
 }
 
+function testForestCompletionForcesFenceInstanceUpload(): void {
+  const appSource = readFileSync(new URL('../src/app/App.ts', import.meta.url), 'utf8');
+  const callbackStart = appSource.indexOf('private onForestReady(): void {');
+  const callbackEnd = appSource.indexOf('private readonly onResize', callbackStart);
+  assert.ok(callbackStart >= 0 && callbackEnd > callbackStart, 'forest-ready callback must exist');
+
+  const callback = appSource.slice(callbackStart, callbackEnd);
+  assert.match(
+    callback,
+    /this\.burgageFencing\?\.syncZones\([\s\S]*\{ forceInstanceUpload: true \},[\s\S]*\);/,
+    'the post-vegetation sync must force saved fence instance buffers back onto the renderer',
+  );
+}
+
 function testReloadedResidenceFencesHaveRenderableInstances(): void {
   const parent = new THREE.Group();
   const fencing = new BurgageFencing(parent);
+  const savedZones = [{
+    id: 'saved-zone',
+    cornerA: { x: -12, z: -12 },
+    cornerB: { x: 12, z: -12 },
+    cornerC: { x: 12, z: 12 },
+    cornerD: { x: -12, z: 12 },
+    frontageEdge: 0 as const,
+    plotCount: 2,
+  }];
+  const savedResidences = [
+    { id: 'saved-residence-0', zoneId: 'saved-zone', parcelIndex: 0, x: -6, z: -5, yaw: 0 },
+    { id: 'saved-residence-1', zoneId: 'saved-zone', parcelIndex: 1, x: 6, z: -5, yaw: 0 },
+  ];
+  const savedTerrainHeight = (x: number, z: number): number => x * 0.03 + z * 0.02;
   fencing.syncZones(
-    [{
-      id: 'saved-zone',
-      cornerA: { x: -12, z: -12 },
-      cornerB: { x: 12, z: -12 },
-      cornerC: { x: 12, z: 12 },
-      cornerD: { x: -12, z: 12 },
-      frontageEdge: 0,
-      plotCount: 2,
-    }],
-    [
-      { id: 'saved-residence-0', zoneId: 'saved-zone', parcelIndex: 0, x: -6, z: -5, yaw: 0 },
-      { id: 'saved-residence-1', zoneId: 'saved-zone', parcelIndex: 1, x: 6, z: -5, yaw: 0 },
-    ],
-    (x, z) => x * 0.03 + z * 0.02,
+    savedZones,
+    savedResidences,
+    savedTerrainHeight,
   );
 
   const root = parent.getObjectByName('Burgage fencing');
@@ -207,7 +225,37 @@ function testReloadedResidenceFencesHaveRenderableInstances(): void {
       mesh.geometry.getAttribute('position').count,
       `${mesh.name} vertex colors must cover every geometry vertex`,
     );
+    assert.equal(
+      mesh.instanceMatrix.usage,
+      THREE.DynamicDrawUsage,
+      `${mesh.name} must declare that its saved instances can be re-uploaded`,
+    );
   }
+
+  const versionsBeforeNoOpSync = [posts, rails, gates].map((mesh) => mesh.instanceMatrix.version);
+  fencing.syncZones(
+    savedZones,
+    savedResidences,
+    savedTerrainHeight,
+  );
+  assert.deepEqual(
+    [posts, rails, gates].map((mesh) => mesh.instanceMatrix.version),
+    versionsBeforeNoOpSync,
+    'an ordinary identical sync should retain the signature fast path',
+  );
+
+  fencing.syncZones(
+    savedZones,
+    savedResidences,
+    savedTerrainHeight,
+    { forceInstanceUpload: true },
+  );
+  [posts, rails, gates].forEach((mesh, index) => {
+    assert.ok(
+      mesh.instanceMatrix.version > versionsBeforeNoOpSync[index],
+      `${mesh.name} must be re-uploaded when startup requests a forced sync`,
+    );
+  });
 
   fencing.dispose();
 }

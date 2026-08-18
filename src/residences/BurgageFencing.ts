@@ -57,6 +57,15 @@ type TerrainFenceGateway = FenceGateway & {
   endGroundHeight: number;
 };
 
+export type BurgageFenceSyncOptions = {
+  /**
+   * Rewrites the instance buffers even when the authored fence layout is
+   * unchanged. Startup vegetation baking temporarily retargets the renderer,
+   * so the first playable scene needs one explicit upload afterwards.
+   */
+  forceInstanceUpload?: boolean;
+};
+
 type FencedResidence = {
   id: string;
   zoneId: string;
@@ -241,6 +250,7 @@ export class BurgageFencing {
     );
     this.posts.name = 'Fence posts';
     this.posts.count = 0;
+    this.posts.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.posts.frustumCulled = false;
     this.posts.castShadow = false;
     this.posts.receiveShadow = false;
@@ -252,6 +262,7 @@ export class BurgageFencing {
     );
     this.rails.name = 'Fence rails';
     this.rails.count = 0;
+    this.rails.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.rails.frustumCulled = false;
     this.rails.castShadow = false;
     this.rails.receiveShadow = false;
@@ -263,6 +274,7 @@ export class BurgageFencing {
     );
     this.gateTimbers.name = 'Frontage gate frames';
     this.gateTimbers.count = 0;
+    this.gateTimbers.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.gateTimbers.frustumCulled = false;
     this.gateTimbers.castShadow = false;
     this.gateTimbers.receiveShadow = false;
@@ -275,6 +287,7 @@ export class BurgageFencing {
     zones: Iterable<BurgageZoneState>,
     residences: Iterable<FencedResidence>,
     getHeightAt: (x: number, z: number) => number,
+    options: BurgageFenceSyncOptions = {},
   ): void {
     const { segments, gateways } = collectFenceLayout(zones, residences);
     const segmentBays = segments.map(([start, end]) => (
@@ -286,7 +299,7 @@ export class BurgageFencing {
       endGroundHeight: getHeightAt(gateway.end.x, gateway.end.z),
     }));
     const signature = fenceSignature(segmentBays, terrainGateways);
-    if (signature === this.lastSignature) return;
+    if (signature === this.lastSignature && !options.forceInstanceUpload) return;
     this.lastSignature = signature;
 
     let postCount = 0;

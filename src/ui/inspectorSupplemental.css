@@ -20,8 +20,6 @@
   padding: 0;
   display: grid;
   gap: 4px;
-  max-height: min(36vh, 220px);
-  overflow-y: auto;
 }
 
 .backyard-picker-row {

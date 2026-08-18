@@ -9,6 +9,7 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import {
+  FOUNDING_IRONWORK_VISUAL_SEGMENTS,
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
 } from '../buildingStockpileVisuals.ts';
@@ -1398,6 +1399,68 @@ function addStoneStock(parent: THREE.Group): void {
   parent.add(stockpile);
 }
 
+function addIronworkStock(parent: THREE.Group): void {
+  const stockpile = new THREE.Group();
+  stockpile.name = 'FoundingIronworkStockpile';
+  stockpile.visible = false;
+  stockpile.position.set(-5.8, 0, 1.45);
+  stockpile.rotation.y = -0.08;
+
+  for (let index = 0; index < FOUNDING_IRONWORK_VISUAL_SEGMENTS; index += 1) {
+    const segment = new THREE.Group();
+    segment.name = 'FoundingIronworkSegment';
+    const column = index % 3;
+    const row = Math.floor(index / 3);
+    segment.position.set((column - 1) * 1.02, 0, (row - 0.5) * 0.9);
+    segment.rotation.y = (column - 1) * 0.04 + (row === 0 ? -0.03 : 0.03);
+
+    const pallet = addMesh(
+      segment,
+      new THREE.BoxGeometry(0.94, 0.12, 0.72),
+      timberMaterial(index % 2 === 0 ? 'dark' : 'weathered'),
+      new THREE.Vector3(0, 0.08, 0),
+    );
+    pallet.name = 'Founding ironwork pallet';
+
+    const crate = addMesh(
+      segment,
+      new THREE.BoxGeometry(0.78, 0.48, 0.62),
+      timberMaterial(index % 3 === 0 ? 'mid' : 'weathered'),
+      new THREE.Vector3(0, 0.38, 0),
+    );
+    crate.name = 'Founding ironwork fittings crate';
+
+    for (const x of [-0.3, 0.3]) {
+      const band = addMesh(
+        segment,
+        new THREE.BoxGeometry(0.07, 0.52, 0.66),
+        metalMaterial('iron'),
+        new THREE.Vector3(x, 0.39, 0),
+      );
+      band.name = 'Founding ironwork crate band';
+    }
+
+    for (let fitting = 0; fitting < 3; fitting += 1) {
+      const bar = addMesh(
+        segment,
+        new THREE.BoxGeometry(0.48, 0.1, 0.11),
+        metalMaterial(fitting === 1 ? 'steel' : 'iron'),
+        new THREE.Vector3(
+          (fitting - 1) * 0.08,
+          0.7 + fitting * 0.07,
+          (fitting - 1) * 0.16,
+        ),
+        new THREE.Euler(0, fitting % 2 === 0 ? -0.28 : 0.24, 0),
+      );
+      bar.name = 'Founding ironwork visible fitting';
+    }
+
+    stockpile.add(segment);
+  }
+
+  parent.add(stockpile);
+}
+
 function addTreasuryChest(parent: THREE.Group): void {
   const chest = new THREE.Group();
   chest.name = 'FoundingTreasuryChest';
@@ -1696,6 +1759,7 @@ export function createFoundersCampMesh(): THREE.Group {
   addFoundersCampWinterAccumulation(shelters);
   addTimberStock(group);
   addStoneStock(group);
+  addIronworkStock(group);
   addTreasuryChest(group);
   group.traverse((object) => {
     const mesh = object as THREE.Mesh;

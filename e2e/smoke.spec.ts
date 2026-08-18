@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { RESOURCE_COST_KINDS } from '../src/ui/resourceCost.ts';
 
 const STARTING_TIMBER = 160;
 const REFORESTER_TIMBER_COST = 35;
@@ -39,6 +40,41 @@ test('gives rye, oat, and maslin bread distinct provision icons', async ({ page 
   }
 
   expect(new Set(foodCardIcons).size).toBe(3);
+});
+
+test('gives every stored item an icon and keeps the four crop sheaves distinct', async ({ page }) => {
+  await page.setContent(RESOURCE_COST_KINDS.map((resource) => `
+    <div class="resource-cost__item" data-resource-cost="${resource}">
+      <span class="resource-cost__icon"></span>
+    </div>
+  `).join(''));
+  await page.addStyleTag({ path: 'src/ui/iconography.css' });
+
+  const iconImages = await page.locator('.resource-cost__item').evaluateAll((elements) => (
+    Object.fromEntries(elements.map((element) => {
+      const resource = (element as HTMLElement).dataset.resourceCost!;
+      const icon = element.querySelector<HTMLElement>('.resource-cost__icon')!;
+      return [resource, getComputedStyle(icon).backgroundImage];
+    }))
+  ));
+
+  expect(
+    Object.entries(iconImages)
+      .filter(([, backgroundImage]) => backgroundImage === 'none')
+      .map(([resource]) => resource),
+  ).toEqual([]);
+
+  const expectedSheafIcons = {
+    ryeSheaves: 'rye-sheaves.png',
+    oatSheaves: 'oat-sheaves.png',
+    barleySheaves: 'barley-sheaves.png',
+    maslinSheaves: 'maslin-sheaves.png',
+  } as const;
+  const sheafImages = Object.entries(expectedSheafIcons).map(([resource, filename]) => {
+    expect(iconImages[resource]).toContain(filename);
+    return iconImages[resource];
+  });
+  expect(new Set(sheafImages).size).toBe(4);
 });
 
 test('keeps at least three specialty digits visible before truncation', async ({ page }) => {

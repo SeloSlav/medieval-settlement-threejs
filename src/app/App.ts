@@ -832,6 +832,10 @@ export class App {
       this.gameState.burgageZones.values(),
       this.gameState.residences.values(),
       (x, z) => this.sceneManager?.terrain.getHeightAt(x, z) ?? 0,
+      // SeedThree temporarily retargets the renderer while baking vegetation.
+      // Re-upload saved fence instances even when their layout signature did
+      // not change; a later residence placement must not be what revives them.
+      { forceInstanceUpload: true },
     );
     this.syncForestClearance();
     this.buildingTool?.invalidatePreview();

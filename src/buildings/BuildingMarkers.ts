@@ -6,6 +6,7 @@ import {
   FIRE_SPREAD_RADIUS,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
   STARTING_GOLD,
+  STARTING_IRONWORK,
   STARTING_STONE,
   STARTING_TIMBER,
 } from '../generated/gameBalance.ts';
@@ -70,6 +71,7 @@ import { buildingUsesCompletedMesh } from './buildingVisualState.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
+  FOUNDING_IRONWORK_VISUAL_SEGMENTS,
   SALVAGE_GOODS_VISUAL_CAPACITY,
   SALVAGE_STONE_VISUAL_CAPACITY,
   SALVAGE_TIMBER_VISUAL_CAPACITY,
@@ -925,7 +927,7 @@ export class BuildingMarkers {
     } else {
       this.shadowProxyBatch.remove(building.id);
     }
-    if (operational) {
+    if (operational || building.kind === 'salvage_pile') {
       syncBuildingVisualState(marker, building, herd, issuedGuardPolearms);
     }
     if (
@@ -1050,8 +1052,18 @@ function syncBuildingVisualState(
     }
     const chest = marker.getObjectByName('FoundingTreasuryChest');
     if (chest) chest.visible = building.gold > 1e-6;
+    const ironwork = marker.getObjectByName('FoundingIronworkStockpile');
+    if (ironwork instanceof THREE.Group) {
+      syncStockpileSegments(
+        ironwork,
+        'FoundingIronworkSegment',
+        building.ironwork ?? 0,
+        BUILDING_STORAGE_CAPS.founders_camp.ironwork ?? 0,
+      );
+    }
     marker.userData.foundingTimberSegments = FOUNDING_TIMBER_VISUAL_SEGMENTS;
     marker.userData.foundingStoneSegments = FOUNDING_STONE_VISUAL_SEGMENTS;
+    marker.userData.foundingIronworkSegments = FOUNDING_IRONWORK_VISUAL_SEGMENTS;
   }
   if (building.kind === 'town_hall') {
     const chest = marker.getObjectByName('TownHallTreasuryChest');
@@ -1368,6 +1380,15 @@ function syncInitialFoundersCampVisualState(marker: THREE.Group): void {
   }
   const chest = marker.getObjectByName('FoundingTreasuryChest');
   if (chest) chest.visible = STARTING_GOLD > 1e-6;
+  const ironwork = marker.getObjectByName('FoundingIronworkStockpile');
+  if (ironwork instanceof THREE.Group) {
+    syncStockpileSegments(
+      ironwork,
+      'FoundingIronworkSegment',
+      STARTING_IRONWORK,
+      BUILDING_STORAGE_CAPS.founders_camp.ironwork ?? 0,
+    );
+  }
   refreshBuildingDetailCasterBatches(marker);
 }
 
@@ -1391,6 +1412,15 @@ function foundersCampMatchesInitialVisualState(building: BuildingState): boolean
       STARTING_STONE,
       BUILDING_STORAGE_CAPS.founders_camp.stone,
       FOUNDING_STONE_VISUAL_SEGMENTS,
+    )
+    && stockpileVisualLevel(
+      building.ironwork ?? 0,
+      BUILDING_STORAGE_CAPS.founders_camp.ironwork ?? 0,
+      FOUNDING_IRONWORK_VISUAL_SEGMENTS,
+    ) === stockpileVisualLevel(
+      STARTING_IRONWORK,
+      BUILDING_STORAGE_CAPS.founders_camp.ironwork ?? 0,
+      FOUNDING_IRONWORK_VISUAL_SEGMENTS,
     )
     && (building.gold > 1e-6) === (STARTING_GOLD > 1e-6);
 }
