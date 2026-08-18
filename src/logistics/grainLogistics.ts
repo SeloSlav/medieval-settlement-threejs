@@ -114,8 +114,8 @@ const GRAIN_DUTY_RANK: Record<GrainDispatchDuty, number> = {
 };
 
 /**
- * Mirrors farmstead dispatch: higher-priority processors first, then their
- * lowest runway; central reserve follows, with full workshop warehouses used
+ * Mirrors farmstead dispatch: processors with the lowest runway first;
+ * central reserve follows, with full workshop warehouses used
  * only when no granary has room.
  */
 export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
@@ -202,8 +202,8 @@ export function selectGrainDispatchTarget<T extends GrainDestinationLike>(
 
 /**
  * Mirrors assigned granary-hauler dispatch. Only processors below their working buffer
- * are eligible; work priority wins first, then the least cycle runway, route
- * distance, and stable id. Multiple granaries skip targets that already have
+ * are eligible; least cycle runway, route distance, and stable id decide.
+ * Multiple granaries skip targets that already have
  * an inbound grain cart.
  */
 export function selectGrainProcessorTarget<T extends GrainDestinationLike>(

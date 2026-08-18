@@ -1,6 +1,7 @@
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::building_defs::building_def;
+use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::{available_building_labor, building_edible_food_stock};
 use crate::farming::{
@@ -194,7 +195,7 @@ fn call_up_active_seasonal_labor_for_owner_with_reserve(
         }
         candidates.push(SeasonalCallupCandidate {
             building_id: building.id,
-            priority: building.construction_priority,
+            priority: CONSTRUCTION_PRIORITY_NORMAL,
             assigned_labor: building.assigned_labor,
             max_labor: def.max_labor,
         });

@@ -10,7 +10,7 @@ use super::owner_has_staffed_town_hall;
 
 /// A conservative two-step production rotation: surplus workers leave
 /// genuinely stalled sites first, then the enlarged free pool fills supplied
-/// or recovering, capacity-open sites by staffing priority. The explicit
+/// or recovering, capacity-open sites fairly in stable worksite order. The explicit
 /// player order remains free to pre-staff an empty chain.
 pub fn reconcile_target_production_labor_for_owner(
     ctx: &ReducerContext,

@@ -295,8 +295,8 @@ const charcoalTarget = selectDirectProcessorInputTarget(
 );
 assert.equal(
   charcoalTarget?.target.id,
-  highPriorityFarSmithy.id,
-  'forge-fuel carts must expose work priority as a real production decision',
+  lowPriorityNearSmithy.id,
+  'forge-fuel carts must ignore legacy completed-building priority and use route order after runway',
 );
 assert.equal(charcoalTarget?.desiredStock, SMITHY_CHARCOAL_PER_CYCLE * 3);
 

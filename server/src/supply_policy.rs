@@ -210,13 +210,10 @@ pub fn grain_input_runway_cycles(kind: &str, stock: f64, productivity: f64) -> f
     }
 }
 
-/// Completed-building priorities share the construction column for additive
-/// save compatibility. Invalid legacy values fall back to the normal tier.
-pub fn grain_work_priority(priority: u8) -> u8 {
-    match priority {
-        1..=3 => priority,
-        _ => 2,
-    }
+/// Legacy completed-building values are neutralized so construction intent
+/// cannot affect operating cart routes.
+pub fn grain_work_priority(_priority: u8) -> u8 {
+    2
 }
 
 pub fn compare_grain_dispatch_candidates(
@@ -620,8 +617,8 @@ pub fn local_material_dispatch_target(
 }
 
 /// Direct producer carts first restore operating processors to a small working
-/// buffer. Within that duty, completed-building work priority wins before
-/// input preference, cycle runway, road distance, and stable building id.
+/// buffer. Within that duty, input preference, cycle runway, road distance,
+/// and stable building id decide.
 /// Once every active buffer is covered, central flour storage wins before
 /// ordinary nearest-route workshop overflow behavior resumes.
 pub fn compare_processor_input_dispatch_candidates(
@@ -973,21 +970,21 @@ mod tests {
     }
 
     #[test]
-    fn institutional_food_honors_priority_runway_and_route_within_a_duty() {
+    fn institutional_food_ignores_legacy_priority_then_uses_runway_and_route() {
         let duty = InstitutionalFoodDispatchDuty::PreservationBuffer;
         assert_eq!(
             compare_institutional_food_dispatch_candidates(
                 duty, 3, 2.0, 500.0, 9, 90, duty, 2, 0.0, 5.0, 1, 1,
             ),
-            Ordering::Less,
-            "selected work priority must lead before runway and route"
+            Ordering::Greater,
+            "legacy completed-building priority must not override runway"
         );
         assert_eq!(
             compare_institutional_food_dispatch_candidates(
                 duty, 2, 0.5, 500.0, 9, 90, duty, 2, 1.0, 5.0, 1, 1,
             ),
             Ordering::Less,
-            "lowest runway must lead within an equal priority"
+            "lowest runway must lead"
         );
         assert_eq!(
             compare_institutional_food_dispatch_candidates(
@@ -1089,8 +1086,8 @@ mod tests {
         assert_eq!(grain_input_runway_cycles("watermill", 6.0, 1.0), 2.0);
         assert_eq!(grain_input_runway_cycles("monastery", 1.8, 0.45), 2.0);
         assert_eq!(grain_work_priority(0), 2);
-        assert_eq!(grain_work_priority(1), 1);
-        assert_eq!(grain_work_priority(3), 3);
+        assert_eq!(grain_work_priority(1), 2);
+        assert_eq!(grain_work_priority(3), 2);
         assert_eq!(grain_work_priority(4), 2);
     }
 
@@ -1363,7 +1360,7 @@ mod tests {
             |candidate| candidate.0,
         )
         .expect("a direct processor-input destination should be selected");
-        assert_eq!(selected.0, 99_999);
+        assert_eq!(selected.0, 99_995);
         assert!(
             started.elapsed() < Duration::from_millis(100),
             "100k direct input candidates should remain a one-pass selection"
@@ -1436,7 +1433,7 @@ mod tests {
     }
 
     #[test]
-    fn granary_grain_prioritizes_processor_work_then_runway() {
+    fn granary_grain_ignores_legacy_priority_then_uses_runway() {
         assert_eq!(
             compare_grain_dispatch_candidates(
                 2,
@@ -1462,8 +1459,8 @@ mod tests {
                 10.0,
                 1,
             ),
-            Ordering::Less,
-            "work priority outranks processor runway during scarcity"
+            Ordering::Greater,
+            "legacy completed-building priority must not override processor runway"
         );
     }
 

@@ -1,6 +1,8 @@
 use crate::construction_priority::{
-    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
+    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL,
 };
+#[cfg(test)]
+use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 use crate::foraging_policy::harvest_available;
 use crate::specialty_trade_policy::{apiary_is_active, vineyard_is_harvesting};
 
@@ -12,13 +14,8 @@ pub struct SeasonalCallupCandidate {
     pub max_labor: u32,
 }
 
-fn normalize_staffing_priority(priority: u8) -> u8 {
-    match priority {
-        CONSTRUCTION_PRIORITY_LOW | CONSTRUCTION_PRIORITY_NORMAL | CONSTRUCTION_PRIORITY_URGENT => {
-            priority
-        }
-        _ => CONSTRUCTION_PRIORITY_NORMAL,
-    }
+fn normalize_staffing_priority(_priority: u8) -> u8 {
+    CONSTRUCTION_PRIORITY_NORMAL
 }
 
 pub fn is_seasonal_labor_kind(kind: &str) -> bool {
@@ -64,10 +61,9 @@ pub fn seasonal_labor_target(
     Some(0)
 }
 
-/// Distributes free labor to active seasonal sites by staffing priority.
-/// Within each tier, one worker goes to every site before any site receives a
-/// second worker, preventing the first farm or harvest camp from monopolizing
-/// a scarce seasonal crew.
+/// Distributes free labor to active seasonal sites. In stable worksite order,
+/// one worker goes to every site before any site receives a second worker,
+/// preventing the first farm or harvest camp from monopolizing a scarce crew.
 pub fn seasonal_callup_targets(
     candidates: &[SeasonalCallupCandidate],
     available_labor: u32,
@@ -193,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn callup_fills_high_priority_sites_before_lower_tiers() {
+    fn callup_ignores_legacy_priority_and_round_robins_stably() {
         let targets = seasonal_callup_targets(
             &[
                 SeasonalCallupCandidate {
@@ -217,7 +213,7 @@ mod tests {
             ],
             3,
         );
-        assert_eq!(targets, vec![(20, 2), (30, 1)]);
+        assert_eq!(targets, vec![(10, 1), (20, 1), (30, 1)]);
     }
 
     #[test]

@@ -21,7 +21,6 @@ import {
   formatPreservedFoodLoss,
 } from '../../economy/foodPreservation.ts';
 import { formatProvisionRunway } from '../../economy/settlementProvisioning.ts';
-import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 import { weaverFibreDeliveryPreferenceLabel } from '../../economy/weaverInputPolicy.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
@@ -225,7 +224,7 @@ export function renderLivestockBuildingInspector(
     ? 'No wool stored'
     : nextWoolDispatch
       ? nextWoolDispatch.duty === 'working-buffer'
-        ? `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · ${staffingPriorityLabel(nextWoolDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(nextWoolDispatch.target.weaverInputPolicy, 'wool')} · ${Math.round(nextWoolDispatch.target.wool ?? 0)} / ${Math.ceil(nextWoolDispatch.desiredStock)} wool`
+        ? `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · ${weaverFibreDeliveryPreferenceLabel(nextWoolDispatch.target.weaverInputPolicy, 'wool')} · ${Math.round(nextWoolDispatch.target.wool ?? 0)} / ${Math.ceil(nextWoolDispatch.desiredStock)} wool`
         : `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · active buffers covered · nearest overflow route`
       : 'No weaver can currently receive wool';
   const dairySaltEmpty = Boolean(
@@ -409,7 +408,7 @@ export function renderLivestockBuildingInspector(
     : `<li><span>Cheese salt</span><span>${Math.round(fodderPlan.dairySaltStock)} onsite${inboundSalt > 0.001 ? ` + ${Math.round(inboundSalt)} inbound` : ''} / ${Math.ceil(fodderPlan.dairySaltTarget)} working target · ${renderResourceAmount('salt', fodderPlan.dairySaltPerDay, { compact: true, suffix: '/day' })} at current herd and staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
       <li><span>Salt logistics</span><span>${inboundSalt > 0.001
         ? `Salt cart ${formatTripPhaseLabel(inboundTrip!.phase).toLowerCase()} from ${context.worldQueries.getBuildingLabel(context.worldQueries.getBuilding(inboundTrip!.buildingId)?.kind ?? 'marketplace')}`
-        : 'Road-linked mine or marketplace carts share salt between smokehouses and pastoral holdings by work priority and runway'} · empty salt stops farmhouse cheese, not fresh milk or herd care</span></li>`;
+        : 'Road-linked mine or marketplace carts share salt between smokehouses and pastoral holdings by runway and road distance'} · empty salt stops farmhouse cheese, not fresh milk or herd care</span></li>`;
 
   return {
     eyebrow: 'Livestock holding',

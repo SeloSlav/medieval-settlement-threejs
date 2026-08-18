@@ -5,9 +5,7 @@ use crate::balance_generated::{
     MILL_WATER_PER_HARVEST, POTTER_WATER_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
     WEAVER_FLAX_WATER_PER_CYCLE, WELL_BASE_REFILL_PER_SEC, WELL_MINIMUM_REFILL_HYDROLOGY,
 };
-use crate::construction_priority::{
-    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
-};
+use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::processor_output_policy::processor_input_staging_cycles;
 use crate::weaver_input_policy::weaver_fibre_delivery_preference_rank;
 
@@ -37,7 +35,7 @@ pub fn industrial_water_requirement(building_kind: &str) -> f64 {
 
 /// Loom fibre policy doubles as its water-cart preference because only the
 /// flax route consumes water. Other wet workshops and automatic looms occupy
-/// the neutral middle tier; explicit building work priority still wins first.
+/// the neutral middle tier.
 pub fn industrial_water_input_preference_rank(building_kind: &str, weaver_input_policy: u8) -> u8 {
     if building_kind == "weaver" {
         weaver_fibre_delivery_preference_rank(weaver_input_policy, true)
@@ -46,13 +44,8 @@ pub fn industrial_water_input_preference_rank(building_kind: &str, weaver_input_
     }
 }
 
-fn normalized_work_priority(priority: u8) -> u8 {
-    match priority {
-        CONSTRUCTION_PRIORITY_LOW | CONSTRUCTION_PRIORITY_NORMAL | CONSTRUCTION_PRIORITY_URGENT => {
-            priority
-        }
-        _ => CONSTRUCTION_PRIORITY_NORMAL,
-    }
+fn normalized_work_priority(_priority: u8) -> u8 {
+    CONSTRUCTION_PRIORITY_NORMAL
 }
 
 /// Workshop wells stage the same number of production cycles selected by the
@@ -180,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn industrial_water_honors_work_priority_before_runway() {
+    fn industrial_water_ignores_legacy_priority_before_input_policy_and_runway() {
         let selected = select_industrial_water_candidate([
             IndustrialWaterCandidate {
                 building_id: 8,
@@ -198,7 +191,7 @@ mod tests {
             },
         ])
         .expect("a valid workshop should be selected");
-        assert_eq!(selected.building_id, 8);
+        assert_eq!(selected.building_id, 7);
     }
 
     #[test]

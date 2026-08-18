@@ -21,17 +21,17 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { RoadSpatialIndex } from '../roads/roadSpatialIndex.ts';
 import { isPointInPolygon2, type Point2 } from '../utils/polygonGeometry.ts';
 import {
-  createForestCores,
-  createForestSpawnConfig,
-  forestDensityAt,
   isInsidePlayableExtent,
   mulberry32,
 } from '../props/forestField.ts';
+import { sampleTerrainMeshAttributeX } from '../terrain/TerrainMeshHeight.ts';
 import {
   GRASS_BLADE_CHUNK_SIZE,
   GRASS_BLADE_NEAR_RADIUS,
   GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
   GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+  grassMicroTuftTargetForForestBlend,
+  grassTuftTargetForForestBlend,
   GRASS_STREAM_CHUNK_RADIUS,
   GRASS_TUFT_SCATTER_ATTEMPTS,
   GRASS_TUFTS_PER_CHUNK,
@@ -132,8 +132,6 @@ const hiddenMatrix = new THREE.Matrix4().compose(
 type GrassFieldContext = {
   terrain: Terrain;
   extent: number;
-  terrainExtent: number;
-  forestCores: ReturnType<typeof createForestCores>;
   isBlockedAt?: (x: number, z: number) => boolean;
   placementClearancePolygons: Point2[][];
   roadSpatialIndex: RoadSpatialIndex | null;
@@ -207,12 +205,15 @@ export async function createGrassBladeField(
     return createDisabledGrassBladeField();
   }
 
-  const spawnConfig = createForestSpawnConfig(terrain.generationSize, terrain.size);
+  const generationSize = Number.isFinite(terrain.generationSize)
+    ? terrain.generationSize
+    : Math.min(
+        terrain.bounds.maxX - terrain.bounds.minX,
+        terrain.bounds.maxZ - terrain.bounds.minZ,
+      );
   const context: GrassFieldContext = {
     terrain,
-    extent: spawnConfig.extent,
-    terrainExtent: spawnConfig.terrainExtent,
-    forestCores: createForestCores(mulberry32(0x6a55b1ade), spawnConfig),
+    extent: generationSize * 0.5,
     isBlockedAt: options?.isBlockedAt,
     placementClearancePolygons: [],
     roadSpatialIndex: null,
@@ -901,6 +902,25 @@ const writeEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const writeColor = new THREE.Color();
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
+function sampleForestFloorBlend(
+  context: GrassFieldContext,
+  x: number,
+  z: number,
+): number {
+  return THREE.MathUtils.clamp(
+    sampleTerrainMeshAttributeX(
+      context.terrain.mesh.geometry,
+      'forestBlend',
+      x,
+      z,
+      context.terrain.resolution,
+      context.terrain.size,
+    ),
+    0,
+    1,
+  );
+}
+
 function* generateSeedThreeSlotInstances(
   streamMeshes: GrassStreamMesh[],
   request: PendingSlot,
@@ -947,7 +967,7 @@ function* generateSeedThreeChunkInstances(
   context: GrassFieldContext,
   maxInstancesPerMesh = Number.POSITIVE_INFINITY,
 ): Generator<number, GeneratedGrassInstance[][], void> {
-  const { terrain, extent, terrainExtent, forestCores, roadSpatialIndex } = context;
+  const { terrain, extent, roadSpatialIndex } = context;
   const rng = mulberry32(chunkSeed(chunkX, chunkZ));
   const chunkMinX = chunkX * GRASS_BLADE_CHUNK_SIZE;
   const chunkMinZ = chunkZ * GRASS_BLADE_CHUNK_SIZE;
@@ -968,7 +988,18 @@ function* generateSeedThreeChunkInstances(
   const localPlacements: { x: number; z: number; micro: boolean }[] = [];
   let standardPlacementCount = 0;
   let microPlacementCount = 0;
-  const tuftTarget = GRASS_TUFTS_PER_CHUNK + Math.floor(rng() * 14);
+  const baseTuftTarget = GRASS_TUFTS_PER_CHUNK + Math.floor(rng() * 14);
+  const chunkCenterX = chunkMinX + chunkSpan * 0.5;
+  const chunkCenterZ = chunkMinZ + chunkSpan * 0.5;
+  const forestSampleOffset = chunkSpan * 0.25;
+  const chunkForestBlend = (
+    sampleForestFloorBlend(context, chunkCenterX, chunkCenterZ)
+    + sampleForestFloorBlend(context, chunkCenterX - forestSampleOffset, chunkCenterZ - forestSampleOffset)
+    + sampleForestFloorBlend(context, chunkCenterX + forestSampleOffset, chunkCenterZ - forestSampleOffset)
+    + sampleForestFloorBlend(context, chunkCenterX - forestSampleOffset, chunkCenterZ + forestSampleOffset)
+    + sampleForestFloorBlend(context, chunkCenterX + forestSampleOffset, chunkCenterZ + forestSampleOffset)
+  ) / 5;
+  const tuftTarget = grassTuftTargetForForestBlend(baseTuftTarget, chunkForestBlend);
 
   const tryPlaceTuft = (micro: boolean): boolean => {
     if (instancesByMesh.every((instances) => instances.length >= maxInstancesPerMesh)) {
@@ -1007,13 +1038,7 @@ function* generateSeedThreeChunkInstances(
     const entry = streamMeshes[variantIndex];
     if (!entry?.variant || instancesByMesh[variantIndex]!.length >= maxInstancesPerMesh) return false;
 
-    const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
-    if (!micro) {
-      if (density > 0.62 && rng() > 0.42) return false;
-      if (density > 0.42 && rng() > 0.68) return false;
-    } else if (density > 0.48 && rng() > 0.55) {
-      return false;
-    }
+    const density = sampleForestFloorBlend(context, x, z);
 
     localPlacements.push({ x, z, micro });
     if (micro) microPlacementCount += 1;
@@ -1049,11 +1074,14 @@ function* generateSeedThreeChunkInstances(
     yield tryPlaceTuft(false) ? 1 : 0;
   }
 
-  // Fine underfill closes the remaining gaps between the taller silhouettes.
-  // 192 full tufts plus this cohort is approximately 2.35x the previous
-  // 96 + 42% close-meadow population, with the extra density concentrated in
-  // short silhouettes that close soil gaps without making the field too tall.
-  const microTarget = Math.floor(tuftTarget * 0.7);
+  // Fine underfill closes remaining meadow gaps with shorter, thinner geometry.
+  // It fades out with the terrain forest mask so woodland keeps visible soil.
+  // In open terrain, 192 full tufts plus this cohort is approximately 2.35x
+  // the previous 96 + 42% close-meadow population.
+  const microTarget = grassMicroTuftTargetForForestBlend(
+    tuftTarget,
+    chunkForestBlend,
+  );
   for (
     let attempt = 0;
     attempt < GRASS_TUFT_SCATTER_ATTEMPTS && microPlacementCount < microTarget;
@@ -1073,7 +1101,7 @@ function* generateSeedThreeWildflowerChunkInstances(
   context: GrassFieldContext,
   maxInstances: number,
 ): Generator<number, GeneratedWildflowerInstance[], void> {
-  const { terrain, extent, terrainExtent, forestCores, roadSpatialIndex } = context;
+  const { terrain, extent, roadSpatialIndex } = context;
   if (!entry.wildflowers || !entry.anchorAttr) return [];
 
   const seed = (chunkSeed(chunkX, chunkZ) ^ 0x7f4a7c15) >>> 0;
@@ -1185,13 +1213,8 @@ function* generateSeedThreeWildflowerChunkInstances(
         if (isGrassPlacementBlocked(x, z, context)) continue;
         if (isGrassNearAnyRoad(x, z, roadSpatialIndex)) continue;
 
-        const density = forestDensityAt(x, z, forestCores, extent, terrainExtent);
-        const habitatChance =
-          density < 0.1
-            ? 0.86
-            : density < 0.68
-              ? 1
-              : THREE.MathUtils.lerp(0.72, 0.28, THREE.MathUtils.smoothstep(density, 0.68, 1));
+        const density = sampleForestFloorBlend(context, x, z);
+        const habitatChance = THREE.MathUtils.lerp(0.86, 0.12, density);
         if (rng() > habitatChance) continue;
 
         localPlacements.push({ x, z, variantIndex: cohort.variantIndex });

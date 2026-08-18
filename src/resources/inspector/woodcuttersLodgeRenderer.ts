@@ -39,7 +39,6 @@ import {
   timberAboveWoodcutterReserve,
   WOODCUTTER_TIMBER_RESERVE_PRESETS,
 } from '../../economy/woodcutterPolicy.ts';
-import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 import { renderResourceCost } from '../../ui/resourceCost.ts';
 
 export function renderWoodcuttersLodgeInspector(
@@ -84,7 +83,7 @@ export function renderWoodcuttersLodgeInspector(
     ? context.worldQueries.getBuildingLabel(industrialTarget.kind)
     : 'industry';
   const industrialTargetLabel = industrialDispatch
-    ? `${industrialTargetName} (${staffingPriorityLabel(industrialDispatch.workPriority).toLowerCase()} priority, ${industrialDispatch.runwayCycles.toFixed(1)} cycles)`
+    ? `${industrialTargetName} (${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite)`
     : industrialTargetName;
   const hasIndustrialTarget = industrialTarget != null;
   const activeResidenceDestination = formatTripDestinationLabel(
@@ -151,7 +150,7 @@ export function renderWoodcuttersLodgeInspector(
       : `${connectedMills.length} reachable off-road at reduced speed`;
   const residenceSummary = 'Lodge → staffed Storehouse → Marketplace stall → abstract household supply';
   const industrialFuelDuty = industrialDispatch
-    ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${staffingPriorityLabel(industrialDispatch.workPriority)} priority · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
+    ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
     : activeBuildingDestination
       ? `Cart committed to ${context.worldQueries.getBuildingLabel(activeBuildingDestination.kind)}`
       : 'No staffed workshop currently requests surplus fuel';

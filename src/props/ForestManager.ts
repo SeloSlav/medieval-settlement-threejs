@@ -15,11 +15,8 @@ import {
   type UndergrowthPlacement,
 } from './ForestUndergrowth.ts';
 import {
-  computeRoadStumpPlacements,
-  createRoadStumpMesh,
   createHarvestStumpMesh,
   isUndergrowthNearAnyEdge,
-  updateRoadStumpInstances,
   updateHarvestStumpInstance,
 } from './RoadStumps.ts';
 import type { TreePhase } from '../resources/types.ts';
@@ -121,7 +118,6 @@ export class ForestManager {
   private readonly rockInstances: ForestRockInstance[];
   private readonly allRockPlacements: RockObstacle[];
   private activeRockPlacements: RockObstacle[];
-  private readonly stumpMesh: THREE.InstancedMesh;
   private readonly harvestStumpMesh: THREE.InstancedMesh;
   private readonly terrain: Terrain;
   private readonly seedThreeForest: SeedThreeForestController | null;
@@ -173,9 +169,7 @@ export class ForestManager {
     this.undergrowth = undergrowth;
     this.undergrowthPlacements = undergrowthPlacements;
     this.terrain = terrain;
-    this.stumpMesh = createRoadStumpMesh();
     this.harvestStumpMesh = createHarvestStumpMesh(this.placements.length);
-    this.group.add(this.stumpMesh);
     this.group.add(this.harvestStumpMesh);
     for (let i = 0; i < this.placements.length; i++) {
       this.hideHarvestStump(i);
@@ -366,7 +360,6 @@ export class ForestManager {
     this.trunkMesh.castShadow = enabled;
     this.coniferShadowMesh.castShadow = enabled;
     this.broadleafShadowMesh.castShadow = enabled;
-    this.stumpMesh.castShadow = enabled;
     this.harvestStumpMesh.castShadow = enabled;
     if (this.undergrowth) {
       for (const kind of ['bush', 'fern', 'juniper'] as const) {
@@ -462,11 +455,6 @@ export class ForestManager {
       this.placementRemovedRocks,
     ));
 
-    if (network) {
-      this.syncRoadStumps(network);
-    } else {
-      updateRoadStumpInstances(this.stumpMesh, [], this.terrain);
-    }
   }
 
   syncPlacementClearance(clearance: ForestPlacementClearance): void {
@@ -525,8 +513,6 @@ export class ForestManager {
   }
 
   dispose(): void {
-    this.stumpMesh.geometry.dispose();
-    (this.stumpMesh.material as THREE.Material).dispose();
     this.harvestStumpMesh.geometry.dispose();
     (this.harvestStumpMesh.material as THREE.Material).dispose();
     this.disposeResources();
@@ -667,11 +653,6 @@ export class ForestManager {
 
     this.removedRocks = nextRemoved;
     this.activeRockPlacements = this.allRockPlacements.filter((_, index) => !nextRemoved.has(index));
-  }
-
-  private syncRoadStumps(network: RoadNetwork): void {
-    const placements = computeRoadStumpPlacements(network);
-    updateRoadStumpInstances(this.stumpMesh, placements, this.terrain);
   }
 
   private isTreeNearAnyEdge(placement: TreePlacement, edges: RoadEdge[]): boolean {

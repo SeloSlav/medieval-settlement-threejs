@@ -159,15 +159,16 @@ assert.deepEqual(
     assignment.targetLabor,
   ]),
   [
-    [highForager.id, 2],
+    [highForager.id, 1],
     [highFishing.id, 1],
+    [normalFarm.id, 1],
   ],
-  'scarce labor should round-robin within high priority before reaching normal priority',
+  'scarce labor should round-robin in stable worksite order regardless of legacy priority',
 );
 const calledUp = applySeasonalLaborCallup(callupState.buildings, callupPlan);
-assert.equal(calledUp.get(highForager.id)?.assignedLabor, 2);
+assert.equal(calledUp.get(highForager.id)?.assignedLabor, 1);
 assert.equal(calledUp.get(highFishing.id)?.assignedLabor, 1);
-assert.equal(calledUp.get(normalFarm.id)?.assignedLabor, 0);
+assert.equal(calledUp.get(normalFarm.id)?.assignedLabor, 1);
 assert.equal(calledUp.get(inactiveApiary.id)?.assignedLabor, 0);
 assert.equal(callupState.buildings.get(highForager.id)?.assignedLabor, 0);
 
@@ -213,7 +214,7 @@ assert.match(inspector.detailsHtml, /2 free workers can fill 2 of 2 active seaso
 assert.match(inspector.detailsHtml, /data-inspect-building="forager"/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-call-up-active-seasonal-labor/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Call up 2 seasonal workers/);
-assert.match(inspector.supplementalPanelHtml ?? '', /High staffing priority fills before normal, then low/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Each site receives one worker in stable worksite order/);
 assert.match(inspector.detailsHtml, /Seasonal steward/);
 assert.match(inspector.detailsHtml, /Manual/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-policy-seasonal-labor-steward/);

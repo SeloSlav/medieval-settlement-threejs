@@ -115,15 +115,16 @@ assert.deepEqual(
     assignment.targetLabor,
   ]),
   [
-    [highMill.id, 2],
+    [highMill.id, 1],
     [highBrewery.id, 1],
+    [normalSmokehouse.id, 1],
   ],
-  'scarce workers should round-robin inside the high-priority tier before normal work',
+  'scarce workers should round-robin in stable worksite order regardless of legacy priority',
 );
 const calledUp = applyProcessorLaborCallup(callupState.buildings, callupPlan);
-assert.equal(calledUp.get(highMill.id)?.assignedLabor, 2);
+assert.equal(calledUp.get(highMill.id)?.assignedLabor, 1);
 assert.equal(calledUp.get(highBrewery.id)?.assignedLabor, 1);
-assert.equal(calledUp.get(normalSmokehouse.id)?.assignedLabor, 0);
+assert.equal(calledUp.get(normalSmokehouse.id)?.assignedLabor, 1);
 assert.equal(calledUp.get(cappedWeaver.id)?.assignedLabor, 0);
 assert.equal(calledUp.get(unrelatedCarpenter.id)?.assignedLabor, 0);
 
@@ -472,7 +473,7 @@ const inspector = renderTownHallInspector(
   },
 );
 assert.match(inspector.detailsHtml, /Production steward/);
-assert.match(inspector.detailsHtml, /supplied sites fill by priority/);
+assert.match(inspector.detailsHtml, /supplied sites fill fairly/);
 assert.match(inspector.detailsHtml, /Dawn labor review/);
 assert.match(
   inspector.detailsHtml,
@@ -495,7 +496,7 @@ assert.match(inspector.supplementalPanelHtml ?? '', /no producer is retained as 
 assert.match(inspector.supplementalPanelHtml ?? '', /Matching inbound supplies protect recovering workshops/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-call-up-target-ready-processor-labor/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 3 production workers/);
-assert.match(inspector.supplementalPanelHtml ?? '', /equal-priority sites share workers round-robin/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Sites share workers round-robin in stable worksite order/);
 assert.match(
   inspector.supplementalPanelHtml ?? '',
   /extraction works on usable deposits with room below their chosen yard target/,

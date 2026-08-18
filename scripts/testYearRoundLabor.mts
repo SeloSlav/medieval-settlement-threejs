@@ -93,17 +93,21 @@ assert.deepEqual(
     assignment.targetLabor,
   ]),
   [
-    [urgentMill.id, 3],
+    [urgentMill.id, 1],
+    [normalChapel.id, 1],
+    [lowGuardhouse.id, 1],
   ],
-  'the remaining urgent workplace should fill before lower priorities',
+  'free labor should round-robin in stable worksite order regardless of legacy priority',
 );
 
 const freeLaborApplied = applyYearRoundLaborRotation(
   freeLaborState.buildings,
   freeLaborPlan,
 );
-assert.equal(freeLaborApplied.get(urgentMill.id)?.assignedLabor, 3);
+assert.equal(freeLaborApplied.get(urgentMill.id)?.assignedLabor, 1);
 assert.equal(freeLaborApplied.get(urgentWell.id)?.assignedLabor, 0);
+assert.equal(freeLaborApplied.get(normalChapel.id)?.assignedLabor, 1);
+assert.equal(freeLaborApplied.get(lowGuardhouse.id)?.assignedLabor, 1);
 assert.equal(freeLaborApplied.get(seasonalApiary.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(targetBrewery.id)?.assignedLabor, 0);
 assert.equal(freeLaborApplied.get(sourceBoundHunter.id)?.assignedLabor, 0);
@@ -121,34 +125,24 @@ for (const site of [fullHall, essentialMill, normalPriest, lowGuards]) {
   fullEmploymentState.buildings.set(site.id, site);
 }
 const rebalancePlan = computeSettlementYearRoundLaborRotation(fullEmploymentState, 0);
-assert.equal(rebalancePlan.recalledWorkers, 2);
-assert.equal(rebalancePlan.calledWorkers, 2);
+assert.equal(rebalancePlan.recalledWorkers, 0);
+assert.equal(rebalancePlan.calledWorkers, 0);
 assert.equal(rebalancePlan.freeLaborBefore, 0);
 assert.equal(rebalancePlan.freeLaborAfter, 0);
-assert.equal(rebalancePlan.firstRecalledBuildingId, lowGuards.id);
+assert.equal(rebalancePlan.firstRecalledBuildingId, null);
 assert.equal(rebalancePlan.firstUnderstaffedBuildingId, essentialMill.id);
 assert.equal(
   rebalancePlan.remainingOpenPosts,
-  BUILDING_DEFINITIONS.guardhouse.maxLabor,
+  rebalancePlan.openPosts,
 );
-assert.deepEqual(
-  rebalancePlan.assignments.map((assignment) => [
-    assignment.buildingId,
-    assignment.targetLabor,
-  ]),
-  [
-    [essentialMill.id, 3],
-    [lowGuards.id, 0],
-  ],
-  'full employment should move only the two workers needed from low to high priority',
-);
+assert.deepEqual(rebalancePlan.assignments, [], 'completed jobs must not displace one another by legacy priority');
 const rebalanced = applyYearRoundLaborRotation(
   fullEmploymentState.buildings,
   rebalancePlan,
 );
-assert.equal(rebalanced.get(essentialMill.id)?.assignedLabor, 3);
+assert.equal(rebalanced.get(essentialMill.id)?.assignedLabor, 1);
 assert.equal(rebalanced.get(normalPriest.id)?.assignedLabor, 1);
-assert.equal(rebalanced.get(lowGuards.id)?.assignedLabor, 0);
+assert.equal(rebalanced.get(lowGuards.id)?.assignedLabor, 2);
 assert.equal(rebalanced.get(fullHall.id)?.assignedLabor, 1);
 
 const donorOrderState = emptyGameState();
@@ -156,17 +150,7 @@ donorOrderState.buildings.set('10', building('10', 'chapel', 0, true, 3));
 donorOrderState.buildings.set('30', building('30', 'guardhouse', 1, true, 1));
 donorOrderState.buildings.set('40', building('40', 'guardhouse', 1, true, 1));
 const donorOrder = computeSettlementYearRoundLaborRotation(donorOrderState, 0);
-assert.deepEqual(
-  donorOrder.assignments.map((assignment) => [
-    assignment.buildingId,
-    assignment.targetLabor,
-  ]),
-  [
-    ['10', 1],
-    ['40', 0],
-  ],
-  'the newest stable ID in the lowest tier should release first',
-);
+assert.deepEqual(donorOrder.assignments, [], 'legacy tiers must not trigger crew churn');
 
 const equalTierState = emptyGameState();
 equalTierState.buildings.set('10', building('10', 'lumber_mill', 0, true, 2));
@@ -184,7 +168,7 @@ const legacyPlan = computeSettlementYearRoundLaborRotation(legacyState, 1);
 assert.deepEqual(
   legacyPlan.assignments.map((assignment) => assignment.buildingId),
   ['10'],
-  'legacy priority zero should normalize to normal and fill before low',
+  'legacy completed-building priority values should share one neutral tier',
 );
 
 const inspector = renderTownHallInspector(
@@ -207,7 +191,7 @@ assert.match(inspector.detailsHtml, /Year-round balance/);
 assert.match(inspector.detailsHtml, /5 total workers deploy/);
 assert.match(inspector.detailsHtml, /data-inspect-building="10"/);
 assert.match(inspector.supplementalPanelHtml ?? '', /data-balance-year-round-labor/);
-assert.match(inspector.supplementalPanelHtml ?? '', /minimum necessary workers move from strictly lower tiers/);
+assert.match(inspector.supplementalPanelHtml ?? '', /Deploy free labor across completed year-round services/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Town Hall clerks are never displaced/);
 assert.match(inspector.supplementalPanelHtml ?? '', /source-bound production/);
 assert.match(inspector.supplementalPanelHtml ?? '', /Deploy 5 year-round workers/);
@@ -223,9 +207,9 @@ for (let index = 0; index < 100_000; index += 1) {
 const started = performance.now();
 const perfPlan = computeSettlementYearRoundLaborRotation(perfState, 0);
 const elapsedMs = performance.now() - started;
-assert.equal(perfPlan.recalledWorkers, 50_000);
-assert.equal(perfPlan.calledWorkers, 50_000);
-assert.equal(perfPlan.assignments.length, 100_000);
+assert.equal(perfPlan.recalledWorkers, 0);
+assert.equal(perfPlan.calledWorkers, 0);
+assert.equal(perfPlan.assignments.length, 0);
 assert.ok(
   elapsedMs < 400,
   `100,000-site full-employment balance took ${elapsedMs.toFixed(1)} ms`,

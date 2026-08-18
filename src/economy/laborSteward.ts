@@ -38,7 +38,7 @@ export function seasonalLaborStewardStatus(
   if (!staffedTownHall) {
     return 'Enabled but paused · assign a Town Hall clerk';
   }
-  return 'Daily · dormant crews release first, then active sites fill by priority';
+  return 'Daily · dormant crews release first, then active sites fill fairly';
 }
 
 export function constructionLaborStewardStatus(
@@ -64,5 +64,5 @@ export function productionLaborStewardStatus(
   if (!staffedTownHall) {
     return 'Enabled but paused · assign a Town Hall clerk';
   }
-  return 'Daily · stalled surplus releases, then supplied sites fill by priority';
+  return 'Daily · stalled surplus releases, then supplied sites fill fairly';
 }

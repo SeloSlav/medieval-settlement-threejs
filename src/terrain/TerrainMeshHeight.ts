@@ -31,6 +31,35 @@ export function sampleTerrainMeshHeight(
   return THREE.MathUtils.lerp(hBottom, hTop, tz);
 }
 
+export function sampleTerrainMeshAttributeX(
+  geometry: THREE.BufferGeometry,
+  attributeName: string,
+  x: number,
+  z: number,
+  resolution: number,
+  size: number,
+): number {
+  const attribute = geometry.getAttribute(attributeName);
+  if (!attribute) return 0;
+
+  const step = size / (resolution - 1);
+  const half = size * 0.5;
+  const gridX = THREE.MathUtils.clamp((x + half) / step, 0, resolution - 1);
+  const gridZ = THREE.MathUtils.clamp((z + half) / step, 0, resolution - 1);
+  const x0 = Math.floor(gridX);
+  const z0 = Math.floor(gridZ);
+  const x1 = Math.min(x0 + 1, resolution - 1);
+  const z1 = Math.min(z0 + 1, resolution - 1);
+  const tx = gridX - x0;
+  const tz = gridZ - z0;
+  const valueAt = (xIndex: number, zIndex: number): number => (
+    attribute.getX(zIndex * resolution + xIndex)
+  );
+  const bottom = THREE.MathUtils.lerp(valueAt(x0, z0), valueAt(x1, z0), tx);
+  const top = THREE.MathUtils.lerp(valueAt(x0, z1), valueAt(x1, z1), tx);
+  return THREE.MathUtils.lerp(bottom, top, tz);
+}
+
 function readVertexY(
   positions: THREE.BufferAttribute,
   resolution: number,

@@ -26,7 +26,6 @@ import {
   storehouseCommodityTargetPercent,
   type StorehouseCommodity,
 } from '../../economy/storehousePolicy.ts';
-import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 
 export function renderStorehouseInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -65,7 +64,7 @@ export function renderStorehouseInspector(
     ? context.worldQueries.getBuilding(activeTrip!.targetBuildingId!)
     : null;
   const industrialFuelDuty = industrialDispatch
-    ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${staffingPriorityLabel(industrialDispatch.workPriority)} priority · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
+    ? `${context.worldQueries.getBuildingLabel(industrialDispatch.target.kind)} · ${industrialDispatch.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(industrialDispatch.routeDistance)}`
     : activeIndustrialTarget
       ? `Cart committed to ${context.worldQueries.getBuildingLabel(activeIndustrialTarget.kind)}`
       : building.firewood <= 1e-6
@@ -127,7 +126,7 @@ export function renderStorehouseInspector(
       <li><span>Last mile</span><span>Abstract from stocked goods stalls · no worker reserved</span></li>
       <li><span>Market load</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} firewood per replenishment cart` : 'Paused · no haulers'}</span></li>
       <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
-      <li><span>Raw-material duty</span><span>${materialDispatch ? `${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)} · ${staffingPriorityLabel(materialDispatch.dispatch!.workPriority)} priority · ${materialDispatch.dispatch!.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(materialDispatch.dispatch!.routeDistance)}` : 'No staffed workshop currently requests stored iron, clay, or salt'}</span></li>
+      <li><span>Raw-material duty</span><span>${materialDispatch ? `${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)} · ${materialDispatch.dispatch!.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(materialDispatch.dispatch!.routeDistance)}` : 'No staffed workshop currently requests stored iron, clay, or salt'}</span></li>
       <li><span>Collection trigger</span><span>Producer stock above ${Math.round(STOREHOUSE_OVERFLOW_THRESHOLD * 100)}%</span></li>
       <li><span>Cart assignment</span><span>Fullest producer first · nearest compatible idle depot</span></li>
       <li><span>Construction bonus</span><span>${STOREHOUSE_HAUL_PER_WORKER} materials per staffed hauler; up to 2 haulers per cart</span></li>

@@ -83,7 +83,6 @@ import {
   type SettlementFireRecoveryPlan,
   type SettlementFireRecoveryTarget,
 } from '../../economy/settlementFireRecovery.ts';
-import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 import {
   computeSettlementSeedProcurementPlan,
   type SettlementSeedProcurementAttention,
@@ -647,13 +646,6 @@ function formatFullHousingLabor(plan: SettlementLaborPlan): string {
   return `${plan.populationAtFullHousing} people · ${plan.futureFreeLaborAfterFullStaffing} free after every permanent post`;
 }
 
-function formatStaffingPriorities(plan: SettlementLaborPlan): string {
-  const low = plan.staffingPriorities[1];
-  const normal = plan.staffingPriorities[2];
-  const high = plan.staffingPriorities[3];
-  return `Low ${low.assigned} workers / ${low.worksites} sites · Normal ${normal.assigned} / ${normal.worksites} · High ${high.assigned} / ${high.worksites}`;
-}
-
 function formatWorkInMotion(plan: SettlementLaborPlan): string {
   const construction = plan.activeConstructionSites > 0
     ? `${plan.constructionAssigned} / ${plan.constructionCapacity} builders across ${plan.activeConstructionSites} active sites`
@@ -754,13 +746,9 @@ export function renderSettlementFireRecoveryRows(
       ? ''
       : ` · ${fireRecoveryTargetLabel(plan.firstRecoveryTarget, getBuildingLabel)} ${
           plan.firstRecoveryTarget.recoveryActive
-            ? `underway (${staffingPriorityLabel(
-                plan.firstRecoveryTarget.workPriority,
-              ).toLocaleLowerCase()} work priority)`
+            ? 'underway'
             : plan.firstRecoveryTarget.coolingSeconds <= 1e-6
-            ? `is next (${staffingPriorityLabel(
-                plan.firstRecoveryTarget.workPriority,
-              ).toLocaleLowerCase()} work priority)`
+            ? 'is next'
             : `cools in ~${Math.ceil(plan.firstRecoveryTarget.coolingSeconds)}s`
         }${recoveryInspect}`
   }`;
@@ -964,17 +952,11 @@ export function renderSettlementGrainRows(plan: SettlementGrainPlan): string {
   const roadRow = plan.roadPlan === null
     ? ''
     : `<li><span>Processor grain roads</span><span>${formatProcessorGrainRoads(plan.roadPlan)}</span></li>`;
-  const priority = plan.processorPriorityCounts;
-  const priorityTotal = priority[1] + priority[2] + priority[3];
-  const priorityRow = priorityTotal > 0
-    ? `<li><span>Grain cart priorities</span><span>${priority[3]} high · ${priority[2]} normal · ${priority[1]} low operational processors · carts serve higher tiers first, then lowest cycle runway</span></li>`
-    : '';
   return `
     <li><span>Grain allocation</span><span>${Math.round(plan.totalStock)} owned · ${Math.round(plan.inTransit)} on carts · ${Math.floor(plan.discretionaryStock)} discretionary after protected claims</span></li>
     <li><span>Protected grain</span><span>Seed ${Math.round(plan.seed.protected)} / ${Math.ceil(plan.seed.target)} · winter fodder ${Math.round(plan.winterFodder.protected)} / ${Math.ceil(plan.winterFodder.target)} · central reserve ${Math.round(plan.granaryReserve.protected)} / ${Math.ceil(plan.granaryReserve.target)}${attention}</span></li>
     <li><span>Installed grain draw</span><span>${plan.processorGrainPerDay.toFixed(1)} / day · bread ${plan.breadGrainPerDay.toFixed(1)} · monastery ${plan.monasteryGrainPerDay.toFixed(1)} · ${runway}</span></li>
     ${roadRow}
-    ${priorityRow}
     <li><span>Crop-year balance</span><span>${plan.laborCoveredHarvest.toFixed(1)} / ${plan.potentialHarvest.toFixed(1)} harvest covered · ${plan.annualCommitments.toFixed(1)} committed · ${balance} at current installed capacity over ${GRAIN_PLAN_DAYS_PER_YEAR} days; imports excluded</span></li>
   `;
 }
@@ -1478,17 +1460,13 @@ function formatYearRoundLaborRotation(plan: SettlementYearRoundLaborRotation): s
     return `${operationalSites} operational year-round ${operationalSites === 1 ? 'worksite is' : 'worksites are'} fully staffed${fire ? ` · ${fire}` : ''}`;
   }
   if (plan.calledWorkers === 0) {
-    return `${plan.openPosts} open ${plan.openPosts === 1 ? 'post remains' : 'posts remain'} across ${plan.understaffedSites} year-round ${plan.understaffedSites === 1 ? 'worksite' : 'worksites'} · no free or strictly lower-priority labor can fill them${fire ? ` · ${fire}` : ''}`;
+    return `${plan.openPosts} open ${plan.openPosts === 1 ? 'post remains' : 'posts remain'} across ${plan.understaffedSites} year-round ${plan.understaffedSites === 1 ? 'worksite' : 'worksites'} · no free labor can fill them${fire ? ` · ${fire}` : ''}`;
   }
-  const priorityRecalled = plan.recalledWorkers - plan.fireRecalledWorkers;
   const source = [
     fire,
-    priorityRecalled > 0
-      ? `${priorityRecalled} lower-priority ${priorityRecalled === 1 ? 'worker moves' : 'workers move'}`
-      : '',
     `${plan.calledWorkers} total ${plan.calledWorkers === 1 ? 'worker deploys' : 'workers deploy'}`,
   ].filter(Boolean).join(' · ');
-  return `${source} into higher-priority or vacant posts · ${plan.remainingOpenPosts} open ${plan.remainingOpenPosts === 1 ? 'post remains' : 'posts remain'}`;
+  return `${source} into vacant posts · ${plan.remainingOpenPosts} open ${plan.remainingOpenPosts === 1 ? 'post remains' : 'posts remain'}`;
 }
 
 function formatWorksiteStalls(
@@ -2419,7 +2397,6 @@ export function renderTownHallInspector(
       ${renderSettlementWelfareRows(provisioning.welfare)}
       <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} committed${context.populationStats.cartAssigned > 0 ? ` · ${context.populationStats.cartAssigned} reserved on carts outside building rosters` : ''} · ${context.populationStats.available} free · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
       <li><span>Sector staffing</span><span>${formatLaborSectorMix(laborPlan)}</span></li>
-      <li><span>Staffing priorities</span><span>${formatStaffingPriorities(laborPlan)}</span></li>
       <li><span>Seasonal steward</span><span>${seasonalLaborStewardStatus(seasonalLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
       <li><span>Production steward</span><span>${productionLaborStewardStatus(productionLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
       <li><span>Construction steward</span><span>${constructionLaborStewardStatus(constructionLaborStewardEnabled, staffedTownHallAvailable)}</span></li>
@@ -2630,7 +2607,7 @@ export function renderTownHallInspector(
             ${staffedTownHallAvailable ? '' : 'disabled'} />
           <span>Daily seasonal labor steward</span>
         </label>
-        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases dormant farm, forage, fishing, apiary, and vineyard crews before assigning free labor to active seasonal sites. Existing staffing priorities decide the order; year-round jobs, builders, and production-workshop crews are untouched. Enabling performs one review immediately. Manual is the save-compatible default.</p>
+        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases dormant farm, forage, fishing, apiary, and vineyard crews before assigning free labor fairly across active seasonal sites in stable worksite order. Year-round jobs, builders, and production-workshop crews are untouched. Enabling performs one review immediately. Manual is the save-compatible default.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
@@ -2654,7 +2631,7 @@ export function renderTownHallInspector(
             ${staffedTownHallAvailable ? '' : 'disabled'} />
           <span>Daily production labor steward</span>
         </label>
-        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases full production crews from genuinely stalled workshops, exhausted or target-held extraction yards, and reserve-held hunting halls. Stored output and active carts remain logistics work. It then fills supplied, below-target production sites by staffing priority and fair within-tier rotation. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
+        <p class="inspector-action-panel__hint">At each new calendar day, a staffed Town Hall releases full production crews from genuinely stalled workshops, exhausted or target-held extraction yards, and reserve-held hunting halls. Stored output and active carts remain logistics work. It then fills supplied, below-target production sites fairly in stable worksite order. Matching inbound supplies protect recovering workshops. The Dawn labor review previews the full seasonal → production → construction sequence against one shared labor pool without issuing orders. Enabling performs one review immediately.</p>
         ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to change or run this policy.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
@@ -2681,7 +2658,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && constructionLabor.assignments.length > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide construction rotation.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Recall full production crews at seasonally dormant farms, apiaries, vineyards, foragers, and fishing camps. Stored goods remain available to the appropriate logistics labor; no producer is retained as a hauler. Staffing priorities stay unchanged.${seasonalLaborStewardEnabled ? ' The steward will call labor back when work becomes active.' : ' You must restaff before the next work window.'}</p>
+        <p class="inspector-action-panel__hint">Recall full production crews at seasonally dormant farms, apiaries, vineyards, foragers, and fishing camps. Stored goods remain available to the appropriate logistics labor; no producer is retained as a hauler.${seasonalLaborStewardEnabled ? ' The steward will call labor back when work becomes active.' : ' You must restaff before the next work window.'}</p>
         <button type="button" class="resource-action-button" data-recall-idle-seasonal-labor ${staffedTownHallAvailable && seasonalLabor.reclaimableWorkers > 0 ? '' : 'disabled'}>
           ${seasonalLabor.reclaimableWorkers > 0
             ? `Recall ${seasonalLabor.reclaimableWorkers} idle ${seasonalLabor.reclaimableWorkers === 1 ? 'worker' : 'workers'}`
@@ -2690,7 +2667,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && seasonalLabor.reclaimableWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide recall.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Call free workers only to seasonal sites whose work is active now. High staffing priority fills before normal, then low; within a tier each site receives one worker before any receives another. Existing crews are never displaced.${seasonalLaborStewardEnabled ? ' The next daily review repeats this rule automatically.' : ' Future hiring remains manual.'}</p>
+        <p class="inspector-action-panel__hint">Call free workers only to seasonal sites whose work is active now. Each site receives one worker in stable worksite order before any receives another. Existing crews are never displaced.${seasonalLaborStewardEnabled ? ' The next daily review repeats this rule automatically.' : ' Future hiring remains manual.'}</p>
         <button type="button" class="resource-action-button" data-call-up-active-seasonal-labor ${staffedTownHallAvailable && seasonalCallup.callupWorkers > 0 ? '' : 'disabled'}>
           ${seasonalCallup.callupWorkers > 0
             ? `Call up ${seasonalCallup.callupWorkers} seasonal ${seasonalCallup.callupWorkers === 1 ? 'worker' : 'workers'}`
@@ -2710,7 +2687,7 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && worksiteStalls.reclaimableWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to issue a settlement-wide stalled-production recall.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, extraction works on usable deposits with room below their chosen yard target, and hunting halls with harvestable game above their reserve. High staffing priority fills before normal, then low; equal-priority sites share workers round-robin. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
+        <p class="inspector-action-panel__hint">Deploy free labor to completed production sites that can accept work: workshops below their output ceiling, extraction works on usable deposits with room below their chosen yard target, and hunting halls with harvestable game above their reserve. Sites share workers round-robin in stable worksite order. This manual order may pre-staff an empty workshop in preparation for future carts. Existing crews are never displaced.${productionLaborStewardEnabled ? ' The daily steward is stricter and calls workshops only when every recipe input is present or already inbound.' : ' Future hiring remains manual.'}</p>
         <button type="button" class="resource-action-button" data-call-up-target-ready-processor-labor ${staffedTownHallAvailable && productionLaborCallup.callupWorkers > 0 ? '' : 'disabled'}>
           ${productionLaborCallup.callupWorkers > 0
             ? `Deploy ${productionLaborCallup.callupWorkers} production ${productionLaborCallup.callupWorkers === 1 ? 'worker' : 'workers'}`
@@ -2721,14 +2698,14 @@ export function renderTownHallInspector(
         ${!staffedTownHallAvailable && productionLaborCallup.callupWorkers > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to deploy production crews.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Balance completed year-round services and ordinary industries using free labor first. If higher-priority vacancies remain, the minimum necessary workers move from strictly lower tiers, taking the lowest tier and newest stable worksite first. Equal-priority crews, seasonal sites, source-bound production, builders, and Town Hall clerks are never displaced. Future hiring remains explicit.</p>
+        <p class="inspector-action-panel__hint">Deploy free labor across completed year-round services and ordinary industries in stable worksite order. Existing crews, seasonal sites, source-bound production, builders, and Town Hall clerks are never displaced. Future hiring remains explicit.</p>
         <button type="button" class="resource-action-button" data-balance-year-round-labor ${staffedTownHallAvailable && yearRoundLabor.assignments.length > 0 ? '' : 'disabled'}>
           ${yearRoundLabor.recalledWorkers > 0
-            ? `Reassign ${yearRoundLabor.recalledWorkers} lower-priority ${yearRoundLabor.recalledWorkers === 1 ? 'worker' : 'workers'}`
+            ? `Recall ${yearRoundLabor.recalledWorkers} fire-disabled ${yearRoundLabor.recalledWorkers === 1 ? 'worker' : 'workers'}`
             : yearRoundLabor.calledWorkers > 0
               ? `Deploy ${yearRoundLabor.calledWorkers} year-round ${yearRoundLabor.calledWorkers === 1 ? 'worker' : 'workers'}`
               : yearRoundLabor.openPosts > 0
-                ? 'Year-round priorities already balanced'
+              ? 'No free labor to deploy'
                 : 'No year-round vacancies'}
         </button>
         ${!staffedTownHallAvailable && yearRoundLabor.assignments.length > 0 ? '<p class="inspector-action-panel__hint">Assign a clerk to balance year-round crews.</p>' : ''}

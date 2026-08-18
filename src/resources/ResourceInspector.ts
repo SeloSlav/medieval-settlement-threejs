@@ -851,16 +851,6 @@ export class ResourceInspector {
         );
         return;
       }
-      const staffingPriority = (event.target as HTMLElement)
-        .closest<HTMLElement>('[data-staffing-priority]')
-        ?.dataset.staffingPriority;
-      if (staffingPriority != null && building.constructionComplete) {
-        void this.options.onSetConstructionPriority?.(
-          building.id,
-          Number(staffingPriority),
-        );
-        return;
-      }
       const landParcel = (event.target as HTMLElement).closest<HTMLElement>('[data-land-parcel]')?.dataset.landParcel;
       if (landParcel === 'field' && building.kind === 'threshing_barn') {
         this.options.onBeginFarmFieldPlacement?.(building.id);

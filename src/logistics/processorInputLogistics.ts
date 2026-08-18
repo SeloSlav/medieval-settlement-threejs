@@ -215,8 +215,8 @@ export function processorInputRunwayCycles(stock: number, perCycle: number): num
 
 /**
  * Mirrors every source-side processor-input cart. Active processors receive
- * their selected stock-policy working buffers by work priority. Equal-tier
- * looms then route matching fibres to their selected specialization before
+ * their selected stock-policy working buffers by lowest runway. Looms route
+ * matching fibres to their selected specialization before
  * lowest runway and route; staffed heavy-tool worksites use the same ordering
  * for replacement iron tools. Imported raw iron and salt stop at processor
  * working buffers. Local mine carts do the same first, then may centralize

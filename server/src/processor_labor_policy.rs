@@ -1,13 +1,15 @@
 //! Explicit Town Hall call-up for managed production sites.
 //!
-//! Deployment is explicit, priority-aware, and round-robin within a tier; it
+//! Deployment is explicit and round-robin in stable worksite order; it
 //! never displaces another crew. The reducer supplies only capacity-open
 //! processors and source-ready extraction sites; settlement-wide stalled-site
 //! recall lives in `worksite_stall_policy`.
 
 use crate::construction_priority::{
-    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
+    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL,
 };
+#[cfg(test)]
+use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProcessorCallupCandidate {
@@ -17,13 +19,8 @@ pub struct ProcessorCallupCandidate {
     pub max_labor: u32,
 }
 
-fn normalize_staffing_priority(priority: u8) -> u8 {
-    match priority {
-        CONSTRUCTION_PRIORITY_LOW | CONSTRUCTION_PRIORITY_NORMAL | CONSTRUCTION_PRIORITY_URGENT => {
-            priority
-        }
-        _ => CONSTRUCTION_PRIORITY_NORMAL,
-    }
+fn normalize_staffing_priority(_priority: u8) -> u8 {
+    CONSTRUCTION_PRIORITY_NORMAL
 }
 
 /// Automatic crew rotation is stricter than the explicit pre-staffing order:
@@ -33,9 +30,8 @@ pub fn production_steward_callup_allowed(stalled: bool, supply_en_route: bool) -
     !stalled || supply_en_route
 }
 
-/// Distributes free labor to reducer-approved production sites by staffing
-/// priority. Equal-priority sites receive one worker per pass before any site
-/// receives a second.
+/// Distributes free labor to reducer-approved production sites. Sites receive
+/// one worker per stable-order pass before any site receives a second.
 pub fn processor_callup_targets(
     candidates: &[ProcessorCallupCandidate],
     available_labor: u32,
@@ -95,7 +91,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn callup_fills_priority_before_round_robining_lower_tiers() {
+    fn callup_round_robins_in_stable_order_regardless_of_legacy_priority() {
         let targets = processor_callup_targets(
             &[
                 ProcessorCallupCandidate {
@@ -119,7 +115,7 @@ mod tests {
             ],
             3,
         );
-        assert_eq!(targets, vec![(10, 2), (20, 1)]);
+        assert_eq!(targets, vec![(10, 1), (20, 1), (30, 1)]);
     }
 
     #[test]

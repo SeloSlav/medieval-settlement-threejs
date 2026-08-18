@@ -6,6 +6,11 @@ import {
   type FireRecoveryQuote,
 } from '../fires/fireRecovery.ts';
 import { compareStableEntityIds } from '../logistics/roadLogistics.ts';
+import {
+  CONSTRUCTION_PRIORITY_NORMAL,
+  normalizeConstructionPriority,
+  type ConstructionPriority,
+} from '../logistics/constructionPriority.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
 import type {
   BuildingKind,
@@ -13,10 +18,6 @@ import type {
   GameState,
   ResidenceState,
 } from '../resources/types.ts';
-import {
-  normalizeStaffingPriority,
-  type StaffingPriority,
-} from './staffingPriority.ts';
 
 type RoadPoint = { x: number; z: number };
 
@@ -32,7 +33,7 @@ export type SettlementFireRecoveryTarget = {
   coolingSeconds: number;
   recovery: FireRecoveryQuote;
   recoveryActive: boolean;
-  workPriority: StaffingPriority;
+  workPriority: ConstructionPriority;
   affectedPeopleOrWorkers: number;
 };
 
@@ -149,8 +150,8 @@ export function computeSettlementFireRecoveryPlan(
       recoveryActive: target.kind === 'residence'
         && target.residence.fireRepairActive === true,
       workPriority: target.kind === 'building'
-        ? normalizeStaffingPriority(target.building.constructionPriority)
-        : normalizeStaffingPriority(target.residence.upgradePriority),
+        ? CONSTRUCTION_PRIORITY_NORMAL
+        : normalizeConstructionPriority(target.residence.upgradePriority),
       affectedPeopleOrWorkers: target.kind === 'building'
         ? Math.max(0, target.building.assignedLabor)
         : Math.max(0, target.residence.population),

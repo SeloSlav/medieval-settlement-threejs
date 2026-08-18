@@ -16,13 +16,6 @@ import {
   type SettlementHaulagePlan,
 } from './settlementHaulage.ts';
 import {
-  normalizeStaffingPriority,
-  STAFFING_PRIORITY_HIGH,
-  STAFFING_PRIORITY_LOW,
-  STAFFING_PRIORITY_NORMAL,
-  type StaffingPriority,
-} from './staffingPriority.ts';
-import {
   STOREHOUSE_COMMODITIES,
   storehouseAcceptsCommodity,
   storehouseCollectionHeadroom,
@@ -112,7 +105,6 @@ export type SettlementLaborPlan = {
   cartCrewWorkers: number;
   haulage: SettlementHaulagePlan;
   sectors: Record<LaborSector, LaborSectorPlan>;
-  staffingPriorities: Record<StaffingPriority, { assigned: number; worksites: number }>;
   populationAtFullHousing: number;
   futurePermanentPostShortfall: number;
   futureFreeLaborAfterFullStaffing: number;
@@ -174,14 +166,6 @@ export function computeSettlementLaborPlan(input: {
   excludeNavigationBuildingId?: string;
 }): SettlementLaborPlan {
   const sectors = emptySectorPlan();
-  const staffingPriorities: Record<
-    StaffingPriority,
-    { assigned: number; worksites: number }
-  > = {
-    [STAFFING_PRIORITY_LOW]: { assigned: 0, worksites: 0 },
-    [STAFFING_PRIORITY_NORMAL]: { assigned: 0, worksites: 0 },
-    [STAFFING_PRIORITY_HIGH]: { assigned: 0, worksites: 0 },
-  };
   let permanentAssigned = 0;
   let permanentCapacity = 0;
   let unstaffedWorksites = 0;
@@ -245,10 +229,6 @@ export function computeSettlementLaborPlan(input: {
     sector.worksites += 1;
     permanentAssigned += assigned;
     permanentCapacity += capacity;
-    const staffingPriority = normalizeStaffingPriority(building.constructionPriority);
-    staffingPriorities[staffingPriority].assigned += assigned;
-    staffingPriorities[staffingPriority].worksites += 1;
-
     if (assigned > 0) continue;
     sector.unstaffedWorksites += 1;
     unstaffedWorksites += 1;
@@ -283,7 +263,6 @@ export function computeSettlementLaborPlan(input: {
     cartCrewWorkers: haulage.deliveryWorkers,
     haulage,
     sectors,
-    staffingPriorities,
     populationAtFullHousing,
     futurePermanentPostShortfall: Math.max(0, -futureLaborBalance),
     futureFreeLaborAfterFullStaffing: Math.max(0, futureLaborBalance),

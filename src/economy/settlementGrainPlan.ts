@@ -22,13 +22,6 @@ import {
   type ProductionRoadComponentResolver,
   type SettlementProductionCapacity,
 } from './settlementProduction.ts';
-import {
-  normalizeStaffingPriority,
-  STAFFING_PRIORITY_HIGH,
-  STAFFING_PRIORITY_LOW,
-  STAFFING_PRIORITY_NORMAL,
-  type StaffingPriority,
-} from './staffingPriority.ts';
 import { breadGrainStock } from './cropGoods.ts';
 
 export const GRAIN_PLAN_DAYS_PER_YEAR =
@@ -56,7 +49,6 @@ export type SettlementGrainPlan = {
   processorRunwayDays: number;
   annualProcessorDemand: number;
   annualCommitments: number;
-  processorPriorityCounts: Record<StaffingPriority, number>;
   laborCoveredHarvest: number;
   potentialHarvest: number;
   annualBalance: number;
@@ -339,11 +331,6 @@ export function computeSettlementGrainPlan(
       : breadGrainStock(input.state.stockpile)
   ) + transit.total;
   let monasteryGrainPerDay = 0;
-  const processorPriorityCounts: Record<StaffingPriority, number> = {
-    [STAFFING_PRIORITY_LOW]: 0,
-    [STAFFING_PRIORITY_NORMAL]: 0,
-    [STAFFING_PRIORITY_HIGH]: 0,
-  };
   const workShare = input.sabbathObserved ? 6 / 7 : 1;
 
   for (const building of input.state.buildings.values()) {
@@ -388,9 +375,6 @@ export function computeSettlementGrainPlan(
         )
       )
     ) {
-      processorPriorityCounts[
-        normalizeStaffingPriority(building.constructionPriority)
-      ] += 1;
     }
     if (building.kind !== 'monastery' || !completed) {
       continue;
@@ -486,7 +470,6 @@ export function computeSettlementGrainPlan(
       : Number.POSITIVE_INFINITY,
     annualProcessorDemand,
     annualCommitments,
-    processorPriorityCounts,
     laborCoveredHarvest,
     potentialHarvest,
     annualBalance: laborCoveredHarvest - annualCommitments,

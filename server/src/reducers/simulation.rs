@@ -374,7 +374,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
 
     // Storehouse keepers first stock the shared Marketplace's fuel and goods
     // stalls. Remaining producer or depot firewood may then feed workshops,
-    // where work priority and fuel runway replace construction-order bias.
+    // where fuel runway and stable target order replace construction-order bias.
     let household_storehouses = village_storehouse_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))

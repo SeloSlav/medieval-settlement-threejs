@@ -7,13 +7,20 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps
 
 
-def ensure_square_tile(src: Path, size: int = 1024) -> Image.Image:
+def crop_square(src: Path, size: int = 1024) -> Image.Image:
     img = Image.open(src).convert("RGB")
     w, h = img.size
     side = min(w, h)
     left = (w - side) // 2
     top = (h - side) // 2
-    img = img.crop((left, top, left + side, top + side)).resize((size, size), Image.Resampling.LANCZOS)
+    return img.crop((left, top, left + side, top + side)).resize(
+        (size, size),
+        Image.Resampling.LANCZOS,
+    )
+
+
+def ensure_square_tile(src: Path, size: int = 1024) -> Image.Image:
+    img = crop_square(src, size)
     # Softly blend mirrored borders so repeat wrapping has no hard seam.
     px = img.load()
     blend = max(24, size // 16)
@@ -44,6 +51,24 @@ def ensure_square_tile(src: Path, size: int = 1024) -> Image.Image:
                 round(edge[i] * (1 - t) + b[i] * t) for i in range(3)
             )
     return img
+
+
+def make_secondary_forest_albedo(src: Path, size: int = 1024) -> Image.Image:
+    """Regrade an already seamless, motif-neutral groundcover tile as litter.
+
+    The grass blend has deliberately even stochastic structure. Keeping that
+    structure intact and only changing its palette gives the forest shader an
+    independent detail field without introducing recognizable leaf clusters,
+    mirrored seams, or four-way corner rosettes.
+    """
+    source = ensure_square_tile(src, size)
+    gray = ImageOps.grayscale(source)
+    gray = ImageEnhance.Contrast(gray).enhance(1.12)
+    return ImageOps.colorize(
+        gray,
+        black=(40, 28, 22),
+        white=(118, 90, 66),
+    )
 
 
 def wrap_atlas_cell(image: Image.Image, gutter: int = 64) -> Image.Image:
@@ -294,11 +319,13 @@ def main() -> None:
             "public/assets/textures/terrain/forest_leaf_litter_secondary"
         )
         secondary_forest_dir.mkdir(parents=True, exist_ok=True)
-        secondary_forest = ensure_square_tile(Path(args.forest_secondary_source))
+        secondary_forest = make_secondary_forest_albedo(
+            Path(args.forest_secondary_source)
+        )
         secondary_forest.save(secondary_forest_dir / "albedo.png")
         save_height_maps(secondary_forest, secondary_forest_dir, road=False)
         (secondary_forest_dir / "README.md").write_text(
-            "Secondary forest leaf-litter PBR texture set. The albedo was generated with Codex built-in image generation as an independent, motif-restrained companion to the primary forest floor, then processed locally for seamless tiling; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. Runtime color is packed with the primary litter, dry grass, and snow in manor_grass_dry/snow_leaf_albedo_atlas.png.\n",
+            "Secondary forest-floor PBR texture set. The albedo is a brown regrade of the project's already seamless, motif-neutral manor grass blend, giving the forest shader an independent stochastic detail field without recognizable repeated leaf clusters; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. Runtime color is packed with the primary litter, dry grass, and snow in manor_grass_dry/snow_leaf_albedo_atlas.png.\n",
             encoding="utf-8",
         )
 

@@ -341,7 +341,7 @@ export function createInspectorSpacetimeActions(
       if (!store) return;
       await runReducer(
         () => store.setConstructionPriority(buildingId, priority),
-        'Could not change work priority.',
+        'Could not change construction priority.',
       );
     },
     onMarketplaceTrade: async (buildingId, tradeId) => {

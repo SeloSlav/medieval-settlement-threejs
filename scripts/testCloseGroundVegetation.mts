@@ -5,6 +5,8 @@ import {
   GRASS_STREAM_CHUNK_RADIUS,
   GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
   GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
+  grassMicroTuftTargetForForestBlend,
+  grassTuftTargetForForestBlend,
 } from '../src/grass/grassLodMath.ts';
 import {
   resolveGrassStreamSlotIndex,
@@ -45,6 +47,32 @@ const lodSource = readFileSync(
 );
 const meadowTuftPath =
   `${projectRoot}public/assets/textures/vegetation/grass/close-meadow-tuft-greener.png`;
+
+assert.equal(
+  grassTuftTargetForForestBlend(192, 0),
+  192,
+  'meadow terrain should keep the full grass tuft budget',
+);
+assert.equal(
+  grassTuftTargetForForestBlend(192, 0.5),
+  120,
+  'forest-edge terrain should transition smoothly toward the reduced budget',
+);
+assert.equal(
+  grassTuftTargetForForestBlend(192, 1),
+  48,
+  'fully forested terrain should keep only isolated primary grass tufts',
+);
+assert.equal(
+  grassMicroTuftTargetForForestBlend(192, 0),
+  134,
+  'meadow terrain should retain its micro-tuft gap filling',
+);
+assert.equal(
+  grassMicroTuftTargetForForestBlend(48, 1),
+  0,
+  'fully forested terrain should not receive meadow-style micro-tuft underfill',
+);
 
 assert.match(
   grassSource,
@@ -143,8 +171,23 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /rng\(\) < 0\.34[\s\S]*?microTarget = Math\.floor\(tuftTarget \* 0\.7\)/,
-  'the denser meadow should fill gaps with a lower clustering bias and a larger micro underfill',
+  /rng\(\) < 0\.34/,
+  'the denser meadow should retain its lower clustering bias',
+);
+assert.match(
+  fieldSource,
+  /sampleTerrainMeshAttributeX\([\s\S]*?'forestBlend'[\s\S]*?const chunkForestBlend =[\s\S]*?const tuftTarget = grassTuftTargetForForestBlend\(baseTuftTarget, chunkForestBlend\)/,
+  'forest grass should derive a forest-scaled tuft budget from the rendered terrain forest mask',
+);
+assert.match(
+  fieldSource,
+  /const microTarget = grassMicroTuftTargetForForestBlend\([\s\S]*?chunkForestBlend,[\s\S]*?const habitatChance = THREE\.MathUtils\.lerp\(0\.86, 0\.12, density\)/,
+  'forest groundcover should remove meadow gap-fillers and suppress wildflowers under canopy',
+);
+assert.doesNotMatch(
+  fieldSource,
+  /createForestCores\(mulberry32\(/,
+  'groundcover must not generate a separate forest mask that can drift from the terrain',
 );
 assert.match(
   fieldSource,

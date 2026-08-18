@@ -59,7 +59,6 @@ import {
   marketplaceGoldReserveTarget,
   marketplaceGoldSweepSurplus,
 } from '../../economy/marketplaceGoldReserve.ts';
-import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 
 const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>(TRADE_RESOURCE_KINDS);
 
@@ -131,7 +130,7 @@ export function renderMarketplaceInspector(
     : nextMaterialDispatch
       ? `${cargoKindLabel(nextMaterialDispatch.commodity)} next to ${
           context.worldQueries.getBuildingLabel(nextMaterialDispatch.target.kind)
-        } · ${staffingPriorityLabel(nextMaterialDispatch.workPriority)} priority · ${
+        } · ${
           nextMaterialDispatch.runwayCycles.toFixed(1)
         } cycles onsite · ${formatDeliveryRoadDistance(nextMaterialDispatch.routeDistance)}`
       : (building.iron ?? 0) <= 1e-6

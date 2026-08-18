@@ -227,7 +227,11 @@ pub fn reconcile_building_labor(ctx: &ReducerContext, owner: spacetimedb::Identi
                 assigned_labor: building.assigned_labor.max(minimum_labor),
                 minimum_labor,
                 construction_complete: building.construction_complete,
-                priority: building.construction_priority,
+                priority: if building.construction_complete {
+                    crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL
+                } else {
+                    building.construction_priority
+                },
             }
         })
         .collect();

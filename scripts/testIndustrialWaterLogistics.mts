@@ -147,8 +147,8 @@ assert.equal(
     highPriorityCandidate,
     lowPriorityCandidate,
   ])?.building.id,
-  '8',
-  'a higher work-priority workshop should receive scarce well water before a lower tier',
+  '7',
+  'legacy completed-building priority must not override the emptier workshop',
 );
 
 const flaxFirstLoom = {
@@ -211,8 +211,8 @@ assert.equal(
       },
     },
   ])?.building.id,
-  woolFirstLoom.building.id,
-  'explicit work priority must remain stronger than loom input preference',
+  flaxFirstLoom.building.id,
+  'legacy completed-building priority must not override loom input preference',
 );
 
 const selectionStarted = performance.now();
@@ -244,7 +244,7 @@ assert.match(wellSimulation, /try_start_building_supply_trip/);
 assert.match(wellSimulation, /CommodityKind::Water/);
 assert.match(wellSimulation, /building_has_inbound_supply_trip/);
 assert.match(wellSimulation, /tick\.building_disabled_by_fire\(ctx, candidate\.id\)/);
-assert.match(wellSimulation, /work_priority: candidate\.construction_priority/);
+assert.match(wellSimulation, /work_priority: CONSTRUCTION_PRIORITY_NORMAL/);
 assert.match(wellSimulation, /input_preference_rank: industrial_water_input_preference_rank/);
 assert.match(wellSimulation, /industrial_water_target/);
 assert.match(wellSimulation, /candidate\.water\.max\(0\.0\) \/ desired_stock/);
@@ -281,7 +281,7 @@ assert.match(
   wellInspector,
   /Connected homes draw directly from storage\. Workshops receive physical cart deliveries according to their input policy and buffer\./,
 );
-assert.match(wellInspector, /staffingPriorityLabel/);
+assert.doesNotMatch(wellInspector, /staffingPriorityLabel|staffing priority/i);
 assert.match(wellInspector, /weaverFibreDeliveryPreferenceLabel/);
 assert.match(wellInspector, /industrialWaterTarget/);
 assert.match(wellInspector, /staged water/);

@@ -126,7 +126,7 @@ pub struct PlayerResources {
     pub cloth: f64,
     /// When enabled, a staffed Town Hall reviews seasonal crews once per
     /// calendar day: dormant labor is released before active sites claim free
-    /// workers by their existing staffing priorities. Appended for additive
+    /// workers fairly in stable worksite order. Appended for additive
     /// save compatibility; existing settlements remain manual.
     #[default(false)]
     pub seasonal_labor_steward_enabled: bool,
@@ -140,7 +140,7 @@ pub struct PlayerResources {
     /// When enabled, a staffed Town Hall reviews target-governed workshops
     /// and source-bound production once per calendar day: stalled surplus
     /// crews are released before supplied, below-target sites claim free
-    /// workers by staffing priority. Appended for additive save compatibility;
+    /// workers by a stable automatic order. Appended for additive save compatibility;
     /// existing settlements remain manual.
     #[default(false)]
     pub production_labor_steward_enabled: bool,
@@ -446,12 +446,10 @@ pub struct Building {
     /// before household carts.
     #[default(false)]
     pub granary_households_first: bool,
-    /// Work priority: construction uses 0 = held, 1 = low, 2 = normal,
-    /// 3 = urgent. Completed buildings use 1 = low, 2 = normal, 3 = high
-    /// when retaining staff after population loss. Routed processor inputs
-    /// also use this tier when scarce carts choose a working buffer.
-    /// The additive legacy default remains normal; an explicitly prioritized
-    /// site retains that intent.
+    /// Construction queue priority: 0 = held, 1 = low, 2 = normal,
+    /// 3 = urgent. Completion resets this field to normal; operating labor and
+    /// logistics deliberately ignore it. The additive legacy default remains
+    /// normal for save compatibility.
     #[default(2u8)]
     pub construction_priority: u8,
     /// Settlement-wide unreserved building timber this lodge must leave intact

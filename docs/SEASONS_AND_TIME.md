@@ -465,17 +465,15 @@ stranded on another road branch and links to the highest-priority exposed claim.
 The audit reuses component identifiers, adds no save state or path solve, and is
 linear in buildings and active construction branches.
 
-The same completed-building work priority also governs scarce grain carts at
+Stable operating order and lowest cycle runway govern scarce grain carts at
 watermills, breweries, and autonomous monasteries, plus industrial well-water
 carts at breweries and granary bakeries. Grain dispatch first selects the
-highest-priority tier that still needs its selected one-, two-, or three-cycle
-working buffer, then the lowest cycle runway, shortest road route, and stable
-building order. Wells keep
-fire response and household service ahead of industry, then apply the same tier,
-water-stock ratio against the selected staging target, route, and stable-order
-sequence. This lets the player keep
-staple milling or baking ahead of brewing and hospitality through a lean crop
-year without adding another priority field. Existing buildings remain normal.
+lowest cycle runway among workshops that still need their selected one-, two-,
+or three-cycle working buffer, then the shortest road route and stable building
+order. Wells keep fire response and household service ahead of industry, then
+apply input specialization, water-stock ratio against the selected staging
+target, route, and stable-order sequence. Construction queue intent never
+carries into these completed-building logistics.
 The same control also orders direct producer carts for the next link: flour
 from watermills to staffed granary bakeries, fresh food dispatched from
 granaries or swine holdings to smokehouses, and annual fleece sent to weavers.

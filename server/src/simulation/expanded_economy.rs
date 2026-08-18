@@ -36,6 +36,7 @@ use crate::balance_generated::{
     WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
+use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::burgage::{Point2, ZoneCorners};
 use crate::civilian_tool_policy::{
     civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
@@ -387,7 +388,7 @@ fn institutional_food_target_plan(
             }
             Some((
                 InstitutionalFoodDispatchDuty::PreservationBuffer,
-                target.construction_priority,
+                CONSTRUCTION_PRIORITY_NORMAL,
                 processor_input_runway_cycles(stock, per_cycle),
                 desired_stock,
             ))
@@ -403,7 +404,7 @@ fn institutional_food_target_plan(
             }
             Some((
                 InstitutionalFoodDispatchDuty::GranaryIntake,
-                target.construction_priority,
+                CONSTRUCTION_PRIORITY_NORMAL,
                 stock.max(0.0) / desired_stock,
                 desired_stock,
             ))
@@ -1025,13 +1026,13 @@ pub fn step_marketplace_material_dispatch(
     candidates.sort_by(|a, b| {
         compare_processor_input_dispatch_candidates(
             a.duty,
-            a.building.construction_priority,
+            CONSTRUCTION_PRIORITY_NORMAL,
             0,
             a.runway_cycles,
             a.distance,
             a.building.id,
             b.duty,
-            b.building.construction_priority,
+            CONSTRUCTION_PRIORITY_NORMAL,
             0,
             b.runway_cycles,
             b.distance,
@@ -1301,13 +1302,13 @@ fn sort_local_material_candidates(candidates: &mut [LocalMaterialDispatchCandida
     candidates.sort_by(|a, b| {
         compare_processor_input_dispatch_candidates(
             a.duty,
-            a.building.construction_priority,
+            CONSTRUCTION_PRIORITY_NORMAL,
             0,
             a.runway_cycles,
             a.distance,
             a.building.id,
             b.duty,
-            b.building.construction_priority,
+            CONSTRUCTION_PRIORITY_NORMAL,
             0,
             b.runway_cycles,
             b.distance,
@@ -3622,7 +3623,7 @@ fn next_granary_grain_dispatch(
     });
     select_grain_dispatch_candidate(
         candidates,
-        |candidate| candidate.building.construction_priority,
+        |_candidate| CONSTRUCTION_PRIORITY_NORMAL,
         |candidate| candidate.runway_cycles,
         |candidate| candidate.distance,
         |candidate| candidate.building.id,
@@ -3979,7 +3980,7 @@ fn dispatch_to_building_where_limited(
                 )
             }),
         |candidate| candidate.duty,
-        |candidate| candidate.building.construction_priority,
+        |_candidate| CONSTRUCTION_PRIORITY_NORMAL,
         |candidate| candidate.input_preference_rank,
         |candidate| candidate.runway_cycles,
         |candidate| candidate.distance,

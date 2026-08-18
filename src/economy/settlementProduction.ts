@@ -1719,9 +1719,7 @@ function toolMaintenanceRoutePlan(
   const sites = toolSites
     .filter((site) => site.demandPerDay > 1e-9 && site.refillLoad > 1e-9)
     .sort((left, right) =>
-      (right.building.constructionPriority ?? 2)
-        - (left.building.constructionPriority ?? 2)
-      || compareStableEntityIds(left.building.id, right.building.id));
+      compareStableEntityIds(left.building.id, right.building.id));
   const totalDemand = sites.reduce((sum, site) => sum + site.demandPerDay, 0);
   if (totalDemand <= 1e-9) {
     return {

@@ -137,7 +137,6 @@ import {
   processorOutputHeadroom,
   processorOutputTargetForBuilding,
 } from '../../economy/processorOutputPolicy.ts';
-import { staffingPriorityLabel } from '../../economy/staffingPriority.ts';
 import { civicReceiptCollectionPlan } from '../../economy/civicReceipts.ts';
 import {
   normalizeWeaverInputPolicy,
@@ -650,7 +649,7 @@ function renderLogisticsRows(
         : null;
   const potteryMaterialDestination = materialDispatch && materialCommodity === 'pottery'
     ? materialDispatch.duty === 'working-buffer'
-      ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${Math.round(materialDispatch.target.pottery ?? 0)} / ${Math.ceil(materialDispatch.desiredStock)} pottery · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
+      ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${Math.round(materialDispatch.target.pottery ?? 0)} / ${Math.ceil(materialDispatch.desiredStock)} pottery · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
       : `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · local pottery duties covered · nearest export route`
     : null;
   const potteryHouseholdDestination = potteryHouseholdTarget
@@ -671,23 +670,23 @@ function renderLogisticsRows(
     ? 'Least-covered active farmstead, then shorter road'
     : flaxDispatch
       ? flaxDispatch.duty === 'working-buffer'
-        ? `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · ${staffingPriorityLabel(flaxDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(flaxDispatch.target.weaverInputPolicy, 'flax')} · ${Math.round(flaxDispatch.target.flax ?? 0)} / ${Math.ceil(flaxDispatch.desiredStock)} flax`
+        ? `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · ${weaverFibreDeliveryPreferenceLabel(flaxDispatch.target.weaverInputPolicy, 'flax')} · ${Math.round(flaxDispatch.target.flax ?? 0)} / ${Math.ceil(flaxDispatch.desiredStock)} flax`
         : `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · active loom buffers covered · nearest overflow route`
       : flourDispatch
       ? flourDispatch.duty === 'working-buffer'
-        ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${Math.round(Math.max(0, flourCommodity ? flourDispatch.target[flourCommodity] ?? 0 : 0))} / ${Math.ceil(flourDispatch.desiredStock)} ${flourCommodity?.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
+        ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${Math.round(Math.max(0, flourCommodity ? flourDispatch.target[flourCommodity] ?? 0 : 0))} / ${Math.ceil(flourDispatch.desiredStock)} ${flourCommodity?.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
         : flourDispatch.duty === 'central-storage'
           ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · central flour reserve after active bakery buffers · shortest road`
           : `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · emergency overflow because no granary can receive flour · shortest road`
       : ironworkDispatch
         ? ironworkDispatch.duty === 'working-buffer'
-          ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${staffingPriorityLabel(ironworkDispatch.workPriority)} priority · ${Math.round(ironworkDispatch.target.ironwork ?? 0)} / ${Math.ceil(ironworkDispatch.desiredStock)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
+          ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${Math.round(ironworkDispatch.target.ironwork ?? 0)} / ${Math.ceil(ironworkDispatch.desiredStock)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
           : `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · maintained buffers covered · nearest overflow route`
       : potteryDestination
         ? potteryDestination
       : materialDispatch && materialCommodity
         ? materialDispatch.duty === 'working-buffer'
-          ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${Math.round(materialDispatch.target[materialCommodity] ?? 0)} / ${Math.ceil(materialDispatch.desiredStock)} ${materialCommodity} · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
+          ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${Math.round(materialDispatch.target[materialCommodity] ?? 0)} / ${Math.ceil(materialDispatch.desiredStock)} ${materialCommodity} · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
           : `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · active material buffers covered · nearest overflow route`
       : outboundDestinationLabel(building);
   const nearestTarget = outboundTripTarget(building, context, seedPlan);
@@ -1178,7 +1177,7 @@ export function renderExpandedBuildingInspector(
         : 'No fresh food available'
       : granaryPreservationDispatch
         ? granaryPreservationDispatch.duty === 'working-buffer'
-          ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${staffingPriorityLabel(granaryPreservationDispatch.workPriority)} priority · ${Math.round(preservableFoodStock(granaryPreservationDispatch.target))} / ${Math.ceil(granaryPreservationDispatch.desiredStock)} preservable food`
+          ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${Math.round(preservableFoodStock(granaryPreservationDispatch.target))} / ${Math.ceil(granaryPreservationDispatch.desiredStock)} preservable food`
           : `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · active buffers covered · nearest overflow route`
         : 'No smokehouse can currently receive fresh food'
     : '';
@@ -1199,7 +1198,7 @@ export function renderExpandedBuildingInspector(
     : 0;
   const granaryGrainDispatchLabel = building.kind === 'granary'
     ? granaryGrainDispatch
-      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${staffingPriorityLabel(granaryGrainDispatch.workPriority)} priority · ${Math.round(Math.max(0, granaryGrainDispatch.target[granaryGrainDispatch.commodity] ?? 0))} / ${Math.ceil(granaryGrainDispatch.desiredStock)} ${granaryGrainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
+      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${Math.round(Math.max(0, granaryGrainDispatch.target[granaryGrainDispatch.commodity] ?? 0))} / ${Math.ceil(granaryGrainDispatch.desiredStock)} ${granaryGrainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
           granaryGrainDispatch.runwayCycles < GRAIN_CRITICAL_RUNWAY_CYCLES
             ? ' · critical, preempts food cart'
             : ' · after available food duty'
@@ -1318,7 +1317,7 @@ export function renderExpandedBuildingInspector(
     : null;
   const institutionalFoodRows = building.kind === 'smokehouse'
     ? `<li><span>Fresh-food priority</span><span>Producer-owned carts protect local Marketplace reserves, then serve a critical company before this working batch</span></li>
-      <li><span>Shared arbitration</span><span>Smokehouse batch → routine company reserve → enabled granary intake · work priority and lowest runway break ties</span></li>`
+      <li><span>Shared arbitration</span><span>Smokehouse batch → routine company reserve → enabled granary intake · lowest runway, road length, and stable order break ties</span></li>`
     : routineFreshFoodSource
       ? `<li><span>Local food reserve</span><span>${Math.round(edibleFoodStock(building) - routineFreshFoodSurplus)} protected · ${Math.round(routineFreshFoodSurplus)} central surplus</span></li>
         <li><span>Next surplus cart</span><span>${routineFreshFoodDispatch
@@ -1514,7 +1513,7 @@ function renderFarmsteadPlanning(
         ? 'Held for linked fields'
         : 'No grain awaiting haul'
     : grainDispatch.duty === 'working-buffer'
-      ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · ${staffingPriorityLabel(grainDispatch.workPriority)} priority · ${Math.round(Math.max(0, grainDispatch.target[grainDispatch.commodity] ?? 0))} / ${Math.ceil(grainDispatch.desiredStock)} ${grainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} working buffer`
+      ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · ${Math.round(Math.max(0, grainDispatch.target[grainDispatch.commodity] ?? 0))} / ${Math.ceil(grainDispatch.desiredStock)} ${grainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} working buffer`
       : grainDispatch.duty === 'granary-reserve'
         ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · central reserve`
         : `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · emergency overflow`;
@@ -1527,7 +1526,7 @@ function renderFarmsteadPlanning(
         : 'No barley awaiting haul'
     : `${context.worldQueries.getBuildingLabel(barleyDispatch.target.kind)} · ${
       barleyDispatch.duty === 'working-buffer'
-        ? `${staffingPriorityLabel(barleyDispatch.workPriority)} priority · ${Math.round(Math.max(0, barleyDispatch.target.barley ?? 0))} / ${Math.ceil(barleyDispatch.desiredStock)} malting buffer`
+        ? `${Math.round(Math.max(0, barleyDispatch.target.barley ?? 0))} / ${Math.ceil(barleyDispatch.desiredStock)} malting buffer`
         : 'overflow store'
     }`;
   const weakestYearThreeField = plan.rotation.weakestYearThreeFieldId === null
@@ -1568,7 +1567,7 @@ function renderFarmsteadPlanning(
     <li><span>Fibre storage</span><span>${Math.floor(fibreRoom)} onsite room${fibreHaulingRequired ? ' · weaver hauling required' : ' · fits onsite'}</span></li>
     <li><span>Next grain haul</span><span>${grainRoutingLabel}</span></li>
     <li><span>Next barley haul</span><span>${barleyRoutingLabel}</span></li>
-    <li><span>Grain policy</span><span>Linked-field seed · processor work priority · lowest cycle runway · granary · overflow</span></li>
+    <li><span>Grain policy</span><span>Linked-field seed · lowest processor cycle runway · granary · overflow</span></li>
   `;
 
   if (onsiteLabor <= 0 && threshingBacklog > 1e-6) {
@@ -1699,11 +1698,11 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       : 'Production paused at target';
   const weaverInputPolicy = building.kind === 'weaver'
     ? `
-      <p class="resource-inspector-note">Fibre preference · steers matching raw-fibre carts between equal-priority active looms, then decides which complete onsite recipe is consumed first.</p>
+      <p class="resource-inspector-note">Fibre preference · steers matching raw-fibre carts between active looms, then decides which complete onsite recipe is consumed first.</p>
       <div class="resource-action-row">${WEAVER_INPUT_POLICY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-weaver-input-policy="${preset.policy}" title="${preset.hint}" ${normalizeWeaverInputPolicy(building.weaverInputPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Work priority still wins first. Matching specialization then wins a contested working-buffer cart; Auto forms the neutral middle pool. The same order governs scarce well water once flax is physically staged. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
+      <p class="inspector-action-panel__hint">Matching specialization wins a contested working-buffer cart; Auto forms the neutral middle pool. The same order governs scarce well water once flax is physically staged. Covered buffers and ready alternate recipes remain fallbacks so neither carts nor crews deadlock. Wool avoids a water haul; flax turns planned field fibre and well capacity into cloth while preserving annual fleece.</p>
     `
     : '';
   const potteryDispatchPolicy = building.kind === 'potter_kiln'
@@ -1712,7 +1711,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
       <div class="resource-action-row">${POTTERY_DISPATCH_POLICY_PRESETS
         .map((preset) => `<button type="button" class="resource-action-button" data-pottery-dispatch-policy="${preset.policy}" title="${preset.hint}" ${normalizePotteryDispatchPolicy(building.potteryDispatchPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">Market-wares-first lets staffed storehouse workers collect pottery for household stalls before smokehouse packing stock. Preservation-first stages the highest-priority smokehouse working buffer before storehouse collection. Either order immediately falls through when its first duty has no reachable shortage, and Trading Post export always waits until both local duties are covered.</p>
+      <p class="inspector-action-panel__hint">Market-wares-first lets staffed storehouse workers collect pottery for household stalls before smokehouse packing stock. Preservation-first stages the smokehouse working buffer with the lowest runway before storehouse collection. Either order immediately falls through when its first duty has no reachable shortage, and Trading Post export always waits until both local duties are covered.</p>
     `
     : '';
   const potterFiringPolicy = building.kind === 'potter_kiln'

@@ -1079,9 +1079,9 @@ pub fn recall_idle_seasonal_labor(ctx: &ReducerContext) -> Result<(), String> {
     Ok(())
 }
 
-/// Calls free settlement labor into currently active seasonal work. Higher
-/// staffing priorities fill first; equal-priority sites receive one worker per
-/// pass so scarce labor is shared across the active harvest window.
+/// Calls free settlement labor into currently active seasonal work. Sites
+/// receive one worker per stable-order pass so scarce labor is shared across
+/// the active harvest window.
 #[reducer]
 pub fn call_up_active_seasonal_labor(ctx: &ReducerContext) -> Result<(), String> {
     let owner = ctx.sender();
@@ -1536,9 +1536,9 @@ pub fn recall_target_idle_processor_labor(ctx: &ReducerContext) -> Result<(), St
 }
 
 /// Deploys available settlement labor to capacity-open processors and
-/// source-ready mines, quarries, clay pits, or hunting halls. Staffing priority
-/// tiers fill from high to low, with round-robin sharing inside each tier. The
-/// legacy reducer name is retained for generated-binding compatibility.
+/// source-ready mines, quarries, clay pits, or hunting halls with round-robin
+/// sharing in stable worksite order. The legacy reducer name is retained for
+/// generated-binding compatibility.
 fn call_up_target_ready_processor_labor_for_owner_with_policy(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -1589,7 +1589,7 @@ fn call_up_target_ready_processor_labor_for_owner_with_policy(
         }
         candidates.push(ProcessorCallupCandidate {
             building_id: building.id,
-            priority: building.construction_priority,
+            priority: CONSTRUCTION_PRIORITY_NORMAL,
             assigned_labor: building.assigned_labor,
             max_labor: def.max_labor,
         });
@@ -1685,7 +1685,7 @@ pub fn call_up_year_round_labor(ctx: &ReducerContext) -> Result<(), String> {
         }
         sites.push(YearRoundLaborSite {
             building_id: building.id,
-            priority: building.construction_priority,
+            priority: CONSTRUCTION_PRIORITY_NORMAL,
             assigned_labor: building.assigned_labor,
             minimum_labor: cart_floors
                 .get(&building.id)
@@ -1733,7 +1733,7 @@ pub fn set_construction_priority(
     priority: u8,
 ) -> Result<(), String> {
     if !is_valid_construction_priority(priority) {
-        return Err("Work priority must be hold, low, normal, or high/urgent.".to_string());
+        return Err("Construction priority must be hold, low, normal, or urgent.".to_string());
     }
     let owner = ctx.sender();
     let mut building = ctx
@@ -1746,19 +1746,10 @@ pub fn set_construction_priority(
         return Err("You do not own this building.".to_string());
     }
     if building.construction_complete {
-        if priority == CONSTRUCTION_PRIORITY_HOLD {
-            return Err(
-                "Operating-building staffing priority must be low, normal, or high.".to_string(),
-            );
-        }
-        if !building_def(&building.kind).is_some_and(|def| def.accepts_labor)
-            && building.kind != "monastery"
-        {
-            return Err("This building does not use labor or rationed grain.".to_string());
-        }
-        building.construction_priority = priority;
-        ctx.db.building().id().update(building);
-        return Ok(());
+        return Err(
+            "Construction priority only applies while a building is under construction."
+                .to_string(),
+        );
     }
 
     let was_held = building.construction_priority == CONSTRUCTION_PRIORITY_HOLD;

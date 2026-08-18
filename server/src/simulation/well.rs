@@ -6,6 +6,7 @@ use crate::constants::{
     WELL_SURGE_AMOUNT_MIN, WELL_SURGE_CHANCE_PER_TICK, WELL_SURGE_COOLDOWN_SEC,
     WELL_WATER_PER_DELIVERY,
 };
+use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::CommodityKind;
 use crate::hydrology::sample_world_hydrology_score;
@@ -175,7 +176,7 @@ fn select_industrial_water_target(
                     local_delivery_distance(network, well.x, well.z, candidate.x, candidate.z)?;
                 Some(IndustrialWaterCandidate {
                     building_id: candidate.id,
-                    work_priority: candidate.construction_priority,
+                    work_priority: CONSTRUCTION_PRIORITY_NORMAL,
                     input_preference_rank: industrial_water_input_preference_rank(
                         &candidate.kind,
                         candidate.weaver_input_policy,

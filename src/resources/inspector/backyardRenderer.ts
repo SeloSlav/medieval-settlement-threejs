@@ -292,7 +292,7 @@ function renderBackyardProject(
     supplementalPanelHtml: `
       <p class="resource-inspector-note">A shared household builder and real source carts compete with cottages, house upgrades, and other construction.</p>
       <div class="inspector-policy-control">
-        <span>Work priority</span>
+        <span>Construction priority</span>
         <div class="inspector-policy-buttons">${priorityButtons}</div>
       </div>
     `,

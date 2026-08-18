@@ -42,9 +42,9 @@ pub struct LaborAssignment {
 
 /// Returns only the building assignments that must change after population loss.
 ///
-/// Construction crews are released before permanent jobs. Within each group,
-/// low-priority work releases first, then normal and high; equal priorities
-/// release newer assignments before older ones.
+/// Construction crews are released before permanent jobs. Construction queue
+/// priority remains relevant for unfinished sites; completed jobs share one
+/// neutral automatic tier and release newer assignments before older ones.
 pub fn labor_reconciliation_updates(
     assignments: Vec<LaborAssignment>,
     total_population: u32,
@@ -149,7 +149,7 @@ fn release_labor_by_priority(
 }
 
 fn effective_labor_priority(assignment: LaborAssignment) -> u8 {
-    if assignment.construction_complete && assignment.priority == 0 {
+    if assignment.construction_complete {
         return CONSTRUCTION_PRIORITY_NORMAL;
     }
     assignment.priority.min(CONSTRUCTION_PRIORITY_URGENT)
@@ -237,7 +237,7 @@ mod tests {
     }
 
     #[test]
-    fn population_loss_releases_low_priority_jobs_before_newer_essential_work() {
+    fn population_loss_ignores_legacy_job_priority_and_releases_newest_first() {
         let updates = labor_reconciliation_updates(
             vec![
                 LaborAssignment {
@@ -265,7 +265,7 @@ mod tests {
             4,
         );
 
-        assert_eq!(updates, vec![(10, 0)]);
+        assert_eq!(updates, vec![(30, 0)]);
     }
 
     #[test]
@@ -360,7 +360,7 @@ mod tests {
     }
 
     #[test]
-    fn priority_reconciliation_stays_bounded_at_large_settlement_scale() {
+    fn neutral_reconciliation_stays_bounded_at_large_settlement_scale() {
         let assignments = (0..100_000u64)
             .map(|building_id| LaborAssignment {
                 building_id,
@@ -377,10 +377,10 @@ mod tests {
         assert_eq!(updates.len(), 100);
         assert!(updates
             .iter()
-            .all(|(building_id, labor)| { building_id % 3 == 0 && *labor == 0 }));
+            .all(|(building_id, labor)| { *building_id >= 99_900 && *labor == 0 }));
         assert!(
             elapsed < Duration::from_millis(250),
-            "100k staffing priorities should reconcile only during a rare population-loss event"
+            "100k labor assignments should reconcile only during a rare population-loss event"
         );
     }
 }

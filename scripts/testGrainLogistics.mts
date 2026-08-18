@@ -259,18 +259,18 @@ const farmPriorityDispatch = selectGrainDispatchTarget(
 );
 assert.equal(
   farmPriorityDispatch?.target.id,
-  highPriorityMill.id,
-  'farm carts should restore a high-priority processor before a more depleted low-priority one',
+  lowPriorityEmptyMill.id,
+  'farm carts should restore the lowest runway regardless of legacy completed-building priority',
 );
-assert.equal(farmPriorityDispatch?.workPriority, 3);
+assert.equal(farmPriorityDispatch?.workPriority, 2);
 assert.equal(
   selectGrainProcessorTarget(
     [lowPriorityEmptyMill, highPriorityMill],
     'central-granary',
     (target) => target.x,
   )?.target.id,
-  highPriorityMill.id,
-  'central grain should obey the same processor work-priority tiers',
+  lowPriorityEmptyMill.id,
+  'central grain should use the same lowest-runway ordering',
 );
 const equalRunwayNearMill = grainDestination('equal-near', 'watermill', 5, 3);
 const equalRunwayFarMill = grainDestination('equal-far', 'watermill', 50, 3);
@@ -344,12 +344,12 @@ const priorityFlourDispatch = selectDirectProcessorInputTarget(
 );
 assert.equal(
   priorityFlourDispatch?.target.id,
-  highPriorityBakery.id,
-  'scarce mill flour should restore a high-priority bakery before a lower-tier empty one',
+  lowPriorityEmptyBakery.id,
+  'scarce mill flour should restore the emptiest bakery regardless of legacy priority',
 );
 assert.equal(priorityFlourDispatch?.desiredStock, 9);
-assert.equal(priorityFlourDispatch?.runwayCycles, 2);
-assert.equal(priorityFlourDispatch?.workPriority, 3);
+assert.equal(priorityFlourDispatch?.runwayCycles, 0);
+assert.equal(priorityFlourDispatch?.workPriority, 2);
 const highPriorityBrewery = processorInputDestination(
   'brew-high',
   'brewery',
@@ -374,8 +374,8 @@ const barleyDispatch = selectDirectProcessorInputTarget(
 );
 assert.equal(
   barleyDispatch?.target.id,
-  highPriorityBrewery.id,
-  'barley carts should restore the selected high-priority malting buffer',
+  lowPriorityEmptyBrewery.id,
+  'barley carts should restore the lowest malting runway',
 );
 assert.equal(barleyDispatch?.desiredStock, 9);
 
@@ -451,8 +451,8 @@ assert.equal(
     'wool',
     (target) => target.x,
   )?.target.id,
-  highPriorityWeaver.id,
-  'annual fleece should follow the same visible work-priority tiers',
+  lowPriorityWeaver.id,
+  'annual fleece should restore the lowest loom runway',
 );
 const woolFirstWeaver = {
   ...processorInputDestination('wool-first', 'weaver', 80, 0),
@@ -505,8 +505,8 @@ assert.equal(
     'wool',
     (target) => target.x,
   )?.target.id,
-  highPriorityFlaxFirstWeaver.id,
-  'explicit work priority should still override loom specialization',
+  lowPriorityWoolFirstWeaver.id,
+  'loom specialization should not be overridden by legacy completed-building priority',
 );
 const bufferedWoolFirstWeaver = {
   ...woolFirstWeaver,
@@ -554,8 +554,8 @@ assert.equal(
     'food',
     (target) => target.x,
   )?.target.id,
-  highPrioritySmokehouse.id,
-  'granary and swine food carts should restore high-priority preservation buffers first',
+  lowPrioritySmokehouse.id,
+  'granary and swine food carts should restore the lowest preservation runway first',
 );
 const leanBakery = processorInputDestination('15', 'bakery', 3, 3, 1, 2, 25);
 const deepBakery = processorInputDestination('16', 'bakery', 4, 3, 1, 2, 75);
@@ -689,7 +689,7 @@ assert.match(
 );
 assert.match(supplyPolicy, /pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3\.0/);
 assert.match(supplyPolicy, /pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1\.0/);
-assert.match(supplyPolicy, /pub enum GrainDispatchDuty/);
+assert.match(supplyPolicy, /pub fn compare_grain_dispatch_candidates/);
 assert.match(supplyPolicy, /pub fn grain_work_priority/);
 assert.match(supplyPolicy, /pub fn select_grain_dispatch_candidate/);
 assert.match(supplyPolicy, /processor_input_staging_cycles\(processor_output_target_percent\)/);
@@ -716,8 +716,7 @@ assert.match(expandedInspector, /Next seed cart/);
 assert.match(expandedInspector, /least-covered eligible holding goes first/);
 assert.match(expandedInspector, /Waiting for an assigned granary hauler/);
 assert.match(expandedInspector, /Next grain cart/);
-assert.match(expandedInspector, /staffingPriorityLabel\(granaryGrainDispatch\.workPriority\)/);
-assert.match(expandedInspector, /processor work priority/);
+assert.doesNotMatch(expandedInspector, /staffingPriorityLabel|processor work priority/);
 assert.match(expandedInspector, /getNextDirectProcessorInputDispatch/);
 assert.match(expandedInspector, /central flour reserve after active bakery buffers/);
 assert.match(expandedInspector, /emergency overflow because no granary can receive flour/);
@@ -794,7 +793,7 @@ assert.match(
   /tick\.building_disabled_by_fire\(ctx, target\.id\)/,
   'granary grain must reroute around fire-disabled processors',
 );
-assert.match(granaryDispatch, /candidate\.building\.construction_priority/);
+assert.match(granaryDispatch, /CONSTRUCTION_PRIORITY_NORMAL/);
 assert.match(granaryDispatch, /GRAIN_PROCESSOR_KINDS/);
 assert.match(granaryDispatch, /building_has_inbound_supply_trip/);
 assert.match(granaryDispatch, /processor_accepts_input\(&target, commodity\)/);
@@ -824,13 +823,13 @@ assert.match(supplyPolicy, /\("weaver", "flax"\)/);
 assert.match(expandedSimulation, /select_processor_input_dispatch_candidate/);
 assert.match(
   expandedSimulation,
-  /candidate\.building\.construction_priority/,
-  'source-dispatched flour, fresh food, and wool must use completed-building work priority',
+  /CONSTRUCTION_PRIORITY_NORMAL/,
+  'source-dispatched flour, fresh food, and wool must use neutral operating order',
 );
 assert.match(expandedSimulation, /granary_typed_grain_surplus\(source, commodity\)/);
 assert.doesNotMatch(expandedSimulation, /fn request_connected_seed_grain/);
 assert.match(expandedSimulation, /farmstead_seed_grain_remaining\(&fields\)\.for_commodity\(commodity\)/);
-assert.match(tickContext, /farmstead_seed_reserves: RefCell<HashMap<Identity, HashMap<u64, f64>>>/);
+assert.match(tickContext, /farmstead_seed_reserves:[\s\S]{0,80}RefCell<HashMap<Identity, HashMap<u64, FarmsteadSeedReserves>>>/);
 assert.match(tickContext, /pub fn farmstead_seed_reserve_for/);
 assert.match(tickContext, /farm_field\(\)\.owner\(\)\.filter\(&owner\)/);
 assert.match(

@@ -11,7 +11,6 @@ import { computeSettlementLaborPlan } from '../src/economy/settlementLabor.ts';
 import { computeSettlementHaulagePlan } from '../src/economy/settlementHaulage.ts';
 import { renderTownHallInspector } from '../src/resources/inspector/townHallRenderer.ts';
 import { buildingLaborView } from '../src/resources/inspector/buildingCommon.ts';
-import { withStaffingPriority } from '../src/resources/inspector/staffingPriorityRenderer.ts';
 import {
   computeInTransitResourceTotals,
   computePopulationStats,
@@ -70,10 +69,6 @@ assert.equal(plan.sectors.materials.assigned, 2);
 assert.equal(plan.sectors.logistics.unstaffedWorksites, 0);
 assert.equal(plan.sectors.defense.unstaffedWorksites, 1);
 assert.equal(plan.sectors.civic.unstaffedWorksites, 1);
-assert.equal(plan.staffingPriorities[1].worksites, 0);
-assert.equal(plan.staffingPriorities[2].worksites, 4);
-assert.equal(plan.staffingPriorities[2].assigned, 3);
-assert.equal(plan.staffingPriorities[3].worksites, 0);
 assert.equal(plan.constructionAssigned, 3);
 assert.equal(plan.constructionCapacity, CONSTRUCTION_MAX_BUILDERS);
 assert.equal(plan.activeConstructionSites, 1);
@@ -189,7 +184,7 @@ const renderedQueries = {
       .find((tripState) => tripState.buildingId === building.id) ?? null
   ),
 } as unknown as WorldQueries;
-const renderedInspector = withStaffingPriority(renderTownHallInspector(
+const renderedInspector = renderTownHallInspector(
   {
     kind: 'building',
     building: renderedTownHall,
@@ -204,7 +199,7 @@ const renderedInspector = withStaffingPriority(renderTownHallInspector(
     resourceTotals: computeResourceTotals(renderedState),
     worldHydrology: 0.5,
   },
-), renderedTownHall);
+);
 assert.ok(renderedInspector.detailsHtml.includes(
   `${renderedPopulation.assigned} / ${renderedPopulation.total} committed · ${renderedPopulation.available} free · ${renderedPlan.openPermanentPosts} open permanent posts`,
 ));
@@ -217,9 +212,8 @@ assert.doesNotMatch(
   'an unstaffed Marketplace square must never appear as a vacant labor worksite',
 );
 assert.match(renderedInspector.detailsHtml, /No active building sites · no carts traveling/);
-assert.match(renderedInspector.detailsHtml, /Staffing priority<\/span><span>Normal/);
-assert.match(renderedInspector.supplementalPanelHtml ?? '', /data-staffing-priority="1"/);
-assert.match(renderedInspector.supplementalPanelHtml ?? '', /does not hire workers automatically/);
+assert.doesNotMatch(renderedInspector.detailsHtml, /Staffing priorit/);
+assert.doesNotMatch(renderedInspector.supplementalPanelHtml ?? '', /data-staffing-priority/);
 assert.match(renderedInspector.detailsHtml, /Haulage network<\/span><span>No active cart runs/);
 
 renderedState.deliveryTrips.set(

@@ -23,7 +23,6 @@ import { renderConstructionInspector } from './constructionRenderer.ts';
 import { renderWatchtowerInspector } from './watchtowerRenderer.ts';
 import { renderGuardhouseInspector } from './guardhouseRenderer.ts';
 import { renderPalisadedRefugeInspector } from './palisadedRefugeRenderer.ts';
-import { withStaffingPriority } from './staffingPriorityRenderer.ts';
 import { renderFoundersCampInspector } from './foundersCampRenderer.ts';
 import { renderSalvagePileInspector } from './salvagePileRenderer.ts';
 import { withBuildingFireSafety } from './fireSafetyRenderer.ts';
@@ -75,39 +74,39 @@ export function renderBuildingInspector(
     case 'remote_work_camp':
       return renderRemoteWorkCampInspector(target, context);
     case 'chapel':
-      return withStaffingPriority(renderChapelInspector(target, context), building);
+      return renderChapelInspector(target, context);
     case 'marketplace':
       return renderMarketStallsInspector(target, context);
     case 'trading_post':
-      return withStaffingPriority(renderMarketplaceInspector(target, context), building);
+      return renderMarketplaceInspector(target, context);
     case 'town_hall':
-      return withStaffingPriority(renderTownHallInspector(target, context), building);
+      return renderTownHallInspector(target, context);
     case 'village_storehouse':
-      return withStaffingPriority(renderStorehouseInspector(target, context), building);
+      return renderStorehouseInspector(target, context);
     case 'watchtower':
-      return withStaffingPriority(renderWatchtowerInspector(target, context), building);
+      return renderWatchtowerInspector(target, context);
     case 'guardhouse':
-      return withStaffingPriority(renderGuardhouseInspector(target, context), building);
+      return renderGuardhouseInspector(target, context);
     case 'palisaded_refuge':
       return renderPalisadedRefugeInspector(target, context);
     case 'lumber_mill':
-      return withStaffingPriority(renderLumberMillInspector(target, context), building);
+      return renderLumberMillInspector(target, context);
     case 'woodcutters_lodge':
-      return withStaffingPriority(renderWoodcuttersLodgeInspector(target, context), building);
+      return renderWoodcuttersLodgeInspector(target, context);
     case 'stone_quarry':
-      return withStaffingPriority(renderStoneQuarryInspector(target, context), building);
+      return renderStoneQuarryInspector(target, context);
     case 'large_quarry':
-      return withStaffingPriority(renderLargeQuarryInspector(target, context), building);
+      return renderLargeQuarryInspector(target, context);
     case 'mine':
-      return withStaffingPriority(renderMineralMineInspector(target, context), building);
+      return renderMineralMineInspector(target, context);
     case 'reforester':
-      return withStaffingPriority(renderReforesterInspector(target, context), building);
+      return renderReforesterInspector(target, context);
     case 'well':
-      return withStaffingPriority(renderWellInspector(target, context), building);
+      return renderWellInspector(target, context);
     case 'hunters_hall':
     case 'foragers_shed':
     case 'fishing_camp':
-      return withStaffingPriority(renderHarvestBuildingInspector(target, context), building);
+      return renderHarvestBuildingInspector(target, context);
     case 'threshing_barn':
     case 'monastery':
     case 'brewery':
@@ -124,10 +123,10 @@ export function renderBuildingInspector(
     case 'carpenter':
     case 'weaver':
     case 'vineyard':
-      return withStaffingPriority(renderExpandedBuildingInspector(target, context), building);
+      return renderExpandedBuildingInspector(target, context);
     case 'pastoral_farmstead':
     case 'swineherd':
-      return withStaffingPriority(renderLivestockBuildingInspector(target, context), building);
+      return renderLivestockBuildingInspector(target, context);
     default: {
       const unreachable: never = building.kind;
       throw new Error(`Unhandled building kind: ${unreachable}`);

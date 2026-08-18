@@ -3,10 +3,6 @@ import {
   WELL_MINIMUM_REFILL_HYDROLOGY,
   BUILDING_STORAGE_CAPS,
 } from '../../generated/gameBalance.ts';
-import {
-  normalizeStaffingPriority,
-  staffingPriorityLabel,
-} from '../../economy/staffingPriority.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
@@ -64,7 +60,7 @@ export function renderWellInspector(
     ? ` · ${weaverFibreDeliveryPreferenceLabel(nextIndustrialTarget.weaverInputPolicy, 'flax')}`
     : '';
   const nextTargetLabel = nextIndustrialTarget
-      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)} · ${staffingPriorityLabel(normalizeStaffingPriority(nextIndustrialTarget.constructionPriority))} priority${industrialPreferenceLabel} (${Math.round(nextIndustrialTarget.water)} / ${Math.round(industrialWaterTarget(nextIndustrialTarget.kind, nextIndustrialTarget.processorOutputTargetPercent))} staged water)`
+      ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)}${industrialPreferenceLabel} (${Math.round(nextIndustrialTarget.water)} / ${Math.round(industrialWaterTarget(nextIndustrialTarget.kind, nextIndustrialTarget.processorOutputTargetPercent))} staged water)`
       : 'No workshop needs a water cart';
   const activeTargetLabel = formatTripDestinationLabel(
     activeTrip,

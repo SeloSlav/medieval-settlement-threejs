@@ -1,13 +1,14 @@
 //! Explicit Town Hall balancing for ordinary year-round workplaces.
 //!
-//! Free villagers fill vacancies first. When higher-priority work still lacks
-//! labor, only the minimum necessary crew is recalled from strictly lower
-//! tiers. Seasonal sites, output-target processors, construction sites, and
-//! the commanding Town Hall retain their specialized or manual controls.
+//! Free villagers fill vacancies in stable worksite order. Seasonal sites,
+//! output-target processors, construction sites, and the commanding Town Hall
+//! retain their specialized or manual controls.
 
 use crate::construction_priority::{
-    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL, CONSTRUCTION_PRIORITY_URGENT,
+    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL,
 };
+#[cfg(test)]
+use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 use crate::seasonal_labor_policy::is_seasonal_labor_kind;
 use crate::worksite_stall_policy::is_production_labor_kind;
 
@@ -27,13 +28,8 @@ pub struct YearRoundLaborRotation {
     pub called_workers: u32,
 }
 
-fn normalize_staffing_priority(priority: u8) -> u8 {
-    match priority {
-        CONSTRUCTION_PRIORITY_LOW | CONSTRUCTION_PRIORITY_NORMAL | CONSTRUCTION_PRIORITY_URGENT => {
-            priority
-        }
-        _ => CONSTRUCTION_PRIORITY_NORMAL,
-    }
+fn normalize_staffing_priority(_priority: u8) -> u8 {
+    CONSTRUCTION_PRIORITY_NORMAL
 }
 
 /// Identifies labor-using building kinds governed by ordinary year-round
@@ -177,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn free_labor_fills_high_priority_sites_before_lower_tiers() {
+    fn free_labor_round_robins_in_stable_order_regardless_of_legacy_priority() {
         let rotation = year_round_labor_rotation(
             &[
                 site(30, CONSTRUCTION_PRIORITY_NORMAL, 0, 2),
@@ -187,13 +183,13 @@ mod tests {
             ],
             3,
         );
-        assert_eq!(rotation.targets, vec![(10, 2), (20, 1)]);
+        assert_eq!(rotation.targets, vec![(10, 1), (20, 1), (30, 1)]);
         assert_eq!(rotation.recalled_workers, 0);
         assert_eq!(rotation.called_workers, 3);
     }
 
     #[test]
-    fn full_employment_moves_only_the_labor_needed_from_lower_tiers() {
+    fn full_employment_does_not_churn_crews_by_legacy_priority() {
         let rotation = year_round_labor_rotation(
             &[
                 site(10, CONSTRUCTION_PRIORITY_URGENT, 1, 3),
@@ -203,13 +199,13 @@ mod tests {
             ],
             0,
         );
-        assert_eq!(rotation.targets, vec![(10, 3), (30, 2), (40, 0)]);
-        assert_eq!(rotation.recalled_workers, 2);
-        assert_eq!(rotation.called_workers, 2);
+        assert!(rotation.targets.is_empty());
+        assert_eq!(rotation.recalled_workers, 0);
+        assert_eq!(rotation.called_workers, 0);
     }
 
     #[test]
-    fn lowest_priority_and_newest_sites_release_first() {
+    fn legacy_priority_does_not_trigger_cross_worksite_reassignment() {
         let rotation = year_round_labor_rotation(
             &[
                 site(10, CONSTRUCTION_PRIORITY_URGENT, 0, 2),
@@ -219,9 +215,9 @@ mod tests {
             ],
             0,
         );
-        assert_eq!(rotation.targets, vec![(10, 2), (40, 0)]);
-        assert_eq!(rotation.recalled_workers, 2);
-        assert_eq!(rotation.called_workers, 2);
+        assert!(rotation.targets.is_empty());
+        assert_eq!(rotation.recalled_workers, 0);
+        assert_eq!(rotation.called_workers, 0);
     }
 
     #[test]
@@ -281,9 +277,9 @@ mod tests {
             .collect::<Vec<_>>();
         let started = Instant::now();
         let rotation = year_round_labor_rotation(&sites, 0);
-        assert_eq!(rotation.recalled_workers, 50_000);
-        assert_eq!(rotation.called_workers, 50_000);
-        assert_eq!(rotation.targets.len(), 100_000);
+        assert_eq!(rotation.recalled_workers, 0);
+        assert_eq!(rotation.called_workers, 0);
+        assert!(rotation.targets.is_empty());
         assert!(
             started.elapsed() < Duration::from_millis(250),
             "100k year-round worksite rotation should remain comfortably interactive"
