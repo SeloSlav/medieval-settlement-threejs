@@ -145,8 +145,8 @@ export function civilianToolRows(
     ? `${(plan.refillAmount / FARM_TOOL_IRONWORK_PER_WORKER_DAY).toFixed(0)} active worker-days`
     : `${(plan.refillAmount / CIVILIAN_TOOL_IRONWORK_PER_CYCLE).toFixed(0)} cycles`;
   const refillRule = plan.reorderDue
-    ? `${renderResourceAmount('ironwork', plan.refillAmount, { compact: true, suffix: 'requested' })} · refill to ${plan.refillTarget.toFixed(2)} (${refillWork})`
-    : `reorders below ${plan.reorderStock.toFixed(2)} · next cart refills to ${plan.refillTarget.toFixed(2)}`;
+    ? `${renderResourceAmount('ironwork', plan.refillAmount, { compact: true, suffix: 'requested' })} · refill to ${Math.ceil(plan.refillTarget)} (${refillWork})`
+    : `reorders below ${Math.ceil(plan.reorderStock)} · next cart refills to ${Math.ceil(plan.refillTarget)}`;
   const inbound = worldQueries && typeof worldQueries.getInboundSupplyTrip === 'function'
     ? worldQueries.getInboundSupplyTrip(building)
     : null;

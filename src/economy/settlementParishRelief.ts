@@ -569,7 +569,7 @@ export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
       return `Held below ${CHAPEL_CHARITY_MIN_COFFER_GOLD} gold`;
     case 'no-recipient': return 'No occupied household can receive alms';
     case 'in-transit':
-      return `${plan.almsGoldInTransit.toFixed(2)} gold purse en route to the poorest household`;
+      return `${Math.round(plan.almsGoldInTransit)} gold purse en route to the poorest household`;
     case 'returning': return 'Undelivered alms purse returning to the church';
     case 'cooling-down': {
       const workdays = CHAPEL_WORKDAY_SECONDS <= 1e-9
@@ -577,16 +577,16 @@ export function formatChapelDailyAlms(plan: ChapelReliefPlan): string {
         : plan.almsCooldownSeconds / CHAPEL_WORKDAY_SECONDS;
       return `Next purse in ${formatWorkdays(workdays)}`;
     }
-    case 'closed': return `${purseAmount.toFixed(2)} gold purse ready · parish errands are resting`;
+    case 'closed': return `${Math.round(purseAmount)} gold purse ready · parish errands are resting`;
     case 'chapel-cart-busy':
-      return `${purseAmount.toFixed(2)} gold purse waiting · church cart is busy`;
+      return `${Math.round(purseAmount)} gold purse waiting · church cart is busy`;
     case 'no-route': return 'Blocked · poorest household has no church road route';
     case 'route-too-short': return 'Blocked · route needs a usable road segment';
     case 'ready': {
       const distance = plan.almsRoadDistance == null
         ? 'road route'
         : `${Math.ceil(plan.almsRoadDistance)} m road`;
-      return `${purseAmount.toFixed(2)} gold purse ready · ${distance} · needs one free villager`;
+      return `${Math.round(purseAmount)} gold purse ready · ${distance} · needs one free villager`;
     }
   }
 }
@@ -604,7 +604,7 @@ export function formatChapelPoorRelief(plan: ChapelReliefPlan): string {
     case 'no-relief-home': return 'No food-strained parish household needs a dole';
     case 'no-market-route': return 'Blocked · no shared parish-to-market route';
     case 'market-fire-disabled': return 'Blocked · reachable marketplace is fire-damaged';
-    case 'unaffordable': return `Blocked · ${plan.reliefBudget.toFixed(1)} gold cannot fund a full lot`;
+    case 'unaffordable': return `Blocked · ${Math.round(plan.reliefBudget)} gold cannot fund a full lot`;
     case 'household-storage-full': return 'Blocked · parish homes lack room for a full food lot';
     case 'not-due':
       return `${order ?? 'Food lot ready'} · next Monday in ${formatDays(plan.daysUntilDispatch)}`;
@@ -623,7 +623,7 @@ export function formatSettlementParishRelief(
     const unavailableChapels = plan.fireDisabledChapels
       + plan.reconstructingChapels;
     return unavailableChapels > 0
-      ? `No active parish · ${plan.fireDisabledChapels} fire-disabled + ${plan.reconstructingChapels} reconstructing ${unavailableChapels === 1 ? 'church holds' : 'churches hold'} ${plan.structurallyQuarantinedCofferGold.toFixed(1)} sealed gold`
+      ? `No active parish · ${plan.fireDisabledChapels} fire-disabled + ${plan.reconstructingChapels} reconstructing ${unavailableChapels === 1 ? 'church holds' : 'churches hold'} ${Math.round(plan.structurallyQuarantinedCofferGold)} sealed gold`
       : 'No active staffed parish';
   }
   if (!plan.dueNow) {

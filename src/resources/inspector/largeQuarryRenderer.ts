@@ -94,11 +94,11 @@ export function renderLargeQuarryInspector(
       ${civilianToolRows(building, context.worldQueries)}
       <li><span>Source</span><span>Rich underground stone · non-depleting during settlement play</span></li>
       <li><span>Surface reserve</span><span>Separate · ${Math.round(richDeposit?.remaining ?? 0)} remaining</span></li>
-      <li><span>Chamber supports</span><span>${Math.max(0, building.timber).toFixed(2)} onsite${
+      <li><span>Chamber supports</span><span>${Math.round(Math.max(0, building.timber))} onsite${
         inboundSupportTimber > 1e-6
-          ? ` + ${inboundSupportTimber.toFixed(2)} inbound`
+          ? ` + ${Math.round(inboundSupportTimber)} inbound`
           : ''
-      } / ${LARGE_QUARRY_SUPPORT_TARGET.toFixed(2)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
+      } / ${Math.ceil(LARGE_QUARRY_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
       <li><span>Support wear</span><span>${renderResourceAmount('timber', LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed stone batch' })} · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>
       <li><span>Yard ceiling</span><span>${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)} stone · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>

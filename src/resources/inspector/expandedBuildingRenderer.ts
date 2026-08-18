@@ -650,7 +650,7 @@ function renderLogisticsRows(
         : null;
   const potteryMaterialDestination = materialDispatch && materialCommodity === 'pottery'
     ? materialDispatch.duty === 'working-buffer'
-      ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${(materialDispatch.target.pottery ?? 0).toFixed(2)} / ${materialDispatch.desiredStock.toFixed(2)} pottery · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
+      ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${Math.round(materialDispatch.target.pottery ?? 0)} / ${Math.ceil(materialDispatch.desiredStock)} pottery · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
       : `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · local pottery duties covered · nearest export route`
     : null;
   const potteryHouseholdDestination = potteryHouseholdTarget
@@ -671,23 +671,23 @@ function renderLogisticsRows(
     ? 'Least-covered active farmstead, then shorter road'
     : flaxDispatch
       ? flaxDispatch.duty === 'working-buffer'
-        ? `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · ${staffingPriorityLabel(flaxDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(flaxDispatch.target.weaverInputPolicy, 'flax')} · ${(flaxDispatch.target.flax ?? 0).toFixed(1)} / ${flaxDispatch.desiredStock.toFixed(1)} flax`
+        ? `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · ${staffingPriorityLabel(flaxDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(flaxDispatch.target.weaverInputPolicy, 'flax')} · ${Math.round(flaxDispatch.target.flax ?? 0)} / ${Math.ceil(flaxDispatch.desiredStock)} flax`
         : `${context.worldQueries.getBuildingLabel(flaxDispatch.target.kind)} · active loom buffers covered · nearest overflow route`
       : flourDispatch
       ? flourDispatch.duty === 'working-buffer'
-        ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${Math.max(0, flourCommodity ? flourDispatch.target[flourCommodity] ?? 0 : 0).toFixed(1)} / ${flourDispatch.desiredStock.toFixed(1)} ${flourCommodity?.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
+        ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · ${staffingPriorityLabel(flourDispatch.workPriority)} priority · ${Math.round(Math.max(0, flourCommodity ? flourDispatch.target[flourCommodity] ?? 0 : 0))} / ${Math.ceil(flourDispatch.desiredStock)} ${flourCommodity?.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${flourDispatch.runwayCycles.toFixed(1)} cycles`
         : flourDispatch.duty === 'central-storage'
           ? `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · central flour reserve after active bakery buffers · shortest road`
           : `${context.worldQueries.getBuildingLabel(flourDispatch.target.kind)} · emergency overflow because no granary can receive flour · shortest road`
       : ironworkDispatch
         ? ironworkDispatch.duty === 'working-buffer'
-          ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${staffingPriorityLabel(ironworkDispatch.workPriority)} priority · ${(ironworkDispatch.target.ironwork ?? 0).toFixed(2)} / ${ironworkDispatch.desiredStock.toFixed(2)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
+          ? `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · ${staffingPriorityLabel(ironworkDispatch.workPriority)} priority · ${Math.round(ironworkDispatch.target.ironwork ?? 0)} / ${Math.ceil(ironworkDispatch.desiredStock)} ironwork · ${ironworkDispatch.runwayCycles.toFixed(1)} cycles`
           : `${context.worldQueries.getBuildingLabel(ironworkDispatch.target.kind)} · maintained buffers covered · nearest overflow route`
       : potteryDestination
         ? potteryDestination
       : materialDispatch && materialCommodity
         ? materialDispatch.duty === 'working-buffer'
-          ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${(materialDispatch.target[materialCommodity] ?? 0).toFixed(2)} / ${materialDispatch.desiredStock.toFixed(2)} ${materialCommodity} · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
+          ? `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · ${staffingPriorityLabel(materialDispatch.workPriority)} priority · ${Math.round(materialDispatch.target[materialCommodity] ?? 0)} / ${Math.ceil(materialDispatch.desiredStock)} ${materialCommodity} · ${materialDispatch.runwayCycles.toFixed(1)} cycles`
           : `${context.worldQueries.getBuildingLabel(materialDispatch.target.kind)} · active material buffers covered · nearest overflow route`
       : outboundDestinationLabel(building);
   const nearestTarget = outboundTripTarget(building, context, seedPlan);
@@ -757,7 +757,7 @@ function renderLogisticsRows(
           !policy.feastsEnabled
             ? 'Disabled — ale goes to Marketplace stalls, then export'
             : target
-              ? `${context.worldQueries.getBuildingLabel(target.kind)} needs ${Math.max(0, MONASTERY_FEAST_ALE - target.ale).toFixed(1)} ale to secure one batch`
+              ? `${context.worldQueries.getBuildingLabel(target.kind)} needs ${Math.ceil(Math.max(0, MONASTERY_FEAST_ALE - target.ale))} ale to secure one batch`
               : `Every eligible pantry holds ${MONASTERY_FEAST_ALE} ale, is already receiving it, or is unreachable`
         }</span></li>`;
       })()
@@ -863,12 +863,12 @@ function formatGranarySeedCart(
     ? ''
     : ` &middot; ${plan.nextDispatchDistance.toFixed(0)} m road`;
   if (breadGrainStock(building) <= 0.05 || plan.nextDispatchAmount <= 0.05) {
-    return `Awaiting physical grain &middot; next holding ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance} ${inspect}`;
+    return `Awaiting physical grain &middot; next holding ${Math.round(plan.nextDispatchStock)} / ${Math.ceil(plan.nextDispatchRequired)} onsite${distance} ${inspect}`;
   }
   const collection = building.assignedLabor <= 0
     ? ' &middot; waiting for an assigned granary hauler'
     : '';
-  return `${plan.nextDispatchAmount.toFixed(1)} grain &rarr; ${context.worldQueries.getBuildingLabel('threshing_barn')} at ${plan.nextDispatchStock.toFixed(1)} / ${plan.nextDispatchRequired.toFixed(1)} onsite${distance}${collection} ${inspect}`;
+  return `${Math.round(plan.nextDispatchAmount)} grain &rarr; ${context.worldQueries.getBuildingLabel('threshing_barn')} at ${Math.round(plan.nextDispatchStock)} / ${Math.ceil(plan.nextDispatchRequired)} onsite${distance}${collection} ${inspect}`;
 }
 
 function renderCivicReceiptRows(
@@ -899,18 +899,18 @@ function renderCivicReceiptRows(
       case 'legacy':
         return 'Legacy settlement · income credits the treasury immediately';
       case 'en-route':
-        return `${plan.inTransitGold.toFixed(1)} gold en route to ${targetLabel}${route}${inspect}`;
+        return `${Math.round(plan.inTransitGold)} gold en route to ${targetLabel}${route}${inspect}`;
       case 'no-treasury':
-        return `${plan.heldGold.toFixed(1)} gold held · complete a Town Hall or retain the founding lockbox`;
+        return `${Math.round(plan.heldGold)} gold held · complete a Town Hall or retain the founding lockbox`;
       case 'no-road':
-        return `${plan.heldGold.toFixed(1)} gold ready · connect this source to ${targetLabel} by road`;
+        return `${Math.round(plan.heldGold)} gold ready · connect this source to ${targetLabel} by road`;
       case 'ready':
-        return `${plan.heldGold.toFixed(1)} gold ready for one handcart to ${targetLabel}${route} · needs a free villager`;
+        return `${Math.round(plan.heldGold)} gold ready for one handcart to ${targetLabel}${route} · needs a free villager`;
       case 'accumulating':
-        return `${plan.heldGold.toFixed(1)} / ${plan.dispatchThreshold.toFixed(1)} gold toward the next daily collection batch`;
+        return `${Math.round(plan.heldGold)} / ${Math.ceil(plan.dispatchThreshold)} gold toward the next daily collection batch`;
     }
   })();
-  return `<li><span>Civic visitor gifts</span><span>${plan.heldGold.toFixed(1)} gold secured at this source${plan.inTransitGold > 0.05 ? ` · ${plan.inTransitGold.toFixed(1)} already moving` : ''}</span></li>
+  return `<li><span>Civic visitor gifts</span><span>${Math.round(plan.heldGold)} gold secured at this source${plan.inTransitGold > 0.05 ? ` · ${Math.round(plan.inTransitGold)} already moving` : ''}</span></li>
       <li><span>Civic collection</span><span>${collection}</span></li>`;
 }
 
@@ -1145,7 +1145,7 @@ export function renderExpandedBuildingInspector(
               && trip.phase !== 'inbound',
           )
           .reduce((sum, trip) => sum + trip.amount, 0);
-        return `<li><span>Monastery purse</span><span>${building.gold.toFixed(1)} gold secured here${incomingTithe > 0.05 ? ` · ${incomingTithe.toFixed(1)} tithe incoming by handcart` : ''}</span></li>`;
+        return `<li><span>Monastery purse</span><span>${Math.round(building.gold)} gold secured here${incomingTithe > 0.05 ? ` · ${Math.round(incomingTithe)} tithe incoming by handcart` : ''}</span></li>`;
       })()
     : '';
   const civicReceiptRows = building.kind === 'monastery'
@@ -1178,7 +1178,7 @@ export function renderExpandedBuildingInspector(
         : 'No fresh food available'
       : granaryPreservationDispatch
         ? granaryPreservationDispatch.duty === 'working-buffer'
-          ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${staffingPriorityLabel(granaryPreservationDispatch.workPriority)} priority · ${preservableFoodStock(granaryPreservationDispatch.target).toFixed(1)} / ${granaryPreservationDispatch.desiredStock.toFixed(1)} preservable food`
+          ? `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · ${staffingPriorityLabel(granaryPreservationDispatch.workPriority)} priority · ${Math.round(preservableFoodStock(granaryPreservationDispatch.target))} / ${Math.ceil(granaryPreservationDispatch.desiredStock)} preservable food`
           : `${context.worldQueries.getBuildingLabel(granaryPreservationDispatch.target.kind)} · active buffers covered · nearest overflow route`
         : 'No smokehouse can currently receive fresh food'
     : '';
@@ -1199,7 +1199,7 @@ export function renderExpandedBuildingInspector(
     : 0;
   const granaryGrainDispatchLabel = building.kind === 'granary'
     ? granaryGrainDispatch
-      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${staffingPriorityLabel(granaryGrainDispatch.workPriority)} priority · ${Math.max(0, granaryGrainDispatch.target[granaryGrainDispatch.commodity] ?? 0).toFixed(1)} / ${granaryGrainDispatch.desiredStock.toFixed(1)} ${granaryGrainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
+      ? `${context.worldQueries.getBuildingLabel(granaryGrainDispatch.target.kind)} · ${staffingPriorityLabel(granaryGrainDispatch.workPriority)} priority · ${Math.round(Math.max(0, granaryGrainDispatch.target[granaryGrainDispatch.commodity] ?? 0))} / ${Math.ceil(granaryGrainDispatch.desiredStock)} ${granaryGrainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} · ${granaryGrainDispatch.runwayCycles.toFixed(1)} cycles${
           granaryGrainDispatch.runwayCycles < GRAIN_CRITICAL_RUNWAY_CYCLES
             ? ' · critical, preempts food cart'
             : ' · after available food duty'
@@ -1214,7 +1214,7 @@ export function renderExpandedBuildingInspector(
     : '';
   const granaryGuardFoodDispatchLabel = building.kind === 'granary' && context.conflictEnabled
     ? granaryGuardFoodDispatch
-      ? `${context.worldQueries.getBuildingLabel(granaryGuardFoodDispatch.target.kind)} · ${edibleFoodStock(granaryGuardFoodDispatch.target).toFixed(1)} / ${granaryGuardFoodDispatch.desiredStock.toFixed(1)} · ${granaryGuardFoodDispatch.runwayDays.toFixed(1)} days`
+      ? `${context.worldQueries.getBuildingLabel(granaryGuardFoodDispatch.target.kind)} · ${Math.round(edibleFoodStock(granaryGuardFoodDispatch.target))} / ${Math.ceil(granaryGuardFoodDispatch.desiredStock)} · ${granaryGuardFoodDispatch.runwayDays.toFixed(1)} days`
       : building.assignedLabor <= 0
         ? 'Waiting for an assigned granary hauler'
         : granaryInstitutionalFood <= 1e-6
@@ -1320,9 +1320,9 @@ export function renderExpandedBuildingInspector(
     ? `<li><span>Fresh-food priority</span><span>Producer-owned carts protect local Marketplace reserves, then serve a critical company before this working batch</span></li>
       <li><span>Shared arbitration</span><span>Smokehouse batch → routine company reserve → enabled granary intake · work priority and lowest runway break ties</span></li>`
     : routineFreshFoodSource
-      ? `<li><span>Local food reserve</span><span>${(edibleFoodStock(building) - routineFreshFoodSurplus).toFixed(1)} protected · ${routineFreshFoodSurplus.toFixed(1)} central surplus</span></li>
+      ? `<li><span>Local food reserve</span><span>${Math.round(edibleFoodStock(building) - routineFreshFoodSurplus)} protected · ${Math.round(routineFreshFoodSurplus)} central surplus</span></li>
         <li><span>Next surplus cart</span><span>${routineFreshFoodDispatch
-          ? `${institutionalFoodDutyLabel(routineFreshFoodDispatch.duty)} → ${context.worldQueries.getBuildingLabel(routineFreshFoodDispatch.target.kind)} · ${edibleFoodStock(routineFreshFoodDispatch.target).toFixed(1)} / ${routineFreshFoodDispatch.desiredStock.toFixed(1)} meals`
+          ? `${institutionalFoodDutyLabel(routineFreshFoodDispatch.duty)} → ${context.worldQueries.getBuildingLabel(routineFreshFoodDispatch.target.kind)} · ${Math.round(edibleFoodStock(routineFreshFoodDispatch.target))} / ${Math.ceil(routineFreshFoodDispatch.desiredStock)} meals`
           : routineFreshFoodSurplus <= 1e-6
             ? 'None · local household reserve is protected'
             : 'No eligible institution requesting food'}</span></li>`
@@ -1360,7 +1360,7 @@ export function renderExpandedBuildingInspector(
         return `${parcelRows}
           <li><span>Grape allocation</span><span>${policy.label} · ${reserve}</span></li>
           <li><span>Cellar batch</span><span>${VINEYARD_GRAPES_PER_FERMENTATION_BATCH} grapes → ${VINEYARD_WINE_PER_FERMENTATION_BATCH} wine over ${VINEYARD_FERMENTATION_SECONDS} worker-seconds</span></li>
-          <li><span>Fermentation</span><span>${fermenting.toFixed(1)} grapes staged · ${cellarProgress}</span></li>`;
+          <li><span>Fermentation</span><span>${Math.round(fermenting)} grapes staged · ${cellarProgress}</span></li>`;
       })()
     : '';
   const apiaryRows = building.kind === 'apiary'
@@ -1400,7 +1400,7 @@ export function renderExpandedBuildingInspector(
     ? `<li><span>Construction timber</span><span>${Math.round((1 - CARPENTER_TIMBER_COST_MULTIPLIER) * 100)}% less at road-linked sites</span></li>
       <li><span>Cart travel</span><span>${Math.round((CARPENTER_DELIVERY_SPEED_MULTIPLIER - 1) * 100)}% faster from linked origins while a repair kit is available · base speed otherwise</span></li>
       <li><span>Repair kit cost</span><span>${renderResourceCost({ timber: CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, ironwork: CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP }, { compact: true, suffix: 'per accelerated departure' })}</span></li>
-      <li><span>Service buffer</span><span>${building.timber.toFixed(1)} / ${carpenterServiceTimberTarget.toFixed(1)} protected timber · ${(building.ironwork ?? 0).toFixed(2)} / ${carpenterServiceIronworkTarget.toFixed(2)} protected ironwork · ${carpenterServiceTrips} / ${carpenterServiceTargetTrips} departures ready</span></li>
+      <li><span>Service buffer</span><span>${Math.round(building.timber)} / ${Math.ceil(carpenterServiceTimberTarget)} protected timber · ${Math.round(building.ironwork ?? 0)} / ${Math.ceil(carpenterServiceIronworkTarget)} protected ironwork · ${carpenterServiceTrips} / ${carpenterServiceTargetTrips} departures ready</span></li>
       <li><span>Support state</span><span>${building.assignedLabor > 0 ? 'Skilled construction active across this road network' : 'Inactive — requires at least 1 craftsperson'}</span></li>
       ${armory ? `<li><span>Armory reserve</span><span>${armory.reserve <= 0 ? `${armory.stock.toFixed(0)} stored · production paused` : `${armory.stock.toFixed(0)} / ${armory.reserve} polearms`}</span></li>
       <li><span>Inputs to target</span><span>${armory.shortfall <= 0 ? 'Reserve stocked' : renderResourceCost({ timber: armory.timberToTarget, ironwork: armory.ironworkToTarget }, { compact: true })}</span></li>
@@ -1514,7 +1514,7 @@ function renderFarmsteadPlanning(
         ? 'Held for linked fields'
         : 'No grain awaiting haul'
     : grainDispatch.duty === 'working-buffer'
-      ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · ${staffingPriorityLabel(grainDispatch.workPriority)} priority · ${Math.max(0, grainDispatch.target[grainDispatch.commodity] ?? 0).toFixed(1)} / ${grainDispatch.desiredStock.toFixed(1)} ${grainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} working buffer`
+      ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · ${staffingPriorityLabel(grainDispatch.workPriority)} priority · ${Math.round(Math.max(0, grainDispatch.target[grainDispatch.commodity] ?? 0))} / ${Math.ceil(grainDispatch.desiredStock)} ${grainDispatch.commodity.replace(/([A-Z])/g, ' $1').toLowerCase()} working buffer`
       : grainDispatch.duty === 'granary-reserve'
         ? `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · central reserve`
         : `${context.worldQueries.getBuildingLabel(grainDispatch.target.kind)} · emergency overflow`;
@@ -1527,7 +1527,7 @@ function renderFarmsteadPlanning(
         : 'No barley awaiting haul'
     : `${context.worldQueries.getBuildingLabel(barleyDispatch.target.kind)} · ${
       barleyDispatch.duty === 'working-buffer'
-        ? `${staffingPriorityLabel(barleyDispatch.workPriority)} priority · ${Math.max(0, barleyDispatch.target.barley ?? 0).toFixed(1)} / ${barleyDispatch.desiredStock.toFixed(1)} malting buffer`
+        ? `${staffingPriorityLabel(barleyDispatch.workPriority)} priority · ${Math.round(Math.max(0, barleyDispatch.target.barley ?? 0))} / ${Math.ceil(barleyDispatch.desiredStock)} malting buffer`
         : 'overflow store'
     }`;
   const weakestYearThreeField = plan.rotation.weakestYearThreeFieldId === null
@@ -1546,7 +1546,7 @@ function renderFarmsteadPlanning(
     `;
   const rows = `
     <li><span>Linked fields</span><span>${plan.activeFields} active${plan.pausedFields > 0 ? ` · ${plan.pausedFields} paused` : ''}</span></li>
-    <li><span>Threshing queue</span><span>${threshingBacklog.toFixed(1)} sheaves waiting · ${threshingPriorityLabel(threshingPriority)}</span></li>
+    <li><span>Threshing queue</span><span>${Math.round(threshingBacklog)} sheaves waiting · ${threshingPriorityLabel(threshingPriority)}</span></li>
     <li><span>Shared farm labor</span><span>One ${onsiteLabor}-worker budget · harvesting always first · field and threshing work never double-count the crew</span></li>
     <li><span>Crew-sharing queue</span><span>${sharedPriorityFields.length > 0 ? `${sharedPriorityFields.length} nearby High/Urgent field${sharedPriorityFields.length === 1 ? '' : 's'} may claim this crew ahead of lower-priority linked work` : 'No neighboring High/Urgent fields requesting help'} · seed, manure, and harvest remain at each field’s linked farm</span></li>
     <li><span>Ox-supported fields</span><span>${plan.cattleSupportedFields} / ${plan.activeFields} active · labor forecast includes faster ploughing</span></li>
@@ -1554,18 +1554,18 @@ function renderFarmsteadPlanning(
     <li><span>August–September labor</span><span>${formatSeasonalWork(plan.harvest)}</span></li>
     <li><span>Spring crop labor</span><span>${formatSeasonalWork(plan.spring)}</span></li>
     <li><span>Autumn crop labor</span><span>${formatSeasonalWork(plan.autumn)}</span></li>
-    <li><span>Seed grain</span><span>${Math.min(onsiteSeedGrain, plan.seedGrainRequired).toFixed(1)} onsite${inboundSeed > 0.05 ? ` + ${inboundSeed.toFixed(1)} inbound` : ''} / ${plan.seedGrainRequired.toFixed(1)} protected${seedShortfall > 0.05 ? ` · still short ${seedShortfall.toFixed(1)}` : ''}</span></li>
-    <li><span>Barley seed</span><span>${Math.min(barley, plan.seedBarleyRequired).toFixed(1)} onsite${inboundBarleySeed > 0.05 ? ` + ${inboundBarleySeed.toFixed(1)} inbound` : ''} / ${plan.seedBarleyRequired.toFixed(1)} protected${barleySeedShortfall > 0.05 ? ` · still short ${barleySeedShortfall.toFixed(1)}` : ''}</span></li>
-    <li><span>Field manure</span><span>${plan.manureApplied.toFixed(1)} spread + ${Math.max(0, building.manure ?? 0).toFixed(1)} onsite${inboundManure > 0.05 ? ` + ${inboundManure.toFixed(1)} inbound` : ''} / ${plan.manureRequired.toFixed(1)} cycle coverage${manureShortfall > 0.05 ? ` · short ${manureShortfall.toFixed(1)}` : ' · covered'}</span></li>
+    <li><span>Seed grain</span><span>${Math.round(Math.min(onsiteSeedGrain, plan.seedGrainRequired))} onsite${inboundSeed > 0.05 ? ` + ${Math.round(inboundSeed)} inbound` : ''} / ${Math.ceil(plan.seedGrainRequired)} protected${seedShortfall > 0.05 ? ` · still short ${Math.ceil(seedShortfall)}` : ''}</span></li>
+    <li><span>Barley seed</span><span>${Math.round(Math.min(barley, plan.seedBarleyRequired))} onsite${inboundBarleySeed > 0.05 ? ` + ${Math.round(inboundBarleySeed)} inbound` : ''} / ${Math.ceil(plan.seedBarleyRequired)} protected${barleySeedShortfall > 0.05 ? ` · still short ${Math.ceil(barleySeedShortfall)}` : ''}</span></li>
+    <li><span>Field manure</span><span>${Math.round(plan.manureApplied)} spread + ${Math.round(Math.max(0, building.manure ?? 0))} onsite${inboundManure > 0.05 ? ` + ${Math.round(inboundManure)} inbound` : ''} / ${Math.ceil(plan.manureRequired)} cycle coverage${manureShortfall > 0.05 ? ` · short ${Math.ceil(manureShortfall)}` : ' · covered'}</span></li>
     <li><span>Manure allocation</span><span>Consumed only during ploughing · urgent fields claim the shared farmyard pile first</span></li>
-    <li><span>Seasonal tool reserve</span><span>${(Math.max(0, building.ironwork ?? 0) + inboundIronwork).toFixed(2)} onsite / inbound · ${plan.toolIronworkReserveTarget.toFixed(2)} target for ${plan.toolIronworkRequired.toFixed(2)} planned wear</span></li>
-    <li><span>Exportable grain</span><span>${exportableGrain.toFixed(1)} after sowing reserve</span></li>
-    <li><span>Exportable barley</span><span>${exportableBarley.toFixed(1)} after sowing reserve</span></li>
+    <li><span>Seasonal tool reserve</span><span>${Math.round(Math.max(0, building.ironwork ?? 0) + inboundIronwork)} onsite / inbound · ${Math.ceil(plan.toolIronworkReserveTarget)} target for ${Math.ceil(plan.toolIronworkRequired)} planned wear</span></li>
+    <li><span>Exportable grain</span><span>${Math.floor(exportableGrain)} after sowing reserve</span></li>
+    <li><span>Exportable barley</span><span>${Math.floor(exportableBarley)} after sowing reserve</span></li>
     <li><span>${clock.month === 8 || clock.month === 9 ? 'Harvest remaining' : 'Harvest potential'}</span><span>${plan.expectedHarvest.toFixed(1)} rye/oat/maslin sheaves · ${plan.expectedBarleyHarvest.toFixed(1)} barley sheaves</span></li>
     <li><span>Flax fibre potential</span><span>${plan.expectedFibreHarvest.toFixed(1)} fibre</span></li>
-    <li><span>Harvest storage</span><span>${grainRoom.toFixed(1)} onsite room${haulingRequired ? ' · road hauling required' : ' · fits onsite'}</span></li>
-    <li><span>Barley storage</span><span>${barleyRoom.toFixed(1)} onsite room${barleyHaulingRequired ? ' · brewery / granary hauling required' : ' · fits onsite'}</span></li>
-    <li><span>Fibre storage</span><span>${fibreRoom.toFixed(1)} onsite room${fibreHaulingRequired ? ' · weaver hauling required' : ' · fits onsite'}</span></li>
+    <li><span>Harvest storage</span><span>${Math.floor(grainRoom)} onsite room${haulingRequired ? ' · road hauling required' : ' · fits onsite'}</span></li>
+    <li><span>Barley storage</span><span>${Math.floor(barleyRoom)} onsite room${barleyHaulingRequired ? ' · brewery / granary hauling required' : ' · fits onsite'}</span></li>
+    <li><span>Fibre storage</span><span>${Math.floor(fibreRoom)} onsite room${fibreHaulingRequired ? ' · weaver hauling required' : ' · fits onsite'}</span></li>
     <li><span>Next grain haul</span><span>${grainRoutingLabel}</span></li>
     <li><span>Next barley haul</span><span>${barleyRoutingLabel}</span></li>
     <li><span>Grain policy</span><span>Linked-field seed · processor work priority · lowest cycle runway · granary · overflow</span></li>
@@ -1608,7 +1608,7 @@ function renderFarmsteadPlanning(
     return {
       rows,
       statusText: seedShortfall > 0.05 || barleySeedShortfall > 0.05
-        ? `Seed cart inbound — still short ${seedShortfall.toFixed(1)} grain and ${barleySeedShortfall.toFixed(1)} barley`
+        ? `Seed cart inbound — still short ${Math.ceil(seedShortfall)} grain and ${Math.ceil(barleySeedShortfall)} barley`
         : 'Seed cart inbound — sowing resumes after unloading',
       statusState: 'warning',
     };
@@ -1619,7 +1619,7 @@ function renderFarmsteadPlanning(
   ) {
     return {
       rows,
-      statusText: `Sowing at risk — connect stored or market-imported seed, or pause fields (short ${seedShortfall.toFixed(1)} grain + ${barleySeedShortfall.toFixed(1)} barley)`,
+      statusText: `Sowing at risk — connect stored or market-imported seed, or pause fields (short ${Math.ceil(seedShortfall)} grain + ${Math.ceil(barleySeedShortfall)} barley)`,
       statusState: 'warning',
     };
   }
@@ -1629,7 +1629,7 @@ function renderFarmsteadPlanning(
   ) {
     return {
       rows,
-      statusText: `Ploughing manure short ${manureShortfall.toFixed(1)} — incoming cattle carts or lower field priority can protect the most valuable parcels`,
+      statusText: `Ploughing manure short ${Math.ceil(manureShortfall)} — incoming cattle carts or lower field priority can protect the most valuable parcels`,
       statusState: 'warning',
     };
   }

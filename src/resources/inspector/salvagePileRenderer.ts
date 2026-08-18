@@ -53,7 +53,7 @@ export function renderSalvagePileInspector(
     .map(([label, amountFor]) => [label, amountFor(building)] as const)
     .filter(([, amount]) => amount > 1e-6)
     .map(([label, amount]) =>
-      `<li><span>${label}</span><span>${amount.toFixed(amount < 10 ? 1 : 0)}</span></li>`)
+      `<li><span>${label}</span><span>${Math.floor(amount)}</span></li>`)
     .join('');
   const totalStock = STOCK_ROWS.reduce(
     (total, [, amountFor]) => total + Math.max(0, amountFor(building)),

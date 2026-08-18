@@ -789,7 +789,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
 
   if ((building.oatGrain ?? 0) + 1e-6 < grainNeeded) {
     return {
-      statusText: `Waiting for oats — needs ${grainNeeded.toFixed(1)} oat grain per cycle for porridge`,
+      statusText: `Waiting for oats — needs ${Math.ceil(grainNeeded)} oat grain per cycle for porridge`,
       statusState: 'warning',
       waterDetailHtml: inputCostRow,
     };
@@ -917,7 +917,7 @@ function getSeasonalProducerStatus(
   }
   if (outputBlocker) {
     return {
-      statusText: `Seasonal work waiting - ${outputBlocker.label.toLowerCase()} store needs ${outputBlocker.missingRoom.toFixed(1)} more room`,
+      statusText: `Seasonal work waiting - ${outputBlocker.label.toLowerCase()} store needs ${Math.ceil(outputBlocker.missingRoom)} more room`,
       statusState: 'warning',
       waterDetailHtml: '',
     };

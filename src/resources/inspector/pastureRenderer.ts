@@ -39,7 +39,7 @@ export function renderPastureInspector(
       ? 'Woodland mast supports the herd · pork comes from surplus culls in October–November, not a parcel harvest'
       : 'Grazing supports continuous dairy and breeding · hay is cut June–August at the linked holding';
   const recentOutput = herd
-    ? `${herd.lastFoodOutput.toFixed(2)} fresh food · ${herd.lastPreservedOutput.toFixed(2)} preserved${herd.lastHayOutput > 0 ? ` · ${herd.lastHayOutput.toFixed(2)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
+    ? `${Math.round(herd.lastFoodOutput)} fresh food · ${Math.round(herd.lastPreservedOutput)} preserved${herd.lastHayOutput > 0 ? ` · ${Math.round(herd.lastHayOutput)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
     : 'None';
   return {
     eyebrow: 'Functional work parcel',

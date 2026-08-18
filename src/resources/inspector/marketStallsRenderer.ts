@@ -60,7 +60,7 @@ export function renderMarketStallsInspector(
     statusText: totalStalls <= 0
       ? 'Empty square — staff a road-linked granary or storehouse to open stalls'
       : taxCartActive
-        ? `${heldTax.toFixed(1)} tax gold remains — a free hauler is carrying the current lockbox load`
+        ? `${Math.round(heldTax)} tax gold remains — a free hauler is carrying the current lockbox load`
       : activeTrip
         ? `${totalStalls} active stalls — a remedy or lockbox cart is on the road`
         : `${totalStalls} active stalls stocking ${stockedNeeds} household need ${stockedNeeds === 1 ? 'category' : 'categories'}`,
@@ -75,7 +75,7 @@ export function renderMarketStallsInspector(
       <li><span>Distribution</span><span>Stock is allocated instantly to connected homes · nearest plots receive scarce goods first · no routine household cart</span></li>
       <li><span>Capacity rule</span><span>Assigned granary and storehouse workers replenish and operate stalls without leaving on last-mile household trips</span></li>
       <li><span>Backyard exchange</span><span>Edible surplus becomes physical stall stock for abstract household allocation; herb remedies retain targeted care carts</span></li>
-      <li><span>Local tax lockbox</span><span>${heldTax.toFixed(1)} gold held${taxCartActive ? ' · collection cart active' : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD ? ' · waiting for a free hauler to the civic treasury' : heldTax > 1e-6 ? ` · batching toward ${LOCAL_MARKET_TAX_CART_THRESHOLD.toFixed(0)} gold or the evening sweep` : ''}</span></li>
+      <li><span>Local tax lockbox</span><span>${Math.round(heldTax)} gold held${taxCartActive ? ' · collection cart active' : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD ? ' · waiting for a free hauler to the civic treasury' : heldTax > 1e-6 ? ` · batching toward ${Math.ceil(LOCAL_MARKET_TAX_CART_THRESHOLD)} gold or the evening sweep` : ''}</span></li>
       <li><span>Water</span><span>Supplied independently from unstaffed wells</span></li>
       <li><span>Regional trade</span><span>Handled only by a staffed Trading Post</span></li>
     `,

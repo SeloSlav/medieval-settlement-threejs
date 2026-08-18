@@ -255,7 +255,7 @@ export function renderHarvestBuildingInspector(
       context.conflictEnabled === true,
     );
   const nextInstitutionalLabel = nextInstitutionalDispatch
-    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${edibleFoodStock(nextInstitutionalDispatch.target).toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} meals`
+    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${Math.round(edibleFoodStock(nextInstitutionalDispatch.target))} / ${Math.ceil(nextInstitutionalDispatch.desiredStock)} meals`
     : institutionalSurplus <= 1e-6
       ? 'None · local household reserve is protected'
       : 'No eligible institution requesting food';
@@ -351,13 +351,13 @@ export function renderHarvestBuildingInspector(
   } else if (nearestNode && managesWildStock && harvestableStock <= 1e-6) {
     statusText = nearestNode.kind === 'fish'
       ? `Resting - ${nearestNode.remaining.toFixed(0)} fish protected; the shoal reproduces in spring`
-      : `Resting - ${nearestNode.remaining.toFixed(1)} game protected as breeding stock`;
+      : `Resting - ${Math.round(nearestNode.remaining)} game protected as breeding stock`;
     statusState = 'idle';
   } else if (
     nearestNode?.kind === 'game'
     && nearestNode.remaining < 2
   ) {
-    statusText = `Warning — ${nearestNode.remaining.toFixed(1)} animal left, below the breeding floor`;
+    statusText = `Warning — ${Math.round(nearestNode.remaining)} animal left, below the breeding floor`;
     statusState = 'warning';
   } else if (harvesting) {
     const resourceLabel = nearestNode.kind === 'mushrooms' ? 'mushrooms' : copy.activeUnit;
@@ -379,8 +379,8 @@ export function renderHarvestBuildingInspector(
     : `<li><span>Delivery</span><span>Waiting for an unassigned hauler</span></li>`;
 
   const reserveRows = managesWildStock
-    ? `<li><span>Wild-stock reserve</span><span>${reservePercent}% of carrying capacity${nearestNode ? ` / ${protectedStock.toFixed(1)} protected here` : ''}</span></li>
-      <li><span>Harvestable stock</span><span>${nearestNode ? `${harvestableStock.toFixed(1)} above reserve / ${nearestNode.remaining.toFixed(1)} of ${nearestNode.maxYield.toFixed(1)} population` : 'No population in range'}</span></li>`
+    ? `<li><span>Wild-stock reserve</span><span>${reservePercent}% of carrying capacity${nearestNode ? ` / ${Math.ceil(protectedStock)} protected here` : ''}</span></li>
+      <li><span>Harvestable stock</span><span>${nearestNode ? `${Math.floor(harvestableStock)} above reserve / ${Math.round(nearestNode.remaining)} of ${Math.round(nearestNode.maxYield)} population` : 'No population in range'}</span></li>`
     : '';
   const reservePanel = managesWildStock
     ? `<div class="inspector-action-panel">
@@ -396,7 +396,7 @@ export function renderHarvestBuildingInspector(
       </div>`
     : undefined;
   const remedyRows = building.kind === 'foragers_shed'
-    ? `<li><span>Dried remedies</span><span>${(building.remedies ?? 0).toFixed(1)} / ${(buildingStorageCaps(building.kind).remedies ?? 0).toFixed(0)} prepared at the shed</span></li>
+    ? `<li><span>Dried remedies</span><span>${Math.round(building.remedies ?? 0)} / ${Math.round(buildingStorageCaps(building.kind).remedies ?? 0)} prepared at the shed</span></li>
       <li><span>Medicinal harvest</span><span>${FORAGER_REMEDIES_PER_HARVEST.toFixed(1)} per gatherer-cycle · months ${FORAGER_REMEDY_SEASON_START_MONTH}–${FORAGER_REMEDY_SEASON_END_MONTH}</span></li>
       <li><span>Care dispatch rule</span><span>Least-covered sick home first · ${REMEDY_DELIVERY_TARGET_DAYS.toFixed(0)} treatment-day target · care preempts food on the shared cart</span></li>`
     : '';
@@ -413,7 +413,7 @@ export function renderHarvestBuildingInspector(
       <li><span>Labor roles</span><span>${formatFoodCrewSplit(building.assignedLabor, context.populationStats.available)}</span></li>
       <li><span>Harvest interval</span><span>${processingWorkers > 0 ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${processingWorkers} harvesting / ${building.assignedLabor} assigned)</span></li>
       <li><span>Food territory</span><span>${edibleFoodStock(building) <= 1e-6 ? 'Yielding while stores are empty' : claimedResidences.length === 0 ? 'None in range' : `${claimedResidences.length} claimed`}</span></li>
-      <li><span>Local food reserve</span><span>${localFoodReserve.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
+      <li><span>Local food reserve</span><span>${Math.round(localFoodReserve)} protected · ${Math.round(institutionalSurplus)} central surplus</span></li>
       <li><span>Next surplus cart</span><span>${nextInstitutionalLabel}</span></li>
       ${remedyRows}
       ${reserveRows}

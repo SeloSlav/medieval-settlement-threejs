@@ -89,11 +89,11 @@ export function renderMineralMineInspector(
     inboundSupportTimber,
   );
   const supportRows = deposit?.isRich
-    ? `<li><span>Deep shaft supports</span><span>${Math.max(0, building.timber).toFixed(1)} onsite${
+    ? `<li><span>Deep shaft supports</span><span>${Math.round(Math.max(0, building.timber))} onsite${
         inboundSupportTimber > 1e-6
-          ? ` + ${inboundSupportTimber.toFixed(1)} inbound`
+          ? ` + ${Math.round(inboundSupportTimber)} inbound`
           : ''
-      } / ${RICH_MINE_SUPPORT_TARGET.toFixed(1)} timber target · ${supportRunway.toFixed(1)} cycles</span></li>
+      } / ${Math.ceil(RICH_MINE_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} cycles</span></li>
       <li><span>Timber crib wear</span><span>${renderResourceAmount('timber', MINE_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed deep batch' })} · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>`
     : '<li><span>Shaft timber</span><span>Ordinary surface seam · no recurring deep-support cost</span></li>';
 

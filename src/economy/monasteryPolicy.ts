@@ -32,11 +32,11 @@ export function formatMonasteryFoodCharityTotal(total: number): string {
 }
 
 export function formatMonasteryPilgrimageTotal(total: number): string {
-  return `${total.toFixed(1)} gold from pilgrimages`;
+  return `${Math.round(total)} gold from pilgrimages`;
 }
 
 export function formatMonasteryTithePaidTotal(total: number): string {
-  return `${total.toFixed(1)} gold tithe routed`;
+  return `${Math.round(total)} gold tithe routed`;
 }
 
 export { MONASTERY_COVERAGE_RADIUS };

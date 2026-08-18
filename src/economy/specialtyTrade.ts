@@ -298,11 +298,11 @@ export function formatMarketplaceSpecialtyQueue(
   ] as const;
   const readable = stored
     .filter(([, units]) => units > 1e-6)
-    .map(([label, units]) => `${units.toFixed(1)} ${label}`);
+    .map(([label, units]) => `${Math.round(units)} ${label}`);
   if (readable.length === 0) {
     return 'Empty - awaiting ale, honey, wine, cloth, cheese, or pottery carts';
   }
-  return `${readable.join(' · ')} · ${queue.units.toFixed(1)} total · about ${queue.goldValue.toFixed(1)} gold`;
+  return `${readable.join(' · ')} · ${Math.round(queue.units)} total · about ${queue.goldValue.toFixed(1)} gold`;
 }
 
 export type MarketplaceSpecialtyExportPlan = {

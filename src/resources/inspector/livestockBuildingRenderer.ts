@@ -199,7 +199,7 @@ export function renderLivestockBuildingInspector(
       context.conflictEnabled === true,
     );
   const nextInstitutionalCart = nextInstitutionalDispatch
-    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${edibleFoodStock(nextInstitutionalDispatch.target).toFixed(1)} / ${nextInstitutionalDispatch.desiredStock.toFixed(1)} meals`
+    ? `${institutionalFoodDutyLabel(nextInstitutionalDispatch.duty)} → ${context.worldQueries.getBuildingLabel(nextInstitutionalDispatch.target.kind)} · ${Math.round(edibleFoodStock(nextInstitutionalDispatch.target))} / ${Math.ceil(nextInstitutionalDispatch.desiredStock)} meals`
     : institutionalSurplus <= 1e-6
       ? 'None · local household reserve is protected'
       : 'No eligible institution requesting food';
@@ -225,7 +225,7 @@ export function renderLivestockBuildingInspector(
     ? 'No wool stored'
     : nextWoolDispatch
       ? nextWoolDispatch.duty === 'working-buffer'
-        ? `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · ${staffingPriorityLabel(nextWoolDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(nextWoolDispatch.target.weaverInputPolicy, 'wool')} · ${(nextWoolDispatch.target.wool ?? 0).toFixed(1)} / ${nextWoolDispatch.desiredStock.toFixed(1)} wool`
+        ? `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · ${staffingPriorityLabel(nextWoolDispatch.workPriority)} priority · ${weaverFibreDeliveryPreferenceLabel(nextWoolDispatch.target.weaverInputPolicy, 'wool')} · ${Math.round(nextWoolDispatch.target.wool ?? 0)} / ${Math.ceil(nextWoolDispatch.desiredStock)} wool`
         : `${context.worldQueries.getBuildingLabel(nextWoolDispatch.target.kind)} · active buffers covered · nearest overflow route`
       : 'No weaver can currently receive wool';
   const dairySaltEmpty = Boolean(
@@ -337,7 +337,7 @@ export function renderLivestockBuildingInspector(
         ? `${fodderPlan.haymakingDaysRemaining} cutting days remain at current staffing, projecting ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
         : month < LIVESTOCK_HAYMAKING_START_MONTH
           ? `At current staffing, the coming hay season projects ${fodderPlan.projectedHayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft; drought can reduce the cut.`
-          : `This year's cutting season has ended with ${fodderPlan.hayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY} in the loft.`;
+          : `This year's cutting season has ended with ${Math.round(fodderPlan.hayStock)} / ${Math.round(LIVESTOCK_HAY_STORAGE_CAPACITY)} in the loft.`;
   const haymakingControls = herd && building.kind === 'pastoral_farmstead' && fodderPlan
     ? `<div class="inspector-action-panel">
         <p class="resource-inspector-note">Summer hay meadow — reserving more pasture from grazing during June–August builds a local winter feed reserve, but can force emergency grain use while grass is being cut.</p>
@@ -353,7 +353,7 @@ export function renderLivestockBuildingInspector(
     : '';
 
   const recentOutput = herd
-    ? `${herd.lastFoodOutput.toFixed(2)} fresh food · ${herd.lastPreservedOutput.toFixed(2)} salted provisions${herd.lastHayOutput > 0 ? ` · ${herd.lastHayOutput.toFixed(2)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
+    ? `${Math.round(herd.lastFoodOutput)} fresh food · ${Math.round(herd.lastPreservedOutput)} salted provisions${herd.lastHayOutput > 0 ? ` · ${Math.round(herd.lastHayOutput)} hay` : ''}${herd.lastCulled > 0 ? ` · ${herd.lastCulled} culled` : ''}`
     : 'None';
   const manurePerCycle = herd?.species === 'cattle'
     ? cattleManurePerCycle(
@@ -371,7 +371,7 @@ export function renderLivestockBuildingInspector(
   const benefitRow = herd?.species === 'cattle'
     ? `<li><span>Ox team</span><span>Highest-priority ${CATTLE_MAX_PLOUGH_SUPPORTED_FIELDS} fields inside work extent · ${Math.round((1 - CATTLE_PLOUGH_WORK_MULTIPLIER) * 100)}% less ploughing</span></li>
        <li><span>Manure output</span><span>${manurePerCycle.toFixed(2)} per work cycle now · supplied heads, health, and seasonal housing govern collection</span></li>
-       <li><span>Manure yard</span><span>${Math.max(0, building.manure ?? 0).toFixed(1)} / ${storageCaps.manure ?? 0} · carts deliver it to road-linked crop farmsteads, where it is spread during ploughing and restores up to ${Math.round(FARM_MANURE_FERTILITY_BONUS * 100)} fertility points after harvest</span></li>`
+       <li><span>Manure yard</span><span>${Math.round(Math.max(0, building.manure ?? 0))} / ${Math.round(storageCaps.manure ?? 0)} · carts deliver it to road-linked crop farmsteads, where it is spread during ploughing and restores up to ${Math.round(FARM_MANURE_FERTILITY_BONUS * 100)} fertility points after harvest</span></li>`
     : herd?.species === 'sheep'
       ? `<li><span>Sheep advantage</span><span>Steeper, drier upland pasture · faster breeding · annual ${SHEEP_WOOL_PER_SHEARING_PER_HEAD} wool/head clip feeds the weaver-to-cloth export chain</span></li>`
       : '<li><span>Seasonality</span><span>No passive pork · actual surplus culls in October–November</span></li>';
@@ -390,7 +390,7 @@ export function renderLivestockBuildingInspector(
     : `${fodderPlan.haymakingPercent}% of summer pasture · ${fodderPlan.summerReservedCapacity.toFixed(1)} head-capacity · ${fodderPlan.hayOutputPerDay.toFixed(1)} hay / day ${isLivestockHaymakingMonth(month) ? 'now' : 'in season'}`;
   const winterHayReserve = !fodderPlan || herd?.species === 'swine'
     ? 'Not used by woodland pigs'
-    : `${fodderPlan.hayStock.toFixed(1)} stored · ${fodderPlan.projectedHayStock.toFixed(1)} projected at winter / ${fodderPlan.winterHayNeed.toFixed(1)} needed · ${formatProvisionRunway(fodderPlan.winterHayRunwayDays)}`;
+    : `${Math.round(fodderPlan.hayStock)} stored · ${Math.floor(fodderPlan.projectedHayStock)} projected at winter / ${Math.ceil(fodderPlan.winterHayNeed)} needed · ${formatProvisionRunway(fodderPlan.winterHayRunwayDays)}`;
   const winterGrainReserve = !fodderPlan
     ? 'No herd'
     : building.assignedLabor <= 0
@@ -399,14 +399,14 @@ export function renderLivestockBuildingInspector(
         ? fodderPlan.winterUnsupportedHeads <= 0.01
           ? 'Winter pasture covers the projected herd'
           : 'Projected hay covers the remaining winter fodder demand'
-        : `${fodderPlan.winterReserveStock.toFixed(1)} / ${fodderPlan.winterReserveTarget.toFixed(1)} onsite after hay · ${formatProvisionRunway(fodderPlan.winterCombinedRunwayDays)} combined coverage`;
+        : `${Math.round(fodderPlan.winterReserveStock)} / ${Math.ceil(fodderPlan.winterReserveTarget)} onsite after hay · ${formatProvisionRunway(fodderPlan.winterCombinedRunwayDays)} combined coverage`;
   const winterResupplyRow = fodderPlan
     && fodderPlan.winterGrainNeed > fodderPlan.winterReserveTarget + 0.05
     ? `<li><span>Winter resupply</span><span>Full store covers ${formatProvisionRunway(fodderPlan.storageRunwayDays)} · ${renderResourceAmount('oatGrain', fodderPlan.winterGrainNeed, { compact: true, suffix: `for ${LIVESTOCK_WINTER_FODDER_RESERVE_DAYS} days` })}</span></li>`
     : '';
   const dairySaltRow = building.kind !== 'pastoral_farmstead' || !fodderPlan
     ? ''
-    : `<li><span>Cheese salt</span><span>${fodderPlan.dairySaltStock.toFixed(2)} onsite${inboundSalt > 0.001 ? ` + ${inboundSalt.toFixed(2)} inbound` : ''} / ${fodderPlan.dairySaltTarget.toFixed(2)} working target · ${renderResourceAmount('salt', fodderPlan.dairySaltPerDay, { compact: true, suffix: '/day' })} at current herd and staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
+    : `<li><span>Cheese salt</span><span>${Math.round(fodderPlan.dairySaltStock)} onsite${inboundSalt > 0.001 ? ` + ${Math.round(inboundSalt)} inbound` : ''} / ${Math.ceil(fodderPlan.dairySaltTarget)} working target · ${renderResourceAmount('salt', fodderPlan.dairySaltPerDay, { compact: true, suffix: '/day' })} at current herd and staffing · ${formatProvisionRunway(fodderPlan.dairySaltRunwayDays)} onsite</span></li>
       <li><span>Salt logistics</span><span>${inboundSalt > 0.001
         ? `Salt cart ${formatTripPhaseLabel(inboundTrip!.phase).toLowerCase()} from ${context.worldQueries.getBuildingLabel(context.worldQueries.getBuilding(inboundTrip!.buildingId)?.kind ?? 'marketplace')}`
         : 'Road-linked mine or marketplace carts share salt between smokehouses and pastoral holdings by work priority and runway'} · empty salt stops farmhouse cheese, not fresh milk or herd care</span></li>`;
@@ -431,35 +431,35 @@ export function renderLivestockBuildingInspector(
       <li><span>Winter reserve</span><span>${herd ? `${breedingReserve} head · ${projectedCull.heads} current surplus` : 'None'}</span></li>
       <li><span>Last work cycle</span><span>${recentOutput}</span></li>
       ${dairySaltRow}
-      <li><span>Preferred fallback</span><span>${Math.max(0, building.oatGrain ?? 0).toFixed(1)} oat grain stored</span></li>
+      <li><span>Preferred fallback</span><span>${Math.round(Math.max(0, building.oatGrain ?? 0))} oat grain stored</span></li>
       <li><span>Current grain burden</span><span>${currentGrainBurden}</span></li>
       <li><span>Summer hay meadow</span><span>${haymakingPlan}</span></li>
-      <li><span>Hayloft</span><span>${fodderPlan ? `${fodderPlan.hayStock.toFixed(1)} / ${LIVESTOCK_HAY_STORAGE_CAPACITY}` : 'No herd'}</span></li>
+      <li><span>Hayloft</span><span>${fodderPlan ? `${Math.round(fodderPlan.hayStock)} / ${Math.round(LIVESTOCK_HAY_STORAGE_CAPACITY)}` : 'No herd'}</span></li>
       <li><span>Winter hay reserve</span><span>${winterHayReserve}</span></li>
       <li><span>Winter herd plan</span><span>${winterHerdPlan}</span></li>
       <li><span>Winter grain reserve</span><span>${winterGrainReserve}</span></li>
       ${winterResupplyRow}
-      <li><span>Fresh-food stock</span><span>${freshFoodStock(building).toFixed(1)} / ${storageCaps.food ?? 0} · meat ${Math.max(0, building.meat ?? 0).toFixed(1)} · milk ${Math.max(0, building.milk ?? 0).toFixed(1)}</span></li>
-      ${building.kind === 'pastoral_farmstead' ? `<li><span>Preserved stock</span><span>${preservedFoodStock(building).toFixed(1)} / ${storageCaps.preservedFood ?? 0} · cured meat ${Math.max(0, building.curedMeat ?? 0).toFixed(1)} · cheese ${Math.max(0, building.cheese ?? 0).toFixed(1)}</span></li>
+      <li><span>Fresh-food stock</span><span>${Math.round(freshFoodStock(building))} / ${Math.round(storageCaps.food ?? 0)} · meat ${Math.round(Math.max(0, building.meat ?? 0))} · milk ${Math.round(Math.max(0, building.milk ?? 0))}</span></li>
+      ${building.kind === 'pastoral_farmstead' ? `<li><span>Preserved stock</span><span>${Math.round(preservedFoodStock(building))} / ${Math.round(storageCaps.preservedFood ?? 0)} · cured meat ${Math.round(Math.max(0, building.curedMeat ?? 0))} · cheese ${Math.round(Math.max(0, building.cheese ?? 0))}</span></li>
       <li><span>Cured-store aging</span><span>Ordinary dry storage · ${formatPreservedFoodLoss(
         preservedFoodStock(building)
         * environment.preservedFoodSpoilageFractionPerDay
         * buildingPreservedFoodStorageFactor(building.kind),
       )}</span></li>` : ''}
-      ${herd?.species === 'sheep' ? `<li><span>Wool store</span><span>${(building.wool ?? 0).toFixed(1)} / ${storageCaps.wool ?? 0}</span></li>
+      ${herd?.species === 'sheep' ? `<li><span>Wool store</span><span>${Math.round(building.wool ?? 0)} / ${Math.round(storageCaps.wool ?? 0)}</span></li>
       <li><span>Annual shearing</span><span>${shornThisYear
-        ? `${(herd.lastWoolOutput ?? 0).toFixed(1)} wool stored in Year ${clock.year}`
+        ? `${Math.round(herd.lastWoolOutput ?? 0)} wool stored in Year ${clock.year}`
         : shearingWindow
           ? shearingStorageBlocked
             ? `Waiting for ${projectedFleece.toFixed(1)} free storage · ${woolRoom.toFixed(1)} available`
             : shearingFlockBlocked
               ? 'Waiting for healthy, supplied sheep'
               : `Open now · ${projectedFleece.toFixed(1)} wool expected with full-clip room secured`
-          : `Next window: June–July · ${projectedFleece.toFixed(1)} wool at current flock condition · ${(herd.lastWoolOutput ?? 0).toFixed(1)} stored in last shearing`}</span></li>
+          : `Next window: June–July · ${projectedFleece.toFixed(1)} wool at current flock condition · ${Math.round(herd.lastWoolOutput ?? 0)} stored in last shearing`}</span></li>
       <li><span>Textile route</span><span>Holding cart → weaver → cloth cart → marketplace; roads speed every local leg</span></li>
       <li><span>Next wool cart</span><span>${nextWoolCart}</span></li>` : ''}
       <li><span>Food territory</span><span>${edibleFoodStock(building) <= 1e-6 ? 'Yielding while empty' : foodTerritory.length === 0 ? 'None on branch' : `${foodTerritory.length} households claimed`}</span></li>
-      <li><span>Local food reserve</span><span>${householdFoodFloor.toFixed(1)} protected · ${institutionalSurplus.toFixed(1)} central surplus</span></li>
+      <li><span>Local food reserve</span><span>${Math.round(householdFoodFloor)} protected · ${Math.round(institutionalSurplus)} central surplus</span></li>
       <li><span>Next food cart</span><span>${nextFoodTarget ? `Parcel #${nextFoodTarget.parcelIndex + 1}` : 'None needing food'}</span></li>
       <li><span>Next surplus cart</span><span>${nextInstitutionalCart}</span></li>
       ${building.kind === 'pastoral_farmstead' ? `<li><span>Next preserved cart</span><span>${nextPreservedCart}</span></li>` : ''}

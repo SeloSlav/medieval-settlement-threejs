@@ -159,7 +159,7 @@ export function buildVillageAdminReadout(input: {
     productivityLabel: formatProductivityPercent(taxRate),
     gdpLabel: `~${backyardEconomy.currentDayRoutedActivity.toFixed(1)} gold local trade today`,
     householdWealthLabel: wealthSummary.occupiedHomes > 0
-      ? `${wealthSummary.totalWealth.toFixed(1)} gold (${wealthSummary.homesWithSavings}/${wealthSummary.occupiedHomes} homes)`
+      ? `${Math.round(wealthSummary.totalWealth)} gold (${wealthSummary.homesWithSavings}/${wealthSummary.occupiedHomes} homes)`
       : '0 gold saved',
     householdSavingsLabel: formatBackyardSavings(
       backyardEconomy,
@@ -173,9 +173,9 @@ export function buildVillageAdminReadout(input: {
       ? `${formatParishGoldPerDay(parishExpense)} (coffer-limited)`
       : 'No chapel',
     cofferBalanceLabel: structurallyQuarantinedCoffer > 0.05
-      ? `${activeCoffer.toFixed(1)} gold active / ${cofferBalance.toFixed(1)} church-owned · ${structurallyQuarantinedCoffer.toFixed(1)} sealed pending structural recovery`
-      : `${cofferBalance.toFixed(1)} gold`,
-    parishLedgerLabel: `${parishLedgerTotal(parishPolicy).toFixed(1)} gold spent on clergy, upkeep, and charity`,
+      ? `${Math.round(activeCoffer)} gold active / ${Math.round(cofferBalance)} church-owned · ${Math.round(structurallyQuarantinedCoffer)} sealed pending structural recovery`
+      : `${Math.round(cofferBalance)} gold`,
+    parishLedgerLabel: `${Math.round(parishLedgerTotal(parishPolicy))} gold spent on clergy, upkeep, and charity`,
     backyardEconomy,
   };
 }
@@ -213,7 +213,7 @@ function emptyReadout(taxRate: number, parishPolicy: ParishPolicyState): Village
     chapelTitheLabel: 'Unstaffed chapel',
     parishExpenseLabel: 'No chapel',
     cofferBalanceLabel: '0 gold',
-    parishLedgerLabel: `${parishLedgerTotal(parishPolicy).toFixed(1)} gold spent on clergy, upkeep, and charity`,
+    parishLedgerLabel: `${Math.round(parishLedgerTotal(parishPolicy))} gold spent on clergy, upkeep, and charity`,
     backyardEconomy: null,
   };
 }

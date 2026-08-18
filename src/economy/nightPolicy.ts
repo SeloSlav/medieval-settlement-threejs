@@ -127,7 +127,7 @@ export function formatDawnReport(policy: NightPolicyState): string {
     clauses.push(`${policy.lastLightingFuelShortfall.toFixed(2)} fuel short`);
   }
   if (policy.lastTheftGold > 0.005) {
-    clauses.push(`${policy.lastTheftGold.toFixed(1)} gold stolen`);
+    clauses.push(`${Math.round(policy.lastTheftGold)} gold stolen`);
   } else if (policy.lastIncidents === 0) {
     clauses.push('no incidents');
   } else {
