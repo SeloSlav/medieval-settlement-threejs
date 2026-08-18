@@ -1,4 +1,5 @@
 import type { BuildingKind, BuildingState, BurgageZoneState, GameState } from '../resources/types.ts';
+import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { BurgageZoneCorners } from '../residences/burgageLayout.ts';
 import { cornersToArray } from '../residences/burgageLayout.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
@@ -11,6 +12,8 @@ import {
 } from '../utils/polygonGeometry.ts';
 import { getPlacementSpatialIndex, type PlacementSpatialIndex } from './placementSpatialIndex.ts';
 
+const LEGACY_BUILDING_FOOTPRINT_SCALE = 0.9;
+
 export function burgageZonePolygon(zone: BurgageZoneState): Point2[] {
   return [zone.cornerA, zone.cornerB, zone.cornerC, zone.cornerD];
 }
@@ -21,6 +24,18 @@ export function buildingFootprintPolygon(
   kind: BuildingKind,
   roadNetwork?: RoadNetwork | null,
 ): Point2[] {
+  // Some older parcel tools do not own the road network needed to reproduce
+  // a placed building's road-facing yaw. Preserve their conservative proxy
+  // until those validators and their server reducers migrate together.
+  if (roadNetwork === undefined) {
+    const radius = getBuildingDefinition(kind).pickRadius * LEGACY_BUILDING_FOOTPRINT_SCALE;
+    return [
+      { x: x - radius, z: z - radius },
+      { x: x + radius, z: z - radius },
+      { x: x + radius, z: z + radius },
+      { x: x - radius, z: z + radius },
+    ];
+  }
   const yaw = buildingPlacementYaw(kind, x, z, roadNetwork);
   return getBuildingFootprintCorners(kind, x, z, yaw);
 }
