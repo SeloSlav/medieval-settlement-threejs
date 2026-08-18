@@ -132,6 +132,7 @@ export class VillagerInspector {
     options.selectionParent.add(this.marker);
 
     options.domElement.addEventListener('mousedown', this.onPointerDown, { capture: true });
+    window.addEventListener('pointerdown', this.onOutsidePointerDown, { capture: true });
     this.panel.addEventListener('mousedown', stopEventPropagation);
     this.closeButton.addEventListener('click', this.onClose);
   }
@@ -184,6 +185,7 @@ export class VillagerInspector {
 
   dispose(): void {
     this.options.domElement.removeEventListener('mousedown', this.onPointerDown, { capture: true });
+    window.removeEventListener('pointerdown', this.onOutsidePointerDown, { capture: true });
     this.panel.removeEventListener('mousedown', stopEventPropagation);
     this.closeButton.removeEventListener('click', this.onClose);
     this.marker.removeFromParent();
@@ -229,6 +231,18 @@ export class VillagerInspector {
 
   private readonly onClose = (event: MouseEvent): void => {
     event.stopPropagation();
+    this.clearSelection(true);
+  };
+
+  private readonly onOutsidePointerDown = (event: PointerEvent): void => {
+    const target = event.target;
+    if (
+      this.panel.hidden
+      || !(target instanceof Node)
+      || this.panel.contains(target)
+    ) {
+      return;
+    }
     this.clearSelection(true);
   };
 

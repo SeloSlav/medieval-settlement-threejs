@@ -16,7 +16,9 @@ const RICH_CLAY_DEPOSIT_PROTECTION_RADIUS: f64 = 21.0;
 const ORDINARY_BERRY_PATCH_PROTECTION_RADIUS: f64 = 5.184;
 const RICH_BERRY_PATCH_PROTECTION_RADIUS: f64 = 6.013_44;
 const MUSHROOM_PATCH_PROTECTION_RADIUS: f64 = 7.2;
-const FOOTPRINT_SAMPLE_FRACTIONS: [f64; 3] = [0.0, 0.55, 0.82];
+const FOOTPRINT_SAMPLE_FRACTIONS: [f64; 4] = [0.0, 0.55, 0.82, 1.0];
+const BUILDING_FOOTPRINT_SCALE: f64 = 0.92;
+const ROAD_FACING_SNAP_DISTANCE: f64 = 24.0;
 const OPEN_WATER_THRESHOLD: f64 = 0.999;
 const MAX_ROAD_FRONTAGE_DISTANCE: f64 = 16.0;
 const BUILDING_SITE_CLEAR_MARGIN: f64 = 0.75;
@@ -274,20 +276,25 @@ fn distance_to_segment_squared(x: f64, z: f64, start: Point2, end: Point2) -> f6
 
 pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> bool {
     let pad = building_pad_params(kind);
-    let yaw = building_placement_yaw(x, z);
+    let yaw = road_aware_building_placement_yaw(network, kind, x, z);
     let cos = yaw.cos();
     let sin = yaw.sin();
 
     for &fraction in &FOOTPRINT_SAMPLE_FRACTIONS {
+        let sample_fraction = if fraction == 1.0 {
+            BUILDING_FOOTPRINT_SCALE
+        } else {
+            fraction
+        };
         for sx in [-1, 0, 1] {
             for sz in [-1, 0, 1] {
                 if fraction == 0.0 && (sx != 0 || sz != 0) {
                     continue;
                 }
-                let local_x = sx as f64 * pad.radius_x * pad.inner_fade * fraction;
-                let local_z = sz as f64 * pad.radius_z * pad.inner_fade * fraction;
-                let sample_x = x + local_x * cos - local_z * sin;
-                let sample_z = z + local_x * sin + local_z * cos;
+                let local_x = sx as f64 * pad.radius_x * pad.inner_fade * sample_fraction;
+                let local_z = sz as f64 * pad.radius_z * pad.inner_fade * sample_fraction;
+                let sample_x = x + local_x * cos + local_z * sin;
+                let sample_z = z - local_x * sin + local_z * cos;
                 if network.is_on_road_surface(sample_x, sample_z) {
                     return true;
                 }
@@ -296,6 +303,25 @@ pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64,
     }
 
     false
+}
+
+fn road_aware_building_placement_yaw(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> f64 {
+    let uses_road_facing_yaw = building_def(kind).is_some_and(|def| {
+        def.faces_road
+            || ((def.requires_road || kind == "foragers_shed")
+                && !def.requires_water_shore
+                && !matches!(kind, "large_quarry" | "mine" | "clay_pit"))
+    });
+    if uses_road_facing_yaw {
+        if let Some((road_x, road_z)) = network.nearest_point(x, z, ROAD_FACING_SNAP_DISTANCE) {
+            let dx = road_x - x;
+            let dz = road_z - z;
+            if dx.hypot(dz) > 0.05 {
+                return dx.atan2(dz);
+            }
+        }
+    }
+    building_placement_yaw(x, z)
 }
 
 pub fn building_overlaps_open_water(kind: &str, x: f64, z: f64) -> bool {
@@ -517,10 +543,43 @@ fn building_placement_yaw(x: f64, z: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        building_site_contains_point, clay_deposit_protection_radius, polygon_overlaps_circle,
-        quarry_deposit_protection_radius, static_foraging_resource_protection_radius,
+        building_overlaps_road_surface, building_site_contains_point,
+        clay_deposit_protection_radius, polygon_overlaps_circle, quarry_deposit_protection_radius,
+        static_foraging_resource_protection_radius,
     };
     use crate::burgage::Point2;
+    use crate::roads::RoadNetwork;
+
+    #[test]
+    fn road_facing_lumber_mill_clears_a_diagonal_road() {
+        let snapshot = r#"{
+            "nodes": [
+                {"id":"node-1","position":[-30.0,0.0,-30.0]},
+                {"id":"node-2","position":[30.0,0.0,30.0]}
+            ],
+            "edges": [{
+                "startNodeId":"node-1",
+                "endNodeId":"node-2",
+                "width":4.2,
+                "sampledPath":[[-30.0,0.0,-30.0],[30.0,0.0,30.0]]
+            }]
+        }"#;
+        let network = RoadNetwork::from_snapshot_json(snapshot).expect("valid diagonal road");
+
+        // This is the client roadside snap for a lumber mill with its cursor
+        // at (-2, 8): centerline projection (3, 3), northwest verge.
+        let setback = 4.2 * 0.5 + 8.0 * 0.6 + 0.65;
+        let normal = std::f64::consts::FRAC_1_SQRT_2;
+        let x = 3.0 - setback * normal;
+        let z = 3.0 + setback * normal;
+
+        assert!(!building_overlaps_road_surface(
+            &network,
+            "lumber_mill",
+            x,
+            z
+        ));
+    }
 
     #[test]
     fn building_site_clearance_uses_the_local_pad_not_the_work_radius() {

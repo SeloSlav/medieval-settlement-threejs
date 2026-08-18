@@ -170,6 +170,48 @@ impl RoadNetwork {
         best
     }
 
+    /// Nearest road centerline point within `max_distance`.
+    ///
+    /// Placement uses this direction to keep authoritative building footprints
+    /// aligned with the same road-facing yaw shown by the client.
+    pub fn nearest_point(&self, x: f64, z: f64, max_distance: f64) -> Option<(f64, f64)> {
+        if !x.is_finite() || !z.is_finite() || !max_distance.is_finite() || max_distance < 0.0 {
+            return None;
+        }
+
+        let mut best_distance = max_distance;
+        let mut best_point = None;
+        for &(node_x, node_z) in self.nodes.values() {
+            let candidate_distance = distance(x, z, node_x, node_z);
+            if candidate_distance <= best_distance {
+                best_distance = candidate_distance;
+                best_point = Some((node_x, node_z));
+            }
+        }
+
+        for edge in &self.edges {
+            for segment in edge.sampled_path.windows(2) {
+                let (point_x, point_z) = project_point_to_segment(
+                    x,
+                    z,
+                    segment[0][0],
+                    segment[0][2],
+                    segment[1][0],
+                    segment[1][2],
+                );
+                let candidate_distance = distance(x, z, point_x, point_z);
+                if candidate_distance <= best_distance
+                    && (best_point.is_none() || candidate_distance < best_distance)
+                {
+                    best_distance = candidate_distance;
+                    best_point = Some((point_x, point_z));
+                }
+            }
+        }
+
+        best_point
+    }
+
     pub fn is_on_road_surface(&self, x: f64, z: f64) -> bool {
         let search_radius = self.max_surface_half_width + ROAD_SURFACE_MARGIN;
         let mut seen_edges = HashSet::new();
@@ -1054,6 +1096,11 @@ fn distance_to_polyline(x: f64, z: f64, path: &[[f64; 3]]) -> f64 {
 }
 
 fn distance_to_segment(px: f64, pz: f64, ax: f64, az: f64, bx: f64, bz: f64) -> f64 {
+    let (cx, cz) = project_point_to_segment(px, pz, ax, az, bx, bz);
+    distance(px, pz, cx, cz)
+}
+
+fn project_point_to_segment(px: f64, pz: f64, ax: f64, az: f64, bx: f64, bz: f64) -> (f64, f64) {
     let abx = bx - ax;
     let abz = bz - az;
     let length_sq = abx * abx + abz * abz;
@@ -1064,7 +1111,7 @@ fn distance_to_segment(px: f64, pz: f64, ax: f64, az: f64, bx: f64, bz: f64) -> 
     };
     let cx = ax + abx * t;
     let cz = az + abz * t;
-    distance(px, pz, cx, cz)
+    (cx, cz)
 }
 
 fn polyline_length(path: &[[f64; 3]]) -> f64 {
@@ -1103,6 +1150,32 @@ mod tests {
         let network = RoadNetwork::from_snapshot_json(r#"{"nodes":[],"edges":[]}"#)
             .expect("an empty but valid owner network");
         assert!(network.road_path_distance(0.0, 0.0, 10.0, 0.0).is_none());
+    }
+
+    #[test]
+    fn nearest_point_projects_roadside_buildings_onto_the_centerline() {
+        let network = RoadNetwork::from_snapshot_json(
+            r#"{
+                "nodes": [
+                    {"id":"a","position":[-30.0,0.0,-30.0]},
+                    {"id":"b","position":[30.0,0.0,30.0]}
+                ],
+                "edges": [{
+                    "startNodeId":"a",
+                    "endNodeId":"b",
+                    "width":4.2,
+                    "sampledPath":[[-30.0,0.0,-30.0],[30.0,0.0,30.0]]
+                }]
+            }"#,
+        )
+        .expect("diagonal road network should parse");
+
+        let (x, z) = network
+            .nearest_point(-2.0, 8.0, 24.0)
+            .expect("cursor should find the road centerline");
+        assert!((x - 3.0).abs() < 1e-9);
+        assert!((z - 3.0).abs() < 1e-9);
+        assert_eq!(network.nearest_point(-2.0, 40.0, 4.0), None);
     }
 
     fn wet_row_hex(resolution: usize, wet_row: usize) -> String {

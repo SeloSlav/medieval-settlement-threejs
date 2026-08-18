@@ -1467,6 +1467,7 @@ function generateRust(): string {
   lines.push('    pub action_interval: f64,');
   lines.push('    pub pick_radius: f64,');
   lines.push('    pub requires_road: bool,');
+  lines.push('    pub faces_road: bool,');
   lines.push('    pub requires_mature_trees: bool,');
   lines.push('    pub requires_quarry_stone: bool,');
   lines.push('    pub requires_game: bool,');
@@ -1518,6 +1519,7 @@ function generateRust(): string {
     lines.push(`    action_interval: ${rustF64(def.harvestInterval)},`);
     lines.push(`    pick_radius: ${rustF64(def.pickRadius)},`);
     lines.push(`    requires_road: ${def.requiresRoad},`);
+    lines.push(`    faces_road: ${def.facesRoad},`);
     lines.push(`    requires_mature_trees: ${def.requiresMatureTrees},`);
     lines.push(`    requires_quarry_stone: ${def.requiresQuarryStone},`);
     lines.push(`    requires_game: ${def.requiresGame},`);

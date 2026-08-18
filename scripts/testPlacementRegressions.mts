@@ -553,6 +553,11 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
 
   const mill = resolveRoadsideBuildingPlacement('lumber_mill', -2, 8, diagonalRoads);
   const millYaw = buildingPlacementYaw('lumber_mill', mill.x, mill.z, diagonalRoads);
+  assert.equal(
+    buildingFootprintOverlapsRoadSurface('lumber_mill', mill.x, mill.z, diagonalRoads),
+    false,
+    'a snapped lumber mill footprint must clear the road it faces',
+  );
   const roadFacingState = {
     buildings: new Map([
       ['road-facing-mill', {
