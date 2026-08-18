@@ -17,6 +17,7 @@ import type {
   GameState,
   ResidenceState,
 } from './types.ts';
+import { formatResourceUnits } from './resourceUnits.ts';
 
 const EPSILON = 1e-6;
 
@@ -111,10 +112,7 @@ export function resourceDisplayLabel(resource: HudResourceKind): string {
 }
 
 export function formatLocatedResourceAmount(amount: number): string {
-  if (Math.abs(amount - Math.round(amount)) <= EPSILON) {
-    return Math.round(amount).toLocaleString();
-  }
-  return amount.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  return formatResourceUnits(amount);
 }
 
 /**

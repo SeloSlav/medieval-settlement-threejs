@@ -1,6 +1,7 @@
 import type { FarmField } from '../../generated/types.ts';
 import { buildingClientId, farmFieldClientId } from '../spacetimeIds.ts';
 import { FARM_CROPS, type FarmFieldStage, type FarmFieldState } from '../../resources/types.ts';
+import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
 const STAGES: readonly FarmFieldStage[] = ['ploughing', 'sowing', 'growing', 'harvesting'];
 
@@ -33,10 +34,10 @@ export function syncFarmFields(
       stageProgress: row.stageProgress,
       priority: row.priority,
       harvestCount: Number(row.harvestCount),
-      lastYield: row.lastYield,
-      currentYield: row.currentYield ?? 0,
+      lastYield: wholeResourceUnits(row.lastYield),
+      currentYield: wholeResourceUnits(row.currentYield),
       harvestYieldMultiplier: row.harvestYieldMultiplier ?? 1,
-      manureApplied: row.manureApplied ?? 0,
+      manureApplied: wholeResourceUnits(row.manureApplied),
     });
   }
   return fields;

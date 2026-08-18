@@ -820,10 +820,7 @@ export function cargoKindLabelForTrip(trip: DeliveryTripState): string {
 }
 
 function formatCargoAmount(amount: number): string {
-  if (Math.abs(amount - Math.round(amount)) < 0.05) {
-    return Math.round(amount).toLocaleString();
-  }
-  return amount.toFixed(1);
+  return Math.max(0, Math.round(amount)).toLocaleString();
 }
 
 export function cargoColor(kind: DeliveryCargoKind): number {

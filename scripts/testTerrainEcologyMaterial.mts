@@ -118,9 +118,18 @@ assert.match(
   /const grassColorNode = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
 );
 assert.match(ecologySource, /attribute\('forestBlend', 'float'\)/);
-assert.match(ecologySource, /packedForestLitterUv\(forestUv\)/);
-assert.match(ecologySource, /packedForestLitterGradient\(forestUv\.dFdx\(\)\)/);
-assert.match(ecologySource, /packedForestLitterGradient\(forestUv\.dFdy\(\)\)/);
+for (const projection of ['A', 'B', 'C']) {
+  assert.match(ecologySource, new RegExp(`packedForestLitterUv\\(forestUv${projection}\\)`));
+  assert.match(ecologySource, new RegExp(`packedForestLitterGradient\\(forestUv${projection}\\.dFdx\\(\\)\\)`));
+  assert.match(ecologySource, new RegExp(`packedForestLitterGradient\\(forestUv${projection}\\.dFdy\\(\\)\\)`));
+}
+assert.match(ecologySource, /const forestProjectionAB = smoothstep/);
+assert.match(ecologySource, /const forestProjectionC = \(smoothstep/);
+assert.match(
+  ecologySource,
+  /const forestColor = mix\([\s\S]*?forestSampleA[\s\S]*?forestSampleB[\s\S]*?forestProjectionAB[\s\S]*?forestSampleC[\s\S]*?forestProjectionC/,
+  'leaf litter must blend decorrelated projections through broad ecology fields',
+);
 assert.match(
   ecologySource,
   /const forestGrain = smoothstep\([\s\S]*?float\(0\.008\)[\s\S]*?float\(0\.12\)[\s\S]*?forestLuminance/,
@@ -213,7 +222,7 @@ assert.doesNotMatch(
 );
 assert.equal(
   (source.match(/\btexture\(/g) ?? []).length,
-  27,
+  29,
   'layered close soil, packed snow/leaf atlas and reused albedo coverage samples must retain a bounded texture budget',
 );
 assert.match(source, /function mirroredTerrainAtlasUv/);

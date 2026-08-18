@@ -6,6 +6,7 @@ import {
   type DeliveryTripState,
 } from '../../logistics/deliveryTrips.ts';
 import { buildingClientId, residenceClientId, tripClientId } from '../spacetimeIds.ts';
+import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
 export function syncDeliveryTrips(
   rows: Iterable<DeliveryTrip>,
@@ -50,7 +51,7 @@ export function syncDeliveryTrips(
         ? buildingClientId(row.targetBuildingId)
         : null,
       cargoKind,
-      amount: row.amount,
+      amount: wholeResourceUnits(row.amount),
       phase: phaseFromId(Number(row.phase)),
       x: row.x,
       z: row.z,

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { roadPerpendicular } from '../roads/roadEndpoint.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
-import { MAX_ZONE_DEPTH, MIN_ZONE_DEPTH } from './burgageLayout.ts';
+import { MIN_ZONE_DEPTH } from './burgageLayout.ts';
 import {
   depthFromBackPoint,
   inwardNormalForFrontage,
@@ -97,7 +97,7 @@ export function buildCurvedZoneFromFrontage(
 
   const inward = inwardNormalForFrontage(frontStart, frontEnd, roadNetwork);
   const depth = depthFromBackPoint(frontStart, frontEnd, backPoint, inward);
-  if (depth < MIN_ZONE_DEPTH - 0.05 || depth > MAX_ZONE_DEPTH + 0.05) return null;
+  if (depth < MIN_ZONE_DEPTH - 0.05) return null;
 
   const centerPath = resolveRoadCenterPathForFrontage(
     roadNetwork,

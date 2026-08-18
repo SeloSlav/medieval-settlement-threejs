@@ -1,4 +1,5 @@
 import type { ForagingNode, Quarry } from '../../generated/types.ts';
+import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 import type { ResourceNodeState } from '../../resources/types.ts';
 
 export function syncQuarries(
@@ -16,8 +17,8 @@ export function syncQuarries(
       nodeId: row.quarryId,
       kind: 'quarry',
       resource,
-      remaining: row.remaining,
-      maxYield: row.maxYield,
+      remaining: wholeResourceUnits(row.remaining),
+      maxYield: wholeResourceUnits(row.maxYield),
       x: row.x,
       z: row.z,
       isRich: row.isRich,
@@ -29,8 +30,8 @@ export function syncQuarries(
       nodeId: row.nodeId,
       kind: 'quarry',
       resource: 'clay',
-      remaining: row.remaining,
-      maxYield: row.maxYield,
+      remaining: wholeResourceUnits(row.remaining),
+      maxYield: wholeResourceUnits(row.maxYield),
       x: row.x,
       z: row.z,
       isRich: row.nodeId.startsWith('clay-rich-'),

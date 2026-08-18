@@ -1,6 +1,7 @@
 import type { ForagingNode } from '../../generated/types.ts';
 import { isRichForagingCapacity } from '../../foraging/foragingYields.ts';
 import type { ForagingNodeState } from '../../resources/types.ts';
+import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
 export function syncForagingNodes(rows: Iterable<ForagingNode>): Map<string, ForagingNodeState> {
   const foragingNodes = new Map<string, ForagingNodeState>();
@@ -19,8 +20,8 @@ export function syncForagingNodes(rows: Iterable<ForagingNode>): Map<string, For
       nodeId: row.nodeId,
       kind,
       resource: kind,
-      remaining: row.remaining,
-      maxYield: row.maxYield,
+      remaining: wholeResourceUnits(row.remaining),
+      maxYield: wholeResourceUnits(row.maxYield),
       x: row.x,
       z: row.z,
       isRich: isRichForagingCapacity(kind, row.maxYield),

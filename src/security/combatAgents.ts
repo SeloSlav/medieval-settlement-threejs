@@ -8,6 +8,7 @@ import {
   residenceClientId,
   tripClientId,
 } from '../data/spacetimeIds.ts';
+import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 
 export const COMBAT_AGENT_STATES = [
   'advancing',
@@ -200,7 +201,7 @@ function carriedPolearms(carriedStoresJson: string): number {
   try {
     const carried = JSON.parse(carriedStoresJson) as { polearms?: unknown };
     const polearms = Number(carried.polearms);
-    return Number.isFinite(polearms) ? Math.max(0, polearms) : 0;
+    return wholeResourceUnits(polearms);
   } catch {
     return 0;
   }

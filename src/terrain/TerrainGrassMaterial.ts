@@ -183,10 +183,12 @@ function buildGrassBlendNodes(
       .add(grassUv.y.mul(float(0.65) as TslNode))
       .add(float(0.43) as TslNode),
   ) as TslNode;
-  // Leaf forms need a much smaller world scale than grass clumps. Rotation
-  // breaks alignment with every meadow family while keeping the generated
-  // tile stable in world space at all camera distances.
-  const forestUv = vec2(
+  // Leaf forms need a much smaller world scale than grass clumps. Three
+  // decorrelated projections keep the authored litter scale while preventing
+  // the atlas' mandatory mirrored wrapping from reading as a repeated
+  // butterfly/grid pattern from above. All three projections reuse the same
+  // packed albedo binding, so this adds samples without adding samplers.
+  const forestUvA = vec2(
     grassUv.x
       .mul(float(9) as TslNode)
       .sub(grassUv.y.mul(float(7.6) as TslNode))
@@ -196,43 +198,36 @@ function buildGrassBlendNodes(
       .add(grassUv.y.mul(float(9) as TslNode))
       .add(float(0.67) as TslNode),
   ) as TslNode;
+  const forestUvB = vec2(
+    grassUv.x
+      .mul(float(-6.8) as TslNode)
+      .sub(grassUv.y.mul(float(10.2) as TslNode))
+      .add(float(0.73) as TslNode),
+    grassUv.x
+      .mul(float(10.2) as TslNode)
+      .sub(grassUv.y.mul(float(6.8) as TslNode))
+      .add(float(0.31) as TslNode),
+  ) as TslNode;
+  const forestUvC = vec2(
+    grassUv.x
+      .mul(float(10.7) as TslNode)
+      .add(grassUv.y.mul(float(3.9) as TslNode))
+      .add(float(0.41) as TslNode),
+    grassUv.x
+      .mul(float(-3.9) as TslNode)
+      .add(grassUv.y.mul(float(10.7) as TslNode))
+      .add(float(0.89) as TslNode),
+  ) as TslNode;
   const meadowColor = texture(textures.meadow.albedo, meadowUv) as TslNode;
   const denseColor = texture(textures.dense.albedo, denseUv) as TslNode;
   const dryColor = texture(
     textures.dry.albedo,
     packedDrySnowUv(dryUv, false),
   ) as TslNode;
-  const forestColor = (texture(
-    textures.dry.albedo,
-    packedForestLitterUv(forestUv),
-  ) as TslNode).grad(
-    packedForestLitterGradient(forestUv.dFdx()),
-    packedForestLitterGradient(forestUv.dFdy()),
-  ) as TslNode;
   const forestBlend = smoothstep(
     float(0.04) as TslNode,
     float(0.96) as TslNode,
     attribute('forestBlend', 'float') as TslNode,
-  ) as TslNode;
-  const forestLuminance = forestColor.r
-    .mul(float(0.299) as TslNode)
-    .add(forestColor.g.mul(float(0.587) as TslNode))
-    .add(forestColor.b.mul(float(0.114) as TslNode)) as TslNode;
-  const forestGrain = smoothstep(
-    float(0.008) as TslNode,
-    float(0.12) as TslNode,
-    forestLuminance,
-  ) as TslNode;
-  // The atlas is already an authored sRGB albedo. Keep its decoded linear
-  // luminance intact at close range instead of applying a second brown tint.
-  const forestDetailColorNode = forestColor.rgb;
-  // Bound the high-frequency litter contrast for mip-stable views while
-  // preserving the atlas mean. The former near-black remap halved the source
-  // luminance before lighting and made the whole forest footprint a dark basin.
-  const forestDetailStableColorNode = mix(
-    vec3(0.024, 0.015, 0.01) as TslNode,
-    vec3(0.16, 0.095, 0.055) as TslNode,
-    forestGrain,
   ) as TslNode;
   const blendedColor = meadowColor.rgb
     .mul(w.x)
@@ -311,6 +306,66 @@ function buildGrassBlendNodes(
     .add(densePatch.mul(float(0.27) as TslNode))
     .add((sub(float(1) as TslNode, meadowPatch) as TslNode).mul(float(0.15) as TslNode)) as TslNode;
   const macro = macroA.mul(float(0.68) as TslNode).add(macroB.mul(float(0.32) as TslNode));
+  const forestSampleA = (texture(
+    textures.dry.albedo,
+    packedForestLitterUv(forestUvA),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvA.dFdx()),
+    packedForestLitterGradient(forestUvA.dFdy()),
+  ) as TslNode;
+  const forestSampleB = (texture(
+    textures.dry.albedo,
+    packedForestLitterUv(forestUvB),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvB.dFdx()),
+    packedForestLitterGradient(forestUvB.dFdy()),
+  ) as TslNode;
+  const forestSampleC = (texture(
+    textures.dry.albedo,
+    packedForestLitterUv(forestUvC),
+  ) as TslNode).grad(
+    packedForestLitterGradient(forestUvC.dFdx()),
+    packedForestLitterGradient(forestUvC.dFdy()),
+  ) as TslNode;
+  // Reuse the existing broad ecology fields to move gradually between the
+  // projections. Their boundaries are much larger than a litter tile, so no
+  // new cell/grid structure is introduced and all PBR responses can continue
+  // to derive from the same resolved litter luminance.
+  const forestProjectionAB = smoothstep(
+    float(0.24) as TslNode,
+    float(0.76) as TslNode,
+    macroA,
+  ) as TslNode;
+  const forestProjectionC = (smoothstep(
+    float(0.3) as TslNode,
+    float(0.74) as TslNode,
+    macroB,
+  ) as TslNode).mul(float(0.62) as TslNode) as TslNode;
+  const forestColor = mix(
+    mix(forestSampleA, forestSampleB, forestProjectionAB) as TslNode,
+    forestSampleC,
+    forestProjectionC,
+  ) as TslNode;
+  const forestLuminance = forestColor.r
+    .mul(float(0.299) as TslNode)
+    .add(forestColor.g.mul(float(0.587) as TslNode))
+    .add(forestColor.b.mul(float(0.114) as TslNode)) as TslNode;
+  const forestGrain = smoothstep(
+    float(0.008) as TslNode,
+    float(0.12) as TslNode,
+    forestLuminance,
+  ) as TslNode;
+  // The atlas is already an authored sRGB albedo. Keep its decoded linear
+  // luminance intact at close range instead of applying a second brown tint.
+  const forestDetailColorNode = forestColor.rgb;
+  // Bound the high-frequency litter contrast for mip-stable views while
+  // preserving the atlas mean. The former near-black remap halved the source
+  // luminance before lighting and made the whole forest footprint a dark basin.
+  const forestDetailStableColorNode = mix(
+    vec3(0.024, 0.015, 0.01) as TslNode,
+    vec3(0.16, 0.095, 0.055) as TslNode,
+    forestGrain,
+  ) as TslNode;
   // Strategic cameras cannot resolve individual leaf silhouettes, but the
   // woodland ground should still read as leaf litter rather than a flat brown
   // biome tint. Preserve a contrast-bounded version of the authored atlas at

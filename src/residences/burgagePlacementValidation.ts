@@ -1,13 +1,11 @@
 import * as THREE from 'three';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import type { BuildingState, BurgageZoneState } from '../resources/types.ts';
-import { residenceZoneCost } from '../resources/buildingEconomy.ts';
 import {
   type BurgageFrontageEdge,
   type BurgageLayoutResult,
   type BurgageZoneCorners,
   MAX_ROAD_FRONTAGE_DISTANCE,
-  MAX_ZONE_DEPTH,
   MIN_PLOT_FRONTAGE,
   MIN_ZONE_DEPTH,
   autoFrontageEdge,
@@ -15,7 +13,6 @@ import {
   cornersToArray,
   getZoneEdge,
   measureZoneDepth,
-  measureZoneSideDepths,
   resolveBurgageLayout,
   suggestPlotCount,
   type ResidencePlacement,
@@ -34,7 +31,6 @@ export type BurgagePlacementFailureReason =
   | 'too_steep'
   | 'invalid_shape'
   | 'too_small'
-  | 'too_deep'
   | 'no_road_frontage'
   | 'overlaps_existing'
   | 'overlaps_building'
@@ -47,9 +43,7 @@ export type BurgagePlacementResult =
   | { ok: true; layout: BurgageLayoutResult }
   | { ok: false; reason: BurgagePlacementFailureReason };
 
-const MAX_ZONE_HEIGHT_DELTA = 6;
-const MAX_ZONE_EDGE_GRADE = 0.4;
-const MAX_RESIDENCE_FOOTPRINT_HEIGHT_DELTA = 2.4;
+export const MAX_RESIDENCE_FOOTPRINT_HEIGHT_DELTA = 6;
 const RESIDENCE_TERRAIN_HALF_WIDTH = 3.85;
 const RESIDENCE_TERRAIN_HALF_DEPTH = 4.2;
 const FOOTPRINT_SAMPLE_FRACTIONS = [-1, 0, 1] as const;
@@ -100,22 +94,6 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
     return { ok: false, reason: 'invalid_shape' };
   }
 
-  const heights = context.corners.map((corner) => context.getNaturalHeightAt(corner.x, corner.z));
-  const minHeight = Math.min(...heights);
-  const maxHeight = Math.max(...heights);
-  if (maxHeight - minHeight > MAX_ZONE_HEIGHT_DELTA) {
-    return { ok: false, reason: 'too_steep' };
-  }
-  for (let index = 0; index < context.corners.length; index++) {
-    const nextIndex = (index + 1) % context.corners.length;
-    const start = context.corners[index];
-    const end = context.corners[nextIndex];
-    const run = Math.hypot(end.x - start.x, end.z - start.z);
-    if (run > 0.1 && Math.abs(heights[nextIndex] - heights[index]) / run > MAX_ZONE_EDGE_GRADE) {
-      return { ok: false, reason: 'too_steep' };
-    }
-  }
-
   const cornerPoints = context.corners.map((corner) => ({ x: corner.x, z: corner.z }));
   const zoneCorners = cornersFromPoints(cornerPoints);
   if (!zoneCorners) return { ok: false, reason: 'invalid_shape' };
@@ -143,12 +121,8 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
   }
 
   const zoneDepth = measureZoneDepth(zoneCorners, context.frontageEdge);
-  const sideDepths = measureZoneSideDepths(zoneCorners, context.frontageEdge);
   if (zoneDepth + 1e-6 < MIN_ZONE_DEPTH) {
     return { ok: false, reason: 'too_small' };
-  }
-  if (Math.max(...sideDepths) > MAX_ZONE_DEPTH + 0.05) {
-    return { ok: false, reason: 'too_deep' };
   }
 
   const edgeDistances = frontageEdgeRoadDistances(zoneCorners, context.roadNetwork);
@@ -185,7 +159,7 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
     }
   }
 
-  const cost = residenceZoneCost(layout.residences.length);
+  const cost = layout.totalCost;
   if (context.stockpile.timber < cost.timber || context.stockpile.stone < cost.stone) {
     return { ok: false, reason: 'insufficient_resources' };
   }

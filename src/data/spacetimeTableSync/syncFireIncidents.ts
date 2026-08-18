@@ -10,6 +10,7 @@ import {
   fireIncidentClientId,
   residenceClientId,
 } from '../spacetimeIds.ts';
+import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
 export function syncFireIncidents(
   rows: Iterable<FireIncident>,
@@ -41,8 +42,8 @@ export function syncFireIncidents(
       status,
       intensity: row.intensity,
       damage: row.damage,
-      waterDelivered: row.waterDelivered,
-      requiredWater: row.requiredWater,
+      waterDelivered: wholeResourceUnits(row.waterDelivered),
+      requiredWater: wholeResourceUnits(row.requiredWater),
       extinguishChance: row.extinguishChance,
       startedTick: Number(row.startedTick),
       discoveredTick,

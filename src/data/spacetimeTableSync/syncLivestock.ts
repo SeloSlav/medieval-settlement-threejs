@@ -5,6 +5,7 @@ import type {
   LivestockSpecies,
   PastureState,
 } from '../../resources/types.ts';
+import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
 
 const SPECIES: readonly LivestockSpecies[] = ['cattle', 'sheep', 'swine'];
 
@@ -51,15 +52,15 @@ export function syncLivestockHerds(
       breedingProgress: row.breedingProgress,
       pastureCapacity: row.pastureCapacity,
       suppliedCapacity: row.suppliedCapacity,
-      lastFoodOutput: row.lastFoodOutput,
-      lastPreservedOutput: row.lastPreservedOutput,
-      lastWoolGold: row.lastWoolGold,
-      lastWoolOutput: row.lastWoolOutput,
+      lastFoodOutput: wholeResourceUnits(row.lastFoodOutput),
+      lastPreservedOutput: wholeResourceUnits(row.lastPreservedOutput),
+      lastWoolGold: wholeResourceUnits(row.lastWoolGold),
+      lastWoolOutput: wholeResourceUnits(row.lastWoolOutput),
       lastShearingYear: Number(row.lastShearingYear),
       breedingReserve: Number(row.breedingReserve),
       lastCulled: Number(row.lastCulled),
-      hayStock: row.hayStock,
-      lastHayOutput: row.lastHayOutput,
+      hayStock: wholeResourceUnits(row.hayStock),
+      lastHayOutput: wholeResourceUnits(row.lastHayOutput),
       haymakingPercent: Number(row.haymakingPercent),
     });
   }

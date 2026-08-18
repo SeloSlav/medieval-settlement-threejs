@@ -1,7 +1,7 @@
 import type { Point2 } from '../utils/polygonGeometry.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { nearestRoadDistance } from '../roads/roadConnectivity.ts';
-import { MAX_ZONE_DEPTH, MIN_ZONE_DEPTH } from './burgageLayout.ts';
+import { MIN_ZONE_DEPTH } from './burgageLayout.ts';
 
 export type RectangleCorners = {
   a: Point2;
@@ -66,7 +66,7 @@ export function depthFromBackPoint(
   inward: Point2,
 ): number {
   const depth = measureRawDepthFromBackPoint(frontStart, backPoint, inward);
-  return Math.min(MAX_ZONE_DEPTH, Math.max(MIN_ZONE_DEPTH, depth));
+  return Math.max(MIN_ZONE_DEPTH, depth);
 }
 
 /** Frontage A-B on road; C and D complete the rectangle behind the frontage. */

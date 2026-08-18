@@ -1396,7 +1396,7 @@ export class ResourceInspector {
     this.stockpileValues.firewood.textContent = Math.round(totals.firewood).toString();
     this.stockpileValues.water.textContent = Math.round(totals.water).toString();
     this.stockpileValues.food.textContent = Math.round(totals.food).toString();
-    this.stockpileValues.gold.textContent = totals.gold.toFixed(1);
+    this.stockpileValues.gold.textContent = Math.round(totals.gold).toString();
     this.stockpileValues.ryeGrain.textContent = Math.round(totals.ryeGrain).toString();
     this.stockpileValues.oatGrain.textContent = Math.round(totals.oatGrain).toString();
     this.stockpileValues.maslinGrain.textContent = Math.round(totals.maslinGrain).toString();
@@ -2147,11 +2147,7 @@ function setsHaveSameValues<T>(
 }
 
 function formatTransitAmount(amount: number): string {
-  if (Math.abs(amount - Math.round(amount)) <= 1e-6) {
-    return Math.round(amount).toLocaleString();
-  }
-  if (amount < 0.1) return amount.toFixed(2);
-  return amount.toFixed(1);
+  return Math.max(0, Math.round(amount)).toLocaleString();
 }
 
 type InspectorPresentation = {

@@ -97,6 +97,7 @@ const RESIDENCE_PAD_PARAMS: BuildingPadParams = {
   outerFade: 1.35,
 };
 const RESIDENCE_PAD_SAMPLE_FRACTIONS = [-1, -0.5, 0, 0.5, 1] as const;
+const MAX_RESIDENCE_PLATFORM_RAISE = 6;
 
 export class BuildingTerrainLayout {
   readonly sites: TerrainPadSite[];
@@ -333,7 +334,7 @@ function createResidencePadSite(
     rotation: residence.yaw,
     platformHeight,
     shape: 'box',
-    maxRaise: 2.4,
+    maxRaise: MAX_RESIDENCE_PLATFORM_RAISE,
   };
 }
 

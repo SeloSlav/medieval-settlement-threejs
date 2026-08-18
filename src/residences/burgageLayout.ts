@@ -17,6 +17,7 @@ export type BurgageParcelLayout = {
   frontRight: Point2;
   area: number;
   backyardArea: number;
+  backyardDepth: number;
 };
 
 export type ResidencePlacement = {
@@ -45,6 +46,8 @@ export type BurgageLayoutResult = {
   parcels: BurgageParcelLayout[];
   residences: ResidencePlacement[];
   totalCost: { timber: number; stone: number };
+  /** Average per-cottage multiplier from unusually deep site works. */
+  depthCostMultiplier: number;
 };
 
 export const MIN_PLOT_FRONTAGE = 8;
@@ -56,11 +59,14 @@ export const RESIDENCE_PICK_RADIUS = 5.5;
 export const HOUSE_REAR_CLEARANCE = 0.5;
 export const MIN_PARCEL_DEPTH = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + HOUSE_REAR_CLEARANCE;
 export const MIN_ZONE_DEPTH = MIN_PARCEL_DEPTH;
-/** Usable garden/livestock strip behind the house footprint. */
-export const MAX_BACKYARD_DEPTH = 12;
+/** Backyard depth included in the ordinary cottage price. Deeper lots remain valid. */
+export const STANDARD_BACKYARD_DEPTH = 12;
 /** Less space than this remains a house-only plot with no backyard attachment. */
 export const MIN_BACKYARD_EXTENSION_DEPTH = 1.5;
-export const MAX_ZONE_DEPTH = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + MAX_BACKYARD_DEPTH;
+/** A pricing threshold, not a placement limit. */
+export const STANDARD_ZONE_DEPTH = MAIN_HOUSE_DEPTH + HOUSE_SETBACK + STANDARD_BACKYARD_DEPTH;
+/** Eight extra metres doubles a cottage's site-work cost; sixteen metres makes it 5x. */
+export const DEEP_PLOT_SURCHARGE_SCALE = 8;
 export const MAX_ROAD_FRONTAGE_DISTANCE = 16;
 
 /** Y rotation so mesh local +Z (front door) points toward the road. */
@@ -100,8 +106,23 @@ export function suggestPlotCount(frontageLength: number): number {
   return Math.max(1, Math.floor(frontageLength / MIN_PLOT_FRONTAGE));
 }
 
-export function residenceZoneCostForLayout(residenceCount: number): { timber: number; stone: number } {
-  return residenceZoneCost(residenceCount);
+export function residenceDepthCostMultiplier(backyardDepth: number): number {
+  const excessDepth = Math.max(0, backyardDepth - STANDARD_BACKYARD_DEPTH);
+  return 1 + (excessDepth / DEEP_PLOT_SURCHARGE_SCALE) ** 2;
+}
+
+export function residenceZoneCostForLayout(
+  backyardDepths: readonly number[],
+): { timber: number; stone: number } {
+  const costUnits = backyardDepths.reduce(
+    (total, depth) => total + residenceDepthCostMultiplier(depth),
+    0,
+  );
+  const baseCost = residenceZoneCost(1);
+  return {
+    timber: Math.ceil(baseCost.timber * costUnits),
+    stone: Math.ceil(baseCost.stone * costUnits),
+  };
 }
 
 export function computeBurgageLayout(
@@ -157,6 +178,7 @@ export function computeBurgageLayout(
 
     const houseArea = MAIN_HOUSE_WIDTH * MAIN_HOUSE_DEPTH;
     const parcelArea = polygonArea(polygon);
+    const backyardDepth = Math.max(0, parcelDepth - HOUSE_SETBACK - MAIN_HOUSE_DEPTH);
     parcels.push({
       index: i,
       polygon,
@@ -164,6 +186,7 @@ export function computeBurgageLayout(
       frontRight,
       area: parcelArea,
       backyardArea: Math.max(0, parcelArea - houseArea),
+      backyardDepth,
     });
     residences.push({
       parcelIndex: i,
@@ -175,13 +198,20 @@ export function computeBurgageLayout(
 
   if (residences.length === 0) return null;
 
+  const backyardDepths = parcels.map((parcel) => parcel.backyardDepth);
+  const depthCostMultiplier = backyardDepths.reduce(
+    (total, depth) => total + residenceDepthCostMultiplier(depth),
+    0,
+  ) / backyardDepths.length;
+
   return {
     frontageLength,
     maxPlotCount,
     plotCount,
     parcels,
     residences,
-    totalCost: residenceZoneCostForLayout(residences.length),
+    totalCost: residenceZoneCostForLayout(backyardDepths),
+    depthCostMultiplier,
   };
 }
 
