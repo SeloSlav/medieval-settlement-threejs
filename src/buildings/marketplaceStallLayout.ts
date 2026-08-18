@@ -1,5 +1,9 @@
 import type { BuildingState } from '../resources/types.ts';
-import type { MarketStallGroup, MarketStallNeed } from '../economy/marketStallAssignments.ts';
+import type {
+  MarketStallDisplayKind,
+  MarketStallGroup,
+  MarketStallNeed,
+} from '../economy/marketStallAssignments.ts';
 
 export const MARKETPLACE_STALL_WORKER_ANCHOR_NAME = 'MarketStallWorkerAnchor';
 export const MARKETPLACE_STALL_DISPLAY_PREFIX = 'MarketStallDisplay:';
@@ -10,6 +14,30 @@ export const MARKETPLACE_STALL_DISPLAY_NEEDS = {
   food: ['food', 'preservedFood', 'ale'],
   goods: ['firewood', 'cloth', 'pottery'],
 } as const satisfies Readonly<Record<MarketStallGroup, readonly MarketStallNeed[]>>;
+
+export const MARKETPLACE_STALL_DISPLAY_KINDS = {
+  food: [
+    'provisions',
+    'bread',
+    'meat',
+    'fish',
+    'foraged',
+    'milk',
+    'fruit',
+    'vegetables',
+    'eggs',
+    'porridge',
+    'honey',
+    'preserves',
+    'curedMeat',
+    'smokedFish',
+    'cheese',
+    'ale',
+  ],
+  goods: ['firewood', 'charcoal', 'cloth', 'pottery'],
+} as const satisfies Readonly<
+  Record<MarketStallGroup, readonly MarketStallDisplayKind[]>
+>;
 
 export type MarketplaceStallLayout = {
   x: number;
@@ -82,8 +110,8 @@ export function marketplaceStallWorkerApproach(
   };
 }
 
-export function marketStallDisplayName(needKind: MarketStallNeed): string {
-  return `${MARKETPLACE_STALL_DISPLAY_PREFIX}${needKind}`;
+export function marketStallDisplayName(displayKind: MarketStallDisplayKind): string {
+  return `${MARKETPLACE_STALL_DISPLAY_PREFIX}${displayKind}`;
 }
 
 function normalizeAngle(angle: number): number {

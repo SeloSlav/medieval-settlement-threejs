@@ -4,7 +4,13 @@ import {
   MARKETPLACE_FOOD_STALL_SLOTS,
   MARKETPLACE_GOODS_STALL_SLOTS,
 } from '../generated/gameBalance.ts';
-import { freshFoodStock, preservedFoodStock } from './foodInventory.ts';
+import {
+  FRESH_FOOD_KINDS,
+  PRESERVED_FOOD_KINDS,
+  freshFoodStock,
+  preservedFoodStock,
+  type FoodInventoryKind,
+} from './foodInventory.ts';
 import { combinedFuelEquivalent } from './fuelReservePolicy.ts';
 
 export const MARKET_FOOD_STALL_NEEDS = [
@@ -24,6 +30,45 @@ export type MarketStallNeed =
   | (typeof MARKET_GOODS_STALL_NEEDS)[number];
 
 export type MarketStallGroup = 'food' | 'goods';
+
+export type MarketStallCommodityKind =
+  | FoodInventoryKind
+  | 'ale'
+  | 'firewood'
+  | 'charcoal'
+  | 'cloth'
+  | 'pottery';
+
+/**
+ * A deliberately small visual kit. Closely related commodities share a prop
+ * module while `commodityKind` below preserves the exact stock identity.
+ */
+export type MarketStallDisplayKind =
+  | 'provisions'
+  | 'bread'
+  | 'meat'
+  | 'fish'
+  | 'foraged'
+  | 'milk'
+  | 'fruit'
+  | 'vegetables'
+  | 'eggs'
+  | 'porridge'
+  | 'honey'
+  | 'preserves'
+  | 'curedMeat'
+  | 'smokedFish'
+  | 'cheese'
+  | 'ale'
+  | 'firewood'
+  | 'charcoal'
+  | 'cloth'
+  | 'pottery';
+
+export type MarketStallRepresentative = {
+  commodityKind: MarketStallCommodityKind;
+  displayKind: MarketStallDisplayKind;
+};
 
 export type MarketStallAssignment = {
   marketplaceId: string;
@@ -73,6 +118,76 @@ const MARKET_STALL_LABELS: Readonly<Record<MarketStallNeed, string>> = {
 
 export function marketStallLabel(needKind: MarketStallNeed): string {
   return MARKET_STALL_LABELS[needKind];
+}
+
+const MARKET_STALL_COMMODITIES_BY_NEED: Readonly<
+  Record<MarketStallNeed, readonly MarketStallCommodityKind[]>
+> = {
+  food: [...FRESH_FOOD_KINDS, 'honey'],
+  preservedFood: PRESERVED_FOOD_KINDS,
+  ale: ['ale'],
+  firewood: ['firewood', 'charcoal'],
+  cloth: ['cloth'],
+  pottery: ['pottery'],
+};
+
+/**
+ * Pick the dominant exact commodity available to this seller and table. The
+ * source depot and goods already staged at the Marketplace both count, so a
+ * delivery does not make the visible counter revert while its depot refills.
+ */
+export function marketStallRepresentative(
+  source: BuildingState,
+  marketplace: BuildingState,
+  needKind: MarketStallNeed,
+): MarketStallRepresentative | null {
+  let commodityKind: MarketStallCommodityKind | null = null;
+  let largestStock = 1e-6;
+  for (const candidate of MARKET_STALL_COMMODITIES_BY_NEED[needKind]) {
+    const stock = finiteStock(source[candidate])
+      + finiteStock(marketplace[candidate]);
+    if (stock <= largestStock) continue;
+    commodityKind = candidate;
+    largestStock = stock;
+  }
+  return commodityKind == null
+    ? null
+    : {
+        commodityKind,
+        displayKind: marketStallDisplayKind(commodityKind),
+      };
+}
+
+function marketStallDisplayKind(
+  commodityKind: MarketStallCommodityKind,
+): MarketStallDisplayKind {
+  switch (commodityKind) {
+    case 'food': return 'provisions';
+    case 'ryeBread':
+    case 'oatBread':
+    case 'maslinBread': return 'bread';
+    case 'meat': return 'meat';
+    case 'fish': return 'fish';
+    case 'berries':
+    case 'mushrooms': return 'foraged';
+    case 'milk': return 'milk';
+    case 'apples':
+    case 'cherries':
+    case 'grapes': return 'fruit';
+    case 'vegetables': return 'vegetables';
+    case 'eggs': return 'eggs';
+    case 'porridge': return 'porridge';
+    case 'honey': return 'honey';
+    case 'preservedFood': return 'preserves';
+    case 'curedMeat': return 'curedMeat';
+    case 'smokedFish': return 'smokedFish';
+    case 'cheese': return 'cheese';
+    case 'ale': return 'ale';
+    case 'firewood': return 'firewood';
+    case 'charcoal': return 'charcoal';
+    case 'cloth': return 'cloth';
+    case 'pottery': return 'pottery';
+  }
 }
 
 /**

@@ -7,9 +7,10 @@ import {
   assignMarketplaceStallRoster,
   assignMarketplaceStalls,
   indexMarketplaceStallWorkers,
+  marketStallRepresentative,
 } from '../src/economy/marketStallAssignments.ts';
 import {
-  MARKETPLACE_STALL_DISPLAY_NEEDS,
+  MARKETPLACE_STALL_DISPLAY_KINDS,
   MARKETPLACE_STALL_WORKER_ANCHOR_NAME,
   marketStallDisplayName,
   marketplaceStallWorkerApproach,
@@ -99,8 +100,8 @@ assert.equal(goodsStallTables, MARKETPLACE_GOODS_STALL_SLOTS);
 assert.equal(workerAnchors, MARKETPLACE_FOOD_STALL_SLOTS + MARKETPLACE_GOODS_STALL_SLOTS);
 assert.equal(
   counterDisplays,
-  MARKETPLACE_FOOD_STALL_SLOTS * MARKETPLACE_STALL_DISPLAY_NEEDS.food.length
-    + MARKETPLACE_GOODS_STALL_SLOTS * MARKETPLACE_STALL_DISPLAY_NEEDS.goods.length,
+  MARKETPLACE_FOOD_STALL_SLOTS * MARKETPLACE_STALL_DISPLAY_KINDS.food.length
+    + MARKETPLACE_GOODS_STALL_SLOTS * MARKETPLACE_STALL_DISPLAY_KINDS.goods.length,
   'every physical table should own compatible representative-goods modules',
 );
 for (const group of ['food', 'goods'] as const) {
@@ -109,10 +110,10 @@ for (const group of ['food', 'goods'] as const) {
   for (let index = 0; index < count; index += 1) {
     const table = marketplaceModel.getObjectByName(`${prefix}${index}`);
     assert.ok(table?.getObjectByName(MARKETPLACE_STALL_WORKER_ANCHOR_NAME));
-    for (const needKind of MARKETPLACE_STALL_DISPLAY_NEEDS[group]) {
+    for (const displayKind of MARKETPLACE_STALL_DISPLAY_KINDS[group]) {
       assert.ok(
-        table?.getObjectByName(marketStallDisplayName(needKind)),
-        `${prefix}${index} should own a ${needKind} counter display`,
+        table?.getObjectByName(marketStallDisplayName(displayKind)),
+        `${prefix}${index} should own a ${displayKind} counter display`,
       );
     }
   }
@@ -166,6 +167,42 @@ const stockedGranary = stallTestBuilding('30', 'granary', 0, 2, {
 const stockedStorehouse = stallTestBuilding('40', 'village_storehouse', 2, 1, {
   pottery: 8,
 });
+assert.deepEqual(
+  marketStallRepresentative(
+    stallTestBuilding('31', 'granary', 0, 1, { ryeBread: 4, fish: 9 }),
+    nearMarket,
+    'food',
+  ),
+  { commodityKind: 'fish', displayKind: 'fish' },
+  'fresh-food counters should show the dominant exact food rather than generic produce',
+);
+assert.deepEqual(
+  marketStallRepresentative(
+    stallTestBuilding('32', 'granary', 0, 1, { oatBread: 7 }),
+    nearMarket,
+    'food',
+  ),
+  { commodityKind: 'oatBread', displayKind: 'bread' },
+  'all bread recipes should resolve to the authored bread module',
+);
+assert.deepEqual(
+  marketStallRepresentative(
+    stallTestBuilding('41', 'village_storehouse', 0, 1, { charcoal: 12 }),
+    nearMarket,
+    'firewood',
+  ),
+  { commodityKind: 'charcoal', displayKind: 'charcoal' },
+  'fuel counters should not show logs when the actual fuel is charcoal',
+);
+assert.deepEqual(
+  marketStallRepresentative(
+    stallTestBuilding('33', 'granary', 0, 1),
+    { ...nearMarket, cheese: 6 },
+    'preservedFood',
+  ),
+  { commodityKind: 'cheese', displayKind: 'cheese' },
+  'already-staged Marketplace stock should retain its exact counter display',
+);
 const stallRoster = assignMarketplaceStalls(
   [nearMarket, farMarket, stockedGranary, stockedStorehouse],
   (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),

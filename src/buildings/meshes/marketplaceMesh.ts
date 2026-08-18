@@ -8,6 +8,8 @@ import {
   addMesh,
   metalMaterial,
   residenceFacadeMaterial,
+  sharedBuildingDetailMaterial,
+  sharedBuildingMaterial,
   stoneMaterial,
   tileMaterial,
   timberMaterial,
@@ -24,12 +26,15 @@ import {
 import { addTriangularGableWall } from '../meshPrimitives.ts';
 import { addBarrel, addCrate } from './buildingMeshKit.ts';
 import {
-  MARKETPLACE_STALL_DISPLAY_NEEDS,
+  MARKETPLACE_STALL_DISPLAY_KINDS,
   MARKETPLACE_STALL_WORKER_ANCHOR_NAME,
   marketStallDisplayName,
   marketplaceStallLayout,
 } from '../marketplaceStallLayout.ts';
-import type { MarketStallGroup, MarketStallNeed } from '../../economy/marketStallAssignments.ts';
+import type {
+  MarketStallDisplayKind,
+  MarketStallGroup,
+} from '../../economy/marketStallAssignments.ts';
 
 export const MARKET_STAGING_VISUAL_SEGMENTS = 5;
 export const MARKET_RECEIPT_VISUAL_SEGMENTS = 3;
@@ -70,88 +75,349 @@ function addMarketTable(
   workerAnchor.position.set(0, 0.02, -0.86);
   workerAnchor.userData.marketStallWorkerAnchor = true;
   table.add(workerAnchor);
-  for (const needKind of MARKETPLACE_STALL_DISPLAY_NEEDS[stallGroup]) {
-    addMarketStallDisplay(table, needKind);
+  for (const displayKind of MARKETPLACE_STALL_DISPLAY_KINDS[stallGroup]) {
+    addMarketStallDisplay(table, displayKind);
   }
   group.add(table);
 }
 
 function addMarketStallDisplay(
   table: THREE.Group,
-  needKind: MarketStallNeed,
+  displayKind: MarketStallDisplayKind,
 ): void {
   const display = new THREE.Group();
-  display.name = marketStallDisplayName(needKind);
+  display.name = marketStallDisplayName(displayKind);
   display.visible = false;
   display.position.y = 1.07;
-  display.userData.marketNeedKind = needKind;
+  display.userData.marketDisplayKind = displayKind;
 
-  if (needKind === 'food') {
-    const crate = new THREE.Group();
-    crate.position.set(-0.32, 0, 0);
-    addCrate(crate, 0, 0, 0.48);
-    display.add(crate);
-    const produceColors = ['orange', 'yellow', 'lightOrange'] as const;
-    for (let index = 0; index < 5; index += 1) {
-      addMesh(
-        display,
-        new THREE.SphereGeometry(0.1, 7, 5),
-        residenceFacadeMaterial(produceColors[index % produceColors.length]),
-        new THREE.Vector3(-0.54 + index * 0.12, 0.34 + (index % 2) * 0.06, -0.04),
-      );
-    }
-  } else if (needKind === 'preservedFood') {
-    for (const [index, x] of [-0.34, 0, 0.34].entries()) {
-      const jar = new THREE.Group();
-      jar.position.x = x;
-      addMarketPottery(jar, index === 1 ? 0.82 : 0.68, index);
-      addMesh(
-        jar,
-        new THREE.CylinderGeometry(0.09, 0.11, 0.06, 8),
-        timberMaterial('dark'),
-        new THREE.Vector3(0, index === 1 ? 0.39 : 0.33, 0),
-      );
-      display.add(jar);
-    }
-  } else if (needKind === 'ale') {
-    const cask = new THREE.Group();
-    cask.position.set(-0.24, 0, 0);
-    addBarrel(cask, 0, 0, 0.46);
-    display.add(cask);
-    for (const x of [0.2, 0.43]) {
-      addMesh(
-        display,
-        new THREE.CylinderGeometry(0.11, 0.09, 0.2, 8),
-        timberMaterial('light'),
-        new THREE.Vector3(x, 0.1, 0),
-      );
-    }
-  } else if (needKind === 'firewood') {
-    for (let index = 0; index < 4; index += 1) {
-      addMesh(
-        display,
-        new THREE.CylinderGeometry(0.09, 0.11, 0.62, 7),
-        timberMaterial(index % 2 === 0 ? 'weathered' : 'mid'),
-        new THREE.Vector3(-0.42 + index * 0.28, 0.12 + (index % 2) * 0.1, 0),
-        new THREE.Euler(0, 0, Math.PI * 0.5),
-      );
-    }
-  } else if (needKind === 'cloth') {
-    for (const [index, x] of [-0.34, 0.34].entries()) {
-      const folded = new THREE.Group();
-      folded.position.x = x;
-      addFoldedCloth(folded, 0.68, index);
-      display.add(folded);
-    }
-  } else {
-    for (const [index, x] of [-0.42, 0, 0.42].entries()) {
-      const pottery = new THREE.Group();
-      pottery.position.x = x;
-      addMarketPottery(pottery, index === 1 ? 0.82 : 0.66, index);
-      display.add(pottery);
-    }
+  switch (displayKind) {
+    case 'provisions': addProduceCrate(display); break;
+    case 'bread': addBreadCounter(display); break;
+    case 'meat': addMeatCounter(display, false); break;
+    case 'fish': addFishCounter(display, false); break;
+    case 'foraged': addForagedCounter(display); break;
+    case 'milk': addMilkCounter(display); break;
+    case 'fruit': addFruitCounter(display); break;
+    case 'vegetables': addVegetableCounter(display); break;
+    case 'eggs': addEggCounter(display); break;
+    case 'porridge': addPorridgeCounter(display); break;
+    case 'honey': addHoneyCounter(display); break;
+    case 'preserves': addPreserveCounter(display); break;
+    case 'curedMeat': addMeatCounter(display, true); break;
+    case 'smokedFish': addFishCounter(display, true); break;
+    case 'cheese': addCheeseCounter(display); break;
+    case 'ale': addAleCounter(display); break;
+    case 'firewood': addFirewoodCounter(display); break;
+    case 'charcoal': addCharcoalCounter(display); break;
+    case 'cloth': addClothCounter(display); break;
+    case 'pottery': addPotteryCounter(display); break;
   }
   table.add(display);
+}
+
+function addProduceCrate(display: THREE.Group): void {
+  const crate = new THREE.Group();
+  crate.position.set(-0.32, 0, 0);
+  addCrate(crate, 0, 0, 0.48);
+  display.add(crate);
+  const produceColors = ['orange', 'yellow', 'lightOrange'] as const;
+  for (let index = 0; index < 5; index += 1) {
+    addMesh(
+      display,
+      new THREE.SphereGeometry(0.1, 7, 5),
+      residenceFacadeMaterial(produceColors[index % produceColors.length]),
+      new THREE.Vector3(-0.54 + index * 0.12, 0.34 + (index % 2) * 0.06, -0.04),
+    );
+  }
+}
+
+function addBreadCounter(display: THREE.Group): void {
+  for (const [index, x] of [-0.42, 0, 0.42].entries()) {
+    const loaf = addMesh(
+      display,
+      new THREE.SphereGeometry(0.18, 9, 6),
+      residenceFacadeMaterial(index === 1 ? 'yellow' : 'lightOrange'),
+      new THREE.Vector3(x, 0.17 + (index % 2) * 0.04, 0),
+      new THREE.Euler(0, index === 1 ? -0.18 : 0.16, 0),
+      new THREE.Vector3(1.45, 0.72, 0.82),
+    );
+    loaf.userData.marketProp = 'bread-loaf';
+  }
+}
+
+function addMeatCounter(display: THREE.Group, cured: boolean): void {
+  const meatMaterial = sharedBuildingDetailMaterial('paintRed');
+  addMesh(
+    display,
+    new THREE.BoxGeometry(0.92, 0.06, 0.54),
+    timberMaterial('light'),
+    new THREE.Vector3(0, 0.03, 0),
+  );
+  const pieces = cured ? [-0.45, -0.15, 0.15, 0.45] : [-0.3, 0.3];
+  for (const [index, x] of pieces.entries()) {
+    addMesh(
+      display,
+      cured
+        ? new THREE.CylinderGeometry(0.08, 0.08, 0.48, 8)
+        : new THREE.SphereGeometry(0.18, 8, 6),
+      meatMaterial,
+      new THREE.Vector3(x, cured ? 0.13 : 0.18, 0),
+      cured
+        ? new THREE.Euler(0, 0, Math.PI * 0.5)
+        : new THREE.Euler(0, index === 0 ? -0.2 : 0.2, 0),
+      cured ? undefined : new THREE.Vector3(1.3, 0.62, 0.9),
+    );
+  }
+  if (!cured) {
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.035, 0.035, 0.7, 7),
+      residenceFacadeMaterial('white'),
+      new THREE.Vector3(0, 0.23, 0),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+  }
+}
+
+function addFishCounter(display: THREE.Group, smoked: boolean): void {
+  const fishMaterial = smoked
+    ? timberMaterial('dark')
+    : residenceFacadeMaterial('grey');
+  for (const [index, x] of [-0.38, 0, 0.38].entries()) {
+    addMesh(
+      display,
+      new THREE.SphereGeometry(0.14, 8, 5),
+      fishMaterial,
+      new THREE.Vector3(x, 0.15 + (index % 2) * 0.05, 0),
+      new THREE.Euler(0, index % 2 === 0 ? 0.12 : -0.12, 0),
+      new THREE.Vector3(1.55, 0.58, 0.72),
+    );
+    addMesh(
+      display,
+      new THREE.ConeGeometry(0.12, 0.2, 3),
+      fishMaterial,
+      new THREE.Vector3(x + 0.24, 0.15 + (index % 2) * 0.05, 0),
+      new THREE.Euler(0, 0, -Math.PI * 0.5),
+    );
+  }
+}
+
+function addForagedCounter(display: THREE.Group): void {
+  const crate = new THREE.Group();
+  crate.position.set(-0.3, 0, 0);
+  addCrate(crate, 0, 0, 0.42);
+  display.add(crate);
+  for (let index = 0; index < 5; index += 1) {
+    addMesh(
+      display,
+      new THREE.SphereGeometry(0.075, 7, 5),
+      sharedBuildingDetailMaterial('paintRed'),
+      new THREE.Vector3(-0.5 + index * 0.11, 0.31 + (index % 2) * 0.05, -0.02),
+    );
+  }
+  for (const x of [0.2, 0.45]) {
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.035, 0.05, 0.18, 7),
+      residenceFacadeMaterial('white'),
+      new THREE.Vector3(x, 0.09, 0),
+    );
+    addMesh(
+      display,
+      new THREE.SphereGeometry(0.12, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.5),
+      residenceFacadeMaterial('lightOrange'),
+      new THREE.Vector3(x, 0.18, 0),
+    );
+  }
+}
+
+function addMilkCounter(display: THREE.Group): void {
+  for (const [index, x] of [-0.36, 0, 0.36].entries()) {
+    const scale = index === 1 ? 1 : 0.82;
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.12 * scale, 0.18 * scale, 0.36 * scale, 9),
+      residenceFacadeMaterial('white'),
+      new THREE.Vector3(x, 0.18 * scale, 0),
+    );
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.08 * scale, 0.1 * scale, 0.13 * scale, 9),
+      residenceFacadeMaterial('grey'),
+      new THREE.Vector3(x, 0.425 * scale, 0),
+    );
+  }
+}
+
+function addFruitCounter(display: THREE.Group): void {
+  addProduceCrate(display);
+  for (let index = 0; index < 4; index += 1) {
+    addMesh(
+      display,
+      new THREE.SphereGeometry(0.1, 8, 6),
+      sharedBuildingDetailMaterial(index % 2 === 0 ? 'paintRed' : 'paintOchre'),
+      new THREE.Vector3(0.2 + (index % 2) * 0.22, 0.12 + Math.floor(index / 2) * 0.16, 0),
+    );
+  }
+}
+
+function addVegetableCounter(display: THREE.Group): void {
+  const foliage = sharedBuildingDetailMaterial('foliage');
+  for (let index = 0; index < 7; index += 1) {
+    addMesh(
+      display,
+      index % 2 === 0
+        ? new THREE.SphereGeometry(0.11, 7, 5)
+        : new THREE.ConeGeometry(0.09, 0.28, 7),
+      foliage,
+      new THREE.Vector3(-0.56 + index * 0.18, 0.12 + (index % 2) * 0.05, 0),
+      index % 2 === 0 ? undefined : new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+  }
+}
+
+function addEggCounter(display: THREE.Group): void {
+  addMesh(
+    display,
+    new THREE.BoxGeometry(0.98, 0.07, 0.48),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 0.035, 0),
+  );
+  for (let index = 0; index < 6; index += 1) {
+    addMesh(
+      display,
+      new THREE.SphereGeometry(0.095, 8, 6),
+      residenceFacadeMaterial(index % 3 === 0 ? 'lightOrange' : 'white'),
+      new THREE.Vector3(-0.42 + (index % 3) * 0.42, 0.14, index < 3 ? -0.1 : 0.1),
+      undefined,
+      new THREE.Vector3(0.82, 1.15, 0.82),
+    );
+  }
+}
+
+function addPorridgeCounter(display: THREE.Group): void {
+  for (const x of [-0.28, 0.28]) {
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.24, 0.17, 0.15, 12, 1, true),
+      residenceFacadeMaterial('lightOrange'),
+      new THREE.Vector3(x, 0.075, 0),
+    );
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.19, 0.19, 0.025, 12),
+      sharedBuildingDetailMaterial('crop'),
+      new THREE.Vector3(x, 0.15, 0),
+    );
+  }
+}
+
+function addHoneyCounter(display: THREE.Group): void {
+  for (const x of [-0.32, 0, 0.32]) {
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.13, 0.17, 0.34, 9),
+      residenceFacadeMaterial('yellow'),
+      new THREE.Vector3(x, 0.17, 0),
+    );
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.1, 0.1, 0.045, 9),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 0.365, 0),
+    );
+  }
+}
+
+function addPreserveCounter(display: THREE.Group): void {
+  for (const [index, x] of [-0.34, 0, 0.34].entries()) {
+    const jar = new THREE.Group();
+    jar.position.x = x;
+    addMarketPottery(jar, index === 1 ? 0.82 : 0.68, index);
+    addMesh(
+      jar,
+      new THREE.CylinderGeometry(0.09, 0.11, 0.06, 8),
+      timberMaterial('dark'),
+      new THREE.Vector3(0, index === 1 ? 0.39 : 0.33, 0),
+    );
+    display.add(jar);
+  }
+}
+
+function addCheeseCounter(display: THREE.Group): void {
+  for (const [index, x] of [-0.34, 0.1, 0.43].entries()) {
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.22, 0.22, 0.18, 12, 1, false, 0, Math.PI * (index === 1 ? 1.25 : 0.7)),
+      residenceFacadeMaterial('yellow'),
+      new THREE.Vector3(x, 0.09 + (index === 1 ? 0.12 : 0), 0),
+      new THREE.Euler(0, index * 0.65, 0),
+    );
+  }
+}
+
+function addAleCounter(display: THREE.Group): void {
+  const cask = new THREE.Group();
+  cask.position.set(-0.24, 0, 0);
+  addBarrel(cask, 0, 0, 0.46);
+  display.add(cask);
+  for (const x of [0.2, 0.43]) {
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.11, 0.09, 0.2, 8),
+      timberMaterial('light'),
+      new THREE.Vector3(x, 0.1, 0),
+    );
+  }
+}
+
+function addFirewoodCounter(display: THREE.Group): void {
+  for (let index = 0; index < 4; index += 1) {
+    addMesh(
+      display,
+      new THREE.CylinderGeometry(0.09, 0.11, 0.62, 7),
+      timberMaterial(index % 2 === 0 ? 'weathered' : 'mid'),
+      new THREE.Vector3(-0.42 + index * 0.28, 0.12 + (index % 2) * 0.1, 0),
+      new THREE.Euler(0, 0, Math.PI * 0.5),
+    );
+  }
+}
+
+function addCharcoalCounter(display: THREE.Group): void {
+  addMesh(
+    display,
+    new THREE.BoxGeometry(1.05, 0.08, 0.52),
+    timberMaterial('weathered'),
+    new THREE.Vector3(0, 0.04, 0),
+  );
+  for (let index = 0; index < 8; index += 1) {
+    addMesh(
+      display,
+      new THREE.DodecahedronGeometry(0.11 + (index % 3) * 0.015, 0),
+      sharedBuildingMaterial('interiorDark'),
+      new THREE.Vector3(-0.48 + (index % 4) * 0.32, 0.14 + Math.floor(index / 4) * 0.16, 0),
+      new THREE.Euler(index * 0.4, index * 0.27, 0),
+    );
+  }
+}
+
+function addClothCounter(display: THREE.Group): void {
+  for (const [index, x] of [-0.34, 0.34].entries()) {
+    const folded = new THREE.Group();
+    folded.position.x = x;
+    addFoldedCloth(folded, 0.68, index);
+    display.add(folded);
+  }
+}
+
+function addPotteryCounter(display: THREE.Group): void {
+  for (const [index, x] of [-0.42, 0, 0.42].entries()) {
+    const pottery = new THREE.Group();
+    pottery.position.x = x;
+    addMarketPottery(pottery, index === 1 ? 0.82 : 0.66, index);
+    display.add(pottery);
+  }
 }
 
 type MarketStockPlacement = readonly [

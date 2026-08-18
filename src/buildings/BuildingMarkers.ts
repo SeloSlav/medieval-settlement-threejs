@@ -4,6 +4,7 @@ import { breadGrainStock, flourStock, grainSheafStock } from '../economy/cropGoo
 import {
   assignMarketplaceStallRoster,
   indexMarketplaceStallWorkers,
+  marketStallRepresentative,
   type IndexedMarketStallWorkerAssignment,
 } from '../economy/marketStallAssignments.ts';
 import {
@@ -43,7 +44,7 @@ import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { updateTerrainCircleRibbonGeometry } from '../placement/TerrainOverlayGeometry.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
 import {
-  MARKETPLACE_STALL_DISPLAY_NEEDS,
+  MARKETPLACE_STALL_DISPLAY_KINDS,
   marketStallDisplayName,
 } from './marketplaceStallLayout.ts';
 import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
@@ -311,7 +312,7 @@ export class BuildingMarkers {
           const worker = foodWorkers.find(
             (candidate) => candidate.marketplaceSlotIndex === index,
           );
-          this.syncMarketplaceTable(foodStall, worker, 'food');
+          this.syncMarketplaceTable(foodStall, worker, 'food', marketplace);
         }
       }
       for (let index = 0; index < MARKETPLACE_GOODS_STALL_SLOTS; index += 1) {
@@ -320,7 +321,7 @@ export class BuildingMarkers {
           const worker = goodsWorkers.find(
             (candidate) => candidate.marketplaceSlotIndex === index,
           );
-          this.syncMarketplaceTable(goodsStall, worker, 'goods');
+          this.syncMarketplaceTable(goodsStall, worker, 'goods', marketplace);
         }
       }
       marker.userData.marketFoodStalls = foodAssignments.length;
@@ -335,14 +336,23 @@ export class BuildingMarkers {
     table: THREE.Object3D,
     worker: IndexedMarketStallWorkerAssignment | undefined,
     group: 'food' | 'goods',
+    marketplace: BuildingState,
   ): void {
+    const source = worker == null
+      ? undefined
+      : this.buildingStates.get(worker.workplaceId);
+    const representative = source != null && worker?.needKind != null
+      ? marketStallRepresentative(source, marketplace, worker.needKind)
+      : null;
     table.visible = worker != null;
     table.userData.marketNeedKind = worker?.needKind ?? undefined;
+    table.userData.marketCommodityKind = representative?.commodityKind;
+    table.userData.marketDisplayKind = representative?.displayKind;
     table.userData.marketWorkplaceId = worker?.workplaceId;
     table.userData.marketWorkplaceSlotIndex = worker?.workplaceSlotIndex;
-    for (const needKind of MARKETPLACE_STALL_DISPLAY_NEEDS[group]) {
-      const display = table.getObjectByName(marketStallDisplayName(needKind));
-      if (display) display.visible = worker?.needKind === needKind;
+    for (const displayKind of MARKETPLACE_STALL_DISPLAY_KINDS[group]) {
+      const display = table.getObjectByName(marketStallDisplayName(displayKind));
+      if (display) display.visible = representative?.displayKind === displayKind;
     }
   }
 
