@@ -27,7 +27,7 @@ export class WorldSetupPanel {
   private readonly resolve: (settings: WorldGenerationSettings) => void;
   private draft: WorldGenerationSettings = applyTerrainPreset(
     { ...DEFAULT_WORLD_GENERATION_SETTINGS },
-    'risnjak_pass',
+    'delnice_meadow',
   );
 
   private constructor(parent: HTMLElement, resolve: (settings: WorldGenerationSettings) => void) {
@@ -286,8 +286,8 @@ export class WorldSetupPanel {
   private renderTerrainPresetOptions(): void {
     const grid = this.backdrop.querySelector<HTMLElement>('[data-landscape-grid]')!;
     const displayPresets = [
-      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id === 'risnjak_pass'),
-      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id !== 'risnjak_pass'),
+      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id === 'delnice_meadow'),
+      ...WORLD_TERRAIN_PRESETS.filter((preset) => preset.id !== 'delnice_meadow'),
     ];
     grid.innerHTML = displayPresets.map((preset) => {
       const selected = preset.id === this.draft.terrainPreset ? ' is-selected' : '';
