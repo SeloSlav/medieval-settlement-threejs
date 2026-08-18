@@ -1,5 +1,9 @@
 import * as THREE from 'three';
-import { STOREHOUSE_HAUL_PER_WORKER } from '../../generated/gameBalance.ts';
+import {
+  MARKETPLACE_FOOD_STALL_SLOTS,
+  MARKETPLACE_GOODS_STALL_SLOTS,
+  STOREHOUSE_HAUL_PER_WORKER,
+} from '../../generated/gameBalance.ts';
 import {
   addMesh,
   metalMaterial,
@@ -481,12 +485,13 @@ export function createMarketplaceMesh(): THREE.Group {
     );
   }
 
-  addMarketTable(group, 'MarketFoodStall0', -2.35, -0.82);
-  addMarketTable(group, 'MarketFoodStall1', 0, -0.82);
-  addMarketTable(group, 'MarketFoodStall2', 2.35, -0.82);
-  addMarketTable(group, 'MarketGoodsStall0', -2.35, 1.02, Math.PI);
-  addMarketTable(group, 'MarketGoodsStall1', 0, 1.02, Math.PI);
-  addMarketTable(group, 'MarketGoodsStall2', 2.35, 1.02, Math.PI);
+  const stallXPositions = [-2.35, 0, 2.35] as const;
+  stallXPositions.slice(0, MARKETPLACE_FOOD_STALL_SLOTS).forEach((x, index) => {
+    addMarketTable(group, `MarketFoodStall${index}`, x, -0.82);
+  });
+  stallXPositions.slice(0, MARKETPLACE_GOODS_STALL_SLOTS).forEach((x, index) => {
+    addMarketTable(group, `MarketGoodsStall${index}`, x, 1.02, Math.PI);
+  });
   addMarketSpecialtyStalls(group);
   addMarketStagingStock(group);
   addMarketProceedsChest(group);

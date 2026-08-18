@@ -7,6 +7,8 @@ import {
   BUILDING_DEFINITIONS,
   BUILDING_KINDS,
   BUILDING_STORAGE_CAPS,
+  MARKETPLACE_FOOD_STALL_SLOTS,
+  MARKETPLACE_GOODS_STALL_SLOTS,
   STOREHOUSE_HAUL_PER_WORKER,
   STOREHOUSE_OVERFLOW_THRESHOLD,
   TOWN_HALL_POPULATION_REQUIRED,
@@ -23,11 +25,15 @@ assert.equal(TOWN_HALL_POPULATION_REQUIRED, 24);
 assert.ok(TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER > 0 && TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER < 1);
 assert.ok(STOREHOUSE_OVERFLOW_THRESHOLD >= 0.5 && STOREHOUSE_OVERFLOW_THRESHOLD < 1);
 assert.ok(STOREHOUSE_HAUL_PER_WORKER > 0);
+assert.equal(MARKETPLACE_FOOD_STALL_SLOTS, 3);
+assert.equal(MARKETPLACE_GOODS_STALL_SLOTS, 3);
 
 assert.equal(BUILDING_DEFINITIONS.town_hall.workRadius, 0, 'Town Hall is governance, not an area-of-effect producer');
 assert.equal(BUILDING_DEFINITIONS.village_storehouse.workRadius, 0, 'Storehouse uses roads rather than a ground ring');
+assert.equal(BUILDING_DEFINITIONS.marketplace.workRadius, 0, 'Marketplace serves its full road network');
 assert.equal(getBuildingExtent('town_hall', 0), null);
 assert.equal(getBuildingExtent('village_storehouse', 0), null);
+assert.equal(getBuildingExtent('marketplace', 0), null);
 assert.equal(BUILDING_STORAGE_CAPS.town_hall.timber, 0);
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.food ?? 0, 0, 'storehouse must never replace the granary');
 assert.equal(BUILDING_STORAGE_CAPS.village_storehouse.grain ?? 0, 0, 'storehouse must never accept grain');
@@ -60,6 +66,16 @@ for (const kind of ['town_hall', 'village_storehouse'] as const) {
   const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
   assert.ok(size.x > 8 && size.y > 5 && size.z > 6, `${kind} needs a civic/logistics-scale silhouette`);
 }
+
+const marketplaceModel = createBuildingMesh('marketplace');
+let foodStallTables = 0;
+let goodsStallTables = 0;
+marketplaceModel.traverse((object) => {
+  if (object.name.startsWith('MarketFoodStall')) foodStallTables += 1;
+  if (object.name.startsWith('MarketGoodsStall')) goodsStallTables += 1;
+});
+assert.equal(foodStallTables, MARKETPLACE_FOOD_STALL_SLOTS);
+assert.equal(goodsStallTables, MARKETPLACE_GOODS_STALL_SLOTS);
 
 const placement = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
 assert.match(placement, /Only one Town Hall may serve a settlement/);
@@ -99,6 +115,17 @@ assert.match(
 const processors = fs.readFileSync('server/src/simulation/expanded_economy.rs', 'utf8');
 assert.match(processors, /"village_storehouse"/, 'storehouse firewood must support specialist processing');
 
+const marketCaravans = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
+assert.match(marketCaravans, /MARKETPLACE_FOOD_STALL_SLOTS/);
+assert.match(marketCaravans, /MARKETPLACE_GOODS_STALL_SLOTS/);
+assert.match(marketCaravans, /workers\.min\(stall_slots\)/, 'stall delivery crews must fit the physical Marketplace tables');
+const marketDistribution = fs.readFileSync('server/src/simulation/household_distribution.rs', 'utf8');
+assert.match(marketDistribution, /sort_distribution_targets/);
+assert.match(marketDistribution, /left\.distance[\s\S]{0,120}residence_id/);
+const marketInspector = fs.readFileSync('src/resources/inspector/marketStallsRenderer.ts', 'utf8');
+assert.match(marketInspector, /no distance radius/);
+assert.match(marketInspector, /nearest stocked Marketplace by exact road length/);
+
 const inspector = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 assert.match(inspector, /data-policy-tax-rate/);
 assert.match(inspector, /data-policy-chapel-sabbath/);
@@ -108,4 +135,4 @@ const bootstrap = fs.readFileSync('src/app/appBootstrap.ts', 'utf8');
 assert.match(bootstrap, /resourceInspector\.selectBuilding\(townHall\.id\)/);
 assert.doesNotMatch(bootstrap, /new CityAdministrationPanel/);
 
-console.log('Town Hall and village storehouse gameplay tests passed');
+console.log('Town Hall, Marketplace, and village storehouse gameplay tests passed');

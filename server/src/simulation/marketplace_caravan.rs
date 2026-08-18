@@ -5,9 +5,11 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC, FOOD_DELIVERY_SPEED_MPS,
     FOOD_DELIVERY_UNLOAD_SEC, HOUSEHOLD_MAX_WEALTH, LOCAL_MARKET_TAX_CART_THRESHOLD,
+    MARKETPLACE_FOOD_STALL_SLOTS, MARKETPLACE_GOODS_STALL_SLOTS,
     MARKET_CARAVAN_FOOD_PER_DELIVERY, MARKET_CARAVAN_WATER_PER_DELIVERY,
-    PRIVATE_EXPORT_INCOME_CART_LOAD, STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC,
+    PRIVATE_EXPORT_INCOME_CART_LOAD, STOREHOUSE_HAUL_PER_WORKER,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS,
+    WATER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{
@@ -207,12 +209,12 @@ fn marketplace_stall_workplace(
     marketplace: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<(u64, u32)> {
-    let workplace_kind = match need_kind {
+    let (workplace_kind, stall_slots) = match need_kind {
         ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
-            "granary"
+            ("granary", MARKETPLACE_FOOD_STALL_SLOTS)
         }
         ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
-            "village_storehouse"
+            ("village_storehouse", MARKETPLACE_GOODS_STALL_SLOTS)
         }
         ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
             return None
@@ -239,12 +241,13 @@ fn marketplace_stall_workplace(
             (workers > 0).then_some((workplace.id, workers, distance))
         })
         .min_by(|a, b| a.2.total_cmp(&b.2).then_with(|| a.0.cmp(&b.0)))
-        .map(|(id, workers, _)| (id, workers))
+        .map(|(id, workers, _)| (id, workers.min(stall_slots)))
 }
 
 /// Stage routine imported household goods at a local Marketplace. The Trading
 /// Post trip is building-to-building and may carry a useful batch; individual
-/// homes receive their share later through the daily abstract market issue.
+/// homes receive their ordinary share on market day, with separate daily
+/// emergency checks for critical food and heat when Town Hall policy allows.
 fn try_dispatch_trading_post_stock_to_marketplace(
     ctx: &ReducerContext,
     tick: &SimTickContext,

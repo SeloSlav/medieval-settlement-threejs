@@ -354,6 +354,8 @@ export type GameBalance = {
     residenceFirewoodPerPersonPerSec: number;
     charcoalHouseholdFuelValue: number;
     marketplaceFuelReserveDays: number;
+    marketplaceFoodStallSlots: number;
+    marketplaceGoodsStallSlots: number;
     residenceFirewoodPriorityWinterDays: number;
     residenceWaterCapacity: number;
     residenceWaterReorderFraction: number;
@@ -933,6 +935,8 @@ function generateRust(): string {
     `pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFirewoodPerPersonPerSec)};`,
     `pub const CHARCOAL_HOUSEHOLD_FUEL_VALUE: f64 = ${rustF64(b.population.charcoalHouseholdFuelValue)};`,
     `pub const MARKETPLACE_FUEL_RESERVE_DAYS: f64 = ${rustF64(b.population.marketplaceFuelReserveDays)};`,
+    `pub const MARKETPLACE_FOOD_STALL_SLOTS: u32 = ${b.population.marketplaceFoodStallSlots};`,
+    `pub const MARKETPLACE_GOODS_STALL_SLOTS: u32 = ${b.population.marketplaceGoodsStallSlots};`,
     `pub const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS: f64 = ${rustF64(b.population.residenceFirewoodPriorityWinterDays)};`,
     `pub const RESIDENCE_WATER_CAPACITY: f64 = ${rustF64(b.population.residenceWaterCapacity)};`,
     `pub const RESIDENCE_WATER_REORDER_FRACTION: f64 = ${rustF64(b.population.residenceWaterReorderFraction)};`,
@@ -1829,6 +1833,8 @@ function generateTypeScript(): string {
     `export const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC = ${b.population.residenceFirewoodPerPersonPerSec};`,
     `export const CHARCOAL_HOUSEHOLD_FUEL_VALUE = ${b.population.charcoalHouseholdFuelValue};`,
     `export const MARKETPLACE_FUEL_RESERVE_DAYS = ${b.population.marketplaceFuelReserveDays};`,
+    `export const MARKETPLACE_FOOD_STALL_SLOTS = ${b.population.marketplaceFoodStallSlots};`,
+    `export const MARKETPLACE_GOODS_STALL_SLOTS = ${b.population.marketplaceGoodsStallSlots};`,
     `export const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS = ${b.population.residenceFirewoodPriorityWinterDays};`,
     `export const RESIDENCE_WATER_CAPACITY = ${b.population.residenceWaterCapacity};`,
     `export const RESIDENCE_WATER_REORDER_FRACTION = ${b.population.residenceWaterReorderFraction};`,

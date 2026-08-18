@@ -5,6 +5,8 @@ import {
   BUILDING_STORAGE_CAPS,
   FIRE_SPREAD_RADIUS,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
+  MARKETPLACE_FOOD_STALL_SLOTS,
+  MARKETPLACE_GOODS_STALL_SLOTS,
   STARTING_GOLD,
   STARTING_IRONWORK,
   STARTING_STONE,
@@ -297,11 +299,15 @@ export class BuildingMarkers {
           }
         }
       }
+      foodStalls = Math.min(foodStalls, MARKETPLACE_FOOD_STALL_SLOTS);
+      goodsStalls = Math.min(goodsStalls, MARKETPLACE_GOODS_STALL_SLOTS);
       const marker = this.buildingMeshes.get(marketplace.id);
       if (!marker) continue;
-      for (let index = 0; index < 3; index += 1) {
+      for (let index = 0; index < MARKETPLACE_FOOD_STALL_SLOTS; index += 1) {
         const foodStall = marker.getObjectByName(`MarketFoodStall${index}`);
         if (foodStall) foodStall.visible = index < foodStalls;
+      }
+      for (let index = 0; index < MARKETPLACE_GOODS_STALL_SLOTS; index += 1) {
         const goodsStall = marker.getObjectByName(`MarketGoodsStall${index}`);
         if (goodsStall) goodsStall.visible = index < goodsStalls;
       }

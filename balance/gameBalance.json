@@ -469,6 +469,8 @@
     "residenceFirewoodPerPersonPerSec": 0.002777777777777778,
     "charcoalHouseholdFuelValue": 2,
     "marketplaceFuelReserveDays": 21,
+    "marketplaceFoodStallSlots": 3,
+    "marketplaceGoodsStallSlots": 3,
     "residenceFirewoodPriorityWinterDays": 0.5,
     "residenceWaterCapacity": 24,
     "residenceWaterReorderFraction": 0.3333333333333333,
