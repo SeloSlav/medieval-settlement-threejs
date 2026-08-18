@@ -352,6 +352,8 @@ export type GameBalance = {
     wideParcelFrontageMin: number;
     residenceFirewoodCapacity: number;
     residenceFirewoodPerPersonPerSec: number;
+    charcoalHouseholdFuelValue: number;
+    marketplaceFuelReserveDays: number;
     residenceFirewoodPriorityWinterDays: number;
     residenceWaterCapacity: number;
     residenceWaterReorderFraction: number;
@@ -628,6 +630,8 @@ export type GameBalance = {
     storehouseOverflowThreshold: number;
     storehouseHaulPerWorker: number;
     storehouseFirewoodPerDelivery: number;
+    smithyCharcoalReorderCycles: number;
+    smithyCharcoalTargetCycles: number;
   };
   farming: {
     minFieldArea: number;
@@ -927,6 +931,8 @@ function generateRust(): string {
     `pub const WIDE_PARCEL_FRONTAGE_MIN: f64 = ${rustF64(b.population.wideParcelFrontageMin)};`,
     `pub const RESIDENCE_FIREWOOD_CAPACITY: f64 = ${rustF64(b.population.residenceFirewoodCapacity)};`,
     `pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residenceFirewoodPerPersonPerSec)};`,
+    `pub const CHARCOAL_HOUSEHOLD_FUEL_VALUE: f64 = ${rustF64(b.population.charcoalHouseholdFuelValue)};`,
+    `pub const MARKETPLACE_FUEL_RESERVE_DAYS: f64 = ${rustF64(b.population.marketplaceFuelReserveDays)};`,
     `pub const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS: f64 = ${rustF64(b.population.residenceFirewoodPriorityWinterDays)};`,
     `pub const RESIDENCE_WATER_CAPACITY: f64 = ${rustF64(b.population.residenceWaterCapacity)};`,
     `pub const RESIDENCE_WATER_REORDER_FRACTION: f64 = ${rustF64(b.population.residenceWaterReorderFraction)};`,
@@ -1199,6 +1205,8 @@ function generateRust(): string {
     `pub const STOREHOUSE_OVERFLOW_THRESHOLD: f64 = ${rustF64(b.production.storehouseOverflowThreshold)};`,
     `pub const STOREHOUSE_HAUL_PER_WORKER: f64 = ${rustF64(b.production.storehouseHaulPerWorker)};`,
     `pub const STOREHOUSE_FIREWOOD_PER_DELIVERY: f64 = ${rustF64(b.production.storehouseFirewoodPerDelivery)};`,
+    `pub const SMITHY_CHARCOAL_REORDER_CYCLES: f64 = ${rustF64(b.production.smithyCharcoalReorderCycles)};`,
+    `pub const SMITHY_CHARCOAL_TARGET_CYCLES: f64 = ${rustF64(b.production.smithyCharcoalTargetCycles)};`,
     '',
     `pub const FARM_MIN_FIELD_AREA: f64 = ${rustF64(b.farming.minFieldArea)};`,
     `pub const FARM_FIELD_SETUP_WORK_PER_STAGE: f64 = ${rustF64(b.farming.fieldSetupWorkPerStage)};`,
@@ -1819,6 +1827,8 @@ function generateTypeScript(): string {
     `export const WIDE_PARCEL_FRONTAGE_MIN = ${b.population.wideParcelFrontageMin};`,
     `export const RESIDENCE_FIREWOOD_CAPACITY = ${b.population.residenceFirewoodCapacity};`,
     `export const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC = ${b.population.residenceFirewoodPerPersonPerSec};`,
+    `export const CHARCOAL_HOUSEHOLD_FUEL_VALUE = ${b.population.charcoalHouseholdFuelValue};`,
+    `export const MARKETPLACE_FUEL_RESERVE_DAYS = ${b.population.marketplaceFuelReserveDays};`,
     `export const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS = ${b.population.residenceFirewoodPriorityWinterDays};`,
     `export const RESIDENCE_WATER_CAPACITY = ${b.population.residenceWaterCapacity};`,
     `export const RESIDENCE_WATER_REORDER_FRACTION = ${b.population.residenceWaterReorderFraction};`,
@@ -2090,6 +2100,8 @@ function generateTypeScript(): string {
     `export const STOREHOUSE_OVERFLOW_THRESHOLD = ${b.production.storehouseOverflowThreshold};`,
     `export const STOREHOUSE_HAUL_PER_WORKER = ${b.production.storehouseHaulPerWorker};`,
     `export const STOREHOUSE_FIREWOOD_PER_DELIVERY = ${b.production.storehouseFirewoodPerDelivery};`,
+    `export const SMITHY_CHARCOAL_REORDER_CYCLES = ${b.production.smithyCharcoalReorderCycles};`,
+    `export const SMITHY_CHARCOAL_TARGET_CYCLES = ${b.production.smithyCharcoalTargetCycles};`,
     '',
     `export const FARM_MIN_FIELD_AREA = ${b.farming.minFieldArea};`,
     `export const FARM_FIELD_SETUP_WORK_PER_STAGE = ${b.farming.fieldSetupWorkPerStage};`,

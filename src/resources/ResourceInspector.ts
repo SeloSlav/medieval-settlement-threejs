@@ -44,6 +44,7 @@ import type { ParishPolicyState } from '../economy/chapelParish.ts';
 import type { MonasteryPolicyState } from '../economy/monasteryPolicy.ts';
 import type { NightPolicyCode, NightPolicyState } from '../economy/nightPolicy.ts';
 import type { FiscalPolicyState } from '../economy/fiscalPolicy.ts';
+import type { PantrySafeguardPolicyCode } from '../economy/pantrySafeguardPolicy.ts';
 import type { RegionalMarketState } from '../economy/regionalMarket.ts';
 import { DEFAULT_REGIONAL_MARKET_STATE } from '../economy/regionalMarket.ts';
 import type { BackyardGardenKind } from '../residences/backyardGarden.ts';
@@ -73,6 +74,11 @@ import {
 } from './serviceCoverage.ts';
 import type { WorksiteCommuteSummary } from '../settlement/workerCommute.ts';
 import { PlayerAuthoredHoverOutline } from './PlayerAuthoredHoverOutline.ts';
+import {
+  foodMealValue,
+  foodSpoilageMultiplier,
+  type FoodInventoryKind,
+} from '../economy/foodInventory.ts';
 
 type ResourceInspectorOptions = {
   domElement: HTMLElement;
@@ -82,6 +88,7 @@ type ResourceInspectorOptions = {
   worldQueries: WorldQueries;
   getState: () => GameState;
   getEconomicActivityTaxRate?: () => number;
+  getPantrySafeguardPolicy?: () => PantrySafeguardPolicyCode;
   getFiscalPolicy?: () => FiscalPolicyState;
   getSeasonalLaborStewardEnabled?: () => boolean;
   getConstructionLaborStewardEnabled?: () => boolean;
@@ -125,6 +132,7 @@ type ResourceInspectorOptions = {
   onCancelMarketplaceTradeOrder?: (buildingId: string) => void | Promise<void>;
   onUpgradeChapel?: (buildingId: string) => void | Promise<void>;
   onSetEconomicActivityTaxRate?: (taxRate: number) => void | Promise<void>;
+  onSetPantrySafeguardPolicy?: (policy: PantrySafeguardPolicyCode) => void | Promise<void>;
   onSetFiscalPolicy?: (
     landLevyRate: number,
     importDutyRate: number,
@@ -148,6 +156,7 @@ type ResourceInspectorOptions = {
     acceptsTimber: boolean,
     acceptsStone: boolean,
     acceptsFirewood: boolean,
+    acceptsCharcoal: boolean,
     acceptsIron: boolean,
     acceptsClay: boolean,
     acceptsSalt: boolean,
@@ -306,7 +315,6 @@ const SPECIALTY_HUD_RESOURCE_KINDS = [
   'iron',
   'clay',
   'salt',
-  'charcoal',
   'pottery',
   'roofTiles',
 ] as const satisfies readonly HudResourceKind[];
@@ -340,6 +348,8 @@ export class ResourceInspector {
   private readonly resourceTotalsModeButton: HTMLButtonElement;
   private readonly resourceTotalsModeLabel: HTMLElement;
   private readonly foodStoresModeLabel: HTMLElement;
+  private readonly fuelStoresModeLabel: HTMLElement;
+  private readonly fuelFirewoodAmount: HTMLElement;
   private readonly specialtyStoresModeLabel: HTMLElement;
   private readonly surplusResourceTooltips = new Map<HudResourceKind, string>();
   private readonly populationValue: HTMLElement;
@@ -487,6 +497,14 @@ export class ResourceInspector {
     this.foodStoresModeLabel = this.mustElement(
       options.uiRoot,
       '[data-food-stores-mode-label]',
+    );
+    this.fuelStoresModeLabel = this.mustElement(
+      options.uiRoot,
+      '[data-fuel-stores-mode-label]',
+    );
+    this.fuelFirewoodAmount = this.mustElement(
+      options.uiRoot,
+      '[data-fuel-firewood-amount]',
     );
     this.specialtyStoresModeLabel = this.mustElement(
       options.uiRoot,
@@ -645,6 +663,7 @@ export class ResourceInspector {
     this.resourceTotalsModeLabel.textContent = showingTotal ? 'Total' : 'Surplus';
     const panelModeLabel = showingTotal ? 'Total stored' : 'Available surplus';
     this.foodStoresModeLabel.textContent = panelModeLabel;
+    this.fuelStoresModeLabel.textContent = panelModeLabel;
     this.specialtyStoresModeLabel.textContent = panelModeLabel;
     this.stockpileRoot.dataset.resourceTotalsPresentation =
       this.resourceTotalsPresentation;
@@ -1238,6 +1257,12 @@ export class ResourceInspector {
       void this.options.onSetEconomicActivityTaxRate?.(Number(input.value) / 100);
       return;
     }
+    if (building.kind === 'town_hall' && input.matches('[data-pantry-safeguard-policy]')) {
+      const value = Number(input.value);
+      const policy: PantrySafeguardPolicyCode = value === 0 || value === 2 ? value : 1;
+      void this.options.onSetPantrySafeguardPolicy?.(policy);
+      return;
+    }
     if (building.kind === 'town_hall' && input.matches('[data-policy-seasonal-labor-steward]')) {
       void this.options.onSetSeasonalLaborSteward?.(input.checked);
       return;
@@ -1296,13 +1321,15 @@ export class ResourceInspector {
       building.kind === 'village_storehouse'
       && input.matches(
         '[data-storehouse-accepts-timber], [data-storehouse-accepts-stone], '
-        + '[data-storehouse-accepts-firewood], [data-storehouse-accepts-iron], '
+        + '[data-storehouse-accepts-firewood], [data-storehouse-accepts-charcoal], '
+        + '[data-storehouse-accepts-iron], '
         + '[data-storehouse-accepts-clay], [data-storehouse-accepts-salt]',
       )
     ) {
       const timber = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-timber]')?.checked ?? false;
       const stone = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-stone]')?.checked ?? false;
       const firewood = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-firewood]')?.checked ?? false;
+      const charcoal = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-charcoal]')?.checked ?? true;
       const iron = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-iron]')?.checked ?? true;
       const clay = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-clay]')?.checked ?? true;
       const salt = this.supplementalPanelSection.querySelector<HTMLInputElement>('[data-storehouse-accepts-salt]')?.checked ?? true;
@@ -1311,6 +1338,7 @@ export class ResourceInspector {
         timber,
         stone,
         firewood,
+        charcoal,
         iron,
         clay,
         salt,
@@ -1385,6 +1413,7 @@ export class ResourceInspector {
     this.stockpileValues.timber.textContent = Math.round(totals.timber).toString();
     this.stockpileValues.stone.textContent = Math.round(totals.stone).toString();
     this.stockpileValues.firewood.textContent = Math.round(totals.firewood).toString();
+    this.fuelFirewoodAmount.textContent = Math.round(totals.firewood).toString();
     this.stockpileValues.water.textContent = Math.round(totals.water).toString();
     this.stockpileValues.food.textContent = Math.round(totals.food).toString();
     this.stockpileValues.gold.textContent = Math.round(totals.gold).toString();
@@ -1479,11 +1508,21 @@ export class ResourceInspector {
       const stocked = stored + transit > 1e-6;
       const namedFood = (FOOD_RESOURCE_KINDS as readonly string[]).includes(kind);
       const visible = namedFood || stocked;
+      const inventoryKind = (kind === 'legacyFood'
+        ? 'food'
+        : kind === 'legacyPreservedFood'
+          ? 'preservedFood'
+          : kind) as FoodInventoryKind;
+      const mealValue = foodMealValue(inventoryKind);
+      const spoilage = foodSpoilageMultiplier(inventoryKind);
       elements.row.hidden = !visible;
       elements.row.classList.toggle('is-empty', !stocked);
       elements.stored.textContent = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmount = formatTransitAmount(displayed);
       elements.row.dataset.tooltipAmountLabel = amountLabel;
+      elements.row.dataset.tooltip = spoilage <= 0
+        ? `${mealValue.toFixed(2)} meal-equivalents per unit · shelf-stable`
+        : `${mealValue.toFixed(2)} meal-equivalents per unit · ${spoilage.toFixed(2)}× base spoilage before storage protection`;
       elements.transit.hidden = transit <= 1e-6;
       elements.transit.textContent = transit > 1e-6
         ? `+${formatTransitAmount(transit)} cart`
@@ -1788,6 +1827,9 @@ export class ResourceInspector {
       ...(settlementProduction ? { settlementProduction } : {}),
       ...(this.options.getEconomicActivityTaxRate
         ? { getEconomicActivityTaxRate: this.options.getEconomicActivityTaxRate }
+        : {}),
+      ...(this.options.getPantrySafeguardPolicy
+        ? { getPantrySafeguardPolicy: this.options.getPantrySafeguardPolicy }
         : {}),
       ...(this.options.getSeasonalLaborStewardEnabled
         ? { getSeasonalLaborStewardEnabled: this.options.getSeasonalLaborStewardEnabled }

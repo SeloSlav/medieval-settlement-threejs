@@ -101,6 +101,7 @@ import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specia
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "./set_marketplace_specialty_family_export_policy_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
 import SetNightPoliciesReducer from "./set_night_policies_reducer";
+import SetPantrySafeguardPolicyReducer from "./set_pantry_safeguard_policy_reducer";
 import SetPotterFiringPolicyReducer from "./set_potter_firing_policy_reducer";
 import SetPotteryDispatchPolicyReducer from "./set_pottery_dispatch_policy_reducer";
 import SetProcessorOutputTargetReducer from "./set_processor_output_target_reducer";
@@ -612,6 +613,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_marketplace_specialty_family_export_policy", SetMarketplaceSpecialtyFamilyExportPolicyReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
   __reducerSchema("set_night_policies", SetNightPoliciesReducer),
+  __reducerSchema("set_pantry_safeguard_policy", SetPantrySafeguardPolicyReducer),
   __reducerSchema("set_potter_firing_policy", SetPotterFiringPolicyReducer),
   __reducerSchema("set_pottery_dispatch_policy", SetPotteryDispatchPolicyReducer),
   __reducerSchema("set_processor_output_target", SetProcessorOutputTargetReducer),

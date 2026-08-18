@@ -51,7 +51,11 @@ import {
   isHudResourceKind,
   type HudResourceKind,
 } from '../resources/resourceTotals.ts';
-import { CALENDAR_SECONDS_PER_DAY, SIM_REALTIME_RATE } from '../generated/gameBalance.ts';
+import {
+  CALENDAR_DAYS_PER_MONTH,
+  CALENDAR_SECONDS_PER_DAY,
+  SIM_REALTIME_RATE,
+} from '../generated/gameBalance.ts';
 import {
   applyHeraldryToElement,
   createHeraldryShield,
@@ -296,11 +300,38 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="stone">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="stone" hidden></span>
       </div>
-      <div class="settlement-hud__stat" tabindex="0" data-resource="firewood" data-tooltip-title="Stored firewood" data-tooltip="Firewood in lodges, depots, markets, and homes.">
-        <span class="settlement-hud__label">Firewood</span>
-        <strong class="settlement-hud__value" data-stockpile="firewood">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="firewood" hidden></span>
-      </div>
+      <details class="settlement-hud__food-stores settlement-hud__fuel-stores" data-fuel-stores>
+        <summary class="settlement-hud__stat settlement-hud__stat--fuel" tabindex="0" data-resource="firewood">
+          <span class="settlement-hud__label">Fuel</span>
+          <strong class="settlement-hud__value settlement-hud__supply-value" data-fuel-runway>--</strong>
+          <span data-stockpile="firewood" hidden>0</span>
+          <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="firewood" hidden></span>
+        </summary>
+        <div
+          id="settlement-fuel-breakdown"
+          class="settlement-hud__stores-grid settlement-hud__fuel-grid"
+          data-fuel-breakdown
+          aria-label="Household fuel stores"
+        >
+          <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
+            <strong>Fuel reserves</strong>
+            <span data-fuel-stores-mode-label>Available surplus</span>
+          </div>
+          <div class="settlement-hud__supply-summary" data-fuel-supply-summary>
+            <strong data-fuel-supply-months>--</strong>
+            <span data-fuel-supply-detail>No heated households yet</span>
+          </div>
+          <div class="settlement-hud__stat settlement-hud__stat--store" data-resource="firewood" data-fuel-resource="firewood" data-tooltip-title="Firewood" data-tooltip="One unit provides one household fuel-equivalent.">
+            <span class="settlement-hud__label">Firewood</span>
+            <strong class="settlement-hud__value" data-fuel-firewood-amount>0</strong>
+          </div>
+          <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="charcoal" data-fuel-resource="charcoal" data-tooltip-title="Charcoal" data-tooltip="Dense household fuel; one unit provides two fuel-equivalents. Smithies may also consume it.">
+            <span class="settlement-hud__label">Charcoal</span>
+            <strong class="settlement-hud__value" data-stockpile="charcoal">0</strong>
+            <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="charcoal" hidden></span>
+          </div>
+        </div>
+      </details>
       <div class="settlement-hud__stat settlement-hud__stat--water" tabindex="0" data-resource="water" data-tooltip-title="Stored water" data-tooltip="Water in wells, workplaces, and homes.">
         <span class="settlement-hud__label">Water</span>
         <strong class="settlement-hud__value" data-stockpile="water">0</strong>
@@ -309,7 +340,8 @@ const SETTLEMENT_HUD_HTML = `
       <details class="settlement-hud__food-stores" data-food-stores>
         <summary class="settlement-hud__stat settlement-hud__stat--food" tabindex="0" data-resource="food">
           <span class="settlement-hud__label">Food</span>
-          <strong class="settlement-hud__value" data-stockpile="food">0</strong>
+          <strong class="settlement-hud__value settlement-hud__supply-value" data-food-runway>--</strong>
+          <span data-stockpile="food" hidden>0</span>
           <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="food" hidden></span>
         </summary>
         <div
@@ -321,6 +353,10 @@ const SETTLEMENT_HUD_HTML = `
           <div class="settlement-hud__stores-grid-header" role="heading" aria-level="2">
             <strong>Food stores</strong>
             <span data-food-stores-mode-label>Available surplus</span>
+          </div>
+          <div class="settlement-hud__supply-summary" data-food-supply-summary>
+            <strong data-food-supply-months>--</strong>
+            <span data-food-supply-detail>No residents to feed yet</span>
           </div>
           ${FOOD_RESOURCE_KINDS.map((kind) => `
             <div
@@ -483,11 +519,6 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="salt">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="salt" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="charcoal" data-tooltip="Fuel used by smithies.">
-        <span class="settlement-hud__label">Charcoal</span>
-        <strong class="settlement-hud__value" data-stockpile="charcoal">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="charcoal" hidden></span>
-      </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="pottery" data-tooltip="Fired vessels used by households and smokehouses.">
         <span class="settlement-hud__label">Pottery</span>
         <strong class="settlement-hud__value" data-stockpile="pottery">0</strong>
@@ -547,6 +578,14 @@ export class SettlementHud {
   private readonly approvalSupportSection: HTMLElement;
   private readonly foodStat: HTMLElement;
   private readonly foodStores: HTMLDetailsElement;
+  private readonly foodRunwayValue: HTMLElement;
+  private readonly foodSupplyMonths: HTMLElement;
+  private readonly foodSupplyDetail: HTMLElement;
+  private readonly fuelStat: HTMLElement;
+  private readonly fuelStores: HTMLDetailsElement;
+  private readonly fuelRunwayValue: HTMLElement;
+  private readonly fuelSupplyMonths: HTMLElement;
+  private readonly fuelSupplyDetail: HTMLElement;
   private readonly goldStat: HTMLElement;
   private readonly polearmsStat: HTMLElement;
   private readonly specialtyStores: HTMLDetailsElement;
@@ -578,6 +617,7 @@ export class SettlementHud {
   private approvalPointerInside = false;
   private approvalCloseTimer: number | null = null;
   private foodStoresCloseTimer: number | null = null;
+  private fuelStoresCloseTimer: number | null = null;
   private specialtyStoresCloseTimer: number | null = null;
   private displayedClockDate: string | null = null;
   private displayedClockTime: string | null = null;
@@ -641,6 +681,14 @@ export class SettlementHud {
     this.approvalSupportSection = this.mustElement('[data-approval-support-section]');
     this.foodStat = this.mustElement('[data-resource="food"]');
     this.foodStores = this.mustDetails('[data-food-stores]');
+    this.foodRunwayValue = this.mustElement('[data-food-runway]');
+    this.foodSupplyMonths = this.mustElement('[data-food-supply-months]');
+    this.foodSupplyDetail = this.mustElement('[data-food-supply-detail]');
+    this.fuelStat = this.mustElement('[data-resource="firewood"]');
+    this.fuelStores = this.mustDetails('[data-fuel-stores]');
+    this.fuelRunwayValue = this.mustElement('[data-fuel-runway]');
+    this.fuelSupplyMonths = this.mustElement('[data-fuel-supply-months]');
+    this.fuelSupplyDetail = this.mustElement('[data-fuel-supply-detail]');
     this.goldStat = this.mustElement('[data-resource="gold"]');
     this.polearmsStat = this.mustElement('[data-resource="polearms"]');
     this.specialtyStores = this.mustDetails('[data-specialty-stores]');
@@ -684,6 +732,11 @@ export class SettlementHud {
     this.foodStat.setAttribute('aria-label', 'Food: hover or focus to show commodity breakdown');
     delete this.foodStat.dataset.tooltipTitle;
     delete this.foodStat.dataset.tooltip;
+    this.fuelStat.setAttribute('aria-controls', 'settlement-fuel-breakdown');
+    this.fuelStat.setAttribute('aria-expanded', 'false');
+    this.fuelStat.setAttribute('aria-label', 'Fuel: hover or focus to show firewood and charcoal reserves');
+    delete this.fuelStat.dataset.tooltipTitle;
+    delete this.fuelStat.dataset.tooltip;
     this.panel.addEventListener('click', this.onResourceRowClick);
     this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
     this.securityAlert.addEventListener('click', this.onSecurityAlertClick);
@@ -700,6 +753,12 @@ export class SettlementHud {
     this.foodStores.addEventListener('focusin', this.onFoodStoresFocusIn);
     this.foodStores.addEventListener('focusout', this.onFoodStoresFocusOut);
     this.foodStat.addEventListener('click', this.onFoodStoresSummaryClick);
+    this.fuelStores.addEventListener('toggle', this.onFuelStoresToggle);
+    this.fuelStores.addEventListener('pointerenter', this.onFuelStoresPointerEnter);
+    this.fuelStores.addEventListener('pointerleave', this.onFuelStoresPointerLeave);
+    this.fuelStores.addEventListener('focusin', this.onFuelStoresFocusIn);
+    this.fuelStores.addEventListener('focusout', this.onFuelStoresFocusOut);
+    this.fuelStat.addEventListener('click', this.onFuelStoresSummaryClick);
     this.specialtyStores.addEventListener('toggle', this.onSpecialtyStoresToggle);
     this.specialtyStores.addEventListener('pointerenter', this.onSpecialtyStoresPointerEnter);
     this.specialtyStores.addEventListener('pointerleave', this.onSpecialtyStoresPointerLeave);
@@ -951,9 +1010,53 @@ export class SettlementHud {
 
   setProvisioningState(provisioning: SettlementProvisioning, _month: number): void {
     this.setWelfareState(provisioning);
+    this.setSupplyRunway(
+      this.foodStat,
+      this.foodRunwayValue,
+      this.foodSupplyMonths,
+      provisioning.foodRunwayDays,
+      provisioning.foodConsumers > 0 || provisioning.armedGuards > 0,
+    );
+    this.foodSupplyDetail.textContent = provisioning.foodConsumers > 0
+      ? `${formatSupplyAmount(provisioning.usableFoodStock)} meal-equivalents usable · ${formatSupplyAmount(provisioning.grossFoodDemandPerDay)} needed/day · nutrition, storage, and spoilage included`
+      : 'No residents to feed yet';
+    this.foodStat.setAttribute(
+      'aria-label',
+      `Food supply: ${formatSupplyMonths(provisioning.foodRunwayDays, provisioning.foodConsumers > 0 || provisioning.armedGuards > 0)}. Hover or focus for commodity breakdown.`,
+    );
+
+    this.setSupplyRunway(
+      this.fuelStat,
+      this.fuelRunwayValue,
+      this.fuelSupplyMonths,
+      provisioning.currentFirewoodRunwayDays,
+      provisioning.heatedResidents > 0,
+    );
+    this.fuelSupplyDetail.textContent = provisioning.heatedResidents > 0
+      ? `${formatSupplyAmount(provisioning.householdFirewoodStock)} firewood + ${formatSupplyAmount(provisioning.householdCharcoalStock)} charcoal (${formatSupplyAmount(provisioning.firewoodStock)} fuel-equivalents) · ${formatSupplyAmount(provisioning.currentFirewoodPerDay)} needed/day now`
+      : 'No heated households yet';
+    this.fuelStat.setAttribute(
+      'aria-label',
+      `Fuel supply: ${formatSupplyMonths(provisioning.currentFirewoodRunwayDays, provisioning.heatedResidents > 0)}. Hover or focus for firewood and charcoal reserves.`,
+    );
     this.goldStat.dataset.tooltip = provisioning.armedGuards > 0
       ? `Guard wages cost ${provisioning.guardWagePerDay.toFixed(1)} gold per day; current funds cover ${formatProvisionRunway(provisioning.guardWageRunwayDays)}.`
       : 'Spendable gold in settlement lockboxes and the Town Hall treasury.';
+  }
+
+  private setSupplyRunway(
+    stat: HTMLElement,
+    compactValue: HTMLElement,
+    panelValue: HTMLElement,
+    days: number,
+    hasDemand: boolean,
+  ): void {
+    const label = formatSupplyMonths(days, hasDemand);
+    compactValue.textContent = label;
+    panelValue.textContent = hasDemand ? `${label} of supply` : label;
+    const level = supplyRunwayLevel(days, hasDemand);
+    stat.dataset.supplyLevel = level;
+    stat.closest<HTMLDetailsElement>('details')?.setAttribute('data-supply-level', level);
   }
 
   setApprovalState(approval: SettlementApproval): void {
@@ -1173,7 +1276,10 @@ export class SettlementHud {
 
   private readonly onFoodStoresToggle = (): void => {
     const open = this.foodStores.open;
-    if (open) this.specialtyStores.open = false;
+    if (open) {
+      this.fuelStores.open = false;
+      this.specialtyStores.open = false;
+    }
     this.foodStat.setAttribute('aria-expanded', String(open));
     this.foodStat.classList.toggle('is-open', open);
   };
@@ -1206,8 +1312,49 @@ export class SettlementHud {
     this.foodStores.open = true;
   };
 
+  private readonly onFuelStoresToggle = (): void => {
+    const open = this.fuelStores.open;
+    if (open) {
+      this.foodStores.open = false;
+      this.specialtyStores.open = false;
+    }
+    this.fuelStat.setAttribute('aria-expanded', String(open));
+    this.fuelStat.classList.toggle('is-open', open);
+  };
+
+  private readonly onFuelStoresPointerEnter = (): void => {
+    this.cancelFuelStoresClose();
+    this.fuelStores.open = true;
+  };
+
+  private readonly onFuelStoresPointerLeave = (): void => {
+    this.cancelFuelStoresClose();
+    this.fuelStoresCloseTimer = window.setTimeout(() => {
+      this.fuelStoresCloseTimer = null;
+      this.fuelStores.open = false;
+    }, STORES_POINTER_LEAVE_GRACE_MS);
+  };
+
+  private readonly onFuelStoresFocusIn = (): void => {
+    this.cancelFuelStoresClose();
+    this.fuelStores.open = true;
+  };
+
+  private readonly onFuelStoresFocusOut = (event: FocusEvent): void => {
+    if (event.relatedTarget instanceof Node && this.fuelStores.contains(event.relatedTarget)) return;
+    this.fuelStores.open = false;
+  };
+
+  private readonly onFuelStoresSummaryClick = (event: MouseEvent): void => {
+    event.preventDefault();
+    this.fuelStores.open = true;
+  };
+
   private readonly onSpecialtyStoresToggle = (): void => {
-    if (this.specialtyStores.open) this.foodStores.open = false;
+    if (this.specialtyStores.open) {
+      this.foodStores.open = false;
+      this.fuelStores.open = false;
+    }
   };
 
   private readonly onSpecialtyStoresPointerEnter = (): void => {
@@ -1244,7 +1391,7 @@ export class SettlementHud {
   private readonly onResourceRowKeyDown = (event: KeyboardEvent): void => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const resource = this.resourceFromTarget(event.target);
-    if (!resource || resource === 'food') return;
+    if (!resource || resource === 'food' || resource === 'firewood') return;
     event.preventDefault();
     this.activateResourceRow(event.target);
   };
@@ -1318,6 +1465,12 @@ export class SettlementHud {
     this.foodStoresCloseTimer = null;
   }
 
+  private cancelFuelStoresClose(): void {
+    if (this.fuelStoresCloseTimer === null) return;
+    window.clearTimeout(this.fuelStoresCloseTimer);
+    this.fuelStoresCloseTimer = null;
+  }
+
   private cancelSpecialtyStoresClose(): void {
     if (this.specialtyStoresCloseTimer === null) return;
     window.clearTimeout(this.specialtyStoresCloseTimer);
@@ -1330,6 +1483,12 @@ export class SettlementHud {
       event.preventDefault();
       this.foodStores.open = false;
       this.foodStat.focus();
+      return;
+    }
+    if (this.fuelStores.open) {
+      event.preventDefault();
+      this.fuelStores.open = false;
+      this.fuelStat.focus();
       return;
     }
     if (!this.approvalPanel.hidden) {
@@ -1393,7 +1552,9 @@ export class SettlementHud {
 
   private activateResourceRow(target: EventTarget | null): void {
     const resource = this.resourceFromTarget(target);
-    if (resource && resource !== 'food') this.onLocateResource?.(resource);
+    if (resource && resource !== 'food' && resource !== 'firewood') {
+      this.onLocateResource?.(resource);
+    }
   }
 
   private resourceFromTarget(target: EventTarget | null): HudResourceKind | null {
@@ -1430,6 +1591,7 @@ export class SettlementHud {
   dispose(): void {
     this.cancelApprovalClose();
     this.cancelFoodStoresClose();
+    this.cancelFuelStoresClose();
     this.cancelSpecialtyStoresClose();
     this.nobleEye.removeEventListener('click', this.onNobleEyeClick);
     this.securityAlert.removeEventListener('click', this.onSecurityAlertClick);
@@ -1446,6 +1608,12 @@ export class SettlementHud {
     this.foodStores.removeEventListener('focusin', this.onFoodStoresFocusIn);
     this.foodStores.removeEventListener('focusout', this.onFoodStoresFocusOut);
     this.foodStat.removeEventListener('click', this.onFoodStoresSummaryClick);
+    this.fuelStores.removeEventListener('toggle', this.onFuelStoresToggle);
+    this.fuelStores.removeEventListener('pointerenter', this.onFuelStoresPointerEnter);
+    this.fuelStores.removeEventListener('pointerleave', this.onFuelStoresPointerLeave);
+    this.fuelStores.removeEventListener('focusin', this.onFuelStoresFocusIn);
+    this.fuelStores.removeEventListener('focusout', this.onFuelStoresFocusOut);
+    this.fuelStat.removeEventListener('click', this.onFuelStoresSummaryClick);
     this.specialtyStores.removeEventListener('toggle', this.onSpecialtyStoresToggle);
     this.specialtyStores.removeEventListener(
       'pointerenter',
@@ -1485,6 +1653,31 @@ export function selectProjectedRaidAttentionTarget(
     index,
     nextIndex: (index + 1) % targets.length,
   };
+}
+
+function formatSupplyMonths(days: number, hasDemand: boolean): string {
+  if (!hasDemand) return '--';
+  if (!Number.isFinite(days)) return '∞ mo';
+  const months = Math.max(0, days) / CALENDAR_DAYS_PER_MONTH;
+  if (months < 0.05) return '<0.1 mo';
+  if (months < 10) return `${months.toFixed(1)} mo`;
+  return `${Math.floor(months)} mo`;
+}
+
+function supplyRunwayLevel(
+  days: number,
+  hasDemand: boolean,
+): 'none' | 'ready' | 'low' | 'critical' {
+  if (!hasDemand) return 'none';
+  if (days < CALENDAR_DAYS_PER_MONTH / 2) return 'critical';
+  if (days < CALENDAR_DAYS_PER_MONTH) return 'low';
+  return 'ready';
+}
+
+function formatSupplyAmount(amount: number): string {
+  if (!Number.isFinite(amount)) return '0';
+  if (Math.abs(amount) < 10) return amount.toFixed(1);
+  return Math.round(amount).toString();
 }
 
 function formatWelfareRunway(days: number): string {

@@ -181,14 +181,15 @@ export const RESIDENCE_POPULATION_NARROW = 2;
 export const RESIDENCE_POPULATION_WIDE = 4;
 export const NARROW_PARCEL_FRONTAGE_MAX = 9.6;
 export const WIDE_PARCEL_FRONTAGE_MIN = 14;
-export const RESIDENCE_FIREWOOD_CAPACITY = 40;
-export const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC = 0.02;
+export const RESIDENCE_FIREWOOD_CAPACITY = 60;
+export const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC = 0.002777777777777778;
+export const CHARCOAL_HOUSEHOLD_FUEL_VALUE = 2;
 export const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS = 0.5;
 export const RESIDENCE_WATER_CAPACITY = 24;
 export const RESIDENCE_WATER_REORDER_FRACTION = 0.3333333333333333;
 export const RESIDENCE_WATER_PER_PERSON_PER_SEC = 0.012;
 export const RESIDENCE_FOOD_CAPACITY = 32;
-export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = 0.015;
+export const RESIDENCE_FOOD_PER_PERSON_PER_SEC = 0.003619047619047619;
 export const EVENING_MEAL_PER_PERSON = 0.08;
 export const FOOD_CATEGORY_QUALIFYING_DAYS = 1;
 export const BACKYARD_FOOD_RESERVE_TIER1_DAYS = 3;
@@ -1619,21 +1620,21 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   apple_orchard: {
     kind: 'apple_orchard',
     label: "Apple orchard",
-    foodPerPersonPerSec: 0.009,
+    foodPerPersonPerSec: 0.0025,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
   },
   cherry_orchard: {
     kind: 'cherry_orchard',
     label: "Cherry orchard",
-    foodPerPersonPerSec: 0.008,
+    foodPerPersonPerSec: 0.00225,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
   },
   vegetable_garden: {
     kind: 'vegetable_garden',
     label: "Vegetable garden",
-    foodPerPersonPerSec: 0.012,
+    foodPerPersonPerSec: 0.003,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
   },
@@ -1654,21 +1655,21 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
   hen_yard: {
     kind: 'hen_yard',
     label: "Hen yard",
-    foodPerPersonPerSec: 0.0105,
+    foodPerPersonPerSec: 0.0025,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
   },
   goat_pen: {
     kind: 'goat_pen',
     label: "Goat pen",
-    foodPerPersonPerSec: 0.0055,
+    foodPerPersonPerSec: 0.0018,
     settlementAttractionMultiplier: 0.97,
     hiddenFromPicker: false,
   },
   backyard_apiary: {
     kind: 'backyard_apiary',
     label: "Backyard apiary",
-    foodPerPersonPerSec: 0.003,
+    foodPerPersonPerSec: 0.001,
     settlementAttractionMultiplier: 1.03,
     hiddenFromPicker: false,
   },

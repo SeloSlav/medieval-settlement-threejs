@@ -8,11 +8,21 @@ use std::collections::{BTreeMap, HashMap};
 
 use spacetimedb::{Identity, ReducerContext};
 
+use crate::balance_generated::{
+    CALENDAR_DAYS_PER_WEEK, CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY,
+    CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, RESIDENCE_ALE_PER_PERSON_PER_SEC,
+    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+    RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
+};
 use crate::db::*;
 use crate::economy::{
     building_commodity_stock, deposit_building_commodity, deposit_residence_commodity,
-    withdraw_building_commodity,
+    household_food_per_day, withdraw_building_commodity,
 };
+use crate::pantry_safeguard_policy::{
+    emergency_pantry_rule, normalize_pantry_safeguard_policy, PANTRY_SAFEGUARD_DEFAULT,
+};
+use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{
     delivery_stock_room, residence_commodity_delivery_room,
     selected_food_delivery_commodity_for_residence, withdraw_delivery_cargo,
@@ -40,31 +50,85 @@ struct DistributionTarget {
     x: f64,
     z: f64,
     distance: f64,
+    target_stock: f64,
+    daily_lot: f64,
 }
 
-/// Recalculate local market availability immediately from the stock currently
-/// on stalls. Each compatible market serves its claimed road-connected homes;
-/// scarce stock reaches the closest homes first, with stable id ordering for
-/// equal routes.
-pub fn step_market_household_distribution(ctx: &ReducerContext, tick: &SimTickContext) {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MarketIssueCycle {
+    Weekly,
+    Emergency,
+}
+
+impl MarketIssueCycle {
+    fn ration_rounds(self, pantry_policy: u8) -> usize {
+        match self {
+            Self::Weekly => CALENDAR_DAYS_PER_WEEK.max(1) as usize,
+            Self::Emergency => emergency_pantry_rule(pantry_policy)
+                .map(|rule| rule.target_days.ceil() as usize)
+                .unwrap_or(0),
+        }
+    }
+}
+
+/// Issue a week of household lots from stock held at local markets. An optional
+/// daily Town Hall safeguard rescues critically low food and fuel without
+/// turning every meal into a separate haul. Replenishment remains physical,
+/// and scarce stock is shared one household-day at a time before any pantry
+/// receives a full week.
+pub fn step_market_household_distribution(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    sim_tick: u64,
+    environment: EnvironmentState,
+) {
+    let Some(issue_cycle) = market_issue_cycle(sim_tick) else {
+        return;
+    };
+    let pantry_policy_by_owner: HashMap<Identity, u8> = ctx
+        .db
+        .player_resources()
+        .iter()
+        .map(|resources| {
+            (
+                resources.owner,
+                normalize_pantry_safeguard_policy(resources.pantry_safeguard_policy),
+            )
+        })
+        .collect();
     for need_kind in MARKET_NEEDS {
         // Scan residences once per need and group the cached claims by source.
         // This keeps distribution proportional to homes plus active stalls,
         // rather than multiplying a whole residence scan by every market.
-        let residences: Vec<Residence> = ctx
+        let residences: Vec<(Residence, f64, f64)> = ctx
             .db
             .residence()
             .iter()
-            .filter(|residence| {
-                !residence.abandoned
-                    && residence.population > 0
-                    && need_kind.is_active_for_tier(residence.tier)
-                    && !tick.residence_disabled_by_fire(ctx, residence.id)
-                    && residence_has_distribution_room(ctx, residence.id, need_kind)
+            .filter_map(|residence| {
+                if residence.abandoned
+                    || residence.population == 0
+                    || !need_kind.is_active_for_tier(residence.tier)
+                    || tick.residence_disabled_by_fire(ctx, residence.id)
+                {
+                    return None;
+                }
+                let pantry_policy = pantry_policy_by_owner
+                    .get(&residence.owner)
+                    .copied()
+                    .unwrap_or(PANTRY_SAFEGUARD_DEFAULT);
+                let (target_stock, daily_lot) = household_issue_target(
+                    ctx,
+                    &residence,
+                    need_kind,
+                    issue_cycle,
+                    environment,
+                    pantry_policy,
+                )?;
+                Some((residence, target_stock, daily_lot))
             })
             .collect();
-        let mut residences_by_market: BTreeMap<u64, Vec<Residence>> = BTreeMap::new();
-        for residence in residences {
+        let mut residences_by_market: BTreeMap<u64, Vec<(Residence, f64, f64)>> = BTreeMap::new();
+        for (residence, target_stock, daily_lot) in residences {
             let Some(market_id) =
                 tick.local_marketplace_for_residence(ctx, residence.owner, residence.id, need_kind)
             else {
@@ -73,7 +137,7 @@ pub fn step_market_household_distribution(ctx: &ReducerContext, tick: &SimTickCo
             residences_by_market
                 .entry(market_id)
                 .or_default()
-                .push(residence);
+                .push((residence, target_stock, daily_lot));
         }
 
         let mut targets_by_owner: HashMap<Identity, Vec<DistributionTarget>> = HashMap::new();
@@ -93,7 +157,7 @@ pub fn step_market_household_distribution(ctx: &ReducerContext, tick: &SimTickCo
             };
             let positions: Vec<(f64, f64)> = residences
                 .iter()
-                .map(|residence| (residence.x, residence.z))
+                .map(|(residence, _, _)| (residence.x, residence.z))
                 .collect();
             let distances = network.road_path_distances_from(market.x, market.z, &positions);
             targets_by_owner
@@ -115,15 +179,13 @@ pub fn step_market_household_distribution(ctx: &ReducerContext, tick: &SimTickCo
             .collect();
         let mut sources_by_owner: HashMap<Identity, Vec<Building>> = HashMap::new();
         for market in market_candidates {
-            let Some(network) = tick.road_network(market.owner) else {
+            if tick.road_network(market.owner).is_none() {
                 continue;
-            };
-            if tick.marketplace_has_stall_workers(ctx, network, &market, need_kind) {
-                sources_by_owner
-                    .entry(market.owner)
-                    .or_default()
-                    .push(market);
             }
+            sources_by_owner
+                .entry(market.owner)
+                .or_default()
+                .push(market);
         }
 
         for (owner, mut targets) in targets_by_owner {
@@ -135,35 +197,63 @@ pub fn step_market_household_distribution(ctx: &ReducerContext, tick: &SimTickCo
             };
             sources.sort_by_key(|market| market.id);
             sort_distribution_targets(&mut targets);
+            let pantry_policy = pantry_policy_by_owner
+                .get(&owner)
+                .copied()
+                .unwrap_or(PANTRY_SAFEGUARD_DEFAULT);
 
-            for target in targets {
-                if let Some(preferred_index) = sources.iter().position(|market| {
-                    market.id == target.preferred_source_id
-                        && market_stock(market, need_kind) > 1e-9
-                }) {
-                    distribute_to_residence(
+            // Allocate one household-day per pass. When stock is scarce this
+            // gives every connected home some cover before any one pantry is
+            // filled for the whole week.
+            for _ in 0..issue_cycle.ration_rounds(pantry_policy) {
+                for target in &targets {
+                    let current = need_stock(&load_needs(ctx, target.residence_id), need_kind);
+                    let round_target = target.target_stock.min(current + target.daily_lot);
+                    if let Some(preferred_index) = sources.iter().position(|market| {
+                        market.id == target.preferred_source_id
+                            && market_stock(market, need_kind) > 1e-9
+                    }) {
+                        distribute_to_residence(
+                            ctx,
+                            &mut sources[preferred_index],
+                            target.residence_id,
+                            need_kind,
+                            round_target,
+                        );
+                    }
+                    if !residence_has_distribution_room(
                         ctx,
-                        &mut sources[preferred_index],
                         target.residence_id,
                         need_kind,
-                    );
-                }
-                if !residence_has_distribution_room(ctx, target.residence_id, need_kind) {
-                    continue;
-                }
-                // Markets form one abstract supply network per connected road
-                // branch. If the nearest stall empties, another stocked stall
-                // can cover the home without waiting for the next tick.
-                for source in sources.iter_mut() {
-                    if source.id == target.preferred_source_id
-                        || market_stock(source, need_kind) <= 1e-9
-                        || !network.road_connected(source.x, source.z, target.x, target.z)
-                    {
+                        round_target,
+                    ) {
                         continue;
                     }
-                    distribute_to_residence(ctx, source, target.residence_id, need_kind);
-                    if !residence_has_distribution_room(ctx, target.residence_id, need_kind) {
-                        break;
+                    // Markets form one abstract supply network per connected
+                    // road branch. Another stocked square may finish this
+                    // day's ration when the preferred stall runs dry.
+                    for source in sources.iter_mut() {
+                        if source.id == target.preferred_source_id
+                            || market_stock(source, need_kind) <= 1e-9
+                            || !network.road_connected(source.x, source.z, target.x, target.z)
+                        {
+                            continue;
+                        }
+                        distribute_to_residence(
+                            ctx,
+                            source,
+                            target.residence_id,
+                            need_kind,
+                            round_target,
+                        );
+                        if !residence_has_distribution_room(
+                            ctx,
+                            target.residence_id,
+                            need_kind,
+                            round_target,
+                        ) {
+                            break;
+                        }
                     }
                 }
             }
@@ -172,6 +262,86 @@ pub fn step_market_household_distribution(ctx: &ReducerContext, tick: &SimTickCo
             }
         }
     }
+}
+
+fn market_issue_cycle(sim_tick: u64) -> Option<MarketIssueCycle> {
+    let ticks_per_day = (CALENDAR_SECONDS_PER_DAY / TICK_DT).round().max(1.0) as u64;
+    if sim_tick == 0 || sim_tick % ticks_per_day != 0 {
+        return None;
+    }
+    let day = sim_tick / ticks_per_day;
+    Some(if day % u64::from(CALENDAR_DAYS_PER_WEEK.max(1)) == 1 {
+        MarketIssueCycle::Weekly
+    } else {
+        MarketIssueCycle::Emergency
+    })
+}
+
+fn household_issue_target(
+    ctx: &ReducerContext,
+    residence: &Residence,
+    need_kind: ResidenceNeedKind,
+    issue_cycle: MarketIssueCycle,
+    environment: EnvironmentState,
+    pantry_policy: u8,
+) -> Option<(f64, f64)> {
+    let population = residence.population as f64;
+    let workday_seconds = CALENDAR_SECONDS_PER_DAY
+        * f64::from(CALENDAR_WORK_END_HOUR.saturating_sub(CALENDAR_WORK_START_HOUR))
+        / f64::from(CALENDAR_HOURS_PER_DAY.max(1));
+    let daily_lot = match need_kind {
+        ResidenceNeedKind::Food => household_food_per_day(residence.population),
+        ResidenceNeedKind::Firewood => {
+            population
+                * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC
+                * CALENDAR_SECONDS_PER_DAY
+                * environment.firewood_demand_multiplier()
+        }
+        ResidenceNeedKind::PreservedFood => (population
+            * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
+            * workday_seconds
+            * environment.preserved_food_demand_multiplier())
+        .min(household_food_per_day(residence.population)),
+        ResidenceNeedKind::Ale => {
+            population * RESIDENCE_ALE_PER_PERSON_PER_SEC * workday_seconds
+        }
+        ResidenceNeedKind::Cloth => {
+            population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workday_seconds
+        }
+        ResidenceNeedKind::Pottery => {
+            population * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workday_seconds
+        }
+        ResidenceNeedKind::Water
+        | ResidenceNeedKind::Church
+        | ResidenceNeedKind::FoodVariety => return None,
+    };
+    if daily_lot <= 1e-9 {
+        return None;
+    }
+    let stock = need_stock(&load_needs(ctx, residence.id), need_kind);
+    let days = match issue_cycle {
+        MarketIssueCycle::Weekly => f64::from(CALENDAR_DAYS_PER_WEEK.max(1)),
+        MarketIssueCycle::Emergency => {
+            // Daily intervention is reserved for calories and heat. Ale,
+            // clothing, and pottery wait for the next ordinary market day.
+            if !matches!(
+                need_kind,
+                ResidenceNeedKind::Firewood
+                    | ResidenceNeedKind::Food
+                    | ResidenceNeedKind::PreservedFood
+            ) {
+                return None;
+            }
+            let rule = emergency_pantry_rule(pantry_policy)?;
+            if stock + 1e-9 >= daily_lot * rule.trigger_days {
+                return None;
+            }
+            rule.target_days
+        }
+    };
+    let capacity = delivery_stock_room(need_kind, 0.0);
+    let target_stock = (daily_lot * days).min(capacity);
+    (stock + 1e-9 < target_stock).then_some((target_stock, daily_lot))
 }
 
 /// Allocate an operational well's stored water to every home in its service
@@ -184,7 +354,7 @@ pub fn distribute_well_water(ctx: &ReducerContext, tick: &SimTickContext, well: 
     let Some(network) = tick.road_network(well.owner) else {
         return;
     };
-    let residences: Vec<Residence> = ctx
+    let residences: Vec<(Residence, f64, f64)> = ctx
         .db
         .residence()
         .owner()
@@ -194,13 +364,21 @@ pub fn distribute_well_water(ctx: &ReducerContext, tick: &SimTickContext, well: 
                 && residence.population > 0
                 && ResidenceNeedKind::Water.is_active_for_tier(residence.tier)
                 && !tick.residence_disabled_by_fire(ctx, residence.id)
-                && residence_has_distribution_room(ctx, residence.id, ResidenceNeedKind::Water)
+                && delivery_stock_room(
+                    ResidenceNeedKind::Water,
+                    need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water),
+                ) > 1e-9
                 && tick.well_supplier_for(ctx, well.owner, residence.id) == Some(well.id)
+        })
+        .map(|residence| {
+            let stock = need_stock(&load_needs(ctx, residence.id), ResidenceNeedKind::Water);
+            let target = stock + delivery_stock_room(ResidenceNeedKind::Water, stock);
+            (residence, target, target)
         })
         .collect();
     let positions: Vec<(f64, f64)> = residences
         .iter()
-        .map(|residence| (residence.x, residence.z))
+        .map(|(residence, _, _)| (residence.x, residence.z))
         .collect();
     let distances = network.road_path_distances_from(well.x, well.z, &positions);
     let mut targets = distribution_targets(&residences, well.id, distances);
@@ -209,19 +387,25 @@ pub fn distribute_well_water(ctx: &ReducerContext, tick: &SimTickContext, well: 
         if well.water <= 1e-9 {
             break;
         }
-        distribute_to_residence(ctx, well, target.residence_id, ResidenceNeedKind::Water);
+        distribute_to_residence(
+            ctx,
+            well,
+            target.residence_id,
+            ResidenceNeedKind::Water,
+            target.target_stock,
+        );
     }
 }
 
 fn distribution_targets(
-    residences: &[Residence],
+    residences: &[(Residence, f64, f64)],
     preferred_source_id: u64,
     distances: Vec<Option<f64>>,
 ) -> Vec<DistributionTarget> {
     residences
         .iter()
         .zip(distances)
-        .filter_map(|(residence, distance)| {
+        .filter_map(|((residence, target_stock, daily_lot), distance)| {
             let distance = distance.filter(|distance| distance.is_finite())?;
             Some(DistributionTarget {
                 residence_id: residence.id,
@@ -229,6 +413,8 @@ fn distribution_targets(
                 x: residence.x,
                 z: residence.z,
                 distance,
+                target_stock: *target_stock,
+                daily_lot: *daily_lot,
             })
         })
         .collect()
@@ -246,11 +432,12 @@ fn residence_has_distribution_room(
     ctx: &ReducerContext,
     residence_id: u64,
     need_kind: ResidenceNeedKind,
+    target_stock: f64,
 ) -> bool {
-    delivery_stock_room(
-        need_kind,
-        need_stock(&load_needs(ctx, residence_id), need_kind),
-    ) > 1e-9
+    let stock = need_stock(&load_needs(ctx, residence_id), need_kind);
+    delivery_stock_room(need_kind, stock)
+        .min((target_stock - stock).max(0.0))
+        > 1e-9
 }
 
 fn distribute_to_residence(
@@ -258,16 +445,18 @@ fn distribute_to_residence(
     source: &mut Building,
     residence_id: u64,
     need_kind: ResidenceNeedKind,
+    target_stock: f64,
 ) {
     if matches!(
         need_kind,
         ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood
     ) {
-        distribute_food_to_residence(ctx, source, residence_id, need_kind);
+        distribute_food_to_residence(ctx, source, residence_id, need_kind, target_stock);
         return;
     }
     let stock = need_stock(&load_needs(ctx, residence_id), need_kind);
-    let room = delivery_stock_room(need_kind, stock);
+    let room = delivery_stock_room(need_kind, stock)
+        .min((target_stock - stock).max(0.0));
     if room <= 1e-9 {
         return;
     }
@@ -282,6 +471,7 @@ fn distribute_food_to_residence(
     source: &mut Building,
     residence_id: u64,
     need_kind: ResidenceNeedKind,
+    target_stock: f64,
 ) {
     let Some(mut residence) = ctx.db.residence().id().find(&residence_id) else {
         return;
@@ -296,7 +486,8 @@ fn distribute_food_to_residence(
             return;
         };
         let need_stock_now = need_stock(&load_needs(ctx, residence_id), need_kind);
-        let need_room = delivery_stock_room(need_kind, need_stock_now);
+        let need_room = delivery_stock_room(need_kind, need_stock_now)
+            .min((target_stock - need_stock_now).max(0.0));
         if need_room <= 1e-9 {
             return;
         }
@@ -306,7 +497,7 @@ fn distribute_food_to_residence(
             return;
         };
         let commodity_room = residence_commodity_delivery_room(&residence, commodity);
-        let amount = need_room
+        let amount = (need_room / commodity.meal_value().max(1e-9))
             .min(commodity_room)
             .min(building_commodity_stock(source, commodity));
         if amount <= 1e-9 {
@@ -341,7 +532,32 @@ fn market_stock(building: &Building, need_kind: ResidenceNeedKind) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{sort_distribution_targets, DistributionTarget};
+    use super::{
+        market_issue_cycle, sort_distribution_targets, DistributionTarget, MarketIssueCycle,
+    };
+
+    #[test]
+    fn household_market_issues_weekly_with_daily_emergency_checks() {
+        let ticks_per_day =
+            (crate::balance_generated::CALENDAR_SECONDS_PER_DAY
+                / crate::balance_generated::TICK_DT)
+                .round() as u64;
+        assert_eq!(market_issue_cycle(0), None);
+        assert_eq!(market_issue_cycle(ticks_per_day - 1), None);
+        assert_eq!(
+            market_issue_cycle(ticks_per_day),
+            Some(MarketIssueCycle::Weekly)
+        );
+        assert_eq!(market_issue_cycle(ticks_per_day + 1), None);
+        assert_eq!(
+            market_issue_cycle(ticks_per_day * 2),
+            Some(MarketIssueCycle::Emergency)
+        );
+        assert_eq!(
+            market_issue_cycle(ticks_per_day * 8),
+            Some(MarketIssueCycle::Weekly)
+        );
+    }
 
     #[test]
     fn scarce_distribution_prioritizes_nearest_home_then_stable_id() {
@@ -352,6 +568,8 @@ mod tests {
                 x: 0.0,
                 z: 0.0,
                 distance: 40.0,
+                target_stock: 7.0,
+                daily_lot: 1.0,
             },
             DistributionTarget {
                 residence_id: 10,
@@ -359,6 +577,8 @@ mod tests {
                 x: 0.0,
                 z: 0.0,
                 distance: 12.0,
+                target_stock: 7.0,
+                daily_lot: 1.0,
             },
             DistributionTarget {
                 residence_id: 20,
@@ -366,6 +586,8 @@ mod tests {
                 x: 0.0,
                 z: 0.0,
                 distance: 12.0,
+                target_stock: 7.0,
+                daily_lot: 1.0,
             },
         ];
         sort_distribution_targets(&mut ordered);
@@ -378,6 +600,8 @@ mod tests {
                     x: 0.0,
                     z: 0.0,
                     distance: 12.0,
+                    target_stock: 7.0,
+                    daily_lot: 1.0,
                 },
                 DistributionTarget {
                     residence_id: 20,
@@ -385,6 +609,8 @@ mod tests {
                     x: 0.0,
                     z: 0.0,
                     distance: 12.0,
+                    target_stock: 7.0,
+                    daily_lot: 1.0,
                 },
                 DistributionTarget {
                     residence_id: 30,
@@ -392,6 +618,8 @@ mod tests {
                     x: 0.0,
                     z: 0.0,
                     distance: 40.0,
+                    target_stock: 7.0,
+                    daily_lot: 1.0,
                 },
             ]
         );

@@ -453,14 +453,16 @@
     "residencePopulationWide": 4,
     "narrowParcelFrontageMax": 9.6,
     "wideParcelFrontageMin": 14,
-    "residenceFirewoodCapacity": 40,
-    "residenceFirewoodPerPersonPerSec": 0.02,
+    "residenceFirewoodCapacity": 60,
+    "residenceFirewoodPerPersonPerSec": 0.002777777777777778,
+    "charcoalHouseholdFuelValue": 2,
+    "marketplaceFuelReserveDays": 21,
     "residenceFirewoodPriorityWinterDays": 0.5,
     "residenceWaterCapacity": 24,
     "residenceWaterReorderFraction": 0.3333333333333333,
     "residenceWaterPerPersonPerSec": 0.012,
     "residenceFoodCapacity": 32,
-    "residenceFoodPerPersonPerSec": 0.015,
+    "residenceFoodPerPersonPerSec": 0.003619047619047619,
     "eveningMealPerPerson": 0.08,
     "foodCategoryQualifyingDays": 1,
     "backyardFoodReserveTier1Days": 3,
@@ -730,7 +732,9 @@
     "carpenterCartServiceTargetTrips": 15,
     "storehouseOverflowThreshold": 0.65,
     "storehouseHaulPerWorker": 24,
-    "storehouseFirewoodPerDelivery": 8
+    "storehouseFirewoodPerDelivery": 8,
+    "smithyCharcoalReorderCycles": 3,
+    "smithyCharcoalTargetCycles": 6
   },
   "farming": {
     "minFieldArea": 48,
@@ -1742,20 +1746,20 @@
     "apple_orchard": {
       "label": "Apple orchard",
       "cost": { "timber": 10, "stone": 4 },
-      "foodPerPersonPerSec": 0.009,
+      "foodPerPersonPerSec": 0.0025,
       "settlementAttractionMultiplier": 1
     },
     "cherry_orchard": {
       "label": "Cherry orchard",
       "cost": { "timber": 9, "stone": 3 },
-      "foodPerPersonPerSec": 0.008,
+      "foodPerPersonPerSec": 0.00225,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true
     },
     "vegetable_garden": {
       "label": "Vegetable garden",
       "cost": { "timber": 5, "stone": 2 },
-      "foodPerPersonPerSec": 0.012,
+      "foodPerPersonPerSec": 0.003,
       "settlementAttractionMultiplier": 1
     },
     "flower_garden": {
@@ -1773,19 +1777,19 @@
     "hen_yard": {
       "label": "Hen yard",
       "cost": { "timber": 6, "stone": 1 },
-      "foodPerPersonPerSec": 0.0105,
+      "foodPerPersonPerSec": 0.0025,
       "settlementAttractionMultiplier": 1
     },
     "goat_pen": {
       "label": "Goat pen",
       "cost": { "timber": 8, "stone": 2 },
-      "foodPerPersonPerSec": 0.0055,
+      "foodPerPersonPerSec": 0.0018,
       "settlementAttractionMultiplier": 0.97
     },
     "backyard_apiary": {
       "label": "Backyard apiary",
       "cost": { "timber": 7, "stone": 1 },
-      "foodPerPersonPerSec": 0.003,
+      "foodPerPersonPerSec": 0.001,
       "settlementAttractionMultiplier": 1.03
     }
   }

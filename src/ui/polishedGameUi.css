@@ -472,6 +472,22 @@ select:focus-visible {
 .settlement-hud__stat--gold .settlement-hud__value { color: #ecd188; }
 .settlement-hud__stat--water .settlement-hud__value { color: #a9d1e4; }
 .settlement-hud__stat--food .settlement-hud__value { color: #bfd69d; }
+.settlement-hud__stat--fuel .settlement-hud__value { color: #e0b178; }
+
+.settlement-hud__supply-value {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.settlement-hud__stat[data-supply-level='low'] .settlement-hud__supply-value,
+.settlement-hud__stat[data-supply-level='critical'] .settlement-hud__supply-value {
+  color: #f07f69;
+  text-shadow: 0 0 8px rgba(210, 62, 40, 0.28);
+}
+
+.settlement-hud__stat[data-supply-level='critical'] .settlement-hud__supply-value {
+  color: #ff654f;
+}
 
 .settlement-hud__sub {
   position: absolute;
@@ -664,6 +680,37 @@ select:focus-visible {
 
 .settlement-hud__food-grid {
   grid-template-columns: repeat(4, 70px);
+}
+
+.settlement-hud__fuel-grid {
+  grid-template-columns: repeat(2, 76px);
+}
+
+.settlement-hud__supply-summary {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border: 1px solid rgba(207, 181, 120, 0.14);
+  border-radius: 3px;
+  background: rgba(217, 190, 129, 0.045);
+}
+
+.settlement-hud__supply-summary strong {
+  color: #e8d5aa;
+  font: 700 13px/1.1 var(--ui-display);
+}
+
+.settlement-hud__supply-summary span {
+  max-width: 264px;
+  color: #a9a18f;
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.settlement-hud__food-stores[data-supply-level='low'] .settlement-hud__supply-summary strong,
+.settlement-hud__food-stores[data-supply-level='critical'] .settlement-hud__supply-summary strong {
+  color: #f07f69;
 }
 
 .settlement-hud__food-grid .settlement-hud__food-card {

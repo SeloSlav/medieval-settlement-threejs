@@ -17,12 +17,17 @@ import {
 import type { GameTableSyncState } from './gameTableSyncState.ts';
 import { DEFAULT_FISCAL_POLICY } from '../../economy/fiscalPolicy.ts';
 import { wholeResourceUnits } from '../../resources/resourceUnits.ts';
+import {
+  DEFAULT_PANTRY_SAFEGUARD_POLICY,
+  normalizePantrySafeguardPolicy,
+} from '../../economy/pantrySafeguardPolicy.ts';
 
 export function syncPlayerResources(rows: Iterable<PlayerResources>, state: GameTableSyncState): void {
   state.stockpile = createEmptyStockpile();
   state.physicalFoundingSiteEnabled = false;
   state.legacyUnhousedPopulationBonusEnabled = true;
   state.economicActivityTaxRate = ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
+  state.pantrySafeguardPolicy = DEFAULT_PANTRY_SAFEGUARD_POLICY;
   state.fiscalPolicy = { ...DEFAULT_FISCAL_POLICY };
   state.seasonalLaborStewardEnabled = DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED;
   state.constructionLaborStewardEnabled = DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED;
@@ -94,6 +99,9 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
     state.legacyUnhousedPopulationBonusEnabled =
       row.legacyUnhousedPopulationBonusEnabled ?? true;
     state.economicActivityTaxRate = row.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
+    state.pantrySafeguardPolicy = normalizePantrySafeguardPolicy(
+      row.pantrySafeguardPolicy,
+    );
     state.fiscalPolicy = {
       landLevyRate: row.landLevyRate ?? DEFAULT_FISCAL_POLICY.landLevyRate,
       importDutyRate: row.importDutyRate ?? DEFAULT_FISCAL_POLICY.importDutyRate,

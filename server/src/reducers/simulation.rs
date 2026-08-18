@@ -11,7 +11,7 @@ use crate::simulation::{
     step_construction_labor_stewards, step_construction_sites, step_delivery_trips, step_fires,
     step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_discretionary_trade,
-    step_household_market_orders, step_hunters_hall, step_industrial_firewood_dispatch,
+    step_hunters_hall, step_industrial_firewood_dispatch,
     step_institutional_food_dispatch, step_land_levies, step_large_quarry, step_live_raids,
     step_local_material_dispatch, step_lumber_mill, step_market_household_distribution,
     step_marketplace_caravans, step_marketplace_material_dispatch, step_mine, step_monastery,
@@ -187,7 +187,6 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     step_workforce_commutes(ctx, &tick, sim_tick);
     step_construction_sites(ctx, &tick, &clock);
     step_residence_upgrades(ctx, &tick, &clock);
-    step_household_market_orders(ctx, &tick, &clock, sim_tick);
     step_land_levies(ctx, &tick, &clock);
 
     let mut lumber_mill_ids: Vec<u64> = Vec::new();
@@ -372,17 +371,11 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         step_woodcutters_lodge(ctx, &tick, &clock, building);
     }
 
-    // Storehouse keepers first stock the shared Marketplace's fuel and goods
-    // stalls. Remaining producer or depot firewood may then feed workshops,
-    // where fuel runway and stable target order replace construction-order bias.
-    let household_storehouses = village_storehouse_ids
-        .iter()
-        .filter_map(|building_id| ctx.db.building().id().find(building_id))
-        .collect();
-    step_storehouse_market_stalls(ctx, &tick, &clock, household_storehouses);
+    // Fresh lodge output may stage firewood at processors before their work
+    // step. Depot carts are held until charcoal and market priorities have
+    // been evaluated after production below.
     let industrial_firewood_sources = woodcutters_lodge_ids
         .iter()
-        .chain(village_storehouse_ids.iter())
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
         .collect();
     step_industrial_firewood_dispatch(ctx, &tick, &clock, industrial_firewood_sources);
@@ -482,10 +475,24 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .collect();
     step_local_material_dispatch(ctx, &tick, &clock, local_material_sources);
 
-    // Depot carts that remain after household fuel, workshop-buffer, and
-    // construction duties may now collect the fullest producer overflow.
-    // Outbound work leads inbound consolidation so a depot cannot starve the
-    // very workshop it was positioned to serve.
+    // A depot's stored charcoal first had a chance to refill an active smithy
+    // to its six-cycle target. Remaining carts maintain one combined,
+    // population- and season-scaled Marketplace reserve, preferring charcoal
+    // so processed fuel does not stagnate in storage.
+    let household_storehouses = village_storehouse_ids
+        .iter()
+        .filter_map(|building_id| ctx.db.building().id().find(building_id))
+        .collect();
+    step_storehouse_market_stalls(ctx, &tick, &clock, environment, household_storehouses);
+
+    // Depots whose carts remain free may feed other firewood-burning workshops.
+    let industrial_firewood_sources = village_storehouse_ids
+        .iter()
+        .filter_map(|building_id| ctx.db.building().id().find(building_id))
+        .collect();
+    step_industrial_firewood_dispatch(ctx, &tick, &clock, industrial_firewood_sources);
+
+    // Only then may an idle depot collect the fullest producer overflow.
     let village_storehouses = village_storehouse_ids
         .iter()
         .filter_map(|building_id| ctx.db.building().id().find(building_id))
@@ -512,9 +519,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
 
     step_backyard_gardens(ctx, &tick, &clock, environment);
     step_fresh_food_spoilage(ctx, environment);
-    // Physical hauling ends at stalls. Recalculate abstract household
-    // availability after all local production, intake, and spoilage changes.
-    step_market_household_distribution(ctx, &tick);
+    // Physical hauling ends at stalls. Once per game day, issue real market
+    // stock to connected homes after local production, intake, and spoilage.
+    step_market_household_distribution(ctx, &tick, sim_tick, environment);
 
     let chapels: Vec<Building> = chapel_ids
         .into_iter()

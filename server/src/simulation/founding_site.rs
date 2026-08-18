@@ -152,12 +152,12 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
     }
 }
 
-/// While the shelter is occupied, one free villager may move its starter
-/// firewood and ironwork into permanent distribution and tool-maintenance
-/// chains. Bread waits at the camp for a granary. Once every founder has a
-/// home, the same route clears all other uncommitted stock. Storehouse filters
-/// and collection ceilings remain meaningful: this is physical logistics, not
-/// an inventory teleport.
+/// While the shelter is occupied, one free villager may move starter bread and
+/// firewood into a completed Marketplace, providing a viable first household
+/// supply point before permanent depots exist. Ironwork can still enter its
+/// maintenance chain. Once every founder has a home, the same route clears all
+/// other uncommitted stock. This remains physical camp-to-building logistics;
+/// only the market-to-home last mile is abstract.
 fn try_start_stockyard_relocation(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -199,7 +199,8 @@ fn try_start_stockyard_relocation(
                     && !building_has_inbound_supply_trip(ctx, candidate.id)
             })
             .filter_map(|candidate| {
-                let (priority, room) = founding_destination_room(&candidate, commodity)?;
+                let (priority, room) =
+                    founding_destination_room(&candidate, commodity, starter_supplies_only)?;
                 let distance =
                     local_delivery_distance(&network, site.x, site.z, candidate.x, candidate.z)?;
                 Some((candidate, priority, room, distance))
@@ -237,7 +238,23 @@ fn try_start_stockyard_relocation(
 /// collection ceilings. Other portable stock uses the same destination
 /// hierarchy as demolition recovery, but may not bounce back into another
 /// temporary camp or reclamation pile.
-fn founding_destination_room(candidate: &Building, commodity: CommodityKind) -> Option<(u8, f64)> {
+fn founding_destination_room(
+    candidate: &Building,
+    commodity: CommodityKind,
+    starter_supplies_only: bool,
+) -> Option<(u8, f64)> {
+    let starter_household_supply = starter_supplies_only
+        && matches!(
+            commodity,
+            CommodityKind::Firewood
+                | CommodityKind::RyeBread
+                | CommodityKind::OatBread
+                | CommodityKind::MaslinBread
+        );
+    if starter_household_supply && candidate.kind == "marketplace" {
+        let room = building_commodity_room(candidate, commodity);
+        return (room > EPSILON).then_some((0, room));
+    }
     if matches!(
         commodity,
         CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Firewood
@@ -246,22 +263,28 @@ fn founding_destination_room(candidate: &Building, commodity: CommodityKind) -> 
             return None;
         }
         let room = founding_storehouse_room(candidate, commodity);
-        return (room > EPSILON).then_some((0, room));
+        let priority = u8::from(starter_household_supply);
+        return (room > EPSILON).then_some((priority, room));
     }
     if matches!(candidate.kind.as_str(), "founders_camp" | "salvage_pile") {
         return None;
     }
-    let priority = founding_destination_priority(commodity, &candidate.kind)?;
+    let priority =
+        founding_destination_priority(commodity, &candidate.kind, starter_supplies_only)?;
     let room = building_commodity_room(candidate, commodity);
     (room > EPSILON).then_some((priority, room))
 }
 
-fn founding_destination_priority(commodity: CommodityKind, kind: &str) -> Option<u8> {
+fn founding_destination_priority(
+    commodity: CommodityKind,
+    kind: &str,
+    starter_supplies_only: bool,
+) -> Option<u8> {
     if matches!(
         commodity,
         CommodityKind::RyeBread | CommodityKind::OatBread | CommodityKind::MaslinBread
     ) {
-        return (kind == "granary").then_some(0);
+        return (kind == "granary").then_some(u8::from(starter_supplies_only));
     }
     reclamation_destination_priority(commodity, kind)
 }
@@ -410,25 +433,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn starter_breads_wait_for_a_granary() {
+    fn starter_breads_prefer_the_market_and_keep_granary_fallback() {
         for bread in [
             CommodityKind::RyeBread,
             CommodityKind::OatBread,
             CommodityKind::MaslinBread,
         ] {
             assert_eq!(
-                founding_destination_priority(bread, "granary"),
-                Some(0),
+                founding_destination_priority(bread, "marketplace", true),
+                None,
             );
+            assert_eq!(founding_destination_priority(bread, "granary", true), Some(1));
+            assert_eq!(founding_destination_priority(bread, "granary", false), Some(0));
             for kind in [
                 "foragers_shed",
                 "hunters_hall",
                 "fishing_camp",
-                "marketplace",
                 "bakery",
             ] {
                 assert_eq!(
-                    founding_destination_priority(bread, kind),
+                    founding_destination_priority(bread, kind, true),
                     None,
                     "starter bread must not relocate into {kind}",
                 );

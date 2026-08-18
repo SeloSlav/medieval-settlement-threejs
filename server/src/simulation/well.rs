@@ -2,23 +2,20 @@ use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
 use crate::constants::{
-    TICK_DT, WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC, WELL_SURGE_AMOUNT_MAX,
-    WELL_SURGE_AMOUNT_MIN, WELL_SURGE_CHANCE_PER_TICK, WELL_SURGE_COOLDOWN_SEC,
-    WELL_WATER_PER_DELIVERY,
+    TICK_DT, WELL_SURGE_AMOUNT_MAX, WELL_SURGE_AMOUNT_MIN, WELL_SURGE_CHANCE_PER_TICK,
+    WELL_SURGE_COOLDOWN_SEC,
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
-use crate::economy::CommodityKind;
+use crate::economy::{deposit_building_commodity, CommodityKind};
 use crate::hydrology::sample_world_hydrology_score;
 use crate::roads::RoadNetwork;
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_trips::{
-    available_free_haulers, building_has_active_trip, building_has_inbound_supply_trip,
-    try_start_building_supply_trip,
+    available_free_haulers, building_has_inbound_supply_trip,
 };
 use crate::simulation::expanded_economy::processor_accepts_input;
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::simulation::{
@@ -28,8 +25,8 @@ use crate::simulation::{
 use crate::tables::Building;
 use crate::well_policy::{
     industrial_water_input_preference_rank, industrial_water_requirement, industrial_water_target,
-    select_industrial_water_candidate, well_refill_amount, IndustrialWaterCandidate,
-    INDUSTRIAL_WATER_BUILDING_KINDS,
+    position_within_well_service_radius, select_industrial_water_candidate, well_refill_amount,
+    IndustrialWaterCandidate, INDUSTRIAL_WATER_BUILDING_KINDS,
 };
 
 pub fn step_well(
@@ -38,7 +35,7 @@ pub fn step_well(
     sim_tick: u64,
     world_seed: u64,
     world_hydrology: u8,
-    clock: &GameClock,
+    _clock: &GameClock,
     environment: EnvironmentState,
     building: Building,
 ) {
@@ -68,8 +65,8 @@ pub fn step_well(
     well.action_cooldown = (well.action_cooldown - TICK_DT).max(0.0);
 
     // A completed well is infrastructure, not a workplace. Groundwater
-    // accumulates at the baseline draw rate. Household availability is then
-    // allocated abstractly; flexible haulers are reserved only for industry.
+    // accumulates at the baseline draw rate, then supplies nearby connected
+    // consumers directly without creating routine water-carrier agents.
     well.water = (well.water
         + well_refill_amount(hydrology, environment.well_refill_multiplier(), TICK_DT))
     .min(capacity);
@@ -107,39 +104,40 @@ pub fn step_well(
         return;
     }
 
-    let routine_logistics_paused = labor_and_logistics_paused(ctx, tick, well.owner, clock);
-
-    // Domestic water has first claim without consuming cart labor. Industry
-    // still requires a physical trip from the remainder.
+    // Domestic water has first claim. Nearby road-connected workshops then
+    // fill their real input buffers from the remainder. Both transfers drain
+    // this well and neither reserves a free hauler or creates a delivery trip.
     distribute_well_water(ctx, tick, &mut well);
-    let industrial_delivery_ready = !routine_logistics_paused
-        && well.water > 1e-9
-        && available_free_haulers(ctx, well.owner) > 0
-        && !building_has_active_trip(ctx, well.id);
-    if industrial_delivery_ready {
-        if let Some(target) = select_industrial_water_target(ctx, tick, network, &well) {
-            let needed =
-                (industrial_water_target(&target.kind, target.processor_output_target_percent)
-                    - target.water)
-                    .max(0.0);
-            try_start_building_supply_trip(
-                ctx,
-                tick,
-                clock,
-                network,
-                &mut well,
-                &target,
-                1,
-                CommodityKind::Water,
-                WATER_DELIVERY_SPEED_MPS,
-                WATER_DELIVERY_UNLOAD_SEC,
-                WELL_WATER_PER_DELIVERY,
-                needed,
-            );
-        }
-    }
+    distribute_industrial_water(ctx, tick, network, &mut well);
 
     ctx.db.building().id().update(well);
+}
+
+fn distribute_industrial_water(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    network: &RoadNetwork,
+    well: &mut Building,
+) {
+    while well.water > 1e-9 {
+        let Some(mut target) = select_industrial_water_target(ctx, tick, network, well) else {
+            break;
+        };
+        let needed =
+            (industrial_water_target(&target.kind, target.processor_output_target_percent)
+                - target.water)
+                .max(0.0);
+        let supplied = deposit_building_commodity(
+            &mut target,
+            CommodityKind::Water,
+            needed.min(well.water),
+        );
+        if supplied <= 1e-9 {
+            break;
+        }
+        well.water = (well.water - supplied).max(0.0);
+        ctx.db.building().id().update(target);
+    }
 }
 
 fn select_industrial_water_target(
@@ -170,6 +168,15 @@ fn select_industrial_water_target(
                     return None;
                 }
                 if candidate.kind == "weaver" && candidate.flax <= 1e-6 {
+                    return None;
+                }
+                if !position_within_well_service_radius(
+                    well.x,
+                    well.z,
+                    well.work_radius,
+                    candidate.x,
+                    candidate.z,
+                ) {
                     return None;
                 }
                 let distance =

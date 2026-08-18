@@ -20,14 +20,7 @@ import {
 } from '../../logistics/deliveryTrips.ts';
 import { hydrologyGradeLabel, wellCapacityFromHydrology } from '../../hydrology/sampleHydrology.ts';
 import { sampleAuthoritativeHydrologyScore } from '../../hydrology/sampleAuthoritativeHydrology.ts';
-import {
-  formatDeliveryRoadDistance,
-  formatDeliveryTripDuration,
-} from '../../logistics/deliveryLogistics.ts';
-import {
-  industrialWaterTarget,
-  wellWaterPerDelivery,
-} from '../../logistics/waterLogistics.ts';
+import { industrialWaterTarget } from '../../logistics/waterLogistics.ts';
 import { weaverFibreDeliveryPreferenceLabel } from '../../economy/weaverInputPolicy.ts';
 import { formatCooldown } from './woodcuttersLodgeStatus.ts';
 
@@ -46,13 +39,11 @@ export function renderWellInspector(
   const claimedResidences = context.worldQueries.getClaimedResidencesForWell(building);
   const industrialConsumers = context.worldQueries.getRoadConnectedWaterConsumers(building);
   const nextIndustrialTarget = context.worldQueries.getNextIndustrialWaterTargetForWell(building);
-  const nextDeliveryTarget = nextIndustrialTarget;
   const activeTrips = [...context.gameState.deliveryTrips.values()]
     .filter((trip) => trip.buildingId === building.id);
   const respondingTrips = activeTrips.filter((trip) =>
     trip.destinationKind === 'fire' && trip.phase !== 'inbound');
   const activeTrip = respondingTrips[0] ?? activeTrips[0] ?? null;
-  const freeHaulerReady = context.populationStats.available > 0;
   const refillHydrology = Math.max(hydrology, WELL_MINIMUM_REFILL_HYDROLOGY);
   const refillPerSec = WELL_BASE_REFILL_PER_SEC
     * refillHydrology;
@@ -61,7 +52,7 @@ export function renderWellInspector(
     : '';
   const nextTargetLabel = nextIndustrialTarget
       ? `${context.worldQueries.getBuildingLabel(nextIndustrialTarget.kind)}${industrialPreferenceLabel} (${Math.round(nextIndustrialTarget.water)} / ${Math.round(industrialWaterTarget(nextIndustrialTarget.kind, nextIndustrialTarget.processorOutputTargetPercent))} staged water)`
-      : 'No workshop needs a water cart';
+      : 'No nearby workshop needs water';
   const activeTargetLabel = formatTripDestinationLabel(
     activeTrip,
     (id) => context.worldQueries.getResidence(id),
@@ -72,20 +63,9 @@ export function renderWellInspector(
       nextTargetLabel,
     ),
   );
-  const deliveryTripSeconds = context.worldQueries.getWellDeliveryTripSeconds(building, nextDeliveryTarget);
-  const deliveryDistance = activeTrip
-    ? context.worldQueries.getActiveTripPathDistance(activeTrip)
-    : nextDeliveryTarget
-      ? context.worldQueries.getRoadPathDistance(building.x, building.z, nextDeliveryTarget.x, nextDeliveryTarget.z)
-      : null;
-  const waterPerTrip = wellWaterPerDelivery(activeTrip?.deliveryWorkers ?? 1);
   const tripRemaining = activeTrip
     ? context.worldQueries.getDeliveryTripRemainingSeconds(activeTrip)
     : null;
-  const canDeliver = freeHaulerReady
-    && building.water > 0
-    && nextIndustrialTarget != null
-    && activeTrips.length === 0;
 
   let statusText: string;
   let statusState: InspectorView['statusState'];
@@ -95,8 +75,8 @@ export function renderWellInspector(
   } else if (activeTrip) {
     statusText = `Deliverer ${formatTripPhaseLabel(activeTrip.phase).toLowerCase()} — ${formatCooldown(tripRemaining ?? Infinity)} remaining → ${activeTargetLabel}`;
     statusState = 'active';
-  } else if (canDeliver) {
-    statusText = `Households supplied instantly · workshop cart ready — ${nextTargetLabel}`;
+  } else if (nextIndustrialTarget && building.water > 1e-6) {
+    statusText = `Supplying homes first, then nearby workshops automatically — ${nextTargetLabel}`;
     statusState = 'active';
   } else if (claimedResidences.length > 0 && building.water > 1e-6) {
     statusText = `Supplying ${claimedResidences.length} connected home${claimedResidences.length === 1 ? '' : 's'} instantly — ${fillPct}% reserve remains`;
@@ -104,9 +84,6 @@ export function renderWellInspector(
   } else if (building.water + 1e-6 >= capacity) {
     statusText = `Full — ${claimedResidences.length} connected home${claimedResidences.length === 1 ? '' : 's'} covered`;
     statusState = 'active';
-  } else if (!freeHaulerReady && nextDeliveryTarget) {
-    statusText = `Waiting for a free hauler — ${fillPct}% stored`;
-    statusState = 'idle';
   } else {
     statusText = `Groundwater refilling — ${fillPct}% (${Math.round(building.water)} / ${Math.round(capacity)})`;
     statusState = building.water > capacity * 0.2 ? 'active' : 'idle';
@@ -116,12 +93,8 @@ export function renderWellInspector(
     ? `<li><span>Emergency response</span><span>${respondingTrips.length} concurrent bucket ${respondingTrips.length === 1 ? 'carrier' : 'carriers'}</span></li>
       <li><span>Water committed</span><span>${Math.round(respondingTrips.reduce((sum, trip) => sum + Math.max(0, trip.amount), 0))}</span></li>
       <li><span>Tracked carrier</span><span>${activeTargetLabel} · ${formatTripPhaseLabel(activeTrip!.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left</span></li>`
-    : activeTrip || nextIndustrialTarget
-    ? `<li><span>Next physical cart</span><span>${activeTrip ? activeTargetLabel : nextTargetLabel}</span></li>
-      <li><span>Road distance</span><span>${formatDeliveryRoadDistance(deliveryDistance)}</span></li>
-      <li><span>Delivery timer</span><span>${activeTrip ? `${formatTripPhaseLabel(activeTrip.phase)} — ${formatCooldown(tripRemaining ?? Infinity)} left` : `Ready / ${formatDeliveryTripDuration(deliveryTripSeconds)}`}</span></li>
-      <li><span>Water per trip</span><span>${waterPerTrip}</span></li>`
-    : `<li><span>Physical cart</span><span>None required for households</span></li>`;
+    : `<li><span>Routine delivery</span><span>No cart — homes and workshops draw automatically within this well's radius and road branch</span></li>
+      <li><span>Next workshop</span><span>${nextTargetLabel}</span></li>`;
   const workshopDemand = [
     ['brewer', industrialConsumers.filter((item) => item.kind === 'brewery').length],
     ['bakery', industrialConsumers.filter((item) => item.kind === 'bakery').length],
@@ -141,14 +114,14 @@ export function renderWellInspector(
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${buildingRoadAccessRow(context.worldQueries, building)}
-      <li data-inspector-secondary data-inspector-detail="Household water needs no assigned worker or last-mile cart."><span>Labor</span><span>None</span></li>
+      <li data-inspector-secondary data-inspector-detail="Routine water service needs no assigned worker or last-mile cart."><span>Labor</span><span>None</span></li>
       <li><span>Hydrology</span><span>${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)</span></li>
       <li><span>Stored water</span><span>${Math.round(building.water)} / ${Math.round(capacity)}</span></li>
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
       ${buildingExtentRow(building.kind)}
       <li><span>Homes served</span><span>${claimedResidences.length === 0 ? 'None connected' : claimedResidences.length}</span></li>
       <li><span>Workshop demand</span><span>${workshopDemand || 'None'}</span></li>
-      <li data-inspector-secondary data-inspector-detail="Connected homes draw directly from storage. Workshops receive physical cart deliveries according to their input policy and buffer."><span>Distribution</span><span>Homes direct · workshops carted</span></li>
+      <li data-inspector-secondary data-inspector-detail="Connected homes draw first from real well storage; nearby road-connected workshops then fill their real input buffers from the remainder."><span>Distribution</span><span>Automatic in radius · homes first</span></li>
       <li data-inspector-secondary data-inspector-detail="Fire calls reserve new water before homes and workshops; all useful free haulers may respond together."><span>Fire priority</span><span>Emergency calls first</span></li>
       ${deliveryRow}
     `,

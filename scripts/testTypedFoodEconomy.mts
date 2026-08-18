@@ -4,11 +4,16 @@ import {
   NAMED_FOOD_KINDS,
   foodCategory,
   foodCategoryQualifyingStock,
+  foodMealValue,
+  foodSpoilageMultiplier,
   foodVarietyCount,
   edibleFoodStock,
+  edibleFoodMealEquivalents,
   freshFoodStock,
+  freshFoodMealEquivalents,
   preservableFoodStock,
   preservedFoodStock,
+  preservedFoodMealEquivalents,
 } from '../src/economy/foodInventory.ts';
 import {
   cargoKindFromId,
@@ -34,6 +39,13 @@ assert.equal(freshFoodStock(pantry), 15);
 assert.equal(preservableFoodStock(pantry), 6);
 assert.equal(preservedFoodStock(pantry), 21);
 assert.equal(edibleFoodStock(pantry), 45);
+assert.ok(Math.abs(freshFoodMealEquivalents(pantry) - 13.05) < 1e-9);
+assert.ok(Math.abs(preservedFoodMealEquivalents(pantry) - 21.45) < 1e-9);
+assert.ok(Math.abs(edibleFoodMealEquivalents(pantry) - 45.3) < 1e-9);
+assert.equal(foodMealValue('honey'), 1.2);
+assert.equal(foodMealValue('apples'), 0.6);
+assert.equal(foodSpoilageMultiplier('honey'), 0);
+assert.ok(foodSpoilageMultiplier('milk') > foodSpoilageMultiplier('apples'));
 assert.equal(NAMED_FOOD_KINDS.length, 18);
 assert.equal(foodCategory('apples'), 'fruits');
 assert.equal(foodCategory('cherries'), 'fruits');
@@ -45,15 +57,15 @@ assert.equal(
   3,
   'close substitutes must not inflate household variety',
 );
-assert.ok(Math.abs(foodCategoryQualifyingStock(1) - 1.13) < 1e-9);
-assert.ok(Math.abs(foodCategoryQualifyingStock(6) - 6.78) < 1e-9);
+assert.ok(Math.abs(foodCategoryQualifyingStock(1) - 1 / 3) < 1e-9);
+assert.ok(Math.abs(foodCategoryQualifyingStock(6) - 2) < 1e-9);
 assert.equal(
-  foodVarietyCount({ vegetables: 1 }, 1),
+  foodVarietyCount({ vegetables: 0.4 }, 1),
   0,
   'a token amount must not qualify a category',
 );
 assert.equal(
-  foodVarietyCount({ vegetables: 1.13 }, 1),
+  foodVarietyCount({ vegetables: 0.5 }, 1),
   1,
   'vegetables must qualify as their own category once a full household-day is stocked',
 );
@@ -140,8 +152,8 @@ const transit = computeInTransitResourceTotals([
 assert.equal(transit.ryeBread, 10);
 assert.equal(transit.meat, 4);
 assert.equal(transit.cheese, 3);
-assert.equal(transit.preservedFood, 3);
-assert.equal(transit.food, 19);
+assert.ok(Math.abs(transit.preservedFood - 2.7) < 1e-9);
+assert.ok(Math.abs(transit.food - 19.5) < 1e-9);
 
 assert.equal(processorInputCommodityStock(pantry, 'food'), 6);
 assert.equal(processorInputCommodityStock(pantry, 'preservedFood'), 21);

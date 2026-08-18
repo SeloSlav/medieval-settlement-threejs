@@ -29,7 +29,10 @@ import {
   allocatePreservedMeal,
   freshFoodRunwayWithPreservedRotation,
 } from '../src/economy/preservedFoodPolicy.ts';
-import { householdFoodPerDay } from '../src/economy/foodInventory.ts';
+import {
+  foodSpoilageMultiplier,
+  householdFoodPerDay,
+} from '../src/economy/foodInventory.ts';
 import { computeResourceTotals } from '../src/resources/resourceTotals.ts';
 import type {
   BuildingState,
@@ -61,6 +64,14 @@ const clientPreservedFoodPolicy = readFileSync(
 );
 const authoritativeSimulation = readFileSync(
   new URL('../server/src/reducers/simulation.rs', import.meta.url),
+  'utf8',
+);
+const householdDistribution = readFileSync(
+  new URL('../server/src/simulation/household_distribution.rs', import.meta.url),
+  'utf8',
+);
+const deliveryCargo = readFileSync(
+  new URL('../server/src/simulation/delivery_cargo.rs', import.meta.url),
   'utf8',
 );
 const settlementHud = readFileSync(
@@ -112,6 +123,31 @@ assert.doesNotMatch(
   settlementHud,
   /data-provision-alert|provisionAlert|provisionLabel|provisionDetail/,
   'the provisioning banner must not be mounted in the settlement HUD',
+);
+assert.match(settlementHud, /data-food-runway/);
+assert.match(settlementHud, /data-fuel-stores/);
+assert.match(settlementHud, /data-fuel-runway/);
+assert.match(settlementHud, /meal-equivalents usable/);
+assert.match(settlementHud, /firewood \+.*charcoal.*fuel-equivalents/);
+assert.match(
+  householdDistribution,
+  /MarketIssueCycle::Weekly[\s\S]*CALENDAR_DAYS_PER_WEEK[\s\S]*MarketIssueCycle::Emergency/,
+  'markets must issue weekly pantry lots while retaining daily emergency checks',
+);
+assert.match(
+  householdDistribution,
+  /stock \+ 1e-9 >= daily_lot[\s\S]*MarketIssueCycle::Emergency => 2\.0/,
+  'emergency distribution must top up only pantries below one day and cover two days',
+);
+assert.match(
+  householdDistribution,
+  /Allocate one household-day per pass/,
+  'scarce weekly market stock must be rationed fairly across connected homes',
+);
+assert.match(
+  deliveryCargo,
+  /CHARCOAL_HOUSEHOLD_FUEL_VALUE[\s\S]*NeedKind::Firewood[\s\S]*building\.charcoal/,
+  'charcoal must be converted to household heat-equivalents by the authoritative server',
 );
 assert.match(chapelInspector, /stock them before Saturday night/);
 assert.match(guardhouseInspector, /Food endurance/);
@@ -247,14 +283,55 @@ const charcoalHeat = computeSettlementProvisioning({
 });
 assert.equal(
   charcoalHeat.firewoodStock,
-  60,
-  'only charcoal staged in household distribution stores should count as aggregate heating fuel',
+  120,
+  'staged charcoal should count at twice its raw quantity as aggregate household heat',
 );
-assert.equal(charcoalHeat.usableFirewoodStock, 60);
+assert.equal(charcoalHeat.usableFirewoodStock, 120);
 assert.equal(
   charcoalHeat.roadBranches?.physicalFirewoodStock,
-  45,
-  'market charcoal and an inbound charcoal cart must count as branch heating fuel',
+  90,
+  'market charcoal and an inbound charcoal cart must count at twice their raw quantity',
+);
+
+const monthlySupplyState = emptyGameState();
+monthlySupplyState.stockpile.food = 100;
+monthlySupplyState.stockpile.firewood = 100;
+monthlySupplyState.residences.set(
+  'monthly-supply-home',
+  residence('monthly-supply-home', 1, 10),
+);
+const monthlySupply = computeSettlementProvisioning({
+  state: monthlySupplyState,
+  totals: computeResourceTotals(monthlySupplyState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+});
+assert.ok(
+  Math.abs(monthlySupply.foodRunwayWithoutSpoilageDays - 30) < 1e-6,
+  `100 meal-equivalents should feed 10 people for 30 days before spoilage (${monthlySupply.foodRunwayWithoutSpoilageDays})`,
+);
+assert.ok(
+  Math.abs(monthlySupply.currentFirewoodRunwayDays - 30) < 1e-6,
+  `100 firewood-equivalents should heat 10 people for 30 ordinary days (${monthlySupply.currentFirewoodRunwayDays})`,
+);
+
+const monthlyCharcoalState = emptyGameState();
+monthlyCharcoalState.stockpile.charcoal = 50;
+monthlyCharcoalState.residences.set(
+  'monthly-charcoal-home',
+  residence('monthly-charcoal-home', 1, 10),
+);
+const monthlyCharcoal = computeSettlementProvisioning({
+  state: monthlyCharcoalState,
+  totals: computeResourceTotals(monthlyCharcoalState),
+  currentFirewoodDemandMultiplier: 1,
+  freshFoodSpoilageFractionPerDay: 0,
+  sabbathObserved: false,
+});
+assert.ok(
+  Math.abs(monthlyCharcoal.currentFirewoodRunwayDays - 30) < 1e-6,
+  `50 charcoal should heat 10 people for 30 ordinary days (${monthlyCharcoal.currentFirewoodRunwayDays})`,
 );
 
 const physicalPayrollState = emptyGameState();
@@ -549,6 +626,7 @@ assert.ok(Math.abs(
   curedBranch.preservedFoodSpoilagePerDay
   - 14
     * PRESERVED_FOOD_SPOILAGE_PER_DAY
+    * foodSpoilageMultiplier('preservedFood')
     * PRESERVED_FOOD_STORAGE_MARKETPLACE_FACTOR,
 ) < 1e-9);
 assert.ok(

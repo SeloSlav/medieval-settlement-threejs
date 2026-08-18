@@ -12,6 +12,7 @@ import { computeResourceTotals } from '../resources/resourceTotals.ts';
 import type { FireTargetKind } from '../fires/fireIncident.ts';
 import type { StorehouseCommodity } from '../economy/storehousePolicy.ts';
 import type { NightPolicyCode } from '../economy/nightPolicy.ts';
+import type { PantrySafeguardPolicyCode } from '../economy/pantrySafeguardPolicy.ts';
 
 export type InspectorSpacetimeActions = {
   onDemolishBuilding: (buildingId: string) => Promise<void>;
@@ -46,6 +47,7 @@ export type InspectorSpacetimeActions = {
   onSetLivestockBreedingReserve: (buildingId: string, breedingReserve: number) => Promise<void>;
   onSetLivestockHaymakingPercent: (buildingId: string, haymakingPercent: number) => Promise<void>;
   onSetEconomicActivityTaxRate: (taxRate: number) => Promise<void>;
+  onSetPantrySafeguardPolicy: (policy: PantrySafeguardPolicyCode) => Promise<void>;
   onSetFiscalPolicy: (
     landLevyRate: number,
     importDutyRate: number,
@@ -69,6 +71,7 @@ export type InspectorSpacetimeActions = {
     acceptsTimber: boolean,
     acceptsStone: boolean,
     acceptsFirewood: boolean,
+    acceptsCharcoal: boolean,
     acceptsIron: boolean,
     acceptsClay: boolean,
     acceptsSalt: boolean,
@@ -490,6 +493,21 @@ export function createInspectorSpacetimeActions(
           : 'Town Hall construction steward disabled. Builder rotation is manual.',
       );
     },
+    onSetPantrySafeguardPolicy: async (policy) => {
+      const store = requireReady();
+      if (!store) return;
+      let updated = false;
+      await runReducer(
+        async () => {
+          await store.setPantrySafeguardPolicy(policy);
+          updated = true;
+        },
+        'Could not update the Town Hall pantry safeguard.',
+      );
+      if (updated) {
+        toastManager.show('Pantry safeguard posted. Weekly issues and automatic market checks will follow the new rule.');
+      }
+    },
     onSetFiscalPolicy: async (landLevyRate, importDutyRate, exportDutyRate) => {
       const store = requireReady();
       if (!store) return;
@@ -570,6 +588,7 @@ export function createInspectorSpacetimeActions(
       acceptsTimber,
       acceptsStone,
       acceptsFirewood,
+      acceptsCharcoal,
       acceptsIron,
       acceptsClay,
       acceptsSalt,
@@ -582,6 +601,7 @@ export function createInspectorSpacetimeActions(
           acceptsTimber,
           acceptsStone,
           acceptsFirewood,
+          acceptsCharcoal,
           acceptsIron,
           acceptsClay,
           acceptsSalt,

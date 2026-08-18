@@ -156,7 +156,7 @@ export function wellDeliveryTripSeconds(
 }
 
 export function formatWellCrewSplit(_assignedLabor = 0): string {
-  return 'No assigned crew · free hauler dispatched on demand';
+  return 'No assigned crew · nearby supply is automatic';
 }
 
 export function residenceWaterDemandPerSecond(residence: ResidenceState): number {
@@ -192,12 +192,15 @@ export function formatWaterRunwayDays(days: number): string {
   return `~${Math.max(1, Math.round(minutes))} min`;
 }
 
-function withinWellRadius(well: BuildingState, residence: ResidenceState): boolean {
+export function isWithinWellServiceRadius(
+  well: BuildingState,
+  target: Pick<BuildingState | ResidenceState, 'x' | 'z'>,
+): boolean {
   if (well.workRadius <= 0) return false;
-  const distance = Math.hypot(residence.x - well.x, residence.z - well.z);
+  const distance = Math.hypot(target.x - well.x, target.z - well.z);
   return distance <= well.workRadius;
 }
 
 export function isResidenceInWellRange(well: BuildingState, residence: ResidenceState): boolean {
-  return withinWellRadius(well, residence);
+  return isWithinWellServiceRadius(well, residence);
 }

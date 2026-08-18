@@ -27,6 +27,7 @@ import type { CombatAgentState } from '../../security/combatAgents.ts';
 import type { ActiveRaidState } from '../../security/activeRaid.ts';
 import type { NightPolicyState } from '../../economy/nightPolicy.ts';
 import type { FiscalPolicyState } from '../../economy/fiscalPolicy.ts';
+import type { PantrySafeguardPolicyCode } from '../../economy/pantrySafeguardPolicy.ts';
 
 export type GameTableSyncState = {
   identityHex: string | null;
@@ -37,6 +38,7 @@ export type GameTableSyncState = {
   physicalFoundingSiteEnabled: boolean;
   legacyUnhousedPopulationBonusEnabled: boolean;
   economicActivityTaxRate: number;
+  pantrySafeguardPolicy: PantrySafeguardPolicyCode;
   fiscalPolicy: FiscalPolicyState;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;

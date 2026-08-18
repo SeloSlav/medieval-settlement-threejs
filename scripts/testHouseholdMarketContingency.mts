@@ -605,20 +605,42 @@ const residenceInspector = readFileSync(
   'src/resources/inspector/residenceRenderer.ts',
   'utf8',
 );
-assert.match(residenceInspector, /Emergency imports/);
-assert.match(residenceInspector, /Standing-order rule/);
+assert.match(residenceInspector, /Town Hall safeguard/);
+assert.match(residenceInspector, /getPantrySafeguardPolicy/);
+assert.match(residenceInspector, /no household cart or player prompt/);
 const marketplaceInspector = readFileSync(
   'src/resources/inspector/marketplaceInspector.ts',
   'utf8',
 );
-assert.match(marketplaceInspector, /Emergency branch/);
-assert.match(marketplaceInspector, /household import duty; public and parish orders are exempt/);
+assert.match(marketplaceInspector, /Town Hall safeguard/);
+assert.match(marketplaceInspector, /getPantrySafeguardPolicy/);
+assert.match(marketplaceInspector, /Public Trading Post procurement/);
 const townHallInspector = readFileSync(
   'src/resources/inspector/townHallRenderer.ts',
   'utf8',
 );
-assert.match(townHallInspector, /Emergency purchasing power/);
+assert.match(townHallInspector, /Contingency purchasing power/);
+assert.match(townHallInspector, /automatic private household contingency imports/);
 assert.match(townHallInspector, /data-inspect-residence/);
+assert.match(townHallInspector, /Household market issues/);
+assert.match(townHallInspector, /data-pantry-safeguard-policy/);
+assert.match(townHallInspector, /Parish poor relief remains separate/);
+
+const householdDistribution = readFileSync(
+  'server/src/simulation/household_distribution.rs',
+  'utf8',
+);
+assert.match(householdDistribution, /emergency_pantry_rule\(pantry_policy\)/);
+assert.match(
+  householdDistribution,
+  /ResidenceNeedKind::Firewood[\s\S]*ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::PreservedFood/,
+  'daily safeguards should cover only household heat and calories',
+);
+assert.match(
+  householdDistribution,
+  /MarketIssueCycle::Weekly => f64::from\(CALENDAR_DAYS_PER_WEEK\.max\(1\)\)/,
+  'ordinary household issues should remain weekly pantry lots',
+);
 
 console.log(
   `household market contingency parity and routing tests passed (${perfMs.toFixed(1)} ms for 100,000 homes / 8 markets)`,

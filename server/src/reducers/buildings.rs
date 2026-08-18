@@ -812,6 +812,7 @@ pub(crate) fn place_building_internal(
         storehouse_accepts_iron: true,
         storehouse_accepts_clay: true,
         storehouse_accepts_salt: true,
+        storehouse_accepts_charcoal: true,
         granary_accepts_fresh_food: true,
         granary_households_first: false,
         granary_grain_reserve: 0.0,
@@ -835,6 +836,7 @@ pub(crate) fn place_building_internal(
         storehouse_iron_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
         storehouse_clay_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
         storehouse_salt_target_percent: STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        storehouse_charcoal_target_percent: 25,
         processor_output_target_percent: PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         gold: 0.0,
         founding_shelter_active: false,
@@ -1775,6 +1777,7 @@ pub fn set_storehouse_policy(
     accepts_timber: bool,
     accepts_stone: bool,
     accepts_firewood: bool,
+    accepts_charcoal: bool,
     accepts_iron: bool,
     accepts_clay: bool,
     accepts_salt: bool,
@@ -1795,6 +1798,7 @@ pub fn set_storehouse_policy(
     building.storehouse_accepts_timber = accepts_timber;
     building.storehouse_accepts_stone = accepts_stone;
     building.storehouse_accepts_firewood = accepts_firewood;
+    building.storehouse_accepts_charcoal = accepts_charcoal;
     building.storehouse_accepts_iron = accepts_iron;
     building.storehouse_accepts_clay = accepts_clay;
     building.storehouse_accepts_salt = accepts_salt;
@@ -1829,11 +1833,12 @@ pub fn set_storehouse_stock_target(
         "timber" => building.storehouse_timber_target_percent = target_percent,
         "stone" => building.storehouse_stone_target_percent = target_percent,
         "firewood" => building.storehouse_firewood_target_percent = target_percent,
+        "charcoal" => building.storehouse_charcoal_target_percent = target_percent,
         "iron" => building.storehouse_iron_target_percent = target_percent,
         "clay" => building.storehouse_clay_target_percent = target_percent,
         "salt" => building.storehouse_salt_target_percent = target_percent,
         _ => return Err(
-            "Storehouse stock target applies only to timber, stone, firewood, iron, clay, or salt."
+            "Storehouse stock target applies only to timber, stone, firewood, charcoal, iron, clay, or salt."
                 .to_string(),
         ),
     }

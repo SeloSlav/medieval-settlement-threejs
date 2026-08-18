@@ -20,10 +20,15 @@ import {
 } from '../generated/gameBalance.ts';
 import type { BuildingKind, GameState } from '../resources/types.ts';
 import {
-  freshFoodStock,
+  foodMealValue,
+  foodSpoilageMultiplier,
+  freshFoodMealEquivalents,
+  freshFoodSpoilageExposure,
   isFreshFoodCargo,
   isPreservedFoodCargo,
-  preservedFoodStock,
+  preservedFoodMealEquivalents,
+  preservedFoodSpoilageExposure,
+  type FoodInventoryKind,
 } from './foodInventory.ts';
 import { granaryFreshFoodTarget } from './granaryPolicy.ts';
 
@@ -137,11 +142,14 @@ export function analyzeFreshFoodPreservation(
     : PRESERVED_FOOD_SPOILAGE_PER_DAY;
   const treasuryStock = state.physicalFoundingSiteEnabled === true
     ? 0
-    : freshFoodStock(state.stockpile);
+    : freshFoodMealEquivalents(state.stockpile);
+  const treasuryExposure = state.physicalFoundingSiteEnabled === true
+    ? 0
+    : freshFoodSpoilageExposure(state.stockpile);
   let totalStock = treasuryStock;
-  let weightedStock = totalStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR;
+  let weightedStock = treasuryExposure * FRESH_FOOD_STORAGE_TREASURY_FACTOR;
   let usableStock = treasuryStock;
-  let usableWeightedStock = usableStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR;
+  let usableWeightedStock = treasuryExposure * FRESH_FOOD_STORAGE_TREASURY_FACTOR;
   let quarantinedStock = 0;
   let quarantinedWeightedStock = 0;
   let transitStock = 0;
@@ -151,10 +159,13 @@ export function analyzeFreshFoodPreservation(
   let largestLossSite: FreshFoodLossSite | null = null;
   const treasuryPreservedStock = state.physicalFoundingSiteEnabled === true
     ? 0
-    : preservedFoodStock(state.stockpile);
+    : preservedFoodMealEquivalents(state.stockpile);
+  const treasuryPreservedExposure = state.physicalFoundingSiteEnabled === true
+    ? 0
+    : preservedFoodSpoilageExposure(state.stockpile);
   let preservedTotalStock = treasuryPreservedStock;
   let preservedWeightedStock =
-    treasuryPreservedStock * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR;
+    treasuryPreservedExposure * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR;
   let preservedUsableStock = treasuryPreservedStock;
   let preservedUsableWeightedStock = preservedWeightedStock;
   let preservedQuarantinedStock = 0;
@@ -180,7 +191,7 @@ export function analyzeFreshFoodPreservation(
     buildingKind: null,
     stock: treasuryStock,
     storageFactor: FRESH_FOOD_STORAGE_TREASURY_FACTOR,
-    spoilagePerDay: treasuryStock * FRESH_FOOD_STORAGE_TREASURY_FACTOR * ambientRate,
+    spoilagePerDay: treasuryExposure * FRESH_FOOD_STORAGE_TREASURY_FACTOR * ambientRate,
   });
   preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
     source: 'treasury',
@@ -189,14 +200,16 @@ export function analyzeFreshFoodPreservation(
     stock: treasuryPreservedStock,
     storageFactor: PRESERVED_FOOD_STORAGE_TREASURY_FACTOR,
     spoilagePerDay:
-      treasuryPreservedStock
+      treasuryPreservedExposure
       * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR
       * preservedRate,
   });
 
   for (const building of state.buildings.values()) {
-    const stock = freshFoodStock(building);
-    const preservedStock = preservedFoodStock(building);
+    const stock = freshFoodMealEquivalents(building);
+    const exposure = freshFoodSpoilageExposure(building);
+    const preservedStock = preservedFoodMealEquivalents(building);
+    const preservedExposure = preservedFoodSpoilageExposure(building);
     const fireDisabled = options.fireDisabledBuildingIds?.has(building.id) ?? false;
     if (building.kind === 'granary' && building.constructionComplete !== false) {
       granaryNetwork.completedGranaries += 1;
@@ -220,13 +233,13 @@ export function analyzeFreshFoodPreservation(
     if (preservedStock > 0) {
       const factor = buildingPreservedFoodStorageFactor(building.kind);
       preservedTotalStock += preservedStock;
-      preservedWeightedStock += preservedStock * factor;
+      preservedWeightedStock += preservedExposure * factor;
       if (fireDisabled) {
         preservedQuarantinedStock += preservedStock;
-        preservedQuarantinedWeightedStock += preservedStock * factor;
+        preservedQuarantinedWeightedStock += preservedExposure * factor;
       } else {
         preservedUsableStock += preservedStock;
-        preservedUsableWeightedStock += preservedStock * factor;
+        preservedUsableWeightedStock += preservedExposure * factor;
       }
       preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
         source: 'building',
@@ -235,7 +248,7 @@ export function analyzeFreshFoodPreservation(
         stock: preservedStock,
         storageFactor: factor,
         spoilagePerDay:
-          preservedStock * factor * preservedRate,
+          preservedExposure * factor * preservedRate,
       });
       if (factor < PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR) {
         preservedProtectedStock += preservedStock;
@@ -244,13 +257,13 @@ export function analyzeFreshFoodPreservation(
     if (stock <= 0) continue;
     const factor = buildingFreshFoodStorageFactor(building.kind);
     totalStock += stock;
-    weightedStock += stock * factor;
+    weightedStock += exposure * factor;
     if (fireDisabled) {
       quarantinedStock += stock;
-      quarantinedWeightedStock += stock * factor;
+      quarantinedWeightedStock += exposure * factor;
     } else {
       usableStock += stock;
-      usableWeightedStock += stock * factor;
+      usableWeightedStock += exposure * factor;
     }
     largestLossSite = largerLossSite(largestLossSite, {
       source: 'building',
@@ -258,7 +271,7 @@ export function analyzeFreshFoodPreservation(
       buildingKind: building.kind,
       stock,
       storageFactor: factor,
-      spoilagePerDay: stock * factor * ambientRate,
+      spoilagePerDay: exposure * factor * ambientRate,
     });
     if (factor < FRESH_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR) {
       protectedStock += stock;
@@ -267,13 +280,15 @@ export function analyzeFreshFoodPreservation(
   }
 
   for (const trip of state.deliveryTrips.values()) {
-    const stock = finiteStock(trip.amount);
-    if (stock <= 0) continue;
     if (isPreservedFoodCargo(trip.cargoKind)) {
+      const kind = trip.cargoKind as FoodInventoryKind;
+      const stock = finiteStock(trip.amount) * foodMealValue(kind);
+      const exposure = stock * foodSpoilageMultiplier(kind);
+      if (stock <= 0) continue;
       preservedTotalStock += stock;
-      preservedWeightedStock += stock * PRESERVED_FOOD_STORAGE_CART_FACTOR;
+      preservedWeightedStock += exposure * PRESERVED_FOOD_STORAGE_CART_FACTOR;
       preservedTransitStock += stock;
-      preservedTransitWeightedStock += stock * PRESERVED_FOOD_STORAGE_CART_FACTOR;
+      preservedTransitWeightedStock += exposure * PRESERVED_FOOD_STORAGE_CART_FACTOR;
       preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
         source: 'trip',
         id: trip.id,
@@ -281,40 +296,46 @@ export function analyzeFreshFoodPreservation(
         stock,
         storageFactor: PRESERVED_FOOD_STORAGE_CART_FACTOR,
         spoilagePerDay:
-          stock * PRESERVED_FOOD_STORAGE_CART_FACTOR * preservedRate,
+          exposure * PRESERVED_FOOD_STORAGE_CART_FACTOR * preservedRate,
       });
       continue;
     }
     if (!isFreshFoodCargo(trip.cargoKind)) continue;
+    const kind = trip.cargoKind as FoodInventoryKind;
+    const stock = finiteStock(trip.amount) * foodMealValue(kind);
+    const exposure = stock * foodSpoilageMultiplier(kind);
+    if (stock <= 0) continue;
     totalStock += stock;
-    weightedStock += stock * FRESH_FOOD_STORAGE_CART_FACTOR;
+    weightedStock += exposure * FRESH_FOOD_STORAGE_CART_FACTOR;
     transitStock += stock;
-    transitWeightedStock += stock * FRESH_FOOD_STORAGE_CART_FACTOR;
+    transitWeightedStock += exposure * FRESH_FOOD_STORAGE_CART_FACTOR;
     largestLossSite = largerLossSite(largestLossSite, {
       source: 'trip',
       id: trip.id,
       buildingKind: null,
       stock,
       storageFactor: FRESH_FOOD_STORAGE_CART_FACTOR,
-      spoilagePerDay: stock * FRESH_FOOD_STORAGE_CART_FACTOR * ambientRate,
+      spoilagePerDay: exposure * FRESH_FOOD_STORAGE_CART_FACTOR * ambientRate,
     });
   }
 
   for (const residence of state.residences.values()) {
-    const stock = freshFoodStock(residence);
-    const preservedStock = preservedFoodStock(residence);
+    const stock = freshFoodMealEquivalents(residence);
+    const exposure = freshFoodSpoilageExposure(residence);
+    const preservedStock = preservedFoodMealEquivalents(residence);
+    const preservedExposure = preservedFoodSpoilageExposure(residence);
     const fireDisabled = options.fireDisabledResidenceIds?.has(residence.id) ?? false;
     if (preservedStock > 0) {
       preservedTotalStock += preservedStock;
-      preservedWeightedStock += preservedStock * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
+      preservedWeightedStock += preservedExposure * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
       if (fireDisabled) {
         preservedQuarantinedStock += preservedStock;
         preservedQuarantinedWeightedStock +=
-          preservedStock * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
+          preservedExposure * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
       } else {
         preservedUsableStock += preservedStock;
         preservedUsableWeightedStock +=
-          preservedStock * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
+          preservedExposure * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
         preservedLargestLossSite = largerLossSite(preservedLargestLossSite, {
           source: 'residence',
           id: residence.id,
@@ -322,7 +343,7 @@ export function analyzeFreshFoodPreservation(
           stock: preservedStock,
           storageFactor: PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
           spoilagePerDay:
-            preservedStock
+            preservedExposure
             * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
             * preservedRate,
         });
@@ -332,16 +353,16 @@ export function analyzeFreshFoodPreservation(
     if (fireDisabled) {
       quarantinedStock += stock;
     } else {
-      weightedStock += stock * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR;
+      weightedStock += exposure * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR;
       usableStock += stock;
-      usableWeightedStock += stock * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR;
+      usableWeightedStock += exposure * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR;
       largestLossSite = largerLossSite(largestLossSite, {
         source: 'residence',
         id: residence.id,
         buildingKind: null,
         stock,
         storageFactor: FRESH_FOOD_STORAGE_RESIDENCE_FACTOR,
-        spoilagePerDay: stock * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR * ambientRate,
+        spoilagePerDay: exposure * FRESH_FOOD_STORAGE_RESIDENCE_FACTOR * ambientRate,
       });
     }
   }

@@ -25,13 +25,6 @@ import {
 } from '../../economy/specialtyTrade.ts';
 import { marketplaceSeedCoveragePlan } from '../../economy/marketplaceSeedCoverage.ts';
 import {
-  computeSettlementHouseholdMarketPlan,
-  formatHouseholdMarketBranch,
-} from '../../economy/settlementHouseholdMarket.ts';
-import { marketplaceServiceResidenceIds } from '../serviceCoverage.ts';
-import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
-import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
-import {
   cargoKindLabel,
   formatTripPhaseLabel,
   isRegionalExportTrip,
@@ -59,14 +52,16 @@ import {
   marketplaceGoldReserveTarget,
   marketplaceGoldSweepSurplus,
 } from '../../economy/marketplaceGoldReserve.ts';
+import {
+  DEFAULT_PANTRY_SAFEGUARD_POLICY,
+  normalizePantrySafeguardPolicy,
+  pantrySafeguardPolicyOption,
+} from '../../economy/pantrySafeguardPolicy.ts';
 
 const BULK_TRADE_RESOURCES = new Set<TradeResourceKind>(TRADE_RESOURCE_KINDS);
 
-function formatRegionalDeskStatus(reachableHomes: number): string {
-  if (reachableHomes <= 0) {
-    return 'Regional trade desk ready';
-  }
-  return `Regional desk ready · ${reachableHomes} home${reachableHomes === 1 ? '' : 's'} reachable for paid emergency orders`;
+function formatRegionalDeskStatus(): string {
+  return 'Regional trade desk ready';
 }
 
 export function renderMarketplaceInspector(
@@ -82,6 +77,11 @@ export function renderMarketplaceInspector(
   if (!marketState) {
     throw new Error('Trading Post inspector requires regional market state.');
   }
+  const pantrySafeguard = pantrySafeguardPolicyOption(
+    normalizePantrySafeguardPolicy(
+      context.getPantrySafeguardPolicy?.() ?? DEFAULT_PANTRY_SAFEGUARD_POLICY,
+    ),
+  );
 
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const environment = environmentFor(
@@ -90,7 +90,6 @@ export function renderMarketplaceInspector(
     gameClock(context.gameState.tick),
   );
   const cost = getBuildingCost(building.kind);
-  const connectedHomes = context.worldQueries.countRoadConnectedResidences(building, true);
   const labor = buildingLaborView(building, context.populationStats, context.worldQueries);
   const hasRoadAccess = context.worldQueries.hasRoadAccess(building.x, building.z);
   const roadSpeedMultiplier = context.worldQueries.getRoadConditionSpeedMultiplier();
@@ -287,34 +286,11 @@ export function renderMarketplaceInspector(
       farmstead.z,
     ),
   );
-  const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
   const fiscalPolicy = context.getFiscalPolicy?.();
   const privateExportCash = Math.min(
     Math.max(0, building.privateExportProceedsGold ?? 0),
     Math.max(0, building.gold),
   );
-  const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
-    ? computeSettlementHouseholdMarketPlan({
-        state: context.gameState,
-        marketState,
-        roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
-        clock: gameClock(context.gameState.tick),
-        sabbathObserved: parishPolicy.sabbathObservanceEnabled
-          && settlementHasStaffedChapel(context.gameState),
-        importDutyRate: context.getFiscalPolicy?.().importDutyRate ?? 0,
-        includeBranchResidenceIds: true,
-      })
-    : null;
-  const householdBranch = householdMarketPlan?.branches.get(building.id) ?? null;
-  const householdBranchLabel = householdMarketPlan == null
-    ? 'Route projection unavailable'
-    : formatHouseholdMarketBranch(householdBranch);
-  const householdBranchBottleneck = householdBranch == null
-    ? 'No assigned household orders'
-    : householdBranch.blockedHomes <= 0
-      ? 'No critical order blocked'
-      : `${householdBranch.blockedHomes} critical orders blocked or waiting - ${householdBranch.cooldownHomes} cooling down`;
-
   return {
     eyebrow: 'Building',
     title: label,
@@ -331,13 +307,13 @@ export function renderMarketplaceInspector(
         : specialtyExportHeld
           ? `Holding ${heldSpecialtyFamilies.map((family) => family.label).join(' and ')} below selected regional floors`
           : manualTrade.ready
-            ? formatRegionalDeskStatus(connectedHomes)
+            ? formatRegionalDeskStatus()
             : manualTrade.label,
     statusState: !marketFireDisabled
       && (
         regionalTradeTrip != null
         || specialtyExportActive
-        || (manualTrade.ready && connectedHomes > 0)
+        || manualTrade.ready
       )
       ? 'ok'
       : 'idle',
@@ -368,10 +344,8 @@ export function renderMarketplaceInspector(
       <li><span>Manual bulk exports</span><span>Public Trading Post trade · full proceeds enter the civic treasury and are not charged the private export duty</span></li>
       <li><span>Export stock</span><span>${physicalEconomy ? 'Must be staged at this Trading Post by visible cart' : 'Legacy treasury + road-linked building stores'}</span></li>
       <li><span>Household reserves</span><span>Protected from exports</span></li>
-      <li><span>Household stalls</span><span>Handled only by granary and storehouse workers at a Marketplace</span></li>
-      <li><span>Emergency branch</span><span>${householdBranchLabel}</span></li>
-      <li><span>Paid-cart queue</span><span>${householdBranchBottleneck}</span></li>
-      <li><span>Household orders</span><span>At 18h runway, homes buy a full food-first lot with savings plus ${Math.round((fiscalPolicy?.importDutyRate ?? 0) * 100)}% household import duty; public and parish orders are exempt</span></li>
+      <li><span>Local household supply</span><span>Imported goods are staged by batch at a connected Marketplace; imported water replenishes a connected well; neither route targets an individual home</span></li>
+      <li><span>Household issue</span><span>Marketplace stock issues seven-day pantry lots once per week · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water supplies automatically within radius</span></li>
     `,
     demolish: {
       visible: true,
@@ -388,13 +362,6 @@ export function renderMarketplaceInspector(
       physicalEconomy,
       inboundBulkResources,
     ),
-    serviceCoverage: {
-      kind: 'marketplace',
-      residenceIds: marketplaceServiceResidenceIds(
-        householdMarketPlan,
-        building.id,
-      ),
-    },
   };
 }
 

@@ -743,9 +743,10 @@ impl SimTickContext {
             .copied()
     }
 
-    /// Returns the nearest stocked Marketplace with the compatible staffed
-    /// stall. Local household availability never comes from the regional
-    /// Trading Post.
+    /// Returns the nearest stocked Marketplace. Workers are needed to restock
+    /// ordinary stalls, but goods already at the square are issued to local
+    /// households without a second last-mile labor requirement. Local
+    /// household availability never comes from the regional Trading Post.
     pub fn local_marketplace_for_residence(
         &self,
         ctx: &ReducerContext,
@@ -911,7 +912,6 @@ impl SimTickContext {
                     && crate::simulation::delivery_cargo::building_delivery_stock(
                         building, stall_need,
                     ) > 1e-6
-                    && self.marketplace_has_stall_workers(ctx, network, building, stall_need)
             })
             .collect();
         let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();

@@ -108,6 +108,10 @@ import {
   type NightPolicyCode,
   type NightPolicyState,
 } from '../economy/nightPolicy.ts';
+import {
+  DEFAULT_PANTRY_SAFEGUARD_POLICY,
+  type PantrySafeguardPolicyCode,
+} from '../economy/pantrySafeguardPolicy.ts';
 
 export type SpacetimeGameSnapshot = {
   connected: boolean;
@@ -116,6 +120,7 @@ export type SpacetimeGameSnapshot = {
   physicalFoundingSiteEnabled: boolean;
   legacyUnhousedPopulationBonusEnabled: boolean;
   economicActivityTaxRate: number;
+  pantrySafeguardPolicy: PantrySafeguardPolicyCode;
   fiscalPolicy: FiscalPolicyState;
   seasonalLaborStewardEnabled: boolean;
   constructionLaborStewardEnabled: boolean;
@@ -161,6 +166,7 @@ function createEmptyTableState(): GameTableSyncState {
     physicalFoundingSiteEnabled: false,
     legacyUnhousedPopulationBonusEnabled: true,
     economicActivityTaxRate: ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+    pantrySafeguardPolicy: DEFAULT_PANTRY_SAFEGUARD_POLICY,
     fiscalPolicy: { ...DEFAULT_FISCAL_POLICY },
     seasonalLaborStewardEnabled: DEFAULT_SEASONAL_LABOR_STEWARD_ENABLED,
     constructionLaborStewardEnabled: DEFAULT_CONSTRUCTION_LABOR_STEWARD_ENABLED,
@@ -243,6 +249,7 @@ export class SpacetimeGameStore {
       physicalFoundingSiteEnabled: state.physicalFoundingSiteEnabled,
       legacyUnhousedPopulationBonusEnabled: state.legacyUnhousedPopulationBonusEnabled,
       economicActivityTaxRate: state.economicActivityTaxRate,
+      pantrySafeguardPolicy: state.pantrySafeguardPolicy,
       fiscalPolicy: this.snapshotRecord(state.fiscalPolicy),
       seasonalLaborStewardEnabled: state.seasonalLaborStewardEnabled,
       constructionLaborStewardEnabled: state.constructionLaborStewardEnabled,
@@ -516,6 +523,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setEconomicActivityTaxRate(taxRate);
   }
 
+  setPantrySafeguardPolicy(policy: PantrySafeguardPolicyCode): Promise<void> {
+    return spacetimeReducers.setPantrySafeguardPolicy(policy);
+  }
+
   setFiscalPolicy(
     landLevyRate: number,
     importDutyRate: number,
@@ -563,6 +574,7 @@ export class SpacetimeGameStore {
     acceptsTimber: boolean,
     acceptsStone: boolean,
     acceptsFirewood: boolean,
+    acceptsCharcoal: boolean,
     acceptsIron: boolean,
     acceptsClay: boolean,
     acceptsSalt: boolean,
@@ -572,6 +584,7 @@ export class SpacetimeGameStore {
       acceptsTimber,
       acceptsStone,
       acceptsFirewood,
+      acceptsCharcoal,
       acceptsIron,
       acceptsClay,
       acceptsSalt,

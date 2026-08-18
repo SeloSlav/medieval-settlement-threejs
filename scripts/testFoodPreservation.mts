@@ -24,6 +24,7 @@ import {
   spoilageAdjustedRunwayDays,
 } from '../src/economy/foodPreservation.ts';
 import { freshFoodRunwayWithPreservedRotation } from '../src/economy/preservedFoodPolicy.ts';
+import { foodSpoilageMultiplier } from '../src/economy/foodInventory.ts';
 import type { DeliveryTripState } from '../src/logistics/deliveryTrips.ts';
 import { renderFreshFoodPreservationRows } from '../src/resources/inspector/townHallRenderer.ts';
 import type {
@@ -114,7 +115,9 @@ assert.equal(curedPreservation.protectedStock, 40);
 assert.ok(
   Math.abs(
     curedPreservation.spoilagePerDay
-    - expectedCuredWeightedStock * PRESERVED_FOOD_SPOILAGE_PER_DAY,
+    - expectedCuredWeightedStock
+      * foodSpoilageMultiplier('preservedFood')
+      * PRESERVED_FOOD_SPOILAGE_PER_DAY,
   ) < 1e-9,
 );
 assert.equal(curedPreservation.largestLossSite?.id, 'cured-cart');
@@ -142,7 +145,9 @@ const winterCuredPreservation = analyzeFreshFoodPreservation(
 assert.ok(
   Math.abs(
     winterCuredPreservation.spoilagePerDay
-    - expectedCuredWeightedStock * winterCuredRate,
+    - expectedCuredWeightedStock
+      * foodSpoilageMultiplier('preservedFood')
+      * winterCuredRate,
   ) < 1e-9,
   'current climate must scale every physical cured-food store through the shared diagnostic pass',
 );
@@ -326,7 +331,8 @@ assert.equal(fireQuarantine.preservedFood.quarantinedStock, 90);
 assert.ok(
   Math.abs(
     fireQuarantine.preservedFood.quarantinedSpoilagePerDay
-    - PRESERVED_FOOD_SPOILAGE_PER_DAY * (
+    - PRESERVED_FOOD_SPOILAGE_PER_DAY
+      * foodSpoilageMultiplier('preservedFood') * (
       20 * PRESERVED_FOOD_STORAGE_GRANARY_FACTOR
       + 30 * PRESERVED_FOOD_STORAGE_DEFAULT_BUILDING_FACTOR
       + 40 * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR
@@ -469,7 +475,7 @@ assert.match(
 );
 assert.match(
   serverFoodSpoilage,
-  /macro_rules! spoil_preserved[\s\S]*PRESERVED_FOOD_STORAGE_TREASURY_FACTOR[\s\S]*spoil_preserved!\(preserved_food\)[\s\S]*spoil_preserved!\(cheese\)/,
+  /macro_rules! spoil_preserved[\s\S]*PRESERVED_FOOD_STORAGE_TREASURY_FACTOR[\s\S]*spoil_preserved!\(preserved_food,\s*CommodityKind::PreservedFood\)[\s\S]*spoil_preserved!\(cheese,\s*CommodityKind::Cheese\)/,
   'legacy compatibility stock must not become an immortal cured reserve',
 );
 assert.doesNotMatch(

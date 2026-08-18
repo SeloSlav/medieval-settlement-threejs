@@ -3,12 +3,17 @@ use std::collections::HashMap;
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC, STOREHOUSE_FIREWOOD_PER_DELIVERY,
-    STOREHOUSE_HAUL_PER_WORKER, STOREHOUSE_OVERFLOW_THRESHOLD, TIMBER_DELIVERY_SPEED_MPS,
-    TIMBER_DELIVERY_UNLOAD_SEC,
+    CHARCOAL_HOUSEHOLD_FUEL_VALUE, FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC,
+    STOREHOUSE_FIREWOOD_PER_DELIVERY, STOREHOUSE_HAUL_PER_WORKER, STOREHOUSE_OVERFLOW_THRESHOLD,
+    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{building_commodity_cap, building_commodity_stock, CommodityKind};
+use crate::fuel_reserve_policy::{
+    combined_fuel_equivalent, fuel_runway_days, household_fuel_demand_per_day,
+    marketplace_fuel_reserve_target,
+};
+use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
     building_has_inbound_supply_trip, try_start_building_supply_trip,
@@ -16,6 +21,7 @@ use crate::simulation::delivery_trips::{
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::road_logistics::local_delivery_distance;
+use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::tick_context::SimTickContext;
 use crate::storehouse_policy::{
     compare_storehouse_destination, compare_storehouse_source_priority,
@@ -30,8 +36,17 @@ const STOREHOUSE_OVERFLOW_SOURCE_KINDS: &[&str] = &[
     "woodcutters_lodge",
     "mine",
     "clay_pit",
+    "charcoal_burner",
 ];
 const MINE_OVERFLOW_COMMODITIES: &[CommodityKind] = &[CommodityKind::Iron, CommodityKind::Salt];
+
+struct MarketFuelTarget {
+    market: Building,
+    commodity: CommodityKind,
+    requested_units: f64,
+    runway_days: f64,
+    distance: f64,
+}
 
 struct OverflowSource {
     building: Building,
@@ -46,8 +61,26 @@ pub fn step_storehouse_market_stalls(
     ctx: &ReducerContext,
     tick: &SimTickContext,
     clock: &GameClock,
+    environment: EnvironmentState,
     storehouses: Vec<Building>,
 ) {
+    let mut covered_population_by_market = HashMap::<u64, u32>::new();
+    for residence in ctx.db.residence().iter().filter(|residence| {
+        !residence.abandoned
+            && residence.population > 0
+            && !tick.residence_disabled_by_fire(ctx, residence.id)
+    }) {
+        if let Some(market_id) = tick.local_marketplace_for_residence_deposit(
+            ctx,
+            residence.owner,
+            residence.id,
+            ResidenceNeedKind::Firewood,
+        ) {
+            let population = covered_population_by_market.entry(market_id).or_default();
+            *population = population.saturating_add(residence.population);
+        }
+    }
+
     for mut storehouse in storehouses {
         if storehouse.kind != "village_storehouse"
             || !storehouse.construction_complete
@@ -62,21 +95,111 @@ pub fn step_storehouse_market_stalls(
         let Some(network) = tick.road_network(storehouse.owner) else {
             continue;
         };
+        let fuel_target = tick
+            .building_ids_for_kinds(ctx, storehouse.owner, &["marketplace"])
+            .into_iter()
+            .filter_map(|id| ctx.db.building().id().find(&id))
+            .filter(|market| {
+                market.construction_complete
+                    && !tick.building_disabled_by_fire(ctx, market.id)
+                    && !building_has_inbound_commodity_trip(
+                        ctx,
+                        market.id,
+                        CommodityKind::Firewood,
+                    )
+                    && !building_has_inbound_commodity_trip(
+                        ctx,
+                        market.id,
+                        CommodityKind::Charcoal,
+                    )
+            })
+            .flat_map(|market| {
+                let population = covered_population_by_market
+                    .get(&market.id)
+                    .copied()
+                    .unwrap_or(0);
+                let daily_demand = household_fuel_demand_per_day(
+                    population,
+                    environment.firewood_demand_multiplier(),
+                );
+                let target_equivalent = marketplace_fuel_reserve_target(
+                    population,
+                    environment.firewood_demand_multiplier(),
+                    building_commodity_cap(&market.kind, CommodityKind::Firewood),
+                    building_commodity_cap(&market.kind, CommodityKind::Charcoal),
+                );
+                let current_equivalent =
+                    combined_fuel_equivalent(market.firewood, market.charcoal);
+                let needed_equivalent = (target_equivalent - current_equivalent).max(0.0);
+                let runway_days = fuel_runway_days(current_equivalent, daily_demand);
+                let distance = local_delivery_distance(
+                    network,
+                    storehouse.x,
+                    storehouse.z,
+                    market.x,
+                    market.z,
+                );
+                let mut candidates = Vec::new();
+                for commodity in [CommodityKind::Charcoal, CommodityKind::Firewood] {
+                        let source_stock = building_commodity_stock(&storehouse, commodity);
+                        let fuel_value = if commodity == CommodityKind::Charcoal {
+                            CHARCOAL_HOUSEHOLD_FUEL_VALUE
+                        } else {
+                            1.0
+                        };
+                        let room = (building_commodity_cap(&market.kind, commodity)
+                            - building_commodity_stock(&market, commodity))
+                            .max(0.0);
+                        let requested_units = (needed_equivalent / fuel_value.max(1e-9))
+                            .min(source_stock)
+                            .min(room);
+                    if requested_units > 1e-6 {
+                        if let Some(distance) = distance {
+                            candidates.push(MarketFuelTarget {
+                                market: market.clone(),
+                                commodity,
+                                requested_units,
+                                runway_days,
+                                distance,
+                            });
+                        }
+                    }
+                }
+                candidates
+            })
+            .min_by(|a, b| {
+                a.runway_days
+                    .total_cmp(&b.runway_days)
+                    .then_with(|| a.distance.total_cmp(&b.distance))
+                    .then_with(|| {
+                        let a_rank = u8::from(a.commodity != CommodityKind::Charcoal);
+                        let b_rank = u8::from(b.commodity != CommodityKind::Charcoal);
+                        a_rank.cmp(&b_rank)
+                    })
+                    .then_with(|| a.market.id.cmp(&b.market.id))
+            });
+        if let Some(target) = fuel_target {
+            let workers = storehouse.assigned_labor;
+            if try_start_building_supply_trip(
+                ctx,
+                tick,
+                clock,
+                network,
+                &mut storehouse,
+                &target.market,
+                workers,
+                target.commodity,
+                FIREWOOD_DELIVERY_SPEED_MPS,
+                FIREWOOD_DELIVERY_UNLOAD_SEC,
+                STOREHOUSE_FIREWOOD_PER_DELIVERY,
+                target.requested_units,
+            ) {
+                ctx.db.building().id().update(storehouse);
+                continue;
+            }
+        }
+
         for (commodity, stock, speed_mps, unload_seconds, per_delivery) in [
-            (
-                CommodityKind::Firewood,
-                storehouse.firewood,
-                FIREWOOD_DELIVERY_SPEED_MPS,
-                FIREWOOD_DELIVERY_UNLOAD_SEC,
-                STOREHOUSE_FIREWOOD_PER_DELIVERY,
-            ),
-            (
-                CommodityKind::Charcoal,
-                storehouse.charcoal,
-                FIREWOOD_DELIVERY_SPEED_MPS,
-                FIREWOOD_DELIVERY_UNLOAD_SEC,
-                STOREHOUSE_FIREWOOD_PER_DELIVERY,
-            ),
             (
                 CommodityKind::Cloth,
                 storehouse.cloth,
@@ -280,6 +403,7 @@ fn storehouse_accepts_commodity(storehouse: &Building, commodity: CommodityKind)
         CommodityKind::Timber => storehouse.storehouse_accepts_timber,
         CommodityKind::Stone => storehouse.storehouse_accepts_stone,
         CommodityKind::Firewood => storehouse.storehouse_accepts_firewood,
+        CommodityKind::Charcoal => storehouse.storehouse_accepts_charcoal,
         CommodityKind::Iron => storehouse.storehouse_accepts_iron,
         CommodityKind::Clay => storehouse.storehouse_accepts_clay,
         CommodityKind::Salt => storehouse.storehouse_accepts_salt,
@@ -292,6 +416,7 @@ fn storehouse_collection_room(storehouse: &Building, commodity: CommodityKind) -
         CommodityKind::Timber => storehouse.storehouse_timber_target_percent,
         CommodityKind::Stone => storehouse.storehouse_stone_target_percent,
         CommodityKind::Firewood => storehouse.storehouse_firewood_target_percent,
+        CommodityKind::Charcoal => storehouse.storehouse_charcoal_target_percent,
         CommodityKind::Iron => storehouse.storehouse_iron_target_percent,
         CommodityKind::Clay => storehouse.storehouse_clay_target_percent,
         CommodityKind::Salt => storehouse.storehouse_salt_target_percent,
@@ -310,6 +435,7 @@ fn overflow_source_commodities(source: &Building) -> &'static [CommodityKind] {
         "lumber_mill" => &[CommodityKind::Timber],
         "stone_quarry" | "large_quarry" => &[CommodityKind::Stone],
         "woodcutters_lodge" => &[CommodityKind::Firewood],
+        "charcoal_burner" => &[CommodityKind::Charcoal],
         "mine" => MINE_OVERFLOW_COMMODITIES,
         "clay_pit" => &[CommodityKind::Clay],
         _ => &[],

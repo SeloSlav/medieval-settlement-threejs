@@ -325,6 +325,12 @@ pub struct PlayerResources {
     pub oat_bread: f64,
     #[default(0.0)]
     pub maslin_bread: f64,
+    /// Town Hall market-issue doctrine: 0 = weekly market day only,
+    /// 1 = safeguard below one household day, 2 = safeguard below two days.
+    /// Appended for additive save compatibility; established settlements keep
+    /// the former automatic one-day emergency behavior.
+    #[default(1u8)]
+    pub pantry_safeguard_policy: u8,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -777,6 +783,14 @@ pub struct Building {
     /// visuals instead. Appended for additive save compatibility.
     #[default(false)]
     pub fire_repair_active: bool,
+    /// Charcoal intake is separate from ordinary firewood because the depot
+    /// may reserve processed fuel for smithies, household markets, or neither.
+    #[default(true)]
+    pub storehouse_accepts_charcoal: bool,
+    /// Intake ceiling for stored charcoal. A quarter-capacity default creates
+    /// a useful transfer cache without turning every depot into a huge fuel sink.
+    #[default(25u8)]
+    pub storehouse_charcoal_target_percent: u8,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

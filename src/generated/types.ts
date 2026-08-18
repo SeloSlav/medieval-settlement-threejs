@@ -524,6 +524,7 @@ export const PlayerResources = __t.object("PlayerResources", {
   ryeBread: __t.f64(),
   oatBread: __t.f64(),
   maslinBread: __t.f64(),
+  pantrySafeguardPolicy: __t.u8(),
 });
 export type PlayerResources = __Infer<typeof PlayerResources>;
 

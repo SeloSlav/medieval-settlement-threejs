@@ -668,6 +668,7 @@ pub fn insert_reclamation_pile(
         storehouse_accepts_iron: true,
         storehouse_accepts_clay: true,
         storehouse_accepts_salt: true,
+        storehouse_accepts_charcoal: true,
         gold: stock.gold.max(0.0),
         construction_complete: true,
         construction_progress: 1.0,
@@ -709,6 +710,7 @@ pub fn insert_reclamation_pile(
             crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
         storehouse_salt_target_percent:
             crate::storehouse_policy::STOREHOUSE_STOCK_TARGET_DEFAULT_PERCENT,
+        storehouse_charcoal_target_percent: 25,
         processor_output_target_percent:
             crate::processor_output_policy::PROCESSOR_OUTPUT_TARGET_DEFAULT_PERCENT,
         guardhouse_food_reserve: 0,

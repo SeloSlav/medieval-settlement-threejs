@@ -15,8 +15,8 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_stock, building_edible_food_stock, building_preserved_food_stock,
-    credit_private_export_receipt, mark_local_civic_receipts_dispatched,
+    building_commodity_room, building_commodity_stock, building_edible_food_stock,
+    building_preserved_food_stock, credit_private_export_receipt, mark_local_civic_receipts_dispatched,
     marketplace_proceeds_cart_load, physical_treasury_seat, private_export_proceeds,
     record_specialty_market_export, regional_export_cart_load, specialty_family_for_commodity,
     specialty_price_multiplier_for_commodity, treasury_gold, try_advance_pending_marketplace_trade,
@@ -258,6 +258,144 @@ fn marketplace_stall_workplace(
         .map(|(id, workers, _)| (id, workers))
 }
 
+/// Stage routine imported household goods at a local Marketplace. The Trading
+/// Post trip is building-to-building and may carry a useful batch; individual
+/// homes receive their share later through the daily abstract market issue.
+fn try_dispatch_trading_post_stock_to_marketplace(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    trading_post: &mut Building,
+) -> bool {
+    let Some(network) = tick.road_network(trading_post.owner) else {
+        return false;
+    };
+    let workers = onsite_building_labor(ctx, trading_post);
+    if workers == 0 || building_has_active_trip(ctx, trading_post.id) {
+        return false;
+    }
+
+    let needs = [
+        ResidenceNeedKind::Food,
+        ResidenceNeedKind::PreservedFood,
+        ResidenceNeedKind::Firewood,
+        ResidenceNeedKind::Water,
+        ResidenceNeedKind::Ale,
+        ResidenceNeedKind::Cloth,
+        ResidenceNeedKind::Pottery,
+    ];
+    let start = (clock.sim_tick as usize) % needs.len();
+    for offset in 0..needs.len() {
+        let need_kind = needs[(start + offset) % needs.len()];
+        let commodity = match need_kind {
+            ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => {
+                selected_food_delivery_commodity(trading_post, need_kind)
+            }
+            ResidenceNeedKind::Firewood if trading_post.firewood > 1e-6 => {
+                Some(CommodityKind::Firewood)
+            }
+            ResidenceNeedKind::Firewood if trading_post.charcoal > 1e-6 => {
+                Some(CommodityKind::Charcoal)
+            }
+            ResidenceNeedKind::Water => Some(CommodityKind::Water),
+            ResidenceNeedKind::Ale => Some(CommodityKind::Ale),
+            ResidenceNeedKind::Cloth => Some(CommodityKind::Cloth),
+            ResidenceNeedKind::Pottery => Some(CommodityKind::Pottery),
+            _ => None,
+        };
+        let Some(commodity) = commodity.filter(|commodity| {
+            building_commodity_stock(trading_post, *commodity) > 1e-6
+        }) else {
+            continue;
+        };
+        let destination_kind = if need_kind == ResidenceNeedKind::Water {
+            "well"
+        } else {
+            "marketplace"
+        };
+        let target = tick
+            .building_ids_for_kinds(ctx, trading_post.owner, &[destination_kind])
+            .into_iter()
+            .filter_map(|id| ctx.db.building().id().find(&id))
+            .filter(|market| {
+                market.construction_complete
+                    && !tick.building_disabled_by_fire(ctx, market.id)
+                    && !building_has_inbound_commodity_trip(ctx, market.id, commodity)
+                    && building_commodity_room(market, commodity) > 1e-6
+            })
+            .filter_map(|market| {
+                let distance = local_delivery_distance(
+                    network,
+                    trading_post.x,
+                    trading_post.z,
+                    market.x,
+                    market.z,
+                )?;
+                Some((market, distance))
+            })
+            .min_by(|(left, left_distance), (right, right_distance)| {
+                left_distance
+                    .total_cmp(right_distance)
+                    .then_with(|| left.id.cmp(&right.id))
+            })
+            .map(|(market, _)| market);
+        let Some(target) = target else {
+            continue;
+        };
+        let (speed_mps, unload_seconds, per_worker) = match need_kind {
+            ResidenceNeedKind::Firewood => (
+                FIREWOOD_DELIVERY_SPEED_MPS,
+                FIREWOOD_DELIVERY_UNLOAD_SEC,
+                crate::balance_generated::MARKET_CARAVAN_FIREWOOD_PER_DELIVERY,
+            ),
+            ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood => (
+                FOOD_DELIVERY_SPEED_MPS,
+                FOOD_DELIVERY_UNLOAD_SEC,
+                MARKET_CARAVAN_FOOD_PER_DELIVERY,
+            ),
+            ResidenceNeedKind::Water => (
+                WATER_DELIVERY_SPEED_MPS,
+                WATER_DELIVERY_UNLOAD_SEC,
+                MARKET_CARAVAN_WATER_PER_DELIVERY,
+            ),
+            ResidenceNeedKind::Ale => (
+                FOOD_DELIVERY_SPEED_MPS,
+                FOOD_DELIVERY_UNLOAD_SEC,
+                crate::balance_generated::MARKET_CARAVAN_ALE_PER_DELIVERY,
+            ),
+            ResidenceNeedKind::Cloth => (
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                crate::balance_generated::MARKET_CARAVAN_CLOTH_PER_DELIVERY,
+            ),
+            ResidenceNeedKind::Pottery => (
+                TIMBER_DELIVERY_SPEED_MPS,
+                TIMBER_DELIVERY_UNLOAD_SEC,
+                crate::balance_generated::MARKET_CARAVAN_POTTERY_PER_DELIVERY,
+            ),
+            _ => continue,
+        };
+        let needed = building_commodity_room(&target, commodity);
+        if try_start_building_supply_trip(
+            ctx,
+            tick,
+            clock,
+            network,
+            trading_post,
+            &target,
+            workers,
+            commodity,
+            speed_mps,
+            unload_seconds,
+            per_worker,
+            needed,
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
 fn try_dispatch_marketplace_remedies(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -402,47 +540,12 @@ pub fn step_marketplace_caravans(
         if building.remedies > 1e-6 {
             changed |= try_dispatch_marketplace_remedies(ctx, tick, clock, &mut building);
         }
-        // Public bulk provisions unload at the Trading Post, then its own
-        // staffed broker carts carry them to road-linked homes. This closes
-        // the physical import chain without pretending that cargo teleports
-        // into a Marketplace or well.
+        // Imported household goods move in useful building-to-building lots
+        // from the Trading Post to a local Marketplace; imported water can
+        // replenish a connected well. No cart targets an individual home.
         if is_trading_post && !building_has_active_trip(ctx, building.id) {
-            let needs = [
-                (ResidenceNeedKind::Food, MARKET_CARAVAN_FOOD_PER_DELIVERY),
-                (ResidenceNeedKind::Water, MARKET_CARAVAN_WATER_PER_DELIVERY),
-                (
-                    ResidenceNeedKind::Firewood,
-                    crate::balance_generated::MARKET_CARAVAN_FIREWOOD_PER_DELIVERY,
-                ),
-                (
-                    ResidenceNeedKind::Ale,
-                    crate::balance_generated::MARKET_CARAVAN_ALE_PER_DELIVERY,
-                ),
-                (
-                    ResidenceNeedKind::Cloth,
-                    crate::balance_generated::MARKET_CARAVAN_CLOTH_PER_DELIVERY,
-                ),
-                (
-                    ResidenceNeedKind::Pottery,
-                    crate::balance_generated::MARKET_CARAVAN_POTTERY_PER_DELIVERY,
-                ),
-            ];
-            let start = (clock.sim_tick as usize) % needs.len();
-            for offset in 0..needs.len() {
-                let (need, amount) = needs[(start + offset) % needs.len()];
-                if try_dispatch_marketplace_caravan(
-                    ctx,
-                    clock,
-                    tick,
-                    &mut building,
-                    need,
-                    amount,
-                    MarketCaravanDispatch::default(),
-                ) {
-                    changed = true;
-                    break;
-                }
-            }
+            changed |=
+                try_dispatch_trading_post_stock_to_marketplace(ctx, tick, clock, &mut building);
         }
         // Only remedies retain a targeted household trip. Ordinary stall
         // availability does not reserve granary/storehouse workers. A staffed

@@ -22,6 +22,7 @@ import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
 import {
   NAMED_FOOD_KINDS,
   NAMED_FOOD_LABELS,
+  foodMealValue,
   type NamedFoodKind,
 } from '../economy/foodInventory.ts';
 import { getNeedStock } from '../residences/residenceNeedState.ts';
@@ -421,11 +422,27 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     remedies += Math.max(0, residence.remedyStock ?? 0);
   }
 
-  const storedPreservedFood = legacyPreservedFood + curedMeat + smokedFish + cheese;
-  const storedFood = legacyFood + ryeBread + oatBread + maslinBread
-    + meat + fish + berries + mushrooms + milk
-    + apples + cherries + vegetables + eggs + grapes + porridge
-    + storedPreservedFood + honey;
+  const storedPreservedFood = legacyPreservedFood * foodMealValue('preservedFood')
+    + curedMeat * foodMealValue('curedMeat')
+    + smokedFish * foodMealValue('smokedFish')
+    + cheese * foodMealValue('cheese');
+  const storedFood = legacyFood * foodMealValue('food')
+    + ryeBread * foodMealValue('ryeBread')
+    + oatBread * foodMealValue('oatBread')
+    + maslinBread * foodMealValue('maslinBread')
+    + meat * foodMealValue('meat')
+    + fish * foodMealValue('fish')
+    + berries * foodMealValue('berries')
+    + mushrooms * foodMealValue('mushrooms')
+    + milk * foodMealValue('milk')
+    + apples * foodMealValue('apples')
+    + cherries * foodMealValue('cherries')
+    + vegetables * foodMealValue('vegetables')
+    + eggs * foodMealValue('eggs')
+    + grapes * foodMealValue('grapes')
+    + porridge * foodMealValue('porridge')
+    + storedPreservedFood
+    + honey * foodMealValue('honey');
   cachedStoredTotals = {
     timber: Math.max(0, timber),
     stone: Math.max(0, stone),
@@ -505,13 +522,27 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   const surplusCuredMeat = Math.max(0, curedMeat - reservedCuredMeat);
   const surplusSmokedFish = Math.max(0, smokedFish - reservedSmokedFish);
   const surplusCheese = Math.max(0, cheese - reservedCheese);
-  const surplusPreservedFood = surplusLegacyPreservedFood + surplusCuredMeat
-    + surplusSmokedFish + surplusCheese;
-  const surplusFood = surplusLegacyFood + surplusRyeBread + surplusOatBread
-    + surplusMaslinBread + surplusMeat + surplusFish
-    + surplusBerries + surplusMushrooms + surplusMilk + surplusApples
-    + surplusCherries + surplusVegetables + surplusEggs + surplusGrapes
-    + surplusPorridge + surplusPreservedFood + surplusHoney;
+  const surplusPreservedFood = surplusLegacyPreservedFood * foodMealValue('preservedFood')
+    + surplusCuredMeat * foodMealValue('curedMeat')
+    + surplusSmokedFish * foodMealValue('smokedFish')
+    + surplusCheese * foodMealValue('cheese');
+  const surplusFood = surplusLegacyFood * foodMealValue('food')
+    + surplusRyeBread * foodMealValue('ryeBread')
+    + surplusOatBread * foodMealValue('oatBread')
+    + surplusMaslinBread * foodMealValue('maslinBread')
+    + surplusMeat * foodMealValue('meat')
+    + surplusFish * foodMealValue('fish')
+    + surplusBerries * foodMealValue('berries')
+    + surplusMushrooms * foodMealValue('mushrooms')
+    + surplusMilk * foodMealValue('milk')
+    + surplusApples * foodMealValue('apples')
+    + surplusCherries * foodMealValue('cherries')
+    + surplusVegetables * foodMealValue('vegetables')
+    + surplusEggs * foodMealValue('eggs')
+    + surplusGrapes * foodMealValue('grapes')
+    + surplusPorridge * foodMealValue('porridge')
+    + surplusPreservedFood
+    + surplusHoney * foodMealValue('honey');
   cachedTotals = {
     ...cachedStoredTotals,
     timber: Math.max(0, timber - reservedTimber),
@@ -578,13 +609,27 @@ export function computeInTransitResourceTotals(
       totals[trip.cargoKind] += amount;
     }
   }
-  totals.preservedFood = totals.legacyPreservedFood + totals.curedMeat
-    + totals.smokedFish + totals.cheese;
-  totals.food = totals.legacyFood + totals.ryeBread + totals.oatBread + totals.maslinBread
-    + totals.meat + totals.fish
-    + totals.berries + totals.mushrooms + totals.milk + totals.apples
-    + totals.cherries + totals.vegetables + totals.eggs + totals.grapes
-    + totals.porridge + totals.preservedFood + totals.honey;
+  totals.preservedFood = totals.legacyPreservedFood * foodMealValue('preservedFood')
+    + totals.curedMeat * foodMealValue('curedMeat')
+    + totals.smokedFish * foodMealValue('smokedFish')
+    + totals.cheese * foodMealValue('cheese');
+  totals.food = totals.legacyFood * foodMealValue('food')
+    + totals.ryeBread * foodMealValue('ryeBread')
+    + totals.oatBread * foodMealValue('oatBread')
+    + totals.maslinBread * foodMealValue('maslinBread')
+    + totals.meat * foodMealValue('meat')
+    + totals.fish * foodMealValue('fish')
+    + totals.berries * foodMealValue('berries')
+    + totals.mushrooms * foodMealValue('mushrooms')
+    + totals.milk * foodMealValue('milk')
+    + totals.apples * foodMealValue('apples')
+    + totals.cherries * foodMealValue('cherries')
+    + totals.vegetables * foodMealValue('vegetables')
+    + totals.eggs * foodMealValue('eggs')
+    + totals.grapes * foodMealValue('grapes')
+    + totals.porridge * foodMealValue('porridge')
+    + totals.preservedFood
+    + totals.honey * foodMealValue('honey');
   return totals;
 }
 

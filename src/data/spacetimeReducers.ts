@@ -357,6 +357,12 @@ export async function setConstructionLaborSteward(enabled: boolean): Promise<voi
   });
 }
 
+export async function setPantrySafeguardPolicy(policy: number): Promise<void> {
+  await callReducer('setPantrySafeguardPolicy', 'set_pantry_safeguard_policy', {
+    policy,
+  });
+}
+
 export async function setFiscalPolicy(
   landLevyRate: number,
   importDutyRate: number,
@@ -437,6 +443,7 @@ export async function setStorehousePolicy(
   acceptsTimber: boolean,
   acceptsStone: boolean,
   acceptsFirewood: boolean,
+  acceptsCharcoal: boolean,
   acceptsIron: boolean,
   acceptsClay: boolean,
   acceptsSalt: boolean,
@@ -448,6 +455,7 @@ export async function setStorehousePolicy(
     acceptsTimber,
     acceptsStone,
     acceptsFirewood,
+    acceptsCharcoal,
     acceptsIron,
     acceptsClay,
     acceptsSalt,

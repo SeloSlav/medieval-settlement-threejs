@@ -5,6 +5,7 @@ export const STOREHOUSE_COMMODITIES = [
   'timber',
   'stone',
   'firewood',
+  'charcoal',
   'iron',
   'clay',
   'salt',
@@ -15,6 +16,7 @@ type StorehouseAcceptsField =
   | 'storehouseAcceptsTimber'
   | 'storehouseAcceptsStone'
   | 'storehouseAcceptsFirewood'
+  | 'storehouseAcceptsCharcoal'
   | 'storehouseAcceptsIron'
   | 'storehouseAcceptsClay'
   | 'storehouseAcceptsSalt';
@@ -23,6 +25,7 @@ type StorehouseTargetField =
   | 'storehouseTimberTargetPercent'
   | 'storehouseStoneTargetPercent'
   | 'storehouseFirewoodTargetPercent'
+  | 'storehouseCharcoalTargetPercent'
   | 'storehouseIronTargetPercent'
   | 'storehouseClayTargetPercent'
   | 'storehouseSaltTargetPercent';
@@ -31,6 +34,7 @@ const STOREHOUSE_ACCEPTS_FIELDS: Record<StorehouseCommodity, StorehouseAcceptsFi
   timber: 'storehouseAcceptsTimber',
   stone: 'storehouseAcceptsStone',
   firewood: 'storehouseAcceptsFirewood',
+  charcoal: 'storehouseAcceptsCharcoal',
   iron: 'storehouseAcceptsIron',
   clay: 'storehouseAcceptsClay',
   salt: 'storehouseAcceptsSalt',
@@ -40,6 +44,7 @@ const STOREHOUSE_TARGET_FIELDS: Record<StorehouseCommodity, StorehouseTargetFiel
   timber: 'storehouseTimberTargetPercent',
   stone: 'storehouseStoneTargetPercent',
   firewood: 'storehouseFirewoodTargetPercent',
+  charcoal: 'storehouseCharcoalTargetPercent',
   iron: 'storehouseIronTargetPercent',
   clay: 'storehouseClayTargetPercent',
   salt: 'storehouseSaltTargetPercent',

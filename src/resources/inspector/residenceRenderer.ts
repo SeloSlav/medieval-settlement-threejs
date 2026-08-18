@@ -61,13 +61,12 @@ import {
   formatResidenceServiceConsequence,
   residenceServiceState,
 } from '../../economy/residenceSatisfaction.ts';
-import {
-  computeSettlementHouseholdMarketPlan,
-  formatHouseholdMarketResidenceStatus,
-} from '../../economy/settlementHouseholdMarket.ts';
-import { DEFAULT_REGIONAL_MARKET_STATE } from '../../economy/regionalMarket.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
-import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
+import {
+  DEFAULT_PANTRY_SAFEGUARD_POLICY,
+  normalizePantrySafeguardPolicy,
+  pantrySafeguardPolicyOption,
+} from '../../economy/pantrySafeguardPolicy.ts';
 import { gameClock } from '../../world/gameCalendar.ts';
 import {
   environmentFor,
@@ -355,6 +354,11 @@ export function renderResidenceInspector(
       )
     : null;
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
+  const pantrySafeguard = pantrySafeguardPolicyOption(
+    normalizePantrySafeguardPolicy(
+      context.getPantrySafeguardPolicy?.() ?? DEFAULT_PANTRY_SAFEGUARD_POLICY,
+    ),
+  );
   const currentClock = gameClock(context.gameState.tick);
   const environment = environmentFor(
     context.gameState.seed,
@@ -391,35 +395,6 @@ export function renderResidenceInspector(
   );
   const preservedMealUse = mealAllocation.preservedRotationUsed
     + mealAllocation.preservedFallbackUsed;
-  const householdMarketPlan = typeof context.worldQueries.getRoadNetworkSnapshot === 'function'
-    ? computeSettlementHouseholdMarketPlan({
-        state: context.gameState,
-        marketState: context.getMarketState?.() ?? DEFAULT_REGIONAL_MARKET_STATE,
-        roadNetwork: context.worldQueries.getRoadNetworkSnapshot(),
-        clock: currentClock,
-        sabbathObserved: parishPolicy.sabbathObservanceEnabled
-          && settlementHasStaffedChapel(context.gameState),
-        importDutyRate: context.getFiscalPolicy?.().importDutyRate ?? 0,
-        residenceIds: new Set([residence.id]),
-      })
-    : null;
-  const householdMarket = householdMarketPlan?.residences.get(residence.id) ?? null;
-  const householdMarketplace = householdMarket?.marketplaceId == null
-    ? null
-    : context.gameState.buildings.get(householdMarket.marketplaceId) ?? null;
-  const householdMarketplaceLabel = householdMarketplace == null
-    ? 'marketplace'
-    : `${context.worldQueries.getBuildingLabel(householdMarketplace.kind)}${
-        householdMarket?.roadDistance == null
-          ? ''
-          : ` (${formatDeliveryRoadDistance(householdMarket.roadDistance)})`
-      }`;
-  const householdMarketStatus = householdMarketPlan == null
-    ? 'Route projection unavailable'
-    : formatHouseholdMarketResidenceStatus(
-        householdMarket,
-        householdMarketplaceLabel,
-      );
   const hasMonasteryCoverage = context.worldQueries.isResidenceInMonasteryCoverage(residence);
   const community = buildResidenceCommunityContext(
     servingChapel,
@@ -661,8 +636,7 @@ export function renderResidenceInspector(
       <li><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
       ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Emergency imports</span><span>${householdMarketStatus}</span></li>` : ''}
-      ${residence.tier > 0 ? '<li><span>Standing-order rule</span><span>At 18h food or active water runway - food first - household-funded full lot</span></li>' : ''}
+      ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace goods issue as a seven-day pantry lot each week · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
       ${fireDisabled
         ? '<li><span>Parish economy</span><span>Paused · no tithe, alms, or relief claim until structural recovery</span></li>'
         : parishEconomy.hasChapelAccess
@@ -865,7 +839,7 @@ function residenceUpgradePanel(
     ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
     : `Blocked · ${plan.blockers.join(' · ')}.`;
   const guidance = plan.nextTier === 2
-    ? "Firewood needs a staffed goods stall; water needs a completed well whose service radius and road branch reach this home. Household supply is allocated without a last-mile hauler."
+    ? "Tier progression still needs staffed food and goods stalls. Actual stock already at a connected Marketplace issues daily; water draws from a completed well whose service radius and road branch reach this home, without a last-mile hauler."
     : 'Preserved food needs a staffed smokehouse or pastoral holding; ale needs a staffed brewhouse or parish-linked monastery; household textiles need a staffed weaver.';
   const throughput = prosperity && projection
     ? projection.immediateSustainable

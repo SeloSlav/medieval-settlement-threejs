@@ -225,9 +225,11 @@ mod tests {
             storehouse_accepts_iron: true,
             storehouse_accepts_clay: true,
             storehouse_accepts_salt: true,
+            storehouse_accepts_charcoal: true,
             storehouse_iron_target_percent: 100,
             storehouse_clay_target_percent: 100,
             storehouse_salt_target_percent: 100,
+            storehouse_charcoal_target_percent: 25,
             roof_tiles: 0.0,
             potter_firing_policy: 0,
             remote_work_camp_enabled: false,
@@ -262,6 +264,7 @@ mod tests {
             marketplace_drink_export_policy: 255,
             marketplace_provision_export_policy: 255,
             marketplace_wares_export_policy: 255,
+            fire_repair_active: false,
         }
     }
 

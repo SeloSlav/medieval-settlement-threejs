@@ -206,6 +206,7 @@ pub fn ensure_player_resources(ctx: &ReducerContext, owner: Identity) {
         rye_bread: STARTING_BREAD,
         oat_bread: 0.0,
         maslin_bread: 0.0,
+        pantry_safeguard_policy: crate::pantry_safeguard_policy::PANTRY_SAFEGUARD_DEFAULT,
     });
     ensure_market_state(ctx, owner);
     ensure_settlement_security(ctx, owner);

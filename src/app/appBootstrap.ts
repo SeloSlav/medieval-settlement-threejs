@@ -951,6 +951,7 @@ export async function bootstrapAppSession(
     getState: () => liveContext.gameState,
     getEconomicActivityTaxRate: () =>
       spacetimeStore.snapshot.economicActivityTaxRate ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT,
+    getPantrySafeguardPolicy: () => spacetimeStore.snapshot.pantrySafeguardPolicy,
     getFiscalPolicy: () => spacetimeStore.snapshot.fiscalPolicy,
     getSeasonalLaborStewardEnabled: () =>
       spacetimeStore.snapshot.seasonalLaborStewardEnabled,

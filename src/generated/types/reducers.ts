@@ -74,6 +74,7 @@ import SetMarketplaceSpecialtyExportPolicyReducer from "../set_marketplace_speci
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "../set_marketplace_specialty_family_export_policy_reducer";
 import SetMonasteryPolicyReducer from "../set_monastery_policy_reducer";
 import SetNightPoliciesReducer from "../set_night_policies_reducer";
+import SetPantrySafeguardPolicyReducer from "../set_pantry_safeguard_policy_reducer";
 import SetPotterFiringPolicyReducer from "../set_potter_firing_policy_reducer";
 import SetPotteryDispatchPolicyReducer from "../set_pottery_dispatch_policy_reducer";
 import SetProcessorOutputTargetReducer from "../set_processor_output_target_reducer";
@@ -160,6 +161,7 @@ export type SetMarketplaceSpecialtyExportPolicyParams = __Infer<typeof SetMarket
 export type SetMarketplaceSpecialtyFamilyExportPolicyParams = __Infer<typeof SetMarketplaceSpecialtyFamilyExportPolicyReducer>;
 export type SetMonasteryPolicyParams = __Infer<typeof SetMonasteryPolicyReducer>;
 export type SetNightPoliciesParams = __Infer<typeof SetNightPoliciesReducer>;
+export type SetPantrySafeguardPolicyParams = __Infer<typeof SetPantrySafeguardPolicyReducer>;
 export type SetPotterFiringPolicyParams = __Infer<typeof SetPotterFiringPolicyReducer>;
 export type SetPotteryDispatchPolicyParams = __Infer<typeof SetPotteryDispatchPolicyReducer>;
 export type SetProcessorOutputTargetParams = __Infer<typeof SetProcessorOutputTargetReducer>;

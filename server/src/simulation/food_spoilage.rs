@@ -54,6 +54,7 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
             let spoiled = building_commodity_stock(&building, commodity)
                 * fresh_rate
                 * fresh_storage_factor
+                * commodity.spoilage_multiplier()
                 * TICK_DT;
             withdraw_building_commodity(&mut building, commodity, spoiled);
         }
@@ -61,6 +62,7 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
             let spoiled = building_commodity_stock(&building, commodity)
                 * preserved_rate
                 * preserved_storage_factor
+                * commodity.spoilage_multiplier()
                 * TICK_DT;
             withdraw_building_commodity(&mut building, commodity, spoiled);
         }
@@ -88,7 +90,13 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         } else {
             (fresh_rate, FRESH_FOOD_STORAGE_CART_FACTOR)
         };
-        let spoiled = trip.amount * rate * storage_factor * TICK_DT;
+        let commodity = CommodityKind::from_u8(trip.cargo_kind)
+            .expect("food-spoilage trip filter guarantees a food commodity");
+        let spoiled = trip.amount
+            * rate
+            * storage_factor
+            * commodity.spoilage_multiplier()
+            * TICK_DT;
         ctx.db.delivery_trip().id().update(DeliveryTrip {
             amount: (trip.amount - spoiled).max(0.0),
             ..trip
@@ -102,41 +110,46 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         .collect::<Vec<PlayerResources>>()
     {
         macro_rules! spoil_fresh {
-            ($field:ident) => {
-                resources.$field = (resources.$field
-                    - resources.$field * fresh_rate * FRESH_FOOD_STORAGE_TREASURY_FACTOR * TICK_DT)
-                    .max(0.0);
-            };
-        }
-        macro_rules! spoil_preserved {
-            ($field:ident) => {
+            ($field:ident, $kind:expr) => {
                 resources.$field = (resources.$field
                     - resources.$field
-                        * preserved_rate
-                        * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR
+                        * fresh_rate
+                        * FRESH_FOOD_STORAGE_TREASURY_FACTOR
+                        * $kind.spoilage_multiplier()
                         * TICK_DT)
                     .max(0.0);
             };
         }
-        spoil_fresh!(food);
-        spoil_fresh!(rye_bread);
-        spoil_fresh!(oat_bread);
-        spoil_fresh!(maslin_bread);
-        spoil_fresh!(meat);
-        spoil_fresh!(fish);
-        spoil_fresh!(berries);
-        spoil_fresh!(mushrooms);
-        spoil_fresh!(milk);
-        spoil_fresh!(apples);
-        spoil_fresh!(cherries);
-        spoil_fresh!(vegetables);
-        spoil_fresh!(eggs);
-        spoil_fresh!(grapes);
-        spoil_fresh!(porridge);
-        spoil_preserved!(preserved_food);
-        spoil_preserved!(cured_meat);
-        spoil_preserved!(smoked_fish);
-        spoil_preserved!(cheese);
+        macro_rules! spoil_preserved {
+            ($field:ident, $kind:expr) => {
+                resources.$field = (resources.$field
+                    - resources.$field
+                        * preserved_rate
+                        * PRESERVED_FOOD_STORAGE_TREASURY_FACTOR
+                        * $kind.spoilage_multiplier()
+                        * TICK_DT)
+                    .max(0.0);
+            };
+        }
+        spoil_fresh!(food, CommodityKind::Food);
+        spoil_fresh!(rye_bread, CommodityKind::RyeBread);
+        spoil_fresh!(oat_bread, CommodityKind::OatBread);
+        spoil_fresh!(maslin_bread, CommodityKind::MaslinBread);
+        spoil_fresh!(meat, CommodityKind::Meat);
+        spoil_fresh!(fish, CommodityKind::Fish);
+        spoil_fresh!(berries, CommodityKind::Berries);
+        spoil_fresh!(mushrooms, CommodityKind::Mushrooms);
+        spoil_fresh!(milk, CommodityKind::Milk);
+        spoil_fresh!(apples, CommodityKind::Apples);
+        spoil_fresh!(cherries, CommodityKind::Cherries);
+        spoil_fresh!(vegetables, CommodityKind::Vegetables);
+        spoil_fresh!(eggs, CommodityKind::Eggs);
+        spoil_fresh!(grapes, CommodityKind::Grapes);
+        spoil_fresh!(porridge, CommodityKind::Porridge);
+        spoil_preserved!(preserved_food, CommodityKind::PreservedFood);
+        spoil_preserved!(cured_meat, CommodityKind::CuredMeat);
+        spoil_preserved!(smoked_fish, CommodityKind::SmokedFish);
+        spoil_preserved!(cheese, CommodityKind::Cheese);
         ctx.db.player_resources().owner().update(resources);
     }
 }

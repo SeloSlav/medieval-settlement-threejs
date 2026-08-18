@@ -236,11 +236,19 @@ fn spoil_residence_food_inventory(residence: &mut Residence, environment: Enviro
         .clamp(0.0, 1.0);
     for commodity in FRESH_FOOD_COMMODITIES {
         let stock = crate::economy::residence_commodity_stock(residence, commodity);
-        withdraw_residence_commodity(residence, commodity, stock * fresh_fraction);
+        withdraw_residence_commodity(
+            residence,
+            commodity,
+            stock * fresh_fraction * commodity.spoilage_multiplier(),
+        );
     }
     for commodity in PRESERVED_FOOD_COMMODITIES {
         let stock = crate::economy::residence_commodity_stock(residence, commodity);
-        withdraw_residence_commodity(residence, commodity, stock * preserved_fraction);
+        withdraw_residence_commodity(
+            residence,
+            commodity,
+            stock * preserved_fraction * commodity.spoilage_multiplier(),
+        );
     }
     // Honey is already modeled as a durable specialty and does not share the
     // fresh-food spoilage pass.
@@ -283,7 +291,11 @@ fn withdraw_residence_food_group(
         if amount <= 1e-9 {
             break;
         }
-        let used = withdraw_residence_commodity(residence, *commodity, amount);
+        let used = withdraw_residence_commodity(
+            residence,
+            *commodity,
+            amount / commodity.meal_value().max(1e-9),
+        );
         withdrawn += used;
         amount = (amount - used * commodity.meal_value()).max(0.0);
     }

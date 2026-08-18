@@ -8,6 +8,7 @@ import type { SettlementSecurityState } from '../../security/frontierSecurity.ts
 import type { CombatAgentState } from '../../security/combatAgents.ts';
 import type { NightPolicyState } from '../../economy/nightPolicy.ts';
 import type { FiscalPolicyState } from '../../economy/fiscalPolicy.ts';
+import type { PantrySafeguardPolicyCode } from '../../economy/pantrySafeguardPolicy.ts';
 import type { SettlementProductionCapacity } from '../../economy/settlementProduction.ts';
 import type { WorldQueries } from '../WorldQueries.ts';
 import type { ServiceCoverageView } from '../serviceCoverage.ts';
@@ -62,6 +63,7 @@ export type InspectorRenderContext = {
   enemyPressure?: number;
   settlementProduction?: SettlementProductionCapacity;
   getEconomicActivityTaxRate?: () => number;
+  getPantrySafeguardPolicy?: () => PantrySafeguardPolicyCode;
   getFiscalPolicy?: () => FiscalPolicyState;
   getSeasonalLaborStewardEnabled?: () => boolean;
   getConstructionLaborStewardEnabled?: () => boolean;

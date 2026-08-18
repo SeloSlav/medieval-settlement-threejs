@@ -31,6 +31,12 @@ import {
   NIGHT_WORK_OPTIONS,
 } from '../../economy/nightPolicy.ts';
 import {
+  DEFAULT_PANTRY_SAFEGUARD_POLICY,
+  normalizePantrySafeguardPolicy,
+  pantrySafeguardPolicyOption,
+  PANTRY_SAFEGUARD_POLICY_OPTIONS,
+} from '../../economy/pantrySafeguardPolicy.ts';
+import {
   constructionLaborStewardStatus,
   DEFAULT_LABOR_STEWARD_RESERVE,
   laborStewardReserveLabel,
@@ -1778,6 +1784,10 @@ export function renderTownHallInspector(
     context.getLaborStewardReserve?.() ?? DEFAULT_LABOR_STEWARD_RESERVE,
   );
   const taxRate = context.getEconomicActivityTaxRate?.() ?? 0;
+  const pantrySafeguardPolicy = normalizePantrySafeguardPolicy(
+    context.getPantrySafeguardPolicy?.() ?? DEFAULT_PANTRY_SAFEGUARD_POLICY,
+  );
+  const pantrySafeguard = pantrySafeguardPolicyOption(pantrySafeguardPolicy);
   const fiscalPolicy = context.getFiscalPolicy?.() ?? DEFAULT_FISCAL_POLICY;
   const parishPolicy = context.getParishPolicy?.() ?? DEFAULT_PARISH_POLICY;
   const readout = buildVillageAdminReadout({
@@ -2394,6 +2404,7 @@ export function renderTownHallInspector(
       <li><span>Role</span><span>Settlement government, taxation, and economic ledger</span></li>
       <li><span>Treasury chest</span><span>${building.gold.toFixed(0)} gold secured here${inboundTreasuryGold > 1e-6 ? ` · ${inboundTreasuryGold.toFixed(0)} incoming by handcart` : ''}</span></li>
       <li><span>Population</span><span>${context.populationStats.total}</span></li>
+      <li><span>Pantry safeguard</span><span>${pantrySafeguard.label} · ${pantrySafeguard.hint}</span></li>
       ${renderSettlementWelfareRows(provisioning.welfare)}
       <li><span>Workforce</span><span>${context.populationStats.assigned} / ${context.populationStats.total} committed${context.populationStats.cartAssigned > 0 ? ` · ${context.populationStats.cartAssigned} reserved on carts outside building rosters` : ''} · ${context.populationStats.available} free · ${laborPlan.openPermanentPosts} open permanent posts${laborInspectButton}</span></li>
       <li><span>Sector staffing</span><span>${formatLaborSectorMix(laborPlan)}</span></li>
@@ -2431,9 +2442,9 @@ export function renderTownHallInspector(
       <li><span>Household wealth</span><span>${readout.householdWealthLabel}</span></li>
       <li><span>Household savings</span><span>${readout.householdSavingsLabel}</span></li>
       ${householdMarketPlan == null ? '' : `
-      <li><span>Emergency market orders</span><span>${formatHouseholdMarketSettlementSummary(householdMarketPlan)}</span></li>
-      <li><span>Emergency purchasing power</span><span>${formatHouseholdMarketPurchasingPower(householdMarketPlan)}</span></li>
-      <li><span>Emergency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
+      <li><span>Household contingency orders</span><span>${formatHouseholdMarketSettlementSummary(householdMarketPlan)}</span></li>
+      <li><span>Contingency purchasing power</span><span>${formatHouseholdMarketPurchasingPower(householdMarketPlan)}</span></li>
+      <li><span>Contingency bottlenecks</span><span>${formatHouseholdMarketBottlenecks(householdMarketPlan)}${householdMarketInspectButton}</span></li>`}
       <li><span>Local market levy assessed</span><span>${readout.taxIncomeLabel}</span></li>
       <li><span>Land levy</span><span>${fiscalRatePercent(fiscalPolicy.landLevyRate)} annually · next monthly installment ${landLevyForecast.monthlyCollectable.toFixed(1)} collectable / ${landLevyForecast.monthlyAssessed.toFixed(1)} assessed from ${landLevyForecast.occupiedHomes} occupied homes · ${landLevyForecast.collectableHomes} linked to an operational Marketplace lockbox${landLevyForecast.unservedHomes > 0 ? ` · ${landLevyForecast.unservedHomes} unserved` : ''}</span></li>
       <li><span>Land levy ledger</span><span>${Math.round(fiscalPolicy.landLevyCollectedTotal)} collected / ${Math.round(fiscalPolicy.landLevyAssessedTotal)} assessed lifetime</span></li>
@@ -2564,7 +2575,7 @@ export function renderTownHallInspector(
         <input class="city-admin-panel__slider" type="range" data-policy-import-duty
           min="${Math.round(IMPORT_DUTY_RATE_MIN * 100)}" max="${Math.round(IMPORT_DUTY_RATE_MAX * 100)}"
           step="1" value="${Math.round(fiscalPolicy.importDutyRate * 100)}" ${staffed ? '' : 'disabled'} />
-        <p class="inspector-action-panel__hint">Added only to private household emergency imports. Public treasury procurement and parish relief are exempt.</p>
+        <p class="inspector-action-panel__hint">Added only to automatic private household contingency imports. Public treasury procurement and parish relief are exempt.</p>
         <label class="city-admin-panel__slider-label">
           <span>Private export duty</span>
           <strong data-policy-export-duty-value>${Math.round(fiscalPolicy.exportDutyRate * 100)}%</strong>
@@ -2573,6 +2584,19 @@ export function renderTownHallInspector(
           min="${Math.round(EXPORT_DUTY_RATE_MIN * 100)}" max="${Math.round(EXPORT_DUTY_RATE_MAX * 100)}"
           step="1" value="${Math.round(fiscalPolicy.exportDutyRate * 100)}" ${staffed ? '' : 'disabled'} />
         <p class="inspector-action-panel__hint">Applied to automatic household specialty exports. The untaxed remainder is carried to households as private income. Player-ordered Trading Post exports remain public trade and go directly to the civic treasury without this duty.</p>
+      </div>
+      <div class="inspector-action-panel">
+        <h4 class="inspector-action-panel__title">Household market issues</h4>
+        <p class="inspector-action-panel__hint">Covered homes receive ordinary food, fuel, and household goods once each week. This doctrine controls only automatic daily checks for critical food and heat already staged at connected markets; it never opens a prompt, spends gold, or creates a door-to-door cart.</p>
+        <label class="city-admin-panel__slider-label" for="town-hall-pantry-safeguard"><span>Pantry safeguard</span></label>
+        <select class="inspector-policy-select" id="town-hall-pantry-safeguard"
+          data-pantry-safeguard-policy ${staffedTownHallAvailable ? '' : 'disabled'}>
+          ${PANTRY_SAFEGUARD_POLICY_OPTIONS
+            .map((option) => `<option value="${option.value}" ${pantrySafeguardPolicy === option.value ? 'selected' : ''} title="${option.hint}">${option.label}</option>`)
+            .join('')}
+        </select>
+        <p class="inspector-action-panel__hint">${pantrySafeguard.hint} Scarce stock is shared one household-day at a time. Parish poor relief remains separate: after a sustained food shortage, a staffed chapel may spend its own coffer on a weekly relief purchase.</p>
+        ${!staffedTownHallAvailable ? '<p class="inspector-action-panel__hint">Assign a Town Hall clerk to post a different safeguard.</p>' : ''}
       </div>
       <div class="inspector-action-panel">
         <h4 class="inspector-action-panel__title">Night orders</h4>

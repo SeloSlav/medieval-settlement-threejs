@@ -178,14 +178,15 @@ pub const RESIDENCE_POPULATION_NARROW: u32 = 2;
 pub const RESIDENCE_POPULATION_WIDE: u32 = 4;
 pub const NARROW_PARCEL_FRONTAGE_MAX: f64 = 9.6;
 pub const WIDE_PARCEL_FRONTAGE_MIN: f64 = 14.0;
-pub const RESIDENCE_FIREWOOD_CAPACITY: f64 = 40.0;
-pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = 0.02;
+pub const RESIDENCE_FIREWOOD_CAPACITY: f64 = 60.0;
+pub const RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC: f64 = 0.002777777777777778;
+pub const CHARCOAL_HOUSEHOLD_FUEL_VALUE: f64 = 2.0;
 pub const RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS: f64 = 0.5;
 pub const RESIDENCE_WATER_CAPACITY: f64 = 24.0;
 pub const RESIDENCE_WATER_REORDER_FRACTION: f64 = 0.3333333333333333;
 pub const RESIDENCE_WATER_PER_PERSON_PER_SEC: f64 = 0.012;
 pub const RESIDENCE_FOOD_CAPACITY: f64 = 32.0;
-pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = 0.015;
+pub const RESIDENCE_FOOD_PER_PERSON_PER_SEC: f64 = 0.003619047619047619;
 pub const EVENING_MEAL_PER_PERSON: f64 = 0.08;
 pub const FOOD_CATEGORY_QUALIFYING_DAYS: f64 = 1.0;
 pub const BACKYARD_FOOD_RESERVE_TIER1_DAYS: f64 = 3.0;
@@ -2792,7 +2793,7 @@ const BACKYARD_APPLE_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     label: "Apple orchard",
     cost_timber: 10.0,
     cost_stone: 4.0,
-    food_per_person_per_sec: 0.009,
+    food_per_person_per_sec: 0.0025,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: false,
 };
@@ -2803,7 +2804,7 @@ const BACKYARD_CHERRY_ORCHARD: BackyardGardenDef = BackyardGardenDef {
     label: "Cherry orchard",
     cost_timber: 9.0,
     cost_stone: 3.0,
-    food_per_person_per_sec: 0.008,
+    food_per_person_per_sec: 0.00225,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: true,
 };
@@ -2814,7 +2815,7 @@ const BACKYARD_VEGETABLE_GARDEN: BackyardGardenDef = BackyardGardenDef {
     label: "Vegetable garden",
     cost_timber: 5.0,
     cost_stone: 2.0,
-    food_per_person_per_sec: 0.012,
+    food_per_person_per_sec: 0.003,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: false,
 };
@@ -2847,7 +2848,7 @@ const BACKYARD_HEN_YARD: BackyardGardenDef = BackyardGardenDef {
     label: "Hen yard",
     cost_timber: 6.0,
     cost_stone: 1.0,
-    food_per_person_per_sec: 0.0105,
+    food_per_person_per_sec: 0.0025,
     settlement_attraction_multiplier: 1.0,
     hidden_from_picker: false,
 };
@@ -2858,7 +2859,7 @@ const BACKYARD_GOAT_PEN: BackyardGardenDef = BackyardGardenDef {
     label: "Goat pen",
     cost_timber: 8.0,
     cost_stone: 2.0,
-    food_per_person_per_sec: 0.0055,
+    food_per_person_per_sec: 0.0018,
     settlement_attraction_multiplier: 0.97,
     hidden_from_picker: false,
 };
@@ -2869,7 +2870,7 @@ const BACKYARD_BACKYARD_APIARY: BackyardGardenDef = BackyardGardenDef {
     label: "Backyard apiary",
     cost_timber: 7.0,
     cost_stone: 1.0,
-    food_per_person_per_sec: 0.003,
+    food_per_person_per_sec: 0.001,
     settlement_attraction_multiplier: 1.03,
     hidden_from_picker: false,
 };

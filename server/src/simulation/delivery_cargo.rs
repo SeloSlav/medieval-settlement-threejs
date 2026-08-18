@@ -2,6 +2,7 @@
 
 use spacetimedb::ReducerContext;
 
+use crate::balance_generated::CHARCOAL_HOUSEHOLD_FUEL_VALUE;
 use crate::economy::{
     building_commodity_stock, building_edible_food_stock, building_preserved_food_stock,
     food_category, residence_food_category_mask, residence_fresh_food_stock,
@@ -129,7 +130,9 @@ impl DeliveryCargoTotals {
 
 pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> f64 {
     match kind {
-        ResidenceNeedKind::Firewood => building.firewood + building.charcoal,
+        ResidenceNeedKind::Firewood => {
+            building.firewood + building.charcoal * CHARCOAL_HOUSEHOLD_FUEL_VALUE
+        }
         ResidenceNeedKind::Water => building.water,
         ResidenceNeedKind::Food => building_edible_food_stock(building),
         ResidenceNeedKind::Ale => building.ale,
@@ -147,14 +150,21 @@ pub fn withdraw_delivery_cargo(
 ) -> f64 {
     match kind {
         ResidenceNeedKind::Firewood => {
-            let (_, firewood_withdrawn, _, updated) = withdraw_building(building, 0.0, amount, 0.0);
-            *building = updated;
             let charcoal_withdrawn = withdraw_building_commodity(
                 building,
                 CommodityKind::Charcoal,
-                (amount - firewood_withdrawn).max(0.0),
+                amount.max(0.0) / CHARCOAL_HOUSEHOLD_FUEL_VALUE.max(1e-9),
             );
-            firewood_withdrawn + charcoal_withdrawn
+            let charcoal_equivalent =
+                charcoal_withdrawn * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
+            let (_, firewood_withdrawn, _, updated) = withdraw_building(
+                building,
+                0.0,
+                (amount - charcoal_equivalent).max(0.0),
+                0.0,
+            );
+            *building = updated;
+            charcoal_equivalent + firewood_withdrawn
         }
         ResidenceNeedKind::Water => {
             let (withdrawn, updated) = withdraw_building_water(building, amount);
@@ -325,10 +335,12 @@ pub fn residence_commodity_delivery_room(
     if commodity.is_preserved_food() {
         return (provisions::stock_capacity(ResidenceNeedKind::PreservedFood)
             - residence_preserved_food_stock(residence))
-        .max(0.0);
+        .max(0.0)
+            / commodity.meal_value().max(1e-9);
     }
     if commodity.is_fresh_food() || commodity == CommodityKind::Honey {
-        return (food::stock_capacity() - residence_fresh_food_stock(residence)).max(0.0);
+        return (food::stock_capacity() - residence_fresh_food_stock(residence)).max(0.0)
+            / commodity.meal_value().max(1e-9);
     }
     0.0
 }

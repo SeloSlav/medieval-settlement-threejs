@@ -69,6 +69,7 @@ import {
   industrialWaterRequirement,
   industrialWaterTarget,
   isResidenceInWellRange,
+  isWithinWellServiceRadius,
   selectIndustrialWaterCandidate,
   wellDeliveryTripSeconds,
 } from '../logistics/waterLogistics.ts';
@@ -463,13 +464,7 @@ export class WorldQueries {
 
   private firewoodClaims(): FirewoodDeliveryClaimQueries {
     const { network, buildings, residences } = this.deliverySnapshot();
-    return new FirewoodDeliveryClaimQueries(
-      network,
-      buildings.filter((building) =>
-        building.kind !== 'marketplace'
-        || this.marketplaceHasStallWorkforce(building, 'village_storehouse')),
-      residences,
-    );
+    return new FirewoodDeliveryClaimQueries(network, buildings, residences);
   }
 
   private wellClaims(): WellDeliveryClaimQueries {
@@ -491,10 +486,6 @@ export class WorldQueries {
       residences,
       (supplier, residence, distance) =>
         (
-          supplier.kind !== 'marketplace'
-          || this.marketplaceHasStallWorkforce(supplier, 'granary')
-        )
-        && (
           supplier.kind !== 'monastery'
           || (
             monasteryFeastSurplus(
@@ -565,7 +556,7 @@ export class WorldQueries {
       (candidate) =>
         candidate.kind === 'well'
         && candidate.constructionComplete !== false
-        && candidate.assignedLabor > 0
+        && isWithinWellServiceRadius(candidate, building)
         && localDeliveryDistance(network, building.x, building.z, candidate.x, candidate.z) != null,
     );
     return sortByRoadPathDistance(network, building, wells);
@@ -580,6 +571,7 @@ export class WorldQueries {
       (candidate) =>
         candidate.constructionComplete !== false
         && industrialWaterRequirement(candidate.kind) > 0
+        && isWithinWellServiceRadius(well, candidate)
         && localDeliveryDistance(network, well.x, well.z, candidate.x, candidate.z) != null,
     );
   }
@@ -614,6 +606,7 @@ export class WorldQueries {
         || desiredStock <= 0
         || (candidate.kind === 'weaver' && (candidate.flax ?? 0) <= 1e-6)
         || !processorAcceptsInput(candidate, 'water')
+        || !isWithinWellServiceRadius(well, candidate)
         || candidate.water + 1e-6 >= desiredStock
         || inboundTargets.has(candidate.id)
       ) {
@@ -908,8 +901,6 @@ export class WorldQueries {
       this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'preservedFood',
-      (building) => building.kind !== 'marketplace'
-        || this.marketplaceHasStallWorkforce(building, 'granary'),
     );
   }
 
@@ -946,8 +937,6 @@ export class WorldQueries {
       this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'cloth',
-      (building) => building.kind !== 'marketplace'
-        || this.marketplaceHasStallWorkforce(building, 'village_storehouse'),
     );
   }
 
@@ -991,11 +980,6 @@ export class WorldQueries {
       'ale',
       (building, distance) =>
         (
-          !requireStock
-          || building.kind !== 'marketplace'
-          || this.marketplaceHasStallWorkforce(building, 'granary')
-        )
-        && (
           building.kind !== 'monastery'
           || (
             (
@@ -1161,8 +1145,6 @@ export class WorldQueries {
       this.fireEnabledBuildings(state),
       this.getRoadNetwork(),
       'pottery',
-      (building) => building.kind !== 'marketplace'
-        || this.marketplaceHasStallWorkforce(building, 'village_storehouse'),
     );
   }
 

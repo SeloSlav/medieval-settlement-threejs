@@ -20,8 +20,8 @@ mod tests {
 
     #[test]
     fn canonical_day_includes_daytime_and_evening_meals() {
-        assert!((household_food_per_day(1) - 1.13).abs() <= 1e-9);
-        assert!((household_food_per_day(6) - 6.78).abs() <= 1e-9);
+        assert!((household_food_per_day(1) - 1.0 / 3.0).abs() <= 1e-9);
+        assert!((household_food_per_day(6) - 2.0).abs() <= 1e-9);
         assert_eq!(household_food_per_day(0), household_food_per_day(1));
     }
 }

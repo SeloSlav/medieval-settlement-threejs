@@ -58,13 +58,15 @@ export function renderMarketStallsInspector(
     eyebrow: 'Building',
     title: context.worldQueries.getBuildingLabel(building.kind),
     statusText: totalStalls <= 0
-      ? 'Empty square — staff a road-linked granary or storehouse to open stalls'
+      ? stockedNeeds > 0
+        ? `Founders' supply point — ${stockedNeeds} stocked need ${stockedNeeds === 1 ? 'category issues' : 'categories issue'} daily; permanent restocking is not staffed yet`
+        : 'Empty square — founders can stage supplies here; staff a road-linked granary or storehouse for permanent restocking'
       : taxCartActive
         ? `${Math.round(heldTax)} tax gold remains — a free hauler is carrying the current lockbox load`
       : activeTrip
         ? `${totalStalls} active stalls — a remedy or lockbox cart is on the road`
         : `${totalStalls} active stalls stocking ${stockedNeeds} household need ${stockedNeeds === 1 ? 'category' : 'categories'}`,
-    statusState: totalStalls > 0 ? 'active' : 'idle',
+    statusState: totalStalls > 0 || stockedNeeds > 0 ? 'active' : 'idle',
     detailsHtml: `
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
@@ -72,8 +74,9 @@ export function renderMarketStallsInspector(
       <li><span>Purpose</span><span>Shared local household exchange — it has no employees of its own</span></li>
       <li><span>Food stalls</span><span>${foodStalls} from staffed Granaries · pooled backyard and stored food, cured provisions, and ale</span></li>
       <li><span>Goods stalls</span><span>${goodsStalls} from staffed Village Storehouses · firewood, cloth, pottery, and shared herb remedies</span></li>
-      <li><span>Distribution</span><span>Stock is allocated instantly to connected homes · nearest plots receive scarce goods first · no routine household cart</span></li>
-      <li><span>Capacity rule</span><span>Assigned granary and storehouse workers replenish and operate stalls without leaving on last-mile household trips</span></li>
+      <li><span>Distribution</span><span>Connected homes collect a seven-day pantry issue once per week · homes below one day receive a two-day emergency top-up · scarce stock is shared one household-day at a time · no routine household cart</span></li>
+      <li><span>Founding exception</span><span>One free camp hauler can stage starter bread and firewood here before permanent depots exist</span></li>
+      <li><span>Capacity rule</span><span>Assigned granary and storehouse workers replenish stalls long-term without leaving on last-mile household trips</span></li>
       <li><span>Backyard exchange</span><span>Edible surplus becomes physical stall stock for abstract household allocation; herb remedies retain targeted care carts</span></li>
       <li><span>Local tax lockbox</span><span>${Math.round(heldTax)} gold held${taxCartActive ? ' · collection cart active' : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD ? ' · waiting for a free hauler to the civic treasury' : heldTax > 1e-6 ? ` · batching toward ${Math.ceil(LOCAL_MARKET_TAX_CART_THRESHOLD)} gold or the evening sweep` : ''}</span></li>
       <li><span>Water</span><span>Supplied independently from unstaffed wells</span></li>

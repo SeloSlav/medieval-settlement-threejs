@@ -69,6 +69,7 @@ use crate::frontier_economy_policy::{
     CARPENTER_IRONWORK_PER_POLEARM, CARPENTER_TIMBER_PER_POLEARM,
     GUARDHOUSE_CRITICAL_FOOD_RUNWAY_DAYS,
 };
+use crate::fuel_reserve_policy::smithy_charcoal_refill_target;
 use crate::farm_work_policy::{
     field_task_rank, threshing_preempts_fields,
 };
@@ -120,6 +121,7 @@ use crate::supply_policy::{
     INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
     MARKETPLACE_MATERIAL_TARGET_KINDS,
 };
+use crate::storehouse_policy::storehouse_stock_target;
 use crate::tables::{farm_field, Building, FarmField, ForagingNode, Quarry, Residence};
 use crate::vineyard::{fermentable_grapes, vineyard_grape_reserve};
 use crate::weaver_input_policy::{weaver_fibre_delivery_preference_rank, weaver_uses_flax};
@@ -1142,6 +1144,15 @@ fn marketplace_material_target(
     target: &Building,
     commodity: CommodityKind,
 ) -> Option<(f64, f64)> {
+    if target.kind == "smithy" && commodity == CommodityKind::Charcoal {
+        if target.assigned_labor == 0 {
+            return None;
+        }
+        let desired = smithy_charcoal_refill_target(target.charcoal)?
+            .min(building_commodity_cap(&target.kind, commodity));
+        return (desired > target.charcoal + 1e-6)
+            .then_some((SMITHY_CHARCOAL_PER_CYCLE, desired));
+    }
     if target.kind == "threshing_barn" && commodity == CommodityKind::Manure {
         let (requirement, _) = tick.farmstead_manure_requirement_for(ctx, target.owner, target.id);
         let desired = requirement.min(building_commodity_cap(&target.kind, commodity));
@@ -1461,6 +1472,9 @@ fn local_material_target_kinds(
         ("village_storehouse", CommodityKind::Salt) if source.storehouse_accepts_salt => {
             Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
         }
+        // Existing depot charcoal always remains dispatchable even when new
+        // charcoal intake is disabled, so changing policy cannot strand stock.
+        ("village_storehouse", CommodityKind::Charcoal) => Some(&["smithy"]),
         _ => None,
     }
 }
@@ -1469,6 +1483,34 @@ fn local_material_target_plan(
     target: &Building,
     commodity: CommodityKind,
 ) -> Option<(ProcessorInputDispatchDuty, f64, f64)> {
+    if target.kind == "smithy" && commodity == CommodityKind::Charcoal {
+        if target.assigned_labor == 0 {
+            return None;
+        }
+        let stock = target.charcoal;
+        let desired = smithy_charcoal_refill_target(stock)?
+            .min(building_commodity_cap(&target.kind, commodity));
+        return (desired > stock + 1e-6).then_some((
+            ProcessorInputDispatchDuty::WorkingBuffer,
+            desired,
+            processor_input_runway_cycles(stock, SMITHY_CHARCOAL_PER_CYCLE),
+        ));
+    }
+    if target.kind == "village_storehouse" && commodity == CommodityKind::Charcoal {
+        if target.assigned_labor == 0 || !target.storehouse_accepts_charcoal {
+            return None;
+        }
+        let stock = target.charcoal;
+        let desired = storehouse_stock_target(
+            building_commodity_cap(&target.kind, commodity),
+            target.storehouse_charcoal_target_percent,
+        );
+        return (desired > stock + 1e-6).then_some((
+            ProcessorInputDispatchDuty::WorkshopOverflow,
+            desired,
+            if desired <= 1e-9 { f64::INFINITY } else { stock / desired },
+        ));
+    }
     let commodity_name = match commodity {
         CommodityKind::Iron => "iron",
         CommodityKind::Salt => "salt",

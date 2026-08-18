@@ -149,6 +149,7 @@ export type BuildingState = {
   storehouseAcceptsTimber: boolean;
   storehouseAcceptsStone: boolean;
   storehouseAcceptsFirewood: boolean;
+  storehouseAcceptsCharcoal?: boolean;
   /** Additive raw-material intake gates; missing legacy values mean enabled. */
   storehouseAcceptsIron?: boolean;
   storehouseAcceptsClay?: boolean;
@@ -156,6 +157,7 @@ export type BuildingState = {
   storehouseTimberTargetPercent?: number;
   storehouseStoneTargetPercent?: number;
   storehouseFirewoodTargetPercent?: number;
+  storehouseCharcoalTargetPercent?: number;
   storehouseIronTargetPercent?: number;
   storehouseClayTargetPercent?: number;
   storehouseSaltTargetPercent?: number;

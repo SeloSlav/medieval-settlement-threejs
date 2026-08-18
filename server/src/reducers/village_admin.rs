@@ -5,6 +5,7 @@ use crate::economy::clamp_chapel_coffer_reserve_gold;
 use crate::labor_steward_policy::is_valid_labor_steward_reserve;
 use crate::lifecycle::ensure_player_resources;
 use crate::night_policy::valid_policy_code;
+use crate::pantry_safeguard_policy::valid_pantry_safeguard_policy;
 use crate::reducers::buildings::rotate_construction_labor_for_owner_with_reserve;
 use crate::simulation::{
     game_clock, reconcile_seasonal_labor_for_owner, reconcile_target_production_labor_for_owner,
@@ -86,6 +87,26 @@ pub fn set_economic_activity_tax_rate(ctx: &ReducerContext, tax_rate: f64) -> Re
     }
 
     resources.economic_activity_tax_rate = clamped;
+    ctx.db.player_resources().owner().update(resources);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_pantry_safeguard_policy(
+    ctx: &ReducerContext,
+    policy: u8,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    ensure_player_resources(ctx, owner);
+    require_owned_building(ctx, "town_hall", true)?;
+    if !valid_pantry_safeguard_policy(policy) {
+        return Err("Pantry safeguard policy must be between 0 and 2.".to_string());
+    }
+
+    let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) else {
+        return Err("Player resources not found.".to_string());
+    };
+    resources.pantry_safeguard_policy = policy;
     ctx.db.player_resources().owner().update(resources);
     Ok(())
 }

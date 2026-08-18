@@ -221,9 +221,9 @@ mod tests {
 
     #[test]
     fn household_reserves_scale_by_tier_and_storage() {
-        assert!((backyard_food_reserve_target(1, 3) - 10.17).abs() < 1e-9);
-        assert!((backyard_food_reserve_target(2, 6) - 33.9).abs() < 1e-9);
-        assert_eq!(backyard_food_reserve_target(3, 10), 60.0);
+        assert!((backyard_food_reserve_target(1, 3) - 3.0).abs() < 1e-9);
+        assert!((backyard_food_reserve_target(2, 6) - 10.0).abs() < 1e-9);
+        assert!((backyard_food_reserve_target(3, 10) - 70.0 / 3.0).abs() < 1e-9);
     }
 
     #[test]
@@ -237,9 +237,9 @@ mod tests {
             }
         );
 
-        let partial = allocate_backyard_food(2.0, true, 1, 3, 8.5);
-        assert!((partial.self_food - 1.67).abs() < 1e-9);
-        assert!((partial.market_food - 0.33).abs() < 1e-9);
+        let partial = allocate_backyard_food(2.0, true, 1, 3, 1.5);
+        assert!((partial.self_food - 1.5).abs() < 1e-9);
+        assert!((partial.market_food - 0.5).abs() < 1e-9);
 
         let stocked = allocate_backyard_food(2.0, true, 1, 3, 12.0);
         assert_eq!(

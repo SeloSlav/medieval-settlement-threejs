@@ -84,6 +84,62 @@ export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
 
 export type FoodInventoryLike = Partial<Record<FoodInventoryKind, number>>;
 
+/** Physical food units converted to the meal-equivalents used by demand. */
+export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
+  food: 1,
+  ryeBread: 1,
+  oatBread: 0.9,
+  maslinBread: 1.05,
+  meat: 1.1,
+  fish: 1,
+  berries: 0.55,
+  mushrooms: 0.6,
+  milk: 0.75,
+  apples: 0.6,
+  cherries: 0.6,
+  vegetables: 0.7,
+  eggs: 0.75,
+  grapes: 0.6,
+  porridge: 0.85,
+  preservedFood: 1,
+  curedMeat: 1.15,
+  smokedFish: 1.05,
+  cheese: 0.9,
+  honey: 1.2,
+};
+
+/** Relative decay inside each food's fresh or preserved storage class. */
+export const FOOD_SPOILAGE_MULTIPLIERS: Readonly<Record<FoodInventoryKind, number>> = {
+  food: 1,
+  ryeBread: 0.55,
+  oatBread: 0.6,
+  maslinBread: 0.5,
+  meat: 2,
+  fish: 2.2,
+  berries: 1.4,
+  mushrooms: 1.6,
+  milk: 2.4,
+  apples: 0.75,
+  cherries: 1,
+  vegetables: 1,
+  eggs: 0.9,
+  grapes: 1.2,
+  porridge: 1.3,
+  preservedFood: 0.75,
+  curedMeat: 0.55,
+  smokedFish: 0.7,
+  cheese: 1,
+  honey: 0,
+};
+
+export function foodMealValue(kind: FoodInventoryKind): number {
+  return FOOD_MEAL_VALUES[kind];
+}
+
+export function foodSpoilageMultiplier(kind: FoodInventoryKind): number {
+  return FOOD_SPOILAGE_MULTIPLIERS[kind];
+}
+
 export const FOOD_CATEGORY_LABELS = {
   grains: 'Grains',
   vegetables: 'Vegetables',
@@ -148,7 +204,7 @@ export function foodCategoryStocks(
     Object.keys(FOOD_CATEGORY_LABELS).map((category) => [category, 0]),
   ) as Record<FoodCategory, number>;
   for (const kind of [...FRESH_FOOD_KINDS, ...PRESERVED_FOOD_KINDS, 'honey'] as const) {
-    stocks[foodCategory(kind)] += finiteFood(inventory[kind]);
+    stocks[foodCategory(kind)] += finiteFood(inventory[kind]) * foodMealValue(kind);
   }
   return stocks;
 }
@@ -189,6 +245,46 @@ export function edibleFoodStock(inventory: FoodInventoryLike): number {
   return freshFoodStock(inventory)
     + preservedFoodStock(inventory)
     + finiteFood(inventory.honey);
+}
+
+export function freshFoodMealEquivalents(inventory: FoodInventoryLike): number {
+  return FRESH_FOOD_KINDS.reduce(
+    (total, kind) => total + finiteFood(inventory[kind]) * foodMealValue(kind),
+    0,
+  );
+}
+
+export function preservedFoodMealEquivalents(inventory: FoodInventoryLike): number {
+  return PRESERVED_FOOD_KINDS.reduce(
+    (total, kind) => total + finiteFood(inventory[kind]) * foodMealValue(kind),
+    0,
+  );
+}
+
+export function edibleFoodMealEquivalents(inventory: FoodInventoryLike): number {
+  return freshFoodMealEquivalents(inventory)
+    + preservedFoodMealEquivalents(inventory)
+    + finiteFood(inventory.honey) * foodMealValue('honey');
+}
+
+export function freshFoodSpoilageExposure(inventory: FoodInventoryLike): number {
+  return FRESH_FOOD_KINDS.reduce(
+    (total, kind) => total
+      + finiteFood(inventory[kind])
+        * foodMealValue(kind)
+        * foodSpoilageMultiplier(kind),
+    0,
+  );
+}
+
+export function preservedFoodSpoilageExposure(inventory: FoodInventoryLike): number {
+  return PRESERVED_FOOD_KINDS.reduce(
+    (total, kind) => total
+      + finiteFood(inventory[kind])
+        * foodMealValue(kind)
+        * foodSpoilageMultiplier(kind),
+    0,
+  );
 }
 
 /** Fresh inputs the smokehouse can actually cure, smoke, or turn into cheese. */

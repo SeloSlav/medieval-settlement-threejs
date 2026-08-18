@@ -350,14 +350,49 @@ impl CommodityKind {
         )
     }
 
-    /// Ready-to-eat meal equivalents. Keeping the initial conversion at 1:1
-    /// preserves established balance while identity becomes physical; this is
-    /// the single extension point for later nutritional differentiation.
+    /// Ready-to-eat meal equivalents. A unit remains a physical basket, loaf,
+    /// crock, or joint; this value is the nourishment that basket contributes
+    /// to household demand and settlement runway forecasts.
     pub fn meal_value(self) -> f64 {
-        if self.is_edible() {
-            1.0
-        } else {
-            0.0
+        match self {
+            Self::Food | Self::PreservedFood | Self::RyeBread | Self::Fish => 1.0,
+            Self::OatBread | Self::Cheese => 0.9,
+            Self::MaslinBread | Self::SmokedFish => 1.05,
+            Self::Meat => 1.1,
+            Self::CuredMeat => 1.15,
+            Self::Honey => 1.2,
+            Self::Porridge => 0.85,
+            Self::Milk | Self::Eggs => 0.75,
+            Self::Vegetables => 0.7,
+            Self::Mushrooms | Self::Apples | Self::Cherries | Self::Grapes => 0.6,
+            Self::Berries => 0.55,
+            _ => 0.0,
+        }
+    }
+
+    /// Relative decay within the fresh or preserved storage class. Nutrition
+    /// and shelf life are deliberately separate: cured meat is nourishing and
+    /// durable, while milk is useful but must be eaten quickly.
+    pub fn spoilage_multiplier(self) -> f64 {
+        match self {
+            Self::RyeBread => 0.55,
+            Self::OatBread => 0.6,
+            Self::MaslinBread => 0.5,
+            Self::Meat => 2.0,
+            Self::Fish => 2.2,
+            Self::Berries => 1.4,
+            Self::Mushrooms => 1.6,
+            Self::Milk => 2.4,
+            Self::Apples => 0.75,
+            Self::Cherries | Self::Vegetables | Self::Food | Self::Cheese => 1.0,
+            Self::Eggs => 0.9,
+            Self::Grapes => 1.2,
+            Self::Porridge => 1.3,
+            Self::PreservedFood => 0.75,
+            Self::CuredMeat => 0.55,
+            Self::SmokedFish => 0.7,
+            Self::Honey => 0.0,
+            _ => 0.0,
         }
     }
 
@@ -915,7 +950,11 @@ pub fn withdraw_residence_fresh_food(residence: &mut Residence, meal_amount: f64
         if !(kind.is_fresh_food() || kind == CommodityKind::Honey) {
             continue;
         }
-        let amount = withdraw_residence_commodity(residence, kind, remaining);
+        let amount = withdraw_residence_commodity(
+            residence,
+            kind,
+            remaining / kind.meal_value().max(1e-9),
+        );
         withdrawn += amount * kind.meal_value();
         remaining = (remaining - amount * kind.meal_value()).max(0.0);
     }
@@ -932,7 +971,11 @@ pub fn withdraw_residence_preserved_food(residence: &mut Residence, meal_amount:
         if !kind.is_preserved_food() {
             continue;
         }
-        let amount = withdraw_residence_commodity(residence, kind, remaining);
+        let amount = withdraw_residence_commodity(
+            residence,
+            kind,
+            remaining / kind.meal_value().max(1e-9),
+        );
         withdrawn += amount * kind.meal_value();
         remaining = (remaining - amount * kind.meal_value()).max(0.0);
     }
@@ -953,7 +996,7 @@ pub fn deposit_residence_commodity(
     } else {
         return 0.0;
     };
-    let deposited = room.min(amount.max(0.0));
+    let deposited = (room / kind.meal_value().max(1e-9)).min(amount.max(0.0));
     match kind {
         CommodityKind::Food => residence.food += deposited,
         CommodityKind::PreservedFood => residence.preserved_food += deposited,
@@ -1019,8 +1062,16 @@ mod tests {
         assert!(CommodityKind::CuredMeat.is_preserved_food());
         assert!(CommodityKind::Honey.is_edible());
         assert_eq!(CommodityKind::RyeBread.meal_value(), 1.0);
-        assert_eq!(CommodityKind::OatBread.meal_value(), 1.0);
-        assert_eq!(CommodityKind::MaslinBread.meal_value(), 1.0);
+        assert_eq!(CommodityKind::OatBread.meal_value(), 0.9);
+        assert_eq!(CommodityKind::MaslinBread.meal_value(), 1.05);
+        assert!(
+            CommodityKind::Milk.spoilage_multiplier()
+                > CommodityKind::RyeBread.spoilage_multiplier()
+        );
+        assert!(
+            CommodityKind::CuredMeat.spoilage_multiplier()
+                < CommodityKind::Meat.spoilage_multiplier()
+        );
         assert_eq!(CommodityKind::RyeFlour.meal_value(), 0.0);
         assert_eq!(CommodityKind::OatFlour.meal_value(), 0.0);
         assert_eq!(CommodityKind::MaslinFlour.meal_value(), 0.0);
@@ -1044,7 +1095,7 @@ mod tests {
 
     #[test]
     fn a_category_needs_one_household_day_of_meals() {
-        assert!((food_category_qualifying_stock(1) - 1.05).abs() < 1e-9);
-        assert!((food_category_qualifying_stock(6) - 6.3).abs() < 1e-9);
+        assert!((food_category_qualifying_stock(1) - 1.0 / 3.0).abs() < 1e-9);
+        assert!((food_category_qualifying_stock(6) - 2.0).abs() < 1e-9);
     }
 }
