@@ -33,7 +33,6 @@ import {
   normalizeMarketplaceSaltTarget,
 } from '../economy/marketplaceMaterialProcurementPolicy.ts';
 import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
-import { storehouseStockTarget } from '../economy/storehousePolicy.ts';
 import { weaverFibreDeliveryPreferenceRank } from '../economy/weaverInputPolicy.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
@@ -77,8 +76,6 @@ type ProcessorInputDestinationLike = Pick<
   | 'processorOutputTargetPercent'
   | 'marketplaceIronTarget'
   | 'marketplaceSaltTarget'
-  | 'storehouseAcceptsCharcoal'
-  | 'storehouseCharcoalTargetPercent'
   | 'granaryAcceptsFreshFood'
   | 'weaverInputPolicy'
   | 'ryeFlour'
@@ -142,7 +139,7 @@ const TARGET_KINDS: Record<
   iron: ['smithy', 'trading_post'],
   clay: ['potter_kiln'],
   salt: ['smokehouse', 'pastoral_farmstead', 'trading_post'],
-  charcoal: ['smithy', 'village_storehouse'],
+  charcoal: ['smithy'],
   pottery: ['smokehouse', 'village_storehouse', 'trading_post'],
 };
 
@@ -294,17 +291,6 @@ export function selectDirectProcessorInputTarget<
       if (smithyCharcoalTarget == null) continue;
       workingTarget = Math.min(capacity, smithyCharcoalTarget);
     }
-    const storehouseCharcoalTarget = commodity === 'charcoal'
-      && target.kind === 'village_storehouse'
-      ? target.storehouseAcceptsCharcoal === false
-        ? null
-        : storehouseStockTarget(capacity, target.storehouseCharcoalTargetPercent ?? 25)
-      : null;
-    if (commodity === 'charcoal' && target.kind === 'village_storehouse') {
-      if (storehouseCharcoalTarget == null || stock + 1e-6 >= storehouseCharcoalTarget) {
-        continue;
-      }
-    }
     const toolRack = commodity === 'ironwork' && isCivilianToolSite(target.kind);
     if (toolRack && !civilianToolRefillDue(stock, capacity)) continue;
     const centralFlourStorage = (
@@ -312,9 +298,7 @@ export function selectDirectProcessorInputTarget<
       || commodity === 'oatFlour'
       || commodity === 'maslinFlour'
     ) && target.kind === 'granary';
-    const duty: ProcessorInputDispatchDuty = storehouseCharcoalTarget != null
-      ? 'workshop-overflow'
-      : toolRack
+    const duty: ProcessorInputDispatchDuty = toolRack
       ? target.assignedLabor > 0
         ? 'working-buffer'
         : 'workshop-overflow'
@@ -336,9 +320,7 @@ export function selectDirectProcessorInputTarget<
     ) {
       continue;
     }
-    const desiredStock = storehouseCharcoalTarget != null
-      ? storehouseCharcoalTarget
-      : toolRack
+    const desiredStock = toolRack
       ? capacity
       : marketplaceReserveTarget != null
       ? Math.min(capacity, marketplaceReserveTarget)
@@ -350,9 +332,7 @@ export function selectDirectProcessorInputTarget<
       target,
       duty,
       desiredStock,
-      runwayCycles: storehouseCharcoalTarget != null
-        ? stock / Math.max(storehouseCharcoalTarget, 1e-9)
-        : processorInputRunwayCycles(stock, perCycle),
+      runwayCycles: processorInputRunwayCycles(stock, perCycle),
       routeDistance,
       workPriority: normalizeStaffingPriority(target.constructionPriority),
       inputPreferenceRank: target.kind === 'weaver'
@@ -661,13 +641,6 @@ function assignProcessorInputOffers<
 
   for (const { source, commodity } of offers) {
     for (const target of materialTargets) {
-      if (
-        commodity === 'charcoal'
-        && target.kind === 'village_storehouse'
-        && (!('kind' in source) || source.kind !== 'charcoal_burner')
-      ) {
-        continue;
-      }
       const candidate = selectDirectProcessorInputTarget(
         [target],
         source.id,

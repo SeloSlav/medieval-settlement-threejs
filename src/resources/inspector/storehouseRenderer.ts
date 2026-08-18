@@ -91,7 +91,7 @@ export function renderStorehouseInspector(
     .join(' · ');
   const collectionHeadroom = STOREHOUSE_COMMODITIES.reduce(
     (sum, commodity) =>
-      storehouseAcceptsCommodity(building, commodity)
+      commodity !== 'charcoal' && storehouseAcceptsCommodity(building, commodity)
         ? sum + storehouseCollectionHeadroom(
           Math.max(0, building[commodity] ?? 0),
           BUILDING_STORAGE_CAPS.village_storehouse[commodity] ?? 0,
@@ -112,7 +112,7 @@ export function renderStorehouseInspector(
             ? ['Collecting producer overflow', 'active'] as const
             : accepted.length === 0
               ? ['All acceptance filters disabled', 'idle'] as const
-              : building.storehouseAcceptsFirewood && building.firewood > 0
+              : building.firewood > 0 || (building.charcoal ?? 0) > 0
                 ? ['Ready to maintain the combined Marketplace fuel reserve', 'ok'] as const
                 : industrialDispatch
                   ? [`Marketplace duty clear · ${context.worldQueries.getBuildingLabel(industrialDispatch.dispatch.target.kind)} is next for ${industrialDispatch.commodity}`, 'ok'] as const
@@ -160,7 +160,7 @@ export function renderStorehouseInspector(
         ${acceptanceToggle('iron', 'Iron', building.storehouseAcceptsIron !== false)}
         ${acceptanceToggle('clay', 'Clay', building.storehouseAcceptsClay !== false)}
         ${acceptanceToggle('salt', 'Salt', building.storehouseAcceptsSalt !== false)}
-        <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. After market-stall and industrial duties, the fullest blocked producer claims the nearest compatible idle depot. Targets cap incoming overflow carts only: construction and stall replenishment can still draw below them, material already above a lowered target remains available, and one cart already on the road may still arrive.</p>
+        <p class="inspector-action-panel__hint">Collection targets distribute producer overflow between depots. Charcoal is different: its target is a maximum transit batch, requested only when linked market demand remains after existing depot fuel is counted. Full smithies and full household runway never create charcoal storage demand. Other targets cap incoming overflow carts; material already above a lowered target remains available.</p>
         ${renderStorehouseStockTargetControls(building)}
       </div>
     `,
@@ -178,7 +178,9 @@ export function renderStorehouseStockTargetControls(building: BuildingState): st
       percent,
     );
     const pressure = headroom > 0.05
-      ? `${headroom.toFixed(0)} collection headroom`
+      ? commodity === 'charcoal'
+        ? `${headroom.toFixed(0)} transit ceiling room · pulled only for linked demand`
+        : `${headroom.toFixed(0)} collection headroom`
       : stock > target + 0.05
         ? `${(stock - target).toFixed(0)} above target · still available`
         : 'At collection target';

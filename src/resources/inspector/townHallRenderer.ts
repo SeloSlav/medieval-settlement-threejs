@@ -920,6 +920,7 @@ export function renderStorehouseNetworkRows(network: StorehouseNetworkPlan): str
     'timber',
     'stone',
     'firewood',
+    'charcoal',
     'iron',
     'clay',
     'salt',
@@ -932,7 +933,10 @@ export function renderStorehouseNetworkRows(network: StorehouseNetworkPlan): str
     const aboveTarget = plan.stockAboveTarget > 0.05
       ? ` · ${plan.stockAboveTarget.toFixed(0)} above targets remains available`
       : '';
-    return `<li><span>${label}</span><span>${plan.stockTowardTarget.toFixed(0)} / ${plan.targetStock.toFixed(0)} toward selected targets · ${plan.collectionHeadroom.toFixed(0)} collection headroom · ${plan.staffedAcceptingDepots} / ${plan.acceptingDepots} collectors staffed${aboveTarget}</span></li>`;
+    const headroomLabel = commodity === 'charcoal'
+      ? 'transit ceiling room when linked demand exists'
+      : 'collection headroom';
+    return `<li><span>${label}</span><span>${plan.stockTowardTarget.toFixed(0)} / ${plan.targetStock.toFixed(0)} toward selected targets · ${plan.collectionHeadroom.toFixed(0)} ${headroomLabel} · ${plan.staffedAcceptingDepots} / ${plan.acceptingDepots} collectors staffed${aboveTarget}</span></li>`;
   }).join('');
   return `
     <li><span>Material depots</span><span>${network.completedDepots} completed · ${network.staffedDepots} staffed</span></li>

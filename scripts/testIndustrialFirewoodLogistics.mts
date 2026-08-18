@@ -69,8 +69,8 @@ assert.equal(
     'firewood',
     (target) => target.x,
   )?.target.id,
-  highPriorityFar.id,
-  'urgent hot work must beat a nearer low-priority workshop',
+  lowPriorityNear.id,
+  'completed workshops share neutral priority, so equal-runway fuel follows the shorter route',
 );
 
 const stockedNear = building('30', 'smokehouse', {
@@ -176,10 +176,10 @@ assert.equal(plan.distributors, 2);
 assert.equal(plan.heatedHouseholds, 2);
 assert.equal(plan.industrialSites, 2);
 assert.equal(plan.householdStock, 10);
-assert.equal(plan.protectedHouseholdStock, 10);
-assert.ok(Math.abs(plan.protectedHouseholdTarget - 14.4) < 1e-9);
-assert.equal(plan.householdsBelowProtectedStock, 2);
-assert.equal(plan.distributorStock, 34);
+assert.equal(plan.protectedHouseholdStock, 2);
+assert.ok(Math.abs(plan.protectedHouseholdTarget - 2) < 1e-9);
+assert.equal(plan.householdsBelowProtectedStock, 0);
+assert.equal(plan.distributorStock, 40);
 assert.equal(plan.industrialStock, 3);
 assert.equal(plan.firewoodInTransit, 2);
 assert.equal(plan.inactiveStock, 5);
@@ -298,8 +298,8 @@ assert.doesNotMatch(
 );
 assert.match(
   storehouseSimulation,
-  /pub fn step_storehouse_market_stalls[\s\S]*CommodityKind::Firewood[\s\S]*&\["marketplace"\]/,
-  'staffed storehouse workers must stock Marketplace fuel stalls before surplus fuel serves industry',
+  /pub fn step_storehouse_market_stalls[\s\S]*marketplace_fuel_reserve_target[\s\S]*combined_fuel_equivalent/,
+  'staffed storehouse workers must stock a demand-based combined Marketplace fuel reserve',
 );
 assert.match(
   storehouseSimulation,
@@ -308,8 +308,13 @@ assert.match(
 );
 assert.match(
   deliveryCargoSimulation,
-  /ResidenceNeedKind::Firewood => building\.firewood \+ building\.charcoal[\s\S]*CommodityKind::Charcoal/,
-  'household heat deliveries must burn firewood first and then accept charcoal as fallback fuel',
+  /ResidenceNeedKind::Firewood => \{[\s\S]*building\.firewood \+ building\.charcoal \* CHARCOAL_HOUSEHOLD_FUEL_VALUE[\s\S]*CommodityKind::Charcoal/,
+  'household heat deliveries must count physical firewood and charcoal fuel-equivalents',
+);
+assert.match(
+  deliveryCargoSimulation,
+  /ResidenceNeedKind::Firewood => \{[\s\S]*withdraw_building_commodity\([\s\S]*CommodityKind::Charcoal[\s\S]*withdraw_building\(/,
+  'household heat deliveries must draw charcoal first so processed fuel cannot stagnate',
 );
 assert.match(
   expandedSimulation,
@@ -326,12 +331,12 @@ const overflowDispatchIndex = authoritativeLoop.indexOf(
 const processorLoopIndex = authoritativeLoop.indexOf('for (sim_kind, building_id) in expanded_ids');
 const localMaterialDispatchIndex = authoritativeLoop.indexOf('step_local_material_dispatch(');
 assert.ok(
-  householdDispatchIndex >= 0
-    && householdDispatchIndex < industrialDispatchIndex
+  industrialDispatchIndex >= 0
     && industrialDispatchIndex < processorLoopIndex
     && processorLoopIndex < localMaterialDispatchIndex
-    && localMaterialDispatchIndex < overflowDispatchIndex,
-  'household fuel and urgent workshop dispatch must precede production, while producer output and local-material duties must precede depot overflow collection',
+    && localMaterialDispatchIndex < householdDispatchIndex
+    && householdDispatchIndex < overflowDispatchIndex,
+  'fresh lodge fuel may stage before production; smithy charcoal buffers then lead combined household reserves and final overflow collection',
 );
 
 console.log(

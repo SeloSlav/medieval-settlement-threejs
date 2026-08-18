@@ -11,11 +11,11 @@ use crate::simulation::{
     step_construction_labor_stewards, step_construction_sites, step_delivery_trips, step_fires,
     step_fishing_camp, step_foragers_shed, step_foraging_lifecycle, step_founding_sites,
     step_fresh_food_spoilage, step_granary, step_guardhouse, step_household_discretionary_trade,
-    step_hunters_hall, step_industrial_firewood_dispatch,
-    step_institutional_food_dispatch, step_land_levies, step_large_quarry, step_live_raids,
-    step_local_material_dispatch, step_lumber_mill, step_market_household_distribution,
-    step_marketplace_caravans, step_marketplace_material_dispatch, step_mine, step_monastery,
-    step_night_cycle, step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
+    step_hunters_hall, step_industrial_firewood_dispatch, step_institutional_food_dispatch,
+    step_land_levies, step_large_quarry, step_live_raids, step_local_material_dispatch,
+    step_lumber_mill, step_market_household_distribution, step_marketplace_caravans,
+    step_marketplace_material_dispatch, step_mine, step_monastery, step_night_cycle,
+    step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
     step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls, step_swineherd,
@@ -473,7 +473,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         .into_iter()
         .filter_map(|building_id| ctx.db.building().id().find(&building_id))
         .collect();
-    step_local_material_dispatch(ctx, &tick, &clock, local_material_sources);
+    step_local_material_dispatch(ctx, &tick, &clock, environment, local_material_sources);
 
     // A depot's stored charcoal first had a chance to refill an active smithy
     // to its six-cycle target. Remaining carts maintain one combined,

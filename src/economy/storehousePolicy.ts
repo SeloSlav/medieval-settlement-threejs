@@ -108,8 +108,10 @@ export function storehouseCommodityTargetPercent(
   building: Pick<BuildingState, StorehouseTargetField>,
   commodity: StorehouseCommodity,
 ): number {
+  const savedPercent = building[STOREHOUSE_TARGET_FIELDS[commodity]];
+  if (commodity === 'charcoal' && savedPercent == null) return 25;
   return normalizeStorehouseStockTargetPercent(
-    building[STOREHOUSE_TARGET_FIELDS[commodity]],
+    savedPercent,
   );
 }
 

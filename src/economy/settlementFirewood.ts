@@ -5,6 +5,7 @@ import {
   CALENDAR_SECONDS_PER_DAY,
   CALENDAR_WORK_END_HOUR,
   CALENDAR_WORK_START_HOUR,
+  CHARCOAL_HOUSEHOLD_FUEL_VALUE,
   CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
   BAKERY_FIREWOOD_PER_CYCLE,
   LODGE_FIREWOOD_PER_CYCLE,
@@ -190,7 +191,7 @@ export function computeSettlementFirewoodPlan(
   for (const building of state.buildings.values()) {
     const stock = finiteStock(building.firewood)
       + (building.kind === 'marketplace' || building.kind === 'village_storehouse'
-        ? finiteStock(building.charcoal)
+        ? finiteStock(building.charcoal) * CHARCOAL_HOUSEHOLD_FUEL_VALUE
         : 0);
     if (fireDisabledBuildings.has(building.id)) {
       quarantinedStock += stock;
@@ -225,7 +226,7 @@ export function computeSettlementFirewoodPlan(
   for (const trip of state.deliveryTrips.values()) {
     if (
       trip.phase === 'inbound'
-      || trip.cargoKind !== 'firewood'
+      || (trip.cargoKind !== 'firewood' && trip.cargoKind !== 'charcoal')
       || trip.amount <= 1e-9
     ) {
       continue;
@@ -237,18 +238,27 @@ export function computeSettlementFirewoodPlan(
       ? state.buildings.get(trip.targetBuildingId)
       : undefined;
     if (
+      trip.cargoKind === 'charcoal'
+      && building?.kind !== 'marketplace'
+      && building?.kind !== 'village_storehouse'
+    ) {
+      continue;
+    }
+    const fuelEquivalent = finiteStock(trip.amount)
+      * (trip.cargoKind === 'charcoal' ? CHARCOAL_HOUSEHOLD_FUEL_VALUE : 1);
+    if (
       residence
       && !fireDisabledResidences.has(residence.id)
       && !residence.abandoned
       && residence.population > 0
     ) {
-      ensureBranch(residence, 'residence').firewoodInTransit += finiteStock(trip.amount);
+      ensureBranch(residence, 'residence').firewoodInTransit += fuelEquivalent;
     } else if (
       building
       && !fireDisabledBuildings.has(building.id)
       && building.constructionComplete !== false
     ) {
-      ensureBranch(building, 'building').firewoodInTransit += finiteStock(trip.amount);
+      ensureBranch(building, 'building').firewoodInTransit += fuelEquivalent;
     }
   }
 

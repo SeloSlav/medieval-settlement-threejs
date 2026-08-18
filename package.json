@@ -29,6 +29,7 @@
     "audio:browser-verify": "node --experimental-strip-types scripts/testAudioBrowserDecode.mts",
     "test:lodge-logistics": "npx tsx scripts/testLodgeLogistics.mts",
     "test:industrial-firewood": "npx tsx scripts/testIndustrialFirewoodLogistics.mts",
+    "test:fuel-reserves": "node --experimental-strip-types scripts/testFuelReservePolicy.mts",
     "test:service-territories": "node --experimental-strip-types scripts/testServiceTerritories.mts",
     "test:service-coverage-overlay": "npx tsx scripts/testServiceCoverageOverlay.mts",
     "test:food-territories": "node --experimental-strip-types scripts/testFoodTerritories.mts",

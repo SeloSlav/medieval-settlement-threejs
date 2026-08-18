@@ -20,8 +20,8 @@ use crate::simulation::delivery_trips::{
 };
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
-use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::residence_needs::ResidenceNeedKind;
+use crate::simulation::road_logistics::local_delivery_distance;
 use crate::simulation::tick_context::SimTickContext;
 use crate::storehouse_policy::{
     compare_storehouse_destination, compare_storehouse_source_priority,
@@ -36,7 +36,6 @@ const STOREHOUSE_OVERFLOW_SOURCE_KINDS: &[&str] = &[
     "woodcutters_lodge",
     "mine",
     "clay_pit",
-    "charcoal_burner",
 ];
 const MINE_OVERFLOW_COMMODITIES: &[CommodityKind] = &[CommodityKind::Iron, CommodityKind::Salt];
 
@@ -102,16 +101,8 @@ pub fn step_storehouse_market_stalls(
             .filter(|market| {
                 market.construction_complete
                     && !tick.building_disabled_by_fire(ctx, market.id)
-                    && !building_has_inbound_commodity_trip(
-                        ctx,
-                        market.id,
-                        CommodityKind::Firewood,
-                    )
-                    && !building_has_inbound_commodity_trip(
-                        ctx,
-                        market.id,
-                        CommodityKind::Charcoal,
-                    )
+                    && !building_has_inbound_commodity_trip(ctx, market.id, CommodityKind::Firewood)
+                    && !building_has_inbound_commodity_trip(ctx, market.id, CommodityKind::Charcoal)
             })
             .flat_map(|market| {
                 let population = covered_population_by_market
@@ -128,8 +119,7 @@ pub fn step_storehouse_market_stalls(
                     building_commodity_cap(&market.kind, CommodityKind::Firewood),
                     building_commodity_cap(&market.kind, CommodityKind::Charcoal),
                 );
-                let current_equivalent =
-                    combined_fuel_equivalent(market.firewood, market.charcoal);
+                let current_equivalent = combined_fuel_equivalent(market.firewood, market.charcoal);
                 let needed_equivalent = (target_equivalent - current_equivalent).max(0.0);
                 let runway_days = fuel_runway_days(current_equivalent, daily_demand);
                 let distance = local_delivery_distance(
@@ -141,18 +131,18 @@ pub fn step_storehouse_market_stalls(
                 );
                 let mut candidates = Vec::new();
                 for commodity in [CommodityKind::Charcoal, CommodityKind::Firewood] {
-                        let source_stock = building_commodity_stock(&storehouse, commodity);
-                        let fuel_value = if commodity == CommodityKind::Charcoal {
-                            CHARCOAL_HOUSEHOLD_FUEL_VALUE
-                        } else {
-                            1.0
-                        };
-                        let room = (building_commodity_cap(&market.kind, commodity)
-                            - building_commodity_stock(&market, commodity))
-                            .max(0.0);
-                        let requested_units = (needed_equivalent / fuel_value.max(1e-9))
-                            .min(source_stock)
-                            .min(room);
+                    let source_stock = building_commodity_stock(&storehouse, commodity);
+                    let fuel_value = if commodity == CommodityKind::Charcoal {
+                        CHARCOAL_HOUSEHOLD_FUEL_VALUE
+                    } else {
+                        1.0
+                    };
+                    let room = (building_commodity_cap(&market.kind, commodity)
+                        - building_commodity_stock(&market, commodity))
+                    .max(0.0);
+                    let requested_units = (needed_equivalent / fuel_value.max(1e-9))
+                        .min(source_stock)
+                        .min(room);
                     if requested_units > 1e-6 {
                         if let Some(distance) = distance {
                             candidates.push(MarketFuelTarget {
@@ -435,7 +425,6 @@ fn overflow_source_commodities(source: &Building) -> &'static [CommodityKind] {
         "lumber_mill" => &[CommodityKind::Timber],
         "stone_quarry" | "large_quarry" => &[CommodityKind::Stone],
         "woodcutters_lodge" => &[CommodityKind::Firewood],
-        "charcoal_burner" => &[CommodityKind::Charcoal],
         "mine" => MINE_OVERFLOW_COMMODITIES,
         "clay_pit" => &[CommodityKind::Clay],
         _ => &[],

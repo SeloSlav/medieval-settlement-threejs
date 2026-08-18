@@ -1056,6 +1056,7 @@ export function renderExpandedBuildingInspector(
         : 'seasoned billets';
   const charcoalClampRows = building.kind === 'charcoal_burner'
     ? `<li><span>Clamp conditions</span><span>${Math.round(environment.charcoalBurnerThroughputMultiplier * 100)}% burn pace · ${charcoalClampWeatherLabel}</span></li>
+      <li><span>Dispatch logic</span><span>Active smithies refill from below 3 to 6 cycles first · an empty staffed depot pulls a capped transit batch only for uncovered linked household fuel demand · otherwise output remains here and the clamp stops at its selected ceiling</span></li>
       <li><span>Seasonal tradeoff</span><span>Drought carbonizes faster but carries the yard's highest fire danger · spring rain and winter frost favor advance charcoal reserves</span></li>`
     : '';
   const seasonalProcessorStatus = building.kind === 'watermill'

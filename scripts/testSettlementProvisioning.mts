@@ -136,8 +136,8 @@ assert.match(
 );
 assert.match(
   householdDistribution,
-  /stock \+ 1e-9 >= daily_lot[\s\S]*MarketIssueCycle::Emergency => 2\.0/,
-  'emergency distribution must top up only pantries below one day and cover two days',
+  /emergency_pantry_rule\(pantry_policy\)[\s\S]*rule\.trigger_days[\s\S]*rule\.target_days/,
+  'emergency distribution must be automatic and governed by the Town Hall pantry policy',
 );
 assert.match(
   householdDistribution,
