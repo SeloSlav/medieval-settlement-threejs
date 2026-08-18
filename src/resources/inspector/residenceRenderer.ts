@@ -644,7 +644,6 @@ export function renderResidenceInspector(
       <li><span>Housing tenure</span><span>Permanent · empty slots remain available to new settlers</span></li>
       <li><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 3`}</span></li>
       <li><span>Roof covering</span><span>${residence.tiledRoof === true ? 'Fired clay tile · rare prosperous-house retrofit' : 'Split wooden shingle · regional default'}</span></li>
-      <li><span>Roof fire exposure</span><span>${residence.tiledRoof === true ? `${Math.round((1 - RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER) * 100)}% lower ignition and spread weighting · not fireproof` : 'Full wooden-roof exposure'}</span></li>
       ${roofTileProject
         ? residenceRoofTileProjectRows(roofTileProject)
         : fireRepairProject

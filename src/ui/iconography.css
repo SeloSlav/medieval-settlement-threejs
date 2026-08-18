@@ -303,7 +303,10 @@
 .settlement-hud__stat[data-resource='maslinGrain']::before,
 .settlement-hud__stat[data-resource='ryeFlour']::before,
 .settlement-hud__stat[data-resource='oatFlour']::before,
-.settlement-hud__stat[data-resource='maslinFlour']::before {
+.settlement-hud__stat[data-resource='maslinFlour']::before,
+.settlement-hud__stat[data-resource='ryeBread']::before,
+.settlement-hud__stat[data-resource='oatBread']::before,
+.settlement-hud__stat[data-resource='maslinBread']::before {
   background-position: center;
   background-size: contain;
 }
@@ -330,6 +333,18 @@
 
 .settlement-hud__stat[data-resource='maslinFlour']::before {
   background-image: url('/assets/ui/icons/provisions/maslin-flour.png');
+}
+
+.settlement-hud__stat[data-resource='ryeBread']::before {
+  background-image: url('/assets/ui/icons/provisions/rye-bread.png');
+}
+
+.settlement-hud__stat[data-resource='oatBread']::before {
+  background-image: url('/assets/ui/icons/provisions/oat-bread.png');
+}
+
+.settlement-hud__stat[data-resource='maslinBread']::before {
+  background-image: url('/assets/ui/icons/provisions/maslin-bread.png');
 }
 
 .settlement-hud__stat[data-resource='flax']::before,
@@ -493,7 +508,10 @@
 .resource-cost__item[data-resource-cost='maslinGrain'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='ryeFlour'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='oatFlour'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='maslinFlour'] .resource-cost__icon {
+.resource-cost__item[data-resource-cost='maslinFlour'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='ryeBread'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='oatBread'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='maslinBread'] .resource-cost__icon {
   background-position: center;
   background-size: contain;
 }
@@ -520,6 +538,18 @@
 
 .resource-cost__item[data-resource-cost='maslinFlour'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/provisions/maslin-flour.png');
+}
+
+.resource-cost__item[data-resource-cost='ryeBread'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/rye-bread.png');
+}
+
+.resource-cost__item[data-resource-cost='oatBread'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/oat-bread.png');
+}
+
+.resource-cost__item[data-resource-cost='maslinBread'] .resource-cost__icon {
+  background-image: url('/assets/ui/icons/provisions/maslin-bread.png');
 }
 
 .resource-cost__item[data-resource-cost='flax'] .resource-cost__icon,
@@ -627,6 +657,25 @@
   background-size: 400% 400%;
   filter: drop-shadow(0 1px 1px rgba(7, 6, 4, 0.78));
   text-shadow: none;
+}
+
+.settlement-hud__food-card[data-food-resource='ryeBread']::before,
+.settlement-hud__food-card[data-food-resource='oatBread']::before,
+.settlement-hud__food-card[data-food-resource='maslinBread']::before {
+  background-position: center;
+  background-size: contain;
+}
+
+.settlement-hud__food-card[data-food-resource='ryeBread']::before {
+  background-image: url('/assets/ui/icons/provisions/rye-bread.png');
+}
+
+.settlement-hud__food-card[data-food-resource='oatBread']::before {
+  background-image: url('/assets/ui/icons/provisions/oat-bread.png');
+}
+
+.settlement-hud__food-card[data-food-resource='maslinBread']::before {
+  background-image: url('/assets/ui/icons/provisions/maslin-bread.png');
 }
 
 .settlement-hud__food-card[data-food-resource='bread']::before { background-position: 0 0; }

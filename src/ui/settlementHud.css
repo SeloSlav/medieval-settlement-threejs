@@ -233,10 +233,12 @@
   display: grid;
   gap: 12px;
   width: var(--approval-panel-width);
-  max-height: calc(100vh - 92px);
+  max-height: min(480px, calc(100vh - 112px));
   padding: 15px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border: 1px solid rgba(213, 190, 139, 0.36);
   border-radius: 11px;
   color: #ded4bf;

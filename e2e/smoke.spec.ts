@@ -6,6 +6,41 @@ const STARTING_POPULATION = 10;
 const STARTUP_TIMEOUT_MS = 90_000;
 const SYNC_TIMEOUT_MS = 45_000;
 
+test('gives rye, oat, and maslin bread distinct provision icons', async ({ page }) => {
+  await page.setContent(`
+    <div class="settlement-hud">
+      <div class="settlement-hud__food-card" data-food-resource="ryeBread"></div>
+      <div class="settlement-hud__food-card" data-food-resource="oatBread"></div>
+      <div class="settlement-hud__food-card" data-food-resource="maslinBread"></div>
+    </div>
+    <div class="resource-cost__item" data-resource-cost="ryeBread"><span class="resource-cost__icon"></span></div>
+    <div class="resource-cost__item" data-resource-cost="oatBread"><span class="resource-cost__icon"></span></div>
+    <div class="resource-cost__item" data-resource-cost="maslinBread"><span class="resource-cost__icon"></span></div>
+  `);
+  await page.addStyleTag({ path: 'src/ui/iconography.css' });
+
+  const expectedIcons = {
+    ryeBread: 'rye-bread.png',
+    oatBread: 'oat-bread.png',
+    maslinBread: 'maslin-bread.png',
+  } as const;
+
+  const foodCardIcons: string[] = [];
+  for (const [resource, filename] of Object.entries(expectedIcons)) {
+    const cardIcon = await page.locator(`[data-food-resource="${resource}"]`).evaluate((element) => (
+      getComputedStyle(element, '::before').backgroundImage
+    ));
+    const costIcon = await page.locator(`[data-resource-cost="${resource}"] .resource-cost__icon`).evaluate((element) => (
+      getComputedStyle(element).backgroundImage
+    ));
+    expect(cardIcon).toContain(filename);
+    expect(costIcon).toContain(filename);
+    foodCardIcons.push(cardIcon);
+  }
+
+  expect(new Set(foodCardIcons).size).toBe(3);
+});
+
 test('keeps at least three specialty digits visible before truncation', async ({ page }) => {
   await page.setContent(`
     <div class="settlement-hud">

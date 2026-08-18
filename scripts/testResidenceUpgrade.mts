@@ -562,9 +562,10 @@ assert.match(residenceInspector, /Cancel cottage works/);
 assert.match(residenceInspector, /Fire recovery worksite/);
 assert.match(residenceInspector, /active fire-recovery sites recover only material already delivered/);
 assert.match(residenceInspector, /Fired-tile roof retrofit/);
+assert.doesNotMatch(residenceInspector, /Roof fire exposure/);
 assert.match(
   residenceInspector,
-  /RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER[\s\S]*lower ignition and spread weighting[\s\S]*not fireproof/,
+  /RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER[\s\S]*lowers fire ignition\/spread exposure[\s\S]*fireproof/,
 );
 
 const residenceMarkers = source('../src/residences/ResidenceMarkers.ts');
