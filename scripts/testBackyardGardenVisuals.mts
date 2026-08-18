@@ -7,7 +7,10 @@ import {
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
 } from '../src/residences/backyardGardenMesh.ts';
-import { backyardGardenClearancePolygon } from '../src/residences/backyardPosition.ts';
+import {
+  BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN,
+  backyardGardenClearancePolygon,
+} from '../src/residences/backyardPosition.ts';
 import type { BackyardGardenKind } from '../src/generated/gameBalance.ts';
 import { BACKYARD_GARDEN_PICKER_KINDS } from '../src/residences/backyardGarden.ts';
 import type { BackyardPlantCatalog } from '../src/vegetation/seedthree/backyardPlantAssets.ts';
@@ -27,7 +30,7 @@ const kinds: BackyardGardenKind[] = [
 const signatures: Record<BackyardGardenKind, string> = {
   apple_orchard: 'AppleTree:',
   cherry_orchard: 'CherryTree:',
-  vegetable_garden: 'BeanTrellis',
+  vegetable_garden: 'CabbageRows',
   flower_garden: 'RoseBush:',
   herb_garden: 'HerbDryingRack',
   hen_yard: 'HenCoopDoor',
@@ -38,6 +41,7 @@ const signatures: Record<BackyardGardenKind, string> = {
 const terrainBackedKinds = new Set<BackyardGardenKind>([
   'apple_orchard',
   'cherry_orchard',
+  'vegetable_garden',
   'flower_garden',
   'herb_garden',
   'hen_yard',
@@ -62,6 +66,21 @@ for (const [actual, expected] of [
 ] as const) {
   assert.ok(Math.abs(actual - expected) < 1e-9);
 }
+assert.ok(
+  BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN >= 0.5,
+  'garden clearance should keep wind-bent grass and wildflower heads outside the complete plot',
+);
+const expandedGardenClearance = backyardGardenClearancePolygon(
+  { x: 10, z: -4, width: 6, depth: 4 },
+  0,
+);
+assert.ok(
+  Math.min(...expandedGardenClearance.map((point) => point.x)) <= 6.5
+    && Math.max(...expandedGardenClearance.map((point) => point.x)) >= 13.5
+    && Math.min(...expandedGardenClearance.map((point) => point.z)) <= -6.5
+    && Math.max(...expandedGardenClearance.map((point) => point.z)) >= -1.5,
+  'the default groundcover exclusion should extend at least half a metre beyond every garden edge',
+);
 
 for (const kind of kinds) {
   const width = 6.2;
@@ -71,10 +90,17 @@ for (const kind of kinds) {
   const bounds = new THREE.Box3().setFromObject(garden);
   const size = bounds.getSize(new THREE.Vector3());
   const names: string[] = [];
+  const soilBeds: THREE.Mesh[] = [];
+  const bedRails: THREE.Mesh[] = [];
   let meshCount = 0;
   garden.traverse((object) => {
     if (object.name) names.push(object.name);
-    if ((object as THREE.Mesh).isMesh) meshCount += 1;
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh) meshCount += 1;
+    if (object.name === 'Textured garden soil bed') soilBeds.push(mesh);
+    if (object.name === 'Garden bed end rail' || object.name === 'Garden bed side rail') {
+      bedRails.push(mesh);
+    }
   });
 
   assert.equal(garden.userData.gardenKind, kind, `${kind} should retain its gameplay identity`);
@@ -84,6 +110,32 @@ for (const kind of kinds) {
   assert.ok(size.x <= 7.5, `${kind} should stay inside a 6.2m parcel with modest foliage overhang`);
   assert.ok(size.z <= 7.5, `${kind} should stay inside a 5.4m backyard with modest foliage overhang`);
   assert.ok(size.y > 0.4, `${kind} should have readable vertical structure`);
+  if (kind === 'vegetable_garden' || kind === 'flower_garden' || kind === 'herb_garden') {
+    assert.ok(soilBeds.length >= 2, `${kind} should expose its individual textured soil beds`);
+    for (const bed of soilBeds) {
+      const material = bed.material as THREE.MeshStandardMaterial;
+      assert.equal(material.name, 'Textured dark garden-bed soil');
+      assert.deepEqual(material.userData.pbrTexturePaths, {
+        albedo: '/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
+        normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
+        roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
+      });
+    }
+  }
+  for (let first = 0; first < bedRails.length; first++) {
+    const firstBounds = new THREE.Box3().setFromObject(bedRails[first]!);
+    for (let second = first + 1; second < bedRails.length; second++) {
+      const secondBounds = new THREE.Box3().setFromObject(bedRails[second]!);
+      const overlapX = Math.min(firstBounds.max.x, secondBounds.max.x)
+        - Math.max(firstBounds.min.x, secondBounds.min.x);
+      const overlapZ = Math.min(firstBounds.max.z, secondBounds.max.z)
+        - Math.max(firstBounds.min.z, secondBounds.min.z);
+      assert.ok(
+        overlapX <= 1e-6 || overlapZ <= 1e-6,
+        `${kind} bed rails should meet at butt joints without coplanar corner overlap`,
+      );
+    }
+  }
   const fenceNames = names.filter((name) => /fence/i.test(name));
   if (kind === 'hen_yard') {
     assert.deepEqual(
@@ -164,14 +216,9 @@ assert.ok(
   vegetableNames.filter((name) => name === 'Textured turnip leaf').length >= 20,
   'turnips should expose broad leaf rosettes above their bulbs',
 );
-assert.ok(
-  vegetableNames.includes('Bean and pea trellis'),
-  'beans and peas should remain represented without replacing a root-crop bed',
-);
-assert.ok(
-  vegetableNames.filter((name) => name === 'Textured climbing bean vine').length >= 7,
-  'the trellis should use realistic climbing-vine cutouts instead of colored leaf balls',
-);
+assert.ok(!vegetableNames.includes('Bean and pea trellis'), 'vegetable gardens should not retain the lintel-like trellis');
+assert.ok(!vegetableNames.includes('Textured climbing bean vine'), 'the unidentified tall vine strip should be removed with its trellis');
+assert.ok(!vegetableNames.includes('Harvest basket'), 'vegetable gardens should not retain the stray pot-like center prop');
 for (const primitiveName of [
   'Layered cabbage heart',
   'Carrot root shoulder',
@@ -193,11 +240,9 @@ const herbDetail = createBackyardGardenMesh('herb_garden', {
 });
 const herbNames: string[] = [];
 const herbRacks: THREE.Group[] = [];
-const herbSoilBeds: THREE.Mesh[] = [];
 herbDetail.traverse((object) => {
   if (object.name) herbNames.push(object.name);
   if (object.name.startsWith('HerbDryingRack:')) herbRacks.push(object as THREE.Group);
-  if (object.name === 'Textured herb-garden soil bed') herbSoilBeds.push(object as THREE.Mesh);
 });
 for (const herb of ['parsley', 'rosemary', 'sage']) {
   assert.ok(
@@ -218,16 +263,6 @@ assert.ok(
   herbRacks.every((rack) => rack.userData.detachedFromBeds === true && rack.position.x > 3.1),
   'the two drying racks should sit detached along the side of the planting beds',
 );
-assert.equal(herbSoilBeds.length, 2, 'herb gardens should expose two textured soil beds');
-for (const bed of herbSoilBeds) {
-  const material = bed.material as THREE.MeshStandardMaterial;
-  assert.equal(material.name, 'Textured dark herb-garden soil');
-  assert.deepEqual(material.userData.pbrTexturePaths, {
-    albedo: '/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
-    normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
-    roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
-  });
-}
 disposeBackyardGardenMesh(herbDetail);
 
 const appleDetail = createBackyardGardenMesh('apple_orchard', { width: 6.2, depth: 5.4, seed: 4271 });
@@ -446,7 +481,6 @@ for (const textureName of ['cabbage_leaf.png', 'carrot_frond.png', 'turnip_leaf.
   );
 }
 for (const texturePath of [
-  'public/assets/textures/vegetation/kitchen_crops/bean_vine.png',
   'public/assets/textures/vegetation/kitchen_herbs/parsley_clump.png',
   'public/assets/textures/vegetation/kitchen_herbs/rosemary_clump.png',
   'public/assets/textures/vegetation/kitchen_herbs/sage_clump.png',
@@ -457,6 +491,18 @@ for (const texturePath of [
     new RegExp(texturePath.split('/').at(-1)!.replace('.', '\\.')),
     `${texturePath} should be referenced by the backyard renderer`,
   );
+}
+assert.doesNotMatch(
+  backyardGardenSource,
+  /bean_vine\.png|BeanTrellis|addBeanTrellis|Textured climbing bean vine/,
+  'removed vegetable trellis assets should not remain in the renderer',
+);
+for (const texturePath of [
+  'public/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
+  'public/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
+  'public/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
+]) {
+  assert.ok(existsSync(join(process.cwd(), texturePath)), `${texturePath} should be packaged`);
 }
 assert.doesNotMatch(
   backyardGardenSource,

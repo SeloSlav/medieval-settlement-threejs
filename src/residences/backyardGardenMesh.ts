@@ -88,7 +88,6 @@ const KITCHEN_CROP_TEXTURE_PATHS = {
   cabbage: '/assets/textures/vegetation/kitchen_crops/cabbage_leaf.png',
   carrot: '/assets/textures/vegetation/kitchen_crops/carrot_frond.png',
   turnip: '/assets/textures/vegetation/kitchen_crops/turnip_leaf.png',
-  bean: '/assets/textures/vegetation/kitchen_crops/bean_vine.png',
 } as const;
 
 const KITCHEN_HERB_TEXTURE_PATHS = {
@@ -97,7 +96,7 @@ const KITCHEN_HERB_TEXTURE_PATHS = {
   sage: '/assets/textures/vegetation/kitchen_herbs/sage_clump.png',
 } as const;
 
-const HERB_GARDEN_SOIL_TEXTURE_PATHS = {
+const GARDEN_BED_SOIL_TEXTURE_PATHS = {
   albedo: '/assets/textures/terrain/mammoth_terrain_dirt/albedo.png',
   normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
   roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
@@ -118,7 +117,6 @@ const KITCHEN_CROP_TEXTURES = {
   cabbage: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.cabbage, 'Generated cabbage leaf cutout'),
   carrot: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.carrot, 'Generated carrot frond cutout'),
   turnip: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.turnip, 'Generated turnip leaf cutout'),
-  bean: loadKitchenCropTexture(KITCHEN_CROP_TEXTURE_PATHS.bean, 'Generated climbing bean vine cutout'),
 } as const;
 
 const KITCHEN_HERB_TEXTURES = {
@@ -127,22 +125,22 @@ const KITCHEN_HERB_TEXTURES = {
   sage: loadKitchenCropTexture(KITCHEN_HERB_TEXTURE_PATHS.sage, 'Generated sage clump cutout'),
 } as const;
 
-const HERB_GARDEN_SOIL_TEXTURES = {
+const GARDEN_BED_SOIL_TEXTURES = {
   albedo: loadKitchenCropTexture(
-    HERB_GARDEN_SOIL_TEXTURE_PATHS.albedo,
+    GARDEN_BED_SOIL_TEXTURE_PATHS.albedo,
     'Existing dark garden-soil albedo',
   ),
   normal: loadKitchenCropTexture(
-    HERB_GARDEN_SOIL_TEXTURE_PATHS.normal,
+    GARDEN_BED_SOIL_TEXTURE_PATHS.normal,
     'Existing dark garden-soil normal',
   ),
   roughness: loadKitchenCropTexture(
-    HERB_GARDEN_SOIL_TEXTURE_PATHS.roughness,
+    GARDEN_BED_SOIL_TEXTURE_PATHS.roughness,
     'Existing dark garden-soil roughness',
   ),
 } as const;
 
-for (const texture of Object.values(HERB_GARDEN_SOIL_TEXTURES)) {
+for (const texture of Object.values(GARDEN_BED_SOIL_TEXTURES)) {
   if (!texture) continue;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
@@ -151,27 +149,25 @@ for (const texture of Object.values(HERB_GARDEN_SOIL_TEXTURES)) {
   texture.generateMipmaps = true;
   texture.anisotropy = 8;
 }
-if (HERB_GARDEN_SOIL_TEXTURES.normal) {
-  HERB_GARDEN_SOIL_TEXTURES.normal.colorSpace = THREE.NoColorSpace;
+if (GARDEN_BED_SOIL_TEXTURES.normal) {
+  GARDEN_BED_SOIL_TEXTURES.normal.colorSpace = THREE.NoColorSpace;
 }
-if (HERB_GARDEN_SOIL_TEXTURES.roughness) {
-  HERB_GARDEN_SOIL_TEXTURES.roughness.colorSpace = THREE.NoColorSpace;
+if (GARDEN_BED_SOIL_TEXTURES.roughness) {
+  GARDEN_BED_SOIL_TEXTURES.roughness.colorSpace = THREE.NoColorSpace;
 }
 
 const MATERIALS = {
-  soil: new THREE.MeshStandardMaterial({ color: 0x4b3828, roughness: 0.97 }),
-  herbSoil: new THREE.MeshStandardMaterial({
-    name: 'Textured dark herb-garden soil',
+  gardenSoil: new THREE.MeshStandardMaterial({
+    name: 'Textured dark garden-bed soil',
     color: 0x8b7765,
-    map: HERB_GARDEN_SOIL_TEXTURES.albedo,
-    normalMap: HERB_GARDEN_SOIL_TEXTURES.normal,
+    map: GARDEN_BED_SOIL_TEXTURES.albedo,
+    normalMap: GARDEN_BED_SOIL_TEXTURES.normal,
     normalScale: new THREE.Vector2(0.38, 0.38),
-    roughnessMap: HERB_GARDEN_SOIL_TEXTURES.roughness,
+    roughnessMap: GARDEN_BED_SOIL_TEXTURES.roughness,
     roughness: 1,
     metalness: 0,
   }),
   darkSoil: new THREE.MeshStandardMaterial({ color: 0x35271d, roughness: 0.98 }),
-  path: new THREE.MeshStandardMaterial({ color: 0x8a795f, roughness: 0.98 }),
   timber: sharedBuildingMaterial('timberMid'),
   darkTimber: sharedBuildingMaterial('timberDark'),
   wicker: sharedBuildingMaterial('timberLight'),
@@ -241,17 +237,6 @@ const MATERIALS = {
     alphaTest: 0.16,
     side: THREE.DoubleSide,
   }),
-  beanVineCard: new THREE.MeshStandardMaterial({
-    name: 'Generated bean vine material',
-    color: 0xffffff,
-    map: KITCHEN_CROP_TEXTURES.bean,
-    emissive: 0x14200f,
-    emissiveIntensity: 0.16,
-    roughness: 0.91,
-    transparent: true,
-    alphaTest: 0.16,
-    side: THREE.DoubleSide,
-  }),
   parsleyCard: new THREE.MeshStandardMaterial({
     name: 'Generated parsley material',
     color: 0xffffff,
@@ -287,8 +272,8 @@ const MATERIALS = {
   collisionProxy: new THREE.MeshBasicMaterial({ visible: false }),
 } as const;
 
-MATERIALS.herbSoil.userData.metricUvMeters = 2.2;
-MATERIALS.herbSoil.userData.pbrTexturePaths = HERB_GARDEN_SOIL_TEXTURE_PATHS;
+MATERIALS.gardenSoil.userData.metricUvMeters = 2.2;
+MATERIALS.gardenSoil.userData.pbrTexturePaths = GARDEN_BED_SOIL_TEXTURE_PATHS;
 
 const FLOWER_MATERIALS = [
   new THREE.MeshStandardMaterial({ color: 0xb83f55, roughness: 0.78 }),
@@ -581,8 +566,8 @@ function addSoilBed(
   width: number,
   depth: number,
   bordered = true,
-  soilMaterial: THREE.Material = MATERIALS.soil,
-  soilName = 'Garden soil bed',
+  soilMaterial: THREE.Material = MATERIALS.gardenSoil,
+  soilName = 'Textured garden soil bed',
 ): void {
   addMesh(
     group,
@@ -597,10 +582,11 @@ function addSoilBed(
   );
   if (!bordered) return;
   const rail = 0.11;
-  addMesh(group, new THREE.BoxGeometry(width + 0.18, 0.18, rail), MATERIALS.timber, x, 0.1, z - depth * 0.5);
-  addMesh(group, new THREE.BoxGeometry(width + 0.18, 0.18, rail), MATERIALS.timber, x, 0.1, z + depth * 0.5);
-  addMesh(group, new THREE.BoxGeometry(rail, 0.18, depth), MATERIALS.timber, x - width * 0.5, 0.1, z);
-  addMesh(group, new THREE.BoxGeometry(rail, 0.18, depth), MATERIALS.timber, x + width * 0.5, 0.1, z);
+  const sideRailDepth = Math.max(rail, depth - rail);
+  addMesh(group, new THREE.BoxGeometry(width + rail, 0.18, rail), MATERIALS.timber, x, 0.1, z - depth * 0.5, undefined, undefined, 'Garden bed end rail');
+  addMesh(group, new THREE.BoxGeometry(width + rail, 0.18, rail), MATERIALS.timber, x, 0.1, z + depth * 0.5, undefined, undefined, 'Garden bed end rail');
+  addMesh(group, new THREE.BoxGeometry(rail, 0.18, sideRailDepth), MATERIALS.timber, x - width * 0.5, 0.1, z, undefined, undefined, 'Garden bed side rail');
+  addMesh(group, new THREE.BoxGeometry(rail, 0.18, sideRailDepth), MATERIALS.timber, x + width * 0.5, 0.1, z, undefined, undefined, 'Garden bed side rail');
 }
 
 function addSteppingStones(
@@ -877,36 +863,12 @@ function addTurnip(group: THREE.Group, x: number, z: number, seed: number): void
   }
 }
 
-function addBeanTrellis(group: THREE.Group, x: number, z: number, length: number): void {
-  const trellis = new THREE.Group();
-  trellis.name = 'Bean and pea trellis';
-  group.add(trellis);
-  const topY = 1.35;
-  for (const dx of [-length * 0.5, 0, length * 0.5]) {
-    addMesh(trellis, new THREE.CylinderGeometry(0.035, 0.05, topY, 6), MATERIALS.darkTimber, x + dx, topY * 0.5, z, new THREE.Euler(0, 0, dx * 0.025));
-  }
-  addMesh(trellis, new THREE.CylinderGeometry(0.035, 0.035, length + 0.12, 6), MATERIALS.darkTimber, x, topY, z, new THREE.Euler(0, 0, Math.PI * 0.5), undefined, 'BeanTrellis');
-  for (let vine = 0; vine < 7; vine++) {
-    const dx = -length * 0.46 + (length * 0.92 * vine) / 6;
-    const card = createRootedLeafCard(
-      0.36 + (vine % 3) * 0.04,
-      1.08 + (vine % 2) * 0.16,
-      MATERIALS.beanVineCard,
-      'Textured climbing bean vine',
-    );
-    card.position.set(x + dx, 0.08, z + (vine % 2 ? 0.015 : -0.015));
-    card.rotation.y = (vine % 2 ? 1 : -1) * 0.08;
-    trellis.add(card);
-  }
-}
-
 function addVegetableGarden(group: THREE.Group, width: number, depth: number, seed: number): void {
-  addMesh(group, new THREE.BoxGeometry(width, 0.04, depth), MATERIALS.path, 0, 0.02, 0);
   const bedCount = 3;
   const gap = 0.3;
   const bedWidth = (width - gap * (bedCount + 1)) / bedCount;
-  const bedDepth = Math.max(1.15, depth - (depth > 3.2 ? 1.25 : 0.62));
-  const bedZ = depth > 3.2 ? -0.34 : 0;
+  const bedDepth = Math.max(1.15, depth - 0.62);
+  const bedZ = 0;
   const cropRows = [
     { name: 'CabbageRows', add: addCabbage, spacing: 0.58 },
     { name: 'CarrotRows', add: addCarrot, spacing: 0.4 },
@@ -932,8 +894,6 @@ function addVegetableGarden(group: THREE.Group, width: number, depth: number, se
       }
     }
   }
-  if (depth > 3.2) addBeanTrellis(group, 0, depth * 0.36, width * 0.78);
-  addBasket(group, width * 0.38, -depth * 0.38, false, MATERIALS.apple);
 }
 
 function addRoseShrub(
@@ -1159,16 +1119,7 @@ function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: n
   const plotW = (width - 0.85) * 0.5;
   for (let side = 0; side < 2; side++) {
     const x = (side ? 1 : -1) * (plotW * 0.5 + 0.18);
-    addSoilBed(
-      group,
-      x,
-      plotZ,
-      plotW,
-      plotDepth,
-      true,
-      MATERIALS.herbSoil,
-      'Textured herb-garden soil bed',
-    );
+    addSoilBed(group, x, plotZ, plotW, plotDepth);
     const cols = Math.max(2, Math.floor(plotW / 0.65));
     const rows = Math.max(2, Math.floor(plotDepth / 0.72));
     for (let row = 0; row < rows; row++) {

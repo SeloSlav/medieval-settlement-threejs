@@ -19,8 +19,11 @@ export type BackyardGardenPlacement = {
   depth: number;
 };
 
-/** Keeps rooted meadow tufts and flower heads from leaning across a garden edge. */
-export const BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN = 0.16;
+/**
+ * Keeps rooted meadow tufts, wind-bent blades, and flower heads completely
+ * outside the garden beds and their detached working props.
+ */
+export const BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN = 0.55;
 
 export function backyardGardenClearancePolygon(
   placement: BackyardGardenPlacement,
