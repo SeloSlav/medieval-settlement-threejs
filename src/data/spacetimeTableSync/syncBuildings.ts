@@ -46,6 +46,7 @@ function buildingStateFromRow(
     linkedWorksiteId: bigint;
     commuteEfficiency: number;
     chapelTier: number;
+    fireRepairActive: boolean;
   }>;
   return {
     id,
@@ -109,6 +110,7 @@ function buildingStateFromRow(
     waterCapacity: wholeResourceUnits(row.waterCapacity),
     assignedLabor: Number(row.assignedLabor),
     constructionComplete: row.constructionComplete,
+    fireRepairActive: materialRow.fireRepairActive === true,
     constructionProgress: row.constructionProgress,
     constructionRequiredTimber: wholeResourceUnits(row.constructionRequiredTimber),
     constructionRequiredStone: wholeResourceUnits(row.constructionRequiredStone),

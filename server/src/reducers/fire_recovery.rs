@@ -135,6 +135,7 @@ fn repair_building(
     building.assigned_labor = initial_construction_labor(available_for_repair);
     building.action_cooldown = 0.0;
     building.construction_complete = false;
+    building.fire_repair_active = incident.state != FIRE_STATE_DESTROYED;
     building.construction_progress = 0.0;
     building.construction_required_timber = cost.timber;
     building.construction_required_stone = cost.stone;

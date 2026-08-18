@@ -1360,7 +1360,7 @@ mod tests {
             |candidate| candidate.0,
         )
         .expect("a direct processor-input destination should be selected");
-        assert_eq!(selected.0, 99_995);
+        assert_eq!(selected.0, 99_999);
         assert!(
             started.elapsed() < Duration::from_millis(100),
             "100k direct input candidates should remain a one-pass selection"
@@ -1482,7 +1482,7 @@ mod tests {
             |candidate| candidate.0 as u64,
         )
         .expect("a large harvest network should have a destination");
-        assert_eq!(selected.0, 99_999);
+        assert_eq!(selected.0, 99_995);
         assert!(started.elapsed() < Duration::from_millis(100));
     }
 

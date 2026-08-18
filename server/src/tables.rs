@@ -771,6 +771,12 @@ pub struct Building {
     /// 3 = threshing before every non-harvest field job.
     #[default(2u8)]
     pub threshing_priority: u8,
+    /// True while a fire-damaged, non-destroyed building is being repaired
+    /// through the construction labor/material pipeline. The completed mesh
+    /// remains standing; destroyed structures use ordinary reconstruction
+    /// visuals instead. Appended for additive save compatibility.
+    #[default(false)]
+    pub fire_repair_active: bool,
 }
 
 /// A player-drawn arable parcel worked by a nearby farmstead (`threshing_barn`).

@@ -163,6 +163,7 @@ export const Building = __t.object("Building", {
   oatBread: __t.f64(),
   maslinBread: __t.f64(),
   threshingPriority: __t.u8(),
+  fireRepairActive: __t.bool(),
 });
 export type Building = __Infer<typeof Building>;
 

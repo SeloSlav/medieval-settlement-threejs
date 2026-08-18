@@ -1109,63 +1109,6 @@ function addTierOneEntryCanopy(
   }
 }
 
-type ResidenceYardDetail = 'bench' | 'drying-rail' | 'kindling-rack';
-
-function addTierOneYardDetail(
-  group: THREE.Group,
-  seed: number,
-  entrySide: -1 | 1,
-  halfWidth: number,
-  halfDepth: number,
-  weatheredMaterial: THREE.Material,
-): ResidenceYardDetail {
-  const variants: readonly ResidenceYardDetail[] = [
-    'bench',
-    'drying-rail',
-    'kindling-rack',
-  ];
-  const detail = variants[Math.abs(seed) % variants.length]!;
-  const x = -entrySide * Math.min(halfWidth - 0.72, 1.45);
-  const z = halfDepth + 0.42;
-  const parts: BoxPart[] = [];
-  if (detail === 'bench') {
-    parts.push(
-      { size: [1.45, 0.14, 0.38], position: [x, 0.55, z] },
-      { size: [0.13, 0.52, 0.13], position: [x - 0.52, 0.27, z] },
-      { size: [0.13, 0.52, 0.13], position: [x + 0.52, 0.27, z] },
-      { size: [1.4, 0.11, 0.11], position: [x, 0.88, z - 0.15] },
-    );
-  } else if (detail === 'drying-rail') {
-    parts.push(
-      { size: [0.13, 1.42, 0.13], position: [x - 0.55, 0.71, z] },
-      { size: [0.13, 1.42, 0.13], position: [x + 0.55, 0.71, z] },
-      { size: [1.35, 0.12, 0.12], position: [x, 1.36, z] },
-      { size: [1.08, 0.08, 0.08], position: [x, 0.91, z] },
-    );
-  } else {
-    for (let index = 0; index < 7; index += 1) {
-      parts.push({
-        size: [0.18, 0.18, 0.78],
-        position: [
-          x - 0.5 + (index % 4) * 0.32,
-          0.12 + Math.floor(index / 4) * 0.2,
-          z,
-        ],
-        rotation: [0, (index % 3 - 1) * 0.08, Math.PI * 0.5],
-      });
-    }
-  }
-  const prop = addMesh(
-    group,
-    mergeBoxParts(parts),
-    weatheredMaterial,
-    new THREE.Vector3(),
-  );
-  prop.name = `Residence lived-in yard detail:${detail}`;
-  prop.userData.residenceYardDetail = detail;
-  return detail;
-}
-
 function addResidenceUpgradeWorks(
   residence: THREE.Group,
   dimensions: HouseDimensions,
@@ -1602,14 +1545,6 @@ export function createResidenceMesh(
       foundationHeight,
       exposedRoofCourseMaterial,
       tierOneStructuralMaterial,
-    );
-    group.userData.residenceYardDetail = addTierOneYardDetail(
-      group,
-      seed,
-      entrySide,
-      halfW,
-      halfD,
-      tierOneWeatheredMaterial,
     );
   } else if (archetype === 'stone_portal') {
     addStonePortalPorch(

@@ -10,7 +10,6 @@ import { createResidenceMesh } from '../src/residences/ResidenceMarkers.ts';
 import { pickResidenceAppearance } from '../src/residences/residenceAppearance.ts';
 
 const seeds = [0, 1, 2, 7, 19, 101] as const;
-const yardDetails = new Set<string>();
 
 for (const seed of seeds) {
   const residence = createResidenceMesh(seed, 1);
@@ -44,9 +43,12 @@ for (const seed of seeds) {
     'residence yards must not retain the removed axe/chopping-block marker',
   );
 
-  const yardDetail = String(residence.userData.residenceYardDetail);
-  yardDetails.add(yardDetail);
-  assertNamedPart(residence, `Residence lived-in yard detail:${yardDetail}`);
+  assert.equal(
+    residence.userData.residenceYardDetail,
+    undefined,
+    'tier-one cottages must keep the front-window wall clear of freestanding props',
+  );
+  assertResidenceFrontWallHasNoYardDetail(residence);
   assertResidenceYardHasNoChoppingBlock(residence);
   assertSideWindowClearance(residence, 1);
 
@@ -112,12 +114,6 @@ for (const seed of seeds) {
   );
 }
 
-assert.deepEqual(
-  yardDetails,
-  new Set(['bench', 'drying-rail', 'kindling-rack']),
-  'seeded cottage variation should cover three legible, lived-in yard details',
-);
-
 for (const tier of [1, 2, 3] as const) {
   for (let seed = 0; seed < 64; seed += 1) {
     assert.equal(
@@ -156,7 +152,7 @@ for (const tier of [1, 2, 3] as const) {
 assertResidenceCameraContract();
 
 console.log(
-  `residence visual-fidelity checks passed (${seeds.length} deterministic cottages, ${yardDetails.size} yard-detail variants, isolated 16:9 judge)`,
+  `residence visual-fidelity checks passed (${seeds.length} deterministic cottages, clear front-window walls, isolated 16:9 judge)`,
 );
 
 function assertNamedPart(root: THREE.Object3D, name: string): void {
@@ -174,6 +170,21 @@ function assertResidenceYardHasNoChoppingBlock(root: THREE.Object3D): void {
       object.name,
       /axe|stump|chopping[- ]block/i,
       'the residence model must not contain a front-yard axe or stump mesh',
+    );
+  });
+}
+
+function assertResidenceFrontWallHasNoYardDetail(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    assert.equal(
+      object.userData.residenceYardDetail,
+      undefined,
+      `${object.name || object.type} must not retain the removed front-window prop metadata`,
+    );
+    assert.doesNotMatch(
+      object.name,
+      /Residence lived-in yard detail:/i,
+      'tier-one cottages must not place a bench, drying rail, or kindling rack under the front window',
     );
   });
 }
@@ -668,12 +679,6 @@ function assertResidenceCameraContract(): void {
   const subjectFrame = projectedBounds(
     subject,
     camera,
-    (mesh) => mesh.userData.residenceYardDetail === undefined,
-  );
-  const yardFrame = projectedBounds(
-    subject,
-    camera,
-    (mesh) => mesh.userData.residenceYardDetail !== undefined,
   );
   const neighborFrame = projectedBounds(neighbor, camera);
 
@@ -688,15 +693,6 @@ function assertResidenceCameraContract(): void {
     subjectFrame.maxX - subjectFrame.minX >= 1
       && subjectFrame.maxY - subjectFrame.minY >= 1.6,
     `residence judge must devote useful frame area to its subject (${JSON.stringify(subjectFrame)})`,
-  );
-  assert.ok(
-    yardFrame.minX >= -0.9
-      && yardFrame.maxX <= 0.9
-      && yardFrame.minY >= -0.9
-      && yardFrame.maxY <= 0.9
-      && yardFrame.maxX - yardFrame.minX >= 0.18
-      && yardFrame.maxY - yardFrame.minY >= 0.15,
-    `residence judge must retain a legible yard detail without relying on the removed stump (${JSON.stringify(yardFrame)})`,
   );
   assert.ok(
     neighborFrame.maxX < -1.2,

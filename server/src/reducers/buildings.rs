@@ -901,6 +901,7 @@ pub(crate) fn place_building_internal(
         oat_bread: 0.0,
         maslin_bread: 0.0,
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
+        fire_repair_active: false,
     });
 
     ctx.db.world_config().id().update(WorldConfig {

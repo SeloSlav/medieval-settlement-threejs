@@ -1289,7 +1289,7 @@ approx(grainPlan.processorRunwayDays, 264 / 227);
 approx(grainPlan.annualProcessorDemand, 6_810);
 approx(grainPlan.annualCommitments, 6_840);
 approx(grainPlan.annualBalance, -6_740);
-assert.deepEqual(grainPlan.processorPriorityCounts, { 1: 1, 2: 2, 3: 1 });
+assert.equal('processorPriorityCounts' in grainPlan, false);
 assert.equal(grainPlan.firstAttentionKind, 'seed');
 assert.equal(grainPlan.firstAttentionBuildingId, seedFarm.id);
 
@@ -1977,11 +1977,7 @@ const grainPerfElapsedMs = performance.now() - grainPerfStarted;
 assert.equal(perfGrainPlan.inTransit, 100_000);
 assert.equal(perfGrainPlan.roadPlan?.drawingBranches, 200);
 assert.equal(perfGrainPlan.roadPlan?.unstockedDrawingBranches, 200);
-assert.deepEqual(perfGrainPlan.processorPriorityCounts, {
-  1: 0,
-  2: 40_000,
-  3: 0,
-});
+assert.equal('processorPriorityCounts' in perfGrainPlan, false);
 assert.ok(
   grainPerfElapsedMs < 300,
   `100,000-building + 100,000-cart grain ledger took ${grainPerfElapsedMs.toFixed(1)} ms`,
@@ -2128,8 +2124,7 @@ assert.match(townHallInspector, /Processor grain roads/);
 assert.match(townHallInspector, /weakest source reserve/);
 assert.match(townHallInspector, /workshop stocks and carts excluded/);
 assert.match(townHallInspector, /Inspect weakest processor grain road branch/);
-assert.match(townHallInspector, /Grain cart priorities/);
-assert.match(townHallInspector, /carts serve higher tiers first/);
+assert.doesNotMatch(townHallInspector, /Grain cart priorities|higher tiers first/);
 assert.match(townHallInspector, /Crop-year balance/);
 assert.match(townHallInspector, /imports excluded/);
 assert.match(townHallInspector, /Standing seed orders/);

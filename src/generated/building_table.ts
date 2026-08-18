@@ -140,4 +140,5 @@ export default __t.row({
   oatBread: __t.f64().name("oat_bread"),
   maslinBread: __t.f64().name("maslin_bread"),
   threshingPriority: __t.u8().name("threshing_priority"),
+  fireRepairActive: __t.bool().name("fire_repair_active"),
 });

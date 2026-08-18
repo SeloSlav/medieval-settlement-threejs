@@ -780,6 +780,7 @@ pub fn insert_reclamation_pile(
         oat_bread: stock.oat_bread.max(0.0),
         maslin_bread: stock.maslin_bread.max(0.0),
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
+        fire_repair_active: false,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

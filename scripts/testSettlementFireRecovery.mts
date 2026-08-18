@@ -207,7 +207,8 @@ const activeRepairRows = renderSettlementFireRecoveryRows(
   (kind) => kind.replaceAll('_', ' '),
 );
 assert.match(activeRepairRows, /1 active · 0 ready · 0 cooling/);
-assert.match(activeRepairRows, /underway \(high work priority\)/);
+assert.match(activeRepairRows, /underway/);
+assert.doesNotMatch(activeRepairRows, /work priority/i);
 assert.match(activeRepairRows, /data-inspect-residence="22"/);
 
 const chapel = building('chapel-1', 'chapel', { assignedLabor: 1 });

@@ -131,6 +131,8 @@ export type BuildingState = {
   waterCapacity: number;
   assignedLabor: number;
   constructionComplete: boolean;
+  /** Non-destructive fire repair uses construction labor without replacing the finished mesh. */
+  fireRepairActive?: boolean;
   constructionProgress: number;
   constructionRequiredTimber: number;
   constructionRequiredStone: number;

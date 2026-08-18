@@ -47,9 +47,10 @@ import { armoryStockpileVisualSignature } from './armoryStockpileVisuals.ts';
 import { seasonalStockpileVisualSignature } from './seasonalStockpileVisuals.ts';
 import { marketplaceSpecialtyStockpileVisualSignature } from './marketplaceSpecialtyStockpileVisuals.ts';
 import { monasteryStockpileVisualSignature } from './monasteryStockpileVisuals.ts';
+import { buildingUsesCompletedMesh } from './buildingVisualState.ts';
 
 export function buildingMeshSignature(building: BuildingState): string {
-  if (building.constructionComplete !== false) {
+  if (buildingUsesCompletedMesh(building)) {
     return `complete:${building.kind}${building.kind === 'chapel' ? `:tier-${building.chapelTier ?? 3}` : ''}`;
   }
   return constructionVisualSignature(

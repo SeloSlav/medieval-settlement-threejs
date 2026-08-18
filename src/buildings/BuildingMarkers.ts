@@ -66,6 +66,7 @@ import {
   createConstructionSiteMesh,
 } from './ConstructionSiteMesh.ts';
 import { buildingMeshSignature } from './buildingMarkerSignature.ts';
+import { buildingUsesCompletedMesh } from './buildingVisualState.ts';
 import {
   FOUNDING_STONE_VISUAL_SEGMENTS,
   FOUNDING_TIMBER_VISUAL_SEGMENTS,
@@ -798,6 +799,7 @@ export class BuildingMarkers {
       building.constructionRequiredIronwork ?? 0,
     );
     const operational = building.constructionComplete !== false;
+    const useCompletedMesh = buildingUsesCompletedMesh(building);
     const visualSignature = buildingMeshSignature(building);
     if (marker && marker.userData.visualSignature !== visualSignature) {
       this.unregisterFoundersCampfire(marker);
@@ -826,7 +828,7 @@ export class BuildingMarkers {
       adoptedPendingFoundersCamp = marker !== undefined;
     }
     if (!marker) {
-      marker = operational
+      marker = useCompletedMesh
         ? building.kind === 'founders_camp'
           ? this.takeFoundersCampMesh()
           : createBuildingMesh(building.kind, building.chapelTier ?? 3)

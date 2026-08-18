@@ -254,6 +254,7 @@ fn advance_builder_work(
 
 fn complete_site(ctx: &ReducerContext, site: &mut Building) {
     site.construction_complete = true;
+    site.fire_repair_active = false;
     site.construction_progress = 1.0;
     site.construction_reserved_timber = 0.0;
     site.construction_reserved_stone = 0.0;
