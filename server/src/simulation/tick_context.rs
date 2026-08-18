@@ -7,10 +7,11 @@ use std::sync::Arc;
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
-    CATTLE_PLOUGH_WORK_MULTIPLIER, MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_FOOD,
+    CATTLE_PLOUGH_WORK_MULTIPLIER, MARKETPLACE_FOOD_STALL_SLOTS, MARKETPLACE_GOODS_STALL_SLOTS,
+    MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_FOOD,
 };
 use crate::db::*;
-use crate::economy::{building_edible_food_stock, CommodityKind};
+use crate::economy::{building_edible_food_stock, building_preserved_food_stock, CommodityKind};
 use crate::farming::{
     field_manure_required, field_seed_crop, field_seed_grain_remaining, CROP_OATS, CROP_RYE,
     CROP_WHEAT,
@@ -40,6 +41,34 @@ struct FarmsteadSeedReserves {
     rye: f64,
     oats: f64,
     maslin: f64,
+}
+
+const MARKET_STALL_GROUP_FOOD: u8 = 0;
+const MARKET_STALL_GROUP_GOODS: u8 = 1;
+const MARKET_FOOD_STALL_NEEDS: [ResidenceNeedKind; 3] = [
+    ResidenceNeedKind::Food,
+    ResidenceNeedKind::PreservedFood,
+    ResidenceNeedKind::Ale,
+];
+const MARKET_GOODS_STALL_NEEDS: [ResidenceNeedKind; 3] = [
+    ResidenceNeedKind::Firewood,
+    ResidenceNeedKind::Cloth,
+    ResidenceNeedKind::Pottery,
+];
+
+#[derive(Default)]
+struct MarketplaceStallRoster {
+    workplace_by_market_need: HashMap<(u64, ResidenceNeedKind), u64>,
+    workers_by_market_group: HashMap<(u64, u8), Vec<u64>>,
+}
+
+#[derive(Clone, Copy)]
+struct MarketplaceStallCandidate {
+    marketplace_id: u64,
+    workplace_id: u64,
+    need_kind: ResidenceNeedKind,
+    distance: f64,
+    source_has_stock: bool,
 }
 
 impl FarmsteadSeedReserves {
@@ -72,6 +101,7 @@ pub struct SimTickContext {
     local_marketplace_claims: RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
     local_marketplace_deposit_claims:
         RefCell<HashMap<(Identity, ResidenceNeedKind), HashMap<u64, u64>>>,
+    marketplace_stall_rosters: RefCell<HashMap<Identity, MarketplaceStallRoster>>,
     active_remote_camp_by_worksite: RefCell<HashMap<(Identity, u64), bool>>,
     waiting_corpse_index: RefCell<Option<HashMap<Identity, CorpseSpatialIndex>>>,
     farmstead_seed_reserves:
@@ -116,6 +146,7 @@ impl SimTickContext {
             marketplace_claims: RefCell::new(HashMap::new()),
             local_marketplace_claims: RefCell::new(HashMap::new()),
             local_marketplace_deposit_claims: RefCell::new(HashMap::new()),
+            marketplace_stall_rosters: RefCell::new(HashMap::new()),
             active_remote_camp_by_worksite: RefCell::new(HashMap::new()),
             waiting_corpse_index: RefCell::new(None),
             farmstead_seed_reserves: RefCell::new(HashMap::new()),
@@ -912,6 +943,7 @@ impl SimTickContext {
                     && crate::simulation::delivery_cargo::building_delivery_stock(
                         building, stall_need,
                     ) > 1e-6
+                    && self.marketplace_has_stall_workers(ctx, building, stall_need)
             })
             .collect();
         let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
@@ -952,7 +984,7 @@ impl SimTickContext {
             .filter(|building| {
                 building.construction_complete
                     && !self.building_disabled_by_fire(ctx, building.id)
-                    && self.marketplace_has_stall_workers(ctx, network, building, stall_need)
+                    && self.marketplace_has_stall_workers_for_deposit(ctx, building, stall_need)
             })
             .collect();
         let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
@@ -1053,7 +1085,6 @@ impl SimTickContext {
                 ) && !self.building_disabled_by_fire(ctx, building.id)
                     && self.marketplace_has_stall_workers(
                         ctx,
-                        network,
                         building,
                         ResidenceNeedKind::Food,
                     )
@@ -1110,39 +1141,329 @@ impl SimTickContext {
     pub(crate) fn marketplace_has_stall_workers(
         &self,
         ctx: &ReducerContext,
-        network: &crate::roads::RoadNetwork,
         marketplace: &Building,
         need_kind: ResidenceNeedKind,
     ) -> bool {
-        if marketplace.kind != "marketplace" {
-            return false;
+        self.marketplace_stall_workplace_id(ctx, marketplace, need_kind)
+            .is_some()
+    }
+
+    pub(crate) fn marketplace_stall_workplace_id(
+        &self,
+        ctx: &ReducerContext,
+        marketplace: &Building,
+        need_kind: ResidenceNeedKind,
+    ) -> Option<u64> {
+        if marketplace.kind != "marketplace" || stall_group_for_need(need_kind).is_none() {
+            return None;
         }
-        let workplace_kind = match need_kind {
-            ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
-                "granary"
-            }
-            ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
-                "village_storehouse"
-            }
-            ResidenceNeedKind::Water
-            | ResidenceNeedKind::Church
-            | ResidenceNeedKind::FoodVariety => return false,
+        self.ensure_marketplace_stall_roster(ctx, marketplace.owner);
+        let rosters = self.marketplace_stall_rosters.borrow();
+        let roster = rosters.get(&marketplace.owner)?;
+        roster
+            .workplace_by_market_need
+            .get(&(marketplace.id, need_kind))
+            .copied()
+            .or_else(|| {
+                (need_kind == ResidenceNeedKind::Food
+                    && marketplace_stall_stock(marketplace, ResidenceNeedKind::Food) <= 1e-6)
+                    .then(|| {
+                        roster
+                            .workplace_by_market_need
+                            .get(&(marketplace.id, ResidenceNeedKind::PreservedFood))
+                            .copied()
+                    })
+                    .flatten()
+            })
+    }
+
+    pub(crate) fn marketplace_stall_workplace_id_for_commodity(
+        &self,
+        ctx: &ReducerContext,
+        marketplace: &Building,
+        commodity: CommodityKind,
+    ) -> Option<u64> {
+        let need_kind = stall_need_for_commodity(commodity)?;
+        if marketplace.kind != "marketplace" {
+            return None;
+        }
+        self.ensure_marketplace_stall_roster(ctx, marketplace.owner);
+        self.marketplace_stall_rosters
+            .borrow()
+            .get(&marketplace.owner)?
+            .workplace_by_market_need
+            .get(&(marketplace.id, need_kind))
+            .copied()
+    }
+
+    pub(crate) fn marketplace_any_goods_stall_workplace_id(
+        &self,
+        ctx: &ReducerContext,
+        marketplace: &Building,
+    ) -> Option<u64> {
+        if marketplace.kind != "marketplace" {
+            return None;
+        }
+        self.ensure_marketplace_stall_roster(ctx, marketplace.owner);
+        let rosters = self.marketplace_stall_rosters.borrow();
+        let roster = rosters.get(&marketplace.owner)?;
+        MARKET_GOODS_STALL_NEEDS
+            .iter()
+            .find_map(|need_kind| {
+                roster
+                    .workplace_by_market_need
+                    .get(&(marketplace.id, *need_kind))
+                    .copied()
+            })
+            .or_else(|| {
+                roster
+                    .workers_by_market_group
+                    .get(&(marketplace.id, MARKET_STALL_GROUP_GOODS))
+                    .and_then(|workers| workers.first())
+                    .copied()
+            })
+    }
+
+    pub(crate) fn marketplace_stall_accepts_commodity_from(
+        &self,
+        ctx: &ReducerContext,
+        marketplace: &Building,
+        workplace_id: u64,
+        commodity: CommodityKind,
+    ) -> bool {
+        self.marketplace_stall_workplace_id_for_commodity(ctx, marketplace, commodity)
+            == Some(workplace_id)
+    }
+
+    fn marketplace_has_stall_workers_for_deposit(
+        &self,
+        ctx: &ReducerContext,
+        marketplace: &Building,
+        need_kind: ResidenceNeedKind,
+    ) -> bool {
+        let Some(group) = stall_group_for_need(need_kind) else {
+            return false;
         };
-        self.building_ids_for_kinds(ctx, marketplace.owner, &[workplace_kind])
+        self.ensure_marketplace_stall_roster(ctx, marketplace.owner);
+        self.marketplace_stall_rosters
+            .borrow()
+            .get(&marketplace.owner)
+            .and_then(|roster| roster.workers_by_market_group.get(&(marketplace.id, group)))
+            .is_some_and(|workers| !workers.is_empty())
+    }
+
+    fn ensure_marketplace_stall_roster(&self, ctx: &ReducerContext, owner: Identity) {
+        if self.marketplace_stall_rosters.borrow().contains_key(&owner) {
+            return;
+        }
+        let roster = self.build_marketplace_stall_roster(ctx, owner);
+        self.marketplace_stall_rosters
+            .borrow_mut()
+            .insert(owner, roster);
+    }
+
+    fn build_marketplace_stall_roster(
+        &self,
+        ctx: &ReducerContext,
+        owner: Identity,
+    ) -> MarketplaceStallRoster {
+        let Some(network) = self.road_network(owner) else {
+            return MarketplaceStallRoster::default();
+        };
+        let mut marketplaces: Vec<Building> = self
+            .building_ids_for_kinds(ctx, owner, &["marketplace"])
             .into_iter()
             .filter_map(|id| ctx.db.building().id().find(&id))
-            .any(|workplace| {
-                workplace.construction_complete
-                    && workplace.assigned_labor > 0
-                    && !self.building_disabled_by_fire(ctx, workplace.id)
-                    && crate::simulation::road_logistics::local_delivery_distance(
-                        network,
-                        workplace.x,
-                        workplace.z,
-                        marketplace.x,
-                        marketplace.z,
-                    )
-                    .is_some()
+            .filter(|marketplace| {
+                marketplace.construction_complete
+                    && !self.building_disabled_by_fire(ctx, marketplace.id)
             })
+            .collect();
+        marketplaces.sort_by_key(|marketplace| marketplace.id);
+        let mut roster = MarketplaceStallRoster::default();
+
+        for group in [MARKET_STALL_GROUP_FOOD, MARKET_STALL_GROUP_GOODS] {
+            let workplace_kind = if group == MARKET_STALL_GROUP_FOOD {
+                "granary"
+            } else {
+                "village_storehouse"
+            };
+            let mut workplaces: Vec<Building> = self
+                .building_ids_for_kinds(ctx, owner, &[workplace_kind])
+                .into_iter()
+                .filter_map(|id| ctx.db.building().id().find(&id))
+                .filter(|workplace| {
+                    workplace.construction_complete
+                        && workplace.assigned_labor > 0
+                        && !self.building_disabled_by_fire(ctx, workplace.id)
+                })
+                .collect();
+            workplaces.sort_by_key(|workplace| workplace.id);
+            let mut workers_remaining: HashMap<u64, u32> = workplaces
+                .iter()
+                .map(|workplace| (workplace.id, workplace.assigned_labor))
+                .collect();
+            let mut slots_remaining: HashMap<u64, u32> = marketplaces
+                .iter()
+                .map(|marketplace| (marketplace.id, stall_slots_for_group(group)))
+                .collect();
+            let mut candidates = Vec::<MarketplaceStallCandidate>::new();
+            let mut workplace_market_pairs = Vec::<(f64, u64, u64)>::new();
+
+            for workplace in &workplaces {
+                for marketplace in &marketplaces {
+                    let Some(distance) = network
+                        .road_path_distance(workplace.x, workplace.z, marketplace.x, marketplace.z)
+                        .filter(|distance| distance.is_finite())
+                    else {
+                        continue;
+                    };
+                    workplace_market_pairs.push((distance, marketplace.id, workplace.id));
+                    for need_kind in stall_needs_for_group(group) {
+                        let source_has_stock =
+                            marketplace_stall_stock(workplace, *need_kind) > 1e-6;
+                        if !source_has_stock
+                            && marketplace_stall_stock(marketplace, *need_kind) <= 1e-6
+                        {
+                            continue;
+                        }
+                        candidates.push(MarketplaceStallCandidate {
+                            marketplace_id: marketplace.id,
+                            workplace_id: workplace.id,
+                            need_kind: *need_kind,
+                            distance,
+                            source_has_stock,
+                        });
+                    }
+                }
+            }
+
+            candidates.sort_by(|left, right| {
+                left.distance
+                    .total_cmp(&right.distance)
+                    .then_with(|| right.source_has_stock.cmp(&left.source_has_stock))
+                    .then_with(|| {
+                        stall_need_rank(left.need_kind).cmp(&stall_need_rank(right.need_kind))
+                    })
+                    .then_with(|| left.marketplace_id.cmp(&right.marketplace_id))
+                    .then_with(|| left.workplace_id.cmp(&right.workplace_id))
+            });
+            for candidate in candidates {
+                let source_workers = workers_remaining
+                    .get(&candidate.workplace_id)
+                    .copied()
+                    .unwrap_or(0);
+                let market_slots = slots_remaining
+                    .get(&candidate.marketplace_id)
+                    .copied()
+                    .unwrap_or(0);
+                if source_workers == 0
+                    || market_slots == 0
+                    || roster
+                        .workplace_by_market_need
+                        .contains_key(&(candidate.marketplace_id, candidate.need_kind))
+                {
+                    continue;
+                }
+                roster.workplace_by_market_need.insert(
+                    (candidate.marketplace_id, candidate.need_kind),
+                    candidate.workplace_id,
+                );
+                roster
+                    .workers_by_market_group
+                    .entry((candidate.marketplace_id, group))
+                    .or_default()
+                    .push(candidate.workplace_id);
+                workers_remaining.insert(candidate.workplace_id, source_workers - 1);
+                slots_remaining.insert(candidate.marketplace_id, market_slots - 1);
+            }
+
+            workplace_market_pairs.sort_by(|left, right| {
+                left.0
+                    .total_cmp(&right.0)
+                    .then_with(|| left.1.cmp(&right.1))
+                    .then_with(|| left.2.cmp(&right.2))
+            });
+            for (_, marketplace_id, workplace_id) in workplace_market_pairs {
+                let source_workers = workers_remaining.get(&workplace_id).copied().unwrap_or(0);
+                let market_slots = slots_remaining.get(&marketplace_id).copied().unwrap_or(0);
+                let standby_workers = source_workers.min(market_slots);
+                if standby_workers == 0 {
+                    continue;
+                }
+                roster
+                    .workers_by_market_group
+                    .entry((marketplace_id, group))
+                    .or_default()
+                    .extend(std::iter::repeat_n(workplace_id, standby_workers as usize));
+                workers_remaining.insert(workplace_id, source_workers - standby_workers);
+                slots_remaining.insert(marketplace_id, market_slots - standby_workers);
+            }
+        }
+
+        roster
+    }
+}
+
+fn stall_group_for_need(need_kind: ResidenceNeedKind) -> Option<u8> {
+    match need_kind {
+        ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
+            Some(MARKET_STALL_GROUP_FOOD)
+        }
+        ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
+            Some(MARKET_STALL_GROUP_GOODS)
+        }
+        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
+            None
+        }
+    }
+}
+
+fn stall_needs_for_group(group: u8) -> &'static [ResidenceNeedKind] {
+    if group == MARKET_STALL_GROUP_FOOD {
+        &MARKET_FOOD_STALL_NEEDS
+    } else {
+        &MARKET_GOODS_STALL_NEEDS
+    }
+}
+
+fn stall_slots_for_group(group: u8) -> u32 {
+    if group == MARKET_STALL_GROUP_FOOD {
+        MARKETPLACE_FOOD_STALL_SLOTS
+    } else {
+        MARKETPLACE_GOODS_STALL_SLOTS
+    }
+}
+
+fn stall_need_rank(need_kind: ResidenceNeedKind) -> u8 {
+    match need_kind {
+        ResidenceNeedKind::Food | ResidenceNeedKind::Firewood => 0,
+        ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Cloth => 1,
+        ResidenceNeedKind::Ale | ResidenceNeedKind::Pottery => 2,
+        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => 3,
+    }
+}
+
+fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKind> {
+    if commodity.is_preserved_food() {
+        Some(ResidenceNeedKind::PreservedFood)
+    } else if commodity.is_fresh_food() || commodity == CommodityKind::Honey {
+        Some(ResidenceNeedKind::Food)
+    } else {
+        match commodity {
+            CommodityKind::Ale => Some(ResidenceNeedKind::Ale),
+            CommodityKind::Firewood | CommodityKind::Charcoal => Some(ResidenceNeedKind::Firewood),
+            CommodityKind::Cloth => Some(ResidenceNeedKind::Cloth),
+            CommodityKind::Pottery => Some(ResidenceNeedKind::Pottery),
+            _ => None,
+        }
+    }
+}
+
+fn marketplace_stall_stock(building: &Building, need_kind: ResidenceNeedKind) -> f64 {
+    if need_kind == ResidenceNeedKind::Food {
+        (building_edible_food_stock(building) - building_preserved_food_stock(building)).max(0.0)
+    } else {
+        crate::simulation::delivery_cargo::building_delivery_stock(building, need_kind)
     }
 }

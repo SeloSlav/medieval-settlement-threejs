@@ -4082,6 +4082,10 @@ fn dispatch_to_building_where_limited(
                     || !target_kinds.contains(&target.kind.as_str())
                     || !target_is_eligible(&target)
                     || (target.kind == "granary" && target.assigned_labor == 0)
+                    || (target.kind == "marketplace"
+                        && !tick.marketplace_stall_accepts_commodity_from(
+                            ctx, &target, source.id, commodity,
+                        ))
                     || !processor_accepts_input(&target, commodity)
                     || building_commodity_room(&target, commodity) <= 1e-6
                     || building_has_inbound_supply_trip(ctx, target.id)
@@ -4148,7 +4152,11 @@ fn dispatch_to_building_where_limited(
     let needed = (routed_target.desired_stock - building_commodity_stock(target, commodity))
         .max(0.0)
         .min(transferable);
-    let delivery_workers = if matches!(source.kind.as_str(), "granary" | "village_storehouse") {
+    let delivery_workers = if target.kind == "marketplace"
+        && matches!(source.kind.as_str(), "granary" | "village_storehouse")
+    {
+        1
+    } else if matches!(source.kind.as_str(), "granary" | "village_storehouse") {
         source.assigned_labor.max(1)
     } else {
         1

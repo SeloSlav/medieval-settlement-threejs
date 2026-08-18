@@ -4,6 +4,10 @@ import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { getBuildingExtent } from '../src/buildings/buildingExtents.ts';
 import {
+  assignMarketplaceStallRoster,
+  assignMarketplaceStalls,
+} from '../src/economy/marketStallAssignments.ts';
+import {
   BUILDING_DEFINITIONS,
   BUILDING_KINDS,
   BUILDING_STORAGE_CAPS,
@@ -16,6 +20,7 @@ import {
 } from '../src/generated/gameBalance.ts';
 import { BUILDING_KIND_TO_MENU_ACTION, MENU_ACTION_TO_BUILDING_KIND } from '../src/ui/buildMenuMapping.ts';
 import { CIVIC_BUILD_MENU_ENTRIES } from '../src/ui/buildMenuCards.ts';
+import type { BuildingState } from '../src/resources/types.ts';
 
 assert.ok(BUILDING_KINDS.includes('town_hall'));
 assert.ok(BUILDING_KINDS.includes('village_storehouse'));
@@ -77,6 +82,100 @@ marketplaceModel.traverse((object) => {
 assert.equal(foodStallTables, MARKETPLACE_FOOD_STALL_SLOTS);
 assert.equal(goodsStallTables, MARKETPLACE_GOODS_STALL_SLOTS);
 
+const stallTestBuilding = (
+  id: string,
+  kind: BuildingState['kind'],
+  x: number,
+  assignedLabor: number,
+  stock: Partial<BuildingState> = {},
+): BuildingState => ({
+  id,
+  kind,
+  x,
+  z: 0,
+  assignedLabor,
+  constructionComplete: true,
+  food: 0,
+  ale: 0,
+  preservedFood: 0,
+  honey: 0,
+  firewood: 0,
+  water: 0,
+  timber: 0,
+  stone: 0,
+  gold: 0,
+  waterCapacity: 0,
+  actionCooldown: 0,
+  workRadius: 0,
+  constructionProgress: 1,
+  constructionRequiredTimber: 0,
+  constructionRequiredStone: 0,
+  constructionDeliveredTimber: 0,
+  constructionDeliveredStone: 0,
+  constructionReservedTimber: 0,
+  constructionReservedStone: 0,
+  constructionTreasuryTimber: 0,
+  constructionTreasuryStone: 0,
+  storehouseAcceptsTimber: true,
+  storehouseAcceptsStone: true,
+  storehouseAcceptsFirewood: true,
+  ...stock,
+} as BuildingState);
+const nearMarket = stallTestBuilding('10', 'marketplace', 10, 0);
+const farMarket = stallTestBuilding('20', 'marketplace', 100, 0);
+const stockedGranary = stallTestBuilding('30', 'granary', 0, 2, {
+  food: 20,
+  ale: 12,
+});
+const stockedStorehouse = stallTestBuilding('40', 'village_storehouse', 2, 1, {
+  pottery: 8,
+});
+const stallRoster = assignMarketplaceStalls(
+  [nearMarket, farMarket, stockedGranary, stockedStorehouse],
+  (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
+);
+assert.deepEqual(
+  stallRoster.map((stall) => [
+    stall.marketplaceId,
+    stall.workplaceId,
+    stall.needKind,
+  ]),
+  [
+    ['10', '30', 'food'],
+    ['10', '30', 'ale'],
+    ['10', '40', 'pottery'],
+  ],
+  'each depot laborer should open one stocked category at the nearest Marketplace only',
+);
+const oneWorkerRoster = assignMarketplaceStalls(
+  [nearMarket, farMarket, { ...stockedGranary, assignedLabor: 1 }],
+  (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
+);
+assert.deepEqual(
+  oneWorkerRoster.map((stall) => stall.needKind),
+  ['food'],
+  'one Granary worker must not unlock every food category or multiple market squares',
+);
+const standbyRoster = assignMarketplaceStallRoster(
+  [
+    nearMarket,
+    farMarket,
+    { ...stockedGranary, assignedLabor: 4, food: 0, ale: 0 },
+  ],
+  (ax, az, bx, bz) => Math.hypot(bx - ax, bz - az),
+);
+assert.equal(standbyRoster.stalls.length, 0);
+assert.deepEqual(
+  standbyRoster.workers.map((worker) => [worker.marketplaceId, worker.needKind]),
+  [
+    ['10', null],
+    ['10', null],
+    ['10', null],
+    ['20', null],
+  ],
+  'empty depot workers should reserve nearest tables up to physical capacity so producers can seed them',
+);
+
 const placement = fs.readFileSync('server/src/reducers/buildings.rs', 'utf8');
 assert.match(placement, /Only one Town Hall may serve a settlement/);
 assert.match(placement, /population < TOWN_HALL_POPULATION_REQUIRED/);
@@ -116,9 +215,20 @@ const processors = fs.readFileSync('server/src/simulation/expanded_economy.rs', 
 assert.match(processors, /"village_storehouse"/, 'storehouse firewood must support specialist processing');
 
 const marketCaravans = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
-assert.match(marketCaravans, /MARKETPLACE_FOOD_STALL_SLOTS/);
-assert.match(marketCaravans, /MARKETPLACE_GOODS_STALL_SLOTS/);
-assert.match(marketCaravans, /workers\.min\(stall_slots\)/, 'stall delivery crews must fit the physical Marketplace tables');
+assert.match(marketCaravans, /marketplace_stall_workplace_id/);
+assert.match(marketCaravans, /then_some\(\(workplace_id, 1\)\)/, 'one rostered depot worker must own each stall trip');
+const marketRoster = fs.readFileSync('server/src/simulation/tick_context.rs', 'utf8');
+assert.match(marketRoster, /struct MarketplaceStallRoster/);
+assert.match(marketRoster, /workplace_by_market_need/);
+assert.match(marketRoster, /road_path_distance/);
+assert.match(marketRoster, /source_has_stock/);
+assert.match(marketRoster, /marketplace_stall_accepts_commodity_from/);
+assert.match(marketRoster, /marketplace_stall_workplace_id_for_commodity/);
+assert.doesNotMatch(
+  marketRoster,
+  /founding_stall_exception/,
+  'a Marketplace must not run a table without an actual depot laborer',
+);
 const marketDistribution = fs.readFileSync('server/src/simulation/household_distribution.rs', 'utf8');
 assert.match(marketDistribution, /sort_distribution_targets/);
 assert.match(marketDistribution, /left\.distance[\s\S]{0,120}residence_id/);

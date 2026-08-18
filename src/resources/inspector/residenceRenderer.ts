@@ -839,7 +839,7 @@ function residenceUpgradePanel(
     ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
     : `Blocked · ${plan.blockers.join(' · ')}.`;
   const guidance = plan.nextTier === 2
-    ? "Tier progression still needs staffed food and goods stalls. Actual stock at a road-connected Marketplace supplies a seven-day pantry on market day, with daily Town Hall checks only for critical food and heat; water draws from a completed well whose service radius and road branch reach this home, without a last-mile hauler."
+    ? "Tier progression still needs a staffed food stall and staffed goods stall. Actual stock at a road-connected Marketplace supplies a seven-day pantry on market day, with daily Town Hall checks only for critical food and heat; water draws from a completed well whose service radius and road branch reach this home, without a last-mile hauler."
     : 'Preserved food needs a staffed smokehouse or pastoral holding; ale needs a staffed brewhouse or parish-linked monastery; household textiles need a staffed weaver.';
   const throughput = prosperity && projection
     ? projection.immediateSustainable

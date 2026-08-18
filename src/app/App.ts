@@ -1079,6 +1079,8 @@ export class App {
       sabbathObserved,
       roadComponentFor: (entity) =>
         this.roadNetwork!.getPathfinder().roadComponentAt(entity.x, entity.z),
+      roadDistance: (ax, az, bx, bz) =>
+        this.roadNetwork!.getPathfinder().roadPathDistance(ax, az, bx, bz),
     });
     this.toolbar?.settlementHud.setProvisioningState(provisioning, clock.month);
     const conflictEnabled = snapshot.worldGeneration?.conflictMode === 'frontier';

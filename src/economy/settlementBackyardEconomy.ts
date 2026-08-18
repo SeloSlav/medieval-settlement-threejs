@@ -32,6 +32,10 @@ import {
 } from './villageProjections.ts';
 import { residenceServiceState } from './residenceSatisfaction.ts';
 import { edibleFoodStock } from './foodInventory.ts';
+import {
+  assignMarketplaceStallRoster,
+  type MarketStallRoadDistance,
+} from './marketStallAssignments.ts';
 
 export const BACKYARD_ECONOMY_HORIZON_DAYS = 120;
 
@@ -208,6 +212,7 @@ export function computeSettlementBackyardEconomyPlan(input: {
   taxCollectionMultiplier: number;
   sabbathObserved: boolean;
   roadComponentFor?: BackyardRoadComponentResolver;
+  roadDistance?: MarketStallRoadDistance;
   horizonDays?: number;
 }): SettlementBackyardEconomyPlan {
   const currentEnvironment = environmentFor(
@@ -240,8 +245,6 @@ export function computeSettlementBackyardEconomyPlan(input: {
   const marketComponents = new Set<string>();
   const foodMarketComponents = new Set<string>();
   const goodsMarketComponents = new Set<string>();
-  const granaryComponents = new Set<string>();
-  const storehouseComponents = new Set<string>();
   let operationalMarketplaces = 0;
   let foodStallMarketplaces = 0;
   let goodsStallMarketplaces = 0;
@@ -252,29 +255,39 @@ export function computeSettlementBackyardEconomyPlan(input: {
   const fireDisabledResidences = fireDisabledResidenceIds(
     input.state.fireIncidents?.values() ?? [],
   );
-  let hasStaffedGranary = false;
-  let hasStaffedStorehouse = false;
-  for (const building of input.state.buildings.values()) {
-    if (
-      building.constructionComplete === false
-      || building.assignedLabor <= 0
-      || fireDisabledBuildings.has(building.id)
-    ) {
-      continue;
-    }
-    const componentSet = building.kind === 'granary'
-      ? granaryComponents
-      : building.kind === 'village_storehouse'
-        ? storehouseComponents
-        : null;
-    if (!componentSet) continue;
-    if (building.kind === 'granary') hasStaffedGranary = true;
-    if (building.kind === 'village_storehouse') hasStaffedStorehouse = true;
-    if (!input.roadComponentFor) continue;
-    for (const key of componentKeys(input.roadComponentFor(building))) {
-      componentSet.add(key);
+  const componentsByPosition = new Map<string, Set<string>>();
+  if (input.roadComponentFor) {
+    for (const building of input.state.buildings.values()) {
+      const positionKey = `${building.x}:${building.z}`;
+      const keys = componentsByPosition.get(positionKey) ?? new Set<string>();
+      for (const key of componentKeys(input.roadComponentFor(building))) keys.add(key);
+      componentsByPosition.set(positionKey, keys);
     }
   }
+  const rosterDistance: MarketStallRoadDistance = input.roadDistance
+    ?? ((ax, az, bx, bz) => {
+      if (input.roadComponentFor) {
+        const left = componentsByPosition.get(`${ax}:${az}`) ?? new Set();
+        const right = componentsByPosition.get(`${bx}:${bz}`) ?? new Set();
+        if (![...left].some((key) => right.has(key))) return null;
+      }
+      return Math.hypot(bx - ax, bz - az);
+    });
+  const stallRoster = assignMarketplaceStallRoster(
+    input.state.buildings.values(),
+    rosterDistance,
+    fireDisabledBuildings,
+  );
+  const foodRosteredMarkets = new Set(
+    stallRoster.workers
+      .filter((worker) => worker.group === 'food')
+      .map((worker) => worker.marketplaceId),
+  );
+  const goodsRosteredMarkets = new Set(
+    stallRoster.workers
+      .filter((worker) => worker.group === 'goods')
+      .map((worker) => worker.marketplaceId),
+  );
   for (const building of input.state.buildings.values()) {
     if (
       building.kind !== 'marketplace'
@@ -289,12 +302,8 @@ export function computeSettlementBackyardEconomyPlan(input: {
     const keys = input.roadComponentFor
       ? componentKeys(input.roadComponentFor(building))
       : [];
-    const hasFoodStall = input.roadComponentFor
-      ? keys.some((key) => granaryComponents.has(key))
-      : hasStaffedGranary;
-    const hasGoodsStall = input.roadComponentFor
-      ? keys.some((key) => storehouseComponents.has(key))
-      : hasStaffedStorehouse;
+    const hasFoodStall = foodRosteredMarkets.has(building.id);
+    const hasGoodsStall = goodsRosteredMarkets.has(building.id);
     if (!hasFoodStall && !hasGoodsStall) {
       unstaffedMarketplaces += 1;
       continue;

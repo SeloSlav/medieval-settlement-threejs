@@ -152,12 +152,11 @@ pub fn step_founding_sites(ctx: &ReducerContext, tick: &SimTickContext, clock: &
     }
 }
 
-/// While the shelter is occupied, one free villager may move starter bread and
-/// firewood into a completed Marketplace, providing a viable first household
-/// supply point before permanent depots exist. Ironwork can still enter its
+/// While the shelter is occupied, one free villager may move starter bread to
+/// a completed Granary and firewood to a completed Storehouse. A depot worker
+/// then owns the corresponding Marketplace table. Ironwork can still enter its
 /// maintenance chain. Once every founder has a home, the same route clears all
-/// other uncommitted stock. This remains physical camp-to-building logistics;
-/// only the market-to-home last mile is abstract.
+/// other uncommitted stock.
 fn try_start_stockyard_relocation(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -251,10 +250,6 @@ fn founding_destination_room(
                 | CommodityKind::OatBread
                 | CommodityKind::MaslinBread
         );
-    if starter_household_supply && candidate.kind == "marketplace" {
-        let room = building_commodity_room(candidate, commodity);
-        return (room > EPSILON).then_some((0, room));
-    }
     if matches!(
         commodity,
         CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Firewood

@@ -55,7 +55,8 @@ struct OverflowSource {
 }
 
 /// Staffed storehouse workers stock shared market stalls with fuel and durable
-/// household goods. Every assigned keeper contributes one handcart load.
+/// household goods. Each rostered keeper owns one goods category at one
+/// nearest connected Marketplace and contributes one handcart load.
 pub fn step_storehouse_market_stalls(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -131,6 +132,14 @@ pub fn step_storehouse_market_stalls(
                 );
                 let mut candidates = Vec::new();
                 for commodity in [CommodityKind::Charcoal, CommodityKind::Firewood] {
+                    if !tick.marketplace_stall_accepts_commodity_from(
+                        ctx,
+                        &market,
+                        storehouse.id,
+                        commodity,
+                    ) {
+                        continue;
+                    }
                     let source_stock = building_commodity_stock(&storehouse, commodity);
                     let fuel_value = if commodity == CommodityKind::Charcoal {
                         CHARCOAL_HOUSEHOLD_FUEL_VALUE
@@ -169,7 +178,7 @@ pub fn step_storehouse_market_stalls(
                     .then_with(|| a.market.id.cmp(&b.market.id))
             });
         if let Some(target) = fuel_target {
-            let workers = storehouse.assigned_labor;
+            let workers = 1;
             if try_start_building_supply_trip(
                 ctx,
                 tick,
@@ -218,6 +227,14 @@ pub fn step_storehouse_market_stalls(
                         && !building_has_inbound_commodity_trip(ctx, market.id, commodity)
                 })
                 .filter_map(|market| {
+                    if !tick.marketplace_stall_accepts_commodity_from(
+                        ctx,
+                        &market,
+                        storehouse.id,
+                        commodity,
+                    ) {
+                        return None;
+                    }
                     let cap = building_commodity_cap(&market.kind, commodity);
                     let desired = cap * 0.75;
                     let needed = (desired - building_commodity_stock(&market, commodity)).max(0.0);
@@ -234,7 +251,7 @@ pub fn step_storehouse_market_stalls(
             let Some((market, needed, _)) = target else {
                 continue;
             };
-            let workers = storehouse.assigned_labor;
+            let workers = 1;
             if try_start_building_supply_trip(
                 ctx,
                 tick,

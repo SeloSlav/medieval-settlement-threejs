@@ -107,6 +107,10 @@ export function buildVillageAdminReadout(input: {
     taxCollectionMultiplier,
     sabbathObserved,
     roadComponentFor,
+    roadDistance: worldQueries
+      && typeof worldQueries.getRoadPathDistance === 'function'
+      ? (ax, az, bx, bz) => worldQueries.getRoadPathDistance(ax, az, bx, bz)
+      : undefined,
   });
   let chapelTithe = 0;
   if (worldQueries) {

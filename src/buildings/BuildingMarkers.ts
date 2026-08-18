@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { breadGrainStock, flourStock, grainSheafStock } from '../economy/cropGoods.ts';
+import { assignMarketplaceStallRoster } from '../economy/marketStallAssignments.ts';
 import {
   BUILDING_STORAGE_CAPS,
   FIRE_SPREAD_RADIUS,
@@ -265,6 +266,12 @@ export class BuildingMarkers {
 
   private syncMarketplaceStallVisuals(): void {
     const network = this.getRoadNetwork?.() ?? null;
+    const roster = network
+      ? assignMarketplaceStallRoster(
+        this.buildingStates.values(),
+        (ax, az, bx, bz) => network.getPathfinder().roadPathDistance(ax, az, bx, bz),
+      )
+      : { stalls: [], workers: [] };
     for (const marketplace of this.buildingStates.values()) {
       if (
         marketplace.kind !== 'marketplace'
@@ -272,47 +279,46 @@ export class BuildingMarkers {
       ) {
         continue;
       }
-      let foodStalls = 0;
-      let goodsStalls = 0;
-      if (network) {
-        for (const workplace of this.buildingStates.values()) {
-          if (
-            workplace.constructionComplete === false
-            || workplace.assignedLabor <= 0
-            || (
-              workplace.kind !== 'granary'
-              && workplace.kind !== 'village_storehouse'
-            )
-            || network.getPathfinder().roadPathDistance(
-              workplace.x,
-              workplace.z,
-              marketplace.x,
-              marketplace.z,
-            ) == null
-          ) {
-            continue;
-          }
-          if (workplace.kind === 'granary') {
-            foodStalls += workplace.assignedLabor;
-          } else {
-            goodsStalls += workplace.assignedLabor;
-          }
-        }
-      }
-      foodStalls = Math.min(foodStalls, MARKETPLACE_FOOD_STALL_SLOTS);
-      goodsStalls = Math.min(goodsStalls, MARKETPLACE_GOODS_STALL_SLOTS);
+      const marketAssignments = roster.stalls.filter(
+        (assignment) => assignment.marketplaceId === marketplace.id,
+      );
+      const foodAssignments = marketAssignments.filter(
+        (assignment) => assignment.group === 'food',
+      );
+      const goodsAssignments = marketAssignments.filter(
+        (assignment) => assignment.group === 'goods',
+      );
+      const foodWorkers = roster.workers.filter(
+        (worker) => worker.marketplaceId === marketplace.id && worker.group === 'food',
+      );
+      const goodsWorkers = roster.workers.filter(
+        (worker) => worker.marketplaceId === marketplace.id && worker.group === 'goods',
+      );
       const marker = this.buildingMeshes.get(marketplace.id);
       if (!marker) continue;
       for (let index = 0; index < MARKETPLACE_FOOD_STALL_SLOTS; index += 1) {
         const foodStall = marker.getObjectByName(`MarketFoodStall${index}`);
-        if (foodStall) foodStall.visible = index < foodStalls;
+        if (foodStall) {
+          const worker = foodWorkers[index];
+          foodStall.visible = worker != null;
+          foodStall.userData.marketNeedKind = worker?.needKind ?? undefined;
+          foodStall.userData.marketWorkplaceId = worker?.workplaceId;
+        }
       }
       for (let index = 0; index < MARKETPLACE_GOODS_STALL_SLOTS; index += 1) {
         const goodsStall = marker.getObjectByName(`MarketGoodsStall${index}`);
-        if (goodsStall) goodsStall.visible = index < goodsStalls;
+        if (goodsStall) {
+          const worker = goodsWorkers[index];
+          goodsStall.visible = worker != null;
+          goodsStall.userData.marketNeedKind = worker?.needKind ?? undefined;
+          goodsStall.userData.marketWorkplaceId = worker?.workplaceId;
+        }
       }
-      marker.userData.marketFoodStalls = foodStalls;
-      marker.userData.marketGoodsStalls = goodsStalls;
+      marker.userData.marketFoodStalls = foodAssignments.length;
+      marker.userData.marketGoodsStalls = goodsAssignments.length;
+      marker.userData.marketFoodWorkers = foodWorkers.length;
+      marker.userData.marketGoodsWorkers = goodsWorkers.length;
+      marker.userData.marketStallAssignments = marketAssignments;
     }
   }
 

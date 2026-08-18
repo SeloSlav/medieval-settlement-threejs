@@ -5,18 +5,15 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     FIREWOOD_DELIVERY_SPEED_MPS, FIREWOOD_DELIVERY_UNLOAD_SEC, FOOD_DELIVERY_SPEED_MPS,
     FOOD_DELIVERY_UNLOAD_SEC, HOUSEHOLD_MAX_WEALTH, LOCAL_MARKET_TAX_CART_THRESHOLD,
-    MARKETPLACE_FOOD_STALL_SLOTS, MARKETPLACE_GOODS_STALL_SLOTS,
     MARKET_CARAVAN_FOOD_PER_DELIVERY, MARKET_CARAVAN_WATER_PER_DELIVERY,
-    PRIVATE_EXPORT_INCOME_CART_LOAD, STOREHOUSE_HAUL_PER_WORKER,
-    TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS,
-    WATER_DELIVERY_UNLOAD_SEC,
+    PRIVATE_EXPORT_INCOME_CART_LOAD, STOREHOUSE_HAUL_PER_WORKER, TIMBER_DELIVERY_SPEED_MPS,
+    TIMBER_DELIVERY_UNLOAD_SEC, WATER_DELIVERY_SPEED_MPS, WATER_DELIVERY_UNLOAD_SEC,
 };
 use crate::db::*;
 use crate::economy::{
     building_commodity_room, building_commodity_stock, building_edible_food_stock,
     building_preserved_food_stock, mark_local_civic_receipts_dispatched,
-    marketplace_proceeds_cart_load, physical_treasury_seat, private_export_proceeds,
-    CommodityKind,
+    marketplace_proceeds_cart_load, physical_treasury_seat, private_export_proceeds, CommodityKind,
 };
 use crate::season_policy::EnvironmentState;
 use crate::simulation::delivery_cargo::{
@@ -25,8 +22,8 @@ use crate::simulation::delivery_cargo::{
 };
 use crate::simulation::delivery_supplier::{dispatch_delivery_if_ready, DeliveryDispatchConfig};
 use crate::simulation::delivery_trips::{
-    building_has_active_trip, building_has_inbound_commodity_trip,
-    onsite_building_labor, residence_has_inbound_remedy_trip, residence_has_inbound_wealth_trip,
+    building_has_active_trip, building_has_inbound_commodity_trip, onsite_building_labor,
+    residence_has_inbound_remedy_trip, residence_has_inbound_wealth_trip,
     try_start_building_supply_trip, try_start_free_building_supply_trip,
     try_start_market_stall_delivery_trip, try_start_market_stall_remedy_trip,
     try_start_private_export_income_trip,
@@ -141,7 +138,7 @@ pub fn try_dispatch_marketplace_caravan(
     }
 
     let stall_workplace = if building.kind == "marketplace" {
-        marketplace_stall_workplace(ctx, tick, building, need_kind)
+        marketplace_stall_workplace(ctx, tick, building, need_kind, delivery_commodity)
     } else {
         let workers = onsite_building_labor(ctx, building);
         (workers > 0).then_some((building.id, workers))
@@ -208,40 +205,15 @@ fn marketplace_stall_workplace(
     tick: &SimTickContext,
     marketplace: &Building,
     need_kind: ResidenceNeedKind,
+    delivery_commodity: Option<CommodityKind>,
 ) -> Option<(u64, u32)> {
-    let (workplace_kind, stall_slots) = match need_kind {
-        ResidenceNeedKind::Food | ResidenceNeedKind::PreservedFood | ResidenceNeedKind::Ale => {
-            ("granary", MARKETPLACE_FOOD_STALL_SLOTS)
-        }
-        ResidenceNeedKind::Firewood | ResidenceNeedKind::Cloth | ResidenceNeedKind::Pottery => {
-            ("village_storehouse", MARKETPLACE_GOODS_STALL_SLOTS)
-        }
-        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
-            return None
-        }
-    };
-    let network = tick.road_network(marketplace.owner)?;
-    tick.building_ids_for_kinds(ctx, marketplace.owner, &[workplace_kind])
-        .into_iter()
-        .filter_map(|id| ctx.db.building().id().find(&id))
-        .filter(|workplace| {
-            workplace.construction_complete
-                && workplace.assigned_labor > 0
-                && !tick.building_disabled_by_fire(ctx, workplace.id)
+    let workplace_id = delivery_commodity
+        .and_then(|commodity| {
+            tick.marketplace_stall_workplace_id_for_commodity(ctx, marketplace, commodity)
         })
-        .filter_map(|workplace| {
-            let workers = onsite_building_labor(ctx, &workplace);
-            let distance = crate::simulation::road_logistics::local_delivery_distance(
-                network,
-                workplace.x,
-                workplace.z,
-                marketplace.x,
-                marketplace.z,
-            )?;
-            (workers > 0).then_some((workplace.id, workers, distance))
-        })
-        .min_by(|a, b| a.2.total_cmp(&b.2).then_with(|| a.0.cmp(&b.0)))
-        .map(|(id, workers, _)| (id, workers.min(stall_slots)))
+        .or_else(|| tick.marketplace_stall_workplace_id(ctx, marketplace, need_kind))?;
+    let workplace = ctx.db.building().id().find(&workplace_id)?;
+    (onsite_building_labor(ctx, &workplace) > 0).then_some((workplace_id, 1))
 }
 
 /// Stage routine imported household goods at a local Marketplace. The Trading
@@ -394,7 +366,11 @@ fn try_dispatch_marketplace_remedies(
         let workers = onsite_building_labor(ctx, marketplace);
         (workers > 0).then_some((marketplace.id, workers))
     } else {
-        marketplace_stall_workplace(ctx, tick, marketplace, ResidenceNeedKind::Cloth)
+        tick.marketplace_any_goods_stall_workplace_id(ctx, marketplace)
+            .and_then(|workplace_id| {
+                let workplace = ctx.db.building().id().find(&workplace_id)?;
+                (onsite_building_labor(ctx, &workplace) > 0).then_some((workplace_id, 1))
+            })
     };
     let Some((stall_workplace_id, delivery_workers)) = workplace else {
         return false;

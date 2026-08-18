@@ -61,7 +61,7 @@ export function renderStorehouseInspector(
       ),
     }))
     .find(({ dispatch }) => dispatch != null) ?? null;
-  const fuelWorkers = Math.min(2, building.assignedLabor);
+  const fuelWorkers = Math.min(1, building.assignedLabor);
   const fuelPerTrip = STOREHOUSE_FIREWOOD_PER_DELIVERY * fuelWorkers;
   const activeTripRemaining = context.worldQueries.getActiveTripRemainingSeconds(building);
   const deliveringHouseholdFuel = activeTrip?.cargoKind === 'firewood'
@@ -131,11 +131,12 @@ export function renderStorehouseInspector(
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       <li><span>Role</span><span>Communal reserve, Marketplace goods-stall supply, construction logistics, and raw-material buffering</span></li>
-      <li><span>Duty priority</span><span>Refill active smithies from below 3 to 6 charcoal cycles; maintain a 21-day population- and season-scaled combined Marketplace fuel reserve; serve other hot workshops; collect overflow last</span></li>
+      <li><span>Duty priority</span><span>Refill active smithies from below 3 to 6 charcoal cycles; maintain a 21-day population- and season-scaled combined Marketplace reserve and winter-night fuel floor; serve other hot workshops; collect overflow last</span></li>
       <li><span>Fuel territory</span><span>Handled by staffed Marketplace stalls across their connected road branch · scarce fuel goes to nearest homes first</span></li>
       <li><span>Next fuel delivery</span><span>Marketplace stall or urgent workshop · never a routine home cart</span></li>
-      <li><span>Last mile</span><span>Abstract from stocked goods stalls · no worker reserved</span></li>
-      <li><span>Market load</span><span>${fuelWorkers > 0 ? `Up to ${fuelPerTrip} physical fuel units per replenishment cart` : 'Paused · no haulers'}</span></li>
+      <li><span>Stall roster</span><span>Each assigned keeper can own one stocked goods category at one nearest connected Marketplace</span></li>
+      <li><span>Last mile</span><span>Abstract from stocked goods stalls · no additional household-cart worker</span></li>
+      <li><span>Market load</span><span>${fuelWorkers > 0 ? `${fuelPerTrip} physical fuel units per rostered fuel-table replenishment cart` : 'Paused · no haulers'}</span></li>
       <li><span>Surplus fuel duty</span><span>${industrialFuelDuty}</span></li>
       <li><span>Raw-material duty</span><span>${materialDispatch ? `${storehouseCommodityLabel(materialDispatch.commodity)} to ${context.worldQueries.getBuildingLabel(materialDispatch.dispatch!.target.kind)} · ${materialDispatch.dispatch!.runwayCycles.toFixed(1)} cycles onsite · ${formatDeliveryRoadDistance(materialDispatch.dispatch!.routeDistance)}` : 'No staffed workshop currently requests stored iron, clay, or salt'}</span></li>
       <li><span>Collection trigger</span><span>Producer stock above ${Math.round(STOREHOUSE_OVERFLOW_THRESHOLD * 100)}%</span></li>
@@ -152,7 +153,7 @@ export function renderStorehouseInspector(
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
     supplementalPanelHtml: `
       <div class="inspector-action-panel">
-        <p class="inspector-action-panel__hint">Stored goods remain safe without staff. Assigned haulers route stored charcoal to urgent smithies first, then maintain demand-based Marketplace fuel, other workshop inputs, and producer overflow. Household collection is automatic; there is no emergency top-up button.</p>
+        <p class="inspector-action-panel__hint">Stored goods remain safe without staff. Each assigned keeper can set up one stocked fuel, cloth, or pottery table at one nearest connected Marketplace; unstocked keepers stand by to accept the first compatible producer delivery. Other duties still include urgent workshop supply and producer overflow. Household collection is automatic; there is no emergency top-up button.</p>
         ${acceptanceToggle('timber', 'Timber', building.storehouseAcceptsTimber)}
         ${acceptanceToggle('stone', 'Stone', building.storehouseAcceptsStone)}
         ${acceptanceToggle('firewood', 'Firewood', building.storehouseAcceptsFirewood)}

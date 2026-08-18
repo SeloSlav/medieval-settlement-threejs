@@ -57,6 +57,11 @@ import {
   freshFoodRunwayWithPreservedRotation,
 } from './preservedFoodPolicy.ts';
 import {
+  assignMarketplaceStallRoster,
+  type MarketStallNeed,
+  type MarketStallRoadDistance,
+} from './marketStallAssignments.ts';
+import {
   edibleFoodMealEquivalents,
   foodMealValue,
   foodSpoilageMultiplier,
@@ -404,6 +409,7 @@ export function computeSettlementProvisioning(input: {
   currentPreservedFoodDemandMultiplier?: number;
   sabbathObserved: boolean;
   roadComponentFor?: ProvisionRoadComponentResolver;
+  roadDistance?: MarketStallRoadDistance;
 }): SettlementProvisioning {
   const {
     state,
@@ -415,6 +421,7 @@ export function computeSettlementProvisioning(input: {
     currentPreservedFoodDemandMultiplier = 1,
     sabbathObserved,
     roadComponentFor,
+    roadDistance,
   } = input;
   const roadProvisionBranches = roadComponentFor
     ? new Map<string, RoadProvisionBranch>()
@@ -422,46 +429,47 @@ export function computeSettlementProvisioning(input: {
   const fireDisabledBuildings = fireDisabledBuildingIds(state.fireIncidents.values());
   const fireDisabledResidences = fireDisabledResidenceIds(state.fireIncidents.values());
   const welfareAccumulator = createSettlementWelfareAccumulator();
-  const staffedFoodStallComponents = new Set<string>();
-  const staffedGoodsStallComponents = new Set<string>();
-  let hasStaffedGranary = false;
-  let hasStaffedStorehouse = false;
-  for (const building of state.buildings.values()) {
-    if (
-      building.constructionComplete === false
-      || building.assignedLabor <= 0
-      || fireDisabledBuildings.has(building.id)
-    ) {
-      continue;
-    }
-    if (building.kind === 'granary') {
-      hasStaffedGranary = true;
-      if (roadComponentFor) {
-        staffedFoodStallComponents.add(
-          roadProvisionBranchKey(building, 'building', roadComponentFor),
-        );
-      }
-    } else if (building.kind === 'village_storehouse') {
-      hasStaffedStorehouse = true;
-      if (roadComponentFor) {
-        staffedGoodsStallComponents.add(
-          roadProvisionBranchKey(building, 'building', roadComponentFor),
-        );
-      }
+  const componentsByPosition = new Map<string, string>();
+  if (roadComponentFor) {
+    for (const building of state.buildings.values()) {
+      const component = roadComponentFor(building);
+      componentsByPosition.set(
+        `${building.x}:${building.z}`,
+        component === null
+          ? `unroaded:${building.id}`
+          : `${typeof component}:${String(component)}`,
+      );
     }
   }
-  const marketHasStallWorkforce = (
+  const rosterDistance: MarketStallRoadDistance = roadDistance
+    ?? ((ax, az, bx, bz) => {
+      if (
+        roadComponentFor
+        && componentsByPosition.get(`${ax}:${az}`)
+          !== componentsByPosition.get(`${bx}:${bz}`)
+      ) {
+        return null;
+      }
+      return Math.hypot(bx - ax, bz - az);
+    });
+  const stallRoster = assignMarketplaceStallRoster(
+    state.buildings.values(),
+    rosterDistance,
+    fireDisabledBuildings,
+  );
+  const activeStalls = new Set(
+    stallRoster.stalls.map((stall) => `${stall.marketplaceId}:${stall.needKind}`),
+  );
+  const marketHasActiveStall = (
     market: BuildingState,
-    stallKind: 'food' | 'goods',
-  ): boolean => {
-    if (market.kind !== 'marketplace') return false;
-    if (!roadComponentFor) {
-      return stallKind === 'food' ? hasStaffedGranary : hasStaffedStorehouse;
-    }
-    const component = roadProvisionBranchKey(market, 'building', roadComponentFor);
-    return (stallKind === 'food'
-      ? staffedFoodStallComponents
-      : staffedGoodsStallComponents).has(component);
+    needKind: MarketStallNeed,
+  ): boolean => activeStalls.has(`${market.id}:${needKind}`);
+  const marketHasBaseFoodStall = (market: BuildingState): boolean => {
+    const freshStock = freshFoodMealEquivalents(market)
+      + finiteStock(market.honey) * foodMealValue('honey');
+    return freshStock > 1e-6
+      ? marketHasActiveStall(market, 'food')
+      : marketHasActiveStall(market, 'preservedFood');
   };
 
   const workdayFraction = Math.max(
@@ -740,7 +748,7 @@ export function computeSettlementProvisioning(input: {
       !fireDisabled
       && PRESERVED_FOOD_SUPPLIER_KINDS.includes(building.kind)
       && isOperationalSpecialtySupplier(building)
-      && marketHasStallWorkforce(building, 'food');
+      && marketHasActiveStall(building, 'preservedFood');
     if (fireDisabled) {
       fireQuarantinedFirewoodStock += finiteStock(building.firewood)
         + householdCharcoal * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
@@ -756,7 +764,7 @@ export function computeSettlementProvisioning(input: {
         building.kind !== 'monastery'
         && !fireDisabled
         && isOperationalFoodSupplier(building)
-        && marketHasStallWorkforce(building, 'food')
+        && marketHasBaseFoodStall(building)
         && edibleFoodMealEquivalents(building) > 1e-6
       ) {
         const branch = roadProvisionBranch(
@@ -777,7 +785,7 @@ export function computeSettlementProvisioning(input: {
       if (
         !fireDisabled
         && isOperationalFirewoodSupplier(building)
-        && marketHasStallWorkforce(building, 'goods')
+        && marketHasActiveStall(building, 'firewood')
       ) {
         const branch = roadProvisionBranch(
           roadProvisionBranches,

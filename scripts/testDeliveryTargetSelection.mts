@@ -202,7 +202,7 @@ assert.match(
 );
 assert.match(
   tickContext,
-  /fn marketplace_has_stall_workers[\s\S]*?ResidenceNeedKind::Firewood[\s\S]*?"village_storehouse"/,
+  /MARKET_GOODS_STALL_NEEDS[\s\S]*?ResidenceNeedKind::Firewood[\s\S]*?MARKET_STALL_GROUP_GOODS[\s\S]*?"village_storehouse"/,
   'household fuel stalls must be operated by staffed village storehouses',
 );
 assert.match(tickContext, /building_ids_for_kinds\(ctx, owner, &\["well"\]\)/);

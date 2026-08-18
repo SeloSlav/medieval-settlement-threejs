@@ -223,10 +223,11 @@ const marketplaceCaravan = fs.readFileSync(
   'utf8',
 );
 assert.match(
-  marketplaceCaravan,
-  /ResidenceNeedKind::Firewood[\s\S]*marketplace_stall_workplace[\s\S]*"village_storehouse"/,
+  tickContext,
+  /MARKET_GOODS_STALL_NEEDS[\s\S]*ResidenceNeedKind::Firewood[\s\S]*MARKET_STALL_GROUP_GOODS[\s\S]*"village_storehouse"/,
   'storehouse workers must own Marketplace firewood stalls',
 );
+assert.match(marketplaceCaravan, /marketplace_stall_workplace_id/);
 assert.match(
   lodgeServer,
   /tick\.building_ids_for_kinds\(ctx,\s*lodge\.owner,\s*&\["lumber_mill"\]\)/,

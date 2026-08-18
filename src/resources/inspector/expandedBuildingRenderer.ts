@@ -1657,7 +1657,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before stocking fresh and cured Marketplace stalls.';
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food; every assigned granary worker is a food keeper and handcart hauler. Those haulers stock Marketplace stalls and physical institutional routes, but never cart routine provisions from a stall to individual homes. Fresh-food surplus carts still serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries.</p>
+      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food. Each assigned granary worker can set up one fresh-food, preserved-food, or ale table at one nearest connected Marketplace; an unstocked worker stands by to accept the first compatible producer delivery. Those keepers also haul physical institutional routes, but never cart routine provisions from a stall to individual homes. Fresh-food surplus carts still serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh and cured surplus</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
       <p class="inspector-action-panel__hint">${priorityHint}</p>

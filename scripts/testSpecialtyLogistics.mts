@@ -280,15 +280,16 @@ assert.doesNotMatch(
 );
 const marketplaceCaravan = fs.readFileSync('server/src/simulation/marketplace_caravan.rs', 'utf8');
 assert.match(
-  marketplaceCaravan,
-  /marketplace_stall_workplace[\s\S]*ResidenceNeedKind::Food \| ResidenceNeedKind::PreservedFood \| ResidenceNeedKind::Ale[\s\S]*"granary"/,
+  tickContext,
+  /MARKET_FOOD_STALL_NEEDS[\s\S]*ResidenceNeedKind::PreservedFood[\s\S]*ResidenceNeedKind::Ale[\s\S]*MARKET_STALL_GROUP_FOOD[\s\S]*"granary"/,
   'preserved food and ale carts must reserve granary-run Marketplace stall workers',
 );
 assert.match(
-  marketplaceCaravan,
-  /ResidenceNeedKind::Firewood \| ResidenceNeedKind::Cloth \| ResidenceNeedKind::Pottery[\s\S]*"village_storehouse"/,
+  tickContext,
+  /MARKET_GOODS_STALL_NEEDS[\s\S]*ResidenceNeedKind::Cloth[\s\S]*ResidenceNeedKind::Pottery[\s\S]*MARKET_STALL_GROUP_GOODS[\s\S]*"village_storehouse"/,
   'cloth and pottery carts must reserve storehouse-run Marketplace stall workers',
 );
+assert.match(marketplaceCaravan, /marketplace_stall_workplace_id/);
 const potter = { ...building('potter', 'potter_kiln', 4), pottery: 12 };
 assert.equal(
   findRoadLinkedSupplierForResidence(home, [weaver, potter, goodsMarket], network, 'pottery')?.id,

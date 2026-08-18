@@ -1874,6 +1874,8 @@ export function renderTownHallInspector(
       environment.preservedFoodDemandMultiplier,
     sabbathObserved,
     roadComponentFor,
+    roadDistance: (ax, az, bx, bz) =>
+      context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
   });
   const firewoodPlan = computeSettlementFirewoodPlan(
     context.gameState,

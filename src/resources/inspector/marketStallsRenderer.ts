@@ -1,6 +1,11 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
-import type { BuildingState, InspectableTarget } from '../types.ts';
+import type { InspectableTarget } from '../types.ts';
 import { freshFoodStock, preservedFoodStock } from '../../economy/foodInventory.ts';
+import {
+  assignMarketplaceStallRoster,
+  marketStallLabel,
+  type MarketStallAssignment,
+} from '../../economy/marketStallAssignments.ts';
 import {
   combinedFuelEquivalent,
   fuelRunwayDays,
@@ -41,33 +46,41 @@ export function renderMarketStallsInspector(
   const residenceFireDisabled = fireDisabledResidenceIds(
     context.gameState.fireIncidents.values(),
   );
-  const connected = [...context.gameState.buildings.values()].filter((candidate) =>
-    candidate.constructionComplete !== false
-    && candidate.assignedLabor > 0
-    && !fireDisabled.has(candidate.id)
-    && (candidate.kind === 'granary' || candidate.kind === 'village_storehouse')
-    && context.worldQueries.getRoadPathDistance(
-      candidate.x,
-      candidate.z,
-      building.x,
-      building.z,
-    ) != null
+  const stallRoster = assignMarketplaceStallRoster(
+    context.gameState.buildings.values(),
+    (ax, az, bx, bz) => context.worldQueries.getRoadPathDistance(ax, az, bx, bz),
+    fireDisabled,
   );
-  const foodStallWorkers = connected
-    .filter((candidate) => candidate.kind === 'granary')
-    .reduce((sum, candidate) => sum + candidate.assignedLabor, 0);
-  const goodsStallWorkers = connected
-    .filter((candidate) => candidate.kind === 'village_storehouse')
-    .reduce((sum, candidate) => sum + candidate.assignedLabor, 0);
-  const foodStalls = Math.min(foodStallWorkers, MARKETPLACE_FOOD_STALL_SLOTS);
-  const goodsStalls = Math.min(goodsStallWorkers, MARKETPLACE_GOODS_STALL_SLOTS);
-  const totalStalls = foodStalls + goodsStalls;
+  const stallAssignments = stallRoster.stalls;
+  const marketAssignments = stallAssignments.filter(
+    (assignment) => assignment.marketplaceId === building.id,
+  );
+  const marketWorkers = stallRoster.workers.filter(
+    (worker) => worker.marketplaceId === building.id,
+  );
+  const foodAssignments = marketAssignments.filter(
+    (assignment) => assignment.group === 'food',
+  );
+  const goodsAssignments = marketAssignments.filter(
+    (assignment) => assignment.group === 'goods',
+  );
+  const standbyFoodWorkers = marketWorkers.filter(
+    (worker) => worker.group === 'food' && worker.needKind == null,
+  ).length;
+  const standbyGoodsWorkers = marketWorkers.filter(
+    (worker) => worker.group === 'goods' && worker.needKind == null,
+  ).length;
+  const standbyWorkers = standbyFoodWorkers + standbyGoodsWorkers;
+  const totalStalls = marketAssignments.length;
   const fuelMarkets = [...context.gameState.buildings.values()]
     .filter((candidate) =>
       candidate.kind === 'marketplace'
       && candidate.constructionComplete !== false
       && !fireDisabled.has(candidate.id)
-      && hasStaffedGoodsStall(candidate, context, fireDisabled)
+      && stallAssignments.some((assignment) =>
+        assignment.marketplaceId === candidate.id
+        && assignment.needKind === 'firewood'
+      )
     );
   let roadConnectedHomes = 0;
   let roadConnectedPopulation = 0;
@@ -143,28 +156,30 @@ export function renderMarketStallsInspector(
     eyebrow: 'Building',
     title: context.worldQueries.getBuildingLabel(building.kind),
     statusText: totalStalls <= 0
-      ? stockedNeeds > 0
-        ? `Founders' supply point — ${stockedNeeds} stocked need ${stockedNeeds === 1 ? 'category issues' : 'categories issue'} on market day; permanent restocking is not staffed yet`
-        : 'Empty square — founders can stage supplies here; staff a road-linked granary or storehouse for permanent restocking'
+      ? standbyWorkers > 0
+        ? `${standbyWorkers} depot ${standbyWorkers === 1 ? 'worker is' : 'workers are'} standing by for compatible stock`
+        : stockedNeeds > 0
+          ? `Stock waiting — assign a matching Granary or Storehouse worker to open a table`
+          : 'Empty square — staff a road-linked Granary or Storehouse to open tables'
       : taxCartActive
         ? `${Math.round(heldTax)} tax gold remains — a free hauler is carrying the current lockbox load`
       : activeTrip
         ? `${totalStalls} active stalls — a remedy or lockbox cart is on the road`
-        : `${totalStalls} active stalls stocking ${stockedNeeds} household need ${stockedNeeds === 1 ? 'category' : 'categories'}`,
-    statusState: totalStalls > 0 || stockedNeeds > 0 ? 'active' : 'idle',
+        : `${totalStalls} active commodity stalls · ${stockedNeeds} stocked household need ${stockedNeeds === 1 ? 'category' : 'categories'} on site`,
+    statusState: totalStalls > 0 || standbyWorkers > 0 ? 'active' : 'idle',
     detailsHtml: `
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind, context.conflictEnabled ?? false)}
       <li><span>Purpose</span><span>Shared local household exchange — it has no employees of its own</span></li>
       <li><span>Service reach</span><span>${roadConnectedHomes} road-connected ${roadConnectedHomes === 1 ? 'home' : 'homes'} · ${roadConnectedPopulation} residents · no distance radius</span></li>
-      <li><span>Food stalls</span><span>${foodStalls}/${MARKETPLACE_FOOD_STALL_SLOTS} physical slots from staffed Granaries · pooled backyard and stored food, cured provisions, and ale${foodStallWorkers > foodStalls ? ` · ${foodStallWorkers - foodStalls} connected depot ${foodStallWorkers - foodStalls === 1 ? 'worker needs' : 'workers need'} another Marketplace` : ''}</span></li>
-      <li><span>Goods stalls</span><span>${goodsStalls}/${MARKETPLACE_GOODS_STALL_SLOTS} physical slots from staffed Village Storehouses · firewood, charcoal, cloth, pottery, and shared herb remedies${goodsStallWorkers > goodsStalls ? ` · ${goodsStallWorkers - goodsStalls} connected depot ${goodsStallWorkers - goodsStalls === 1 ? 'worker needs' : 'workers need'} another Marketplace` : ''}</span></li>
+      <li><span>Food stalls</span><span>${foodAssignments.length}/${MARKETPLACE_FOOD_STALL_SLOTS} active${standbyFoodWorkers > 0 ? ` · ${standbyFoodWorkers} worker${standbyFoodWorkers === 1 ? '' : 's'} awaiting stock` : ''} · ${formatStallAssignments(foodAssignments, context, 'no Granary worker has a stocked food category')}</span></li>
+      <li><span>Goods stalls</span><span>${goodsAssignments.length}/${MARKETPLACE_GOODS_STALL_SLOTS} active${standbyGoodsWorkers > 0 ? ` · ${standbyGoodsWorkers} worker${standbyGoodsWorkers === 1 ? '' : 's'} awaiting stock` : ''} · ${formatStallAssignments(goodsAssignments, context, 'no Village Storehouse worker has a stocked goods category')}</span></li>
       <li><span>Fuel reserve</span><span>${building.firewood.toFixed(0)} firewood + ${(building.charcoal ?? 0).toFixed(0)} charcoal = ${fuelEquivalent.toFixed(0)} fuel-equivalents / ${fuelTarget.toFixed(0)} target · ${formatFuelRunway(fuelRunway, coveredPopulation)}</span></li>
       <li><span>Fuel demand</span><span>${coveredPopulation} covered residents · ${fuelDemandPerDay.toFixed(1)} equivalents/day in ${environment.season} · ${MARKETPLACE_FUEL_RESERVE_DAYS}-day seasonal runway target</span></li>
       <li><span>Distribution</span><span>Every home on the same road network is eligible regardless of distance · nearest stocked Marketplace by exact road length · seven-day pantry issue once per week · daily Town Hall checks cover critical food and heat according to policy · scarce stock goes one household-day per pass, nearest first, with stable household ID as the tie-break</span></li>
-      <li><span>Founding exception</span><span>One free camp hauler can stage starter bread and firewood here before permanent depots exist</span></li>
-      <li><span>Capacity rule</span><span>${MARKETPLACE_FOOD_STALL_SLOTS + MARKETPLACE_GOODS_STALL_SLOTS} tables fit here: ${MARKETPLACE_FOOD_STALL_SLOTS} food + ${MARKETPLACE_GOODS_STALL_SLOTS} goods · extra connected depot labor needs another Marketplace · stalls cap simultaneous restocking labor, not service radius or household count; available stock still limits each issue</span></li>
+      <li><span>Capacity rule</span><span>${MARKETPLACE_FOOD_STALL_SLOTS + MARKETPLACE_GOODS_STALL_SLOTS} tables fit here: ${MARKETPLACE_FOOD_STALL_SLOTS} food + ${MARKETPLACE_GOODS_STALL_SLOTS} goods · one depot worker occupies one table at one nearest Marketplace and sells one stocked need category · available stock still limits each issue</span></li>
+      <li><span>Roster order</span><span>Exact road distance fills nearest markets first · food priority is fresh, preserved, then ale · goods priority is fuel, cloth, then pottery · stable building IDs break ties · a worker may switch category only after both depot and stall run out</span></li>
       <li><span>Backyard exchange</span><span>Edible surplus becomes physical stall stock for abstract household allocation; herb remedies retain targeted care carts</span></li>
       <li><span>Local tax lockbox</span><span>${Math.round(heldTax)} gold held${taxCartActive ? ' · collection cart active' : heldTax + 1e-6 >= LOCAL_MARKET_TAX_CART_THRESHOLD ? ' · waiting for a free hauler to the civic treasury' : heldTax > 1e-6 ? ` · batching toward ${Math.ceil(LOCAL_MARKET_TAX_CART_THRESHOLD)} gold or the evening sweep` : ''}</span></li>
       <li><span>Water</span><span>Supplied independently from unstaffed wells</span></li>
@@ -178,23 +193,15 @@ export function renderMarketStallsInspector(
   };
 }
 
-function hasStaffedGoodsStall(
-  market: BuildingState,
+function formatStallAssignments(
+  assignments: readonly MarketStallAssignment[],
   context: InspectorRenderContext,
-  fireDisabled: ReadonlySet<string>,
-): boolean {
-  return [...context.gameState.buildings.values()].some((candidate) =>
-    candidate.kind === 'village_storehouse'
-    && candidate.constructionComplete !== false
-    && candidate.assignedLabor > 0
-    && !fireDisabled.has(candidate.id)
-    && context.worldQueries.getRoadPathDistance(
-      candidate.x,
-      candidate.z,
-      market.x,
-      market.z,
-    ) != null
-  );
+  emptyText: string,
+): string {
+  if (assignments.length === 0) return emptyText;
+  return assignments.map((assignment) =>
+    `${marketStallLabel(assignment.needKind)} ← ${context.worldQueries.getBuildingLabel(assignment.workplaceKind)} worker`
+  ).join(' · ');
 }
 
 function formatFuelRunway(days: number, population: number): string {
