@@ -185,9 +185,9 @@ const cartRows = renderFreshFoodPreservationRows(
   () => null,
 );
 assert.match(cartRows, /Food on carts/);
-assert.match(cartRows, /30\.0 exposed in loaded or returning handcarts/);
+assert.match(cartRows, /30 exposed in loaded or returning handcarts/);
 assert.match(cartRows, /unavailable until unloaded/);
-assert.match(cartRows, /Loaded handcart · 24\.0 food/);
+assert.match(cartRows, /Loaded handcart · 24 food/);
 
 const adjustedRunway = spoilageAdjustedRunwayDays(
   preservation.totalStock,
@@ -238,11 +238,11 @@ const hotspotRows = renderFreshFoodPreservationRows(
   () => null,
 );
 assert.match(hotspotRows, /Largest fresh-food loss/);
-assert.match(hotspotRows, /Hunter's hall · 80\.0 food · 0\.8 food \/ day/);
+assert.match(hotspotRows, /Hunter's hall · 80 food · 0\.8 food \/ day/);
 assert.match(hotspotRows, /data-inspect-building="hunter-hotspot"/);
 assert.match(hotspotRows, /Granary intake network/);
-assert.match(hotspotRows, /20\.0 \/ 255\.0 sheltered toward selected targets/);
-assert.match(hotspotRows, /235\.0 collection headroom/);
+assert.match(hotspotRows, /20 \/ 255 sheltered toward selected targets/);
+assert.match(hotspotRows, /235 collection headroom/);
 assert.match(hotspotRows, /1 \/ 1 collectors staffed/);
 
 const householdHotspotState = emptyGameState();
@@ -278,8 +278,8 @@ const deepGranaryRows = renderFreshFoodPreservationRows(
   (kind) => kind,
   () => null,
 );
-assert.match(deepGranaryRows, /306\.0 \/ 306\.0 sheltered toward selected targets/);
-assert.match(deepGranaryRows, /4\.0 above targets from baking or earlier stock/);
+assert.match(deepGranaryRows, /306 \/ 306 sheltered toward selected targets/);
+assert.match(deepGranaryRows, /4 above targets from baking or earlier stock/);
 
 const fireQuarantineState = emptyGameState();
 fireQuarantineState.stockpile.food = 10;
@@ -360,10 +360,10 @@ const fireQuarantineRows = renderFreshFoodPreservationRows(
   () => null,
 );
 assert.match(fireQuarantineRows, /Fire-quarantined food/);
-assert.match(fireQuarantineRows, /90\.0 inaccessible until recovery/);
+assert.match(fireQuarantineRows, /90 inaccessible until recovery/);
 assert.match(fireQuarantineRows, /every completed granary is fire-disabled/);
 assert.match(fireQuarantineRows, /Fire-quarantined provisions/);
-assert.match(fireQuarantineRows, /90\.0 inaccessible until recovery/);
+assert.match(fireQuarantineRows, /90 inaccessible until recovery/);
 
 const residenceNeeds = readFileSync(
   new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url),

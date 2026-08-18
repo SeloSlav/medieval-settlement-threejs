@@ -170,7 +170,7 @@ assert.equal(
 );
 assert.equal(
   getBuildingProcessorStatus(smithy, readyQueries)?.statusText,
-  'Waiting for well cart — 0.0 / 1 stored',
+  'Waiting for well cart — 0 / 1 stored',
 );
 smithy.water = 1;
 assert.equal(
@@ -197,7 +197,7 @@ assert.equal(
 );
 assert.equal(
   getBuildingProcessorStatus(potter, readyQueries)?.statusText,
-  'Waiting for well cart — 0.0 / 1 stored',
+  'Waiting for well cart — 0 / 1 stored',
 );
 potter.water = 1;
 assert.equal(
@@ -395,7 +395,7 @@ const fullApiary = makeBuilding({
 });
 assert.equal(
   getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusText,
-  'Seasonal work waiting - honey store needs 2.0 more room',
+  'Seasonal work waiting - honey store needs 2 more room',
 );
 assert.equal(
   getBuildingProcessorStatus(fullApiary, noWellQueries, { month: 4 })?.statusState,
@@ -417,7 +417,7 @@ assert.equal(
     noWellQueries,
     { month: 4 },
   )?.statusText,
-  'Seasonal work waiting - honey store needs 2.0 more room',
+  'Seasonal work waiting - honey store needs 2 more room',
   'a released seasonal crew must not hide a full physical output store',
 );
 
@@ -446,7 +446,7 @@ const fullVineyardFood = makeBuilding({
 });
 assert.equal(
   getBuildingProcessorStatus(fullVineyardFood, noWellQueries, { month: 9 })?.statusText,
-  'Seasonal work waiting - grapes store needs 4.0 more room',
+  'Seasonal work waiting - grapes store needs 4 more room',
 );
 
 console.log('building processor status tests passed');

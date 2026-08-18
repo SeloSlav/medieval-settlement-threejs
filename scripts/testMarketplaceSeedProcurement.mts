@@ -288,9 +288,9 @@ const coveredPanel = renderMarketplaceTradePanel(
   false,
   coverage,
 );
-assert.match(coveredPanel, /10\.0 \/ 36\.0 grain covered/);
-assert.match(coveredPanel, /6\.0 already inbound \(6\.0 from this market\)/);
-assert.match(coveredPanel, /10\.0 grain across 1 holding cannot move until farm labor is assigned/);
+assert.match(coveredPanel, /10 \/ 36 grain covered/);
+assert.match(coveredPanel, /6 already inbound \(6 from this market\)/);
+assert.match(coveredPanel, /10 grain across 1 holding cannot move until farm labor is assigned/);
 assert.match(coveredPanel, /overlapping sources will not duplicate the haul/);
 assert.match(coveredPanel, /already has a cart away; seed priority is recalculated/);
 assert.match(coveredPanel, new RegExp(`data-inspect-building="${staffedHolding.id}"`));
@@ -325,8 +325,8 @@ const readyCoveragePanel = renderMarketplaceTradePanel(
   false,
   readyCoverage,
 );
-assert.match(readyCoveragePanel, /Next seed cart: 6\.0 grain to the least-covered eligible holding/);
-assert.match(readyCoveragePanel, /0\.0 \/ 22\.0 onsite/);
+assert.match(readyCoveragePanel, /Next seed cart: 6 grain to the least-covered eligible holding/);
+assert.match(readyCoveragePanel, /0 \/ 22 onsite/);
 assert.match(readyCoveragePanel, /over 30 m of road/);
 
 const overlappingInbound = { ...inboundSeed, buildingId: 'building:other-source' };

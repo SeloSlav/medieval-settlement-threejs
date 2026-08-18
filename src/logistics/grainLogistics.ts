@@ -11,6 +11,7 @@ import {
 import { processorInputStagingCycles } from '../economy/processorOutputPolicy.ts';
 import { compareStableEntityIds } from './roadLogistics.ts';
 import { breadGrainStock, type BreadGrainKind } from '../economy/cropGoods.ts';
+import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 
 export const GRAIN_DISPATCH_SOURCE_KINDS = ['threshing_barn', 'granary'] as const;
 export const GRAIN_PROCESSOR_KINDS = ['watermill', 'windmill', 'monastery'] as const;
@@ -279,5 +280,5 @@ export function formatGrainWorkingBuffer(
   processorOutputTargetPercent: number | undefined = 100,
 ): string {
   const target = grainInputTarget(kind, productivity, processorOutputTargetPercent);
-  return `${Math.round(stock)} / ${Math.round(target)} · farmstead or granary supply`;
+  return `${wholeResourceUnits(stock)} / ${Math.ceil(target)} · farmstead or granary supply`;
 }

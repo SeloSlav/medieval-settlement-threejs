@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { syncBuildings } from '../src/data/spacetimeTableSync/syncBuildings.ts';
 import { syncDeliveryTrips } from '../src/data/spacetimeTableSync/syncDeliveryTrips.ts';
 import { syncForagingNodes } from '../src/data/spacetimeTableSync/syncForagingNodes.ts';
+import { syncPlayerResources } from '../src/data/spacetimeTableSync/syncPlayerResources.ts';
+import { syncResidences } from '../src/data/spacetimeTableSync/syncResidences.ts';
 import {
   formatResourceUnits,
   isWholeResourceUnits,
@@ -89,5 +91,54 @@ const forage = syncForagingNodes([rowWithDefaults({
 assert.ok(forage);
 assert.equal(forage.remaining, 27);
 assert.equal(forage.maxYield, 64);
+
+const playerState = { identityHex } as never;
+syncPlayerResources([rowWithDefaults({
+  owner,
+  timber: 40.9,
+  water: 17.25,
+  gold: 19.99,
+  ryeSheaves: 8.75,
+  preservedFood: 5.5,
+  landLevyCollectedTotal: 31.8,
+  parishCharityPaidTotal: 4.9,
+  monasteryFoodCharityTotal: 12.1,
+  lastTheftGold: 2.75,
+}) as never], playerState);
+for (const amount of Object.values((playerState as { stockpile: Record<string, number> }).stockpile)) {
+  assert.equal(isWholeResourceUnits(amount), true);
+}
+assert.equal((playerState as { stockpile: { timber: number } }).stockpile.timber, 40);
+assert.equal((playerState as { stockpile: { gold: number } }).stockpile.gold, 19);
+assert.equal((playerState as { fiscalPolicy: { landLevyCollectedTotal: number } })
+  .fiscalPolicy.landLevyCollectedTotal, 31);
+assert.equal((playerState as { parishPolicy: { charityPaidTotal: number } })
+  .parishPolicy.charityPaidTotal, 4);
+
+const residence = syncResidences(
+  [rowWithDefaults({
+    id: 3n,
+    owner,
+    zoneId: 4n,
+    food: 6.9,
+    preservedFood: 3.8,
+    householdWealth: 14.5,
+    remedyStock: 2.2,
+    upgradeDeliveredTimber: 11.75,
+  }) as never],
+  [rowWithDefaults({
+    residenceId: 3n,
+    needKind: 2,
+    stock: 9.6,
+  }) as never],
+  identityHex,
+).get('residence-3');
+assert.ok(residence);
+assert.equal(residence.food, 6);
+assert.equal(residence.preservedFood, 3);
+assert.equal(residence.householdWealth, 14);
+assert.equal(residence.remedyStock, 2);
+assert.equal(residence.upgradeDeliveredTimber, 11);
+assert.equal(residence.needs.food.stock, 9);
 
 console.log('Whole resource unit tests passed.');

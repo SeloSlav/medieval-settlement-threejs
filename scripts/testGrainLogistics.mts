@@ -123,7 +123,7 @@ assert.ok(
 );
 assert.equal(
   formatGrainWorkingBuffer(4.5, 'watermill'),
-  '4.5 / 9.0 · farmstead or granary supply',
+  '4 / 9 · farmstead or granary supply',
 );
 assert.equal(grainInputRunwayCycles('watermill', 6), 2);
 assert.equal(
