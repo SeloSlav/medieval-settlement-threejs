@@ -370,6 +370,11 @@ function testBurgageBuildingOverlapUsesVisibleFootprints(): void {
     x: 0,
     z: 8,
   } as BuildingState;
+  const gameState = {
+    buildings: new Map([[well.id, well]]),
+    burgageZones: new Map(),
+    farmFields: new Map(),
+  } as GameState;
   const context = {
     frontageEdge: 0 as const,
     plotCount: 1,
@@ -379,6 +384,7 @@ function testBurgageBuildingOverlapUsesVisibleFootprints(): void {
     roadNetwork: roads,
     isWaterAt: () => false,
     getNaturalHeightAt: () => 0,
+    gameState,
   };
 
   const clearPlacement = validateBurgagePlacement({
