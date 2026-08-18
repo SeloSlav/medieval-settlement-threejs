@@ -97,6 +97,30 @@ export type DeliveryTripState = {
   routePolylineJson: string;
 };
 
+export const VISIBLE_CART_CARGO_EPSILON = 0.05;
+export const EMPTY_CART_SPEED_MULTIPLIER = 1.3;
+
+export function deliveryTripHasVisibleCargo(
+  trip: Pick<DeliveryTripState, 'amount'>,
+): boolean {
+  return trip.amount > VISIBLE_CART_CARGO_EPSILON;
+}
+
+export function deliveryTripTravelSpeed(
+  trip: Pick<
+    DeliveryTripState,
+    'amount' | 'speedMps' | 'deliveryWorkers' | 'travelSpeedMultiplier'
+  >,
+): number {
+  const loadMultiplier = deliveryTripHasVisibleCargo(trip)
+    ? 1
+    : EMPTY_CART_SPEED_MULTIPLIER;
+  return trip.speedMps
+    * Math.max(1, trip.deliveryWorkers)
+    * Math.max(1e-6, trip.travelSpeedMultiplier)
+    * loadMultiplier;
+}
+
 export type TripEndpoint = {
   origin: BuildingState;
   destinationX: number;
@@ -621,7 +645,7 @@ export function tripRemainingSeconds(trip: DeliveryTripState, pathDistance: numb
   if (pathDistance == null || pathDistance <= 1e-6) return Infinity;
 
   const workers = Math.max(1, trip.deliveryWorkers);
-  const travelSpeed = trip.speedMps * workers * Math.max(1e-6, trip.travelSpeedMultiplier);
+  const travelSpeed = deliveryTripTravelSpeed(trip);
   if (travelSpeed <= 1e-9) return Infinity;
 
   const travelPerLeg = pathDistance / travelSpeed;
@@ -659,7 +683,7 @@ export function tripDeliveryRemainingSeconds(trip: DeliveryTripState): number {
   const pathDistance = Number.isFinite(trip.pathDistance)
     ? Math.max(0, trip.pathDistance)
     : 0;
-  const travelSpeed = trip.speedMps * workers * Math.max(1e-6, trip.travelSpeedMultiplier);
+  const travelSpeed = deliveryTripTravelSpeed(trip);
   if (pathDistance <= 1e-6 || travelSpeed <= 1e-9) return Infinity;
 
   const progress = Math.min(Math.max(0, trip.progress), pathDistance);

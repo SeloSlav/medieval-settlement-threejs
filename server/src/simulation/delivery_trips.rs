@@ -1960,9 +1960,9 @@ fn step_one_trip(
     trip.progress = trip.progress.min(path_distance);
 
     let workers = trip.delivery_workers.max(1) as f64;
-    let travel_speed = trip.speed_mps * workers * trip.travel_speed_multiplier.max(1e-6);
+    let base_travel_speed = trip.speed_mps * workers * trip.travel_speed_multiplier.max(1e-6);
 
-    if travel_speed <= 1e-9 {
+    if base_travel_speed <= 1e-9 {
         return;
     }
 
@@ -1975,6 +1975,7 @@ fn step_one_trip(
 
         match phase {
             DeliveryTripPhase::Outbound => {
+                let travel_speed = base_travel_speed * cart_load_speed_multiplier(&trip);
                 let advance = advance_travel_progress(
                     &network,
                     &route.polyline,
@@ -2014,6 +2015,7 @@ fn step_one_trip(
                 }
             }
             DeliveryTripPhase::Inbound => {
+                let travel_speed = base_travel_speed * cart_load_speed_multiplier(&trip);
                 let advance = advance_travel_progress(
                     &network,
                     &route.polyline,
@@ -2058,7 +2060,17 @@ fn step_one_trip(
 }
 
 const DELIVERY_ROAD_SPEED_MULTIPLIER: f64 = 1.35;
+const EMPTY_CART_SPEED_MULTIPLIER: f64 = 1.3;
+const VISIBLE_CART_CARGO_EPSILON: f64 = 0.05;
 const SURFACE_SPEED_SAMPLE_SECONDS: f64 = 0.25;
+
+fn cart_load_speed_multiplier(trip: &DeliveryTrip) -> f64 {
+    if trip.amount > VISIBLE_CART_CARGO_EPSILON {
+        1.0
+    } else {
+        EMPTY_CART_SPEED_MULTIPLIER
+    }
+}
 
 struct TravelAdvance {
     progress: f64,

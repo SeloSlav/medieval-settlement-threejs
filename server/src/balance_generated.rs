@@ -3,8 +3,8 @@
 
 pub const TICK_MICROS: i64 = 200000;
 pub const TICK_DT: f64 = 0.2;
-pub const BASE_SPEED_NUMERATOR: u16 = 2;
-pub const BASE_SPEED_DENOMINATOR: u16 = 5;
+pub const BASE_SPEED_NUMERATOR: u16 = 3;
+pub const BASE_SPEED_DENOMINATOR: u16 = 4;
 
 pub const CALENDAR_SECONDS_PER_DAY: f64 = 120.0;
 pub const CALENDAR_HOURS_PER_DAY: u32 = 24;

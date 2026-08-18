@@ -5,7 +5,7 @@ export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
 export const SIM_TICK_SECONDS = 0.2;
 export const SIM_TICK_INTERVAL_SECONDS = 0.2;
-export const SIM_REALTIME_RATE = 0.4;
+export const SIM_REALTIME_RATE = 0.75;
 
 export const CALENDAR_SECONDS_PER_DAY = 120;
 export const CALENDAR_HOURS_PER_DAY = 24;

@@ -78,6 +78,7 @@ export type DeliveryCartMeshOptions = {
   appearanceSeed?: number;
   source?: DeliveryCartModelSource | null;
   regionalImport?: boolean;
+  loaded?: boolean;
 };
 
 function createCargoMaterial(
@@ -1148,10 +1149,11 @@ export function deliveryCartMeshName(
   kind: DeliveryCargoKind,
   hasModelSource: boolean,
   regionalImport = false,
+  loaded = true,
 ): string {
   return `DeliveryCart:${kind}:${
     regionalImport ? 'regional-import' : 'settlement'
-  }:${hasModelSource ? 'quaternius' : 'fallback'}`;
+  }:${loaded ? 'loaded' : 'empty'}:${hasModelSource ? 'quaternius' : 'fallback'}`;
 }
 
 export function fireBucketCarrierMeshName(): string {
@@ -1214,11 +1216,13 @@ export function createDeliveryCartMesh(
   const group = new THREE.Group();
   const source = options.source ?? null;
   const regionalImport = options.regionalImport === true;
-  group.name = deliveryCartMeshName(kind, source != null, regionalImport);
+  const loaded = options.loaded !== false;
+  group.name = deliveryCartMeshName(kind, source != null, regionalImport, loaded);
   group.userData.deliveryCartAsset = source ? 'quaternius-medieval-cart' : 'procedural-fallback';
   group.userData.deliveryCargoProvenance = regionalImport
     ? 'regional-import'
     : 'settlement';
+  group.userData.deliveryCargoStatus = loaded ? 'loaded' : 'empty';
 
   if (source) {
     addQuaterniusCart(group, source, options.appearanceSeed ?? 0);
@@ -1226,16 +1230,18 @@ export function createDeliveryCartMesh(
     addProceduralCart(group);
   }
 
-  const cargoRoot = new THREE.Group();
-  cargoRoot.name = regionalImport
-    ? `Regional import cargo: ${kind}`
-    : `Cart cargo: ${kind}`;
-  if (source) {
-    cargoRoot.scale.setScalar(0.76);
-    cargoRoot.position.set(0, 0.08, 0.08);
+  if (loaded) {
+    const cargoRoot = new THREE.Group();
+    cargoRoot.name = regionalImport
+      ? `Regional import cargo: ${kind}`
+      : `Cart cargo: ${kind}`;
+    if (source) {
+      cargoRoot.scale.setScalar(0.76);
+      cargoRoot.position.set(0, 0.08, 0.08);
+    }
+    addCargo(cargoRoot, kind, regionalImport);
+    group.add(cargoRoot);
   }
-  addCargo(cargoRoot, kind, regionalImport);
-  group.add(cargoRoot);
   return group;
 }
 

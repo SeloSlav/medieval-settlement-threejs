@@ -437,12 +437,12 @@ const durations = {
   fastestYearMinutes:
     CALENDAR_SECONDS_PER_DAY * CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR / SIM_REALTIME_RATE / 60 / 8,
 };
-assert.ok(Math.abs(durations.normal.daySeconds - 300) < 1e-9);
-assert.ok(Math.abs(durations.normal.monthMinutes - 150) < 1e-9);
-assert.ok(Math.abs(durations.normal.yearMinutes - 1_800) < 1e-9);
-assert.ok(Math.abs(durations.fastMonthMinutes - 37.5) < 1e-9);
-assert.ok(Math.abs(durations.fastestDaySeconds - 37.5) < 1e-9);
-assert.ok(Math.abs(durations.fastestYearMinutes - 225) < 1e-9);
+assert.ok(Math.abs(durations.normal.daySeconds - 160) < 1e-9);
+assert.ok(Math.abs(durations.normal.monthMinutes - 80) < 1e-9);
+assert.ok(Math.abs(durations.normal.yearMinutes - 960) < 1e-9);
+assert.ok(Math.abs(durations.fastMonthMinutes - 20) < 1e-9);
+assert.ok(Math.abs(durations.fastestDaySeconds - 20) < 1e-9);
+assert.ok(Math.abs(durations.fastestYearMinutes - 120) < 1e-9);
 
 console.log(
   `season and simulation-speed tests passed (${outlookElapsedMs.toFixed(1)} ms for 100,000 outlooks)`,

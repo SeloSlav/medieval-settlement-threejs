@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import {
   deliveryLegRemainingMeters,
+  deliveryTripHasVisibleCargo,
+  deliveryTripTravelSpeed,
   deliveryWorkerPersonIdentity,
   isRegionalImportTrip,
   type DeliveryTripState,
@@ -332,8 +334,7 @@ export class DeliveryAgentRenderer {
   }
 
   private tripTravelSpeed(trip: DeliveryTripState): number {
-    const workers = Math.max(1, trip.deliveryWorkers);
-    return trip.speedMps * workers * Math.max(1e-6, trip.travelSpeedMultiplier);
+    return deliveryTripTravelSpeed(trip);
   }
 
   dispose(): void {
@@ -394,6 +395,7 @@ export class DeliveryAgentRenderer {
           trip.cargoKind,
           this.cartSource != null,
           isRegionalImportTrip(trip),
+          deliveryTripHasVisibleCargo(trip),
         );
     if (visual.mesh.name === desiredName) return;
     const replacement = this.createCartMesh(trip);
@@ -430,6 +432,7 @@ export class DeliveryAgentRenderer {
       appearanceSeed: hashStringSeed(`delivery-cart:${trip.id}`),
       source: this.cartSource,
       regionalImport: isRegionalImportTrip(trip),
+      loaded: deliveryTripHasVisibleCargo(trip),
     });
   }
 

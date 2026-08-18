@@ -12,6 +12,7 @@ import type { GameState } from '../resources/types.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import {
   describeDeliveryTrip,
+  deliveryTripTravelSpeed,
 } from '../logistics/deliveryTrips.ts';
 import { villagerDisplayName } from '../settlement/villagerIdentity.ts';
 import {
@@ -317,9 +318,7 @@ export class VillagerInspector {
     setTextIfChanged(this.workplace, originLabel);
     setTextIfChanged(this.household, presentation.routeTarget);
     setTextIfChanged(this.crew, presentation.cargoSummary);
-    const speed = trip.speedMps
-      * Math.max(1, trip.deliveryWorkers)
-      * Math.max(1e-6, trip.travelSpeedMultiplier);
+    const speed = deliveryTripTravelSpeed(trip);
     setTextIfChanged(this.pace, `${speed.toFixed(1)} m/s`);
     setTextIfChanged(
       this.distance,

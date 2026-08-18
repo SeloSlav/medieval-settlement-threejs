@@ -258,6 +258,11 @@ const cartB = createDeliveryCartMesh('water', {
   appearanceSeed: 13,
   source: cartSource,
 });
+const emptyCart = createDeliveryCartMesh('stone', {
+  appearanceSeed: 14,
+  source: cartSource,
+  loaded: false,
+});
 assert.equal(cartA.name, deliveryCartMeshName('firewood', true));
 assert.equal(cartA.userData.deliveryCartAsset, 'quaternius-medieval-cart');
 assert.notEqual(
@@ -270,16 +275,21 @@ assert.notEqual(
   undefined,
   'all delivery kinds should preserve their readable load',
 );
+assert.equal(emptyCart.userData.deliveryCargoStatus, 'empty');
+assert.equal(
+  emptyCart.getObjectByName('Cart cargo: stone'),
+  undefined,
+  'an empty return cart must retain its chassis without stale cargo geometry',
+);
+assert.equal(emptyCart.name, deliveryCartMeshName('stone', true, false, false));
 
 const cargoSignatures: Record<DeliveryCargoKind, string> = {
   firewood: 'Firewood split log 1',
   water: 'Water barrel',
   food: 'Fresh food basket',
   timber: 'Timber pole 1',
-  grain: 'Grain sack',
   barley: 'Grain sack',
   malt: 'Grain sack',
-  flour: 'Flour sack',
   ale: 'Ale keg',
   preservedFood: 'Preserved food crock 1',
   honey: 'Honey crock 1',
@@ -299,7 +309,6 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   roofTiles: 'Fired roof tile stack 1 layer 1',
   manure: 'Manure cart heap',
   remedies: 'Dried remedy bundle 1',
-  bread: 'Bread loaf',
   meat: 'Fresh food basket',
   fish: 'Fresh food basket',
   berries: 'Fresh food basket',
@@ -314,6 +323,19 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   curedMeat: 'Preserved food crock 1',
   smokedFish: 'Preserved food crock 1',
   cheese: 'Preserved food crock 1',
+  ryeSheaves: 'Grain sack',
+  oatSheaves: 'Grain sack',
+  barleySheaves: 'Grain sack',
+  maslinSheaves: 'Grain sack',
+  ryeGrain: 'Grain sack',
+  oatGrain: 'Grain sack',
+  maslinGrain: 'Grain sack',
+  ryeFlour: 'Flour sack',
+  oatFlour: 'Flour sack',
+  maslinFlour: 'Flour sack',
+  ryeBread: 'Bread loaf',
+  oatBread: 'Bread loaf',
+  maslinBread: 'Bread loaf',
 };
 for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {
   const cart = createDeliveryCartMesh(kind, {

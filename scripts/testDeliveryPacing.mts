@@ -12,6 +12,8 @@ import {
   cargoKindLabelForTrip,
   describeDeliveryTrip,
   deliveryLegRemainingMeters,
+  deliveryTripHasVisibleCargo,
+  deliveryTripTravelSpeed,
   deliveryWorkerPersonIdentity,
   destinationKindFromId,
   isRegionalExportTrip,
@@ -35,7 +37,7 @@ assert.equal(
   'food handcarts should keep a believable base pace before game-speed scaling',
 );
 assert.ok(
-  Math.abs(FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE - 0.64) < 1e-12,
+  Math.abs(FOOD_DELIVERY_SPEED_MPS * SIM_REALTIME_RATE - 1.2) < 1e-12,
   'physical cart speed should advance with the same base realtime rate as the calendar',
 );
 assert.equal(
@@ -44,12 +46,16 @@ assert.equal(
   'each food visit should replenish a meaningful share of household storage',
 );
 assert.ok(
-  Math.abs(SIM_TICK_SECONDS * 1 * SIM_REALTIME_RATE - 0.08) < 1e-12,
+  Math.abs(SIM_TICK_SECONDS * 1 * SIM_REALTIME_RATE - 0.15) < 1e-12,
   '1× delivery heartbeats should use the base realtime rate',
 );
 assert.ok(
-  Math.abs(SIM_TICK_SECONDS * 4 * SIM_REALTIME_RATE - 0.32) < 1e-12,
+  Math.abs(SIM_TICK_SECONDS * 4 * SIM_REALTIME_RATE - 0.6) < 1e-12,
   '4× delivery heartbeats should retain the selected speed multiplier',
+);
+assert.ok(
+  Math.abs(SIM_TICK_SECONDS * 8 * SIM_REALTIME_RATE - 1.2) < 1e-12,
+  '8× delivery heartbeats should retain the selected speed multiplier',
 );
 
 assert.equal(deliveryLegRemainingMeters(150, 42, 'outbound'), 108);
@@ -148,6 +154,10 @@ const returningSaltMerchant: DeliveryTripState = {
   deliveryWorkers: 1,
   freeHaulerWorkers: 1,
 };
+assert.equal(deliveryTripHasVisibleCargo(returningSaltMerchant), false);
+assert.equal(deliveryTripTravelSpeed(returningSaltMerchant), 2.6);
+assert.equal(deliveryTripHasVisibleCargo(loadedTrip), true);
+assert.equal(deliveryTripTravelSpeed(loadedTrip), 4);
 assert.equal(cargoKindLabelForTrip(returningSaltMerchant), 'Adriatic salt');
 assert.deepEqual(
   describeDeliveryTrip(returningSaltMerchant, 'Marketplace', 'Marketplace'),
@@ -545,6 +555,11 @@ assert.match(
   deliveryRenderer,
   /createDeliveryCartMesh\([\s\S]*regionalImport: isRegionalImportTrip\(trip\)/,
   'new regional merchants must receive their distinct cargo load',
+);
+assert.match(
+  deliveryRenderer,
+  /loaded: deliveryTripHasVisibleCargo\(trip\)/,
+  'cart cargo geometry must track the authoritative remaining load',
 );
 assert.match(
   deliveryRenderer,
