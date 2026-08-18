@@ -573,8 +573,9 @@ export function formatHouseholdMarketResidenceStatus(
     case 'closed':
       return `${order} - cart rests until work hours`;
     case 'no-market-route':
+      return 'No completed, staffed Trading Post available for emergency imports.';
     case 'route-too-short':
-      return 'Blocked - no usable completed marketplace route';
+      return 'No usable Trading Post delivery route available for emergency imports.';
     case 'unaffordable':
       return 'Blocked - savings cannot fund a current food or water lot';
     case 'market-cart-busy':
@@ -586,7 +587,7 @@ export function formatHouseholdMarketResidenceStatus(
     case 'fire-disabled':
       return 'Paused - fire damage disables household orders';
     case 'market-fire-disabled':
-      return 'Blocked - the only reachable marketplace is fire-damaged';
+      return 'Blocked - the only available Trading Post is fire-damaged';
     case 'safe':
       return 'Standing order idle';
   }

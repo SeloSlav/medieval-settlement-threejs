@@ -661,7 +661,7 @@ export function renderResidenceInspector(
       <li><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
       ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Emergency market</span><span>${householdMarketStatus}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Emergency imports</span><span>${householdMarketStatus}</span></li>` : ''}
       ${residence.tier > 0 ? '<li><span>Standing-order rule</span><span>At 18h food or active water runway - food first - household-funded full lot</span></li>' : ''}
       ${fireDisabled
         ? '<li><span>Parish economy</span><span>Paused · no tithe, alms, or relief claim until structural recovery</span></li>'

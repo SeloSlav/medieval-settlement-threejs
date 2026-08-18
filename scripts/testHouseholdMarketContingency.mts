@@ -268,6 +268,12 @@ const unfinished = computeSettlementHouseholdMarketPlan({
 });
 assert.equal(unfinished.completedMarketplaces, 0);
 assert.equal(unfinished.unroutedHomes, 1);
+assert.equal(
+  formatHouseholdMarketResidenceStatus(
+    unfinished.residences.get('stranded') ?? null,
+  ),
+  'No completed, staffed Trading Post available for emergency imports.',
+);
 
 const splitNetwork = network((originX, _originZ, targetX) =>
   Math.floor(originX / 100) === Math.floor(targetX / 100)
@@ -482,7 +488,7 @@ assert.match(
   formatHouseholdMarketResidenceStatus(
     marketFireBlocked.residences.get('market-fire-home') ?? null,
   ),
-  /only reachable marketplace is fire-damaged/,
+  /only available Trading Post is fire-damaged/,
 );
 assert.match(
   formatHouseholdMarketBranch(
@@ -599,7 +605,7 @@ const residenceInspector = readFileSync(
   'src/resources/inspector/residenceRenderer.ts',
   'utf8',
 );
-assert.match(residenceInspector, /Emergency market/);
+assert.match(residenceInspector, /Emergency imports/);
 assert.match(residenceInspector, /Standing-order rule/);
 const marketplaceInspector = readFileSync(
   'src/resources/inspector/marketplaceInspector.ts',
