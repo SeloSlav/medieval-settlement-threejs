@@ -1148,7 +1148,7 @@ export class VillagerRenderer {
     this.pushRenderState();
   }
 
-  tick(dt: number, view?: CrowdViewState): void {
+  tick(dt: number, view?: CrowdViewState): boolean {
     this.lastView = view;
     const realDt = Math.max(0, dt);
     const simulationDt = realDt * this.getGameSpeed() * SIM_REALTIME_RATE;
@@ -1204,6 +1204,7 @@ export class VillagerRenderer {
 
     this.releaseVacatedCampSeats();
     this.pushRenderState(view, simulationDt, simulationDt > 0 ? realDt : 0);
+    return this.renderer.consumeShadowCastersChanged();
   }
 
   pickVillager(

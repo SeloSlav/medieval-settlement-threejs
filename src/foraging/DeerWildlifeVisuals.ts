@@ -77,7 +77,7 @@ export type DeerWildlifeVisuals = {
     dtSeconds: number,
     firstPersonObserver: DeerObserver | null,
     cameraDistance: number,
-  ) => void;
+  ) => boolean;
   sync: (nodes: Iterable<ForagingNodeState>) => void;
   dispose: () => void;
 };
@@ -127,7 +127,7 @@ export async function createDeerWildlifeVisuals(
       deerCount: 0,
       doeCount: 0,
       stagCount: 0,
-      update: () => undefined,
+      update: () => false,
       sync: () => undefined,
       dispose: () => undefined,
     };
@@ -224,18 +224,23 @@ export async function createDeerWildlifeVisuals(
     deer,
     modelSources,
   );
+  let pendingShadowCastersChanged = true;
 
   const update = (
     dtSeconds: number,
     firstPersonObserver: DeerObserver | null,
     cameraDistance: number,
-  ): void => {
+  ): boolean => {
     const shouldShow = firstPersonObserver !== null || cameraDistance <= CLOSE_WORLD_MAX_CAMERA_DISTANCE;
+    let shadowCastersChanged = pendingShadowCastersChanged
+      || group.visible !== shouldShow;
+    pendingShadowCastersChanged = false;
     group.visible = shouldShow;
-    if (!shouldShow) return;
+    if (!shouldShow) return shadowCastersChanged;
 
     for (const visual of deer) {
       if (!visual.root.visible) continue;
+      if (dtSeconds > 0) shadowCastersChanged = true;
       updateDeerMotion(visual.motion, dtSeconds, {
         observer: firstPersonObserver,
         random: rng,
@@ -251,6 +256,7 @@ export async function createDeerWildlifeVisuals(
       visual.root.rotation.y = visual.motion.heading;
       visual.mixer.update(Math.min(Math.max(dtSeconds, 0), 0.1));
     }
+    return shadowCastersChanged;
   };
 
   const sync = (nodes: Iterable<ForagingNodeState>): void => {
@@ -261,13 +267,16 @@ export async function createDeerWildlifeVisuals(
         ? displayedGameAnimalCount(node.remaining)
         : 0;
       const visibleSexCounts = herdSexCounts(visiblePopulation);
-      visual.root.visible = visual.sex === 'stag'
+      const visible = visual.sex === 'stag'
         ? visual.sexIndex < visibleSexCounts.stagCount
         : visual.sexIndex < visibleSexCounts.doeCount;
+      if (visual.root.visible !== visible) pendingShadowCastersChanged = true;
+      visual.root.visible = visible;
       if (!node) continue;
       const dx = node.x - visual.motion.homeX;
       const dz = node.z - visual.motion.homeZ;
       if (Math.hypot(dx, dz) <= 0.01) continue;
+      pendingShadowCastersChanged = true;
       visual.motion.x += dx;
       visual.motion.z += dz;
       visual.motion.homeX = node.x;

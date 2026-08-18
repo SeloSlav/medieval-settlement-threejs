@@ -146,7 +146,12 @@ export function validateBurgagePlacement(context: BurgagePlacementContext): Burg
     return { ok: false, reason: 'overlaps_existing' };
   }
 
-  if (burgageZoneOverlapsBuildings(zoneCorners, context.existingBuildings, context.gameState)) {
+  if (burgageZoneOverlapsBuildings(
+    zoneCorners,
+    context.existingBuildings,
+    context.gameState,
+    context.roadNetwork,
+  )) {
     return { ok: false, reason: 'overlaps_building' };
   }
 

@@ -212,13 +212,16 @@ export function tickSettlementWorld(
   targets: Pick<SettlementWorldSyncTargets, 'residenceMarkers' | 'backyardGardenMarkers' | 'livestockVisuals' | 'deliveryAgents' | 'fireEffects' | 'villagers'>,
   dt: number,
   view?: CrowdViewState,
-): void {
+): boolean {
   targets.residenceMarkers?.tick(dt);
   targets.backyardGardenMarkers?.tick(dt, view);
-  targets.livestockVisuals?.tick(dt, view);
-  targets.deliveryAgents?.update(dt, view);
+  const livestockShadowCastersChanged = targets.livestockVisuals?.tick(dt, view) ?? false;
+  const deliveryShadowCastersChanged = targets.deliveryAgents?.update(dt, view) ?? false;
   targets.fireEffects?.tick(dt);
-  targets.villagers?.tick(dt, view);
+  const villagerShadowCastersChanged = targets.villagers?.tick(dt, view) ?? false;
+  return livestockShadowCastersChanged
+    || deliveryShadowCastersChanged
+    || villagerShadowCastersChanged;
 }
 
 export function disposeSettlementWorld(

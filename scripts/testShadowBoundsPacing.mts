@@ -6,7 +6,9 @@ import {
   intersectTerrainBounds,
 } from '../src/scene/fitDirectionalShadow.ts';
 import {
+  DYNAMIC_SHADOW_MIN_REFRESH_INTERVAL_MS,
   shouldRefreshDirectionalShadowAtlas,
+  shouldRefreshDynamicDirectionalShadow,
   shouldRefreshFirstPersonDirectionalShadow,
 } from '../src/scene/directionalShadowRefreshPolicy.ts';
 
@@ -26,14 +28,35 @@ assert.equal(
   'overview navigation should retain the paced shadow refresh policy',
 );
 assert.equal(
-  shouldRefreshDirectionalShadowAtlas(false, true, false, false),
+  shouldRefreshDirectionalShadowAtlas(false, true, false, false, false),
   true,
   'completed forest caster uploads must invalidate the cached atlas while settled',
 );
 assert.equal(
-  shouldRefreshDirectionalShadowAtlas(false, false, false, false),
+  shouldRefreshDirectionalShadowAtlas(false, false, false, false, false),
   false,
   'a settled unchanged overview should retain the cached atlas',
+);
+assert.equal(DYNAMIC_SHADOW_MIN_REFRESH_INTERVAL_MS, 100);
+assert.equal(
+  shouldRefreshDynamicDirectionalShadow(true, 99),
+  false,
+  'animated casters should remain inside the paced redraw budget',
+);
+assert.equal(
+  shouldRefreshDynamicDirectionalShadow(true, 100),
+  true,
+  'animated casters must refresh once their redraw interval elapses',
+);
+assert.equal(
+  shouldRefreshDynamicDirectionalShadow(false, 1_000),
+  false,
+  'elapsed time alone must not redraw a settled atlas',
+);
+assert.equal(
+  shouldRefreshDirectionalShadowAtlas(false, false, true, false, false),
+  true,
+  'a due animated-caster redraw must invalidate a settled atlas',
 );
 
 const camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 2600);

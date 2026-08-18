@@ -750,11 +750,14 @@ export class App {
     this.updateFps(time, rawDt);
     const crowdView = this.buildCrowdViewState();
     if (this.snapshotApplierDeps) {
-      tickSettlementWorld(
+      const dynamicShadowCastersChanged = tickSettlementWorld(
         this.snapshotApplierDeps.settlementWorld,
         worldDt,
         crowdView,
       );
+      if (dynamicShadowCastersChanged) {
+        this.sceneManager?.invalidateDynamicShadows();
+      }
     }
     this.villagerInspector?.tick();
     this.ambientAudio?.tick(dt);

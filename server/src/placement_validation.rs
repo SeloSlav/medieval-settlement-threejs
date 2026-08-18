@@ -2,7 +2,7 @@ use spacetimedb::Identity;
 use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
-use crate::burgage::{zone_corners_polygon, zone_overlaps_footprint, Point2, ZoneCorners};
+use crate::burgage::{zone_corners_polygon, zone_overlaps_oriented_footprint, Point2, ZoneCorners};
 use crate::db::*;
 use crate::hydrology::sample_hydrology_score;
 use crate::roads::{load_owner_road_network, RoadNetwork};
@@ -104,9 +104,10 @@ pub fn building_overlaps_residence_zone(
     x: f64,
     z: f64,
 ) -> bool {
-    let Some(pick_radius) = building_pick_radius(kind) else {
+    if building_def(kind).is_none() {
         return false;
-    };
+    }
+    let network = load_owner_road_network(ctx, owner);
 
     for zone in ctx.db.burgage_zone().owner().filter(&owner) {
         let zone_polygon = [
@@ -127,7 +128,7 @@ pub fn building_overlaps_residence_zone(
                 z: zone.corner_dz,
             },
         ];
-        if zone_overlaps_footprint(&zone_polygon, x, z, pick_radius) {
+        if zone_overlaps_building_footprint(&zone_polygon, kind, x, z, network.as_ref()) {
             return true;
         }
     }
@@ -141,15 +142,43 @@ pub fn burgage_zone_overlaps_buildings(
     corners: &ZoneCorners,
 ) -> bool {
     let candidate = zone_corners_polygon(corners);
+    let network = load_owner_road_network(ctx, owner);
     for building in ctx.db.building().owner().filter(&owner) {
-        let Some(pick_radius) = building_pick_radius(&building.kind) else {
+        if building_def(&building.kind).is_none() {
             continue;
-        };
-        if zone_overlaps_footprint(&candidate, building.x, building.z, pick_radius) {
+        }
+        if zone_overlaps_building_footprint(
+            &candidate,
+            &building.kind,
+            building.x,
+            building.z,
+            network.as_ref(),
+        ) {
             return true;
         }
     }
     false
+}
+
+fn zone_overlaps_building_footprint(
+    zone: &[Point2; 4],
+    kind: &str,
+    x: f64,
+    z: f64,
+    network: Option<&RoadNetwork>,
+) -> bool {
+    let pad = building_pad_params(kind);
+    let yaw = network
+        .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
+        .unwrap_or_else(|| building_placement_yaw(x, z));
+    zone_overlaps_oriented_footprint(
+        zone,
+        x,
+        z,
+        pad.radius_x * pad.inner_fade * BUILDING_FOOTPRINT_SCALE,
+        pad.radius_z * pad.inner_fade * BUILDING_FOOTPRINT_SCALE,
+        yaw,
+    )
 }
 
 pub fn is_on_resource_deposit(ctx: &ReducerContext, x: f64, z: f64) -> bool {
@@ -352,6 +381,18 @@ pub fn building_overlaps_open_water(kind: &str, x: f64, z: f64) -> bool {
 
 fn building_pad_params(kind: &str) -> BuildingPadParams {
     match kind {
+        "founders_camp" => BuildingPadParams {
+            radius_x: 8.6,
+            radius_z: 7.2,
+            inner_fade: 0.88,
+            outer_fade: 1.28,
+        },
+        "salvage_pile" => BuildingPadParams {
+            radius_x: 6.0,
+            radius_z: 5.2,
+            inner_fade: 0.88,
+            outer_fade: 1.28,
+        },
         "remote_work_camp" => BuildingPadParams {
             radius_x: 4.4,
             radius_z: 4.0,
@@ -388,21 +429,33 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.84,
             outer_fade: 1.24,
         },
-        "clay_pit" => BuildingPadParams {
-            radius_x: 7.0,
-            radius_z: 6.0,
+        "mine" => BuildingPadParams {
+            radius_x: 11.0,
+            radius_z: 10.0,
             inner_fade: 0.84,
-            outer_fade: 1.3,
+            outer_fade: 1.24,
+        },
+        "clay_pit" => BuildingPadParams {
+            radius_x: 5.4,
+            radius_z: 4.5,
+            inner_fade: 0.84,
+            outer_fade: 1.24,
         },
         "charcoal_burner" => BuildingPadParams {
-            radius_x: 5.6,
-            radius_z: 5.2,
-            inner_fade: 0.88,
-            outer_fade: 1.32,
+            radius_x: 4.9,
+            radius_z: 4.4,
+            inner_fade: 0.86,
+            outer_fade: 1.28,
         },
-        "smithy" | "potter_kiln" => BuildingPadParams {
-            radius_x: 5.2,
-            radius_z: 4.5,
+        "smithy" => BuildingPadParams {
+            radius_x: 4.6,
+            radius_z: 4.1,
+            inner_fade: 0.88,
+            outer_fade: 1.3,
+        },
+        "potter_kiln" => BuildingPadParams {
+            radius_x: 4.7,
+            radius_z: 4.1,
             inner_fade: 0.88,
             outer_fade: 1.3,
         },
@@ -431,8 +484,8 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             outer_fade: 1.3,
         },
         "chapel" => BuildingPadParams {
-            radius_x: 3.4,
-            radius_z: 4.2,
+            radius_x: 5.6,
+            radius_z: 7.3,
             inner_fade: 0.9,
             outer_fade: 1.28,
         },
@@ -440,6 +493,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             radius_x: 4.2,
             radius_z: 3.4,
             inner_fade: 0.9,
+            outer_fade: 1.3,
+        },
+        "trading_post" => BuildingPadParams {
+            radius_x: 6.6,
+            radius_z: 5.4,
+            inner_fade: 0.88,
             outer_fade: 1.3,
         },
         "town_hall" => BuildingPadParams {
@@ -466,11 +525,29 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.88,
             outer_fade: 1.3,
         },
+        "palisaded_refuge" => BuildingPadParams {
+            radius_x: 9.2,
+            radius_z: 7.2,
+            inner_fade: 0.88,
+            outer_fade: 1.28,
+        },
         "threshing_barn" => BuildingPadParams {
             radius_x: 6.5,
             radius_z: 5.0,
             inner_fade: 0.88,
             outer_fade: 1.3,
+        },
+        "pastoral_farmstead" => BuildingPadParams {
+            radius_x: 7.2,
+            radius_z: 5.4,
+            inner_fade: 0.88,
+            outer_fade: 1.3,
+        },
+        "swineherd" => BuildingPadParams {
+            radius_x: 6.2,
+            radius_z: 5.2,
+            inner_fade: 0.88,
+            outer_fade: 1.28,
         },
         "monastery" => BuildingPadParams {
             radius_x: 9.5,
@@ -493,6 +570,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
         "granary" => BuildingPadParams {
             radius_x: 5.8,
             radius_z: 4.7,
+            inner_fade: 0.88,
+            outer_fade: 1.3,
+        },
+        "bakery" => BuildingPadParams {
+            radius_x: 5.1,
+            radius_z: 4.5,
             inner_fade: 0.88,
             outer_fade: 1.3,
         },
@@ -519,6 +602,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             radius_z: 4.8,
             inner_fade: 0.88,
             outer_fade: 1.32,
+        },
+        "weaver" => BuildingPadParams {
+            radius_x: 5.8,
+            radius_z: 4.5,
+            inner_fade: 0.88,
+            outer_fade: 1.3,
         },
         "vineyard" => BuildingPadParams {
             radius_x: 8.0,

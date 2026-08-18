@@ -358,6 +358,60 @@ function testBurgageTerrainRulesAreLotFriendly(): void {
   );
 }
 
+function testBurgageBuildingOverlapUsesVisibleFootprints(): void {
+  const roads = new RoadNetwork();
+  roads.addRoadPath([
+    new THREE.Vector3(-6, 0, 0),
+    new THREE.Vector3(18, 0, 0),
+  ]);
+  const well = {
+    id: 'well-visible-footprint-regression',
+    kind: 'well',
+    x: 0,
+    z: 8,
+  } as BuildingState;
+  const context = {
+    frontageEdge: 0 as const,
+    plotCount: 1,
+    stockpile: { timber: 10_000, stone: 10_000 },
+    existingZones: [],
+    existingBuildings: [well],
+    roadNetwork: roads,
+    isWaterAt: () => false,
+    getNaturalHeightAt: () => 0,
+  };
+
+  const clearPlacement = validateBurgagePlacement({
+    ...context,
+    corners: [
+      new THREE.Vector3(3, 0, 2),
+      new THREE.Vector3(11, 0, 2),
+      new THREE.Vector3(11, 0, 14),
+      new THREE.Vector3(3, 0, 14),
+    ],
+  });
+  assert.equal(
+    clearPlacement.ok,
+    true,
+    'empty land outside the visible well footprint must not be rejected by its much larger pick radius',
+  );
+
+  const overlappingPlacement = validateBurgagePlacement({
+    ...context,
+    corners: [
+      new THREE.Vector3(1.5, 0, 2),
+      new THREE.Vector3(9.5, 0, 2),
+      new THREE.Vector3(9.5, 0, 14),
+      new THREE.Vector3(1.5, 0, 14),
+    ],
+  });
+  assert.deepEqual(
+    overlappingPlacement,
+    { ok: false, reason: 'overlaps_building' },
+    'a plot that reaches the visible well footprint must still be blocked',
+  );
+}
+
 function testBurgageFrontageDirectionAndRoadSideSelection(): void {
   const roads = new RoadNetwork();
   roads.addRoadPath([
@@ -1052,6 +1106,7 @@ testRoadFacingBuildingsSnapToRoadSides();
 testQuarryFootprintsAvoidRivers();
 testBurgageWaterValidationSamplesTheWholeZone();
 testBurgageTerrainRulesAreLotFriendly();
+testBurgageBuildingOverlapUsesVisibleFootprints();
 testOrganicBurgagePlotsAndPreviewIcons();
 testBurgageFrontageDirectionAndRoadSideSelection();
 testPlacementOverlaysFollowTerrainHeight();

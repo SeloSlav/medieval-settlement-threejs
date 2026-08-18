@@ -171,11 +171,17 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'on_resource_deposit' };
   }
 
-  if (buildingOverlapsResidenceZone(kind, x, z, context.burgageZones)) {
+  if (buildingOverlapsResidenceZone(
+    kind,
+    x,
+    z,
+    context.burgageZones,
+    context.roadNetwork,
+  )) {
     return { ok: false, reason: 'within_residence_zone' };
   }
 
-  const footprint = buildingFootprintPolygon(x, z, kind);
+  const footprint = buildingFootprintPolygon(x, z, kind, context.roadNetwork);
   for (const field of context.farmFields ?? []) {
     if (convexPolygonsOverlap2(footprint, field.corners)) {
       return { ok: false, reason: 'within_farm_field' };

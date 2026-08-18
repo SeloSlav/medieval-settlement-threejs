@@ -110,6 +110,7 @@ export class DeliveryAgentRenderer {
   private selectedTripId: string | null = null;
   private cartSource: DeliveryCartModelSource | null = null;
   private workerSources: DeliveryCartWorkerSources | null = null;
+  private shadowCastersChanged = false;
   private disposed = false;
 
   constructor(options: DeliveryAgentRendererOptions) {
@@ -169,6 +170,7 @@ export class DeliveryAgentRenderer {
         sampleScratch: { x: 0, z: 0, yaw: 0 },
       };
       this.visuals.set(trip.id, visual);
+      this.shadowCastersChanged = true;
       this.ensureWorkerCrew(visual, trip);
     }
 
@@ -181,7 +183,9 @@ export class DeliveryAgentRenderer {
     }
   }
 
-  update(dt: number, view?: CrowdViewState): void {
+  update(dt: number, view?: CrowdViewState): boolean {
+    let shadowCastersChanged = this.shadowCastersChanged;
+    this.shadowCastersChanged = false;
     const gameSpeed = this.getGameSpeed();
     for (const [tripId, visual] of this.visuals) {
       const currentSample = visual.polyline.length >= 2
@@ -246,9 +250,12 @@ export class DeliveryAgentRenderer {
           if (mesh.isMesh) mesh.castShadow = castShadow;
         });
         visual.castShadow = castShadow;
+        shadowCastersChanged = true;
       }
+      if (castShadow && dt > 0) shadowCastersChanged = true;
       if (this.selectedTripId === tripId) this.updateSelectedRoute(visual);
     }
+    return shadowCastersChanged;
   }
 
   applyTripStates(trips: Iterable<DeliveryTripState>): void {
@@ -415,6 +422,7 @@ export class DeliveryAgentRenderer {
   private removeTrip(id: string): void {
     const visual = this.visuals.get(id);
     if (!visual) return;
+    if (visual.castShadow !== false) this.shadowCastersChanged = true;
     for (const worker of visual.workers) {
       disposeDeliveryCartWorkerVisual(worker);
     }

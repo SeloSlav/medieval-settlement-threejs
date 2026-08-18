@@ -77,6 +77,7 @@ export class LivestockVisuals {
   private sources: Record<keyof typeof MODEL_URLS, AnimalSource> | null = null;
   private latestInput: ReplayableLivestockInput | null = null;
   private lastSignature = '';
+  private shadowCastersChanged = false;
   private disposed = false;
 
   constructor(
@@ -97,10 +98,15 @@ export class LivestockVisuals {
     this.rebuildIfNeeded();
   }
 
-  tick(dtSeconds: number, view?: CrowdViewState): void {
+  tick(dtSeconds: number, view?: CrowdViewState): boolean {
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
+    let shadowCastersChanged = this.shadowCastersChanged;
+    this.shadowCastersChanged = false;
     for (const animal of this.animals) {
       const visible = isWithinCrowdView(animal.x, animal.z, view);
+      if (animal.root.visible !== visible && animal.castShadow !== false) {
+        shadowCastersChanged = true;
+      }
       animal.root.visible = visible;
       if (!visible) continue;
 
@@ -134,9 +140,12 @@ export class LivestockVisuals {
           if (mesh.isSkinnedMesh) mesh.castShadow = castShadow;
         });
         animal.castShadow = castShadow;
+        shadowCastersChanged = true;
       }
+      if (castShadow && dt > 0) shadowCastersChanged = true;
       animal.mixer.update(dt);
     }
+    return shadowCastersChanged;
   }
 
   dispose(): void {
@@ -175,6 +184,7 @@ export class LivestockVisuals {
     const signature = buildSignature(this.latestInput);
     if (!force && signature === this.lastSignature) return;
     this.lastSignature = signature;
+    this.shadowCastersChanged = true;
     this.clearAnimals();
 
     const pasturesByHerd = new Map<string, PastureState[]>();

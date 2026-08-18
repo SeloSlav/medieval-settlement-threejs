@@ -1,4 +1,5 @@
 import type { GameState } from '../resources/types.ts';
+import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { burgageZonePolygon, buildingFootprintPolygonFromState } from './placementConflicts.ts';
 import { convexPolygonsOverlap2, type Point2 } from '../utils/polygonGeometry.ts';
 
@@ -18,13 +19,16 @@ type IndexedFootprint = {
 export class PlacementSpatialIndex {
   private readonly cells = new Map<number, IndexedFootprint[]>();
 
-  static fromGameState(state: GameState): PlacementSpatialIndex {
+  static fromGameState(
+    state: GameState,
+    roadNetwork?: RoadNetwork | null,
+  ): PlacementSpatialIndex {
     const index = new PlacementSpatialIndex();
     for (const zone of state.burgageZones.values()) {
       index.insert('zone', burgageZonePolygon(zone));
     }
     for (const building of state.buildings.values()) {
-      index.insert('building', buildingFootprintPolygonFromState(building));
+      index.insert('building', buildingFootprintPolygonFromState(building, roadNetwork));
     }
     return index;
   }
@@ -73,13 +77,34 @@ export class PlacementSpatialIndex {
   }
 }
 
-const indexCache = new WeakMap<GameState, PlacementSpatialIndex>();
+type PlacementSpatialIndexCache = {
+  withoutRoadNetwork?: PlacementSpatialIndex;
+  byRoadNetwork: WeakMap<RoadNetwork, PlacementSpatialIndex>;
+};
 
-export function getPlacementSpatialIndex(state: GameState): PlacementSpatialIndex {
-  const cached = indexCache.get(state);
-  if (cached) return cached;
+const indexCache = new WeakMap<GameState, PlacementSpatialIndexCache>();
+
+export function getPlacementSpatialIndex(
+  state: GameState,
+  roadNetwork?: RoadNetwork | null,
+): PlacementSpatialIndex {
+  let cached = indexCache.get(state);
+  if (!cached) {
+    cached = { byRoadNetwork: new WeakMap() };
+    indexCache.set(state, cached);
+  }
+
+  if (roadNetwork) {
+    const roadAware = cached.byRoadNetwork.get(roadNetwork);
+    if (roadAware) return roadAware;
+    const index = PlacementSpatialIndex.fromGameState(state, roadNetwork);
+    cached.byRoadNetwork.set(roadNetwork, index);
+    return index;
+  }
+
+  if (cached.withoutRoadNetwork) return cached.withoutRoadNetwork;
   const index = PlacementSpatialIndex.fromGameState(state);
-  indexCache.set(state, index);
+  cached.withoutRoadNetwork = index;
   return index;
 }
 

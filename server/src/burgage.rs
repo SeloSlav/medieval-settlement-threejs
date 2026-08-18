@@ -135,6 +135,39 @@ pub fn zone_overlaps_footprint(zone: &[Point2; 4], x: f64, z: f64, pick_radius: 
     convex_polygons_overlap(zone, &footprint, ZONE_BOUNDARY_EPSILON)
 }
 
+pub fn oriented_footprint_polygon(
+    x: f64,
+    z: f64,
+    half_width: f64,
+    half_depth: f64,
+    yaw: f64,
+) -> [Point2; 4] {
+    let cos = yaw.cos();
+    let sin = yaw.sin();
+    let world_point = |local_x: f64, local_z: f64| Point2 {
+        x: x + local_x * cos + local_z * sin,
+        z: z - local_x * sin + local_z * cos,
+    };
+    [
+        world_point(-half_width, -half_depth),
+        world_point(half_width, -half_depth),
+        world_point(half_width, half_depth),
+        world_point(-half_width, half_depth),
+    ]
+}
+
+pub fn zone_overlaps_oriented_footprint(
+    zone: &[Point2; 4],
+    x: f64,
+    z: f64,
+    half_width: f64,
+    half_depth: f64,
+    yaw: f64,
+) -> bool {
+    let footprint = oriented_footprint_polygon(x, z, half_width, half_depth, yaw);
+    convex_polygons_overlap(zone, &footprint, ZONE_BOUNDARY_EPSILON)
+}
+
 pub fn compute_burgage_layout(
     corners: &ZoneCorners,
     frontage_edge: u8,
