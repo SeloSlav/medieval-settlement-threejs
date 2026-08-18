@@ -104,6 +104,7 @@ export class BuildingTool {
   private readonly undoStack: BuildingPlacementUndoEntry[] = [];
   private readonly redoStack: BuildingPlacementRedoEntry[] = [];
   private placementPending = false;
+  private placementIntentVersion = 0;
   private roadSnapEnabled = true;
   private linkedWorksiteId: string | null = null;
 
@@ -184,12 +185,14 @@ export class BuildingTool {
   }
 
   setMode(mode: BuildingToolMode): void {
+    this.placementIntentVersion += 1;
     this.linkedWorksiteId = null;
     this.activateMode(mode);
   }
 
   beginLinkedRemoteWorkCampPlacement(worksiteId: string): void {
     if (this.options.isBlocked() || this.placementPending) return;
+    this.placementIntentVersion += 1;
     this.linkedWorksiteId = worksiteId;
     this.activateMode('remote_work_camp');
   }
@@ -326,7 +329,8 @@ export class BuildingTool {
     const linkedWorksiteId = this.linkedWorksiteId;
     this.placementPending = true;
     this.setMode('off');
-    void this.placeAt(kind, resolved.x, resolved.z, linkedWorksiteId);
+    const placementIntentVersion = this.placementIntentVersion;
+    void this.placeAt(kind, resolved.x, resolved.z, linkedWorksiteId, placementIntentVersion);
   };
 
   private async placeAt(
@@ -334,6 +338,7 @@ export class BuildingTool {
     x: number,
     z: number,
     linkedWorksiteId: string | null,
+    placementIntentVersion: number,
   ): Promise<void> {
     const beforeIds = new Set(this.options.getState().buildings.keys());
     this.options.markers.showPendingPlacement(kind, x, z);
@@ -363,7 +368,7 @@ export class BuildingTool {
       this.options.onPlacementFailed?.(message);
       this.placementPending = false;
       this.options.markers.clearPendingPlacement();
-      if (!this.options.isBlocked()) {
+      if (!this.options.isBlocked() && this.placementIntentVersion === placementIntentVersion) {
         if (kind === 'remote_work_camp' && linkedWorksiteId) {
           this.beginLinkedRemoteWorkCampPlacement(linkedWorksiteId);
         } else {

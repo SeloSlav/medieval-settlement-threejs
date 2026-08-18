@@ -168,6 +168,7 @@ export class BuildToolbar {
   private readonly dockToggles: DockToggle[];
   private readonly toolbarHandlers: BuildMenuHandlers & {
     onOpenRoads: () => void;
+    onCancelPlacement: () => void;
     onSetMapOverlay?: (selection: MapOverlaySelection) => void;
   };
   private readonly onToggleCityAdministration: () => void;
@@ -195,6 +196,13 @@ export class BuildToolbar {
       return;
     }
     if (this.firstPersonActive) return;
+    if (event.repeat) {
+      // A held palette or card hotkey must remain a single action. In particular,
+      // repeats can arrive after the first event opened or closed a different menu.
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (key === 'escape') {
       if (this.overlayMenuOpen) {
         this.setOverlayMenuOpen(false);
@@ -289,6 +297,7 @@ export class BuildToolbar {
       onSelectBuilding: (kind: BuildingKind) => void;
       onPlaceStarterCamp: () => void;
       onSelectResidences: () => void;
+      onCancelPlacement: () => void;
       onToggleCityAdministration: () => void;
       onSetMapOverlay?: (selection: MapOverlaySelection) => void;
       onSetRoadSnap?: (enabled: boolean) => void;
@@ -512,6 +521,7 @@ export class BuildToolbar {
       onSelectBuilding: handlers.onSelectBuilding,
       onSelectResidences: handlers.onSelectResidences,
       onOpenRoads: handlers.onOpenRoads,
+      onCancelPlacement: handlers.onCancelPlacement,
       onSetMapOverlay: handlers.onSetMapOverlay,
     };
     window.addEventListener('keydown', this.onKeyDown, true);
@@ -1062,6 +1072,11 @@ export class BuildToolbar {
     this.setOverlayMenuOpen(false);
   }
 
+  private beginBrowsingBuildMenu(except: 'civic' | 'gathering' | 'agriculture' | 'industry' | 'military'): void {
+    this.toolbarHandlers.onCancelPlacement();
+    this.closeOtherBuildMenus(except);
+  }
+
   private setOverlayMenuOpen(open: boolean): void {
     const allowed = open && this.gameplayEnabled && !this.cropSuitabilityActive;
     if (this.overlayMenuOpen === allowed) return;
@@ -1081,7 +1096,7 @@ export class BuildToolbar {
 
   private setCivicBuildMenuOpen(open: boolean): void {
     if (this.civicBuildMenuOpen === open) return;
-    if (open) this.closeOtherBuildMenus('civic');
+    if (open) this.beginBrowsingBuildMenu('civic');
     if (open) hydrateBuildMenuImages(this.civicBuildMenu);
     this.civicBuildMenuOpen = open;
     this.civicBuildMenu.hidden = !open;
@@ -1092,7 +1107,7 @@ export class BuildToolbar {
 
   private setGatheringBuildMenuOpen(open: boolean): void {
     if (this.gatheringBuildMenuOpen === open) return;
-    if (open) this.closeOtherBuildMenus('gathering');
+    if (open) this.beginBrowsingBuildMenu('gathering');
     if (open) hydrateBuildMenuImages(this.gatheringBuildMenu);
     this.gatheringBuildMenuOpen = open;
     this.gatheringBuildMenu.hidden = !open;
@@ -1103,7 +1118,7 @@ export class BuildToolbar {
 
   private setAgricultureBuildMenuOpen(open: boolean): void {
     if (this.agricultureBuildMenuOpen === open) return;
-    if (open) this.closeOtherBuildMenus('agriculture');
+    if (open) this.beginBrowsingBuildMenu('agriculture');
     if (open) hydrateBuildMenuImages(this.agricultureBuildMenu);
     this.agricultureBuildMenuOpen = open;
     this.agricultureBuildMenu.hidden = !open;
@@ -1114,7 +1129,7 @@ export class BuildToolbar {
 
   private setIndustryBuildMenuOpen(open: boolean): void {
     if (this.industryBuildMenuOpen === open) return;
-    if (open) this.closeOtherBuildMenus('industry');
+    if (open) this.beginBrowsingBuildMenu('industry');
     if (open) hydrateBuildMenuImages(this.industryBuildMenu);
     this.industryBuildMenuOpen = open;
     this.industryBuildMenu.hidden = !open;
@@ -1126,7 +1141,7 @@ export class BuildToolbar {
   private setMilitaryBuildMenuOpen(open: boolean): void {
     const allowed = open && this.conflictEnabled && this.gameplayEnabled;
     if (this.militaryBuildMenuOpen === allowed) return;
-    if (allowed) this.closeOtherBuildMenus('military');
+    if (allowed) this.beginBrowsingBuildMenu('military');
     if (allowed) hydrateBuildMenuImages(this.militaryBuildMenu);
     this.militaryBuildMenuOpen = allowed;
     this.militaryBuildMenu.hidden = !allowed;

@@ -1453,6 +1453,21 @@ assert.match(
   'one default-on roadside toggle should appear whenever any shared build palette is open',
 );
 assert.match(
+  buildToolbar,
+  /if \(event\.repeat\) \{[\s\S]{0,300}event\.preventDefault\(\);[\s\S]{0,120}event\.stopPropagation\(\);[\s\S]{0,80}return;/,
+  'held construction hotkeys must not repeat into a newly opened or closed build menu',
+);
+assert.match(
+  buildToolbar,
+  /beginBrowsingBuildMenu[\s\S]{0,300}onCancelPlacement\(\)[\s\S]{0,120}closeOtherBuildMenus/,
+  'opening any build palette must cancel the previous placement intent before switching menus',
+);
+assert.match(
+  buildingTool,
+  /placementIntentVersion[\s\S]*this\.placementIntentVersion === placementIntentVersion/,
+  'a failed request must not reactivate a building after the player has canceled or changed placement intent',
+);
+assert.match(
   app,
   /placementBlocked: buildingMode !== 'off'[\s\S]*isPlacementBlocked\(\)/,
   'the toolbar should receive the live building-preview warning state',

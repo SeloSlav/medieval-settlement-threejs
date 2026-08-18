@@ -746,6 +746,12 @@ export async function bootstrapAppSession(
       }
       roadTool.commitDraft();
     },
+    onCancelPlacement: () => {
+      roadTool.setEnabled(false);
+      buildingTool.setMode('off');
+      burgageTool.setEnabled(false);
+      farmFieldTool.setEnabled(false);
+    },
     onPlaceStarterCamp: () => {
       if (!sessionGate.isReady()) {
         toastManager?.show('SpacetimeDB is not connected.', { variant: 'error' });
