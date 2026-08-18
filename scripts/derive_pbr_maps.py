@@ -54,21 +54,8 @@ def ensure_square_tile(src: Path, size: int = 1024) -> Image.Image:
 
 
 def make_secondary_forest_albedo(src: Path, size: int = 1024) -> Image.Image:
-    """Regrade an already seamless, motif-neutral groundcover tile as litter.
-
-    The grass blend has deliberately even stochastic structure. Keeping that
-    structure intact and only changing its palette gives the forest shader an
-    independent detail field without introducing recognizable leaf clusters,
-    mirrored seams, or four-way corner rosettes.
-    """
-    source = ensure_square_tile(src, size)
-    gray = ImageOps.grayscale(source)
-    gray = ImageEnhance.Contrast(gray).enhance(1.12)
-    return ImageOps.colorize(
-        gray,
-        black=(40, 28, 22),
-        white=(118, 90, 66),
-    )
+    """Prepare an independently authored leaf-litter source for runtime use."""
+    return ensure_square_tile(src, size)
 
 
 def wrap_atlas_cell(image: Image.Image, gutter: int = 64) -> Image.Image:
@@ -325,7 +312,7 @@ def main() -> None:
         secondary_forest.save(secondary_forest_dir / "albedo.png")
         save_height_maps(secondary_forest, secondary_forest_dir, road=False)
         (secondary_forest_dir / "README.md").write_text(
-            "Secondary forest-floor PBR texture set. The albedo is a brown regrade of the project's already seamless, motif-neutral manor grass blend, giving the forest shader an independent stochastic detail field without recognizable repeated leaf clusters; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. Runtime color is packed with the primary litter, dry grass, and snow in manor_grass_dry/snow_leaf_albedo_atlas.png.\n",
+            "Secondary forest-floor PBR texture set. The independently generated albedo uses finer fragmented leaf litter to provide a motif-neutral stochastic companion to the primary texture, then is processed locally for seamless tiling; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. Runtime color is packed with the primary litter, dry grass, and snow in manor_grass_dry/snow_leaf_albedo_atlas.png.\n",
             encoding="utf-8",
         )
 
