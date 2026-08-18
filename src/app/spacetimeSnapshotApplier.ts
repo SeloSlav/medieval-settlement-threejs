@@ -15,6 +15,7 @@ import {
   destroyedResidenceIds,
 } from '../fires/fireIncident.ts';
 import { collectOccupiedParcelPolygons } from '../residences/burgageZoneLayout.ts';
+import { collectBackyardGardenClearancePolygons } from '../residences/backyardPosition.ts';
 import { syncSettlementWorld, type SettlementWorldSyncTargets } from './settlementWorldSync.ts';
 import {
   collectPlacedBuildingSources,
@@ -249,7 +250,7 @@ export class SpacetimeSnapshotApplier {
       );
     }
 
-    if (buildingsChanged || residencesChanged || farmFieldsChanged) {
+    if (buildingsChanged || residencesChanged || farmFieldsChanged || backyardCollidersChanged) {
       const forestSignature = getForestClearanceSignature(state);
       if (forestSignature !== this.lastForestClearanceSignature) {
         this.lastForestClearanceSignature = forestSignature;
@@ -272,10 +273,16 @@ export class SpacetimeSnapshotApplier {
 
   syncForestClearance(deps: SpacetimeSnapshotApplierDeps, gameState: GameState): void {
     if (!deps.sceneManager) return;
+    const farmFieldPolygons = [...gameState.farmFields.values()].map((field) => field.corners);
     deps.sceneManager.setForestClearanceSources(
       collectPlacedBuildingSources(gameState, deps.sceneManager.getRoadNetwork()),
       collectOccupiedParcelPolygons(gameState.burgageZones.values(), gameState.residences.values()),
-      [...gameState.farmFields.values()].map((field) => field.corners),
+      farmFieldPolygons,
+      collectBackyardGardenClearancePolygons(
+        gameState.backyardGardens.values(),
+        gameState.residences.values(),
+        gameState.burgageZones.values(),
+      ),
     );
   }
 

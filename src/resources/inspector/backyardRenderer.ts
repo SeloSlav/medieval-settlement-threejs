@@ -4,6 +4,7 @@ import {
   BACKYARD_GARDEN_PICKER_KINDS,
   backyardGardenLabel,
   backyardGardenProductSummary,
+  formatBackyardGardenCost,
   formatBackyardGardenSalvage,
   getBackyardGardenCost,
   type BackyardGardenKind,
@@ -28,6 +29,7 @@ import {
 } from '../../economy/residenceUpgrade.ts';
 import {
   CONSTRUCTION_PRIORITIES,
+  constructionPriorityLabel,
   type ConstructionPriority,
 } from '../../logistics/constructionPriority.ts';
 import { settlementHasStaffedChapel } from '../../logistics/landmarkAccess.ts';
@@ -191,8 +193,6 @@ function renderEmptyBackyardPicker(
       ) ?? null
     : null;
   const options = BACKYARD_GARDEN_PICKER_KINDS.map((kind) => {
-    const def = BACKYARD_GARDEN_DEFINITIONS[kind];
-    const tag = def.foodPerPersonPerSec > 0 ? 'Food' : 'Market';
     const cost = getBackyardGardenCost(kind);
     const affordable = !underConstruction
       && blockingPile === null
@@ -211,14 +211,13 @@ function renderEmptyBackyardPicker(
           class="backyard-picker-option${affordable ? '' : ' backyard-picker-option--disabled'}"
           data-inspector-action="place-garden"
           data-garden-kind="${kind}"
+          aria-label="Build ${backyardGardenLabel(kind)} — ${formatBackyardGardenCost(kind)}"
           ${affordable ? '' : 'disabled'}
           ${disabledReason ? `title="${disabledReason}"` : ''}
         >
-          <span class="backyard-picker-option__title">${backyardGardenLabel(kind)}</span>
-          <span class="backyard-picker-option__meta">
-            <span class="backyard-picker-option__tag">${tag} · ${backyardGardenProductSummary(kind)}</span>
-            <span class="backyard-picker-option__cost">${renderBuildingResourceCost(cost, { compact: true })}</span>
-          </span>
+          <span class="backyard-picker-option__icon" aria-hidden="true"></span>
+          <span class="backyard-picker-option__title">${backyardGardenPickerLabel(kind)}</span>
+          <span class="backyard-picker-option__cost">${renderBuildingResourceCost(cost, { compact: true })}</span>
         </button>
       </li>
     `;
@@ -226,12 +225,12 @@ function renderEmptyBackyardPicker(
 
   return {
     eyebrow: 'Backyard',
-    title: 'Empty backyard',
+    title: 'Backyard extension',
     statusText: underConstruction
         ? 'Cottage construction must finish'
       : blockingPile
         ? 'Reclamation pile blocks rebuilding'
-        : 'Pick a garden type',
+        : 'Choose an extension',
     statusState: underConstruction || blockingPile ? 'warning' : 'neutral',
     detailsHtml: `
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1} of ${zone.plotCount}</span></li>
@@ -246,10 +245,23 @@ function renderEmptyBackyardPicker(
         ? 'A free hauler needs a road-connected destination with room for both materials. Select the pile to inspect its route blockers.'
         : underConstruction
           ? 'The backyard stays unworked while founders live at camp and the cottage frame is raised.'
-          : 'Orchards and gardens cost timber and stone from your settlement stockpile.'}</p>
+          : 'Choose one extension. Costs come from settlement stockpiles.'}</p>
       <ul class="backyard-picker-list">${options}</ul>
     `,
   };
+}
+
+function backyardGardenPickerLabel(kind: BackyardGardenKind): string {
+  switch (kind) {
+    case 'apple_orchard': return 'Apple orchard';
+    case 'cherry_orchard': return 'Cherry orchard';
+    case 'vegetable_garden': return 'Vegetables';
+    case 'flower_garden': return 'Flowers';
+    case 'herb_garden': return 'Herbs';
+    case 'hen_yard': return 'Hens';
+    case 'goat_pen': return 'Goats';
+    case 'backyard_apiary': return 'Apiary';
+  }
 }
 
 function renderBackyardProject(
@@ -290,10 +302,9 @@ function renderBackyardProject(
     },
     labor: hiddenLabor(),
     supplementalPanelHtml: `
-      <p class="resource-inspector-note">A shared household builder and real source carts compete with cottages, house upgrades, and other construction.</p>
-      <div class="inspector-policy-control">
-        <span>Construction priority</span>
-        <div class="inspector-policy-buttons">${priorityButtons}</div>
+      <div class="inspector-action-panel">
+        <p class="resource-inspector-note">Construction priority — a shared household builder and real source carts compete with cottages, house upgrades, and other construction.</p>
+        <div class="resource-action-row">${priorityButtons}</div>
       </div>
     `,
   };
@@ -303,14 +314,9 @@ function backyardPriorityButton(
   priority: ConstructionPriority,
   current: ConstructionPriority,
 ): string {
-  const label = priority === 0
-    ? 'Hold'
-    : priority === 1
-      ? 'Low'
-      : priority === 2
-        ? 'Normal'
-        : 'Urgent';
-  return `<button type="button" data-residence-upgrade-priority="${priority}" aria-pressed="${priority === current}">${label}</button>`;
+  return `<button type="button" class="resource-action-button" data-residence-upgrade-priority="${priority}" ${
+    priority === current ? 'disabled' : ''
+  }>${constructionPriorityLabel(priority)}</button>`;
 }
 
 function formatProjectAmount(value: number): string {

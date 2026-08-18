@@ -24,6 +24,8 @@ import {
 const BRIDGE_JUNCTION_LIFT = 0.014;
 const BRIDGE_MOUTH_TOLERANCE = 0.14;
 const BRIDGE_JUNCTION_SEGMENTS = 64;
+/** Prevent broad junction triangles from cutting through terrain between samples. */
+const DRY_JUNCTION_RADIAL_SAMPLE_SPACING = 0.72;
 
 export class RoadJunctionBuilder {
   private readonly terrain: Terrain;
@@ -179,17 +181,51 @@ export class RoadJunctionBuilder {
     positions.push(center.x, centerY, center.z);
     uvs.push(blend ? 1 : 0.5, 0.5);
 
-    for (const local of ring) {
-      const x = center.x + local.x;
-      const z = center.z + local.y;
-      positions.push(x, this.terrain.getHeightAt(x, z) + yOffset, z);
-      const lateralU = 0.5 + local.y / Math.max(1, width);
-      uvs.push(blend ? 0 : lateralU, 0.5 + local.x / Math.max(1, radius * 2.4));
+    const radialRingCount = Math.max(
+      1,
+      Math.ceil(
+        ring.reduce((maximum, local) => Math.max(maximum, local.length()), 0)
+          / DRY_JUNCTION_RADIAL_SAMPLE_SPACING,
+      ),
+    );
+    for (let radialIndex = 1; radialIndex <= radialRingCount; radialIndex++) {
+      const radialFraction = radialIndex / radialRingCount;
+      for (const boundary of ring) {
+        const localX = boundary.x * radialFraction;
+        const localZ = boundary.y * radialFraction;
+        const x = center.x + localX;
+        const z = center.z + localZ;
+        positions.push(x, this.terrain.getHeightAt(x, z) + yOffset, z);
+        const lateralU = 0.5 + localZ / Math.max(1, width);
+        uvs.push(
+          blend ? 1 - radialFraction : lateralU,
+          0.5 + localX / Math.max(1, radius * 2.4),
+        );
+      }
     }
 
-    for (let i = 1; i <= ring.length; i++) {
-      const next = i === ring.length ? 1 : i + 1;
-      indices.push(0, next, i);
+    for (let angularIndex = 0; angularIndex < ring.length; angularIndex++) {
+      const next = (angularIndex + 1) % ring.length;
+      indices.push(0, 1 + next, 1 + angularIndex);
+    }
+    for (let radialIndex = 1; radialIndex < radialRingCount; radialIndex++) {
+      const innerStart = 1 + (radialIndex - 1) * ring.length;
+      const outerStart = innerStart + ring.length;
+      for (let angularIndex = 0; angularIndex < ring.length; angularIndex++) {
+        const next = (angularIndex + 1) % ring.length;
+        const innerCurrent = innerStart + angularIndex;
+        const innerNext = innerStart + next;
+        const outerCurrent = outerStart + angularIndex;
+        const outerNext = outerStart + next;
+        indices.push(
+          innerCurrent,
+          innerNext,
+          outerCurrent,
+          outerCurrent,
+          innerNext,
+          outerNext,
+        );
+      }
     }
 
     return this.createCapMesh(positions, uvs, indices, blend ? this.materials.roadEdge : this.materials.road);
@@ -285,7 +321,7 @@ export class RoadJunctionBuilder {
   }
 
   private junctionRing(directions: THREE.Vector3[], radius: number, width: number, blend: boolean): THREE.Vector2[] {
-    const sampleCount = Math.max(48, directions.length * 16);
+    const sampleCount = Math.max(72, directions.length * 28);
     const halfWidth = width * (blend ? 1.42 : 0.54);
     const hubRadius = width * (blend ? 0.58 : 0.5);
     const points: THREE.Vector2[] = [];

@@ -1,7 +1,9 @@
 .tutorial-launcher {
   position: absolute;
-  left: 18px;
-  bottom: 18px;
+  top: 124px;
+  right: max(14px, env(safe-area-inset-right, 0px));
+  bottom: auto;
+  left: auto;
   z-index: 7;
   display: inline-flex;
   align-items: center;
@@ -380,11 +382,14 @@
   outline: none;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 760px) {
   .tutorial-launcher {
-    left: 10px;
-    bottom: 82px;
+    top: 104px;
+    right: max(14px, env(safe-area-inset-right, 0px));
   }
+}
+
+@media (max-width: 620px) {
 
   .tutorial-overlay {
     place-items: start center;

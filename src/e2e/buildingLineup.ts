@@ -33,8 +33,12 @@ declare global {
 }
 
 const lineupParams = new URLSearchParams(window.location.search);
-const requestedKind = lineupParams.get('kind');
-const showStockedState = lineupParams.get('stocked') === '1';
+const showClearedFoundingStockyard = lineupParams.get('mode') === 'cleared-stockyard';
+const requestedKind = showClearedFoundingStockyard
+  ? 'founders_camp'
+  : lineupParams.get('kind');
+const showStockedState = lineupParams.get('stocked') === '1'
+  || showClearedFoundingStockyard;
 const showCampSeating = lineupParams.get('seating') === '1';
 const compareResidences = lineupParams.get('compare') === 'residences';
 const compareServiceCoverage = lineupParams.get('compare') === 'service-coverage';
@@ -77,6 +81,8 @@ const STOCKED_PREVIEW_PREFIXES = [
   'ClayPitClaySegment',
   'CivilianToolStockpile',
   'CivilianToolSegment',
+  'FoundingIronworkStockpile',
+  'FoundingIronworkSegment',
   'CharcoalBurnerFirewoodStockpile',
   'CharcoalBurnerFirewoodSegment',
   'CharcoalBurnerStockpile',
@@ -194,9 +200,24 @@ const viewSpecs = compareServiceCoverage
             }
           });
         }
+        if (showClearedFoundingStockyard && kind === 'founders_camp') {
+          const shelters = mesh.getObjectByName('FoundingShelters');
+          if (shelters) shelters.visible = false;
+          const timber = mesh.getObjectByName('FoundingTimberStockpile');
+          if (timber) timber.visible = false;
+          const stone = mesh.getObjectByName('FoundingStoneStockpile');
+          if (stone) stone.visible = false;
+          const chest = mesh.getObjectByName('FoundingTreasuryChest');
+          if (chest) chest.visible = true;
+          const ironwork = mesh.getObjectByName('FoundingIronworkStockpile');
+          if (ironwork) {
+            ironwork.visible = true;
+            for (const segment of ironwork.children) segment.visible = true;
+          }
+        }
         return {
           mesh,
-          label: `${getBuildingDefinition(kind).label}${showStockedState && kind === 'marketplace' ? ' · staged export lots' : ''}`,
+          label: `${getBuildingDefinition(kind).label}${showStockedState && kind === 'marketplace' ? ' · staged export lots' : ''}${showClearedFoundingStockyard && kind === 'founders_camp' ? ' · shelters cleared, stores remain' : ''}`,
         };
       }),
       {

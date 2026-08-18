@@ -197,6 +197,7 @@ const tentAdjacentProps = [
   'Founders lived-in utility stores',
   'FoundingTimberStockpile',
   'FoundingStoneStockpile',
+  'FoundingIronworkStockpile',
   'FoundingTreasuryChest',
   FOUNDERS_CAMPFIRE_NAME,
   'Camp bench seat',
@@ -336,6 +337,48 @@ assert.equal(
   ironwork.children.filter((child) => child.name === 'FoundingIronworkSegment').length,
   FOUNDING_IRONWORK_VISUAL_SEGMENTS,
   'the persistent founding stockyard must model its large ironwork reserve',
+);
+const ironworkSegments = ironwork.children.filter(
+  (child) => child.name === 'FoundingIronworkSegment',
+);
+for (const segment of ironworkSegments) {
+  const openCrate = segment.getObjectByName('Founding ironwork open crate');
+  const reinforcement = segment.getObjectByName(
+    'Founding ironwork crate reinforcement',
+  );
+  const fittings = segment.getObjectByName('Founding ironwork nested fittings');
+  assert.ok(openCrate instanceof THREE.Mesh);
+  assert.ok(reinforcement instanceof THREE.Mesh);
+  assert.ok(fittings instanceof THREE.Mesh);
+  const crateBounds = new THREE.Box3().setFromObject(openCrate);
+  const fittingBounds = new THREE.Box3().setFromObject(fittings);
+  assert.ok(
+    fittingBounds.min.y < crateBounds.max.y - 0.2
+      && fittingBounds.max.y <= crateBounds.max.y + 0.01,
+    'ironwork must sit down inside the open crate instead of hovering above it',
+  );
+}
+assert.equal(
+  ironworkSegments.reduce((draws, segment) => {
+    segment.traverse((object) => {
+      if ((object as THREE.Mesh).isMesh) draws += 1;
+    });
+    return draws;
+  }, 0),
+  FOUNDING_IRONWORK_VISUAL_SEGMENTS * 3,
+  'each quantity segment should retain one wood, reinforcement, and fittings draw',
+);
+for (const partName of [
+  'Founding treasury chest grounded body',
+  'Founding treasury chest arched lid',
+  'Founding treasury chest iron straps and hinges',
+  'Founding treasury chest brass lock plate',
+]) {
+  assert.ok(chest.getObjectByName(partName) instanceof THREE.Mesh, `missing ${partName}`);
+}
+assert.ok(
+  new THREE.Box3().setFromObject(chest).min.y <= 0.001,
+  'the treasury chest runners must make visible contact with the ground',
 );
 assert.equal(
   stockpileVisualLevel(1, BUILDING_STORAGE_CAPS.founders_camp.timber, FOUNDING_TIMBER_VISUAL_SEGMENTS),
@@ -793,6 +836,25 @@ assert.equal(
   ).length,
   FOUNDING_IRONWORK_VISUAL_SEGMENTS,
   'near-capacity ironwork must remain visibly stored after the tents are struck',
+);
+const depletedRemainingStores = {
+  ...remainingStores,
+  ironwork: 1,
+} satisfies BuildingState;
+assert.notEqual(
+  buildingMarkerSignatures(new Map([[remainingStores.id, remainingStores]])).visual,
+  buildingMarkerSignatures(
+    new Map([[depletedRemainingStores.id, depletedRemainingStores]]),
+  ).visual,
+  'crossing a founding ironwork visual level must invalidate the marker collection',
+);
+remainingStoresMarkers.syncBuildings([depletedRemainingStores]);
+assert.equal(
+  remainingIronwork.children.filter(
+    (child) => child.name === 'FoundingIronworkSegment' && child.visible,
+  ).length,
+  1,
+  'hauling ironwork away must reduce the cleared-yard model to one visible segment',
 );
 remainingStoresMarkers.dispose();
 const foragersShed = {

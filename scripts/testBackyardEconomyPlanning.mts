@@ -595,6 +595,8 @@ assert.equal(backyardProjectView.title, 'Vegetable garden works');
 assert.match(backyardProjectView.detailsHtml, /42%/);
 assert.match(backyardProjectView.detailsHtml, /Begins only after the worksite is complete/);
 assert.match(backyardProjectView.supplementalPanelHtml ?? '', /data-residence-upgrade-priority="3"/);
+assert.match(backyardProjectView.supplementalPanelHtml ?? '', /class="resource-action-row"/);
+assert.match(backyardProjectView.supplementalPanelHtml ?? '', /class="resource-action-button" data-residence-upgrade-priority="3" disabled/);
 assert.equal(backyardProjectView.demolish.label, 'Cancel backyard works');
 
 const touchNetwork = new RoadNetwork();

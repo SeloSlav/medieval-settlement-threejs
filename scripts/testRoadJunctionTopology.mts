@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { RoadJunctionBuilder } from '../src/roads/RoadJunctionBuilder.ts';
-import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
+import {
+  ROAD_PLACED_SAMPLE_SPACING,
+  RoadMeshBuilder,
+} from '../src/roads/RoadMeshBuilder.ts';
 import { RoadNetwork, type RoadNetworkSnapshot } from '../src/roads/RoadNetwork.ts';
 import { RoadNodeSnapMarkers } from '../src/roads/RoadNodeSnapMarkers.ts';
 import {
@@ -148,6 +151,37 @@ assert(
   maximumCoreU - minimumCoreU >= 1,
   'the opaque junction patch must preserve lateral UV distance instead of collapsing the texture to one column',
 );
+
+const terrainFollowingHeight = (x: number, z: number): number => (
+  Math.sin(x * 0.37) * 0.8 + Math.cos(z * 0.43) * 0.65
+);
+const terrainFollowingPatches = new RoadJunctionBuilder(
+  {
+    getHeightAt: terrainFollowingHeight,
+  } as never,
+  materials as never,
+).build(interiorJoin);
+const terrainFollowingPatch = terrainFollowingPatches.getObjectByName(
+  `Road ${splitNode.junctionType} ${splitNode.id}`,
+) as THREE.Group | undefined;
+assert(terrainFollowingPatch, 'the three-way junction should receive terrain-following patch meshes');
+for (const mesh of terrainFollowingPatch.children as THREE.Mesh[]) {
+  const maximumTriangleSpan = maximumTriangleSpanXZ(mesh.geometry);
+  assert(
+    maximumTriangleSpan <= ROAD_PLACED_SAMPLE_SPACING,
+    'junction triangles must not exceed the placed-road terrain-sampling interval '
+      + `(${maximumTriangleSpan.toFixed(3)} > ${ROAD_PLACED_SAMPLE_SPACING.toFixed(3)})`,
+  );
+  const minimumClearance = minimumTriangleCentroidClearance(
+    mesh.geometry,
+    terrainFollowingHeight,
+  );
+  assert(
+    minimumClearance >= 0.02,
+    'terrain should not break through the subdivided junction surface '
+      + `(minimum centroid clearance ${minimumClearance.toFixed(3)} m)`,
+  );
+}
 
 const deadEndPatches = patches.children.filter((child) => child.name.startsWith('Road endpoint '));
 assert.equal(
@@ -453,3 +487,45 @@ materials.roadEdge.dispose();
 materials.bridgeSupport.dispose();
 
 console.log('Road junction topology tests passed.');
+
+function maximumTriangleSpanXZ(geometry: THREE.BufferGeometry): number {
+  const positions = geometry.getAttribute('position');
+  const index = geometry.index;
+  assert(index, 'junction geometry should remain indexed');
+  let maximum = 0;
+  for (let offset = 0; offset < index.count; offset += 3) {
+    const a = index.getX(offset);
+    const b = index.getX(offset + 1);
+    const c = index.getX(offset + 2);
+    for (const [start, end] of [[a, b], [b, c], [c, a]]) {
+      maximum = Math.max(
+        maximum,
+        Math.hypot(
+          positions.getX(end) - positions.getX(start),
+          positions.getZ(end) - positions.getZ(start),
+        ),
+      );
+    }
+  }
+  return maximum;
+}
+
+function minimumTriangleCentroidClearance(
+  geometry: THREE.BufferGeometry,
+  terrainHeightAt: (x: number, z: number) => number,
+): number {
+  const positions = geometry.getAttribute('position');
+  const index = geometry.index;
+  assert(index, 'junction geometry should remain indexed');
+  let minimum = Infinity;
+  for (let offset = 0; offset < index.count; offset += 3) {
+    const a = index.getX(offset);
+    const b = index.getX(offset + 1);
+    const c = index.getX(offset + 2);
+    const x = (positions.getX(a) + positions.getX(b) + positions.getX(c)) / 3;
+    const y = (positions.getY(a) + positions.getY(b) + positions.getY(c)) / 3;
+    const z = (positions.getZ(a) + positions.getZ(b) + positions.getZ(c)) / 3;
+    minimum = Math.min(minimum, y - terrainHeightAt(x, z));
+  }
+  return minimum;
+}

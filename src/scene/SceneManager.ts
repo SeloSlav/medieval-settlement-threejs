@@ -185,6 +185,7 @@ export class SceneManager {
   private forestClearanceBuildings: BuildingTerrainSource[] = [];
   private forestClearanceBurgageParcelPolygons: Point2[][] = [];
   private forestClearanceFarmFieldPolygons: Point2[][] = [];
+  private forestClearanceBackyardGardenPolygons: Point2[][] = [];
   private lastForestClearanceSourceSignature = '';
   private readonly riverSystem: RiverSystem;
   private readonly quarrySystem: QuarrySystem;
@@ -639,7 +640,10 @@ export class SceneManager {
       this.forestManager.syncRoadClearance(this.roadNetworkRef);
     }
     this.refreshForestClearance();
-    this.grassField?.syncPlacementClearance(this.forestClearanceFarmFieldPolygons);
+    this.grassField?.syncPlacementClearance([
+      ...this.forestClearanceFarmFieldPolygons,
+      ...this.forestClearanceBackyardGardenPolygons,
+    ]);
 
     if (this.roadNetworkRef) {
       this.grassField?.syncRoadClearance(this.roadNetworkRef);
@@ -1169,18 +1173,29 @@ export class SceneManager {
     buildings: Iterable<BuildingTerrainSource>,
     burgageParcelPolygons: Iterable<Point2[]>,
     farmFieldPolygons: Iterable<Point2[]>,
+    backyardGardenPolygons: Iterable<Point2[]> = [],
   ): void {
     const nextBuildings = [...buildings];
     const nextParcelPolygons = [...burgageParcelPolygons];
     const nextFarmFieldPolygons = [...farmFieldPolygons];
-    const signature = forestClearanceSourceSignature(nextBuildings, nextParcelPolygons, nextFarmFieldPolygons);
+    const nextBackyardGardenPolygons = [...backyardGardenPolygons];
+    const signature = forestClearanceSourceSignature(
+      nextBuildings,
+      nextParcelPolygons,
+      nextFarmFieldPolygons,
+      nextBackyardGardenPolygons,
+    );
     if (signature === this.lastForestClearanceSourceSignature) return;
     this.lastForestClearanceSourceSignature = signature;
     this.forestClearanceBuildings = nextBuildings;
     this.forestClearanceBurgageParcelPolygons = nextParcelPolygons;
     this.forestClearanceFarmFieldPolygons = nextFarmFieldPolygons;
+    this.forestClearanceBackyardGardenPolygons = nextBackyardGardenPolygons;
     this.refreshForestClearance();
-    this.grassField?.syncPlacementClearance(nextFarmFieldPolygons);
+    this.grassField?.syncPlacementClearance([
+      ...nextFarmFieldPolygons,
+      ...nextBackyardGardenPolygons,
+    ]);
   }
 
   getBridgeSamplingContext(): BridgeSamplingContext {
@@ -1241,6 +1256,7 @@ export class SceneManager {
         this.forestClearanceBuildings,
         this.forestClearanceBurgageParcelPolygons,
         this.forestClearanceFarmFieldPolygons,
+        this.forestClearanceBackyardGardenPolygons,
       );
       this.refreshForestClearance();
     }
@@ -1445,6 +1461,7 @@ function forestClearanceSourceSignature(
   buildings: BuildingTerrainSource[],
   burgageParcelPolygons: Point2[][],
   farmFieldPolygons: Point2[][],
+  backyardGardenPolygons: Point2[][],
 ): string {
   const buildingPart = buildings
     .map((building) => [
@@ -1467,7 +1484,13 @@ function forestClearanceSourceSignature(
       .join('-'))
     .sort()
     .join('|');
-  return `${buildingPart}§${parcelPart}§${farmFieldPart}`;
+  const backyardGardenPart = backyardGardenPolygons
+    .map((polygon) => polygon
+      .map((point) => `${point.x.toFixed(2)},${point.z.toFixed(2)}`)
+      .join('-'))
+    .sort()
+    .join('|');
+  return `${buildingPart}§${parcelPart}§${farmFieldPart}§${backyardGardenPart}`;
 }
 
 function blendColorHex(from: number, to: number, amount: number): number {

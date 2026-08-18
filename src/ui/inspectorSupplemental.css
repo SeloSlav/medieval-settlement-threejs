@@ -19,7 +19,8 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .backyard-picker-row {
@@ -28,11 +29,13 @@
 
 .backyard-picker-option {
   width: 100%;
-  display: flex;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 2px 8px;
+  padding: 7px 8px;
   text-align: left;
   color: inherit;
   background: rgba(255, 255, 255, 0.04);
@@ -61,31 +64,34 @@
 }
 
 .backyard-picker-option__title {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  min-width: 0;
   font-size: 0.86rem;
   font-weight: 600;
   line-height: 1.2;
 }
 
-.backyard-picker-option__meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  font-size: 0.76rem;
-  color: rgba(238, 232, 220, 0.68);
-}
-
-.backyard-picker-option__tag {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(238, 232, 220, 0.72);
-  font-size: 0.7rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+.backyard-picker-option__icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: block;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(218, 188, 119, 0.2);
+  border-radius: 50%;
+  background-color: rgba(11, 14, 10, 0.58);
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.42);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
 }
 
 .backyard-picker-option__cost {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
@@ -93,7 +99,13 @@
 
 .backyard-picker-option__cost .resource-cost {
   color: rgba(226, 199, 123, 0.96);
-  font-size: 0.82rem;
+  font-size: 0.74rem;
+}
+
+@media (max-width: 330px) {
+  .backyard-picker-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .resource-requirement {

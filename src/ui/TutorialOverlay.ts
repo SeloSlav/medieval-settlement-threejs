@@ -109,7 +109,7 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
         parts: [
           { text: 'Use the always-visible ' },
           { text: 'Tutorials', emphasis: 'gold' },
-          { text: ' button in the lower-left corner whenever you want to replay the full guide.' },
+          { text: ' button beneath your profile in the upper-right whenever you want to replay the full guide.' },
         ],
       },
     ],

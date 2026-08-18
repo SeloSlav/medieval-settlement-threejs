@@ -70,14 +70,25 @@ export function getForestClearanceSignature(state: GameState): string {
     .sort()
     .join('|');
   const residences = [...state.residences.values()]
-    .map((residence) => `${residence.id}:${residence.zoneId}:${residence.parcelIndex}`)
+    .map((residence) => [
+      residence.id,
+      residence.zoneId,
+      residence.parcelIndex,
+      residence.x.toFixed(2),
+      residence.z.toFixed(2),
+      residence.yaw.toFixed(3),
+    ].join(':'))
     .sort()
     .join('|');
   const farmFields = [...state.farmFields.values()]
     .map((field) => `${field.id}:${field.corners.map((corner) => `${corner.x.toFixed(2)},${corner.z.toFixed(2)}`).join('-')}`)
     .sort()
     .join('|');
-  return `${buildings}§${residences}§${farmFields}`;
+  const backyardGardens = [...state.backyardGardens.values()]
+    .map((garden) => `${garden.id}:${garden.residenceId}:${garden.kind}`)
+    .sort()
+    .join('|');
+  return `${buildings}§${residences}§${farmFields}§${backyardGardens}`;
 }
 
 export function syncBuildingTerrainLayout(

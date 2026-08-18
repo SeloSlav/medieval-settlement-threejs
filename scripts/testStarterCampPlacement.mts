@@ -13,6 +13,7 @@ import {
 } from '../src/input/PlacementInteractionGate.ts';
 import {
   STARTING_GOLD,
+  STARTING_IRONWORK,
   STARTING_STONE,
   STARTING_TIMBER,
 } from '../src/generated/gameBalance.ts';
@@ -206,7 +207,7 @@ const confirmedCampState = {
   wine: 0,
   wool: 0,
   cloth: 0,
-  ironwork: 0,
+  ironwork: STARTING_IRONWORK,
   polearms: 0,
   gold: STARTING_GOLD,
   waterCapacity: 0,

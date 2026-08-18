@@ -237,6 +237,7 @@ const MATERIALS = {
   goat: new THREE.MeshStandardMaterial({ color: 0x9b8062, roughness: 0.92 }),
   goatDark: new THREE.MeshStandardMaterial({ color: 0x4a382c, roughness: 0.94 }),
   water: sharedBuildingDetailMaterial('water'),
+  collisionProxy: new THREE.MeshBasicMaterial({ visible: false }),
 } as const;
 
 const FLOWER_MATERIALS = [
@@ -540,12 +541,18 @@ function addSoilBed(
   addMesh(group, new THREE.BoxGeometry(rail, 0.18, depth), MATERIALS.timber, x + width * 0.5, 0.1, z);
 }
 
-function addSteppingStones(group: THREE.Group, z0: number, z1: number, seed: number): void {
+function addSteppingStones(
+  group: THREE.Group,
+  z0: number,
+  z1: number,
+  seed: number,
+  collidable = true,
+): void {
   const rng = mulberry32(seed ^ 0x51a77e);
   const count = Math.max(2, Math.floor(Math.abs(z1 - z0) / 0.75));
   for (let i = 0; i <= count; i++) {
     const t = i / count;
-    addMesh(
+    const stone = addMesh(
       group,
       new THREE.CylinderGeometry(0.28 + rng() * 0.08, 0.31, 0.07, 7),
       MATERIALS.stone,
@@ -553,7 +560,10 @@ function addSteppingStones(group: THREE.Group, z0: number, z1: number, seed: num
       0.055,
       THREE.MathUtils.lerp(z0, z1, t),
       new THREE.Euler(0, rng() * Math.PI, 0),
+      undefined,
+      'Orchard stepping stone',
     );
+    stone.userData.fpNoCollision = !collidable;
   }
 }
 
@@ -566,19 +576,47 @@ function addBasket(
   fruitRadius = 0.095,
   fruitCount = 5,
 ): void {
-  addMesh(group, new THREE.CylinderGeometry(0.3, 0.23, 0.32, 10, 1, true), MATERIALS.wicker, x, 0.17, z);
-  addMesh(group, new THREE.TorusGeometry(0.27, 0.035, 5, 12), MATERIALS.darkTimber, x, 0.45, z, new THREE.Euler(Math.PI * 0.5, 0, 0));
+  const basket = new THREE.Group();
+  basket.name = 'Harvest basket';
+  basket.position.set(x, 0, z);
+  basket.userData.fpCollisionAggregate = true;
+  group.add(basket);
+  addMesh(
+    basket,
+    new THREE.CylinderGeometry(0.3, 0.23, 0.32, 10, 1, true),
+    MATERIALS.wicker,
+    0,
+    0.17,
+    0,
+    undefined,
+    undefined,
+    'Wicker basket body',
+  );
+  addMesh(
+    basket,
+    new THREE.TorusGeometry(0.27, 0.035, 5, 12),
+    MATERIALS.darkTimber,
+    0,
+    0.45,
+    0,
+    new THREE.Euler(Math.PI * 0.5, 0, 0),
+    undefined,
+    'Wicker basket handle',
+  );
   if (!filled) return;
   for (let i = 0; i < fruitCount; i++) {
     const angle = (i / fruitCount) * Math.PI * 2;
     const ring = fruitRadius < 0.06 ? 0.08 + (i % 2) * 0.07 : 0.14;
     addMesh(
-      group,
+      basket,
       new THREE.IcosahedronGeometry(fruitRadius, 1),
       fruit,
-      x + Math.cos(angle) * ring,
+      Math.cos(angle) * ring,
       0.32 + fruitRadius + (i % 3) * fruitRadius * 0.45,
-      z + Math.sin(angle) * ring,
+      Math.sin(angle) * ring,
+      undefined,
+      undefined,
+      'Basket fruit',
     );
   }
 }
@@ -606,7 +644,29 @@ function addFruitClusters(
     positions.push(center);
   }
 
-  anchor.add(plants.createFruitInstances(plantKind, positions, variant));
+  const fruit = plants.createFruitInstances(plantKind, positions, variant);
+  fruit.userData.fpNoCollision = true;
+  anchor.add(fruit);
+}
+
+function addFruitTreeCollisionProxy(
+  anchor: THREE.Group,
+  plantKind: 'apple' | 'cherry',
+): void {
+  const height = plantKind === 'apple' ? 1.72 : 2.02;
+  const radius = plantKind === 'apple' ? 0.22 : 0.2;
+  const proxy = addMesh(
+    anchor,
+    new THREE.CylinderGeometry(radius, radius * 1.18, height, 8),
+    MATERIALS.collisionProxy,
+    0,
+    height * 0.5,
+    0,
+    undefined,
+    undefined,
+    `${plantKind === 'apple' ? 'Apple' : 'Cherry'} tree trunk collision proxy`,
+  );
+  proxy.userData.fpCollisionProxy = true;
 }
 
 function addFruitTree(
@@ -628,8 +688,12 @@ function addFruitTree(
   // pending or unavailable. The gameplay orchard remains valid and its
   // authored non-vegetation props stay visible until the real tree is ready.
   if (!plants) return;
-  anchor.add(plants.clone(plantKind, variant));
+  const tree = plants.clone(plantKind, variant);
+  tree.userData.fpNoCollision = true;
+  anchor.add(tree);
   addFruitClusters(anchor, plantKind, variant, seed, plants);
+  addFruitTreeCollisionProxy(anchor, plantKind);
+  anchor.userData.fpCollisionAggregate = true;
 }
 
 function addOrchard(
@@ -655,7 +719,7 @@ function addOrchard(
     kind === 'apple' ? 0.09 : 0.036,
     kind === 'apple' ? 5 : 12,
   );
-  addSteppingStones(group, -depth * 0.46, depth * 0.34, seed);
+  addSteppingStones(group, -depth * 0.46, depth * 0.34, seed, false);
 }
 
 function createRootedLeafCard(
@@ -1013,7 +1077,6 @@ function addHerbGarden(group: THREE.Group, width: number, depth: number, seed: n
     }
   }
   if (rackSpace > 0) addDryingRack(group, 0, depth * 0.36);
-  addMesh(group, new THREE.CylinderGeometry(0.21, 0.28, 0.42, 10), MATERIALS.terracotta, -width * 0.4, 0.22, -depth * 0.38);
 }
 
 function addHenYard(group: THREE.Group, width: number, depth: number, seed: number): void {

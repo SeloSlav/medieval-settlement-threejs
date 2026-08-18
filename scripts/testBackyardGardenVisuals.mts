@@ -7,8 +7,10 @@ import {
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
 } from '../src/residences/backyardGardenMesh.ts';
+import { backyardGardenClearancePolygon } from '../src/residences/backyardPosition.ts';
 import type { BackyardGardenKind } from '../src/generated/gameBalance.ts';
 import { BACKYARD_GARDEN_PICKER_KINDS } from '../src/residences/backyardGarden.ts';
+import type { BackyardPlantCatalog } from '../src/vegetation/seedthree/backyardPlantAssets.ts';
 import { BACKYARD_PLANT_SPECIES } from '../src/vegetation/seedthree/backyardPlantPresets.ts';
 
 const kinds: BackyardGardenKind[] = [
@@ -45,6 +47,20 @@ const terrainBackedKinds = new Set<BackyardGardenKind>([
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('cherry_orchard'), false);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('goat_pen'), true);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('backyard_apiary'), true);
+
+const quarterTurnClearance = backyardGardenClearancePolygon(
+  { x: 10, z: -4, width: 6, depth: 4 },
+  Math.PI * 0.5,
+  0,
+);
+for (const [actual, expected] of [
+  [Math.min(...quarterTurnClearance.map((point) => point.x)), 8],
+  [Math.max(...quarterTurnClearance.map((point) => point.x)), 12],
+  [Math.min(...quarterTurnClearance.map((point) => point.z)), -7],
+  [Math.max(...quarterTurnClearance.map((point) => point.z)), -1],
+] as const) {
+  assert.ok(Math.abs(actual - expected) < 1e-9);
+}
 
 for (const kind of kinds) {
   const width = 6.2;
@@ -219,6 +235,68 @@ assert.equal(cherryFruitRadius, 0);
 disposeBackyardGardenMesh(appleDetail);
 disposeBackyardGardenMesh(cherryDetail);
 
+const collisionCatalog: BackyardPlantCatalog = {
+  clone(kind, variant) {
+    const tree = new THREE.LOD();
+    tree.name = `Test ${kind} tree ${variant}`;
+    const canopy = new THREE.Mesh(
+      new THREE.BoxGeometry(3.2, 2.4, 3.2),
+      new THREE.MeshBasicMaterial(),
+    );
+    canopy.position.y = 2.5;
+    tree.addLevel(canopy, 0);
+    return tree;
+  },
+  createFruitInstances() {
+    const fruit = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(0.12, 0.12, 0.12),
+      new THREE.MeshBasicMaterial(),
+      1,
+    );
+    fruit.setMatrixAt(0, new THREE.Matrix4());
+    return fruit;
+  },
+};
+const collisionOrchard = createBackyardGardenMesh('apple_orchard', {
+  width: 6.2,
+  depth: 5.4,
+  seed: 4271,
+  plants: collisionCatalog,
+});
+const collisionTrees: THREE.Object3D[] = [];
+const collisionProxies: THREE.Mesh[] = [];
+const harvestBaskets: THREE.Object3D[] = [];
+const orchardStones: THREE.Object3D[] = [];
+collisionOrchard.traverse((object) => {
+  if (object.name.startsWith('AppleTree:')) collisionTrees.push(object);
+  if (object.userData.fpCollisionProxy === true) collisionProxies.push(object as THREE.Mesh);
+  if (object.name === 'Harvest basket') harvestBaskets.push(object);
+  if (object.name === 'Orchard stepping stone') orchardStones.push(object);
+});
+assert.equal(collisionTrees.length, 3);
+assert.equal(collisionProxies.length, collisionTrees.length);
+for (const tree of collisionTrees) {
+  assert.equal(tree.userData.fpCollisionAggregate, true, 'each orchard tree should publish one close trunk collider');
+  const visual = tree.children.find((child) => child.name.startsWith('Test apple tree'));
+  assert.equal(visual?.userData.fpNoCollision, true, 'tree crowns and branch meshes should not become colliders');
+  const fruit = tree.children.find((child) => (child as THREE.InstancedMesh).isInstancedMesh);
+  assert.equal(fruit?.userData.fpNoCollision, true, 'individual fruit should not enlarge tree collision');
+}
+for (const proxy of collisionProxies) {
+  const parameters = proxy.geometry.parameters as { radiusTop?: number; height?: number };
+  assert.ok(Number(parameters.radiusTop) <= 0.22, 'apple collision should stay close to the visible trunk');
+  assert.ok(Number(parameters.height) <= 1.72, 'apple collision should stop below the spreading crown');
+  assert.equal(proxy.material.visible, false, 'collision proxies should never render');
+}
+assert.equal(harvestBaskets.length, 1);
+assert.equal(harvestBaskets[0]!.userData.fpCollisionAggregate, true, 'the harvest basket should use one close aggregate collider');
+assert.ok(orchardStones.length >= 2);
+assert.ok(
+  orchardStones.every((stone) => stone.userData.fpNoCollision === true),
+  'orchard stepping stones should not add collision beyond trees and basket',
+);
+disposeBackyardGardenMesh(collisionOrchard);
+
 const flowerDetail = createBackyardGardenMesh('flower_garden', { width: 6.2, depth: 5.4, seed: 4271 });
 let petalCount = 0;
 let modeledFlowerMeshes = 0;
@@ -335,6 +413,11 @@ assert.match(
   /rose_blossom_card\.png/,
   'rose rendering should retain its dedicated blossom texture',
 );
+assert.doesNotMatch(
+  backyardGardenSource,
+  /MATERIALS\.terracotta,\s*-width \* 0\.4,\s*0\.22,\s*-depth \* 0\.38/,
+  'herb gardens should not restore the stray orange terracotta pot',
+);
 for (const textureName of ['cabbage_leaf.png', 'carrot_frond.png', 'turnip_leaf.png']) {
   assert.match(
     backyardGardenSource,
@@ -367,7 +450,7 @@ assert.doesNotMatch(
 );
 assert.match(
   backyardGardenSource,
-  /if \(!plants\) return;[\s\S]*?anchor\.add\(plants\.clone\(plantKind, variant\)\)/,
+  /if \(!plants\) return;[\s\S]*?const tree = plants\.clone\(plantKind, variant\);[\s\S]*?anchor\.add\(tree\)/,
   'orchard tree vegetation must remain hidden until its SeedThree catalog is available',
 );
 assert.match(

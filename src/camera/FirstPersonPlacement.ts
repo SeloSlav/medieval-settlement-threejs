@@ -46,8 +46,8 @@ export class FirstPersonPlacement {
         <span data-fp-placement-status>Move over the land, then click to place your marker.</span>
       </div>
       <div class="fp-placement-panel__actions">
-        <button type="button" class="ghost-button" data-fp-placement-cancel>Cancel&nbsp; (~)</button>
-        <button type="button" data-fp-placement-confirm disabled>Drop into first person</button>
+        <button type="button" class="resource-action-button" data-fp-placement-cancel>Cancel&nbsp; (~)</button>
+        <button type="button" class="resource-action-button" data-fp-placement-confirm disabled>Drop into first person</button>
       </div>
     `;
     this.status = this.panel.querySelector<HTMLElement>('[data-fp-placement-status]')!;

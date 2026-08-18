@@ -8,6 +8,7 @@ import {
 } from './burgageLayout.ts';
 import { layoutFromBurgageZone } from './burgageZoneLayout.ts';
 import type { BurgageZoneState, ResidenceState } from '../resources/types.ts';
+import type { Point2 } from '../utils/polygonGeometry.ts';
 
 export type BackyardGardenPlacement = {
   x: number;
@@ -17,6 +18,52 @@ export type BackyardGardenPlacement = {
   /** Usable house-to-rear-fence span after leaving a small working margin. */
   depth: number;
 };
+
+/** Keeps rooted meadow tufts and flower heads from leaning across a garden edge. */
+export const BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN = 0.16;
+
+export function backyardGardenClearancePolygon(
+  placement: BackyardGardenPlacement,
+  yaw: number,
+  margin = BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN,
+): Point2[] {
+  const halfWidth = placement.width * 0.5 + margin;
+  const halfDepth = placement.depth * 0.5 + margin;
+  const sin = Math.sin(yaw);
+  const cos = Math.cos(yaw);
+  return [
+    { x: -halfWidth, z: -halfDepth },
+    { x: halfWidth, z: -halfDepth },
+    { x: halfWidth, z: halfDepth },
+    { x: -halfWidth, z: halfDepth },
+  ].map((point) => ({
+    x: placement.x + point.x * cos + point.z * sin,
+    z: placement.z - point.x * sin + point.z * cos,
+  }));
+}
+
+export function collectBackyardGardenClearancePolygons(
+  gardens: Iterable<{ residenceId: string }>,
+  residences: Iterable<ResidenceState>,
+  zones: Iterable<BurgageZoneState>,
+): Point2[][] {
+  const residenceById = new Map<string, ResidenceState>();
+  for (const residence of residences) residenceById.set(residence.id, residence);
+  const zoneById = new Map<string, BurgageZoneState>();
+  for (const zone of zones) zoneById.set(zone.id, zone);
+
+  const polygons: Point2[][] = [];
+  for (const garden of gardens) {
+    const residence = residenceById.get(garden.residenceId);
+    if (!residence) continue;
+    const zone = zoneById.get(residence.zoneId);
+    if (!zone) continue;
+    const placement = backyardGardenPlacement(residence, zone);
+    if (!placement) continue;
+    polygons.push(backyardGardenClearancePolygon(placement, residence.yaw));
+  }
+  return polygons;
+}
 
 export function backyardGardenPlacementForParcel(
   residence: ResidencePlacement,

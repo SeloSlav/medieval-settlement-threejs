@@ -1399,11 +1399,40 @@ function addStoneStock(parent: THREE.Group): void {
   parent.add(stockpile);
 }
 
+type AssemblyPart = {
+  geometry: THREE.BufferGeometry;
+  position: THREE.Vector3;
+  rotation?: THREE.Euler;
+};
+
+function addMergedAssemblyMesh(
+  parent: THREE.Group,
+  name: string,
+  material: THREE.Material,
+  parts: readonly AssemblyPart[],
+): THREE.Mesh {
+  const matrix = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  const transformed = parts.map((part) => {
+    quaternion.setFromEuler(part.rotation ?? new THREE.Euler());
+    matrix.compose(part.position, quaternion, new THREE.Vector3(1, 1, 1));
+    return part.geometry.applyMatrix4(matrix);
+  });
+  const geometry = mergeGeometries(transformed, false);
+  for (const part of transformed) part.dispose();
+  if (!geometry) throw new Error(`Could not merge ${name}.`);
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  const mesh = addMesh(parent, geometry, material, new THREE.Vector3());
+  mesh.name = name;
+  return mesh;
+}
+
 function addIronworkStock(parent: THREE.Group): void {
   const stockpile = new THREE.Group();
   stockpile.name = 'FoundingIronworkStockpile';
   stockpile.visible = false;
-  stockpile.position.set(-5.8, 0, 1.45);
+  stockpile.position.set(-4.2, 0, 0);
   stockpile.rotation.y = -0.08;
 
   for (let index = 0; index < FOUNDING_IRONWORK_VISUAL_SEGMENTS; index += 1) {
@@ -1414,46 +1443,67 @@ function addIronworkStock(parent: THREE.Group): void {
     segment.position.set((column - 1) * 1.02, 0, (row - 0.5) * 0.9);
     segment.rotation.y = (column - 1) * 0.04 + (row === 0 ? -0.03 : 0.03);
 
-    const pallet = addMesh(
+    addMergedAssemblyMesh(
       segment,
-      new THREE.BoxGeometry(0.94, 0.12, 0.72),
+      'Founding ironwork open crate',
       timberMaterial(index % 2 === 0 ? 'dark' : 'weathered'),
-      new THREE.Vector3(0, 0.08, 0),
+      [
+        {
+          geometry: new THREE.BoxGeometry(0.96, 0.12, 0.76),
+          position: new THREE.Vector3(0, 0.06, 0),
+        },
+        {
+          geometry: new THREE.BoxGeometry(0.76, 0.08, 0.58),
+          position: new THREE.Vector3(0, 0.18, 0),
+        },
+        ...[-0.31, 0.31].map((z) => ({
+          geometry: new THREE.BoxGeometry(0.82, 0.38, 0.08),
+          position: new THREE.Vector3(0, 0.38, z),
+        })),
+        ...[-0.37, 0.37].map((x) => ({
+          geometry: new THREE.BoxGeometry(0.08, 0.38, 0.54),
+          position: new THREE.Vector3(x, 0.38, 0),
+        })),
+      ],
     );
-    pallet.name = 'Founding ironwork pallet';
 
-    const crate = addMesh(
+    addMergedAssemblyMesh(
       segment,
-      new THREE.BoxGeometry(0.78, 0.48, 0.62),
-      timberMaterial(index % 3 === 0 ? 'mid' : 'weathered'),
-      new THREE.Vector3(0, 0.38, 0),
+      'Founding ironwork crate reinforcement',
+      metalMaterial('iron'),
+      [-0.27, 0.27].flatMap((x) => [-0.355, 0.355].map((z) => ({
+        geometry: new THREE.BoxGeometry(0.065, 0.34, 0.035),
+        position: new THREE.Vector3(x, 0.38, z),
+      }))),
     );
-    crate.name = 'Founding ironwork fittings crate';
 
-    for (const x of [-0.3, 0.3]) {
-      const band = addMesh(
-        segment,
-        new THREE.BoxGeometry(0.07, 0.52, 0.66),
-        metalMaterial('iron'),
-        new THREE.Vector3(x, 0.39, 0),
-      );
-      band.name = 'Founding ironwork crate band';
-    }
-
-    for (let fitting = 0; fitting < 3; fitting += 1) {
-      const bar = addMesh(
-        segment,
-        new THREE.BoxGeometry(0.48, 0.1, 0.11),
-        metalMaterial(fitting === 1 ? 'steel' : 'iron'),
-        new THREE.Vector3(
-          (fitting - 1) * 0.08,
-          0.7 + fitting * 0.07,
-          (fitting - 1) * 0.16,
-        ),
-        new THREE.Euler(0, fitting % 2 === 0 ? -0.28 : 0.24, 0),
-      );
-      bar.name = 'Founding ironwork visible fitting';
-    }
+    addMergedAssemblyMesh(
+      segment,
+      'Founding ironwork nested fittings',
+      metalMaterial('iron'),
+      [
+        {
+          geometry: new THREE.BoxGeometry(0.56, 0.1, 0.12),
+          position: new THREE.Vector3(-0.03, 0.27, -0.13),
+          rotation: new THREE.Euler(0, -0.22, 0),
+        },
+        {
+          geometry: new THREE.CylinderGeometry(0.055, 0.055, 0.52, 7),
+          position: new THREE.Vector3(0.04, 0.35, 0),
+          rotation: new THREE.Euler(0, 0, Math.PI * 0.5),
+        },
+        {
+          geometry: new THREE.BoxGeometry(0.52, 0.1, 0.12),
+          position: new THREE.Vector3(0.02, 0.42, 0.11),
+          rotation: new THREE.Euler(0, 0.24, 0),
+        },
+        {
+          geometry: new THREE.TorusGeometry(0.16, 0.04, 5, 10, Math.PI * 1.55),
+          position: new THREE.Vector3(-0.06, 0.51, 0),
+          rotation: new THREE.Euler(Math.PI * 0.5, 0, 0.18),
+        },
+      ],
+    );
 
     stockpile.add(segment);
   }
@@ -1465,24 +1515,82 @@ function addTreasuryChest(parent: THREE.Group): void {
   const chest = new THREE.Group();
   chest.name = 'FoundingTreasuryChest';
   chest.position.set(-7, 0, -0.9);
-  addMesh(
+
+  addMergedAssemblyMesh(
     chest,
-    new THREE.BoxGeometry(1.25, 0.68, 0.75),
+    'Founding treasury chest grounded body',
     timberMaterial('dark'),
-    new THREE.Vector3(0, 0.4, 0),
+    [
+      {
+        geometry: new THREE.BoxGeometry(1.68, 0.62, 0.96),
+        position: new THREE.Vector3(0, 0.47, 0),
+      },
+      {
+        geometry: new THREE.BoxGeometry(1.8, 0.12, 1.04),
+        position: new THREE.Vector3(0, 0.15, 0),
+      },
+      ...[-0.58, 0.58].map((x) => ({
+        geometry: new THREE.BoxGeometry(0.22, 0.14, 1.02),
+        position: new THREE.Vector3(x, 0.07, 0),
+      })),
+    ],
   );
-  addMesh(
+
+  const lid = addMesh(
     chest,
-    new THREE.CylinderGeometry(0.38, 0.38, 1.25, 8, 1, false, 0, Math.PI),
+    new THREE.CylinderGeometry(0.49, 0.49, 1.68, 12, 1, false, 0, Math.PI),
     timberMaterial('weathered'),
     new THREE.Vector3(0, 0.78, 0),
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
-  addMesh(
+  lid.name = 'Founding treasury chest arched lid';
+
+  addMergedAssemblyMesh(
     chest,
-    new THREE.BoxGeometry(0.12, 0.72, 0.8),
+    'Founding treasury chest iron straps and hinges',
     metalMaterial('iron'),
-    new THREE.Vector3(0, 0.53, 0),
+    [
+      ...[-0.55, 0, 0.55].flatMap((x) => [
+        {
+          geometry: new THREE.BoxGeometry(0.075, 0.58, 0.035),
+          position: new THREE.Vector3(x, 0.49, 0.5),
+        },
+        {
+          geometry: new THREE.BoxGeometry(0.075, 0.58, 0.035),
+          position: new THREE.Vector3(x, 0.49, -0.5),
+        },
+        {
+          geometry: new THREE.TorusGeometry(0.49, 0.035, 5, 12, Math.PI),
+          position: new THREE.Vector3(x, 0.78, 0),
+          rotation: new THREE.Euler(0, Math.PI * 0.5, 0),
+        },
+      ]),
+      ...[-0.5, 0.5].map((x) => ({
+        geometry: new THREE.CylinderGeometry(0.055, 0.055, 0.28, 7),
+        position: new THREE.Vector3(x, 0.75, -0.54),
+        rotation: new THREE.Euler(0, 0, Math.PI * 0.5),
+      })),
+      {
+        geometry: new THREE.TorusGeometry(0.11, 0.025, 5, 10, Math.PI),
+        position: new THREE.Vector3(0, 0.63, 0.535),
+      },
+    ],
+  );
+
+  addMergedAssemblyMesh(
+    chest,
+    'Founding treasury chest brass lock plate',
+    sharedBuildingDetailMaterial('brass'),
+    [
+      {
+        geometry: new THREE.BoxGeometry(0.28, 0.27, 0.045),
+        position: new THREE.Vector3(0, 0.49, 0.525),
+      },
+      ...[-0.1, 0.1].flatMap((x) => [-0.09, 0.09].map((y) => ({
+        geometry: new THREE.SphereGeometry(0.028, 6, 4),
+        position: new THREE.Vector3(x, 0.49 + y, 0.555),
+      }))),
+    ],
   );
   parent.add(chest);
 }

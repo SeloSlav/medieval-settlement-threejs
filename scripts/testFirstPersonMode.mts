@@ -53,6 +53,11 @@ assert.match(
   'the placement surface must expose an explicit confirmation action',
 );
 assert.match(
+  placement,
+  /class="resource-action-button" data-fp-placement-cancel[\s\S]{0,180}class="resource-action-button" data-fp-placement-confirm disabled/,
+  'first-person placement actions must use the shared styled game buttons',
+);
+assert.match(
   bootstrap,
   /placementParent: sceneManager\.scene[\s\S]{0,220}terrainProjector\.pick\(clientX, clientY\)/,
   'RTS placement must use the shared terrain projector and a world-space marker parent',
