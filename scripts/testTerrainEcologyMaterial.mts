@@ -118,17 +118,29 @@ assert.match(
   /const grassColorNode = mix\(\s*overviewTexturedColor,\s*blendedColor,\s*closeMaterialDetail/,
 );
 assert.match(ecologySource, /attribute\('forestBlend', 'float'\)/);
-for (const projection of ['A', 'B', 'C']) {
-  assert.match(ecologySource, new RegExp(`packedForestLitterUv\\(forestUv${projection}\\)`));
+for (const [projection, sourceName] of [
+  ['A', 'primary'],
+  ['B', 'secondary'],
+  ['C', 'secondary'],
+] as const) {
+  assert.match(
+    ecologySource,
+    new RegExp(`packedForestLitterUv\\(forestUv${projection}, '${sourceName}'\\)`),
+  );
   assert.match(ecologySource, new RegExp(`packedForestLitterGradient\\(forestUv${projection}\\.dFdx\\(\\)\\)`));
   assert.match(ecologySource, new RegExp(`packedForestLitterGradient\\(forestUv${projection}\\.dFdy\\(\\)\\)`));
 }
-assert.match(ecologySource, /const forestProjectionAB = smoothstep/);
-assert.match(ecologySource, /const forestProjectionC = \(smoothstep/);
+assert.match(ecologySource, /const forestSecondaryProjection = smoothstep/);
+assert.match(ecologySource, /const forestPrimaryWeight = mix/);
 assert.match(
   ecologySource,
-  /const forestColor = mix\([\s\S]*?forestSampleA[\s\S]*?forestSampleB[\s\S]*?forestProjectionAB[\s\S]*?forestSampleC[\s\S]*?forestProjectionC/,
-  'leaf litter must blend decorrelated projections through broad ecology fields',
+  /const forestPrimaryWeight = mix\([\s\S]*?float\(0\.12\)[\s\S]*?float\(0\.26\)/,
+  'the motif-heavy primary litter must remain a minority layer',
+);
+assert.match(
+  ecologySource,
+  /const forestSecondaryColor = mix\([\s\S]*?forestSampleB[\s\S]*?forestSampleC[\s\S]*?forestSecondaryProjection[\s\S]*?const forestColor = mix\([\s\S]*?forestSecondaryColor[\s\S]*?forestSampleA[\s\S]*?forestPrimaryWeight/,
+  'leaf litter must blend independent sources through broad ecology fields',
 );
 assert.match(
   ecologySource,
@@ -227,11 +239,16 @@ assert.equal(
 );
 assert.match(source, /function mirroredTerrainAtlasUv/);
 assert.match(source, /const tileUv = mirroredTerrainAtlasUv\(grassUv\)/);
-assert.match(source, /const tileUv = mirroredTerrainAtlasUv\(forestUv\)/);
+assert.match(source, /function repeatingTerrainAtlasUv/);
+assert.match(
+  source,
+  /source === 'secondary'[\s\S]*?repeatingTerrainAtlasUv\(forestUv\)[\s\S]*?mirroredTerrainAtlasUv\(forestUv\)/,
+  'only the independently processed secondary litter may use ordinary repeat wrapping',
+);
 assert.doesNotMatch(
   source,
   /const tileUv = fract\(/,
-  'packed terrain atlas tiles must not jump directly between unmatched image edges',
+  'packed terrain atlas wrapping must stay behind the named filtering helpers',
 );
 assert.deepEqual(
   [-1, -0.5, 0, 0.5, 1, 1.5, 2].map(mirroredTerrainAtlasCoordinate),
@@ -475,6 +492,20 @@ assert.ok(
 );
 assert.match(source, /packedDrySnowUv\(grassUv, true\)/);
 assert.match(textureLoaderSource, /snow_leaf_albedo_atlas\.png/);
+const packedTerrainAtlas = readFileSync(
+  `${projectRoot}public/assets/textures/terrain/manor_grass_dry/snow_leaf_albedo_atlas.png`,
+);
+assert.equal(packedTerrainAtlas.readUInt32BE(16), 1024);
+assert.equal(
+  packedTerrainAtlas.readUInt32BE(20),
+  4096,
+  'the packed terrain atlas must retain dry grass, snow, and two independent leaf-litter cells',
+);
+const secondaryForestAlbedo = readFileSync(
+  `${projectRoot}public/assets/textures/terrain/forest_leaf_litter_secondary/albedo.png`,
+);
+assert.equal(secondaryForestAlbedo.readUInt32BE(16), 1024);
+assert.equal(secondaryForestAlbedo.readUInt32BE(20), 1024);
 assert.match(source, /const revealStart = sub/);
 assert.match(source, /\.mul\(exposure\)/);
 assert.match(source, /function resolveTerrainWeather/);

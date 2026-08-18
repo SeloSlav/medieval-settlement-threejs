@@ -33,6 +33,8 @@ const OUTLINE_WIDTH = 0.72;
 const OUTLINE_DASH_LENGTH = 0.82;
 const OUTLINE_GAP_LENGTH = 0.62;
 const OUTLINE_LIFT = 0.24;
+const BUILDING_OUTLINE_WIDTH = 0.3;
+const BUILDING_OUTLINE_LIFT = 0.08;
 const OUTLINE_RENDER_ORDER = 100;
 
 /**
@@ -48,6 +50,9 @@ export class PlayerAuthoredHoverOutline {
     depthWrite: false,
     side: THREE.DoubleSide,
     toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
   });
   private readonly mesh = new THREE.Mesh(this.geometry, this.material);
   private currentKey = '';
@@ -117,14 +122,16 @@ export class PlayerAuthoredHoverOutline {
       return;
     }
     if (perimeter.key === this.currentKey) return;
+    const isBuilding = perimeter.key.startsWith('building:');
+    this.material.depthTest = isBuilding;
 
     updateTerrainRibbonGeometry(
       this.geometry,
       polygonSegments(perimeter.polygon),
       this.options.getHeightAt,
       {
-        width: OUTLINE_WIDTH,
-        lift: OUTLINE_LIFT,
+        width: isBuilding ? BUILDING_OUTLINE_WIDTH : OUTLINE_WIDTH,
+        lift: isBuilding ? BUILDING_OUTLINE_LIFT : OUTLINE_LIFT,
         sampleSpacing: 0.7,
         dashLength: OUTLINE_DASH_LENGTH,
         gapLength: OUTLINE_GAP_LENGTH,

@@ -7,8 +7,19 @@ import {
   getBuildingRoadConnectionPoints,
   markerRevealOpacity,
 } from '../src/roads/BuildingRoadConnections.ts';
+import {
+  BuildingAccessSpurs,
+  planBuildingAccessSpurs,
+} from '../src/roads/BuildingAccessSpurs.ts';
 import { getBuildingFootprintHalfExtents } from '../src/buildings/BuildingTerrainLayout.ts';
-import { ROAD_WIDTH } from '../src/roads/roadDimensions.ts';
+import {
+  BUILDING_ACCESS_SPUR_WIDTH,
+  ROAD_WIDTH,
+  roadVisualWidth,
+} from '../src/roads/roadDimensions.ts';
+import { hasRoadAccess } from '../src/roads/roadConnectivity.ts';
+import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
+import { RoadNetwork } from '../src/roads/RoadNetwork.ts';
 import { RoadPreview } from '../src/roads/RoadPreview.ts';
 import {
   isWorldInspectionBlocked,
@@ -54,6 +65,114 @@ for (const [x, z] of expectedPerimeterPoints) {
     'each connection should sit on the midpoint of the true footprint perimeter',
   );
 }
+
+const accessNetwork = new RoadNetwork();
+accessNetwork.addRoadPath([
+  new THREE.Vector3(-30, 12, 0),
+  new THREE.Vector3(30, 12, 0),
+]);
+const connectedWell = {
+  id: 'connected-well',
+  kind: 'well' as const,
+  x: 0,
+  z: 15,
+  yaw: 0,
+};
+const disconnectedWell = {
+  ...connectedWell,
+  id: 'disconnected-well',
+  z: 20.01,
+};
+assert(hasRoadAccess(connectedWell.x, connectedWell.z, accessNetwork));
+assert(!hasRoadAccess(disconnectedWell.x, disconnectedWell.z, accessNetwork));
+const accessPlans = planBuildingAccessSpurs(
+  [connectedWell, disconnectedWell],
+  flatTerrain,
+  accessNetwork,
+);
+assert.equal(
+  accessPlans.length,
+  1,
+  'only buildings accepted by the existing logical road-access rule should receive a spur',
+);
+const wellPlan = accessPlans[0];
+assert.equal(wellPlan.buildingId, connectedWell.id);
+assert(Math.abs(wellPlan.centerRoadDistance - 15) < 1e-9);
+assert.equal(wellPlan.roadPoint.z, 0, 'the spur should terminate at the nearest road centerline');
+assert(
+  wellPlan.connection.point.z < connectedWell.z,
+  'the spur should start at the footprint anchor facing the road',
+);
+assert.equal(wellPlan.visualWidth, BUILDING_ACCESS_SPUR_WIDTH);
+assert(
+  BUILDING_ACCESS_SPUR_WIDTH < roadVisualWidth(ROAD_WIDTH) * 0.5,
+  'building access spurs should remain distinctly slimmer than the main road',
+);
+
+const spurRoadMaterial = new THREE.MeshBasicMaterial();
+const spurBlendMaterial = new THREE.MeshBasicMaterial({ transparent: true });
+const spurTerrain = {
+  ...flatTerrain,
+  getHeightAt: () => 12,
+};
+const spurParent = new THREE.Group();
+const spurBuilder = new RoadMeshBuilder(
+  spurTerrain as never,
+  { road: spurRoadMaterial, roadEdge: spurBlendMaterial } as never,
+);
+const accessSpurs = new BuildingAccessSpurs({
+  parent: spurParent,
+  terrain: spurTerrain as never,
+  meshBuilder: spurBuilder,
+});
+accessSpurs.sync([connectedWell, disconnectedWell], accessNetwork);
+assert.equal(accessSpurs.group.children.length, 1);
+const renderedSpur = accessSpurs.group.children[0] as THREE.Group;
+assert.equal(renderedSpur.userData.buildingId, connectedWell.id);
+assert.equal(renderedSpur.userData.connectionId, wellPlan.connection.id);
+assert.deepEqual(renderedSpur.userData.roadPoint, wellPlan.roadPoint.toArray());
+assert.deepEqual(renderedSpur.userData.buildingPoint, wellPlan.connection.point.toArray());
+const renderedCore = renderedSpur.getObjectByName(
+  `Building access spur core ${connectedWell.id}`,
+) as THREE.Mesh;
+const renderedBlend = renderedSpur.getObjectByName(
+  `Building access spur blend ${connectedWell.id}`,
+) as THREE.Mesh;
+assert(renderedCore?.geometry.getAttribute('position').count > 4);
+assert(renderedBlend?.geometry.getAttribute('position').count > 12);
+assert.equal(renderedCore.userData.fpNoCollision, true);
+assert.equal(renderedBlend.userData.fpNoCollision, true);
+accessSpurs.sync([connectedWell, disconnectedWell], accessNetwork);
+assert.equal(
+  accessSpurs.group.children[0],
+  renderedSpur,
+  'unchanged settlement snapshots should retain spur geometry instead of rebuilding it',
+);
+const spurY = renderedCore.geometry.getAttribute('position') as THREE.BufferAttribute;
+for (let index = 0; index < spurY.count; index += 1) {
+  assert(
+    spurY.getY(index) < 12.11,
+    'access spurs must remain below construction-ground footprints',
+  );
+}
+accessNetwork.addRoadPath([
+  new THREE.Vector3(-30, 12, 10),
+  new THREE.Vector3(30, 12, 10),
+]);
+accessSpurs.sync([connectedWell, disconnectedWell], accessNetwork);
+assert.notEqual(
+  accessSpurs.group.children[0],
+  renderedSpur,
+  'road topology changes should rebuild building access spurs',
+);
+assert.equal(
+  (accessSpurs.group.children[0] as THREE.Group).userData.roadPoint[2],
+  10,
+  'a rebuilt spur should follow the newly nearest road',
+);
+accessSpurs.dispose();
+spurRoadMaterial.dispose();
+spurBlendMaterial.dispose();
 
 const parent = new THREE.Group();
 const connections = new BuildingRoadConnections({
@@ -344,7 +463,7 @@ assert(outline instanceof THREE.Mesh);
 assert(outline.geometry instanceof THREE.RingGeometry);
 assert.equal(
   outline.geometry.parameters.outerRadius * 2,
-  ROAD_WIDTH,
+  roadVisualWidth(ROAD_WIDTH),
   'the road cursor diameter should exactly match the road preview width',
 );
 preview.dispose();

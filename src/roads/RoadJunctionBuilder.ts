@@ -11,13 +11,16 @@ import {
 } from './BridgeRailings.ts';
 import { bridgeBlendAtDistance } from './RiverBridgeSpans.ts';
 import {
+  ROAD_VISUAL_CORE_Y_OFFSET,
+  ROAD_VISUAL_SHOULDER_Y_OFFSET,
+  roadVisualWidth,
+} from './roadDimensions.ts';
+import {
   inwardDirectionAtEdgeEnd,
   ROAD_JUNCTION_REACH,
   roadPerpendicular,
 } from './roadEndpoint.ts';
 
-const CORE_Y_OFFSET = 0.12;
-const BLEND_Y_OFFSET = 0.16;
 const BRIDGE_JUNCTION_LIFT = 0.014;
 const BRIDGE_MOUTH_TOLERANCE = 0.14;
 const BRIDGE_JUNCTION_SEGMENTS = 64;
@@ -43,7 +46,8 @@ export class RoadJunctionBuilder {
   private buildNodePatch(node: RoadNode, network: RoadNetwork): THREE.Group | null {
     const incidents = network.getIncidents(node);
     if (incidents.length === 0) return null;
-    const width = averageWidth(incidents.map(({ edge }) => edge));
+    const logicalWidth = averageWidth(incidents.map(({ edge }) => edge));
+    const width = roadVisualWidth(logicalWidth);
     const isEndpoint = incidents.length === 1;
     // Dead-end caps are compiled into each edge's core and shoulder meshes so
     // their vertices, terrain samples, normals, and UV phase are continuous.
@@ -51,6 +55,8 @@ export class RoadJunctionBuilder {
     const group = new THREE.Group();
     group.name = `Road ${node.junctionType} ${node.id}`;
     group.userData.nodeId = node.id;
+    group.userData.logicalWidth = logicalWidth;
+    group.userData.visualWidth = width;
 
     const directions = uniqueDirections(
       incidents.map(({ edge, end }) => inwardDirectionAtEdgeEnd(edge, end)),
@@ -166,7 +172,9 @@ export class RoadJunctionBuilder {
     const positions: number[] = [];
     const uvs: number[] = [];
     const indices: number[] = [];
-    const yOffset = blend ? BLEND_Y_OFFSET : CORE_Y_OFFSET;
+    const yOffset = blend
+      ? ROAD_VISUAL_SHOULDER_Y_OFFSET
+      : ROAD_VISUAL_CORE_Y_OFFSET;
     const centerY = this.terrain.getHeightAt(center.x, center.z) + yOffset;
     positions.push(center.x, centerY, center.z);
     uvs.push(blend ? 1 : 0.5, 0.5);

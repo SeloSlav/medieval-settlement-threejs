@@ -118,35 +118,50 @@ function mirroredTerrainAtlasUv(sourceUv: TslNode): TslNode {
   ) as TslNode;
 }
 
+function repeatingTerrainAtlasUv(sourceUv: TslNode): TslNode {
+  // Both forest sources are processed as seamless tiles. Explicit gradients
+  // below keep the discontinuous repeat from requesting a coarse atlas mip at
+  // each boundary, so litter can repeat normally without mirror symmetry.
+  return fract(sourceUv) as TslNode;
+}
+
 function packedDrySnowUv(grassUv: TslNode, snow: boolean): TslNode {
   const tileUv = mirroredTerrainAtlasUv(grassUv);
-  // Texture.flipY maps the image rows to forest, snow, then dry from low to
-  // high V. Small gutters keep neighbouring materials out of generated mips.
+  // Texture.flipY maps the image rows to secondary leaf, primary leaf, snow,
+  // then dry from low to high V. Small gutters keep neighbouring materials out
+  // of generated mips.
   return vec2(
     tileUv.x,
     tileUv.y
-      .mul(float(0.329) as TslNode)
-      .add(float(snow ? 0.335 : 0.668) as TslNode),
+      .mul(float(0.242) as TslNode)
+      .add(float(snow ? 0.504 : 0.754) as TslNode),
   ) as TslNode;
 }
 
-function packedForestLitterUv(forestUv: TslNode): TslNode {
-  const tileUv = mirroredTerrainAtlasUv(forestUv);
-  // Keep a full-mip safety border inside the leaf third of the packed atlas.
-  // Without this inset, distant litter samples can pull pale snow texels into
-  // the tile and turn its repeated wrap seams into straight white dashes.
+function packedForestLitterUv(
+  forestUv: TslNode,
+  source: 'primary' | 'secondary',
+): TslNode {
+  const tileUv = source === 'secondary'
+    ? repeatingTerrainAtlasUv(forestUv)
+    : mirroredTerrainAtlasUv(forestUv);
+  // Keep a full-mip safety border inside each leaf quarter of the packed
+  // atlas. The explicit gradients prevent the repeat discontinuity itself
+  // from selecting snow-contaminated coarse mips.
   return vec2(
-    tileUv.x,
+    tileUv.x
+      .mul(float(0.856) as TslNode)
+      .add(float(0.072) as TslNode),
     tileUv.y
-      .mul(float(0.28) as TslNode)
-      .add(float(0.026) as TslNode),
+      .mul(float(0.214) as TslNode)
+      .add(float(source === 'secondary' ? 0.018 : 0.268) as TslNode),
   ) as TslNode;
 }
 
 function packedForestLitterGradient(gradient: TslNode): TslNode {
   return vec2(
-    gradient.x,
-    gradient.y.mul(float(0.28) as TslNode),
+    gradient.x.mul(float(0.856) as TslNode),
+    gradient.y.mul(float(0.214) as TslNode),
   ) as TslNode;
 }
 
@@ -184,10 +199,10 @@ function buildGrassBlendNodes(
       .add(float(0.43) as TslNode),
   ) as TslNode;
   // Leaf forms need a much smaller world scale than grass clumps. Three
-  // decorrelated projections keep the authored litter scale while preventing
-  // the atlas' mandatory mirrored wrapping from reading as a repeated
-  // butterfly/grid pattern from above. All three projections reuse the same
-  // packed albedo binding, so this adds samples without adding samplers.
+  // decorrelated projections keep the authored litter scale. The independent
+  // secondary source uses ordinary repeat wrapping, while the old mirrored
+  // source remains only as a low-weight variation layer. All three projections
+  // reuse the same packed albedo binding, so this adds no samplers.
   const forestUvA = vec2(
     grassUv.x
       .mul(float(9) as TslNode)
@@ -308,21 +323,21 @@ function buildGrassBlendNodes(
   const macro = macroA.mul(float(0.68) as TslNode).add(macroB.mul(float(0.32) as TslNode));
   const forestSampleA = (texture(
     textures.dry.albedo,
-    packedForestLitterUv(forestUvA),
+    packedForestLitterUv(forestUvA, 'primary'),
   ) as TslNode).grad(
     packedForestLitterGradient(forestUvA.dFdx()),
     packedForestLitterGradient(forestUvA.dFdy()),
   ) as TslNode;
   const forestSampleB = (texture(
     textures.dry.albedo,
-    packedForestLitterUv(forestUvB),
+    packedForestLitterUv(forestUvB, 'secondary'),
   ) as TslNode).grad(
     packedForestLitterGradient(forestUvB.dFdx()),
     packedForestLitterGradient(forestUvB.dFdy()),
   ) as TslNode;
   const forestSampleC = (texture(
     textures.dry.albedo,
-    packedForestLitterUv(forestUvC),
+    packedForestLitterUv(forestUvC, 'secondary'),
   ) as TslNode).grad(
     packedForestLitterGradient(forestUvC.dFdx()),
     packedForestLitterGradient(forestUvC.dFdy()),
@@ -331,20 +346,29 @@ function buildGrassBlendNodes(
   // projections. Their boundaries are much larger than a litter tile, so no
   // new cell/grid structure is introduced and all PBR responses can continue
   // to derive from the same resolved litter luminance.
-  const forestProjectionAB = smoothstep(
+  const forestSecondaryProjection = smoothstep(
     float(0.24) as TslNode,
     float(0.76) as TslNode,
     macroA,
   ) as TslNode;
-  const forestProjectionC = (smoothstep(
-    float(0.3) as TslNode,
-    float(0.74) as TslNode,
-    macroB,
-  ) as TslNode).mul(float(0.62) as TslNode) as TslNode;
-  const forestColor = mix(
-    mix(forestSampleA, forestSampleB, forestProjectionAB) as TslNode,
+  const forestPrimaryWeight = mix(
+    float(0.12) as TslNode,
+    float(0.26) as TslNode,
+    smoothstep(
+      float(0.3) as TslNode,
+      float(0.74) as TslNode,
+      macroB,
+    ) as TslNode,
+  ) as TslNode;
+  const forestSecondaryColor = mix(
+    forestSampleB,
     forestSampleC,
-    forestProjectionC,
+    forestSecondaryProjection,
+  ) as TslNode;
+  const forestColor = mix(
+    forestSecondaryColor,
+    forestSampleA,
+    forestPrimaryWeight,
   ) as TslNode;
   const forestLuminance = forestColor.r
     .mul(float(0.299) as TslNode)

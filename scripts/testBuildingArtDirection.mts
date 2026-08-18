@@ -146,6 +146,53 @@ for (const kind of BUILDING_KINDS) {
       largestMetricUvSpan = Math.max(largestMetricUvSpan, maxU - minU, maxV - minV);
     }
   });
+  if (kind === 'well') {
+    const outerWall = model.getObjectByName('Well outer masonry wall');
+    const innerWall = model.getObjectByName('Well inner masonry wall');
+    if (!(outerWall instanceof THREE.Mesh) || !(innerWall instanceof THREE.Mesh)) {
+      throw new Error('Well must provide separate named outer and inner masonry skins.');
+    }
+    const radialNormalSign = (mesh: THREE.Mesh): number => {
+      const position = mesh.geometry.getAttribute('position');
+      const normal = mesh.geometry.getAttribute('normal');
+      if (!position || !normal || position.count !== normal.count) {
+        throw new Error(`${mesh.name} must have matching positions and normals.`);
+      }
+      let sum = 0;
+      for (let index = 0; index < position.count; index++) {
+        sum += position.getX(index) * normal.getX(index)
+          + position.getZ(index) * normal.getZ(index);
+      }
+      return sum / position.count;
+    };
+    if (radialNormalSign(outerWall) <= 0 || radialNormalSign(innerWall) >= 0) {
+      throw new Error('Well masonry normals must face outward outside and inward inside.');
+    }
+    model.updateMatrixWorld(true);
+    const insideWallHits = new THREE.Raycaster(
+      new THREE.Vector3(0, 0.69, 0),
+      new THREE.Vector3(1, 0, 0),
+    ).intersectObject(innerWall, false);
+    const outsideWallHits = new THREE.Raycaster(
+      new THREE.Vector3(3, 0.69, 0),
+      new THREE.Vector3(-1, 0, 0),
+    ).intersectObject(outerWall, false);
+    if (insideWallHits.length === 0 || outsideWallHits.length === 0) {
+      throw new Error('Well wall must render through front-face culling from both viewing sides.');
+    }
+
+    const posts: THREE.Mesh[] = [];
+    model.traverse((object) => {
+      if (object instanceof THREE.Mesh && object.name === 'Well windlass post') posts.push(object);
+    });
+    if (posts.length !== 2) throw new Error(`Well must have two audited windlass posts; found ${posts.length}.`);
+    for (const post of posts) {
+      const clearance = post.userData.roofClearance;
+      if (typeof clearance !== 'number' || clearance < 0.075) {
+        throw new Error(`Well windlass post penetrates its roof (clearance ${String(clearance)}).`);
+      }
+    }
+  }
   if (meshCount < 4) throw new Error(`${kind} is missing a sufficiently legible procedural model (${meshCount} meshes).`);
 
   const bounds = new THREE.Box3().setFromObject(model);

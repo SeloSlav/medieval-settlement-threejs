@@ -17,25 +17,53 @@ def ensure_square_tile(src: Path, size: int = 1024) -> Image.Image:
     # Softly blend mirrored borders so repeat wrapping has no hard seam.
     px = img.load()
     blend = max(24, size // 16)
+    horizontal_source = img.copy().load()
     for y in range(size):
         for x in range(blend):
-            t = (x / blend) ** 2 * (3 - 2 * (x / blend))
-            a = px[x, y]
-            b = px[size - blend + x, y]
-            mix_l = tuple(round(a[i] * t + b[i] * (1 - t)) for i in range(3))
-            mix_r = tuple(round(b[i] * t + a[i] * (1 - t)) for i in range(3))
-            px[x, y] = mix_l
-            px[size - blend + x, y] = mix_r
+            u = x / (blend - 1)
+            t = u * u * (3 - 2 * u)
+            opposite_x = size - 1 - x
+            a = horizontal_source[x, y]
+            b = horizontal_source[opposite_x, y]
+            edge = tuple(round((a[i] + b[i]) * 0.5) for i in range(3))
+            px[x, y] = tuple(round(edge[i] * (1 - t) + a[i] * t) for i in range(3))
+            px[opposite_x, y] = tuple(
+                round(edge[i] * (1 - t) + b[i] * t) for i in range(3)
+            )
+    vertical_source = img.copy().load()
     for x in range(size):
         for y in range(blend):
-            t = (y / blend) ** 2 * (3 - 2 * (y / blend))
-            a = px[x, y]
-            b = px[x, size - blend + y]
-            mix_t = tuple(round(a[i] * t + b[i] * (1 - t)) for i in range(3))
-            mix_b = tuple(round(b[i] * t + a[i] * (1 - t)) for i in range(3))
-            px[x, y] = mix_t
-            px[x, size - blend + y] = mix_b
+            u = y / (blend - 1)
+            t = u * u * (3 - 2 * u)
+            opposite_y = size - 1 - y
+            a = vertical_source[x, y]
+            b = vertical_source[x, opposite_y]
+            edge = tuple(round((a[i] + b[i]) * 0.5) for i in range(3))
+            px[x, y] = tuple(round(edge[i] * (1 - t) + a[i] * t) for i in range(3))
+            px[x, opposite_y] = tuple(
+                round(edge[i] * (1 - t) + b[i] * t) for i in range(3)
+            )
     return img
+
+
+def wrap_atlas_cell(image: Image.Image, gutter: int = 64) -> Image.Image:
+    """Add mip-safe wrapped borders while retaining a 1024px atlas cell."""
+    width, height = image.size
+    if width != height or gutter * 2 >= width:
+        raise ValueError("atlas cells must be square with room for wrapped gutters")
+    content_size = width - gutter * 2
+    content = image.resize((content_size, content_size), Image.Resampling.LANCZOS)
+    tiled = Image.new("RGB", (content_size * 3, content_size * 3))
+    for tile_y in range(3):
+        for tile_x in range(3):
+            tiled.paste(content, (tile_x * content_size, tile_y * content_size))
+    start = content_size - gutter
+    return tiled.crop((
+        start,
+        start,
+        start + width,
+        start + height,
+    ))
 
 
 def save_height_maps(albedo: Image.Image, out_dir: Path, *, road: bool) -> None:
@@ -109,22 +137,30 @@ def save_dry_snow_albedo_atlas(
 def save_dry_snow_leaf_albedo_atlas(
     dry_albedo_path: Path,
     snow_albedo_path: Path,
-    leaf_albedo: Image.Image,
+    primary_leaf_albedo_path: Path,
+    secondary_leaf_albedo_path: Path,
     out_path: Path,
 ) -> None:
-    """Pack three terrain albedos into one binding for the WebGPU material."""
+    """Pack four terrain albedos into one binding for the WebGPU material."""
     dry = Image.open(dry_albedo_path).convert("RGB")
     snow = Image.open(snow_albedo_path).convert("RGB")
-    if dry.size != leaf_albedo.size:
-        dry = dry.resize(leaf_albedo.size, Image.Resampling.LANCZOS)
-    if snow.size != leaf_albedo.size:
-        snow = snow.resize(leaf_albedo.size, Image.Resampling.LANCZOS)
-    width, height = leaf_albedo.size
-    atlas = Image.new("RGB", (width, height * 3))
-    # Texture.flipY exposes image-bottom at low V: forest, snow, then dry.
+    primary_leaf = Image.open(primary_leaf_albedo_path).convert("RGB")
+    secondary_leaf = Image.open(secondary_leaf_albedo_path).convert("RGB")
+    target_size = primary_leaf.size
+    if dry.size != target_size:
+        dry = dry.resize(target_size, Image.Resampling.LANCZOS)
+    if snow.size != target_size:
+        snow = snow.resize(target_size, Image.Resampling.LANCZOS)
+    if secondary_leaf.size != target_size:
+        secondary_leaf = secondary_leaf.resize(target_size, Image.Resampling.LANCZOS)
+    width, height = target_size
+    atlas = Image.new("RGB", (width, height * 4))
+    # Texture.flipY exposes image-bottom at low V: secondary leaf, primary
+    # leaf, snow, then dry.
     atlas.paste(dry, (0, 0))
     atlas.paste(snow, (0, height))
-    atlas.paste(leaf_albedo, (0, height * 2))
+    atlas.paste(wrap_atlas_cell(primary_leaf), (0, height * 2))
+    atlas.paste(wrap_atlas_cell(secondary_leaf), (0, height * 3))
     atlas.save(out_path)
 
 
@@ -190,9 +226,16 @@ def main() -> None:
     parser.add_argument("--grass-source")
     parser.add_argument("--snow-source")
     parser.add_argument("--forest-source")
+    parser.add_argument("--forest-secondary-source")
     args = parser.parse_args()
 
-    if not any((args.road_source, args.grass_source, args.snow_source, args.forest_source)):
+    if not any((
+        args.road_source,
+        args.grass_source,
+        args.snow_source,
+        args.forest_source,
+        args.forest_secondary_source,
+    )):
         parser.error("provide at least one texture source")
 
     if args.road_source:
@@ -241,15 +284,41 @@ def main() -> None:
         forest = ensure_square_tile(Path(args.forest_source))
         forest.save(forest_dir / "albedo.png")
         save_height_maps(forest, forest_dir, road=False)
+        (forest_dir / "README.md").write_text(
+            "Primary forest leaf-litter PBR texture set. The original albedo was generated with Codex built-in image generation using a user-provided forest-floor image as a material reference, then processed locally for seamless tiling; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. The runtime albedo is packed with a second independent litter variant, dry grass, and snow in manor_grass_dry/snow_leaf_albedo_atlas.png to preserve the terrain shader's portable sampler budget.\n",
+            encoding="utf-8",
+        )
+
+    if args.forest_secondary_source:
+        secondary_forest_dir = Path(
+            "public/assets/textures/terrain/forest_leaf_litter_secondary"
+        )
+        secondary_forest_dir.mkdir(parents=True, exist_ok=True)
+        secondary_forest = ensure_square_tile(Path(args.forest_secondary_source))
+        secondary_forest.save(secondary_forest_dir / "albedo.png")
+        save_height_maps(secondary_forest, secondary_forest_dir, road=False)
+        (secondary_forest_dir / "README.md").write_text(
+            "Secondary forest leaf-litter PBR texture set. The albedo was generated with Codex built-in image generation as an independent, motif-restrained companion to the primary forest floor, then processed locally for seamless tiling; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. Runtime color is packed with the primary litter, dry grass, and snow in manor_grass_dry/snow_leaf_albedo_atlas.png.\n",
+            encoding="utf-8",
+        )
+
+    if args.forest_source or args.forest_secondary_source:
+        primary_leaf_path = Path(
+            "public/assets/textures/terrain/forest_leaf_litter/albedo.png"
+        )
+        secondary_leaf_path = Path(
+            "public/assets/textures/terrain/forest_leaf_litter_secondary/albedo.png"
+        )
+        if not primary_leaf_path.exists() or not secondary_leaf_path.exists():
+            parser.error(
+                "both processed forest leaf-litter albedos are required to build the atlas"
+            )
         save_dry_snow_leaf_albedo_atlas(
             Path("public/assets/textures/terrain/manor_grass_dry/albedo.png"),
             Path("public/assets/textures/terrain/snow_ground/albedo.png"),
-            forest,
+            primary_leaf_path,
+            secondary_leaf_path,
             Path("public/assets/textures/terrain/manor_grass_dry/snow_leaf_albedo_atlas.png"),
-        )
-        (forest_dir / "README.md").write_text(
-            "Forest leaf-litter PBR texture set. The original albedo was generated with Codex built-in image generation using a user-provided forest-floor image as a material reference, then processed locally for seamless tiling; normal, roughness, AO, and height were derived locally by scripts/derive_pbr_maps.py. The runtime albedo is packed with dry grass and snow in manor_grass_dry/snow_leaf_albedo_atlas.png to preserve the terrain shader's portable sampler budget.\n",
-            encoding="utf-8",
         )
 
 

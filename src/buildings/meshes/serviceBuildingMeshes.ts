@@ -18,10 +18,64 @@ import {
 
 const waterMaterial = sharedBuildingDetailMaterial('water');
 
+const WELL_DIMENSIONS = {
+  wallHeight: 0.95,
+  wallCenterY: 0.69,
+  wallOuterTopRadius: 1.18,
+  wallOuterBottomRadius: 1.28,
+  wallInnerTopRadius: 0.98,
+  wallInnerBottomRadius: 1.08,
+  wallSegments: 14,
+  postX: 1.42,
+  postBaseY: 0.145,
+  windlassY: 2.23,
+  roofRadius: 2.52,
+  roofHeight: 1.78,
+  roofCenterY: 3.72,
+  tieBeamY: 3.0,
+  tieBeamThickness: 0.16,
+} as const;
+
+/** CylinderGeometry faces outward; reverse it for the well's separate inner masonry skin. */
+function createInwardFacingCylinderGeometry(
+  topRadius: number,
+  bottomRadius: number,
+  height: number,
+  radialSegments: number,
+): THREE.CylinderGeometry {
+  const geometry = new THREE.CylinderGeometry(
+    topRadius,
+    bottomRadius,
+    height,
+    radialSegments,
+    1,
+    true,
+  );
+  const index = geometry.getIndex();
+  if (!index) throw new Error('The well interior cylinder must be indexed.');
+  for (let triangle = 0; triangle < index.count; triangle += 3) {
+    const second = index.getX(triangle + 1);
+    index.setX(triangle + 1, index.getX(triangle + 2));
+    index.setX(triangle + 2, second);
+  }
+  index.needsUpdate = true;
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 /** Limestone village well beneath a steep, weatherproof shingle cap. */
 export function createWellMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Well';
+
+  const dimensions = WELL_DIMENSIONS;
+  const roofBaseY = dimensions.roofCenterY - dimensions.roofHeight * 0.5;
+  const roofHalfSpan = dimensions.roofRadius / Math.sqrt(2);
+  const roofUndersideAtPost = roofBaseY + dimensions.roofHeight
+    * (1 - dimensions.postX / roofHalfSpan);
+  const tieBeamTop = dimensions.tieBeamY + dimensions.tieBeamThickness * 0.5;
+  const postTopY = Math.min(tieBeamTop, roofUndersideAtPost - 0.08);
+  const postHeight = postTopY - dimensions.postBaseY;
 
   addMesh(
     group,
@@ -29,12 +83,32 @@ export function createWellMesh(): THREE.Group {
     stoneMaterial('mortar'),
     new THREE.Vector3(0, 0.11, 0),
   );
-  addMesh(
+  const outerWall = addMesh(
     group,
-    new THREE.CylinderGeometry(1.18, 1.28, 0.95, 14, 1, true),
+    new THREE.CylinderGeometry(
+      dimensions.wallOuterTopRadius,
+      dimensions.wallOuterBottomRadius,
+      dimensions.wallHeight,
+      dimensions.wallSegments,
+      1,
+      true,
+    ),
     stoneMaterial('light'),
-    new THREE.Vector3(0, 0.69, 0),
+    new THREE.Vector3(0, dimensions.wallCenterY, 0),
   );
+  outerWall.name = 'Well outer masonry wall';
+  const innerWall = addMesh(
+    group,
+    createInwardFacingCylinderGeometry(
+      dimensions.wallInnerTopRadius,
+      dimensions.wallInnerBottomRadius,
+      dimensions.wallHeight,
+      dimensions.wallSegments,
+    ),
+    stoneMaterial('mid'),
+    new THREE.Vector3(0, dimensions.wallCenterY, 0),
+  );
+  innerWall.name = 'Well inner masonry wall';
   addMesh(
     group,
     new THREE.CylinderGeometry(0.92, 0.92, 0.08, 16),
@@ -49,26 +123,28 @@ export function createWellMesh(): THREE.Group {
     new THREE.Euler(Math.PI * 0.5, 0, 0),
   );
 
-  for (const x of [-1.42, 1.42]) {
-    addMesh(
+  for (const x of [-dimensions.postX, dimensions.postX]) {
+    const post = addMesh(
       group,
-      new THREE.BoxGeometry(0.24, 3.15, 0.24),
+      new THREE.BoxGeometry(0.24, postHeight, 0.24),
       timberMaterial('dark'),
-      new THREE.Vector3(x, 1.72, 0),
+      new THREE.Vector3(x, dimensions.postBaseY + postHeight * 0.5, 0),
     );
+    post.name = 'Well windlass post';
+    post.userData.roofClearance = roofUndersideAtPost - postTopY;
   }
   addMesh(
     group,
     new THREE.CylinderGeometry(0.13, 0.13, 3.15, 9),
     timberMaterial('weathered'),
-    new THREE.Vector3(0, 2.23, 0),
+    new THREE.Vector3(0, dimensions.windlassY, 0),
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
   addMesh(
     group,
     new THREE.CylinderGeometry(0.32, 0.32, 0.7, 10),
     timberMaterial('mid'),
-    new THREE.Vector3(0, 2.23, 0),
+    new THREE.Vector3(0, dimensions.windlassY, 0),
     new THREE.Euler(0, 0, Math.PI * 0.5),
   );
   addMesh(
@@ -84,19 +160,21 @@ export function createWellMesh(): THREE.Group {
     new THREE.Vector3(0, 1.03, 0),
   );
 
-  addMesh(
+  const roof = addMesh(
     group,
-    new THREE.ConeGeometry(2.52, 1.78, 4),
+    new THREE.ConeGeometry(dimensions.roofRadius, dimensions.roofHeight, 4),
     shingleMaterial(),
-    new THREE.Vector3(0, 3.72, 0),
+    new THREE.Vector3(0, dimensions.roofCenterY, 0),
     new THREE.Euler(0, Math.PI * 0.25, 0),
   );
-  addMesh(
+  roof.name = 'Well shingle roof';
+  const tieBeam = addMesh(
     group,
-    new THREE.BoxGeometry(3.1, 0.16, 0.16),
+    new THREE.BoxGeometry(3.1, dimensions.tieBeamThickness, 0.16),
     timberMaterial('dark'),
-    new THREE.Vector3(0, 3.0, 0),
+    new THREE.Vector3(0, dimensions.tieBeamY, 0),
   );
+  tieBeam.name = 'Well roof tie beam';
   return group;
 }
 

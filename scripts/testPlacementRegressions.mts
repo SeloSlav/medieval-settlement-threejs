@@ -5,9 +5,16 @@ import { intersectTerrainHeightfieldRay } from '../src/terrain/TerrainProjector.
 import {
   BuildingTerrainLayout,
   getBuildingFootprintCorners,
+  getBuildingFootprintHalfExtents,
   getBuildingSiteClearanceSearchRadius,
   pointWithinBuildingSiteClearance,
 } from '../src/buildings/BuildingTerrainLayout.ts';
+import {
+  BUILDING_EDGE_CLEARANCE,
+  BUILDING_EDGE_SNAP_DISTANCE,
+  buildingFootprintEdgeDistance,
+  resolveBuildingEdgeSnap,
+} from '../src/buildings/BuildingSpacing.ts';
 import { collectPlacedBuildingSources } from '../src/app/placedBuildingTerrainSync.ts';
 import {
   buildingPlacementYaw,
@@ -1000,6 +1007,91 @@ function testCivicAndFrontierPlacementPrerequisites(): void {
   );
 }
 
+function testDenseBuildingFootprintSpacingAndEdgeSnap(): void {
+  const roadNetwork = new RoadNetwork();
+  roadNetwork.addRoadPath([
+    new THREE.Vector3(-80, 0, 0),
+    new THREE.Vector3(80, 0, 0),
+  ]);
+  const existing = {
+    id: 'bakery-1',
+    kind: 'bakery',
+    x: 0,
+    z: 16,
+    constructionComplete: true,
+    assignedLabor: 0,
+  } as BuildingState;
+  const bakery = getBuildingFootprintHalfExtents('bakery');
+  const smokehouse = getBuildingFootprintHalfExtents('smokehouse');
+  const edgeAlignedX = bakery.halfWidth
+    + smokehouse.halfWidth
+    + BUILDING_EDGE_CLEARANCE;
+  const cursorX = edgeAlignedX + 1.4;
+
+  const snapped = resolveBuildingEdgeSnap(
+    'smokehouse',
+    cursorX,
+    existing.z,
+    [existing],
+    roadNetwork,
+  );
+  assert.ok(Math.abs(snapped.x - edgeAlignedX) < 1e-6);
+  assert.ok(Math.abs(snapped.z - existing.z) < 1e-6);
+  assert.ok(Math.abs(
+    buildingFootprintEdgeDistance(
+      'smokehouse',
+      snapped.x,
+      snapped.z,
+      existing,
+      roadNetwork,
+    ) - BUILDING_EDGE_CLEARANCE,
+  ) < 1e-6);
+
+  const placementContext = {
+    buildings: [existing],
+    residences: [],
+    burgageZones: [],
+    farmFields: [],
+    pastures: [],
+    vineyardParcels: [],
+    quarries: [],
+    foragingNodes: [],
+    stockpile: { timber: 10_000, stone: 10_000, ironwork: 10_000 },
+    isWaterAt: () => false,
+    isResourceDepositAt: () => false,
+    getNaturalHeightAt: () => 0,
+    roadNetwork,
+  };
+  assert.equal(
+    validateBuildingPlacement('smokehouse', snapped.x, snapped.z, placementContext).ok,
+    true,
+    'buildings separated by the small visible edge gap should be valid',
+  );
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'smokehouse',
+      edgeAlignedX - 0.2,
+      existing.z,
+      placementContext,
+    ),
+    { ok: false, reason: 'too_close' },
+    'visible footprints inside the minimum edge gap should remain blocked',
+  );
+
+  const outsideMagnet = edgeAlignedX + BUILDING_EDGE_SNAP_DISTANCE + 0.1;
+  assert.deepEqual(
+    resolveBuildingEdgeSnap(
+      'smokehouse',
+      outsideMagnet,
+      existing.z,
+      [existing],
+      roadNetwork,
+    ),
+    { x: outsideMagnet, z: existing.z },
+    'the edge magnet should not drag buildings from across an open town square',
+  );
+}
+
 function testMineralMineCanOccupyItsDeposit(): void {
   const ironDeposit: ResourceNodeState = {
     nodeId: 'deposit-iron-ordinary-0',
@@ -1118,6 +1210,7 @@ testBurgageFrontageDirectionAndRoadSideSelection();
 testPlacementOverlaysFollowTerrainHeight();
 testPlacementPreviewShowsTerrainFollowingExtent();
 testCivicAndFrontierPlacementPrerequisites();
+testDenseBuildingFootprintSpacingAndEdgeSnap();
 testMineralMineCanOccupyItsDeposit();
 testTerrainPointerPickingUsesBoundedHeightfieldWork();
 
@@ -1300,7 +1393,7 @@ assert.match(
 );
 assert.match(
   buildingTool,
-  /private roadSnapEnabled = true[\s\S]*setRoadSnapEnabled\(enabled: boolean\)[\s\S]*this\.roadSnapEnabled \? this\.options\.getRoadNetwork\?\.\(\) : null/,
+  /private roadSnapEnabled = true[\s\S]*setRoadSnapEnabled\(enabled: boolean\)[\s\S]*const fullRoadNetwork = this\.options\.getRoadNetwork\?\.\(\);[\s\S]*this\.roadSnapEnabled \? fullRoadNetwork : null/,
   'building placement should default roadside snapping on and bypass it when the shared toggle is off',
 );
 assert.match(
@@ -1351,7 +1444,17 @@ assert.match(
 );
 assert.match(
   buildingReducer,
-  /fn is_too_close_to_buildings\([\s\S]{0,220}owner: spacetimedb::Identity[\s\S]{0,300}building\(\)\.owner\(\)\.filter\(&owner\)/,
+  /fn is_too_close_to_buildings\([\s\S]{0,260}owner: spacetimedb::Identity[\s\S]{0,360}building\(\)\.owner\(\)\.filter\(&owner\)/,
+);
+assert.match(
+  buildingReducer,
+  /building_footprints_too_close\([\s\S]{0,260}road_network/,
+  'authoritative spacing must use road-aware visible footprints instead of pick-radius circles',
+);
+assert.doesNotMatch(
+  buildingReducer,
+  /candidate\.pick_radius \* 1\.85/,
+  'the broad center-distance exclusion rule should not return',
 );
 assert.match(
   buildingReducer,

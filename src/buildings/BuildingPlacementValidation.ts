@@ -31,6 +31,7 @@ import {
   RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS,
 } from '../resources/physicalDepositProtection.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
+import { buildingFootprintsTooClose } from './BuildingSpacing.ts';
 
 export type BuildingPlacementFailureReason =
   | 'water'
@@ -325,13 +326,8 @@ export function validateBuildingPlacement(
     return { ok: false, reason: 'insufficient_resources' };
   }
 
-  const definition = getBuildingDefinition(kind);
-  const minSeparation = definition.pickRadius * 1.85;
-
   for (const building of buildings) {
-    const other = getBuildingDefinition(building.kind);
-    const required = Math.max(minSeparation, (definition.pickRadius + other.pickRadius) * 0.9);
-    if (Math.hypot(building.x - x, building.z - z) < required) {
+    if (buildingFootprintsTooClose(kind, x, z, building, context.roadNetwork)) {
       return { ok: false, reason: 'too_close' };
     }
   }

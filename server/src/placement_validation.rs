@@ -2,7 +2,10 @@ use spacetimedb::Identity;
 use spacetimedb::ReducerContext;
 
 use crate::building_defs::building_def;
-use crate::burgage::{zone_corners_polygon, zone_overlaps_oriented_footprint, Point2, ZoneCorners};
+use crate::burgage::{
+    convex_zones_overlap, oriented_footprint_polygon, zone_corners_polygon,
+    zone_overlaps_oriented_footprint, Point2, ZoneCorners,
+};
 use crate::db::*;
 use crate::hydrology::sample_hydrology_score;
 use crate::roads::{load_owner_road_network, RoadNetwork};
@@ -22,6 +25,8 @@ const ROAD_FACING_SNAP_DISTANCE: f64 = 24.0;
 const OPEN_WATER_THRESHOLD: f64 = 0.999;
 const MAX_ROAD_FRONTAGE_DISTANCE: f64 = 16.0;
 const BUILDING_SITE_CLEAR_MARGIN: f64 = 0.75;
+const BUILDING_EDGE_CLEARANCE: f64 = 0.65;
+const BUILDING_EDGE_CLEARANCE_EPSILON: f64 = 0.025;
 
 struct BuildingPadParams {
     radius_x: f64,
@@ -181,6 +186,45 @@ fn zone_overlaps_building_footprint(
     )
 }
 
+pub fn building_footprints_too_close(
+    candidate_kind: &str,
+    candidate_x: f64,
+    candidate_z: f64,
+    other_kind: &str,
+    other_x: f64,
+    other_z: f64,
+    network: Option<&RoadNetwork>,
+) -> bool {
+    let candidate = building_footprint_polygon(
+        candidate_kind,
+        candidate_x,
+        candidate_z,
+        network,
+    );
+    let other = building_footprint_polygon(other_kind, other_x, other_z, network);
+    minimum_polygon_distance(&candidate, &other)
+        < BUILDING_EDGE_CLEARANCE - BUILDING_EDGE_CLEARANCE_EPSILON
+}
+
+fn building_footprint_polygon(
+    kind: &str,
+    x: f64,
+    z: f64,
+    network: Option<&RoadNetwork>,
+) -> [Point2; 4] {
+    let pad = building_pad_params(kind);
+    let yaw = network
+        .map(|roads| road_aware_building_placement_yaw(roads, kind, x, z))
+        .unwrap_or_else(|| building_placement_yaw(x, z));
+    oriented_footprint_polygon(
+        x,
+        z,
+        pad.radius_x * pad.inner_fade * BUILDING_FOOTPRINT_SCALE,
+        pad.radius_z * pad.inner_fade * BUILDING_FOOTPRINT_SCALE,
+        yaw,
+    )
+}
+
 pub fn is_on_resource_deposit(ctx: &ReducerContext, x: f64, z: f64) -> bool {
     ctx.db.quarry().iter().any(|deposit| {
         point_overlaps_circle(
@@ -301,6 +345,34 @@ fn distance_to_segment_squared(x: f64, z: f64, start: Point2, end: Point2) -> f6
     let nearest_x = start.x + dx * t;
     let nearest_z = start.z + dz * t;
     (x - nearest_x).powi(2) + (z - nearest_z).powi(2)
+}
+
+fn minimum_polygon_distance(a: &[Point2; 4], b: &[Point2; 4]) -> f64 {
+    if convex_zones_overlap(a, b) {
+        return 0.0;
+    }
+    let mut minimum_squared = f64::INFINITY;
+    for point in a {
+        for index in 0..b.len() {
+            minimum_squared = minimum_squared.min(distance_to_segment_squared(
+                point.x,
+                point.z,
+                b[index],
+                b[(index + 1) % b.len()],
+            ));
+        }
+    }
+    for point in b {
+        for index in 0..a.len() {
+            minimum_squared = minimum_squared.min(distance_to_segment_squared(
+                point.x,
+                point.z,
+                a[index],
+                a[(index + 1) % a.len()],
+            ));
+        }
+    }
+    minimum_squared.sqrt()
 }
 
 pub fn building_overlaps_road_surface(network: &RoadNetwork, kind: &str, x: f64, z: f64) -> bool {
@@ -633,8 +705,8 @@ fn building_placement_yaw(x: f64, z: f64) -> f64 {
 mod tests {
     use super::{
         building_overlaps_road_surface, building_site_contains_point,
-        clay_deposit_protection_radius, polygon_overlaps_circle, quarry_deposit_protection_radius,
-        static_foraging_resource_protection_radius,
+        clay_deposit_protection_radius, minimum_polygon_distance, polygon_overlaps_circle,
+        quarry_deposit_protection_radius, static_foraging_resource_protection_radius,
     };
     use crate::burgage::Point2;
     use crate::roads::RoadNetwork;
@@ -686,6 +758,31 @@ mod tests {
             40.0,
             -6.0
         ));
+    }
+
+    #[test]
+    fn dense_building_spacing_measures_the_visible_edge_gap() {
+        let first = [
+            Point2 { x: -4.0, z: -3.0 },
+            Point2 { x: 4.0, z: -3.0 },
+            Point2 { x: 4.0, z: 3.0 },
+            Point2 { x: -4.0, z: 3.0 },
+        ];
+        let separated = [
+            Point2 { x: 4.65, z: -2.0 },
+            Point2 { x: 9.0, z: -2.0 },
+            Point2 { x: 9.0, z: 2.0 },
+            Point2 { x: 4.65, z: 2.0 },
+        ];
+        let overlapping = [
+            Point2 { x: 3.8, z: -2.0 },
+            Point2 { x: 9.0, z: -2.0 },
+            Point2 { x: 9.0, z: 2.0 },
+            Point2 { x: 3.8, z: 2.0 },
+        ];
+
+        assert!((minimum_polygon_distance(&first, &separated) - 0.65).abs() < 1e-9);
+        assert_eq!(minimum_polygon_distance(&first, &overlapping), 0.0);
     }
 
     #[test]

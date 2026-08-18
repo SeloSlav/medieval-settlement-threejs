@@ -27,6 +27,8 @@ import type { WorldGenerationSettings } from '../world/worldGenerationSettings.t
 import { resolveWorldDimensions } from '../world/worldGenerationSettings.ts';
 import { forestDensityScale } from '../world/worldGenerationSettings.ts';
 import type { RoadEdge } from '../roads/RoadEdge.ts';
+import { BuildingAccessSpurs } from '../roads/BuildingAccessSpurs.ts';
+import type { BuildingRoadConnectionSource } from '../roads/BuildingRoadConnections.ts';
 import { RoadJunctionBuilder } from '../roads/RoadJunctionBuilder.ts';
 import { RoadMaterialFactory } from '../roads/RoadMaterialFactory.ts';
 import { RoadMeshBuilder } from '../roads/RoadMeshBuilder.ts';
@@ -153,6 +155,7 @@ export class SceneManager {
   readonly terrainProjector: TerrainProjector;
   readonly materials: RoadMaterialFactory;
   readonly roadMeshBuilder: RoadMeshBuilder;
+  private readonly buildingAccessSpurs: BuildingAccessSpurs;
   readonly previewGroup = new THREE.Group();
   readonly selectionGroup = new THREE.Group();
   private readonly sky: SkyCloudMesh;
@@ -178,6 +181,7 @@ export class SceneManager {
   private vegetationBuilt = false;
   private vegetationBuildActive = false;
   private roadNetworkRef: RoadNetwork | null = null;
+  private buildingAccessSpurSources: BuildingRoadConnectionSource[] = [];
   private forestClearanceBuildings: BuildingTerrainSource[] = [];
   private forestClearanceBurgageParcelPolygons: Point2[][] = [];
   private forestClearanceFarmFieldPolygons: Point2[][] = [];
@@ -314,6 +318,11 @@ export class SceneManager {
     this.junctionGroup.name = 'Road junction visuals';
     this.previewGroup.name = 'Road preview root';
     this.selectionGroup.name = 'Road selection root';
+    this.buildingAccessSpurs = new BuildingAccessSpurs({
+      parent: this.roadGroup,
+      terrain: this.terrain,
+      meshBuilder: this.roadMeshBuilder,
+    });
 
     this.scene.add(
       this.sky,
@@ -1194,6 +1203,11 @@ export class SceneManager {
     return this.roadNetworkRef;
   }
 
+  syncBuildingAccessRoads(buildings: Iterable<BuildingRoadConnectionSource>): void {
+    this.buildingAccessSpurSources = [...buildings].map((building) => ({ ...building }));
+    this.buildingAccessSpurs.sync(this.buildingAccessSpurSources, this.roadNetworkRef);
+  }
+
   syncRoadNetwork(network: RoadNetwork): void {
     this.roadNetworkRef = network;
     for (const [edgeId, visual] of this.edgeVisuals) {
@@ -1209,6 +1223,7 @@ export class SceneManager {
     }
 
     this.rebuildJunctions(network);
+    this.buildingAccessSpurs.sync(this.buildingAccessSpurSources, network);
     let buildingClearanceYawChanged = false;
     const roadFacingClearanceBuildings = this.forestClearanceBuildings.map((building) => {
       const yaw = buildingPlacementYaw(building.kind, building.x, building.z, network);
@@ -1298,6 +1313,7 @@ export class SceneManager {
     this.cropSuitabilityOverlay = null;
     this.cropSuitabilityCrop = null;
     this.vineyardSuitabilityActive = false;
+    this.buildingAccessSpurs.dispose();
     for (const visual of this.edgeVisuals.values()) disposeObject3D(visual.group);
     this.edgeVisuals.clear();
     if (this.forestManager) {

@@ -308,6 +308,11 @@ export class App {
             forceMeshUpdate: true,
           });
           this.buildingMarkers?.refreshRoadFacingOrientations();
+          if (this.sceneManager && this.buildingMarkers) {
+            this.sceneManager.syncBuildingAccessRoads(
+              this.buildingMarkers.getRoadConnectionSources(),
+            );
+          }
           this.roadSelection?.refresh();
           this.syncToolbar();
           if (this.gameState && this.villagers && this.roadNetwork) {
@@ -436,6 +441,9 @@ export class App {
     this.onResize();
     session.cameraController.applyRtsOrbitView();
     this.syncVisualQaFoundersCampFixture();
+    session.sceneManager.syncBuildingAccessRoads(
+      session.buildingMarkers.getRoadConnectionSources(),
+    );
     if (this.visualQaConditions && this.gameState) {
       const offlineSnapshot = {
         ...session.spacetimeStore.snapshot,
@@ -806,6 +814,9 @@ export class App {
     // Terrain sync rebases authoritative markers. Restore the presentation-only
     // fallback afterwards when visual QA has no server camp.
     this.syncVisualQaFoundersCampFixture();
+    this.sceneManager?.syncBuildingAccessRoads(
+      this.buildingMarkers?.getRoadConnectionSources() ?? [],
+    );
     if (this.snapshotApplierDeps) {
       syncSettlementWorld(this.snapshotApplierDeps.settlementWorld, presentationState);
     }
@@ -1392,6 +1403,9 @@ export class App {
     this.buildingMarkers.syncBuildings(
       buildings,
       this.gameState.livestockHerds,
+    );
+    this.sceneManager?.syncBuildingAccessRoads(
+      this.buildingMarkers.getRoadConnectionSources(),
     );
   }
 

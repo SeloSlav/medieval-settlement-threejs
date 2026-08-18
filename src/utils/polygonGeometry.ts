@@ -188,6 +188,21 @@ export function convexPolygonsOverlap2(
   return false;
 }
 
+/** Shortest edge-to-edge distance; intersecting convex polygons return zero. */
+export function distanceBetweenConvexPolygons2(a: Point2[], b: Point2[]): number {
+  if (a.length < 3 || b.length < 3) return Infinity;
+  if (convexPolygonsOverlap2(a, b, 1e-6)) return 0;
+
+  let minDistance = Infinity;
+  for (const point of a) {
+    minDistance = Math.min(minDistance, distancePointToPolygon2(point, b));
+  }
+  for (const point of b) {
+    minDistance = Math.min(minDistance, distancePointToPolygon2(point, a));
+  }
+  return minDistance;
+}
+
 export function orientedRectCorners2(
   center: Point2,
   yaw: number,

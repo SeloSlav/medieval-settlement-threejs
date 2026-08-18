@@ -45,8 +45,8 @@ use crate::marketplace_procurement_policy::{
     is_valid_marketplace_seed_grain_target, MARKETPLACE_GOLD_RESERVE_DEFAULT,
 };
 use crate::placement_validation::{
-    building_overlaps_residence_zone, building_overlaps_road_surface, building_site_contains_point,
-    is_on_resource_deposit,
+    building_footprints_too_close, building_overlaps_residence_zone,
+    building_overlaps_road_surface, building_site_contains_point, is_on_resource_deposit,
 };
 use crate::potter_firing_policy::{is_valid_potter_firing_policy, potter_fires_roof_tiles};
 use crate::pottery_dispatch_policy::is_valid_pottery_dispatch_policy;
@@ -124,20 +124,18 @@ fn is_too_close_to_buildings(
     kind: &str,
     x: f64,
     z: f64,
+    road_network: Option<&crate::roads::RoadNetwork>,
 ) -> bool {
-    let Some(candidate) = building_def(kind) else {
-        return false;
-    };
-    let min_separation = candidate.pick_radius * 1.85;
-
     for building in ctx.db.building().owner().filter(&owner) {
-        let Some(other) = building_def(&building.kind) else {
-            continue;
-        };
-        let required = min_separation.max((candidate.pick_radius + other.pick_radius) * 0.9);
-        let dx = building.x - x;
-        let dz = building.z - z;
-        if dx * dx + dz * dz < required * required {
+        if building_footprints_too_close(
+            kind,
+            x,
+            z,
+            &building.kind,
+            building.x,
+            building.z,
+            road_network,
+        ) {
             return true;
         }
     }
@@ -677,7 +675,7 @@ pub(crate) fn place_building_internal(
         return Err("No fish shoal within work range.".to_string());
     }
 
-    if is_too_close_to_buildings(ctx, owner, &kind, x, z) {
+    if is_too_close_to_buildings(ctx, owner, &kind, x, z, road_network.as_ref()) {
         return Err("Too close to another building.".to_string());
     }
 

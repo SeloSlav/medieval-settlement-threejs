@@ -188,8 +188,8 @@ export function createRoadCoreMaterial(
   material.roughness = 0.99;
   material.metalness = 0;
   material.polygonOffset = true;
-  material.polygonOffsetFactor = -2;
-  material.polygonOffsetUnits = -2;
+  material.polygonOffsetFactor = -1;
+  material.polygonOffsetUnits = -1;
 
   const rutMask = buildRoadRutMask(dirtTextures);
   const dirtColor = applyRoadRutColor(
@@ -250,8 +250,8 @@ export function createRoadEdgeMaterial(
   material.opacity = 1;
   material.depthWrite = false;
   material.polygonOffset = true;
-  material.polygonOffsetFactor = -3;
-  material.polygonOffsetUnits = -8;
+  material.polygonOffsetFactor = -1;
+  material.polygonOffsetUnits = -2;
   const edgeColor = buildRoadColorNode(textures, 0.78, ROAD_DIRT_EDGE_REFERENCE_TINT);
   material.colorNode = applyRoadWeatherColor(edgeColor, weather, 1.12);
   const edgeRoughness = (texture(textures.roughness, uv() as TslNode) as TslNode).r;

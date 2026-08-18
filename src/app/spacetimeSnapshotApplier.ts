@@ -234,6 +234,12 @@ export class SpacetimeSnapshotApplier {
       }
     }
 
+    if (buildingsChanged) {
+      deps.sceneManager?.syncBuildingAccessRoads(
+        deps.buildingMarkers?.getRoadConnectionSources() ?? [],
+      );
+    }
+
     syncSettlementWorld(deps.settlementWorld, state, previous);
     if (burgageZonesChanged || residencesChanged || buildingsChanged) {
       deps.burgageFencing?.syncZones(

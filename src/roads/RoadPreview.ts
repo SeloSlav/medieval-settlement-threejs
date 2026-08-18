@@ -1,7 +1,7 @@
 ﻿import * as THREE from 'three';
 import { RoadMaterialFactory } from './RoadMaterialFactory.ts';
 import { RoadMeshBuilder } from './RoadMeshBuilder.ts';
-import { ROAD_WIDTH } from './roadDimensions.ts';
+import { ROAD_WIDTH, roadVisualWidth } from './roadDimensions.ts';
 
 const MAX_ANCHOR_MARKERS = 16;
 
@@ -39,8 +39,9 @@ export class RoadPreview {
     this.cursor.rotation.x = -Math.PI / 2;
     this.cursor.visible = false;
     this.cursor.renderOrder = 32;
+    const cursorRadius = roadVisualWidth(ROAD_WIDTH) * 0.5;
     this.cursorRing = new THREE.Mesh(
-      new THREE.RingGeometry(ROAD_WIDTH * 0.5 - 0.22, ROAD_WIDTH * 0.5, 40),
+      new THREE.RingGeometry(Math.max(0.08, cursorRadius - 0.14), cursorRadius, 40),
       new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,

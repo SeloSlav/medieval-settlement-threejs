@@ -449,6 +449,7 @@ export async function bootstrapAppSession(
         forceMeshUpdate: true,
       });
       buildingMarkers.refreshRoadFacingOrientations();
+      sceneManager.syncBuildingAccessRoads(buildingMarkers.getRoadConnectionSources());
       roadSelection.refresh();
       bridge.syncToolbar();
       spacetimeStore.queueRoadSync(roadNetwork.snapshot());

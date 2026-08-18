@@ -24,6 +24,7 @@ import {
   type ClayDepositSite,
 } from '../clay/ClayDepositLayout.ts';
 import { resolveRoadsideBuildingPlacementCandidates } from './buildingPlacement.ts';
+import { resolveBuildingEdgeSnap } from './BuildingSpacing.ts';
 import {
   linkedRemoteWorkCamp,
   REMOTE_WORK_CAMP_MAX_DISTANCE,
@@ -637,17 +638,25 @@ export class BuildingTool {
       z,
       state.quarries.values(),
     );
-    const roadNetwork = this.roadSnapEnabled ? this.options.getRoadNetwork?.() : null;
+    const fullRoadNetwork = this.options.getRoadNetwork?.();
+    const roadNetwork = this.roadSnapEnabled ? fullRoadNetwork : null;
     const roadsideCandidates = resolveRoadsideBuildingPlacementCandidates(
       kind,
       resolved.x,
       resolved.z,
       roadNetwork,
     );
-    return roadNetwork
+    const roadsidePoint = roadNetwork
       ? chooseRoadClearBuildingPlacement(kind, roadsideCandidates, roadNetwork)
         ?? roadsideCandidates[0]
       : roadsideCandidates[0];
+    return resolveBuildingEdgeSnap(
+      kind,
+      roadsidePoint.x,
+      roadsidePoint.z,
+      state.buildings.values(),
+      fullRoadNetwork,
+    );
   }
 
   private clearPreview(): void {

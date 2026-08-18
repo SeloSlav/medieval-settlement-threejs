@@ -5,6 +5,12 @@ import { RoadMeshBuilder } from '../src/roads/RoadMeshBuilder.ts';
 import { RoadNetwork, type RoadNetworkSnapshot } from '../src/roads/RoadNetwork.ts';
 import { RoadNodeSnapMarkers } from '../src/roads/RoadNodeSnapMarkers.ts';
 import {
+  ROAD_VISUAL_CORE_Y_OFFSET,
+  ROAD_VISUAL_SHOULDER_Y_OFFSET,
+  ROAD_VISUAL_WIDTH_SCALE,
+  roadVisualWidth,
+} from '../src/roads/roadDimensions.ts';
+import {
   ROAD_END_TRIM,
   ROAD_JUNCTION_REACH,
   roadTerminalTrimDistance,
@@ -12,6 +18,14 @@ import {
 } from '../src/roads/roadEndpoint.ts';
 
 const point = (x: number, z: number): THREE.Vector3 => new THREE.Vector3(x, 0, z);
+
+assert.equal(ROAD_VISUAL_WIDTH_SCALE, 2 / 3);
+assert(Math.abs(roadVisualWidth(4.2) - 2.8) < 1e-9);
+assert(
+  ROAD_VISUAL_SHOULDER_Y_OFFSET < 0.11
+  && ROAD_VISUAL_CORE_Y_OFFSET < ROAD_VISUAL_SHOULDER_Y_OFFSET,
+  'placed road surfaces must remain below the construction-ground top',
+);
 
 const endpointJoin = new RoadNetwork();
 endpointJoin.addRoadPath([point(0, 0), point(20, 0)]);
@@ -172,6 +186,31 @@ const terminalEdgeGroup = new RoadMeshBuilder(
 const terminalCore = terminalEdgeGroup.getObjectByName(`Road core ${terminalEdge.id}`) as THREE.Mesh | undefined;
 const terminalBlend = terminalEdgeGroup.getObjectByName(`Road edge blend ${terminalEdge.id}`) as THREE.Mesh | undefined;
 assert(terminalCore && terminalBlend);
+assert.equal(terminalEdgeGroup.userData.logicalWidth, terminalEdge.width);
+assert.equal(terminalEdgeGroup.userData.visualWidth, roadVisualWidth(terminalEdge.width));
+const placedCorePositions = terminalCore.geometry.getAttribute('position');
+const firstCoreWidth = Math.hypot(
+  placedCorePositions.getX(0) - placedCorePositions.getX(1),
+  placedCorePositions.getZ(0) - placedCorePositions.getZ(1),
+);
+const visualWidth = roadVisualWidth(terminalEdge.width);
+assert(
+  Math.abs(firstCoreWidth - visualWidth) <= visualWidth * 0.11,
+  'the authored road ribbon should use the reduced visual width plus proportional edge jitter',
+);
+for (let index = 0; index < Math.min(placedCorePositions.count, 8); index++) {
+  assert(
+    Math.abs(placedCorePositions.getY(index) - ROAD_VISUAL_CORE_Y_OFFSET) < 1e-6,
+    'dry road core vertices should stay below construction ground',
+  );
+}
+const placedBlendPositions = terminalBlend.geometry.getAttribute('position');
+for (let index = 0; index < Math.min(placedBlendPositions.count, 12); index++) {
+  assert(
+    Math.abs(placedBlendPositions.getY(index) - ROAD_VISUAL_SHOULDER_Y_OFFSET) < 1e-6,
+    'dry road shoulder vertices should stay below construction ground',
+  );
+}
 const terminalSampleCount = terminalEdge.sampledPath.length - 2;
 assert(
   terminalCore.geometry.getAttribute('position').count > terminalSampleCount * 2,
@@ -273,7 +312,8 @@ function verifyBridgeJunction(arms: readonly THREE.Vector3[], expectedRuns: numb
     edge,
     group: meshBuilder.buildEdge(edge, network),
   }));
-  const junctionReach = 4.2 * ROAD_JUNCTION_REACH;
+  const bridgeVisualWidth = roadVisualWidth(4.2);
+  const junctionReach = bridgeVisualWidth * ROAD_JUNCTION_REACH;
   const matrix = new THREE.Matrix4();
   const position = new THREE.Vector3();
   for (const { group } of edgeGroups) {
@@ -352,7 +392,10 @@ function verifyBridgeJunction(arms: readonly THREE.Vector3[], expectedRuns: numb
       const along = position.x * direction.x + position.z * direction.z;
       const across = Math.abs(-position.x * direction.z + position.z * direction.x);
       assert(
-        !(along >= junctionReach - 4.2 * 0.12 && across < 4.2 * 0.3),
+        !(
+          along >= junctionReach - bridgeVisualWidth * 0.12
+          && across < bridgeVisualWidth * 0.3
+        ),
         'junction railings must leave every connected bridge mouth open',
       );
     }
