@@ -214,8 +214,13 @@ function collectRailingRuns(
       ));
       sidePath = trimPolyline(
         sidePath,
-        activeStart === 0 ? trim.start ?? 0 : 0,
-        activeEnd === sections.length - 1 ? trim.end ?? 0 : 0,
+        // Each active run deliberately includes one neighboring transition
+        // sample. When that sample is the edge endpoint, the railing reaches
+        // the shared junction even if the endpoint's own bridge blend is 0.
+        // Trim by the actual path extent rather than the active blend extent
+        // so a bank/water boundary at a junction cannot fence off an arm.
+        start === 0 ? trim.start ?? 0 : 0,
+        end === sections.length - 1 ? trim.end ?? 0 : 0,
       );
       const points = resamplePolyline(sidePath, BAY_SPACING_M);
       if (points.length >= 2) runs.push({ points });

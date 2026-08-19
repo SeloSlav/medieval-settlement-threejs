@@ -15,7 +15,6 @@ import {
   type BridgeSpan,
 } from './RiverBridgeSpans.ts';
 import {
-  BRIDGE_RAILING_START_BLEND,
   buildBridgeRailings,
 } from './BridgeRailings.ts';
 import { buildBridgeSupports } from './BridgeSupports.ts';
@@ -176,13 +175,12 @@ export class RoadMeshBuilder {
         })),
         this.materials.bridgeSupport,
         {
-          start: !startIsEndpoint && bridgeBlends[0] > BRIDGE_RAILING_START_BLEND
-            ? visualWidth * ROAD_JUNCTION_REACH
-            : 0,
-          end: !endIsEndpoint
-            && bridgeBlends[bridgeBlends.length - 1] > BRIDGE_RAILING_START_BLEND
-            ? visualWidth * ROAD_JUNCTION_REACH
-            : 0,
+          // Run collection decides whether a railing actually reaches either
+          // endpoint. Always provide the shared-junction clearance so a run
+          // whose first active bridge sample is just beyond the node still
+          // leaves the connected road arm open.
+          start: !startIsEndpoint ? visualWidth * ROAD_JUNCTION_REACH : 0,
+          end: !endIsEndpoint ? visualWidth * ROAD_JUNCTION_REACH : 0,
         },
       );
       if (railings) group.add(railings);

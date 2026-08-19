@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
+import { buildBridgeRailings } from '../src/roads/BridgeRailings.ts';
 import { RoadJunctionBuilder } from '../src/roads/RoadJunctionBuilder.ts';
 import {
   ROAD_PLACED_SAMPLE_SPACING,
@@ -505,6 +506,38 @@ for (const mesh of [terminalCore, terminalBlend]) {
   }
 }
 
+const transitionRailingMaterial = new THREE.MeshBasicMaterial();
+const transitionRailings = buildBridgeRailings(
+  [0, 1, 1, 0].map((bridgeBlend, index) => ({
+    center: new THREE.Vector3(index * 2, 0, 0),
+    leftDeck: new THREE.Vector3(index * 2, 0, 1),
+    rightDeck: new THREE.Vector3(index * 2, 0, -1),
+    bridgeBlend,
+  })),
+  transitionRailingMaterial,
+  { start: 2.5, end: 2.5 },
+);
+assert(transitionRailings);
+const transitionPosts = transitionRailings.getObjectByName(
+  'Bridge railing posts',
+) as THREE.InstancedMesh | undefined;
+assert(transitionPosts);
+const transitionMatrix = new THREE.Matrix4();
+const transitionPosition = new THREE.Vector3();
+let transitionMinimumX = Infinity;
+let transitionMaximumX = -Infinity;
+for (let index = 0; index < transitionPosts.count; index++) {
+  transitionPosts.getMatrixAt(index, transitionMatrix);
+  transitionPosition.setFromMatrixPosition(transitionMatrix);
+  transitionMinimumX = Math.min(transitionMinimumX, transitionPosition.x);
+  transitionMaximumX = Math.max(transitionMaximumX, transitionPosition.x);
+}
+assert(
+  transitionMinimumX >= 2.5 - 1e-5 && transitionMaximumX <= 3.5 + 1e-5,
+  'a transition sample at a shared endpoint must still honor junction railing clearance',
+);
+transitionRailingMaterial.dispose();
+
 const bridgeContext = {
   isWaterAt: () => true,
   getTerrainY: () => 0,
@@ -628,6 +661,51 @@ verifyBridgeJunction(
   [point(20, 0), point(-20, 0), point(0, 20), point(0, -20)],
   0,
 );
+
+const shorelineBridgeNetwork = new RoadNetwork();
+for (const arm of [point(20, 0), point(-20, 0)]) {
+  shorelineBridgeNetwork.addRoadPath([point(0, 0), arm]);
+}
+const shorelineBridgeNode = [...shorelineBridgeNetwork.nodes.values()].find((candidate) => (
+  Math.abs(candidate.position.x) < 1e-6
+  && Math.abs(candidate.position.z) < 1e-6
+  && shorelineBridgeNetwork.getNodeDegree(candidate) === 2
+));
+assert(shorelineBridgeNode);
+const shorelineBridgeBuilder = new RoadMeshBuilder(
+  flatTerrain as never,
+  materials as never,
+  {
+    isWaterAt: (x: number, z: number) => Math.hypot(x, z) > 1.4,
+    getTerrainY: () => 0,
+    getWaterSurfaceY: () => 2,
+  },
+);
+const shorelineReach = roadVisualWidth(4.2) * ROAD_JUNCTION_REACH;
+for (const edge of shorelineBridgeNetwork.edges.values()) {
+  const group = shorelineBridgeBuilder.buildEdge(edge, shorelineBridgeNetwork);
+  const core = group.getObjectByName(`Road core ${edge.id}`) as THREE.Mesh | undefined;
+  const bridgeBlend = core?.geometry.getAttribute('bridgeBlend');
+  assert(bridgeBlend && bridgeBlend.getX(0) <= 0.018);
+  const posts = group.getObjectByName('Bridge railing posts') as THREE.InstancedMesh | undefined;
+  assert(posts);
+  let closestPost = Infinity;
+  for (let index = 0; index < posts.count; index++) {
+    posts.getMatrixAt(index, transitionMatrix);
+    transitionPosition.setFromMatrixPosition(transitionMatrix);
+    closestPost = Math.min(
+      closestPost,
+      Math.hypot(
+        transitionPosition.x - shorelineBridgeNode.position.x,
+        transitionPosition.z - shorelineBridgeNode.position.z,
+      ),
+    );
+  }
+  assert(
+    closestPost >= shorelineReach - 0.2,
+    'a bridge beginning just beyond a dry shared node must leave the junction arm open',
+  );
+}
 
 const markerNetwork = new RoadNetwork();
 markerNetwork.addRoadPath([point(0, 0), point(30, 0)]);
