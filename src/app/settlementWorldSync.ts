@@ -158,6 +158,8 @@ export function syncSettlementWorld(
     || workerPasturesChanged
     || workerCartCrewsChanged
     || fireIncidentsChanged
+    || gardensChanged
+    || burgageZonesChanged
   ) {
     targets.villagers?.sync({
       residences: state.residences.values(),
@@ -168,6 +170,8 @@ export function syncSettlementWorld(
       treeRegistry: targets.getTreeRegistry(),
       farmFields: state.farmFields.values(),
       pastures: state.pastures.values(),
+      backyardGardens: state.backyardGardens.values(),
+      burgageZones: state.burgageZones.values(),
       deliveryTrips: state.deliveryTrips.values(),
       fireIncidents: state.fireIncidents.values(),
       roadNetwork: targets.getRoadNetwork(),

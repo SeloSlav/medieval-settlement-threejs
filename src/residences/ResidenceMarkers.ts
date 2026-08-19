@@ -224,7 +224,7 @@ function addPlankDoor(
     face: 'positive-z',
     width,
     height,
-    leafMaterial: weatheredMaterial,
+    leafMaterial: timberMaterial('mid'),
     frameMaterial: weatheredMaterial,
     namePrefix: 'Residence',
   });

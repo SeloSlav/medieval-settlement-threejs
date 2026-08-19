@@ -1525,6 +1525,9 @@ export class VillagerRenderer {
             residenceFireDisabled,
             this.holidayObservance,
             this.marketStallDutyForAgent(agent),
+            agent.residenceId
+              ? this.backyardWorksites.get(agent.residenceId) ?? null
+              : null,
           ),
       activityState: onDuty ? 'active' : 'ready',
       workplaceLabel: 'Workplace',
@@ -2059,9 +2062,12 @@ export class VillagerRenderer {
         if (agent.routinePhase === 'work' && agent.role === 'worker') {
           this.tryBeginWorkerWalk(agent);
         } else if (agent.routinePhase === 'home_outdoors') {
-          if (agent.role === 'resident' && !this.holidayObservance) {
+          if (agent.role !== 'founder' && !this.holidayObservance) {
             const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
-            if (residence) this.tryBeginWalk(agent, residence);
+            if (residence && !this.tryBeginBackyardWork(agent, residence)) {
+              if (agent.role === 'resident') this.tryBeginWalk(agent, residence);
+              else agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
+            }
           } else {
             agent.idleRemaining = pickIdleDuration(agent.pathSeed) * 0.7;
           }
@@ -2086,7 +2092,8 @@ export class VillagerRenderer {
       agent.simPathCursor + agent.currentMoveSpeed * dt,
     );
     if (
-      agent.pathPurpose === 'worker_work_loop'
+      (agent.pathPurpose === 'worker_work_loop'
+        || agent.pathPurpose === 'backyard_work')
       && agent.workActivity
       && agent.workTarget
       && !agent.workPerformed
@@ -2144,6 +2151,11 @@ export class VillagerRenderer {
           if (residence) this.resetToIdle(agent, residence);
           break;
         }
+        case 'backyard_work': {
+          const residence = agent.residenceId ? this.residences.get(agent.residenceId) : null;
+          if (residence) this.resetToIdle(agent, residence);
+          break;
+        }
         case 'ambient':
           this.completeAmbientArrival(agent);
           break;
@@ -2170,6 +2182,7 @@ export class VillagerRenderer {
       }
       return;
     }
+    if (agent.pathPurpose === 'backyard_work') return;
     if (
       agent.routinePhase === 'work'
       || agent.routinePhase === 'at_mass'
@@ -2304,6 +2317,56 @@ export class VillagerRenderer {
     agent.workRemaining = 0;
     agent.workPerformed = false;
     agent.idleDirty = false;
+  }
+
+  private tryBeginBackyardWork(
+    agent: VillagerAgent,
+    residence: ResidenceState,
+  ): boolean {
+    const worksite = this.backyardWorksites.get(residence.id);
+    if (!worksite || this.sabbathPausedToday || this.laborPaused) return false;
+
+    // Keep the household action readable without sending every off-duty person
+    // into the same small bed on every idle cycle.
+    const seed = agent.pathSeed >>> 0;
+    if (seed % 3 !== 0) return false;
+    const unitA = ((seed ^ 0x9e3779b9) >>> 0) / 0x1_0000_0000;
+    const unitB = (Math.imul(seed ^ 0x85ebca6b, 0xc2b2ae35) >>> 0) / 0x1_0000_0000;
+    const localX = (unitA - 0.5) * worksite.width * 0.5;
+    const localZ = (unitB - 0.5) * worksite.depth * 0.52;
+    const cos = Math.cos(worksite.yaw);
+    const sin = Math.sin(worksite.yaw);
+    const target = {
+      x: worksite.x + localX * cos + localZ * sin,
+      z: worksite.z - localX * sin + localZ * cos,
+    };
+    const home = residenceDoorPosition(residence);
+    const rawPath = [
+      { x: agent.x, z: agent.z },
+      target,
+      { x: home.x, z: home.z },
+    ];
+    const approachDistance = Math.hypot(target.x - agent.x, target.z - agent.z);
+    const routed = this.routeWorkerPath(rawPath, approachDistance);
+    if (!routed || routed.workStopDistance == null) return false;
+    const pathDistance = polylineLengthXZ(routed.path);
+    if (pathDistance < 0.35) return false;
+
+    this.clearWorkerActivity(agent);
+    agent.mode = 'walk';
+    agent.pathPurpose = 'backyard_work';
+    agent.path = routed.path;
+    agent.pathDistance = pathDistance;
+    agent.pathCursor = 0;
+    agent.simPathCursor = 0;
+    agent.displayPathCursor = 0;
+    agent.workActivity = 'gather';
+    agent.workTarget = target;
+    agent.workStopDistance = routed.workStopDistance;
+    agent.workPerformed = false;
+    agent.idleDirty = false;
+    agent.pathSeed = (agent.pathSeed * 1_664_525) ^ 0x27d4eb2d;
+    return true;
   }
 
   private syncRefugeRallySlots(): void {
@@ -4418,6 +4481,7 @@ function describeVillagerActivity(
   residenceFireDisabled = false,
   holiday: HolidayObservance | null = null,
   marketStallDuty: MarketStallDuty | null = null,
+  backyardWorksite: BackyardWorksite | null = null,
 ): string {
   const workplaceLabel = workplace
     ? isResidenceUpgradeWorkplaceId(workplace.id)
@@ -4563,6 +4627,13 @@ function describeVillagerActivity(
       }
       if (agent.role === 'worker' && workplaceFireDisabled) {
         return `Waiting near home — ${workplaceLabel} is closed by fire`;
+      }
+      if (agent.pathPurpose === 'backyard_work') {
+        if (backyardWorksite) {
+          return agent.mode === 'gather'
+            ? `Harvesting ${backyardGardenLabel(backyardWorksite.kind).toLowerCase()}`
+            : `Walking to household harvest at ${backyardGardenLabel(backyardWorksite.kind).toLowerCase()}`;
+        }
       }
       if (holiday && agent.role !== 'founder') {
         return `Celebrating ${holiday.label} with the household in the backyard`;

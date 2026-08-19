@@ -66,6 +66,23 @@ for (const tier of [1, 2, 3] as const) {
   const church = createChapelMesh(tier);
   assert.equal(church.name.toLowerCase(), chapelTierDefinition(tier).label.toLowerCase());
   assert.ok(church.getObjectByName('ChapelCofferChest'), `tier ${tier} needs its physical coffer`);
+  const openings: THREE.Object3D[] = [];
+  church.traverse((object) => {
+    assert.doesNotMatch(
+      object.name,
+      /window (?:vertical mullion|horizontal transom)|door cross brace/i,
+      `tier ${tier} openings must not retain generic cross bars`,
+    );
+    if (object.userData.facadeOpeningKind === 'door' || object.userData.facadeOpeningKind === 'window') {
+      openings.push(object);
+      assert.equal(object.userData.hasCrossBars, false);
+    }
+  });
+  assert.equal(
+    openings.length,
+    tier === 3 ? 6 : 5,
+    `tier ${tier} must expose every window and door procedurally`,
+  );
   const box = new THREE.Box3().setFromObject(church);
   bounds.push(box);
   sizes.push(box.getSize(new THREE.Vector3()));

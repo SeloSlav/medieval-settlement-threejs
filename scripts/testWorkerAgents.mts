@@ -670,6 +670,11 @@ assert.match(villagerRendererSource, /resolveAgentY/);
 assert.match(villagerRendererSource, /buildMarketplaceStallDuties/);
 assert.match(villagerRendererSource, /marketplaceStallWorkerApproach/);
 assert.match(villagerRendererSource, /Minding the \$\{marketStallLabel/);
+assert.match(villagerRendererSource, /private tryBeginBackyardWork/);
+assert.match(villagerRendererSource, /backyardGardenPhenology\(garden\.kind, month\)/);
+assert.match(villagerRendererSource, /agent\.pathPurpose = 'backyard_work'/);
+assert.match(villagerRendererSource, /agent\.workActivity = 'gather'/);
+assert.match(villagerRendererSource, /Harvesting \$\{backyardGardenLabel/);
 assert.match(
   villagerRendererSource,
   /beginPreparedJourney\(agent, path, 'commute_to_work'\)/,

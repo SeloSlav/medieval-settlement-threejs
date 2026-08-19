@@ -34,6 +34,14 @@ Do not trade silhouette clarity for more small geometry. Details that disappear 
 - Allow modest hand-built irregularity: alternating stone sizes, slight rotations, uneven courses, and restrained color variation.
 - Keep doors, windows, steps, tools, and carts believable relative to villagers.
 
+### Shared façade openings
+
+- Build doors and windows from the shared procedural façade-opening kit. A building specifies the face, anchor, width, and height; the kit owns recess depth, casing proportions, seams, sill, threshold, and hardware.
+- Windows are clear recessed panes bounded by jambs, a lintel, and a projecting sill. Do not add a generic central plus, cross, mullion, or transom as decoration.
+- Doors need a shadowed reveal, a visible timber leaf, narrow vertical plank seams, jambs, a lintel, a threshold, compact hinges, and a latch. Do not cover the leaf with generic full-width cross braces.
+- Specialized profiles such as church lancets may author their own surround, but must expose the same semantic opening metadata and keep the pane or leaf visually unobstructed.
+- Open work sites, market canopies, camps, pits, and similar unenclosed structures do not receive token doors or windows.
+
 Every building gets one signature silhouette feature. Examples include the church belfry, the mill's long saw hall, a quarry derrick, or the well's shelter roof. Do not give every building a tower, cross-gable, or ornamental roof.
 
 ## Materials and color
@@ -44,7 +52,7 @@ Use `src/buildings/buildingMaterials.ts` as the palette authority.
 
 - Pale warm limestone: foundations, steps, buttresses, curbs, quoins, and civic trim.
 - Warm limewash: residences and important enclosed buildings.
-- Dark oak: structural frames, doors, braces, window divisions, and machinery.
+- Dark oak: structural frames, door leaves, perimeter window casings, and machinery.
 - Weathered mid-tone timber: cladding, sheds, fences, racks, and working surfaces.
 - Deep terracotta red: important tiled roofs and restrained painted accents.
 - Brown wood shingles: humble, woodland, and utility buildings.

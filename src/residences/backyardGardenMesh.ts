@@ -1367,7 +1367,7 @@ export function syncBackyardGardenSeasonVisuals(
       return;
     }
     if (role === 'drying-herb-bundle') {
-      object.visible = kind === 'herb_garden' && monthIndex >= 4 && monthIndex <= 10;
+      object.visible = kind === 'herb_garden' && monthIndex >= 3 && monthIndex <= 10;
       return;
     }
 

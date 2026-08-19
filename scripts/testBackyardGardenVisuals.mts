@@ -6,6 +6,7 @@ import {
   animateBackyardGardenMesh,
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
+  syncBackyardGardenSeasonVisuals,
 } from '../src/residences/backyardGardenMesh.ts';
 import {
   BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN,
@@ -193,8 +194,10 @@ const vegetableDetail = createBackyardGardenMesh('vegetable_garden', {
   seed: 4271,
 });
 const vegetableNames: string[] = [];
+const vegetableCrops: THREE.Object3D[] = [];
 vegetableDetail.traverse((object) => {
   if (object.name) vegetableNames.push(object.name);
+  if (object.userData.backyardCropKind) vegetableCrops.push(object);
 });
 for (const cropName of ['CabbageRows', 'CarrotRows', 'TurnipRows']) {
   assert.ok(
@@ -229,6 +232,12 @@ for (const primitiveName of [
     `visible vegetable detail should not fall back to primitive ${primitiveName} geometry`,
   );
 }
+syncBackyardGardenSeasonVisuals(vegetableDetail, 'vegetable_garden', 1);
+assert.ok(vegetableCrops.every((crop) => !crop.visible), 'winter vegetable beds should show no crop growth');
+syncBackyardGardenSeasonVisuals(vegetableDetail, 'vegetable_garden', 3);
+assert.ok(vegetableCrops.every((crop) => crop.visible), 'March vegetable beds should show mixed seedlings');
+syncBackyardGardenSeasonVisuals(vegetableDetail, 'vegetable_garden', 12);
+assert.ok(vegetableCrops.every((crop) => !crop.visible), 'December vegetable beds should be cleared');
 disposeBackyardGardenMesh(vegetableDetail);
 
 const herbDetail = createBackyardGardenMesh('herb_garden', {
@@ -238,9 +247,13 @@ const herbDetail = createBackyardGardenMesh('herb_garden', {
 });
 const herbNames: string[] = [];
 const herbRacks: THREE.Group[] = [];
+const herbClumps: THREE.Object3D[] = [];
+const dryingBundles: THREE.Object3D[] = [];
 herbDetail.traverse((object) => {
   if (object.name) herbNames.push(object.name);
   if (object.name.startsWith('HerbDryingRack:')) herbRacks.push(object as THREE.Group);
+  if (object.userData.backyardHerbKind) herbClumps.push(object);
+  if (object.userData.backyardSeasonalRole === 'drying-herb-bundle') dryingBundles.push(object);
 });
 for (const herb of ['parsley', 'rosemary', 'sage']) {
   assert.ok(
@@ -265,6 +278,16 @@ assert.ok(
   )),
   'the two drying racks should sit detached in a side aisle without exceeding the garden footprint',
 );
+syncBackyardGardenSeasonVisuals(herbDetail, 'herb_garden', 1);
+assert.ok(
+  herbClumps.some((clump) => clump.userData.backyardHerbKind === 'rosemary' && clump.visible),
+  'hardy rosemary should remain visible at reduced winter scale',
+);
+assert.ok(dryingBundles.every((bundle) => !bundle.visible), 'winter drying racks should be empty');
+syncBackyardGardenSeasonVisuals(herbDetail, 'herb_garden', 3);
+assert.ok(dryingBundles.every((bundle) => !bundle.visible), 'March regrowth should not produce cut bundles');
+syncBackyardGardenSeasonVisuals(herbDetail, 'herb_garden', 4);
+assert.ok(dryingBundles.every((bundle) => bundle.visible), 'April cutting should put herbs on the drying racks');
 disposeBackyardGardenMesh(herbDetail);
 
 const fullBackyardVegetables = createBackyardGardenMesh('vegetable_garden', {
@@ -352,11 +375,15 @@ const collisionTrees: THREE.Object3D[] = [];
 const collisionProxies: THREE.Mesh[] = [];
 const harvestBaskets: THREE.Object3D[] = [];
 const orchardStones: THREE.Object3D[] = [];
+const orchardFruit: THREE.Object3D[] = [];
+const basketFruit: THREE.Object3D[] = [];
 collisionOrchard.traverse((object) => {
   if (object.name.startsWith('AppleTree:')) collisionTrees.push(object);
   if (object.userData.fpCollisionProxy === true) collisionProxies.push(object as THREE.Mesh);
   if (object.name === 'Harvest basket') harvestBaskets.push(object);
   if (object.name === 'Orchard stepping stone') orchardStones.push(object);
+  if (object.userData.backyardSeasonalRole === 'orchard-fruit') orchardFruit.push(object);
+  if (object.userData.backyardSeasonalRole === 'basket-produce') basketFruit.push(object);
 });
 assert.equal(collisionTrees.length, 3);
 assert.equal(collisionProxies.length, collisionTrees.length);
@@ -374,12 +401,26 @@ for (const proxy of collisionProxies) {
   assert.equal(proxy.material.visible, false, 'collision proxies should never render');
 }
 assert.equal(harvestBaskets.length, 1);
+assert.ok(orchardFruit.length > 0);
+assert.ok(basketFruit.length > 0);
 assert.equal(harvestBaskets[0]!.userData.fpCollisionAggregate, true, 'the harvest basket should use one close aggregate collider');
 assert.ok(orchardStones.length >= 2);
 assert.ok(
   orchardStones.every((stone) => stone.userData.fpNoCollision === true),
   'orchard stepping stones should not add collision beyond trees and basket',
 );
+syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 1);
+assert.ok(orchardFruit.every((fruit) => !fruit.visible), 'dormant orchards should show no fruit on trees');
+assert.ok(basketFruit.every((fruit) => !fruit.visible), 'dormant orchard baskets should be empty');
+syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 8);
+assert.ok(orchardFruit.every((fruit) => fruit.visible), 'August fruit should be visibly ripening on trees');
+assert.ok(basketFruit.every((fruit) => !fruit.visible), 'ripening fruit should not fill baskets before harvest');
+syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 9);
+assert.ok(orchardFruit.every((fruit) => fruit.visible));
+assert.ok(basketFruit.every((fruit) => fruit.visible), 'September harvest should fill orchard baskets');
+syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 10);
+assert.ok(orchardFruit.every((fruit) => !fruit.visible), 'post-harvest trees should be cleared of fruit');
+assert.ok(basketFruit.every((fruit) => !fruit.visible), 'post-harvest baskets should be cleared');
 disposeBackyardGardenMesh(collisionOrchard);
 
 const flowerDetail = createBackyardGardenMesh('flower_garden', { width: 6.2, depth: 5.4, seed: 4271 });

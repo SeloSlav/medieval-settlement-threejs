@@ -262,7 +262,7 @@ export function addProceduralDoor(
     'door-threshold',
   ));
 
-  const plankCount = THREE.MathUtils.clamp(Math.round(width / 0.24), 3, 11);
+  const plankCount = THREE.MathUtils.clamp(Math.round(width / 0.3), 3, 9);
   const seams: THREE.Mesh[] = [];
   for (let seamIndex = 1; seamIndex < plankCount; seamIndex++) {
     const x = -width * 0.5 + width * (seamIndex / plankCount);

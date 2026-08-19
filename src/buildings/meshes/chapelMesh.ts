@@ -9,7 +9,7 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
-import { addProceduralDoor } from './facadeOpeningKit.ts';
+import { addProceduralDoor, addProceduralWindow } from './facadeOpeningKit.ts';
 
 type ChapelMaterials = {
   limewash: THREE.MeshStandardMaterial;
@@ -535,44 +535,21 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
     const windowCenterY = 1.45;
     const windowWidth = 0.68;
     const windowHeight = 0.88;
-    const frameThickness = 0.1;
-    const frameWidth = windowWidth + frameThickness * 2;
-    const frameHeight = windowHeight + frameThickness * 2;
     for (const side of [-1, 1] as const) {
       for (const [windowIndex, z] of windowZs.entries()) {
-        const pane = addMesh(
-          group,
-          new THREE.BoxGeometry(0.08, windowHeight, windowWidth),
-          materials.glass,
-          new THREE.Vector3(side * (halfW + 0.045), windowCenterY, z),
-        );
-        pane.name = `Small wooden church ${side < 0 ? 'left' : 'right'} window pane ${windowIndex + 1}`;
-
-        for (const zSign of [-1, 1] as const) {
-          const jamb = addMesh(
-            group,
-            new THREE.BoxGeometry(0.12, frameHeight, frameThickness),
-            timberMaterial('dark'),
-            new THREE.Vector3(
-              side * (halfW + 0.085),
-              windowCenterY,
-              z + zSign * (windowWidth + frameThickness) * 0.5,
-            ),
-          );
-          jamb.name = 'Small wooden church window perimeter frame';
-        }
-        for (const ySign of [-1, 1] as const) {
-          const sillOrLintel = addMesh(
-            group,
-            new THREE.BoxGeometry(0.12, frameThickness, frameWidth),
-            timberMaterial('dark'),
-            new THREE.Vector3(
-              side * (halfW + 0.09),
-              windowCenterY + ySign * (windowHeight + frameThickness) * 0.5,
-              z,
-            ),
-          );
-          sillOrLintel.name = 'Small wooden church window perimeter frame';
+        const parts = addProceduralWindow(group, {
+          position: new THREE.Vector3(side * (halfW + 0.045), windowCenterY, z),
+          face: side > 0 ? 'positive-x' : 'negative-x',
+          width: windowWidth,
+          height: windowHeight,
+          paneMaterial: materials.glass,
+          frameMaterial: timberMaterial('dark'),
+          sillMaterial: timberMaterial('dark'),
+          namePrefix: 'Small wooden church',
+        });
+        parts.pane.name = `Small wooden church ${side < 0 ? 'left' : 'right'} window pane ${windowIndex + 1}`;
+        for (const framePart of parts.frame) {
+          framePart.name = 'Small wooden church window perimeter frame';
         }
       }
       // These are façade-bay seams. The former inner pair occupied the same
@@ -754,27 +731,31 @@ function createLargeStoneChurchMesh(): THREE.Group {
   addBellTower(group, materials, 1.18, wallTop + ridgeHeight * 0.7, roofMaterial);
 
   const frontGableZ = halfD + 0.12;
-  addMesh(
-    group,
+  const oculus = new THREE.Group();
+  oculus.name = 'Chapel procedural oculus window opening';
+  oculus.position.set(0, wallTop + 1.05, frontGableZ);
+  oculus.userData.facadeOpeningKind = 'window';
+  oculus.userData.facadeOpeningFace = 'positive-z';
+  oculus.userData.facadeOpeningWidth = 0.96;
+  oculus.userData.facadeOpeningHeight = 0.96;
+  oculus.userData.hasCrossBars = false;
+  group.add(oculus);
+  const oculusPane = addMesh(
+    oculus,
     new THREE.CircleGeometry(0.48, 16),
     materials.glass,
-    new THREE.Vector3(0, wallTop + 1.05, frontGableZ),
+    new THREE.Vector3(),
   );
-  addMesh(
-    group,
+  oculusPane.name = 'Chapel clear oculus window pane';
+  oculusPane.userData.facadeOpeningRole = 'window-pane';
+  const oculusSurround = addMesh(
+    oculus,
     new THREE.TorusGeometry(0.54, 0.1, 8, 18),
     stoneMaterial('light'),
-    new THREE.Vector3(0, wallTop + 1.05, frontGableZ + 0.02),
+    new THREE.Vector3(0, 0, 0.02),
   );
-  for (let i = 0; i < 4; i++) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(0.055, 0.88, 0.045),
-      timberMaterial('dark'),
-      new THREE.Vector3(0, wallTop + 1.05, frontGableZ + 0.07),
-      new THREE.Euler(0, 0, i * Math.PI * 0.25),
-    );
-  }
+  oculusSurround.name = 'Chapel oculus stone perimeter surround';
+  oculusSurround.userData.facadeOpeningRole = 'window-frame';
 
   // A low parish wall frames the entrance without obscuring the facade.
   for (const side of [-1, 1] as const) {

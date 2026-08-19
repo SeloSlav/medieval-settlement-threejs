@@ -11,6 +11,8 @@ import {
   type BackyardGardenKind,
 } from '../src/generated/gameBalance.ts';
 import {
+  backyardGardenMarketChannel,
+  backyardGardenPhenology,
   backyardGardenSeasonalMultiplier,
 } from '../src/economy/backyardGardenTick.ts';
 import {
@@ -193,6 +195,12 @@ assert.equal(
   ),
   0.75,
 );
+assert.equal(backyardGardenPhenology('vegetable_garden', 3).harvestable, false);
+assert.equal(backyardGardenPhenology('vegetable_garden', 4).harvestable, true);
+assert.equal(backyardGardenPhenology('herb_garden', 1).growing, false);
+assert.equal(backyardGardenPhenology('herb_garden', 1).harvestable, false);
+assert.equal(backyardGardenMarketChannel('flower_garden'), null);
+assert.equal(backyardGardenMarketChannel('herb_garden'), 'goods');
 
 const september = nonSundayClockInMonth(9);
 const westHome = residence('west-home', 0, 3, HOUSEHOLD_MAX_WEALTH);
@@ -396,7 +404,7 @@ const sabbathState = state({
   ],
   residences: [residence('sabbath-home', 0)],
   gardens: [
-    garden('sabbath-vegetables', 'sabbath-home', 'vegetable_garden'),
+    garden('sabbath-hens', 'sabbath-home', 'hen_yard'),
   ],
 });
 const sabbath = computeSettlementBackyardEconomyPlan({
@@ -549,8 +557,11 @@ const backyardView = renderBackyardInspector(
     getParishPolicy: () => DEFAULT_PARISH_POLICY,
   } as Parameters<typeof renderBackyardInspector>[1],
 );
-assert.equal(backyardView.statusText, 'Harvesting');
+assert.equal(backyardView.statusText, 'Harvestable — household collection active');
 assert.match(backyardView.detailsHtml, /September harvest/);
+assert.match(backyardView.detailsHtml, /Harvest window/);
+assert.match(backyardView.detailsHtml, /No assigned labor slot/);
+assert.match(backyardView.detailsHtml, /claims no extra Marketplace table or depot worker/);
 assert.match(backyardView.detailsHtml, /Home food today/);
 assert.match(backyardView.detailsHtml, /Shared market food today/);
 assert.match(backyardView.detailsHtml, /Local trade value today/);
@@ -759,7 +770,10 @@ assert.doesNotMatch(
 assert.match(serverStepSource, /market_tolls_by_market/);
 assert.match(serverStepSource, /local_marketplace_for_residence/);
 assert.match(serverStepSource, /credit_marketplace_receipt_gold/);
-assert.match(serverStepSource, /ResidenceNeedKind::Food[\s\S]*ResidenceNeedKind::Cloth/);
+assert.match(serverStepSource, /fn backyard_market_stall_need/);
+assert.match(serverStepSource, /FlowerGarden => None/);
+assert.match(serverStepSource, /HerbGarden => Some\(ResidenceNeedKind::Cloth\)/);
+assert.match(serverStepSource, /_ => Some\(ResidenceNeedKind::Food\)/);
 assert.match(serverStepSource, /CommodityKind::Remedies/);
 assert.match(
   serverStepSource,
