@@ -4,10 +4,10 @@ import {
   BAKERY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   POTTER_WATER_PER_CYCLE,
-  POPULATION_PER_RESIDENCE,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_REORDER_FRACTION,
+  RESIDENCE_POPULATION_WIDE,
   SMITHY_WATER_PER_CYCLE,
   WEAVER_FLAX_WATER_PER_CYCLE,
   WELL_BASE_REFILL_PER_SEC,
@@ -44,7 +44,7 @@ export function wellRefillPerSecond(
 export function wellSustainableHomeCapacity(
   hydrology: number,
   weatherMultiplier = 1,
-  residentsPerHome = POPULATION_PER_RESIDENCE,
+  residentsPerHome = RESIDENCE_POPULATION_WIDE,
 ): number {
   const demandPerHome = Math.max(0, residentsPerHome) * RESIDENCE_WATER_PER_PERSON_PER_SEC;
   if (demandPerHome <= 0) return 0;

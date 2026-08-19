@@ -49,17 +49,17 @@ pub fn step_backyard_gardens(
         if residence.population == 0 || tick.residence_disabled_by_fire(ctx, residence.id) {
             continue;
         }
-        let stall_need = if backyard_produces_food(kind) {
-            ResidenceNeedKind::Food
-        } else {
-            ResidenceNeedKind::Cloth
-        };
-        let marketplace_id = tick.local_marketplace_for_residence_deposit(
-            ctx,
-            garden.owner,
-            residence.id,
-            stall_need,
-        );
+        // Gardens never claim their own table or worker. Saleable overflow
+        // reuses an already staffed Marketplace group; flower gardens have no
+        // commodity and therefore need no stall at all.
+        let marketplace_id = backyard_market_stall_need(kind).and_then(|stall_need| {
+            tick.local_marketplace_for_residence_deposit(
+                ctx,
+                garden.owner,
+                residence.id,
+                stall_need,
+            )
+        });
         let (tax_rate, collection_multiplier) =
             *tax_policy_by_owner.entry(garden.owner).or_insert_with(|| {
                 (
@@ -216,11 +216,12 @@ fn deposit_herb_remedies(ctx: &ReducerContext, residence: &Residence, amount: f6
     deposited
 }
 
-fn backyard_produces_food(kind: BackyardGardenKind) -> bool {
-    !matches!(
-        kind,
-        BackyardGardenKind::FlowerGarden | BackyardGardenKind::HerbGarden
-    )
+fn backyard_market_stall_need(kind: BackyardGardenKind) -> Option<ResidenceNeedKind> {
+    match kind {
+        BackyardGardenKind::FlowerGarden => None,
+        BackyardGardenKind::HerbGarden => Some(ResidenceNeedKind::Cloth),
+        _ => Some(ResidenceNeedKind::Food),
+    }
 }
 
 fn backyard_food_commodity(

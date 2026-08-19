@@ -9,6 +9,7 @@ import {
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
+import { addProceduralDoor } from './facadeOpeningKit.ts';
 
 type ChapelMaterials = {
   limewash: THREE.MeshStandardMaterial;
@@ -94,35 +95,32 @@ function addLancetWindow(
 ): void {
   const outward = face === 'left' ? -1 : 1;
   const window = new THREE.Group();
+  window.name = 'Chapel procedural lancet window opening';
   window.position.set(outward * (halfWidth - 0.035), sillY, z);
   window.rotation.y = outward > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+  window.userData.facadeOpeningKind = 'window';
+  window.userData.facadeOpeningFace = outward > 0 ? 'positive-x' : 'negative-x';
+  window.userData.facadeOpeningWidth = 0.66;
+  window.userData.facadeOpeningHeight = 1.55;
+  window.userData.hasCrossBars = false;
   group.add(window);
 
-  addMesh(
+  const surround = addMesh(
     window,
     createLancetGeometry(0.96, 1.9, 0.11),
     stoneMaterial('light'),
     new THREE.Vector3(0, 0, 0),
   );
-  addMesh(
+  surround.name = 'Chapel lancet window stone surround';
+  surround.userData.facadeOpeningRole = 'window-frame';
+  const pane = addMesh(
     window,
     createLancetGeometry(0.66, 1.55, 0.12),
     materials.glass,
     new THREE.Vector3(0, 0.12, 0.075),
   );
-
-  addMesh(
-    window,
-    new THREE.BoxGeometry(0.045, 1.38, 0.055),
-    timberMaterial('dark'),
-    new THREE.Vector3(0, 0.78, 0.145),
-  );
-  addMesh(
-    window,
-    new THREE.BoxGeometry(0.56, 0.045, 0.055),
-    timberMaterial('dark'),
-    new THREE.Vector3(0, 0.72, 0.15),
-  );
+  pane.name = 'Chapel clear lancet window pane';
+  pane.userData.facadeOpeningRole = 'window-pane';
 }
 
 function addSideButtress(
@@ -194,44 +192,70 @@ function addPlankDoor(
 ): void {
   const doorWidth = 1.38;
   const doorHeight = 2.22;
+  const opening = new THREE.Group();
+  opening.name = 'Chapel procedural arched door opening';
+  opening.position.set(0, floorY, frontZ);
+  opening.userData.facadeOpeningKind = 'door';
+  opening.userData.facadeOpeningFace = 'positive-z';
+  opening.userData.facadeOpeningWidth = doorWidth;
+  opening.userData.facadeOpeningHeight = doorHeight;
+  opening.userData.hasCrossBars = false;
+  group.add(opening);
 
-  addMesh(
-    group,
+  const surround = addMesh(
+    opening,
     createLancetGeometry(doorWidth + 0.48, doorHeight + 0.56, 0.16),
     stoneMaterial('light'),
-    new THREE.Vector3(0, floorY - 0.02, frontZ - 0.08),
+    new THREE.Vector3(0, -0.02, -0.08),
   );
-  addMesh(
-    group,
+  surround.name = 'Chapel arched door stone surround';
+  surround.userData.facadeOpeningRole = 'door-frame';
+  const reveal = addMesh(
+    opening,
     createLancetGeometry(doorWidth, doorHeight, 0.18),
     timberMaterial('dark'),
-    new THREE.Vector3(0, floorY, frontZ + 0.025),
+    new THREE.Vector3(0, 0, 0.025),
   );
+  reveal.name = 'Chapel shadowed arched door reveal';
+  reveal.userData.facadeOpeningRole = 'door-reveal';
+  const leaf = addMesh(
+    opening,
+    createLancetGeometry(doorWidth - 0.08, doorHeight - 0.06, 0.06),
+    timberMaterial('mid'),
+    new THREE.Vector3(0, 0.03, 0.175),
+  );
+  leaf.name = 'Chapel visible arched timber door leaf';
+  leaf.userData.facadeOpeningRole = 'door-leaf';
 
-  const plankWidth = doorWidth / 5;
-  for (let i = 0; i < 5; i++) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(plankWidth * 0.84, doorHeight * 0.68, 0.055),
-      i % 2 === 0 ? timberMaterial('mid') : timberMaterial('weathered'),
-      new THREE.Vector3(-doorWidth * 0.5 + plankWidth * (i + 0.5), floorY + doorHeight * 0.34, frontZ + 0.225),
+  for (const x of [-0.42, -0.14, 0.14, 0.42]) {
+    const seam = addMesh(
+      opening,
+      new THREE.BoxGeometry(0.014, doorHeight * 0.58, 0.012),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, doorHeight * 0.31, 0.242),
     );
+    seam.name = 'Chapel door vertical plank seam';
+    seam.userData.facadeOpeningRole = 'door-plank-seam';
   }
 
   for (const y of [floorY + 0.48, floorY + 1.42]) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(doorWidth * 0.82, 0.09, 0.065),
+    const hinge = addMesh(
+      opening,
+      new THREE.BoxGeometry(0.24, 0.075, 0.045),
       metalMaterial('iron'),
-      new THREE.Vector3(0, y, frontZ + 0.27),
+      new THREE.Vector3(-doorWidth * 0.37, y - floorY, 0.255),
     );
+    hinge.name = 'Chapel localized door hinge plate';
+    hinge.userData.facadeOpeningRole = 'door-hinge';
   }
-  addMesh(
-    group,
+  const handle = addMesh(
+    opening,
     new THREE.TorusGeometry(0.1, 0.025, 6, 12),
     materials.brass,
-    new THREE.Vector3(0.38, floorY + 1.02, frontZ + 0.31),
+    new THREE.Vector3(0.38, 1.02, 0.29),
   );
+  handle.name = 'Chapel brass ring door handle';
+  handle.userData.facadeOpeningRole = 'door-latch';
 }
 
 function addFolkFrieze(
@@ -582,20 +606,15 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
   if (stoneTier) {
     addPlankDoor(group, materials, frontZ, foundationHeight + 0.04);
   } else {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(1.18, 1.94, 0.16),
-      timberMaterial('dark'),
-      new THREE.Vector3(0, foundationHeight + 0.97, frontZ + 0.09),
-    );
-    for (const x of [-0.42, -0.14, 0.14, 0.42]) {
-      addMesh(
-        group,
-        new THREE.BoxGeometry(0.19, 1.76, 0.04),
-        timberMaterial('mid'),
-        new THREE.Vector3(x, foundationHeight + 0.97, frontZ + 0.19),
-      );
-    }
+    addProceduralDoor(group, {
+      position: new THREE.Vector3(0, foundationHeight, frontZ + 0.03),
+      face: 'positive-z',
+      width: 1.18,
+      height: 1.94,
+      leafMaterial: timberMaterial('mid'),
+      frameMaterial: timberMaterial('dark'),
+      namePrefix: 'Small wooden church',
+    });
   }
 
   addCompactBellCote(

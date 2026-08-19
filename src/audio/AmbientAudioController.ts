@@ -231,12 +231,7 @@ export class AmbientAudioController {
     this.buildingAudioView.listenerX = listener.x;
     this.buildingAudioView.listenerZ = listener.z;
     this.buildingAudioView.orbitDistance = this.config.getOrbitDistance();
-    this.buildingAudio.tick(
-      dtSeconds,
-      buildingSnapshot,
-      residenceSnapshot,
-      this.buildingAudioView,
-    );
+    this.buildingAudio.tick(dtSeconds);
     this.worldFoley.tick(dtSeconds, {
       view: this.buildingAudioView,
       buildings: buildingSnapshot,
@@ -305,6 +300,13 @@ export class AmbientAudioController {
 
   playFootstep(surface: FootstepSurface): void {
     this.worldFoley.playFootstep(surface);
+  }
+
+  playBuildingSelection(
+    kind: BuildingState['kind'] | 'residence',
+    sourceId: string,
+  ): void {
+    this.buildingAudio.play(kind, sourceId);
   }
 
   dispose(): void {

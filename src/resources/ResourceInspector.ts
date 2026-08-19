@@ -288,6 +288,7 @@ type ResourceInspectorOptions = {
     residenceIds: ReadonlySet<string>,
     kind: ServiceCoverageView['kind'] | null,
   ) => void;
+  onTargetSelected?: (target: InspectableTarget) => void;
   onSelectionChange?: (target: InspectableTarget | null) => void;
   isBlocked: () => boolean;
 };
@@ -1795,6 +1796,7 @@ export class ResourceInspector {
     this.updateMarker();
     this.panel.hidden = false;
     this.options.onSelectionChange?.(target);
+    this.options.onTargetSelected?.(target);
   }
 
   clearSelection(hidePanel = true): void {

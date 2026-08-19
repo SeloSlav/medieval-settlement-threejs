@@ -8,6 +8,7 @@ import {
 import { prepareBuildingGeometryUvs } from '../buildings/buildingMetricUvs.ts';
 import { mulberry32 } from '../utils/random.ts';
 import type { BackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
+import { backyardGardenPhenology } from '../economy/backyardGardenTick.ts';
 
 export type BackyardGardenMeshOptions = {
   width?: number;
@@ -662,7 +663,7 @@ function addBasket(
   for (let i = 0; i < fruitCount; i++) {
     const angle = (i / fruitCount) * Math.PI * 2;
     const ring = fruitRadius < 0.06 ? 0.08 + (i % 2) * 0.07 : 0.14;
-    addMesh(
+    const basketFruit = addMesh(
       basket,
       new THREE.IcosahedronGeometry(fruitRadius, 1),
       fruit,
@@ -673,6 +674,7 @@ function addBasket(
       undefined,
       'Basket fruit',
     );
+    basketFruit.userData.backyardSeasonalRole = 'basket-produce';
   }
 }
 
@@ -701,6 +703,7 @@ function addFruitClusters(
 
   const fruit = plants.createFruitInstances(plantKind, positions, variant);
   fruit.userData.fpNoCollision = true;
+  fruit.userData.backyardSeasonalRole = 'orchard-fruit';
   anchor.add(fruit);
 }
 
@@ -886,6 +889,7 @@ function addVegetableGarden(group: THREE.Group, width: number, depth: number, se
     addSoilBed(group, x, bedZ, bedWidth, bedDepth);
     const cropGroup = new THREE.Group();
     cropGroup.name = cropRows[bed]!.name;
+    cropGroup.userData.backyardCropKind = (['cabbage', 'carrot', 'turnip'] as const)[bed];
     group.add(cropGroup);
     const spacing = cropRows[bed]!.spacing;
     const naturalCols = Math.max(2, Math.floor(bedWidth / spacing));
@@ -1060,6 +1064,7 @@ function addHerbClump(group: THREE.Group, x: number, z: number, kind: number, se
   }[herbKind];
   const clump = new THREE.Group();
   clump.name = `Textured ${herbKind} clump`;
+  clump.userData.backyardHerbKind = herbKind;
   clump.position.set(x, 0.06, z);
   clump.rotation.y = rng() * Math.PI;
   group.add(clump);
@@ -1128,6 +1133,7 @@ function addDryingRack(
     );
     bundle.position.set(dx, 1.12, 0);
     bundle.rotation.set(0, (i % 2 ? 1 : -1) * 0.12, Math.PI);
+    bundle.userData.backyardSeasonalRole = 'drying-herb-bundle';
     rack.add(bundle);
   }
 }
@@ -1309,6 +1315,70 @@ export function createBackyardGardenMesh(
   }
 
   return group;
+}
+
+const VEGETABLE_MONTHLY_SCALE = {
+  cabbage: [0, 0, 0.28, 0.62, 0.86, 0.96, 0.9, 0.72, 0.86, 1, 0.58, 0],
+  carrot: [0, 0, 0.16, 0.38, 0.64, 0.86, 1, 1, 0.9, 0.68, 0.18, 0],
+  turnip: [0, 0, 0.22, 0.56, 0.86, 0.76, 0.48, 0.38, 0.66, 0.92, 0.62, 0],
+} as const;
+
+const HERB_MONTHLY_SCALE = {
+  parsley: [0, 0, 0.5, 0.72, 0.86, 1, 1, 0.96, 0.78, 0.65, 0.32, 0],
+  rosemary: [0.46, 0.44, 0.68, 0.82, 0.92, 1, 1, 0.96, 0.84, 0.74, 0.6, 0.48],
+  sage: [0.4, 0.38, 0.62, 0.78, 0.9, 1, 1, 0.94, 0.8, 0.7, 0.55, 0.42],
+} as const;
+
+function setSeasonalScale(object: THREE.Object3D, factor: number): void {
+  const stored = object.userData.backyardBaseScale as [number, number, number] | undefined;
+  const base = stored ?? [object.scale.x, object.scale.y, object.scale.z];
+  if (!stored) object.userData.backyardBaseScale = base;
+  const visibleFactor = Math.max(0, factor);
+  object.visible = visibleFactor > 1e-4;
+  object.scale.set(
+    base[0] * visibleFactor,
+    base[1] * visibleFactor,
+    base[2] * visibleFactor,
+  );
+}
+
+/**
+ * Applies calendar phenology without rebuilding deterministic garden geometry.
+ * Fruit stays attached to its tree, mature mixed rows appear at different
+ * rates, and only the actual orchard harvest fills the basket.
+ */
+export function syncBackyardGardenSeasonVisuals(
+  group: THREE.Group,
+  kind: BackyardGardenKind,
+  month: number,
+): void {
+  const monthIndex = Math.min(12, Math.max(1, Math.floor(month))) - 1;
+  const phenology = backyardGardenPhenology(kind, month);
+  group.userData.backyardPhenology = phenology;
+
+  group.traverse((object) => {
+    const role = object.userData.backyardSeasonalRole as string | undefined;
+    if (role === 'orchard-fruit') {
+      object.visible = phenology.produceVisibility !== 'none';
+      return;
+    }
+    if (role === 'basket-produce') {
+      object.visible = phenology.produceVisibility === 'harvest';
+      return;
+    }
+    if (role === 'drying-herb-bundle') {
+      object.visible = kind === 'herb_garden' && monthIndex >= 4 && monthIndex <= 10;
+      return;
+    }
+
+    const cropKind = object.userData.backyardCropKind as keyof typeof VEGETABLE_MONTHLY_SCALE | undefined;
+    if (cropKind) {
+      setSeasonalScale(object, VEGETABLE_MONTHLY_SCALE[cropKind][monthIndex]);
+      return;
+    }
+    const herbKind = object.userData.backyardHerbKind as keyof typeof HERB_MONTHLY_SCALE | undefined;
+    if (herbKind) setSeasonalScale(object, HERB_MONTHLY_SCALE[herbKind][monthIndex]);
+  });
 }
 
 /** Keeps modeled blossoms moving with SeedThree shrubs and bends bed flowers from their roots. */

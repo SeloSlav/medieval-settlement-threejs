@@ -1,7 +1,6 @@
 import {
   BUILDING_STORAGE_CAPS,
   DROUGHT_WELL_REFILL_MULTIPLIER,
-  RESIDENCE_POPULATION_WIDE,
 } from '../../generated/gameBalance.ts';
 import { getBuildingCost } from '../buildingEconomy.ts';
 import type { InspectableTarget } from '../types.ts';
@@ -50,12 +49,11 @@ export function renderWellInspector(
   const activeTrip = respondingTrips[0] ?? activeTrips[0] ?? null;
   const refillPerSec = wellRefillPerSecond(hydrology);
   const sustainableHomes = wellSustainableHomeCapacity(hydrology);
-  const droughtWideHomeCapacity = wellSustainableHomeCapacity(
+  const droughtHomeCapacity = wellSustainableHomeCapacity(
     hydrology,
     DROUGHT_WELL_REFILL_MULTIPLIER,
-    RESIDENCE_POPULATION_WIDE,
   );
-  const capacityLabel = `~${sustainableHomes}-home normal-weather yield`;
+  const capacityLabel = `~${sustainableHomes}-home fair-weather yield`;
   const industrialPreferenceLabel = nextIndustrialTarget?.kind === 'weaver'
     ? ` · ${weaverFibreDeliveryPreferenceLabel(nextIndustrialTarget.weaverInputPolicy, 'flax')}`
     : '';
@@ -127,7 +125,7 @@ export function renderWellInspector(
       <li><span>Hydrology</span><span>${hydrologyGradeLabel(hydrology)} (${Math.round(hydrology * 100)}%)</span></li>
       <li><span>Stored water</span><span>${Math.round(building.water)} / ${Math.round(capacity)}</span></li>
       <li><span>Refill rate</span><span>${refillPerSec.toFixed(2)} / sec</span></li>
-      <li data-inspector-secondary data-inspector-detail="The normal estimate uses standard three-person homes; the drought floor uses fully occupied four-person homes. Connected homes retain priority over workshops."><span>Sustainable capacity</span><span>~${sustainableHomes} standard homes · at least ${droughtWideHomeCapacity} full homes in drought</span></li>
+      <li data-inspector-secondary data-inspector-detail="Capacity uses fully occupied four-person homes. Aquifer quality and weather reduce the best-case fifty-home yield, while connected homes retain priority over workshops."><span>Sustainable capacity</span><span>~${sustainableHomes} full homes in fair weather · ~${droughtHomeCapacity} in drought</span></li>
       ${buildingExtentRow(building.kind)}
       <li><span>Homes connected now</span><span>${claimedResidences.length === 0 ? 'None' : claimedResidences.length}</span></li>
       <li><span>Workshop demand</span><span>${workshopDemand || 'None'}</span></li>

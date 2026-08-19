@@ -35,8 +35,10 @@ for (const seed of seeds) {
   assertNamedPart(residence, 'Residence hand-hewn wall courses and notched corners');
   assertNamedPart(residence, 'Residence ventilated timber gable screen');
   assertNamedPart(residence, 'Residence shadowed plank door aperture');
+  assertNamedPart(residence, 'Residence visible timber plank door leaf');
   assertNamedPart(residence, 'Residence door iron latch');
   assertNamedPart(residence, 'Residence deep-eave door canopy roof');
+  assertNoLegacyOpeningCrosses(residence);
   assert.equal(
     residence.userData.residenceYardWork,
     undefined,
@@ -194,11 +196,25 @@ function assertResidenceFrontWallHasNoYardDetail(root: THREE.Object3D): void {
   });
 }
 
+function assertNoLegacyOpeningCrosses(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    assert.doesNotMatch(
+      object.name,
+      /Residence (?:front|side) window (?:vertical mullion|horizontal transom)|Residence door cross brace/,
+      'residence doors and windows must not retain generic cross-shaped bars',
+    );
+    if (object.userData.facadeOpeningKind === 'door' || object.userData.facadeOpeningKind === 'window') {
+      assert.equal(object.userData.hasCrossBars, false);
+    }
+  });
+}
+
 function assertSideWindowClearance(
   root: THREE.Object3D,
   tier: 1 | 2 | 3,
 ): void {
   const panes: THREE.Mesh[] = [];
+  root.updateMatrixWorld(true);
   root.traverse((object) => {
     if (object instanceof THREE.Mesh && object.name === 'Residence side window pane') {
       panes.push(object);
@@ -210,16 +226,19 @@ function assertSideWindowClearance(
     `tier-${tier} must retain one side-window pane per wall and storey`,
   );
   assert.ok(
-    panes.every((pane) => Math.abs(Math.abs(pane.position.z) - 1.25) <= 1e-9),
+    panes.every((pane) => {
+      const worldPosition = pane.getWorldPosition(new THREE.Vector3());
+      return Math.abs(Math.abs(worldPosition.z) - 1.25) <= 1e-9;
+    }),
     'side windows must sit 1.25 m from the center posts',
   );
   assert.deepEqual(
-    new Set(panes.map((pane) => Math.sign(pane.position.z))),
+    new Set(panes.map((pane) => Math.sign(pane.getWorldPosition(new THREE.Vector3()).z))),
     tier === 1 ? new Set([-1]) : new Set([-1, 1]),
     'higher tiers must split their lower and upper side windows across the center post',
   );
   const widestPane = Math.max(
-    ...panes.map((pane) => (pane.geometry as THREE.BoxGeometry).parameters.depth),
+    ...panes.map((pane) => (pane.geometry as THREE.BoxGeometry).parameters.width),
   );
   const openShutterClearance = 1.25
     - widestPane * 0.5

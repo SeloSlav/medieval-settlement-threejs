@@ -80,19 +80,19 @@ const normalHouseholdDaysPerWaterRun = WELL_WATER_PER_DELIVERY
   / (3 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY);
 assert.ok(normalHouseholdDaysPerWaterRun > 3.7 && normalHouseholdDaysPerWaterRun < 3.8);
 
-assert.equal(WELL_BASE_REFILL_PER_SEC, 9.6);
-assert.equal(WELL_MINIMUM_REFILL_HYDROLOGY, 0.5);
-assert.equal(wellRefillPerSecond(0, DROUGHT_WELL_REFILL_MULTIPLIER), 2.4);
+assert.equal(WELL_BASE_REFILL_PER_SEC, 2.4);
+assert.equal(WELL_MINIMUM_REFILL_HYDROLOGY, 0.15);
 assert.equal(
   wellSustainableHomeCapacity(
-    0,
-    DROUGHT_WELL_REFILL_MULTIPLIER,
+    1,
+    1,
     RESIDENCE_POPULATION_WIDE,
   ),
   50,
-  'even a dry-site well must sustainably cover 50 fully occupied wide homes during drought',
+  'an excellent well in fair weather should top out at 50 fully occupied homes',
 );
-assert.ok(wellSustainableHomeCapacity(0, 1) > 100);
+assert.ok(wellSustainableHomeCapacity(0, 1) < 50);
+assert.ok(wellSustainableHomeCapacity(1, DROUGHT_WELL_REFILL_MULTIPLIER) < 50);
 assert.ok(wellSustainableHomeCapacity(0.8, 1) > wellSustainableHomeCapacity(0, 1));
 
 assert.ok(industrialWaterRequirement('bakery') > 0);

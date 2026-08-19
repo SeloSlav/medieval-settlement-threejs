@@ -50,6 +50,84 @@ const sharedMaterials = new Set<THREE.Material>();
 let texturedMeshCount = 0;
 let largestMetricUvSpan = 0;
 let churchHeight = 0;
+const buildingsExpectedToHaveOpenings = new Set<string>([
+  'lumber_mill',
+  'reforester',
+  'woodcutters_lodge',
+  'stone_quarry',
+  'large_quarry',
+  'smithy',
+  'potter_kiln',
+  'hunters_hall',
+  'foragers_shed',
+  'fishing_camp',
+  'chapel',
+  'town_hall',
+  'village_storehouse',
+  'guardhouse',
+  'threshing_barn',
+  'pastoral_farmstead',
+  'swineherd',
+  'monastery',
+  'brewery',
+  'smokehouse',
+  'granary',
+  'bakery',
+  'apiary',
+  'watermill',
+  'windmill',
+  'carpenter',
+  'weaver',
+]);
+const legacyOpeningCrossPart = /Small window (?:vertical mullion|horizontal transom)|Residence (?:front|side) window (?:vertical mullion|horizontal transom)|Residence door cross brace/;
+
+function auditFacadeOpenings(
+  root: THREE.Object3D,
+  label: string,
+  openingRequired: boolean,
+): void {
+  let openingCount = 0;
+  root.traverse((object) => {
+    if (legacyOpeningCrossPart.test(object.name)) {
+      throw new Error(`${label} retains the legacy cross-shaped opening part “${object.name}”.`);
+    }
+    const kind = object.userData.facadeOpeningKind as string | undefined;
+    if (kind !== 'door' && kind !== 'window') return;
+    openingCount += 1;
+    if (object.userData.hasCrossBars !== false) {
+      throw new Error(`${label} ${kind} must explicitly disable cross bars.`);
+    }
+    if (
+      !(Number(object.userData.facadeOpeningWidth) > 0)
+      || !(Number(object.userData.facadeOpeningHeight) > 0)
+    ) {
+      throw new Error(`${label} ${kind} is missing procedural opening dimensions.`);
+    }
+    const roles = new Set<string>();
+    object.traverse((part) => {
+      const role = part.userData.facadeOpeningRole;
+      if (typeof role === 'string') roles.add(role);
+    });
+    if (kind === 'window') {
+      if (!roles.has('window-pane')) {
+        throw new Error(`${label} window is missing its glazed pane.`);
+      }
+      if (!roles.has('window-frame') && !roles.has('window-jamb')) {
+        throw new Error(`${label} window is missing its perimeter frame.`);
+      }
+    } else {
+      for (const requiredRole of ['door-leaf', 'door-hinge', 'door-latch']) {
+        if (!roles.has(requiredRole)) {
+          throw new Error(`${label} door is missing its ${requiredRole} surface.`);
+        }
+      }
+    }
+  });
+  if (openingRequired && openingCount === 0) {
+    throw new Error(`${label} must use the shared procedural façade-opening kit.`);
+  }
+}
+
 const expectedLeanToRoofs = new Map<string, number>([
   ['lumber_mill', 1],
   ['woodcutters_lodge', 1],
@@ -80,6 +158,7 @@ for (const kind of BUILDING_KINDS) {
   if (kind === 'vineyard' && !model.getObjectByName('SeedThree cultivated grapevine cards')) {
     throw new Error('Vineyard must use the shared SeedThree instanced vine-card renderer.');
   }
+  auditFacadeOpenings(model, kind, buildingsExpectedToHaveOpenings.has(kind));
 
   let meshCount = 0;
   model.traverse((object) => {
@@ -274,6 +353,7 @@ let tallestResidenceHeight = 0;
 for (const tier of [1, 2, 3] as const) {
   for (let seed = 0; seed < 18; seed++) {
     const residence = createResidenceMesh(seed, tier);
+    auditFacadeOpenings(residence, `residence ${seed}/${tier}`, true);
     const windowMaterial = residence.userData.windowMaterial as THREE.Material | undefined;
     if (!windowMaterial || windowMaterial.userData.sharedBuildingMaterial !== false) {
       throw new Error(`Residence ${seed}/${tier} is missing its independently animated window material.`);

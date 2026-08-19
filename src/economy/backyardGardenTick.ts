@@ -21,8 +21,31 @@ export type BackyardGardenTickEffects = {
 export type BackyardGardenSeasonStatus = {
   multiplier: number;
   active: boolean;
+  growing: boolean;
+  harvestable: boolean;
+  phase: BackyardGardenPhase;
+  produceVisibility: 'none' | 'ripening' | 'harvest';
   label: string;
+  harvestWindow: string;
 };
+
+export type BackyardGardenPhase =
+  | 'dormant'
+  | 'establishing'
+  | 'flowering'
+  | 'ripening'
+  | 'harvest'
+  | 'post_harvest'
+  | 'year_round';
+
+export type BackyardGardenPhenology = Omit<
+  BackyardGardenSeasonStatus,
+  'multiplier' | 'active'
+> & {
+  baseMultiplier: number;
+};
+
+export type BackyardGardenMarketChannel = 'food' | 'goods' | null;
 
 export type BackyardFoodAllocation = {
   selfFood: number;
@@ -61,49 +84,255 @@ export function allocateBackyardFood(
   return { selfFood, marketFood: Math.max(0, total - selfFood) };
 }
 
+/**
+ * Backyard production reuses an already staffed Marketplace group. It never
+ * reserves another table or depot worker of its own. Flowers have no saleable
+ * stock, so they do not require a market channel at all.
+ */
+export function backyardGardenMarketChannel(
+  kind: BackyardGardenKind,
+): BackyardGardenMarketChannel {
+  if (kind === 'flower_garden') return null;
+  if (kind === 'herb_garden') return 'goods';
+  return 'food';
+}
+
+function calendarMonth(month: number): number {
+  if (!Number.isFinite(month)) return 1;
+  return Math.min(12, Math.max(1, Math.floor(month)));
+}
+
+/** Calendar-owned growth and harvest phases shared by UI and garden visuals. */
+export function backyardGardenPhenology(
+  kind: BackyardGardenKind,
+  month: number,
+): BackyardGardenPhenology {
+  const currentMonth = calendarMonth(month);
+  const winter = currentMonth === 12 || currentMonth <= 2;
+
+  switch (kind) {
+    case 'apple_orchard':
+    case 'cherry_orchard':
+      if (winter || currentMonth === 11) {
+        return {
+          baseMultiplier: 0,
+          growing: false,
+          harvestable: false,
+          phase: 'dormant',
+          produceVisibility: 'none',
+          label: 'Dormant wood — no fruit on the trees or in the harvest basket',
+          harvestWindow: 'Fruit ripens in August; the household harvests in September',
+        };
+      }
+      if (currentMonth <= 4) {
+        return {
+          baseMultiplier: 0,
+          growing: true,
+          harvestable: false,
+          phase: 'flowering',
+          produceVisibility: 'none',
+          label: 'Spring blossom — pollination and fruit set, not harvestable yet',
+          harvestWindow: 'Fruit ripens in August; the household harvests in September',
+        };
+      }
+      if (currentMonth <= 7) {
+        return {
+          baseMultiplier: 0,
+          growing: true,
+          harvestable: false,
+          phase: 'establishing',
+          produceVisibility: 'none',
+          label: 'Fruit setting — the annual crop is still developing',
+          harvestWindow: 'Fruit ripens in August; the household harvests in September',
+        };
+      }
+      if (currentMonth === 8) {
+        return {
+          baseMultiplier: 0,
+          growing: true,
+          harvestable: false,
+          phase: 'ripening',
+          produceVisibility: 'ripening',
+          label: 'Fruit ripening on the trees — basket remains empty',
+          harvestWindow: 'The household harvests the concentrated annual crop in September',
+        };
+      }
+      if (currentMonth === 9) {
+        return {
+          baseMultiplier: 12,
+          growing: false,
+          harvestable: true,
+          phase: 'harvest',
+          produceVisibility: 'harvest',
+          label: 'September harvest — concentrated annual crop',
+          harvestWindow: 'Harvestable now; fruit and filled baskets clear after September',
+        };
+      }
+      return {
+        baseMultiplier: 0,
+        growing: false,
+        harvestable: false,
+        phase: 'post_harvest',
+        produceVisibility: 'none',
+        label: 'Post-harvest — fruit and filled baskets have been cleared',
+        harvestWindow: 'The next crop begins with spring blossom and returns next September',
+      };
+
+    case 'vegetable_garden':
+      if (winter) {
+        return {
+          baseMultiplier: 0,
+          growing: false,
+          harvestable: false,
+          phase: 'dormant',
+          produceVisibility: 'none',
+          label: 'Winter beds — cleared or dormant with no routine harvest',
+          harvestWindow: 'Mixed sowings begin in March; harvests run from April into November',
+        };
+      }
+      if (currentMonth === 3) {
+        return {
+          baseMultiplier: 0,
+          growing: true,
+          harvestable: false,
+          phase: 'establishing',
+          produceVisibility: 'none',
+          label: 'Sowing and seedlings — mixed beds are not harvestable yet',
+          harvestWindow: 'Early mixed vegetables begin in April',
+        };
+      }
+      return {
+        baseMultiplier: currentMonth <= 5
+          ? 0.7
+          : currentMonth <= 8
+            ? 1
+            : currentMonth <= 10
+              ? 0.55
+              : 0.25,
+        growing: true,
+        harvestable: true,
+        phase: 'harvest',
+        produceVisibility: 'harvest',
+        label: currentMonth <= 5
+          ? 'Early mixed harvest — only some rows are mature'
+          : currentMonth <= 8
+            ? 'Main mixed harvest — staggered rows are in production'
+            : currentMonth <= 10
+              ? 'Late mixed harvest — fewer rows remain productive'
+              : 'Final hardy harvest — most beds are being cleared',
+        harvestWindow: 'Different vegetables mature in staggered windows from April into November',
+      };
+
+    case 'herb_garden':
+      if (winter) {
+        return {
+          baseMultiplier: 0,
+          growing: false,
+          harvestable: false,
+          phase: 'dormant',
+          produceVisibility: 'none',
+          label: 'Winter rest — hardy rosemary and sage remain, but routine cutting stops',
+          harvestWindow: 'Fresh cutting resumes in April; stored remedies remain usable indoors',
+        };
+      }
+      if (currentMonth === 3) {
+        return {
+          baseMultiplier: 0,
+          growing: true,
+          harvestable: false,
+          phase: 'establishing',
+          produceVisibility: 'none',
+          label: 'Perennial regrowth and spring sowing — not ready for routine cutting',
+          harvestWindow: 'Mixed herb cutting begins in April',
+        };
+      }
+      return {
+        baseMultiplier: currentMonth <= 5
+          ? 0.75
+          : currentMonth <= 8
+            ? 1
+            : currentMonth <= 10
+              ? 0.55
+              : 0.2,
+        growing: true,
+        harvestable: true,
+        phase: 'harvest',
+        produceVisibility: 'harvest',
+        label: currentMonth <= 5
+          ? 'Spring herb cutting — perennial and biennial plants lead'
+          : currentMonth <= 8
+            ? 'Main herb cutting and drying season'
+            : currentMonth <= 10
+              ? 'Late herb cutting — reduced mixed yield'
+              : 'Final hardy cuttings before winter rest',
+        harvestWindow: 'Mixed herbs are cut from April into November, then remedies rely on stored stock',
+      };
+
+    case 'flower_garden': {
+      const baseMultiplier = currentMonth <= 2 || currentMonth === 12
+        ? 0
+        : currentMonth <= 5
+          ? 1.4
+          : currentMonth <= 8
+            ? 1
+            : 0.35;
+      return {
+        baseMultiplier,
+        growing: baseMultiplier > 0,
+        harvestable: false,
+        phase: baseMultiplier > 0 ? 'flowering' : 'dormant',
+        produceVisibility: 'none',
+        label: baseMultiplier > 0
+          ? 'Flowering for pollinators and settlement attraction'
+          : 'Winter dormancy — no active bloom',
+        harvestWindow: 'No saleable harvest; bloom runs from spring through autumn',
+      };
+    }
+
+    case 'hen_yard':
+    case 'goat_pen':
+      return {
+        baseMultiplier: winter ? 0.75 : 1,
+        growing: false,
+        harvestable: true,
+        phase: 'year_round',
+        produceVisibility: 'harvest',
+        label: winter
+          ? 'Year-round husbandry — winter fodder reduces output to 75%'
+          : 'Year-round husbandry — full warm-season output',
+        harvestWindow: 'Collected throughout the year by the household',
+      };
+
+    case 'backyard_apiary': {
+      const baseMultiplier = winter
+        ? 0
+        : currentMonth <= 5
+          ? 0.8
+          : currentMonth <= 8
+            ? 1
+            : 0.4;
+      return {
+        baseMultiplier,
+        growing: baseMultiplier > 0,
+        harvestable: baseMultiplier > 0,
+        phase: baseMultiplier > 0 ? 'harvest' : 'dormant',
+        produceVisibility: baseMultiplier > 0 ? 'harvest' : 'none',
+        label: baseMultiplier > 0
+          ? 'Small-hive honey flow and household harvest'
+          : 'Winter hive dormancy — no honey harvest',
+        harvestWindow: 'Honey flow runs from spring through autumn',
+      };
+    }
+  }
+}
+
 /** Mirrors `server/src/backyard_garden_policy.rs`. */
 export function backyardGardenSeasonalMultiplier(
   kind: BackyardGardenKind,
   month: number,
   environment: Pick<EnvironmentState, 'season' | 'weather'>,
 ): number {
-  let base: number;
-  switch (kind) {
-    case 'apple_orchard':
-    case 'cherry_orchard':
-      base = month === 9 ? 12 : 0;
-      break;
-    case 'vegetable_garden':
-    case 'herb_garden':
-      base = environment.season === 'spring' || environment.season === 'summer'
-        ? 1
-        : environment.season === 'autumn'
-          ? 0.55
-          : 0;
-      break;
-    case 'flower_garden':
-      base = environment.season === 'spring'
-        ? 1.4
-        : environment.season === 'summer'
-          ? 1
-          : environment.season === 'autumn'
-            ? 0.35
-            : 0;
-      break;
-    case 'hen_yard':
-    case 'goat_pen':
-      base = environment.season === 'winter' ? 0.75 : 1;
-      break;
-    case 'backyard_apiary':
-      base = environment.season === 'spring'
-        ? 0.8
-        : environment.season === 'summer'
-          ? 1
-          : environment.season === 'autumn'
-            ? 0.4
-            : 0;
-      break;
-  }
+  const base = backyardGardenPhenology(kind, month).baseMultiplier;
   return environment.weather === 'drought'
     && kind !== 'hen_yard'
     && kind !== 'goat_pen'
@@ -118,40 +347,26 @@ export function backyardGardenSeasonStatus(
   month: number,
   environment: Pick<EnvironmentState, 'season' | 'weather'>,
 ): BackyardGardenSeasonStatus {
+  const phenology = backyardGardenPhenology(kind, month);
   const multiplier = backyardGardenSeasonalMultiplier(
     kind,
     month,
     environment,
   );
   let label: string;
-  if (kind === 'apple_orchard' || kind === 'cherry_orchard') {
-    label = month === 9
-      ? 'September harvest - 12x concentrated daily yield'
-      : 'Dormant crop - harvest returns in September';
-  } else if (kind === 'hen_yard') {
-    label = environment.season === 'winter'
-      ? 'Winter laying - 75% of warm-season output'
-      : 'Year-round laying - full output';
-  } else if (kind === 'goat_pen') {
-    label = environment.season === 'winter'
-      ? 'Winter fodder limits the alternating milk and meat yield to 75%'
-      : 'Alternates milk and meat each day';
-  } else if (kind === 'backyard_apiary') {
-    label = multiplier <= 1e-9
-      ? 'Hives are dormant for winter'
-      : `Small-hive honey flow - ${Math.round(multiplier * 100)}% of summer output`;
-  } else if (multiplier <= 1e-9) {
-    label = 'Dormant for winter - output resumes in spring';
-  } else if (environment.weather === 'drought') {
-    label = `Drought stress - ${Math.round(multiplier * 100)}% of baseline output`;
-  } else if (kind === 'flower_garden' && environment.season === 'spring') {
-    label = 'Spring bloom - 140% market output';
-  } else if (environment.season === 'autumn') {
-    label = `Late season - ${Math.round(multiplier * 100)}% of baseline output`;
+  if (environment.weather === 'drought' && multiplier > 1e-9) {
+    label = `${phenology.label} · drought reduces output to ${Math.round(multiplier * 100)}%`;
+  } else if (multiplier > 1e-9 && Math.abs(multiplier - 1) > 1e-9) {
+    label = `${phenology.label} · ${Math.round(multiplier * 100)}% of baseline output`;
   } else {
-    label = 'Growing season - full output';
+    label = phenology.label;
   }
-  return { multiplier, active: multiplier > 1e-9, label };
+  return {
+    ...phenology,
+    multiplier,
+    active: multiplier > 1e-9,
+    label,
+  };
 }
 
 export function computeBackyardGardenTickEffects(

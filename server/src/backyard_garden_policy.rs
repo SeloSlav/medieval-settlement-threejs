@@ -72,8 +72,9 @@ pub fn backyard_goat_product(total_days: u64, residence_id: u64) -> BackyardGoat
 }
 
 /// Calendar- and weather-bound output shared by household food and market
-/// activity. Orchards concentrate their annual crop into September; poultry
-/// remains productive through winter; drought cuts exposed annual plants.
+/// activity. Mixed vegetables and herbs use staggered April-November harvests,
+/// orchards concentrate their annual crop into September, and drought cuts
+/// exposed plants. Mirrors `src/economy/backyardGardenTick.ts`.
 pub fn backyard_garden_seasonal_multiplier(
     kind: BackyardGardenKind,
     month: u32,
@@ -88,10 +89,19 @@ pub fn backyard_garden_seasonal_multiplier(
                 0.0
             }
         }
-        VegetableGarden | HerbGarden => match environment.season {
-            Season::Spring | Season::Summer => 1.0,
-            Season::Autumn => 0.55,
-            Season::Winter => 0.0,
+        VegetableGarden => match month {
+            4 | 5 => 0.7,
+            6..=8 => 1.0,
+            9 | 10 => 0.55,
+            11 => 0.25,
+            _ => 0.0,
+        },
+        HerbGarden => match month {
+            4 | 5 => 0.75,
+            6..=8 => 1.0,
+            9 | 10 => 0.55,
+            11 => 0.2,
+            _ => 0.0,
         },
         FlowerGarden => match environment.season {
             Season::Spring => 1.4,
@@ -148,14 +158,22 @@ mod tests {
     }
 
     #[test]
-    fn annual_plants_follow_the_growing_season() {
+    fn mixed_beds_separate_spring_growth_from_staggered_harvests() {
+        assert_eq!(
+            backyard_garden_seasonal_multiplier(
+                BackyardGardenKind::VegetableGarden,
+                3,
+                environment(Season::Spring, WeatherKind::Fair),
+            ),
+            0.0,
+        );
         assert_eq!(
             backyard_garden_seasonal_multiplier(
                 BackyardGardenKind::VegetableGarden,
                 4,
                 environment(Season::Spring, WeatherKind::Fair),
             ),
-            1.0,
+            0.7,
         );
         assert_eq!(
             backyard_garden_seasonal_multiplier(
@@ -164,6 +182,14 @@ mod tests {
                 environment(Season::Autumn, WeatherKind::Fair),
             ),
             0.55,
+        );
+        assert_eq!(
+            backyard_garden_seasonal_multiplier(
+                BackyardGardenKind::HerbGarden,
+                11,
+                environment(Season::Autumn, WeatherKind::Fair),
+            ),
+            0.2,
         );
         assert_eq!(
             backyard_garden_seasonal_multiplier(

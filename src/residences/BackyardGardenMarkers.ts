@@ -19,6 +19,7 @@ import {
   animateBackyardGardenMesh,
   createBackyardGardenMesh,
   disposeBackyardGardenMesh,
+  syncBackyardGardenSeasonVisuals,
 } from './backyardGardenMesh.ts';
 import type { BackyardGardenState, BurgageZoneState, ResidenceState } from '../resources/types.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
@@ -58,6 +59,7 @@ type GardenSyncInput = {
   residences: Iterable<ResidenceState>;
   zones: Iterable<BurgageZoneState>;
   gardens: Map<string, BackyardGardenState>;
+  month?: number;
   getHeightAt: (x: number, z: number) => number;
 };
 
@@ -207,6 +209,7 @@ export class BackyardGardenMarkers {
       const y = input.getHeightAt(placement.x, placement.z);
       marker.position.set(placement.x, y, placement.z);
       marker.rotation.y = placement.yaw;
+      syncBackyardGardenSeasonVisuals(marker, garden.kind, input.month ?? 1);
     }
 
     for (const [id, marker] of this.meshes) {

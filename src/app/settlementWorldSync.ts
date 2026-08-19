@@ -187,11 +187,17 @@ export function syncSettlementWorld(
   if (burialsChanged) {
     targets.burialMarkers?.sync(graveyards.values(), corpses.values(), getHeightAt);
   }
-  if (residencesChanged || burgageZonesChanged || gardensChanged) {
+  if (
+    residencesChanged
+    || burgageZonesChanged
+    || gardensChanged
+    || workerForagingMonthChanged
+  ) {
     targets.backyardGardenMarkers?.syncGardens({
       residences: state.residences.values(),
       zones: state.burgageZones.values(),
       gardens: state.backyardGardens,
+      month: gameClock(state.tick).month,
       getHeightAt,
     });
   }

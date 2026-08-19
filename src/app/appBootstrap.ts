@@ -1021,6 +1021,27 @@ export async function bootstrapAppSession(
     onServiceCoverageChange: (residenceIds, kind) => {
       residenceMarkers.setServiceCoverageHighlights(residenceIds, kind);
     },
+    onTargetSelected: (target) => {
+      if (
+        target.kind === 'building'
+        && target.building.constructionComplete !== false
+      ) {
+        ambientAudio.playBuildingSelection(
+          target.building.kind,
+          `building:${target.building.id}`,
+        );
+      } else if (
+        target.kind === 'residence'
+        && target.residence.tier > 0
+        && !target.residence.abandoned
+        && target.residence.population > 0
+      ) {
+        ambientAudio.playBuildingSelection(
+          'residence',
+          `residence:${target.residence.id}`,
+        );
+      }
+    },
     onSelectionChange: (target) => {
       if (target) villagerInspector.clearSelection();
       toolbar.setCityAdministrationOpen(target?.kind === 'building' && target.building.kind === 'town_hall');

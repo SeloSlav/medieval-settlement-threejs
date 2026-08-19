@@ -4,6 +4,10 @@ import { addTriangularGableWall } from '../buildings/meshPrimitives.ts';
 import { addLogPile } from '../buildings/logPile.ts';
 import { BatchedBuildingShadowProxies } from '../buildings/buildingShadowProxy.ts';
 import {
+  addProceduralDoor,
+  addProceduralWindow,
+} from '../buildings/meshes/facadeOpeningKit.ts';
+import {
   addMesh,
   residenceFacadeMaterial,
   residenceRoofMaterial,
@@ -152,57 +156,25 @@ function addFrontWindow(
   weatheredMaterial: THREE.Material = timberMaterial('weathered'),
   structuralMaterial: THREE.Material = timberMaterial('dark'),
 ): void {
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width, height, 0.075),
-    windowMaterial,
-    new THREE.Vector3(x, y, z + 0.065),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.34, 0.12, 0.22),
-    weatheredMaterial,
-    new THREE.Vector3(x, y - height * 0.5 - 0.08, z + 0.08),
-  );
-  for (const side of [-1, 1] as const) {
-    const casing = addMesh(
-      group,
-      new THREE.BoxGeometry(0.12, height + 0.24, 0.13),
-      structuralMaterial,
-      new THREE.Vector3(x + side * (width * 0.5 + 0.08), y, z + 0.075),
-    );
-    casing.name = 'Residence front window hewn casing';
-  }
-  const lintel = addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.34, 0.13, 0.14),
-    structuralMaterial,
-    new THREE.Vector3(x, y + height * 0.5 + 0.08, z + 0.075),
-  );
-  lintel.name = 'Residence front window hewn lintel';
-  const mullion = addMesh(
-    group,
-    new THREE.BoxGeometry(0.055, height * 0.88, 0.055),
-    structuralMaterial,
-    new THREE.Vector3(x, y, z + 0.125),
-  );
-  mullion.name = 'Residence front window vertical mullion';
-  const transom = addMesh(
-    group,
-    new THREE.BoxGeometry(width * 0.88, 0.055, 0.055),
-    structuralMaterial,
-    new THREE.Vector3(x, y, z + 0.13),
-  );
-  transom.name = 'Residence front window horizontal transom';
-  if (!shutters) return;
-
-  for (const side of [-1, 1] as const) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(width * 0.32, height * 0.92, 0.07),
-      shutterMaterial,
-      new THREE.Vector3(x + side * (width * 0.7), y, z + 0.08),
-    );
+  const parts = addProceduralWindow(group, {
+    position: new THREE.Vector3(x, y, z),
+    face: 'positive-z',
+    width,
+    height,
+    paneMaterial: windowMaterial,
+    frameMaterial: structuralMaterial,
+    sillMaterial: weatheredMaterial,
+    shutterMaterial,
+    shutters,
+    namePrefix: 'Residence front',
+  });
+  parts.pane.name = 'Residence front window pane';
+  for (const framePart of parts.frame) {
+    if (framePart.userData.facadeOpeningRole === 'window-jamb') {
+      framePart.name = 'Residence front window hewn casing';
+    } else if (framePart.userData.facadeOpeningRole === 'window-lintel') {
+      framePart.name = 'Residence front window hewn lintel';
+    }
   }
 }
 
@@ -218,49 +190,24 @@ function addSideWindow(
   weatheredMaterial: THREE.Material = timberMaterial('weathered'),
   structuralMaterial: THREE.Material = timberMaterial('dark'),
 ): void {
-  const pane = addMesh(
-    group,
-    new THREE.BoxGeometry(0.075, height, width),
-    windowMaterial,
-    new THREE.Vector3(x + side * 0.065, y, z),
-  );
-  pane.name = 'Residence side window pane';
-  addMesh(
-    group,
-    new THREE.BoxGeometry(0.2, 0.12, width + 0.3),
-    weatheredMaterial,
-    new THREE.Vector3(x + side * 0.09, y - height * 0.5 - 0.1, z),
-  );
-  for (const zSide of [-1, 1] as const) {
-    const casing = addMesh(
-      group,
-      new THREE.BoxGeometry(0.13, height + 0.24, 0.12),
-      structuralMaterial,
-      new THREE.Vector3(x + side * 0.075, y, z + zSide * (width * 0.5 + 0.08)),
-    );
-    casing.name = 'Residence side window hewn casing';
+  const parts = addProceduralWindow(group, {
+    position: new THREE.Vector3(x, y, z),
+    face: side > 0 ? 'positive-x' : 'negative-x',
+    width,
+    height,
+    paneMaterial: windowMaterial,
+    frameMaterial: structuralMaterial,
+    sillMaterial: weatheredMaterial,
+    namePrefix: 'Residence side',
+  });
+  parts.pane.name = 'Residence side window pane';
+  for (const framePart of parts.frame) {
+    if (framePart.userData.facadeOpeningRole === 'window-jamb') {
+      framePart.name = 'Residence side window hewn casing';
+    } else if (framePart.userData.facadeOpeningRole === 'window-lintel') {
+      framePart.name = 'Residence side window hewn lintel';
+    }
   }
-  const lintel = addMesh(
-    group,
-    new THREE.BoxGeometry(0.14, 0.13, width + 0.34),
-    structuralMaterial,
-    new THREE.Vector3(x + side * 0.075, y + height * 0.5 + 0.08, z),
-  );
-  lintel.name = 'Residence side window hewn lintel';
-  const mullion = addMesh(
-    group,
-    new THREE.BoxGeometry(0.055, height * 0.88, 0.055),
-    structuralMaterial,
-    new THREE.Vector3(x + side * 0.125, y, z),
-  );
-  mullion.name = 'Residence side window vertical mullion';
-  const transom = addMesh(
-    group,
-    new THREE.BoxGeometry(0.055, 0.055, width * 0.88),
-    structuralMaterial,
-    new THREE.Vector3(x + side * 0.13, y, z),
-  );
-  transom.name = 'Residence side window horizontal transom';
 }
 
 function addPlankDoor(
@@ -272,50 +219,26 @@ function addPlankDoor(
   height = 1.92,
   weatheredMaterial: THREE.Material = timberMaterial('weathered'),
 ): void {
-  const door = addMesh(
-    group,
-    new THREE.BoxGeometry(width, height, 0.12),
-    sharedBuildingMaterial('interiorDark'),
-    new THREE.Vector3(x, baseY + height * 0.5, z + 0.075),
-  );
-  door.name = 'Residence shadowed plank door aperture';
-  door.userData.residenceSurfaceRole = 'dark-aperture';
-  for (const side of [-1, 1] as const) {
-    const jamb = addMesh(
-      group,
-      new THREE.BoxGeometry(0.17, height + 0.24, 0.17),
-      weatheredMaterial,
-      new THREE.Vector3(
-        x + side * (width * 0.5 + 0.1),
-        baseY + height * 0.5,
-        z + 0.06,
-      ),
-    );
-    jamb.name = 'Residence door hewn jamb';
+  const parts = addProceduralDoor(group, {
+    position: new THREE.Vector3(x, baseY, z),
+    face: 'positive-z',
+    width,
+    height,
+    leafMaterial: weatheredMaterial,
+    frameMaterial: weatheredMaterial,
+    namePrefix: 'Residence',
+  });
+  parts.reveal.name = 'Residence shadowed plank door aperture';
+  parts.reveal.userData.residenceSurfaceRole = 'dark-aperture';
+  parts.leaf.name = 'Residence visible timber plank door leaf';
+  parts.latch.name = 'Residence door iron latch';
+  for (const framePart of parts.frame) {
+    if (framePart.userData.facadeOpeningRole === 'door-jamb') {
+      framePart.name = 'Residence door hewn jamb';
+    } else if (framePart.userData.facadeOpeningRole === 'door-lintel') {
+      framePart.name = 'Residence door hewn lintel';
+    }
   }
-  const lintel = addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.48, 0.2, 0.19),
-    weatheredMaterial,
-    new THREE.Vector3(x, baseY + height + 0.09, z + 0.06),
-  );
-  lintel.name = 'Residence door hewn lintel';
-  for (const y of [baseY + 0.43, baseY + 1.35]) {
-    const brace = addMesh(
-      group,
-      new THREE.BoxGeometry(width * 0.82, 0.075, 0.055),
-      weatheredMaterial,
-      new THREE.Vector3(x, y, z + 0.205),
-    );
-    brace.name = 'Residence door cross brace';
-  }
-  const latch = addMesh(
-    group,
-    new THREE.BoxGeometry(0.21, 0.055, 0.06),
-    sharedBuildingMaterial('metalIron'),
-    new THREE.Vector3(x - width * 0.31, baseY + height * 0.52, z + 0.215),
-  );
-  latch.name = 'Residence door iron latch';
 }
 
 function addStoneStoreyCourses(

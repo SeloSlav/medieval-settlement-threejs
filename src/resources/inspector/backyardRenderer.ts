@@ -20,6 +20,7 @@ import {
 import {
   backyardFoodReserveDays,
   backyardFoodReserveTarget,
+  backyardGardenMarketChannel,
   backyardGardenSeasonStatus,
 } from '../../economy/backyardGardenTick.ts';
 import { edibleFoodStock } from '../../economy/foodInventory.ts';
@@ -57,12 +58,11 @@ export function renderBackyardInspector(
 
   const def = BACKYARD_GARDEN_DEFINITIONS[garden.kind];
   const producesFood = def.foodPerPersonPerSec > 0;
+  const marketChannel = backyardGardenMarketChannel(garden.kind);
   const foodStock = edibleFoodStock(residence);
   const taxRate = context.getEconomicActivityTaxRate?.() ?? ECONOMIC_ACTIVITY_TAX_RATE_DEFAULT;
-  const hasMarketAccess = context.worldQueries.isResidenceConnectedToMarketplace(
-    residence,
-    producesFood ? 'food' : 'goods',
-  );
+  const hasMarketAccess = marketChannel !== null
+    && context.worldQueries.isResidenceConnectedToMarketplace(residence, marketChannel);
   const clock = gameClock(context.gameState.tick);
   const environment = environmentFor(
     context.gameState.seed,
@@ -102,25 +102,31 @@ export function renderBackyardInspector(
       currentFoodStock: foodStock,
     },
   );
-  const stallLabel = producesFood
-    ? 'Granary-run food stall'
-    : 'Storehouse-run goods stall';
+  const stallLabel = marketChannel === 'food'
+    ? 'Granary-run food group'
+    : marketChannel === 'goods'
+      ? 'Storehouse-run goods group'
+      : null;
   const statusText = sabbathPaused
       ? 'Paused — Sunday Sabbath'
-      : !season.active
-        ? 'Dormant — out of season'
-        : hasMarketAccess
-          ? garden.kind === 'apple_orchard' || garden.kind === 'cherry_orchard'
-            ? 'Harvesting'
-            : 'Growing and trading'
-          : `Growing — no staffed ${producesFood ? 'food' : 'goods'} stall`;
-  const statusState = !season.active
-    ? 'warning'
-    : sabbathPaused
-      ? 'idle'
-      : hasMarketAccess
+      : garden.kind === 'flower_garden' && season.growing
+        ? 'Flowering — no market stall needed'
+        : season.harvestable
+          ? marketChannel === null || hasMarketAccess
+            ? 'Harvestable — household collection active'
+            : 'Harvestable — surplus sharing unavailable'
+          : season.growing
+            ? 'Growing — not harvestable yet'
+            : season.phase === 'post_harvest'
+              ? 'Post-harvest — crop cleared'
+              : 'Dormant — no harvest';
+  const statusState = sabbathPaused
+    ? 'idle'
+    : season.harvestable && marketChannel !== null && !hasMarketAccess
+      ? 'warning'
+      : season.growing || season.harvestable
         ? 'ok'
-        : 'warning';
+        : 'idle';
   const taxLabel = economy.assessedTaxPerDay > economy.taxPerDay + 0.05
     ? `~${economy.taxPerDay.toFixed(1)} levied at market of ${economy.assessedTaxPerDay.toFixed(1)} assessed`
     : `~${economy.taxPerDay.toFixed(1)} gold`;
@@ -135,7 +141,8 @@ export function renderBackyardInspector(
     detailsHtml: `
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
       <li><span>Population</span><span>${residence.population}</span></li>
-      <li><span>Seasonal output</span><span>${season.label}${sabbathPaused ? ' · paused today by parish policy' : ''}</span></li>
+      <li><span>Crop phase</span><span>${season.label}${sabbathPaused ? ' · household work paused today by parish policy' : ''}</span></li>
+      <li><span>Harvest window</span><span>${season.harvestWindow}</span></li>
       <li><span>Product</span><span>${backyardGardenProductSummary(garden.kind)}</span></li>
       ${producesFood
         ? `<li><span>Home food today</span><span>${economy.selfFoodPerDay.toFixed(1)} (${hasMarketAccess ? `fills the tier ${residence.tier} ${reserveDays}-day reserve first` : '100% kept without a staffed stall'})</span></li>
@@ -143,7 +150,7 @@ export function renderBackyardInspector(
            <li><span>Household food reserve</span><span>${Math.round(foodStock)} / ${Math.ceil(reserveTarget)}</span></li>`
         : ''}
       ${garden.kind === 'herb_garden'
-        ? '<li><span>Herb sharing</span><span>Household remedies fill first; surplus remedies enter the goods stall for sick homes</span></li>'
+        ? '<li><span>Herb mix</span><span>Rosemary and sage are perennial; parsley and tender growth are seasonal. Fresh cutting pauses in winter, while remedies already stored indoors remain available.</span></li>'
         : garden.kind === 'flower_garden'
           ? '<li><span>Flower effect</span><span>Pollinator forage and settlement attraction; flowers create no saleable commodity or passive gold</span></li>'
           : garden.kind === 'goat_pen'
@@ -151,16 +158,25 @@ export function renderBackyardInspector(
             : garden.kind === 'backyard_apiary'
               ? '<li><span>Trade-off</span><span>Seasonal honey and a minor local pollination contribution; much less output and reach than a staffed forest apiary</span></li>'
               : ''}
-      <li><span>Marketplace link</span><span>${hasMarketAccess ? `${stallLabel} connected` : `None — needs a Marketplace and staffed ${producesFood ? 'Granary' : 'Storehouse'}`}</span></li>
-      <li><span>Local trade value today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · selling paused' : seasonalMultiplier <= 1e-9 ? ' · no output today' : ''}</span></li>
+      <li><span>Household labor</span><span>No assigned labor slot. Occupied households tend and harvest automatically; off-duty residents visibly act out garden work, while production remains household-tick based.</span></li>
+      <li><span>Market stall use</span><span>${marketChannel === null
+        ? 'None — this garden has no saleable commodity and claims no table'
+        : hasMarketAccess
+          ? `${stallLabel} connected · reuses the staffed group and claims no extra Marketplace table or depot worker`
+          : `Surplus sharing unavailable — needs a road-connected Marketplace with a staffed ${marketChannel === 'food' ? 'Granary food group' : 'Storehouse goods group'}; household production continues`}</span></li>
+      ${marketChannel === null
+        ? ''
+        : `<li><span>Local trade value today</span><span>${economy.activityPerDay.toFixed(1)} gold${!hasMarketAccess ? ' · surplus selling paused' : seasonalMultiplier <= 1e-9 ? ' · no harvest today' : ''}</span></li>`}
       <li><span>Household services</span><span>${formatResidenceServiceConsequence(service)}</span></li>
       <li><span>Local market levy (${economy.taxPercent})</span><span>${taxLabel}${staffedTownHall ? '' : ` · ${Math.round(taxCollectionMultiplier * 100)}% collection without a staffed clerk`} · held in the market lockbox until a free hauler carts it to the civic treasury</span></li>
       <li><span>Household savings</span><span>${formatBackyardSavingsLabel(economy.netWealthPerDay, hasMarketAccess)}</span></li>
       <li><span>Build cost</span><span>${renderBuildingResourceCost(getBackyardGardenCost(garden.kind))}</span></li>
     `,
     supplementalPanelHtml: `<p class="resource-inspector-note">${producesFood
-      ? `The household keeps edible output until its ${reserveDays}-day reserve is filled. Only physical overflow becomes Marketplace inventory for other connected homes.`
-      : 'Routine local purchases are aggregated: the seller gains household wealth and one local market levy is assessed. Parish tithes remain a separate later household payment.'}</p>`,
+      ? `The household keeps edible output until its ${reserveDays}-day reserve is filled. Only physical overflow becomes Marketplace inventory. Gardens do not compete for a fourth food slot: they share the existing Granary-staffed food group, its inventory capacity, and its throughput.`
+      : marketChannel === 'goods'
+        ? 'The household fills its remedy store first. Surplus uses the existing Storehouse-staffed goods group without reserving another table; it still shares Marketplace inventory capacity and throughput.'
+        : 'This is a household amenity and pollinator forage. It needs no Marketplace staffing and creates no passive sale or levy.'}</p>`,
     demolish: {
       visible: true,
       label: 'Remove garden',

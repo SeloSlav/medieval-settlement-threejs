@@ -72,8 +72,8 @@ assert.equal(FIRE_LIGHTNING_IGNITION_CHANCE_PER_RAIN_DAY, 0.01);
 assert.equal(FIRE_INITIAL_INTENSITY, 0.24);
 assert.equal(FIRE_INTENSITY_GROWTH_PER_SECOND, 0.008);
 assert.equal(FIRE_INTENSITY_REDUCTION_PER_WATER, 0.14);
-assert.equal(WELL_BASE_REFILL_PER_SEC, 9.6);
-assert.equal(WELL_MINIMUM_REFILL_HYDROLOGY, 0.5);
+assert.equal(WELL_BASE_REFILL_PER_SEC, 2.4);
+assert.equal(WELL_MINIMUM_REFILL_HYDROLOGY, 0.15);
 
 const incident: FireIncidentState = {
   id: 'fire-1',

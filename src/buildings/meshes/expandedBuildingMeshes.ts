@@ -634,12 +634,6 @@ export function createGranaryMesh(): THREE.Group {
   addPlankDoor(store, 0, 0.38, shell.frontZ + 0.03, 1.55, 2.25);
   for (const x of [-3.3, 3.3]) addSmallWindow(store, x, 1.92, shell.frontZ + 0.03, 0.58, 0.62);
   group.add(store);
-  // The hoist remains the functional silhouette feature, now aligned to the
-  // grounded store instead of the former raised floor and access platform.
-  addMesh(group, new THREE.BoxGeometry(0.2, 1.95, 0.2), timberMaterial('dark'), new THREE.Vector3(0, 4.15, 3.2));
-  addMesh(group, new THREE.BoxGeometry(0.22, 0.22, 2.35), timberMaterial('weathered'), new THREE.Vector3(0, 5.05, 4.25), new THREE.Euler(-0.12, 0, 0));
-  addMesh(group, new THREE.CylinderGeometry(0.045, 0.045, 1.75, 6), metalMaterial('iron'), new THREE.Vector3(0, 4.05, 5.33));
-  addMesh(group, new THREE.TorusGeometry(0.18, 0.045, 6, 12), metalMaterial('iron'), new THREE.Vector3(0, 3.15, 5.33), new THREE.Euler(Math.PI * 0.5, 0, 0));
   addSegmentedStockProps(
     group,
     'GranaryGrainStockpile',
@@ -647,12 +641,11 @@ export function createGranaryMesh(): THREE.Group {
     [[-3.45, 0, 3.8, 0.9], [-2.75, 0, 3.95, 0.75], [-3.9, 0, 4.5, 0.68]],
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
-  addMesh(group, new THREE.BoxGeometry(2.4, 0.1, 0.95), timberMaterial('weathered'), new THREE.Vector3(3.05, 0.58, 3.95));
   addSegmentedStockProps(
     group,
     'GranaryProvisionStockpile',
     'GranaryProvisionSegment',
-    [[2.35, 0.62, 3.85, 0.82], [3.05, 0.62, 3.95, 0.72], [3.7, 0.62, 3.82, 0.65]],
+    [[2.35, 0, 3.85, 0.82], [3.05, 0, 3.95, 0.72], [3.7, 0, 3.82, 0.65]],
     (segment, scale) => addSack(segment, 0, 0, scale),
   );
   return group;

@@ -22,10 +22,8 @@ import {
 } from '../src/audio/audioCatalog.ts';
 import { BUILDING_KINDS } from '../src/generated/gameBalance.ts';
 import {
-  buildingAudioGain,
+  BuildingAudio,
   buildingAudioTailGain,
-  BUILDING_AUDIO_CUTOFF_DISTANCE,
-  BUILDING_AUDIO_MAX_ZOOM_DISTANCE,
   BUILDING_AUDIO_TAIL_SECONDS,
 } from '../src/audio/BuildingAudio.ts';
 import {
@@ -366,6 +364,69 @@ async function main(): Promise<void> {
     && buildingAudioTailGain(0) === 0,
     'Building Foley needs a smooth playback-only tail envelope',
   );
+  const buildingAudioDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
+  const buildingPlayback: Array<{
+    paused: boolean;
+    plays: number;
+    src: string;
+  }> = [];
+  class FakeBuildingAudioElement {
+    paused = true;
+    plays = 0;
+    volume = 0;
+    currentTime = 0;
+    duration = 2;
+    playbackRate = 1;
+    preload = '';
+    src = '';
+
+    constructor() {
+      buildingPlayback.push(this);
+    }
+
+    pause(): void {
+      this.paused = true;
+    }
+
+    play(): Promise<void> {
+      this.paused = false;
+      this.plays += 1;
+      return Promise.resolve();
+    }
+
+    removeAttribute(): void {
+      this.src = '';
+    }
+  }
+  Object.defineProperty(globalThis, 'Audio', {
+    configurable: true,
+    writable: true,
+    value: FakeBuildingAudioElement,
+  });
+  try {
+    const buildingMixer = new BuildingAudio();
+    for (let index = 0; index < 100; index += 1) buildingMixer.tick(0.1);
+    invariant(
+      buildingPlayback.length === 0,
+      'Building Foley frame ticks must never create or schedule playback',
+    );
+    buildingMixer.play('chapel', 'building:test-chapel');
+    invariant(
+      buildingPlayback.filter((audio) => audio.plays > 0).length === 1
+      && buildingPlayback.some((audio) => (
+        audio.plays === 1
+        && audio.src === BUILDING_AUDIO_CLIPS.chapel.path
+      )),
+      'Explicit building selection must play exactly its authored cue',
+    );
+    buildingMixer.dispose();
+  } finally {
+    if (buildingAudioDescriptor) {
+      Object.defineProperty(globalThis, 'Audio', buildingAudioDescriptor);
+    } else {
+      delete (globalThis as { Audio?: unknown }).Audio;
+    }
+  }
   const closeBuildingView = {
     centerX: 0,
     centerZ: 0,
@@ -373,16 +434,6 @@ async function main(): Promise<void> {
     shadowRadius: 80,
     orbitDistance: 18,
   };
-  invariant(
-    buildingAudioGain(0, 0, closeBuildingView) === 1
-    && buildingAudioGain(BUILDING_AUDIO_CUTOFF_DISTANCE, 0, closeBuildingView) === 0
-    && buildingAudioGain(0, 0, {
-      ...closeBuildingView,
-      orbitDistance: BUILDING_AUDIO_MAX_ZOOM_DISTANCE + 1,
-    }) === 0,
-    'Building Foley must be limited to close settlement inspection',
-  );
-
   const worldAssets = manifest.assets.filter((asset) => (
     asset.group === 'world-foley'
   ));

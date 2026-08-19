@@ -6,6 +6,7 @@ import {
   stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
+import { addProceduralDoor, addProceduralWindow } from './facadeOpeningKit.ts';
 
 export type GableShellOptions = {
   width: number;
@@ -221,34 +222,13 @@ export function addPlankDoor(
   width = 1.02,
   height = 1.92,
 ): void {
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.26, height + 0.2, 0.1),
-    stoneMaterial('light'),
-    new THREE.Vector3(x, baseY + height * 0.5, z),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width, height, 0.12),
-    timberMaterial('dark'),
-    new THREE.Vector3(x, baseY + height * 0.5, z + 0.075),
-  );
-  for (let plank = -1; plank <= 1; plank++) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(0.25, height * 0.88, 0.055),
-      plank === 0 ? timberMaterial('mid') : timberMaterial('weathered'),
-      new THREE.Vector3(x + plank * 0.28, baseY + height * 0.5, z + 0.155),
-    );
-  }
-  for (const y of [baseY + 0.46, baseY + 1.36]) {
-    addMesh(
-      group,
-      new THREE.BoxGeometry(width * 0.82, 0.075, 0.055),
-      timberMaterial('dark'),
-      new THREE.Vector3(x, y, z + 0.205),
-    );
-  }
+  addProceduralDoor(group, {
+    position: new THREE.Vector3(x, baseY, z),
+    face: z < 0 ? 'negative-z' : 'positive-z',
+    width,
+    height,
+    namePrefix: 'Building',
+  });
 }
 
 export function addDarkOpening(
@@ -281,33 +261,13 @@ export function addSmallWindow(
   width = 0.78,
   height = 1.0,
 ): void {
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.22, height + 0.22, 0.08),
-    stoneMaterial('light'),
-    new THREE.Vector3(x, y, z),
-  );
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width, height, 0.08),
-    sharedBuildingMaterial('glass'),
-    new THREE.Vector3(x, y, z + 0.06),
-  );
-  const mullion = addMesh(
-    group,
-    new THREE.BoxGeometry(0.055, height * 0.86, 0.055),
-    timberMaterial('dark'),
-    new THREE.Vector3(x, y, z + 0.12),
-  );
-  mullion.name = 'Small window vertical mullion';
-
-  const transom = addMesh(
-    group,
-    new THREE.BoxGeometry(width * 0.86, 0.055, 0.055),
-    timberMaterial('dark'),
-    new THREE.Vector3(x, y, z + 0.125),
-  );
-  transom.name = 'Small window horizontal transom';
+  addProceduralWindow(group, {
+    position: new THREE.Vector3(x, y, z),
+    face: z < 0 ? 'negative-z' : 'positive-z',
+    width,
+    height,
+    namePrefix: 'Building',
+  });
 }
 
 export function addBarrel(group: THREE.Group, x: number, z: number, scale = 1): void {

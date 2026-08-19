@@ -183,7 +183,7 @@ export const UI_SOUNDS: Record<UiSoundId, AudioClipDefinition> = {
   error: { path: '/sounds/ui/error.mp3', volume: 0.3 },
 };
 
-/** Sparse close-range character cues for finished buildings and homes. */
+/** Selection-only character cues for finished buildings and occupied homes. */
 export const BUILDING_AUDIO_CLIPS: Record<
   BuildingAudioKind,
   AudioClipDefinition

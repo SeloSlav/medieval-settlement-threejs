@@ -1,5 +1,4 @@
 import {
-  BACKYARD_GARDEN_DEFINITIONS,
   BACKYARD_GARDEN_KINDS,
   CALENDAR_SECONDS_PER_DAY,
   HOUSEHOLD_MAX_WEALTH,
@@ -21,6 +20,7 @@ import {
   type EnvironmentState,
 } from '../world/seasonPolicy.ts';
 import {
+  backyardGardenMarketChannel,
   backyardGardenSeasonalMultiplier,
 } from './backyardGardenTick.ts';
 import {
@@ -384,16 +384,18 @@ export function computeSettlementBackyardEconomyPlan(input: {
       ? componentKeys(input.roadComponentFor(residence))
       : [];
     for (const key of keys) occupiedGardenBranches.add(key);
-    const requiresFoodStall = BACKYARD_GARDEN_DEFINITIONS[garden.kind]
-      .foodPerPersonPerSec > 0;
-    const eligibleMarketComponents = requiresFoodStall
+    const marketChannel = backyardGardenMarketChannel(garden.kind);
+    const eligibleMarketComponents = marketChannel === 'food'
       ? foodMarketComponents
-      : goodsMarketComponents;
-    const marketLinked = input.roadComponentFor
-      ? keys.some((key) => eligibleMarketComponents.has(key))
-      : requiresFoodStall
-        ? foodStallMarketplaces > 0
-        : goodsStallMarketplaces > 0;
+      : marketChannel === 'goods'
+        ? goodsMarketComponents
+        : marketComponents;
+    const marketLinked = marketChannel === null
+      || (input.roadComponentFor
+        ? keys.some((key) => eligibleMarketComponents.has(key))
+        : marketChannel === 'food'
+          ? foodStallMarketplaces > 0
+          : goodsStallMarketplaces > 0);
     if (marketLinked) {
       marketLinkedGardens += 1;
       for (const key of keys) {

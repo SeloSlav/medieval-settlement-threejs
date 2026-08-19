@@ -135,12 +135,16 @@ mod tests {
     }
 
     #[test]
-    fn every_well_sustains_fifty_full_homes_during_drought() {
+    fn excellent_well_sustains_fifty_full_homes_in_fair_weather() {
         let full_home_demand =
             f64::from(RESIDENCE_POPULATION_WIDE) * RESIDENCE_WATER_PER_PERSON_PER_SEC;
-        let homes_supported =
-            well_refill_per_second(0.0, DROUGHT_WELL_REFILL_MULTIPLIER) / full_home_demand;
-        assert!(homes_supported + 1e-9 >= 50.0);
+        let best_case_homes = well_refill_per_second(1.0, 1.0) / full_home_demand;
+        let dry_site_homes = well_refill_per_second(0.0, 1.0) / full_home_demand;
+        let drought_homes =
+            well_refill_per_second(1.0, DROUGHT_WELL_REFILL_MULTIPLIER) / full_home_demand;
+        assert!((best_case_homes - 50.0).abs() < 1e-9);
+        assert!(dry_site_homes < best_case_homes);
+        assert!(drought_homes < best_case_homes);
     }
 
     #[test]

@@ -111,7 +111,7 @@ Do not build close details until the first two levels work.
 | Pauline monastery | L-shaped pale complex with restrained belfry | Limewash, limestone, red tile | Cloister edge, cells, belfry |
 | Brewhouse | Stout warm-walled house with a tall chimney | Limewash, stone, red tile, oak | Barrels, brewing hearth |
 | Smokehouse | Dark compact gable dominated by its flue | Stone ground floor, dark timber, shingles | Tall chimney and smoke plume |
-| Granary | Grounded long storehouse with a projecting grain hoist | Continuous stone foundation, weathered timber, shingles | Vent openings, grain hoist, stored sacks |
+| Granary | Grounded long timber storehouse | Continuous stone foundation, weathered timber, shingles | Paired vent openings and stored grain sacks |
 | Forest apiary | Modest yellow hut beside ordered hive rows | Ochre limewash, shingles, painted hive boxes | Hive stands and small work hut |
 | Grain watermill | Riverside stone house with a dominant wheel | Limestone, limewash, red tile, oak | Full-height wheel and axle |
 | Carpenter & wheelwright | Workshop with a deep side working bay | Timber, stone plinth, red tile | Lean-to, wheels, work yard |

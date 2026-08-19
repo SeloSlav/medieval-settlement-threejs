@@ -12,6 +12,8 @@ import {
 } from '../roads/roadTravel.ts';
 import type {
   BuildingState,
+  BackyardGardenState,
+  BurgageZoneState,
   FarmFieldState,
   ForagingNodeState,
   PastureState,
@@ -20,6 +22,9 @@ import type {
   TreeEntityState,
   TreeLayoutEntry,
 } from '../resources/types.ts';
+import { backyardGardenPlacement } from '../residences/backyardPosition.ts';
+import { backyardGardenLabel } from '../residences/backyardGarden.ts';
+import { backyardGardenPhenology } from '../economy/backyardGardenTick.ts';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 import {
@@ -207,6 +212,7 @@ type VillagerRoutinePhase =
   | HouseholdHomeState;
 type VillagerPathPurpose =
   | 'home_wander'
+  | 'backyard_work'
   | 'worker_work_loop'
   | 'commute_to_work'
   | 'return_home'
@@ -265,6 +271,13 @@ type MarketStallDuty = PointXZ & {
   needKind: MarketStallNeed | null;
   approachOutside: PointXZ;
   approachInside: PointXZ;
+};
+
+type BackyardWorksite = PointXZ & {
+  kind: BackyardGardenState['kind'];
+  width: number;
+  depth: number;
+  yaw: number;
 };
 
 function workerSlotKey(workplaceId: string, workplaceSlot: number): string {
@@ -396,6 +409,7 @@ export class VillagerRenderer {
   private readonly combatAudioSourceWorkspace = createCombatAudioSourceWorkspace();
   private residences = new Map<string, ResidenceState>();
   private buildings = new Map<string, BuildingState>();
+  private backyardWorksites = new Map<string, BackyardWorksite>();
   private marketStallDutyByWorker = new Map<string, MarketStallDuty>();
   private workerTargets = new Map<string, WorkerTarget[]>();
   private foundingCamp: BuildingState | null = null;
@@ -635,8 +649,10 @@ export class VillagerRenderer {
       if (!agent.pathPurpose || agent.path.length < 2) continue;
       const cursor = Math.min(agent.pathDistance, agent.displayPathCursor);
       const remaining = remainingPolyline(agent.path, cursor);
-      const remainingWorkDistance = agent.pathPurpose === 'worker_work_loop'
-        && agent.workActivity
+      const remainingWorkDistance = (
+        agent.pathPurpose === 'worker_work_loop'
+        || agent.pathPurpose === 'backyard_work'
+      ) && agent.workActivity
         && !agent.workPerformed
         ? Math.max(0, agent.workStopDistance - cursor)
         : null;
@@ -672,6 +688,8 @@ export class VillagerRenderer {
     } | null;
     farmFields: Iterable<FarmFieldState>;
     pastures: Iterable<PastureState>;
+    backyardGardens?: Iterable<BackyardGardenState>;
+    burgageZones?: Iterable<BurgageZoneState>;
     deliveryTrips?: Iterable<DeliveryTripState>;
     fireIncidents?: Iterable<FireIncidentState>;
     roadNetwork: RoadNetwork | null;
@@ -691,12 +709,39 @@ export class VillagerRenderer {
     const foragingNodes = [...options.foragingNodes];
     const farmFields = [...options.farmFields];
     const pastures = [...options.pastures];
+    const backyardGardens = [...(options.backyardGardens ?? [])];
+    const burgageZones = [...(options.burgageZones ?? [])];
     const fireIncidents = [...(options.fireIncidents ?? [])];
     const disabledBuildingIds = fireDisabledBuildingIds(fireIncidents);
     this.fireDisabledBuildingIds = disabledBuildingIds;
     this.fireDisabledResidenceIds = fireDisabledResidenceIds(fireIncidents);
     this.residences = new Map(residences.map((residence) => [residence.id, residence]));
     this.buildings = new Map(buildings.map((building) => [building.id, building]));
+    const month = options.foragingMonth ?? this.clock?.month ?? 1;
+    const zonesById = new Map(burgageZones.map((zone) => [zone.id, zone]));
+    this.backyardWorksites = new Map();
+    for (const garden of backyardGardens) {
+      const residence = this.residences.get(garden.residenceId);
+      const zone = residence ? zonesById.get(residence.zoneId) : null;
+      const placement = residence && zone
+        ? backyardGardenPlacement(residence, zone)
+        : null;
+      if (
+        !residence
+        || !placement
+        || !backyardGardenPhenology(garden.kind, month).harvestable
+      ) {
+        continue;
+      }
+      this.backyardWorksites.set(residence.id, {
+        kind: garden.kind,
+        x: placement.x,
+        z: placement.z,
+        width: placement.width,
+        depth: placement.depth,
+        yaw: placement.yaw,
+      });
+    }
     this.foundingCamp = physicalBuildings.find(
       (building) =>
         building.kind === 'founders_camp'
