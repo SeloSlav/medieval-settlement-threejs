@@ -27,7 +27,8 @@ Do not trade silhouette clarity for more small geometry. Details that disappear 
 
 - Prefer compact, useful footprints and steep roofs suited to rain and snow.
 - Use deep eaves, visible ridge lines, and a strong roof-to-wall ratio.
-- Anchor buildings with a stone plinth, foundation course, curb, or working yard.
+- Anchor enclosed buildings with a structural foundation course and open worksites with terrain-contacting equipment.
+- Do not place a broad circular or elliptical presentation plinth beneath a model. Functional excavations, shaft mouths, well curbs, and purpose-built masonry floors are allowed, but they must read as part of the worksite rather than as a display base.
 - Use dark structural timber to frame pale walls and openings.
 - Let civic buildings be more vertical; let production buildings spread horizontally.
 - Use asymmetry through chimneys, lean-tos, stacked goods, porches, sheds, and work equipment.

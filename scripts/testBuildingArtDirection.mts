@@ -164,6 +164,17 @@ for (const kind of BUILDING_KINDS) {
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     meshCount += 1;
+    if (object.geometry instanceof THREE.CylinderGeometry) {
+      const { radiusTop, radiusBottom, height } = object.geometry.parameters;
+      const radius = Math.max(radiusTop, radiusBottom);
+      if (
+        radius >= 4
+        && height <= 0.35
+        && object.userData.functionalGroundOpening !== true
+      ) {
+        throw new Error(`${kind} contains a broad flat model base (${object.name || 'unnamed cylinder'}).`);
+      }
+    }
     const highEdge = object.userData.leanToHighEdge as string | undefined;
     if (highEdge) {
       const geometry = object.geometry as THREE.BoxGeometry;

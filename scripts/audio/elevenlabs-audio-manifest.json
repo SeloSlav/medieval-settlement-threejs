@@ -26,10 +26,10 @@
       "group": "ambient-core",
       "kind": "sound-effect",
       "output": "public/sounds/ambient/village_day.mp3",
-      "prompt": "Seamless low-detail ambience of a small peaceful late-medieval rural village at work, diffuse distant villager murmur, gentle footsteps on packed earth, faint cloth and soft wooden yard activity, a non-tonal background bed with no attention-grabbing events, no hand tools, cart wheels, squeaks, metal impacts, bells, chimes, alarms, whistles, repeated tonal pulses, intelligible speech, or music",
+      "prompt": "Seamless subdued ambience of a distant late-medieval village heard from far across a field in heavy mist, warm muffled low-frequency wash of indistinct human activity and soft earth movement, dark diffuse steady background texture, calm, natural, and very low detail",
       "durationSeconds": 30,
       "loop": true,
-      "promptInfluence": 0.7
+      "promptInfluence": 0.82
     },
     {
       "id": "ambient-night",

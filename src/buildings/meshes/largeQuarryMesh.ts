@@ -168,7 +168,7 @@ function addStoneYard(group: THREE.Group): void {
       group,
       new THREE.DodecahedronGeometry(0.62 + (index % 4) * 0.12, 0),
       quarryRockMaterial(index % 3 === 0 ? 'light' : index % 2 === 0 ? 'dark' : 'mid'),
-      new THREE.Vector3(Math.sin(angle) * radius, 0.48, Math.cos(angle) * radius),
+      new THREE.Vector3(Math.sin(angle) * radius, 0.3, Math.cos(angle) * radius),
       new THREE.Euler(index * 0.19, index * 0.37, index * 0.11),
       new THREE.Vector3(1.2, 0.7, 0.95),
     );
@@ -214,12 +214,6 @@ function addChamberSupportStockpile(group: THREE.Group): void {
 export function createLargeQuarryMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Large Quarry';
-  addMesh(
-    group,
-    new THREE.CylinderGeometry(11.7, 12.25, 0.3, 20),
-    quarryRockMaterial('dust'),
-    new THREE.Vector3(0, 0.1, 0),
-  );
   addShaft(group);
   addHeadframe(group);
   addWinchHouse(group);

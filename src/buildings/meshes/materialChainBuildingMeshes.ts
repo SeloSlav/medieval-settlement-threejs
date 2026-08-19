@@ -31,17 +31,6 @@ const ASH = stoneMaterial('mortar');
 const WATER = sharedBuildingDetailMaterial('water');
 export const CHARCOAL_CLAMP_SMOKE_NAME = 'CharcoalClampSmoke';
 
-function addYardBase(group: THREE.Group, width: number, depth: number): void {
-  const base = addMesh(
-    group,
-    new THREE.CylinderGeometry(Math.max(width, depth) * 0.52, Math.max(width, depth) * 0.55, 0.14, 14),
-    sharedBuildingDetailMaterial('earth'),
-    new THREE.Vector3(0, 0.05, 0),
-  );
-  base.scale.set(width / Math.max(width, depth), 1, depth / Math.max(width, depth));
-  base.receiveShadow = true;
-}
-
 function addTimberCanopy(
   group: THREE.Group,
   center: THREE.Vector3,
@@ -54,7 +43,7 @@ function addTimberCanopy(
         group,
         new THREE.BoxGeometry(0.17, 2.05, 0.17),
         timberMaterial('dark'),
-        new THREE.Vector3(center.x + x, 1.08, center.z + z),
+        new THREE.Vector3(center.x + x, 1.025, center.z + z),
       );
     }
   }
@@ -63,7 +52,7 @@ function addTimberCanopy(
     depth: depth + 0.45,
     thickness: 0.14,
     material: sharedBuildingMaterial('shingle'),
-    position: new THREE.Vector3(center.x, 2.15, center.z),
+    position: new THREE.Vector3(center.x, 2.095, center.z),
     pitch: 0.1,
     highEdge: 'negativeZ',
     name: 'Weathered craft-yard canopy',
@@ -249,21 +238,22 @@ function addFirewoodStockpile(
 export function createClayPitMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Clay pit';
-  addYardBase(group, 10.5, 8.5);
 
   const pit = addMesh(
     group,
-    new THREE.CylinderGeometry(3.6, 4.1, 0.42, 18),
+    new THREE.RingGeometry(3.55, 4.1, 18),
     CLAY,
-    new THREE.Vector3(-0.7, -0.04, -0.35),
+    new THREE.Vector3(-0.7, 0.025, -0.35),
+    new THREE.Euler(-Math.PI * 0.5, 0, 0),
   );
   pit.name = 'Wet clay excavation';
-  pit.scale.set(1.18, 1, 0.76);
+  pit.userData.functionalGroundOpening = true;
+  pit.scale.set(1.18, 0.76, 1);
   addMesh(
     group,
-    new THREE.CylinderGeometry(2.75, 3.25, 0.05, 18),
+    new THREE.CylinderGeometry(3.45, 3.45, 0.02, 18),
     sharedBuildingDetailMaterial('water'),
-    new THREE.Vector3(-0.7, 0.18, -0.35),
+    new THREE.Vector3(-0.7, 0.01, -0.35),
   ).scale.set(1.18, 1, 0.72);
 
   const strata = new THREE.Group();
@@ -297,7 +287,7 @@ export function createClayPitMesh(): THREE.Group {
     addClayLump(
       group,
       'ClayPitClaySegment',
-      new THREE.Vector3(x, 0.36 + (index % 2) * 0.08, z),
+      new THREE.Vector3(x, 0.24 + (index % 2) * 0.08, z),
       1.15,
     );
   }
@@ -314,7 +304,7 @@ export function createClayPitMesh(): THREE.Group {
       group,
       new THREE.BoxGeometry(2.2, 0.12, 0.34),
       timberMaterial('weathered'),
-      new THREE.Vector3(-2.9 + step * 0.34, 0.2 + step * 0.14, 2.45),
+      new THREE.Vector3(-2.9 + step * 0.34, 0.06 + step * 0.14, 2.45),
       new THREE.Euler(0, -0.32, 0),
     );
   }
@@ -325,24 +315,23 @@ export function createClayPitMesh(): THREE.Group {
 export function createCharcoalBurnerMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = "Charcoal burner's yard";
-  addYardBase(group, 9.5, 8.5);
   addTimberCanopy(group, new THREE.Vector3(2.6, 0, 1.8), 3.2, 2.5);
 
   addMesh(
     group,
     new THREE.ConeGeometry(2.35, 2.45, 16),
     sharedBuildingDetailMaterial('earth'),
-    new THREE.Vector3(-1.15, 1.28, -0.2),
+    new THREE.Vector3(-1.15, 1.225, -0.2),
   ).name = 'Covered charcoal clamp';
   addMesh(
     group,
     new THREE.CylinderGeometry(0.34, 0.5, 0.85, 9),
     ASH,
-    new THREE.Vector3(-1.15, 2.55, -0.2),
+    new THREE.Vector3(-1.15, 2.495, -0.2),
   );
   const smoke = new THREE.Group();
   smoke.name = CHARCOAL_CLAMP_SMOKE_NAME;
-  smoke.position.set(-1.15, 2.95, -0.2);
+  smoke.position.set(-1.15, 2.895, -0.2);
   smoke.visible = false;
   smoke.userData.fpNoCollision = true;
   for (const [index, [x, y, z, scale]] of ([
@@ -389,7 +378,7 @@ export function createCharcoalBurnerMesh(): THREE.Group {
     addCharcoalSack(
       stockpile,
       'CharcoalBurnerCharcoalSegment',
-      new THREE.Vector3(x, 0.48 + (index % 2) * 0.08, z),
+      new THREE.Vector3(x, 0.38 + (index % 2) * 0.08, z),
     );
   }
   addFirewoodStockpile(
@@ -422,7 +411,6 @@ export function setCharcoalClampSmokeThroughput(
 export function createSmithyMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Forest bloomery and smithy';
-  addYardBase(group, 8.5, 7.5);
   const shell = addGableShell(group, {
     width: 5.9,
     depth: 4.6,
@@ -462,7 +450,7 @@ export function createSmithyMesh(): THREE.Group {
     group,
     new THREE.BoxGeometry(1.55, 0.7, 0.95),
     stoneMaterial('mid'),
-    new THREE.Vector3(2.45, 0.45, 1.25),
+    new THREE.Vector3(2.45, 0.35, 1.25),
   ).name = 'Smithy forge hearth';
   addMesh(
     group,
@@ -479,7 +467,7 @@ export function createSmithyMesh(): THREE.Group {
 
   const bloomery = new THREE.Group();
   bloomery.name = 'Direct-process bloomery';
-  bloomery.position.set(0.25, 0, 2.55);
+  bloomery.position.set(0.25, -0.045, 2.55);
   group.add(bloomery);
   addMesh(
     bloomery,
@@ -547,7 +535,7 @@ export function createSmithyMesh(): THREE.Group {
 
   const quenchTub = new THREE.Group();
   quenchTub.name = 'Smithy quench tub';
-  quenchTub.position.set(3.55, 0.05, 1.95);
+  quenchTub.position.set(3.55, -0.05, 1.95);
   group.add(quenchTub);
   addMesh(
     quenchTub,
@@ -624,7 +612,6 @@ export function createSmithyMesh(): THREE.Group {
 export function createPotterKilnMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = "Potter's kiln";
-  addYardBase(group, 8.8, 7.7);
   const shell = addGableShell(group, {
     width: 5.1,
     depth: 4.2,
@@ -660,7 +647,7 @@ export function createPotterKilnMesh(): THREE.Group {
 
   const puddlingPit = new THREE.Group();
   puddlingPit.name = 'Clay puddling pit';
-  puddlingPit.position.set(-3.35, 0.04, -1.65);
+  puddlingPit.position.set(-3.35, -0.03, -1.65);
   group.add(puddlingPit);
   addMesh(
     puddlingPit,
@@ -715,7 +702,7 @@ export function createPotterKilnMesh(): THREE.Group {
       'PotterClaySegment',
       new THREE.Vector3(
         -3.15 + (index % 2) * 0.55,
-        0.28 + Math.floor(index / 2) * 0.18,
+        0.16 + Math.floor(index / 2) * 0.18,
         1.65,
       ),
       1.05,
@@ -725,7 +712,7 @@ export function createPotterKilnMesh(): THREE.Group {
       'PotterPotterySegment',
       new THREE.Vector3(
         1.55 + (index % 3) * 0.58,
-        0.16 + Math.floor(index / 3) * 0.48,
+        0.04 + Math.floor(index / 3) * 0.48,
         1.4,
       ),
       index >= 3 ? 0.86 : 1,

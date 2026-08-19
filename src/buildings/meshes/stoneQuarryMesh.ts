@@ -61,7 +61,7 @@ function addRubble(group: THREE.Group): void {
       group,
       new THREE.DodecahedronGeometry(0.72, 0),
       quarryRockMaterial(i % 3 === 0 ? 'light' : i % 2 === 0 ? 'dark' : 'mid'),
-      new THREE.Vector3(x, 0.43 + (i % 2) * 0.12, z),
+      new THREE.Vector3(x, 0.3 + (i % 2) * 0.08, z),
       new THREE.Euler(i * 0.19, i * 0.31, i * 0.11),
       new THREE.Vector3(sx, 0.68 + (i % 3) * 0.12, sz),
     );
@@ -169,12 +169,6 @@ function addStonecuttingBench(group: THREE.Group): void {
 export function createStoneQuarryMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Stone quarry';
-  addMesh(
-    group,
-    new THREE.CylinderGeometry(9.6, 10.15, 0.32, 16),
-    quarryRockMaterial('dust'),
-    new THREE.Vector3(0, 0.12, 0),
-  );
   addRubble(group);
   addDerrick(group);
   addStonecuttersShelter(group);
