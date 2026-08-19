@@ -676,9 +676,14 @@ const shorelineBridgeBuilder = new RoadMeshBuilder(
   flatTerrain as never,
   materials as never,
   {
-    isWaterAt: (x: number, z: number) => Math.hypot(x, z) > 1.4,
+    // Keep the shared node dry while making the immediately adjacent sampled
+    // section wet: the transition sample reaches the node even though its own
+    // bridge blend remains zero.
+    isWaterAt: (x: number, z: number) => Math.hypot(x, z) > 0.4,
     getTerrainY: () => 0,
-    getWaterSurfaceY: () => 2,
+    // Keep vertical travel modest so this fixture isolates endpoint/run
+    // selection rather than bridge-grade behavior.
+    getWaterSurfaceY: () => 0.2,
   },
 );
 const shorelineReach = roadVisualWidth(4.2) * ROAD_JUNCTION_REACH;
@@ -703,7 +708,7 @@ for (const edge of shorelineBridgeNetwork.edges.values()) {
   }
   assert(
     closestPost >= shorelineReach - 0.2,
-    'a bridge beginning just beyond a dry shared node must leave the junction arm open',
+    `a bridge beginning just beyond a dry shared node must leave the junction arm open (${closestPost.toFixed(3)} < ${shorelineReach.toFixed(3)})`,
   );
 }
 
