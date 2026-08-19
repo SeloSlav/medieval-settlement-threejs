@@ -138,6 +138,7 @@ export function createSeedThreeOverviewFadeMaterial(
     'forestSeasonalSpringFlush',
     'forestSeasonalAutumnColor',
     'forestSeasonalDormancy',
+    'forestSnowCoverage',
   ]) {
     const value = source.userData[property];
     if (value !== undefined) material.userData[property] = value;

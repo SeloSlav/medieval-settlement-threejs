@@ -299,6 +299,13 @@ remain evergreen. The per-tree deciduous flag is packed into an existing
 forest-card instance buffer, so the seasonal treatment adds no texture, vertex
 buffer, mesh, or draw call.
 
+Evergreen foliage also reads the settled-snow coverage used by the terrain. A
+restrained cool-white dusting settles only on foliage pixels in the upward-facing
+parts of silver fir, spruce, Scots pine, and black pine crowns; deciduous trees,
+European larch, baked twigs, and the undersides of evergreen crowns remain
+uncoated. The response is shader-only and world-locked, adding no texture sample,
+mesh, vertex buffer, or draw call.
+
 The seasonal HUD tooltip and staffed or unstaffed Town Hall ledger also show a
 deterministic next-dawn outlook. It uses the same seed, hydrology, calendar, and
 environment policy as the authoritative next day, then reports road movement,

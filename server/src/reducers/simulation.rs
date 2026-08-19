@@ -16,7 +16,8 @@ use crate::simulation::{
     step_lumber_mill, step_market_household_distribution, step_marketplace_caravans,
     step_marketplace_material_dispatch, step_mine, step_monastery, step_night_cycle,
     step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
-    step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
+    step_natural_tree_regrowth, step_reclamation_piles, step_reforester, step_residence,
+    step_residence_upgrades,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls, step_swineherd,
     step_threshing_barn, step_village_storehouse_overflow_collection, step_vineyard,
@@ -183,6 +184,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         environment,
     );
     let tick = SimTickContext::with_road_networks(road_networks);
+    step_natural_tree_regrowth(ctx, sim_tick);
     step_fires(ctx, &clock, environment, world_seed, sim_tick);
     step_workforce_commutes(ctx, &tick, sim_tick);
     step_construction_sites(ctx, &tick, &clock);
@@ -322,7 +324,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
         let Some(building) = ctx.db.building().id().find(&building_id) else {
             continue;
         };
-        step_reforester(ctx, &tick, &clock, building);
+        step_reforester(ctx, &tick, &clock, sim_tick, building);
     }
 
     for building_id in lumber_mill_ids {

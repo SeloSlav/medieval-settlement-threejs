@@ -162,6 +162,9 @@ pub mod well_policy;
 #[path = "../../src/woodcutter_policy.rs"]
 pub mod woodcutter_policy;
 
+#[path = "../../src/tree_regrowth_policy.rs"]
+pub mod tree_regrowth_policy;
+
 #[path = "../../src/year_round_labor_policy.rs"]
 pub mod year_round_labor_policy;
 

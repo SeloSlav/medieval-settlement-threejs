@@ -266,8 +266,15 @@ for (const kind of BUILDING_KINDS) {
   if (kind === 'well') {
     const outerWall = model.getObjectByName('Well outer masonry wall');
     const innerWall = model.getObjectByName('Well inner masonry wall');
-    if (!(outerWall instanceof THREE.Mesh) || !(innerWall instanceof THREE.Mesh)) {
-      throw new Error('Well must provide separate named outer and inner masonry skins.');
+    const crownSeal = model.getObjectByName('Well masonry crown seal');
+    const water = model.getObjectByName('Well water surface');
+    if (
+      !(outerWall instanceof THREE.Mesh)
+      || !(innerWall instanceof THREE.Mesh)
+      || !(crownSeal instanceof THREE.Mesh)
+      || !(water instanceof THREE.Mesh)
+    ) {
+      throw new Error('Well must provide named outer/inner skins, crown seal, and water surface.');
     }
     const radialNormalSign = (mesh: THREE.Mesh): number => {
       const position = mesh.geometry.getAttribute('position');
@@ -296,6 +303,39 @@ for (const kind of BUILDING_KINDS) {
     ).intersectObject(outerWall, false);
     if (insideWallHits.length === 0 || outsideWallHits.length === 0) {
       throw new Error('Well wall must render through front-face culling from both viewing sides.');
+    }
+    // The previous edge-only torus/cylinder contact opened into bright wedges
+    // between segment angles. A full sweep at the old seam radius proves the
+    // overlapping annular seal remains continuous from exterior viewpoints.
+    for (let angleIndex = 0; angleIndex < 32; angleIndex += 1) {
+      const angle = angleIndex / 32 * Math.PI * 2;
+      const crownHits = new THREE.Raycaster(
+        new THREE.Vector3(Math.cos(angle) * 1.015, 2, Math.sin(angle) * 1.015),
+        new THREE.Vector3(0, -1, 0),
+      ).intersectObject(crownSeal, false);
+      if (crownHits.length === 0) {
+        throw new Error(`Well crown seal left an angular gap at sample ${angleIndex}.`);
+      }
+    }
+
+    const waterMaterial = Array.isArray(water.material) ? water.material[0] : water.material;
+    if (
+      !waterMaterial
+      || waterMaterial.name !== 'Shared bounded well water'
+      || waterMaterial.userData.sharedBuildingMaterial !== true
+      || waterMaterial.userData.waterVisualFamily !== 'river-derived'
+      || waterMaterial.userData.waterQualityTier !== 'bounded-normal-only'
+      || waterMaterial.transparent !== true
+      || waterMaterial.depthWrite !== false
+      || !('transmission' in waterMaterial)
+      || typeof waterMaterial.transmission !== 'number'
+      || waterMaterial.transmission < 0.5
+      || !('normalNode' in waterMaterial)
+      || waterMaterial.normalNode == null
+      || !('backdropNode' in waterMaterial)
+      || waterMaterial.backdropNode == null
+    ) {
+      throw new Error('Well water must retain the shared animated river-derived optical tier.');
     }
 
     const posts: THREE.Mesh[] = [];
@@ -374,9 +414,9 @@ if (stats.constructionMaterials > 20) {
 if (stats.detailMaterials > 10) {
   throw new Error(`Shared building-detail palette grew beyond 10 materials (${stats.detailMaterials}).`);
 }
-// The instanced vineyard foliage and founding camp's feathered ground each need
-// one globally shared material outside the opaque construction/detail library.
-const externalSharedMaterialAllowance = 2;
+// Vineyard foliage, the founding camp's feathered ground, and the well's node
+// water each need one global material outside the opaque construction library.
+const externalSharedMaterialAllowance = 3;
 const buildingMaterialCeiling =
   stats.constructionMaterials + stats.detailMaterials + externalSharedMaterialAllowance;
 if (sharedMaterials.size > buildingMaterialCeiling) {

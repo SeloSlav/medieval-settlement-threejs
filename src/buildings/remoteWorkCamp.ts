@@ -42,9 +42,12 @@ export type RemoteWorkCampLayout = {
 };
 
 const CAMP_LAYOUT: RemoteWorkCampLayout = {
+  // Keep the full canvas shells distinct while retaining a slight inward turn
+  // toward the shared fire. These centers also keep the outer guy stakes
+  // inside the camp's authored 4.4 m half-width terrain pad.
   tents: [
-    { x: -1.55, z: -0.75, yaw: 0.48 },
-    { x: 1.45, z: -1.1, yaw: -0.42 },
+    { x: -2.15, z: -0.75, yaw: 0.03 },
+    { x: 2.15, z: -1.1, yaw: -0.03 },
   ],
   campfire: { x: 0, z: 1.9 },
 };

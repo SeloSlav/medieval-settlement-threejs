@@ -78,6 +78,10 @@ declare module '@seedthree/core/branch-cards.js' {
     },
   ): THREE.Material;
   export function setForestCardDormancy(material: THREE.Material, amount: number): boolean;
+  export function setForestCardSnowCoverage(
+    material: THREE.Material,
+    amount: number,
+  ): boolean;
   export function setForestCardSeason(
     material: THREE.Material,
     state: {

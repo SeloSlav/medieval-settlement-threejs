@@ -896,6 +896,7 @@ function addAFrameShelter(
   z: number,
   yaw: number,
   fabricVariant: number,
+  omittedGuySide: -1 | 1 | null = null,
 ): void {
   const shelter = new THREE.Group();
   shelter.name = 'Founding canvas tent';
@@ -968,6 +969,7 @@ function addAFrameShelter(
     addTentStake(shelter, 0, outwardZ);
   }
   for (const side of [-1, 1]) {
+    if (side === omittedGuySide) continue;
     for (const zEnd of [-TENT_HALF_DEPTH * 0.86, TENT_HALF_DEPTH * 0.86]) {
       const stakeX = side * (TENT_HALF_WIDTH + 0.55);
       const stakeZ = zEnd + Math.sign(zEnd) * 0.34;
@@ -1893,7 +1895,10 @@ export function createRemoteWorkCampMesh(): THREE.Group {
   camp.userData.fpCollisionChildrenOnly = true;
 
   layout.tents.forEach((tent, index) => {
-    addAFrameShelter(camp, tent.x, tent.z, tent.yaw, index + 1);
+    // Leave the shared aisle free of crossed guy ropes and doubled stakes.
+    // Each shelter retains its outer side guys plus both ridge-end anchors.
+    const inwardSide = tent.x < 0 ? 1 : -1;
+    addAFrameShelter(camp, tent.x, tent.z, tent.yaw, index + 1, inwardSide);
   });
   const campfire = addCampfire(camp);
   campfire.name = REMOTE_WORK_CAMPFIRE_NAME;

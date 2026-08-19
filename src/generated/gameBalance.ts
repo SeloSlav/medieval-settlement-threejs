@@ -340,6 +340,10 @@ export const FISH_REPRODUCTION_RATE_PER_DAY = 0.08;
 export const GAME_REPRODUCTION_RATE_PER_DAY = 0.12;
 export const GAME_MIN_BREEDING_POPULATION = 2;
 export const GAME_HABITAT_DISRUPTION_RADIUS = 38;
+export const NATURAL_TREE_MATURATION_DAYS = 180;
+export const REFORESTER_REGROW_PER_SEC = 0.12;
+export const REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS = 30;
+export const TREE_REGROWTH_UPDATE_INTERVAL_SEC = 5;
 export const WELL_BASE_REFILL_PER_SEC = 2.4;
 export const WELL_MINIMUM_REFILL_HYDROLOGY = 0.15;
 export const WELL_SURGE_CHANCE_PER_TICK = 0.0022;
@@ -846,7 +850,7 @@ export const BUILDING_DEFINITIONS = {
     workRadius: 190,
     pickRadius: 8,
     harvestInterval: 0,
-    regrowRatePerSecond: 0.014,
+    regrowRatePerSecond: 0.12,
     maxLabor: 1,
     acceptsLabor: true,
     requiresRoad: false,

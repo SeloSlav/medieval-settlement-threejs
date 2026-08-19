@@ -60,6 +60,7 @@ mod storehouse_policy;
 mod supply_policy;
 mod trading_post_policy;
 mod tables;
+mod tree_regrowth_policy;
 mod types;
 mod vineyard;
 mod weaver_input_policy;

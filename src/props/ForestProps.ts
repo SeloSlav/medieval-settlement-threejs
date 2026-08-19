@@ -168,6 +168,8 @@ export async function createForestProps(
         disposeSeedThreeBranchCardCache();
       },
       seedThreeController,
+      maxAnisotropy,
+      seedThree.resolveSeedThreeHarvestStumpBark,
     );
   }
 
@@ -199,6 +201,8 @@ export async function createForestProps(
       disposeUndergrowthInstances(undergrowth, undergrowthMaterials);
       disposeForestMaterials(materials);
     },
+    null,
+    maxAnisotropy,
   );
 }
 

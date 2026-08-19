@@ -513,7 +513,10 @@ export type GameBalance = {
     gameReproductionRatePerDay: number;
     gameMinBreedingPopulation: number;
     gameHabitatDisruptionRadius: number;
+    naturalTreeMaturationDays: number;
     reforesterRegrowPerSec: number;
+    reforesterSparseTreeMaturationWorkdays: number;
+    treeRegrowthUpdateIntervalSec: number;
     wellBaseRefillPerSec: number;
     wellMinimumRefillHydrology: number;
     wellSurgeChancePerTick: number;
@@ -692,6 +695,13 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(scriptDir, '..');
 const balancePath = join(projectRoot, 'balance/gameBalance.json');
 const balance = JSON.parse(readFileSync(balancePath, 'utf8')) as GameBalance;
+
+if (
+  balance.buildings.reforester.regrowRatePerSecond
+  !== balance.production.reforesterRegrowPerSec
+) {
+  throw new Error('Reforester building and production regrowth capacities must match.');
+}
 
 const buildingKinds = Object.keys(balance.buildings);
 const backyardGardenKinds = Object.keys(balance.backyardGardens);
@@ -1090,7 +1100,10 @@ function generateRust(): string {
     `pub const GAME_REPRODUCTION_RATE_PER_DAY: f64 = ${rustF64(b.production.gameReproductionRatePerDay)};`,
     `pub const GAME_MIN_BREEDING_POPULATION: f64 = ${rustF64(b.production.gameMinBreedingPopulation)};`,
     `pub const GAME_HABITAT_DISRUPTION_RADIUS: f64 = ${rustF64(b.production.gameHabitatDisruptionRadius)};`,
+    `pub const NATURAL_TREE_MATURATION_DAYS: f64 = ${rustF64(b.production.naturalTreeMaturationDays)};`,
     `pub const REFORESTER_REGROW_PER_SEC: f64 = ${rustF64(b.production.reforesterRegrowPerSec)};`,
+    `pub const REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS: f64 = ${rustF64(b.production.reforesterSparseTreeMaturationWorkdays)};`,
+    `pub const TREE_REGROWTH_UPDATE_INTERVAL_SEC: f64 = ${rustF64(b.production.treeRegrowthUpdateIntervalSec)};`,
     `pub const WELL_BASE_REFILL_PER_SEC: f64 = ${rustF64(b.production.wellBaseRefillPerSec)};`,
     `pub const WELL_MINIMUM_REFILL_HYDROLOGY: f64 = ${rustF64(b.production.wellMinimumRefillHydrology)};`,
     `pub const WELL_SURGE_CHANCE_PER_TICK: f64 = ${rustF64(b.production.wellSurgeChancePerTick)};`,
@@ -1988,6 +2001,10 @@ function generateTypeScript(): string {
     `export const GAME_REPRODUCTION_RATE_PER_DAY = ${b.production.gameReproductionRatePerDay};`,
     `export const GAME_MIN_BREEDING_POPULATION = ${b.production.gameMinBreedingPopulation};`,
     `export const GAME_HABITAT_DISRUPTION_RADIUS = ${b.production.gameHabitatDisruptionRadius};`,
+    `export const NATURAL_TREE_MATURATION_DAYS = ${b.production.naturalTreeMaturationDays};`,
+    `export const REFORESTER_REGROW_PER_SEC = ${b.production.reforesterRegrowPerSec};`,
+    `export const REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS = ${b.production.reforesterSparseTreeMaturationWorkdays};`,
+    `export const TREE_REGROWTH_UPDATE_INTERVAL_SEC = ${b.production.treeRegrowthUpdateIntervalSec};`,
     `export const WELL_BASE_REFILL_PER_SEC = ${b.production.wellBaseRefillPerSec};`,
     `export const WELL_MINIMUM_REFILL_HYDROLOGY = ${b.production.wellMinimumRefillHydrology};`,
     `export const WELL_SURGE_CHANCE_PER_TICK = ${b.production.wellSurgeChancePerTick};`,

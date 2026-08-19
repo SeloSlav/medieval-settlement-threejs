@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { BuildingTerrainLayout } from '../src/buildings/BuildingTerrainLayout.ts';
 import { buildingUsesCompletedMesh } from '../src/buildings/buildingVisualState.ts';
 import {
   SALVAGE_GOODS_VISUAL_SEGMENTS,
@@ -58,6 +59,17 @@ assert.equal(
 
 const pile = createBuildingMesh('salvage_pile');
 assert.equal(pile.name, 'Physical reclamation pile');
+const pileTerrain = BuildingTerrainLayout.fromBuildings(
+  [{ kind: 'salvage_pile', x: 0, z: 0, yaw: 0 }],
+  () => 0,
+);
+for (const [x, z] of [[0, 0], [3.5, 0], [0, 3], [4.2, 2.2]] as const) {
+  assert.equal(
+    pileTerrain.isBlockedForGrass(x, z),
+    false,
+    `reclamation props must not expose a solid dark terrain pad at (${x}, ${z})`,
+  );
+}
 const timber = pile.getObjectByName('SalvageTimberStockpile');
 const stone = pile.getObjectByName('SalvageStoneStockpile');
 const goods = pile.getObjectByName('SalvageCratedGoods');

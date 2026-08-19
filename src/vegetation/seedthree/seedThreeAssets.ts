@@ -111,6 +111,13 @@ export function getSeedThreeSpeciesAssetStartupTimings(): SeedThreeSpeciesAssetS
   return [...startupTimings.values()].map((timing) => ({ ...timing }));
 }
 
+/** Read-only cache access for props that deliberately share the live tree's GPU textures. */
+export function getCachedSeedThreeSpeciesAssets(
+  speciesName: string,
+): SeedThreeSpeciesAssets | null {
+  return assetCache.get(speciesName) ?? null;
+}
+
 async function createSeedThreeSpeciesAssets(
   species: SeedThreeSpeciesPreset,
   maxAnisotropy: number,

@@ -15,8 +15,14 @@ import {
   type UndergrowthPlacement,
 } from './ForestUndergrowth.ts';
 import {
-  createHarvestStumpMesh,
+  commitHarvestStumpInstanceUpdates,
+  createHarvestStumpInstances,
+  disposeHarvestStumpInstances,
+  hideHarvestStumpInstance,
   isUndergrowthNearAnyEdge,
+  setHarvestStumpShadowsEnabled,
+  type HarvestStumpBarkResolver,
+  type HarvestStumpInstances,
   updateHarvestStumpInstance,
 } from './RoadStumps.ts';
 import type { TreePhase } from '../resources/types.ts';
@@ -118,7 +124,7 @@ export class ForestManager {
   private readonly rockInstances: ForestRockInstance[];
   private readonly allRockPlacements: RockObstacle[];
   private activeRockPlacements: RockObstacle[];
-  private readonly harvestStumpMesh: THREE.InstancedMesh;
+  private readonly harvestStumps: HarvestStumpInstances;
   private readonly terrain: Terrain;
   private readonly seedThreeForest: SeedThreeForestController | null;
   private readonly hiddenMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -146,6 +152,8 @@ export class ForestManager {
     terrain: Terrain,
     disposeResources: () => void,
     seedThreeForest: SeedThreeForestController | null = null,
+    maxAnisotropy = 1,
+    resolveHarvestStumpBark?: HarvestStumpBarkResolver,
   ) {
     this.seedThreeForest = seedThreeForest;
     this.group = root;
@@ -169,11 +177,16 @@ export class ForestManager {
     this.undergrowth = undergrowth;
     this.undergrowthPlacements = undergrowthPlacements;
     this.terrain = terrain;
-    this.harvestStumpMesh = createHarvestStumpMesh(this.placements.length);
-    this.group.add(this.harvestStumpMesh);
+    this.harvestStumps = createHarvestStumpInstances(
+      this.placements,
+      maxAnisotropy,
+      resolveHarvestStumpBark,
+    );
+    this.group.add(this.harvestStumps.group);
     for (let i = 0; i < this.placements.length; i++) {
       this.hideHarvestStump(i);
     }
+    commitHarvestStumpInstanceUpdates(this.harvestStumps);
   }
 
   getTreeLayouts(): ForestTreeLayout[] {
@@ -222,6 +235,10 @@ export class ForestManager {
 
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void {
     this.seedThreeForest?.setDeciduousFoliage(presentation);
+  }
+
+  setSnowCoverage(coverage: number): void {
+    this.seedThreeForest?.setSnowCoverage(coverage);
   }
 
   setDistantCanopyCardsEnabled(enabled: boolean): void {
@@ -360,7 +377,7 @@ export class ForestManager {
     this.trunkMesh.castShadow = enabled;
     this.coniferShadowMesh.castShadow = enabled;
     this.broadleafShadowMesh.castShadow = enabled;
-    this.harvestStumpMesh.castShadow = enabled;
+    setHarvestStumpShadowsEnabled(this.harvestStumps, enabled);
     if (this.undergrowth) {
       for (const kind of ['bush', 'fern', 'juniper'] as const) {
         for (const bucket of this.undergrowth.buckets[kind]) {
@@ -513,8 +530,7 @@ export class ForestManager {
   }
 
   dispose(): void {
-    this.harvestStumpMesh.geometry.dispose();
-    (this.harvestStumpMesh.material as THREE.Material).dispose();
+    disposeHarvestStumpInstances(this.harvestStumps);
     this.disposeResources();
   }
 
@@ -688,7 +704,7 @@ export class ForestManager {
   private showHarvestStump(layoutIndex: number): void {
     const placement = this.placements[layoutIndex];
     updateHarvestStumpInstance(
-      this.harvestStumpMesh,
+      this.harvestStumps,
       layoutIndex,
       placement.x,
       placement.z,
@@ -698,7 +714,7 @@ export class ForestManager {
   }
 
   private hideHarvestStump(layoutIndex: number): void {
-    this.harvestStumpMesh.setMatrixAt(layoutIndex, this.hiddenMatrix);
+    hideHarvestStumpInstance(this.harvestStumps, layoutIndex, this.hiddenMatrix);
   }
 
   private commitTreeInstanceUpdates(): void {
@@ -711,7 +727,7 @@ export class ForestManager {
       this.coniferShadowMesh.instanceMatrix.needsUpdate = true;
       this.broadleafShadowMesh.instanceMatrix.needsUpdate = true;
     }
-    this.harvestStumpMesh.instanceMatrix.needsUpdate = true;
+    commitHarvestStumpInstanceUpdates(this.harvestStumps);
   }
 
   private hideConiferLayers(treeIndex: number): void {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadBitmapTexture } from '../utils/textureLoad.ts';
 import { prepareBuildingGeometryUvs } from './buildingMetricUvs.ts';
+import { disposeSharedWellWaterMaterial } from './WellWaterMaterial.ts';
 
 export const GORSKI_PALETTE = {
   stoneWhite: 0xe6dfd0,
@@ -328,6 +329,7 @@ function preloadBuildingTextureSets(
 export function disposeBuildingMaterialLibrary(): void {
   for (const material of materialCache.values()) material.dispose();
   for (const material of detailMaterialCache.values()) material.dispose();
+  disposeSharedWellWaterMaterial();
   if (textureSets) {
     const textures = new Set<THREE.Texture>();
     for (const set of Object.values(textureSets)) {

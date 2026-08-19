@@ -724,6 +724,21 @@ function testRoadFacingBuildingsSnapToRoadSides(): void {
     false,
     'clearance must not rotate the short local axis back to the fallback yaw',
   );
+
+  const chapelGrassLayout = BuildingTerrainLayout.fromBuildings(
+    [{ kind: 'chapel', x: 0, z: 0, yaw: 0 }],
+    () => 0,
+  );
+  assert.equal(
+    chapelGrassLayout.isBlockedForGrass(0, 0),
+    true,
+    'an opaque building may suppress grass in the core hidden by its foundation',
+  );
+  assert.equal(
+    chapelGrassLayout.isBlockedForGrass(2.7, 0),
+    false,
+    'terrain-pad grading must not cut a visible building-sized hole in groundcover',
+  );
 }
 
 function testPlacementOverlaysFollowTerrainHeight(): void {

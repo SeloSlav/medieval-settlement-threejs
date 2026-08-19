@@ -336,11 +336,39 @@ assert.ok(
 );
 const campMesh = createRemoteWorkCampMesh();
 assert.equal(campMesh.name, REMOTE_WORK_CAMP_NAME);
+const campTents = campMesh.children
+  .filter((child): child is THREE.Group => (
+    child instanceof THREE.Group && child.name === 'Founding canvas tent'
+  ))
+  .sort((left, right) => left.position.x - right.position.x);
 assert.equal(
-  campMesh.children.filter((child) => child.name === 'Founding canvas tent').length,
+  campTents.length,
   2,
   'an enabled rural camp should render two reusable canvas shelters',
 );
+campMesh.updateMatrixWorld(true);
+const leftCanvas = campTents[0]?.getObjectByName('Weathered tent canvas shell');
+const rightCanvas = campTents[1]?.getObjectByName('Weathered tent canvas shell');
+assert.ok(leftCanvas instanceof THREE.Mesh && rightCanvas instanceof THREE.Mesh);
+const leftCanvasBounds = new THREE.Box3().setFromObject(leftCanvas);
+const rightCanvasBounds = new THREE.Box3().setFromObject(rightCanvas);
+const canvasClearance = rightCanvasBounds.min.x - leftCanvasBounds.max.x;
+assert.ok(
+  canvasClearance >= 0.65,
+  `the overnight camp tent canvases should retain visible clearance instead of intersecting (received ${canvasClearance.toFixed(3)} m)`,
+);
+for (const tent of campTents) {
+  assert.equal(
+    tent.children.filter((child) => child.name === 'Taut tent guy rope').length,
+    4,
+    'remote tents should omit the inward guy pair that would cross the shared aisle',
+  );
+  assert.equal(
+    tent.children.filter((child) => child.name === 'Tent stake').length,
+    4,
+    'remote tents should not double their inward stakes in the shared aisle',
+  );
+}
 assert.ok(
   campMesh.getObjectByName(REMOTE_WORK_CAMPFIRE_NAME) instanceof THREE.Group,
   'an enabled rural camp should render the animated founders-camp fire treatment',

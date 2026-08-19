@@ -3,6 +3,7 @@ import type { WebGPURenderer } from 'three/webgpu';
 import { buildTree, forestBarkMaterial } from '@seedthree/core/tree.js';
 import {
   forestCardMaterial,
+  setForestCardSnowCoverage,
   setForestCardSeason,
 } from '@seedthree/core/branch-cards.js';
 import { windSpeed } from '@seedthree/core/wind.js';
@@ -13,6 +14,7 @@ import {
 import { Rng } from '@seedthree/core/rng.js';
 import type { Terrain } from '../../terrain/Terrain.ts';
 import type { ForestTreePlacement } from '../../props/forestPlacements.ts';
+import type { HarvestStumpBarkSource } from '../../props/RoadStumps.ts';
 import {
   autumnFoliageColorForPreset,
   GORSKI_KOTAR_PRESETS,
@@ -23,11 +25,29 @@ import {
 } from './gorskiKotarSpecies.ts';
 import { GORSKI_KOTAR_SPECIES } from './gorskiKotarPresets.ts';
 import {
+  getCachedSeedThreeSpeciesAssets,
   getSeedThreeSpeciesAssetStartupTimings,
   loadSeedThreeSpeciesAssets,
   type SeedThreeSpeciesAssets,
   type SeedThreeSpeciesAssetStartupTiming,
 } from './seedThreeAssets.ts';
+
+export function resolveSeedThreeHarvestStumpBark(
+  gameplaySpecies: string,
+): HarvestStumpBarkSource | null {
+  const key = resolveSeedThreePreset(gameplaySpecies);
+  const species = GORSKI_KOTAR_SPECIES[key];
+  if (!species) return null;
+  const assets = getCachedSeedThreeSpeciesAssets(species.name);
+  if (!assets?.barkTexture) return null;
+  return {
+    key,
+    name: species.name,
+    map: assets.barkTexture,
+    normalMap: assets.barkNormal,
+    roughnessMap: assets.barkRoughness,
+  };
+}
 import {
   ensureSeedThreeBranchCards,
   getSeedThreeBranchCardStartupTimings,
@@ -111,11 +131,13 @@ export type SeedThreeForestInstances = {
   hiddenMatrix: THREE.Matrix4;
   visibilitySelector: ReturnType<typeof createForestLodSelector>;
   seasonalCardMaterials: THREE.Material[];
+  snowCardMaterials: THREE.Material[];
   crownUnderlayMeshes: THREE.InstancedMesh[];
   crownUnderlayVisible: boolean;
   distantCanopyCardsEnabled: boolean;
   shadowsEnabled: boolean;
   deciduousFoliage: DeciduousFoliagePresentation;
+  snowCoverage: number;
   renderStats: SeedThreeForestRenderStats;
   pendingLodWork: {
     desired: PassPartitionedBucketSelection[];
@@ -266,6 +288,7 @@ function createInstancedLodSet(
     castShadow?: boolean;
     seasonalDeciduous?: boolean;
     seasonalCardMaterials?: Set<THREE.Material>;
+    snowCardMaterials?: Set<THREE.Material>;
     canopyTint?: readonly [number, number, number];
     autumnColor?: readonly [number, number, number];
     toneVariation?: number;
@@ -377,6 +400,7 @@ function createInstancedLodSet(
         if (options.seasonalDeciduous) {
           options.seasonalCardMaterials?.add(fmat as THREE.Material);
         }
+        options.snowCardMaterials?.add(fmat as THREE.Material);
         const im = new THREE.InstancedMesh(geo, fmat as THREE.Material, total) as THREE.InstancedMesh & {
           userData: Record<string, unknown>;
         };
@@ -423,6 +447,7 @@ function createSpeciesBucket(
   prototype: THREE.LOD,
   rng: Rng,
   seasonalCardMaterials: Set<THREE.Material>,
+  snowCardMaterials: Set<THREE.Material>,
   crownUnderlayMeshes: THREE.InstancedMesh[],
   ownedOverviewFadeMaterials: Set<THREE.Material>,
 ): SpeciesBucket {
@@ -445,6 +470,7 @@ function createSpeciesBucket(
       castShadow: false,
       seasonalDeciduous,
       seasonalCardMaterials,
+      snowCardMaterials,
       autumnColor,
       crownUnderlayMeshes,
       ownedOverviewFadeMaterials,
@@ -462,6 +488,7 @@ function createSpeciesBucket(
     {
       seasonalDeciduous,
       seasonalCardMaterials,
+      snowCardMaterials,
       canopyTint: overviewTone.tint,
       autumnColor,
       toneVariation: overviewTone.variation,
@@ -667,6 +694,7 @@ export async function createSeedThreeForest(
   const bucketBuildStartedAt = performance.now();
   const buckets: SpeciesBucket[] = [];
   const seasonalCardMaterials = new Set<THREE.Material>();
+  const snowCardMaterials = new Set<THREE.Material>();
   const crownUnderlayMeshes: THREE.InstancedMesh[] = [];
   const ownedOverviewFadeMaterials = new Set<THREE.Material>();
 
@@ -687,6 +715,7 @@ export async function createSeedThreeForest(
       prototype,
       new Rng(`bucket:${presetKey}:${treeSeed}`),
       seasonalCardMaterials,
+      snowCardMaterials,
       crownUnderlayMeshes,
       ownedOverviewFadeMaterials,
     );
@@ -754,6 +783,7 @@ export async function createSeedThreeForest(
     hiddenMatrix,
     visibilitySelector,
     seasonalCardMaterials: [...seasonalCardMaterials],
+    snowCardMaterials: [...snowCardMaterials],
     crownUnderlayMeshes,
     crownUnderlayVisible,
     distantCanopyCardsEnabled: true,
@@ -763,6 +793,7 @@ export async function createSeedThreeForest(
       autumnColor: 0,
       dormancy: 0,
     },
+    snowCoverage: 0,
     renderStats: {
       totalTrees: placements.length,
       visibleTrees: placements.length,
@@ -1505,6 +1536,22 @@ export function setSeedThreeForestDeciduousFoliage(
   }
 }
 
+export function setSeedThreeForestSnowCoverage(
+  forest: SeedThreeForestInstances,
+  coverage: number,
+): void {
+  const next = THREE.MathUtils.clamp(
+    Number.isFinite(coverage) ? coverage : 0,
+    0,
+    1,
+  );
+  if (forest.snowCoverage === next) return;
+  forest.snowCoverage = next;
+  for (const material of forest.snowCardMaterials) {
+    setForestCardSnowCoverage(material, next);
+  }
+}
+
 export function updateSeedThreeForestOverviewBillboardFade(
   forest: SeedThreeForestInstances,
   cameraDistance: number,
@@ -1585,6 +1632,8 @@ export function createSeedThreeForestController(forest: SeedThreeForestInstances
     getProfileBreakdown: () => getSeedThreeForestProfileBreakdown(forest),
     setDeciduousFoliage: (presentation) =>
       setSeedThreeForestDeciduousFoliage(forest, presentation),
+    setSnowCoverage: (coverage) =>
+      setSeedThreeForestSnowCoverage(forest, coverage),
     setDistantCanopyCardsEnabled: (enabled) =>
       setSeedThreeDistantCanopyCardsEnabled(forest, enabled),
     setShadows: (enabled) => setSeedThreeForestShadows(forest, enabled),

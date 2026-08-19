@@ -859,7 +859,12 @@
   }
 
   .settlement-hud__body {
-    grid-template-columns: repeat(8, minmax(48px, 1fr));
+    grid-template-columns:
+      repeat(3, minmax(48px, 0.7fr))
+      repeat(2, minmax(72px, 1.12fr))
+      minmax(66px, 1fr)
+      minmax(76px, 1.2fr)
+      minmax(66px, 1fr);
   }
 }
 

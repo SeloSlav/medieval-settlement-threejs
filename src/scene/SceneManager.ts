@@ -604,6 +604,7 @@ export class SceneManager {
         this.worldLayout.foragingLayout.sites,
         this.worldLayout.foragingLayout.seed,
         isForagingSiteBlocked,
+        this.maxAnisotropy,
       )
     ));
 
@@ -616,6 +617,7 @@ export class SceneManager {
     // forest from the retained presentation state before its first scene frame.
     if (this.environment) {
       this.forestManager.setDeciduousFoliage(this.environment.deciduousFoliage);
+      this.forestManager.setSnowCoverage(this.environment.snowCoverage);
     }
     this.berryPatchVisuals = await berryPatchPromise;
     this.scene.add(this.berryPatchVisuals.group);
@@ -1085,6 +1087,7 @@ export class SceneManager {
     this.materials.setEnvironment(environment);
     this.precipitation.setEnvironment(environment);
     this.forestManager?.setDeciduousFoliage(environment.deciduousFoliage);
+    this.forestManager?.setSnowCoverage(environment.snowCoverage);
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }
 

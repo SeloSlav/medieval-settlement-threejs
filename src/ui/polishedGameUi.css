@@ -80,7 +80,7 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 54px 38px minmax(0, 1fr) 44px;
+  grid-template-columns: 60px 42px minmax(0, 1fr) 52px;
   align-items: stretch;
   gap: 0;
   width: min(704px, calc(100vw - 64px));
@@ -510,7 +510,12 @@ select:focus-visible {
 
 .settlement-hud__body {
   display: grid;
-  grid-template-columns: repeat(8, minmax(48px, 1fr));
+  grid-template-columns:
+    repeat(3, minmax(48px, 0.7fr))
+    repeat(2, minmax(72px, 1.12fr))
+    minmax(66px, 1fr)
+    minmax(76px, 1.2fr)
+    minmax(66px, 1fr);
   align-content: stretch;
   gap: 0;
   min-width: 0;
@@ -529,6 +534,16 @@ select:focus-visible {
   border-left: 1px solid rgba(216, 191, 134, 0.09);
   cursor: help;
   transition: background 130ms ease, opacity 130ms ease;
+}
+
+@media (min-width: 1081px) {
+  .settlement-hud__body > .settlement-hud__stat,
+  .settlement-hud__body > .settlement-hud__food-stores > .settlement-hud__stat {
+    grid-template-columns: 20px max-content;
+    justify-content: center;
+    gap: 4px;
+    padding-inline: 4px;
+  }
 }
 
 .settlement-hud__body > .settlement-hud__stat:nth-child(n + 7) {

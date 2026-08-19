@@ -108,7 +108,7 @@ pub use reclamation::{
     materialize_physical_resource_ledger_at, recover_stock_at, recover_stock_beside_building,
     step_reclamation_piles, ReclamationStock,
 };
-pub use reforester::step_reforester;
+pub use reforester::{step_natural_tree_regrowth, step_reforester};
 pub use removed_content::retire_removed_buildings;
 pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};

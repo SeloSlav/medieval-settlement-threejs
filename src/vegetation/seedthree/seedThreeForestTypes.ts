@@ -68,6 +68,7 @@ export type SeedThreeForestController = {
   getStructuralStats(): SeedThreeForestStructuralStats;
   getProfileBreakdown(): SeedThreeForestProfileBreakdown;
   setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void;
+  setSnowCoverage(coverage: number): void;
   setDistantCanopyCardsEnabled(enabled: boolean): void;
   setShadows(enabled: boolean): void;
   dispose(): void;

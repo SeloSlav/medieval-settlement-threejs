@@ -10,6 +10,7 @@ import {
   planBranchCardCoverage,
   planBranchCardCrownUnderlay,
   setForestCardDormancy,
+  setForestCardSnowCoverage,
   setForestCardSeason,
 } from '../vendor/seedthree/src/core/branch-cards.js';
 import { GORSKI_KOTAR_SPECIES } from '../src/vegetation/seedthree/gorskiKotarPresets.ts';
@@ -246,6 +247,19 @@ assert.equal(setForestCardDormancy(material, -1), true);
 assert.equal(uniform.value, 0);
 assert.equal(setForestCardDormancy({ userData: {} }, 1), false, 'evergreen cards should ignore dormancy');
 
+const snowUniform = { value: 0 };
+const snowMaterial = { userData: { forestSnowCoverage: snowUniform } };
+assert.equal(setForestCardSnowCoverage(snowMaterial, 0.72), true);
+assert.equal(snowUniform.value, 0.72);
+assert.equal(
+  setForestCardSnowCoverage(snowMaterial, 2),
+  true,
+  'forest snow coverage should clamp to the shared calendar range',
+);
+assert.equal(snowUniform.value, 1);
+assert.equal(setForestCardSnowCoverage(snowMaterial, 1.5), false);
+assert.equal(setForestCardSnowCoverage({ userData: {} }, 1), false);
+
 const seasonalUniforms = {
   springFlush: { value: 0 },
   autumnColor: { value: 0 },
@@ -332,6 +346,15 @@ const seasonalOverviewFadeMaterial = createSeedThreeOverviewFadeMaterial(
   seasonalForestMaterial,
   true,
 );
+assert.ok(
+  standardForestMaterial.userData.forestSnowCoverage,
+  'evergreen-only materials must expose the settled-snow control',
+);
+assert.equal(
+  seasonalOverviewFadeMaterial.userData.forestSnowCoverage,
+  seasonalForestMaterial.userData.forestSnowCoverage,
+  'overview clones must share the snow uniform used by their restored color graph',
+);
 assert.equal(
   seasonalOverviewFadeMaterial.userData.forestSeasonalDormancy,
   seasonalForestMaterial.userData.forestSeasonalDormancy,
@@ -393,6 +416,11 @@ assert.match(
   forkSource,
   /greenDominance[\s\S]*transmissionLeafMask[\s\S]*greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*opacityNode = texel\.a\.mul\(seasonalRetain\)/,
   'the fork must use green and leaf-transmission masks so every deciduous bake drops leaves while retaining twigs',
+);
+assert.match(
+  forkSource,
+  /const foliageMask = greenLeafMask\.max\(transmissionLeafMask\)[\s\S]*const evergreenInstance = float\(1\)\.sub\(deciduousInstance\)[\s\S]*const upwardExposure = base\.y\.smoothstep[\s\S]*const snowAmount = foliageMask[\s\S]*mix\(tintedSurface, snowColor, snowAmount\)/,
+  'settled snow must dust only evergreen foliage pixels with an upward-facing crown filter',
 );
 assert.match(
   builderSource,
@@ -506,6 +534,16 @@ assert.match(
 );
 assert.match(
   builderSource,
+  /snowCardMaterials\?\.add\(fmat as THREE\.Material\)[\s\S]*setSeedThreeForestSnowCoverage[\s\S]*setForestCardSnowCoverage\(material, next\)/,
+  'every near and overview foliage material must receive the shared snow coverage',
+);
+assert.match(
+  sceneSource,
+  /setSnowCoverage\(this\.environment\.snowCoverage\)[\s\S]*setSnowCoverage\(environment\.snowCoverage\)/,
+  'both deferred and live forests must inherit the authoritative settled-snow coverage',
+);
+assert.match(
+  builderSource,
   /windSpeed\.value = SEEDTHREE_FOREST_WIND_SPEED/,
   'the forest must apply the slower shared wind tempo before materials compile',
 );
@@ -561,7 +599,7 @@ assert.doesNotMatch(
 );
 assert.match(
   forkSource,
-  /sin\(treeOrigin\.x[\s\S]*treeOrigin\.z[\s\S]*mat\.colorNode = surfaceColor\.mul\(tint\)\.mul\(occl\)\.mul\(variation\)/,
+  /sin\(treeOrigin\.x[\s\S]*treeOrigin\.z[\s\S]*const tintedSurface = surfaceColor\.mul\(tint\)\.mul\(variation\)[\s\S]*mat\.colorNode = mix\(tintedSurface, snowColor, snowAmount\)\.mul\(occl\)/,
   'overview tone variation must reuse tree origin without another instance attribute',
 );
 assert.doesNotMatch(

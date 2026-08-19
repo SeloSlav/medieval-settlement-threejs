@@ -23,9 +23,16 @@ type MushroomPlacement = {
   visibilityNoise: number;
 };
 
+type MushroomTextureSet = {
+  map: THREE.Texture;
+  heightMap: THREE.Texture;
+  roughnessMap: THREE.Texture;
+};
+
 const TAU = Math.PI * 2;
 const MUSHROOMS_PER_PATCH = 26;
 const CLOSE_WORLD_MAX_CAMERA_DISTANCE = 155;
+const MUSHROOM_TEXTURE_SIZE = 128;
 
 /** Close-zoom, low-poly mushrooms for persistent deep-forest resource beds. */
 export function createMushroomPatchVisuals(
@@ -33,6 +40,7 @@ export function createMushroomPatchVisuals(
   sites: ReadonlyArray<ForagingSite>,
   seed: number,
   isBlockedAt?: (x: number, z: number) => boolean,
+  maxAnisotropy = 1,
 ): MushroomPatchVisuals {
   const mushroomSites = sites.filter((site) => site.kind === 'mushrooms');
   const rng = mulberry32(seed ^ 0x5a17c3);
@@ -45,16 +53,26 @@ export function createMushroomPatchVisuals(
   capGeometry.scale(1, 0.55, 1);
   capGeometry.translate(0, 0.43, 0);
 
+  const surfaceTextures = createMushroomSurfaceTextures(maxAnisotropy);
+
   const stemMaterial = new THREE.MeshStandardMaterial({
     name: 'Mushroom stems',
-    color: 0xd8c9a2,
-    roughness: 0.92,
+    map: surfaceTextures.stem.map,
+    bumpMap: surfaceTextures.stem.heightMap,
+    bumpScale: 0.012,
+    roughnessMap: surfaceTextures.stem.roughnessMap,
+    color: 0xffffff,
+    roughness: 0.96,
     metalness: 0,
   });
   const capMaterial = new THREE.MeshStandardMaterial({
     name: 'Forest mushroom caps',
-    color: 0x9c5f32,
-    roughness: 0.88,
+    map: surfaceTextures.cap.map,
+    bumpMap: surfaceTextures.cap.heightMap,
+    bumpScale: 0.016,
+    roughnessMap: surfaceTextures.cap.roughnessMap,
+    color: 0xffffff,
+    roughness: 0.9,
     metalness: 0,
   });
   const stems = new THREE.InstancedMesh(stemGeometry, stemMaterial, capacity);
@@ -90,8 +108,8 @@ export function createMushroomPatchVisuals(
     caps.setMatrixAt(index, matrix);
     tint.setHSL(
       THREE.MathUtils.lerp(0.035, 0.095, rng()),
-      THREE.MathUtils.lerp(0.46, 0.72, rng()),
-      THREE.MathUtils.lerp(0.28, 0.48, rng()),
+      THREE.MathUtils.lerp(0.14, 0.38, rng()),
+      THREE.MathUtils.lerp(0.72, 0.92, rng()),
     );
     caps.setColorAt(index, tint);
   });
@@ -138,8 +156,181 @@ export function createMushroomPatchVisuals(
       capGeometry.dispose();
       stemMaterial.dispose();
       capMaterial.dispose();
+      for (const texture of [
+        surfaceTextures.stem.map,
+        surfaceTextures.stem.heightMap,
+        surfaceTextures.stem.roughnessMap,
+        surfaceTextures.cap.map,
+        surfaceTextures.cap.heightMap,
+        surfaceTextures.cap.roughnessMap,
+      ]) {
+        texture.dispose();
+      }
     },
   };
+}
+
+function createMushroomSurfaceTextures(maxAnisotropy: number): {
+  stem: MushroomTextureSet;
+  cap: MushroomTextureSet;
+} {
+  const spotRandom = mulberry32(0x6d757368);
+  const spots = Array.from({ length: 28 }, () => ({
+    u: spotRandom(),
+    v: THREE.MathUtils.lerp(0.08, 0.94, spotRandom()),
+    radius: THREE.MathUtils.lerp(0.018, 0.065, spotRandom()),
+  }));
+  const stem = createCoupledTextureSet(
+    'mushroom stem',
+    maxAnisotropy,
+    THREE.RepeatWrapping,
+    (u, v) => {
+      const fiber = 0.5 + 0.5 * Math.sin(
+        u * TAU * 17
+        + Math.sin(v * TAU * 3.2) * 1.3
+        + Math.sin(u * TAU * 5 - v * TAU * 2) * 0.45,
+      );
+      const verticalMottle = 0.5 + 0.5 * Math.sin(v * TAU * 6.3 + u * TAU * 2);
+      const basalShade = smoothstep(0.68, 1, 1 - v);
+      const height = clamp01(0.48 + fiber * 0.34 + verticalMottle * 0.08);
+      return {
+        color: [
+          219 + fiber * 21 - basalShade * 27,
+          207 + fiber * 18 - basalShade * 25,
+          171 + fiber * 16 - basalShade * 19,
+        ],
+        height,
+        roughness: clamp01(0.82 + (1 - fiber) * 0.13 + basalShade * 0.04),
+      };
+    },
+  );
+  const cap = createCoupledTextureSet(
+    'mushroom cap',
+    maxAnisotropy,
+    THREE.ClampToEdgeWrapping,
+    (u, v) => {
+      const radialMottle = 0.5 + 0.25 * Math.sin(u * TAU * 7 + v * 13)
+        + 0.25 * Math.sin(u * TAU * 13 - v * 21);
+      let spotMask = 0;
+      for (const spot of spots) {
+        const rawDu = Math.abs(u - spot.u);
+        const du = Math.min(rawDu, 1 - rawDu);
+        const dv = v - spot.v;
+        const distance = Math.hypot(du * 0.76, dv);
+        spotMask = Math.max(
+          spotMask,
+          1 - smoothstep(spot.radius * 0.58, spot.radius, distance),
+        );
+      }
+      const crown = smoothstep(0.5, 1, v);
+      const rimShade = smoothstep(0.68, 1, 1 - v);
+      const height = clamp01(0.44 + radialMottle * 0.2 + spotMask * 0.3 - rimShade * 0.08);
+      return {
+        color: [
+          163 + radialMottle * 35 + spotMask * 65 + crown * 9 - rimShade * 24,
+          91 + radialMottle * 26 + spotMask * 105 + crown * 5 - rimShade * 20,
+          45 + radialMottle * 18 + spotMask * 105 - rimShade * 14,
+        ],
+        height,
+        roughness: clamp01(0.73 + radialMottle * 0.12 + spotMask * 0.11),
+      };
+    },
+  );
+  return { stem, cap };
+}
+
+function createCoupledTextureSet(
+  name: string,
+  maxAnisotropy: number,
+  wrapT: THREE.Wrapping,
+  sample: (u: number, v: number) => {
+    color: [number, number, number];
+    height: number;
+    roughness: number;
+  },
+): MushroomTextureSet {
+  const colorData = new Uint8Array(MUSHROOM_TEXTURE_SIZE * MUSHROOM_TEXTURE_SIZE * 4);
+  const heightData = new Uint8Array(colorData.length);
+  const roughnessData = new Uint8Array(colorData.length);
+  for (let y = 0; y < MUSHROOM_TEXTURE_SIZE; y++) {
+    for (let x = 0; x < MUSHROOM_TEXTURE_SIZE; x++) {
+      const u = x / (MUSHROOM_TEXTURE_SIZE - 1);
+      const v = y / (MUSHROOM_TEXTURE_SIZE - 1);
+      const texel = sample(u, v);
+      const index = (y * MUSHROOM_TEXTURE_SIZE + x) * 4;
+      writeColor(colorData, index, texel.color);
+      writeGray(heightData, index, texel.height);
+      writeGray(roughnessData, index, texel.roughness);
+    }
+  }
+  return {
+    map: createDataTexture(colorData, `${name} albedo`, maxAnisotropy, wrapT, true),
+    heightMap: createDataTexture(heightData, `${name} height`, maxAnisotropy, wrapT, false),
+    roughnessMap: createDataTexture(
+      roughnessData,
+      `${name} roughness`,
+      maxAnisotropy,
+      wrapT,
+      false,
+    ),
+  };
+}
+
+function createDataTexture(
+  data: Uint8Array,
+  name: string,
+  maxAnisotropy: number,
+  wrapT: THREE.Wrapping,
+  srgb: boolean,
+): THREE.DataTexture {
+  const texture = new THREE.DataTexture(
+    data,
+    MUSHROOM_TEXTURE_SIZE,
+    MUSHROOM_TEXTURE_SIZE,
+    THREE.RGBAFormat,
+  );
+  texture.name = name;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = wrapT;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = Math.max(1, Math.min(8, maxAnisotropy));
+  texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function writeColor(
+  data: Uint8Array,
+  index: number,
+  color: [number, number, number],
+): void {
+  data[index] = clampByte(color[0]);
+  data[index + 1] = clampByte(color[1]);
+  data[index + 2] = clampByte(color[2]);
+  data[index + 3] = 255;
+}
+
+function writeGray(data: Uint8Array, index: number, value: number): void {
+  const byte = clampByte(value * 255);
+  data[index] = byte;
+  data[index + 1] = byte;
+  data[index + 2] = byte;
+  data[index + 3] = 255;
+}
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t = clamp01((value - edge0) / Math.max(edge1 - edge0, 1e-6));
+  return t * t * (3 - 2 * t);
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function clampByte(value: number): number {
+  return Math.round(Math.max(0, Math.min(255, value)));
 }
 
 function createPlacements(

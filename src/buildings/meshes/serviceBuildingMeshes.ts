@@ -8,6 +8,7 @@ import {
   stoneMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
+import { getSharedWellWaterMaterial } from '../WellWaterMaterial.ts';
 import {
   addBarrel,
   addGableShell,
@@ -15,8 +16,6 @@ import {
   addPlankDoor,
   addSmallWindow,
 } from './buildingMeshKit.ts';
-
-const waterMaterial = sharedBuildingDetailMaterial('water');
 
 const WELL_DIMENSIONS = {
   wallHeight: 0.95,
@@ -60,6 +59,30 @@ function createInwardFacingCylinderGeometry(
   }
   index.needsUpdate = true;
   geometry.computeVertexNormals();
+  return geometry;
+}
+
+/**
+ * Closes the annular seam between the inner and outer skins. The overlap is
+ * intentional: the polygonal torus and cylinders use different tessellation,
+ * so edge-to-edge contact can still reveal bright exterior wedges obliquely.
+ */
+function createWellCrownSealGeometry(
+  innerRadius: number,
+  outerRadius: number,
+  radialSegments: number,
+): THREE.RingGeometry {
+  const geometry = new THREE.RingGeometry(innerRadius, outerRadius, radialSegments);
+  geometry.rotateX(-Math.PI * 0.5);
+  return geometry;
+}
+
+function createHorizontalCircleGeometry(
+  radius: number,
+  radialSegments: number,
+): THREE.CircleGeometry {
+  const geometry = new THREE.CircleGeometry(radius, radialSegments);
+  geometry.rotateX(-Math.PI * 0.5);
   return geometry;
 }
 
@@ -109,12 +132,31 @@ export function createWellMesh(): THREE.Group {
     new THREE.Vector3(0, dimensions.wallCenterY, 0),
   );
   innerWall.name = 'Well inner masonry wall';
-  addMesh(
+  const crownSeal = addMesh(
     group,
-    new THREE.CylinderGeometry(0.92, 0.92, 0.08, 16),
-    waterMaterial,
-    new THREE.Vector3(0, 0.88, 0),
+    createWellCrownSealGeometry(
+      dimensions.wallInnerTopRadius - 0.05,
+      dimensions.wallOuterTopRadius + 0.05,
+      dimensions.wallSegments * 2,
+    ),
+    stoneMaterial('mid'),
+    new THREE.Vector3(
+      0,
+      dimensions.wallCenterY + dimensions.wallHeight * 0.5 - 0.003,
+      0,
+    ),
   );
+  crownSeal.name = 'Well masonry crown seal';
+  const water = addMesh(
+    group,
+    createHorizontalCircleGeometry(0.94, 48),
+    getSharedWellWaterMaterial(),
+    new THREE.Vector3(0, 0.885, 0),
+  );
+  water.name = 'Well water surface';
+  water.receiveShadow = false;
+  water.renderOrder = 1.25;
+  water.userData.water = true;
   addMesh(
     group,
     new THREE.TorusGeometry(1.22, 0.16, 7, 16),

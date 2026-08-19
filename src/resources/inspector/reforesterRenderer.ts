@@ -1,5 +1,12 @@
 import { getBuildingCost } from '../buildingEconomy.ts';
 import { getBuildingDefinition } from '../buildings.ts';
+import {
+  CALENDAR_HOURS_PER_DAY,
+  CALENDAR_SECONDS_PER_DAY,
+  CALENDAR_WORK_END_HOUR,
+  CALENDAR_WORK_START_HOUR,
+  NATURAL_TREE_MATURATION_DAYS,
+} from '../../generated/gameBalance.ts';
 import type { InspectableTarget } from '../types.ts';
 import {
   buildingCostRows,
@@ -20,12 +27,20 @@ export function renderReforesterInspector(
   const cost = getBuildingCost(building.kind);
   const definition = getBuildingDefinition(building.kind);
   const regrowing = building.assignedLabor > 0 && stumpTrees + growingTrees > 0;
+  const workdaySeconds = CALENDAR_SECONDS_PER_DAY
+    * (CALENDAR_WORK_END_HOUR - CALENDAR_WORK_START_HOUR)
+    / CALENDAR_HOURS_PER_DAY;
+  const managedTreesPerWorkday = definition.regrowRatePerSecond
+    * building.assignedLabor
+    * workdaySeconds;
 
   return {
     eyebrow: 'Building',
     title: label,
     statusText: building.assignedLabor === 0
-      ? 'Idle — assign a forester to regrow stumps'
+      ? stumpTrees + growingTrees > 0
+        ? 'Natural succession — assign a forester to accelerate recovery'
+        : 'Idle — no recovering trees in range'
       : growingTrees > 0
         ? `Reforesting — ${growingTrees} saplings growing${stumpTrees > 0 ? `, ${stumpTrees} stumps queued` : ''}`
         : stumpTrees > 0
@@ -35,7 +50,8 @@ export function renderReforesterInspector(
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${buildingExtentRow(building.kind)}
-      <li><span>Regrowth rate</span><span>${building.assignedLabor > 0 ? `${(definition.regrowRatePerSecond * building.assignedLabor).toFixed(3)}/s` : `${definition.regrowRatePerSecond}/s per worker`}</span></li>
+      <li><span>Managed capacity</span><span>${building.assignedLabor > 0 ? `${managedTreesPerWorkday.toFixed(1)} trees/workday` : `${(definition.regrowRatePerSecond * workdaySeconds).toFixed(1)} trees/workday per worker`}</span></li>
+      <li><span>Natural succession</span><span>about ${NATURAL_TREE_MATURATION_DAYS} days</span></li>
       ${treeCountRows(matureTrees, stumpTrees, growingTrees)}
       ${buildingStorageRows(building, building.kind)}
     `,
