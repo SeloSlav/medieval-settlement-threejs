@@ -460,8 +460,23 @@ assert.ok(
 );
 assert.match(
   reedSource,
-  /0\.72\s*\+\s*rng\(\)\s*\*\s*0\.38/,
-  'bank cattail clumps must keep loose spacing within broad stands',
+  /cattailPatchPresence\(node\.x, node\.z\)[\s\S]*?REED_STAND_CHANCE_MIN[\s\S]*?REED_STAND_CHANCE_MAX/,
+  'cattails must form deterministic macro patches with broad shoreline gaps',
+);
+assert.match(
+  reedSource,
+  /sampleReedClusterCount\(rng, 1, 6\)/,
+  'primary cattail stands must vary from isolated clumps through small colonies',
+);
+assert.match(
+  reedSource,
+  /width \* placement\.widthScaleX \* fade[\s\S]*?width \* placement\.widthScaleZ \* fade/,
+  'cattail footprints must vary independently instead of repeating one circular scale',
+);
+assert.match(
+  reedSource,
+  /resolveReedHeightMeters\(shore, rng\) \* heightScale[\s\S]*?REED_HEIGHT_MIN_METERS[\s\S]*?REED_HEIGHT_MAX_METERS/,
+  'cattail height cohorts must receive bounded per-clump and per-stand variation',
 );
 assert.equal(
   (reedSource.match(/new THREE\.InstancedMesh/g) ?? []).length,
@@ -490,13 +505,13 @@ assert.match(
 );
 assert.match(
   lilyPadSource,
-  /grassBladeLodOpacity\(grassBladeRevealOpacity\(cameraDistance\)\)/,
-  'lily pads must use the same close-ground reveal curve as grass blades',
+  /opacity:\s*LILY_PEAK_OPACITY[\s\S]*?mesh\.visible\s*=\s*placements\.length\s*>\s*0/,
+  'lily pads must render immediately at fixed opacity at every zoom level',
 );
-assert.match(
+assert.doesNotMatch(
   lilyPadSource,
-  /mesh\.visible\s*=\s*opacity\s*>\s*0\.004\s*&&\s*placements\.length\s*>\s*0/,
-  'lily pads must stop submitting outside the close-ground zoom band',
+  /grassBladeRevealOpacity|grassBladeLodOpacity|cameraDistance|firstPersonActive/,
+  'lily-pad visibility must remain independent of camera zoom and view mode',
 );
 assert.doesNotMatch(
   shoreStoneSource,

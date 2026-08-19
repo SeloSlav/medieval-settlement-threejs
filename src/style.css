@@ -83,6 +83,8 @@ button {
 [data-ui-root] .burgage-layout-hud,
 [data-ui-root] .delete-popup,
 [data-ui-root] .settlement-hud,
+[data-ui-root] .settlement-vitals,
+[data-ui-root] .noble-hud,
 [data-ui-root] .resource-inspector-panel,
 [data-ui-root] .game-menu-backdrop,
 [data-ui-root] .game-controls-backdrop,

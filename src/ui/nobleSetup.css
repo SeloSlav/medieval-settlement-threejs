@@ -855,19 +855,19 @@
 
 @media (min-width: 1081px) {
   .settlement-hud {
-    width: min(932px, calc(100vw - 64px));
+    width: min(650px, calc(100vw - 64px));
   }
 
   .settlement-hud__body {
-    grid-template-columns: repeat(8, 70px);
+    grid-template-columns: repeat(8, minmax(48px, 1fr));
   }
 }
 
 .noble-hud {
-  position: absolute;
-  top: 0;
-  right: auto;
-  left: calc(50% + 50vw - max(14px, env(safe-area-inset-right, 0px)));
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  right: max(14px, env(safe-area-inset-right, 0px));
+  left: auto;
   z-index: 6;
   display: grid;
   grid-template-columns: 108px minmax(0, 1fr);
@@ -884,7 +884,7 @@
     0 15px 38px rgba(0, 0, 0, 0.34),
     inset 0 1px 0 rgba(255, 247, 220, 0.08);
   font-family: var(--ui-display, Georgia, serif);
-  transform: translateX(-100%);
+  transform: none;
 }
 
 .noble-hud::before {
@@ -1062,16 +1062,16 @@
 
 @media (max-width: 1320px) {
   .noble-hud {
-    top: 0;
-    right: auto;
+    top: max(10px, env(safe-area-inset-top, 0px));
+    right: max(14px, env(safe-area-inset-right, 0px));
     width: 292px;
   }
 }
 
 @media (max-width: 760px) {
   .noble-hud {
-    top: 0;
-    right: auto;
+    top: 7px;
+    right: 7px;
     grid-template-columns: 88px minmax(0, 1fr);
     gap: 11px;
     width: 238px;

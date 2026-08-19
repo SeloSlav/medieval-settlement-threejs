@@ -92,7 +92,6 @@ export class BuildToolbar {
   private readonly removeButton: HTMLButtonElement;
   private readonly cancelDeleteButton: HTMLButtonElement;
   readonly settlementHud: SettlementHud;
-  private readonly fpModePanel: HTMLElement;
   private readonly constructionDock: HTMLElement;
   private readonly zoomStat: HTMLElement;
   private readonly cropSuitabilityLegend: HTMLElement;
@@ -498,15 +497,6 @@ export class BuildToolbar {
         <button type="button" class="ghost-button" data-action="cancel-delete">Cancel</button>
       </div>
 
-      <div class="hud-bottom-right">
-        <div class="fps-panel fp-mode-panel" data-fp-mode-panel aria-label="First person mode">
-          <div class="fps-stat">
-            <strong>~</strong>
-            <span>Walk</span>
-          </div>
-        </div>
-      </div>
-
     `);
 
     this.root = root;
@@ -580,7 +570,6 @@ export class BuildToolbar {
     this.deletePopup = this.mustElement(root, '[data-delete-popup]');
     this.removeButton = this.mustButton(root, '[data-action="confirm-delete"]');
     this.cancelDeleteButton = this.mustButton(root, '[data-action="cancel-delete"]');
-    this.fpModePanel = this.mustElement(root, '[data-fp-mode-panel]');
     this.constructionDock = this.mustElement(root, '[data-construction-dock]');
     this.zoomStat = this.settlementHud.zoomStat;
     this.builderStatusBar = this.mustElement(root, '[data-builder-status]');
@@ -971,7 +960,6 @@ export class BuildToolbar {
     this.firstPersonActive = active;
     this.settlementHud.setFirstPersonActive(active);
     this.root.classList.toggle('is-first-person', active);
-    this.fpModePanel.classList.toggle('is-active', active);
     this.syncPrimaryHudVisibility();
     this.zoomStat.hidden = active;
     this.compassHud.setVisible(active);
@@ -990,9 +978,6 @@ export class BuildToolbar {
     if (this.firstPersonPlacementActive === active) return;
     this.firstPersonPlacementActive = active;
     this.root.classList.toggle('is-first-person-placement', active);
-    this.fpModePanel.classList.toggle('is-selecting', active);
-    const label = this.fpModePanel.querySelector<HTMLElement>('.fps-stat span');
-    if (label) label.textContent = active ? 'Choose start' : 'Walk';
   }
 
   setFirstPersonToggle(handler: (() => void) | null): void {

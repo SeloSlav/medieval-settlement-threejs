@@ -58,11 +58,12 @@ select:focus-visible {
   background-clip: padding-box;
 }
 
-/* Top command bar -------------------------------------------------------- */
+/* Top resource ribbon and lower-right settlement vitals ----------------- */
 
 .hud-right-stack {
   top: 10px;
   right: auto;
+  bottom: auto;
   left: 50%;
   width: auto;
   max-width: calc(100vw - 64px);
@@ -79,17 +80,17 @@ select:focus-visible {
 .settlement-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 192px 78px 42px minmax(0, 1fr) 48px;
+  grid-template-columns: 38px minmax(0, 1fr) 44px;
   align-items: stretch;
   gap: 0;
-  width: min(932px, calc(100vw - 64px));
+  width: min(650px, calc(100vw - 64px));
   min-height: 52px;
   padding: 4px 6px;
   overflow: visible;
   border: 1px solid var(--ui-edge);
   border-radius: 3px;
   background:
-    linear-gradient(90deg, rgba(255, 235, 181, 0.035), transparent 28%, transparent 72%, rgba(255, 235, 181, 0.025)),
+    linear-gradient(90deg, rgba(255, 235, 181, 0.045), transparent 28%, transparent 72%, rgba(255, 235, 181, 0.025)),
     linear-gradient(180deg, rgba(32, 33, 27, 0.97), rgba(14, 17, 14, 0.94));
   box-shadow:
     0 22px 58px rgba(0, 0, 0, 0.36),
@@ -112,20 +113,70 @@ select:focus-visible {
   border-color: rgba(229, 208, 158, 0.07);
 }
 
+.settlement-vitals {
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right, 0px));
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  z-index: 4;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 168px 54px;
+  align-items: stretch;
+  width: 228px;
+  min-height: 68px;
+  padding: 4px 5px;
+  overflow: visible;
+  border: 1px solid rgba(224, 196, 132, 0.42);
+  border-radius: 2px;
+  background:
+    radial-gradient(ellipse at 18% -35%, rgba(193, 153, 76, 0.14), transparent 50%),
+    linear-gradient(90deg, rgba(255, 235, 181, 0.045), transparent 52%),
+    linear-gradient(180deg, rgba(38, 38, 31, 0.97), rgba(14, 17, 14, 0.95));
+  box-shadow:
+    0 22px 58px rgba(0, 0, 0, 0.42),
+    0 3px 10px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 247, 220, 0.09),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(18px) saturate(0.76);
+}
+
+.settlement-vitals[hidden] {
+  display: none;
+}
+
+.settlement-vitals::before,
+.settlement-vitals::after {
+  position: absolute;
+  z-index: -1;
+  content: '';
+  pointer-events: none;
+}
+
+.settlement-vitals::before {
+  inset: 0 10px auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ui-brass), transparent);
+}
+
+.settlement-vitals::after {
+  inset: 3px;
+  border: 1px solid rgba(229, 208, 158, 0.09);
+}
+
 .settlement-hud__clock {
   position: static;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  grid-template-rows: 1fr auto;
-  gap: 0 7px;
+  grid-template-columns: 57px minmax(0, 1fr);
+  grid-template-rows: 18px 22px 22px;
+  gap: 0 6px;
   min-width: 0;
-  padding: 3px 8px 3px 4px;
+  padding: 2px 8px 0 3px;
   border: 0;
   border-right: 1px solid rgba(218, 194, 139, 0.18);
 }
 
 .settlement-hud__approval-shell {
-  --approval-panel-left: -192px;
+  --approval-panel-width: min(380px, calc(100vw - 28px));
   align-self: stretch;
   min-width: 0;
 }
@@ -199,20 +250,32 @@ select:focus-visible {
 }
 
 .settlement-hud__approval-panel {
-  top: calc(100% + 10px);
-  right: auto;
+  top: auto;
+  right: 0;
+  bottom: calc(100% + 10px);
+  left: auto;
+  max-height: min(480px, calc(100vh - 140px));
+}
+
+.settlement-vitals.has-approval-open .settlement-hud__approval-shell::after {
+  top: auto;
+  right: 0;
+  bottom: 100%;
+  left: auto;
+  width: var(--approval-panel-width);
+  height: 10px;
 }
 
 .settlement-hud__clock-date {
   grid-column: 2;
   grid-row: 1;
-  align-self: end;
+  align-self: center;
   overflow: hidden;
-  color: #c8bda7;
+  color: #d3c6aa;
   font-family: var(--ui-display);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.025em;
   line-height: 1.05;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -222,14 +285,15 @@ select:focus-visible {
   grid-column: 1;
   grid-row: 1 / span 2;
   align-self: center;
-  color: #dce8c7;
+  justify-self: center;
+  color: #e7ddc4;
   font-family: var(--ui-display);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
   letter-spacing: -0.03em;
-  text-shadow: 0 1px 12px rgba(134, 164, 91, 0.22);
+  text-shadow: 0 1px 12px rgba(184, 145, 71, 0.18);
 }
 
 .settlement-hud__clock-detail {
@@ -239,50 +303,88 @@ select:focus-visible {
 .settlement-hud__season {
   grid-column: 2;
   grid-row: 2;
-  align-self: start;
-  justify-self: stretch;
+  align-self: center;
+  justify-self: start;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
   max-width: 100%;
-  padding: 2px 0 0;
+  padding: 0;
   overflow: hidden;
   border: 0;
-  color: #aeca8b;
+  color: #c9b274;
   background: none;
+  font-family: var(--ui-display);
   font-size: 7px;
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   text-align: left;
-  text-transform: uppercase;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.settlement-hud__season::before {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #c5a13f;
+  border-radius: 50%;
+  content: '\2740';
+  color: #e3c75c;
+  background: #244929;
+  box-shadow: inset 0 0 0 2px rgba(15, 18, 14, 0.62);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.settlement-hud__season[data-season='summer']::before {
+  content: '\2600';
+  color: #efca52;
+  background: #67551f;
+}
+
+.settlement-hud__season[data-season='autumn']::before {
+  content: '\2767';
+  color: #e4a54e;
+  background: #713221;
+}
+
+.settlement-hud__season[data-season='winter']::before {
+  content: '\2744';
+  color: #d4d7e8;
+  background: #263f69;
+}
+
 .settlement-hud__speed {
-  position: absolute;
-  top: calc(100% + 9px);
-  left: 50%;
-  z-index: 3;
+  position: static;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  align-self: end;
   display: flex;
-  gap: 5px;
-  width: auto;
-  padding: 4px;
-  border: 1px solid rgba(213, 188, 130, 0.2);
-  border-radius: 999px;
-  background: rgba(15, 18, 15, 0.9);
-  box-shadow: 0 9px 28px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(14px);
-  transform: translateX(-50%);
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  padding: 2px 0 0;
+  border-top: 1px solid rgba(213, 188, 130, 0.13);
+  background: none;
+  box-shadow: none;
+  transform: none;
 }
 
 .settlement-hud__speed-button {
   display: grid;
   place-items: center;
-  width: 31px;
-  min-width: 31px;
-  height: 25px;
-  min-height: 25px;
+  width: 36px;
+  min-width: 0;
+  height: 18px;
+  min-height: 18px;
   padding: 0;
-  border-color: transparent;
-  border-radius: 999px;
-  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 1px;
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .settlement-hud__speed-name {
@@ -290,26 +392,43 @@ select:focus-visible {
 }
 
 .settlement-hud__speed-value {
-  color: #aaa18d;
+  color: #a79d89;
   font-family: var(--ui-display);
-  font-size: 9px;
+  font-size: 7px;
   font-weight: 700;
+  letter-spacing: -0.18em;
+  padding-right: 0.18em;
   opacity: 1;
 }
 
 .settlement-hud__speed-button--pause .settlement-hud__speed-value {
-  font-size: 12px;
+  font-size: 10px;
+  letter-spacing: -0.08em;
+  padding-right: 0;
   line-height: 1;
 }
 
 .settlement-hud__speed-button.is-active {
-  border-color: rgba(230, 199, 122, 0.68);
-  background: linear-gradient(180deg, #ddbf74, #9d7532);
-  box-shadow: inset 0 1px rgba(255, 244, 211, 0.35);
+  border-color: rgba(230, 199, 122, 0.54);
+  background: linear-gradient(180deg, rgba(214, 178, 91, 0.3), rgba(103, 75, 29, 0.24));
+  box-shadow: inset 0 1px rgba(255, 244, 211, 0.12);
 }
 
 .settlement-hud__speed-button.is-active .settlement-hud__speed-value {
-  color: #211d14;
+  color: #f1d37e;
+  text-shadow: 0 0 7px rgba(220, 172, 61, 0.34);
+}
+
+.settlement-vitals.is-paused .settlement-hud__clock-time {
+  color: #d8c9a8;
+}
+
+.settlement-vitals.is-night .settlement-hud__clock-time {
+  color: #9ec5e8;
+}
+
+.settlement-vitals.is-sabbath .settlement-hud__clock-time {
+  color: #e8c86a;
 }
 
 .settlement-hud__perf {
@@ -391,7 +510,7 @@ select:focus-visible {
 
 .settlement-hud__body {
   display: grid;
-  grid-template-columns: repeat(8, 70px);
+  grid-template-columns: repeat(8, minmax(48px, 1fr));
   align-content: stretch;
   gap: 0;
   min-width: 0;
@@ -400,13 +519,13 @@ select:focus-visible {
 .settlement-hud__stat {
   position: relative;
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr);
   grid-template-rows: 1fr;
   align-items: center;
   gap: 2px;
   min-width: 0;
   min-height: 100%;
-  padding: 4px;
+  padding: 4px 3px;
   border-left: 1px solid rgba(216, 191, 134, 0.09);
   cursor: help;
   transition: background 130ms ease, opacity 130ms ease;
@@ -463,7 +582,7 @@ select:focus-visible {
   align-self: center;
   color: #e1dbc9;
   font-family: var(--ui-display);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
@@ -475,7 +594,7 @@ select:focus-visible {
 .settlement-hud__stat--fuel .settlement-hud__value { color: #e0b178; }
 
 .settlement-hud__supply-value {
-  font-size: 12px;
+  font-size: 10px;
   white-space: nowrap;
 }
 
@@ -492,6 +611,7 @@ select:focus-visible {
 .settlement-hud__sub {
   position: absolute;
   top: calc(100% - 1px);
+  bottom: auto;
   left: 50%;
   z-index: 3;
   width: max-content;
@@ -559,7 +679,7 @@ select:focus-visible {
   gap: 3px;
   width: 100%;
   height: 100%;
-  min-height: 44px;
+  min-height: 58px;
   padding: 4px 5px;
   color: #b8a77f;
   list-style: none;
@@ -644,6 +764,7 @@ select:focus-visible {
   position: absolute;
   top: calc(100% + 9px);
   right: -8px;
+  bottom: auto;
   z-index: 4;
   display: grid;
   grid-template-columns: repeat(5, 70px);
@@ -661,6 +782,7 @@ select:focus-visible {
 .settlement-hud__stores-grid::before {
   position: absolute;
   right: 0;
+  top: auto;
   bottom: 100%;
   left: 0;
   height: 9px;
@@ -723,25 +845,46 @@ select:focus-visible {
 }
 
 .settlement-hud__fire-alert,
-.settlement-hud__security-alert {
-  position: absolute;
-  top: calc(100% + 9px);
-  z-index: 2;
-  width: calc(33.333% - 7px);
-  min-height: 46px;
+.settlement-hud__security-alert,
+.settlement-hud__welfare-alert {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 52px;
   margin: 0;
   padding: 8px 10px 8px 34px;
-  border-radius: 3px;
-  background: rgba(24, 26, 20, 0.95);
+  border: 1px solid rgba(194, 163, 99, 0.32);
+  border-radius: 2px;
+  color: #e8dcc4;
+  background:
+    linear-gradient(110deg, rgba(210, 174, 95, 0.07), transparent 46%),
+    rgba(19, 22, 18, 0.97);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(16px);
 }
 
-.settlement-hud__fire-alert { left: 0; }
-.settlement-hud__security-alert { left: calc(33.333% + 3px); }
+.settlement-vitals__alerts {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  width: min(310px, calc(100vw - 28px));
+}
+
+.settlement-hud__fire-alert[hidden],
+.settlement-hud__security-alert[hidden],
+.settlement-hud__welfare-alert[hidden] {
+  display: none;
+}
 
 .settlement-hud__fire-alert::before,
-.settlement-hud__security-alert::before {
+.settlement-hud__security-alert::before,
+.settlement-hud__welfare-alert::before {
   position: absolute;
   top: 10px;
   left: 11px;
@@ -753,6 +896,31 @@ select:focus-visible {
 
 .settlement-hud__fire-alert::before { color: #ef9c6d; }
 .settlement-hud__security-alert::before { content: '\2726'; }
+.settlement-hud__welfare-alert::before { content: '\2302'; }
+
+.settlement-hud__fire-alert strong,
+.settlement-hud__security-alert strong,
+.settlement-hud__welfare-alert strong {
+  overflow: hidden;
+  color: #eadcc0;
+  font-family: var(--ui-display);
+  font-size: 11px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-hud__fire-alert span,
+.settlement-hud__security-alert span,
+.settlement-hud__welfare-alert span {
+  overflow: hidden;
+  color: #aca28e;
+  font-size: 8px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Inspector shell -------------------------------------------------------- */
 
@@ -2005,13 +2173,6 @@ select:focus-visible {
   box-shadow: inset 3px 0 var(--ui-brass), 0 16px 38px rgba(0, 0, 0, 0.4);
 }
 
-.fp-mode-panel {
-  min-width: 88px;
-  border-radius: 999px;
-  border-color: rgba(218, 190, 128, 0.18);
-  background: rgba(17, 20, 16, 0.74);
-}
-
 .ui-tooltip {
   max-width: min(360px, calc(100vw - 24px));
   padding: 10px 12px;
@@ -2251,16 +2412,12 @@ select:focus-visible {
 
 @media (max-width: 1080px) {
   .settlement-hud {
-    grid-template-columns: 182px 76px 40px minmax(0, 1fr) 44px;
-    width: min(780px, calc(100vw - 70px));
+    grid-template-columns: 36px minmax(0, 1fr) 42px;
+    width: min(520px, calc(100vw - 70px));
   }
 
   .settlement-hud__body {
-    grid-template-columns: repeat(6, 70px);
-  }
-
-  .settlement-hud__approval-shell {
-    --approval-panel-left: -182px;
+    grid-template-columns: repeat(6, minmax(48px, 1fr));
   }
 
   .settlement-hud__body > .settlement-hud__stat:nth-child(n + 7),
@@ -2276,13 +2433,22 @@ select:focus-visible {
 @media (max-width: 760px) {
   .hud-right-stack {
     top: 7px;
+    right: auto;
+    bottom: auto;
+    left: 50%;
     max-width: calc(100vw - 14px);
+    transform: translateX(-50%);
   }
 
   .settlement-hud {
-    grid-template-columns: 174px 74px 38px minmax(0, 1fr) 42px;
+    grid-template-columns: 34px minmax(0, 1fr) 38px;
     width: calc(100vw - 14px);
     min-height: 48px;
+  }
+
+  .settlement-vitals {
+    right: 7px;
+    bottom: 70px;
   }
 
   .settlement-hud__approval-panel {
@@ -2292,7 +2458,7 @@ select:focus-visible {
     max-height: calc(100vh - 28px);
   }
 
-  .settlement-hud.has-approval-open .settlement-hud__approval-shell::after {
+  .settlement-vitals.has-approval-open .settlement-hud__approval-shell::after {
     display: none;
   }
 
@@ -2331,7 +2497,7 @@ select:focus-visible {
   }
 
   .settlement-hud__body {
-    grid-template-columns: repeat(4, minmax(41px, 1fr));
+    grid-template-columns: repeat(4, minmax(48px, 1fr));
   }
 
   .settlement-hud__body > .settlement-hud__stat:nth-child(n + 5) {
@@ -2413,7 +2579,7 @@ select:focus-visible {
   }
 
   .settlement-hud {
-    grid-template-columns: 166px 72px 34px minmax(0, 1fr) 40px;
+    grid-template-columns: 32px minmax(0, 1fr) 36px;
   }
 
   .settlement-hud__body {

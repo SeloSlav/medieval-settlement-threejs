@@ -1,8 +1,4 @@
 import * as THREE from 'three';
-import {
-  grassBladeLodOpacity,
-  grassBladeRevealOpacity,
-} from '../grass/grassLodMath.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { loadBitmapTexture } from '../utils/textureLoad.ts';
 import { SpatialHash2D } from '../utils/SpatialHash2D.ts';
@@ -23,7 +19,6 @@ type LilyPadPlacement = {
 
 export type RiverLilyPadField = {
   group: THREE.Group;
-  updateCameraState: (cameraDistance: number, firstPersonActive?: boolean) => void;
   dispose: () => void;
 };
 
@@ -64,9 +59,9 @@ export async function createRiverLilyPads(
     side: THREE.DoubleSide,
     vertexColors: true,
     transparent: true,
-    opacity: 0,
+    opacity: LILY_PEAK_OPACITY,
     alphaTest: 0.01,
-    depthWrite: false,
+    depthWrite: true,
   });
 
   const capacity = Math.max(placements.length, 1);
@@ -77,7 +72,7 @@ export async function createRiverLilyPads(
   mesh.frustumCulled = false;
   mesh.renderOrder = 2.4;
   mesh.count = placements.length;
-  mesh.visible = false;
+  mesh.visible = placements.length > 0;
 
   placements.forEach((placement, index) => {
     const y = getStillWaterSurfaceY(terrain, riverField, placement.x, placement.z);
@@ -100,25 +95,8 @@ export async function createRiverLilyPads(
   group.name = 'Pond and lake lily pads';
   group.add(mesh);
 
-  let lastOpacity = Number.NaN;
   return {
     group,
-    updateCameraState(cameraDistance, firstPersonActive = false) {
-      const reveal = firstPersonActive
-        ? 1
-        : grassBladeLodOpacity(grassBladeRevealOpacity(cameraDistance));
-      const opacity = reveal * LILY_PEAK_OPACITY;
-      if (!Number.isFinite(lastOpacity) || Math.abs(lastOpacity - opacity) > 0.006) {
-        lastOpacity = opacity;
-        material.opacity = opacity;
-        const depthWrite = opacity >= LILY_PEAK_OPACITY - 0.006;
-        if (material.depthWrite !== depthWrite) {
-          material.depthWrite = depthWrite;
-          material.needsUpdate = true;
-        }
-      }
-      mesh.visible = opacity > 0.004 && placements.length > 0;
-    },
     dispose() {
       geometry.dispose();
       material.dispose();

@@ -111,7 +111,7 @@ const SETTLEMENT_HUD_HTML = `
         class="noble-hud__eye"
         data-noble-eye
         data-tooltip-title="First-Person View"
-        data-tooltip="Walk through your estate. The ~ key still works."
+        data-tooltip="Choose a point in your estate to enter first-person view."
         aria-label="Enter first-person view"
         aria-pressed="false"
         disabled
@@ -122,11 +122,13 @@ const SETTLEMENT_HUD_HTML = `
         </svg>
       </button>
     </aside>
+    <div class="settlement-vitals" data-settlement-vitals aria-label="Time and settlement status">
     <div class="settlement-hud__clock" data-settlement-clock>
       <span class="settlement-hud__clock-date" data-clock-date>Year 1</span>
       <span class="settlement-hud__clock-time" data-clock-time>08:00</span>
       <span class="settlement-hud__clock-detail" data-clock-detail></span>
       <span class="settlement-hud__season" data-season-status tabindex="0"></span>
+      <div class="settlement-vitals__alerts" aria-label="Settlement alerts">
       <div class="settlement-hud__fire-alert" data-fire-alert hidden>
         <strong data-fire-count>Fire</strong>
         <span data-fire-response>Awaiting a ready well and free hauler</span>
@@ -147,6 +149,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong data-welfare-label>Household welfare</strong>
         <span data-welfare-detail>Awaiting parish reports</span>
       </div>
+      </div>
       <div class="settlement-hud__speed" role="group" aria-label="Simulation speed">
         ${GAME_SPEEDS.map((speed) => {
           const hotkey = hotkeyForGameSpeed(speed);
@@ -162,7 +165,15 @@ const SETTLEMENT_HUD_HTML = `
             aria-pressed="${speed === 1}"
           >
             <span class="settlement-hud__speed-name">${gameSpeedLabel(speed)}</span>
-            <span class="settlement-hud__speed-value">${speed === 0 ? '&#x23F8;' : `${speed}×`}</span>
+            <span class="settlement-hud__speed-value" aria-hidden="true">${
+              speed === 0
+                ? '&#x23F8;'
+                : speed === 1
+                  ? '&#x25B6;'
+                  : speed === 4
+                    ? '&#x25B6;&#x25B6;'
+                    : '&#x25B6;&#x25B6;&#x25B6;'
+            }</span>
           </button>
         `;
         }).join('')}
@@ -240,6 +251,7 @@ const SETTLEMENT_HUD_HTML = `
           departures, and welfare remain household-driven.
         </p>
       </section>
+    </div>
     </div>
     <div class="settlement-hud__perf">
       <div
@@ -547,6 +559,8 @@ const SETTLEMENT_HUD_HTML = `
 export class SettlementHud {
   readonly root: HTMLElement;
   private readonly panel: HTMLElement;
+  private readonly nobleHud: HTMLElement;
+  private readonly vitals: HTMLElement;
   private readonly clockDate: HTMLElement;
   private readonly clockTime: HTMLElement;
   private readonly clockDetail: HTMLElement;
@@ -638,6 +652,8 @@ export class SettlementHud {
     parent.appendChild(panel);
     this.root = panel;
     this.panel = panel;
+    this.nobleHud = this.mustElement('[data-noble-hud]');
+    this.vitals = this.mustElement('[data-settlement-vitals]');
     const profile = getCurrentNobleProfile();
     const noble = getNoble(profile.nobleId);
     const noblePortrait = this.mustElement('[data-noble-hud-portrait]') as HTMLImageElement;
@@ -739,6 +755,8 @@ export class SettlementHud {
     delete this.fuelStat.dataset.tooltip;
     this.panel.addEventListener('click', this.onResourceRowClick);
     this.panel.addEventListener('keydown', this.onResourceRowKeyDown);
+    this.nobleHud.addEventListener('click', this.onResourceRowClick);
+    this.nobleHud.addEventListener('keydown', this.onResourceRowKeyDown);
     this.securityAlert.addEventListener('click', this.onSecurityAlertClick);
     this.geologyAlert.addEventListener('click', this.onGeologyAlertClick);
     this.approvalButton.addEventListener('click', this.onApprovalOpen);
@@ -770,6 +788,10 @@ export class SettlementHud {
     );
     this.nobleEye.addEventListener('click', this.onNobleEyeClick);
     window.addEventListener('keydown', this.onApprovalEscape, true);
+    // Keep fixed HUD satellites outside the filtered, transformed top ribbon
+    // so their placement remains relative to the viewport.
+    const uiRoot = parent.parentElement ?? parent;
+    uiRoot.append(this.nobleHud, this.vitals);
   }
 
   setFirstPersonToggle(handler: (() => void) | null): void {
@@ -779,6 +801,8 @@ export class SettlementHud {
 
   setFirstPersonActive(active: boolean): void {
     this.root.hidden = active;
+    this.nobleHud.hidden = active;
+    this.vitals.hidden = active;
     this.nobleEye.classList.toggle('is-active', active);
     this.nobleEye.setAttribute('aria-pressed', String(active));
     this.nobleEye.setAttribute(
@@ -871,12 +895,14 @@ export class SettlementHud {
     outlook?: NextDayEnvironmentOutlook,
   ): void {
     const description = describeEnvironment(environment);
-    this.seasonStatus.textContent = `${description.symbol} ${description.title}`;
+    this.seasonStatus.textContent = description.title;
+    this.seasonStatus.dataset.season = environment.season;
     this.seasonStatus.dataset.tooltipTitle = description.title;
     this.seasonStatus.dataset.tooltip = outlook
       ? `${description.detail}\n\n${describeNextDayEnvironmentOutlook(environment, outlook)}.`
       : description.detail;
     this.panel.classList.toggle('is-paused', speed === 0);
+    this.vitals.classList.toggle('is-paused', speed === 0);
     for (const button of this.speedButtons) {
       const buttonSpeed = Number(button.dataset.gameSpeed);
       const active = buttonSpeed === speed;
@@ -898,6 +924,7 @@ export class SettlementHud {
     const burning = [...incidents].filter((incident) => incident.status === 'burning');
     this.fireAlert.hidden = burning.length === 0;
     this.panel.classList.toggle('has-fire', burning.length > 0);
+    this.vitals.classList.toggle('has-fire', burning.length > 0);
     if (burning.length === 0) return;
 
     const responders = [...trips].filter((trip) =>
@@ -943,6 +970,10 @@ export class SettlementHud {
     );
     this.securityAlert.hidden = !enabled;
     this.panel.classList.toggle(
+      'has-frontier-threat',
+      enabled && (raidThreatActive || warningActive),
+    );
+    this.vitals.classList.toggle(
       'has-frontier-threat',
       enabled && (raidThreatActive || warningActive),
     );
@@ -1151,6 +1182,8 @@ export class SettlementHud {
     this.welfareAlert.dataset.level = welfare.level;
     this.panel.classList.toggle('has-welfare-warning', welfare.level === 'watch');
     this.panel.classList.toggle('has-welfare-critical', welfare.level === 'critical');
+    this.vitals.classList.toggle('has-welfare-warning', welfare.level === 'watch');
+    this.vitals.classList.toggle('has-welfare-critical', welfare.level === 'critical');
 
     this.welfareLabel.textContent = welfare.starvingResidents > 0
       ? 'Households starving'
@@ -1216,6 +1249,10 @@ export class SettlementHud {
       'has-welfare-warning',
       'has-welfare-critical',
     );
+    this.vitals.classList.remove(
+      'has-welfare-warning',
+      'has-welfare-critical',
+    );
     this.clearApprovalState();
   }
 
@@ -1246,10 +1283,12 @@ export class SettlementHud {
     }
     if (sabbath !== this.displayedSabbath) {
       this.panel.classList.toggle('is-sabbath', sabbath);
+      this.vitals.classList.toggle('is-sabbath', sabbath);
       this.displayedSabbath = sabbath;
     }
     if (night !== this.displayedNight) {
       this.panel.classList.toggle('is-night', night);
+      this.vitals.classList.toggle('is-night', night);
       this.displayedNight = night;
     }
   }
@@ -1359,6 +1398,10 @@ export class SettlementHud {
 
   private readonly onSpecialtyStoresPointerEnter = (): void => {
     this.cancelSpecialtyStoresClose();
+    this.panel.removeEventListener('click', this.onResourceRowClick);
+    this.panel.removeEventListener('keydown', this.onResourceRowKeyDown);
+    this.nobleHud.removeEventListener('click', this.onResourceRowClick);
+    this.nobleHud.removeEventListener('keydown', this.onResourceRowKeyDown);
     this.specialtyStores.open = true;
   };
 
@@ -1503,6 +1546,7 @@ export class SettlementHud {
     this.approvalPanel.hidden = !nextOpen;
     this.approvalButton.setAttribute('aria-expanded', String(nextOpen));
     this.panel.classList.toggle('has-approval-open', nextOpen);
+    this.vitals.classList.toggle('has-approval-open', nextOpen);
   }
 
   private setSecurityAttentionTargets(

@@ -1,12 +1,12 @@
 /** Matches CameraController default orbit distance at 100% zoom. */
 export const BASELINE_CAMERA_DISTANCE = 88;
 
-/** SeedThree grass, wildflowers, cattails, and lily pads reach full strength here. */
+/** SeedThree grass, wildflowers, and cattails reach full strength here. */
 export const CLOSE_GROUND_FULL_ZOOM_PERCENT = 400;
 
 /**
  * Close vegetation starts fading in above 200% and reaches full strength at
- * 400%. Grass, wildflowers, cattails, and lily pads consume this shared gate.
+ * 400%. Grass, wildflowers, and cattails consume this shared gate.
  */
 export const CLOSE_GROUND_FADE_START_ZOOM_PERCENT = 200;
 
@@ -48,7 +48,7 @@ export const DIRT_PROXIMITY_INNER_SQ = DIRT_PROXIMITY_INNER * DIRT_PROXIMITY_INN
 
 export const DIRT_PROXIMITY_OUTER_SQ = DIRT_PROXIMITY_OUTER * DIRT_PROXIMITY_OUTER;
 
-/** SeedThree grass, wildflowers, cattails, and lily pads share this zoom band. */
+/** SeedThree grass, wildflowers, and cattails share this zoom band. */
 export const GRASS_BLADE_REVEAL = {
   close: CLOSE_GROUND_FULL_DISTANCE,
   far: CLOSE_GROUND_FADE_START_DISTANCE,

@@ -33,6 +33,8 @@ type ReedPlacement = {
   z: number;
   heightMeters: number;
   waterDepthMeters: number;
+  widthScaleX: number;
+  widthScaleZ: number;
   yaw: number;
   tiltX: number;
   tiltZ: number;
@@ -74,6 +76,16 @@ const REED_SHORE_MAX = 4.8;
 const REED_MIN_WATER_DEPTH = 0.28;
 /** Avoid populating deep channel/sea water where cattails would not establish. */
 const REED_MAX_WATER_DEPTH = 1.45;
+/** Macro patches leave broad stretches of shoreline open instead of uniformly planted. */
+const REED_STAND_CHANCE_MIN = 0.1;
+const REED_STAND_CHANCE_MAX = 0.34;
+const REED_FINGER_CHANCE_MIN = 0.08;
+const REED_FINGER_CHANCE_MAX = 0.27;
+/** Individual clumps retain cattail proportions while spanning young to robust footprints. */
+const REED_WIDTH_SCALE_MIN = 0.62;
+const REED_WIDTH_SCALE_MAX = 1.38;
+const REED_HEIGHT_MIN_METERS = 0.62;
+const REED_HEIGHT_MAX_METERS = 3.35;
 /**
  * The authored texture is a compact tuft. A broader card fan makes each
  * instance read as a loose, established cattail clump instead of a small
@@ -286,13 +298,24 @@ function createReedPlacements(
   const shoreNodes = collectShoreNodes(riverField);
 
   for (const node of shoreNodes) {
-    // Seed broad, irregular stands with deliberate gaps instead of tracing
-    // the entire shoreline with a tight dotted line.
-    if (rng() > 0.48) continue;
+    // Broad seeded patches determine whether this section supports a stand at
+    // all. The local roll then breaks up repeated silhouettes within a patch.
+    const patchPresence = cattailPatchPresence(node.x, node.z);
+    const standChance = THREE.MathUtils.lerp(
+      REED_STAND_CHANCE_MIN,
+      REED_STAND_CHANCE_MAX,
+      patchPresence,
+    );
+    if (rng() > standChance) continue;
 
     const tangentX = -node.outwardZ;
     const tangentZ = node.outwardX;
-    const clusterCount = 3 + Math.floor(rng() * 6);
+    const clusterCount = sampleReedClusterCount(rng, 1, 6);
+    const standVigor = THREE.MathUtils.lerp(
+      0.78,
+      1.22,
+      patchPresence * 0.68 + rng() * 0.32,
+    );
 
     for (let i = 0; i < clusterCount; i++) {
       const along = (rng() - 0.5) * 6.8;
@@ -301,17 +324,25 @@ function createReedPlacements(
       const pz = node.z + tangentZ * along - node.outwardZ * inward;
 
       if (!riverField.isRenderedWetAt(px, pz)) continue;
-      if (placementIndex.hasPointWithin(px, pz, 0.72 + rng() * 0.38)) continue;
+      if (placementIndex.hasPointWithin(px, pz, 0.78 + Math.pow(rng(), 0.7) * 0.62)) continue;
 
       const shore = riverField.sampleShoreDistance(px, pz);
       if (shore < REED_SHORE_MIN || shore > REED_SHORE_MAX) continue;
       const waterDepthMeters = resolveReedWaterDepthMeters(terrain, riverField, px, pz);
       if (!isCattailWaterDepth(waterDepthMeters)) continue;
-      const placement = {
+      const size = sampleReedSizeVariation(rng, standVigor);
+      const placement: ReedPlacement = {
         x: px,
         z: pz,
-        heightMeters: resolveSubmergedReedHeightMeters(shore, waterDepthMeters, rng),
+        heightMeters: resolveSubmergedReedHeightMeters(
+          shore,
+          waterDepthMeters,
+          rng,
+          size.heightScale,
+        ),
         waterDepthMeters,
+        widthScaleX: size.widthScaleX,
+        widthScaleZ: size.widthScaleZ,
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.14,
         tiltZ: (rng() - 0.5) * 0.12,
@@ -352,17 +383,29 @@ function appendGridReedPlacements(
       const z = wz + (rng() - 0.5) * stepZ * 0.62;
       if (!riverField.isRenderedWetAt(x, z)) continue;
 
-      const chance = THREE.MathUtils.clamp(0.22 + (1 - shore / 4.8) * 0.32, 0.18, 0.56);
+      const patchPresence = cattailPatchPresence(x, z);
+      const shoreAffinity = THREE.MathUtils.clamp(1 - shore / REED_SHORE_MAX, 0, 1);
+      const chance = THREE.MathUtils.lerp(0.018, 0.13, shoreAffinity)
+        * THREE.MathUtils.lerp(0.18, 1, patchPresence);
       if (rng() > chance) continue;
-      if (placementIndex.hasPointWithin(x, z, 0.76 + rng() * 0.42)) continue;
+      if (placementIndex.hasPointWithin(x, z, 0.82 + rng() * 0.55)) continue;
       const waterDepthMeters = resolveReedWaterDepthMeters(terrain, riverField, x, z);
       if (!isCattailWaterDepth(waterDepthMeters)) continue;
 
-      const placement = {
+      const standVigor = THREE.MathUtils.lerp(0.8, 1.18, patchPresence);
+      const size = sampleReedSizeVariation(rng, standVigor);
+      const placement: ReedPlacement = {
         x,
         z,
-        heightMeters: resolveSubmergedReedHeightMeters(shore, waterDepthMeters, rng),
+        heightMeters: resolveSubmergedReedHeightMeters(
+          shore,
+          waterDepthMeters,
+          rng,
+          size.heightScale,
+        ),
         waterDepthMeters,
+        widthScaleX: size.widthScaleX,
+        widthScaleZ: size.widthScaleZ,
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.12,
         tiltZ: (rng() - 0.5) * 0.1,
@@ -385,12 +428,23 @@ function appendShallowReedFingers(
   placementIndex: SpatialHash2D<ReedPlacement>,
 ): void {
   for (const node of shoreNodes) {
-    if (rng() > 0.5) continue;
+    const patchPresence = cattailPatchPresence(node.x + 11.3, node.z - 7.1);
+    const fingerChance = THREE.MathUtils.lerp(
+      REED_FINGER_CHANCE_MIN,
+      REED_FINGER_CHANCE_MAX,
+      patchPresence,
+    );
+    if (rng() > fingerChance) continue;
 
     const tangentX = -node.outwardZ;
     const tangentZ = node.outwardX;
     const fingerLength = 1.8 + Math.pow(rng(), 0.7) * 5.2;
-    const clusterCount = 3 + Math.floor(rng() * 6);
+    const clusterCount = sampleReedClusterCount(rng, 1, 5);
+    const standVigor = THREE.MathUtils.lerp(
+      0.76,
+      1.2,
+      patchPresence * 0.72 + rng() * 0.28,
+    );
 
     for (let index = 0; index < clusterCount; index++) {
       const inward = 0.32 + Math.pow(rng(), 0.72) * fingerLength;
@@ -402,15 +456,23 @@ function appendShallowReedFingers(
 
       const wetShore = riverField.sampleShoreDistance(x, z);
       if (wetShore < 0.36 || wetShore > 5.7) continue;
-      if (placementIndex.hasPointWithin(x, z, 0.7 + rng() * 0.4)) continue;
+      if (placementIndex.hasPointWithin(x, z, 0.76 + rng() * 0.58)) continue;
 
       const waterDepthMeters = resolveReedWaterDepthMeters(terrain, riverField, x, z);
       if (!isCattailWaterDepth(waterDepthMeters)) continue;
+      const size = sampleReedSizeVariation(rng, standVigor);
       const placement: ReedPlacement = {
         x,
         z,
-        heightMeters: resolveSubmergedReedHeightMeters(wetShore, waterDepthMeters, rng),
+        heightMeters: resolveSubmergedReedHeightMeters(
+          wetShore,
+          waterDepthMeters,
+          rng,
+          size.heightScale,
+        ),
         waterDepthMeters,
+        widthScaleX: size.widthScaleX,
+        widthScaleZ: size.widthScaleZ,
         yaw: rng() * Math.PI * 2,
         tiltX: (rng() - 0.5) * 0.12,
         tiltZ: (rng() - 0.5) * 0.1,
@@ -513,9 +575,15 @@ function resolveSubmergedReedHeightMeters(
   shore: number,
   waterDepthMeters: number,
   rng: () => number,
+  heightScale: number,
 ): number {
+  const variedHeight = THREE.MathUtils.clamp(
+    resolveReedHeightMeters(shore, rng) * heightScale,
+    REED_HEIGHT_MIN_METERS,
+    REED_HEIGHT_MAX_METERS,
+  );
   return ensureCattailEmergenceHeightMeters(
-    resolveReedHeightMeters(shore, rng),
+    variedHeight,
     waterDepthMeters,
   );
 }
@@ -529,9 +597,13 @@ function resolveReedScaleVector(
     0.78 + placement.heightMeters * 0.2,
     0.92,
     1.42,
-  ) * fade;
+  );
   const height = (placement.heightMeters / CATTAIL_CARD_REFERENCE_HEIGHT) * fade;
-  return scaleVector.set(width, height, width);
+  return scaleVector.set(
+    width * placement.widthScaleX * fade,
+    height,
+    width * placement.widthScaleZ * fade,
+  );
 }
 
 /**
@@ -542,4 +614,59 @@ function resolveReedScaleVector(
 function resolveReedHeightMeters(shore: number, rng: () => number): number {
   const shoreT = THREE.MathUtils.clamp((shore - REED_SHORE_MIN) / (REED_SHORE_MAX - REED_SHORE_MIN), 0, 1);
   return sampleCattailHeightMeters(1 - shoreT, rng);
+}
+
+function sampleReedClusterCount(
+  rng: () => number,
+  minCount: number,
+  maxCount: number,
+): number {
+  const span = Math.max(0, maxCount - minCount + 1);
+  const biasedRoll = Math.pow(THREE.MathUtils.clamp(rng(), 0, 0.999999), 1.5);
+  return minCount + Math.floor(biasedRoll * span);
+}
+
+function sampleReedSizeVariation(
+  rng: () => number,
+  standVigor: number,
+): { heightScale: number; widthScaleX: number; widthScaleZ: number } {
+  const vigor = THREE.MathUtils.clamp(standVigor, 0.72, 1.28);
+  const footprint = THREE.MathUtils.lerp(
+    REED_WIDTH_SCALE_MIN,
+    REED_WIDTH_SCALE_MAX,
+    Math.pow(rng(), 0.86),
+  ) * THREE.MathUtils.lerp(0.9, 1.1, (vigor - 0.72) / 0.56);
+  return {
+    heightScale: vigor * THREE.MathUtils.lerp(0.86, 1.14, rng()),
+    widthScaleX: footprint * THREE.MathUtils.lerp(0.84, 1.16, rng()),
+    widthScaleZ: footprint * THREE.MathUtils.lerp(0.84, 1.16, rng()),
+  };
+}
+
+function cattailPatchPresence(x: number, z: number): number {
+  const broad = valueNoise2D(x * 0.034 + 31.7, z * 0.034 - 19.1);
+  const detail = valueNoise2D(x * 0.081 - 7.4, z * 0.081 + 43.8);
+  return smoothstep(0.28, 0.76, broad * 0.72 + detail * 0.28);
+}
+
+function hashNoise2D(x: number, z: number): number {
+  const value = Math.sin(x * 127.1 + z * 311.7) * 43758.5453123;
+  return value - Math.floor(value);
+}
+
+function valueNoise2D(x: number, z: number): number {
+  const x0 = Math.floor(x);
+  const z0 = Math.floor(z);
+  const tx = x - x0;
+  const tz = z - z0;
+  const ux = tx * tx * (3 - 2 * tx);
+  const uz = tz * tz * (3 - 2 * tz);
+  const top = THREE.MathUtils.lerp(hashNoise2D(x0, z0), hashNoise2D(x0 + 1, z0), ux);
+  const bottom = THREE.MathUtils.lerp(hashNoise2D(x0, z0 + 1), hashNoise2D(x0 + 1, z0 + 1), ux);
+  return THREE.MathUtils.lerp(top, bottom, uz);
+}
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t = THREE.MathUtils.clamp((value - edge0) / Math.max(1e-6, edge1 - edge0), 0, 1);
+  return t * t * (3 - 2 * t);
 }

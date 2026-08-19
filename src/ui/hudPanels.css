@@ -234,34 +234,6 @@
   color: var(--danger);
 }
 
-.hud-bottom-right {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  z-index: 4;
-}
-
-.fp-mode-panel strong {
-  color: #9ec5e8;
-  font-size: 15px;
-}
-
-.fp-mode-panel.is-active {
-  border-color: rgba(215, 180, 99, 0.45);
-}
-
-.fp-mode-panel.is-active strong {
-  color: var(--accent);
-}
-
-.fp-mode-panel.is-selecting {
-  border-color: rgba(240, 181, 74, 0.58);
-}
-
-.fp-mode-panel.is-selecting strong {
-  color: #f0b54a;
-}
-
 @media (max-width: 720px) {
   .hud-right-stack {
     top: 10px;
@@ -282,8 +254,4 @@
     font-size: 11px;
   }
 
-  .hud-bottom-right {
-    right: 10px;
-    bottom: 10px;
-  }
 }

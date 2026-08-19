@@ -44,12 +44,17 @@ const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const riverReedSource = readFileSync(`${projectRoot}src/rivers/RiverReeds.ts`, 'utf8');
 assert.match(
   riverReedSource,
-  /heightMeters:\s*resolveSubmergedReedHeightMeters\(shore,\s*waterDepthMeters,\s*rng\)/,
+  /heightMeters:\s*resolveSubmergedReedHeightMeters\([\s\S]*?size\.heightScale/,
 );
 assert.match(riverReedSource, /sampleCattailHeightMeters\(1\s*-\s*shoreT,\s*rng\)/);
 assert.match(
   riverReedSource,
   /placement\.heightMeters\s*\/\s*CATTAIL_CARD_REFERENCE_HEIGHT/,
+);
+assert.match(
+  riverReedSource,
+  /REED_HEIGHT_MIN_METERS\s*=\s*0\.62[\s\S]*?REED_HEIGHT_MAX_METERS\s*=\s*3\.35/,
+  'river placement must broaden the authored cohorts without losing cattail-scale bounds',
 );
 assert.doesNotMatch(
   riverReedSource,

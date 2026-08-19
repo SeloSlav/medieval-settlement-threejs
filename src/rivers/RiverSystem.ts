@@ -165,7 +165,6 @@ export async function createRiverSystem(
     updateCameraState: (cameraPosition, cameraTarget, cameraDistance, firstPersonActive) => {
       reedsGroup.visible = firstPersonActive === true || isReedZoomActive(cameraDistance);
       reeds?.updateCameraState(cameraPosition, cameraTarget, cameraDistance, firstPersonActive);
-      lilyPads?.updateCameraState(cameraDistance, firstPersonActive);
     },
     setNightAmount: setSharedRiverWaterNightAmount,
     tick: (dt, timeSec) => waterController?.tick(dt, timeSec),
