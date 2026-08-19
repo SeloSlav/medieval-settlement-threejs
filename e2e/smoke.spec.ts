@@ -195,6 +195,21 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
 
   await expect(timberHud).toHaveText(String(timberBefore - REFORESTER_TIMBER_COST), { timeout: SYNC_TIMEOUT_MS });
   const totalsMode = page.locator('button[data-resource-totals-mode]');
+  const tooltip = page.locator('#ui-tooltip');
+  const seasonStatus = page.locator('[data-season-status]');
+  await seasonStatus.hover();
+  await expect(tooltip).toHaveClass(/ui-tooltip--season-almanac/);
+  await expect(tooltip.locator('.ui-tooltip__season-header .ui-tooltip__title')).toHaveText(
+    /^(Spring|Summer|Autumn|Winter)$/,
+  );
+  await expect(tooltip.locator('.ui-tooltip__season-header-icon')).toBeVisible();
+  await expect(tooltip.locator('.ui-tooltip__season-list > li')).toHaveCount(4);
+  await expect(tooltip.locator('.ui-tooltip__season-months')).toHaveText([
+    '(March–May)',
+    '(June–August)',
+    '(September–November)',
+    '(December–February)',
+  ]);
   await expect(totalsMode).toHaveAttribute(
     'aria-label',
     'Showing surplus goods. Show total goods stored.',
@@ -227,7 +242,6 @@ test('connects, places a reforester, and updates settlement HUD timber', async (
   await timberHud.hover();
   await expect(foodStores).not.toHaveAttribute('open', '');
   await totalsMode.hover();
-  const tooltip = page.locator('#ui-tooltip');
   await expect(tooltip.locator('.ui-tooltip__title')).toHaveText('Surplus goods (default)');
   await expect(tooltip.locator('.ui-tooltip__label')).toHaveCount(0);
   const specialtyStores = page.locator('[data-specialty-stores]');

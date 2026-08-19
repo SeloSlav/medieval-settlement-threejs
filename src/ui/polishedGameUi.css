@@ -2205,6 +2205,137 @@ select:focus-visible {
   max-width: min(420px, calc(100vw - 24px));
 }
 
+.ui-tooltip.ui-tooltip--season-almanac {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 24px));
+  max-width: min(440px, calc(100vw - 24px));
+  padding: 14px 16px 16px;
+}
+
+.ui-tooltip__season-header,
+.ui-tooltip__season-list > li {
+  --season-color: #a8d779;
+  --season-border: rgba(146, 202, 100, 0.72);
+  --season-surface: rgba(56, 100, 41, 0.68);
+}
+
+.ui-tooltip__season-header[data-season='summer'],
+.ui-tooltip__season-list > li[data-season='summer'] {
+  --season-color: #f4d15b;
+  --season-border: rgba(238, 191, 68, 0.78);
+  --season-surface: rgba(116, 83, 20, 0.7);
+}
+
+.ui-tooltip__season-header[data-season='autumn'],
+.ui-tooltip__season-list > li[data-season='autumn'] {
+  --season-color: #eea15b;
+  --season-border: rgba(224, 126, 55, 0.78);
+  --season-surface: rgba(112, 49, 25, 0.72);
+}
+
+.ui-tooltip__season-header[data-season='winter'],
+.ui-tooltip__season-list > li[data-season='winter'] {
+  --season-color: #c4d9ff;
+  --season-border: rgba(142, 177, 235, 0.82);
+  --season-surface: rgba(39, 63, 108, 0.76);
+}
+
+.ui-tooltip__season-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 12px;
+  padding: 0 0 11px;
+  border-bottom: 1px solid rgba(226, 199, 139, 0.34);
+}
+
+.ui-tooltip__season-header-icon,
+.ui-tooltip__season-icon {
+  box-sizing: border-box;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--season-border);
+  border-radius: 50%;
+  color: var(--season-color);
+  background: var(--season-surface);
+  box-shadow:
+    inset 0 0 0 2px rgba(10, 13, 11, 0.5),
+    0 1px 5px rgba(0, 0, 0, 0.28);
+  line-height: 1;
+}
+
+.ui-tooltip__season-header-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 17px;
+}
+
+.ui-tooltip.ui-tooltip--season-almanac .ui-tooltip__title {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.ui-tooltip__season-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-tooltip__season-list > li {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.ui-tooltip__season-list > li::before {
+  content: none;
+}
+
+.ui-tooltip__season-icon {
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  font-size: 12px;
+}
+
+.ui-tooltip__season-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-tooltip__season-identity {
+  color: #ede1cb;
+  line-height: 1.2;
+}
+
+.ui-tooltip__season-name {
+  color: var(--season-color);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ui-tooltip__season-months {
+  color: #b7aa94;
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.ui-tooltip__season-description {
+  display: block;
+  color: #d8cfbe;
+  font-size: 11.5px;
+  line-height: 1.38;
+}
+
 /* Trade, household extensions, and map surfaces ------------------------- */
 
 .backyard-picker-list,

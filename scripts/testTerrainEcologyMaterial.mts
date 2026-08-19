@@ -159,19 +159,17 @@ assert.match(
 );
 assert.match(
   ecologySource,
-  /const forestOverviewColorNode = mix\([\s\S]*?vec3\(0\.032, 0\.02, 0\.012\)[\s\S]*?vec3\(0\.092, 0\.055, 0\.03\)/,
-  'strategic forest-floor colors must remain readable before scene lighting',
+  /const forestColorNode = forestDetailColorNode;[\s\S]*?const forestStableColorNode = forestDetailStableColorNode;/,
+  'the authored forest-floor texture must remain active at every camera height',
 );
-assert.match(
+assert.doesNotMatch(
   ecologySource,
-  /const forestOverviewTexturedColorNode = mix\([\s\S]*?forestOverviewColorNode[\s\S]*?forestDetailStableColorNode[\s\S]*?float\(0\.72\)/,
-  'the authored leaf-litter grain must remain visible at strategic zoom',
+  /forestOverviewColorNode|forestOverviewTexturedColorNode/,
+  'forest litter must not fall back to a flat brown overview material',
 );
-assert.match(ecologySource, /const forestColorNode = mix\([\s\S]*?forestOverviewTexturedColorNode[\s\S]*?forestDetailColorNode[\s\S]*?closeMaterialDetail/);
-assert.match(ecologySource, /const forestStableColorNode = mix\([\s\S]*?forestOverviewTexturedColorNode[\s\S]*?forestDetailStableColorNode[\s\S]*?closeMaterialDetail/);
 assert.match(ecologySource, /const forestBumpNode = bumpMap/);
-assert.match(ecologySource, /const forestNormalNode = normalize\([\s\S]*?forestBumpNode[\s\S]*?closeMaterialDetail\.mul\(rainNormalVisibility\)/);
-assert.match(ecologySource, /const forestRoughnessNode = mix/);
+assert.match(ecologySource, /const forestNormalNode = normalize\([\s\S]*?forestBumpNode,[\s\S]*?rainNormalVisibility/);
+assert.match(ecologySource, /const forestRoughnessNode = forestDetailRoughnessNode;/);
 assert.match(
   ecologySource,
   /const forestDetailAoNode = mix\([\s\S]*?float\(0\.9\)[\s\S]*?float\(0\.99\)[\s\S]*?forestGrain/,
@@ -179,8 +177,8 @@ assert.match(
 );
 assert.match(
   ecologySource,
-  /const forestAoNode = mix\([\s\S]*?float\(0\.95\)[\s\S]*?forestDetailAoNode/,
-  'strategic forest-floor AO must preserve ambient readability',
+  /const forestAoNode = mix\([\s\S]*?float\(0\.95\)[\s\S]*?forestDetailAoNode,[\s\S]*?rainAoVisibility/,
+  'forest-floor AO must remain detailed at every camera height',
 );
 assert.match(ecologySource, /vec3\(0\.12, 0\.24, 0\.045\)/);
 assert.match(ecologySource, /vec3\(0\.022, 0\.052, 0\.01\)/);

@@ -18,6 +18,14 @@ type TooltipResourceFlow = {
   outputs: ResourceCostKind[];
 };
 
+type SeasonTooltipItem = {
+  icon: string;
+  label: string;
+  months: string;
+  description: string;
+  season: string;
+};
+
 export function mountTooltips(root: HTMLElement): () => void {
   const tooltip = document.createElement('div');
   tooltip.className = 'ui-tooltip';
@@ -73,6 +81,8 @@ export function mountTooltips(root: HTMLElement): () => void {
         'data-tooltip-amount',
         'data-tooltip-amount-label',
         'data-tooltip-flow',
+        'data-tooltip-variant',
+        'data-tooltip-season',
       ],
     });
     const token = showToken + 1;
@@ -156,6 +166,20 @@ function renderTooltipContent(
       title = sourceText.slice(0, separatorIndex).trim();
       body = sourceText.slice(separatorIndex + 3).trim();
     }
+  }
+
+  const seasonItems = anchor.dataset.tooltipVariant === 'season-almanac'
+    ? readSeasonTooltipItems(body)
+    : [];
+  tooltip.classList.toggle('ui-tooltip--season-almanac', seasonItems.length > 0);
+  if (seasonItems.length > 0) {
+    renderSeasonAlmanacTooltip(
+      tooltip,
+      title,
+      anchor.dataset.tooltipSeason?.trim() ?? '',
+      seasonItems,
+    );
+    return;
   }
 
   const fragment = document.createDocumentFragment();
@@ -260,6 +284,81 @@ function renderTooltipContent(
   }
 
   fragment.appendChild(bodyElement);
+  tooltip.replaceChildren(fragment);
+}
+
+function readSeasonTooltipItems(sourceText: string): SeasonTooltipItem[] {
+  return sourceText
+    .split(/\s+·\s+/)
+    .map((item) => item.trim().match(/^(\S+)\s+(Spring|Summer|Autumn|Winter)\s+\(([^)]+)\)\s+—\s+(.+)$/))
+    .flatMap((match) => match
+      ? [{
+        icon: match[1],
+        label: match[2],
+        months: match[3],
+        description: match[4],
+        season: match[2].toLowerCase(),
+      }]
+      : []);
+}
+
+function renderSeasonAlmanacTooltip(
+  tooltip: HTMLElement,
+  title: string,
+  currentSeason: string,
+  items: readonly SeasonTooltipItem[],
+): void {
+  const current = items.find((item) => item.season === currentSeason) ?? items[0];
+  const fragment = document.createDocumentFragment();
+
+  const header = document.createElement('div');
+  header.className = 'ui-tooltip__season-header';
+  header.dataset.season = current.season;
+
+  const headerIcon = document.createElement('span');
+  headerIcon.className = 'ui-tooltip__season-header-icon';
+  headerIcon.setAttribute('aria-hidden', 'true');
+  headerIcon.textContent = current.icon;
+
+  const titleElement = document.createElement('strong');
+  titleElement.className = 'ui-tooltip__title';
+  titleElement.textContent = title || current.label;
+  header.append(headerIcon, titleElement);
+  fragment.appendChild(header);
+
+  const list = document.createElement('ul');
+  list.className = 'ui-tooltip__season-list';
+  for (const item of items) {
+    const listItem = document.createElement('li');
+    listItem.dataset.season = item.season;
+
+    const icon = document.createElement('span');
+    icon.className = 'ui-tooltip__season-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = item.icon;
+
+    const copy = document.createElement('span');
+    copy.className = 'ui-tooltip__season-copy';
+    const identity = document.createElement('span');
+    identity.className = 'ui-tooltip__season-identity';
+    const label = document.createElement('strong');
+    label.className = 'ui-tooltip__season-name';
+    label.textContent = item.label;
+    const months = document.createElement('span');
+    months.className = 'ui-tooltip__season-months';
+    months.textContent = `(${item.months})`;
+    identity.append(label, document.createTextNode(' '), months);
+
+    const description = document.createElement('span');
+    description.className = 'ui-tooltip__season-description';
+    description.textContent = item.description;
+    copy.append(identity, description);
+    listItem.append(icon, copy);
+    list.appendChild(listItem);
+  }
+  fragment.appendChild(list);
+
+  tooltip.classList.remove('has-amount');
   tooltip.replaceChildren(fragment);
 }
 

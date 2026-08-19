@@ -1499,11 +1499,6 @@ function addIronworkStock(parent: THREE.Group): void {
           position: new THREE.Vector3(0.02, 0.42, 0.11),
           rotation: new THREE.Euler(0, 0.24, 0),
         },
-        {
-          geometry: new THREE.TorusGeometry(0.16, 0.04, 5, 10, Math.PI * 1.55),
-          position: new THREE.Vector3(-0.06, 0.51, 0),
-          rotation: new THREE.Euler(Math.PI * 0.5, 0, 0.18),
-        },
       ],
     );
 

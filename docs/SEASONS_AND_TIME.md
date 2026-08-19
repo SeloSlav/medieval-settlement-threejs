@@ -222,6 +222,8 @@ October and November are the only ploughing and sowing months:
 
 Other autumn rules:
 
+- Gorski Kotar mushroom beds enter their peak fruiting window and regrow at
+  175% of their spring/summer rate through November; berry regrowth has ended.
 - New cart trips travel at 90% pace on seasonally softened tracks.
 - Pasture capacity is 90%.
 - Household firewood demand rises to 115%.
@@ -236,6 +238,7 @@ unfinished sowing cannot spill into winter.
 ### Winter — December through February
 
 - Berry and mushroom harvest visuals disappear and their nodes cannot be gathered.
+  Their persistent underground resource nodes remain dormant and safe for spring.
 - Fishing water is treated as frozen and fishing camps cannot harvest.
 - Fully sown grain remains alive but dormant.
 - A field still in the sowing stage when winter begins fails and must be ploughed
@@ -678,8 +681,9 @@ does not clear until the last capable attacker reaches the frontier or falls.
 
 ## Persistent wild resources
 
-- Berries and mushrooms retain their node when empty and regrow in spring and
-  summer. Workers idle while the node is empty or winter-dormant.
+- Berries and mushrooms retain their node when empty. Both regrow in spring and
+  summer; mushrooms alone receive a 175% autumn fruiting peak. Workers idle while
+  a node is empty or winter-dormant.
 - Fish retain their water node, reproduce only from survivors in spring, suffer
   drought losses, and remain extinct if reduced to zero.
 - Game retains a simulated herd population, reproduces with at least two animals,

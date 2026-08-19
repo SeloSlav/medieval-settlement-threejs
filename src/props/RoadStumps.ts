@@ -44,6 +44,28 @@ const STUMP_RADIAL_SEGMENTS = 12;
 const STUMP_TEXTURE_SIZE = 128;
 
 /**
+ * Harvest stumps are close-world detail. At this orbit distance their cut
+ * faces are only a few pixels tall, so the strategic forest can omit them.
+ */
+export const HARVEST_STUMP_HIDE_DISTANCE = 144;
+
+/** Re-enter slightly closer than the hide boundary to avoid wheel-zoom flicker. */
+export const HARVEST_STUMP_SHOW_DISTANCE = 128;
+
+export function shouldShowHarvestStumps(
+  currentlyVisible: boolean,
+  cameraDistance: number,
+  firstPersonActive: boolean,
+): boolean {
+  if (firstPersonActive) return true;
+  if (!Number.isFinite(cameraDistance)) return false;
+  const threshold = currentlyVisible
+    ? HARVEST_STUMP_HIDE_DISTANCE
+    : HARVEST_STUMP_SHOW_DISTANCE;
+  return cameraDistance <= threshold;
+}
+
+/**
  * Keeps felled-tree bark tied to the same cached species textures as the live
  * SeedThree tree. A bucket is submitted only while that species has a visible
  * stump, so exact bark identity does not add idle forest draw calls.

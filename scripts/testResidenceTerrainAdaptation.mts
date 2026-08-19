@@ -33,21 +33,6 @@ const residence = { x: 0, z: 0, yaw: 0 };
 const layout = BuildingTerrainLayout.fromSettlement([], [residence], slopeHeight);
 
 assert.equal(layout.sites.length, 1, 'a residence should contribute one terrain pad');
-assert.equal(
-  layout.isBlockedForGrass(0, 0),
-  true,
-  'grass may be suppressed only in the residence core hidden by its plinth',
-);
-assert.equal(
-  layout.isBlockedForGrass(2.7, 0),
-  false,
-  'the visible residence perimeter must retain groundcover instead of exposing a dark pad',
-);
-assert.equal(
-  layout.isBlockedForGrass(0, 3),
-  false,
-  'the grass-clearance edge must remain inside the smallest residence foundation',
-);
 const centerNatural = slopeHeight(0, 0);
 const centerLeveled = centerNatural + layout.getPlatformRaise(0, 0, centerNatural);
 const innerNatural = slopeHeight(-3, -3.5);

@@ -71,13 +71,44 @@ function gameSpeedTimingLabel(speed: GameSpeed): string {
   return `${formatted}-second day`;
 }
 
+const SEASON_ALMANAC = {
+  spring: {
+    label: 'Spring',
+    months: 'March–May',
+    icon: '❀',
+    description: 'Rain wakes field and forest.',
+  },
+  summer: {
+    label: 'Summer',
+    months: 'June–August',
+    icon: '☀',
+    description: 'Long days favor growth and building.',
+  },
+  autumn: {
+    label: 'Autumn',
+    months: 'September–November',
+    icon: '❧',
+    description: 'Gather the harvest before the frost.',
+  },
+  winter: {
+    label: 'Winter',
+    months: 'December–February',
+    icon: '❄',
+    description: 'Keep the hearths warm.',
+  },
+} as const satisfies Record<EnvironmentState['season'], {
+  label: string;
+  months: string;
+  icon: string;
+  description: string;
+}>;
+
 function seasonAlmanacTooltip(): string {
-  return [
-    '❀ Spring — Rain wakes field and forest.',
-    '☀ Summer — Long days favor growth and building.',
-    '❧ Autumn — Gather the harvest before the frost.',
-    '❄ Winter — Keep the hearths warm.',
-  ].join(' · ');
+  return Object.values(SEASON_ALMANAC)
+    .map(({ icon, label, months, description }) => (
+      `${icon} ${label} (${months}) — ${description}`
+    ))
+    .join(' · ');
 }
 
 const SETTLEMENT_HUD_HTML = `
@@ -901,10 +932,13 @@ export class SettlementHud {
     _outlook?: NextDayEnvironmentOutlook,
   ): void {
     const description = describeEnvironment(environment);
+    const season = SEASON_ALMANAC[environment.season];
     this.seasonStatus.textContent = description.title;
     this.seasonStatus.dataset.season = environment.season;
-    this.seasonStatus.dataset.tooltipTitle = description.title;
+    this.seasonStatus.dataset.tooltipTitle = season.label;
     this.seasonStatus.dataset.tooltip = seasonAlmanacTooltip();
+    this.seasonStatus.dataset.tooltipVariant = 'season-almanac';
+    this.seasonStatus.dataset.tooltipSeason = environment.season;
     this.panel.classList.toggle('is-paused', speed === 0);
     this.vitals.classList.toggle('is-paused', speed === 0);
     for (const button of this.speedButtons) {

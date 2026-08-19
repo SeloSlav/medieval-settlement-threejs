@@ -10,6 +10,7 @@ import {
 } from '../src/residences/backyardGardenMesh.ts';
 import {
   BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN,
+  backyardGardenClearsGroundcover,
   backyardGardenClearancePolygon,
 } from '../src/residences/backyardPosition.ts';
 import type { BackyardGardenKind } from '../src/generated/gameBalance.ts';
@@ -53,6 +54,14 @@ const terrainBackedKinds = new Set<BackyardGardenKind>([
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('cherry_orchard'), false);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('goat_pen'), true);
 assert.equal(BACKYARD_GARDEN_PICKER_KINDS.includes('backyard_apiary'), true);
+
+for (const kind of kinds) {
+  assert.equal(
+    backyardGardenClearsGroundcover(kind),
+    kind === 'vegetable_garden' || kind === 'flower_garden' || kind === 'herb_garden',
+    `${kind} should ${kind.endsWith('_garden') ? '' : 'not '}clear grass and wildflowers`,
+  );
+}
 
 const quarterTurnClearance = backyardGardenClearancePolygon(
   { x: 10, z: -4, width: 6, depth: 4, yaw: Math.PI * 0.5 },

@@ -1,7 +1,7 @@
 use crate::balance_generated::{
     BERRIES_REGROW_PER_DAY, CALENDAR_SECONDS_PER_DAY, FISH_REPRODUCTION_RATE_PER_DAY,
     GAME_MIN_BREEDING_POPULATION, GAME_REPRODUCTION_RATE_PER_DAY, MUSHROOMS_REGROW_PER_DAY,
-    RICH_BERRY_YIELD_MULTIPLIER, RICH_FISH_YIELD_MULTIPLIER,
+    MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER, RICH_BERRY_YIELD_MULTIPLIER, RICH_FISH_YIELD_MULTIPLIER,
 };
 
 const ORDINARY_BERRY_CAPACITY: f64 = 60.0;
@@ -13,6 +13,10 @@ pub fn is_spring(month: u32) -> bool {
 
 pub fn is_summer(month: u32) -> bool {
     matches!(month, 6..=8)
+}
+
+pub fn is_autumn(month: u32) -> bool {
+    matches!(month, 9..=11)
 }
 
 pub fn is_winter(month: u32) -> bool {
@@ -58,6 +62,10 @@ pub fn population_growth_per_second(
         "mushrooms" if is_spring(month) || is_summer(month) => {
             MUSHROOMS_REGROW_PER_DAY / CALENDAR_SECONDS_PER_DAY
         }
+        "mushrooms" if is_autumn(month) => {
+            MUSHROOMS_REGROW_PER_DAY * MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER
+                / CALENDAR_SECONDS_PER_DAY
+        }
         "fish" if is_spring(month) && remaining > 0.0 => {
             logistic_growth_per_second(remaining, max_yield, FISH_REPRODUCTION_RATE_PER_DAY)
         }
@@ -95,6 +103,14 @@ mod tests {
         assert!(population_growth_per_second("berries", 0.0, 60.0, 3) > 0.0);
         assert!(population_growth_per_second("mushrooms", 0.0, 42.0, 7) > 0.0);
         assert_eq!(population_growth_per_second("berries", 0.0, 60.0, 10), 0.0);
+    }
+
+    #[test]
+    fn mushrooms_peak_in_autumn_then_go_dormant_in_winter() {
+        let spring = population_growth_per_second("mushrooms", 0.0, 42.0, 4);
+        let autumn = population_growth_per_second("mushrooms", 0.0, 42.0, 10);
+        assert!((autumn / spring - MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER).abs() < 1e-12);
+        assert_eq!(population_growth_per_second("mushrooms", 0.0, 42.0, 1), 0.0);
     }
 
     #[test]

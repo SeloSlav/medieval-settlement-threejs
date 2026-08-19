@@ -509,6 +509,7 @@ export type GameBalance = {
     foodPerDelivery: number;
     berriesRegrowPerDay: number;
     mushroomsRegrowPerDay: number;
+    mushroomAutumnRegrowthMultiplier: number;
     fishReproductionRatePerDay: number;
     gameReproductionRatePerDay: number;
     gameMinBreedingPopulation: number;
@@ -1096,6 +1097,7 @@ function generateRust(): string {
     `pub const FOOD_PER_DELIVERY: f64 = ${rustF64(b.production.foodPerDelivery)};`,
     `pub const BERRIES_REGROW_PER_DAY: f64 = ${rustF64(b.production.berriesRegrowPerDay)};`,
     `pub const MUSHROOMS_REGROW_PER_DAY: f64 = ${rustF64(b.production.mushroomsRegrowPerDay)};`,
+    `pub const MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER: f64 = ${rustF64(b.production.mushroomAutumnRegrowthMultiplier)};`,
     `pub const FISH_REPRODUCTION_RATE_PER_DAY: f64 = ${rustF64(b.production.fishReproductionRatePerDay)};`,
     `pub const GAME_REPRODUCTION_RATE_PER_DAY: f64 = ${rustF64(b.production.gameReproductionRatePerDay)};`,
     `pub const GAME_MIN_BREEDING_POPULATION: f64 = ${rustF64(b.production.gameMinBreedingPopulation)};`,
@@ -1997,6 +1999,7 @@ function generateTypeScript(): string {
     `export const FOOD_PER_DELIVERY = ${b.production.foodPerDelivery};`,
     `export const BERRIES_REGROW_PER_DAY = ${b.production.berriesRegrowPerDay};`,
     `export const MUSHROOMS_REGROW_PER_DAY = ${b.production.mushroomsRegrowPerDay};`,
+    `export const MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER = ${b.production.mushroomAutumnRegrowthMultiplier};`,
     `export const FISH_REPRODUCTION_RATE_PER_DAY = ${b.production.fishReproductionRatePerDay};`,
     `export const GAME_REPRODUCTION_RATE_PER_DAY = ${b.production.gameReproductionRatePerDay};`,
     `export const GAME_MIN_BREEDING_POPULATION = ${b.production.gameMinBreedingPopulation};`,

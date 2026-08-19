@@ -5,7 +5,11 @@ import {
   type ResidencePlacement,
 } from './burgageLayout.ts';
 import { layoutFromBurgageZone } from './burgageZoneLayout.ts';
-import type { BurgageZoneState, ResidenceState } from '../resources/types.ts';
+import type {
+  BackyardGardenState,
+  BurgageZoneState,
+  ResidenceState,
+} from '../resources/types.ts';
 import type { Point2 } from '../utils/polygonGeometry.ts';
 
 export type BackyardGardenPlacement = {
@@ -25,11 +29,14 @@ const MIN_BACKYARD_GARDEN_WIDTH = 3.8;
 const MIN_BACKYARD_GARDEN_DEPTH = 1.8;
 const BACKYARD_FIT_SAMPLE_SPACING = 0.25;
 
-/**
- * Keeps rooted meadow tufts, wind-bent blades, and flower heads completely
- * outside the garden beds and their detached working props.
- */
+/** Keeps rooted meadow tufts, wind-bent blades, and flower heads outside cultivated beds. */
 export const BACKYARD_GROUNDCOVER_CLEARANCE_MARGIN = 0.55;
+
+export function backyardGardenClearsGroundcover(kind: BackyardGardenState['kind']): boolean {
+  return kind === 'vegetable_garden'
+    || kind === 'flower_garden'
+    || kind === 'herb_garden';
+}
 
 export function backyardGardenClearancePolygon(
   placement: BackyardGardenPlacement,
@@ -51,7 +58,7 @@ export function backyardGardenClearancePolygon(
 }
 
 export function collectBackyardGardenClearancePolygons(
-  gardens: Iterable<{ residenceId: string }>,
+  gardens: Iterable<Pick<BackyardGardenState, 'residenceId' | 'kind'>>,
   residences: Iterable<ResidenceState>,
   zones: Iterable<BurgageZoneState>,
 ): Point2[][] {
@@ -62,6 +69,7 @@ export function collectBackyardGardenClearancePolygons(
 
   const polygons: Point2[][] = [];
   for (const garden of gardens) {
+    if (!backyardGardenClearsGroundcover(garden.kind)) continue;
     const residence = residenceById.get(garden.residenceId);
     if (!residence) continue;
     const zone = zoneById.get(residence.zoneId);

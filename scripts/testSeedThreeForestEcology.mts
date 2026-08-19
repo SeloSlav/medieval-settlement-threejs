@@ -3,6 +3,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as THREE from 'three';
 import { buildForestEdgeEcology } from '../vendor/seedthree/src/core/forest-ecology.js';
+import {
+  HARVEST_STUMP_HIDE_DISTANCE,
+  HARVEST_STUMP_SHOW_DISTANCE,
+  shouldShowHarvestStumps,
+} from '../src/props/RoadStumps.ts';
 
 const saplingCount = 55;
 const ecology = {
@@ -141,3 +146,35 @@ assert.equal(
 );
 assert.equal(understoryBuilt.setDeciduousDormancy(1), false);
 understoryBuilt.dispose();
+
+const stumpSource = readFileSync(
+  join(process.cwd(), 'src/props/RoadStumps.ts'),
+  'utf8',
+);
+const forestBuilderSource = readFileSync(
+  join(process.cwd(), 'src/vegetation/seedthree/seedThreeForestBuilder.ts'),
+  'utf8',
+);
+assert.match(stumpSource, /resolveBark\?\.\(placement\.species\)/);
+assert.match(stumpSource, /Fresh stump growth rings/);
+assert.match(stumpSource, /\[barkMaterial, cutFaceMaterial, barkMaterial\]/);
+assert.match(stumpSource, /mesh\.visible = nextCount > 0/);
+assert.match(forestBuilderSource, /resolveSeedThreeHarvestStumpBark/);
+assert.match(forestBuilderSource, /map:\s*assets\.barkTexture/);
+assert.match(forestBuilderSource, /normalMap:\s*assets\.barkNormal/);
+assert.match(forestBuilderSource, /roughnessMap:\s*assets\.barkRoughness/);
+
+assert.equal(HARVEST_STUMP_HIDE_DISTANCE, 144);
+assert.equal(HARVEST_STUMP_SHOW_DISTANCE, 128);
+let harvestStumpsVisible = true;
+harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, 144.01, false);
+assert.equal(harvestStumpsVisible, false, 'stumps must disappear beyond the 144 m cutoff');
+harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, 136, false);
+assert.equal(harvestStumpsVisible, false, 'the hysteresis band must prevent zoom flicker');
+harvestStumpsVisible = shouldShowHarvestStumps(harvestStumpsVisible, 128, false);
+assert.equal(harvestStumpsVisible, true, 'stumps must return once the camera is within 128 m');
+assert.equal(
+  shouldShowHarvestStumps(false, 999, true),
+  true,
+  'first-person mode must keep nearby stump detail enabled regardless of orbit telemetry',
+);

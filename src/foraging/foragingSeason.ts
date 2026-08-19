@@ -1,4 +1,5 @@
 import type { ForagingNodeKind } from './ForagingLayout.ts';
+import { MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER } from '../generated/gameBalance.ts';
 
 export type ForagingSeason = 'winter' | 'spring' | 'summer' | 'autumn';
 
@@ -21,10 +22,22 @@ export function isForagingRegrowthSeason(
   kind: ForagingNodeKind,
   month: number,
 ): boolean {
+  return foragingRegrowthMultiplier(kind, month) > 0;
+}
+
+/** Seasonal growth only; weather modifiers remain authoritative server-side. */
+export function foragingRegrowthMultiplier(
+  kind: ForagingNodeKind,
+  month: number,
+): number {
   const season = foragingSeason(month);
-  if (kind === 'berries' || kind === 'mushrooms') {
-    return season === 'spring' || season === 'summer';
+  if (kind === 'berries') {
+    return season === 'spring' || season === 'summer' ? 1 : 0;
   }
-  if (kind === 'fish') return season === 'spring';
-  return true;
+  if (kind === 'mushrooms') {
+    if (season === 'autumn') return MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER;
+    return season === 'spring' || season === 'summer' ? 1 : 0;
+  }
+  if (kind === 'fish') return season === 'spring' ? 1 : 0;
+  return 1;
 }

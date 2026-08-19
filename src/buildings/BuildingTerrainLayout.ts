@@ -30,14 +30,7 @@ type TerrainPadSite = BuildingPadParams & {
   rotation: number;
   platformHeight: number;
   shape: 'ellipse' | 'box';
-  grassOcclusion: TerrainPadGrassOcclusion | null;
   maxRaise?: number;
-};
-
-type TerrainPadGrassOcclusion = {
-  radiusX: number;
-  radiusZ: number;
-  shape: 'ellipse' | 'box';
 };
 
 const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
@@ -97,52 +90,11 @@ const MAX_BUILDING_SITE_MARGIN_SCALE = Math.max(
 const FOOTPRINT_SAMPLE_FRACTIONS = [0, 0.55, 0.82, 1] as const;
 /** Shared scale for the visible building footprint and its perimeter features. */
 export const BUILDING_FOOTPRINT_SCALE = 0.92;
-// Terrain grading and vegetation clearance are different concerns. Only a
-// compact core that is guaranteed to sit below opaque foundation geometry may
-// suppress grass. Open sites deliberately stay permeable so the forest-floor
-// terrain cannot be exposed as a hard-edged dark placement slab.
-const FOUNDATION_OCCLUDED_GRASS_KINDS = new Set<BuildingKind>([
-  'lumber_mill',
-  'reforester',
-  'woodcutters_lodge',
-  'charcoal_burner',
-  'smithy',
-  'potter_kiln',
-  'hunters_hall',
-  'foragers_shed',
-  'fishing_camp',
-  'chapel',
-  'trading_post',
-  'town_hall',
-  'village_storehouse',
-  'watchtower',
-  'guardhouse',
-  'threshing_barn',
-  'pastoral_farmstead',
-  'swineherd',
-  'monastery',
-  'brewery',
-  'smokehouse',
-  'granary',
-  'bakery',
-  'watermill',
-  'windmill',
-  'carpenter',
-  'weaver',
-]);
-const BUILDING_GRASS_OCCLUSION_SCALE = 0.54;
 const RESIDENCE_PAD_PARAMS: BuildingPadParams = {
   radiusX: 4.3,
   radiusZ: 4.7,
   innerFade: 0.9,
   outerFade: 1.35,
-};
-// These extents fit inside the smallest tier-one residence plinth across all
-// archetypes. The clearance edge is therefore hidden by masonry at every tier.
-const RESIDENCE_GRASS_OCCLUSION: TerrainPadGrassOcclusion = {
-  radiusX: 2.25,
-  radiusZ: 2.5,
-  shape: 'box',
 };
 const RESIDENCE_PAD_SAMPLE_FRACTIONS = [-1, -0.5, 0, 0.5, 1] as const;
 const MAX_RESIDENCE_PLATFORM_RAISE = 6;
@@ -193,30 +145,9 @@ export class BuildingTerrainLayout {
     return this.sites.map((site) => siteBounds(site));
   }
 
-  /**
-   * Removes the sheltered forest-floor treatment from developed ground.
-   *
-   * Building pads level the terrain and clear canopy/groundcover, so retaining
-   * the original woodland surface there exposes a near-black rectangle in
-   * winter and at strategic zoom. Keep this mask separate from grass
-   * occlusion: open camps and reclamation piles need developed ground without
-   * suppressing the vegetation that can grow between their loose props.
-   */
-  getDevelopedGroundBlend(x: number, z: number): number {
-    let blend = 0;
-    for (const site of this.sites) {
-      blend = Math.max(
-        blend,
-        sampleSiteBlend(x, z, site, site.innerFade, site.outerFade),
-      );
-      if (blend >= 1) return 1;
-    }
-    return blend;
-  }
-
   isBlockedForGrass(x: number, z: number): boolean {
     for (const site of this.sites) {
-      if (isWithinGrassOcclusion(x, z, site)) return true;
+      if (sampleSiteBlend(x, z, site, 0, site.outerFade * 1.04) >= 0.24) return true;
     }
     return false;
   }
@@ -357,19 +288,6 @@ function createBuildingPadSite(
     rotation,
   ).map((point) => sampleNaturalHeight(point.x, point.z));
   const platformHeight = Math.max(...footprintHeights);
-  const grassOcclusion = FOUNDATION_OCCLUDED_GRASS_KINDS.has(building.kind)
-    ? {
-        radiusX: params.radiusX
-          * params.innerFade
-          * BUILDING_FOOTPRINT_SCALE
-          * BUILDING_GRASS_OCCLUSION_SCALE,
-        radiusZ: params.radiusZ
-          * params.innerFade
-          * BUILDING_FOOTPRINT_SCALE
-          * BUILDING_GRASS_OCCLUSION_SCALE,
-        shape: 'ellipse' as const,
-      }
-    : null;
 
   return {
     x: building.x,
@@ -380,7 +298,6 @@ function createBuildingPadSite(
     rotation: -rotation,
     platformHeight,
     shape: 'ellipse',
-    grassOcclusion,
     maxRaise: building.kind === 'large_quarry' ? 1.5 : undefined,
   };
 }
@@ -417,25 +334,8 @@ function createResidencePadSite(
     rotation: residence.yaw,
     platformHeight,
     shape: 'box',
-    grassOcclusion: RESIDENCE_GRASS_OCCLUSION,
     maxRaise: MAX_RESIDENCE_PLATFORM_RAISE,
   };
-}
-
-function isWithinGrassOcclusion(x: number, z: number, site: TerrainPadSite): boolean {
-  const occlusion = site.grassOcclusion;
-  if (!occlusion) return false;
-  const dx = x - site.x;
-  const dz = z - site.z;
-  const cos = Math.cos(site.rotation);
-  const sin = Math.sin(site.rotation);
-  const localX = dx * cos + dz * sin;
-  const localZ = -dx * sin + dz * cos;
-  const normX = Math.abs(localX / occlusion.radiusX);
-  const normZ = Math.abs(localZ / occlusion.radiusZ);
-  return occlusion.shape === 'box'
-    ? Math.max(normX, normZ) <= 1
-    : Math.hypot(normX, normZ) <= 1;
 }
 
 function sampleSiteRaise(x: number, z: number, site: TerrainPadSite, naturalHeight: number): number {

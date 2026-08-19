@@ -1,5 +1,4 @@
 ﻿import * as THREE from 'three';
-import type { BuildingTerrainLayout } from '../buildings/BuildingTerrainLayout.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import { sampleTerrainMeshHeight } from './TerrainMeshHeight.ts';
@@ -22,22 +21,6 @@ export type TerrainBounds = {
   maxZ: number;
 };
 
-export const DEVELOPED_GROUND_BLEND_WEIGHTS = [0.68, 0.03, 0.29] as const;
-
-export function blendDevelopedGroundWeights(
-  meadow: number,
-  dense: number,
-  dry: number,
-  blend: number,
-): [number, number, number] {
-  const amount = THREE.MathUtils.clamp(blend, 0, 1);
-  return [
-    THREE.MathUtils.lerp(meadow, DEVELOPED_GROUND_BLEND_WEIGHTS[0], amount),
-    THREE.MathUtils.lerp(dense, DEVELOPED_GROUND_BLEND_WEIGHTS[1], amount),
-    THREE.MathUtils.lerp(dry, DEVELOPED_GROUND_BLEND_WEIGHTS[2], amount),
-  ];
-}
-
 export class Terrain {
   readonly size: number;
   readonly playableSize: number;
@@ -48,9 +31,6 @@ export class Terrain {
   private dirtZoomGateAttr!: THREE.BufferAttribute;
   private readonly fairColorAttr: THREE.BufferAttribute;
   private readonly rainColorAttr: THREE.BufferAttribute;
-  private readonly forestBlendAttr: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
-  private readonly naturalFairColors: Float32Array;
-  private readonly naturalForestBlends: Float32Array;
 
   static fullBounds(size = resolveWorldDimensions(DEFAULT_WORLD_GENERATION_SETTINGS.mapSize).terrainSize): TerrainBounds {
     return fullTerrainBounds(size);

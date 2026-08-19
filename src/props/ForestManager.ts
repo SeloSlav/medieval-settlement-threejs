@@ -21,6 +21,7 @@ import {
   hideHarvestStumpInstance,
   isUndergrowthNearAnyEdge,
   setHarvestStumpShadowsEnabled,
+  shouldShowHarvestStumps,
   type HarvestStumpBarkResolver,
   type HarvestStumpInstances,
   updateHarvestStumpInstance,
@@ -410,15 +411,29 @@ export class ForestManager {
       cameraInteractionActive,
       deltaSeconds,
     ).shadowCastersChanged ?? false;
-    if (!this.undergrowth) return shadowCastersChanged;
+    const harvestStumpsVisible = shouldShowHarvestStumps(
+      this.harvestStumps.group.visible,
+      cameraDistance,
+      firstPersonActive,
+    );
+    const harvestStumpVisibilityChanged =
+      harvestStumpsVisible !== this.harvestStumps.group.visible;
+    if (harvestStumpVisibilityChanged) {
+      this.harvestStumps.group.visible = harvestStumpsVisible;
+    }
+    if (!this.undergrowth) {
+      return shadowCastersChanged || harvestStumpVisibilityChanged;
+    }
     const threshold = this.undergrowthVisible
       ? UNDERGROWTH_HIDE_DISTANCE
       : UNDERGROWTH_SHOW_DISTANCE;
     const visible = firstPersonActive || cameraDistance <= threshold;
-    if (visible === this.undergrowthVisible) return shadowCastersChanged;
+    if (visible === this.undergrowthVisible) {
+      return shadowCastersChanged || harvestStumpVisibilityChanged;
+    }
     this.undergrowthVisible = visible;
     this.undergrowth.group.visible = visible;
-    return shadowCastersChanged;
+    return shadowCastersChanged || harvestStumpVisibilityChanged;
   }
 
   getSeedThreeStructuralStats(): SeedThreeForestStructuralStats | null {

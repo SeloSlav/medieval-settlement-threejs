@@ -390,35 +390,11 @@ function buildGrassBlendNodes(
     vec3(0.16, 0.095, 0.055) as TslNode,
     forestGrain,
   ) as TslNode;
-  // Strategic cameras cannot resolve individual leaf silhouettes, but the
-  // woodland ground should still read as leaf litter rather than a flat brown
-  // biome tint. Preserve a contrast-bounded version of the authored atlas at
-  // every zoom, then reveal its full color as the camera and pixel footprint
-  // can support it. The bounded overview colors keep twig-shaped texels from
-  // aliasing into bright screen-space dashes.
-  const forestOverviewVariation = macroA
-    .mul(float(0.62) as TslNode)
-    .add(macroB.mul(float(0.38) as TslNode)) as TslNode;
-  const forestOverviewColorNode = mix(
-    vec3(0.032, 0.02, 0.012) as TslNode,
-    vec3(0.092, 0.055, 0.03) as TslNode,
-    forestOverviewVariation,
-  ) as TslNode;
-  const forestOverviewTexturedColorNode = mix(
-    forestOverviewColorNode,
-    forestDetailStableColorNode,
-    float(0.72) as TslNode,
-  ) as TslNode;
-  const forestColorNode = mix(
-    forestOverviewTexturedColorNode,
-    forestDetailColorNode,
-    closeMaterialDetail,
-  ) as TslNode;
-  const forestStableColorNode = mix(
-    forestOverviewTexturedColorNode,
-    forestDetailStableColorNode,
-    closeMaterialDetail,
-  ) as TslNode;
+  // Forest litter is a persistent terrain identity, not close-camera detail.
+  // Keep the authored atlas active at every camera height instead of replacing
+  // it with a flat brown overview color when the general ground-detail LOD fades.
+  const forestColorNode = forestDetailColorNode;
+  const forestStableColorNode = forestDetailStableColorNode;
 
   // Strategic zoom uses three broad, overlapping coverages instead of the
   // near-camera vertex mix alone. A small baseline keeps each texture present;
@@ -678,7 +654,7 @@ function buildGrassBlendNodes(
     mix(
       grassNormalNode,
       forestBumpNode,
-      closeMaterialDetail.mul(rainNormalVisibility),
+      rainNormalVisibility,
     ) as TslNode,
   ) as TslNode;
   const normalNode = normalize(
@@ -704,11 +680,7 @@ function buildGrassBlendNodes(
     float(0.86) as TslNode,
     forestGrain,
   ) as TslNode;
-  const forestRoughnessNode = mix(
-    float(0.94) as TslNode,
-    forestDetailRoughnessNode,
-    closeMaterialDetail,
-  ) as TslNode;
+  const forestRoughnessNode = forestDetailRoughnessNode;
   const roughnessNode = mix(
     grassRoughnessNode,
     forestRoughnessNode,
@@ -742,7 +714,7 @@ function buildGrassBlendNodes(
   const forestAoNode = mix(
     float(0.95) as TslNode,
     forestDetailAoNode,
-    closeMaterialDetail.mul(rainAoVisibility),
+    rainAoVisibility,
   ) as TslNode;
   const aoNode = mix(
     grassAoNode,

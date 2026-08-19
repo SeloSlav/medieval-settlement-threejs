@@ -624,6 +624,7 @@
     "foodPerDelivery": 6,
     "berriesRegrowPerDay": 18,
     "mushroomsRegrowPerDay": 12,
+    "mushroomAutumnRegrowthMultiplier": 1.75,
     "fishReproductionRatePerDay": 0.08,
     "gameReproductionRatePerDay": 0.12,
     "gameMinBreedingPopulation": 2,

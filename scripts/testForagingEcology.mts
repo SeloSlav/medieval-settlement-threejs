@@ -4,9 +4,11 @@ import { fileURLToPath } from 'node:url';
 import { validateBuildingPlacement } from '../src/buildings/BuildingPlacementValidation.ts';
 import {
   GAME_MIN_BREEDING_POPULATION,
+  MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER,
   MUSHROOMS_PER_HARVEST,
 } from '../src/generated/gameBalance.ts';
 import {
+  foragingRegrowthMultiplier,
   foragingSeason,
   isForagingHarvestAvailable,
   isForagingRegrowthSeason,
@@ -96,7 +98,13 @@ assert.equal(isForagingHarvestAvailable('mushrooms', 12), false);
 assert.equal(isForagingHarvestAvailable('game', 1), true);
 assert.equal(isForagingRegrowthSeason('berries', 4), true);
 assert.equal(isForagingRegrowthSeason('mushrooms', 7), true);
-assert.equal(isForagingRegrowthSeason('mushrooms', 10), false);
+assert.equal(isForagingRegrowthSeason('berries', 10), false);
+assert.equal(isForagingRegrowthSeason('mushrooms', 10), true);
+assert.equal(
+  foragingRegrowthMultiplier('mushrooms', 10),
+  MUSHROOM_AUTUMN_REGROWTH_MULTIPLIER,
+);
+assert.equal(foragingRegrowthMultiplier('mushrooms', 1), 0);
 assert.deepEqual(HARVEST_RESERVE_PRESETS.map((preset) => preset.percent), [0, 25, 50]);
 assert.equal(normalizeHarvestReservePercent(255), 90);
 assert.equal(protectedWildStock('game', 12, 25), 3);
@@ -439,6 +447,15 @@ const mushroomVisuals = readFileSync(
 assert.match(mushroomVisuals, /InstancedMesh/);
 assert.match(mushroomVisuals, /CLOSE_WORLD_MAX_CAMERA_DISTANCE/);
 assert.match(mushroomVisuals, /placement\.visibilityNoise\s*<\s*ratio/);
+assert.match(mushroomVisuals, /createMushroomSurfaceTextures/);
+assert.match(mushroomVisuals, /map:\s*surfaceTextures\.(stem|cap)\.map/);
+assert.match(mushroomVisuals, /roughnessMap:\s*surfaceTextures\.(stem|cap)\.roughnessMap/);
+assert.match(mushroomVisuals, /bumpMap:\s*surfaceTextures\.(stem|cap)\.heightMap/);
+assert.match(
+  mushroomVisuals,
+  /const radialMottle[\s\S]*spotMask[\s\S]*const height[\s\S]*roughness:/,
+  'mushroom cap color, relief, and roughness must derive from the same authored causes',
+);
 
 const berryVisuals = readFileSync(
   `${projectRoot}src/foraging/BerryPatchVisuals.ts`,
