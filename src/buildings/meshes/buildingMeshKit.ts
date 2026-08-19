@@ -127,12 +127,6 @@ export function addGableShell(group: THREE.Group, options: GableShellOptions): G
   );
   addMesh(
     group,
-    new THREE.BoxGeometry(width + 0.08, 0.15, depth + 0.08),
-    timberMaterial('dark'),
-    new THREE.Vector3(centerX, stoneHeight + 0.06, centerZ),
-  );
-  addMesh(
-    group,
     new THREE.BoxGeometry(width + 0.08, 0.14, depth + 0.08),
     stoneMaterial('mortar'),
     new THREE.Vector3(centerX, wallTop - 0.07, centerZ),

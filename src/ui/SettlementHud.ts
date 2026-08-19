@@ -9,10 +9,7 @@ import type {
   EnvironmentState,
   NextDayEnvironmentOutlook,
 } from '../world/seasonPolicy.ts';
-import {
-  describeEnvironment,
-  describeNextDayEnvironmentOutlook,
-} from '../world/seasonPolicy.ts';
+import { describeEnvironment } from '../world/seasonPolicy.ts';
 import {
   GAME_SPEEDS,
   gameSpeedLabel,
@@ -72,6 +69,15 @@ function gameSpeedTimingLabel(speed: GameSpeed): string {
     ? realSeconds.toFixed(0)
     : realSeconds.toFixed(1);
   return `${formatted}-second day`;
+}
+
+function seasonAlmanacTooltip(): string {
+  return [
+    '❀ Spring — Rain wakes field and forest.',
+    '☀ Summer — Long days favor growth and building.',
+    '❧ Autumn — Gather the harvest before the frost.',
+    '❄ Winter — Keep the hearths warm.',
+  ].join(' · ');
 }
 
 const SETTLEMENT_HUD_HTML = `
@@ -179,6 +185,7 @@ const SETTLEMENT_HUD_HTML = `
         }).join('')}
       </div>
     </div>
+    </div>
     <div class="settlement-hud__approval-shell" data-approval-shell>
       <button
         type="button"
@@ -251,7 +258,6 @@ const SETTLEMENT_HUD_HTML = `
           departures, and welfare remain household-driven.
         </p>
       </section>
-    </div>
     </div>
     <div class="settlement-hud__perf">
       <div
@@ -892,15 +898,13 @@ export class SettlementHud {
   setSimulationState(
     speed: GameSpeed,
     environment: EnvironmentState,
-    outlook?: NextDayEnvironmentOutlook,
+    _outlook?: NextDayEnvironmentOutlook,
   ): void {
     const description = describeEnvironment(environment);
     this.seasonStatus.textContent = description.title;
     this.seasonStatus.dataset.season = environment.season;
     this.seasonStatus.dataset.tooltipTitle = description.title;
-    this.seasonStatus.dataset.tooltip = outlook
-      ? `${description.detail}\n\n${describeNextDayEnvironmentOutlook(environment, outlook)}.`
-      : description.detail;
+    this.seasonStatus.dataset.tooltip = seasonAlmanacTooltip();
     this.panel.classList.toggle('is-paused', speed === 0);
     this.vitals.classList.toggle('is-paused', speed === 0);
     for (const button of this.speedButtons) {

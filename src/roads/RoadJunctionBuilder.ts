@@ -13,6 +13,7 @@ import { bridgeBlendAtDistance } from './RiverBridgeSpans.ts';
 import {
   ROAD_VISUAL_CORE_Y_OFFSET,
   ROAD_VISUAL_SHOULDER_Y_OFFSET,
+  roadCoreMaximumHalfWidth,
   roadVisualWidth,
 } from './roadDimensions.ts';
 import {
@@ -26,6 +27,8 @@ const BRIDGE_MOUTH_TOLERANCE = 0.14;
 const BRIDGE_JUNCTION_SEGMENTS = 64;
 /** Prevent broad junction triangles from cutting through terrain between samples. */
 const DRY_JUNCTION_RADIAL_SAMPLE_SPACING = 0.72;
+/** Keeps the opaque patch beyond the largest possible irregular road edge. */
+const DRY_JUNCTION_COVERAGE_MARGIN_RATIO = 0.035;
 
 export class RoadJunctionBuilder {
   private readonly terrain: Terrain;
@@ -228,7 +231,16 @@ export class RoadJunctionBuilder {
       }
     }
 
-    return this.createCapMesh(positions, uvs, indices, blend ? this.materials.roadEdge : this.materials.road);
+    const mesh = this.createCapMesh(
+      positions,
+      uvs,
+      indices,
+      blend ? this.materials.roadEdge : this.materials.road,
+    );
+    mesh.userData.junctionBoundary = ring.map((point) => [point.x, point.y]);
+    mesh.userData.junctionRadialRingCount = radialRingCount;
+    mesh.userData.junctionBlend = blend;
+    return mesh;
   }
 
   private buildBridgeJunctionCore(
@@ -322,26 +334,11 @@ export class RoadJunctionBuilder {
 
   private junctionRing(directions: THREE.Vector3[], radius: number, width: number, blend: boolean): THREE.Vector2[] {
     const sampleCount = Math.max(72, directions.length * 28);
-    const halfWidth = width * (blend ? 1.42 : 0.54);
+    const halfWidth = blend
+      ? width * 1.42
+      : roadCoreMaximumHalfWidth(width) + width * DRY_JUNCTION_COVERAGE_MARGIN_RATIO;
     const hubRadius = width * (blend ? 0.58 : 0.5);
-    const points: THREE.Vector2[] = [];
-
-    for (let i = 0; i < sampleCount; i++) {
-      const angle = -Math.PI + (i / sampleCount) * Math.PI * 2;
-      let ringRadius = hubRadius;
-      for (const direction of directions) {
-        const directionAngle = Math.atan2(direction.z, direction.x);
-        const delta = normalizeAngle(angle - directionAngle);
-        const along = Math.cos(delta);
-        if (along < -1e-5) continue;
-        const across = Math.abs(Math.sin(delta));
-        const frontExit = along <= 1e-5 ? Infinity : radius / along;
-        const sideExit = across <= 1e-5 ? Infinity : halfWidth / across;
-        ringRadius = Math.max(ringRadius, Math.min(frontExit, sideExit));
-      }
-      points.push(new THREE.Vector2(Math.cos(angle) * ringRadius, Math.sin(angle) * ringRadius));
-    }
-    return points;
+    return stripUnionContour(directions, hubRadius, halfWidth, radius, sampleCount);
   }
 }
 
@@ -378,23 +375,70 @@ export function junctionContour(
   reach: number,
   segments = BRIDGE_JUNCTION_SEGMENTS,
 ): THREE.Vector2[] {
-  const contour: THREE.Vector2[] = [];
-  for (let index = 0; index < segments; index++) {
-    const angle = index / segments * Math.PI * 2;
+  return stripUnionContour(directions, radius, radius, reach, segments);
+}
+
+/**
+ * Star-shaped union of a round hub and its incident rectangular road mouths.
+ *
+ * Uniform polar samples alone chord inward when a mouth is rotated between
+ * sample angles. Include every side and front corner explicitly so the patch
+ * cannot leave a terrain wedge between itself and an irregular road ribbon.
+ */
+function stripUnionContour(
+  directions: readonly THREE.Vector3[],
+  hubRadius: number,
+  halfWidth: number,
+  reach: number,
+  segments: number,
+): THREE.Vector2[] {
+  const angles = junctionContourAngles(directions, halfWidth, reach, segments);
+  return angles.map((angle) => {
     const ux = Math.cos(angle);
     const uz = Math.sin(angle);
-    let radialExtent = radius;
+    let radialExtent = hubRadius;
     for (const direction of directions) {
       const along = ux * direction.x + uz * direction.z;
-      if (along <= 1e-4) continue;
+      if (along < -1e-5) continue;
       const lateral = Math.abs(ux * direction.z - uz * direction.x);
-      const widthExtent = lateral <= 1e-4 ? Infinity : radius / lateral;
-      const reachExtent = reach / along;
+      const widthExtent = lateral <= 1e-4 ? Infinity : halfWidth / lateral;
+      const reachExtent = along <= 1e-5 ? Infinity : reach / along;
       radialExtent = Math.max(radialExtent, Math.min(widthExtent, reachExtent));
     }
-    contour.push(new THREE.Vector2(ux * radialExtent, uz * radialExtent));
+    return new THREE.Vector2(ux * radialExtent, uz * radialExtent);
+  });
+}
+
+function junctionContourAngles(
+  directions: readonly THREE.Vector3[],
+  halfWidth: number,
+  reach: number,
+  segments: number,
+): number[] {
+  const angles: number[] = [];
+  const pushAngle = (angle: number): void => {
+    const normalized = positiveAngle(angle);
+    if (angles.some((candidate) => Math.abs(candidate - normalized) < 1e-7)) return;
+    angles.push(normalized);
+  };
+
+  for (let index = 0; index < segments; index++) {
+    pushAngle(index / segments * Math.PI * 2);
   }
-  return contour;
+  for (const direction of directions) {
+    const directionAngle = Math.atan2(direction.z, direction.x);
+    pushAngle(directionAngle - Math.PI * 0.5);
+    pushAngle(directionAngle + Math.PI * 0.5);
+    const perpendicularX = -direction.z;
+    const perpendicularZ = direction.x;
+    for (const side of [-1, 1]) {
+      pushAngle(Math.atan2(
+        direction.z * reach + perpendicularZ * halfWidth * side,
+        direction.x * reach + perpendicularX * halfWidth * side,
+      ));
+    }
+  }
+  return angles.sort((a, b) => a - b);
 }
 
 function uniqueDirections(directions: THREE.Vector3[]): THREE.Vector3[] {
@@ -422,6 +466,7 @@ function averageWidth(edges: RoadEdge[]): number {
   return edges.reduce((sum, edge) => sum + edge.width, 0) / Math.max(1, edges.length);
 }
 
-function normalizeAngle(angle: number): number {
-  return Math.atan2(Math.sin(angle), Math.cos(angle));
+function positiveAngle(angle: number): number {
+  const fullTurn = Math.PI * 2;
+  return ((angle % fullTurn) + fullTurn) % fullTurn;
 }

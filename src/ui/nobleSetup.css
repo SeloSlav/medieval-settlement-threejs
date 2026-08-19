@@ -855,7 +855,7 @@
 
 @media (min-width: 1081px) {
   .settlement-hud {
-    width: min(650px, calc(100vw - 64px));
+    width: min(704px, calc(100vw - 64px));
   }
 
   .settlement-hud__body {

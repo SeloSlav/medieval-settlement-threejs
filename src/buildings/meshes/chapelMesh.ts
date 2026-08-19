@@ -648,12 +648,6 @@ function createLargeStoneChurchMesh(): THREE.Group {
     new THREE.Vector3(0, foundationHeight * 0.5, 0),
   );
   addFoundationStones(group, width, depth);
-  addMesh(
-    group,
-    new THREE.BoxGeometry(width + 0.18, 0.14, depth + 0.18),
-    stoneMaterial('mortar'),
-    new THREE.Vector3(0, foundationHeight + 0.07, 0),
-  );
 
   addMesh(
     group,

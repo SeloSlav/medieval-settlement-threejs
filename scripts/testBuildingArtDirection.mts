@@ -172,7 +172,6 @@ for (const kind of BUILDING_KINDS) {
         radius >= 4
         && height <= 0.35
         && object.userData.functionalGroundOpening !== true
-        && object.geometry.userData.completedBuildingGroundPadFacesRemoved !== true
       ) {
         throw new Error(`${kind} contains a broad flat model base (${object.name || 'unnamed cylinder'}).`);
       }
@@ -181,19 +180,27 @@ for (const kind of BUILDING_KINDS) {
     const objectSize = objectBounds.getSize(new THREE.Vector3());
     const material = Array.isArray(object.material) ? object.material[0] : object.material;
     if (
-      material?.userData.buildingTextureFamily === 'masonry'
-      && (
-        object.geometry instanceof THREE.BoxGeometry
-        || object.geometry instanceof THREE.CylinderGeometry
-      )
-      && objectBounds.min.y <= 0.08
-      && objectSize.y <= 1.65
+      material?.name === 'Shared building material: timberDark'
+      && object.geometry instanceof THREE.BoxGeometry
+      && objectBounds.min.y <= 2
+      && objectSize.y <= 0.2
       && objectSize.x >= 3
       && objectSize.z >= 3
       && objectSize.x * objectSize.z >= 12
-      && object.geometry.userData.completedBuildingGroundPadFacesRemoved !== true
     ) {
-      throw new Error(`${kind} contains an unstripped completed-building ground pad (${object.name || 'unnamed mesh'}).`);
+      throw new Error(`${kind} contains a full-footprint dark timber slab (${object.name || 'unnamed mesh'}).`);
+    }
+    if (
+      kind === 'chapel'
+      && material?.name === 'Shared building material: masonryDark'
+      && object.geometry instanceof THREE.BoxGeometry
+      && objectBounds.min.y <= 0.8
+      && objectSize.y <= 0.25
+      && objectSize.x >= 3
+      && objectSize.z >= 3
+      && objectSize.x * objectSize.z >= 12
+    ) {
+      throw new Error(`chapel contains the raised full-footprint ash slab (${object.name || 'unnamed mesh'}).`);
     }
     const highEdge = object.userData.leanToHighEdge as string | undefined;
     if (highEdge) {
@@ -315,7 +322,7 @@ for (const kind of BUILDING_KINDS) {
     if (!(groundedStore instanceof THREE.Group) || Math.abs(groundedStore.position.y) > 1e-6) {
       throw new Error('Granary store must sit directly at terrain level.');
     }
-    let hasCaplessFoundation = false;
+    let hasContinuousFoundation = false;
     groundedStore.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       const foundationBounds = new THREE.Box3().setFromObject(object);
@@ -325,13 +332,12 @@ for (const kind of BUILDING_KINDS) {
         && foundationBounds.max.y <= 0.5
         && foundationSize.x >= 9.5
         && foundationSize.z >= 6.3
-        && object.geometry.userData.completedBuildingGroundPadFacesRemoved === true
       ) {
-        hasCaplessFoundation = true;
+        hasContinuousFoundation = true;
       }
     });
-    if (!hasCaplessFoundation) {
-      throw new Error('Granary must use capless foundation walls without a full-footprint pad.');
+    if (!hasContinuousFoundation) {
+      throw new Error('Granary must have a continuous ground-contact foundation.');
     }
   }
   if (kind === 'chapel') churchHeight = size.y;

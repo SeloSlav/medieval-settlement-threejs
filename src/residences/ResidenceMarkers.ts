@@ -1237,7 +1237,15 @@ export function createResidenceMesh(
     new THREE.Vector3(0, foundationHeight * 0.5, 0),
   );
   foundation.name = 'Residence limestone plinth';
-  if (tier > 1) {
+  if (tier === 1) {
+    const plinthCap = addMesh(
+      group,
+      new THREE.BoxGeometry(width + 0.46, 0.13, depth + 0.46),
+      tierOneFoundationCapMaterial,
+      new THREE.Vector3(0, foundationHeight - 0.035, 0),
+    );
+    plinthCap.name = 'Residence limestone plinth cap';
+  } else {
     addMesh(
       group,
       new THREE.BoxGeometry(width, groundHeight, depth),

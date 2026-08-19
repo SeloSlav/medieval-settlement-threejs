@@ -1,6 +1,9 @@
 /** Logical width used by placement, navigation, snapping, and clearance. */
 export const ROAD_WIDTH = 4.2;
 
+/** Maximum authored lateral wobble of either opaque road edge. */
+export const ROAD_CORE_EDGE_JITTER_RATIO = 0.22 / ROAD_WIDTH;
+
 /** Roads retain their logical footprint but render at two thirds of that width. */
 export const ROAD_VISUAL_WIDTH_SCALE = 2 / 3;
 
@@ -19,4 +22,9 @@ export const ROAD_BRIDGE_SHOULDER_LIFT = 0.1;
 
 export function roadVisualWidth(logicalWidth: number): number {
   return Math.max(0, logicalWidth) * ROAD_VISUAL_WIDTH_SCALE;
+}
+
+/** Half-width that a junction must cover, including the road's irregular edge. */
+export function roadCoreMaximumHalfWidth(visualWidth: number): number {
+  return Math.max(0, visualWidth) * (0.5 + ROAD_CORE_EDGE_JITTER_RATIO);
 }

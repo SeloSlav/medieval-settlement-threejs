@@ -220,6 +220,8 @@ export function createVillageStorehouseMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Village storehouse';
 
+  // Raised masonry plinth protects construction stock from damp ground.
+  addMesh(group, new THREE.BoxGeometry(10.8, 0.7, 7.2), stoneMaterial('mid'), new THREE.Vector3(-0.35, 0.35, 0));
   const shell = addGableShell(group, {
     width: 10.2,
     depth: 6.6,
@@ -452,6 +454,7 @@ export function createGuardhouseMesh(): THREE.Group {
   group.name = 'Frontier guardhouse';
 
   // This is a paid-company lodging and muster yard, not a miniature castle.
+  addMesh(group, new THREE.BoxGeometry(8.2, 0.58, 6.2), stoneMaterial('mid'), new THREE.Vector3(-1.35, 0.29, 0));
   const shell = addGableShell(group, {
     width: 7.7,
     depth: 5.65,

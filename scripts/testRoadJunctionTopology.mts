@@ -11,6 +11,7 @@ import {
   ROAD_VISUAL_CORE_Y_OFFSET,
   ROAD_VISUAL_SHOULDER_Y_OFFSET,
   ROAD_VISUAL_WIDTH_SCALE,
+  roadCoreMaximumHalfWidth,
   roadVisualWidth,
 } from '../src/roads/roadDimensions.ts';
 import {
@@ -151,6 +152,46 @@ assert(
   maximumCoreU - minimumCoreU >= 1,
   'the opaque junction patch must preserve lateral UV distance instead of collapsing the texture to one column',
 );
+
+const rotatedCorner = new RoadNetwork();
+const rotatedCornerDirections = [17, 137].map((degrees) => {
+  const radians = THREE.MathUtils.degToRad(degrees);
+  return new THREE.Vector3(Math.cos(radians), 0, Math.sin(radians));
+});
+for (const direction of rotatedCornerDirections) {
+  rotatedCorner.addRoadPath([
+    point(0, 0),
+    point(direction.x * 18, direction.z * 18),
+  ]);
+}
+const rotatedCornerNode = [...rotatedCorner.nodes.values()].find((node) => (
+  rotatedCorner.getNodeDegree(node) === 2
+));
+assert(rotatedCornerNode);
+const rotatedPatch = new RoadJunctionBuilder(flatTerrain as never, materials as never)
+  .build(rotatedCorner)
+  .getObjectByName(`Road bend ${rotatedCornerNode.id}`) as THREE.Group | undefined;
+assert(rotatedPatch);
+const rotatedCore = rotatedPatch.children[1] as THREE.Mesh;
+const rotatedBoundary = rotatedCore.userData.junctionBoundary as [number, number][];
+assert(rotatedBoundary.length >= 72, 'junction debug data should expose its deterministic boundary');
+const rotatedVisualWidth = roadVisualWidth(4.2);
+const maximumRoadHalfWidth = roadCoreMaximumHalfWidth(rotatedVisualWidth);
+const rotatedReach = rotatedVisualWidth * 0.78;
+for (const direction of rotatedCornerDirections) {
+  const perpendicular = new THREE.Vector2(-direction.z, direction.x);
+  for (const side of [-1, 1]) {
+    for (const along of [0, rotatedReach * 0.33, rotatedReach * 0.66, rotatedReach * 0.98]) {
+      const sample = new THREE.Vector2(direction.x, direction.z)
+        .multiplyScalar(along)
+        .addScaledVector(perpendicular, maximumRoadHalfWidth * side);
+      assert(
+        pointInsidePolygon(sample, rotatedBoundary),
+        'a rotated junction patch must cover the full irregular road mouth without a corner wedge',
+      );
+    }
+  }
+}
 
 const terrainFollowingHeight = (x: number, z: number): number => (
   Math.sin(x * 0.37) * 0.8 + Math.cos(z * 0.43) * 0.65
@@ -528,4 +569,22 @@ function minimumTriangleCentroidClearance(
     minimum = Math.min(minimum, y - terrainHeightAt(x, z));
   }
   return minimum;
+}
+
+function pointInsidePolygon(
+  pointToTest: THREE.Vector2,
+  polygon: readonly [number, number][],
+): boolean {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
+    const [x, y] = polygon[index];
+    const [previousX, previousY] = polygon[previous];
+    if (
+      (y > pointToTest.y) !== (previousY > pointToTest.y)
+      && pointToTest.x < (previousX - x) * (pointToTest.y - y) / (previousY - y) + x
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }

@@ -23,6 +23,7 @@ import {
   BUILDING_ACCESS_SPUR_Y_LIFT,
   ROAD_BRIDGE_CORE_Y_OFFSET,
   ROAD_BRIDGE_SHOULDER_LIFT,
+  ROAD_CORE_EDGE_JITTER_RATIO,
   ROAD_VISUAL_CORE_Y_OFFSET,
   ROAD_VISUAL_SHOULDER_Y_OFFSET,
   ROAD_WIDTH,
@@ -31,7 +32,6 @@ import {
 
 /** Matches placed-road centerline sampling in `sampleEdge`. */
 export const ROAD_PLACED_SAMPLE_SPACING = 1.15;
-const CORE_EDGE_JITTER_RATIO = 0.22 / ROAD_WIDTH;
 const OUTER_EDGE_JITTER_RATIO = 0.52 / ROAD_WIDTH;
 /** How far the feathered shoulder extends under the opaque core, relative to width. */
 const BLEND_INNER_OVERLAP_RATIO = 0.14 / ROAD_WIDTH;
@@ -505,7 +505,7 @@ export class RoadMeshBuilder {
     bridgeBlends: Float32Array,
   ): RoadCrossSection[] {
     const half = width * 0.5;
-    const edgeJitter = width * CORE_EDGE_JITTER_RATIO;
+    const edgeJitter = width * ROAD_CORE_EDGE_JITTER_RATIO;
     const sections: RoadCrossSection[] = [];
 
     for (let i = 0; i < path.length; i++) {
@@ -612,7 +612,7 @@ export class RoadMeshBuilder {
     const indices: number[] = [];
     const distances = cumulativeDistances(path);
     const half = width * 0.5;
-    const edgeJitter = width * CORE_EDGE_JITTER_RATIO;
+    const edgeJitter = width * ROAD_CORE_EDGE_JITTER_RATIO;
 
     for (let i = 0; i < path.length; i++) {
       const tangent = tangentAt(path, i);
