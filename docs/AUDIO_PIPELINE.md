@@ -108,9 +108,15 @@ cost.
 The `ambient-extra`, `worker-foley`, and `ui` groups drive active fire
 incidents, visible worker activities, and placement feedback respectively.
 The `building-foley` group contains one short, non-looping atmospheric cue for
-every generated building kind plus occupied residences. These cues describe
+every non-chapel building kind plus occupied residences. These cues describe
 only their physical source to ElevenLabs. A short playback gain envelope
 supplies the quiet tail separately, keeping that processing out of prompts.
+Building cues play only after an explicit selection; they are never scheduled
+as background ambience. The separate `chapel-bells` group contains one natural
+bell toll for each church tier. A church selection plays its tier's toll once at
+exactly 1.0x playback speed. The daily Angelus reuses that same toll at 06:00,
+12:00, and 18:00, sequenced in code as 3, pause, 3, pause, 3, pause, then 9 strokes
+(18 total), so the timing is exact and is not compressed by audio generation.
 The `world-foley` group adds short event-driven cart, logistics, construction,
 demolition, first-person surface, fire-response, animal, seasonal, raid,
 burial, trade, and household milestone cues. Runtime schedules are sparse and

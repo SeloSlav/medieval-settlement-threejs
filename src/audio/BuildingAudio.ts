@@ -1,6 +1,9 @@
 import {
   BUILDING_AUDIO_CLIPS,
+  CHAPEL_BELL_CLIPS,
+  type AudioClipDefinition,
   type BuildingAudioKind,
+  type ChapelBellTier,
 } from './audioCatalog.ts';
 
 export const BUILDING_AUDIO_TAIL_SECONDS = 0.45;
@@ -37,6 +40,18 @@ export class BuildingAudio {
   }
 
   play(kind: BuildingAudioKind, sourceId: string): void {
+    this.playClip(BUILDING_AUDIO_CLIPS[kind], sourceId, true);
+  }
+
+  playChapel(tier: ChapelBellTier, sourceId: string): void {
+    this.playClip(CHAPEL_BELL_CLIPS[tier], sourceId, false);
+  }
+
+  private playClip(
+    clip: AudioClipDefinition,
+    sourceId: string,
+    varyPlaybackRate: boolean,
+  ): void {
     if (!this.enabled || typeof Audio === 'undefined') return;
     while (this.pool.length < BUILDING_AUDIO_POOL_SIZE) {
       const audio = new Audio();
@@ -45,7 +60,6 @@ export class BuildingAudio {
     }
     const entry = this.pool.find(({ audio }) => audio.paused) ?? this.pool[0];
     if (!entry) return;
-    const clip = BUILDING_AUDIO_CLIPS[kind];
     const sequence = this.playSequence;
     this.playSequence += 1;
 
@@ -54,10 +68,9 @@ export class BuildingAudio {
     entry.audio.src = clip.path;
     entry.baseGain = Math.min(1, Math.max(0, clip.volume ?? 1));
     entry.audio.volume = entry.baseGain * this.volume;
-    entry.audio.playbackRate = 0.985 + deterministicIndex(
-      `${sourceId}:pitch:${sequence}`,
-      5,
-    ) * 0.0075;
+    entry.audio.playbackRate = varyPlaybackRate
+      ? 0.985 + deterministicIndex(`${sourceId}:pitch:${sequence}`, 5) * 0.0075
+      : 1;
     void entry.audio.play().catch(() => undefined);
   }
 

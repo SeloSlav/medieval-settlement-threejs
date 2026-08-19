@@ -3,17 +3,6 @@
   "note": "Generated files only; the ElevenLabs API key is never stored here.",
   "generations": [
     {
-      "id": "ambient-chapel-bells",
-      "output": "public/sounds/ambient/church_bells.mp3",
-      "generatedAt": "2026-07-28T05:59:32.262Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "240",
-      "byteLength": 384984,
-      "sha256": "94677bdf6a7d2e4e09666f4029d1e3869971f7c83c6b4e85e137c2a1fd3be6ab"
-    },
-    {
       "id": "ambient-fire",
       "output": "public/sounds/ambient/fire_crackle.mp3",
       "generatedAt": "2026-07-28T05:56:59.092Z",
@@ -111,17 +100,6 @@
       "characterCost": "21",
       "byteLength": 34316,
       "sha256": "ddec67ab3d80592426a477b7ec157f167079123759238b2329fe564fc1081677"
-    },
-    {
-      "id": "building-chapel",
-      "output": "public/sounds/buildings/chapel.mp3",
-      "generatedAt": "2026-08-04T10:05:16.306Z",
-      "endpoint": "/v1/sound-generation",
-      "modelId": "eleven_text_to_sound_v2",
-      "outputFormat": "mp3_44100_128",
-      "characterCost": "28",
-      "byteLength": 45183,
-      "sha256": "54e81860357da9872971cf92b1581eaa4a5e4f969c83f4a1f2401edcbc0f66d8"
     },
     {
       "id": "building-charcoal-burner",
@@ -485,6 +463,39 @@
       "characterCost": "18",
       "byteLength": 29301,
       "sha256": "8cf9f1001a910ec3b2cf9364df1bef645dc90d96357620a42b2d84a98b5cde4f"
+    },
+    {
+      "id": "chapel-bell-tier-1",
+      "output": "public/sounds/buildings/chapel_bell_tier_1.mp3",
+      "generatedAt": "2026-08-19T09:24:15.054Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "60",
+      "byteLength": 97010,
+      "sha256": "5b860bcb80df6255467bfffa3ae49a3bc3a41ffbf40c7cd94bdc980ed76cf942"
+    },
+    {
+      "id": "chapel-bell-tier-2",
+      "output": "public/sounds/buildings/chapel_bell_tier_2.mp3",
+      "generatedAt": "2026-08-19T09:24:52.684Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "70",
+      "byteLength": 112893,
+      "sha256": "f1fc706ee709c7bef58d65b3094d600b7168e493d589b70987d6b38748b7cae7"
+    },
+    {
+      "id": "chapel-bell-tier-3",
+      "output": "public/sounds/buildings/chapel_bell_tier_3.mp3",
+      "generatedAt": "2026-08-19T09:25:27.510Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "80",
+      "byteLength": 129193,
+      "sha256": "cc69cbd9a8aa9e5eec159c8398fb33141ea0c6660b37a8b3180a033e33524192"
     },
     {
       "id": "combat-pike-1",

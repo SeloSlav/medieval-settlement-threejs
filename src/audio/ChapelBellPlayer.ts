@@ -1,19 +1,28 @@
-import { CHURCH_BELL_CLIP } from './audioCatalog.ts';
+import {
+  CHAPEL_BELL_CLIPS,
+  type AudioClipDefinition,
+  type ChapelBellTier,
+} from './audioCatalog.ts';
 import { CHAPEL_BELL_UNPRIMED_HOUR, isChapelBellHour } from './chapelBellSchedule.ts';
 
 export const CHAPEL_BELL_FULL_VOLUME_DISTANCE = 24;
 export const CHAPEL_BELL_CUTOFF_DISTANCE = 260;
 export const CHAPEL_BELL_FULL_VOLUME_ORBIT_DISTANCE = 38;
 export const CHAPEL_BELL_CUTOFF_ORBIT_DISTANCE = 104;
-export const CHAPEL_BELL_MAX_RING_GAME_MINUTES = 20;
 
-const CHAPEL_BELL_END_FADE_SECONDS = 4.5;
-const CHAPEL_BELL_FADE_IN_PER_SECOND = 0.36;
-const CHAPEL_BELL_FADE_OUT_PER_SECOND = 0.14;
+export const ANGELUS_STROKE_GROUPS = [3, 3, 3, 9] as const;
+export const ANGELUS_STROKE_INTERVAL_SECONDS = 2.7;
+export const ANGELUS_GROUP_PAUSE_SECONDS = 6;
+export const ANGELUS_STROKE_TIMES_SECONDS = buildAngelusStrokeTimes();
+
+const CHAPEL_BELL_POOL_SIZE = 4;
+const CHAPEL_BELL_END_FADE_SECONDS = 0.5;
+const CHAPEL_BELL_MAX_FRAME_STEP_SECONDS = 0.25;
 
 export type ChapelBellPosition = {
   x: number;
   z: number;
+  tier: ChapelBellTier;
 };
 
 export type ChapelBellTick = {
@@ -21,17 +30,15 @@ export type ChapelBellTick = {
   clockHour: number;
   calendarMinute: number;
   chapels: readonly ChapelBellPosition[];
-  listener: ChapelBellPosition;
+  listener: Pick<ChapelBellPosition, 'x' | 'z'>;
   orbitDistance: number;
   enabled: boolean;
 };
 
-async function loadAudioAsBlobUrl(path: string): Promise<string> {
-  const res = await fetch(path, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Audio fetch failed: ${res.status}`);
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-}
+type BellPoolEntry = {
+  audio: HTMLAudioElement;
+  clipGain: number;
+};
 
 /**
  * A real bell carries well across the settlement, but zooming into an overview
@@ -39,8 +46,8 @@ async function loadAudioAsBlobUrl(path: string): Promise<string> {
  * recording.
  */
 export function chapelBellGain(
-  chapels: readonly ChapelBellPosition[],
-  listener: ChapelBellPosition,
+  chapels: readonly Pick<ChapelBellPosition, 'x' | 'z'>[],
+  listener: Pick<ChapelBellPosition, 'x' | 'z'>,
   orbitDistance: number,
 ): number {
   if (chapels.length === 0) return 0;
@@ -64,21 +71,18 @@ export function chapelBellGain(
   return distanceGain * zoomGain;
 }
 
-export function chapelBellRingShouldContinue(
-  startedAtCalendarMinute: number,
-  calendarMinute: number,
-): boolean {
-  const elapsed = calendarMinute - startedAtCalendarMinute;
-  return elapsed >= 0 && elapsed <= CHAPEL_BELL_MAX_RING_GAME_MINUTES;
-}
-
+/**
+ * Plays the Angelus as exact, individually triggered bell strokes:
+ * 3, pause, 3, pause, 3, pause, 9. Reusing a single-toll recording preserves
+ * the bell's natural decay without asking a generator to guess the rhythm.
+ */
 export class ChapelBellPlayer {
-  private audio: HTMLAudioElement | null = null;
-  private blobUrl: string | null = null;
+  private readonly pool: BellPoolEntry[] = [];
   private lastObservedAbsoluteHour = CHAPEL_BELL_UNPRIMED_HOUR;
-  private activeRingStartedAtMinute: number | null = null;
-  private currentVolume = 0;
-  private loadGeneration = 0;
+  private patternElapsedSeconds = 0;
+  private nextStrokeIndex = ANGELUS_STROKE_TIMES_SECONDS.length;
+  private activeTier: ChapelBellTier = 1;
+  private lastSpatialGain = 0;
   private volume = 1;
 
   tick(params: ChapelBellTick): void {
@@ -89,161 +93,121 @@ export class ChapelBellPlayer {
       this.lastObservedAbsoluteHour = absoluteHour;
     } else if (absoluteHour !== this.lastObservedAbsoluteHour) {
       this.lastObservedAbsoluteHour = absoluteHour;
-      if (
-        params.chapels.length > 0
-        && isChapelBellHour(params.clockHour)
-      ) {
-        this.play(params.calendarMinute);
+      if (params.chapels.length > 0 && isChapelBellHour(params.clockHour)) {
+        this.beginAngelus(nearestChapel(params.chapels, params.listener)?.tier ?? 1);
       }
     }
 
-    const ringActive = this.activeRingStartedAtMinute !== null
-      && chapelBellRingShouldContinue(
-        this.activeRingStartedAtMinute,
-        params.calendarMinute,
+    this.lastSpatialGain = chapelBellGain(
+      params.chapels,
+      params.listener,
+      params.orbitDistance,
+    );
+    if (this.nextStrokeIndex < ANGELUS_STROKE_TIMES_SECONDS.length) {
+      this.patternElapsedSeconds += Math.min(
+        CHAPEL_BELL_MAX_FRAME_STEP_SECONDS,
+        Math.max(0, params.dtSeconds),
       );
-    const spatialGain = ringActive
-      ? chapelBellGain(params.chapels, params.listener, params.orbitDistance)
-      : 0;
-    this.updateVolume(params.dtSeconds, spatialGain);
+      const nextStrokeAt = ANGELUS_STROKE_TIMES_SECONDS[this.nextStrokeIndex];
+      if (nextStrokeAt != null && this.patternElapsedSeconds >= nextStrokeAt) {
+        this.playStroke(CHAPEL_BELL_CLIPS[this.activeTier]);
+        this.nextStrokeIndex += 1;
+      }
+    }
+    this.updatePlayingVolumes();
   }
 
   stop(): void {
-    this.loadGeneration += 1;
-    if (this.audio) {
-      this.audio.pause();
-      this.audio.currentTime = 0;
-      this.audio = null;
-    }
-    if (this.blobUrl) {
-      URL.revokeObjectURL(this.blobUrl);
-      this.blobUrl = null;
+    for (const entry of this.pool) {
+      entry.audio.pause();
+      entry.audio.currentTime = 0;
     }
     this.lastObservedAbsoluteHour = CHAPEL_BELL_UNPRIMED_HOUR;
-    this.activeRingStartedAtMinute = null;
-    this.currentVolume = 0;
+    this.patternElapsedSeconds = 0;
+    this.nextStrokeIndex = ANGELUS_STROKE_TIMES_SECONDS.length;
+    this.lastSpatialGain = 0;
   }
 
   dispose(): void {
     this.stop();
+    for (const entry of this.pool) entry.audio.removeAttribute('src');
+    this.pool.length = 0;
   }
 
   setVolume(volume: number): void {
     this.volume = Math.max(0, Math.min(1, volume));
+    this.updatePlayingVolumes();
   }
 
-  private play(calendarMinute: number): void {
-    this.activeRingStartedAtMinute = calendarMinute;
-    this.currentVolume = 0;
-    if (this.audio) {
-      this.audio.currentTime = 0;
-      this.audio.volume = 0;
-      this.audio.loop = false;
-      void this.audio.play().catch(() => undefined);
-      return;
+  private beginAngelus(tier: ChapelBellTier): void {
+    this.activeTier = tier;
+    this.patternElapsedSeconds = 0;
+    this.nextStrokeIndex = 0;
+  }
+
+  private playStroke(clip: AudioClipDefinition): void {
+    if (typeof Audio === 'undefined') return;
+    while (this.pool.length < CHAPEL_BELL_POOL_SIZE) {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      this.pool.push({ audio, clipGain: 0 });
     }
-
-    const generation = ++this.loadGeneration;
-    void loadAudioAsBlobUrl(CHURCH_BELL_CLIP.path)
-      .then((url) => {
-        if (
-          generation !== this.loadGeneration
-          || this.activeRingStartedAtMinute === null
-        ) {
-          URL.revokeObjectURL(url);
-          return;
-        }
-        if (this.audio) {
-          URL.revokeObjectURL(url);
-          return;
-        }
-        this.blobUrl = url;
-        this.installAudio(new Audio(url));
-      })
-      .catch(() => {
-        if (
-          generation !== this.loadGeneration
-          || this.audio
-          || this.activeRingStartedAtMinute === null
-        ) return;
-        this.installAudio(new Audio(CHURCH_BELL_CLIP.path));
-      });
+    const entry = this.pool.find(({ audio }) => audio.paused) ?? this.pool[0];
+    if (!entry) return;
+    entry.audio.pause();
+    entry.audio.currentTime = 0;
+    entry.audio.src = clip.path;
+    entry.audio.loop = false;
+    entry.audio.playbackRate = 1;
+    entry.clipGain = Math.max(0, clip.volume ?? 1);
+    entry.audio.volume = Math.min(
+      1,
+      entry.clipGain * this.lastSpatialGain * this.volume,
+    );
+    void entry.audio.play().catch(() => undefined);
   }
 
-  private installAudio(audio: HTMLAudioElement): void {
-    audio.volume = 0;
-    audio.loop = false;
-    audio.addEventListener('ended', () => {
-      if (this.audio !== audio) return;
-      this.activeRingStartedAtMinute = null;
-      this.currentVolume = 0;
-    });
-    audio.addEventListener('error', () => {
-      if (this.audio !== audio) return;
-      this.releaseAudio();
-    });
-    this.audio = audio;
-    void audio.play().catch(() => undefined);
-  }
-
-  private updateVolume(dtSeconds: number, spatialGain: number): void {
-    const audio = this.audio;
-    if (!audio) return;
-
-    let endGain = 1;
-    if (
-      Number.isFinite(audio.duration)
-      && audio.duration > 0
-      && Number.isFinite(audio.currentTime)
-    ) {
-      const remaining = audio.duration - audio.currentTime;
-      endGain = smoothstep(0, CHAPEL_BELL_END_FADE_SECONDS, remaining);
-    }
-    const targetVolume = Math.max(
-      0,
-      Math.min(
+  private updatePlayingVolumes(): void {
+    for (const entry of this.pool) {
+      const { audio } = entry;
+      if (audio.paused) continue;
+      const remaining = Number.isFinite(audio.duration)
+        ? Math.max(0, audio.duration - audio.currentTime)
+        : CHAPEL_BELL_END_FADE_SECONDS;
+      const endGain = smoothstep(0, CHAPEL_BELL_END_FADE_SECONDS, remaining);
+      audio.volume = Math.min(
         1,
-        (CHURCH_BELL_CLIP.volume ?? 1) * spatialGain * endGain * this.volume,
-      ),
-    );
-    const rate = targetVolume >= this.currentVolume
-      ? CHAPEL_BELL_FADE_IN_PER_SECOND
-      : CHAPEL_BELL_FADE_OUT_PER_SECOND;
-    this.currentVolume = approach(
-      this.currentVolume,
-      targetVolume,
-      Math.max(0, dtSeconds) * rate,
-    );
-    audio.volume = this.currentVolume;
-
-    if (
-      targetVolume <= 0.0001
-      && this.currentVolume <= 0.0001
-      && this.activeRingStartedAtMinute !== null
-    ) {
-      this.activeRingStartedAtMinute = null;
-      audio.pause();
-      audio.currentTime = 0;
+        entry.clipGain * this.lastSpatialGain * this.volume * endGain,
+      );
     }
-  }
-
-  private releaseAudio(): void {
-    if (this.audio) {
-      this.audio.pause();
-      this.audio = null;
-    }
-    if (this.blobUrl) {
-      URL.revokeObjectURL(this.blobUrl);
-      this.blobUrl = null;
-    }
-    this.activeRingStartedAtMinute = null;
-    this.currentVolume = 0;
   }
 }
 
-function approach(current: number, target: number, maxDelta: number): number {
-  if (current < target) return Math.min(target, current + maxDelta);
-  return Math.max(target, current - maxDelta);
+function buildAngelusStrokeTimes(): readonly number[] {
+  const times: number[] = [];
+  let groupStart = 0;
+  for (const strokeCount of ANGELUS_STROKE_GROUPS) {
+    for (let stroke = 0; stroke < strokeCount; stroke += 1) {
+      times.push(groupStart + stroke * ANGELUS_STROKE_INTERVAL_SECONDS);
+    }
+    groupStart = (times.at(-1) ?? groupStart) + ANGELUS_GROUP_PAUSE_SECONDS;
+  }
+  return Object.freeze(times);
+}
+
+function nearestChapel(
+  chapels: readonly ChapelBellPosition[],
+  listener: Pick<ChapelBellPosition, 'x' | 'z'>,
+): ChapelBellPosition | null {
+  let nearest: ChapelBellPosition | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  for (const chapel of chapels) {
+    const distance = Math.hypot(chapel.x - listener.x, chapel.z - listener.z);
+    if (distance >= nearestDistance) continue;
+    nearest = chapel;
+    nearestDistance = distance;
+  }
+  return nearest;
 }
 
 function inverseSmoothstep(edge0: number, edge1: number, value: number): number {

@@ -31,11 +31,15 @@ import type { ChapelBellPosition, ChapelBellTick } from './ChapelBellPlayer.ts';
 import { RiverAudio } from './RiverAudio.ts';
 import { SoundtrackAudio } from './SoundtrackAudio.ts';
 import { UiAudio } from './UiAudio.ts';
-import type { UiSoundId } from './audioCatalog.ts';
+import type {
+  BuildingAudioKind,
+  ChapelBellTier,
+  FootstepSurface,
+  UiSoundId,
+} from './audioCatalog.ts';
 import { FireAudio } from './FireAudio.ts';
 import { BuildingAudio } from './BuildingAudio.ts';
 import { WorldFoleyAudio } from './WorldFoleyAudio.ts';
-import type { FootstepSurface } from './audioCatalog.ts';
 import {
   getAmbienceVolume,
   getMusicVolume,
@@ -303,10 +307,14 @@ export class AmbientAudioController {
   }
 
   playBuildingSelection(
-    kind: BuildingState['kind'] | 'residence',
+    kind: BuildingAudioKind,
     sourceId: string,
   ): void {
     this.buildingAudio.play(kind, sourceId);
+  }
+
+  playChapelSelection(tier: ChapelBellTier, sourceId: string): void {
+    this.buildingAudio.playChapel(tier, sourceId);
   }
 
   dispose(): void {
@@ -348,11 +356,16 @@ function syncPlacedChapels(
     if (building.kind === 'chapel' && building.constructionComplete !== false) {
       let chapel = chapels[chapelCount];
       if (!chapel) {
-        chapel = { x: building.x, z: building.z };
+        chapel = {
+          x: building.x,
+          z: building.z,
+          tier: building.chapelTier ?? 3,
+        };
         chapels.push(chapel);
       } else {
         chapel.x = building.x;
         chapel.z = building.z;
+        chapel.tier = building.chapelTier ?? 3;
       }
       chapelCount += 1;
     }

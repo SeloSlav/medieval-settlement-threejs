@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as THREE from 'three';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { createConstructionSiteMesh } from '../src/buildings/ConstructionSiteMesh.ts';
 import {
   getBuildingMaterialLibraryStats,
   setBuildingIndirectLightIntensity,
@@ -324,6 +325,20 @@ for (const [kind, expectedCount] of expectedLeanToRoofs) {
 }
 if (leanToRoofCounts.size !== expectedLeanToRoofs.size) {
   throw new Error(`Expected lean-to roofs on ${expectedLeanToRoofs.size} building kinds; found ${leanToRoofCounts.size}.`);
+}
+
+for (const kind of BUILDING_KINDS) {
+  const constructionSite = createConstructionSiteMesh(kind, 0.75, 0.9, 1, 0.65);
+  constructionSite.traverse((object) => {
+    if (!(object instanceof THREE.Mesh) || !(object.geometry instanceof THREE.BoxGeometry)) return;
+    const { width, height, depth } = object.geometry.parameters;
+    if (width >= 2 && depth >= 2 && height <= 0.15) {
+      throw new Error(
+        `${kind} construction site contains a broad flat footprint pad (${object.name || 'unnamed box'}).`,
+      );
+    }
+  });
+  disposeObject3D(constructionSite);
 }
 
 const stats = getBuildingMaterialLibraryStats();

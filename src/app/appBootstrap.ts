@@ -1026,10 +1026,18 @@ export async function bootstrapAppSession(
         target.kind === 'building'
         && target.building.constructionComplete !== false
       ) {
-        ambientAudio.playBuildingSelection(
-          target.building.kind,
-          `building:${target.building.id}`,
-        );
+        const building = target.building;
+        if (building.kind === 'chapel') {
+          ambientAudio.playChapelSelection(
+            building.chapelTier ?? 3,
+            `building:${building.id}`,
+          );
+        } else {
+          ambientAudio.playBuildingSelection(
+            building.kind,
+            `building:${building.id}`,
+          );
+        }
       } else if (
         target.kind === 'residence'
         && target.residence.tier > 0

@@ -152,7 +152,7 @@ const spurY = renderedCore.geometry.getAttribute('position') as THREE.BufferAttr
 for (let index = 0; index < spurY.count; index += 1) {
   assert(
     spurY.getY(index) < 12.11,
-    'access spurs must remain below construction-ground footprints',
+    'access spurs must remain a low terrain-following surface',
   );
 }
 accessNetwork.addRoadPath([

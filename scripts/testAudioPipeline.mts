@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import {
   AMBIENT_LAYERS,
   BUILDING_AUDIO_CLIPS,
-  CHURCH_BELL_CLIP,
+  CHAPEL_BELL_CLIPS,
   COMBAT_AUDIO_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
@@ -146,7 +146,7 @@ function normalizedAssetOutput(output: string): string {
 function runtimeClips(): AudioClipDefinition[] {
   return [
     ...Object.values(AMBIENT_LAYERS),
-    CHURCH_BELL_CLIP,
+    ...Object.values(CHAPEL_BELL_CLIPS),
     RIVER_WATER_CLIP,
     FARM_WORKERS_SINGING_CLIP,
     FIRE_CRACKLE_CLIP,
@@ -334,11 +334,14 @@ async function main(): Promise<void> {
   const buildingAssets = manifest.assets.filter((asset) => (
     asset.group === 'building-foley'
   ));
+  const buildingAudioKinds = BUILDING_KINDS.filter(
+    (kind) => kind !== 'chapel',
+  ) as Exclude<(typeof BUILDING_KINDS)[number], 'chapel'>[];
   invariant(
-    buildingAssets.length === BUILDING_KINDS.length + 1,
-    'Building Foley must cover every generated building kind plus residences',
+    buildingAssets.length === buildingAudioKinds.length + 1,
+    'Building Foley must cover every non-chapel building kind plus residences',
   );
-  for (const kind of [...BUILDING_KINDS, 'residence'] as const) {
+  for (const kind of [...buildingAudioKinds, 'residence'] as const) {
     const asset = buildingAssets.find((candidate) => (
       candidate.id === `building-${kind.replaceAll('_', '-')}`
     ));
@@ -356,6 +359,31 @@ async function main(): Promise<void> {
     invariant(
       BUILDING_AUDIO_CLIPS[kind].path === `/${asset.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`,
       `Building Foley runtime path differs from its manifest output: ${kind}`,
+    );
+  }
+  const chapelBellAssets = manifest.assets.filter((asset) => (
+    asset.group === 'chapel-bells'
+  ));
+  invariant(
+    chapelBellAssets.length === 3,
+    'Chapel bells must provide one isolated toll for each church tier',
+  );
+  for (const tier of [1, 2, 3] as const) {
+    const asset = chapelBellAssets.find((candidate) => (
+      candidate.id === `chapel-bell-tier-${tier}`
+    ));
+    invariant(asset, `Missing tier-${tier} chapel bell`);
+    invariant(
+      asset.loop === false
+      && asset.durationSeconds != null
+      && asset.durationSeconds >= 6
+      && asset.durationSeconds <= 8,
+      `Tier-${tier} chapel bell must be one non-looping natural-decay toll`,
+    );
+    invariant(
+      CHAPEL_BELL_CLIPS[tier].path
+        === `/${asset.output.replace(/^public[\\/]/, '').replaceAll('\\', '/')}`,
+      `Tier-${tier} chapel bell runtime path differs from its manifest output`,
     );
   }
   invariant(
@@ -410,14 +438,23 @@ async function main(): Promise<void> {
       buildingPlayback.length === 0,
       'Building Foley frame ticks must never create or schedule playback',
     );
-    buildingMixer.play('chapel', 'building:test-chapel');
+    buildingMixer.play('town_hall', 'building:test-town-hall');
     invariant(
       buildingPlayback.filter((audio) => audio.plays > 0).length === 1
       && buildingPlayback.some((audio) => (
         audio.plays === 1
-        && audio.src === BUILDING_AUDIO_CLIPS.chapel.path
+        && audio.src === BUILDING_AUDIO_CLIPS.town_hall.path
       )),
       'Explicit building selection must play exactly its authored cue',
+    );
+    buildingMixer.playChapel(2, 'building:test-chapel');
+    invariant(
+      buildingPlayback.some((audio) => (
+        audio.plays === 1
+        && audio.src === CHAPEL_BELL_CLIPS[2].path
+        && audio.playbackRate === 1
+      )),
+      'Explicit chapel selection must use its tier toll at the original pitch',
     );
     buildingMixer.dispose();
   } finally {

@@ -4,7 +4,7 @@ export const ROAD_WIDTH = 4.2;
 /** Roads retain their logical footprint but render at two thirds of that width. */
 export const ROAD_VISUAL_WIDTH_SCALE = 2 / 3;
 
-/** Dry-road lifts are deliberately below the 0.11 m construction-ground top. */
+/** Dry roads retain terrain clearance, with the feathered shoulder above the core. */
 export const ROAD_VISUAL_CORE_Y_OFFSET = 0.055;
 export const ROAD_VISUAL_SHOULDER_Y_OFFSET = 0.065;
 

@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { getBuildingDefinition } from '../resources/buildings.ts';
 import type { BuildingKind } from '../resources/types.ts';
 
-const DIRT = new THREE.MeshStandardMaterial({ color: 0x6f5638, roughness: 1 });
 const STONE = new THREE.MeshStandardMaterial({ color: 0x77746c, roughness: 0.94 });
 const PALE_STONE = new THREE.MeshStandardMaterial({ color: 0x9a9588, roughness: 0.96 });
 const TIMBER = new THREE.MeshStandardMaterial({ color: 0x6d4527, roughness: 0.9 });
@@ -42,14 +41,6 @@ export function createConstructionSiteMesh(
   const halfWidth = THREE.MathUtils.clamp(definition.pickRadius * 0.62, 3.4, 8.8);
   const halfDepth = THREE.MathUtils.clamp(definition.pickRadius * 0.48, 2.8, 7.2);
   const stage = Math.min(4, Math.floor(THREE.MathUtils.clamp(progress, 0, 1) * 5));
-
-  const preparedGround = new THREE.Mesh(
-    new THREE.BoxGeometry(halfWidth * 2.1, 0.12, halfDepth * 2.1),
-    DIRT,
-  );
-  preparedGround.position.y = 0.05;
-  preparedGround.receiveShadow = true;
-  root.add(preparedGround);
 
   addStakeLine(root, halfWidth, halfDepth);
   addFoundation(root, halfWidth, halfDepth, Math.max(stage > 0 ? 0.35 : 0.12, stoneRatio));

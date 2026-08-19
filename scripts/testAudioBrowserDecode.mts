@@ -10,7 +10,7 @@ import { chromium } from 'playwright';
 import {
   AMBIENT_LAYERS,
   BUILDING_AUDIO_CLIPS,
-  CHURCH_BELL_CLIP,
+  CHAPEL_BELL_CLIPS,
   COMBAT_AUDIO_CLIPS,
   FARM_WORKERS_SINGING_CLIP,
   FIRE_CRACKLE_CLIP,
@@ -69,7 +69,7 @@ function invariant(condition: unknown, message: string): asserts condition {
 function runtimeClips(): AudioClipDefinition[] {
   return [
     ...Object.values(AMBIENT_LAYERS),
-    CHURCH_BELL_CLIP,
+    ...Object.values(CHAPEL_BELL_CLIPS),
     RIVER_WATER_CLIP,
     FARM_WORKERS_SINGING_CLIP,
     FIRE_CRACKLE_CLIP,

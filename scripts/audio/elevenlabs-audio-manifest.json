@@ -52,14 +52,34 @@
       "promptInfluence": 0.76
     },
     {
-      "id": "ambient-chapel-bells",
-      "group": "ambient-core",
+      "id": "chapel-bell-tier-1",
+      "group": "chapel-bells",
       "kind": "sound-effect",
-      "output": "public/sounds/ambient/church_bells.mp3",
-      "prompt": "A small rural medieval chapel bell ringing a measured Angelus pattern in an open mountain valley, natural long-distance reverberation, bronze bell, restrained and devotional, no city noise, no voices, no music",
-      "durationSeconds": 24,
+      "output": "public/sounds/buildings/chapel_bell_tier_1.mp3",
+      "prompt": "One isolated realistic BONG from a compact thick-walled cast-bronze medieval chapel bell in a timber belfry, struck once with a heavy wooden clapper, dominant deep rounded fundamental, dark warm bronze body, soft overtones, long smooth natural outdoor decay, close authentic field recording",
+      "durationSeconds": 6,
       "loop": false,
-      "promptInfluence": 0.8
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "chapel-bell-tier-2",
+      "group": "chapel-bells",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/chapel_bell_tier_2.mp3",
+      "prompt": "One isolated realistic deep BONG from a heavy thick-walled medium cast-bronze medieval church bell in a stone bell cote, struck once by a solid oak clapper, dominant low rounded fundamental, dark full bronze body, soft upper partials, long smooth natural outdoor decay, authentic field recording",
+      "durationSeconds": 7,
+      "loop": false,
+      "promptInfluence": 0.95
+    },
+    {
+      "id": "chapel-bell-tier-3",
+      "group": "chapel-bells",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/chapel_bell_tier_3.mp3",
+      "prompt": "One isolated realistic enormous deep BONG from a very large thick-walled cast-bronze medieval church tower bell, struck once by a massive oak clapper, dominant very-low rounded fundamental, dark thunderous bronze body, soft upper partials, majestic long smooth decay across a mountain valley, authentic field recording",
+      "durationSeconds": 8,
+      "loop": false,
+      "promptInfluence": 0.95
     },
     {
       "id": "ambient-fire",
@@ -510,16 +530,6 @@
       "durationSeconds": 2.5,
       "loop": false,
       "promptInfluence": 0.86
-    },
-    {
-      "id": "building-chapel",
-      "group": "building-foley",
-      "kind": "sound-effect",
-      "output": "public/sounds/buildings/chapel.mp3",
-      "prompt": "One single soft strike of a small rural medieval bronze chapel bell, modest clear tone with natural open-air village resonance, devotional and restrained, no repeated ringing, no voices, no music",
-      "durationSeconds": 2.8,
-      "loop": false,
-      "promptInfluence": 0.92
     },
     {
       "id": "building-marketplace",

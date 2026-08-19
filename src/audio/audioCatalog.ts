@@ -37,7 +37,9 @@ export type UiSoundId =
   | 'confirm'
   | 'error';
 
-export type BuildingAudioKind = BuildingKind | 'residence';
+export type ChapelBellTier = 1 | 2 | 3;
+
+export type BuildingAudioKind = Exclude<BuildingKind, 'chapel'> | 'residence';
 
 export type FootstepSurface = 'grass' | 'dirt' | 'timber' | 'stone' | 'water';
 
@@ -85,10 +87,11 @@ export const AMBIENT_LAYERS: Record<AmbientLayerId, AudioClipDefinition> = {
   light_rain: { path: '/sounds/ambient/light_rain.mp3', volume: 0.7, loop: true },
 };
 
-/** Chapel bell at 6 AM and 6 PM. Distance and end fades are applied by ChapelBellPlayer. */
-export const CHURCH_BELL_CLIP: AudioClipDefinition = {
-  path: '/sounds/ambient/church_bells.mp3',
-  volume: 0.32,
+/** One authentic bell toll per church tier, reused for clicks and Angelus strokes. */
+export const CHAPEL_BELL_CLIPS: Record<ChapelBellTier, AudioClipDefinition> = {
+  1: { path: '/sounds/buildings/chapel_bell_tier_1.mp3', volume: 0.24 },
+  2: { path: '/sounds/buildings/chapel_bell_tier_2.mp3', volume: 0.26 },
+  3: { path: '/sounds/buildings/chapel_bell_tier_3.mp3', volume: 0.28 },
 };
 
 /** Continuous rushing water used by the river's spatial audio source. */
@@ -205,7 +208,6 @@ export const BUILDING_AUDIO_CLIPS: Record<
   hunters_hall: { path: '/sounds/buildings/hunters_hall.mp3', volume: 0.05 },
   foragers_shed: { path: '/sounds/buildings/foragers_shed.mp3', volume: 0.045 },
   fishing_camp: { path: '/sounds/buildings/fishing_camp.mp3', volume: 0.05 },
-  chapel: { path: '/sounds/buildings/chapel.mp3', volume: 0.075 },
   marketplace: { path: '/sounds/buildings/marketplace.mp3', volume: 0.04 },
   trading_post: { path: '/sounds/buildings/marketplace.mp3', volume: 0.045 },
   town_hall: { path: '/sounds/buildings/town_hall.mp3', volume: 0.04 },

@@ -25,9 +25,9 @@ const point = (x: number, z: number): THREE.Vector3 => new THREE.Vector3(x, 0, z
 assert.equal(ROAD_VISUAL_WIDTH_SCALE, 2 / 3);
 assert(Math.abs(roadVisualWidth(4.2) - 2.8) < 1e-9);
 assert(
-  ROAD_VISUAL_SHOULDER_Y_OFFSET < 0.11
+  ROAD_VISUAL_CORE_Y_OFFSET > 0
   && ROAD_VISUAL_CORE_Y_OFFSET < ROAD_VISUAL_SHOULDER_Y_OFFSET,
-  'placed road surfaces must remain below the construction-ground top',
+  'placed road surfaces must preserve terrain clearance and shoulder layering',
 );
 
 const endpointJoin = new RoadNetwork();
@@ -235,14 +235,14 @@ assert(
 for (let index = 0; index < Math.min(placedCorePositions.count, 8); index++) {
   assert(
     Math.abs(placedCorePositions.getY(index) - ROAD_VISUAL_CORE_Y_OFFSET) < 1e-6,
-    'dry road core vertices should stay below construction ground',
+    'dry road core vertices should retain the authored terrain lift',
   );
 }
 const placedBlendPositions = terminalBlend.geometry.getAttribute('position');
 for (let index = 0; index < Math.min(placedBlendPositions.count, 12); index++) {
   assert(
     Math.abs(placedBlendPositions.getY(index) - ROAD_VISUAL_SHOULDER_Y_OFFSET) < 1e-6,
-    'dry road shoulder vertices should stay below construction ground',
+    'dry road shoulder vertices should retain the authored terrain lift',
   );
 }
 const terminalSampleCount = terminalEdge.sampledPath.length - 2;
