@@ -200,6 +200,29 @@ for (const kind of BUILDING_KINDS) {
   if (![size.x, size.y, size.z].every(Number.isFinite) || size.x <= 0 || size.y <= 0 || size.z <= 0) {
     throw new Error(`${kind} produced invalid model bounds.`);
   }
+  if (kind === 'granary') {
+    const groundedStore = model.getObjectByName('GranaryGroundedStore');
+    if (!(groundedStore instanceof THREE.Group) || Math.abs(groundedStore.position.y) > 1e-6) {
+      throw new Error('Granary store must sit directly at terrain level.');
+    }
+    let hasContinuousFoundation = false;
+    groundedStore.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const foundationBounds = new THREE.Box3().setFromObject(object);
+      const foundationSize = foundationBounds.getSize(new THREE.Vector3());
+      if (
+        Math.abs(foundationBounds.min.y) <= 1e-6
+        && foundationBounds.max.y <= 0.5
+        && foundationSize.x >= 9.5
+        && foundationSize.z >= 6.3
+      ) {
+        hasContinuousFoundation = true;
+      }
+    });
+    if (!hasContinuousFoundation) {
+      throw new Error('Granary must have a continuous ground-contact foundation.');
+    }
+  }
   if (kind === 'chapel') churchHeight = size.y;
 }
 

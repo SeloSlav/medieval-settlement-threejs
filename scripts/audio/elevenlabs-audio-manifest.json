@@ -26,7 +26,7 @@
       "group": "ambient-core",
       "kind": "sound-effect",
       "output": "public/sounds/ambient/village_day.mp3",
-      "prompt": "Seamless ambience of a small peaceful late-medieval rural village at work, distant indistinct villagers, sparse hand tools, a cart wheel, chickens far away, light yard activity, no intelligible speech, no bells, no music, understated game ambience",
+      "prompt": "Seamless low-detail ambience of a small peaceful late-medieval rural village at work, diffuse distant villager murmur, gentle footsteps on packed earth, faint cloth and soft wooden yard activity, a non-tonal background bed with no attention-grabbing events, no hand tools, cart wheels, squeaks, metal impacts, bells, chimes, alarms, whistles, repeated tonal pulses, intelligible speech, or music",
       "durationSeconds": 30,
       "loop": true,
       "promptInfluence": 0.7

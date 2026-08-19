@@ -6,12 +6,18 @@ import {
   industrialWaterTarget,
   residenceHasWaterRoom,
   selectIndustrialWaterCandidate,
+  wellRefillPerSecond,
+  wellSustainableHomeCapacity,
 } from '../src/logistics/waterLogistics.ts';
 import {
   CALENDAR_SECONDS_PER_DAY,
+  DROUGHT_WELL_REFILL_MULTIPLIER,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_REORDER_FRACTION,
+  RESIDENCE_POPULATION_WIDE,
+  WELL_BASE_REFILL_PER_SEC,
+  WELL_MINIMUM_REFILL_HYDROLOGY,
   WELL_WATER_PER_DELIVERY,
 } from '../src/generated/gameBalance.ts';
 import {
@@ -73,6 +79,21 @@ assert.equal(RESIDENCE_WATER_CAPACITY - householdWaterReorder, WELL_WATER_PER_DE
 const normalHouseholdDaysPerWaterRun = WELL_WATER_PER_DELIVERY
   / (3 * RESIDENCE_WATER_PER_PERSON_PER_SEC * CALENDAR_SECONDS_PER_DAY);
 assert.ok(normalHouseholdDaysPerWaterRun > 3.7 && normalHouseholdDaysPerWaterRun < 3.8);
+
+assert.equal(WELL_BASE_REFILL_PER_SEC, 9.6);
+assert.equal(WELL_MINIMUM_REFILL_HYDROLOGY, 0.5);
+assert.equal(wellRefillPerSecond(0, DROUGHT_WELL_REFILL_MULTIPLIER), 2.4);
+assert.equal(
+  wellSustainableHomeCapacity(
+    0,
+    DROUGHT_WELL_REFILL_MULTIPLIER,
+    RESIDENCE_POPULATION_WIDE,
+  ),
+  50,
+  'even a dry-site well must sustainably cover 50 fully occupied wide homes during drought',
+);
+assert.ok(wellSustainableHomeCapacity(0, 1) > 100);
+assert.ok(wellSustainableHomeCapacity(0.8, 1) > wellSustainableHomeCapacity(0, 1));
 
 assert.ok(industrialWaterRequirement('bakery') > 0);
 assert.ok(industrialWaterRequirement('brewery') > 0);
@@ -286,6 +307,8 @@ assert.match(wellInspector, /weaverFibreDeliveryPreferenceLabel/);
 assert.match(wellInspector, /industrialWaterTarget/);
 assert.match(wellInspector, /staged water/);
 assert.match(wellInspector, /Workshops receive physical cart deliveries/);
+assert.match(wellInspector, /Sustainable capacity/);
+assert.match(wellInspector, /Homes connected now/);
 assert.match(wellInspector, /\['weaver',[\s\S]*item\.kind === 'weaver'/);
 assert.match(wellInspector, /\['smithy',[\s\S]*item\.kind === 'smithy'/);
 assert.match(

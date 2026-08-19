@@ -411,6 +411,10 @@ function addCompactBellCote(
 ): void {
   const span = stoneTier ? 1.42 : 1.18;
   const height = stoneTier ? 1.72 : 1.45;
+  const upperBeamHeight = 0.2;
+  const bellHeight = 0.58;
+  const bellClearance = 0.04;
+  const bellY = baseY + height - upperBeamHeight * 0.5 - bellClearance - bellHeight * 0.5;
   const postMaterial = stoneTier ? stoneMaterial('light') : timberMaterial('dark');
   for (const x of [-span * 0.5, span * 0.5]) {
     addMesh(
@@ -420,18 +424,20 @@ function addCompactBellCote(
       new THREE.Vector3(x, baseY + height * 0.5, z),
     );
   }
-  addMesh(
+  const upperBeam = addMesh(
     group,
-    new THREE.BoxGeometry(span + 0.28, 0.2, 0.34),
+    new THREE.BoxGeometry(span + 0.28, upperBeamHeight, 0.34),
     postMaterial,
     new THREE.Vector3(0, baseY + height, z),
   );
-  addMesh(
+  upperBeam.name = 'Compact church belfry upper beam';
+  const bell = addMesh(
     group,
-    new THREE.CylinderGeometry(0.18, 0.34, 0.58, 10),
+    new THREE.CylinderGeometry(0.18, 0.34, bellHeight, 10),
     materials.brass,
-    new THREE.Vector3(0, baseY + height * 0.55, z),
+    new THREE.Vector3(0, bellY, z),
   );
+  bell.name = 'Compact church bell';
   addMesh(
     group,
     new THREE.ConeGeometry(span * 0.72, stoneTier ? 1.08 : 0.9, 4),
@@ -501,34 +507,60 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
       addSideButtress(group, side, 1.35, wallTop, halfW);
     }
   } else {
+    const windowZs = [-0.9, 0.8] as const;
+    const windowCenterY = 1.45;
+    const windowWidth = 0.68;
+    const windowHeight = 0.88;
+    const frameThickness = 0.1;
+    const frameWidth = windowWidth + frameThickness * 2;
+    const frameHeight = windowHeight + frameThickness * 2;
     for (const side of [-1, 1] as const) {
-      for (const z of [-0.9, 0.8]) {
-        addMesh(
+      for (const [windowIndex, z] of windowZs.entries()) {
+        const pane = addMesh(
           group,
-          new THREE.BoxGeometry(0.08, 0.88, 0.68),
+          new THREE.BoxGeometry(0.08, windowHeight, windowWidth),
           materials.glass,
-          new THREE.Vector3(side * (halfW + 0.045), 1.45, z),
+          new THREE.Vector3(side * (halfW + 0.045), windowCenterY, z),
         );
-        addMesh(
-          group,
-          new THREE.BoxGeometry(0.12, 1.08, 0.09),
-          timberMaterial('dark'),
-          new THREE.Vector3(side * (halfW + 0.085), 1.45, z),
-        );
-        addMesh(
-          group,
-          new THREE.BoxGeometry(0.12, 0.09, 0.82),
-          timberMaterial('dark'),
-          new THREE.Vector3(side * (halfW + 0.09), 1.45, z),
-        );
+        pane.name = `Small wooden church ${side < 0 ? 'left' : 'right'} window pane ${windowIndex + 1}`;
+
+        for (const zSign of [-1, 1] as const) {
+          const jamb = addMesh(
+            group,
+            new THREE.BoxGeometry(0.12, frameHeight, frameThickness),
+            timberMaterial('dark'),
+            new THREE.Vector3(
+              side * (halfW + 0.085),
+              windowCenterY,
+              z + zSign * (windowWidth + frameThickness) * 0.5,
+            ),
+          );
+          jamb.name = 'Small wooden church window perimeter frame';
+        }
+        for (const ySign of [-1, 1] as const) {
+          const sillOrLintel = addMesh(
+            group,
+            new THREE.BoxGeometry(0.12, frameThickness, frameWidth),
+            timberMaterial('dark'),
+            new THREE.Vector3(
+              side * (halfW + 0.09),
+              windowCenterY + ySign * (windowHeight + frameThickness) * 0.5,
+              z,
+            ),
+          );
+          sillOrLintel.name = 'Small wooden church window perimeter frame';
+        }
       }
-      for (const z of [-1.78, -0.58, 0.62, 1.78]) {
-        addMesh(
+      // These are façade-bay seams. The former inner pair occupied the same
+      // intervals as the windows, so keep one central seam between apertures.
+      for (const [postIndex, z] of [-1.78, -0.05, 1.78].entries()) {
+        const post = addMesh(
           group,
           new THREE.BoxGeometry(0.16, wallHeight + 0.16, 0.18),
           timberMaterial('dark'),
           new THREE.Vector3(side * (halfW + 0.07), foundationHeight + wallHeight * 0.5, z),
         );
+        post.name = `Small wooden church ${side < 0 ? 'left' : 'right'} wall post ${postIndex + 1}`;
       }
     }
   }

@@ -71,13 +71,6 @@ function addChimney(group: THREE.Group, x: number, z: number, height = 4.8): voi
   addMesh(group, new THREE.BoxGeometry(0.92, 0.18, 0.92), stoneMaterial('light'), new THREE.Vector3(x, height + 0.02, z));
 }
 
-function addRaisedStore(group: THREE.Group, width: number, depth: number, centerX = 0): void {
-  for (const x of [-width * 0.38, width * 0.38]) for (const z of [-depth * 0.35, depth * 0.35]) {
-    addMesh(group, new THREE.BoxGeometry(0.42, 1.2, 0.42), stoneMaterial('mid'), new THREE.Vector3(centerX + x, 0.6, z));
-  }
-  addMesh(group, new THREE.BoxGeometry(width, 0.28, depth), timberMaterial('dark'), new THREE.Vector3(centerX, 1.18, 0));
-}
-
 function addSheaf(group: THREE.Group, x: number, z: number, scale = 1): void {
   addMesh(group, new THREE.CylinderGeometry(0.38 * scale, 0.5 * scale, 1.35 * scale, 8), crop, new THREE.Vector3(x, 0.68 * scale, z));
   addMesh(group, new THREE.TorusGeometry(0.34 * scale, 0.045 * scale, 5, 10), timberMaterial('light'), new THREE.Vector3(x, 0.72 * scale, z), new THREE.Euler(Math.PI * 0.5, 0, 0));
@@ -635,20 +628,18 @@ export function createSmokehouseMesh(): THREE.Group {
 export function createGranaryMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Granary';
-  addRaisedStore(group, 9.3, 6.1);
   const store = new THREE.Group();
-  store.position.y = 1.2;
+  store.name = 'GranaryGroundedStore';
   const shell = addGableShell(store, { width: 9.5, depth: 6.3, stoneHeight: 0.34, wallHeight: 3.15, ridgeHeight: 2.55, wallMaterial: timberMaterial('weathered'), roofMaterial: shingleMaterial() });
   addPlankDoor(store, 0, 0.38, shell.frontZ + 0.03, 1.55, 2.25);
   for (const x of [-3.3, 3.3]) addSmallWindow(store, x, 1.92, shell.frontZ + 0.03, 0.58, 0.62);
   group.add(store);
-  // A projecting grain hoist gives the raised store a clear warehouse silhouette.
-  addMesh(group, new THREE.BoxGeometry(0.2, 1.95, 0.2), timberMaterial('dark'), new THREE.Vector3(0, 5.35, 3.2));
-  addMesh(group, new THREE.BoxGeometry(0.22, 0.22, 2.35), timberMaterial('weathered'), new THREE.Vector3(0, 6.25, 4.25), new THREE.Euler(-0.12, 0, 0));
-  addMesh(group, new THREE.CylinderGeometry(0.045, 0.045, 1.75, 6), metalMaterial('iron'), new THREE.Vector3(0, 5.25, 5.33));
-  addMesh(group, new THREE.TorusGeometry(0.18, 0.045, 6, 12), metalMaterial('iron'), new THREE.Vector3(0, 4.35, 5.33), new THREE.Euler(Math.PI * 0.5, 0, 0));
-  for (let i = -4; i <= 4; i++) addMesh(group, new THREE.BoxGeometry(0.12, 1.15, 0.12), timberMaterial('dark'), new THREE.Vector3(i * 0.85, 0.58, 4.25), new THREE.Euler(0, 0, 0.08));
-  for (let i = 0; i < 5; i++) addMesh(group, new THREE.BoxGeometry(1.55 - i * 0.1, 0.18, 0.46), stoneMaterial(i % 2 ? 'mid' : 'light'), new THREE.Vector3(0, 0.12 + i * 0.18, 3.55 + i * 0.34));
+  // The hoist remains the functional silhouette feature, now aligned to the
+  // grounded store instead of the former raised floor and access platform.
+  addMesh(group, new THREE.BoxGeometry(0.2, 1.95, 0.2), timberMaterial('dark'), new THREE.Vector3(0, 4.15, 3.2));
+  addMesh(group, new THREE.BoxGeometry(0.22, 0.22, 2.35), timberMaterial('weathered'), new THREE.Vector3(0, 5.05, 4.25), new THREE.Euler(-0.12, 0, 0));
+  addMesh(group, new THREE.CylinderGeometry(0.045, 0.045, 1.75, 6), metalMaterial('iron'), new THREE.Vector3(0, 4.05, 5.33));
+  addMesh(group, new THREE.TorusGeometry(0.18, 0.045, 6, 12), metalMaterial('iron'), new THREE.Vector3(0, 3.15, 5.33), new THREE.Euler(Math.PI * 0.5, 0, 0));
   addSegmentedStockProps(
     group,
     'GranaryGrainStockpile',

@@ -4,11 +4,14 @@ import {
   BAKERY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
   POTTER_WATER_PER_CYCLE,
+  POPULATION_PER_RESIDENCE,
   RESIDENCE_WATER_CAPACITY,
   RESIDENCE_WATER_PER_PERSON_PER_SEC,
   RESIDENCE_WATER_REORDER_FRACTION,
   SMITHY_WATER_PER_CYCLE,
   WEAVER_FLAX_WATER_PER_CYCLE,
+  WELL_BASE_REFILL_PER_SEC,
+  WELL_MINIMUM_REFILL_HYDROLOGY,
   WELL_WATER_PER_DELIVERY,
 } from '../generated/gameBalance.ts';
 import { waterDeliveryTripSeconds } from './deliveryLogistics.ts';
@@ -23,6 +26,29 @@ import { GAME_DAY_SECONDS } from './firewoodLogistics.ts';
 export function wellWaterPerDelivery(deliveryWorkers: number): number {
   if (deliveryWorkers <= 0) return 0;
   return WELL_WATER_PER_DELIVERY * deliveryWorkers;
+}
+
+export function wellRefillPerSecond(
+  hydrology: number,
+  weatherMultiplier = 1,
+): number {
+  const effectiveHydrology = Math.max(
+    WELL_MINIMUM_REFILL_HYDROLOGY,
+    Math.max(0, Math.min(1, hydrology)),
+  );
+  return WELL_BASE_REFILL_PER_SEC
+    * effectiveHydrology
+    * Math.max(0, weatherMultiplier);
+}
+
+export function wellSustainableHomeCapacity(
+  hydrology: number,
+  weatherMultiplier = 1,
+  residentsPerHome = POPULATION_PER_RESIDENCE,
+): number {
+  const demandPerHome = Math.max(0, residentsPerHome) * RESIDENCE_WATER_PER_PERSON_PER_SEC;
+  if (demandPerHome <= 0) return 0;
+  return Math.floor(wellRefillPerSecond(hydrology, weatherMultiplier) / demandPerHome + 1e-9);
 }
 
 export type IndustrialWaterCandidate = {

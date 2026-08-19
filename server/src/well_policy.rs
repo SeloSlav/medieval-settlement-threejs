@@ -114,6 +114,10 @@ pub fn position_within_well_service_radius(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::balance_generated::{
+        DROUGHT_WELL_REFILL_MULTIPLIER, RESIDENCE_POPULATION_WIDE,
+        RESIDENCE_WATER_PER_PERSON_PER_SEC,
+    };
     use std::time::Instant;
 
     #[test]
@@ -128,6 +132,15 @@ mod tests {
         let good_site = well_refill_per_second(0.8, 1.0);
         assert!(poor_site >= 0.1);
         assert!(good_site > poor_site);
+    }
+
+    #[test]
+    fn every_well_sustains_fifty_full_homes_during_drought() {
+        let full_home_demand =
+            f64::from(RESIDENCE_POPULATION_WIDE) * RESIDENCE_WATER_PER_PERSON_PER_SEC;
+        let homes_supported =
+            well_refill_per_second(0.0, DROUGHT_WELL_REFILL_MULTIPLIER) / full_home_demand;
+        assert!(homes_supported + 1e-9 >= 50.0);
     }
 
     #[test]

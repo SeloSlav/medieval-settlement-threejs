@@ -61,6 +61,7 @@ assert.ok(CHAPEL_TIER2_TITHE_MULTIPLIER < CHAPEL_TIER3_TITHE_MULTIPLIER);
 
 const sizes: THREE.Vector3[] = [];
 const bounds: THREE.Box3[] = [];
+let tierOneChurch: THREE.Group | null = null;
 for (const tier of [1, 2, 3] as const) {
   const church = createChapelMesh(tier);
   assert.equal(church.name.toLowerCase(), chapelTierDefinition(tier).label.toLowerCase());
@@ -68,8 +69,54 @@ for (const tier of [1, 2, 3] as const) {
   const box = new THREE.Box3().setFromObject(church);
   bounds.push(box);
   sizes.push(box.getSize(new THREE.Vector3()));
-  disposeObject3D(church);
+  if (tier === 1) tierOneChurch = church;
+  else disposeObject3D(church);
 }
+assert.ok(tierOneChurch);
+
+const tierOneWindowPanes: THREE.Object3D[] = [];
+const tierOneWindowFrames: THREE.Object3D[] = [];
+const tierOneWallPosts: THREE.Object3D[] = [];
+tierOneChurch.traverse((object) => {
+  if (object.name.includes('window pane')) tierOneWindowPanes.push(object);
+  if (object.name === 'Small wooden church window perimeter frame') tierOneWindowFrames.push(object);
+  if (object.name.includes('wall post')) tierOneWallPosts.push(object);
+});
+assert.equal(tierOneWindowPanes.length, 4, 'the wooden church must retain two clear windows per side');
+assert.equal(tierOneWindowFrames.length, 16, 'each wooden window must use a four-sided perimeter frame');
+assert.equal(tierOneWallPosts.length, 6, 'the wooden wall frame must use three clear bay seams per side');
+
+const positiveIntersectionVolume = (a: THREE.Object3D, b: THREE.Object3D): number => {
+  const aBounds = new THREE.Box3().setFromObject(a);
+  const bBounds = new THREE.Box3().setFromObject(b);
+  const x = Math.max(0, Math.min(aBounds.max.x, bBounds.max.x) - Math.max(aBounds.min.x, bBounds.min.x));
+  const y = Math.max(0, Math.min(aBounds.max.y, bBounds.max.y) - Math.max(aBounds.min.y, bBounds.min.y));
+  const z = Math.max(0, Math.min(aBounds.max.z, bBounds.max.z) - Math.max(aBounds.min.z, bBounds.min.z));
+  return x * y * z;
+};
+for (const pane of tierOneWindowPanes) {
+  for (const frame of [...tierOneWindowFrames, ...tierOneWallPosts]) {
+    assert.ok(
+      positiveIntersectionVolume(pane, frame) < 1e-7,
+      `${frame.name} must stay outside ${pane.name}`,
+    );
+  }
+}
+
+for (const tier of [1, 2] as const) {
+  const church = tier === 1 ? tierOneChurch : createChapelMesh(tier);
+  const bell = church.getObjectByName('Compact church bell');
+  const upperBeam = church.getObjectByName('Compact church belfry upper beam');
+  assert.ok(bell && upperBeam, `tier ${tier} must expose its compact bell suspension anchors`);
+  const bellBounds = new THREE.Box3().setFromObject(bell);
+  const beamBounds = new THREE.Box3().setFromObject(upperBeam);
+  const suspensionGap = beamBounds.min.y - bellBounds.max.y;
+  assert.ok(suspensionGap >= -1e-7, `tier ${tier} bell must remain below the upper belfry beam`);
+  assert.ok(suspensionGap <= 0.05, `tier ${tier} bell must tuck immediately beneath the steeple`);
+  if (tier === 2) disposeObject3D(church);
+}
+disposeObject3D(tierOneChurch);
+
 assert.ok(sizes[1]!.x > sizes[0]!.x && sizes[1]!.z > sizes[0]!.z, 'tier two must enlarge the church');
 assert.ok(sizes[2]!.x > sizes[1]!.x && sizes[2]!.z > sizes[1]!.z, 'tier three must enlarge the church again');
 assert.ok(sizes[2]!.y > sizes[1]!.y, 'the final belfry must raise the landmark silhouette');

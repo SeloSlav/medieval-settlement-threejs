@@ -71,13 +71,13 @@
     {
       "id": "ambient-village-day",
       "output": "public/sounds/ambient/village_day.mp3",
-      "generatedAt": "2026-07-28T05:59:05.768Z",
+      "generatedAt": "2026-08-19T08:31:31.338Z",
       "endpoint": "/v1/sound-generation",
       "modelId": "eleven_text_to_sound_v2",
       "outputFormat": "mp3_44100_128",
-      "characterCost": "301",
+      "characterCost": "300",
       "byteLength": 481115,
-      "sha256": "0285b9433d26832afbd7a895a83feb1b8afc6feacfb1d9fec1c8dcffff05c17e"
+      "sha256": "19ec0d692fec0cc43b8bd06a777db8a871b85a27ebdcc01dfab8701a2c4bb8a6"
     },
     {
       "id": "building-apiary",

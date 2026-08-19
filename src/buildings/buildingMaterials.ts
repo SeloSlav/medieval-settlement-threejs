@@ -606,7 +606,8 @@ export function addMesh(
   mesh.position.copy(position);
   mesh.rotation.copy(rotation);
   mesh.scale.copy(scale);
-  // Detailed meshes stay off the shadow pass; one invisible proxy per building casts instead.
+  // Detailed meshes stay off the shadow pass. Coarse footprint proxies were
+  // retired because their solid silhouettes read as black ground slabs.
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   group.add(mesh);
