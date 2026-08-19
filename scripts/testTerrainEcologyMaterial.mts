@@ -30,8 +30,11 @@ import type {
 import {
   createTerrainGeometry,
   FOREST_FLOOR_BLEND_END,
+  FOREST_FLOOR_EDGE_BREAKUP_STRENGTH,
   FOREST_FLOOR_BLEND_START,
   forestFloorBlendAtDensity,
+  forestFloorBlendAtPosition,
+  forestFloorEdgeBreakupAt,
   type TerrainGeometryData,
 } from '../src/terrain/terrainGeometryData.ts';
 
@@ -520,7 +523,7 @@ assert.equal(
 );
 assert.match(
   terrainGeometrySource,
-  /forestFloorBlendAtDensity\([\s\S]*?riverField\?\.isRenderedWetAt\(x, z\)/,
+  /forestFloorBlendAtPosition\([\s\S]*?x,[\s\S]*?z,[\s\S]*?riverField\?\.isRenderedWetAt\(x, z\)/,
   'terrain generation must feed the rendered-water mask into the forest-floor blend',
 );
 assert.ok(
@@ -530,6 +533,24 @@ assert.ok(
     ) - 0.5,
   ) < 1e-12,
   'the contiguous-forest boundary must crossfade smoothly at its midpoint',
+);
+assert.equal(FOREST_FLOOR_BLEND_START, 0.46);
+assert.equal(FOREST_FLOOR_BLEND_END, 0.78);
+assert.ok(FOREST_FLOOR_EDGE_BREAKUP_STRENGTH > 0);
+const forestEdgeBreakup = forestFloorEdgeBreakupAt(73.25, -41.5);
+assert.equal(
+  forestFloorEdgeBreakupAt(73.25, -41.5),
+  forestEdgeBreakup,
+  'forest-edge breakup must remain deterministic in stable world coordinates',
+);
+assert.ok(
+  Math.abs(forestEdgeBreakup) <= FOREST_FLOOR_EDGE_BREAKUP_STRENGTH * 0.5 + 1e-12,
+  'forest-edge breakup must remain a bounded perturbation of the shared density field',
+);
+assert.equal(
+  forestFloorBlendAtPosition(1, 73.25, -41.5, true),
+  0,
+  'the organic forest footprint must still yield completely to rendered water',
 );
 
 const terrainGeometryData: TerrainGeometryData = {

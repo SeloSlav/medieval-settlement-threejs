@@ -371,8 +371,13 @@ assert.doesNotMatch(
 );
 assert.match(
   roadEdgeOpacitySource,
-  /smoothstep\([\s\S]*?float\(0\.08\)[\s\S]*?float\(0\.82\)[\s\S]*?uvNode\.x/,
-  'road-edge opacity must use a continuous analytic feather with a true-zero outer band',
+  /attribute\('edgeFade',\s*'float'\)[\s\S]*?smoothstep\([\s\S]*?float\(0\.08\)[\s\S]*?float\(0\.82\)[\s\S]*?edgeFade/,
+  'road-edge opacity must use a dedicated analytic feather attribute with a true-zero outer band',
+);
+assert.doesNotMatch(
+  roadEdgeOpacitySource,
+  /uv\(\)|uvNode/,
+  'road-edge opacity must stay independent from the dirt texture coordinates',
 );
 assert.doesNotMatch(
   riverBankOpacitySource,

@@ -9,7 +9,7 @@ import { createHeightfieldNormals } from './terrainNormals.ts';
 const DATABASE_NAME = 'medieval-road-system-generated-world';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'terrain-startup';
-const CACHE_FORMAT_VERSION = 'terrain-startup-v6-inland-water';
+const CACHE_FORMAT_VERSION = 'terrain-startup-v7-organic-forest-floor';
 
 export type TerrainStartupData = {
   terrain: TerrainGeometryData;

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { QuarryLayout } from '../quarries/QuarryLayout.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
 import type { WorldDimensions } from '../world/worldGenerationSettings.ts';
-import { forestDensityAt, type ForestCore } from '../props/forestField.ts';
+import { fbm2, forestDensityAt, type ForestCore } from '../props/forestField.ts';
 import { sampleTerrainBlendWeights, sampleTerrainUv } from './TerrainBlendWeights.ts';
 import { sampleBaseTerrainHeight } from './TerrainHeight.ts';
 import { createHeightfieldNormals } from './terrainNormals.ts';
@@ -11,8 +11,13 @@ import { createHeightfieldNormals } from './terrainNormals.ts';
 // not production terrain tessellation. Keeping its software-rendered world
 // lightweight makes that regression check deterministic on CI.
 export const TERRAIN_RESOLUTION = import.meta.env?.VITE_E2E_TEST === '1' ? 257 : 769;
-export const FOREST_FLOOR_BLEND_START = 0.34;
-export const FOREST_FLOOR_BLEND_END = 0.68;
+// Keep litter inside the outer stems instead of letting the broad forest-core
+// field paint a smooth halo into the meadow. World-space breakup makes the
+// boundary wander at shrub/crown scale while remaining deterministic for every
+// consumer of the baked forestBlend attribute.
+export const FOREST_FLOOR_BLEND_START = 0.46;
+export const FOREST_FLOOR_BLEND_END = 0.78;
+export const FOREST_FLOOR_EDGE_BREAKUP_STRENGTH = 0.09;
 
 export type TerrainGeometryData = {
   resolution: number;
@@ -79,8 +84,10 @@ export async function buildTerrainGeometryData(
         dimensions.generationSize * 0.5,
         dimensions.terrainSize * 0.5,
       );
-      forestBlends[vertexIndex] = forestFloorBlendAtDensity(
+      forestBlends[vertexIndex] = forestFloorBlendAtPosition(
         forestDensity,
+        x,
+        z,
         riverField?.isRenderedWetAt(x, z) ?? false,
       );
 
@@ -182,4 +189,27 @@ export function forestFloorBlendAtDensity(
     1,
   );
   return t * t * (3 - 2 * t);
+}
+
+/**
+ * Shared, stable forest-floor footprint used by terrain shading and sampled by
+ * streamed groundcover. The meso band breaks up the broad core ellipse; the
+ * smaller band removes long airbrushed arcs without creating isolated spots.
+ */
+export function forestFloorEdgeBreakupAt(x: number, z: number): number {
+  const meso = fbm2(x * 0.031 + 31.7, z * 0.031 - 19.4, 3) - 0.5;
+  const detail = fbm2(x * 0.083 - 11.8, z * 0.083 + 47.3, 2) - 0.5;
+  return (meso * 0.74 + detail * 0.26) * FOREST_FLOOR_EDGE_BREAKUP_STRENGTH;
+}
+
+export function forestFloorBlendAtPosition(
+  density: number,
+  x: number,
+  z: number,
+  blockedByRenderedWater = false,
+): number {
+  if (blockedByRenderedWater) return 0;
+  return forestFloorBlendAtDensity(
+    density + forestFloorEdgeBreakupAt(x, z),
+  );
 }

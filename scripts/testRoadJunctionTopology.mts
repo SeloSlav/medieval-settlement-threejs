@@ -124,19 +124,22 @@ for (const mesh of elbowPatch.children as THREE.Mesh[]) {
 }
 
 const blend = elbowPatch.children[0] as THREE.Mesh;
-const blendPositions = blend.geometry.getAttribute('position');
-let southEastRadius = Infinity;
-for (let index = 1; index < blendPositions.count; index++) {
-  const x = blendPositions.getX(index) - elbowNode.position.x;
-  const z = blendPositions.getZ(index) - elbowNode.position.z;
-  if (x > 0 && z < 0 && Math.abs(Math.abs(x) - Math.abs(z)) < 0.05) {
-    southEastRadius = Math.hypot(x, z);
-    break;
-  }
-}
+const elbowBlendBoundary = blend.userData.junctionBoundary as [number, number][];
+const elbowOutside = new THREE.Vector2(1, -1).normalize();
+const elbowVisualWidth = roadVisualWidth(4.2);
 assert(
-  southEastRadius <= 4.2 * 0.6,
-  'the non-incident elbow quadrant should stay at the compact hub instead of expanding into a slab',
+  pointInsidePolygon(
+    elbowOutside.clone().multiplyScalar(elbowVisualWidth * 1.42 * 0.98),
+    elbowBlendBoundary,
+  ),
+  'the feathered elbow must keep a round outside join instead of retreating to a terrain wedge',
+);
+assert(
+  !pointInsidePolygon(
+    elbowOutside.clone().multiplyScalar(elbowVisualWidth * 1.42 * 1.02),
+    elbowBlendBoundary,
+  ),
+  'the feathered elbow round join should remain bounded by its authored outer radius',
 );
 
 const core = elbowPatch.children[1] as THREE.Mesh;
@@ -151,6 +154,55 @@ for (let index = 0; index < coreUvs.count; index++) {
 assert(
   maximumCoreU - minimumCoreU >= 1,
   'the opaque junction patch must preserve lateral UV distance instead of collapsing the texture to one column',
+);
+const [elbowTextureX, elbowTextureZ] = core.userData.junctionTextureDirection as [number, number];
+assert(
+  Math.max(Math.abs(elbowTextureX), Math.abs(elbowTextureZ)) > 0.999,
+  'a bend texture should follow one incident road instead of inventing a diagonal knot orientation',
+);
+assert(
+  typeof core.userData.junctionTextureEdgeId === 'string'
+    && core.userData.junctionTextureEdgeId.length > 0,
+  'junction diagnostics should expose the road that owns texture orientation',
+);
+const elbowTextureIncident = elbow.getIncidents(elbowNode).find(
+  ({ edge }) => edge.id === core.userData.junctionTextureEdgeId,
+);
+assert(elbowTextureIncident);
+const expectedElbowPhase = elbowTextureIncident.end === 'start'
+  ? 0
+  : elbowTextureIncident.edge.length / 5.8;
+assert(
+  Math.abs(core.userData.junctionTexturePhaseV - expectedElbowPhase) < 1e-9,
+  'the dominant road should carry its longitudinal texture phase through the junction center',
+);
+const elbowBlendPositions = blend.geometry.getAttribute('position');
+const elbowBlendUvs = blend.geometry.getAttribute('uv');
+const elbowEdgeFade = blend.geometry.getAttribute('edgeFade');
+assert.equal(
+  elbowEdgeFade.count,
+  elbowBlendPositions.count,
+  'the feather opacity field should cover every junction vertex',
+);
+let junctionFadeIsIndependent = false;
+for (let index = 0; index < elbowEdgeFade.count; index++) {
+  junctionFadeIsIndependent ||= Math.abs(elbowEdgeFade.getX(index) - elbowBlendUvs.getX(index)) > 0.1;
+}
+assert(
+  junctionFadeIsIndependent,
+  'junction feather opacity must not reuse radial values as dirt albedo UVs',
+);
+const elbowTexturePerp = new THREE.Vector2(-elbowTextureZ, elbowTextureX);
+const elbowLocal = new THREE.Vector2(
+  elbowBlendPositions.getX(1) - elbowNode.position.x,
+  elbowBlendPositions.getZ(1) - elbowNode.position.z,
+);
+assert(
+  Math.abs(
+    elbowBlendUvs.getX(1)
+      - (0.5 - elbowLocal.dot(elbowTexturePerp) / elbowVisualWidth)
+  ) < 1e-5,
+  'the feather dirt texture should use the same planar dominant-road frame as the core',
 );
 
 const rotatedCorner = new RoadNetwork();
@@ -193,6 +245,69 @@ for (const direction of rotatedCornerDirections) {
   }
 }
 
+for (const separationDegrees of [30, 60, 90, 120, 150]) {
+  const rotationDegrees = 17;
+  const directions = [rotationDegrees, rotationDegrees + separationDegrees].map((degrees) => {
+    const radians = THREE.MathUtils.degToRad(degrees);
+    return new THREE.Vector3(Math.cos(radians), 0, Math.sin(radians));
+  });
+  const network = new RoadNetwork();
+  for (const direction of directions) {
+    network.addRoadPath([point(0, 0), point(direction.x * 18, direction.z * 18)]);
+  }
+  const node = [...network.nodes.values()].find((candidate) => network.getNodeDegree(candidate) === 2);
+  assert(node);
+  const patch = new RoadJunctionBuilder(flatTerrain as never, materials as never)
+    .build(network)
+    .getObjectByName(`Road bend ${node.id}`) as THREE.Group | undefined;
+  assert(patch);
+  const outsideBisector = new THREE.Vector2(
+    -(directions[0].x + directions[1].x),
+    -(directions[0].z + directions[1].z),
+  ).normalize();
+  const coreBoundary = (patch.children[1] as THREE.Mesh).userData.junctionBoundary as [number, number][];
+  const blendBoundary = (patch.children[0] as THREE.Mesh).userData.junctionBoundary as [number, number][];
+  assert(
+    pointInsidePolygon(
+      outsideBisector.clone().multiplyScalar(maximumRoadHalfWidth * 0.98),
+      coreBoundary,
+    ),
+    `${separationDegrees} degree bend core must cover the outside arc between both mouths`,
+  );
+  assert(
+    pointInsidePolygon(
+      outsideBisector.clone().multiplyScalar(rotatedVisualWidth * 1.42 * 0.98),
+      blendBoundary,
+    ),
+    `${separationDegrees} degree bend feather must blend across the outside arc`,
+  );
+}
+
+for (const turnDegrees of [120, -120, 150, -150, 170, -170]) {
+  const radians = THREE.MathUtils.degToRad(turnDegrees);
+  const sharpTurn = new RoadNetwork();
+  sharpTurn.addRoadPath([
+    point(-15, 0),
+    point(0, 0),
+    point(Math.cos(radians) * 15, Math.sin(radians) * 15),
+  ]);
+  const edge = [...sharpTurn.edges.values()][0];
+  assert(edge);
+  const edgeGroup = new RoadMeshBuilder(flatTerrain as never, materials as never)
+    .buildEdge(edge, sharpTurn);
+  const sharpCore = edgeGroup.getObjectByName(`Road core ${edge.id}`) as THREE.Mesh | undefined;
+  const sharpBlend = edgeGroup.getObjectByName(`Road edge blend ${edge.id}`) as THREE.Mesh | undefined;
+  assert(sharpCore && sharpBlend);
+  assertTrianglesFaceUpXZ(sharpCore.geometry, `${turnDegrees} degree road core`);
+  assertTrianglesFaceUpXZ(sharpBlend.geometry, `${turnDegrees} degree road feather`);
+  const sharpCoreUvs = sharpCore.geometry.getAttribute('uv');
+  assert.deepEqual(
+    [sharpCoreUvs.getX(0), sharpCoreUvs.getX(1), sharpCoreUvs.getX(2)],
+    [0, 0.5, 1],
+    'the core should split through a texture-continuous center spine',
+  );
+}
+
 const terrainFollowingHeight = (x: number, z: number): number => (
   Math.sin(x * 0.37) * 0.8 + Math.cos(z * 0.43) * 0.65
 );
@@ -206,6 +321,13 @@ const terrainFollowingPatch = terrainFollowingPatches.getObjectByName(
   `Road ${splitNode.junctionType} ${splitNode.id}`,
 ) as THREE.Group | undefined;
 assert(terrainFollowingPatch, 'the three-way junction should receive terrain-following patch meshes');
+const terrainFollowingCore = terrainFollowingPatch.children[1] as THREE.Mesh;
+const [throughTextureX, throughTextureZ] = terrainFollowingCore.userData
+  .junctionTextureDirection as [number, number];
+assert(
+  Math.abs(throughTextureX) > 0.999 && Math.abs(throughTextureZ) < 0.001,
+  'the straight pair should dominate texture orientation through a T junction',
+);
 for (const mesh of terrainFollowingPatch.children as THREE.Mesh[]) {
   const maximumTriangleSpan = maximumTriangleSpanXZ(mesh.geometry);
   assert(
@@ -265,8 +387,8 @@ assert.equal(terminalEdgeGroup.userData.logicalWidth, terminalEdge.width);
 assert.equal(terminalEdgeGroup.userData.visualWidth, roadVisualWidth(terminalEdge.width));
 const placedCorePositions = terminalCore.geometry.getAttribute('position');
 const firstCoreWidth = Math.hypot(
-  placedCorePositions.getX(0) - placedCorePositions.getX(1),
-  placedCorePositions.getZ(0) - placedCorePositions.getZ(1),
+  placedCorePositions.getX(0) - placedCorePositions.getX(2),
+  placedCorePositions.getZ(0) - placedCorePositions.getZ(2),
 );
 const visualWidth = roadVisualWidth(terminalEdge.width);
 assert(
@@ -288,7 +410,7 @@ for (let index = 0; index < Math.min(placedBlendPositions.count, 12); index++) {
 }
 const terminalSampleCount = terminalEdge.sampledPath.length - 2;
 assert(
-  terminalCore.geometry.getAttribute('position').count > terminalSampleCount * 2,
+  terminalCore.geometry.getAttribute('position').count > terminalSampleCount * 3,
   'the opaque dead-end arcs should be compiled into the road core geometry',
 );
 assert(
@@ -300,9 +422,14 @@ const coreIndex = terminalCore.geometry.index;
 const blendIndex = terminalBlend.geometry.index;
 assert(coreIndex && blendIndex);
 const coreCapIndices = Array.from(
-  coreIndex.array.slice((terminalSampleCount - 1) * 6),
+  coreIndex.array.slice((terminalSampleCount - 1) * 12),
 );
-for (const seamVertex of [0, 1, terminalSampleCount * 2 - 2, terminalSampleCount * 2 - 1]) {
+for (const seamVertex of [
+  0,
+  2,
+  (terminalSampleCount - 1) * 3,
+  (terminalSampleCount - 1) * 3 + 2,
+]) {
   assert(
     coreCapIndices.includes(seamVertex),
     'each opaque cap diameter must reuse the corresponding terminal ribbon vertex',
@@ -332,7 +459,12 @@ for (const seamVertex of [
 }
 
 const terminalCoreUvs = terminalCore.geometry.getAttribute('uv');
-const coreRibbonVertexCount = terminalSampleCount * 2;
+const coreRibbonVertexCount = terminalSampleCount * 3;
+assert.deepEqual(
+  [terminalCoreUvs.getX(0), terminalCoreUvs.getX(1), terminalCoreUvs.getX(2)],
+  [0, 0.5, 1],
+  'the placed road core should preserve left, center, and right texture coordinates',
+);
 let hasStartCapTextureContinuation = false;
 let hasEndCapTextureContinuation = false;
 const renderedTerminalLength = terminalPath[terminalPath.length - 1].x - terminalPath[0].x;
@@ -349,9 +481,20 @@ assert.deepEqual(
   [0, 0.42, 1, 1, 0.42, 0],
   'the terminal shoulder cross-section must retain its lateral feather instead of collapsing to zero',
 );
+const terminalEdgeFade = terminalBlend.geometry.getAttribute('edgeFade');
+assert.deepEqual(
+  Array.from({ length: 6 }, (_, index) => Number(terminalEdgeFade.getX(index).toFixed(2))),
+  [0, 0.42, 1, 1, 0.42, 0],
+  'the terminal shoulder should carry an opacity coordinate independent from its dirt UVs',
+);
+assert.equal(
+  terminalEdgeFade.count,
+  terminalBlend.geometry.getAttribute('position').count,
+  'integrated shoulder caps must extend the opacity attribute to every vertex',
+);
 let outerCapVertices = 0;
-for (let index = terminalSampleCount * 6; index < blendUvs.count; index++) {
-  if (blendUvs.getX(index) === 0) outerCapVertices += 1;
+for (let index = terminalSampleCount * 6; index < terminalEdgeFade.count; index++) {
+  if (terminalEdgeFade.getX(index) === 0) outerCapVertices += 1;
 }
 assert(outerCapVertices > 0, 'the integrated terminal feather must still reach true zero opacity');
 
@@ -587,4 +730,26 @@ function pointInsidePolygon(
     }
   }
   return inside;
+}
+
+function assertTrianglesFaceUpXZ(
+  geometry: THREE.BufferGeometry,
+  label: string,
+): void {
+  const positions = geometry.getAttribute('position');
+  const index = geometry.index;
+  assert(index, `${label} should remain indexed`);
+  for (let offset = 0; offset < index.count; offset += 3) {
+    const a = index.getX(offset);
+    const b = index.getX(offset + 1);
+    const c = index.getX(offset + 2);
+    const areaY = (positions.getZ(b) - positions.getZ(a))
+        * (positions.getX(c) - positions.getX(a))
+      - (positions.getX(b) - positions.getX(a))
+        * (positions.getZ(c) - positions.getZ(a));
+    assert(
+      areaY > 1e-7,
+      `${label} triangle ${offset / 3} must face upward without a folded corner cutout (${areaY})`,
+    );
+  }
 }

@@ -67,6 +67,7 @@ export class RoadJunctionBuilder {
       incidents.map(({ edge, end }) => inwardDirectionAtEdgeEnd(edge, end)),
     );
     if (directions.length === 0) return null;
+    const textureFrame = junctionTextureFrame(incidents);
     const bridgeSurface = this.bridgeSurfaceAtNode(incidents);
     if (bridgeSurface) {
       const surfaceY = bridgeSurface.y + BRIDGE_JUNCTION_LIFT;
@@ -76,6 +77,7 @@ export class RoadJunctionBuilder {
         width,
         surfaceY,
         bridgeSurface.blend,
+        textureFrame,
       );
       core.name = `Bridge junction deck ${node.id}`;
       core.userData.nodeId = node.id;
@@ -111,8 +113,22 @@ export class RoadJunctionBuilder {
 
     const radius = width * (incidents.length === 2 ? 0.78 : 1.08);
     const blendRadius = radius + width * 0.58;
-    const core = this.buildJunctionPatchMesh(node.position, directions, radius, width, false);
-    const blend = this.buildJunctionPatchMesh(node.position, directions, blendRadius, width, true);
+    const core = this.buildJunctionPatchMesh(
+      node.position,
+      directions,
+      radius,
+      width,
+      false,
+      textureFrame,
+    );
+    const blend = this.buildJunctionPatchMesh(
+      node.position,
+      directions,
+      blendRadius,
+      width,
+      true,
+      textureFrame,
+    );
     blend.castShadow = false;
     blend.receiveShadow = true;
     core.castShadow = false;
@@ -150,6 +166,7 @@ export class RoadJunctionBuilder {
     indices: number[],
     material: THREE.Material,
     bridgeBlend = 0,
+    edgeFades?: number[],
   ): THREE.Mesh {
     const geometry = new THREE.BufferGeometry();
     geometry.setIndex(indices);
@@ -161,6 +178,9 @@ export class RoadJunctionBuilder {
       'bridgeBlend',
       new THREE.BufferAttribute(new Float32Array(vertexCount).fill(bridgeBlend), 1),
     );
+    if (edgeFades) {
+      geometry.setAttribute('edgeFade', new THREE.Float32BufferAttribute(edgeFades, 1));
+    }
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     return new THREE.Mesh(geometry, material);
@@ -172,17 +192,20 @@ export class RoadJunctionBuilder {
     radius: number,
     width: number,
     blend: boolean,
+    textureFrame: JunctionTextureFrame,
   ): THREE.Mesh {
     const ring = this.junctionRing(directions, radius, width, blend);
     const positions: number[] = [];
     const uvs: number[] = [];
+    const edgeFades: number[] = [];
     const indices: number[] = [];
     const yOffset = blend
       ? ROAD_VISUAL_SHOULDER_Y_OFFSET
       : ROAD_VISUAL_CORE_Y_OFFSET;
     const centerY = this.terrain.getHeightAt(center.x, center.z) + yOffset;
     positions.push(center.x, centerY, center.z);
-    uvs.push(blend ? 1 : 0.5, 0.5);
+    uvs.push(0.5, textureFrame.phaseV);
+    if (blend) edgeFades.push(1);
 
     const radialRingCount = Math.max(
       1,
@@ -199,11 +222,14 @@ export class RoadJunctionBuilder {
         const x = center.x + localX;
         const z = center.z + localZ;
         positions.push(x, this.terrain.getHeightAt(x, z) + yOffset, z);
-        const lateralU = 0.5 + localZ / Math.max(1, width);
+        const along = localX * textureFrame.direction.x + localZ * textureFrame.direction.z;
+        const lateral = localX * textureFrame.perpendicular.x
+          + localZ * textureFrame.perpendicular.z;
         uvs.push(
-          blend ? 1 - radialFraction : lateralU,
-          0.5 + localX / Math.max(1, radius * 2.4),
+          0.5 - lateral / Math.max(1, width),
+          textureFrame.phaseV + along / 5.8,
         );
+        if (blend) edgeFades.push(1 - radialFraction);
       }
     }
 
@@ -236,10 +262,18 @@ export class RoadJunctionBuilder {
       uvs,
       indices,
       blend ? this.materials.roadEdge : this.materials.road,
+      0,
+      blend ? edgeFades : undefined,
     );
     mesh.userData.junctionBoundary = ring.map((point) => [point.x, point.y]);
     mesh.userData.junctionRadialRingCount = radialRingCount;
     mesh.userData.junctionBlend = blend;
+    mesh.userData.junctionTextureDirection = [
+      textureFrame.direction.x,
+      textureFrame.direction.z,
+    ];
+    mesh.userData.junctionTexturePhaseV = textureFrame.phaseV;
+    mesh.userData.junctionTextureEdgeId = textureFrame.edgeId;
     return mesh;
   }
 
@@ -249,6 +283,7 @@ export class RoadJunctionBuilder {
     width: number,
     surfaceY: number,
     bridgeBlend: number,
+    textureFrame: JunctionTextureFrame,
   ): THREE.Mesh {
     const halfWidth = width * 0.5;
     const reach = width * ROAD_JUNCTION_REACH;
@@ -258,30 +293,36 @@ export class RoadJunctionBuilder {
       reach,
       BRIDGE_JUNCTION_SEGMENTS,
     );
-    const textureDirection = junctionTextureDirection(directions);
-    const texturePerp = roadPerpendicular(textureDirection);
     const positions: number[] = [center.x, surfaceY, center.z];
-    const uvs: number[] = [0.5, 0.5];
+    const uvs: number[] = [0.5, textureFrame.phaseV];
     const indices: number[] = [];
 
     for (const local of contour) {
-      const along = local.x * textureDirection.x + local.y * textureDirection.z;
-      const lateral = local.x * texturePerp.x + local.y * texturePerp.z;
+      const along = local.x * textureFrame.direction.x + local.y * textureFrame.direction.z;
+      const lateral = local.x * textureFrame.perpendicular.x
+        + local.y * textureFrame.perpendicular.z;
       positions.push(center.x + local.x, surfaceY, center.z + local.y);
-      uvs.push(0.5 + lateral / width, 0.5 + along / 5.8);
+      uvs.push(0.5 - lateral / width, textureFrame.phaseV + along / 5.8);
     }
     for (let index = 0; index < contour.length; index++) {
       const current = index + 1;
       const next = (index + 1) % contour.length + 1;
       indices.push(0, next, current);
     }
-    return this.createCapMesh(
+    const mesh = this.createCapMesh(
       positions,
       uvs,
       indices,
       this.materials.road,
       bridgeBlend,
     );
+    mesh.userData.junctionTextureDirection = [
+      textureFrame.direction.x,
+      textureFrame.direction.z,
+    ];
+    mesh.userData.junctionTexturePhaseV = textureFrame.phaseV;
+    mesh.userData.junctionTextureEdgeId = textureFrame.edgeId;
+    return mesh;
   }
 
   private bridgeJunctionRailingPaths(
@@ -337,7 +378,11 @@ export class RoadJunctionBuilder {
     const halfWidth = blend
       ? width * 1.42
       : roadCoreMaximumHalfWidth(width) + width * DRY_JUNCTION_COVERAGE_MARGIN_RATIO;
-    const hubRadius = width * (blend ? 0.58 : 0.5);
+    // A round stroke join must be at least as wide as the incident strip.
+    // Using a smaller fallback radius makes the contour snap inward as soon
+    // as a polar ray passes behind an arm, exposing a triangular terrain bite
+    // on the outside of obtuse bends.
+    const hubRadius = halfWidth;
     return stripUnionContour(directions, hubRadius, halfWidth, radius, sampleCount);
   }
 }
@@ -345,6 +390,13 @@ export class RoadJunctionBuilder {
 type JunctionBridgeSurface = {
   blend: number;
   y: number;
+};
+
+type JunctionTextureFrame = {
+  direction: THREE.Vector3;
+  perpendicular: THREE.Vector3;
+  phaseV: number;
+  edgeId: string;
 };
 
 function isBridgeMouthSegment(
@@ -453,13 +505,65 @@ function uniqueDirections(directions: THREE.Vector3[]): THREE.Vector3[] {
   return unique;
 }
 
-function junctionTextureDirection(directions: THREE.Vector3[]): THREE.Vector3 {
-  const sum = directions.reduce(
-    (result, direction) => result.add(direction),
-    new THREE.Vector3(),
-  );
-  if (sum.lengthSq() > 0.05) return sum.setY(0).normalize();
-  return directions[0]?.clone().setY(0).normalize() ?? new THREE.Vector3(1, 0, 0);
+function junctionTextureFrame(incidents: readonly RoadIncident[]): JunctionTextureFrame {
+  const candidates = incidents.map((incident) => ({
+    ...incident,
+    outward: inwardDirectionAtEdgeEnd(incident.edge, incident.end),
+  })).filter(({ outward }) => outward.lengthSq() > 1e-6);
+
+  let dominant = candidates[0];
+  let dominantSupport = -Infinity;
+  for (const candidate of candidates) {
+    // Axial support makes the through-road win at a T junction. Length then
+    // chooses one actual arm at ordinary bends instead of inventing a bisector
+    // orientation that stamps a conspicuous texture knot into the hub.
+    const support = candidates.reduce(
+      (sum, other) => sum + Math.abs(candidate.outward.dot(other.outward)),
+      0,
+    );
+    const candidateLength = Number.isFinite(candidate.edge.length) ? candidate.edge.length : 0;
+    const dominantLength = dominant && Number.isFinite(dominant.edge.length)
+      ? dominant.edge.length
+      : 0;
+    const candidateKey = `${candidate.edge.id}:${candidate.end}`;
+    const dominantKey = dominant ? `${dominant.edge.id}:${dominant.end}` : '';
+    if (
+      support > dominantSupport + 1e-6
+      || (
+        Math.abs(support - dominantSupport) <= 1e-6
+        && (
+          candidateLength > dominantLength + 1e-6
+          || (
+            Math.abs(candidateLength - dominantLength) <= 1e-6
+            && candidateKey < dominantKey
+          )
+        )
+      )
+    ) {
+      dominant = candidate;
+      dominantSupport = support;
+    }
+  }
+
+  if (!dominant) {
+    const direction = new THREE.Vector3(1, 0, 0);
+    return {
+      direction,
+      perpendicular: roadPerpendicular(direction),
+      phaseV: 0,
+      edgeId: '',
+    };
+  }
+
+  const direction = dominant.outward.clone();
+  if (dominant.end === 'end') direction.multiplyScalar(-1);
+  direction.setY(0).normalize();
+  return {
+    direction,
+    perpendicular: roadPerpendicular(direction),
+    phaseV: dominant.end === 'start' ? 0 : dominant.edge.length / 5.8,
+    edgeId: dominant.edge.id,
+  };
 }
 
 function averageWidth(edges: RoadEdge[]): number {

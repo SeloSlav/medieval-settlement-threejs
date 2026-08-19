@@ -6,6 +6,7 @@ import {
   GRASS_BLADE_VISIBILITY_ENTER_OPACITY,
   GRASS_BLADE_VISIBILITY_EXIT_OPACITY,
   grassMicroTuftTargetForForestBlend,
+  grassPlacementChanceForForestBlend,
   grassTuftTargetForForestBlend,
 } from '../src/grass/grassLodMath.ts';
 import {
@@ -55,12 +56,12 @@ assert.equal(
 );
 assert.equal(
   grassTuftTargetForForestBlend(192, 0.5),
-  120,
+  102,
   'forest-edge terrain should transition smoothly toward the reduced budget',
 );
 assert.equal(
   grassTuftTargetForForestBlend(192, 1),
-  48,
+  12,
   'fully forested terrain should keep only isolated primary grass tufts',
 );
 assert.equal(
@@ -69,10 +70,12 @@ assert.equal(
   'meadow terrain should retain its micro-tuft gap filling',
 );
 assert.equal(
-  grassMicroTuftTargetForForestBlend(48, 1),
+  grassMicroTuftTargetForForestBlend(12, 1),
   0,
   'fully forested terrain should not receive meadow-style micro-tuft underfill',
 );
+assert.equal(grassPlacementChanceForForestBlend(0), 1);
+assert.ok(Math.abs(grassPlacementChanceForForestBlend(1) - 0.08) < 1e-12);
 
 assert.match(
   grassSource,
@@ -181,8 +184,8 @@ assert.match(
 );
 assert.match(
   fieldSource,
-  /const microTarget = grassMicroTuftTargetForForestBlend\([\s\S]*?chunkForestBlend,[\s\S]*?const habitatChance = THREE\.MathUtils\.lerp\(0\.86, 0\.12, density\)/,
-  'forest groundcover should remove meadow gap-fillers and suppress wildflowers under canopy',
+  /grassPlacementChanceForForestBlend\(density\)[\s\S]*?const microTarget = grassMicroTuftTargetForForestBlend\([\s\S]*?chunkForestBlend,[\s\S]*?const habitatChance = THREE\.MathUtils\.lerp\(0\.86, 0\.02, density\)/,
+  'forest groundcover should reject litter placements, remove meadow gap-fillers, and strongly suppress wildflowers under canopy',
 );
 assert.doesNotMatch(
   fieldSource,

@@ -393,6 +393,11 @@ export class RoadMeshBuilder {
 
     geometry.getAttribute('position').needsUpdate = true;
     geometry.getAttribute('uv').needsUpdate = true;
+    const index = geometry.index;
+    if (index) {
+      orientTrianglesUpwardXZ(index.array, positions);
+      index.needsUpdate = true;
+    }
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
     mesh.material = material;
@@ -548,17 +553,45 @@ export class RoadMeshBuilder {
     const indices: number[] = [];
     const distances = cumulativeDistances(path);
 
+    // Keep a centerline vertex in every station. When a turn radius becomes
+    // tighter than the road half-width, only the inner half-ribbon can fold;
+    // the opposite half retains stable UVs and coverage instead of sharing a
+    // single bow-tie quad across the full road.
     for (let i = 0; i < crossSections.length; i++) {
       const { leftCore, rightCore } = crossSections[i];
-      positions.push(leftCore.x, leftCore.y, leftCore.z, rightCore.x, rightCore.y, rightCore.z);
-      uvs.push(0, distances[i] / 5.8, 1, distances[i] / 5.8);
       const blend = bridgeBlends[i] ?? crossSections[i].bridgeBlend;
-      bridgeAttrs.push(blend, blend);
+      const center = path[i];
+      const centerY = this.terminalSurfaceY(
+        center.x,
+        center.z,
+        center.y,
+        blend,
+        ROAD_VISUAL_CORE_Y_OFFSET,
+      );
+      positions.push(
+        leftCore.x,
+        leftCore.y,
+        leftCore.z,
+        center.x,
+        centerY,
+        center.z,
+        rightCore.x,
+        rightCore.y,
+        rightCore.z,
+      );
+      const v = distances[i] / 5.8;
+      uvs.push(0, v, 0.5, v, 1, v);
+      bridgeAttrs.push(blend, blend, blend);
     }
 
     for (let i = 0; i < path.length - 1; i++) {
-      const a = i * 2;
-      indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      const a = i * 3;
+      indices.push(
+        a, a + 3, a + 1,
+        a + 1, a + 3, a + 4,
+        a + 1, a + 4, a + 2,
+        a + 2, a + 4, a + 5,
+      );
     }
 
     if (endpointCaps.start) {
@@ -587,6 +620,8 @@ export class RoadMeshBuilder {
         indices,
       );
     }
+
+    orientTrianglesUpwardXZ(indices, positions);
 
     const geometry = new THREE.BufferGeometry();
     geometry.setIndex(indices);
@@ -635,6 +670,8 @@ export class RoadMeshBuilder {
       indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
     }
 
+    orientTrianglesUpwardXZ(indices, positions);
+
     const geometry = new THREE.BufferGeometry();
     geometry.setIndex(indices);
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -654,6 +691,7 @@ export class RoadMeshBuilder {
   ): THREE.Mesh {
     const positions: number[] = [];
     const uvs: number[] = [];
+    const edgeFades: number[] = [];
     const bridgeAttrs: number[] = [];
     const indices: number[] = [];
     const distances = cumulativeDistances(path);
@@ -674,6 +712,7 @@ export class RoadMeshBuilder {
       this.pushBlendVertex(positions, rightCore, normal, -(shoulderOuter + rightOuterJitter), bridgeBlend);
       const v = distances[i] / 5.8;
       uvs.push(0, v, 0.42, v, 1, v, 1, v, 0.42, v, 0, v);
+      edgeFades.push(0, 0.42, 1, 1, 0.42, 0);
       for (let j = 0; j < 6; j++) bridgeAttrs.push(bridgeBlend);
     }
 
@@ -693,6 +732,7 @@ export class RoadMeshBuilder {
         'start',
         positions,
         uvs,
+        edgeFades,
         bridgeAttrs,
         indices,
       );
@@ -705,16 +745,20 @@ export class RoadMeshBuilder {
         'end',
         positions,
         uvs,
+        edgeFades,
         bridgeAttrs,
         indices,
       );
     }
+
+    orientTrianglesUpwardXZ(indices, positions);
 
     const geometry = new THREE.BufferGeometry();
     geometry.setIndex(indices);
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('edgeFade', new THREE.Float32BufferAttribute(edgeFades, 1));
     geometry.setAttribute('bridgeBlend', new THREE.Float32BufferAttribute(bridgeAttrs, 1));
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
@@ -740,8 +784,8 @@ export class RoadMeshBuilder {
     const sectionIndex = end === 'start' ? 0 : crossSections.length - 1;
     const section = crossSections[sectionIndex];
     const frame = terminalFrame(path, sectionIndex, end);
-    const leftIndex = sectionIndex * 2;
-    const rightIndex = leftIndex + 1;
+    const leftIndex = sectionIndex * 3;
+    const rightIndex = leftIndex + 2;
     const sides = terminalSideIndices(
       frame.center,
       frame.perp,
@@ -821,6 +865,7 @@ export class RoadMeshBuilder {
     end: 'start' | 'end',
     positions: number[],
     uvs: number[],
+    edgeFades: number[],
     bridgeAttrs: number[],
     indices: number[],
   ): void {
@@ -878,6 +923,7 @@ export class RoadMeshBuilder {
           fadeU,
           terminalV + (end === 'start' ? -1 : 1) * outwardDistance / 5.8,
         );
+        edgeFades.push(fadeU);
         bridgeAttrs.push(section.bridgeBlend);
         ring.push(vertexIndex);
       }
@@ -934,6 +980,27 @@ export class RoadMeshBuilder {
 
 function tangentAt(path: THREE.Vector3[], index: number): THREE.Vector3 {
   return tangentAtInto(path, index, new THREE.Vector3());
+}
+
+/**
+ * Keep terrain-conforming road fabric front-facing even when a parallel
+ * offset locally folds inside a turn tighter than its half-width.
+ */
+function orientTrianglesUpwardXZ(
+  indices: { readonly length: number; [index: number]: number },
+  positions: ArrayLike<number>,
+): void {
+  for (let offset = 0; offset < indices.length; offset += 3) {
+    const a = indices[offset] * 3;
+    const b = indices[offset + 1] * 3;
+    const c = indices[offset + 2] * 3;
+    const areaY = (positions[b + 2] - positions[a + 2]) * (positions[c] - positions[a])
+      - (positions[b] - positions[a]) * (positions[c + 2] - positions[a + 2]);
+    if (areaY >= 0) continue;
+    const swap = indices[offset + 1];
+    indices[offset + 1] = indices[offset + 2];
+    indices[offset + 2] = swap;
+  }
 }
 
 function tangentAtInto(path: THREE.Vector3[], index: number, target: THREE.Vector3): THREE.Vector3 {

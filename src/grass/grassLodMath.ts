@@ -70,8 +70,11 @@ export const GRASS_BLADE_CHUNK_SIZE = 8;
  */
 export const GRASS_TUFTS_PER_CHUNK = 192;
 
-/** Dense woodland keeps isolated tufts without recreating a meadow carpet. */
-export const FOREST_GRASS_RENDER_DENSITY_MULTIPLIER = 0.25;
+/** Dense woodland keeps a few isolated tufts without recreating a meadow carpet. */
+export const FOREST_GRASS_RENDER_DENSITY_MULTIPLIER = 0.06;
+
+/** Local rejection keeps edge-chunk tufts on grass instead of leaf litter. */
+export const FOREST_GRASS_PLACEMENT_CHANCE = 0.08;
 
 export function grassTuftTargetForForestBlend(
   baseTarget: number,
@@ -90,6 +93,12 @@ export function grassMicroTuftTargetForForestBlend(
 ): number {
   const blend = Math.max(0, Math.min(1, forestBlend));
   return Math.floor(tuftTarget * 0.7 * (1 - blend));
+}
+
+export function grassPlacementChanceForForestBlend(forestBlend: number): number {
+  const blend = Math.max(0, Math.min(1, forestBlend));
+  const shelter = smoothstep(0.08, 0.82, blend);
+  return 1 + (FOREST_GRASS_PLACEMENT_CHANCE - 1) * shelter;
 }
 
 /** Extra scatter attempts budget per chunk. */

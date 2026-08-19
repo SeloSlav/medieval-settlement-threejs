@@ -154,14 +154,16 @@ function buildMuddyBankColorNode(textures: TextureSet): TslNode {
 }
 
 function buildBankOpacityNode(_textures: TextureSet): TslNode {
-  const uvNode = uv() as TslNode;
+  const edgeFade = attribute('edgeFade', 'float') as TslNode;
   // The old striped edge-mask texture turned into a dotted one-pixel contour
   // when the shoulder was minified. An analytic feather has a true-zero outer
-  // band and stays continuous at every camera scale.
+  // band and stays continuous at every camera scale. Keep this mask separate
+  // from the albedo UVs so junction dirt can follow one road orientation
+  // instead of forming a radial texture knot.
   return (smoothstep(
     float(0.08) as TslNode,
     float(0.82) as TslNode,
-    uvNode.x,
+    edgeFade,
   ) as TslNode).mul(float(0.94) as TslNode) as TslNode;
 }
 
