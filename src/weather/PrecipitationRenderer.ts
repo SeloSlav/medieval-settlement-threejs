@@ -22,6 +22,8 @@ const BASE_VOLUME_RADIUS = 92;
 const OVERVIEW_MIN_VOLUME_RADIUS = 60;
 const OVERVIEW_VOLUME_RADIUS_SCALE = 0.78;
 const OVERVIEW_MAX_VOLUME_RADIUS = 185;
+/** Hard particle cutoff after the existing overview fade reaches its minimum. */
+export const PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE = 260;
 const RAIN_BASE_PARTICLES = 1_800;
 const SNOW_BASE_PARTICLES = 1_400;
 const RAIN_NEAR_EXCLUSION_FRACTION = 0.3;
@@ -82,6 +84,13 @@ export class PrecipitationRenderer {
     const blend = 1 - Math.exp(-frameDt * 1.8);
     this.rainAmount += (targetRain - this.rainAmount) * blend;
     this.snowAmount += (targetSnow - this.snowAmount) * blend;
+
+    const renderParticles = isPrecipitationParticleRenderingEnabled(
+      cameraDistance,
+      firstPersonActive,
+    );
+    this.group.visible = renderParticles;
+    if (!renderParticles) return;
 
     const radius = firstPersonActive
       ? 34
@@ -220,6 +229,14 @@ export class PrecipitationRenderer {
     for (const layer of this.rainLayers) layer.mesh.visible = this.rainAmount > 0.008;
     for (const layer of this.snowLayers) layer.mesh.visible = this.snowAmount > 0.008;
   }
+}
+
+export function isPrecipitationParticleRenderingEnabled(
+  cameraDistance: number,
+  firstPersonActive: boolean,
+): boolean {
+  return firstPersonActive
+    || cameraDistance <= PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE;
 }
 
 function createParticleGeometry(

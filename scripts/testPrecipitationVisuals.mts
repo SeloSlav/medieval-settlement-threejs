@@ -13,6 +13,10 @@ import {
   standalonePrecipitationPreview,
 } from '../src/weather/precipitationPolicy.ts';
 import {
+  PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE,
+  isPrecipitationParticleRenderingEnabled,
+} from '../src/weather/PrecipitationRenderer.ts';
+import {
   applyVisualQaClock,
   applyVisualQaEnvironment,
   parseVisualQaConditions,
@@ -52,6 +56,30 @@ const fair = precipitationProfile(environment('fair'));
 const rain = precipitationProfile(environment('rain'));
 const snow = precipitationProfile(environment('frost'));
 const drought = precipitationProfile(environment('drought'));
+
+assert.equal(
+  isPrecipitationParticleRenderingEnabled(
+    PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE,
+    false,
+  ),
+  true,
+);
+assert.equal(
+  isPrecipitationParticleRenderingEnabled(
+    PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE + 0.01,
+    false,
+  ),
+  false,
+  'rain and snow particles must be hard-culled beyond the overview cutoff',
+);
+assert.equal(
+  isPrecipitationParticleRenderingEnabled(
+    PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE + 0.01,
+    true,
+  ),
+  true,
+  'first-person precipitation must ignore the orbit-view cutoff',
+);
 
 assert.equal(fair.kind, 'none');
 assert.equal(fair.intensity, 0);
@@ -238,6 +266,9 @@ assert.match(rendererSource, /const SNOW_NEAR_EXCLUSION_FRACTION = 0\.18/);
 assert.match(rendererSource, /const OVERVIEW_MIN_VOLUME_RADIUS = 60/);
 assert.match(rendererSource, /const OVERVIEW_VOLUME_RADIUS_SCALE = 0\.78/);
 assert.match(rendererSource, /const OVERVIEW_MAX_VOLUME_RADIUS = 185/);
+assert.match(rendererSource, /PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE = 260/);
+assert.match(rendererSource, /this\.group\.visible = renderParticles/);
+assert.match(rendererSource, /if \(!renderParticles\) return/);
 assert.match(rendererSource, /const halfHeight = 0\.42/);
 assert.match(rendererSource, /const halfWidth = 0\.06/);
 assert.match(rendererSource, /alphaTest:\s*kind === 'rain' \? 0\.012 : 0\.035/);
