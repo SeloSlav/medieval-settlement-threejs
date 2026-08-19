@@ -29,7 +29,11 @@ for (const seed of seeds) {
   assert.ok(size.y > size.x * 0.84, 'tier-one silhouette should read tall and steep, not squat');
 
   assertNamedPart(residence, 'Residence limestone plinth');
-  assertNamedPart(residence, 'Residence limestone plinth cap');
+  assert.equal(
+    residence.getObjectByName('Residence limestone plinth cap'),
+    undefined,
+    'completed residences must not retain a full-footprint plinth-cap pad',
+  );
   assertNamedPart(residence, 'Residence hand-hewn timber wall core');
   assertNamedPart(residence, 'Residence limewashed plaster infill shell');
   assertNamedPart(residence, 'Residence hand-hewn wall courses and notched corners');

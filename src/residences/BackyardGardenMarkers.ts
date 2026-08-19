@@ -204,6 +204,7 @@ export class BackyardGardenMarkers {
             hashStringSeed(residence.id),
           );
         }
+        marker.userData.backyardAnimalFallbacks = collectAnimalFallbacks(marker);
       }
 
       const y = input.getHeightAt(placement.x, placement.z);
@@ -227,6 +228,9 @@ export class BackyardGardenMarkers {
     this.animationElapsedSeconds += dt;
     for (const marker of this.meshes.values()) {
       animateBackyardGardenMesh(marker, this.animationElapsedSeconds);
+      const visible = isWithinCrowdView(marker.position.x, marker.position.z, view);
+      const fallbacks = marker.userData.backyardAnimalFallbacks as THREE.Object3D[] | undefined;
+      for (const fallback of fallbacks ?? []) fallback.visible = visible;
     }
     for (const [residenceId, visuals] of this.chickens) {
       const marker = this.meshes.get(residenceId);
@@ -420,6 +424,16 @@ export class BackyardGardenMarkers {
     this.goatSource = null;
     this.root.removeFromParent();
   }
+}
+
+function collectAnimalFallbacks(marker: THREE.Object3D): THREE.Object3D[] {
+  const fallbacks: THREE.Object3D[] = [];
+  marker.traverse((object) => {
+    if (object.name === 'HenFallback' || object.name === 'GoatFallback') {
+      fallbacks.push(object);
+    }
+  });
+  return fallbacks;
 }
 
 function sampleChickenPoint(width: number, depth: number, random: () => number): { x: number; z: number } {

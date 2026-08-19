@@ -15,6 +15,12 @@ export const CROWD_SIM_DT = 1 / CROWD_SIM_HZ;
 export const AGENT_SHADOW_DISTANCE = 80;
 export const AGENT_WORK_ANIMATION_DISTANCE = 64;
 export const FRUSTUM_SIM_MARGIN = 40;
+/**
+ * Hard strategic-view cutoff for people and animals. At the default 240 m RTS
+ * orbit they are sub-pixel details, so keeping their rigs and instances out of
+ * the render entirely is both cleaner and substantially cheaper.
+ */
+export const AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE = 210;
 
 export function buildCrowdViewState(
   centerX: number,
@@ -47,9 +53,17 @@ export function isWithinCrowdView(
   view: CrowdViewState | undefined,
 ): boolean {
   if (!view) return true;
+  if (!isAgentAnimalRenderingEnabled(view)) return false;
   const dx = x - view.centerX;
   const dz = z - view.centerZ;
   return dx * dx + dz * dz <= view.viewRadius * view.viewRadius;
+}
+
+export function isAgentAnimalRenderingEnabled(
+  view: CrowdViewState | undefined,
+): boolean {
+  return view?.orbitDistance === undefined
+    || view.orbitDistance <= AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE;
 }
 
 export function isWithinShadowRange(

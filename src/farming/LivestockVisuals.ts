@@ -3,7 +3,11 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { LivestockHerdState, LivestockSpecies, PastureState } from '../resources/types.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
-import { isWithinCrowdView, isWithinShadowRange } from '../settlement/crowdView.ts';
+import {
+  isAgentAnimalRenderingEnabled,
+  isWithinCrowdView,
+  isWithinShadowRange,
+} from '../settlement/crowdView.ts';
 import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 
 type MotionMode = 'idle' | 'graze' | 'walk';
@@ -102,6 +106,13 @@ export class LivestockVisuals {
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
     let shadowCastersChanged = this.shadowCastersChanged;
     this.shadowCastersChanged = false;
+    const renderEnabled = isAgentAnimalRenderingEnabled(view);
+    if (this.root.visible !== renderEnabled) {
+      this.root.visible = renderEnabled;
+      shadowCastersChanged = true;
+    }
+    if (!renderEnabled) return shadowCastersChanged;
+
     for (const animal of this.animals) {
       const visible = isWithinCrowdView(animal.x, animal.z, view);
       if (animal.root.visible !== visible && animal.castShadow !== false) {

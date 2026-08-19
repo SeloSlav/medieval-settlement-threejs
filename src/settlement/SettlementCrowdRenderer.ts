@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
+  isAgentAnimalRenderingEnabled,
   isWithinCrowdView,
   isWithinShadowRange,
   isWithinWorkAnimationRange,
@@ -224,6 +225,12 @@ export class SettlementCrowdRenderer {
     }
     this.lastView = view;
     const dt = Math.min(0.08, Math.max(0, dtSeconds));
+    const renderEnabled = isAgentAnimalRenderingEnabled(view);
+    if (this.group.visible !== renderEnabled) {
+      this.group.visible = renderEnabled;
+      this.shadowCastersChanged = true;
+    }
+    if (!renderEnabled) return;
 
     const visibleAgents = this.visibleAgents;
     visibleAgents.length = 0;

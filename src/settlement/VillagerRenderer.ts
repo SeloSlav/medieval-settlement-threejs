@@ -65,6 +65,7 @@ import {
 } from '../audio/CombatAudio.ts';
 import {
   CROWD_SIM_DT,
+  isAgentAnimalRenderingEnabled,
   isWithinCrowdView,
   type CrowdViewState,
 } from './crowdView.ts';
@@ -1309,6 +1310,7 @@ export class VillagerRenderer {
     camera: THREE.Camera,
     domElement: HTMLElement,
   ): VillagerInspection | null {
+    if (!isAgentAnimalRenderingEnabled(this.lastView)) return null;
     const bounds = domElement.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return null;
 

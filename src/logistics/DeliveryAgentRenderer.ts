@@ -39,7 +39,11 @@ import {
   DELIVERY_ROAD_SPEED_MULTIPLIER,
   surfaceAdjustedTravelSpeed,
 } from '../roads/roadTravel.ts';
-import { isWithinShadowRange, type CrowdViewState } from '../settlement/crowdView.ts';
+import {
+  isAgentAnimalRenderingEnabled,
+  isWithinShadowRange,
+  type CrowdViewState,
+} from '../settlement/crowdView.ts';
 import { hashStringSeed } from '../utils/random.ts';
 import {
   pickVillagerModelVariant,
@@ -186,6 +190,13 @@ export class DeliveryAgentRenderer {
   update(dt: number, view?: CrowdViewState): boolean {
     let shadowCastersChanged = this.shadowCastersChanged;
     this.shadowCastersChanged = false;
+    const renderEnabled = isAgentAnimalRenderingEnabled(view);
+    if (this.group.visible !== renderEnabled) {
+      this.group.visible = renderEnabled;
+      shadowCastersChanged = true;
+    }
+    if (!renderEnabled) return shadowCastersChanged;
+
     const gameSpeed = this.getGameSpeed();
     for (const [tripId, visual] of this.visuals) {
       const currentSample = visual.polyline.length >= 2
@@ -287,6 +298,7 @@ export class DeliveryAgentRenderer {
     camera: THREE.Camera,
     domElement: HTMLElement,
   ): DeliveryAgentInspection | null {
+    if (!this.group.visible) return null;
     const bounds = domElement.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) return null;
 
@@ -484,7 +496,7 @@ export class DeliveryAgentRenderer {
         y: visual.mesh.position.y,
         z: visual.mesh.position.z,
       },
-      visible: visual.mesh.visible,
+      visible: this.group.visible && visual.mesh.visible,
     };
   }
 

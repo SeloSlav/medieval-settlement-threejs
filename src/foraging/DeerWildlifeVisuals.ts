@@ -11,6 +11,7 @@ import {
 } from './foragingYields.ts';
 import type { ForagingNodeState } from '../resources/types.ts';
 import { TREE_SHADOW_CAST_LAYER } from '../scene/SceneLayers.ts';
+import { AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE } from '../settlement/crowdView.ts';
 import {
   chooseInitialDeerMode,
   chooseRestDuration,
@@ -93,7 +94,6 @@ const DOE_MODEL_URL = '/assets/models/deer/quaternius-deer.glb';
 const STAG_MODEL_URL = '/assets/models/deer/quaternius-stag.glb';
 const DOE_TARGET_HEIGHT = 1.7;
 const STAG_TARGET_HEIGHT = 2;
-const CLOSE_WORLD_MAX_CAMERA_DISTANCE = 210;
 const TAU = Math.PI * 2;
 /**
  * Eight complete live rigs stay well below WebGPU's minimum 64 KiB uniform
@@ -231,7 +231,8 @@ export async function createDeerWildlifeVisuals(
     firstPersonObserver: DeerObserver | null,
     cameraDistance: number,
   ): boolean => {
-    const shouldShow = firstPersonObserver !== null || cameraDistance <= CLOSE_WORLD_MAX_CAMERA_DISTANCE;
+    const shouldShow = firstPersonObserver !== null
+      || cameraDistance <= AGENT_ANIMAL_RENDER_MAX_ORBIT_DISTANCE;
     let shadowCastersChanged = pendingShadowCastersChanged
       || group.visible !== shouldShow;
     pendingShadowCastersChanged = false;

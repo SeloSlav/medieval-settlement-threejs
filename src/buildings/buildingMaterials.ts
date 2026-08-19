@@ -599,8 +599,16 @@ export function addMesh(
   scale = new THREE.Vector3(1, 1, 1),
 ): THREE.Mesh {
   const preparedGeometry = prepareBuildingGeometryUvs(geometry, material);
+  const weatheredGeometry = applyBuildingWeatheringVertexColors(preparedGeometry, material);
+  removeBroadCompletedBuildingGroundFaces(
+    weatheredGeometry,
+    material,
+    position,
+    rotation,
+    scale,
+  );
   const mesh = new THREE.Mesh(
-    applyBuildingWeatheringVertexColors(preparedGeometry, material),
+    weatheredGeometry,
     material,
   );
   mesh.position.copy(position);
@@ -612,6 +620,81 @@ export function addMesh(
   mesh.receiveShadow = true;
   group.add(mesh);
   return mesh;
+}
+
+/**
+ * Full top and bottom faces on low, building-sized masonry blocks read as a
+ * dark rectangular pad wherever a road-facing building is viewed diagonally.
+ * Keep the vertical foundation walls, but remove the broad horizontal slab
+ * faces so terrain remains the only surface beneath completed structures.
+ *
+ * Construction-site geometry does not use this helper and is intentionally
+ * unaffected.
+ */
+function removeBroadCompletedBuildingGroundFaces(
+  geometry: THREE.BufferGeometry,
+  material: THREE.Material,
+  position: THREE.Vector3,
+  rotation: THREE.Euler,
+  scale: THREE.Vector3,
+): void {
+  if (
+    material.userData.buildingTextureFamily !== 'masonry'
+    || !(
+      geometry instanceof THREE.BoxGeometry
+      || geometry instanceof THREE.CylinderGeometry
+    )
+  ) {
+    return;
+  }
+
+  geometry.computeBoundingBox();
+  if (!geometry.boundingBox) return;
+  const localMatrix = new THREE.Matrix4().compose(
+    position,
+    new THREE.Quaternion().setFromEuler(rotation),
+    scale,
+  );
+  const bounds = geometry.boundingBox.clone().applyMatrix4(localMatrix);
+  const size = bounds.getSize(new THREE.Vector3());
+  if (
+    bounds.min.y > 0.08
+    || size.y > 1.65
+    || size.x < 3
+    || size.z < 3
+    || size.x * size.z < 12
+  ) {
+    return;
+  }
+
+  const positions = geometry.getAttribute('position');
+  const normals = geometry.getAttribute('normal');
+  if (!positions || !normals) return;
+  const sourceIndex = geometry.index;
+  const triangleCount = (sourceIndex?.count ?? positions.count) / 3;
+  const retainedIndices: number[] = [];
+  let removedTriangles = 0;
+
+  for (let triangle = 0; triangle < triangleCount; triangle += 1) {
+    const offset = triangle * 3;
+    const a = sourceIndex ? sourceIndex.getX(offset) : offset;
+    const b = sourceIndex ? sourceIndex.getX(offset + 1) : offset + 1;
+    const c = sourceIndex ? sourceIndex.getX(offset + 2) : offset + 2;
+    const averageNormalY = (normals.getY(a) + normals.getY(b) + normals.getY(c)) / 3;
+    if (Math.abs(averageNormalY) >= 0.9) {
+      removedTriangles += 1;
+      continue;
+    }
+    retainedIndices.push(a, b, c);
+  }
+
+  if (removedTriangles === 0 || retainedIndices.length === 0) return;
+  geometry.setIndex(retainedIndices);
+  geometry.clearGroups();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  geometry.userData.completedBuildingGroundPadFacesRemoved = true;
+  geometry.userData.completedBuildingGroundPadTrianglesRemoved = removedTriangles;
 }
 
 /**
