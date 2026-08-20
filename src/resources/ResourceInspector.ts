@@ -148,11 +148,13 @@ type ResourceInspectorOptions = {
   onSetLaborStewardReserve?: (laborReserve: number) => void | Promise<void>;
   onSetChapelParishPolicy?: (sabbathObservanceEnabled: boolean) => void | Promise<void>;
   onSetMonasteryPolicy?: (titheShare: number, feastsEnabled: boolean) => void | Promise<void>;
+  onSetMonasteryCharter?: (levyRate: number) => void | Promise<void>;
   onSetMonasteryPlanting?: (
     buildingId: string,
     orchardPlanting: number,
     croftPlanting: number,
   ) => void | Promise<void>;
+  onSetMonasteryNextExtension?: (buildingId: string, extension: number) => void | Promise<void>;
   onSetNightPolicies?: (
     watch: NightPolicyCode,
     gathering: NightPolicyCode,
@@ -1385,10 +1387,18 @@ export class ResourceInspector {
       void this.options.onSetMonasteryPolicy?.(tithe, feasts);
       return;
     }
+    if (building.kind === 'town_hall' && input.matches('[data-policy-monastery-levy]')) {
+      void this.options.onSetMonasteryCharter?.(Number(input.value) / 100);
+      return;
+    }
     if (building.kind === 'monastery' && input.matches('[data-monastery-orchard-planting], [data-monastery-croft-planting]')) {
       const orchard = Number(this.supplementalPanelSection.querySelector<HTMLSelectElement>('[data-monastery-orchard-planting]')?.value ?? 0);
       const croft = Number(this.supplementalPanelSection.querySelector<HTMLSelectElement>('[data-monastery-croft-planting]')?.value ?? 0);
       void this.options.onSetMonasteryPlanting?.(building.id, orchard, croft);
+      return;
+    }
+    if (building.kind === 'monastery' && input.matches('[data-monastery-next-extension]')) {
+      void this.options.onSetMonasteryNextExtension?.(building.id, Number(input.value));
       return;
     }
     if (

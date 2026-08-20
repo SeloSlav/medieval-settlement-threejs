@@ -147,11 +147,16 @@ pub fn monastery_hospitality_use(
     let drink_due = MONASTERY_HOSPITALITY_WINE_PER_DAY * day_fraction;
     let honey_used =
         monastery_feast_surplus(honey_available, MONASTERY_FEAST_HONEY, enabled).min(honey_due);
+    let drink_surplus = monastery_feast_surplus(
+        ale_available.max(0.0) + cider_available.max(0.0) + wine_available.max(0.0),
+        MONASTERY_FEAST_ALE,
+        enabled,
+    );
     let drink = draw_estate_drink(
-        monastery_feast_surplus(ale_available, MONASTERY_FEAST_ALE, enabled),
-        monastery_feast_surplus(cider_available, MONASTERY_FEAST_ALE, enabled),
-        monastery_feast_surplus(wine_available, MONASTERY_FEAST_WINE, enabled),
-        drink_due,
+        ale_available,
+        cider_available,
+        wine_available,
+        drink_due.min(drink_surplus),
     );
     let honey_ratio = if honey_due > 1e-9 {
         honey_used / honey_due

@@ -75,6 +75,8 @@ import SetMarketplaceSaltTargetReducer from "../set_marketplace_salt_target_redu
 import SetMarketplaceSeedGrainTargetReducer from "../set_marketplace_seed_grain_target_reducer";
 import SetMarketplaceSpecialtyExportPolicyReducer from "../set_marketplace_specialty_export_policy_reducer";
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "../set_marketplace_specialty_family_export_policy_reducer";
+import SetMonasteryCharterReducer from "../set_monastery_charter_reducer";
+import SetMonasteryNextExtensionReducer from "../set_monastery_next_extension_reducer";
 import SetMonasteryPlantingReducer from "../set_monastery_planting_reducer";
 import SetMonasteryPolicyReducer from "../set_monastery_policy_reducer";
 import SetNightPoliciesReducer from "../set_night_policies_reducer";
@@ -167,6 +169,8 @@ export type SetMarketplaceSaltTargetParams = __Infer<typeof SetMarketplaceSaltTa
 export type SetMarketplaceSeedGrainTargetParams = __Infer<typeof SetMarketplaceSeedGrainTargetReducer>;
 export type SetMarketplaceSpecialtyExportPolicyParams = __Infer<typeof SetMarketplaceSpecialtyExportPolicyReducer>;
 export type SetMarketplaceSpecialtyFamilyExportPolicyParams = __Infer<typeof SetMarketplaceSpecialtyFamilyExportPolicyReducer>;
+export type SetMonasteryCharterParams = __Infer<typeof SetMonasteryCharterReducer>;
+export type SetMonasteryNextExtensionParams = __Infer<typeof SetMonasteryNextExtensionReducer>;
 export type SetMonasteryPlantingParams = __Infer<typeof SetMonasteryPlantingReducer>;
 export type SetMonasteryPolicyParams = __Infer<typeof SetMonasteryPolicyReducer>;
 export type SetNightPoliciesParams = __Infer<typeof SetNightPoliciesReducer>;

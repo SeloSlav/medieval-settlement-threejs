@@ -466,6 +466,12 @@ export async function setStorehousePolicy(
   });
 }
 
+export async function setMonasteryCharter(levyRate: number): Promise<void> {
+  await callReducer('setMonasteryCharter', 'set_monastery_charter', {
+    levyRate: Math.max(0, Math.min(0.25, levyRate)),
+  });
+}
+
 export async function setMonasteryPlanting(
   buildingId: string,
   orchardPlanting: number,
@@ -477,6 +483,18 @@ export async function setMonasteryPlanting(
     buildingId: serverId,
     orchardPlanting: orchardPlanting === 1 ? 1 : 0,
     croftPlanting: croftPlanting === 1 ? 1 : 0,
+  });
+}
+
+export async function setMonasteryNextExtension(
+  buildingId: string,
+  extension: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid monastery id.');
+  await callReducer('setMonasteryNextExtension', 'set_monastery_next_extension', {
+    buildingId: serverId,
+    extension: Math.max(0, Math.min(255, Math.floor(extension))),
   });
 }
 

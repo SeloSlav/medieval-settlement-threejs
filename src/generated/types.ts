@@ -179,6 +179,13 @@ export const Building = __t.object("Building", {
   breweryRecipePolicy: __t.u8(),
   monasteryOrchardPlanting: __t.u8(),
   monasteryCroftPlanting: __t.u8(),
+  monasteryExtensions: __t.u8(),
+  monasteryNextExtension: __t.u8(),
+  monasteryOrchardPlantedYear: __t.u32(),
+  monasteryOrchardMaturity: __t.u8(),
+  monasteryCroftChoiceYear: __t.u32(),
+  monasteryServiceFunding: __t.f64(),
+  monasteryLastServiceDay: __t.u64(),
 });
 export type Building = __Infer<typeof Building>;
 
@@ -465,6 +472,14 @@ export const PlayerResources = __t.object("PlayerResources", {
   monasteryTithePaidTotal: __t.f64(),
   monasteryPilgrimageGoldTotal: __t.f64(),
   monasteryFoodCharityTotal: __t.f64(),
+  monasteryLevyRate: __t.f64(),
+  monasteryLevyCollectedTotal: __t.f64(),
+  monasteryFeastsHeldTotal: __t.u32(),
+  monasterySeedRescueTotal: __t.f64(),
+  monasteryScriptoriumTimberSavedTotal: __t.f64(),
+  monasteryScriptoriumStoneSavedTotal: __t.f64(),
+  monasteryScriptoriumIronworkSavedTotal: __t.f64(),
+  monasteryScriptoriumRoofTilesSavedTotal: __t.f64(),
   ironwork: __t.f64(),
   wool: __t.f64(),
   cloth: __t.f64(),

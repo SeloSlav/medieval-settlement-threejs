@@ -227,6 +227,16 @@ export type BuildingState = {
   monasteryOrchardPlanting?: 0 | 1;
   /** 0 kitchen vegetables, 1 brewing barley; meaningful only for monasteries. */
   monasteryCroftPlanting?: 0 | 1;
+  /** Infirmary 1, scriptorium 2, guesthouse 4, estate workshop 8. */
+  monasteryExtensions?: number;
+  /** One extension bit reserved for autonomous construction; 0 means awaiting a choice. */
+  monasteryNextExtension?: number;
+  monasteryOrchardPlantedYear?: number;
+  /** 0 newly replanted, 1 young rows, 2 mature rows. */
+  monasteryOrchardMaturity?: 0 | 1 | 2;
+  monasteryCroftChoiceYear?: number;
+  monasteryServiceFunding?: number;
+  monasteryLastServiceDay?: bigint;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {

@@ -572,6 +572,10 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setMonasteryPolicy(titheShare, feastsEnabled);
   }
 
+  setMonasteryCharter(levyRate: number): Promise<void> {
+    return spacetimeReducers.setMonasteryCharter(levyRate);
+  }
+
   setMonasteryPlanting(
     buildingId: string,
     orchardPlanting: number,
@@ -582,6 +586,10 @@ export class SpacetimeGameStore {
       orchardPlanting,
       croftPlanting,
     );
+  }
+
+  setMonasteryNextExtension(buildingId: string, extension: number): Promise<void> {
+    return spacetimeReducers.setMonasteryNextExtension(buildingId, extension);
   }
 
   setNightPolicies(

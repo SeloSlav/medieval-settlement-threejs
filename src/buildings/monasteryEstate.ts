@@ -16,10 +16,25 @@ export type MonasteryEstateLevel = 0 | 1 | 2 | 3;
 export type MonasteryEstatePoint = { x: number; z: number };
 export type MonasteryOrchardPlanting = 0 | 1;
 export type MonasteryCroftPlanting = 0 | 1;
+export type MonasteryOrchardMaturity = 0 | 1 | 2;
+
+export const MONASTERY_EXTENSION_INFIRMARY = 1;
+export const MONASTERY_EXTENSION_SCRIPTORIUM = 2;
+export const MONASTERY_EXTENSION_GUESTHOUSE = 4;
+export const MONASTERY_EXTENSION_WORKSHOP = 8;
+export const MONASTERY_EXTENSION_ALL = 15;
+export const MONASTERY_ORCHARD_REPLANT_COST = 12;
+
+export const MONASTERY_EXTENSIONS = [
+  { value: MONASTERY_EXTENSION_INFIRMARY, label: 'Infirmary wing', cost: 24, payoff: 'Eight additional funded beds and stronger disease recovery' },
+  { value: MONASTERY_EXTENSION_SCRIPTORIUM, label: 'Scriptorium and archive', cost: 28, payoff: 'Larger seed reserve and stronger fire-reconstruction records' },
+  { value: MONASTERY_EXTENSION_GUESTHOUSE, label: 'Guesthouse', cost: 20, payoff: 'More pilgrims, gifts, and dependable hospitality' },
+  { value: MONASTERY_EXTENSION_WORKSHOP, label: 'Estate workshop', cost: 30, payoff: 'Crop-specific press, cellar, brewhouse, or root cellar' },
+] as const;
 
 export const MONASTERY_ORCHARD_PLANTINGS = [
-  { value: 0, label: 'Apple orchard', output: 'Apples · cider after the fruit press is built' },
-  { value: 1, label: 'Grapevines', output: 'Wine' },
+  { value: 0, label: 'Apple orchard', output: 'Perennial apples · cider with an estate workshop' },
+  { value: 1, label: 'Grapevines', output: 'Perennial wine · prestige hospitality' },
 ] as const;
 
 export const MONASTERY_CROFT_PLANTINGS = [
@@ -116,6 +131,40 @@ export function normalizeMonasteryEstateLevel(level: number | null | undefined):
   return Math.max(0, Math.min(3, Math.floor(level ?? 0))) as MonasteryEstateLevel;
 }
 
+export function normalizeMonasteryExtensions(extensions: number | null | undefined): number {
+  return Math.max(0, Math.floor(extensions ?? 0)) & MONASTERY_EXTENSION_ALL;
+}
+
+export function monasteryHasExtension(extensions: number | null | undefined, extension: number): boolean {
+  return (normalizeMonasteryExtensions(extensions) & extension) !== 0;
+}
+
+export function monasteryExtensionCount(extensions: number | null | undefined): number {
+  let remaining = normalizeMonasteryExtensions(extensions);
+  let count = 0;
+  while (remaining > 0) {
+    count += remaining & 1;
+    remaining >>= 1;
+  }
+  return count;
+}
+
+export function monasteryVisualEstateLevel(extensions: number | null | undefined): MonasteryEstateLevel {
+  return Math.min(3, monasteryExtensionCount(extensions)) as MonasteryEstateLevel;
+}
+
+export function monasteryArchetype(
+  orchardPlanting: number | null | undefined,
+  croftPlanting: number | null | undefined,
+): { name: string; payoff: string } {
+  const orchard = normalizeMonasteryOrchardPlanting(orchardPlanting);
+  const croft = normalizeMonasteryCroftPlanting(croftPlanting);
+  if (orchard === 0 && croft === 0) return { name: 'Hospitaller grange', payoff: 'Food security, infirmary support, and late cider' };
+  if (orchard === 0 && croft === 1) return { name: 'Commercial estate', payoff: 'Ale and cider exports with the strongest eventual income' };
+  if (orchard === 1 && croft === 0) return { name: 'Pilgrim hospice', payoff: 'Wine prestige, meals, and dependable healthcare' };
+  return { name: 'Festal abbey', payoff: 'Feast prestige and pilgrimage gifts with the least food resilience' };
+}
+
 export function normalizeMonasteryOrchardPlanting(
   planting: number | null | undefined,
 ): MonasteryOrchardPlanting {
@@ -128,51 +177,57 @@ export function normalizeMonasteryCroftPlanting(
   return planting === 1 ? 1 : 0;
 }
 
-export const MONASTERY_ESTATE_INVESTMENT_COSTS = [18, 42, 78] as const;
-export const MONASTERY_ESTATE_YIELD_MULTIPLIERS = [1, 1.25, 1.55, 1.9] as const;
-export const MONASTERY_INFIRMARY_BEDS = [4, 6, 8, 10] as const;
-export const MONASTERY_INFIRMARY_RECOVERY_MULTIPLIERS = [1.25, 1.35, 1.45, 1.55] as const;
-export const MONASTERY_INFIRMARY_MORTALITY_MULTIPLIERS = [0.8, 0.7, 0.6, 0.5] as const;
-export const MONASTERY_SEED_ARCHIVE_TARGET_PER_CROP = [8, 12, 16, 20] as const;
-export const MONASTERY_SCRIPTORIUM_RECOVERY_MULTIPLIERS = [0.9, 0.84, 0.78, 0.72] as const;
+export const MONASTERY_ESTATE_YIELD_MULTIPLIERS = [1, 1.15, 1.3, 1.5, 1.75] as const;
 export const MONASTERY_INFIRMARY_FOOD_PER_BED_DAY = 0.6;
 
 export function monasteryEstateNextInvestmentCost(
-  level: number | null | undefined,
+  extensions: number | null | undefined,
+  nextExtension: number | null | undefined,
 ): number | null {
-  const normalized = normalizeMonasteryEstateLevel(level);
-  if (normalized >= 3) return null;
-  return MONASTERY_ESTATE_INVESTMENT_COSTS[normalized as 0 | 1 | 2];
+  const extension = MONASTERY_EXTENSIONS.find((entry) => entry.value === nextExtension);
+  if (!extension || monasteryHasExtension(extensions, extension.value)) return null;
+  return extension.cost;
 }
 
-export function monasteryEstateYieldMultiplier(level: number | null | undefined): number {
-  return MONASTERY_ESTATE_YIELD_MULTIPLIERS[normalizeMonasteryEstateLevel(level)];
+export function monasteryEstateYieldMultiplier(extensions: number | null | undefined): number {
+  return MONASTERY_ESTATE_YIELD_MULTIPLIERS[monasteryExtensionCount(extensions) as 0 | 1 | 2 | 3 | 4];
 }
 
-export function monasteryInfirmaryBeds(level: number | null | undefined): number {
-  return MONASTERY_INFIRMARY_BEDS[normalizeMonasteryEstateLevel(level)];
+export function monasteryInfirmaryBeds(extensions: number | null | undefined, funding = 1): number {
+  return 2 + (monasteryHasExtension(extensions, MONASTERY_EXTENSION_INFIRMARY)
+    ? Math.round(8 * Math.max(0, Math.min(1, funding)))
+    : 0);
 }
 
-export function monasteryInfirmaryRecoveryMultiplier(level: number | null | undefined): number {
-  return MONASTERY_INFIRMARY_RECOVERY_MULTIPLIERS[normalizeMonasteryEstateLevel(level)];
+export function monasteryInfirmaryRecoveryMultiplier(extensions: number | null | undefined, funding = 1): number {
+  return 1.15 + (monasteryHasExtension(extensions, MONASTERY_EXTENSION_INFIRMARY)
+    ? 0.4 * Math.max(0, Math.min(1, funding))
+    : 0);
 }
 
-export function monasteryInfirmaryMortalityMultiplier(level: number | null | undefined): number {
-  return MONASTERY_INFIRMARY_MORTALITY_MULTIPLIERS[normalizeMonasteryEstateLevel(level)];
+export function monasteryInfirmaryMortalityMultiplier(extensions: number | null | undefined, funding = 1): number {
+  return 0.88 - (monasteryHasExtension(extensions, MONASTERY_EXTENSION_INFIRMARY)
+    ? 0.38 * Math.max(0, Math.min(1, funding))
+    : 0);
 }
 
-export function monasterySeedArchiveTargetPerCrop(level: number | null | undefined): number {
-  return MONASTERY_SEED_ARCHIVE_TARGET_PER_CROP[normalizeMonasteryEstateLevel(level)];
+export function monasterySeedArchiveTargetPerCrop(extensions: number | null | undefined, funding = 1): number {
+  return 8 + (monasteryHasExtension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM)
+    ? 12 * Math.max(0, Math.min(1, funding))
+    : 0);
 }
 
-export function monasteryScriptoriumRecoveryMultiplier(level: number | null | undefined): number {
-  return MONASTERY_SCRIPTORIUM_RECOVERY_MULTIPLIERS[normalizeMonasteryEstateLevel(level)];
+export function monasteryScriptoriumRecoveryMultiplier(extensions: number | null | undefined, funding = 1): number {
+  return 0.92 - (monasteryHasExtension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM)
+    ? 0.2 * Math.max(0, Math.min(1, funding))
+    : 0);
 }
 
 export function monasteryEstateYields(
-  level: number | null | undefined,
+  extensions: number | null | undefined,
   orchardPlanting: number | null | undefined = 0,
   croftPlanting: number | null | undefined = 0,
+  orchardMaturity: number | null | undefined = 2,
 ): {
   apples: number;
   vegetables: number;
@@ -185,20 +240,23 @@ export function monasteryEstateYields(
   wine: number;
   cheese: number;
 } {
-  const normalized = normalizeMonasteryEstateLevel(level);
-  const multiplier = monasteryEstateYieldMultiplier(normalized);
+  const normalizedExtensions = normalizeMonasteryExtensions(extensions);
+  const multiplier = monasteryEstateYieldMultiplier(normalizedExtensions);
+  const maturity = Math.max(0, Math.min(2, Math.floor(orchardMaturity ?? 2)));
+  const orchardMultiplier = maturity === 0 ? 0 : maturity === 1 ? 0.55 : 1;
+  const workshop = monasteryHasExtension(normalizedExtensions, MONASTERY_EXTENSION_WORKSHOP);
   const applesPlanted = normalizeMonasteryOrchardPlanting(orchardPlanting) === 0;
   const vegetablesPlanted = normalizeMonasteryCroftPlanting(croftPlanting) === 0;
   return {
-    apples: applesPlanted ? 0.75 * multiplier : 0,
+    apples: applesPlanted ? 0.75 * multiplier * orchardMultiplier : 0,
     vegetables: vegetablesPlanted ? 0.5 * multiplier : 0,
     eggs: 0.42 * multiplier,
     milk: 0.45 * multiplier,
     meat: 0.16 * multiplier,
     honey: 0.22 * multiplier,
-    ale: vegetablesPlanted ? 0 : 0.32 * multiplier,
-    cider: applesPlanted && normalized >= 3 ? 0.16 * multiplier : 0,
-    wine: applesPlanted ? 0 : 0.14 * multiplier,
-    cheese: normalized >= 1 ? 0.18 * multiplier : 0,
+    ale: vegetablesPlanted ? 0 : 0.32 * multiplier * (workshop ? 1.25 : 1),
+    cider: applesPlanted && workshop ? 0.16 * multiplier * orchardMultiplier : 0,
+    wine: applesPlanted ? 0 : 0.14 * multiplier * orchardMultiplier * (workshop ? 1.25 : 1),
+    cheese: 0.18 * multiplier,
   };
 }

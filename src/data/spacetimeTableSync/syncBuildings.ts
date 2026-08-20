@@ -56,6 +56,13 @@ function buildingStateFromRow(
     breweryRecipePolicy: number;
     monasteryOrchardPlanting: number;
     monasteryCroftPlanting: number;
+    monasteryExtensions: number;
+    monasteryNextExtension: number;
+    monasteryOrchardPlantedYear: number;
+    monasteryOrchardMaturity: number;
+    monasteryCroftChoiceYear: number;
+    monasteryServiceFunding: number;
+    monasteryLastServiceDay: bigint;
   }>;
   return {
     id,
@@ -200,5 +207,18 @@ function buildingStateFromRow(
     apiaryForageScore: row.apiaryForageScore,
     monasteryOrchardPlanting: (materialRow.monasteryOrchardPlanting === 1 ? 1 : 0),
     monasteryCroftPlanting: (materialRow.monasteryCroftPlanting === 1 ? 1 : 0),
+    monasteryExtensions: Number(materialRow.monasteryExtensions ?? 0),
+    monasteryNextExtension: Number(materialRow.monasteryNextExtension ?? 0),
+    monasteryOrchardPlantedYear: Number(materialRow.monasteryOrchardPlantedYear ?? 0),
+    monasteryOrchardMaturity: Math.max(
+      0,
+      Math.min(2, Number(materialRow.monasteryOrchardMaturity ?? 2)),
+    ) as 0 | 1 | 2,
+    monasteryCroftChoiceYear: Number(materialRow.monasteryCroftChoiceYear ?? 0),
+    monasteryServiceFunding: Math.max(
+      0,
+      Math.min(1, Number(materialRow.monasteryServiceFunding ?? 1)),
+    ),
+    monasteryLastServiceDay: materialRow.monasteryLastServiceDay ?? 0n,
   };
 }

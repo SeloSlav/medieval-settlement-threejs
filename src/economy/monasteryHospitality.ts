@@ -33,25 +33,29 @@ export type NextMonasteryFeast = MonasteryFeast & {
 export type MonasteryFeastReadiness = {
   ready: boolean;
   missingFood: number;
-  missingAle: number;
   missingHoney: number;
-  missingWine: number;
+  missingDrink: number;
+  drinkMix: string;
 };
 
-export type MonasteryFeastCommodity = 'food' | 'ale' | 'honey' | 'wine';
+export type MonasteryFeastCommodity = 'food' | 'drink' | 'honey';
 
 export type MonasteryHospitalityPlan = {
   enabled: boolean;
   honeyRunwayDays: number;
-  wineRunwayDays: number;
+  drinkRunwayDays: number;
   supplyRatio: number;
   pilgrimageGoldPerDay: number;
   honeyPerDay: number;
-  winePerDay: number;
+  drinkPerDay: number;
   honeyPerYear: number;
-  winePerYear: number;
+  drinkPerYear: number;
   feastFoodPerYear: number;
-  feastAlePerYear: number;
+  feastDrinkPerYear: number;
+  prestigeMultiplier: number;
+  commonTableMultiplier: number;
+  mixedCellar: boolean;
+  drinkMix: string;
 };
 
 function stockSupplyRatio(stock: number): number {
@@ -64,12 +68,10 @@ export function monasteryFeastReserve(
   switch (commodity) {
     case 'food':
       return MONASTERY_FEAST_FOOD;
-    case 'ale':
+    case 'drink':
       return MONASTERY_FEAST_ALE;
     case 'honey':
       return MONASTERY_FEAST_HONEY;
-    case 'wine':
-      return MONASTERY_FEAST_WINE;
   }
 }
 
@@ -92,69 +94,88 @@ export function monasteryHospitalityRunwayDays(
 }
 
 export function monasteryHospitalityPlan(
-  monastery: Pick<BuildingState, 'honey' | 'wine'>,
+  monastery: Pick<BuildingState, 'honey' | 'ale' | 'cider' | 'wine' | 'monasteryExtensions' | 'monasteryServiceFunding'>,
   enabled: boolean,
 ): MonasteryHospitalityPlan {
   const honeyPerDay = enabled ? MONASTERY_HOSPITALITY_HONEY_PER_DAY : 0;
-  const winePerDay = enabled ? MONASTERY_HOSPITALITY_WINE_PER_DAY : 0;
+  const drinkPerDay = enabled ? MONASTERY_HOSPITALITY_WINE_PER_DAY : 0;
   const dailyHoney = monasteryFeastSurplus(
     monastery.honey,
     MONASTERY_FEAST_HONEY,
     enabled,
   );
-  const dailyWine = monasteryFeastSurplus(
-    monastery.wine,
-    MONASTERY_FEAST_WINE,
-    enabled,
-  );
+  const drinks = [
+    ['ale', finiteStock(monastery.ale)],
+    ['cider', finiteStock(monastery.cider ?? 0)],
+    ['wine', finiteStock(monastery.wine)],
+  ] as const;
+  const totalDrink = drinks.reduce((sum, [, stock]) => sum + stock, 0);
+  const dailyDrink = monasteryFeastSurplus(totalDrink, MONASTERY_FEAST_ALE, enabled);
+  const availableDrinks = drinks.filter(([, stock]) => stock > 1e-6);
+  const drinkMix = availableDrinks.map(([label]) => label).join(' + ') || 'none';
+  const total = Math.max(1e-9, totalDrink);
+  const aleShare = drinks[0][1] / total;
+  const wineShare = drinks[2][1] / total;
+  const mixedCellar = availableDrinks.length >= 2;
+  const prestigeMultiplier = 1 + 0.25 * wineShare + (mixedCellar ? 0.1 : 0);
+  const commonTableMultiplier = 1 + 0.25 * aleShare;
   const supplyRatio = enabled
     ? (
         stockSupplyRatio(dailyHoney)
-        + stockSupplyRatio(dailyWine)
+        + stockSupplyRatio(dailyDrink)
       ) * 0.5
     : 0;
   const daysPerYear = CALENDAR_DAYS_PER_MONTH * CALENDAR_MONTHS_PER_YEAR;
   return {
     enabled,
     honeyRunwayDays: monasteryHospitalityRunwayDays(dailyHoney, honeyPerDay),
-    wineRunwayDays: monasteryHospitalityRunwayDays(dailyWine, winePerDay),
+    drinkRunwayDays: monasteryHospitalityRunwayDays(dailyDrink, drinkPerDay),
     supplyRatio,
     pilgrimageGoldPerDay:
       MONASTERY_PILGRIMAGE_GOLD_PER_DAY
-      + (enabled ? MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY * supplyRatio : 0),
+      + (enabled ? MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY * supplyRatio * prestigeMultiplier : 0),
     honeyPerDay,
-    winePerDay,
+    drinkPerDay,
     honeyPerYear:
       honeyPerDay * daysPerYear
       + (enabled ? MONASTERY_FEAST_HONEY * MONASTERY_FEASTS_PER_YEAR : 0),
-    winePerYear:
-      winePerDay * daysPerYear
-      + (enabled ? MONASTERY_FEAST_WINE * MONASTERY_FEASTS_PER_YEAR : 0),
+    drinkPerYear:
+      drinkPerDay * daysPerYear
+      + (enabled ? MONASTERY_FEAST_ALE * MONASTERY_FEASTS_PER_YEAR : 0),
     feastFoodPerYear:
       enabled ? MONASTERY_FEAST_FOOD * MONASTERY_FEASTS_PER_YEAR : 0,
-    feastAlePerYear:
+    feastDrinkPerYear:
       enabled ? MONASTERY_FEAST_ALE * MONASTERY_FEASTS_PER_YEAR : 0,
+    prestigeMultiplier,
+    commonTableMultiplier,
+    mixedCellar,
+    drinkMix,
   };
 }
 
 export function monasteryFeastReadiness(
-  monastery: Pick<BuildingState, 'ale' | 'honey' | 'wine'> & FoodInventoryLike,
+  monastery: Pick<BuildingState, 'ale' | 'cider' | 'honey' | 'wine'> & FoodInventoryLike,
 ): MonasteryFeastReadiness {
   const mealStock = Math.max(0, edibleFoodStock(monastery) - finiteStock(monastery.honey));
   const missingFood = Math.max(0, MONASTERY_FEAST_FOOD - mealStock);
-  const missingAle = Math.max(0, MONASTERY_FEAST_ALE - finiteStock(monastery.ale));
   const missingHoney = Math.max(0, MONASTERY_FEAST_HONEY - finiteStock(monastery.honey));
-  const missingWine = Math.max(0, MONASTERY_FEAST_WINE - finiteStock(monastery.wine));
+  const drinks = [
+    ['ale', finiteStock(monastery.ale)],
+    ['cider', finiteStock(monastery.cider ?? 0)],
+    ['wine', finiteStock(monastery.wine)],
+  ] as const;
+  const drinkStock = drinks.reduce((sum, [, stock]) => sum + stock, 0);
+  const missingDrink = Math.max(0, MONASTERY_FEAST_ALE - drinkStock);
+  const drinkMix = drinks.filter(([, stock]) => stock > 1e-6).map(([label]) => label).join(' + ') || 'none';
   return {
     ready:
       missingFood <= 1e-9
-      && missingAle <= 1e-9
       && missingHoney <= 1e-9
-      && missingWine <= 1e-9,
+      && missingDrink <= 1e-9,
     missingFood,
-    missingAle,
     missingHoney,
-    missingWine,
+    missingDrink,
+    drinkMix,
   };
 }
 
@@ -194,13 +215,12 @@ export function formatMonasteryFeastReadiness(
   readiness: MonasteryFeastReadiness,
 ): string {
   if (readiness.ready) {
-    return `Ready · ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_ALE} ale + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_WINE} wine secured`;
+    return `Ready · ${MONASTERY_FEAST_FOOD} food + ${MONASTERY_FEAST_HONEY} honey + ${MONASTERY_FEAST_ALE} any estate drink secured (${readiness.drinkMix})`;
   }
   const missing = [
     ['food', readiness.missingFood],
-    ['ale', readiness.missingAle],
     ['honey', readiness.missingHoney],
-    ['wine', readiness.missingWine],
+    ['estate drink', readiness.missingDrink],
   ] as const;
   return `Short ${missing
     .filter(([, amount]) => amount > 1e-9)

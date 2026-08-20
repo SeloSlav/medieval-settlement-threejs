@@ -149,4 +149,11 @@ export default __t.row({
   breweryRecipePolicy: __t.u8().name("brewery_recipe_policy"),
   monasteryOrchardPlanting: __t.u8().name("monastery_orchard_planting"),
   monasteryCroftPlanting: __t.u8().name("monastery_croft_planting"),
+  monasteryExtensions: __t.u8().name("monastery_extensions"),
+  monasteryNextExtension: __t.u8().name("monastery_next_extension"),
+  monasteryOrchardPlantedYear: __t.u32().name("monastery_orchard_planted_year"),
+  monasteryOrchardMaturity: __t.u8().name("monastery_orchard_maturity"),
+  monasteryCroftChoiceYear: __t.u32().name("monastery_croft_choice_year"),
+  monasteryServiceFunding: __t.f64().name("monastery_service_funding"),
+  monasteryLastServiceDay: __t.u64().name("monastery_last_service_day"),
 });

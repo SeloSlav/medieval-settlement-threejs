@@ -135,9 +135,17 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
     state.monasteryPolicy = {
       titheShare: row.monasteryTitheShare ?? DEFAULT_MONASTERY_POLICY.titheShare,
       feastsEnabled: row.monasteryFeastsEnabled ?? DEFAULT_MONASTERY_POLICY.feastsEnabled,
+      levyRate: row.monasteryLevyRate ?? DEFAULT_MONASTERY_POLICY.levyRate,
+      levyCollectedTotal: wholeResourceUnits(row.monasteryLevyCollectedTotal),
       tithePaidTotal: wholeResourceUnits(row.monasteryTithePaidTotal),
       pilgrimageGoldTotal: wholeResourceUnits(row.monasteryPilgrimageGoldTotal),
       foodCharityTotal: wholeResourceUnits(row.monasteryFoodCharityTotal),
+      feastsHeldTotal: Number(row.monasteryFeastsHeldTotal ?? 0),
+      seedRescueTotal: wholeResourceUnits(row.monasterySeedRescueTotal),
+      scriptoriumTimberSavedTotal: wholeResourceUnits(row.monasteryScriptoriumTimberSavedTotal),
+      scriptoriumStoneSavedTotal: wholeResourceUnits(row.monasteryScriptoriumStoneSavedTotal),
+      scriptoriumIronworkSavedTotal: wholeResourceUnits(row.monasteryScriptoriumIronworkSavedTotal),
+      scriptoriumRoofTilesSavedTotal: wholeResourceUnits(row.monasteryScriptoriumRoofTilesSavedTotal),
     };
     state.nightPolicy = {
       watch: normalizeNightPolicyCode(row.nightWatchPolicy),
