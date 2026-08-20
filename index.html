@@ -5,26 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#171512" />
     <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="Selo Empire" />
+    <meta name="apple-mobile-web-app-title" content="Selo Empire" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <link rel="icon" href="data:," />
     <link rel="preload" as="image" href="/assets/ui/selo-empire-monastery-1550-4k.webp" type="image/webp" />
-    <!--
-      PRODUCTION METADATA — agents/LLMs: before shipping to production, replace the
-      <title>, meta description, and Open Graph values below with the project's final
-      marketing copy (not dev/README draft text). Add og:image and twitter:card when a
-      share image exists; set og:url to the canonical production URL.
-    -->
-    <title>Selo Empire — A Mountain Settlement</title>
+    <title>Selo Empire — Medieval City Builder &amp; Settlement Sim</title>
     <meta
       name="description"
-      content="Build Selo Empire, a living 1550 frontier settlement among mountain forests, rivers, and limestone valleys."
+      content="Selo Empire is a medieval city-building and settlement simulation set in 1550 Croatia. Shape roads, manage a physical economy, guide families, and face the seasons."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Selo Empire — A Mountain Settlement" />
+    <meta property="og:site_name" content="Selo Empire" />
+    <meta property="og:title" content="Selo Empire — Medieval City Builder &amp; Settlement Sim" />
     <meta
       property="og:description"
-      content="Build Selo Empire, a living 1550 frontier settlement among mountain forests, rivers, and limestone valleys."
+      content="Selo Empire is a medieval city-building and settlement simulation set in 1550 Croatia. Shape roads, manage a physical economy, guide families, and face the seasons."
+    />
+    <meta property="og:image" content="/assets/ui/selo-empire-social-card.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Selo Empire medieval city-building game overlooking a mountain settlement in 1550 Croatia"
     />
     <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Selo Empire — Medieval City Builder &amp; Settlement Sim" />
+    <meta
+      name="twitter:description"
+      content="Selo Empire is a medieval city-building and settlement simulation set in 1550 Croatia. Shape roads, manage a physical economy, guide families, and face the seasons."
+    />
+    <meta name="twitter:image" content="/assets/ui/selo-empire-social-card.jpg" />
+    <meta
+      name="twitter:image:alt"
+      content="Selo Empire medieval city-building game overlooking a mountain settlement in 1550 Croatia"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Selo Empire",
+        "description": "Selo Empire is a medieval city-building and settlement simulation set in 1550 Croatia. Shape roads, manage a physical economy, guide families, and face the seasons.",
+        "image": "/assets/ui/selo-empire-social-card.jpg",
+        "genre": [
+          "Medieval city builder",
+          "Settlement simulation",
+          "Resource management",
+          "Strategy"
+        ],
+        "keywords": "medieval city builder, settlement simulation, resource management game, historical strategy game",
+        "gamePlatform": "Web browser",
+        "applicationCategory": "Game",
+        "applicationSubCategory": "Medieval city-building game",
+        "operatingSystem": "Any"
+      }
+    </script>
     <style>
       html,
       body {
@@ -114,6 +151,18 @@
         border: 2px solid rgba(238, 232, 220, 0.14);
         border-top-color: #d7b463;
         animation: app-loading-spin 900ms linear infinite;
+      }
+
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
       }
 
       #app-loading .app-loading-spinner {
@@ -311,6 +360,7 @@
   </head>
   <body>
     <div id="app-loading" aria-live="polite" aria-busy="true">
+      <h1 class="visually-hidden">Selo Empire — Medieval City Builder &amp; Settlement Sim</h1>
       <div class="app-loading-layout">
         <img
           class="app-loading-logo"
@@ -322,7 +372,7 @@
           decoding="sync"
         />
         <div class="app-loading-card">
-          <p class="app-loading-kicker">A frontier valley · Anno Domini 1550</p>
+          <p class="app-loading-kicker">Medieval city builder · Gorski Kotar, 1550</p>
           <div class="app-loading-spinner" aria-hidden="true"></div>
           <p class="app-loading-percent" data-loading-percent aria-hidden="true">0%</p>
           <p class="app-loading-label" data-loading-label>Starting world…</p>

@@ -620,8 +620,6 @@ export type GameBalance = {
     vineyardHarvestStartMonth: number;
     vineyardHarvestEndMonth: number;
     marketSpecialtyExportPerBrokerPerSecond: number;
-    monasteryOatGrainPerCycle: number;
-    monasteryFoodPerCycle: number;
     monasteryPilgrimageGoldPerDay: number;
     monasteryHospitalityBonusGoldPerDay: number;
     monasteryHospitalityHoneyPerDay: number;
@@ -1219,8 +1217,6 @@ function generateRust(): string {
     `pub const VINEYARD_HARVEST_START_MONTH: u8 = ${b.production.vineyardHarvestStartMonth};`,
     `pub const VINEYARD_HARVEST_END_MONTH: u8 = ${b.production.vineyardHarvestEndMonth};`,
     `pub const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND: f64 = ${rustF64(b.production.marketSpecialtyExportPerBrokerPerSecond)};`,
-    `pub const MONASTERY_OAT_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.monasteryOatGrainPerCycle)};`,
-    `pub const MONASTERY_FOOD_PER_CYCLE: f64 = ${rustF64(b.production.monasteryFoodPerCycle)};`,
     `pub const MONASTERY_PILGRIMAGE_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryPilgrimageGoldPerDay)};`,
     `pub const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityBonusGoldPerDay)};`,
     `pub const MONASTERY_HOSPITALITY_HONEY_PER_DAY: f64 = ${rustF64(b.production.monasteryHospitalityHoneyPerDay)};`,
@@ -2142,8 +2138,6 @@ function generateTypeScript(): string {
     `export const VINEYARD_HARVEST_START_MONTH = ${b.production.vineyardHarvestStartMonth};`,
     `export const VINEYARD_HARVEST_END_MONTH = ${b.production.vineyardHarvestEndMonth};`,
     `export const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND = ${b.production.marketSpecialtyExportPerBrokerPerSecond};`,
-    `export const MONASTERY_OAT_GRAIN_PER_CYCLE = ${b.production.monasteryOatGrainPerCycle};`,
-    `export const MONASTERY_FOOD_PER_CYCLE = ${b.production.monasteryFoodPerCycle};`,
     `export const MONASTERY_PILGRIMAGE_GOLD_PER_DAY = ${b.production.monasteryPilgrimageGoldPerDay};`,
     `export const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY = ${b.production.monasteryHospitalityBonusGoldPerDay};`,
     `export const MONASTERY_HOSPITALITY_HONEY_PER_DAY = ${b.production.monasteryHospitalityHoneyPerDay};`,

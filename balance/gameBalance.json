@@ -263,7 +263,6 @@
         "vegetables": "marketAccessible",
         "eggs": "marketAccessible",
         "grapes": "marketAccessible",
-        "porridge": "marketAccessible",
         "curedMeat": "marketAccessible",
         "smokedFish": "marketAccessible",
         "cheese": "marketAccessible",
@@ -355,8 +354,6 @@
       { "id": "sell_eggs", "kind": "goldSell", "resource": "eggs", "amount": 8, "goldYield": 7 },
       { "id": "buy_grapes", "kind": "goldBuy", "resource": "grapes", "amount": 10, "goldCost": 14 },
       { "id": "sell_grapes", "kind": "goldSell", "resource": "grapes", "amount": 10, "goldYield": 8 },
-      { "id": "buy_porridge", "kind": "goldBuy", "resource": "porridge", "amount": 10, "goldCost": 10 },
-      { "id": "sell_porridge", "kind": "goldSell", "resource": "porridge", "amount": 10, "goldYield": 6 },
       { "id": "buy_cured_meat", "kind": "goldBuy", "resource": "curedMeat", "amount": 8, "goldCost": 22 },
       { "id": "sell_cured_meat", "kind": "goldSell", "resource": "curedMeat", "amount": 8, "goldYield": 14 },
       { "id": "buy_smoked_fish", "kind": "goldBuy", "resource": "smokedFish", "amount": 8, "goldCost": 20 },
@@ -727,8 +724,6 @@
     "vineyardHarvestStartMonth": 9,
     "vineyardHarvestEndMonth": 10,
     "marketSpecialtyExportPerBrokerPerSecond": 0.45,
-    "monasteryOatGrainPerCycle": 2,
-    "monasteryFoodPerCycle": 2,
     "monasteryPilgrimageGoldPerDay": 2,
     "monasteryHospitalityBonusGoldPerDay": 1.5,
     "monasteryHospitalityHoneyPerDay": 0.8,
@@ -823,7 +818,7 @@
         "growthStartMonth": 4,
         "growthEndMonth": 8,
         "harvestMonth": 9,
-        "calendarLabel": "Spring oats · thrives on cool wet ground · harvest September · premium fodder and porridge"
+        "calendarLabel": "Spring oats · thrives on cool wet ground · harvest September · premium fodder and ready food"
       },
       "fallow": {
         "id": 2,
