@@ -80,6 +80,17 @@
       "sha256": "d59bdec406bd7487d741bd8ef33086cdf4d4f8712a21c04e2abff4a6add98689"
     },
     {
+      "id": "building-bakery",
+      "output": "public/sounds/buildings/bakery.mp3",
+      "generatedAt": "2026-08-20T20:08:20.020Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "9088ec722ece14ce2d07ed23ee7d904e21a7db7f8e10d4a3128774b346728575"
+    },
+    {
       "id": "building-brewery",
       "output": "public/sounds/buildings/brewery.mp3",
       "generatedAt": "2026-08-04T10:05:43.307Z",
@@ -366,6 +377,17 @@
       "sha256": "dc26a22d494801a13612c4f202025cb661dbff33a1a64838e2f8791dba1713b1"
     },
     {
+      "id": "building-tavern",
+      "output": "public/sounds/buildings/tavern.mp3",
+      "generatedAt": "2026-08-20T20:08:18.073Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "0832c7f842ed599551eaba827ed6734dc5831018af7e15cfc82a5874f93defbb"
+    },
+    {
       "id": "building-threshing-barn",
       "output": "public/sounds/buildings/threshing_barn.mp3",
       "generatedAt": "2026-08-04T10:05:30.688Z",
@@ -386,6 +408,17 @@
       "characterCost": "23",
       "byteLength": 37660,
       "sha256": "92eec856b8770addf94bd3263c1de4258505c9a8e030987361dd44468f0ff8fb"
+    },
+    {
+      "id": "building-trading-post",
+      "output": "public/sounds/buildings/trading_post.mp3",
+      "generatedAt": "2026-08-20T20:08:16.077Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "fc27b21a12d0a0c92f3ed3163cb977c9a84f53dcae61a2edcae0e9615e94c08a"
     },
     {
       "id": "building-village-storehouse",
@@ -432,6 +465,17 @@
       "sha256": "8fd7954ad92afcbb52e3d7c31534291e03411af38588e8791f3a54045c7b4ee5"
     },
     {
+      "id": "building-wayside-shrine",
+      "output": "public/sounds/buildings/wayside_shrine.mp3",
+      "generatedAt": "2026-08-20T20:08:13.885Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "24",
+      "byteLength": 39332,
+      "sha256": "5939e6e653d171313004271bf392cdd9fdd236444284349f5b8ef222b6228bc5"
+    },
+    {
       "id": "building-weaver",
       "output": "public/sounds/buildings/weaver.mp3",
       "generatedAt": "2026-08-04T10:06:00.726Z",
@@ -452,6 +496,17 @@
       "characterCost": "25",
       "byteLength": 40586,
       "sha256": "71145c83671ea72af6c74c69c80bb067cbf3220ff111f3996db3de3e6f008cb4"
+    },
+    {
+      "id": "building-windmill",
+      "output": "public/sounds/buildings/windmill.mp3",
+      "generatedAt": "2026-08-20T20:08:22.393Z",
+      "endpoint": "/v1/sound-generation",
+      "modelId": "eleven_text_to_sound_v2",
+      "outputFormat": "mp3_44100_128",
+      "characterCost": "27",
+      "byteLength": 43929,
+      "sha256": "ce64f4ecbf76c47647a297eabe5b82af596d4519332f44020197c941ff5457dd"
     },
     {
       "id": "building-woodcutters-lodge",

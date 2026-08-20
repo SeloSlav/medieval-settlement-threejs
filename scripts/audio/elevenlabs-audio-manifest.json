@@ -532,6 +532,16 @@
       "promptInfluence": 0.86
     },
     {
+      "id": "building-wayside-shrine",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/wayside_shrine.mp3",
+      "prompt": "Short hushed roadside Catholic shrine Foley: a tiny wrought-iron votive lantern door closes with a delicate latch click, its short hanging chain settles against a limewashed stone niche, and a candle flame flutters softly, no bell, no voices, no prayer, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
       "id": "building-marketplace",
       "group": "building-foley",
       "kind": "sound-effect",
@@ -540,6 +550,16 @@
       "durationSeconds": 2,
       "loop": false,
       "promptInfluence": 0.85
+    },
+    {
+      "id": "building-trading-post",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/trading_post.mp3",
+      "prompt": "Short restrained late-medieval trading-post Foley: a leather cargo strap is loosened from a wooden merchant chest, one small brass balance weight settles on a scale, and a parchment ledger shifts, no market crowd, no coins, no voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.88
     },
     {
       "id": "building-town-hall",
@@ -642,6 +662,16 @@
       "promptInfluence": 0.88
     },
     {
+      "id": "building-tavern",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/tavern.mp3",
+      "prompt": "Short warm medieval tavern Foley: a wooden tankard is set gently on an oak table, a brief ale pour flows from a tapped cask, and one soft hearth ember pops, intimate and restrained, no voices, no laughter, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.88
+    },
+    {
       "id": "building-smokehouse",
       "group": "building-foley",
       "kind": "sound-effect",
@@ -662,6 +692,16 @@
       "promptInfluence": 0.88
     },
     {
+      "id": "building-bakery",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/bakery.mp3",
+      "prompt": "Short warm medieval bakery Foley: a wooden oven peel scrapes once across a stone hearth and a fresh crusty loaf settles onto a timber board, with a faint wood-fired oven draft, no voices, no music",
+      "durationSeconds": 2.4,
+      "loop": false,
+      "promptInfluence": 0.89
+    },
+    {
       "id": "building-apiary",
       "group": "building-foley",
       "kind": "sound-effect",
@@ -680,6 +720,16 @@
       "durationSeconds": 2.7,
       "loop": false,
       "promptInfluence": 0.88
+    },
+    {
+      "id": "building-windmill",
+      "group": "building-foley",
+      "kind": "sound-effect",
+      "output": "public/sounds/buildings/windmill.mp3",
+      "prompt": "Short restrained medieval windmill Foley: one slow wooden sail joint creaks under wind load, internal oak gears turn with two muted tooth knocks, and the millstone gives a brief soft grainy grind, no storm, no voices, no music",
+      "durationSeconds": 2.7,
+      "loop": false,
+      "promptInfluence": 0.89
     },
     {
       "id": "building-carpenter",

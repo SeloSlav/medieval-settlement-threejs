@@ -41,7 +41,7 @@ export type ChapelBellTier = 1 | 2 | 3;
 
 export type BuildingAudioKind = Exclude<
   BuildingKind,
-  'chapel' | 'wayside_shrine'
+  'chapel'
 > | 'residence';
 
 export type FootstepSurface = 'grass' | 'dirt' | 'timber' | 'stone' | 'water';
@@ -211,8 +211,9 @@ export const BUILDING_AUDIO_CLIPS: Record<
   hunters_hall: { path: '/sounds/buildings/hunters_hall.mp3', volume: 0.05 },
   foragers_shed: { path: '/sounds/buildings/foragers_shed.mp3', volume: 0.045 },
   fishing_camp: { path: '/sounds/buildings/fishing_camp.mp3', volume: 0.05 },
+  wayside_shrine: { path: '/sounds/buildings/wayside_shrine.mp3', volume: 0.04 },
   marketplace: { path: '/sounds/buildings/marketplace.mp3', volume: 0.04 },
-  trading_post: { path: '/sounds/buildings/marketplace.mp3', volume: 0.045 },
+  trading_post: { path: '/sounds/buildings/trading_post.mp3', volume: 0.05 },
   town_hall: { path: '/sounds/buildings/town_hall.mp3', volume: 0.04 },
   village_storehouse: { path: '/sounds/buildings/village_storehouse.mp3', volume: 0.045 },
   watchtower: { path: '/sounds/buildings/watchtower.mp3', volume: 0.045 },
@@ -223,13 +224,13 @@ export const BUILDING_AUDIO_CLIPS: Record<
   swineherd: { path: '/sounds/buildings/swineherd.mp3', volume: 0.05 },
   monastery: { path: '/sounds/buildings/monastery.mp3', volume: 0.04 },
   brewery: { path: '/sounds/buildings/brewery.mp3', volume: 0.05 },
-  tavern: { path: '/sounds/buildings/marketplace.mp3', volume: 0.045 },
+  tavern: { path: '/sounds/buildings/tavern.mp3', volume: 0.05 },
   smokehouse: { path: '/sounds/buildings/smokehouse.mp3', volume: 0.045 },
   granary: { path: '/sounds/buildings/granary.mp3', volume: 0.045 },
-  bakery: { path: '/sounds/buildings/brewery.mp3', volume: 0.045 },
+  bakery: { path: '/sounds/buildings/bakery.mp3', volume: 0.05 },
   apiary: { path: '/sounds/buildings/apiary.mp3', volume: 0.04 },
   watermill: { path: '/sounds/buildings/watermill.mp3', volume: 0.055 },
-  windmill: { path: '/sounds/buildings/threshing_barn.mp3', volume: 0.05 },
+  windmill: { path: '/sounds/buildings/windmill.mp3', volume: 0.055 },
   carpenter: { path: '/sounds/buildings/carpenter.mp3', volume: 0.06 },
   weaver: { path: '/sounds/buildings/weaver.mp3', volume: 0.05 },
   vineyard: { path: '/sounds/buildings/vineyard.mp3', volume: 0.045 },
