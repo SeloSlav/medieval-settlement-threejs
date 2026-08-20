@@ -33,13 +33,11 @@ import {
   NAMED_FOOD_LABELS,
   edibleFoodStock,
   foodCategoryQualifyingStock,
-  foodDietGroupCount,
-  foodVarietyCount,
+  foodProgressionStatus,
   householdFoodPerDay,
   presentFoodCategories,
-  presentFoodDietGroups,
   FOOD_CATEGORY_LABELS,
-  FOOD_DIET_GROUP_LABELS,
+  FOOD_PROGRESSION_SLOT_LABELS,
   preservedFoodStock,
 } from '../../economy/foodInventory.ts';
 import {
@@ -323,10 +321,12 @@ export function renderResidenceInspector(
       },
       foodVariety: {
         supplier: null,
-        stocked: foodVarietyCount(residence, residence.population) > 0,
-        ready: residence.tier >= 2
-          ? foodDietGroupCount(residence, residence.population) >= 3
-          : foodVarietyCount(residence, residence.population) >= 2,
+        stocked: presentFoodCategories(residence, residence.population).length > 0,
+        ready: foodProgressionStatus(
+          residence,
+          residence.population,
+          Math.min(4, residence.tier + 1) as 1 | 2 | 3 | 4,
+        ).ready,
       },
       },
       {
@@ -645,10 +645,10 @@ export function renderResidenceInspector(
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — structural recovery required before settlement resumes</span></li>`
         : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Fresh food</span><span>${householdFreshMeals.toFixed(1)} / ${RESIDENCE_FOOD_CAPACITY} · ${foodRunwayLabel} runway</span></li>` : ''}
-      ${residence.tier >= 2 ? householdFoodVarietyRow(residence, foodAndDrinkSection) : ''}
+      ${residence.tier > 0 ? householdFoodVarietyRow(residence, foodAndDrinkSection) : ''}
       ${residence.tier > 0 ? householdFoodContentsRow(residence, foodAndDrinkSection) : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Next daily meal</span><span>${mealAllocation.freshUsed.toFixed(2)} fresh + ${preservedMealUse.toFixed(2)} preserved${mealAllocation.preservedFallbackUsed > 1e-6 ? ` (${mealAllocation.preservedFallbackUsed.toFixed(2)} emergency fallback)` : ''}${mealAllocation.unmet > 1e-6 ? ` &middot; ${mealAllocation.unmet.toFixed(2)} unmet` : ''} &middot; ${grossFoodPerDay.toFixed(2)} total demand</span></li>` : ''}
-      ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Preserved food</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY} · ${preservedFoodRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Cured provisions</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY} · ${preservedFoodRunwayLabel} runway</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
         householdPreservedFood
         * environment.preservedFoodSpoilageFractionPerDay
@@ -820,10 +820,10 @@ function residenceUpgradePanel(
     ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
     : `Blocked · ${plan.blockers.join(' · ')}.`;
   const guidance = plan.nextTier === 2
-    ? 'Tier 2 needs two stocked food categories, a level-2 church, a staffed road-connected Tavern, and a staffed weaver in addition to firewood and well access.'
+    ? 'Tier 2 needs a one-day grain staple plus one other stocked food group, a level-2 church, a staffed road-connected Tavern, and a staffed weaver in addition to fuel and well access.'
     : plan.nextTier === 3
-      ? 'Tier 3 needs one stocked crops/forage category, one meat/animal-produce category, fish, and a staffed level-2 church while retaining firewood, well, and Tier 2 services.'
-      : 'Tier 4 needs preserved food, pottery, a staffed level-3 church, and physical fired roof tiles while retaining every lower-tier service.';
+      ? 'Tier 3 needs separate one-day stocks of grain, produce or forage, meat or animal produce, and fish, plus a staffed level-2 church while retaining fuel, well, and Tier 2 services.'
+      : 'Tier 4 needs cured provisions, pottery, a staffed level-3 church, and physical fired roof tiles while retaining the complete lower-tier diet and services.';
   const throughput = prosperity && projection
     ? projection.immediateSustainable
       ? projection.fullPipelineSustainable
@@ -924,12 +924,12 @@ function householdFoodVarietyRow(
   const categories = presentFoodCategories(residence, residence.population);
   const labels = categories.map((category) => FOOD_CATEGORY_LABELS[category]);
   const qualifyingStock = foodCategoryQualifyingStock(residence.population);
-  if (residence.tier >= 3) {
-    const groups = presentFoodDietGroups(residence, residence.population);
-    const groupLabels = groups.map((group) => FOOD_DIET_GROUP_LABELS[group]);
-    return `<li data-inspector-primary data-inspector-section="${section}"><span>Balanced diet</span><span>${groups.length} / 3 groups${groupLabels.length ? ` · ${groupLabels.join(', ')}` : ' · none supplied'} · crops/forage, animal foods, and fish each require a one-day category stock</span></li>`;
-  }
-  return `<li data-inspector-primary data-inspector-section="${section}"><span>Food variety</span><span>${categories.length} / 2 categories${labels.length ? ` · ${labels.join(', ')}` : ' · none supplied'} · ${qualifyingStock.toFixed(1)} units per category required</span></li>`;
+  const tier = Math.max(1, residence.tier) as 1 | 2 | 3 | 4;
+  const progression = foodProgressionStatus(residence, residence.population, tier);
+  const missing = progression.missingSlots
+    .map((slot) => FOOD_PROGRESSION_SLOT_LABELS[slot].toLowerCase());
+  const supplied = labels.length ? labels.join(', ') : 'none supplied';
+  return `<li data-inspector-primary data-inspector-section="${section}"><span>Food standard</span><span>${progression.satisfiedSlots.length} / ${progression.requiredSlots.length} goals · ${supplied}${missing.length ? ` · missing ${missing.join(', ')}` : ''} · ${qualifyingStock.toFixed(1)} meal-equivalents per category</span></li>`;
 }
 
 function formatUpgradeAmount(value: number): string {

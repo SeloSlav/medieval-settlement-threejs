@@ -27,7 +27,11 @@ import {
   residencePotteryRunwayDays,
 } from '../logistics/specialtyLogistics.ts';
 import type { ResidenceState } from '../resources/types.ts';
-import { householdFoodPerDay } from '../economy/foodInventory.ts';
+import {
+  FOOD_PROGRESSION_SLOT_LABELS,
+  foodProgressionStatus,
+  householdFoodPerDay,
+} from '../economy/foodInventory.ts';
 import {
   getNeed,
   requiredChapelTierForResidence,
@@ -144,7 +148,7 @@ function evaluateNeedRecovery(
     case 'preservedFood':
       return {
         kind,
-        label: 'Preserved food',
+        label: 'Cured provisions',
         ready: supply.servingPreservedFoodSupplierId != null && need.stock + 1e-6 >= threshold,
         stock: need.stock,
         threshold,
@@ -353,7 +357,7 @@ function describeActiveNeed(
     }
     case 'preservedFood':
       return getNeed(residence.needs, kind).stock <= 1e-6
-        ? { label: 'Out of preserved food — awaiting smokehouse supply', state: 'warning' }
+        ? { label: 'Out of cured provisions — awaiting preservation supply', state: 'warning' }
         : null;
     case 'ale':
       return getNeed(residence.needs, kind).stock <= 1e-6
@@ -403,13 +407,16 @@ function describeActiveNeed(
         : null;
     }
     case 'foodVariety': {
-      const target = residence.tier >= 3 ? 3 : 2;
-      const count = Math.floor(getNeed(residence.needs, kind).stock + 1e-6);
-      return count < target
+      const progression = foodProgressionStatus(
+        residence,
+        residence.population,
+        residence.tier as 1 | 2 | 3 | 4,
+      );
+      const missing = progression.missingSlots
+        .map((slot) => FOOD_PROGRESSION_SLOT_LABELS[slot].toLowerCase());
+      return !progression.ready
         ? {
-            label: residence.tier >= 3
-              ? `Balanced diet incomplete — ${count}/3 groups (crops/forage, animal foods, fish)`
-              : `Food variety low — ${count}/2 categories supplied`,
+            label: `Food standard incomplete — ${progression.satisfiedSlots.length}/${progression.requiredSlots.length} goals; missing ${missing.join(', ')}`,
             state: 'warning',
           }
         : null;
@@ -432,7 +439,7 @@ function needLabel(kind: ResidenceNeedKind): string {
     case 'ale':
       return 'Beverages';
     case 'preservedFood':
-      return 'Preserved food';
+      return 'Cured provisions';
     case 'cloth':
       return 'Household textiles';
     case 'pottery':

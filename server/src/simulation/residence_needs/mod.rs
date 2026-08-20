@@ -23,9 +23,10 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::{
-    building_edible_food_stock, reconcile_building_labor, residence_food_diet_group_count,
-    residence_food_variety_count, residence_fresh_food_stock, residence_preserved_food_stock,
-    withdraw_building_edible_food, withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
+    building_edible_food_stock, reconcile_building_labor,
+    residence_food_progression_required_slots, residence_food_progression_slots,
+    residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building_edible_food,
+    withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
     PRESERVED_FOOD_COMMODITIES,
 };
 use crate::monastery_estate_policy::{
@@ -65,8 +66,8 @@ pub fn step_residence_needs(
     let general_consumption_paused = is_consumption_paused(ctx, residence.owner, clock);
     spoil_residence_food_inventory(&mut residence, environment);
     migrate_and_sync_food_inventory(&mut residence, &mut needs);
-    let food_variety_count = residence_food_variety_count(&residence);
-    let food_diet_group_count = residence_food_diet_group_count(&residence);
+    let food_progression_slots = residence_food_progression_slots(&residence, residence.tier);
+    let food_progression_required = residence_food_progression_required_slots(residence.tier);
 
     let cold_weather = environment.season == Season::Winter;
     let mut food_unmet = false;
@@ -106,14 +107,8 @@ pub fn step_residence_needs(
                 ConsumeResult::Unmet
             }
         } else if kind == ResidenceNeedKind::FoodVariety {
-            let required_variety = if residence.tier >= 3 { 3 } else { 2 };
-            let supplied = if residence.tier >= 3 {
-                food_diet_group_count
-            } else {
-                food_variety_count
-            };
-            need.stock = f64::from(supplied);
-            if supplied >= required_variety {
+            need.stock = f64::from(food_progression_slots);
+            if food_progression_slots >= food_progression_required {
                 ConsumeResult::Met(*need)
             } else {
                 ConsumeResult::Unmet

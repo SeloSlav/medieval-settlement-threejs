@@ -166,7 +166,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       roofTiles: 0,
       requiredChapelTier: 2,
       serviceKinds: ['firewood', 'water', 'church', 'foodVariety', 'ale', 'cloth'],
-      addedNeeds: 'Adds two food categories, ale, clothing, and a level-2 church standard',
+      addedNeeds: 'Adds a grain staple, one other food group, ale, clothing, and a level-2 church standard',
     };
   }
   if (tier === 2) {
@@ -179,7 +179,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       roofTiles: 0,
       requiredChapelTier: 2,
       serviceKinds: ['firewood', 'water', 'ale', 'cloth', 'church', 'foodVariety'],
-      addedNeeds: 'Adds a balanced three-group diet and a stone-church standard',
+      addedNeeds: 'Adds produce or forage, land-animal food, fish, and a stone-church standard while retaining grain',
     };
   }
   if (tier === 3) {
@@ -192,7 +192,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       roofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
       requiredChapelTier: 3,
       serviceKinds: ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
-      addedNeeds: 'Adds preserved food, pottery, a level-3 church standard, and a finished fired-tile house',
+      addedNeeds: 'Adds cured provisions, pottery, a level-3 church standard, and a finished fired-tile house',
     };
   }
   return null;
@@ -201,7 +201,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
 const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   firewood: 'Firewood',
   water: 'Water',
-  preservedFood: 'Preserved food',
+  preservedFood: 'Cured provisions',
   ale: 'Beverages',
   cloth: 'Cloth',
   pottery: 'Pottery',
@@ -226,8 +226,8 @@ export function evaluateResidenceUpgrade(
         ? `Level ${definition.requiredChapelTier} church`
         : kind === 'foodVariety'
           ? definition.nextTier >= 3
-            ? '3 diet groups: crops/forage, animal foods, and fish'
-            : '2 food categories'
+            ? 'Grain, produce/forage, animal foods, and fish'
+            : 'Grain staple and one other food group'
           : SERVICE_LABELS[kind],
       supplier: input.supplier,
       stocked: input.stocked,

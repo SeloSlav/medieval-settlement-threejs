@@ -172,32 +172,6 @@ impl FoodCategory {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-#[repr(u8)]
-pub enum FoodDietGroup {
-    CropsAndForage = 0,
-    AnimalFoods = 1,
-    Fish = 2,
-}
-
-impl FoodDietGroup {
-    pub fn bit(self) -> u8 {
-        1 << self as u8
-    }
-}
-
-pub fn food_diet_group(category: FoodCategory) -> FoodDietGroup {
-    match category {
-        FoodCategory::Grains
-        | FoodCategory::Vegetables
-        | FoodCategory::Fruits
-        | FoodCategory::Foraged
-        | FoodCategory::Honey => FoodDietGroup::CropsAndForage,
-        FoodCategory::AnimalProduce | FoodCategory::Meats => FoodDietGroup::AnimalFoods,
-        FoodCategory::Fishes => FoodDietGroup::Fish,
-    }
-}
-
 pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
     match kind {
         CommodityKind::Food
@@ -918,23 +892,111 @@ pub fn residence_food_category_mask(residence: &Residence) -> u8 {
     })
 }
 
-pub fn residence_food_variety_count(residence: &Residence) -> u8 {
-    residence_food_category_mask(residence).count_ones() as u8
-}
-
-pub fn residence_food_diet_group_mask(residence: &Residence) -> u8 {
+/// Count the food goals that matter at a residence tier. Tier 1 can live on
+/// any qualifying food. Tier 2 establishes grain as the staple alongside one
+/// other category. Tier 3+ keeps that staple and asks for produce/forage,
+/// land-based animal food, and fish as distinct parts of the diet. Tier 4's
+/// additional cured-food standard remains the separate PreservedFood need.
+pub fn residence_food_progression_slots(residence: &Residence, tier: u8) -> u8 {
     let categories = residence_food_category_mask(residence);
-    FoodCategory::ALL.into_iter().fold(0_u8, |mask, category| {
-        if categories & category.bit() == 0 {
-            mask
-        } else {
-            mask | food_diet_group(category).bit()
-        }
-    })
+    if tier == 0 {
+        return 0;
+    }
+    if tier == 1 {
+        return u8::from(categories != 0);
+    }
+
+    let grain_ready = residence_grain_food_ready(residence);
+
+    if tier == 2 {
+        let other_food_ready = categories & !FoodCategory::Grains.bit() != 0;
+        return u8::from(grain_ready) + u8::from(other_food_ready);
+    }
+
+    let produce_or_forage = FoodCategory::Vegetables.bit()
+        | FoodCategory::Fruits.bit()
+        | FoodCategory::Foraged.bit()
+        | FoodCategory::Honey.bit();
+    let land_animal_food = FoodCategory::AnimalProduce.bit() | FoodCategory::Meats.bit();
+    u8::from(grain_ready)
+        + u8::from(categories & produce_or_forage != 0)
+        + u8::from(categories & land_animal_food != 0)
+        + u8::from(categories & FoodCategory::Fishes.bit() != 0)
 }
 
-pub fn residence_food_diet_group_count(residence: &Residence) -> u8 {
-    residence_food_diet_group_mask(residence).count_ones() as u8
+pub fn residence_food_progression_required_slots(tier: u8) -> u8 {
+    match tier {
+        0 => 0,
+        1 => 1,
+        2 => 2,
+        _ => 4,
+    }
+}
+
+pub fn residence_food_progression_met(residence: &Residence, tier: u8) -> bool {
+    residence_food_progression_slots(residence, tier)
+        >= residence_food_progression_required_slots(tier)
+}
+
+pub fn food_commodity_advances_residence_progression(
+    residence: &Residence,
+    tier: u8,
+    commodity: CommodityKind,
+) -> bool {
+    let Some(category) = food_category(commodity) else {
+        return false;
+    };
+    let categories = residence_food_category_mask(residence);
+    if tier <= 1 {
+        return categories == 0;
+    }
+    if tier == 2 {
+        return (!residence_grain_food_ready(residence) && is_grain_food(commodity))
+            || (categories & !FoodCategory::Grains.bit() == 0 && category != FoodCategory::Grains);
+    }
+
+    match category {
+        FoodCategory::Grains => !residence_grain_food_ready(residence) && is_grain_food(commodity),
+        FoodCategory::Vegetables
+        | FoodCategory::Fruits
+        | FoodCategory::Foraged
+        | FoodCategory::Honey => {
+            let produce_or_forage = FoodCategory::Vegetables.bit()
+                | FoodCategory::Fruits.bit()
+                | FoodCategory::Foraged.bit()
+                | FoodCategory::Honey.bit();
+            categories & produce_or_forage == 0
+        }
+        FoodCategory::AnimalProduce | FoodCategory::Meats => {
+            let land_animal_food = FoodCategory::AnimalProduce.bit() | FoodCategory::Meats.bit();
+            categories & land_animal_food == 0
+        }
+        FoodCategory::Fishes => categories & FoodCategory::Fishes.bit() == 0,
+    }
+}
+
+fn residence_grain_food_ready(residence: &Residence) -> bool {
+    let qualifying_stock = food_category_qualifying_stock(residence.population);
+    let grain_stock = [
+        CommodityKind::Food,
+        CommodityKind::OatGrain,
+        CommodityKind::RyeBread,
+        CommodityKind::MaslinBread,
+    ]
+    .into_iter()
+    .map(|kind| residence_commodity_stock(residence, kind).max(0.0) * kind.meal_value())
+    .sum::<f64>();
+    grain_stock + 1e-6 >= qualifying_stock
+}
+
+fn is_grain_food(commodity: CommodityKind) -> bool {
+    matches!(
+        commodity,
+        CommodityKind::Food
+            | CommodityKind::OatGrain
+            | CommodityKind::RyeBread
+            | CommodityKind::MaslinBread
+    )
 }
 
 pub fn withdraw_residence_commodity(

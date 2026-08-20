@@ -20,8 +20,8 @@ use crate::db::*;
 use crate::economy::{
     available_building_labor, building_commodity_stock, credit_settlement_household_income,
     credit_treasury_commodity, credit_treasury_stone, credit_treasury_timber,
-    reconcile_building_labor, residence_food_diet_group_count, residence_food_variety_count,
-    residence_population_for_parcel, residence_zone_cost, residence_zone_cost_for_units,
+    reconcile_building_labor, residence_food_progression_met, residence_population_for_parcel,
+    residence_zone_cost, residence_zone_cost_for_units,
     spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber,
     spend_treasury_gold, total_roof_tiles, total_stone, total_timber, treasury_gold,
     CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
@@ -443,7 +443,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
                 ResidenceUpgradeService::Cloth,
                 ResidenceUpgradeService::Pottery,
                 ResidenceUpgradeService::Church(3),
-                ResidenceUpgradeService::FoodVariety(3),
+                ResidenceUpgradeService::FoodVariety(4),
                 ResidenceUpgradeService::Marketplace,
                 ResidenceUpgradeService::GranaryStalls,
                 ResidenceUpgradeService::StorehouseStalls,
@@ -454,11 +454,11 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
 
     if !has_connected_services(ctx, &residence, required_services) {
         return Err(if next_tier == 2 {
-            "Tier 2 requires fuel and well supply, a staffed road-linked level-2 church, two food categories, ale, clothing, and staffed market stalls.".to_string()
+            "Tier 2 requires fuel and well supply, a staffed road-linked level-2 church, a grain staple plus one other food group, ale, clothing, and staffed market stalls.".to_string()
         } else if next_tier == 3 {
-            "Tier 3 requires fuel and well supply, crops or forage, meat or animal produce, fish, a level-2 church, ale, clothing, and staffed market stalls.".to_string()
+            "Tier 3 requires fuel and well supply, grain, produce or forage, meat or animal produce, fish, a level-2 church, ale, clothing, and staffed market stalls.".to_string()
         } else {
-            "Tier 4 requires fuel and well supply, a level-3 church, preserved food, pottery, the complete tier-3 diet and services, and staffed market supply.".to_string()
+            "Tier 4 requires fuel and well supply, a level-3 church, cured provisions, pottery, the complete grain/produce/animal/fish diet and services, and staffed market supply.".to_string()
         });
     }
     let physical_economy = ctx
@@ -761,11 +761,7 @@ fn has_connected_services(
         .collect();
     required_services.iter().all(|service| {
         if let ResidenceUpgradeService::FoodVariety(required) = service {
-            return if *required >= 3 {
-                residence_food_diet_group_count(residence) >= *required
-            } else {
-                residence_food_variety_count(residence) >= *required
-            };
+            return residence_food_progression_met(residence, *required);
         }
         buildings.iter().any(|building| {
             let Some(_distance) =

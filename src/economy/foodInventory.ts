@@ -147,17 +147,23 @@ export const FOOD_CATEGORY_LABELS = {
 } as const;
 export type FoodCategory = keyof typeof FOOD_CATEGORY_LABELS;
 
-export const FOOD_DIET_GROUP_LABELS = {
-  cropsAndForage: 'Crops & forage',
-  animalFoods: 'Meat & animal produce',
+export const FOOD_PROGRESSION_SLOT_LABELS = {
+  anyFood: 'Any food group',
+  grains: 'Grain staple',
+  otherFood: 'Another food group',
+  produceAndForage: 'Produce or forage',
+  animalFoods: 'Meat or animal produce',
   fish: 'Fish',
 } as const;
-export type FoodDietGroup = keyof typeof FOOD_DIET_GROUP_LABELS;
+export type FoodProgressionSlot = keyof typeof FOOD_PROGRESSION_SLOT_LABELS;
 
-export const FOOD_DIET_GROUP_CATEGORIES: Readonly<Record<FoodDietGroup, readonly FoodCategory[]>> = {
-  cropsAndForage: ['grains', 'vegetables', 'fruits', 'foraged', 'honey'],
-  animalFoods: ['animalProduce', 'meats'],
-  fish: ['fishes'],
+export type FoodProgressionStatus = {
+  tier: 1 | 2 | 3 | 4;
+  requiredSlots: readonly FoodProgressionSlot[];
+  satisfiedSlots: FoodProgressionSlot[];
+  missingSlots: FoodProgressionSlot[];
+  suppliedCategories: FoodCategory[];
+  ready: boolean;
 };
 
 export function foodCategory(kind: FoodInventoryKind): FoodCategory {
@@ -231,24 +237,49 @@ export function foodVarietyCount(inventory: FoodInventoryLike, population: numbe
 }
 
 /**
- * Tier 3 asks for a balanced pantry, not three interchangeable crop rows.
- * Each broad diet group is satisfied by one qualifying category within it.
+ * Residence food progression follows broad Manor-Lords-style food families
+ * without importing its late-game item counts wholesale. Tier 1 accepts any
+ * viable opening food; Tier 2 establishes grain plus a second category; Tier
+ * 3+ separates produce/forage, land animal food, and fish. Tier 4 layers its
+ * separate cured-provisions need on top of this result.
  */
-export function presentFoodDietGroups(
+export function foodProgressionStatus(
   inventory: FoodInventoryLike,
   population: number,
-): FoodDietGroup[] {
-  const categories = new Set(presentFoodCategories(inventory, population));
-  return (Object.keys(FOOD_DIET_GROUP_CATEGORIES) as FoodDietGroup[])
-    .filter((group) => FOOD_DIET_GROUP_CATEGORIES[group]
-      .some((category) => categories.has(category)));
-}
+  tier: 1 | 2 | 3 | 4,
+): FoodProgressionStatus {
+  const suppliedCategories = presentFoodCategories(inventory, population);
+  const categories = new Set(suppliedCategories);
+  const requiredSlots: readonly FoodProgressionSlot[] = tier === 1
+    ? ['anyFood']
+    : tier === 2
+      ? ['grains', 'otherFood']
+      : ['grains', 'produceAndForage', 'animalFoods', 'fish'];
+  const minimum = foodCategoryQualifyingStock(population);
+  const grainStock = (['food', 'oatGrain', 'ryeBread', 'maslinBread'] as const)
+    .reduce((total, kind) => total + finiteFood(inventory[kind]) * foodMealValue(kind), 0);
+  const supplied = new Set<FoodProgressionSlot>();
 
-export function foodDietGroupCount(
-  inventory: FoodInventoryLike,
-  population: number,
-): number {
-  return presentFoodDietGroups(inventory, population).length;
+  if (suppliedCategories.length > 0) supplied.add('anyFood');
+  if (grainStock + 1e-6 >= minimum) supplied.add('grains');
+  if (suppliedCategories.some((category) => category !== 'grains')) supplied.add('otherFood');
+  if (['vegetables', 'fruits', 'foraged', 'honey']
+    .some((category) => categories.has(category as FoodCategory))) {
+    supplied.add('produceAndForage');
+  }
+  if (categories.has('animalProduce') || categories.has('meats')) supplied.add('animalFoods');
+  if (categories.has('fishes')) supplied.add('fish');
+
+  const satisfiedSlots = requiredSlots.filter((slot) => supplied.has(slot));
+  const missingSlots = requiredSlots.filter((slot) => !supplied.has(slot));
+  return {
+    tier,
+    requiredSlots,
+    satisfiedSlots,
+    missingSlots,
+    suppliedCategories,
+    ready: missingSlots.length === 0,
+  };
 }
 
 function finiteFood(value: number | undefined): number {
