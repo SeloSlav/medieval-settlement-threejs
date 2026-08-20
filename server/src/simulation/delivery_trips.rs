@@ -114,12 +114,6 @@ enum TripDestination {
         x: f64,
         z: f64,
     },
-    ExternalResidence {
-        id: u64,
-        market_id: u64,
-        x: f64,
-        z: f64,
-    },
     ResidenceWealth {
         id: u64,
         x: f64,
@@ -157,9 +151,6 @@ impl TripDestination {
     fn to_row_fields(self) -> (u8, u64, u64) {
         match self {
             Self::Residence { id, .. } => (DELIVERY_DESTINATION_RESIDENCE, id, 0),
-            Self::ExternalResidence { id, market_id, .. } => {
-                (DELIVERY_DESTINATION_RESIDENCE, id, market_id)
-            }
             Self::ResidenceWealth { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_WEALTH, id, 0),
             Self::ResidenceRemedy { id, .. } => (DELIVERY_DESTINATION_RESIDENCE_REMEDY, id, 0),
             Self::Building { id, .. } => (DELIVERY_DESTINATION_BUILDING, 0, id),
@@ -180,7 +171,6 @@ impl TripDestination {
     fn end_point(self) -> (f64, f64) {
         match self {
             Self::Residence { x, z, .. }
-            | Self::ExternalResidence { x, z, .. }
             | Self::ResidenceWealth { x, z, .. }
             | Self::ResidenceRemedy { x, z, .. }
             | Self::Building { x, z, .. }
@@ -551,31 +541,6 @@ pub fn regional_market_export_route(
     Ok(route)
 }
 
-/// Extends the regional route through its contracting marketplace and onward
-/// to one named household. The merchant therefore enters on the market's road
-/// branch instead of choosing an arbitrary map-edge shortcut to the home.
-pub fn regional_market_import_route_to_residence(
-    ctx: &ReducerContext,
-    network: &RoadNetwork,
-    marketplace: &Building,
-    residence: &Residence,
-) -> Result<RoadPathRoute, String> {
-    let mut route = regional_market_import_route(ctx, network, marketplace)?;
-    let local_route = network
-        .road_path_route(marketplace.x, marketplace.z, residence.x, residence.z)
-        .filter(valid_external_route)
-        .ok_or_else(|| {
-            "The named household is no longer connected to this marketplace's road branch."
-                .to_string()
-        })?;
-    append_route_without_duplicate(&mut route.polyline, &local_route.polyline);
-    route.distance = RoadNetwork::polyline_length_xz(&route.polyline);
-    if !valid_external_route(&route) {
-        return Err("The regional household route is invalid.".to_string());
-    }
-    Ok(route)
-}
-
 fn valid_external_route(route: &RoadPathRoute) -> bool {
     route.distance > 1e-6
         && route.distance.is_finite()
@@ -584,57 +549,6 @@ fn valid_external_route(route: &RoadPathRoute) -> bool {
             .polyline
             .iter()
             .all(|point| point[0].is_finite() && point[1].is_finite())
-}
-
-fn append_route_without_duplicate(path: &mut Vec<[f64; 2]>, segment: &[[f64; 2]]) {
-    for point in segment {
-        if path.last().is_some_and(|last| {
-            (last[0] - point[0]).abs() <= 1e-9 && (last[1] - point[1]).abs() <= 1e-9
-        }) {
-            continue;
-        }
-        path.push(*point);
-    }
-}
-
-/// Inserts already-contracted foreign cargo at its physical map-edge entry.
-/// It follows the target market's connected road branch, unloads into that
-/// building, and returns to the same edge. The merchant crew is external and
-/// therefore never consumes the settlement's resident labor roster.
-pub fn start_external_market_import_trip(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    network: &RoadNetwork,
-    marketplace: &Building,
-    commodity: CommodityKind,
-    amount: f64,
-    route: RoadPathRoute,
-) -> bool {
-    if !external_market_import_ready(ctx, marketplace, amount, &route) {
-        return false;
-    }
-    insert_trip(
-        ctx,
-        tick,
-        network,
-        StartTripSpec {
-            origin: marketplace.clone(),
-            destination: TripDestination::Building {
-                id: marketplace.id,
-                x: marketplace.x,
-                z: marketplace.z,
-            },
-            cargo_kind: commodity.as_u8(),
-            delivery_workers: 1,
-            labor_source: DeliveryLaborSource::External,
-            speed_mps: TIMBER_DELIVERY_SPEED_MPS,
-            unload_seconds: TIMBER_DELIVERY_UNLOAD_SEC,
-            load_amount: amount,
-        },
-        route,
-        1.0,
-    );
-    true
 }
 
 /// Starts a two-way regional exchange with goods already staged at the
@@ -688,69 +602,6 @@ pub fn start_regional_market_export_trip(
         1.0,
     );
     true
-}
-
-/// Sends one paid household or parish order through its Trading Post and on to
-/// the exact residence. The post id is retained in target_building_id
-/// as a save-compatible marker for the external merchant leg.
-pub fn start_external_market_import_trip_to_residence(
-    ctx: &ReducerContext,
-    tick: &SimTickContext,
-    network: &RoadNetwork,
-    marketplace: &Building,
-    residence: &Residence,
-    commodity: CommodityKind,
-    amount: f64,
-    speed_mps: f64,
-    unload_seconds: f64,
-    route: RoadPathRoute,
-) -> bool {
-    if residence.owner != marketplace.owner
-        || !speed_mps.is_finite()
-        || speed_mps <= 1e-6
-        || !unload_seconds.is_finite()
-        || unload_seconds < 0.0
-        || !external_market_import_ready(ctx, marketplace, amount, &route)
-    {
-        return false;
-    }
-    insert_trip(
-        ctx,
-        tick,
-        network,
-        StartTripSpec {
-            origin: marketplace.clone(),
-            destination: TripDestination::ExternalResidence {
-                id: residence.id,
-                market_id: marketplace.id,
-                x: residence.x,
-                z: residence.z,
-            },
-            cargo_kind: commodity.as_u8(),
-            delivery_workers: 1,
-            labor_source: DeliveryLaborSource::External,
-            speed_mps,
-            unload_seconds,
-            load_amount: amount,
-        },
-        route,
-        1.0,
-    );
-    true
-}
-
-fn external_market_import_ready(
-    ctx: &ReducerContext,
-    marketplace: &Building,
-    amount: f64,
-    route: &RoadPathRoute,
-) -> bool {
-    marketplace.kind == "trading_post"
-        && marketplace.construction_complete
-        && amount > 1e-6
-        && amount.is_finite()
-        && valid_external_route(route)
-        && !building_has_regional_market_trip(ctx, marketplace.id)
 }
 
 fn regional_market_export_ready(
@@ -1876,14 +1727,7 @@ fn insert_trip(
 ) {
     let (destination_kind, residence_id, target_building_id) = spec.destination.to_row_fields();
     let (start_x, start_z) = RoadNetwork::sample_polyline_xz(&route.polyline, 0.0);
-    let regional_market_trip = spec.origin.id != 0
-        && spec.origin.id == target_building_id
-        && matches!(
-            destination_kind,
-            DELIVERY_DESTINATION_BUILDING
-                | DELIVERY_DESTINATION_RESIDENCE
-                | DELIVERY_DESTINATION_REGIONAL_TRADE
-        );
+    let regional_market_trip = destination_kind == DELIVERY_DESTINATION_REGIONAL_TRADE;
     let cartwright_multiplier = if regional_market_trip {
         1.0
     } else {

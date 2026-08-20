@@ -65,6 +65,7 @@ import {
 } from '../logistics/foodLogistics.ts';
 import { lodgeDeliveryTripSeconds } from '../logistics/lodgeLogistics.ts';
 import { firewoodDeliveryTripSeconds } from '../logistics/deliveryLogistics.ts';
+import { monasteryScriptoriumRecoveryMultiplier } from '../buildings/monasteryEstate.ts';
 import {
   industrialWaterRequirement,
   industrialWaterTarget,
@@ -713,6 +714,24 @@ export class WorldQueries {
       origin,
       fireDisabledBuildingIds(state.fireIncidents.values()),
     );
+  }
+
+  getScriptoriumRecoveryMultiplierAt(origin: { x: number; z: number }): number {
+    const state = this.getGameState();
+    const chapels = this.activeParishChapels(state);
+    const probe = (ax: number, az: number, bx: number, bz: number) =>
+      this.getRoadPathDistance(ax, az, bx, bz);
+    let multiplier = 1;
+    for (const monastery of this.activeMonasteries(state)) {
+      if (!monasteryLinkedToChapel(monastery, chapels, probe)) continue;
+      const distance = probe(origin.x, origin.z, monastery.x, monastery.z);
+      if (distance == null || distance > MONASTERY_COVERAGE_RADIUS) continue;
+      multiplier = Math.min(
+        multiplier,
+        monasteryScriptoriumRecoveryMultiplier(monastery.chapelTier),
+      );
+    }
+    return multiplier;
   }
 
   getRoadConditionSpeedMultiplier(): number {

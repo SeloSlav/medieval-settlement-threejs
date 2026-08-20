@@ -21,6 +21,7 @@ export type FireRecoveryQuote = {
   cost: BuildingResourceCost;
   fraction: number;
   carpenterSupported: boolean;
+  scriptoriumRecoveryMultiplier: number;
   kind: 'repair' | 'rebuild';
 };
 
@@ -40,16 +41,18 @@ export function fireRecoveryCost(
   damage: number,
   destroyed: boolean,
   carpenterSupported: boolean,
+  scriptoriumRecoveryMultiplier = 1,
 ): BuildingResourceCost {
   const fraction = fireRecoveryFraction(damage, destroyed);
   const timberMultiplier = carpenterSupported
     ? CARPENTER_TIMBER_COST_MULTIPLIER
     : 1;
+  const archiveMultiplier = Math.max(0, scriptoriumRecoveryMultiplier);
   return {
-    timber: roundToTenth(base.timber * fraction * timberMultiplier),
-    stone: roundToTenth(base.stone * fraction),
-    ironwork: roundToTenth((base.ironwork ?? 0) * fraction),
-    roofTiles: roundToTenth((base.roofTiles ?? 0) * fraction),
+    timber: roundToTenth(base.timber * fraction * timberMultiplier * archiveMultiplier),
+    stone: roundToTenth(base.stone * fraction * archiveMultiplier),
+    ironwork: roundToTenth((base.ironwork ?? 0) * fraction * archiveMultiplier),
+    roofTiles: roundToTenth((base.roofTiles ?? 0) * fraction * archiveMultiplier),
   };
 }
 
@@ -57,6 +60,7 @@ export function buildingFireRecoveryQuote(
   building: Pick<BuildingState, 'kind'>,
   incident: Pick<FireIncidentState, 'damage' | 'status'>,
   carpenterSupported: boolean,
+  scriptoriumRecoveryMultiplier = 1,
 ): FireRecoveryQuote {
   const destroyed = incident.status === 'destroyed';
   return {
@@ -65,9 +69,11 @@ export function buildingFireRecoveryQuote(
       incident.damage,
       destroyed,
       carpenterSupported,
+      scriptoriumRecoveryMultiplier,
     ),
     fraction: fireRecoveryFraction(incident.damage, destroyed),
     carpenterSupported,
+    scriptoriumRecoveryMultiplier,
     kind: destroyed ? 'rebuild' : 'repair',
   };
 }
@@ -76,6 +82,7 @@ export function residenceFireRecoveryQuote(
   residence: Pick<ResidenceState, 'tier'>,
   incident: Pick<FireIncidentState, 'damage' | 'status'>,
   carpenterSupported: boolean,
+  scriptoriumRecoveryMultiplier = 1,
 ): FireRecoveryQuote {
   const destroyed = incident.status === 'destroyed';
   return {
@@ -84,9 +91,11 @@ export function residenceFireRecoveryQuote(
       incident.damage,
       destroyed,
       carpenterSupported,
+      scriptoriumRecoveryMultiplier,
     ),
     fraction: fireRecoveryFraction(incident.damage, destroyed),
     carpenterSupported,
+    scriptoriumRecoveryMultiplier,
     kind: destroyed ? 'rebuild' : 'repair',
   };
 }

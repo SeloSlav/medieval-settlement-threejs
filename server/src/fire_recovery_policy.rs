@@ -30,13 +30,15 @@ pub fn fire_recovery_cost(
     damage: f64,
     destroyed: bool,
     timber_cost_multiplier: f64,
+    archive_material_multiplier: f64,
 ) -> FireRecoveryCost {
     let fraction = fire_recovery_fraction(damage, destroyed);
+    let archive = archive_material_multiplier.max(0.0);
     FireRecoveryCost {
-        timber: round_to_tenth(base_timber * fraction * timber_cost_multiplier.max(0.0)),
-        stone: round_to_tenth(base_stone * fraction),
-        ironwork: round_to_tenth(base_ironwork * fraction),
-        roof_tiles: round_to_tenth(base_roof_tiles * fraction),
+        timber: round_to_tenth(base_timber * fraction * timber_cost_multiplier.max(0.0) * archive),
+        stone: round_to_tenth(base_stone * fraction * archive),
+        ironwork: round_to_tenth(base_ironwork * fraction * archive),
+        roof_tiles: round_to_tenth(base_roof_tiles * fraction * archive),
         fraction,
     }
 }
@@ -51,7 +53,7 @@ mod tests {
 
     #[test]
     fn light_damage_has_a_small_but_real_repair_cost() {
-        let cost = fire_recovery_cost(40.0, 20.0, 4.0, 12.0, 0.05, false, 1.0);
+        let cost = fire_recovery_cost(40.0, 20.0, 4.0, 12.0, 0.05, false, 1.0, 1.0);
         assert_eq!(cost.fraction, FIRE_MINIMUM_REPAIR_COST_FRACTION);
         assert_eq!(cost.timber, 4.0);
         assert_eq!(cost.stone, 2.0);
@@ -70,7 +72,7 @@ mod tests {
 
     #[test]
     fn a_ruin_reuses_foundations_instead_of_charging_full_price() {
-        let cost = fire_recovery_cost(50.0, 30.0, 6.0, 20.0, 1.0, true, 1.0);
+        let cost = fire_recovery_cost(50.0, 30.0, 6.0, 20.0, 1.0, true, 1.0, 1.0);
         assert_eq!(cost.fraction, FIRE_DESTROYED_REBUILD_COST_FRACTION);
         assert_eq!(cost.timber, 35.0);
         assert_eq!(cost.stone, 21.0);
@@ -80,11 +82,22 @@ mod tests {
 
     #[test]
     fn carpenter_support_reduces_only_reconstruction_timber() {
-        let ordinary = fire_recovery_cost(50.0, 30.0, 6.0, 20.0, 1.0, true, 1.0);
-        let supported = fire_recovery_cost(50.0, 30.0, 6.0, 20.0, 1.0, true, 0.9);
+        let ordinary = fire_recovery_cost(50.0, 30.0, 6.0, 20.0, 1.0, true, 1.0, 1.0);
+        let supported = fire_recovery_cost(50.0, 30.0, 6.0, 20.0, 1.0, true, 0.9, 1.0);
         assert!(supported.timber < ordinary.timber);
         assert_eq!(supported.stone, ordinary.stone);
         assert_eq!(supported.ironwork, ordinary.ironwork);
         assert_eq!(supported.roof_tiles, ordinary.roof_tiles);
+    }
+
+    #[test]
+    fn scriptorium_records_reduce_every_recovery_material() {
+        let ordinary = fire_recovery_cost(50.0, 30.0, 6.0, 20.0, 1.0, true, 1.0, 1.0);
+        let archived = fire_recovery_cost(50.0, 30.0, 6.0, 20.0, 1.0, true, 1.0, 0.8);
+        assert!(archived.timber < ordinary.timber);
+        assert!(archived.stone < ordinary.stone);
+        assert!(archived.ironwork < ordinary.ironwork);
+        assert!(archived.roof_tiles < ordinary.roof_tiles);
+        assert_eq!(archived.fraction, ordinary.fraction);
     }
 }

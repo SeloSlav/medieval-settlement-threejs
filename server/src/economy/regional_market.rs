@@ -101,10 +101,6 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
     }
 }
 
-pub fn scaled_gold_yield(base: f64, multiplier: f64) -> f64 {
-    (base * multiplier).floor().max(0.0)
-}
-
 pub fn step_regional_markets(ctx: &ReducerContext, sim_tick: u64) {
     let owners: Vec<Identity> = ctx
         .db
@@ -459,11 +455,6 @@ fn hash_to_unit(seed: u64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn scaled_gold_cost_rounds_up() {
-        assert_eq!(scaled_gold_cost(10.0, 1.21), 13.0);
-    }
 
     #[test]
     fn balanced_supply_and_demand_are_neutral() {

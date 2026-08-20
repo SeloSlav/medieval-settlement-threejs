@@ -1971,6 +1971,8 @@ export function renderTownHallInspector(
     resources: context.resourceTotals,
     roadComponentIdsFor: (candidate) =>
       context.worldQueries.getRoadComponentIds(candidate.x, candidate.z),
+    scriptoriumRecoveryMultiplierAt: (candidate) =>
+      context.worldQueries.getScriptoriumRecoveryMultiplierAt(candidate),
   });
   const constructionLabor = computeSettlementConstructionLaborPlan(
     context.gameState,

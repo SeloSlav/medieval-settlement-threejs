@@ -222,10 +222,6 @@ const simulationSource = readFileSync(
   `${projectRoot}server/src/reducers/simulation.rs`,
   'utf8',
 );
-const householdOrderSource = readFileSync(
-  `${projectRoot}server/src/simulation/household_market_orders.rs`,
-  'utf8',
-);
 const recoverySource = readFileSync(`${projectRoot}server/src/reducers/fire_recovery.rs`, 'utf8');
 const rendererSource = readFileSync(`${projectRoot}src/fires/FireEffectsRenderer.ts`, 'utf8');
 const buildingRendererSource = readFileSync(
@@ -462,10 +458,6 @@ assert.match(
 );
 assert.match(
   simulationSource,
-  /tick\.residence_disabled_by_fire\(ctx, residence\.id\)/,
-);
-assert.match(
-  householdOrderSource,
   /tick\.residence_disabled_by_fire\(ctx, residence\.id\)/,
 );
 assert.match(

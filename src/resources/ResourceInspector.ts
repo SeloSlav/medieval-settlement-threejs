@@ -1982,10 +1982,22 @@ export class ResourceInspector {
       const carpenterSupported = this.options.worldQueries.hasCarpenterSupportAt(
         { x: fire.x, z: fire.z },
       );
+      const scriptoriumRecoveryMultiplier = this.options.worldQueries
+        .getScriptoriumRecoveryMultiplierAt({ x: fire.x, z: fire.z });
       const recovery = target.kind === 'building'
-        ? buildingFireRecoveryQuote(target.building, fire, carpenterSupported)
+        ? buildingFireRecoveryQuote(
+            target.building,
+            fire,
+            carpenterSupported,
+            scriptoriumRecoveryMultiplier,
+          )
         : target.kind === 'residence'
-          ? residenceFireRecoveryQuote(target.residence, fire, carpenterSupported)
+          ? residenceFireRecoveryQuote(
+              target.residence,
+              fire,
+              carpenterSupported,
+              scriptoriumRecoveryMultiplier,
+            )
           : null;
       const coolingSeconds = fireRecoveryCoolingSeconds(fire, gameState.tick);
       const canAffordRecovery = recovery != null
@@ -2003,7 +2015,7 @@ export class ResourceInspector {
         ${fire.extinguishChance > 0
           ? `<li><span>Last attempt odds</span><strong>${Math.round(fire.extinguishChance * 100)}%</strong></li>`
           : ''}
-        ${recovery && !residenceRecoveryActive ? `<li><span>${recovery.kind === 'rebuild' ? 'Rebuild' : 'Repair'} cost</span><strong>${renderBuildingResourceCost(recovery.cost)}${recovery.carpenterSupported ? ' · carpenter-supported' : ''}</strong></li>` : ''}
+        ${recovery && !residenceRecoveryActive ? `<li><span>${recovery.kind === 'rebuild' ? 'Rebuild' : 'Repair'} cost</span><strong>${renderBuildingResourceCost(recovery.cost)}${recovery.carpenterSupported ? ' · carpenter-supported' : ''}${recovery.scriptoriumRecoveryMultiplier < 1 ? ` · scriptorium ${Math.round((1 - recovery.scriptoriumRecoveryMultiplier) * 100)}%` : ''}</strong></li>` : ''}
         ${view.detailsHtml}
       `;
       if (!residenceRecoveryActive) {

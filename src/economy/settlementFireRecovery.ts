@@ -76,6 +76,7 @@ export type SettlementFireRecoveryInput = {
   resources: Pick<ResourceTotals, 'timber' | 'stone' | 'ironwork'>;
   roadComponentIdsFor?: (target: RoadPoint) => readonly number[];
   hasCarpenterSupportAt?: (target: RoadPoint) => boolean;
+  scriptoriumRecoveryMultiplierAt?: (target: RoadPoint) => number;
 };
 
 export function computeSettlementFireRecoveryPlan(
@@ -132,9 +133,20 @@ export function computeSettlementFireRecoveryPlan(
       carpenterComponents,
       input,
     );
+    const scriptoriumRecoveryMultiplier = input.scriptoriumRecoveryMultiplierAt?.(incident) ?? 1;
     const recovery = target.kind === 'building'
-      ? buildingFireRecoveryQuote(target.building, incident, carpenterSupported)
-      : residenceFireRecoveryQuote(target.residence, incident, carpenterSupported);
+      ? buildingFireRecoveryQuote(
+          target.building,
+          incident,
+          carpenterSupported,
+          scriptoriumRecoveryMultiplier,
+        )
+      : residenceFireRecoveryQuote(
+          target.residence,
+          incident,
+          carpenterSupported,
+          scriptoriumRecoveryMultiplier,
+        );
     const coolingSeconds = fireRecoveryCoolingSeconds(incident, input.state.tick);
     const summary: SettlementFireRecoveryTarget = {
       targetKind: incident.targetKind,

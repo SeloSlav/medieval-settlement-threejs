@@ -86,13 +86,14 @@ use crate::livestock_policy::{
 use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
 };
-use crate::monastery_hospitality_policy::{
-    is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
-    monastery_hospitality_use, monastery_pilgrimage_gold,
-};
 use crate::monastery_estate_policy::{
     monastery_estate_can_reinvest, monastery_estate_exportable,
     monastery_estate_next_investment_cost, monastery_estate_yields,
+    monastery_seed_archive_target_per_crop,
+};
+use crate::monastery_hospitality_policy::{
+    is_monastery_feast_day, monastery_feast_batch, monastery_feast_refill_shortfall,
+    monastery_hospitality_use, monastery_pilgrimage_gold,
 };
 use crate::potter_firing_policy::potter_fires_roof_tiles;
 use crate::pottery_dispatch_policy::pottery_households_first;
@@ -497,11 +498,12 @@ pub fn step_threshing_barn(
     ctx.db.building().id().update(building);
 }
 
-/// Granaries and staffed Trading Posts each launch at most one seed cart per
-/// simulation step. Source-side selection removes farm-row iteration bias:
-/// lowest claim coverage wins, then the shortest authoritative road route and
-/// stable holding id. The existing inbound-trip gate prevents overlapping
-/// sources from double-serving the same farmstead in one step.
+/// Granaries, staffed Trading Posts, and parish-linked monastery archives each
+/// launch at most one seed cart per simulation step. Source-side selection
+/// removes farm-row iteration bias: lowest claim coverage wins, then the
+/// shortest authoritative road route and stable holding id. The existing
+/// inbound-trip gate prevents overlapping sources from double-serving the same
+/// farmstead in one step.
 pub fn step_seed_grain_distribution(
     ctx: &ReducerContext,
     tick: &SimTickContext,
@@ -512,14 +514,17 @@ pub fn step_seed_grain_distribution(
         .building()
         .iter()
         .filter(|source| {
-            matches!(source.kind.as_str(), "granary" | "trading_post")
-                && source.construction_complete
+            matches!(
+                source.kind.as_str(),
+                "granary" | "trading_post" | "monastery"
+            ) && source.construction_complete
                 && (source.rye_grain > 1e-6
                     || source.oat_grain > 1e-6
                     || source.maslin_grain > 1e-6
                     || source.barley > 1e-6
                     || source.flax > 1e-6)
                 && (source.kind != "trading_post" || source.assigned_labor > 0)
+                && (source.kind != "monastery" || monastery_has_parish_link(ctx, tick, source))
                 && !tick.building_disabled_by_fire(ctx, source.id)
         })
         .map(|source| source.id)
@@ -1069,7 +1074,7 @@ pub fn step_marketplace_material_dispatch(
             || marketplace.assigned_labor == 0
             || target.owner != marketplace.owner
             || !target.construction_complete
-            || (target.assigned_labor == 0 && target.kind != "monastery")
+            || target.assigned_labor == 0
             || tick.building_disabled_by_fire(ctx, marketplace.id)
             || tick.building_disabled_by_fire(ctx, target.id)
             || labor_and_logistics_paused(ctx, tick, marketplace.owner, clock)
@@ -3171,19 +3176,20 @@ pub fn step_monastery(
     };
     let mut monastery = building;
     if cycle_labor_if_ready(ctx, tick, clock, &mut monastery, true).is_some() {
-        process_batch(
-            &mut monastery,
-            &[(
-                CommodityKind::OatGrain,
-                MONASTERY_OAT_GRAIN_PER_CYCLE * productivity,
-            )],
-            &[(
-                CommodityKind::Porridge,
-                MONASTERY_FOOD_PER_CYCLE * productivity,
-            )],
-            1.0,
-            None,
-        );
+        let archive_floor = monastery_seed_archive_target_per_crop(monastery.chapel_tier);
+        let oat_grain_per_cycle = MONASTERY_OAT_GRAIN_PER_CYCLE * productivity;
+        if monastery.oat_grain + 1e-6 >= archive_floor + oat_grain_per_cycle {
+            process_batch(
+                &mut monastery,
+                &[(CommodityKind::OatGrain, oat_grain_per_cycle)],
+                &[(
+                    CommodityKind::Porridge,
+                    MONASTERY_FOOD_PER_CYCLE * productivity,
+                )],
+                1.0,
+                None,
+            );
+        }
         let yields = monastery_estate_yields(monastery.chapel_tier);
         for (commodity, amount) in [
             (CommodityKind::Apples, yields.apples),
@@ -3232,11 +3238,44 @@ pub fn step_monastery(
         // before ordinary household carts. This makes feast preparation a
         // predictable reserve decision instead of a race with the noon route.
         run_monastery_feast(ctx, tick, clock, &mut monastery);
+        request_monastery_seed_archive(ctx, tick, clock, &monastery, productivity);
     }
     try_dispatch_local_civic_receipts(ctx, tick, clock, &mut monastery, receipt_daily_income);
     reinvest_monastery_estate(&mut monastery);
     dispatch_monastery_estate_export(ctx, tick, &mut monastery, hospitality_enabled);
     ctx.db.building().id().update(monastery);
+}
+
+/// The agricultural archive is a physical emergency reserve rather than a
+/// yield modifier. It draws only exportable grain from road-linked farmsteads
+/// and granaries, keeps a balanced three-crop collection, and is itself an
+/// eligible seed source when a holding cannot cover its next sowing.
+fn request_monastery_seed_archive(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    monastery: &Building,
+    productivity: f64,
+) {
+    let seed_target = monastery_seed_archive_target_per_crop(monastery.chapel_tier);
+    for (commodity, desired) in [
+        (CommodityKind::RyeGrain, seed_target),
+        (
+            CommodityKind::OatGrain,
+            seed_target + grain_input_target("monastery", productivity, 100),
+        ),
+        (CommodityKind::MaslinGrain, seed_target),
+    ] {
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            monastery,
+            commodity,
+            &["threshing_barn", "granary"],
+            desired,
+        );
+    }
 }
 
 fn reinvest_monastery_estate(monastery: &mut Building) {
@@ -4779,7 +4818,7 @@ fn request_connected_commodity_with_source_availability(
     source_availability: impl Fn(&Building, f64) -> f64,
 ) {
     if !target.construction_complete
-        || target.assigned_labor == 0
+        || (target.assigned_labor == 0 && target.kind != "monastery")
         || labor_and_logistics_paused(ctx, tick, target.owner, clock)
         || !processor_accepts_input(target, commodity)
         || building_has_inbound_supply_trip(ctx, target.id)

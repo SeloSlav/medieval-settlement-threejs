@@ -351,6 +351,40 @@ export function createMonasteryMesh(estateLevel = 0): THREE.Group {
   const main = addGableShell(group, { width: 13.2, depth: 6.4, stoneHeight: 1.35, wallHeight: 3.8, ridgeHeight: 2.7, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(0), centerX: -1.2 });
   addPlankDoor(group, -1.2, 1.38, main.frontZ + 0.03, 1.1, 2.05);
   for (const x of [-5.8, -3.1, 0.8, 3.5]) for (const y of [2.45, 4.18]) addSmallWindow(group, x, y, main.frontZ + 0.03, 0.66, 0.9);
+  const scriptoriumWing = new THREE.Group();
+  scriptoriumWing.name = 'Monastery scriptorium and records wing';
+  scriptoriumWing.userData.architectureModule = 'scriptorium-wing';
+  scriptoriumWing.userData.disasterResilience = 'preserved plans and ledgers reduce fire reconstruction materials';
+  const scriptorium = addGableShell(scriptoriumWing, {
+    width: 4.8,
+    depth: 8.4,
+    stoneHeight: 1.35,
+    wallHeight: 3.55,
+    ridgeHeight: 2.55,
+    wallMaterial: residenceFacadeMaterial('white'),
+    roofMaterial: tileMaterial(1),
+    centerX: -9.3,
+    centerZ: -1.2,
+  });
+  addPlankDoor(scriptoriumWing, -9.3, 1.38, scriptorium.frontZ + 0.03, 0.9, 1.95);
+  // Tall paired windows express the daylight-dependent writing room; the
+  // compact stone undercroft below reads as the fire-resistant record vault.
+  for (const x of [-10.35, -8.25]) {
+    for (const y of [2.3, 3.65]) {
+      addSmallWindow(scriptoriumWing, x, y, scriptorium.frontZ + 0.03, 0.62, 0.82);
+      addSmallWindow(scriptoriumWing, x, y, scriptorium.centerZ - scriptorium.halfD - 0.03, 0.62, 0.82);
+    }
+  }
+  for (const x of [-11.55, -7.05]) {
+    addMesh(scriptoriumWing, new THREE.BoxGeometry(0.36, 1.75, 0.56), stoneMaterial('light'), new THREE.Vector3(x, 0.88, scriptorium.frontZ - 0.12)).name = 'Scriptorium vault buttress';
+  }
+  const recordsChest = new THREE.Group();
+  recordsChest.name = 'Scriptorium duplicate records chest';
+  recordsChest.position.set(-11.0, 0, scriptorium.frontZ + 1.05);
+  addMesh(recordsChest, new THREE.BoxGeometry(1.35, 0.72, 0.78), timberMaterial('dark'), new THREE.Vector3(0, 0.37, 0));
+  for (const x of [-0.48, 0.48]) addMesh(recordsChest, new THREE.BoxGeometry(0.08, 0.76, 0.82), metalMaterial('iron'), new THREE.Vector3(x, 0.38, 0));
+  scriptoriumWing.add(recordsChest);
+  group.add(scriptoriumWing);
   const infirmaryWing = new THREE.Group();
   infirmaryWing.name = 'Monastery infirmary wing';
   const wing = addGableShell(infirmaryWing, { width: 5.4, depth: 8.8, stoneHeight: 1.1, wallHeight: 3.35, ridgeHeight: 2.45, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(1), centerX: 6.2, centerZ: 1.1 });

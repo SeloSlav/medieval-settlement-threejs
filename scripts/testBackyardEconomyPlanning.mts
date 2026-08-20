@@ -733,10 +733,6 @@ const serverTickContextSource = readFileSync(
   new URL('../server/src/simulation/tick_context.rs', import.meta.url),
   'utf8',
 );
-const serverHouseholdMarketOrdersSource = readFileSync(
-  new URL('../server/src/simulation/household_market_orders.rs', import.meta.url),
-  'utf8',
-);
 const serverMarketplaceTradeSource = readFileSync(
   new URL('../server/src/economy/marketplace_trade.rs', import.meta.url),
   'utf8',
@@ -794,16 +790,6 @@ assert.match(
   serverTickContextSource,
   /build_local_marketplace_claims[\s\S]*marketplace_has_stall_workers[\s\S]*claim_residences_by_nearest_supplier/,
   'garden trade should use a cached nearest market territory backed by the correct depot stall',
-);
-assert.match(
-  serverHouseholdMarketOrdersSource,
-  /marketplace_for_residence/,
-  'household emergency orders should share the cached nearest-market territory',
-);
-assert.doesNotMatch(
-  serverHouseholdMarketOrdersSource,
-  /claim_residences_by_nearest_supplier/,
-  'household orders must not rebuild a territory already shared by the tick context',
 );
 assert.match(
   serverMarketplaceTradeSource,

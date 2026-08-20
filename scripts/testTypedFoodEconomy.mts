@@ -46,7 +46,7 @@ assert.equal(foodMealValue('honey'), 1.2);
 assert.equal(foodMealValue('apples'), 0.6);
 assert.equal(foodSpoilageMultiplier('honey'), 0);
 assert.ok(foodSpoilageMultiplier('milk') > foodSpoilageMultiplier('apples'));
-assert.equal(NAMED_FOOD_KINDS.length, 18);
+assert.equal(NAMED_FOOD_KINDS.length, 19);
 assert.equal(foodCategory('apples'), 'fruits');
 assert.equal(foodCategory('cherries'), 'fruits');
 assert.equal(foodCategory('vegetables'), 'vegetables');
@@ -169,8 +169,8 @@ const economySource = readFileSync(
   'server/src/simulation/expanded_economy.rs',
   'utf8',
 );
-const marketplaceOrdersSource = readFileSync(
-  'server/src/economy/marketplace_orders.rs',
+const tradeResourcesSource = readFileSync(
+  'server/src/economy/trade_resources.rs',
   'utf8',
 );
 const nightCycleSource = readFileSync(
@@ -181,9 +181,9 @@ assert.match(economySource, /CommodityKind::RyeBread/);
 assert.match(economySource, /CommodityKind::OatBread/);
 assert.match(economySource, /CommodityKind::MaslinBread/);
 assert.match(economySource, /kind == "smokehouse" && commodity\.is_preserved_food\(\)/);
-assert.match(marketplaceOrdersSource, /"meat" => Ok\(CommodityKind::Meat\)/);
-assert.match(marketplaceOrdersSource, /"curedMeat" => Ok\(CommodityKind::CuredMeat\)/);
-assert.match(marketplaceOrdersSource, /"cheese" => Ok\(CommodityKind::Cheese\)/);
+assert.match(tradeResourcesSource, /CommodityKind::Meat => TradeResource::Meat/);
+assert.match(tradeResourcesSource, /CommodityKind::CuredMeat => TradeResource::CuredMeat/);
+assert.match(tradeResourcesSource, /CommodityKind::Cheese => TradeResource::Cheese/);
 assert.match(nightCycleSource, /withdraw_residence_fresh_food\(&mut current, meal_due\)/);
 assert.match(nightCycleSource, /withdraw_residence_preserved_food\(&mut current,/);
 assert.doesNotMatch(nightCycleSource, /take_need_stock/);

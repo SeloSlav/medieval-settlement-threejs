@@ -434,7 +434,7 @@ const reservedExportPotteryTarget = selectMarketplaceMaterialInputTarget(
 assert.equal(
   reservedExportPotteryTarget,
   null,
-  'pottery committed to an active market order must not be recalled to a smokehouse',
+  'pottery reserved by a monthly export rule must not be recalled to a smokehouse',
 );
 
 const olderRemoteMarket = building('trading_post', {
@@ -1128,8 +1128,8 @@ assert.match(
 );
 assert.match(
   marketplaceMaterialDispatchStep,
-  /pending_marketplace_trade_commodity\(&marketplace\)[\s\S]*reserved_for_trade == Some\(candidate\.commodity\)/,
-  'an active manual export must reserve its physically staged commodity',
+  /trading_post_exports_commodity\(ctx, marketplace\.id, candidate\.commodity\)/,
+  'a monthly export rule must reserve its physically staged commodity',
 );
 assert.doesNotMatch(
   smokehouseStep,

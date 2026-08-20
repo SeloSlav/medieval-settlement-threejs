@@ -160,7 +160,54 @@ function addBrewhouse(parent: THREE.Group, level: number): void {
   parent.add(yard);
 }
 
+function addAgriculturalArchive(parent: THREE.Group, level: number): void {
+  const archive = new THREE.Group();
+  archive.name = 'Monastery agricultural archive and seed vault';
+  archive.userData.architectureModule = 'agricultural-archive';
+  archive.userData.seedCrops = ['rye', 'oats', 'maslin'];
+  archive.position.set(3.5, 0, -35.5);
+  const shell = addGableShell(archive, {
+    width: 9.0,
+    depth: 6.0,
+    stoneHeight: 1.55,
+    wallHeight: 3.15,
+    ridgeHeight: 2.4,
+    wallMaterial: residenceFacadeMaterial('white'),
+    roofMaterial: shingleMaterial(),
+  });
+  addPlankDoor(archive, 0, 1.58, shell.frontZ + 0.03, 1.3, 2.05);
+  // A high dry granary floor over a stone seed-vault undercroft makes the
+  // archive legible as protected stock, rather than another production barn.
+  for (const x of [-3.25, -2.05, 2.05, 3.25]) {
+    const vent = addMesh(
+      archive,
+      new THREE.BoxGeometry(0.52, 0.16, 0.12),
+      timberMaterial('dark'),
+      new THREE.Vector3(x, 2.75, shell.frontZ + 0.04),
+    );
+    vent.name = 'Agricultural archive drying vent';
+  }
+  for (const [index, cropName] of ['Rye', 'Oat', 'Maslin'].entries()) {
+    const chest = new THREE.Group();
+    chest.name = `${cropName} emergency seed chest`;
+    chest.position.set(-2.1 + index * 2.1, 0, shell.frontZ + 1.15);
+    addMesh(chest, new THREE.BoxGeometry(1.45, 0.82, 0.92), timberMaterial('weathered'), new THREE.Vector3(0, 0.42, 0));
+    addMesh(chest, new THREE.BoxGeometry(1.5, 0.09, 0.97), metalMaterial('iron'), new THREE.Vector3(0, 0.78, 0));
+    archive.add(chest);
+  }
+  for (let index = 0; index < level; index += 1) {
+    addMesh(
+      archive,
+      new THREE.BoxGeometry(0.26, 1.45, 0.26),
+      stoneMaterial('light'),
+      new THREE.Vector3(-4.3 + index * 4.3, 0.73, -2.82),
+    ).name = 'Agricultural archive expanded buttress';
+  }
+  parent.add(archive);
+}
+
 function addInvestmentBuildings(parent: THREE.Group, level: number): void {
+  addAgriculturalArchive(parent, level);
   if (level < 1) return;
   const dairy = new THREE.Group();
   dairy.name = 'Monastery invested dairy';
@@ -176,22 +223,6 @@ function addInvestmentBuildings(parent: THREE.Group, level: number): void {
   });
   addPlankDoor(dairy, 0, 0.95, shell.frontZ + 0.03, 1.0, 1.75);
   parent.add(dairy);
-
-  if (level < 2) return;
-  const barn = new THREE.Group();
-  barn.name = 'Monastery invested tithe barn';
-  barn.position.set(1.5, 0, -34.5);
-  const barnShell = addGableShell(barn, {
-    width: 10.5,
-    depth: 6.5,
-    stoneHeight: 0.8,
-    wallHeight: 3.0,
-    ridgeHeight: 2.5,
-    wallMaterial: timberMaterial('mid'),
-    roofMaterial: shingleMaterial(),
-  });
-  addPlankDoor(barn, 0, 0.92, barnShell.frontZ + 0.03, 1.8, 2.3);
-  parent.add(barn);
 
   if (level < 3) return;
   const press = new THREE.Group();
@@ -210,6 +241,10 @@ export function createMonasteryEstateMesh(rawLevel: number): THREE.Group {
   group.name = `Monastery enclosed estate level ${level}`;
   group.userData.monasteryEstateLevel = level;
   group.userData.reservedLand = { width: 68, depth: 53 };
+  group.userData.architecturePlan = {
+    enclosure: '68 × 53 m fenced demesne',
+    modules: ['abbey-core', 'scriptorium-wing', 'infirmary-wing', 'agricultural-archive', 'working-estate'],
+  };
 
   addPerimeterFence(group);
   addMesh(group, new THREE.BoxGeometry(7.2, 0.06, 51.5), earth, new THREE.Vector3(0, 0.03, -19));

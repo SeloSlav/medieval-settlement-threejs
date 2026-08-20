@@ -4,9 +4,7 @@ use crate::balance_generated::{
     HERB_REMEDY_CAPACITY, HERB_TREATMENT_PER_SICK_DAY, OFFROAD_DELIVERY_SPEED_MULTIPLIER,
     REMEDY_DELIVERY_TARGET_DAYS,
 };
-use crate::constants::RESIDENCE_WATER_PER_PERSON_PER_SEC;
 use crate::roads::{RoadNetwork, RoadPathRoute};
-use crate::simulation::lodge_logistics::residence_firewood_runway_seconds as residence_runway_seconds;
 use crate::supply_policy::{
     compare_supply_route_candidates, is_well_supplier_operational, select_need_delivery_candidate,
     NeedDeliveryCandidate,
@@ -294,25 +292,4 @@ pub fn claim_residences_for_wells(
                 residence.z,
             )
     })
-}
-
-pub fn residence_water_runway_seconds(residence: &Residence, water_stock: f64) -> f64 {
-    residence_runway_seconds(
-        residence.abandoned,
-        residence.population,
-        water_stock,
-        RESIDENCE_WATER_PER_PERSON_PER_SEC,
-    )
-}
-
-pub fn residence_food_runway_seconds(residence: &Residence, food_stock: f64) -> f64 {
-    if residence.abandoned || residence.population == 0 {
-        return f64::INFINITY;
-    }
-    let daily_use = crate::economy::household_food_per_day(residence.population);
-    if daily_use <= 1e-9 {
-        f64::INFINITY
-    } else {
-        food_stock.max(0.0) / daily_use * crate::balance_generated::CALENDAR_SECONDS_PER_DAY
-    }
 }

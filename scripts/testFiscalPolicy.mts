@@ -89,7 +89,7 @@ const fiscalServer = readFileSync('server/src/economy/fiscal_accounting.rs', 'ut
 const parishServer = readFileSync('server/src/simulation/chapel_parish.rs', 'utf8');
 const chapelReducer = readFileSync('server/src/reducers/buildings.rs', 'utf8');
 assert.match(fiscalServer, /credit_private_export_receipt/);
-assert.match(fiscalServer, /credit_household_import_duty/);
+assert.doesNotMatch(fiscalServer, /credit_household_import_duty/);
 assert.doesNotMatch(parishServer, /try_start_chapel_treasury_trip|auto_sweep/);
 assert.match(chapelReducer, /cannot be transferred to the civic treasury/);
 

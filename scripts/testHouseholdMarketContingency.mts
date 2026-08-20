@@ -570,25 +570,16 @@ assert.ok(
   `100,000 homes across 8 market routes took ${perfMs.toFixed(1)} ms`,
 );
 
-const householdServer = readFileSync(
-  'server/src/simulation/household_market_orders.rs',
-  'utf8',
-);
 const tickContextServer = readFileSync(
   'server/src/simulation/tick_context.rs',
   'utf8',
 );
-assert.match(householdServer, /marketplace_for_residence\(/);
 assert.match(
   tickContextServer,
-  /build_marketplace_claims[\s\S]*claim_residences_by_nearest_supplier\(/,
-  'household imports should share one exact nearest-Trading-Post territory',
+  /build_local_marketplace_claims[\s\S]*claim_residences_by_nearest_supplier\(/,
+  'household market issues should share one exact nearest-Marketplace territory',
 );
 assert.match(tickContextServer, /build_local_marketplace_claims/);
-assert.match(householdServer, /labor_and_logistics_paused\(ctx, tick, owner, clock\)/);
-assert.match(householdServer, /building_disabled_by_fire\(ctx, building\.id\)/);
-assert.doesNotMatch(householdServer, /residence_has_marketplace_access/);
-assert.doesNotMatch(householdServer, /nearest_marketplace_for_residence/);
 
 const caravanServer = readFileSync(
   'server/src/simulation/marketplace_caravan.rs',

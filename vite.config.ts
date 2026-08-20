@@ -109,6 +109,10 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       copyPublicDir: false,
+      // The renderer is deliberately split into named Three.js/SeedThree chunks.
+      // Keep the warning just above their current uncompressed ceiling so that
+      // meaningful bundle growth still fails the noise floor.
+      chunkSizeWarningLimit: 1_200,
       rollupOptions: {
         input: buildInputs,
         output: {

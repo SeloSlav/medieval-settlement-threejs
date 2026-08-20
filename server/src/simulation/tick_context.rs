@@ -110,10 +110,6 @@ pub struct SimTickContext {
 }
 
 impl SimTickContext {
-    pub fn new(ctx: &ReducerContext) -> Self {
-        Self::with_road_networks(Self::load_road_networks(ctx))
-    }
-
     /// Road rows cannot change inside one simulation reducer transaction.
     /// Parsing their JSON and rebuilding graph/spatial indexes once lets the
     /// delivery heartbeat and every economy substep share immutable networks,

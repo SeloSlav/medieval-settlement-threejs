@@ -83,6 +83,8 @@ import {
   monasteryInfirmaryBeds,
   monasteryInfirmaryMortalityMultiplier,
   monasteryInfirmaryRecoveryMultiplier,
+  monasteryScriptoriumRecoveryMultiplier,
+  monasterySeedArchiveTargetPerCrop,
   normalizeMonasteryEstateLevel,
 } from '../../buildings/monasteryEstate.ts';
 import {
@@ -1152,6 +1154,8 @@ export function renderExpandedBuildingInspector(
         const infirmaryBeds = monasteryInfirmaryBeds(level);
         const infirmaryRecovery = monasteryInfirmaryRecoveryMultiplier(level);
         const infirmaryMortality = monasteryInfirmaryMortalityMultiplier(level);
+        const seedTarget = monasterySeedArchiveTargetPerCrop(level);
+        const scriptoriumRecovery = monasteryScriptoriumRecoveryMultiplier(level);
         const exportDutyRate = context.getFiscalPolicy?.().exportDutyRate
           ?? DEFAULT_FISCAL_POLICY.exportDutyRate;
         const levelLabel = ['Founding grange', 'Established demesne', 'Expanded estate', 'Prosperous abbey'][level];
@@ -1169,6 +1173,9 @@ export function renderExpandedBuildingInspector(
           <li><span>Regional estate exports</span><span>Automatic 6-unit lots · ${Math.round(exportDutyRate * 100)}% export duty is reserved for civic collection · net income remains here</span></li>
           <li><span>Infirmary</span><span>${infirmaryBeds} beds · shortest remedy runway admitted first · consumes ${MONASTERY_INFIRMARY_FOOD_PER_BED_DAY.toFixed(1)} estate food per occupied bed/day</span></li>
           <li><span>Skilled nursing</span><span>Up to ${Math.round((infirmaryRecovery - 1) * 100)}% faster illness recovery and ${Math.round((1 - infirmaryMortality) * 100)}% lower illness mortality · stacks with household remedies</span></li>
+          <li><span>Agricultural archive</span><span>Rye ${Math.max(0, building.ryeGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} · oats ${Math.max(0, building.oatGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} · maslin ${Math.max(0, building.maslinGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} emergency seed</span></li>
+          <li><span>Emergency reseeding</span><span>Draws only farmstead/granary surplus · automatically sends physical seed carts to road-linked holdings that cannot cover their next sowing · the reserve can run out</span></li>
+          <li><span>Scriptorium records</span><span>${Math.round((1 - scriptoriumRecovery) * 100)}% fewer timber, stone, fittings, and roof tiles for fire reconstruction within 520 m by road · requires a staffed church link · does not affect ordinary construction</span></li>
           <li><span>Monastery purse</span><span>${Math.round(building.gold)} gold secured here · ${privateGold.toFixed(1)} private estate gold${incomingTithe > 0.05 ? ` · ${Math.round(incomingTithe)} tithe incoming by handcart` : ''}</span></li>
           <li><span>Automatic reinvestment</span><span>${nextInvestment == null ? 'Estate fully developed' : `${privateGold.toFixed(1)} / ${nextInvestment + 6} gold · keeps a 6-gold working reserve`}</span></li>`;
       })()
@@ -1877,7 +1884,7 @@ function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
   }, { compact: true, suffix: '/day' });
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">The monastery is an enclosed frontier estate, not a second church. Its orchards, gardens, animals, hives, dairy, and brewhouse produce autonomously; protected surplus is sold directly to regional merchants, export duty is collected on the returned gold, and the net automatically expands the demesne through three visible levels. Its finite infirmary supplies skilled nursing above ordinary herb treatment.</p>
+      <p class="inspector-action-panel__hint">The monastery is an enclosed frontier estate, not a second church. Its orchards, gardens, animals, hives, dairy, and brewhouse produce autonomously; protected surplus is sold directly to regional merchants, export duty is collected on the returned gold, and the net automatically expands the demesne through three visible levels. Its finite infirmary supplies skilled nursing above ordinary herb treatment. The agricultural archive holds exhaustible seed for failed sowing seasons, while the scriptorium preserves plans and ledgers that lower fire-reconstruction material costs.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
       <p class="inspector-action-panel__hint">Enabled monasteries protect ${feastBatchCost}. Breweries refill only the ale shortfall, while daily hospitality and estate exports use stock above their protected floors. On each observance, covered households walk here by road and consume the complete batch onsite: immediate food and ale deficits are relieved, but no provisions appear in home pantries. Daily hospitality consumes ${dailyHospitalityCost}, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Routine alms and poor-relief carts remain the church's role; the monastery contributes a common table and scarce infirmary beds.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>

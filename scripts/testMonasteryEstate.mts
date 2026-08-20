@@ -12,8 +12,11 @@ import {
   monasteryInfirmaryBeds,
   monasteryInfirmaryMortalityMultiplier,
   monasteryInfirmaryRecoveryMultiplier,
+  monasteryScriptoriumRecoveryMultiplier,
+  monasterySeedArchiveTargetPerCrop,
 } from '../src/buildings/monasteryEstate.ts';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
+import { fireRecoveryCost } from '../src/fires/fireRecovery.ts';
 
 assert.equal(MONASTERY_ESTATE_WIDTH, 68);
 assert.equal(MONASTERY_ESTATE_DEPTH, 53);
@@ -41,6 +44,19 @@ assert.equal(monasteryInfirmaryBeds(0), 4);
 assert.equal(monasteryInfirmaryBeds(3), 10);
 assert.ok(monasteryInfirmaryRecoveryMultiplier(3) > monasteryInfirmaryRecoveryMultiplier(0));
 assert.ok(monasteryInfirmaryMortalityMultiplier(3) < monasteryInfirmaryMortalityMultiplier(0));
+assert.equal(monasterySeedArchiveTargetPerCrop(0), 8);
+assert.equal(monasterySeedArchiveTargetPerCrop(3), 20);
+assert.ok(monasteryScriptoriumRecoveryMultiplier(3) < monasteryScriptoriumRecoveryMultiplier(0));
+assert.deepEqual(
+  fireRecoveryCost(
+    { timber: 100, stone: 50, ironwork: 10, roofTiles: 20 },
+    1,
+    true,
+    false,
+    0.8,
+  ),
+  { timber: 56, stone: 28, ironwork: 5.6, roofTiles: 11.2 },
+);
 
 for (const level of [0, 1, 2, 3] as const) {
   const mesh = createBuildingMesh('monastery', level);
@@ -52,9 +68,12 @@ for (const level of [0, 1, 2, 3] as const) {
   assert.ok(mesh.getObjectByName('Monastery bee garden'));
   assert.ok(mesh.getObjectByName('Monastery chicken yard'));
   assert.ok(mesh.getObjectByName('Monastery infirmary wing'));
+  assert.ok(mesh.getObjectByName('Monastery scriptorium and records wing'));
+  assert.ok(mesh.getObjectByName('Scriptorium duplicate records chest'));
+  assert.ok(mesh.getObjectByName('Monastery agricultural archive and seed vault'));
+  assert.ok(mesh.getObjectByName('Rye emergency seed chest'));
 }
 assert.ok(createBuildingMesh('monastery', 1).getObjectByName('Monastery invested dairy'));
-assert.ok(createBuildingMesh('monastery', 2).getObjectByName('Monastery invested tithe barn'));
 assert.ok(createBuildingMesh('monastery', 3).getObjectByName('Monastery invested apple press'));
 
 const serverPolicy = readFileSync(new URL('../server/src/monastery_estate_policy.rs', import.meta.url), 'utf8');
@@ -62,12 +81,20 @@ assert.match(serverPolicy, /MONASTERY_ESTATE_HALF_WIDTH: f64 = 34\.0/);
 assert.match(serverPolicy, /INVESTMENT_COSTS: \[f64; 3\] = \[18\.0, 42\.0, 78\.0\]/);
 assert.match(serverPolicy, /MONASTERY_ESTATE_EXPORT_LOT: f64 = 6\.0/);
 assert.match(serverPolicy, /INFIRMARY_BEDS: \[u32; 4\] = \[4, 6, 8, 10\]/);
+assert.match(serverPolicy, /SEED_ARCHIVE_TARGET_PER_CROP: \[f64; 4\] = \[8\.0, 12\.0, 16\.0, 20\.0\]/);
+assert.match(serverPolicy, /SCRIPTORIUM_RECOVERY_MULTIPLIERS: \[f64; 4\] = \[0\.90, 0\.84, 0\.78, 0\.72\]/);
 
 const simulation = readFileSync(new URL('../server/src/simulation/expanded_economy.rs', import.meta.url), 'utf8');
 assert.match(simulation, /fn reinvest_monastery_estate/);
 assert.match(simulation, /fn dispatch_monastery_estate_export/);
 assert.match(simulation, /CommodityKind::Apples, yields\.apples/);
 assert.match(simulation, /start_regional_market_export_trip/);
+assert.match(simulation, /fn request_monastery_seed_archive/);
+assert.match(simulation, /"granary" \| "trading_post" \| "monastery"/);
+
+const fireRecovery = readFileSync(new URL('../server/src/reducers/fire_recovery.rs', import.meta.url), 'utf8');
+assert.match(fireRecovery, /fn operational_scriptorium_recovery_multiplier/);
+assert.match(fireRecovery, /MONASTERY_COVERAGE_RADIUS/);
 
 const healthSimulation = readFileSync(new URL('../server/src/simulation/residence_needs/mod.rs', import.meta.url), 'utf8');
 assert.match(healthSimulation, /fund_monastery_infirmary_care/);

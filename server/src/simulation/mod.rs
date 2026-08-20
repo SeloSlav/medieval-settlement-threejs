@@ -24,7 +24,6 @@ mod labor_schedule;
 mod landmark_access;
 mod large_quarry;
 mod livestock;
-mod lodge_logistics;
 mod lumber_mill;
 mod marketplace_caravan;
 mod night_cycle;
@@ -56,16 +55,11 @@ pub use chapel_parish::step_chapel_parish;
 pub use civic_receipts::try_dispatch_local_civic_receipts;
 pub use construction::step_construction_sites;
 pub use construction_labor_steward::step_construction_labor_stewards;
-pub(crate) use delivery_cargo::{delivery_stock_room, residence_commodity_delivery_room};
 pub use delivery_trips::{
     building_has_active_trip, building_has_inbound_commodity_trip,
-    building_has_inbound_supply_trip, building_has_regional_market_trip,
-    cancel_inbound_construction_trips_for_site, cancel_trips_for_residence,
-    drain_trips_for_building, preserve_in_transit_cart_labor, regional_market_export_route,
-    regional_market_import_route, regional_market_import_route_to_residence,
-    staffed_cart_workers_by_building, start_external_market_import_trip,
-    start_external_market_import_trip_to_residence, start_regional_market_export_trip,
-    step_delivery_trips, try_start_building_supply_trip, try_start_fire_response_trip,
+    building_has_inbound_supply_trip, cancel_inbound_construction_trips_for_site,
+    cancel_trips_for_residence, drain_trips_for_building, preserve_in_transit_cart_labor,
+    staffed_cart_workers_by_building, step_delivery_trips, try_start_fire_response_trip,
 };
 pub use expanded_economy::{
     step_apiary, step_bakery, step_brewery, step_carpenter, step_charcoal_burner, step_clay_pit,
@@ -96,7 +90,7 @@ pub use large_quarry::step_large_quarry;
 pub use livestock::{step_pastoral_farmstead, step_swineherd};
 pub use lumber_mill::step_lumber_mill;
 pub use marketplace_caravan::{
-    step_marketplace_caravans, try_dispatch_marketplace_caravan, MarketCaravanDispatch,
+    step_marketplace_caravans, try_dispatch_marketplace_caravan,
 };
 pub use night_cycle::step_night_cycle;
 pub use production_labor_steward::{
@@ -115,7 +109,7 @@ pub use residence_lifecycle::step_residence;
 pub use residence_needs::{clear_residence_needs, ensure_residence_needs};
 pub(crate) use residence_upgrades::clear_residence_project;
 pub use residence_upgrades::step_residence_upgrades;
-pub(crate) use road_logistics::{local_delivery_distance, local_delivery_distances_from};
+pub(crate) use road_logistics::local_delivery_distance;
 pub use seasonal_labor_steward::{
     call_up_active_seasonal_labor_for_owner, owner_has_staffed_town_hall,
     recall_idle_seasonal_labor_for_owner, reconcile_seasonal_labor_for_owner,

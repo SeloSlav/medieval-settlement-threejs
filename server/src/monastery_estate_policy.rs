@@ -14,6 +14,8 @@ const YIELD_MULTIPLIERS: [f64; 4] = [1.0, 1.25, 1.55, 1.9];
 const INFIRMARY_BEDS: [u32; 4] = [4, 6, 8, 10];
 const INFIRMARY_RECOVERY_MULTIPLIERS: [f64; 4] = [1.25, 1.35, 1.45, 1.55];
 const INFIRMARY_MORTALITY_MULTIPLIERS: [f64; 4] = [0.8, 0.7, 0.6, 0.5];
+const SEED_ARCHIVE_TARGET_PER_CROP: [f64; 4] = [8.0, 12.0, 16.0, 20.0];
+const SCRIPTORIUM_RECOVERY_MULTIPLIERS: [f64; 4] = [0.90, 0.84, 0.78, 0.72];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EstatePoint {
@@ -141,6 +143,21 @@ pub fn monastery_infirmary_mortality_multiplier(level: u8) -> f64 {
     INFIRMARY_MORTALITY_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
 }
 
+/// Physical rye, oat, and maslin seed held separately from ordinary food use.
+/// Each crop receives this target, so a founding archive protects 24 units in
+/// total and a fully developed estate protects 60. The stock remains real and
+/// can be exhausted by emergency reseeding.
+pub fn monastery_seed_archive_target_per_crop(level: u8) -> f64 {
+    SEED_ARCHIVE_TARGET_PER_CROP[normalize_monastery_estate_level(level) as usize]
+}
+
+/// Surviving plans, measurements, contracts, and craft notes reduce the
+/// physical materials needed to reconstruct a fire-damaged holding. This is a
+/// recovery-only effect: it never accelerates ordinary construction or output.
+pub fn monastery_scriptorium_recovery_multiplier(level: u8) -> f64 {
+    SCRIPTORIUM_RECOVERY_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
+}
+
 pub fn monastery_estate_yields(level: u8) -> MonasteryEstateYields {
     let multiplier = monastery_estate_yield_multiplier(level);
     MonasteryEstateYields {
@@ -213,6 +230,23 @@ mod tests {
         assert!(
             monastery_infirmary_mortality_multiplier(3)
                 < monastery_infirmary_mortality_multiplier(0)
+        );
+    }
+
+    #[test]
+    fn agricultural_archive_holds_real_emergency_seed() {
+        assert_eq!(monastery_seed_archive_target_per_crop(0), 8.0);
+        assert_eq!(monastery_seed_archive_target_per_crop(3), 20.0);
+        assert_eq!(monastery_seed_archive_target_per_crop(99), 20.0);
+    }
+
+    #[test]
+    fn scriptorium_reduces_only_the_recovery_quote_policy() {
+        assert_eq!(monastery_scriptorium_recovery_multiplier(0), 0.90);
+        assert_eq!(monastery_scriptorium_recovery_multiplier(3), 0.72);
+        assert!(
+            monastery_scriptorium_recovery_multiplier(3)
+                < monastery_scriptorium_recovery_multiplier(0)
         );
     }
 }

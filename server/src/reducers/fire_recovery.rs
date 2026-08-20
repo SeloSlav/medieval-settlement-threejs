@@ -1,9 +1,9 @@
 use spacetimedb::{reducer, ReducerContext};
 
 use crate::balance_generated::{
-    CARPENTER_TIMBER_COST_MULTIPLIER, FIRE_RESOLVED_RETENTION_SECONDS, RESIDENCE_STONE_COST,
-    RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_STONE_COST,
-    RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIMBER_COST, TICK_DT,
+    CARPENTER_TIMBER_COST_MULTIPLIER, FIRE_RESOLVED_RETENTION_SECONDS, MONASTERY_COVERAGE_RADIUS,
+    RESIDENCE_STONE_COST, RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST,
+    RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIMBER_COST, TICK_DT,
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 use crate::db::*;
@@ -15,6 +15,7 @@ use crate::economy::{
 };
 use crate::fire_recovery_policy::{fire_recovery_cost, FireRecoveryCost};
 use crate::lifecycle::ensure_player_resources;
+use crate::monastery_estate_policy::monastery_scriptorium_recovery_multiplier;
 use crate::reducers::residences::ensure_upgrade_source_route;
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
@@ -101,6 +102,7 @@ fn repair_building(
     } else {
         1.0
     };
+    let archive_multiplier = operational_scriptorium_recovery_multiplier(ctx, owner, &building);
     let cost = fire_recovery_cost(
         base.timber,
         base.stone,
@@ -109,6 +111,7 @@ fn repair_building(
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
+        archive_multiplier,
     );
     ensure_recovery_resources(ctx, owner, cost)?;
 
@@ -187,6 +190,7 @@ fn repair_residence(
     } else {
         1.0
     };
+    let archive_multiplier = operational_scriptorium_recovery_multiplier(ctx, owner, &residence);
     let cost = fire_recovery_cost(
         base_timber,
         base_stone,
@@ -195,6 +199,7 @@ fn repair_residence(
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
+        archive_multiplier,
     );
     let physical_economy = ctx
         .db
@@ -328,6 +333,59 @@ fn has_operational_carpenter_support(
             && building_fire_state(ctx, shop.id).is_none()
             && local_delivery_distance(&network, target.x(), target.z(), shop.x, shop.z).is_some()
     })
+}
+
+/// A scriptorium serves only holdings inside its road district and only while
+/// the monastery remains fire-safe and linked to a staffed parish church. If
+/// districts overlap, the best surviving archive supplies the recovery quote;
+/// discounts never stack across monasteries.
+fn operational_scriptorium_recovery_multiplier(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    target: &impl Positioned,
+) -> f64 {
+    let Some(network) = load_owner_road_network(ctx, owner) else {
+        return 1.0;
+    };
+    let chapels: Vec<Building> = ctx
+        .db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|chapel| {
+            chapel.kind == "chapel"
+                && chapel.construction_complete
+                && chapel.assigned_labor > 0
+                && building_fire_state(ctx, chapel.id).is_none()
+        })
+        .collect();
+    if chapels.is_empty() {
+        return 1.0;
+    }
+
+    ctx.db
+        .building()
+        .owner()
+        .filter(&owner)
+        .filter(|monastery| {
+            monastery.kind == "monastery"
+                && monastery.construction_complete
+                && building_fire_state(ctx, monastery.id).is_none()
+                && local_delivery_distance(
+                    &network,
+                    target.x(),
+                    target.z(),
+                    monastery.x,
+                    monastery.z,
+                )
+                .is_some_and(|distance| distance <= MONASTERY_COVERAGE_RADIUS)
+                && chapels.iter().any(|chapel| {
+                    local_delivery_distance(&network, monastery.x, monastery.z, chapel.x, chapel.z)
+                        .is_some()
+                })
+        })
+        .map(|monastery| monastery_scriptorium_recovery_multiplier(monastery.chapel_tier))
+        .fold(1.0, f64::min)
 }
 
 trait Positioned {

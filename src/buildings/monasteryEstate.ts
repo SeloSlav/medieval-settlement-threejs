@@ -109,6 +109,8 @@ export const MONASTERY_ESTATE_YIELD_MULTIPLIERS = [1, 1.25, 1.55, 1.9] as const;
 export const MONASTERY_INFIRMARY_BEDS = [4, 6, 8, 10] as const;
 export const MONASTERY_INFIRMARY_RECOVERY_MULTIPLIERS = [1.25, 1.35, 1.45, 1.55] as const;
 export const MONASTERY_INFIRMARY_MORTALITY_MULTIPLIERS = [0.8, 0.7, 0.6, 0.5] as const;
+export const MONASTERY_SEED_ARCHIVE_TARGET_PER_CROP = [8, 12, 16, 20] as const;
+export const MONASTERY_SCRIPTORIUM_RECOVERY_MULTIPLIERS = [0.9, 0.84, 0.78, 0.72] as const;
 export const MONASTERY_INFIRMARY_FOOD_PER_BED_DAY = 0.6;
 
 export function monasteryEstateNextInvestmentCost(
@@ -133,6 +135,14 @@ export function monasteryInfirmaryRecoveryMultiplier(level: number | null | unde
 
 export function monasteryInfirmaryMortalityMultiplier(level: number | null | undefined): number {
   return MONASTERY_INFIRMARY_MORTALITY_MULTIPLIERS[normalizeMonasteryEstateLevel(level)];
+}
+
+export function monasterySeedArchiveTargetPerCrop(level: number | null | undefined): number {
+  return MONASTERY_SEED_ARCHIVE_TARGET_PER_CROP[normalizeMonasteryEstateLevel(level)];
+}
+
+export function monasteryScriptoriumRecoveryMultiplier(level: number | null | undefined): number {
+  return MONASTERY_SCRIPTORIUM_RECOVERY_MULTIPLIERS[normalizeMonasteryEstateLevel(level)];
 }
 
 export function monasteryEstateYields(level: number | null | undefined): {
