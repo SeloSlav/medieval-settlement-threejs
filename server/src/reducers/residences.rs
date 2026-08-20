@@ -60,8 +60,7 @@ enum ResidenceUpgradeService {
     Marketplace,
     GranaryStalls,
     StorehouseStalls,
-    Church,
-    StoneChurch,
+    Church(u8),
     FoodVariety(u8),
 }
 
@@ -404,7 +403,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             &[
                 ResidenceUpgradeService::Firewood,
                 ResidenceUpgradeService::Water,
-                ResidenceUpgradeService::Church,
+                ResidenceUpgradeService::Church(2),
                 ResidenceUpgradeService::FoodVariety(2),
                 ResidenceUpgradeService::Beverage,
                 ResidenceUpgradeService::Cloth,
@@ -419,9 +418,11 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             0.0,
             RESIDENCE_TIER3_CAPACITY,
             &[
+                ResidenceUpgradeService::Firewood,
+                ResidenceUpgradeService::Water,
                 ResidenceUpgradeService::Beverage,
                 ResidenceUpgradeService::Cloth,
-                ResidenceUpgradeService::StoneChurch,
+                ResidenceUpgradeService::Church(2),
                 ResidenceUpgradeService::FoodVariety(3),
                 ResidenceUpgradeService::Marketplace,
                 ResidenceUpgradeService::GranaryStalls,
@@ -435,11 +436,13 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             RESIDENCE_TILE_ROOF_TILE_COST,
             RESIDENCE_TIER4_CAPACITY,
             &[
+                ResidenceUpgradeService::Firewood,
+                ResidenceUpgradeService::Water,
                 ResidenceUpgradeService::PreservedFood,
                 ResidenceUpgradeService::Beverage,
                 ResidenceUpgradeService::Cloth,
                 ResidenceUpgradeService::Pottery,
-                ResidenceUpgradeService::StoneChurch,
+                ResidenceUpgradeService::Church(3),
                 ResidenceUpgradeService::FoodVariety(3),
                 ResidenceUpgradeService::Marketplace,
                 ResidenceUpgradeService::GranaryStalls,
@@ -451,11 +454,11 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
 
     if !has_connected_services(ctx, &residence, required_services) {
         return Err(if next_tier == 2 {
-            "Tier 2 requires fuel and well supply, a staffed road-linked church, two food categories, ale, clothing, and staffed market stalls.".to_string()
+            "Tier 2 requires fuel and well supply, a staffed road-linked level-2 church, two food categories, ale, clothing, and staffed market stalls.".to_string()
         } else if next_tier == 3 {
-            "Tier 3 requires crops or forage, meat or animal produce, fish, a stone church, ale, clothing, and staffed market stalls.".to_string()
+            "Tier 3 requires fuel and well supply, crops or forage, meat or animal produce, fish, a level-2 church, ale, clothing, and staffed market stalls.".to_string()
         } else {
-            "Tier 4 requires preserved food, pottery, the complete tier-3 diet and services, and staffed market supply.".to_string()
+            "Tier 4 requires fuel and well supply, a level-3 church, preserved food, pottery, the complete tier-3 diet and services, and staffed market supply.".to_string()
         });
     }
     let physical_economy = ctx
@@ -832,16 +835,11 @@ fn has_connected_services(
                         && building.construction_complete
                         && building.assigned_labor > 0
                 }
-                ResidenceUpgradeService::Church => {
+                ResidenceUpgradeService::Church(required_tier) => {
                     building.kind == "chapel"
                         && building.construction_complete
                         && building.assigned_labor > 0
-                }
-                ResidenceUpgradeService::StoneChurch => {
-                    building.kind == "chapel"
-                        && building.construction_complete
-                        && building.assigned_labor > 0
-                        && building.chapel_tier >= 2
+                        && building.chapel_tier.max(1) >= *required_tier
                 }
                 ResidenceUpgradeService::FoodVariety(_) => false,
             }

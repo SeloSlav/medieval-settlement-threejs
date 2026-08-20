@@ -150,6 +150,7 @@ type UpgradeDefinition = {
   stone: number;
   gold: number;
   roofTiles: number;
+  requiredChapelTier: 2 | 3;
   serviceKinds: ResidenceUpgradeServiceKind[];
   addedNeeds: string;
 };
@@ -163,8 +164,9 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       stone: RESIDENCE_TIER2_STONE_COST,
       gold: RESIDENCE_TIER2_GOLD_COST,
       roofTiles: 0,
+      requiredChapelTier: 2,
       serviceKinds: ['firewood', 'water', 'church', 'foodVariety', 'ale', 'cloth'],
-      addedNeeds: 'Adds two food categories, ale, and household clothing',
+      addedNeeds: 'Adds two food categories, ale, clothing, and a level-2 church standard',
     };
   }
   if (tier === 2) {
@@ -175,7 +177,8 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       stone: RESIDENCE_TIER3_STONE_COST,
       gold: RESIDENCE_TIER3_GOLD_COST,
       roofTiles: 0,
-      serviceKinds: ['ale', 'cloth', 'church', 'foodVariety'],
+      requiredChapelTier: 2,
+      serviceKinds: ['firewood', 'water', 'ale', 'cloth', 'church', 'foodVariety'],
       addedNeeds: 'Adds a balanced three-group diet and a stone-church standard',
     };
   }
@@ -187,8 +190,9 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       stone: RESIDENCE_TIER4_STONE_COST,
       gold: RESIDENCE_TIER4_GOLD_COST,
       roofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
-      serviceKinds: ['preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
-      addedNeeds: 'Adds preserved food, pottery, and a finished fired-tile house',
+      requiredChapelTier: 3,
+      serviceKinds: ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
+      addedNeeds: 'Adds preserved food, pottery, a level-3 church standard, and a finished fired-tile house',
     };
   }
   return null;
@@ -218,8 +222,8 @@ export function evaluateResidenceUpgrade(
     const input = serviceInputs[kind];
     return {
       kind,
-      label: kind === 'church' && definition.nextTier >= 3
-        ? 'Stone church'
+      label: kind === 'church'
+        ? `Level ${definition.requiredChapelTier} church`
         : kind === 'foodVariety'
           ? definition.nextTier >= 3
             ? '3 diet groups: crops/forage, animal foods, and fish'
@@ -227,7 +231,10 @@ export function evaluateResidenceUpgrade(
           : SERVICE_LABELS[kind],
       supplier: input.supplier,
       stocked: input.stocked,
-      ready: input.ready ?? input.supplier != null,
+      ready: kind === 'church'
+        ? input.supplier != null
+          && (input.supplier.chapelTier ?? 1) >= definition.requiredChapelTier
+        : input.ready ?? input.supplier != null,
     };
   });
   const physicalEconomy = context.physicalEconomy === true;

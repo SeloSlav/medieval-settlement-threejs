@@ -7,6 +7,7 @@ import type {
 } from '../resources/types.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
 import { MONASTERY_COVERAGE_RADIUS } from '../generated/gameBalance.ts';
+import { requiredChapelTierForResidence } from '../residences/residenceNeedState.ts';
 import {
   claimResidenceRoutesByNearestSupplier,
   compareStableEntityIds,
@@ -88,7 +89,10 @@ export function findServingChapel(
   let best: BuildingState | null = null;
   let bestDistance = Infinity;
   for (const chapel of chapels) {
-    if (!isChapelStaffed(chapel)) {
+    if (
+      !isChapelStaffed(chapel)
+      || (chapel.chapelTier ?? 1) < requiredChapelTierForResidence(residence.tier)
+    ) {
       continue;
     }
     const distance = probe(residence.x, residence.z, chapel.x, chapel.z);
@@ -228,7 +232,8 @@ export function claimResidenceCommunityLandmarks(
     network,
     staffedChapels,
     residences,
-    () => true,
+    (chapel, residence) =>
+      (chapel.chapelTier ?? 1) >= requiredChapelTierForResidence(residence.tier),
   );
   if (chapelClaims.size === 0 || staffedChapels.length === 0) {
     return {

@@ -221,7 +221,7 @@ assert.equal(tierThreePlan.nextTier, 3);
 assert.equal(tierThreePlan.addedCapacity, 4);
 assert.deepEqual(
   tierThreePlan.services.map((service) => service.kind),
-  ['ale', 'cloth', 'church', 'foodVariety'],
+  ['firewood', 'water', 'ale', 'cloth', 'church', 'foodVariety'],
 );
 assert.deepEqual(
   tierThreePlan.resources.map((resource) => resource.required),
@@ -233,13 +233,17 @@ assert.deepEqual(
 );
 assert.equal(tierThreePlan.ready, true);
 const tierThree = residence('tier-three', 3, 10);
-const tierFourPlan = evaluateResidenceUpgrade(tierThree, richTotals, allServices);
+const levelThreeChapel = { ...chapel, chapelTier: 3 };
+const tierFourPlan = evaluateResidenceUpgrade(tierThree, richTotals, {
+  ...allServices,
+  church: { supplier: levelThreeChapel, stocked: false, ready: true },
+});
 assert.ok(tierFourPlan);
 assert.equal(tierFourPlan.nextTier, 4);
 assert.equal(tierFourPlan.populationCapacity, RESIDENCE_TIER4_CAPACITY);
 assert.deepEqual(
   tierFourPlan.services.map((service) => service.kind),
-  ['preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
+  ['firewood', 'water', 'preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
 );
 assert.deepEqual(
   tierFourPlan.resources.map((resource) => resource.required),

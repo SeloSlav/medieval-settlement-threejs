@@ -320,8 +320,6 @@ export function renderResidenceInspector(
       church: {
         supplier: servingChapel,
         stocked: servingChapel != null,
-        ready: servingChapel != null
-          && (residence.tier >= 2 ? (servingChapel.chapelTier ?? 1) >= 2 : true),
       },
       foodVariety: {
         supplier: null,
@@ -337,7 +335,7 @@ export function renderResidenceInspector(
       },
     );
   const prosperityPlan = !fireDisabled
-    && upgradePlan?.nextTier === 3
+    && upgradePlan?.nextTier === 4
     && context.settlementProduction
     ? computeSettlementProsperityPlan(context.settlementProduction)
     : null;
@@ -669,7 +667,7 @@ export function renderResidenceInspector(
       ${residence.tier >= 4 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Household pottery</span><span>${Math.round(getNeedStock(residence.needs, 'pottery'))} / ${RESIDENCE_POTTERY_CAPACITY} · ${potteryRunwayLabel} replacement</span></li>` : ''}
       ${residence.tier >= 2 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 4 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Pottery supplier</span><span>${potterySupplierLabel}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${faithAndCommunitySection}"><span>Church access</span><span>${community.hasChapelAccess ? `Staffed tier-${community.chapelTier ?? 1} parish on the road${residence.tier >= 3 && (community.chapelTier ?? 1) < 2 ? ' · stone church required' : ''}` : 'None on branch'}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${faithAndCommunitySection}"><span>Church access</span><span>${community.hasChapelAccess ? `Staffed level-${community.chapelTier ?? 1} parish on the road` : `No qualifying parish on branch · level ${residence.tier >= 4 ? 3 : residence.tier >= 2 ? 2 : 1} required`}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${faithAndCommunitySection}"><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>` : ''}
       <li><span>Road access</span><span>${roadAccess}</span></li>
       <li><span>Build cost</span><span>${renderBuildingResourceCost(singleCost)}</span></li>
@@ -822,10 +820,10 @@ function residenceUpgradePanel(
     ? `Ready · adds ${plan.addedCapacity} resident capacity (${plan.populationCapacity} total) · ${plan.addedNeeds.toLowerCase()}.`
     : `Blocked · ${plan.blockers.join(' · ')}.`;
   const guidance = plan.nextTier === 2
-    ? 'Tier 2 needs two stocked food categories, a staffed road-connected Tavern, and a staffed weaver in addition to the cottage services.'
+    ? 'Tier 2 needs two stocked food categories, a level-2 church, a staffed road-connected Tavern, and a staffed weaver in addition to firewood and well access.'
     : plan.nextTier === 3
-      ? 'Tier 3 needs one stocked crops/forage category, one meat/animal-produce category, fish, and a staffed stone church while retaining Tier 2 services.'
-      : 'Tier 4 needs preserved food, pottery, and physical fired roof tiles while retaining the balanced diet, Tavern, weaver, and stone-church services.';
+      ? 'Tier 3 needs one stocked crops/forage category, one meat/animal-produce category, fish, and a staffed level-2 church while retaining firewood, well, and Tier 2 services.'
+      : 'Tier 4 needs preserved food, pottery, a staffed level-3 church, and physical fired roof tiles while retaining every lower-tier service.';
   const throughput = prosperity && projection
     ? projection.immediateSustainable
       ? projection.fullPipelineSustainable

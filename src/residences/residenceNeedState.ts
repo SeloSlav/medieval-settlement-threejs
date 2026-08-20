@@ -115,6 +115,12 @@ export const DEFAULT_RESIDENCE_COMMUNITY_CONTEXT: ResidenceCommunityContext = {
   sabbathObservance: false,
 };
 
+export function requiredChapelTierForResidence(tier: number): 1 | 2 | 3 {
+  if (tier >= 4) return 3;
+  if (tier >= 2) return 2;
+  return 1;
+}
+
 export type ResidenceNeedRecoveryStatus = {
   kind: ResidenceNeedKind;
   label: string;

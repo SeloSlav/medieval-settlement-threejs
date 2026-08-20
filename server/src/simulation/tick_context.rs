@@ -18,6 +18,7 @@ use crate::farming::{
 };
 use crate::raid_agent_policy::combat_agent_is_active_raider_threat;
 use crate::resident_welfare_policy::CorpseSpatialIndex;
+use crate::residence_service_policy::required_chapel_tier;
 use crate::roads::RoadNetwork;
 use crate::simulation::fires::{FIRE_TARGET_BUILDING, FIRE_TARGET_RESIDENCE};
 use crate::simulation::residence_needs::ResidenceNeedKind;
@@ -339,7 +340,14 @@ impl SimTickContext {
             .filter(|residence| !self.residence_disabled_by_fire(ctx, residence.id))
             .collect();
         let chapel_refs: Vec<&Building> = chapels.iter().collect();
-        claim_residences_by_nearest_supplier(network, &chapel_refs, &residences, |_, _, _| true)
+        claim_residences_by_nearest_supplier(
+            network,
+            &chapel_refs,
+            &residences,
+            |chapel, residence, _| {
+                chapel.chapel_tier.max(1) >= required_chapel_tier(residence.tier)
+            },
+        )
     }
 
     /// Return the nearest eligible Pauline monastery serving this household.

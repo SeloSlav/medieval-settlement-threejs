@@ -30,6 +30,7 @@ import type { ResidenceState } from '../resources/types.ts';
 import { householdFoodPerDay } from '../economy/foodInventory.ts';
 import {
   getNeed,
+  requiredChapelTierForResidence,
   activeResidenceNeedKinds,
   type ResidenceNeedKind,
   type ResidenceNeedRecoveryStatus,
@@ -393,12 +394,10 @@ function describeActiveNeed(
       return null;
     }
     case 'church': {
-      const requiredTier = residence.tier >= 3 ? 2 : 1;
+      const requiredTier = requiredChapelTierForResidence(residence.tier);
       return getNeed(residence.needs, kind).stock + 1e-6 < requiredTier
         ? {
-            label: residence.tier >= 3
-              ? 'Church insufficient — Tier 3 needs a stone church'
-              : 'No staffed church access on this road branch',
+            label: `Church insufficient — Tier ${residence.tier} needs a level-${requiredTier} church`,
             state: 'warning',
           }
         : null;

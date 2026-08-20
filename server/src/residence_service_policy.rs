@@ -22,6 +22,16 @@ pub fn service_shortage_blocks_upgrade(deficit_ticks: u32) -> bool {
     deficit_ticks >= ticks_for_days(RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS)
 }
 
+pub fn required_chapel_tier(residence_tier: u8) -> u8 {
+    if residence_tier >= 4 {
+        3
+    } else if residence_tier >= 2 {
+        2
+    } else {
+        1
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -35,5 +45,13 @@ mod tests {
         assert!(service_shortage_warns(warning));
         assert!(!service_shortage_blocks_upgrade(blocked.saturating_sub(1)));
         assert!(service_shortage_blocks_upgrade(blocked));
+    }
+
+    #[test]
+    fn church_standard_scales_with_residence_tier() {
+        assert_eq!(required_chapel_tier(1), 1);
+        assert_eq!(required_chapel_tier(2), 2);
+        assert_eq!(required_chapel_tier(3), 2);
+        assert_eq!(required_chapel_tier(4), 3);
     }
 }

@@ -37,6 +37,7 @@ use crate::resident_welfare_policy::{
     cold_exposure_death_chance, deterministic_unit, next_malnutrition, next_service_deficit_ticks,
     starvation_death_chance, ticks_for_days,
 };
+use crate::residence_service_policy::required_chapel_tier;
 use crate::simulation::residence_needs::state::{
     delete_needs, find_need_mut, init_needs, migrate_and_sync_food_inventory, persist_needs,
     NeedState,
@@ -97,7 +98,7 @@ pub fn step_residence_needs(
             continue;
         };
         let outcome = if kind == ResidenceNeedKind::Church {
-            let required_tier = if residence.tier >= 3 { 2 } else { 1 };
+            let required_tier = required_chapel_tier(residence.tier);
             need.stock = f64::from(chapel_tier);
             if chapel_tier >= required_tier {
                 ConsumeResult::Met(*need)
