@@ -88,7 +88,10 @@ export function formatBuildingCost(cost: BuildingResourceCost): string {
   const roofTiles = (cost.roofTiles ?? 0) > 0
     ? `, ${cost.roofTiles} roof tiles`
     : '';
-  return `${cost.timber} timber, ${cost.stone} stone${fittings}${roofTiles}`;
+  const gold = (cost.gold ?? 0) > 0
+    ? `, ${cost.gold} gold`
+    : '';
+  return `${cost.timber} timber, ${cost.stone} stone${fittings}${roofTiles}${gold}`;
 }
 
 export function getBackyardGardenCost(kind: BackyardGardenKind): BuildingResourceCost {

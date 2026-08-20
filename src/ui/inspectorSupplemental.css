@@ -32,7 +32,7 @@
   min-height: 58px;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto;
   align-items: center;
   gap: 2px 8px;
   padding: 7px 8px;
@@ -75,7 +75,7 @@
 
 .backyard-picker-option__icon {
   grid-column: 1;
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
   display: block;
   width: 36px;
   height: 36px;
@@ -100,6 +100,14 @@
 .backyard-picker-option__cost .resource-cost {
   color: rgba(226, 199, 123, 0.96);
   font-size: 0.74rem;
+}
+
+.backyard-picker-option__funding {
+  grid-column: 2;
+  grid-row: 3;
+  color: rgba(226, 220, 207, 0.7);
+  font-size: 0.68rem;
+  line-height: 1.25;
 }
 
 @media (max-width: 330px) {

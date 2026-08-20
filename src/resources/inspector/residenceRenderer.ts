@@ -56,7 +56,7 @@ import {
 import { formatWaterRunwayDays, residenceWaterRunwayDays } from '../../logistics/waterLogistics.ts';
 import { formatDeliveryRoadDistance } from '../../logistics/deliveryLogistics.ts';
 import { effectiveResidenceSettleTicks } from '../../economy/chapelCommunity.ts';
-import { formatHouseholdWealth } from '../../economy/householdWealth.ts';
+import { formatHouseholdProsperity } from '../../economy/householdWealth.ts';
 import {
   formatResidenceServiceConsequence,
   residenceServiceState,
@@ -640,7 +640,7 @@ export function renderResidenceInspector(
         : ''}
       <li data-inspector-primary><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
       ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li><span>Household prosperity</span><span>${formatHouseholdProsperity(residence.householdWealth)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace goods issue as a seven-day pantry lot each week · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
       ${fireDisabled
         ? '<li><span>Parish economy</span><span>Paused · no tithe, alms, or relief claim until structural recovery</span></li>'
@@ -741,7 +741,7 @@ function residenceUpgradeRows(
     <li><span>Tier ${plan.nextTier} services</span><span>${services}</span></li>
     <li><span>Upgrade resources</span><span>${resources}</span></li>
     ${plan.physicalEconomy
-      ? `<li><span>Upgrade funding</span><span>${formatUpgradeAmount(plan.householdContribution)} household coin · ${formatUpgradeAmount(plan.civicGoldRequired)} civic coin</span></li>`
+      ? `<li><span>Project funding</span><span>${formatUpgradeAmount(plan.householdContribution)} household contribution · ${formatUpgradeAmount(plan.civicGoldRequired)} treasury grant</span></li>`
       : ''}
   `;
 }
@@ -847,7 +847,7 @@ function residenceUpgradePanel(
       : ` Warning: promoting the current occupants immediately exceeds installed ${projection.limitingLabel} capacity on ${projection.roadBranchScoped ? 'this road branch' : 'the settlement'} by ${Math.abs(projection.immediateHeadroomResidents)} residents.`
     : '';
   const funding = plan.physicalEconomy
-    ? ` The household pays ${formatUpgradeAmount(plan.householdContribution)} coin from its own chest; ${formatUpgradeAmount(plan.civicGoldRequired)} coin is reserved in the civic treasury. Materials remain at their stores until a builder and cart can move them.`
+    ? ` The household contributes ${formatUpgradeAmount(plan.householdContribution)} coin from savings above its protected reserve; the treasury grants the remaining ${formatUpgradeAmount(plan.civicGoldRequired)} coin. Exact household savings stay private. Materials remain at their stores until a builder and cart can move them.`
     : '';
   return `<button type="button" class="resource-action-button" data-action="upgrade-residence" ${plan.ready ? '' : 'disabled'}>Begin tier ${plan.nextTier} works</button><p class="resource-inspector-note">${status}${throughput}${funding} ${guidance}</p>`;
 }
@@ -862,7 +862,7 @@ function residenceUpgradeProjectPanel(
   return `<div class="inspector-action-panel">
     <p class="resource-inspector-note">${initialConstruction
       ? 'Cottage construction is physical: founders remain at camp while one builder raises the frame from onsite timber and stone brought by carts.'
-      : 'Household works are physical: one builder works from onsite timber and stone, while carts bring reserved stores and civic coin.'} ${status} Hold releases the builder and stops new carts without losing reservations.</p>
+      : 'Household works are physical: one builder works from onsite timber and stone, while carts bring reserved stores and treasury coin.'} ${status} Hold releases the builder and stops new carts without losing reservations.</p>
     <div class="resource-action-row">${CONSTRUCTION_PRIORITIES.map((candidate) =>
       residenceUpgradePriorityButton(candidate, project.priority)).join('')}</div>
   </div>`;

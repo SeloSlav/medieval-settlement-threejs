@@ -5,7 +5,9 @@ import {
   CHAPEL_SABBATH_OBSERVANCE_ATTENDANCE_BONUS,
   CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
   CALENDAR_DAYS_PER_WEEK,
+  HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE,
   HOUSEHOLD_MAX_WEALTH,
+  HOUSEHOLD_PROJECT_WEALTH_RESERVE,
   MONASTERY_ATTENDANCE_BONUS,
   SIM_TICK_SECONDS,
 } from '../generated/gameBalance.ts';
@@ -103,8 +105,44 @@ export function payableChapelTithePerDay(
   );
 }
 
-export function formatHouseholdWealth(wealth: number): string {
-  return `${Math.round(wealth)} / ${HOUSEHOLD_MAX_WEALTH} gold`;
+export type HouseholdProsperityBand = 'limited' | 'stable' | 'prosperous';
+
+/**
+ * A deliberately broad public signal. Exact household purses remain part of
+ * the simulation, while players get enough information to understand whether
+ * a home is likely to contribute to a discretionary project.
+ */
+export function householdProsperityBand(wealth: number): HouseholdProsperityBand {
+  const savings = Math.max(0, wealth);
+  if (savings < HOUSEHOLD_PROJECT_WEALTH_RESERVE) return 'limited';
+  if (savings < HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE) return 'stable';
+  return 'prosperous';
+}
+
+export function formatHouseholdProsperity(wealth: number): string {
+  switch (householdProsperityBand(wealth)) {
+    case 'limited': return 'Limited · treasury-backed projects';
+    case 'stable': return 'Stable · may co-fund projects';
+    case 'prosperous': return 'Prosperous · strong private savings';
+  }
+}
+
+export function formatSettlementHouseholdProsperity(
+  households: Iterable<{ population: number; householdWealth: number }>,
+): string {
+  const counts: Record<HouseholdProsperityBand, number> = {
+    limited: 0,
+    stable: 0,
+    prosperous: 0,
+  };
+  let occupied = 0;
+  for (const household of households) {
+    if (household.population <= 0) continue;
+    occupied += 1;
+    counts[householdProsperityBand(household.householdWealth)] += 1;
+  }
+  if (occupied === 0) return 'No occupied households';
+  return `${counts.prosperous} prosperous · ${counts.stable} stable · ${counts.limited} limited`;
 }
 
 export function householdNetIncomePerDay(baseActivity: number, taxRate: number): number {

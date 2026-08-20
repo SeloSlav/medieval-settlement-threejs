@@ -2455,7 +2455,7 @@ export function renderTownHallInspector(
       ${growth.additionalPreservedFoodPerDay + growth.additionalAlePerDay + growth.additionalClothPerDay + growth.additionalPotteryPerDay > 1e-6 ? `<li><span>Prosperous-house growth</span><span>+${growth.additionalPreservedFoodPerDay.toFixed(1)} winter-peak preserved ration/day · +${growth.additionalAlePerDay.toFixed(1)} beverages/day · +${growth.additionalClothPerDay.toFixed(2)} cloth/day · +${growth.additionalPotteryPerDay.toFixed(2)} pottery/day</span></li>` : ''}
       ${readout.backyardEconomy ? renderSettlementBackyardEconomyRows(readout.backyardEconomy) : ''}
       <li><span>Trade productivity</span><span>${readout.productivityLabel}</span></li>
-      <li><span>Household wealth</span><span>${readout.householdWealthLabel}</span></li>
+      <li><span>Household prosperity</span><span>${readout.householdProsperityLabel}</span></li>
       <li><span>Household savings</span><span>${readout.householdSavingsLabel}</span></li>
       ${householdMarketPlan == null ? '' : `
       <li><span>Household contingency orders</span><span>${formatHouseholdMarketSettlementSummary(householdMarketPlan)}</span></li>

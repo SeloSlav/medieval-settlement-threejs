@@ -1545,7 +1545,7 @@ function generateRust(): string {
     lines.push(`    kind: "${kind}",`);
     lines.push(`    cost_timber: ${rustF64(def.cost.timber)},`);
     lines.push(`    cost_stone: ${rustF64(def.cost.stone)},`);
-    lines.push(`    cost_gold: ${rustF64(def.cost.gold)},`);
+    lines.push(`    cost_gold: ${rustF64(def.cost.gold ?? 0)},`);
     lines.push(`    cost_ironwork: ${rustF64(def.cost.ironwork ?? 0)},`);
     lines.push(`    cost_roof_tiles: ${rustF64(def.cost.roofTiles ?? 0)},`);
     lines.push(`    storage_timber: ${rustF64(def.storage.timber)},`);
@@ -1643,6 +1643,7 @@ function generateRust(): string {
   lines.push('    pub label: &\'static str,');
   lines.push('    pub cost_timber: f64,');
   lines.push('    pub cost_stone: f64,');
+  lines.push('    pub cost_gold: f64,');
   lines.push('    pub food_per_person_per_sec: f64,');
   lines.push('    pub settlement_attraction_multiplier: f64,');
   lines.push('    pub hidden_from_picker: bool,');
@@ -1660,6 +1661,7 @@ function generateRust(): string {
     lines.push(`    label: ${JSON.stringify(def.label)},`);
     lines.push(`    cost_timber: ${rustF64(def.cost.timber)},`);
     lines.push(`    cost_stone: ${rustF64(def.cost.stone)},`);
+    lines.push(`    cost_gold: ${rustF64(def.cost.gold)},`);
     lines.push(`    food_per_person_per_sec: ${rustF64(def.foodPerPersonPerSec)},`);
     lines.push(`    settlement_attraction_multiplier: ${rustF64(def.settlementAttractionMultiplier)},`);
     lines.push(`    hidden_from_picker: ${def.hiddenFromPicker === true},`);

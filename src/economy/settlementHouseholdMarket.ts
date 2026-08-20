@@ -607,9 +607,9 @@ export function formatHouseholdMarketPurchasingPower(
   plan: SettlementHouseholdMarketPlan,
 ): string {
   if (plan.criticalHomes === 0) {
-    return `${Math.round(plan.totalHouseholdWealth)} gold saved - no emergency lots due`;
+    return 'No critical household currently needs an emergency lot';
   }
-  return `${plan.affordableCriticalHomes} / ${plan.criticalHomes} critical homes can fund one current lot - ${Math.round(plan.totalHouseholdWealth)} gold saved`;
+  return `${plan.affordableCriticalHomes} / ${plan.criticalHomes} critical homes can fund one current lot`;
 }
 
 export function formatHouseholdMarketBottlenecks(

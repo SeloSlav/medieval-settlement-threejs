@@ -20,6 +20,7 @@ import type { BuildingState, GameState, ResidenceState } from '../resources/type
 import { buildingKindLabel } from '../resources/WorldLayoutRegistry.ts';
 import type { WorldGenerationSettings } from '../world/worldGenerationSettings.ts';
 import { edibleFoodStock, type FoodInventoryLike } from '../economy/foodInventory.ts';
+import { householdProsperityBand } from '../economy/householdWealth.ts';
 
 export type SettlementSecurityState = {
   threat: number;
@@ -1053,9 +1054,7 @@ export function projectRaidTargets(
         ? deliveryTripRaidSummary(gameState.deliveryTrips.get(target.id))
       : target.kind === 'treasury'
         ? portableRaidSummary(treasuryStores ?? undefined)
-        : `${formatPortableStoreAmount(
-            gameState.residences.get(target.id)?.householdWealth ?? target.portableValue,
-          )} household gold`;
+        : 'Private household savings carried with the family';
     return { ...target, portableSummary };
   });
 }
@@ -1075,7 +1074,10 @@ export function formatProjectedRaidTargets(targets: readonly ProjectedRaidTarget
       : target.protected
         ? ` · ${formatGuardCount(target.localReadyGuards)} / ${formatGuardCount(target.localGuardsRequired)} district guards · up to ${Math.round(target.estimatedLossFraction * 100)}% loss`
         : ` · no warned guard district · up to ${Math.round(target.estimatedLossFraction * 100)}% loss`;
-    return `${target.label} (${target.protected ? 'watched' : 'exposed'}${shelter}${district} · ${formatPortableStoreAmount(target.portableValue)} raid value · ${target.portableSummary})`;
+    const valueLabel = target.kind === 'residence'
+      ? `${formatHouseholdPurseBand(target.portableValue)} private purse`
+      : `${formatPortableStoreAmount(target.portableValue)} raid value`;
+    return `${target.label} (${target.protected ? 'watched' : 'exposed'}${shelter}${district} · ${valueLabel} · ${target.portableSummary})`;
   });
   return `Current likely ${targets.length === 1 ? 'target' : 'targets'}: ${holdings.join('; ')}. Warning rings appear as frontier unrest rises.`;
 }
@@ -1108,6 +1110,11 @@ export function countSitesProtectedByWatchtower(
     residents += residence.population;
   }
   return { buildings, homes, residents };
+}
+
+function formatHouseholdPurseBand(wealth: number): string {
+  const band = householdProsperityBand(wealth);
+  return band.charAt(0).toUpperCase() + band.slice(1);
 }
 
 export function palisadedRefugeEffectiveRadius(

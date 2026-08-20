@@ -14,7 +14,7 @@ import {
   chapelAttendanceChance,
   formatChapelAttendanceChance,
   formatHouseholdNetIncomePerDay,
-  formatHouseholdWealth,
+  formatHouseholdProsperity,
   payableChapelTithePerDay,
 } from './householdWealth.ts';
 import { backyardGardenEconomyPerDay } from './villageProjections.ts';
@@ -204,8 +204,8 @@ export function formatBackyardSavingsLabel(netWealthPerDay: number, hasMarketAcc
   return hasMarketAccess ? formatHouseholdNetIncomePerDay(netWealthPerDay) : '0 gold / day';
 }
 
-export function formatResidenceWealthLabel(wealth: number): string {
-  return formatHouseholdWealth(wealth);
+export function formatResidenceProsperityLabel(wealth: number): string {
+  return formatHouseholdProsperity(wealth);
 }
 
 export function formatChapelExpenseLabel(

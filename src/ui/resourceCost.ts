@@ -137,6 +137,8 @@ export function buildingResourceCostAmounts(
     timber: cost.timber,
     stone: cost.stone,
     ironwork: cost.ironwork,
+    roofTiles: cost.roofTiles,
+    gold: cost.gold,
   };
 }
 

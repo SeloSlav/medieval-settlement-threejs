@@ -7,13 +7,17 @@ import {
   CHAPEL_TITHE_GOLD_PER_PERSON_PER_DAY,
   CHAPEL_COFFER_CAPACITY,
   CALENDAR_DAYS_PER_WEEK,
+  HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE,
   HOUSEHOLD_MAX_WEALTH,
+  HOUSEHOLD_PROJECT_WEALTH_RESERVE,
   SIM_TICK_SECONDS,
 } from '../src/generated/gameBalance.ts';
 import {
   chapelAttendanceChance,
   chapelTitheGoldPerTick,
   expectedChapelTithePerDay,
+  formatSettlementHouseholdProsperity,
+  householdProsperityBand,
   householdNetIncomePerDay,
 } from '../src/economy/householdWealth.ts';
 import { GAME_WORKDAY_SECONDS } from '../src/world/gameCalendar.ts';
@@ -74,6 +78,9 @@ const taxRate = 0.18;
 const { adjusted, tax } = taxedEconomicActivity(activity, taxRate);
 assert.equal(householdNetIncomePerDay(activity, taxRate), adjusted - tax);
 assert.equal(HOUSEHOLD_MAX_WEALTH, 200);
+assert.equal(householdProsperityBand(HOUSEHOLD_PROJECT_WEALTH_RESERVE - 0.01), 'limited');
+assert.equal(householdProsperityBand(HOUSEHOLD_PROJECT_WEALTH_RESERVE), 'stable');
+assert.equal(householdProsperityBand(HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE), 'prosperous');
 
 const residences = new Map<string, ResidenceState>([
   ['residence-1', {
@@ -112,6 +119,10 @@ const summary = summarizeHouseholdWealth(residences.values());
 assert.equal(summary.totalWealth, 12.5);
 assert.equal(summary.occupiedHomes, 2);
 assert.equal(summary.homesWithSavings, 1);
+assert.equal(
+  formatSettlementHouseholdProsperity(residences.values()),
+  '0 prosperous · 1 stable · 1 limited',
+);
 
 const chapelTithe = estimateVillageChapelTithePerDay(
   residences.values(),
@@ -182,5 +193,26 @@ assert.match(
   /local_discretionary_spend_total \+= split\.producer_income \+ split\.local_tax[\s\S]*local_producer_income_total \+= split\.producer_income/,
   'the economy ledger must report both gross local spending and producer income',
 );
+
+const residenceInspector = readFileSync(
+  new URL('../src/resources/inspector/residenceRenderer.ts', import.meta.url),
+  'utf8',
+);
+assert.match(residenceInspector, /Household prosperity/);
+assert.doesNotMatch(residenceInspector, /Household wealth/);
+
+const frontierSecurity = readFileSync(
+  new URL('../src/security/frontierSecurity.ts', import.meta.url),
+  'utf8',
+);
+assert.match(frontierSecurity, /private purse/);
+assert.doesNotMatch(frontierSecurity, /household gold/);
+
+const refugeInspector = readFileSync(
+  new URL('../src/resources/inspector/palisadedRefugeRenderer.ts', import.meta.url),
+  'utf8',
+);
+assert.match(refugeInspector, /Private savings travel with assigned families/);
+assert.doesNotMatch(refugeInspector, /Math\.round\(sheltered\.shelteredWealth\)/);
 
 console.log('household economy tests passed');

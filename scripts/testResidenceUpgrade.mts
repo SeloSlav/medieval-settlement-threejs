@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   CALENDAR_SECONDS_PER_DAY,
+  HOUSEHOLD_PROJECT_WEALTH_RESERVE,
   RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS,
   RESIDENCE_STONE_COST,
   RESIDENCE_TIMBER_COST,
@@ -102,7 +103,8 @@ assert.equal(
 );
 
 const householdFundedResidence = residence('household-funded', 1, 3);
-householdFundedResidence.householdWealth = Math.max(1, RESIDENCE_TIER2_GOLD_COST - 2);
+householdFundedResidence.householdWealth = HOUSEHOLD_PROJECT_WEALTH_RESERVE
+  + Math.max(1, RESIDENCE_TIER2_GOLD_COST - 2);
 const physicalPlan = evaluateResidenceUpgrade(
   householdFundedResidence,
   richTotals,
@@ -112,7 +114,10 @@ const physicalPlan = evaluateResidenceUpgrade(
 assert.ok(physicalPlan);
 assert.equal(
   physicalPlan.householdContribution,
-  Math.min(householdFundedResidence.householdWealth, RESIDENCE_TIER2_GOLD_COST),
+  Math.min(
+    Math.max(0, householdFundedResidence.householdWealth - HOUSEHOLD_PROJECT_WEALTH_RESERVE),
+    RESIDENCE_TIER2_GOLD_COST,
+  ),
 );
 assert.equal(
   physicalPlan.civicGoldRequired,
@@ -123,6 +128,29 @@ assert.equal(
   physicalPlan.civicGoldRequired,
   'only the civic remainder should be tested against the physical treasury',
 );
+
+const reserveProtectedResidence = residence('reserve-protected', 1, 3);
+reserveProtectedResidence.householdWealth = HOUSEHOLD_PROJECT_WEALTH_RESERVE - 1;
+const treasuryFundedPlan = evaluateResidenceUpgrade(
+  reserveProtectedResidence,
+  richTotals,
+  allServices,
+  { physicalEconomy: true },
+);
+assert.ok(treasuryFundedPlan);
+assert.equal(treasuryFundedPlan.householdContribution, 0);
+assert.equal(treasuryFundedPlan.civicGoldRequired, RESIDENCE_TIER2_GOLD_COST);
+assert.equal(treasuryFundedPlan.ready, true, 'a private wallet below reserve must not block a treasury-funded upgrade');
+
+const treasuryShortPlan = evaluateResidenceUpgrade(
+  reserveProtectedResidence,
+  { ...richTotals, gold: RESIDENCE_TIER2_GOLD_COST - 1 },
+  allServices,
+  { physicalEconomy: true },
+);
+assert.ok(treasuryShortPlan);
+assert.equal(treasuryShortPlan.ready, false);
+assert.match(treasuryShortPlan.blockers.join(' '), /treasury gold short/);
 
 const fireDisabledUpgrade = evaluateResidenceUpgrade(
   tierOne,
@@ -326,8 +354,11 @@ Object.assign(activeBackyard, {
   upgradeRequiredStone: 2,
   upgradeDeliveredTimber: 2,
   upgradeDeliveredStone: 0,
+  upgradeRequiredGold: 3,
+  upgradeDeliveredGold: 1,
   upgradeReservedTimber: 4,
   upgradeReservedStone: 2,
+  upgradeReservedGold: 2,
   upgradeAssignedLabor: 1,
   upgradePriority: 1,
 });
@@ -527,6 +558,19 @@ assert.match(
   /residence\.tier < 3[\s\S]*available_tiles[\s\S]*RESIDENCE_TILE_ROOF_TILE_COST/,
   'the retrofit must remain a costly tier-three-only project',
 );
+
+const backyardReducer = source('../server/src/reducers/backyards.rs');
+assert.match(backyardReducer, /residence_upgrade_household_contribution/);
+assert.match(backyardReducer, /upgrade_delivered_gold = household_contribution/);
+assert.match(backyardReducer, /upgrade_reserved_gold = civic_gold_due/);
+
+const generatedRustBalance = source('../server/src/balance_generated.rs');
+assert.doesNotMatch(generatedRustBalance, /\bundefined\b/);
+assert.match(
+  generatedRustBalance,
+  /pub struct BackyardGardenDef \{[\s\S]*?pub cost_gold: f64/,
+  'generated backyard definitions must carry their authoritative gold cost',
+);
 assert.match(
   residenceReducer,
   /ensure_upgrade_source_route\([\s\S]*CommodityKind::RoofTiles[\s\S]*RESIDENCE_TILE_ROOF_TILE_COST/,
@@ -550,6 +594,11 @@ assert.match(
 const residenceInspector = source('../src/resources/inspector/residenceRenderer.ts');
 assert.match(residenceInspector, /Tier \$\{plan\.nextTier\} services/);
 assert.match(residenceInspector, /Upgrade resources/);
+assert.match(residenceInspector, /Project funding/);
+assert.match(residenceInspector, /household contribution/);
+assert.match(residenceInspector, /treasury grant/);
+assert.match(residenceInspector, /Household prosperity/);
+assert.doesNotMatch(residenceInspector, /Household wealth/);
 assert.match(residenceInspector, /plan\.ready \? '' : 'disabled'/);
 assert.match(residenceInspector, /Begin tier \$\{plan\.nextTier\} works/);
 assert.match(residenceInspector, /data-residence-upgrade-priority/);
@@ -567,6 +616,13 @@ assert.match(
   residenceInspector,
   /RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER[\s\S]*lowers fire ignition\/spread exposure[\s\S]*fireproof/,
 );
+
+const backyardInspector = source('../src/resources/inspector/backyardRenderer.ts');
+assert.match(backyardInspector, /householdProjectFunding/);
+assert.match(backyardInspector, /Household \$\{formatProjectAmount\(funding\.householdContribution\)\}/);
+assert.match(backyardInspector, /Treasury \$\{formatProjectAmount\(funding\.civicGoldRequired\)\}/);
+assert.match(backyardInspector, /project\.delivered\.gold/);
+assert.match(backyardInspector, /project\.reserved\.gold/);
 
 const residenceMarkers = source('../src/residences/ResidenceMarkers.ts');
 assert.match(residenceMarkers, /ResidenceUpgradeWorks/);

@@ -25,6 +25,7 @@ import {
 } from '../../economy/backyardGardenTick.ts';
 import { edibleFoodStock } from '../../economy/foodInventory.ts';
 import {
+  householdProjectFunding,
   residenceBackyardProject,
   type ResidenceBackyardProject,
 } from '../../economy/residenceUpgrade.ts';
@@ -212,16 +213,27 @@ function renderEmptyBackyardPicker(
     : null;
   const options = BACKYARD_GARDEN_PICKER_KINDS.map((kind) => {
     const cost = getBackyardGardenCost(kind);
+    const materialsAffordable = canAffordBackyardGarden(totals, kind);
+    const funding = householdProjectFunding(
+      residence.householdWealth,
+      BACKYARD_GARDEN_DEFINITIONS[kind].goldCost,
+      totals.gold,
+      context.gameState.physicalFoundingSiteEnabled === true,
+    );
     const affordable = !underConstruction
       && blockingPile === null
-      && canAffordBackyardGarden(totals, kind);
+      && materialsAffordable
+      && funding.ready;
     const disabledReason = underConstruction
         ? 'Finish the cottage before improving its backyard.'
       : blockingPile
         ? 'Haul away the reclaimed timber and stone from this backyard first.'
-      : affordable
-        ? ''
-        : `Need ${renderBuildingResourceCost(cost, { compact: true })} (available ${Math.floor(totals.timber)} timber, ${Math.floor(totals.stone)} stone).`;
+      : !materialsAffordable
+        ? `Needs ${cost.timber} timber and ${cost.stone} stone (available ${Math.floor(totals.timber)} timber and ${Math.floor(totals.stone)} stone).`
+      : !funding.ready
+        ? `Needs ${formatProjectAmount(funding.treasuryShortfall)} more treasury gold.`
+        : '';
+    const fundingLabel = `Household ${formatProjectAmount(funding.householdContribution)} · Treasury ${formatProjectAmount(funding.civicGoldRequired)}`;
     return `
       <li class="backyard-picker-row">
         <button
@@ -236,6 +248,7 @@ function renderEmptyBackyardPicker(
           <span class="backyard-picker-option__icon" aria-hidden="true"></span>
           <span class="backyard-picker-option__title">${backyardGardenPickerLabel(kind)}</span>
           <span class="backyard-picker-option__cost">${renderBuildingResourceCost(cost, { compact: true })}</span>
+          <span class="backyard-picker-option__funding">${fundingLabel}</span>
         </button>
       </li>
     `;
@@ -255,6 +268,7 @@ function renderEmptyBackyardPicker(
       <li><span>Population</span><span>${residence.population}</span></li>
       <li><span>Available timber</span><span>${Math.floor(totals.timber)}</span></li>
       <li><span>Available stone</span><span>${Math.floor(totals.stone)}</span></li>
+      <li><span>Available treasury</span><span>${Math.floor(totals.gold)} gold</span></li>
     `,
     demolish: { visible: false, hint: '' },
     labor: hiddenLabor(),
@@ -263,7 +277,7 @@ function renderEmptyBackyardPicker(
         ? 'A free hauler needs a road-connected destination with room for both materials. Select the pile to inspect its route blockers.'
         : underConstruction
           ? 'The backyard stays unworked while founders live at camp and the cottage frame is raised.'
-          : 'Choose one extension. Costs come from settlement stockpiles.'}</p>
+          : 'Choose one extension. The household contributes only savings above its protected reserve; the treasury automatically grants the rest. The quote is committed when works begin, while timber and stone remain physical carted goods.'}</p>
       <ul class="backyard-picker-list">${options}</ul>
     `,
   };
@@ -310,6 +324,7 @@ function renderBackyardProject(
       <li><span>Builder</span><span>${project.assignedLabor > 0 ? '1 on backyard works' : 'Waiting for free labor'}</span></li>
       <li><span>Timber onsite</span><span>${formatProjectAmount(project.delivered.timber)} / ${formatProjectAmount(project.required.timber)} · ${formatProjectAmount(project.reserved.timber)} at source</span></li>
       <li><span>Stone onsite</span><span>${formatProjectAmount(project.delivered.stone)} / ${formatProjectAmount(project.required.stone)} · ${formatProjectAmount(project.reserved.stone)} at source</span></li>
+      <li><span>Coin onsite</span><span>${formatProjectAmount(project.delivered.gold)} / ${formatProjectAmount(project.required.gold)} · ${formatProjectAmount(project.reserved.gold)} at treasury source</span></li>
       <li><span>Incoming haul</span><span>${incoming}</span></li>
       <li><span>Production</span><span>Begins only after the worksite is complete</span></li>
     `,

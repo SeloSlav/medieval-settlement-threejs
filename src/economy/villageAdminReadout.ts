@@ -7,8 +7,8 @@ import {
 import { formatProductivityPercent, formatTaxRatePercent } from './villageEconomy.ts';
 import {
   estimateVillageChapelTithePerDay,
-  summarizeHouseholdWealth,
 } from './villageProjections.ts';
+import { formatSettlementHouseholdProsperity } from './householdWealth.ts';
 import { totalChapelCofferGold } from '../resources/chapelCoffer.ts';
 import {
   fireDisabledBuildingIds,
@@ -31,7 +31,7 @@ export type VillageAdminReadout = {
   taxRateLabel: string;
   productivityLabel: string;
   gdpLabel: string;
-  householdWealthLabel: string;
+  householdProsperityLabel: string;
   householdSavingsLabel: string;
   taxIncomeLabel: string;
   chapelTitheLabel: string;
@@ -77,7 +77,6 @@ export function buildVillageAdminReadout(input: {
       chapel.constructionComplete !== false
       && chapel.assignedLabor > 0,
   );
-  const wealthSummary = summarizeHouseholdWealth(residences);
   const staffedTownHallAvailable = buildings.some(
     (building) =>
       building.kind === 'town_hall'
@@ -162,9 +161,7 @@ export function buildVillageAdminReadout(input: {
     taxRateLabel: formatTaxRatePercent(taxRate),
     productivityLabel: formatProductivityPercent(taxRate),
     gdpLabel: `~${backyardEconomy.currentDayRoutedActivity.toFixed(1)} gold local trade today`,
-    householdWealthLabel: wealthSummary.occupiedHomes > 0
-      ? `${Math.round(wealthSummary.totalWealth)} gold (${wealthSummary.homesWithSavings}/${wealthSummary.occupiedHomes} homes)`
-      : '0 gold saved',
+    householdProsperityLabel: formatSettlementHouseholdProsperity(residences),
     householdSavingsLabel: formatBackyardSavings(
       backyardEconomy,
       worldQueries !== null,
@@ -211,7 +208,7 @@ function emptyReadout(taxRate: number, parishPolicy: ParishPolicyState): Village
     taxRateLabel: formatTaxRatePercent(taxRate),
     productivityLabel: formatProductivityPercent(taxRate),
     gdpLabel: '0 gold / day',
-    householdWealthLabel: '0 gold saved',
+    householdProsperityLabel: 'No occupied households',
     householdSavingsLabel: '—',
     taxIncomeLabel: '0 gold / day',
     chapelTitheLabel: 'Unstaffed chapel',
