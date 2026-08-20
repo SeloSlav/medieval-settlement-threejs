@@ -76,6 +76,7 @@ import type {
   BuildingState,
   GameState,
   ResidenceState,
+  ResourceNodeState,
 } from '../resources/types.ts';
 import {
   normalizeProcessorOutputTargetPercent,
@@ -793,6 +794,24 @@ function centeredDepositExists(
   return false;
 }
 
+function geologicalDepositForBuilding(
+  building: BuildingState,
+  deposits: Iterable<ResourceNodeState>,
+  richOnly: boolean,
+): ResourceNodeState | null {
+  const radius = richOnly ? 2.5 : building.workRadius;
+  let nearest: ResourceNodeState | null = null;
+  let nearestDistance = radius;
+  for (const deposit of deposits) {
+    if (richOnly ? deposit.isRich !== true : deposit.remaining <= 1e-6) continue;
+    const distance = Math.hypot(deposit.x - building.x, deposit.z - building.z);
+    if (distance > nearestDistance) continue;
+    nearest = deposit;
+    nearestDistance = distance;
+  }
+  return nearest;
+}
+
 /** Current physical gates that can prevent a tool-wearing cycle from starting. */
 function civilianToolSiteCanWork(
   building: BuildingState,
@@ -807,12 +826,21 @@ function civilianToolSiteCanWork(
       return stockTargetHasRoom(building, 'firewood')
         && building.timber + 1e-6 >= LODGE_TIMBER_PER_CYCLE;
     case 'stone_quarry':
-      return stockTargetHasRoom(building, 'stone')
-        && centeredDepositExists(building, state.quarries.values(), 'stone');
-    case 'large_quarry':
-      return stockTargetHasRoom(building, 'stone')
-        && centeredDepositExists(building, state.quarries.values(), 'stone', true)
-        && largeQuarrySupportsReady(building.timber);
+    case 'large_quarry': {
+      const deposit = geologicalDepositForBuilding(
+        building,
+        state.quarries.values(),
+        building.kind === 'large_quarry',
+      );
+      if (
+        deposit?.resource !== 'stone'
+        && deposit?.resource !== 'iron'
+        && deposit?.resource !== 'salt'
+        && deposit?.resource !== 'clay'
+      ) return false;
+      return stockTargetHasRoom(building, deposit.resource)
+        && (building.kind !== 'large_quarry' || largeQuarrySupportsReady(building.timber));
+    }
     case 'mine': {
       if (mineDeposit == null) return false;
       const output = mineDeposit.resource === 'iron' ? 'iron' : 'salt';

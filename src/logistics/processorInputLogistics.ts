@@ -421,6 +421,10 @@ export function localMaterialInputCommodities(
   source?: Partial<LocalMaterialSourceLike>,
 ): readonly LocalMaterialInputCommodity[] {
   switch (kind) {
+    case 'stone_quarry':
+    case 'large_quarry':
+      return (['iron', 'salt', 'clay'] as const)
+        .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);
     case 'mine':
       return (['iron', 'salt'] as const)
         .filter((commodity) => (source?.[commodity] ?? 0) > 1e-6);

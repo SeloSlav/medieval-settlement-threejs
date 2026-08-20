@@ -1486,7 +1486,7 @@ function formatWorksiteStalls(
   if (plan.stalledSites === 0) {
     return plan.supplyEnRouteSites > 0
       ? `${plan.supplyEnRouteSites} ${plan.supplyEnRouteSites === 1 ? 'site is' : 'sites are'} waiting on inbound carts · no unattended stall`
-      : `No stalls across ${plan.auditedSites} staffed workshops, mines, quarries, clay pits, hunting halls, or active fishing camps`;
+      : `No stalls across ${plan.auditedSites} staffed workshops, extraction sites, hunting halls, or active fishing camps`;
   }
   const reasons = [
     plan.fireDisabledSites > 0 ? `${plan.fireDisabledSites} fire-disabled` : '',

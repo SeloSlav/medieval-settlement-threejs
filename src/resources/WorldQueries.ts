@@ -1683,6 +1683,23 @@ export class WorldQueries {
     );
   }
 
+  findNearestSurfaceDepositWithRemaining(
+    x: number,
+    z: number,
+    radius: number,
+  ): ResourceNodeState | null {
+    let nearest: ResourceNodeState | null = null;
+    let nearestDistance = Math.max(0, radius);
+    for (const deposit of this.getGameState().quarries.values()) {
+      if (deposit.remaining <= 0) continue;
+      const distance = Math.hypot(deposit.x - x, deposit.z - z);
+      if (distance > nearestDistance) continue;
+      nearest = deposit;
+      nearestDistance = distance;
+    }
+    return nearest;
+  }
+
   findForagingTarget(nodeId: string): Extract<InspectableTarget, { kind: 'foraging' }> | null {
     const definition = this.registry.getDefinition(nodeId);
     if (

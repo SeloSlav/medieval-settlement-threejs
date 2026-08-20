@@ -103,6 +103,45 @@ impl<T> SpatialBuckets<T> {
             usable: false,
         }
     }
+
+    pub fn nearest_usable_within_radius(
+        &self,
+        x: f64,
+        z: f64,
+        radius: f64,
+        mut is_relevant: impl FnMut(&T) -> bool,
+        mut is_usable: impl FnMut(&T) -> bool,
+    ) -> Option<(&T, f64)> {
+        let safe_radius = radius.max(0.0);
+        let radius_sq = safe_radius * safe_radius;
+        let min_cell_x = ((x - safe_radius) / WORKSITE_SPATIAL_BUCKET_SIZE).floor() as i32;
+        let max_cell_x = ((x + safe_radius) / WORKSITE_SPATIAL_BUCKET_SIZE).floor() as i32;
+        let min_cell_z = ((z - safe_radius) / WORKSITE_SPATIAL_BUCKET_SIZE).floor() as i32;
+        let max_cell_z = ((z + safe_radius) / WORKSITE_SPATIAL_BUCKET_SIZE).floor() as i32;
+        let mut nearest: Option<(&T, f64)> = None;
+
+        for cell_x in min_cell_x..=max_cell_x {
+            for cell_z in min_cell_z..=max_cell_z {
+                let Some(bucket) = self.buckets.get(&(cell_x, cell_z)) else {
+                    continue;
+                };
+                for candidate in bucket {
+                    if !is_relevant(&candidate.value) || !is_usable(&candidate.value) {
+                        continue;
+                    }
+                    let distance_sq = (candidate.x - x).powi(2) + (candidate.z - z).powi(2);
+                    if distance_sq > radius_sq
+                        || nearest.is_some_and(|(_, nearest_sq)| distance_sq >= nearest_sq)
+                    {
+                        continue;
+                    }
+                    nearest = Some((&candidate.value, distance_sq));
+                }
+            }
+        }
+
+        nearest
+    }
 }
 
 fn spatial_cell(x: f64, z: f64) -> (i32, i32) {
@@ -176,6 +215,7 @@ mod tests {
     fn spatial_lookup_distinguishes_absent_exhausted_and_usable_sources() {
         let mut buckets = SpatialBuckets::new();
         buckets.insert(-10.0, -10.0, TestSource { remaining: 0.0 });
+        buckets.insert(20.0, 0.0, TestSource { remaining: 7.0 });
         buckets.insert(40.0, 0.0, TestSource { remaining: 12.0 });
 
         assert_eq!(
@@ -214,6 +254,17 @@ mod tests {
             ),
             SourceState::default(),
         );
+        let (nearest, distance_sq) = buckets
+            .nearest_usable_within_radius(
+                0.0,
+                0.0,
+                50.0,
+                |_| true,
+                |source| source.remaining > 1e-6,
+            )
+            .expect("a usable source must be selected");
+        assert_eq!(nearest.remaining, 7.0);
+        assert_eq!(distance_sq, 400.0);
     }
 
     #[test]

@@ -456,6 +456,13 @@ function quarryStall(
 ): WorksiteStallSite | 'supply_en_route' | null {
   const kind = building.kind as Extract<BuildingKind, 'stone_quarry' | 'large_quarry'>;
   const assignedLabor = Math.max(0, Math.floor(building.assignedLabor));
+  const source = geologicalSourceForQuarry(building, quarryBuckets);
+  const outputStock = source === null
+    ? Math.max(0, building.stone)
+      + Math.max(0, building.iron ?? 0)
+      + Math.max(0, building.salt ?? 0)
+      + Math.max(0, building.clay ?? 0)
+    : Math.max(0, building[source.resource] ?? 0);
   const targetLabor = 0;
   const base = {
     buildingId: building.id,
@@ -465,29 +472,21 @@ function quarryStall(
     targetLabor,
     reclaimableWorkers: Math.max(0, assignedLabor - targetLabor),
     priority: normalizeStaffingPriority(building.constructionPriority),
-    hasDispatchDuty: hasActiveOriginTrip,
+    hasDispatchDuty: hasActiveOriginTrip || outputStock > 1e-6,
   };
-  if (
-    (extractionOutputHeadroom(building, 'stone')
+  if (source !== null && (
+    extractionOutputHeadroom(building, source.resource)
       ?? Number.POSITIVE_INFINITY) <= 1e-6
   ) {
     return {
       ...base,
       reason: 'output_blocked',
-      detail: 'local stone yard target reached',
+      detail: `local ${source.resource} yard target reached`,
     };
   }
 
   if (kind === 'large_quarry') {
-    const source = sourceStateWithinRadius(
-      quarryBuckets,
-      building.x,
-      building.z,
-      RICH_DEPOSIT_CENTER_TOLERANCE,
-      (quarry) => quarry.resource === 'stone' && quarry.isRich === true,
-      () => true,
-    );
-    if (!source.usable) {
+    if (source === null) {
       return {
         ...base,
         reason: 'source_unavailable',
@@ -505,23 +504,46 @@ function quarryStall(
     return null;
   }
 
-  const source = sourceStateWithinRadius(
-    quarryBuckets,
-    building.x,
-    building.z,
-    building.workRadius,
-    (quarry) => quarry.resource === 'stone',
-    (quarry) => quarry.remaining > 1e-6,
-  );
-  return source.usable
+  return source !== null
     ? null
     : {
         ...base,
         reason: 'source_unavailable',
-        detail: source.relevant
-          ? 'surface stone in range is exhausted'
-          : 'no surface stone lies within the work area',
+        detail: 'no unexhausted surface deposit lies within the work area',
       };
+}
+
+function geologicalSourceForQuarry(
+  building: BuildingState,
+  quarryBuckets: ReadonlyMap<string, readonly ResourceNodeState[]>,
+): { resource: 'stone' | 'iron' | 'salt' | 'clay' } | null {
+  const radius = building.kind === 'large_quarry'
+    ? RICH_DEPOSIT_CENTER_TOLERANCE
+    : building.workRadius;
+  let nearest: ResourceNodeState | null = null;
+  let nearestDistance = radius;
+  for (const deposits of quarryBuckets.values()) {
+    for (const deposit of deposits) {
+      if (building.kind === 'large_quarry') {
+        if (deposit.isRich !== true) continue;
+      } else if (deposit.remaining <= 1e-6) {
+        continue;
+      }
+      const distance = Math.hypot(deposit.x - building.x, deposit.z - building.z);
+      if (distance > nearestDistance) continue;
+      nearest = deposit;
+      nearestDistance = distance;
+    }
+  }
+  if (
+    nearest?.resource === 'stone'
+    || nearest?.resource === 'iron'
+    || nearest?.resource === 'salt'
+    || nearest?.resource === 'clay'
+  ) {
+    return { resource: nearest.resource };
+  }
+  return null;
 }
 
 function wildStockStall(

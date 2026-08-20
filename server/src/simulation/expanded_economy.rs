@@ -1449,6 +1449,13 @@ fn local_material_target_kinds(
     commodity: CommodityKind,
 ) -> Option<&'static [&'static str]> {
     match (source.kind.as_str(), commodity) {
+        ("stone_quarry" | "large_quarry", CommodityKind::Iron) => {
+            Some(&["smithy", "trading_post"])
+        }
+        ("stone_quarry" | "large_quarry", CommodityKind::Salt) => {
+            Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
+        }
+        ("stone_quarry" | "large_quarry", CommodityKind::Clay) => Some(&["potter_kiln"]),
         ("mine", CommodityKind::Iron) => Some(&["smithy", "trading_post"]),
         ("mine", CommodityKind::Salt) => {
             Some(&["smokehouse", "pastoral_farmstead", "trading_post"])
@@ -3457,12 +3464,92 @@ fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> boo
         || matches!(
             (kind, commodity),
             ("stone_quarry", CommodityKind::Stone)
+                | ("stone_quarry", CommodityKind::Iron)
+                | ("stone_quarry", CommodityKind::Salt)
+                | ("stone_quarry", CommodityKind::Clay)
                 | ("large_quarry", CommodityKind::Stone)
+                | ("large_quarry", CommodityKind::Iron)
+                | ("large_quarry", CommodityKind::Salt)
+                | ("large_quarry", CommodityKind::Clay)
                 | ("clay_pit", CommodityKind::Clay)
                 | ("mine", CommodityKind::Iron)
                 | ("mine", CommodityKind::Salt)
                 | ("potter_kiln", CommodityKind::RoofTiles)
         )
+}
+
+fn nearest_surface_extraction_commodity(
+    ctx: &ReducerContext,
+    x: f64,
+    z: f64,
+    radius: f64,
+) -> Option<CommodityKind> {
+    let radius_sq = radius.max(0.0).powi(2);
+    let mut nearest = None;
+    let mut nearest_distance_sq = f64::INFINITY;
+    for deposit in ctx.db.quarry().iter() {
+        if deposit.remaining <= 1e-6 {
+            continue;
+        }
+        let commodity = if deposit.quarry_id.starts_with("deposit-iron-") {
+            CommodityKind::Iron
+        } else if deposit.quarry_id.starts_with("deposit-salt-") {
+            CommodityKind::Salt
+        } else if deposit.quarry_id.starts_with("quarry-") {
+            CommodityKind::Stone
+        } else {
+            continue;
+        };
+        let distance_sq = (deposit.x - x).powi(2) + (deposit.z - z).powi(2);
+        if distance_sq <= radius_sq && distance_sq < nearest_distance_sq {
+            nearest = Some(commodity);
+            nearest_distance_sq = distance_sq;
+        }
+    }
+    for deposit in ctx.db.foraging_node().iter() {
+        if deposit.node_kind != "clay"
+            || !deposit.node_id.starts_with("clay-")
+            || deposit.remaining <= 1e-6
+        {
+            continue;
+        }
+        let distance_sq = (deposit.x - x).powi(2) + (deposit.z - z).powi(2);
+        if distance_sq <= radius_sq && distance_sq < nearest_distance_sq {
+            nearest = Some(CommodityKind::Clay);
+            nearest_distance_sq = distance_sq;
+        }
+    }
+    nearest
+}
+
+fn rich_extraction_commodity_beneath(
+    ctx: &ReducerContext,
+    x: f64,
+    z: f64,
+) -> Option<CommodityKind> {
+    const CENTER_TOLERANCE_SQ: f64 = 2.5 * 2.5;
+    for deposit in ctx.db.quarry().iter() {
+        if !deposit.is_rich
+            || (deposit.x - x).powi(2) + (deposit.z - z).powi(2) > CENTER_TOLERANCE_SQ
+        {
+            continue;
+        }
+        if deposit.quarry_id.starts_with("deposit-iron-") {
+            return Some(CommodityKind::Iron);
+        }
+        if deposit.quarry_id.starts_with("deposit-salt-") {
+            return Some(CommodityKind::Salt);
+        }
+        if deposit.quarry_id.starts_with("quarry-") {
+            return Some(CommodityKind::Stone);
+        }
+    }
+    ctx.db.foraging_node().iter().find_map(|deposit| {
+        (deposit.node_kind == "clay"
+            && deposit.node_id.starts_with("clay-rich-")
+            && (deposit.x - x).powi(2) + (deposit.z - z).powi(2) <= CENTER_TOLERANCE_SQ)
+            .then_some(CommodityKind::Clay)
+    })
 }
 
 fn extraction_accepts_maintenance_input(
@@ -3474,7 +3561,8 @@ fn extraction_accepts_maintenance_input(
         return true;
     }
     let output = match building.kind.as_str() {
-        "stone_quarry" | "large_quarry" => Some(CommodityKind::Stone),
+        "stone_quarry" => nearest_surface_extraction_commodity(ctx, building.x, building.z, 80.0),
+        "large_quarry" => rich_extraction_commodity_beneath(ctx, building.x, building.z),
         "clay_pit" => Some(CommodityKind::Clay),
         "mine" => mineral_deposit_beneath(ctx, building.x, building.z).and_then(|deposit| {
             if deposit.quarry_id.starts_with("deposit-iron-") {

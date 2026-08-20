@@ -107,9 +107,8 @@ export type SettlementGeologyAlert =
 
 /**
  * Settlement-wide reserve and extraction forecast for physical geological
- * materials. Ordinary clay, iron, salt, and stone deposits are finite. Rich
- * clay and mineral deposits provide deep sources; rich stone retains a finite
- * surface outcrop plus the Large Quarry's deep source.
+ * materials. Every deposit has a finite surface reserve. Rich nodes also
+ * provide a separate non-depleting underground source for a centered Quarry.
  *
  * This mirrors server producer rates and deposit selection. It uses assigned
  * labor as installed capacity, just like the Town Hall's other long-run plans;
@@ -156,11 +155,6 @@ export function computeSettlementGeologyPlan(
       plan.ordinaryDeposits += 1;
     }
 
-    // Rich mineral mines are non-exhausting from their first cycle. Rich stone
-    // still exposes a finite surface outcrop before a Large Quarry opens its
-    // non-exhausting underground source.
-    const isFinite = resource === 'stone' || !deposit.isRich;
-    if (!isFinite) continue;
     plan.finiteReserve += Math.max(0, deposit.remaining);
     plan.finiteCapacity += Math.max(0, deposit.maxYield);
     if (deposit.remaining <= EPSILON) {
@@ -169,6 +163,12 @@ export function computeSettlementGeologyPlan(
   }
 
   const mineralDeposits = [...deposits.iron, ...deposits.salt];
+  const geologicalDeposits = [
+    ...deposits.stone,
+    ...deposits.iron,
+    ...deposits.salt,
+    ...deposits.clay,
+  ];
   const disabledBuildings = fireDisabledBuildingIds(
     state.fireIncidents?.values?.() ?? [],
   );
@@ -201,19 +201,20 @@ export function computeSettlementGeologyPlan(
     }
 
     if (building.kind === 'stone_quarry') {
-      const anyDeposit = nearestSurfaceStone(
+      const anyDeposit = nearestSurfaceDeposit(
         building,
-        deposits.stone,
+        geologicalDeposits,
         building.workRadius || getBuildingDefinition('stone_quarry').workRadius,
         true,
       );
       if (anyDeposit === null) continue;
-      const plan = plans.stone;
+      const resource = anyDeposit.resource as GeologicalResource;
+      const plan = plans[resource];
       plan.extractionSites += 1;
       const targetPaused = recordExtractionYard(
         plan,
         building,
-        'stone',
+        resource,
       );
       if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
         continue;
@@ -223,9 +224,9 @@ export function computeSettlementGeologyPlan(
         recordTargetPause(plan, building);
         continue;
       }
-      const deposit = nearestSurfaceStone(
+      const deposit = nearestSurfaceDeposit(
         building,
-        deposits.stone,
+        geologicalDeposits,
         building.workRadius || getBuildingDefinition('stone_quarry').workRadius,
         false,
       );
@@ -238,7 +239,7 @@ export function computeSettlementGeologyPlan(
         building.assignedLabor,
         sabbathObserved,
         civilianToolThroughputMultiplier(building.ironwork ?? 0),
-      ) * STONE_PER_HARVEST;
+      ) * extractionBatch(resource);
       plan.operatingExtractionSites += 1;
       plan.finiteExtractionPerDay += rate;
       addFiniteRate(plan, deposit, building, rate);
@@ -248,16 +249,17 @@ export function computeSettlementGeologyPlan(
     if (building.kind === 'large_quarry') {
       const deposit = centeredDeposit(
         building,
-        deposits.stone,
+        geologicalDeposits,
         (candidate) => candidate.isRich === true,
       );
       if (deposit === null) continue;
-      const plan = plans.stone;
+      const resource = deposit.resource as GeologicalResource;
+      const plan = plans[resource];
       plan.extractionSites += 1;
       const targetPaused = recordExtractionYard(
         plan,
         building,
-        'stone',
+        resource,
       );
       if (building.assignedLabor <= 0 || disabledBuildings.has(building.id)) {
         continue;
@@ -287,7 +289,7 @@ export function computeSettlementGeologyPlan(
       }
       plan.operatingExtractionSites += 1;
       plan.activeDeepSources += 1;
-      plan.deepExtractionPerDay += cycles * STONE_PER_HARVEST;
+      plan.deepExtractionPerDay += cycles * extractionBatch(resource);
       continue;
     }
 
@@ -664,7 +666,7 @@ function centeredDeposit(
   return null;
 }
 
-function nearestSurfaceStone(
+function nearestSurfaceDeposit(
   building: BuildingState,
   deposits: readonly ResourceNodeState[],
   workRadius: number,
@@ -683,6 +685,15 @@ function nearestSurfaceStone(
     nearestDistanceSq = candidateDistanceSq;
   }
   return nearest;
+}
+
+function extractionBatch(resource: GeologicalResource): number {
+  switch (resource) {
+    case 'iron': return MINE_IRON_PER_CYCLE;
+    case 'salt': return MINE_SALT_PER_CYCLE;
+    case 'clay': return CLAY_PIT_CLAY_PER_CYCLE;
+    case 'stone': return STONE_PER_HARVEST;
+  }
 }
 
 function distanceSq(

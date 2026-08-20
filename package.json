@@ -179,6 +179,7 @@
     "test:rich-stone": "node --experimental-strip-types scripts/testRichStoneSystem.mts",
     "test:rich-clay": "node --experimental-strip-types scripts/testRichClaySystem.mts",
     "test:mineral-deposits": "npx tsx scripts/testMineralDepositSystem.mts",
+    "test:unified-extraction": "node --experimental-strip-types scripts/testUnifiedExtractionModel.mts",
     "test:fishing": "node --experimental-strip-types scripts/testFishingSystem.mts",
     "test:foraging-ecology": "node --experimental-strip-types scripts/testForagingEcology.mts",
     "test:gorski-shrubs": "npx tsx scripts/testGorskiShrubIntegration.mts",

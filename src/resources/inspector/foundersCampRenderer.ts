@@ -69,7 +69,7 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'iron':
       return 'a Forest Bloomery & Smithy or Marketplace';
     case 'clay':
-      return "a Potter's Kiln or Riverbank Clay Pit";
+      return "a Potter's Kiln or Marketplace";
     case 'salt':
       return 'a Smokehouse or Marketplace';
     case 'charcoal':

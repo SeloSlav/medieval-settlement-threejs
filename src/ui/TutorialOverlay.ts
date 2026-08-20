@@ -144,7 +144,7 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
         parts: [
           { text: 'Secure ' },
           { text: 'Timber, Firewood, Stone, and Food', emphasis: 'gold' },
-          { text: " first: place a Lumber Mill, Woodcutter's Lodge, Stonecutter's Camp, and a Forager's Shed, Hunter's Hall, or Fishing Camp. Then add roadside homes." },
+          { text: " first: place a Lumber Mill, Woodcutter's Lodge, Mining Pit near a stone deposit, and a Forager's Shed, Hunter's Hall, or Fishing Camp. Then add roadside homes." },
         ],
       },
     ],
@@ -202,8 +202,8 @@ const TUTORIALS: Record<TutorialId, TutorialDefinition> = {
         label: 'Secure stone',
         parts: [
           { text: 'A staffed ' },
-          { text: "Stonecutter's Camp", emphasis: 'gold' },
-          { text: ' cuts Stone when a surface outcrop lies inside its work area.' },
+          { text: 'Mining Pit', emphasis: 'gold' },
+          { text: ' gathers Stone when a surface deposit lies inside its work area.' },
         ],
       },
       {

@@ -28,7 +28,9 @@ import {
 import { berryThicketRadiusScale } from '../foraging/berryPatchPresentation.ts';
 import {
   polygonOverlapsCircle,
+  RICH_CLAY_DEPOSIT_PROTECTION_RADIUS,
   RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS,
+  RICH_STONE_DEPOSIT_PROTECTION_RADIUS,
 } from '../resources/physicalDepositProtection.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
 import { buildingFootprintsTooClose } from './BuildingSpacing.ts';
@@ -266,11 +268,11 @@ export function validateBuildingPlacement(
     }
   }
 
-  if (kind === 'stone_quarry' && !hasQuarryStoneInRadius(x, z, getBuildingDefinition(kind).workRadius, quarries)) {
+  if (kind === 'stone_quarry' && !hasSurfaceDepositInRadius(x, z, getBuildingDefinition(kind).workRadius, quarries)) {
     return { ok: false, reason: 'no_quarry_in_range' };
   }
 
-  if (kind === 'large_quarry' && !hasRichQuarryAtCenter(x, z, quarries)) {
+  if (kind === 'large_quarry' && !hasRichDepositAtCenter(x, z, quarries)) {
     return { ok: false, reason: 'requires_rich_deposit' };
   }
 
@@ -358,18 +360,27 @@ export function resolveBuildingPlacementPoint(
   z: number,
   quarries: Iterable<ResourceNodeState>,
 ): { x: number; z: number } {
-  if (kind !== 'mine') return { x, z };
+  if (kind !== 'large_quarry' && kind !== 'mine') return { x, z };
   let nearest: ResourceNodeState | null = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
   for (const deposit of quarries) {
-    if (deposit.resource !== 'iron' && deposit.resource !== 'salt') continue;
+    if (
+      kind === 'mine'
+        ? deposit.resource !== 'iron' && deposit.resource !== 'salt'
+        : deposit.isRich !== true
+    ) continue;
     const distance = Math.hypot(deposit.x - x, deposit.z - z);
     if (distance >= nearestDistance) continue;
     nearest = deposit;
     nearestDistance = distance;
   }
+  const snapRadius = nearest?.resource === 'stone'
+    ? RICH_STONE_DEPOSIT_PROTECTION_RADIUS
+    : nearest?.resource === 'clay'
+      ? RICH_CLAY_DEPOSIT_PROTECTION_RADIUS
+      : RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS;
   return nearest?.isRich === true
-    && nearestDistance <= RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS
+    && nearestDistance <= snapRadius
     ? { x: nearest.x, z: nearest.z }
     : { x, z };
 }
@@ -389,13 +400,13 @@ function hasUsableClayDepositAtCenter(
   return false;
 }
 
-function hasRichQuarryAtCenter(
+function hasRichDepositAtCenter(
   x: number,
   z: number,
   quarries: Iterable<ResourceNodeState>,
 ): boolean {
   for (const quarry of quarries) {
-    if (quarry.resource !== 'stone' || !quarry.isRich) continue;
+    if (!quarry.isRich) continue;
     if (Math.hypot(quarry.x - x, quarry.z - z) <= RESOURCE_CENTER_TOLERANCE) {
       return true;
     }
@@ -501,14 +512,13 @@ function overlapsSameKindFunctionalExtent(
   return false;
 }
 
-function hasQuarryStoneInRadius(
+function hasSurfaceDepositInRadius(
   x: number,
   z: number,
   radius: number,
   quarries: Iterable<ResourceNodeState>,
 ): boolean {
   for (const quarry of quarries) {
-    if (quarry.resource !== 'stone') continue;
     if (quarry.remaining <= 0) continue;
     if (Math.hypot(quarry.x - x, quarry.z - z) <= radius) {
       return true;

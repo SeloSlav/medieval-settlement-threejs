@@ -49,6 +49,8 @@ pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
     "monastery",
 ];
 pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
+    "stone_quarry",
+    "large_quarry",
     "mine",
     "clay_pit",
     "charcoal_burner",
@@ -1096,6 +1098,8 @@ mod tests {
         assert_eq!(
             LOCAL_MATERIAL_SOURCE_KINDS,
             &[
+                "stone_quarry",
+                "large_quarry",
                 "mine",
                 "clay_pit",
                 "charcoal_burner",

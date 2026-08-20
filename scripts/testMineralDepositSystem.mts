@@ -1172,7 +1172,7 @@ assert.deepEqual(
     mineralNode('rich-salt', 'salt', 0, 0, 1_080, 1_080, true),
   ),
   {
-    label: 'Rich salt deposit · rich deep salt source · does not deplete',
+    label: 'Rich salt deposit · 1080 / 1080 surface salt remaining · underground salt does not deplete · center a Quarry on this node',
     level: 'deep',
   },
 );
@@ -1189,10 +1189,10 @@ assert.deepEqual(
     },
   ),
   {
-    label: 'Rich stone deposit · 120 / 600 surface stone remaining · supports a non-depleting Large Quarry',
+    label: 'Rich stone deposit · 120 / 600 surface stone remaining · underground stone does not deplete · center a Quarry on this node',
     level: 'deep',
   },
-  'rich stone must distinguish its finite visible outcrop from its deep quarry source',
+  'rich stone must use the same surface-plus-underground vocabulary as every mineral',
 );
 assert.deepEqual(
   describeGeologicalMapMarker(
@@ -1207,7 +1207,7 @@ assert.deepEqual(
     },
   ),
   {
-    label: 'Rich clay deposit · rich deep clay source · does not deplete',
+    label: 'Rich clay deposit · 360 / 720 surface clay remaining · underground clay does not deplete · center a Quarry on this node',
     level: 'deep',
   },
 );

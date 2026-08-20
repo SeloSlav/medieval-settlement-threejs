@@ -16,9 +16,14 @@ assert.deepEqual(keys(CIVIC_BUILD_MENU_ENTRIES), [
   'village_storehouse', 'granary',
 ]);
 assert.deepEqual(keys(GATHERING_BUILD_MENU_ENTRIES), [
-  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry', 'mine', 'clay_pit',
+  'lumber_mill', 'reforester', 'stone_quarry', 'large_quarry',
   'hunters_hall', 'foragers_shed', 'fishing_camp',
 ]);
+assert.equal(
+  GATHERING_BUILD_MENU_ENTRIES.some((entry) => entry.artKey === 'mine' || entry.artKey === 'clay_pit'),
+  false,
+  'Mining Pit and Quarry must replace the individual Mineral mine and Clay pit cards',
+);
 assert.deepEqual(keys(AGRICULTURE_BUILD_MENU_ENTRIES), [
   'threshing_barn', 'apiary', 'vineyard', 'pastoral_farmstead', 'swineherd',
 ]);
@@ -49,6 +54,8 @@ assert.equal(
 );
 
 const renderedCards = renderBuildMenuCards();
+assert.match(renderedCards, />Mining Pit</);
+assert.match(renderedCards, />Quarry</);
 const descriptions = [...renderedCards.matchAll(/data-tooltip="([^"]+)"/g)]
   .map((match) => match[1]);
 assert.equal(descriptions.length, BUILD_MENU_ENTRIES.length, 'every build card needs one short description');

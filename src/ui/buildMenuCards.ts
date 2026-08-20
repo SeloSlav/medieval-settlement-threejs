@@ -83,8 +83,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   guardhouse: ['Frontier guardhouse', 'G', 'Employs armed guards to defend the frontier; requires a completed watchtower.'],
   palisaded_refuge: ['Palisaded refuge', 'R', 'Shelters warned households and their gold during raids; requires a completed guardhouse.'],
   lumber_mill: ['Lumber mill', 'L', 'Fells mature trees to produce construction timber.', flow([], ['timber'])],
-  stone_quarry: ["Stonecutter's camp", 'S', 'Extracts stone from nearby rock outcrops; smith-forged picks and hammer heads raise output but wear each cycle.', flow([], ['stone'])],
-  large_quarry: ['Large Quarry', 'G', 'Extracts unlimited stone from rich deposits using timber shaft supports.', flow(['timber'], ['stone'])],
+  stone_quarry: ['Mining Pit', 'M', 'Place near any stone, iron, salt, or clay deposit to gather its finite surface reserve.', flow([], ['stone', 'iron', 'salt', 'clay'])],
+  large_quarry: ['Quarry', 'Q', 'Place centrally on a rich deposit to extract its non-depleting underground source using timber supports.', flow(['timber'], ['stone', 'iron', 'salt', 'clay'])],
   mine: ['Mineral mine', 'N', 'Extracts iron or salt from marked mineral deposits.', flow([], ['iron', 'salt'])],
   clay_pit: ['Clay pit', 'C', 'Extracts clay from marked deposits.', flow([], ['clay'])],
   charcoal_burner: ["Charcoal burner's yard", 'U', 'Turns firewood into charcoal for smithies.', flow(['firewood'], ['charcoal'])],
@@ -127,7 +127,7 @@ export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
 
 /** Sites whose crews gather raw resources from the landscape. */
 export const GATHERING_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('lumber_mill'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'), entry('mine'), entry('clay_pit'),
+  entry('lumber_mill'), entry('reforester'), entry('stone_quarry'), entry('large_quarry'),
   entry('hunters_hall'), entry('foragers_shed'), entry('fishing_camp'),
 ];
 

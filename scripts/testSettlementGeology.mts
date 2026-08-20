@@ -214,9 +214,21 @@ assert.equal(
   180,
   'rich stone still has a finite surface outcrop beside its deep source',
 );
-assert.equal(plan.iron.finiteReserve, 90, 'rich mineral seams must not masquerade as finite stock');
-assert.equal(plan.clay.finiteReserve, 240, 'rich alluvium must not masquerade as finite stock');
-assert.equal(plan.salt.finiteReserve, 50);
+assert.equal(
+  plan.iron.finiteReserve,
+  250,
+  'rich iron nodes must expose their finite surface seam beside the deep source',
+);
+assert.equal(
+  plan.clay.finiteReserve,
+  1_680,
+  'rich clay nodes must expose their finite surface deposit beside the deep source',
+);
+assert.equal(
+  plan.salt.finiteReserve,
+  230,
+  'rich salt nodes must expose their finite surface seam beside the deep source',
+);
 assert.equal(plan.stone.activeDeepSources, 1);
 assert.equal(plan.stone.deepSourcesAwaitingSupports, 0);
 assert.equal(plan.stone.deepSupportRunwayCycles, 6);
@@ -264,7 +276,7 @@ assert.equal(
 );
 assert.equal(
   plan.salt.shortestFiniteRunwayDays,
-  plan.salt.finiteReserve / plan.salt.finiteExtractionPerDay,
+  deposits[6].remaining / plan.salt.finiteExtractionPerDay,
   'a single worked finite seam must expose its own actionable depletion runway',
 );
 assert.ok(GEOLOGY_RUNWAY_CRITICAL_DAYS < GEOLOGY_RUNWAY_WATCH_DAYS);

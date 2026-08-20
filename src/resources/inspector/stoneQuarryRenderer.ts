@@ -27,49 +27,56 @@ export function renderStoneQuarryInspector(
   const label = context.worldQueries.getBuildingLabel(building.kind);
   const cost = getBuildingCost(building.kind);
   const definition = getBuildingDefinition(building.kind);
-  const stoneTarget = extractionOutputTarget(
-    'stone_quarry',
-    'stone',
-    building.processorOutputTargetPercent,
-  );
-  const outputHeadroom = extractionOutputHeadroom(building, 'stone') ?? 0;
-  const targetReached = outputHeadroom <= 1e-6;
-  const nearestQuarry = context.worldQueries.findNearestQuarryWithRemaining(
+  const nearestDeposit = context.worldQueries.findNearestSurfaceDepositWithRemaining(
     building.x,
     building.z,
     building.workRadius,
   );
+  const resource = nearestDeposit?.resource === 'iron'
+    || nearestDeposit?.resource === 'salt'
+    || nearestDeposit?.resource === 'clay'
+    ? nearestDeposit.resource
+    : 'stone';
+  const stock = Math.max(0, building[resource] ?? 0);
+  const yardTarget = extractionOutputTarget(
+    'stone_quarry',
+    resource,
+    building.processorOutputTargetPercent,
+  );
+  const outputHeadroom = extractionOutputHeadroom(building, resource) ?? 0;
+  const targetReached = outputHeadroom <= 1e-6;
   const onsiteLabor = onsiteBuildingLabor(
     building,
     context.worldQueries.getActiveDeliveryTrip(building),
   );
-  const active = onsiteLabor > 0 && nearestQuarry != null && !targetReached;
+  const active = onsiteLabor > 0 && nearestDeposit != null && !targetReached;
   const cycleSeconds = laborScaledInterval(definition.harvestInterval, onsiteLabor)
     / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
-    eyebrow: 'Building',
+    eyebrow: 'Surface extraction',
     title: label,
     statusText: targetReached
-      ? `Paused - stone yard target reached (${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)})`
-      : nearestQuarry == null
-        ? 'Stopped - no unexhausted surface stone in range'
+      ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
+      : nearestDeposit == null
+        ? 'Stopped - no unexhausted surface deposit in range'
         : onsiteLabor === 0
           ? building.assignedLabor > 0
             ? 'Extraction paused - the full roster is away with its cart'
-            : 'Idle - assign labor to extract stone'
-          : `Extracting — ${Math.round(nearestQuarry.remaining)} stone left at site`,
+            : `Idle - assign labor to extract surface ${resource}`
+          : `Extracting surface ${resource} — ${Math.round(nearestDeposit.remaining)} left at site`,
     statusState: active
       ? 'active'
-      : !targetReached && nearestQuarry == null
+      : !targetReached && nearestDeposit == null
         ? 'warning'
         : 'idle',
     detailsHtml: `
       ${buildingCostRows(cost)}
       ${civilianToolRows(building, context.worldQueries)}
       ${buildingExtentRow(building.kind)}
+      <li><span>Source</span><span>${nearestDeposit == null ? 'No unexhausted deposit in range' : `${nearestDeposit.isRich ? 'Rich' : 'Ordinary'} ${resource} surface deposit · finite`}</span></li>
       <li><span>Harvest interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
-      <li><span>Yard ceiling</span><span>${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)} stone · ${outputHeadroom.toFixed(0)} headroom</span></li>
+      <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
       ${buildingStorageRows(building, building.kind)}
     `,
     demolish: {
@@ -77,6 +84,6 @@ export function renderStoneQuarryInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
-    supplementalPanelHtml: renderExtractionStockTargetPanel(building, 'stone') ?? undefined,
+    supplementalPanelHtml: renderExtractionStockTargetPanel(building, resource) ?? undefined,
   };
 }

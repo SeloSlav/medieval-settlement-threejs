@@ -97,15 +97,15 @@ export const GAME_CONTROL_SECTIONS: readonly GameControlSection[] = [
     ],
   },
   {
-    title: 'Industry build menu',
+    title: 'Gathering build menu',
     entries: [
       { action: "Hunter's hall", keys: 'K' },
       { action: "Forager's shed", keys: 'Y' },
       { action: "Woodcutter's lodge", keys: 'W' },
       { action: 'Lumber mill', keys: 'L' },
       { action: 'Reforester', keys: 'F' },
-      { action: "Stonecutter's camp", keys: 'S' },
-      { action: 'Large Quarry', keys: 'G' },
+      { action: 'Mining Pit', keys: 'M' },
+      { action: 'Quarry', keys: 'Q' },
       { action: 'Carpenter & wheelwright', keys: 'R' },
     ],
   },

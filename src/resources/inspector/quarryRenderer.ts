@@ -11,7 +11,6 @@ export function renderQuarryInspector(
     definition.x,
     definition.z,
   );
-  const isStone = definition.resource === 'stone';
   const resourceLabel = definition.resource === 'iron'
     ? 'iron ore'
     : definition.resource === 'salt'
@@ -31,8 +30,8 @@ export function renderQuarryInspector(
     statusState: state.remaining > 0 || state.isRich ? 'active' : 'idle',
     detailsHtml: `
       <li><span>Nearest road</span><span>${nearestRoad == null ? 'None nearby' : `${nearestRoad.toFixed(1)} m`}</span></li>
-      <li><span>Extraction</span><span>${isStone ? "Assign at a Stonecutter's Camp nearby" : 'Build a Mineral mine directly over this deposit'}</span></li>
-      ${state.isRich ? `<li><span>Deep source</span><span>Rich · supports a ${isStone ? 'road-linked, timber-braced Large Quarry' : 'faster, non-depleting Mineral mine'}</span></li>` : '<li><span>Reserve</span><span>Finite · imports remain available after exhaustion</span></li>'}
+      <li><span>Surface extraction</span><span>Place a Mining Pit nearby · finite ${resourceLabel} reserve</span></li>
+      ${state.isRich ? `<li><span>Underground source</span><span>Does not deplete · center a timber-supported Quarry on this node</span></li>` : '<li><span>Underground source</span><span>None · imports remain available after surface exhaustion</span></li>'}
     `,
     demolish: hiddenDemolish(),
     labor: hiddenLabor(),

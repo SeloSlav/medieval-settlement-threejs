@@ -385,27 +385,27 @@ export class WorldSetupPanel {
     }> = {
       stone: {
         name: 'Stone',
-        extractor: 'Stonecutter / Large Quarry',
-        ordinaryDetail: 'finite surface outcrop',
-        richDetail: 'deep quarry source',
+        extractor: 'Mining Pit / Quarry',
+        ordinaryDetail: 'finite surface deposit',
+        richDetail: 'finite surface + unlimited underground',
       },
       clay: {
         name: 'Clay',
-        extractor: 'Clay Pit',
-        ordinaryDetail: 'finite surface clay',
-        richDetail: 'deep clay source',
+        extractor: 'Mining Pit / Quarry',
+        ordinaryDetail: 'finite surface deposit',
+        richDetail: 'finite surface + unlimited underground',
       },
       iron: {
         name: 'Iron',
-        extractor: 'Mine',
-        ordinaryDetail: 'finite local seam',
-        richDetail: 'deep supported workings',
+        extractor: 'Mining Pit / Quarry',
+        ordinaryDetail: 'finite surface deposit',
+        richDetail: 'finite surface + unlimited underground',
       },
       salt: {
         name: 'Salt',
-        extractor: 'Mine',
-        ordinaryDetail: 'finite local deposit',
-        richDetail: 'deep supported workings',
+        extractor: 'Mining Pit / Quarry',
+        ordinaryDetail: 'finite surface deposit',
+        richDetail: 'finite surface + unlimited underground',
       },
     };
     const label = labels[resource];

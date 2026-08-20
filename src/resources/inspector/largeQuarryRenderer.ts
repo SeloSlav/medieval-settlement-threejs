@@ -33,16 +33,21 @@ export function renderLargeQuarryInspector(
   const { building } = target;
   const definition = getBuildingDefinition(building.kind);
   const richDeposit = [...context.gameState.quarries.values()].find((quarry) =>
-    quarry.resource === 'stone'
-    && quarry.isRich
+    quarry.isRich
     && Math.hypot(quarry.x - building.x, quarry.z - building.z) <= 2.5
   );
-  const stoneTarget = extractionOutputTarget(
+  const resource = richDeposit?.resource === 'iron'
+    || richDeposit?.resource === 'salt'
+    || richDeposit?.resource === 'clay'
+    ? richDeposit.resource
+    : 'stone';
+  const stock = Math.max(0, building[resource] ?? 0);
+  const yardTarget = extractionOutputTarget(
     'large_quarry',
-    'stone',
+    resource,
     building.processorOutputTargetPercent,
   );
-  const outputHeadroom = extractionOutputHeadroom(building, 'stone') ?? 0;
+  const outputHeadroom = extractionOutputHeadroom(building, resource) ?? 0;
   const targetReached = outputHeadroom <= 1e-6;
   const onsiteLabor = onsiteBuildingLabor(
     building,
@@ -67,10 +72,10 @@ export function renderLargeQuarryInspector(
     / civilianToolThroughputMultiplier(building.ironwork ?? 0);
 
   return {
-    eyebrow: 'Deep stone quarry',
+    eyebrow: `Deep ${resource} quarry`,
     title: context.worldQueries.getBuildingLabel(building.kind),
     statusText: targetReached
-      ? `Paused - stone yard target reached (${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)})`
+      ? `Paused - ${resource} yard target reached (${stock.toFixed(0)} / ${yardTarget.toFixed(0)})`
       : !richDeposit
         ? 'Stopped — no rich underground source beneath the shaft'
         : !onsiteSupportsReady
@@ -92,15 +97,15 @@ export function renderLargeQuarryInspector(
     detailsHtml: `
       ${buildingCostRows(getBuildingCost(building.kind))}
       ${civilianToolRows(building, context.worldQueries)}
-      <li><span>Source</span><span>Rich underground stone · non-depleting during settlement play</span></li>
-      <li><span>Surface reserve</span><span>Separate · ${Math.round(richDeposit?.remaining ?? 0)} remaining</span></li>
+      <li><span>Source</span><span>Rich underground ${resource} · does not deplete</span></li>
+      <li><span>Surface reserve</span><span>Separate · ${Math.round(richDeposit?.remaining ?? 0)} / ${Math.round(richDeposit?.maxYield ?? 0)} ${resource} remaining</span></li>
       <li><span>Chamber supports</span><span>${Math.round(Math.max(0, building.timber))} onsite${
         inboundSupportTimber > 1e-6
           ? ` + ${Math.round(inboundSupportTimber)} inbound`
           : ''
       } / ${Math.ceil(LARGE_QUARRY_SUPPORT_TARGET)} timber target · ${supportRunway.toFixed(1)} batches</span></li>
-      <li><span>Support wear</span><span>${renderResourceAmount('timber', LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed stone batch' })} · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>
-      <li><span>Yard ceiling</span><span>${building.stone.toFixed(0)} / ${stoneTarget.toFixed(0)} stone · ${outputHeadroom.toFixed(0)} headroom</span></li>
+      <li><span>Support wear</span><span>${renderResourceAmount('timber', LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, { compact: true, suffix: 'per completed underground batch' })} · nearest lumber mill or village storehouse supplies it; roads make the haul faster</span></li>
+      <li><span>Yard ceiling</span><span>${stock.toFixed(0)} / ${yardTarget.toFixed(0)} ${resource} · ${outputHeadroom.toFixed(0)} headroom</span></li>
       <li><span>Production interval</span><span>${active ? `${cycleSeconds.toFixed(1)}s` : 'paused'} (${onsiteLabor} on site / ${building.assignedLabor} assigned)</span></li>
       ${buildingRoadAccessRow(context.worldQueries, building)}
       ${buildingStorageRows(building, building.kind)}
@@ -110,6 +115,6 @@ export function renderLargeQuarryInspector(
       hint: buildingDemolishHint(building.kind),
     },
     labor: buildingLaborView(building, context.populationStats, context.worldQueries),
-    supplementalPanelHtml: renderExtractionStockTargetPanel(building, 'stone') ?? undefined,
+    supplementalPanelHtml: renderExtractionStockTargetPanel(building, resource) ?? undefined,
   };
 }

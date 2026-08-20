@@ -26,8 +26,9 @@ export function geologicalNodeForMapMarker(
 
 /**
  * Gives all four physical geological resources one shared map vocabulary.
- * Rich stone keeps a finite visible outcrop but also supports a non-depleting
- * Large Quarry; rich clay, iron, and salt are deep sources from the outset.
+ * Every rich geological node exposes the same two-part model: a finite
+ * surface reserve for a nearby Mining Pit and a non-depleting underground
+ * source for a Quarry centered on the node.
  */
 export function describeGeologicalMapMarker(
   marker: Pick<WorldMapMarker, 'label'>,
@@ -44,14 +45,8 @@ export function describeGeologicalMapMarker(
   const remaining = Math.max(0, finiteOrZero(node.remaining));
   const capacity = Math.max(0, finiteOrZero(node.maxYield));
   if (node.isRich === true) {
-    if (node.resource === 'stone') {
-      return {
-        label: `${marker.label} · ${formatReserve(remaining)} / ${formatReserve(capacity)} surface stone remaining · supports a non-depleting Large Quarry`,
-        level: 'deep',
-      };
-    }
     return {
-      label: `${marker.label} · rich deep ${resource} source · does not deplete`,
+      label: `${marker.label} · ${formatReserve(remaining)} / ${formatReserve(capacity)} surface ${resource} remaining · underground ${resource} does not deplete · center a Quarry on this node`,
       level: 'deep',
     };
   }

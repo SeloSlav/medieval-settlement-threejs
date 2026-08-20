@@ -241,13 +241,29 @@ fn has_quarry_stone_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64)
     false
 }
 
-fn has_rich_quarry_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
+fn has_surface_deposit_in_radius(ctx: &ReducerContext, x: f64, z: f64, radius: f64) -> bool {
+    let radius_sq = radius * radius;
+    ctx.db.quarry().iter().any(|deposit| {
+        deposit.remaining > 0.0
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= radius_sq
+    }) || ctx.db.foraging_node().iter().any(|deposit| {
+        deposit.node_kind == "clay"
+            && deposit.node_id.starts_with("clay-")
+            && deposit.remaining > 0.0
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= radius_sq
+    })
+}
+
+fn has_rich_deposit_at_center(ctx: &ReducerContext, x: f64, z: f64) -> bool {
     const CENTER_TOLERANCE: f64 = 2.5;
     let tolerance_sq = CENTER_TOLERANCE * CENTER_TOLERANCE;
-    ctx.db.quarry().iter().any(|quarry| {
-        quarry.quarry_id.starts_with("quarry-")
-            && quarry.is_rich
-            && (quarry.x - x) * (quarry.x - x) + (quarry.z - z) * (quarry.z - z) <= tolerance_sq
+    ctx.db.quarry().iter().any(|deposit| {
+        deposit.is_rich
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
+    }) || ctx.db.foraging_node().iter().any(|deposit| {
+        deposit.node_kind == "clay"
+            && deposit.node_id.starts_with("clay-rich-")
+            && (deposit.x - x) * (deposit.x - x) + (deposit.z - z) * (deposit.z - z) <= tolerance_sq
     })
 }
 
@@ -641,9 +657,17 @@ pub(crate) fn place_building_internal(
         return Err("No quarry stone within work range.".to_string());
     }
 
-    if kind == "large_quarry" && !has_rich_quarry_at_center(ctx, x, z) {
+    if kind == "stone_quarry" && !has_surface_deposit_in_radius(ctx, x, z, def.work_radius) {
         return Err(
-            "Large Quarries must be placed directly over a rich stone deposit.".to_string(),
+            "Mining Pits need unexhausted surface stone, iron, salt, or clay within work range."
+                .to_string(),
+        );
+    }
+
+    if kind == "large_quarry" && !has_rich_deposit_at_center(ctx, x, z) {
+        return Err(
+            "Quarries must be centered directly on a rich stone, iron, salt, or clay deposit."
+                .to_string(),
         );
     }
 
@@ -1231,30 +1255,6 @@ fn worksite_source_buckets(
     (quarry_buckets, foraging_buckets)
 }
 
-fn stone_source_usable(building: &Building, buckets: &SpatialBuckets<Quarry>) -> bool {
-    buckets
-        .source_state_within_radius(
-            building.x,
-            building.z,
-            building.work_radius,
-            |quarry| quarry.quarry_id.starts_with("quarry-"),
-            |quarry| quarry.remaining > 1e-6,
-        )
-        .usable
-}
-
-fn rich_stone_source_usable(building: &Building, buckets: &SpatialBuckets<Quarry>) -> bool {
-    buckets
-        .source_state_within_radius(
-            building.x,
-            building.z,
-            RICH_DEPOSIT_CENTER_TOLERANCE,
-            |quarry| quarry.quarry_id.starts_with("quarry-") && quarry.is_rich,
-            |_| true,
-        )
-        .usable
-}
-
 fn mineral_source(
     building: &Building,
     buckets: &SpatialBuckets<Quarry>,
@@ -1297,6 +1297,92 @@ fn clay_source_usable(building: &Building, buckets: &SpatialBuckets<ForagingNode
             |deposit| deposit.node_id.starts_with("clay-rich-") || deposit.remaining > 0.0,
         )
         .usable
+}
+
+fn surface_source_commodity(
+    building: &Building,
+    quarry_buckets: &SpatialBuckets<Quarry>,
+    foraging_buckets: &SpatialBuckets<ForagingNode>,
+) -> Option<CommodityKind> {
+    let quarry_source = quarry_buckets.nearest_usable_within_radius(
+        building.x,
+        building.z,
+        building.work_radius,
+        |deposit| {
+            deposit.quarry_id.starts_with("quarry-")
+                || deposit.quarry_id.starts_with("deposit-iron-")
+                || deposit.quarry_id.starts_with("deposit-salt-")
+        },
+        |deposit| deposit.remaining > 1e-6,
+    );
+    let clay_source = foraging_buckets.nearest_usable_within_radius(
+        building.x,
+        building.z,
+        building.work_radius,
+        |deposit| deposit.node_kind == "clay" && deposit.node_id.starts_with("clay-"),
+        |deposit| deposit.remaining > 1e-6,
+    );
+    if clay_source.is_some_and(|(_, clay_distance_sq)| {
+        quarry_source.is_none_or(|(_, quarry_distance_sq)| clay_distance_sq < quarry_distance_sq)
+    }) {
+        return Some(CommodityKind::Clay);
+    }
+    quarry_source.map(|(deposit, _)| {
+        if deposit.quarry_id.starts_with("deposit-iron-") {
+            CommodityKind::Iron
+        } else if deposit.quarry_id.starts_with("deposit-salt-") {
+            CommodityKind::Salt
+        } else {
+            CommodityKind::Stone
+        }
+    })
+}
+
+fn rich_source_commodity(
+    building: &Building,
+    quarry_buckets: &SpatialBuckets<Quarry>,
+    foraging_buckets: &SpatialBuckets<ForagingNode>,
+) -> Option<CommodityKind> {
+    for (prefix, commodity) in [
+        ("quarry-", CommodityKind::Stone),
+        ("deposit-iron-", CommodityKind::Iron),
+        ("deposit-salt-", CommodityKind::Salt),
+    ] {
+        if quarry_buckets
+            .source_state_within_radius(
+                building.x,
+                building.z,
+                RICH_DEPOSIT_CENTER_TOLERANCE,
+                |deposit| deposit.quarry_id.starts_with(prefix) && deposit.is_rich,
+                |_| true,
+            )
+            .usable
+        {
+            return Some(commodity);
+        }
+    }
+    foraging_buckets
+        .source_state_within_radius(
+            building.x,
+            building.z,
+            RICH_DEPOSIT_CENTER_TOLERANCE,
+            |deposit| deposit.node_kind == "clay" && deposit.node_id.starts_with("clay-rich-"),
+            |_| true,
+        )
+        .usable
+        .then_some(CommodityKind::Clay)
+}
+
+fn geological_output_stock(building: &Building) -> f64 {
+    [
+        CommodityKind::Stone,
+        CommodityKind::Iron,
+        CommodityKind::Salt,
+        CommodityKind::Clay,
+    ]
+    .into_iter()
+    .map(|commodity| building_commodity_stock(building, commodity))
+    .sum()
 }
 
 fn wild_stock_source_usable(
@@ -1355,13 +1441,11 @@ fn production_site_ready(
                     && (!is_rich || rich_mine_supports_ready(building.timber))
             })
         }
-        "stone_quarry" => {
-            !extraction_output_blocked(building, CommodityKind::Stone)
-                && stone_source_usable(building, quarry_buckets)
-        }
+        "stone_quarry" => surface_source_commodity(building, quarry_buckets, foraging_buckets)
+            .is_some_and(|commodity| !extraction_output_blocked(building, commodity)),
         "large_quarry" => {
-            !extraction_output_blocked(building, CommodityKind::Stone)
-                && rich_stone_source_usable(building, quarry_buckets)
+            rich_source_commodity(building, quarry_buckets, foraging_buckets)
+                .is_some_and(|commodity| !extraction_output_blocked(building, commodity))
                 && large_quarry_supports_ready(building.timber)
         }
         "hunters_hall" => {
@@ -1455,15 +1539,20 @@ pub fn recall_target_idle_processor_labor_for_owner(
                     building.iron > 1e-6 || building.salt > 1e-6 || has_active_trip,
                 )
             }
-            "stone_quarry" => (
-                extraction_output_blocked(&building, CommodityKind::Stone)
-                    || !stone_source_usable(&building, &quarry_buckets),
-                false,
-                has_active_trip,
-            ),
+            "stone_quarry" => {
+                let source =
+                    surface_source_commodity(&building, &quarry_buckets, &foraging_buckets);
+                (
+                    source.is_none_or(|commodity| extraction_output_blocked(&building, commodity)),
+                    false,
+                    geological_output_stock(&building) > 1e-6 || has_active_trip,
+                )
+            }
             "large_quarry" => {
-                let source_usable = rich_stone_source_usable(&building, &quarry_buckets);
-                let output_blocked = extraction_output_blocked(&building, CommodityKind::Stone);
+                let source = rich_source_commodity(&building, &quarry_buckets, &foraging_buckets);
+                let source_usable = source.is_some();
+                let output_blocked =
+                    source.is_none_or(|commodity| extraction_output_blocked(&building, commodity));
                 let support_missing = !large_quarry_supports_ready(building.timber);
                 (
                     output_blocked || !source_usable || support_missing,
@@ -1475,7 +1564,7 @@ pub fn recall_target_idle_processor_labor_for_owner(
                             building.id,
                             CommodityKind::Timber,
                         ),
-                    has_active_trip,
+                    geological_output_stock(&building) > 1e-6 || has_active_trip,
                 )
             }
             "hunters_hall" | "fishing_camp"

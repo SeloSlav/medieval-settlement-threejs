@@ -1133,9 +1133,9 @@
       "requiresBerries": false
     },
     "stone_quarry": {
-      "label": "Stonecutter's camp",
+      "label": "Mining Pit",
       "cost": { "timber": 18, "stone": 14 },
-      "storage": { "timber": 0, "firewood": 0, "stone": 180, "food": 0, "ironwork": 3 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 180, "food": 0, "ironwork": 3, "iron": 180, "salt": 180, "clay": 180 },
       "workRadius": 80,
       "pickRadius": 10,
       "harvestInterval": 9,
@@ -1145,14 +1145,14 @@
       "requiresRoad": false,
       "facesRoad": false,
       "requiresMatureTrees": false,
-      "requiresQuarryStone": true,
+      "requiresQuarryStone": false,
       "requiresGame": false,
       "requiresBerries": false
     },
     "large_quarry": {
-      "label": "Large Quarry",
+      "label": "Quarry",
       "cost": { "timber": 90, "stone": 70, "ironwork": 6 },
-      "storage": { "timber": 12, "firewood": 0, "stone": 360, "food": 0, "ironwork": 3 },
+      "storage": { "timber": 12, "firewood": 0, "stone": 360, "food": 0, "ironwork": 3, "iron": 360, "salt": 360, "clay": 360 },
       "workRadius": 0,
       "pickRadius": 13,
       "harvestInterval": 7,
