@@ -78,10 +78,8 @@ export function priceMultiplierFor(
     case 'oatGrain':
     case 'maslinGrain':
     case 'ryeFlour':
-    case 'oatFlour':
     case 'maslinFlour':
     case 'ryeBread':
-    case 'oatBread':
     case 'maslinBread':
     case 'barley':
     case 'malt':

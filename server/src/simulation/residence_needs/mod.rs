@@ -287,7 +287,6 @@ fn withdraw_residence_food_group(
             CommodityKind::Eggs,
             CommodityKind::Porridge,
             CommodityKind::RyeBread,
-            CommodityKind::OatBread,
             CommodityKind::MaslinBread,
             CommodityKind::OatGrain,
             CommodityKind::Food,

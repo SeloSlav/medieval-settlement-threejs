@@ -23,7 +23,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 54] = [
+const RECOVERY_ORDER: [CommodityKind; 52] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -37,11 +37,9 @@ const RECOVERY_ORDER: [CommodityKind; 54] = [
     CommodityKind::Barley,
     CommodityKind::Malt,
     CommodityKind::RyeFlour,
-    CommodityKind::OatFlour,
     CommodityKind::MaslinFlour,
     CommodityKind::PreservedFood,
     CommodityKind::RyeBread,
-    CommodityKind::OatBread,
     CommodityKind::MaslinBread,
     CommodityKind::Meat,
     CommodityKind::Fish,
@@ -131,10 +129,8 @@ pub struct ReclamationStock {
     pub oat_grain: f64,
     pub maslin_grain: f64,
     pub rye_flour: f64,
-    pub oat_flour: f64,
     pub maslin_flour: f64,
     pub rye_bread: f64,
-    pub oat_bread: f64,
     pub maslin_bread: f64,
 }
 
@@ -314,10 +310,8 @@ impl ReclamationStock {
             CommodityKind::OatGrain => Self { oat_grain: amount, ..Self::default() },
             CommodityKind::MaslinGrain => Self { maslin_grain: amount, ..Self::default() },
             CommodityKind::RyeFlour => Self { rye_flour: amount, ..Self::default() },
-            CommodityKind::OatFlour => Self { oat_flour: amount, ..Self::default() },
             CommodityKind::MaslinFlour => Self { maslin_flour: amount, ..Self::default() },
             CommodityKind::RyeBread => Self { rye_bread: amount, ..Self::default() },
-            CommodityKind::OatBread => Self { oat_bread: amount, ..Self::default() },
             CommodityKind::MaslinBread => Self { maslin_bread: amount, ..Self::default() },
         }
     }
@@ -379,10 +373,8 @@ impl ReclamationStock {
             oat_grain: resources.oat_grain.max(0.0),
             maslin_grain: resources.maslin_grain.max(0.0),
             rye_flour: resources.rye_flour.max(0.0),
-            oat_flour: resources.oat_flour.max(0.0),
             maslin_flour: resources.maslin_flour.max(0.0),
             rye_bread: resources.rye_bread.max(0.0),
-            oat_bread: resources.oat_bread.max(0.0),
             maslin_bread: resources.maslin_bread.max(0.0),
         }
     }
@@ -438,10 +430,8 @@ impl ReclamationStock {
             CommodityKind::OatGrain => self.oat_grain,
             CommodityKind::MaslinGrain => self.maslin_grain,
             CommodityKind::RyeFlour => self.rye_flour,
-            CommodityKind::OatFlour => self.oat_flour,
             CommodityKind::MaslinFlour => self.maslin_flour,
             CommodityKind::RyeBread => self.rye_bread,
-            CommodityKind::OatBread => self.oat_bread,
             CommodityKind::MaslinBread => self.maslin_bread,
         }
     }
@@ -496,10 +486,8 @@ impl ReclamationStock {
         building.oat_grain += self.oat_grain;
         building.maslin_grain += self.maslin_grain;
         building.rye_flour += self.rye_flour;
-        building.oat_flour += self.oat_flour;
         building.maslin_flour += self.maslin_flour;
         building.rye_bread += self.rye_bread;
-        building.oat_bread += self.oat_bread;
         building.maslin_bread += self.maslin_bread;
     }
 }
@@ -549,10 +537,8 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.oat_grain = 0.0;
     resources.maslin_grain = 0.0;
     resources.rye_flour = 0.0;
-    resources.oat_flour = 0.0;
     resources.maslin_flour = 0.0;
     resources.rye_bread = 0.0;
-    resources.oat_bread = 0.0;
     resources.maslin_bread = 0.0;
     resources.cured_meat = 0.0;
     resources.smoked_fish = 0.0;
@@ -802,10 +788,8 @@ pub fn insert_reclamation_pile(
         oat_grain: stock.oat_grain.max(0.0),
         maslin_grain: stock.maslin_grain.max(0.0),
         rye_flour: stock.rye_flour.max(0.0),
-        oat_flour: stock.oat_flour.max(0.0),
         maslin_flour: stock.maslin_flour.max(0.0),
         rye_bread: stock.rye_bread.max(0.0),
-        oat_bread: stock.oat_bread.max(0.0),
         maslin_bread: stock.maslin_bread.max(0.0),
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
         fire_repair_active: false,
@@ -1148,7 +1132,6 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         },
         CommodityKind::Food
         | CommodityKind::RyeBread
-        | CommodityKind::OatBread
         | CommodityKind::MaslinBread
         | CommodityKind::Meat
         | CommodityKind::Fish
@@ -1173,7 +1156,6 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         | CommodityKind::MaslinGrain
         | CommodityKind::Barley
         | CommodityKind::RyeFlour
-        | CommodityKind::OatFlour
         | CommodityKind::MaslinFlour
         | CommodityKind::PreservedFood => match kind {
             "granary" => Some(0),

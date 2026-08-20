@@ -79,6 +79,8 @@
 }
 
 .terrain-minimap__marker--resource {
+  --resource-stock-angle: 360deg;
+  --resource-stock-color: #8fb582;
   display: grid;
   place-items: center;
   width: 20px;
@@ -88,6 +90,50 @@
   border: 1.5px solid rgba(238, 232, 220, 0.55);
   border-radius: 999px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.terrain-minimap__marker--resource::before {
+  position: absolute;
+  inset: -4px;
+  content: '';
+  border-radius: 999px;
+  background: conic-gradient(
+    from -90deg,
+    var(--resource-stock-color) 0deg var(--resource-stock-angle),
+    rgba(37, 29, 20, 0.78) var(--resource-stock-angle) 360deg
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 1.5px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 1.5px)
+  );
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+  pointer-events: none;
+}
+
+.terrain-minimap__marker--resource[data-resource-stock='unknown'] {
+  --resource-stock-color: #958b77;
+}
+
+.terrain-minimap__marker--resource[data-resource-stock='abundant'] {
+  --resource-stock-color: #8fb582;
+}
+
+.terrain-minimap__marker--resource[data-resource-stock='steady'] {
+  --resource-stock-color: #d2ad58;
+}
+
+.terrain-minimap__marker--resource[data-resource-stock='low'] {
+  --resource-stock-color: #d87943;
+}
+
+.terrain-minimap__marker--resource[data-resource-stock='empty'] {
+  --resource-stock-color: #6e6254;
 }
 
 .terrain-minimap__marker--resource .map-resource-icon-glyph {

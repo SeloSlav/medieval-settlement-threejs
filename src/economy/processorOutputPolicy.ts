@@ -56,7 +56,6 @@ export type ProcessorInputCommodity =
   | 'apples'
   | 'honey'
   | 'ryeFlour'
-  | 'oatFlour'
   | 'maslinFlour'
   | 'water'
   | 'firewood'
@@ -367,7 +366,6 @@ export function processorAcceptsInput(
     (building.kind === 'watermill' || building.kind === 'windmill')
     && commodity === 'oatGrain'
   ) return false;
-  if (building.kind === 'bakery' && commodity === 'oatFlour') return false;
   if (building.kind === 'pastoral_farmstead' && commodity === 'salt') {
     return preservedFoodStock(building) + 1e-6
       < (BUILDING_STORAGE_CAPS.pastoral_farmstead.preservedFood ?? 0);

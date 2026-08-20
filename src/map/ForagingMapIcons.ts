@@ -15,6 +15,7 @@ import {
   describeGeologicalMapMarker,
   geologicalNodeForMapMarker,
 } from './geologicalMapMarkerState.ts';
+import { syncResourceStockRing } from './resourceStockRing.ts';
 import {
   BERRY_ICON_HTML,
   CLAY_ICON_HTML,
@@ -103,6 +104,7 @@ export class ForagingMapIcons {
       const node = marker.kind === 'clay'
         ? geologicalNodeForMapMarker(marker, geologicalNodes)
         : nodes.get(marker.id);
+      syncResourceStockRing(button, node);
       toggleClassIfChanged(
         button,
         'resource-node-marker--rich',

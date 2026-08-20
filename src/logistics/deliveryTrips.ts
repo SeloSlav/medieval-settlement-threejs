@@ -58,10 +58,8 @@ export const DELIVERY_CARGO_KINDS = [
   'oatGrain',
   'maslinGrain',
   'ryeFlour',
-  'oatFlour',
   'maslinFlour',
   'ryeBread',
-  'oatBread',
   'maslinBread',
 ] as const;
 export type DeliveryCargoKind = (typeof DELIVERY_CARGO_KINDS)[number];
@@ -341,14 +339,10 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'maslinGrain';
     case 49:
       return 'ryeFlour';
-    case 50:
-      return 'oatFlour';
     case 51:
       return 'maslinFlour';
     case 52:
       return 'ryeBread';
-    case 53:
-      return 'oatBread';
     case 54:
       return 'maslinBread';
     case 55:
@@ -420,8 +414,6 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Malt';
     case 'ryeFlour':
       return 'Rye flour';
-    case 'oatFlour':
-      return 'Oat flour';
     case 'maslinFlour':
       return 'Maslin flour';
     case 'ale':
@@ -434,8 +426,6 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Mixed preserved provisions (legacy)';
     case 'ryeBread':
       return 'Rye bread';
-    case 'oatBread':
-      return 'Oat bread';
     case 'maslinBread':
       return 'Maslin bread';
     case 'meat':
@@ -865,7 +855,6 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0x3f8fd6;
     case 'food':
     case 'ryeBread':
-    case 'oatBread':
     case 'maslinBread':
     case 'meat':
     case 'fish':
@@ -894,7 +883,6 @@ export function cargoColor(kind: DeliveryCargoKind): number {
     case 'malt':
       return 0x9d7335;
     case 'ryeFlour':
-    case 'oatFlour':
     case 'maslinFlour':
       return 0xe8dcc8;
     case 'ale':

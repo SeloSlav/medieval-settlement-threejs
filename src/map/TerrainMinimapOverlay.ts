@@ -8,6 +8,7 @@ import {
   describeGeologicalMapMarker,
   geologicalNodeForMapMarker,
 } from './geologicalMapMarkerState.ts';
+import { syncResourceStockRing } from './resourceStockRing.ts';
 import {
   riverFieldBounds,
   worldDirectionToMapRotation,
@@ -169,6 +170,7 @@ export class TerrainMinimapOverlay {
         state.quarries,
       );
       const node = geologicalNode ?? foragingNodes.get(entry.marker.id);
+      syncResourceStockRing(entry.element, node);
       const geologicalPresentation = geologicalNode
         ? describeGeologicalMapMarker(entry.marker, geologicalNode)
         : null;

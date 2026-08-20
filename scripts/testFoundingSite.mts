@@ -501,7 +501,6 @@ physicalStock.buildings.set('camp', {
   oatGrain: 0,
   maslinGrain: 0,
   ryeFlour: 0,
-  oatFlour: 0,
   maslinFlour: 0,
   ale: 0,
   preservedFood: 0,
@@ -627,7 +626,6 @@ assert.deepEqual(
     'barley',
     'malt',
     'ryeFlour',
-    'oatFlour',
     'maslinFlour',
     'preservedFood',
     'ale',
@@ -640,7 +638,6 @@ assert.deepEqual(
     'polearms',
     'water',
     'ryeBread',
-    'oatBread',
     'maslinBread',
     'meat',
     'fish',
@@ -675,10 +672,8 @@ const emptyClearedCamp = {
   oatGrain: 0,
   maslinGrain: 0,
   ryeFlour: 0,
-  oatFlour: 0,
   maslinFlour: 0,
   ryeBread: 0,
-  oatBread: 0,
   maslinBread: 0,
   ale: 0,
   preservedFood: 0,
@@ -696,7 +691,6 @@ const permanentStorageCases = [
   ['oatGrain', 'granary'],
   ['maslinGrain', 'granary'],
   ['ryeFlour', 'granary'],
-  ['oatFlour', 'granary'],
   ['maslinFlour', 'granary'],
   ['preservedFood', 'granary'],
   ['ale', 'granary'],
@@ -749,7 +743,6 @@ for (const [commodity, destinationKind] of permanentStorageCases) {
       || commodity === 'maslinGrain'
     ? 'grain'
     : commodity === 'ryeFlour'
-        || commodity === 'oatFlour'
         || commodity === 'maslinFlour'
       ? 'flour'
       : commodity;
@@ -1079,7 +1072,7 @@ assert.match(foundingLifecycle, /building_has_inbound_supply_trip/);
 assert.match(foundingLifecycle, /relocatable_stock/);
 assert.match(
   foundingLifecycle,
-  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*43\]/,
+  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*41\]/,
   'all portable non-gold commodities must participate in founding-yard clearance',
 );
 for (const variant of [
@@ -1094,7 +1087,6 @@ for (const variant of [
   'Barley',
   'Malt',
   'RyeFlour',
-  'OatFlour',
   'MaslinFlour',
   'PreservedFood',
   'Ale',
@@ -1106,7 +1098,6 @@ for (const variant of [
   'Polearms',
   'Water',
   'RyeBread',
-  'OatBread',
   'MaslinBread',
   'Meat',
   'Fish',
@@ -1141,7 +1132,7 @@ assert.match(
 );
 assert.match(
   foundingLifecycle,
-  /CommodityKind::RyeBread \| CommodityKind::OatBread \| CommodityKind::MaslinBread[\s\S]*kind == "granary"/,
+  /CommodityKind::RyeBread \| CommodityKind::MaslinBread[\s\S]*kind == "granary"/,
   'the authoritative founding route must keep starter bread out of producer food storage',
 );
 assert.doesNotMatch(

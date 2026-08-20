@@ -3,15 +3,16 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{GAME_HABITAT_DISRUPTION_RADIUS, TICK_DT};
 use crate::building_defs::building_def;
 use crate::db::*;
-use crate::foraging_policy::population_growth_per_second;
+use crate::foraging_policy::{is_spring, population_growth_per_second};
+use crate::harvest_reserve_policy::protected_wild_stock;
 use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
 use crate::tables::{Building, ForagingNode};
 use crate::world_gen;
 
 /// Advances persistent wild-resource populations. Nodes are never deleted or
-/// rerolled here: seasonal plants recover in place, fish and game reproduce
-/// from survivors, and only a disturbed game habitat may migrate.
+/// rerolled here: seasonal plants recover in place, renewable populations keep
+/// their breeding stock, and only a disturbed game habitat may migrate.
 pub fn step_foraging_lifecycle(
     ctx: &ReducerContext,
     clock: &GameClock,
@@ -19,9 +20,18 @@ pub fn step_foraging_lifecycle(
 ) {
     let nodes: Vec<ForagingNode> = ctx.db.foraging_node().iter().collect();
     for node in nodes {
+        // Repair legacy renewable populations that open harvest could reduce
+        // below their viable floor. Game recolonizes continuously; a rich
+        // shoal obeys its seasonal limit and recolonizes only in spring.
+        let renewable_floor = match node.node_kind.as_str() {
+            "game" => protected_wild_stock("game", node.max_yield, 0),
+            "fish" if is_spring(clock.month) => protected_wild_stock("fish", node.max_yield, 0),
+            _ => 0.0,
+        };
+        let viable_remaining = node.remaining.max(renewable_floor);
         let growth = population_growth_per_second(
             &node.node_kind,
-            node.remaining,
+            viable_remaining,
             node.max_yield,
             clock.month,
         ) * environment.forage_regrowth_multiplier()
@@ -31,7 +41,7 @@ pub fn step_foraging_lifecycle(
         } else {
             0.0
         };
-        let remaining = (node.remaining + growth - drought_loss).clamp(0.0, node.max_yield);
+        let remaining = (viable_remaining + growth - drought_loss).clamp(0.0, node.max_yield);
         if (remaining - node.remaining).abs() <= 1e-12 && node.respawn_cooldown <= 0.0 {
             continue;
         }
@@ -52,20 +62,29 @@ fn migrate_disrupted_game_habitats(ctx: &ReducerContext, sim_tick: u64) {
     if buildings.is_empty() {
         return;
     }
-    let resource_nodes: Vec<ForagingNode> = ctx.db.foraging_node().iter().collect();
+    let mut resource_nodes: Vec<ForagingNode> = ctx.db.foraging_node().iter().collect();
 
-    for node in resource_nodes
-        .iter()
-        .filter(|node| node.node_kind == "game" && node.remaining > 0.0)
-    {
-        if !habitat_is_disrupted(node.x, node.z, &buildings) {
+    for node_index in 0..resource_nodes.len() {
+        if resource_nodes[node_index].node_kind != "game" {
             continue;
         }
-        let Some((x, z)) = choose_migration_target(node, &resource_nodes, &buildings, sim_tick)
-        else {
+        if !habitat_is_disrupted(
+            resource_nodes[node_index].x,
+            resource_nodes[node_index].z,
+            &buildings,
+        ) {
+            continue;
+        }
+        let Some((x, z)) = choose_migration_target(
+            &resource_nodes[node_index],
+            &resource_nodes,
+            &buildings,
+            sim_tick,
+        ) else {
             continue;
         };
-        let Some(current) = ctx.db.foraging_node().node_id().find(&node.node_id) else {
+        let node_id = resource_nodes[node_index].node_id.clone();
+        let Some(current) = ctx.db.foraging_node().node_id().find(&node_id) else {
             continue;
         };
         ctx.db.foraging_node().node_id().update(ForagingNode {
@@ -76,6 +95,12 @@ fn migrate_disrupted_game_habitats(ctx: &ReducerContext, sim_tick: u64) {
             respawn_cooldown: 0.0,
             ..current
         });
+        // Reserve the destination immediately so two herds disturbed in the
+        // same lifecycle step cannot select the same otherwise-clear refuge.
+        resource_nodes[node_index].x = x;
+        resource_nodes[node_index].z = z;
+        resource_nodes[node_index].anchor_x = x;
+        resource_nodes[node_index].anchor_z = z;
     }
 }
 

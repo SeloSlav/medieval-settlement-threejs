@@ -61,7 +61,7 @@ export function buildingStorageRows(
     caps.stone > 0 ? `<li><span>Stone stored</span><span>${Math.round(building.stone)} / ${caps.stone}</span></li>` : '',
     caps.water != null && caps.water > 0 ? `<li><span>Water stored</span><span>${Math.round(building.water)} / ${caps.water}</span></li>` : '',
     buildingFoodStorageRows(building, caps.food ?? 0, false),
-    caps.grain != null && caps.grain > 0 ? `<li><span>Bread-grain bay</span><span>${Math.round(breadGrainBulkStock(building))} / ${caps.grain}</span></li>
+    caps.grain != null && caps.grain > 0 ? `<li><span>Grain bay</span><span>${Math.round(breadGrainBulkStock(building))} / ${caps.grain}</span></li>
       <li><span>&nbsp;&nbsp;Rye sheaves / grain</span><span>${Math.round(building.ryeSheaves ?? 0)} / ${Math.round(building.ryeGrain ?? 0)}</span></li>
       <li><span>&nbsp;&nbsp;Oat sheaves / grain</span><span>${Math.round(building.oatSheaves ?? 0)} / ${Math.round(building.oatGrain ?? 0)}</span></li>
       <li><span>&nbsp;&nbsp;Maslin sheaves / grain</span><span>${Math.round(building.maslinSheaves ?? 0)} / ${Math.round(building.maslinGrain ?? 0)}</span></li>` : '',
@@ -69,7 +69,7 @@ export function buildingStorageRows(
       <li><span>&nbsp;&nbsp;Sheaves / threshed grain</span><span>${Math.round(building.barleySheaves ?? 0)} / ${Math.round(building.barley ?? 0)}</span></li>` : '',
     caps.malt != null && caps.malt > 0 ? `<li><span>Malt stored</span><span>${Math.round(building.malt ?? 0)} / ${caps.malt}</span></li>` : '',
     caps.flour != null && caps.flour > 0 ? `<li><span>Flour room</span><span>${Math.round(flourStock(building))} / ${caps.flour}</span></li>
-      <li><span>&nbsp;&nbsp;Rye / oat / maslin</span><span>${Math.round(building.ryeFlour ?? 0)} / ${Math.round(building.oatFlour ?? 0)} / ${Math.round(building.maslinFlour ?? 0)}</span></li>` : '',
+      <li><span>&nbsp;&nbsp;Rye / maslin</span><span>${Math.round(building.ryeFlour ?? 0)} / ${Math.round(building.maslinFlour ?? 0)}</span></li>` : '',
     caps.ale != null && caps.ale > 0 ? `<li><span>Ale stored</span><span>${Math.round(building.ale)} / ${caps.ale}</span></li>` : '',
     caps.cider != null && caps.cider > 0 ? `<li><span>Cider stored</span><span>${Math.round(building.cider ?? 0)} / ${caps.cider}</span></li>` : '',
     caps.mead != null && caps.mead > 0 ? `<li><span>Mead stored</span><span>${Math.round(building.mead ?? 0)} / ${caps.mead}</span></li>` : '',

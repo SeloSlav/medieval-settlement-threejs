@@ -56,10 +56,8 @@ fn physical_resource_stock(ctx: &ReducerContext, owner: spacetimedb::Identity) -
         stock.oat_grain += building.oat_grain.max(0.0);
         stock.maslin_grain += building.maslin_grain.max(0.0);
         stock.rye_flour += building.rye_flour.max(0.0);
-        stock.oat_flour += building.oat_flour.max(0.0);
         stock.maslin_flour += building.maslin_flour.max(0.0);
         stock.rye_bread += building.rye_bread.max(0.0);
-        stock.oat_bread += building.oat_bread.max(0.0);
         stock.maslin_bread += building.maslin_bread.max(0.0);
         if matches!(
             building.kind.as_str(),
@@ -167,10 +165,8 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
     resources.oat_grain = top_up_ledger(resources.oat_grain, physical.map_or(0.0, |s| s.oat_grain), amount);
     resources.maslin_grain = top_up_ledger(resources.maslin_grain, physical.map_or(0.0, |s| s.maslin_grain), amount);
     resources.rye_flour = top_up_ledger(resources.rye_flour, physical.map_or(0.0, |s| s.rye_flour), amount);
-    resources.oat_flour = top_up_ledger(resources.oat_flour, physical.map_or(0.0, |s| s.oat_flour), amount);
     resources.maslin_flour = top_up_ledger(resources.maslin_flour, physical.map_or(0.0, |s| s.maslin_flour), amount);
     resources.rye_bread = top_up_ledger(resources.rye_bread, physical.map_or(0.0, |s| s.rye_bread), amount);
-    resources.oat_bread = top_up_ledger(resources.oat_bread, physical.map_or(0.0, |s| s.oat_bread), amount);
     resources.maslin_bread = top_up_ledger(resources.maslin_bread, physical.map_or(0.0, |s| s.maslin_bread), amount);
     ctx.db.player_resources().owner().update(resources);
     materialize_physical_resource_ledger(ctx, owner)?;

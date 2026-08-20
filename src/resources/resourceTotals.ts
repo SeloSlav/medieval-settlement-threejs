@@ -76,7 +76,6 @@ export type ResourceTotals = {
   malt: number;
   flax: number;
   ryeFlour: number;
-  oatFlour: number;
   maslinFlour: number;
   ale: number;
   cider: number;
@@ -97,7 +96,6 @@ export type ResourceTotals = {
   manure: number;
   remedies: number;
   ryeBread: number;
-  oatBread: number;
   maslinBread: number;
   meat: number;
   fish: number;
@@ -137,7 +135,6 @@ export const HUD_RESOURCE_KINDS = [
   'malt',
   'flax',
   'ryeFlour',
-  'oatFlour',
   'maslinFlour',
   'ale',
   'cider',
@@ -223,7 +220,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let malt = ledger?.malt ?? 0;
   let flax = ledger?.flax ?? 0;
   let ryeFlour = ledger?.ryeFlour ?? 0;
-  let oatFlour = ledger?.oatFlour ?? 0;
   let maslinFlour = ledger?.maslinFlour ?? 0;
   let ale = ledger?.ale ?? 0;
   let cider = ledger?.cider ?? 0;
@@ -244,7 +240,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let manure = 0;
   let remedies = 0;
   let ryeBread = ledger?.ryeBread ?? 0;
-  let oatBread = ledger?.oatBread ?? 0;
   let maslinBread = ledger?.maslinBread ?? 0;
   let meat = ledger?.meat ?? 0;
   let fish = ledger?.fish ?? 0;
@@ -270,7 +265,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedLegacyPreservedFood = 0;
   let reservedHoney = 0;
   let reservedRyeBread = 0;
-  let reservedOatBread = 0;
   let reservedMaslinBread = 0;
   let reservedMeat = 0;
   let reservedFish = 0;
@@ -304,7 +298,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     malt += building.malt ?? 0;
     flax += building.flax ?? 0;
     ryeFlour += building.ryeFlour ?? 0;
-    oatFlour += building.oatFlour ?? 0;
     maslinFlour += building.maslinFlour ?? 0;
     ale += building.ale;
     cider += building.cider ?? 0;
@@ -325,7 +318,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     manure += building.manure ?? 0;
     remedies += building.remedies ?? 0;
     ryeBread += building.ryeBread ?? 0;
-    oatBread += building.oatBread ?? 0;
     maslinBread += building.maslinBread ?? 0;
     meat += building.meat ?? 0;
     fish += building.fish ?? 0;
@@ -369,7 +361,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     const pantryLegacyPreserved = Math.max(0, residence.preservedFood ?? 0);
     const pantryHoney = Math.max(0, residence.honey ?? 0);
     const pantryRyeBread = Math.max(0, residence.ryeBread ?? 0);
-    const pantryOatBread = Math.max(0, residence.oatBread ?? 0);
     const pantryMaslinBread = Math.max(0, residence.maslinBread ?? 0);
     const pantryMeat = Math.max(0, residence.meat ?? 0);
     const pantryFish = Math.max(0, residence.fish ?? 0);
@@ -389,7 +380,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     legacyPreservedFood += pantryLegacyPreserved;
     honey += pantryHoney;
     ryeBread += pantryRyeBread;
-    oatBread += pantryOatBread;
     maslinBread += pantryMaslinBread;
     meat += pantryMeat;
     fish += pantryFish;
@@ -409,7 +399,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     reservedLegacyPreservedFood += pantryLegacyPreserved;
     reservedHoney += pantryHoney;
     reservedRyeBread += pantryRyeBread;
-    reservedOatBread += pantryOatBread;
     reservedMaslinBread += pantryMaslinBread;
     reservedMeat += pantryMeat;
     reservedFish += pantryFish;
@@ -437,7 +426,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + cheese * foodMealValue('cheese');
   const storedFood = legacyFood * foodMealValue('food')
     + ryeBread * foodMealValue('ryeBread')
-    + oatBread * foodMealValue('oatBread')
     + maslinBread * foodMealValue('maslinBread')
     + meat * foodMealValue('meat')
     + fish * foodMealValue('fish')
@@ -470,7 +458,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     malt,
     flax,
     ryeFlour,
-    oatFlour,
     maslinFlour,
     ale,
     cider,
@@ -491,7 +478,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     manure,
     remedies,
     ryeBread,
-    oatBread,
     maslinBread,
     meat,
     fish,
@@ -517,7 +503,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   );
   const surplusHoney = Math.max(0, honey - reservedHoney);
   const surplusRyeBread = Math.max(0, ryeBread - reservedRyeBread);
-  const surplusOatBread = Math.max(0, oatBread - reservedOatBread);
   const surplusMaslinBread = Math.max(0, maslinBread - reservedMaslinBread);
   const surplusMeat = Math.max(0, meat - reservedMeat);
   const surplusFish = Math.max(0, fish - reservedFish);
@@ -539,7 +524,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + surplusCheese * foodMealValue('cheese');
   const surplusFood = surplusLegacyFood * foodMealValue('food')
     + surplusRyeBread * foodMealValue('ryeBread')
-    + surplusOatBread * foodMealValue('oatBread')
     + surplusMaslinBread * foodMealValue('maslinBread')
     + surplusMeat * foodMealValue('meat')
     + surplusFish * foodMealValue('fish')
@@ -565,7 +549,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     preservedFood: surplusPreservedFood,
     honey: surplusHoney,
     ryeBread: surplusRyeBread,
-    oatBread: surplusOatBread,
     maslinBread: surplusMaslinBread,
     meat: surplusMeat,
     fish: surplusFish,
@@ -626,7 +609,6 @@ export function computeInTransitResourceTotals(
     + totals.cheese * foodMealValue('cheese');
   totals.food = totals.legacyFood * foodMealValue('food')
     + totals.ryeBread * foodMealValue('ryeBread')
-    + totals.oatBread * foodMealValue('oatBread')
     + totals.maslinBread * foodMealValue('maslinBread')
     + totals.meat * foodMealValue('meat')
     + totals.fish * foodMealValue('fish')
@@ -942,7 +924,6 @@ function emptyResourceTotals(): ResourceTotals {
     malt: 0,
     flax: 0,
     ryeFlour: 0,
-    oatFlour: 0,
     maslinFlour: 0,
     ale: 0,
     cider: 0,
@@ -963,7 +944,6 @@ function emptyResourceTotals(): ResourceTotals {
     manure: 0,
     remedies: 0,
     ryeBread: 0,
-    oatBread: 0,
     maslinBread: 0,
     meat: 0,
     fish: 0,

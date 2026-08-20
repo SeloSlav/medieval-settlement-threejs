@@ -11,6 +11,7 @@ import {
   describeGeologicalMapMarker,
   geologicalNodeForMapMarker,
 } from './geologicalMapMarkerState.ts';
+import { syncResourceStockRing } from './resourceStockRing.ts';
 import {
   IRON_ICON_HTML,
   QUARRY_ICON_HTML,
@@ -86,6 +87,7 @@ export class QuarryMapIcons {
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
       const node = geologicalNodeForMapMarker(marker, nodes);
+      syncResourceStockRing(button, node);
       if (
         !entry.presentationInitialized
         || entry.presentationNode !== node

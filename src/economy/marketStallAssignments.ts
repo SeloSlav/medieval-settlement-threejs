@@ -160,7 +160,6 @@ function marketStallDisplayKind(
     case 'food':
     case 'oatGrain': return 'provisions';
     case 'ryeBread':
-    case 'oatBread':
     case 'maslinBread': return 'bread';
     case 'meat': return 'meat';
     case 'fish': return 'fish';

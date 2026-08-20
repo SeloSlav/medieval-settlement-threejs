@@ -22,7 +22,7 @@ use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
-const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 43] = [
+const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 41] = [
     CommodityKind::Timber,
     CommodityKind::Stone,
     CommodityKind::Firewood,
@@ -37,7 +37,6 @@ const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 43] = [
     CommodityKind::Barley,
     CommodityKind::Malt,
     CommodityKind::RyeFlour,
-    CommodityKind::OatFlour,
     CommodityKind::MaslinFlour,
     CommodityKind::PreservedFood,
     CommodityKind::Ale,
@@ -50,7 +49,6 @@ const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 43] = [
     CommodityKind::Polearms,
     CommodityKind::Water,
     CommodityKind::RyeBread,
-    CommodityKind::OatBread,
     CommodityKind::MaslinBread,
     CommodityKind::Meat,
     CommodityKind::Fish,
@@ -174,7 +172,6 @@ fn try_start_stockyard_relocation(
                 commodity,
                 CommodityKind::Firewood
                     | CommodityKind::RyeBread
-                    | CommodityKind::OatBread
                     | CommodityKind::MaslinBread
                     | CommodityKind::Ironwork
             )
@@ -247,7 +244,6 @@ fn founding_destination_room(
             commodity,
             CommodityKind::Firewood
                 | CommodityKind::RyeBread
-                | CommodityKind::OatBread
                 | CommodityKind::MaslinBread
         );
     if matches!(
@@ -277,7 +273,7 @@ fn founding_destination_priority(
 ) -> Option<u8> {
     if matches!(
         commodity,
-        CommodityKind::RyeBread | CommodityKind::OatBread | CommodityKind::MaslinBread
+        CommodityKind::RyeBread | CommodityKind::MaslinBread
     ) {
         return (kind == "granary").then_some(u8::from(starter_supplies_only));
     }
@@ -415,7 +411,6 @@ fn has_portable_stock(building: &Building) -> bool {
         building.oat_grain,
         building.maslin_grain,
         building.rye_flour,
-        building.oat_flour,
         building.maslin_flour,
         building.ale,
         building.preserved_food,
@@ -430,7 +425,6 @@ fn has_portable_stock(building: &Building) -> bool {
         building.malt,
         building.flax,
         building.rye_bread,
-        building.oat_bread,
         building.maslin_bread,
         building.meat,
         building.fish,
@@ -459,7 +453,6 @@ mod tests {
     fn starter_breads_prefer_the_market_and_keep_granary_fallback() {
         for bread in [
             CommodityKind::RyeBread,
-            CommodityKind::OatBread,
             CommodityKind::MaslinBread,
         ] {
             assert_eq!(

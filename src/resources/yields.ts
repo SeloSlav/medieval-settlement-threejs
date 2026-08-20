@@ -46,8 +46,6 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} food`;
     case 'ryeBread':
       return `${Math.round(amount)} rye bread`;
-    case 'oatBread':
-      return `${Math.round(amount)} oat bread`;
     case 'maslinBread':
       return `${Math.round(amount)} maslin bread`;
     case 'meat':
@@ -86,8 +84,6 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} malt`;
     case 'ryeFlour':
       return `${Math.round(amount)} rye flour`;
-    case 'oatFlour':
-      return `${Math.round(amount)} oat flour`;
     case 'maslinFlour':
       return `${Math.round(amount)} maslin flour`;
     case 'ale':

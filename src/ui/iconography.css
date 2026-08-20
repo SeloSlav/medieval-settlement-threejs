@@ -154,8 +154,8 @@
     inset 0 -3px 7px rgba(74, 48, 19, 0.24);
 }
 
-/* Rich nodes use a larger resource glyph while their green frame and reserve
- * badge carry the non-depleting state. */
+/* Rich nodes use a larger resource glyph while their green frame and infinity
+ * badge distinguish renewable wild stock or a non-depleting deep source. */
 .resource-node-marker--rich .map-resource-icon-glyph {
   width: 35px;
   height: 35px;
@@ -166,8 +166,9 @@
   height: 41px;
 }
 
-/* Keep the infinity reserve badge on the lower rim so it stays clear of the
- * larger resource glyph. */
+/* Keep the renewable/deep-source badge on the lower rim so it stays clear of
+ * the larger resource glyph. Infinity means renewable over repeated recovery
+ * cycles, not an unlimited current population. */
 .resource-node-marker--rich.quarry-map-icon::after,
 .resource-node-marker--rich.foraging-map-icon::after {
   top: auto;
@@ -321,10 +322,8 @@
 .settlement-hud__stat[data-resource='oatGrain']::before,
 .settlement-hud__stat[data-resource='maslinGrain']::before,
 .settlement-hud__stat[data-resource='ryeFlour']::before,
-.settlement-hud__stat[data-resource='oatFlour']::before,
 .settlement-hud__stat[data-resource='maslinFlour']::before,
 .settlement-hud__stat[data-resource='ryeBread']::before,
-.settlement-hud__stat[data-resource='oatBread']::before,
 .settlement-hud__stat[data-resource='maslinBread']::before {
   background-position: center;
   background-size: contain;
@@ -346,20 +345,12 @@
   background-image: url('/assets/ui/icons/provisions/rye-flour.png');
 }
 
-.settlement-hud__stat[data-resource='oatFlour']::before {
-  background-image: url('/assets/ui/icons/provisions/oat-flour.png');
-}
-
 .settlement-hud__stat[data-resource='maslinFlour']::before {
   background-image: url('/assets/ui/icons/provisions/maslin-flour.png');
 }
 
 .settlement-hud__stat[data-resource='ryeBread']::before {
   background-image: url('/assets/ui/icons/provisions/rye-bread.png');
-}
-
-.settlement-hud__stat[data-resource='oatBread']::before {
-  background-image: url('/assets/ui/icons/provisions/oat-bread.png');
 }
 
 .settlement-hud__stat[data-resource='maslinBread']::before {
@@ -569,10 +560,8 @@
 .resource-cost__item[data-resource-cost='oatGrain'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='maslinGrain'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='ryeFlour'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='oatFlour'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='maslinFlour'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='ryeBread'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='oatBread'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='maslinBread'] .resource-cost__icon {
   background-position: center;
   background-size: contain;
@@ -594,20 +583,12 @@
   background-image: url('/assets/ui/icons/provisions/rye-flour.png');
 }
 
-.resource-cost__item[data-resource-cost='oatFlour'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/provisions/oat-flour.png');
-}
-
 .resource-cost__item[data-resource-cost='maslinFlour'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/provisions/maslin-flour.png');
 }
 
 .resource-cost__item[data-resource-cost='ryeBread'] .resource-cost__icon {
   background-image: url('/assets/ui/icons/provisions/rye-bread.png');
-}
-
-.resource-cost__item[data-resource-cost='oatBread'] .resource-cost__icon {
-  background-image: url('/assets/ui/icons/provisions/oat-bread.png');
 }
 
 .resource-cost__item[data-resource-cost='maslinBread'] .resource-cost__icon {
@@ -722,7 +703,6 @@
 }
 
 .settlement-hud__food-card[data-food-resource='ryeBread']::before,
-.settlement-hud__food-card[data-food-resource='oatBread']::before,
 .settlement-hud__food-card[data-food-resource='maslinBread']::before {
   background-position: center;
   background-size: contain;
@@ -736,10 +716,6 @@
 
 .settlement-hud__food-card[data-food-resource='ryeBread']::before {
   background-image: url('/assets/ui/icons/provisions/rye-bread.png');
-}
-
-.settlement-hud__food-card[data-food-resource='oatBread']::before {
-  background-image: url('/assets/ui/icons/provisions/oat-bread.png');
 }
 
 .settlement-hud__food-card[data-food-resource='maslinBread']::before {

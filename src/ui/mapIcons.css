@@ -7,6 +7,8 @@
 }
 
 .quarry-map-icon {
+  --resource-stock-angle: 360deg;
+  --resource-stock-color: #8fb582;
   position: fixed;
   z-index: 3;
   display: grid;
@@ -38,6 +40,56 @@
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+}
+
+.quarry-map-icon::before,
+.foraging-map-icon::before {
+  position: absolute;
+  inset: -6px;
+  content: '';
+  border-radius: 999px;
+  background: conic-gradient(
+    from -90deg,
+    var(--resource-stock-color) 0deg var(--resource-stock-angle),
+    rgba(37, 29, 20, 0.76) var(--resource-stock-angle) 360deg
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 3px),
+    #000 calc(100% - 2.5px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 3px),
+    #000 calc(100% - 2.5px)
+  );
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.72));
+  pointer-events: none;
+}
+
+.quarry-map-icon[data-resource-stock='unknown'],
+.foraging-map-icon[data-resource-stock='unknown'] {
+  --resource-stock-color: #958b77;
+}
+
+.quarry-map-icon[data-resource-stock='abundant'],
+.foraging-map-icon[data-resource-stock='abundant'] {
+  --resource-stock-color: #8fb582;
+}
+
+.quarry-map-icon[data-resource-stock='steady'],
+.foraging-map-icon[data-resource-stock='steady'] {
+  --resource-stock-color: #d2ad58;
+}
+
+.quarry-map-icon[data-resource-stock='low'],
+.foraging-map-icon[data-resource-stock='low'] {
+  --resource-stock-color: #d87943;
+}
+
+.quarry-map-icon[data-resource-stock='empty'],
+.foraging-map-icon[data-resource-stock='empty'] {
+  --resource-stock-color: #6e6254;
 }
 
 .quarry-map-icon--iron {
@@ -141,6 +193,8 @@
 }
 
 .foraging-map-icon {
+  --resource-stock-angle: 360deg;
+  --resource-stock-color: #8fb582;
   position: fixed;
   z-index: 3;
   display: grid;

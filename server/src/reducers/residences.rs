@@ -317,7 +317,6 @@ pub fn place_burgage_zone(
             food_inventory_migrated: true,
             last_discretionary_market_day: 0,
             rye_bread: 0.0,
-            oat_bread: 0.0,
             maslin_bread: 0.0,
             oat_grain: 0.0,
         });

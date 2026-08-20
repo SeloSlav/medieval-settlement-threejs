@@ -35,7 +35,6 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   malt: 'Malt',
   flax: 'Flax fibre',
   ryeFlour: 'Rye flour',
-  oatFlour: 'Oat flour',
   maslinFlour: 'Maslin flour',
   ale: 'Ale',
   cider: 'Cider',

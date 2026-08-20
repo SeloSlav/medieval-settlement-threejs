@@ -11,6 +11,7 @@ import {
   precipitationProfile,
   roadWeatherProfile,
   standalonePrecipitationPreview,
+  weatherPresentationBlend,
 } from '../src/weather/precipitationPolicy.ts';
 import {
   PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE,
@@ -57,6 +58,11 @@ const rain = precipitationProfile(environment('rain'));
 const snow = precipitationProfile(environment('frost'));
 const drought = precipitationProfile(environment('drought'));
 
+assert.equal(weatherPresentationBlend(0), 0);
+assert.ok(weatherPresentationBlend(1 / 60) > 0.01);
+assert.ok(weatherPresentationBlend(1 / 60) < 0.03);
+assert.equal(weatherPresentationBlend(10), weatherPresentationBlend(0.05));
+
 assert.equal(
   isPrecipitationParticleRenderingEnabled(
     PRECIPITATION_PARTICLE_MAX_ORBIT_DISTANCE,
@@ -84,13 +90,19 @@ assert.equal(
 assert.equal(fair.kind, 'none');
 assert.equal(fair.intensity, 0);
 assert.equal(fair.wetness, 0);
+assert.equal(fair.atmosphericBlend, 0.42);
+assert.equal(fair.sunlightMultiplier, 0.32);
+assert.equal(fair.fogDensityMultiplier, 1.38);
+assert.equal(fair.fogTint, 0x8295a1);
+assert.equal(fair.saturationMultiplier, 0.74);
 assert.equal(rain.kind, 'rain');
 assert.equal(rain.intensity, 0.78);
 assert.equal(rain.wetness, 1);
 assert.ok(rain.fallSpeed > snow.fallSpeed * 4);
-assert.equal(rain.sunlightMultiplier, 0.32);
-assert.equal(rain.fogDensityMultiplier, 1.38);
-assert.equal(rain.saturationMultiplier, 0.74);
+assert.ok(rain.atmosphericBlend > fair.atmosphericBlend);
+assert.ok(rain.sunlightMultiplier < fair.sunlightMultiplier);
+assert.ok(rain.fogDensityMultiplier > fair.fogDensityMultiplier);
+assert.ok(rain.saturationMultiplier < fair.saturationMultiplier);
 assert.equal(snow.kind, 'snow');
 assert.equal(snow.intensity, 0.78);
 assert.equal(snow.wetness, 0);
@@ -320,7 +332,18 @@ assert.doesNotMatch(
 );
 assert.match(sceneSource, /this\.precipitation\.update\(dt,\s*cameraDistance,\s*firstPersonActive\)/);
 assert.match(sceneSource, /this\.materials\.updateWeather\(dt\)/);
+assert.match(sceneSource, /this\.updateWeatherPresentation\(dt\)/);
 assert.match(sceneSource, /this\.materials\.setEnvironment\(environment\)/);
+assert.match(
+  sceneSource,
+  /const blend = weatherPresentationBlend\(dt\)/,
+  'scene lighting, fog, and grading must use a frame-rate-independent weather fade',
+);
+assert.match(
+  sceneSource,
+  /this\.weatherPresentationTarget\s*=\s*createWeatherPresentationState\(environment\)/,
+  'environment changes must update a presentation target instead of snapping the live grade',
+);
 assert.doesNotMatch(
   sceneSource,
   /WeatherSurfaceMaterials|weatherSurfaceMaterials/,
@@ -531,7 +554,8 @@ assert.match(
   terrainMaterialSource,
   /shoreUndercoat = terrainColorShoreBlend\.mul\(float\(0\.58\)/,
 );
-assert.match(sceneSource, /weather\.kind === 'snow'[\s\S]*?\? 0\.18/);
+assert.match(sceneSource, /current\.fogTint\.lerp\(target\.fogTint, blend\)/);
+assert.match(sceneSource, /this\.postProcessor\.setWeatherWetness\(weather\.wetness\)/);
 assert.doesNotMatch(
   roadFactorySource,
   /new THREE\.Mesh\(/,

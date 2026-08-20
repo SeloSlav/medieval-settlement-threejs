@@ -685,10 +685,8 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         oat_grain: building.oat_grain,
         maslin_grain: building.maslin_grain,
         rye_flour: building.rye_flour,
-        oat_flour: building.oat_flour,
         maslin_flour: building.maslin_flour,
         rye_bread: building.rye_bread,
-        oat_bread: building.oat_bread,
         maslin_bread: building.maslin_bread,
         ale: building.ale,
         preserved_food: building.preserved_food,
@@ -883,7 +881,6 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Firewood) => stores.firewood = amount,
         Some(CommodityKind::Food) => stores.food = amount,
         Some(CommodityKind::RyeBread) => stores.rye_bread = amount,
-        Some(CommodityKind::OatBread) => stores.oat_bread = amount,
         Some(CommodityKind::MaslinBread) => stores.maslin_bread = amount,
         Some(CommodityKind::Meat) => stores.meat = amount,
         Some(CommodityKind::Fish) => stores.fish = amount,
@@ -904,7 +901,6 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::OatGrain) => stores.oat_grain = amount,
         Some(CommodityKind::MaslinGrain) => stores.maslin_grain = amount,
         Some(CommodityKind::RyeFlour) => stores.rye_flour = amount,
-        Some(CommodityKind::OatFlour) => stores.oat_flour = amount,
         Some(CommodityKind::MaslinFlour) => stores.maslin_flour = amount,
         Some(CommodityKind::Ale) => stores.ale = amount,
         Some(CommodityKind::Cider | CommodityKind::Mead) => stores.ale = amount,
@@ -947,7 +943,6 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Firewood) => stores.firewood,
         Some(CommodityKind::Food) => stores.food,
         Some(CommodityKind::RyeBread) => stores.rye_bread,
-        Some(CommodityKind::OatBread) => stores.oat_bread,
         Some(CommodityKind::MaslinBread) => stores.maslin_bread,
         Some(CommodityKind::Meat) => stores.meat,
         Some(CommodityKind::Fish) => stores.fish,
@@ -968,7 +963,6 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::OatGrain) => stores.oat_grain,
         Some(CommodityKind::MaslinGrain) => stores.maslin_grain,
         Some(CommodityKind::RyeFlour) => stores.rye_flour,
-        Some(CommodityKind::OatFlour) => stores.oat_flour,
         Some(CommodityKind::MaslinFlour) => stores.maslin_flour,
         Some(CommodityKind::Ale) => stores.ale,
         Some(CommodityKind::Cider | CommodityKind::Mead) => stores.ale,
@@ -1029,10 +1023,8 @@ fn treasury_portable_stores(
         oat_grain: treasury.oat_grain,
         maslin_grain: treasury.maslin_grain,
         rye_flour: treasury.rye_flour,
-        oat_flour: treasury.oat_flour,
         maslin_flour: treasury.maslin_flour,
         rye_bread: treasury.rye_bread,
-        oat_bread: treasury.oat_bread,
         maslin_bread: treasury.maslin_bread,
         ale: treasury.ale,
         preserved_food: treasury.preserved_food,
@@ -1132,10 +1124,8 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.oat_grain = stores.oat_grain;
     building.maslin_grain = stores.maslin_grain;
     building.rye_flour = stores.rye_flour;
-    building.oat_flour = stores.oat_flour;
     building.maslin_flour = stores.maslin_flour;
     building.rye_bread = stores.rye_bread;
-    building.oat_bread = stores.oat_bread;
     building.maslin_bread = stores.maslin_bread;
     building.ale = stores.ale;
     building.preserved_food = stores.preserved_food;
@@ -1202,10 +1192,8 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(oat_grain);
     subtract_loss!(maslin_grain);
     subtract_loss!(rye_flour);
-    subtract_loss!(oat_flour);
     subtract_loss!(maslin_flour);
     subtract_loss!(rye_bread);
-    subtract_loss!(oat_bread);
     subtract_loss!(maslin_bread);
     subtract_loss!(ale);
     subtract_loss!(preserved_food);

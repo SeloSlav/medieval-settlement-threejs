@@ -1,4 +1,6 @@
 import type { ForagingNodeState } from '../resources/types.ts';
+import { GAME_MIN_BREEDING_POPULATION } from '../generated/gameBalance.ts';
+import { FISH_SHOAL_MAX_YIELD } from './foragingYields.ts';
 
 export const HARVEST_RESERVE_PERCENT_MAX = 90;
 export const HARVEST_RESERVE_PRESETS = [
@@ -21,9 +23,16 @@ export function protectedWildStock(
   percent: number,
 ): number {
   if (kind !== 'game' && kind !== 'fish') return 0;
-  return Math.max(0, maxYield)
+  const capacity = Math.max(0, maxYield);
+  const policyFloor = capacity
     * normalizeHarvestReservePercent(percent)
     / 100;
+  const renewableFloor = kind === 'game'
+    ? GAME_MIN_BREEDING_POPULATION
+    : kind === 'fish' && capacity > FISH_SHOAL_MAX_YIELD
+      ? 2
+      : 0;
+  return Math.max(policyFloor, Math.min(renewableFloor, capacity));
 }
 
 export function harvestableWildStock(

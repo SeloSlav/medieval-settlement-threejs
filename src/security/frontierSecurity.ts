@@ -524,7 +524,6 @@ type PortableRaidStoresLike = {
   barley?: number;
   malt?: number;
   ryeFlour?: number;
-  oatFlour?: number;
   maslinFlour?: number;
   ale: number;
   preservedFood: number;
@@ -542,7 +541,6 @@ type PortableRaidStoresLike = {
   pottery?: number;
   remedies?: number;
   ryeBread?: number;
-  oatBread?: number;
   maslinBread?: number;
   meat?: number;
   fish?: number;
@@ -1290,7 +1288,6 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.barley)
     + positivePortableAmount(stores.malt)
     + positivePortableAmount(stores.ryeFlour)
-    + positivePortableAmount(stores.oatFlour)
     + positivePortableAmount(stores.maslinFlour)
     + positivePortableAmount(stores.ale)
     + positivePortableAmount(stores.preservedFood)
@@ -1308,7 +1305,6 @@ function portableRaidValue(stores: PortableRaidStoresLike): number {
     + positivePortableAmount(stores.pottery) * 1.25
     + positivePortableAmount(stores.remedies) * 1.25
     + positivePortableAmount(stores.ryeBread)
-    + positivePortableAmount(stores.oatBread)
     + positivePortableAmount(stores.maslinBread)
     + positivePortableAmount(stores.meat)
     + positivePortableAmount(stores.fish)
@@ -1341,7 +1337,6 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['barley', 'barley', 1],
   ['malt', 'malt', 1],
   ['ryeFlour', 'rye flour', 1],
-  ['oatFlour', 'oat flour', 1],
   ['maslinFlour', 'maslin flour', 1],
   ['ale', 'ale', 1],
   ['preservedFood', 'preserved staples', 1],
@@ -1359,7 +1354,6 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['pottery', 'pottery', 1.25],
   ['remedies', 'dried remedies', 1.25],
   ['ryeBread', 'rye bread', 1],
-  ['oatBread', 'oat bread', 1],
   ['maslinBread', 'maslin bread', 1],
   ['meat', 'meat', 1],
   ['fish', 'fish', 1],
@@ -1411,7 +1405,6 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   barley: 1,
   malt: 1,
   ryeFlour: 1,
-  oatFlour: 1,
   maslinFlour: 1,
   ale: 1,
   preservedFood: 1,
@@ -1430,7 +1423,6 @@ const DELIVERY_CARGO_RAID_VALUE: Partial<Record<DeliveryCargoKind, number>> = {
   pottery: 1.25,
   remedies: 1.25,
   ryeBread: 1,
-  oatBread: 1,
   maslinBread: 1,
   meat: 1,
   fish: 1,

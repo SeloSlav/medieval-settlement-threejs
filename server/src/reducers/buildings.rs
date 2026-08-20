@@ -962,10 +962,8 @@ pub(crate) fn place_building_internal(
         oat_grain: 0.0,
         maslin_grain: 0.0,
         rye_flour: 0.0,
-        oat_flour: 0.0,
         maslin_flour: 0.0,
         rye_bread: 0.0,
-        oat_bread: 0.0,
         maslin_bread: 0.0,
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
         fire_repair_active: false,
@@ -2916,10 +2914,8 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             oat_grain: building.oat_grain * recoverable,
             maslin_grain: building.maslin_grain * recoverable,
             rye_flour: building.rye_flour * recoverable,
-            oat_flour: building.oat_flour * recoverable,
             maslin_flour: building.maslin_flour * recoverable,
             rye_bread: building.rye_bread * recoverable,
-            oat_bread: building.oat_bread * recoverable,
             maslin_bread: building.maslin_bread * recoverable,
             gold: building.gold * recoverable,
             water_capacity: 0.0,
@@ -3089,20 +3085,12 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             building.rye_flour + trip_cargo.rye_flour,
         ),
         (
-            CommodityKind::OatFlour,
-            building.oat_flour + trip_cargo.oat_flour,
-        ),
-        (
             CommodityKind::MaslinFlour,
             building.maslin_flour + trip_cargo.maslin_flour,
         ),
         (
             CommodityKind::RyeBread,
             building.rye_bread + trip_cargo.rye_bread,
-        ),
-        (
-            CommodityKind::OatBread,
-            building.oat_bread + trip_cargo.oat_bread,
         ),
         (
             CommodityKind::MaslinBread,

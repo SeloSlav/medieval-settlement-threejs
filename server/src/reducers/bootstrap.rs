@@ -343,10 +343,8 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         oat_grain: resources.oat_grain.max(0.0),
         maslin_grain: resources.maslin_grain.max(0.0),
         rye_flour: resources.rye_flour.max(0.0),
-        oat_flour: resources.oat_flour.max(0.0),
         maslin_flour: resources.maslin_flour.max(0.0),
         rye_bread: resources.rye_bread.max(0.0),
-        oat_bread: resources.oat_bread.max(0.0),
         maslin_bread: resources.maslin_bread.max(0.0),
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
         fire_repair_active: false,
@@ -401,10 +399,8 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.oat_grain = 0.0;
     resources.maslin_grain = 0.0;
     resources.rye_flour = 0.0;
-    resources.oat_flour = 0.0;
     resources.maslin_flour = 0.0;
     resources.rye_bread = 0.0;
-    resources.oat_bread = 0.0;
     resources.maslin_bread = 0.0;
     resources.cheese = 0.0;
     resources.physical_founding_site_enabled = true;

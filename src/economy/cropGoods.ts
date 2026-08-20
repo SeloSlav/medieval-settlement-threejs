@@ -10,9 +10,9 @@ export const GRAIN_SHEAF_KINDS = [
 export const BREAD_GRAIN_SHEAF_KINDS = [
   'ryeSheaves', 'oatSheaves', 'maslinSheaves',
 ] as const;
-export const FLOUR_KINDS = ['ryeFlour', 'oatFlour', 'maslinFlour'] as const;
+export const FLOUR_KINDS = ['ryeFlour', 'maslinFlour'] as const;
 export const BAKEABLE_FLOUR_KINDS = ['ryeFlour', 'maslinFlour'] as const;
-export const BREAD_KINDS = ['ryeBread', 'oatBread', 'maslinBread'] as const;
+export const BREAD_KINDS = ['ryeBread', 'maslinBread'] as const;
 
 export type BreadGrainKind = (typeof BREAD_GRAIN_KINDS)[number];
 export type GrainSheafKind = (typeof GRAIN_SHEAF_KINDS)[number];

@@ -254,10 +254,8 @@ pub struct RaidPortableStores {
     pub oat_grain: f64,
     pub maslin_grain: f64,
     pub rye_flour: f64,
-    pub oat_flour: f64,
     pub maslin_flour: f64,
     pub rye_bread: f64,
-    pub oat_bread: f64,
     pub maslin_bread: f64,
     pub ale: f64,
     pub preserved_food: f64,
@@ -313,10 +311,8 @@ impl RaidPortableStores {
             + positive_store(self.oat_grain)
             + positive_store(self.maslin_grain)
             + positive_store(self.rye_flour)
-            + positive_store(self.oat_flour)
             + positive_store(self.maslin_flour)
             + positive_store(self.rye_bread)
-            + positive_store(self.oat_bread)
             + positive_store(self.maslin_bread)
             + positive_store(self.ale)
             + positive_store(self.preserved_food)
@@ -364,10 +360,8 @@ impl RaidPortableStores {
             + positive_store(self.oat_grain)
             + positive_store(self.maslin_grain)
             + positive_store(self.rye_flour)
-            + positive_store(self.oat_flour)
             + positive_store(self.maslin_flour)
             + positive_store(self.rye_bread)
-            + positive_store(self.oat_bread)
             + positive_store(self.maslin_bread)
             + positive_store(self.ale)
             + positive_store(self.preserved_food)
@@ -430,10 +424,8 @@ impl RaidPortableStores {
         plunder_good!(oat_grain);
         plunder_good!(maslin_grain);
         plunder_good!(rye_flour);
-        plunder_good!(oat_flour);
         plunder_good!(maslin_flour);
         plunder_good!(rye_bread);
-        plunder_good!(oat_bread);
         plunder_good!(maslin_bread);
         plunder_good!(ale);
         plunder_good!(preserved_food);
@@ -494,10 +486,8 @@ impl RaidPortableStores {
             oat_grain: removed!(oat_grain),
             maslin_grain: removed!(maslin_grain),
             rye_flour: removed!(rye_flour),
-            oat_flour: removed!(oat_flour),
             maslin_flour: removed!(maslin_flour),
             rye_bread: removed!(rye_bread),
-            oat_bread: removed!(oat_bread),
             maslin_bread: removed!(maslin_bread),
             ale: removed!(ale),
             preserved_food: removed!(preserved_food),

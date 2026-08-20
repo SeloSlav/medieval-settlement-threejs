@@ -656,7 +656,7 @@ const watermillStep = functionSection(
 assert.doesNotMatch(watermillStep, /request_connected_commodity/);
 assert.match(watermillStep, /step_processor/);
 assert.match(watermillStep, /CommodityKind::RyeFlour/);
-assert.match(watermillStep, /CommodityKind::OatFlour/);
+assert.doesNotMatch(watermillStep, /CommodityKind::OatFlour/);
 assert.match(watermillStep, /CommodityKind::MaslinFlour/);
 assert.doesNotMatch(watermillStep, /CommodityKind::Flour\b/);
 
@@ -815,7 +815,7 @@ assert.ok(
 assert.match(expandedSimulation, /fn connected_source_surplus/);
 assert.match(expandedSimulation, /directly_dispatched_processor_input_per_cycle/);
 assert.match(expandedSimulation, /processor_input_per_cycle_for_dispatch\(target_kind, commodity\)/);
-assert.match(supplyPolicy, /\("bakery", "ryeFlour" \| "oatFlour" \| "maslinFlour"\)/);
+assert.match(supplyPolicy, /\("bakery", "ryeFlour" \| "maslinFlour"\)/);
 assert.match(supplyPolicy, /\("brewery", "barley"\)/);
 assert.match(supplyPolicy, /\("smokehouse", "food" \| "meat" \| "fish" \| "milk"\)/);
 assert.match(supplyPolicy, /\("weaver", "wool"\)/);

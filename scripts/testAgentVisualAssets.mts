@@ -354,10 +354,8 @@ const cargoSignatures: Record<DeliveryCargoKind, string> = {
   oatGrain: 'Grain sack',
   maslinGrain: 'Grain sack',
   ryeFlour: 'Flour sack',
-  oatFlour: 'Flour sack',
   maslinFlour: 'Flour sack',
   ryeBread: 'Bread loaf',
-  oatBread: 'Bread loaf',
   maslinBread: 'Bread loaf',
 };
 for (const [index, kind] of DELIVERY_CARGO_KINDS.entries()) {

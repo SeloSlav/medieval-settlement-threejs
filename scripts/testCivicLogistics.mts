@@ -178,12 +178,12 @@ assert.deepEqual(
 );
 assert.deepEqual(
   marketStallRepresentative(
-    stallTestBuilding('32', 'granary', 0, 1, { oatBread: 7 }),
+    stallTestBuilding('32', 'granary', 0, 1, { maslinBread: 7 }),
     nearMarket,
     'food',
   ),
-  { commodityKind: 'oatBread', displayKind: 'bread' },
-  'all bread recipes should resolve to the authored bread module',
+  { commodityKind: 'maslinBread', displayKind: 'bread' },
+  'both bread recipes should resolve to the authored bread module',
 );
 assert.deepEqual(
   marketStallRepresentative(

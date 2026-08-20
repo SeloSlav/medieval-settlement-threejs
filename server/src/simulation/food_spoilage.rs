@@ -133,7 +133,6 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         }
         spoil_fresh!(food, CommodityKind::Food);
         spoil_fresh!(rye_bread, CommodityKind::RyeBread);
-        spoil_fresh!(oat_bread, CommodityKind::OatBread);
         spoil_fresh!(maslin_bread, CommodityKind::MaslinBread);
         spoil_fresh!(meat, CommodityKind::Meat);
         spoil_fresh!(fish, CommodityKind::Fish);

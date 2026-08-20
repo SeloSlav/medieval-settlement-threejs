@@ -107,10 +107,8 @@ type StockKey =
   | 'barley'
   | 'malt'
   | 'ryeFlour'
-  | 'oatFlour'
   | 'maslinFlour'
   | 'ryeBread'
-  | 'oatBread'
   | 'maslinBread'
   | 'ale'
   | 'cider'
@@ -331,9 +329,9 @@ function stockLabel(key: StockKey): string {
 }
 
 function storageCapacity(kind: BuildingKind, key: StockKey): number {
-  const capacityKey = key === 'ryeFlour' || key === 'oatFlour' || key === 'maslinFlour'
+  const capacityKey = key === 'ryeFlour' || key === 'maslinFlour'
     ? 'flour'
-    : key === 'ryeBread' || key === 'oatBread' || key === 'maslinBread'
+    : key === 'ryeBread' || key === 'maslinBread'
       ? 'food'
       : key;
   return (buildingStorageCaps(kind) as Record<string, number | undefined>)[capacityKey] ?? 0;

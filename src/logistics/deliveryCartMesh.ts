@@ -110,7 +110,6 @@ function addCargo(
       break;
     case 'food':
     case 'ryeBread':
-    case 'oatBread':
     case 'maslinBread':
     case 'meat':
     case 'fish':
@@ -137,7 +136,6 @@ function addCargo(
       addGrainLoad(group);
       break;
     case 'ryeFlour':
-    case 'oatFlour':
     case 'maslinFlour':
       addFlourLoad(group);
       break;

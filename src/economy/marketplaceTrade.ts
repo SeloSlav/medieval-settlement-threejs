@@ -41,10 +41,8 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   oatGrain: 'Oats',
   maslinGrain: 'Maslin grain',
   ryeFlour: 'Rye flour',
-  oatFlour: 'Oat flour',
   maslinFlour: 'Maslin flour',
   ryeBread: 'Rye bread',
-  oatBread: 'Oat bread',
   maslinBread: 'Maslin bread',
   ale: 'Ale',
   preservedFood: 'Preserved food',
@@ -351,7 +349,6 @@ function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind | 
     || resource === 'grapes'
     || resource === 'porridge'
     || resource === 'ryeBread'
-    || resource === 'oatBread'
     || resource === 'maslinBread'
   ) return 'food';
   if (
@@ -363,7 +360,7 @@ function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind | 
   if (resource === 'ryeGrain' || resource === 'oatGrain' || resource === 'maslinGrain') {
     return 'grain';
   }
-  if (resource === 'ryeFlour' || resource === 'oatFlour' || resource === 'maslinFlour') {
+  if (resource === 'ryeFlour' || resource === 'maslinFlour') {
     return 'flour';
   }
   return resource;

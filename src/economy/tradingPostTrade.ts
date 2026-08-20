@@ -33,8 +33,8 @@ export const TRADE_RESOURCE_COMMODITY_CODES: Record<TradeResourceKind, number> =
   cherries: 34, vegetables: 35, eggs: 36, grapes: 37, porridge: 38,
   curedMeat: 39, smokedFish: 40, cheese: 41, ryeSheaves: 42, oatSheaves: 43,
   barleySheaves: 44, maslinSheaves: 45, ryeGrain: 46, oatGrain: 47,
-  maslinGrain: 48, ryeFlour: 49, oatFlour: 50, maslinFlour: 51,
-  ryeBread: 52, oatBread: 53, maslinBread: 54,
+  maslinGrain: 48, ryeFlour: 49, maslinFlour: 51,
+  ryeBread: 52, maslinBread: 54,
 };
 
 export const TRADE_COMMODITY_BY_CODE = new Map<number, TradeResourceKind>(
@@ -48,8 +48,8 @@ export const TRADE_RESOURCE_LABELS: Record<TradeResourceKind, string> = {
   oatSheaves: 'Oat sheaves', barleySheaves: 'Barley sheaves',
   maslinSheaves: 'Maslin sheaves', ryeGrain: 'Rye grain', oatGrain: 'Oats',
   maslinGrain: 'Maslin grain', barley: 'Barley grain', flax: 'Flax',
-  ryeFlour: 'Rye flour', oatFlour: 'Oat flour', maslinFlour: 'Maslin flour',
-  malt: 'Malt', ryeBread: 'Rye bread', oatBread: 'Oat bread',
+  ryeFlour: 'Rye flour', maslinFlour: 'Maslin flour',
+  malt: 'Malt', ryeBread: 'Rye bread',
   maslinBread: 'Maslin bread', porridge: 'Porridge', meat: 'Meat', fish: 'Fish',
   berries: 'Berries', mushrooms: 'Mushrooms', milk: 'Milk', apples: 'Apples',
   cherries: 'Cherries', vegetables: 'Vegetables', eggs: 'Eggs', grapes: 'Grapes',
@@ -64,7 +64,7 @@ export const TRADING_POST_TRADE_CATEGORIES = [
   { label: 'Construction & raw materials', resources: ['timber', 'stone', 'clay', 'iron', 'salt', 'ironwork', 'roofTiles'] },
   { label: 'Fuel & utilities', resources: ['firewood', 'charcoal', 'water'] },
   { label: 'Crops & harvest', resources: ['ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'flax', 'manure'] },
-  { label: 'Milled & prepared staples', resources: ['ryeFlour', 'oatFlour', 'maslinFlour', 'malt', 'ryeBread', 'oatBread', 'maslinBread', 'porridge'] },
+  { label: 'Milled & prepared staples', resources: ['ryeFlour', 'maslinFlour', 'malt', 'ryeBread', 'maslinBread', 'porridge'] },
   { label: 'Fresh food', resources: ['food', 'meat', 'fish', 'berries', 'mushrooms', 'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes'] },
   { label: 'Preserved provisions', resources: ['preservedFood', 'curedMeat', 'smokedFish', 'cheese', 'honey'] },
   { label: 'Finished goods', resources: ['ale', 'wine', 'wool', 'cloth', 'polearms', 'pottery', 'remedies'] },

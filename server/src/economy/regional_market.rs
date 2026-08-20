@@ -67,10 +67,8 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::OatGrain
         | TradeResource::MaslinGrain
         | TradeResource::RyeFlour
-        | TradeResource::OatFlour
         | TradeResource::MaslinFlour
         | TradeResource::RyeBread
-        | TradeResource::OatBread
         | TradeResource::MaslinBread
         | TradeResource::Barley
         | TradeResource::Malt
@@ -205,10 +203,8 @@ pub fn record_market_trade(
         | TradeResource::OatGrain
         | TradeResource::MaslinGrain
         | TradeResource::RyeFlour
-        | TradeResource::OatFlour
         | TradeResource::MaslinFlour
         | TradeResource::RyeBread
-        | TradeResource::OatBread
         | TradeResource::MaslinBread
         | TradeResource::Barley
         | TradeResource::Malt

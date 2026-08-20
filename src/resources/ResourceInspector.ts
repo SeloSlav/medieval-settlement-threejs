@@ -310,7 +310,6 @@ const SPECIALTY_HUD_RESOURCE_KINDS = [
   'barley',
   'malt',
   'ryeFlour',
-  'oatFlour',
   'maslinFlour',
   'ale',
   'preservedFood',
@@ -518,7 +517,6 @@ export class ResourceInspector {
       barley: this.mustElement(options.uiRoot, '[data-stockpile="barley"]'),
       malt: this.mustElement(options.uiRoot, '[data-stockpile="malt"]'),
       ryeFlour: this.mustElement(options.uiRoot, '[data-stockpile="ryeFlour"]'),
-      oatFlour: this.mustElement(options.uiRoot, '[data-stockpile="oatFlour"]'),
       maslinFlour: this.mustElement(options.uiRoot, '[data-stockpile="maslinFlour"]'),
       ale: this.mustElement(options.uiRoot, '[data-stockpile="ale"]'),
       cider: this.mustElement(options.uiRoot, '[data-stockpile="cider"]'),
@@ -1496,7 +1494,6 @@ export class ResourceInspector {
     this.stockpileValues.barley.textContent = Math.round(totals.barley).toString();
     this.stockpileValues.malt.textContent = Math.round(totals.malt).toString();
     this.stockpileValues.ryeFlour.textContent = Math.round(totals.ryeFlour).toString();
-    this.stockpileValues.oatFlour.textContent = Math.round(totals.oatFlour).toString();
     this.stockpileValues.maslinFlour.textContent = Math.round(totals.maslinFlour).toString();
     this.stockpileValues.ale.textContent = Math.round(totals.ale).toString();
     this.stockpileValues.preservedFood.textContent = Math.round(totals.preservedFood).toString();

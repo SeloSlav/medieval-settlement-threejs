@@ -55,20 +55,17 @@ pub enum CommodityKind {
     OatGrain,
     MaslinGrain,
     RyeFlour,
-    OatFlour,
     MaslinFlour,
     RyeBread,
-    OatBread,
     MaslinBread,
     Cider,
     Mead,
 }
 
-pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 16] = [
+pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 15] = [
     CommodityKind::Food,
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
-    CommodityKind::OatBread,
     CommodityKind::MaslinBread,
     CommodityKind::Meat,
     CommodityKind::Fish,
@@ -97,11 +94,10 @@ pub const PRESERVABLE_FOOD_COMMODITIES: [CommodityKind; 4] = [
     CommodityKind::Milk,
 ];
 
-pub const EDIBLE_COMMODITIES: [CommodityKind; 21] = [
+pub const EDIBLE_COMMODITIES: [CommodityKind; 20] = [
     CommodityKind::Food,
     CommodityKind::OatGrain,
     CommodityKind::RyeBread,
-    CommodityKind::OatBread,
     CommodityKind::MaslinBread,
     CommodityKind::Meat,
     CommodityKind::Fish,
@@ -124,7 +120,7 @@ pub const EDIBLE_COMMODITIES: [CommodityKind; 21] = [
 /// Consume the shortest-lived foods first so mixed pantries and institutions
 /// naturally preserve durable reserves. The legacy mixed buckets remain in
 /// the order only so old saves drain cleanly after migration.
-pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 21] = [
+pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 20] = [
     CommodityKind::Meat,
     CommodityKind::Fish,
     CommodityKind::Milk,
@@ -136,7 +132,6 @@ pub const FOOD_CONSUMPTION_ORDER: [CommodityKind; 21] = [
     CommodityKind::Apples,
     CommodityKind::Vegetables,
     CommodityKind::RyeBread,
-    CommodityKind::OatBread,
     CommodityKind::MaslinBread,
     CommodityKind::Porridge,
     CommodityKind::OatGrain,
@@ -186,7 +181,6 @@ pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
         CommodityKind::Food
         | CommodityKind::OatGrain
         | CommodityKind::RyeBread
-        | CommodityKind::OatBread
         | CommodityKind::MaslinBread
         | CommodityKind::Porridge
         | CommodityKind::PreservedFood => Some(FoodCategory::Grains),
@@ -255,10 +249,8 @@ impl CommodityKind {
             Self::OatGrain => 47,
             Self::MaslinGrain => 48,
             Self::RyeFlour => 49,
-            Self::OatFlour => 50,
             Self::MaslinFlour => 51,
             Self::RyeBread => 52,
-            Self::OatBread => 53,
             Self::MaslinBread => 54,
             Self::Cider => 55,
             Self::Mead => 56,
@@ -314,10 +306,8 @@ impl CommodityKind {
             47 => Some(Self::OatGrain),
             48 => Some(Self::MaslinGrain),
             49 => Some(Self::RyeFlour),
-            50 => Some(Self::OatFlour),
             51 => Some(Self::MaslinFlour),
             52 => Some(Self::RyeBread),
-            53 => Some(Self::OatBread),
             54 => Some(Self::MaslinBread),
             55 => Some(Self::Cider),
             56 => Some(Self::Mead),
@@ -358,10 +348,7 @@ impl CommodityKind {
     }
 
     pub fn is_flour_bulk(self) -> bool {
-        matches!(
-            self,
-            Self::RyeFlour | Self::OatFlour | Self::MaslinFlour
-        )
+        matches!(self, Self::RyeFlour | Self::MaslinFlour)
     }
 
     /// Ready-to-eat meal equivalents. A unit remains a physical basket, loaf,
@@ -370,7 +357,7 @@ impl CommodityKind {
     pub fn meal_value(self) -> f64 {
         match self {
             Self::Food | Self::PreservedFood | Self::RyeBread | Self::Fish => 1.0,
-            Self::OatBread | Self::Cheese => 0.9,
+            Self::Cheese => 0.9,
             Self::OatGrain => 0.65,
             Self::MaslinBread | Self::SmokedFish => 1.05,
             Self::Meat => 1.1,
@@ -392,7 +379,6 @@ impl CommodityKind {
         match self {
             Self::OatGrain => 0.35,
             Self::RyeBread => 0.55,
-            Self::OatBread => 0.6,
             Self::MaslinBread => 0.5,
             Self::Meat => 2.0,
             Self::Fish => 2.2,
@@ -474,10 +460,8 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::OatGrain => building.oat_grain,
         CommodityKind::MaslinGrain => building.maslin_grain,
         CommodityKind::RyeFlour => building.rye_flour,
-        CommodityKind::OatFlour => building.oat_flour,
         CommodityKind::MaslinFlour => building.maslin_flour,
         CommodityKind::RyeBread => building.rye_bread,
-        CommodityKind::OatBread => building.oat_bread,
         CommodityKind::MaslinBread => building.maslin_bread,
     }
 }
@@ -528,7 +512,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         | CommodityKind::OatGrain
         | CommodityKind::MaslinGrain => def.storage_grain,
         CommodityKind::BarleySheaves => def.storage_barley,
-        CommodityKind::RyeFlour | CommodityKind::OatFlour | CommodityKind::MaslinFlour => {
+        CommodityKind::RyeFlour | CommodityKind::MaslinFlour => {
             def.storage_flour
         }
         CommodityKind::Malt => def.storage_malt,
@@ -542,7 +526,6 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Remedies => def.storage_remedies,
         CommodityKind::RoofTiles => def.storage_roof_tiles,
         CommodityKind::RyeBread
-        | CommodityKind::OatBread
         | CommodityKind::MaslinBread
         | CommodityKind::Meat
         | CommodityKind::Fish
@@ -592,9 +575,7 @@ pub fn barley_bulk_stock(building: &Building) -> f64 {
 }
 
 pub fn flour_bulk_stock(building: &Building) -> f64 {
-    building.rye_flour.max(0.0)
-        + building.oat_flour.max(0.0)
-        + building.maslin_flour.max(0.0)
+    building.rye_flour.max(0.0) + building.maslin_flour.max(0.0)
 }
 
 pub fn building_fresh_food_stock(building: &Building) -> f64 {
@@ -703,10 +684,8 @@ pub fn withdraw_building_commodity(
         CommodityKind::OatGrain => building.oat_grain -= withdrawn,
         CommodityKind::MaslinGrain => building.maslin_grain -= withdrawn,
         CommodityKind::RyeFlour => building.rye_flour -= withdrawn,
-        CommodityKind::OatFlour => building.oat_flour -= withdrawn,
         CommodityKind::MaslinFlour => building.maslin_flour -= withdrawn,
         CommodityKind::RyeBread => building.rye_bread -= withdrawn,
-        CommodityKind::OatBread => building.oat_bread -= withdrawn,
         CommodityKind::MaslinBread => building.maslin_bread -= withdrawn,
     }
     withdrawn
@@ -768,10 +747,8 @@ pub fn deposit_building_commodity(
         CommodityKind::OatGrain => building.oat_grain += deposited,
         CommodityKind::MaslinGrain => building.maslin_grain += deposited,
         CommodityKind::RyeFlour => building.rye_flour += deposited,
-        CommodityKind::OatFlour => building.oat_flour += deposited,
         CommodityKind::MaslinFlour => building.maslin_flour += deposited,
         CommodityKind::RyeBread => building.rye_bread += deposited,
-        CommodityKind::OatBread => building.oat_bread += deposited,
         CommodityKind::MaslinBread => building.maslin_bread += deposited,
     }
     deposited
@@ -846,10 +823,8 @@ pub fn credit_treasury_commodity(
         CommodityKind::OatGrain => treasury.oat_grain += amount,
         CommodityKind::MaslinGrain => treasury.maslin_grain += amount,
         CommodityKind::RyeFlour => treasury.rye_flour += amount,
-        CommodityKind::OatFlour => treasury.oat_flour += amount,
         CommodityKind::MaslinFlour => treasury.maslin_flour += amount,
         CommodityKind::RyeBread => treasury.rye_bread += amount,
-        CommodityKind::OatBread => treasury.oat_bread += amount,
         CommodityKind::MaslinBread => treasury.maslin_bread += amount,
     }
     let physical = treasury.physical_founding_site_enabled;
@@ -882,7 +857,6 @@ pub fn residence_commodity_stock(residence: &Residence, kind: CommodityKind) -> 
         CommodityKind::SmokedFish => residence.smoked_fish,
         CommodityKind::Cheese => residence.cheese,
         CommodityKind::RyeBread => residence.rye_bread,
-        CommodityKind::OatBread => residence.oat_bread,
         CommodityKind::MaslinBread => residence.maslin_bread,
         _ => 0.0,
     }
@@ -962,7 +936,6 @@ pub fn withdraw_residence_commodity(
         CommodityKind::SmokedFish => residence.smoked_fish -= withdrawn,
         CommodityKind::Cheese => residence.cheese -= withdrawn,
         CommodityKind::RyeBread => residence.rye_bread -= withdrawn,
-        CommodityKind::OatBread => residence.oat_bread -= withdrawn,
         CommodityKind::MaslinBread => residence.maslin_bread -= withdrawn,
         _ => return 0.0,
     }
@@ -1046,7 +1019,6 @@ pub fn deposit_residence_commodity(
         CommodityKind::SmokedFish => residence.smoked_fish += deposited,
         CommodityKind::Cheese => residence.cheese += deposited,
         CommodityKind::RyeBread => residence.rye_bread += deposited,
-        CommodityKind::OatBread => residence.oat_bread += deposited,
         CommodityKind::MaslinBread => residence.maslin_bread += deposited,
         _ => return 0.0,
     }
@@ -1059,8 +1031,8 @@ mod tests {
 
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
-        for id in 0_u8..=54 {
-            if matches!(id, 4 | 5 | 27) {
+        for id in 0_u8..=56 {
+            if matches!(id, 4 | 5 | 27 | 50 | 53) {
                 assert_eq!(CommodityKind::from_u8(id), None);
             } else {
                 let commodity = CommodityKind::from_u8(id)
@@ -1068,7 +1040,7 @@ mod tests {
                 assert_eq!(commodity.as_u8(), id);
             }
         }
-        assert_eq!(CommodityKind::from_u8(55), None);
+        assert_eq!(CommodityKind::from_u8(57), None);
     }
 
     #[test]
@@ -1089,13 +1061,11 @@ mod tests {
         assert!(CommodityKind::RyeBread.is_fresh_food());
         assert!(CommodityKind::OatGrain.is_fresh_food());
         assert!(CommodityKind::OatGrain.is_edible());
-        assert!(CommodityKind::OatBread.is_fresh_food());
         assert!(CommodityKind::MaslinBread.is_fresh_food());
         assert!(CommodityKind::CuredMeat.is_preserved_food());
         assert!(CommodityKind::Honey.is_edible());
         assert_eq!(CommodityKind::RyeBread.meal_value(), 1.0);
         assert_eq!(CommodityKind::OatGrain.meal_value(), 0.65);
-        assert_eq!(CommodityKind::OatBread.meal_value(), 0.9);
         assert_eq!(CommodityKind::MaslinBread.meal_value(), 1.05);
         assert!(
             CommodityKind::Milk.spoilage_multiplier()
@@ -1106,7 +1076,6 @@ mod tests {
                 < CommodityKind::Meat.spoilage_multiplier()
         );
         assert_eq!(CommodityKind::RyeFlour.meal_value(), 0.0);
-        assert_eq!(CommodityKind::OatFlour.meal_value(), 0.0);
         assert_eq!(CommodityKind::MaslinFlour.meal_value(), 0.0);
     }
 

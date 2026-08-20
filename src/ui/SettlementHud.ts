@@ -508,11 +508,6 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ryeFlour">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeFlour" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatFlour" data-tooltip="Flour used to bake oat bread.">
-        <span class="settlement-hud__label">Oat flour</span>
-        <strong class="settlement-hud__value" data-stockpile="oatFlour">0</strong>
-        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatFlour" hidden></span>
-      </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="maslinFlour" data-tooltip="Flour used to bake maslin bread.">
         <span class="settlement-hud__label">Maslin flour</span>
         <strong class="settlement-hud__value" data-stockpile="maslinFlour">0</strong>

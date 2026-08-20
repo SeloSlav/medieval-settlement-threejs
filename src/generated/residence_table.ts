@@ -76,7 +76,6 @@ export default __t.row({
   foodInventoryMigrated: __t.bool().name("food_inventory_migrated"),
   lastDiscretionaryMarketDay: __t.u64().name("last_discretionary_market_day"),
   ryeBread: __t.f64().name("rye_bread"),
-  oatBread: __t.f64().name("oat_bread"),
   maslinBread: __t.f64().name("maslin_bread"),
   oatGrain: __t.f64().name("oat_grain"),
 });

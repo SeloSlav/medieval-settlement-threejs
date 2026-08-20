@@ -93,7 +93,11 @@ import {
   disposeVineyardVineResources,
 } from '../vegetation/seedthree/vineyardVines.ts';
 import { PrecipitationRenderer } from '../weather/PrecipitationRenderer.ts';
-import { precipitationProfile } from '../weather/precipitationPolicy.ts';
+import {
+  precipitationProfile,
+  type PrecipitationProfile,
+  weatherPresentationBlend,
+} from '../weather/precipitationPolicy.ts';
 import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import { markStartupCheckpoint } from '../app/startupDiagnostics.ts';
 import { setWorldAnimationTime } from './worldAnimationTime.ts';
@@ -238,6 +242,8 @@ export class SceneManager {
   private unsubscribeConstellationPreference: (() => void) | null = null;
   private environment: EnvironmentState | null = null;
   private lastDayNightState: DayNightLightingState | null = null;
+  private readonly weatherPresentation = createWeatherPresentationState(null);
+  private weatherPresentationTarget = createWeatherPresentationState(null);
   private readonly dayNightGrade: DayNightGrade = {
     saturation: 0,
     contrast: 0,
@@ -843,6 +849,7 @@ export class SceneManager {
       this.shadowBounds,
     );
     this.materials.updateWeather(dt);
+    this.updateWeatherPresentation(dt);
     updateTerrainZoomBlend(this.terrain, cameraDistance, firstPersonActive);
     this.grassField?.updateCameraState(
       this.camera.position,
@@ -970,14 +977,9 @@ export class SceneManager {
 
   applyDayNight(state: DayNightLightingState): void {
     this.lastDayNightState = state;
-    const weather = precipitationProfile(this.environment);
-    const atmosphericBlend = weather.kind === 'rain'
-      ? 0.42
-      : weather.kind === 'snow'
-        ? 0.18
-        : this.environment?.weather === 'drought'
-          ? 0.16
-          : 0;
+    const weather = this.weatherPresentation;
+    const atmosphericBlend = weather.atmosphericBlend;
+    const weatherFogTint = weather.fogTint.getHex();
     const goldenHour = Math.max(state.dawnAmount, state.duskAmount);
     this.skyAnimationTime = state.skyAnimationTime;
     this.sunDirection.copy(state.sunDirection);
@@ -991,7 +993,7 @@ export class SceneManager {
     this.sky.updateSiderealAngle(state.siderealAngle);
     this.sunLight.color.setHex(blendColorHex(
       blendColorHex(state.sunColor, 0xb4cee8, moonBlend),
-      weather.fogTint,
+      weatherFogTint,
       atmosphericBlend * 0.28,
     ));
     const daylightKey = state.sunIntensity
@@ -1008,15 +1010,15 @@ export class SceneManager {
       .addScaledVector(this.shadowKeyDirection, 180);
     this.sunLight.updateMatrixWorld();
     this.sunLight.target.updateMatrixWorld();
-    this.hemiLight.color.setHex(blendColorHex(state.hemiSkyColor, weather.fogTint, atmosphericBlend * 0.48));
-    this.hemiLight.groundColor.setHex(blendColorHex(state.hemiGroundColor, weather.fogTint, atmosphericBlend * 0.2));
+    this.hemiLight.color.setHex(blendColorHex(state.hemiSkyColor, weatherFogTint, atmosphericBlend * 0.48));
+    this.hemiLight.groundColor.setHex(blendColorHex(state.hemiGroundColor, weatherFogTint, atmosphericBlend * 0.2));
     // Night hierarchy comes from a cool directional key and practical lights,
     // not a global gray wash. Keep just enough hemispheric bounce to read the
     // terrain while preserving true material shadows.
     this.hemiLight.intensity = state.hemiIntensity
       * THREE.MathUtils.lerp(1, 0.56, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.82, atmosphericBlend);
-    this.ambientLight.color.setHex(blendColorHex(state.ambientColor, weather.fogTint, atmosphericBlend * 0.34));
+    this.ambientLight.color.setHex(blendColorHex(state.ambientColor, weatherFogTint, atmosphericBlend * 0.34));
     this.ambientLight.intensity = state.ambientIntensity
       * THREE.MathUtils.lerp(1, 0.28, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.9, atmosphericBlend);
@@ -1025,7 +1027,7 @@ export class SceneManager {
         * THREE.MathUtils.lerp(1, 0.72, state.nightAmount)
         * THREE.MathUtils.lerp(1, 0.84, atmosphericBlend),
     );
-    this.skyFillLight.color.setHex(blendColorHex(state.fillColor, weather.fogTint, atmosphericBlend * 0.4));
+    this.skyFillLight.color.setHex(blendColorHex(state.fillColor, weatherFogTint, atmosphericBlend * 0.4));
     this.skyFillLight.intensity = state.fillIntensity
       * THREE.MathUtils.lerp(1, 0.5, state.nightAmount)
       * THREE.MathUtils.lerp(1, 0.86, atmosphericBlend);
@@ -1044,12 +1046,13 @@ export class SceneManager {
     this.renderer.toneMappingExposure = THREE.MathUtils.clamp(
       THREE.MathUtils.lerp(1.08, 1.28, state.nightAmount)
         + goldenHour * 0.075
-        + atmosphericBlend * 0.012,
-      1.07,
+        + atmosphericBlend * 0.012
+        - weather.wetness * 0.025,
+      1.03,
       1.34,
     );
     if (this.scene.fog instanceof THREE.FogExp2) {
-      this.scene.fog.color.setHex(blendColorHex(state.fogColor, weather.fogTint, atmosphericBlend));
+      this.scene.fog.color.setHex(blendColorHex(state.fogColor, weatherFogTint, atmosphericBlend));
       this.scene.fog.density = state.fogDensity * weather.fogDensityMultiplier;
       this.scene.fog.density = THREE.MathUtils.clamp(
         this.scene.fog.density
@@ -1064,8 +1067,7 @@ export class SceneManager {
       state.grade.contrast * THREE.MathUtils.lerp(1, 0.95, atmosphericBlend);
     this.dayNightGrade.warmth = Math.max(
       0,
-      state.grade.warmth
-        + (this.environment?.weather === 'drought' ? 0.08 : -atmosphericBlend * 0.08),
+      state.grade.warmth + weather.warmthOffset,
     );
     this.dayNightGrade.nightBlue = state.grade.nightBlue;
     this.dayNightGrade.vignette = state.grade.vignette + atmosphericBlend * 0.025;
@@ -1075,6 +1077,7 @@ export class SceneManager {
 
   setEnvironment(environment: EnvironmentState): void {
     this.environment = environment;
+    this.weatherPresentationTarget = createWeatherPresentationState(environment);
     // Keep the authored zoom-responsive terrain material in rain. The old
     // conventional rain fallback flattened every close view into a plain green
     // field and discarded the layered dirt system entirely.
@@ -1088,6 +1091,27 @@ export class SceneManager {
     this.precipitation.setEnvironment(environment);
     this.forestManager?.setDeciduousFoliage(environment.deciduousFoliage);
     this.forestManager?.setSnowCoverage(environment.snowCoverage);
+    if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
+  }
+
+  private updateWeatherPresentation(dt: number): void {
+    const blend = weatherPresentationBlend(dt);
+    if (blend <= 0) return;
+
+    const current = this.weatherPresentation;
+    const target = this.weatherPresentationTarget;
+    current.atmosphericBlend += (target.atmosphericBlend - current.atmosphericBlend) * blend;
+    current.sunlightMultiplier += (target.sunlightMultiplier - current.sunlightMultiplier) * blend;
+    current.fogDensityMultiplier += (
+      target.fogDensityMultiplier - current.fogDensityMultiplier
+    ) * blend;
+    current.fogTint.lerp(target.fogTint, blend);
+    current.saturationMultiplier += (
+      target.saturationMultiplier - current.saturationMultiplier
+    ) * blend;
+    current.warmthOffset += (target.warmthOffset - current.warmthOffset) * blend;
+    current.wetness += (target.wetness - current.wetness) * blend;
+
     if (this.lastDayNightState) this.applyDayNight(this.lastDayNightState);
   }
 
@@ -1508,4 +1532,31 @@ function blendColorHex(from: number, to: number, amount: number): number {
   const g = Math.round(THREE.MathUtils.lerp(fromG, toG, mix));
   const b = Math.round(THREE.MathUtils.lerp(fromB, toB, mix));
   return (r << 16) | (g << 8) | b;
+}
+
+type WeatherPresentationState = Pick<
+  PrecipitationProfile,
+  | 'atmosphericBlend'
+  | 'sunlightMultiplier'
+  | 'fogDensityMultiplier'
+  | 'saturationMultiplier'
+  | 'warmthOffset'
+  | 'wetness'
+> & {
+  fogTint: THREE.Color;
+};
+
+function createWeatherPresentationState(
+  environment: EnvironmentState | null,
+): WeatherPresentationState {
+  const profile = precipitationProfile(environment);
+  return {
+    atmosphericBlend: profile.atmosphericBlend,
+    sunlightMultiplier: profile.sunlightMultiplier,
+    fogDensityMultiplier: profile.fogDensityMultiplier,
+    fogTint: new THREE.Color(profile.fogTint),
+    saturationMultiplier: profile.saturationMultiplier,
+    warmthOffset: profile.warmthOffset,
+    wetness: profile.wetness,
+  };
 }

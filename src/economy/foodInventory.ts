@@ -13,7 +13,6 @@ export const FRESH_FOOD_KINDS = [
   'food',
   'oatGrain',
   'ryeBread',
-  'oatBread',
   'maslinBread',
   'meat',
   'fish',
@@ -38,7 +37,6 @@ export const PRESERVED_FOOD_KINDS = [
 export const NAMED_FOOD_KINDS = [
   'oatGrain',
   'ryeBread',
-  'oatBread',
   'maslinBread',
   'meat',
   'fish',
@@ -66,7 +64,6 @@ export type FoodInventoryKind =
 export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
   oatGrain: 'Oats',
   ryeBread: 'Rye bread',
-  oatBread: 'Oat bread',
   maslinBread: 'Maslin bread',
   meat: 'Meat',
   fish: 'Fish',
@@ -92,7 +89,6 @@ export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
   food: 1,
   oatGrain: 0.65,
   ryeBread: 1,
-  oatBread: 0.9,
   maslinBread: 1.05,
   meat: 1.1,
   fish: 1,
@@ -117,7 +113,6 @@ export const FOOD_SPOILAGE_MULTIPLIERS: Readonly<Record<FoodInventoryKind, numbe
   food: 1,
   oatGrain: 0.35,
   ryeBread: 0.55,
-  oatBread: 0.6,
   maslinBread: 0.5,
   meat: 2,
   fish: 2.2,
@@ -162,7 +157,6 @@ export function foodCategory(kind: FoodInventoryKind): FoodCategory {
     case 'food':
     case 'oatGrain':
     case 'ryeBread':
-    case 'oatBread':
     case 'maslinBread':
     case 'porridge':
     case 'preservedFood':

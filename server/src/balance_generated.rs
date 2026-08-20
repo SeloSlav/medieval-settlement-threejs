@@ -366,13 +366,11 @@ pub const THRESHING_GRAIN_PER_CYCLE: f64 = 3.0;
 pub const WATERMILL_GRAIN_PER_CYCLE: f64 = 3.0;
 pub const WATERMILL_WATER_PER_CYCLE: f64 = 0.0;
 pub const WATERMILL_RYE_FLOUR_PER_CYCLE: f64 = 4.0;
-pub const WATERMILL_OAT_FLOUR_PER_CYCLE: f64 = 3.5;
 pub const WATERMILL_MASLIN_FLOUR_PER_CYCLE: f64 = 4.4;
 pub const BAKERY_FLOUR_PER_CYCLE: f64 = 3.0;
 pub const BAKERY_WATER_PER_CYCLE: f64 = 2.0;
 pub const BAKERY_FIREWOOD_PER_CYCLE: f64 = 1.0;
 pub const BAKERY_RYE_BREAD_PER_CYCLE: f64 = 4.0;
-pub const BAKERY_OAT_BREAD_PER_CYCLE: f64 = 3.5;
 pub const BAKERY_MASLIN_BREAD_PER_CYCLE: f64 = 4.5;
 pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = 6.0;
 pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = 0.5;
@@ -3144,10 +3142,8 @@ pub enum TradeResource {
     OatGrain,
     MaslinGrain,
     RyeFlour,
-    OatFlour,
     MaslinFlour,
     RyeBread,
-    OatBread,
     MaslinBread,
     Ale,
     PreservedFood,
@@ -3207,10 +3203,8 @@ impl TradeResource {
             Self::OatGrain => TradeResourceSpendScope::MarketAccessible,
             Self::MaslinGrain => TradeResourceSpendScope::MarketAccessible,
             Self::RyeFlour => TradeResourceSpendScope::MarketAccessible,
-            Self::OatFlour => TradeResourceSpendScope::MarketAccessible,
             Self::MaslinFlour => TradeResourceSpendScope::MarketAccessible,
             Self::RyeBread => TradeResourceSpendScope::MarketAccessible,
-            Self::OatBread => TradeResourceSpendScope::MarketAccessible,
             Self::MaslinBread => TradeResourceSpendScope::MarketAccessible,
             Self::Ale => TradeResourceSpendScope::MarketAccessible,
             Self::PreservedFood => TradeResourceSpendScope::MarketAccessible,
@@ -3433,24 +3427,6 @@ const TRADE_SELL_RYE_FLOUR: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const TRADE_BUY_OAT_FLOUR: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "buy_oat_flour",
-    kind: MarketplaceTradeKind::GoldBuy {
-        resource: TradeResource::OatFlour,
-        amount: 12.0,
-        gold_cost: 15.0,
-    },
-};
-
-const TRADE_SELL_OAT_FLOUR: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "sell_oat_flour",
-    kind: MarketplaceTradeKind::GoldSell {
-        resource: TradeResource::OatFlour,
-        amount: 12.0,
-        gold_yield: 9.0,
-    },
-};
-
 const TRADE_BUY_MASLIN_FLOUR: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "buy_maslin_flour",
     kind: MarketplaceTradeKind::GoldBuy {
@@ -3482,24 +3458,6 @@ const TRADE_SELL_RYE_BREAD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     id: "sell_rye_bread",
     kind: MarketplaceTradeKind::GoldSell {
         resource: TradeResource::RyeBread,
-        amount: 10.0,
-        gold_yield: 10.0,
-    },
-};
-
-const TRADE_BUY_OAT_BREAD: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "buy_oat_bread",
-    kind: MarketplaceTradeKind::GoldBuy {
-        resource: TradeResource::OatBread,
-        amount: 10.0,
-        gold_cost: 17.0,
-    },
-};
-
-const TRADE_SELL_OAT_BREAD: MarketplaceTradeOffer = MarketplaceTradeOffer {
-    id: "sell_oat_bread",
-    kind: MarketplaceTradeKind::GoldSell {
-        resource: TradeResource::OatBread,
         amount: 10.0,
         gold_yield: 10.0,
     },
@@ -4219,7 +4177,7 @@ const TRADE_TIMBER_FOR_FIREWOOD: MarketplaceTradeOffer = MarketplaceTradeOffer {
     },
 };
 
-const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_BUY_WATER, TRADE_SELL_WATER, TRADE_BUY_FOOD, TRADE_SELL_FOOD, TRADE_BUY_RYE_GRAIN, TRADE_SELL_RYE_GRAIN, TRADE_BUY_OAT_GRAIN, TRADE_SELL_OAT_GRAIN, TRADE_BUY_MASLIN_GRAIN, TRADE_SELL_MASLIN_GRAIN, TRADE_BUY_RYE_FLOUR, TRADE_SELL_RYE_FLOUR, TRADE_BUY_OAT_FLOUR, TRADE_SELL_OAT_FLOUR, TRADE_BUY_MASLIN_FLOUR, TRADE_SELL_MASLIN_FLOUR, TRADE_BUY_RYE_BREAD, TRADE_SELL_RYE_BREAD, TRADE_BUY_OAT_BREAD, TRADE_SELL_OAT_BREAD, TRADE_BUY_MASLIN_BREAD, TRADE_SELL_MASLIN_BREAD, TRADE_BUY_ALE, TRADE_SELL_ALE, TRADE_BUY_PRESERVED_FOOD, TRADE_SELL_PRESERVED_FOOD, TRADE_BUY_HONEY, TRADE_SELL_HONEY, TRADE_BUY_WINE, TRADE_SELL_WINE, TRADE_BUY_POLEARMS, TRADE_SELL_POLEARMS, TRADE_BUY_WOOL, TRADE_SELL_WOOL, TRADE_BUY_CLOTH, TRADE_SELL_CLOTH, TRADE_BUY_BARLEY_SEED, TRADE_SELL_BARLEY, TRADE_BUY_MALT, TRADE_SELL_MALT, TRADE_BUY_FLAX, TRADE_SELL_FLAX, TRADE_BUY_IRONWORK, TRADE_SELL_IRONWORK, TRADE_BUY_IRON, TRADE_SELL_IRON, TRADE_BUY_CLAY, TRADE_SELL_CLAY, TRADE_BUY_SALT, TRADE_SELL_SALT, TRADE_BUY_CHARCOAL, TRADE_SELL_CHARCOAL, TRADE_BUY_POTTERY, TRADE_SELL_POTTERY, TRADE_BUY_MANURE, TRADE_SELL_MANURE, TRADE_BUY_REMEDIES, TRADE_SELL_REMEDIES, TRADE_BUY_ROOF_TILES, TRADE_SELL_ROOF_TILES, TRADE_BUY_MEAT, TRADE_SELL_MEAT, TRADE_BUY_FISH, TRADE_SELL_FISH, TRADE_BUY_BERRIES, TRADE_SELL_BERRIES, TRADE_BUY_MUSHROOMS, TRADE_SELL_MUSHROOMS, TRADE_BUY_MILK, TRADE_SELL_MILK, TRADE_BUY_APPLES, TRADE_SELL_APPLES, TRADE_BUY_CHERRIES, TRADE_SELL_CHERRIES, TRADE_BUY_VEGETABLES, TRADE_SELL_VEGETABLES, TRADE_BUY_EGGS, TRADE_SELL_EGGS, TRADE_BUY_GRAPES, TRADE_SELL_GRAPES, TRADE_BUY_PORRIDGE, TRADE_SELL_PORRIDGE, TRADE_BUY_CURED_MEAT, TRADE_SELL_CURED_MEAT, TRADE_BUY_SMOKED_FISH, TRADE_SELL_SMOKED_FISH, TRADE_BUY_CHEESE_BULK, TRADE_SELL_CHEESE, TRADE_BUY_RYE_SHEAVES, TRADE_SELL_RYE_SHEAVES, TRADE_BUY_OAT_SHEAVES, TRADE_SELL_OAT_SHEAVES, TRADE_BUY_BARLEY_SHEAVES, TRADE_SELL_BARLEY_SHEAVES, TRADE_BUY_MASLIN_SHEAVES, TRADE_SELL_MASLIN_SHEAVES, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
+const ALL_MARKETPLACE_TRADES: &[MarketplaceTradeOffer] = &[TRADE_BUY_TIMBER, TRADE_SELL_TIMBER, TRADE_BUY_STONE, TRADE_SELL_STONE, TRADE_BUY_FIREWOOD, TRADE_SELL_FIREWOOD, TRADE_BUY_WATER, TRADE_SELL_WATER, TRADE_BUY_FOOD, TRADE_SELL_FOOD, TRADE_BUY_RYE_GRAIN, TRADE_SELL_RYE_GRAIN, TRADE_BUY_OAT_GRAIN, TRADE_SELL_OAT_GRAIN, TRADE_BUY_MASLIN_GRAIN, TRADE_SELL_MASLIN_GRAIN, TRADE_BUY_RYE_FLOUR, TRADE_SELL_RYE_FLOUR, TRADE_BUY_MASLIN_FLOUR, TRADE_SELL_MASLIN_FLOUR, TRADE_BUY_RYE_BREAD, TRADE_SELL_RYE_BREAD, TRADE_BUY_MASLIN_BREAD, TRADE_SELL_MASLIN_BREAD, TRADE_BUY_ALE, TRADE_SELL_ALE, TRADE_BUY_PRESERVED_FOOD, TRADE_SELL_PRESERVED_FOOD, TRADE_BUY_HONEY, TRADE_SELL_HONEY, TRADE_BUY_WINE, TRADE_SELL_WINE, TRADE_BUY_POLEARMS, TRADE_SELL_POLEARMS, TRADE_BUY_WOOL, TRADE_SELL_WOOL, TRADE_BUY_CLOTH, TRADE_SELL_CLOTH, TRADE_BUY_BARLEY_SEED, TRADE_SELL_BARLEY, TRADE_BUY_MALT, TRADE_SELL_MALT, TRADE_BUY_FLAX, TRADE_SELL_FLAX, TRADE_BUY_IRONWORK, TRADE_SELL_IRONWORK, TRADE_BUY_IRON, TRADE_SELL_IRON, TRADE_BUY_CLAY, TRADE_SELL_CLAY, TRADE_BUY_SALT, TRADE_SELL_SALT, TRADE_BUY_CHARCOAL, TRADE_SELL_CHARCOAL, TRADE_BUY_POTTERY, TRADE_SELL_POTTERY, TRADE_BUY_MANURE, TRADE_SELL_MANURE, TRADE_BUY_REMEDIES, TRADE_SELL_REMEDIES, TRADE_BUY_ROOF_TILES, TRADE_SELL_ROOF_TILES, TRADE_BUY_MEAT, TRADE_SELL_MEAT, TRADE_BUY_FISH, TRADE_SELL_FISH, TRADE_BUY_BERRIES, TRADE_SELL_BERRIES, TRADE_BUY_MUSHROOMS, TRADE_SELL_MUSHROOMS, TRADE_BUY_MILK, TRADE_SELL_MILK, TRADE_BUY_APPLES, TRADE_SELL_APPLES, TRADE_BUY_CHERRIES, TRADE_SELL_CHERRIES, TRADE_BUY_VEGETABLES, TRADE_SELL_VEGETABLES, TRADE_BUY_EGGS, TRADE_SELL_EGGS, TRADE_BUY_GRAPES, TRADE_SELL_GRAPES, TRADE_BUY_PORRIDGE, TRADE_SELL_PORRIDGE, TRADE_BUY_CURED_MEAT, TRADE_SELL_CURED_MEAT, TRADE_BUY_SMOKED_FISH, TRADE_SELL_SMOKED_FISH, TRADE_BUY_CHEESE_BULK, TRADE_SELL_CHEESE, TRADE_BUY_RYE_SHEAVES, TRADE_SELL_RYE_SHEAVES, TRADE_BUY_OAT_SHEAVES, TRADE_SELL_OAT_SHEAVES, TRADE_BUY_BARLEY_SHEAVES, TRADE_SELL_BARLEY_SHEAVES, TRADE_BUY_MASLIN_SHEAVES, TRADE_SELL_MASLIN_SHEAVES, TRADE_TIMBER_FOR_STONE, TRADE_STONE_FOR_TIMBER, TRADE_TIMBER_FOR_FIREWOOD];
 
 pub fn marketplace_trade_offer(id: &str) -> Option<&'static MarketplaceTradeOffer> {
     ALL_MARKETPLACE_TRADES.iter().find(|offer| offer.id == id)
@@ -4248,47 +4206,45 @@ pub fn marketplace_trade_contract_code(id: &str) -> Option<u8> {
         "sell_oat_grain" => Some(11),
         "sell_maslin_grain" => Some(12),
         "sell_rye_flour" => Some(13),
-        "sell_oat_flour" => Some(14),
-        "sell_maslin_flour" => Some(15),
-        "sell_rye_bread" => Some(16),
-        "sell_oat_bread" => Some(17),
-        "sell_maslin_bread" => Some(18),
-        "sell_ale" => Some(19),
-        "sell_preserved_food" => Some(20),
-        "sell_honey" => Some(21),
-        "sell_wine" => Some(22),
-        "sell_polearms" => Some(23),
-        "sell_wool" => Some(24),
-        "sell_cloth" => Some(25),
-        "sell_barley" => Some(26),
-        "sell_malt" => Some(27),
-        "sell_flax" => Some(28),
-        "sell_ironwork" => Some(29),
-        "sell_iron" => Some(30),
-        "sell_clay" => Some(31),
-        "sell_salt" => Some(32),
-        "sell_charcoal" => Some(33),
-        "sell_manure" => Some(34),
-        "sell_remedies" => Some(35),
-        "sell_roof_tiles" => Some(36),
-        "sell_meat" => Some(37),
-        "sell_fish" => Some(38),
-        "sell_berries" => Some(39),
-        "sell_mushrooms" => Some(40),
-        "sell_milk" => Some(41),
-        "sell_apples" => Some(42),
-        "sell_cherries" => Some(43),
-        "sell_vegetables" => Some(44),
-        "sell_eggs" => Some(45),
-        "sell_grapes" => Some(46),
-        "sell_porridge" => Some(47),
-        "sell_cured_meat" => Some(48),
-        "sell_smoked_fish" => Some(49),
-        "sell_cheese" => Some(50),
-        "sell_rye_sheaves" => Some(51),
-        "sell_oat_sheaves" => Some(52),
-        "sell_barley_sheaves" => Some(53),
-        "sell_maslin_sheaves" => Some(54),
+        "sell_maslin_flour" => Some(14),
+        "sell_rye_bread" => Some(15),
+        "sell_maslin_bread" => Some(16),
+        "sell_ale" => Some(17),
+        "sell_preserved_food" => Some(18),
+        "sell_honey" => Some(19),
+        "sell_wine" => Some(20),
+        "sell_polearms" => Some(21),
+        "sell_wool" => Some(22),
+        "sell_cloth" => Some(23),
+        "sell_barley" => Some(24),
+        "sell_malt" => Some(25),
+        "sell_flax" => Some(26),
+        "sell_ironwork" => Some(27),
+        "sell_iron" => Some(28),
+        "sell_clay" => Some(29),
+        "sell_salt" => Some(30),
+        "sell_charcoal" => Some(31),
+        "sell_manure" => Some(32),
+        "sell_remedies" => Some(33),
+        "sell_roof_tiles" => Some(34),
+        "sell_meat" => Some(35),
+        "sell_fish" => Some(36),
+        "sell_berries" => Some(37),
+        "sell_mushrooms" => Some(38),
+        "sell_milk" => Some(39),
+        "sell_apples" => Some(40),
+        "sell_cherries" => Some(41),
+        "sell_vegetables" => Some(42),
+        "sell_eggs" => Some(43),
+        "sell_grapes" => Some(44),
+        "sell_porridge" => Some(45),
+        "sell_cured_meat" => Some(46),
+        "sell_smoked_fish" => Some(47),
+        "sell_cheese" => Some(48),
+        "sell_rye_sheaves" => Some(49),
+        "sell_oat_sheaves" => Some(50),
+        "sell_barley_sheaves" => Some(51),
+        "sell_maslin_sheaves" => Some(52),
         _ => None,
     }
 }
@@ -4308,47 +4264,45 @@ pub fn marketplace_trade_offer_for_contract_code(code: u8) -> Option<&'static Ma
         11 => "sell_oat_grain",
         12 => "sell_maslin_grain",
         13 => "sell_rye_flour",
-        14 => "sell_oat_flour",
-        15 => "sell_maslin_flour",
-        16 => "sell_rye_bread",
-        17 => "sell_oat_bread",
-        18 => "sell_maslin_bread",
-        19 => "sell_ale",
-        20 => "sell_preserved_food",
-        21 => "sell_honey",
-        22 => "sell_wine",
-        23 => "sell_polearms",
-        24 => "sell_wool",
-        25 => "sell_cloth",
-        26 => "sell_barley",
-        27 => "sell_malt",
-        28 => "sell_flax",
-        29 => "sell_ironwork",
-        30 => "sell_iron",
-        31 => "sell_clay",
-        32 => "sell_salt",
-        33 => "sell_charcoal",
-        34 => "sell_manure",
-        35 => "sell_remedies",
-        36 => "sell_roof_tiles",
-        37 => "sell_meat",
-        38 => "sell_fish",
-        39 => "sell_berries",
-        40 => "sell_mushrooms",
-        41 => "sell_milk",
-        42 => "sell_apples",
-        43 => "sell_cherries",
-        44 => "sell_vegetables",
-        45 => "sell_eggs",
-        46 => "sell_grapes",
-        47 => "sell_porridge",
-        48 => "sell_cured_meat",
-        49 => "sell_smoked_fish",
-        50 => "sell_cheese",
-        51 => "sell_rye_sheaves",
-        52 => "sell_oat_sheaves",
-        53 => "sell_barley_sheaves",
-        54 => "sell_maslin_sheaves",
+        14 => "sell_maslin_flour",
+        15 => "sell_rye_bread",
+        16 => "sell_maslin_bread",
+        17 => "sell_ale",
+        18 => "sell_preserved_food",
+        19 => "sell_honey",
+        20 => "sell_wine",
+        21 => "sell_polearms",
+        22 => "sell_wool",
+        23 => "sell_cloth",
+        24 => "sell_barley",
+        25 => "sell_malt",
+        26 => "sell_flax",
+        27 => "sell_ironwork",
+        28 => "sell_iron",
+        29 => "sell_clay",
+        30 => "sell_salt",
+        31 => "sell_charcoal",
+        32 => "sell_manure",
+        33 => "sell_remedies",
+        34 => "sell_roof_tiles",
+        35 => "sell_meat",
+        36 => "sell_fish",
+        37 => "sell_berries",
+        38 => "sell_mushrooms",
+        39 => "sell_milk",
+        40 => "sell_apples",
+        41 => "sell_cherries",
+        42 => "sell_vegetables",
+        43 => "sell_eggs",
+        44 => "sell_grapes",
+        45 => "sell_porridge",
+        46 => "sell_cured_meat",
+        47 => "sell_smoked_fish",
+        48 => "sell_cheese",
+        49 => "sell_rye_sheaves",
+        50 => "sell_oat_sheaves",
+        51 => "sell_barley_sheaves",
+        52 => "sell_maslin_sheaves",
         _ => return None,
     };
     marketplace_trade_offer(id)

@@ -316,13 +316,9 @@ pub struct PlayerResources {
     #[default(0.0)]
     pub rye_flour: f64,
     #[default(0.0)]
-    pub oat_flour: f64,
-    #[default(0.0)]
     pub maslin_flour: f64,
     #[default(0.0)]
     pub rye_bread: f64,
-    #[default(0.0)]
-    pub oat_bread: f64,
     #[default(0.0)]
     pub maslin_bread: f64,
     /// Town Hall market-issue doctrine: 0 = weekly market day only,
@@ -770,13 +766,9 @@ pub struct Building {
     #[default(0.0)]
     pub rye_flour: f64,
     #[default(0.0)]
-    pub oat_flour: f64,
-    #[default(0.0)]
     pub maslin_flour: f64,
     #[default(0.0)]
     pub rye_bread: f64,
-    #[default(0.0)]
-    pub oat_bread: f64,
     #[default(0.0)]
     pub maslin_bread: f64,
     /// Farmstead work focus: 1 = fields first, 2 = demand-aware automatic,
@@ -1247,8 +1239,6 @@ pub struct Residence {
     /// consumption.
     #[default(0.0)]
     pub rye_bread: f64,
-    #[default(0.0)]
-    pub oat_bread: f64,
     #[default(0.0)]
     pub maslin_bread: f64,
     /// Threshed oats are a ready household staple as well as livestock fodder.

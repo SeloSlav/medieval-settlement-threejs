@@ -763,10 +763,8 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.oat_grain = 0.0;
             building.maslin_grain = 0.0;
             building.rye_flour = 0.0;
-            building.oat_flour = 0.0;
             building.maslin_flour = 0.0;
             building.rye_bread = 0.0;
-            building.oat_bread = 0.0;
             building.maslin_bread = 0.0;
             building.gold = 0.0;
             building.civic_receipts_gold = 0.0;
@@ -800,7 +798,6 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             residence.smoked_fish = 0.0;
             residence.cheese = 0.0;
             residence.rye_bread = 0.0;
-            residence.oat_bread = 0.0;
             residence.maslin_bread = 0.0;
             residence.food_inventory_migrated = true;
             residence.population = 0;

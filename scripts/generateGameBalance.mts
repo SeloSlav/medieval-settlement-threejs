@@ -131,8 +131,8 @@ type LivestockSpeciesBalance = {
 
 type TradeResource = 'timber' | 'stone' | 'firewood' | 'food'
   | 'ryeGrain' | 'oatGrain' | 'maslinGrain'
-  | 'ryeFlour' | 'oatFlour' | 'maslinFlour'
-  | 'ryeBread' | 'oatBread' | 'maslinBread'
+  | 'ryeFlour' | 'maslinFlour'
+  | 'ryeBread' | 'maslinBread'
   | 'barley' | 'ironwork' | 'iron' | 'salt' | 'pottery';
 
 type MarketplaceGoldBuyOffer = {
@@ -544,13 +544,11 @@ export type GameBalance = {
     watermillGrainPerCycle: number;
     watermillWaterPerCycle: number;
     watermillRyeFlourPerCycle: number;
-    watermillOatFlourPerCycle: number;
     watermillMaslinFlourPerCycle: number;
     bakeryFlourPerCycle: number;
     bakeryWaterPerCycle: number;
     bakeryFirewoodPerCycle: number;
     bakeryRyeBreadPerCycle: number;
-    bakeryOatBreadPerCycle: number;
     bakeryMaslinBreadPerCycle: number;
     householdFoodReservePerClaim: number;
     householdFoodReserveCapacityFraction: number;
@@ -1145,13 +1143,11 @@ function generateRust(): string {
     `pub const WATERMILL_GRAIN_PER_CYCLE: f64 = ${rustF64(b.production.watermillGrainPerCycle)};`,
     `pub const WATERMILL_WATER_PER_CYCLE: f64 = ${rustF64(b.production.watermillWaterPerCycle)};`,
     `pub const WATERMILL_RYE_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.watermillRyeFlourPerCycle)};`,
-    `pub const WATERMILL_OAT_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.watermillOatFlourPerCycle)};`,
     `pub const WATERMILL_MASLIN_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.watermillMaslinFlourPerCycle)};`,
     `pub const BAKERY_FLOUR_PER_CYCLE: f64 = ${rustF64(b.production.bakeryFlourPerCycle)};`,
     `pub const BAKERY_WATER_PER_CYCLE: f64 = ${rustF64(b.production.bakeryWaterPerCycle)};`,
     `pub const BAKERY_FIREWOOD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryFirewoodPerCycle)};`,
     `pub const BAKERY_RYE_BREAD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryRyeBreadPerCycle)};`,
-    `pub const BAKERY_OAT_BREAD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryOatBreadPerCycle)};`,
     `pub const BAKERY_MASLIN_BREAD_PER_CYCLE: f64 = ${rustF64(b.production.bakeryMaslinBreadPerCycle)};`,
     `pub const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM: f64 = ${rustF64(b.production.householdFoodReservePerClaim)};`,
     `pub const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION: f64 = ${rustF64(b.production.householdFoodReserveCapacityFraction)};`,
@@ -2070,13 +2066,11 @@ function generateTypeScript(): string {
     `export const WATERMILL_GRAIN_PER_CYCLE = ${b.production.watermillGrainPerCycle};`,
     `export const WATERMILL_WATER_PER_CYCLE = ${b.production.watermillWaterPerCycle};`,
     `export const WATERMILL_RYE_FLOUR_PER_CYCLE = ${b.production.watermillRyeFlourPerCycle};`,
-    `export const WATERMILL_OAT_FLOUR_PER_CYCLE = ${b.production.watermillOatFlourPerCycle};`,
     `export const WATERMILL_MASLIN_FLOUR_PER_CYCLE = ${b.production.watermillMaslinFlourPerCycle};`,
     `export const BAKERY_FLOUR_PER_CYCLE = ${b.production.bakeryFlourPerCycle};`,
     `export const BAKERY_WATER_PER_CYCLE = ${b.production.bakeryWaterPerCycle};`,
     `export const BAKERY_FIREWOOD_PER_CYCLE = ${b.production.bakeryFirewoodPerCycle};`,
     `export const BAKERY_RYE_BREAD_PER_CYCLE = ${b.production.bakeryRyeBreadPerCycle};`,
-    `export const BAKERY_OAT_BREAD_PER_CYCLE = ${b.production.bakeryOatBreadPerCycle};`,
     `export const BAKERY_MASLIN_BREAD_PER_CYCLE = ${b.production.bakeryMaslinBreadPerCycle};`,
     `export const HOUSEHOLD_FOOD_RESERVE_PER_CLAIM = ${b.production.householdFoodReservePerClaim};`,
     `export const HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION = ${b.production.householdFoodReserveCapacityFraction};`,

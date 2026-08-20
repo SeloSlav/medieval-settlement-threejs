@@ -19,10 +19,13 @@ export type PrecipitationProfile = {
   fallSpeed: number;
   windX: number;
   windZ: number;
+  /** Shared scene-lighting/fog grade weight. This is smoothed by SceneManager. */
+  atmosphericBlend: number;
   sunlightMultiplier: number;
   fogDensityMultiplier: number;
   fogTint: number;
   saturationMultiplier: number;
+  warmthOffset: number;
 };
 
 export type RoadWeatherProfile = {
@@ -32,6 +35,14 @@ export type RoadWeatherProfile = {
   frost: number;
 };
 
+export const WEATHER_PRESENTATION_FADE_RATE = 1.2;
+
+/** A capped exponential response prevents both frame-rate drift and long-frame snaps. */
+export function weatherPresentationBlend(dt: number): number {
+  const frameDt = Math.min(0.05, Math.max(0, dt));
+  return 1 - Math.exp(-frameDt * WEATHER_PRESENTATION_FADE_RATE);
+}
+
 const FAIR_PROFILE: PrecipitationProfile = {
   kind: 'none',
   intensity: 0,
@@ -39,10 +50,14 @@ const FAIR_PROFILE: PrecipitationProfile = {
   fallSpeed: 0,
   windX: 0,
   windZ: 0,
-  sunlightMultiplier: 1,
-  fogDensityMultiplier: 1,
-  fogTint: 0xffffff,
-  saturationMultiplier: 1,
+  // The former rain presentation is now the house look: soft, cool and
+  // restrained even on a dry day. Actual rain deepens it only slightly.
+  atmosphericBlend: 0.42,
+  sunlightMultiplier: 0.32,
+  fogDensityMultiplier: 1.38,
+  fogTint: 0x8295a1,
+  saturationMultiplier: 0.74,
+  warmthOffset: -0.0336,
 };
 
 const FAIR_ROAD_PROFILE: RoadWeatherProfile = {
@@ -67,10 +82,12 @@ export function precipitationProfile(
       fallSpeed: 30,
       windX: 4.2,
       windZ: 1.8,
-      sunlightMultiplier: 0.32,
-      fogDensityMultiplier: 1.38,
-      fogTint: 0x8295a1,
-      saturationMultiplier: 0.74,
+      atmosphericBlend: 0.5,
+      sunlightMultiplier: 0.27,
+      fogDensityMultiplier: 1.44,
+      fogTint: 0x788c99,
+      saturationMultiplier: 0.71,
+      warmthOffset: -0.04,
     };
   }
 
@@ -82,20 +99,24 @@ export function precipitationProfile(
       fallSpeed: 4.4,
       windX: 1.15,
       windZ: 0.5,
+      atmosphericBlend: 0.18,
       sunlightMultiplier: 0.8,
       fogDensityMultiplier: 1.02,
       fogTint: 0xc6d4db,
       saturationMultiplier: 0.97,
+      warmthOffset: -0.0144,
     };
   }
 
   if (environment.weather === 'drought') {
     return {
       ...FAIR_PROFILE,
+      atmosphericBlend: 0.16,
       sunlightMultiplier: 1.08,
       fogDensityMultiplier: 1.18,
       fogTint: 0xd8b27d,
       saturationMultiplier: 0.92,
+      warmthOffset: 0.08,
     };
   }
 

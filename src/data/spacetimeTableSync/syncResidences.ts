@@ -89,7 +89,6 @@ export function syncResidences(
       honey: wholeResourceUnits(row.honey),
       oatGrain: wholeResourceUnits(row.oatGrain),
       ryeBread: wholeResourceUnits(row.ryeBread),
-      oatBread: wholeResourceUnits(row.oatBread),
       maslinBread: wholeResourceUnits(row.maslinBread),
       meat: wholeResourceUnits(row.meat),
       fish: wholeResourceUnits(row.fish),

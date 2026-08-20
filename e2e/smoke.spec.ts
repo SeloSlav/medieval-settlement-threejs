@@ -11,18 +11,15 @@ test('gives rye, oat, and maslin bread distinct provision icons', async ({ page 
   await page.setContent(`
     <div class="settlement-hud">
       <div class="settlement-hud__food-card" data-food-resource="ryeBread"></div>
-      <div class="settlement-hud__food-card" data-food-resource="oatBread"></div>
       <div class="settlement-hud__food-card" data-food-resource="maslinBread"></div>
     </div>
     <div class="resource-cost__item" data-resource-cost="ryeBread"><span class="resource-cost__icon"></span></div>
-    <div class="resource-cost__item" data-resource-cost="oatBread"><span class="resource-cost__icon"></span></div>
     <div class="resource-cost__item" data-resource-cost="maslinBread"><span class="resource-cost__icon"></span></div>
   `);
   await page.addStyleTag({ path: 'src/ui/iconography.css' });
 
   const expectedIcons = {
     ryeBread: 'rye-bread.png',
-    oatBread: 'oat-bread.png',
     maslinBread: 'maslin-bread.png',
   } as const;
 

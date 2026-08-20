@@ -79,7 +79,6 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'barley',
   'malt',
   'ryeFlour',
-  'oatFlour',
   'maslinFlour',
   'preservedFood',
   'ale',
@@ -92,7 +91,6 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'polearms',
   'water',
   'ryeBread',
-  'oatBread',
   'maslinBread',
   'meat',
   'fish',
@@ -167,7 +165,7 @@ function commodityCapacity(
         || commodity === 'ryeGrain' || commodity === 'oatGrain'
         || commodity === 'maslinGrain'
         ? 'grain'
-        : commodity === 'ryeFlour' || commodity === 'oatFlour'
+        : commodity === 'ryeFlour'
           || commodity === 'maslinFlour'
           ? 'flour'
           : commodity;
@@ -210,7 +208,6 @@ function foundingDestinationPriority(
     case 'maslinGrain':
     case 'barley':
     case 'ryeFlour':
-    case 'oatFlour':
     case 'maslinFlour':
     case 'preservedFood':
       if (building.kind === 'granary') return 0;
@@ -218,7 +215,6 @@ function foundingDestinationPriority(
       if (building.kind === 'marketplace') return 1;
       return 3;
     case 'ryeBread':
-    case 'oatBread':
     case 'maslinBread':
       return building.kind === 'granary' ? 0 : null;
     case 'malt':

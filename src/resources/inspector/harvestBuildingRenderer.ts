@@ -213,6 +213,8 @@ export function renderHarvestBuildingInspector(
       reservePercent,
     )
     : 0;
+  const hasAutomaticRenewableFloor = nearestNode?.kind === 'game'
+    || (nearestNode?.kind === 'fish' && nearestNode.isRich === true);
   const harvestableStock = nearestNode && managesWildStock
     ? harvestableWildStock({
       kind: nearestNode.kind as HarvestForagingKind,
@@ -340,12 +342,14 @@ export function renderHarvestBuildingInspector(
       : 'Idle — seasonal forage is dormant for winter';
     statusState = 'idle';
   } else if (nearestNode && nearestNode.remaining <= 0) {
-    statusText = nearestNode.kind === 'fish'
+    statusText = nearestNode.kind === 'fish' && nearestNode.isRich === true
+      ? 'Idle — the renewable shoal recolonizes in spring'
+      : nearestNode.kind === 'fish'
       ? 'Idle — the shoal is extinct'
       : nearestNode.kind === 'game'
-        ? 'Idle — the game habitat is extinct'
+        ? 'Idle — a breeding pair is recolonizing this habitat'
         : 'Idle — the patch is empty and waiting for spring or summer regrowth';
-    statusState = nearestNode.kind === 'fish' || nearestNode.kind === 'game'
+    statusState = nearestNode.kind === 'fish' && nearestNode.isRich !== true
       ? 'warning'
       : 'idle';
   } else if (nearestNode && managesWildStock && harvestableStock <= 1e-6) {
@@ -353,12 +357,9 @@ export function renderHarvestBuildingInspector(
       ? `Resting - ${nearestNode.remaining.toFixed(0)} fish protected; the shoal reproduces in spring`
       : `Resting - ${Math.round(nearestNode.remaining)} game protected as breeding stock`;
     statusState = 'idle';
-  } else if (
-    nearestNode?.kind === 'game'
-    && nearestNode.remaining < 2
-  ) {
-    statusText = `Warning — ${Math.round(nearestNode.remaining)} animal left, below the breeding floor`;
-    statusState = 'warning';
+  } else if (nearestNode?.kind === 'game' && nearestNode.remaining < 2) {
+    statusText = `Idle — the protected breeding pair is recolonizing`;
+    statusState = 'idle';
   } else if (harvesting) {
     const resourceLabel = nearestNode.kind === 'mushrooms' ? 'mushrooms' : copy.activeUnit;
     statusText = `Working — ${Math.round(nearestNode.remaining)} ${resourceLabel} left at ${copy.patchLabel}`;
@@ -379,20 +380,22 @@ export function renderHarvestBuildingInspector(
     : `<li><span>Delivery</span><span>Waiting for an unassigned hauler</span></li>`;
 
   const reserveRows = managesWildStock
-    ? `<li><span>Wild-stock reserve</span><span>${reservePercent}% of carrying capacity${nearestNode ? ` / ${Math.ceil(protectedStock)} protected here` : ''}</span></li>
+    ? `<li><span>Wild-stock reserve</span><span>${hasAutomaticRenewableFloor ? `Breeding population minimum + ${reservePercent}% policy` : `${reservePercent}% of carrying capacity`}${nearestNode ? ` / ${Math.ceil(protectedStock)} protected here` : ''}</span></li>
       <li><span>Harvestable stock</span><span>${nearestNode ? `${Math.floor(harvestableStock)} above reserve / ${Math.round(nearestNode.remaining)} of ${Math.round(nearestNode.maxYield)} population` : 'No population in range'}</span></li>`
     : '';
   const reservePanel = managesWildStock
     ? `<div class="inspector-action-panel">
-        <p class="resource-inspector-note">Wild-stock reserve - this building's workers leave the chosen share of each population's carrying capacity untouched and may use another healthy population in range. Another hall or camp with a lower reserve can still harvest the same stock.</p>
+        <p class="resource-inspector-note">Wild-stock reserve - this building's workers leave protected population untouched and may use another healthy population in range. Hunter's halls always spare a breeding pair, and rich shoals retain a breeding school for spring recovery; the selected percentage can protect more. Another hall or camp with a lower reserve can still harvest the same stock.</p>
         <div class="resource-action-row">
           ${HARVEST_RESERVE_PRESETS
-            .map((preset) => `<button type="button" class="resource-action-button" data-harvest-reserve-percent="${preset.percent}" ${reservePercent === preset.percent ? 'disabled' : ''}>${preset.label} / ${preset.percent}%</button>`)
+            .map((preset) => `<button type="button" class="resource-action-button" data-harvest-reserve-percent="${preset.percent}" ${reservePercent === preset.percent ? 'disabled' : ''}>${hasAutomaticRenewableFloor && preset.percent === 0 ? 'Breeding stock / automatic' : `${preset.label} / ${preset.percent}%`}</button>`)
             .join('')}
         </div>
         <p class="inspector-action-panel__hint">${building.kind === 'fishing_camp'
-          ? "A protected shoal rebuilds only in spring. Open harvest maximizes today's catch but can cause permanent extinction."
-          : "Protected game can breed while the hall rests. Open harvest maximizes today's yield but can leave fewer than the two animals needed to reproduce."}</p>
+          ? nearestNode?.isRich === true
+            ? "The rich shoal is renewable but rebuilds only in spring. Quarter and half reserves keep a larger school for faster recovery."
+            : "An ordinary protected shoal rebuilds only in spring. Open harvest maximizes today's catch but can cause permanent extinction."
+          : "Every hall leaves two animals to breed. Quarter and half reserves trade today's yield for a larger herd and faster recovery."}</p>
       </div>`
     : undefined;
   const remedyRows = building.kind === 'foragers_shed'

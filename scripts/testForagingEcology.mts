@@ -64,6 +64,7 @@ import {
 } from '../src/foraging/foragingYields.ts';
 import { forestDensityAt } from '../src/props/forestField.ts';
 import { MUSHROOM_ICON_HTML } from '../src/map/resourceMapIconArt.ts';
+import { resourceStockRingPresentation } from '../src/map/resourceStockRing.ts';
 import { createWorldLayout } from '../src/resources/WorldLayout.ts';
 import { createPhysicalDepositFootprints } from '../src/resources/physicalDepositProtection.ts';
 import { WorldLayoutRegistry } from '../src/resources/WorldLayoutRegistry.ts';
@@ -91,6 +92,22 @@ assert.ok(RESOURCE_KINDS.includes('mushrooms'));
 assert.equal(createEmptyStockpile().mushrooms, 0);
 assert.ok(MUSHROOMS_PER_HARVEST > 0);
 assert.equal(GAME_MIN_BREEDING_POPULATION, 2);
+assert.deepEqual(
+  resourceStockRingPresentation({ remaining: 20, maxYield: 20 }),
+  { fraction: 1, angleDegrees: 360, band: 'abundant' },
+);
+assert.deepEqual(
+  resourceStockRingPresentation({ remaining: 10, maxYield: 20 }),
+  { fraction: 0.5, angleDegrees: 180, band: 'steady' },
+);
+assert.deepEqual(
+  resourceStockRingPresentation({ remaining: 2, maxYield: 20 }),
+  { fraction: 0.1, angleDegrees: 36, band: 'low' },
+);
+assert.deepEqual(
+  resourceStockRingPresentation({ remaining: 0, maxYield: 20 }),
+  { fraction: 0, angleDegrees: 0, band: 'empty' },
+);
 
 assert.equal(foragingSeason(1), 'winter');
 assert.equal(foragingSeason(4), 'spring');
@@ -110,6 +127,18 @@ assert.equal(
 assert.equal(foragingRegrowthMultiplier('mushrooms', 1), 0);
 assert.deepEqual(HARVEST_RESERVE_PRESETS.map((preset) => preset.percent), [0, 25, 50]);
 assert.equal(normalizeHarvestReservePercent(255), 90);
+assert.equal(protectedWildStock('game', 12, 0), 2);
+assert.equal(
+  harvestableWildStock({ kind: 'game', remaining: 9, maxYield: 12 }, 0),
+  7,
+  'open game harvest must spare the breeding pair',
+);
+assert.equal(protectedWildStock('fish', 240, 0), 2);
+assert.equal(
+  harvestableWildStock({ kind: 'fish', remaining: 12, maxYield: 240 }, 0),
+  10,
+  'a rich shoal must retain breeding stock for renewable spring recovery',
+);
 assert.equal(protectedWildStock('game', 12, 25), 3);
 assert.equal(
   harvestableWildStock({ kind: 'game', remaining: 9, maxYield: 12 }, 25),
@@ -420,6 +449,18 @@ const lifecycle = readFileSync(
 );
 assert.match(lifecycle, /population_growth_per_second/);
 assert.match(lifecycle, /migrate_disrupted_game_habitats/);
+assert.match(lifecycle, /protected_wild_stock\("game", node\.max_yield, 0\)/);
+assert.match(lifecycle, /protected_wild_stock\("fish", node\.max_yield, 0\)/);
+assert.doesNotMatch(
+  lifecycle,
+  /node_kind == "game"\s*&&\s*node\.remaining > 0\.0/,
+  'disrupted legacy habitats must remain eligible to relocate while their breeding pair recolonizes',
+);
+assert.match(
+  lifecycle,
+  /resource_nodes\[node_index\]\.x = x;[\s\S]*resource_nodes\[node_index\]\.z = z;/,
+  'same-step migrations must reserve their new positions so herds cannot overlap',
+);
 assert.doesNotMatch(lifecycle, /\.delete\(/, 'persistent wild-resource nodes must never be deleted');
 
 const foodSupplier = readFileSync(
@@ -430,6 +471,30 @@ assert.match(foodSupplier, /&\["berries",\s*"mushrooms"\]/);
 assert.match(foodSupplier, /GAME_ANIMALS_PER_HARVEST/);
 assert.match(foodSupplier, /harvestable_wild_stock/);
 assert.match(foodSupplier, /building\.harvest_reserve_percent/);
+
+const mapIconStyles = readFileSync(
+  `${projectRoot}src/ui/mapIcons.css`,
+  'utf8',
+);
+assert.match(mapIconStyles, /::before[\s\S]*conic-gradient\([\s\S]*--resource-stock-angle/);
+assert.match(
+  mapIconStyles,
+  /foraging-map-icon\.resource-node-marker--rich::after\s*\{[\s\S]*?content:\s*'\\221E'/,
+  'rich renewable wild-food markers must retain their infinity badge',
+);
+
+for (const relativePath of [
+  'src/map/ForagingMapIcons.ts',
+  'src/map/QuarryMapIcons.ts',
+  'src/map/TerrainMinimapOverlay.ts',
+]) {
+  const markerSource = readFileSync(`${projectRoot}${relativePath}`, 'utf8');
+  assert.match(
+    markerSource,
+    /syncResourceStockRing/,
+    `${relativePath} must synchronize the shared at-a-glance stock ring`,
+  );
+}
 
 const harvestInspector = readFileSync(
   `${projectRoot}src/resources/inspector/harvestBuildingRenderer.ts`,

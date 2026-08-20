@@ -552,7 +552,7 @@ pub fn processor_input_dispatch_duty_for_target(
     processor_output_target_percent: u8,
 ) -> ProcessorInputDispatchDuty {
     if target_kind == "granary"
-        && matches!(commodity, "ryeFlour" | "oatFlour" | "maslinFlour")
+        && matches!(commodity, "ryeFlour" | "maslinFlour")
     {
         ProcessorInputDispatchDuty::CentralStorage
     } else {

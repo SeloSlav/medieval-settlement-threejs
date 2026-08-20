@@ -42,7 +42,7 @@ const buildingRow = rowWithDefaults({
   water: 18.4,
   gold: 6.75,
   ryeGrain: 11.5,
-  oatFlour: 4.99,
+  maslinFlour: 4.99,
   food: 3.25,
   constructionReservedTimber: 2.8,
   civicReceiptsGold: 1.9,
@@ -54,7 +54,7 @@ for (const amount of [
   building.water,
   building.gold,
   building.ryeGrain,
-  building.oatFlour,
+  building.maslinFlour,
   building.food,
   building.constructionReservedTimber,
   building.civicReceiptsGold,
@@ -63,7 +63,7 @@ for (const amount of [
 }
 assert.equal(building.timber, 9);
 assert.equal(building.ryeGrain, 11);
-assert.equal(building.oatFlour, 4);
+assert.equal(building.maslinFlour, 4);
 
 const tripRow = rowWithDefaults({
   id: 2n,

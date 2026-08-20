@@ -48,7 +48,6 @@ export type DirectProcessorInputCommodity =
   | 'barley'
   | 'firewood'
   | 'ryeFlour'
-  | 'oatFlour'
   | 'maslinFlour'
   | 'food'
   | 'preservedFood'
@@ -79,7 +78,6 @@ type ProcessorInputDestinationLike = Pick<
   | 'granaryAcceptsFreshFood'
   | 'weaverInputPolicy'
   | 'ryeFlour'
-  | 'oatFlour'
   | 'maslinFlour'
   | 'food'
   | 'preservedFood'
@@ -118,7 +116,6 @@ const TARGET_KINDS: Record<
     'potter_kiln',
   ],
   ryeFlour: ['bakery', 'granary'],
-  oatFlour: ['bakery', 'granary'],
   maslinFlour: ['bakery', 'granary'],
   food: ['smokehouse'],
   preservedFood: ['granary'],
@@ -168,7 +165,6 @@ export function directlyDispatchedProcessorInputPerCycle(
           return 0;
       }
     case 'ryeFlour':
-    case 'oatFlour':
     case 'maslinFlour':
       return targetKind === 'bakery' ? BAKERY_FLOUR_PER_CYCLE : 0;
     case 'food':
@@ -262,7 +258,7 @@ export function selectDirectProcessorInputTarget<
       continue;
     }
     const stock = processorInputCommodityStock(target, commodity);
-    const capacityKey = commodity === 'ryeFlour' || commodity === 'oatFlour' || commodity === 'maslinFlour'
+    const capacityKey = commodity === 'ryeFlour' || commodity === 'maslinFlour'
       ? 'flour'
       : commodity;
     const capacity = (BUILDING_STORAGE_CAPS[target.kind] as Record<string, number | undefined>)[
@@ -295,7 +291,6 @@ export function selectDirectProcessorInputTarget<
     if (toolRack && !civilianToolRefillDue(stock, capacity)) continue;
     const centralFlourStorage = (
       commodity === 'ryeFlour'
-      || commodity === 'oatFlour'
       || commodity === 'maslinFlour'
     ) && target.kind === 'granary';
     const duty: ProcessorInputDispatchDuty = toolRack
@@ -353,7 +348,7 @@ export function processorInputCommodityStock(
 ): number {
   if (commodity === 'food') return preservableFoodStock(inventory);
   if (commodity === 'preservedFood') return preservedFoodStock(inventory);
-  if (commodity === 'ryeFlour' || commodity === 'oatFlour' || commodity === 'maslinFlour') {
+  if (commodity === 'ryeFlour' || commodity === 'maslinFlour') {
     return Math.max(0, Number(inventory[commodity] ?? 0));
   }
   return Math.max(0, Number(inventory[commodity] ?? 0));
@@ -742,7 +737,6 @@ function directMaterialCommodityRank(
     case 'barley': return 6;
     case 'firewood': return 7;
     case 'ryeFlour': return 8;
-    case 'oatFlour': return 9;
     case 'maslinFlour': return 10;
     case 'food': return 11;
     case 'preservedFood': return 12;

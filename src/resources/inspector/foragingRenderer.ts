@@ -28,15 +28,20 @@ export function renderForagingInspector(
 
   let statusText: string;
   let statusState: InspectorView['statusState'] = 'active';
-  if (state.kind === 'fish' && depleted) {
+  if (state.kind === 'fish' && depleted && state.isRich === true) {
+    statusText = season === 'spring'
+      ? 'Recolonizing — the renewable shoal is rebuilding'
+      : 'Empty — the renewable shoal recolonizes in spring';
+    statusState = 'idle';
+  } else if (state.kind === 'fish' && depleted) {
     statusText = 'Extinct — no fish remain to reproduce';
     statusState = 'warning';
   } else if (state.kind === 'game' && depleted) {
-    statusText = 'Extinct — the habitat remains empty';
-    statusState = 'warning';
+    statusText = 'Recolonizing — a protected breeding pair will return';
+    statusState = 'idle';
   } else if (belowGameBreedingFloor) {
-    statusText = `${formatStock(state.kind, state.remaining, state.maxYield)} — below the two-animal breeding floor`;
-    statusState = 'warning';
+    statusText = `${formatStock(state.kind, state.remaining, state.maxYield)} — breeding pair recolonizing`;
+    statusState = 'idle';
   } else if (!available) {
     statusText = state.kind === 'fish'
       ? `${formatStock(state.kind, state.remaining, state.maxYield)} — frozen for winter`
@@ -51,7 +56,7 @@ export function renderForagingInspector(
     statusText = formatStock(state.kind, state.remaining, state.maxYield);
   }
 
-  const lifecycle = lifecycleDescription(state.kind);
+  const lifecycle = lifecycleDescription(state.kind, state.isRich === true);
   return {
     eyebrow: state.kind === 'fish' ? 'Water population' : 'Wild population',
     title: definition.label,
@@ -76,13 +81,16 @@ function richnessDetail(
   isRich: boolean,
 ): string {
   if (kind === 'fish') {
-    return `<li><span>Shoal</span><span>${isRich ? 'Rich population (1.75× catch)' : 'Small population'}</span></li>`;
+    return `<li><span>Shoal</span><span>${isRich ? 'Rich renewable population (1.75× catch)' : 'Small finite population'}</span></li>`;
   }
   if (kind === 'berries') {
-    return `<li><span>Thicket</span><span>${isRich ? 'Rich growth (1.5× harvest)' : 'Ordinary growth'}</span></li>`;
+    return `<li><span>Thicket</span><span>${isRich ? 'Rich renewable growth (1.5× harvest)' : 'Ordinary seasonal growth'}</span></li>`;
   }
   if (kind === 'game') {
-    return `<li><span>Habitat</span><span>${isRich ? 'Rich carrying capacity' : 'Ordinary carrying capacity'}</span></li>`;
+    return `<li><span>Habitat</span><span>${isRich ? 'Rich renewable herd' : 'Ordinary renewable herd'}</span></li>`;
+  }
+  if (kind === 'mushrooms') {
+    return `<li><span>Bed</span><span>${isRich ? 'Rich renewable seasonal growth' : 'Ordinary seasonal growth'}</span></li>`;
   }
   return '';
 }
@@ -98,10 +106,18 @@ function formatStock(
   return `${Math.max(0, remaining).toFixed(remaining < 10 ? 1 : 0)} / ${Math.round(maximum)}`;
 }
 
-function lifecycleDescription(kind: 'game' | 'berries' | 'mushrooms' | 'fish'): string {
-  if (kind === 'fish') return 'Spring reproduction from surviving fish; zero is permanent';
-  if (kind === 'game') return 'Herd-size reproduction; at least two animals required';
-  return 'Regrows in place during spring and summer';
+function lifecycleDescription(
+  kind: 'game' | 'berries' | 'mushrooms' | 'fish',
+  isRich: boolean,
+): string {
+  if (kind === 'fish') {
+    return isRich
+      ? 'Renewable spring reproduction; recolonizes after depletion'
+      : 'Spring reproduction from surviving fish; zero is permanent';
+  }
+  if (kind === 'game') return 'Breeding pair protected; herd-size reproduction';
+  if (kind === 'mushrooms') return 'Renewable spring–autumn regrowth; dormant in winter';
+  return 'Renewable spring and summer regrowth';
 }
 
 function capitalize(value: string): string {

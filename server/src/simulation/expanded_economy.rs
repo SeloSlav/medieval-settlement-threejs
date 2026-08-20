@@ -940,12 +940,11 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
-        const DISPATCHABLE_INPUTS: [CommodityKind; 28] = [
+        const DISPATCHABLE_INPUTS: [CommodityKind; 27] = [
             CommodityKind::RyeGrain,
             CommodityKind::OatGrain,
             CommodityKind::MaslinGrain,
             CommodityKind::RyeFlour,
-            CommodityKind::OatFlour,
             CommodityKind::MaslinFlour,
             CommodityKind::Barley,
             CommodityKind::Malt,
@@ -1129,7 +1128,6 @@ fn marketplace_material_commodity_rank(commodity: CommodityKind) -> u8 {
         | CommodityKind::OatGrain
         | CommodityKind::MaslinGrain
         | CommodityKind::RyeFlour
-        | CommodityKind::OatFlour
         | CommodityKind::MaslinFlour
         | CommodityKind::Barley
         | CommodityKind::Malt
@@ -1875,7 +1873,6 @@ pub fn step_granary(
                     CommodityKind::Eggs,
                     CommodityKind::Porridge,
                     CommodityKind::RyeBread,
-                    CommodityKind::OatBread,
                     CommodityKind::MaslinBread,
                     CommodityKind::Food,
                     CommodityKind::Cheese,
@@ -3880,13 +3877,10 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
 
 pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityKind) -> bool {
     // Oats leave the farmstead ready for households, livestock, or monastic
-    // hospitality. The former oat-flour chain remains only as save data.
+    // hospitality; mills accept only rye and maslin grain.
     if matches!(building.kind.as_str(), "watermill" | "windmill")
         && commodity == CommodityKind::OatGrain
     {
-        return false;
-    }
-    if building.kind == "bakery" && commodity == CommodityKind::OatFlour {
         return false;
     }
     if building.kind == "granary" && (commodity.is_fresh_food() || commodity.is_preserved_food()) {
@@ -4599,7 +4593,6 @@ fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'stat
         CommodityKind::Barley => Some("barley"),
         CommodityKind::Malt => Some("malt"),
         CommodityKind::RyeFlour => Some("ryeFlour"),
-        CommodityKind::OatFlour => Some("oatFlour"),
         CommodityKind::MaslinFlour => Some("maslinFlour"),
         CommodityKind::Food => Some("food"),
         CommodityKind::Meat => Some("meat"),

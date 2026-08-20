@@ -64,10 +64,8 @@ pub struct DeliveryCargoTotals {
     pub oat_grain: f64,
     pub maslin_grain: f64,
     pub rye_flour: f64,
-    pub oat_flour: f64,
     pub maslin_flour: f64,
     pub rye_bread: f64,
-    pub oat_bread: f64,
     pub maslin_bread: f64,
 }
 
@@ -123,10 +121,8 @@ impl DeliveryCargoTotals {
             CommodityKind::OatGrain => self.oat_grain += amount,
             CommodityKind::MaslinGrain => self.maslin_grain += amount,
             CommodityKind::RyeFlour => self.rye_flour += amount,
-            CommodityKind::OatFlour => self.oat_flour += amount,
             CommodityKind::MaslinFlour => self.maslin_flour += amount,
             CommodityKind::RyeBread => self.rye_bread += amount,
-            CommodityKind::OatBread => self.oat_bread += amount,
             CommodityKind::MaslinBread => self.maslin_bread += amount,
         }
     }
@@ -211,7 +207,7 @@ pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 17] = [
+    const FRESH_ORDER: [CommodityKind; 16] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -224,7 +220,6 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::Eggs,
         CommodityKind::Porridge,
         CommodityKind::RyeBread,
-        CommodityKind::OatBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
         CommodityKind::Food,
@@ -279,7 +274,7 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 21] = [
+    const ORDER: [CommodityKind; 20] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -292,7 +287,6 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::Eggs,
         CommodityKind::Porridge,
         CommodityKind::RyeBread,
-        CommodityKind::OatBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
         CommodityKind::Food,

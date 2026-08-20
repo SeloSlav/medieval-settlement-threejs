@@ -46,7 +46,7 @@ assert.equal(foodMealValue('honey'), 1.2);
 assert.equal(foodMealValue('apples'), 0.6);
 assert.equal(foodSpoilageMultiplier('honey'), 0);
 assert.ok(foodSpoilageMultiplier('milk') > foodSpoilageMultiplier('apples'));
-assert.equal(NAMED_FOOD_KINDS.length, 19);
+assert.equal(NAMED_FOOD_KINDS.length, 18);
 assert.equal(foodCategory('apples'), 'fruits');
 assert.equal(foodCategory('cherries'), 'fruits');
 assert.equal(foodCategory('vegetables'), 'vegetables');
@@ -108,11 +108,13 @@ for (let index = 0; index < typedCargoKinds.length; index += 1) {
   assert.notEqual(cargoKindLabel(kind), 'Food');
 }
 assert.equal(cargoKindFromId(27), null, 'removed generic bread id remains vacant');
+assert.equal(cargoKindFromId(50), null, 'removed oat flour id remains vacant');
+assert.equal(cargoKindFromId(53), null, 'removed oat bread id remains vacant');
 for (const [id, kind] of [
   [42, 'ryeSheaves'], [43, 'oatSheaves'], [44, 'barleySheaves'], [45, 'maslinSheaves'],
   [46, 'ryeGrain'], [47, 'oatGrain'], [48, 'maslinGrain'],
-  [49, 'ryeFlour'], [50, 'oatFlour'], [51, 'maslinFlour'],
-  [52, 'ryeBread'], [53, 'oatBread'], [54, 'maslinBread'],
+  [49, 'ryeFlour'], [51, 'maslinFlour'],
+  [52, 'ryeBread'], [54, 'maslinBread'],
 ] as const) {
   assert.equal(cargoKindFromId(id), kind);
   assert.notEqual(cargoKindLabel(kind), 'Food');
@@ -178,7 +180,7 @@ const nightCycleSource = readFileSync(
   'utf8',
 );
 assert.match(economySource, /CommodityKind::RyeBread/);
-assert.match(economySource, /CommodityKind::OatBread/);
+assert.doesNotMatch(economySource, /CommodityKind::OatBread|CommodityKind::OatFlour/);
 assert.match(economySource, /CommodityKind::MaslinBread/);
 assert.match(economySource, /kind == "smokehouse" && commodity\.is_preserved_food\(\)/);
 assert.match(tradeResourcesSource, /CommodityKind::Meat => TradeResource::Meat/);
