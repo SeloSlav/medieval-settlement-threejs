@@ -1,4 +1,4 @@
-export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'mead', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes', 'porridge', 'curedMeat', 'smokedFish', 'cheese'] as const;
+export const RESOURCE_KINDS = ['timber', 'stone', 'firewood', 'water', 'game', 'berries', 'mushrooms', 'fish', 'food', 'ryeSheaves', 'oatSheaves', 'barleySheaves', 'maslinSheaves', 'ryeGrain', 'oatGrain', 'maslinGrain', 'barley', 'malt', 'ryeFlour', 'maslinFlour', 'ale', 'cider', 'mead', 'preservedFood', 'honey', 'wine', 'wool', 'flax', 'cloth', 'ironwork', 'polearms', 'iron', 'clay', 'salt', 'charcoal', 'pottery', 'roofTiles', 'gold', 'ryeBread', 'maslinBread', 'meat', 'milk', 'apples', 'cherries', 'vegetables', 'eggs', 'grapes', 'curedMeat', 'smokedFish', 'cheese'] as const;
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 
 export const RESOURCE_NODE_KINDS = ['quarry', 'game', 'berries', 'mushrooms', 'fish'] as const;
@@ -123,7 +123,6 @@ export type BuildingState = {
   vegetables?: number;
   eggs?: number;
   grapes?: number;
-  porridge?: number;
   curedMeat?: number;
   smokedFish?: number;
   cheese?: number;
@@ -375,7 +374,6 @@ export type ResidenceState = {
   vegetables?: number;
   eggs?: number;
   grapes?: number;
-  porridge?: number;
   curedMeat?: number;
   smokedFish?: number;
   cheese?: number;
@@ -527,7 +525,7 @@ export type InspectableTarget =
     };
 
 export function createEmptyStockpile(): ResourceStockpile {
-  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, ryeSheaves: 0, oatSheaves: 0, barleySheaves: 0, maslinSheaves: 0, ryeGrain: 0, oatGrain: 0, maslinGrain: 0, barley: 0, malt: 0, ryeFlour: 0, maslinFlour: 0, ale: 0, cider: 0, mead: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, flax: 0, cloth: 0, ironwork: 0, polearms: 0, iron: 0, clay: 0, salt: 0, charcoal: 0, pottery: 0, roofTiles: 0, gold: 0, ryeBread: 0, maslinBread: 0, meat: 0, milk: 0, apples: 0, cherries: 0, vegetables: 0, eggs: 0, grapes: 0, porridge: 0, curedMeat: 0, smokedFish: 0, cheese: 0 };
+  return { timber: 0, stone: 0, firewood: 0, water: 0, game: 0, berries: 0, mushrooms: 0, fish: 0, food: 0, ryeSheaves: 0, oatSheaves: 0, barleySheaves: 0, maslinSheaves: 0, ryeGrain: 0, oatGrain: 0, maslinGrain: 0, barley: 0, malt: 0, ryeFlour: 0, maslinFlour: 0, ale: 0, cider: 0, mead: 0, preservedFood: 0, honey: 0, wine: 0, wool: 0, flax: 0, cloth: 0, ironwork: 0, polearms: 0, iron: 0, clay: 0, salt: 0, charcoal: 0, pottery: 0, roofTiles: 0, gold: 0, ryeBread: 0, maslinBread: 0, meat: 0, milk: 0, apples: 0, cherries: 0, vegetables: 0, eggs: 0, grapes: 0, curedMeat: 0, smokedFish: 0, cheese: 0 };
 }
 
 export function isResourceKind(value: string): value is ResourceKind {

@@ -107,7 +107,6 @@ export type ResourceTotals = {
   vegetables: number;
   eggs: number;
   grapes: number;
-  porridge: number;
   curedMeat: number;
   smokedFish: number;
   cheese: number;
@@ -251,7 +250,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let vegetables = ledger?.vegetables ?? 0;
   let eggs = ledger?.eggs ?? 0;
   let grapes = ledger?.grapes ?? 0;
-  let porridge = ledger?.porridge ?? 0;
   let curedMeat = ledger?.curedMeat ?? 0;
   let smokedFish = ledger?.smokedFish ?? 0;
   let cheese = ledger?.cheese ?? 0;
@@ -276,7 +274,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let reservedVegetables = 0;
   let reservedEggs = 0;
   let reservedGrapes = 0;
-  let reservedPorridge = 0;
   let reservedCuredMeat = 0;
   let reservedSmokedFish = 0;
   let reservedCheese = 0;
@@ -329,7 +326,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     vegetables += building.vegetables ?? 0;
     eggs += building.eggs ?? 0;
     grapes += building.grapes ?? 0;
-    porridge += building.porridge ?? 0;
     curedMeat += building.curedMeat ?? 0;
     smokedFish += building.smokedFish ?? 0;
     cheese += building.cheese ?? 0;
@@ -372,7 +368,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     const pantryVegetables = Math.max(0, residence.vegetables ?? 0);
     const pantryEggs = Math.max(0, residence.eggs ?? 0);
     const pantryGrapes = Math.max(0, residence.grapes ?? 0);
-    const pantryPorridge = Math.max(0, residence.porridge ?? 0);
     const pantryCuredMeat = Math.max(0, residence.curedMeat ?? 0);
     const pantrySmokedFish = Math.max(0, residence.smokedFish ?? 0);
     const pantryCheese = Math.max(0, residence.cheese ?? 0);
@@ -391,7 +386,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     vegetables += pantryVegetables;
     eggs += pantryEggs;
     grapes += pantryGrapes;
-    porridge += pantryPorridge;
     curedMeat += pantryCuredMeat;
     smokedFish += pantrySmokedFish;
     cheese += pantryCheese;
@@ -410,7 +404,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     reservedVegetables += pantryVegetables;
     reservedEggs += pantryEggs;
     reservedGrapes += pantryGrapes;
-    reservedPorridge += pantryPorridge;
     reservedCuredMeat += pantryCuredMeat;
     reservedSmokedFish += pantrySmokedFish;
     reservedCheese += pantryCheese;
@@ -437,7 +430,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + vegetables * foodMealValue('vegetables')
     + eggs * foodMealValue('eggs')
     + grapes * foodMealValue('grapes')
-    + porridge * foodMealValue('porridge')
     + storedPreservedFood
     + honey * foodMealValue('honey');
   cachedStoredTotals = {
@@ -489,7 +481,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     vegetables,
     eggs,
     grapes,
-    porridge,
     curedMeat,
     smokedFish,
     cheese,
@@ -514,7 +505,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   const surplusVegetables = Math.max(0, vegetables - reservedVegetables);
   const surplusEggs = Math.max(0, eggs - reservedEggs);
   const surplusGrapes = Math.max(0, grapes - reservedGrapes);
-  const surplusPorridge = Math.max(0, porridge - reservedPorridge);
   const surplusCuredMeat = Math.max(0, curedMeat - reservedCuredMeat);
   const surplusSmokedFish = Math.max(0, smokedFish - reservedSmokedFish);
   const surplusCheese = Math.max(0, cheese - reservedCheese);
@@ -535,7 +525,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     + surplusVegetables * foodMealValue('vegetables')
     + surplusEggs * foodMealValue('eggs')
     + surplusGrapes * foodMealValue('grapes')
-    + surplusPorridge * foodMealValue('porridge')
     + surplusPreservedFood
     + surplusHoney * foodMealValue('honey');
   cachedTotals = {
@@ -560,7 +549,6 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     vegetables: surplusVegetables,
     eggs: surplusEggs,
     grapes: surplusGrapes,
-    porridge: surplusPorridge,
     curedMeat: surplusCuredMeat,
     smokedFish: surplusSmokedFish,
     cheese: surplusCheese,
@@ -620,7 +608,6 @@ export function computeInTransitResourceTotals(
     + totals.vegetables * foodMealValue('vegetables')
     + totals.eggs * foodMealValue('eggs')
     + totals.grapes * foodMealValue('grapes')
-    + totals.porridge * foodMealValue('porridge')
     + totals.preservedFood
     + totals.honey * foodMealValue('honey');
   return totals;
@@ -955,7 +942,6 @@ function emptyResourceTotals(): ResourceTotals {
     vegetables: 0,
     eggs: 0,
     grapes: 0,
-    porridge: 0,
     curedMeat: 0,
     smokedFish: 0,
     cheese: 0,
