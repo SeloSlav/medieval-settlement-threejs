@@ -80,10 +80,6 @@ import {
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { mineralDepositBeneath } from '../economy/settlementGeology.ts';
 import {
-  monasteryFeastReserve,
-  monasteryFeastSurplus,
-} from '../economy/monasteryHospitality.ts';
-import {
   areRoadConnected,
   formatRoadAccess,
   hasRoadAccess as roadHasRoadAccess,
@@ -484,21 +480,7 @@ export class WorldQueries {
       network,
       buildings,
       residences,
-      (supplier, residence, distance) =>
-        (
-          supplier.kind !== 'monastery'
-          || (
-            monasteryFeastSurplus(
-              Math.max(0, edibleFoodStock(supplier) - supplier.honey),
-              monasteryFeastReserve('food'),
-              reserveEnabled,
-            ) > 1e-6
-            && distance <= MONASTERY_COVERAGE_RADIUS
-            && !fireDisabled.has(supplier.id)
-            && findServingChapel(residence, chapels, probe) != null
-            && monasteryLinkedToChapel(supplier, chapels, probe)
-          )
-        ),
+      (supplier) => supplier.kind !== 'monastery',
     );
   }
 
@@ -996,28 +978,7 @@ export class WorldQueries {
       this.fireEnabledBuildings(state),
       network,
       'ale',
-      (building, distance) =>
-        (
-          building.kind !== 'monastery'
-          || (
-            (
-              !requireStock
-              || monasteryFeastSurplus(
-                building.ale,
-                monasteryFeastReserve('ale'),
-                reserveEnabled,
-              ) > 1e-6
-            )
-            && hasParishAccess
-            && distance <= MONASTERY_COVERAGE_RADIUS
-            && !fireDisabled.has(building.id)
-            && monasteryLinkedToChapel(
-              building,
-              chapels,
-              (a, b, c, d) => roadPathDistance(network, a, b, c, d),
-            )
-          )
-        ),
+      (building) => building.kind !== 'monastery',
     );
   }
 
