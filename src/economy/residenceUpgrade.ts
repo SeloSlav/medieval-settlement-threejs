@@ -135,7 +135,7 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       stone: RESIDENCE_TIER3_STONE_COST,
       gold: RESIDENCE_TIER3_GOLD_COST,
       serviceKinds: ['preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
-      addedNeeds: 'Adds a third food category, ale, preserved food, pottery, and a stone-church standard',
+      addedNeeds: 'Adds a third food category, beverages, preserved food, pottery, and a stone-church standard',
     };
   }
   return null;
@@ -145,7 +145,7 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
   firewood: 'Firewood',
   water: 'Water',
   preservedFood: 'Preserved food',
-  ale: 'Ale',
+  ale: 'Beverages',
   cloth: 'Cloth',
   pottery: 'Pottery',
   church: 'Church access',

@@ -79,6 +79,8 @@ export type ResourceTotals = {
   oatFlour: number;
   maslinFlour: number;
   ale: number;
+  cider: number;
+  mead: number;
   preservedFood: number;
   honey: number;
   wine: number;
@@ -138,6 +140,8 @@ export const HUD_RESOURCE_KINDS = [
   'oatFlour',
   'maslinFlour',
   'ale',
+  'cider',
+  'mead',
   'preservedFood',
   'honey',
   'wine',
@@ -222,6 +226,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
   let oatFlour = ledger?.oatFlour ?? 0;
   let maslinFlour = ledger?.maslinFlour ?? 0;
   let ale = ledger?.ale ?? 0;
+  let cider = ledger?.cider ?? 0;
+  let mead = ledger?.mead ?? 0;
   let legacyPreservedFood = ledger?.preservedFood ?? 0;
   let honey = ledger?.honey ?? 0;
   let wine = ledger?.wine ?? 0;
@@ -301,6 +307,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     oatFlour += building.oatFlour ?? 0;
     maslinFlour += building.maslinFlour ?? 0;
     ale += building.ale;
+    cider += building.cider ?? 0;
+    mead += building.mead ?? 0;
     legacyPreservedFood += building.preservedFood;
     honey += building.honey;
     wine += building.wine;
@@ -465,6 +473,8 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     oatFlour,
     maslinFlour,
     ale,
+    cider,
+    mead,
     preservedFood: storedPreservedFood,
     honey,
     wine,
@@ -935,6 +945,8 @@ function emptyResourceTotals(): ResourceTotals {
     oatFlour: 0,
     maslinFlour: 0,
     ale: 0,
+    cider: 0,
+    mead: 0,
     preservedFood: 0,
     honey: 0,
     wine: 0,

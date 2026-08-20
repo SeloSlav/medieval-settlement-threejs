@@ -505,7 +505,9 @@ function createCompactChurchMesh(tier: 1 | 2): THREE.Group {
   const wallMaterial = stoneTier
     ? stoneMaterial('light')
     : timberMaterial('weathered');
-  const roofMaterial = sharedBuildingMaterial('clayRed');
+  const roofMaterial = stoneTier
+    ? sharedBuildingMaterial('clayRed')
+    : sharedBuildingMaterial('shingle');
 
   addMesh(
     group,

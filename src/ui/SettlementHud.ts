@@ -523,6 +523,16 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>
       </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="cider" data-tooltip="Apple beverage served by staffed Taverns.">
+        <span class="settlement-hud__label">Cider</span>
+        <strong class="settlement-hud__value" data-stockpile="cider">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="cider" hidden></span>
+      </div>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="mead" data-tooltip="Honey beverage served by staffed Taverns.">
+        <span class="settlement-hud__label">Mead</span>
+        <strong class="settlement-hud__value" data-stockpile="mead">0</strong>
+        <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="mead" hidden></span>
+      </div>
       <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="preservedFood" data-tooltip="Long-lasting food for winter and shortages.">
         <span class="settlement-hud__label">Preserved</span>
         <strong class="settlement-hud__value" data-stockpile="preservedFood">0</strong>

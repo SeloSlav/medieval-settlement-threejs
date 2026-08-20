@@ -418,7 +418,7 @@ export function createSmithyMesh(): THREE.Group {
     wallHeight: 2.55,
     ridgeHeight: 1.45,
     wallMaterial: sharedBuildingMaterial('plasterGrey'),
-    roofMaterial: sharedBuildingMaterial('clayDark'),
+    roofMaterial: sharedBuildingMaterial('shingle'),
     centerX: -0.8,
     centerZ: -0.45,
     stoneGroundFloor: true,
@@ -619,7 +619,7 @@ export function createPotterKilnMesh(): THREE.Group {
     wallHeight: 2.35,
     ridgeHeight: 1.35,
     wallMaterial: sharedBuildingMaterial('plasterOrange'),
-    roofMaterial: sharedBuildingMaterial('clayRed'),
+    roofMaterial: sharedBuildingMaterial('shingle'),
     centerX: -1.15,
     centerZ: -0.35,
   });

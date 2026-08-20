@@ -257,6 +257,10 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         construction_treasury_timber: 0.0,
         construction_treasury_stone: 0.0,
         construction_treasury_ironwork: 0.0,
+        construction_required_roof_tiles: 0.0,
+        construction_delivered_roof_tiles: 0.0,
+        construction_reserved_roof_tiles: 0.0,
+        construction_treasury_roof_tiles: 0.0,
         granary_accepts_fresh_food: true,
         granary_households_first: false,
         construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
@@ -346,6 +350,9 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         maslin_bread: resources.maslin_bread.max(0.0),
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
         fire_repair_active: false,
+        cider: resources.cider.max(0.0),
+        mead: resources.mead.max(0.0),
+        brewery_recipe_policy: crate::brewery_recipe_policy::BREWERY_RECIPE_ALE,
     });
 
     resources.timber = 0.0;
@@ -354,6 +361,8 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.water = 0.0;
     resources.food = 0.0;
     resources.ale = 0.0;
+    resources.cider = 0.0;
+    resources.mead = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wine = 0.0;

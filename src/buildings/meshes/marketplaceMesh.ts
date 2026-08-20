@@ -10,8 +10,8 @@ import {
   residenceFacadeMaterial,
   sharedBuildingDetailMaterial,
   sharedBuildingMaterial,
+  shingleMaterial,
   stoneMaterial,
-  tileMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
 import {
@@ -492,7 +492,7 @@ function addWineCask(group: THREE.Group, scale: number): void {
   addMesh(
     group,
     new THREE.CylinderGeometry(0.055 * scale, 0.055 * scale, 0.045 * scale, 8),
-    tileMaterial(1),
+    timberMaterial('dark'),
     new THREE.Vector3(0, 0.625 * scale, 0),
   );
 }
@@ -811,7 +811,7 @@ export function createMarketplaceMesh(): THREE.Group {
     addMesh(
       group,
       new THREE.BoxGeometry(slope, 0.14, depth + 0.58),
-      tileMaterial(side > 0 ? 0 : 1),
+      shingleMaterial(),
       new THREE.Vector3(side * halfW * 0.46, wallTop + ridgeHeight * 0.48, 0),
       new THREE.Euler(0, 0, side * -pitch),
     );
@@ -820,7 +820,7 @@ export function createMarketplaceMesh(): THREE.Group {
       addMesh(
         group,
         new THREE.BoxGeometry(0.07, 0.055, depth + 0.6),
-        tileMaterial(row % 2 === 0 ? 0 : 1),
+        shingleMaterial(),
         new THREE.Vector3(side * halfW * (1 - t), wallTop + ridgeHeight * t + 0.02, 0),
         new THREE.Euler(0, 0, side * -pitch),
       );
@@ -829,7 +829,7 @@ export function createMarketplaceMesh(): THREE.Group {
   addMesh(
     group,
     new THREE.BoxGeometry(0.24, 0.18, depth + 0.72),
-    tileMaterial(2),
+    shingleMaterial(),
     new THREE.Vector3(0, wallTop + ridgeHeight + 0.04, 0),
   );
   for (const zSign of [-1, 1] as const) {

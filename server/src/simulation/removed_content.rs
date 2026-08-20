@@ -55,21 +55,31 @@ pub fn retire_removed_buildings(ctx: &ReducerContext) {
             } else {
                 building.construction_delivered_ironwork
             };
+        building.roof_tiles += cargo.roof_tiles
+            + if complete {
+                0.0
+            } else {
+                building.construction_delivered_roof_tiles
+            };
         building.gold += cargo.gold;
         building.construction_complete = true;
         building.construction_progress = 1.0;
         building.construction_required_timber = 0.0;
         building.construction_required_stone = 0.0;
         building.construction_required_ironwork = 0.0;
+        building.construction_required_roof_tiles = 0.0;
         building.construction_delivered_timber = 0.0;
         building.construction_delivered_stone = 0.0;
         building.construction_delivered_ironwork = 0.0;
+        building.construction_delivered_roof_tiles = 0.0;
         building.construction_reserved_timber = 0.0;
         building.construction_reserved_stone = 0.0;
         building.construction_reserved_ironwork = 0.0;
+        building.construction_reserved_roof_tiles = 0.0;
         building.construction_treasury_timber = 0.0;
         building.construction_treasury_stone = 0.0;
         building.construction_treasury_ironwork = 0.0;
+        building.construction_treasury_roof_tiles = 0.0;
         building.civic_receipts_gold = 0.0;
         building.private_export_proceeds_gold = 0.0;
         ctx.db.building().id().update(building);

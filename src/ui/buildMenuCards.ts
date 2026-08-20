@@ -6,7 +6,7 @@ import { renderBuildingResourceCost, type ResourceCostKind } from './resourceCos
 export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
   | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'marketplace' | 'trading-post'
-  | 'threshing-barn' | 'monastery' | 'brewery' | 'smokehouse'
+  | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter' | 'vineyard'
   | 'weaver'
   | 'pastoral-farmstead' | 'swineherd'
@@ -42,6 +42,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   palisaded_refuge: '/assets/ui/build-menu/cards/palisaded-refuge.webp',
   threshing_barn: '/assets/ui/build-menu/cards/threshing-barn.webp',
   monastery: '/assets/ui/build-menu/cards/monastery.webp', brewery: '/assets/ui/build-menu/cards/brewery.webp',
+  tavern: '/assets/ui/build-menu/cards/brewery.webp',
   smokehouse: '/assets/ui/build-menu/cards/smokehouse.webp', granary: '/assets/ui/build-menu/cards/granary.webp',
   bakery: '/assets/ui/build-menu/cards/bakery.webp',
   apiary: '/assets/ui/build-menu/cards/apiary.webp', watermill: '/assets/ui/build-menu/cards/watermill.webp',
@@ -100,7 +101,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   windmill: ['Grain windmill', 'I', 'Grinds rye, oats, or maslin into matching flour wherever wind is strong. Smith-dressed millstones and maintained iron fittings raise output.', flow(['ryeGrain', 'oatGrain', 'maslinGrain'], ['ryeFlour', 'oatFlour', 'maslinFlour'])],
   granary: ['Village granary', 'N', 'Collects and distributes food; it does not process it.'],
   bakery: ['Village bakery', 'B', 'Bakes rye, oat, or maslin flour into matching bread.', flow(['ryeFlour', 'oatFlour', 'maslinFlour', 'water', 'firewood'], ['ryeBread', 'oatBread', 'maslinBread'])],
-  brewery: ['Brewhouse', 'A', 'Turns barley, water, and firewood into ale.', flow(['barley', 'water', 'firewood'], ['ale'])],
+  brewery: ['Brewhouse', 'A', 'Brews ale from barley, cider from apples, or mead from honey.', flow(['barley', 'apples', 'honey', 'water', 'firewood'], ['ale', 'cider', 'mead'])],
+  tavern: ['Tavern', 'J', 'Receives ale, cider, or mead and serves the household Beverage requirement.', flow(['ale', 'cider', 'mead'], [])],
   smokehouse: ['Smokehouse', 'Q', 'Uses firewood, salt, and pottery to preserve fresh food.', flow(['food', 'firewood', 'salt', 'pottery'], ['preservedFood'])],
   apiary: ['Forest apiary', 'A', 'Produces honey during the warm season.', flow([], ['honey'])],
   carpenter: ['Carpenter & wheelwright', 'R', 'Uses timber and ironwork to reduce building costs and speed delivery carts.'],
@@ -122,7 +124,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
 
 /** Housing, services, institutions, trade, transport, and shared storage. */
 export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
+  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
 ];
 
 /** Sites whose crews gather raw resources from the landscape. */

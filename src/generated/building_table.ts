@@ -143,4 +143,8 @@ export default __t.row({
   fireRepairActive: __t.bool().name("fire_repair_active"),
   storehouseAcceptsCharcoal: __t.bool().name("storehouse_accepts_charcoal"),
   storehouseCharcoalTargetPercent: __t.u8().name("storehouse_charcoal_target_percent"),
+  constructionRequiredRoofTiles: __t.f64().name("construction_required_roof_tiles"),
+  constructionDeliveredRoofTiles: __t.f64().name("construction_delivered_roof_tiles"),
+  constructionReservedRoofTiles: __t.f64().name("construction_reserved_roof_tiles"),
+  constructionTreasuryRoofTiles: __t.f64().name("construction_treasury_roof_tiles"),
 });

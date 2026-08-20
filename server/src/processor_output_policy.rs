@@ -36,6 +36,8 @@ pub enum ProcessorInputKind {
     Iron,
     Charcoal,
     Clay,
+    Apples,
+    Honey,
 }
 
 pub fn processor_output_kind(kind: &str) -> Option<ProcessorOutputKind> {
@@ -58,7 +60,7 @@ pub fn processor_input_kinds(kind: &str) -> &'static [ProcessorInputKind] {
     match kind {
         "watermill" | "windmill" => &[Grain],
         "bakery" => &[Flour, Water, Firewood],
-        "brewery" => &[Barley, Water, Firewood],
+        "brewery" => &[Barley, Water, Firewood, Apples, Honey],
         "smokehouse" => &[Food, Firewood, Salt, Pottery],
         "weaver" => &[Wool, Flax, Water],
         "charcoal_burner" => &[Firewood],
@@ -223,7 +225,10 @@ mod tests {
         assert_eq!(processor_input_kinds("windmill"), &[Grain]);
         assert_eq!(processor_input_kinds("bakery"), &[Flour, Water, Firewood]);
         assert!(processor_input_kinds("granary").is_empty());
-        assert_eq!(processor_input_kinds("brewery"), &[Barley, Water, Firewood]);
+        assert_eq!(
+            processor_input_kinds("brewery"),
+            &[Barley, Water, Firewood, Apples, Honey]
+        );
         assert_eq!(
             processor_input_kinds("smokehouse"),
             &[Food, Firewood, Salt, Pottery]

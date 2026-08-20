@@ -23,6 +23,7 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::OatBread => TradeResource::OatBread,
         CommodityKind::MaslinBread => TradeResource::MaslinBread,
         CommodityKind::Ale => TradeResource::Ale,
+        CommodityKind::Cider | CommodityKind::Mead => return None,
         CommodityKind::PreservedFood => TradeResource::PreservedFood,
         CommodityKind::Honey => TradeResource::Honey,
         CommodityKind::Wine => TradeResource::Wine,

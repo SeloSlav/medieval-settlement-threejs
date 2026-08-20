@@ -10,8 +10,8 @@ use crate::db::*;
 use crate::economy::{
     available_building_labor, building_cost, construction_treasury_reservation_excluding_building,
     guardhouse_roster_count, initial_construction_labor, reconcile_building_labor,
-    spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_stone, total_timber,
-    CommodityKind,
+    spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
+    total_timber, CommodityKind,
 };
 use crate::fire_recovery_policy::{fire_recovery_cost, FireRecoveryCost};
 use crate::lifecycle::ensure_player_resources;
@@ -105,6 +105,7 @@ fn repair_building(
         base.timber,
         base.stone,
         base.ironwork,
+        base.roof_tiles,
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
@@ -114,16 +115,19 @@ fn repair_building(
     let onsite_timber = building.timber.min(cost.timber);
     let onsite_stone = building.stone.min(cost.stone);
     let onsite_ironwork = building.ironwork.min(cost.ironwork);
+    let onsite_roof_tiles = building.roof_tiles.min(cost.roof_tiles);
     let remaining_timber = (cost.timber - onsite_timber).max(0.0);
     let remaining_stone = (cost.stone - onsite_stone).max(0.0);
     let remaining_ironwork = (cost.ironwork - onsite_ironwork).max(0.0);
-    let (treasury_timber, treasury_stone, treasury_ironwork) =
+    let remaining_roof_tiles = (cost.roof_tiles - onsite_roof_tiles).max(0.0);
+    let (treasury_timber, treasury_stone, treasury_ironwork, treasury_roof_tiles) =
         construction_treasury_reservation_excluding_building(
             ctx,
             owner,
             remaining_timber,
             remaining_stone,
             remaining_ironwork,
+            remaining_roof_tiles,
             building.id,
         );
     let available_for_repair =
@@ -132,6 +136,7 @@ fn repair_building(
     building.timber -= onsite_timber;
     building.stone -= onsite_stone;
     building.ironwork -= onsite_ironwork;
+    building.roof_tiles -= onsite_roof_tiles;
     building.assigned_labor = initial_construction_labor(available_for_repair);
     building.action_cooldown = 0.0;
     building.construction_complete = false;
@@ -140,15 +145,19 @@ fn repair_building(
     building.construction_required_timber = cost.timber;
     building.construction_required_stone = cost.stone;
     building.construction_required_ironwork = cost.ironwork;
+    building.construction_required_roof_tiles = cost.roof_tiles;
     building.construction_delivered_timber = onsite_timber;
     building.construction_delivered_stone = onsite_stone;
     building.construction_delivered_ironwork = onsite_ironwork;
+    building.construction_delivered_roof_tiles = onsite_roof_tiles;
     building.construction_reserved_timber = remaining_timber;
     building.construction_reserved_stone = remaining_stone;
     building.construction_reserved_ironwork = remaining_ironwork;
+    building.construction_reserved_roof_tiles = remaining_roof_tiles;
     building.construction_treasury_timber = treasury_timber;
     building.construction_treasury_stone = treasury_stone;
     building.construction_treasury_ironwork = treasury_ironwork;
+    building.construction_treasury_roof_tiles = treasury_roof_tiles;
     ctx.db.building().id().update(building);
     clear_fire_for_target(ctx, FIRE_TARGET_BUILDING, incident.target_id);
     Ok(())
@@ -181,6 +190,7 @@ fn repair_residence(
     let cost = fire_recovery_cost(
         base_timber,
         base_stone,
+        0.0,
         0.0,
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
@@ -292,6 +302,12 @@ fn ensure_recovery_resources(
         return Err(format!(
             "Not enough ironwork fittings for repairs (need {:.1}).",
             cost.ironwork
+        ));
+    }
+    if total_roof_tiles(ctx, owner) + 1e-6 < cost.roof_tiles {
+        return Err(format!(
+            "Not enough fired roof tiles for repairs (need {:.1}).",
+            cost.roof_tiles
         ));
     }
     Ok(())

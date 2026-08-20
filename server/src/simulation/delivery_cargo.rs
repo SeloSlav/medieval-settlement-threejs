@@ -20,6 +20,8 @@ pub struct DeliveryCargoTotals {
     pub water: f64,
     pub food: f64,
     pub ale: f64,
+    pub cider: f64,
+    pub mead: f64,
     pub preserved_food: f64,
     pub honey: f64,
     pub wine: f64,
@@ -77,6 +79,8 @@ impl DeliveryCargoTotals {
             CommodityKind::Water => self.water += amount,
             CommodityKind::Food => self.food += amount,
             CommodityKind::Ale => self.ale += amount,
+            CommodityKind::Cider => self.cider += amount,
+            CommodityKind::Mead => self.mead += amount,
             CommodityKind::PreservedFood => self.preserved_food += amount,
             CommodityKind::Honey => self.honey += amount,
             CommodityKind::Wine => self.wine += amount,
@@ -135,7 +139,7 @@ pub fn building_delivery_stock(building: &Building, kind: ResidenceNeedKind) -> 
         }
         ResidenceNeedKind::Water => building.water,
         ResidenceNeedKind::Food => building_edible_food_stock(building),
-        ResidenceNeedKind::Ale => building.ale,
+        ResidenceNeedKind::Ale => building.ale + building.cider + building.mead,
         ResidenceNeedKind::PreservedFood => building_preserved_food_stock(building),
         ResidenceNeedKind::Cloth => building.cloth,
         ResidenceNeedKind::Pottery => building.pottery,
@@ -174,7 +178,19 @@ pub fn withdraw_delivery_cargo(
         ResidenceNeedKind::Food => selected_food_delivery_commodity(building, kind)
             .map(|commodity| withdraw_building_commodity(building, commodity, amount))
             .unwrap_or(0.0),
-        ResidenceNeedKind::Ale => withdraw_building_commodity(building, CommodityKind::Ale, amount),
+        ResidenceNeedKind::Ale => {
+            let mut remaining = amount.max(0.0);
+            let mut withdrawn = 0.0;
+            for beverage in [CommodityKind::Ale, CommodityKind::Cider, CommodityKind::Mead] {
+                let used = withdraw_building_commodity(building, beverage, remaining);
+                withdrawn += used;
+                remaining = (remaining - used).max(0.0);
+                if remaining <= 1e-9 {
+                    break;
+                }
+            }
+            withdrawn
+        }
         ResidenceNeedKind::PreservedFood => selected_food_delivery_commodity(building, kind)
             .map(|commodity| withdraw_building_commodity(building, commodity, amount))
             .unwrap_or(0.0),

@@ -1696,6 +1696,9 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::Ironwork => {
             (site.construction_reserved_ironwork - site.construction_treasury_ironwork).max(0.0)
         }
+        CommodityKind::RoofTiles => {
+            (site.construction_reserved_roof_tiles - site.construction_treasury_roof_tiles).max(0.0)
+        }
         _ => 0.0,
     };
     let storehouse_workers = if origin.kind == "village_storehouse" {
@@ -1723,6 +1726,7 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::Timber => "timber",
         CommodityKind::Stone => "stone",
         CommodityKind::Ironwork => "ironwork",
+        CommodityKind::RoofTiles => "roofTiles",
         _ => "",
     };
     let load = construction_source_available_stock(
@@ -1759,6 +1763,10 @@ pub fn try_start_construction_supply_trip(
         CommodityKind::Ironwork => {
             site.construction_reserved_ironwork =
                 (site.construction_reserved_ironwork - withdrawn).max(0.0)
+        }
+        CommodityKind::RoofTiles => {
+            site.construction_reserved_roof_tiles =
+                (site.construction_reserved_roof_tiles - withdrawn).max(0.0)
         }
         _ => return false,
     }
@@ -2457,6 +2465,14 @@ fn unload_commodity_to_building(
                 target.construction_delivered_ironwork += amount;
                 amount
             }
+            CommodityKind::RoofTiles => {
+                let room = (target.construction_required_roof_tiles
+                    - target.construction_delivered_roof_tiles)
+                    .max(0.0);
+                let amount = trip.amount.min(room);
+                target.construction_delivered_roof_tiles += amount;
+                amount
+            }
             _ => 0.0,
         };
         if deposited > 1e-6 {
@@ -2695,6 +2711,9 @@ fn restore_trip_target_reservation(ctx: &ReducerContext, trip: &DeliveryTrip) {
                     CommodityKind::Timber => site.construction_reserved_timber += trip.amount,
                     CommodityKind::Stone => site.construction_reserved_stone += trip.amount,
                     CommodityKind::Ironwork => site.construction_reserved_ironwork += trip.amount,
+                    CommodityKind::RoofTiles => {
+                        site.construction_reserved_roof_tiles += trip.amount
+                    }
                     _ => {}
                 }
                 ctx.db.building().id().update(site);

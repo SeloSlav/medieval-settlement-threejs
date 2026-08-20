@@ -97,6 +97,11 @@ pub fn step_market_household_distribution(
         })
         .collect();
     for need_kind in MARKET_NEEDS {
+        let distribution_kind = if need_kind == ResidenceNeedKind::Ale {
+            "tavern"
+        } else {
+            "marketplace"
+        };
         // Scan residences once per need and group the cached claims by source.
         // This keeps distribution proportional to homes plus active stalls,
         // rather than multiplying a whole residence scan by every market.
@@ -145,8 +150,9 @@ pub fn step_market_household_distribution(
             let Some(market) = ctx.db.building().id().find(&market_id) else {
                 continue;
             };
-            if market.kind != "marketplace"
+            if market.kind != distribution_kind
                 || !market.construction_complete
+                || (need_kind == ResidenceNeedKind::Ale && market.assigned_labor == 0)
                 || tick.building_disabled_by_fire(ctx, market.id)
                 || market_stock(&market, need_kind) <= 1e-9
             {
@@ -171,8 +177,9 @@ pub fn step_market_household_distribution(
             .building()
             .iter()
             .filter(|building| {
-                building.kind == "marketplace"
+                building.kind == distribution_kind
                     && building.construction_complete
+                    && (need_kind != ResidenceNeedKind::Ale || building.assigned_labor > 0)
                     && !tick.building_disabled_by_fire(ctx, building.id)
                     && market_stock(building, need_kind) > 1e-9
             })

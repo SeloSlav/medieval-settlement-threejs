@@ -14,6 +14,8 @@ export const DELIVERY_CARGO_KINDS = [
   'food',
   'timber',
   'ale',
+  'cider',
+  'mead',
   'preservedFood',
   'honey',
   'wine',
@@ -349,6 +351,10 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'oatBread';
     case 54:
       return 'maslinBread';
+    case 55:
+      return 'cider';
+    case 56:
+      return 'mead';
     default:
       return null;
   }
@@ -420,6 +426,10 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Maslin flour';
     case 'ale':
       return 'Ale';
+    case 'cider':
+      return 'Cider';
+    case 'mead':
+      return 'Mead';
     case 'preservedFood':
       return 'Mixed preserved provisions (legacy)';
     case 'ryeBread':
@@ -889,6 +899,10 @@ export function cargoColor(kind: DeliveryCargoKind): number {
       return 0xe8dcc8;
     case 'ale':
       return 0xb8860b;
+    case 'cider':
+      return 0xc27c32;
+    case 'mead':
+      return 0xd4a017;
     case 'preservedFood':
     case 'curedMeat':
     case 'smokedFish':

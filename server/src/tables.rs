@@ -331,6 +331,12 @@ pub struct PlayerResources {
     /// the former automatic one-day emergency behavior.
     #[default(1u8)]
     pub pantry_safeguard_policy: u8,
+    /// Fermented orchard drink recovered from demolished stores or interrupted hauling.
+    #[default(0.0)]
+    pub cider: f64,
+    /// Honey wine recovered from demolished stores or interrupted hauling.
+    #[default(0.0)]
+    pub mead: f64,
 }
 
 #[spacetimedb::table(accessor = quarry, public)]
@@ -791,6 +797,26 @@ pub struct Building {
     /// a useful transfer cache without turning every depot into a huge fuel sink.
     #[default(25u8)]
     pub storehouse_charcoal_target_percent: u8,
+    /// Fired-clay roofing required, delivered, reserved, and backed by the
+    /// legacy pre-founding-site ledger for a construction site. Appended as a
+    /// save-compatible group after every previously deployed Building column.
+    #[default(0.0)]
+    pub construction_required_roof_tiles: f64,
+    #[default(0.0)]
+    pub construction_delivered_roof_tiles: f64,
+    #[default(0.0)]
+    pub construction_reserved_roof_tiles: f64,
+    #[default(0.0)]
+    pub construction_treasury_roof_tiles: f64,
+    /// Fermented orchard drink held by brewhouses, taverns, and haulers.
+    #[default(0.0)]
+    pub cider: f64,
+    /// Honey wine held by brewhouses, taverns, and haulers.
+    #[default(0.0)]
+    pub mead: f64,
+    /// Brewhouse active recipe: 0 ale, 1 cider, 2 mead, 3 automatic.
+    #[default(0u8)]
+    pub brewery_recipe_policy: u8,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

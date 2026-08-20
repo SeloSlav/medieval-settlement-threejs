@@ -1,7 +1,7 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{
-    MONASTERY_COVERAGE_RADIUS, RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST,
+    RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST,
     RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY,
     RESIDENCE_TIER3_GOLD_COST, RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST,
     RESIDENCE_TILE_ROOF_SALVAGE_FRACTION, RESIDENCE_TILE_ROOF_TILE_COST,
@@ -40,7 +40,7 @@ use crate::simulation::{
 };
 use crate::supply_policy::{
     is_firewood_supplier_operational, is_specialty_supplier_operational,
-    is_well_supplier_operational, ALE_PRODUCER_KINDS, CLOTH_PRODUCER_KINDS, POTTERY_PRODUCER_KINDS,
+    is_well_supplier_operational, CLOTH_PRODUCER_KINDS, POTTERY_PRODUCER_KINDS,
     PRESERVED_FOOD_PRODUCER_KINDS,
 };
 use crate::tables::{farm_field, BurgageZone, Residence};
@@ -706,26 +706,12 @@ fn has_connected_services(
         .filter(&residence.owner)
         .filter(|building| building_fire_state(ctx, building.id).is_none())
         .collect();
-    let staffed_chapels: Vec<_> = buildings
-        .iter()
-        .filter(|building| {
-            building.kind == "chapel"
-                && building.construction_complete
-                && building.assigned_labor > 0
-        })
-        .collect();
-    let residence_has_parish = staffed_chapels.iter().any(|chapel| {
-        network
-            .road_path_distance(residence.x, residence.z, chapel.x, chapel.z)
-            .is_some()
-    });
-
     required_services.iter().all(|service| {
         if let ResidenceUpgradeService::FoodVariety(required) = service {
             return residence_food_variety_count(residence) >= *required;
         }
         buildings.iter().any(|building| {
-            let Some(distance) =
+            let Some(_distance) =
                 local_delivery_distance(&network, building.x, building.z, residence.x, residence.z)
             else {
                 return false;
@@ -759,22 +745,9 @@ fn has_connected_services(
                         )
                 }
                 ResidenceUpgradeService::Ale => {
-                    ALE_PRODUCER_KINDS.contains(&building.kind.as_str())
-                        && is_specialty_supplier_operational(
-                            &building.kind,
-                            building.construction_complete,
-                            building.assigned_labor,
-                        )
-                        && (building.kind != "monastery"
-                            || (residence_has_parish
-                                && distance <= MONASTERY_COVERAGE_RADIUS
-                                && staffed_chapels.iter().any(|chapel| {
-                                    network
-                                        .road_path_distance(
-                                            building.x, building.z, chapel.x, chapel.z,
-                                        )
-                                        .is_some()
-                                })))
+                    building.kind == "tavern"
+                        && building.construction_complete
+                        && building.assigned_labor > 0
                 }
                 ResidenceUpgradeService::Cloth => {
                     CLOTH_PRODUCER_KINDS.contains(&building.kind.as_str())

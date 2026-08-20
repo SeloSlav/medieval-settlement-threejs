@@ -166,6 +166,10 @@ export const Building = __t.object("Building", {
   fireRepairActive: __t.bool(),
   storehouseAcceptsCharcoal: __t.bool(),
   storehouseCharcoalTargetPercent: __t.u8(),
+  constructionRequiredRoofTiles: __t.f64(),
+  constructionDeliveredRoofTiles: __t.f64(),
+  constructionReservedRoofTiles: __t.f64(),
+  constructionTreasuryRoofTiles: __t.f64(),
 });
 export type Building = __Infer<typeof Building>;
 

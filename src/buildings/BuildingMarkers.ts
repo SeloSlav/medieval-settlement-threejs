@@ -9,7 +9,6 @@ import {
 } from '../economy/marketStallAssignments.ts';
 import {
   BUILDING_STORAGE_CAPS,
-  FIRE_SPREAD_RADIUS,
   LIVESTOCK_HAY_STORAGE_CAPACITY,
   MARKETPLACE_FOOD_STALL_SLOTS,
   MARKETPLACE_GOODS_STALL_SLOTS,
@@ -29,25 +28,16 @@ import type { EnvironmentState } from '../world/seasonPolicy.ts';
 import {
   getGuardhouseMusterState,
   guardhouseMusterResponseBand,
-  palisadedRefugeEffectiveRadius,
-  watchtowerEffectiveRadius,
 } from '../security/frontierSecurity.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
-import {
-  assessBuildingFireSafety,
-  fireCoverageColor,
-  hasFireRiskPlanningOverlay,
-} from '../fires/fireRiskPolicy.ts';
 import type { Terrain } from '../terrain/Terrain.ts';
 import { areBuildingShadowsEnabled } from '../scene/shadowPreference.ts';
 import type { RoadNetwork } from '../roads/RoadNetwork.ts';
-import { updateTerrainCircleRibbonGeometry } from '../placement/TerrainOverlayGeometry.ts';
 import { buildingPlacementYaw } from './buildingPlacement.ts';
 import {
   MARKETPLACE_STALL_DISPLAY_KINDS,
   marketStallDisplayName,
 } from './marketplaceStallLayout.ts';
-import { buildingExtentColor, getBuildingExtent } from './buildingExtents.ts';
 import {
   BatchedBuildingShadowProxies,
   setBuildingDetailShadowsEnabled,
@@ -148,9 +138,6 @@ export class BuildingMarkers {
   private watermillThroughputMultiplier = 1;
   private windmillWeatherThroughputMultiplier = 1;
   private charcoalBurnerThroughputMultiplier = 1;
-  private extentOverlayMesh: THREE.Mesh | null = null;
-  private extentOverlayKind: BuildingKind | null = null;
-  private fireRiskOverlayMesh: THREE.Mesh | null = null;
   private readonly guardhouseMusterRoute: THREE.InstancedMesh<
     THREE.BoxGeometry,
     THREE.MeshBasicMaterial
@@ -183,51 +170,13 @@ export class BuildingMarkers {
     options.parent.add(this.group);
   }
 
-  setBuildingExtentOverlay(
+  setBuildingSelectionOverlays(
     building: BuildingState | null,
     gameState?: GameState,
   ): void {
     const fireDisabled = fireDisabledBuildingIds(
       gameState?.fireIncidents.values() ?? [],
     );
-    const extent = building
-      ? getBuildingExtent(building.kind, building.workRadius)
-      : null;
-    const radius = building?.kind === 'watchtower'
-      ? watchtowerEffectiveRadius(building, fireDisabled.has(building.id))
-      : building?.kind === 'palisaded_refuge'
-        ? palisadedRefugeEffectiveRadius(building, fireDisabled.has(building.id))
-      : extent?.radius ?? 0;
-    if (!building || !extent || radius <= 0) {
-      if (this.extentOverlayMesh) this.extentOverlayMesh.visible = false;
-    } else {
-      const color = buildingExtentColor(building.kind);
-      if (!this.extentOverlayMesh || this.extentOverlayKind !== building.kind) {
-        if (this.extentOverlayMesh) {
-          disposeObject3D(this.extentOverlayMesh);
-          this.extentOverlayMesh.removeFromParent();
-        }
-        this.extentOverlayMesh = createRadiusRing(color, 0.48);
-        this.extentOverlayMesh.name = 'Selected building extent';
-        this.extentOverlayKind = building.kind;
-        this.group.add(this.extentOverlayMesh);
-      }
-
-      this.extentOverlayMesh.visible = true;
-      updateTerrainCircleRibbonGeometry(
-        this.extentOverlayMesh.geometry,
-        { x: building.x, z: building.z },
-        radius,
-        this.terrain.getHeightAt.bind(this.terrain),
-        {
-          width: 0.72,
-          lift: 0.15,
-          sampleSpacing: 5.5,
-        },
-      );
-    }
-
-    this.syncFireRiskOverlay(building, gameState, fireDisabled);
     this.syncGuardhouseMusterRoute(building, gameState, fireDisabled);
   }
 
@@ -674,15 +623,6 @@ export class BuildingMarkers {
       this.previewBuilding = null;
       this.previewKind = null;
     }
-    if (this.extentOverlayMesh) {
-      disposeObject3D(this.extentOverlayMesh);
-      this.extentOverlayMesh = null;
-      this.extentOverlayKind = null;
-    }
-    if (this.fireRiskOverlayMesh) {
-      disposeObject3D(this.fireRiskOverlayMesh);
-      this.fireRiskOverlayMesh = null;
-    }
     disposeObject3D(this.guardhouseMusterRoute);
     for (const id of [...this.buildingMeshes.keys()]) {
       this.removeBuilding(id);
@@ -769,60 +709,6 @@ export class BuildingMarkers {
       this.guardhouseMusterRoute,
       route.polyline,
       this.terrain,
-    );
-  }
-
-  private syncFireRiskOverlay(
-    building: BuildingState | null,
-    gameState: GameState | undefined,
-    fireDisabled: ReadonlySet<string>,
-  ): void {
-    if (
-      !building
-      || !gameState
-      || building.constructionComplete === false
-      || !hasFireRiskPlanningOverlay(building.kind)
-    ) {
-      if (this.fireRiskOverlayMesh) this.fireRiskOverlayMesh.visible = false;
-      return;
-    }
-    const network = this.getRoadNetwork?.() ?? null;
-    const assessment = assessBuildingFireSafety(building, {
-      buildings: gameState.buildings.values(),
-      residences: gameState.residences.values(),
-      fireDisabledBuildingIds: fireDisabled,
-      roadPathDistance: network
-        ? (ax, az, bx, bz) =>
-            network.getPathfinder().roadPathDistance(ax, az, bx, bz)
-        : undefined,
-      travelSpeedMultiplierForWell: () =>
-        this.getRoadConditionSpeedMultiplier?.() ?? 1,
-    });
-    if (!this.fireRiskOverlayMesh) {
-      this.fireRiskOverlayMesh = createRadiusRing(
-        fireCoverageColor(assessment.coverage),
-        0.82,
-      );
-      this.fireRiskOverlayMesh.name = 'Selected building fire spread range';
-      this.group.add(this.fireRiskOverlayMesh);
-    }
-    const material = this.fireRiskOverlayMesh.material;
-    if (material instanceof THREE.MeshBasicMaterial) {
-      material.color.setHex(fireCoverageColor(assessment.coverage));
-    }
-    this.fireRiskOverlayMesh.visible = true;
-    updateTerrainCircleRibbonGeometry(
-      this.fireRiskOverlayMesh.geometry,
-      { x: building.x, z: building.z },
-      FIRE_SPREAD_RADIUS,
-      this.terrain.getHeightAt.bind(this.terrain),
-      {
-        width: 0.62,
-        lift: 0.17,
-        sampleSpacing: 4.8,
-        dashLength: 2.4,
-        gapLength: 2.1,
-      },
     );
   }
 
@@ -1474,19 +1360,6 @@ function foundersCampMatchesInitialVisualState(building: BuildingState): boolean
       FOUNDING_IRONWORK_VISUAL_SEGMENTS,
     )
     && (building.gold > 1e-6) === (STARTING_GOLD > 1e-6);
-}
-
-function createRadiusRing(color: number, opacity: number): THREE.Mesh {
-  const material = new THREE.MeshBasicMaterial({
-    color,
-    transparent: true,
-    opacity,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
-  mesh.renderOrder = 8;
-  return mesh;
 }
 
 const MAX_GUARDHOUSE_MUSTER_DASHES = 512;

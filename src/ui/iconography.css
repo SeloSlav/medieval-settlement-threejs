@@ -280,6 +280,8 @@
 .settlement-hud__stat[data-resource='malt']::before,
 .settlement-hud__stat[data-resource='flour']::before,
 .settlement-hud__stat[data-resource='ale']::before,
+.settlement-hud__stat[data-resource='cider']::before,
+.settlement-hud__stat[data-resource='mead']::before,
 .settlement-hud__stat[data-resource='preservedFood']::before,
 .settlement-hud__stat[data-resource='honey']::before,
 .settlement-hud__stat[data-resource='wine']::before,
@@ -293,6 +295,8 @@
 .settlement-hud__stat[data-resource='malt']::before { background-position: 100% 0; }
 .settlement-hud__stat[data-resource='flour']::before { background-position: 0 50%; }
 .settlement-hud__stat[data-resource='ale']::before { background-position: 50% 50%; }
+.settlement-hud__stat[data-resource='cider']::before { background-position: 50% 50%; }
+.settlement-hud__stat[data-resource='mead']::before { background-position: 50% 50%; }
 .settlement-hud__stat[data-resource='preservedFood']::before { background-position: 100% 50%; }
 .settlement-hud__stat[data-resource='honey']::before { background-position: 0 100%; }
 .settlement-hud__stat[data-resource='wine']::before { background-position: 50% 100%; }
@@ -485,6 +489,8 @@
 .resource-cost__item[data-resource-cost='malt'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='flour'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='ale'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='cider'] .resource-cost__icon,
+.resource-cost__item[data-resource-cost='mead'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='preservedFood'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='honey'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='wine'] .resource-cost__icon,
@@ -498,6 +504,8 @@
 .resource-cost__item[data-resource-cost='malt'] .resource-cost__icon { background-position: 100% 0; }
 .resource-cost__item[data-resource-cost='flour'] .resource-cost__icon { background-position: 0 50%; }
 .resource-cost__item[data-resource-cost='ale'] .resource-cost__icon { background-position: 50% 50%; }
+.resource-cost__item[data-resource-cost='cider'] .resource-cost__icon { background-position: 50% 50%; }
+.resource-cost__item[data-resource-cost='mead'] .resource-cost__icon { background-position: 50% 50%; }
 .resource-cost__item[data-resource-cost='preservedFood'] .resource-cost__icon { background-position: 100% 50%; }
 .resource-cost__item[data-resource-cost='honey'] .resource-cost__icon { background-position: 0 100%; }
 .resource-cost__item[data-resource-cost='wine'] .resource-cost__icon { background-position: 50% 100%; }

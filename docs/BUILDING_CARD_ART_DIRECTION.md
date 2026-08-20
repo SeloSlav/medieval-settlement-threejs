@@ -13,7 +13,7 @@ This replaces the earlier coastal Venetian manuscript direction. The cards must 
 - No border, frame, decorative margin, cartouche, medallion, badge, vignette, corner flourish, heraldry, rounded panel, or card mockup.
 - No people or human figures.
 - No text, letters, numerals, logos, or watermarks.
-- Late-sixteenth-century Gorski Kotar materials: fieldstone, limewash, dark oak, weathered timber, shingles, selective deep terracotta roof tile, iron, wet earth, and moss.
+- Late-sixteenth-century Gorski Kotar materials: fieldstone, limewash, dark oak, weathered timber, hand-split shingles, iron, wet earth, and moss. Fired terracotta roofing is reserved for the Monastery card and non-card elite upgrades.
 - Compact footprints, steep weather roofs, deep eaves, strong silhouettes, and function-defining equipment.
 - Documentary dark-brown linework and crosshatching with restrained transparent tempera washes.
 - Cool mountain daylight, mist, karst limestone, and restrained fir, spruce, and beech woodland.
@@ -29,7 +29,7 @@ Scene/backdrop: cool aged parchment extending fully to every edge; late-sixteent
 Style/medium: hand-colored late-sixteenth-century Central European frontier survey folio and Croatian military-register illustration; precise dark-brown woodcut-like architectural linework and crosshatching; restrained transparent tempera washes on fibrous parchment; subtle handmade irregularity; documentary, not ornate
 Composition/framing: vertical 2:3 orientation; centered three-quarter survey view; complete subject clearly readable with generous breathing room; slight elevated viewpoint; low forested horizon; image and parchment texture continue uninterrupted to all four edges
 Lighting/mood: cool diffuse mountain daylight; sober, resilient, remote forest-frontier atmosphere
-Color palette: parchment ivory, spruce green, charcoal brown, slate gray, moss, muted ochre, selective deep terracotta red
+Color palette: parchment ivory, spruce green, charcoal brown, slate gray, moss, muted ochre; deep terracotta red only when depicting an explicitly elite tiled building
 Constraints: NO PEOPLE OR HUMAN FIGURES; no text; no letters; no numerals; no logos; no watermark; no modern objects; no fantasy; no Mediterranean coastal villa elements; no UI overlay
 Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative margin, illuminated initial, cartouche, medallion, badge, vignette, corner flourish, heraldry, stylized border, darkened edge, rounded panel, card mockup
 ```
@@ -42,7 +42,7 @@ Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative
 | `bakery.webp` | Stone bakehouse, oven mass, chimney, firewood, flour, and cooling racks. |
 | `brewery.webp` | Warm-walled brewhouse, malt kiln, brewing porch, vats, and barrels. |
 | `carpenter.webp` | Enclosed shop with deep working bay, joinery, wheels, and handcart. |
-| `chapel.webp` | Limewashed parish nave with an open oak belfry and restrained tile roof. |
+| `chapel.webp` | Limewashed parish nave with an open oak belfry and a steep hand-split shingle roof. |
 | `charcoal-burner.webp` | Earth-covered charcoal clamp, billet ring, and tiny watch shelter. |
 | `clay-pit.webp` | Shallow ochre clay bank, puddling trough, cut blocks, and baskets. |
 | `fishing-camp.webp` | River hut, plank landing, empty skiff, nets, and traps. |
@@ -55,7 +55,7 @@ Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative
 | `large-quarry.webp` | Centered underground shaft, headframe, hoist, and timber chamber supports. |
 | `lumber-mill.webp` | Long low saw hall, frame saw, intake bay, logs, and squared beams. |
 | `market.webp` | Broad empty market canopy with stalls, scales, barrels, and baskets. |
-| `monastery.webp` | L-shaped pale Pauline complex with restrained belfry and cloister garden. |
+| `monastery.webp` | L-shaped pale Pauline complex with fired-clay tile roofs, restrained belfry, and cloister garden. |
 | `palisaded-refuge.webp` | Terrain-following palisade, ditch, gatehouse, shelter, and stores. |
 | `pastoral-farmstead.webp` | Upland byre, hay barn, milking shelter, meadow, sheep, and cattle. |
 | `pasture.webp` | Fenced mountain meadow, open shelter, trough, hayrack, and livestock. |
@@ -81,4 +81,4 @@ Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative
 
 ### Output pipeline
 
-The 2026-08-20 set was generated with the built-in image-generation tool at `1024x1536`, visually reviewed as a contact sheet, then converted with ImageMagick to `320x480` WebP at quality 90. Existing filenames were intentionally preserved so menu and inspector mappings required no code changes.
+The 2026-08-20 set was generated with the built-in image-generation tool at `1024x1536`, visually reviewed as a contact sheet, then converted with ImageMagick to `320x480` WebP at quality 90. The Lumber Mill, Chapel, Town Hall, Threshing Barn, Brewhouse, Watermill, and Carpenter cards received a second material-parity pass replacing ordinary terracotta roofs with hand-split shingles. Existing filenames were intentionally preserved so menu and inspector mappings required no code changes.

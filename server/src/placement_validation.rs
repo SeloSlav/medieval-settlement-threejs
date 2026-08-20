@@ -633,6 +633,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.88,
             outer_fade: 1.3,
         },
+        "tavern" => BuildingPadParams {
+            radius_x: 5.4,
+            radius_z: 4.6,
+            inner_fade: 0.88,
+            outer_fade: 1.3,
+        },
         "smokehouse" => BuildingPadParams {
             radius_x: 4.4,
             radius_z: 4.0,

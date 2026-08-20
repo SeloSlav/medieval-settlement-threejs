@@ -6,7 +6,6 @@ import {
   sharedBuildingDetailMaterial,
   shingleMaterial,
   stoneMaterial,
-  tileMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
 import {
@@ -180,7 +179,7 @@ export function createTownHallMesh(): THREE.Group {
     wallHeight: 4.05,
     ridgeHeight: 2.65,
     wallMaterial: residenceFacadeMaterial('yellow'),
-    roofMaterial: tileMaterial(0),
+    roofMaterial: shingleMaterial(),
     stoneGroundFloor: true,
   });
 
@@ -210,7 +209,7 @@ export function createTownHallMesh(): THREE.Group {
   addMesh(group, new THREE.BoxGeometry(2.25, 1.8, 2.25), timberMaterial('dark'), new THREE.Vector3(0, 7.55, 0));
   for (const z of [-1.14, 1.14]) addDarkOpening(group, 0, 7.55, z, 0.78, 0.92);
   addBell(group, 0, 7.55, 1.22);
-  addMesh(group, new THREE.ConeGeometry(1.65, 2.0, 4), tileMaterial(1), new THREE.Vector3(0, 9.38, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
+  addMesh(group, new THREE.ConeGeometry(1.65, 2.0, 4), shingleMaterial(), new THREE.Vector3(0, 9.38, 0), new THREE.Euler(0, Math.PI * 0.25, 0));
   addMesh(group, new THREE.BoxGeometry(0.1, 0.92, 0.1), metalMaterial('iron'), new THREE.Vector3(0, 10.72, 0));
   addMesh(group, new THREE.BoxGeometry(0.58, 0.1, 0.1), metalMaterial('iron'), new THREE.Vector3(0, 10.88, 0));
   return group;

@@ -9,6 +9,7 @@ import {
   createWoodcuttersLodgeMesh,
 } from './meshes/industryBuildingMeshes.ts';
 import { createMarketplaceMesh } from './meshes/marketplaceMesh.ts';
+import { createTavernMesh } from './meshes/tavernBuildingMesh.ts';
 import {
   createForagersShedMesh,
   createFishingCampMesh,
@@ -103,6 +104,7 @@ export function createBuildingMesh(kind: BuildingKind, chapelTier: 1 | 2 | 3 = 3
     case 'threshing_barn': return createThreshingBarnMesh();
     case 'monastery': return createMonasteryMesh();
     case 'brewery': return createBreweryMesh();
+    case 'tavern': return createTavernMesh();
     case 'smokehouse': return createSmokehouseMesh();
     case 'granary': return createGranaryMesh();
     case 'bakery': return createBakeryMesh();

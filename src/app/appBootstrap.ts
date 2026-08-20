@@ -718,7 +718,7 @@ export async function bootstrapAppSession(
     roadTool.setEnabled(false);
     buildingTool.setMode('off');
     burgageTool.setEnabled(false);
-    buildingMarkers.setBuildingExtentOverlay(farmstead);
+    buildingMarkers.setBuildingSelectionOverlays(farmstead);
     if (!wasEnabled) {
       toastManager?.show(
         mode === 'field'
@@ -1055,10 +1055,10 @@ export async function bootstrapAppSession(
       toolbar.setCityAdministrationOpen(target?.kind === 'building' && target.building.kind === 'town_hall');
       if (target?.kind === 'building') {
         tutorialOverlay.notifyBuildingSelected(target.building.kind);
-        buildingMarkers.setBuildingExtentOverlay(target.building, liveContext.gameState);
+        buildingMarkers.setBuildingSelectionOverlays(target.building, liveContext.gameState);
         return;
       }
-      buildingMarkers.setBuildingExtentOverlay(null);
+      buildingMarkers.setBuildingSelectionOverlays(null);
     },
     isBlocked: () => isWorldInspectionBlocked(placementGate),
   });

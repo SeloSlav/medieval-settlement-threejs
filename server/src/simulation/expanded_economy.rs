@@ -11,9 +11,11 @@ use crate::balance_generated::{
     BACKYARD_APIARY_POLLINATION_CONTRIBUTION, BACKYARD_APIARY_POLLINATION_RADIUS,
     BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_MASLIN_BREAD_PER_CYCLE,
     BAKERY_OAT_BREAD_PER_CYCLE, BAKERY_RYE_BREAD_PER_CYCLE, BAKERY_WATER_PER_CYCLE,
-    BREWERY_ALE_PER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE, BREWERY_BREWING_FIREWOOD_PER_CYCLE,
-    BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+    BREWERY_ALE_PER_CYCLE, BREWERY_APPLES_PER_CIDER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
+    BREWERY_BREWING_FIREWOOD_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE,
+    BREWERY_CIDER_PER_CYCLE, BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
     BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE, BREWERY_MALT_PER_CYCLE,
+    BREWERY_MEAD_PER_CYCLE,
     CALENDAR_SECONDS_PER_DAY, CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
     CHARCOAL_BURNER_FIREWOOD_PER_CYCLE, CHARCOAL_HOUSEHOLD_FUEL_VALUE,
     CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, FARM_GROWTH_SECONDS,
@@ -35,6 +37,10 @@ use crate::balance_generated::{
     WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::building_defs::building_def;
+use crate::brewery_recipe_policy::{
+    normalize_brewery_recipe_policy, BREWERY_RECIPE_ALE, BREWERY_RECIPE_AUTO,
+    BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD,
+};
 use crate::burgage::{Point2, ZoneCorners};
 use crate::civilian_tool_policy::{
     civilian_tool_runway_cycles, civilian_tool_throughput_multiplier, civilian_tools_maintained,
@@ -934,7 +940,7 @@ pub fn step_marketplace_material_dispatch(
         let Some(network) = tick.road_network(marketplace.owner) else {
             continue;
         };
-        const DISPATCHABLE_INPUTS: [CommodityKind; 26] = [
+        const DISPATCHABLE_INPUTS: [CommodityKind; 28] = [
             CommodityKind::RyeGrain,
             CommodityKind::OatGrain,
             CommodityKind::MaslinGrain,
@@ -961,6 +967,8 @@ pub fn step_marketplace_material_dispatch(
             CommodityKind::Manure,
             CommodityKind::Polearms,
             CommodityKind::Wine,
+            CommodityKind::Apples,
+            CommodityKind::Honey,
         ];
         candidates.extend(
             tick.building_ids_for_kinds(ctx, marketplace.owner, MARKETPLACE_MATERIAL_TARGET_KINDS)
@@ -1876,7 +1884,7 @@ pub fn step_granary(
                     clock,
                     &mut granary,
                     CommodityKind::Ale,
-                    &["marketplace"],
+                    &["tavern"],
                 );
             }
             GranaryDispatchDuty::Preservation => {
@@ -2436,52 +2444,79 @@ pub fn step_brewery(
     let mut brewery = building;
     let input_staging_cycles =
         processor_input_staging_cycles(brewery.processor_output_target_percent);
-    let ale_headroom = processor_output_headroom(
-        brewery.ale,
-        building_commodity_cap(&brewery.kind, CommodityKind::Ale),
-        brewery.processor_output_target_percent,
-    );
-    if ale_headroom > 1e-6 {
-        let malt_working_target = (BREWERY_MALT_PER_ALE_CYCLE * input_staging_cycles)
-            .min(building_commodity_cap(&brewery.kind, CommodityKind::Malt));
-        let should_malt = brewery.barley > 1e-6 && brewery.malt + 1e-6 < malt_working_target;
-        brewery = if should_malt {
-            step_processor(
+    let recipe = selected_brewery_recipe(&brewery);
+    match recipe {
+        BREWERY_RECIPE_CIDER => {
+            brewery = step_processor(
                 ctx,
                 tick,
                 clock,
                 brewery,
-                &[
-                    (CommodityKind::Barley, BREWERY_BARLEY_PER_MALT_CYCLE),
-                    (CommodityKind::Water, BREWERY_MALTING_WATER_PER_CYCLE),
-                    (CommodityKind::Firewood, BREWERY_MALTING_FIREWOOD_PER_CYCLE),
-                ],
-                &[(CommodityKind::Malt, BREWERY_MALT_PER_CYCLE)],
-            )
-        } else {
-            step_processor(
+                &[(CommodityKind::Apples, BREWERY_APPLES_PER_CIDER_CYCLE)],
+                &[(CommodityKind::Cider, BREWERY_CIDER_PER_CYCLE)],
+            );
+        }
+        BREWERY_RECIPE_MEAD => {
+            brewery = step_processor(
                 ctx,
                 tick,
                 clock,
                 brewery,
-                &[
-                    (CommodityKind::Malt, BREWERY_MALT_PER_ALE_CYCLE),
-                    (CommodityKind::Water, BREWERY_BREWING_WATER_PER_CYCLE),
-                    (CommodityKind::Firewood, BREWERY_BREWING_FIREWOOD_PER_CYCLE),
-                ],
-                &[(CommodityKind::Ale, BREWERY_ALE_PER_CYCLE)],
-            )
-        };
+                &[(CommodityKind::Honey, BREWERY_HONEY_PER_MEAD_CYCLE)],
+                &[(CommodityKind::Mead, BREWERY_MEAD_PER_CYCLE)],
+            );
+        }
+        _ => {
+            let ale_headroom = brewery_output_headroom(&brewery, CommodityKind::Ale);
+            if ale_headroom > 1e-6 {
+                let malt_working_target = (BREWERY_MALT_PER_ALE_CYCLE * input_staging_cycles)
+                    .min(building_commodity_cap(&brewery.kind, CommodityKind::Malt));
+                let should_malt =
+                    brewery.barley > 1e-6 && brewery.malt + 1e-6 < malt_working_target;
+                brewery = if should_malt {
+                    step_processor(
+                        ctx,
+                        tick,
+                        clock,
+                        brewery,
+                        &[
+                            (CommodityKind::Barley, BREWERY_BARLEY_PER_MALT_CYCLE),
+                            (CommodityKind::Water, BREWERY_MALTING_WATER_PER_CYCLE),
+                            (CommodityKind::Firewood, BREWERY_MALTING_FIREWOOD_PER_CYCLE),
+                        ],
+                        &[(CommodityKind::Malt, BREWERY_MALT_PER_CYCLE)],
+                    )
+                } else {
+                    step_processor(
+                        ctx,
+                        tick,
+                        clock,
+                        brewery,
+                        &[
+                            (CommodityKind::Malt, BREWERY_MALT_PER_ALE_CYCLE),
+                            (CommodityKind::Water, BREWERY_BREWING_WATER_PER_CYCLE),
+                            (CommodityKind::Firewood, BREWERY_BREWING_FIREWOOD_PER_CYCLE),
+                        ],
+                        &[(CommodityKind::Ale, BREWERY_ALE_PER_CYCLE)],
+                    )
+                };
+            }
+        }
     }
+
+    request_brewery_recipe_inputs(ctx, tick, clock, &brewery, recipe, input_staging_cycles);
     dispatch_monastery_feast_ale(ctx, tick, clock, &mut brewery);
-    dispatch_to_building(
-        ctx,
-        tick,
-        clock,
-        &mut brewery,
-        CommodityKind::Ale,
-        &["granary"],
-    );
+    for beverage in [CommodityKind::Ale, CommodityKind::Cider, CommodityKind::Mead] {
+        dispatch_to_building_where(
+            ctx,
+            tick,
+            clock,
+            &mut brewery,
+            beverage,
+            &["tavern"],
+            |target| target.assigned_labor > 0,
+        );
+    }
     dispatch_to_building(
         ctx,
         tick,
@@ -2491,6 +2526,93 @@ pub fn step_brewery(
         &["trading_post"],
     );
     ctx.db.building().id().update(brewery);
+}
+
+fn brewery_output_headroom(building: &Building, output: CommodityKind) -> f64 {
+    processor_output_headroom(
+        building_commodity_stock(building, output),
+        building_commodity_cap(&building.kind, output),
+        building.processor_output_target_percent,
+    )
+}
+
+fn selected_brewery_recipe(building: &Building) -> u8 {
+    let policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
+    if policy != BREWERY_RECIPE_AUTO {
+        return policy;
+    }
+    let candidates = [
+        (
+            BREWERY_RECIPE_ALE,
+            if brewery_output_headroom(building, CommodityKind::Ale) > 1e-6 {
+                (building.malt / BREWERY_MALT_PER_ALE_CYCLE.max(1e-9))
+                    .max(building.barley / BREWERY_BARLEY_PER_MALT_CYCLE.max(1e-9))
+            } else {
+                -1.0
+            },
+        ),
+        (
+            BREWERY_RECIPE_CIDER,
+            if brewery_output_headroom(building, CommodityKind::Cider) > 1e-6 {
+                building.apples / BREWERY_APPLES_PER_CIDER_CYCLE.max(1e-9)
+            } else {
+                -1.0
+            },
+        ),
+        (
+            BREWERY_RECIPE_MEAD,
+            if brewery_output_headroom(building, CommodityKind::Mead) > 1e-6 {
+                building.honey / BREWERY_HONEY_PER_MEAD_CYCLE.max(1e-9)
+            } else {
+                -1.0
+            },
+        ),
+    ];
+    candidates
+        .into_iter()
+        .max_by(|left, right| left.1.total_cmp(&right.1).then_with(|| right.0.cmp(&left.0)))
+        .map(|candidate| candidate.0)
+        .unwrap_or(BREWERY_RECIPE_ALE)
+}
+
+fn request_brewery_recipe_inputs(
+    ctx: &ReducerContext,
+    tick: &SimTickContext,
+    clock: &GameClock,
+    brewery: &Building,
+    selected_recipe: u8,
+    staging_cycles: f64,
+) {
+    let policy = normalize_brewery_recipe_policy(brewery.brewery_recipe_policy);
+    if selected_recipe == BREWERY_RECIPE_MEAD || policy == BREWERY_RECIPE_AUTO {
+        request_connected_commodity_with_source_availability(
+            ctx,
+            tick,
+            clock,
+            brewery,
+            CommodityKind::Honey,
+            &["apiary", "marketplace", "granary", "trading_post"],
+            BREWERY_HONEY_PER_MEAD_CYCLE * staging_cycles,
+            |source, stock| {
+                if source.kind == "apiary" {
+                    (stock - apiary_honey_reserve(source.apiary_harvest_policy)).max(0.0)
+                } else {
+                    stock
+                }
+            },
+        );
+    }
+    if selected_recipe == BREWERY_RECIPE_CIDER || policy == BREWERY_RECIPE_AUTO {
+        request_connected_commodity(
+            ctx,
+            tick,
+            clock,
+            brewery,
+            CommodityKind::Apples,
+            &["marketplace", "granary", "trading_post"],
+            BREWERY_APPLES_PER_CIDER_CYCLE * staging_cycles,
+        );
+    }
 }
 
 pub fn step_weaver(
@@ -2793,6 +2915,17 @@ pub fn step_apiary(
         building
     };
     let reserve = apiary_honey_reserve(apiary.apiary_harvest_policy);
+    let transferable = (apiary.honey - reserve).max(0.0);
+    dispatch_to_building_where_limited(
+        ctx,
+        tick,
+        clock,
+        &mut apiary,
+        CommodityKind::Honey,
+        &["brewery"],
+        transferable,
+        |target| target.assigned_labor > 0,
+    );
     let transferable = (apiary.honey - reserve).max(0.0);
     dispatch_monastery_hospitality_limited(
         ctx,
@@ -3460,6 +3593,7 @@ fn processor_output_commodity(kind: &str) -> Option<CommodityKind> {
 
 fn production_output_target_applies(kind: &str, commodity: CommodityKind) -> bool {
     processor_output_commodity(kind) == Some(commodity)
+        || (kind == "brewery" && commodity.is_beverage())
         || (kind == "smokehouse" && commodity.is_preserved_food())
         || matches!(
             (kind, commodity),
@@ -3598,6 +3732,8 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
                 | CommodityKind::Malt
                 | CommodityKind::Water
                 | CommodityKind::Firewood
+                | CommodityKind::Apples
+                | CommodityKind::Honey
         ),
         "vineyard" => commodity == CommodityKind::Grapes,
         "smokehouse" => {
@@ -3644,6 +3780,35 @@ pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityK
             building_commodity_cap(&building.kind, CommodityKind::PreservedFood),
             building.processor_output_target_percent,
         ) > 1e-6;
+    }
+    if building.kind == "brewery" && processor_uses_input(&building.kind, commodity) {
+        let policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
+        let recipe_accepts = match policy {
+            BREWERY_RECIPE_CIDER => commodity == CommodityKind::Apples,
+            BREWERY_RECIPE_MEAD => commodity == CommodityKind::Honey,
+            BREWERY_RECIPE_AUTO => true,
+            _ => matches!(
+                commodity,
+                CommodityKind::Barley
+                    | CommodityKind::Malt
+                    | CommodityKind::Water
+                    | CommodityKind::Firewood
+            ),
+        };
+        if !recipe_accepts {
+            return false;
+        }
+        let output = match policy {
+            BREWERY_RECIPE_CIDER => CommodityKind::Cider,
+            BREWERY_RECIPE_MEAD => CommodityKind::Mead,
+            BREWERY_RECIPE_AUTO => match commodity {
+                CommodityKind::Apples => CommodityKind::Cider,
+                CommodityKind::Honey => CommodityKind::Mead,
+                _ => CommodityKind::Ale,
+            },
+            _ => CommodityKind::Ale,
+        };
+        return brewery_output_headroom(building, output) > 1e-6;
     }
     if !processor_uses_input(&building.kind, commodity) {
         return true;
@@ -4328,6 +4493,8 @@ fn directly_dispatched_commodity_name(commodity: CommodityKind) -> Option<&'stat
         CommodityKind::Iron => Some("iron"),
         CommodityKind::Salt => Some("salt"),
         CommodityKind::Grapes => Some("grapes"),
+        CommodityKind::Apples => Some("apples"),
+        CommodityKind::Honey => Some("honey"),
         _ => None,
     }
 }

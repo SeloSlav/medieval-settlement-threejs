@@ -19,7 +19,6 @@ import {
 } from '../economy/carpenterSupport.ts';
 import type { BuildingResourceCost } from '../resources/buildingEconomy.ts';
 import { fireDisabledBuildingIds } from '../fires/fireIncident.ts';
-import { getBuildingExtent } from './buildingExtents.ts';
 import {
   type ClayDepositSite,
 } from '../clay/ClayDepositLayout.ts';
@@ -571,16 +570,12 @@ export class BuildingTool {
       this.setPlacementStatusDetail('Ready: click to establish the camp');
       return;
     }
-    const definition = getBuildingDefinition(kind);
-    const extent = getBuildingExtent(kind, definition.workRadius);
     this.setPlacementStatusDetail(
       kind === 'town_hall'
         ? 'Ready: population, civic buildings, and road links confirmed'
         : kind === 'guardhouse'
           ? 'Ready: completed watchtower confirmed'
-          : extent
-            ? `Ready: ${extent.label.toLowerCase()} shown on terrain`
-            : 'Ready: site clear',
+          : 'Ready: site clear',
     );
   }
 

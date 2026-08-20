@@ -15,6 +15,7 @@ import {
   FIREWOOD_DELIVERY_SPEED_MPS,
   FOOD_DELIVERY_SPEED_MPS,
   OFFROAD_DELIVERY_SPEED_MULTIPLIER,
+  POTTER_ROOF_TILES_PER_CYCLE,
   TIMBER_DELIVERY_SPEED_MPS,
   WATER_DELIVERY_SPEED_MPS,
 } from '../src/generated/gameBalance.ts';
@@ -95,6 +96,16 @@ assert.deepEqual(
   ],
   'construction ironwork accounting must append after the deployed schema prefix',
 );
+assert.deepEqual(
+  buildingSchemaFields.slice(-4),
+  [
+    'construction_required_roof_tiles',
+    'construction_delivered_roof_tiles',
+    'construction_reserved_roof_tiles',
+    'construction_treasury_roof_tiles',
+  ],
+  'construction roof-tile accounting must remain an additive save-compatible schema suffix',
+);
 
 assert.equal(CONSTRUCTION_MAX_BUILDERS, 4);
 assert.ok(CONSTRUCTION_HAUL_PER_WORKER > 0);
@@ -136,6 +147,37 @@ for (const kind of ['lumber_mill', 'stone_quarry'] as const) {
     maxCrewSeconds <= 17,
     `${definition.label} should finish builder work in at most 17 seconds with a full crew`,
   );
+}
+
+const firedTileRoofCosts = {
+  monastery: 72,
+} as const;
+for (const [kind, roofTiles] of Object.entries(firedTileRoofCosts)) {
+  const cost = getBuildingCost(kind as keyof typeof firedTileRoofCosts);
+  assert.equal(cost.roofTiles, roofTiles, `${kind} must pay for its visible fired-clay roof`);
+  assert.equal(roofTiles % POTTER_ROOF_TILES_PER_CYCLE, 0, `${kind} must consume whole kiln batches`);
+}
+for (const kind of [
+  'lumber_mill',
+  'chapel',
+  'marketplace',
+  'town_hall',
+  'threshing_barn',
+  'brewery',
+  'tavern',
+  'bakery',
+  'watermill',
+  'carpenter',
+  'vineyard',
+  'potter_kiln',
+  'stone_quarry',
+  'large_quarry',
+  'granary',
+  'watchtower',
+  'windmill',
+  'village_storehouse',
+] as const) {
+  assert.equal(getBuildingCost(kind).roofTiles ?? 0, 0, `${kind} has no fired-clay main roof`);
 }
 
 const fittingCosts = [
@@ -268,8 +310,11 @@ assert.match(
 assert.match(constructionServer, /construction_progress/);
 assert.match(constructionServer, /complete_site/);
 assert.match(constructionServer, /CommodityKind::Ironwork/);
+assert.match(constructionServer, /CommodityKind::RoofTiles/);
 assert.match(constructionServer, /construction_required_ironwork/);
 assert.match(constructionServer, /construction_delivered_ironwork/);
+assert.match(constructionServer, /construction_required_roof_tiles/);
+assert.match(constructionServer, /construction_delivered_roof_tiles/);
 assert.match(constructionServer, /site_buckets/);
 assert.match(constructionServer, /construction_priority_bucket/);
 assert.match(constructionServer, /CONSTRUCTION_PRIORITY_HOLD/);
@@ -302,6 +347,11 @@ assert.match(
   constructionDispatch,
   /tick\.construction_source_ids\(ctx, site\.owner, commodity\)/,
   'every site should inspect only the tick-local roster that began with the requested material',
+);
+assert.match(
+  deliveryTripServer,
+  /CommodityKind::RoofTiles[\s\S]*construction_reserved_roof_tiles/,
+  'fired tiles must use the same physical reservation and cart pipeline as other building materials',
 );
 assert.match(
   constructionDispatch,

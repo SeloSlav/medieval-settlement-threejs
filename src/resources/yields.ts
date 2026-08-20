@@ -92,6 +92,10 @@ export function formatResourceAmount(kind: ResourceKind, amount: number): string
       return `${Math.round(amount)} maslin flour`;
     case 'ale':
       return `${Math.round(amount)} ale`;
+    case 'cider':
+      return `${Math.round(amount)} cider`;
+    case 'mead':
+      return `${Math.round(amount)} mead`;
     case 'preservedFood':
       return `${Math.round(amount)} preserved staples`;
     case 'curedMeat':

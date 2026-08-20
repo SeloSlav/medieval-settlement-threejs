@@ -287,7 +287,10 @@ fn founding_destination_priority(
 fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: CommodityKind) -> f64 {
     let stock = building_commodity_stock(site, commodity).max(0.0);
     let reserved = match commodity {
-        CommodityKind::Timber | CommodityKind::Stone | CommodityKind::Ironwork => {
+        CommodityKind::Timber
+        | CommodityKind::Stone
+        | CommodityKind::Ironwork
+        | CommodityKind::RoofTiles => {
             let construction_reserved: f64 = ctx
                 .db
                 .building()
@@ -304,11 +307,36 @@ fn relocatable_stock(ctx: &ReducerContext, site: &Building, commodity: Commodity
                     CommodityKind::Ironwork => (building.construction_reserved_ironwork
                         - building.construction_treasury_ironwork)
                         .max(0.0),
+                    CommodityKind::RoofTiles => (building.construction_reserved_roof_tiles
+                        - building.construction_treasury_roof_tiles)
+                        .max(0.0),
                     _ => 0.0,
                 })
                 .sum();
-            let residence_reserved: f64 = if commodity == CommodityKind::Ironwork {
-                0.0
+            let residence_reserved: f64 = if matches!(
+                commodity,
+                CommodityKind::Ironwork | CommodityKind::RoofTiles
+            ) {
+                if commodity == CommodityKind::RoofTiles {
+                    ctx.db
+                        .residence()
+                        .owner()
+                        .filter(&site.owner)
+                        .filter(|residence| {
+                            residence_project_active(
+                                residence.upgrade_target_tier,
+                                residence.tier,
+                                residence.backyard_project_kind,
+                                residence.fire_repair_active,
+                                residence.decay_repair_active,
+                                residence.roof_tile_retrofit_active,
+                            )
+                        })
+                        .map(|residence| residence.upgrade_reserved_roof_tiles.max(0.0))
+                        .sum()
+                } else {
+                    0.0
+                }
             } else {
                 ctx.db
                     .residence()

@@ -60,6 +60,8 @@ pub enum CommodityKind {
     RyeBread,
     OatBread,
     MaslinBread,
+    Cider,
+    Mead,
 }
 
 pub const FRESH_FOOD_COMMODITIES: [CommodityKind; 15] = [
@@ -254,6 +256,8 @@ impl CommodityKind {
             Self::RyeBread => 52,
             Self::OatBread => 53,
             Self::MaslinBread => 54,
+            Self::Cider => 55,
+            Self::Mead => 56,
         }
     }
 
@@ -311,6 +315,8 @@ impl CommodityKind {
             52 => Some(Self::RyeBread),
             53 => Some(Self::OatBread),
             54 => Some(Self::MaslinBread),
+            55 => Some(Self::Cider),
+            56 => Some(Self::Mead),
             _ => None,
         }
     }
@@ -325,6 +331,10 @@ impl CommodityKind {
 
     pub fn is_edible(self) -> bool {
         EDIBLE_COMMODITIES.contains(&self)
+    }
+
+    pub fn is_beverage(self) -> bool {
+        matches!(self, Self::Ale | Self::Cider | Self::Mead)
     }
 
     pub fn is_bread_grain_bulk(self) -> bool {
@@ -414,6 +424,8 @@ pub fn building_commodity_stock(building: &Building, kind: CommodityKind) -> f64
         CommodityKind::Food => building.food,
         CommodityKind::Timber => building.timber,
         CommodityKind::Ale => building.ale,
+        CommodityKind::Cider => building.cider,
+        CommodityKind::Mead => building.mead,
         CommodityKind::PreservedFood => building.preserved_food,
         CommodityKind::Honey => building.honey,
         CommodityKind::Wine => building.wine,
@@ -474,6 +486,8 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         CommodityKind::Food => def.storage_food,
         CommodityKind::Timber => def.storage_timber,
         CommodityKind::Ale => def.storage_ale,
+        CommodityKind::Cider => def.storage_cider,
+        CommodityKind::Mead => def.storage_mead,
         CommodityKind::PreservedFood => def.storage_preserved_food,
         CommodityKind::Honey => def.storage_honey,
         CommodityKind::Wine => def.storage_wine,
@@ -638,6 +652,8 @@ pub fn withdraw_building_commodity(
         CommodityKind::Food => building.food -= withdrawn,
         CommodityKind::Timber => building.timber -= withdrawn,
         CommodityKind::Ale => building.ale -= withdrawn,
+        CommodityKind::Cider => building.cider -= withdrawn,
+        CommodityKind::Mead => building.mead -= withdrawn,
         CommodityKind::PreservedFood => building.preserved_food -= withdrawn,
         CommodityKind::Honey => building.honey -= withdrawn,
         CommodityKind::Wine => building.wine -= withdrawn,
@@ -701,6 +717,8 @@ pub fn deposit_building_commodity(
         CommodityKind::Food => building.food += deposited,
         CommodityKind::Timber => building.timber += deposited,
         CommodityKind::Ale => building.ale += deposited,
+        CommodityKind::Cider => building.cider += deposited,
+        CommodityKind::Mead => building.mead += deposited,
         CommodityKind::PreservedFood => building.preserved_food += deposited,
         CommodityKind::Honey => building.honey += deposited,
         CommodityKind::Wine => building.wine += deposited,
@@ -774,6 +792,8 @@ pub fn credit_treasury_commodity(
         CommodityKind::Food => treasury.food += amount,
         CommodityKind::Timber => treasury.timber += amount,
         CommodityKind::Ale => treasury.ale += amount,
+        CommodityKind::Cider => treasury.cider += amount,
+        CommodityKind::Mead => treasury.mead += amount,
         CommodityKind::PreservedFood => treasury.preserved_food += amount,
         CommodityKind::Honey => treasury.honey += amount,
         CommodityKind::Wine => treasury.wine += amount,

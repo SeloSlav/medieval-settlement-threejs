@@ -220,6 +220,7 @@ export const BUILDING_AUDIO_CLIPS: Record<
   swineherd: { path: '/sounds/buildings/swineherd.mp3', volume: 0.05 },
   monastery: { path: '/sounds/buildings/monastery.mp3', volume: 0.04 },
   brewery: { path: '/sounds/buildings/brewery.mp3', volume: 0.05 },
+  tavern: { path: '/sounds/buildings/marketplace.mp3', volume: 0.045 },
   smokehouse: { path: '/sounds/buildings/smokehouse.mp3', volume: 0.045 },
   granary: { path: '/sounds/buildings/granary.mp3', volume: 0.045 },
   bakery: { path: '/sounds/buildings/brewery.mp3', volume: 0.045 },

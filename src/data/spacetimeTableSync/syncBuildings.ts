@@ -51,6 +51,9 @@ function buildingStateFromRow(
     constructionDeliveredRoofTiles: number;
     constructionReservedRoofTiles: number;
     constructionTreasuryRoofTiles: number;
+    cider: number;
+    mead: number;
+    breweryRecipePolicy: number;
   }>;
   return {
     id,
@@ -78,6 +81,8 @@ function buildingStateFromRow(
     oatFlour: wholeResourceUnits(row.oatFlour),
     maslinFlour: wholeResourceUnits(row.maslinFlour),
     ale: wholeResourceUnits(row.ale),
+    cider: wholeResourceUnits(materialRow.cider),
+    mead: wholeResourceUnits(materialRow.mead),
     preservedFood: wholeResourceUnits(row.preservedFood),
     honey: wholeResourceUnits(row.honey),
     wine: wholeResourceUnits(row.wine),
@@ -147,6 +152,7 @@ function buildingStateFromRow(
     storehouseClayTargetPercent: row.storehouseClayTargetPercent,
     storehouseSaltTargetPercent: row.storehouseSaltTargetPercent,
     processorOutputTargetPercent: row.processorOutputTargetPercent,
+    breweryRecipePolicy: Number(materialRow.breweryRecipePolicy ?? 0),
     threshingPriority: row.threshingPriority,
     weaverInputPolicy: row.weaverInputPolicy,
     potteryDispatchPolicy: row.potteryDispatchPolicy,

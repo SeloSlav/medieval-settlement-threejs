@@ -933,8 +933,13 @@ impl SimTickContext {
         let Some(network) = self.road_network(owner) else {
             return HashMap::new();
         };
+        let source_kind = if stall_need == ResidenceNeedKind::Ale {
+            "tavern"
+        } else {
+            "marketplace"
+        };
         let marketplaces: Vec<Building> = self
-            .building_ids_for_kinds(ctx, owner, &["marketplace"])
+            .building_ids_for_kinds(ctx, owner, &[source_kind])
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .filter(|building| {
@@ -943,7 +948,11 @@ impl SimTickContext {
                     && crate::simulation::delivery_cargo::building_delivery_stock(
                         building, stall_need,
                     ) > 1e-6
-                    && self.marketplace_has_stall_workers(ctx, building, stall_need)
+                    && if stall_need == ResidenceNeedKind::Ale {
+                        building.assigned_labor > 0
+                    } else {
+                        self.marketplace_has_stall_workers(ctx, building, stall_need)
+                    }
             })
             .collect();
         let marketplace_refs: Vec<&Building> = marketplaces.iter().collect();
@@ -1451,7 +1460,9 @@ fn stall_need_for_commodity(commodity: CommodityKind) -> Option<ResidenceNeedKin
         Some(ResidenceNeedKind::Food)
     } else {
         match commodity {
-            CommodityKind::Ale => Some(ResidenceNeedKind::Ale),
+            CommodityKind::Ale | CommodityKind::Cider | CommodityKind::Mead => {
+                Some(ResidenceNeedKind::Ale)
+            }
             CommodityKind::Firewood | CommodityKind::Charcoal => Some(ResidenceNeedKind::Firewood),
             CommodityKind::Cloth => Some(ResidenceNeedKind::Cloth),
             CommodityKind::Pottery => Some(ResidenceNeedKind::Pottery),

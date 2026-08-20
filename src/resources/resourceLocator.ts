@@ -38,6 +38,8 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   oatFlour: 'Oat flour',
   maslinFlour: 'Maslin flour',
   ale: 'Ale',
+  cider: 'Cider',
+  mead: 'Mead',
   preservedFood: 'Preserved staples',
   honey: 'Honey',
   wine: 'Wine',

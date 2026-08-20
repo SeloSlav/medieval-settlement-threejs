@@ -33,7 +33,6 @@ import {
   resolveBuildingPlacementPoint,
   validateBuildingPlacement,
 } from '../src/buildings/BuildingPlacementValidation.ts';
-import { buildingExtentColor } from '../src/buildings/buildingExtents.ts';
 import { PlacementClearanceSpatialIndex } from '../src/placement/PlacementClearanceSpatialIndex.ts';
 import {
   polygonSegments,
@@ -809,58 +808,32 @@ function testPlacementOverlaysFollowTerrainHeight(): void {
   borderGeometry.dispose();
 }
 
-function testPlacementPreviewShowsTerrainFollowingExtent(): void {
+function testPlacementPreviewOmitsRadiusExtents(): void {
   const heightAt = (x: number, z: number) =>
     Math.sin(x * 0.018) * 3.4 + Math.cos(z * 0.021) * 2.6;
-  const preview = createBuildingPreviewMesh('threshing_barn');
-  const extent = preview.getObjectByName('Building placement extent');
-  assert.ok(extent instanceof THREE.Mesh);
-  assert.equal(extent.userData.extentRadius, 250);
-  assert.equal(extent.userData.extentLabel, 'Field work extent');
-
-  updateBuildingPreviewGeometry(preview, 'threshing_barn', 35, -48, 0.42, heightAt);
-  const positions = extent.geometry.getAttribute('position') as THREE.BufferAttribute;
-  assert.ok(positions.count > 120, 'the placement extent should have a readable terrain ribbon');
-  for (let index = 0; index < positions.count; index++) {
-    assert.ok(
-      Math.abs(
-        positions.getY(index)
-        - (heightAt(positions.getX(index), positions.getZ(index)) + 0.165)
-      ) < 1e-5,
-      'placement extent vertices must follow the sampled terrain',
+  for (const kind of [
+    'threshing_barn',
+    'well',
+    'monastery',
+    'watchtower',
+    'palisaded_refuge',
+    'smithy',
+  ] as const) {
+    const preview = createBuildingPreviewMesh(kind);
+    assert.equal(
+      preview.getObjectByName('Building placement extent'),
+      undefined,
+      `${kind} must not expose a placement radius`,
     );
-  }
-
-  updateBuildingPreviewAppearance(preview, false);
-  const extentMaterial = extent.material as THREE.MeshBasicMaterial;
-  assert.equal(extentMaterial.color.getHex(), 0xff5d50);
-  assert.ok(extentMaterial.opacity < 0.4);
-  updateBuildingPreviewAppearance(preview, true);
-  assert.equal(extentMaterial.color.getHex(), buildingExtentColor('threshing_barn'));
-  disposeBuildingPreviewMesh(preview);
-
-  const pointBuildingPreview = createBuildingPreviewMesh('brewery');
-  assert.equal(pointBuildingPreview.getObjectByName('Building placement extent'), undefined);
-  disposeBuildingPreviewMesh(pointBuildingPreview);
-
-  const largestPreview = createBuildingPreviewMesh('monastery');
-  const startedAt = performance.now();
-  for (let index = 0; index < 250; index++) {
-    updateBuildingPreviewGeometry(
-      largestPreview,
-      'monastery',
-      index * 0.21,
-      -index * 0.17,
-      0,
-      heightAt,
+    assert.equal(
+      preview.getObjectByName('Building fire spread range'),
+      undefined,
+      `${kind} must not expose a fire-planning radius`,
     );
+    updateBuildingPreviewGeometry(preview, kind, 35, -48, 0.42, heightAt);
+    updateBuildingPreviewAppearance(preview, false);
+    disposeBuildingPreviewMesh(preview);
   }
-  const elapsedMs = performance.now() - startedAt;
-  disposeBuildingPreviewMesh(largestPreview);
-  assert.ok(
-    elapsedMs < 1_000,
-    `250 maximum-radius preview updates should remain interactive (took ${elapsedMs.toFixed(1)} ms)`,
-  );
 }
 
 function testCivicAndFrontierPlacementPrerequisites(): void {
@@ -1259,7 +1232,7 @@ testBurgageBuildingOverlapUsesVisibleFootprints();
 testOrganicBurgagePlotsAndPreviewIcons();
 testBurgageFrontageDirectionAndRoadSideSelection();
 testPlacementOverlaysFollowTerrainHeight();
-testPlacementPreviewShowsTerrainFollowingExtent();
+testPlacementPreviewOmitsRadiusExtents();
 testCivicAndFrontierPlacementPrerequisites();
 testDenseBuildingFootprintSpacingAndEdgeSnap();
 testMineralMineCanOccupyItsDeposit();
@@ -1344,6 +1317,7 @@ const app = readFileSync('src/app/App.ts', 'utf8');
 const buildToolbar = readFileSync('src/ui/BuildToolbar.ts', 'utf8');
 const buildChrome = readFileSync('src/ui/buildChrome.css', 'utf8');
 const buildingMarkers = readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
+const buildingPlacementPreview = readFileSync('src/buildings/BuildingPlacementPreview.ts', 'utf8');
 const terrainProjector = readFileSync('src/terrain/TerrainProjector.ts', 'utf8');
 const firstPersonController = readFileSync('src/camera/FirstPersonController.ts', 'utf8');
 const cameraController = readFileSync('src/camera/CameraController.ts', 'utf8');
@@ -1487,20 +1461,15 @@ assert.match(
   /\.builder-status-bar\[data-state='warning'\][\s\S]*border-color[\s\S]*color/,
   'blocked placement guidance should have a distinct warning treatment',
 );
-assert.match(
-  buildingTool,
-  /getBuildingExtent\(kind, definition\.workRadius\)[\s\S]*Ready: \$\{extent\.label\.toLowerCase\(\)\} shown on terrain/,
-  'valid strategic buildings should point to the visible extent without printing its data value',
-);
-assert.match(
-  buildingMarkers,
-  /updateTerrainCircleRibbonGeometry\([\s\S]*this\.terrain\.getHeightAt\.bind\(this\.terrain\)/,
-  'selected building extents should use the same terrain-following geometry as placement',
+assert.doesNotMatch(
+  `${buildingPlacementPreview}\n${buildingMarkers}`,
+  /Building placement extent|Selected building extent|Building fire spread range|Selected building fire spread range|updateTerrainCircleRibbonGeometry/,
+  'placement and selection must not render gameplay radius circles',
 );
 assert.doesNotMatch(
-  buildingMarkers,
-  /new THREE\.RingGeometry/,
-  'strategic extent rings should not remain flat planes that clip through terrain',
+  buildingTool,
+  /shown on terrain/,
+  'placement status must not claim that a hidden radius is visible',
 );
 
 assert.match(

@@ -6,7 +6,6 @@ import {
   sharedBuildingDetailMaterial,
   shingleMaterial,
   stoneMaterial,
-  tileMaterial,
   timberMaterial,
 } from '../buildingMaterials.ts';
 import { addTriangularGableWall } from '../meshPrimitives.ts';
@@ -31,7 +30,7 @@ function addMillRoof(group: THREE.Group, length: number, width: number, wallTop:
     addMesh(
       group,
       new THREE.BoxGeometry(length + 0.6, 0.14, slopeLen),
-      tileMaterial(side > 0 ? 0 : 1),
+      shingleMaterial(),
       new THREE.Vector3(0, wallTop + ridgeHeight * 0.48, side * halfW * 0.46),
       new THREE.Euler(side > 0 ? pitch : -pitch, 0, 0),
     );
@@ -40,7 +39,7 @@ function addMillRoof(group: THREE.Group, length: number, width: number, wallTop:
       addMesh(
         group,
         new THREE.BoxGeometry(length + 0.62, 0.055, 0.07),
-        tileMaterial(row % 2 === 0 ? 0 : 1),
+        shingleMaterial(),
         new THREE.Vector3(0, wallTop + ridgeHeight * t + 0.02, side * halfW * (1 - t)),
         new THREE.Euler(side > 0 ? pitch : -pitch, 0, 0),
       );
@@ -49,7 +48,7 @@ function addMillRoof(group: THREE.Group, length: number, width: number, wallTop:
   addMesh(
     group,
     new THREE.BoxGeometry(length + 0.78, 0.2, 0.28),
-    tileMaterial(2),
+    shingleMaterial(),
     new THREE.Vector3(0, wallTop + ridgeHeight + 0.04, 0),
   );
   for (const xSign of [-1, 1] as const) {
@@ -188,7 +187,7 @@ export function createLumberMillMesh(): THREE.Group {
     width: 6.0,
     depth: 2.1,
     thickness: 0.13,
-    material: tileMaterial(1),
+    material: shingleMaterial(),
     position: new THREE.Vector3(0, 3.95, halfW + 0.72),
     pitch: 0.16,
     highEdge: 'negativeZ',

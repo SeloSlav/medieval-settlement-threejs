@@ -110,6 +110,7 @@ export function renderBuildingInspector(
     case 'threshing_barn':
     case 'monastery':
     case 'brewery':
+    case 'tavern':
     case 'smokehouse':
     case 'granary':
     case 'bakery':

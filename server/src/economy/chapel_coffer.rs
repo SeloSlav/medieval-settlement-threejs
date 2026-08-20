@@ -178,6 +178,10 @@ mod tests {
             construction_treasury_timber: 0.0,
             construction_treasury_stone: 0.0,
             construction_treasury_ironwork: 0.0,
+            construction_required_roof_tiles: 0.0,
+            construction_delivered_roof_tiles: 0.0,
+            construction_reserved_roof_tiles: 0.0,
+            construction_treasury_roof_tiles: 0.0,
             gold,
             storehouse_accepts_timber: true,
             storehouse_accepts_stone: true,
@@ -265,6 +269,9 @@ mod tests {
             marketplace_provision_export_policy: 255,
             marketplace_wares_export_policy: 255,
             fire_repair_active: false,
+            cider: 0.0,
+            mead: 0.0,
+            brewery_recipe_policy: crate::brewery_recipe_policy::BREWERY_RECIPE_ALE,
         }
     }
 

@@ -5,6 +5,10 @@ use crate::balance_generated::{
     CARPENTER_TIMBER_COST_MULTIPLIER, CONSTRUCTION_MAX_BUILDERS, TOWN_HALL_POPULATION_REQUIRED,
 };
 use crate::building_defs::{building_def, building_def_or_err};
+use crate::brewery_recipe_policy::{
+    is_valid_brewery_recipe_policy, normalize_brewery_recipe_policy, BREWERY_RECIPE_AUTO,
+    BREWERY_RECIPE_CIDER, BREWERY_RECIPE_MEAD,
+};
 use crate::burgage::{zone_overlaps_footprint, Point2};
 use crate::chapel_upgrade_policy::{chapel_upgrade_cost, normalize_chapel_tier};
 use crate::construction_priority::{
@@ -740,8 +744,21 @@ pub(crate) fn place_building_internal(
             cost.ironwork.round() as i64
         ));
     }
-    let (treasury_timber, treasury_stone, treasury_ironwork) =
-        construction_treasury_reservation(ctx, owner, timber_cost, cost.stone, cost.ironwork);
+    if total_roof_tiles(ctx, owner) + 1e-6 < cost.roof_tiles {
+        return Err(format!(
+            "Not enough fired roof tiles (need {} roof tiles).",
+            cost.roof_tiles.round() as i64
+        ));
+    }
+    let (treasury_timber, treasury_stone, treasury_ironwork, treasury_roof_tiles) =
+        construction_treasury_reservation(
+            ctx,
+            owner,
+            timber_cost,
+            cost.stone,
+            cost.ironwork,
+            cost.roof_tiles,
+        );
     let assigned_builders = initial_construction_labor(available_building_labor(ctx, owner));
 
     let config = ctx
@@ -830,6 +847,10 @@ pub(crate) fn place_building_internal(
         construction_treasury_timber: treasury_timber,
         construction_treasury_stone: treasury_stone,
         construction_treasury_ironwork: treasury_ironwork,
+        construction_required_roof_tiles: cost.roof_tiles,
+        construction_delivered_roof_tiles: 0.0,
+        construction_reserved_roof_tiles: cost.roof_tiles,
+        construction_treasury_roof_tiles: treasury_roof_tiles,
         storehouse_accepts_timber: true,
         storehouse_accepts_stone: true,
         storehouse_accepts_firewood: true,
@@ -928,6 +949,9 @@ pub(crate) fn place_building_internal(
         maslin_bread: 0.0,
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
         fire_repair_active: false,
+        cider: 0.0,
+        mead: 0.0,
+        brewery_recipe_policy: crate::brewery_recipe_policy::BREWERY_RECIPE_ALE,
     });
 
     ctx.db.world_config().id().update(WorldConfig {
@@ -1059,6 +1083,9 @@ pub(crate) fn rotate_construction_labor_for_owner_with_reserve(
                 building.construction_treasury_timber,
                 building.construction_treasury_stone,
                 building.construction_treasury_ironwork,
+                building.construction_required_roof_tiles,
+                building.construction_delivered_roof_tiles,
+                building.construction_treasury_roof_tiles,
             ),
             inbound_supply: building_has_inbound_supply_trip(ctx, building.id),
         })
@@ -1151,6 +1178,24 @@ fn processor_output_room(building: &Building) -> Option<f64> {
             building.processor_output_target_percent,
         ));
     }
+    if building.kind == "brewery" {
+        let policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
+        let headroom = |commodity| {
+            processor_output_headroom(
+                building_commodity_stock(building, commodity),
+                building_commodity_cap(&building.kind, commodity),
+                building.processor_output_target_percent,
+            )
+        };
+        return Some(match policy {
+            BREWERY_RECIPE_CIDER => headroom(CommodityKind::Cider),
+            BREWERY_RECIPE_MEAD => headroom(CommodityKind::Mead),
+            BREWERY_RECIPE_AUTO => headroom(CommodityKind::Ale)
+                .max(headroom(CommodityKind::Cider))
+                .max(headroom(CommodityKind::Mead)),
+            _ => headroom(CommodityKind::Ale),
+        });
+    }
     let commodity = if building.kind == "potter_kiln"
         && potter_fires_roof_tiles(building.potter_firing_policy)
     {
@@ -1180,6 +1225,8 @@ fn processor_input_commodity(kind: ProcessorInputKind) -> CommodityKind {
         ProcessorInputKind::Iron => CommodityKind::Iron,
         ProcessorInputKind::Charcoal => CommodityKind::Charcoal,
         ProcessorInputKind::Clay => CommodityKind::Clay,
+        ProcessorInputKind::Apples => CommodityKind::Apples,
+        ProcessorInputKind::Honey => CommodityKind::Honey,
     }
 }
 
@@ -1202,6 +1249,41 @@ fn processor_stall_and_recovery(ctx: &ReducerContext, building: &Building) -> (b
         let water_available = has_water
             || building_has_inbound_commodity_trip(ctx, building.id, CommodityKind::Water);
         return (true, wool_en_route || (flax_available && water_available));
+    }
+
+    if building.kind == "brewery" {
+        let policy = normalize_brewery_recipe_policy(building.brewery_recipe_policy);
+        let ale_ready = (building.barley > 1e-6 || building.malt > 1e-6)
+            && building.water > 1e-6
+            && building.firewood > 1e-6;
+        let cider_ready = building.apples > 1e-6;
+        let mead_ready = building.honey > 1e-6;
+        let ready = match policy {
+            BREWERY_RECIPE_CIDER => cider_ready,
+            BREWERY_RECIPE_MEAD => mead_ready,
+            BREWERY_RECIPE_AUTO => ale_ready || cider_ready || mead_ready,
+            _ => ale_ready,
+        };
+        if ready {
+            return (false, false);
+        }
+        let inbound = |commodity| {
+            building_has_inbound_commodity_trip(ctx, building.id, commodity)
+        };
+        let ale_recovering = (inbound(CommodityKind::Barley) || inbound(CommodityKind::Malt))
+            && (building.water > 1e-6 || inbound(CommodityKind::Water))
+            && (building.firewood > 1e-6 || inbound(CommodityKind::Firewood));
+        let recovering = match policy {
+            BREWERY_RECIPE_CIDER => inbound(CommodityKind::Apples),
+            BREWERY_RECIPE_MEAD => inbound(CommodityKind::Honey),
+            BREWERY_RECIPE_AUTO => {
+                ale_recovering
+                    || inbound(CommodityKind::Apples)
+                    || inbound(CommodityKind::Honey)
+            }
+            _ => ale_recovering,
+        };
+        return (true, recovering);
     }
 
     let missing_inputs: Vec<CommodityKind> = processor_input_kinds(&building.kind)
@@ -1958,6 +2040,30 @@ pub fn set_processor_output_target(
         return Err("You do not own this completed production site.".to_string());
     }
     building.processor_output_target_percent = target_percent;
+    ctx.db.building().id().update(building);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_brewery_recipe_policy(
+    ctx: &ReducerContext,
+    building_id: u64,
+    recipe_policy: u8,
+) -> Result<(), String> {
+    if !is_valid_brewery_recipe_policy(recipe_policy) {
+        return Err("Brewery recipe must be Ale, Cider, Mead, or Auto.".to_string());
+    }
+    let owner = ctx.sender();
+    let mut building = ctx
+        .db
+        .building()
+        .id()
+        .find(&building_id)
+        .ok_or_else(|| "Brewhouse not found.".to_string())?;
+    if building.owner != owner || building.kind != "brewery" || !building.construction_complete {
+        return Err("You do not own this completed brewhouse.".to_string());
+    }
+    building.brewery_recipe_policy = recipe_policy;
     ctx.db.building().id().update(building);
     Ok(())
 }
@@ -2765,6 +2871,7 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             honey: building.honey * recoverable,
             wine: building.wine * recoverable,
             ironwork: refund.ironwork + building.ironwork * recoverable,
+            roof_tiles: refund.roof_tiles + building.roof_tiles * recoverable,
             polearms: building.polearms * recoverable,
             wool: building.wool * recoverable,
             cloth: building.cloth * recoverable,
@@ -2815,6 +2922,10 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             construction_treasury_timber: 0.0,
             construction_treasury_stone: 0.0,
             construction_treasury_ironwork: 0.0,
+            construction_required_roof_tiles: 0.0,
+            construction_delivered_roof_tiles: 0.0,
+            construction_reserved_roof_tiles: 0.0,
+            construction_treasury_roof_tiles: 0.0,
             construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
             founding_shelter_active: false,
             marketplace_pending_trade_code: 0,
@@ -2885,6 +2996,12 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         owner,
         CommodityKind::Ironwork,
         refund.ironwork + (building.ironwork + trip_cargo.ironwork) * recoverable,
+    );
+    credit_treasury_commodity(
+        ctx,
+        owner,
+        CommodityKind::RoofTiles,
+        refund.roof_tiles + (building.roof_tiles + trip_cargo.roof_tiles) * recoverable,
     );
     credit_treasury_commodity(
         ctx,

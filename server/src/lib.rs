@@ -3,6 +3,7 @@
 
 mod apiary_policy;
 mod backyard_garden_policy;
+mod brewery_recipe_policy;
 mod balance_generated;
 mod building_defs;
 mod burgage;

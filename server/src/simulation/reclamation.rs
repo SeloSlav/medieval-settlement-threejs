@@ -23,7 +23,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 52] = [
+const RECOVERY_ORDER: [CommodityKind; 54] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -58,6 +58,8 @@ const RECOVERY_ORDER: [CommodityKind; 52] = [
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
     CommodityKind::Ale,
+    CommodityKind::Cider,
+    CommodityKind::Mead,
     CommodityKind::Honey,
     CommodityKind::Wine,
     CommodityKind::Cloth,
@@ -86,6 +88,8 @@ pub struct ReclamationStock {
     pub water: f64,
     pub food: f64,
     pub ale: f64,
+    pub cider: f64,
+    pub mead: f64,
     pub preserved_food: f64,
     pub honey: f64,
     pub wine: f64,
@@ -160,6 +164,14 @@ impl ReclamationStock {
             },
             CommodityKind::Ale => Self {
                 ale: amount,
+                ..Self::default()
+            },
+            CommodityKind::Cider => Self {
+                cider: amount,
+                ..Self::default()
+            },
+            CommodityKind::Mead => Self {
+                mead: amount,
                 ..Self::default()
             },
             CommodityKind::PreservedFood => Self {
@@ -324,6 +336,8 @@ impl ReclamationStock {
             water: resources.water.max(0.0),
             food: resources.food.max(0.0),
             ale: resources.ale.max(0.0),
+            cider: resources.cider.max(0.0),
+            mead: resources.mead.max(0.0),
             preserved_food: resources.preserved_food.max(0.0),
             honey: resources.honey.max(0.0),
             wine: resources.wine.max(0.0),
@@ -381,6 +395,8 @@ impl ReclamationStock {
             CommodityKind::Water => self.water,
             CommodityKind::Food => self.food,
             CommodityKind::Ale => self.ale,
+            CommodityKind::Cider => self.cider,
+            CommodityKind::Mead => self.mead,
             CommodityKind::PreservedFood => self.preserved_food,
             CommodityKind::Honey => self.honey,
             CommodityKind::Wine => self.wine,
@@ -437,6 +453,8 @@ impl ReclamationStock {
         building.water += self.water;
         building.food += self.food;
         building.ale += self.ale;
+        building.cider += self.cider;
+        building.mead += self.mead;
         building.preserved_food += self.preserved_food;
         building.honey += self.honey;
         building.wine += self.wine;
@@ -493,6 +511,8 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.water = 0.0;
     resources.food = 0.0;
     resources.ale = 0.0;
+    resources.cider = 0.0;
+    resources.mead = 0.0;
     resources.preserved_food = 0.0;
     resources.honey = 0.0;
     resources.wine = 0.0;
@@ -655,6 +675,8 @@ pub fn insert_reclamation_pile(
         water: stock.water.max(0.0),
         food: stock.food.max(0.0),
         ale: stock.ale.max(0.0),
+        cider: stock.cider.max(0.0),
+        mead: stock.mead.max(0.0),
         preserved_food: stock.preserved_food.max(0.0),
         honey: stock.honey.max(0.0),
         wine: stock.wine.max(0.0),
@@ -684,6 +706,10 @@ pub fn insert_reclamation_pile(
         construction_treasury_timber: 0.0,
         construction_treasury_stone: 0.0,
         construction_treasury_ironwork: 0.0,
+        construction_required_roof_tiles: 0.0,
+        construction_delivered_roof_tiles: 0.0,
+        construction_reserved_roof_tiles: 0.0,
+        construction_treasury_roof_tiles: 0.0,
         granary_accepts_fresh_food: true,
         granary_households_first: false,
         construction_priority: CONSTRUCTION_PRIORITY_NORMAL,
@@ -783,6 +809,7 @@ pub fn insert_reclamation_pile(
         maslin_bread: stock.maslin_bread.max(0.0),
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
         fire_repair_active: false,
+        brewery_recipe_policy: crate::brewery_recipe_policy::BREWERY_RECIPE_ALE,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id
@@ -972,13 +999,15 @@ pub fn materialize_physical_construction_reservations(
             !building.construction_complete
                 && (building.construction_treasury_timber > EPSILON
                     || building.construction_treasury_stone > EPSILON
-                    || building.construction_treasury_ironwork > EPSILON)
+                    || building.construction_treasury_ironwork > EPSILON
+                    || building.construction_treasury_roof_tiles > EPSILON)
         })
         .collect::<Vec<_>>();
     for mut site in sites {
         site.construction_treasury_timber = 0.0;
         site.construction_treasury_stone = 0.0;
         site.construction_treasury_ironwork = 0.0;
+        site.construction_treasury_roof_tiles = 0.0;
         ctx.db.building().id().update(site);
     }
 }
@@ -1158,7 +1187,12 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
             "founders_camp" => Some(1),
             _ => Some(2),
         },
-        CommodityKind::Ale | CommodityKind::Honey | CommodityKind::Wine => match kind {
+        CommodityKind::Ale | CommodityKind::Cider | CommodityKind::Mead => match kind {
+            "tavern" => Some(0),
+            "founders_camp" => Some(1),
+            _ => Some(2),
+        },
+        CommodityKind::Honey | CommodityKind::Wine => match kind {
             "marketplace" => Some(0),
             "monastery" => Some(1),
             "founders_camp" => Some(2),

@@ -65,6 +65,8 @@ export function syncPlayerResources(rows: Iterable<PlayerResources>, state: Game
       oatFlour: wholeResourceUnits(row.oatFlour),
       maslinFlour: wholeResourceUnits(row.maslinFlour),
       ale: wholeResourceUnits(row.ale),
+      cider: wholeResourceUnits(row.cider),
+      mead: wholeResourceUnits(row.mead),
       preservedFood: wholeResourceUnits(row.preservedFood),
       honey: wholeResourceUnits(row.honey),
       wine: wholeResourceUnits(row.wine),

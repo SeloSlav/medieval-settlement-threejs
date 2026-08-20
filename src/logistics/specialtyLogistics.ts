@@ -38,17 +38,18 @@ const PRESERVED_FOOD_PRODUCER_KINDS: readonly BuildingKind[] = [
   'smokehouse',
   'pastoral_farmstead',
 ];
-const ALE_PRODUCER_KINDS: readonly BuildingKind[] = ['brewery', 'monastery'];
+const ALE_PRODUCER_KINDS: readonly BuildingKind[] = ['tavern'];
 const CLOTH_PRODUCER_KINDS: readonly BuildingKind[] = ['weaver'];
 const POTTERY_PRODUCER_KINDS: readonly BuildingKind[] = ['potter_kiln'];
 const PRESERVED_FOOD_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
-const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
+const ALE_SUPPLIER_KINDS: readonly BuildingKind[] = ['tavern'];
 const CLOTH_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
 const POTTERY_SUPPLIER_KINDS: readonly BuildingKind[] = ['marketplace'];
 
 export function isOperationalSpecialtySupplier(building: BuildingState): boolean {
-  return building.kind === 'marketplace'
-    && building.constructionComplete !== false;
+  return (building.kind === 'marketplace' || building.kind === 'tavern')
+    && building.constructionComplete !== false
+    && (building.kind !== 'tavern' || building.assignedLabor > 0);
 }
 
 export function isSustainableSpecialtySupplier(building: BuildingState): boolean {
@@ -335,7 +336,11 @@ function specialtySupplierStock(
   building: BuildingState,
   needKind: SpecialtyNeedKind,
 ): number {
-  if (needKind === 'ale') return building.ale;
+  if (needKind === 'ale') {
+    return Math.max(0, building.ale)
+      + Math.max(0, building.cider ?? 0)
+      + Math.max(0, building.mead ?? 0);
+  }
   if (needKind === 'cloth') return building.cloth ?? 0;
   if (needKind === 'pottery') return building.pottery ?? 0;
   return preservedFoodStock(building);

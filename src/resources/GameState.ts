@@ -103,6 +103,8 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     malt: 0,
     flax: 0,
     ale: 0,
+    cider: 0,
+    mead: 0,
     preservedFood: 0,
     honey: 0,
     wine: 0,
@@ -132,6 +134,7 @@ export function placeBuilding(state: GameState, kind: BuildingKind, x: number, z
     granaryAcceptsFreshFood: true,
     granaryHouseholdsFirst: false,
     granaryFreshFoodTargetPercent: 75,
+    breweryRecipePolicy: 0,
     constructionPriority: 2,
   };
 

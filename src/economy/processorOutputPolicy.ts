@@ -6,6 +6,7 @@ import {
   normalizePotterFiringPolicy,
   POTTER_FIRE_ROOF_TILES,
 } from './potterFiringPolicy.ts';
+import { breweryPolicyOutput } from './breweryRecipePolicy.ts';
 
 export const PROCESSOR_OUTPUT_TARGET_KINDS = [
   'watermill',
@@ -36,6 +37,8 @@ export type ProcessorOutputCommodity =
   | 'flour'
   | 'bread'
   | 'ale'
+  | 'cider'
+  | 'mead'
   | 'preservedFood'
   | 'cloth'
   | 'charcoal'
@@ -50,12 +53,13 @@ export type ProcessorInputCommodity =
   | 'oatGrain'
   | 'maslinGrain'
   | 'barley'
+  | 'apples'
+  | 'honey'
   | 'ryeFlour'
   | 'oatFlour'
   | 'maslinFlour'
   | 'water'
   | 'firewood'
-  | 'food'
   | 'wool'
   | 'flax'
   | 'iron'
@@ -135,7 +139,7 @@ const INPUTS_BY_KIND: Record<
   watermill: ['ryeGrain', 'oatGrain', 'maslinGrain'],
   windmill: ['ryeGrain', 'oatGrain', 'maslinGrain'],
   bakery: ['ryeFlour', 'oatFlour', 'maslinFlour', 'water', 'firewood'],
-  brewery: ['barley', 'water', 'firewood'],
+  brewery: ['barley', 'apples', 'honey', 'water', 'firewood'],
   smokehouse: ['food', 'firewood', 'salt', 'pottery'],
   weaver: ['wool', 'flax', 'water'],
   charcoal_burner: ['firewood'],
@@ -178,9 +182,21 @@ export function processorOutputCommodity(
 }
 
 export function processorOutputCommodityForBuilding(
-  building: Pick<BuildingState, 'kind' | 'potterFiringPolicy'>,
+  building: Pick<
+    BuildingState,
+    | 'kind'
+    | 'potterFiringPolicy'
+    | 'breweryRecipePolicy'
+    | 'barley'
+    | 'malt'
+    | 'apples'
+    | 'honey'
+  >,
 ): ProcessorOutputCommodity | null {
   if (!isProcessorOutputTargetKind(building.kind)) return null;
+  if (building.kind === 'brewery') {
+    return breweryPolicyOutput(building.breweryRecipePolicy, building);
+  }
   if (
     building.kind === 'potter_kiln'
     && normalizePotterFiringPolicy(building.potterFiringPolicy) === POTTER_FIRE_ROOF_TILES
@@ -225,7 +241,14 @@ export function processorInputStagingCycles(
 export function processorOutputTargetForBuilding(
   building: Pick<
     BuildingState,
-    'kind' | 'processorOutputTargetPercent' | 'potterFiringPolicy'
+    | 'kind'
+    | 'processorOutputTargetPercent'
+    | 'potterFiringPolicy'
+    | 'breweryRecipePolicy'
+    | 'barley'
+    | 'malt'
+    | 'apples'
+    | 'honey'
   >,
 ): number | null {
   const output = processorOutputCommodityForBuilding(building);
