@@ -8,6 +8,11 @@ import { BACKYARD_PLANT_SPECIES, type BackyardPlantKind } from './backyardPlantP
 
 export type OrchardFruitKind = 'apple' | 'cherry';
 
+export type BackyardSeasonalFoliageTintBinding = {
+  color: { value: THREE.Color };
+  amount: { value: number };
+};
+
 export type BackyardPlantCatalog = {
   clone(kind: BackyardPlantKind, variant: number): THREE.LOD;
   createFruitInstances(
@@ -90,9 +95,19 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
   catalogPromise = (async () => {
     const fruitPrototypes = await loadFruitPrototypes();
     const prototypes = new Map<BackyardPlantKind, THREE.LOD[]>();
+    const seasonalFoliageBindings = new Map<
+      OrchardFruitKind,
+      BackyardSeasonalFoliageTintBinding[]
+    >();
     for (const kind of ['apple', 'cherry', 'rose'] as const) {
       const species = BACKYARD_PLANT_SPECIES[kind];
       const assets = await loadSeedThreeSpeciesAssets(species, maxAnisotropy);
+      if (kind === 'apple' || kind === 'cherry') {
+        seasonalFoliageBindings.set(kind, [
+          { color: assets.leafTintColor, amount: assets.leafTintAmount },
+          { color: assets.clusterTintColor, amount: assets.clusterTintAmount },
+        ]);
+      }
       const variants: THREE.LOD[] = [];
       for (let variant = 0; variant < VARIANT_COUNT[kind]; variant++) {
         const { group } = buildTree(
@@ -116,6 +131,9 @@ export function loadBackyardPlantCatalog(maxAnisotropy: number): Promise<Backyar
         const source = variants[Math.abs(variant) % variants.length]!;
         const clone = source.clone(true) as THREE.LOD;
         clone.name = `SeedThree backyard ${kind}`;
+        if (kind === 'apple' || kind === 'cherry') {
+          clone.userData.backyardSeasonalFoliageTintBindings = seasonalFoliageBindings.get(kind);
+        }
         markSharedPrototypeGeometry(clone);
         return clone;
       },

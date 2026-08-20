@@ -158,6 +158,7 @@ Backyards are small working landscapes, not map icons enlarged into 3D. Their so
 - Apple orchards use low, broad, slightly gnarled SeedThree trees, visible apples, grass understorey, a harvest basket, and an open grass aisle without stepping stones.
 - Cherry orchards use taller, lighter, vase-shaped SeedThree trees, paired dark cherries, and the same open-ground vernacular yard vocabulary without sharing the apple silhouette.
 - Orchard trees occupy evenly centered cells in a grid selected from the backyard aspect ratio: roomy plots use two rows by two columns, while smaller plots align two trees along their longer dimension.
+- Apple and cherry foliage consumes the shared deciduous presentation state: pale spring leaf-out matures to summer green, species-specific autumn color accompanies deterministic leaf drop, and every orchard crown is bare in winter while retaining its branch structure.
 - Flower gardens are cottage gardens built around custom SeedThree rose shrubs, mixed-height blooms, irregular beds, and a stone footpath. Avoid uniform dots on a soil rectangle.
 - Vegetable gardens use divided ground-level plots without timber frames, legible cabbage rosettes, a bean trellis where space permits, paths, and a working basket.
 - Flower gardens and vegetable gardens keep their cultivated soil flush with the backyard terrain rather than mounding or boxing it above grade.

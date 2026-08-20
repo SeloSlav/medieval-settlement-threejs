@@ -8,6 +8,11 @@ import {
 import { hashF64 } from '../rivers/riverHash.ts';
 import type { RiverLayout, RiverPoint } from '../rivers/RiverLayout.ts';
 import {
+  regionalPlacementAffinity,
+  sampleRegionalPlacementCandidate,
+  type ResourcePlacementTarget,
+} from '../world/resourceRegionDistribution.ts';
+import {
   BERRY_PATCH_MAX_SPAWN_RADIUS,
   MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
   gamePatchSpawnRadius,
@@ -30,6 +35,7 @@ export type ForagingLayoutOptions = {
   seed?: number;
   nodeCounts?: Partial<Record<ForagingNodeKind, number>>;
   richNodeCounts?: Partial<Record<ForagingNodeKind, number>>;
+  placementTargets?: Partial<Record<ForagingNodeKind, readonly ResourcePlacementTarget[]>>;
 };
 
 const DENSE_FOREST_MIN = 0.55;
@@ -129,6 +135,7 @@ export class ForagingLayout {
         wildlifeDeposits,
         gameSiteCandidates,
         sites,
+        options.placementTargets?.game?.[gameIndex],
       );
       if (gameSite) {
         sites.push({
@@ -146,6 +153,7 @@ export class ForagingLayout {
         forestCores,
         options.riverLayout,
         sites,
+        options.placementTargets?.berries?.[i],
       );
       if (berrySite) {
         sites.push({
@@ -162,6 +170,7 @@ export class ForagingLayout {
         options.riverLayout,
         denseForestCandidates,
         sites,
+        options.placementTargets?.mushrooms?.[i],
       );
       if (mushroomSite) {
         sites.push({
@@ -176,6 +185,7 @@ export class ForagingLayout {
       seed ^ 0x46a91d,
       nodeCounts.fish,
       richNodeCounts.fish,
+      options.placementTargets?.fish,
     ));
 
     return new ForagingLayout(seed, sites, gameRespawnCandidates);
@@ -220,6 +230,7 @@ function pickMushroomSite(
   riverLayout: RiverLayout,
   denseCandidates: ReadonlyArray<{ x: number; z: number }>,
   existing: ReadonlyArray<ForagingSite>,
+  placementTarget?: ResourcePlacementTarget,
 ): ForagingSite | null {
   const terrainExtent = extent * (1080 / 820);
   const validCandidates = denseCandidates.filter((candidate) =>
@@ -251,7 +262,8 @@ function pickMushroomSite(
     const edgeDistance = Math.min(extent - Math.abs(candidate.x), extent - Math.abs(candidate.z));
     const score = density * 100
       + Math.min(edgeDistance, 90) * 0.08
-      + hashF64(seed, index, 19) * 4;
+      + hashF64(seed, index, 19) * 4
+      + regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * 58;
     if (score <= bestScore) continue;
     best = candidate;
     bestScore = score;
@@ -268,6 +280,7 @@ function pickFishSites(
   seed: number,
   requestedCount: number,
   requestedRichCount: number,
+  placementTargets?: readonly ResourcePlacementTarget[],
 ): ForagingSite[] {
   if (requestedCount <= 0) return [];
   const margin = Math.max(24, extent * 0.06);
@@ -297,23 +310,14 @@ function pickFishSites(
   // resource: its camp can never be placed and its marker lies to the player.
   if (candidates.length === 0) return [];
 
-  const rich = candidates.reduce((best, candidate) => {
-    const score = fishCandidateNoise(seed, candidate, 1)
-      + candidate.halfWidth * 12
-      - Math.abs(candidate.progress - 0.68) * 24;
-    const bestScore = fishCandidateNoise(seed, best, 1)
-      + best.halfWidth * 12
-      - Math.abs(best.progress - 0.68) * 24;
-    return score > bestScore ? candidate : best;
-  });
-
-  const selected: FishCandidate[] = [rich];
+  const selected: FishCandidate[] = [];
   while (selected.length < requestedCount) {
     const remaining = candidates.filter((candidate) => !selected.includes(candidate));
     if (remaining.length === 0) break;
+    const placementTarget = placementTargets?.[selected.length];
     const next = remaining.reduce((best, candidate) =>
-      fishSpacingScore(seed, candidate, selected)
-        > fishSpacingScore(seed, best, selected)
+      fishRegionalScore(seed, candidate, selected, placementTarget)
+        > fishRegionalScore(seed, best, selected, placementTarget)
         ? candidate
         : best
     );
@@ -327,6 +331,22 @@ function pickFishSites(
     kind: 'fish' as const,
     isRich: index < richCount,
   }));
+}
+
+function fishRegionalScore(
+  seed: number,
+  candidate: FishCandidate,
+  selected: readonly FishCandidate[],
+  placementTarget: ResourcePlacementTarget | undefined,
+): number {
+  const spacing = selected.length > 0
+    ? fishSpacingScore(seed, candidate, selected) * 0.16
+    : 0;
+  return regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * 72
+    + candidate.halfWidth * 8
+    - Math.abs(candidate.progress - 0.62) * 10
+    + spacing
+    + fishCandidateNoise(seed, candidate, 1);
 }
 
 function collectSurfaceWaterFishCandidates(
@@ -473,10 +493,16 @@ function pickGameSite(
   wildlifeDeposits: ReadonlyArray<{ x: number; z: number; radius: number }>,
   denseCandidates: Array<{ x: number; z: number }>,
   existing: ForagingSite[],
+  placementTarget?: ResourcePlacementTarget,
 ): ForagingSite | null {
-  const shuffled = [...denseCandidates].sort(
-    () => hashF64(seed, Math.floor(rng() * 997), 1) - 0.5,
-  );
+  const shuffled = denseCandidates
+    .map((candidate, index) => ({
+      candidate,
+      score: regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * 100
+        + hashF64(seed, index, 1) * 8,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.candidate);
 
   for (const candidate of shuffled) {
     if (!hasMinimumDistance(existing, candidate.x, candidate.z, MIN_FORAGING_SPACING)) continue;
@@ -487,8 +513,15 @@ function pickGameSite(
 
   for (let attempt = 0; attempt < 320; attempt++) {
     const margin = extent * 0.08;
-    const x = (rng() * 2 - 1) * (extent - margin);
-    const z = (rng() * 2 - 1) * (extent - margin);
+    const point = sampleRegionalPlacementCandidate(
+      rng,
+      placementTarget,
+      extent - margin,
+      attempt,
+      320,
+    );
+    if (!point) continue;
+    const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 36) continue;
     if (!isGameHabitatClearOfWater(riverLayout, x, z)) continue;
     if (!isGameHabitatClearOfDeposits(wildlifeDeposits, x, z)) continue;
@@ -506,7 +539,11 @@ function pickGameSite(
     .reduce<{ x: number; z: number } | null>(
       (best, candidate) => {
         if (!best) return candidate;
-        return nearestSiteDistance(candidate, existing) > nearestSiteDistance(best, existing)
+        const candidateScore = nearestSiteDistance(candidate, existing)
+          + regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * extent;
+        const bestScore = nearestSiteDistance(best, existing)
+          + regionalPlacementAffinity(best.x, best.z, placementTarget) * extent;
+        return candidateScore > bestScore
           ? candidate
           : best;
       },
@@ -533,6 +570,7 @@ function pickBerrySite(
   forestCores: ForestCore[],
   riverLayout: RiverLayout,
   existing: ForagingSite[],
+  placementTarget?: ResourcePlacementTarget,
 ): ForagingSite | null {
   const margin = extent * 0.08;
   const terrainExtent = extent * (1080 / 820);
@@ -540,8 +578,15 @@ function pickBerrySite(
   let bestScore = -Infinity;
 
   for (let attempt = 0; attempt < 420; attempt++) {
-    const x = (rng() * 2 - 1) * (extent - margin);
-    const z = (rng() * 2 - 1) * (extent - margin);
+    const point = sampleRegionalPlacementCandidate(
+      rng,
+      placementTarget,
+      extent - margin,
+      attempt,
+      420,
+    );
+    if (!point) continue;
+    const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 28) continue;
     if (!hasMinimumDistance(existing, x, z, MIN_FORAGING_SPACING)) continue;
 
@@ -550,7 +595,10 @@ function pickBerrySite(
 
     const edgeScore = berryEdgeScore(x, z, forestCores, extent, terrainExtent);
     const meadowBias = meadowProximityScore(x, z, extent);
-    const score = edgeScore * 0.62 + meadowBias * 0.28 + density * 0.1;
+    const score = edgeScore * 0.62
+      + meadowBias * 0.28
+      + density * 0.1
+      + regionalPlacementAffinity(x, z, placementTarget) * 1.25;
     const accepted = rng() < 0.42 + score * 0.5;
     if (!isBerryPatchClearOfWater(riverLayout, x, z)) continue;
     if (score > bestScore && accepted) {
@@ -561,11 +609,13 @@ function pickBerrySite(
 
   if (best) return best;
 
-  const presets = [
-    { x: 142, z: -96 },
-    { x: -118, z: 164 },
-    { x: 88, z: 178 },
-  ];
+  const presets = placementTarget
+    ? []
+    : [
+        { x: 142, z: -96 },
+        { x: -118, z: 164 },
+        { x: 88, z: 178 },
+      ];
   for (let i = 0; i < presets.length; i++) {
     const preset = presets[i];
     if (!hasMinimumDistance(existing, preset.x, preset.z, MIN_FORAGING_SPACING)) continue;
@@ -576,7 +626,14 @@ function pickBerrySite(
     }
   }
 
-  return pickFallbackBerrySite(seed, extent, forestCores, riverLayout, existing);
+  return pickFallbackBerrySite(
+    seed,
+    extent,
+    forestCores,
+    riverLayout,
+    existing,
+    placementTarget,
+  );
 }
 
 function pickFallbackBerrySite(
@@ -585,6 +642,7 @@ function pickFallbackBerrySite(
   forestCores: ForestCore[],
   riverLayout: RiverLayout,
   existing: ReadonlyArray<ForagingSite>,
+  placementTarget?: ResourcePlacementTarget,
 ): ForagingSite | null {
   const rng = mulberry32(seed ^ 0x62b97);
   const limit = extent * 0.92;
@@ -593,8 +651,15 @@ function pickFallbackBerrySite(
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (let attempt = 0; attempt < 1_200; attempt++) {
-    const x = (rng() * 2 - 1) * limit;
-    const z = (rng() * 2 - 1) * limit;
+    const point = sampleRegionalPlacementCandidate(
+      rng,
+      placementTarget,
+      limit,
+      attempt,
+      1_200,
+    );
+    if (!point) continue;
+    const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 28) continue;
     if (!hasMinimumDistance(existing, x, z, MIN_FORAGING_SPACING)) continue;
     if (!isBerryPatchClearOfWater(riverLayout, x, z)) continue;
@@ -606,7 +671,8 @@ function pickFallbackBerrySite(
     );
     const score = edgeFit * 0.62
       + berryEdgeScore(x, z, forestCores, extent, terrainExtent) * 0.24
-      + meadowProximityScore(x, z, extent) * 0.14;
+      + meadowProximityScore(x, z, extent) * 0.14
+      + regionalPlacementAffinity(x, z, placementTarget) * 1.25;
     if (score <= bestScore) continue;
     bestScore = score;
     best = { x, z, kind: 'berries' };

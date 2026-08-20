@@ -391,15 +391,31 @@ assert.equal(cherryFruitRadius, 0);
 disposeBackyardGardenMesh(appleDetail);
 disposeBackyardGardenMesh(cherryDetail);
 
+const seasonalFoliageTintColor = { value: new THREE.Color(0xffffff) };
+const seasonalFoliageTintAmount = { value: 0 };
 const collisionCatalog: BackyardPlantCatalog = {
   clone(kind, variant) {
     const tree = new THREE.LOD();
     tree.name = `Test ${kind} tree ${variant}`;
+    tree.userData.backyardSeasonalFoliageTintBindings = [{
+      color: seasonalFoliageTintColor,
+      amount: seasonalFoliageTintAmount,
+    }];
     const canopy = new THREE.Mesh(
       new THREE.BoxGeometry(3.2, 2.4, 3.2),
       new THREE.MeshBasicMaterial(),
     );
     canopy.position.y = 2.5;
+    const foliage = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(0.2, 0.35),
+      new THREE.MeshBasicMaterial(),
+      12,
+    );
+    foliage.name = 'foliage';
+    for (let index = 0; index < foliage.count; index++) {
+      foliage.setMatrixAt(index, new THREE.Matrix4().makeTranslation(index * 0.01, 0, 0));
+    }
+    canopy.add(foliage);
     tree.addLevel(canopy, 0);
     return tree;
   },
@@ -425,6 +441,7 @@ const harvestBaskets: THREE.Object3D[] = [];
 const orchardStones: THREE.Object3D[] = [];
 const orchardFruit: THREE.Object3D[] = [];
 const basketFruit: THREE.Object3D[] = [];
+const orchardFoliage: THREE.InstancedMesh[] = [];
 collisionOrchard.traverse((object) => {
   if (object.name.startsWith('AppleTree:')) collisionTrees.push(object);
   if (object.userData.fpCollisionProxy === true) collisionProxies.push(object as THREE.Mesh);
@@ -432,6 +449,9 @@ collisionOrchard.traverse((object) => {
   if (object.name === 'Orchard stepping stone') orchardStones.push(object);
   if (object.userData.backyardSeasonalRole === 'orchard-fruit') orchardFruit.push(object);
   if (object.userData.backyardSeasonalRole === 'basket-produce') basketFruit.push(object);
+  if (object.userData.backyardDeciduousFoliage === true) {
+    orchardFoliage.push(object as THREE.InstancedMesh);
+  }
 });
 assert.equal(collisionTrees.length, 4);
 assert.deepEqual(collisionOrchard.userData.orchardGrid, { columns: 2, rows: 2 });
@@ -457,21 +477,64 @@ for (const proxy of collisionProxies) {
 assert.equal(harvestBaskets.length, 1);
 assert.ok(orchardFruit.length > 0);
 assert.ok(basketFruit.length > 0);
+assert.equal(orchardFoliage.length, collisionTrees.length);
 assert.equal(harvestBaskets[0]!.userData.fpCollisionAggregate, true, 'the harvest basket should use one close aggregate collider');
 assert.equal(orchardStones.length, 0, 'orchards should leave their grass paths free of stepping stones');
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 1);
 assert.ok(orchardFruit.every((fruit) => !fruit.visible), 'dormant orchards should show no fruit on trees');
 assert.ok(basketFruit.every((fruit) => !fruit.visible), 'dormant orchard baskets should be empty');
+assert.ok(
+  orchardFoliage.every((foliage) => !foliage.visible && foliage.count === 0),
+  'apple orchards should retain their branches but drop every leaf in winter',
+);
+syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 3);
+assert.ok(
+  orchardFoliage.every((foliage) => foliage.visible && foliage.count === 12),
+  'spring leaf-out should restore the complete deterministic orchard canopy',
+);
+assert.equal(seasonalFoliageTintAmount.value, 0.72);
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 8);
 assert.ok(orchardFruit.every((fruit) => fruit.visible), 'August fruit should be visibly ripening on trees');
 assert.ok(basketFruit.every((fruit) => !fruit.visible), 'ripening fruit should not fill baskets before harvest');
+assert.equal(seasonalFoliageTintAmount.value, 0, 'summer orchard leaves should use their mature authored color');
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 9);
 assert.ok(orchardFruit.every((fruit) => fruit.visible));
 assert.ok(basketFruit.every((fruit) => fruit.visible), 'September harvest should fill orchard baskets');
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 10);
 assert.ok(orchardFruit.every((fruit) => !fruit.visible), 'post-harvest trees should be cleared of fruit');
 assert.ok(basketFruit.every((fruit) => !fruit.visible), 'post-harvest baskets should be cleared');
+assert.ok(seasonalFoliageTintAmount.value > 0.6, 'October apple foliage should receive the shared autumn progression');
+assert.equal(seasonalFoliageTintColor.value.getHex(), 0xd1762b);
+syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 11, {
+  springFlush: 0,
+  autumnColor: 1,
+  dormancy: 0.5,
+});
+assert.ok(
+  orchardFoliage.every((foliage) => foliage.visible && foliage.count === 6),
+  'autumn dormancy should deterministically thin half of the orchard leaves',
+);
 disposeBackyardGardenMesh(collisionOrchard);
+
+const winterCherry = createBackyardGardenMesh('cherry_orchard', {
+  width: 4.4,
+  depth: 2.1,
+  seed: 117,
+  plants: collisionCatalog,
+});
+syncBackyardGardenSeasonVisuals(winterCherry, 'cherry_orchard', 12);
+const winterCherryFoliage: THREE.InstancedMesh[] = [];
+winterCherry.traverse((object) => {
+  if (object.userData.backyardDeciduousFoliage === true) {
+    winterCherryFoliage.push(object as THREE.InstancedMesh);
+  }
+});
+assert.ok(
+  winterCherryFoliage.length > 0
+    && winterCherryFoliage.every((foliage) => !foliage.visible && foliage.count === 0),
+  'cherry orchards should also be completely bare in winter',
+);
+disposeBackyardGardenMesh(winterCherry);
 
 const flowerDetail = createBackyardGardenMesh('flower_garden', { width: 6.2, depth: 5.4, seed: 4271 });
 let petalCount = 0;
@@ -576,6 +639,11 @@ const backyardGardenSource = readFileSync(
   join(process.cwd(), 'src/residences/backyardGardenMesh.ts'),
   'utf8',
 );
+const backyardMarkerSource = readFileSync(
+  join(process.cwd(), 'src/residences/BackyardGardenMarkers.ts'),
+  'utf8',
+);
+const appSource = readFileSync(join(process.cwd(), 'src/app/App.ts'), 'utf8');
 const backyardChickenSource = readFileSync(
   join(process.cwd(), 'src/residences/backyardChickenAssets.ts'),
   'utf8',
@@ -644,6 +712,21 @@ assert.match(
   backyardAssetSource,
   /normalizeBackyardPlantFoliageWind\(group\)/,
   'cultivated SeedThree prototypes must normalize r185 foliage wind before cloning',
+);
+assert.match(
+  backyardAssetSource,
+  /backyardSeasonalFoliageTintBindings/,
+  'apple and cherry clones should retain live SeedThree foliage tint uniforms',
+);
+assert.match(
+  backyardMarkerSource,
+  /setDeciduousFoliage\(presentation: DeciduousFoliagePresentation\)/,
+  'backyard markers should accept the same deciduous presentation state as the forest',
+);
+assert.match(
+  appSource,
+  /backyardGardenMarkers\?\.setDeciduousFoliage\(presentationEnvironment\.deciduousFoliage\)/,
+  'live and visual-QA environment changes should reach orchard foliage',
 );
 for (const fruitFile of ['apple.glb', 'cherry_pair.glb']) {
   assert.ok(

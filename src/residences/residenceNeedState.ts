@@ -21,6 +21,47 @@ export const RESIDENCE_NEED_KINDS: readonly ResidenceNeedKind[] = [
   'pottery',
 ];
 
+export type ResidenceNeedCategory = {
+  id: 'food-and-drink' | 'fuel-and-water' | 'household-goods' | 'faith-and-community';
+  label: string;
+  kinds: readonly ResidenceNeedKind[];
+};
+
+/**
+ * Canonical household-need groupings used by residence-facing UI. Keep this
+ * beside the need registry so new needs cannot silently land in an invented
+ * presentation category.
+ */
+export const RESIDENCE_NEED_CATEGORIES: readonly ResidenceNeedCategory[] = [
+  {
+    id: 'food-and-drink',
+    label: 'Food & drink',
+    kinds: ['food', 'foodVariety', 'preservedFood', 'ale'],
+  },
+  {
+    id: 'fuel-and-water',
+    label: 'Fuel & water',
+    kinds: ['firewood', 'water'],
+  },
+  {
+    id: 'household-goods',
+    label: 'Clothing & household goods',
+    kinds: ['cloth', 'pottery'],
+  },
+  {
+    id: 'faith-and-community',
+    label: 'Faith & community',
+    kinds: ['church'],
+  },
+];
+
+export function residenceNeedCategory(kind: ResidenceNeedKind): ResidenceNeedCategory {
+  const category = RESIDENCE_NEED_CATEGORIES.find((candidate) =>
+    candidate.kinds.includes(kind));
+  if (!category) throw new Error(`Residence need category missing for ${kind}`);
+  return category;
+}
+
 export function activeResidenceNeedKinds(tier: 0 | 1 | 2 | 3): ResidenceNeedKind[] {
   if (tier === 0) return [];
   return RESIDENCE_NEED_KINDS.filter((kind) => {

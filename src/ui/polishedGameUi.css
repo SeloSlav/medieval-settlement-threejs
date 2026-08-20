@@ -1135,6 +1135,48 @@ select:focus-visible {
   gap: 7px;
 }
 
+.resource-inspector-details [data-inspector-details] > .inspector-detail-section,
+.resource-inspector-details .resource-inspector-ledger-list > .inspector-detail-section {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 9px;
+  min-height: 24px;
+  margin: 4px 0 -1px;
+  padding: 2px 1px 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  color: #cbb178;
+  background: transparent;
+  font-family: var(--ui-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  line-height: 1.15;
+}
+
+.resource-inspector-details [data-inspector-details] > .inspector-detail-section::after,
+.resource-inspector-details .resource-inspector-ledger-list > .inspector-detail-section::after {
+  display: none;
+}
+
+.inspector-detail-section > span {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 9px;
+  max-width: none;
+  white-space: nowrap;
+}
+
+.inspector-detail-section > span::after {
+  flex: 1 1 auto;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, rgba(206, 176, 108, 0.42), rgba(206, 176, 108, 0.04));
+}
+
 .resource-inspector-details [data-inspector-details] > li {
   position: relative;
   display: grid;

@@ -16,7 +16,7 @@ export type WorldGenerationSettings = {
   hydrology: number;
   /** 0 = open meadows, 100 = dense woodland */
   forestDensity: number;
-  /** 0 = fewer bonus wild-food rolls, 100 = more; total and rich node budgets come from map size. */
+  /** 0 = fewer bonus wild-food rolls and leaner yields, 100 = more; total and rich budgets come from size. */
   resourceAbundance: number;
   /** 0 = extra deposits favor local specialties, 100 = extras spread across resource families. */
   resourceVariety: number;

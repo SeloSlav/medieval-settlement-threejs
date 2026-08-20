@@ -50,8 +50,10 @@ export {
   createDefaultNeeds,
   getNeed,
   getNeedStock,
+  RESIDENCE_NEED_CATEGORIES,
   RESIDENCE_NEED_KINDS,
   activeResidenceNeedKinds,
+  residenceNeedCategory,
 } from './residenceNeedState.ts';
 
 export function evaluateResidenceNeedRecovery(

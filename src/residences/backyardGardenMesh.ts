@@ -9,6 +9,10 @@ import { prepareBuildingGeometryUvs } from '../buildings/buildingMetricUvs.ts';
 import { mulberry32 } from '../utils/random.ts';
 import type { BackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
 import { backyardGardenPhenology } from '../economy/backyardGardenTick.ts';
+import {
+  deciduousFoliageForClock,
+  type DeciduousFoliagePresentation,
+} from '../world/deciduousFoliagePolicy.ts';
 
 export type BackyardGardenMeshOptions = {
   width?: number;
@@ -22,6 +26,11 @@ const MAX_GARDEN_GRID_COLUMNS = 8;
 const MAX_GARDEN_GRID_ROWS = 24;
 const MAX_FLOWER_GARDEN_STEMS = 160;
 const MAX_GARDEN_STEPPING_STONES = 48;
+const ORCHARD_SPRING_LEAF_COLOR = 0xb6d965;
+const ORCHARD_AUTUMN_LEAF_COLOR = {
+  apple: 0xd1762b,
+  cherry: 0xc84d32,
+} as const;
 
 function createFlowerStemMaps(): {
   albedo: THREE.DataTexture;
@@ -760,6 +769,12 @@ function addFruitTree(
   if (!plants) return;
   const tree = plants.clone(plantKind, variant);
   tree.userData.fpNoCollision = true;
+  tree.traverse((object) => {
+    const foliage = object as THREE.InstancedMesh;
+    if (!foliage.isInstancedMesh || foliage.name !== 'foliage') return;
+    foliage.userData.backyardDeciduousFoliage = true;
+    foliage.userData.backyardFoliageBaseCount = foliage.count;
+  });
   anchor.add(tree);
   addFruitClusters(anchor, plantKind, variant, seed, plants);
   addFruitTreeCollisionProxy(anchor, plantKind);
@@ -1376,6 +1391,60 @@ function setSeasonalScale(object: THREE.Object3D, factor: number): void {
   );
 }
 
+function backyardFoliageForMonth(month: number): DeciduousFoliagePresentation {
+  return deciduousFoliageForClock({
+    simTick: 0,
+    totalDays: 0,
+    hour: 12,
+    minute: 0,
+    preciseHour: 12,
+    weekday: 0,
+    monthDay: 16,
+    month: Math.min(12, Math.max(1, Math.floor(month))),
+    year: 1,
+    isSunday: false,
+    isWorkHours: true,
+  });
+}
+
+function syncOrchardDeciduousFoliage(
+  group: THREE.Group,
+  kind: 'apple_orchard' | 'cherry_orchard',
+  presentation: DeciduousFoliagePresentation,
+): void {
+  const retention = THREE.MathUtils.clamp(1 - presentation.dormancy, 0, 1);
+  const spring = THREE.MathUtils.clamp(presentation.springFlush, 0, 1);
+  const autumn = THREE.MathUtils.clamp(presentation.autumnColor, 0, 1);
+  const tintColor = autumn > 0
+    ? ORCHARD_AUTUMN_LEAF_COLOR[kind === 'apple_orchard' ? 'apple' : 'cherry']
+    : ORCHARD_SPRING_LEAF_COLOR;
+  const tintAmount = autumn > 0 ? autumn : spring * 0.72;
+  const updatedBindings = new Set<object>();
+
+  group.traverse((object) => {
+    const bindings = object.userData.backyardSeasonalFoliageTintBindings as Array<{
+      color: { value: THREE.Color };
+      amount: { value: number };
+    }> | undefined;
+    for (const binding of bindings ?? []) {
+      if (updatedBindings.has(binding)) continue;
+      binding.color.value.set(tintColor);
+      binding.amount.value = tintAmount;
+      updatedBindings.add(binding);
+    }
+
+    if (object.userData.backyardDeciduousFoliage !== true) return;
+    const foliage = object as THREE.InstancedMesh;
+    const baseCount = Number(object.userData.backyardFoliageBaseCount);
+    if (!foliage.isInstancedMesh || !Number.isFinite(baseCount)) return;
+    foliage.count = Math.round(baseCount * retention);
+    foliage.visible = foliage.count > 0;
+    foliage.userData.backyardFoliageRetention = retention;
+  });
+
+  group.userData.backyardDeciduousFoliage = { ...presentation };
+}
+
 /**
  * Applies calendar phenology without rebuilding deterministic garden geometry.
  * Fruit stays attached to its tree, mature mixed rows appear at different
@@ -1385,10 +1454,19 @@ export function syncBackyardGardenSeasonVisuals(
   group: THREE.Group,
   kind: BackyardGardenKind,
   month: number,
+  deciduousFoliage?: DeciduousFoliagePresentation,
 ): void {
   const monthIndex = Math.min(12, Math.max(1, Math.floor(month))) - 1;
   const phenology = backyardGardenPhenology(kind, month);
   group.userData.backyardPhenology = phenology;
+
+  if (kind === 'apple_orchard' || kind === 'cherry_orchard') {
+    syncOrchardDeciduousFoliage(
+      group,
+      kind,
+      deciduousFoliage ?? backyardFoliageForMonth(month),
+    );
+  }
 
   group.traverse((object) => {
     const role = object.userData.backyardSeasonalRole as string | undefined;

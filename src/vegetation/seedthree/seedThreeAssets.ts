@@ -18,6 +18,14 @@ export type SeedThreeCanopyCenterUniform = {
   value: THREE.Vector3;
 };
 
+export type SeedThreeFoliageColorUniform = {
+  value: THREE.Color;
+};
+
+export type SeedThreeFoliageAmountUniform = {
+  value: number;
+};
+
 export type SeedThreeSpeciesAssets = {
   barkTexture: THREE.Texture | null;
   barkNormal: THREE.Texture | null;
@@ -31,6 +39,10 @@ export type SeedThreeSpeciesAssets = {
   clusterMat: THREE.Material;
   leafCenter: SeedThreeCanopyCenterUniform;
   clusterCenter: SeedThreeCanopyCenterUniform;
+  leafTintColor: SeedThreeFoliageColorUniform;
+  leafTintAmount: SeedThreeFoliageAmountUniform;
+  clusterTintColor: SeedThreeFoliageColorUniform;
+  clusterTintAmount: SeedThreeFoliageAmountUniform;
 };
 
 export type SeedThreeSpeciesAssetStartupTiming = {
@@ -185,6 +197,10 @@ async function createSeedThreeSpeciesAssets(
     clusterMat: clusterFol.material,
     leafCenter: leafFol.centerUniform as SeedThreeCanopyCenterUniform,
     clusterCenter: clusterFol.centerUniform as SeedThreeCanopyCenterUniform,
+    leafTintColor: leafFol.tintNode as SeedThreeFoliageColorUniform,
+    leafTintAmount: leafFol.tintAmount as SeedThreeFoliageAmountUniform,
+    clusterTintColor: clusterFol.tintNode as SeedThreeFoliageColorUniform,
+    clusterTintAmount: clusterFol.tintAmount as SeedThreeFoliageAmountUniform,
   };
 
 }

@@ -1,0 +1,207 @@
+import { mulberry32 } from '../props/forestField.ts';
+import {
+  MAP_SIZE_PRESETS,
+  deriveSubSeed,
+  type WorldGenerationSettings,
+} from './worldGenerationSettings.ts';
+
+export type ResourceTerritory = {
+  index: number;
+  centerX: number;
+  centerZ: number;
+  plannedNodeCount: number;
+};
+
+export type ResourcePlacementTarget = {
+  territoryIndex: number;
+  x: number;
+  z: number;
+  searchRadius: number;
+};
+
+export type ResourceRegionDistribution = {
+  territories: readonly ResourceTerritory[];
+  targets: readonly ResourcePlacementTarget[];
+  smallRegionSide: number;
+};
+
+type Point = { x: number; z: number };
+
+/**
+ * Builds soft, small-map-sized resource territories. Medium and large maps do
+ * not enforce five nodes inside hard borders: each territory receives four
+ * baseline targets and competes for the remaining slots, then terrain-aware
+ * placement may move a site away from its target. The map-wide average remains
+ * five nodes per small-map area without creating a rigid resource grid.
+ */
+export function createResourceRegionDistribution(
+  settings: WorldGenerationSettings,
+  playableHalf: number,
+  totalNodeCount: number,
+): ResourceRegionDistribution {
+  const territoryCount = MAP_SIZE_PRESETS[settings.mapSize].smallMapAreas;
+  const smallRegionSide = playableHalf * 2 / Math.sqrt(territoryCount);
+  const rng = mulberry32(deriveSubSeed(settings.seed, 'resource-territories'));
+  const centers = createTerritoryCenters(territoryCount, playableHalf, smallRegionSide, rng);
+  const counts = allocateTerritoryCounts(territoryCount, totalNodeCount, rng);
+  const targetLimit = playableHalf - Math.max(18, smallRegionSide * 0.08);
+  const searchRadius = smallRegionSide * 0.46;
+  const targets: ResourcePlacementTarget[] = [];
+
+  for (let territoryIndex = 0; territoryIndex < centers.length; territoryIndex++) {
+    const center = centers[territoryIndex];
+    for (let index = 0; index < counts[territoryIndex]; index++) {
+      const point = territoryCount === 1
+        ? sampleAcrossSmallMap(rng, targetLimit)
+        : sampleAroundTerritory(rng, center, smallRegionSide, targetLimit);
+      targets.push({ territoryIndex, ...point, searchRadius });
+    }
+  }
+  shuffleInPlace(targets, rng);
+
+  return {
+    smallRegionSide,
+    territories: centers.map((center, index) => ({
+      index,
+      centerX: center.x,
+      centerZ: center.z,
+      plannedNodeCount: counts[index],
+    })),
+    targets,
+  };
+}
+
+/** Samples near a territory target first, then relaxes to the whole map. */
+export function sampleRegionalPlacementCandidate(
+  random: () => number,
+  target: ResourcePlacementTarget | undefined,
+  limit: number,
+  attempt: number,
+  maxAttempts: number,
+): Point | null {
+  if (!target || attempt >= maxAttempts * 0.82) {
+    return {
+      x: (random() * 2 - 1) * limit,
+      z: (random() * 2 - 1) * limit,
+    };
+  }
+
+  const angle = random() * Math.PI * 2;
+  const radius = Math.sqrt(random()) * target.searchRadius;
+  const x = target.x + Math.cos(angle) * radius;
+  const z = target.z + Math.sin(angle) * radius;
+  return Math.abs(x) <= limit && Math.abs(z) <= limit ? { x, z } : null;
+}
+
+/** Positive near the target, neutral at one search radius, bounded when far away. */
+export function regionalPlacementAffinity(
+  x: number,
+  z: number,
+  target: ResourcePlacementTarget | undefined,
+): number {
+  if (!target) return 0;
+  const normalizedDistance = Math.hypot(x - target.x, z - target.z)
+    / Math.max(1, target.searchRadius);
+  return Math.max(-1, 1 - normalizedDistance);
+}
+
+function allocateTerritoryCounts(
+  territoryCount: number,
+  totalNodeCount: number,
+  random: () => number,
+): number[] {
+  const target = Math.max(0, Math.floor(totalNodeCount));
+  if (territoryCount <= 1) return [target];
+  const baseline = Math.min(4, Math.floor(target / territoryCount));
+  const counts = Array.from({ length: territoryCount }, () => baseline);
+  let allocated = baseline * territoryCount;
+  while (allocated < target) {
+    const weights = counts.map((count) => count >= 7 ? 0 : (8 - count) ** 2);
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    if (totalWeight <= 0) break;
+    let roll = random() * totalWeight;
+    let selectedIndex = 0;
+    for (let index = 0; index < weights.length; index++) {
+      roll -= weights[index];
+      if (roll > 0) continue;
+      selectedIndex = index;
+      break;
+    }
+    counts[selectedIndex] += 1;
+    allocated++;
+  }
+  return counts;
+}
+
+function createTerritoryCenters(
+  territoryCount: number,
+  playableHalf: number,
+  smallRegionSide: number,
+  random: () => number,
+): Point[] {
+  if (territoryCount === 1) return [{ x: 0, z: 0 }];
+  const normalized = territoryCount === 4
+    ? [
+        { x: -0.5, z: -0.5 },
+        { x: 0.5, z: -0.5 },
+        { x: -0.5, z: 0.5 },
+        { x: 0.5, z: 0.5 },
+      ]
+    : [
+        { x: -0.66, z: -0.66 },
+        { x: 0, z: -0.66 },
+        { x: 0.66, z: -0.66 },
+        { x: -0.66, z: 0 },
+        { x: 0.66, z: 0 },
+        { x: -0.66, z: 0.66 },
+        { x: 0, z: 0.66 },
+        { x: 0.66, z: 0.66 },
+      ];
+  const quarterTurns = Math.floor(random() * 4);
+  const mirror = random() < 0.5 ? -1 : 1;
+  const jitter = smallRegionSide * 0.045;
+
+  return normalized.slice(0, territoryCount).map((point) => {
+    let x = point.x * playableHalf;
+    let z = point.z * playableHalf * mirror;
+    for (let turn = 0; turn < quarterTurns; turn++) {
+      [x, z] = [-z, x];
+    }
+    return {
+      x: x + (random() * 2 - 1) * jitter,
+      z: z + (random() * 2 - 1) * jitter,
+    };
+  });
+}
+
+function sampleAcrossSmallMap(random: () => number, limit: number): Point {
+  return {
+    x: (random() * 2 - 1) * limit,
+    z: (random() * 2 - 1) * limit,
+  };
+}
+
+function sampleAroundTerritory(
+  random: () => number,
+  center: Point,
+  smallRegionSide: number,
+  limit: number,
+): Point {
+  const angle = random() * Math.PI * 2;
+  const radius = Math.sqrt(random()) * smallRegionSide * 0.31;
+  return {
+    x: clamp(center.x + Math.cos(angle) * radius, -limit, limit),
+    z: clamp(center.z + Math.sin(angle) * radius, -limit, limit),
+  };
+}
+
+function shuffleInPlace<T>(values: T[], random: () => number): void {
+  for (let index = values.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [values[index], values[swapIndex]] = [values[swapIndex], values[index]];
+  }
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
+}

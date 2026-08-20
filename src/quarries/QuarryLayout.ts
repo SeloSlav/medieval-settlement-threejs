@@ -2,6 +2,10 @@ import type { TerrainBounds } from '../terrain/Terrain.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import { hashF64 } from '../rivers/riverHash.ts';
 import { CENTRAL_CLEARING_RADIUS, hasMinimumDistance, mulberry32 } from '../props/forestField.ts';
+import {
+  sampleRegionalPlacementCandidate,
+  type ResourcePlacementTarget,
+} from '../world/resourceRegionDistribution.ts';
 
 export type QuarryKind = 'large' | 'small';
 
@@ -24,6 +28,8 @@ export type QuarryLayoutOptions = {
   ordinarySiteCount?: number;
   /** Deep stone sources rolled by the regional resource plan. */
   richSiteCount?: number;
+  /** Soft regional targets, ordered rich sites first and ordinary sites second. */
+  placementTargets?: readonly ResourcePlacementTarget[];
 };
 
 export type SerializedQuarryLayout = {
@@ -64,13 +70,22 @@ export class QuarryLayout {
         riverLayout,
         sites,
         'large',
+        options.placementTargets?.[i],
       );
       if (largeSite) sites.push(largeSite);
     }
 
     const ordinarySiteCount = Math.max(0, Math.min(40, Math.floor(options.ordinarySiteCount ?? 2)));
     for (let i = 0; i < ordinarySiteCount; i++) {
-      const smallSite = pickQuarrySite(rng, seed ^ (i + 3) * 0x5151, playableHalf, riverLayout, sites, 'small');
+      const smallSite = pickQuarrySite(
+        rng,
+        seed ^ (i + 3) * 0x5151,
+        playableHalf,
+        riverLayout,
+        sites,
+        'small',
+        options.placementTargets?.[richSiteCount + i],
+      );
       if (smallSite) sites.push(smallSite);
     }
 
@@ -130,14 +145,22 @@ function pickQuarrySite(
   riverLayout: RiverLayout | undefined,
   existing: QuarrySite[],
   kind: QuarryKind,
+  placementTarget?: ResourcePlacementTarget,
 ): QuarrySite | null {
   const margin = playableHalf * 0.08;
   const maxAttempts = kind === 'large' ? 280 : 220;
   const minSpacing = kind === 'large' ? MIN_LARGE_QUARRY_SPACING : MIN_SMALL_QUARRY_SPACING;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const x = (rng() * 2 - 1) * (playableHalf - margin);
-    const z = (rng() * 2 - 1) * (playableHalf - margin);
+    const point = sampleRegionalPlacementCandidate(
+      rng,
+      placementTarget,
+      playableHalf - margin,
+      attempt,
+      maxAttempts,
+    );
+    if (!point) continue;
+    const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 48) continue;
     if (Math.hypot(x, z + 88) < DRAIN_AVOIDANCE_RADIUS) continue;
     if (!hasMinimumDistance(existing, x, z, minSpacing)) continue;
@@ -152,7 +175,14 @@ function pickQuarrySite(
     return site;
   }
 
-  return createFallbackSite(existing, kind, seed, playableHalf, riverLayout);
+  return createFallbackSite(
+    existing,
+    kind,
+    seed,
+    playableHalf,
+    riverLayout,
+    placementTarget,
+  );
 }
 
 function createFallbackSite(
@@ -161,9 +191,11 @@ function createFallbackSite(
   seed: number,
   playableHalf: number,
   riverLayout: RiverLayout | undefined,
+  placementTarget?: ResourcePlacementTarget,
 ): QuarrySite | null {
-  const presets: Array<{ x: number; z: number; rotation: number }> =
-    kind === 'large'
+  const presets: Array<{ x: number; z: number; rotation: number }> = placementTarget
+    ? []
+    : kind === 'large'
       ? [
           { x: 168, z: 142, rotation: 0.42 },
           { x: -182, z: 96, rotation: 1.18 },
@@ -191,8 +223,15 @@ function createFallbackSite(
   const minSpacing = kind === 'large' ? MIN_LARGE_QUARRY_SPACING : MIN_SMALL_QUARRY_SPACING;
   const margin = playableHalf * 0.08;
   for (let attempt = 0; attempt < 720; attempt++) {
-    const x = (fallbackRng() * 2 - 1) * (playableHalf - margin);
-    const z = (fallbackRng() * 2 - 1) * (playableHalf - margin);
+    const point = sampleRegionalPlacementCandidate(
+      fallbackRng,
+      placementTarget,
+      playableHalf - margin,
+      attempt,
+      720,
+    );
+    if (!point) continue;
+    const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 48) continue;
     if (Math.hypot(x, z + 88) < DRAIN_AVOIDANCE_RADIUS) continue;
     if (!hasMinimumDistance(existing, x, z, minSpacing)) continue;

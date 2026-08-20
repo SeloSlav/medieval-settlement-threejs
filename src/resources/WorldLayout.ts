@@ -33,6 +33,11 @@ import {
   createRegionalResourcePlan,
   type RegionalResourcePlan,
 } from '../world/regionalResourceDistribution.ts';
+import {
+  createResourceRegionDistribution,
+  type ResourcePlacementTarget,
+  type ResourceRegionDistribution,
+} from '../world/resourceRegionDistribution.ts';
 
 export { DEFAULT_WORLD_SEED } from '../world/worldGenerationSettings.ts';
 
@@ -47,6 +52,7 @@ export type WorldLayout = {
   forestCores: ForestCore[];
   treeSeed: number;
   resourcePlan: RegionalResourcePlan;
+  resourceRegionDistribution: ResourceRegionDistribution;
 };
 
 export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WORLD_GENERATION_SETTINGS): WorldLayout {
@@ -57,6 +63,35 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
   const forestSeed = deriveSubSeed(normalizedSettings.seed, 'forest');
   const treeSeed = deriveSubSeed(normalizedSettings.seed, 'trees');
   const resourcePlan = createRegionalResourcePlan(normalizedSettings);
+  const resourceRegionDistribution = createResourceRegionDistribution(
+    normalizedSettings,
+    dims.generationHalf,
+    resourcePlan.totalResourceNodes,
+  );
+  let resourceTargetCursor = 0;
+  const takeResourceTargets = (count: number): readonly ResourcePlacementTarget[] => {
+    const targets = resourceRegionDistribution.targets.slice(
+      resourceTargetCursor,
+      resourceTargetCursor + count,
+    );
+    resourceTargetCursor += count;
+    return targets;
+  };
+  const quarryPlacementTargets = takeResourceTargets(
+    resourcePlan.richStoneDepositCount + resourcePlan.ordinaryQuarryCount,
+  );
+  const clayPlacementTargets = takeResourceTargets(
+    resourcePlan.richClayDepositCount + resourcePlan.ordinaryClayDepositCount,
+  );
+  const mineralPlacementTargets = takeResourceTargets(
+    resourcePlan.richMineralDepositCount + resourcePlan.ordinaryMineralDepositCount,
+  );
+  const foragingPlacementTargets = {
+    game: takeResourceTargets(resourcePlan.foragingNodeCounts.game),
+    berries: takeResourceTargets(resourcePlan.foragingNodeCounts.berries),
+    mushrooms: takeResourceTargets(resourcePlan.foragingNodeCounts.mushrooms),
+    fish: takeResourceTargets(resourcePlan.foragingNodeCounts.fish),
+  };
   const riverLayout = RiverLayout.create({
     bounds: riverBounds,
     seed: riverSeed,
@@ -76,6 +111,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     playableHalf: dims.generationHalf,
     ordinarySiteCount: resourcePlan.ordinaryQuarryCount,
     richSiteCount: resourcePlan.richStoneDepositCount,
+    placementTargets: quarryPlacementTargets,
   });
   const densityScale = forestDensityScale(normalizedSettings.forestDensity);
   const spawnConfig = createForestSpawnConfig(dims.generationSize, dims.terrainSize, densityScale);
@@ -94,6 +130,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     seed: normalizedSettings.seed ^ 0x4f0d21,
     nodeCounts: resourcePlan.foragingNodeCounts,
     richNodeCounts: resourcePlan.foragingRichNodeCounts,
+    placementTargets: foragingPlacementTargets,
   });
   const clayDepositLayout = ClayDepositLayout.create({
     riverLayout,
@@ -103,6 +140,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     seed: deriveSubSeed(normalizedSettings.seed, 'rich-clay'),
     ordinarySiteCount: resourcePlan.ordinaryClayDepositCount,
     richSiteCount: resourcePlan.richClayDepositCount,
+    placementTargets: clayPlacementTargets,
   });
   const mineralDepositLayout = MineralDepositLayout.create({
     riverLayout,
@@ -115,6 +153,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     seed: deriveSubSeed(normalizedSettings.seed, 'iron-salt-deposits'),
     mapSize: normalizedSettings.mapSize,
     resourceVariety: normalizedSettings.resourceVariety,
+    placementTargets: mineralPlacementTargets,
   });
   const physicalDeposits = createPhysicalDepositFootprints({
     quarryLayout,
@@ -135,5 +174,6 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     forestCores,
     treeSeed,
     resourcePlan,
+    resourceRegionDistribution,
   };
 }

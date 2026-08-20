@@ -13,10 +13,12 @@ import {
 } from '../src/world/regionalResourceDistribution.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
+  resolveWorldDimensions,
   type WorldGenerationSettings,
   type WorldMapSize,
 } from '../src/world/worldGenerationSettings.ts';
 import { applyTerrainPreset } from '../src/world/worldTerrainPresets.ts';
+import { createResourceRegionDistribution } from '../src/world/resourceRegionDistribution.ts';
 
 const mapSizes: WorldMapSize[] = ['small', 'medium', 'large'];
 const balancedPlans = mapSizes.map((mapSize) => createRegionalResourcePlan(settings({ mapSize })));
@@ -53,6 +55,82 @@ assert.ok(
 );
 for (const plan of balancedPlans) {
   assertPlanBudgets(plan);
+}
+
+for (const mapSize of mapSizes) {
+  const dimensions = resolveWorldDimensions(mapSize);
+  const territoryCount = mapSize === 'small' ? 1 : mapSize === 'medium' ? 4 : 8;
+  const totalNodeCount = territoryCount * 5;
+  const distributions = Array.from({ length: 128 }, (_, index) =>
+    createResourceRegionDistribution(
+      settings({ seed: index + 1, mapSize }),
+      dimensions.generationHalf,
+      totalNodeCount,
+    )
+  );
+  for (const distribution of distributions) {
+    assert.equal(distribution.territories.length, territoryCount);
+    assert.equal(distribution.targets.length, totalNodeCount);
+    assert.equal(
+      distribution.territories.reduce((sum, territory) => sum + territory.plannedNodeCount, 0),
+      totalNodeCount,
+    );
+    assert.ok(distribution.targets.every((target) =>
+      Math.abs(target.x) <= dimensions.generationHalf
+      && Math.abs(target.z) <= dimensions.generationHalf
+    ));
+    if (mapSize !== 'small') {
+      assert.ok(distribution.territories.every((territory) =>
+        territory.plannedNodeCount >= 4 && territory.plannedNodeCount <= 7
+      ));
+    }
+  }
+  if (mapSize !== 'small') {
+    assert.ok(
+      distributions.some((distribution) =>
+        distribution.territories.some((territory) => territory.plannedNodeCount !== 5)
+      ),
+      `${mapSize} territory rolls should average five nodes without enforcing five per border`,
+    );
+  }
+  assert.deepEqual(
+    distributions[0],
+    createResourceRegionDistribution(
+      settings({ seed: 1, mapSize }),
+      dimensions.generationHalf,
+      totalNodeCount,
+    ),
+    `${mapSize} regional targets must remain deterministic for a saved seed`,
+  );
+}
+
+for (const mapSize of ['medium', 'large'] as const) {
+  for (const seed of [1, 7, 31]) {
+    const regionalLayout = createWorldLayout(settings({ seed, mapSize }));
+    const regionalNodes = [
+      ...WorldLayoutRegistry.fromWorldLayout(regionalLayout).definitionList,
+      ...regionalLayout.clayDepositLayout.sites,
+    ];
+    const actualTerritoryCounts = regionalLayout.resourceRegionDistribution.territories
+      .map(() => 0);
+    for (const node of regionalNodes) {
+      const nearestTerritory = regionalLayout.resourceRegionDistribution.territories
+        .map((territory, index) => ({
+          index,
+          distance: Math.hypot(node.x - territory.centerX, node.z - territory.centerZ),
+        }))
+        .sort((a, b) => a.distance - b.distance)[0];
+      actualTerritoryCounts[nearestTerritory.index] += 1;
+    }
+    assert.ok(
+      actualTerritoryCounts.every((count) => count >= 2 && count <= 9),
+      `${mapSize}/seed-${seed} should spread real nodes across every small-map-sized territory`,
+    );
+    assert.equal(
+      actualTerritoryCounts.reduce((sum, count) => sum + count, 0),
+      regionalLayout.resourcePlan.totalResourceNodes,
+    );
+  }
 }
 
 const delniceSettings = applyTerrainPreset(settings({

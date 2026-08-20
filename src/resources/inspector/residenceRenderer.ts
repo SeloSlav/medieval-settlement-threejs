@@ -113,6 +113,7 @@ import {
 import {
   RESIDENCE_FIREWOOD_CAPACITY,
   activeResidenceNeedKinds,
+  residenceNeedCategory,
   residenceNeedsStatus,
   getNeed,
   getNeedStock,
@@ -516,6 +517,10 @@ export function renderResidenceInspector(
     : initialConstruction
     ? 'None until the cottage is complete'
     : activeNeedsLabel;
+  const foodAndDrinkSection = residenceNeedCategory('food').label;
+  const fuelAndWaterSection = residenceNeedCategory('firewood').label;
+  const householdGoodsSection = residenceNeedCategory('cloth').label;
+  const faithAndCommunitySection = residenceNeedCategory('church').label;
   const hungerDays = (residence.hungerTicks ?? 0) * SIM_TICK_SECONDS / CALENDAR_SECONDS_PER_DAY;
   const coldExposureDays = environment.season === 'winter'
     ? getNeed(residence.needs, 'firewood').deficitTicks
@@ -609,15 +614,15 @@ export function renderResidenceInspector(
       <li><span>Plots</span><span>${zone.plotCount}</span></li>
       <li><span>Residences</span><span>${residenceCount}</span></li>
       <li><span>Parcel</span><span>#${residence.parcelIndex + 1}</span></li>
-      <li><span>Population</span><span>${initialConstruction ? `0 / ${capacity} · founders remain at camp` : `${residence.population} / ${capacity}`}</span></li>
-      <li><span>Health</span><span>${healthLabel}</span></li>
+      <li data-inspector-primary><span>Population</span><span>${initialConstruction ? `0 / ${capacity} · founders remain at camp` : `${residence.population} / ${capacity}`}</span></li>
+      <li data-inspector-primary><span>Health</span><span>${healthLabel}</span></li>
       <li><span>Malnutrition</span><span>${Math.round((residence.malnutrition ?? 0) * 100)}%</span></li>
       ${environment.season === 'winter' && residence.tier > 0 ? `<li><span>Cold exposure</span><span>${coldExposureDays > 0 ? `${coldExposureDays.toFixed(1)} consecutive unheated days · mortality risk begins after ${COLD_EXPOSURE_DEATH_START_DAYS} days` : 'Heated · no current exposure'}</span></li>` : ''}
       <li><span>Unable to work</span><span>${residence.sickPopulation ?? 0} sick resident${(residence.sickPopulation ?? 0) === 1 ? '' : 's'}</span></li>
       <li><span>Herbal remedies</span><span>${remedySupplyLabel} · treatment speeds recovery and reduces mortality</span></li>
       <li><span>Deaths</span><span>${residence.deathsTotal ?? 0} total · ${householdCorpses.length} unburied or in transit</span></li>
       <li><span>Housing tenure</span><span>Permanent · empty slots remain available to new settlers</span></li>
-      <li><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 3`}</span></li>
+      <li data-inspector-primary><span>House tier</span><span>${initialConstruction ? 'Cottage frame → tier 1' : `${residence.tier} / 3`}</span></li>
       <li><span>Roof covering</span><span>${residence.tiledRoof === true ? 'Fired clay tile · rare prosperous-house retrofit' : 'Split wooden shingle · regional default'}</span></li>
       ${roofTileProject
         ? residenceRoofTileProjectRows(roofTileProject)
@@ -633,7 +638,7 @@ export function renderResidenceInspector(
       ${prosperityPlan && tierThreeProjection
         ? residenceProsperityRows(prosperityPlan, tierThreeProjection)
         : ''}
-      <li><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
+      <li data-inspector-primary><span>Active needs</span><span>${displayedNeedsLabel}</span></li>
       ${residence.tier > 0 && residence.population > 0 ? `<li><span>Approval & economy</span><span>${formatResidenceServiceConsequence(service)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Household wealth</span><span>${formatHouseholdWealth(residence.householdWealth)}</span></li>` : ''}
       ${residence.tier > 0 ? `<li><span>Local supply cycle</span><span>Connected Marketplace goods issue as a seven-day pantry lot each week · Town Hall safeguard: ${pantrySafeguard.label} — ${pantrySafeguard.hint} · well water draws automatically in radius · no household cart or player prompt</span></li>` : ''}
@@ -654,38 +659,31 @@ export function renderResidenceInspector(
       ${residence.tier > 0 && settlersRemaining > 0 && fireDisabled
         ? `<li><span>Settlers</span><span>${settlersRemaining} pending — structural recovery required before settlement resumes</span></li>`
         : ''}
-      ${residence.tier > 0 ? `<li><span>Fresh pantry</span><span>${householdFreshMeals.toFixed(1)} / ${RESIDENCE_FOOD_CAPACITY}</span></li>` : ''}
-      ${residence.tier > 0 ? householdFoodContentsRow(residence) : ''}
-      ${residence.tier > 0 ? householdFoodVarietyRow(residence) : ''}
-      ${residence.tier > 0 ? `<li><span>${residence.tier >= 3 ? 'Fresh-food runway' : 'Food runway'}</span><span>${foodRunwayLabel}${residence.tier >= 3 ? ' with finite household preserved stock' : ''}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Next daily meal</span><span>${mealAllocation.freshUsed.toFixed(2)} fresh + ${preservedMealUse.toFixed(2)} preserved${mealAllocation.preservedFallbackUsed > 1e-6 ? ` (${mealAllocation.preservedFallbackUsed.toFixed(2)} emergency fallback)` : ''}${mealAllocation.unmet > 1e-6 ? ` &middot; ${mealAllocation.unmet.toFixed(2)} unmet` : ''} &middot; ${grossFoodPerDay.toFixed(2)} total demand</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Hearth-fuel stock</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Heating runway</span><span>${firewoodRunwayLabel}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Water stock</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Water runway</span><span>${waterRunwayLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Preserved pantry</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
+      ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Fresh food</span><span>${householdFreshMeals.toFixed(1)} / ${RESIDENCE_FOOD_CAPACITY} · ${foodRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 2 ? householdFoodVarietyRow(residence, foodAndDrinkSection) : ''}
+      ${residence.tier > 0 ? householdFoodContentsRow(residence, foodAndDrinkSection) : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Next daily meal</span><span>${mealAllocation.freshUsed.toFixed(2)} fresh + ${preservedMealUse.toFixed(2)} preserved${mealAllocation.preservedFallbackUsed > 1e-6 ? ` (${mealAllocation.preservedFallbackUsed.toFixed(2)} emergency fallback)` : ''}${mealAllocation.unmet > 1e-6 ? ` &middot; ${mealAllocation.unmet.toFixed(2)} unmet` : ''} &middot; ${grossFoodPerDay.toFixed(2)} total demand</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Preserved food</span><span>${householdPreservedFood.toFixed(1)} / ${RESIDENCE_PRESERVED_FOOD_CAPACITY} · ${preservedFoodRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Cupboard aging</span><span>${formatPreservedFoodLoss(
         householdPreservedFood
         * environment.preservedFoodSpoilageFractionPerDay
         * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       )} · consume or replenish regularly</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Seasonal ration rotation</span><span>${preservedFoodRotationPerDay.toFixed(2)} / day at ${preservedFoodDemandMultiplier.toFixed(2)}&times; seasonal use &middot; replaces the same amount of fresh food rather than adding a second meal</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Preserved food runway</span><span>${preservedFoodRunwayLabel} at current rotation &middot; remaining stores cover fresh-food shortages</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Ale</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Ale runway</span><span>${aleRunwayLabel}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Textile runway</span><span>${clothRunwayLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Household pottery</span><span>${Math.round(getNeedStock(residence.needs, 'pottery'))} / ${RESIDENCE_POTTERY_CAPACITY}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Pottery replacement</span><span>${potteryRunwayLabel} · slow breakage of cooking and storage vessels</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Serving food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Heating supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
-      ${residence.tier > 0 ? `<li><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Preserved food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Ale supplier</span><span>${aleSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 2 ? `<li><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li><span>Pottery supplier</span><span>${potterySupplierLabel}</span></li>` : ''}
-      <li><span>Church link</span><span>${community.hasChapelAccess ? `Staffed tier-${community.chapelTier ?? 1} parish on the road${residence.tier >= 3 && (community.chapelTier ?? 1) < 2 ? ' · stone church required' : ''}` : 'None on branch'}</span></li>
-      <li><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>
+      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Seasonal ration rotation</span><span>${preservedFoodRotationPerDay.toFixed(2)} / day at ${preservedFoodDemandMultiplier.toFixed(2)}&times; seasonal use &middot; replaces the same amount of fresh food rather than adding a second meal</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Ale</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY} · ${aleRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Fresh-food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Preserved-food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Ale supplier</span><span>${aleSupplierLabel}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Firewood</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY} · ${firewoodRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Water</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY} · ${waterRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${fuelAndWaterSection}"><span>Heating supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${fuelAndWaterSection}"><span>Serving well</span><span>${wellLabel}</span></li>` : ''}
+      ${residence.tier >= 2 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Household textiles</span><span>${Math.round(getNeedStock(residence.needs, 'cloth'))} / ${RESIDENCE_CLOTH_CAPACITY} · ${clothRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-primary data-inspector-section="${householdGoodsSection}"><span>Household pottery</span><span>${Math.round(getNeedStock(residence.needs, 'pottery'))} / ${RESIDENCE_POTTERY_CAPACITY} · ${potteryRunwayLabel} replacement</span></li>` : ''}
+      ${residence.tier >= 2 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Cloth supplier</span><span>${clothSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${householdGoodsSection}"><span>Pottery supplier</span><span>${potterySupplierLabel}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${faithAndCommunitySection}"><span>Church access</span><span>${community.hasChapelAccess ? `Staffed tier-${community.chapelTier ?? 1} parish on the road${residence.tier >= 3 && (community.chapelTier ?? 1) < 2 ? ' · stone church required' : ''}` : 'None on branch'}</span></li>` : ''}
+      ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${faithAndCommunitySection}"><span>Monastery coverage</span><span>${community.hasMonasteryCoverage ? 'Linked Pauline house within parish radius' : 'None'}</span></li>` : ''}
       <li><span>Road access</span><span>${roadAccess}</span></li>
       <li><span>Build cost</span><span>${renderBuildingResourceCost(singleCost)}</span></li>
       <li><span>Nearest road</span><span>${nearestRoad == null ? 'None nearby' : `${nearestRoad.toFixed(1)} m`}</span></li>
@@ -931,7 +929,10 @@ function upgradeSupplierHasStock(
   return (supplier.cloth ?? 0) > 1e-6;
 }
 
-function householdFoodContentsRow(residence: ResidenceState): string {
+function householdFoodContentsRow(
+  residence: ResidenceState,
+  section: string,
+): string {
   const contents = NAMED_FOOD_KINDS
     .map((kind) => ({ kind, amount: Math.max(0, residence[kind] ?? 0) }))
     .filter(({ amount }) => amount > 1e-6)
@@ -942,15 +943,18 @@ function householdFoodContentsRow(residence: ResidenceState): string {
   if ((residence.preservedFood ?? 0) > 1e-6) {
     contents.push(`Legacy preserved staples ${residence.preservedFood!.toFixed(1)}`);
   }
-  return `<li><span>Pantry contents</span><span>${contents.length > 0 ? contents.join(' · ') : 'Empty'}</span></li>`;
+  return `<li data-inspector-secondary data-inspector-section="${section}"><span>Pantry contents</span><span>${contents.length > 0 ? contents.join(' · ') : 'Empty'}</span></li>`;
 }
 
-function householdFoodVarietyRow(residence: ResidenceState): string {
+function householdFoodVarietyRow(
+  residence: ResidenceState,
+  section: string,
+): string {
   const categories = presentFoodCategories(residence, residence.population);
   const required = residence.tier >= 3 ? 3 : residence.tier >= 2 ? 2 : 1;
   const labels = categories.map((category) => FOOD_CATEGORY_LABELS[category]);
   const qualifyingStock = foodCategoryQualifyingStock(residence.population);
-  return `<li><span>Food variety</span><span>${categories.length} / ${required} categories${labels.length ? ` · ${labels.join(', ')}` : ' · none supplied'} · ${qualifyingStock.toFixed(1)} units per category required</span></li>`;
+  return `<li data-inspector-primary data-inspector-section="${section}"><span>Food variety</span><span>${categories.length} / ${required} categories${labels.length ? ` · ${labels.join(', ')}` : ' · none supplied'} · ${qualifyingStock.toFixed(1)} units per category required</span></li>`;
 }
 
 function formatUpgradeAmount(value: number): string {

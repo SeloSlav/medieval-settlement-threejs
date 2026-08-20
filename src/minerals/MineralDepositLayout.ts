@@ -6,6 +6,15 @@ import type { QuarrySite } from '../quarries/QuarryLayout.ts';
 import { CENTRAL_CLEARING_RADIUS, mulberry32 } from '../props/forestField.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import type { WorldMapSize } from '../world/worldGenerationSettings.ts';
+import {
+  regionalPlacementAffinity,
+  sampleRegionalPlacementCandidate,
+  type ResourcePlacementTarget,
+} from '../world/resourceRegionDistribution.ts';
+import {
+  ORDINARY_MINERAL_DEPOSIT_PROTECTION_RADIUS,
+  RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS,
+} from '../resources/physicalDepositProtection.ts';
 
 export type MineralDepositResource = 'iron' | 'salt';
 export type MineralDepositGrade = 'ordinary' | 'rich';
@@ -37,6 +46,8 @@ export type MineralDepositLayoutOptions = {
   seed?: number;
   mapSize?: WorldMapSize;
   resourceVariety?: number;
+  /** Soft regional targets in the same rich-first order as the mineral roster. */
+  placementTargets?: readonly ResourcePlacementTarget[];
 };
 
 export type MineralDepositRosterEntry = {
@@ -105,6 +116,7 @@ export class MineralDepositLayout {
         sites,
         avoidSites,
         options.foragingSites ?? [],
+        options.placementTargets?.[index],
       );
       if (site) sites.push(site);
     }
@@ -163,6 +175,7 @@ function pickMineralSite(
   existing: readonly MineralDepositSite[],
   avoidSites: ReadonlyArray<{ x: number; z: number }>,
   foragingSites: readonly ForagingSite[],
+  placementTarget?: ResourcePlacementTarget,
 ): MineralDepositSite | null {
   const formation = mineralDepositFormation(entry.resource, riverLayout);
   let best: MineralDepositSite | null = null;
@@ -175,8 +188,15 @@ function pickMineralSite(
       ? lerp(17, 23, rng())
       : lerp(12, 17, rng());
     const limit = playableHalf - PLAYABLE_EDGE_CLEARANCE - Math.max(radiusX, radiusZ);
-    const x = (rng() * 2 - 1) * limit;
-    const z = (rng() * 2 - 1) * limit;
+    const point = sampleRegionalPlacementCandidate(
+      rng,
+      placementTarget,
+      limit,
+      attempt,
+      720,
+    );
+    if (!point) continue;
+    const { x, z } = point;
     if (Math.hypot(x, z) < CENTRAL_CLEARING_RADIUS + 52) continue;
     if (!hasClearance(x, z, existing, MIN_DEPOSIT_SPACING)) continue;
     if (!hasClearance(x, z, avoidSites, RESOURCE_CLEARANCE)) continue;
@@ -196,7 +216,9 @@ function pickMineralSite(
     // Iron keeps the established unconstrained bedrock distribution. Only salt
     // needs a surface-water-specific placement preference.
     if (formation === 'bedrock') return candidate;
-    const score = mineralSitePreference(candidate, riverLayout, playableHalf) + scoreNoise;
+    const score = mineralSitePreference(candidate, riverLayout, playableHalf)
+      + scoreNoise
+      + regionalPlacementAffinity(x, z, placementTarget) * 6;
     if (score <= bestScore) continue;
     best = candidate;
     bestScore = score;
@@ -208,7 +230,9 @@ function hasGameHabitatClearance(
   candidate: MineralDepositSite,
   foragingSites: readonly ForagingSite[],
 ): boolean {
-  const protectedRadius = Math.max(candidate.radiusX, candidate.radiusZ) + 4;
+  const protectedRadius = candidate.grade === 'rich'
+    ? RICH_MINERAL_DEPOSIT_PROTECTION_RADIUS
+    : ORDINARY_MINERAL_DEPOSIT_PROTECTION_RADIUS;
   return foragingSites
     .filter((site) => site.kind === 'game')
     .every((site) =>

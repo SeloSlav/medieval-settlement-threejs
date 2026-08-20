@@ -6,6 +6,10 @@ import type { QuarrySite } from '../quarries/QuarryLayout.ts';
 import { hashF64 } from '../rivers/riverHash.ts';
 import type { RiverLayout } from '../rivers/RiverLayout.ts';
 import { CENTRAL_CLEARING_RADIUS } from '../props/forestField.ts';
+import {
+  regionalPlacementAffinity,
+  type ResourcePlacementTarget,
+} from '../world/resourceRegionDistribution.ts';
 
 export type ClayDepositSite = {
   x: number;
@@ -25,6 +29,8 @@ export type ClayDepositLayoutOptions = {
   seed?: number;
   ordinarySiteCount?: number;
   richSiteCount?: number;
+  /** Soft regional targets, ordered rich sites first and ordinary sites second. */
+  placementTargets?: readonly ResourcePlacementTarget[];
 };
 
 const PLAYABLE_EDGE_CLEARANCE = 34;
@@ -139,14 +145,22 @@ export class ClayDepositLayout {
     const rankedCandidates = candidates.sort((a, b) => b.score - a.score);
     const sites: ClayDepositSite[] = [];
 
-    for (const grade of grades) {
-      const selected = rankedCandidates.find((candidate) =>
-        hasResourceClearance(candidate, avoidSites)
-        && hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
-        && hasClayBankClearance(candidate, sites)
-      ) ?? rankedCandidates.find((candidate) =>
-        hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
-        && hasClayBankClearance(candidate, sites)
+    for (let index = 0; index < grades.length; index++) {
+      const grade = grades[index];
+      const placementTarget = options.placementTargets?.[index];
+      const selected = bestRegionalClayCandidate(
+        rankedCandidates.filter((candidate) =>
+          hasResourceClearance(candidate, avoidSites)
+          && hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
+          && hasClayBankClearance(candidate, sites)
+        ),
+        placementTarget,
+      ) ?? bestRegionalClayCandidate(
+        rankedCandidates.filter((candidate) =>
+          hasGameHabitatClearance(candidate, grade, options.foragingSites ?? [])
+          && hasClayBankClearance(candidate, sites)
+        ),
+        placementTarget,
       );
       if (!selected) continue;
       const radii = clayDepositRadii(grade, selected.formation);
@@ -196,6 +210,20 @@ type BankCandidate = {
   score: number;
   formation: ClayDepositSite['formation'];
 };
+
+function bestRegionalClayCandidate(
+  candidates: readonly BankCandidate[],
+  placementTarget: ResourcePlacementTarget | undefined,
+): BankCandidate | undefined {
+  return candidates.reduce<BankCandidate | undefined>((best, candidate) => {
+    if (!best) return candidate;
+    const candidateScore = candidate.score
+      + regionalPlacementAffinity(candidate.x, candidate.z, placementTarget) * 12;
+    const bestScore = best.score
+      + regionalPlacementAffinity(best.x, best.z, placementTarget) * 12;
+    return candidateScore > bestScore ? candidate : best;
+  }, undefined);
+}
 
 function collectBankCandidates(
   riverLayout: RiverLayout,

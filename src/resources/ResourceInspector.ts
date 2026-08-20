@@ -2184,8 +2184,8 @@ export class ResourceInspector {
 
     const primary = rows.filter((row) => primaryRows.has(row));
     const secondary = rows.filter((row) => !primaryRows.has(row));
-    this.detailList.replaceChildren(...primary);
-    this.secondaryDetailList.replaceChildren(...secondary);
+    this.detailList.replaceChildren(...withInspectorSectionHeadings(primary));
+    this.secondaryDetailList.replaceChildren(...withInspectorSectionHeadings(secondary));
     this.detailDisclosure.hidden = secondary.length === 0;
     this.detailDisclosureCount.textContent = secondary.length === 1
       ? '1 detail'
@@ -2421,6 +2421,26 @@ function decorateInspectorRow(row: HTMLElement, label: string, value: string): v
     row.classList.remove('has-meter');
     row.style.removeProperty('--inspector-meter');
   }
+}
+
+function withInspectorSectionHeadings(rows: readonly HTMLElement[]): HTMLElement[] {
+  const children: HTMLElement[] = [];
+  let previousSection = '';
+  for (const row of rows) {
+    const section = row.dataset.inspectorSection?.trim() ?? '';
+    if (section && section !== previousSection) {
+      const heading = document.createElement('li');
+      heading.className = 'inspector-detail-section';
+      heading.setAttribute('role', 'presentation');
+      const label = document.createElement('span');
+      label.textContent = section;
+      heading.append(label);
+      children.push(heading);
+    }
+    children.push(row);
+    previousSection = section;
+  }
+  return children;
 }
 
 function inspectorRowScore(

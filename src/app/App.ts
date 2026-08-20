@@ -1109,6 +1109,7 @@ export class App {
     );
     this.sceneManager?.setEnvironment(presentationEnvironment);
     this.buildingMarkers?.setEnvironment(presentationEnvironment);
+    this.backyardGardenMarkers?.setDeciduousFoliage(presentationEnvironment.deciduousFoliage);
     this.ambientAudio?.syncEnvironment(presentationEnvironment);
     this.toolbar?.settlementHud.setFireState(
       state.fireIncidents.values(),

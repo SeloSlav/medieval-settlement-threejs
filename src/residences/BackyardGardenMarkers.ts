@@ -26,6 +26,7 @@ import { hashStringSeed, mulberry32 } from '../utils/random.ts';
 import type { BackyardPlantCatalog } from '../vegetation/seedthree/backyardPlantAssets.ts';
 import type { CrowdViewState } from '../settlement/crowdView.ts';
 import { isWithinCrowdView } from '../settlement/crowdView.ts';
+import type { DeciduousFoliagePresentation } from '../world/deciduousFoliagePolicy.ts';
 
 type ChickenVisual = {
   root: THREE.Group;
@@ -82,6 +83,7 @@ export class BackyardGardenMarkers {
   private chickenSource: BackyardChickenSource | null = null;
   private goatSource: BackyardGoatSource | null = null;
   private latestInput: ReplayableGardenSyncInput | null = null;
+  private deciduousFoliage: DeciduousFoliagePresentation | null = null;
   private animationElapsedSeconds = 0;
   private disposed = false;
 
@@ -141,6 +143,19 @@ export class BackyardGardenMarkers {
     };
     this.latestInput = replayable;
     this.syncReplayable(replayable);
+  }
+
+  setDeciduousFoliage(presentation: DeciduousFoliagePresentation): void {
+    this.deciduousFoliage = { ...presentation };
+    const month = this.latestInput?.month ?? 1;
+    for (const marker of this.meshes.values()) {
+      syncBackyardGardenSeasonVisuals(
+        marker,
+        marker.userData.gardenKind as BackyardGardenState['kind'],
+        month,
+        this.deciduousFoliage,
+      );
+    }
   }
 
   private syncReplayable(input: ReplayableGardenSyncInput, force = false): void {
@@ -210,7 +225,12 @@ export class BackyardGardenMarkers {
       const y = input.getHeightAt(placement.x, placement.z);
       marker.position.set(placement.x, y, placement.z);
       marker.rotation.y = placement.yaw;
-      syncBackyardGardenSeasonVisuals(marker, garden.kind, input.month ?? 1);
+      syncBackyardGardenSeasonVisuals(
+        marker,
+        garden.kind,
+        input.month ?? 1,
+        this.deciduousFoliage ?? undefined,
+      );
     }
 
     for (const [id, marker] of this.meshes) {
