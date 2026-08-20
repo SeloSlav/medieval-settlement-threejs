@@ -902,6 +902,33 @@ function testCivicAndFrontierPlacementPrerequisites(): void {
     ),
     { ok: false, reason: 'town_hall_exists' },
   );
+  const monasteryUnderConstruction = building(
+    'monastery',
+    'existing-monastery',
+    120,
+    0,
+    false,
+  );
+  assert.deepEqual(
+    validateBuildingPlacement(
+      'monastery',
+      candidate.x,
+      candidate.z,
+      context([monasteryUnderConstruction], 24),
+    ),
+    { ok: false, reason: 'monastery_exists' },
+    'an existing monastery or construction site must block every second monastery',
+  );
+  assert.notDeepEqual(
+    validateBuildingPlacement(
+      'monastery',
+      candidate.x,
+      candidate.z,
+      context([], 24),
+    ),
+    { ok: false, reason: 'monastery_exists' },
+    'removing the demolished monastery row must release the unique-estate gate',
+  );
   assert.deepEqual(
     validateBuildingPlacement(
       'town_hall',

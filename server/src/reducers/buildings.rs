@@ -540,6 +540,18 @@ pub(crate) fn place_building_internal(
     }
 
     if kind == "monastery" {
+        if ctx
+            .db
+            .building()
+            .owner()
+            .filter(&owner)
+            .any(|building| building.kind == "monastery")
+        {
+            return Err(
+                "Only one monastery may belong to a settlement; demolish the existing estate before founding another."
+                    .to_string(),
+            );
+        }
         let config = ctx
             .db
             .world_config()

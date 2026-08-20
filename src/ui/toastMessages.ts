@@ -32,6 +32,7 @@ export const TOAST_MESSAGES = {
   'building.placement.requires_completed_guardhouse': 'Complete a frontier guardhouse before enclosing a palisaded refuge',
   'building.placement.requires_staffed_chapel': 'A staffed church is required before founding a monastery',
   'building.placement.requires_parish_population': 'The parish needs at least 12 residents before founding a monastery',
+  'building.placement.monastery_exists': 'Only one monastery may belong to a settlement — demolish it before founding another',
   'building.placement.town_hall_exists': 'Only one Town Hall may serve a settlement',
   'building.placement.requires_town_hall_population': 'The settlement needs at least 24 residents before building a Town Hall',
   'building.placement.requires_completed_chapel': 'Build a church before founding the Town Hall',
@@ -159,6 +160,8 @@ export function buildingPlacementReasonToToastId(reason: BuildingPlacementFailur
       return 'building.placement.requires_staffed_chapel';
     case 'requires_parish_population':
       return 'building.placement.requires_parish_population';
+    case 'monastery_exists':
+      return 'building.placement.monastery_exists';
     case 'town_hall_exists':
       return 'building.placement.town_hall_exists';
     case 'requires_town_hall_population':

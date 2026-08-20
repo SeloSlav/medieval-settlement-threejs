@@ -129,6 +129,12 @@ assert.match(serverPolicy, /MONASTERY_ORCHARD_APPLES: u8 = 0/);
 assert.match(serverPolicy, /MONASTERY_CROFT_BARLEY: u8 = 1/);
 assert.match(serverPolicy, /pub cider: f64/);
 
+const serverBuildings = readFileSync(new URL('../server/src/reducers/buildings.rs', import.meta.url), 'utf8');
+assert.match(
+  serverBuildings,
+  /if kind == "monastery"[\s\S]*?\.any\(\|building\| building\.kind == "monastery"\)[\s\S]*?Only one monastery may belong to a settlement/,
+);
+
 const simulation = readFileSync(new URL('../server/src/simulation/expanded_economy.rs', import.meta.url), 'utf8');
 assert.match(simulation, /fn reinvest_monastery_estate/);
 assert.match(simulation, /fn dispatch_monastery_estate_export/);

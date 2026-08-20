@@ -69,6 +69,7 @@ export type BuildingPlacementFailureReason =
   | 'requires_completed_guardhouse'
   | 'requires_staffed_chapel'
   | 'requires_parish_population'
+  | 'monastery_exists'
   | 'town_hall_exists'
   | 'requires_town_hall_population'
   | 'requires_completed_chapel'
@@ -115,6 +116,12 @@ export function validateBuildingPlacement(
   const buildings = [...context.buildings];
   const quarries = [...context.quarries];
   const foragingNodes = [...context.foragingNodes];
+  if (
+    kind === 'monastery'
+    && buildings.some((building) => building.kind === 'monastery')
+  ) {
+    return { ok: false, reason: 'monastery_exists' };
+  }
   const onClaySite = kind === 'clay_pit'
     && clayDepositAtCenter(context.clayDepositSites ?? [], x, z) !== null;
   const onClayDeposit = onClaySite
