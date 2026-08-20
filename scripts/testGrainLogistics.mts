@@ -3,14 +3,12 @@ import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 import {
   BUILDING_STORAGE_CAPS,
-  MONASTERY_UNLINKED_PRODUCTIVITY,
 } from '../src/generated/gameBalance.ts';
 import {
   formatGrainWorkingBuffer,
   GRAIN_CRITICAL_RUNWAY_CYCLES,
   GRAIN_DISPATCH_TARGET_KINDS,
   GRAIN_DISPATCH_SOURCE_KINDS,
-  GRAIN_INPUT_BUFFER_CYCLES,
   GRAIN_PROCESSOR_KINDS,
   grainDispatchDuty,
   grainInputRunwayCycles,
@@ -59,8 +57,8 @@ const tickContext = readFileSync(
   new URL('../server/src/simulation/tick_context.rs', import.meta.url),
   'utf8',
 );
-const marketplaceTrade = readFileSync(
-  new URL('../server/src/economy/marketplace_trade.rs', import.meta.url),
+const tradingPostTrade = readFileSync(
+  new URL('../server/src/simulation/trading_post_trade.rs', import.meta.url),
   'utf8',
 );
 const simulationReducer = readFileSync(
@@ -73,12 +71,11 @@ const worldQueries = readFileSync(
 );
 
 assert.deepEqual(GRAIN_DISPATCH_SOURCE_KINDS, ['threshing_barn', 'granary']);
-assert.deepEqual(GRAIN_PROCESSOR_KINDS, ['watermill', 'windmill', 'monastery']);
+assert.deepEqual(GRAIN_PROCESSOR_KINDS, ['watermill', 'windmill']);
 assert.deepEqual(
   GRAIN_DISPATCH_TARGET_KINDS,
-  ['watermill', 'windmill', 'granary', 'monastery'],
+  ['watermill', 'windmill', 'granary'],
 );
-assert.equal(GRAIN_INPUT_BUFFER_CYCLES, 3);
 assert.equal(GRAIN_CRITICAL_RUNWAY_CYCLES, 1);
 assert.equal(PROCESSOR_INPUT_BUFFER_CYCLES, 3);
 assert.equal(directlyDispatchedProcessorInputPerCycle('bakery', 'ryeFlour'), 3);
@@ -98,19 +95,9 @@ assert.equal(granaryProtectedGrain(90, 120), 90);
 assert.equal(granaryExportableGrain(150, 120), 30);
 assert.equal(granaryExportableGrain(90, 120), 0);
 assert.equal(grainInputTarget('watermill'), 9);
-assert.equal(grainInputTarget('monastery'), 6);
 assert.equal(grainInputTarget('watermill', 1, 25), 3);
 assert.equal(grainInputTarget('watermill', 1, 50), 6);
 assert.equal(grainInputTarget('watermill', 1, 75), 9);
-assert.equal(
-  grainInputTarget('monastery', 1, 25),
-  6,
-  'the autonomous monastery keeps its own legacy buffer',
-);
-assert.equal(
-  grainInputTarget('monastery', MONASTERY_UNLINKED_PRODUCTIVITY),
-  2.7,
-);
 assert.ok(
   grainInputTarget('watermill') < BUILDING_STORAGE_CAPS.watermill.grain,
   'working stock must remain much smaller than processor storage',
@@ -126,17 +113,13 @@ assert.equal(
   '4 / 9 · farmstead or granary supply',
 );
 assert.equal(grainInputRunwayCycles('watermill', 6), 2);
-assert.equal(
-  grainInputRunwayCycles('monastery', 1.8, MONASTERY_UNLINKED_PRODUCTIVITY),
-  2,
-);
 
 function grainDestination(
   id: string,
   kind: BuildingKind,
   x: number,
   grain: number,
-  assignedLabor = kind === 'monastery' ? 0 : 2,
+  assignedLabor = 2,
   processorOutputTargetPercent = 100,
 ): BuildingState {
   return {
@@ -282,20 +265,6 @@ assert.equal(
   )?.target.id,
   equalRunwayNearMill.id,
   'equal processor runways should use the shorter road route',
-);
-const autonomousMonastery = grainDestination('autonomous-monastery', 'monastery', 20, 0, 0);
-assert.equal(
-  selectGrainProcessorTarget(
-    [idleMill, autonomousMonastery],
-    'central-granary',
-    (target) => target.x,
-    () => 1,
-    () => false,
-    () => true,
-    'oatGrain',
-  )?.target.id,
-  autonomousMonastery.id,
-  'an autonomous monastery remains eligible while an unstaffed mill does not',
 );
 assert.equal(
   selectGrainProcessorTarget(
@@ -679,15 +648,14 @@ assert.match(
 );
 
 const monasteryStep = functionSection('step_monastery', 'step_carpenter');
-assert.doesNotMatch(monasteryStep, /request_connected_commodity/);
-assert.match(monasteryStep, /step_autonomous_processor/);
+assert.match(monasteryStep, /request_monastery_seed_archive/);
+assert.doesNotMatch(monasteryStep, /CommodityKind::Porridge|MONASTERY_OAT_GRAIN_PER_CYCLE/);
 
 assert.match(
   supplyPolicy,
-  /pub const GRAIN_PROCESSOR_KINDS: &\[&str\] = &\["watermill", "windmill", "monastery"\]/,
+  /pub const GRAIN_PROCESSOR_KINDS: &\[&str\] = &\["watermill", "windmill"\]/,
   'central grain arbitration must share one authoritative processor list',
 );
-assert.match(supplyPolicy, /pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3\.0/);
 assert.match(supplyPolicy, /pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1\.0/);
 assert.match(supplyPolicy, /pub fn compare_grain_dispatch_candidates/);
 assert.match(supplyPolicy, /pub fn grain_work_priority/);
@@ -777,7 +745,7 @@ assert.match(farmsteadDispatch, /CommodityKind::RyeGrain/);
 assert.match(farmsteadDispatch, /CommodityKind::OatGrain/);
 assert.match(farmsteadDispatch, /CommodityKind::MaslinGrain/);
 assert.match(farmsteadDispatch, /reserves\.for_commodity/);
-assert.match(farmsteadDispatch, /CommodityKind::OatGrain[\s\S]*"monastery"/);
+assert.doesNotMatch(farmsteadDispatch, /CommodityKind::OatGrain[\s\S]*"monastery"/);
 assert.match(farmsteadDispatch, /dispatch_to_building_where_limited/);
 const granaryDispatch = expandedSimulation.slice(
   expandedSimulation.indexOf('fn next_granary_grain_dispatch'),
@@ -833,8 +801,8 @@ assert.match(tickContext, /farmstead_seed_reserves:[\s\S]{0,80}RefCell<HashMap<I
 assert.match(tickContext, /pub fn farmstead_seed_reserve_for/);
 assert.match(tickContext, /farm_field\(\)\.owner\(\)\.filter\(&owner\)/);
 assert.match(
-  marketplaceTrade,
-  /granary_exportable_grain\(stock, building\.granary_grain_reserve\)/,
+  tradingPostTrade,
+  /granary_exportable_grain\(stock, protected\)/,
   'market-accessible grain must exclude the protected granary floor',
 );
 assert.match(worldQueries, /getNextDirectProcessorInputDispatch/);

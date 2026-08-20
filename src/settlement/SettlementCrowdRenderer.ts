@@ -51,6 +51,7 @@ export type VillagerRenderMode =
   | 'sit'
   | 'rest'
   | 'talk'
+  | 'pray'
   | 'chop'
   | 'mine'
   | 'gather'
@@ -610,6 +611,7 @@ export class SettlementCrowdRenderer {
       sit: mixer.clipAction(source.clips.sit, model),
       rest: mixer.clipAction(source.clips.rest, model),
       talk: mixer.clipAction(source.clips.talk, model),
+      pray: mixer.clipAction(source.clips.pray, model),
       chop: mixer.clipAction(source.clips.chop, model),
       mine: mixer.clipAction(source.clips.mine, model),
       gather: mixer.clipAction(source.clips.gather, model),
@@ -986,6 +988,7 @@ function configureActionSpeeds(
   actions.sit.setEffectiveTimeScale(1.15);
   actions.rest.setEffectiveTimeScale(0.72);
   actions.talk.setEffectiveTimeScale(0.82);
+  actions.pray.setEffectiveTimeScale(0.72);
   actions.chop.setEffectiveTimeScale(1.08);
   actions.mine.setEffectiveTimeScale(0.9);
   actions.gather.setEffectiveTimeScale(0.92);
@@ -1077,6 +1080,7 @@ async function loadVillagerSource(
   sit.name = `${sitting.name}:ambient-sit`;
   const rest = createRestAnimationClip(sitting);
   const talk = createTalkAnimationClip(gltf.scene, idle);
+  const pray = createPrayerAnimationClip(gltf.scene, idle);
   const chop = swing.clone();
   chop.name = `${swing.name}:worker-chop`;
   const mine = swing.clone();
@@ -1102,6 +1106,7 @@ async function loadVillagerSource(
       sit,
       rest,
       talk,
+      pray,
       chop,
       mine,
       gather,
@@ -1208,6 +1213,169 @@ function createTalkAnimationClip(
   addRotation('LowerArmR', 0.58, 0, 0.18);
 
   return new THREE.AnimationClip('Villager_Ambient_Talk', duration, tracks).optimize();
+}
+
+/**
+ * Restrained standing devotion built from the source rig's idle pose. Hands
+ * remain gathered near the chest while the head and torso make one slow,
+ * frame-rate-independent mixer loop; there is deliberately no root motion.
+ */
+export function createPrayerAnimationClip(
+  scene: THREE.Object3D,
+  idle: THREE.AnimationClip,
+): THREE.AnimationClip {
+  const controlledBones = new Set([
+    'Abdomen',
+    'Torso',
+    'Neck',
+    'UpperArmL',
+    'LowerArmL',
+    'UpperArmR',
+    'LowerArmR',
+  ]);
+  const tracks = idle.tracks
+    .filter((track) => !controlledBones.has(track.name.split('.')[0]!))
+    .map((track) => track.clone());
+  const duration = Math.max(2.4, idle.duration);
+  const times = [0, 0.25, 0.5, 0.75, 1].map((fraction) => fraction * duration);
+  const breath = [0, 1, 0, -0.45, 0];
+
+  const addRotation = (
+    boneName: string,
+    base: THREE.Euler,
+    breathScale: THREE.Euler = new THREE.Euler(),
+  ): void => {
+    const bone = scene.getObjectByName(boneName);
+    if (!bone) return;
+    const values: number[] = [];
+    for (let index = 0; index < times.length; index += 1) {
+      const pulse = breath[index]!;
+      const offset = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        base.x + breathScale.x * pulse,
+        base.y + breathScale.y * pulse,
+        base.z + breathScale.z * pulse,
+        'XYZ',
+      ));
+      const pose = bone.quaternion.clone().multiply(offset).normalize();
+      values.push(pose.x, pose.y, pose.z, pose.w);
+    }
+    tracks.push(new THREE.QuaternionKeyframeTrack(
+      `${boneName}.quaternion`,
+      times,
+      values,
+    ));
+  };
+
+  const addQuaternionPose = (
+    boneName: string,
+    pose: THREE.Quaternion,
+  ): void => {
+    const values: number[] = [];
+    for (let index = 0; index < times.length; index += 1) {
+      values.push(pose.x, pose.y, pose.z, pose.w);
+    }
+    tracks.push(new THREE.QuaternionKeyframeTrack(
+      `${boneName}.quaternion`,
+      times,
+      values,
+    ));
+  };
+
+  scene.updateMatrixWorld(true);
+  const torso = scene.getObjectByName('Torso');
+  const neck = scene.getObjectByName('Neck');
+  const armPose = new Map<string, THREE.Quaternion>();
+  if (torso && neck) {
+    const torsoWorld = torso.getWorldPosition(new THREE.Vector3());
+    const neckWorld = neck.getWorldPosition(new THREE.Vector3());
+    const sceneWorldQuaternion = scene.getWorldQuaternion(new THREE.Quaternion());
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(sceneWorldQuaternion);
+    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(sceneWorldQuaternion);
+    const handCenter = torsoWorld.clone()
+      .lerp(neckWorld, 0.42)
+      .addScaledVector(forward, 0.28);
+
+    const aimBone = (
+      bone: THREE.Object3D,
+      child: THREE.Object3D,
+      targetWorld: THREE.Vector3,
+    ): THREE.Quaternion => {
+      const origin = bone.getWorldPosition(new THREE.Vector3());
+      const desiredWorld = targetWorld.clone().sub(origin).normalize();
+      const parentWorld = bone.parent!.getWorldQuaternion(new THREE.Quaternion());
+      const desiredParent = desiredWorld.applyQuaternion(parentWorld.invert());
+      const boneAxis = child.position.clone().normalize();
+      return new THREE.Quaternion()
+        .setFromUnitVectors(boneAxis, desiredParent)
+        .normalize();
+    };
+
+    for (const side of ['L', 'R'] as const) {
+      const upper = scene.getObjectByName(`UpperArm${side}`);
+      const lower = scene.getObjectByName(`LowerArm${side}`);
+      const palm = scene.getObjectByName(`Palm${side}`);
+      if (!upper || !lower || !palm || !upper.parent) continue;
+      const originalUpper = upper.quaternion.clone();
+      const originalLower = lower.quaternion.clone();
+      const shoulder = upper.getWorldPosition(new THREE.Vector3());
+      const upperLength = lower.getWorldPosition(new THREE.Vector3())
+        .distanceTo(shoulder);
+      const lowerLength = palm.getWorldPosition(new THREE.Vector3())
+        .distanceTo(lower.getWorldPosition(new THREE.Vector3()));
+      const sideSign = side === 'L' ? 1 : -1;
+      const handTarget = handCenter.clone().addScaledVector(right, sideSign * 0.045);
+      const shoulderToHand = handTarget.clone().sub(shoulder);
+      const distance = Math.max(
+        1e-4,
+        Math.min(
+          upperLength + lowerLength - 1e-4,
+          shoulderToHand.length(),
+        ),
+      );
+      const direction = shoulderToHand.normalize();
+      const along = (
+        upperLength * upperLength
+        - lowerLength * lowerLength
+        + distance * distance
+      ) / (2 * distance);
+      const bendDistance = Math.sqrt(Math.max(
+        0,
+        upperLength * upperLength - along * along,
+      ));
+      const preferredBend = right.clone().multiplyScalar(sideSign * 0.7)
+        .add(new THREE.Vector3(0, -1, 0))
+        .addScaledVector(forward, 0.12);
+      const perpendicular = preferredBend
+        .addScaledVector(direction, -preferredBend.dot(direction))
+        .normalize();
+      const elbowTarget = shoulder.clone()
+        .addScaledVector(direction, along)
+        .addScaledVector(perpendicular, bendDistance);
+
+      const upperPose = aimBone(upper, lower, elbowTarget);
+      upper.quaternion.copy(upperPose);
+      upper.updateMatrixWorld(true);
+      const lowerPose = aimBone(lower, palm, handTarget);
+      lower.quaternion.copy(lowerPose);
+      lower.updateMatrixWorld(true);
+      armPose.set(`UpperArm${side}`, upperPose);
+      armPose.set(`LowerArm${side}`, lowerPose);
+      upper.quaternion.copy(originalUpper);
+      lower.quaternion.copy(originalLower);
+      upper.updateMatrixWorld(true);
+    }
+  }
+
+  addRotation('Abdomen', new THREE.Euler(0.07, 0, 0), new THREE.Euler(0.012, 0, 0));
+  addRotation('Torso', new THREE.Euler(0.09, 0, 0), new THREE.Euler(0.016, 0, 0));
+  addRotation('Neck', new THREE.Euler(0.2, 0, 0), new THREE.Euler(0.025, 0, 0));
+  for (const [boneName, pose] of armPose) addQuaternionPose(boneName, pose);
+
+  return new THREE.AnimationClip(
+    'Villager_Devotional_Prayer',
+    duration,
+    tracks,
+  ).optimize();
 }
 
 /**

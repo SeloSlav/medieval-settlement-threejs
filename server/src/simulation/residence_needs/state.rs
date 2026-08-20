@@ -80,7 +80,7 @@ pub fn load_needs(ctx: &ReducerContext, residence_id: u64) -> Vec<NeedState> {
             // Established prosperous homes receive one transition cupboard of
             // wares. New homes already have a zero-stock row and must be
             // supplied by a real potter.
-            if kind == ResidenceNeedKind::Pottery && legacy_tier >= 3 {
+            if kind == ResidenceNeedKind::Pottery && legacy_tier >= 4 {
                 initial.stock = RESIDENCE_POTTERY_CAPACITY;
             }
             needs.push(initial);

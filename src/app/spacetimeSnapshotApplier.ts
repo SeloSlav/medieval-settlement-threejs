@@ -215,6 +215,7 @@ export class SpacetimeSnapshotApplier {
     }
 
     if (buildingsChanged || residencesChanged) {
+      deps.terrainMinimap?.syncSettlement();
       const terrainSignature = getPlacedTerrainSignature(state);
       if (terrainSignature !== this.lastPlacedBuildingSignature) {
         this.lastPlacedBuildingSignature = terrainSignature;

@@ -124,8 +124,8 @@ export function computeSettlementApproval(input: ApprovalInput): SettlementAppro
       label: 'Household services',
       impact: servicePenalty > 0 ? -clampInteger(servicePenalty, 1, 16) : 4,
       detail: servicePenalty > 0
-        ? `${welfare.serviceWarningHouseholds} homes have sustained unmet needs; ${welfare.upgradeBlockedHouseholds} cannot be promoted until service recovers. Their taxable household output averages ${Math.round(welfare.serviceEconomicOutputMultiplier * 100)}%.`
-        : 'Every occupied home has stable need service and full taxable household output.',
+        ? `${welfare.serviceWarningHouseholds} homes have sustained unmet needs; ${welfare.upgradeBlockedHouseholds} cannot be promoted until service recovers. Household work and taxable market activity continue normally.`
+        : 'Every occupied home has stable need service.',
     });
   }
 
@@ -286,8 +286,8 @@ function approvalEffects(
   const serviceWarnings = Math.max(0, provisioning.welfare.serviceWarningHouseholds);
   const blockedUpgrades = Math.max(0, provisioning.welfare.upgradeBlockedHouseholds);
   effects.push(serviceWarnings > 0
-    ? `Economy: ${serviceWarnings} sustained-shortage ${serviceWarnings === 1 ? 'home is' : 'homes are'} reducing household market activity and assessed tax; current output averages ${Math.round(provisioning.welfare.serviceEconomicOutputMultiplier * 100)}%.`
-    : 'Economy: stable household services preserve full market activity and assessed tax.');
+    ? `Work and trade: ${serviceWarnings} sustained-shortage ${serviceWarnings === 1 ? 'home continues' : 'homes continue'} producing and trading at the normal rate.`
+    : 'Work and trade: household service pressure does not modify production or assessed tax.');
   effects.push(blockedUpgrades > 0
     ? `Residence promotion: ${blockedUpgrades} ${blockedUpgrades === 1 ? 'home is' : 'homes are'} blocked from tier upgrades until all active needs recover.`
     : 'Residence promotion: no home is blocked by a sustained need shortage.');

@@ -208,7 +208,7 @@ assert.equal(provisioning.householdBufferFoodShortHomes, 2);
 assert.equal(provisioning.householdBufferFirewoodShortHomes, 2);
 assert.equal(provisioning.householdBufferWaterShortHomes, 2);
 assert.equal(provisioning.householdBufferPreservedFoodShortHomes, 0);
-assert.equal(provisioning.householdBufferAleShortHomes, 0);
+assert.equal(provisioning.householdBufferAleShortHomes, 1);
 assert.equal(provisioning.householdBufferClothShortHomes, 1);
 assert.equal(provisioning.householdBufferPotteryShortHomes, 0);
 assert.match(formatHouseholdBufferReadiness(provisioning), /0 \/ 2 homes buffered/);
@@ -594,7 +594,7 @@ assert.equal(
 assert.equal(settlementProvisionLevel(splitWithArrival, 7), 'ready');
 
 const curedBranchState = emptyGameState();
-const curedBranchHome = residence('cured-branch-home', 3, 5);
+const curedBranchHome = residence('cured-branch-home', 4, 5);
 curedBranchHome.x = 7;
 curedBranchHome.needs.food.stock =
   householdFoodPerDay(5);
@@ -766,6 +766,7 @@ splitFuelHome.food = splitFuelHome.needs.food.stock;
 splitFuelHome.needs.firewood.stock = 4 * RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC * 50;
 splitFuelHome.needs.water.stock = 4 * RESIDENCE_WATER_PER_PERSON_PER_SEC * 70;
 splitFuelHome.needs.cloth.stock = 4 * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
+splitFuelHome.needs.ale.stock = 4 * RESIDENCE_ALE_PER_PERSON_PER_SEC * 70;
 splitFuelState.residences.set(splitFuelHome.id, splitFuelHome);
 const localGranary = building('local-granary', 'granary', 2, 0);
 localGranary.x = 0;
@@ -844,26 +845,26 @@ assert.equal(criticalThreshold.householdBufferCoverage, 0.4);
 assert.equal(settlementProvisionLevel(criticalThreshold, 7), 'critical');
 assert.equal(shouldShowProvisioning(criticalThreshold, 7), true);
 
-const tierThreeShortState = emptyGameState();
-tierThreeShortState.stockpile.food = 500;
-tierThreeShortState.residences.set('tier-3-short', residence('tier-3-short', 3, 5));
-const tierThreeShort = computeSettlementProvisioning({
-  state: tierThreeShortState,
-  totals: computeResourceTotals(tierThreeShortState),
+const tierFourShortState = emptyGameState();
+tierFourShortState.stockpile.food = 500;
+tierFourShortState.residences.set('tier-4-short', residence('tier-4-short', 4, 5));
+const tierFourShort = computeSettlementProvisioning({
+  state: tierFourShortState,
+  totals: computeResourceTotals(tierFourShortState),
   currentFirewoodDemandMultiplier: 1,
   freshFoodSpoilageFractionPerDay: 0,
   sabbathObserved: false,
 });
-assert.equal(tierThreeShort.householdBufferFoodShortHomes, 1);
-assert.equal(tierThreeShort.householdBufferFirewoodShortHomes, 1);
-assert.equal(tierThreeShort.householdBufferWaterShortHomes, 1);
-assert.equal(tierThreeShort.householdBufferPreservedFoodShortHomes, 1);
-assert.equal(tierThreeShort.householdBufferAleShortHomes, 1);
-assert.equal(tierThreeShort.householdBufferClothShortHomes, 1);
-assert.equal(tierThreeShort.householdBufferPotteryShortHomes, 1);
+assert.equal(tierFourShort.householdBufferFoodShortHomes, 1);
+assert.equal(tierFourShort.householdBufferFirewoodShortHomes, 1);
+assert.equal(tierFourShort.householdBufferWaterShortHomes, 1);
+assert.equal(tierFourShort.householdBufferPreservedFoodShortHomes, 1);
+assert.equal(tierFourShort.householdBufferAleShortHomes, 1);
+assert.equal(tierFourShort.householdBufferClothShortHomes, 1);
+assert.equal(tierFourShort.householdBufferPotteryShortHomes, 1);
 
 const seasonalRationState = emptyGameState();
-const seasonalRationHome = residence('seasonal-ration-home', 3, 5);
+const seasonalRationHome = residence('seasonal-ration-home', 4, 5);
 seasonalRationHome.needs.preservedFood.stock = 5
   * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
   * 70;
@@ -1029,7 +1030,7 @@ const preparedState = emptyGameState();
 for (const [id, tier, population] of [
   ['prepared-1', 1, 3],
   ['prepared-2', 2, 4],
-  ['prepared-3', 3, 5],
+  ['prepared-4', 4, 5],
 ] as const) {
   const home = residence(id, tier, population);
   home.needs.food.stock = householdFoodPerDay(population);
@@ -1042,13 +1043,13 @@ for (const [id, tier, population] of [
   }
   if (tier >= 2) {
     home.needs.cloth.stock = population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * 70;
+    home.needs.ale.stock = population * RESIDENCE_ALE_PER_PERSON_PER_SEC * 70;
   }
-  if (tier >= 3) {
+  if (tier >= 4) {
     home.needs.preservedFood.stock = population
       * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
       * 70;
     home.preservedFood = home.needs.preservedFood.stock;
-    home.needs.ale.stock = population * RESIDENCE_ALE_PER_PERSON_PER_SEC * 70;
     home.needs.pottery.stock = population
       * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
       * 70;

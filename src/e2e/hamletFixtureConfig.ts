@@ -49,8 +49,8 @@ export const HAMLET_VIEW_SPECS: readonly HamletViewSpec[] = [
   { id: 'road-eye', label: 'Road eye', position: [1.4, 2.45, -59], target: [0, 2.3, -7], fov: 54, firstPerson: true },
   { id: 'chapel', label: 'Chapel', position: [12, 8, 4], target: [-10.5, 5.4, 23], fov: 43, firstPerson: true },
   // Clean, slightly elevated three-quarter judge: close enough to read the
-  // shingle planes and work yard, with the neighboring plot fully off-frame.
-  { id: 'residence', label: 'Residence', position: [-25.2, 3, 23], target: [-22.3, 3.5, 35.9], fov: 43, firstPerson: true },
+  // bundled thatch and compact cottage mass, with the neighboring plot off-frame.
+  { id: 'residence', label: 'Residence', position: [-25.2, 3, 23], target: [-22.3, 3.5, 35.9], fov: 39.8, firstPerson: true },
   { id: 'forest', label: 'Forest edge', position: [48, 12.5, 34], target: [65, 8.3, 58], fov: 50, firstPerson: true },
 ] as const;
 

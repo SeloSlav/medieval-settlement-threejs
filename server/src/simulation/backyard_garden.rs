@@ -15,12 +15,10 @@ use crate::economy::{
     deposit_residence_commodity, player_economic_activity_tax_rate, residence_edible_food_stock,
     taxed_economic_activity, town_hall_tax_collection_multiplier, CommodityKind,
 };
-use crate::residence_service_policy::service_economic_multiplier;
 use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_and_logistics_paused;
 use crate::simulation::residence_needs::food;
-use crate::simulation::residence_needs::state::load_needs;
 use crate::simulation::residence_needs::sync_food_need_rows;
 use crate::simulation::residence_needs::ResidenceNeedKind;
 use crate::simulation::tick_context::SimTickContext;
@@ -179,16 +177,8 @@ fn step_one_garden(
         return 0.0;
     }
 
-    let max_service_deficit = load_needs(ctx, residence.id)
-        .into_iter()
-        .filter(|need| need.kind.is_active_for_tier(residence.tier))
-        .map(|need| need.deficit_ticks)
-        .max()
-        .unwrap_or(0);
-    let satisfaction_multiplier = service_economic_multiplier(max_service_deficit);
     let economic_activity = (market_food_sold * FOOD_SALE_GOLD_PER_UNIT
-        + market_remedies_sold * HERB_REMEDY_SALE_GOLD_PER_UNIT)
-        * satisfaction_multiplier;
+        + market_remedies_sold * HERB_REMEDY_SALE_GOLD_PER_UNIT);
     if economic_activity <= 1e-9 {
         return 0.0;
     }

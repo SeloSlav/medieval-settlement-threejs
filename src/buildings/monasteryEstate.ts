@@ -153,6 +153,7 @@ export function monasteryEstateYields(level: number | null | undefined): {
   meat: number;
   honey: number;
   ale: number;
+  wine: number;
   cheese: number;
 } {
   const normalized = normalizeMonasteryEstateLevel(level);
@@ -165,6 +166,7 @@ export function monasteryEstateYields(level: number | null | undefined): {
     meat: 0.16 * multiplier,
     honey: 0.22 * multiplier,
     ale: 0.32 * multiplier,
+    wine: 0.14 * multiplier,
     cheese: normalized >= 1 ? 0.18 * multiplier : 0,
   };
 }

@@ -147,6 +147,19 @@ export const FOOD_CATEGORY_LABELS = {
 } as const;
 export type FoodCategory = keyof typeof FOOD_CATEGORY_LABELS;
 
+export const FOOD_DIET_GROUP_LABELS = {
+  cropsAndForage: 'Crops & forage',
+  animalFoods: 'Meat & animal produce',
+  fish: 'Fish',
+} as const;
+export type FoodDietGroup = keyof typeof FOOD_DIET_GROUP_LABELS;
+
+export const FOOD_DIET_GROUP_CATEGORIES: Readonly<Record<FoodDietGroup, readonly FoodCategory[]>> = {
+  cropsAndForage: ['grains', 'vegetables', 'fruits', 'foraged', 'honey'],
+  animalFoods: ['animalProduce', 'meats'],
+  fish: ['fishes'],
+};
+
 export function foodCategory(kind: FoodInventoryKind): FoodCategory {
   switch (kind) {
     case 'food':
@@ -215,6 +228,27 @@ export function presentFoodCategories(
 
 export function foodVarietyCount(inventory: FoodInventoryLike, population: number): number {
   return presentFoodCategories(inventory, population).length;
+}
+
+/**
+ * Tier 3 asks for a balanced pantry, not three interchangeable crop rows.
+ * Each broad diet group is satisfied by one qualifying category within it.
+ */
+export function presentFoodDietGroups(
+  inventory: FoodInventoryLike,
+  population: number,
+): FoodDietGroup[] {
+  const categories = new Set(presentFoodCategories(inventory, population));
+  return (Object.keys(FOOD_DIET_GROUP_CATEGORIES) as FoodDietGroup[])
+    .filter((group) => FOOD_DIET_GROUP_CATEGORIES[group]
+      .some((category) => categories.has(category)));
+}
+
+export function foodDietGroupCount(
+  inventory: FoodInventoryLike,
+  population: number,
+): number {
+  return presentFoodDietGroups(inventory, population).length;
 }
 
 function finiteFood(value: number | undefined): number {

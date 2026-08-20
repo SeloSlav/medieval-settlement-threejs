@@ -229,7 +229,7 @@ const PROCESS: Record<string, string> = {
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
   vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
-  monastery: 'A self-governing 68 × 53 m estate raises orchard fruit, vegetables, eggs, milk, meat, honey, ale, and cheese for its own pantry; genuine surplus is sold beyond the map, while finite infirmary beds nurse covered households',
+  monastery: 'A self-governing 68 × 53 m estate raises orchard fruit, vegetables, eggs, milk, meat, honey, ale, wine, and cheese for its own pantry; genuine surplus is sold beyond the map, while finite infirmary beds nurse covered households',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
 };
@@ -326,12 +326,12 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'granary':
       return 'Critical processor, company, and brewery buffers first · then fresh and cured Marketplace stalls';
     case 'brewery':
-      return `Linked monastery short of its ${MONASTERY_FEAST_ALE}-ale feast floor, then Marketplace ale stalls, then road-linked export market`;
+      return 'Staffed Tavern beverage service, then road-linked export market';
     case 'smokehouse':
       return 'Nearest staffed granary or Marketplace cured-food reserve';
     case 'apiary':
     case 'vineyard':
-      return 'Marketplace food stalls, then provisioned monastery, then export market';
+      return 'Ordinary town demand, then the road-linked export market';
     case 'monastery':
       return 'Regional merchant at the map edge · sale proceeds return to the monastery purse';
     case 'carpenter':
@@ -436,22 +436,12 @@ function outboundTripTarget(
     )?.target ?? null;
   }
   if (building.kind === 'brewery') {
-    const monastery = context.worldQueries.getNextMonasteryFeastAleTarget(building);
-    if (monastery) return monastery;
     const home = context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(building, 'ale');
     if (home) return home;
     return context.worldQueries.findNearestRoadLinkedBuilding(building, ['marketplace']);
   }
   if (building.kind === 'apiary' || building.kind === 'vineyard') {
-    const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
-    const hospitalityTarget = policy.feastsEnabled
-      ? context.worldQueries.getNextMonasteryHospitalityTarget(
-          building,
-          building.kind === 'apiary' ? 'honey' : 'wine',
-        )
-      : null;
     return context.worldQueries.getNextFoodDeliveryTargetForSupplier(building)
-      ?? hospitalityTarget
       ?? context.worldQueries.findNearestRoadLinkedBuilding(building, ['marketplace']);
   }
   if (building.kind === 'weaver') {
@@ -741,48 +731,17 @@ function renderLogisticsRows(
     ? `<li><span>Textile territory</span><span>Connected tier-2+ homes draw cloth from stocked Marketplace goods stalls</span></li>
        <li><span>Physical cloth route</span><span>Weaver → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
     : '';
-  const hospitalityRoutingRows = building.kind === 'apiary' || building.kind === 'vineyard'
-    ? (() => {
-        const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
-        const commodity = building.kind === 'apiary' ? 'honey' : 'wine';
-        const target = policy.feastsEnabled
-          ? context.worldQueries.getNextMonasteryHospitalityTarget(building, commodity)
-          : null;
-        return `<li><span>Monastery priority</span><span>${
-          !policy.feastsEnabled
-            ? 'Disabled — all specialty surplus remains exportable'
-            : target
-              ? `${context.worldQueries.getBuildingLabel(target.kind)} needs ${commodity}`
-              : 'Hospitality stores full or no linked monastery'
-        }</span></li>`;
-      })()
-    : '';
   const potteryTerritoryRows = building.kind === 'potter_kiln'
     ? `<li><span>Kiln firing</span><span>${potterFiringPolicyLabel(building.potterFiringPolicy)}</span></li>
        <li><span>Kiln cart order</span><span>${potteryDispatchPolicyLabel(building.potteryDispatchPolicy)} · export always last</span></li>
-       <li><span>Household-ware territory</span><span>Connected tier-3 homes draw pottery from stocked Marketplace goods stalls</span></li>
+       <li><span>Household-ware territory</span><span>Connected tier-4 homes draw pottery from stocked Marketplace goods stalls</span></li>
        <li><span>Physical pottery route</span><span>Kiln → staffed Storehouse → Marketplace stall · no routine home cart</span></li>`
-    : '';
-  const breweryReserveRows = building.kind === 'brewery'
-    ? (() => {
-        const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
-        const target = context.worldQueries.getNextMonasteryFeastAleTarget(building);
-        return `<li><span>Feast ale priority</span><span>${
-          !policy.feastsEnabled
-            ? 'Disabled — ale goes to Marketplace stalls, then export'
-            : target
-              ? `${context.worldQueries.getBuildingLabel(target.kind)} needs ${Math.ceil(Math.max(0, MONASTERY_FEAST_ALE - target.ale))} ale to secure one batch`
-              : `Every eligible pantry holds ${MONASTERY_FEAST_ALE} ale, is already receiving it, or is unreachable`
-        }</span></li>`;
-      })()
     : '';
   const householdTerritoryRows =
     foodTerritoryRows
     + preservedFoodTerritoryRows
     + textileTerritoryRows
-    + potteryTerritoryRows
-    + hospitalityRoutingRows
-    + breweryReserveRows;
+    + potteryTerritoryRows;
 
   if (activeTrip) {
     const tripPath = context.worldQueries.getActiveTripPathDistance(activeTrip);
@@ -1772,7 +1731,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
         .map((preset) => `<button type="button" class="resource-action-button" data-potter-firing-policy="${preset.policy}" title="${preset.hint}" ${normalizePotterFiringPolicy(building.potterFiringPolicy) === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
         .join('')}</div>
       <p class="inspector-action-panel__hint">${normalizePotterFiringPolicy(building.potterFiringPolicy) === POTTER_FIRE_ROOF_TILES
-        ? 'Tile firing suspends new market and smokehouse vessel output. Existing vessels still dispatch; fired tiles remain stacked here until a tier-3 residence commissions a road-hauled retrofit.'
+        ? 'Tile firing suspends new market and smokehouse vessel output. Existing vessels still dispatch; fired tiles remain stacked here until a tier-4 residence commissions a road-hauled roof project.'
         : 'Vessel firing serves household breakage, preserving crocks, then export. Commissioned roof projects wait until this or another linked kiln fires enough physical tiles.'}</p>
     `
     : '';
@@ -1846,7 +1805,7 @@ function renderApiaryHarvestPolicyPanel(building: BuildingState): string {
       <div class="resource-action-row">${APIARY_HARVEST_POLICIES
         .map((policy) => `<button type="button" class="resource-action-button" data-apiary-harvest-policy="${policy.value}" title="${policy.hint}" ${selected.value === policy.value ? 'disabled' : ''}>${policy.label} · ${policy.reserve} reserve · ${Math.round(policy.yieldMultiplier * 100)}%</button>`)
         .join('')}</div>
-      <p class="inspector-action-panel__hint">The reserve is protected from household, monastery, and export carts. In winter the colony consumes up to ${APIARY_WINTER_HONEY_REQUIRED} honey; a shortfall damages next season's colony health. Forage and health multiply the selected harvest pace, while nearby healthy hives provide bounded pollination.</p>
+      <p class="inspector-action-panel__hint">The reserve is protected from town-processing and export carts. In winter the colony consumes up to ${APIARY_WINTER_HONEY_REQUIRED} honey; a shortfall damages next season's colony health. Forage and health multiply the selected harvest pace, while nearby healthy hives provide bounded pollination.</p>
     </div>
   `;
 }
@@ -1880,7 +1839,7 @@ function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
     <div class="inspector-action-panel">
       <p class="inspector-action-panel__hint">The monastery is an enclosed frontier estate, not a second church. Its orchards, gardens, animals, hives, dairy, and brewhouse produce autonomously; protected surplus is sold directly to regional merchants, export duty is collected on the returned gold, and the net automatically expands the demesne through three visible levels. Its finite infirmary supplies skilled nursing above ordinary herb treatment. The agricultural archive holds exhaustible seed for failed sowing seasons, while the scriptorium preserves plans and ledgers that lower fire-reconstruction material costs.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
-      <p class="inspector-action-panel__hint">Enabled monasteries protect ${feastBatchCost}. Breweries refill only the ale shortfall, while daily hospitality and estate exports use stock above their protected floors. On each observance, covered households walk here by road and consume the complete batch onsite: immediate food and ale deficits are relieved, but no provisions appear in home pantries. Daily hospitality consumes ${dailyHospitalityCost}, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Routine alms and poor-relief carts remain the church's role; the monastery contributes a common table and scarce infirmary beds.</p>
+      <p class="inspector-action-panel__hint">Enabled monasteries protect ${feastBatchCost} from their own estate production; no town producer refills the pantry. Daily hospitality and estate exports use only stock above those protected floors. On each observance, covered households walk here by road and consume the complete batch onsite: immediate food and ale deficits are relieved, but no provisions appear in home pantries. Daily hospitality consumes ${dailyHospitalityCost}, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Routine alms and poor-relief carts remain the church's role; the monastery contributes a common table and scarce infirmary beds.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
       <div class="city-admin-panel__range-hints"><span>Church keeps all</span><span>Monastery-led</span></div>

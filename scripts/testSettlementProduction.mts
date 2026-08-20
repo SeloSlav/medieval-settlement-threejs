@@ -60,7 +60,7 @@ const weaver = building('weaver', 'weaver', 1);
 weaver.wool = 39.375;
 weaver.cloth = 63.75;
 state.buildings.set(weaver.id, weaver);
-state.residences.set('tier-three-home', residence('tier-three-home', 10));
+state.residences.set('tier-four-home', residence('tier-four-home', 10, 4));
 
 const fullWeek = computeSettlementProductionCapacity(state, false);
 assert.equal(fullWeek.capacityDaysPerWeek, 7);
@@ -784,8 +784,9 @@ assert.equal(frostWeek.millInputBuffer?.days, Number.POSITIVE_INFINITY);
 assert.equal(frostWeek.millOutputRoom?.days, Number.POSITIVE_INFINITY);
 assert.equal(fullWeek.millInputBuffer.buildingId, mill.id);
 assert.equal(fullWeek.millOutputRoom?.buildingId, mill.id);
-assert.equal(fullWeek.tierThreeResidents, 10);
-assert.equal(fullWeek.fireDisabledTierThreeHomes, 0);
+assert.equal(fullWeek.tierTwoPlusResidents, 10);
+assert.equal(fullWeek.tierFourResidents, 10);
+assert.equal(fullWeek.fireDisabledTierFourHomes, 0);
 approx(fullWeek.aleDemandPerDay, 1.75);
 approx(
   fullWeek.preservedFoodDemandPerDay,
@@ -831,20 +832,20 @@ approx(
   fullWeek.preservedFoodDemandPerDay,
   'long-term prosperity remains sized for winter even during light summer rotation',
 );
-state.fireIncidents.set('tier-three-home-fire', {
-  id: 'tier-three-home-fire',
+state.fireIncidents.set('tier-four-home-fire', {
+  id: 'tier-four-home-fire',
   targetKind: 'residence',
-  targetId: 'tier-three-home',
+  targetId: 'tier-four-home',
 } as FireIncidentState);
 const fireSuspendedProsperity = computeSettlementProductionCapacity(
   state,
   false,
   () => 'village',
 );
-assert.equal(fireSuspendedProsperity.tierThreeResidents, 0);
-assert.equal(fireSuspendedProsperity.fireDisabledTierThreeHomes, 1);
-assert.equal(fireSuspendedProsperity.fireDisabledTierThreeResidents, 10);
-assert.equal(fireSuspendedProsperity.fireDisabledTierThreeHousingCapacity, 10);
+assert.equal(fireSuspendedProsperity.tierFourResidents, 0);
+assert.equal(fireSuspendedProsperity.fireDisabledTierFourHomes, 1);
+assert.equal(fireSuspendedProsperity.fireDisabledTierFourResidents, 10);
+assert.equal(fireSuspendedProsperity.fireDisabledTierFourHousingCapacity, 10);
 assert.equal(fireSuspendedProsperity.aleDemandPerDay, 0);
 assert.equal(fireSuspendedProsperity.preservedFoodDemandPerDay, 0);
 assert.equal(fireSuspendedProsperity.clothDemandPerDay, 0);
@@ -937,7 +938,7 @@ assert.equal(inactive.millWorkers, 0);
 assert.equal(inactive.bakeryWorkers, 0);
 assert.equal(inactive.flourOutputPerDay, 0);
 assert.equal(inactive.breadFoodCapacityPerDay, 0);
-assert.equal(inactive.tierThreeResidents, 0);
+assert.equal(inactive.tierFourResidents, 0);
 assert.equal(inactive.millInputBuffer, null);
 assert.equal(inactive.bakeryInputBuffer, null);
 assert.equal(inactive.breweryInputBuffer, null);
@@ -1258,9 +1259,6 @@ const grainPlanInput = {
   production: {
     breadGrainPerDay: 2,
   },
-  sabbathObserved: false,
-  monasteryProductivity: (candidate: BuildingState) =>
-    candidate.id === linkedMonastery.id ? 1 : 0.45,
 };
 const grainPlan = computeSettlementGrainPlan(grainPlanInput);
 assert.equal(grainPlan.roadPlan, null);
@@ -1283,22 +1281,14 @@ assert.deepEqual(grainPlan.winterFodder, { target: 12, protected: 7, shortfall: 
 assert.deepEqual(grainPlan.granaryReserve, { target: 20, protected: 16, shortfall: 4 });
 approx(grainPlan.totalProtected, 29);
 approx(grainPlan.discretionaryStock, 22);
-approx(grainPlan.monasteryGrainPerDay, 203 / 12);
-approx(grainPlan.processorGrainPerDay, 227 / 12);
-approx(grainPlan.processorRunwayDays, 264 / 227);
-approx(grainPlan.annualProcessorDemand, 6_810);
-approx(grainPlan.annualCommitments, 6_840);
-approx(grainPlan.annualBalance, -6_740);
+approx(grainPlan.processorGrainPerDay, 2);
+approx(grainPlan.processorRunwayDays, 11);
+approx(grainPlan.annualProcessorDemand, 720);
+approx(grainPlan.annualCommitments, 750);
+approx(grainPlan.annualBalance, -650);
 assert.equal('processorPriorityCounts' in grainPlan, false);
 assert.equal(grainPlan.firstAttentionKind, 'seed');
 assert.equal(grainPlan.firstAttentionBuildingId, seedFarm.id);
-
-const sabbathGrainPlan = computeSettlementGrainPlan({
-  ...grainPlanInput,
-  sabbathObserved: true,
-});
-approx(sabbathGrainPlan.monasteryGrainPerDay, 14.5);
-approx(sabbathGrainPlan.processorGrainPerDay, 16.5);
 
 grainState.deliveryTrips.set(
   'seed-trip',
@@ -1366,16 +1356,14 @@ const roadGrainInput = {
     firstShortGranaryId: null,
   },
   production: splitRoadProduction,
-  sabbathObserved: false,
-  monasteryProductivity: () => 1,
   roadComponentFor: roadGrainComponent,
 };
 const splitRoadGrainPlan = computeSettlementGrainPlan(roadGrainInput);
-approx(splitRoadGrainPlan.processorRunwayDays, 2.16);
-assert.equal(splitRoadGrainPlan.roadPlan?.activeBranches, 3);
-assert.equal(splitRoadGrainPlan.roadPlan?.drawingBranches, 2);
+approx(splitRoadGrainPlan.processorRunwayDays, 3);
+assert.equal(splitRoadGrainPlan.roadPlan?.activeBranches, 2);
+assert.equal(splitRoadGrainPlan.roadPlan?.drawingBranches, 1);
 assert.equal(splitRoadGrainPlan.roadPlan?.stockedDrawingBranches, 1);
-assert.equal(splitRoadGrainPlan.roadPlan?.unstockedDrawingBranches, 1);
+assert.equal(splitRoadGrainPlan.roadPlan?.unstockedDrawingBranches, 0);
 approx(
   splitRoadGrainPlan.roadPlan?.processorGrainPerDay ?? -1,
   splitRoadGrainPlan.processorGrainPerDay,
@@ -1383,11 +1371,11 @@ approx(
 approx(splitRoadGrainPlan.roadPlan?.dispatchableSourceStock ?? -1, 90);
 approx(splitRoadGrainPlan.roadPlan?.matchedSourceStock ?? -1, 10);
 approx(splitRoadGrainPlan.roadPlan?.outsideProcessorBranchStock ?? -1, 80);
-assert.equal(splitRoadGrainPlan.roadPlan?.weakestSourceRunwayDays, 0);
+approx(splitRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1, 1 / 3);
 assert.equal(
   splitRoadGrainPlan.roadPlan?.firstExposedBuildingId,
-  roadMonastery.id,
-  'remote grain must not hide the unstocked monastery branch',
+  roadMill.id,
+  'monasteries must not create a settlement grain-processing branch',
 );
 
 const joinedRoadProduction = computeSettlementProductionCapacity(
@@ -1406,7 +1394,7 @@ assert.equal(joinedRoadGrainPlan.roadPlan?.stockedDrawingBranches, 1);
 assert.equal(joinedRoadGrainPlan.roadPlan?.unstockedDrawingBranches, 0);
 approx(joinedRoadGrainPlan.roadPlan?.matchedSourceStock ?? -1, 90);
 assert.equal(joinedRoadGrainPlan.roadPlan?.outsideProcessorBranchStock, 0);
-approx(joinedRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1, 2.16);
+approx(joinedRoadGrainPlan.roadPlan?.weakestSourceRunwayDays ?? -1, 3);
 
 const abbeyRoadState = emptyGameState();
 const isolatedAbbey = building('isolated-abbey', 'monastery', 0);
@@ -1445,22 +1433,14 @@ const abbeyGrainPlan = computeSettlementGrainPlan({
     firstShortGranaryId: null,
   },
   production: abbeyProduction,
-  sabbathObserved: false,
-  monasteryProductivity: () => 1,
   roadComponentFor: abbeyComponent,
 });
-assert.equal(abbeyGrainPlan.roadPlan?.activeBranches, 2);
-assert.equal(abbeyGrainPlan.roadPlan?.drawingBranches, 1);
-assert.equal(abbeyGrainPlan.roadPlan?.unstockedDrawingBranches, 1);
-approx(
-  abbeyGrainPlan.roadPlan?.processorGrainPerDay ?? -1,
-  abbeyGrainPlan.monasteryGrainPerDay,
-);
+assert.equal(abbeyGrainPlan.roadPlan?.activeBranches, 1);
+assert.equal(abbeyGrainPlan.roadPlan?.drawingBranches, 0);
+assert.equal(abbeyGrainPlan.roadPlan?.unstockedDrawingBranches, 0);
+assert.equal(abbeyGrainPlan.roadPlan?.processorGrainPerDay, 0);
 assert.equal(abbeyGrainPlan.roadPlan?.outsideProcessorBranchStock, 40);
-assert.equal(
-  abbeyGrainPlan.roadPlan?.firstExposedBuildingId,
-  isolatedAbbey.id,
-);
+assert.equal(abbeyGrainPlan.roadPlan?.firstExposedBuildingId, null);
 
 const seedProcurementState = emptyGameState();
 const readySeedMarket = building('seed-market-2', 'marketplace', 1);
@@ -1967,8 +1947,6 @@ const perfGrainPlan = computeSettlementGrainPlan({
     firstShortGranaryId: null,
   },
   production: branchedPerfCapacity,
-  sabbathObserved: false,
-  monasteryProductivity: () => 1,
   roadComponentFor: (candidate) => Math.floor(
     Number(candidate.id.slice('processor-'.length)) / 500,
   ),
@@ -2252,7 +2230,11 @@ function building(
   };
 }
 
-function residence(id: string, population: number): ResidenceState {
+function residence(
+  id: string,
+  population: number,
+  tier: ResidenceState['tier'] = 3,
+): ResidenceState {
   return {
     id,
     zoneId: `zone-${id}`,
@@ -2262,7 +2244,7 @@ function residence(id: string, population: number): ResidenceState {
     yaw: 0,
     population,
     populationCapacity: population,
-    tier: 3,
+    tier,
     settlementTicks: 0,
     needs: {
       firewood: { stock: 0, deficitSeconds: 0 },

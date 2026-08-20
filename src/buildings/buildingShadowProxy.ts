@@ -45,7 +45,7 @@ export class BatchedBuildingShadowProxies {
 
   upsertResidence(
     _id: string,
-    _tier: 1 | 2 | 3,
+    _tier: 1 | 2 | 3 | 4,
     _marker: THREE.Object3D,
   ): boolean {
     return false;

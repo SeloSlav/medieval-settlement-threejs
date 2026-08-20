@@ -16,7 +16,6 @@ import {
 } from '../src/generated/gameBalance.ts';
 import {
   MONASTERY_FEASTS,
-  monasteryFeastRefillShortfall,
   monasteryFeastReadiness,
   monasteryFeastSurplus,
   monasteryHospitalityPlan,
@@ -62,14 +61,6 @@ assert.equal(
 assert.equal(
   monasteryFeastSurplus(MONASTERY_FEAST_ALE, MONASTERY_FEAST_ALE, false),
   MONASTERY_FEAST_ALE,
-);
-assert.equal(
-  monasteryFeastRefillShortfall(4, 2, MONASTERY_FEAST_ALE, true),
-  4,
-);
-assert.equal(
-  monasteryFeastRefillShortfall(4, 2, MONASTERY_FEAST_ALE, false),
-  0,
 );
 
 const disabled = monasteryHospitalityPlan({ honey: 80, wine: 50 }, false);
@@ -223,15 +214,20 @@ assert.deepEqual(
   MONASTERY_FEASTS.map(({ month, monthDay }) => [month, monthDay]),
   'client deadlines must exactly mirror the authoritative feast schedule',
 );
-assert.match(
+assert.doesNotMatch(
   server,
-  /step_apiary[\s\S]*?dispatch_monastery_hospitality_limited\([\s\S]*?CommodityKind::Honey[\s\S]*?dispatch_to_building_where_limited\([\s\S]*?CommodityKind::Honey[\s\S]*?&\["trading_post"\]/,
-  'apiaries must protect their harvest-policy reserve, provision monastery hospitality, then export only the remainder',
+  /dispatch_monastery_hospitality|dispatch_monastery_feast_ale/,
+  'monastery hospitality must be provisioned by the enclosed estate, not town producers',
 );
 assert.match(
   server,
-  /step_vineyard[\s\S]*?advance_vineyard_fermentation[\s\S]*?dispatch_monastery_hospitality\([\s\S]*?CommodityKind::Wine[\s\S]*?dispatch_to_building\([\s\S]*?CommodityKind::Wine[\s\S]*?&\["trading_post"\]/,
-  'vineyards must reserve monastery hospitality before exporting wine through the Trading Post',
+  /step_apiary[\s\S]*?apiary_honey_reserve[\s\S]*?&\["brewery"\][\s\S]*?&\["marketplace"\][\s\S]*?&\["trading_post"\]/,
+  'apiaries must protect their hive reserve, then serve the ordinary town economy',
+);
+assert.match(
+  server,
+  /step_vineyard[\s\S]*?advance_vineyard_fermentation[\s\S]*?CommodityKind::Wine,[\s\S]*?&\["trading_post"\]/,
+  'vineyards must export their own wine without provisioning monastery stores',
 );
 assert.match(
   server,
@@ -250,13 +246,8 @@ assert.match(
 );
 assert.match(
   server,
-  /step_brewery[\s\S]*?dispatch_monastery_feast_ale[\s\S]*?CommodityKind::Ale,[\s\S]*?&\["granary"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
-  'brewery ale must refill the bounded feast floor, then enter granary stalls, with Trading Post export last',
-);
-assert.match(
-  server,
-  /fn dispatch_monastery_feast_ale[\s\S]*?monastery_hospitality_enabled[\s\S]*?monastery_has_parish_link[\s\S]*?building_has_inbound_supply_trip[\s\S]*?monastery_feast_refill_shortfall[\s\S]*?MONASTERY_FEAST_ALE/,
-  'feast staging must require the policy, a parish link, no duplicate inbound cart, and an exact one-batch shortfall',
+  /step_brewery[\s\S]*?for beverage in \[CommodityKind::Ale, CommodityKind::Cider, CommodityKind::Mead\][\s\S]*?&\["tavern"\][\s\S]*?CommodityKind::Ale,[\s\S]*?&\["trading_post"\]/,
+  'town breweries must serve taverns and external trade without refilling monastery stores',
 );
 assert.doesNotMatch(
   server,
@@ -289,7 +280,7 @@ assert.doesNotMatch(
 );
 assert.match(
   feastSource,
-  /apply_need_consumed_at_source[\s\S]*?ResidenceNeedKind::Food[\s\S]*?home\.tier >= 3[\s\S]*?ResidenceNeedKind::Ale/,
+  /apply_need_consumed_at_source[\s\S]*?ResidenceNeedKind::Food[\s\S]*?home\.tier >= 2[\s\S]*?ResidenceNeedKind::Ale/,
   'covered homes must receive immediate meal relief while prosperous households share feast ale onsite',
 );
 assert.match(
@@ -307,10 +298,19 @@ assert.match(
   /monastery_hospitality_by_owner[\s\S]*?pub fn monastery_hospitality_enabled/,
   'one policy read per owner and simulation substep must serve all specialist buildings',
 );
+const foodClaimsSource = tickContext.slice(
+  tickContext.indexOf('fn build_food_claims'),
+  tickContext.indexOf('pub(crate) fn marketplace_has_stall_workers'),
+);
+assert.doesNotMatch(
+  foodClaimsSource,
+  /monastery|monastery_feast_surplus|MONASTERY_FEAST_FOOD/,
+  'ordinary household food claims must never treat a monastery pantry as a supplier',
+);
 assert.match(
-  tickContext,
-  /build_food_claims[\s\S]*?monastery_feast_surplus\([\s\S]*?MONASTERY_FEAST_FOOD/,
-  'authoritative food claims must ignore monastery stock held by the feast floor while ale uses granary-run Marketplace stalls',
+  foodClaimsSource,
+  /is_food_supplier_operational[\s\S]*?marketplace_has_stall_workers[\s\S]*?building_edible_food_stock/,
+  'ordinary household food claims must remain limited to operational stocked Marketplace routes',
 );
 assert.match(
   tickContext,
@@ -322,15 +322,10 @@ assert.match(
   /monastery_for_residence\(ctx, owner, residence\.id\)/,
   'community coverage must delegate to the shared authoritative monastery claim',
 );
-assert.match(
+assert.doesNotMatch(
   fs.readFileSync('src/resources/WorldQueries.ts', 'utf8'),
-  /getNextMonasteryHospitalityTarget[\s\S]*?isMonasteryLinkedToChapel[\s\S]*?getInboundSupplyTrip/,
-  'client logistics must mirror linked-target and in-flight-cart eligibility',
-);
-assert.match(
-  fs.readFileSync('src/resources/WorldQueries.ts', 'utf8'),
-  /getNextMonasteryFeastAleTarget[\s\S]*?monasteryFeastRefillShortfall[\s\S]*?getInboundSupplyTrip/,
-  'client brewery forecasts must mirror the bounded authoritative feast target',
+  /getNextMonasteryHospitalityTarget|getNextMonasteryFeastAleTarget|monasteryFeastRefillShortfall/,
+  'client forecasts must not advertise town-to-monastery hospitality routes removed by the server',
 );
 assert.match(
   fs.readFileSync('src/resources/inspector/expandedBuildingRenderer.ts', 'utf8'),

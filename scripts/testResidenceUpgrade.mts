@@ -12,6 +12,10 @@ import {
   RESIDENCE_TIER3_GOLD_COST,
   RESIDENCE_TIER3_STONE_COST,
   RESIDENCE_TIER3_TIMBER_COST,
+  RESIDENCE_TIER4_CAPACITY,
+  RESIDENCE_TIER4_GOLD_COST,
+  RESIDENCE_TIER4_STONE_COST,
+  RESIDENCE_TIER4_TIMBER_COST,
   RESIDENCE_TILE_ROOF_TILE_COST,
   RESIDENCE_TILE_ROOF_TIMBER_COST,
   SIM_TICK_SECONDS,
@@ -76,6 +80,7 @@ const richTotals = {
   timber: 1_000,
   stone: 1_000,
   gold: 1_000,
+  roofTiles: 1_000,
 };
 
 const tierOne = residence('tier-one', 1, 3);
@@ -86,7 +91,7 @@ assert.equal(tierTwoPlan.addedCapacity, 3);
 assert.equal(tierTwoPlan.ready, true);
 assert.deepEqual(
   tierTwoPlan.services.map((service) => service.kind),
-  ['firewood', 'water', 'church', 'foodVariety', 'cloth'],
+  ['firewood', 'water', 'church', 'foodVariety', 'ale', 'cloth'],
 );
 assert.deepEqual(
   tierTwoPlan.resources.map((resource) => resource.required),
@@ -216,7 +221,7 @@ assert.equal(tierThreePlan.nextTier, 3);
 assert.equal(tierThreePlan.addedCapacity, 4);
 assert.deepEqual(
   tierThreePlan.services.map((service) => service.kind),
-  ['preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
+  ['ale', 'cloth', 'church', 'foodVariety'],
 );
 assert.deepEqual(
   tierThreePlan.resources.map((resource) => resource.required),
@@ -227,8 +232,27 @@ assert.deepEqual(
   ],
 );
 assert.equal(tierThreePlan.ready, true);
+const tierThree = residence('tier-three', 3, 10);
+const tierFourPlan = evaluateResidenceUpgrade(tierThree, richTotals, allServices);
+assert.ok(tierFourPlan);
+assert.equal(tierFourPlan.nextTier, 4);
+assert.equal(tierFourPlan.populationCapacity, RESIDENCE_TIER4_CAPACITY);
+assert.deepEqual(
+  tierFourPlan.services.map((service) => service.kind),
+  ['preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
+);
+assert.deepEqual(
+  tierFourPlan.resources.map((resource) => resource.required),
+  [
+    RESIDENCE_TIER4_TIMBER_COST,
+    RESIDENCE_TIER4_STONE_COST,
+    RESIDENCE_TIER4_GOLD_COST,
+    RESIDENCE_TILE_ROOF_TILE_COST,
+  ],
+);
+assert.equal(tierFourPlan.ready, true);
 assert.equal(
-  evaluateResidenceUpgrade(residence('tier-three', 3, 10), richTotals, allServices),
+  evaluateResidenceUpgrade(residence('tier-four', 4, 15), richTotals, allServices),
   null,
 );
 
@@ -312,7 +336,7 @@ assert.equal(
   'the authoritative builder should reuse the visible construction-worker routine',
 );
 
-const activeRoofRetrofit = residence('active-roof-retrofit', 3, 10);
+const activeRoofRetrofit = residence('active-roof-retrofit', 4, 15);
 Object.assign(activeRoofRetrofit, {
   roofTileRetrofitActive: true,
   upgradeProgress: 0.4,
@@ -555,8 +579,8 @@ assert.match(residenceReducer, /set_residence_upgrade_priority/);
 assert.match(residenceReducer, /pub fn retrofit_residence_tile_roof/);
 assert.match(
   residenceReducer,
-  /residence\.tier < 3[\s\S]*available_tiles[\s\S]*RESIDENCE_TILE_ROOF_TILE_COST/,
-  'the retrofit must remain a costly tier-three-only project',
+  /residence\.tier < 4[\s\S]*available_tiles[\s\S]*RESIDENCE_TILE_ROOF_TILE_COST/,
+  'legacy retrofits must remain a costly tier-four-only project',
 );
 
 const backyardReducer = source('../server/src/reducers/backyards.rs');
@@ -574,7 +598,7 @@ assert.match(
 assert.match(
   residenceReducer,
   /ensure_upgrade_source_route\([\s\S]*CommodityKind::RoofTiles[\s\S]*RESIDENCE_TILE_ROOF_TILE_COST/,
-  'tier-three tile roofs must reserve a real routed tile stock before work begins',
+  'tier-four tile roofs must reserve a real routed tile stock before work begins',
 );
 assert.match(
   residenceReducer,
@@ -614,7 +638,8 @@ assert.match(residenceInspector, /Fired-tile roof retrofit/);
 assert.doesNotMatch(residenceInspector, /Roof fire exposure/);
 assert.match(
   residenceInspector,
-  /RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER[\s\S]*lowers fire ignition\/spread exposure[\s\S]*fireproof/,
+  /Bundled thatch · cottage roof[\s\S]*Split wooden shingle · tier-2\/3 roof/,
+  'the inspector must expose the authored roof progression',
 );
 
 const backyardInspector = source('../src/resources/inspector/backyardRenderer.ts');

@@ -16,6 +16,7 @@ export const GORSKI_PALETTE = {
   tileRedHighlight: 0xc04a3a,
   shingleWood: 0x5c4636,
   shingleAged: 0x4a382c,
+  thatch: 0xb89a55,
   moss: 0x4d6b3c,
   grassRoof: 0x5f7a44,
   mossDark: 0x3d5530,
@@ -79,6 +80,7 @@ export type BuildingMaterialKey =
   | 'clayRed'
   | 'clayDark'
   | 'shingle'
+  | 'thatch'
   | 'slate'
   | 'metalIron'
   | 'glass'
@@ -102,7 +104,8 @@ type BuildingWeatheringProfile =
   | 'masonry'
   | 'timber'
   | 'roof'
-  | 'shingle';
+  | 'shingle'
+  | 'thatch';
 
 const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
   // White limewash keeps the plaster relief maps, but not the source set's
@@ -126,6 +129,7 @@ const MATERIAL_DEFINITIONS: Record<BuildingMaterialKey, MaterialDefinition> = {
   // Omitting the broad-plank diffuse prevents the roof from collapsing into
   // a handful of long boards; the darker base keeps it distinct from plaster.
   shingle: { color: 0x928e85, roughness: 0.99, metalness: 0, textureFamily: 'woodPlanks', normalScale: 1.05, weathering: 'shingle', useDiffuseMap: false, uniformIndirectLight: true },
+  thatch: { color: GORSKI_PALETTE.thatch, roughness: 1, metalness: 0, weathering: 'thatch', uniformIndirectLight: true },
   slate: { color: 0x737980, roughness: 0.91, metalness: 0.02, textureFamily: 'masonry', normalScale: 0.48, weathering: 'roof' },
   metalIron: { color: 0x4a4846, roughness: 0.55, metalness: 0.72 },
   glass: { color: 0x3d4747, roughness: 0.4, metalness: 0.03 },
@@ -693,6 +697,12 @@ function applyBuildingWeatheringVertexColors(
       red *= 0.96 + warmAge - silvering * 0.32 - lichen * 0.42;
       green *= 0.95 + warmAge * 0.38 + silvering * 0.06 + lichen * 0.08;
       blue *= 0.92 - warmAge * 0.22 + silvering * 0.2 - lichen * 0.28;
+    } else if (profile === 'thatch') {
+      const bundle = 0.5 + 0.5 * Math.sin(x * 18.3 + z * 14.7 + y * 4.2);
+      const eaveDarkening = lowBand * 0.14;
+      red *= 0.9 + bundle * 0.16 - eaveDarkening;
+      green *= 0.82 + bundle * 0.12 - eaveDarkening * 0.8;
+      blue *= 0.62 + bundle * 0.08 - eaveDarkening * 0.55;
     } else {
       const roofExposure = up * (0.55 + broadNoise * 0.45);
       const lichen = roofExposure * fineNoise * 0.1;

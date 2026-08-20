@@ -32,7 +32,6 @@ import {
 import {
   BUILDING_STORAGE_CAPS,
   MONASTERY_COVERAGE_RADIUS,
-  MONASTERY_UNLINKED_PRODUCTIVITY,
 } from '../generated/gameBalance.ts';
 import {
   selectGrainProcessorTarget,
@@ -81,7 +80,6 @@ import {
 import { edibleFoodStock } from '../economy/foodInventory.ts';
 import { mineralDepositBeneath } from '../economy/settlementGeology.ts';
 import {
-  monasteryFeastRefillShortfall,
   monasteryFeastReserve,
   monasteryFeastSurplus,
 } from '../economy/monasteryHospitality.ts';
@@ -1078,21 +1076,6 @@ export class WorldQueries {
     return best;
   }
 
-  getNextMonasteryHospitalityTarget(
-    origin: BuildingState,
-    commodity: 'honey' | 'wine',
-  ): BuildingState | null {
-    const capacity = BUILDING_STORAGE_CAPS.monastery[commodity] ?? 0;
-    return this.findNearestRoadLinkedBuilding(
-      origin,
-      ['monastery'],
-      (candidate) =>
-        this.isMonasteryLinkedToChapel(candidate)
-        && candidate[commodity] < capacity - 1e-6
-        && this.getInboundSupplyTrip(candidate) == null,
-    );
-  }
-
   getNextFarmGrainDispatch(
     farmstead: BuildingState,
   ): RoutedGrainDestination<BuildingState> | null {
@@ -1144,10 +1127,7 @@ export class WorldQueries {
         target.x,
         target.z,
       ),
-      (target) => target.kind === 'monastery'
-        && !this.isMonasteryLinkedToChapel(target)
-        ? MONASTERY_UNLINKED_PRODUCTIVITY
-        : 1,
+      () => 1,
       (target) => inboundTargets.has(target.id),
       (target) => processorAcceptsInput(target, commodity.kind),
       commodity.kind,
@@ -1262,32 +1242,10 @@ export class WorldQueries {
         target.x,
         target.z,
       ),
-      (target) => target.kind === 'monastery'
-        && !this.isMonasteryLinkedToChapel(target)
-        ? MONASTERY_UNLINKED_PRODUCTIVITY
-        : 1,
+      () => 1,
       (target) => inboundTargets.has(target.id),
       (target) => processorAcceptsInput(target, commodity.kind),
       commodity.kind,
-    );
-  }
-
-  getNextMonasteryFeastAleTarget(origin: BuildingState): BuildingState | null {
-    const reserveEnabled = this.getMonasteryHospitalityEnabled();
-    if (!reserveEnabled) return null;
-    const reserve = monasteryFeastReserve('ale');
-    return this.findNearestRoadLinkedBuilding(
-      origin,
-      ['monastery'],
-      (candidate) =>
-        this.isMonasteryLinkedToChapel(candidate)
-        && monasteryFeastRefillShortfall(
-          candidate.ale,
-          0,
-          reserve,
-          reserveEnabled,
-        ) > 1e-6
-        && this.getInboundSupplyTrip(candidate) == null,
     );
   }
 
@@ -1552,7 +1510,7 @@ export class WorldQueries {
 
   findNearestRoadLinkedResidence(
     origin: BuildingState,
-    minTier: 1 | 2 | 3 = 1,
+    minTier: 1 | 2 | 3 | 4 = 1,
   ): ResidenceState | null {
     const state = this.getGameState();
     const fireDisabledBuildings = fireDisabledBuildingIds(

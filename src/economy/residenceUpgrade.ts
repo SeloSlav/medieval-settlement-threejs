@@ -9,6 +9,11 @@ import {
   RESIDENCE_TIER3_GOLD_COST,
   RESIDENCE_TIER3_STONE_COST,
   RESIDENCE_TIER3_TIMBER_COST,
+  RESIDENCE_TIER4_CAPACITY,
+  RESIDENCE_TIER4_GOLD_COST,
+  RESIDENCE_TIER4_STONE_COST,
+  RESIDENCE_TIER4_TIMBER_COST,
+  RESIDENCE_TILE_ROOF_TILE_COST,
   type BackyardGardenKind,
 } from '../generated/gameBalance.ts';
 import type { ResourceTotals } from '../resources/resourceTotals.ts';
@@ -49,7 +54,7 @@ export type ResidenceUpgradeServiceCheck = ResidenceUpgradeServiceInput & {
 };
 
 export type ResidenceUpgradeResourceCheck = {
-  kind: 'timber' | 'stone' | 'gold';
+  kind: 'timber' | 'stone' | 'gold' | 'roofTiles';
   label: string;
   available: number;
   required: number;
@@ -58,7 +63,7 @@ export type ResidenceUpgradeResourceCheck = {
 };
 
 export type ResidenceUpgradePlan = {
-  nextTier: 2 | 3;
+  nextTier: 2 | 3 | 4;
   populationCapacity: number;
   addedCapacity: number;
   addedNeeds: string;
@@ -109,8 +114,8 @@ export function householdProjectFunding(
   };
 }
 
-export type ResidenceUpgradeMaterial = 'timber' | 'stone' | 'gold';
-export type ResidenceProjectMaterial = ResidenceUpgradeMaterial | 'roofTiles';
+export type ResidenceUpgradeMaterial = 'timber' | 'stone' | 'gold' | 'roofTiles';
+export type ResidenceProjectMaterial = ResidenceUpgradeMaterial;
 
 export type ResidenceMaterialProject = {
   progress: number;
@@ -128,7 +133,7 @@ export type ResidenceMaterialProject = {
 };
 
 export type ResidenceUpgradeProject = ResidenceMaterialProject & {
-  targetTier: 1 | 2 | 3;
+  targetTier: 1 | 2 | 3 | 4;
 };
 
 export type ResidenceBackyardProject = ResidenceMaterialProject & {
@@ -139,11 +144,12 @@ export type ResidenceFireRepairProject = ResidenceMaterialProject;
 export type ResidenceRoofTileProject = ResidenceMaterialProject;
 
 type UpgradeDefinition = {
-  nextTier: 2 | 3;
+  nextTier: 2 | 3 | 4;
   populationCapacity: number;
   timber: number;
   stone: number;
   gold: number;
+  roofTiles: number;
   serviceKinds: ResidenceUpgradeServiceKind[];
   addedNeeds: string;
 };
@@ -156,8 +162,9 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       timber: RESIDENCE_TIER2_TIMBER_COST,
       stone: RESIDENCE_TIER2_STONE_COST,
       gold: RESIDENCE_TIER2_GOLD_COST,
-      serviceKinds: ['firewood', 'water', 'church', 'foodVariety', 'cloth'],
-      addedNeeds: 'Adds a second food category and household textiles',
+      roofTiles: 0,
+      serviceKinds: ['firewood', 'water', 'church', 'foodVariety', 'ale', 'cloth'],
+      addedNeeds: 'Adds two food categories, ale, and household clothing',
     };
   }
   if (tier === 2) {
@@ -167,8 +174,21 @@ function definitionForTier(tier: ResidenceState['tier']): UpgradeDefinition | nu
       timber: RESIDENCE_TIER3_TIMBER_COST,
       stone: RESIDENCE_TIER3_STONE_COST,
       gold: RESIDENCE_TIER3_GOLD_COST,
+      roofTiles: 0,
+      serviceKinds: ['ale', 'cloth', 'church', 'foodVariety'],
+      addedNeeds: 'Adds a balanced three-group diet and a stone-church standard',
+    };
+  }
+  if (tier === 3) {
+    return {
+      nextTier: 4,
+      populationCapacity: RESIDENCE_TIER4_CAPACITY,
+      timber: RESIDENCE_TIER4_TIMBER_COST,
+      stone: RESIDENCE_TIER4_STONE_COST,
+      gold: RESIDENCE_TIER4_GOLD_COST,
+      roofTiles: RESIDENCE_TILE_ROOF_TILE_COST,
       serviceKinds: ['preservedFood', 'ale', 'cloth', 'pottery', 'church', 'foodVariety'],
-      addedNeeds: 'Adds a third food category, beverages, preserved food, pottery, and a stone-church standard',
+      addedNeeds: 'Adds preserved food, pottery, and a finished fired-tile house',
     };
   }
   return null;
@@ -187,7 +207,7 @@ const SERVICE_LABELS: Record<ResidenceUpgradeServiceKind, string> = {
 
 export function evaluateResidenceUpgrade(
   residence: ResidenceState,
-  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'gold'>,
+  totals: Pick<ResourceTotals, 'timber' | 'stone' | 'gold' | 'roofTiles'>,
   serviceInputs: ResidenceUpgradeServices,
   context: ResidenceUpgradeContext = {},
 ): ResidenceUpgradePlan | null {
@@ -198,10 +218,12 @@ export function evaluateResidenceUpgrade(
     const input = serviceInputs[kind];
     return {
       kind,
-      label: kind === 'church' && definition.nextTier === 3
+      label: kind === 'church' && definition.nextTier >= 3
         ? 'Stone church'
         : kind === 'foodVariety'
-          ? `${definition.nextTier === 3 ? 3 : 2} food categories`
+          ? definition.nextTier >= 3
+            ? '3 diet groups: crops/forage, animal foods, and fish'
+            : '2 food categories'
           : SERVICE_LABELS[kind],
       supplier: input.supplier,
       stocked: input.stocked,
@@ -219,8 +241,9 @@ export function evaluateResidenceUpgrade(
     ['timber', 'Timber', totals.timber, definition.timber],
     ['stone', 'Stone', totals.stone, definition.stone],
     ['gold', physicalEconomy ? 'Treasury gold' : 'Gold', totals.gold, funding.civicGoldRequired],
+    ['roofTiles', 'Fired roof tiles', totals.roofTiles, definition.roofTiles],
   ] as const;
-  const resources = requiredResources.map(
+  const resources = requiredResources.filter(([, , , required]) => required > 0).map(
     ([kind, label, available, required]): ResidenceUpgradeResourceCheck => ({
       kind,
       label,
@@ -269,7 +292,7 @@ export function residenceUpgradeProject(
   const targetTier = residence.upgradeTargetTier ?? 0;
   if (
     targetTier <= residence.tier
-    || (targetTier !== 1 && targetTier !== 2 && targetTier !== 3)
+    || (targetTier !== 1 && targetTier !== 2 && targetTier !== 3 && targetTier !== 4)
   ) return null;
 
   return {

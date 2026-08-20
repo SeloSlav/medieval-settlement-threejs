@@ -407,7 +407,12 @@ function describeActiveNeed(
       const target = residence.tier >= 3 ? 3 : 2;
       const count = Math.floor(getNeed(residence.needs, kind).stock + 1e-6);
       return count < target
-        ? { label: `Food variety low — ${count}/${target} categories supplied`, state: 'warning' }
+        ? {
+            label: residence.tier >= 3
+              ? `Balanced diet incomplete — ${count}/3 groups (crops/forage, animal foods, fish)`
+              : `Food variety low — ${count}/2 categories supplied`,
+            state: 'warning',
+          }
         : null;
     }
     default: {

@@ -297,6 +297,9 @@ export type GameBalance = {
     residenceTier3TimberCost: number;
     residenceTier3StoneCost: number;
     residenceTier3GoldCost: number;
+    residenceTier4TimberCost: number;
+    residenceTier4StoneCost: number;
+    residenceTier4GoldCost: number;
     residenceTileRoofTimberCost: number;
     residenceTileRoofTileCost: number;
     residenceTileRoofSalvageFraction: number;
@@ -381,6 +384,7 @@ export type GameBalance = {
     residenceTier1Capacity: number;
     residenceTier2Capacity: number;
     residenceTier3Capacity: number;
+    residenceTier4Capacity: number;
     residencePreservedFoodCapacity: number;
     residencePreservedFoodPerPersonPerSec: number;
     residencePreservedFoodSpringMultiplier: number;
@@ -402,8 +406,6 @@ export type GameBalance = {
     malnutritionRecoveryDays: number;
     residenceServiceWarningDays: number;
     residenceUpgradeServiceBlockDays: number;
-    residenceServiceMaxPenaltyDays: number;
-    residenceServiceMinEconomicMultiplier: number;
     baseIllnessChancePerPersonDay: number;
     malnutritionIllnessMultiplier: number;
     unsafeWaterIllnessMultiplier: number;
@@ -901,6 +903,9 @@ function generateRust(): string {
     `pub const RESIDENCE_TIER3_TIMBER_COST: f64 = ${rustF64(b.economy.residenceTier3TimberCost)};`,
     `pub const RESIDENCE_TIER3_STONE_COST: f64 = ${rustF64(b.economy.residenceTier3StoneCost)};`,
     `pub const RESIDENCE_TIER3_GOLD_COST: f64 = ${rustF64(b.economy.residenceTier3GoldCost)};`,
+    `pub const RESIDENCE_TIER4_TIMBER_COST: f64 = ${rustF64(b.economy.residenceTier4TimberCost)};`,
+    `pub const RESIDENCE_TIER4_STONE_COST: f64 = ${rustF64(b.economy.residenceTier4StoneCost)};`,
+    `pub const RESIDENCE_TIER4_GOLD_COST: f64 = ${rustF64(b.economy.residenceTier4GoldCost)};`,
     `pub const RESIDENCE_TILE_ROOF_TIMBER_COST: f64 = ${rustF64(b.economy.residenceTileRoofTimberCost)};`,
     `pub const RESIDENCE_TILE_ROOF_TILE_COST: f64 = ${rustF64(b.economy.residenceTileRoofTileCost)};`,
     `pub const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.residenceTileRoofSalvageFraction)};`,
@@ -983,6 +988,7 @@ function generateRust(): string {
     `pub const RESIDENCE_TIER1_CAPACITY: u32 = ${b.population.residenceTier1Capacity};`,
     `pub const RESIDENCE_TIER2_CAPACITY: u32 = ${b.population.residenceTier2Capacity};`,
     `pub const RESIDENCE_TIER3_CAPACITY: u32 = ${b.population.residenceTier3Capacity};`,
+    `pub const RESIDENCE_TIER4_CAPACITY: u32 = ${b.population.residenceTier4Capacity};`,
     `pub const RESIDENCE_PRESERVED_FOOD_CAPACITY: f64 = ${rustF64(b.population.residencePreservedFoodCapacity)};`,
     `pub const RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC: f64 = ${rustF64(b.population.residencePreservedFoodPerPersonPerSec)};`,
     `pub const RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER: f64 = ${rustF64(b.population.residencePreservedFoodSpringMultiplier)};`,
@@ -1004,8 +1010,6 @@ function generateRust(): string {
     `pub const MALNUTRITION_RECOVERY_DAYS: f64 = ${rustF64(b.population.malnutritionRecoveryDays)};`,
     `pub const RESIDENCE_SERVICE_WARNING_DAYS: f64 = ${rustF64(b.population.residenceServiceWarningDays)};`,
     `pub const RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS: f64 = ${rustF64(b.population.residenceUpgradeServiceBlockDays)};`,
-    `pub const RESIDENCE_SERVICE_MAX_PENALTY_DAYS: f64 = ${rustF64(b.population.residenceServiceMaxPenaltyDays)};`,
-    `pub const RESIDENCE_SERVICE_MIN_ECONOMIC_MULTIPLIER: f64 = ${rustF64(b.population.residenceServiceMinEconomicMultiplier)};`,
     `pub const BASE_ILLNESS_CHANCE_PER_PERSON_DAY: f64 = ${rustF64(b.population.baseIllnessChancePerPersonDay)};`,
     `pub const MALNUTRITION_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.malnutritionIllnessMultiplier)};`,
     `pub const UNSAFE_WATER_ILLNESS_MULTIPLIER: f64 = ${rustF64(b.population.unsafeWaterIllnessMultiplier)};`,
@@ -1822,6 +1826,9 @@ function generateTypeScript(): string {
     `export const RESIDENCE_TIER3_TIMBER_COST = ${b.economy.residenceTier3TimberCost};`,
     `export const RESIDENCE_TIER3_STONE_COST = ${b.economy.residenceTier3StoneCost};`,
     `export const RESIDENCE_TIER3_GOLD_COST = ${b.economy.residenceTier3GoldCost};`,
+    `export const RESIDENCE_TIER4_TIMBER_COST = ${b.economy.residenceTier4TimberCost};`,
+    `export const RESIDENCE_TIER4_STONE_COST = ${b.economy.residenceTier4StoneCost};`,
+    `export const RESIDENCE_TIER4_GOLD_COST = ${b.economy.residenceTier4GoldCost};`,
     `export const RESIDENCE_TILE_ROOF_TIMBER_COST = ${b.economy.residenceTileRoofTimberCost};`,
     `export const RESIDENCE_TILE_ROOF_TILE_COST = ${b.economy.residenceTileRoofTileCost};`,
     `export const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION = ${b.economy.residenceTileRoofSalvageFraction};`,
@@ -1904,6 +1911,7 @@ function generateTypeScript(): string {
     `export const RESIDENCE_TIER1_CAPACITY = ${b.population.residenceTier1Capacity};`,
     `export const RESIDENCE_TIER2_CAPACITY = ${b.population.residenceTier2Capacity};`,
     `export const RESIDENCE_TIER3_CAPACITY = ${b.population.residenceTier3Capacity};`,
+    `export const RESIDENCE_TIER4_CAPACITY = ${b.population.residenceTier4Capacity};`,
     `export const RESIDENCE_PRESERVED_FOOD_CAPACITY = ${b.population.residencePreservedFoodCapacity};`,
     `export const RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC = ${b.population.residencePreservedFoodPerPersonPerSec};`,
     `export const RESIDENCE_PRESERVED_FOOD_SPRING_MULTIPLIER = ${b.population.residencePreservedFoodSpringMultiplier};`,
@@ -1925,8 +1933,6 @@ function generateTypeScript(): string {
     `export const MALNUTRITION_RECOVERY_DAYS = ${b.population.malnutritionRecoveryDays};`,
     `export const RESIDENCE_SERVICE_WARNING_DAYS = ${b.population.residenceServiceWarningDays};`,
     `export const RESIDENCE_UPGRADE_SERVICE_BLOCK_DAYS = ${b.population.residenceUpgradeServiceBlockDays};`,
-    `export const RESIDENCE_SERVICE_MAX_PENALTY_DAYS = ${b.population.residenceServiceMaxPenaltyDays};`,
-    `export const RESIDENCE_SERVICE_MIN_ECONOMIC_MULTIPLIER = ${b.population.residenceServiceMinEconomicMultiplier};`,
     `export const BASE_ILLNESS_CHANCE_PER_PERSON_DAY = ${b.population.baseIllnessChancePerPersonDay};`,
     `export const MALNUTRITION_ILLNESS_MULTIPLIER = ${b.population.malnutritionIllnessMultiplier};`,
     `export const UNSAFE_WATER_ILLNESS_MULTIPLIER = ${b.population.unsafeWaterIllnessMultiplier};`,

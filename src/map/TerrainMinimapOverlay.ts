@@ -5,6 +5,8 @@ import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
 import type { ForestCore } from '../props/forestField.ts';
 import { createTerrainMinimapImage } from './createTerrainMinimapImage.ts';
 import { RESOURCE_MAP_ICON_HTML } from './resourceMapIconArt.ts';
+import { SETTLEMENT_MAP_ICON_HTML } from './settlementMapIconArt.ts';
+import { deriveSettlementMapMarker } from './settlementMapMarker.ts';
 import {
   describeGeologicalMapMarker,
   geologicalNodeForMapMarker,
@@ -57,10 +59,12 @@ export class TerrainMinimapOverlay {
   private readonly mapSurface: HTMLElement;
   private readonly markersRoot: HTMLElement;
   private readonly focusMarker: HTMLElement;
+  private readonly settlementMarker: HTMLElement;
   private readonly bounds: TerrainBounds;
   private readonly layoutMarkerEntries: MinimapMarkerEntry[] = [];
   private readonly buildingMarkerEntries = new Map<string, MinimapMarkerEntry>();
   private visible = false;
+  private settlementMarkerDirty = true;
 
   private constructor(options: TerrainMinimapOverlayOptions, bounds: TerrainBounds) {
     this.options = options;
@@ -95,7 +99,15 @@ export class TerrainMinimapOverlay {
       this.markersRoot.appendChild(entry.element);
     }
 
-    options.uiRoot.appendChild(this.root);
+    this.settlementMarker = document.createElement('span');
+    this.settlementMarker.className = 'terrain-minimap__marker terrain-minimap__marker--settlement';
+    this.settlementMarker.hidden = true;
+    this.settlementMarker.setAttribute('role', 'img');
+    this.markersRoot.appendChild(this.settlementMarker);
+
+    // Mount outside the ordinary UI stacking context so the held map always
+    // covers menus, HUD chrome, inspectors, and setup overlays.
+    options.uiRoot.ownerDocument.body.appendChild(this.root);
   }
 
   static create(options: TerrainMinimapOverlayOptions): TerrainMinimapOverlay {
@@ -109,9 +121,11 @@ export class TerrainMinimapOverlay {
     if (shouldShow !== this.visible) {
       this.visible = shouldShow;
       this.root.hidden = !shouldShow;
+      this.root.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
       if (shouldShow) {
         this.refreshLayoutMarkerVisibility();
         this.refreshBuildingMarkerPositions();
+        this.refreshSettlementMarker();
         this.updateFocusMarker();
       }
       return;
@@ -119,6 +133,7 @@ export class TerrainMinimapOverlay {
 
     if (!this.visible) return;
     this.refreshLayoutMarkerVisibility();
+    if (this.settlementMarkerDirty) this.refreshSettlementMarker();
     this.updateFocusMarker();
   }
 
@@ -147,6 +162,12 @@ export class TerrainMinimapOverlay {
     if (this.visible) {
       this.refreshBuildingMarkerPositions();
     }
+    this.syncSettlement();
+  }
+
+  syncSettlement(): void {
+    this.settlementMarkerDirty = true;
+    if (this.visible) this.refreshSettlementMarker();
   }
 
   dispose(): void {
@@ -233,6 +254,34 @@ export class TerrainMinimapOverlay {
     this.focusMarker.style.top = `${point.y}%`;
     const rotation = worldDirectionToMapRotation(focus.forwardX, focus.forwardZ);
     this.focusMarker.style.transform = `translate(-50%, -50%) rotate(${rotation}rad)`;
+  }
+
+  private refreshSettlementMarker(): void {
+    this.settlementMarkerDirty = false;
+    const state = this.options.getGameState();
+    const marker = deriveSettlementMapMarker({
+      residences: state.residences.values(),
+      buildings: state.buildings.values(),
+    });
+    if (!marker) {
+      this.settlementMarker.hidden = true;
+      return;
+    }
+
+    this.settlementMarker.hidden = false;
+    if (this.settlementMarker.dataset.tier !== marker.tier) {
+      this.settlementMarker.dataset.tier = marker.tier;
+      this.settlementMarker.innerHTML = SETTLEMENT_MAP_ICON_HTML[marker.tier];
+    }
+    this.settlementMarker.dataset.residenceCount = `${marker.residenceCount}`;
+    this.settlementMarker.dataset.population = `${marker.population}`;
+    if (this.settlementMarker.title !== marker.label) {
+      this.settlementMarker.title = marker.label;
+      this.settlementMarker.setAttribute('aria-label', marker.label);
+    }
+    const point = worldToMapPercent(marker.x, marker.z, this.bounds);
+    this.settlementMarker.style.left = `${point.x}%`;
+    this.settlementMarker.style.top = `${point.y}%`;
   }
 
   private placeMarkerEntry(entry: MinimapMarkerEntry): void {

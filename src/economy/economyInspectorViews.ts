@@ -112,7 +112,6 @@ export function buildBackyardEconomyView(
   options: {
     seasonalMultiplier?: number;
     taxCollectionMultiplier?: number;
-    serviceMultiplier?: number;
     tier?: number;
     currentFoodStock?: number;
   } = {},
@@ -122,7 +121,6 @@ export function buildBackyardEconomyView(
     seasonalMultiplier: options.seasonalMultiplier,
     hasMarketAccess,
     taxCollectionMultiplier: options.taxCollectionMultiplier,
-    serviceMultiplier: options.serviceMultiplier,
     tier: options.tier,
     currentFoodStock: options.currentFoodStock,
   });

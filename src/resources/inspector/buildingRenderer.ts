@@ -32,6 +32,7 @@ import {
 } from './remoteWorkCampRenderer.ts';
 import { fireForTarget } from '../../fires/fireIncident.ts';
 import { withBuildingLocalStorage } from './buildingLocalStorageRenderer.ts';
+import { renderWaysideShrineInspector } from './waysideShrineRenderer.ts';
 
 export function renderBuildingInspector(
   target: Extract<InspectableTarget, { kind: 'building' }>,
@@ -75,6 +76,8 @@ export function renderBuildingInspector(
       return renderRemoteWorkCampInspector(target, context);
     case 'chapel':
       return renderChapelInspector(target, context);
+    case 'wayside_shrine':
+      return renderWaysideShrineInspector(target, context);
     case 'marketplace':
       return renderMarketStallsInspector(target, context);
     case 'trading_post':

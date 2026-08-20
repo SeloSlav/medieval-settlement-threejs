@@ -260,7 +260,7 @@ assert.equal(processorAcceptsInput(smokehouse, 'ryeGrain'), true);
 assert.equal(
   processorAcceptsInput(processor('monastery', 'monastery', 25), 'oatGrain'),
   true,
-  'autonomous monastery hospitality remains outside staffed workshop policy',
+  'monasteries may accept physical oats for their emergency seed archive without processing them',
 );
 
 const cappedBrewery = processor('1', 'brewery', 25);

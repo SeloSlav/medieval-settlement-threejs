@@ -6,6 +6,11 @@ import {
   setResourceIconsAlwaysShown,
 } from '../src/map/resourceMapIconPreference.ts';
 import { worldDirectionToMapRotation, worldToMapPercent } from '../src/map/worldToMapPercent.ts';
+import {
+  deriveSettlementMapMarker,
+  SETTLEMENT_RESIDENCE_LINK_RADIUS,
+} from '../src/map/settlementMapMarker.ts';
+import { SETTLEMENT_MAP_ICON_HTML } from '../src/map/settlementMapIconArt.ts';
 
 const EPSILON = 1e-12;
 const bounds = { minX: -100, maxX: 100, minZ: -200, maxZ: 200 };
@@ -72,6 +77,10 @@ const terrainMinimapOverlaySource = readFileSync(
   new URL('../src/map/TerrainMinimapOverlay.ts', import.meta.url),
   'utf8',
 );
+const terrainMinimapCss = readFileSync(
+  new URL('../src/ui/terrainMinimap.css', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   terrainMinimapSource,
@@ -105,5 +114,118 @@ assert.doesNotMatch(
   /drawTown|settlementHull|townBoundary/,
   'the terrain layer should not guess at a town footprint',
 );
+assert.match(
+  terrainMinimapCss,
+  /\.terrain-minimap\s*\{[\s\S]*?position:\s*fixed;[\s\S]*?z-index:\s*2147483000;/,
+  'the held map should cover the viewport above every normal UI stacking layer',
+);
+assert.match(
+  terrainMinimapCss,
+  /\.terrain-minimap__panel\s*\{[\s\S]*?inset:\s*0;[\s\S]*?width:\s*100%;[\s\S]*?height:\s*100%;/,
+  'the framed minimap panel should become a fullscreen surface',
+);
+assert.match(
+  terrainMinimapCss,
+  /\.terrain-minimap__map-surface canvas\s*\{[\s\S]*?object-fit:\s*fill;/,
+  'the terrain canvas must share the fullscreen coordinate frame used by marker percentages',
+);
+
+const foundersMarker = deriveSettlementMapMarker({
+  residences: [],
+  buildings: [{
+    id: 'founders-camp',
+    kind: 'founders_camp',
+    x: 24,
+    z: -18,
+    constructionComplete: true,
+  }],
+});
+assert.deepEqual(
+  foundersMarker,
+  {
+    x: 24,
+    z: -18,
+    tier: 'founders',
+    label: "Founders' camp · settlement origin",
+    residenceCount: 0,
+    population: 0,
+  },
+  'the founders camp should own the settlement emblem before the first completed home',
+);
+
+const residence = (
+  id: string,
+  x: number,
+  z: number,
+  population = 4,
+  tier: 0 | 1 | 2 | 3 = 1,
+) => ({ id, x, z, population, tier });
+
+const firstHomeMarker = deriveSettlementMapMarker({
+  residences: [residence('home-1', 12, 7)],
+  buildings: [],
+});
+assert.equal(firstHomeMarker?.tier, 'hamlet');
+assert.ok(Math.abs((firstHomeMarker?.x ?? Infinity) - 12) < EPSILON);
+assert.ok(Math.abs((firstHomeMarker?.z ?? Infinity) - 7) < EPSILON);
+assert.match(firstHomeMarker?.label ?? '', /Hamlet center · 1 home/);
+
+const villageMarker = deriveSettlementMapMarker({
+  residences: Array.from({ length: 6 }, (_, index) => residence(
+    `village-${index}`,
+    (index % 3) * 24,
+    Math.floor(index / 3) * 25,
+    3,
+  )),
+  buildings: [],
+});
+assert.equal(villageMarker?.tier, 'village');
+assert.equal(villageMarker?.residenceCount, 6);
+
+const townMarker = deriveSettlementMapMarker({
+  residences: Array.from({ length: 18 }, (_, index) => residence(
+    `town-${index.toString().padStart(2, '0')}`,
+    (index % 6) * 18,
+    Math.floor(index / 6) * 20,
+    3,
+  )),
+  buildings: [],
+});
+assert.equal(townMarker?.tier, 'town');
+assert.equal(townMarker?.residenceCount, 18);
+
+const primaryClusterMarker = deriveSettlementMapMarker({
+  residences: [
+    residence('primary-a', 0, 0),
+    residence('primary-b', 18, 0),
+    residence('primary-c', 8, 20),
+    residence('remote-a', SETTLEMENT_RESIDENCE_LINK_RADIUS * 3, 0),
+    residence('remote-b', SETTLEMENT_RESIDENCE_LINK_RADIUS * 3 + 15, 0),
+  ],
+  buildings: [],
+});
+assert.equal(primaryClusterMarker?.residenceCount, 3);
+assert.ok((primaryClusterMarker?.x ?? Infinity) < 30);
+
+const constructionOnlyMarker = deriveSettlementMapMarker({
+  residences: [residence('unfinished-home', 80, 40, 0, 0)],
+  buildings: [{
+    id: 'camp-under-homes',
+    kind: 'founders_camp',
+    x: 4,
+    z: 5,
+    constructionComplete: true,
+  }],
+});
+assert.equal(
+  constructionOnlyMarker?.tier,
+  'founders',
+  'a tier-zero residence worksite should not retire the founders-camp emblem',
+);
+
+for (const tier of ['founders', 'hamlet', 'village', 'town'] as const) {
+  assert.match(SETTLEMENT_MAP_ICON_HTML[tier], /settlement-map-icon-art/);
+  assert.match(SETTLEMENT_MAP_ICON_HTML[tier], /<path/);
+}
 
 console.log('test:world-map passed');

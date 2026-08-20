@@ -3,16 +3,20 @@
 use spacetimedb::ReducerContext;
 
 use super::regional_market::{
-    ensure_market_state, record_specialty_market_export,
-    specialty_price_multiplier_for_commodity,
+    ensure_market_state, price_multiplier_for, record_market_trade,
+    record_specialty_market_export, specialty_price_multiplier_for_commodity,
 };
+use super::regional_market_policy::MarketTradeDirection;
 use crate::balance_generated::{
+    marketplace_trade_offer_for_resource, MarketplaceTradeKind,
     SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_CHEESE,
     SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
     SPECIALTY_EXPORT_GOLD_PER_POTTERY, SPECIALTY_EXPORT_GOLD_PER_WINE,
 };
 use crate::db::*;
-use crate::economy::{credit_treasury_gold, deposit_building_commodity, CommodityKind};
+use crate::economy::{
+    credit_treasury_gold, deposit_building_commodity, trade_resource_for_commodity, CommodityKind,
+};
 use crate::tables::Building;
 
 fn physical_trade_staging_enabled(
@@ -73,15 +77,38 @@ pub(crate) fn settle_regional_market_export(
         return Err("The regional export load is invalid.".to_string());
     }
 
-    let gold_per_unit = match sold_commodity {
-        CommodityKind::Ale => SPECIALTY_EXPORT_GOLD_PER_ALE,
-        CommodityKind::Honey => SPECIALTY_EXPORT_GOLD_PER_HONEY,
-        CommodityKind::Wine => SPECIALTY_EXPORT_GOLD_PER_WINE,
-        CommodityKind::Cloth => SPECIALTY_EXPORT_GOLD_PER_CLOTH,
-        CommodityKind::Cheese => SPECIALTY_EXPORT_GOLD_PER_CHEESE,
-        CommodityKind::Pottery => SPECIALTY_EXPORT_GOLD_PER_POTTERY,
-        _ => return Err("The specialty export contract does not match its cargo.".to_string()),
+    let specialty_gold_per_unit = match sold_commodity {
+        CommodityKind::Ale => Some(SPECIALTY_EXPORT_GOLD_PER_ALE),
+        CommodityKind::Honey => Some(SPECIALTY_EXPORT_GOLD_PER_HONEY),
+        CommodityKind::Wine => Some(SPECIALTY_EXPORT_GOLD_PER_WINE),
+        CommodityKind::Cloth => Some(SPECIALTY_EXPORT_GOLD_PER_CLOTH),
+        CommodityKind::Cheese => Some(SPECIALTY_EXPORT_GOLD_PER_CHEESE),
+        CommodityKind::Pottery => Some(SPECIALTY_EXPORT_GOLD_PER_POTTERY),
+        _ => None,
     };
+    let ordinary_resource = if matches!(
+        sold_commodity,
+        CommodityKind::Apples
+            | CommodityKind::Vegetables
+            | CommodityKind::Eggs
+            | CommodityKind::Milk
+            | CommodityKind::Meat
+    ) {
+        trade_resource_for_commodity(sold_commodity)
+    } else {
+        None
+    };
+    let ordinary_gold_per_unit = ordinary_resource.and_then(|resource| {
+        marketplace_trade_offer_for_resource(resource, false).and_then(|offer| match offer.kind {
+            MarketplaceTradeKind::GoldSell {
+                amount, gold_yield, ..
+            } if amount > 1e-9 => Some(gold_yield / amount),
+            _ => None,
+        })
+    });
+    let gold_per_unit = specialty_gold_per_unit
+        .or(ordinary_gold_per_unit)
+        .ok_or_else(|| "The external export contract does not match its cargo.".to_string())?;
 
     ensure_market_state(ctx, owner);
     let market = ctx
@@ -90,9 +117,23 @@ pub(crate) fn settle_regional_market_export(
         .owner()
         .find(&export_site.owner)
         .ok_or_else(|| "Market state unavailable.".to_string())?;
-    let market_rate = specialty_price_multiplier_for_commodity(&market, sold_commodity)
-        .ok_or_else(|| "The specialty cargo has no regional market family.".to_string())?;
-    record_specialty_market_export(ctx, owner, sold_commodity, sold_amount);
+    let market_rate = if let Some(resource) = ordinary_resource {
+        price_multiplier_for(&market, resource)
+    } else {
+        specialty_price_multiplier_for_commodity(&market, sold_commodity)
+            .ok_or_else(|| "The specialty cargo has no regional market family.".to_string())?
+    };
+    if let Some(resource) = ordinary_resource {
+        record_market_trade(
+            ctx,
+            owner,
+            resource,
+            MarketTradeDirection::Export,
+            sold_amount,
+        );
+    } else {
+        record_specialty_market_export(ctx, owner, sold_commodity, sold_amount);
+    }
     Ok((
         CommodityKind::Gold,
         sold_amount * gold_per_unit * market_rate.max(0.0),

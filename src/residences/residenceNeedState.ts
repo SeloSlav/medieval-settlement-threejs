@@ -62,12 +62,12 @@ export function residenceNeedCategory(kind: ResidenceNeedKind): ResidenceNeedCat
   return category;
 }
 
-export function activeResidenceNeedKinds(tier: 0 | 1 | 2 | 3): ResidenceNeedKind[] {
+export function activeResidenceNeedKinds(tier: 0 | 1 | 2 | 3 | 4): ResidenceNeedKind[] {
   if (tier === 0) return [];
   return RESIDENCE_NEED_KINDS.filter((kind) => {
     if (kind === 'food' || kind === 'firewood' || kind === 'water' || kind === 'church') return true;
-    if (kind === 'foodVariety' || kind === 'cloth') return tier >= 2;
-    return tier >= 3;
+    if (kind === 'foodVariety' || kind === 'cloth' || kind === 'ale') return tier >= 2;
+    return tier >= 4;
   });
 }
 
@@ -137,7 +137,7 @@ export function createDefaultNeeds(): ResidenceNeedsState {
     ale: { stock: 0, deficitTicks: 0 },
     preservedFood: { stock: 0, deficitTicks: 0 },
     cloth: { stock: 0, deficitTicks: 0 },
-  pottery: { stock: 0, deficitTicks: 0 },
+    pottery: { stock: 0, deficitTicks: 0 },
     church: { stock: 0, deficitTicks: 0 },
     foodVariety: { stock: 0, deficitTicks: 0 },
   };
@@ -192,7 +192,7 @@ export function maxNeedDeficitTicks(needs: ResidenceNeedsState): number {
 
 export function maxActiveNeedDeficitTicks(
   needs: ResidenceNeedsState,
-  tier: 0 | 1 | 2 | 3,
+  tier: 0 | 1 | 2 | 3 | 4,
 ): number {
   return activeResidenceNeedKinds(tier).reduce(
     (max, kind) => Math.max(max, getNeedDeficitTicks(needs, kind)),

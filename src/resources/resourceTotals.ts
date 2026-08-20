@@ -329,6 +329,29 @@ export function computeResourceTotals(state: GameState): ResourceTotals {
     curedMeat += building.curedMeat ?? 0;
     smokedFish += building.smokedFish ?? 0;
     cheese += building.cheese ?? 0;
+    // Monastery provisions belong to the enclosed estate economy. Keep them in
+    // the physical-storage ledger for inspection, but never advertise them as
+    // food available to the town's household provisioning plan.
+    if (building.kind === 'monastery') {
+      reservedLegacyFood += Math.max(0, building.food ?? 0);
+      reservedLegacyPreservedFood += Math.max(0, building.preservedFood ?? 0);
+      reservedHoney += Math.max(0, building.honey ?? 0);
+      reservedRyeBread += Math.max(0, building.ryeBread ?? 0);
+      reservedMaslinBread += Math.max(0, building.maslinBread ?? 0);
+      reservedMeat += Math.max(0, building.meat ?? 0);
+      reservedFish += Math.max(0, building.fish ?? 0);
+      reservedBerries += Math.max(0, building.berries ?? 0);
+      reservedMushrooms += Math.max(0, building.mushrooms ?? 0);
+      reservedMilk += Math.max(0, building.milk ?? 0);
+      reservedApples += Math.max(0, building.apples ?? 0);
+      reservedCherries += Math.max(0, building.cherries ?? 0);
+      reservedVegetables += Math.max(0, building.vegetables ?? 0);
+      reservedEggs += Math.max(0, building.eggs ?? 0);
+      reservedGrapes += Math.max(0, building.grapes ?? 0);
+      reservedCuredMeat += Math.max(0, building.curedMeat ?? 0);
+      reservedSmokedFish += Math.max(0, building.smokedFish ?? 0);
+      reservedCheese += Math.max(0, building.cheese ?? 0);
+    }
     if (
       building.kind === 'founders_camp'
       || building.kind === 'salvage_pile'

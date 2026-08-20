@@ -85,7 +85,7 @@ export type PreservationReserveBranch = {
 
 export type SettlementPreservationReservePlan = {
   targetDays: number;
-  tierThreeResidents: number;
+  tierFourResidents: number;
   targetBranches: number;
   preparedBranches: number;
   shortBranches: number;
@@ -282,7 +282,7 @@ export function computeSettlementPreservationReservePlan(
       preserved * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR;
     if (
       residence.abandoned
-      || residence.tier < 3
+      || residence.tier < 4
       || residence.population <= 0
     ) {
       continue;
@@ -334,7 +334,7 @@ export function computeSettlementPreservationReservePlan(
     branches.set(key, branch);
   }
 
-  let tierThreeResidents = 0;
+  let tierFourResidents = 0;
   let targetBranches = 0;
   let preparedBranches = 0;
   let shortBranches = 0;
@@ -436,7 +436,7 @@ export function computeSettlementPreservationReservePlan(
       ? Math.ceil(branch.saltImportShortfall / MARKETPLACE_SALT_IMPORT_LOT)
       : 0;
 
-    tierThreeResidents += branch.residents;
+    tierFourResidents += branch.residents;
     targetStock += branch.targetStock;
     roadMatchedStock += Math.min(branch.targetStock, branch.projectedStock);
     preservedStock += branch.preservedStock;
@@ -516,7 +516,7 @@ export function computeSettlementPreservationReservePlan(
   const roadMatchedShortfall = Math.max(0, targetStock - roadMatchedStock);
   return {
     targetDays,
-    tierThreeResidents,
+    tierFourResidents,
     targetBranches,
     preparedBranches,
     shortBranches,

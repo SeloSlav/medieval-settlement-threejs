@@ -31,7 +31,7 @@ export type ProsperityChain = {
 
 export type SettlementProsperityPlan = {
   currentResidents: number;
-  existingTierThreeVacancies: number;
+  existingTierFourVacancies: number;
   existingFullResidents: number;
   installedResidentCapacity: number;
   currentHeadroomResidents: number;
@@ -44,7 +44,7 @@ export type SettlementProsperityPlan = {
   roadPlan: ProsperityRoadPlan | null;
 };
 
-export type TierThreeUpgradeProjection = {
+export type TierFourUpgradeProjection = {
   occupantsPromotedNow: number;
   targetHouseCapacity: number;
   immediateResidents: number;
@@ -100,7 +100,8 @@ const PER_RESIDENT_PER_DAY: Record<ProsperityCommodity, number> = {
 export function computeSettlementProsperityPlan(
   production: Pick<
     SettlementProductionCapacity,
-    | 'tierThreeResidents'
+    | 'tierTwoPlusResidents'
+    | 'tierFourResidents'
     | 'preservedFoodOutputPerDay'
     | 'preservedFoodDemandPerDay'
     | 'aleOutputPerDay'
@@ -120,6 +121,10 @@ export function computeSettlementProsperityPlan(
     | 'additionalPotteryPerDay'
   >,
 ): SettlementProsperityPlan {
+  const lowerTierAleClothResidents = Math.max(
+    0,
+    production.tierTwoPlusResidents - production.tierFourResidents,
+  );
   const chains = [
     prosperityChain(
       'preservedFood',
@@ -132,12 +137,14 @@ export function computeSettlementProsperityPlan(
       'ale',
       production.aleOutputPerDay,
       production.aleDemandPerDay,
+      lowerTierAleClothResidents * PER_RESIDENT_PER_DAY.ale,
     ),
     prosperityChain(
       'cloth',
       'cloth',
       production.clothOutputPerDay,
       production.clothDemandPerDay,
+      lowerTierAleClothResidents * PER_RESIDENT_PER_DAY.cloth,
     ),
     prosperityChain(
       'pottery',
@@ -151,8 +158,8 @@ export function computeSettlementProsperityPlan(
       chain.supportedResidents < lowest.supportedResidents ? chain : lowest,
     chains[0],
   );
-  const currentResidents = wholeResidents(production.tierThreeResidents);
-  const existingTierThreeVacancies = growth
+  const currentResidents = wholeResidents(production.tierFourResidents);
+  const existingTierFourVacancies = growth
     ? wholeResidents(Math.max(
         safeRatio(
           growth.additionalPreservedFoodPerDay,
@@ -163,7 +170,7 @@ export function computeSettlementProsperityPlan(
         safeRatio(growth.additionalPotteryPerDay, PER_RESIDENT_PER_DAY.pottery),
       ))
     : 0;
-  const existingFullResidents = currentResidents + existingTierThreeVacancies;
+  const existingFullResidents = currentResidents + existingTierFourVacancies;
   const installedResidentCapacity = wholeResidents(limiting.supportedResidents);
   const roadPlan = production.prosperityRoadBranches
     ? buildProsperityRoadPlan(
@@ -180,7 +187,7 @@ export function computeSettlementProsperityPlan(
 
   return {
     currentResidents,
-    existingTierThreeVacancies,
+    existingTierFourVacancies,
     existingFullResidents,
     installedResidentCapacity,
     currentHeadroomResidents: usableResidentCapacity - currentResidents,
@@ -196,12 +203,12 @@ export function computeSettlementProsperityPlan(
   };
 }
 
-export function projectTierThreeUpgrade(
+export function projectTierFourUpgrade(
   plan: SettlementProsperityPlan,
   residence: Pick<ResidenceState, 'population' | 'abandoned'>,
   targetHouseCapacity: number,
   roadBranchKey?: string,
-): TierThreeUpgradeProjection {
+): TierFourUpgradeProjection {
   const occupantsPromotedNow = residence.abandoned
     ? 0
     : wholeResidents(residence.population);
@@ -267,11 +274,19 @@ function buildProsperityRoadPlan(
       },
       {
         kind: 'ale' as const,
-        supported: safeRatio(raw.aleOutputPerDay, PER_RESIDENT_PER_DAY.ale),
+        supported: safeRatio(
+          raw.aleOutputPerDay
+            - positive(raw.lowerTierAleClothResidents) * PER_RESIDENT_PER_DAY.ale,
+          PER_RESIDENT_PER_DAY.ale,
+        ),
       },
       {
         kind: 'cloth' as const,
-        supported: safeRatio(raw.clothOutputPerDay, PER_RESIDENT_PER_DAY.cloth),
+        supported: safeRatio(
+          raw.clothOutputPerDay
+            - positive(raw.lowerTierAleClothResidents) * PER_RESIDENT_PER_DAY.cloth,
+          PER_RESIDENT_PER_DAY.cloth,
+        ),
       },
       {
         kind: 'pottery' as const,
@@ -373,6 +388,7 @@ function prosperityChain(
   label: string,
   outputPerDay: number,
   demandPerDay: number,
+  lowerTierDemandPerDay = 0,
 ): ProsperityChain {
   const perResidentPerDay = PER_RESIDENT_PER_DAY[kind];
   const normalizedOutput = positive(outputPerDay);
@@ -383,7 +399,10 @@ function prosperityChain(
     outputPerDay: normalizedOutput,
     demandPerDay: normalizedDemand,
     perResidentPerDay,
-    supportedResidents: safeRatio(normalizedOutput, perResidentPerDay),
+    supportedResidents: safeRatio(
+      normalizedOutput - positive(lowerTierDemandPerDay),
+      perResidentPerDay,
+    ),
     headroomPerDay: normalizedOutput - normalizedDemand,
   };
 }

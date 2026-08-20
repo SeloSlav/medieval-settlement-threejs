@@ -16,6 +16,8 @@
     "test:rust": "cargo test --manifest-path server/logic/Cargo.toml",
     "test:opening-balance": "npx tsx scripts/testOpeningBalance.mts",
     "test:build-menus": "npx tsx scripts/testBuildMenuCategories.mts",
+    "test:wayside-shrine": "npx tsx scripts/testWaysideShrine.mts",
+    "test:wayside-shrine-devotion": "npx tsx scripts/testWaysideShrineDevotion.mts",
     "test:e2e": "playwright test",
     "smoketest": "playwright test e2e/smoke.spec.ts",
     "generate:world-bootstrap": "node --experimental-strip-types scripts/generateWorldBootstrap.mts",

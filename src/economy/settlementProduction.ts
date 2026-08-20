@@ -175,10 +175,11 @@ export type SettlementProductionCapacity = {
   clothFlaxPerDay: number;
   clothFlaxWaterPerDay: number;
   industrialMaterials: IndustrialMaterialPlan;
-  tierThreeResidents: number;
-  fireDisabledTierThreeHomes: number;
-  fireDisabledTierThreeResidents: number;
-  fireDisabledTierThreeHousingCapacity: number;
+  tierTwoPlusResidents: number;
+  tierFourResidents: number;
+  fireDisabledTierFourHomes: number;
+  fireDisabledTierFourResidents: number;
+  fireDisabledTierFourHousingCapacity: number;
   aleDemandPerDay: number;
   /** Winter-peak design demand used by long-term prosperity capacity. */
   preservedFoodDemandPerDay: number;
@@ -317,11 +318,14 @@ export type ProductionRoadDistanceResolver = (
 export type ProsperityRoadBranch = {
   currentResidents: number;
   fullResidents: number;
+  tierTwoPlusResidents: number;
+  lowerTierAleClothResidents: number;
   preservedFoodOutputPerDay: number;
   aleOutputPerDay: number;
   clothOutputPerDay: number;
   potteryOutputPerDay: number;
   firstResidenceId: string | null;
+  firstClothResidenceId: string | null;
 };
 
 export function productionRoadBranchKey(
@@ -526,11 +530,14 @@ function prosperityRoadBranch(
   branch = {
     currentResidents: 0,
     fullResidents: 0,
+    tierTwoPlusResidents: 0,
+    lowerTierAleClothResidents: 0,
     preservedFoodOutputPerDay: 0,
     aleOutputPerDay: 0,
     clothOutputPerDay: 0,
     potteryOutputPerDay: 0,
     firstResidenceId: null,
+    firstClothResidenceId: null,
   };
   branches.set(key, branch);
   return branch;
@@ -2620,30 +2627,48 @@ export function computeSettlementProductionCapacity(
     sabbathObserved,
     hypotheticalBreadFoodPerDay,
   );
-  let tierThreeResidents = 0;
-  let textileResidents = 0;
-  let fireDisabledTierThreeHomes = 0;
-  let fireDisabledTierThreeResidents = 0;
-  let fireDisabledTierThreeHousingCapacity = 0;
+  let tierTwoPlusResidents = 0;
+  let tierFourResidents = 0;
+  let fireDisabledTierFourHomes = 0;
+  let fireDisabledTierFourResidents = 0;
+  let fireDisabledTierFourHousingCapacity = 0;
   const fireDisabledResidences = fireDisabledResidenceIds(
     state.fireIncidents.values(),
   );
   for (const residence of state.residences.values()) {
     if (residence.abandoned || residence.tier < 2) continue;
     if (fireDisabledResidences.has(residence.id)) {
-      if (residence.tier >= 3) {
-        fireDisabledTierThreeHomes += 1;
-        fireDisabledTierThreeResidents += Math.max(0, residence.population);
-        fireDisabledTierThreeHousingCapacity += Math.max(
+      if (residence.tier >= 4) {
+        fireDisabledTierFourHomes += 1;
+        fireDisabledTierFourResidents += Math.max(0, residence.population);
+        fireDisabledTierFourHousingCapacity += Math.max(
           0,
           residence.populationCapacity,
         );
       }
       continue;
     }
-    textileResidents += residence.population;
-    if (residence.tier >= 3) {
-      tierThreeResidents += residence.population;
+    tierTwoPlusResidents += residence.population;
+    if (prosperityRoadBranches && roadComponentFor) {
+      const branch = prosperityRoadBranch(
+        prosperityRoadBranches,
+        productionRoadBranchKey(
+          roadComponentFor(residence),
+          'residence',
+          residence.id,
+        ),
+      );
+      branch.tierTwoPlusResidents += Math.max(0, residence.population);
+      branch.firstClothResidenceId = earlierStableId(
+        branch.firstClothResidenceId,
+        residence.id,
+      );
+      if (residence.tier < 4) {
+        branch.lowerTierAleClothResidents += Math.max(0, residence.population);
+      }
+    }
+    if (residence.tier >= 4) {
+      tierFourResidents += residence.population;
       const materialBranch = industrialMaterialBranchByKey(
         industrialMaterialBranches,
         roadComponentFor
@@ -2758,29 +2783,30 @@ export function computeSettlementProductionCapacity(
     clothFlaxWaterPerDay:
       weaverCycles * WEAVER_FLAX_WATER_PER_CYCLE,
     industrialMaterials,
-    tierThreeResidents,
-    fireDisabledTierThreeHomes,
-    fireDisabledTierThreeResidents,
-    fireDisabledTierThreeHousingCapacity,
+    tierTwoPlusResidents,
+    tierFourResidents,
+    fireDisabledTierFourHomes,
+    fireDisabledTierFourResidents,
+    fireDisabledTierFourHousingCapacity,
     aleDemandPerDay:
-      tierThreeResidents * RESIDENCE_ALE_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      tierTwoPlusResidents * RESIDENCE_ALE_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     preservedFoodDemandPerDay:
-      tierThreeResidents
+      tierFourResidents
       * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
       * WORKDAY_SECONDS
       * RESIDENCE_PRESERVED_FOOD_WINTER_MULTIPLIER,
     currentPreservedFoodDemandPerDay:
-      tierThreeResidents
+      tierFourResidents
       * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
       * WORKDAY_SECONDS
       * normalizedPreservedFoodDemandMultiplier,
     currentPreservedFoodDemandMultiplier:
       normalizedPreservedFoodDemandMultiplier,
     clothDemandPerDay:
-      textileResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      tierTwoPlusResidents * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     potteryOutputPerDay: industrialMaterials.potteryOutputPerDay,
     potteryDemandPerDay:
-      tierThreeResidents * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
+      tierFourResidents * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * WORKDAY_SECONDS,
     prosperityRoadBranches,
   };
 }

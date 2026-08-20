@@ -88,13 +88,16 @@ type HouseDimensions = {
   ridgeHeight: number;
 };
 
+type ResidenceTier = 1 | 2 | 3 | 4;
+type ResidenceRoofFinish = 'bundled-thatch' | 'split-wood-shingle' | 'fired-clay-tile';
+
 type TierOneResidenceSurface =
   | 'lime-plaster'
   | 'foundation-stone'
   | 'foundation-cap'
   | 'structural-timber'
   | 'weathered-timber'
-  | 'wood-shingle';
+  | 'thatch';
 
 function tierOneResidenceMaterial(
   surface: TierOneResidenceSurface,
@@ -106,7 +109,7 @@ function tierOneResidenceMaterial(
   if (surface === 'weathered-timber') {
     return sharedBuildingMaterial('timberWeathered');
   }
-  return sharedBuildingMaterial('shingle');
+  return sharedBuildingMaterial('thatch');
 }
 
 function dimensionsForArchetype(archetype: ResidenceArchetype): HouseDimensions {
@@ -120,18 +123,19 @@ function dimensionsForArchetype(archetype: ResidenceArchetype): HouseDimensions 
   }
 }
 
-function dimensionsForTier(archetype: ResidenceArchetype, tier: 1 | 2 | 3): HouseDimensions {
+function dimensionsForTier(archetype: ResidenceArchetype, tier: ResidenceTier): HouseDimensions {
   const base = dimensionsForArchetype(archetype);
   if (tier === 1) {
     return {
-      width: base.width * 0.84,
-      depth: base.depth * 0.82,
-      foundationHeight: 0.5,
-      groundHeight: 2.32,
-      upperHeight: 0.22,
-      ridgeHeight: 3.25,
+      width: base.width * 0.82,
+      depth: base.depth * 0.8,
+      foundationHeight: 0.4,
+      groundHeight: 2.15,
+      upperHeight: 0.12,
+      ridgeHeight: 2.85,
     };
   }
+  if (tier === 4) return { width: base.width * 1.38, depth: base.depth * 1.28, foundationHeight: 0.72, groundHeight: 2.72, upperHeight: 2.7, ridgeHeight: 2.95 };
   if (tier === 3) return { width: base.width * 1.22, depth: base.depth * 1.14, foundationHeight: 0.62, groundHeight: 2.58, upperHeight: 2.55, ridgeHeight: 2.78 };
   return base;
 }
@@ -256,6 +260,123 @@ function addStoneStoreyCourses(
       new THREE.Vector3(0, foundationHeight + groundHeight * (course / 4), 0),
     );
   }
+}
+
+function addTierFourFacadeFinish(
+  group: THREE.Group,
+  width: number,
+  depth: number,
+  groundTop: number,
+  wallTop: number,
+): void {
+  const upperHeight = wallTop - groundTop;
+  const pierHeight = upperHeight + 0.08;
+  const pierY = groundTop + upperHeight * 0.5;
+  for (const x of [-width * 0.5, width * 0.5]) {
+    for (const z of [-depth * 0.5, depth * 0.5]) {
+      const pier = addMesh(
+        group,
+        new THREE.BoxGeometry(0.28, pierHeight, 0.28),
+        stoneMaterial('light'),
+        new THREE.Vector3(x, pierY, z),
+      );
+      pier.name = 'Residence tier-four ashlar upper-storey corner pier';
+      pier.userData.residenceFacadeModule = 'tier-4-corner-pier';
+    }
+  }
+  for (const z of [-depth * 0.5 - 0.03, depth * 0.5 + 0.03]) {
+    const band = addMesh(
+      group,
+      new THREE.BoxGeometry(width + 0.34, 0.2, 0.16),
+      stoneMaterial('light'),
+      new THREE.Vector3(0, groundTop + 0.06, z),
+    );
+    band.name = 'Residence tier-four dressed-stone floor band';
+    band.userData.residenceFacadeModule = 'tier-4-floor-band';
+  }
+  for (const x of [-width * 0.5 - 0.03, width * 0.5 + 0.03]) {
+    const band = addMesh(
+      group,
+      new THREE.BoxGeometry(0.16, 0.2, depth + 0.34),
+      stoneMaterial('light'),
+      new THREE.Vector3(x, groundTop + 0.06, 0),
+    );
+    band.name = 'Residence tier-four dressed-stone side band';
+    band.userData.residenceFacadeModule = 'tier-4-floor-band';
+  }
+}
+
+function addTierFourCrossGable(
+  group: THREE.Group,
+  halfDepth: number,
+  wallTop: number,
+  roofMaterial: THREE.Material,
+  wallMaterial: THREE.Material,
+  windowMaterial: THREE.MeshStandardMaterial,
+  shutterMaterial: THREE.MeshStandardMaterial,
+  roofFinish: ResidenceRoofFinish,
+): void {
+  const width = 2.45;
+  const depth = 1.12;
+  const wallHeight = 1.08;
+  const ridgeHeight = 0.92;
+  const baseY = wallTop + 0.3;
+  const centerZ = halfDepth + 0.02;
+  const halfWidth = width * 0.5;
+  const roofOverhang = 0.18;
+  const roofHalfSpan = halfWidth + roofOverhang;
+  const pitch = Math.atan2(ridgeHeight, halfWidth);
+  const eaveDrop = roofOverhang * Math.tan(pitch);
+  const slopeLength = roofHalfSpan / Math.cos(pitch);
+
+  const dormerWall = addMesh(
+    group,
+    new THREE.BoxGeometry(width, wallHeight, depth),
+    wallMaterial,
+    new THREE.Vector3(0, baseY + wallHeight * 0.5, centerZ),
+  );
+  dormerWall.name = 'Residence tier-four central cross-gable mass';
+  dormerWall.userData.residenceFacadeModule = 'tier-4-cross-gable';
+  for (const zSign of [-1, 1] as const) {
+    addTriangularGableWall(
+      group,
+      'z',
+      centerZ + zSign * (depth * 0.5 - 0.035),
+      halfWidth,
+      baseY + wallHeight,
+      ridgeHeight,
+      0.12,
+      wallMaterial,
+    );
+  }
+  for (const side of [-1, 1] as const) {
+    const roof = addMesh(
+      group,
+      new THREE.BoxGeometry(slopeLength, 0.12, depth + 0.32),
+      roofMaterial,
+      new THREE.Vector3(
+        side * roofHalfSpan * 0.5,
+        baseY + wallHeight + (ridgeHeight - eaveDrop) * 0.5,
+        centerZ,
+      ),
+      new THREE.Euler(0, 0, side * -pitch),
+    );
+    roof.name = `Residence tier-four cross-gable tiled roof ${side < 0 ? 'left' : 'right'}`;
+    roof.userData.residenceRoofSurface = true;
+    roof.userData.residenceRoofFinish = roofFinish;
+    roof.userData.residenceRoofModule = 'tier-4-cross-gable-roof';
+  }
+  addFrontWindow(
+    group,
+    windowMaterial,
+    shutterMaterial,
+    0,
+    baseY + wallHeight * 0.53,
+    centerZ + depth * 0.5 + 0.015,
+    0.72,
+    0.84,
+    false,
+  );
 }
 
 type BoxPart = {
@@ -554,16 +675,17 @@ function addRoofShingleCourses(
   roofPitch: number,
   eaveDrop: number,
   seed: number,
-  tiledRoof: boolean,
+  finish: ResidenceRoofFinish,
 ): void {
+  const thatched = finish === 'bundled-thatch';
   for (const side of [-1, 1] as const) {
     const parts: BoxPart[] = [];
     const courseCount = 8;
     const roofDepth = depth + depthOverhang * 2;
-    const boardsAcross = Math.max(7, Math.ceil(roofDepth / 0.72));
+    const boardsAcross = Math.max(thatched ? 9 : 7, Math.ceil(roofDepth / (thatched ? 0.68 : 0.72)));
     const boardDepth = roofDepth / boardsAcross;
     const slopeLength = roofHalfSpan / Math.cos(roofPitch);
-    const courseLength = slopeLength / courseCount * 0.74;
+    const courseLength = slopeLength / courseCount * (thatched ? 0.9 : 0.74);
     const normalX = side * Math.sin(roofPitch);
     const normalY = Math.cos(roofPitch);
     for (let row = 0; row < courseCount; row += 1) {
@@ -576,7 +698,7 @@ function addRoofShingleCourses(
         parts.push({
           size: [
             courseLength * (0.96 + ((row * 5 + board * 3 + Math.abs(seed)) % 5) * 0.012),
-            0.045,
+            thatched ? 0.11 : 0.045,
             Math.max(0.2, boardDepth - 0.025),
           ],
           position: [
@@ -597,12 +719,15 @@ function addRoofShingleCourses(
       material,
       new THREE.Vector3(),
     );
-    if (!tiledRoof) applyWarmShingleBackFaceFinish(courses);
+    if (finish === 'split-wood-shingle') applyWarmShingleBackFaceFinish(courses);
     courses.name =
-      `Residence ${tiledRoof ? 'fired-clay tile' : 'split-wood shingle'} courses ${side < 0 ? 'left' : 'right'}`;
+      `Residence ${finish === 'fired-clay-tile' ? 'fired-clay tile' : finish === 'bundled-thatch' ? 'bundled-thatch' : 'split-wood shingle'} courses ${side < 0 ? 'left' : 'right'}`;
     courses.userData.residenceRoofSurface = true;
-    courses.userData.residenceRoofFinish =
-      tiledRoof ? 'fired-clay-tile' : 'split-wood-shingle';
+    courses.userData.residenceRoofFinish = finish;
+    if (thatched) {
+      courses.userData.residenceThatchBundleCount = parts.length;
+      courses.userData.residenceThatchCourseCount = courseCount;
+    }
   }
 }
 
@@ -1167,8 +1292,8 @@ function addResidenceUpgradeWorks(
 
 export function createResidenceMesh(
   seed = 0,
-  tier: 1 | 2 | 3 = 1,
-  tiledRoof = false,
+  tier: ResidenceTier = 1,
+  _legacyTiledRoof = false,
 ): THREE.Group {
   const appearance = pickResidenceAppearance(seed);
   const { facade, roof, archetype, entrySide, trim } = appearance;
@@ -1191,11 +1316,16 @@ export function createResidenceMesh(
       : stoneMaterial('light');
   const wallMaterial =
     tier === 1 ? tierOneWeatheredMaterial : residenceFacadeMaterial(facade);
-  const roofSurfaceMaterial =
-    tiledRoof
-      ? sharedBuildingMaterial('clayRed')
-      : tier === 1
-      ? tierOneResidenceMaterial('wood-shingle')
+  const roofFinish: ResidenceRoofFinish = tier === 1
+    ? 'bundled-thatch'
+    : tier >= 4
+      ? 'fired-clay-tile'
+      : 'split-wood-shingle';
+  const effectiveTiledRoof = roofFinish === 'fired-clay-tile';
+  const roofSurfaceMaterial = roofFinish === 'fired-clay-tile'
+    ? sharedBuildingMaterial('clayRed')
+    : roofFinish === 'bundled-thatch'
+      ? tierOneResidenceMaterial('thatch')
       : residenceRoofMaterial(roof);
   // Course boards and ridge caps must stay on the same shared roof surface as
   // their substrate. Using the wall-timber material here makes merged courses
@@ -1210,10 +1340,29 @@ export function createResidenceMesh(
   group.userData.residenceArchetype = archetype;
   group.userData.residenceTier = tier;
   group.userData.residenceRoof = roof;
-  group.userData.residenceTiledRoof = tiledRoof;
-  group.userData.residenceRoofFinish =
-    tiledRoof ? 'fired-clay-tile' : 'split-wood-shingle';
+  group.userData.residenceTiledRoof = effectiveTiledRoof;
+  group.userData.residenceRoofFinish = roofFinish;
+  group.userData.residenceRoofTierContract = tier === 1
+    ? 'tier-1-thatch'
+    : tier >= 4
+      ? 'tier-4-fired-tile'
+      : 'tier-2-3-split-wood';
   group.userData.residenceVisualSeed = seed;
+  group.userData.residenceBuildingPlan = {
+    tier,
+    seed,
+    massing: tier === 1
+      ? ['short-cottage-mass', 'deep-steep-roof']
+      : tier === 4
+        ? ['expanded-two-storey-mass', 'central-cross-gable']
+        : ['two-storey-house-mass'],
+    facadeModules: tier === 4
+      ? ['stone-ground-storey', 'ashlar-corner-piers', 'dressed-floor-band', 'cross-gable']
+      : tier === 1
+        ? ['limewashed-infill', 'hewn-timber-courses']
+        : ['stone-ground-storey', 'plastered-upper-storey'],
+    roofFinish,
+  };
 
   const { width, depth, foundationHeight, groundHeight, upperHeight, ridgeHeight } = dimensions;
   const halfW = width * 0.5;
@@ -1308,6 +1457,9 @@ export function createResidenceMesh(
       new THREE.Vector3(0, wallTop - 0.07, 0),
     );
   }
+  if (tier === 4) {
+    addTierFourFacadeFinish(group, width, depth, groundTop, wallTop);
+  }
 
   const doorX = residenceGroundDoorLocalX(appearance);
   addPlankDoor(
@@ -1386,7 +1538,7 @@ export function createResidenceMesh(
       group,
       new THREE.BoxGeometry(
         slopeLen,
-        tier === 1 ? 0.16 : 0.14,
+        tier === 1 ? 0.24 : 0.14,
         depth + roofDepthOverhang * 2,
       ),
       roofSurfaceMaterial,
@@ -1399,9 +1551,8 @@ export function createResidenceMesh(
     );
     roofPlane.name = `Residence main roof plane ${side < 0 ? 'left' : 'right'}`;
     roofPlane.userData.residenceRoofSurface = true;
-    roofPlane.userData.residenceRoofFinish =
-      tiledRoof ? 'fired-clay-tile' : 'split-wood-shingle';
-    if (!tiledRoof) applyWarmShingleBackFaceFinish(roofPlane);
+    roofPlane.userData.residenceRoofFinish = roofFinish;
+    if (roofFinish === 'split-wood-shingle') applyWarmShingleBackFaceFinish(roofPlane);
   }
   addRoofShingleCourses(
     group,
@@ -1414,7 +1565,7 @@ export function createResidenceMesh(
     roofPitch,
     roofEaveDrop,
     seed,
-    tiledRoof,
+    roofFinish,
   );
 
   for (const zSign of [-1, 1] as const) {
@@ -1444,6 +1595,18 @@ export function createResidenceMesh(
     tier === 1 ? 0.24 : 0.18,
     seed,
   );
+  if (tier === 4) {
+    addTierFourCrossGable(
+      group,
+      halfD,
+      wallTop,
+      roofSurfaceMaterial,
+      wallMaterial,
+      windowMaterial,
+      shutterMaterial,
+      roofFinish,
+    );
+  }
 
   if (tier === 1) {
     addTierOneEntryCanopy(
@@ -1472,7 +1635,7 @@ export function createResidenceMesh(
     );
   }
 
-  if (tier === 3 && archetype !== 'working_lean_to') {
+  if (tier >= 3 && archetype !== 'working_lean_to') {
     addWorkingLeanTo(
       group,
       entrySide === -1 ? 1 : -1,
@@ -1794,7 +1957,7 @@ export class ResidenceMarkers {
       if (destroyed || tier <= 0) {
         this.shadowProxyBatch.remove(id);
       } else {
-        this.shadowProxyBatch.upsertResidence(id, tier as 1 | 2 | 3, marker);
+        this.shadowProxyBatch.upsertResidence(id, tier as ResidenceTier, marker);
       }
       if (this.serviceCoverageIds.has(id)) this.serviceCoverageDirty = true;
     }
@@ -1856,7 +2019,7 @@ export class ResidenceMarkers {
         marker
         && (
           marker.userData.residenceTier !== residence.tier
-          || marker.userData.residenceTiledRoof !== (residence.tiledRoof === true)
+          || marker.userData.residenceTiledRoof !== (residence.tier >= 4)
         )
       ) {
         if (this.serviceCoverageIds.has(residence.id)) {
@@ -1884,7 +2047,7 @@ export class ResidenceMarkers {
           : createResidenceMesh(
               appearanceSeed,
               completedTier,
-              residence.tiledRoof === true,
+              completedTier >= 4,
             );
         marker.userData.fpCollisionAggregate = true;
         this.root.add(marker);
@@ -2163,6 +2326,7 @@ export class ResidenceMarkers {
 }
 
 function serviceCoverageRadius(tier: number): number {
+  if (tier >= 4) return 5.9;
   if (tier >= 3) return 5.25;
   if (tier === 2) return 4.55;
   if (tier === 1) return 3.85;

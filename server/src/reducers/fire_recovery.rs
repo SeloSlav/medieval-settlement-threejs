@@ -3,15 +3,16 @@ use spacetimedb::{reducer, ReducerContext};
 use crate::balance_generated::{
     CARPENTER_TIMBER_COST_MULTIPLIER, FIRE_RESOLVED_RETENTION_SECONDS, MONASTERY_COVERAGE_RADIUS,
     RESIDENCE_STONE_COST, RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST,
-    RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIMBER_COST, TICK_DT,
+    RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIER4_STONE_COST,
+    RESIDENCE_TIER4_TIMBER_COST, RESIDENCE_TILE_ROOF_TILE_COST, RESIDENCE_TIMBER_COST, TICK_DT,
 };
 use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
 use crate::db::*;
 use crate::economy::{
     available_building_labor, building_cost, construction_treasury_reservation_excluding_building,
     guardhouse_roster_count, initial_construction_labor, reconcile_building_labor,
-    spend_aggregate_stone, spend_aggregate_timber, total_ironwork, total_roof_tiles, total_stone,
-    total_timber, CommodityKind,
+    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber, total_ironwork,
+    total_roof_tiles, total_stone, total_timber, CommodityKind,
 };
 use crate::fire_recovery_policy::{fire_recovery_cost, FireRecoveryCost};
 use crate::lifecycle::ensure_player_resources;
@@ -184,7 +185,7 @@ fn repair_residence(
         return Err("Homestead recovery is already underway.".to_string());
     }
 
-    let (base_timber, base_stone) = residence_structural_cost(&residence);
+    let (base_timber, base_stone, base_roof_tiles) = residence_structural_cost(&residence);
     let timber_multiplier = if has_operational_carpenter_support(ctx, owner, &residence) {
         CARPENTER_TIMBER_COST_MULTIPLIER
     } else {
@@ -195,7 +196,7 @@ fn repair_residence(
         base_timber,
         base_stone,
         0.0,
-        0.0,
+        base_roof_tiles,
         incident.damage,
         incident.state == FIRE_STATE_DESTROYED,
         timber_multiplier,
@@ -228,6 +229,13 @@ fn repair_residence(
             cost.timber,
         )?;
         ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Stone, cost.stone)?;
+        ensure_upgrade_source_route(
+            ctx,
+            &network,
+            &residence,
+            CommodityKind::RoofTiles,
+            cost.roof_tiles,
+        )?;
 
         residence.abandoned = false;
         residence.settlement_ticks = 0;
@@ -236,12 +244,15 @@ fn repair_residence(
         residence.upgrade_required_timber = cost.timber;
         residence.upgrade_required_stone = cost.stone;
         residence.upgrade_required_gold = 0.0;
+        residence.upgrade_required_roof_tiles = cost.roof_tiles;
         residence.upgrade_delivered_timber = 0.0;
         residence.upgrade_delivered_stone = 0.0;
         residence.upgrade_delivered_gold = 0.0;
+        residence.upgrade_delivered_roof_tiles = 0.0;
         residence.upgrade_reserved_timber = cost.timber;
         residence.upgrade_reserved_stone = cost.stone;
         residence.upgrade_reserved_gold = 0.0;
+        residence.upgrade_reserved_roof_tiles = cost.roof_tiles;
         residence.upgrade_assigned_labor = available_building_labor(ctx, owner).min(1);
         residence.upgrade_priority = CONSTRUCTION_PRIORITY_URGENT;
         if incident.state == FIRE_STATE_DESTROYED {
@@ -257,11 +268,15 @@ fn repair_residence(
     ensure_recovery_resources(ctx, owner, cost)?;
     spend_aggregate_timber(ctx, owner, cost.timber)?;
     spend_aggregate_stone(ctx, owner, cost.stone)?;
+    spend_aggregate_roof_tiles(ctx, owner, cost.roof_tiles)?;
 
     if incident.state == FIRE_STATE_DESTROYED {
         residence.population = 0;
         residence.abandoned = false;
         residence.settlement_ticks = 0;
+    }
+    if residence.tier >= 4 {
+        residence.tiled_roof = true;
     }
     ctx.db.residence().id().update(residence.clone());
     ensure_residence_needs(ctx, residence.id);
@@ -272,7 +287,7 @@ fn repair_residence(
     Ok(())
 }
 
-fn residence_structural_cost(residence: &Residence) -> (f64, f64) {
+fn residence_structural_cost(residence: &Residence) -> (f64, f64, f64) {
     let mut timber = RESIDENCE_TIMBER_COST;
     let mut stone = RESIDENCE_STONE_COST;
     if residence.tier >= 2 {
@@ -283,7 +298,16 @@ fn residence_structural_cost(residence: &Residence) -> (f64, f64) {
         timber += RESIDENCE_TIER3_TIMBER_COST;
         stone += RESIDENCE_TIER3_STONE_COST;
     }
-    (timber, stone)
+    if residence.tier >= 4 {
+        timber += RESIDENCE_TIER4_TIMBER_COST;
+        stone += RESIDENCE_TIER4_STONE_COST;
+    }
+    let roof_tiles = if residence.tier >= 4 {
+        RESIDENCE_TILE_ROOF_TILE_COST
+    } else {
+        0.0
+    };
+    (timber, stone, roof_tiles)
 }
 
 fn ensure_recovery_resources(

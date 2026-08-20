@@ -67,20 +67,6 @@ pub fn monastery_feast_surplus(stock: f64, reserve: f64, enabled: bool) -> f64 {
     }
 }
 
-/// Producers stage only the missing part of one protected batch. Inbound stock
-/// is included so concurrent carts cannot overfill the policy target.
-pub fn monastery_feast_refill_shortfall(
-    stock: f64,
-    inbound: f64,
-    reserve: f64,
-    enabled: bool,
-) -> f64 {
-    if !enabled {
-        return 0.0;
-    }
-    (reserve.max(0.0) - stock.max(0.0) - inbound.max(0.0)).max(0.0)
-}
-
 pub fn monastery_hospitality_use(
     honey_available: f64,
     wine_available: f64,
@@ -186,14 +172,6 @@ mod tests {
         assert_eq!(
             monastery_feast_surplus(MONASTERY_FEAST_ALE, MONASTERY_FEAST_ALE, false),
             MONASTERY_FEAST_ALE
-        );
-        assert_eq!(
-            monastery_feast_refill_shortfall(4.0, 2.0, MONASTERY_FEAST_ALE, true),
-            4.0
-        );
-        assert_eq!(
-            monastery_feast_refill_shortfall(4.0, 2.0, MONASTERY_FEAST_ALE, false),
-            0.0
         );
     }
 

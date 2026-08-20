@@ -39,7 +39,6 @@ export type SettlementWelfare = {
   remedyRunwayDays: number;
   serviceWarningHouseholds: number;
   upgradeBlockedHouseholds: number;
-  serviceEconomicOutputMultiplier: number;
   totalDeaths: number;
   waitingBodies: number;
   outboundEmptyCarts: number;
@@ -81,7 +80,6 @@ export type SettlementWelfareAccumulator = Omit<
   | 'staffedGravediggers'
 > & {
   firstAttentionRank: number;
-  serviceEconomicMultiplierTotal: number;
 };
 
 export function createSettlementWelfareAccumulator(): SettlementWelfareAccumulator {
@@ -103,12 +101,10 @@ export function createSettlementWelfareAccumulator(): SettlementWelfareAccumulat
     remedyDemandPerDay: 0,
     serviceWarningHouseholds: 0,
     upgradeBlockedHouseholds: 0,
-    serviceEconomicOutputMultiplier: 1,
     totalDeaths: 0,
     vacantHomes: 0,
     firstAttentionResidenceId: null,
     firstAttentionRank: Number.POSITIVE_INFINITY,
-    serviceEconomicMultiplierTotal: 0,
   };
 }
 
@@ -165,7 +161,6 @@ export function accumulateResidenceWelfare(
   }
 
   const service = residenceServiceState(residence);
-  accumulator.serviceEconomicMultiplierTotal += service.economicMultiplier;
   if (service.warning) {
     accumulator.serviceWarningHouseholds += 1;
     updateWelfareAttention(accumulator, residence.id, 6);
@@ -289,9 +284,6 @@ export function finalizeSettlementWelfare(
     remedyRunwayDays,
     serviceWarningHouseholds: accumulator.serviceWarningHouseholds,
     upgradeBlockedHouseholds: accumulator.upgradeBlockedHouseholds,
-    serviceEconomicOutputMultiplier: accumulator.activeHouseholds > 0
-      ? accumulator.serviceEconomicMultiplierTotal / accumulator.activeHouseholds
-      : 1,
     totalDeaths: accumulator.totalDeaths,
     waitingBodies,
     outboundEmptyCarts,

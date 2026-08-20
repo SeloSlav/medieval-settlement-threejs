@@ -132,8 +132,9 @@ export function computeSettlementGrowthPlan(input: {
     }
     if (residence.tier >= 2) {
       additionalClothPerDay += vacancies * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
+      additionalAlePerDay += vacancies * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
     }
-    if (residence.tier >= 3) {
+    if (residence.tier >= 4) {
       const preservedFoodPerDay = vacancies
         * RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC
         * workdaySeconds
@@ -143,7 +144,6 @@ export function computeSettlementGrowthPlan(input: {
         0,
         grossFoodPerDay - preservedFoodPerDay,
       );
-      additionalAlePerDay += vacancies * RESIDENCE_ALE_PER_PERSON_PER_SEC * workdaySeconds;
       additionalPotteryPerDay += vacancies
         * RESIDENCE_POTTERY_PER_PERSON_PER_SEC
         * workdaySeconds;

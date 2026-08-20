@@ -77,7 +77,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   well: ['Well', 'E', 'Supplies road-linked homes with water.', flow([], ['water'])],
   chapel: ['Church', 'C', 'Collects tithes and supports nearby households.'],
   wayside_shrine: ['Wayside shrine', 'D', 'A purely decorative roadside Catholic shrine with no practical benefit.'],
-  monastery: ['Pauline monastery', 'O', 'A self-provisioning fenced edge estate. Its pantry serves the infirmary and feasts; genuine surplus is sold beyond the map for private revenue.', flow([], ['ale', 'honey', 'gold'])],
+  monastery: ['Pauline monastery', 'O', 'A self-provisioning fenced edge estate. Its pantry serves the infirmary and feasts; genuine surplus is sold beyond the map for private revenue.', flow([], ['ale', 'wine', 'honey', 'gold'])],
   marketplace: ['Marketplace', 'P', 'Lets households exchange food and goods while collecting local taxes.'],
   trading_post: ['Trading Post', 'X', 'Sets monthly import and export rules while local haulers stage surplus goods.'],
   town_hall: ['Town Hall', 'T', 'Governs taxation and unlocks the settlement economic ledger.'],

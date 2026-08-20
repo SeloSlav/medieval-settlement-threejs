@@ -242,7 +242,7 @@ const policyPanel = renderProcessorOutputTargetPanel(weaver());
 assert.match(policyPanel ?? '', /data-weaver-input-policy="0"[^>]*disabled/);
 assert.match(policyPanel ?? '', /data-weaver-input-policy="1"/);
 assert.match(policyPanel ?? '', /data-weaver-input-policy="2"/);
-assert.match(policyPanel ?? '', /Matching specialization then wins a contested working-buffer cart/);
+assert.match(policyPanel ?? '', /Matching specialization wins a contested working-buffer cart/);
 assert.match(policyPanel ?? '', /Covered buffers and ready alternate recipes remain fallbacks/);
 
 const emptyVisual = buildingMarkerSignatures(
@@ -502,7 +502,7 @@ const splitRoadTextiles = computeSettlementTextilePlan({
     clothWoolPerDay: 24 / 120,
     clothOutputPerDay: 16 / 120,
     clothDemandPerDay: 8 / 120,
-    tierThreeResidents: 2,
+    tierTwoPlusResidents: 2,
     prosperityRoadBranches: splitTextileBranches,
   },
   roadComponentFor: (candidate) =>
@@ -586,7 +586,7 @@ const fireAwareTextiles = computeSettlementTextilePlan({
     clothWoolPerDay: 12 / 120,
     clothOutputPerDay: 8 / 120,
     clothDemandPerDay: 4 / 120,
-    tierThreeResidents: 1,
+    tierTwoPlusResidents: 1,
     prosperityRoadBranches: new Map([
       [textileRoadKey(1), {
         currentResidents: 1,
@@ -623,7 +623,7 @@ const joinedRoadTextiles = computeSettlementTextilePlan({
     clothWoolPerDay: 24 / 120,
     clothOutputPerDay: 16 / 120,
     clothDemandPerDay: 8 / 120,
-    tierThreeResidents: 2,
+    tierTwoPlusResidents: 2,
     prosperityRoadBranches: new Map([
       [textileRoadKey(1), {
         currentResidents: 2,
@@ -661,7 +661,7 @@ const satelliteRoadTextiles = computeSettlementTextilePlan({
     clothWoolPerDay: 24 / 120,
     clothOutputPerDay: 16 / 120,
     clothDemandPerDay: 8 / 120,
-    tierThreeResidents: 2,
+    tierTwoPlusResidents: 2,
     prosperityRoadBranches: new Map([
       [textileRoadKey(1), {
         currentResidents: 1,
@@ -753,7 +753,7 @@ const largeRoadTextilePlan = computeSettlementTextilePlan({
     clothWoolPerDay: 15_000,
     clothOutputPerDay: 10_000,
     clothDemandPerDay: 0,
-    tierThreeResidents: 0,
+    tierTwoPlusResidents: 0,
     prosperityRoadBranches: perfRoadBranches,
   },
   roadComponentFor: (candidate) => candidate.x,

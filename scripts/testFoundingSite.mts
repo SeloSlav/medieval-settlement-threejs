@@ -1071,7 +1071,7 @@ assert.match(foundingLifecycle, /building_has_inbound_supply_trip/);
 assert.match(foundingLifecycle, /relocatable_stock/);
 assert.match(
   foundingLifecycle,
-  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*41\]/,
+  /FOUNDING_RELOCATION_COMMODITIES:\s*\[CommodityKind;\s*40\]/,
   'all portable non-gold commodities must participate in founding-yard clearance',
 );
 for (const variant of [
@@ -1120,7 +1120,7 @@ for (const variant of [
 }
 assert.match(
   foundingLifecycle,
-  /founding_destination_priority\(commodity,\s*&candidate\.kind\)/,
+  /founding_destination_priority\(commodity,\s*&candidate\.kind,\s*starter_supplies_only\)/,
   'founding clearance must apply its own intake restriction before selecting storage',
 );
 assert.match(

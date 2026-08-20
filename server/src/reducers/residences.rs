@@ -4,6 +4,8 @@ use crate::balance_generated::{
     RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST,
     RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY,
     RESIDENCE_TIER3_GOLD_COST, RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST,
+    RESIDENCE_TIER4_CAPACITY, RESIDENCE_TIER4_GOLD_COST, RESIDENCE_TIER4_STONE_COST,
+    RESIDENCE_TIER4_TIMBER_COST,
     RESIDENCE_TILE_ROOF_SALVAGE_FRACTION, RESIDENCE_TILE_ROOF_TILE_COST,
     RESIDENCE_TILE_ROOF_TIMBER_COST,
 };
@@ -18,9 +20,10 @@ use crate::db::*;
 use crate::economy::{
     available_building_labor, building_commodity_stock, credit_settlement_household_income,
     credit_treasury_commodity, credit_treasury_stone, credit_treasury_timber,
-    reconcile_building_labor, residence_food_variety_count, residence_population_for_parcel,
-    residence_zone_cost, residence_zone_cost_for_units, spend_aggregate_stone,
-    spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber, treasury_gold,
+    reconcile_building_labor, residence_food_diet_group_count, residence_food_variety_count,
+    residence_population_for_parcel, residence_zone_cost, residence_zone_cost_for_units,
+    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber,
+    spend_treasury_gold, total_roof_tiles, total_stone, total_timber, treasury_gold,
     CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 use crate::lifecycle::ensure_player_resources;
@@ -384,7 +387,8 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     }
 
     let next_tier = residence.tier.saturating_add(1);
-    let (timber, stone, gold, capacity, required_services): (
+    let (timber, stone, gold, roof_tiles, capacity, required_services): (
+        f64,
         f64,
         f64,
         f64,
@@ -395,12 +399,14 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             RESIDENCE_TIER2_TIMBER_COST,
             RESIDENCE_TIER2_STONE_COST,
             RESIDENCE_TIER2_GOLD_COST,
+            0.0,
             RESIDENCE_TIER2_CAPACITY,
             &[
                 ResidenceUpgradeService::Firewood,
                 ResidenceUpgradeService::Water,
                 ResidenceUpgradeService::Church,
                 ResidenceUpgradeService::FoodVariety(2),
+                ResidenceUpgradeService::Beverage,
                 ResidenceUpgradeService::Cloth,
                 ResidenceUpgradeService::Marketplace,
                 ResidenceUpgradeService::StorehouseStalls,
@@ -410,7 +416,24 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             RESIDENCE_TIER3_TIMBER_COST,
             RESIDENCE_TIER3_STONE_COST,
             RESIDENCE_TIER3_GOLD_COST,
+            0.0,
             RESIDENCE_TIER3_CAPACITY,
+            &[
+                ResidenceUpgradeService::Beverage,
+                ResidenceUpgradeService::Cloth,
+                ResidenceUpgradeService::StoneChurch,
+                ResidenceUpgradeService::FoodVariety(3),
+                ResidenceUpgradeService::Marketplace,
+                ResidenceUpgradeService::GranaryStalls,
+                ResidenceUpgradeService::StorehouseStalls,
+            ],
+        ),
+        4 => (
+            RESIDENCE_TIER4_TIMBER_COST,
+            RESIDENCE_TIER4_STONE_COST,
+            RESIDENCE_TIER4_GOLD_COST,
+            RESIDENCE_TILE_ROOF_TILE_COST,
+            RESIDENCE_TIER4_CAPACITY,
             &[
                 ResidenceUpgradeService::PreservedFood,
                 ResidenceUpgradeService::Beverage,
@@ -423,14 +446,16 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
                 ResidenceUpgradeService::StorehouseStalls,
             ],
         ),
-        _ => return Err("This residence is already at tier 3.".to_string()),
+        _ => return Err("This residence is already at tier 4.".to_string()),
     };
 
     if !has_connected_services(ctx, &residence, required_services) {
         return Err(if next_tier == 2 {
-            "Tier 2 requires fuel and well supply, a staffed road-linked church, two food categories, household cloth, and staffed market stalls.".to_string()
+            "Tier 2 requires fuel and well supply, a staffed road-linked church, two food categories, ale, clothing, and staffed market stalls.".to_string()
+        } else if next_tier == 3 {
+            "Tier 3 requires crops or forage, meat or animal produce, fish, a stone church, ale, clothing, and staffed market stalls.".to_string()
         } else {
-            "Tier 3 requires three food categories, a stone church, staffed Tavern beverage service, and a Marketplace with preserved food, cloth, and pottery supply.".to_string()
+            "Tier 4 requires preserved food, pottery, the complete tier-3 diet and services, and staffed market supply.".to_string()
         });
     }
     let physical_economy = ctx
@@ -463,12 +488,25 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
             (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
         ));
     }
+    if total_roof_tiles(ctx, owner) + 1e-6 < roof_tiles {
+        return Err(format!(
+            "Needs {} more fired roof tiles.",
+            (roof_tiles - total_roof_tiles(ctx, owner)).ceil() as i64,
+        ));
+    }
     if physical_economy {
         let network = load_owner_road_network(ctx, owner).ok_or_else(|| {
             "Improvement works require a road-linked material source.".to_string()
         })?;
         ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Timber, timber)?;
         ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Stone, stone)?;
+        ensure_upgrade_source_route(
+            ctx,
+            &network,
+            &residence,
+            CommodityKind::RoofTiles,
+            roof_tiles,
+        )?;
         if civic_gold_due > 1e-6 {
             ensure_upgrade_source_route(
                 ctx,
@@ -485,12 +523,15 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         residence.upgrade_required_timber = timber;
         residence.upgrade_required_stone = stone;
         residence.upgrade_required_gold = gold;
+        residence.upgrade_required_roof_tiles = roof_tiles;
         residence.upgrade_delivered_timber = 0.0;
         residence.upgrade_delivered_stone = 0.0;
         residence.upgrade_delivered_gold = household_contribution;
+        residence.upgrade_delivered_roof_tiles = 0.0;
         residence.upgrade_reserved_timber = timber;
         residence.upgrade_reserved_stone = stone;
         residence.upgrade_reserved_gold = civic_gold_due;
+        residence.upgrade_reserved_roof_tiles = roof_tiles;
         residence.upgrade_assigned_labor = available_building_labor(ctx, owner).min(1);
         residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
         ctx.db.residence().id().update(residence);
@@ -499,6 +540,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
 
     spend_aggregate_timber(ctx, owner, timber)?;
     spend_aggregate_stone(ctx, owner, stone)?;
+    spend_aggregate_roof_tiles(ctx, owner, roof_tiles)?;
     spend_treasury_gold(ctx, owner, civic_gold_due)?;
     credit_settlement_household_income(ctx, owner, gold);
 
@@ -506,6 +548,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         tier: next_tier,
         population_capacity: capacity,
         settlement_ticks: 0,
+        tiled_roof: next_tier >= 4,
         ..residence
     });
     ensure_residence_needs(ctx, residence_id);
@@ -525,8 +568,8 @@ pub fn retrofit_residence_tile_roof(ctx: &ReducerContext, residence_id: u64) -> 
     if residence.owner != owner {
         return Err("You do not own this residence.".to_string());
     }
-    if residence.tier < 3 {
-        return Err("Only a prosperous tier-3 house can support a fired-tile roof.".to_string());
+    if residence.tier < 4 {
+        return Err("Fired-tile roofs are part of tier 4 construction.".to_string());
     }
     if residence.tiled_roof {
         return Err("This residence already has a fired-tile roof.".to_string());
@@ -715,7 +758,11 @@ fn has_connected_services(
         .collect();
     required_services.iter().all(|service| {
         if let ResidenceUpgradeService::FoodVariety(required) = service {
-            return residence_food_variety_count(residence) >= *required;
+            return if *required >= 3 {
+                residence_food_diet_group_count(residence) >= *required
+            } else {
+                residence_food_variety_count(residence) >= *required
+            };
         }
         buildings.iter().any(|building| {
             let Some(_distance) =

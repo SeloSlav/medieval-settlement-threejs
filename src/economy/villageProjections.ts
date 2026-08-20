@@ -15,7 +15,6 @@ import { gardenMarketActivity } from './gardenMarketActivity.ts';
 import { allocateBackyardFood } from './backyardGardenTick.ts';
 import { edibleFoodStock } from './foodInventory.ts';
 import { taxedEconomicActivity } from './villageEconomy.ts';
-import { residenceServiceState } from './residenceSatisfaction.ts';
 
 export type BackyardGardenEconomyPerDay = {
   activity: number;
@@ -38,7 +37,6 @@ export function backyardGardenEconomyPerDay(
     seasonalMultiplier?: number;
     hasMarketAccess?: boolean;
     taxCollectionMultiplier?: number;
-    serviceMultiplier?: number;
     remedyUnitsSold?: number;
     tier?: number;
     currentFoodStock?: number;
@@ -67,12 +65,8 @@ export function backyardGardenEconomyPerDay(
         kind === 'herb_garden' ? options.remedyUnitsSold ?? 0 : 0,
       )
     : 0;
-  const requestedServiceMultiplier = options.serviceMultiplier ?? 1;
-  const serviceMultiplier = Number.isFinite(requestedServiceMultiplier)
-    ? Math.max(0, Math.min(1, requestedServiceMultiplier))
-    : 1;
   const { adjusted, tax: assessedTax } = taxedEconomicActivity(
-    baseActivity * serviceMultiplier,
+    baseActivity,
     taxRate,
   );
   const requestedCollectionMultiplier = options.taxCollectionMultiplier ?? 1;
@@ -134,8 +128,7 @@ export function estimateVillageGdpPerDay(
       residence.population,
       residence.tier,
       edibleFoodStock(residence),
-    )
-      * residenceServiceState(residence).economicMultiplier;
+    );
   }
   return total;
 }
@@ -197,7 +190,6 @@ export function estimateVillageHouseholdSavingsPerDay(
       residence.population,
       taxRate,
       {
-        serviceMultiplier: residenceServiceState(residence).economicMultiplier,
         tier: residence.tier,
         currentFoodStock: edibleFoodStock(residence),
       },

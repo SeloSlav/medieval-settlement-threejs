@@ -39,7 +39,10 @@ export type UiSoundId =
 
 export type ChapelBellTier = 1 | 2 | 3;
 
-export type BuildingAudioKind = Exclude<BuildingKind, 'chapel'> | 'residence';
+export type BuildingAudioKind = Exclude<
+  BuildingKind,
+  'chapel' | 'wayside_shrine'
+> | 'residence';
 
 export type FootstepSurface = 'grass' | 'dirt' | 'timber' | 'stone' | 'water';
 

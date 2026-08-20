@@ -65,7 +65,7 @@ approx(
     PRESERVED_FOOD_STORAGE_SMOKEHOUSE_FACTOR,
   ),
 );
-assert.equal(targetPlan.tierThreeResidents, 2);
+assert.equal(targetPlan.tierFourResidents, 2);
 assert.equal(targetPlan.targetBranches, 1);
 assert.equal(targetPlan.shortBranches, 1);
 assert.equal(targetPlan.branchesWithoutSmokehouse, 1);
@@ -215,7 +215,7 @@ const firePlan = computeSettlementPreservationReservePlan(fireState, {
   sabbathObserved: false,
   roadComponentFor: () => 'core',
 });
-assert.equal(firePlan.tierThreeResidents, 1);
+assert.equal(firePlan.tierFourResidents, 1);
 assert.equal(firePlan.quarantinedPreservedStock, 16);
 assert.equal(firePlan.preservedStock, 0);
 assert.equal(firePlan.staffedSmokehouses, 0);
@@ -443,6 +443,7 @@ assert.doesNotMatch(
   townHallSource,
   /Preservation capacity<\/span><span>[^<]*tier-3 demand/,
 );
+assert.match(townHallSource, /before tier-4 promotions/);
 assert.match(townHallSource, /winter design peak/);
 assert.match(townHallSource, /rotated rations displace the same fresh-food calories/);
 assert.match(residenceSource, /Prosperity planning load/);
@@ -468,7 +469,7 @@ const perfPlan = computeSettlementPreservationReservePlan(perfState, {
   roadComponentFor: (candidate) => Math.floor(candidate.x / 2),
 });
 const elapsedMs = performance.now() - started;
-assert.equal(perfPlan.tierThreeResidents, 50_000);
+assert.equal(perfPlan.tierFourResidents, 50_000);
 assert.equal(perfPlan.targetBranches, 100);
 assert.ok(
   elapsedMs < 750,
@@ -543,7 +544,7 @@ function residence(
     yaw: 0,
     population,
     populationCapacity: population,
-    tier: 3,
+    tier: 4,
     settlementTicks: 0,
     needs: {
       firewood: { stock: 0, deficitSeconds: 0 },

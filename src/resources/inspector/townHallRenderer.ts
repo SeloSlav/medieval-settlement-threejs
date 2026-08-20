@@ -258,7 +258,7 @@ export function renderSettlementWelfareRows(welfare: SettlementWelfare): string 
     welfare.starvingResidents > 0 ? `${welfare.starvingResidents} starving` : null,
   ].filter(Boolean).join(' · ') || 'no hunger warning';
   const serviceStatus = welfare.serviceWarningHouseholds > 0
-    ? ` · ${welfare.serviceWarningHouseholds} service-strained homes / ${welfare.upgradeBlockedHouseholds} promotion-blocked / ${Math.round(welfare.serviceEconomicOutputMultiplier * 100)}% taxable output`
+    ? ` · ${welfare.serviceWarningHouseholds} service-strained homes / ${welfare.upgradeBlockedHouseholds} promotion-blocked / work output unaffected`
     : '';
   const burialStatus = welfare.burialGrounds > 0
     ? `${welfare.occupiedGraves} occupied + ${welfare.reservedGraves} reserved / ${welfare.graveCapacity} graves · ${welfare.openGraves} open`
@@ -604,7 +604,7 @@ function formatProsperityCapacity(plan: SettlementProsperityPlan): string {
 function formatProsperityHousingPipeline(plan: SettlementProsperityPlan): string {
   const headroom = plan.fullHousingHeadroomResidents;
   const roadShortfall = plan.roadPlan?.fullShortfallResidents ?? 0;
-  return `${plan.existingFullResidents} residents at full existing tier-3 housing · ${plan.existingTierThreeVacancies} vacant places · ${
+  return `${plan.existingFullResidents} residents at full existing tier-4 housing · ${plan.existingTierFourVacancies} vacant places · ${
     roadShortfall > 0
       ? `${roadShortfall} residents lack capacity on their own branch`
       : headroom >= 0
@@ -616,7 +616,7 @@ function formatProsperityHousingPipeline(plan: SettlementProsperityPlan): string
 function formatProsperityRoads(plan: ProsperityRoadPlan | null): string {
   if (plan === null) return 'Road ledger unavailable';
   if (plan.activeBranches === 0) {
-    return 'No staffed specialty chain or tier-3 housing';
+    return 'No staffed specialty chain or tier-4 housing';
   }
   const pairing = `${plan.matchedBranches} / ${plan.activeBranches} branches contain preserved-food, ale, cloth, and pottery capacity`;
   const fragmentation = plan.fragmentationResidentCapacity > 0
@@ -627,7 +627,7 @@ function formatProsperityRoads(plan: ProsperityRoadPlan | null): string {
     : ' · every current prosperous household has local capacity';
   const pipeline = plan.fullShortfallResidents > 0
     ? ` · full housing pipeline short ${plan.fullShortfallResidents} across ${plan.fullShortBranches} ${plan.fullShortBranches === 1 ? 'branch' : 'branches'}`
-    : ' · full tier-3 housing pipeline covered';
+    : ' · full tier-4 housing pipeline covered';
   const inspect = plan.firstExposedResidenceId === null
     ? ''
     : ` <button type="button" class="inspector-jump-button" data-inspect-residence="${plan.firstExposedResidenceId}" aria-label="Inspect first prosperity road-branch shortfall">Inspect</button>`;
@@ -1369,14 +1369,10 @@ export function renderSettlementBackyardEconomyRows(
   const capped = plan.wealthCappedGardens > 0
     ? ` &middot; ${plan.wealthCappedGardens} ${plan.wealthCappedGardens === 1 ? 'household is' : 'households are'} at or near the wealth cap`
     : '';
-  const servicePressure = plan.servicePressuredGardens > 0
-    ? ` &middot; ${plan.servicePressuredGardens} need-strained ${plan.servicePressuredGardens === 1 ? 'home reduces' : 'homes reduce'} today's taxable activity by ${plan.currentDayServiceLostActivity.toFixed(1)} gold`
-    : '';
-
   return `
     <li><span>Backyard food sharing</span><span>${productionState} &middot; ${environment} &middot; ${plan.currentDaySelfFood.toFixed(1)} food kept by producing homes &middot; ${plan.currentDayMarketFood.toFixed(1)} pooled for other households${fireBlockedGardens}</span></li>
     <li><span>Backyard stall coverage</span><span>${roadState} &middot; ${plan.foodStallMarketplaces} granary-run food markets + ${plan.goodsStallMarketplaces} storehouse-run goods markets &middot; ${plan.marketLinkedGardens} linked, ${plan.marketUnlinkedGardens} unlinked${unstaffedMarkets}${fireBlockedMarkets}${inspect}</span></li>
-    <li><span>Local trade and tax base</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''}${servicePressure} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
+    <li><span>Local trade and tax base</span><span>${plan.currentDayRoutedActivity.toFixed(1)} gold routed today${plan.currentDayStrandedActivity > 0.05 ? ` &middot; ${plan.currentDayStrandedActivity.toFixed(1)} stranded` : ''} &middot; next 120 days: ${plan.horizonRoutedActivity.toFixed(1)} routed, ${plan.horizonStrandedActivity.toFixed(1)} stranded${capped}</span></li>
   `;
 }
 
@@ -1636,10 +1632,10 @@ export function renderPreservationReserveRows(
   plan: SettlementPreservationReservePlan,
   saltGoldPerLot: number,
 ): string {
-  if (plan.tierThreeResidents <= 0) {
+  if (plan.tierFourResidents <= 0) {
     return `<li><span>Winter fallback reserve</span><span>No active prosperous residents yet &middot; ${Math.round(
       plan.preservedStock + plan.preservedInTransit
-    )} preserved food can be stockpiled before tier-3 promotions</span></li>`;
+    )} preserved food can be stockpiled before tier-4 promotions</span></li>`;
   }
 
   const residenceInspect = plan.firstExposedResidenceId === null
@@ -1693,7 +1689,7 @@ export function renderPreservationReserveRows(
     : 'current and inbound vessels cover the reserve build';
 
   return `
-    <li><span>${plan.targetDays}-day winter fallback</span><span>${Math.round(plan.roadMatchedStock)} / ${Math.ceil(plan.targetStock)} preserved food road-matched for ${plan.tierThreeResidents} prosperous residents &middot; ${plan.preparedBranches} / ${plan.targetBranches} branches ready${plan.roadMatchedShortfall > 0.05 ? ` &middot; short ${Math.ceil(plan.roadMatchedShortfall)}` : ''}${storedDetail ? ` &middot; ${storedDetail}` : ''}${residenceInspect}</span></li>
+    <li><span>${plan.targetDays}-day winter fallback</span><span>${Math.round(plan.roadMatchedStock)} / ${Math.ceil(plan.targetStock)} preserved food road-matched for ${plan.tierFourResidents} tier-4 residents &middot; ${plan.preparedBranches} / ${plan.targetBranches} branches ready${plan.roadMatchedShortfall > 0.05 ? ` &middot; short ${Math.ceil(plan.roadMatchedShortfall)}` : ''}${storedDetail ? ` &middot; ${storedDetail}` : ''}${residenceInspect}</span></li>
     <li><span>Reserve completion</span><span>${completion} &middot; the shortfall requires ${renderResourceCost({ food: plan.freshFoodRequired, firewood: plan.firewoodRequired, salt: plan.saltRequired, pottery: plan.potteryRequired }, { compact: true })}${buildingInspect}</span></li>
     <li><span>Salt supply</span><span>${Math.round(plan.saltStock + plan.saltInTransit)} stored or inbound &middot; ${localSalt} &middot; ${saltImports} &middot; ${saltWarnings}${plan.saltImportLots > 0 ? ` &middot; repeated imports can tighten the regional rate${marketInspect}` : ''}</span></li>
     <li><span>Preserving vessels</span><span>${Math.floor(Math.max(0, plan.potteryRequired - plan.potteryShortfall))} road-matched toward reserve inputs &middot; ${potteryStatus} &middot; kiln cart priorities decide whether smokehouses or household breakage receive the next load</span></li>
@@ -2176,9 +2172,9 @@ export function renderTownHallInspector(
     ? ''
     : `<li><span>Processor fire outages</span><span>${production.fireDisabledProcessorWorkers} ${production.fireDisabledProcessorWorkers === 1 ? 'worker is' : 'workers are'} idle across ${production.fireDisabledProcessorSites} fire-disabled ${production.fireDisabledProcessorSites === 1 ? 'processor' : 'processors'}${production.firstFireDisabledProcessorId === null ? '' : ` <button type="button" class="inspector-jump-button" data-inspect-building="${production.firstFireDisabledProcessorId}" aria-label="Inspect first fire-disabled processor">Inspect</button>`}</span></li>`;
   const prosperityHouseholdFireOutageRow =
-    production.fireDisabledTierThreeHomes === 0
+    production.fireDisabledTierFourHomes === 0
       ? ''
-      : `<li><span>Prosperity household outages</span><span>${production.fireDisabledTierThreeResidents} prosperous ${production.fireDisabledTierThreeResidents === 1 ? 'resident is' : 'residents are'} excluded from active preserved-food, ale, cloth, and pottery demand across ${production.fireDisabledTierThreeHomes} fire-disabled ${production.fireDisabledTierThreeHomes === 1 ? 'home' : 'homes'} · ${production.fireDisabledTierThreeHousingCapacity} prosperous places return to the housing pipeline after recovery</span></li>`;
+      : `<li><span>Tier-4 household outages</span><span>${production.fireDisabledTierFourResidents} tier-4 ${production.fireDisabledTierFourResidents === 1 ? 'resident is' : 'residents are'} excluded from active preserved-food, ale, cloth, and pottery demand across ${production.fireDisabledTierFourHomes} fire-disabled ${production.fireDisabledTierFourHomes === 1 ? 'home' : 'homes'} · ${production.fireDisabledTierFourHousingCapacity} tier-4 places return to the housing pipeline after recovery</span></li>`;
   const flourBalance = grainChainBalanceLabel(production);
   const farmPlan = buildSettlementFarmPlan(
     context.gameState,
@@ -2521,11 +2517,11 @@ export function renderTownHallInspector(
       <li><span>Mill / bakery balance</span><span>${production.flourOutputPerDay.toFixed(1)} flour made / ${production.bakeryFlourCapacityPerDay.toFixed(1)} bakery intake · ${flourBalance}</span></li>
       <li><span>Grain-chain roads</span><span>${formatGrainChainRoads(production.grainChainRoads)}</span></li>
       <li><span>Bread capacity</span><span>${production.breadFoodCapacityPerDay.toFixed(1)} bread / day vs ${provisioning.totalFoodPerDay.toFixed(1)} current fresh demand after ${provisioning.householdPreservedFoodRotationPerDay.toFixed(1)} cured-ration displacement · gross meals remain ${provisioning.grossFoodDemandPerDay.toFixed(1)} / day · needs ${production.breadGrainPerDay.toFixed(1)} matching rye/maslin grain plus ${renderResourceCost({ water: production.breadWaterPerDay, firewood: production.breadFirewoodPerDay }, { compact: true, suffix: '/day' })}</span></li>
-      <li><span>Beverage capacity</span><span>${production.aleOutputPerDay.toFixed(1)} ale, cider, or mead / day vs ${production.aleDemandPerDay.toFixed(1)} tier-3 demand · reflects each Brewery's selected recipe · ale uses two workshop cycles per batch and needs ${renderResourceCost({ barley: production.aleBarleyPerDay, water: production.aleWaterPerDay, firewood: production.aleFirewoodPerDay }, { compact: true, suffix: '/day' })}; cider and mead draw apples or honey directly</span></li>
+      <li><span>Beverage capacity</span><span>${production.aleOutputPerDay.toFixed(1)} ale, cider, or mead / day vs ${production.aleDemandPerDay.toFixed(1)} tier-2+ demand · reflects each Brewery's selected recipe · ale uses two workshop cycles per batch and needs ${renderResourceCost({ barley: production.aleBarleyPerDay, water: production.aleWaterPerDay, firewood: production.aleFirewoodPerDay }, { compact: true, suffix: '/day' })}; cider and mead draw apples or honey directly</span></li>
       <li><span>Preservation capacity</span><span>${production.preservedFoodOutputPerDay.toFixed(1)} / day installed · ${production.currentPreservedFoodDemandPerDay.toFixed(1)} / day current ${environment.season} ration at ${production.currentPreservedFoodDemandMultiplier.toFixed(2)}&times; · ${production.preservedFoodDemandPerDay.toFixed(1)} / day winter design peak · rotated rations displace the same fresh-food calories · full crews need ${renderResourceCost({ food: production.preservationFreshFoodPerDay, firewood: production.preservationFirewoodPerDay, salt: production.preservationSaltPerDay, pottery: production.preservationPotteryPerDay }, { compact: true, suffix: '/day' })}</span></li>
       ${preservationReserveRows}
       <li><span>Cloth capacity</span><span>${production.clothOutputPerDay.toFixed(1)} / day vs ${production.clothDemandPerDay.toFixed(1)} tier-2+ demand · choose ${renderResourceAmount('wool', production.clothWoolPerDay, { compact: true, suffix: '/day' })}, or ${renderResourceCost({ flax: production.clothFlaxPerDay, water: production.clothFlaxWaterPerDay }, { compact: true, suffix: '/day' })}</span></li>
-      <li><span>Household pottery</span><span>${production.potteryOutputPerDay.toFixed(1)} / day road-local clay-backed kiln output vs ${production.potteryDemandPerDay.toFixed(1)} tier-3 breakage replacement · homes share each kiln's physical cart with smokehouses and export</span></li>
+      <li><span>Household pottery</span><span>${production.potteryOutputPerDay.toFixed(1)} / day road-local clay-backed kiln output vs ${production.potteryDemandPerDay.toFixed(1)} tier-4 breakage replacement · homes share each kiln's physical cart with smokehouses and export</span></li>
       <li><span>Prosperity throughput</span><span>${formatProsperityCapacity(prosperity)}</span></li>
       <li><span>Prosperity roads</span><span>${formatProsperityRoads(prosperity.roadPlan)}</span></li>
       <li><span>Prosperous housing pipeline</span><span>${formatProsperityHousingPipeline(prosperity)} · assumes staffed workshops remain fully supplied</span></li>

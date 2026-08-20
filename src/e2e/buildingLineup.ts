@@ -9,6 +9,7 @@ import {
 } from '../residences/ResidenceMarkers.ts';
 import { createDefaultNeeds } from '../residences/residenceNeedState.ts';
 import { createConstructionSiteMesh } from '../buildings/ConstructionSiteMesh.ts';
+import { createWaysideShrineMesh } from '../buildings/meshes/waysideShrineMesh.ts';
 import { createPreferredRenderer } from '../scene/RendererBackend.ts';
 import {
   animateFoundersCampfire,
@@ -29,10 +30,28 @@ import {
 declare global {
   interface Window {
     __BUILDING_LINEUP_READY__?: boolean;
+    __BUILDING_LINEUP_METRICS__?: {
+      seed: number | null;
+      camera: 'near' | 'design' | 'far';
+      debugMode: 'final' | 'massing';
+      presentation: 'final' | 'no-post';
+      rendererBackend: string;
+      viewport: readonly [number, number];
+      dpr: number;
+      drawCalls: number;
+      triangles: number;
+    };
   }
 }
 
 const lineupParams = new URLSearchParams(window.location.search);
+const requestedCamera = lineupParams.get('camera');
+const cameraBookmark = requestedCamera === 'near' || requestedCamera === 'far'
+  ? requestedCamera
+  : 'design';
+const shrineDebugMode = lineupParams.get('debug') === 'massing' ? 'massing' : 'final';
+const presentationMode = lineupParams.get('presentation') === 'no-post' ? 'no-post' : 'final';
+const showWaysidePrayerVisitors = lineupParams.get('visitors') === 'prayer';
 const showClearedFoundingStockyard = lineupParams.get('mode') === 'cleared-stockyard';
 const requestedKind = showClearedFoundingStockyard
   ? 'founders_camp'
@@ -164,8 +183,10 @@ const rendererBackend = await createPreferredRenderer();
 const renderer = rendererBackend.renderer as unknown as THREE.WebGLRenderer;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMapping = presentationMode === 'no-post'
+  ? THREE.NoToneMapping
+  : THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = presentationMode === 'no-post' ? 1 : 1.08;
 root.prepend(renderer.domElement);
 
 const viewSpecs = compareServiceCoverage
@@ -194,7 +215,9 @@ const viewSpecs = compareServiceCoverage
     ]
   : [
       ...selectedKinds.map((kind) => {
-        const mesh = createBuildingMesh(kind);
+        const mesh = kind === 'wayside_shrine'
+          ? createWaysideShrineMesh(shrineDebugMode)
+          : createBuildingMesh(kind);
         if (showStockedState) {
           mesh.traverse((object) => {
             if (STOCKED_PREVIEW_PREFIXES.some((prefix) => object.name.startsWith(prefix))) {
@@ -294,11 +317,14 @@ const views = viewSpecs.map((spec) => {
 
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 160);
   const largest = comparisonLargest ?? Math.max(size.x, size.y * 1.2, size.z);
-  const distance = Math.max(
+  const designDistance = Math.max(
     13,
     largest
       / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)))
       * (compareServiceCoverage ? 1.08 : 1.24),
+  );
+  const distance = designDistance * (
+    cameraBookmark === 'near' ? 0.66 : cameraBookmark === 'far' ? 1.8 : 1
   );
   const direction = (
     compareServiceCoverage
@@ -316,6 +342,10 @@ const views = viewSpecs.map((spec) => {
   const campSeating = building.name === "Founders' camp and open stockyard"
     && showCampSeating
     ? createCampSeatingPreview(scene, building)
+    : null;
+  const waysidePrayer = showWaysidePrayerVisitors
+    && building.name === 'Gorski Kotar Wayside Shrine'
+    ? createWaysidePrayerPreview(scene, building)
     : null;
   if (campSeating) {
     const benchFocus = building.localToWorld(new THREE.Vector3(
@@ -342,7 +372,7 @@ const views = viewSpecs.map((spec) => {
   label.textContent = spec.label;
   cell.append(label);
   labels.append(cell);
-  return { scene, camera, campSeating };
+  return { scene, camera, campSeating, waysidePrayer };
 });
 
 for (let index = views.length; index < COLS * ROWS; index++) {
@@ -387,10 +417,31 @@ function render(): void {
 }
 
 await initializeBuildingMaterialLibrary(rendererBackend.maxAnisotropy);
+await Promise.all(
+  views.map((view) => view.waysidePrayer?.renderer.ready ?? Promise.resolve(true)),
+);
+for (const view of views) {
+  view.waysidePrayer?.renderer.syncAgents(
+    view.waysidePrayer.agents,
+    { centerX: 0, centerZ: 0, viewRadius: 80, shadowRadius: 80 },
+    0.25,
+  );
+}
 render();
 await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 render();
 window.__BUILDING_LINEUP_READY__ = true;
+window.__BUILDING_LINEUP_METRICS__ = {
+  seed: selectedKinds.length === 1 && selectedKinds[0] === 'wayside_shrine' ? 1733 : null,
+  camera: cameraBookmark,
+  debugMode: shrineDebugMode,
+  presentation: presentationMode,
+  rendererBackend: rendererBackend.kind,
+  viewport: [root.clientWidth, root.clientHeight],
+  dpr: renderer.getPixelRatio(),
+  drawCalls: renderer.info.render.calls,
+  triangles: renderer.info.render.triangles,
+};
 document.body.dataset.ready = 'true';
 document.body.dataset.rendererBackend = rendererBackend.kind;
 window.addEventListener('resize', render);
@@ -454,12 +505,65 @@ function animate(nowMs: number): void {
       },
       dtSeconds,
     );
+    view.waysidePrayer?.renderer.syncAgents(
+      view.waysidePrayer.agents,
+      {
+        centerX: 0,
+        centerZ: 0,
+        viewRadius: 80,
+        shadowRadius: 80,
+      },
+      dtSeconds,
+    );
   }
   render();
   requestAnimationFrame(animate);
 }
-if (selectedKinds.length === 1 && selectedKinds[0] === 'founders_camp') {
+if (
+  (selectedKinds.length === 1 && selectedKinds[0] === 'founders_camp')
+  || showWaysidePrayerVisitors
+) {
   requestAnimationFrame(animate);
+}
+
+function createWaysidePrayerPreview(
+  scene: THREE.Scene,
+  shrine: THREE.Object3D,
+): {
+  renderer: SettlementCrowdRenderer;
+  agents: CrowdRenderAgent[];
+} {
+  shrine.updateMatrixWorld(true);
+  const lookAt = shrine.localToWorld(new THREE.Vector3(0, 1.15, 0.42));
+  const agents = [-0.58, 0, 0.58].map((lateral, index): CrowdRenderAgent => {
+    const position = shrine.localToWorld(new THREE.Vector3(lateral, 0.02, 1.72));
+    return {
+      id: `wayside-prayer-preview-${index}`,
+      slot: index,
+      x: position.x,
+      y: position.y,
+      z: position.z,
+      yaw: Math.atan2(lookAt.x - position.x, lookAt.z - position.z),
+      appearanceSeed: 0x0031_0000 + index * 0x000f_1937,
+      variant: index === 1 ? 'woman' : 'man',
+      mode: 'pray',
+      tunicColor: [0x596342, 0x6f4b3c, 0x485b6d][index]!,
+      skinColor: 0xb87952,
+      hairColor: 0x3a2418,
+      tool: null,
+      movementSpeed: 0,
+      active: true,
+    };
+  });
+  const parent = new THREE.Group();
+  parent.name = 'Wayside shrine prayer preview';
+  scene.add(parent);
+  const renderer = new SettlementCrowdRenderer({ parent });
+  renderer.syncAgents(
+    agents,
+    { centerX: 0, centerZ: 0, viewRadius: 80, shadowRadius: 80 },
+  );
+  return { renderer, agents };
 }
 
 function createCampSeatingPreview(

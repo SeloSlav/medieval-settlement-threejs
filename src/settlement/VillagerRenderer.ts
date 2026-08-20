@@ -123,6 +123,17 @@ import {
   type MassChapelClaim,
 } from './chapelMass.ts';
 import {
+  MAX_WAYSIDE_SHRINE_VISITORS,
+  claimWaysideShrineFromPoint,
+  claimWaysideShrinesForResidences,
+  isWaysideShrinePrayerTime,
+  operationalWaysideShrines,
+  waysideShrinePrayerPath,
+  waysideShrinePrayerPoint,
+  waysideShrineVisitorPriority,
+  type WaysideShrineClaim,
+} from './waysideShrineDevotion.ts';
+import {
   claimFeastMonasteriesForResidences,
   isMonasteryFeastGatheringTime,
   monasteryFeastAttendancePath,
@@ -200,6 +211,9 @@ type VillagerRoutinePhase =
   | 'going_to_feast'
   | 'at_feast'
   | 'returning_from_feast'
+  | 'going_to_shrine'
+  | 'praying_at_shrine'
+  | 'returning_from_shrine'
   | 'going_to_refuge'
   | 'at_refuge'
   | 'returning_from_refuge'
@@ -221,6 +235,8 @@ type VillagerPathPurpose =
   | 'return_from_mass'
   | 'monastery_feast'
   | 'return_from_feast'
+  | 'wayside_shrine_prayer'
+  | 'return_from_shrine'
   | 'refuge_rally'
   | 'return_from_refuge'
   | 'guard_muster'
@@ -330,6 +346,8 @@ type VillagerAgent = {
   walkSpeed: number;
   currentMoveSpeed: number;
   massChapelId: string | null;
+  devotionalShrineId: string | null;
+  devotionalShrineSlot: number;
   refugeId: string | null;
   refugeSlot: number;
   musterTowerId: string | null;
@@ -426,6 +444,9 @@ export class VillagerRenderer {
   private chapelAmbientSignature = '';
   private massChapels: BuildingState[] = [];
   private massChapelClaims = new Map<string, MassChapelClaim>();
+  private waysideShrines: BuildingState[] = [];
+  private waysideShrineClaims = new Map<string, WaysideShrineClaim>();
+  private waysideShrineVisitorSlots = new Map<string, number>();
   private feastMonasteries: BuildingState[] = [];
   private feastMonasteryClaims = new Map<string, FeastMonasteryClaim>();
   private monasteryFeastsEnabled = true;
@@ -546,6 +567,7 @@ export class VillagerRenderer {
     this.monasteryFeastsEnabled = monasteryFeastsEnabled;
     this.sabbathPausedToday = restDayPausedToday;
     this.holidayObservance = holidayObservance;
+    this.refreshWaysideShrineVisitorRoster();
     let changed = false;
     for (const agent of this.agents.values()) {
       // Residents and founders only observe minute-resolution home, mass, and
@@ -594,6 +616,7 @@ export class VillagerRenderer {
     this.guardMusterAssignments = nextGuardMusterAssignments;
     this.syncRefugeRallySlots();
     this.syncGuardMusterSlots();
+    this.refreshWaysideShrineVisitorRoster();
     let changed = false;
     for (const agent of this.agents.values()) {
       changed = this.reconcileRoutine(agent) || changed;
@@ -774,6 +797,17 @@ export class VillagerRenderer {
       this.massChapels,
       this.roadNetwork,
     );
+    this.waysideShrines = operationalWaysideShrines(
+      physicalBuildings,
+      disabledBuildingIds,
+    );
+    this.waysideShrineClaims = claimWaysideShrinesForResidences(
+      residences.filter(
+        (residence) => !this.fireDisabledResidenceIds.has(residence.id),
+      ),
+      this.waysideShrines,
+      this.roadNetwork,
+    );
     this.feastMonasteries = operationalFeastMonasteries(
       physicalBuildings,
       disabledBuildingIds,
@@ -861,6 +895,8 @@ export class VillagerRenderer {
           walkSpeed: pickWalkSpeed(appearanceSeed),
           currentMoveSpeed: 0,
           massChapelId: null,
+          devotionalShrineId: null,
+          devotionalShrineSlot: -1,
           refugeId: null,
           refugeSlot: -1,
           musterTowerId: null,
@@ -958,6 +994,8 @@ export class VillagerRenderer {
             walkSpeed: pickWalkSpeed(appearanceSeed),
             currentMoveSpeed: 0,
             massChapelId: null,
+            devotionalShrineId: null,
+            devotionalShrineSlot: -1,
             refugeId: null,
             refugeSlot: -1,
             musterTowerId: null,
@@ -1060,6 +1098,8 @@ export class VillagerRenderer {
           walkSpeed: pickWalkSpeed(appearanceSeed),
           currentMoveSpeed: 0,
           massChapelId: null,
+          devotionalShrineId: null,
+          devotionalShrineSlot: -1,
           refugeId: null,
           refugeSlot: -1,
           musterTowerId: null,
@@ -1167,6 +1207,8 @@ export class VillagerRenderer {
           walkSpeed: pickWalkSpeed(appearanceSeed),
           currentMoveSpeed: 0,
           massChapelId: null,
+          devotionalShrineId: null,
+          devotionalShrineSlot: -1,
           refugeId: null,
           refugeSlot: -1,
           musterTowerId: null,
@@ -1235,6 +1277,7 @@ export class VillagerRenderer {
     }
 
     if (this.clock) {
+      this.refreshWaysideShrineVisitorRoster();
       for (const agent of this.agents.values()) {
         this.reconcileRoutine(agent);
       }
@@ -1280,6 +1323,8 @@ export class VillagerRenderer {
         || agent.pathPurpose === 'return_from_mass'
         || agent.pathPurpose === 'monastery_feast'
         || agent.pathPurpose === 'return_from_feast'
+        || agent.pathPurpose === 'wayside_shrine_prayer'
+        || agent.pathPurpose === 'return_from_shrine'
         || agent.pathPurpose === 'refuge_rally'
         || agent.pathPurpose === 'return_from_refuge'
         || agent.pathPurpose === 'guard_muster'
@@ -2051,6 +2096,7 @@ export class VillagerRenderer {
       agent.mode === 'sit'
       || agent.mode === 'rest'
       || agent.mode === 'talk'
+      || agent.mode === 'pray'
     ) {
       agent.currentMoveSpeed = 0;
       return;
@@ -2127,6 +2173,12 @@ export class VillagerRenderer {
         case 'return_from_feast':
           this.completeFeastReturn(agent);
           break;
+        case 'wayside_shrine_prayer':
+          this.completeWaysideShrineArrival(agent);
+          break;
+        case 'return_from_shrine':
+          this.completeWaysideShrineReturn(agent);
+          break;
         case 'refuge_rally':
           this.completeRefugeArrival(agent);
           break;
@@ -2189,6 +2241,7 @@ export class VillagerRenderer {
       agent.routinePhase === 'work'
       || agent.routinePhase === 'at_mass'
       || agent.routinePhase === 'at_feast'
+      || agent.routinePhase === 'praying_at_shrine'
       || agent.routinePhase === 'at_refuge'
       || agent.routinePhase === 'at_muster'
     ) {
@@ -2665,6 +2718,31 @@ export class VillagerRenderer {
     }
     if (agent.routinePhase === 'returning_from_feast') return false;
 
+    const waysideShrine = this.findWaysideShrine(agent);
+    const waysideShrineSlot = this.waysideShrineVisitorSlots.get(agent.id);
+    const shouldVisitWaysideShrine = waysideShrine != null
+      && waysideShrineSlot !== undefined;
+    if (shouldVisitWaysideShrine && waysideShrine) {
+      if (
+        agent.routinePhase === 'going_to_shrine'
+        || agent.routinePhase === 'praying_at_shrine'
+      ) {
+        return false;
+      }
+      return this.beginWaysideShrineJourney(
+        agent,
+        waysideShrine,
+        waysideShrineSlot,
+      );
+    }
+    if (
+      agent.routinePhase === 'going_to_shrine'
+      || agent.routinePhase === 'praying_at_shrine'
+    ) {
+      return this.beginWaysideShrineReturn(agent);
+    }
+    if (agent.routinePhase === 'returning_from_shrine') return false;
+
     // Worksite lodging covers the working week, not the observed Sabbath.
     // Replan even an already-started trip so nobody reaches the tents only
     // to turn around for their household or the founders camp.
@@ -2990,6 +3068,205 @@ export class VillagerRenderer {
         )
       : 'home_outdoors';
     agent.routinePhase = 'returning_from_feast';
+    this.transitionToHomeState(agent, homeState);
+    this.reconcileRoutine(agent);
+    this.syncCampAmbientAssignments();
+  }
+
+  private refreshWaysideShrineVisitorRoster(): void {
+    this.waysideShrineVisitorSlots.clear();
+    if (
+      !this.clock
+      || this.frontierAlertActive
+      || this.waysideShrines.length === 0
+    ) {
+      return;
+    }
+
+    const candidatesByShrine = new Map<
+      string,
+      Array<{ agent: VillagerAgent; priority: number }>
+    >();
+    for (const agent of this.agents.values()) {
+      if (
+        agent.isSick
+        || !isWaysideShrinePrayerTime(
+          this.clock,
+          this.sabbathPausedToday,
+          this.holidayObservance,
+          agent.personIdentity,
+        )
+      ) {
+        continue;
+      }
+
+      const chapel = this.findMassChapel(agent);
+      const attendingChurch = Boolean(
+        chapel
+        && (
+          isSundayMassTime(this.clock, true)
+          || (
+            this.holidayObservance
+            && holidayChapelActivityFor(
+              this.clock,
+              this.holidayObservance,
+              agent.personIdentity,
+            )
+          )
+        )
+      );
+      if (attendingChurch) continue;
+
+      const feastMonastery = this.findFeastMonastery(agent);
+      if (isMonasteryFeastGatheringTime(
+        this.clock,
+        this.monasteryFeastsEnabled && !this.frontierAlertActive,
+        feastMonastery != null,
+      )) {
+        continue;
+      }
+
+      const shrine = this.findWaysideShrine(agent);
+      if (!shrine) continue;
+      const candidates = candidatesByShrine.get(shrine.id) ?? [];
+      candidates.push({
+        agent,
+        priority: waysideShrineVisitorPriority(
+          this.clock,
+          this.holidayObservance,
+          agent.personIdentity,
+        ),
+      });
+      candidatesByShrine.set(shrine.id, candidates);
+    }
+
+    for (const candidates of candidatesByShrine.values()) {
+      candidates.sort((left, right) =>
+        left.priority - right.priority
+        || left.agent.personIdentity.localeCompare(right.agent.personIdentity)
+      );
+      for (
+        let slot = 0;
+        slot < Math.min(MAX_WAYSIDE_SHRINE_VISITORS, candidates.length);
+        slot += 1
+      ) {
+        this.waysideShrineVisitorSlots.set(candidates[slot]!.agent.id, slot);
+      }
+    }
+  }
+
+  private findWaysideShrine(agent: VillagerAgent): BuildingState | null {
+    if (agent.residenceId) {
+      if (this.fireDisabledResidenceIds.has(agent.residenceId)) return null;
+      return this.waysideShrineClaims.get(agent.residenceId)?.shrine ?? null;
+    }
+    const origin = this.foundingCamp ?? agent;
+    return claimWaysideShrineFromPoint(
+      origin,
+      this.waysideShrines,
+      this.roadNetwork,
+    )?.shrine ?? null;
+  }
+
+  private beginWaysideShrineJourney(
+    agent: VillagerAgent,
+    shrine: BuildingState,
+    visitorSlot: number,
+  ): boolean {
+    const destination = waysideShrinePrayerPoint(
+      shrine,
+      visitorSlot,
+      this.roadNetwork,
+    );
+    const distance = Math.hypot(destination.x - agent.x, destination.z - agent.z);
+    agent.devotionalShrineId = shrine.id;
+    agent.devotionalShrineSlot = visitorSlot;
+    if (distance < 0.25) {
+      this.completeWaysideShrineArrival(agent);
+      return true;
+    }
+    const path = waysideShrinePrayerPath(
+      { x: agent.x, z: agent.z },
+      shrine,
+      visitorSlot,
+      this.roadNetwork,
+    );
+    if (!path || !this.beginJourney(agent, path, 'wayside_shrine_prayer')) {
+      agent.devotionalShrineId = null;
+      agent.devotionalShrineSlot = -1;
+      return false;
+    }
+    agent.routinePhase = 'going_to_shrine';
+    return true;
+  }
+
+  private completeWaysideShrineArrival(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    const shrine = agent.devotionalShrineId
+      ? this.buildings.get(agent.devotionalShrineId) ?? null
+      : null;
+    if (
+      shrine?.kind !== 'wayside_shrine'
+      || shrine.constructionComplete === false
+      || this.fireDisabledBuildingIds.has(shrine.id)
+    ) {
+      agent.devotionalShrineId = null;
+      agent.devotionalShrineSlot = -1;
+      return;
+    }
+    const prayerPoint = waysideShrinePrayerPoint(
+      shrine,
+      agent.devotionalShrineSlot,
+      this.roadNetwork,
+    );
+    agent.x = prayerPoint.x;
+    agent.z = prayerPoint.z;
+    agent.y = this.resolveGroundY(agent.x, agent.z) + 0.02;
+    agent.yaw = prayerPoint.yaw;
+    agent.routinePhase = 'praying_at_shrine';
+    agent.mode = 'pray';
+    agent.currentMoveSpeed = 0;
+    agent.idleRemaining = 60;
+  }
+
+  private beginWaysideShrineReturn(agent: VillagerAgent): boolean {
+    const residence = agent.residenceId
+      ? this.residences.get(agent.residenceId) ?? null
+      : null;
+    const destination = residence
+      ? residenceDoorPosition(residence)
+      : this.foundingCamp
+        ? this.foundingCampRestPosition(agent, this.foundingCamp)
+        : null;
+    if (!destination) {
+      this.completeWaysideShrineReturn(agent);
+      return true;
+    }
+    const path = pickWorkerCommutePath(
+      { x: agent.x, z: agent.z },
+      destination,
+      this.roadNetwork,
+    );
+    if (!path || !this.beginJourney(agent, path, 'return_from_shrine')) {
+      this.completeWaysideShrineReturn(agent);
+      return true;
+    }
+    agent.routinePhase = 'returning_from_shrine';
+    return true;
+  }
+
+  private completeWaysideShrineReturn(agent: VillagerAgent): void {
+    this.clearPath(agent);
+    agent.devotionalShrineId = null;
+    agent.devotionalShrineSlot = -1;
+    const homeState = this.clock
+      ? householdMemberHomeState(
+        agent.personIdentity,
+        this.clock,
+        this.nightPolicy,
+      )
+      : 'home_outdoors';
+    agent.routinePhase = 'returning_from_shrine';
     this.transitionToHomeState(agent, homeState);
     this.reconcileRoutine(agent);
     this.syncCampAmbientAssignments();
@@ -3836,6 +4113,17 @@ export class VillagerRenderer {
       this.completeFeastReturn(agent);
       return;
     }
+    if (purpose === 'wayside_shrine_prayer') {
+      agent.devotionalShrineId = null;
+      agent.devotionalShrineSlot = -1;
+      agent.routinePhase = 'home_outdoors';
+      agent.idleRemaining = 1;
+      return;
+    }
+    if (purpose === 'return_from_shrine') {
+      this.completeWaysideShrineReturn(agent);
+      return;
+    }
     if (purpose === 'fire_assembly') {
       agent.routinePhase = 'home_outdoors';
       const residence = agent.residenceId
@@ -4366,6 +4654,9 @@ export class VillagerRenderer {
       || agent.routinePhase === 'going_to_feast'
       || agent.routinePhase === 'at_feast'
       || agent.routinePhase === 'returning_from_feast'
+      || agent.routinePhase === 'going_to_shrine'
+      || agent.routinePhase === 'praying_at_shrine'
+      || agent.routinePhase === 'returning_from_shrine'
       || agent.routinePhase === 'going_to_fire_assembly'
       || agent.routinePhase === 'at_fire_assembly'
       || agent.routinePhase === 'returning_from_fire_assembly'
@@ -4527,6 +4818,16 @@ function describeVillagerActivity(
       return 'Sharing the feast at the monastery';
     case 'returning_from_feast':
       return 'Walking home from the monastery feast';
+    case 'going_to_shrine':
+      return holiday
+        ? `Walking to a wayside shrine for ${holiday.label}`
+        : 'Walking to a wayside shrine for Sabbath prayer';
+    case 'praying_at_shrine':
+      return holiday
+        ? `Praying at a wayside shrine for ${holiday.label}`
+        : 'Praying at a wayside shrine on the Sabbath';
+    case 'returning_from_shrine':
+      return 'Walking home from the wayside shrine';
     case 'going_to_muster':
       return 'Marching by road to the linked frontier watch';
     case 'at_muster':

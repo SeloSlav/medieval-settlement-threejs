@@ -8,7 +8,7 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
     CATTLE_PLOUGH_WORK_MULTIPLIER, MARKETPLACE_FOOD_STALL_SLOTS, MARKETPLACE_GOODS_STALL_SLOTS,
-    MONASTERY_COVERAGE_RADIUS, MONASTERY_FEAST_FOOD,
+    MONASTERY_COVERAGE_RADIUS,
 };
 use crate::db::*;
 use crate::economy::{building_edible_food_stock, building_preserved_food_stock, CommodityKind};
@@ -16,7 +16,6 @@ use crate::farming::{
     field_manure_required, field_seed_crop, field_seed_grain_remaining, CROP_OATS, CROP_RYE,
     CROP_WHEAT,
 };
-use crate::monastery_hospitality_policy::monastery_feast_surplus;
 use crate::raid_agent_policy::combat_agent_is_active_raider_threat;
 use crate::resident_welfare_policy::CorpseSpatialIndex;
 use crate::roads::RoadNetwork;
@@ -1069,16 +1068,6 @@ impl SimTickContext {
             .into_iter()
             .filter_map(|building_id| ctx.db.building().id().find(&building_id))
             .collect();
-        let chapels: Vec<&Building> = buildings
-            .iter()
-            .filter(|building| {
-                building.kind == "chapel"
-                    && building.construction_complete
-                    && building.assigned_labor > 0
-                    && !self.building_disabled_by_fire(ctx, building.id)
-            })
-            .collect();
-        let reserve_enabled = self.monastery_hospitality_enabled(ctx, owner);
         let suppliers: Vec<&Building> = buildings
             .iter()
             .filter(|building| {
@@ -1092,20 +1081,7 @@ impl SimTickContext {
                         building,
                         ResidenceNeedKind::Food,
                     )
-                    && (if building.kind == "monastery" {
-                        monastery_feast_surplus(
-                            (building_edible_food_stock(building) - building.honey.max(0.0))
-                                .max(0.0),
-                            MONASTERY_FEAST_FOOD,
-                            reserve_enabled,
-                        )
-                    } else {
-                        building_edible_food_stock(building)
-                    }) > 1e-6
-                    && (building.kind != "monastery"
-                        || chapels.iter().any(|chapel| {
-                            network.road_connected(building.x, building.z, chapel.x, chapel.z)
-                        }))
+                    && building_edible_food_stock(building) > 1e-6
             })
             .collect();
         let residences: Vec<Residence> = ctx
@@ -1119,25 +1095,12 @@ impl SimTickContext {
                     && !self.residence_disabled_by_fire(ctx, residence.id)
             })
             .collect();
-        let parish_residences: HashSet<u64> = residences
-            .iter()
-            .filter(|residence| {
-                chapels.iter().any(|chapel| {
-                    network.road_connected(residence.x, residence.z, chapel.x, chapel.z)
-                })
-            })
-            .map(|residence| residence.id)
-            .collect();
-
         claim_residences_by_nearest_supplier(
             network,
             &suppliers,
             &residences,
-            |supplier, residence, distance| {
+            |supplier, residence, _distance| {
                 network.road_connected(supplier.x, supplier.z, residence.x, residence.z)
-                    && (supplier.kind != "monastery"
-                        || (parish_residences.contains(&residence.id)
-                            && distance <= MONASTERY_COVERAGE_RADIUS))
             },
         )
     }

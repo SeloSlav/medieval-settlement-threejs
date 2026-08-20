@@ -5,6 +5,8 @@ import {
   foodCategory,
   foodCategoryQualifyingStock,
   foodMealValue,
+  foodDietGroupCount,
+  presentFoodDietGroups,
   foodSpoilageMultiplier,
   foodVarietyCount,
   edibleFoodStock,
@@ -46,7 +48,7 @@ assert.equal(foodMealValue('honey'), 1.2);
 assert.equal(foodMealValue('apples'), 0.6);
 assert.equal(foodSpoilageMultiplier('honey'), 0);
 assert.ok(foodSpoilageMultiplier('milk') > foodSpoilageMultiplier('apples'));
-assert.equal(NAMED_FOOD_KINDS.length, 18);
+assert.equal(NAMED_FOOD_KINDS.length, 17);
 assert.equal(foodCategory('apples'), 'fruits');
 assert.equal(foodCategory('cherries'), 'fruits');
 assert.equal(foodCategory('vegetables'), 'vegetables');
@@ -73,6 +75,21 @@ assert.equal(
   foodVarietyCount({ milk: 0.63, cheese: 0.5 }, 1),
   1,
   'close substitutes may combine to qualify their one shared category',
+);
+assert.equal(
+  foodDietGroupCount({ ryeBread: 2, vegetables: 2, apples: 2 }, 1),
+  1,
+  'three crop and forage categories must not masquerade as a balanced tier-three diet',
+);
+assert.deepEqual(
+  presentFoodDietGroups({ ryeBread: 2, meat: 2, fish: 2 }, 1),
+  ['cropsAndForage', 'animalFoods', 'fish'],
+  'tier-three balance requires crops/forage, animal foods, and fish',
+);
+assert.equal(
+  foodDietGroupCount({ milk: 2, cheese: 2, meat: 2 }, 1),
+  1,
+  'animal produce and meat remain one broad diet group',
 );
 assert.deepEqual(
   Object.fromEntries(MARKET_COMMODITIES.map((offer) => [offer.id, offer.resourceKind])),

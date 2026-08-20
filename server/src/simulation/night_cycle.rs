@@ -121,7 +121,7 @@ fn complete_night_for_owner(
 
         let meal_due = EVENING_MEAL_PER_PERSON * residence.population as f64;
         let fresh_used = withdraw_residence_fresh_food(&mut current, meal_due);
-        let preserved_used = if fresh_used + 1e-6 < meal_due && residence.tier >= 3 {
+        let preserved_used = if fresh_used + 1e-6 < meal_due && residence.tier >= 4 {
             withdraw_residence_preserved_food(&mut current, meal_due - fresh_used)
         } else {
             0.0

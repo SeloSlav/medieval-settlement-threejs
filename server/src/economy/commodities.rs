@@ -172,6 +172,32 @@ impl FoodCategory {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[repr(u8)]
+pub enum FoodDietGroup {
+    CropsAndForage = 0,
+    AnimalFoods = 1,
+    Fish = 2,
+}
+
+impl FoodDietGroup {
+    pub fn bit(self) -> u8 {
+        1 << self as u8
+    }
+}
+
+pub fn food_diet_group(category: FoodCategory) -> FoodDietGroup {
+    match category {
+        FoodCategory::Grains
+        | FoodCategory::Vegetables
+        | FoodCategory::Fruits
+        | FoodCategory::Foraged
+        | FoodCategory::Honey => FoodDietGroup::CropsAndForage,
+        FoodCategory::AnimalProduce | FoodCategory::Meats => FoodDietGroup::AnimalFoods,
+        FoodCategory::Fishes => FoodDietGroup::Fish,
+    }
+}
+
 pub fn food_category(kind: CommodityKind) -> Option<FoodCategory> {
     match kind {
         CommodityKind::Food
@@ -896,6 +922,21 @@ pub fn residence_food_variety_count(residence: &Residence) -> u8 {
     residence_food_category_mask(residence).count_ones() as u8
 }
 
+pub fn residence_food_diet_group_mask(residence: &Residence) -> u8 {
+    let categories = residence_food_category_mask(residence);
+    FoodCategory::ALL.into_iter().fold(0_u8, |mask, category| {
+        if categories & category.bit() == 0 {
+            mask
+        } else {
+            mask | food_diet_group(category).bit()
+        }
+    })
+}
+
+pub fn residence_food_diet_group_count(residence: &Residence) -> u8 {
+    residence_food_diet_group_mask(residence).count_ones() as u8
+}
+
 pub fn withdraw_residence_commodity(
     residence: &mut Residence,
     kind: CommodityKind,
@@ -1016,7 +1057,7 @@ mod tests {
     #[test]
     fn commodity_ids_remain_stable_and_round_trip() {
         for id in 0_u8..=56 {
-            if matches!(id, 4 | 5 | 27 | 50 | 53) {
+            if matches!(id, 4 | 5 | 27 | 38 | 50 | 53) {
                 assert_eq!(CommodityKind::from_u8(id), None);
             } else {
                 let commodity = CommodityKind::from_u8(id)

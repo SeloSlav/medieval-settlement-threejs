@@ -86,7 +86,7 @@ depend on the order below.
 | `hud-resources-core.png` | timber, stone, firewood / water, food, gold / population, housing, labor |
 | `hud-resources-goods-a.png` | grain, barley, malt / flour, ale, preserved food / honey, wine, wool |
 | `hud-resources-goods-b.png` | flax, cloth / ironwork, polearms |
-| `hud-resources-foods.png` | bread, meat, fish, berries / mushrooms, milk, apples, cherries / vegetables, eggs, grapes, porridge / cured meat, smoked fish, cheese, honey |
+| `hud-resources-foods.png` | bread, meat, fish, berries / mushrooms, milk, apples, cherries / vegetables, eggs, grapes, unused / cured meat, smoked fish, cheese, honey |
 
 The generation sources used a flat magenta removal key. Only alpha-matted
 atlases ship with the game.

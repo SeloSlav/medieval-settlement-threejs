@@ -61,6 +61,7 @@ const BUILDING_LABOR_SECTORS: Record<BuildingKind, LaborSector> = {
   foragers_shed: 'provisions',
   fishing_camp: 'provisions',
   chapel: 'civic',
+  wayside_shrine: 'civic',
   marketplace: 'logistics',
   trading_post: 'logistics',
   town_hall: 'civic',

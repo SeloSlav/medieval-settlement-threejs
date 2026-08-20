@@ -148,8 +148,6 @@ assert.equal(welfare.remedyDemandPerDay, 3 * HERB_TREATMENT_PER_SICK_DAY);
 assert.ok(Math.abs(welfare.remedyRunwayDays - 3 / (3 * HERB_TREATMENT_PER_SICK_DAY)) < 1e-9);
 assert.equal(welfare.serviceWarningHouseholds, 1);
 assert.equal(welfare.upgradeBlockedHouseholds, 1);
-assert.ok(welfare.serviceEconomicOutputMultiplier < 1);
-assert.ok(welfare.serviceEconomicOutputMultiplier > 0.9);
 assert.equal(welfare.totalDeaths, 3);
 assert.equal(welfare.waitingBodies, 1);
 assert.equal(welfare.outboundEmptyCarts, 1);

@@ -98,7 +98,6 @@ export function renderBackyardInspector(
     {
       seasonalMultiplier,
       taxCollectionMultiplier,
-      serviceMultiplier: service.economicMultiplier,
       tier: residence.tier,
       currentFoodStock: foodStock,
     },

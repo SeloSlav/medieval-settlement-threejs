@@ -14,7 +14,7 @@ import {
 } from '../src/generated/gameBalance.ts';
 import {
   computeSettlementProsperityPlan,
-  projectTierThreeUpgrade,
+  projectTierFourUpgrade,
 } from '../src/economy/settlementProsperity.ts';
 
 const workdaySeconds = CALENDAR_SECONDS_PER_DAY
@@ -29,7 +29,8 @@ const clothPerResident = RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workdaySeconds;
 const potteryPerResident = RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workdaySeconds;
 
 const production = {
-  tierThreeResidents: 50,
+  tierTwoPlusResidents: 50,
+  tierFourResidents: 50,
   preservedFoodOutputPerDay: preservedPerResident * 80,
   preservedFoodDemandPerDay: preservedPerResident * 50,
   aleOutputPerDay: alePerResident * 120,
@@ -48,7 +49,7 @@ const growth = {
 const plan = computeSettlementProsperityPlan(production, growth);
 assert.equal(plan.roadPlan, null);
 assert.equal(plan.currentResidents, 50);
-assert.equal(plan.existingTierThreeVacancies, 20);
+assert.equal(plan.existingTierFourVacancies, 20);
 assert.equal(plan.existingFullResidents, 70);
 assert.equal(plan.installedResidentCapacity, 80);
 assert.equal(plan.currentHeadroomResidents, 30);
@@ -62,7 +63,7 @@ approx(
   120,
 );
 
-const promotion = projectTierThreeUpgrade(
+const promotion = projectTierFourUpgrade(
   plan,
   { population: 6, abandoned: false },
   10,
@@ -83,7 +84,7 @@ const immediateShortfall = computeSettlementProsperityPlan({
   ...production,
   preservedFoodOutputPerDay: preservedPerResident * 55,
 });
-const riskyPromotion = projectTierThreeUpgrade(
+const riskyPromotion = projectTierFourUpgrade(
   immediateShortfall,
   { population: 6, abandoned: false },
   10,
@@ -92,7 +93,8 @@ assert.equal(riskyPromotion.immediateSustainable, false);
 assert.equal(riskyPromotion.immediateHeadroomResidents, -1);
 
 const noIndustry = computeSettlementProsperityPlan({
-  tierThreeResidents: 0,
+  tierTwoPlusResidents: 0,
+  tierFourResidents: 0,
   preservedFoodOutputPerDay: Number.NaN,
   preservedFoodDemandPerDay: 0,
   aleOutputPerDay: 0,
@@ -106,7 +108,8 @@ assert.equal(noIndustry.installedResidentCapacity, 0);
 assert.equal(noIndustry.currentSustainable, true);
 
 const roadProduction = {
-  tierThreeResidents: 10,
+  tierTwoPlusResidents: 10,
+  tierFourResidents: 10,
   preservedFoodOutputPerDay: preservedPerResident * 100,
   preservedFoodDemandPerDay: preservedPerResident * 10,
   aleOutputPerDay: alePerResident * 100,
@@ -193,7 +196,8 @@ assert.equal(joinedSpecialties.currentSustainable, true);
 
 const balancedSatelliteProduction = {
   ...roadProduction,
-  tierThreeResidents: 20,
+  tierTwoPlusResidents: 20,
+  tierFourResidents: 20,
   preservedFoodDemandPerDay: preservedPerResident * 20,
   aleDemandPerDay: alePerResident * 20,
   clothDemandPerDay: clothPerResident * 20,
@@ -250,7 +254,7 @@ const localPromotionPlan = computeSettlementProsperityPlan({
     }],
   ]),
 });
-const localPromotion = projectTierThreeUpgrade(
+const localPromotion = projectTierFourUpgrade(
   localPromotionPlan,
   { population: 6, abandoned: false },
   10,
@@ -263,7 +267,7 @@ assert.equal(localPromotion.immediateHeadroomResidents, -1);
 assert.equal(localPromotion.fullPipelineSustainable, false);
 assert.equal(localPromotion.limitingLabel, 'preserved food');
 assert.equal(
-  projectTierThreeUpgrade(
+  projectTierFourUpgrade(
     localPromotionPlan,
     { population: 6, abandoned: false },
     10,
@@ -271,7 +275,7 @@ assert.equal(
   true,
   'the legacy aggregate projection demonstrates the disconnected false positive',
 );
-const roadlessPromotion = projectTierThreeUpgrade(
+const roadlessPromotion = projectTierFourUpgrade(
   localPromotionPlan,
   { population: 1, abandoned: false },
   10,
@@ -307,7 +311,8 @@ for (let index = 0; index < 100_000; index += 1) {
 }
 const roadStarted = performance.now();
 const largeRoadPlan = computeSettlementProsperityPlan({
-  tierThreeResidents: 100_000,
+  tierTwoPlusResidents: 100_000,
+  tierFourResidents: 100_000,
   preservedFoodOutputPerDay: preservedPerResident * 100_000,
   preservedFoodDemandPerDay: preservedPerResident * 100_000,
   aleOutputPerDay: alePerResident * 100_000,

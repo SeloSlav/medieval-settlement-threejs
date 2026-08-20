@@ -68,6 +68,7 @@ const OCCUPATIONS: Record<BuildingKind, string> = {
   foragers_shed: 'Forager',
   fishing_camp: 'Fisher',
   chapel: 'Parish worker',
+  wayside_shrine: 'Villager',
   marketplace: 'Market stallholder',
     trading_post: 'Trading Post hauler',
   town_hall: 'Civic clerk',

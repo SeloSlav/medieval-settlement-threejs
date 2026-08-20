@@ -27,8 +27,8 @@ impl ResidenceNeedKind {
     pub fn is_active_for_tier(self, tier: u8) -> bool {
         match self {
             Self::Food | Self::Firewood | Self::Water | Self::Church => tier >= 1,
-            Self::FoodVariety | Self::Cloth => tier >= 2,
-            Self::PreservedFood | Self::Ale | Self::Pottery => tier >= 3,
+            Self::FoodVariety | Self::Cloth | Self::Ale => tier >= 2,
+            Self::PreservedFood | Self::Pottery => tier >= 4,
         }
     }
 
@@ -77,7 +77,7 @@ mod tests {
     use super::ResidenceNeedKind;
 
     #[test]
-    fn needs_form_a_three_step_progression() {
+    fn needs_form_a_four_step_progression() {
         let active_count = |tier| {
             ResidenceNeedKind::ALL
                 .into_iter()
@@ -87,12 +87,16 @@ mod tests {
 
         assert_eq!(active_count(0), 0);
         assert_eq!(active_count(1), 4);
-        assert_eq!(active_count(2), 6);
-        assert_eq!(active_count(3), 9);
+        assert_eq!(active_count(2), 7);
+        assert_eq!(active_count(3), 7);
+        assert_eq!(active_count(4), 9);
         assert!(ResidenceNeedKind::Food.is_active_for_tier(1));
         assert!(ResidenceNeedKind::Firewood.is_active_for_tier(1));
         assert!(ResidenceNeedKind::Cloth.is_active_for_tier(2));
+        assert!(ResidenceNeedKind::Ale.is_active_for_tier(2));
         assert!(!ResidenceNeedKind::PreservedFood.is_active_for_tier(2));
+        assert!(!ResidenceNeedKind::Pottery.is_active_for_tier(3));
+        assert!(ResidenceNeedKind::Pottery.is_active_for_tier(4));
         assert_eq!(ResidenceNeedKind::Cloth.as_u8(), 14);
         assert_eq!(ResidenceNeedKind::Pottery.as_u8(), 23);
     }

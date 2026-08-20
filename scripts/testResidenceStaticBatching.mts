@@ -23,10 +23,10 @@ type Snapshot = {
   tangents: string[];
 };
 
-for (let tier = 1; tier <= 3; tier += 1) {
+for (let tier = 1; tier <= 4; tier += 1) {
   for (const tiledRoof of [false, true]) {
     for (const seed of [7, 113, 991]) {
-      const home = createResidenceMesh(seed, tier as 1 | 2 | 3, tiledRoof);
+      const home = createResidenceMesh(seed, tier as 1 | 2 | 3 | 4, tiledRoof);
       home.position.set(seed * 0.003, tier * 0.07, -seed * 0.002);
       home.rotation.set(0.02, seed * 0.001, -0.015);
       const windowMaterial = home.userData.windowMaterial as THREE.MeshStandardMaterial;
@@ -112,7 +112,7 @@ let denseBeforeBytes = 0;
 let trackedHome: THREE.Group | null = null;
 const denseHomes: THREE.Group[] = [];
 for (let index = 0; index < 100; index += 1) {
-  const tier = (index % 3 + 1) as 1 | 2 | 3;
+  const tier = (index % 4 + 1) as 1 | 2 | 3 | 4;
   const home = createResidenceMesh(index * 97 + 13, tier, index % 2 === 0);
   home.position.set((index % 10) * 12, 0, Math.floor(index / 10) * 13);
   home.rotation.y = (index % 8) * Math.PI * 0.0625;

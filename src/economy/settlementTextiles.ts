@@ -136,7 +136,7 @@ type TextileProduction = Pick<
   'clothWoolPerDay' | 'clothOutputPerDay' | 'clothDemandPerDay'
 > & Partial<Pick<
   SettlementProductionCapacity,
-  'tierThreeResidents' | 'prosperityRoadBranches'
+  'tierTwoPlusResidents' | 'prosperityRoadBranches'
 >>;
 
 const ATTENTION_PRIORITY: Record<TextileAttentionKind, number> = {
@@ -178,12 +178,13 @@ function textileRoadBranch(
     annualWeaverClothCapacity,
     annualClothPotential: 0,
     annualHouseholdClothDemand:
-      positive(source?.currentResidents) * annualDemandPerResident,
+      positive(source?.tierTwoPlusResidents ?? source?.currentResidents)
+      * annualDemandPerResident,
     coveredHouseholdClothDemand: 0,
     annualHouseholdClothShortfall: 0,
     annualExportableClothSurplus: 0,
     currentHouseholdClothDemandPerDay:
-      positive(source?.currentResidents)
+      positive(source?.tierTwoPlusResidents ?? source?.currentResidents)
       * annualDemandPerResident
       / TEXTILE_PLAN_DAYS_PER_YEAR,
     householdClothStock: 0,
@@ -194,7 +195,7 @@ function textileRoadBranch(
     hasStockedSupplier: false,
     firstWoolBuildingId: null,
     firstFlaxBuildingId: null,
-    firstResidenceId: source?.firstResidenceId ?? null,
+    firstResidenceId: source?.firstClothResidenceId ?? source?.firstResidenceId ?? null,
   };
   branches.set(key, branch);
   return branch;
@@ -204,10 +205,10 @@ function createTextileRoadBranches(
   production: TextileProduction,
 ): Map<string, SettlementTextileRoadBranch> | null {
   if (production.prosperityRoadBranches == null) return null;
-  const annualDemandPerResident = positive(production.tierThreeResidents) > 1e-9
+  const annualDemandPerResident = positive(production.tierTwoPlusResidents) > 1e-9
     ? positive(production.clothDemandPerDay)
       * TEXTILE_PLAN_DAYS_PER_YEAR
-      / positive(production.tierThreeResidents)
+      / positive(production.tierTwoPlusResidents)
     : 0;
   const branches = new Map<string, SettlementTextileRoadBranch>();
   for (const [key, source] of production.prosperityRoadBranches) {
@@ -666,7 +667,7 @@ export function computeSettlementTextilePlan(input: {
   for (const residence of input.state.residences.values()) {
     const residenceCloth = positive(getNeedStock(residence.needs, 'cloth'));
     clothStock += residenceCloth;
-    if (!residence.abandoned && residence.population > 0 && residence.tier >= 3) {
+    if (!residence.abandoned && residence.population > 0 && residence.tier >= 2) {
       if (fireDisabledResidences.has(residence.id)) {
         fireDisabledProsperousHomes += 1;
         fireQuarantinedClothStock += residenceCloth;
@@ -709,7 +710,7 @@ export function computeSettlementTextilePlan(input: {
         residence
         && !residence.abandoned
         && residence.population > 0
-        && residence.tier >= 3
+        && residence.tier >= 2
       ) {
         if (fireDisabledResidences.has(residence.id)) {
           fireQuarantinedClothStock += tripCloth;

@@ -16,9 +16,8 @@ assert.ok(balance.coldExposureWarningDays < balance.coldExposureDeathStartDays);
 assert.ok(balance.coldExposureDeathChancePerPersonDay > 0);
 assert.ok(balance.coldExposureDeathMaxChancePerPersonDay > balance.coldExposureDeathChancePerPersonDay);
 assert.ok(balance.residenceServiceWarningDays < balance.residenceUpgradeServiceBlockDays);
-assert.ok(balance.residenceUpgradeServiceBlockDays < balance.residenceServiceMaxPenaltyDays);
-assert.ok(balance.residenceServiceMinEconomicMultiplier > 0);
-assert.ok(balance.residenceServiceMinEconomicMultiplier < 1);
+assert.equal('residenceServiceMaxPenaltyDays' in balance, false);
+assert.equal('residenceServiceMinEconomicMultiplier' in balance, false);
 assert.ok(balance.graveyardMinArea > 0);
 assert.ok(balance.graveAreaPerBurial > 0);
 assert.ok(balance.coldExposureIllnessMultiplier > 0);
@@ -58,6 +57,10 @@ for (const token of [
 assert.ok(
   !needs.includes('comfort_migration_due') && !needs.includes('step_residence_decay'),
   'need shortages must not remove residents or decay empty homes',
+);
+assert.ok(
+  !read('server/src/simulation/backyard_garden.rs').includes('service_economic_multiplier'),
+  'need shortages must not reduce household work or taxable market activity',
 );
 
 const clientNeeds = read('src/residences/residenceNeeds.ts');

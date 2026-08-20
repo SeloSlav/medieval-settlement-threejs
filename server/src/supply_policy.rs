@@ -76,7 +76,6 @@ pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
     "smithy",
     "potter_kiln",
     "pastoral_farmstead",
-    "monastery",
     "vineyard",
     "threshing_barn",
     "guardhouse",
@@ -301,11 +300,11 @@ pub fn is_food_supplier_operational(
 }
 
 pub fn is_specialty_supplier_operational(
-    kind: &str,
+    _kind: &str,
     construction_complete: bool,
     assigned_labor: u32,
 ) -> bool {
-    construction_complete && (kind == "monastery" || assigned_labor > 0)
+    construction_complete && assigned_labor > 0
 }
 
 /// Food kept at a routine supplier before an institution may collect surplus.
@@ -1153,7 +1152,6 @@ mod tests {
                 "smithy",
                 "potter_kiln",
                 "pastoral_farmstead",
-                "monastery",
                 "vineyard",
                 "threshing_barn",
                 "guardhouse",
@@ -1626,8 +1624,8 @@ mod tests {
     }
 
     #[test]
-    fn monastery_is_the_only_autonomous_specialty_supplier() {
-        assert!(is_specialty_supplier_operational("monastery", true, 0));
+    fn specialty_suppliers_require_staff() {
+        assert!(!is_specialty_supplier_operational("monastery", true, 0));
         assert!(!is_specialty_supplier_operational("brewery", true, 0));
         assert!(is_specialty_supplier_operational("smokehouse", true, 1));
     }

@@ -115,8 +115,8 @@ assert.match(chapelUpgrades, /CHAPEL_TIER3_UPGRADE_ROOF_TILES/);
 const residenceReducer = read('server/src/reducers/residences.rs');
 assert.match(
   residenceReducer,
-  /if residence\.tier < 3[\s\S]*Only a prosperous tier-3 house can support a fired-tile roof/,
-  'roof-tile residence retrofits must remain exclusive to tier-3 houses',
+  /if residence\.tier < 4[\s\S]*Fired-tile roofs are part of tier 4 construction/,
+  'legacy roof-tile retrofits must remain exclusive to tier-4 houses',
 );
 
 console.log('Roof-tile construction tests passed.');

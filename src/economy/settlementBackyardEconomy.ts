@@ -30,7 +30,6 @@ import {
 import {
   backyardGardenEconomyPerDay,
 } from './villageProjections.ts';
-import { residenceServiceState } from './residenceSatisfaction.ts';
 import { edibleFoodStock } from './foodInventory.ts';
 import {
   assignMarketplaceStallRoster,
@@ -87,8 +86,6 @@ export type SettlementBackyardEconomyPlan = {
   currentDayHouseholdIncome: number;
   currentDayStorableHouseholdIncome: number;
   wealthCappedGardens: number;
-  servicePressuredGardens: number;
-  currentDayServiceLostActivity: number;
   horizonSelfFood: number;
   horizonMarketFood: number;
   horizonPotentialActivity: number;
@@ -336,8 +333,6 @@ export function computeSettlementBackyardEconomyPlan(input: {
   let currentDayHouseholdIncome = 0;
   let currentDayStorableHouseholdIncome = 0;
   let wealthCappedGardens = 0;
-  let servicePressuredGardens = 0;
-  let currentDayServiceLostActivity = 0;
   let horizonSelfFood = 0;
   let horizonMarketFood = 0;
   let horizonPotentialActivity = 0;
@@ -366,8 +361,6 @@ export function computeSettlementBackyardEconomyPlan(input: {
       continue;
     }
     occupiedGardens += 1;
-    const service = residenceServiceState(residence);
-    if (service.warning) servicePressuredGardens += 1;
     const kindPlan = byKind[garden.kind];
     kindPlan.gardens += 1;
     kindPlan.population += residence.population;
@@ -426,7 +419,6 @@ export function computeSettlementBackyardEconomyPlan(input: {
             seasonalMultiplier: currentMultiplier,
             hasMarketAccess: marketLinked,
             taxCollectionMultiplier: input.taxCollectionMultiplier,
-            serviceMultiplier: service.economicMultiplier,
             tier: residence.tier,
             currentFoodStock: edibleFoodStock(residence),
           },
@@ -436,12 +428,6 @@ export function computeSettlementBackyardEconomyPlan(input: {
     currentDayPotentialActivity += potentialToday.activity;
     currentDayRoutedActivity += actualToday.activity;
     if (!marketLinked) currentDayStrandedActivity += potentialToday.activity;
-    if (marketLinked) {
-      currentDayServiceLostActivity += Math.max(
-        0,
-        potentialToday.activity - actualToday.activity,
-      );
-    }
     currentDayAssessedTax += actualToday.assessedTax;
     currentDayCollectedTax += actualToday.tax;
     currentDayHouseholdIncome += actualToday.net;
@@ -475,7 +461,6 @@ export function computeSettlementBackyardEconomyPlan(input: {
             seasonalMultiplier: futureMultipliers[garden.kind],
             hasMarketAccess: marketLinked,
             taxCollectionMultiplier: input.taxCollectionMultiplier,
-            serviceMultiplier: service.economicMultiplier,
             tier: residence.tier,
             currentFoodStock: edibleFoodStock(residence),
           },
@@ -541,8 +526,6 @@ export function computeSettlementBackyardEconomyPlan(input: {
     currentDayHouseholdIncome,
     currentDayStorableHouseholdIncome,
     wealthCappedGardens,
-    servicePressuredGardens,
-    currentDayServiceLostActivity,
     horizonSelfFood,
     horizonMarketFood,
     horizonPotentialActivity,

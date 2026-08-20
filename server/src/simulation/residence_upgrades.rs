@@ -7,7 +7,7 @@ use spacetimedb::ReducerContext;
 
 use crate::balance_generated::{
     BackyardGardenKind, CONSTRUCTION_WORK_PER_WORKER_PER_SEC, RESIDENCE_TIER2_CAPACITY,
-    RESIDENCE_TIER3_CAPACITY, TICK_DT,
+    RESIDENCE_TIER3_CAPACITY, RESIDENCE_TIER4_CAPACITY, TICK_DT,
 };
 use crate::construction_priority::{
     construction_priority_bucket, CONSTRUCTION_PRIORITY_HOLD, CONSTRUCTION_PRIORITY_LEVELS,
@@ -371,6 +371,9 @@ fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
     if residence.fire_repair_active {
         clear_fire_for_target(ctx, FIRE_TARGET_RESIDENCE, residence.id);
         residence.abandoned = false;
+        if residence.tier >= 4 {
+            residence.tiled_roof = true;
+        }
         residence.condition = 0;
         residence.vacancy_ticks = 0;
         residence.settlement_ticks = 0;
@@ -399,12 +402,16 @@ fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
         return false;
     }
 
-    residence.tier = residence.upgrade_target_tier.min(3);
+    residence.tier = residence.upgrade_target_tier.min(4);
     residence.population_capacity = match residence.tier {
         2 => RESIDENCE_TIER2_CAPACITY,
         3 => RESIDENCE_TIER3_CAPACITY,
+        4 => RESIDENCE_TIER4_CAPACITY,
         _ => residence.population_capacity,
     };
+    if residence.tier >= 4 {
+        residence.tiled_roof = true;
+    }
     residence.settlement_ticks = 0;
     clear_residence_project(residence);
     true

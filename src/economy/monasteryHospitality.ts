@@ -82,19 +82,6 @@ export function monasteryFeastSurplus(
   return enabled ? Math.max(0, available - Math.max(0, reserve)) : available;
 }
 
-export function monasteryFeastRefillShortfall(
-  stock: number,
-  inbound: number,
-  reserve: number,
-  enabled: boolean,
-): number {
-  if (!enabled) return 0;
-  return Math.max(
-    0,
-    Math.max(0, reserve) - finiteStock(stock) - finiteStock(inbound),
-  );
-}
-
 export function monasteryHospitalityRunwayDays(
   stock: number,
   dailyUse: number,

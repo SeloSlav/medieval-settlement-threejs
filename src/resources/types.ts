@@ -353,8 +353,8 @@ export type ResidenceState = {
   yaw: number;
   population: number;
   populationCapacity: number;
-  /** Tier zero is a physical cottage worksite; completed homes use tiers 1-3. */
-  tier: 0 | 1 | 2 | 3;
+  /** Tier zero is a physical cottage worksite; completed homes use tiers 1-4. */
+  tier: 0 | 1 | 2 | 3 | 4;
   settlementTicks: number;
   needs: ResidenceNeedsState;
   /** Physical household pantry. `needs.food` is only the derived meal total. */
@@ -386,7 +386,7 @@ export type ResidenceState = {
   /** Day marker for the latest safe optional purchase. */
   lastDiscretionaryMarketDay?: number;
   /** Target tier while physical household improvement works are active. */
-  upgradeTargetTier?: 0 | 1 | 2 | 3;
+  upgradeTargetTier?: 0 | 1 | 2 | 3 | 4;
   upgradeProgress?: number;
   upgradeRequiredTimber?: number;
   upgradeRequiredStone?: number;

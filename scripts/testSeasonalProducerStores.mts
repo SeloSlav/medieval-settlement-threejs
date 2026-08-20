@@ -197,8 +197,8 @@ assert.match(
 );
 assert.match(
   serverSimulation,
-  /apiary_honey_reserve[\s\S]*dispatch_monastery_hospitality_limited[\s\S]*dispatch_to_building_where_limited/,
-  'the selected hive reserve must be protected from hospitality and export dispatch',
+  /apiary_honey_reserve[\s\S]*?&\["brewery"\][\s\S]*?&\["marketplace"\][\s\S]*?&\["trading_post"\]/,
+  'the selected hive reserve must be protected from town processing and export dispatch',
 );
 assert.match(
   serverSimulation,

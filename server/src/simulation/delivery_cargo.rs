@@ -5,7 +5,8 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::CHARCOAL_HOUSEHOLD_FUEL_VALUE;
 use crate::economy::{
     building_commodity_stock, building_edible_food_stock, building_preserved_food_stock,
-    food_category, residence_food_category_mask, residence_fresh_food_stock,
+    food_category, food_diet_group, residence_food_category_mask,
+    residence_food_diet_group_mask, residence_fresh_food_stock,
     residence_preserved_food_stock, withdraw_building, withdraw_building_commodity,
     withdraw_building_water, CommodityKind,
 };
@@ -293,12 +294,22 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::Honey,
     ];
     let present = residence_food_category_mask(residence);
+    let present_groups = residence_food_diet_group_mask(residence);
+    let missing_required_group = residence.tier >= 3;
     ORDER
         .into_iter()
         .find(|commodity| {
+            missing_required_group
+                && building_commodity_stock(building, *commodity) > 1e-6
+                && food_category(*commodity).is_some_and(|category| {
+                    present_groups & food_diet_group(category).bit() == 0
+                })
+        })
+        .or_else(|| ORDER.into_iter()
+        .find(|commodity| {
             building_commodity_stock(building, *commodity) > 1e-6
                 && food_category(*commodity).is_some_and(|category| present & category.bit() == 0)
-        })
+        }))
         .or_else(|| selected_food_delivery_commodity(building, need_kind))
 }
 

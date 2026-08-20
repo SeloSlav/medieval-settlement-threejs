@@ -9,6 +9,9 @@ import {
   RESIDENCE_TIER2_TIMBER_COST,
   RESIDENCE_TIER3_STONE_COST,
   RESIDENCE_TIER3_TIMBER_COST,
+  RESIDENCE_TIER4_STONE_COST,
+  RESIDENCE_TIER4_TIMBER_COST,
+  RESIDENCE_TILE_ROOF_TILE_COST,
   RESIDENCE_TIMBER_COST,
   SIM_TICK_SECONDS,
   type BuildingResourceCost,
@@ -122,7 +125,15 @@ export function residenceStructuralCost(
     timber += RESIDENCE_TIER3_TIMBER_COST;
     stone += RESIDENCE_TIER3_STONE_COST;
   }
-  return { timber, stone };
+  if (tier >= 4) {
+    timber += RESIDENCE_TIER4_TIMBER_COST;
+    stone += RESIDENCE_TIER4_STONE_COST;
+  }
+  return {
+    timber,
+    stone,
+    roofTiles: tier >= 4 ? RESIDENCE_TILE_ROOF_TILE_COST : 0,
+  };
 }
 
 function roundToTenth(value: number): number {

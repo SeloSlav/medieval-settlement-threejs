@@ -167,7 +167,7 @@ export function residencePreservedFoodRunwaySeconds(
   seasonalDemandMultiplier = 1,
   ambientSpoilageFractionPerDay = PRESERVED_FOOD_SPOILAGE_PER_DAY,
 ): number | null {
-  if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
+  if (residence.abandoned || residence.population === 0 || residence.tier < 4) return null;
   const stock = Math.max(
     preservedFoodStock(residence),
     residence.foodInventoryMigrated === true
@@ -204,7 +204,7 @@ export function residencePreservedFoodRunwayDays(
 }
 
 export function residenceAleRunwaySeconds(residence: ResidenceState): number | null {
-  if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
+  if (residence.abandoned || residence.population === 0 || residence.tier < 2) return null;
   const stock = getNeedStock(residence.needs, 'ale');
   const usePerSec = residence.population * RESIDENCE_ALE_PER_PERSON_PER_SEC;
   if (usePerSec <= 1e-9) return null;
@@ -218,7 +218,7 @@ export function residenceAleRunwayDays(residence: ResidenceState): number | null
 }
 
 export function residenceClothRunwaySeconds(residence: ResidenceState): number | null {
-  if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
+  if (residence.abandoned || residence.population === 0 || residence.tier < 2) return null;
   const stock = getNeedStock(residence.needs, 'cloth');
   const usePerSec = residence.population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC;
   if (usePerSec <= 1e-9) return null;
@@ -232,7 +232,7 @@ export function residenceClothRunwayDays(residence: ResidenceState): number | nu
 }
 
 export function residencePotteryRunwaySeconds(residence: ResidenceState): number | null {
-  if (residence.abandoned || residence.population === 0 || residence.tier < 3) return null;
+  if (residence.abandoned || residence.population === 0 || residence.tier < 4) return null;
   const stock = getNeedStock(residence.needs, 'pottery');
   const usePerSec = residence.population * RESIDENCE_POTTERY_PER_PERSON_PER_SEC;
   if (usePerSec <= 1e-9) return null;
@@ -281,7 +281,7 @@ export function peekNextSpecialtyDeliveryTarget(
   const eligible = residences.filter((residence) =>
     !residence.abandoned
     && residence.population > 0
-    && residence.tier >= 3
+    && residence.tier >= specialtyNeedMinimumTier(needKind)
     && getNeedStock(residence.needs, needKind) + 1e-6 < capacity);
   const distances = localDeliveryDistancesFrom(network, supplier.x, supplier.z, eligible);
   let bestIndex = -1;
@@ -311,6 +311,10 @@ export function peekNextSpecialtyDeliveryTarget(
     }
   }
   return bestIndex < 0 ? null : eligible[bestIndex];
+}
+
+function specialtyNeedMinimumTier(needKind: SpecialtyNeedKind): 2 | 4 {
+  return needKind === 'ale' || needKind === 'cloth' ? 2 : 4;
 }
 
 function supplierKindsForNeed(needKind: SpecialtyNeedKind): readonly BuildingKind[] {

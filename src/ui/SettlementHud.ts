@@ -1278,8 +1278,8 @@ export class SettlementHud {
         ? `${welfare.occupiedGraves} graves are occupied, ${welfare.reservedGraves} reserved by moving carts, and ${welfare.openGraves} remain open across ${welfare.burialGrounds} grounds.`
         : 'No consecrated burial ground has been laid out.',
       welfare.serviceWarningHouseholds > 0
-        ? `${welfare.serviceWarningHouseholds} households have sustained unmet needs; ${welfare.upgradeBlockedHouseholds} cannot be promoted and taxable household output averages ${Math.round(welfare.serviceEconomicOutputMultiplier * 100)}%.`
-        : 'Household services are stable, preserving full taxable output and residence promotion.',
+        ? `${welfare.serviceWarningHouseholds} households have sustained unmet needs and ${welfare.upgradeBlockedHouseholds} cannot be promoted; household work and taxable market activity continue normally.`
+        : 'Household services are stable and residence promotion remains available.',
       `${welfare.vacantHomes} empty ${welfare.vacantHomes === 1 ? 'home remains' : 'homes remain'} permanently reusable for arriving settlers.`,
       'Open the Town Hall ledger to inspect the highest-risk household.',
     ].join(' · ');

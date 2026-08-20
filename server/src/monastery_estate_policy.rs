@@ -32,6 +32,7 @@ pub struct MonasteryEstateYields {
     pub meat: f64,
     pub honey: f64,
     pub ale: f64,
+    pub wine: f64,
     pub cheese: f64,
 }
 
@@ -168,6 +169,7 @@ pub fn monastery_estate_yields(level: u8) -> MonasteryEstateYields {
         meat: 0.16 * multiplier,
         honey: 0.22 * multiplier,
         ale: 0.32 * multiplier,
+        wine: 0.14 * multiplier,
         cheese: if level >= 1 { 0.18 * multiplier } else { 0.0 },
     }
 }

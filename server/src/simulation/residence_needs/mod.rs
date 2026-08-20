@@ -23,9 +23,9 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::{
-    building_edible_food_stock, reconcile_building_labor, residence_food_variety_count,
-    residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building_edible_food,
-    withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
+    building_edible_food_stock, reconcile_building_labor, residence_food_diet_group_count,
+    residence_food_variety_count, residence_fresh_food_stock, residence_preserved_food_stock,
+    withdraw_building_edible_food, withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
     PRESERVED_FOOD_COMMODITIES,
 };
 use crate::monastery_estate_policy::{
@@ -65,6 +65,7 @@ pub fn step_residence_needs(
     spoil_residence_food_inventory(&mut residence, environment);
     migrate_and_sync_food_inventory(&mut residence, &mut needs);
     let food_variety_count = residence_food_variety_count(&residence);
+    let food_diet_group_count = residence_food_diet_group_count(&residence);
 
     let cold_weather = environment.season == Season::Winter;
     let mut food_unmet = false;
@@ -105,8 +106,13 @@ pub fn step_residence_needs(
             }
         } else if kind == ResidenceNeedKind::FoodVariety {
             let required_variety = if residence.tier >= 3 { 3 } else { 2 };
-            need.stock = f64::from(food_variety_count);
-            if food_variety_count >= required_variety {
+            let supplied = if residence.tier >= 3 {
+                food_diet_group_count
+            } else {
+                food_variety_count
+            };
+            need.stock = f64::from(supplied);
+            if supplied >= required_variety {
                 ConsumeResult::Met(*need)
             } else {
                 ConsumeResult::Unmet
@@ -177,7 +183,7 @@ pub fn step_residence_needs(
 
     // The additive save column keeps its old name for compatibility, but it
     // now tracks any continuously unmet active household service. Shortages
-    // affect approval, market output, and promotion eligibility—not tenure.
+    // affect approval and promotion eligibility—not work output or tenure.
     residence.comfort_deficit_ticks = next_service_deficit_ticks(
         residence.comfort_deficit_ticks,
         service_unmet,
@@ -219,7 +225,7 @@ fn consume_food_with_preserved(
         preserved_stock,
         demand,
         rotation_demand,
-        residence.tier >= 3,
+        residence.tier >= 4,
     );
     withdraw_residence_food_group(residence, false, allocation.fresh_used);
     withdraw_residence_food_group(residence, true, allocation.preserved_used());

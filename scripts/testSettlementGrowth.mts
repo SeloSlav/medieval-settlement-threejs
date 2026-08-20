@@ -73,7 +73,7 @@ assert.equal(tierTwoPlan.pausedHomes, 1);
 assert.equal(tierTwoPlan.waitingOnHomes.water, 1);
 assert.equal(tierTwoPlan.waitingOnHomes.food, 0);
 
-const tierThree = residence('tier-three', 3, 6, 10);
+const tierThree = residence('tier-four', 4, 11, 15);
 for (const kind of ['food', 'firewood', 'water', 'preservedFood', 'ale', 'cloth'] as const) {
   stockToThreshold(tierThree, kind);
 }
@@ -106,8 +106,11 @@ assertNear(
 );
 assertNear(
   tierThreePlan.additionalFoodPerDay,
-  tierThreePlan.additionalGrossFoodPerDay
-    - tierThreePlan.additionalPreservedFoodPerDay,
+  Math.max(
+    0,
+    tierThreePlan.additionalGrossFoodPerDay
+      - tierThreePlan.additionalPreservedFoodPerDay,
+  ),
 );
 assertNear(
   tierThreePlan.additionalAlePerDay,
@@ -132,7 +135,7 @@ const mixedPlan = computeSettlementGrowthPlan({ state: mixedState });
 assert.equal(mixedPlan.fullHomes, 1);
 assert.equal(mixedPlan.candidateHomes, 3);
 
-const fireDisabledGrowthHome = residence('fire-growth-home', 3, 6, 10);
+const fireDisabledGrowthHome = residence('fire-growth-home', 4, 11, 15);
 for (const kind of ['food', 'firewood', 'water', 'preservedFood', 'ale', 'cloth'] as const) {
   stockToThreshold(fireDisabledGrowthHome, kind);
 }
@@ -151,8 +154,8 @@ assert.equal(fireDisabledGrowthPlan.candidateHomes, 0);
 assert.equal(fireDisabledGrowthPlan.progressingHomes, 0);
 assert.equal(fireDisabledGrowthPlan.nextArrivalSeconds, null);
 assert.equal(fireDisabledGrowthPlan.fireDisabledHomes, 1);
-assert.equal(fireDisabledGrowthPlan.fireDisabledResidents, 6);
-assert.equal(fireDisabledGrowthPlan.fireDisabledHousingCapacity, 10);
+assert.equal(fireDisabledGrowthPlan.fireDisabledResidents, 11);
+assert.equal(fireDisabledGrowthPlan.fireDisabledHousingCapacity, 15);
 assert.equal(fireDisabledGrowthPlan.fireDisabledVacantSlots, 4);
 assert.equal(fireDisabledGrowthPlan.additionalGrossFoodPerDay, 0);
 assert.equal(fireDisabledGrowthPlan.additionalFoodPerDay, 0);
@@ -242,7 +245,7 @@ function stateWith(...residences: ResidenceState[]): { residences: Map<string, R
 
 function residence(
   id: string,
-  tier: 1 | 2 | 3,
+  tier: 1 | 2 | 3 | 4,
   population: number,
   populationCapacity: number,
   settlementTicks = 0,

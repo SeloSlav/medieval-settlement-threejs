@@ -40,6 +40,7 @@ assert.equal(monasteryEstateNextInvestmentCost(3), null);
 assert.ok(monasteryEstateYields(3).apples > monasteryEstateYields(0).apples);
 assert.equal(monasteryEstateYields(0).cheese, 0);
 assert.ok(monasteryEstateYields(1).cheese > 0);
+assert.ok(monasteryEstateYields(0).wine > 0);
 assert.equal(monasteryInfirmaryBeds(0), 4);
 assert.equal(monasteryInfirmaryBeds(3), 10);
 assert.ok(monasteryInfirmaryRecoveryMultiplier(3) > monasteryInfirmaryRecoveryMultiplier(0));
@@ -88,6 +89,10 @@ const simulation = readFileSync(new URL('../server/src/simulation/expanded_econo
 assert.match(simulation, /fn reinvest_monastery_estate/);
 assert.match(simulation, /fn dispatch_monastery_estate_export/);
 assert.match(simulation, /CommodityKind::Apples, yields\.apples/);
+assert.match(simulation, /CommodityKind::Wine, yields\.wine/);
+assert.match(simulation, /CommodityKind::Milk, food_exportable/);
+assert.match(simulation, /CommodityKind::Wine,[\s\S]*monastery_estate_exportable\(monastery\.wine, wine_floor\)/);
+assert.match(simulation, /monastery_infirmary_beds[\s\S]*MONASTERY_INFIRMARY_FOOD_PER_BED_DAY/);
 assert.match(simulation, /start_regional_market_export_trip/);
 assert.match(simulation, /fn request_monastery_seed_archive/);
 assert.match(simulation, /"granary" \| "trading_post" \| "monastery"/);
@@ -102,5 +107,17 @@ assert.match(healthSimulation, /infirmary_recovery_multiplier/);
 
 const deliveryTrips = readFileSync(new URL('../server/src/simulation/delivery_trips.rs', import.meta.url), 'utf8');
 assert.match(deliveryTrips, /credit_monastery_export_receipt/);
+
+const marketplaceTrade = readFileSync(new URL('../server/src/economy/marketplace_trade.rs', import.meta.url), 'utf8');
+assert.match(
+  marketplaceTrade,
+  /CommodityKind::Apples[\s\S]*CommodityKind::Vegetables[\s\S]*CommodityKind::Eggs[\s\S]*CommodityKind::Milk[\s\S]*CommodityKind::Meat/,
+);
+assert.match(marketplaceTrade, /marketplace_trade_offer_for_resource/);
+assert.match(marketplaceTrade, /price_multiplier_for/);
+assert.match(marketplaceTrade, /record_market_trade[\s\S]*MarketTradeDirection::Export/);
+
+const resourceTotals = readFileSync(new URL('../src/resources/resourceTotals.ts', import.meta.url), 'utf8');
+assert.match(resourceTotals, /building\.kind === 'monastery'[\s\S]*reservedHoney[\s\S]*reservedCheese/);
 
 console.log('monastery estate tests passed');
