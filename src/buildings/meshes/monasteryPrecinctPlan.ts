@@ -26,7 +26,7 @@ export type MonasteryPlanRect = Readonly<{
 }>;
 
 export type MonasteryCoreModule = Readonly<{
-  id: 'church-range' | 'scriptorium-wing' | 'infirmary-wing' | 'cloister-court';
+  id: 'church-range' | 'scriptorium-wing' | 'infirmary-wing' | 'guesthouse-wing' | 'cloister-court';
   centerX: number;
   centerZ: number;
   width: number;
@@ -155,6 +155,7 @@ export function createMonasteryPrecinctPlan(rawLevel: number): MonasteryPrecinct
     { id: 'church-range', centerX: -2.1, centerZ: -5, width: 14.4, depth: 6.8 },
     { id: 'scriptorium-wing', centerX: -11.7, centerZ: 0.7, width: 4.8, depth: 11.4 },
     { id: 'infirmary-wing', centerX: 7.1, centerZ: 0.4, width: 5.4, depth: 10.8 },
+    { id: 'guesthouse-wing', centerX: 27, centerZ: 0.2, width: 9.4, depth: 9.8 },
     { id: 'cloister-court', centerX: -2.3, centerZ: 2.15, width: 12.8, depth: 6.1 },
   ];
 

@@ -199,7 +199,6 @@ export class WorldQueries {
   private readonly getRoadNetwork: () => RoadNetwork;
   private readonly getTreeRegistry: () => TreeRegistry | null;
   private readonly getWorldHydrology: () => number;
-  private readonly getMonasteryHospitalityEnabled: () => boolean;
 
   constructor(options: {
     terrain: Terrain;
@@ -209,7 +208,6 @@ export class WorldQueries {
     getRoadNetwork: () => RoadNetwork;
     getTreeRegistry: () => TreeRegistry | null;
     getWorldHydrology?: () => number;
-    getMonasteryHospitalityEnabled?: () => boolean;
   }) {
     this.terrain = options.terrain;
     this.riverField = options.riverField;
@@ -218,8 +216,6 @@ export class WorldQueries {
     this.getRoadNetwork = options.getRoadNetwork;
     this.getTreeRegistry = options.getTreeRegistry;
     this.getWorldHydrology = options.getWorldHydrology ?? (() => 50);
-    this.getMonasteryHospitalityEnabled =
-      options.getMonasteryHospitalityEnabled ?? (() => true);
   }
 
   getHeightAt(x: number, z: number): number {
@@ -469,13 +465,7 @@ export class WorldQueries {
   }
 
   private foodClaims(): FoodDeliveryClaimQueries {
-    const state = this.getGameState();
     const { network, buildings, residences } = this.deliverySnapshot();
-    const chapels = this.activeParishChapels(state);
-    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
-    const reserveEnabled = this.getMonasteryHospitalityEnabled();
-    const probe = (ax: number, az: number, bx: number, bz: number) =>
-      roadPathDistance(network, ax, az, bx, bz);
     return new FoodDeliveryClaimQueries(
       network,
       buildings,
@@ -962,14 +952,6 @@ export class WorldQueries {
       return null;
     }
     const network = this.getRoadNetwork();
-    const chapels = this.activeParishChapels(state);
-    const fireDisabled = fireDisabledBuildingIds(state.fireIncidents.values());
-    const reserveEnabled = this.getMonasteryHospitalityEnabled();
-    const hasParishAccess = findServingChapel(
-      residence,
-      chapels,
-      (a, b, c, d) => roadPathDistance(network, a, b, c, d),
-    ) != null;
     const findSupplier = requireStock
       ? findRoadLinkedSupplierForResidence
       : findRoadLinkedUpgradeSupplierForResidence;

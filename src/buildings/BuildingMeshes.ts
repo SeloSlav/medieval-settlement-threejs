@@ -55,7 +55,12 @@ import {
 export function createBuildingMesh(
   kind: BuildingKind,
   developmentTier?: 0 | 1 | 2 | 3,
-  monasteryPlanting?: { orchard: number; croft: number },
+  monasteryPlanting?: {
+    orchard: number;
+    croft: number;
+    extensions?: number;
+    orchardMaturity?: number;
+  },
 ): THREE.Group {
   const chapelTier = Math.max(1, developmentTier ?? 3) as 1 | 2 | 3;
   switch (kind) {
@@ -111,9 +116,10 @@ export function createBuildingMesh(
     case 'palisaded_refuge': return createPalisadedRefugeMesh();
     case 'threshing_barn': return createThreshingBarnMesh();
     case 'monastery': return createMonasteryMesh(
-      developmentTier ?? 0,
+      monasteryPlanting?.extensions ?? developmentTier ?? 0,
       monasteryPlanting?.orchard ?? 0,
       monasteryPlanting?.croft ?? 0,
+      monasteryPlanting?.orchardMaturity ?? 2,
     );
     case 'brewery': return createBreweryMesh();
     case 'tavern': return createTavernMesh();

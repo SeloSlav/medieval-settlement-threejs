@@ -26,6 +26,12 @@ import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 import { preservableFoodStock } from '../economy/foodInventory.ts';
 import { processorOutputHeadroom } from '../economy/processorOutputPolicy.ts';
 import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
+import {
+  MONASTERY_EXTENSION_GUESTHOUSE,
+  MONASTERY_EXTENSION_INFIRMARY,
+  MONASTERY_EXTENSION_SCRIPTORIUM,
+  monasteryHasExtension,
+} from '../buildings/monasteryEstate.ts';
 
 export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 
@@ -178,8 +184,9 @@ export const YARD_WORK_ACTIVITY = {
 
 const MONASTERY_WORKSTATIONS = [
   { id: 'cloister', localX: -2.3, localZ: 2.15, activity: 'tend' },
-  { id: 'scriptorium', localX: -11.7, localZ: 0.7, activity: 'tend' },
-  { id: 'infirmary', localX: 7.1, localZ: 0.4, activity: 'tend' },
+  { id: 'scriptorium', localX: -11.7, localZ: 0.7, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_SCRIPTORIUM },
+  { id: 'infirmary', localX: 7.1, localZ: 0.4, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_INFIRMARY },
+  { id: 'guesthouse', localX: 27, localZ: 0.2, activity: 'tend', requiredExtension: MONASTERY_EXTENSION_GUESTHOUSE },
   { id: 'brewhouse', localX: -17.8, localZ: -12, activity: 'tend' },
   { id: 'orchard', localX: -23, localZ: -35.25, activity: 'gather' },
   { id: 'apiary', localX: -26, localZ: -22, activity: 'gather' },
@@ -196,6 +203,7 @@ const MONASTERY_WORKSTATIONS = [
   localX: number;
   localZ: number;
   activity: WorkerActivityKind;
+  requiredExtension?: number;
 }[];
 
 export function isProductionWorkplaceKind(kind: BuildingKind): boolean {
@@ -777,6 +785,10 @@ function collectMonasteryWorkstations(
   targets: WorkerTarget[],
 ): void {
   for (const workstation of MONASTERY_WORKSTATIONS) {
+    if (
+      'requiredExtension' in workstation
+      && !monasteryHasExtension(building.monasteryExtensions, workstation.requiredExtension)
+    ) continue;
     targets.push({
       id: `${building.id}:monastery:${workstation.id}`,
       kind: 'workstation',

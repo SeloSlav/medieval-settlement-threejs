@@ -8,7 +8,7 @@ import {
   TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 } from '../../generated/gameBalance.ts';
 import { DEFAULT_PARISH_POLICY } from '../../economy/chapelParish.ts';
-import { DEFAULT_MONASTERY_POLICY } from '../../economy/monasteryPolicy.ts';
+import { DEFAULT_MONASTERY_POLICY, monasteryCharterLabel } from '../../economy/monasteryPolicy.ts';
 import {
   DEFAULT_FISCAL_POLICY,
   EXPORT_DUTY_RATE_MAX,
@@ -2366,16 +2366,16 @@ export function renderTownHallInspector(
     (sum, plan) => sum + plan.honeyPerYear,
     0,
   );
-  const hospitalityWinePerYear = hospitalityPlans.reduce(
-    (sum, plan) => sum + plan.winePerYear,
+  const hospitalityDrinkPerYear = hospitalityPlans.reduce(
+    (sum, plan) => sum + plan.drinkPerYear,
     0,
   );
   const feastFoodPerYear = hospitalityPlans.reduce(
     (sum, plan) => sum + plan.feastFoodPerYear,
     0,
   );
-  const feastAlePerYear = hospitalityPlans.reduce(
-    (sum, plan) => sum + plan.feastAlePerYear,
+  const feastDrinkPerYear = hospitalityPlans.reduce(
+    (sum, plan) => sum + plan.feastDrinkPerYear,
     0,
   );
   const feastReadyMonasteries = linkedMonasteries.filter(
@@ -2385,9 +2385,9 @@ export function renderTownHallInspector(
   const monasteryHospitalityRow = linkedMonasteries.length === 0
     ? '<li><span>Monastery hospitality</span><span>No chapel-and-market-linked monastery</span></li>'
     : monasteryPolicy.feastsEnabled
-      ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} supplied above protected feast floors · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day before handcart collection · annual target ${renderResourceCost({ honey: hospitalityHoneyPerYear, wine: hospitalityWinePerYear }, { compact: true })}</span></li>
-        <li><span>Next feast reserve</span><span>${formatNextMonasteryFeast(nextFeast)} · ${feastReadyMonasteries} / ${linkedMonasteries.length} protected pantries ready · annual batches require ${renderResourceCost({ food: feastFoodPerYear, ale: feastAlePerYear }, { compact: true, suffix: 'settlement-wide' })}</span></li>`
-      : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline pilgrimage gold/day before handcart collection · feast stock remains in the estate pantry or is exported beyond the map</span></li>`;
+      ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} supplied above protected feast floors · ${hospitalityGoldPerDay.toFixed(2)} offerings/day before the monastic levy · annual target ${hospitalityHoneyPerYear.toFixed(0)} honey + ${hospitalityDrinkPerYear.toFixed(0)} any estate drink</span></li>
+        <li><span>Next feast reserve</span><span>${formatNextMonasteryFeast(nextFeast)} · ${feastReadyMonasteries} / ${linkedMonasteries.length} protected pantries ready · annual batches require ${feastFoodPerYear.toFixed(0)} food + ${feastDrinkPerYear.toFixed(0)} any drink</span></li>`
+      : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline offerings/day before levy · feast stock remains in the estate pantry or is exported beyond the map</span></li>`;
   const inboundTreasuryGold = Array.from(context.gameState.deliveryTrips.values())
     .filter(
       (trip) =>
@@ -2456,6 +2456,7 @@ export function renderTownHallInspector(
       <li><span>Land levy ledger</span><span>${Math.round(fiscalPolicy.landLevyCollectedTotal)} collected / ${Math.round(fiscalPolicy.landLevyAssessedTotal)} assessed lifetime</span></li>
       <li><span>Household import duty</span><span>${fiscalRatePercent(fiscalPolicy.importDutyRate)} · ${Math.round(fiscalPolicy.importDutyCollectedTotal)} gold collected lifetime</span></li>
       <li><span>Private export duty</span><span>${fiscalRatePercent(fiscalPolicy.exportDutyRate)} · ${Math.round(fiscalPolicy.exportDutyCollectedTotal)} gold collected from automatic specialty exports</span></li>
+      <li><span>Monastic charter</span><span>${monasteryCharterLabel(monasteryPolicy.levyRate)} · ${Math.round(monasteryPolicy.levyRate * 100)}% of monastery offerings and estate exports · ${Math.round(monasteryPolicy.levyCollectedTotal)} gold collected lifetime</span></li>
       <li><span>Private export income</span><span>${Math.round(fiscalPolicy.privateExportIncomeTotal)} gold delivered to producer households lifetime</span></li>
       <li><span>Local optional spending</span><span>${Math.round(fiscalPolicy.localDiscretionarySpendTotal)} gold recirculated from comfortable household savings</span></li>
       <li><span>Local producer income</span><span>${Math.round(fiscalPolicy.localProducerIncomeTotal)} gold earned after local market tax</span></li>
@@ -2590,6 +2591,16 @@ export function renderTownHallInspector(
           min="${Math.round(EXPORT_DUTY_RATE_MIN * 100)}" max="${Math.round(EXPORT_DUTY_RATE_MAX * 100)}"
           step="1" value="${Math.round(fiscalPolicy.exportDutyRate * 100)}" ${staffed ? '' : 'disabled'} />
         <p class="inspector-action-panel__hint">Applied to automatic household specialty exports. The untaxed remainder is carried to households as private income. Player-ordered Trading Post exports remain public trade and go directly to the civic treasury without this duty.</p>
+        <label class="city-admin-panel__slider-label" for="town-hall-monastery-levy">
+          <span>Monastic charter</span>
+          <strong>${monasteryCharterLabel(monasteryPolicy.levyRate)}</strong>
+        </label>
+        <select class="inspector-policy-select" id="town-hall-monastery-levy" data-policy-monastery-levy ${staffed ? '' : 'disabled'}>
+          <option value="0" ${monasteryPolicy.levyRate <= 0.001 ? 'selected' : ''}>Chartered immunity · 0%</option>
+          <option value="10" ${monasteryPolicy.levyRate > 0.001 && monasteryPolicy.levyRate <= 0.15 ? 'selected' : ''}>Customary aid · 10%</option>
+          <option value="25" ${monasteryPolicy.levyRate > 0.15 ? 'selected' : ''}>Extraordinary subsidy · 25%</option>
+        </select>
+        <p class="inspector-action-panel__hint">The levy applies only when the monastery receives pilgrimage offerings or external-estate income. The remainder stays in its purse to fund daily infirmary, guesthouse, archive, and workshop services and its chosen next extension. A heavier levy pays the treasury sooner but can leave outward services underfunded.</p>
       </div>
       <div class="inspector-action-panel">
         <h4 class="inspector-action-panel__title">Household market issues</h4>

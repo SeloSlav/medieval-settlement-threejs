@@ -129,10 +129,6 @@ pub fn monastery_estate_is_near_map_edge(x: f64, z: f64, yaw: f64, playable_half
     nearest_gap <= MONASTERY_ESTATE_EDGE_BAND
 }
 
-pub fn normalize_monastery_estate_level(level: u8) -> u8 {
-    level.min(4)
-}
-
 pub fn normalize_monastery_extensions(extensions: u8) -> u8 {
     extensions & MONASTERY_EXTENSION_ALL
 }
@@ -362,34 +358,87 @@ mod tests {
 
     #[test]
     fn reinvestment_preserves_working_gold_and_raises_yield() {
-        assert!(!monastery_estate_can_reinvest(0, 23.9));
-        assert!(monastery_estate_can_reinvest(0, 24.0));
+        assert!(!monastery_estate_can_reinvest(
+            0,
+            MONASTERY_EXTENSION_INFIRMARY,
+            29.9
+        ));
+        assert!(monastery_estate_can_reinvest(
+            0,
+            MONASTERY_EXTENSION_INFIRMARY,
+            30.0
+        ));
         assert!(
-            monastery_estate_yields(3, MONASTERY_ORCHARD_APPLES, MONASTERY_CROFT_VEGETABLES).apples
-                > monastery_estate_yields(0, MONASTERY_ORCHARD_APPLES, MONASTERY_CROFT_VEGETABLES)
-                    .apples
+            monastery_estate_yields(
+                MONASTERY_EXTENSION_ALL,
+                MONASTERY_ORCHARD_APPLES,
+                MONASTERY_CROFT_VEGETABLES,
+                MONASTERY_ORCHARD_MATURITY_MATURE,
+            )
+            .apples
+                > monastery_estate_yields(
+                    0,
+                    MONASTERY_ORCHARD_APPLES,
+                    MONASTERY_CROFT_VEGETABLES,
+                    MONASTERY_ORCHARD_MATURITY_MATURE,
+                )
+                .apples
         );
-        assert_eq!(monastery_estate_next_investment_cost(3), None);
+        assert_eq!(
+            monastery_estate_next_investment_cost(
+                MONASTERY_EXTENSION_ALL,
+                MONASTERY_EXTENSION_GUESTHOUSE,
+            ),
+            None
+        );
     }
 
     #[test]
     fn planting_plan_selects_outputs_and_cider_needs_the_press() {
         let kitchen =
-            monastery_estate_yields(2, MONASTERY_ORCHARD_APPLES, MONASTERY_CROFT_VEGETABLES);
+            monastery_estate_yields(
+                MONASTERY_EXTENSION_INFIRMARY | MONASTERY_EXTENSION_SCRIPTORIUM,
+                MONASTERY_ORCHARD_APPLES,
+                MONASTERY_CROFT_VEGETABLES,
+                MONASTERY_ORCHARD_MATURITY_MATURE,
+            );
         assert!(kitchen.apples > 0.0 && kitchen.vegetables > 0.0);
         assert_eq!(kitchen.ale, 0.0);
         assert_eq!(kitchen.wine, 0.0);
         assert_eq!(kitchen.cider, 0.0);
 
         let commercial =
-            monastery_estate_yields(3, MONASTERY_ORCHARD_VINES, MONASTERY_CROFT_BARLEY);
+            monastery_estate_yields(
+                MONASTERY_EXTENSION_WORKSHOP,
+                MONASTERY_ORCHARD_VINES,
+                MONASTERY_CROFT_BARLEY,
+                MONASTERY_ORCHARD_MATURITY_MATURE,
+            );
         assert_eq!(commercial.apples, 0.0);
         assert_eq!(commercial.vegetables, 0.0);
         assert!(commercial.ale > 0.0 && commercial.wine > 0.0);
         assert_eq!(commercial.cider, 0.0);
 
-        let cider = monastery_estate_yields(3, MONASTERY_ORCHARD_APPLES, MONASTERY_CROFT_BARLEY);
+        let cider = monastery_estate_yields(
+            MONASTERY_EXTENSION_WORKSHOP,
+            MONASTERY_ORCHARD_APPLES,
+            MONASTERY_CROFT_BARLEY,
+            MONASTERY_ORCHARD_MATURITY_MATURE,
+        );
         assert!(cider.cider > 0.0);
+    }
+
+    #[test]
+    fn replanting_has_a_real_establishment_delay_and_season() {
+        assert_eq!(monastery_orchard_maturity_for_year(3, 3), MONASTERY_ORCHARD_MATURITY_NEW);
+        assert_eq!(monastery_orchard_maturity_for_year(3, 4), MONASTERY_ORCHARD_MATURITY_YOUNG);
+        assert_eq!(monastery_orchard_maturity_for_year(3, 5), MONASTERY_ORCHARD_MATURITY_MATURE);
+        assert_eq!(monastery_orchard_yield_multiplier(MONASTERY_ORCHARD_MATURITY_NEW), 0.0);
+        assert_eq!(monastery_orchard_yield_multiplier(MONASTERY_ORCHARD_MATURITY_YOUNG), 0.55);
+        assert!(monastery_orchard_replanting_allowed(12));
+        assert!(!monastery_orchard_replanting_allowed(6));
+        assert!(monastery_croft_choice_allowed(2));
+        assert!(!monastery_croft_choice_allowed(3));
     }
 
     #[test]
@@ -401,31 +450,48 @@ mod tests {
 
     #[test]
     fn infirmary_is_finite_and_improves_with_the_estate() {
-        assert_eq!(monastery_infirmary_beds(0), 4);
-        assert_eq!(monastery_infirmary_beds(3), 10);
-        assert!(
-            monastery_infirmary_recovery_multiplier(3) > monastery_infirmary_recovery_multiplier(0)
+        assert_eq!(monastery_infirmary_beds(0, 1.0), 2);
+        assert_eq!(
+            monastery_infirmary_beds(MONASTERY_EXTENSION_INFIRMARY, 1.0),
+            10
+        );
+        assert_eq!(
+            monastery_infirmary_beds(MONASTERY_EXTENSION_INFIRMARY, 0.0),
+            2
         );
         assert!(
-            monastery_infirmary_mortality_multiplier(3)
-                < monastery_infirmary_mortality_multiplier(0)
+            monastery_infirmary_recovery_multiplier(MONASTERY_EXTENSION_INFIRMARY, 1.0)
+                > monastery_infirmary_recovery_multiplier(0, 1.0)
+        );
+        assert!(
+            monastery_infirmary_mortality_multiplier(MONASTERY_EXTENSION_INFIRMARY, 1.0)
+                < monastery_infirmary_mortality_multiplier(0, 1.0)
         );
     }
 
     #[test]
     fn agricultural_archive_holds_real_emergency_seed() {
-        assert_eq!(monastery_seed_archive_target_per_crop(0), 8.0);
-        assert_eq!(monastery_seed_archive_target_per_crop(3), 20.0);
-        assert_eq!(monastery_seed_archive_target_per_crop(99), 20.0);
+        assert_eq!(monastery_seed_archive_target_per_crop(0, 1.0), 8.0);
+        assert_eq!(
+            monastery_seed_archive_target_per_crop(MONASTERY_EXTENSION_SCRIPTORIUM, 1.0),
+            20.0
+        );
+        assert_eq!(
+            monastery_seed_archive_target_per_crop(MONASTERY_EXTENSION_SCRIPTORIUM, 0.0),
+            8.0
+        );
     }
 
     #[test]
     fn scriptorium_reduces_only_the_recovery_quote_policy() {
-        assert_eq!(monastery_scriptorium_recovery_multiplier(0), 0.90);
-        assert_eq!(monastery_scriptorium_recovery_multiplier(3), 0.72);
+        assert_eq!(monastery_scriptorium_recovery_multiplier(0, 1.0), 0.92);
+        assert_eq!(
+            monastery_scriptorium_recovery_multiplier(MONASTERY_EXTENSION_SCRIPTORIUM, 1.0),
+            0.72
+        );
         assert!(
-            monastery_scriptorium_recovery_multiplier(3)
-                < monastery_scriptorium_recovery_multiplier(0)
+            monastery_scriptorium_recovery_multiplier(MONASTERY_EXTENSION_SCRIPTORIUM, 1.0)
+                < monastery_scriptorium_recovery_multiplier(0, 1.0)
         );
     }
 }
