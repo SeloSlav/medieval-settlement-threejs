@@ -122,8 +122,7 @@ pub(crate) fn available_unreserved_building_roof_tiles(
 ) -> f64 {
     let stock = building_sum(ctx, owner, |building| building.roof_tiles);
     let reserved = reserved_construction_total(ctx, owner, |building| {
-        (building.construction_reserved_roof_tiles
-            - building.construction_treasury_roof_tiles)
+        (building.construction_reserved_roof_tiles - building.construction_treasury_roof_tiles)
             .max(0.0)
     }) + reserved_residence_upgrade_total(ctx, owner, |residence| {
         residence.upgrade_reserved_roof_tiles
@@ -185,9 +184,9 @@ pub fn construction_treasury_reservation(
         .clamp(0.0, available_unreserved_treasury_stone(ctx, owner));
     let ironwork_from_treasury = (ironwork - available_unreserved_building_ironwork(ctx, owner))
         .clamp(0.0, available_unreserved_treasury_ironwork(ctx, owner));
-    let roof_tiles_from_treasury =
-        (roof_tiles - available_unreserved_building_roof_tiles(ctx, owner))
-            .clamp(0.0, available_unreserved_treasury_roof_tiles(ctx, owner));
+    let roof_tiles_from_treasury = (roof_tiles
+        - available_unreserved_building_roof_tiles(ctx, owner))
+    .clamp(0.0, available_unreserved_treasury_roof_tiles(ctx, owner));
     (
         timber_from_treasury,
         stone_from_treasury,
@@ -251,8 +250,7 @@ pub fn construction_treasury_reservation_excluding_building(
         (building.construction_reserved_ironwork - building.construction_treasury_ironwork).max(0.0)
     });
     let reserved_roof_tiles = reserved_construction_total(ctx, owner, |building| {
-        (building.construction_reserved_roof_tiles
-            - building.construction_treasury_roof_tiles)
+        (building.construction_reserved_roof_tiles - building.construction_treasury_roof_tiles)
             .max(0.0)
     }) + reserved_residence_upgrade_total(ctx, owner, |residence| {
         residence.upgrade_reserved_roof_tiles

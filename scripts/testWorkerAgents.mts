@@ -535,6 +535,7 @@ const expectedWorkplaces = [
   'threshing_barn',
   'pastoral_farmstead',
   'swineherd',
+  'monastery',
   'brewery',
   'smokehouse',
   'granary',
@@ -554,6 +555,27 @@ assert.deepEqual(
   expectedWorkplaces,
   'every staffed gathering and processing workplace should receive visible agents',
 );
+
+const monasteryWorkplace = building('visible-monastery', 'monastery', 0, 0, 8, 0);
+const monasteryTargets = collectWorkerTargets(monasteryWorkplace, targetInputs);
+assert.ok(
+  monasteryTargets.some((target) => target.id.endsWith(':orchard'))
+    && monasteryTargets.some((target) => target.id.endsWith(':croft'))
+    && monasteryTargets.some((target) => target.id.endsWith(':pasture'))
+    && monasteryTargets.some((target) => target.id.endsWith(':infirmary')),
+  'monks must visibly work across the productive and service grounds',
+);
+const outerGateTarget = monasteryTargets.find((target) => target.id.endsWith(':outer-gate'));
+assert.ok(
+  outerGateTarget && Math.hypot(outerGateTarget.x, outerGateTarget.z) > 15,
+  'the porter or almoner must occasionally walk beyond the precinct gate',
+);
+const monasteryRoster = allocateProductionWorkers(
+  [residence('monastery-household', 12, 8, 8)],
+  [monasteryWorkplace],
+);
+assert.equal(monasteryRoster.assignments.length, 8);
+assert.equal(villagerOccupation('monastery'), 'Monk');
 
 const materialWorkplaces = [
   building('material-clay-workers', 'clay_pit', 0, 0, 3, 0),

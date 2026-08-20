@@ -140,10 +140,11 @@ pub fn step_market_household_distribution(
             else {
                 continue;
             };
-            residences_by_market
-                .entry(market_id)
-                .or_default()
-                .push((residence, target_stock, daily_lot));
+            residences_by_market.entry(market_id).or_default().push((
+                residence,
+                target_stock,
+                daily_lot,
+            ));
         }
 
         let mut targets_by_owner: HashMap<Identity, Vec<DistributionTarget>> = HashMap::new();
@@ -316,18 +317,16 @@ fn household_issue_target(
             * workday_seconds
             * environment.preserved_food_demand_multiplier())
         .min(household_food_per_day(residence.population)),
-        ResidenceNeedKind::Ale => {
-            population * RESIDENCE_ALE_PER_PERSON_PER_SEC * workday_seconds
-        }
+        ResidenceNeedKind::Ale => population * RESIDENCE_ALE_PER_PERSON_PER_SEC * workday_seconds,
         ResidenceNeedKind::Cloth => {
             population * RESIDENCE_CLOTH_PER_PERSON_PER_SEC * workday_seconds
         }
         ResidenceNeedKind::Pottery => {
             population * RESIDENCE_POTTERY_PER_PERSON_PER_SEC * workday_seconds
         }
-        ResidenceNeedKind::Water
-        | ResidenceNeedKind::Church
-        | ResidenceNeedKind::FoodVariety => return None,
+        ResidenceNeedKind::Water | ResidenceNeedKind::Church | ResidenceNeedKind::FoodVariety => {
+            return None
+        }
     };
     if daily_lot <= 1e-9 {
         return None;
@@ -448,9 +447,7 @@ fn sort_distribution_targets(targets: &mut [DistributionTarget]) {
     targets.sort_by(|left, right| {
         left.runway_days
             .total_cmp(&right.runway_days)
-            .then_with(|| left.distance
-            .total_cmp(&right.distance)
-            )
+            .then_with(|| left.distance.total_cmp(&right.distance))
             .then_with(|| left.residence_id.cmp(&right.residence_id))
     });
 }
@@ -462,9 +459,7 @@ fn residence_has_distribution_room(
     target_stock: f64,
 ) -> bool {
     let stock = need_stock(&load_needs(ctx, residence_id), need_kind);
-    delivery_stock_room(need_kind, stock)
-        .min((target_stock - stock).max(0.0))
-        > 1e-9
+    delivery_stock_room(need_kind, stock).min((target_stock - stock).max(0.0)) > 1e-9
 }
 
 fn distribute_to_residence(
@@ -482,8 +477,7 @@ fn distribute_to_residence(
         return;
     }
     let stock = need_stock(&load_needs(ctx, residence_id), need_kind);
-    let room = delivery_stock_room(need_kind, stock)
-        .min((target_stock - stock).max(0.0));
+    let room = delivery_stock_room(need_kind, stock).min((target_stock - stock).max(0.0));
     if room <= 1e-9 {
         return;
     }
@@ -565,10 +559,9 @@ mod tests {
 
     #[test]
     fn household_market_issues_weekly_with_daily_emergency_checks() {
-        let ticks_per_day =
-            (crate::balance_generated::CALENDAR_SECONDS_PER_DAY
-                / crate::balance_generated::TICK_DT)
-                .round() as u64;
+        let ticks_per_day = (crate::balance_generated::CALENDAR_SECONDS_PER_DAY
+            / crate::balance_generated::TICK_DT)
+            .round() as u64;
         assert_eq!(market_issue_cycle(0), None);
         assert_eq!(market_issue_cycle(ticks_per_day - 1), None);
         assert_eq!(

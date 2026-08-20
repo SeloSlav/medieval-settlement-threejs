@@ -122,6 +122,18 @@ const readyWell = makeBuilding({
 });
 const readyQueries = stubWorldQueries([readyBakery, readyWell], connected);
 
+const unstaffedMonastery = makeBuilding({
+  id: 'monastery-unstaffed',
+  kind: 'monastery',
+  x: 0,
+  z: 0,
+  assignedLabor: 0,
+});
+assert.equal(
+  getBuildingProcessorStatus(unstaffedMonastery, noWellQueries)?.statusText,
+  'Dormant - assign residents to become monks',
+);
+
 assert.equal(
   getBuildingProcessorStatus(bakery, noWellQueries)?.statusText,
   'Idle — needs a road-linked well to operate',

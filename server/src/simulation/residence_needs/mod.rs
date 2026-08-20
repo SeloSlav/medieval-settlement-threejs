@@ -470,7 +470,10 @@ fn fund_monastery_infirmary_care(
     let Some(mut monastery) = ctx.db.building().id().find(&care.monastery_id) else {
         return 0.0;
     };
-    if monastery.kind != "monastery" || !monastery.construction_complete {
+    if monastery.kind != "monastery"
+        || !monastery.construction_complete
+        || monastery.assigned_labor == 0
+    {
         return 0.0;
     }
 

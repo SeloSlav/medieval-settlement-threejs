@@ -411,6 +411,7 @@ impl SimTickContext {
             .filter(|monastery| {
                 monastery.kind == "monastery"
                     && monastery.construction_complete
+                    && monastery.assigned_labor > 0
                     && !self.building_disabled_by_fire(ctx, monastery.id)
                     && chapels.iter().any(|chapel| {
                         network.road_connected(monastery.x, monastery.z, chapel.x, chapel.z)

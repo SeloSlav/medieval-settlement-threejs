@@ -267,12 +267,21 @@ export function buildingLaborView(
     : rosteredWorkersAway > 0
       ? ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart; ${rosteredWorkersAway} ${rosteredWorkersAway === 1 ? 'rostered worker is' : 'rostered workers are'} away, leaving ${onsiteWorkers} on site. Only the on-site crew performs this building's role until return${reservedOutsideRoster > 0 ? ` (${reservedOutsideRoster} additional ${reservedOutsideRoster === 1 ? 'hauler is' : 'haulers are'} reserved outside the roster)` : ''}.`
       : ` ${cartWorkers} ${cartWorkers === 1 ? 'worker is' : 'workers are'} traveling with this cart and already reserved outside this roster.`;
+  const workforceNoun = building.kind === 'monastery'
+    ? 'monks assigned'
+    : dedicatedCartHaulers
+      ? 'dedicated cart haulers'
+      : 'workers here';
   return {
     visible: true,
-    label: dedicatedCartHaulers ? 'Cart haulers' : 'Workforce',
+    label: building.kind === 'monastery'
+      ? 'Monastic community'
+      : dedicatedCartHaulers
+        ? 'Cart haulers'
+        : 'Workforce',
     count: building.assignedLabor,
     hint: building.constructionComplete !== false
-      ? `${building.assignedLabor}/${buildingCap} ${dedicatedCartHaulers ? 'dedicated cart haulers' : 'workers here'} · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
+      ? `${building.assignedLabor}/${buildingCap} ${workforceNoun} · ${populationStats.available} available (${populationStats.total} population, ${populationStats.assigned} committed${populationStats.cartAssigned > 0 ? `, including ${populationStats.cartAssigned} in-transit reservations` : ''}).${cartLaborHint}`
       : `${building.assignedLabor}/${buildingCap} builders · ${populationStats.available} available. Builders construct; unassigned workers fetch every reserved material cart from the best reachable source.`,
     decreaseDisabled: building.assignedLabor <= 0,
     increaseDisabled: building.assignedLabor >= maxLabor,

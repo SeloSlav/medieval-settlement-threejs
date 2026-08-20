@@ -164,8 +164,7 @@ pub fn place_backyard_garden(
             )?;
         }
 
-        residence.household_wealth =
-            (residence.household_wealth - household_contribution).max(0.0);
+        residence.household_wealth = (residence.household_wealth - household_contribution).max(0.0);
         residence.backyard_project_kind = def.kind as u8;
         residence.upgrade_progress = 0.0;
         residence.upgrade_required_timber = cost.timber;
@@ -213,11 +212,7 @@ pub fn demolish_backyard_garden(ctx: &ReducerContext, residence_id: u64) -> Resu
     }
 
     if residence.backyard_project_kind != 0 {
-        credit_settlement_household_income(
-            ctx,
-            owner,
-            residence.upgrade_delivered_gold.max(0.0),
-        );
+        credit_settlement_household_income(ctx, owner, residence.upgrade_delivered_gold.max(0.0));
         let refund = ReclamationStock {
             timber: (residence.upgrade_delivered_timber
                 * crate::balance_generated::TIMBER_SALVAGE_FRACTION)

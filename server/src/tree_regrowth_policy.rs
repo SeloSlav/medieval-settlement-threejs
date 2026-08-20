@@ -84,19 +84,17 @@ mod tests {
     #[test]
     fn reforester_budget_is_bounded_across_large_stump_counts() {
         let tree_count = 500;
-        let total_rate = reforester_growth_per_tree_per_second(tree_count, 1)
-            * tree_count as f64;
+        let total_rate = reforester_growth_per_tree_per_second(tree_count, 1) * tree_count as f64;
         assert!((total_rate - REFORESTER_REGROW_PER_SEC).abs() < 1e-9);
         assert!((reforester_tree_equivalents_per_workday(1) - 8.4).abs() < 1e-9);
     }
 
     #[test]
     fn sparse_managed_growth_alone_still_needs_thirty_workdays() {
-        let per_tree_workday_progress = reforester_growth_per_tree_per_second(1, 1)
-            * tree_workday_seconds();
+        let per_tree_workday_progress =
+            reforester_growth_per_tree_per_second(1, 1) * tree_workday_seconds();
         assert!(
-            (per_tree_workday_progress * REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS - 1.0)
-                .abs()
+            (per_tree_workday_progress * REFORESTER_SPARSE_TREE_MATURATION_WORKDAYS - 1.0).abs()
                 < 1e-9
         );
     }

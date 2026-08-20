@@ -98,10 +98,7 @@ pub fn recall_idle_seasonal_labor_for_owner(
             "vineyard" => building.grapes > 1e-6 || building.wine > 1e-6,
             "threshing_barn" => {
                 farmstead_exportable_grain(
-                    building.rye_grain
-                        + building.oat_grain
-                        + building.maslin_grain
-                        + building.flax,
+                    building.rye_grain + building.oat_grain + building.maslin_grain + building.flax,
                     seed_grain_required,
                 ) > 1e-6
                     || farmstead_exportable_grain(building.barley, barley_seed_required) > 1e-6

@@ -125,6 +125,7 @@ fn build_monastery_tithe_routes(
                     building.owner == chapel.owner
                         && building.kind == "monastery"
                         && building.construction_complete
+                        && building.assigned_labor > 0
                         && tick.road_connected(
                             chapel.owner,
                             chapel.x,

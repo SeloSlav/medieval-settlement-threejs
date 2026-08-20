@@ -63,11 +63,10 @@ pub fn construction_labor_ready(
     delivered_roof_tiles: f64,
     treasury_roof_tiles: f64,
 ) -> bool {
-    let required_total =
-        nonnegative(required_timber)
-            + nonnegative(required_stone)
-            + nonnegative(required_ironwork)
-            + nonnegative(required_roof_tiles);
+    let required_total = nonnegative(required_timber)
+        + nonnegative(required_stone)
+        + nonnegative(required_ironwork)
+        + nonnegative(required_roof_tiles);
     let delivered_total = nonnegative(delivered_timber)
         + nonnegative(delivered_stone)
         + nonnegative(delivered_ironwork)

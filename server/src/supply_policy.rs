@@ -3,21 +3,20 @@ use std::cmp::Ordering;
 use crate::balance_generated::{
     BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_WATER_PER_CYCLE,
     BREWERY_APPLES_PER_CIDER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
-    BREWERY_BREWING_FIREWOOD_PER_CYCLE,
-    BREWERY_BREWING_WATER_PER_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
-    BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_WATER_PER_CYCLE,
-    BREWERY_MALT_PER_ALE_CYCLE,
+    BREWERY_BREWING_FIREWOOD_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE,
+    BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
+    BREWERY_MALTING_WATER_PER_CYCLE, BREWERY_MALT_PER_ALE_CYCLE,
     CARPENTER_CART_SERVICE_IRONWORK_PER_TRIP, CARPENTER_CART_SERVICE_TARGET_TRIPS,
     CARPENTER_CART_SERVICE_TIMBER_PER_TRIP, CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
     CIVILIAN_TOOL_IRONWORK_PER_CYCLE, HOUSEHOLD_FOOD_RESERVE_CAPACITY_FRACTION,
     HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES,
     LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
-    MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE,
-    POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_WATER_PER_CYCLE,
-    SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
-    SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
-    SMOKEHOUSE_SALT_PER_CYCLE, VINEYARD_GRAPES_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE,
-    WEAVER_FLAX_PER_CYCLE, WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
+    MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE, POTTER_CLAY_PER_CYCLE,
+    POTTER_FIREWOOD_PER_CYCLE, POTTER_WATER_PER_CYCLE, SMITHY_CHARCOAL_PER_CYCLE,
+    SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE, SMOKEHOUSE_FIREWOOD_PER_CYCLE,
+    SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE, SMOKEHOUSE_SALT_PER_CYCLE,
+    VINEYARD_GRAPES_PER_FERMENTATION_BATCH, WATERMILL_GRAIN_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
+    WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
 use crate::civilian_tool_policy::{civilian_tool_refill_due, is_civilian_tool_site};
 use crate::processor_output_policy::processor_input_staging_cycles;
@@ -472,9 +471,7 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("smokehouse", "firewood") => SMOKEHOUSE_FIREWOOD_PER_CYCLE,
         ("charcoal_burner", "firewood") => CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
         ("potter_kiln", "firewood") => POTTER_FIREWOOD_PER_CYCLE,
-        ("watermill" | "windmill", "ryeGrain" | "maslinGrain") => {
-            WATERMILL_GRAIN_PER_CYCLE
-        }
+        ("watermill" | "windmill", "ryeGrain" | "maslinGrain") => WATERMILL_GRAIN_PER_CYCLE,
         ("bakery", "ryeFlour" | "maslinFlour") => BAKERY_FLOUR_PER_CYCLE,
         ("smokehouse", "food" | "meat" | "fish" | "milk") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -537,9 +534,7 @@ pub fn processor_input_dispatch_duty_for_target(
     per_cycle: f64,
     processor_output_target_percent: u8,
 ) -> ProcessorInputDispatchDuty {
-    if target_kind == "granary"
-        && matches!(commodity, "ryeFlour" | "maslinFlour")
-    {
+    if target_kind == "granary" && matches!(commodity, "ryeFlour" | "maslinFlour") {
         ProcessorInputDispatchDuty::CentralStorage
     } else {
         processor_input_dispatch_duty(
@@ -771,22 +766,20 @@ mod tests {
         compare_supply_route_candidates, construction_source_available_stock,
         construction_source_priority, directly_dispatched_processor_input_per_cycle,
         grain_input_runway_cycles, grain_input_target, grain_work_priority, granary_dispatch_order,
-        household_food_reserve, institutional_food_surplus,
-        is_firewood_supplier_operational, is_food_supplier_operational,
-        is_specialty_supplier_operational, is_well_supplier_operational,
-        large_quarry_support_runway_cycles, large_quarry_support_target,
-        large_quarry_supports_ready, local_material_dispatch_target, processor_input_dispatch_duty,
-        processor_input_dispatch_duty_for_target, processor_input_runway_cycles,
-        processor_input_target, rich_mine_support_runway_cycles, rich_mine_support_target,
-        rich_mine_supports_ready, select_grain_dispatch_candidate, select_need_delivery_candidate,
-        select_processor_input_dispatch_candidate, select_seed_grain_delivery_candidate,
-        select_supply_route_candidate, GranaryDispatchDuty, InstitutionalFoodDispatchDuty,
-        NeedDeliveryCandidate, ProcessorInputDispatchDuty,
+        household_food_reserve, institutional_food_surplus, is_firewood_supplier_operational,
+        is_food_supplier_operational, is_specialty_supplier_operational,
+        is_well_supplier_operational, large_quarry_support_runway_cycles,
+        large_quarry_support_target, large_quarry_supports_ready, local_material_dispatch_target,
+        processor_input_dispatch_duty, processor_input_dispatch_duty_for_target,
+        processor_input_runway_cycles, processor_input_target, rich_mine_support_runway_cycles,
+        rich_mine_support_target, rich_mine_supports_ready, select_grain_dispatch_candidate,
+        select_need_delivery_candidate, select_processor_input_dispatch_candidate,
+        select_seed_grain_delivery_candidate, select_supply_route_candidate, GranaryDispatchDuty,
+        InstitutionalFoodDispatchDuty, NeedDeliveryCandidate, ProcessorInputDispatchDuty,
         BEVERAGE_SERVICE_KINDS, CLOTH_PRODUCER_KINDS, FOOD_SUPPLIER_KINDS,
-        GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_PROCESSOR_KINDS,
-        INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
-        LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_PRODUCER_KINDS,
-        PRESERVED_FOOD_PRODUCER_KINDS,
+        GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_PROCESSOR_KINDS, INDUSTRIAL_FIREWOOD_TARGET_KINDS,
+        INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS,
+        MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_PRODUCER_KINDS, PRESERVED_FOOD_PRODUCER_KINDS,
     };
     use std::cmp::Ordering;
     use std::time::{Duration, Instant};
@@ -1058,10 +1051,7 @@ mod tests {
 
     #[test]
     fn grain_processors_stage_inputs_from_their_stock_policy() {
-        assert_eq!(
-            GRAIN_PROCESSOR_KINDS,
-            &["watermill", "windmill"]
-        );
+        assert_eq!(GRAIN_PROCESSOR_KINDS, &["watermill", "windmill"]);
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
         assert_eq!(grain_input_target("watermill", 1.0, 25), 3.0);
         assert_eq!(grain_input_target("watermill", 1.0, 50), 6.0);
@@ -1422,30 +1412,12 @@ mod tests {
     #[test]
     fn granary_grain_ignores_legacy_priority_then_uses_runway() {
         assert_eq!(
-            compare_grain_dispatch_candidates(
-                2,
-                2.0,
-                80.0,
-                9,
-                2,
-                2.8,
-                10.0,
-                1,
-            ),
+            compare_grain_dispatch_candidates(2, 2.0, 80.0, 9, 2, 2.8, 10.0, 1,),
             Ordering::Less,
             "lower processor runway outranks a shorter cart route"
         );
         assert_eq!(
-            compare_grain_dispatch_candidates(
-                3,
-                2.8,
-                80.0,
-                9,
-                1,
-                0.0,
-                10.0,
-                1,
-            ),
+            compare_grain_dispatch_candidates(3, 2.8, 80.0, 9, 1, 0.0, 10.0, 1,),
             Ordering::Greater,
             "legacy completed-building priority must not override processor runway"
         );
@@ -1458,7 +1430,13 @@ mod tests {
             (0..100_000).map(|index| {
                 (
                     index,
-                    if index == 99_999 { 3 } else if index % 3 == 0 { 2 } else { 1 },
+                    if index == 99_999 {
+                        3
+                    } else if index % 3 == 0 {
+                        2
+                    } else {
+                        1
+                    },
                     (index % 7) as f64,
                     (100_000 - index) as f64,
                 )

@@ -54,7 +54,7 @@ export function isOperationalSpecialtySupplier(building: BuildingState): boolean
 
 export function isSustainableSpecialtySupplier(building: BuildingState): boolean {
   return building.constructionComplete !== false
-    && (building.kind === 'monastery' || building.assignedLabor > 0);
+    && building.assignedLabor > 0;
 }
 
 export function findRoadLinkedSupplierForResidence(

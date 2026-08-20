@@ -48,15 +48,15 @@ use crate::marketplace_procurement_policy::{
     is_valid_marketplace_ironwork_target, is_valid_marketplace_salt_target,
     is_valid_marketplace_seed_grain_target, MARKETPLACE_GOLD_RESERVE_DEFAULT,
 };
+use crate::monastery_estate_policy::{
+    monastery_estate_fits_map, monastery_estate_is_near_map_edge,
+    playable_half_for_monastery_map_size,
+};
 use crate::placement_validation::{
     building_footprints_too_close, building_overlaps_residence_zone,
     building_overlaps_resource_deposit, building_overlaps_road_surface,
     building_site_contains_point, resolved_building_placement_yaw,
     zone_overlaps_building_footprint,
-};
-use crate::monastery_estate_policy::{
-    monastery_estate_fits_map, monastery_estate_is_near_map_edge,
-    playable_half_for_monastery_map_size,
 };
 use crate::potter_firing_policy::{is_valid_potter_firing_policy, potter_fires_roof_tiles};
 use crate::pottery_dispatch_policy::is_valid_pottery_dispatch_policy;

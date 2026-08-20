@@ -264,6 +264,7 @@ function remoteCampPhaseForHomeState(homeState: HouseholdHomeState): RemoteCampP
 }
 
 const WORKER_ACTIVITY_SECONDS = 9.5;
+const MONASTIC_HABIT_COLOR = 0x493629;
 const CAMP_SEAT_RELEASE_DISTANCE = 0.8;
 const NO_REFUGE_ASSIGNMENTS: ReadonlyMap<string, string> = new Map();
 type GuardMusterPresentationAssignment = { towerId: string };
@@ -1050,6 +1051,7 @@ export class VillagerRenderer {
       farmFields,
       pastures,
       foragingMonth: options.foragingMonth,
+      roadNetwork: this.roadNetwork,
     };
     const workerBuildingIds = new Set(
       onSiteAssignments.map((assignment) => assignment.buildingId),
@@ -1823,7 +1825,9 @@ export class VillagerRenderer {
       renderAgent.appearanceSeed = agent.appearanceSeed;
       renderAgent.variant = agent.modelVariant;
       renderAgent.mode = agent.mode;
-      renderAgent.tunicColor = agent.tunicColor;
+      renderAgent.tunicColor = workplace?.kind === 'monastery'
+        ? MONASTIC_HABIT_COLOR
+        : agent.tunicColor;
       renderAgent.skinColor = agent.skinColor;
       renderAgent.hairColor = agent.hairColor;
       renderAgent.tool = this.workerToolFor(agent);
@@ -2344,6 +2348,7 @@ export class VillagerRenderer {
       agent.workplaceSlot,
       targets,
       agent.pathSeed,
+      this.roadNetwork,
     );
     agent.pathSeed = (agent.pathSeed * 1_664_525) ^ 0x165667b1;
 
@@ -3836,7 +3841,7 @@ export class VillagerRenderer {
   ): PointXZ & { yaw: number } {
     return this.marketStallDutyByWorker.get(
       workerSlotKey(workplace.id, workplaceSlot),
-    ) ?? workplaceYardPosition(workplace, workplaceSlot);
+    ) ?? workplaceYardPosition(workplace, workplaceSlot, this.roadNetwork);
   }
 
   private workerRestDestination(

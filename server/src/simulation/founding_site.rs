@@ -241,9 +241,7 @@ fn founding_destination_room(
     let starter_household_supply = starter_supplies_only
         && matches!(
             commodity,
-            CommodityKind::Firewood
-                | CommodityKind::RyeBread
-                | CommodityKind::MaslinBread
+            CommodityKind::Firewood | CommodityKind::RyeBread | CommodityKind::MaslinBread
         );
     if matches!(
         commodity,
@@ -449,22 +447,20 @@ mod tests {
 
     #[test]
     fn starter_breads_prefer_the_market_and_keep_granary_fallback() {
-        for bread in [
-            CommodityKind::RyeBread,
-            CommodityKind::MaslinBread,
-        ] {
+        for bread in [CommodityKind::RyeBread, CommodityKind::MaslinBread] {
             assert_eq!(
                 founding_destination_priority(bread, "marketplace", true),
                 None,
             );
-            assert_eq!(founding_destination_priority(bread, "granary", true), Some(1));
-            assert_eq!(founding_destination_priority(bread, "granary", false), Some(0));
-            for kind in [
-                "foragers_shed",
-                "hunters_hall",
-                "fishing_camp",
-                "bakery",
-            ] {
+            assert_eq!(
+                founding_destination_priority(bread, "granary", true),
+                Some(1)
+            );
+            assert_eq!(
+                founding_destination_priority(bread, "granary", false),
+                Some(0)
+            );
+            for kind in ["foragers_shed", "hunters_hall", "fishing_camp", "bakery"] {
                 assert_eq!(
                     founding_destination_priority(bread, kind, true),
                     None,

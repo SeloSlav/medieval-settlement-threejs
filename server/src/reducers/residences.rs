@@ -1,11 +1,10 @@
 use spacetimedb::{reducer, ReducerContext, Table};
 
 use crate::balance_generated::{
-    RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST,
-    RESIDENCE_TIER2_STONE_COST, RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY,
-    RESIDENCE_TIER3_GOLD_COST, RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST,
-    RESIDENCE_TIER4_CAPACITY, RESIDENCE_TIER4_GOLD_COST, RESIDENCE_TIER4_STONE_COST,
-    RESIDENCE_TIER4_TIMBER_COST,
+    RESIDENCE_TIER2_CAPACITY, RESIDENCE_TIER2_GOLD_COST, RESIDENCE_TIER2_STONE_COST,
+    RESIDENCE_TIER2_TIMBER_COST, RESIDENCE_TIER3_CAPACITY, RESIDENCE_TIER3_GOLD_COST,
+    RESIDENCE_TIER3_STONE_COST, RESIDENCE_TIER3_TIMBER_COST, RESIDENCE_TIER4_CAPACITY,
+    RESIDENCE_TIER4_GOLD_COST, RESIDENCE_TIER4_STONE_COST, RESIDENCE_TIER4_TIMBER_COST,
     RESIDENCE_TILE_ROOF_SALVAGE_FRACTION, RESIDENCE_TILE_ROOF_TILE_COST,
     RESIDENCE_TILE_ROOF_TIMBER_COST,
 };
@@ -21,10 +20,10 @@ use crate::economy::{
     available_building_labor, building_commodity_stock, credit_settlement_household_income,
     credit_treasury_commodity, credit_treasury_stone, credit_treasury_timber,
     reconcile_building_labor, residence_food_progression_met, residence_population_for_parcel,
-    residence_zone_cost, residence_zone_cost_for_units,
-    spend_aggregate_roof_tiles, spend_aggregate_stone, spend_aggregate_timber,
-    spend_treasury_gold, total_roof_tiles, total_stone, total_timber, treasury_gold,
-    CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
+    residence_zone_cost, residence_zone_cost_for_units, spend_aggregate_roof_tiles,
+    spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold, total_roof_tiles,
+    total_stone, total_timber, treasury_gold, CommodityKind, ResourceAmount,
+    STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{

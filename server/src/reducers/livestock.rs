@@ -14,7 +14,9 @@ use crate::farming::{
     centroid, corners_from_values, edge_lengths, is_valid_convex_quadrilateral, polygon_area,
 };
 use crate::hydrology::sample_world_hydrology_score;
-use crate::placement_validation::{zone_overlaps_building_footprint, zone_overlaps_resource_deposit};
+use crate::placement_validation::{
+    zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
+};
 use crate::roads::load_owner_road_network;
 use crate::tables::{farm_field, livestock_herd, pasture, LivestockHerd, Pasture};
 

@@ -153,14 +153,9 @@ pub fn withdraw_delivery_cargo(
                 CommodityKind::Charcoal,
                 amount.max(0.0) / CHARCOAL_HOUSEHOLD_FUEL_VALUE.max(1e-9),
             );
-            let charcoal_equivalent =
-                charcoal_withdrawn * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
-            let (_, firewood_withdrawn, _, updated) = withdraw_building(
-                building,
-                0.0,
-                (amount - charcoal_equivalent).max(0.0),
-                0.0,
-            );
+            let charcoal_equivalent = charcoal_withdrawn * CHARCOAL_HOUSEHOLD_FUEL_VALUE;
+            let (_, firewood_withdrawn, _, updated) =
+                withdraw_building(building, 0.0, (amount - charcoal_equivalent).max(0.0), 0.0);
             *building = updated;
             charcoal_equivalent + firewood_withdrawn
         }
@@ -175,7 +170,11 @@ pub fn withdraw_delivery_cargo(
         ResidenceNeedKind::Ale => {
             let mut remaining = amount.max(0.0);
             let mut withdrawn = 0.0;
-            for beverage in [CommodityKind::Ale, CommodityKind::Cider, CommodityKind::Mead] {
+            for beverage in [
+                CommodityKind::Ale,
+                CommodityKind::Cider,
+                CommodityKind::Mead,
+            ] {
                 let used = withdraw_building_commodity(building, beverage, remaining);
                 withdrawn += used;
                 remaining = (remaining - used).max(0.0);

@@ -11,9 +11,7 @@ use crate::economy::{deposit_building_commodity, CommodityKind};
 use crate::hydrology::sample_world_hydrology_score;
 use crate::roads::RoadNetwork;
 use crate::season_policy::EnvironmentState;
-use crate::simulation::delivery_trips::{
-    available_free_haulers, building_has_inbound_supply_trip,
-};
+use crate::simulation::delivery_trips::{available_free_haulers, building_has_inbound_supply_trip};
 use crate::simulation::expanded_economy::processor_accepts_input;
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::road_logistics::local_delivery_distance;
@@ -127,11 +125,8 @@ fn distribute_industrial_water(
             (industrial_water_target(&target.kind, target.processor_output_target_percent)
                 - target.water)
                 .max(0.0);
-        let supplied = deposit_building_commodity(
-            &mut target,
-            CommodityKind::Water,
-            needed.min(well.water),
-        );
+        let supplied =
+            deposit_building_commodity(&mut target, CommodityKind::Water, needed.min(well.water));
         if supplied <= 1e-9 {
             break;
         }

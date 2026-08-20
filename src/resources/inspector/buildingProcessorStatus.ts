@@ -856,7 +856,20 @@ function getLumberMillStatus(
   };
 }
 
-function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries): BuildingProcessorStatus {
+function getMonasteryStatus(
+  building: BuildingState,
+  worldQueries: WorldQueries,
+  onsiteLabor: number,
+): BuildingProcessorStatus {
+  if (onsiteLabor <= 0) {
+    return {
+      statusText: building.assignedLabor > 0
+        ? 'Dormant - every assigned monk is away with a cart'
+        : 'Dormant - assign residents to become monks',
+      statusState: 'idle',
+      waterDetailHtml: '',
+    };
+  }
   const linked = worldQueries.isMonasteryLinkedToChapel(building);
 
   if (!linked) {
@@ -877,7 +890,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
   }
 
   return {
-    statusText: 'Estate active — self-provisioning, external surplus trade, infirmary, feasts, and pilgrims',
+    statusText: `Estate active - ${onsiteLabor} ${onsiteLabor === 1 ? 'monk' : 'monks'} on site`,
     statusState: 'active',
     waterDetailHtml: '',
   };
@@ -930,7 +943,7 @@ export function getBuildingProcessorStatus(
     case 'lumber_mill':
       return getLumberMillStatus(building, worldQueries, context.matureTrees ?? 0, onsiteLabor);
     case 'monastery':
-      return getMonasteryStatus(building, worldQueries);
+      return getMonasteryStatus(building, worldQueries, onsiteLabor);
     case 'threshing_barn':
       return getSimpleLaborStatus(
         building,

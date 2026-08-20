@@ -394,6 +394,7 @@ fn operational_scriptorium_recovery_multiplier(
         .filter(|monastery| {
             monastery.kind == "monastery"
                 && monastery.construction_complete
+                && monastery.assigned_labor > 0
                 && building_fire_state(ctx, monastery.id).is_none()
                 && local_delivery_distance(
                     &network,

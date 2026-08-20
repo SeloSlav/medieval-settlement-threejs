@@ -92,11 +92,8 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         };
         let commodity = CommodityKind::from_u8(trip.cargo_kind)
             .expect("food-spoilage trip filter guarantees a food commodity");
-        let spoiled = trip.amount
-            * rate
-            * storage_factor
-            * commodity.spoilage_multiplier()
-            * TICK_DT;
+        let spoiled =
+            trip.amount * rate * storage_factor * commodity.spoilage_multiplier() * TICK_DT;
         ctx.db.delivery_trip().id().update(DeliveryTrip {
             amount: (trip.amount - spoiled).max(0.0),
             ..trip

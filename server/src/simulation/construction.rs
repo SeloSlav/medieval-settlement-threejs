@@ -262,8 +262,8 @@ fn advance_builder_work(
     let stone_ready = site.construction_delivered_stone + 1e-6 >= site.construction_required_stone;
     let ironwork_ready =
         site.construction_delivered_ironwork + 1e-6 >= site.construction_required_ironwork;
-    let roof_tiles_ready = site.construction_delivered_roof_tiles + 1e-6
-        >= site.construction_required_roof_tiles;
+    let roof_tiles_ready =
+        site.construction_delivered_roof_tiles + 1e-6 >= site.construction_required_roof_tiles;
     if timber_ready
         && stone_ready
         && ironwork_ready

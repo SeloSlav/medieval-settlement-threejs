@@ -25,6 +25,7 @@ import { BUILDING_STORAGE_CAPS } from '../generated/gameBalance.ts';
 import { STARTING_POPULATION } from '../generated/gameBalance.ts';
 import { preservableFoodStock } from '../economy/foodInventory.ts';
 import { processorOutputHeadroom } from '../economy/processorOutputPolicy.ts';
+import { buildingPlacementYaw } from '../buildings/buildingPlacement.ts';
 
 export { WATCHTOWER_GALLERY_FLOOR_HEIGHT } from '../buildings/watchtowerLayout.ts';
 
@@ -46,6 +47,7 @@ export const PRODUCTION_WORKPLACE_KINDS = [
   'threshing_barn',
   'pastoral_farmstead',
   'swineherd',
+  'monastery',
   'brewery',
   'smokehouse',
   'granary',
@@ -96,6 +98,7 @@ export type WorkerTargetKind =
 export type WorkerTarget = PointXZ & {
   id: string;
   kind: WorkerTargetKind;
+  activity?: WorkerActivityKind;
   /** Retains the authoritative field phase so presentation can pick a specific action. */
   fieldStage?: FarmFieldState['stage'];
 };
@@ -142,6 +145,7 @@ export type WorkerTargetInputs = {
   farmFields: Iterable<FarmFieldState>;
   pastures: Iterable<PastureState>;
   foragingMonth?: number;
+  roadNetwork?: RoadNetwork | null;
 };
 
 /**
@@ -169,7 +173,30 @@ export const YARD_WORK_ACTIVITY = {
   weaver: 'tend',
   guardhouse: 'build',
   vineyard: 'tend',
+  monastery: 'tend',
 } as const satisfies Partial<Record<BuildingKind, WorkerActivityKind>>;
+
+const MONASTERY_WORKSTATIONS = [
+  { id: 'cloister', localX: -2.3, localZ: 2.15, activity: 'tend' },
+  { id: 'scriptorium', localX: -11.7, localZ: 0.7, activity: 'tend' },
+  { id: 'infirmary', localX: 7.1, localZ: 0.4, activity: 'tend' },
+  { id: 'brewhouse', localX: -17.8, localZ: -12, activity: 'tend' },
+  { id: 'orchard', localX: -23, localZ: -35.25, activity: 'gather' },
+  { id: 'apiary', localX: -26, localZ: -22, activity: 'gather' },
+  { id: 'croft', localX: -7, localZ: -18.75, activity: 'tend' },
+  { id: 'herb-garden', localX: 3.5, localZ: -19, activity: 'gather' },
+  { id: 'hen-yard', localX: 26, localZ: -12, activity: 'tend' },
+  { id: 'small-stock-yard', localX: 24, localZ: -25, activity: 'tend' },
+  { id: 'pasture', localX: 19.25, localZ: -37, activity: 'tend' },
+  { id: 'seed-archive', localX: 1, localZ: -37, activity: 'tend' },
+  // A porter or almoner occasionally works beyond the gate on the roadside.
+  { id: 'outer-gate', localX: 16.5, localZ: 14.5, activity: 'gather' },
+] as const satisfies readonly {
+  id: string;
+  localX: number;
+  localZ: number;
+  activity: WorkerActivityKind;
+}[];
 
 export function isProductionWorkplaceKind(kind: BuildingKind): boolean {
   return PRODUCTION_WORKPLACE_KIND_SET.has(kind);
@@ -520,7 +547,9 @@ export function collectWorkerTargets(
     }
   }
 
-  if (building.kind in YARD_WORK_ACTIVITY) {
+  if (building.kind === 'monastery') {
+    collectMonasteryWorkstations(building, inputs.roadNetwork ?? null, targets);
+  } else if (building.kind in YARD_WORK_ACTIVITY) {
     collectYardWorkstations(building, targets);
   }
 
@@ -535,6 +564,7 @@ export function collectWorkerTargets(
 export function workplaceYardPosition(
   building: BuildingState,
   slotIndex: number,
+  roadNetwork: RoadNetwork | null = null,
 ): PointXZ & { yaw: number } {
   if (building.kind === 'watchtower') {
     const x = building.x + (slotIndex % 2 === 0 ? -0.58 : 0.58);
@@ -543,6 +573,16 @@ export function workplaceYardPosition(
       x,
       z,
       yaw: Math.atan2(building.x - x, building.z - z),
+    };
+  }
+
+  if (building.kind === 'monastery' && building.constructionComplete !== false) {
+    const localX = 13.7 + (slotIndex % 3) * 1.45;
+    const localZ = 4.5 - Math.floor(slotIndex / 3) * 1.35;
+    const position = monasteryWorldPoint(building, localX, localZ, roadNetwork);
+    return {
+      ...position,
+      yaw: Math.atan2(building.x - position.x, building.z - position.z),
     };
   }
 
@@ -614,8 +654,9 @@ export function pickWorkerWalkPlan(
   slotIndex: number,
   targets: readonly WorkerTarget[],
   seed: number,
+  roadNetwork: RoadNetwork | null = null,
 ): WorkerWalkPlan | null {
-  const start = workplaceYardPosition(building, slotIndex);
+  const start = workplaceYardPosition(building, slotIndex, roadNetwork);
   const rng = mulberry32(seed ^ hashStringSeed(building.id));
 
   if (
@@ -702,6 +743,7 @@ function workerActivityFor(
   if (building.constructionComplete === false && target.kind === 'construction') {
     return 'build';
   }
+  if (target.activity) return target.activity;
   if (building.kind === 'lumber_mill' && target.kind === 'tree') return 'chop';
   if (building.kind === 'reforester' && target.kind === 'tree') return 'plant';
   if (building.kind === 'stone_quarry' && target.kind === 'quarry') return 'mine';
@@ -727,6 +769,46 @@ function workerActivityFor(
     ] ?? null;
   }
   return null;
+}
+
+function collectMonasteryWorkstations(
+  building: BuildingState,
+  roadNetwork: RoadNetwork | null,
+  targets: WorkerTarget[],
+): void {
+  for (const workstation of MONASTERY_WORKSTATIONS) {
+    targets.push({
+      id: `${building.id}:monastery:${workstation.id}`,
+      kind: 'workstation',
+      activity: workstation.activity,
+      ...monasteryWorldPoint(
+        building,
+        workstation.localX,
+        workstation.localZ,
+        roadNetwork,
+      ),
+    });
+  }
+}
+
+function monasteryWorldPoint(
+  building: BuildingState,
+  localX: number,
+  localZ: number,
+  roadNetwork: RoadNetwork | null,
+): PointXZ {
+  const yaw = buildingPlacementYaw(
+    building.kind,
+    building.x,
+    building.z,
+    roadNetwork,
+  );
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  return {
+    x: building.x + localX * cos + localZ * sin,
+    z: building.z - localX * sin + localZ * cos,
+  };
 }
 
 function collectYardWorkstations(

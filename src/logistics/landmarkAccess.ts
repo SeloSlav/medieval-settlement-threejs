@@ -159,6 +159,13 @@ export function monasteryLinkedToChapel(
   chapels: Iterable<BuildingState>,
   probe: RoadPathProbe,
 ): boolean {
+  if (
+    monastery.kind !== 'monastery'
+    || monastery.constructionComplete === false
+    || monastery.assignedLabor <= 0
+  ) {
+    return false;
+  }
   for (const chapel of chapels) {
     if (!isChapelStaffed(chapel)) {
       continue;
@@ -184,7 +191,11 @@ export function findLinkedMonasteryInCoverage(
   let best: BuildingState | null = null;
   let bestDistance = Infinity;
   for (const monastery of monasteries) {
-    if (monastery.kind !== 'monastery' || monastery.constructionComplete === false) {
+    if (
+      monastery.kind !== 'monastery'
+      || monastery.constructionComplete === false
+      || monastery.assignedLabor <= 0
+    ) {
       continue;
     }
     if (!monasteryLinkedToChapel(monastery, chapels, probe)) {
@@ -247,6 +258,7 @@ export function claimResidenceCommunityLandmarks(
     (monastery) =>
       monastery.kind === 'monastery'
       && monastery.constructionComplete !== false
+      && monastery.assignedLabor > 0
       && staffedChapels.some((chapel) =>
         pathfinder.roadConnected(
           monastery.x,

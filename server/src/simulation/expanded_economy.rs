@@ -517,7 +517,9 @@ pub fn step_seed_grain_distribution(
                     || source.barley > 1e-6
                     || source.flax > 1e-6)
                 && (source.kind != "trading_post" || source.assigned_labor > 0)
-                && (source.kind != "monastery" || monastery_has_parish_link(ctx, tick, source))
+                && (source.kind != "monastery"
+                    || (source.assigned_labor > 0
+                        && monastery_has_parish_link(ctx, tick, source)))
                 && !tick.building_disabled_by_fire(ctx, source.id)
         })
         .map(|source| source.id)
@@ -3141,6 +3143,13 @@ pub fn step_monastery(
     clock: &GameClock,
     building: Building,
 ) {
+    // The estate is an inhabited religious house, not autonomous scenery.
+    // With nobody on site there is no farming, hospitality, infirmary care,
+    // archive work, reinvestment, or dispatch of new export carts.
+    let onsite_labor = onsite_building_labor(ctx, &building);
+    if onsite_labor == 0 {
+        return;
+    }
     let linked = monastery_has_parish_link(ctx, tick, &building);
     let productivity = if linked {
         1.0
@@ -3148,7 +3157,13 @@ pub fn step_monastery(
         MONASTERY_UNLINKED_PRODUCTIVITY
     };
     let mut monastery = building;
-    if cycle_labor_if_ready(ctx, tick, clock, &mut monastery, true).is_some() {
+    if let Some(productive_labor) =
+        cycle_labor_if_ready(ctx, tick, clock, &mut monastery, false)
+    {
+        let full_crew = building_def("monastery")
+            .map(|definition| definition.max_labor.max(1) as f64)
+            .unwrap_or(1.0);
+        let staffing = (productive_labor / full_crew).clamp(0.0, 1.0);
         let yields = monastery_estate_yields(
             monastery.chapel_tier,
             monastery.monastery_orchard_planting,
@@ -3166,7 +3181,11 @@ pub fn step_monastery(
             (CommodityKind::Wine, yields.wine),
             (CommodityKind::Cheese, yields.cheese),
         ] {
-            deposit_building_commodity(&mut monastery, commodity, amount * productivity);
+            deposit_building_commodity(
+                &mut monastery,
+                commodity,
+                amount * productivity * staffing,
+            );
         }
         reset_cycle(&mut monastery, 1.0);
     }
@@ -4685,7 +4704,7 @@ fn request_connected_commodity_with_source_availability(
     source_availability: impl Fn(&Building, f64) -> f64,
 ) {
     if !target.construction_complete
-        || (target.assigned_labor == 0 && target.kind != "monastery")
+        || target.assigned_labor == 0
         || labor_and_logistics_paused(ctx, tick, target.owner, clock)
         || !processor_accepts_input(target, commodity)
         || building_has_inbound_supply_trip(ctx, target.id)

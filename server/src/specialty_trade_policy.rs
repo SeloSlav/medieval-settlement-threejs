@@ -105,5 +105,4 @@ mod tests {
         ]));
         assert!(!producer_output_batch_fits([(f64::NAN, 140.0, 6.0,)]));
     }
-
 }

@@ -4,11 +4,9 @@
 //! output-target processors, construction sites, and the commanding Town Hall
 //! retain their specialized or manual controls.
 
-use crate::construction_priority::{
-    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL,
-};
 #[cfg(test)]
 use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
+use crate::construction_priority::{CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL};
 use crate::seasonal_labor_policy::is_seasonal_labor_kind;
 use crate::worksite_stall_policy::is_production_labor_kind;
 

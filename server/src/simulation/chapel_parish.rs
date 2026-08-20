@@ -3,8 +3,8 @@ use spacetimedb::ReducerContext;
 use crate::balance_generated::{
     CHAPEL_CHARITY_GOLD_PER_DAY, CHAPEL_CHARITY_MIN_COFFER_GOLD,
     CHAPEL_POOR_RELIEF_GOLD_PER_DISPATCH, CHAPEL_PRIEST_SALARY_GOLD_PER_DAY,
-    CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, HOUSEHOLD_MAX_WEALTH, TICK_DT,
-    MARKET_CARAVAN_FOOD_PER_DELIVERY, TIMBER_DELIVERY_SPEED_MPS,
+    CHAPEL_UNSTAFFED_UPKEEP_FRACTION, CHAPEL_UPKEEP_GOLD_PER_DAY, HOUSEHOLD_MAX_WEALTH,
+    MARKET_CARAVAN_FOOD_PER_DELIVERY, TICK_DT, TIMBER_DELIVERY_SPEED_MPS,
     TIMBER_DELIVERY_UNLOAD_SEC,
 };
 use crate::chapel_parish_policy::{
@@ -305,8 +305,7 @@ fn try_chapel_poor_relief(
     let Some(marketplace_id) = market_claims.get(&residence.id).copied() else {
         return 0.0;
     };
-    let Some(mut marketplace) = ctx.db.building().id().find(&marketplace_id)
-    else {
+    let Some(mut marketplace) = ctx.db.building().id().find(&marketplace_id) else {
         return 0.0;
     };
     let relief_amount = budget

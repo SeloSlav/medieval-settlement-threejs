@@ -7,9 +7,11 @@ use crate::farming::{
     polygon_area, shape_efficiency,
 };
 use crate::hydrology::sample_world_hydrology_score;
-use crate::placement_validation::{zone_overlaps_building_footprint, zone_overlaps_resource_deposit};
-use crate::roads::load_owner_road_network;
+use crate::placement_validation::{
+    zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
+};
 use crate::reducers::buildings::place_building_internal;
+use crate::roads::load_owner_road_network;
 use crate::tables::{farm_field, graveyard, vineyard_parcel, VineyardParcel};
 use crate::vineyard::{
     site_suitability, VINEYARD_MAX_AREA, VINEYARD_MAX_SLOPE_DEGREES, VINEYARD_MIN_AREA,

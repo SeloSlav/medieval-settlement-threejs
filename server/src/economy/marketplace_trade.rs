@@ -3,14 +3,13 @@
 use spacetimedb::ReducerContext;
 
 use super::regional_market::{
-    ensure_market_state, price_multiplier_for, record_market_trade,
-    record_specialty_market_export, specialty_price_multiplier_for_commodity,
+    ensure_market_state, price_multiplier_for, record_market_trade, record_specialty_market_export,
+    specialty_price_multiplier_for_commodity,
 };
 use super::regional_market_policy::MarketTradeDirection;
 use crate::balance_generated::{
-    marketplace_trade_offer_for_resource, MarketplaceTradeKind,
-    SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_CHEESE,
-    SPECIALTY_EXPORT_GOLD_PER_CIDER,
+    marketplace_trade_offer_for_resource, MarketplaceTradeKind, SPECIALTY_EXPORT_GOLD_PER_ALE,
+    SPECIALTY_EXPORT_GOLD_PER_CHEESE, SPECIALTY_EXPORT_GOLD_PER_CIDER,
     SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
     SPECIALTY_EXPORT_GOLD_PER_POTTERY, SPECIALTY_EXPORT_GOLD_PER_WINE,
 };
@@ -20,10 +19,7 @@ use crate::economy::{
 };
 use crate::tables::Building;
 
-fn physical_trade_staging_enabled(
-    ctx: &ReducerContext,
-    owner: spacetimedb::Identity,
-) -> bool {
+fn physical_trade_staging_enabled(ctx: &ReducerContext, owner: spacetimedb::Identity) -> bool {
     ctx.db
         .player_resources()
         .owner()

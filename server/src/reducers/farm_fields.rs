@@ -11,7 +11,9 @@ use crate::farming::{
     polygon_area, valid_crop, NO_FOLLOWING_CROP, STAGE_HARVESTING, STAGE_PLOUGHING,
 };
 use crate::hydrology::sample_world_hydrology_score;
-use crate::placement_validation::{zone_overlaps_building_footprint, zone_overlaps_resource_deposit};
+use crate::placement_validation::{
+    zone_overlaps_building_footprint, zone_overlaps_resource_deposit,
+};
 use crate::roads::load_owner_road_network;
 use crate::simulation::game_clock;
 use crate::tables::{farm_field, FarmField};

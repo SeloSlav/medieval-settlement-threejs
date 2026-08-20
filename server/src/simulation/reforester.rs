@@ -64,10 +64,9 @@ pub fn step_reforester(
             dx * dx + dz * dz <= radius_sq
         })
         .collect();
-    let growth_increment = reforester_growth_per_tree_per_second(
-        recovering_trees.len(),
-        building.assigned_labor,
-    ) * tree_regrowth_step_seconds();
+    let growth_increment =
+        reforester_growth_per_tree_per_second(recovering_trees.len(), building.assigned_labor)
+            * tree_regrowth_step_seconds();
     if growth_increment <= 0.0 {
         return;
     }

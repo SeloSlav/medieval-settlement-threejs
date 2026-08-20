@@ -131,7 +131,10 @@ fn step_livestock_building(
                 grain_per_head,
                 cycles_per_day,
             )
-            .min(building_commodity_cap(&building.kind, CommodityKind::OatGrain))
+            .min(building_commodity_cap(
+                &building.kind,
+                CommodityKind::OatGrain,
+            ))
         } else {
             0.0
         };
@@ -269,11 +272,8 @@ fn run_livestock_cycle(
             feed_value_needed / 1.25,
         );
         feed_value_needed = (feed_value_needed - oats_used * 1.25).max(0.0);
-        let rye_used = withdraw_building_commodity(
-            building,
-            CommodityKind::RyeGrain,
-            feed_value_needed,
-        );
+        let rye_used =
+            withdraw_building_commodity(building, CommodityKind::RyeGrain, feed_value_needed);
         feed_value_needed = (feed_value_needed - rye_used).max(0.0);
         if feed_value_needed > 1e-9 {
             withdraw_building_commodity(

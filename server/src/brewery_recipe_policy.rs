@@ -8,10 +8,7 @@ pub const BREWERY_RECIPE_AUTO: u8 = 3;
 pub fn is_valid_brewery_recipe_policy(policy: u8) -> bool {
     matches!(
         policy,
-        BREWERY_RECIPE_ALE
-            | BREWERY_RECIPE_CIDER
-            | BREWERY_RECIPE_MEAD
-            | BREWERY_RECIPE_AUTO
+        BREWERY_RECIPE_ALE | BREWERY_RECIPE_CIDER | BREWERY_RECIPE_MEAD | BREWERY_RECIPE_AUTO
     )
 }
 

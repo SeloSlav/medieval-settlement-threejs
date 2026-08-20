@@ -202,7 +202,10 @@ pub fn credit_local_purchase_receipt(
     gross_receipt: f64,
 ) -> LocalPurchaseSplit {
     if gross_receipt <= 1e-9
-        || !matches!(market.kind.as_str(), "marketplace" | "tavern" | "trading_post")
+        || !matches!(
+            market.kind.as_str(),
+            "marketplace" | "tavern" | "trading_post"
+        )
     {
         return LocalPurchaseSplit::default();
     }
@@ -217,14 +220,12 @@ pub fn credit_local_purchase_receipt(
         .is_some_and(|resources| resources.physical_founding_site_enabled);
 
     let split = if physical {
-        let deposited =
-            deposit_building_commodity(market, CommodityKind::Gold, gross_receipt);
+        let deposited = deposit_building_commodity(market, CommodityKind::Gold, gross_receipt);
         let local_tax = (deposited * rate * collection).clamp(0.0, deposited);
         let producer_income = (deposited - local_tax).max(0.0);
         market.civic_receipts_gold =
             (market.civic_receipts_gold.max(0.0) + local_tax).min(market.gold.max(0.0));
-        market.private_export_proceeds_gold = (private_export_proceeds(market)
-            + producer_income)
+        market.private_export_proceeds_gold = (private_export_proceeds(market) + producer_income)
             .min((market.gold - market.civic_receipts_gold).max(0.0));
         LocalPurchaseSplit {
             producer_income,

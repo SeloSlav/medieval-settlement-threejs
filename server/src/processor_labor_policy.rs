@@ -5,11 +5,9 @@
 //! processors and source-ready extraction sites; settlement-wide stalled-site
 //! recall lives in `worksite_stall_policy`.
 
-use crate::construction_priority::{
-    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL,
-};
 #[cfg(test)]
 use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
+use crate::construction_priority::{CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProcessorCallupCandidate {

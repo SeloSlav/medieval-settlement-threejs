@@ -54,7 +54,13 @@ const staffedGranary = building({ id: 'b-granary', kind: 'granary', x: 22, z: 10
 const staffedStorehouse = building({ id: 'b-storehouse', kind: 'village_storehouse', x: 18, z: 10, assignedLabor: 1 });
 const staffedChapel = building({ id: 'b-chapel', kind: 'chapel', x: 10, z: 20, assignedLabor: 1 });
 const idleChapel = building({ id: 'b-chapel-idle', kind: 'chapel', x: 30, z: 30, assignedLabor: 0 });
-const monastery = building({ id: 'b-monastery', kind: 'monastery', x: 15, z: 15 });
+const monastery = building({
+  id: 'b-monastery',
+  kind: 'monastery',
+  x: 15,
+  z: 15,
+  assignedLabor: 1,
+});
 const home = residence();
 
 const connectedProbe = (ax: number, az: number, bx: number, bz: number): number | null => {
@@ -138,6 +144,18 @@ assert.equal(connectedQueries.isResidenceConnectedToMarketplace(home, 'goods'), 
 assert.equal(connectedQueries.getServingChapelForResidence(home)?.id, staffedChapel.id);
 assert.equal(connectedQueries.isResidenceConnectedToChapel(home), true);
 assert.equal(connectedQueries.isResidenceInMonasteryCoverage(home), true);
+
+const unstaffedState = {
+  ...gameState,
+  buildings: new Map(
+    [...buildings, { ...monastery, assignedLabor: 0 }].map((entry) => [entry.id, entry]),
+  ),
+} as GameState;
+assert.equal(
+  new StubWorldQueries(true, unstaffedState).isResidenceInMonasteryCoverage(home),
+  false,
+  'an unstaffed monastery must not provide settlement coverage',
+);
 
 const disconnectedQueries = new StubWorldQueries(false, gameState);
 assert.equal(disconnectedQueries.isResidenceConnectedToMarketplace(home), false);

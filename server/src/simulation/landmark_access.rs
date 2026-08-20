@@ -73,6 +73,7 @@ pub fn find_linked_monastery_in_coverage<'a>(
             && monastery.owner == owner
             && monastery.kind == "monastery"
             && monastery.construction_complete
+            && monastery.assigned_labor > 0
     })
 }
 

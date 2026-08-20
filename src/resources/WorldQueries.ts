@@ -435,6 +435,7 @@ export class WorldQueries {
       (building) =>
         building.kind === 'monastery'
         && building.constructionComplete !== false
+        && building.assignedLabor > 0
         && !fireDisabled.has(building.id),
     );
   }

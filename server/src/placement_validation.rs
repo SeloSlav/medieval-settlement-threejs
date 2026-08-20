@@ -9,8 +9,8 @@ use crate::burgage::{
 use crate::db::*;
 use crate::hydrology::sample_hydrology_score;
 use crate::monastery_estate_policy::{
-    monastery_estate_corners, MONASTERY_ESTATE_DEPTH,
-    MONASTERY_ESTATE_HALF_WIDTH, MONASTERY_ESTATE_REAR_DEPTH, MONASTERY_ESTATE_WIDTH,
+    monastery_estate_corners, MONASTERY_ESTATE_DEPTH, MONASTERY_ESTATE_HALF_WIDTH,
+    MONASTERY_ESTATE_REAR_DEPTH, MONASTERY_ESTATE_WIDTH,
 };
 use crate::roads::{load_owner_road_network, RoadNetwork};
 
@@ -275,9 +275,7 @@ pub fn building_overlaps_resource_deposit(
             .or_else(|| {
                 static_foraging_resource_protection_radius(&deposit.node_kind, deposit.max_yield)
             })
-            .is_some_and(|radius| {
-                polygon_overlaps_circle(&polygon, deposit.x, deposit.z, radius)
-            })
+            .is_some_and(|radius| polygon_overlaps_circle(&polygon, deposit.x, deposit.z, radius))
     })
 }
 

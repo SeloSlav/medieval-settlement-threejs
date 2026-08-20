@@ -47,6 +47,7 @@ export function operationalFeastMonasteries(
     .filter((building) =>
       building.kind === 'monastery'
       && building.constructionComplete !== false
+      && building.assignedLabor > 0
       && !fireDisabledBuildingIds.has(building.id)
     )
     .sort((a, b) => compareStableEntityIds(a.id, b.id));

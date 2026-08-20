@@ -17,6 +17,13 @@ import {
 } from '../src/buildings/monasteryEstate.ts';
 import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { fireRecoveryCost } from '../src/fires/fireRecovery.ts';
+import { BUILDING_DEFINITIONS } from '../src/generated/gameBalance.ts';
+import type { BuildingState } from '../src/resources/types.ts';
+import {
+  collectWorkerTargets,
+  pickWorkerWalkPlan,
+  PRODUCTION_WORKPLACE_KINDS,
+} from '../src/settlement/workerPaths.ts';
 
 assert.equal(MONASTERY_ESTATE_WIDTH, 68);
 assert.equal(MONASTERY_ESTATE_DEPTH, 53);
@@ -135,7 +142,60 @@ assert.match(
   /if kind == "monastery"[\s\S]*?\.any\(\|building\| building\.kind == "monastery"\)[\s\S]*?Only one monastery may belong to a settlement/,
 );
 
+assert.equal(BUILDING_DEFINITIONS.monastery.acceptsLabor, true);
+assert.equal(BUILDING_DEFINITIONS.monastery.maxLabor, 8);
+assert.equal(PRODUCTION_WORKPLACE_KINDS.includes('monastery'), true);
+
+const staffedEstate = {
+  id: 'staffed-monastery',
+  kind: 'monastery',
+  x: 0,
+  z: 0,
+  workRadius: 0,
+  actionCooldown: 0,
+  timber: 0,
+  firewood: 0,
+  stone: 0,
+  water: 0,
+  food: 0,
+  ale: 0,
+  preservedFood: 0,
+  honey: 0,
+  wine: 0,
+  gold: 0,
+  waterCapacity: 0,
+  assignedLabor: 8,
+  constructionComplete: true,
+} as BuildingState;
+const estateWorkTargets = collectWorkerTargets(staffedEstate, {
+  quarries: [],
+  foragingNodes: [],
+  trees: new Map(),
+  treeRegistry: null,
+  farmFields: [],
+  pastures: [],
+});
+for (const station of ['orchard', 'croft', 'pasture', 'infirmary', 'outer-gate']) {
+  assert.ok(
+    estateWorkTargets.some((target) => target.id.endsWith(`:${station}`)),
+    `assigned monks need a visible ${station} duty target`,
+  );
+}
+const outsidePlan = Array.from({ length: 512 }, (_, seed) =>
+  pickWorkerWalkPlan(staffedEstate, 0, estateWorkTargets, seed)
+).find((plan) => plan?.target?.id.endsWith(':outer-gate'));
+assert.ok(
+  outsidePlan?.path.some((point) => Math.hypot(point.x, point.z) > 15),
+  'the porter or almoner should sometimes walk beyond the monastery wall',
+);
+
+const workerPaths = readFileSync(new URL('../src/settlement/workerPaths.ts', import.meta.url), 'utf8');
+assert.match(workerPaths, /'monastery',[\s\S]*?PRODUCTION_WORKPLACE_KINDS/);
+assert.match(workerPaths, /outer-gate[\s\S]*?localZ: 14\.5/);
+
 const simulation = readFileSync(new URL('../server/src/simulation/expanded_economy.rs', import.meta.url), 'utf8');
+assert.match(simulation, /let onsite_labor = onsite_building_labor\(ctx, &building\);[\s\S]*?if onsite_labor == 0[\s\S]*?return;/);
+assert.match(simulation, /productive_labor[\s\S]*?definition\.max_labor[\s\S]*?amount \* productivity \* staffing/);
 assert.match(simulation, /fn reinvest_monastery_estate/);
 assert.match(simulation, /fn dispatch_monastery_estate_export/);
 assert.match(simulation, /CommodityKind::Apples, yields\.apples/);

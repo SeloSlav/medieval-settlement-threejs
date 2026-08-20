@@ -95,10 +95,7 @@ pub fn set_economic_activity_tax_rate(ctx: &ReducerContext, tax_rate: f64) -> Re
 }
 
 #[reducer]
-pub fn set_pantry_safeguard_policy(
-    ctx: &ReducerContext,
-    policy: u8,
-) -> Result<(), String> {
+pub fn set_pantry_safeguard_policy(ctx: &ReducerContext, policy: u8) -> Result<(), String> {
     let owner = ctx.sender();
     ensure_player_resources(ctx, owner);
     require_owned_building(ctx, "town_hall", true)?;
@@ -197,14 +194,11 @@ pub fn set_monastery_planting(
     let Some(mut monastery) = ctx.db.building().id().find(&building_id) else {
         return Err("Monastery not found.".to_string());
     };
-    if monastery.owner != owner
-        || monastery.kind != "monastery"
-        || !monastery.construction_complete
+    if monastery.owner != owner || monastery.kind != "monastery" || !monastery.construction_complete
     {
         return Err("Only a completed monastery may change its planting plan.".to_string());
     }
-    monastery.monastery_orchard_planting =
-        normalize_monastery_orchard_planting(orchard_planting);
+    monastery.monastery_orchard_planting = normalize_monastery_orchard_planting(orchard_planting);
     monastery.monastery_croft_planting = normalize_monastery_croft_planting(croft_planting);
     ctx.db.building().id().update(monastery);
     Ok(())

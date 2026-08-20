@@ -9,13 +9,12 @@ use crate::balance_generated::{
 };
 use crate::db::*;
 use crate::economy::{
-    assign_building_labor,
-    available_unreserved_building_ironwork, available_unreserved_building_roof_tiles,
-    available_unreserved_building_stone, available_unreserved_building_timber,
-    building_commodity_room, building_commodity_stock, credit_treasury_gold,
-    deposit_building_commodity, ensure_market_state, price_multiplier_for, record_market_trade,
-    spend_treasury_gold, trade_resource_for_commodity, treasury_gold, withdraw_building_commodity,
-    CommodityKind, MarketTradeDirection,
+    assign_building_labor, available_unreserved_building_ironwork,
+    available_unreserved_building_roof_tiles, available_unreserved_building_stone,
+    available_unreserved_building_timber, building_commodity_room, building_commodity_stock,
+    credit_treasury_gold, deposit_building_commodity, ensure_market_state, price_multiplier_for,
+    record_market_trade, spend_treasury_gold, trade_resource_for_commodity, treasury_gold,
+    withdraw_building_commodity, CommodityKind, MarketTradeDirection,
 };
 use crate::granary_policy::granary_exportable_grain;
 use crate::simulation::delivery_trips::{
@@ -59,9 +58,7 @@ pub fn step_trading_post_trade(ctx: &ReducerContext, tick: &SimTickContext, cloc
         };
         // Older saves could retain the former five-worker broker roster.
         // Release surplus workers once, preserving any in-transit cart crew.
-        if post.assigned_labor > 2
-            && assign_building_labor(ctx, post.owner, post.id, 2).is_ok()
-        {
+        if post.assigned_labor > 2 && assign_building_labor(ctx, post.owner, post.id, 2).is_ok() {
             post.assigned_labor = 2;
         }
         if !trading_post_operational(ctx, tick, clock, &post) {

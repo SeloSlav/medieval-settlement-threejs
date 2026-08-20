@@ -502,9 +502,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         | CommodityKind::OatGrain
         | CommodityKind::MaslinGrain => def.storage_grain,
         CommodityKind::BarleySheaves => def.storage_barley,
-        CommodityKind::RyeFlour | CommodityKind::MaslinFlour => {
-            def.storage_flour
-        }
+        CommodityKind::RyeFlour | CommodityKind::MaslinFlour => def.storage_flour,
         CommodityKind::Malt => def.storage_malt,
         CommodityKind::Flax => def.storage_flax,
         CommodityKind::Iron => def.storage_iron,
@@ -526,8 +524,7 @@ pub fn building_commodity_cap(kind: &str, commodity: CommodityKind) -> f64 {
         | CommodityKind::Cherries
         | CommodityKind::Vegetables
         | CommodityKind::Eggs
-        | CommodityKind::Grapes
-        => def.storage_food,
+        | CommodityKind::Grapes => def.storage_food,
         CommodityKind::CuredMeat | CommodityKind::SmokedFish | CommodityKind::Cheese => {
             def.storage_preserved_food
         }
@@ -1040,11 +1037,8 @@ pub fn withdraw_residence_fresh_food(residence: &mut Residence, meal_amount: f64
         if !(kind.is_fresh_food() || kind == CommodityKind::Honey) {
             continue;
         }
-        let amount = withdraw_residence_commodity(
-            residence,
-            kind,
-            remaining / kind.meal_value().max(1e-9),
-        );
+        let amount =
+            withdraw_residence_commodity(residence, kind, remaining / kind.meal_value().max(1e-9));
         withdrawn += amount * kind.meal_value();
         remaining = (remaining - amount * kind.meal_value()).max(0.0);
     }
@@ -1061,11 +1055,8 @@ pub fn withdraw_residence_preserved_food(residence: &mut Residence, meal_amount:
         if !kind.is_preserved_food() {
             continue;
         }
-        let amount = withdraw_residence_commodity(
-            residence,
-            kind,
-            remaining / kind.meal_value().max(1e-9),
-        );
+        let amount =
+            withdraw_residence_commodity(residence, kind, remaining / kind.meal_value().max(1e-9));
         withdrawn += amount * kind.meal_value();
         remaining = (remaining - amount * kind.meal_value()).max(0.0);
     }

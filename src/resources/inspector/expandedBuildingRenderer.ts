@@ -1089,13 +1089,13 @@ export function renderExpandedBuildingInspector(
           }
         : null;
   const monasteryPolicy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
-  const hospitality = building.kind === 'monastery'
+  const hospitality = building.kind === 'monastery' && building.assignedLabor > 0
     ? monasteryHospitalityPlan(building, monasteryPolicy.feastsEnabled)
     : null;
-  const feastReadiness = building.kind === 'monastery'
+  const feastReadiness = building.kind === 'monastery' && building.assignedLabor > 0
     ? monasteryFeastReadiness(building)
     : null;
-  const nextFeast = building.kind === 'monastery'
+  const nextFeast = building.kind === 'monastery' && building.assignedLabor > 0
     ? nextMonasteryFeast(clock)
     : null;
   const monasteryHospitalityRows = hospitality
@@ -1117,6 +1117,15 @@ export function renderExpandedBuildingInspector(
           building.monasteryOrchardPlanting,
           building.monasteryCroftPlanting,
         );
+        const onsiteMonks = onsiteBuildingLabor(
+          building,
+          context.worldQueries.getActiveDeliveryTrip?.(building) ?? null,
+        );
+        const staffing = Math.max(
+          0,
+          Math.min(1, onsiteMonks / Math.max(1, definition.maxLabor)),
+        );
+        const staffedYield = (amount: number) => amount * staffing;
         const infirmaryBeds = monasteryInfirmaryBeds(level);
         const infirmaryRecovery = monasteryInfirmaryRecoveryMultiplier(level);
         const infirmaryMortality = monasteryInfirmaryMortalityMultiplier(level);
@@ -1135,24 +1144,25 @@ export function renderExpandedBuildingInspector(
           .reduce((sum, trip) => sum + trip.amount, 0);
         return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete stone precinct wall · founded in the outer 60 m of the map</span></li>
           <li><span>Estate development</span><span>Level ${level}/3 · ${levelLabel}</span></li>
+          <li><span>Monastic community</span><span>${onsiteMonks} on site / ${building.assignedLabor} assigned / ${definition.maxLabor} cells · ${Math.round(staffing * 100)}% estate output before commute losses${building.assignedLabor <= 0 ? ' · every service dormant' : ''}</span></li>
           <li><span>Estate produce</span><span>${[
-            yields.apples > 0 ? `apples ${yields.apples.toFixed(2)}` : '',
-            yields.vegetables > 0 ? `vegetables ${yields.vegetables.toFixed(2)}` : '',
-            `eggs ${yields.eggs.toFixed(2)}`,
-            `milk ${yields.milk.toFixed(2)}`,
-            `meat ${yields.meat.toFixed(2)}`,
-            `honey ${yields.honey.toFixed(2)}`,
-            yields.ale > 0 ? `ale ${yields.ale.toFixed(2)}` : '',
-            yields.cider > 0 ? `cider ${yields.cider.toFixed(2)}` : '',
-            yields.wine > 0 ? `wine ${yields.wine.toFixed(2)}` : '',
-            yields.cheese > 0 ? `cheese ${yields.cheese.toFixed(2)}` : '',
-          ].filter(Boolean).join(' · ')} per cycle</span></li>
+            yields.apples > 0 ? `apples ${staffedYield(yields.apples).toFixed(2)}` : '',
+            yields.vegetables > 0 ? `vegetables ${staffedYield(yields.vegetables).toFixed(2)}` : '',
+            `eggs ${staffedYield(yields.eggs).toFixed(2)}`,
+            `milk ${staffedYield(yields.milk).toFixed(2)}`,
+            `meat ${staffedYield(yields.meat).toFixed(2)}`,
+            `honey ${staffedYield(yields.honey).toFixed(2)}`,
+            yields.ale > 0 ? `ale ${staffedYield(yields.ale).toFixed(2)}` : '',
+            yields.cider > 0 ? `cider ${staffedYield(yields.cider).toFixed(2)}` : '',
+            yields.wine > 0 ? `wine ${staffedYield(yields.wine).toFixed(2)}` : '',
+            yields.cheese > 0 ? `cheese ${staffedYield(yields.cheese).toFixed(2)}` : '',
+          ].filter(Boolean).join(' · ')} per cycle at the assigned roster</span></li>
           <li><span>Regional estate exports</span><span>Automatic 6-unit lots · ${Math.round(exportDutyRate * 100)}% export duty is reserved for civic collection · net income remains here</span></li>
           <li><span>Infirmary</span><span>${infirmaryBeds} beds · shortest remedy runway admitted first · consumes ${MONASTERY_INFIRMARY_FOOD_PER_BED_DAY.toFixed(1)} estate food per occupied bed/day</span></li>
           <li><span>Skilled nursing</span><span>Up to ${Math.round((infirmaryRecovery - 1) * 100)}% faster illness recovery and ${Math.round((1 - infirmaryMortality) * 100)}% lower illness mortality · stacks with household remedies</span></li>
           <li><span>Agricultural archive</span><span>Rye ${Math.max(0, building.ryeGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} · oats ${Math.max(0, building.oatGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} · maslin ${Math.max(0, building.maslinGrain ?? 0).toFixed(1)} / ${seedTarget.toFixed(0)} emergency seed</span></li>
           <li><span>Emergency reseeding</span><span>Draws only farmstead/granary surplus · automatically sends physical seed carts to road-linked holdings that cannot cover their next sowing · the reserve can run out</span></li>
-          <li><span>Scriptorium records</span><span>${Math.round((1 - scriptoriumRecovery) * 100)}% fewer timber, stone, fittings, and roof tiles for fire reconstruction within 520 m by road · requires a staffed church link · does not affect ordinary construction</span></li>
+          <li><span>Scriptorium records</span><span>${Math.round((1 - scriptoriumRecovery) * 100)}% fewer timber, stone, fittings, and roof tiles for fire reconstruction within 520 m by road · requires monks and a staffed church link · does not affect ordinary construction</span></li>
           <li><span>Monastery purse</span><span>${Math.round(building.gold)} gold secured here · ${privateGold.toFixed(1)} private estate gold${incomingTithe > 0.05 ? ` · ${Math.round(incomingTithe)} tithe incoming by handcart` : ''}</span></li>
           <li><span>Automatic reinvestment</span><span>${nextInvestment == null ? 'Estate fully developed' : `${privateGold.toFixed(1)} / ${nextInvestment + 6} gold · keeps a 6-gold working reserve`}</span></li>`;
       })()
@@ -1858,7 +1868,7 @@ function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorR
   const croftPlanting = normalizeMonasteryCroftPlanting(building.monasteryCroftPlanting);
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Choose what the monastery plants. Structural investment improves the selected parcels without changing them; changing the plan affects future cycles and never converts stored produce. Animals, pasture, hives, dairy, archive, and infirmary remain part of every estate.</p>
+      <p class="inspector-action-panel__hint">Assign residents to enter the eight-cell monastic community; without at least one monk on site the entire estate and every service remain dormant. Choose what the monastery plants. Structural investment improves the selected parcels without changing them; changing the plan affects future cycles and never converts stored produce. Animals, pasture, hives, dairy, archive, and infirmary remain part of every estate.</p>
       <label class="city-admin-panel__slider-label" for="monastery-orchard-planting"><span>Orchard parcel</span><strong>${MONASTERY_ORCHARD_PLANTINGS[orchardPlanting].output}</strong></label>
       <select class="inspector-policy-select" id="monastery-orchard-planting" data-monastery-orchard-planting>
         ${MONASTERY_ORCHARD_PLANTINGS.map((planting) => `<option value="${planting.value}" ${planting.value === orchardPlanting ? 'selected' : ''}>${planting.label}</option>`).join('')}

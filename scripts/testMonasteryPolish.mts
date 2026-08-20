@@ -61,7 +61,7 @@ function building(overrides: Partial<BuildingState>): BuildingState {
     food: 0,
     gold: 0,
     waterCapacity: 0,
-    assignedLabor: 0,
+    assignedLabor: 1,
     ...overrides,
   };
 }
@@ -78,6 +78,22 @@ const connectedProbe = (ax: number, az: number, bx: number, bz: number): number 
 };
 
 assert.equal(monasteryLinkedToChapel(monastery, [staffedChapel], connectedProbe), true);
+const unstaffedMonastery = { ...monastery, assignedLabor: 0 };
+assert.equal(
+  monasteryLinkedToChapel(unstaffedMonastery, [staffedChapel], connectedProbe),
+  false,
+  'an empty religious house must not provide monastery services',
+);
+assert.equal(
+  findLinkedMonasteryInCoverage(
+    home,
+    [unstaffedMonastery],
+    [staffedChapel],
+    connectedProbe,
+  ),
+  null,
+  'unstaffed monasteries must disappear from household service coverage',
+);
 assert.equal(
   findLinkedMonasteryInCoverage(home, [monastery], [staffedChapel], connectedProbe)?.id,
   monastery.id,

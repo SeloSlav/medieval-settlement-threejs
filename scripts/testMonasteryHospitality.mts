@@ -25,7 +25,9 @@ import {
 import {
   isMonasteryFeastGatheringTime,
   monasteryFeastGatheringPoint,
+  operationalFeastMonasteries,
 } from '../src/settlement/monasteryFeast.ts';
+import type { BuildingState } from '../src/resources/types.ts';
 
 const full = monasteryHospitalityPlan({ honey: 80, wine: 50 }, true);
 assert.equal(full.supplyRatio, 1);
@@ -157,6 +159,18 @@ assert.equal(
   ),
   false,
   'disabling monastery feasts must also cancel the civilian gathering',
+);
+const feastHouse = {
+  id: 'feast-house',
+  kind: 'monastery',
+  constructionComplete: true,
+  assignedLabor: 1,
+} as BuildingState;
+assert.equal(operationalFeastMonasteries([feastHouse]).length, 1);
+assert.equal(
+  operationalFeastMonasteries([{ ...feastHouse, assignedLabor: 0 }]).length,
+  0,
+  'a monastery without monks must not summon a visible feast gathering',
 );
 const feastGatheringA = monasteryFeastGatheringPoint(
   { x: 40, z: -12 },

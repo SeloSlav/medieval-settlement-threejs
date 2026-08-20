@@ -1,8 +1,6 @@
-use crate::construction_priority::{
-    CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL,
-};
 #[cfg(test)]
 use crate::construction_priority::CONSTRUCTION_PRIORITY_URGENT;
+use crate::construction_priority::{CONSTRUCTION_PRIORITY_LOW, CONSTRUCTION_PRIORITY_NORMAL};
 use crate::foraging_policy::harvest_available;
 use crate::specialty_trade_policy::{apiary_is_active, vineyard_is_harvesting};
 

@@ -79,7 +79,7 @@ const OCCUPATIONS: Record<BuildingKind, string> = {
   threshing_barn: 'Farmhand',
   pastoral_farmstead: 'Herder',
   swineherd: 'Swineherd',
-  monastery: 'Monastery worker',
+  monastery: 'Monk',
   brewery: 'Brewer',
   tavern: 'Innkeeper',
   smokehouse: 'Smokehouse worker',

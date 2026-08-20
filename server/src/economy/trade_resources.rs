@@ -73,7 +73,10 @@ mod tests {
                 assert!(trade_resource_for_commodity(commodity).is_none());
             } else {
                 let resource = trade_resource_for_commodity(commodity).expect("trade resource");
-                assert!(resources.insert(resource as u8), "duplicate resource: {resource:?}");
+                assert!(
+                    resources.insert(resource as u8),
+                    "duplicate resource: {resource:?}"
+                );
             }
         }
     }
