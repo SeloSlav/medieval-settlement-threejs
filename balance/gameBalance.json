@@ -1579,7 +1579,7 @@
       "requiresGame": false,
       "requiresBerries": false,
       "requiresWaterShore": false,
-      "requiresHillside": true
+      "requiresHillside": false
     },
     "brewery": {
       "label": "Brewhouse",

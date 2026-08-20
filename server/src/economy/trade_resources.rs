@@ -60,68 +60,13 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
     })
 }
 
-pub fn commodity_for_trade_resource(resource: TradeResource) -> CommodityKind {
-    match resource {
-        TradeResource::Timber => CommodityKind::Timber,
-        TradeResource::Stone => CommodityKind::Stone,
-        TradeResource::Firewood => CommodityKind::Firewood,
-        TradeResource::Water => CommodityKind::Water,
-        TradeResource::Food => CommodityKind::Food,
-        TradeResource::RyeSheaves => CommodityKind::RyeSheaves,
-        TradeResource::OatSheaves => CommodityKind::OatSheaves,
-        TradeResource::BarleySheaves => CommodityKind::BarleySheaves,
-        TradeResource::MaslinSheaves => CommodityKind::MaslinSheaves,
-        TradeResource::RyeGrain => CommodityKind::RyeGrain,
-        TradeResource::OatGrain => CommodityKind::OatGrain,
-        TradeResource::MaslinGrain => CommodityKind::MaslinGrain,
-        TradeResource::RyeFlour => CommodityKind::RyeFlour,
-        TradeResource::OatFlour => CommodityKind::OatFlour,
-        TradeResource::MaslinFlour => CommodityKind::MaslinFlour,
-        TradeResource::RyeBread => CommodityKind::RyeBread,
-        TradeResource::OatBread => CommodityKind::OatBread,
-        TradeResource::MaslinBread => CommodityKind::MaslinBread,
-        TradeResource::Ale => CommodityKind::Ale,
-        TradeResource::PreservedFood => CommodityKind::PreservedFood,
-        TradeResource::Honey => CommodityKind::Honey,
-        TradeResource::Wine => CommodityKind::Wine,
-        TradeResource::Ironwork => CommodityKind::Ironwork,
-        TradeResource::Polearms => CommodityKind::Polearms,
-        TradeResource::Wool => CommodityKind::Wool,
-        TradeResource::Cloth => CommodityKind::Cloth,
-        TradeResource::Barley => CommodityKind::Barley,
-        TradeResource::Malt => CommodityKind::Malt,
-        TradeResource::Flax => CommodityKind::Flax,
-        TradeResource::Iron => CommodityKind::Iron,
-        TradeResource::Clay => CommodityKind::Clay,
-        TradeResource::Salt => CommodityKind::Salt,
-        TradeResource::Charcoal => CommodityKind::Charcoal,
-        TradeResource::Pottery => CommodityKind::Pottery,
-        TradeResource::Manure => CommodityKind::Manure,
-        TradeResource::Remedies => CommodityKind::Remedies,
-        TradeResource::RoofTiles => CommodityKind::RoofTiles,
-        TradeResource::Meat => CommodityKind::Meat,
-        TradeResource::Fish => CommodityKind::Fish,
-        TradeResource::Berries => CommodityKind::Berries,
-        TradeResource::Mushrooms => CommodityKind::Mushrooms,
-        TradeResource::Milk => CommodityKind::Milk,
-        TradeResource::Apples => CommodityKind::Apples,
-        TradeResource::Cherries => CommodityKind::Cherries,
-        TradeResource::Vegetables => CommodityKind::Vegetables,
-        TradeResource::Eggs => CommodityKind::Eggs,
-        TradeResource::Grapes => CommodityKind::Grapes,
-        TradeResource::Porridge => CommodityKind::Porridge,
-        TradeResource::CuredMeat => CommodityKind::CuredMeat,
-        TradeResource::SmokedFish => CommodityKind::SmokedFish,
-        TradeResource::Cheese => CommodityKind::Cheese,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn every_non_gold_commodity_has_a_trade_resource() {
+    fn every_non_gold_commodity_has_a_unique_trade_resource() {
+        let mut resources = std::collections::HashSet::new();
         for code in 0..=54 {
             let Some(commodity) = CommodityKind::from_u8(code) else {
                 continue;
@@ -130,7 +75,7 @@ mod tests {
                 assert!(trade_resource_for_commodity(commodity).is_none());
             } else {
                 let resource = trade_resource_for_commodity(commodity).expect("trade resource");
-                assert_eq!(commodity_for_trade_resource(resource), commodity);
+                assert!(resources.insert(resource as u8), "duplicate resource: {resource:?}");
             }
         }
     }

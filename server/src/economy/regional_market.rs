@@ -101,10 +101,6 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
     }
 }
 
-pub fn scaled_gold_cost(base: f64, multiplier: f64) -> f64 {
-    (base * multiplier).ceil().max(1.0)
-}
-
 pub fn scaled_gold_yield(base: f64, multiplier: f64) -> f64 {
     (base * multiplier).floor().max(0.0)
 }

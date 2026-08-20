@@ -351,8 +351,12 @@ export function createMonasteryMesh(estateLevel = 0): THREE.Group {
   const main = addGableShell(group, { width: 13.2, depth: 6.4, stoneHeight: 1.35, wallHeight: 3.8, ridgeHeight: 2.7, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(0), centerX: -1.2 });
   addPlankDoor(group, -1.2, 1.38, main.frontZ + 0.03, 1.1, 2.05);
   for (const x of [-5.8, -3.1, 0.8, 3.5]) for (const y of [2.45, 4.18]) addSmallWindow(group, x, y, main.frontZ + 0.03, 0.66, 0.9);
-  const wing = addGableShell(group, { width: 5.4, depth: 8.8, stoneHeight: 1.1, wallHeight: 3.35, ridgeHeight: 2.45, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(1), centerX: 6.2, centerZ: 1.1 });
-  addPlankDoor(group, 6.2, 1.14, wing.frontZ + 0.03, 0.94, 1.95);
+  const infirmaryWing = new THREE.Group();
+  infirmaryWing.name = 'Monastery infirmary wing';
+  const wing = addGableShell(infirmaryWing, { width: 5.4, depth: 8.8, stoneHeight: 1.1, wallHeight: 3.35, ridgeHeight: 2.45, wallMaterial: residenceFacadeMaterial('white'), roofMaterial: tileMaterial(1), centerX: 6.2, centerZ: 1.1 });
+  addPlankDoor(infirmaryWing, 6.2, 1.14, wing.frontZ + 0.03, 0.94, 1.95);
+  for (const x of [5.0, 6.2, 7.4]) addSmallWindow(infirmaryWing, x, 2.35, wing.centerZ - wing.halfD - 0.03, 0.64, 0.86);
+  group.add(infirmaryWing);
   // Low arcaded cloister edge and a restrained belfry distinguish it from the parish chapel.
   for (let x = -4.9; x <= 2.6; x += 1.5) addMesh(group, new THREE.BoxGeometry(0.18, 2.15, 0.18), stoneMaterial('light'), new THREE.Vector3(x, 1.08, 4.25));
   addLeanToRoof(group, {

@@ -2,15 +2,18 @@ pub const MONASTERY_ESTATE_HALF_WIDTH: f64 = 34.0;
 pub const MONASTERY_ESTATE_REAR_DEPTH: f64 = 45.5;
 pub const MONASTERY_ESTATE_FRONT_DEPTH: f64 = 7.5;
 pub const MONASTERY_ESTATE_WIDTH: f64 = MONASTERY_ESTATE_HALF_WIDTH * 2.0;
-pub const MONASTERY_ESTATE_DEPTH: f64 =
-    MONASTERY_ESTATE_REAR_DEPTH + MONASTERY_ESTATE_FRONT_DEPTH;
+pub const MONASTERY_ESTATE_DEPTH: f64 = MONASTERY_ESTATE_REAR_DEPTH + MONASTERY_ESTATE_FRONT_DEPTH;
 pub const MONASTERY_ESTATE_MAP_INSET: f64 = 8.0;
 pub const MONASTERY_ESTATE_EDGE_BAND: f64 = 60.0;
 pub const MONASTERY_ESTATE_GOLD_RESERVE: f64 = 6.0;
 pub const MONASTERY_ESTATE_EXPORT_LOT: f64 = 6.0;
+pub const MONASTERY_INFIRMARY_FOOD_PER_BED_DAY: f64 = 0.6;
 
 const INVESTMENT_COSTS: [f64; 3] = [18.0, 42.0, 78.0];
 const YIELD_MULTIPLIERS: [f64; 4] = [1.0, 1.25, 1.55, 1.9];
+const INFIRMARY_BEDS: [u32; 4] = [4, 6, 8, 10];
+const INFIRMARY_RECOVERY_MULTIPLIERS: [f64; 4] = [1.25, 1.35, 1.45, 1.55];
+const INFIRMARY_MORTALITY_MULTIPLIERS: [f64; 4] = [0.8, 0.7, 0.6, 0.5];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EstatePoint {
@@ -87,19 +90,20 @@ pub fn monastery_estate_fits_map(x: f64, z: f64, yaw: f64, playable_half: f64) -
         .all(|corner| corner.x.abs() <= limit && corner.z.abs() <= limit)
 }
 
-pub fn monastery_estate_is_near_map_edge(
-    x: f64,
-    z: f64,
-    yaw: f64,
-    playable_half: f64,
-) -> bool {
+pub fn monastery_estate_is_near_map_edge(x: f64, z: f64, yaw: f64, playable_half: f64) -> bool {
     let corners = monastery_estate_corners(x, z, yaw);
-    let min_x = corners.iter().map(|point| point.x).fold(f64::INFINITY, f64::min);
+    let min_x = corners
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::INFINITY, f64::min);
     let max_x = corners
         .iter()
         .map(|point| point.x)
         .fold(f64::NEG_INFINITY, f64::max);
-    let min_z = corners.iter().map(|point| point.z).fold(f64::INFINITY, f64::min);
+    let min_z = corners
+        .iter()
+        .map(|point| point.z)
+        .fold(f64::INFINITY, f64::min);
     let max_z = corners
         .iter()
         .map(|point| point.z)
@@ -125,6 +129,18 @@ pub fn monastery_estate_yield_multiplier(level: u8) -> f64 {
     YIELD_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
 }
 
+pub fn monastery_infirmary_beds(level: u8) -> u32 {
+    INFIRMARY_BEDS[normalize_monastery_estate_level(level) as usize]
+}
+
+pub fn monastery_infirmary_recovery_multiplier(level: u8) -> f64 {
+    INFIRMARY_RECOVERY_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
+}
+
+pub fn monastery_infirmary_mortality_multiplier(level: u8) -> f64 {
+    INFIRMARY_MORTALITY_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
+}
+
 pub fn monastery_estate_yields(level: u8) -> MonasteryEstateYields {
     let multiplier = monastery_estate_yield_multiplier(level);
     MonasteryEstateYields {
@@ -140,9 +156,8 @@ pub fn monastery_estate_yields(level: u8) -> MonasteryEstateYields {
 }
 
 pub fn monastery_estate_can_reinvest(level: u8, private_gold: f64) -> bool {
-    monastery_estate_next_investment_cost(level).is_some_and(|cost| {
-        private_gold + 1e-9 >= cost + MONASTERY_ESTATE_GOLD_RESERVE
-    })
+    monastery_estate_next_investment_cost(level)
+        .is_some_and(|cost| private_gold + 1e-9 >= cost + MONASTERY_ESTATE_GOLD_RESERVE)
 }
 
 pub fn monastery_estate_exportable(stock: f64, protected_floor: f64) -> f64 {
@@ -186,5 +201,18 @@ mod tests {
         assert_eq!(monastery_estate_exportable(17.0, 18.0), 0.0);
         assert_eq!(monastery_estate_exportable(21.5, 18.0), 3.5);
         assert_eq!(monastery_estate_exportable(30.0, 18.0), 6.0);
+    }
+
+    #[test]
+    fn infirmary_is_finite_and_improves_with_the_estate() {
+        assert_eq!(monastery_infirmary_beds(0), 4);
+        assert_eq!(monastery_infirmary_beds(3), 10);
+        assert!(
+            monastery_infirmary_recovery_multiplier(3) > monastery_infirmary_recovery_multiplier(0)
+        );
+        assert!(
+            monastery_infirmary_mortality_multiplier(3)
+                < monastery_infirmary_mortality_multiplier(0)
+        );
     }
 }

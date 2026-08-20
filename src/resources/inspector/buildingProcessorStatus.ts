@@ -875,7 +875,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
 
   if (isOutputAtLimit(building, 'monastery', 'food')) {
     return {
-      statusText: 'Storage full — charity hauls paused',
+      statusText: 'Pantry full — estate food production paused',
       statusState: 'idle',
       waterDetailHtml: inputCostRow,
     };
@@ -899,7 +899,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
   }
 
   return {
-    statusText: 'Serving parish — charity, feasts, and pilgrimages',
+    statusText: 'Estate active — exports, infirmary, feasts, and pilgrims',
     statusState: 'active',
     waterDetailHtml: inputCostRow,
   };

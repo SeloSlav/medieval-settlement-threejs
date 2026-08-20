@@ -169,18 +169,19 @@ assert.equal(clampMonasteryTitheShare(-0.1), 0);
 assert.equal(MONASTERY_CHARITY_FOOD_PER_DELIVERY, 4);
 
 const flatResult = validateBuildingPlacement('monastery', 0, 0, {
-  buildings: [],
-  residences: [],
+  buildings: [staffedChapel],
+  residences: Array.from({ length: 4 }, (_, index) => residence({ id: `flat-res-${index}` })),
   burgageZones: [],
   quarries: [],
   foragingNodes: [],
   stockpile: { timber: 999, stone: 999 },
   isWaterAt: () => false,
   getNaturalHeightAt: () => 0,
+  mapBounds: { minX: -817, maxX: 817, minZ: -817, maxZ: 817 },
 });
 assert.equal(flatResult.ok, false);
 if (!flatResult.ok) {
-  assert.equal(flatResult.reason, 'requires_hillside');
+  assert.equal(flatResult.reason, 'requires_map_edge');
 }
 
 const hillsideHeight = (x: number, z: number) => x * 0.4 + z * 0.25;
@@ -188,7 +189,7 @@ const staffedChapelBuilding = building({ id: 'chapel-1', kind: 'chapel', x: 50, 
 const populatedResidences = Array.from({ length: 4 }, (_, index) =>
   residence({ id: `res-${index}`, population: 3 }),
 );
-const hillsideResult = validateBuildingPlacement('monastery', 0, 0, {
+const hillsideResult = validateBuildingPlacement('monastery', 0, 710, {
   buildings: [staffedChapelBuilding],
   residences: populatedResidences,
   burgageZones: [],
@@ -196,11 +197,12 @@ const hillsideResult = validateBuildingPlacement('monastery', 0, 0, {
   foragingNodes: [],
   stockpile: { timber: 999, stone: 999 },
   isWaterAt: () => false,
-  getNaturalHeightAt: hillsideHeight,
+  getNaturalHeightAt: () => 0,
+  mapBounds: { minX: -817, maxX: 817, minZ: -817, maxZ: 817 },
 });
-assert.equal(hillsideResult.ok, true);
+assert.equal(hillsideResult.ok, true, JSON.stringify(hillsideResult));
 
-const noChapelResult = validateBuildingPlacement('monastery', 0, 0, {
+const noChapelResult = validateBuildingPlacement('monastery', 0, 710, {
   buildings: [],
   residences: populatedResidences,
   burgageZones: [],
@@ -209,13 +211,14 @@ const noChapelResult = validateBuildingPlacement('monastery', 0, 0, {
   stockpile: { timber: 999, stone: 999 },
   isWaterAt: () => false,
   getNaturalHeightAt: hillsideHeight,
+  mapBounds: { minX: -817, maxX: 817, minZ: -817, maxZ: 817 },
 });
 assert.equal(noChapelResult.ok, false);
 if (!noChapelResult.ok) {
   assert.equal(noChapelResult.reason, 'requires_staffed_chapel');
 }
 
-const smallParishResult = validateBuildingPlacement('monastery', 0, 0, {
+const smallParishResult = validateBuildingPlacement('monastery', 0, 710, {
   buildings: [staffedChapelBuilding],
   residences: [residence({ population: 8 })],
   burgageZones: [],
@@ -224,6 +227,7 @@ const smallParishResult = validateBuildingPlacement('monastery', 0, 0, {
   stockpile: { timber: 999, stone: 999 },
   isWaterAt: () => false,
   getNaturalHeightAt: hillsideHeight,
+  mapBounds: { minX: -817, maxX: 817, minZ: -817, maxZ: 817 },
 });
 assert.equal(smallParishResult.ok, false);
 if (!smallParishResult.ok) {
@@ -231,6 +235,18 @@ if (!smallParishResult.ok) {
 }
 
 const monasteryMarker = createBuildingMesh('monastery');
+for (const estatePart of [
+  'Monastery estate main gate',
+  'Monastery ale brewhouse and cellar yard',
+  'Monastery apple orchard',
+  'Monastery bee garden',
+  'Monastery chicken yard',
+  'Monastery dairy cow',
+  'Monastery pig',
+  'Monastery infirmary wing',
+]) {
+  assert.ok(monasteryMarker.getObjectByName(estatePart), `${estatePart} must exist on the estate`);
+}
 const pantryGroups = [
   ['MonasteryFoodStockpile', 'MonasteryFoodSegment', MONASTERY_FOOD_VISUAL_SEGMENTS],
   ['MonasteryAleStockpile', 'MonasteryAleSegment', MONASTERY_ALE_VISUAL_SEGMENTS],

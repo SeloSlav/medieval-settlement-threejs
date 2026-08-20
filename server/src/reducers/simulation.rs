@@ -14,14 +14,13 @@ use crate::simulation::{
     step_hunters_hall, step_industrial_firewood_dispatch, step_institutional_food_dispatch,
     step_land_levies, step_large_quarry, step_live_raids, step_local_material_dispatch,
     step_lumber_mill, step_market_household_distribution, step_marketplace_caravans,
-    step_marketplace_material_dispatch, step_mine, step_monastery, step_night_cycle,
-    step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
-    step_natural_tree_regrowth, step_reclamation_piles, step_reforester, step_residence,
-    step_residence_upgrades,
+    step_marketplace_material_dispatch, step_mine, step_monastery, step_natural_tree_regrowth,
+    step_night_cycle, step_pastoral_farmstead, step_potter_kiln, step_production_labor_stewards,
+    step_reclamation_piles, step_reforester, step_residence, step_residence_upgrades,
     step_seasonal_labor_stewards, step_seed_grain_distribution, step_settlement_security,
     step_smithy, step_smokehouse, step_stone_quarry, step_storehouse_market_stalls, step_swineherd,
-    step_threshing_barn, step_village_storehouse_overflow_collection, step_vineyard,
-    step_trading_post_trade, step_watermill, step_weaver, step_well, step_windmill, step_woodcutters_lodge,
+    step_threshing_barn, step_trading_post_trade, step_village_storehouse_overflow_collection,
+    step_vineyard, step_watermill, step_weaver, step_well, step_windmill, step_woodcutters_lodge,
     step_workforce_commutes, try_dispatch_guardhouse_payroll, SharedRoadNetworks, SimTickContext,
 };
 use crate::supply_policy::{INSTITUTIONAL_FOOD_SOURCE_KINDS, LOCAL_MATERIAL_SOURCE_KINDS};
@@ -542,6 +541,9 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
     let residences: Vec<Residence> = ctx.db.residence().iter().collect();
     step_chapel_parish(ctx, &tick, sim_tick, &clock, &chapels, &residences);
 
+    let infirmary_assignments =
+        crate::simulation::monastery_infirmary_assignments(ctx, &tick, &residences, &monasteries);
+
     for residence in residences {
         if tick.residence_disabled_by_fire(ctx, residence.id) {
             continue;
@@ -551,6 +553,7 @@ fn run_one_sim_tick(ctx: &ReducerContext, road_networks: SharedRoadNetworks) {
             &tick,
             &chapels,
             &monasteries,
+            infirmary_assignments.get(&residence.id).copied(),
             residence,
             &clock,
             environment,

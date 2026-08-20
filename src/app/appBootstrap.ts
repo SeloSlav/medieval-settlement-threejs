@@ -307,7 +307,6 @@ export async function bootstrapAppSession(
     registry: layoutRegistry,
     getGameState: () => liveContext.gameState,
     getRoadNetwork: () => roadNetwork,
-    mapBounds: sceneManager.terrain.bounds,
     getTreeRegistry: () => liveContext.treeRegistry,
     getWorldHydrology: () => spacetimeStore.snapshot.worldGeneration?.hydrology ?? 50,
     getMonasteryHospitalityEnabled: () =>
@@ -512,6 +511,7 @@ export async function bootstrapAppSession(
       return countTreesNearBuilding(liveContext.gameState, registry, x, z, radius).matureTrees;
     },
     getRoadNetwork: () => roadNetwork,
+    mapBounds: sceneManager.terrain.bounds,
     getDeliveryTravelSpeedMultiplier: (origin) =>
       worldQueries.getDeliveryTravelSpeedMultiplier(origin),
     onModeChanged: () => bridge.syncToolbar(),
@@ -551,7 +551,6 @@ export async function bootstrapAppSession(
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     isResourceDepositAt,
     physicalDeposits,
-    getRoadNetwork: () => roadNetwork,
     onCommit: async (commit) => {
       requireSessionReady();
       await spacetimeStore.placeBurgageZone({
@@ -626,6 +625,7 @@ export async function bootstrapAppSession(
     isWaterAt: (x, z) => sceneManager.riverField.isRenderedWetAt(x, z),
     isResourceDepositAt,
     physicalDeposits,
+    getRoadNetwork: () => roadNetwork,
     onCommit: async (input) => {
       requireSessionReady();
       await spacetimeStore.placeFarmField(input);

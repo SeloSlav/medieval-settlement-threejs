@@ -3,7 +3,9 @@ use spacetimedb::ReducerContext;
 use crate::db::*;
 use crate::season_policy::EnvironmentState;
 use crate::simulation::game_calendar::GameClock;
-use crate::simulation::landmark_access::{residence_chapel_tier, residence_has_monastery_coverage};
+use crate::simulation::landmark_access::{
+    residence_chapel_tier, residence_has_monastery_coverage, MonasteryInfirmaryCare,
+};
 use crate::simulation::residence_needs::{load_needs, step_residence_needs};
 use crate::simulation::residence_settlement::step_residence_settlement;
 use crate::simulation::tick_context::SimTickContext;
@@ -14,6 +16,7 @@ pub fn step_residence(
     tick: &SimTickContext,
     chapels: &[Building],
     monasteries: &[Building],
+    infirmary_care: Option<MonasteryInfirmaryCare>,
     mut residence: Residence,
     clock: &GameClock,
     environment: EnvironmentState,
@@ -71,7 +74,7 @@ pub fn step_residence(
         residence,
         needs,
         chapel_tier,
-        has_monastery_coverage,
+        infirmary_care,
         clock,
         environment,
         world_seed,

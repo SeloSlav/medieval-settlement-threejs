@@ -18,13 +18,19 @@ use crate::balance_generated::{
 use crate::season_policy::{EnvironmentState, Season};
 use crate::simulation::game_calendar::GameClock;
 use crate::simulation::labor_schedule::is_consumption_paused;
+use crate::simulation::landmark_access::MonasteryInfirmaryCare;
 use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::economy::{
-    reconcile_building_labor, residence_food_variety_count, residence_fresh_food_stock,
-    residence_preserved_food_stock, withdraw_residence_commodity, CommodityKind,
-    FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
+    building_edible_food_stock, reconcile_building_labor, residence_food_variety_count,
+    residence_fresh_food_stock, residence_preserved_food_stock, withdraw_building_edible_food,
+    withdraw_residence_commodity, CommodityKind, FRESH_FOOD_COMMODITIES,
+    PRESERVED_FOOD_COMMODITIES,
+};
+use crate::monastery_estate_policy::{
+    monastery_infirmary_mortality_multiplier, monastery_infirmary_recovery_multiplier,
+    MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
 };
 use crate::preserved_food_policy::allocate_preserved_meal;
 use crate::resident_welfare_policy::{
@@ -44,7 +50,7 @@ pub fn step_residence_needs(
     mut residence: Residence,
     mut needs: Vec<NeedState>,
     chapel_tier: u8,
-    _has_monastery_coverage: bool,
+    infirmary_care: Option<MonasteryInfirmaryCare>,
     clock: &GameClock,
     environment: EnvironmentState,
     world_seed: u64,
@@ -164,6 +170,7 @@ pub fn step_residence_needs(
         cold_unmet,
         cold_exposure_ticks,
         general_consumption_paused,
+        infirmary_care,
         world_seed,
         sim_tick,
     );
@@ -312,6 +319,7 @@ fn update_health(
     cold_unmet: bool,
     cold_exposure_ticks: u32,
     consumption_paused: bool,
+    infirmary_care: Option<MonasteryInfirmaryCare>,
     world_seed: u64,
     sim_tick: u64,
 ) {
@@ -364,6 +372,8 @@ fn update_health(
         residence.sick_population = residence.sick_population.saturating_add(1);
     }
 
+    let infirmary_care_ratio = fund_monastery_infirmary_care(ctx, residence, infirmary_care);
+
     let mut herb_treated = false;
     if residence.sick_population > 0 && residence.remedy_stock > 1e-9 {
         let remedy_demand =
@@ -377,12 +387,19 @@ fn update_health(
     if residence.sick_population > 0 {
         residence.illness_ticks = residence.illness_ticks.saturating_add(1);
         let recovery_ticks = ticks_for_days(ILLNESS_RECOVERY_DAYS);
-        let effective_recovery_ticks = if herb_treated {
-            (f64::from(recovery_ticks) / HERB_RECOVERY_MULTIPLIER.max(1.0)).round() as u32
+        let herb_recovery_multiplier = if herb_treated {
+            HERB_RECOVERY_MULTIPLIER.max(1.0)
         } else {
-            recovery_ticks
-        }
-        .max(1);
+            1.0
+        };
+        let infirmary_recovery_multiplier = infirmary_care.map_or(1.0, |care| {
+            1.0 + (monastery_infirmary_recovery_multiplier(care.estate_level) - 1.0)
+                * infirmary_care_ratio
+        });
+        let effective_recovery_ticks = (f64::from(recovery_ticks)
+            / (herb_recovery_multiplier * infirmary_recovery_multiplier).max(1.0))
+        .round()
+        .max(1.0) as u32;
         if residence.illness_ticks >= effective_recovery_ticks {
             residence.sick_population = residence.sick_population.saturating_sub(1);
             residence.illness_ticks = 0;
@@ -407,6 +424,10 @@ fn update_health(
     } else if deterministic_unit(world_seed, sim_tick, residence.id, 0xC01D) < exposure_chance {
         death_cause = Some(2);
     } else if residence.sick_population > 0 {
+        let infirmary_mortality_multiplier = infirmary_care.map_or(1.0, |care| {
+            1.0 - (1.0 - monastery_infirmary_mortality_multiplier(care.estate_level))
+                * infirmary_care_ratio
+        });
         let mortality_chance = (ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY
             * residence.sick_population as f64
             * (1.0 + residence.malnutrition * 2.0)
@@ -415,6 +436,7 @@ fn update_health(
             } else {
                 1.0
             }
+            * infirmary_mortality_multiplier
             * TICK_DT
             / CALENDAR_SECONDS_PER_DAY)
             .clamp(0.0, 1.0);
@@ -432,6 +454,43 @@ fn update_health(
         residence.deaths_total = residence.deaths_total.saturating_add(1);
         insert_corpse(ctx, tick, residence, cause, sim_tick);
     }
+}
+
+fn fund_monastery_infirmary_care(
+    ctx: &ReducerContext,
+    residence: &Residence,
+    care: Option<MonasteryInfirmaryCare>,
+) -> f64 {
+    let Some(care) = care else {
+        return 0.0;
+    };
+    if residence.sick_population == 0 || care.beds == 0 {
+        return 0.0;
+    }
+    let Some(mut monastery) = ctx.db.building().id().find(&care.monastery_id) else {
+        return 0.0;
+    };
+    if monastery.kind != "monastery" || !monastery.construction_complete {
+        return 0.0;
+    }
+
+    let admitted = care.beds.min(residence.sick_population);
+    let requested_food =
+        admitted as f64 * MONASTERY_INFIRMARY_FOOD_PER_BED_DAY * TICK_DT / CALENDAR_SECONDS_PER_DAY;
+    if requested_food <= 1e-9 {
+        return admitted as f64 / residence.sick_population as f64;
+    }
+    let supply_ratio = (building_edible_food_stock(&monastery) / requested_food).clamp(0.0, 1.0);
+    if supply_ratio <= 1e-9 {
+        return 0.0;
+    }
+    let withdrawn = withdraw_building_edible_food(&mut monastery, requested_food * supply_ratio);
+    if withdrawn <= 1e-9 {
+        return 0.0;
+    }
+    ctx.db.building().id().update(monastery);
+    (admitted as f64 / residence.sick_population as f64)
+        * (withdrawn / requested_food).clamp(0.0, 1.0)
 }
 
 fn insert_corpse(

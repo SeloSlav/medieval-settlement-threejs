@@ -18,7 +18,7 @@ import {
 } from '../buildingMaterials.ts';
 import { addBarrel, addGableShell, addLeanToRoof, addPlankDoor } from './buildingMeshKit.ts';
 
-const grass = sharedBuildingDetailMaterial('grass');
+const grass = sharedBuildingDetailMaterial('foliage');
 const earth = sharedBuildingDetailMaterial('earth');
 const foliage = sharedBuildingDetailMaterial('foliage');
 const copper = sharedBuildingDetailMaterial('brass');
@@ -89,7 +89,7 @@ function addPerimeterFence(parent: THREE.Group): void {
 
 function placeGarden(
   parent: THREE.Group,
-  kind: 'apple' | 'vegetable' | 'herb' | 'flower' | 'hen' | 'goat' | 'apiary',
+  kind: 'apple_orchard' | 'vegetable_garden' | 'herb_garden' | 'flower_garden' | 'hen_yard' | 'goat_pen' | 'backyard_apiary',
   name: string,
   x: number,
   z: number,
@@ -155,7 +155,7 @@ function addBrewhouse(parent: THREE.Group, level: number): void {
   addMesh(yard, new THREE.SphereGeometry(0.82, 12, 8), copper, new THREE.Vector3(5.0, 0.95, 0.2), new THREE.Euler(), new THREE.Vector3(1, 1.1, 1));
   addMesh(yard, new THREE.CylinderGeometry(0.14, 0.14, 1.55, 8), copper, new THREE.Vector3(5.0, 1.95, 0.2));
   for (let index = 0; index < 3 + level * 2; index += 1) {
-    addBarrel(yard, -3.2 + (index % 4) * 1.05, 0, 4.0 + Math.floor(index / 4) * 1.0, 0.92);
+    addBarrel(yard, -3.2 + (index % 4) * 1.05, 4.0 + Math.floor(index / 4) * 1.0, 0.92);
   }
   parent.add(yard);
 }
@@ -215,13 +215,13 @@ export function createMonasteryEstateMesh(rawLevel: number): THREE.Group {
   addMesh(group, new THREE.BoxGeometry(7.2, 0.06, 51.5), earth, new THREE.Vector3(0, 0.03, -19));
   addMesh(group, new THREE.BoxGeometry(66.5, 0.04, 51.5), grass, new THREE.Vector3(0, 0.01, -19));
   addBrewhouse(group, level);
-  placeGarden(group, 'apple', 'Monastery apple orchard', -23, -34, 18, 16, 8301);
-  placeGarden(group, 'apiary', 'Monastery bee garden', -25, -19, 12, 8, 8302);
-  placeGarden(group, 'vegetable', 'Monastery kitchen vegetable garden', -7, -21, 13, 9, 8303);
-  placeGarden(group, 'herb', 'Monastery physic herb garden', 3.5, -20, 8, 7, 8304);
-  placeGarden(group, 'flower', 'Monastery pollinator garden', -6, -31, 11, 7, 8305);
-  placeGarden(group, 'hen', 'Monastery chicken yard', 25, -12, 11, 8, 8306);
-  placeGarden(group, 'goat', 'Monastery small-stock enclosure', 24, -25, 12, 9, 8307);
+  placeGarden(group, 'apple_orchard', 'Monastery apple orchard', -23, -34, 18, 16, 8301);
+  placeGarden(group, 'backyard_apiary', 'Monastery bee garden', -25, -19, 12, 8, 8302);
+  placeGarden(group, 'vegetable_garden', 'Monastery kitchen vegetable garden', -7, -21, 13, 9, 8303);
+  placeGarden(group, 'herb_garden', 'Monastery physic herb garden', 3.5, -20, 8, 7, 8304);
+  placeGarden(group, 'flower_garden', 'Monastery pollinator garden', -6, -31, 11, 7, 8305);
+  placeGarden(group, 'hen_yard', 'Monastery chicken yard', 25, -12, 11, 8, 8306);
+  placeGarden(group, 'goat_pen', 'Monastery small-stock enclosure', 24, -25, 12, 9, 8307);
 
   const random = mulberry32(8310 + level * 19);
   for (let index = 0; index < 2 + level; index += 1) {

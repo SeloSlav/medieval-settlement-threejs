@@ -4,15 +4,13 @@ use spacetimedb::ReducerContext;
 
 use crate::db::*;
 use crate::fiscal_policy::{
-    clamp_export_duty_rate, clamp_import_duty_rate, household_import_duty,
-    split_private_export_receipt, PrivateExportSplit,
+    clamp_export_duty_rate, split_private_export_receipt, PrivateExportSplit,
 };
 use crate::tables::Building;
 
 use super::{
-    credit_local_civic_receipts, credit_residence_wealth, credit_treasury_gold,
-    deposit_building_commodity, player_economic_activity_tax_rate,
-    town_hall_tax_collection_multiplier, CommodityKind,
+    credit_residence_wealth, credit_treasury_gold, deposit_building_commodity,
+    player_economic_activity_tax_rate, town_hall_tax_collection_multiplier, CommodityKind,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -21,13 +19,10 @@ pub struct LocalPurchaseSplit {
     pub local_tax: f64,
 }
 
-pub fn player_import_duty_rate(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
-    ctx.db
-        .player_resources()
-        .owner()
-        .find(&owner)
-        .map(|resources| clamp_import_duty_rate(resources.import_duty_rate))
-        .unwrap_or(0.0)
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct MonasteryExportSplit {
+    pub estate_income: f64,
+    pub export_duty: f64,
 }
 
 pub fn player_export_duty_rate(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
@@ -37,24 +32,6 @@ pub fn player_export_duty_rate(ctx: &ReducerContext, owner: spacetimedb::Identit
         .find(&owner)
         .map(|resources| clamp_export_duty_rate(resources.export_duty_rate))
         .unwrap_or(0.0)
-}
-
-pub fn collectible_household_import_duty(
-    ctx: &ReducerContext,
-    marketplace: &Building,
-    base_cost: f64,
-) -> f64 {
-    household_import_duty(base_cost, player_import_duty_rate(ctx, marketplace.owner))
-}
-
-pub fn record_import_duty(ctx: &ReducerContext, owner: spacetimedb::Identity, amount: f64) {
-    if amount <= 1e-9 {
-        return;
-    }
-    if let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) {
-        resources.import_duty_collected_total += amount;
-        ctx.db.player_resources().owner().update(resources);
-    }
 }
 
 pub fn private_export_proceeds(building: &Building) -> f64 {
@@ -166,6 +143,56 @@ pub fn credit_private_export_receipt(
     split
 }
 
+/// Settle the monastery's narrow estate-export charter. Unlike producer
+/// exports routed through a Trading Post, the net receipt remains in the
+/// monastery purse for estate reinvestment. The player's configured export
+/// duty is still collected; in physical settlements it remains protected at
+/// the monastery until a civic collection cart reaches it.
+pub fn credit_monastery_export_receipt(
+    ctx: &ReducerContext,
+    monastery: &mut Building,
+    gross_receipt: f64,
+) -> MonasteryExportSplit {
+    if gross_receipt <= 1e-9 || monastery.kind != "monastery" {
+        return MonasteryExportSplit::default();
+    }
+    let rate = player_export_duty_rate(ctx, monastery.owner);
+    let physical = ctx
+        .db
+        .player_resources()
+        .owner()
+        .find(&monastery.owner)
+        .is_some_and(|resources| resources.physical_founding_site_enabled);
+
+    let split = if physical {
+        let deposited = deposit_building_commodity(monastery, CommodityKind::Gold, gross_receipt);
+        let receipt = split_private_export_receipt(deposited, rate);
+        monastery.civic_receipts_gold = (monastery.civic_receipts_gold.max(0.0)
+            + receipt.export_duty)
+            .min(monastery.gold.max(0.0));
+        MonasteryExportSplit {
+            estate_income: receipt.household_income,
+            export_duty: receipt.export_duty,
+        }
+    } else {
+        let receipt = split_private_export_receipt(gross_receipt, rate);
+        credit_treasury_gold(ctx, monastery.owner, receipt.export_duty);
+        let estate_income =
+            deposit_building_commodity(monastery, CommodityKind::Gold, receipt.household_income);
+        MonasteryExportSplit {
+            estate_income,
+            export_duty: receipt.export_duty,
+        }
+    };
+
+    if let Some(mut resources) = ctx.db.player_resources().owner().find(&monastery.owner) {
+        resources.export_duty_collected_total += split.export_duty;
+        resources.private_export_income_total += split.estate_income;
+        ctx.db.player_resources().owner().update(resources);
+    }
+    split
+}
+
 /// Settle a real discretionary purchase made from Trading Post stock. The
 /// household's payment is conserved: collectible local sales tax becomes a
 /// protected civic receipt and the remainder becomes protected producer
@@ -222,16 +249,6 @@ pub fn credit_local_purchase_receipt(
         ctx.db.player_resources().owner().update(resources);
     }
     split
-}
-
-pub fn credit_household_import_duty(
-    ctx: &ReducerContext,
-    marketplace: &mut Building,
-    duty: f64,
-) -> f64 {
-    let credited = credit_local_civic_receipts(ctx, marketplace, duty);
-    record_import_duty(ctx, marketplace.owner, credited);
-    credited
 }
 
 pub fn record_private_export_income(

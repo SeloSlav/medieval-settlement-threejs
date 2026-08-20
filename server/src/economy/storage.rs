@@ -356,14 +356,6 @@ pub fn withdraw_building(
     (timber_withdrawn, firewood_withdrawn, stone_withdrawn, next)
 }
 
-pub fn deposit_building_water(building: &Building, cap: f64, amount: f64) -> (f64, Building) {
-    let mut next = building.clone();
-    let room = (cap - next.water).max(0.0);
-    let deposited = amount.min(room);
-    next.water += deposited;
-    (deposited, next)
-}
-
 pub fn withdraw_building_water(building: &Building, amount: f64) -> (f64, Building) {
     let mut next = building.clone();
     let withdrawn = amount.min(next.water);

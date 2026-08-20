@@ -91,6 +91,7 @@ pub use guardhouse_payroll::try_dispatch_guardhouse_payroll;
 pub use household_discretionary_trade::step_household_discretionary_trade;
 pub use household_distribution::{distribute_well_water, step_market_household_distribution};
 pub use labor_schedule::{labor_and_logistics_paused, production_labor_paused};
+pub(crate) use landmark_access::monastery_infirmary_assignments;
 pub use large_quarry::step_large_quarry;
 pub use livestock::{step_pastoral_farmstead, step_swineherd};
 pub use lumber_mill::step_lumber_mill;

@@ -75,7 +75,7 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   residences: ['Residence', 'H', 'Builds road-fronted homes that can grow through three tiers.'],
   well: ['Well', 'E', 'Supplies road-linked homes with water.', flow([], ['water'])],
   chapel: ['Church', 'C', 'Collects tithes and supports nearby households.'],
-  monastery: ['Pauline monastery', 'O', 'Turns oats, honey, and wine into charity and pilgrim income.', flow(['oatGrain', 'honey', 'wine'], ['gold'])],
+  monastery: ['Pauline monastery', 'O', 'Reserves a large fenced edge estate that exports taxed surplus, reinvests its net gold, and supplies finite infirmary beds.', flow(['oatGrain'], ['food', 'ale', 'honey', 'gold'])],
   marketplace: ['Marketplace', 'P', 'Lets households exchange food and goods while collecting local taxes.'],
   trading_post: ['Trading Post', 'X', 'Sets monthly import and export rules while local haulers stage surplus goods.'],
   town_hall: ['Town Hall', 'T', 'Governs taxation and unlocks the settlement economic ledger.'],

@@ -28,10 +28,6 @@ pub fn clamp_export_duty_rate(rate: f64) -> f64 {
     rate.clamp(EXPORT_DUTY_RATE_MIN, EXPORT_DUTY_RATE_MAX)
 }
 
-pub fn household_import_duty(base_cost: f64, rate: f64) -> f64 {
-    base_cost.max(0.0) * clamp_import_duty_rate(rate)
-}
-
 pub fn split_private_export_receipt(gross_receipt: f64, rate: f64) -> PrivateExportSplit {
     let gross = gross_receipt.max(0.0);
     let export_duty = gross * clamp_export_duty_rate(rate);
@@ -71,7 +67,7 @@ mod tests {
     fn customs_rates_are_bounded_and_conserve_private_export_receipts() {
         let split = split_private_export_receipt(100.0, EXPORT_DUTY_RATE_MAX);
         assert!((split.household_income + split.export_duty - 100.0).abs() < 1e-9);
-        assert_eq!(household_import_duty(20.0, -1.0), 0.0);
+        assert_eq!(clamp_import_duty_rate(-1.0), IMPORT_DUTY_RATE_MIN);
         assert_eq!(clamp_export_duty_rate(2.0), EXPORT_DUTY_RATE_MAX);
     }
 

@@ -28,12 +28,12 @@ use crate::economy::{
     CommodityKind, ParishLedgerKind,
 };
 use crate::fire_policy::fire_response_load;
+use crate::monastery_estate_policy::playable_half_for_monastery_map_size;
 use crate::raid_agent_policy::{
     arriving_cart_store_loot_fraction, combat_agent_follows_arriving_cart,
     playable_half_for_map_size, COMBAT_FACTION_RAIDER, COMBAT_STATE_ADVANCING,
     COMBAT_STATE_LOOTING, COMBAT_TARGET_BUILDING, COMBAT_TARGET_DELIVERY_TRIP,
 };
-use crate::monastery_estate_policy::playable_half_for_monastery_map_size;
 use crate::residence_upgrade_policy::residence_project_active;
 use crate::roads::{RoadNetwork, RoadPathRoute};
 use crate::season_policy::environment_for;
@@ -2887,13 +2887,15 @@ fn return_commodity_to_building(
         }
         return 0.0;
     };
-    let private_specialty_receipt = commodity == CommodityKind::Gold
+    let automatic_specialty_receipt = commodity == CommodityKind::Gold
         && is_regional_market_export_trip(trip)
-        && trip.residence_id == 0
-        && building.kind == "trading_post";
-    let deposited = if private_specialty_receipt {
+        && trip.residence_id == 0;
+    let deposited = if automatic_specialty_receipt && building.kind == "trading_post" {
         let split = crate::economy::credit_private_export_receipt(ctx, &mut building, amount);
         split.household_income + split.export_duty
+    } else if automatic_specialty_receipt && building.kind == "monastery" {
+        let split = crate::economy::credit_monastery_export_receipt(ctx, &mut building, amount);
+        split.estate_income + split.export_duty
     } else {
         deposit_building_commodity(&mut building, commodity, amount)
     };

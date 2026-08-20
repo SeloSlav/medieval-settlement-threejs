@@ -12,7 +12,6 @@ import {
   FOOD_DELIVERY_UNLOAD_SEC,
   FRESH_FOOD_STORAGE_GRANARY_FACTOR,
   GRAIN_TRANSFER_PER_TRIP,
-  MONASTERY_CHARITY_FOOD_PER_DELIVERY,
   MONASTERY_FEAST_ALE,
   MONASTERY_FEAST_FOOD,
   MONASTERY_FEAST_HONEY,
@@ -67,16 +66,25 @@ import {
   formatMonasteryPilgrimageTotal,
   formatMonasteryTithePaidTotal,
 } from '../../economy/monasteryPolicy.ts';
+import { DEFAULT_FISCAL_POLICY } from '../../economy/fiscalPolicy.ts';
 import {
   formatHospitalityRunway,
   formatMonasteryFeastReadiness,
   formatNextMonasteryFeast,
   monasteryFeastReadiness,
-  monasteryFeastSurplus,
   monasteryHospitalityPlan,
   monasteryHospitalityStatusLabel,
   nextMonasteryFeast,
 } from '../../economy/monasteryHospitality.ts';
+import {
+  MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
+  monasteryEstateNextInvestmentCost,
+  monasteryEstateYields,
+  monasteryInfirmaryBeds,
+  monasteryInfirmaryMortalityMultiplier,
+  monasteryInfirmaryRecoveryMultiplier,
+  normalizeMonasteryEstateLevel,
+} from '../../buildings/monasteryEstate.ts';
 import {
   buildingPreservedFoodStorageFactor,
   formatFreshFoodLoss,
@@ -220,7 +228,7 @@ const PROCESS: Record<string, string> = {
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
   vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
-  monastery: 'Tithes + named meal stores + hospitality goods -> charity, feasts, and pilgrimages',
+  monastery: 'A self-governing 68 × 53 m estate raises orchard fruit, vegetables, eggs, milk, meat, honey, ale, and cheese; taxed exports expand the demesne while finite infirmary beds nurse covered households',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
 };
@@ -250,7 +258,6 @@ const HOUSEHOLD_FOOD_DISTRIBUTORS = new Set<BuildingKind>(['marketplace']);
 function buildingHasOutboundStock(
   building: BuildingState,
   protectedSeedGrain = 0,
-  protectedMonasteryFood = 0,
 ): boolean {
   switch (building.kind) {
     case 'threshing_barn':
@@ -286,8 +293,9 @@ function buildingHasOutboundStock(
     case 'vineyard':
       return building.wine > 0 || (building.grapes ?? 0) > 0;
     case 'monastery':
-      return Math.max(0, edibleFoodStock(building) - building.honey)
-        > protectedMonasteryFood + 1e-6;
+      return building.ale > 18 + 1e-6
+        || building.honey > 10 + 1e-6
+        || (building.cheese ?? 0) > 8 + 1e-6;
     case 'carpenter':
       return (building.polearms ?? 0) > 0;
     case 'weaver':
@@ -324,7 +332,7 @@ function outboundDestinationLabel(building: BuildingState): string {
     case 'vineyard':
       return 'Marketplace food stalls, then provisioned monastery, then export market';
     case 'monastery':
-      return 'Claimed parish home needing food';
+      return 'Regional merchant at the map edge · sale proceeds return to the monastery purse';
     case 'carpenter':
       return 'Nearest road-linked guardhouse';
     case 'weaver':
@@ -364,7 +372,7 @@ function cargoPerTripLabel(building: BuildingState): string | null {
     case 'potter_kiln':
       return `${GRAIN_TRANSFER_PER_TRIP} per handcart`;
     case 'monastery':
-      return `${MONASTERY_CHARITY_FOOD_PER_DELIVERY} food per charity haul`;
+      return 'Up to 6 ale, honey, or cheese per estate export';
     default:
       return null;
   }
@@ -563,7 +571,7 @@ function outboundTripTarget(
 
   switch (building.kind) {
     case 'monastery':
-      return context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
+      return null;
     case 'smokehouse':
       return context.worldQueries.getNextSpecialtyDeliveryTargetForSupplier(
         building,
@@ -718,15 +726,8 @@ function renderLogisticsRows(
     ? (() => {
         const claimed = context.worldQueries.getClaimedResidencesForFoodSupplier(building);
         const next = context.worldQueries.getNextFoodDeliveryTargetForSupplier(building);
-        const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
-        const availableFood = building.kind === 'monastery'
-          ? monasteryFeastSurplus(
-              Math.max(0, edibleFoodStock(building) - building.honey),
-              MONASTERY_FEAST_FOOD,
-              policy.feastsEnabled,
-            )
-          : edibleFoodStock(building);
-        return `<li><span>Food territory</span><span>${availableFood <= 1e-6 ? building.kind === 'monastery' && edibleFoodStock(building) > 1e-6 ? `${MONASTERY_FEAST_FOOD} feast meals protected` : 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} households claimed`}</span></li>
+        const availableFood = edibleFoodStock(building);
+        return `<li><span>Food territory</span><span>${availableFood <= 1e-6 ? 'Yielding while empty' : claimed.length === 0 ? 'None on branch' : `${claimed.length} households claimed`}</span></li>
           <li><span>Next household</span><span>${next ? `Parcel #${next.parcelIndex + 1}` : 'None needing food'}</span></li>`;
       })()
     : '';
@@ -819,17 +820,11 @@ function renderLogisticsRows(
   const inboundRow = renderInboundSupplyRow(inboundTrip, deliveryContext);
   if (inboundRow) return householdTerritoryRows + inboundRow;
 
-  const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
-  const protectedMonasteryFood =
-    building.kind === 'monastery' && policy.feastsEnabled
-      ? MONASTERY_FEAST_FOOD
-      : 0;
   if (
     seedDispatchReady
     || buildingHasOutboundStock(
       building,
       protectedSeedGrain,
-      protectedMonasteryFood,
     )
   ) {
     return householdTerritoryRows + renderOutboundDeliveryRows(
@@ -1150,6 +1145,16 @@ export function renderExpandedBuildingInspector(
     : '';
   const monasteryTreasuryRows = building.kind === 'monastery'
     ? (() => {
+        const level = normalizeMonasteryEstateLevel(building.chapelTier);
+        const nextInvestment = monasteryEstateNextInvestmentCost(level);
+        const privateGold = Math.max(0, building.gold - (building.civicReceiptsGold ?? 0));
+        const yields = monasteryEstateYields(level);
+        const infirmaryBeds = monasteryInfirmaryBeds(level);
+        const infirmaryRecovery = monasteryInfirmaryRecoveryMultiplier(level);
+        const infirmaryMortality = monasteryInfirmaryMortalityMultiplier(level);
+        const exportDutyRate = context.getFiscalPolicy?.().exportDutyRate
+          ?? DEFAULT_FISCAL_POLICY.exportDutyRate;
+        const levelLabel = ['Founding grange', 'Established demesne', 'Expanded estate', 'Prosperous abbey'][level];
         const incomingTithe = Array.from(context.gameState.deliveryTrips.values())
           .filter(
             (trip) =>
@@ -1158,7 +1163,14 @@ export function renderExpandedBuildingInspector(
               && trip.phase !== 'inbound',
           )
           .reduce((sum, trip) => sum + trip.amount, 0);
-        return `<li><span>Monastery purse</span><span>${Math.round(building.gold)} gold secured here${incomingTithe > 0.05 ? ` · ${Math.round(incomingTithe)} tithe incoming by handcart` : ''}</span></li>`;
+        return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete perimeter fence · founded in the outer 60 m of the map</span></li>
+          <li><span>Estate development</span><span>Level ${level}/3 · ${levelLabel}</span></li>
+          <li><span>Internal economy</span><span>Apples ${yields.apples.toFixed(2)} · vegetables ${yields.vegetables.toFixed(2)} · eggs ${yields.eggs.toFixed(2)} · milk ${yields.milk.toFixed(2)} · meat ${yields.meat.toFixed(2)} · honey ${yields.honey.toFixed(2)} · ale ${yields.ale.toFixed(2)}${yields.cheese > 0 ? ` · cheese ${yields.cheese.toFixed(2)}` : ''} per cycle</span></li>
+          <li><span>Regional estate exports</span><span>Automatic 6-unit lots · ${Math.round(exportDutyRate * 100)}% export duty is reserved for civic collection · net income remains here</span></li>
+          <li><span>Infirmary</span><span>${infirmaryBeds} beds · shortest remedy runway admitted first · consumes ${MONASTERY_INFIRMARY_FOOD_PER_BED_DAY.toFixed(1)} estate food per occupied bed/day</span></li>
+          <li><span>Skilled nursing</span><span>Up to ${Math.round((infirmaryRecovery - 1) * 100)}% faster illness recovery and ${Math.round((1 - infirmaryMortality) * 100)}% lower illness mortality · stacks with household remedies</span></li>
+          <li><span>Monastery purse</span><span>${Math.round(building.gold)} gold secured here · ${privateGold.toFixed(1)} private estate gold${incomingTithe > 0.05 ? ` · ${Math.round(incomingTithe)} tithe incoming by handcart` : ''}</span></li>
+          <li><span>Automatic reinvestment</span><span>${nextInvestment == null ? 'Estate fully developed' : `${privateGold.toFixed(1)} / ${nextInvestment + 6} gold · keeps a 6-gold working reserve`}</span></li>`;
       })()
     : '';
   const civicReceiptRows = building.kind === 'monastery'
@@ -1865,9 +1877,9 @@ function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
   }, { compact: true, suffix: '/day' });
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">The monastery decides how much parish tithe supports alms and whether apiaries and vineyards provision hospitality before exporting their surplus.</p>
+      <p class="inspector-action-panel__hint">The monastery is an enclosed frontier estate, not a second church. Its orchards, gardens, animals, hives, dairy, and brewhouse produce autonomously; protected surplus is sold directly to regional merchants, export duty is collected on the returned gold, and the net automatically expands the demesne through three visible levels. Its finite infirmary supplies skilled nursing above ordinary herb treatment.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
-      <p class="inspector-action-panel__hint">Enabled monasteries protect ${feastBatchCost}. Breweries refill only the ale shortfall; charity and daily hospitality use only stock above the floor. On each observance, covered households walk here by road and consume the complete batch onsite: immediate food and ale deficits are relieved, but no provisions appear in home pantries. Daily hospitality consumes ${dailyHospitalityCost}, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Disable this to release the protected batch into household supply and export.</p>
+      <p class="inspector-action-panel__hint">Enabled monasteries protect ${feastBatchCost}. Breweries refill only the ale shortfall, while daily hospitality and estate exports use stock above their protected floors. On each observance, covered households walk here by road and consume the complete batch onsite: immediate food and ale deficits are relieved, but no provisions appear in home pantries. Daily hospitality consumes ${dailyHospitalityCost}, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Routine alms and poor-relief carts remain the church's role; the monastery contributes a common table and scarce infirmary beds.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>
       <input class="city-admin-panel__slider" type="range" data-policy-monastery-tithe min="0" max="80" step="5" value="${Math.round(policy.titheShare * 100)}" />
       <div class="city-admin-panel__range-hints"><span>Church keeps all</span><span>Monastery-led</span></div>
