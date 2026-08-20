@@ -95,7 +95,6 @@ export function priceMultiplierFor(
     case 'vegetables':
     case 'eggs':
     case 'grapes':
-    case 'porridge':
       return state.foodPriceMult;
     case 'ale':
     case 'wine':

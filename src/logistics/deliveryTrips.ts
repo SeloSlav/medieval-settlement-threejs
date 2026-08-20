@@ -46,7 +46,6 @@ export const DELIVERY_CARGO_KINDS = [
   'vegetables',
   'eggs',
   'grapes',
-  'porridge',
   'curedMeat',
   'smokedFish',
   'cheese',
@@ -315,8 +314,6 @@ export function cargoKindFromId(value: number): DeliveryCargoKind | null {
       return 'eggs';
     case 37:
       return 'grapes';
-    case 38:
-      return 'porridge';
     case 39:
       return 'curedMeat';
     case 40:
@@ -448,8 +445,6 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
       return 'Eggs';
     case 'grapes':
       return 'Grapes';
-    case 'porridge':
-      return 'Porridge';
     case 'curedMeat':
       return 'Cured meat';
     case 'smokedFish':
@@ -866,7 +861,6 @@ export function cargoColor(kind: DeliveryCargoKind): number {
     case 'vegetables':
     case 'eggs':
     case 'grapes':
-    case 'porridge':
       return 0x5f9f4a;
     case 'timber':
       return 0x8a684c;

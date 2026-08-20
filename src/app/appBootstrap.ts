@@ -1328,6 +1328,8 @@ export async function bootstrapAppSession(
     domElement: sceneManager.renderer.domElement,
     terrain: sceneManager.terrain,
     riverField: sceneManager.riverField,
+    forestCores: sceneManager.worldLayout.forestCores,
+    worldSeed: sceneManager.worldLayout.seed,
     registry: layoutRegistry,
     clayDepositSites: sceneManager.worldLayout.clayDepositLayout.sites,
     getCamera: () => sceneManager.camera,

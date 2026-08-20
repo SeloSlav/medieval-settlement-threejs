@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   areResourceIconsAlwaysShown,
   resolveResourceIconOpacity,
@@ -62,5 +63,47 @@ assert.equal(
   'the resource icon preference should be possible to disable',
 );
 setResourceIconsAlwaysShown(true);
+
+const terrainMinimapSource = readFileSync(
+  new URL('../src/map/createTerrainMinimapImage.ts', import.meta.url),
+  'utf8',
+);
+const terrainMinimapOverlaySource = readFileSync(
+  new URL('../src/map/TerrainMinimapOverlay.ts', import.meta.url),
+  'utf8',
+);
+
+assert.match(
+  terrainMinimapSource,
+  /dataset\.terrainStyle = 'medieval-parchment'/,
+  'the first-person map should identify its parchment terrain presentation',
+);
+for (const renderer of [
+  'drawReliefLines',
+  'drawGrassGlyphs',
+  'drawForestGlyphs',
+  'drawWaterHatching',
+] as const) {
+  assert.match(
+    terrainMinimapSource,
+    new RegExp(`${renderer}\\(`),
+    `the parchment terrain should include ${renderer}`,
+  );
+}
+assert.match(
+  terrainMinimapSource,
+  /forestDensityAt\(/,
+  'forest ink should follow the generated forest density field',
+);
+assert.match(
+  terrainMinimapOverlaySource,
+  /forestCores: this\.options\.forestCores/,
+  'the minimap overlay should pass the generated forest cores into the terrain renderer',
+);
+assert.doesNotMatch(
+  terrainMinimapSource,
+  /drawTown|settlementHull|townBoundary/,
+  'the terrain layer should not guess at a town footprint',
+);
 
 console.log('test:world-map passed');

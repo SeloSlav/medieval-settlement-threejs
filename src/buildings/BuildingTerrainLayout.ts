@@ -54,6 +54,7 @@ const PAD_PARAMS: Record<BuildingKind, BuildingPadParams> = {
   fishing_camp: { radiusX: 5.4, radiusZ: 4.5, innerFade: 0.88, outerFade: 1.3 },
   // Reserve the large stone church and its entrance wall from tier one onward.
   chapel: { radiusX: 5.6, radiusZ: 7.3, innerFade: 0.9, outerFade: 1.28 },
+  wayside_shrine: { radiusX: 1.65, radiusZ: 1.5, innerFade: 0.9, outerFade: 1.24 },
   marketplace: { radiusX: 4.2, radiusZ: 3.4, innerFade: 0.9, outerFade: 1.3 },
   trading_post: { radiusX: 6.6, radiusZ: 5.4, innerFade: 0.88, outerFade: 1.3 },
   town_hall: { radiusX: 7.2, radiusZ: 5.8, innerFade: 0.88, outerFade: 1.32 },

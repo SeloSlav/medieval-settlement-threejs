@@ -40,7 +40,6 @@ function storageNeed(plan: FoundingStockyardRelocationPlan): string {
     case 'vegetables':
     case 'eggs':
     case 'grapes':
-    case 'porridge':
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':

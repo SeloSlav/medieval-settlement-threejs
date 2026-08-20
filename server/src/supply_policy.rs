@@ -81,7 +81,6 @@ pub const MARKETPLACE_MATERIAL_TARGET_KINDS: &[&str] = &[
     "threshing_barn",
     "guardhouse",
 ];
-pub const GRAIN_INPUT_BUFFER_CYCLES: f64 = 3.0;
 /// Below one complete processing cycle, grain delivery preempts the granary's
 /// ordinary household or preservation cart duty.
 pub const GRAIN_CRITICAL_RUNWAY_CYCLES: f64 = 1.0;
@@ -785,7 +784,7 @@ mod tests {
         select_supply_route_candidate, GranaryDispatchDuty, InstitutionalFoodDispatchDuty,
         NeedDeliveryCandidate, ProcessorInputDispatchDuty,
         BEVERAGE_SERVICE_KINDS, CLOTH_PRODUCER_KINDS, FOOD_SUPPLIER_KINDS,
-        GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_INPUT_BUFFER_CYCLES, GRAIN_PROCESSOR_KINDS,
+        GRAIN_CRITICAL_RUNWAY_CYCLES, GRAIN_PROCESSOR_KINDS,
         INDUSTRIAL_FIREWOOD_TARGET_KINDS, INSTITUTIONAL_FOOD_SOURCE_KINDS,
         LOCAL_MATERIAL_SOURCE_KINDS, MARKETPLACE_MATERIAL_TARGET_KINDS, POTTERY_PRODUCER_KINDS,
         PRESERVED_FOOD_PRODUCER_KINDS,
@@ -905,7 +904,6 @@ mod tests {
                 "vineyard",
                 "pastoral_farmstead",
                 "swineherd",
-                "monastery",
             ]
         );
         assert_eq!(
@@ -1063,9 +1061,8 @@ mod tests {
     fn grain_processors_stage_inputs_from_their_stock_policy() {
         assert_eq!(
             GRAIN_PROCESSOR_KINDS,
-            &["watermill", "windmill", "monastery"]
+            &["watermill", "windmill"]
         );
-        assert_eq!(GRAIN_INPUT_BUFFER_CYCLES, 3.0);
         assert_eq!(GRAIN_CRITICAL_RUNWAY_CYCLES, 1.0);
         assert_eq!(grain_input_target("watermill", 1.0, 25), 3.0);
         assert_eq!(grain_input_target("watermill", 1.0, 50), 6.0);
@@ -1073,11 +1070,8 @@ mod tests {
         assert_eq!(grain_input_target("watermill", 1.0, 100), 9.0);
         assert_eq!(grain_input_target("windmill", 1.0, 100), 9.0);
         assert_eq!(grain_input_target("brewery", 1.0, 50), 0.0);
-        assert_eq!(grain_input_target("monastery", 1.0, 25), 6.0);
-        assert_eq!(grain_input_target("monastery", 0.45, 100), 2.7);
         assert_eq!(grain_input_target("granary", 1.0, 100), 0.0);
         assert_eq!(grain_input_runway_cycles("watermill", 6.0, 1.0), 2.0);
-        assert_eq!(grain_input_runway_cycles("monastery", 1.8, 0.45), 2.0);
         assert_eq!(grain_work_priority(0), 2);
         assert_eq!(grain_work_priority(1), 2);
         assert_eq!(grain_work_priority(3), 2);

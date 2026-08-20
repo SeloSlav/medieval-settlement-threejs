@@ -1364,6 +1364,23 @@
       "requiresGame": false,
       "requiresBerries": false
     },
+    "wayside_shrine": {
+      "label": "Wayside shrine",
+      "cost": { "timber": 4, "stone": 8, "ironwork": 1 },
+      "storage": { "timber": 0, "firewood": 0, "stone": 0, "water": 0, "food": 0 },
+      "workRadius": 0,
+      "pickRadius": 3,
+      "harvestInterval": 0,
+      "regrowRatePerSecond": 0,
+      "maxLabor": 0,
+      "acceptsLabor": false,
+      "requiresRoad": true,
+      "facesRoad": true,
+      "requiresMatureTrees": false,
+      "requiresQuarryStone": false,
+      "requiresGame": false,
+      "requiresBerries": false
+    },
     "marketplace": {
       "label": "Marketplace",
       "cost": { "timber": 32, "stone": 26 },

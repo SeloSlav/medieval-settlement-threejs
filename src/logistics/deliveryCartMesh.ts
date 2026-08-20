@@ -121,7 +121,6 @@ function addCargo(
     case 'vegetables':
     case 'eggs':
     case 'grapes':
-    case 'porridge':
       addFoodLoad(group);
       break;
     case 'ryeSheaves':

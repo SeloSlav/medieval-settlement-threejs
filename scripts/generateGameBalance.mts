@@ -745,6 +745,7 @@ const simKindByKind: Record<string, string | null> = {
   foragers_shed: 'ForagersShed',
   fishing_camp: 'FishingCamp',
   chapel: null,
+  wayside_shrine: null,
   marketplace: null,
   town_hall: null,
   village_storehouse: 'VillageStorehouse',

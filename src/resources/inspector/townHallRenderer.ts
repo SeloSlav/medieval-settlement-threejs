@@ -4,7 +4,6 @@ import {
   CIVILIAN_TOOL_IRONWORK_PER_CYCLE,
   CIVILIAN_TOOL_REORDER_CYCLES,
   LIVESTOCK_WINTER_FODDER_RESERVE_DAYS,
-  MONASTERY_UNLINKED_PRODUCTIVITY,
   RESIDENCE_FIREWOOD_PRIORITY_WINTER_DAYS,
   TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER,
 } from '../../generated/gameBalance.ts';
@@ -973,7 +972,7 @@ export function renderSettlementGrainRows(plan: SettlementGrainPlan): string {
   return `
     <li><span>Grain allocation</span><span>${Math.round(plan.totalStock)} owned · ${Math.round(plan.inTransit)} on carts · ${Math.floor(plan.discretionaryStock)} discretionary after protected claims</span></li>
     <li><span>Protected grain</span><span>Seed ${Math.round(plan.seed.protected)} / ${Math.ceil(plan.seed.target)} · winter fodder ${Math.round(plan.winterFodder.protected)} / ${Math.ceil(plan.winterFodder.target)} · central reserve ${Math.round(plan.granaryReserve.protected)} / ${Math.ceil(plan.granaryReserve.target)}${attention}</span></li>
-    <li><span>Installed grain draw</span><span>${plan.processorGrainPerDay.toFixed(1)} / day · bread ${plan.breadGrainPerDay.toFixed(1)} · monastery ${plan.monasteryGrainPerDay.toFixed(1)} · ${runway}</span></li>
+    <li><span>Installed grain draw</span><span>${plan.processorGrainPerDay.toFixed(1)} / day · bread ${plan.breadGrainPerDay.toFixed(1)} · ${runway}</span></li>
     ${roadRow}
     <li><span>Crop-year balance</span><span>${plan.laborCoveredHarvest.toFixed(1)} / ${plan.potentialHarvest.toFixed(1)} harvest covered · ${plan.annualCommitments.toFixed(1)} committed · ${balance} at current installed capacity over ${GRAIN_PLAN_DAYS_PER_YEAR} days; imports excluded</span></li>
   `;
@@ -2193,11 +2192,6 @@ export function renderTownHallInspector(
     livestockFodder,
     granaryReserve: grainReserve,
     production,
-    sabbathObserved: provisioning.sabbathObserved,
-    monasteryProductivity: (candidate) =>
-      monasteryLinkedToChapel(candidate, growthChapels, roadPathDistance)
-        ? 1
-        : MONASTERY_UNLINKED_PRODUCTIVITY,
     roadComponentFor: typeof context.worldQueries.getRoadComponentId === 'function'
       ? (candidate) => context.worldQueries.getRoadComponentId(
           candidate.x,
@@ -2397,7 +2391,7 @@ export function renderTownHallInspector(
     : monasteryPolicy.feastsEnabled
       ? `<li><span>Monastery hospitality</span><span>${hospitalitySupplied} / ${linkedMonasteries.length} supplied above protected feast floors · ${hospitalityGoldPerDay.toFixed(2)} pilgrimage gold/day before handcart collection · annual target ${renderResourceCost({ honey: hospitalityHoneyPerYear, wine: hospitalityWinePerYear }, { compact: true })}</span></li>
         <li><span>Next feast reserve</span><span>${formatNextMonasteryFeast(nextFeast)} · ${feastReadyMonasteries} / ${linkedMonasteries.length} protected pantries ready · annual batches require ${renderResourceCost({ food: feastFoodPerYear, ale: feastAlePerYear }, { compact: true, suffix: 'settlement-wide' })}</span></li>`
-      : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline pilgrimage gold/day before handcart collection · feast stock released to household supply or export</span></li>`;
+      : `<li><span>Monastery hospitality</span><span>Disabled · ${hospitalityGoldPerDay.toFixed(2)} baseline pilgrimage gold/day before handcart collection · feast stock remains in the estate pantry or is exported beyond the map</span></li>`;
   const inboundTreasuryGold = Array.from(context.gameState.deliveryTrips.values())
     .filter(
       (trip) =>

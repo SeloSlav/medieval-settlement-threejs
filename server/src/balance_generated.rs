@@ -1821,6 +1821,58 @@ const CHAPEL: BuildingDef = BuildingDef {
     sim_kind: None,
 };
 
+const WAYSIDE_SHRINE: BuildingDef = BuildingDef {
+    kind: "wayside_shrine",
+    cost_timber: 4.0,
+    cost_stone: 8.0,
+    cost_gold: 0.0,
+    cost_ironwork: 1.0,
+    cost_roof_tiles: 0.0,
+    storage_timber: 0.0,
+    storage_firewood: 0.0,
+    storage_stone: 0.0,
+    storage_water: 0.0,
+    storage_food: 0.0,
+    storage_grain: 0.0,
+    storage_barley: 0.0,
+    storage_malt: 0.0,
+    storage_flax: 0.0,
+    storage_flour: 0.0,
+    storage_ale: 0.0,
+    storage_cider: 0.0,
+    storage_mead: 0.0,
+    storage_preserved_food: 0.0,
+    storage_honey: 0.0,
+    storage_wine: 0.0,
+    storage_wool: 0.0,
+    storage_cloth: 0.0,
+    storage_ironwork: 0.0,
+    storage_polearms: 0.0,
+    storage_iron: 0.0,
+    storage_clay: 0.0,
+    storage_salt: 0.0,
+    storage_charcoal: 0.0,
+    storage_pottery: 0.0,
+    storage_roof_tiles: 0.0,
+    storage_manure: 0.0,
+    storage_remedies: 0.0,
+    accepts_labor: false,
+    max_labor: 0,
+    work_radius: 0.0,
+    action_interval: 0.0,
+    pick_radius: 3.0,
+    requires_road: true,
+    faces_road: true,
+    requires_mature_trees: false,
+    requires_quarry_stone: false,
+    requires_game: false,
+    requires_berries: false,
+    requires_fish: false,
+    requires_water_shore: false,
+    requires_hillside: false,
+    sim_kind: None,
+};
+
 const MARKETPLACE: BuildingDef = BuildingDef {
     kind: "marketplace",
     cost_timber: 32.0,
@@ -2965,7 +3017,7 @@ const VINEYARD: BuildingDef = BuildingDef {
     sim_kind: Some(BuildingSimKind::Vineyard),
 };
 
-const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, MARKETPLACE, TRADING_POST, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, TAVERN, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, WINDMILL, CARPENTER, WEAVER, VINEYARD];
+const ALL: &[BuildingDef] = &[FOUNDERS_CAMP, SALVAGE_PILE, LUMBER_MILL, REFORESTER, WOODCUTTERS_LODGE, STONE_QUARRY, LARGE_QUARRY, REMOTE_WORK_CAMP, MINE, CLAY_PIT, CHARCOAL_BURNER, SMITHY, POTTER_KILN, WELL, HUNTERS_HALL, FORAGERS_SHED, FISHING_CAMP, CHAPEL, WAYSIDE_SHRINE, MARKETPLACE, TRADING_POST, TOWN_HALL, VILLAGE_STOREHOUSE, WATCHTOWER, GUARDHOUSE, PALISADED_REFUGE, THRESHING_BARN, PASTORAL_FARMSTEAD, SWINEHERD, MONASTERY, BREWERY, TAVERN, SMOKEHOUSE, GRANARY, BAKERY, APIARY, WATERMILL, WINDMILL, CARPENTER, WEAVER, VINEYARD];
 
 pub fn building_def(kind: &str) -> Option<&'static BuildingDef> {
     ALL.iter().find(|def| def.kind == kind)

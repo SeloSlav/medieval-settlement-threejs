@@ -3,6 +3,7 @@ import type { BuildingKind } from '../resources/types.ts';
 import { createFoundersCampMesh, createRemoteWorkCampMesh } from './meshes/foundersCampMesh.ts';
 import { createSalvagePileMesh } from './meshes/salvagePileMesh.ts';
 import { createChapelMesh } from './meshes/chapelMesh.ts';
+import { createWaysideShrineMesh } from './meshes/waysideShrineMesh.ts';
 import {
   createLumberMillMesh,
   createReforesterHutMesh,
@@ -90,6 +91,8 @@ export function createBuildingMesh(kind: BuildingKind, developmentTier?: 0 | 1 |
       return createFishingCampMesh();
     case 'chapel':
       return createChapelMesh(chapelTier);
+    case 'wayside_shrine':
+      return createWaysideShrineMesh();
     case 'marketplace':
       return createMarketplaceMesh();
     case 'trading_post': {

@@ -20,7 +20,7 @@ const PARCHMENT_COLOR = { r: 214, g: 193, b: 147 } as const;
 const WATER_WASH_COLOR = { r: 129, g: 151, b: 146 } as const;
 const INK_COLOR = { r: 55, g: 43, b: 27 } as const;
 
-type TerrainMinimapTerrain = Pick<Terrain, 'getHeightAt' | 'playableSize' | 'size'>;
+type TerrainMinimapTerrain = Pick<Terrain, 'getHeightAt' | 'generationSize' | 'size'>;
 
 export type TerrainMinimapImageOptions = {
   riverField: RiverField;
@@ -63,6 +63,7 @@ export async function createTerrainMinimapImage(
   drawInkBorder(context);
 
   canvas.dataset.terrainStyle = 'medieval-parchment';
+  canvas.setAttribute('role', 'img');
   canvas.setAttribute(
     'aria-label',
     'Hand-drawn parchment terrain map showing rivers, relief, grassland, and forest',
@@ -184,7 +185,7 @@ async function drawReliefLines(
 
   for (let levelIndex = 0; levelIndex < levels.length; levelIndex++) {
     const level = levels[levelIndex];
-    context.lineDashOffset = mapHash(levelIndex, seed, 19) * 4;
+    context.lineDashOffset = mapHash(levelIndex, 19, seed) * 4;
     context.beginPath();
 
     for (let row = 0; row < RELIEF_GRID_RESOLUTION - 1; row++) {
@@ -241,7 +242,7 @@ function drawGrassGlyphs(
   waterMask: Uint8Array,
 ): void {
   const { terrain, forestCores, seed } = options;
-  const extent = terrain.playableSize * 0.5;
+  const extent = terrain.generationSize * 0.5;
   const terrainExtent = terrain.size * 0.5;
   context.save();
   context.strokeStyle = 'rgba(72, 55, 32, 0.46)';
@@ -287,7 +288,7 @@ function drawForestGlyphs(
   waterMask: Uint8Array,
 ): void {
   const { terrain, forestCores, seed } = options;
-  const extent = terrain.playableSize * 0.5;
+  const extent = terrain.generationSize * 0.5;
   const terrainExtent = terrain.size * 0.5;
   context.save();
   context.strokeStyle = 'rgba(49, 40, 25, 0.82)';

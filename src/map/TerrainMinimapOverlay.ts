@@ -1,7 +1,8 @@
 import type { GameState } from '../resources/types.ts';
 import type { WorldMapMarker, WorldMapMarkerKind } from './worldMapMarkers.ts';
 import type { RiverField } from '../rivers/RiverField.ts';
-import type { TerrainBounds } from '../terrain/Terrain.ts';
+import type { Terrain, TerrainBounds } from '../terrain/Terrain.ts';
+import type { ForestCore } from '../props/forestField.ts';
 import { createTerrainMinimapImage } from './createTerrainMinimapImage.ts';
 import { RESOURCE_MAP_ICON_HTML } from './resourceMapIconArt.ts';
 import {
@@ -25,6 +26,9 @@ export type MinimapFocus = {
 type TerrainMinimapOverlayOptions = {
   uiRoot: HTMLElement;
   riverField: RiverField;
+  terrain: Terrain;
+  forestCores: readonly ForestCore[];
+  worldSeed: number;
   layoutMarkers: readonly WorldMapMarker[];
   getGameState: () => GameState;
   getFocus: () => MinimapFocus;
@@ -151,7 +155,12 @@ export class TerrainMinimapOverlay {
 
   private async loadTerrainImage(): Promise<void> {
     try {
-      const { canvas } = await createTerrainMinimapImage(this.options.riverField);
+      const { canvas } = await createTerrainMinimapImage({
+        riverField: this.options.riverField,
+        terrain: this.options.terrain,
+        forestCores: this.options.forestCores,
+        seed: this.options.worldSeed,
+      });
       this.mapSurface.replaceChildren(canvas);
     } catch (error) {
       console.error('Terrain minimap image failed to load:', error);

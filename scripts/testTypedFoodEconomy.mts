@@ -86,28 +86,26 @@ assert.deepEqual(
 );
 
 const typedCargoKinds = [
-  'meat',
-  'fish',
-  'berries',
-  'mushrooms',
-  'milk',
-  'apples',
-  'cherries',
-  'vegetables',
-  'eggs',
-  'grapes',
-  'porridge',
-  'curedMeat',
-  'smokedFish',
-  'cheese',
+  [28, 'meat'],
+  [29, 'fish'],
+  [30, 'berries'],
+  [31, 'mushrooms'],
+  [32, 'milk'],
+  [33, 'apples'],
+  [34, 'cherries'],
+  [35, 'vegetables'],
+  [36, 'eggs'],
+  [37, 'grapes'],
+  [39, 'curedMeat'],
+  [40, 'smokedFish'],
+  [41, 'cheese'],
 ] as const;
-for (let index = 0; index < typedCargoKinds.length; index += 1) {
-  const id = 28 + index;
-  const kind = typedCargoKinds[index];
+for (const [id, kind] of typedCargoKinds) {
   assert.equal(cargoKindFromId(id), kind, `cargo id ${id} must remain ${kind}`);
   assert.notEqual(cargoKindLabel(kind), 'Food');
 }
 assert.equal(cargoKindFromId(27), null, 'removed generic bread id remains vacant');
+assert.equal(cargoKindFromId(38), null, 'removed porridge id remains vacant');
 assert.equal(cargoKindFromId(50), null, 'removed oat flour id remains vacant');
 assert.equal(cargoKindFromId(53), null, 'removed oat bread id remains vacant');
 for (const [id, kind] of [

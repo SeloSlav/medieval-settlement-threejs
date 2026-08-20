@@ -1,6 +1,5 @@
 import {
   BUILDING_STORAGE_CAPS,
-  MONASTERY_OAT_GRAIN_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
 } from '../generated/gameBalance.ts';
 import type { BuildingKind, BuildingState } from '../resources/types.ts';
@@ -14,19 +13,17 @@ import { breadGrainStock, type BreadGrainKind } from '../economy/cropGoods.ts';
 import { wholeResourceUnits } from '../resources/resourceUnits.ts';
 
 export const GRAIN_DISPATCH_SOURCE_KINDS = ['threshing_barn', 'granary'] as const;
-export const GRAIN_PROCESSOR_KINDS = ['watermill', 'windmill', 'monastery'] as const;
+export const GRAIN_PROCESSOR_KINDS = ['watermill', 'windmill'] as const;
 export const GRAIN_DISPATCH_TARGET_KINDS = [
   'watermill',
   'windmill',
   'granary',
-  'monastery',
 ] as const;
-export const GRAIN_INPUT_BUFFER_CYCLES = 3;
 export const GRAIN_CRITICAL_RUNWAY_CYCLES = 1;
 
 export type GrainProcessorKind = Extract<
   BuildingKind,
-  'watermill' | 'windmill' | 'monastery'
+  'watermill' | 'windmill'
 >;
 export type GrainDispatchDuty =
   | 'working-buffer'
@@ -57,12 +54,10 @@ export type RoutedGrainDestination<T extends GrainDestinationLike> = {
 };
 
 function grainInputPerCycle(
-  kind: GrainProcessorKind,
-  productivity = 1,
+  _kind: GrainProcessorKind,
+  _productivity = 1,
 ): number {
-  return kind === 'watermill' || kind === 'windmill'
-    ? WATERMILL_GRAIN_PER_CYCLE
-    : MONASTERY_OAT_GRAIN_PER_CYCLE * Math.max(0, productivity);
+  return WATERMILL_GRAIN_PER_CYCLE;
 }
 
 /** Mirrors the authoritative stock-policy working buffer for grain processors. */
@@ -71,9 +66,7 @@ export function grainInputTarget(
   productivity = 1,
   processorOutputTargetPercent: number | undefined = 100,
 ): number {
-  const stagingCycles = kind === 'monastery'
-    ? GRAIN_INPUT_BUFFER_CYCLES
-    : processorInputStagingCycles(processorOutputTargetPercent);
+  const stagingCycles = processorInputStagingCycles(processorOutputTargetPercent);
   return grainInputPerCycle(kind, productivity) * stagingCycles;
 }
 
@@ -95,7 +88,6 @@ export function grainDispatchDuty(
 ): GrainDispatchDuty | null {
   if (target.kind === 'granary') return 'granary-reserve';
   if (!(GRAIN_PROCESSOR_KINDS as readonly BuildingKind[]).includes(target.kind)) return null;
-  if (target.kind === 'monastery' && commodity !== 'oatGrain') return null;
   if (
     (target.kind === 'watermill' || target.kind === 'windmill')
     && commodity === 'oatGrain'
@@ -105,7 +97,7 @@ export function grainDispatchDuty(
     productivity,
     target.processorOutputTargetPercent,
   );
-  const operational = target.kind === 'monastery' || target.assignedLabor > 0;
+  const operational = target.assignedLabor > 0;
   return operational && (target[commodity] ?? 0) + 1e-6 < desiredStock
     ? 'working-buffer'
     : 'workshop-overflow';
@@ -225,10 +217,9 @@ export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
       target.id === sourceId
       || target.constructionComplete === false
       || !(GRAIN_PROCESSOR_KINDS as readonly BuildingKind[]).includes(target.kind)
-      || (target.kind !== 'monastery' && target.assignedLabor <= 0)
+      || target.assignedLabor <= 0
       || hasInboundSupply(target)
       || !acceptsGrain(target)
-      || (target.kind === 'monastery' && commodity !== 'oatGrain')
       || (
         (target.kind === 'watermill' || target.kind === 'windmill')
         && commodity === 'oatGrain'

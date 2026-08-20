@@ -21,6 +21,7 @@ import type { RiverField } from '../rivers/RiverField.ts';
 import type { PerspectiveCamera } from 'three';
 import type { Terrain } from '../terrain/Terrain.ts';
 import type { ClayDepositSite } from '../clay/ClayDepositLayout.ts';
+import type { ForestCore } from '../props/forestField.ts';
 
 export type WorldMapUiBundle = {
   quarry: QuarryMapIcons;
@@ -34,6 +35,8 @@ export function createWorldMapUi(options: {
   domElement: HTMLElement;
   terrain: Terrain;
   riverField: RiverField;
+  forestCores: readonly ForestCore[];
+  worldSeed: number;
   registry: WorldLayoutRegistry;
   clayDepositSites?: readonly ClayDepositSite[];
   getCamera: () => PerspectiveCamera | null;
@@ -50,6 +53,8 @@ export function createWorldMapUi(options: {
     domElement,
     terrain,
     riverField,
+    forestCores,
+    worldSeed,
     registry,
     clayDepositSites,
     getCamera,
@@ -97,6 +102,9 @@ export function createWorldMapUi(options: {
   const minimap = TerrainMinimapOverlay.create({
     uiRoot,
     riverField,
+    terrain,
+    forestCores,
+    worldSeed,
     layoutMarkers,
     getGameState,
     getFocus,

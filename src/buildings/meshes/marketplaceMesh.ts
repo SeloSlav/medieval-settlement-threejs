@@ -101,7 +101,6 @@ function addMarketStallDisplay(
     case 'fruit': addFruitCounter(display); break;
     case 'vegetables': addVegetableCounter(display); break;
     case 'eggs': addEggCounter(display); break;
-    case 'porridge': addPorridgeCounter(display); break;
     case 'honey': addHoneyCounter(display); break;
     case 'preserves': addPreserveCounter(display); break;
     case 'curedMeat': addMeatCounter(display, true); break;
@@ -291,23 +290,6 @@ function addEggCounter(display: THREE.Group): void {
       new THREE.Vector3(-0.42 + (index % 3) * 0.42, 0.14, index < 3 ? -0.1 : 0.1),
       undefined,
       new THREE.Vector3(0.82, 1.15, 0.82),
-    );
-  }
-}
-
-function addPorridgeCounter(display: THREE.Group): void {
-  for (const x of [-0.28, 0.28]) {
-    addMesh(
-      display,
-      new THREE.CylinderGeometry(0.24, 0.17, 0.15, 12, 1, true),
-      residenceFacadeMaterial('lightOrange'),
-      new THREE.Vector3(x, 0.075, 0),
-    );
-    addMesh(
-      display,
-      new THREE.CylinderGeometry(0.19, 0.19, 0.025, 12),
-      sharedBuildingDetailMaterial('crop'),
-      new THREE.Vector3(x, 0.15, 0),
     );
   }
 }

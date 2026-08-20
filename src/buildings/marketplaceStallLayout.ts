@@ -26,7 +26,6 @@ export const MARKETPLACE_STALL_DISPLAY_KINDS = {
     'fruit',
     'vegetables',
     'eggs',
-    'porridge',
     'honey',
     'preserves',
     'curedMeat',

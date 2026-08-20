@@ -631,6 +631,12 @@ fn building_pad_params(kind: &str) -> BuildingPadParams {
             inner_fade: 0.9,
             outer_fade: 1.28,
         },
+        "wayside_shrine" => BuildingPadParams {
+            radius_x: 1.65,
+            radius_z: 1.5,
+            inner_fade: 0.9,
+            outer_fade: 1.24,
+        },
         "marketplace" => BuildingPadParams {
             radius_x: 4.2,
             radius_z: 3.4,

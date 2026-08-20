@@ -106,6 +106,7 @@ Do not build close details until the first two levels work.
 | Building | Signature read | Material emphasis | Functional evidence |
 | --- | --- | --- | --- |
 | Parish church | Open oak belfry over a prominent nave | Limewash, limestone, red tile, restrained folk trim | Bell, entrance steps, parish wall |
+| Wayside shrine | Tiny gabled niche and iron ridge cross | Limewash, rough limestone, shingles | Marian icon, votive ledge, worn roadside steps |
 | Residence | Steep domestic gable with chimney and lived-in asymmetry | Limewash or timber, stone base, tile/shingle roof | Firewood, porch, shutters, small household props |
 | Well | Sheltered vertical frame over a circular stone curb | Limestone, dark timber, iron | Crank, rope, bucket, worn apron |
 | Lumber mill | Long, low saw hall with a dominant roof | Timber frame, stone plinth, red tile | Saw, intake bay, log stacks |

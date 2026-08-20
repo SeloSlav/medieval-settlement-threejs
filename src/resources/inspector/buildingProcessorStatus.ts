@@ -20,7 +20,6 @@ import {
   BAKERY_MASLIN_BREAD_PER_CYCLE,
   BAKERY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
-  MONASTERY_OAT_GRAIN_PER_CYCLE,
   MONASTERY_UNLINKED_PRODUCTIVITY,
   SMOKEHOUSE_FIREWOOD_PER_CYCLE,
   SMOKEHOUSE_FOOD_PER_CYCLE,
@@ -859,31 +858,12 @@ function getLumberMillStatus(
 
 function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries): BuildingProcessorStatus {
   const linked = worldQueries.isMonasteryLinkedToChapel(building);
-  const productivity = linked ? 1 : MONASTERY_UNLINKED_PRODUCTIVITY;
-  const grainNeeded = MONASTERY_OAT_GRAIN_PER_CYCLE * productivity;
-  const inputCostRow = `<li><span>Inputs per cycle</span><span>${renderResourceCost({ oatGrain: grainNeeded }, { compact: true })}</span></li>`;
 
   if (!linked) {
     return {
-      statusText: 'Reduced output — link to a staffed church by road',
+      statusText: `Reduced estate output (${Math.round(MONASTERY_UNLINKED_PRODUCTIVITY * 100)}%) — link to a staffed church by road`,
       statusState: 'warning',
-      waterDetailHtml: inputCostRow,
-    };
-  }
-
-  if (isOutputAtLimit(building, 'monastery', 'food')) {
-    return {
-      statusText: 'Pantry full — estate food production paused',
-      statusState: 'idle',
-      waterDetailHtml: inputCostRow,
-    };
-  }
-
-  if ((building.oatGrain ?? 0) + 1e-6 < grainNeeded) {
-    return {
-      statusText: `Waiting for oats — needs ${Math.ceil(grainNeeded)} oats per cycle for porridge`,
-      statusState: 'warning',
-      waterDetailHtml: inputCostRow,
+      waterDetailHtml: '',
     };
   }
 
@@ -892,14 +872,14 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
     return {
       statusText: 'Serving parish — connect marketplace by road for pilgrim income',
       statusState: 'active',
-      waterDetailHtml: inputCostRow,
+      waterDetailHtml: '',
     };
   }
 
   return {
-    statusText: 'Estate active — exports, infirmary, feasts, and pilgrims',
+    statusText: 'Estate active — self-provisioning, external surplus trade, infirmary, feasts, and pilgrims',
     statusState: 'active',
-    waterDetailHtml: inputCostRow,
+    waterDetailHtml: '',
   };
 }
 

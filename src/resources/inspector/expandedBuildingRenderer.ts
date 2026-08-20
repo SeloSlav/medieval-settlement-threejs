@@ -20,7 +20,6 @@ import {
   MONASTERY_HOSPITALITY_HONEY_PER_DAY,
   MONASTERY_HOSPITALITY_WINE_PER_DAY,
   MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
-  MONASTERY_UNLINKED_PRODUCTIVITY,
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
   TEXTILE_TRANSFER_PER_TRIP,
@@ -230,7 +229,7 @@ const PROCESS: Record<string, string> = {
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
   vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
-  monastery: 'A self-governing 68 × 53 m estate raises orchard fruit, vegetables, eggs, milk, meat, honey, ale, and cheese; taxed exports expand the demesne while finite infirmary beds nurse covered households',
+  monastery: 'A self-governing 68 × 53 m estate raises orchard fruit, vegetables, eggs, milk, meat, honey, ale, and cheese for its own pantry; genuine surplus is sold beyond the map, while finite infirmary beds nurse covered households',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
 };
@@ -1285,19 +1284,14 @@ export function renderExpandedBuildingInspector(
       <li><span>Household priority</span><span>Protect one market-allocation batch per claimed home · capped at 50% source storage</span></li>
       <li><span>Sheltered storage</span><span>${Math.round((1 - FRESH_FOOD_STORAGE_GRANARY_FACTOR) * 100)}% less spoilage · ${formatFreshFoodLoss(freshFoodStock(building) * environment.freshFoodSpoilageFractionPerDay * FRESH_FOOD_STORAGE_GRANARY_FACTOR)}</span></li>`
     : '';
-  const processorGrainKind = building.kind === 'monastery'
-    ? 'oatGrain'
-    : dominantBreadGrainKind(building);
+  const processorGrainKind = dominantBreadGrainKind(building);
   const processorGrainStock = Math.max(0, building[processorGrainKind] ?? 0);
   const grainProcessorRows = building.kind === 'watermill'
     || building.kind === 'windmill'
-    || building.kind === 'monastery'
     ? `<li><span>Grain working buffer</span><span>${formatGrainWorkingBuffer(
         processorGrainStock,
         building.kind,
-        building.kind === 'monastery' && !context.worldQueries.isMonasteryLinkedToChapel(building)
-          ? MONASTERY_UNLINKED_PRODUCTIVITY
-          : 1,
+        1,
         building.processorOutputTargetPercent,
       )} · ${processorGrainKind.replace(/([A-Z])/g, ' $1').toLowerCase()}</span></li>`
     : '';

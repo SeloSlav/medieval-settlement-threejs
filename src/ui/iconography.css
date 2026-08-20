@@ -665,7 +665,6 @@
 .resource-cost__item[data-resource-cost='vegetables'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='eggs'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='grapes'] .resource-cost__icon,
-.resource-cost__item[data-resource-cost='porridge'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='curedMeat'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='smokedFish'] .resource-cost__icon,
 .resource-cost__item[data-resource-cost='cheese'] .resource-cost__icon {
@@ -684,7 +683,6 @@
 .resource-cost__item[data-resource-cost='vegetables'] .resource-cost__icon { background-position: 0 66.667%; }
 .resource-cost__item[data-resource-cost='eggs'] .resource-cost__icon { background-position: 33.333% 66.667%; }
 .resource-cost__item[data-resource-cost='grapes'] .resource-cost__icon { background-position: 66.667% 66.667%; }
-.resource-cost__item[data-resource-cost='porridge'] .resource-cost__icon { background-position: 100% 66.667%; }
 .resource-cost__item[data-resource-cost='curedMeat'] .resource-cost__icon { background-position: 0 100%; }
 .resource-cost__item[data-resource-cost='smokedFish'] .resource-cost__icon { background-position: 33.333% 100%; }
 .resource-cost__item[data-resource-cost='cheese'] .resource-cost__icon { background-position: 66.667% 100%; }
@@ -733,7 +731,6 @@
 .settlement-hud__food-card[data-food-resource='vegetables']::before { background-position: 0 66.667%; }
 .settlement-hud__food-card[data-food-resource='eggs']::before { background-position: 33.333% 66.667%; }
 .settlement-hud__food-card[data-food-resource='grapes']::before { background-position: 66.667% 66.667%; }
-.settlement-hud__food-card[data-food-resource='porridge']::before { background-position: 100% 66.667%; }
 .settlement-hud__food-card[data-food-resource='curedMeat']::before { background-position: 0 100%; }
 .settlement-hud__food-card[data-food-resource='smokedFish']::before { background-position: 33.333% 100%; }
 .settlement-hud__food-card[data-food-resource='cheese']::before { background-position: 66.667% 100%; }

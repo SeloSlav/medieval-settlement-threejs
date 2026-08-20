@@ -100,7 +100,6 @@ export function syncResidences(
       vegetables: wholeResourceUnits(row.vegetables),
       eggs: wholeResourceUnits(row.eggs),
       grapes: wholeResourceUnits(row.grapes),
-      porridge: wholeResourceUnits(row.porridge),
       curedMeat: wholeResourceUnits(row.curedMeat),
       smokedFish: wholeResourceUnits(row.smokedFish),
       cheese: wholeResourceUnits(row.cheese),

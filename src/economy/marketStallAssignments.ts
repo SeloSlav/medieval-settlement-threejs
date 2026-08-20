@@ -51,7 +51,6 @@ export type MarketStallDisplayKind =
   | 'fruit'
   | 'vegetables'
   | 'eggs'
-  | 'porridge'
   | 'honey'
   | 'preserves'
   | 'curedMeat'
@@ -171,7 +170,6 @@ function marketStallDisplayKind(
     case 'grapes': return 'fruit';
     case 'vegetables': return 'vegetables';
     case 'eggs': return 'eggs';
-    case 'porridge': return 'porridge';
     case 'honey': return 'honey';
     case 'preservedFood': return 'preserves';
     case 'curedMeat': return 'curedMeat';

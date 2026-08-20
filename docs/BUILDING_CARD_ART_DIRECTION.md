@@ -43,6 +43,7 @@ Avoid: ANY BORDER, frame, outline around the canvas, ornamental edge, decorative
 | `brewery.webp` | Warm-walled brewhouse, malt kiln, brewing porch, vats, and barrels. |
 | `carpenter.webp` | Enclosed shop with deep working bay, joinery, wheels, and handcart. |
 | `chapel.webp` | Limewashed parish nave with an open oak belfry and a steep hand-split shingle roof. |
+| `wayside-shrine.webp` | Tiny limewashed roadside poklonac with an arched Marian niche, limestone plinth, shingle cap, and iron cross. |
 | `charcoal-burner.webp` | Earth-covered charcoal clamp, billet ring, and tiny watch shelter. |
 | `clay-pit.webp` | Shallow ochre clay bank, puddling trough, cut blocks, and baskets. |
 | `fishing-camp.webp` | River hut, plank landing, empty skiff, nets, and traps. |

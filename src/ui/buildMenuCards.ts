@@ -5,7 +5,7 @@ import { renderBuildingResourceCost, type ResourceCostKind } from './resourceCos
 
 export type PlacementBuildMenuAction =
   | 'lumber-mill' | 'stone-quarry' | 'large-quarry' | 'mine' | 'reforester' | 'woodcutters-lodge'
-  | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'marketplace' | 'trading-post'
+  | 'well' | 'hunters-hall' | 'foragers-shed' | 'fishing-camp' | 'chapel' | 'wayside-shrine' | 'marketplace' | 'trading-post'
   | 'threshing-barn' | 'monastery' | 'brewery' | 'tavern' | 'smokehouse'
   | 'granary' | 'bakery' | 'apiary' | 'watermill' | 'windmill' | 'carpenter' | 'vineyard'
   | 'weaver'
@@ -33,6 +33,7 @@ const BUILD_CARD_ART: Record<PlacementArtKey, string> = {
   potter_kiln: '/assets/ui/build-menu/cards/potter-kiln.webp',
   well: '/assets/ui/build-menu/cards/water-well.webp', hunters_hall: '/assets/ui/build-menu/cards/hunter-hall.webp',
   foragers_shed: '/assets/ui/build-menu/cards/foragers-hut.webp', chapel: '/assets/ui/build-menu/cards/chapel.webp',
+  wayside_shrine: '/assets/ui/build-menu/cards/wayside-shrine.webp',
   fishing_camp: '/assets/ui/build-menu/cards/fishing-camp.webp',
   marketplace: '/assets/ui/build-menu/cards/market.webp', residences: '/assets/ui/build-menu/cards/residence.webp',
   trading_post: '/assets/ui/build-menu/cards/trading-post.webp',
@@ -75,7 +76,8 @@ const DETAILS: Record<PlacementArtKey, BuildCardDetail> = {
   residences: ['Residence', 'H', 'Builds road-fronted homes that can grow through three tiers.'],
   well: ['Well', 'E', 'Supplies road-linked homes with water.', flow([], ['water'])],
   chapel: ['Church', 'C', 'Collects tithes and supports nearby households.'],
-  monastery: ['Pauline monastery', 'O', 'Reserves a large fenced edge estate that exports taxed surplus, reinvests its net gold, and supplies finite infirmary beds.', flow(['oatGrain'], ['food', 'ale', 'honey', 'gold'])],
+  wayside_shrine: ['Wayside shrine', 'D', 'A purely decorative roadside Catholic shrine with no practical benefit.'],
+  monastery: ['Pauline monastery', 'O', 'A self-provisioning fenced edge estate. Its pantry serves the infirmary and feasts; genuine surplus is sold beyond the map for private revenue.', flow([], ['ale', 'honey', 'gold'])],
   marketplace: ['Marketplace', 'P', 'Lets households exchange food and goods while collecting local taxes.'],
   trading_post: ['Trading Post', 'X', 'Sets monthly import and export rules while local haulers stage surplus goods.'],
   town_hall: ['Town Hall', 'T', 'Governs taxation and unlocks the settlement economic ledger.'],
@@ -124,7 +126,7 @@ const entry = (artKey: PlacementArtKey): BuildMenuEntry => ({
 
 /** Housing, services, institutions, trade, transport, and shared storage. */
 export const CIVIC_BUILD_MENU_ENTRIES: readonly BuildMenuEntry[] = [
-  entry('residences'), entry('well'), entry('chapel'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
+  entry('residences'), entry('well'), entry('chapel'), entry('wayside_shrine'), entry('monastery'), entry('marketplace'), entry('tavern'), entry('trading_post'), entry('town_hall'), entry('village_storehouse'), entry('granary'),
 ];
 
 /** Sites whose crews gather raw resources from the landscape. */

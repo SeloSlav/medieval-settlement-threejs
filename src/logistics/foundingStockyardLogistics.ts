@@ -102,7 +102,6 @@ export const FOUNDING_RELOCATION_COMMODITIES = [
   'vegetables',
   'eggs',
   'grapes',
-  'porridge',
   'curedMeat',
   'smokedFish',
   'cheese',
@@ -195,7 +194,6 @@ function foundingDestinationPriority(
     case 'vegetables':
     case 'eggs':
     case 'grapes':
-    case 'porridge':
     case 'curedMeat':
     case 'smokedFish':
     case 'cheese':

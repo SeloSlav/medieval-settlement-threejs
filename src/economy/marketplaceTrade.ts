@@ -73,7 +73,6 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   vegetables: 'Vegetables',
   eggs: 'Eggs',
   grapes: 'Grapes',
-  porridge: 'Porridge',
   curedMeat: 'Cured meat',
   smokedFish: 'Smoked fish',
   cheese: 'Cheese',
@@ -347,7 +346,6 @@ function tradeStorageResource(resource: TradeResourceKind): TradeResourceKind | 
     || resource === 'vegetables'
     || resource === 'eggs'
     || resource === 'grapes'
-    || resource === 'porridge'
     || resource === 'ryeBread'
     || resource === 'maslinBread'
   ) return 'food';
