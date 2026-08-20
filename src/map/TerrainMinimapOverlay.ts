@@ -170,7 +170,9 @@ export class TerrainMinimapOverlay {
         state.quarries,
       );
       const node = geologicalNode ?? foragingNodes.get(entry.marker.id);
-      syncResourceStockRing(entry.element, node);
+      syncResourceStockRing(entry.element, node, {
+        hideWhenEmpty: geologicalNode?.isRich === true,
+      });
       const geologicalPresentation = geologicalNode
         ? describeGeologicalMapMarker(entry.marker, geologicalNode)
         : null;

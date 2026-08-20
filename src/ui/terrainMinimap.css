@@ -136,6 +136,10 @@
   --resource-stock-color: #6e6254;
 }
 
+.terrain-minimap__marker--resource[data-resource-stock='hidden']::before {
+  display: none;
+}
+
 .terrain-minimap__marker--resource .map-resource-icon-glyph {
   width: 13px;
   height: 13px;

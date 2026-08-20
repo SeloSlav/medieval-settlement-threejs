@@ -11,6 +11,11 @@ type ResourceStock = {
   maxYield: number;
 };
 
+type ResourceStockRingOptions = {
+  /** Rich geology drops the finite surface ring once only its deep source remains. */
+  hideWhenEmpty?: boolean;
+};
+
 /**
  * Converts authoritative stock into the shared circular marker language.
  * The arc begins at twelve o'clock and its trailing edge retreats
@@ -47,13 +52,17 @@ export function resourceStockRingPresentation(
 export function syncResourceStockRing(
   element: HTMLElement,
   stock: ResourceStock | null | undefined,
+  options: ResourceStockRingOptions = {},
 ): void {
   const presentation = resourceStockRingPresentation(stock);
   const angle = `${presentation.angleDegrees.toFixed(1)}deg`;
   if (element.style.getPropertyValue('--resource-stock-angle') !== angle) {
     element.style.setProperty('--resource-stock-angle', angle);
   }
-  if (element.dataset.resourceStock !== presentation.band) {
-    element.dataset.resourceStock = presentation.band;
+  const displayedBand = options.hideWhenEmpty && presentation.band === 'empty'
+    ? 'hidden'
+    : presentation.band;
+  if (element.dataset.resourceStock !== displayedBand) {
+    element.dataset.resourceStock = displayedBand;
   }
 }

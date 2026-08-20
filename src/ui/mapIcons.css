@@ -92,6 +92,11 @@
   --resource-stock-color: #6e6254;
 }
 
+.quarry-map-icon[data-resource-stock='hidden']::before,
+.foraging-map-icon[data-resource-stock='hidden']::before {
+  display: none;
+}
+
 .quarry-map-icon--iron {
   border-color: rgba(164, 86, 60, 0.84);
 }

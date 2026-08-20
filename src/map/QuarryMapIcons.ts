@@ -87,7 +87,9 @@ export class QuarryMapIcons {
     for (const entry of this.entries) {
       const { marker, button, worldPoint } = entry;
       const node = geologicalNodeForMapMarker(marker, nodes);
-      syncResourceStockRing(button, node);
+      syncResourceStockRing(button, node, {
+        hideWhenEmpty: node?.isRich === true,
+      });
       if (
         !entry.presentationInitialized
         || entry.presentationNode !== node

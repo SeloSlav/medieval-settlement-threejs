@@ -495,6 +495,12 @@ for (const relativePath of [
     `${relativePath} must synchronize the shared at-a-glance stock ring`,
   );
 }
+assert.match(
+  readFileSync(`${projectRoot}src/map/QuarryMapIcons.ts`, 'utf8'),
+  /hideWhenEmpty:\s*node\?\.isRich === true/,
+  'a depleted rich geological surface must remove its ring and leave the infinity badge',
+);
+assert.match(mapIconStyles, /data-resource-stock='hidden'\]::before[\s\S]*display:\s*none/);
 
 const harvestInspector = readFileSync(
   `${projectRoot}src/resources/inspector/harvestBuildingRenderer.ts`,

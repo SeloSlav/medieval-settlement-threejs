@@ -104,7 +104,9 @@ export class ForagingMapIcons {
       const node = marker.kind === 'clay'
         ? geologicalNodeForMapMarker(marker, geologicalNodes)
         : nodes.get(marker.id);
-      syncResourceStockRing(button, node);
+      syncResourceStockRing(button, node, {
+        hideWhenEmpty: marker.kind === 'clay' && node?.isRich === true,
+      });
       toggleClassIfChanged(
         button,
         'resource-node-marker--rich',
