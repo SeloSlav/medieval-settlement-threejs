@@ -144,7 +144,6 @@ pub fn step_fresh_food_spoilage(ctx: &ReducerContext, environment: EnvironmentSt
         spoil_fresh!(vegetables, CommodityKind::Vegetables);
         spoil_fresh!(eggs, CommodityKind::Eggs);
         spoil_fresh!(grapes, CommodityKind::Grapes);
-        spoil_fresh!(porridge, CommodityKind::Porridge);
         spoil_preserved!(preserved_food, CommodityKind::PreservedFood);
         spoil_preserved!(cured_meat, CommodityKind::CuredMeat);
         spoil_preserved!(smoked_fish, CommodityKind::SmokedFish);

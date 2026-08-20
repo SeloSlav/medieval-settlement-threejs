@@ -950,7 +950,6 @@ pub(crate) fn place_building_internal(
         vegetables: 0.0,
         eggs: 0.0,
         grapes: 0.0,
-        porridge: 0.0,
         cured_meat: 0.0,
         smoked_fish: 0.0,
         cheese: 0.0,
@@ -2902,7 +2901,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
             vegetables: building.vegetables * recoverable,
             eggs: building.eggs * recoverable,
             grapes: building.grapes * recoverable,
-            porridge: building.porridge * recoverable,
             cured_meat: building.cured_meat * recoverable,
             smoked_fish: building.smoked_fish * recoverable,
             cheese: building.cheese * recoverable,
@@ -3118,10 +3116,6 @@ pub fn demolish_building(ctx: &ReducerContext, building_id: u64) -> Result<(), S
         ),
         (CommodityKind::Eggs, building.eggs + trip_cargo.eggs),
         (CommodityKind::Grapes, building.grapes + trip_cargo.grapes),
-        (
-            CommodityKind::Porridge,
-            building.porridge + trip_cargo.porridge,
-        ),
         (
             CommodityKind::CuredMeat,
             building.cured_meat + trip_cargo.cured_meat,

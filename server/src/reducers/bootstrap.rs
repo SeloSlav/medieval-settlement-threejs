@@ -331,7 +331,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         vegetables: resources.vegetables.max(0.0),
         eggs: resources.eggs.max(0.0),
         grapes: resources.grapes.max(0.0),
-        porridge: resources.porridge.max(0.0),
         cured_meat: resources.cured_meat.max(0.0),
         smoked_fish: resources.smoked_fish.max(0.0),
         cheese: resources.cheese.max(0.0),
@@ -388,7 +387,6 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
     resources.vegetables = 0.0;
     resources.eggs = 0.0;
     resources.grapes = 0.0;
-    resources.porridge = 0.0;
     resources.cured_meat = 0.0;
     resources.smoked_fish = 0.0;
     resources.rye_sheaves = 0.0;

@@ -83,8 +83,7 @@ pub fn price_multiplier_for(state: &MarketState, resource: TradeResource) -> f64
         | TradeResource::Cherries
         | TradeResource::Vegetables
         | TradeResource::Eggs
-        | TradeResource::Grapes
-        | TradeResource::Porridge => state.food_price_mult,
+        | TradeResource::Grapes => state.food_price_mult,
         TradeResource::Ale | TradeResource::Wine => state.drink_price_mult,
         TradeResource::PreservedFood
         | TradeResource::Honey
@@ -219,8 +218,7 @@ pub fn record_market_trade(
         | TradeResource::Cherries
         | TradeResource::Vegetables
         | TradeResource::Eggs
-        | TradeResource::Grapes
-        | TradeResource::Porridge => {
+        | TradeResource::Grapes => {
             state.regional_food_supply =
                 adjust_supply_index(state.regional_food_supply, direction, amount);
         }

@@ -44,7 +44,6 @@ fn physical_resource_stock(ctx: &ReducerContext, owner: spacetimedb::Identity) -
         stock.vegetables += building.vegetables.max(0.0);
         stock.eggs += building.eggs.max(0.0);
         stock.grapes += building.grapes.max(0.0);
-        stock.porridge += building.porridge.max(0.0);
         stock.cured_meat += building.cured_meat.max(0.0);
         stock.smoked_fish += building.smoked_fish.max(0.0);
         stock.cheese += building.cheese.max(0.0);
@@ -141,11 +140,6 @@ pub fn grant_cheat_resources(ctx: &ReducerContext, amount: f64) -> Result<(), St
     );
     resources.eggs = top_up_ledger(resources.eggs, physical.map_or(0.0, |s| s.eggs), amount);
     resources.grapes = top_up_ledger(resources.grapes, physical.map_or(0.0, |s| s.grapes), amount);
-    resources.porridge = top_up_ledger(
-        resources.porridge,
-        physical.map_or(0.0, |s| s.porridge),
-        amount,
-    );
     resources.cured_meat = top_up_ledger(
         resources.cured_meat,
         physical.map_or(0.0, |s| s.cured_meat),

@@ -310,7 +310,6 @@ pub fn place_burgage_zone(
             vegetables: 0.0,
             eggs: 0.0,
             grapes: 0.0,
-            porridge: 0.0,
             cured_meat: 0.0,
             smoked_fish: 0.0,
             cheese: 0.0,

@@ -23,7 +23,7 @@ use crate::simulation::{labor_and_logistics_paused, GameClock, SimTickContext};
 use crate::tables::{Building, PlayerResources, WorldConfig};
 
 const EPSILON: f64 = 1e-6;
-const RECOVERY_ORDER: [CommodityKind; 52] = [
+const RECOVERY_ORDER: [CommodityKind; 51] = [
     CommodityKind::Gold,
     CommodityKind::Remedies,
     CommodityKind::Food,
@@ -51,7 +51,6 @@ const RECOVERY_ORDER: [CommodityKind; 52] = [
     CommodityKind::Vegetables,
     CommodityKind::Eggs,
     CommodityKind::Grapes,
-    CommodityKind::Porridge,
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
@@ -117,7 +116,6 @@ pub struct ReclamationStock {
     pub vegetables: f64,
     pub eggs: f64,
     pub grapes: f64,
-    pub porridge: f64,
     pub cured_meat: f64,
     pub smoked_fish: f64,
     pub cheese: f64,
@@ -286,10 +284,6 @@ impl ReclamationStock {
                 grapes: amount,
                 ..Self::default()
             },
-            CommodityKind::Porridge => Self {
-                porridge: amount,
-                ..Self::default()
-            },
             CommodityKind::CuredMeat => Self {
                 cured_meat: amount,
                 ..Self::default()
@@ -361,7 +355,6 @@ impl ReclamationStock {
             vegetables: resources.vegetables.max(0.0),
             eggs: resources.eggs.max(0.0),
             grapes: resources.grapes.max(0.0),
-            porridge: resources.porridge.max(0.0),
             cured_meat: resources.cured_meat.max(0.0),
             smoked_fish: resources.smoked_fish.max(0.0),
             cheese: resources.cheese.max(0.0),
@@ -418,7 +411,6 @@ impl ReclamationStock {
             CommodityKind::Vegetables => self.vegetables,
             CommodityKind::Eggs => self.eggs,
             CommodityKind::Grapes => self.grapes,
-            CommodityKind::Porridge => self.porridge,
             CommodityKind::CuredMeat => self.cured_meat,
             CommodityKind::SmokedFish => self.smoked_fish,
             CommodityKind::Cheese => self.cheese,
@@ -474,7 +466,6 @@ impl ReclamationStock {
         building.vegetables += self.vegetables;
         building.eggs += self.eggs;
         building.grapes += self.grapes;
-        building.porridge += self.porridge;
         building.cured_meat += self.cured_meat;
         building.smoked_fish += self.smoked_fish;
         building.cheese += self.cheese;
@@ -528,7 +519,6 @@ fn clear_resource_ledger(resources: &mut PlayerResources) {
     resources.vegetables = 0.0;
     resources.eggs = 0.0;
     resources.grapes = 0.0;
-    resources.porridge = 0.0;
     resources.rye_sheaves = 0.0;
     resources.oat_sheaves = 0.0;
     resources.barley_sheaves = 0.0;
@@ -776,7 +766,6 @@ pub fn insert_reclamation_pile(
         vegetables: stock.vegetables.max(0.0),
         eggs: stock.eggs.max(0.0),
         grapes: stock.grapes.max(0.0),
-        porridge: stock.porridge.max(0.0),
         cured_meat: stock.cured_meat.max(0.0),
         smoked_fish: stock.smoked_fish.max(0.0),
         cheese: stock.cheese.max(0.0),
@@ -1143,7 +1132,6 @@ pub(crate) fn reclamation_destination_priority(commodity: CommodityKind, kind: &
         | CommodityKind::Vegetables
         | CommodityKind::Eggs
         | CommodityKind::Grapes
-        | CommodityKind::Porridge
         | CommodityKind::CuredMeat
         | CommodityKind::SmokedFish
         | CommodityKind::Cheese

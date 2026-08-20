@@ -751,7 +751,6 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             building.vegetables = 0.0;
             building.eggs = 0.0;
             building.grapes = 0.0;
-            building.porridge = 0.0;
             building.cured_meat = 0.0;
             building.smoked_fish = 0.0;
             building.cheese = 0.0;
@@ -793,7 +792,6 @@ fn destroy_target(ctx: &ReducerContext, incident: &FireIncident) {
             residence.vegetables = 0.0;
             residence.eggs = 0.0;
             residence.grapes = 0.0;
-            residence.porridge = 0.0;
             residence.cured_meat = 0.0;
             residence.smoked_fish = 0.0;
             residence.cheese = 0.0;

@@ -22,7 +22,7 @@ use crate::storehouse_policy::storehouse_filtered_collection_headroom;
 use crate::tables::Building;
 
 const EPSILON: f64 = 1e-6;
-const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 41] = [
+const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 40] = [
     CommodityKind::Timber,
     CommodityKind::Stone,
     CommodityKind::Firewood,
@@ -60,7 +60,6 @@ const FOUNDING_RELOCATION_COMMODITIES: [CommodityKind; 41] = [
     CommodityKind::Vegetables,
     CommodityKind::Eggs,
     CommodityKind::Grapes,
-    CommodityKind::Porridge,
     CommodityKind::CuredMeat,
     CommodityKind::SmokedFish,
     CommodityKind::Cheese,
@@ -436,7 +435,6 @@ fn has_portable_stock(building: &Building) -> bool {
         building.vegetables,
         building.eggs,
         building.grapes,
-        building.porridge,
         building.cured_meat,
         building.smoked_fish,
         building.cheese,

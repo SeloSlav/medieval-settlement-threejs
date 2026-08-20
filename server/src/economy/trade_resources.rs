@@ -50,7 +50,6 @@ pub fn trade_resource_for_commodity(commodity: CommodityKind) -> Option<TradeRes
         CommodityKind::Vegetables => TradeResource::Vegetables,
         CommodityKind::Eggs => TradeResource::Eggs,
         CommodityKind::Grapes => TradeResource::Grapes,
-        CommodityKind::Porridge => TradeResource::Porridge,
         CommodityKind::CuredMeat => TradeResource::CuredMeat,
         CommodityKind::SmokedFish => TradeResource::SmokedFish,
         CommodityKind::Cheese => TradeResource::Cheese,

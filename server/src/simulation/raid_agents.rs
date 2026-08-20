@@ -2020,7 +2020,6 @@ fn reclamation_from_raid_stores(stores: RaidPortableStores) -> ReclamationStock 
         vegetables: stores.vegetables,
         eggs: stores.eggs,
         grapes: stores.grapes,
-        porridge: stores.porridge,
         cured_meat: stores.cured_meat,
         smoked_fish: stores.smoked_fish,
         cheese: stores.cheese,

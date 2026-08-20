@@ -13,7 +13,6 @@ use crate::balance_generated::{
     HOUSEHOLD_FOOD_RESERVE_PER_CLAIM, LARGE_QUARRY_TIMBER_SUPPORT_BUFFER_CYCLES,
     LARGE_QUARRY_TIMBER_SUPPORT_PER_CYCLE, LIVESTOCK_FARMSTEAD_SALT_STAGING_PER_CYCLE,
     MINE_TIMBER_SUPPORT_BUFFER_CYCLES, MINE_TIMBER_SUPPORT_PER_CYCLE,
-    MONASTERY_OAT_GRAIN_PER_CYCLE,
     POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE, POTTER_WATER_PER_CYCLE,
     SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRON_PER_CYCLE, SMITHY_WATER_PER_CYCLE,
     SMOKEHOUSE_FIREWOOD_PER_CYCLE, SMOKEHOUSE_FOOD_PER_CYCLE, SMOKEHOUSE_POTTERY_PER_CYCLE,
@@ -35,9 +34,8 @@ pub const PRESERVED_FOOD_PRODUCER_KINDS: &[&str] = &["smokehouse", "pastoral_far
 /// granaries own and replenish its stalls after physical stock reaches storage.
 pub const FOOD_SUPPLIER_KINDS: &[&str] = &["marketplace"];
 /// Fresh-food producers whose stored output may be carried as genuine household
-/// surplus to a granary, smokehouse, or armed company. Unassigned haulers move
-/// it; granaries and monasteries keep their separate household, preservation,
-/// charity, and emergency policies.
+/// surplus to a granary, smokehouse, or armed company. Monastery produce is
+/// estate stock: it supports the monastery itself or leaves by regional export.
 pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
     "hunters_hall",
     "foragers_shed",
@@ -47,7 +45,6 @@ pub const INSTITUTIONAL_FOOD_SOURCE_KINDS: &[&str] = &[
     "vineyard",
     "pastoral_farmstead",
     "swineherd",
-    "monastery",
 ];
 pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "stone_quarry",
@@ -60,7 +57,7 @@ pub const LOCAL_MATERIAL_SOURCE_KINDS: &[&str] = &[
     "village_storehouse",
     "trading_post",
 ];
-pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "windmill", "monastery"];
+pub const GRAIN_PROCESSOR_KINDS: &[&str] = &["watermill", "windmill"];
 pub const INDUSTRIAL_FIREWOOD_TARGET_KINDS: &[&str] = &[
     "bakery",
     "brewery",
@@ -179,31 +176,23 @@ pub fn rich_mine_supports_ready(timber: f64) -> bool {
     rich_mine_support_runway_cycles(timber) + 1e-9 >= 1.0
 }
 
-/// Small working stock requested by grain processors. Watermills and breweries
-/// follow their production stock policy; the autonomous monastery retains the
-/// legacy three-cycle buffer.
+/// Small working stock requested by grain processors.
 pub fn grain_input_target(
     kind: &str,
-    productivity: f64,
+    _productivity: f64,
     processor_output_target_percent: u8,
 ) -> f64 {
     let per_cycle = match kind {
         "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
-        "monastery" => MONASTERY_OAT_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
-    let staging_cycles = if matches!(kind, "watermill" | "windmill") {
-        processor_input_staging_cycles(processor_output_target_percent)
-    } else {
-        GRAIN_INPUT_BUFFER_CYCLES
-    };
+    let staging_cycles = processor_input_staging_cycles(processor_output_target_percent);
     per_cycle * staging_cycles
 }
 
-pub fn grain_input_runway_cycles(kind: &str, stock: f64, productivity: f64) -> f64 {
+pub fn grain_input_runway_cycles(kind: &str, stock: f64, _productivity: f64) -> f64 {
     let per_cycle = match kind {
         "watermill" | "windmill" => WATERMILL_GRAIN_PER_CYCLE,
-        "monastery" => MONASTERY_OAT_GRAIN_PER_CYCLE * productivity.max(0.0),
         _ => 0.0,
     };
     if per_cycle <= 1e-6 {
@@ -488,7 +477,6 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("watermill" | "windmill", "ryeGrain" | "maslinGrain") => {
             WATERMILL_GRAIN_PER_CYCLE
         }
-        ("monastery", "oatGrain") => MONASTERY_OAT_GRAIN_PER_CYCLE,
         ("bakery", "ryeFlour" | "maslinFlour") => BAKERY_FLOUR_PER_CYCLE,
         ("smokehouse", "food" | "meat" | "fish" | "milk") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,

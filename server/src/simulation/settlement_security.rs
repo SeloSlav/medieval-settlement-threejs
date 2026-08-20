@@ -716,7 +716,6 @@ pub(super) fn building_portable_stores(building: &Building) -> RaidPortableStore
         vegetables: building.vegetables,
         eggs: building.eggs,
         grapes: building.grapes,
-        porridge: building.porridge,
         cured_meat: building.cured_meat,
         smoked_fish: building.smoked_fish,
         cheese: building.cheese,
@@ -892,7 +891,6 @@ pub(super) fn delivery_trip_portable_stores(trip: &DeliveryTrip) -> RaidPortable
         Some(CommodityKind::Vegetables) => stores.vegetables = amount,
         Some(CommodityKind::Eggs) => stores.eggs = amount,
         Some(CommodityKind::Grapes) => stores.grapes = amount,
-        Some(CommodityKind::Porridge) => stores.porridge = amount,
         Some(CommodityKind::RyeSheaves) => stores.rye_sheaves = amount,
         Some(CommodityKind::OatSheaves) => stores.oat_sheaves = amount,
         Some(CommodityKind::BarleySheaves) => stores.barley_sheaves = amount,
@@ -954,7 +952,6 @@ fn delivery_trip_remaining_amount(cargo_kind: u8, stores: RaidPortableStores) ->
         Some(CommodityKind::Vegetables) => stores.vegetables,
         Some(CommodityKind::Eggs) => stores.eggs,
         Some(CommodityKind::Grapes) => stores.grapes,
-        Some(CommodityKind::Porridge) => stores.porridge,
         Some(CommodityKind::RyeSheaves) => stores.rye_sheaves,
         Some(CommodityKind::OatSheaves) => stores.oat_sheaves,
         Some(CommodityKind::BarleySheaves) => stores.barley_sheaves,
@@ -1054,7 +1051,6 @@ fn treasury_portable_stores(
         vegetables: treasury.vegetables,
         eggs: treasury.eggs,
         grapes: treasury.grapes,
-        porridge: treasury.porridge,
         cured_meat: treasury.cured_meat,
         smoked_fish: treasury.smoked_fish,
         cheese: treasury.cheese,
@@ -1155,7 +1151,6 @@ fn retain_unplundered_stores(building: &mut Building, stores: RaidPortableStores
     building.vegetables = stores.vegetables;
     building.eggs = stores.eggs;
     building.grapes = stores.grapes;
-    building.porridge = stores.porridge;
     building.cured_meat = stores.cured_meat;
     building.smoked_fish = stores.smoked_fish;
     building.cheese = stores.cheese;
@@ -1222,7 +1217,6 @@ fn retain_unplundered_treasury_stores(
     subtract_loss!(vegetables);
     subtract_loss!(eggs);
     subtract_loss!(grapes);
-    subtract_loss!(porridge);
     subtract_loss!(cured_meat);
     subtract_loss!(smoked_fish);
     subtract_loss!(cheese);

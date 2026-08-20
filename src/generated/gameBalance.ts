@@ -445,8 +445,6 @@ export const VINEYARD_WINE_FIRST_GRAPE_RESERVE = 2;
 export const VINEYARD_HARVEST_START_MONTH = 9;
 export const VINEYARD_HARVEST_END_MONTH = 10;
 export const MARKET_SPECIALTY_EXPORT_PER_BROKER_PER_SECOND = 0.45;
-export const MONASTERY_OAT_GRAIN_PER_CYCLE = 2;
-export const MONASTERY_FOOD_PER_CYCLE = 2;
 export const MONASTERY_PILGRIMAGE_GOLD_PER_DAY = 2;
 export const MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY = 1.5;
 export const MONASTERY_HOSPITALITY_HONEY_PER_DAY = 0.8;
@@ -573,7 +571,7 @@ export const FARM_CROP_DEFINITIONS = {
     "growthStartMonth": 4,
     "growthEndMonth": 8,
     "harvestMonth": 9,
-    "calendarLabel": "Spring oats · thrives on cool wet ground · harvest September · premium fodder and porridge"
+    "calendarLabel": "Spring oats · thrives on cool wet ground · harvest September · premium fodder and ready food"
   },
   "fallow": {
     "kind": "fallow",
@@ -1743,7 +1741,7 @@ export const BACKYARD_GARDEN_COSTS = {
 
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;
 
-export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","food","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","preservedFood","honey","wine","ironwork","polearms","wool","cloth","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","cherries","vegetables","eggs","grapes","porridge","curedMeat","smokedFish","cheese","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves"] as const;
+export const TRADE_RESOURCE_KINDS = ["timber","stone","firewood","water","food","ryeGrain","oatGrain","maslinGrain","ryeFlour","maslinFlour","ryeBread","maslinBread","ale","preservedFood","honey","wine","ironwork","polearms","wool","cloth","barley","malt","flax","iron","clay","salt","charcoal","pottery","manure","remedies","roofTiles","meat","fish","berries","mushrooms","milk","apples","cherries","vegetables","eggs","grapes","curedMeat","smokedFish","cheese","ryeSheaves","oatSheaves","barleySheaves","maslinSheaves"] as const;
 export type TradeResourceKind = (typeof TRADE_RESOURCE_KINDS)[number];
 
 export type TradeResourceSpendScope = 'marketAccessible' | 'treasury';
@@ -1790,7 +1788,6 @@ export const TRADE_RESOURCE_SPEND_SCOPES = {
   vegetables: 'marketAccessible',
   eggs: 'marketAccessible',
   grapes: 'marketAccessible',
-  porridge: 'marketAccessible',
   curedMeat: 'marketAccessible',
   smokedFish: 'marketAccessible',
   cheese: 'marketAccessible',
@@ -1913,8 +1910,6 @@ export const MARKETPLACE_TRADE_OFFERS = [
   {"id":"sell_eggs","kind":"goldSell","resource":"eggs","amount":8,"goldYield":7},
   {"id":"buy_grapes","kind":"goldBuy","resource":"grapes","amount":10,"goldCost":14},
   {"id":"sell_grapes","kind":"goldSell","resource":"grapes","amount":10,"goldYield":8},
-  {"id":"buy_porridge","kind":"goldBuy","resource":"porridge","amount":10,"goldCost":10},
-  {"id":"sell_porridge","kind":"goldSell","resource":"porridge","amount":10,"goldYield":6},
   {"id":"buy_cured_meat","kind":"goldBuy","resource":"curedMeat","amount":8,"goldCost":22},
   {"id":"sell_cured_meat","kind":"goldSell","resource":"curedMeat","amount":8,"goldYield":14},
   {"id":"buy_smoked_fish","kind":"goldBuy","resource":"smokedFish","amount":8,"goldCost":20},
@@ -1936,7 +1931,7 @@ export const MARKETPLACE_TRADE_OFFERS = [
 
 export type MarketplaceTradeOfferId = (typeof MARKETPLACE_TRADE_OFFERS)[number]['id'];
 
-export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","4":"sell_food","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_maslin_flour","15":"sell_rye_bread","16":"sell_maslin_bread","17":"sell_ale","18":"sell_preserved_food","19":"sell_honey","20":"sell_wine","21":"sell_polearms","22":"sell_wool","23":"sell_cloth","24":"sell_barley","25":"sell_malt","26":"sell_flax","27":"sell_ironwork","28":"sell_iron","29":"sell_clay","30":"sell_salt","31":"sell_charcoal","32":"sell_manure","33":"sell_remedies","34":"sell_roof_tiles","35":"sell_meat","36":"sell_fish","37":"sell_berries","38":"sell_mushrooms","39":"sell_milk","40":"sell_apples","41":"sell_cherries","42":"sell_vegetables","43":"sell_eggs","44":"sell_grapes","45":"sell_porridge","46":"sell_cured_meat","47":"sell_smoked_fish","48":"sell_cheese","49":"sell_rye_sheaves","50":"sell_oat_sheaves","51":"sell_barley_sheaves","52":"sell_maslin_sheaves"} as const;
+export const MARKETPLACE_PENDING_TRADE_IDS = {"1":"sell_timber","2":"sell_stone","3":"sell_firewood","4":"sell_food","5":"timber_for_stone","6":"stone_for_timber","7":"timber_for_firewood","8":"sell_pottery","9":"sell_water","10":"sell_rye_grain","11":"sell_oat_grain","12":"sell_maslin_grain","13":"sell_rye_flour","14":"sell_maslin_flour","15":"sell_rye_bread","16":"sell_maslin_bread","17":"sell_ale","18":"sell_preserved_food","19":"sell_honey","20":"sell_wine","21":"sell_polearms","22":"sell_wool","23":"sell_cloth","24":"sell_barley","25":"sell_malt","26":"sell_flax","27":"sell_ironwork","28":"sell_iron","29":"sell_clay","30":"sell_salt","31":"sell_charcoal","32":"sell_manure","33":"sell_remedies","34":"sell_roof_tiles","35":"sell_meat","36":"sell_fish","37":"sell_berries","38":"sell_mushrooms","39":"sell_milk","40":"sell_apples","41":"sell_cherries","42":"sell_vegetables","43":"sell_eggs","44":"sell_grapes","45":"sell_cured_meat","46":"sell_smoked_fish","47":"sell_cheese","48":"sell_rye_sheaves","49":"sell_oat_sheaves","50":"sell_barley_sheaves","51":"sell_maslin_sheaves"} as const;
 
 export const MARKET_PRICE_UPDATE_INTERVAL_TICKS = 150;
 export const MARKET_PRICE_MULTIPLIER_MIN = 0.78;

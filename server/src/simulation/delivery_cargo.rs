@@ -52,7 +52,6 @@ pub struct DeliveryCargoTotals {
     pub vegetables: f64,
     pub eggs: f64,
     pub grapes: f64,
-    pub porridge: f64,
     pub cured_meat: f64,
     pub smoked_fish: f64,
     pub cheese: f64,
@@ -109,7 +108,6 @@ impl DeliveryCargoTotals {
             CommodityKind::Vegetables => self.vegetables += amount,
             CommodityKind::Eggs => self.eggs += amount,
             CommodityKind::Grapes => self.grapes += amount,
-            CommodityKind::Porridge => self.porridge += amount,
             CommodityKind::CuredMeat => self.cured_meat += amount,
             CommodityKind::SmokedFish => self.smoked_fish += amount,
             CommodityKind::Cheese => self.cheese += amount,
@@ -207,7 +205,7 @@ pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 16] = [
+    const FRESH_ORDER: [CommodityKind; 15] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -218,7 +216,6 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::Apples,
         CommodityKind::Vegetables,
         CommodityKind::Eggs,
-        CommodityKind::Porridge,
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
@@ -274,7 +271,7 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 20] = [
+    const ORDER: [CommodityKind; 19] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -285,7 +282,6 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::Apples,
         CommodityKind::Vegetables,
         CommodityKind::Eggs,
-        CommodityKind::Porridge,
         CommodityKind::RyeBread,
         CommodityKind::MaslinBread,
         CommodityKind::OatGrain,
