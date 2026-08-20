@@ -129,37 +129,30 @@ export function createMineralDepositRoster(options: {
   resourceVariety: number;
 }): MineralDepositRosterEntry[] {
   const richCount = Math.max(0, Math.floor(options.richSiteCount));
-  const ordinaryCount = Math.max(2, Math.floor(options.ordinarySiteCount));
+  const ordinaryCount = Math.max(0, Math.floor(options.ordinarySiteCount));
   const rng = mulberry32(options.seed ^ 0x4b1d5a77);
   const primary: MineralDepositResource = rng() < 0.5 ? 'iron' : 'salt';
   const secondary: MineralDepositResource = primary === 'iron' ? 'salt' : 'iron';
   const variety = clamp01(options.resourceVariety / 100);
-  // Large maps receive the second rich slot, but the seed decides whether that
-  // broadens the local economy or doubles down on its regional specialty.
-  const differentRichChance = lerp(0.45, 0.8, variety);
-  const ordinarySecondaryChance = lerp(0.18, 0.6, variety);
-  const roster: MineralDepositRosterEntry[] = [];
+  const secondaryChance = lerp(0.18, 0.6, variety);
+  const grades: MineralDepositGrade[] = [
+    ...Array.from({ length: richCount }, () => 'rich' as const),
+    ...Array.from({ length: ordinaryCount }, () => 'ordinary' as const),
+  ];
 
-  for (let index = 0; index < richCount; index++) {
-    roster.push({
-      resource: index > 0 && rng() < differentRichChance ? secondary : primary,
-      grade: 'rich',
-    });
-  }
-
-  for (let index = 0; index < ordinaryCount; index++) {
-    roster.push({
-      resource: index === 0
-        ? primary
-        : index === 1
+  // Rich deposits are complete surface sources too, so the first two slots can
+  // guarantee iron and salt even when one or both families have no ordinary
+  // node in a small map's tightly bounded roll.
+  return grades.map((grade, index) => ({
+    resource: index === 0
+      ? primary
+      : index === 1
+        ? secondary
+        : rng() < secondaryChance
           ? secondary
-          : rng() < ordinarySecondaryChance
-            ? secondary
-            : primary,
-      grade: 'ordinary',
-    });
-  }
-  return roster;
+          : primary,
+    grade,
+  }));
 }
 
 function pickMineralSite(

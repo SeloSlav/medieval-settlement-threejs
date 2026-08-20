@@ -113,7 +113,13 @@ for (const kind of kinds) {
 
   assert.equal(garden.userData.gardenKind, kind, `${kind} should retain its gameplay identity`);
   assert.equal(garden.userData.usesSeedThree, false, `${kind} should report that SeedThree is not yet attached`);
-  assert.ok(meshCount >= 12, `${kind} should be a composed scene, not a placeholder prop`);
+  const minimumMeshCountWithoutStreamedPlants = kind === 'apple_orchard' || kind === 'cherry_orchard'
+    ? 7
+    : 12;
+  assert.ok(
+    meshCount >= minimumMeshCountWithoutStreamedPlants,
+    `${kind} should be a composed scene, not a placeholder prop`,
+  );
   assert.ok(names.some((name) => name.startsWith(signatures[kind])), `${kind} should expose its signature feature`);
   assert.ok(size.x <= 7.5, `${kind} should stay inside a 6.2m parcel with modest foliage overhang`);
   assert.ok(size.z <= 7.5, `${kind} should stay inside a 5.4m backyard with modest foliage overhang`);
@@ -128,6 +134,20 @@ for (const kind of kinds) {
         normal: '/assets/textures/terrain/mammoth_terrain_dirt/normal.png',
         roughness: '/assets/textures/terrain/mammoth_terrain_dirt/roughness.png',
       });
+    }
+  }
+  if (kind === 'vegetable_garden' || kind === 'flower_garden') {
+    assert.equal(bedRails.length, 0, `${kind} should not have timber frames around its beds`);
+    for (const bed of soilBeds) {
+      assert.equal(
+        bed.geometry.type,
+        'PlaneGeometry',
+        `${kind} soil should be a ground-level surface instead of a raised dirt volume`,
+      );
+      assert.ok(
+        bed.position.y <= 0.01,
+        `${kind} soil should sit flush with the backyard terrain`,
+      );
     }
   }
   for (let first = 0; first < bedRails.length; first++) {
@@ -190,12 +210,31 @@ for (const kind of kinds) {
 }
 
 const shallow = createBackyardGardenMesh('apple_orchard', { width: 4.4, depth: 2.1, seed: 99 });
-let shallowTrees = 0;
+const shallowTrees: THREE.Object3D[] = [];
 shallow.traverse((object) => {
-  if (object.name.startsWith('AppleTree:')) shallowTrees += 1;
+  if (object.name.startsWith('AppleTree:')) shallowTrees.push(object);
 });
-assert.equal(shallowTrees, 2, 'shallow plots should reduce orchard count instead of flattening trees');
+assert.equal(shallowTrees.length, 2, 'shallow plots should reduce orchard count instead of flattening trees');
+assert.deepEqual(shallow.userData.orchardGrid, { columns: 2, rows: 1 });
+assert.deepEqual(
+  shallowTrees.map((tree) => [tree.position.x, tree.position.z]),
+  [[-1.1, 0], [1.1, 0]],
+  'shallow orchard trees should evenly center themselves in two width-proportional cells',
+);
 disposeBackyardGardenMesh(shallow);
+
+const deepOrchard = createBackyardGardenMesh('cherry_orchard', { width: 4, depth: 6, seed: 99 });
+const deepTrees: THREE.Object3D[] = [];
+deepOrchard.traverse((object) => {
+  if (object.name.startsWith('CherryTree:')) deepTrees.push(object);
+});
+assert.deepEqual(deepOrchard.userData.orchardGrid, { columns: 1, rows: 2 });
+assert.deepEqual(
+  deepTrees.map((tree) => [tree.position.x, tree.position.z]),
+  [[0, -1.5], [0, 1.5]],
+  'deep orchard trees should align evenly along the backyard length',
+);
+disposeBackyardGardenMesh(deepOrchard);
 
 const vegetableDetail = createBackyardGardenMesh('vegetable_garden', {
   width: 6.2,
@@ -394,7 +433,13 @@ collisionOrchard.traverse((object) => {
   if (object.userData.backyardSeasonalRole === 'orchard-fruit') orchardFruit.push(object);
   if (object.userData.backyardSeasonalRole === 'basket-produce') basketFruit.push(object);
 });
-assert.equal(collisionTrees.length, 3);
+assert.equal(collisionTrees.length, 4);
+assert.deepEqual(collisionOrchard.userData.orchardGrid, { columns: 2, rows: 2 });
+assert.deepEqual(
+  collisionTrees.map((tree) => [tree.position.x, tree.position.z]),
+  [[-1.55, -1.35], [1.55, -1.35], [-1.55, 1.35], [1.55, 1.35]],
+  'roomy orchard trees should evenly occupy a footprint-proportional 2 by 2 grid',
+);
 assert.equal(collisionProxies.length, collisionTrees.length);
 for (const tree of collisionTrees) {
   assert.equal(tree.userData.fpCollisionAggregate, true, 'each orchard tree should publish one close trunk collider');
@@ -413,11 +458,7 @@ assert.equal(harvestBaskets.length, 1);
 assert.ok(orchardFruit.length > 0);
 assert.ok(basketFruit.length > 0);
 assert.equal(harvestBaskets[0]!.userData.fpCollisionAggregate, true, 'the harvest basket should use one close aggregate collider');
-assert.ok(orchardStones.length >= 2);
-assert.ok(
-  orchardStones.every((stone) => stone.userData.fpNoCollision === true),
-  'orchard stepping stones should not add collision beyond trees and basket',
-);
+assert.equal(orchardStones.length, 0, 'orchards should leave their grass paths free of stepping stones');
 syncBackyardGardenSeasonVisuals(collisionOrchard, 'apple_orchard', 1);
 assert.ok(orchardFruit.every((fruit) => !fruit.visible), 'dormant orchards should show no fruit on trees');
 assert.ok(basketFruit.every((fruit) => !fruit.visible), 'dormant orchard baskets should be empty');

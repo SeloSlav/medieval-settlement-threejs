@@ -570,18 +570,30 @@ function addSoilBed(
   z: number,
   width: number,
   depth: number,
-  bordered = true,
-  soilMaterial: THREE.Material = MATERIALS.gardenSoil,
-  soilName = 'Textured garden soil bed',
+  options: {
+    bordered?: boolean;
+    profile?: 'ground-level' | 'raised';
+    soilMaterial?: THREE.Material;
+    soilName?: string;
+  } = {},
 ): void {
+  const {
+    bordered = true,
+    profile = 'raised',
+    soilMaterial = MATERIALS.gardenSoil,
+    soilName = 'Textured garden soil bed',
+  } = options;
+  const groundLevel = profile === 'ground-level';
   addMesh(
     group,
-    new THREE.BoxGeometry(width, 0.1, depth),
+    groundLevel
+      ? new THREE.PlaneGeometry(width, depth)
+      : new THREE.BoxGeometry(width, 0.1, depth),
     soilMaterial,
     x,
-    0.05,
+    groundLevel ? 0.006 : 0.05,
     z,
-    undefined,
+    groundLevel ? new THREE.Euler(-Math.PI * 0.5, 0, 0) : undefined,
     undefined,
     soilName,
   );
@@ -754,6 +766,28 @@ function addFruitTree(
   anchor.userData.fpCollisionAggregate = true;
 }
 
+function orchardTreeGrid(width: number, depth: number): {
+  columns: number;
+  rows: number;
+  positions: Array<[number, number]>;
+} {
+  const roomy = width > 5.3 && depth > 4.6;
+  const columns = roomy || width >= depth ? 2 : 1;
+  const rows = roomy || width < depth ? 2 : 1;
+  const positions: Array<[number, number]> = [];
+
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      positions.push([
+        ((column + 0.5) / columns - 0.5) * width,
+        ((row + 0.5) / rows - 0.5) * depth,
+      ]);
+    }
+  }
+
+  return { columns, rows, positions };
+}
+
 function addOrchard(
   group: THREE.Group,
   kind: 'apple' | 'cherry',
@@ -762,11 +796,8 @@ function addOrchard(
   seed: number,
   plants: BackyardPlantCatalog | null,
 ): void {
-  const shallow = depth < 3.9;
-  const treeCount = width > 5.3 && depth > 4.6 ? 3 : 2;
-  const positions = treeCount === 3
-    ? [[-width * 0.27, -depth * 0.18], [width * 0.24, -depth * 0.08], [0, depth * 0.28]]
-    : [[-width * 0.25, shallow ? 0 : -depth * 0.12], [width * 0.25, shallow ? 0 : depth * 0.16]];
+  const { columns, rows, positions } = orchardTreeGrid(width, depth);
+  group.userData.orchardGrid = { columns, rows };
   positions.forEach(([x, z], index) => addFruitTree(group, kind, x!, z!, index, seed + index * 997, plants));
   addBasket(
     group,
@@ -777,7 +808,6 @@ function addOrchard(
     kind === 'apple' ? 0.09 : 0.036,
     kind === 'apple' ? 5 : 12,
   );
-  addSteppingStones(group, -depth * 0.46, depth * 0.34, seed, false);
 }
 
 function createRootedLeafCard(
@@ -886,7 +916,10 @@ function addVegetableGarden(group: THREE.Group, width: number, depth: number, se
   ] as const;
   for (let bed = 0; bed < bedCount; bed++) {
     const x = -width * 0.5 + gap + bedWidth * 0.5 + bed * (bedWidth + gap);
-    addSoilBed(group, x, bedZ, bedWidth, bedDepth);
+    addSoilBed(group, x, bedZ, bedWidth, bedDepth, {
+      bordered: false,
+      profile: 'ground-level',
+    });
     const cropGroup = new THREE.Group();
     cropGroup.name = cropRows[bed]!.name;
     cropGroup.userData.backyardCropKind = (['cabbage', 'carrot', 'turnip'] as const)[bed];
@@ -976,8 +1009,9 @@ function addFlowerGarden(
   plants: BackyardPlantCatalog | null,
 ): void {
   const sideWidth = Math.max(1.25, width * 0.34);
-  addSoilBed(group, -width * 0.29, 0, sideWidth, depth * 0.82, false);
-  addSoilBed(group, width * 0.29, 0, sideWidth, depth * 0.82, false);
+  const groundLevelBed = { bordered: false, profile: 'ground-level' } as const;
+  addSoilBed(group, -width * 0.29, 0, sideWidth, depth * 0.82, groundLevelBed);
+  addSoilBed(group, width * 0.29, 0, sideWidth, depth * 0.82, groundLevelBed);
   const roseCount = width > 5.2 ? 4 : 3;
   for (let i = 0; i < roseCount; i++) {
     const side = i % 2 ? 1 : -1;

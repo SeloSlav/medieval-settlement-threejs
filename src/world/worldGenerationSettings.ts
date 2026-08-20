@@ -16,7 +16,7 @@ export type WorldGenerationSettings = {
   hydrology: number;
   /** 0 = open meadows, 100 = dense woodland */
   forestDensity: number;
-  /** 0 = lean reserves and fewer rich rolls, 100 = more deposits and better rich-roll odds. */
+  /** 0 = fewer bonus wild-food rolls, 100 = more; total and rich node budgets come from map size. */
   resourceAbundance: number;
   /** 0 = extra deposits favor local specialties, 100 = extras spread across resource families. */
   resourceVariety: number;
@@ -36,30 +36,40 @@ export type WorldDimensions = {
   generationHalf: number;
 };
 
-export const MAP_SIZE_PRESETS: Record<WorldMapSize, WorldDimensions & { label: string }> = {
+const SMALL_PLAYABLE_SIZE = 817;
+const SMALL_GENERATION_SIZE = 620;
+const LARGE_SIDE_SCALE = Math.sqrt(8);
+
+export const MAP_SIZE_PRESETS: Record<WorldMapSize, WorldDimensions & {
+  label: string;
+  smallMapAreas: number;
+}> = {
   small: {
-    playableSize: 817,
-    terrainSize: 817,
-    playableHalf: 408.5,
-    generationSize: 620,
-    generationHalf: 310,
+    playableSize: SMALL_PLAYABLE_SIZE,
+    terrainSize: SMALL_PLAYABLE_SIZE,
+    playableHalf: SMALL_PLAYABLE_SIZE * 0.5,
+    generationSize: SMALL_GENERATION_SIZE,
+    generationHalf: SMALL_GENERATION_SIZE * 0.5,
     label: 'Small',
+    smallMapAreas: 1,
   },
   medium: {
-    playableSize: 1080,
-    terrainSize: 1080,
-    playableHalf: 540,
-    generationSize: 820,
-    generationHalf: 410,
+    playableSize: SMALL_PLAYABLE_SIZE * 2,
+    terrainSize: SMALL_PLAYABLE_SIZE * 2,
+    playableHalf: SMALL_PLAYABLE_SIZE,
+    generationSize: SMALL_GENERATION_SIZE * 2,
+    generationHalf: SMALL_GENERATION_SIZE,
     label: 'Medium',
+    smallMapAreas: 4,
   },
   large: {
-    playableSize: 1344,
-    terrainSize: 1344,
-    playableHalf: 672,
-    generationSize: 1020,
-    generationHalf: 510,
+    playableSize: SMALL_PLAYABLE_SIZE * LARGE_SIDE_SCALE,
+    terrainSize: SMALL_PLAYABLE_SIZE * LARGE_SIDE_SCALE,
+    playableHalf: SMALL_PLAYABLE_SIZE * LARGE_SIDE_SCALE * 0.5,
+    generationSize: SMALL_GENERATION_SIZE * LARGE_SIDE_SCALE,
+    generationHalf: SMALL_GENERATION_SIZE * LARGE_SIDE_SCALE * 0.5,
     label: 'Large',
+    smallMapAreas: 8,
   },
 };
 

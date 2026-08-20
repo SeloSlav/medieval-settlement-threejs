@@ -106,7 +106,8 @@ export function nearestClayDeposit(
  * Deterministic clay deposits follow river alluvium or coastal sediment where
  * surface water exists. Waterless maps use smaller finite lenses in old inland
  * drainage basins, so ordinary clay remains locally available without making a
- * dry map as clay-rich as a river valley. Rich deposits remain optional rolls.
+ * dry map as clay-rich as a river valley. Rich grades come from the shared
+ * size-based resource budget.
  */
 export class ClayDepositLayout {
   readonly sites: readonly ClayDepositSite[];
@@ -129,8 +130,8 @@ export class ClayDepositLayout {
       ...collectCoastalClayCandidates(options.riverLayout, playableHalf, seed),
       ...collectDryClayCandidates(options.riverLayout, playableHalf, seed),
     ];
-    const richSiteCount = Math.max(0, Math.min(1, Math.floor(options.richSiteCount ?? 1)));
-    const ordinarySiteCount = Math.max(1, Math.min(4, Math.floor(options.ordinarySiteCount ?? 1)));
+    const richSiteCount = Math.max(0, Math.min(40, Math.floor(options.richSiteCount ?? 1)));
+    const ordinarySiteCount = Math.max(0, Math.min(40, Math.floor(options.ordinarySiteCount ?? 1)));
     const grades: ClayDepositSite['kind'][] = [
       ...Array.from({ length: richSiteCount }, () => 'rich' as const),
       ...Array.from({ length: ordinarySiteCount }, () => 'ordinary' as const),

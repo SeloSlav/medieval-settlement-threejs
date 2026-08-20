@@ -9,6 +9,7 @@ import {
 import {
   createRegionalDepositSurvey,
   createRegionalResourcePlan,
+  type RegionalResourcePlan,
 } from '../src/world/regionalResourceDistribution.ts';
 import {
   DEFAULT_WORLD_GENERATION_SETTINGS,
@@ -32,39 +33,27 @@ assert.ok(
 );
 
 assert.deepEqual(
-  balancedPlans.map((plan) => plan.ordinaryQuarryCount),
-  [1, 2, 3],
-  'ordinary stone deposits should scale with map size',
+  balancedPlans.map((plan) => plan.totalResourceNodes),
+  [5, 20, 40],
+  'map sizes must own exact 1x/4x/8x resource-node budgets',
 );
 assert.deepEqual(
-  balancedPlans.map((plan) => plan.ordinaryClayDepositCount),
-  [1, 2, 3],
-  'ordinary clay deposits should scale with map size',
+  balancedPlans.map((plan) => plan.richResourceNodeCount),
+  [2, 8, 16],
+  'rich-node budgets must scale with the same area multipliers',
 );
 assert.deepEqual(
-  balancedPlans.map((plan) => plan.ordinaryMineralDepositCount),
-  [2, 2, 3],
-  'both iron and salt need finite physical deposits, with extra sites on large maps',
-);
-assert.ok(balancedPlans.every((plan) => plan.richStoneDepositCount >= 0));
-assert.ok(balancedPlans.every((plan) => plan.richClayDepositCount >= 0));
-assert.ok(balancedPlans.every((plan) => plan.richMineralDepositCount >= 0));
-assert.deepEqual(
-  balancedPlans.map((plan) => plan.totalForagingNodes),
-  [8, 8, 8],
-  'neutral settings should preserve the prior eight wild-resource sites',
-);
-assert.ok(
-  balancedPlans.every((plan) =>
-    plan.presentForagingKinds.length === 4
-    && Object.values(plan.foragingNodeCounts).every((count) => count === 2)
-  ),
-  'neutral settings should preserve two sites in every legacy wild-resource family',
+  balancedPlans.map((plan) => plan.minimumFoodNodeCount),
+  [1, 4, 8],
+  'each size must reserve the requested game, berry, or mushroom floor',
 );
 assert.ok(
   balancedPlans.every((plan) => plan.foragingNodeCounts.game >= 1),
   'every regional profile should retain a winter-available game habitat',
 );
+for (const plan of balancedPlans) {
+  assertPlanBudgets(plan);
+}
 
 const delniceSettings = applyTerrainPreset(settings({
   resourceAbundance: 100,
@@ -95,12 +84,12 @@ for (const mapSize of mapSizes) {
           ['stone', 'clay', 'iron', 'salt'],
           'the planning survey must always expose the four physical deposit families',
         );
-        assert.ok(
-          survey.every((entry) =>
-            entry.ordinary >= 1
-            && entry.total === entry.ordinary + entry.rich
-          ),
-          `${mapSize}/${resourceAbundance}/${resourceVariety}/seed-${seed} must show at least one finite ordinary source for every material`,
+        assert.ok(survey.every((entry) => entry.total === entry.ordinary + entry.rich));
+        assert.equal(
+          survey.reduce((sum, entry) => sum + entry.total, 0)
+            + createRegionalResourcePlan(worldSettings).totalForagingNodes,
+          createRegionalResourcePlan(worldSettings).totalResourceNodes,
+          `${mapSize}/${resourceAbundance}/${resourceVariety}/seed-${seed} survey must account for the complete roll`,
         );
       }
     }
@@ -120,26 +109,14 @@ for (const mapSize of mapSizes) {
     resourceVariety: 100,
   }));
 
-  assert.equal(lean.presentForagingKinds.length, 2);
-  assert.equal(plentiful.presentForagingKinds.length, 4);
-  assert.ok(lean.totalForagingNodes <= balanced.totalForagingNodes);
-  assert.ok(balanced.totalForagingNodes <= plentiful.totalForagingNodes);
-  assert.ok(lean.ordinaryQuarryCount <= balanced.ordinaryQuarryCount);
-  assert.ok(balanced.ordinaryQuarryCount <= plentiful.ordinaryQuarryCount);
-  assert.ok(lean.ordinaryClayDepositCount <= balanced.ordinaryClayDepositCount);
-  assert.ok(balanced.ordinaryClayDepositCount <= plentiful.ordinaryClayDepositCount);
-  assert.ok(lean.richStoneDepositCount <= plentiful.richStoneDepositCount);
-  assert.ok(lean.richClayDepositCount <= plentiful.richClayDepositCount);
-  assert.ok(lean.richMineralDepositCount <= plentiful.richMineralDepositCount);
-  assert.ok(
-    lean.ordinaryMineralDepositCount <= balanced.ordinaryMineralDepositCount,
-  );
-  assert.ok(
-    balanced.ordinaryMineralDepositCount <= plentiful.ordinaryMineralDepositCount,
-  );
-  assert.ok(lean.ordinaryQuarryCount >= 1);
-  assert.ok(lean.ordinaryClayDepositCount >= 1);
-  assert.ok(lean.ordinaryMineralDepositCount >= 2);
+  assert.ok(lean.presentForagingKinds.length <= plentiful.presentForagingKinds.length);
+  assert.equal(lean.totalResourceNodes, balanced.totalResourceNodes);
+  assert.equal(balanced.totalResourceNodes, plentiful.totalResourceNodes);
+  assert.equal(lean.richResourceNodeCount, balanced.richResourceNodeCount);
+  assert.equal(balanced.richResourceNodeCount, plentiful.richResourceNodeCount);
+  assertPlanBudgets(lean);
+  assertPlanBudgets(balanced);
+  assertPlanBudgets(plentiful);
 }
 
 const richnessSamples = Array.from({ length: 256 }, (_, index) => index + 1)
@@ -147,20 +124,54 @@ const richnessSamples = Array.from({ length: 256 }, (_, index) => index + 1)
     createRegionalResourcePlan(settings({ seed, mapSize }))
   ));
 assert.ok(
-  richnessSamples.some((plan) => plan.richStoneDepositCount === 0)
-    && richnessSamples.some((plan) => plan.richStoneDepositCount > 0),
-  'stone richness must vary by seed',
+  new Set(richnessSamples.map((plan) => [
+    plan.richStoneDepositCount,
+    plan.richClayDepositCount,
+    plan.richMineralDepositCount,
+    ...Object.values(plan.foragingRichNodeCounts),
+  ].join('/'))).size > 3,
+  'seeds must vary which geological and wild-food families receive the fixed rich rolls',
 );
-assert.ok(
-  richnessSamples.some((plan) => plan.richClayDepositCount === 0)
-    && richnessSamples.some((plan) => plan.richClayDepositCount > 0),
-  'clay richness must vary by seed',
-);
-assert.ok(
-  richnessSamples.some((plan) => plan.richMineralDepositCount === 0)
-    && richnessSamples.some((plan) => plan.richMineralDepositCount > 0),
-  'iron/salt richness must vary by seed',
-);
+
+for (const mapSize of mapSizes) {
+  const foodRolls = Array.from({ length: 512 }, (_, index) =>
+    createRegionalResourcePlan(settings({
+      seed: index + 1,
+      mapSize,
+      resourceAbundance: 50,
+      resourceVariety: 100,
+    }))
+  );
+  const namedFoodCounts = foodRolls.map((plan) =>
+    plan.foragingNodeCounts.game
+      + plan.foragingNodeCounts.berries
+      + plan.foragingNodeCounts.mushrooms
+  );
+  assert.ok(
+    namedFoodCounts.every((count) => count >= foodRolls[0].minimumFoodNodeCount),
+    `${mapSize} rolls must always retain their named wild-food floor`,
+  );
+  assert.ok(
+    new Set(namedFoodCounts).size > 1,
+    `${mapSize} food counts should vary above their minimum instead of being fixed to it`,
+  );
+  assert.ok(
+    namedFoodCounts.some((count) => count > foodRolls[0].minimumFoodNodeCount),
+    `${mapSize} must be able to roll more than its minimum food count`,
+  );
+}
+
+for (const kind of ['game', 'berries', 'mushrooms', 'fish'] as const) {
+  assert.ok(
+    Array.from({ length: 512 }, (_, index) => createRegionalResourcePlan(settings({
+      seed: index + 1,
+      mapSize: 'large',
+      resourceAbundance: 100,
+      resourceVariety: 100,
+    }))).some((plan) => plan.foragingRichNodeCounts[kind] > 0),
+    `${kind} nodes must be eligible for rich rolls`,
+  );
+}
 
 for (const mapSize of mapSizes) {
   for (const resourceAbundance of [0, 50, 100]) {
@@ -182,6 +193,27 @@ for (const mapSize of mapSizes) {
         );
         const claySites = layout.clayDepositLayout.sites;
         const variant = `${mapSize}/${resourceAbundance}/${resourceVariety}/seed-${seed}`;
+        const actualTotalNodes = nodes.length + claySites.length;
+        const actualRichNodes = nodes.filter((node) => node.isRich === true).length
+          + claySites.filter((site) => site.kind === 'rich').length;
+        const actualGuaranteedFoodNodes = nodes.filter((node) =>
+          node.kind === 'game' || node.kind === 'berries' || node.kind === 'mushrooms'
+        ).length;
+
+        assert.equal(
+          actualTotalNodes,
+          layout.resourcePlan.totalResourceNodes,
+          `${variant} did not place its exact resource-node budget`,
+        );
+        assert.equal(
+          actualRichNodes,
+          layout.resourcePlan.richResourceNodeCount,
+          `${variant} did not place its exact rich-node budget`,
+        );
+        assert.ok(
+          actualGuaranteedFoodNodes >= layout.resourcePlan.minimumFoodNodeCount,
+          `${variant} missed its game, berry, or mushroom floor`,
+        );
 
         assert.equal(
           stoneQuarries.filter((node) => node.isRich).length,
@@ -194,10 +226,6 @@ for (const mapSize of mapSizes) {
             + layout.resourcePlan.richStoneDepositCount,
           `${variant} missed a stone quarry site`,
         );
-        assert.ok(
-          stoneQuarries.some((node) => !node.isRich),
-          `${variant} must retain an ordinary stone deposit`,
-        );
         assert.equal(
           mineralDeposits.length,
           layout.resourcePlan.richMineralDepositCount
@@ -209,11 +237,13 @@ for (const mapSize of mapSizes) {
           layout.resourcePlan.richMineralDepositCount,
           `${variant} missed a rich iron or salt deposit`,
         );
-        assert.deepEqual(
-          new Set(mineralDeposits.map((node) => node.resource)),
-          new Set(['iron', 'salt']),
-          `${variant} must expose physical iron and salt deposits`,
-        );
+        if (mineralDeposits.length >= 2) {
+          assert.deepEqual(
+            new Set(mineralDeposits.map((node) => node.resource)),
+            new Set(['iron', 'salt']),
+            `${variant} must expose both mineral families when it has two mineral slots`,
+          );
+        }
         assert.equal(
           claySites.length,
           layout.resourcePlan.ordinaryClayDepositCount
@@ -224,10 +254,6 @@ for (const mapSize of mapSizes) {
           claySites.filter((site) => site.kind === 'rich').length,
           layout.resourcePlan.richClayDepositCount,
           `${variant} did not honor its rich-clay roll`,
-        );
-        assert.ok(
-          claySites.some((site) => site.kind === 'ordinary'),
-          `${variant} must retain an ordinary clay deposit`,
         );
         setActiveClayDepositLayout(layout.clayDepositLayout);
         for (const claySite of claySites) {
@@ -254,6 +280,11 @@ for (const mapSize of mapSizes) {
             layout.resourcePlan.foragingNodeCounts[kind],
             `${variant} missed ${kind} sites`,
           );
+          assert.equal(
+            nodes.filter((node) => node.kind === kind && node.isRich === true).length,
+            layout.resourcePlan.foragingRichNodeCounts[kind],
+            `${variant} did not honor its rich-${kind} roll`,
+          );
         }
       }
     }
@@ -270,6 +301,32 @@ function settings(
     ...DEFAULT_WORLD_GENERATION_SETTINGS,
     ...overrides,
   };
+}
+
+function assertPlanBudgets(plan: RegionalResourcePlan): void {
+  const geologicalNodes = plan.ordinaryQuarryCount
+    + plan.richStoneDepositCount
+    + plan.ordinaryClayDepositCount
+    + plan.richClayDepositCount
+    + plan.ordinaryMineralDepositCount
+    + plan.richMineralDepositCount;
+  const richForagingNodes = Object.values(plan.foragingRichNodeCounts)
+    .reduce((sum, count) => sum + count, 0);
+  const guaranteedFoodNodes = plan.foragingNodeCounts.game
+    + plan.foragingNodeCounts.berries
+    + plan.foragingNodeCounts.mushrooms;
+  assert.equal(geologicalNodes + plan.totalForagingNodes, plan.totalResourceNodes);
+  assert.equal(
+    plan.richStoneDepositCount
+      + plan.richClayDepositCount
+      + plan.richMineralDepositCount
+      + richForagingNodes,
+    plan.richResourceNodeCount,
+  );
+  assert.ok(guaranteedFoodNodes >= plan.minimumFoodNodeCount);
+  for (const kind of ['game', 'berries', 'mushrooms', 'fish'] as const) {
+    assert.ok(plan.foragingRichNodeCounts[kind] <= plan.foragingNodeCounts[kind]);
+  }
 }
 
 function hasWaterWithin(

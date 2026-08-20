@@ -58,20 +58,30 @@ const fish = registry.definitionList.filter((node) => node.kind === 'fish');
 
 assert.equal(fish.length, layout.resourcePlan.foragingNodeCounts.fish);
 assert.ok(fish.length >= 2, 'a plentiful complete large region should create multiple fish shoals');
-assert.equal(fish.filter((node) => node.isRich === true).length, 1);
-assert.equal(fish.filter((node) => node.isRich !== true).length, fish.length - 1);
+assert.equal(
+  fish.filter((node) => node.isRich === true).length,
+  layout.resourcePlan.foragingRichNodeCounts.fish,
+);
+assert.equal(
+  fish.filter((node) => node.isRich !== true).length,
+  fish.length - layout.resourcePlan.foragingRichNodeCounts.fish,
+);
 assert.ok(fish.every((node) => node.resource === 'fish'));
 assert.ok(fish.every((node) => layout.riverLayout.isWaterAt(node.x, node.z)));
 assert.ok(fish.every((node) => node.maxYield > 0));
-assert.ok(
-  fish.find((node) => node.isRich)!.maxYield
-    > fish.find((node) => !node.isRich)!.maxYield,
-  'rich shoal should advertise the larger yield class',
-);
+const richFish = fish.find((node) => node.isRich);
+const ordinaryFish = fish.find((node) => !node.isRich);
+if (richFish && ordinaryFish) {
+  assert.ok(
+    richFish.maxYield > ordinaryFish.maxYield,
+    'rich shoal should advertise the larger yield class',
+  );
+}
 
 // Regression for the Risnjak world reported as a "shoal on land". The node
 // is a river fishery, so keep its authoritative coordinate inside the exact
-// rendered-water topology used by visuals and building placement.
+// rendered-water topology used by visuals and building placement. Its rich
+// grade is intentionally independent from this placement regression.
 const reportedSettings = {
   ...DEFAULT_WORLD_GENERATION_SETTINGS,
   seed: 1_901_735_437,
@@ -88,20 +98,18 @@ const reportedRiverField = RiverField.fromLayout({
   bounds: fullTerrainBounds(reportedDimensions.terrainSize),
   layout: reportedLayout.riverLayout,
 });
-const reportedRichShoal = reportedLayout.foragingLayout.sites.find(
-  (site) => site.kind === 'fish' && site.isRich === true,
-);
-assert.ok(reportedRichShoal, 'the reported Risnjak world must retain its rich shoal');
+const reportedShoal = reportedLayout.foragingLayout.sites.find((site) => site.kind === 'fish');
+assert.ok(reportedShoal, 'the reported Risnjak world must retain its shoal');
 assert.equal(reportedLayout.settings.terrainPreset, 'risnjak_pass');
 assert.equal(
-  reportedRiverField.isRenderedWetAt(reportedRichShoal.x, reportedRichShoal.z),
+  reportedRiverField.isRenderedWetAt(reportedShoal.x, reportedShoal.z),
   true,
-  'the reported rich shoal must remain inside final rendered river water',
+  'the reported shoal must remain inside final rendered river water',
 );
 assert.equal(
-  reportedLayout.riverLayout.isInlandWaterAt(reportedRichShoal.x, reportedRichShoal.z),
+  reportedLayout.riverLayout.isInlandWaterAt(reportedShoal.x, reportedShoal.z),
   false,
-  'the reported rich shoal belongs to a river, not a hidden pond or lake',
+  'the reported shoal belongs to a river, not a hidden pond or lake',
 );
 
 assert.ok(RESOURCE_KINDS.includes('fish'));

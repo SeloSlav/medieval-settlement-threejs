@@ -155,10 +155,12 @@ The current non-residential family is also canonical. Its dedicated meshes live 
 
 Backyards are small working landscapes, not map icons enlarged into 3D. Their source of truth is `backyardGardenMesh.ts`; cultivated tree forms live in `vegetation/seedthree/backyardPlantAssets.ts`.
 
-- Apple orchards use low, broad, slightly gnarled SeedThree trees, visible apples, grass understorey, a harvest basket, stepping stones, and a low wattle edge.
-- Cherry orchards use taller, lighter, vase-shaped SeedThree trees, paired dark cherries, and the same bounded vernacular yard vocabulary without sharing the apple silhouette.
+- Apple orchards use low, broad, slightly gnarled SeedThree trees, visible apples, grass understorey, a harvest basket, and an open grass aisle without stepping stones.
+- Cherry orchards use taller, lighter, vase-shaped SeedThree trees, paired dark cherries, and the same open-ground vernacular yard vocabulary without sharing the apple silhouette.
+- Orchard trees occupy evenly centered cells in a grid selected from the backyard aspect ratio: roomy plots use two rows by two columns, while smaller plots align two trees along their longer dimension.
 - Flower gardens are cottage gardens built around custom SeedThree rose shrubs, mixed-height blooms, irregular beds, and a stone footpath. Avoid uniform dots on a soil rectangle.
-- Vegetable gardens use divided raised beds, legible cabbage rosettes, a bean trellis where space permits, paths, and a working basket.
+- Vegetable gardens use divided ground-level plots without timber frames, legible cabbage rosettes, a bean trellis where space permits, paths, and a working basket.
+- Flower gardens and vegetable gardens keep their cultivated soil flush with the backyard terrain rather than mounding or boxing it above grade.
 - Herb gardens use ordered kitchen-herb beds, varied green and silver foliage, restrained lavender color, terracotta, and a drying rack on deeper plots.
 - Size every composition from the actual burgage backyard footprint. Shallow plots reduce tree/bed count rather than squashing plants non-uniformly.
 - Residence ids seed layout and plant variants deterministically so a household keeps its garden identity.

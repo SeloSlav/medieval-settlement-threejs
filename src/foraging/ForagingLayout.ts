@@ -29,6 +29,7 @@ export type ForagingLayoutOptions = {
   playableHalf?: number;
   seed?: number;
   nodeCounts?: Partial<Record<ForagingNodeKind, number>>;
+  richNodeCounts?: Partial<Record<ForagingNodeKind, number>>;
 };
 
 const DENSE_FOREST_MIN = 0.55;
@@ -87,6 +88,7 @@ export class ForagingLayout {
     const wildlifeDeposits = options.wildlifeDepositFootprints ?? [];
     const rng = mulberry32(seed);
     const nodeCounts = normalizeNodeCounts(options.nodeCounts);
+    const richNodeCounts = normalizeRichNodeCounts(options.richNodeCounts, nodeCounts);
     const desiredGameCandidateCount = Math.max(
       GAME_RESPAWN_CANDIDATE_TARGET,
       nodeCounts.game * 16,
@@ -129,7 +131,10 @@ export class ForagingLayout {
         sites,
       );
       if (gameSite) {
-        sites.push({ ...gameSite, isRich: gameIndex === nodeCounts.game - 1 });
+        sites.push({
+          ...gameSite,
+          isRich: gameIndex >= nodeCounts.game - richNodeCounts.game,
+        });
       }
     }
 
@@ -143,7 +148,10 @@ export class ForagingLayout {
         sites,
       );
       if (berrySite) {
-        sites.push({ ...berrySite, isRich: i === nodeCounts.berries - 1 });
+        sites.push({
+          ...berrySite,
+          isRich: i >= nodeCounts.berries - richNodeCounts.berries,
+        });
       }
     }
     for (let i = 0; i < nodeCounts.mushrooms; i++) {
@@ -155,13 +163,19 @@ export class ForagingLayout {
         denseForestCandidates,
         sites,
       );
-      if (mushroomSite) sites.push(mushroomSite);
+      if (mushroomSite) {
+        sites.push({
+          ...mushroomSite,
+          isRich: i >= nodeCounts.mushrooms - richNodeCounts.mushrooms,
+        });
+      }
     }
     sites.push(...pickFishSites(
       options.riverLayout,
       extent,
       seed ^ 0x46a91d,
       nodeCounts.fish,
+      richNodeCounts.fish,
     ));
 
     return new ForagingLayout(seed, sites, gameRespawnCandidates);
@@ -173,7 +187,23 @@ function normalizeNodeCounts(
 ): Record<ForagingNodeKind, number> {
   const count = (kind: ForagingNodeKind) => Math.max(
     0,
-    Math.min(3, Math.floor(requested?.[kind] ?? 2)),
+    Math.min(6, Math.floor(requested?.[kind] ?? 2)),
+  );
+  return {
+    game: count('game'),
+    berries: count('berries'),
+    mushrooms: count('mushrooms'),
+    fish: count('fish'),
+  };
+}
+
+function normalizeRichNodeCounts(
+  requested: ForagingLayoutOptions['richNodeCounts'],
+  nodeCounts: Record<ForagingNodeKind, number>,
+): Record<ForagingNodeKind, number> {
+  const count = (kind: ForagingNodeKind) => Math.max(
+    0,
+    Math.min(nodeCounts[kind], Math.floor(requested?.[kind] ?? 0)),
   );
   return {
     game: count('game'),
@@ -237,6 +267,7 @@ function pickFishSites(
   extent: number,
   seed: number,
   requestedCount: number,
+  requestedRichCount: number,
 ): ForagingSite[] {
   if (requestedCount <= 0) return [];
   const margin = Math.max(24, extent * 0.06);
@@ -289,15 +320,13 @@ function pickFishSites(
     selected.push(next);
   }
 
-  return [
-    ...selected.slice(1).map((site) => ({
-      x: site.x,
-      z: site.z,
-      kind: 'fish' as const,
-      isRich: false,
-    })),
-    { x: rich.x, z: rich.z, kind: 'fish', isRich: true },
-  ];
+  const richCount = Math.max(0, Math.min(selected.length, requestedRichCount));
+  return selected.map((site, index) => ({
+    x: site.x,
+    z: site.z,
+    kind: 'fish' as const,
+    isRich: index < richCount,
+  }));
 }
 
 function collectSurfaceWaterFishCandidates(

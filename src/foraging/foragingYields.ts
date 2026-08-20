@@ -8,6 +8,8 @@ export const BERRY_PATCH_MAX_YIELD = 60;
 export const RICH_BERRY_PATCH_MAX_YIELD = 100;
 /** Deep-forest mushroom beds are smaller but replenish during the growing season. */
 export const MUSHROOM_PATCH_MAX_YIELD = 42;
+/** A rich forest bed supports a denser, longer-lasting mushroom crop. */
+export const RICH_MUSHROOM_PATCH_MAX_YIELD = 72;
 /** Fish values are persistent population carrying capacities. */
 export const FISH_SHOAL_MAX_YIELD = 120;
 export const RICH_FISH_SHOAL_MAX_YIELD = 240;
@@ -21,6 +23,7 @@ export const BERRY_PATCH_RADIUS = 9.6;
 /** Furthest a clump can reach after the patch's slight axis variation. */
 export const BERRY_PATCH_MAX_SPAWN_RADIUS = BERRY_PATCH_RADIUS * 1.08;
 export const MUSHROOM_PATCH_PICK_RADIUS = 24;
+export const RICH_MUSHROOM_PATCH_PICK_RADIUS = 30;
 /** Furthest a visible mushroom can spawn from its deep-forest resource node. */
 export const MUSHROOM_PATCH_MAX_SPAWN_RADIUS = 7.2;
 export const FISH_SHOAL_PICK_RADIUS = 24;
@@ -33,12 +36,17 @@ export function berryPatchMaxYield(isRich = false): number {
   return isRich ? RICH_BERRY_PATCH_MAX_YIELD : BERRY_PATCH_MAX_YIELD;
 }
 
+export function mushroomPatchMaxYield(isRich = false): number {
+  return isRich ? RICH_MUSHROOM_PATCH_MAX_YIELD : MUSHROOM_PATCH_MAX_YIELD;
+}
+
 export function isRichForagingCapacity(
   nodeKind: 'game' | 'berries' | 'mushrooms' | 'fish',
   maxYield: number,
 ): boolean {
   if (nodeKind === 'game') return maxYield > GAME_PATCH_MAX_YIELD;
   if (nodeKind === 'berries') return maxYield > BERRY_PATCH_MAX_YIELD;
+  if (nodeKind === 'mushrooms') return maxYield > MUSHROOM_PATCH_MAX_YIELD;
   if (nodeKind === 'fish') return maxYield > FISH_SHOAL_MAX_YIELD;
   return false;
 }
@@ -63,7 +71,9 @@ export function foragingPickRadius(
   if (nodeKind === 'game') {
     return isRich ? RICH_GAME_PATCH_PICK_RADIUS : GAME_PATCH_PICK_RADIUS;
   }
-  if (nodeKind === 'mushrooms') return MUSHROOM_PATCH_PICK_RADIUS;
+  if (nodeKind === 'mushrooms') {
+    return isRich ? RICH_MUSHROOM_PATCH_PICK_RADIUS : MUSHROOM_PATCH_PICK_RADIUS;
+  }
   if (nodeKind === 'fish') return FISH_SHOAL_PICK_RADIUS;
   return isRich ? RICH_BERRY_PATCH_PICK_RADIUS : BERRY_PATCH_PICK_RADIUS;
 }

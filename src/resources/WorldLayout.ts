@@ -93,6 +93,7 @@ export function createWorldLayout(settings: WorldGenerationSettings = DEFAULT_WO
     playableHalf: dims.generationHalf,
     seed: normalizedSettings.seed ^ 0x4f0d21,
     nodeCounts: resourcePlan.foragingNodeCounts,
+    richNodeCounts: resourcePlan.foragingRichNodeCounts,
   });
   const clayDepositLayout = ClayDepositLayout.create({
     riverLayout,

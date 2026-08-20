@@ -38,6 +38,31 @@ for (const [mapSize, preset] of Object.entries(MAP_SIZE_PRESETS)) {
   });
 }
 
+const smallDimensions = resolveWorldDimensions('small');
+assert.deepEqual(smallDimensions, {
+  playableSize: 817,
+  terrainSize: 817,
+  playableHalf: 408.5,
+  generationSize: 620,
+  generationHalf: 310,
+});
+for (const [mapSize, expectedAreaScale] of [
+  ['medium', 4],
+  ['large', 8],
+] as const) {
+  const dimensions = resolveWorldDimensions(mapSize);
+  assert.ok(
+    Math.abs((dimensions.playableSize / smallDimensions.playableSize) ** 2 - expectedAreaScale)
+      < 1e-9,
+    `${mapSize} playable area must equal ${expectedAreaScale} small maps`,
+  );
+  assert.ok(
+    Math.abs((dimensions.generationSize / smallDimensions.generationSize) ** 2 - expectedAreaScale)
+      < 1e-9,
+    `${mapSize} generation area must equal ${expectedAreaScale} small maps`,
+  );
+}
+
 for (const [index, preset] of authoredPresets.entries()) {
   const seed = seedForTerrainPreset(0x1234_5678 + index * 0x1111, preset);
   assert.equal(terrainPresetFromSeed(seed), preset);

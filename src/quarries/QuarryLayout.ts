@@ -55,7 +55,7 @@ export class QuarryLayout {
     const rng = mulberry32(seed);
     const sites: QuarrySite[] = [];
 
-    const richSiteCount = Math.max(0, Math.min(1, Math.floor(options.richSiteCount ?? 1)));
+    const richSiteCount = Math.max(0, Math.min(40, Math.floor(options.richSiteCount ?? 1)));
     for (let i = 0; i < richSiteCount; i++) {
       const largeSite = pickQuarrySite(
         rng,
@@ -68,7 +68,7 @@ export class QuarryLayout {
       if (largeSite) sites.push(largeSite);
     }
 
-    const ordinarySiteCount = Math.max(1, Math.min(4, Math.floor(options.ordinarySiteCount ?? 2)));
+    const ordinarySiteCount = Math.max(0, Math.min(40, Math.floor(options.ordinarySiteCount ?? 2)));
     for (let i = 0; i < ordinarySiteCount; i++) {
       const smallSite = pickQuarrySite(rng, seed ^ (i + 3) * 0x5151, playableHalf, riverLayout, sites, 'small');
       if (smallSite) sites.push(smallSite);

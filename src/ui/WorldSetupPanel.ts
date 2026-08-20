@@ -119,14 +119,14 @@ export class WorldSetupPanel {
               <strong data-resource-abundance-value>${describeResourceAbundance(this.draft.resourceAbundance)} · ${this.draft.resourceAbundance}</strong>
             </label>
             <input id="world-setup-resource-abundance" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceAbundance}" />
-            <p class="world-setup-slider-hint">Stone, clay, iron, and salt are all physical local deposits. Every map has finite ordinary sources for all four. Clay follows river or coastal sediment where water exists; waterless maps receive smaller, leaner clay lenses in old inland basins. Coastal salt favors the dry shore shelf, waterless salt favors ancient basin evaporites, and freshwater maps expose inland rock salt away from riverbanks. Rich stone and clay roll independently; iron and salt share up to one rich-mineral opportunity on small or medium maps and two on large maps, with the seed and local variety deciding which mineral receives them.</p>
+            <p class="world-setup-slider-hint">Map size fixes the complete resource roll: small has 5 nodes with 2 rich, medium has 20 with 8 rich, and large has 40 with 16 rich. Every roll guarantees at least 1, 4, or 8 food nodes from game, berries, or mushrooms; abundance and seed can roll additional wild-food sites. Rich grades roll separately across every node, so wild food can also be rich. Clay follows river or coastal sediment where water exists; waterless maps use leaner inland lenses. Missing local materials can be imported through a staffed Trading Post.</p>
 
             <label class="world-setup-slider-label world-setup-slider-label--secondary" for="world-setup-resource-variety">
               <span>Local variety</span>
               <strong data-resource-variety-value>${describeResourceVariety(this.draft.resourceVariety)} · ${this.draft.resourceVariety}</strong>
             </label>
             <input id="world-setup-resource-variety" class="world-setup-slider" type="range" min="0" max="100" step="5" value="${this.draft.resourceVariety}" />
-            <p class="world-setup-slider-hint">Specialized regions concentrate extra deposits and rich mineral rolls into fewer resource families. Staffed Trading Posts can import iron and Adriatic salt after local seams run short; trade supplements physical geology rather than replacing it.</p>
+            <p class="world-setup-slider-hint">Specialized regions concentrate repeated rolls into fewer food and mineral families. Broad regions expose a wider mix while keeping the same size-based total and rich-node counts.</p>
             <div class="world-setup-resource-summary" data-resource-summary aria-live="polite">${this.resourceSummaryMarkup()}</div>
             </section>
 
@@ -321,7 +321,7 @@ export class WorldSetupPanel {
       return `
         <button type="button" class="world-setup-size-option${selected}" data-map-size="${size}">
           <strong>${preset.label}</strong>
-          <span>${playableKm} km playable</span>
+          <span>${playableKm} km wide · ${preset.smallMapAreas}× small-map area</span>
         </button>
       `;
     }).join('');
@@ -353,13 +353,17 @@ export class WorldSetupPanel {
       fish: 'fish',
     };
     const wildResources = plan.presentForagingKinds
-      .map((kind) => `${kindLabels[kind]} ×${plan.foragingNodeCounts[kind]}`)
+      .map((kind) => {
+        const rich = plan.foragingRichNodeCounts[kind];
+        return `${kindLabels[kind]} ×${plan.foragingNodeCounts[kind]}`
+          + (rich > 0 ? ` (${rich} rich)` : '');
+      })
       .join(', ');
 
     return `
       <div class="world-setup-resource-summary__heading">
-        <strong>This seed's physical deposits</strong>
-        <span>All four have finite local sources</span>
+        <strong>This seed's resource roll</strong>
+        <span>${plan.totalResourceNodes} nodes · ${plan.richResourceNodeCount} rich · ${plan.totalForagingNodes} wild food (${plan.minimumFoodNodeCount}+ guaranteed)</span>
       </div>
       <div class="world-setup-deposit-grid">
         ${depositSurvey.map((entry) => this.depositCardMarkup(
@@ -368,7 +372,7 @@ export class WorldSetupPanel {
           entry.rich,
         )).join('')}
       </div>
-      <p class="world-setup-wild-summary"><strong>Wild resources</strong> · ${wildResources}</p>
+      <p class="world-setup-wild-summary"><strong>Wild food</strong> · ${wildResources}</p>
     `;
   }
 
@@ -409,6 +413,21 @@ export class WorldSetupPanel {
       },
     };
     const label = labels[resource];
+    const total = ordinary + rich;
+    if (total === 0) {
+      return `
+        <article class="world-setup-deposit-card" data-resource="${resource}">
+          <div class="world-setup-deposit-card__title">
+            <strong>${label.name}</strong>
+            <span>${label.extractor}</span>
+          </div>
+          <div class="world-setup-deposit-card__grades">
+            <span class="world-setup-deposit-grade world-setup-deposit-grade--none">Not present</span>
+          </div>
+          <p>No local deposit in this roll; regional trade can supply it.</p>
+        </article>
+      `;
+    }
     const richMarkup = rich > 0
       ? `<span class="world-setup-deposit-grade world-setup-deposit-grade--rich">Rich ×${rich}</span>`
       : '<span class="world-setup-deposit-grade world-setup-deposit-grade--none">No rich roll</span>';
@@ -423,7 +442,7 @@ export class WorldSetupPanel {
           <span>${label.extractor}</span>
         </div>
         <div class="world-setup-deposit-card__grades">
-          <span class="world-setup-deposit-grade">Ordinary ×${ordinary}</span>
+          ${ordinary > 0 ? `<span class="world-setup-deposit-grade">Ordinary ×${ordinary}</span>` : ''}
           ${richMarkup}
         </div>
         <p>${detail}</p>

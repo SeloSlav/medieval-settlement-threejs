@@ -51,11 +51,14 @@ import {
   BERRY_PATCH_MAX_YIELD,
   BERRY_PATCH_MAX_SPAWN_RADIUS,
   GAME_PATCH_MAX_YIELD,
+  MUSHROOM_PATCH_MAX_YIELD,
   MUSHROOM_PATCH_MAX_SPAWN_RADIUS,
   RICH_BERRY_PATCH_MAX_YIELD,
   RICH_BERRY_PATCH_PICK_RADIUS,
   RICH_GAME_PATCH_MAX_YIELD,
   RICH_GAME_PATCH_PICK_RADIUS,
+  RICH_MUSHROOM_PATCH_MAX_YIELD,
+  RICH_MUSHROOM_PATCH_PICK_RADIUS,
   gamePatchSpawnRadius,
   isRichForagingCapacity,
 } from '../src/foraging/foragingYields.ts';
@@ -141,8 +144,8 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
   assert.ok(gameHabitats.length > 0, `${mapSize} maps should retain a winter game habitat`);
   assert.equal(
     gameHabitats.filter((site) => site.isRich).length,
-    1,
-    `${mapSize} maps should have one large game habitat`,
+    layout.resourcePlan.foragingRichNodeCounts.game,
+    `${mapSize} maps should honor their rich-game roll`,
   );
   if (gameHabitats.length > 1) {
     assert.notDeepEqual(
@@ -156,32 +159,37 @@ for (const mapSize of ['small', 'medium', 'large'] as const) {
   assertMushroomPatchesStayInDryDeepForest(layout, `${mapSize} map`);
   assert.equal(mushrooms.length, layout.resourcePlan.foragingNodeCounts.mushrooms);
   assert.equal(berries.length, layout.resourcePlan.foragingNodeCounts.berries);
-  assert.ok(mushrooms.length > 0, 'complete regions should retain mushrooms');
-  assert.ok(berries.length > 0, 'complete regions should retain berries');
   assert.equal(
     berries.filter((site) => site.isRich).length,
-    1,
-    `${mapSize} maps should have one rich raspberry thicket`,
+    layout.resourcePlan.foragingRichNodeCounts.berries,
+    `${mapSize} maps should honor their rich-berry roll`,
+  );
+  assert.equal(
+    mushrooms.filter((site) => site.isRich).length,
+    layout.resourcePlan.foragingRichNodeCounts.mushrooms,
+    `${mapSize} maps should honor their rich-mushroom roll`,
   );
 
-  const mushroomDensity = average(mushrooms.map((site) => forestDensityAt(
-    site.x,
-    site.z,
-    layout.forestCores,
-    dimensions.playableHalf,
-    dimensions.terrainSize,
-  )));
-  const berryDensity = average(berries.map((site) => forestDensityAt(
-    site.x,
-    site.z,
-    layout.forestCores,
-    dimensions.playableHalf,
-    dimensions.terrainSize,
-  )));
-  assert.ok(
-    mushroomDensity > berryDensity + 0.15,
-    `${mapSize} mushroom beds should sit substantially deeper in the forest than berries`,
-  );
+  if (mushrooms.length > 0 && berries.length > 0) {
+    const mushroomDensity = average(mushrooms.map((site) => forestDensityAt(
+      site.x,
+      site.z,
+      layout.forestCores,
+      dimensions.playableHalf,
+      dimensions.terrainSize,
+    )));
+    const berryDensity = average(berries.map((site) => forestDensityAt(
+      site.x,
+      site.z,
+      layout.forestCores,
+      dimensions.playableHalf,
+      dimensions.terrainSize,
+    )));
+    assert.ok(
+      mushroomDensity > berryDensity + 0.15,
+      `${mapSize} mushroom beds should sit substantially deeper in the forest than berries`,
+    );
+  }
 }
 
 const layout = createWorldLayout();
@@ -200,28 +208,60 @@ for (const preset of ['kupa_valley', 'risnjak_pass', 'delnice_meadow', 'vinodol_
 }
 const registry = WorldLayoutRegistry.fromWorldLayout(layout);
 const gameDefinitions = registry.definitionList.filter((node) => node.kind === 'game');
-assert.deepEqual(gameDefinitions.map((node) => node.id), ['foraging-game-0', 'foraging-game-1']);
 assert.deepEqual(
-  gameDefinitions.map((node) => node.maxYield),
-  [GAME_PATCH_MAX_YIELD, RICH_GAME_PATCH_MAX_YIELD],
+  gameDefinitions.map((node, index) => node.id),
+  gameDefinitions.map((_node, index) => `foraging-game-${index}`),
 );
-assert.equal(gameDefinitions[1].label, 'Large game habitat');
-assert.equal(gameDefinitions[1].pickRadius, RICH_GAME_PATCH_PICK_RADIUS);
-assert.ok(gameDefinitions[1].pickRadius > gameDefinitions[0].pickRadius);
+assert.equal(
+  gameDefinitions.filter((node) => node.isRich === true).length,
+  layout.resourcePlan.foragingRichNodeCounts.game,
+);
+for (const definition of gameDefinitions) {
+  assert.equal(
+    definition.maxYield,
+    definition.isRich ? RICH_GAME_PATCH_MAX_YIELD : GAME_PATCH_MAX_YIELD,
+  );
+  assert.equal(definition.label, definition.isRich ? 'Large game habitat' : 'Game habitat');
+  if (definition.isRich) assert.equal(definition.pickRadius, RICH_GAME_PATCH_PICK_RADIUS);
+}
 const berryDefinitions = registry.definitionList.filter((node) => node.kind === 'berries');
-assert.deepEqual(
-  berryDefinitions.map((node) => node.maxYield),
-  [BERRY_PATCH_MAX_YIELD, RICH_BERRY_PATCH_MAX_YIELD],
+assert.equal(berryDefinitions.length, layout.resourcePlan.foragingNodeCounts.berries);
+assert.equal(
+  berryDefinitions.filter((node) => node.isRich === true).length,
+  layout.resourcePlan.foragingRichNodeCounts.berries,
 );
-assert.equal(berryDefinitions[1].label, 'Rich raspberry thicket');
-assert.equal(berryDefinitions[1].pickRadius, RICH_BERRY_PATCH_PICK_RADIUS);
-assert.equal(berryDefinitions[1].isRich, true);
+for (const definition of berryDefinitions) {
+  assert.equal(
+    definition.maxYield,
+    definition.isRich ? RICH_BERRY_PATCH_MAX_YIELD : BERRY_PATCH_MAX_YIELD,
+  );
+  if (definition.isRich) {
+    assert.equal(definition.label, 'Rich raspberry thicket');
+    assert.equal(definition.pickRadius, RICH_BERRY_PATCH_PICK_RADIUS);
+  }
+}
 assert.equal(isRichForagingCapacity('berries', BERRY_PATCH_MAX_YIELD), false);
 assert.equal(isRichForagingCapacity('berries', RICH_BERRY_PATCH_MAX_YIELD), true);
 const mushroomDefinitions = registry.definitionList.filter((node) => node.kind === 'mushrooms');
 assert.equal(mushroomDefinitions.length, layout.resourcePlan.foragingNodeCounts.mushrooms);
 assert.ok(mushroomDefinitions.every((node) => node.resource === 'mushrooms'));
-assert.ok(mushroomDefinitions.every((node) => node.label.includes('Deep-forest')));
+assert.ok(mushroomDefinitions.every((node) => node.label.toLowerCase().includes('deep-forest')));
+assert.equal(
+  mushroomDefinitions.filter((node) => node.isRich === true).length,
+  layout.resourcePlan.foragingRichNodeCounts.mushrooms,
+);
+for (const definition of mushroomDefinitions) {
+  assert.equal(
+    definition.maxYield,
+    definition.isRich ? RICH_MUSHROOM_PATCH_MAX_YIELD : MUSHROOM_PATCH_MAX_YIELD,
+  );
+  if (definition.isRich) {
+    assert.equal(definition.label, 'Rich deep-forest mushroom bed');
+    assert.equal(definition.pickRadius, RICH_MUSHROOM_PATCH_PICK_RADIUS);
+  }
+}
+assert.equal(isRichForagingCapacity('mushrooms', MUSHROOM_PATCH_MAX_YIELD), false);
+assert.equal(isRichForagingCapacity('mushrooms', RICH_MUSHROOM_PATCH_MAX_YIELD), true);
 
 const mushroomStates: ForagingNodeState[] = mushroomDefinitions.map((node) => ({
   nodeId: node.id,

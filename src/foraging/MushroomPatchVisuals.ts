@@ -31,6 +31,7 @@ type MushroomTextureSet = {
 
 const TAU = Math.PI * 2;
 const MUSHROOMS_PER_PATCH = 26;
+const RICH_MUSHROOMS_PER_PATCH = 40;
 const CLOSE_WORLD_MAX_CAMERA_DISTANCE = 155;
 const MUSHROOM_TEXTURE_SIZE = 128;
 
@@ -341,8 +342,9 @@ function createPlacements(
   const placements: MushroomPlacement[] = [];
   sites.forEach((site, siteIndex) => {
     const patch: MushroomPlacement[] = [];
+    const targetCount = site.isRich ? RICH_MUSHROOMS_PER_PATCH : MUSHROOMS_PER_PATCH;
     let attempts = 0;
-    while (patch.length < MUSHROOMS_PER_PATCH && attempts < MUSHROOMS_PER_PATCH * 24) {
+    while (patch.length < targetCount && attempts < targetCount * 24) {
       attempts++;
       const radius = Math.sqrt(random()) * MUSHROOM_PATCH_MAX_SPAWN_RADIUS;
       const angle = random() * TAU;
