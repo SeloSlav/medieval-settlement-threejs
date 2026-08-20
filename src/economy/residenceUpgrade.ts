@@ -1,5 +1,6 @@
 import {
   BACKYARD_GARDEN_KINDS,
+  HOUSEHOLD_PROJECT_WEALTH_RESERVE,
   RESIDENCE_TIER2_CAPACITY,
   RESIDENCE_TIER2_GOLD_COST,
   RESIDENCE_TIER2_STONE_COST,
@@ -75,6 +76,38 @@ export type ResidenceUpgradeContext = {
   fireDisabled?: boolean;
   physicalEconomy?: boolean;
 };
+
+export type HouseholdProjectFunding = {
+  goldCost: number;
+  householdContribution: number;
+  civicGoldRequired: number;
+  treasuryShortfall: number;
+  ready: boolean;
+};
+
+export function householdProjectFunding(
+  householdWealth: number,
+  goldCost: number,
+  treasuryGold: number,
+  physicalEconomy: boolean,
+): HouseholdProjectFunding {
+  const normalizedCost = Math.max(0, goldCost);
+  const householdContribution = physicalEconomy
+    ? Math.min(
+      Math.max(0, householdWealth - HOUSEHOLD_PROJECT_WEALTH_RESERVE),
+      normalizedCost,
+    )
+    : 0;
+  const civicGoldRequired = Math.max(0, normalizedCost - householdContribution);
+  const treasuryShortfall = Math.max(0, civicGoldRequired - Math.max(0, treasuryGold));
+  return {
+    goldCost: normalizedCost,
+    householdContribution,
+    civicGoldRequired,
+    treasuryShortfall,
+    ready: treasuryShortfall <= 1e-6,
+  };
+}
 
 export type ResidenceUpgradeMaterial = 'timber' | 'stone' | 'gold';
 export type ResidenceProjectMaterial = ResidenceUpgradeMaterial | 'roofTiles';
@@ -176,14 +209,16 @@ export function evaluateResidenceUpgrade(
     };
   });
   const physicalEconomy = context.physicalEconomy === true;
-  const householdContribution = physicalEconomy
-    ? Math.min(Math.max(0, residence.householdWealth), definition.gold)
-    : 0;
-  const civicGoldRequired = Math.max(0, definition.gold - householdContribution);
+  const funding = householdProjectFunding(
+    residence.householdWealth,
+    definition.gold,
+    totals.gold,
+    physicalEconomy,
+  );
   const requiredResources = [
     ['timber', 'Timber', totals.timber, definition.timber],
     ['stone', 'Stone', totals.stone, definition.stone],
-    ['gold', physicalEconomy ? 'Civic gold' : 'Gold', totals.gold, civicGoldRequired],
+    ['gold', physicalEconomy ? 'Treasury gold' : 'Gold', totals.gold, funding.civicGoldRequired],
   ] as const;
   const resources = requiredResources.map(
     ([kind, label, available, required]): ResidenceUpgradeResourceCheck => ({
@@ -221,8 +256,8 @@ export function evaluateResidenceUpgrade(
     resources,
     blockers,
     ready: blockers.length === 0,
-    householdContribution,
-    civicGoldRequired,
+    householdContribution: funding.householdContribution,
+    civicGoldRequired: funding.civicGoldRequired,
     physicalEconomy,
   };
 }

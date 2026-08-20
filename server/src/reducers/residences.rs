@@ -16,12 +16,12 @@ use crate::construction_priority::{
 };
 use crate::db::*;
 use crate::economy::{
-    available_building_labor, building_commodity_stock, credit_treasury_commodity,
-    credit_treasury_stone, credit_treasury_timber, reconcile_building_labor,
-    residence_food_variety_count, residence_population_for_parcel, residence_zone_cost,
-    residence_zone_cost_for_units, spend_aggregate_stone, spend_aggregate_timber,
-    spend_treasury_gold, total_stone, total_timber, treasury_gold, CommodityKind, ResourceAmount,
-    STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
+    available_building_labor, building_commodity_stock, credit_settlement_household_income,
+    credit_treasury_commodity, credit_treasury_stone, credit_treasury_timber,
+    reconcile_building_labor, residence_food_variety_count, residence_population_for_parcel,
+    residence_zone_cost, residence_zone_cost_for_units, spend_aggregate_stone,
+    spend_aggregate_timber, spend_treasury_gold, total_stone, total_timber, treasury_gold,
+    CommodityKind, ResourceAmount, STONE_SALVAGE_FRACTION, TIMBER_SALVAGE_FRACTION,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::placement_validation::{
@@ -447,15 +447,22 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
         0.0
     };
     let civic_gold_due = (gold - household_contribution).max(0.0);
-    if total_timber(ctx, owner) + 1e-6 < timber
-        || total_stone(ctx, owner) + 1e-6 < stone
-        || treasury_gold(ctx, owner) + 1e-6 < civic_gold_due
-    {
+    if total_timber(ctx, owner) + 1e-6 < timber {
         return Err(format!(
-            "Upgrade requires {} timber, {} stone, and {} gold after household savings.",
-            timber.round() as i64,
-            stone.round() as i64,
-            civic_gold_due.round() as i64,
+            "Needs {} more timber.",
+            (timber - total_timber(ctx, owner)).ceil() as i64,
+        ));
+    }
+    if total_stone(ctx, owner) + 1e-6 < stone {
+        return Err(format!(
+            "Needs {} more stone.",
+            (stone - total_stone(ctx, owner)).ceil() as i64,
+        ));
+    }
+    if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
+        return Err(format!(
+            "Needs {} more treasury gold.",
+            (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
         ));
     }
     if physical_economy {
@@ -495,6 +502,7 @@ pub fn upgrade_residence(ctx: &ReducerContext, residence_id: u64) -> Result<(), 
     spend_aggregate_timber(ctx, owner, timber)?;
     spend_aggregate_stone(ctx, owner, stone)?;
     spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    credit_settlement_household_income(ctx, owner, gold);
 
     ctx.db.residence().id().update(Residence {
         tier: next_tier,

@@ -10,14 +10,20 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
     CALENDAR_DAYS_PER_WEEK, CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY,
-    CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, RESIDENCE_ALE_PER_PERSON_PER_SEC,
-    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
-    RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
+    CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, CHARCOAL_HOUSEHOLD_FUEL_VALUE,
+    HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT, LOCAL_MARKET_ALE_GOLD_PER_UNIT,
+    LOCAL_MARKET_CLOTH_GOLD_PER_UNIT, LOCAL_MARKET_FIREWOOD_GOLD_PER_UNIT,
+    LOCAL_MARKET_FOOD_GOLD_PER_MEAL, LOCAL_MARKET_PRESERVED_FOOD_GOLD_PER_MEAL,
+    RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
+    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
+    RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_stock, deposit_building_commodity, deposit_residence_commodity,
-    household_food_per_day, withdraw_building_commodity,
+    building_commodity_cap, building_commodity_stock, credit_local_purchase_receipt,
+    debit_residence_wealth, deposit_building_commodity, deposit_residence_commodity,
+    household_food_per_day, local_market_unit_price, withdraw_building_commodity, CommodityKind,
+    FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
 };
 use crate::pantry_safeguard_policy::{
     emergency_pantry_rule, normalize_pantry_safeguard_policy, PANTRY_SAFEGUARD_DEFAULT,
@@ -35,12 +41,12 @@ use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 
 const MARKET_NEEDS: [ResidenceNeedKind; 6] = [
-    ResidenceNeedKind::Firewood,
     ResidenceNeedKind::Food,
+    ResidenceNeedKind::Firewood,
     ResidenceNeedKind::PreservedFood,
-    ResidenceNeedKind::Ale,
     ResidenceNeedKind::Cloth,
     ResidenceNeedKind::Pottery,
+    ResidenceNeedKind::Ale,
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,6 +56,7 @@ struct DistributionTarget {
     x: f64,
     z: f64,
     distance: f64,
+    runway_days: f64,
     target_stock: f64,
     daily_lot: f64,
 }
@@ -169,7 +176,13 @@ pub fn step_market_household_distribution(
             targets_by_owner
                 .entry(market.owner)
                 .or_default()
-                .extend(distribution_targets(&residences, market.id, distances));
+                .extend(distribution_targets(
+                    ctx,
+                    need_kind,
+                    &residences,
+                    market.id,
+                    distances,
+                ));
         }
 
         let market_candidates: Vec<Building> = ctx
@@ -388,7 +401,13 @@ pub fn distribute_well_water(ctx: &ReducerContext, tick: &SimTickContext, well: 
         .map(|(residence, _, _)| (residence.x, residence.z))
         .collect();
     let distances = network.road_path_distances_from(well.x, well.z, &positions);
-    let mut targets = distribution_targets(&residences, well.id, distances);
+    let mut targets = distribution_targets(
+        ctx,
+        ResidenceNeedKind::Water,
+        &residences,
+        well.id,
+        distances,
+    );
     sort_distribution_targets(&mut targets);
     for target in targets {
         if well.water <= 1e-9 {
@@ -405,6 +424,8 @@ pub fn distribute_well_water(ctx: &ReducerContext, tick: &SimTickContext, well: 
 }
 
 fn distribution_targets(
+    ctx: &ReducerContext,
+    need_kind: ResidenceNeedKind,
     residences: &[(Residence, f64, f64)],
     preferred_source_id: u64,
     distances: Vec<Option<f64>>,
@@ -420,6 +441,8 @@ fn distribution_targets(
                 x: residence.x,
                 z: residence.z,
                 distance,
+                runway_days: need_stock(&load_needs(ctx, residence.id), need_kind)
+                    / daily_lot.max(1e-9),
                 target_stock: *target_stock,
                 daily_lot: *daily_lot,
             })
@@ -429,8 +452,11 @@ fn distribution_targets(
 
 fn sort_distribution_targets(targets: &mut [DistributionTarget]) {
     targets.sort_by(|left, right| {
-        left.distance
+        left.runway_days
+            .total_cmp(&right.runway_days)
+            .then_with(|| left.distance
             .total_cmp(&right.distance)
+            )
             .then_with(|| left.residence_id.cmp(&right.residence_id))
     });
 }

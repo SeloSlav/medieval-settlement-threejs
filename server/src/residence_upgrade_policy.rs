@@ -1,5 +1,7 @@
 //! Pure policy for staged residence improvement works.
 
+use crate::balance_generated::HOUSEHOLD_PROJECT_WEALTH_RESERVE;
+
 const EPSILON: f64 = 1e-6;
 
 pub fn residence_project_active(
@@ -40,7 +42,9 @@ fn nonnegative(value: f64) -> f64 {
 }
 
 pub fn residence_upgrade_household_contribution(household_wealth: f64, gold_cost: f64) -> f64 {
-    nonnegative(household_wealth).min(nonnegative(gold_cost))
+    (nonnegative(household_wealth) - HOUSEHOLD_PROJECT_WEALTH_RESERVE)
+        .max(0.0)
+        .min(nonnegative(gold_cost))
 }
 
 pub fn residence_upgrade_material_readiness(work: ResidenceUpgradeWork) -> f64 {
@@ -116,7 +120,8 @@ mod tests {
 
     #[test]
     fn household_coin_reduces_but_never_overpays_the_civic_grant() {
-        assert_eq!(residence_upgrade_household_contribution(3.0, 8.0), 3.0);
+        assert_eq!(residence_upgrade_household_contribution(3.0, 8.0), 0.0);
+        assert_eq!(residence_upgrade_household_contribution(15.0, 8.0), 3.0);
         assert_eq!(residence_upgrade_household_contribution(20.0, 8.0), 8.0);
         assert_eq!(residence_upgrade_household_contribution(-2.0, 8.0), 0.0);
     }

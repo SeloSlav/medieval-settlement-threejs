@@ -55,10 +55,9 @@ pub fn restore_private_export_proceeds(building: &mut Building, amount: f64) {
         (private_export_proceeds(building) + restored).min(building.gold.max(0.0));
 }
 
-/// Credits aggregate private producer income to occupied households, starting
-/// with the least wealthy. Workplace labor is settlement-wide rather than
-/// tied to a specific residence, so this is the deterministic attribution
-/// shared by local milk sales and legacy private exports.
+/// Credits aggregate private producer income across occupied households by
+/// population. Workplace labor is settlement-wide rather than tied to a
+/// person record, so population is the stable macro-level attribution key.
 pub fn credit_settlement_household_income(
     ctx: &ReducerContext,
     owner: spacetimedb::Identity,
@@ -71,21 +70,24 @@ pub fn credit_settlement_household_income(
         .filter(&owner)
         .filter(|residence| residence.population > 0 && !residence.abandoned)
         .collect::<Vec<_>>();
-    residences.sort_by(|a, b| {
-        a.household_wealth
-            .partial_cmp(&b.household_wealth)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.id.cmp(&b.id))
-    });
-    let mut remaining = amount.max(0.0);
+    residences.sort_by_key(|residence| residence.id);
+    let total_population = residences
+        .iter()
+        .map(|residence| residence.population as f64)
+        .sum::<f64>();
+    if total_population <= 1e-9 {
+        return 0.0;
+    }
+    let amount = amount.max(0.0);
     let mut credited = 0.0;
-    for residence in residences {
-        if remaining <= 1e-9 {
-            break;
-        }
-        let added = credit_residence_wealth(ctx, residence.id, remaining);
-        credited += added;
-        remaining -= added;
+    let residence_count = residences.len();
+    for (index, residence) in residences.into_iter().enumerate() {
+        let share = if index + 1 == residence_count {
+            (amount - credited).max(0.0)
+        } else {
+            amount * residence.population as f64 / total_population
+        };
+        credited += credit_residence_wealth(ctx, residence.id, share);
     }
     credited
 }
@@ -124,9 +126,6 @@ pub fn credit_private_export_receipt(
         credit_treasury_gold(ctx, marketplace.owner, split.export_duty);
         let credited =
             credit_settlement_household_income(ctx, marketplace.owner, split.household_income);
-        if credited + 1e-9 < split.household_income {
-            credit_treasury_gold(ctx, marketplace.owner, split.household_income - credited);
-        }
         PrivateExportSplit {
             household_income: credited,
             export_duty: split.export_duty,
@@ -193,19 +192,21 @@ pub fn credit_monastery_export_receipt(
     split
 }
 
-/// Settle a real discretionary purchase made from Trading Post stock. The
+/// Settle a real household purchase made from local service-point stock. The
 /// household's payment is conserved: collectible local sales tax becomes a
 /// protected civic receipt and the remainder becomes protected producer
-/// income, later carried to the least-wealthy occupied homes.
+/// income, later carried to occupied homes by population share.
 pub fn credit_local_purchase_receipt(
     ctx: &ReducerContext,
-    trading_post: &mut Building,
+    market: &mut Building,
     gross_receipt: f64,
 ) -> LocalPurchaseSplit {
-    if gross_receipt <= 1e-9 || trading_post.kind != "trading_post" {
+    if gross_receipt <= 1e-9
+        || !matches!(market.kind.as_str(), "marketplace" | "tavern" | "trading_post")
+    {
         return LocalPurchaseSplit::default();
     }
-    let owner = trading_post.owner;
+    let owner = market.owner;
     let rate = player_economic_activity_tax_rate(ctx, owner);
     let collection = town_hall_tax_collection_multiplier(ctx, owner).clamp(0.0, 1.0);
     let physical = ctx
@@ -217,14 +218,14 @@ pub fn credit_local_purchase_receipt(
 
     let split = if physical {
         let deposited =
-            deposit_building_commodity(trading_post, CommodityKind::Gold, gross_receipt);
+            deposit_building_commodity(market, CommodityKind::Gold, gross_receipt);
         let local_tax = (deposited * rate * collection).clamp(0.0, deposited);
         let producer_income = (deposited - local_tax).max(0.0);
-        trading_post.civic_receipts_gold =
-            (trading_post.civic_receipts_gold.max(0.0) + local_tax).min(trading_post.gold.max(0.0));
-        trading_post.private_export_proceeds_gold = (private_export_proceeds(trading_post)
+        market.civic_receipts_gold =
+            (market.civic_receipts_gold.max(0.0) + local_tax).min(market.gold.max(0.0));
+        market.private_export_proceeds_gold = (private_export_proceeds(market)
             + producer_income)
-            .min((trading_post.gold - trading_post.civic_receipts_gold).max(0.0));
+            .min((market.gold - market.civic_receipts_gold).max(0.0));
         LocalPurchaseSplit {
             producer_income,
             local_tax,
@@ -234,11 +235,8 @@ pub fn credit_local_purchase_receipt(
         let producer_income = (gross_receipt - local_tax).max(0.0);
         credit_treasury_gold(ctx, owner, local_tax);
         let credited = credit_settlement_household_income(ctx, owner, producer_income);
-        if credited + 1e-9 < producer_income {
-            credit_treasury_gold(ctx, owner, producer_income - credited);
-        }
         LocalPurchaseSplit {
-            producer_income,
+            producer_income: credited,
             local_tax,
         }
     };

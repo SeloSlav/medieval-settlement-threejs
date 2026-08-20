@@ -8,13 +8,16 @@ use crate::burgage::{
 use crate::construction_priority::CONSTRUCTION_PRIORITY_NORMAL;
 use crate::db::*;
 use crate::economy::{
-    backyard_garden_cost, backyard_garden_salvage_refund, credit_treasury_stone,
-    credit_treasury_timber, reconcile_building_labor, spend_aggregate_stone,
-    spend_aggregate_timber, total_stone, total_timber, CommodityKind,
+    available_building_labor, backyard_garden_cost, backyard_garden_salvage_refund,
+    credit_settlement_household_income, credit_treasury_stone, credit_treasury_timber,
+    reconcile_building_labor, spend_aggregate_stone, spend_aggregate_timber, spend_treasury_gold,
+    total_stone, total_timber, treasury_gold, CommodityKind,
 };
 use crate::lifecycle::ensure_player_resources;
 use crate::reducers::residences::ensure_upgrade_source_route;
-use crate::residence_upgrade_policy::residence_project_active;
+use crate::residence_upgrade_policy::{
+    residence_project_active, residence_upgrade_household_contribution,
+};
 use crate::roads::load_owner_road_network;
 use crate::simulation::{
     cancel_trips_for_residence, clear_residence_project, insert_reclamation_pile, ReclamationStock,
@@ -113,6 +116,7 @@ pub fn place_backyard_garden(
         .ok_or_else(|| format!("Unknown backyard garden kind: {kind}"))?;
 
     let cost = backyard_garden_cost(def.kind);
+    let gold_cost = def.cost_gold;
 
     if total_timber(ctx, owner) + 1e-6 < cost.timber {
         return Err("Not enough timber for this garden.".to_string());
@@ -127,6 +131,18 @@ pub fn place_backyard_garden(
         .owner()
         .find(&owner)
         .is_some_and(|resources| resources.physical_founding_site_enabled);
+    let household_contribution = if physical_economy {
+        residence_upgrade_household_contribution(residence.household_wealth, gold_cost)
+    } else {
+        0.0
+    };
+    let civic_gold_due = (gold_cost - household_contribution).max(0.0);
+    if treasury_gold(ctx, owner) + 1e-6 < civic_gold_due {
+        return Err(format!(
+            "Needs {} more treasury gold.",
+            (civic_gold_due - treasury_gold(ctx, owner)).ceil() as i64,
+        ));
+    }
     if physical_economy {
         let network = load_owner_road_network(ctx, owner)
             .ok_or_else(|| "Backyard works require a road-linked material source.".to_string())?;
@@ -138,19 +154,30 @@ pub fn place_backyard_garden(
             cost.timber,
         )?;
         ensure_upgrade_source_route(ctx, &network, &residence, CommodityKind::Stone, cost.stone)?;
+        if civic_gold_due > 1e-6 {
+            ensure_upgrade_source_route(
+                ctx,
+                &network,
+                &residence,
+                CommodityKind::Gold,
+                civic_gold_due,
+            )?;
+        }
 
+        residence.household_wealth =
+            (residence.household_wealth - household_contribution).max(0.0);
         residence.backyard_project_kind = def.kind as u8;
         residence.upgrade_progress = 0.0;
         residence.upgrade_required_timber = cost.timber;
         residence.upgrade_required_stone = cost.stone;
-        residence.upgrade_required_gold = 0.0;
+        residence.upgrade_required_gold = gold_cost;
         residence.upgrade_delivered_timber = 0.0;
         residence.upgrade_delivered_stone = 0.0;
-        residence.upgrade_delivered_gold = 0.0;
+        residence.upgrade_delivered_gold = household_contribution;
         residence.upgrade_reserved_timber = cost.timber;
         residence.upgrade_reserved_stone = cost.stone;
-        residence.upgrade_reserved_gold = 0.0;
-        residence.upgrade_assigned_labor = 0;
+        residence.upgrade_reserved_gold = civic_gold_due;
+        residence.upgrade_assigned_labor = available_building_labor(ctx, owner).min(1);
         residence.upgrade_priority = CONSTRUCTION_PRIORITY_NORMAL;
         ctx.db.residence().id().update(residence);
         return Ok(());
@@ -158,6 +185,8 @@ pub fn place_backyard_garden(
 
     spend_aggregate_timber(ctx, owner, cost.timber)?;
     spend_aggregate_stone(ctx, owner, cost.stone)?;
+    spend_treasury_gold(ctx, owner, civic_gold_due)?;
+    credit_settlement_household_income(ctx, owner, gold_cost);
 
     ctx.db.backyard_garden().insert(BackyardGarden {
         id: 0,
@@ -184,6 +213,11 @@ pub fn demolish_backyard_garden(ctx: &ReducerContext, residence_id: u64) -> Resu
     }
 
     if residence.backyard_project_kind != 0 {
+        credit_settlement_household_income(
+            ctx,
+            owner,
+            residence.upgrade_delivered_gold.max(0.0),
+        );
         let refund = ReclamationStock {
             timber: (residence.upgrade_delivered_timber
                 * crate::balance_generated::TIMBER_SALVAGE_FRACTION)

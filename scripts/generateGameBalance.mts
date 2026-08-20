@@ -68,7 +68,7 @@ type BuildingBalance = {
 
 type BackyardGardenBalance = {
   label: string;
-  cost: { timber: number; stone: number };
+  cost: { timber: number; stone: number; gold: number };
   foodPerPersonPerSec: number;
   settlementAttractionMultiplier: number;
   hiddenFromPicker?: boolean;
@@ -302,11 +302,20 @@ export type GameBalance = {
     residenceTileRoofSalvageFraction: number;
     residenceTileRoofFlammabilityMultiplier: number;
     householdMaxWealth: number;
+    householdProjectWealthReserve: number;
+    householdInitialWealthPerSettler: number;
     householdDiscretionaryWealthReserve: number;
     householdDiscretionaryBudgetPerPersonDay: number;
     householdDiscretionaryUnitsPerPersonDay: number;
     householdDiscretionaryMinTier: number;
     householdLocalPotteryGoldPerUnit: number;
+    localMarketFoodGoldPerMeal: number;
+    localMarketFirewoodGoldPerUnit: number;
+    localMarketPreservedFoodGoldPerMeal: number;
+    localMarketAleGoldPerUnit: number;
+    localMarketClothGoldPerUnit: number;
+    localMarketPriceMultiplierMin: number;
+    localMarketPriceMultiplierMax: number;
     townHallPopulationRequired: number;
     townHallUnstaffedTaxCollectionMultiplier: number;
     localMarketTaxCartThreshold: number;
@@ -900,11 +909,20 @@ function generateRust(): string {
     `pub const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION: f64 = ${rustF64(b.economy.residenceTileRoofSalvageFraction)};`,
     `pub const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER: f64 = ${rustF64(b.economy.residenceTileRoofFlammabilityMultiplier)};`,
     `pub const HOUSEHOLD_MAX_WEALTH: f64 = ${rustF64(b.economy.householdMaxWealth)};`,
+    `pub const HOUSEHOLD_PROJECT_WEALTH_RESERVE: f64 = ${rustF64(b.economy.householdProjectWealthReserve)};`,
+    `pub const HOUSEHOLD_INITIAL_WEALTH_PER_SETTLER: f64 = ${rustF64(b.economy.householdInitialWealthPerSettler)};`,
     `pub const HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE: f64 = ${rustF64(b.economy.householdDiscretionaryWealthReserve)};`,
     `pub const HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY: f64 = ${rustF64(b.economy.householdDiscretionaryBudgetPerPersonDay)};`,
     `pub const HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY: f64 = ${rustF64(b.economy.householdDiscretionaryUnitsPerPersonDay)};`,
     `pub const HOUSEHOLD_DISCRETIONARY_MIN_TIER: u8 = ${b.economy.householdDiscretionaryMinTier};`,
     `pub const HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT: f64 = ${rustF64(b.economy.householdLocalPotteryGoldPerUnit)};`,
+    `pub const LOCAL_MARKET_FOOD_GOLD_PER_MEAL: f64 = ${rustF64(b.economy.localMarketFoodGoldPerMeal)};`,
+    `pub const LOCAL_MARKET_FIREWOOD_GOLD_PER_UNIT: f64 = ${rustF64(b.economy.localMarketFirewoodGoldPerUnit)};`,
+    `pub const LOCAL_MARKET_PRESERVED_FOOD_GOLD_PER_MEAL: f64 = ${rustF64(b.economy.localMarketPreservedFoodGoldPerMeal)};`,
+    `pub const LOCAL_MARKET_ALE_GOLD_PER_UNIT: f64 = ${rustF64(b.economy.localMarketAleGoldPerUnit)};`,
+    `pub const LOCAL_MARKET_CLOTH_GOLD_PER_UNIT: f64 = ${rustF64(b.economy.localMarketClothGoldPerUnit)};`,
+    `pub const LOCAL_MARKET_PRICE_MULTIPLIER_MIN: f64 = ${rustF64(b.economy.localMarketPriceMultiplierMin)};`,
+    `pub const LOCAL_MARKET_PRICE_MULTIPLIER_MAX: f64 = ${rustF64(b.economy.localMarketPriceMultiplierMax)};`,
     `pub const TOWN_HALL_POPULATION_REQUIRED: u32 = ${b.economy.townHallPopulationRequired};`,
     `pub const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER: f64 = ${rustF64(b.economy.townHallUnstaffedTaxCollectionMultiplier)};`,
     `pub const LOCAL_MARKET_TAX_CART_THRESHOLD: f64 = ${rustF64(b.economy.localMarketTaxCartThreshold)};`,
@@ -1471,6 +1489,7 @@ function generateRust(): string {
   lines.push('    pub kind: &\'static str,');
   lines.push('    pub cost_timber: f64,');
   lines.push('    pub cost_stone: f64,');
+  lines.push('    pub cost_gold: f64,');
   lines.push('    pub cost_ironwork: f64,');
   lines.push('    pub cost_roof_tiles: f64,');
   lines.push('    pub storage_timber: f64,');
@@ -1526,6 +1545,7 @@ function generateRust(): string {
     lines.push(`    kind: "${kind}",`);
     lines.push(`    cost_timber: ${rustF64(def.cost.timber)},`);
     lines.push(`    cost_stone: ${rustF64(def.cost.stone)},`);
+    lines.push(`    cost_gold: ${rustF64(def.cost.gold)},`);
     lines.push(`    cost_ironwork: ${rustF64(def.cost.ironwork ?? 0)},`);
     lines.push(`    cost_roof_tiles: ${rustF64(def.cost.roofTiles ?? 0)},`);
     lines.push(`    storage_timber: ${rustF64(def.storage.timber)},`);
@@ -1812,11 +1832,20 @@ function generateTypeScript(): string {
     `export const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION = ${b.economy.residenceTileRoofSalvageFraction};`,
     `export const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER = ${b.economy.residenceTileRoofFlammabilityMultiplier};`,
     `export const HOUSEHOLD_MAX_WEALTH = ${b.economy.householdMaxWealth};`,
+    `export const HOUSEHOLD_PROJECT_WEALTH_RESERVE = ${b.economy.householdProjectWealthReserve};`,
+    `export const HOUSEHOLD_INITIAL_WEALTH_PER_SETTLER = ${b.economy.householdInitialWealthPerSettler};`,
     `export const HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE = ${b.economy.householdDiscretionaryWealthReserve};`,
     `export const HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY = ${b.economy.householdDiscretionaryBudgetPerPersonDay};`,
     `export const HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY = ${b.economy.householdDiscretionaryUnitsPerPersonDay};`,
     `export const HOUSEHOLD_DISCRETIONARY_MIN_TIER = ${b.economy.householdDiscretionaryMinTier};`,
     `export const HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT = ${b.economy.householdLocalPotteryGoldPerUnit};`,
+    `export const LOCAL_MARKET_FOOD_GOLD_PER_MEAL = ${b.economy.localMarketFoodGoldPerMeal};`,
+    `export const LOCAL_MARKET_FIREWOOD_GOLD_PER_UNIT = ${b.economy.localMarketFirewoodGoldPerUnit};`,
+    `export const LOCAL_MARKET_PRESERVED_FOOD_GOLD_PER_MEAL = ${b.economy.localMarketPreservedFoodGoldPerMeal};`,
+    `export const LOCAL_MARKET_ALE_GOLD_PER_UNIT = ${b.economy.localMarketAleGoldPerUnit};`,
+    `export const LOCAL_MARKET_CLOTH_GOLD_PER_UNIT = ${b.economy.localMarketClothGoldPerUnit};`,
+    `export const LOCAL_MARKET_PRICE_MULTIPLIER_MIN = ${b.economy.localMarketPriceMultiplierMin};`,
+    `export const LOCAL_MARKET_PRICE_MULTIPLIER_MAX = ${b.economy.localMarketPriceMultiplierMax};`,
     `export const TOWN_HALL_POPULATION_REQUIRED = ${b.economy.townHallPopulationRequired};`,
     `export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = ${b.economy.townHallUnstaffedTaxCollectionMultiplier};`,
     `export const LOCAL_MARKET_TAX_CART_THRESHOLD = ${b.economy.localMarketTaxCartThreshold};`,
@@ -2281,6 +2310,7 @@ function generateTypeScript(): string {
     '  stone: number;',
     '  ironwork?: number;',
     '  roofTiles?: number;',
+    '  gold?: number;',
     '};',
     '',
     'export type StorageCaps = {',
@@ -2445,6 +2475,7 @@ function generateTypeScript(): string {
   lines.push('  foodPerPersonPerSec: number;');
   lines.push('  settlementAttractionMultiplier: number;');
   lines.push('  hiddenFromPicker: boolean;');
+  lines.push('  goldCost: number;');
   lines.push('};');
   lines.push('');
   lines.push('export const BACKYARD_GARDEN_DEFINITIONS = {');
@@ -2455,13 +2486,14 @@ function generateTypeScript(): string {
     lines.push(`    foodPerPersonPerSec: ${def.foodPerPersonPerSec},`);
     lines.push(`    settlementAttractionMultiplier: ${def.settlementAttractionMultiplier},`);
     lines.push(`    hiddenFromPicker: ${def.hiddenFromPicker === true},`);
+    lines.push(`    goldCost: ${def.cost.gold},`);
     lines.push('  },');
   }
   lines.push('} as const satisfies Record<BackyardGardenKind, BackyardGardenDefinition>;');
   lines.push('');
   lines.push('export const BACKYARD_GARDEN_COSTS = {');
   for (const [kind, def] of Object.entries(b.backyardGardens)) {
-    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone} },`);
+    lines.push(`  ${kind}: { timber: ${def.cost.timber}, stone: ${def.cost.stone}, gold: ${def.cost.gold} },`);
   }
   lines.push('} as const satisfies Record<BackyardGardenKind, BuildingResourceCost>;');
   lines.push('');

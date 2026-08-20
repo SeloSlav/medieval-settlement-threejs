@@ -1,6 +1,8 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::{backyard_garden_def, BackyardGardenKind};
+use crate::balance_generated::{
+    backyard_garden_def, BackyardGardenKind, HOUSEHOLD_INITIAL_WEALTH_PER_SETTLER,
+};
 use crate::db::*;
 use crate::residence_settlement_policy::settlement_buffers_ready;
 use crate::simulation::chapel_community::{effective_settle_ticks, recovery_stock_min};
@@ -65,6 +67,8 @@ pub fn step_residence_settlement(
 
     ctx.db.residence().id().update(Residence {
         population: residence.population.saturating_add(1),
+        household_wealth: residence.household_wealth.max(0.0)
+            + HOUSEHOLD_INITIAL_WEALTH_PER_SETTLER,
         settlement_ticks: 0,
         vacancy_ticks: 0,
         condition: 0,

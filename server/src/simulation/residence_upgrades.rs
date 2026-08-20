@@ -345,6 +345,15 @@ fn advance_upgrade_work(
 }
 
 fn complete_project(ctx: &ReducerContext, residence: &mut Residence) -> bool {
+    // Project coin is escrow, not a sink. Once work completes it becomes
+    // settlement-wide builder and craft income, regardless of whether the
+    // household or treasury funded it.
+    crate::economy::credit_settlement_household_income(
+        ctx,
+        residence.owner,
+        residence.upgrade_delivered_gold.max(0.0),
+    );
+
     if residence.roof_tile_retrofit_active {
         residence.tiled_roof = true;
         clear_residence_project(residence);

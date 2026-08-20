@@ -133,11 +133,20 @@ export const RESIDENCE_TILE_ROOF_TILE_COST = 36;
 export const RESIDENCE_TILE_ROOF_SALVAGE_FRACTION = 0.6;
 export const RESIDENCE_TILE_ROOF_FLAMMABILITY_MULTIPLIER = 0.55;
 export const HOUSEHOLD_MAX_WEALTH = 200;
+export const HOUSEHOLD_PROJECT_WEALTH_RESERVE = 12;
+export const HOUSEHOLD_INITIAL_WEALTH_PER_SETTLER = 8;
 export const HOUSEHOLD_DISCRETIONARY_WEALTH_RESERVE = 24;
 export const HOUSEHOLD_DISCRETIONARY_BUDGET_PER_PERSON_DAY = 0.2;
 export const HOUSEHOLD_DISCRETIONARY_UNITS_PER_PERSON_DAY = 0.12;
 export const HOUSEHOLD_DISCRETIONARY_MIN_TIER = 2;
 export const HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT = 0.9;
+export const LOCAL_MARKET_FOOD_GOLD_PER_MEAL = 0.04;
+export const LOCAL_MARKET_FIREWOOD_GOLD_PER_UNIT = 0.08;
+export const LOCAL_MARKET_PRESERVED_FOOD_GOLD_PER_MEAL = 0.1;
+export const LOCAL_MARKET_ALE_GOLD_PER_UNIT = 0.25;
+export const LOCAL_MARKET_CLOTH_GOLD_PER_UNIT = 1.2;
+export const LOCAL_MARKET_PRICE_MULTIPLIER_MIN = 0.75;
+export const LOCAL_MARKET_PRICE_MULTIPLIER_MAX = 1.4;
 export const TOWN_HALL_POPULATION_REQUIRED = 24;
 export const TOWN_HALL_UNSTAFFED_TAX_COLLECTION_MULTIPLIER = 0.6;
 export const LOCAL_MARKET_TAX_CART_THRESHOLD = 1;
@@ -741,6 +750,7 @@ export type BuildingResourceCost = {
   stone: number;
   ironwork?: number;
   roofTiles?: number;
+  gold?: number;
 };
 
 export type StorageCaps = {
@@ -1652,6 +1662,7 @@ export type BackyardGardenDefinition = {
   foodPerPersonPerSec: number;
   settlementAttractionMultiplier: number;
   hiddenFromPicker: boolean;
+  goldCost: number;
 };
 
 export const BACKYARD_GARDEN_DEFINITIONS = {
@@ -1661,6 +1672,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.0025,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
+    goldCost: 4,
   },
   cherry_orchard: {
     kind: 'cherry_orchard',
@@ -1668,6 +1680,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.00225,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: true,
+    goldCost: 4,
   },
   vegetable_garden: {
     kind: 'vegetable_garden',
@@ -1675,6 +1688,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.003,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
+    goldCost: 3,
   },
   flower_garden: {
     kind: 'flower_garden',
@@ -1682,6 +1696,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0,
     settlementAttractionMultiplier: 0.88,
     hiddenFromPicker: false,
+    goldCost: 2,
   },
   herb_garden: {
     kind: 'herb_garden',
@@ -1689,6 +1704,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
+    goldCost: 4,
   },
   hen_yard: {
     kind: 'hen_yard',
@@ -1696,6 +1712,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.0025,
     settlementAttractionMultiplier: 1,
     hiddenFromPicker: false,
+    goldCost: 3,
   },
   goat_pen: {
     kind: 'goat_pen',
@@ -1703,6 +1720,7 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.0018,
     settlementAttractionMultiplier: 0.97,
     hiddenFromPicker: false,
+    goldCost: 4,
   },
   backyard_apiary: {
     kind: 'backyard_apiary',
@@ -1710,18 +1728,19 @@ export const BACKYARD_GARDEN_DEFINITIONS = {
     foodPerPersonPerSec: 0.001,
     settlementAttractionMultiplier: 1.03,
     hiddenFromPicker: false,
+    goldCost: 4,
   },
 } as const satisfies Record<BackyardGardenKind, BackyardGardenDefinition>;
 
 export const BACKYARD_GARDEN_COSTS = {
-  apple_orchard: { timber: 10, stone: 4 },
-  cherry_orchard: { timber: 9, stone: 3 },
-  vegetable_garden: { timber: 5, stone: 2 },
-  flower_garden: { timber: 4, stone: 1 },
-  herb_garden: { timber: 4, stone: 2 },
-  hen_yard: { timber: 6, stone: 1 },
-  goat_pen: { timber: 8, stone: 2 },
-  backyard_apiary: { timber: 7, stone: 1 },
+  apple_orchard: { timber: 10, stone: 4, gold: 4 },
+  cherry_orchard: { timber: 9, stone: 3, gold: 4 },
+  vegetable_garden: { timber: 5, stone: 2, gold: 3 },
+  flower_garden: { timber: 4, stone: 1, gold: 2 },
+  herb_garden: { timber: 4, stone: 2, gold: 4 },
+  hen_yard: { timber: 6, stone: 1, gold: 3 },
+  goat_pen: { timber: 8, stone: 2, gold: 4 },
+  backyard_apiary: { timber: 7, stone: 1, gold: 4 },
 } as const satisfies Record<BackyardGardenKind, BuildingResourceCost>;
 
 export const MARKETPLACE_BULK_TRADE_COOLDOWN_SECONDS = 8;

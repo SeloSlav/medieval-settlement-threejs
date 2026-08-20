@@ -1,10 +1,10 @@
 use spacetimedb::ReducerContext;
 
-use crate::balance_generated::HOUSEHOLD_MAX_WEALTH;
 use crate::db::*;
 use crate::tables::Residence;
 
-/// Credit up to the household wealth cap. Returns gold actually received.
+/// Credit private household savings. The configured "maximum" is a routing
+/// target for physical income carts, not a hard cap that destroys excess coin.
 pub fn credit_residence_wealth(ctx: &ReducerContext, residence_id: u64, amount: f64) -> f64 {
     if amount <= 1e-9 {
         return 0.0;
@@ -14,13 +14,8 @@ pub fn credit_residence_wealth(ctx: &ReducerContext, residence_id: u64, amount: 
         return 0.0;
     };
 
-    let capped = (residence.household_wealth + amount).min(HOUSEHOLD_MAX_WEALTH);
-    let credited = (capped - residence.household_wealth).max(0.0);
-    if credited <= 1e-9 {
-        return 0.0;
-    }
-
-    residence.household_wealth = capped;
+    let credited = amount.max(0.0);
+    residence.household_wealth = residence.household_wealth.max(0.0) + credited;
     ctx.db.residence().id().update(residence);
     credited
 }

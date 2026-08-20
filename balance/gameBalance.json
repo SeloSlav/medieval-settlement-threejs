@@ -167,11 +167,20 @@
     "residenceTileRoofSalvageFraction": 0.6,
     "residenceTileRoofFlammabilityMultiplier": 0.55,
     "householdMaxWealth": 200,
+    "householdProjectWealthReserve": 12,
+    "householdInitialWealthPerSettler": 8,
     "householdDiscretionaryWealthReserve": 24,
     "householdDiscretionaryBudgetPerPersonDay": 0.2,
     "householdDiscretionaryUnitsPerPersonDay": 0.12,
     "householdDiscretionaryMinTier": 2,
     "householdLocalPotteryGoldPerUnit": 0.9,
+    "localMarketFoodGoldPerMeal": 0.04,
+    "localMarketFirewoodGoldPerUnit": 0.08,
+    "localMarketPreservedFoodGoldPerMeal": 0.1,
+    "localMarketAleGoldPerUnit": 0.25,
+    "localMarketClothGoldPerUnit": 1.2,
+    "localMarketPriceMultiplierMin": 0.75,
+    "localMarketPriceMultiplierMax": 1.4,
     "townHallPopulationRequired": 24,
     "townHallUnstaffedTaxCollectionMultiplier": 0.6,
     "localMarketTaxCartThreshold": 1,
@@ -1786,50 +1795,50 @@
   "backyardGardens": {
     "apple_orchard": {
       "label": "Apple orchard",
-      "cost": { "timber": 10, "stone": 4 },
+      "cost": { "timber": 10, "stone": 4, "gold": 4 },
       "foodPerPersonPerSec": 0.0025,
       "settlementAttractionMultiplier": 1
     },
     "cherry_orchard": {
       "label": "Cherry orchard",
-      "cost": { "timber": 9, "stone": 3 },
+      "cost": { "timber": 9, "stone": 3, "gold": 4 },
       "foodPerPersonPerSec": 0.00225,
       "settlementAttractionMultiplier": 1,
       "hiddenFromPicker": true
     },
     "vegetable_garden": {
       "label": "Vegetable garden",
-      "cost": { "timber": 5, "stone": 2 },
+      "cost": { "timber": 5, "stone": 2, "gold": 3 },
       "foodPerPersonPerSec": 0.003,
       "settlementAttractionMultiplier": 1
     },
     "flower_garden": {
       "label": "Flower garden",
-      "cost": { "timber": 4, "stone": 1 },
+      "cost": { "timber": 4, "stone": 1, "gold": 2 },
       "foodPerPersonPerSec": 0,
       "settlementAttractionMultiplier": 0.88
     },
     "herb_garden": {
       "label": "Herb garden",
-      "cost": { "timber": 4, "stone": 2 },
+      "cost": { "timber": 4, "stone": 2, "gold": 4 },
       "foodPerPersonPerSec": 0,
       "settlementAttractionMultiplier": 1
     },
     "hen_yard": {
       "label": "Hen yard",
-      "cost": { "timber": 6, "stone": 1 },
+      "cost": { "timber": 6, "stone": 1, "gold": 3 },
       "foodPerPersonPerSec": 0.0025,
       "settlementAttractionMultiplier": 1
     },
     "goat_pen": {
       "label": "Goat pen",
-      "cost": { "timber": 8, "stone": 2 },
+      "cost": { "timber": 8, "stone": 2, "gold": 4 },
       "foodPerPersonPerSec": 0.0018,
       "settlementAttractionMultiplier": 0.97
     },
     "backyard_apiary": {
       "label": "Backyard apiary",
-      "cost": { "timber": 7, "stone": 1 },
+      "cost": { "timber": 7, "stone": 1, "gold": 4 },
       "foodPerPersonPerSec": 0.001,
       "settlementAttractionMultiplier": 1.03
     }
