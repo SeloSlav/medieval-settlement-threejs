@@ -2355,6 +2355,16 @@ fn unload_commodity_to_building(
             .id()
             .find(&trip.building_id)
             .is_some_and(|origin| origin.kind == "chapel");
+    let monastery_seed_rescue = matches!(
+        commodity,
+        CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
+    ) && target.kind == "farmstead"
+        && ctx
+            .db
+            .building()
+            .id()
+            .find(&trip.building_id)
+            .is_some_and(|origin| origin.kind == "monastery");
     let local_milk_sale = commodity == CommodityKind::Milk
         && target.kind == "marketplace"
         && ctx
@@ -2385,6 +2395,12 @@ fn unload_commodity_to_building(
         if monastery_tithe_delivery {
             if let Some(mut resources) = ctx.db.player_resources().owner().find(&trip.owner) {
                 resources.monastery_tithe_paid_total += deposited;
+                ctx.db.player_resources().owner().update(resources);
+            }
+        }
+        if monastery_seed_rescue {
+            if let Some(mut resources) = ctx.db.player_resources().owner().find(&trip.owner) {
+                resources.monastery_seed_rescue_total += deposited;
                 ctx.db.player_resources().owner().update(resources);
             }
         }

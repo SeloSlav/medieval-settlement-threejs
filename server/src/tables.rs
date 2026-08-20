@@ -128,6 +128,23 @@ pub struct PlayerResources {
     pub monastery_pilgrimage_gold_total: f64,
     #[default(0.0)]
     pub monastery_food_charity_total: f64,
+    /// Negotiated secular share of monastery offerings and estate exports.
+    #[default(0.1)]
+    pub monastery_levy_rate: f64,
+    #[default(0.0)]
+    pub monastery_levy_collected_total: f64,
+    #[default(0u32)]
+    pub monastery_feasts_held_total: u32,
+    #[default(0.0)]
+    pub monastery_seed_rescue_total: f64,
+    #[default(0.0)]
+    pub monastery_scriptorium_timber_saved_total: f64,
+    #[default(0.0)]
+    pub monastery_scriptorium_stone_saved_total: f64,
+    #[default(0.0)]
+    pub monastery_scriptorium_ironwork_saved_total: f64,
+    #[default(0.0)]
+    pub monastery_scriptorium_roof_tiles_saved_total: f64,
     /// Imported wrought-iron heads and fittings awaiting local hafting.
     ///
     /// Appended for additive save compatibility; resource grouping is handled
@@ -827,6 +844,30 @@ pub struct Building {
     /// Monastery enclosed croft: 0 kitchen vegetables, 1 brewing barley.
     #[default(0u8)]
     pub monastery_croft_planting: u8,
+    /// Bitset of completed monastery extensions: infirmary, scriptorium,
+    /// guesthouse, and estate workshop.
+    #[default(0u8)]
+    pub monastery_extensions: u8,
+    /// Player-selected extension that the autonomous house will fund next.
+    /// Zero means no project has been chosen.
+    #[default(0u8)]
+    pub monastery_next_extension: u8,
+    /// First crop year of the current perennial orchard planting. Zero means
+    /// the founding rows are already mature.
+    #[default(0u32)]
+    pub monastery_orchard_planted_year: u32,
+    /// Replicated visual/production stage: 0 new, 1 young, 2 mature.
+    #[default(2u8)]
+    pub monastery_orchard_maturity: u8,
+    /// Last year in which the enclosed annual croft choice was posted.
+    #[default(0u32)]
+    pub monastery_croft_choice_year: u32,
+    /// Fraction of the current daily outward-service budget actually funded.
+    #[default(1.0)]
+    pub monastery_service_funding: f64,
+    /// Rational-calendar day on which service funding was last settled.
+    #[default(0u64)]
+    pub monastery_last_service_day: u64,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

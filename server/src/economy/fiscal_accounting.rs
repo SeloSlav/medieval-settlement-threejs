@@ -34,6 +34,15 @@ pub fn player_export_duty_rate(ctx: &ReducerContext, owner: spacetimedb::Identit
         .unwrap_or(0.0)
 }
 
+pub fn player_monastery_levy_rate(ctx: &ReducerContext, owner: spacetimedb::Identity) -> f64 {
+    ctx.db
+        .player_resources()
+        .owner()
+        .find(&owner)
+        .map(|resources| resources.monastery_levy_rate.clamp(0.0, 0.25))
+        .unwrap_or(0.10)
+}
+
 pub fn private_export_proceeds(building: &Building) -> f64 {
     building
         .private_export_proceeds_gold
@@ -145,7 +154,7 @@ pub fn credit_private_export_receipt(
 /// Settle the monastery's narrow estate-export charter. Unlike producer
 /// exports routed through a Trading Post, the net receipt remains in the
 /// monastery purse for estate reinvestment. The player's configured export
-/// duty is still collected; in physical settlements it remains protected at
+/// negotiated monastic levy is still collected; in physical settlements it remains protected at
 /// the monastery until a civic collection cart reaches it.
 pub fn credit_monastery_export_receipt(
     ctx: &ReducerContext,
@@ -155,7 +164,7 @@ pub fn credit_monastery_export_receipt(
     if gross_receipt <= 1e-9 || monastery.kind != "monastery" {
         return MonasteryExportSplit::default();
     }
-    let rate = player_export_duty_rate(ctx, monastery.owner);
+    let rate = player_monastery_levy_rate(ctx, monastery.owner);
     let physical = ctx
         .db
         .player_resources()
@@ -185,7 +194,7 @@ pub fn credit_monastery_export_receipt(
     };
 
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&monastery.owner) {
-        resources.export_duty_collected_total += split.export_duty;
+        resources.monastery_levy_collected_total += split.export_duty;
         resources.private_export_income_total += split.estate_income;
         ctx.db.player_resources().owner().update(resources);
     }

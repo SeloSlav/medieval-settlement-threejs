@@ -21,7 +21,7 @@ use crate::balance_generated::{
     CIVILIAN_TOOL_IRONWORK_PER_CYCLE, CLAY_PIT_CLAY_PER_CYCLE, FARM_GROWTH_SECONDS,
     FARM_WORK_METERS_PER_WORKER_PER_SEC, GRAIN_TRANSFER_PER_TRIP, MINE_IRON_PER_CYCLE,
     MINE_SALT_PER_CYCLE, MINE_TIMBER_SUPPORT_PER_CYCLE, MONASTERY_FEAST_ALE, MONASTERY_FEAST_FOOD,
-    MONASTERY_FEAST_HONEY, MONASTERY_FEAST_WINE, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
+    MONASTERY_FEAST_HONEY, MONASTERY_PILGRIMAGE_GOLD_PER_DAY,
     MONASTERY_UNLINKED_PRODUCTIVITY, POTTER_CLAY_PER_CYCLE, POTTER_FIREWOOD_PER_CYCLE,
     POTTER_POTTERY_PER_CYCLE, POTTER_ROOF_TILES_PER_CYCLE, POTTER_WATER_PER_CYCLE,
     RICH_MINE_THROUGHPUT_MULTIPLIER, SMITHY_CHARCOAL_PER_CYCLE, SMITHY_IRONWORK_PER_CYCLE,
@@ -51,7 +51,7 @@ use crate::db::*;
 use crate::economy::{
     available_unreserved_building_ironwork, building_commodity_cap, building_commodity_room,
     building_commodity_stock, building_edible_food_stock, building_fresh_food_stock,
-    building_preservable_food_stock, credit_local_civic_receipts,
+    building_preservable_food_stock, credit_monastery_export_receipt,
     credit_settlement_household_income, deposit_building_commodity,
     first_building_edible_commodity, flour_bulk_stock, restore_treasury_gold,
     spend_treasury_gold, treasury_gold, withdraw_building_commodity,
@@ -86,9 +86,11 @@ use crate::marketplace_procurement_policy::{
     normalize_marketplace_iron_target, normalize_marketplace_salt_target,
 };
 use crate::monastery_estate_policy::{
-    monastery_estate_can_reinvest, monastery_estate_exportable,
-    monastery_estate_next_investment_cost, monastery_estate_yields, monastery_infirmary_beds,
-    monastery_seed_archive_target_per_crop, MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
+    monastery_daily_service_cost, monastery_estate_can_reinvest, monastery_estate_exportable,
+    monastery_estate_next_investment_cost, monastery_estate_yields, monastery_extension_count,
+    monastery_guesthouse_multiplier, monastery_infirmary_beds,
+    monastery_orchard_maturity_for_year, monastery_seed_archive_target_per_crop,
+    MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
 };
 use crate::monastery_hospitality_policy::{
     is_monastery_feast_day, monastery_feast_batch, monastery_hospitality_use,
@@ -3157,6 +3159,11 @@ pub fn step_monastery(
         MONASTERY_UNLINKED_PRODUCTIVITY
     };
     let mut monastery = building;
+    let orchard_maturity = monastery_orchard_maturity_for_year(
+        monastery.monastery_orchard_planted_year,
+        clock.year,
+    );
+    monastery.monastery_orchard_maturity = orchard_maturity;
     if let Some(productive_labor) =
         cycle_labor_if_ready(ctx, tick, clock, &mut monastery, false)
     {
@@ -3165,9 +3172,10 @@ pub fn step_monastery(
             .unwrap_or(1.0);
         let staffing = (productive_labor / full_crew).clamp(0.0, 1.0);
         let yields = monastery_estate_yields(
-            monastery.chapel_tier,
+            monastery.monastery_extensions,
             monastery.monastery_orchard_planting,
             monastery.monastery_croft_planting,
+            orchard_maturity,
         );
         for (commodity, amount) in [
             (CommodityKind::Apples, yields.apples),
@@ -3193,30 +3201,41 @@ pub fn step_monastery(
     let hospitality_enabled = tick.monastery_hospitality_enabled(ctx, monastery.owner);
     let mut receipt_daily_income = MONASTERY_PILGRIMAGE_GOLD_PER_DAY;
     if linked && owner_has_connected_marketplace(ctx, tick, &monastery) {
-        // Honey abstracts both table use and beeswax for worship; wine supports
-        // liturgy and guests. Both remain physical stores with an export value.
+        // A small liturgical wine allowance belongs to ordinary overhead.
+        // Public hospitality requires honey and whichever estate drink this
+        // house actually makes; no planting pair is a mandatory recipe.
         let hospitality = monastery_hospitality_use(
             monastery.honey,
+            monastery.ale,
+            monastery.cider,
             monastery.wine,
             TICK_DT,
             CALENDAR_SECONDS_PER_DAY,
             hospitality_enabled,
         );
         withdraw_building_commodity(&mut monastery, CommodityKind::Honey, hospitality.honey_used);
+        withdraw_building_commodity(&mut monastery, CommodityKind::Ale, hospitality.ale_used);
+        withdraw_building_commodity(&mut monastery, CommodityKind::Cider, hospitality.cider_used);
         withdraw_building_commodity(&mut monastery, CommodityKind::Wine, hospitality.wine_used);
         receipt_daily_income = monastery_pilgrimage_gold(
             hospitality_enabled,
             hospitality.supply_ratio,
+            hospitality.prestige_multiplier,
+            monastery_guesthouse_multiplier(
+                monastery.monastery_extensions,
+                monastery.monastery_service_funding,
+            ),
             CALENDAR_SECONDS_PER_DAY,
             CALENDAR_SECONDS_PER_DAY,
         );
         let gold = receipt_daily_income * TICK_DT / CALENDAR_SECONDS_PER_DAY;
-        let credited = credit_local_civic_receipts(ctx, &mut monastery, gold);
+        let credited = credit_monastery_export_receipt(ctx, &mut monastery, gold);
         if let Some(mut treasury) = ctx.db.player_resources().owner().find(&monastery.owner) {
-            treasury.monastery_pilgrimage_gold_total += credited;
+            treasury.monastery_pilgrimage_gold_total += credited.estate_income + credited.export_duty;
             ctx.db.player_resources().owner().update(treasury);
         }
     }
+    fund_monastery_services(&mut monastery, clock.total_days);
     if linked {
         // Scheduled communal hospitality claims its complete pantry batch
         // before ordinary household carts. This makes feast preparation a
@@ -3240,7 +3259,10 @@ fn request_monastery_seed_archive(
     clock: &GameClock,
     monastery: &Building,
 ) {
-    let seed_target = monastery_seed_archive_target_per_crop(monastery.chapel_tier);
+    let seed_target = monastery_seed_archive_target_per_crop(
+        monastery.monastery_extensions,
+        monastery.monastery_service_funding,
+    );
     for (commodity, desired) in [
         (CommodityKind::RyeGrain, seed_target),
         (CommodityKind::OatGrain, seed_target),
@@ -3260,18 +3282,51 @@ fn request_monastery_seed_archive(
 
 fn reinvest_monastery_estate(monastery: &mut Building) {
     let private_gold = (monastery.gold - monastery.civic_receipts_gold).max(0.0);
-    if !monastery_estate_can_reinvest(monastery.chapel_tier, private_gold) {
+    if !monastery_estate_can_reinvest(
+        monastery.monastery_extensions,
+        monastery.monastery_next_extension,
+        private_gold,
+    ) {
         return;
     }
-    let Some(cost) = monastery_estate_next_investment_cost(monastery.chapel_tier) else {
+    let Some(cost) = monastery_estate_next_investment_cost(
+        monastery.monastery_extensions,
+        monastery.monastery_next_extension,
+    ) else {
         return;
     };
     let spent = withdraw_building_commodity(monastery, CommodityKind::Gold, cost);
     if spent + 1e-6 >= cost {
-        monastery.chapel_tier = monastery.chapel_tier.saturating_add(1).min(3);
+        monastery.monastery_extensions |= monastery.monastery_next_extension;
+        monastery.monastery_next_extension = 0;
+        monastery.chapel_tier = monastery_extension_count(monastery.monastery_extensions).min(3);
+        monastery.private_export_proceeds_gold = monastery
+            .private_export_proceeds_gold
+            .min((monastery.gold - monastery.civic_receipts_gold.max(0.0)).max(0.0));
     } else {
         deposit_building_commodity(monastery, CommodityKind::Gold, spent);
     }
+}
+
+fn fund_monastery_services(monastery: &mut Building, total_days: u64) {
+    if monastery.monastery_last_service_day == total_days {
+        return;
+    }
+    monastery.monastery_last_service_day = total_days;
+    let due = monastery_daily_service_cost(monastery.monastery_extensions);
+    let private_gold = (monastery.gold - monastery.civic_receipts_gold.max(0.0)).max(0.0);
+    let paid = due.min(private_gold);
+    if paid > 1e-9 {
+        withdraw_building_commodity(monastery, CommodityKind::Gold, paid);
+    }
+    monastery.private_export_proceeds_gold = monastery
+        .private_export_proceeds_gold
+        .min((monastery.gold - monastery.civic_receipts_gold.max(0.0)).max(0.0));
+    monastery.monastery_service_funding = if due <= 1e-9 {
+        1.0
+    } else {
+        (paid / due).clamp(0.0, 1.0)
+    };
 }
 
 fn dispatch_monastery_estate_export(
@@ -3286,10 +3341,12 @@ fn dispatch_monastery_estate_export(
     let Some(network) = tick.road_network(monastery.owner) else {
         return;
     };
-    let ale_floor = if hospitality_enabled { MONASTERY_FEAST_ALE } else { 6.0 };
+    let drink_floor = if hospitality_enabled { MONASTERY_FEAST_ALE } else { 6.0 };
     let honey_floor = if hospitality_enabled { MONASTERY_FEAST_HONEY } else { 4.0 };
-    let wine_floor = if hospitality_enabled { MONASTERY_FEAST_WINE } else { 3.0 };
-    let infirmary_food_floor = monastery_infirmary_beds(monastery.chapel_tier) as f64
+    let infirmary_food_floor = monastery_infirmary_beds(
+        monastery.monastery_extensions,
+        monastery.monastery_service_funding,
+    ) as f64
         * MONASTERY_INFIRMARY_FOOD_PER_BED_DAY;
     let feast_food_floor = if hospitality_enabled { MONASTERY_FEAST_FOOD } else { 0.0 };
     let non_honey_meals = (building_edible_food_stock(monastery)
@@ -3303,6 +3360,12 @@ fn dispatch_monastery_estate_export(
         }
         monastery_estate_exportable(stock, 0.0).min(food_surplus_meals / meal_value)
     };
+    let drink_surplus = (monastery.ale.max(0.0)
+        + monastery.cider.max(0.0)
+        + monastery.wine.max(0.0)
+        - drink_floor)
+        .max(0.0);
+    let drink_exportable = |stock: f64| monastery_estate_exportable(stock, 0.0).min(drink_surplus);
     let candidates = [
         (CommodityKind::Apples, food_exportable(CommodityKind::Apples, monastery.apples)),
         (
@@ -3318,7 +3381,7 @@ fn dispatch_monastery_estate_export(
         ),
         (
             CommodityKind::Ale,
-            monastery_estate_exportable(monastery.ale, ale_floor),
+            drink_exportable(monastery.ale),
         ),
         (
             CommodityKind::Honey,
@@ -3326,11 +3389,11 @@ fn dispatch_monastery_estate_export(
         ),
         (
             CommodityKind::Wine,
-            monastery_estate_exportable(monastery.wine, wine_floor),
+            drink_exportable(monastery.wine),
         ),
         (
             CommodityKind::Cider,
-            monastery_estate_exportable(monastery.cider, 3.0),
+            drink_exportable(monastery.cider),
         ),
     ];
     let Some((commodity, amount)) = candidates
@@ -4806,6 +4869,7 @@ fn run_monastery_feast(
     let batch = monastery_feast_batch(
         (building_edible_food_stock(monastery) - monastery.honey.max(0.0)).max(0.0),
         monastery.ale,
+        monastery.cider,
         monastery.honey,
         monastery.wine,
     );
@@ -4816,10 +4880,12 @@ fn run_monastery_feast(
     // The complete batch remains at this physical venue until noon, when the
     // covered parish gathers here to consume it. Household pantry stock must
     // not increase: this is a communal meal, not an invisible delivery.
-    withdraw_building_edible_food(monastery, MONASTERY_FEAST_FOOD);
-    withdraw_building_commodity(monastery, CommodityKind::Ale, MONASTERY_FEAST_ALE);
+    let food_used = MONASTERY_FEAST_FOOD / batch.common_table_multiplier.max(1.0);
+    withdraw_building_edible_food(monastery, food_used);
+    withdraw_building_commodity(monastery, CommodityKind::Ale, batch.ale_used);
+    withdraw_building_commodity(monastery, CommodityKind::Cider, batch.cider_used);
     withdraw_building_commodity(monastery, CommodityKind::Honey, MONASTERY_FEAST_HONEY);
-    withdraw_building_commodity(monastery, CommodityKind::Wine, MONASTERY_FEAST_WINE);
+    withdraw_building_commodity(monastery, CommodityKind::Wine, batch.wine_used);
     for home in &residences {
         apply_need_consumed_at_source(ctx, home.id, ResidenceNeedKind::Food);
         if home.tier >= 2 {
@@ -4827,7 +4893,8 @@ fn run_monastery_feast(
         }
     }
     if let Some(mut resources) = ctx.db.player_resources().owner().find(&monastery.owner) {
-        resources.monastery_food_charity_total += MONASTERY_FEAST_FOOD;
+        resources.monastery_food_charity_total += food_used;
+        resources.monastery_feasts_held_total = resources.monastery_feasts_held_total.saturating_add(1);
         ctx.db.player_resources().owner().update(resources);
     }
 }

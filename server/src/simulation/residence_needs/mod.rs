@@ -393,7 +393,11 @@ fn update_health(
             1.0
         };
         let infirmary_recovery_multiplier = infirmary_care.map_or(1.0, |care| {
-            1.0 + (monastery_infirmary_recovery_multiplier(care.estate_level) - 1.0)
+            1.0
+                + (monastery_infirmary_recovery_multiplier(
+                    care.extensions,
+                    care.service_funding,
+                ) - 1.0)
                 * infirmary_care_ratio
         });
         let effective_recovery_ticks = (f64::from(recovery_ticks)
@@ -425,7 +429,12 @@ fn update_health(
         death_cause = Some(2);
     } else if residence.sick_population > 0 {
         let infirmary_mortality_multiplier = infirmary_care.map_or(1.0, |care| {
-            1.0 - (1.0 - monastery_infirmary_mortality_multiplier(care.estate_level))
+            1.0
+                - (1.0
+                    - monastery_infirmary_mortality_multiplier(
+                        care.extensions,
+                        care.service_funding,
+                    ))
                 * infirmary_care_ratio
         });
         let mortality_chance = (ILLNESS_MORTALITY_CHANCE_PER_SICK_DAY

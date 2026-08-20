@@ -12,19 +12,63 @@ pub const MONASTERY_FEAST_DATES: [(u32, u32); 5] = [(1, 6), (6, 29), (8, 15), (9
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MonasteryHospitalityUse {
     pub honey_due: f64,
-    pub wine_due: f64,
+    pub drink_due: f64,
     pub honey_used: f64,
+    pub ale_used: f64,
+    pub cider_used: f64,
     pub wine_used: f64,
     pub supply_ratio: f64,
+    pub prestige_multiplier: f64,
+    pub common_table_multiplier: f64,
+    pub mixed_cellar: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MonasteryFeastBatch {
     pub ready: bool,
     pub missing_food: f64,
-    pub missing_ale: f64,
     pub missing_honey: f64,
-    pub missing_wine: f64,
+    pub missing_drink: f64,
+    pub ale_used: f64,
+    pub cider_used: f64,
+    pub wine_used: f64,
+    pub common_table_multiplier: f64,
+    pub prestige_multiplier: f64,
+    pub mixed_cellar: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct DrinkDraw {
+    ale: f64,
+    cider: f64,
+    wine: f64,
+    total: f64,
+    common_table_multiplier: f64,
+    prestige_multiplier: f64,
+    mixed_cellar: bool,
+}
+
+fn draw_estate_drink(ale: f64, cider: f64, wine: f64, amount: f64) -> DrinkDraw {
+    let stocks = [ale.max(0.0), cider.max(0.0), wine.max(0.0)];
+    let total_stock: f64 = stocks.iter().sum();
+    let total = amount.max(0.0).min(total_stock);
+    if total <= 1e-9 || total_stock <= 1e-9 {
+        return DrinkDraw::default();
+    }
+    let used = stocks.map(|stock| total * stock / total_stock);
+    let distinct = used.iter().filter(|value| **value > 1e-6).count();
+    let mixed_cellar = distinct >= 2;
+    let ale_share = used[0] / total;
+    let wine_share = used[2] / total;
+    DrinkDraw {
+        ale: used[0],
+        cider: used[1],
+        wine: used[2],
+        total,
+        common_table_multiplier: 1.0 + 0.25 * ale_share,
+        prestige_multiplier: 1.0 + 0.25 * wine_share + if mixed_cellar { 0.10 } else { 0.0 },
+        mixed_cellar,
+    }
 }
 
 pub fn is_monastery_feast_day(month: u32, month_day: u32) -> bool {
@@ -36,22 +80,30 @@ pub fn is_monastery_feast_day(month: u32, month_day: u32) -> bool {
 pub fn monastery_feast_batch(
     food_available: f64,
     ale_available: f64,
+    cider_available: f64,
     honey_available: f64,
     wine_available: f64,
 ) -> MonasteryFeastBatch {
     let missing_food = (MONASTERY_FEAST_FOOD - food_available.max(0.0)).max(0.0);
-    let missing_ale = (MONASTERY_FEAST_ALE - ale_available.max(0.0)).max(0.0);
     let missing_honey = (MONASTERY_FEAST_HONEY - honey_available.max(0.0)).max(0.0);
-    let missing_wine = (MONASTERY_FEAST_WINE - wine_available.max(0.0)).max(0.0);
+    let drink = draw_estate_drink(
+        ale_available,
+        cider_available,
+        wine_available,
+        MONASTERY_FEAST_ALE,
+    );
+    let missing_drink = (MONASTERY_FEAST_ALE - drink.total).max(0.0);
     MonasteryFeastBatch {
-        ready: missing_food <= 1e-9
-            && missing_ale <= 1e-9
-            && missing_honey <= 1e-9
-            && missing_wine <= 1e-9,
+        ready: missing_food <= 1e-9 && missing_honey <= 1e-9 && missing_drink <= 1e-9,
         missing_food,
-        missing_ale,
         missing_honey,
-        missing_wine,
+        missing_drink,
+        ale_used: drink.ale,
+        cider_used: drink.cider,
+        wine_used: drink.wine,
+        common_table_multiplier: drink.common_table_multiplier,
+        prestige_multiplier: drink.prestige_multiplier,
+        mixed_cellar: drink.mixed_cellar,
     }
 }
 
@@ -69,6 +121,8 @@ pub fn monastery_feast_surplus(stock: f64, reserve: f64, enabled: bool) -> f64 {
 
 pub fn monastery_hospitality_use(
     honey_available: f64,
+    ale_available: f64,
+    cider_available: f64,
     wine_available: f64,
     elapsed_seconds: f64,
     seconds_per_day: f64,
@@ -77,41 +131,57 @@ pub fn monastery_hospitality_use(
     if !enabled {
         return MonasteryHospitalityUse {
             honey_due: 0.0,
-            wine_due: 0.0,
+            drink_due: 0.0,
             honey_used: 0.0,
+            ale_used: 0.0,
+            cider_used: 0.0,
             wine_used: 0.0,
             supply_ratio: 0.0,
+            prestige_multiplier: 1.0,
+            common_table_multiplier: 1.0,
+            mixed_cellar: false,
         };
     }
     let day_fraction = elapsed_seconds.max(0.0) / seconds_per_day.max(1e-9);
     let honey_due = MONASTERY_HOSPITALITY_HONEY_PER_DAY * day_fraction;
-    let wine_due = MONASTERY_HOSPITALITY_WINE_PER_DAY * day_fraction;
+    let drink_due = MONASTERY_HOSPITALITY_WINE_PER_DAY * day_fraction;
     let honey_used =
         monastery_feast_surplus(honey_available, MONASTERY_FEAST_HONEY, enabled).min(honey_due);
-    let wine_used =
-        monastery_feast_surplus(wine_available, MONASTERY_FEAST_WINE, enabled).min(wine_due);
+    let drink = draw_estate_drink(
+        monastery_feast_surplus(ale_available, MONASTERY_FEAST_ALE, enabled),
+        monastery_feast_surplus(cider_available, MONASTERY_FEAST_ALE, enabled),
+        monastery_feast_surplus(wine_available, MONASTERY_FEAST_WINE, enabled),
+        drink_due,
+    );
     let honey_ratio = if honey_due > 1e-9 {
         honey_used / honey_due
     } else {
         1.0
     };
-    let wine_ratio = if wine_due > 1e-9 {
-        wine_used / wine_due
+    let drink_ratio = if drink_due > 1e-9 {
+        drink.total / drink_due
     } else {
         1.0
     };
     MonasteryHospitalityUse {
         honey_due,
-        wine_due,
+        drink_due,
         honey_used,
-        wine_used,
-        supply_ratio: ((honey_ratio + wine_ratio) * 0.5).clamp(0.0, 1.0),
+        ale_used: drink.ale,
+        cider_used: drink.cider,
+        wine_used: drink.wine,
+        supply_ratio: ((honey_ratio + drink_ratio) * 0.5).clamp(0.0, 1.0),
+        prestige_multiplier: drink.prestige_multiplier,
+        common_table_multiplier: drink.common_table_multiplier,
+        mixed_cellar: drink.mixed_cellar,
     }
 }
 
 pub fn monastery_pilgrimage_gold(
     hospitality_enabled: bool,
     hospitality_supply_ratio: f64,
+    prestige_multiplier: f64,
+    guesthouse_multiplier: f64,
     elapsed_seconds: f64,
     seconds_per_day: f64,
 ) -> f64 {
@@ -121,7 +191,10 @@ pub fn monastery_pilgrimage_gold(
     } else {
         0.0
     };
-    (MONASTERY_PILGRIMAGE_GOLD_PER_DAY + hospitality_bonus) * day_fraction
+    (MONASTERY_PILGRIMAGE_GOLD_PER_DAY
+        + hospitality_bonus * prestige_multiplier.max(1.0))
+        * guesthouse_multiplier.max(1.0)
+        * day_fraction
 }
 
 #[cfg(test)]

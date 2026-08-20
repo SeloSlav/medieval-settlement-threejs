@@ -12,14 +12,20 @@ pub const MONASTERY_ORCHARD_APPLES: u8 = 0;
 pub const MONASTERY_ORCHARD_VINES: u8 = 1;
 pub const MONASTERY_CROFT_VEGETABLES: u8 = 0;
 pub const MONASTERY_CROFT_BARLEY: u8 = 1;
+pub const MONASTERY_EXTENSION_INFIRMARY: u8 = 1;
+pub const MONASTERY_EXTENSION_SCRIPTORIUM: u8 = 2;
+pub const MONASTERY_EXTENSION_GUESTHOUSE: u8 = 4;
+pub const MONASTERY_EXTENSION_WORKSHOP: u8 = 8;
+pub const MONASTERY_EXTENSION_ALL: u8 = MONASTERY_EXTENSION_INFIRMARY
+    | MONASTERY_EXTENSION_SCRIPTORIUM
+    | MONASTERY_EXTENSION_GUESTHOUSE
+    | MONASTERY_EXTENSION_WORKSHOP;
+pub const MONASTERY_ORCHARD_REPLANT_COST: f64 = 12.0;
+pub const MONASTERY_ORCHARD_MATURITY_NEW: u8 = 0;
+pub const MONASTERY_ORCHARD_MATURITY_YOUNG: u8 = 1;
+pub const MONASTERY_ORCHARD_MATURITY_MATURE: u8 = 2;
 
-const INVESTMENT_COSTS: [f64; 3] = [18.0, 42.0, 78.0];
-const YIELD_MULTIPLIERS: [f64; 4] = [1.0, 1.25, 1.55, 1.9];
-const INFIRMARY_BEDS: [u32; 4] = [4, 6, 8, 10];
-const INFIRMARY_RECOVERY_MULTIPLIERS: [f64; 4] = [1.25, 1.35, 1.45, 1.55];
-const INFIRMARY_MORTALITY_MULTIPLIERS: [f64; 4] = [0.8, 0.7, 0.6, 0.5];
-const SEED_ARCHIVE_TARGET_PER_CROP: [f64; 4] = [8.0, 12.0, 16.0, 20.0];
-const SCRIPTORIUM_RECOVERY_MULTIPLIERS: [f64; 4] = [0.90, 0.84, 0.78, 0.72];
+const YIELD_MULTIPLIERS: [f64; 5] = [1.0, 1.15, 1.30, 1.50, 1.75];
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EstatePoint {
@@ -124,44 +130,138 @@ pub fn monastery_estate_is_near_map_edge(x: f64, z: f64, yaw: f64, playable_half
 }
 
 pub fn normalize_monastery_estate_level(level: u8) -> u8 {
-    level.min(3)
+    level.min(4)
 }
 
-pub fn monastery_estate_next_investment_cost(level: u8) -> Option<f64> {
-    INVESTMENT_COSTS
-        .get(normalize_monastery_estate_level(level) as usize)
-        .copied()
+pub fn normalize_monastery_extensions(extensions: u8) -> u8 {
+    extensions & MONASTERY_EXTENSION_ALL
 }
 
-pub fn monastery_estate_yield_multiplier(level: u8) -> f64 {
-    YIELD_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
+pub fn monastery_has_extension(extensions: u8, extension: u8) -> bool {
+    normalize_monastery_extensions(extensions) & extension != 0
 }
 
-pub fn monastery_infirmary_beds(level: u8) -> u32 {
-    INFIRMARY_BEDS[normalize_monastery_estate_level(level) as usize]
+pub fn monastery_extension_count(extensions: u8) -> u8 {
+    normalize_monastery_extensions(extensions).count_ones() as u8
 }
 
-pub fn monastery_infirmary_recovery_multiplier(level: u8) -> f64 {
-    INFIRMARY_RECOVERY_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
+pub fn monastery_extension_cost(extension: u8) -> Option<f64> {
+    match extension {
+        MONASTERY_EXTENSION_INFIRMARY => Some(24.0),
+        MONASTERY_EXTENSION_SCRIPTORIUM => Some(28.0),
+        MONASTERY_EXTENSION_GUESTHOUSE => Some(20.0),
+        MONASTERY_EXTENSION_WORKSHOP => Some(30.0),
+        _ => None,
+    }
 }
 
-pub fn monastery_infirmary_mortality_multiplier(level: u8) -> f64 {
-    INFIRMARY_MORTALITY_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
+pub fn monastery_estate_next_investment_cost(extensions: u8, next_extension: u8) -> Option<f64> {
+    let extensions = normalize_monastery_extensions(extensions);
+    if monastery_has_extension(extensions, next_extension) {
+        return None;
+    }
+    monastery_extension_cost(next_extension)
+}
+
+pub fn monastery_estate_yield_multiplier(extensions: u8) -> f64 {
+    YIELD_MULTIPLIERS[monastery_extension_count(extensions) as usize]
+}
+
+pub fn monastery_infirmary_beds(extensions: u8, service_funding: f64) -> u32 {
+    let base = 2;
+    if monastery_has_extension(extensions, MONASTERY_EXTENSION_INFIRMARY) {
+        base + (8.0 * service_funding.clamp(0.0, 1.0)).round() as u32
+    } else {
+        base
+    }
+}
+
+pub fn monastery_infirmary_recovery_multiplier(extensions: u8, service_funding: f64) -> f64 {
+    let funded_extension = if monastery_has_extension(extensions, MONASTERY_EXTENSION_INFIRMARY) {
+        0.40 * service_funding.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    1.15 + funded_extension
+}
+
+pub fn monastery_infirmary_mortality_multiplier(extensions: u8, service_funding: f64) -> f64 {
+    let funded_extension = if monastery_has_extension(extensions, MONASTERY_EXTENSION_INFIRMARY) {
+        0.38 * service_funding.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    0.88 - funded_extension
 }
 
 /// Physical rye, oat, and maslin seed held separately from ordinary food use.
 /// Each crop receives this target, so a founding archive protects 24 units in
 /// total and a fully developed estate protects 60. The stock remains real and
 /// can be exhausted by emergency reseeding.
-pub fn monastery_seed_archive_target_per_crop(level: u8) -> f64 {
-    SEED_ARCHIVE_TARGET_PER_CROP[normalize_monastery_estate_level(level) as usize]
+pub fn monastery_seed_archive_target_per_crop(extensions: u8, service_funding: f64) -> f64 {
+    if monastery_has_extension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM) {
+        8.0 + 12.0 * service_funding.clamp(0.0, 1.0)
+    } else {
+        8.0
+    }
 }
 
 /// Surviving plans, measurements, contracts, and craft notes reduce the
 /// physical materials needed to reconstruct a fire-damaged holding. This is a
 /// recovery-only effect: it never accelerates ordinary construction or output.
-pub fn monastery_scriptorium_recovery_multiplier(level: u8) -> f64 {
-    SCRIPTORIUM_RECOVERY_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
+pub fn monastery_scriptorium_recovery_multiplier(
+    extensions: u8,
+    service_funding: f64,
+) -> f64 {
+    if monastery_has_extension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM) {
+        0.92 - 0.20 * service_funding.clamp(0.0, 1.0)
+    } else {
+        0.92
+    }
+}
+
+pub fn monastery_guesthouse_multiplier(extensions: u8, service_funding: f64) -> f64 {
+    if monastery_has_extension(extensions, MONASTERY_EXTENSION_GUESTHOUSE) {
+        1.0 + 0.35 * service_funding.clamp(0.0, 1.0)
+    } else {
+        1.0
+    }
+}
+
+pub fn monastery_daily_service_cost(extensions: u8) -> f64 {
+    let extensions = normalize_monastery_extensions(extensions);
+    0.5
+        + if monastery_has_extension(extensions, MONASTERY_EXTENSION_INFIRMARY) { 0.7 } else { 0.0 }
+        + if monastery_has_extension(extensions, MONASTERY_EXTENSION_SCRIPTORIUM) { 0.6 } else { 0.0 }
+        + if monastery_has_extension(extensions, MONASTERY_EXTENSION_GUESTHOUSE) { 0.9 } else { 0.0 }
+        + if monastery_has_extension(extensions, MONASTERY_EXTENSION_WORKSHOP) { 0.3 } else { 0.0 }
+}
+
+pub fn monastery_orchard_maturity_for_year(planted_year: u32, year: u32) -> u8 {
+    if planted_year == 0 {
+        return MONASTERY_ORCHARD_MATURITY_MATURE;
+    }
+    match year.saturating_sub(planted_year) {
+        0 => MONASTERY_ORCHARD_MATURITY_NEW,
+        1 => MONASTERY_ORCHARD_MATURITY_YOUNG,
+        _ => MONASTERY_ORCHARD_MATURITY_MATURE,
+    }
+}
+
+pub fn monastery_orchard_yield_multiplier(maturity: u8) -> f64 {
+    match maturity {
+        MONASTERY_ORCHARD_MATURITY_NEW => 0.0,
+        MONASTERY_ORCHARD_MATURITY_YOUNG => 0.55,
+        _ => 1.0,
+    }
+}
+
+pub fn monastery_orchard_replanting_allowed(month: u32) -> bool {
+    matches!(month, 11 | 12 | 1 | 2)
+}
+
+pub fn monastery_croft_choice_allowed(month: u32) -> bool {
+    matches!(month, 1 | 2)
 }
 
 pub fn normalize_monastery_orchard_planting(planting: u8) -> u8 {
@@ -181,18 +281,21 @@ pub fn normalize_monastery_croft_planting(planting: u8) -> u8 {
 }
 
 pub fn monastery_estate_yields(
-    level: u8,
+    extensions: u8,
     orchard_planting: u8,
     croft_planting: u8,
+    orchard_maturity: u8,
 ) -> MonasteryEstateYields {
-    let multiplier = monastery_estate_yield_multiplier(level);
+    let multiplier = monastery_estate_yield_multiplier(extensions);
+    let orchard_multiplier = monastery_orchard_yield_multiplier(orchard_maturity);
+    let workshop = monastery_has_extension(extensions, MONASTERY_EXTENSION_WORKSHOP);
     let apples_planted =
         normalize_monastery_orchard_planting(orchard_planting) == MONASTERY_ORCHARD_APPLES;
     let vegetables_planted =
         normalize_monastery_croft_planting(croft_planting) == MONASTERY_CROFT_VEGETABLES;
     MonasteryEstateYields {
         apples: if apples_planted {
-            0.75 * multiplier
+            0.75 * multiplier * orchard_multiplier
         } else {
             0.0
         },
@@ -208,24 +311,24 @@ pub fn monastery_estate_yields(
         ale: if vegetables_planted {
             0.0
         } else {
-            0.32 * multiplier
+            0.32 * multiplier * if workshop { 1.25 } else { 1.0 }
         },
-        cider: if apples_planted && normalize_monastery_estate_level(level) >= 3 {
-            0.16 * multiplier
+        cider: if apples_planted && workshop {
+            0.16 * multiplier * orchard_multiplier
         } else {
             0.0
         },
         wine: if apples_planted {
             0.0
         } else {
-            0.14 * multiplier
+            0.14 * multiplier * orchard_multiplier * if workshop { 1.25 } else { 1.0 }
         },
-        cheese: if level >= 1 { 0.18 * multiplier } else { 0.0 },
+        cheese: 0.18 * multiplier,
     }
 }
 
-pub fn monastery_estate_can_reinvest(level: u8, private_gold: f64) -> bool {
-    monastery_estate_next_investment_cost(level)
+pub fn monastery_estate_can_reinvest(extensions: u8, next_extension: u8, private_gold: f64) -> bool {
+    monastery_estate_next_investment_cost(extensions, next_extension)
         .is_some_and(|cost| private_gold + 1e-9 >= cost + MONASTERY_ESTATE_GOLD_RESERVE)
 }
 

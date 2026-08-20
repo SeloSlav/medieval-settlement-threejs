@@ -114,7 +114,18 @@ fn repair_building(
         timber_multiplier,
         archive_multiplier,
     );
+    let without_archive = fire_recovery_cost(
+        base.timber,
+        base.stone,
+        base.ironwork,
+        base.roof_tiles,
+        incident.damage,
+        incident.state == FIRE_STATE_DESTROYED,
+        timber_multiplier,
+        1.0,
+    );
     ensure_recovery_resources(ctx, owner, cost)?;
+    record_scriptorium_savings(ctx, owner, without_archive, cost);
 
     let onsite_timber = building.timber.min(cost.timber);
     let onsite_stone = building.stone.min(cost.stone);
@@ -202,6 +213,16 @@ fn repair_residence(
         timber_multiplier,
         archive_multiplier,
     );
+    let without_archive = fire_recovery_cost(
+        base_timber,
+        base_stone,
+        0.0,
+        base_roof_tiles,
+        incident.damage,
+        incident.state == FIRE_STATE_DESTROYED,
+        timber_multiplier,
+        1.0,
+    );
     let physical_economy = ctx
         .db
         .player_resources()
@@ -218,6 +239,7 @@ fn repair_residence(
         ctx.db.residence().id().update(residence.clone());
 
         ensure_recovery_resources(ctx, owner, cost)?;
+        record_scriptorium_savings(ctx, owner, without_archive, cost);
         let network = load_owner_road_network(ctx, owner).ok_or_else(|| {
             "Homestead recovery requires a road-linked material source.".to_string()
         })?;
@@ -266,6 +288,7 @@ fn repair_residence(
     }
 
     ensure_recovery_resources(ctx, owner, cost)?;
+    record_scriptorium_savings(ctx, owner, without_archive, cost);
     spend_aggregate_timber(ctx, owner, cost.timber)?;
     spend_aggregate_stone(ctx, owner, cost.stone)?;
     spend_aggregate_roof_tiles(ctx, owner, cost.roof_tiles)?;
@@ -409,8 +432,35 @@ fn operational_scriptorium_recovery_multiplier(
                         .is_some()
                 })
         })
-        .map(|monastery| monastery_scriptorium_recovery_multiplier(monastery.chapel_tier))
+        .map(|monastery| {
+            monastery_scriptorium_recovery_multiplier(
+                monastery.monastery_extensions,
+                monastery.monastery_service_funding,
+            )
+        })
         .fold(1.0, f64::min)
+}
+
+fn record_scriptorium_savings(
+    ctx: &ReducerContext,
+    owner: spacetimedb::Identity,
+    without_archive: FireRecoveryCost,
+    actual: FireRecoveryCost,
+) {
+    let timber = (without_archive.timber - actual.timber).max(0.0);
+    let stone = (without_archive.stone - actual.stone).max(0.0);
+    let ironwork = (without_archive.ironwork - actual.ironwork).max(0.0);
+    let roof_tiles = (without_archive.roof_tiles - actual.roof_tiles).max(0.0);
+    if timber + stone + ironwork + roof_tiles <= 1e-9 {
+        return;
+    }
+    if let Some(mut resources) = ctx.db.player_resources().owner().find(&owner) {
+        resources.monastery_scriptorium_timber_saved_total += timber;
+        resources.monastery_scriptorium_stone_saved_total += stone;
+        resources.monastery_scriptorium_ironwork_saved_total += ironwork;
+        resources.monastery_scriptorium_roof_tiles_saved_total += roof_tiles;
+        ctx.db.player_resources().owner().update(resources);
+    }
 }
 
 trait Positioned {

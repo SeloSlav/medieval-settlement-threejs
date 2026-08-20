@@ -818,6 +818,13 @@ pub fn insert_reclamation_pile(
         brewery_recipe_policy: crate::brewery_recipe_policy::BREWERY_RECIPE_ALE,
         monastery_orchard_planting: crate::monastery_estate_policy::MONASTERY_ORCHARD_APPLES,
         monastery_croft_planting: crate::monastery_estate_policy::MONASTERY_CROFT_VEGETABLES,
+        monastery_extensions: 0,
+        monastery_next_extension: 0,
+        monastery_orchard_planted_year: 0,
+        monastery_orchard_maturity: crate::monastery_estate_policy::MONASTERY_ORCHARD_MATURITY_MATURE,
+        monastery_croft_choice_year: 0,
+        monastery_service_funding: 1.0,
+        monastery_last_service_day: 0,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

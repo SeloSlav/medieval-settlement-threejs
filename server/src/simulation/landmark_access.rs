@@ -3,14 +3,18 @@ use std::collections::HashMap;
 use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::HERB_TREATMENT_PER_SICK_DAY;
-use crate::monastery_estate_policy::{monastery_infirmary_beds, normalize_monastery_estate_level};
+use crate::monastery_estate_policy::{
+    monastery_extension_count, monastery_infirmary_beds,
+};
 use crate::simulation::tick_context::SimTickContext;
 use crate::tables::{Building, Residence};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MonasteryInfirmaryCare {
     pub monastery_id: u64,
     pub estate_level: u8,
+    pub extensions: u8,
+    pub service_funding: f64,
     pub beds: u32,
 }
 
@@ -130,8 +134,11 @@ pub fn monastery_infirmary_assignments(
                 .then_with(|| left.id.cmp(&right.id))
         });
 
-        let estate_level = normalize_monastery_estate_level(monastery.chapel_tier);
-        let mut beds_remaining = monastery_infirmary_beds(estate_level);
+        let estate_level = monastery_extension_count(monastery.monastery_extensions).min(3);
+        let mut beds_remaining = monastery_infirmary_beds(
+            monastery.monastery_extensions,
+            monastery.monastery_service_funding,
+        );
         for residence in candidates {
             if beds_remaining == 0 {
                 break;
@@ -143,6 +150,8 @@ pub fn monastery_infirmary_assignments(
                 MonasteryInfirmaryCare {
                     monastery_id: monastery.id,
                     estate_level,
+                    extensions: monastery.monastery_extensions,
+                    service_funding: monastery.monastery_service_funding,
                     beds,
                 },
             );
