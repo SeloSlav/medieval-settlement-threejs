@@ -84,6 +84,7 @@ const tests = [
   'test:visual-performance-hooks',
   'test:renderer-frame-stats',
   'test:connection-recovery',
+  'test:active-game-session',
   'test:tutorial-progress',
   'test:building-processor-status',
   'test:industrial-water-logistics',

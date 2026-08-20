@@ -36,6 +36,8 @@ export class GameRuntime {
   private bootstrapInFlight = false;
   private bootstrapBlocked = false;
   private sessionReadyEmitted = false;
+  private gameplayEntryInFlight = false;
+  private gameplayEntryAttempt = 0;
 
   constructor(
     store: SpacetimeGameStore,
@@ -62,6 +64,10 @@ export class GameRuntime {
       this.callbacks.onSnapshot(snapshot, gameState);
 
       if (!snapshot.connected || !snapshot.identityHex) {
+        if (this.gameplayEntryInFlight || this.sessionReadyEmitted) {
+          this.gameplayEntryAttempt += 1;
+          this.gameplayEntryInFlight = false;
+        }
         if (!snapshot.connected && (this.sessionReadyEmitted || this.roadsHydrated)) {
           this.sessionReadyEmitted = false;
           this.roadsHydrated = false;
@@ -92,6 +98,8 @@ export class GameRuntime {
   }
 
   dispose(): void {
+    this.gameplayEntryAttempt += 1;
+    this.gameplayEntryInFlight = false;
     this.unsubscribe?.();
     this.unsubscribe = null;
   }
@@ -173,14 +181,41 @@ export class GameRuntime {
   }
 
   private tryEmitSessionReady(): void {
-    if (this.sessionReadyEmitted || !this.bootstrapComplete || !this.roadsHydrated) {
+    if (
+      this.sessionReadyEmitted
+      || this.gameplayEntryInFlight
+      || !this.bootstrapComplete
+      || !this.roadsHydrated
+    ) {
       return;
     }
     if (!this.store.isConnected || !this.store.snapshot.identityHex) {
       return;
     }
-    this.sessionReadyEmitted = true;
-    this.callbacks.onSessionReady?.();
+
+    const attempt = ++this.gameplayEntryAttempt;
+    this.gameplayEntryInFlight = true;
+    void this.store.enterWorld()
+      .then(() => {
+        if (
+          attempt !== this.gameplayEntryAttempt
+          || !this.store.isConnected
+          || !this.store.snapshot.identityHex
+        ) {
+          return;
+        }
+        this.sessionReadyEmitted = true;
+        this.callbacks.onSessionReady?.();
+      })
+      .catch((error) => {
+        if (attempt !== this.gameplayEntryAttempt) return;
+        console.warn('[GameRuntime] Failed to enter active gameplay session', error);
+        this.callbacks.onBootstrapFailed?.(error);
+      })
+      .finally(() => {
+        if (attempt !== this.gameplayEntryAttempt) return;
+        this.gameplayEntryInFlight = false;
+      });
   }
 
   private waitForWorldConfig(maxAttempts = 80): Promise<void> {

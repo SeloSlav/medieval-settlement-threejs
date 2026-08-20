@@ -19,7 +19,7 @@ use crate::simulation::{
     ensure_settlement_security, materialize_physical_construction_reservations,
     materialize_physical_resource_ledger,
 };
-use crate::tables::{ForagingNode, PlayerResources, Quarry, TreeEntity};
+use crate::tables::{ActiveGameSession, ForagingNode, PlayerResources, Quarry, TreeEntity};
 use crate::world_gen;
 
 #[reducer(init)]
@@ -46,6 +46,52 @@ pub fn client_connected(ctx: &ReducerContext) {
     // construction_treasury_* shares. Repair that bounded legacy case once on
     // reconnect rather than scanning every ordinary resource reducer.
     materialize_physical_construction_reservations(ctx, owner);
+}
+
+/// Marks this exact transport connection as an active gameplay client.
+///
+/// Connecting to the database is deliberately insufficient: startup probes
+/// and clients that are still subscribing must not resume authoritative time.
+/// The browser invokes this only after bootstrap and road hydration complete.
+#[reducer]
+pub fn enter_world(ctx: &ReducerContext) -> Result<(), String> {
+    let connection_id = ctx
+        .connection_id()
+        .ok_or_else(|| "enter_world requires a live client connection".to_string())?;
+    let identity = ctx.sender();
+
+    if let Some(session) = ctx
+        .db
+        .active_game_session()
+        .connection_id()
+        .find(&connection_id)
+    {
+        if session.identity != identity {
+            return Err("active gameplay connection belongs to another identity".to_string());
+        }
+        return Ok(());
+    }
+
+    ctx.db.active_game_session().insert(ActiveGameSession {
+        connection_id,
+        identity,
+        entered_at: ctx.timestamp,
+    });
+    Ok(())
+}
+
+/// Removes only the terminated connection. Other tabs (and future co-op
+/// clients) keep their rows, so simulation pauses only after the last active
+/// gameplay connection leaves.
+#[reducer(client_disconnected)]
+pub fn client_disconnected(ctx: &ReducerContext) {
+    let Some(connection_id) = ctx.connection_id() else {
+        return;
+    };
+    ctx.db
+        .active_game_session()
+        .connection_id()
+        .delete(&connection_id);
 }
 
 pub fn seed_world_entities(ctx: &ReducerContext) {

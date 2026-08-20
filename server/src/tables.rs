@@ -1,4 +1,20 @@
-use spacetimedb::Identity;
+use spacetimedb::{ConnectionId, Identity, Timestamp};
+
+/// A transport connection only becomes a gameplay session after the client has
+/// subscribed, bootstrapped the world, and hydrated its authoritative roads.
+/// Probe and preloader connections never insert this private row, so they
+/// cannot wake the simulation. Multiple rows intentionally support duplicate
+/// tabs and future co-op clients without pausing a world that is still in use.
+#[spacetimedb::table(
+    accessor = active_game_session,
+    index(accessor = identity, btree(columns = [identity]))
+)]
+pub struct ActiveGameSession {
+    #[primary_key]
+    pub connection_id: ConnectionId,
+    pub identity: Identity,
+    pub entered_at: Timestamp,
+}
 
 #[spacetimedb::table(accessor = sim_pacing_state)]
 pub struct SimPacingState {

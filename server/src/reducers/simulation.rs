@@ -34,6 +34,14 @@ pub fn run_sim_tick(ctx: &ReducerContext, _schedule: crate::schedule::SimTickSch
     if !config.configured {
         return;
     }
+    // A database transport connection is not automatically a playing client.
+    // Only clients that completed enter_world keep authoritative time moving;
+    // probes, loading clients, and an entirely disconnected realm stay frozen.
+    // Keep game_speed untouched so a returning player resumes their previous
+    // 1x/4x/8x selection, while an intentional manual Pause remains Pause.
+    if ctx.db.active_game_session().iter().next().is_none() {
+        return;
+    }
     retire_removed_buildings(ctx);
     // Pause is a hard gameplay boundary: no clock, economy, migration,
     // movement, combat, delivery, weather, or fire state may mutate.

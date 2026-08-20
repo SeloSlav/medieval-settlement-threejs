@@ -52,6 +52,7 @@ import DemolishFarmFieldReducer from "./demolish_farm_field_reducer";
 import DemolishGraveyardReducer from "./demolish_graveyard_reducer";
 import DemolishPastureReducer from "./demolish_pasture_reducer";
 import DemolishResidenceReducer from "./demolish_residence_reducer";
+import EnterWorldReducer from "./enter_world_reducer";
 import GrantCheatResourcesReducer from "./grant_cheat_resources_reducer";
 import MarketplaceTradeReducer from "./marketplace_trade_reducer";
 import PlaceBackyardGardenReducer from "./place_backyard_garden_reducer";
@@ -125,6 +126,7 @@ import UpgradeResidenceReducer from "./upgrade_residence_reducer";
 // Import all procedure arg schemas
 
 // Import all table schema definitions
+import ActiveGameSessionRow from "./active_game_session_table";
 import ActiveRaidRow from "./active_raid_table";
 import BackyardGardenRow from "./backyard_garden_table";
 import BuildingRow from "./building_table";
@@ -158,6 +160,20 @@ import WorldConfigRow from "./world_config_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  active_game_session: __table({
+    name: 'active_game_session',
+    indexes: [
+      { name: 'connection_id', algorithm: 'btree', columns: [
+        'connectionId',
+      ] },
+      { name: 'identity', algorithm: 'btree', columns: [
+        'identity',
+      ] },
+    ],
+    constraints: [
+      { name: 'active_game_session_connection_id_key', constraint: 'unique', columns: ['connectionId'] },
+    ],
+  }, ActiveGameSessionRow),
   active_raid: __table({
     name: 'active_raid',
     indexes: [
@@ -584,6 +600,7 @@ const reducersSchema = __reducers(
   __reducerSchema("demolish_graveyard", DemolishGraveyardReducer),
   __reducerSchema("demolish_pasture", DemolishPastureReducer),
   __reducerSchema("demolish_residence", DemolishResidenceReducer),
+  __reducerSchema("enter_world", EnterWorldReducer),
   __reducerSchema("grant_cheat_resources", GrantCheatResourcesReducer),
   __reducerSchema("marketplace_trade", MarketplaceTradeReducer),
   __reducerSchema("place_backyard_garden", PlaceBackyardGardenReducer),

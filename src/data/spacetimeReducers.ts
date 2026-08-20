@@ -71,6 +71,10 @@ async function callReducer(
   }
 }
 
+export async function enterWorld(): Promise<void> {
+  await callReducer('enterWorld', 'enter_world', {});
+}
+
 export async function placeBackyardGarden(
   residenceId: string,
   kind: BackyardGardenKind,

@@ -10,6 +10,13 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const ActiveGameSession = __t.object("ActiveGameSession", {
+  connectionId: __t.connectionId(),
+  identity: __t.identity(),
+  enteredAt: __t.timestamp(),
+});
+export type ActiveGameSession = __Infer<typeof ActiveGameSession>;
+
 export const ActiveRaid = __t.object("ActiveRaid", {
   owner: __t.identity(),
   raidId: __t.u64(),

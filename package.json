@@ -114,6 +114,8 @@
     "test:visual-performance-hooks": "node --experimental-strip-types scripts/testVisualPerformanceHooks.mts",
     "test:renderer-frame-stats": "node --experimental-strip-types scripts/testRendererFrameStats.mts",
     "test:connection-recovery": "npx tsx scripts/testConnectionRecoveryHints.mts",
+    "test:active-game-session": "npx tsx scripts/testActiveGameplaySession.mts",
+    "test:active-game-session:integration": "npx tsx scripts/testActiveGameplaySessionIntegration.mts",
     "test:tutorial-progress": "npx tsx scripts/testTutorialProgress.mts",
     "test:building-processor-status": "npx tsx scripts/testBuildingProcessorStatus.mts",
     "test:industrial-water-logistics": "node --experimental-strip-types scripts/testIndustrialWaterLogistics.mts",

@@ -300,6 +300,14 @@ export class SpacetimeGameStore {
     return this.connectWithOptionalToken(getStoredSpacetimeToken(getSpacetimeConfig().dbName) ?? undefined, false);
   }
 
+  /**
+   * Promote this transport connection to an active gameplay session only after
+   * GameRuntime has applied subscriptions and hydrated the authoritative world.
+   */
+  enterWorld(): Promise<void> {
+    return spacetimeReducers.enterWorld();
+  }
+
   private connectWithOptionalToken(token: string | undefined, isRetry: boolean): DbConnection {
     const { dbName } = getSpacetimeConfig();
 

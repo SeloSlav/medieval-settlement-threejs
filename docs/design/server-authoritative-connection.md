@@ -46,17 +46,20 @@ A single rule — **connected or not playing** — removes these edge cases and 
 2. Client generates procedural terrain locally from those settings (visual only until server confirms).
 3. Client connects to SpacetimeDB and subscribes to all gameplay tables.
 4. Client runs world bootstrap reducers (`configure_world`, quarries, trees, foraging) when the server world is empty or settings match.
-5. **Only after Ready:** dismiss loading screen, enable construction dock, road tool, camera, walk mode.
+5. After subscriptions, bootstrap, and authoritative road hydration complete, the gameplay connection calls `enter_world`.
+6. **Only after `enter_world` commits:** mark the session Ready, dismiss the loading screen when presentation is ready, and enable construction, road, camera, and walk controls.
 
 If step 3–4 fail: stay on loading/error screen. Do not enable tools. Do not allow road drawing “while waiting.”
 
 ### Mid-session disconnect
 
 1. Immediately block all placement tools (roads, buildings, residences, backyard gardens, marketplace trades, admin reducers).
-2. Show a non-dismissable overlay: connection lost, retrying.
-3. Auto-retry connect with stored token (clear stale token on 401, same as today).
-4. On reconnect: re-subscribe, re-hydrate tables, restore road network from server snapshot (server wins — no merge with unsynced local edits).
-5. Resume gameplay only when Ready again.
+2. The server's `client_disconnected` reducer removes that exact `ConnectionId` from the private active-session table.
+3. When no active gameplay connection remains, authoritative simulation returns before any clock, economy, movement, repair, weather, fire, or combat work. The selected 1×/4×/8× speed is preserved; an intentional manual Pause remains selected.
+4. Show a non-dismissable overlay: connection lost, retrying.
+5. Auto-retry connect with stored token (clear stale token on 401, same as today).
+6. On reconnect: re-subscribe, re-hydrate tables, restore roads from the server snapshot, and call `enter_world` for the new connection.
+7. Resume gameplay only when `enter_world` commits and the session is Ready again.
 
 There is no local road queue. If the connection drops mid-edit, unsynced road draft changes are discarded.
 
@@ -75,6 +78,13 @@ If the server is unreachable, **New world is unavailable** — show an error, do
 
 - Anonymous JWT in `localStorage` is a reconnect convenience, not an offline credential.
 - Token without connection grants nothing.
+
+### Active gameplay sessions
+
+- A WebSocket connection alone does not advance the world. Startup probes and clients that are still loading never call `enter_world`.
+- `active_game_session` is a private server table keyed by `ConnectionId`, not identity, so two tabs or future co-op members may remain active independently.
+- The simulation runs while at least one active gameplay-session row exists and the player-selected game speed is nonzero.
+- Disconnect cleanup deletes only the terminated connection. The last active disconnect pauses the world without rewriting the selected speed, so a successful return naturally resumes 1×/4×/8× while a manually paused world stays paused.
 
 ---
 

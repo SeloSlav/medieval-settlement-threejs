@@ -186,7 +186,7 @@ export class SessionLifecycleController {
       }
       this.deps.connectionOverlay.show(
         'Connection lost',
-        'This client has paused its controls. Settlement state remains authoritative on the server while reconnection continues.',
+        'The settlement is paused on the server while no gameplay connection is active. Reconnection continues automatically.',
         () => this.retryConnection(),
       );
     }, DISCONNECT_OVERLAY_DELAY_MS);
