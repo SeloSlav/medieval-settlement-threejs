@@ -1251,6 +1251,9 @@ pub struct Residence {
     pub oat_bread: f64,
     #[default(0.0)]
     pub maslin_bread: f64,
+    /// Threshed oats are a ready household staple as well as livestock fodder.
+    #[default(0.0)]
+    pub oat_grain: f64,
 }
 
 #[spacetimedb::table(

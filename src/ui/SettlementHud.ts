@@ -483,8 +483,8 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="ryeGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ryeGrain" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Grain for oat flour, porridge, and animal feed.">
-        <span class="settlement-hud__label">Oat grain</span>
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="oatGrain" data-tooltip="Threshed oats: a modest ready-to-eat staple and premium feed for cattle, sheep, and pigs. No mill or bakery required.">
+        <span class="settlement-hud__label">Oats</span>
         <strong class="settlement-hud__value" data-stockpile="oatGrain">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="oatGrain" hidden></span>
       </div>
@@ -518,7 +518,7 @@ const SETTLEMENT_HUD_HTML = `
         <strong class="settlement-hud__value" data-stockpile="maslinFlour">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="maslinFlour" hidden></span>
       </div>
-      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Drink for prosperous households and monasteries.">
+      <div class="settlement-hud__stat settlement-hud__stat--store" tabindex="0" data-resource="ale" data-tooltip="Brewery ale; Taverns can serve it, cider, or mead to prosperous households.">
         <span class="settlement-hud__label">Ale</span>
         <strong class="settlement-hud__value" data-stockpile="ale">0</strong>
         <span class="settlement-hud__sub settlement-hud__sub--transit" data-stockpile-transit="ale" hidden></span>

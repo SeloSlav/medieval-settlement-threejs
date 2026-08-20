@@ -46,7 +46,7 @@ export const TRADE_RESOURCE_LABELS: Record<TradeResourceKind, string> = {
   timber: 'Timber', stone: 'Stone', firewood: 'Firewood', charcoal: 'Charcoal',
   water: 'Water', food: 'Mixed provisions', ryeSheaves: 'Rye sheaves',
   oatSheaves: 'Oat sheaves', barleySheaves: 'Barley sheaves',
-  maslinSheaves: 'Maslin sheaves', ryeGrain: 'Rye grain', oatGrain: 'Oat grain',
+  maslinSheaves: 'Maslin sheaves', ryeGrain: 'Rye grain', oatGrain: 'Oats',
   maslinGrain: 'Maslin grain', barley: 'Barley grain', flax: 'Flax',
   ryeFlour: 'Rye flour', oatFlour: 'Oat flour', maslinFlour: 'Maslin flour',
   malt: 'Malt', ryeBread: 'Rye bread', oatBread: 'Oat bread',

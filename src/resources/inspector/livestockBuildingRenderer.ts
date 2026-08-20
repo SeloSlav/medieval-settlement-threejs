@@ -430,7 +430,7 @@ export function renderLivestockBuildingInspector(
       <li><span>Winter reserve</span><span>${herd ? `${breedingReserve} head · ${projectedCull.heads} current surplus` : 'None'}</span></li>
       <li><span>Last work cycle</span><span>${recentOutput}</span></li>
       ${dairySaltRow}
-      <li><span>Preferred fallback</span><span>${Math.round(Math.max(0, building.oatGrain ?? 0))} oat grain stored</span></li>
+      <li><span>Preferred fallback</span><span>${Math.round(Math.max(0, building.oatGrain ?? 0))} oats stored</span></li>
       <li><span>Current grain burden</span><span>${currentGrainBurden}</span></li>
       <li><span>Summer hay meadow</span><span>${haymakingPlan}</span></li>
       <li><span>Hayloft</span><span>${fodderPlan ? `${Math.round(fodderPlan.hayStock)} / ${Math.round(LIVESTOCK_HAY_STORAGE_CAPACITY)}` : 'No herd'}</span></li>

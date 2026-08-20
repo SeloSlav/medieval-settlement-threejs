@@ -1359,36 +1359,19 @@ const deploymentGuardhouse = {
 deploymentState.buildings.set(deploymentTower.id, deploymentTower);
 deploymentState.buildings.set(deploymentGuardhouse.id, deploymentGuardhouse);
 
-deploymentMarkers.setBuildingExtentOverlay(deploymentTower, deploymentState);
-const selectedExtent = deploymentParent.getObjectByName('Selected building extent') as THREE.Mesh;
-assert.ok(selectedExtent.visible);
-
-const renderedExtentRadius = (): number => {
-  const positions = selectedExtent.geometry.getAttribute('position');
-  let minimum = Number.POSITIVE_INFINITY;
-  let maximum = 0;
-  for (let index = 0; index < positions.count; index += 1) {
-    const dx = positions.getX(index) - deploymentTower.x;
-    const dz = positions.getZ(index) - deploymentTower.z;
-    const distance = Math.hypot(dx, dz);
-    minimum = Math.min(minimum, distance);
-    maximum = Math.max(maximum, distance);
-  }
-  return (minimum + maximum) * 0.5;
-};
-
-assert.ok(
-  Math.abs(renderedExtentRadius() - watchtowerEffectiveRadius(deploymentTower)) < 0.05,
-  'a one-watchman selection ring must show the reduced operational radius',
+deploymentMarkers.setBuildingSelectionOverlays(deploymentTower, deploymentState);
+assert.equal(
+  deploymentParent.getObjectByName('Selected building extent'),
+  undefined,
+  'watch selection must not expose its coverage radius',
 );
 deploymentState.buildings.set(deploymentTower.id, { ...deploymentTower, assignedLabor: 2 });
-deploymentMarkers.setBuildingExtentOverlay(
+deploymentMarkers.setBuildingSelectionOverlays(
   deploymentState.buildings.get(deploymentTower.id)!,
   deploymentState,
 );
-assert.ok(Math.abs(renderedExtentRadius() - 190) < 0.05);
 
-deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
 const musterRoute = deploymentParent.getObjectByName(
   'Selected guardhouse muster route',
 ) as THREE.InstancedMesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>;
@@ -1403,7 +1386,7 @@ assert.equal(
   'a route at the dry full-muster limit should use the green response color',
 );
 deploymentRoadSpeedMultiplier = SPRING_RAIN_ROAD_SPEED_MULTIPLIER;
-deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
 assert.equal(
   musterRoute.material.color.getHex(),
   0xf0a63f,
@@ -1411,7 +1394,7 @@ assert.equal(
 );
 const overlayCacheStarted = performance.now();
 for (let index = 0; index < 10_000; index += 1) {
-  deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+  deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
 }
 const overlayCacheElapsedMs = performance.now() - overlayCacheStarted;
 assert.ok(
@@ -1422,29 +1405,20 @@ deploymentState.fireIncidents.set(
   'deployment-watch-fire',
   fire('deployment-watch-fire', deploymentTower.id),
 );
-deploymentMarkers.setBuildingExtentOverlay(
-  deploymentState.buildings.get(deploymentTower.id)!,
-  deploymentState,
-);
-assert.equal(
-  selectedExtent.visible,
-  false,
-  'a fire-disabled watch must hide its obsolete coverage ring',
-);
-deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
 assert.equal(
   musterRoute.visible,
   false,
   'a fire-disabled watch must invalidate a cached guardhouse muster route',
 );
 deploymentState.fireIncidents.clear();
-deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
 assert.equal(musterRoute.visible, true);
 deploymentState.fireIncidents.set(
   'deployment-company-fire',
   fire('deployment-company-fire', deploymentGuardhouse.id),
 );
-deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
 assert.equal(
   musterRoute.visible,
   false,
@@ -1452,7 +1426,7 @@ assert.equal(
 );
 deploymentState.fireIncidents.clear();
 deploymentState.buildings.set(deploymentTower.id, { ...deploymentTower, assignedLabor: 0 });
-deploymentMarkers.setBuildingExtentOverlay(deploymentGuardhouse, deploymentState);
+deploymentMarkers.setBuildingSelectionOverlays(deploymentGuardhouse, deploymentState);
 assert.equal(musterRoute.visible, false, 'an unstaffed watch must remove the muster route');
 deploymentMarkers.dispose();
 assert.equal(deploymentParent.children.length, 0);
@@ -1808,7 +1782,10 @@ assert.match(frontierMarkers, /InstancedMesh/);
 assert.match(frontierMarkers, /RAID_TARGET_MARKER_THREAT_THRESHOLD/);
 assert.match(frontierMarkers, /MAX_RAID_TARGET_MARKERS\s*=\s*4/);
 assert.match(buildingMarkers, /Selected guardhouse muster route/);
-assert.match(buildingMarkers, /watchtowerEffectiveRadius/);
+assert.doesNotMatch(
+  buildingMarkers,
+  /Selected building extent|Selected building fire spread range/,
+);
 assert.match(buildingMarkers, /MAX_GUARDHOUSE_MUSTER_DASHES\s*=\s*512/);
 assert.match(resourceInspector, /onSelectionChange\?\.\(latest\)/);
 assert.match(app, /resourceInspector\?\.refreshSelection\(\)/);

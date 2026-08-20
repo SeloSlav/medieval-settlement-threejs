@@ -62,12 +62,10 @@ the Rust authority and client planning UI:
 | Clay pits | 0.15x |
 | Wells, marketplaces, quarries, founding camps, and Town Halls | Fire-safe |
 
-High-risk placement previews and selected buildings show a terrain-following 26 m spread
-ring. Green means a staffed and supplied well covers the point, amber means a well extent
-reaches it but lacks labor or water, and red means no ready well can answer. The placement
-readout and inspector name the current susceptibility, stored-fuel penalty, exposed
-neighbor count, response route, and estimated first-bucket arrival. These are derived
-views; they add no save fields or periodic settlement scan.
+High-risk placement and inspector readouts name the current susceptibility, stored-fuel
+penalty, exposed-neighbor count, response route, and estimated first-bucket arrival.
+The authoritative 26 m spread range and well-response extents are not drawn as world-space
+circles. These are derived views; they add no save fields or periodic settlement scan.
 
 ## Well response
 

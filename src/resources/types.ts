@@ -364,6 +364,7 @@ export type ResidenceState = {
   food?: number;
   preservedFood?: number;
   honey?: number;
+  oatGrain?: number;
   ryeBread?: number;
   oatBread?: number;
   maslinBread?: number;

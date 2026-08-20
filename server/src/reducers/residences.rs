@@ -319,6 +319,7 @@ pub fn place_burgage_zone(
             rye_bread: 0.0,
             oat_bread: 0.0,
             maslin_bread: 0.0,
+            oat_grain: 0.0,
         });
         ensure_residence_needs(ctx, inserted.id);
         if let Some(network) = physical_road_network.as_ref() {

@@ -38,7 +38,7 @@ const RESOURCE_LABELS: Record<TradeResourceKind | 'gold', string> = {
   barleySheaves: 'Barley sheaves',
   maslinSheaves: 'Maslin sheaves',
   ryeGrain: 'Rye grain',
-  oatGrain: 'Oat grain',
+  oatGrain: 'Oats',
   maslinGrain: 'Maslin grain',
   ryeFlour: 'Rye flour',
   oatFlour: 'Oat flour',

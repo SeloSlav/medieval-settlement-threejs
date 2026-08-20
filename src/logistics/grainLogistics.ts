@@ -96,6 +96,10 @@ export function grainDispatchDuty(
   if (target.kind === 'granary') return 'granary-reserve';
   if (!(GRAIN_PROCESSOR_KINDS as readonly BuildingKind[]).includes(target.kind)) return null;
   if (target.kind === 'monastery' && commodity !== 'oatGrain') return null;
+  if (
+    (target.kind === 'watermill' || target.kind === 'windmill')
+    && commodity === 'oatGrain'
+  ) return null;
   const desiredStock = grainInputTarget(
     target.kind as GrainProcessorKind,
     productivity,
@@ -225,6 +229,10 @@ export function selectGrainProcessorTarget<T extends GrainDestinationLike>(
       || hasInboundSupply(target)
       || !acceptsGrain(target)
       || (target.kind === 'monastery' && commodity !== 'oatGrain')
+      || (
+        (target.kind === 'watermill' || target.kind === 'windmill')
+        && commodity === 'oatGrain'
+      )
     ) continue;
     const kind = target.kind as GrainProcessorKind;
     const productivity = productivityFor(target);

@@ -1,10 +1,14 @@
 import {
   BREWERY_ALE_PER_CYCLE,
+  BREWERY_APPLES_PER_CIDER_CYCLE,
   BREWERY_BARLEY_PER_MALT_CYCLE,
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_BREWING_WATER_PER_CYCLE,
   BREWERY_MALT_PER_ALE_CYCLE,
   BREWERY_MALT_PER_CYCLE,
+  BREWERY_CIDER_PER_CYCLE,
+  BREWERY_HONEY_PER_MEAD_CYCLE,
+  BREWERY_MEAD_PER_CYCLE,
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   BREWERY_MALTING_WATER_PER_CYCLE,
   CHARCOAL_BURNER_CHARCOAL_PER_CYCLE,
@@ -13,7 +17,6 @@ import {
   BAKERY_FIREWOOD_PER_CYCLE,
   BAKERY_FLOUR_PER_CYCLE,
   BAKERY_RYE_BREAD_PER_CYCLE,
-  BAKERY_OAT_BREAD_PER_CYCLE,
   BAKERY_MASLIN_BREAD_PER_CYCLE,
   BAKERY_WATER_PER_CYCLE,
   MILL_WATER_PER_HARVEST,
@@ -33,7 +36,6 @@ import {
   POTTER_POTTERY_PER_CYCLE,
   POTTER_WATER_PER_CYCLE,
   WATERMILL_RYE_FLOUR_PER_CYCLE,
-  WATERMILL_OAT_FLOUR_PER_CYCLE,
   WATERMILL_MASLIN_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
@@ -74,6 +76,14 @@ import {
   renderResourceCost,
   type ResourceCostAmounts,
 } from '../../ui/resourceCost.ts';
+import {
+  BREWERY_RECIPE_ALE,
+  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_MEAD,
+  breweryRecipePolicyLabel,
+  normalizeBreweryRecipePolicy,
+  selectedBreweryRecipePolicy,
+} from '../../economy/breweryRecipePolicy.ts';
 
 export type BuildingProcessorContext = {
   matureTrees?: number;
@@ -104,6 +114,8 @@ type StockKey =
   | 'oatBread'
   | 'maslinBread'
   | 'ale'
+  | 'cider'
+  | 'mead'
   | 'preservedFood'
   | 'wool'
   | 'flax'
@@ -113,7 +125,9 @@ type StockKey =
   | 'salt'
   | 'charcoal'
   | 'pottery'
-  | 'ironwork';
+  | 'ironwork'
+  | 'honey'
+  | 'apples';
 
 type InputRequirement = {
   key: StockKey;
@@ -256,7 +270,6 @@ function selectedCerealProfile(building: BuildingState): ProcessorProfile | null
   if (building.kind === 'watermill' || building.kind === 'windmill') {
     const recipes = [
       { input: 'ryeGrain', output: 'ryeFlour', label: 'rye grain', rate: WATERMILL_RYE_FLOUR_PER_CYCLE },
-      { input: 'oatGrain', output: 'oatFlour', label: 'oat grain', rate: WATERMILL_OAT_FLOUR_PER_CYCLE },
       { input: 'maslinGrain', output: 'maslinFlour', label: 'maslin grain', rate: WATERMILL_MASLIN_FLOUR_PER_CYCLE },
     ] as const;
     const selected = recipes.reduce((best, recipe) =>
@@ -286,7 +299,6 @@ function selectedCerealProfile(building: BuildingState): ProcessorProfile | null
   if (building.kind === 'bakery') {
     const recipes = [
       { input: 'ryeFlour', output: 'ryeBread', label: 'rye flour', rate: BAKERY_RYE_BREAD_PER_CYCLE },
-      { input: 'oatFlour', output: 'oatBread', label: 'oat flour', rate: BAKERY_OAT_BREAD_PER_CYCLE },
       { input: 'maslinFlour', output: 'maslinBread', label: 'maslin flour', rate: BAKERY_MASLIN_BREAD_PER_CYCLE },
     ] as const;
     const selected = recipes.reduce((best, recipe) =>
@@ -514,6 +526,54 @@ function getBreweryStatus(
   worldQueries: WorldQueries,
   onsiteLabor: number,
 ): BuildingProcessorStatus {
+  const configuredRecipe = normalizeBreweryRecipePolicy(building.breweryRecipePolicy);
+  const selectedRecipe = selectedBreweryRecipePolicy(configuredRecipe, building);
+  const policyRow = `<li><span>Active recipe</span><span>${breweryRecipePolicyLabel(configuredRecipe)}${configuredRecipe !== selectedRecipe ? ` → ${breweryRecipePolicyLabel(selectedRecipe)}` : ''}</span></li>`;
+
+  if (selectedRecipe === BREWERY_RECIPE_CIDER) {
+    const profile: ProcessorProfile = {
+      requiresLabor: true,
+      waterPerCycle: 0,
+      inputs: [{
+        key: 'apples',
+        label: 'apples',
+        required: BREWERY_APPLES_PER_CIDER_CYCLE,
+        deliveryHint: 'orchards, granaries, or market carts may supply',
+      }],
+      output: 'cider',
+      outputPerCycle: BREWERY_CIDER_PER_CYCLE,
+      operatingLabel: 'Pressing apples into cider',
+      idleNoWorkersLabel: 'Idle — assign brewers to press cider',
+    };
+    const status = buildProcessorStatus(building, profile, null, onsiteLabor);
+    status.waterDetailHtml = policyRow
+      + status.waterDetailHtml
+      + `<li><span>Cider recipe</span><span>${BREWERY_APPLES_PER_CIDER_CYCLE} apples → ${BREWERY_CIDER_PER_CYCLE} cider</span></li>`;
+    return status;
+  }
+
+  if (selectedRecipe === BREWERY_RECIPE_MEAD) {
+    const profile: ProcessorProfile = {
+      requiresLabor: true,
+      waterPerCycle: 0,
+      inputs: [{
+        key: 'honey',
+        label: 'honey',
+        required: BREWERY_HONEY_PER_MEAD_CYCLE,
+        deliveryHint: 'apiaries release honey above their winter reserve',
+      }],
+      output: 'mead',
+      outputPerCycle: BREWERY_MEAD_PER_CYCLE,
+      operatingLabel: 'Fermenting honey into mead',
+      idleNoWorkersLabel: 'Idle — assign brewers to ferment mead',
+    };
+    const status = buildProcessorStatus(building, profile, null, onsiteLabor);
+    status.waterDetailHtml = policyRow
+      + status.waterDetailHtml
+      + `<li><span>Mead recipe</span><span>${BREWERY_HONEY_PER_MEAD_CYCLE} honey → ${BREWERY_MEAD_PER_CYCLE} mead</span></li>`;
+    return status;
+  }
+
   const barley = Math.max(0, building.barley ?? 0);
   const malt = Math.max(0, building.malt ?? 0);
   const stagingCycles = processorInputStagingCycles(
@@ -582,7 +642,7 @@ function getBreweryStatus(
     <li><span>Ale output room</span><span>${formatInputCycleCoverage(outputRoomCycles)} · ale before ${outputLimit.toFixed(0)} target</span></li>
     <li><span>Process design</span><span>One malting cycle + one brewing cycle per ale batch</span></li>
   `;
-  const detailHtml = waterDetailHtml + processRows;
+  const detailHtml = policyRow + waterDetailHtml + processRows;
   const outputAtLimit = isOutputAtLimit(building, 'brewery', 'ale');
 
   if (onsiteLabor === 0 && !outputAtLimit) {
@@ -625,6 +685,41 @@ function getBreweryStatus(
       : 'Brewing malt into ale',
     statusState: 'active',
     waterDetailHtml: detailHtml,
+  };
+}
+
+function getTavernStatus(
+  building: BuildingState,
+  onsiteLabor: number,
+): BuildingProcessorStatus {
+  const ale = Math.max(0, building.ale);
+  const cider = Math.max(0, building.cider ?? 0);
+  const mead = Math.max(0, building.mead ?? 0);
+  const total = ale + cider + mead;
+  const details = `
+    <li><span>Beverage cellar</span><span>${total.toFixed(0)} total · ${ale.toFixed(0)} ale · ${cider.toFixed(0)} cider · ${mead.toFixed(0)} mead</span></li>
+    <li><span>Household service</span><span>Any stocked beverage fulfills the same residential requirement</span></li>
+  `;
+  if (onsiteLabor <= 0) {
+    return {
+      statusText: building.assignedLabor > 0
+        ? 'Service paused — the full staff is away with its cart'
+        : 'Closed — assign innkeepers to serve beverages',
+      statusState: 'idle',
+      waterDetailHtml: details,
+    };
+  }
+  if (total <= 1e-6) {
+    return {
+      statusText: 'Waiting for ale, cider, or mead',
+      statusState: 'warning',
+      waterDetailHtml: details,
+    };
+  }
+  return {
+    statusText: 'Serving beverages to connected households',
+    statusState: 'active',
+    waterDetailHtml: details,
   };
 }
 
@@ -789,7 +884,7 @@ function getMonasteryStatus(building: BuildingState, worldQueries: WorldQueries)
 
   if ((building.oatGrain ?? 0) + 1e-6 < grainNeeded) {
     return {
-      statusText: `Waiting for oats — needs ${Math.ceil(grainNeeded)} oat grain per cycle for porridge`,
+      statusText: `Waiting for oats — needs ${Math.ceil(grainNeeded)} oats per cycle for porridge`,
       statusState: 'warning',
       waterDetailHtml: inputCostRow,
     };
@@ -841,6 +936,9 @@ export function getBuildingProcessorStatus(
   const onsiteLabor = rosteredOnsiteLabor;
   if (building.kind === 'brewery') {
     return getBreweryStatus(building, worldQueries, onsiteLabor);
+  }
+  if (building.kind === 'tavern') {
+    return getTavernStatus(building, onsiteLabor);
   }
   if (building.kind === 'weaver') {
     return getWeaverStatus(building, worldQueries, onsiteLabor);

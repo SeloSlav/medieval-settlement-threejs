@@ -1,11 +1,15 @@
 import {
   BREWERY_ALE_PER_CYCLE,
+  BREWERY_APPLES_PER_CIDER_CYCLE,
   BREWERY_BARLEY_PER_MALT_CYCLE,
   BREWERY_BREWING_FIREWOOD_PER_CYCLE,
   BREWERY_BREWING_WATER_PER_CYCLE,
   BREWERY_MALT_PER_CYCLE,
   BREWERY_MALTING_FIREWOOD_PER_CYCLE,
   BREWERY_MALTING_WATER_PER_CYCLE,
+  BREWERY_CIDER_PER_CYCLE,
+  BREWERY_HONEY_PER_MEAD_CYCLE,
+  BREWERY_MEAD_PER_CYCLE,
   BUILDING_STORAGE_CAPS,
   CALENDAR_HOURS_PER_DAY,
   CALENDAR_SECONDS_PER_DAY,
@@ -24,7 +28,6 @@ import {
   BAKERY_FIREWOOD_PER_CYCLE,
   BAKERY_FLOUR_PER_CYCLE,
   BAKERY_RYE_BREAD_PER_CYCLE,
-  BAKERY_OAT_BREAD_PER_CYCLE,
   BAKERY_MASLIN_BREAD_PER_CYCLE,
   BAKERY_WATER_PER_CYCLE,
   POTTER_CLAY_PER_CYCLE,
@@ -49,7 +52,6 @@ import {
   TIMBER_DELIVERY_SPEED_MPS,
   TIMBER_DELIVERY_UNLOAD_SEC,
   WATERMILL_RYE_FLOUR_PER_CYCLE,
-  WATERMILL_OAT_FLOUR_PER_CYCLE,
   WATERMILL_MASLIN_FLOUR_PER_CYCLE,
   WATERMILL_GRAIN_PER_CYCLE,
   WEAVER_CLOTH_PER_CYCLE,
@@ -83,11 +85,17 @@ import {
   processorOutputTargetForBuilding,
 } from './processorOutputPolicy.ts';
 import {
-  BREAD_GRAIN_KINDS,
-  FLOUR_KINDS,
-  breadGrainStock,
+  BREWERY_RECIPE_CIDER,
+  BREWERY_RECIPE_MEAD,
+  selectedBreweryRecipePolicy,
+} from './breweryRecipePolicy.ts';
+import {
+  MILLABLE_GRAIN_KINDS,
+  BAKEABLE_FLOUR_KINDS,
+  bakeableFlourStock,
   breadStock,
   flourStock,
+  millableGrainStock,
 } from './cropGoods.ts';
 import {
   normalizePotterFiringPolicy,
@@ -184,6 +192,8 @@ export type SettlementProductionCapacity = {
 
 export type ProcessorInput =
   | 'barley'
+  | 'apples'
+  | 'honey'
   | 'grain'
   | 'flour'
   | 'water'
@@ -370,6 +380,10 @@ type ProcessorOverview = Pick<
   maintainedToolIronworkPerDay: number;
   fullToolIronworkPerDay: number;
   firstUnmaintainedToolSiteId: string | null;
+  beverageOutputPerDay: number;
+  beverageBarleyPerDay: number;
+  beverageWaterPerDay: number;
+  beverageFirewoodPerDay: number;
 };
 
 type GrainChainBranch = {
@@ -729,23 +743,19 @@ function groupedBuildingInputRunway(
 }
 
 function selectedMillFlourRate(building: BuildingState): number {
-  const stocks = [building.ryeGrain ?? 0, building.oatGrain ?? 0, building.maslinGrain ?? 0];
+  const stocks = [building.ryeGrain ?? 0, building.maslinGrain ?? 0];
   const selected = stocks.indexOf(Math.max(...stocks));
   return selected === 1
-    ? WATERMILL_OAT_FLOUR_PER_CYCLE
-    : selected === 2
-      ? WATERMILL_MASLIN_FLOUR_PER_CYCLE
-      : WATERMILL_RYE_FLOUR_PER_CYCLE;
+    ? WATERMILL_MASLIN_FLOUR_PER_CYCLE
+    : WATERMILL_RYE_FLOUR_PER_CYCLE;
 }
 
 function selectedBakeryBreadRate(building: BuildingState): number {
-  const stocks = [building.ryeFlour ?? 0, building.oatFlour ?? 0, building.maslinFlour ?? 0];
+  const stocks = [building.ryeFlour ?? 0, building.maslinFlour ?? 0];
   const selected = stocks.indexOf(Math.max(...stocks));
   return selected === 1
-    ? BAKERY_OAT_BREAD_PER_CYCLE
-    : selected === 2
-      ? BAKERY_MASLIN_BREAD_PER_CYCLE
-      : BAKERY_RYE_BREAD_PER_CYCLE;
+    ? BAKERY_MASLIN_BREAD_PER_CYCLE
+    : BAKERY_RYE_BREAD_PER_CYCLE;
 }
 
 function stockTargetHasRoom(
@@ -853,7 +863,7 @@ function civilianToolSiteCanWork(
     case 'watermill':
     case 'windmill':
       return stockTargetHasRoom(building, 'flour')
-        && breadGrainStock(building) + 1e-6 >= WATERMILL_GRAIN_PER_CYCLE;
+        && millableGrainStock(building) + 1e-6 >= WATERMILL_GRAIN_PER_CYCLE;
     case 'threshing_barn':
       return true;
     default:
@@ -903,6 +913,10 @@ function completedProcessorOverview(
   let charcoalWorkers = 0;
   let smithyWorkers = 0;
   let potterWorkers = 0;
+  let beverageOutputPerDay = 0;
+  let beverageBarleyPerDay = 0;
+  let beverageWaterPerDay = 0;
+  let beverageFirewoodPerDay = 0;
   let toolEligibleSites = 0;
   let toolMaintainedSites = 0;
   let clayBankWeightedLabor = 0;
@@ -1113,8 +1127,8 @@ function completedProcessorOverview(
           groupedBuildingInputRunway(
             deliveries,
             building,
-            BREAD_GRAIN_KINDS,
-            breadGrainStock(building),
+            MILLABLE_GRAIN_KINDS,
+            millableGrainStock(building),
             cycles * WATERMILL_GRAIN_PER_CYCLE,
           ),
           'grain',
@@ -1145,8 +1159,8 @@ function completedProcessorOverview(
         let runway = groupedBuildingInputRunway(
           deliveries,
           building,
-          FLOUR_KINDS,
-          flourStock(building),
+          BAKEABLE_FLOUR_KINDS,
+          bakeableFlourStock(building),
           cycles * BAKERY_FLOUR_PER_CYCLE,
         );
         let limitingInput: ProcessorInput = 'flour';
@@ -1192,56 +1206,107 @@ function completedProcessorOverview(
       case 'brewery': {
         breweryWorkers += building.assignedLabor;
         const workCycles = breweryCyclesPerWorker * building.assignedLabor;
+        const recipe = selectedBreweryRecipePolicy(
+          building.breweryRecipePolicy,
+          building,
+        );
+        const beverageCycles = recipe === BREWERY_RECIPE_CIDER
+          || recipe === BREWERY_RECIPE_MEAD
+          ? workCycles
+          : workCycles / 2;
+        const outputPerCycle = recipe === BREWERY_RECIPE_CIDER
+          ? BREWERY_CIDER_PER_CYCLE
+          : recipe === BREWERY_RECIPE_MEAD
+            ? BREWERY_MEAD_PER_CYCLE
+            : BREWERY_ALE_PER_CYCLE;
+        const outputKind = recipe === BREWERY_RECIPE_CIDER
+          ? 'cider'
+          : recipe === BREWERY_RECIPE_MEAD
+            ? 'mead'
+            : 'ale';
+        const outputPerDay = beverageCycles * outputPerCycle;
+        beverageOutputPerDay += outputPerDay;
         const aleCycles = workCycles / 2;
+        if (recipe !== BREWERY_RECIPE_CIDER && recipe !== BREWERY_RECIPE_MEAD) {
+          beverageBarleyPerDay += aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE;
+          beverageWaterPerDay += aleCycles * (
+            BREWERY_MALTING_WATER_PER_CYCLE
+            + BREWERY_BREWING_WATER_PER_CYCLE
+          );
+          beverageFirewoodPerDay += aleCycles * (
+            BREWERY_MALTING_FIREWOOD_PER_CYCLE
+            + BREWERY_BREWING_FIREWOOD_PER_CYCLE
+          );
+        }
         recordProsperityOutput(
           prosperityRoadBranches,
           building,
           componentFor,
           'ale',
-          aleCycles * BREWERY_ALE_PER_CYCLE,
+          outputPerDay,
         );
-        let runway = buildingInputRunway(
-          deliveries,
-          building,
-          'barley',
-          aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
-        );
-        if (aleCycles > 1e-9 && (building.malt ?? 0) > 1e-9) {
-          const maltAsBarley = (building.malt ?? 0)
-            / BREWERY_MALT_PER_CYCLE
-            * BREWERY_BARLEY_PER_MALT_CYCLE;
-          runway = inputRunway(
-            Math.max(0, building.barley ?? 0) + maltAsBarley,
-            aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
-            deliveries.get(building.id)?.get('barley'),
+        let limitingInput: ProcessorInput;
+        let runway: InputRunway;
+        if (recipe === BREWERY_RECIPE_CIDER) {
+          limitingInput = 'apples';
+          runway = buildingInputRunway(
+            deliveries,
+            building,
+            'apples',
+            beverageCycles * BREWERY_APPLES_PER_CIDER_CYCLE,
           );
-        }
-        let limitingInput: ProcessorInput = 'barley';
-        const waterRunway = buildingInputRunway(
-          deliveries,
-          building,
-          'water',
-          aleCycles * (
-            BREWERY_MALTING_WATER_PER_CYCLE
-            + BREWERY_BREWING_WATER_PER_CYCLE
-          ),
-        );
-        if (waterRunway.days < runway.days) {
-          runway = waterRunway;
-          limitingInput = 'water';
-        }
-        const firewoodRunway = buildingInputRunway(
-          deliveries,
-          building,
-          'firewood',
-          aleCycles * (
-            BREWERY_MALTING_FIREWOOD_PER_CYCLE
-            + BREWERY_BREWING_FIREWOOD_PER_CYCLE
-          ),
-        );
-        if (firewoodRunway.days < runway.days) {
-          runway = firewoodRunway;
-          limitingInput = 'firewood';
+        } else if (recipe === BREWERY_RECIPE_MEAD) {
+          limitingInput = 'honey';
+          runway = buildingInputRunway(
+            deliveries,
+            building,
+            'honey',
+            beverageCycles * BREWERY_HONEY_PER_MEAD_CYCLE,
+          );
+        } else {
+          limitingInput = 'barley';
+          runway = buildingInputRunway(
+            deliveries,
+            building,
+            'barley',
+            aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
+          );
+          if (aleCycles > 1e-9 && (building.malt ?? 0) > 1e-9) {
+            const maltAsBarley = (building.malt ?? 0)
+              / BREWERY_MALT_PER_CYCLE
+              * BREWERY_BARLEY_PER_MALT_CYCLE;
+            runway = inputRunway(
+              Math.max(0, building.barley ?? 0) + maltAsBarley,
+              aleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
+              deliveries.get(building.id)?.get('barley'),
+            );
+          }
+          const waterRunway = buildingInputRunway(
+            deliveries,
+            building,
+            'water',
+            aleCycles * (
+              BREWERY_MALTING_WATER_PER_CYCLE
+              + BREWERY_BREWING_WATER_PER_CYCLE
+            ),
+          );
+          if (waterRunway.days < runway.days) {
+            runway = waterRunway;
+            limitingInput = 'water';
+          }
+          const firewoodRunway = buildingInputRunway(
+            deliveries,
+            building,
+            'firewood',
+            aleCycles * (
+              BREWERY_MALTING_FIREWOOD_PER_CYCLE
+              + BREWERY_BREWING_FIREWOOD_PER_CYCLE
+            ),
+          );
+          if (firewoodRunway.days < runway.days) {
+            runway = firewoodRunway;
+            limitingInput = 'firewood';
+          }
         }
         breweryInputBuffer = updateFirstToStop(
           breweryInputBuffer,
@@ -1252,10 +1317,10 @@ function completedProcessorOverview(
         breweryOutputRoom = updateFirstToFill(
           breweryOutputRoom,
           outputRoomDays(
-            building.ale,
+            Math.max(0, building[outputKind] ?? 0),
             processorOutputTargetForBuilding(building)
-              ?? (BUILDING_STORAGE_CAPS.brewery.ale ?? 0),
-            aleCycles * BREWERY_ALE_PER_CYCLE,
+              ?? (BUILDING_STORAGE_CAPS.brewery[outputKind] ?? 0),
+            outputPerDay,
           ),
           building.id,
           normalizeProcessorOutputTargetPercent(building.processorOutputTargetPercent),
@@ -1682,6 +1747,10 @@ function completedProcessorOverview(
     maintainedToolIronworkPerDay,
     fullToolIronworkPerDay,
     firstUnmaintainedToolSiteId,
+    beverageOutputPerDay,
+    beverageBarleyPerDay,
+    beverageWaterPerDay,
+    beverageFirewoodPerDay,
     millInputBuffer,
     bakeryInputBuffer,
     breweryInputBuffer,
@@ -2468,6 +2537,10 @@ export function computeSettlementProductionCapacity(
     maintainedToolIronworkPerDay,
     fullToolIronworkPerDay,
     firstUnmaintainedToolSiteId,
+    beverageOutputPerDay,
+    beverageBarleyPerDay,
+    beverageWaterPerDay,
+    beverageFirewoodPerDay,
     millInputBuffer,
     bakeryInputBuffer,
     breweryInputBuffer,
@@ -2498,8 +2571,6 @@ export function computeSettlementProductionCapacity(
     normalizedResourceAbundance,
     calendarMonth,
   );
-  const breweryCycles = cyclesPerCalendarDay('brewery', breweryWorkers, sabbathObserved);
-  const breweryAleCycles = breweryCycles / 2;
   const smokehouseCycles = cyclesPerCalendarDay(
     'smokehouse',
     smokehouseWorkers,
@@ -2672,16 +2743,10 @@ export function computeSettlementProductionCapacity(
     breadGrainPerDay: millCyclesForBread * WATERMILL_GRAIN_PER_CYCLE,
     breadWaterPerDay: breadCyclesPerDay * BAKERY_WATER_PER_CYCLE,
     breadFirewoodPerDay: breadCyclesPerDay * BAKERY_FIREWOOD_PER_CYCLE,
-    aleOutputPerDay: breweryAleCycles * BREWERY_ALE_PER_CYCLE,
-    aleBarleyPerDay: breweryAleCycles * BREWERY_BARLEY_PER_MALT_CYCLE,
-    aleWaterPerDay: breweryAleCycles * (
-      BREWERY_MALTING_WATER_PER_CYCLE
-      + BREWERY_BREWING_WATER_PER_CYCLE
-    ),
-    aleFirewoodPerDay: breweryAleCycles * (
-      BREWERY_MALTING_FIREWOOD_PER_CYCLE
-      + BREWERY_BREWING_FIREWOOD_PER_CYCLE
-    ),
+    aleOutputPerDay: beverageOutputPerDay,
+    aleBarleyPerDay: beverageBarleyPerDay,
+    aleWaterPerDay: beverageWaterPerDay,
+    aleFirewoodPerDay: beverageFirewoodPerDay,
     preservedFoodOutputPerDay: smokehouseCycles * SMOKEHOUSE_PRESERVED_FOOD_PER_CYCLE,
     preservationFreshFoodPerDay: smokehouseCycles * SMOKEHOUSE_FOOD_PER_CYCLE,
     preservationFirewoodPerDay: smokehouseCycles * SMOKEHOUSE_FIREWOOD_PER_CYCLE,

@@ -14,7 +14,7 @@ Date: 2026-07-15
 
 | Requirement | Result | Evidence |
 |---|---:|---|
-| Remove generic building selection rings; reserve rings for functional work extents | PASS | `src/resources/ResourceInspector.ts` uses a hovering inspection beacon. `src/buildings/buildingExtents.ts` emits only explicit work extents. Repository search finds no building selection-ring implementation. |
+| Remove building radius rings, including work, service, faith, warning, rally, and fire-planning extents | PASS | Placement keeps only the terrain-hugging footprint, selection keeps non-radius feedback such as the guardhouse muster route, and `buildingExtents.ts` supplies validation and inspector metadata without world-space circles. |
 | Fields belong to the farmstead, not the mill | PASS | Field placement is constrained to the farmstead work extent in `src/farming/FarmFieldTool.ts`; non-spatial buildings return no extent, covered by `test:expanded-settlement`. |
 | Add pastoral gameplay without duplicating the arable farm | PASS | Pastoral farmstead supports cattle or sheep, herd health/capacity/breeding, dairy/preserved-food and wool outcomes, and player-drawn pasture parcels. |
 | Cattle affect arable farming through ox power and manure | PASS | `server/src/simulation/livestock.rs` supplies the plough multiplier and fertility bonus; `server/src/simulation/expanded_economy.rs` applies them only to ploughing and directly to field fertility. No manure commodity was introduced. |

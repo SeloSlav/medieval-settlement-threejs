@@ -156,6 +156,13 @@ import {
   potterFiringPolicyLabel,
 } from '../../economy/potterFiringPolicy.ts';
 import {
+  BREWERY_RECIPE_AUTO,
+  BREWERY_RECIPE_PRESETS,
+  breweryRecipePolicyLabel,
+  normalizeBreweryRecipePolicy,
+  selectedBreweryRecipePolicy,
+} from '../../economy/breweryRecipePolicy.ts';
+import {
   CLAY_BANK_LEAN_YIELD_THRESHOLD,
   clayBankYieldAt,
   clayBankYieldGrade,
@@ -205,9 +212,10 @@ const PROCESS: Record<string, string> = {
   threshing_barn: 'Farmstead crew works nearby drawn fields',
   watermill: 'Grain + seasonal river power + smith-dressed millstones and iron fittings → flour',
   windmill: 'Grain + upland wind + smith-dressed millstones and iron fittings → flour without river access',
-  granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then stocks Marketplace stalls and physical institutional routes',
+  granary: 'Shelters foodstuffs, farm crops, flour, and cured provisions, then stocks Marketplace stalls, Taverns, and physical institutional routes',
   bakery: 'Flour + hauled water + firewood + baker labor -> bread for Marketplace stalls and institutions',
-  brewery: 'Barley + water + firewood → malt → ale',
+  brewery: 'Barley → malt → ale, 4 apples → 1 cider, or 1 honey → 1 mead; finished beverages go to staffed Taverns',
+  tavern: 'Receives ale, cider, and mead, then serves any of them as the residential Beverage service',
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
   vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
@@ -265,7 +273,11 @@ function buildingHasOutboundStock(
     case 'brewery':
       return (building.barley ?? 0) > 0
         || (building.malt ?? 0) > 0
-        || building.ale > 0;
+        || (building.apples ?? 0) > 0
+        || (building.honey ?? 0) > 0
+        || building.ale > 0
+        || (building.cider ?? 0) > 0
+        || (building.mead ?? 0) > 0;
     case 'smokehouse':
       return preservedFoodStock(building) > 0;
     case 'apiary':
@@ -1657,7 +1669,7 @@ export function renderGranaryPolicyPanel(building: BuildingState): string {
     : 'Preservation-first restores the highest-priority smokehouse fresh-food buffer before stocking fresh and cured Marketplace stalls.';
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food. Each assigned granary worker can set up one fresh-food, preserved-food, or ale table at one nearest connected Marketplace; an unstocked worker stands by to accept the first compatible producer delivery. Those keepers also haul physical institutional routes, but never cart routine provisions from a stall to individual homes. Fresh-food surplus carts still serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries.</p>
+      <p class="inspector-action-panel__hint">Centralizing perishables shelters fresh food. Each assigned granary worker can set up one fresh-food or preserved-food table at one nearest connected Marketplace; an unstocked worker stands by to accept the first compatible producer delivery. Ale is hauled to staffed Taverns instead. Those keepers also haul physical institutional routes, but never cart routine provisions from a stall to individual homes. Fresh-food surplus carts still serve critical guards, smokehouse working batches, routine company reserves, and enabled granaries.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-accepts-fresh-food ${building.granaryAcceptsFreshFood === false ? '' : 'checked'} /><span>Collect fresh and cured surplus</span></label>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-granary-households-first ${householdsFirst ? 'checked' : ''} /><span>Feed households before smokehouses</span></label>
       <p class="inspector-action-panel__hint">${priorityHint}</p>
@@ -1697,6 +1709,22 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
     : stock > target + 0.05
       ? `${(stock - target).toFixed(0)} above target · still available`
       : 'Production paused at target';
+  const breweryRecipePolicy = building.kind === 'brewery'
+    ? (() => {
+        const configured = normalizeBreweryRecipePolicy(building.breweryRecipePolicy);
+        const selected = selectedBreweryRecipePolicy(configured, building);
+        const active = configured === BREWERY_RECIPE_AUTO
+          ? `Auto currently selects ${breweryRecipePolicyLabel(selected)} from on-site stocks.`
+          : `${breweryRecipePolicyLabel(configured)} is the only recipe accepting new inputs.`;
+        return `
+          <p class="resource-inspector-note">Active recipe · choose which raw material this Brewery accepts and converts.</p>
+          <div class="resource-action-row">${BREWERY_RECIPE_PRESETS
+            .map((preset) => `<button type="button" class="resource-action-button" data-brewery-recipe-policy="${preset.policy}" title="${preset.hint}" ${configured === preset.policy ? 'disabled' : ''}>${preset.label}</button>`)
+            .join('')}</div>
+          <p class="inspector-action-panel__hint">${active} Cider uses 4 apples for 1 cider; mead uses 1 honey for 1 mead. Ale, cider, and mead are all hauled to a staffed Tavern and fulfill the same Beverage requirement.</p>
+        `;
+      })()
+    : '';
   const weaverInputPolicy = building.kind === 'weaver'
     ? `
       <p class="resource-inspector-note">Fibre preference · steers matching raw-fibre carts between active looms, then decides which complete onsite recipe is consumed first.</p>
@@ -1733,6 +1761,7 @@ export function renderProcessorOutputTargetPanel(building: BuildingState): strin
         .map((preset) => `<button type="button" class="resource-action-button" data-processor-output-target="${preset.percent}" title="${preset.hint}" ${percent === preset.percent ? 'disabled' : ''}>${preset.label} · ${preset.percent}%</button>`)
         .join('')}</div>
       ${weaverInputPolicy}
+      ${breweryRecipePolicy}
       ${potterFiringPolicy}
       ${potteryDispatchPolicy}
       <p class="inspector-action-panel__hint">This policy sets both the on-site input staging depth and the finished-goods ceiling. Routine input top-ups stop at the staged-cycle target; a producer may still use the workshop as last-resort overflow when normal storage cannot receive its cargo. Finished-goods deliveries may draw below the ceiling and restart work. It is not a protected reserve, and a cart already on the road may still arrive after you lower it.</p>

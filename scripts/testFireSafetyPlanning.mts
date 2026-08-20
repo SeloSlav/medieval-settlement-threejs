@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
-import * as THREE from 'three';
 import {
   createBuildingPreviewMesh,
   disposeBuildingPreviewMesh,
-  updateBuildingPreviewAppearance,
-  updateBuildingPreviewGeometry,
 } from '../src/buildings/BuildingPlacementPreview.ts';
 import {
   assessBuildingFireSafety,
@@ -15,7 +12,6 @@ import {
 } from '../src/fires/fireRiskPolicy.ts';
 import {
   FIRE_MINIMUM_BUCKET_WATER,
-  FIRE_SPREAD_RADIUS,
 } from '../src/generated/gameBalance.ts';
 import type {
   BuildingKind,
@@ -136,36 +132,10 @@ assert.equal(fireSafe.coverage, 'fireproof');
 assert.equal(describePlacementFireSafety(fireSafe), null);
 
 const preview = createBuildingPreviewMesh('smithy');
-const fireRing = preview.getObjectByName('Building fire spread range');
-assert.ok(fireRing instanceof THREE.Mesh);
-assert.equal(fireRing.userData.extentRadius, FIRE_SPREAD_RADIUS);
-updateBuildingPreviewGeometry(
-  preview,
-  'smithy',
-  0,
-  0,
-  0,
-  (x, z) => Math.sin(x * 0.05) + Math.cos(z * 0.04),
-);
-assert.ok(
-  (fireRing.geometry.getAttribute('position') as THREE.BufferAttribute).count > 24,
-  'fire spread preview must be a readable terrain-following dashed ring',
-);
-updateBuildingPreviewAppearance(preview, true);
 assert.equal(
-  (fireRing.material as THREE.MeshBasicMaterial).color.getHex(),
-  0xd19a57,
-  'placement should show a neutral fire-planning radius without revealing well coverage',
-);
-updateBuildingPreviewAppearance(preview, true);
-assert.equal(
-  (fireRing.material as THREE.MeshBasicMaterial).color.getHex(),
-  0xd19a57,
-);
-updateBuildingPreviewAppearance(preview, false);
-assert.equal(
-  (fireRing.material as THREE.MeshBasicMaterial).color.getHex(),
-  0xff5d50,
+  preview.getObjectByName('Building fire spread range'),
+  undefined,
+  'high-risk placement must not expose its fire-planning radius',
 );
 disposeBuildingPreviewMesh(preview);
 const chapelPreview = createBuildingPreviewMesh('chapel');

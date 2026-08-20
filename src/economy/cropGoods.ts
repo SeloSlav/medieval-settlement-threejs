@@ -1,4 +1,6 @@
 export const BREAD_GRAIN_KINDS = ['ryeGrain', 'oatGrain', 'maslinGrain'] as const;
+/** Oats are threshed food/fodder; only rye and the wheat-slot grain go to mills. */
+export const MILLABLE_GRAIN_KINDS = ['ryeGrain', 'maslinGrain'] as const;
 export const GRAIN_SHEAF_KINDS = [
   'ryeSheaves',
   'oatSheaves',
@@ -9,6 +11,7 @@ export const BREAD_GRAIN_SHEAF_KINDS = [
   'ryeSheaves', 'oatSheaves', 'maslinSheaves',
 ] as const;
 export const FLOUR_KINDS = ['ryeFlour', 'oatFlour', 'maslinFlour'] as const;
+export const BAKEABLE_FLOUR_KINDS = ['ryeFlour', 'maslinFlour'] as const;
 export const BREAD_KINDS = ['ryeBread', 'oatBread', 'maslinBread'] as const;
 
 export type BreadGrainKind = (typeof BREAD_GRAIN_KINDS)[number];
@@ -33,6 +36,10 @@ export function breadGrainStock(inventory: CropGoodsInventory): number {
   return sumKinds(inventory, BREAD_GRAIN_KINDS);
 }
 
+export function millableGrainStock(inventory: CropGoodsInventory): number {
+  return sumKinds(inventory, MILLABLE_GRAIN_KINDS);
+}
+
 export function grainSheafStock(inventory: CropGoodsInventory): number {
   return sumKinds(inventory, GRAIN_SHEAF_KINDS);
 }
@@ -43,6 +50,10 @@ export function breadGrainBulkStock(inventory: CropGoodsInventory): number {
 
 export function flourStock(inventory: CropGoodsInventory): number {
   return sumKinds(inventory, FLOUR_KINDS);
+}
+
+export function bakeableFlourStock(inventory: CropGoodsInventory): number {
+  return sumKinds(inventory, BAKEABLE_FLOUR_KINDS);
 }
 
 export function breadStock(inventory: CropGoodsInventory): number {

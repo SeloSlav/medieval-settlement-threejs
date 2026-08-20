@@ -623,6 +623,13 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setThreshingPriority(buildingId, priority);
   }
 
+  setBreweryRecipePolicy(
+    buildingId: string,
+    recipePolicy: number,
+  ): Promise<void> {
+    return spacetimeReducers.setBreweryRecipePolicy(buildingId, recipePolicy);
+  }
+
   setWeaverInputPolicy(
     buildingId: string,
     inputPolicy: number,

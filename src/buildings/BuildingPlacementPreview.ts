@@ -103,7 +103,6 @@ export function updateBuildingPreviewGeometry(
       },
     );
   }
-
 }
 
 export function updateBuildingPreviewAppearance(

@@ -10,7 +10,7 @@ use crate::balance_generated::{
     BackyardGardenKind, FarmCropProduce, APIARY_HONEY_PER_CYCLE, APIARY_WINTER_HONEY_REQUIRED,
     BACKYARD_APIARY_POLLINATION_CONTRIBUTION, BACKYARD_APIARY_POLLINATION_RADIUS,
     BAKERY_FIREWOOD_PER_CYCLE, BAKERY_FLOUR_PER_CYCLE, BAKERY_MASLIN_BREAD_PER_CYCLE,
-    BAKERY_OAT_BREAD_PER_CYCLE, BAKERY_RYE_BREAD_PER_CYCLE, BAKERY_WATER_PER_CYCLE,
+    BAKERY_RYE_BREAD_PER_CYCLE, BAKERY_WATER_PER_CYCLE,
     BREWERY_ALE_PER_CYCLE, BREWERY_APPLES_PER_CIDER_CYCLE, BREWERY_BARLEY_PER_MALT_CYCLE,
     BREWERY_BREWING_FIREWOOD_PER_CYCLE, BREWERY_BREWING_WATER_PER_CYCLE,
     BREWERY_CIDER_PER_CYCLE, BREWERY_HONEY_PER_MEAD_CYCLE, BREWERY_MALTING_FIREWOOD_PER_CYCLE,
@@ -32,7 +32,7 @@ use crate::balance_generated::{
     THRESHING_SHEAVES_PER_CYCLE, TICK_DT, TIMBER_DELIVERY_SPEED_MPS, TIMBER_DELIVERY_UNLOAD_SEC,
     VINEYARD_FERMENTATION_SECONDS, VINEYARD_GRAPES_PER_FERMENTATION_BATCH,
     VINEYARD_GRAPES_PER_HARVEST_CYCLE, VINEYARD_WINE_PER_FERMENTATION_BATCH,
-    WATERMILL_GRAIN_PER_CYCLE, WATERMILL_MASLIN_FLOUR_PER_CYCLE, WATERMILL_OAT_FLOUR_PER_CYCLE,
+    WATERMILL_GRAIN_PER_CYCLE, WATERMILL_MASLIN_FLOUR_PER_CYCLE,
     WATERMILL_RYE_FLOUR_PER_CYCLE, WEAVER_CLOTH_PER_CYCLE, WEAVER_FLAX_PER_CYCLE,
     WEAVER_FLAX_WATER_PER_CYCLE, WEAVER_WOOL_PER_CYCLE,
 };
@@ -808,11 +808,6 @@ fn selected_mill_recipe(mill: &Building) -> Option<(CommodityKind, CommodityKind
             WATERMILL_RYE_FLOUR_PER_CYCLE,
         ),
         (
-            CommodityKind::OatGrain,
-            CommodityKind::OatFlour,
-            WATERMILL_OAT_FLOUR_PER_CYCLE,
-        ),
-        (
             CommodityKind::MaslinGrain,
             CommodityKind::MaslinFlour,
             WATERMILL_MASLIN_FLOUR_PER_CYCLE,
@@ -835,11 +830,6 @@ fn selected_bakery_recipe(bakery: &Building) -> Option<(CommodityKind, Commodity
             CommodityKind::RyeFlour,
             CommodityKind::RyeBread,
             BAKERY_RYE_BREAD_PER_CYCLE,
-        ),
-        (
-            CommodityKind::OatFlour,
-            CommodityKind::OatBread,
-            BAKERY_OAT_BREAD_PER_CYCLE,
         ),
         (
             CommodityKind::MaslinFlour,
@@ -866,7 +856,6 @@ fn dispatch_typed_flour(
 ) {
     let mut flours = [
         CommodityKind::RyeFlour,
-        CommodityKind::OatFlour,
         CommodityKind::MaslinFlour,
     ];
     flours.sort_by(|left, right| {
@@ -1823,7 +1812,6 @@ pub fn step_granary(
     // keepers replenish the workshops that consume centralized farm goods.
     for flour in [
         CommodityKind::RyeFlour,
-        CommodityKind::OatFlour,
         CommodityKind::MaslinFlour,
     ] {
         dispatch_to_building(ctx, tick, clock, &mut granary, flour, &["bakery"]);
@@ -1847,6 +1835,22 @@ pub fn step_granary(
     for duty in granary_dispatch_order(granary.granary_households_first) {
         match duty {
             GranaryDispatchDuty::Households => {
+                // Oats are ready household food after threshing, but the
+                // granary's protected seed floor must remain untouchable.
+                let oat_surplus = granary_typed_grain_surplus(
+                    &granary,
+                    CommodityKind::OatGrain,
+                );
+                dispatch_to_building_where_limited(
+                    ctx,
+                    tick,
+                    clock,
+                    &mut granary,
+                    CommodityKind::OatGrain,
+                    &["marketplace"],
+                    oat_surplus,
+                    |_| true,
+                );
                 for commodity in [
                     CommodityKind::Meat,
                     CommodityKind::Fish,
@@ -3716,12 +3720,11 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
     match kind {
         "watermill" | "windmill" => matches!(
             commodity,
-            CommodityKind::RyeGrain | CommodityKind::OatGrain | CommodityKind::MaslinGrain
+            CommodityKind::RyeGrain | CommodityKind::MaslinGrain
         ),
         "bakery" => matches!(
             commodity,
             CommodityKind::RyeFlour
-                | CommodityKind::OatFlour
                 | CommodityKind::MaslinFlour
                 | CommodityKind::Water
                 | CommodityKind::Firewood
@@ -3766,6 +3769,16 @@ fn processor_uses_input(kind: &str, commodity: CommodityKind) -> bool {
 }
 
 pub(crate) fn processor_accepts_input(building: &Building, commodity: CommodityKind) -> bool {
+    // Oats leave the farmstead ready for households, livestock, or monastic
+    // hospitality. The former oat-flour chain remains only as save data.
+    if matches!(building.kind.as_str(), "watermill" | "windmill")
+        && commodity == CommodityKind::OatGrain
+    {
+        return false;
+    }
+    if building.kind == "bakery" && commodity == CommodityKind::OatFlour {
+        return false;
+    }
     if building.kind == "granary" && (commodity.is_fresh_food() || commodity.is_preserved_food()) {
         return building.granary_accepts_fresh_food;
     }
@@ -3921,7 +3934,7 @@ fn dispatch_farmstead_typed_grain(
             continue;
         }
         let targets: &[&str] = if grain == CommodityKind::OatGrain {
-            &["watermill", "windmill", "monastery", "granary"]
+            &["monastery", "granary"]
         } else {
             &["watermill", "windmill", "granary"]
         };

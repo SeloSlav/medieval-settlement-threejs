@@ -1371,7 +1371,7 @@
     "marketplace": {
       "label": "Marketplace",
       "cost": { "timber": 32, "stone": 26 },
-      "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 0, "barley": 0, "ale": 140, "honey": 48, "wine": 0, "cloth": 120, "ironwork": 0, "iron": 0, "salt": 0, "charcoal": 80, "pottery": 96, "remedies": 48 },
+      "storage": { "timber": 0, "firewood": 80, "stone": 0, "water": 0, "food": 96, "preservedFood": 120, "grain": 96, "barley": 0, "ale": 140, "honey": 48, "wine": 0, "cloth": 120, "ironwork": 0, "iron": 0, "salt": 0, "charcoal": 80, "pottery": 96, "remedies": 48 },
       "workRadius": 0,
       "pickRadius": 8,
       "harvestInterval": 0,

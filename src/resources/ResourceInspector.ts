@@ -174,6 +174,10 @@ type ResourceInspectorOptions = {
     buildingId: string,
     targetPercent: number,
   ) => void | Promise<void>;
+  onSetBreweryRecipePolicy?: (
+    buildingId: string,
+    recipePolicy: number,
+  ) => void | Promise<void>;
   onSetWeaverInputPolicy?: (
     buildingId: string,
     inputPolicy: number,
@@ -1171,6 +1175,18 @@ export class ResourceInspector {
       this.selectedTarget?.kind === 'building'
       && isProcessorOutputTargetKind(this.selectedTarget.building.kind)
     ) {
+      if (this.selectedTarget.building.kind === 'brewery') {
+        const recipePolicy = (event.target as HTMLElement)
+          .closest<HTMLElement>('[data-brewery-recipe-policy]')
+          ?.dataset.breweryRecipePolicy;
+        if (recipePolicy != null) {
+          void this.options.onSetBreweryRecipePolicy?.(
+            this.selectedTarget.building.id,
+            Number(recipePolicy),
+          );
+          return;
+        }
+      }
       if (this.selectedTarget.building.kind === 'weaver') {
         const inputPolicy = (event.target as HTMLElement)
           .closest<HTMLElement>('[data-weaver-input-policy]')

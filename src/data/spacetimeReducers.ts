@@ -542,6 +542,18 @@ export async function setWeaverInputPolicy(
   });
 }
 
+export async function setBreweryRecipePolicy(
+  buildingId: string,
+  recipePolicy: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid Brewery id.');
+  await callReducer('setBreweryRecipePolicy', 'set_brewery_recipe_policy', {
+    buildingId: serverId,
+    recipePolicy,
+  });
+}
+
 export async function setPotteryDispatchPolicy(
   buildingId: string,
   dispatchPolicy: number,

@@ -486,11 +486,11 @@ pub fn directly_dispatched_processor_input_per_cycle(target_kind: &str, commodit
         ("smokehouse", "firewood") => SMOKEHOUSE_FIREWOOD_PER_CYCLE,
         ("charcoal_burner", "firewood") => CHARCOAL_BURNER_FIREWOOD_PER_CYCLE,
         ("potter_kiln", "firewood") => POTTER_FIREWOOD_PER_CYCLE,
-        ("watermill" | "windmill", "ryeGrain" | "oatGrain" | "maslinGrain") => {
+        ("watermill" | "windmill", "ryeGrain" | "maslinGrain") => {
             WATERMILL_GRAIN_PER_CYCLE
         }
         ("monastery", "oatGrain") => MONASTERY_OAT_GRAIN_PER_CYCLE,
-        ("bakery", "ryeFlour" | "oatFlour" | "maslinFlour") => BAKERY_FLOUR_PER_CYCLE,
+        ("bakery", "ryeFlour" | "maslinFlour") => BAKERY_FLOUR_PER_CYCLE,
         ("smokehouse", "food" | "meat" | "fish" | "milk") => SMOKEHOUSE_FOOD_PER_CYCLE,
         ("smokehouse", "pottery") => SMOKEHOUSE_POTTERY_PER_CYCLE,
         ("smokehouse", "salt") => SMOKEHOUSE_SALT_PER_CYCLE,

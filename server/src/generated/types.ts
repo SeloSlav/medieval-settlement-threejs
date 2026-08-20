@@ -635,6 +635,7 @@ export const Residence = __t.object("Residence", {
   ryeBread: __t.f64(),
   oatBread: __t.f64(),
   maslinBread: __t.f64(),
+  oatGrain: __t.f64(),
 });
 export type Residence = __Infer<typeof Residence>;
 

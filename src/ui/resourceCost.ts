@@ -81,7 +81,7 @@ const RESOURCE_COST_LABELS: Record<ResourceCostKind, string> = {
   barleySheaves: 'barley sheaves',
   maslinSheaves: 'maslin sheaves',
   ryeGrain: 'rye grain',
-  oatGrain: 'oat grain',
+  oatGrain: 'oats',
   maslinGrain: 'maslin grain',
   barley: 'barley',
   malt: 'malt',

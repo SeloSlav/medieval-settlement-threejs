@@ -670,10 +670,10 @@ export function renderResidenceInspector(
         * PRESERVED_FOOD_STORAGE_RESIDENCE_FACTOR,
       )} · consume or replenish regularly</span></li>` : ''}
       ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Seasonal ration rotation</span><span>${preservedFoodRotationPerDay.toFixed(2)} / day at ${preservedFoodDemandMultiplier.toFixed(2)}&times; seasonal use &middot; replaces the same amount of fresh food rather than adding a second meal</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Ale</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY} · ${aleRunwayLabel} runway</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-primary data-inspector-section="${foodAndDrinkSection}"><span>Beverages</span><span>${Math.round(getNeedStock(residence.needs, 'ale'))} / ${RESIDENCE_ALE_CAPACITY} · ${aleRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Fresh-food supplier</span><span>${foodSupplierLabel}</span></li>` : ''}
       ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Preserved-food supplier</span><span>${preservedFoodSupplierLabel}</span></li>` : ''}
-      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Ale supplier</span><span>${aleSupplierLabel}</span></li>` : ''}
+      ${residence.tier >= 3 ? `<li data-inspector-secondary data-inspector-section="${foodAndDrinkSection}"><span>Beverage service</span><span>${aleSupplierLabel}</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Firewood</span><span>${Math.round(getNeedStock(residence.needs, 'firewood'))} / ${RESIDENCE_FIREWOOD_CAPACITY} · ${firewoodRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-primary data-inspector-section="${fuelAndWaterSection}"><span>Water</span><span>${Math.round(getNeedStock(residence.needs, 'water'))} / ${RESIDENCE_WATER_CAPACITY} · ${waterRunwayLabel} runway</span></li>` : ''}
       ${residence.tier > 0 ? `<li data-inspector-secondary data-inspector-section="${fuelAndWaterSection}"><span>Heating supplier</span><span>${firewoodSupplierLabel}</span></li>` : ''}
@@ -824,7 +824,7 @@ function residenceProsperityRows(
     <li><span>Settlement prosperity</span><span>${plan.currentResidents} / ${usableCapacity} road-matched residents at installed capacity${plan.roadPlan && plan.roadPlan.fragmentationResidentCapacity > 0 ? ` · ${plan.roadPlan.fragmentationResidentCapacity} capacity split between branches` : ''} · assumes fully supplied staffed workshops</span></li>
     ${projection.roadBranchScoped ? `<li><span>Local prosperity branch</span><span>${localCurrentResidents} current / ${localCapacity} resident capacity · ${projection.limitingLabel} limited</span></li>` : ''}
     <li><span>Promotion load</span><span>+${projection.occupantsPromotedNow} prosperous consumers now · +${projection.targetHouseCapacity} with this house full · ${immediateStatus}</span></li>
-    <li><span>Prosperity planning load</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} winter-peak preserved ration/day · +${projection.immediateDemand.ale.toFixed(2)} ale/day · +${projection.immediateDemand.cloth.toFixed(3)} cloth/day · +${projection.immediateDemand.pottery.toFixed(2)} pottery/day</span></li>
+    <li><span>Prosperity planning load</span><span>+${projection.immediateDemand.preservedFood.toFixed(2)} winter-peak preserved ration/day · +${projection.immediateDemand.ale.toFixed(2)} beverages/day · +${projection.immediateDemand.cloth.toFixed(3)} cloth/day · +${projection.immediateDemand.pottery.toFixed(2)} pottery/day</span></li>
   `;
 }
 
@@ -838,7 +838,7 @@ function residenceUpgradePanel(
     : `Blocked · ${plan.blockers.join(' · ')}.`;
   const guidance = plan.nextTier === 2
     ? "Tier progression still needs a staffed food stall and staffed goods stall. Actual stock at a road-connected Marketplace supplies a seven-day pantry on market day, with daily Town Hall checks only for critical food and heat; water draws from a completed well whose service radius and road branch reach this home, without a last-mile hauler."
-    : 'Preserved food needs a staffed smokehouse or pastoral holding; ale needs a staffed brewhouse or parish-linked monastery; household textiles need a staffed weaver.';
+    : 'Preserved food needs a staffed smokehouse or pastoral holding; Beverages need a staffed road-connected Tavern, supplied with ale, cider, or mead; household textiles need a staffed weaver.';
   const throughput = prosperity && projection
     ? projection.immediateSustainable
       ? projection.fullPipelineSustainable
@@ -925,7 +925,9 @@ function upgradeSupplierHasStock(
   if (kind === 'firewood') return supplier.firewood > 1e-6;
   if (kind === 'water') return supplier.water > 1e-6;
   if (kind === 'preservedFood') return preservedFoodStock(supplier) > 1e-6;
-  if (kind === 'ale') return supplier.ale > 1e-6;
+  if (kind === 'ale') {
+    return supplier.ale + (supplier.cider ?? 0) + (supplier.mead ?? 0) > 1e-6;
+  }
   return (supplier.cloth ?? 0) > 1e-6;
 }
 

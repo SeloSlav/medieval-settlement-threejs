@@ -11,6 +11,7 @@ import {
 
 export const FRESH_FOOD_KINDS = [
   'food',
+  'oatGrain',
   'ryeBread',
   'oatBread',
   'maslinBread',
@@ -35,6 +36,7 @@ export const PRESERVED_FOOD_KINDS = [
 ] as const;
 
 export const NAMED_FOOD_KINDS = [
+  'oatGrain',
   'ryeBread',
   'oatBread',
   'maslinBread',
@@ -62,6 +64,7 @@ export type FoodInventoryKind =
   | 'honey';
 
 export const NAMED_FOOD_LABELS: Record<NamedFoodKind, string> = {
+  oatGrain: 'Oats',
   ryeBread: 'Rye bread',
   oatBread: 'Oat bread',
   maslinBread: 'Maslin bread',
@@ -87,6 +90,7 @@ export type FoodInventoryLike = Partial<Record<FoodInventoryKind, number>>;
 /** Physical food units converted to the meal-equivalents used by demand. */
 export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
   food: 1,
+  oatGrain: 0.65,
   ryeBread: 1,
   oatBread: 0.9,
   maslinBread: 1.05,
@@ -111,6 +115,7 @@ export const FOOD_MEAL_VALUES: Readonly<Record<FoodInventoryKind, number>> = {
 /** Relative decay inside each food's fresh or preserved storage class. */
 export const FOOD_SPOILAGE_MULTIPLIERS: Readonly<Record<FoodInventoryKind, number>> = {
   food: 1,
+  oatGrain: 0.35,
   ryeBread: 0.55,
   oatBread: 0.6,
   maslinBread: 0.5,
@@ -155,6 +160,7 @@ export type FoodCategory = keyof typeof FOOD_CATEGORY_LABELS;
 export function foodCategory(kind: FoodInventoryKind): FoodCategory {
   switch (kind) {
     case 'food':
+    case 'oatGrain':
     case 'ryeBread':
     case 'oatBread':
     case 'maslinBread':

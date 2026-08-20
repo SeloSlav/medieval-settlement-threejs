@@ -136,9 +136,9 @@ const INPUTS_BY_KIND: Record<
   ProcessorOutputTargetKind,
   readonly ProcessorInputCommodity[]
 > = {
-  watermill: ['ryeGrain', 'oatGrain', 'maslinGrain'],
-  windmill: ['ryeGrain', 'oatGrain', 'maslinGrain'],
-  bakery: ['ryeFlour', 'oatFlour', 'maslinFlour', 'water', 'firewood'],
+  watermill: ['ryeGrain', 'maslinGrain'],
+  windmill: ['ryeGrain', 'maslinGrain'],
+  bakery: ['ryeFlour', 'maslinFlour', 'water', 'firewood'],
   brewery: ['barley', 'apples', 'honey', 'water', 'firewood'],
   smokehouse: ['food', 'firewood', 'salt', 'pottery'],
   weaver: ['wool', 'flax', 'water'],
@@ -362,6 +362,11 @@ export function processorAcceptsInput(
   building: BuildingState,
   commodity: ProcessorInputCommodity,
 ): boolean {
+  if (
+    (building.kind === 'watermill' || building.kind === 'windmill')
+    && commodity === 'oatGrain'
+  ) return false;
+  if (building.kind === 'bakery' && commodity === 'oatFlour') return false;
   if (building.kind === 'pastoral_farmstead' && commodity === 'salt') {
     return preservedFoodStock(building) + 1e-6
       < (BUILDING_STORAGE_CAPS.pastoral_farmstead.preservedFood ?? 0);

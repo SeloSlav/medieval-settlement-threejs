@@ -411,7 +411,7 @@ export function cargoKindLabel(kind: DeliveryCargoKind): string {
     case 'ryeGrain':
       return 'Rye grain';
     case 'oatGrain':
-      return 'Oat grain';
+      return 'Oats';
     case 'maslinGrain':
       return 'Maslin grain';
     case 'barley':

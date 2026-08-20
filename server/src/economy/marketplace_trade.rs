@@ -1087,7 +1087,7 @@ fn trade_resource_name(resource: TradeResource) -> &'static str {
         TradeResource::BarleySheaves => "barley sheaves",
         TradeResource::MaslinSheaves => "maslin sheaves",
         TradeResource::RyeGrain => "rye grain",
-        TradeResource::OatGrain => "oat grain",
+        TradeResource::OatGrain => "oats",
         TradeResource::MaslinGrain => "maslin grain",
         TradeResource::RyeFlour => "rye flour",
         TradeResource::OatFlour => "oat flour",

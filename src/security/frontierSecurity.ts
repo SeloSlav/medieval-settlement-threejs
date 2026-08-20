@@ -1329,7 +1329,7 @@ const RAID_PORTABLE_STORE_SUMMARY = [
   ['barleySheaves', 'barley sheaves', 1],
   ['maslinSheaves', 'maslin sheaves', 1],
   ['ryeGrain', 'rye grain', 1],
-  ['oatGrain', 'oat grain', 1],
+  ['oatGrain', 'oats', 1],
   ['maslinGrain', 'maslin grain', 1],
   ['barley', 'barley', 1],
   ['malt', 'malt', 1],

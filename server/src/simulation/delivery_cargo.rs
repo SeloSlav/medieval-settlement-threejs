@@ -211,7 +211,7 @@ pub fn selected_food_delivery_commodity(
     building: &Building,
     need_kind: ResidenceNeedKind,
 ) -> Option<CommodityKind> {
-    const FRESH_ORDER: [CommodityKind; 16] = [
+    const FRESH_ORDER: [CommodityKind; 17] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -226,6 +226,7 @@ pub fn selected_food_delivery_commodity(
         CommodityKind::RyeBread,
         CommodityKind::OatBread,
         CommodityKind::MaslinBread,
+        CommodityKind::OatGrain,
         CommodityKind::Food,
         CommodityKind::Honey,
     ];
@@ -256,6 +257,7 @@ pub fn selected_food_delivery_commodity(
             PRESERVED_ORDER[2],
             PRESERVED_ORDER[3],
             FRESH_ORDER[13],
+            FRESH_ORDER[14],
         ],
         ResidenceNeedKind::PreservedFood => &PRESERVED_ORDER,
         _ => return None,
@@ -277,7 +279,7 @@ pub fn selected_food_delivery_commodity_for_residence(
     if need_kind != ResidenceNeedKind::Food {
         return selected_food_delivery_commodity(building, need_kind);
     }
-    const ORDER: [CommodityKind; 20] = [
+    const ORDER: [CommodityKind; 21] = [
         CommodityKind::Meat,
         CommodityKind::Fish,
         CommodityKind::Milk,
@@ -292,6 +294,7 @@ pub fn selected_food_delivery_commodity_for_residence(
         CommodityKind::RyeBread,
         CommodityKind::OatBread,
         CommodityKind::MaslinBread,
+        CommodityKind::OatGrain,
         CommodityKind::Food,
         CommodityKind::Cheese,
         CommodityKind::SmokedFish,

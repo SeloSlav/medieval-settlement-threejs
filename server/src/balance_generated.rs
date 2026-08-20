@@ -1808,7 +1808,7 @@ const MARKETPLACE: BuildingDef = BuildingDef {
     storage_stone: 0.0,
     storage_water: 0.0,
     storage_food: 96.0,
-    storage_grain: 0.0,
+    storage_grain: 96.0,
     storage_barley: 0.0,
     storage_malt: 0.0,
     storage_flax: 0.0,

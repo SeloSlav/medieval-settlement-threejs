@@ -1619,7 +1619,7 @@ export const BUILDING_STORAGE_CAPS = {
   foragers_shed: { timber: 0, firewood: 0, stone: 0, food: 80, remedies: 36 },
   fishing_camp: { timber: 0, firewood: 0, stone: 0, food: 120 },
   chapel: { timber: 0, firewood: 0, stone: 0 },
-  marketplace: { timber: 0, firewood: 80, stone: 0, food: 96, ale: 140, preservedFood: 120, honey: 48, cloth: 120, charcoal: 80, pottery: 96, remedies: 48 },
+  marketplace: { timber: 0, firewood: 80, stone: 0, food: 96, grain: 96, ale: 140, preservedFood: 120, honey: 48, cloth: 120, charcoal: 80, pottery: 96, remedies: 48 },
   trading_post: { timber: 180, firewood: 120, stone: 180, water: 72, food: 160, grain: 120, barley: 120, malt: 120, flour: 120, ale: 180, preservedFood: 120, honey: 140, wine: 160, wool: 120, flax: 120, cloth: 160, ironwork: 96, polearms: 48, iron: 96, clay: 120, salt: 120, charcoal: 120, pottery: 144, roofTiles: 120, manure: 160, remedies: 72 },
   town_hall: { timber: 0, firewood: 0, stone: 0 },
   village_storehouse: { timber: 360, firewood: 280, stone: 360, cloth: 180, iron: 180, clay: 180, salt: 144, charcoal: 280, pottery: 180 },

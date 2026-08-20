@@ -29,7 +29,7 @@ const RESOURCE_LABELS: Record<HudResourceKind, string> = {
   food: 'Food',
   gold: 'Civic gold',
   ryeGrain: 'Rye grain',
-  oatGrain: 'Oat grain',
+  oatGrain: 'Oats',
   maslinGrain: 'Maslin grain',
   barley: 'Barley',
   malt: 'Malt',

@@ -152,7 +152,7 @@ function evaluateNeedRecovery(
     case 'ale':
       return {
         kind,
-        label: 'Ale',
+        label: 'Beverages',
         ready: supply.servingAleSupplierId != null && need.stock + 1e-6 >= threshold,
         stock: need.stock,
         threshold,
@@ -356,7 +356,7 @@ function describeActiveNeed(
         : null;
     case 'ale':
       return getNeed(residence.needs, kind).stock <= 1e-6
-        ? { label: 'Out of ale — awaiting brewhouse supply', state: 'warning' }
+        ? { label: 'Out of beverages — awaiting Tavern service', state: 'warning' }
         : null;
     case 'cloth': {
       const runwayDays = residenceClothRunwayDays(residence);
@@ -426,7 +426,7 @@ function needLabel(kind: ResidenceNeedKind): string {
     case 'food':
       return 'Food';
     case 'ale':
-      return 'Ale';
+      return 'Beverages';
     case 'preservedFood':
       return 'Preserved food';
     case 'cloth':

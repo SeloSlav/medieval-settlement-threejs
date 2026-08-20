@@ -698,6 +698,12 @@
   background-size: contain;
 }
 
+.settlement-hud__food-card[data-food-resource='oatGrain']::before {
+  background-image: url('/assets/ui/icons/provisions/oat-grain.png');
+  background-size: contain;
+  background-position: center;
+}
+
 .settlement-hud__food-card[data-food-resource='ryeBread']::before {
   background-image: url('/assets/ui/icons/provisions/rye-bread.png');
 }
