@@ -339,9 +339,6 @@ export class ResourceInspector {
   private readonly serviceCoverageButton: HTMLButtonElement;
   private readonly closeButton: HTMLButtonElement;
   private readonly detailList: HTMLElement;
-  private readonly secondaryDetailList: HTMLElement;
-  private readonly detailDisclosure: HTMLDetailsElement;
-  private readonly detailDisclosureCount: HTMLElement;
   private readonly stockpileRoot: HTMLElement;
   private readonly stockpileValues: Record<HudResourceKind, HTMLElement>;
   private readonly stockpileTransitValues: Record<HudResourceKind, HTMLElement>;
@@ -441,13 +438,6 @@ export class ResourceInspector {
         <div class="resource-inspector-scroll">
           <section class="resource-inspector-details" aria-label="At a glance">
             <ul class="road-controls-list" data-inspector-details></ul>
-            <details class="resource-inspector-ledger" data-inspector-ledger>
-              <summary>
-                <span>Full ledger</span>
-                <span data-inspector-ledger-count>0 details</span>
-              </summary>
-              <ul class="road-controls-list resource-inspector-ledger-list" data-inspector-secondary-details></ul>
-            </details>
           </section>
           <section class="resource-inspector-labor" data-inspector-labor hidden aria-label="Labor assignment">
             <div class="resource-inspector-labor-row">
@@ -490,11 +480,6 @@ export class ResourceInspector {
     );
     this.closeButton = this.mustButton(options.uiRoot, '[data-inspector-close]');
     this.detailList = this.mustElement(options.uiRoot, '[data-inspector-details]');
-    this.secondaryDetailList = this.mustElement(options.uiRoot, '[data-inspector-secondary-details]');
-    const detailDisclosure = options.uiRoot.querySelector<HTMLDetailsElement>('[data-inspector-ledger]');
-    if (!detailDisclosure) throw new Error('Missing resource inspector ledger');
-    this.detailDisclosure = detailDisclosure;
-    this.detailDisclosureCount = this.mustElement(options.uiRoot, '[data-inspector-ledger-count]');
     this.stockpileRoot = this.mustElement(options.uiRoot, '[data-settlement-hud]');
     this.resourceTotalsModeButton = this.mustButton(
       options.uiRoot,
@@ -1768,7 +1753,6 @@ export class ResourceInspector {
   };
 
   private selectTarget(target: InspectableTarget): void {
-    const previousIdentity = inspectableIdentity(this.selectedTarget);
     if (
       this.serviceCoverageBuildingId
       && (
@@ -1779,9 +1763,6 @@ export class ResourceInspector {
       this.clearServiceCoverage();
     }
     this.selectedTarget = target;
-    if (previousIdentity !== inspectableIdentity(target)) {
-      this.detailDisclosure.open = false;
-    }
     if (target.kind === 'quarry') {
       this.selectedX = target.definition.x;
       this.selectedZ = target.definition.z;
@@ -2212,14 +2193,8 @@ export class ResourceInspector {
       }
     }
 
-    const primary = rows.filter((row) => primaryRows.has(row));
-    const secondary = rows.filter((row) => !primaryRows.has(row));
-    this.detailList.replaceChildren(...withInspectorSectionHeadings(primary));
-    this.secondaryDetailList.replaceChildren(...withInspectorSectionHeadings(secondary));
-    this.detailDisclosure.hidden = secondary.length === 0;
-    this.detailDisclosureCount.textContent = secondary.length === 1
-      ? '1 detail'
-      : `${secondary.length} details`;
+    const visibleRows = rows.filter((row) => primaryRows.has(row));
+    this.detailList.replaceChildren(...withInspectorSectionHeadings(visibleRows));
   }
 
   private organizeSupplementalPanel(

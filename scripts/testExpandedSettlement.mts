@@ -452,10 +452,11 @@ assert.match(watermillInspector, /windmill on well-exposed ground/);
 const resourceInspector = fs.readFileSync('src/resources/ResourceInspector.ts', 'utf8');
 assert.match(resourceInspector, /row\.dataset\.tooltipTitle = label/);
 assert.match(resourceInspector, /row\.dataset\.tooltip = detail/);
+assert.doesNotMatch(resourceInspector, /Full ledger|data-inspector-ledger|secondaryDetailList/);
 assert.doesNotMatch(
   resourceInspector,
   /row\.title = detail/,
-  'full-ledger help must use the immediate styled tooltip instead of a delayed native title',
+  'inspector help must use the immediate styled tooltip instead of a delayed native title',
 );
 const buildingMarkers = fs.readFileSync('src/buildings/BuildingMarkers.ts', 'utf8');
 assert.match(buildingMarkers, /watermillThroughputMultiplier/);
