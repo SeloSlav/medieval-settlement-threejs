@@ -10,20 +10,14 @@ use spacetimedb::{Identity, ReducerContext};
 
 use crate::balance_generated::{
     CALENDAR_DAYS_PER_WEEK, CALENDAR_HOURS_PER_DAY, CALENDAR_SECONDS_PER_DAY,
-    CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, CHARCOAL_HOUSEHOLD_FUEL_VALUE,
-    HOUSEHOLD_LOCAL_POTTERY_GOLD_PER_UNIT, LOCAL_MARKET_ALE_GOLD_PER_UNIT,
-    LOCAL_MARKET_CLOTH_GOLD_PER_UNIT, LOCAL_MARKET_FIREWOOD_GOLD_PER_UNIT,
-    LOCAL_MARKET_FOOD_GOLD_PER_MEAL, LOCAL_MARKET_PRESERVED_FOOD_GOLD_PER_MEAL,
-    RESIDENCE_ALE_PER_PERSON_PER_SEC, RESIDENCE_CLOTH_PER_PERSON_PER_SEC,
-    RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC, RESIDENCE_POTTERY_PER_PERSON_PER_SEC,
-    RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
+    CALENDAR_WORK_END_HOUR, CALENDAR_WORK_START_HOUR, RESIDENCE_ALE_PER_PERSON_PER_SEC,
+    RESIDENCE_CLOTH_PER_PERSON_PER_SEC, RESIDENCE_FIREWOOD_PER_PERSON_PER_SEC,
+    RESIDENCE_POTTERY_PER_PERSON_PER_SEC, RESIDENCE_PRESERVED_FOOD_PER_PERSON_PER_SEC, TICK_DT,
 };
 use crate::db::*;
 use crate::economy::{
-    building_commodity_cap, building_commodity_stock, credit_local_purchase_receipt,
-    debit_residence_wealth, deposit_building_commodity, deposit_residence_commodity,
-    household_food_per_day, local_market_unit_price, withdraw_building_commodity, CommodityKind,
-    FRESH_FOOD_COMMODITIES, PRESERVED_FOOD_COMMODITIES,
+    building_commodity_stock, deposit_building_commodity, deposit_residence_commodity,
+    household_food_per_day, withdraw_building_commodity,
 };
 use crate::pantry_safeguard_policy::{
     emergency_pantry_rule, normalize_pantry_safeguard_policy, PANTRY_SAFEGUARD_DEFAULT,
@@ -601,6 +595,7 @@ mod tests {
                 x: 0.0,
                 z: 0.0,
                 distance: 40.0,
+                runway_days: 0.0,
                 target_stock: 7.0,
                 daily_lot: 1.0,
             },
@@ -610,6 +605,7 @@ mod tests {
                 x: 0.0,
                 z: 0.0,
                 distance: 12.0,
+                runway_days: 0.0,
                 target_stock: 7.0,
                 daily_lot: 1.0,
             },
@@ -619,6 +615,7 @@ mod tests {
                 x: 0.0,
                 z: 0.0,
                 distance: 12.0,
+                runway_days: 0.0,
                 target_stock: 7.0,
                 daily_lot: 1.0,
             },
@@ -633,6 +630,7 @@ mod tests {
                     x: 0.0,
                     z: 0.0,
                     distance: 12.0,
+                    runway_days: 0.0,
                     target_stock: 7.0,
                     daily_lot: 1.0,
                 },
@@ -642,6 +640,7 @@ mod tests {
                     x: 0.0,
                     z: 0.0,
                     distance: 12.0,
+                    runway_days: 0.0,
                     target_stock: 7.0,
                     daily_lot: 1.0,
                 },
@@ -651,6 +650,7 @@ mod tests {
                     x: 0.0,
                     z: 0.0,
                     distance: 40.0,
+                    runway_days: 0.0,
                     target_stock: 7.0,
                     daily_lot: 1.0,
                 },

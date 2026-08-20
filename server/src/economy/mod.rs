@@ -6,7 +6,6 @@ mod civic_receipts;
 mod commodities;
 mod fiscal_accounting;
 mod household_wealth;
-mod local_market_policy;
 mod marketplace_trade;
 mod marketplace_trade_policy;
 mod parish_accounting;
@@ -50,7 +49,6 @@ pub use fiscal_accounting::{
     restore_private_export_proceeds, withdraw_private_export_proceeds,
 };
 pub use household_wealth::{credit_residence_wealth, debit_residence_wealth};
-pub use local_market_policy::{local_market_price_multiplier, local_market_unit_price};
 pub(crate) use marketplace_trade::{
     credit_marketplace_receipt_gold, settle_regional_market_export,
 };
