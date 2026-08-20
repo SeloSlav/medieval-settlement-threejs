@@ -101,6 +101,7 @@ import SetMarketplaceSaltTargetReducer from "./set_marketplace_salt_target_reduc
 import SetMarketplaceSeedGrainTargetReducer from "./set_marketplace_seed_grain_target_reducer";
 import SetMarketplaceSpecialtyExportPolicyReducer from "./set_marketplace_specialty_export_policy_reducer";
 import SetMarketplaceSpecialtyFamilyExportPolicyReducer from "./set_marketplace_specialty_family_export_policy_reducer";
+import SetMonasteryPlantingReducer from "./set_monastery_planting_reducer";
 import SetMonasteryPolicyReducer from "./set_monastery_policy_reducer";
 import SetNightPoliciesReducer from "./set_night_policies_reducer";
 import SetPantrySafeguardPolicyReducer from "./set_pantry_safeguard_policy_reducer";
@@ -649,6 +650,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_marketplace_seed_grain_target", SetMarketplaceSeedGrainTargetReducer),
   __reducerSchema("set_marketplace_specialty_export_policy", SetMarketplaceSpecialtyExportPolicyReducer),
   __reducerSchema("set_marketplace_specialty_family_export_policy", SetMarketplaceSpecialtyFamilyExportPolicyReducer),
+  __reducerSchema("set_monastery_planting", SetMonasteryPlantingReducer),
   __reducerSchema("set_monastery_policy", SetMonasteryPolicyReducer),
   __reducerSchema("set_night_policies", SetNightPoliciesReducer),
   __reducerSchema("set_pantry_safeguard_policy", SetPantrySafeguardPolicyReducer),

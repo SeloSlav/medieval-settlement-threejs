@@ -177,8 +177,8 @@ fn step_one_garden(
         return 0.0;
     }
 
-    let economic_activity = (market_food_sold * FOOD_SALE_GOLD_PER_UNIT
-        + market_remedies_sold * HERB_REMEDY_SALE_GOLD_PER_UNIT);
+    let economic_activity = market_food_sold * FOOD_SALE_GOLD_PER_UNIT
+        + market_remedies_sold * HERB_REMEDY_SALE_GOLD_PER_UNIT;
     if economic_activity <= 1e-9 {
         return 0.0;
     }

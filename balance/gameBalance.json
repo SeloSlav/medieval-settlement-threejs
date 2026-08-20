@@ -374,7 +374,9 @@
       { "id": "sell_maslin_sheaves", "kind": "goldSell", "resource": "maslinSheaves", "amount": 24, "goldYield": 8 },
       { "id": "timber_for_stone", "kind": "barter", "give": "timber", "giveAmount": 25, "receive": "stone", "receiveAmount": 10 },
       { "id": "stone_for_timber", "kind": "barter", "give": "stone", "giveAmount": 10, "receive": "timber", "receiveAmount": 20 },
-      { "id": "timber_for_firewood", "kind": "barter", "give": "timber", "giveAmount": 10, "receive": "firewood", "receiveAmount": 18 }
+      { "id": "timber_for_firewood", "kind": "barter", "give": "timber", "giveAmount": 10, "receive": "firewood", "receiveAmount": 18 },
+      { "id": "buy_cider", "kind": "goldBuy", "resource": "cider", "amount": 12, "goldCost": 20 },
+      { "id": "sell_cider", "kind": "goldSell", "resource": "cider", "amount": 12, "goldYield": 12 }
     ]
   },
   "regionalMarket": {

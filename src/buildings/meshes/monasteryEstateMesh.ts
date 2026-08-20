@@ -337,7 +337,7 @@ function addReservedUpgradePlot(
   const plot = new THREE.Group();
   plot.name = zone.id === 'dairy-upgrade'
     ? 'Monastery reserved dairy upgrade plot'
-    : 'Monastery reserved apple press upgrade plot';
+    : 'Monastery reserved fruit press upgrade plot';
   plot.userData.architectureModule = zone.id;
   plot.userData.activeFromLevel = zone.activeFromLevel;
   plot.userData.currentlyBuilt = level >= zone.activeFromLevel;
@@ -474,7 +474,7 @@ function addAnimal(
 
 function addBrewhouse(parent: THREE.Group, level: number, zone: MonasteryPlanRect): void {
   const yard = new THREE.Group();
-  yard.name = 'Monastery ale brewhouse and cellar yard';
+  yard.name = 'Monastery brewhouse and cellar yard';
   yard.position.set(zone.centerX, 0, zone.centerZ);
   yard.userData.architectureModule = zone.id;
   const shell = addGableShell(yard, {

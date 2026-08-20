@@ -233,7 +233,7 @@ const PROCESS: Record<string, string> = {
   smokehouse: 'Meat, fish, or milk + firewood + local or imported salt + pottery vessels -> cured meat, smoked fish, or cheese',
   apiary: 'April-September forage + a healthy overwintered colony -> honey, with nearby orchard and vineyard pollination',
   vineyard: 'September-October harvest -> table-grape reserve or a staffed, timed cellar batch -> wine',
-  monastery: 'A self-governing 68 × 53 m estate raises orchard fruit, vegetables, eggs, milk, meat, honey, ale, wine, and cheese for its own pantry; genuine surplus is sold beyond the map, while finite infirmary beds nurse covered households',
+  monastery: 'A self-governing 68 × 53 m walled estate raises the player-selected orchard and croft crops alongside eggs, milk, meat, honey, and cheese; a developed apple estate also presses cider, and genuine surplus is sold beyond the map',
   carpenter: 'Timber + smith-forged ironwork → polearms and cartwright support',
   weaver: 'Annual sheep fleece or flax + hauled water → woven cloth → tier-2+ Marketplace stalls, then Trading Post export',
 };

@@ -177,6 +177,8 @@ export const Building = __t.object("Building", {
   cider: __t.f64(),
   mead: __t.f64(),
   breweryRecipePolicy: __t.u8(),
+  monasteryOrchardPlanting: __t.u8(),
+  monasteryCroftPlanting: __t.u8(),
 });
 export type Building = __Infer<typeof Building>;
 

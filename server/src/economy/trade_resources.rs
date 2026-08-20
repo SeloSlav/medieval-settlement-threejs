@@ -63,13 +63,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_non_gold_commodity_has_a_unique_trade_resource() {
+    fn every_market_traded_commodity_has_a_unique_trade_resource() {
         let mut resources = std::collections::HashSet::new();
-        for code in 0..=54 {
+        for code in 0..=56 {
             let Some(commodity) = CommodityKind::from_u8(code) else {
                 continue;
             };
-            if commodity == CommodityKind::Gold {
+            if matches!(commodity, CommodityKind::Gold | CommodityKind::Mead) {
                 assert!(trade_resource_for_commodity(commodity).is_none());
             } else {
                 let resource = trade_resource_for_commodity(commodity).expect("trade resource");

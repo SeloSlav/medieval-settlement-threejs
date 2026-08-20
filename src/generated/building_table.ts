@@ -147,4 +147,6 @@ export default __t.row({
   cider: __t.f64(),
   mead: __t.f64(),
   breweryRecipePolicy: __t.u8().name("brewery_recipe_policy"),
+  monasteryOrchardPlanting: __t.u8().name("monastery_orchard_planting"),
+  monasteryCroftPlanting: __t.u8().name("monastery_croft_planting"),
 });
