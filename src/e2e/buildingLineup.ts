@@ -283,6 +283,13 @@ const views = viewSpecs.map((spec) => {
   const bounds = new THREE.Box3().setFromObject(building);
   const center = bounds.getCenter(new THREE.Vector3());
   const size = bounds.getSize(new THREE.Vector3());
+  const footprintScale = Math.max(size.x, size.z);
+  if (!compareServiceCoverage && scene.fog instanceof THREE.Fog) {
+    // Large estate buildings (notably the monastery precinct) used to sit
+    // entirely beyond the fixed 74 m fog curtain, leaving their QA cell blank.
+    scene.fog.near = Math.max(scene.fog.near, footprintScale * 0.62);
+    scene.fog.far = Math.max(scene.fog.far, footprintScale * 2.7);
+  }
   building.position.sub(new THREE.Vector3(center.x, bounds.min.y, center.z));
 
   const groundRadius = Math.max(11, Math.max(size.x, size.z) * 0.92);
@@ -315,7 +322,7 @@ const views = viewSpecs.map((spec) => {
   sun.shadow.camera.bottom = -18;
   scene.add(sun);
 
-  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 160);
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, Math.max(160, footprintScale * 4));
   const largest = comparisonLargest ?? Math.max(size.x, size.y * 1.2, size.z);
   const designDistance = Math.max(
     13,
