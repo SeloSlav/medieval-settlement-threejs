@@ -269,6 +269,8 @@ mod tests {
             cider: 0.0,
             mead: 0.0,
             brewery_recipe_policy: crate::brewery_recipe_policy::BREWERY_RECIPE_ALE,
+            monastery_orchard_planting: crate::monastery_estate_policy::MONASTERY_ORCHARD_APPLES,
+            monastery_croft_planting: crate::monastery_estate_policy::MONASTERY_CROFT_VEGETABLES,
         }
     }
 

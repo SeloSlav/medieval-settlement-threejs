@@ -783,6 +783,8 @@ pub fn insert_reclamation_pile(
         threshing_priority: crate::farm_work_policy::THRESHING_PRIORITY_DEFAULT,
         fire_repair_active: false,
         brewery_recipe_policy: crate::brewery_recipe_policy::BREWERY_RECIPE_ALE,
+        monastery_orchard_planting: crate::monastery_estate_policy::MONASTERY_ORCHARD_APPLES,
+        monastery_croft_planting: crate::monastery_estate_policy::MONASTERY_CROFT_VEGETABLES,
     });
     ctx.db.world_config().id().update(WorldConfig {
         next_building_id: building_id

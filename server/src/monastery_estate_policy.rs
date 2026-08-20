@@ -8,6 +8,10 @@ pub const MONASTERY_ESTATE_EDGE_BAND: f64 = 60.0;
 pub const MONASTERY_ESTATE_GOLD_RESERVE: f64 = 6.0;
 pub const MONASTERY_ESTATE_EXPORT_LOT: f64 = 6.0;
 pub const MONASTERY_INFIRMARY_FOOD_PER_BED_DAY: f64 = 0.6;
+pub const MONASTERY_ORCHARD_APPLES: u8 = 0;
+pub const MONASTERY_ORCHARD_VINES: u8 = 1;
+pub const MONASTERY_CROFT_VEGETABLES: u8 = 0;
+pub const MONASTERY_CROFT_BARLEY: u8 = 1;
 
 const INVESTMENT_COSTS: [f64; 3] = [18.0, 42.0, 78.0];
 const YIELD_MULTIPLIERS: [f64; 4] = [1.0, 1.25, 1.55, 1.9];
@@ -32,6 +36,7 @@ pub struct MonasteryEstateYields {
     pub meat: f64,
     pub honey: f64,
     pub ale: f64,
+    pub cider: f64,
     pub wine: f64,
     pub cheese: f64,
 }
@@ -159,17 +164,46 @@ pub fn monastery_scriptorium_recovery_multiplier(level: u8) -> f64 {
     SCRIPTORIUM_RECOVERY_MULTIPLIERS[normalize_monastery_estate_level(level) as usize]
 }
 
-pub fn monastery_estate_yields(level: u8) -> MonasteryEstateYields {
+pub fn normalize_monastery_orchard_planting(planting: u8) -> u8 {
+    if planting == MONASTERY_ORCHARD_VINES {
+        MONASTERY_ORCHARD_VINES
+    } else {
+        MONASTERY_ORCHARD_APPLES
+    }
+}
+
+pub fn normalize_monastery_croft_planting(planting: u8) -> u8 {
+    if planting == MONASTERY_CROFT_BARLEY {
+        MONASTERY_CROFT_BARLEY
+    } else {
+        MONASTERY_CROFT_VEGETABLES
+    }
+}
+
+pub fn monastery_estate_yields(
+    level: u8,
+    orchard_planting: u8,
+    croft_planting: u8,
+) -> MonasteryEstateYields {
     let multiplier = monastery_estate_yield_multiplier(level);
+    let apples_planted = normalize_monastery_orchard_planting(orchard_planting)
+        == MONASTERY_ORCHARD_APPLES;
+    let vegetables_planted = normalize_monastery_croft_planting(croft_planting)
+        == MONASTERY_CROFT_VEGETABLES;
     MonasteryEstateYields {
-        apples: 0.75 * multiplier,
-        vegetables: 0.5 * multiplier,
+        apples: if apples_planted { 0.75 * multiplier } else { 0.0 },
+        vegetables: if vegetables_planted { 0.5 * multiplier } else { 0.0 },
         eggs: 0.42 * multiplier,
         milk: 0.45 * multiplier,
         meat: 0.16 * multiplier,
         honey: 0.22 * multiplier,
-        ale: 0.32 * multiplier,
-        wine: 0.14 * multiplier,
+        ale: if vegetables_planted { 0.0 } else { 0.32 * multiplier },
+        cider: if apples_planted && normalize_monastery_estate_level(level) >= 3 {
+            0.16 * multiplier
+        } else {
+            0.0
+        },
+        wine: if apples_planted { 0.0 } else { 0.14 * multiplier },
         cheese: if level >= 1 { 0.18 * multiplier } else { 0.0 },
     }
 }
@@ -211,8 +245,41 @@ mod tests {
     fn reinvestment_preserves_working_gold_and_raises_yield() {
         assert!(!monastery_estate_can_reinvest(0, 23.9));
         assert!(monastery_estate_can_reinvest(0, 24.0));
-        assert!(monastery_estate_yields(3).apples > monastery_estate_yields(0).apples);
+        assert!(
+            monastery_estate_yields(3, MONASTERY_ORCHARD_APPLES, MONASTERY_CROFT_VEGETABLES).apples
+                > monastery_estate_yields(0, MONASTERY_ORCHARD_APPLES, MONASTERY_CROFT_VEGETABLES).apples
+        );
         assert_eq!(monastery_estate_next_investment_cost(3), None);
+    }
+
+    #[test]
+    fn planting_plan_selects_outputs_and_cider_needs_the_press() {
+        let kitchen = monastery_estate_yields(
+            2,
+            MONASTERY_ORCHARD_APPLES,
+            MONASTERY_CROFT_VEGETABLES,
+        );
+        assert!(kitchen.apples > 0.0 && kitchen.vegetables > 0.0);
+        assert_eq!(kitchen.ale, 0.0);
+        assert_eq!(kitchen.wine, 0.0);
+        assert_eq!(kitchen.cider, 0.0);
+
+        let commercial = monastery_estate_yields(
+            3,
+            MONASTERY_ORCHARD_VINES,
+            MONASTERY_CROFT_BARLEY,
+        );
+        assert_eq!(commercial.apples, 0.0);
+        assert_eq!(commercial.vegetables, 0.0);
+        assert!(commercial.ale > 0.0 && commercial.wine > 0.0);
+        assert_eq!(commercial.cider, 0.0);
+
+        let cider = monastery_estate_yields(
+            3,
+            MONASTERY_ORCHARD_APPLES,
+            MONASTERY_CROFT_BARLEY,
+        );
+        assert!(cider.cider > 0.0);
     }
 
     #[test]

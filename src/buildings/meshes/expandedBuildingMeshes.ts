@@ -47,6 +47,7 @@ import {
 } from '../seasonalStockpileVisuals.ts';
 import {
   MONASTERY_ALE_VISUAL_SEGMENTS,
+  MONASTERY_CIDER_VISUAL_SEGMENTS,
   MONASTERY_FOOD_VISUAL_SEGMENTS,
   MONASTERY_HONEY_VISUAL_SEGMENTS,
   MONASTERY_WINE_VISUAL_SEGMENTS,
@@ -402,10 +403,14 @@ function monasteryMeshDiagnostics(root: THREE.Object3D): { triangleCount: number
   return { triangleCount: Math.round(triangleCount), meshCount };
 }
 
-export function createMonasteryMesh(estateLevel = 0): THREE.Group {
+export function createMonasteryMesh(
+  estateLevel = 0,
+  orchardPlanting = 0,
+  croftPlanting = 0,
+): THREE.Group {
   const group = new THREE.Group();
   group.name = 'Pauline monastery';
-  const estate = createMonasteryEstateMesh(estateLevel);
+  const estate = createMonasteryEstateMesh(estateLevel, orchardPlanting, croftPlanting);
   const plan = estate.userData.architecturePlan as MonasteryPrecinctPlan;
   group.add(estate);
   group.userData.architecturePlan = plan;
@@ -570,6 +575,17 @@ export function createMonasteryMesh(estateLevel = 0): THREE.Group {
       [2.35, 0, 5.55, 0.7],
     ] as const).slice(0, MONASTERY_ALE_VISUAL_SEGMENTS),
     (segment, scale) => addBarrel(segment, 0, 0, scale),
+  );
+  addSegmentedStockProps(
+    group,
+    'MonasteryCiderStockpile',
+    'MonasteryCiderSegment',
+    ([
+      [3.25, 0, 4.95, 0.9],
+      [3.9, 0, 4.92, 0.78],
+      [3.55, 0, 5.55, 0.7],
+    ] as const).slice(0, MONASTERY_CIDER_VISUAL_SEGMENTS),
+    (segment, scale) => addWineCask(segment, scale),
   );
   addSegmentedStockProps(
     group,

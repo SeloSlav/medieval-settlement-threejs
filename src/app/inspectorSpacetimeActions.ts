@@ -63,6 +63,11 @@ export type InspectorSpacetimeActions = {
   onSetLaborStewardReserve: (laborReserve: number) => Promise<void>;
   onSetChapelParishPolicy: (sabbathObservanceEnabled: boolean) => Promise<void>;
   onSetMonasteryPolicy: (titheShare: number, feastsEnabled: boolean) => Promise<void>;
+  onSetMonasteryPlanting: (
+    buildingId: string,
+    orchardPlanting: number,
+    croftPlanting: number,
+  ) => Promise<void>;
   onSetNightPolicies: (
     watch: NightPolicyCode,
     gathering: NightPolicyCode,
@@ -564,6 +569,14 @@ export function createInspectorSpacetimeActions(
       await runReducer(
         () => store.setMonasteryPolicy(titheShare, feastsEnabled),
         'Could not update monastery policy.',
+      );
+    },
+    onSetMonasteryPlanting: async (buildingId, orchardPlanting, croftPlanting) => {
+      const store = requireReady();
+      if (!store) return;
+      await runReducer(
+        () => store.setMonasteryPlanting(buildingId, orchardPlanting, croftPlanting),
+        'Could not update the monastery planting plan.',
       );
     },
     onSetNightPolicies: async (watch, gathering, work, lighting, curfew) => {

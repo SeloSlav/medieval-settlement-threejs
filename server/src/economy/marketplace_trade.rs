@@ -10,6 +10,7 @@ use super::regional_market_policy::MarketTradeDirection;
 use crate::balance_generated::{
     marketplace_trade_offer_for_resource, MarketplaceTradeKind,
     SPECIALTY_EXPORT_GOLD_PER_ALE, SPECIALTY_EXPORT_GOLD_PER_CHEESE,
+    SPECIALTY_EXPORT_GOLD_PER_CIDER,
     SPECIALTY_EXPORT_GOLD_PER_CLOTH, SPECIALTY_EXPORT_GOLD_PER_HONEY,
     SPECIALTY_EXPORT_GOLD_PER_POTTERY, SPECIALTY_EXPORT_GOLD_PER_WINE,
 };
@@ -79,6 +80,7 @@ pub(crate) fn settle_regional_market_export(
 
     let specialty_gold_per_unit = match sold_commodity {
         CommodityKind::Ale => Some(SPECIALTY_EXPORT_GOLD_PER_ALE),
+        CommodityKind::Cider => Some(SPECIALTY_EXPORT_GOLD_PER_CIDER),
         CommodityKind::Honey => Some(SPECIALTY_EXPORT_GOLD_PER_HONEY),
         CommodityKind::Wine => Some(SPECIALTY_EXPORT_GOLD_PER_WINE),
         CommodityKind::Cloth => Some(SPECIALTY_EXPORT_GOLD_PER_CLOTH),

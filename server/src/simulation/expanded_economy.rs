@@ -3149,7 +3149,11 @@ pub fn step_monastery(
     };
     let mut monastery = building;
     if cycle_labor_if_ready(ctx, tick, clock, &mut monastery, true).is_some() {
-        let yields = monastery_estate_yields(monastery.chapel_tier);
+        let yields = monastery_estate_yields(
+            monastery.chapel_tier,
+            monastery.monastery_orchard_planting,
+            monastery.monastery_croft_planting,
+        );
         for (commodity, amount) in [
             (CommodityKind::Apples, yields.apples),
             (CommodityKind::Vegetables, yields.vegetables),
@@ -3158,6 +3162,7 @@ pub fn step_monastery(
             (CommodityKind::Meat, yields.meat),
             (CommodityKind::Honey, yields.honey),
             (CommodityKind::Ale, yields.ale),
+            (CommodityKind::Cider, yields.cider),
             (CommodityKind::Wine, yields.wine),
             (CommodityKind::Cheese, yields.cheese),
         ] {
@@ -3303,6 +3308,10 @@ fn dispatch_monastery_estate_export(
         (
             CommodityKind::Wine,
             monastery_estate_exportable(monastery.wine, wine_floor),
+        ),
+        (
+            CommodityKind::Cider,
+            monastery_estate_exportable(monastery.cider, 3.0),
         ),
     ];
     let Some((commodity, amount)) = candidates

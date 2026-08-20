@@ -77,6 +77,8 @@ import {
 } from '../../economy/monasteryHospitality.ts';
 import {
   MONASTERY_INFIRMARY_FOOD_PER_BED_DAY,
+  MONASTERY_CROFT_PLANTINGS,
+  MONASTERY_ORCHARD_PLANTINGS,
   monasteryEstateNextInvestmentCost,
   monasteryEstateYields,
   monasteryInfirmaryBeds,
@@ -84,7 +86,9 @@ import {
   monasteryInfirmaryRecoveryMultiplier,
   monasteryScriptoriumRecoveryMultiplier,
   monasterySeedArchiveTargetPerCrop,
+  normalizeMonasteryCroftPlanting,
   normalizeMonasteryEstateLevel,
+  normalizeMonasteryOrchardPlanting,
 } from '../../buildings/monasteryEstate.ts';
 import {
   buildingPreservedFoodStorageFactor,
@@ -1108,7 +1112,11 @@ export function renderExpandedBuildingInspector(
         const level = normalizeMonasteryEstateLevel(building.chapelTier);
         const nextInvestment = monasteryEstateNextInvestmentCost(level);
         const privateGold = Math.max(0, building.gold - (building.civicReceiptsGold ?? 0));
-        const yields = monasteryEstateYields(level);
+        const yields = monasteryEstateYields(
+          level,
+          building.monasteryOrchardPlanting,
+          building.monasteryCroftPlanting,
+        );
         const infirmaryBeds = monasteryInfirmaryBeds(level);
         const infirmaryRecovery = monasteryInfirmaryRecoveryMultiplier(level);
         const infirmaryMortality = monasteryInfirmaryMortalityMultiplier(level);
@@ -1125,9 +1133,20 @@ export function renderExpandedBuildingInspector(
               && trip.phase !== 'inbound',
           )
           .reduce((sum, trip) => sum + trip.amount, 0);
-        return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete perimeter fence · founded in the outer 60 m of the map</span></li>
+        return `<li><span>Reserved estate</span><span>68 × 53 m inside a complete stone precinct wall · founded in the outer 60 m of the map</span></li>
           <li><span>Estate development</span><span>Level ${level}/3 · ${levelLabel}</span></li>
-          <li><span>Internal economy</span><span>Apples ${yields.apples.toFixed(2)} · vegetables ${yields.vegetables.toFixed(2)} · eggs ${yields.eggs.toFixed(2)} · milk ${yields.milk.toFixed(2)} · meat ${yields.meat.toFixed(2)} · honey ${yields.honey.toFixed(2)} · ale ${yields.ale.toFixed(2)}${yields.cheese > 0 ? ` · cheese ${yields.cheese.toFixed(2)}` : ''} per cycle</span></li>
+          <li><span>Estate produce</span><span>${[
+            yields.apples > 0 ? `apples ${yields.apples.toFixed(2)}` : '',
+            yields.vegetables > 0 ? `vegetables ${yields.vegetables.toFixed(2)}` : '',
+            `eggs ${yields.eggs.toFixed(2)}`,
+            `milk ${yields.milk.toFixed(2)}`,
+            `meat ${yields.meat.toFixed(2)}`,
+            `honey ${yields.honey.toFixed(2)}`,
+            yields.ale > 0 ? `ale ${yields.ale.toFixed(2)}` : '',
+            yields.cider > 0 ? `cider ${yields.cider.toFixed(2)}` : '',
+            yields.wine > 0 ? `wine ${yields.wine.toFixed(2)}` : '',
+            yields.cheese > 0 ? `cheese ${yields.cheese.toFixed(2)}` : '',
+          ].filter(Boolean).join(' · ')} per cycle</span></li>
           <li><span>Regional estate exports</span><span>Automatic 6-unit lots · ${Math.round(exportDutyRate * 100)}% export duty is reserved for civic collection · net income remains here</span></li>
           <li><span>Infirmary</span><span>${infirmaryBeds} beds · shortest remedy runway admitted first · consumes ${MONASTERY_INFIRMARY_FOOD_PER_BED_DAY.toFixed(1)} estate food per occupied bed/day</span></li>
           <li><span>Skilled nursing</span><span>Up to ${Math.round((infirmaryRecovery - 1) * 100)}% faster illness recovery and ${Math.round((1 - infirmaryMortality) * 100)}% lower illness mortality · stacks with household remedies</span></li>
@@ -1360,7 +1379,7 @@ export function renderExpandedBuildingInspector(
       })()
     : '';
   const buildingPolicyPanelHtml = building.kind === 'monastery'
-    ? renderMonasteryPolicyPanel(context)
+    ? renderMonasteryPolicyPanel(building, context)
     : building.kind === 'threshing_barn'
       ? renderFarmsteadFieldPanel(building)
       : building.kind === 'granary'
@@ -1823,7 +1842,7 @@ function renderVineyardProductionPolicyPanel(building: BuildingState): string {
   `;
 }
 
-function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
+function renderMonasteryPolicyPanel(building: BuildingState, context: InspectorRenderContext): string {
   const policy = context.getMonasteryPolicy?.() ?? DEFAULT_MONASTERY_POLICY;
   const feastBatchCost = renderResourceCost({
     food: MONASTERY_FEAST_FOOD,
@@ -1835,9 +1854,20 @@ function renderMonasteryPolicyPanel(context: InspectorRenderContext): string {
     honey: MONASTERY_HOSPITALITY_HONEY_PER_DAY,
     wine: MONASTERY_HOSPITALITY_WINE_PER_DAY,
   }, { compact: true, suffix: '/day' });
+  const orchardPlanting = normalizeMonasteryOrchardPlanting(building.monasteryOrchardPlanting);
+  const croftPlanting = normalizeMonasteryCroftPlanting(building.monasteryCroftPlanting);
   return `
     <div class="inspector-action-panel">
-      <p class="inspector-action-panel__hint">The monastery is an enclosed frontier estate, not a second church. Its orchards, gardens, animals, hives, dairy, and brewhouse produce autonomously; protected surplus is sold directly to regional merchants, export duty is collected on the returned gold, and the net automatically expands the demesne through three visible levels. Its finite infirmary supplies skilled nursing above ordinary herb treatment. The agricultural archive holds exhaustible seed for failed sowing seasons, while the scriptorium preserves plans and ledgers that lower fire-reconstruction material costs.</p>
+      <p class="inspector-action-panel__hint">Choose what the monastery plants. Structural investment improves the selected parcels without changing them; changing the plan affects future cycles and never converts stored produce. Animals, pasture, hives, dairy, archive, and infirmary remain part of every estate.</p>
+      <label class="city-admin-panel__slider-label" for="monastery-orchard-planting"><span>Orchard parcel</span><strong>${MONASTERY_ORCHARD_PLANTINGS[orchardPlanting].output}</strong></label>
+      <select class="inspector-policy-select" id="monastery-orchard-planting" data-monastery-orchard-planting>
+        ${MONASTERY_ORCHARD_PLANTINGS.map((planting) => `<option value="${planting.value}" ${planting.value === orchardPlanting ? 'selected' : ''}>${planting.label}</option>`).join('')}
+      </select>
+      <label class="city-admin-panel__slider-label" for="monastery-croft-planting"><span>Enclosed croft</span><strong>${MONASTERY_CROFT_PLANTINGS[croftPlanting].output}</strong></label>
+      <select class="inspector-policy-select" id="monastery-croft-planting" data-monastery-croft-planting>
+        ${MONASTERY_CROFT_PLANTINGS.map((planting) => `<option value="${planting.value}" ${planting.value === croftPlanting ? 'selected' : ''}>${planting.label}</option>`).join('')}
+      </select>
+      <p class="inspector-action-panel__hint">Apples unlock cider when the level-3 fruit press is built. Grapevines yield wine; brewing barley yields ale. These are net estate outputs—the monastery manages its own sowing and processing, then sells surplus to the outside world.</p>
       <label class="city-admin-panel__toggle"><input type="checkbox" data-policy-monastery-feasts ${policy.feastsEnabled ? 'checked' : ''} /><span>Provision hospitality and feast days</span></label>
       <p class="inspector-action-panel__hint">Enabled monasteries protect ${feastBatchCost} from their own estate production; no town producer refills the pantry. Daily hospitality and estate exports use only stock above those protected floors. On each observance, covered households walk here by road and consume the complete batch onsite: immediate food and ale deficits are relieved, but no provisions appear in home pantries. Daily hospitality consumes ${dailyHospitalityCost}, raising linked pilgrimage income from ${MONASTERY_PILGRIMAGE_GOLD_PER_DAY.toFixed(1)} to as much as ${(MONASTERY_PILGRIMAGE_GOLD_PER_DAY + MONASTERY_HOSPITALITY_BONUS_GOLD_PER_DAY).toFixed(1)} gold per day. Routine alms and poor-relief carts remain the church's role; the monastery contributes a common table and scarce infirmary beds.</p>
       <label class="city-admin-panel__slider-label"><span>Parish tithe share</span><strong data-policy-monastery-tithe-value>${Math.round(policy.titheShare * 100)}%</strong></label>

@@ -9,6 +9,7 @@ import {
 
 export const MONASTERY_FOOD_VISUAL_SEGMENTS = 3;
 export const MONASTERY_ALE_VISUAL_SEGMENTS = 3;
+export const MONASTERY_CIDER_VISUAL_SEGMENTS = 3;
 export const MONASTERY_HONEY_VISUAL_SEGMENTS = 3;
 export const MONASTERY_WINE_VISUAL_SEGMENTS = 3;
 
@@ -27,6 +28,12 @@ export function monasteryStockpileVisualSignature(
       monasteryMealStock(building),
       BUILDING_STORAGE_CAPS.monastery.food,
       MONASTERY_FOOD_VISUAL_SEGMENTS,
+    )
+  }:${
+    stockpileVisualLevel(
+      building.cider ?? 0,
+      BUILDING_STORAGE_CAPS.monastery.cider,
+      MONASTERY_CIDER_VISUAL_SEGMENTS,
     )
   }:${
     stockpileVisualLevel(
@@ -54,6 +61,13 @@ export function syncMonasteryStockpileVisuals(
   building: BuildingState,
 ): void {
   if (building.kind !== 'monastery') return;
+  syncNamedStockpile(
+    marker,
+    'MonasteryCiderStockpile',
+    'MonasteryCiderSegment',
+    building.cider ?? 0,
+    BUILDING_STORAGE_CAPS.monastery.cider,
+  );
   syncNamedStockpile(
     marker,
     'MonasteryFoodStockpile',

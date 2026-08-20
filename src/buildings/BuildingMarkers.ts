@@ -769,7 +769,16 @@ export class BuildingMarkers {
       marker = useCompletedMesh
         ? building.kind === 'founders_camp'
           ? this.takeFoundersCampMesh()
-          : createBuildingMesh(building.kind, building.chapelTier ?? 3)
+          : createBuildingMesh(
+              building.kind,
+              building.chapelTier ?? 3,
+              building.kind === 'monastery'
+                ? {
+                    orchard: building.monasteryOrchardPlanting ?? 0,
+                    croft: building.monasteryCroftPlanting ?? 0,
+                  }
+                : undefined,
+            )
         : createConstructionSiteMesh(
             building.kind,
             building.constructionProgress,

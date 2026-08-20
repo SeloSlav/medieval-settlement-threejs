@@ -821,6 +821,12 @@ pub struct Building {
     /// Brewhouse active recipe: 0 ale, 1 cider, 2 mead, 3 automatic.
     #[default(0u8)]
     pub brewery_recipe_policy: u8,
+    /// Monastery orchard: 0 apples, 1 grapevines.
+    #[default(0u8)]
+    pub monastery_orchard_planting: u8,
+    /// Monastery enclosed croft: 0 kitchen vegetables, 1 brewing barley.
+    #[default(0u8)]
+    pub monastery_croft_planting: u8,
 }
 
 /// One persistent import/export instruction for one Trading Post commodity.

@@ -52,7 +52,10 @@ import { buildingUsesCompletedMesh } from './buildingVisualState.ts';
 
 export function buildingMeshSignature(building: BuildingState): string {
   if (buildingUsesCompletedMesh(building)) {
-    return `complete:${building.kind}${building.kind === 'chapel' || building.kind === 'monastery' ? `:tier-${building.chapelTier ?? (building.kind === 'monastery' ? 0 : 3)}` : ''}`;
+    const monasteryPlanting = building.kind === 'monastery'
+      ? `:orchard-${building.monasteryOrchardPlanting ?? 0}:croft-${building.monasteryCroftPlanting ?? 0}`
+      : '';
+    return `complete:${building.kind}${building.kind === 'chapel' || building.kind === 'monastery' ? `:tier-${building.chapelTier ?? (building.kind === 'monastery' ? 0 : 3)}` : ''}${monasteryPlanting}`;
   }
   return constructionVisualSignature(
     building.constructionProgress,

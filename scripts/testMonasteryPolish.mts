@@ -9,6 +9,7 @@ import { createBuildingMesh } from '../src/buildings/BuildingMeshes.ts';
 import { buildingMarkerSignatures } from '../src/buildings/buildingMarkerSignature.ts';
 import {
   MONASTERY_ALE_VISUAL_SEGMENTS,
+  MONASTERY_CIDER_VISUAL_SEGMENTS,
   MONASTERY_FOOD_VISUAL_SEGMENTS,
   MONASTERY_HONEY_VISUAL_SEGMENTS,
   MONASTERY_WINE_VISUAL_SEGMENTS,
@@ -257,6 +258,7 @@ for (const estatePart of [
 const pantryGroups = [
   ['MonasteryFoodStockpile', 'MonasteryFoodSegment', MONASTERY_FOOD_VISUAL_SEGMENTS],
   ['MonasteryAleStockpile', 'MonasteryAleSegment', MONASTERY_ALE_VISUAL_SEGMENTS],
+  ['MonasteryCiderStockpile', 'MonasteryCiderSegment', MONASTERY_CIDER_VISUAL_SEGMENTS],
   ['MonasteryHoneyStockpile', 'MonasteryHoneySegment', MONASTERY_HONEY_VISUAL_SEGMENTS],
   ['MonasteryWineStockpile', 'MonasteryWineSegment', MONASTERY_WINE_VISUAL_SEGMENTS],
 ] as const;
@@ -275,6 +277,7 @@ const stockedMonastery = building({
   constructionComplete: true,
   food: 61,
   ale: 41,
+  cider: 31,
   honey: 81,
   wine: 41,
 });
@@ -282,6 +285,7 @@ syncMonasteryStockpileVisuals(monasteryMarker, stockedMonastery);
 for (const [containerName, segmentName, expectedVisible] of [
   ['MonasteryFoodStockpile', 'MonasteryFoodSegment', 2],
   ['MonasteryAleStockpile', 'MonasteryAleSegment', 2],
+  ['MonasteryCiderStockpile', 'MonasteryCiderSegment', 2],
   ['MonasteryHoneyStockpile', 'MonasteryHoneySegment', 2],
   ['MonasteryWineStockpile', 'MonasteryWineSegment', 2],
 ] as const) {
@@ -317,7 +321,7 @@ assert.equal(
   stockedSignatures.collider,
   'pantry bands must never rebuild first-person colliders',
 );
-assert.match(monasteryStockpileVisualSignature(stockedMonastery), /:monastery-pantry:2:2:2:2$/);
+assert.match(monasteryStockpileVisualSignature(stockedMonastery), /:monastery-pantry:2:2:2:2:2$/);
 
 const performanceStarted = performance.now();
 let visualChecksum = 0;
@@ -326,6 +330,7 @@ for (let index = 0; index < 100_000; index += 1) {
     constructionComplete: true,
     food: index % 320,
     ale: index % 160,
+    cider: index % 80,
     honey: index % 160,
     wine: index % 120,
   })).length;

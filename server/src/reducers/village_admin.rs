@@ -4,6 +4,9 @@ use crate::db::*;
 use crate::economy::clamp_chapel_coffer_reserve_gold;
 use crate::labor_steward_policy::is_valid_labor_steward_reserve;
 use crate::lifecycle::ensure_player_resources;
+use crate::monastery_estate_policy::{
+    normalize_monastery_croft_planting, normalize_monastery_orchard_planting,
+};
 use crate::night_policy::valid_policy_code;
 use crate::pantry_safeguard_policy::valid_pantry_safeguard_policy;
 use crate::reducers::buildings::rotate_construction_labor_for_owner_with_reserve;
@@ -180,6 +183,30 @@ pub fn set_monastery_policy(
     resources.monastery_tithe_share = tithe_share.clamp(0.0, 0.8);
     resources.monastery_feasts_enabled = feasts_enabled;
     ctx.db.player_resources().owner().update(resources);
+    Ok(())
+}
+
+#[reducer]
+pub fn set_monastery_planting(
+    ctx: &ReducerContext,
+    building_id: u64,
+    orchard_planting: u8,
+    croft_planting: u8,
+) -> Result<(), String> {
+    let owner = ctx.sender();
+    let Some(mut monastery) = ctx.db.building().id().find(&building_id) else {
+        return Err("Monastery not found.".to_string());
+    };
+    if monastery.owner != owner
+        || monastery.kind != "monastery"
+        || !monastery.construction_complete
+    {
+        return Err("Only a completed monastery may change its planting plan.".to_string());
+    }
+    monastery.monastery_orchard_planting =
+        normalize_monastery_orchard_planting(orchard_planting);
+    monastery.monastery_croft_planting = normalize_monastery_croft_planting(croft_planting);
+    ctx.db.building().id().update(monastery);
     Ok(())
 }
 

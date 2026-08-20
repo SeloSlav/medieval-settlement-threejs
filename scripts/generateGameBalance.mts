@@ -636,6 +636,7 @@ export type GameBalance = {
     monasteryCharityFoodPerDelivery: number;
     specialtyExportGoldPerHoney: number;
     specialtyExportGoldPerAle: number;
+    specialtyExportGoldPerCider: number;
     specialtyExportGoldPerWine: number;
     specialtyExportGoldPerCloth: number;
     specialtyExportGoldPerCheese: number;
@@ -1236,6 +1237,7 @@ function generateRust(): string {
     `pub const MONASTERY_CHARITY_FOOD_PER_DELIVERY: f64 = ${rustF64(b.production.monasteryCharityFoodPerDelivery)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_HONEY: f64 = ${rustF64(b.production.specialtyExportGoldPerHoney)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_ALE: f64 = ${rustF64(b.production.specialtyExportGoldPerAle)};`,
+    `pub const SPECIALTY_EXPORT_GOLD_PER_CIDER: f64 = ${rustF64(b.production.specialtyExportGoldPerCider)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_WINE: f64 = ${rustF64(b.production.specialtyExportGoldPerWine)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_CLOTH: f64 = ${rustF64(b.production.specialtyExportGoldPerCloth)};`,
     `pub const SPECIALTY_EXPORT_GOLD_PER_CHEESE: f64 = ${rustF64(b.production.specialtyExportGoldPerCheese)};`,
@@ -2159,6 +2161,7 @@ function generateTypeScript(): string {
     `export const MONASTERY_CHARITY_FOOD_PER_DELIVERY = ${b.production.monasteryCharityFoodPerDelivery};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_HONEY = ${b.production.specialtyExportGoldPerHoney};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_ALE = ${b.production.specialtyExportGoldPerAle};`,
+    `export const SPECIALTY_EXPORT_GOLD_PER_CIDER = ${b.production.specialtyExportGoldPerCider};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_WINE = ${b.production.specialtyExportGoldPerWine};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_CLOTH = ${b.production.specialtyExportGoldPerCloth};`,
     `export const SPECIALTY_EXPORT_GOLD_PER_CHEESE = ${b.production.specialtyExportGoldPerCheese};`,

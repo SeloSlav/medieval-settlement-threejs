@@ -223,6 +223,10 @@ export type BuildingState = {
   apiaryColonyHealth?: number;
   apiaryLastWinterYear?: number;
   apiaryForageScore?: number;
+  /** 0 apples, 1 grapevines; meaningful only for monasteries. */
+  monasteryOrchardPlanting?: 0 | 1;
+  /** 0 kitchen vegetables, 1 brewing barley; meaningful only for monasteries. */
+  monasteryCroftPlanting?: 0 | 1;
 };
 
 export function isBuildingOperational(building: BuildingState): boolean {

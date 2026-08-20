@@ -350,6 +350,8 @@ pub(crate) fn place_founding_camp(ctx: &ReducerContext, x: f64, z: f64) -> Resul
         cider: resources.cider.max(0.0),
         mead: resources.mead.max(0.0),
         brewery_recipe_policy: crate::brewery_recipe_policy::BREWERY_RECIPE_ALE,
+        monastery_orchard_planting: crate::monastery_estate_policy::MONASTERY_ORCHARD_APPLES,
+        monastery_croft_planting: crate::monastery_estate_policy::MONASTERY_CROFT_VEGETABLES,
     });
 
     resources.timber = 0.0;

@@ -14,6 +14,18 @@ export const MONASTERY_ESTATE_EDGE_BAND = 60;
 
 export type MonasteryEstateLevel = 0 | 1 | 2 | 3;
 export type MonasteryEstatePoint = { x: number; z: number };
+export type MonasteryOrchardPlanting = 0 | 1;
+export type MonasteryCroftPlanting = 0 | 1;
+
+export const MONASTERY_ORCHARD_PLANTINGS = [
+  { value: 0, label: 'Apple orchard', output: 'Apples · cider after the fruit press is built' },
+  { value: 1, label: 'Grapevines', output: 'Wine' },
+] as const;
+
+export const MONASTERY_CROFT_PLANTINGS = [
+  { value: 0, label: 'Kitchen vegetables', output: 'Vegetables' },
+  { value: 1, label: 'Brewing barley', output: 'Ale' },
+] as const;
 
 function estateWorldPoint(
   x: number,
@@ -104,6 +116,18 @@ export function normalizeMonasteryEstateLevel(level: number | null | undefined):
   return Math.max(0, Math.min(3, Math.floor(level ?? 0))) as MonasteryEstateLevel;
 }
 
+export function normalizeMonasteryOrchardPlanting(
+  planting: number | null | undefined,
+): MonasteryOrchardPlanting {
+  return planting === 1 ? 1 : 0;
+}
+
+export function normalizeMonasteryCroftPlanting(
+  planting: number | null | undefined,
+): MonasteryCroftPlanting {
+  return planting === 1 ? 1 : 0;
+}
+
 export const MONASTERY_ESTATE_INVESTMENT_COSTS = [18, 42, 78] as const;
 export const MONASTERY_ESTATE_YIELD_MULTIPLIERS = [1, 1.25, 1.55, 1.9] as const;
 export const MONASTERY_INFIRMARY_BEDS = [4, 6, 8, 10] as const;
@@ -145,7 +169,11 @@ export function monasteryScriptoriumRecoveryMultiplier(level: number | null | un
   return MONASTERY_SCRIPTORIUM_RECOVERY_MULTIPLIERS[normalizeMonasteryEstateLevel(level)];
 }
 
-export function monasteryEstateYields(level: number | null | undefined): {
+export function monasteryEstateYields(
+  level: number | null | undefined,
+  orchardPlanting: number | null | undefined = 0,
+  croftPlanting: number | null | undefined = 0,
+): {
   apples: number;
   vegetables: number;
   eggs: number;
@@ -153,20 +181,24 @@ export function monasteryEstateYields(level: number | null | undefined): {
   meat: number;
   honey: number;
   ale: number;
+  cider: number;
   wine: number;
   cheese: number;
 } {
   const normalized = normalizeMonasteryEstateLevel(level);
   const multiplier = monasteryEstateYieldMultiplier(normalized);
+  const applesPlanted = normalizeMonasteryOrchardPlanting(orchardPlanting) === 0;
+  const vegetablesPlanted = normalizeMonasteryCroftPlanting(croftPlanting) === 0;
   return {
-    apples: 0.75 * multiplier,
-    vegetables: 0.5 * multiplier,
+    apples: applesPlanted ? 0.75 * multiplier : 0,
+    vegetables: vegetablesPlanted ? 0.5 * multiplier : 0,
     eggs: 0.42 * multiplier,
     milk: 0.45 * multiplier,
     meat: 0.16 * multiplier,
     honey: 0.22 * multiplier,
-    ale: 0.32 * multiplier,
-    wine: 0.14 * multiplier,
+    ale: vegetablesPlanted ? 0 : 0.32 * multiplier,
+    cider: applesPlanted && normalized >= 3 ? 0.16 * multiplier : 0,
+    wine: applesPlanted ? 0 : 0.14 * multiplier,
     cheese: normalized >= 1 ? 0.18 * multiplier : 0,
   };
 }

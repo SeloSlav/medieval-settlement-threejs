@@ -572,6 +572,18 @@ export class SpacetimeGameStore {
     return spacetimeReducers.setMonasteryPolicy(titheShare, feastsEnabled);
   }
 
+  setMonasteryPlanting(
+    buildingId: string,
+    orchardPlanting: number,
+    croftPlanting: number,
+  ): Promise<void> {
+    return spacetimeReducers.setMonasteryPlanting(
+      buildingId,
+      orchardPlanting,
+      croftPlanting,
+    );
+  }
+
   setNightPolicies(
     watch: NightPolicyCode,
     gathering: NightPolicyCode,

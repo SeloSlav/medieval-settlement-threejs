@@ -54,6 +54,8 @@ function buildingStateFromRow(
     cider: number;
     mead: number;
     breweryRecipePolicy: number;
+    monasteryOrchardPlanting: number;
+    monasteryCroftPlanting: number;
   }>;
   return {
     id,
@@ -196,5 +198,7 @@ function buildingStateFromRow(
     apiaryColonyHealth: row.apiaryColonyHealth,
     apiaryLastWinterYear: row.apiaryLastWinterYear,
     apiaryForageScore: row.apiaryForageScore,
+    monasteryOrchardPlanting: (materialRow.monasteryOrchardPlanting === 1 ? 1 : 0),
+    monasteryCroftPlanting: (materialRow.monasteryCroftPlanting === 1 ? 1 : 0),
   };
 }

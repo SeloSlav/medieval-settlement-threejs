@@ -161,9 +161,9 @@ export function createMonasteryPrecinctPlan(rawLevel: number): MonasteryPrecinct
   const zones: MonasteryPlanRect[] = [
     { id: 'cloister-core', label: 'Church, conventual wings, and cloister', role: 'cloister-core', centerX: -2.15, centerZ: -1, width: 24.3, depth: 15.2, activeFromLevel: 0 },
     { id: 'brewhouse', label: 'Brewhouse and cellar yard', role: 'working-building', centerX: -17.8, centerZ: -12, width: 8.2, depth: 6.3, activeFromLevel: 0 },
-    { id: 'orchard', label: 'Apple orchard', role: 'garden', centerX: -23, centerZ: -35.25, width: 18, depth: 15.5, activeFromLevel: 0 },
+    { id: 'orchard', label: 'Orchard or vineyard parcel', role: 'garden', centerX: -23, centerZ: -35.25, width: 18, depth: 15.5, activeFromLevel: 0 },
     { id: 'apiary', label: 'Bee garden', role: 'garden', centerX: -26, centerZ: -22, width: 11, depth: 7, activeFromLevel: 0 },
-    { id: 'vegetable-garden', label: 'Kitchen vegetable garden', role: 'garden', centerX: -7, centerZ: -18.75, width: 13, depth: 8, activeFromLevel: 0 },
+    { id: 'vegetable-garden', label: 'Enclosed croft', role: 'garden', centerX: -7, centerZ: -18.75, width: 13, depth: 8, activeFromLevel: 0 },
     { id: 'herb-garden', label: 'Physic herb garden', role: 'garden', centerX: 3.5, centerZ: -19, width: 7, depth: 6, activeFromLevel: 0 },
     { id: 'flower-garden', label: 'Pollinator garden', role: 'garden', centerX: -5, centerZ: -29.75, width: 10, depth: 6, activeFromLevel: 0 },
     { id: 'hen-yard', label: 'Chicken yard', role: 'animal-yard', centerX: 26, centerZ: -12, width: 10, depth: 8, activeFromLevel: 0 },
@@ -171,7 +171,7 @@ export function createMonasteryPrecinctPlan(rawLevel: number): MonasteryPrecinct
     { id: 'agricultural-archive', label: 'Agricultural archive and seed vault', role: 'working-building', centerX: 1, centerZ: -37, width: 9, depth: 6, activeFromLevel: 0 },
     { id: 'pasture', label: 'Protected cattle pasture', role: 'pasture', centerX: 19.25, centerZ: -37, width: 26.5, depth: 14, activeFromLevel: 0 },
     { id: 'dairy-upgrade', label: 'Reserved dairy plot', role: 'upgrade-reserve', centerX: 13.5, centerZ: -17, width: 7, depth: 5.5, activeFromLevel: 1 },
-    { id: 'apple-press-upgrade', label: 'Reserved cider-press plot', role: 'upgrade-reserve', centerX: -17, centerZ: -23.5, width: 5, depth: 5, activeFromLevel: 3 },
+    { id: 'apple-press-upgrade', label: 'Reserved fruit-press plot', role: 'upgrade-reserve', centerX: -17, centerZ: -23.5, width: 5, depth: 5, activeFromLevel: 3 },
   ];
 
   const circulation: MonasteryCirculationRun[] = [

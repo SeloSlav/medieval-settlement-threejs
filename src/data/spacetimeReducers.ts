@@ -466,6 +466,20 @@ export async function setStorehousePolicy(
   });
 }
 
+export async function setMonasteryPlanting(
+  buildingId: string,
+  orchardPlanting: number,
+  croftPlanting: number,
+): Promise<void> {
+  const serverId = parseBuildingServerId(buildingId);
+  if (serverId === null) throw new Error('Invalid monastery id.');
+  await callReducer('setMonasteryPlanting', 'set_monastery_planting', {
+    buildingId: serverId,
+    orchardPlanting: orchardPlanting === 1 ? 1 : 0,
+    croftPlanting: croftPlanting === 1 ? 1 : 0,
+  });
+}
+
 export async function placeRemoteWorkCamp(
   worksiteId: string,
   x: number,
